@@ -141,7 +141,8 @@ TEST(ArrayBuffer_ScavengeAndMC) {
 TEST(ArrayBuffer_Compaction) {
   if (!v8_flags.compact) return;
   ManualGCScope manual_gc_scope;
-  v8_flags.manual_evacuation_candidates_selection = true;
+  heap::ManualEvacuationCandidatesSelectionScope
+      manual_evacuation_candidate_selection_scope(manual_gc_scope);
   v8_flags.concurrent_array_buffer_sweeping = false;
   CcTest::InitializeVM();
   LocalContext env;
@@ -447,7 +448,8 @@ TEST(ArrayBuffer_ExternalBackingStoreSizeDecreases) {
 TEST(ArrayBuffer_ExternalBackingStoreSizeIncreasesMarkCompact) {
   if (!v8_flags.compact) return;
   ManualGCScope manual_gc_scope;
-  v8_flags.manual_evacuation_candidates_selection = true;
+  heap::ManualEvacuationCandidatesSelectionScope
+      manual_evacuation_candidate_selection_scope(manual_gc_scope);
   v8_flags.concurrent_array_buffer_sweeping = false;
   CcTest::InitializeVM();
   LocalContext env;

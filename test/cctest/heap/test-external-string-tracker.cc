@@ -98,7 +98,8 @@ TEST(ExternalString_ExternalBackingStoreSizeDecreases) {
 TEST(ExternalString_ExternalBackingStoreSizeIncreasesMarkCompact) {
   if (!v8_flags.compact) return;
   ManualGCScope manual_gc_scope;
-  v8_flags.manual_evacuation_candidates_selection = true;
+  heap::ManualEvacuationCandidatesSelectionScope
+      manual_evacuation_candidate_selection_scope(manual_gc_scope);
   CcTest::InitializeVM();
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();

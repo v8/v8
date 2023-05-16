@@ -4163,7 +4163,9 @@ TEST(EmbedderStatePropagateNativeContextMove) {
     return;
   }
   i::v8_flags.allow_natives_syntax = true;
-  i::v8_flags.manual_evacuation_candidates_selection = true;
+  ManualGCScope manual_gc_scope;
+  heap::ManualEvacuationCandidatesSelectionScope
+      manual_evacuation_candidate_selection_scope(manual_gc_scope);
   LocalContext execution_env;
   i::HandleScope scope(CcTest::i_isolate());
 
@@ -4238,7 +4240,9 @@ TEST(EmbedderStatePropagateNativeContextMove) {
 TEST(ContextFilterMovedNativeContext) {
   if (i::v8_flags.enable_third_party_heap) return;
   i::v8_flags.allow_natives_syntax = true;
-  i::v8_flags.manual_evacuation_candidates_selection = true;
+  ManualGCScope manual_gc_scope;
+  heap::ManualEvacuationCandidatesSelectionScope
+      manual_evacuation_candidate_selection_scope(manual_gc_scope);
   LocalContext env;
   i::HandleScope scope(CcTest::i_isolate());
 

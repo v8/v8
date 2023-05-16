@@ -617,7 +617,8 @@ TEST(BytecodeArray) {
   static const int32_t kParameterCount = 2;
 
   ManualGCScope manual_gc_scope;
-  v8_flags.manual_evacuation_candidates_selection = true;
+  heap::ManualEvacuationCandidatesSelectionScope
+      manual_evacuation_candidate_selection_scope(manual_gc_scope);
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   Heap* heap = isolate->heap();
@@ -3930,7 +3931,8 @@ TEST(LargeObjectSlotRecording) {
   if (!v8_flags.incremental_marking) return;
   if (!v8_flags.compact) return;
   ManualGCScope manual_gc_scope;
-  v8_flags.manual_evacuation_candidates_selection = true;
+  heap::ManualEvacuationCandidatesSelectionScope
+      manual_evacuation_candidate_selection_scope(manual_gc_scope);
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   Heap* heap = isolate->heap();
@@ -4977,7 +4979,8 @@ static void RequestInterrupt(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
 HEAP_TEST(Regress538257) {
   ManualGCScope manual_gc_scope;
-  v8_flags.manual_evacuation_candidates_selection = true;
+  heap::ManualEvacuationCandidatesSelectionScope
+      manual_evacuation_candidate_selection_scope(manual_gc_scope);
   v8::Isolate::CreateParams create_params;
   // Set heap limits.
   create_params.constraints.set_max_young_generation_size_in_bytes(3 * MB);
@@ -5594,9 +5597,10 @@ HEAP_TEST(Regress589413) {
   if (!v8_flags.incremental_marking || v8_flags.stress_concurrent_allocation)
     return;
   v8_flags.stress_compaction = true;
-  v8_flags.manual_evacuation_candidates_selection = true;
-  v8_flags.parallel_compaction = false;
   ManualGCScope manual_gc_scope;
+  heap::ManualEvacuationCandidatesSelectionScope
+      manual_evacuation_candidate_selection_scope(manual_gc_scope);
+  v8_flags.parallel_compaction = false;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
   Heap* heap = CcTest::heap();
@@ -5909,9 +5913,10 @@ class StaticOneByteResource : public v8::String::ExternalOneByteStringResource {
 
 TEST(Regress631969) {
   if (!v8_flags.incremental_marking || v8_flags.separate_gc_phases) return;
-  v8_flags.manual_evacuation_candidates_selection = true;
-  v8_flags.parallel_compaction = false;
   ManualGCScope manual_gc_scope;
+  heap::ManualEvacuationCandidatesSelectionScope
+      manual_evacuation_candidate_selection_scope(manual_gc_scope);
+  v8_flags.parallel_compaction = false;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
   Heap* heap = CcTest::heap();
@@ -6253,6 +6258,9 @@ TEST(RememberedSet_RemoveStaleOnScavenge) {
 TEST(RememberedSet_OldToOld) {
   if (v8_flags.stress_incremental_marking) return;
   v8_flags.stress_concurrent_allocation = false;  // For SealCurrentObjects.
+  ManualGCScope manual_gc_scope;
+  heap::ManualEvacuationCandidatesSelectionScope
+      manual_evacuation_candidate_selection_scope(manual_gc_scope);
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
@@ -6276,7 +6284,6 @@ TEST(RememberedSet_OldToOld) {
     factory->NewFixedArray(100, AllocationType::kOld);
   }
 
-  v8_flags.manual_evacuation_candidates_selection = true;
   heap::ForceEvacuationCandidate(Page::FromHeapObject(*arr));
   const auto prev_location = *arr;
 
@@ -6819,7 +6826,8 @@ TEST(Regress8014) {
 TEST(Regress8617) {
   if (!v8_flags.incremental_marking) return;
   ManualGCScope manual_gc_scope;
-  v8_flags.manual_evacuation_candidates_selection = true;
+  heap::ManualEvacuationCandidatesSelectionScope
+      manual_evacuation_candidate_selection_scope(manual_gc_scope);
   LocalContext env;
   Isolate* isolate = CcTest::i_isolate();
   Heap* heap = isolate->heap();

@@ -807,7 +807,9 @@ UNINITIALIZED_TEST(PromotionMarkCompact) {
 
   v8_flags.stress_concurrent_allocation = false;  // For SealCurrentObjects.
   v8_flags.shared_string_table = true;
-  v8_flags.manual_evacuation_candidates_selection = true;
+  ManualGCScope manual_gc_scope;
+  heap::ManualEvacuationCandidatesSelectionScope
+      manual_evacuation_candidate_selection_scope(manual_gc_scope);
 
   MultiClientIsolateTest test;
   Isolate* i_isolate = test.i_main_isolate();
@@ -940,14 +942,15 @@ UNINITIALIZED_TEST(PromotionMarkCompactNewToShared) {
   if (v8_flags.stress_concurrent_allocation) return;
 
   v8_flags.shared_string_table = true;
-  v8_flags.manual_evacuation_candidates_selection = true;
+  ManualGCScope manual_gc_scope;
+  heap::ManualEvacuationCandidatesSelectionScope
+      manual_evacuation_candidate_selection_scope(manual_gc_scope);
   v8_flags.page_promotion = false;
 
   MultiClientIsolateTest test;
   Isolate* i_isolate = test.i_main_isolate();
   Factory* factory = i_isolate->factory();
   Heap* heap = i_isolate->heap();
-  ManualGCScope manual_gc(i_isolate);
 
   const char raw_one_byte[] = "foo";
 
@@ -994,13 +997,14 @@ UNINITIALIZED_TEST(PromotionMarkCompactOldToShared) {
   }
 
   v8_flags.shared_string_table = true;
-  v8_flags.manual_evacuation_candidates_selection = true;
+  ManualGCScope manual_gc_scope;
+  heap::ManualEvacuationCandidatesSelectionScope
+      manual_evacuation_candidate_selection_scope(manual_gc_scope);
 
   MultiClientIsolateTest test;
   Isolate* i_isolate = test.i_main_isolate();
   Factory* factory = i_isolate->factory();
   Heap* heap = i_isolate->heap();
-  ManualGCScope manual_gc(i_isolate);
 
   const char raw_one_byte[] = "foo";
 
@@ -1053,13 +1057,14 @@ UNINITIALIZED_TEST(PagePromotionRecordingOldToShared) {
   if (v8_flags.stress_concurrent_allocation) return;
 
   v8_flags.shared_string_table = true;
-  v8_flags.manual_evacuation_candidates_selection = true;
+  ManualGCScope manual_gc_scope;
+  heap::ManualEvacuationCandidatesSelectionScope
+      manual_evacuation_candidate_selection_scope(manual_gc_scope);
 
   MultiClientIsolateTest test;
   Isolate* i_isolate = test.i_main_isolate();
   Factory* factory = i_isolate->factory();
   Heap* heap = i_isolate->heap();
-  ManualGCScope manual_gc(i_isolate);
 
   const char raw_one_byte[] = "foo";
 
@@ -2164,7 +2169,9 @@ UNINITIALIZED_TEST(RegisterOldToSharedForPromotedPageFromClient) {
 
   v8_flags.stress_concurrent_allocation = false;  // For SealCurrentObjects.
   v8_flags.shared_string_table = true;
-  v8_flags.manual_evacuation_candidates_selection = true;
+  ManualGCScope manual_gc_scope;
+  heap::ManualEvacuationCandidatesSelectionScope
+      manual_evacuation_candidate_selection_scope(manual_gc_scope);
 
   MultiClientIsolateTest test;
   std::atomic<bool> done = false;
@@ -2202,7 +2209,9 @@ UNINITIALIZED_TEST(
 
   v8_flags.stress_concurrent_allocation = false;  // For SealCurrentObjects.
   v8_flags.shared_string_table = true;
-  v8_flags.manual_evacuation_candidates_selection = true;
+  ManualGCScope manual_gc_scope;
+  heap::ManualEvacuationCandidatesSelectionScope
+      manual_evacuation_candidate_selection_scope(manual_gc_scope);
   v8_flags.incremental_marking_task =
       false;  // Prevent the incremental GC from finishing and finalizing in a
               // task.
@@ -2224,7 +2233,6 @@ UNINITIALIZED_TEST(
 
   // Start an incremental shared GC such that shared_string resides on an
   // evacuation candidate.
-  ManualGCScope manual_gc_scope(shared_isolate);
   heap::ForceEvacuationCandidate(Page::FromHeapObject(*shared_string));
   i::IncrementalMarking* marking = shared_heap->incremental_marking();
   CHECK(marking->IsStopped());
@@ -2359,7 +2367,9 @@ UNINITIALIZED_TEST(SharedObjectRetainedByClientRememberedSet) {
 
   v8_flags.stress_concurrent_allocation = false;  // For SealCurrentObjects.
   v8_flags.shared_string_table = true;
-  v8_flags.manual_evacuation_candidates_selection = true;
+  ManualGCScope manual_gc_scope;
+  heap::ManualEvacuationCandidatesSelectionScope
+      manual_evacuation_candidate_selection_scope(manual_gc_scope);
 
   MultiClientIsolateTest test;
   std::atomic<bool> done = false;

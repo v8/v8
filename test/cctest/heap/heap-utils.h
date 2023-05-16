@@ -6,7 +6,9 @@
 #define HEAP_HEAP_UTILS_H_
 
 #include "src/api/api-inl.h"
+#include "src/flags/flags.h"
 #include "src/heap/heap.h"
+#include "test/cctest/cctest.h"
 
 namespace v8::internal::heap {
 
@@ -70,6 +72,22 @@ bool InCorrectGeneration(v8::Isolate* isolate,
   auto tmp = global.Get(isolate);
   return InCorrectGeneration(*v8::Utils::OpenHandle(*tmp));
 }
+
+class ManualEvacuationCandidatesSelectionScope {
+ public:
+  // Marking a page as an evacuation candidate update the page flags which may
+  // race with reading the page flag during concurrent marking.
+  explicit ManualEvacuationCandidatesSelectionScope(ManualGCScope&) {
+    DCHECK(!v8_flags.manual_evacuation_candidates_selection);
+    v8_flags.manual_evacuation_candidates_selection = true;
+  }
+  ~ManualEvacuationCandidatesSelectionScope() {
+    DCHECK(v8_flags.manual_evacuation_candidates_selection);
+    v8_flags.manual_evacuation_candidates_selection = false;
+  }
+
+ private:
+};
 
 }  // namespace v8::internal::heap
 

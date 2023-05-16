@@ -47,7 +47,8 @@ HEAP_TEST(CompactionFullAbortedPage) {
   // Disable concurrent sweeping to ensure memory is in an expected state, i.e.,
   // we can reach the state of a half aborted page.
   ManualGCScope manual_gc_scope;
-  v8_flags.manual_evacuation_candidates_selection = true;
+  heap::ManualEvacuationCandidatesSelectionScope
+      manual_evacuation_candidate_selection_scope(manual_gc_scope);
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   Heap* heap = isolate->heap();
@@ -112,7 +113,8 @@ HEAP_TEST(CompactionPartiallyAbortedPage) {
   // Disable concurrent sweeping to ensure memory is in an expected state, i.e.,
   // we can reach the state of a half aborted page.
   ManualGCScope manual_gc_scope;
-  v8_flags.manual_evacuation_candidates_selection = true;
+  heap::ManualEvacuationCandidatesSelectionScope
+      manual_evacuation_candidate_selection_scope(manual_gc_scope);
 
   const int objects_per_page = 10;
   const int object_size = GetObjectSize(objects_per_page);
@@ -197,7 +199,8 @@ HEAP_TEST(CompactionPartiallyAbortedPageIntraAbortedPointers) {
   // Disable concurrent sweeping to ensure memory is in an expected state, i.e.,
   // we can reach the state of a half aborted page.
   ManualGCScope manual_gc_scope;
-  v8_flags.manual_evacuation_candidates_selection = true;
+  heap::ManualEvacuationCandidatesSelectionScope
+      manual_evacuation_candidate_selection_scope(manual_gc_scope);
 
   const int objects_per_page = 10;
   const int object_size = GetObjectSize(objects_per_page);
@@ -300,7 +303,8 @@ HEAP_TEST(CompactionPartiallyAbortedPageWithRememberedSetEntries) {
   // Disable concurrent sweeping to ensure memory is in an expected state, i.e.,
   // we can reach the state of a half aborted page.
   ManualGCScope manual_gc_scope;
-  v8_flags.manual_evacuation_candidates_selection = true;
+  heap::ManualEvacuationCandidatesSelectionScope
+      manual_evacuation_candidate_selection_scope(manual_gc_scope);
 
   const int objects_per_page = 10;
   const int object_size = GetObjectSize(objects_per_page);

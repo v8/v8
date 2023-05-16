@@ -1805,7 +1805,9 @@ TEST(NativeSnapshotObjectId) {
 TEST(NativeSnapshotObjectIdMoving) {
   if (i::v8_flags.enable_third_party_heap) return;
   // Required to allow moving specific objects.
-  i::v8_flags.manual_evacuation_candidates_selection = true;
+  ManualGCScope manual_gc_scope;
+  i::heap::ManualEvacuationCandidatesSelectionScope
+      manual_evacuation_candidate_selection_scope(manual_gc_scope);
   // Concurrent allocation writes page flags in a racy way.
   i::v8_flags.stress_concurrent_allocation = false;
 

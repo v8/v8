@@ -507,8 +507,9 @@ UNINITIALIZED_TEST(ConcurrentRecordRelocSlot) {
     // The test requires concurrent marking barrier.
     return;
   }
-  v8_flags.manual_evacuation_candidates_selection = true;
   ManualGCScope manual_gc_scope;
+  heap::ManualEvacuationCandidatesSelectionScope
+      manual_evacuation_candidate_selection_scope(manual_gc_scope);
 
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
