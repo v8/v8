@@ -379,8 +379,8 @@ void Sweeper::LocalSweeper::ParallelIteratePromotedPageForRememberedSets(
       Page::ConcurrentSweepingState::kInProgress);
   DCHECK(sweeper_->should_iterate_promoted_pages_);
   sweeper_->RawIteratePromotedPageForRememberedSets(chunk);
+  sweeper_->NotifyPromotedPageIterationFinished(chunk);
   DCHECK(chunk->SweepingDone());
-  sweeper_->IncrementAndNotifyPromotedPagesIterationFinishedIfNeeded();
 }
 
 void Sweeper::LocalSweeper::CleanPromotedPages() {
@@ -391,6 +391,11 @@ void Sweeper::LocalSweeper::CleanPromotedPages() {
   for (MemoryChunk* chunk : promoted_pages) {
     sweeper_->marking_state_->ClearLiveness(chunk);
     chunk->set_concurrent_sweeping_state(Page::ConcurrentSweepingState::kDone);
+  }
+  {
+    // Notify in case main thread was waiting for some page to be swept.
+    base::MutexGuard guard(&sweeper_->mutex_);
+    sweeper_->cv_page_swept_.NotifyAll();
   }
   DCHECK_EQ(0u, sweeper_->iterated_promoted_pages_count_);
   sweeper_->iterated_promoted_pages_count_ = promoted_pages.size();
@@ -985,7 +990,6 @@ void Sweeper::RawIteratePromotedPageForRememberedSets(MemoryChunk* chunk) {
     HandleFreeSpace(free_start, chunk->area_end(), heap_);
   }
   marking_state_->ClearLiveness(chunk);
-  chunk->set_concurrent_sweeping_state(Page::ConcurrentSweepingState::kDone);
 }
 
 bool Sweeper::IsIteratingPromotedPages() const {
@@ -996,10 +1000,13 @@ void Sweeper::ContributeAndWaitForPromotedPagesIteration() {
   main_thread_local_sweeper_.ContributeAndWaitForPromotedPagesIteration();
 }
 
-void Sweeper::IncrementAndNotifyPromotedPagesIterationFinishedIfNeeded() {
-  if (++iterated_promoted_pages_count_ < promoted_pages_for_iteration_count_)
-    return;
-  NotifyPromotedPagesIterationFinished();
+void Sweeper::NotifyPromotedPageIterationFinished(MemoryChunk* chunk) {
+  if (++iterated_promoted_pages_count_ == promoted_pages_for_iteration_count_) {
+    NotifyPromotedPagesIterationFinished();
+  }
+  chunk->set_concurrent_sweeping_state(Page::ConcurrentSweepingState::kDone);
+  base::MutexGuard guard(&mutex_);
+  cv_page_swept_.NotifyAll();
 }
 
 void Sweeper::NotifyPromotedPagesIterationFinished() {
@@ -1051,7 +1058,12 @@ void Sweeper::EnsurePageIsSwept(Page* page) {
       // Page was successfully removed and can now be swept.
       main_thread_local_sweeper_.ParallelSweepPage(
           page, space, SweepingMode::kLazyOrConcurrent);
-    } else {
+    } else if (TryRemovePromotedPageSafe(page)) {
+      // Page was successfully removed and can now be swept.
+      main_thread_local_sweeper_.ParallelIteratePromotedPageForRememberedSets(
+          page);
+    }
+    {
       // Some sweeper task already took ownership of that page, wait until
       // sweeping is finished.
       WaitForPageToBeSwept(page);
@@ -1086,6 +1098,17 @@ bool Sweeper::TryRemoveSweepingPageSafe(AllocationSpace space, Page* page) {
     has_sweeping_work_[GetSweepSpaceIndex(space)].store(
         false, std::memory_order_release);
   }
+  return true;
+}
+
+bool Sweeper::TryRemovePromotedPageSafe(MemoryChunk* chunk) {
+  base::MutexGuard guard(&mutex_);
+  auto position =
+      std::find(sweeping_list_for_promoted_page_iteration_.begin(),
+                sweeping_list_for_promoted_page_iteration_.end(), chunk);
+  if (position == sweeping_list_for_promoted_page_iteration_.end())
+    return false;
+  sweeping_list_for_promoted_page_iteration_.erase(position);
   return true;
 }
 

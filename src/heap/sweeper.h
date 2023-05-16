@@ -248,6 +248,7 @@ class Sweeper {
   MemoryChunk* GetPromotedPageForIterationSafe();
   std::vector<MemoryChunk*> GetAllPromotedPagesForIterationSafe();
   bool TryRemoveSweepingPageSafe(AllocationSpace space, Page* page);
+  bool TryRemovePromotedPageSafe(MemoryChunk* chunk);
 
   void PrepareToBeSweptPage(AllocationSpace space, Page* page);
 
@@ -260,7 +261,7 @@ class Sweeper {
     return space - FIRST_SWEEPABLE_SPACE;
   }
 
-  void IncrementAndNotifyPromotedPagesIterationFinishedIfNeeded();
+  void NotifyPromotedPageIterationFinished(MemoryChunk* chunk);
   void NotifyPromotedPagesIterationFinished();
 
   void AddSweptPage(Page* page, AllocationSpace identity);
