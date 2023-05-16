@@ -6519,12 +6519,8 @@ class Call : public ValueNodeT<Call> {
   // This ctor is used when for variable input counts.
   // Inputs must be initialized manually.
   Call(uint64_t bitfield, ConvertReceiverMode mode, TargetType target_type,
-       const compiler::FeedbackSource& feedback, ValueNode* function,
-       ValueNode* context)
-      : Base(bitfield),
-        receiver_mode_(mode),
-        target_type_(target_type),
-        feedback_(feedback) {
+       ValueNode* function, ValueNode* context)
+      : Base(bitfield), receiver_mode_(mode), target_type_(target_type) {
     set_input(kFunctionIndex, function);
     set_input(kContextIndex, context);
   }
@@ -6543,8 +6539,6 @@ class Call : public ValueNodeT<Call> {
   auto args_begin() { return std::make_reverse_iterator(&arg(-1)); }
   auto args_end() { return std::make_reverse_iterator(&arg(num_args() - 1)); }
 
-  compiler::FeedbackSource feedback() const { return feedback_; }
-
   void VerifyInputs(MaglevGraphLabeller* graph_labeller) const;
   void MarkTaggedInputsAsDecompressing();
   int MaxCallStackArgs() const;
@@ -6555,7 +6549,6 @@ class Call : public ValueNodeT<Call> {
  private:
   ConvertReceiverMode receiver_mode_;
   TargetType target_type_;
-  const compiler::FeedbackSource feedback_;
 };
 
 class Construct : public ValueNodeT<Construct> {
@@ -6769,9 +6762,8 @@ class CallWithSpread : public ValueNodeT<CallWithSpread> {
 
   // This ctor is used when for variable input counts.
   // Inputs must be initialized manually.
-  CallWithSpread(uint64_t bitfield, compiler::FeedbackSource feedback,
-                 ValueNode* function, ValueNode* context)
-      : Base(bitfield), feedback_(feedback) {
+  CallWithSpread(uint64_t bitfield, ValueNode* function, ValueNode* context)
+      : Base(bitfield) {
     set_input(kFunctionIndex, function);
     set_input(kContextIndex, context);
   }
@@ -6800,7 +6792,6 @@ class CallWithSpread : public ValueNodeT<CallWithSpread> {
     return input(input_count() - 1);
   }
   Input& receiver() { return arg(0); }
-  compiler::FeedbackSource feedback() const { return feedback_; }
 
   void VerifyInputs(MaglevGraphLabeller* graph_labeller) const;
   void MarkTaggedInputsAsDecompressing();
@@ -6808,9 +6799,6 @@ class CallWithSpread : public ValueNodeT<CallWithSpread> {
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
-
- private:
-  const compiler::FeedbackSource feedback_;
 };
 
 class CallWithArrayLike : public FixedInputValueNodeT<4, CallWithArrayLike> {

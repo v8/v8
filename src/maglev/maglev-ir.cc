@@ -3686,17 +3686,9 @@ void StoreFixedArrayElementNoWriteBarrier::GenerateCode(
 
 int Call::MaxCallStackArgs() const { return num_args(); }
 void Call::SetValueLocationConstraints() {
-  // TODO(leszeks): Consider splitting Call into with- and without-feedback
-  // opcodes, rather than checking for feedback validity.
-  if (feedback_.IsValid()) {
-    using D = CallTrampoline_WithFeedbackDescriptor;
-    UseFixed(function(), D::GetRegisterParameter(D::kFunction));
-    UseFixed(arg(0), D::GetRegisterParameter(D::kReceiver));
-  } else {
-    using D = CallTrampolineDescriptor;
-    UseFixed(function(), D::GetRegisterParameter(D::kFunction));
-    UseAny(arg(0));
-  }
+  using D = CallTrampolineDescriptor;
+  UseFixed(function(), D::GetRegisterParameter(D::kFunction));
+  UseAny(arg(0));
   for (int i = 1; i < num_args(); i++) {
     UseAny(arg(i));
   }
@@ -3707,40 +3699,15 @@ void Call::SetValueLocationConstraints() {
 void Call::GenerateCode(MaglevAssembler* masm, const ProcessingState& state) {
   // TODO(leszeks): Port the nice Sparkplug CallBuiltin helper.
 #ifdef DEBUG
-  if (feedback_.IsValid()) {
-    using D = CallTrampoline_WithFeedbackDescriptor;
-    DCHECK_EQ(ToRegister(function()), D::GetRegisterParameter(D::kFunction));
-    DCHECK_EQ(ToRegister(arg(0)), D::GetRegisterParameter(D::kReceiver));
-  } else {
-    using D = CallTrampolineDescriptor;
-    DCHECK_EQ(ToRegister(function()), D::GetRegisterParameter(D::kFunction));
-  }
+  using D = CallTrampolineDescriptor;
+  DCHECK_EQ(ToRegister(function()), D::GetRegisterParameter(D::kFunction));
 #endif
   DCHECK_EQ(ToRegister(context()), kContextRegister);
 
   __ PushReverse(base::make_iterator_range(args_begin(), args_end()));
 
   uint32_t arg_count = num_args();
-  if (feedback_.IsValid()) {
-    DCHECK_EQ(TargetType::kAny, target_type_);
-    using D = CallTrampoline_WithFeedbackDescriptor;
-    __ Move(D::GetRegisterParameter(D::kActualArgumentsCount), arg_count);
-    __ Move(D::GetRegisterParameter(D::kFeedbackVector), feedback().vector);
-    __ Move(D::GetRegisterParameter(D::kSlot), feedback().index());
-
-    switch (receiver_mode_) {
-      case ConvertReceiverMode::kNullOrUndefined:
-        __ CallBuiltin(Builtin::kCall_ReceiverIsNullOrUndefined_WithFeedback);
-        break;
-      case ConvertReceiverMode::kNotNullOrUndefined:
-        __ CallBuiltin(
-            Builtin::kCall_ReceiverIsNotNullOrUndefined_WithFeedback);
-        break;
-      case ConvertReceiverMode::kAny:
-        __ CallBuiltin(Builtin::kCall_ReceiverIsAny_WithFeedback);
-        break;
-    }
-  } else if (target_type_ == TargetType::kAny) {
+  if (target_type_ == TargetType::kAny) {
     using D = CallTrampolineDescriptor;
     __ Move(D::GetRegisterParameter(D::kActualArgumentsCount), arg_count);
 
@@ -3997,26 +3964,13 @@ void CallRuntime::GenerateCode(MaglevAssembler* masm,
 
 int CallWithSpread::MaxCallStackArgs() const {
   int argc_no_spread = num_args() - 1;
-  if (feedback_.IsValid()) {
-    using D =
-        CallInterfaceDescriptorFor<Builtin::kCallWithSpread_WithFeedback>::type;
-    return argc_no_spread + D::GetStackParameterCount();
-  } else {
-    using D = CallInterfaceDescriptorFor<Builtin::kCallWithSpread>::type;
-    return argc_no_spread + D::GetStackParameterCount();
-  }
+  using D = CallInterfaceDescriptorFor<Builtin::kCallWithSpread>::type;
+  return argc_no_spread + D::GetStackParameterCount();
 }
 void CallWithSpread::SetValueLocationConstraints() {
-  if (feedback_.IsValid()) {
-    using D =
-        CallInterfaceDescriptorFor<Builtin::kCallWithSpread_WithFeedback>::type;
-    UseFixed(function(), D::GetRegisterParameter(D::kTarget));
-    UseFixed(spread(), D::GetRegisterParameter(D::kSpread));
-  } else {
-    using D = CallInterfaceDescriptorFor<Builtin::kCallWithSpread>::type;
-    UseFixed(function(), D::GetRegisterParameter(D::kTarget));
-    UseFixed(spread(), D::GetRegisterParameter(D::kSpread));
-  }
+  using D = CallInterfaceDescriptorFor<Builtin::kCallWithSpread>::type;
+  UseFixed(function(), D::GetRegisterParameter(D::kTarget));
+  UseFixed(spread(), D::GetRegisterParameter(D::kSpread));
   UseFixed(context(), kContextRegister);
   for (int i = 0; i < num_args() - 1; i++) {
     UseAny(arg(i));
@@ -4026,42 +3980,16 @@ void CallWithSpread::SetValueLocationConstraints() {
 void CallWithSpread::GenerateCode(MaglevAssembler* masm,
                                   const ProcessingState& state) {
 #ifdef DEBUG
-  if (feedback_.IsValid()) {
-    using D =
-        CallInterfaceDescriptorFor<Builtin::kCallWithSpread_WithFeedback>::type;
-    DCHECK_EQ(ToRegister(function()), D::GetRegisterParameter(D::kTarget));
-    DCHECK_EQ(ToRegister(spread()), D::GetRegisterParameter(D::kSpread));
-  } else {
-    using D = CallInterfaceDescriptorFor<Builtin::kCallWithSpread>::type;
-    DCHECK_EQ(ToRegister(function()), D::GetRegisterParameter(D::kTarget));
-    DCHECK_EQ(ToRegister(spread()), D::GetRegisterParameter(D::kSpread));
-  }
+  using D = CallInterfaceDescriptorFor<Builtin::kCallWithSpread>::type;
+  DCHECK_EQ(ToRegister(function()), D::GetRegisterParameter(D::kTarget));
+  DCHECK_EQ(ToRegister(spread()), D::GetRegisterParameter(D::kSpread));
   DCHECK_EQ(ToRegister(context()), kContextRegister);
 #endif
-
-  if (feedback_.IsValid()) {
-    using D =
-        CallInterfaceDescriptorFor<Builtin::kCallWithSpread_WithFeedback>::type;
-    __ PushReverse(base::make_iterator_range(args_no_spread_begin(),
-                                             args_no_spread_end()));
-    // Receiver needs to be pushed (aligned) separately as it is consumed by
-    // CallWithSpread_WithFeedback directly while the other arguments on the
-    // stack are passed through to CallWithSpread.
-    static_assert(D::GetStackParameterIndex(D::kReceiver) == 0);
-    static_assert(D::GetStackParameterCount() == 1);
-    __ Push(receiver());
-
-    __ Move(D::GetRegisterParameter(D::kArgumentsCount), num_args_no_spread());
-    __ Move(D::GetRegisterParameter(D::kFeedbackVector), feedback().vector);
-    __ Move(D::GetRegisterParameter(D::kSlot), feedback().index());
-    __ CallBuiltin(Builtin::kCallWithSpread_WithFeedback);
-  } else {
-    using D = CallInterfaceDescriptorFor<Builtin::kCallWithSpread>::type;
-    __ PushReverse(base::make_iterator_range(args_no_spread_begin(),
-                                             args_no_spread_end()));
-    __ Move(D::GetRegisterParameter(D::kArgumentsCount), num_args_no_spread());
-    __ CallBuiltin(Builtin::kCallWithSpread);
-  }
+  using D = CallInterfaceDescriptorFor<Builtin::kCallWithSpread>::type;
+  __ PushReverse(
+      base::make_iterator_range(args_no_spread_begin(), args_no_spread_end()));
+  __ Move(D::GetRegisterParameter(D::kArgumentsCount), num_args_no_spread());
+  __ CallBuiltin(Builtin::kCallWithSpread);
 
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }

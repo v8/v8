@@ -5276,20 +5276,16 @@ ReduceResult MaglevGraphBuilder::TryReduceFunctionPrototypeCall(
   }
   ValueNode* receiver = GetTaggedOrUndefined(args.receiver());
   args.PopReceiver(ConvertReceiverMode::kAny);
-  if (compiler::OptionalHeapObjectRef constant = TryGetConstant(receiver)) {
-    compiler::HeapObjectRef object = constant.value();
-    if (object.IsJSFunction()) {
-      // Reset speculation feedback source to no feedback.
-      compiler::FeedbackSource source = current_speculation_feedback_;
-      current_speculation_feedback_ = compiler::FeedbackSource();
-      const compiler::ProcessedFeedback& processed_feedback =
-          broker()->GetFeedbackForCall(source);
-      DCHECK_EQ(processed_feedback.kind(), compiler::ProcessedFeedback::kCall);
-      const compiler::CallFeedback& call_feedback = processed_feedback.AsCall();
-      return ReduceCall(object, args, source, call_feedback.speculation_mode());
-    }
-  }
-  return BuildGenericCall(receiver, Call::TargetType::kAny, args);
+
+  // Reset speculation feedback source to no feedback.
+  compiler::FeedbackSource source = current_speculation_feedback_;
+  current_speculation_feedback_ = compiler::FeedbackSource();
+  const compiler::ProcessedFeedback& processed_feedback =
+      broker()->GetFeedbackForCall(source);
+  DCHECK_EQ(processed_feedback.kind(), compiler::ProcessedFeedback::kCall);
+  const compiler::CallFeedback& call_feedback = processed_feedback.AsCall();
+  BuildCall(receiver, args, source, call_feedback.speculation_mode());
+  return ReduceResult::Done();
 }
 
 ReduceResult MaglevGraphBuilder::TryReduceArrayPrototypePush(
@@ -5616,9 +5612,9 @@ CallNode* MaglevGraphBuilder::AddNewCallNode(const CallArguments& args,
       std::forward<Args>(extra_args)...);
 }
 
-ValueNode* MaglevGraphBuilder::BuildGenericCall(
-    ValueNode* target, Call::TargetType target_type, const CallArguments& args,
-    const compiler::FeedbackSource& feedback_source) {
+ValueNode* MaglevGraphBuilder::BuildGenericCall(ValueNode* target,
+                                                Call::TargetType target_type,
+                                                const CallArguments& args) {
   // TODO(victorgomes): We do not collect call feedback from optimized/inlined
   // calls. In order to be consistent, we don't pass the feedback_source to the
   // IR, so that we avoid collecting for generic calls as well. We might want to
@@ -5626,12 +5622,10 @@ ValueNode* MaglevGraphBuilder::BuildGenericCall(
   switch (args.mode()) {
     case CallArguments::kDefault:
       return AddNewCallNode<Call>(args, args.receiver_mode(), target_type,
-                                  compiler::FeedbackSource(), target,
-                                  GetContext());
+                                  target, GetContext());
     case CallArguments::kWithSpread:
       DCHECK_EQ(args.receiver_mode(), ConvertReceiverMode::kAny);
-      return AddNewCallNode<CallWithSpread>(args, compiler::FeedbackSource(),
-                                            target, GetContext());
+      return AddNewCallNode<CallWithSpread>(args, target, GetContext());
     case CallArguments::kWithArrayLike:
       DCHECK_EQ(args.receiver_mode(), ConvertReceiverMode::kAny);
       return AddNewNode<CallWithArrayLike>(
@@ -5786,7 +5780,7 @@ ReduceResult MaglevGraphBuilder::BuildCheckValue(ValueNode* node,
 }
 
 ReduceResult MaglevGraphBuilder::ReduceCall(
-    compiler::ObjectRef object, CallArguments& args,
+    compiler::JSFunctionRef target, CallArguments& args,
     const compiler::FeedbackSource& feedback_source,
     SpeculationMode speculation_mode) {
   if (args.mode() != CallArguments::kDefault) {
@@ -5794,10 +5788,6 @@ ReduceResult MaglevGraphBuilder::ReduceCall(
     // directly if arguments list is an array.
     return ReduceResult::Fail();
   }
-  if (!object.IsJSFunction()) {
-    return BuildGenericCall(GetConstant(object), Call::TargetType::kAny, args);
-  }
-  compiler::JSFunctionRef target = object.AsJSFunction();
   compiler::SharedFunctionInfoRef shared = target.shared(broker());
   ValueNode* target_node = GetConstant(target);
   // Do not reduce calls to functions with break points.
@@ -5888,8 +5878,9 @@ ReduceResult MaglevGraphBuilder::ReduceFunctionPrototypeApplyCallWithReceiver(
   //                   feedback_source, speculation_mode);
 }
 
-void MaglevGraphBuilder::BuildCall(ValueNode* target_node, CallArguments& args,
-                                   compiler::FeedbackSource& feedback_source) {
+void MaglevGraphBuilder::BuildCallWithFeedback(
+    ValueNode* target_node, CallArguments& args,
+    const compiler::FeedbackSource& feedback_source) {
   const compiler::ProcessedFeedback& processed_feedback =
       broker()->GetFeedbackForCall(feedback_source);
   if (processed_feedback.IsInsufficient()) {
@@ -5899,23 +5890,40 @@ void MaglevGraphBuilder::BuildCall(ValueNode* target_node, CallArguments& args,
 
   DCHECK_EQ(processed_feedback.kind(), compiler::ProcessedFeedback::kCall);
   const compiler::CallFeedback& call_feedback = processed_feedback.AsCall();
+
   if (call_feedback.target().has_value() &&
       call_feedback.target()->IsJSFunction()) {
     CallFeedbackContent content = call_feedback.call_feedback_content();
-    compiler::JSFunctionRef function = call_feedback.target()->AsJSFunction();
-    ReduceResult result;
-    if (content == CallFeedbackContent::kTarget) {
-      result = ReduceCallForTarget(target_node, function, args, feedback_source,
-                                   call_feedback.speculation_mode());
+    compiler::JSFunctionRef feedback_target =
+        call_feedback.target()->AsJSFunction();
+    if (content == CallFeedbackContent::kReceiver) {
+      // TODO(verwaest): Actually implement
+      // FunctionPrototypeApplyCallWithReceiver.
+      compiler::NativeContextRef native_context =
+          broker()->target_native_context();
+      feedback_target = native_context.function_prototype_apply(broker());
     } else {
-      DCHECK_EQ(content, CallFeedbackContent::kReceiver);
-      // We only collect receiver feedback for FunctionPrototypeApply.
-      // See CollectCallFeedback in ic-callable.tq
-      result = ReduceFunctionPrototypeApplyCallWithReceiver(
-          target_node, function, args, feedback_source,
-          call_feedback.speculation_mode());
+      DCHECK_EQ(CallFeedbackContent::kTarget, content);
     }
-    PROCESS_AND_RETURN_IF_DONE(result, SetAccumulator);
+    RETURN_VOID_IF_ABORT(BuildCheckValue(target_node, feedback_target));
+  }
+
+  BuildCall(target_node, args, feedback_source,
+            call_feedback.speculation_mode());
+}
+
+void MaglevGraphBuilder::BuildCall(
+    ValueNode* target_node, CallArguments& args,
+    const compiler::FeedbackSource& feedback_source,
+    SpeculationMode speculation_mode) {
+  if (compiler::OptionalHeapObjectRef maybe_constant =
+          TryGetConstant(target_node)) {
+    if (maybe_constant->IsJSFunction()) {
+      ReduceResult result =
+          ReduceCallForTarget(target_node, maybe_constant->AsJSFunction(), args,
+                              feedback_source, speculation_mode);
+      PROCESS_AND_RETURN_IF_DONE(result, SetAccumulator);
+    }
   }
 
   // If the implementation here becomes more complex, we could probably
@@ -5927,7 +5935,7 @@ void MaglevGraphBuilder::BuildCall(ValueNode* target_node, CallArguments& args,
         create_closure, create_closure->context().node(),
         create_closure->shared_function_info(),
         create_closure->feedback_cell().feedback_vector(broker()), args,
-        feedback_source, call_feedback.speculation_mode());
+        feedback_source, speculation_mode);
     PROCESS_AND_RETURN_IF_DONE(result, SetAccumulator);
   } else if (CreateClosure* create_closure =
                  target_node->TryCast<CreateClosure>()) {
@@ -5935,13 +5943,12 @@ void MaglevGraphBuilder::BuildCall(ValueNode* target_node, CallArguments& args,
         create_closure, create_closure->context().node(),
         create_closure->shared_function_info(),
         create_closure->feedback_cell().feedback_vector(broker()), args,
-        feedback_source, call_feedback.speculation_mode());
+        feedback_source, speculation_mode);
     PROCESS_AND_RETURN_IF_DONE(result, SetAccumulator);
   }
 
   // On fallthrough, create a generic call.
-  SetAccumulator(BuildGenericCall(target_node, Call::TargetType::kAny, args,
-                                  feedback_source));
+  SetAccumulator(BuildGenericCall(target_node, Call::TargetType::kAny, args));
 }
 
 void MaglevGraphBuilder::BuildCallFromRegisterList(
@@ -5951,7 +5958,7 @@ void MaglevGraphBuilder::BuildCallFromRegisterList(
   FeedbackSlot slot = GetSlotOperand(3);
   compiler::FeedbackSource feedback_source(feedback(), slot);
   CallArguments args(receiver_mode, reg_list, current_interpreter_frame_);
-  BuildCall(target, args, feedback_source);
+  BuildCallWithFeedback(target, args, feedback_source);
 }
 
 void MaglevGraphBuilder::BuildCallFromRegisters(
@@ -5966,24 +5973,24 @@ void MaglevGraphBuilder::BuildCallFromRegisters(
     case 0: {
       DCHECK_EQ(receiver_mode, ConvertReceiverMode::kNullOrUndefined);
       CallArguments args(receiver_mode);
-      BuildCall(target, args, feedback_source);
+      BuildCallWithFeedback(target, args, feedback_source);
       break;
     }
     case 1: {
       CallArguments args(receiver_mode, {LoadRegisterRaw(1)});
-      BuildCall(target, args, feedback_source);
+      BuildCallWithFeedback(target, args, feedback_source);
       break;
     }
     case 2: {
       CallArguments args(receiver_mode,
                          {LoadRegisterRaw(1), LoadRegisterRaw(2)});
-      BuildCall(target, args, feedback_source);
+      BuildCallWithFeedback(target, args, feedback_source);
       break;
     }
     case 3: {
       CallArguments args(receiver_mode, {LoadRegisterRaw(1), LoadRegisterRaw(2),
                                          LoadRegisterRaw(3)});
-      BuildCall(target, args, feedback_source);
+      BuildCallWithFeedback(target, args, feedback_source);
       break;
     }
     default:
@@ -6026,7 +6033,7 @@ void MaglevGraphBuilder::VisitCallWithSpread() {
   compiler::FeedbackSource feedback_source(feedback(), slot);
   CallArguments args(ConvertReceiverMode::kAny, reglist,
                      current_interpreter_frame_, CallArguments::kWithSpread);
-  BuildCall(function, args, feedback_source);
+  BuildCallWithFeedback(function, args, feedback_source);
 }
 
 void MaglevGraphBuilder::VisitCallRuntime() {
@@ -6691,10 +6698,17 @@ ReduceResult MaglevGraphBuilder::TryBuildFastInstanceOf(
       // ToBoolean before returning to the interpreter.
       LazyDeoptFrameScope continuation_scope(
           this, Builtin::kToBooleanLazyDeoptContinuation);
-      ReduceResult result = ReduceCall(*has_instance_field, args);
+
+      if (has_instance_field->IsJSFunction()) {
+        ReduceResult result =
+            ReduceCall(has_instance_field->AsJSFunction(), args);
+        DCHECK(!result.IsDoneWithAbort());
+        call_result = result.value();
+      } else {
+        call_result = BuildGenericCall(GetConstant(*has_instance_field),
+                                       Call::TargetType::kAny, args);
+      }
       // TODO(victorgomes): Propagate the case if we need to soft deopt.
-      DCHECK(!result.IsDoneWithAbort());
-      call_result = result.value();
     }
 
     BuildToBoolean(GetTaggedValue(call_result));

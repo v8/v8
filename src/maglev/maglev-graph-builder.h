@@ -1494,11 +1494,9 @@ class MaglevGraphBuilder {
       compiler::OptionalFeedbackVectorRef feedback_vector, CallArguments& args,
       const compiler::FeedbackSource& feedback_source);
   ValueNode* BuildGenericCall(ValueNode* target, Call::TargetType target_type,
-                              const CallArguments& args,
-                              const compiler::FeedbackSource& feedback_source =
-                                  compiler::FeedbackSource());
+                              const CallArguments& args);
   ReduceResult ReduceCall(
-      compiler::ObjectRef target, CallArguments& args,
+      compiler::JSFunctionRef target, CallArguments& args,
       const compiler::FeedbackSource& feedback_source =
           compiler::FeedbackSource(),
       SpeculationMode speculation_mode = SpeculationMode::kDisallowSpeculation);
@@ -1517,7 +1515,10 @@ class MaglevGraphBuilder {
       CallArguments& args, const compiler::FeedbackSource& feedback_source,
       SpeculationMode speculation_mode);
   void BuildCall(ValueNode* target_node, CallArguments& args,
-                 compiler::FeedbackSource& feedback_source);
+                 const compiler::FeedbackSource& feedback_source,
+                 SpeculationMode speculation_mode);
+  void BuildCallWithFeedback(ValueNode* target_node, CallArguments& args,
+                             const compiler::FeedbackSource& feedback_source);
   void BuildCallFromRegisterList(ConvertReceiverMode receiver_mode);
   void BuildCallFromRegisters(int argc_count,
                               ConvertReceiverMode receiver_mode);
