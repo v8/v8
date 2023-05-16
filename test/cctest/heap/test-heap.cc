@@ -1533,6 +1533,10 @@ void CompilationCacheCachingBehavior(bool retain_script) {
   if (!v8_flags.compilation_cache) {
     return;
   }
+  if (!v8_flags.flush_bytecode ||
+      (v8_flags.always_sparkplug && !v8_flags.flush_baseline_code)) {
+    return;
+  }
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
@@ -1587,6 +1591,9 @@ void CompilationCacheCachingBehavior(bool retain_script) {
     shared->GetBytecodeArray(CcTest::i_isolate()).EnsureOldForTesting();
   }
 
+  // The first GC flushes the BytecodeArray from the SFI.
+  CcTest::CollectAllGarbage();
+  // The second GC removes the SFI from the compilation cache.
   CcTest::CollectAllGarbage();
 
   {
@@ -1633,10 +1640,11 @@ void CompilationCacheRegeneration(bool retain_root_sfi, bool flush_root_sfi,
     return;
   }
 
-  // Some flags can prevent bytecode flushing, which affects this test.
-  bool flushing_disabled =
-      !v8_flags.flush_bytecode ||
-      (v8_flags.always_sparkplug && !v8_flags.flush_baseline_code);
+  // Skip test if code flushing was disabled.
+  if (!v8_flags.flush_bytecode ||
+      (v8_flags.always_sparkplug && !v8_flags.flush_baseline_code)) {
+    return;
+  }
 
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
@@ -1714,13 +1722,17 @@ void CompilationCacheRegeneration(bool retain_root_sfi, bool flush_root_sfi,
     }
   }
 
-  CcTest::CollectAllGarbage();
-
   if (v8_flags.stress_incremental_marking) {
-    // If incremental marking could have started before the bytecode was aged,
-    // then we need a second collection to evict the cache entries.
+    // This GC finishes incremental marking if it is already running. If
+    // incremental marking was already running we would not flush the code right
+    // away.
     CcTest::CollectAllGarbage();
   }
+
+  // The first GC performs code flushing.
+  CcTest::CollectAllGarbage();
+  // The second GC clears the entry from the compilation cache.
+  CcTest::CollectAllGarbage();
 
   // The root SharedFunctionInfo can be retained either by a Global in this
   // function or by the compilation cache.
@@ -1737,7 +1749,7 @@ void CompilationCacheRegeneration(bool retain_root_sfi, bool flush_root_sfi,
     // The eager function may have had its bytecode flushed.
     Handle<SharedFunctionInfo> eager_sfi =
         GetSharedFunctionInfo(eager_function.Get(CcTest::isolate()));
-    CHECK_EQ(!flush_eager_sfi || flushing_disabled, eager_sfi->is_compiled());
+    CHECK_EQ(!flush_eager_sfi, eager_sfi->is_compiled());
 
     // Check whether the root SharedFunctionInfo is still reachable from the
     // Script.
@@ -1780,7 +1792,7 @@ void CompilationCacheRegeneration(bool retain_root_sfi, bool flush_root_sfi,
     // it was flushed but the root function was not.
     Handle<SharedFunctionInfo> old_eager_sfi =
         GetSharedFunctionInfo(eager_function.Get(CcTest::isolate()));
-    CHECK_EQ(!(flush_eager_sfi && !flush_root_sfi) || flushing_disabled,
+    CHECK_EQ(!(flush_eager_sfi && !flush_root_sfi),
              old_eager_sfi->is_compiled());
 
     v8::Local<v8::Value> result = script->Run(context).ToLocalChecked();
