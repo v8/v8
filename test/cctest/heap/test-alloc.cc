@@ -45,8 +45,8 @@ Handle<Object> HeapTester::TestAllocateAfterFailures() {
   // Similar to what the factory's retrying logic does in the last-resort case,
   // we wrap the allocator function in an AlwaysAllocateScope.  Test that
   // all allocations succeed immediately without any retry.
-  CcTest::CollectAllAvailableGarbage();
   Heap* heap = CcTest::heap();
+  heap::CollectAllAvailableGarbage(heap);
   AlwaysAllocateScopeForTesting scope(heap);
   int size = FixedArray::SizeFor(100);
   // Young generation.

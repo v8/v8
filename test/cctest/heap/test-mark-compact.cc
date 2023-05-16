@@ -27,6 +27,8 @@
 
 #include <stdlib.h>
 
+#include "src/common/globals.h"
+
 #ifdef __linux__
 #include <errno.h>
 #include <fcntl.h>
@@ -68,8 +70,8 @@ TEST(Promotion) {
 
     // Array should be in the new space.
     CHECK(heap->InSpace(*array, NEW_SPACE));
-    CcTest::CollectAllGarbage();
-    CcTest::CollectAllGarbage();
+    heap::CollectAllGarbage(heap);
+    heap::CollectAllGarbage(heap);
     CHECK(heap->InSpace(*array, OLD_SPACE));
   }
 }
@@ -120,7 +122,7 @@ HEAP_TEST(MarkCompactCollector) {
   Handle<JSGlobalObject> global(isolate->context().global_object(), isolate);
 
   // call mark-compact when heap is empty
-  CcTest::CollectGarbage(OLD_SPACE);
+  heap::CollectGarbage(heap, OLD_SPACE);
 
   AllocationResult allocation;
   if (!v8_flags.single_generation) {
@@ -130,7 +132,7 @@ HEAP_TEST(MarkCompactCollector) {
       allocation =
           AllocateFixedArrayForTest(heap, arraysize, AllocationType::kYoung);
     } while (!allocation.IsFailure());
-    CcTest::CollectGarbage(NEW_SPACE);
+    heap::CollectGarbage(heap, NEW_SPACE);
     AllocateFixedArrayForTest(heap, arraysize, AllocationType::kYoung)
         .ToObjectChecked();
   }
@@ -139,7 +141,7 @@ HEAP_TEST(MarkCompactCollector) {
   do {
     allocation = AllocateMapForTest(isolate);
   } while (!allocation.IsFailure());
-  CcTest::CollectGarbage(OLD_SPACE);
+  heap::CollectGarbage(heap, OLD_SPACE);
   AllocateMapForTest(isolate).ToObjectChecked();
 
   { HandleScope scope(isolate);
@@ -151,7 +153,7 @@ HEAP_TEST(MarkCompactCollector) {
     factory->NewJSObject(function);
   }
 
-  CcTest::CollectGarbage(OLD_SPACE);
+  heap::CollectGarbage(heap, OLD_SPACE);
 
   { HandleScope scope(isolate);
     Handle<String> func_name = factory->InternalizeUtf8String("theFunction");
@@ -169,7 +171,7 @@ HEAP_TEST(MarkCompactCollector) {
     Object::SetProperty(isolate, obj, prop_name, twenty_three).Check();
   }
 
-  CcTest::CollectGarbage(OLD_SPACE);
+  heap::CollectGarbage(heap, OLD_SPACE);
 
   { HandleScope scope(isolate);
     Handle<String> obj_name = factory->InternalizeUtf8String("theObject");
@@ -205,7 +207,7 @@ HEAP_TEST(DoNotEvacuatePinnedPages) {
   CHECK(heap->InSpace(*handles.front(), OLD_SPACE));
   page->SetFlag(MemoryChunk::PINNED);
 
-  CcTest::CollectAllGarbage();
+  heap::CollectAllGarbage(heap);
   heap->EnsureSweepingCompleted(Heap::SweepingForcedFinalizationMode::kV8Only);
 
   // The pinned flag should prevent the page from moving.
@@ -215,7 +217,7 @@ HEAP_TEST(DoNotEvacuatePinnedPages) {
 
   page->ClearFlag(MemoryChunk::PINNED);
 
-  CcTest::CollectAllGarbage();
+  heap::CollectAllGarbage(heap);
   heap->EnsureSweepingCompleted(Heap::SweepingForcedFinalizationMode::kV8Only);
 
   // `compact_on_every_full_gc` ensures that this page is an evacuation

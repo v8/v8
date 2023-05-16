@@ -121,7 +121,7 @@ TEST(ExternalString_ExternalBackingStoreSizeIncreasesMarkCompact) {
     Page* page_before_gc = Page::FromHeapObject(*esh);
     heap::ForceEvacuationCandidate(page_before_gc);
 
-    CcTest::CollectAllGarbage();
+    heap::CollectAllGarbage(heap);
 
     const size_t backing_store_after =
         heap->old_space()->ExternalBackingStoreBytes(type);
