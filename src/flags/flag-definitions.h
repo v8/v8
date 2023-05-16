@@ -1086,8 +1086,9 @@ DEFINE_BOOL(turbo_optimize_math_minmax, true,
 DEFINE_BOOL(turbo_collect_feedback_in_generic_lowering, false,
             "enable experimental feedback collection in generic lowering.")
 
-DEFINE_EXPERIMENTAL_FEATURE(turboshaft,
-                            "enable TurboFan's Turboshaft phases for JS")
+DEFINE_BOOL(turboshaft, false, "enable TurboFan's Turboshaft phases for JS")
+DEFINE_WEAK_IMPLICATION(future, turboshaft)
+
 DEFINE_BOOL(turboshaft_trace_reduction, false,
             "trace individual Turboshaft reduction steps")
 DEFINE_EXPERIMENTAL_FEATURE(turboshaft_wasm,
