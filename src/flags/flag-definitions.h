@@ -1086,6 +1086,8 @@ DEFINE_BOOL(turbo_optimize_math_minmax, true,
 
 DEFINE_BOOL(turbo_collect_feedback_in_generic_lowering, false,
             "enable experimental feedback collection in generic lowering.")
+DEFINE_BOOL(isolate_script_cache_ageing, true,
+            "enable ageing of the isolate script cache.")
 
 DEFINE_EXPERIMENTAL_FEATURE(turboshaft,
                             "enable TurboFan's Turboshaft phases for JS")

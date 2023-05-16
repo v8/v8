@@ -520,12 +520,6 @@ void MarkCompactCollector::StartMarking() {
       heap_, epoch(), code_flush_mode(), heap_->cpp_heap(),
       heap_->ShouldCurrentGCKeepAgesUnchanged(),
       heap_->tracer()->CodeFlushingIncrease());
-  // This method evicts SFIs with flushed bytecode from the cache before
-  // iterating the compilation cache as part of the root set. SFIs that get
-  // flushed in this GC cycle will get evicted out of the cache in the next GC
-  // cycle. The SFI will remain in the cache until then and may remain in the
-  // cache even longer in case the SFI is re-compiled.
-  isolate()->compilation_cache()->MarkCompactPrologue();
 // Marking bits are cleared by the sweeper.
 #ifdef VERIFY_HEAP
   if (v8_flags.verify_heap) {
