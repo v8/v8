@@ -41,7 +41,6 @@
 //       - ConstructEntryFrame
 //     - ExitFrame
 //       - BuiltinExitFrame
-//       - StackSwitchFrame
 //     - StubFrame
 //       - JsToWasmFrame
 //       - CWasmEntryFrame
@@ -51,7 +50,6 @@
 //     - WasmFrame
 //       - WasmExitFrame
 //       - WasmToJsFrame
-//     - WasmToJsFunctionFrame
 //     - WasmDebugBreakFrame
 //     - WasmLiftoffSetupFrame
 //     - IrregexpFrame
@@ -322,10 +320,6 @@ class StackFrame {
   void IteratePc(RootVisitor* v, Address* pc_address,
                  Address* constant_pool_address, GcSafeCode holder) const;
 
-  // Indicates whether this frame consumes JS-linkage style tagged parameters
-  // on the stack, which it expects its caller to iterate for GC purposes.
-  virtual bool HasTaggedIncomingParams() const { return false; }
-
   // Sets a callback function for return-address rewriting profilers
   // to resolve the location of a return address to the location of the
   // profiler's stashed return address.
@@ -583,6 +577,8 @@ class CommonFrame : public StackFrame {
  protected:
   inline explicit CommonFrame(StackFrameIteratorBase* iterator);
 
+  bool HasTaggedOutgoingParams(GcSafeCode code_lookup) const;
+
   void ComputeCallerState(State* state) const override;
 
   // Accessors.
@@ -651,8 +647,6 @@ class CommonFrameWithJSLinkage : public CommonFrame {
 
   // Summarize Frame
   void Summarize(std::vector<FrameSummary>* frames) const override;
-
-  bool HasTaggedIncomingParams() const override { return true; }
 
  protected:
   inline explicit CommonFrameWithJSLinkage(StackFrameIteratorBase* iterator);
@@ -822,8 +816,6 @@ class ExitFrame : public TypedFrame {
   static StackFrame::Type ComputeFrameType(Address fp);
   static void FillState(Address fp, Address sp, State* state);
 
-  bool HasTaggedIncomingParams() const override { return true; }
-
  protected:
   inline explicit ExitFrame(StackFrameIteratorBase* iterator);
 
@@ -879,8 +871,6 @@ class StubFrame : public TypedFrame {
   int LookupExceptionHandlerInTable();
 
   void Summarize(std::vector<FrameSummary>* frames) const override;
-
-  bool HasTaggedIncomingParams() const override { return true; }
 
  protected:
   inline explicit StubFrame(StackFrameIteratorBase* iterator);
@@ -1267,8 +1257,6 @@ class ConstructFrame : public InternalFrame {
     return static_cast<ConstructFrame*>(frame);
   }
 
-  bool HasTaggedIncomingParams() const override { return true; }
-
  protected:
   inline explicit ConstructFrame(StackFrameIteratorBase* iterator);
 
@@ -1371,13 +1359,6 @@ class StackFrameIteratorBase {
 
   bool done() const { return frame_ == nullptr; }
 
-  // Indicates whether the previously-visited frame (which is the callee
-  // of the current frame) has JS-linkage style tagged parameters on the
-  // stack which it expects its caller (the current frame) to iterate.
-  bool callee_has_tagged_incoming_params() const {
-    return callee_has_tagged_incoming_params_;
-  }
-
 #ifdef DEBUG
   // The StackFrameIteratorForProfiler is limited in functionality because it
   // may run at an arbitrary point in time where stack contents are not
@@ -1397,8 +1378,6 @@ class StackFrameIteratorBase {
 #undef DECLARE_SINGLETON
   StackFrame* frame_;
   StackHandler* handler_;
-
-  bool callee_has_tagged_incoming_params_;
 
   StackHandler* handler() const {
     DCHECK(!done());

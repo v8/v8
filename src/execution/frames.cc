@@ -122,8 +122,6 @@ StackFrameIterator::StackFrameIterator(Isolate* isolate,
 
 void StackFrameIterator::Advance() {
   DCHECK(!done());
-  // The current frame is about to become the callee.
-  callee_has_tagged_incoming_params_ = frame_->HasTaggedIncomingParams();
   // Compute the state of the calling frame before restoring
   // callee-saved registers and unwinding handlers. This allows the
   // frame code that computes the caller state to access the top
@@ -162,8 +160,6 @@ void StackFrameIterator::Reset(ThreadLocalTop* top) {
       ExitFrame::GetStateForFramePointer(Isolate::c_entry_fp(top), &state);
   handler_ = StackHandler::FromAddress(Isolate::handler(top));
   frame_ = SingletonFor(type, &state);
-  // We're always starting at a CEntry, which has tagged parameters.
-  callee_has_tagged_incoming_params_ = true;
 }
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -394,7 +390,6 @@ StackFrameIteratorForProfiler::StackFrameIteratorForProfiler(
       if (IsValidFrameType(type)) {
         top_frame_type_ = type;
         advance_frame = false;
-        callee_has_tagged_incoming_params_ = false;
       }
     } else {
       // Cannot determine the actual type; the frame will be skipped below.
@@ -430,7 +425,6 @@ StackFrameIteratorForProfiler::StackFrameIteratorForProfiler(
         state.pc_address = top_location;
         is_no_frame_bytecode_handler = true;
         advance_frame = false;
-        callee_has_tagged_incoming_params_ = true;
       }
     }
 
@@ -478,8 +472,6 @@ void StackFrameIteratorForProfiler::AdvanceOneFrame() {
   DCHECK(!done());
   StackFrame* last_frame = frame_;
   Address last_sp = last_frame->sp(), last_fp = last_frame->fp();
-  // The current frame is about to become the callee.
-  callee_has_tagged_incoming_params_ = frame_->HasTaggedIncomingParams();
 
   // Before advancing to the next stack frame, perform pointer validity tests.
   if (!IsValidFrame(last_frame) || !IsValidCaller(last_frame)) {
@@ -1322,7 +1314,10 @@ void WasmFrame::Iterate(RootVisitor* v) const {
                                   spill_slot_space);
 
   // Visit the rest of the parameters if they are tagged.
-  if (iterator_->callee_has_tagged_incoming_params()) {
+  bool has_tagged_outgoing_params =
+      wasm_code->kind() != wasm::WasmCode::kWasmFunction &&
+      wasm_code->kind() != wasm::WasmCode::kWasmToCapiWrapper;
+  if (has_tagged_outgoing_params) {
     v->VisitRootPointers(Root::kStackRoots, nullptr, parameters_base,
                          parameters_limit);
   }
@@ -1407,7 +1402,7 @@ void TypedFrame::Iterate(RootVisitor* v) const {
                                   spill_slots_size);
 
   // Visit the rest of the parameters.
-  if (iterator_->callee_has_tagged_incoming_params()) {
+  if (HasTaggedOutgoingParams(code)) {
     v->VisitRootPointers(Root::kStackRoots, nullptr, parameters_base,
                          parameters_limit);
   }
@@ -1554,6 +1549,22 @@ BytecodeOffset MaglevFrame::GetBytecodeOffsetForOSR() const {
   return data.GetBytecodeOffset(deopt_index);
 }
 
+bool CommonFrame::HasTaggedOutgoingParams(GcSafeCode code_lookup) const {
+#if V8_ENABLE_WEBASSEMBLY
+  // With inlined JS-to-Wasm calls, we can be in an OptimizedFrame and
+  // directly call a Wasm function from JavaScript. In this case the Wasm frame
+  // is responsible for visiting incoming potentially tagged parameters.
+  // (This is required for tail-call support: If the direct callee tail-called
+  // another function which then caused a GC, the caller would not be able to
+  // determine where there might be tagged parameters.)
+  wasm::WasmCode* wasm_callee =
+      wasm::GetWasmCodeManager()->LookupCode(callee_pc());
+  return (wasm_callee == nullptr) && code_lookup.has_tagged_outgoing_params();
+#else
+  return code_lookup.has_tagged_outgoing_params();
+#endif  // V8_ENABLE_WEBASSEMBLY
+}
+
 HeapObject TurbofanStubWithContextFrame::unchecked_code() const {
   base::Optional<GcSafeCode> code_lookup =
       isolate()->heap()->GcSafeTryFindCodeForInnerPointer(pc());
@@ -1618,7 +1629,7 @@ void CommonFrame::IterateTurbofanOptimizedFrame(RootVisitor* v) const {
   FullObjectSlot parameters_limit = frame_header_base - spill_slot_count;
 
   // Visit the outgoing parameters if they are tagged.
-  if (iterator_->callee_has_tagged_incoming_params()) {
+  if (HasTaggedOutgoingParams(code)) {
     v->VisitRootPointers(Root::kStackRoots, nullptr, parameters_base,
                          parameters_limit);
   }
