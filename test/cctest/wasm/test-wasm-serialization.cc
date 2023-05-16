@@ -18,6 +18,7 @@
 #include "src/wasm/wasm-opcodes.h"
 #include "src/wasm/wasm-serialization.h"
 #include "test/cctest/cctest.h"
+#include "test/cctest/heap/heap-utils.h"
 #include "test/common/wasm/flag-utils.h"
 #include "test/common/wasm/test-signatures.h"
 #include "test/common/wasm/wasm-macro-gen.h"
@@ -106,7 +107,7 @@ class WasmSerializationTest {
   void CollectGarbage() {
     // Try hard to collect all garbage and will therefore also invoke all weak
     // callbacks of actually unreachable persistent handles.
-    CcTest::CollectAllAvailableGarbage();
+    heap::CollectAllAvailableGarbage(CcTest::heap());
   }
 
   v8::MemorySpan<const uint8_t> wire_bytes() const { return wire_bytes_; }

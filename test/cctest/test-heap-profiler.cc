@@ -915,7 +915,7 @@ TEST(HeapSnapshotAddressReuse) {
   CompileRun(
       "for (var i = 0; i < 10000; ++i)\n"
       "  a[i] = new A();\n");
-  CcTest::CollectAllGarbage();
+  i::heap::CollectAllGarbage(CcTest::heap());
 
   const v8::HeapSnapshot* snapshot2 = heap_profiler->TakeHeapSnapshot();
   CHECK(ValidateSnapshot(snapshot2));
@@ -957,7 +957,7 @@ TEST(HeapEntryIdsAndArrayShift) {
       "for (var i = 0; i < 1; ++i)\n"
       "  a.shift();\n");
 
-  CcTest::CollectAllGarbage();
+  i::heap::CollectAllGarbage(CcTest::heap());
 
   const v8::HeapSnapshot* snapshot2 = heap_profiler->TakeHeapSnapshot();
   CHECK(ValidateSnapshot(snapshot2));
@@ -998,7 +998,7 @@ TEST(HeapEntryIdsAndGC) {
   const v8::HeapSnapshot* snapshot1 = heap_profiler->TakeHeapSnapshot();
   CHECK(ValidateSnapshot(snapshot1));
 
-  CcTest::CollectAllGarbage();
+  i::heap::CollectAllGarbage(CcTest::heap());
 
   const v8::HeapSnapshot* snapshot2 = heap_profiler->TakeHeapSnapshot();
   CHECK(ValidateSnapshot(snapshot2));
@@ -1271,7 +1271,7 @@ TEST(HeapSnapshotObjectsStats) {
   // We have to call GC 6 times. In other case the garbage will be
   // the reason of flakiness.
   for (int i = 0; i < 6; ++i) {
-    CcTest::CollectAllGarbage();
+    i::heap::CollectAllGarbage(CcTest::heap());
   }
 
   v8::SnapshotObjectId initial_id;
@@ -1426,7 +1426,7 @@ TEST(HeapObjectIds) {
   }
 
   heap_profiler->StopTrackingHeapObjects();
-  CcTest::CollectAllAvailableGarbage();
+  i::heap::CollectAllAvailableGarbage(CcTest::heap());
 
   for (int i = 0; i < kLength; i++) {
     v8::SnapshotObjectId id = heap_profiler->GetObjectId(objects[i]);
@@ -1847,7 +1847,7 @@ TEST(NativeSnapshotObjectIdMoving) {
         v8::Utils::OpenHandle(*v8::Local<v8::String>::Cast(local)));
     i::heap::ForceEvacuationCandidate(i::Page::FromHeapObject(*internal));
   }
-  CcTest::CollectAllGarbage();
+  i::heap::CollectAllGarbage(CcTest::heap());
 
   non_merged_id = heap_profiler->GetObjectId(&native1);
   CHECK_NE(v8::HeapProfiler::kUnknownObjectId, non_merged_id);
@@ -3718,7 +3718,7 @@ TEST(SamplingHeapProfiler) {
         "  eval(\"new Array(100)\");\n"
         "}\n");
 
-    CcTest::CollectAllGarbage();
+    i::heap::CollectAllGarbage(CcTest::heap());
 
     std::unique_ptr<v8::AllocationProfile> profile(
         heap_profiler->GetAllocationProfile());
@@ -3900,7 +3900,7 @@ TEST(SamplingHeapProfilerLeftTrimming) {
       "      a.shift();\n"
       "}\n");
 
-  CcTest::CollectGarbage(i::NEW_SPACE);
+  i::heap::CollectGarbage(CcTest::heap(), i::NEW_SPACE);
   // Should not crash.
 
   heap_profiler->StopSamplingHeapProfiler();

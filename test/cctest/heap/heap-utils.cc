@@ -12,6 +12,7 @@
 #include "src/heap/free-list.h"
 #include "src/heap/gc-tracer-inl.h"
 #include "src/heap/heap-inl.h"
+#include "src/heap/heap.h"
 #include "src/heap/incremental-marking.h"
 #include "src/heap/mark-compact.h"
 #include "src/heap/marking-barrier.h"
@@ -25,19 +26,13 @@ namespace v8 {
 namespace internal {
 namespace heap {
 
-void InvokeScavenge(Isolate* isolate) {
-  CcTest::CollectGarbage(i::NEW_SPACE, isolate);
-}
-
-void InvokeMarkSweep(Isolate* isolate) { CcTest::CollectAllGarbage(isolate); }
-
 void SealCurrentObjects(Heap* heap) {
   // If you see this check failing, disable the flag at the start of your test:
   // v8_flags.stress_concurrent_allocation = false;
   // Background thread allocating concurrently interferes with this function.
   CHECK(!v8_flags.stress_concurrent_allocation);
-  CcTest::CollectAllGarbage();
-  CcTest::CollectAllGarbage();
+  heap::CollectAllGarbage(heap);
+  heap::CollectAllGarbage(heap);
   heap->EnsureSweepingCompleted(Heap::SweepingForcedFinalizationMode::kV8Only);
   heap->old_space()->FreeLinearAllocationArea();
   for (Page* page : *heap->old_space()) {
@@ -331,8 +326,30 @@ void AbandonCurrentlyFreeMemory(PagedSpace* space) {
   }
 }
 
-void GcAndSweep(Heap* heap, AllocationSpace space) {
+void CollectGarbage(Heap* heap, AllocationSpace space) {
   heap->CollectGarbage(space, GarbageCollectionReason::kTesting);
+}
+
+void CollectAllGarbage(Heap* heap) {
+  heap->CollectAllGarbage(GCFlag::kNoFlags, GarbageCollectionReason::kTesting);
+}
+
+void CollectAllAvailableGarbage(Heap* heap) {
+  heap->CollectAllAvailableGarbage(GarbageCollectionReason::kTesting);
+}
+
+void PreciseCollectAllGarbage(Heap* heap) {
+  heap->PreciseCollectAllGarbage(GCFlag::kNoFlags,
+                                 GarbageCollectionReason::kTesting);
+}
+
+void CollectSharedGarbage(Heap* heap) {
+  heap->CollectGarbageShared(heap->main_thread_local_heap(),
+                             GarbageCollectionReason::kTesting);
+}
+
+void GcAndSweep(Heap* heap, AllocationSpace space) {
+  CollectGarbage(heap, space);
   if (heap->sweeping_in_progress()) {
     IsolateSafepointScope scope(heap);
     heap->EnsureSweepingCompleted(
@@ -340,9 +357,7 @@ void GcAndSweep(Heap* heap, AllocationSpace space) {
   }
 }
 
-void EmptyNewSpaceUsingGC(Heap* heap) {
-  heap->CollectGarbage(OLD_SPACE, GarbageCollectionReason::kTesting);
-}
+void EmptyNewSpaceUsingGC(Heap* heap) { CollectGarbage(heap, OLD_SPACE); }
 
 void ForceEvacuationCandidate(Page* page) {
   CHECK(v8_flags.manual_evacuation_candidates_selection);
