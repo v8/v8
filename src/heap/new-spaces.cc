@@ -1067,13 +1067,13 @@ void PagedSpaceForNewSpace::Verify(Isolate* isolate,
                                    SpaceVerificationVisitor* visitor) const {
   PagedSpaceBase::Verify(isolate, visitor);
 
-  DCHECK_EQ(current_capacity_, Page::kPageSize * CountTotalPages());
+  CHECK_EQ(current_capacity_, Page::kPageSize * CountTotalPages());
 
-  DCHECK_EQ(
-      AllocatedSinceLastGC() + limit() - top(),
-      std::accumulate(begin(), end(), 0, [](size_t sum, const Page* page) {
-        return sum + page->AllocatedLabSize();
-      }));
+  auto sum_allocated_labs = [](size_t sum, const Page* page) {
+    return sum + page->AllocatedLabSize();
+  };
+  CHECK_EQ(AllocatedSinceLastGC() + limit() - top(),
+           std::accumulate(begin(), end(), 0, sum_allocated_labs));
 }
 #endif  // VERIFY_HEAP
 
