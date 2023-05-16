@@ -2668,11 +2668,8 @@ Maybe<bool> Object::SetSuperProperty(LookupIterator* it, Handle<Object> value,
 
   // Note, the callers rely on the fact that this code is redoing the full own
   // lookup from scratch.
-  LookupIterator::Configuration c = LookupIterator::OWN;
-  LookupIterator own_lookup =
-      it->IsElement() ? LookupIterator(isolate, receiver, it->index(), c)
-                      : LookupIterator(isolate, receiver, it->name(), c);
-
+  LookupIterator own_lookup(isolate, receiver, it->GetKey(),
+                            LookupIterator::OWN);
   for (; own_lookup.IsFound(); own_lookup.Next()) {
     switch (own_lookup.state()) {
       case LookupIterator::ACCESS_CHECK:
@@ -2709,6 +2706,8 @@ Maybe<bool> Object::SetSuperProperty(LookupIterator* it, Handle<Object> value,
             JSReceiver::GetOwnPropertyDescriptor(&own_lookup, &desc);
         MAYBE_RETURN(owned, Nothing<bool>());
         if (!owned.FromJust()) {
+          // |own_lookup| might become outdated at this point anyway.
+          own_lookup.Restart();
           if (!CheckContextualStoreToJSGlobalObject(&own_lookup,
                                                     should_throw)) {
             return Nothing<bool>();

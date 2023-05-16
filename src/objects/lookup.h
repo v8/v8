@@ -36,6 +36,11 @@ class PropertyKey {
   inline Handle<Name> GetName(Isolate* isolate);
 
  private:
+  friend LookupIterator;
+
+  // Shortcut for constructing PropertyKey from an active LookupIterator.
+  inline PropertyKey(Isolate* isolate, Handle<Name> name, size_t index);
+
   Handle<Name> name_;
   size_t index_;
 };
@@ -107,6 +112,9 @@ class V8_EXPORT_PRIVATE LookupIterator final {
     DCHECK_LE(index_, JSArray::kMaxArrayIndex);
     return static_cast<uint32_t>(index_);
   }
+
+  // Helper method for creating a copy of of the iterator.
+  inline PropertyKey GetKey() const;
 
   // Returns true if this LookupIterator has an index in the range
   // [0, size_t::max).
