@@ -130,6 +130,29 @@ PropertyKey::PropertyKey(Isolate* isolate, double index) {
 #endif
 }
 
+PropertyKey::PropertyKey(Isolate* isolate, Handle<Name> name, size_t index)
+    : name_(name), index_(index) {
+  DCHECK_IMPLIES(index_ == LookupIterator::kInvalidIndex, !name_.is_null());
+#if V8_TARGET_ARCH_32_BIT
+  DCHECK_IMPLIES(index_ != LookupIterator::kInvalidIndex,
+                 index_ <= JSObject::kMaxElementIndex);
+#endif
+#if DEBUG
+  if (index_ != LookupIterator::kInvalidIndex && !name_.is_null()) {
+    // If both valid index and name are given then the name is a string
+    // representation of the same index.
+    size_t integer_index;
+    CHECK(name_->AsIntegerIndex(&integer_index));
+    CHECK_EQ(index_, integer_index);
+  } else if (index_ == LookupIterator::kInvalidIndex) {
+    // If only name is given it must not be a string representing an integer
+    // index.
+    size_t integer_index;
+    CHECK(!name_->AsIntegerIndex(&integer_index));
+  }
+#endif
+}
+
 PropertyKey::PropertyKey(Isolate* isolate, Handle<Name> name) {
   if (name->AsIntegerIndex(&index_)) {
     name_ = name;
@@ -177,6 +200,10 @@ Handle<Name> LookupIterator::GetName() {
     name_ = factory()->SizeToString(index_);
   }
   return name_;
+}
+
+PropertyKey LookupIterator::GetKey() const {
+  return PropertyKey(isolate_, name_, index_);
 }
 
 bool LookupIterator::IsElement(JSReceiver object) const {
