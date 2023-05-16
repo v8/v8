@@ -417,7 +417,11 @@ TEST_F(HeapTest, RememberedSet_InsertOnPromotingObjectToOld) {
 
   CHECK(heap->InOldSpace(*arr));
   CHECK(heap->InYoungGeneration(arr->get(0)));
-  CHECK_EQ(1, GetRememberedSetSize<OLD_TO_NEW>(*arr));
+  if (v8_flags.minor_mc) {
+    CHECK_EQ(1, GetRememberedSetSize<OLD_TO_NEW_BACKGROUND>(*arr));
+  } else {
+    CHECK_EQ(1, GetRememberedSetSize<OLD_TO_NEW>(*arr));
+  }
 }
 
 TEST_F(HeapTest, Regress978156) {

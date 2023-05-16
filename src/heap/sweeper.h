@@ -37,8 +37,6 @@ class Sweeper {
  public:
   using SweepingList = std::vector<Page*>;
   using SweptList = std::vector<Page*>;
-  using CachedOldToNewRememberedSets =
-      std::unordered_map<MemoryChunk*, SlotSet*>;
 
   enum FreeListRebuildingMode { REBUILD_FREE_LIST, IGNORE_FREE_LIST };
   enum AddPageMode { REGULAR, READD_TEMPORARY_REMOVED_PAGE };
@@ -101,14 +99,11 @@ class Sweeper {
     explicit LocalSweeper(Sweeper* sweeper) : sweeper_(sweeper) {
       DCHECK_NOT_NULL(sweeper_);
     }
-    ~LocalSweeper() { DCHECK(IsEmpty()); }
+    ~LocalSweeper() = default;
 
     int ParallelSweepSpace(AllocationSpace identity, SweepingMode sweeping_mode,
                            int required_freed_bytes, int max_pages = 0);
     void ContributeAndWaitForPromotedPagesIteration();
-    void Finalize();
-
-    bool IsEmpty() const { return old_to_new_remembered_sets_.empty(); }
 
    private:
     int ParallelSweepPage(Page* page, AllocationSpace identity,
@@ -119,7 +114,6 @@ class Sweeper {
     void CleanPromotedPages();
 
     Sweeper* const sweeper_;
-    CachedOldToNewRememberedSets old_to_new_remembered_sets_;
 
     friend class Sweeper;
   };
@@ -188,9 +182,7 @@ class Sweeper {
   int RawSweep(Page* p, FreeSpaceTreatmentMode free_space_treatment_mode,
                SweepingMode sweeping_mode, bool should_reduce_memory);
 
-  void RawIteratePromotedPageForRememberedSets(
-      MemoryChunk* chunk,
-      CachedOldToNewRememberedSets* old_to_new_remembered_sets);
+  void RawIteratePromotedPageForRememberedSets(MemoryChunk* chunk);
 
   void AddPageImpl(AllocationSpace space, Page* page, AddPageMode mode);
 

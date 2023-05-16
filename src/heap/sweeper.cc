@@ -97,8 +97,6 @@ class Sweeper::ConcurrentMinorSweeper final {
     return false;
   }
 
-  void Finalize() { local_sweeper_.Finalize(); }
-
  private:
   Sweeper* const sweeper_;
   LocalSweeper local_sweeper_;
@@ -284,21 +282,8 @@ void Sweeper::SweepingState<scope>::FinishSweeping() {
 
   if (HasValidJob()) job_handle_->Join();
 
-  for (ConcurrentSweeper& concurrent_sweeper : concurrent_sweepers_) {
-    concurrent_sweeper.Finalize();
-  }
   concurrent_sweepers_.clear();
-
   in_progress_ = false;
-}
-
-void Sweeper::LocalSweeper::Finalize() {
-  AssertMainThreadOrSharedMainThread(sweeper_->heap_);
-  for (auto it : old_to_new_remembered_sets_) {
-    MemoryChunk* chunk = it.first;
-    RememberedSet<OLD_TO_NEW>::MergeAndDelete(chunk, it.second);
-  }
-  old_to_new_remembered_sets_.clear();
 }
 
 void Sweeper::LocalSweeper::ContributeAndWaitForPromotedPagesIteration() {
@@ -393,8 +378,7 @@ void Sweeper::LocalSweeper::ParallelIteratePromotedPageForRememberedSets(
   chunk->set_concurrent_sweeping_state(
       Page::ConcurrentSweepingState::kInProgress);
   DCHECK(sweeper_->should_iterate_promoted_pages_);
-  sweeper_->RawIteratePromotedPageForRememberedSets(
-      chunk, &old_to_new_remembered_sets_);
+  sweeper_->RawIteratePromotedPageForRememberedSets(chunk);
   DCHECK(chunk->SweepingDone());
   sweeper_->IncrementAndNotifyPromotedPagesIterationFinishedIfNeeded();
 }
@@ -418,7 +402,7 @@ Sweeper::Sweeper(Heap* heap)
       marking_state_(heap_->non_atomic_marking_state()),
       main_thread_local_sweeper_(this) {}
 
-Sweeper::~Sweeper() { DCHECK(main_thread_local_sweeper_.IsEmpty()); }
+Sweeper::~Sweeper() = default;
 
 Sweeper::PauseScope::PauseScope(Sweeper* sweeper) : sweeper_(sweeper) {
   DCHECK(!sweeper_->minor_sweeping_in_progress());
@@ -467,7 +451,6 @@ void Sweeper::TearDown() {
 }
 
 void Sweeper::StartMajorSweeping() {
-  DCHECK(main_thread_local_sweeper_.IsEmpty());
   DCHECK_EQ(GarbageCollector::MARK_COMPACTOR,
             heap_->tracer()->GetCurrentCollector());
   DCHECK(!minor_sweeping_in_progress());
@@ -491,7 +474,6 @@ void Sweeper::StartMajorSweeping() {
 }
 
 void Sweeper::StartMinorSweeping() {
-  DCHECK(main_thread_local_sweeper_.IsEmpty());
   DCHECK_EQ(GarbageCollector::MINOR_MARK_COMPACTOR,
             heap_->tracer()->GetCurrentCollector());
   minor_sweeping_state_.StartSweeping();
@@ -596,8 +578,6 @@ void Sweeper::EnsureMajorCompleted() {
       DCHECK(IsSweepingDoneForSpace(space));
     });
   }
-
-  DCHECK(main_thread_local_sweeper_.IsEmpty());
 }
 
 void Sweeper::EnsureMinorCompleted() {
@@ -619,9 +599,6 @@ void Sweeper::EnsureMinorCompleted() {
   promoted_pages_for_iteration_count_ = 0;
   iterated_promoted_pages_count_ = 0;
   CHECK(sweeping_list_for_promoted_page_iteration_.empty());
-
-  main_thread_local_sweeper_.Finalize();
-  DCHECK(main_thread_local_sweeper_.IsEmpty());
 }
 
 void Sweeper::DrainSweepingWorklistForSpace(AllocationSpace space) {
@@ -927,8 +904,6 @@ class PromotedPageRecordMigratedSlotVisitor final
     return false;
   }
 
-  SlotSet* cached_old_to_new() { return cached_old_to_new_; }
-
  private:
   V8_INLINE void VerifyHost(HeapObject host) {
     DCHECK(!host.InWritableSharedSpace());
@@ -949,11 +924,8 @@ class PromotedPageRecordMigratedSlotVisitor final
     value_chunk->SynchronizedHeapLoad();
 #endif  // THREAD_SANITIZER
     if (value_chunk->InYoungGeneration()) {
-      if (!cached_old_to_new_) {
-        cached_old_to_new_ = SlotSet::Allocate(host_chunk_->buckets());
-      }
-      RememberedSetOperations::Insert<AccessMode::NON_ATOMIC>(
-          cached_old_to_new_, host_chunk_, slot);
+      RememberedSet<OLD_TO_NEW_BACKGROUND>::Insert<AccessMode::NON_ATOMIC>(
+          host_chunk_, slot);
     } else if (value_chunk->InWritableSharedSpace()) {
       RememberedSet<OLD_TO_SHARED>::Insert<AccessMode::ATOMIC>(host_chunk_,
                                                                slot);
@@ -971,7 +943,6 @@ class PromotedPageRecordMigratedSlotVisitor final
   }
 
   MemoryChunk* const host_chunk_;
-  SlotSet* cached_old_to_new_ = nullptr;
   EphemeronRememberedSet* ephemeron_remembered_set_;
 };
 
@@ -990,9 +961,7 @@ inline void HandleFreeSpace(Address free_start, Address free_end, Heap* heap) {
 
 }  // namespace
 
-void Sweeper::RawIteratePromotedPageForRememberedSets(
-    MemoryChunk* chunk,
-    CachedOldToNewRememberedSets* old_to_new_remembered_sets) {
+void Sweeper::RawIteratePromotedPageForRememberedSets(MemoryChunk* chunk) {
   DCHECK(v8_flags.minor_mc);
   DCHECK(chunk->owner_identity() == OLD_SPACE ||
          chunk->owner_identity() == LO_SPACE);
@@ -1014,10 +983,6 @@ void Sweeper::RawIteratePromotedPageForRememberedSets(
       free_start = free_end + size;
     }
     HandleFreeSpace(free_start, chunk->area_end(), heap_);
-  }
-  if (record_visitor.cached_old_to_new()) {
-    old_to_new_remembered_sets->emplace(chunk,
-                                        record_visitor.cached_old_to_new());
   }
   marking_state_->ClearLiveness(chunk);
   chunk->set_concurrent_sweeping_state(Page::ConcurrentSweepingState::kDone);
