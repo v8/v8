@@ -438,6 +438,13 @@
       {'name': 'mjsunit', 'variant': 'maglev_future'},
       {'name': 'mjsunit', 'variant': 'stress_maglev'},
       {'name': 'mjsunit', 'variant': 'stress_maglev_future'},
+      # GC stress
+      {
+        'name': 'd8testing',
+        'suffix': 'gc-stress',
+        'test_args': ['--gc-stress'],
+        'shards': 7,
+      },
     ],
   },
   'v8_linux64_dict_tracking_dbg': {
