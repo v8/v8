@@ -265,6 +265,13 @@ v8::PageAllocator* DefaultPlatform::GetPageAllocator() {
   return page_allocator_.get();
 }
 
+v8::ThreadIsolatedAllocator* DefaultPlatform::GetThreadIsolatedAllocator() {
+  if (thread_isolated_allocator_.Valid()) {
+    return &thread_isolated_allocator_;
+  }
+  return nullptr;
+}
+
 void DefaultPlatform::NotifyIsolateShutdown(Isolate* isolate) {
   std::shared_ptr<DefaultForegroundTaskRunner> taskrunner;
   {

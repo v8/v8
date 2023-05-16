@@ -752,6 +752,8 @@ filegroup(
         "src/libplatform/default-job.h",
         "src/libplatform/default-platform.cc",
         "src/libplatform/default-platform.h",
+        "src/libplatform/default-thread-isolated-allocator.cc",
+        "src/libplatform/default-thread-isolated-allocator.h",
         "src/libplatform/default-worker-threads-task-runner.cc",
         "src/libplatform/default-worker-threads-task-runner.h",
         "src/libplatform/delayed-task-queue.cc",

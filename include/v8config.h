@@ -367,6 +367,7 @@ path. Add it with -I<path> to the command line
 # define V8_HAS_ATTRIBUTE_VISIBILITY (__has_attribute(visibility))
 # define V8_HAS_ATTRIBUTE_WARN_UNUSED_RESULT \
     (__has_attribute(warn_unused_result))
+# define V8_HAS_ATTRIBUTE_WEAK (__has_attribute(weak))
 
 # define V8_HAS_CPP_ATTRIBUTE_NODISCARD (V8_HAS_CPP_ATTRIBUTE(nodiscard))
 # define V8_HAS_CPP_ATTRIBUTE_NO_UNIQUE_ADDRESS \
@@ -417,6 +418,7 @@ path. Add it with -I<path> to the command line
 # define V8_HAS_ATTRIBUTE_UNUSED 1
 # define V8_HAS_ATTRIBUTE_VISIBILITY 1
 # define V8_HAS_ATTRIBUTE_WARN_UNUSED_RESULT (!V8_CC_INTEL)
+# define V8_HAS_ATTRIBUTE_WEAK 1
 
 // [[nodiscard]] does not work together with with
 // __attribute__((visibility(""))) on GCC 7.4 which is why there is no define
@@ -607,6 +609,14 @@ path. Add it with -I<path> to the command line
 #define V8_WARN_UNUSED_RESULT __attribute__((warn_unused_result))
 #else
 #define V8_WARN_UNUSED_RESULT /* NOT SUPPORTED */
+#endif
+
+
+// Annotate functions/variables as weak to allow overriding the symbol.
+#if V8_HAS_ATTRIBUTE_WEAK
+#define V8_WEAK __attribute__((weak))
+#else
+#define V8_WEAK /* NOT SUPPORTED */
 #endif
 
 
