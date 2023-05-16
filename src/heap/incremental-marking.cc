@@ -312,8 +312,6 @@ void IncrementalMarking::StartMarkingMajor() {
                               MarkingBarrierType::kMajor);
   isolate()->traced_handles()->SetIsMarking(true);
 
-  isolate()->compilation_cache()->MarkCompactPrologue();
-
   StartBlackAllocation();
 
   {
