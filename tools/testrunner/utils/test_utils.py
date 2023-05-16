@@ -21,7 +21,7 @@ from testrunner.local.command import BaseCommand
 from testrunner.objects import output
 from testrunner.local.context import DefaultOSContext
 from testrunner.local.pool import SingleThreadedExecutionPool
-from testrunner.local.variants import INCOMPATIBLE_FLAGS_PER_BUILD_VARIABLE
+from testrunner.local.variants import REQUIRED_BUILD_VARIABLES
 
 TOOLS_ROOT = up(up(up(os.path.abspath(__file__))))
 sys.path.append(TOOLS_ROOT)
@@ -122,8 +122,8 @@ def setup_build_config(basedir, outdir):
     config = json.load(f)
 
   # Add defaults for all variables used in variant configs.
-  for key in INCOMPATIBLE_FLAGS_PER_BUILD_VARIABLE.keys():
-    config[key.lstrip('!')] = False
+  for key in REQUIRED_BUILD_VARIABLES:
+    config[key] = False
 
   os.makedirs(os.path.dirname(path), exist_ok=True)
   with open(path, 'w') as f:

@@ -1,4 +1,5 @@
 {
+  "arch": "x64",
   "asan": false,
   "cfi": false,
   "dcheck_always_on": false,
@@ -7,11 +8,11 @@
   "i18n": true,
   "is_android": false,
   "is_ios": false,
+  "lite_mode": false,
   "msan": false,
-  "shared_ro_heap": false,
-  "target_cpu": "x64",
+  "simulator_run": false,
   "tsan": false,
   "ubsan": false,
-  "verify_predictable": false,
-  "v8_target_cpu": "x64"
+  "use_sanitizer": false,
+  "verify_predictable": false
 }

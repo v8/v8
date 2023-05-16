@@ -18,6 +18,7 @@ import traceback
 from testrunner.build_config import BuildConfig
 from testrunner.local import testsuite
 from testrunner.local import utils
+from testrunner.local.variants import REQUIRED_BUILD_VARIABLES
 from testrunner.local.context import os_context
 from testrunner.test_config import TestConfig
 from testrunner.testproc import util
@@ -334,6 +335,9 @@ class BaseTestRunner(object):
     else:
       self.target_os = utils.GuessOS()
 
+    # Verify integrity between build variables and variant configs.
+    self.build_config.ensure_vars(REQUIRED_BUILD_VARIABLES)
+
   def _do_load_build_config(self, outdir):
     build_config_path = os.path.join(outdir, "v8_build_config.json")
     if not os.path.exists(build_config_path):
@@ -545,34 +549,36 @@ class BaseTestRunner(object):
 
   @property
   def _no_simd_hardware(self):
-    # TODO(liviurau): Add some tests and refactor the logic here.
+    # TODO(liviurau): Add some tests.
     # We try to find all the reasons why we have no_simd.
-    no_simd_hardware = any(i in self.options.extra_flags for i in [
+    if any(i in self.options.extra_flags for i in [
         '--noenable-sse3', '--no-enable-sse3', '--noenable-ssse3',
         '--no-enable-ssse3', '--noenable-sse4-1', '--no-enable-sse4_1'
-    ])
+    ]):
+      return True
 
     # Set no_simd_hardware on architectures without Simd enabled.
-    if self.build_config.arch == 'mips64el':
-      no_simd_hardware = not self.build_config.simd_mips
+    if (self.build_config.arch == 'mips64el' and
+        not self.build_config.simd_mips):
+      return True
 
-    if self.build_config.arch == 'loong64'  or \
-       self.build_config.arch == 'riscv32':
-      no_simd_hardware = True
+    if (self.build_config.arch == 'loong64' or
+        self.build_config.arch == 'riscv32'):
+      return True
 
     # S390 hosts without VEF1 do not support Simd.
-    if self.build_config.arch == 's390x' and \
-       not self.build_config.simulator_run and \
-       not utils.IsS390SimdSupported():
-      no_simd_hardware = True
+    if (self.build_config.arch == 's390x' and
+        not self.build_config.simulator_run and
+        not utils.IsS390SimdSupported()):
+      return True
 
     # Ppc64 processors earlier than POWER9 do not support Simd instructions
-    if self.build_config.arch == 'ppc64' and \
-       not self.build_config.simulator_run and \
-       utils.GuessPowerProcessorVersion() < 9:
-      no_simd_hardware = True
+    if (self.build_config.arch == 'ppc64' and
+        not self.build_config.simulator_run and
+        utils.GuessPowerProcessorVersion() < 9):
+      return True
 
-    return no_simd_hardware
+    return False
 
   def _get_statusfile_variables(self):
     """Returns all attributes accessible in status files.

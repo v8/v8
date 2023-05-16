@@ -18,53 +18,11 @@ SCALE_FACTOR = dict(
 )
 
 INITIALIZATION_ERROR = f"""
-Error initializing property '%s'. It depends on a build flag of V8's
-build config. If you see this error in testing, you might need to add
-the dependencies to tools/testrunner/testdata/v8_build_config.json. If
-you see this error in production, ensure to add the dependences to the
+Missing property '%s'. If you see this error in testing, you might need
+to add the property to tools/testrunner/testdata/v8_build_config.json. If
+you see this error in production, ensure to add the property to the
 v8_dump_build_config action in V8's top-level BUILD.gn file.
 """
-
-class _BuildConfigInternal(object):
-  """Placeholder for all attributes and properties of the build config.
-
-  It's initialized with all attributes of the v8_dump_build_config action
-  in V8's top-level BUILD.gn file. Additionally, this defines read-only
-  properties using other attributes for convenience.
-  """
-
-  def __init__(self, build_config):
-    for key, value in build_config.items():
-      setattr(self, key, value)
-
-  @property
-  def arch(self):
-    # In V8 land, GN's x86 is called ia32.
-    return 'ia32' if self.v8_target_cpu == 'x86' else self.v8_target_cpu
-
-  @property
-  def simulator_run(self):
-    return self.target_cpu != self.v8_target_cpu
-
-  @property
-  def use_sanitizer(self):
-    return self.asan or self.cfi or self.msan or self.tsan or self.ubsan
-
-  @property
-  def no_js_shared_memory(self):
-    return (
-        not self.shared_ro_heap
-        or self.pointer_compression and not self.pointer_compression_shared_cage
-        or not self.write_barriers)
-
-  @property
-  def mips_arch(self):
-    return self.arch in ['mips64', 'mips64el']
-
-  @property
-  def simd_mips(self):
-    return (self.mips_arch and self.mips_arch_variant == "r6" and
-            self.mips_use_msa)
 
 
 class BuildConfig(object):
@@ -75,13 +33,10 @@ class BuildConfig(object):
   """
 
   def __init__(self, build_config):
-    self.internal = _BuildConfigInternal(build_config)
+    for key, value in build_config.items():
+      setattr(self, key, value)
 
-    for key in self.keys():
-      try:
-        setattr(self, key, getattr(self.internal, key))
-      except AttributeError as e:
-        raise Exception(INITIALIZATION_ERROR % key)
+    self.keys = list(build_config.keys())
 
     bool_options = [key for key, value in self.items() if value is True]
     string_options = [
@@ -89,14 +44,14 @@ class BuildConfig(object):
       for key, value in self.items() if value and isinstance(value, str)]
     self._str_rep = ', '.join(sorted(bool_options + string_options))
 
-  def keys(self):
-    for key in dir(self.internal):
-      if not key.startswith('_'):
-        yield key
-
   def items(self):
-    for key in self.keys():
+    for key in self.keys:
       yield key, getattr(self, key)
+
+  def ensure_vars(self, build_vars):
+    for var in build_vars:
+      if var not in self.keys:
+        raise Exception(INITIALIZATION_ERROR % var)
 
   def timeout_scalefactor(self, initial_factor):
     """Increases timeout for slow build configurations."""
@@ -106,7 +61,7 @@ class BuildConfig(object):
         if getattr(self, key):
           result *= value
       except AttributeError:
-        raise Exception(INITIALIZATION_ERROR % k)
+        raise Exception(INITIALIZATION_ERROR % key)
     if self.arch in SLOW_ARCHS:
       result *= 4.5
     return result

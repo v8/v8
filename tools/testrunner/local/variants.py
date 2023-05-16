@@ -233,6 +233,11 @@ def _variant_order_key(v):
 ALL_VARIANTS = sorted(ALL_VARIANT_FLAGS.keys(),
                       key=_variant_order_key)
 
+# For internal integrity checking.
+REQUIRED_BUILD_VARIABLES = [
+    var.lstrip('!') for var in INCOMPATIBLE_FLAGS_PER_BUILD_VARIABLE.keys()
+]
+
 # Check {SLOW,FAST}_VARIANTS entries
 for variants in [SLOW_VARIANTS, FAST_VARIANTS]:
   for v in variants:

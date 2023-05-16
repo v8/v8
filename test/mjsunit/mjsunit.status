@@ -1907,11 +1907,11 @@
 }], # variant == google3_nociu
 
 # Tests that cannot run without JS shared memory
-['no_js_shared_memory', {
+['not js_shared_memory', {
   'shared-memory/*': [SKIP],
   'regress/regress-crbug-1394741': [SKIP],
   'regress/regress-crbug-1395117': [SKIP],
-}],  # 'no_js_shared_memory'
+}],  # 'not js_shared_memory'
 
 ##############################################################################
 ['variant == always_sparkplug', {

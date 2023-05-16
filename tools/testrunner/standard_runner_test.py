@@ -221,21 +221,23 @@ class StandardRunnerTest(TestRunnerTest):
         '--variants=default',
         'sweet/bananas',
         config_overrides=dict(
-            asan=True, cfi=True, dcheck_always_on=True, has_webassembly=True,
-            i18n=True, msan=True, target_cpu='x86', tsan=True,
-            ubsan=True, v8_target_cpu='x86',
-        )
-    )
+            arch="ia32",
+            asan=True,
+            cfi=True,
+            dcheck_always_on=True,
+            has_webassembly=True,
+            msan=True,
+            target_cpu='x86',
+            tsan=True,
+            ubsan=True,
+            use_sanitizer=True,
+            v8_target_cpu='x86',
+        ))
     result.stdout_includes('>>> Autodetected:')
-    result.stdout_includes('asan')
-    result.stdout_includes('cfi')
-    result.stdout_includes('dcheck_always_on')
-    result.stdout_includes('i18n')
-    result.stdout_includes('msan')
-    result.stdout_includes('tsan')
-    result.stdout_includes('ubsan')
-    result.stdout_includes('use_sanitizer')
-    result.stdout_includes('has_webassembly')
+    result.stdout_includes(
+        'arch="ia32", asan, cfi, dcheck_always_on, has_webassembly, i18n, '
+        'msan, target_cpu="x86", tsan, ubsan, use_sanitizer, '
+        'v8_target_cpu="x86"')
     result.stdout_includes('>>> Running tests for ia32.release')
     result.has_returncode(0)
     # TODO(machenbach): Test some more implications of the auto-detected
