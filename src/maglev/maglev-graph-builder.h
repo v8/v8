@@ -1645,7 +1645,7 @@ class MaglevGraphBuilder {
   ReduceResult TryBuildElementStoreOnJSArrayOrJSObject(
       ValueNode* object, ValueNode* index_object, ValueNode* value,
       base::Vector<const compiler::MapRef> maps, ElementsKind kind,
-      KeyedAccessStoreMode store_mode);
+      const compiler::KeyedAccessMode& keyed_mode);
   ReduceResult TryBuildElementAccessOnJSArrayOrJSObject(
       ValueNode* object, ValueNode* index,
       const compiler::ElementAccessInfo& access_info,

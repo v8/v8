@@ -3964,7 +3964,7 @@ ValueNode* MaglevGraphBuilder::ConvertForStoring(ValueNode* value,
 ReduceResult MaglevGraphBuilder::TryBuildElementStoreOnJSArrayOrJSObject(
     ValueNode* object, ValueNode* index_object, ValueNode* value,
     base::Vector<const compiler::MapRef> maps, ElementsKind elements_kind,
-    KeyedAccessStoreMode store_mode) {
+    const compiler::KeyedAccessMode& keyed_mode) {
   DCHECK(IsFastElementsKind(elements_kind));
 
   const bool is_jsarray = HasOnlyJSArrayMaps(maps);
@@ -3975,63 +3975,76 @@ ReduceResult MaglevGraphBuilder::TryBuildElementStoreOnJSArrayOrJSObject(
       AddNewNode<LoadTaggedField>({object}, JSObject::kElementsOffset);
 
   value = ConvertForStoring(value, elements_kind);
+  ValueNode* index;
 
-  // Check boundaries.
-  ValueNode* elements_array_length = nullptr;
-  ValueNode* length;
-  if (is_jsarray) {
-    length = AddNewNode<UnsafeSmiUntag>(
-        {AddNewNode<LoadTaggedField>({object}, JSArray::kLengthOffset)});
+  // TODO(verwaest): Loop peeling will turn the first iteration index of spread
+  // literals into smi constants as well, breaking the assumption that we'll
+  // have preallocated the space if we see known indices. Turn off this
+  // optimization if loop peeling is on.
+  if (keyed_mode.access_mode() == compiler::AccessMode::kStoreInLiteral &&
+      index_object->Is<SmiConstant>() && is_jsarray &&
+      !v8_flags.maglev_loop_peeling) {
+    index = GetInt32ElementIndex(index_object);
   } else {
-    length = elements_array_length =
-        AddNewNode<UnsafeSmiUntag>({AddNewNode<LoadTaggedField>(
-            {elements_array}, FixedArray::kLengthOffset)});
-  }
-  ValueNode* index = GetInt32ElementIndex(index_object);
-  if (store_mode == STORE_AND_GROW_HANDLE_COW) {
-    if (elements_array_length == nullptr) {
-      elements_array_length =
+    // Check boundaries.
+    ValueNode* elements_array_length = nullptr;
+    ValueNode* length;
+    if (is_jsarray) {
+      length = AddNewNode<UnsafeSmiUntag>(
+          {AddNewNode<LoadTaggedField>({object}, JSArray::kLengthOffset)});
+    } else {
+      length = elements_array_length =
           AddNewNode<UnsafeSmiUntag>({AddNewNode<LoadTaggedField>(
               {elements_array}, FixedArray::kLengthOffset)});
     }
+    index = GetInt32ElementIndex(index_object);
+    if (keyed_mode.store_mode() == STORE_AND_GROW_HANDLE_COW) {
+      if (elements_array_length == nullptr) {
+        elements_array_length =
+            AddNewNode<UnsafeSmiUntag>({AddNewNode<LoadTaggedField>(
+                {elements_array}, FixedArray::kLengthOffset)});
+      }
 
-    // Validate the {index} depending on holeyness:
-    //
-    // For HOLEY_*_ELEMENTS the {index} must not exceed the {elements}
-    // backing store capacity plus the maximum allowed gap, as otherwise
-    // the (potential) backing store growth would normalize and thus
-    // the elements kind of the {receiver} would change to slow mode.
-    //
-    // For PACKED_*_ELEMENTS the {index} must be within the range
-    // [0,length+1[ to be valid. In case {index} equals {length},
-    // the {receiver} will be extended, but kept packed.
-    ValueNode* limit =
-        IsHoleyElementsKind(elements_kind)
-            ? AddNewNode<Int32AddWithOverflow>(
-                  {elements_array_length, GetInt32Constant(JSObject::kMaxGap)})
-            : AddNewNode<Int32AddWithOverflow>({length, GetInt32Constant(1)});
-    AddNewNode<CheckBounds>({index, limit});
+      // Validate the {index} depending on holeyness:
+      //
+      // For HOLEY_*_ELEMENTS the {index} must not exceed the {elements}
+      // backing store capacity plus the maximum allowed gap, as otherwise
+      // the (potential) backing store growth would normalize and thus
+      // the elements kind of the {receiver} would change to slow mode.
+      //
+      // For PACKED_*_ELEMENTS the {index} must be within the range
+      // [0,length+1[ to be valid. In case {index} equals {length},
+      // the {receiver} will be extended, but kept packed.
+      ValueNode* limit =
+          IsHoleyElementsKind(elements_kind)
+              ? AddNewNode<Int32AddWithOverflow>(
+                    {elements_array_length,
+                     GetInt32Constant(JSObject::kMaxGap)})
+              : AddNewNode<Int32AddWithOverflow>({length, GetInt32Constant(1)});
+      AddNewNode<CheckBounds>({index, limit});
 
-    // Grow backing store if necessary and handle COW.
-    elements_array = AddNewNode<MaybeGrowAndEnsureWritableFastElements>(
-        {elements_array, object, index, elements_array_length}, elements_kind);
+      // Grow backing store if necessary and handle COW.
+      elements_array = AddNewNode<MaybeGrowAndEnsureWritableFastElements>(
+          {elements_array, object, index, elements_array_length},
+          elements_kind);
 
-    // Update length if necessary.
-    if (is_jsarray) {
-      AddNewNode<UpdateJSArrayLength>({object, index, length});
-    }
-  } else {
-    AddNewNode<CheckBounds>({index, length});
+      // Update length if necessary.
+      if (is_jsarray) {
+        AddNewNode<UpdateJSArrayLength>({object, index, length});
+      }
+    } else {
+      AddNewNode<CheckBounds>({index, length});
 
-    // Handle COW if needed.
-    if (IsSmiOrObjectElementsKind(elements_kind)) {
-      if (store_mode == STORE_HANDLE_COW) {
-        elements_array =
-            AddNewNode<EnsureWritableFastElements>({elements_array, object});
-      } else {
-        // Ensure that this is not a COW FixedArray.
-        BuildCheckMaps(elements_array,
-                       base::VectorOf({broker()->fixed_array_map()}));
+      // Handle COW if needed.
+      if (IsSmiOrObjectElementsKind(elements_kind)) {
+        if (keyed_mode.store_mode() == STORE_HANDLE_COW) {
+          elements_array =
+              AddNewNode<EnsureWritableFastElements>({elements_array, object});
+        } else {
+          // Ensure that this is not a COW FixedArray.
+          BuildCheckMaps(elements_array,
+                         base::VectorOf({broker()->fixed_array_map()}));
+        }
       }
     }
   }
@@ -4057,13 +4070,14 @@ ReduceResult MaglevGraphBuilder::TryBuildElementAccessOnJSArrayOrJSObject(
     case compiler::AccessMode::kLoad:
       return TryBuildElementLoadOnJSArrayOrJSObject(
           object, index_object, access_info, keyed_mode.load_mode());
+    case compiler::AccessMode::kStoreInLiteral:
     case compiler::AccessMode::kStore: {
       base::Vector<const compiler::MapRef> maps =
           base::VectorOf(access_info.lookup_start_object_maps());
       ElementsKind elements_kind = access_info.elements_kind();
-      return TryBuildElementStoreOnJSArrayOrJSObject(
-          object, index_object, GetRawAccumulator(), maps, elements_kind,
-          keyed_mode.store_mode());
+      return TryBuildElementStoreOnJSArrayOrJSObject(object, index_object,
+                                                     GetRawAccumulator(), maps,
+                                                     elements_kind, keyed_mode);
     }
     default:
       // TODO(victorgomes): Implement more access types.
@@ -4677,9 +4691,9 @@ void MaglevGraphBuilder::VisitDefineKeyedOwnProperty() {
 }
 
 void MaglevGraphBuilder::VisitStaInArrayLiteral() {
-  // StaInArrayLiteral <object> <name_reg> <slot>
+  // StaInArrayLiteral <object> <index> <slot>
   ValueNode* object = LoadRegisterTagged(0);
-  ValueNode* name = LoadRegisterTagged(1);
+  ValueNode* index = LoadRegisterRaw(1);
   FeedbackSlot slot = GetSlotOperand(2);
   compiler::FeedbackSource feedback_source{feedback(), slot};
 
@@ -4694,6 +4708,13 @@ void MaglevGraphBuilder::VisitStaInArrayLiteral() {
           DeoptimizeReason::kInsufficientTypeFeedbackForGenericKeyedAccess);
       return;
 
+    case compiler::ProcessedFeedback::kElementAccess: {
+      RETURN_VOID_IF_DONE(TryBuildElementAccess(
+          object, index, processed_feedback.AsElementAccess(),
+          feedback_source));
+      break;
+    }
+
     default:
       break;
   }
@@ -4701,8 +4722,8 @@ void MaglevGraphBuilder::VisitStaInArrayLiteral() {
   // Create a generic store in the fallthrough.
   ValueNode* context = GetContext();
   ValueNode* value = GetAccumulatorTagged();
-  AddNewNode<StoreInArrayLiteralGeneric>({context, object, name, value},
-                                         feedback_source);
+  AddNewNode<StoreInArrayLiteralGeneric>(
+      {context, object, GetTaggedValue(index), value}, feedback_source);
 }
 
 void MaglevGraphBuilder::VisitDefineKeyedOwnPropertyInLiteral() {
