@@ -833,11 +833,11 @@ UNINITIALIZED_TEST(PromotionMarkCompact) {
 
     // 1st GC moves `one_byte_seq` to old space and 2nd GC evacuates it within
     // old space.
-    heap::CollectAllGarbage(heap);
+    CcTest::CollectAllGarbage(i_isolate);
     heap::ForceEvacuationCandidate(i::Page::FromHeapObject(*one_byte_seq));
     // We need to invoke GC without stack, otherwise no compaction is performed.
     DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
-    heap::CollectAllGarbage(heap);
+    CcTest::CollectAllGarbage(i_isolate);
 
     // In-place-internalizable strings are promoted into the shared heap when
     // sharing.
@@ -874,7 +874,7 @@ UNINITIALIZED_TEST(PromotionScavenge) {
     CHECK(heap->InSpace(*one_byte_seq, NEW_SPACE));
 
     for (int i = 0; i < 2; i++) {
-      heap::CollectGarbage(heap, NEW_SPACE);
+      CcTest::CollectGarbage(NEW_SPACE, i_isolate);
     }
 
     // In-place-internalizable strings are promoted into the shared heap when
@@ -922,7 +922,7 @@ UNINITIALIZED_TEST(PromotionScavengeOldToShared) {
         RememberedSet<OLD_TO_NEW>::Contains(old_object_chunk, slot.address()));
 
     for (int i = 0; i < 2; i++) {
-      heap::CollectGarbage(heap, NEW_SPACE);
+      CcTest::CollectGarbage(NEW_SPACE, i_isolate);
     }
 
     // In-place-internalizable strings are promoted into the shared heap when
@@ -974,7 +974,7 @@ UNINITIALIZED_TEST(PromotionMarkCompactNewToShared) {
 
     // We need to invoke GC without stack, otherwise no compaction is performed.
     DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
-    heap::CollectGarbage(heap, OLD_SPACE);
+    CcTest::CollectGarbage(OLD_SPACE, i_isolate);
 
     // In-place-internalizable strings are promoted into the shared heap when
     // sharing.
@@ -1135,7 +1135,7 @@ UNINITIALIZED_TEST(InternalizedSharedStringsTransitionDuringGC) {
     }
 
     // Trigger garbage collection on the shared isolate.
-    heap::CollectSharedGarbage(i_isolate->heap());
+    CcTest::CollectSharedGarbage(i_isolate);
 
     // Check that GC cleared the forwarding table.
     CHECK_EQ(i_isolate->string_forwarding_table()->size(), 0);
@@ -2012,7 +2012,7 @@ UNINITIALIZED_TEST(SharedStringInGlobalHandle) {
                                           lh_shared_string);
   gh_shared_string.SetWeak();
 
-  heap::CollectGarbage(i_isolate->heap(), OLD_SPACE);
+  CcTest::CollectGarbage(OLD_SPACE, i_isolate);
 
   CHECK(!gh_shared_string.IsEmpty());
 }
@@ -2421,7 +2421,7 @@ UNINITIALIZED_TEST(SharedObjectRetainedByClientRememberedSet) {
   // slot in the client isolate.
   CHECK(!live_weak_ref.IsEmpty());
   CHECK(!dead_weak_ref.IsEmpty());
-  heap::CollectSharedGarbage(i_isolate->heap());
+  CcTest::CollectSharedGarbage(i_isolate);
   CHECK(!live_weak_ref.IsEmpty());
   CHECK(dead_weak_ref.IsEmpty());
 
@@ -2543,7 +2543,7 @@ UNINITIALIZED_TEST(Regress1424955) {
 
   // Client isolate waits for this isolate to request a global safepoint and
   // then triggers a minor GC.
-  heap::CollectSharedGarbage(test.i_main_isolate()->heap());
+  CcTest::CollectSharedGarbage(test.i_main_isolate());
   done = false;
   V8::GetCurrentPlatform()
       ->GetForegroundTaskRunner(thread.isolate())

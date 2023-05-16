@@ -466,7 +466,7 @@ UNINITIALIZED_TEST(ConcurrentWriteBarrier) {
   thread->Join();
 
   CHECK(heap->marking_state()->IsMarked(value));
-  heap::CollectAllGarbage(heap);
+  heap::InvokeMarkSweep(i_isolate);
 
   isolate->Dispose();
 }
@@ -557,7 +557,7 @@ UNINITIALIZED_TEST(ConcurrentRecordRelocSlot) {
     }
 
     CHECK(heap->marking_state()->IsMarked(value));
-    heap::CollectAllGarbage(heap);
+    heap::InvokeMarkSweep(i_isolate);
   }
   isolate->Dispose();
 }

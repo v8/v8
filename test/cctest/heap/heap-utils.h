@@ -42,17 +42,15 @@ void SimulateFullSpace(v8::internal::PagedSpace* space);
 
 void AbandonCurrentlyFreeMemory(PagedSpace* space);
 
-void CollectGarbage(Heap* heap, AllocationSpace space);
-void CollectAllGarbage(Heap* heap);
-void CollectAllAvailableGarbage(Heap* heap);
-void PreciseCollectAllGarbage(Heap* heap);
-void CollectSharedGarbage(Heap* heap);
-
 void GcAndSweep(Heap* heap, AllocationSpace space);
 
 void EmptyNewSpaceUsingGC(Heap* heap);
 
 void ForceEvacuationCandidate(Page* page);
+
+void InvokeScavenge(Isolate* isolate = nullptr);
+
+void InvokeMarkSweep(Isolate* isolate = nullptr);
 
 void GrowNewSpace(Heap* heap);
 

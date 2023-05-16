@@ -556,11 +556,11 @@ THREADED_TEST(ScriptUsingStringResource) {
     CHECK_EQ(static_cast<const String::ExternalStringResourceBase*>(resource),
              source->GetExternalStringResourceBase(&encoding));
     CHECK_EQ(String::TWO_BYTE_ENCODING, encoding);
-    i::heap::CollectAllGarbage(CcTest::heap());
+    CcTest::CollectAllGarbage();
     CHECK_EQ(0, dispose_count);
   }
   CcTest::i_isolate()->compilation_cache()->Clear();
-  i::heap::CollectAllAvailableGarbage(CcTest::heap());
+  CcTest::CollectAllAvailableGarbage();
   CHECK_EQ(1, dispose_count);
 }
 
@@ -592,11 +592,11 @@ THREADED_TEST(ScriptUsingOneByteStringResource) {
     Local<Value> value = script->Run(env.local()).ToLocalChecked();
     CHECK(value->IsNumber());
     CHECK_EQ(7, value->Int32Value(env.local()).FromJust());
-    i::heap::CollectAllGarbage(CcTest::heap());
+    CcTest::CollectAllGarbage();
     CHECK_EQ(0, dispose_count);
   }
   CcTest::i_isolate()->compilation_cache()->Clear();
-  i::heap::CollectAllAvailableGarbage(CcTest::heap());
+  CcTest::CollectAllAvailableGarbage();
   CHECK_EQ(1, dispose_count);
 }
 
@@ -628,11 +628,11 @@ THREADED_TEST(ScriptMakingExternalString) {
     Local<Value> value = script->Run(env.local()).ToLocalChecked();
     CHECK(value->IsNumber());
     CHECK_EQ(7, value->Int32Value(env.local()).FromJust());
-    i::heap::CollectAllGarbage(CcTest::heap());
+    CcTest::CollectAllGarbage();
     CHECK_EQ(0, dispose_count);
   }
   CcTest::i_isolate()->compilation_cache()->Clear();
-  i::heap::CollectAllGarbage(CcTest::heap());
+  CcTest::CollectAllGarbage();
   CHECK_EQ(1, dispose_count);
 }
 
@@ -656,11 +656,11 @@ THREADED_TEST(ScriptMakingExternalOneByteString) {
     Local<Value> value = script->Run(env.local()).ToLocalChecked();
     CHECK(value->IsNumber());
     CHECK_EQ(7, value->Int32Value(env.local()).FromJust());
-    i::heap::CollectAllGarbage(CcTest::heap());
+    CcTest::CollectAllGarbage();
     CHECK_EQ(0, dispose_count);
   }
   CcTest::i_isolate()->compilation_cache()->Clear();
-  i::heap::CollectAllGarbage(CcTest::heap());
+  CcTest::CollectAllGarbage();
   CHECK_EQ(1, dispose_count);
 }
 
@@ -762,7 +762,7 @@ TEST(MakingExternalUnalignedOneByteString) {
   CHECK(success);
 
   // Trigger GCs and force evacuation.
-  i::heap::CollectAllGarbage(CcTest::heap());
+  CcTest::CollectAllGarbage();
   CcTest::heap()->CollectAllGarbage(i::GCFlag::kReduceMemoryFootprint,
                                     i::GarbageCollectionReason::kTesting);
 }
@@ -783,8 +783,8 @@ THREADED_TEST(UsingExternalString) {
         factory->InternalizeString(istring);
     CHECK(isymbol->IsInternalizedString());
   }
-  i::heap::CollectAllGarbage(CcTest::heap());
-  i::heap::CollectAllGarbage(CcTest::heap());
+  CcTest::CollectAllGarbage();
+  CcTest::CollectAllGarbage();
 }
 
 
@@ -805,8 +805,8 @@ THREADED_TEST(UsingExternalOneByteString) {
         factory->InternalizeString(istring);
     CHECK(isymbol->IsInternalizedString());
   }
-  i::heap::CollectAllGarbage(CcTest::heap());
-  i::heap::CollectAllGarbage(CcTest::heap());
+  CcTest::CollectAllGarbage();
+  CcTest::CollectAllGarbage();
 }
 
 
@@ -876,14 +876,13 @@ TEST(ScavengeExternalString) {
             new TestResource(two_byte_string, &dispose_count))
             .ToLocalChecked();
     i::Handle<i::String> istring = v8::Utils::OpenHandle(*string);
-    i::heap::CollectGarbage(CcTest::heap(), i::NEW_SPACE);
+    CcTest::CollectGarbage(i::NEW_SPACE);
     in_young_generation = i::Heap::InYoungGeneration(*istring);
     CHECK_IMPLIES(!in_young_generation,
                   CcTest::heap()->old_space()->Contains(*istring));
     CHECK_EQ(0, dispose_count);
   }
-  i::heap::CollectGarbage(CcTest::heap(),
-                          in_young_generation ? i::NEW_SPACE : i::OLD_SPACE);
+  CcTest::CollectGarbage(in_young_generation ? i::NEW_SPACE : i::OLD_SPACE);
   CHECK_EQ(1, dispose_count);
 }
 
@@ -905,14 +904,13 @@ TEST(ScavengeExternalOneByteString) {
             new TestOneByteResource(i::StrDup(one_byte_string), &dispose_count))
             .ToLocalChecked();
     i::Handle<i::String> istring = v8::Utils::OpenHandle(*string);
-    i::heap::CollectGarbage(CcTest::heap(), i::NEW_SPACE);
+    CcTest::CollectGarbage(i::NEW_SPACE);
     in_young_generation = i::Heap::InYoungGeneration(*istring);
     CHECK_IMPLIES(!in_young_generation,
                   CcTest::heap()->old_space()->Contains(*istring));
     CHECK_EQ(0, dispose_count);
   }
-  i::heap::CollectGarbage(CcTest::heap(),
-                          in_young_generation ? i::NEW_SPACE : i::OLD_SPACE);
+  CcTest::CollectGarbage(in_young_generation ? i::NEW_SPACE : i::OLD_SPACE);
   CHECK_EQ(1, dispose_count);
 }
 
@@ -959,11 +957,11 @@ TEST(ExternalStringWithDisposeHandling) {
     Local<Value> value = script->Run(env.local()).ToLocalChecked();
     CHECK(value->IsNumber());
     CHECK_EQ(7, value->Int32Value(env.local()).FromJust());
-    i::heap::CollectAllAvailableGarbage(CcTest::heap());
+    CcTest::CollectAllAvailableGarbage();
     CHECK_EQ(0, TestOneByteResourceWithDisposeControl::dispose_count);
   }
   CcTest::i_isolate()->compilation_cache()->Clear();
-  i::heap::CollectAllAvailableGarbage(CcTest::heap());
+  CcTest::CollectAllAvailableGarbage();
   CHECK_EQ(1, TestOneByteResourceWithDisposeControl::dispose_calls);
   CHECK_EQ(0, TestOneByteResourceWithDisposeControl::dispose_count);
 
@@ -982,11 +980,11 @@ TEST(ExternalStringWithDisposeHandling) {
     Local<Value> value = script->Run(env.local()).ToLocalChecked();
     CHECK(value->IsNumber());
     CHECK_EQ(7, value->Int32Value(env.local()).FromJust());
-    i::heap::CollectAllAvailableGarbage(CcTest::heap());
+    CcTest::CollectAllAvailableGarbage();
     CHECK_EQ(0, TestOneByteResourceWithDisposeControl::dispose_count);
   }
   CcTest::i_isolate()->compilation_cache()->Clear();
-  i::heap::CollectAllAvailableGarbage(CcTest::heap());
+  CcTest::CollectAllAvailableGarbage();
   CHECK_EQ(1, TestOneByteResourceWithDisposeControl::dispose_calls);
   CHECK_EQ(1, TestOneByteResourceWithDisposeControl::dispose_count);
 }
@@ -1043,8 +1041,8 @@ THREADED_TEST(StringConcat) {
     CHECK_EQ(68, value->Int32Value(env.local()).FromJust());
   }
   CcTest::i_isolate()->compilation_cache()->Clear();
-  i::heap::CollectAllGarbage(CcTest::heap());
-  i::heap::CollectAllGarbage(CcTest::heap());
+  CcTest::CollectAllGarbage();
+  CcTest::CollectAllGarbage();
 }
 
 
@@ -1139,6 +1137,7 @@ static void TestFunctionTemplateInitializer(Handler handler,
     }
   }
 }
+
 
 template<typename Constructor, typename Accessor>
 static void TestFunctionTemplateAccessor(Constructor constructor,
@@ -3049,7 +3048,7 @@ static void CheckAlignedPointerInInternalField(Local<v8::Object> obj,
                                                void* value) {
   CHECK(HAS_SMI_TAG(reinterpret_cast<i::Address>(value)));
   obj->SetAlignedPointerInInternalField(0, value);
-  i::heap::CollectAllGarbage(CcTest::heap());
+  CcTest::CollectAllGarbage();
   CHECK_EQ(value, obj->GetAlignedPointerFromInternalField(0));
 }
 
@@ -3106,7 +3105,7 @@ THREADED_TEST(SetAlignedPointerInInternalFields) {
   void* values[] = {heap_allocated_1, heap_allocated_2};
 
   obj->SetAlignedPointerInInternalFields(2, indices, values);
-  i::heap::CollectAllGarbage(CcTest::heap());
+  CcTest::CollectAllGarbage();
   {
     v8::SealHandleScope no_handle_leak(isolate);
     CHECK_EQ(heap_allocated_1, obj->GetAlignedPointerFromInternalField(0));
@@ -3116,7 +3115,7 @@ THREADED_TEST(SetAlignedPointerInInternalFields) {
   indices[0] = 1;
   indices[1] = 0;
   obj->SetAlignedPointerInInternalFields(2, indices, values);
-  i::heap::CollectAllGarbage(CcTest::heap());
+  CcTest::CollectAllGarbage();
   CHECK_EQ(heap_allocated_2, obj->GetAlignedPointerFromInternalField(0));
   CHECK_EQ(heap_allocated_1, obj->GetAlignedPointerFromInternalField(1));
 
@@ -3129,7 +3128,7 @@ static void CheckAlignedPointerInEmbedderData(LocalContext* env,
                                               int index, void* value) {
   CHECK_EQ(0, static_cast<int>(reinterpret_cast<uintptr_t>(value) & 0x1));
   (*env)->SetAlignedPointerInEmbedderData(index, value);
-  i::heap::CollectAllGarbage(CcTest::heap());
+  CcTest::CollectAllGarbage();
   CHECK_EQ(value, (*env)->GetAlignedPointerFromEmbedderData(index));
   CHECK_EQ(value,
            some_obj->GetAlignedPointerFromEmbedderDataInCreationContext(index));
@@ -3169,7 +3168,7 @@ THREADED_TEST(EmbedderDataAlignedPointers) {
   for (int i = 0; i < 100; i++) {
     env->SetAlignedPointerInEmbedderData(i, AlignedTestPointer(i));
   }
-  i::heap::CollectAllGarbage(CcTest::heap());
+  CcTest::CollectAllGarbage();
   for (int i = 0; i < 100; i++) {
     v8::SealHandleScope no_handle_leak(env->GetIsolate());
     CHECK_EQ(AlignedTestPointer(i), env->GetAlignedPointerFromEmbedderData(i));
@@ -3209,7 +3208,7 @@ THREADED_TEST(IdentityHash) {
 
   // Ensure that the test starts with an fresh heap to test whether the hash
   // code is based on the address.
-  i::heap::CollectAllGarbage(CcTest::heap());
+  CcTest::CollectAllGarbage();
   Local<v8::Object> obj = v8::Object::New(isolate);
   int hash = obj->GetIdentityHash();
   int hash1 = obj->GetIdentityHash();
@@ -3219,7 +3218,7 @@ THREADED_TEST(IdentityHash) {
   // objects should not be assigned the same hash code. If the test below fails
   // the random number generator should be evaluated.
   CHECK_NE(hash, hash2);
-  i::heap::CollectAllGarbage(CcTest::heap());
+  CcTest::CollectAllGarbage();
   int hash3 = v8::Object::New(isolate)->GetIdentityHash();
   // Make sure that the identity hash is not based on the initial address of
   // the object alone. If the test below fails the random number generator
@@ -3295,7 +3294,7 @@ TEST(SymbolIdentityHash) {
     int hash = symbol->GetIdentityHash();
     int hash1 = symbol->GetIdentityHash();
     CHECK_EQ(hash, hash1);
-    i::heap::CollectAllGarbage(CcTest::heap());
+    CcTest::CollectAllGarbage();
     int hash3 = symbol->GetIdentityHash();
     CHECK_EQ(hash, hash3);
   }
@@ -3306,7 +3305,7 @@ TEST(SymbolIdentityHash) {
     int hash = js_symbol->GetIdentityHash();
     int hash1 = js_symbol->GetIdentityHash();
     CHECK_EQ(hash, hash1);
-    i::heap::CollectAllGarbage(CcTest::heap());
+    CcTest::CollectAllGarbage();
     int hash3 = js_symbol->GetIdentityHash();
     CHECK_EQ(hash, hash3);
   }
@@ -3322,7 +3321,7 @@ TEST(StringIdentityHash) {
   int hash = str->GetIdentityHash();
   int hash1 = str->GetIdentityHash();
   CHECK_EQ(hash, hash1);
-  i::heap::CollectAllGarbage(CcTest::heap());
+  CcTest::CollectAllGarbage();
   int hash3 = str->GetIdentityHash();
   CHECK_EQ(hash, hash3);
 
@@ -3343,7 +3342,7 @@ THREADED_TEST(SymbolProperties) {
   v8::Local<v8::Symbol> sym3 = v8::Symbol::New(isolate, v8_str("sym3"));
   v8::Local<v8::Symbol> sym4 = v8::Symbol::New(isolate, v8_str("native"));
 
-  i::heap::CollectAllGarbage(CcTest::heap());
+  CcTest::CollectAllGarbage();
 
   // Check basic symbol functionality.
   CHECK(sym1->IsSymbol());
@@ -3414,7 +3413,7 @@ THREADED_TEST(SymbolProperties) {
   CHECK_EQ(num_props + 1,
            obj->GetPropertyNames(env.local()).ToLocalChecked()->Length());
 
-  i::heap::CollectAllGarbage(CcTest::heap());
+  CcTest::CollectAllGarbage();
 
   CHECK(obj->SetAccessor(env.local(), sym3, SymbolAccessorGetter,
                          SymbolAccessorSetter)
@@ -3541,7 +3540,7 @@ THREADED_TEST(PrivatePropertiesOnProxies) {
   v8::Local<v8::Private> priv2 =
       v8::Private::New(isolate, v8_str("my-private"));
 
-  i::heap::CollectAllGarbage(CcTest::heap());
+  CcTest::CollectAllGarbage();
 
   CHECK(priv2->Name()
             ->Equals(env.local(),
@@ -3580,7 +3579,7 @@ THREADED_TEST(PrivatePropertiesOnProxies) {
   CHECK_EQ(num_props + 1,
            proxy->GetPropertyNames(env.local()).ToLocalChecked()->Length());
 
-  i::heap::CollectAllGarbage(CcTest::heap());
+  CcTest::CollectAllGarbage();
 
   // Add another property and delete it afterwards to force the object in
   // slow case.
@@ -3632,7 +3631,7 @@ THREADED_TEST(PrivateProperties) {
   v8::Local<v8::Private> priv2 =
       v8::Private::New(isolate, v8_str("my-private"));
 
-  i::heap::CollectAllGarbage(CcTest::heap());
+  CcTest::CollectAllGarbage();
 
   CHECK(priv2->Name()
             ->Equals(env.local(),
@@ -3670,7 +3669,7 @@ THREADED_TEST(PrivateProperties) {
   CHECK_EQ(num_props + 1,
            obj->GetPropertyNames(env.local()).ToLocalChecked()->Length());
 
-  i::heap::CollectAllGarbage(CcTest::heap());
+  CcTest::CollectAllGarbage();
 
   // Add another property and delete it afterwards to force the object in
   // slow case.
@@ -3821,7 +3820,7 @@ THREADED_TEST(HiddenProperties) {
   v8::Local<v8::String> empty = v8_str("");
   v8::Local<v8::String> prop_name = v8_str("prop_name");
 
-  i::heap::CollectAllGarbage(CcTest::heap());
+  CcTest::CollectAllGarbage();
 
   // Make sure delete of a non-existent hidden value works
   obj->DeletePrivate(env.local(), key).FromJust();
@@ -3839,7 +3838,7 @@ THREADED_TEST(HiddenProperties) {
                      ->Int32Value(env.local())
                      .FromJust());
 
-  i::heap::CollectAllGarbage(CcTest::heap());
+  CcTest::CollectAllGarbage();
 
   // Make sure we do not find the hidden property.
   CHECK(!obj->Has(env.local(), empty).FromJust());
@@ -3863,7 +3862,7 @@ THREADED_TEST(HiddenProperties) {
                      ->Int32Value(env.local())
                      .FromJust());
 
-  i::heap::CollectAllGarbage(CcTest::heap());
+  CcTest::CollectAllGarbage();
 
   // Add another property and delete it afterwards to force the object in
   // slow case.
@@ -3887,7 +3886,7 @@ THREADED_TEST(HiddenProperties) {
                      ->Int32Value(env.local())
                      .FromJust());
 
-  i::heap::CollectAllGarbage(CcTest::heap());
+  CcTest::CollectAllGarbage();
 
   CHECK(obj->SetPrivate(env.local(), key, v8::Integer::New(isolate, 2002))
             .FromJust());
@@ -4204,7 +4203,7 @@ class TwoPassCallbackData {
     if (!trigger_gc) return;
     auto data_2 = new TwoPassCallbackData(isolate, metadata);
     data_2->SetWeak();
-    i::heap::CollectAllGarbage(CcTest::heap());
+    CcTest::CollectAllGarbage();
   }
 
   void SetWeak() {
@@ -4246,7 +4245,7 @@ TEST(TwoPassPhantomCallbacks) {
     data->SetWeak();
   }
   CHECK_EQ(static_cast<int>(kLength), metadata.instance_counter);
-  i::heap::CollectAllGarbage(CcTest::heap());
+  CcTest::CollectAllGarbage();
   EmptyMessageQueues(isolate);
 }
 
@@ -4266,7 +4265,7 @@ TEST(TwoPassPhantomCallbacksNestedGc) {
   array[10]->MarkTriggerGc();
   array[15]->MarkTriggerGc();
   CHECK_EQ(static_cast<int>(kLength), metadata.instance_counter);
-  i::heap::CollectAllGarbage(CcTest::heap());
+  CcTest::CollectAllGarbage();
   EmptyMessageQueues(isolate);
 }
 
@@ -4398,7 +4397,7 @@ void TestGlobalValueMap() {
   }
   CHECK_EQ(initial_handle_count + 1, global_handles->handles_count());
   if (map.IsWeak()) {
-    i::heap::PreciseCollectAllGarbage(CcTest::heap());
+    CcTest::PreciseCollectAllGarbage();
   } else {
     map.Clear();
   }
@@ -7682,9 +7681,9 @@ static void IndependentWeakHandle(bool global_gc, bool interlinked) {
       b->Set(context, v8_str("x"), a).FromJust();
     }
     if (i::v8_flags.single_generation || global_gc) {
-      i::heap::CollectAllGarbage(CcTest::heap());
+      CcTest::CollectAllGarbage();
     } else {
-      i::heap::CollectGarbage(CcTest::heap(), i::NEW_SPACE);
+      CcTest::CollectGarbage(i::NEW_SPACE);
     }
     v8::Local<Value> big_array = v8::Array::New(CcTest::isolate(), 5000);
     // Verify that we created an array where the space was reserved up front.
@@ -7702,9 +7701,9 @@ static void IndependentWeakHandle(bool global_gc, bool interlinked) {
   object_b.handle.SetWeak(&object_b, &SetFlag,
                           v8::WeakCallbackType::kParameter);
   if (i::v8_flags.single_generation || global_gc) {
-    i::heap::CollectAllGarbage(CcTest::heap());
+    CcTest::CollectAllGarbage();
   } else {
-    i::heap::CollectGarbage(CcTest::heap(), i::NEW_SPACE);
+    CcTest::CollectGarbage(i::NEW_SPACE);
   }
   // A single GC should be enough to reclaim the memory, since we are using
   // phantom handles.
@@ -7804,9 +7803,9 @@ void InternalFieldCallback(bool global_gc) {
   }
 
   if (i::v8_flags.single_generation || global_gc) {
-    i::heap::CollectAllGarbage(CcTest::heap());
+    CcTest::CollectAllGarbage();
   } else {
-    i::heap::CollectGarbage(CcTest::heap(), i::NEW_SPACE);
+    CcTest::CollectGarbage(i::NEW_SPACE);
   }
 
   CHECK_EQ(1729, t1->x());
@@ -7851,9 +7850,9 @@ void i::heap::HeapTester::ResetWeakHandle(bool global_gc) {
     object_a.handle.Reset(iso, a);
     object_b.handle.Reset(iso, b);
     if (global_gc || v8_flags.single_generation) {
-      i::heap::PreciseCollectAllGarbage(CcTest::heap());
+      CcTest::PreciseCollectAllGarbage();
     } else {
-      i::heap::CollectGarbage(CcTest::heap(), i::NEW_SPACE);
+      CcTest::CollectGarbage(i::NEW_SPACE);
     }
   }
 
@@ -7865,9 +7864,9 @@ void i::heap::HeapTester::ResetWeakHandle(bool global_gc) {
                           v8::WeakCallbackType::kParameter);
 
   if (global_gc || v8_flags.single_generation) {
-    i::heap::PreciseCollectAllGarbage(CcTest::heap());
+    CcTest::PreciseCollectAllGarbage();
   } else {
-    i::heap::CollectGarbage(CcTest::heap(), i::NEW_SPACE);
+    CcTest::CollectGarbage(i::NEW_SPACE);
   }
   CHECK(object_a.flag);
   CHECK(object_b.flag);
@@ -7878,24 +7877,32 @@ THREADED_HEAP_TEST(ResetWeakHandle) {
   i::heap::HeapTester::ResetWeakHandle(true);
 }
 
-static void ForceMinorGC2(const v8::WeakCallbackInfo<FlagAndPersistent>& data) {
+static void InvokeScavenge() { CcTest::CollectGarbage(i::NEW_SPACE); }
+
+static void InvokeMarkSweep() { CcTest::CollectAllGarbage(); }
+
+static void ForceScavenge2(
+    const v8::WeakCallbackInfo<FlagAndPersistent>& data) {
   data.GetParameter()->flag = true;
-  i::heap::CollectGarbage(CcTest::heap(), i::NEW_SPACE);
+  InvokeScavenge();
 }
 
-static void ForceMinorGC1(const v8::WeakCallbackInfo<FlagAndPersistent>& data) {
+static void ForceScavenge1(
+    const v8::WeakCallbackInfo<FlagAndPersistent>& data) {
   data.GetParameter()->handle.Reset();
-  data.SetSecondPassCallback(ForceMinorGC2);
+  data.SetSecondPassCallback(ForceScavenge2);
 }
 
-static void ForceFullGC2(const v8::WeakCallbackInfo<FlagAndPersistent>& data) {
+static void ForceMarkSweep2(
+    const v8::WeakCallbackInfo<FlagAndPersistent>& data) {
   data.GetParameter()->flag = true;
-  i::heap::CollectAllGarbage(CcTest::heap());
+  InvokeMarkSweep();
 }
 
-static void ForceFullGC1(const v8::WeakCallbackInfo<FlagAndPersistent>& data) {
+static void ForceMarkSweep1(
+    const v8::WeakCallbackInfo<FlagAndPersistent>& data) {
   data.GetParameter()->handle.Reset();
-  data.SetSecondPassCallback(ForceFullGC2);
+  data.SetSecondPassCallback(ForceMarkSweep2);
 }
 
 THREADED_TEST(GCFromWeakCallbacks) {
@@ -7914,9 +7921,9 @@ THREADED_TEST(GCFromWeakCallbacks) {
       object.handle.Reset(isolate, v8::Object::New(isolate));
     }
     object.flag = false;
-    object.handle.SetWeak(&object, &ForceFullGC1,
+    object.handle.SetWeak(&object, &ForceMarkSweep1,
                           v8::WeakCallbackType::kParameter);
-    i::heap::CollectAllGarbage(CcTest::heap());
+    InvokeMarkSweep();
     EmptyMessageQueues(isolate);
     CHECK(object.flag);
     return;
@@ -7924,14 +7931,11 @@ THREADED_TEST(GCFromWeakCallbacks) {
 
   static const int kNumberOfGCTypes = 2;
   using Callback = v8::WeakCallbackInfo<FlagAndPersistent>::Callback;
-  Callback gc_forcing_callback[kNumberOfGCTypes] = {&ForceMinorGC1,
-                                                    &ForceFullGC1};
+  Callback gc_forcing_callback[kNumberOfGCTypes] = {&ForceScavenge1,
+                                                    &ForceMarkSweep1};
 
   using GCInvoker = void (*)();
-
-  GCInvoker invoke_gc[kNumberOfGCTypes] = {
-      []() { i::heap::CollectGarbage(CcTest::heap(), i::NEW_SPACE); },
-      []() { i::heap::CollectAllGarbage(CcTest::heap()); }};
+  GCInvoker invoke_gc[kNumberOfGCTypes] = {&InvokeScavenge, &InvokeMarkSweep};
 
   for (int outer_gc = 0; outer_gc < kNumberOfGCTypes; outer_gc++) {
     for (int inner_gc = 0; inner_gc < kNumberOfGCTypes; inner_gc++) {
@@ -7964,7 +7968,7 @@ static void ArgumentsTestCallback(
   CHECK(v8::Integer::New(isolate, 3)->Equals(context, args[2]).FromJust());
   CHECK(v8::Undefined(isolate)->Equals(context, args[3]).FromJust());
   v8::HandleScope scope(args.GetIsolate());
-  i::heap::CollectAllGarbage(CcTest::heap());
+  CcTest::CollectAllGarbage();
 }
 
 
@@ -9196,7 +9200,7 @@ static bool security_check_with_gc_called;
 static bool SecurityTestCallbackWithGC(Local<v8::Context> accessing_context,
                                        Local<v8::Object> accessed_object,
                                        Local<v8::Value> data) {
-  i::heap::CollectAllGarbage(CcTest::heap());
+  CcTest::CollectAllGarbage();
   security_check_with_gc_called = true;
   return true;
 }
@@ -11645,7 +11649,7 @@ static void InterceptorCallICFastApi(
       reinterpret_cast<int*>(v8::External::Cast(*info.Data())->Value());
   ++(*call_count);
   if ((*call_count) % 20 == 0) {
-    i::heap::CollectAllGarbage(CcTest::heap());
+    CcTest::CollectAllGarbage();
   }
 }
 
@@ -11703,7 +11707,7 @@ void DirectApiCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
   CHECK(i::ValidateCallbackInfo(info));
   static int count = 0;
   if (count++ % 3 == 0) {
-    i::heap::CollectAllGarbage(CcTest::heap());
+    CcTest::CollectAllGarbage();
     // This should move the stub
     GenerateSomeGarbage();  // This should ensure the old stub memory is flushed
   }
@@ -11768,7 +11772,7 @@ static int p_getter_count_3;
 
 static Local<Value> DoDirectGetter() {
   if (++p_getter_count_3 % 3 == 0) {
-    i::heap::CollectAllGarbage(CcTest::heap());
+    CcTest::CollectAllGarbage();
     GenerateSomeGarbage();
   }
   return v8_str("Direct Getter Result");
@@ -13389,8 +13393,8 @@ static void CheckSurvivingGlobalObjectsCount(int expected) {
   // collected until the second garbage collection.
   i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
       CcTest::heap());
-  i::heap::CollectAllGarbage(CcTest::heap());
-  i::heap::CollectAllGarbage(CcTest::heap());
+  CcTest::CollectAllGarbage();
+  CcTest::CollectAllGarbage();
   int count = GetGlobalObjectsCount();
   CHECK_EQ(expected, count);
 }
@@ -13458,7 +13462,7 @@ TEST(WeakCallbackApi) {
     handle->SetWeak<v8::Persistent<v8::Object>>(
         handle, WeakApiCallback, v8::WeakCallbackType::kParameter);
   }
-  i::heap::PreciseCollectAllGarbage(CcTest::heap());
+  CcTest::PreciseCollectAllGarbage();
   // Verify disposed.
   CHECK_EQ(initial_handles, globals->handles_count());
 }
@@ -13507,7 +13511,7 @@ THREADED_TEST(NewPersistentHandleFromWeakCallback) {
     // as parameter to the callback will be dangling.
     i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
         CcTest::heap());
-    i::heap::CollectAllGarbage(CcTest::heap());
+    CcTest::CollectAllGarbage();
   }
 }
 
@@ -13518,7 +13522,7 @@ v8::Persistent<v8::Object> to_be_disposed;
 void DisposeAndForceGcCallback2(
     const v8::WeakCallbackInfo<v8::Persistent<v8::Object>>& data) {
   to_be_disposed.Reset();
-  i::heap::CollectAllGarbage(CcTest::heap());
+  CcTest::CollectAllGarbage();
 }
 
 
@@ -13549,7 +13553,7 @@ THREADED_TEST(DoNotUseDeletedNodesInSecondLevelGc) {
     // as parameter to the callback will be dangling.
     i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
         CcTest::heap());
-    i::heap::CollectAllGarbage(CcTest::heap());
+    CcTest::CollectAllGarbage();
   }
 }
 
@@ -13595,7 +13599,7 @@ THREADED_TEST(NoGlobalHandlesOrphaningDueToWeakCallback) {
     // as parameters to the callbacks will be dangling.
     i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
         CcTest::heap());
-    i::heap::CollectAllGarbage(CcTest::heap());
+    CcTest::CollectAllGarbage();
   }
   EmptyMessageQueues(isolate);
 }
@@ -13806,7 +13810,7 @@ UNINITIALIZED_TEST(SetJitCodeEventHandler) {
   i::Heap* heap = i_isolate->heap();
 
   // Start with a clean slate.
-  i::heap::CollectAllAvailableGarbage(heap);
+  CcTest::CollectAllAvailableGarbage(i_isolate);
   {
     v8::HandleScope scope(isolate);
     v8::base::HashMap code;
@@ -13855,7 +13859,7 @@ UNINITIALIZED_TEST(SetJitCodeEventHandler) {
       // performed.
       i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
           heap);
-      i::heap::CollectAllAvailableGarbage(heap);
+      CcTest::CollectAllAvailableGarbage(i_isolate);
     }
 
     isolate->SetJitCodeEventHandler(v8::kJitCodeEventDefault, nullptr);
@@ -16771,7 +16775,7 @@ TEST(TestMemorySavingsMode) {
 TEST(Regress2333) {
   LocalContext env;
   for (int i = 0; i < 3; i++) {
-    i::heap::CollectGarbage(CcTest::heap(), i::NEW_SPACE);
+    CcTest::CollectGarbage(i::NEW_SPACE);
   }
 }
 
@@ -16934,7 +16938,7 @@ TEST(NumberOfNativeContexts) {
   }
   for (size_t i = 0; i < kNumTestContexts; i++) {
     context[i].Reset();
-    i::heap::PreciseCollectAllGarbage(CcTest::heap());
+    CcTest::PreciseCollectAllGarbage();
     CcTest::isolate()->GetHeapStatistics(&heap_statistics);
     CHECK_EQ(kNumTestContexts - i - 1u,
              heap_statistics.number_of_native_contexts());
@@ -16962,7 +16966,7 @@ TEST(NumberOfDetachedContexts) {
   }
   for (size_t i = 0; i < kNumTestContexts; i++) {
     context[i].Reset();
-    i::heap::PreciseCollectAllGarbage(CcTest::heap());
+    CcTest::PreciseCollectAllGarbage();
     CcTest::isolate()->GetHeapStatistics(&heap_statistics);
     CHECK_EQ(kNumTestContexts - i - 1u,
              heap_statistics.number_of_detached_contexts());
@@ -17016,7 +17020,7 @@ TEST(ExternalizeOldSpaceTwoByteCons) {
           ->ToString(env.local())
           .ToLocalChecked();
   CHECK(v8::Utils::OpenHandle(*cons)->IsConsString());
-  i::heap::CollectAllAvailableGarbage(CcTest::heap());
+  CcTest::CollectAllAvailableGarbage();
   CHECK(CcTest::heap()->old_space()->Contains(*v8::Utils::OpenHandle(*cons)));
 
   TestResource* resource = new TestResource(
@@ -17041,7 +17045,7 @@ TEST(ExternalizeOldSpaceOneByteCons) {
           ->ToString(env.local())
           .ToLocalChecked();
   CHECK(v8::Utils::OpenHandle(*cons)->IsConsString());
-  i::heap::CollectAllAvailableGarbage(CcTest::heap());
+  CcTest::CollectAllAvailableGarbage();
   CHECK(CcTest::heap()->old_space()->Contains(*v8::Utils::OpenHandle(*cons)));
 
   TestOneByteResource* resource =
@@ -17085,7 +17089,7 @@ TEST(VisitExternalStrings) {
   v8::Local<v8::String> string3 =
       v8::String::NewExternalTwoByte(env->GetIsolate(), resource[3])
           .ToLocalChecked();
-  i::heap::CollectAllAvailableGarbage(CcTest::heap());  // Tenure string.
+  CcTest::CollectAllAvailableGarbage();  // Tenure string.
   // Turn into a symbol.
   i::Handle<i::String> string3_i = v8::Utils::OpenHandle(*string3);
   CHECK(!CcTest::i_isolate()->factory()->InternalizeString(
@@ -17192,7 +17196,7 @@ TEST(ExternalInternalizedStringCollectedAtGC) {
 
   // Garbage collector deals swift blows to evil.
   CcTest::i_isolate()->compilation_cache()->Clear();
-  i::heap::CollectAllAvailableGarbage(CcTest::heap());
+  CcTest::CollectAllAvailableGarbage();
 
   // Ring has been destroyed.  Free Peoples of Middle-earth Rejoice.
   CHECK_EQ(1, destroyed);
@@ -17394,7 +17398,7 @@ TEST(Regress528) {
     other_context->Enter();
     CompileRun(source_simple);
     other_context->Exit();
-    i::heap::CollectAllGarbage(CcTest::heap());
+    CcTest::CollectAllGarbage();
     if (GetGlobalObjectsCount() == 1) break;
   }
   CHECK_GE(2, gc_count);
@@ -17416,7 +17420,7 @@ TEST(Regress528) {
     other_context->Enter();
     CompileRun(source_eval);
     other_context->Exit();
-    i::heap::CollectAllGarbage(CcTest::heap());
+    CcTest::CollectAllGarbage();
     if (GetGlobalObjectsCount() == 1) break;
   }
   CHECK_GE(2, gc_count);
@@ -17443,7 +17447,7 @@ TEST(Regress528) {
     other_context->Enter();
     CompileRun(source_exception);
     other_context->Exit();
-    i::heap::CollectAllGarbage(CcTest::heap());
+    CcTest::CollectAllGarbage();
     if (GetGlobalObjectsCount() == 1) break;
   }
   CHECK_GE(2, gc_count);
@@ -18028,26 +18032,26 @@ TEST(GCCallbacksOld) {
   context->GetIsolate()->AddGCEpilogueCallback(EpilogueCallback);
   CHECK_EQ(0, prologue_call_count);
   CHECK_EQ(0, epilogue_call_count);
-  i::heap::CollectAllGarbage(CcTest::heap());
+  CcTest::CollectAllGarbage();
   CHECK_EQ(1, prologue_call_count);
   CHECK_EQ(1, epilogue_call_count);
   context->GetIsolate()->AddGCPrologueCallback(PrologueCallbackSecond);
   context->GetIsolate()->AddGCEpilogueCallback(EpilogueCallbackSecond);
-  i::heap::CollectAllGarbage(CcTest::heap());
+  CcTest::CollectAllGarbage();
   CHECK_EQ(2, prologue_call_count);
   CHECK_EQ(2, epilogue_call_count);
   CHECK_EQ(1, prologue_call_count_second);
   CHECK_EQ(1, epilogue_call_count_second);
   context->GetIsolate()->RemoveGCPrologueCallback(PrologueCallback);
   context->GetIsolate()->RemoveGCEpilogueCallback(EpilogueCallback);
-  i::heap::CollectAllGarbage(CcTest::heap());
+  CcTest::CollectAllGarbage();
   CHECK_EQ(2, prologue_call_count);
   CHECK_EQ(2, epilogue_call_count);
   CHECK_EQ(2, prologue_call_count_second);
   CHECK_EQ(2, epilogue_call_count_second);
   context->GetIsolate()->RemoveGCPrologueCallback(PrologueCallbackSecond);
   context->GetIsolate()->RemoveGCEpilogueCallback(EpilogueCallbackSecond);
-  i::heap::CollectAllGarbage(CcTest::heap());
+  CcTest::CollectAllGarbage();
   CHECK_EQ(2, prologue_call_count);
   CHECK_EQ(2, epilogue_call_count);
   CHECK_EQ(2, prologue_call_count_second);
@@ -18069,14 +18073,14 @@ TEST(GCCallbacksWithData) {
   CHECK_EQ(0, epilogue1);
   CHECK_EQ(0, prologue2);
   CHECK_EQ(0, epilogue2);
-  i::heap::CollectAllGarbage(CcTest::heap());
+  CcTest::CollectAllGarbage();
   CHECK_EQ(1, prologue1);
   CHECK_EQ(1, epilogue1);
   CHECK_EQ(0, prologue2);
   CHECK_EQ(0, epilogue2);
   context->GetIsolate()->AddGCPrologueCallback(PrologueCallbackNew, &prologue2);
   context->GetIsolate()->AddGCEpilogueCallback(EpilogueCallbackNew, &epilogue2);
-  i::heap::CollectAllGarbage(CcTest::heap());
+  CcTest::CollectAllGarbage();
   CHECK_EQ(2, prologue1);
   CHECK_EQ(2, epilogue1);
   CHECK_EQ(1, prologue2);
@@ -18085,7 +18089,7 @@ TEST(GCCallbacksWithData) {
                                                   &prologue1);
   context->GetIsolate()->RemoveGCEpilogueCallback(EpilogueCallbackNew,
                                                   &epilogue1);
-  i::heap::CollectAllGarbage(CcTest::heap());
+  CcTest::CollectAllGarbage();
   CHECK_EQ(2, prologue1);
   CHECK_EQ(2, epilogue1);
   CHECK_EQ(2, prologue2);
@@ -18094,7 +18098,7 @@ TEST(GCCallbacksWithData) {
                                                   &prologue2);
   context->GetIsolate()->RemoveGCEpilogueCallback(EpilogueCallbackNew,
                                                   &epilogue2);
-  i::heap::CollectAllGarbage(CcTest::heap());
+  CcTest::CollectAllGarbage();
   CHECK_EQ(2, prologue1);
   CHECK_EQ(2, epilogue1);
   CHECK_EQ(2, prologue2);
@@ -18177,7 +18181,7 @@ TEST(ContainsOnlyOneByte) {
 void FailedAccessCheckCallbackGC(Local<v8::Object> target,
                                  v8::AccessType type,
                                  Local<v8::Value> data) {
-  i::heap::CollectAllGarbage(CcTest::heap());
+  CcTest::CollectAllGarbage();
   CcTest::isolate()->ThrowException(
       v8::Exception::Error(v8_str("cross context")));
 }
@@ -18805,7 +18809,7 @@ TEST(DontDeleteCellLoadIC) {
                  "})()",
                  "ReferenceError: cell is not defined");
     CompileRun("cell = \"new_second\";");
-    i::heap::CollectAllGarbage(CcTest::heap());
+    CcTest::CollectAllGarbage();
     ExpectString("readCell()", "new_second");
     ExpectString("readCell()", "new_second");
   }
@@ -19665,7 +19669,7 @@ THREADED_TEST(Regress1516) {
   CHECK_LE(1, elements);
 
   // We have to abort incremental marking here to abandon black pages.
-  i::heap::PreciseCollectAllGarbage(CcTest::heap());
+  CcTest::PreciseCollectAllGarbage();
 
   CHECK_GT(elements, CountLiveMapsInMapCache(CcTest::i_isolate()->context()));
 }
@@ -24073,7 +24077,7 @@ TEST(CreateSyntheticModuleGCName) {
         UnexpectedSyntheticModuleEvaluationStepsCallback));
   }
 
-  i::heap::CollectAllGarbage(CcTest::heap());
+  CcTest::CollectAllGarbage();
 #ifdef VERIFY_HEAP
   i::Handle<i::HeapObject> i_module =
       i::Handle<i::HeapObject>::cast(v8::Utils::OpenHandle(*module));
@@ -28986,7 +28990,7 @@ THREADED_TEST(Recorder_GetContext) {
   }
 
   // Invalidate the context and therefore the context id.
-  i::heap::PreciseCollectAllGarbage(CcTest::heap());
+  CcTest::PreciseCollectAllGarbage();
 
   // Ensure that a stale context id returns an empty handle.
   {
@@ -29061,7 +29065,7 @@ TEST(TriggerMainThreadMetricsEvent) {
     CHECK_GT(recorder->time_in_us_, 100);
   }
 
-  i::heap::PreciseCollectAllGarbage(CcTest::heap());
+  CcTest::PreciseCollectAllGarbage();
 
   // Check that event submission doesn't break even if the context id is
   // invalid.
@@ -29108,7 +29112,7 @@ TEST(TriggerDelayedMainThreadMetricsEvent) {
     CHECK_GT(recorder->time_in_us_, 100);
   }
 
-  i::heap::PreciseCollectAllGarbage(CcTest::heap());
+  CcTest::PreciseCollectAllGarbage();
 
   // Check that event submission doesn't break even if the context id is
   // invalid.

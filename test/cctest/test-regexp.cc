@@ -7,7 +7,6 @@
 #include "src/api/api-inl.h"
 #include "src/execution/frames-inl.h"
 #include "test/cctest/cctest.h"
-#include "test/cctest/heap/heap-utils.h"
 
 using namespace v8;
 
@@ -77,7 +76,8 @@ class InterruptTest {
 
   static void CollectAllGarbage(Isolate* isolate, void* data) {
     i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-    i::heap::PreciseCollectAllGarbage(i_isolate->heap());
+    i_isolate->heap()->PreciseCollectAllGarbage(
+        i::GCFlag::kNoFlags, i::GarbageCollectionReason::kTesting);
   }
 
   static void MakeSubjectOneByteExternal(Isolate* isolate, void* data) {

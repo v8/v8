@@ -51,7 +51,6 @@
 #include "src/flags/flags.h"
 #include "src/objects/objects-inl.h"
 #include "src/trap-handler/trap-handler.h"
-#include "test/cctest/heap/heap-utils.h"
 #include "test/cctest/print-extension.h"
 #include "test/cctest/profiler-extension.h"
 #include "test/cctest/trace-extension.h"
@@ -207,6 +206,34 @@ void CcTest::AddGlobalFunction(v8::Local<v8::Context> env, const char* name,
       func_template->GetFunction(env).ToLocalChecked();
   func->SetName(v8_str(name));
   env->Global()->Set(env, v8_str(name), func).FromJust();
+}
+
+void CcTest::CollectGarbage(i::AllocationSpace space, i::Isolate* isolate) {
+  i::Isolate* iso = isolate ? isolate : i_isolate();
+  iso->heap()->CollectGarbage(space, i::GarbageCollectionReason::kTesting);
+}
+
+void CcTest::CollectAllGarbage(i::Isolate* isolate) {
+  i::Isolate* iso = isolate ? isolate : i_isolate();
+  iso->heap()->CollectAllGarbage(i::GCFlag::kNoFlags,
+                                 i::GarbageCollectionReason::kTesting);
+}
+
+void CcTest::CollectAllAvailableGarbage(i::Isolate* isolate) {
+  i::Isolate* iso = isolate ? isolate : i_isolate();
+  iso->heap()->CollectAllAvailableGarbage(i::GarbageCollectionReason::kTesting);
+}
+
+void CcTest::PreciseCollectAllGarbage(i::Isolate* isolate) {
+  i::Isolate* iso = isolate ? isolate : i_isolate();
+  iso->heap()->PreciseCollectAllGarbage(i::GCFlag::kNoFlags,
+                                        i::GarbageCollectionReason::kTesting);
+}
+
+void CcTest::CollectSharedGarbage(i::Isolate* isolate) {
+  i::Isolate* iso = isolate ? isolate : i_isolate();
+  iso->heap()->CollectGarbageShared(iso->main_thread_local_heap(),
+                                    i::GarbageCollectionReason::kTesting);
 }
 
 i::Handle<i::String> CcTest::MakeString(const char* str) {
@@ -434,7 +461,7 @@ ManualGCScope::ManualGCScope(i::Isolate* isolate)
   // running by the time a ManualGCScope is created. Finalizing existing marking
   // prevents any undefined/unexpected behavior.
   if (isolate && isolate->heap()->incremental_marking()->IsMarking()) {
-    i::heap::CollectGarbage(isolate->heap(), i::OLD_SPACE);
+    CcTest::CollectGarbage(i::OLD_SPACE, isolate);
   }
 
   i::v8_flags.concurrent_marking = false;

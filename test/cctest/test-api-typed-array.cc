@@ -6,7 +6,6 @@
 #include "src/base/strings.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-buffer.h"
-#include "test/cctest/heap/heap-utils.h"
 #include "test/cctest/test-api.h"
 
 using ::v8::Array;
@@ -140,7 +139,7 @@ void ObjectWithExternalArrayTestHelper(Local<Context> context,
       "}"
       "sum;");
   // Force GC to trigger verification.
-  i::heap::CollectAllGarbage(CcTest::heap());
+  CcTest::CollectAllGarbage();
   CHECK_EQ(28, result->Int32Value(context).FromJust());
 
   // Make sure out-of-range loads do not throw.

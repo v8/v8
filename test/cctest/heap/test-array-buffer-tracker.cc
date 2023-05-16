@@ -162,7 +162,7 @@ TEST(ArrayBuffer_Compaction) {
 
   // We need to invoke GC without stack, otherwise no compaction is performed.
   DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
-  heap::CollectAllGarbage(heap);
+  CcTest::CollectAllGarbage();
 
   Page* page_after_gc = Page::FromHeapObject(*buf1);
   CHECK(IsTracked(heap, *buf1));
@@ -209,7 +209,7 @@ TEST(ArrayBuffer_UnregisterDuringSweep) {
       CHECK(IsTracked(heap, *buf2));
     }
 
-    heap::CollectGarbage(heap, OLD_SPACE);
+    CcTest::CollectGarbage(OLD_SPACE);
     // |Detach| will cause the buffer to be |Unregister|ed. Without
     // barriers and proper synchronization this will trigger a data race on
     // TSAN.
@@ -386,8 +386,8 @@ UNINITIALIZED_TEST(ArrayBuffer_SemiSpaceCopyMultipleTasks) {
     Heap* heap = i_isolate->heap();
 
     // Ensure heap is in a clean state.
-    heap::CollectAllGarbage(heap);
-    heap::CollectAllGarbage(heap);
+    CcTest::CollectAllGarbage(i_isolate);
+    CcTest::CollectAllGarbage(i_isolate);
 
     Local<v8::ArrayBuffer> ab1 = v8::ArrayBuffer::New(isolate, 100);
     Handle<JSArrayBuffer> buf1 = v8::Utils::OpenHandle(*ab1);
@@ -477,7 +477,7 @@ TEST(ArrayBuffer_ExternalBackingStoreSizeIncreasesMarkCompact) {
     heap::ForceEvacuationCandidate(page_before_gc);
     CHECK(IsTracked(heap, *buf1));
 
-    heap::CollectAllGarbage(heap);
+    CcTest::CollectAllGarbage();
 
     const size_t backing_store_after =
         heap->old_space()->ExternalBackingStoreBytes(type);
