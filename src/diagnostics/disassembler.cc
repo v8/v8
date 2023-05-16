@@ -42,8 +42,8 @@ class V8NameConverter : public disasm::NameConverter {
  public:
   explicit V8NameConverter(Isolate* isolate, CodeReference code = {})
       : isolate_(isolate), code_(code) {}
-  const char* NameOfAddress(byte* pc) const override;
-  const char* NameInCode(byte* addr) const override;
+  const char* NameOfAddress(uint8_t* pc) const override;
+  const char* NameInCode(uint8_t* addr) const override;
   const char* RootRelativeName(int offset) const override;
 
   const CodeReference& code() const { return code_; }
@@ -82,7 +82,7 @@ void V8NameConverter::InitExternalRefsCache() const {
   }
 }
 
-const char* V8NameConverter::NameOfAddress(byte* pc) const {
+const char* V8NameConverter::NameOfAddress(uint8_t* pc) const {
   if (!code_.is_null()) {
     const char* name =
         isolate_ ? isolate_->builtins()->Lookup(reinterpret_cast<Address>(pc))
@@ -115,7 +115,7 @@ const char* V8NameConverter::NameOfAddress(byte* pc) const {
   return disasm::NameConverter::NameOfAddress(pc);
 }
 
-const char* V8NameConverter::NameInCode(byte* addr) const {
+const char* V8NameConverter::NameInCode(uint8_t* addr) const {
   // The V8NameConverter is used for well known code, so we can "safely"
   // dereference pointers in generated code.
   return code_.is_null() ? "" : reinterpret_cast<const char*>(addr);
@@ -280,12 +280,12 @@ static void PrintRelocInfo(std::ostringstream& out, Isolate* isolate,
 
 static int DecodeIt(Isolate* isolate, ExternalReferenceEncoder* ref_encoder,
                     std::ostream& os, CodeReference code,
-                    const V8NameConverter& converter, byte* begin, byte* end,
-                    Address current_pc, size_t range_limit) {
+                    const V8NameConverter& converter, uint8_t* begin,
+                    uint8_t* end, Address current_pc, size_t range_limit) {
   CHECK(!code.is_null());
   v8::base::EmbeddedVector<char, 128> decode_buffer;
   std::ostringstream out;
-  byte* pc = begin;
+  uint8_t* pc = begin;
   disasm::Disassembler d(converter,
                          disasm::Disassembler::kContinueOnUnimplementedOpcode);
   RelocIterator rit(code);
@@ -294,7 +294,7 @@ static int DecodeIt(Isolate* isolate, ExternalReferenceEncoder* ref_encoder,
 
   while (pc < end) {
     // First decode instruction so that we know its length.
-    byte* prev_pc = pc;
+    uint8_t* prev_pc = pc;
     bool decoding_constant_pool = constants > 0;
     if (decoding_constant_pool) {
       SNPrintF(
@@ -315,8 +315,8 @@ static int DecodeIt(Isolate* isolate, ExternalReferenceEncoder* ref_encoder,
                  rit.rinfo()->pc() == reinterpret_cast<Address>(pc) &&
                  rit.rinfo()->rmode() == RelocInfo::INTERNAL_REFERENCE) {
         // A raw pointer embedded in code stream.
-        byte* ptr =
-            base::ReadUnalignedValue<byte*>(reinterpret_cast<Address>(pc));
+        uint8_t* ptr =
+            base::ReadUnalignedValue<uint8_t*>(reinterpret_cast<Address>(pc));
         SNPrintF(decode_buffer, "%08" V8PRIxPTR "       jump table entry %4zu",
                  reinterpret_cast<intptr_t>(ptr),
                  static_cast<size_t>(ptr - begin));
@@ -439,8 +439,8 @@ static int DecodeIt(Isolate* isolate, ExternalReferenceEncoder* ref_encoder,
   return static_cast<int>(pc - begin);
 }
 
-int Disassembler::Decode(Isolate* isolate, std::ostream& os, byte* begin,
-                         byte* end, CodeReference code, Address current_pc,
+int Disassembler::Decode(Isolate* isolate, std::ostream& os, uint8_t* begin,
+                         uint8_t* end, CodeReference code, Address current_pc,
                          size_t range_limit) {
   DCHECK_WITH_MSG(v8_flags.text_is_readable,
                   "Builtins disassembly requires a readable .text section");
@@ -463,8 +463,8 @@ int Disassembler::Decode(Isolate* isolate, std::ostream& os, byte* begin,
 
 #else  // ENABLE_DISASSEMBLER
 
-int Disassembler::Decode(Isolate* isolate, std::ostream& os, byte* begin,
-                         byte* end, CodeReference code, Address current_pc,
+int Disassembler::Decode(Isolate* isolate, std::ostream& os, uint8_t* begin,
+                         uint8_t* end, CodeReference code, Address current_pc,
                          size_t range_limit) {
   return 0;
 }

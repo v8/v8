@@ -2154,7 +2154,7 @@ void WasmArray::WasmArrayPrint(std::ostream& os) {
 #else
         for (int j = kSimd128Size - 1; j >= 0; j--) {
 #endif
-          os << reinterpret_cast<byte*>(this->ElementAddress(i))[j];
+          os << reinterpret_cast<uint8_t*>(this->ElementAddress(i))[j];
         }
         os << std::dec;
       }

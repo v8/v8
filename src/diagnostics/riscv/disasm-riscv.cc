@@ -10,9 +10,9 @@
 //
 //   NameConverter converter;
 //   Disassembler d(converter);
-//   for (byte* pc = begin; pc < end;) {
+//   for (uint8_t* pc = begin; pc < end;) {
 //     v8::base::EmbeddedVector<char, 256> buffer;
-//     byte* prev_pc = pc;
+//     uint8_t* prev_pc = pc;
 //     pc += d.InstructionDecode(buffer, pc);
 //     printf("%p    %08x      %s\n",
 //            prev_pc, *reinterpret_cast<int32_t*>(prev_pc), buffer);
@@ -56,7 +56,7 @@ class Decoder {
 
   // Writes one disassembled instruction into 'buffer' (0-terminated).
   // Returns the length of the disassembled machine instruction in bytes.
-  int InstructionDecode(byte* instruction);
+  int InstructionDecode(uint8_t* instruction);
 
  private:
   // Bottleneck functions to print into the out_buffer.
@@ -264,7 +264,7 @@ void Decoder::PrintTarget(Instruction* instr) {
       int32_t imm = Assembler::BrachlongOffset((instr - 4)->InstructionBits(),
                                                instr->InstructionBits());
       const char* target =
-          converter_.NameOfAddress(reinterpret_cast<byte*>(instr - 4) + imm);
+          converter_.NameOfAddress(reinterpret_cast<uint8_t*>(instr - 4) + imm);
       out_buffer_pos_ +=
           base::SNPrintF(out_buffer_ + out_buffer_pos_, " -> %s", target);
       return;
@@ -275,7 +275,7 @@ void Decoder::PrintTarget(Instruction* instr) {
 void Decoder::PrintBranchOffset(Instruction* instr) {
   int32_t imm = instr->BranchOffset();
   const char* target =
-      converter_.NameOfAddress(reinterpret_cast<byte*>(instr) + imm);
+      converter_.NameOfAddress(reinterpret_cast<uint8_t*>(instr) + imm);
   out_buffer_pos_ +=
       base::SNPrintF(out_buffer_ + out_buffer_pos_, "%d -> %s", imm, target);
 }
@@ -313,7 +313,7 @@ void Decoder::PrintImm20U(Instruction* instr) {
 void Decoder::PrintImm20J(Instruction* instr) {
   int32_t imm = instr->Imm20JValue();
   const char* target =
-      converter_.NameOfAddress(reinterpret_cast<byte*>(instr) + imm);
+      converter_.NameOfAddress(reinterpret_cast<uint8_t*>(instr) + imm);
   out_buffer_pos_ +=
       base::SNPrintF(out_buffer_ + out_buffer_pos_, "%d -> %s", imm, target);
 }
@@ -2879,7 +2879,7 @@ void Decoder::DecodeRvvVS(Instruction* instr) {
 // All instructions are one word long, except for the simulator
 // pseudo-instruction stop(msg). For that one special case, we return
 // size larger than one kInstrSize.
-int Decoder::InstructionDecode(byte* instr_ptr) {
+int Decoder::InstructionDecode(uint8_t* instr_ptr) {
   Instruction* instr = Instruction::At(instr_ptr);
   // Print raw instruction bytes.
   out_buffer_pos_ += base::SNPrintF(out_buffer_ + out_buffer_pos_,
@@ -2952,12 +2952,12 @@ int Decoder::InstructionDecode(byte* instr_ptr) {
 
 namespace disasm {
 
-const char* NameConverter::NameOfAddress(byte* addr) const {
+const char* NameConverter::NameOfAddress(uint8_t* addr) const {
   v8::base::SNPrintF(tmp_buffer_, "%p", static_cast<void*>(addr));
   return tmp_buffer_.begin();
 }
 
-const char* NameConverter::NameOfConstant(byte* addr) const {
+const char* NameConverter::NameOfConstant(uint8_t* addr) const {
   return NameOfAddress(addr);
 }
 
@@ -2974,7 +2974,7 @@ const char* NameConverter::NameOfByteCPURegister(int reg) const {
   // return "nobytereg";
 }
 
-const char* NameConverter::NameInCode(byte* addr) const {
+const char* NameConverter::NameInCode(uint8_t* addr) const {
   // The default name converter is called for unknown code. So we will not try
   // to access any memory.
   return "";
@@ -2983,24 +2983,24 @@ const char* NameConverter::NameInCode(byte* addr) const {
 //------------------------------------------------------------------------------
 
 int Disassembler::InstructionDecode(v8::base::Vector<char> buffer,
-                                    byte* instruction) {
+                                    uint8_t* instruction) {
   v8::internal::Decoder d(converter_, buffer);
   return d.InstructionDecode(instruction);
 }
 
-int Disassembler::ConstantPoolSizeAt(byte* instruction) {
+int Disassembler::ConstantPoolSizeAt(uint8_t* instruction) {
   return v8::internal::Assembler::ConstantPoolSizeAt(
       reinterpret_cast<v8::internal::Instruction*>(instruction));
 }
 
-void Disassembler::Disassemble(FILE* f, byte* begin, byte* end,
+void Disassembler::Disassemble(FILE* f, uint8_t* begin, uint8_t* end,
                                UnimplementedOpcodeAction unimplemented_action) {
   NameConverter converter;
   Disassembler d(converter, unimplemented_action);
-  for (byte* pc = begin; pc < end;) {
+  for (uint8_t* pc = begin; pc < end;) {
     v8::base::EmbeddedVector<char, 128> buffer;
     buffer[0] = '\0';
-    byte* prev_pc = pc;
+    uint8_t* prev_pc = pc;
     pc += d.InstructionDecode(buffer, pc);
     v8::internal::PrintF(f, "%p    %08x      %s\n", static_cast<void*>(prev_pc),
                          *reinterpret_cast<uint32_t*>(prev_pc), buffer.begin());
