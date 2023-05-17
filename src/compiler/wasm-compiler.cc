@@ -7629,6 +7629,8 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
         GetBuiltinCallDescriptor(Builtin::kWasmSuspend, zone_, stub_mode_);
     Node* call_target = GetTargetForBuiltinCall(wasm::WasmCode::kWasmSuspend,
                                                 Builtin::kWasmSuspend);
+    Node* args[] = {value, suspender};
+
     // Trap if there is any JS frame on the stack. Trap before decrementing the
     // wasm-to-js counter, since it will already be decremented by the stack
     // unwinder.
@@ -7655,21 +7657,10 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     TerminateThrow(effect(), control());
 
     gasm_->Bind(&suspend);
-    Node* on_fulfilled = gasm_->Load(
-        MachineType::TaggedPointer(), suspender,
-        wasm::ObjectAccess::ToTagged(WasmSuspenderObject::kResumeOffset));
-    Node* on_rejected = gasm_->Load(
-        MachineType::TaggedPointer(), suspender,
-        wasm::ObjectAccess::ToTagged(WasmSuspenderObject::kRejectOffset));
-
-    auto* then_call_desc = GetBuiltinCallDescriptor(
-        Builtin::kPerformPromiseThen, zone_, StubCallMode::kCallBuiltinPointer);
-    Node* then_target =
-        gasm_->GetBuiltinPointerTarget(Builtin::kPerformPromiseThen);
-    gasm_->Call(then_call_desc, then_target, value, on_fulfilled, on_rejected,
-                UndefinedValue(), native_context);
-
-    Node* resolved = gasm_->Call(call_descriptor, call_target, suspender);
+    Node* chained_promise = BuildCallToRuntimeWithContext(
+        Runtime::kWasmCreateResumePromise, native_context, args, 2);
+    Node* resolved =
+        gasm_->Call(call_descriptor, call_target, chained_promise, suspender);
     gasm_->Goto(&resume, resolved);
     gasm_->Bind(&bad_suspender);
     BuildCallToRuntimeWithContext(Runtime::kThrowBadSuspenderError,

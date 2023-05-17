@@ -252,22 +252,12 @@ class Builtins {
     return js_entry_handler_offset_;
   }
 
-  int jspi_prompt_handler_offset() const {
-    DCHECK_NE(jspi_prompt_handler_offset_, 0);
-    return jspi_prompt_handler_offset_;
-  }
-
   void SetJSEntryHandlerOffset(int offset) {
     // Check the stored offset is either uninitialized or unchanged (we
     // generate multiple variants of this builtin but they should all have the
     // same handler offset).
     CHECK(js_entry_handler_offset_ == 0 || js_entry_handler_offset_ == offset);
     js_entry_handler_offset_ = offset;
-  }
-
-  void SetJSPIPromptHandlerOffset(int offset) {
-    CHECK_EQ(jspi_prompt_handler_offset_, 0);
-    jspi_prompt_handler_offset_ = offset;
   }
 
   // Returns given builtin's slot in the main builtin table.
@@ -327,9 +317,6 @@ class Builtins {
   // label) in JSEntry and its variants. It's used to generate the handler table
   // during codegen (mksnapshot-only).
   int js_entry_handler_offset_ = 0;
-  // Do the same for the JSPI prompt, which catches uncaught exceptions and
-  // rejects the corresponding promise.
-  int jspi_prompt_handler_offset_ = 0;
 
   friend class SetupIsolateDelegate;
 };

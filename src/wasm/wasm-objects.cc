@@ -1831,10 +1831,8 @@ Handle<WasmContinuationObject> WasmContinuationObject::New(
 Handle<WasmSuspenderObject> WasmSuspenderObject::New(Isolate* isolate) {
   Handle<JSFunction> suspender_cons(
       isolate->native_context()->wasm_suspender_constructor(), isolate);
-  Handle<JSPromise> promise = isolate->factory()->NewJSPromise();
   auto suspender = Handle<WasmSuspenderObject>::cast(
       isolate->factory()->NewJSObject(suspender_cons));
-  suspender->set_promise(*promise);
   suspender->set_state(kInactive);
   // Instantiate the callable object which resumes this Suspender. This will be
   // used implicitly as the onFulfilled callback of the returned JS promise.

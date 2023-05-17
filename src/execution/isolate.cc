@@ -29,7 +29,6 @@
 #include "src/baseline/baseline-batch-compiler.h"
 #include "src/bigint/bigint.h"
 #include "src/builtins/builtins-promise.h"
-#include "src/builtins/builtins.h"
 #include "src/builtins/constants-table-builder.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/compilation-cache.h"
@@ -1972,16 +1971,43 @@ Object Isolate::UnwindAndFindHandler() {
   // over the stack and dispatching according to the frame type.
   for (StackFrameIterator iter(this);; iter.Advance(), visited_frames++) {
 #if V8_ENABLE_WEBASSEMBLY
-    if (v8_flags.experimental_wasm_stack_switching &&
-        iter.frame()->type() == StackFrame::STACK_SWITCH) {
-      Code code = builtins()->code(Builtin::kWasmReturnPromiseOnSuspend);
-      HandlerTable table(code);
-      Address instruction_start =
-          code.InstructionStart(this, iter.frame()->pc());
-      int handler_offset = table.LookupReturn(0);
-      return FoundHandler(Context(), instruction_start, handler_offset,
-                          kNullAddress, iter.frame()->sp(), iter.frame()->fp(),
-                          visited_frames);
+    if (v8_flags.experimental_wasm_stack_switching && iter.done()) {
+      // We reached the end of the current stack segment. Follow the linked-list
+      // of stacks to find the next frame, and perform the implicit stack
+      // switch.
+      auto stack = Managed<wasm::StackMemory>::cast(current_stack.stack());
+      // Mark this stack as empty.
+      DCHECK_EQ(stack.get()->jmpbuf()->state, wasm::JumpBuffer::Active);
+      stack.get()->jmpbuf()->state = wasm::JumpBuffer::Retired;
+      HeapObject parent = current_stack.parent();
+      DCHECK(!parent.IsUndefined());
+      current_stack = WasmContinuationObject::cast(parent);
+      wasm::StackMemory* parent_stack =
+          Managed<wasm::StackMemory>::cast(current_stack.stack()).get().get();
+      DCHECK_EQ(parent_stack->jmpbuf()->state, wasm::JumpBuffer::Inactive);
+      parent_stack->jmpbuf()->state = wasm::JumpBuffer::Active;
+      iter.Reset(thread_local_top(), parent_stack);
+
+      // Update the continuation and suspender state.
+      roots_table().slot(RootIndex::kActiveContinuation).store(current_stack);
+      WasmSuspenderObject suspender =
+          WasmSuspenderObject::cast(root(RootIndex::kActiveSuspender));
+      if (!suspender.parent().IsUndefined()) {
+        suspender.set_state(WasmSuspenderObject::State::kInactive);
+        auto parent_suspender = WasmSuspenderObject::cast(suspender.parent());
+        parent_suspender.set_state(WasmSuspenderObject::State::kActive);
+        // For now, assume that a suspender contains a single continuation.
+        // TODO(thibaudm): When core stack-switching is added, only update the
+        // suspender when we exit its outermost stack.
+        DCHECK_EQ(current_stack, parent_suspender.continuation());
+      }
+      roots_table().slot(RootIndex::kActiveSuspender).store(suspender.parent());
+      if (v8_flags.trace_wasm_stack_switching) {
+        PrintF("Switch to stack #%d (unwind)\n", parent_stack->id());
+      }
+      uintptr_t limit =
+          reinterpret_cast<uintptr_t>(parent_stack->jmpbuf()->stack_limit);
+      stack_guard()->SetStackLimit(limit);
     }
 #endif
     // Handler must exist.

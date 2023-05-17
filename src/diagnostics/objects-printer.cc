@@ -2181,9 +2181,6 @@ void WasmSuspenderObject::WasmSuspenderObjectPrint(std::ostream& os) {
   PrintHeader(os, "WasmSuspenderObject");
   os << "\n - continuation: " << continuation();
   os << "\n - parent: " << parent();
-  os << "\n - promise: " << promise();
-  os << "\n - resume: " << resume();
-  os << "\n - reject: " << reject();
   os << "\n - state: " << state();
   os << "\n - wasm_to_js_counter: " << wasm_to_js_counter();
   os << "\n";

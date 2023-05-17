@@ -644,6 +644,7 @@ namespace internal {
   F(WasmArrayInitSegment, 6, 1)               \
   F(WasmAllocateSuspender, 0, 1)              \
   F(WasmSyncStackLimit, 0, 1)                 \
+  F(WasmCreateResumePromise, 2, 1)            \
   F(WasmStringNewWtf8, 5, 1)                  \
   F(WasmStringNewWtf8Array, 4, 1)             \
   F(WasmStringNewWtf16, 4, 1)                 \
