@@ -11,6 +11,7 @@
 #include "src/compiler/turboshaft/fast-hash.h"
 #include "src/compiler/turboshaft/graph.h"
 #include "src/compiler/turboshaft/operations.h"
+#include "src/compiler/turboshaft/reducer-traits.h"
 #include "src/utils/utils.h"
 #include "src/zone/zone-containers.h"
 
@@ -69,7 +70,15 @@ namespace turboshaft {
 // from being equal to 0, in order to detect empty entries: their hash is 0).
 
 template <class Next>
+class TypeInferenceReducer;
+
+template <class Next>
 class ValueNumberingReducer : public Next {
+#if defined(__clang__)
+  static_assert(next_is_bottom_of_assembler_stack<Next>::value ||
+                next_reducer_is<Next, TypeInferenceReducer>::value);
+#endif
+
  public:
   TURBOSHAFT_REDUCER_BOILERPLATE()
 

@@ -27,8 +27,9 @@ namespace v8::internal::compiler::turboshaft {
 template <class Next>
 class AssertTypesReducer
     : public UniformReducerAdapter<AssertTypesReducer, Next> {
-  // TODO(nicohartmann@): Reenable this in a way that compiles with msvc light.
-  // static_assert(next_contains_reducer<Next, TypeInferenceReducer>::value);
+#if defined(__clang__)
+  static_assert(next_contains_reducer<Next, TypeInferenceReducer>::value);
+#endif
 
  public:
   TURBOSHAFT_REDUCER_BOILERPLATE()

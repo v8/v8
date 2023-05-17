@@ -463,9 +463,10 @@ struct reducer_stack_type<reducer_list<Reducers...>> {
 template <typename Next>
 class ReducerBase;
 
-#define TURBOSHAFT_REDUCER_BOILERPLATE()                               \
-  Assembler<typename Next::ReducerList>& Asm() {                       \
-    return *static_cast<Assembler<typename Next::ReducerList>*>(this); \
+#define TURBOSHAFT_REDUCER_BOILERPLATE()                \
+  using ReducerList = typename Next::ReducerList;       \
+  Assembler<ReducerList>& Asm() {                       \
+    return *static_cast<Assembler<ReducerList>*>(this); \
   }
 
 // LABEL_BLOCK is used in Reducers to have a single call forwarding to the next
