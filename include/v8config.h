@@ -464,14 +464,16 @@ path. Add it with -I<path> to the command line
 
 #ifdef DEBUG
 // In debug mode, check assumptions instead of actually adding annotations.
-# define V8_ASSUME(condition) DCHECK(condition)
+# define V8_ASSUME DCHECK
 #elif V8_HAS_BUILTIN_ASSUME
-# define V8_ASSUME(condition) __builtin_assume(condition)
+# define V8_ASSUME __builtin_assume
 #elif V8_HAS_BUILTIN_UNREACHABLE
-# define V8_ASSUME(condition) \
-  do { if (!(condition)) __builtin_unreachable(); } while (false)
+# define V8_ASSUME(condition)                  \
+  do {                                         \
+    if (!(condition)) __builtin_unreachable(); \
+  } while (false)
 #else
-# define V8_ASSUME(condition)
+# define V8_ASSUME USE
 #endif
 
 #if V8_HAS_BUILTIN_ASSUME_ALIGNED

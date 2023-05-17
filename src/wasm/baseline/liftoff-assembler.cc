@@ -94,7 +94,6 @@ class StackTransferRecipe {
     // can eliminate a second {Execute} in the destructor.
     bool all_done = move_dst_regs_.is_empty() && load_dst_regs_.is_empty();
     V8_ASSUME(all_done);
-    USE(all_done);
   }
 
   V8_INLINE void Transfer(const VarState& dst, const VarState& src) {
