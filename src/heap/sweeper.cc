@@ -409,47 +409,6 @@ Sweeper::Sweeper(Heap* heap)
 
 Sweeper::~Sweeper() = default;
 
-Sweeper::PauseScope::PauseScope(Sweeper* sweeper) : sweeper_(sweeper) {
-  DCHECK(!sweeper_->minor_sweeping_in_progress());
-  DCHECK(!sweeper_->minor_sweeping_state_.HasValidJob());
-
-  if (!sweeper_->major_sweeping_in_progress()) return;
-
-  sweeper_->major_sweeping_state_.StopConcurrentSweeping();
-}
-
-Sweeper::PauseScope::~PauseScope() {
-  if (!sweeper_->major_sweeping_in_progress()) return;
-
-  sweeper_->StartMajorSweeperTasks();
-}
-
-Sweeper::FilterSweepingPagesScope::FilterSweepingPagesScope(
-    Sweeper* sweeper, const PauseScope& pause_scope)
-    : sweeper_(sweeper),
-      major_sweeping_in_progress_(sweeper_->major_sweeping_in_progress()) {
-  // The PauseScope here only serves as a witness that concurrent sweeping has
-  // been paused.
-  USE(pause_scope);
-
-  if (!major_sweeping_in_progress_) return;
-
-  int old_space_index = GetSweepSpaceIndex(OLD_SPACE);
-  old_space_sweeping_list_ =
-      std::move(sweeper_->sweeping_list_[old_space_index]);
-  sweeper_->sweeping_list_[old_space_index].clear();
-}
-
-Sweeper::FilterSweepingPagesScope::~FilterSweepingPagesScope() {
-  DCHECK_EQ(major_sweeping_in_progress_,
-            sweeper_->major_sweeping_in_progress());
-  if (!major_sweeping_in_progress_) return;
-
-  sweeper_->sweeping_list_[GetSweepSpaceIndex(OLD_SPACE)] =
-      std::move(old_space_sweeping_list_);
-  // old_space_sweeping_list_ does not need to be cleared as we don't use it.
-}
-
 void Sweeper::TearDown() {
   minor_sweeping_state_.StopConcurrentSweeping();
   major_sweeping_state_.StopConcurrentSweeping();
@@ -1112,10 +1071,9 @@ bool Sweeper::TryRemovePromotedPageSafe(MemoryChunk* chunk) {
   return true;
 }
 
-void Sweeper::AddPage(AllocationSpace space, Page* page,
-                      Sweeper::AddPageMode mode) {
+void Sweeper::AddPage(AllocationSpace space, Page* page) {
   DCHECK_NE(NEW_SPACE, space);
-  AddPageImpl(space, page, mode);
+  AddPageImpl(space, page);
 }
 
 void Sweeper::AddNewSpacePage(Page* page) {
@@ -1123,7 +1081,7 @@ void Sweeper::AddNewSpacePage(Page* page) {
   size_t live_bytes = marking_state_->live_bytes(page);
   heap_->IncrementNewSpaceSurvivingObjectSize(live_bytes);
   heap_->IncrementYoungSurvivorsCounter(live_bytes);
-  AddPageImpl(NEW_SPACE, page, AddPageMode::REGULAR);
+  AddPageImpl(NEW_SPACE, page);
 }
 
 void Sweeper::AddPromotedPageForIteration(MemoryChunk* chunk) {
@@ -1153,8 +1111,7 @@ void Sweeper::AddPromotedPageForIteration(MemoryChunk* chunk) {
   promoted_pages_for_iteration_count_++;
 }
 
-void Sweeper::AddPageImpl(AllocationSpace space, Page* page,
-                          Sweeper::AddPageMode mode) {
+void Sweeper::AddPageImpl(AllocationSpace space, Page* page) {
   // This assert only checks that the non_atomic version is only used on the
   // main thread. It would not catch cases where main thread add a page
   // non-atomically while concurrent jobs are adding pages atomically.
@@ -1164,13 +1121,7 @@ void Sweeper::AddPageImpl(AllocationSpace space, Page* page,
                  !major_sweeping_state_.HasValidJob());
   DCHECK_IMPLIES(v8_flags.concurrent_sweeping,
                  !minor_sweeping_state_.HasValidJob());
-  if (mode == Sweeper::REGULAR) {
-    PrepareToBeSweptPage(space, page);
-  } else {
-    // Page has been temporarily removed from the sweeper. Accounting already
-    // happened when the page was initially added, so it is skipped here.
-    DCHECK_EQ(Sweeper::READD_TEMPORARY_REMOVED_PAGE, mode);
-  }
+  PrepareToBeSweptPage(space, page);
   DCHECK_EQ(Page::ConcurrentSweepingState::kPending,
             page->concurrent_sweeping_state());
   sweeping_list_[GetSweepSpaceIndex(space)].push_back(page);

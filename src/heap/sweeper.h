@@ -38,49 +38,7 @@ class Sweeper {
   using SweepingList = std::vector<Page*>;
   using SweptList = std::vector<Page*>;
 
-  enum FreeListRebuildingMode { REBUILD_FREE_LIST, IGNORE_FREE_LIST };
-  enum AddPageMode { REGULAR, READD_TEMPORARY_REMOVED_PAGE };
   enum class SweepingMode { kEagerDuringGC, kLazyOrConcurrent };
-
-  // Pauses the sweeper tasks.
-  class V8_NODISCARD PauseScope final {
-   public:
-    explicit PauseScope(Sweeper* sweeper);
-    ~PauseScope();
-
-   private:
-    Sweeper* const sweeper_;
-  };
-
-  // Temporary filters old space sweeping lists. Requires the concurrent
-  // sweeper to be paused. Allows for pages to be added to the sweeper while
-  // in this scope. Note that the original list of sweeping pages is restored
-  // after exiting this scope.
-  class V8_NODISCARD FilterSweepingPagesScope final {
-   public:
-    FilterSweepingPagesScope(Sweeper* sweeper, const PauseScope& pause_scope);
-    ~FilterSweepingPagesScope();
-
-    template <typename Callback>
-    void FilterOldSpaceSweepingPages(Callback callback) {
-      if (!major_sweeping_in_progress_) return;
-
-      SweepingList* sweeper_list =
-          &sweeper_->sweeping_list_[GetSweepSpaceIndex(OLD_SPACE)];
-      // Iteration here is from most free space to least free space.
-      for (auto it = old_space_sweeping_list_.begin();
-           it != old_space_sweeping_list_.end(); it++) {
-        if (callback(*it)) {
-          sweeper_list->push_back(*it);
-        }
-      }
-    }
-
-   private:
-    Sweeper* const sweeper_;
-    SweepingList old_space_sweeping_list_;
-    bool major_sweeping_in_progress_;
-  };
 
   // LocalSweeper holds local data structures required for sweeping and is used
   // to initiate sweeping and promoted page iteration on multiple threads. Each
@@ -137,7 +95,7 @@ class Sweeper {
 
   void TearDown();
 
-  void AddPage(AllocationSpace space, Page* page, AddPageMode mode);
+  void AddPage(AllocationSpace space, Page* page);
   void AddNewSpacePage(Page* page);
   void AddPromotedPageForIteration(MemoryChunk* chunk);
 
@@ -184,7 +142,7 @@ class Sweeper {
 
   void RawIteratePromotedPageForRememberedSets(MemoryChunk* chunk);
 
-  void AddPageImpl(AllocationSpace space, Page* page, AddPageMode mode);
+  void AddPageImpl(AllocationSpace space, Page* page);
 
   class ConcurrentMajorSweeper;
   class ConcurrentMinorSweeper;

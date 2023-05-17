@@ -386,7 +386,7 @@ void CollectorBase::StartSweepSpace(PagedSpace* space) {
       unused_page_present = true;
     }
 
-    sweeper->AddPage(space->identity(), p, Sweeper::REGULAR);
+    sweeper->AddPage(space->identity(), p);
     will_be_swept++;
   }
 
@@ -4569,7 +4569,7 @@ void MarkCompactCollector::Evacuate() {
       if (p->IsFlagSet(Page::PAGE_NEW_OLD_PROMOTION)) {
         p->ClearFlag(Page::PAGE_NEW_OLD_PROMOTION);
         DCHECK_EQ(OLD_SPACE, p->owner_identity());
-        sweeper()->AddPage(OLD_SPACE, p, Sweeper::REGULAR);
+        sweeper()->AddPage(OLD_SPACE, p);
       } else if (v8_flags.minor_mc) {
         // Sweep non-promoted pages to add them back to the free list.
         DCHECK_EQ(NEW_SPACE, p->owner_identity());
@@ -4597,7 +4597,7 @@ void MarkCompactCollector::Evacuate() {
 
     for (Page* p : old_space_evacuation_pages_) {
       if (p->IsFlagSet(Page::COMPACTION_WAS_ABORTED)) {
-        sweeper()->AddPage(p->owner_identity(), p, Sweeper::REGULAR);
+        sweeper()->AddPage(p->owner_identity(), p);
         p->ClearFlag(Page::COMPACTION_WAS_ABORTED);
       }
     }
