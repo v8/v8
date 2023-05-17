@@ -178,9 +178,9 @@ class GCed final : public BaseWithoutName, public cppgc::NameProvider {
 // static
 constexpr const char GCed::kExpectedName[];
 
-constexpr const char kExpectedCppRootsName[] = "C++ roots";
+constexpr const char kExpectedCppRootsName[] = "C++ Persistent roots";
 constexpr const char kExpectedCppCrossThreadRootsName[] =
-    "C++ cross-thread roots";
+    "C++ CrossThreadPersistent roots";
 
 template <typename T>
 constexpr const char* GetExpectedName() {
