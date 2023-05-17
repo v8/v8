@@ -1043,8 +1043,9 @@ struct ControlBase : public PcForErrors<ValidationTag::full_validation> {
     const Value& initial_value, const Value& rtt, Value* result)               \
   F(ArrayNewDefault, const ArrayIndexImmediate& imm, const Value& length,      \
     const Value& rtt, Value* result)                                           \
-  F(ArrayNewFixed, const ArrayIndexImmediate& imm,                             \
-    base::Vector<const Value> elements, const Value& rtt, Value* result)       \
+  F(ArrayNewFixed, const ArrayIndexImmediate& array_imm,                       \
+    const IndexImmediate& length_imm, const Value elements[],                  \
+    const Value& rtt, Value* result)                                           \
   F(ArrayNewSegment, const ArrayIndexImmediate& array_imm,                     \
     const IndexImmediate& data_segment, const Value& offset,                   \
     const Value& length, const Value& rtt, Value* result)                      \
@@ -1106,7 +1107,7 @@ struct ControlBase : public PcForErrors<ValidationTag::full_validation> {
     bool pass_null_along_branch, Value* result_on_fallthrough)                 \
   F(BrOnNonNull, const Value& ref_object, Value* result, uint32_t depth,       \
     bool drop_null_on_fallthrough)                                             \
-  F(SimdOp, WasmOpcode opcode, base::Vector<Value> args, Value* result)        \
+  F(SimdOp, WasmOpcode opcode, const Value args[], Value* result)              \
   F(SimdLaneOp, WasmOpcode opcode, const SimdLaneImmediate& imm,               \
     base::Vector<const Value> inputs, Value* result)                           \
   F(Simd8x16ShuffleOp, const Simd128Immediate& imm, const Value& input0,       \
@@ -1127,9 +1128,9 @@ struct ControlBase : public PcForErrors<ValidationTag::full_validation> {
     const Value& src, const Value& size)                                       \
   F(MemoryFill, const MemoryIndexImmediate& imm, const Value& dst,             \
     const Value& value, const Value& size)                                     \
-  F(TableInit, const TableInitImmediate& imm, base::Vector<Value> args)        \
+  F(TableInit, const TableInitImmediate& imm, const Value args[])              \
   F(ElemDrop, const IndexImmediate& imm)                                       \
-  F(TableCopy, const TableCopyImmediate& imm, base::Vector<Value> args)        \
+  F(TableCopy, const TableCopyImmediate& imm, const Value args[])              \
   F(TableGrow, const IndexImmediate& imm, const Value& value,                  \
     const Value& delta, Value* result)                                         \
   F(TableSize, const IndexImmediate& imm, Value* result)                       \
@@ -2488,15 +2489,27 @@ class WasmDecoder : public Decoder {
     }                                                           \
   } while (false)
 
+// An empty class used in place of a {base::SmallVector} for cases where the
+// content is not needed afterwards.
+// This is used for implementations which set {kUsesPoppedArgs} to {false}.
+class NoVector {
+ public:
+  // Construct from anything; {NoVector} is always empty.
+  template <typename... Ts>
+  explicit NoVector(Ts&&...) V8_NOEXCEPT {}
+
+  constexpr std::nullptr_t data() const { return nullptr; }
+};
+
 template <typename ValidationTag, typename Interface,
           DecodingMode decoding_mode = kFunctionBody>
 class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
   using Value = typename Interface::Value;
   using Control = typename Interface::Control;
   using ArgVector = base::Vector<Value>;
-  // TODO(13976): Special-case this for Liftoff which does not use the popped
-  // arguments.
-  using PoppedArgVector = base::SmallVector<Value, 8>;
+  using PoppedArgVector =
+      std::conditional_t<Interface::kUsesPoppedArgs,
+                         base::SmallVector<Value, 8>, NoVector>;
   using ReturnVector = base::SmallVector<Value, 2>;
 
   // All Value types should be trivially copyable for performance. We push, pop,
@@ -2980,7 +2993,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     TagIndexImmediate imm(this, this->pc_ + 1, validate);
     if (!this->Validate(this->pc_ + 1, imm)) return 0;
     PoppedArgVector args = PopArgs(imm.tag->ToFunctionSig());
-    CALL_INTERFACE_IF_OK_AND_REACHABLE(Throw, imm, args.begin());
+    CALL_INTERFACE_IF_OK_AND_REACHABLE(Throw, imm, args.data());
     EndControl();
     return 1 + imm.length;
   }
@@ -3569,7 +3582,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     if (!this->Validate(this->pc_ + 1, imm)) return 0;
     PoppedArgVector args = PopArgs(imm.sig);
     Value* returns = PushReturns(imm.sig);
-    CALL_INTERFACE_IF_OK_AND_REACHABLE(CallDirect, imm, args.begin(), returns);
+    CALL_INTERFACE_IF_OK_AND_REACHABLE(CallDirect, imm, args.data(), returns);
     return 1 + imm.length;
   }
 
@@ -3579,7 +3592,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     Value index = Pop(kWasmI32);
     PoppedArgVector args = PopArgs(imm.sig);
     Value* returns = PushReturns(imm.sig);
-    CALL_INTERFACE_IF_OK_AND_REACHABLE(CallIndirect, index, imm, args.begin(),
+    CALL_INTERFACE_IF_OK_AND_REACHABLE(CallIndirect, index, imm, args.data(),
                                        returns);
     return 1 + imm.length;
   }
@@ -3594,7 +3607,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       return 0;
     }
     PoppedArgVector args = PopArgs(imm.sig);
-    CALL_INTERFACE_IF_OK_AND_REACHABLE(ReturnCall, imm, args.begin());
+    CALL_INTERFACE_IF_OK_AND_REACHABLE(ReturnCall, imm, args.data());
     EndControl();
     return 1 + imm.length;
   }
@@ -3612,7 +3625,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     Value index = Pop(kWasmI32);
     PoppedArgVector args = PopArgs(imm.sig);
     CALL_INTERFACE_IF_OK_AND_REACHABLE(ReturnCallIndirect, index, imm,
-                                       args.begin());
+                                       args.data());
     EndControl();
     return 1 + imm.length;
   }
@@ -3625,7 +3638,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     PoppedArgVector args = PopArgs(imm.sig);
     Value* returns = PushReturns(imm.sig);
     CALL_INTERFACE_IF_OK_AND_REACHABLE(CallRef, func_ref, imm.sig, imm.index,
-                                       args.begin(), returns);
+                                       args.data(), returns);
     return 1 + imm.length;
   }
 
@@ -3637,7 +3650,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     Value func_ref = Pop(ValueType::RefNull(imm.index));
     PoppedArgVector args = PopArgs(imm.sig);
     CALL_INTERFACE_IF_OK_AND_REACHABLE(ReturnCallRef, func_ref, imm.sig,
-                                       imm.index, args.begin());
+                                       imm.index, args.data());
     EndControl();
     return 1 + imm.length;
   }
@@ -4258,14 +4271,9 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
           return 0;
         }
         PoppedArgVector args = PopArgs(sig);
-        if (sig->return_count() == 0) {
-          CALL_INTERFACE_IF_OK_AND_REACHABLE(SimdOp, opcode,
-                                             base::VectorOf(args), nullptr);
-        } else {
-          Value* results = PushReturns(sig);
-          CALL_INTERFACE_IF_OK_AND_REACHABLE(SimdOp, opcode,
-                                             base::VectorOf(args), results);
-        }
+        Value* results = sig->return_count() == 0 ? nullptr : PushReturns(sig);
+        CALL_INTERFACE_IF_OK_AND_REACHABLE(SimdOp, opcode, args.data(),
+                                           results);
         return opcode_length;
       }
     }
@@ -4326,7 +4334,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         CALL_INTERFACE_IF_OK_AND_REACHABLE(RttCanon, imm.index, &rtt);
         Push(rtt);
         Value value = CreateValue(ValueType::Ref(imm.index));
-        CALL_INTERFACE_IF_OK_AND_REACHABLE(StructNew, imm, rtt, args.begin(),
+        CALL_INTERFACE_IF_OK_AND_REACHABLE(StructNew, imm, rtt, args.data(),
                                            &value);
         Drop(rtt);
         Push(value);
@@ -4750,8 +4758,8 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         CALL_INTERFACE_IF_OK_AND_REACHABLE(RttCanon, array_imm.index, &rtt);
         Push(rtt);
         Value result = CreateValue(ValueType::Ref(array_imm.index));
-        CALL_INTERFACE_IF_OK_AND_REACHABLE(
-            ArrayNewFixed, array_imm, base::VectorOf(elements), rtt, &result);
+        CALL_INTERFACE_IF_OK_AND_REACHABLE(ArrayNewFixed, array_imm, length_imm,
+                                           elements.data(), rtt, &result);
         Drop(rtt);
         Push(result);
         return opcode_length + array_imm.length + length_imm.length;
@@ -6182,8 +6190,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         TableInitImmediate imm(this, this->pc_ + opcode_length, validate);
         if (!this->Validate(this->pc_ + opcode_length, imm)) return 0;
         PoppedArgVector args = PopArgs(sig);
-        CALL_INTERFACE_IF_OK_AND_REACHABLE(TableInit, imm,
-                                           base::VectorOf(args));
+        CALL_INTERFACE_IF_OK_AND_REACHABLE(TableInit, imm, args.data());
         return opcode_length + imm.length;
       }
       case kExprElemDrop: {
@@ -6199,8 +6206,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         TableCopyImmediate imm(this, this->pc_ + opcode_length, validate);
         if (!this->Validate(this->pc_ + opcode_length, imm)) return 0;
         PoppedArgVector args = PopArgs(sig);
-        CALL_INTERFACE_IF_OK_AND_REACHABLE(TableCopy, imm,
-                                           base::VectorOf(args));
+        CALL_INTERFACE_IF_OK_AND_REACHABLE(TableCopy, imm, args.data());
         return opcode_length + imm.length;
       }
       case kExprTableGrow: {
@@ -6639,6 +6645,7 @@ class EmptyInterface {
  public:
   using ValidationTag = Decoder::FullValidationTag;
   static constexpr DecodingMode decoding_mode = kFunctionBody;
+  static constexpr bool kUsesPoppedArgs = false;
   using Value = ValueBase<ValidationTag>;
   using Control = ControlBase<Value, ValidationTag>;
   using FullDecoder = WasmFullDecoder<ValidationTag, EmptyInterface>;

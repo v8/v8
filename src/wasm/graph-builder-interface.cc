@@ -118,6 +118,7 @@ class WasmGraphBuildingInterface {
   using FullDecoder =
       WasmFullDecoder<ValidationTag, WasmGraphBuildingInterface>;
   using CheckForNull = compiler::CheckForNull;
+  static constexpr bool kUsesPoppedArgs = true;
 
   struct Value : public ValueBase<ValidationTag> {
     TFNode* node = nullptr;
@@ -992,10 +993,11 @@ class WasmGraphBuildingInterface {
     BrOrRet(decoder, depth, 0);
   }
 
-  void SimdOp(FullDecoder* decoder, WasmOpcode opcode, base::Vector<Value> args,
+  void SimdOp(FullDecoder* decoder, WasmOpcode opcode, const Value* args,
               Value* result) {
-    NodeVector inputs(args.size());
-    GetNodes(inputs.begin(), args);
+    size_t num_inputs = WasmOpcodes::Signature(opcode)->parameter_count();
+    NodeVector inputs(num_inputs);
+    GetNodes(inputs.begin(), args, num_inputs);
     TFNode* node = builder_->SimdOp(opcode, inputs.begin());
     if (result) SetAndTypeNode(result, node);
   }
@@ -1213,7 +1215,7 @@ class WasmGraphBuildingInterface {
   }
 
   void TableInit(FullDecoder* decoder, const TableInitImmediate& imm,
-                 base::Vector<Value> args) {
+                 const Value* args) {
     builder_->TableInit(imm.table.index, imm.element_segment.index,
                         args[0].node, args[1].node, args[2].node,
                         decoder->position());
@@ -1224,7 +1226,7 @@ class WasmGraphBuildingInterface {
   }
 
   void TableCopy(FullDecoder* decoder, const TableCopyImmediate& imm,
-                 base::Vector<Value> args) {
+                 const Value args[]) {
     builder_->TableCopy(imm.table_dst.index, imm.table_src.index, args[0].node,
                         args[1].node, args[2].node, decoder->position());
   }
@@ -1350,15 +1352,14 @@ class WasmGraphBuildingInterface {
     if (!loop_infos_.empty()) loop_infos_.back().can_be_innermost = false;
   }
 
-  void ArrayNewFixed(FullDecoder* decoder, const ArrayIndexImmediate& imm,
-                     base::Vector<const Value> elements, const Value& rtt,
-                     Value* result) {
-    NodeVector element_nodes(elements.size());
-    for (uint32_t i = 0; i < elements.size(); i++) {
-      element_nodes[i] = elements[i].node;
-    }
-    SetAndTypeNode(result, builder_->ArrayNewFixed(imm.array_type, rtt.node,
-                                                   VectorOf(element_nodes)));
+  void ArrayNewFixed(FullDecoder* decoder, const ArrayIndexImmediate& array_imm,
+                     const IndexImmediate& length_imm, const Value elements[],
+                     const Value& rtt, Value* result) {
+    NodeVector element_nodes(length_imm.index);
+    GetNodes(element_nodes.data(), elements, length_imm.index);
+    SetAndTypeNode(result,
+                   builder_->ArrayNewFixed(array_imm.array_type, rtt.node,
+                                           VectorOf(element_nodes)));
   }
 
   void ArrayNewSegment(FullDecoder* decoder,

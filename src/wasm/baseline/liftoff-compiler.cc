@@ -341,6 +341,7 @@ class LiftoffCompiler {
  public:
   using ValidationTag = Decoder::NoValidationTag;
   using Value = ValueBase<ValidationTag>;
+  static constexpr bool kUsesPoppedArgs = false;
 
   struct ElseState {
     explicit ElseState(Zone* zone) : label(zone), state(zone) {}
@@ -3935,8 +3936,8 @@ class LiftoffCompiler {
     return;
   }
 
-  void SimdOp(FullDecoder* decoder, WasmOpcode opcode, base::Vector<Value> args,
-              Value* result) {
+  void SimdOp(FullDecoder* decoder, WasmOpcode opcode, const Value* /* args */,
+              Value* /* result */) {
     if (!CpuFeatures::SupportsWasmSimd128()) {
       return unsupported(decoder, kSimd, "simd");
     }
@@ -5571,7 +5572,7 @@ class LiftoffCompiler {
   }
 
   void TableInit(FullDecoder* decoder, const TableInitImmediate& imm,
-                 base::Vector<Value> args) {
+                 const Value* /* args */) {
     LiftoffRegList pinned;
     LiftoffRegister table_index_reg =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned));
@@ -5624,7 +5625,7 @@ class LiftoffCompiler {
   }
 
   void TableCopy(FullDecoder* decoder, const TableCopyImmediate& imm,
-                 base::Vector<Value> args) {
+                 const Value* /* args */) {
     LiftoffRegList pinned;
 
     LiftoffRegister table_dst_index_reg =
@@ -5997,11 +5998,13 @@ class LiftoffCompiler {
     __ DropValues(5);
   }
 
-  void ArrayNewFixed(FullDecoder* decoder, const ArrayIndexImmediate& imm,
-                     base::Vector<Value> elements, const Value& rtt,
-                     Value* result) {
+  void ArrayNewFixed(FullDecoder* decoder, const ArrayIndexImmediate& array_imm,
+                     const IndexImmediate& length_imm,
+                     const Value* /* elements */, const Value& rtt,
+                     Value* /* result */) {
     ValueKind rtt_kind = rtt.type.kind();
-    ValueKind elem_kind = imm.array_type->element_type().kind();
+    ValueKind elem_kind = array_imm.array_type->element_type().kind();
+    int32_t elem_count = length_imm.index;
     // Allocate the array.
     {
       LiftoffRegList pinned;
@@ -6013,8 +6016,7 @@ class LiftoffCompiler {
 
       LiftoffRegister length_reg =
           pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-      __ LoadConstant(length_reg,
-                      WasmValue(static_cast<int32_t>(elements.size())));
+      __ LoadConstant(length_reg, WasmValue(elem_count));
       LiftoffAssembler::VarState length_var(kI32, length_reg, 0);
 
       LiftoffAssembler::VarState rtt_var =
@@ -6031,7 +6033,7 @@ class LiftoffCompiler {
     // Initialize the array with stack arguments.
     LiftoffRegister array(kReturnRegister0);
     if (!CheckSupportedType(decoder, elem_kind, "array.new_fixed")) return;
-    for (int i = static_cast<int>(elements.size()) - 1; i >= 0; i--) {
+    for (int i = elem_count - 1; i >= 0; i--) {
       LiftoffRegList pinned{array};
       LiftoffRegister element = pinned.set(__ PopToRegister(pinned));
       int offset =

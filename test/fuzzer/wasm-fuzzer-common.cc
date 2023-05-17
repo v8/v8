@@ -321,6 +321,7 @@ class InitExprInterface {
  public:
   using ValidationTag = Decoder::FullValidationTag;
   static constexpr DecodingMode decoding_mode = kConstantExpression;
+  static constexpr bool kUsesPoppedArgs = false;
 
   struct Value : public ValueBase<ValidationTag> {
     template <typename... Args>
@@ -435,11 +436,11 @@ class InitExprInterface {
     os_ << "kGCPrefix, kExprArrayNewDefault, " << index(imm.index);
   }
 
-  void ArrayNewFixed(FullDecoder* decoder, const ArrayIndexImmediate& imm,
-                     base::Vector<const Value> elements, const Value& rtt,
-                     Value* result) {
-    os_ << "kGCPrefix, kExprArrayNewFixed, " << index(imm.index)
-        << index(static_cast<uint32_t>(elements.size()));
+  void ArrayNewFixed(FullDecoder* decoder, const ArrayIndexImmediate& array_imm,
+                     const IndexImmediate& length_imm, const Value elements[],
+                     const Value& rtt, Value* result) {
+    os_ << "kGCPrefix, kExprArrayNewFixed, " << index(array_imm.index)
+        << index(length_imm.index);
   }
 
   void ArrayNewSegment(FullDecoder* decoder,
