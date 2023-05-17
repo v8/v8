@@ -929,7 +929,7 @@ class PromotedPageRecordMigratedSlotVisitor final
     value_chunk->SynchronizedHeapLoad();
 #endif  // THREAD_SANITIZER
     if (value_chunk->InYoungGeneration()) {
-      RememberedSet<OLD_TO_NEW_BACKGROUND>::Insert<AccessMode::NON_ATOMIC>(
+      RememberedSet<OLD_TO_NEW_BACKGROUND>::Insert<AccessMode::ATOMIC>(
           host_chunk_, slot);
     } else if (value_chunk->InWritableSharedSpace()) {
       RememberedSet<OLD_TO_SHARED>::Insert<AccessMode::ATOMIC>(host_chunk_,
