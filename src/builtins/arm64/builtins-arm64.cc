@@ -5,6 +5,7 @@
 #if V8_TARGET_ARCH_ARM64
 
 #include "src/api/api-arguments.h"
+#include "src/builtins/builtins-descriptors.h"
 #include "src/codegen/code-factory.h"
 #include "src/codegen/interface-descriptors-inl.h"
 // For interpreter_entry_return_pc_offset. TODO(jkummerow): Drop.
@@ -3246,9 +3247,8 @@ void LoadTargetJumpBuffer(MacroAssembler* masm, Register target_continuation,
   LoadJumpBuffer(masm, target_jmpbuf, false, tmp);
 }
 
-void ReloadParentContinuation(MacroAssembler* masm, Register wasm_instance,
-                              Register return_reg, Register tmp1,
-                              Register tmp2) {
+void ReloadParentContinuation(MacroAssembler* masm, Register return_reg,
+                              Register tmp1, Register tmp2) {
   Register active_continuation = tmp1;
   __ LoadRoot(active_continuation, RootIndex::kActiveContinuation);
 
@@ -3288,12 +3288,11 @@ void ReloadParentContinuation(MacroAssembler* masm, Register wasm_instance,
   __ Mov(tmp1, 1);
   __ Str(tmp1,
          MemOperand(fp, BuiltinWasmWrapperConstants::kGCScanSlotCountOffset));
-  __ Stp(wasm_instance, return_reg,
-      MemOperand(sp, -2 * kSystemPointerSize, PreIndex));  // Spill.
+  __ Stp(padreg, return_reg,
+         MemOperand(sp, -2 * kSystemPointerSize, PreIndex));  // Spill.
   __ Move(kContextRegister, Smi::zero());
   __ CallRuntime(Runtime::kWasmSyncStackLimit);
-  __ Ldp(wasm_instance, return_reg,
-      MemOperand(sp, 2 * kSystemPointerSize, PostIndex));
+  __ Ldp(padreg, return_reg, MemOperand(sp, 2 * kSystemPointerSize, PostIndex));
 }
 
 void RestoreParentSuspender(MacroAssembler* masm, Register tmp1,
@@ -3587,7 +3586,7 @@ void GenericJSToWasmWrapperHelper(MacroAssembler* masm, bool stack_switch) {
         target_continuation,
         FieldMemOperand(suspender, WasmSuspenderObject::kContinuationOffset));
     FREE_REG(suspender);
-    // Save the old stack's rbp in r9, and use it to access the parameters in
+    // Save the old stack's fp in x9, and use it to access the parameters in
     // the parent frame.
     // We also distribute the spill slots across the two stacks as needed by
     // creating a "shadow frame":
@@ -4266,14 +4265,13 @@ void GenericJSToWasmWrapperHelper(MacroAssembler* masm, bool stack_switch) {
   // -------------------------------------------
   // Resetting after the Wasm call.
   // -------------------------------------------
-  // Restore rsp to free the reserved stack slots for the sections.
+  // Restore sp to free the reserved stack slots for the sections.
   __ Add(sp, fp, kLastSpillOffset - kSystemPointerSize);
 
   // Unset thread_in_wasm_flag.
   __ Ldr(
       thread_in_wasm_flag_addr,
-      MemOperand(kRootRegister,
-                  Isolate::thread_in_wasm_flag_address_offset()));
+      MemOperand(kRootRegister, Isolate::thread_in_wasm_flag_address_offset()));
   __ Str(xzr, MemOperand(thread_in_wasm_flag_addr, 0));
 
   regs.ResetExcept(original_fp, wasm_instance);
@@ -4296,11 +4294,41 @@ void GenericJSToWasmWrapperHelper(MacroAssembler* masm, bool stack_switch) {
   Label return_done;
   __ bind(&return_done);
 
+  regs.ResetExcept(return_reg);
+  Label return_promise;
   if (stack_switch) {
+    // The return value of the wasm function becomes the parameter of the
+    // FulfillPromise builtin, and the promise is the return value of this
+    // wrapper.
+    DEFINE_PINNED(return_value, x1);
+    __ Move(return_value, return_reg);
     DEFINE_SCOPED(tmp);
     DEFINE_SCOPED(tmp2);
-    ReloadParentContinuation(masm, wasm_instance, return_reg, tmp, tmp2);
+    Register promise = return_reg;
+    __ LoadRoot(promise, RootIndex::kActiveSuspender);
+    __ LoadTaggedField(
+        promise, FieldMemOperand(promise, WasmSuspenderObject::kPromiseOffset));
+
+    __ Move(kContextRegister, MemOperand(fp, kFunctionDataOffset));
+    __ LoadTaggedField(
+        kContextRegister,
+        FieldMemOperand(kContextRegister,
+                        WasmExportedFunctionData::kInstanceOffset));
+    __ LoadTaggedField(
+        kContextRegister,
+        FieldMemOperand(kContextRegister,
+                        WasmInstanceObject::kNativeContextOffset));
+    __ Mov(tmp, 1);
+    __ Str(tmp,
+           MemOperand(fp, BuiltinWasmWrapperConstants::kGCScanSlotCountOffset));
+    __ Push(padreg, promise);
+    __ CallBuiltin(Builtin::kFulfillPromise);
+    __ Pop(promise, padreg);
+
+    __ bind(&return_promise);
+    ReloadParentContinuation(masm, promise, tmp, tmp2);
     RestoreParentSuspender(masm, tmp, tmp2);
+    FREE_REG(return_value);
   }
   __ bind(&suspend);
   // No need to process the return value if the stack is suspended, there is
@@ -4463,6 +4491,57 @@ void GenericJSToWasmWrapperHelper(MacroAssembler* masm, bool stack_switch) {
       MemOperand(sp, 2 * kSystemPointerSize, PostIndex));
     __ jmp(&compile_wrapper_done);
   }
+
+  // Catch handler for the stack-switching wrapper: reject the promise with the
+  // thrown exception.
+  if (stack_switch) {
+    int catch_handler = __ pc_offset();
+    // Restore sp to free the reserved stack slots for the sections.
+    __ Add(sp, fp, kLastSpillOffset - kSystemPointerSize);
+
+    thread_in_wasm_flag_addr = x2;
+    // Unset thread_in_wasm_flag.
+    __ Ldr(thread_in_wasm_flag_addr,
+           MemOperand(kRootRegister,
+                      Isolate::thread_in_wasm_flag_address_offset()));
+    __ Str(xzr, MemOperand(thread_in_wasm_flag_addr, 0));
+
+    // The exception becomes the parameter of the RejectPromise builtin, and the
+    // promise is the return value of this wrapper.
+    __ Move(x1, kReturnRegister0);
+    Register promise = kReturnRegister0;
+    __ LoadRoot(promise, RootIndex::kActiveSuspender);
+    __ LoadTaggedField(
+        promise, FieldMemOperand(promise, WasmSuspenderObject::kPromiseOffset));
+
+    __ Move(kContextRegister, MemOperand(fp, kFunctionDataOffset));
+    __ LoadTaggedField(
+        kContextRegister,
+        FieldMemOperand(kContextRegister,
+                        WasmExportedFunctionData::kInstanceOffset));
+    __ LoadTaggedField(
+        kContextRegister,
+        FieldMemOperand(kContextRegister,
+                        WasmInstanceObject::kNativeContextOffset));
+    __ Mov(x2, 1);
+    __ Str(x2,
+           MemOperand(fp, BuiltinWasmWrapperConstants::kGCScanSlotCountOffset));
+    __ Push(padreg, promise);
+    static const Builtin_RejectPromise_InterfaceDescriptor desc;
+    static_assert(desc.GetRegisterParameter(0) == x0 &&  // promise
+                  desc.GetRegisterParameter(1) == x1 &&  // reason
+                  desc.GetRegisterParameter(2) == x2     // debugEvent
+    );
+    __ LoadRoot(x2, RootIndex::kTrueValue);
+    __ CallBuiltin(Builtin::kRejectPromise);
+    __ Pop(promise, padreg);
+
+    // Run the rest of the wrapper normally (switch to the old stack,
+    // deconstruct the frame, ...).
+    __ jmp(&return_promise);
+
+    masm->isolate()->builtins()->SetJSPIPromptHandlerOffset(catch_handler);
+  }
 }
 
 } // namespace
@@ -4480,8 +4559,8 @@ void Builtins::Generate_WasmSuspend(MacroAssembler* masm) {
   // Set up the stackframe.
   __ EnterFrame(StackFrame::STACK_SWITCH);
 
-  DEFINE_PINNED(promise, x0);
-  DEFINE_PINNED(suspender, x1);
+  DEFINE_PINNED(suspender, x0);
+  DEFINE_PINNED(context, kContextRegister);
 
   __ Sub(sp, sp, RoundUp(-(BuiltinWasmWrapperConstants::kGCScanSlotCountOffset
                            - TypedFrameConstants::kFixedFrameSizeFromFp), 16));
@@ -4517,7 +4596,7 @@ void Builtins::Generate_WasmSuspend(MacroAssembler* masm) {
   __ StoreTaggedField(
       scratch,
       FieldMemOperand(suspender, WasmSuspenderObject::kStateOffset));
-  regs.ResetExcept(promise, suspender, continuation);
+  regs.ResetExcept(suspender, continuation);
 
   DEFINE_REG(suspender_continuation);
   __ LoadTaggedField(
@@ -4555,7 +4634,7 @@ void Builtins::Generate_WasmSuspend(MacroAssembler* masm) {
       MacroAssembler::RootRegisterOffsetForRootIndex(
           RootIndex::kActiveSuspender);
   __ Str(parent, MemOperand(kRootRegister, active_suspender_offset));
-  regs.ResetExcept(promise, caller);
+  regs.ResetExcept(suspender, caller);
 
   // -------------------------------------------
   // Load jump buffer.
@@ -4565,17 +4644,16 @@ void Builtins::Generate_WasmSuspend(MacroAssembler* masm) {
   ASSIGN_REG(scratch);
   __ Mov(scratch, 2);
   __ Str(scratch, GCScanSlotPlace);
-  __ Stp(caller, promise,
-      MemOperand(sp, -2 * kSystemPointerSize, PreIndex));
-  __ Move(kContextRegister, Smi::zero());
+  __ Stp(caller, suspender, MemOperand(sp, -2 * kSystemPointerSize, PreIndex));
   __ CallRuntime(Runtime::kWasmSyncStackLimit);
-  __ Ldp(caller, promise,
-      MemOperand(sp, 2 * kSystemPointerSize, PostIndex));
+  __ Ldp(caller, suspender, MemOperand(sp, 2 * kSystemPointerSize, PostIndex));
   ASSIGN_REG(jmpbuf);
   __ LoadExternalPointerField(
       jmpbuf, FieldMemOperand(caller, WasmContinuationObject::kJmpbufOffset),
       kWasmContinuationJmpbufTag);
-  __ Mov(kReturnRegister0, promise);
+  __ LoadTaggedField(
+      kReturnRegister0,
+      FieldMemOperand(suspender, WasmSuspenderObject::kPromiseOffset));
   __ Str(xzr, GCScanSlotPlace);
   LoadJumpBuffer(masm, jmpbuf, true, scratch);
   __ Trap();
@@ -4718,9 +4796,8 @@ void Generate_WasmResumeHelper(MacroAssembler* masm, wasm::OnResume on_resume) {
       MemOperand(fp, BuiltinWasmWrapperConstants::kGCScanSlotCountOffset);
   __ Mov(scratch, 1);
   __ Str(scratch, GCScanSlotPlace);
-  __ Stp(target_continuation, scratch, // Scratch for padding.
-         MemOperand(sp, -2*kSystemPointerSize, PreIndex));
-  __ Move(kContextRegister, Smi::zero());
+  __ Stp(target_continuation, scratch,  // Scratch for padding.
+         MemOperand(sp, -2 * kSystemPointerSize, PreIndex));
   __ CallRuntime(Runtime::kWasmSyncStackLimit);
   __ Ldp(target_continuation, scratch,
          MemOperand(sp, 2*kSystemPointerSize, PostIndex));
@@ -4744,6 +4821,9 @@ void Generate_WasmResumeHelper(MacroAssembler* masm, wasm::OnResume on_resume) {
   if (on_resume == wasm::OnResume::kThrow) {
     // Switch to the continuation's stack without restoring the PC.
     LoadJumpBuffer(masm, target_jmpbuf, false, scratch);
+    // Pop this frame now. The unwinder expects that the first STACK_SWITCH
+    // frame is the outermost one.
+    __ LeaveFrame(StackFrame::STACK_SWITCH);
     // Forward the onRejected value to kThrow.
     __ Push(xzr, kReturnRegister0);
     __ CallRuntime(Runtime::kThrow);

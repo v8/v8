@@ -342,7 +342,8 @@ function ToPromising(wasm_export) {
   assertPromiseResult(combined_promise, v => assertEquals(0.5, v));
 })();
 
-// Throw an exception after the initial prompt.
+// Throw an exception before suspending. The export wrapper should return a
+// promise rejected with the exception.
 (function TestStackSwitchException1() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
@@ -351,12 +352,7 @@ function ToPromising(wasm_export) {
       .addBody([kExprThrow, tag]).exportFunc();
   let instance = builder.instantiate();
   let wrapper = ToPromising(instance.exports.throw);
-  try {
-    wrapper();
-    assertUnreachable();
-  } catch (e) {
-    assertTrue(e instanceof WebAssembly.Exception);
-  }
+  assertThrowsAsync(wrapper(), WebAssembly.Exception);
 })();
 
 // Throw an exception after the first resume event, which propagates to the
@@ -423,8 +419,8 @@ function TestNestedSuspenders(suspend) {
   // the outer wasm function, which returns a Promise. The inner Promise
   // resolves first, which resumes the inner continuation. Then the outer
   // promise resolves which resumes the outer continuation.
-  // If 'suspend' is false, the inner JS function returns a regular value and
-  // no computation is suspended.
+  // If 'suspend' is false, the inner and outer JS functions return a regular
+  // value and no computation is suspended.
   let builder = new WasmModuleBuilder();
   inner_index = builder.addImport('m', 'inner', kSig_i_r);
   outer_index = builder.addImport('m', 'outer', kSig_i_r);
@@ -447,17 +443,13 @@ function TestNestedSuspenders(suspend) {
   let export_inner;
   let outer = new WebAssembly.Function(
       {parameters: ['externref'], results: ['i32']},
-      () => export_inner(),
+      () => suspend ? export_inner() : 42,
       {suspending: 'first'});
 
   let instance = builder.instantiate({m: {inner, outer}});
   export_inner = ToPromising(instance.exports.inner);
   let export_outer = ToPromising(instance.exports.outer);
-  if (suspend) {
-    assertPromiseResult(export_outer(), v => assertEquals(42, v));
-  } else {
-    assertEquals(export_outer(), 42);
-  }
+  assertPromiseResult(export_outer(), v => assertEquals(42, v));
 }
 
 (function TestNestedSuspendersSuspend() {
@@ -493,7 +485,7 @@ function TestNestedSuspenders(suspend) {
           ]).exportFunc();
   let instance = builder.instantiate();
   let wrapper = ToPromising(instance.exports.test);
-  assertThrows(wrapper, RangeError, /Maximum call stack size exceeded/);
+  assertThrowsAsync(wrapper(), RangeError, /Maximum call stack size exceeded/);
 })();
 
 (function TestBadSuspender() {
@@ -622,6 +614,6 @@ function TestNestedSuspenders(suspend) {
       {parameters: [], results: ['externref']},
       instance.exports.export1,
       {promising: 'first'});
-  assertThrows(wrapper, WebAssembly.RuntimeError,
+  assertThrowsAsync(wrapper(), WebAssembly.RuntimeError,
       /trying to suspend JS frames/);
 })();
