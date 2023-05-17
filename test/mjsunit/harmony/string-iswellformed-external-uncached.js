@@ -5,8 +5,10 @@
 // Flags: --expose-externalize-string --harmony-string-is-well-formed
 
 (function TestIsWellFormed() {
-  const short2ByteWellFormed = createExternalizableString('\u1234');
-  const short2ByteIllFormed = createExternalizableString('\uD83D');
+  const short2ByteWellFormed = createExternalizableString(
+      '\u1234'.padEnd(kExternalStringMinTwoByteLength, '\u1234'));
+  const short2ByteIllFormed = createExternalizableString(
+      '\uD83D'.padEnd(kExternalStringMinTwoByteLength, '\uD83D'));
 
   assertTrue(short2ByteWellFormed.isWellFormed());
   assertFalse(short2ByteIllFormed.isWellFormed());
@@ -24,8 +26,10 @@
 })();
 
 (function TestToWellFormed() {
-  const short2ByteWellFormed = createExternalizableString('\u1234');
-  const short2ByteIllFormed = createExternalizableString('\uD83D');
+  const short2ByteWellFormed = createExternalizableString(
+      '\u1234'.padEnd(kExternalStringMinTwoByteLength, '\u1234'));
+  const short2ByteIllFormed = createExternalizableString(
+      '\uD83D'.padEnd(kExternalStringMinTwoByteLength, '\uD83D'));
 
   assertTrue(short2ByteWellFormed.isWellFormed());
   assertFalse(short2ByteIllFormed.isWellFormed());
@@ -38,7 +42,11 @@
   } catch (e) {
   }
 
-  assertEquals('\u1234', short2ByteWellFormed.toWellFormed());
+  assertEquals(
+      '\u1234'.padEnd(kExternalStringMinTwoByteLength, '\u1234'),
+      short2ByteWellFormed.toWellFormed());
   // U+FFFD (REPLACEMENT CHARACTER)
-  assertEquals('\uFFFD', short2ByteIllFormed.toWellFormed());
+  assertEquals(
+      '\uFFFD'.padEnd(kExternalStringMinTwoByteLength, '\uFFFD'),
+      short2ByteIllFormed.toWellFormed());
 })();

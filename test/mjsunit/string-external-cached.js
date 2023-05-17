@@ -88,10 +88,13 @@ function test() {
   }
 
   // Test adding external strings
-  var short_ascii = createExternalizableString('E=');
   var long_ascii = createExternalizableString('MCsquared');
-  var short_twobyte = createExternalizableString('E\u1234');
   var long_twobyte = createExternalizableString('MCsquare\u1234');
+  var min_short_ascii = 'E='.padEnd(kExternalStringMinOneByteLength, '.');
+  var min_short_twobyte =
+      'E=\u1234'.padEnd(kExternalStringMinTwoByteLength, '\u1234');
+  var short_ascii = createExternalizableString(min_short_ascii);
+  var short_twobyte = createExternalizableString(min_short_twobyte);
   try {  // String can only be externalized once
     externalizeString(short_ascii);
     externalizeString(long_ascii);
@@ -100,14 +103,15 @@ function test() {
     assertTrue(isOneByteString(short_asii) && isOneByteString(long_ascii));
     assertFalse(isOneByteString(short_twobyte) || isOneByteString(long_twobyte));
   } catch (ex) { }
-  assertEquals("E=MCsquared", short_ascii + long_ascii);
+  assertEquals(min_short_ascii + 'MCsquared', short_ascii + long_ascii);
   assertTrue(isOneByteString(short_ascii + long_ascii));
-  assertEquals("MCsquaredE=", long_ascii + short_ascii);
-  assertEquals("E\u1234MCsquare\u1234", short_twobyte + long_twobyte);
+  assertEquals('MCsquared' + min_short_ascii, long_ascii + short_ascii);
+  assertEquals(
+      min_short_twobyte + 'MCsquare\u1234', short_twobyte + long_twobyte);
   assertFalse(isOneByteString(short_twobyte + long_twobyte));
   assertEquals("E=MCsquared", "E=" + long_ascii);
-  assertEquals("E\u1234MCsquared", short_twobyte + "MCsquared");
-  assertEquals("E\u1234MCsquared", short_twobyte + long_ascii);
+  assertEquals(min_short_twobyte + 'MCsquared', short_twobyte + 'MCsquared');
+  assertEquals(min_short_twobyte + 'MCsquared', short_twobyte + long_ascii);
   assertFalse(isOneByteString(short_twobyte + long_ascii));
 }
 

@@ -38,12 +38,29 @@ using SimpleOneByteStringResource =
 using SimpleTwoByteStringResource =
     SimpleStringResource<base::uc16, v8::String::ExternalStringResource>;
 
-const char* const ExternalizeStringExtension::kSource =
-    "native function externalizeString();"
-    "native function createExternalizableString();"
-    "native function isOneByteString();"
-    "function x() { return 1; }";
+static constexpr int kMinOneByteLength =
+    kExternalPointerSlotSize - kTaggedSize + 1;
+static constexpr int kMinTwoByteLength =
+    (kExternalPointerSlotSize - kTaggedSize) / sizeof(base::uc16) + 1;
+static constexpr int kMinOneByteCachedLength =
+    2 * kExternalPointerSlotSize - kTaggedSize + 1;
+static constexpr int kMinTwoByteCachedLength =
+    (2 * kExternalPointerSlotSize - kTaggedSize) / sizeof(base::uc16) + 1;
 
+// static
+const char* ExternalizeStringExtension::BuildSource(char* buf, size_t size) {
+  base::SNPrintF(base::Vector<char>(buf, static_cast<int>(size)),
+                 "native function externalizeString();"
+                 "native function createExternalizableString();"
+                 "native function isOneByteString();"
+                 "let kExternalStringMinOneByteLength = %d;"
+                 "let kExternalStringMinTwoByteLength = %d;"
+                 "let kExternalStringMinOneByteCachedLength = %d;"
+                 "let kExternalStringMinTwoByteCachedLength = %d;",
+                 kMinOneByteLength, kMinTwoByteLength, kMinOneByteCachedLength,
+                 kMinTwoByteCachedLength);
+  return buf;
+}
 v8::Local<v8::FunctionTemplate>
 ExternalizeStringExtension::GetNativeFunctionTemplate(
     v8::Isolate* isolate, v8::Local<v8::String> str) {
