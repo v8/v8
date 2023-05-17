@@ -1790,14 +1790,14 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
   // been thrown if the private field already exists in the object.
   if (IsAnyDefineOwn() && !name->IsPrivateName() && !object->IsJSProxy() &&
       !Handle<JSObject>::cast(object)->HasNamedInterceptor()) {
-    Maybe<bool> can_define = JSReceiver::CheckIfCanDefine(
+    Maybe<bool> can_define = JSObject::CheckIfCanDefineAsConfigurable(
         isolate(), &it, value, Nothing<ShouldThrow>());
     MAYBE_RETURN_NULL(can_define);
     if (!can_define.FromJust()) {
       return isolate()->factory()->undefined_value();
     }
-    // Restart the lookup iterator updated by CheckIfCanDefine() for
-    // UpdateCaches() to handle access checks.
+    // Restart the lookup iterator updated by CheckIfCanDefineAsConfigurable()
+    // for UpdateCaches() to handle access checks.
     if (use_ic && object->IsAccessCheckNeeded()) {
       it.Restart();
     }
