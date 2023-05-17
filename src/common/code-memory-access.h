@@ -124,14 +124,6 @@ class V8_NODISCARD RwxMemoryWriteScope {
   // executable pages.
   V8_INLINE static bool IsSupported();
 
-  // Sets key's permissions to default state (kDisableWrite) for current thread
-  // if it wasn't done before. V8 doesn't have control of the worker threads
-  // used by v8::TaskRunner and thus it's not guaranteed that a thread executing
-  // a V8 task has the right permissions for the key. V8 tasks that access code
-  // page bodies must call this function to ensure that they have at least read
-  // access.
-  V8_EXPORT_PRIVATE static void SetDefaultPermissionsForNewThread();
-
 #if V8_HAS_PKU_JIT_WRITE_PROTECT
   static int memory_protection_key() { return g_thread_isolation_data.pkey; }
 
@@ -158,20 +150,6 @@ class V8_NODISCARD RwxMemoryWriteScope {
   // This counter is used for supporting scope reentrance.
   V8_EXPORT_PRIVATE static thread_local int code_space_write_nesting_level_;
 #endif  // V8_HAS_PTHREAD_JIT_WRITE_PROTECT || V8_HAS_PKU_JIT_WRITE_PROTECT
-
-#if DEBUG
-  V8_EXPORT_PRIVATE static bool
-  is_key_permissions_initialized_for_current_thread();
-#if V8_HAS_PKU_JIT_WRITE_PROTECT
-  // The state of the PKU key permissions are inherited from the parent
-  // thread when a new thread is created. Since we don't always control
-  // the parent thread, we ensure that the new thread resets their key's
-  // permissions to the default kDisableWrite state.
-  // This flag is used for checking that threads have initialized the
-  // permissions.
-  static thread_local bool is_key_permissions_initialized_for_current_thread_;
-#endif  // V8_HAS_PKU_JIT_WRITE_PROTECT
-#endif  // DEBUG
 };
 
 // This class is a no-op version of the RwxMemoryWriteScope class above.
