@@ -27,6 +27,12 @@
 #include "src/objects/shared-function-info.h"
 #include "src/utils/ostreams.h"
 
+#if V8_ENABLE_WEBASSEMBLY
+#include "src/wasm/function-body-decoder.h"
+#include "src/wasm/names-provider.h"
+#include "src/wasm/string-builder.h"
+#endif
+
 namespace v8 {
 namespace internal {
 namespace compiler {
@@ -95,17 +101,48 @@ void JsonPrintFunctionSource(std::ostream& os, int source_id,
     }
     os << "\"";
     {
-      DisallowGarbageCollection no_gc;
       start = shared->StartPosition();
       end = shared->EndPosition();
       os << ", \"sourceText\": \"";
       if (!script->source().IsUndefined()) {
+        DisallowGarbageCollection no_gc;
         int len = shared->EndPosition() - start;
         SubStringRange source(String::cast(script->source()), no_gc, start,
                               len);
         for (auto c : source) {
           os << AsEscapedUC16ForJSON(c);
         }
+#if V8_ENABLE_WEBASSEMBLY
+      } else if (shared->HasWasmExportedFunctionData()) {
+        WasmExportedFunctionData function_data =
+            shared->wasm_exported_function_data();
+        Handle<WasmInstanceObject> instance(function_data.instance(), isolate);
+        const wasm::WasmModule* module = instance->module();
+        wasm::NativeModule* native_module =
+            instance->module_object().native_module();
+
+        // Add a comment with the wasm debug name as the sourceName above will
+        // be something like "wasm://wasm/5b5cdc9e:js-to-wasm:n:i".
+        std::ostringstream str;
+        wasm::StringBuilder sb;
+        sb << "// debug name: ";
+        native_module->GetNamesProvider()->PrintFunctionName(
+            sb, function_data.function_index(), wasm::NamesProvider::kDevTools);
+        sb << '\n';
+        str.write(sb.start(), sb.length());
+
+        wasm::WireBytesRef wire_bytes_ref =
+            module->functions[function_data.function_index()].code;
+        base::Vector<const uint8_t> bytes(native_module->wire_bytes().SubVector(
+            wire_bytes_ref.offset(), wire_bytes_ref.end_offset()));
+        wasm::FunctionBody func_body{function_data.sig(),
+                                     wire_bytes_ref.offset(), bytes.begin(),
+                                     bytes.end()};
+        AccountingAllocator allocator;
+        wasm::PrintRawWasmCode(&allocator, func_body, module,
+                               wasm::kPrintLocals, str);
+        os << JSONEscaped(str);
+#endif  // V8_ENABLE_WEBASSEMBLY
       }
       os << "\"";
     }
