@@ -237,7 +237,6 @@ class MergePointInterpreterFrameState;
   V(StringEqual)                             \
   V(StringLength)                            \
   V(StringConcat)                            \
-  V(FunctionLength)                          \
   V(ToBoolean)                               \
   V(ToBooleanLogicalNot)                     \
   V(TaggedEqual)                             \
@@ -5039,7 +5038,6 @@ class PolymorphicAccessInfo {
     kDataLoad,
     kModuleExport,
     kStringLength,
-    kFunctionLength,
   };
 
   static PolymorphicAccessInfo NotFound(
@@ -5065,10 +5063,6 @@ class PolymorphicAccessInfo {
   static PolymorphicAccessInfo StringLength(
       const ZoneVector<compiler::MapRef>& maps) {
     return PolymorphicAccessInfo(kStringLength, maps, Representation::Smi());
-  }
-  static PolymorphicAccessInfo FunctionLength(
-      const ZoneVector<compiler::MapRef>& maps) {
-    return PolymorphicAccessInfo(kFunctionLength, maps, Representation::Smi());
   }
 
   Kind kind() const { return kind_; }
@@ -5102,8 +5096,7 @@ class PolymorphicAccessInfo {
                                  const ZoneVector<compiler::MapRef>& maps,
                                  Representation representation)
       : kind_(kind), maps_(maps), representation_(representation) {
-    DCHECK(kind == kNotFound || kind == kStringLength ||
-           kind == kFunctionLength);
+    DCHECK(kind == kNotFound || kind == kStringLength);
   }
 
   PolymorphicAccessInfo(Kind kind, const ZoneVector<compiler::MapRef>& maps,
@@ -6157,26 +6150,6 @@ class StringConcat : public FixedInputValueNodeT<2, StringConcat> {
   Input& rhs() { return Node::input(1); }
 
   int MaxCallStackArgs() const { return 0; }
-
-  void SetValueLocationConstraints();
-  void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
-};
-
-class FunctionLength : public FixedInputValueNodeT<1, FunctionLength> {
-  using Base = FixedInputValueNodeT<1, FunctionLength>;
-
- public:
-  explicit FunctionLength(uint64_t bitfield) : Base(bitfield) {}
-
-  static constexpr OpProperties kProperties =
-      OpProperties::Reading() | OpProperties::Int32();
-  static constexpr
-      typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
-
-  static constexpr int kObjectIndex = 0;
-  Input& object_input() { return input(kObjectIndex); }
-
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
