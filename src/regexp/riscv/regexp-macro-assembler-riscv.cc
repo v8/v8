@@ -736,7 +736,8 @@ Handle<HeapObject> RegExpMacroAssemblerRISCV::GetCode(Handle<String> source) {
       __ Branch(&stack_limit_hit, le, a0, Operand(zero_reg));
       // Check if there is room for the variable number of registers above
       // the stack limit.
-      __ Branch(&stack_ok, uge, a0, Operand(num_registers_ * kPointerSize));
+      __ Branch(&stack_ok, uge, a0,
+                Operand(num_registers_ * kSystemPointerSize));
       // Exit with OutOfMemory exception. There is not enough space on the stack
       // for our working registers.
       __ li(a0, Operand(EXCEPTION));

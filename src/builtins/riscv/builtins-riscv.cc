@@ -970,7 +970,7 @@ void Builtins::Generate_BaselineOutOfLinePrologueDeopt(MacroAssembler* masm) {
 
   // Drop bytecode offset (was the feedback vector but got replaced during
   // deopt) and bytecode array.
-  __ AddWord(sp, sp, Operand(2 * kPointerSize));
+  __ AddWord(sp, sp, Operand(2 * kSystemPointerSize));
 
   // Context, closure, argc.
   __ Pop(kContextRegister, kJavaScriptCallTargetRegister,
@@ -2078,7 +2078,7 @@ void Generate_AllocateSpaceAndShiftExistingArguments(
   Register old_sp = scratch1;
   Register new_space = scratch2;
   __ mv(old_sp, sp);
-  __ slli(new_space, count, kPointerSizeLog2);
+  __ slli(new_space, count, kSystemPointerSizeLog2);
   __ SubWord(sp, sp, Operand(new_space));
 
   Register end = scratch2;

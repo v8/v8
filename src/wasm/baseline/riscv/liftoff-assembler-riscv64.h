@@ -173,7 +173,6 @@ void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value) {
 void LiftoffAssembler::LoadTaggedPointer(Register dst, Register src_addr,
                                          Register offset_reg,
                                          int32_t offset_imm, bool needs_shift) {
-  static_assert(kTaggedSize == kInt64Size);
   unsigned shift_amount = !needs_shift ? 0 : 3;
   MemOperand src_op = liftoff::GetMemOp(this, src_addr, offset_reg, offset_imm,
                                         false, shift_amount);
