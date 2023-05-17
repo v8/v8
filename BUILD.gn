@@ -363,13 +363,6 @@ declare_args() {
   # (incomplete and experimental).
   v8_enable_cet_shadow_stack = false
 
-  # Get VMEX priviledge at startup.
-  # It allows to run V8 without "deprecated-ambient-replace-as-executable".
-  # Sets -DV8_USE_VMEX_RESOURCE.
-  # TODO(victorgomes): Remove this flag once Chormium no longer needs
-  # the deprecated feature.
-  v8_fuchsia_use_vmex_resource = is_fuchsia && !build_with_chromium
-
   # Enables pointer compression for 8GB heaps.
   # Sets -DV8_COMPRESS_POINTERS_8GB.
   v8_enable_pointer_compression_8gb = ""
@@ -667,10 +660,6 @@ if (v8_enable_single_generation == true) {
   assert(
       v8_enable_unconditional_write_barriers || v8_disable_write_barriers,
       "Requires unconditional write barriers or none (which disables incremental marking)")
-}
-
-if (v8_fuchsia_use_vmex_resource) {
-  assert(target_os == "fuchsia", "VMEX resource only available on Fuchsia")
 }
 
 assert(!v8_enable_snapshot_compression || v8_use_zlib,
@@ -1134,9 +1123,6 @@ config("features") {
   if (v8_advanced_bigint_algorithms) {
     defines += [ "V8_ADVANCED_BIGINT_ALGORITHMS" ]
   }
-  if (v8_fuchsia_use_vmex_resource) {
-    defines += [ "V8_USE_VMEX_RESOURCE" ]
-  }
   if (v8_expose_memory_corruption_api) {
     defines += [ "V8_EXPOSE_MEMORY_CORRUPTION_API" ]
   }
@@ -1393,14 +1379,17 @@ config("toolchain") {
       "-Wmissing-field-initializers",
       "-Wunreachable-code",
 
-      # Google3 enables this warning, so we should also enable it to find issue
-      # earlier. See https://reviews.llvm.org/D56731 for details about this
-      # warning.
-      "-Wctad-maybe-unsupported",
-
       # TODO(v8:12245): Fix shadowing instances and remove.
       "-Wno-shadow",
     ]
+
+    # TODO(fuchsia:127411): Re-enable once FIDL bindings are compatible.
+    if (!is_fuchsia) {
+      # Google3 enables this warning, so we should also enable it to find issue
+      # earlier. See https://reviews.llvm.org/D56731 for details about this
+      # warning.
+      cflags += [ "-Wctad-maybe-unsupported" ]
+    }
 
     if (v8_current_cpu == "x64" || v8_current_cpu == "arm64" ||
         v8_current_cpu == "mips64el" || v8_current_cpu == "riscv64") {
@@ -5921,8 +5910,8 @@ v8_component("v8_libbase") {
       "src/base/platform/platform-fuchsia.cc",
     ]
     deps += [
-      "//third_party/fuchsia-sdk/sdk/fidl/fuchsia.kernel",
-      "//third_party/fuchsia-sdk/sdk/pkg/fdio",
+      "//third_party/fuchsia-sdk/sdk/fidl/fuchsia.kernel:fuchsia.kernel_cpp",
+      "//third_party/fuchsia-sdk/sdk/pkg/component_incoming_cpp",
       "//third_party/fuchsia-sdk/sdk/pkg/zx",
     ]
   } else if (is_mac) {
