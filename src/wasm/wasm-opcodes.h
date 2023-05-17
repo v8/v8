@@ -800,47 +800,47 @@ V8_EXPORT_PRIVATE bool IsJSCompatibleSignature(const FunctionSig* sig);
 // All signatures.
 #define FOREACH_SIGNATURE(V)                        \
   FOREACH_SIMD_SIGNATURE(V)                         \
-  V(v_v, kWasmVoid)                                 \
-  V(i_ii, kWasmI32, kWasmI32, kWasmI32)             \
-  V(i_i, kWasmI32, kWasmI32)                        \
-  V(i_v, kWasmI32)                                  \
-  V(i_ff, kWasmI32, kWasmF32, kWasmF32)             \
-  V(i_f, kWasmI32, kWasmF32)                        \
-  V(i_dd, kWasmI32, kWasmF64, kWasmF64)             \
-  V(i_d, kWasmI32, kWasmF64)                        \
-  V(i_l, kWasmI32, kWasmI64)                        \
-  V(l_ll, kWasmI64, kWasmI64, kWasmI64)             \
-  V(i_ll, kWasmI32, kWasmI64, kWasmI64)             \
-  V(l_l, kWasmI64, kWasmI64)                        \
-  V(l_i, kWasmI64, kWasmI32)                        \
-  V(l_f, kWasmI64, kWasmF32)                        \
-  V(l_d, kWasmI64, kWasmF64)                        \
-  V(f_ff, kWasmF32, kWasmF32, kWasmF32)             \
-  V(f_f, kWasmF32, kWasmF32)                        \
-  V(f_d, kWasmF32, kWasmF64)                        \
-  V(f_i, kWasmF32, kWasmI32)                        \
-  V(f_l, kWasmF32, kWasmI64)                        \
-  V(d_dd, kWasmF64, kWasmF64, kWasmF64)             \
   V(d_d, kWasmF64, kWasmF64)                        \
+  V(d_dd, kWasmF64, kWasmF64, kWasmF64)             \
   V(d_f, kWasmF64, kWasmF32)                        \
   V(d_i, kWasmF64, kWasmI32)                        \
-  V(d_l, kWasmF64, kWasmI64)                        \
-  V(v_i, kWasmVoid, kWasmI32)                       \
-  V(v_ii, kWasmVoid, kWasmI32, kWasmI32)            \
-  V(v_id, kWasmVoid, kWasmI32, kWasmF64)            \
   V(d_id, kWasmF64, kWasmI32, kWasmF64)             \
-  V(v_if, kWasmVoid, kWasmI32, kWasmF32)            \
+  V(d_l, kWasmF64, kWasmI64)                        \
+  V(f_d, kWasmF32, kWasmF64)                        \
+  V(f_f, kWasmF32, kWasmF32)                        \
+  V(f_ff, kWasmF32, kWasmF32, kWasmF32)             \
+  V(f_i, kWasmF32, kWasmI32)                        \
   V(f_if, kWasmF32, kWasmI32, kWasmF32)             \
-  V(v_il, kWasmVoid, kWasmI32, kWasmI64)            \
-  V(l_il, kWasmI64, kWasmI32, kWasmI64)             \
-  V(v_iii, kWasmVoid, kWasmI32, kWasmI32, kWasmI32) \
-  V(i_iii, kWasmI32, kWasmI32, kWasmI32, kWasmI32)  \
-  V(l_ill, kWasmI64, kWasmI32, kWasmI64, kWasmI64)  \
-  V(i_iil, kWasmI32, kWasmI32, kWasmI32, kWasmI64)  \
-  V(i_ill, kWasmI32, kWasmI32, kWasmI64, kWasmI64)  \
+  V(f_l, kWasmF32, kWasmI64)                        \
   V(i_a, kWasmI32, kWasmAnyRef)                     \
   V(i_ci, kWasmI32, kWasmFuncRef, kWasmI32)         \
-  V(i_qq, kWasmI32, kWasmEqRef, kWasmEqRef)
+  V(i_d, kWasmI32, kWasmF64)                        \
+  V(i_dd, kWasmI32, kWasmF64, kWasmF64)             \
+  V(i_f, kWasmI32, kWasmF32)                        \
+  V(i_ff, kWasmI32, kWasmF32, kWasmF32)             \
+  V(i_i, kWasmI32, kWasmI32)                        \
+  V(i_ii, kWasmI32, kWasmI32, kWasmI32)             \
+  V(i_iii, kWasmI32, kWasmI32, kWasmI32, kWasmI32)  \
+  V(i_iil, kWasmI32, kWasmI32, kWasmI32, kWasmI64)  \
+  V(i_ill, kWasmI32, kWasmI32, kWasmI64, kWasmI64)  \
+  V(i_l, kWasmI32, kWasmI64)                        \
+  V(i_ll, kWasmI32, kWasmI64, kWasmI64)             \
+  V(i_qq, kWasmI32, kWasmEqRef, kWasmEqRef)         \
+  V(i_v, kWasmI32)                                  \
+  V(l_d, kWasmI64, kWasmF64)                        \
+  V(l_f, kWasmI64, kWasmF32)                        \
+  V(l_i, kWasmI64, kWasmI32)                        \
+  V(l_il, kWasmI64, kWasmI32, kWasmI64)             \
+  V(l_ill, kWasmI64, kWasmI32, kWasmI64, kWasmI64)  \
+  V(l_l, kWasmI64, kWasmI64)                        \
+  V(l_ll, kWasmI64, kWasmI64, kWasmI64)             \
+  V(v_id, kWasmVoid, kWasmI32, kWasmF64)            \
+  V(v_if, kWasmVoid, kWasmI32, kWasmF32)            \
+  V(v_i, kWasmVoid, kWasmI32)                       \
+  V(v_ii, kWasmVoid, kWasmI32, kWasmI32)            \
+  V(v_iii, kWasmVoid, kWasmI32, kWasmI32, kWasmI32) \
+  V(v_il, kWasmVoid, kWasmI32, kWasmI64)            \
+  V(v_v, kWasmVoid)
 
 #define FOREACH_SIMD_SIGNATURE(V)                      \
   V(s_s, kWasmS128, kWasmS128)                         \
