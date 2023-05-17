@@ -674,6 +674,10 @@ class ModuleDecoderImpl : public Decoder {
           type_canon->AddRecursiveGroup(module_.get(), group_size,
                                         static_cast<uint32_t>(initial_size));
         }
+        if (tracer_) {
+          tracer_->Description("end of rec. group");
+          tracer_->NextLine();
+        }
       } else {
         if (tracer_) tracer_->TypeOffset(pc_offset());
         // Similarly to above, we need to resize types for a group of size 1.

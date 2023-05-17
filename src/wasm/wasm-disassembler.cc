@@ -825,7 +825,9 @@ void ModuleDisassembler::PrintModule(Indentation indentation, size_t max_mb) {
 
   // II. Types
   // TODO(jkummerow): If we want to support binary -> WAT -> binary round
-  // trips, then we need to print rec groups.
+  // trips, then we need to print rec groups. The difficulty is that we
+  // don't store that information, so we'd either have to make {WasmModule}
+  // bigger, or re-decode the type section here.
   for (uint32_t i = 0; i < module_->types.size(); i++) {
     if (kSkipFunctionTypesInTypeSection && module_->has_signature(i)) {
       continue;
