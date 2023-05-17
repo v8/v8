@@ -107,7 +107,7 @@ class MaybeRedundantStoresTable
 
   void OnNewKey(Key key, StoreObservability value) {
     DCHECK_EQ(value, StoreObservability::kObservable);
-    DCHECK(!active_keys_.contains(key));
+    DCHECK_EQ(active_keys_.find(key), active_keys_.end());
   }
 
   void OnValueChange(Key key, StoreObservability old_value,
