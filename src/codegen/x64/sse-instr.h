@@ -201,8 +201,9 @@
 
 // These require AVX2.
 #define AVX2_BROADCAST_LIST(V)    \
-  V(vpbroadcastd, 66, 0F, 38, 58) \
   V(vpbroadcastb, 66, 0F, 38, 78) \
-  V(vpbroadcastw, 66, 0F, 38, 79)
+  V(vpbroadcastw, 66, 0F, 38, 79) \
+  V(vpbroadcastd, 66, 0F, 38, 58) \
+  V(vpbroadcastq, 66, 0F, 38, 59)
 
 #endif  // V8_CODEGEN_X64_SSE_INSTR_H_

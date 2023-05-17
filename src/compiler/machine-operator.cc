@@ -501,6 +501,7 @@ std::ostream& operator<<(std::ostream& os, TruncateKind kind) {
   V(F32x4Trunc, Operator::kNoProperties, 1, 0, 1)                          \
   V(F32x4NearestInt, Operator::kNoProperties, 1, 0, 1)                     \
   V(F32x4DemoteF64x2Zero, Operator::kNoProperties, 1, 0, 1)                \
+  V(I64x4Splat, Operator::kNoProperties, 1, 0, 1)                          \
   V(I64x2Splat, Operator::kNoProperties, 1, 0, 1)                          \
   V(I64x2SplatI32Pair, Operator::kNoProperties, 2, 0, 1)                   \
   V(I64x2Abs, Operator::kNoProperties, 1, 0, 1)                            \
@@ -524,6 +525,7 @@ std::ostream& operator<<(std::ostream& os, TruncateKind kind) {
   V(I64x2ExtMulHighI32x4S, Operator::kCommutative, 2, 0, 1)                \
   V(I64x2ExtMulLowI32x4U, Operator::kCommutative, 2, 0, 1)                 \
   V(I64x2ExtMulHighI32x4U, Operator::kCommutative, 2, 0, 1)                \
+  V(I32x8Splat, Operator::kNoProperties, 1, 0, 1)                          \
   V(I32x4Splat, Operator::kNoProperties, 1, 0, 1)                          \
   V(I32x4SConvertF32x4, Operator::kNoProperties, 1, 0, 1)                  \
   V(I32x4SConvertI16x8Low, Operator::kNoProperties, 1, 0, 1)               \
@@ -559,6 +561,7 @@ std::ostream& operator<<(std::ostream& os, TruncateKind kind) {
   V(I32x4ExtAddPairwiseI16x8U, Operator::kNoProperties, 1, 0, 1)           \
   V(I32x4TruncSatF64x2SZero, Operator::kNoProperties, 1, 0, 1)             \
   V(I32x4TruncSatF64x2UZero, Operator::kNoProperties, 1, 0, 1)             \
+  V(I16x16Splat, Operator::kNoProperties, 1, 0, 1)                         \
   V(I16x8Splat, Operator::kNoProperties, 1, 0, 1)                          \
   V(I16x8SConvertI8x16Low, Operator::kNoProperties, 1, 0, 1)               \
   V(I16x8SConvertI8x16High, Operator::kNoProperties, 1, 0, 1)              \
@@ -597,6 +600,7 @@ std::ostream& operator<<(std::ostream& os, TruncateKind kind) {
   V(I16x8ExtMulHighI8x16U, Operator::kCommutative, 2, 0, 1)                \
   V(I16x8ExtAddPairwiseI8x16S, Operator::kNoProperties, 1, 0, 1)           \
   V(I16x8ExtAddPairwiseI8x16U, Operator::kNoProperties, 1, 0, 1)           \
+  V(I8x32Splat, Operator::kNoProperties, 1, 0, 1)                          \
   V(I8x16Splat, Operator::kNoProperties, 1, 0, 1)                          \
   V(I8x16Neg, Operator::kNoProperties, 1, 0, 1)                            \
   V(I8x16Shl, Operator::kNoProperties, 2, 0, 1)                            \

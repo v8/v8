@@ -1502,6 +1502,26 @@ void MacroAssembler::I64x4Mul(YMMRegister dst, YMMRegister lhs, YMMRegister rhs,
   vpaddq(dst, dst, tmp2);
 }
 
+#define DEFINE_ISPLAT(name, suffix)                          \
+  void MacroAssembler::name(YMMRegister dst, Register src) { \
+    ASM_CODE_COMMENT(this);                                  \
+    DCHECK(CpuFeatures::IsSupported(AVX2));                  \
+    CpuFeatureScope avx2_scope(this, AVX2);                  \
+    vmovd(dst, src);                                         \
+    vpbroadcast##suffix(dst, dst);                           \
+  }                                                          \
+                                                             \
+  void MacroAssembler::name(YMMRegister dst, Operand src) {  \
+    ASM_CODE_COMMENT(this);                                  \
+    DCHECK(CpuFeatures::IsSupported(AVX2));                  \
+    CpuFeatureScope avx2_scope(this, AVX2);                  \
+    vpbroadcast##suffix(dst, src);                           \
+  }
+
+MACRO_ASM_X64_ISPLAT_LIST(DEFINE_ISPLAT)
+
+#undef DEFINE_ISPLAT
+
 void MacroAssembler::SmiTag(Register reg) {
   static_assert(kSmiTag == 0);
   DCHECK(SmiValuesAre32Bits() || SmiValuesAre31Bits());

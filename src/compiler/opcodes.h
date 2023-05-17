@@ -1171,7 +1171,11 @@
   V(S256Or)                        \
   V(S256Xor)                       \
   V(S256Select)                    \
-  V(S256AndNot)
+  V(S256AndNot)                    \
+  V(I64x4Splat)                    \
+  V(I32x8Splat)                    \
+  V(I16x16Splat)                   \
+  V(I8x32Splat)
 
 #define VALUE_OP_LIST(V)     \
   COMMON_OP_LIST(V)          \

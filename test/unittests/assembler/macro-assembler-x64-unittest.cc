@@ -27,8 +27,12 @@
 
 #include <stdlib.h>
 
+#include <cstdint>
+
 #include "src/codegen/macro-assembler.h"
 #include "src/codegen/x64/assembler-x64-inl.h"
+#include "src/codegen/x64/assembler-x64.h"
+#include "src/codegen/x64/register-x64.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/simulator.h"
 #include "src/heap/factory.h"
@@ -48,6 +52,15 @@ namespace internal {
 // V8 library, create a context, or use any V8 objects.
 
 using MacroAssemblerX64Test = TestWithIsolate;
+
+void PrintCode(Isolate* isolate, CodeDesc desc) {
+#ifdef OBJECT_PRINT
+  Handle<Code> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
+  StdoutStream os;
+  code->Print(os);
+#endif  // OBJECT_PRINT
+}
 
 TEST_F(MacroAssemblerX64Test, TestHardAbort) {
   auto buffer = AllocateAssemblerBuffer();
@@ -105,6 +118,10 @@ namespace test_macro_assembler_x64 {
 using F0 = int();
 using F1 = int(uint64_t*, uint64_t*, uint64_t*);
 using F2 = int(uint64_t*, uint64_t*, uint64_t*, uint64_t*);
+using F3 = int(int8_t, int8_t*, int8_t*, int8_t*);
+using F4 = int(int16_t, int16_t*, int16_t*, int16_t*);
+using F5 = int(int32_t, int32_t*, int32_t*, int32_t*);
+using F6 = int(int64_t, int64_t*, int64_t*, int64_t*);
 
 #define __ masm->
 
@@ -1114,12 +1131,8 @@ TEST_F(MacroAssemblerX64Test, S256Select) {
   CodeDesc desc;
   __ GetCode(i_isolate(), &desc);
 
-#ifdef OBJECT_PRINT
-  Handle<Code> code =
-      Factory::CodeBuilder(i_isolate(), desc, CodeKind::FOR_TESTING).Build();
-  StdoutStream os;
-  code->Print(os);
-#endif
+  PrintCode(isolate, desc);
+
   buffer->MakeExecutable();
   // Call the function from C++.
   auto f = GeneratedCode<F2>::FromBuffer(i_isolate(), buffer->start());
@@ -1234,12 +1247,8 @@ TEST_F(MacroAssemblerX64Test, I64x2Mul) {
   CodeDesc desc;
   __ GetCode(i_isolate(), &desc);
 
-#ifdef OBJECT_PRINT
-  Handle<Code> code =
-      Factory::CodeBuilder(i_isolate(), desc, CodeKind::FOR_TESTING).Build();
-  StdoutStream os;
-  code->Print(os);
-#endif
+  PrintCode(isolate, desc);
+
   buffer->MakeExecutable();
   // Call the function from C++.
   auto f = GeneratedCode<F1>::FromBuffer(i_isolate(), buffer->start());
@@ -1299,12 +1308,8 @@ TEST_F(MacroAssemblerX64Test, I64x4Mul) {
   CodeDesc desc;
   __ GetCode(i_isolate(), &desc);
 
-#ifdef OBJECT_PRINT
-  Handle<Code> code =
-      Factory::CodeBuilder(i_isolate(), desc, CodeKind::FOR_TESTING).Build();
-  StdoutStream os;
-  code->Print(os);
-#endif
+  PrintCode(isolate, desc);
+
   buffer->MakeExecutable();
   // Call the function from C++.
   auto f = GeneratedCode<F1>::FromBuffer(i_isolate(), buffer->start());
@@ -1340,6 +1345,55 @@ TEST_F(MacroAssemblerX64Test, I64x4Mul) {
     CHECK_EQ(output[3], left[3] * right[3]);
   }
 }
+
+#define TEST_ISLPAT(name, lane_size, lane_num, Fn)                            \
+  TEST_F(MacroAssemblerX64Test, name) {                                       \
+    if (!CpuFeatures::IsSupported(AVX) || !CpuFeatures::IsSupported(AVX2))    \
+      return;                                                                 \
+    Isolate* isolate = i_isolate();                                           \
+    HandleScope handles(isolate);                                             \
+    auto buffer = AllocateAssemblerBuffer();                                  \
+    MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired::kYes, \
+                             buffer->CreateView());                           \
+    MacroAssembler* masm = &assembler;                                        \
+    CpuFeatureScope avx_scope(masm, AVX);                                     \
+    CpuFeatureScope avx2_scope(masm, AVX2);                                   \
+                                                                              \
+    /* src is register */                                                     \
+    __ name(ymm0, arg_reg_1);                                                 \
+    __ vmovdqu(Operand(arg_reg_3, 0), ymm0);                                  \
+                                                                              \
+    /* src is address*/                                                       \
+    __ name(ymm0, Operand(arg_reg_2, 0));                                     \
+    __ vmovdqu(Operand(arg_reg_4, 0), ymm0);                                  \
+    __ ret(0);                                                                \
+                                                                              \
+    CodeDesc desc;                                                            \
+    __ GetCode(i_isolate(), &desc);                                           \
+                                                                              \
+    PrintCode(isolate, desc);                                                 \
+    buffer->MakeExecutable();                                                 \
+    /* Call the function from C++. */                                         \
+    auto f = GeneratedCode<Fn>::FromBuffer(i_isolate(), buffer->start());     \
+    int##lane_size##_t input = 123;                                           \
+    int##lane_size##_t* input_addr = &input;                                  \
+    int##lane_size##_t output1[lane_num];                                     \
+    int##lane_size##_t output2[lane_num];                                     \
+                                                                              \
+    f.Call(input, input_addr, output1, output2);                              \
+                                                                              \
+    for (int i = 0; i < lane_num; ++i) {                                      \
+      CHECK_EQ(input, output1[i]);                                            \
+      CHECK_EQ(input, output2[i]);                                            \
+    }                                                                         \
+  }
+
+TEST_ISLPAT(I8x32Splat, 8, 32, F3)
+TEST_ISLPAT(I16x16Splat, 16, 16, F4)
+TEST_ISLPAT(I32x8Splat, 32, 8, F5)
+TEST_ISLPAT(I64x4Splat, 64, 4, F6)
+
+#undef TEST_ISLPAT
 
 #undef __
 
