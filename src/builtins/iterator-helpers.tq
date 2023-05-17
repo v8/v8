@@ -18,15 +18,11 @@ macro MarkIteratorHelperAsExhausted(helper: JSIteratorHelper): void {
 transitioning macro GetIteratorDirect(implicit context: Context)(
     obj: JSReceiver): IteratorRecord {
   // 1. Let nextMethod be ? Get(obj, "next").
-  const nextProp = GetProperty(obj, kNextString);
+  const nextMethod = GetProperty(obj, kNextString);
 
-  // 2. If IsCallable(nextMethod) is false, throw a TypeError exception.
-  const nextMethod = Cast<Callable>(nextProp)
-      otherwise ThrowTypeError(MessageTemplate::kCalledNonCallable, 'next');
-
-  // 3. Let iteratorRecord be Record { [[Iterator]]: obj, [[NextMethod]]:
+  // 2. Let iteratorRecord be Record { [[Iterator]]: obj, [[NextMethod]]:
   //    nextMethod, [[Done]]: false }.
-  // 4. Return iteratorRecord.
+  // 3. Return iteratorRecord.
   return IteratorRecord{object: obj, next: nextMethod};
 }
 

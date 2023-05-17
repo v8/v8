@@ -182,6 +182,26 @@ function TestHelperPrototypeSurface(helper) {
   assertEquals({value: undefined, done: true}, mapIter.next());
 })();
 
+(function TestMapNotCallableNext() {
+  const iterator = {
+    i: 1,
+    next() {
+      undefined;
+    },
+    return () {
+      return {};
+    },
+  };
+
+  Object.setPrototypeOf(iterator, Iterator.prototype);
+  const mapIter = iterator.map((x, i) => {
+    return x;
+  });
+  assertThrows(() => {
+    mapIter.next();
+  });
+})();
+
 // --- Test filter helper
 
 (function TestFilter() {
