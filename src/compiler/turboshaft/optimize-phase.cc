@@ -8,6 +8,7 @@
 #include "src/compiler/turboshaft/late-escape-analysis-reducer.h"
 #include "src/compiler/turboshaft/machine-optimization-reducer.h"
 #include "src/compiler/turboshaft/memory-optimization-reducer.h"
+#include "src/compiler/turboshaft/pretenuring-propagation-reducer.h"
 #include "src/compiler/turboshaft/structural-optimization-reducer.h"
 #include "src/compiler/turboshaft/value-numbering-reducer.h"
 #include "src/compiler/turboshaft/variable-reducer.h"
@@ -21,6 +22,7 @@ void OptimizePhase::Run(Zone* temp_zone) {
   turboshaft::OptimizationPhase<
       turboshaft::StructuralOptimizationReducer, turboshaft::VariableReducer,
       turboshaft::LateEscapeAnalysisReducer,
+      turboshaft::PretenuringPropagationReducer,
       turboshaft::MemoryOptimizationReducer,
       turboshaft::MachineOptimizationReducerSignallingNanImpossible,
       turboshaft::ValueNumberingReducer>::Run(temp_zone);

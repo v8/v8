@@ -2947,6 +2947,8 @@ filegroup(
         "src/compiler/turboshaft/optimize-phase.h",
         "src/compiler/turboshaft/phase.cc",
         "src/compiler/turboshaft/phase.h",
+        "src/compiler/turboshaft/pretenuring-propagation-reducer.cc",
+        "src/compiler/turboshaft/pretenuring-propagation-reducer.h",
         "src/compiler/turboshaft/recreate-schedule.cc",
         "src/compiler/turboshaft/recreate-schedule.h",
         "src/compiler/turboshaft/recreate-schedule-phase.cc",
