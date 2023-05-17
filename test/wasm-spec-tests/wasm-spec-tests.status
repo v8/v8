@@ -25,9 +25,6 @@
   # "unreached-invalid" is supposed to fail for "type mismatch"; missing rebase
   # on https://github.com/WebAssembly/spec/commit/7fa2f20a.
   'proposals/memory64/unreached-invalid': [FAIL],
-  # TODO(13780): Fix validation of memory args to check that the offset is
-  # within the memory limit.
-  'proposals/memory64/address': [FAIL],
 
   # TODO(wasm): Roll newest tests into "js-types" repository.
   'proposals/js-types/globals': [FAIL],

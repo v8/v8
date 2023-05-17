@@ -459,9 +459,27 @@ function allowOOM(fn) {
       ])
       .exportFunc();
 
+  // An offset outside the 32-bit range should not validate.
+  assertFalse(WebAssembly.validate(builder.toBuffer()));
+})();
+
+(function Test64BitOffsetOn64BitMemory() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  builder.addMemory64(1, 1, false);
+
+  builder.addFunction('load', makeSig([kWasmI64], [kWasmI32]))
+      .addBody([
+        // local.get 0
+        kExprLocalGet, 0,
+        // i32.load align=0 offset=2^32+2
+        kExprI32LoadMem, 0, ...wasmSignedLeb64(Math.pow(2, 32) + 2),
+      ])
+      .exportFunc();
+
   // Instantiation works, this should throw at runtime.
   let instance = builder.instantiate();
   let load = instance.exports.load;
 
-  assertTraps(kTrapMemOutOfBounds, () => load(0));
+  assertTraps(kTrapMemOutOfBounds, () => load(0n));
 })();

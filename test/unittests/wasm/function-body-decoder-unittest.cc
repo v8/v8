@@ -5285,6 +5285,14 @@ TEST_P(FunctionBodyDecoderTestOnBothMemoryTypes, 64BitOffsetOnMemory32) {
   Validate(is_memory64(), sigs.v_v(),
            {WASM_STORE_MEM_OFFSET(MachineType::Int32(), U64V_6(0), WASM_ZERO,
                                   WASM_ZERO)});
+  // Offset is 2^32+2 (fails validation on memory32).
+  Validate(false, sigs.i_v(),
+           {WASM_LOAD_MEM_OFFSET(MachineType::Int32(),
+                                 U64V_6((uint64_t{1} << 32) + 2), WASM_ZERO)});
+  Validate(false, sigs.v_v(),
+           {WASM_STORE_MEM_OFFSET(MachineType::Int32(),
+                                  U64V_6((uint64_t{1} << 32) + 2), WASM_ZERO,
+                                  WASM_ZERO)});
 }
 
 TEST_P(FunctionBodyDecoderTestOnBothMemoryTypes, 64BitOffsetOnMemory64) {
@@ -5304,6 +5312,15 @@ TEST_P(FunctionBodyDecoderTestOnBothMemoryTypes, 64BitOffsetOnMemory64) {
                                   WASM_ZERO)});
   Validate(is_memory64(), sigs.v_v(),
            {WASM_STORE_MEM_OFFSET(MachineType::Int32(), U64V_6(0), WASM_ZERO64,
+                                  WASM_ZERO)});
+  // Offset is 2^32+2 (validates on memory64).
+  Validate(
+      is_memory64(), sigs.i_v(),
+      {WASM_LOAD_MEM_OFFSET(MachineType::Int32(),
+                            U64V_6((uint64_t{1} << 32) + 2), WASM_ZERO64)});
+  Validate(is_memory64(), sigs.v_v(),
+           {WASM_STORE_MEM_OFFSET(MachineType::Int32(),
+                                  U64V_6((uint64_t{1} << 32) + 2), WASM_ZERO64,
                                   WASM_ZERO)});
 }
 
