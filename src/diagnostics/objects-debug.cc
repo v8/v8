@@ -67,6 +67,7 @@
 #include "src/objects/js-segmenter-inl.h"
 #include "src/objects/js-segments-inl.h"
 #endif  // V8_INTL_SUPPORT
+#include "src/objects/hole-inl.h"
 #include "src/objects/js-raw-json-inl.h"
 #include "src/objects/js-shared-array-inl.h"
 #include "src/objects/js-struct-inl.h"
@@ -1108,6 +1109,18 @@ void Oddball::OddballVerify(Isolate* isolate) {
     CHECK_EQ(kind(), Oddball::kSelfReferenceMarker);
   } else if (map() == roots.basic_block_counters_marker_map()) {
     CHECK(*this == roots.basic_block_counters_marker());
+  } else {
+    UNREACHABLE();
+  }
+}
+
+void Hole::HoleVerify(Isolate* isolate) {
+  CHECK(IsHole(isolate));
+
+  ReadOnlyRoots roots(isolate->heap());
+  if (map() == roots.the_hole_map()) {
+    CHECK_EQ(*this, roots.the_hole_value());
+    CHECK_EQ(kind(), Hole::kDefaultHole);
   } else {
     UNREACHABLE();
   }

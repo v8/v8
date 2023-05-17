@@ -572,7 +572,7 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForGlobalAccess(
                   ->get_context(script_context_index, kAcquireLoad));
 
     OptionalObjectRef contents = context.get(broker, context_slot_index);
-    if (contents.has_value()) CHECK(!contents->IsTheHole(broker));
+    if (contents.has_value()) CHECK(!contents->IsTheHole());
 
     return *zone()->New<GlobalAccessFeedback>(
         context, context_slot_index,

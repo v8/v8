@@ -1170,9 +1170,6 @@ OddballType MapRef::oddball_type(JSHeapBroker* broker) const {
   if (equals(broker->boolean_map())) {
     return OddballType::kBoolean;
   }
-  if (equals(broker->the_hole_map())) {
-    return OddballType::kHole;
-  }
   if (equals(broker->uninitialized_map())) {
     return OddballType::kUninitialized;
   }
@@ -1795,16 +1792,11 @@ OptionalJSFunctionRef NativeContextRef::GetConstructorFunction(
 
 bool ObjectRef::IsNull() const { return object()->IsNull(); }
 
-bool ObjectRef::IsNullOrUndefined(JSHeapBroker* broker) const {
-  if (IsSmi()) return false;
-  OddballType type = AsHeapObject().map(broker).oddball_type(broker);
-  return type == OddballType::kNull || type == OddballType::kUndefined;
-}
+bool ObjectRef::IsUndefined() const { return object()->IsUndefined(); }
 
-bool ObjectRef::IsTheHole(JSHeapBroker* broker) const {
-  return IsHeapObject() &&
-         AsHeapObject().map(broker).oddball_type(broker) == OddballType::kHole;
-}
+bool ObjectRef::IsTheHole() const { return object()->IsTheHole(); }
+
+bool ObjectRef::IsNullOrUndefined() const { return IsNull() || IsUndefined(); }
 
 base::Optional<bool> ObjectRef::TryGetBooleanValue(JSHeapBroker* broker) const {
   if (data_->should_access_heap()) {
@@ -2006,9 +1998,6 @@ OddballType GetOddballType(Isolate* isolate, Map map) {
   }
   if (map == roots.boolean_map()) {
     return OddballType::kBoolean;
-  }
-  if (map == roots.the_hole_map()) {
-    return OddballType::kHole;
   }
   if (map == roots.uninitialized_map()) {
     return OddballType::kUninitialized;

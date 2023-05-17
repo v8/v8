@@ -1089,9 +1089,7 @@ Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
   }
 
   ObjectRef property_cell_value = property_cell.value(broker());
-  if (property_cell_value.IsHeapObject() &&
-      property_cell_value.AsHeapObject().map(broker()).oddball_type(broker()) ==
-          OddballType::kHole) {
+  if (property_cell_value.IsTheHole()) {
     // The property cell is no longer valid.
     return NoChange();
   }
@@ -1174,8 +1172,7 @@ Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
                     ? jsgraph()->TrueConstant()
                     : jsgraph()->Constant(property_cell_value, broker());
         DCHECK(!property_cell_value.IsHeapObject() ||
-               property_cell_value.AsHeapObject().map(broker()).oddball_type(
-                   broker()) != OddballType::kHole);
+               !property_cell_value.IsTheHole());
       } else {
         DCHECK_NE(AccessMode::kHas, access_mode);
 
@@ -2389,10 +2386,7 @@ Reduction JSNativeContextSpecialization::ReduceElementLoadFromHeapConstant(
 
   HeapObjectMatcher mreceiver(receiver);
   HeapObjectRef receiver_ref = mreceiver.Ref(broker());
-  if (receiver_ref.map(broker()).oddball_type(broker()) == OddballType::kHole ||
-      receiver_ref.map(broker()).oddball_type(broker()) == OddballType::kNull ||
-      receiver_ref.map(broker()).oddball_type(broker()) ==
-          OddballType::kUndefined ||
+  if (receiver_ref.IsNull() || receiver_ref.IsUndefined() ||
       // The 'in' operator throws a TypeError on primitive values.
       (receiver_ref.IsString() && access_mode == AccessMode::kHas)) {
     return NoChange();

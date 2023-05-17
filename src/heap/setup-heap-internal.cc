@@ -349,7 +349,7 @@ bool Heap::CreateEarlyReadOnlyMaps() {
 
     ALLOCATE_PARTIAL_MAP(ODDBALL_TYPE, Oddball::kSize, undefined);
     ALLOCATE_PARTIAL_MAP(ODDBALL_TYPE, Oddball::kSize, null);
-    ALLOCATE_PARTIAL_MAP(ODDBALL_TYPE, Oddball::kSize, the_hole);
+    ALLOCATE_PARTIAL_MAP(HOLE_TYPE, Hole::kSize, the_hole);
 
     // Some struct maps which we need for later dependencies
     for (const StructInit& entry : kStructTable) {
@@ -412,8 +412,7 @@ bool Heap::CreateEarlyReadOnlyMaps() {
         Allocate(roots.the_hole_map_handle(), AllocationType::kReadOnly);
     if (!allocation.To(&obj)) return false;
   }
-  set_the_hole_value(Oddball::cast(obj));
-  Oddball::cast(obj).set_kind(Oddball::kTheHole);
+  set_the_hole_value(Hole::cast(obj));
 
   // Set preliminary exception sentinel value before actually initializing it.
   set_exception(roots.null_value());
@@ -902,11 +901,6 @@ bool Heap::CreateReadOnlyObjects() {
   Oddball::Initialize(isolate(), factory->null_value(), "null",
                       handle(Smi::zero(), isolate()), "object", Oddball::kNull);
 
-  // Initialize the_hole_value.
-  Oddball::Initialize(isolate(), factory->the_hole_value(), "hole",
-                      factory->hole_nan_value(), "undefined",
-                      Oddball::kTheHole);
-
   // Initialize the true_value.
   Oddball::Initialize(isolate(), factory->true_value(), "true",
                       handle(Smi::FromInt(1), isolate()), "boolean",
@@ -916,6 +910,10 @@ bool Heap::CreateReadOnlyObjects() {
   Oddball::Initialize(isolate(), factory->false_value(), "false",
                       handle(Smi::zero(), isolate()), "boolean",
                       Oddball::kFalse);
+
+  // Initialize the_hole_value.
+  Hole::Initialize(isolate(), factory->the_hole_value(),
+                   factory->hole_nan_value(), Hole::kDefaultHole);
 
   set_uninitialized_value(
       *factory->NewOddball(factory->uninitialized_map(), "uninitialized",

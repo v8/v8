@@ -1395,6 +1395,11 @@ void Oddball::OddballPrint(std::ostream& os) {
   os << std::endl;
 }
 
+void Hole::HolePrint(std::ostream& os) {
+  PrintHeapObjectHeaderWithoutMap(*this, os, "Hole");
+  os << std::endl;
+}
+
 void JSAsyncFunctionObject::JSAsyncFunctionObjectPrint(std::ostream& os) {
   JSGeneratorObjectPrint(os);
 }

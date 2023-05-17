@@ -1840,8 +1840,8 @@ TNode<Int32T> CodeStubAssembler::LoadAndUntagToWord32ObjectField(
 
 TNode<Float64T> CodeStubAssembler::LoadHeapNumberValue(
     TNode<HeapObject> object) {
-  CSA_DCHECK(this, Word32Or(IsHeapNumber(object), IsOddball(object)));
-  static_assert(HeapNumber::kValueOffset == Oddball::kToNumberRawOffset);
+  CSA_DCHECK(this, Word32Or(IsHeapNumber(object), IsTheHole(object)));
+  static_assert(HeapNumber::kValueOffset == Hole::kRawNumericValueOffset);
   return LoadObjectField<Float64T>(object, HeapNumber::kValueOffset);
 }
 
@@ -9080,7 +9080,7 @@ void CodeStubAssembler::NumberDictionaryLookup(
   TNode<IntPtrT> initial_entry = Signed(WordAnd(hash, mask));
 
   TNode<Oddball> undefined = UndefinedConstant();
-  TNode<Oddball> the_hole = TheHoleConstant();
+  TNode<Hole> the_hole = TheHoleConstant();
 
   TVARIABLE(IntPtrT, var_count, count);
   Label loop(this, {&var_count, var_entry});
@@ -10540,7 +10540,7 @@ CodeStubAssembler::AllocatePropertyDescriptorObject(TNode<Context> context) {
   TNode<Smi> zero = SmiConstant(0);
   StoreObjectFieldNoWriteBarrier(result, PropertyDescriptorObject::kFlagsOffset,
                                  zero);
-  TNode<Oddball> the_hole = TheHoleConstant();
+  TNode<Hole> the_hole = TheHoleConstant();
   StoreObjectFieldNoWriteBarrier(result, PropertyDescriptorObject::kValueOffset,
                                  the_hole);
   StoreObjectFieldNoWriteBarrier(result, PropertyDescriptorObject::kGetOffset,
@@ -10649,7 +10649,7 @@ void CodeStubAssembler::TryLookupElement(
     GotoIfNot(UintPtrLessThan(intptr_index, length), &if_oob);
 
     TNode<Object> element = UnsafeLoadFixedArrayElement(elements, intptr_index);
-    TNode<Oddball> the_hole = TheHoleConstant();
+    TNode<Hole> the_hole = TheHoleConstant();
     Branch(TaggedEqual(element, the_hole), if_not_found, if_found);
   }
   BIND(&if_isdouble);

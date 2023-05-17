@@ -865,7 +865,7 @@ Maybe<bool> ValueSerializer::WriteJSMap(Handle<JSMap> js_map) {
     DisallowGarbageCollection no_gc;
     OrderedHashMap raw_table = *table;
     FixedArray raw_entries = *entries;
-    Oddball the_hole = ReadOnlyRoots(isolate_).the_hole_value();
+    Hole the_hole = ReadOnlyRoots(isolate_).the_hole_value();
     int result_index = 0;
     for (InternalIndex entry : raw_table.IterateEntries()) {
       Object key = raw_table.KeyAt(entry);
@@ -897,7 +897,7 @@ Maybe<bool> ValueSerializer::WriteJSSet(Handle<JSSet> js_set) {
     DisallowGarbageCollection no_gc;
     OrderedHashSet raw_table = *table;
     FixedArray raw_entries = *entries;
-    Oddball the_hole = ReadOnlyRoots(isolate_).the_hole_value();
+    Hole the_hole = ReadOnlyRoots(isolate_).the_hole_value();
     int result_index = 0;
     for (InternalIndex entry : raw_table.IterateEntries()) {
       Object key = raw_table.KeyAt(entry);

@@ -52,6 +52,7 @@ namespace internal {
   V(Map)                                \
   V(NativeContext)                      \
   V(Oddball)                            \
+  V(Hole)                               \
   V(PreparseData)                       \
   V(PromiseOnStack)                     \
   V(PropertyArray)                      \

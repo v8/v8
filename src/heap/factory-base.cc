@@ -160,7 +160,7 @@ Handle<FixedArray> FactoryBase<Impl>::NewFixedArrayWithHoles(
 
 template <typename Impl>
 Handle<FixedArray> FactoryBase<Impl>::NewFixedArrayWithFiller(
-    Handle<Map> map, int length, Handle<Oddball> filler,
+    Handle<Map> map, int length, Handle<HeapObject> filler,
     AllocationType allocation) {
   HeapObject result = AllocateRawFixedArray(length, allocation);
   DisallowGarbageCollection no_gc;

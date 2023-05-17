@@ -4416,7 +4416,7 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
       JSBoundFunctionRef function = target_ref.AsJSBoundFunction();
       ObjectRef bound_this = function.bound_this(broker());
       ConvertReceiverMode const convert_mode =
-          bound_this.IsNullOrUndefined(broker())
+          bound_this.IsNullOrUndefined()
               ? ConvertReceiverMode::kNullOrUndefined
               : ConvertReceiverMode::kNotNullOrUndefined;
 

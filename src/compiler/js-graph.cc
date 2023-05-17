@@ -46,6 +46,7 @@ Node* JSGraph::CEntryStubConstant(int result_size, ArgvMode argv_mode,
 
 Node* JSGraph::Constant(ObjectRef ref, JSHeapBroker* broker) {
   if (ref.IsSmi()) return Constant(ref.AsSmi());
+  if (ref.IsTheHole()) return TheHoleConstant();
   if (ref.IsHeapNumber()) {
     return Constant(ref.AsHeapNumber().value());
   }
@@ -58,9 +59,6 @@ Node* JSGraph::Constant(ObjectRef ref, JSHeapBroker* broker) {
   } else if (oddball_type == OddballType::kNull) {
     DCHECK(ref.object()->IsNull(roots));
     return NullConstant();
-  } else if (oddball_type == OddballType::kHole) {
-    DCHECK(ref.object()->IsTheHole(roots));
-    return TheHoleConstant();
   } else if (oddball_type == OddballType::kBoolean) {
     if (ref.object()->IsTrue(roots)) {
       return TrueConstant();

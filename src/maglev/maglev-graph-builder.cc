@@ -2098,7 +2098,7 @@ bool MaglevGraphBuilder::TrySpecializeLoadContextSlotToFunctionContext(
     compiler::OddballType oddball_type =
         slot_value.AsHeapObject().map(broker()).oddball_type(broker());
     if (oddball_type == compiler::OddballType::kUndefined ||
-        oddball_type == compiler::OddballType::kHole) {
+        slot_value.IsTheHole()) {
       *depth = new_depth;
       *context = GetConstant(context_ref);
       return false;
@@ -2358,7 +2358,7 @@ ReduceResult MaglevGraphBuilder::TryBuildPropertyCellStore(
   if (!property_cell.Cache(broker())) return ReduceResult::Fail();
 
   compiler::ObjectRef property_cell_value = property_cell.value(broker());
-  if (property_cell_value.IsTheHole(broker())) {
+  if (property_cell_value.IsTheHole()) {
     // The property cell is no longer valid.
     EmitUnconditionalDeopt(
         DeoptimizeReason::kInsufficientTypeFeedbackForGenericNamedAccess);
@@ -2466,7 +2466,7 @@ ReduceResult MaglevGraphBuilder::TryBuildPropertyCellLoad(
   if (!property_cell.Cache(broker())) return ReduceResult::Fail();
 
   compiler::ObjectRef property_cell_value = property_cell.value(broker());
-  if (property_cell_value.IsTheHole(broker())) {
+  if (property_cell_value.IsTheHole()) {
     // The property cell is no longer valid.
     EmitUnconditionalDeopt(
         DeoptimizeReason::kInsufficientTypeFeedbackForGenericNamedAccess);
@@ -5653,7 +5653,7 @@ ValueNode* MaglevGraphBuilder::GetRawConvertReceiver(
   if (compiler::OptionalHeapObjectRef maybe_constant =
           TryGetConstant(receiver)) {
     compiler::HeapObjectRef constant = maybe_constant.value();
-    if (constant.IsNullOrUndefined(broker())) {
+    if (constant.IsNullOrUndefined()) {
       return GetConstant(
           broker()->target_native_context().global_proxy_object(broker()));
     }
@@ -6429,7 +6429,7 @@ ReduceResult MaglevGraphBuilder::ReduceConstruct(
         if (compiler::OptionalHeapObjectRef maybe_constant =
                 TryGetConstant(call_result, &constant_node)) {
           compiler::HeapObjectRef constant = maybe_constant.value();
-          if (!constant.IsTheHole(broker())) {
+          if (!constant.IsTheHole()) {
             return constant.IsJSReceiver() ? constant_node : implicit_receiver;
           }
         }

@@ -1407,6 +1407,8 @@ auto BodyDescriptorApply(InstanceType type, Args&&... args) {
       return CALL_APPLY(AllocationSite);
     case ODDBALL_TYPE:
       return CALL_APPLY(Oddball);
+    case HOLE_TYPE:
+      return CALL_APPLY(Hole);
 
 #define MAKE_STRUCT_CASE(TYPE, Name, name) \
   case TYPE:                               \

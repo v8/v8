@@ -3955,7 +3955,7 @@ class Constant : public FixedInputValueNodeT<0, Constant> {
   }
 
   bool IsTheHole(compiler::JSHeapBroker* broker) const {
-    return object_.IsTheHole(broker);
+    return object_.IsTheHole();
   }
 
   void SetValueLocationConstraints();

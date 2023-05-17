@@ -206,6 +206,16 @@ RUNTIME_FUNCTION(Runtime_DeoptimizeNow) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
+RUNTIME_FUNCTION(Runtime_LeakHole) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(0, args.length());
+
+  // TODO(chromium:1445008): once we have multiple different hole values, we
+  // could make this function take a number as argument and return the nth hole
+  // value, or a random hole if the argument is undefined.
+  return ReadOnlyRoots(isolate).the_hole_value();
+}
+
 RUNTIME_FUNCTION(Runtime_RunningInSimulator) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(0, args.length());

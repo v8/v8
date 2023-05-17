@@ -344,7 +344,7 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
   HeapObject NewWithImmortalMap(Map map, AllocationType allocation);
 
   Handle<FixedArray> NewFixedArrayWithFiller(Handle<Map> map, int length,
-                                             Handle<Oddball> filler,
+                                             Handle<HeapObject> filler,
                                              AllocationType allocation);
 
   Handle<SharedFunctionInfo> NewSharedFunctionInfo();

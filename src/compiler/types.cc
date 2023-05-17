@@ -179,8 +179,6 @@ Type::bitset BitsetType::Lub(MapRefLike map, JSHeapBroker* broker) {
       switch (map.oddball_type(broker)) {
         case OddballType::kNone:
           break;
-        case OddballType::kHole:
-          return kHole;
         case OddballType::kBoolean:
           return kBoolean;
         case OddballType::kNull:
@@ -193,6 +191,10 @@ Type::bitset BitsetType::Lub(MapRefLike map, JSHeapBroker* broker) {
           return kOtherInternal;
       }
       UNREACHABLE();
+    case HOLE_TYPE:
+      // TODO(chromium:1445008) add a switch similar to the above one for the
+      // concrete type once there are multiple different hole types.
+      return kHole;
     case HEAP_NUMBER_TYPE:
       return kNumber;
     case JS_ARRAY_ITERATOR_PROTOTYPE_TYPE:

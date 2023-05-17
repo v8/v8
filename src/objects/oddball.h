@@ -61,7 +61,6 @@ class Oddball : public PrimitiveHeapObject {
   static const uint8_t kFalse = 0;
   static const uint8_t kTrue = 1;
   static const uint8_t kNotBooleanMask = static_cast<uint8_t>(~1);
-  static const uint8_t kTheHole = 2;
   static const uint8_t kNull = 3;
   static const uint8_t kArgumentsMarker = 4;
   static const uint8_t kUndefined = 5;
