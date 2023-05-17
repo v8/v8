@@ -42,14 +42,10 @@ namespace v8 {
 namespace base {
 
 namespace {
-using pkey_alloc_t = int (*)(unsigned, unsigned);
-using pkey_free_t = int (*)(int);
 using pkey_mprotect_t = int (*)(void*, size_t, int, int);
 using pkey_get_t = int (*)(int);
 using pkey_set_t = int (*)(int, unsigned);
 
-pkey_alloc_t pkey_alloc = nullptr;
-pkey_free_t pkey_free = nullptr;
 pkey_mprotect_t pkey_mprotect = nullptr;
 pkey_get_t pkey_get = nullptr;
 pkey_set_t pkey_set = nullptr;
@@ -61,12 +57,12 @@ bool pkey_api_initialized = false;
 int GetProtectionFromMemoryPermission(PageAllocator::Permission permission) {
 #if V8_HAS_PKU_JIT_WRITE_PROTECT
   // Mappings for PKU are either RWX (for code), no access (for uncommitted
-  // memory), or RW (for assembler buffers).
+  // memory), or RO for globals.
   switch (permission) {
     case PageAllocator::kNoAccess:
       return PROT_NONE;
-    case PageAllocator::kReadWrite:
-      return PROT_READ | PROT_WRITE;
+    case PageAllocator::kRead:
+      return PROT_READ;
     case PageAllocator::kReadWriteExecute:
       return PROT_READ | PROT_WRITE | PROT_EXEC;
     default:
@@ -103,64 +99,17 @@ void MemoryProtectionKey::InitializeMemoryProtectionKeySupport() {
   if (!kernel_has_pkru_fix) return;
 
   // Try to find the pkey functions in glibc.
-  void* pkey_alloc_ptr = dlsym(RTLD_DEFAULT, "pkey_alloc");
-  if (!pkey_alloc_ptr) return;
-
-  // If {pkey_alloc} is available, the others must also be available.
-  void* pkey_free_ptr = dlsym(RTLD_DEFAULT, "pkey_free");
   void* pkey_mprotect_ptr = dlsym(RTLD_DEFAULT, "pkey_mprotect");
+  if (!pkey_mprotect_ptr) return;
+  // If {pkey_mprotect} is available, the others must also be available.
   void* pkey_get_ptr = dlsym(RTLD_DEFAULT, "pkey_get");
   void* pkey_set_ptr = dlsym(RTLD_DEFAULT, "pkey_set");
-  CHECK(pkey_free_ptr && pkey_mprotect_ptr && pkey_get_ptr && pkey_set_ptr);
+  CHECK(pkey_get_ptr && pkey_set_ptr);
 
-  pkey_alloc = reinterpret_cast<pkey_alloc_t>(pkey_alloc_ptr);
-  pkey_free = reinterpret_cast<pkey_free_t>(pkey_free_ptr);
   pkey_mprotect = reinterpret_cast<pkey_mprotect_t>(pkey_mprotect_ptr);
   pkey_get = reinterpret_cast<pkey_get_t>(pkey_get_ptr);
   pkey_set = reinterpret_cast<pkey_set_t>(pkey_set_ptr);
 #endif
-}
-
-// TODO(dlehmann) Security: Are there alternatives to disabling CFI altogether
-// for the functions below? Since they are essentially an arbitrary indirect
-// call gadget, disabling CFI should be only a last resort. In Chromium, there
-// was {base::ProtectedMemory} to protect the function pointer from being
-// overwritten, but t seems it was removed to not begin used and AFAICT no such
-// thing exists in V8 to begin with. See
-// https://www.chromium.org/developers/testing/control-flow-integrity and
-// https://crrev.com/c/1884819.
-// What is the general solution for CFI + {dlsym()}?
-// An alternative would be to not rely on glibc and instead implement PKEY
-// directly on top of Linux syscalls + inline asm, but that is quite some low-
-// level code (probably in the order of 100 lines).
-// static
-DISABLE_CFI_ICALL
-int MemoryProtectionKey::AllocateKey() {
-  DCHECK(pkey_api_initialized);
-  if (!pkey_alloc) return kNoMemoryProtectionKey;
-
-  // If there is support in glibc, try to allocate a new key.
-  // This might still return -1, e.g., because the kernel does not support
-  // PKU or because there is no more key available.
-  // Different reasons for why {pkey_alloc()} failed could be checked with
-  // errno, e.g., EINVAL vs ENOSPC vs ENOSYS. See manpages and glibc manual
-  // (the latter is the authorative source):
-  // https://www.gnu.org/software/libc/manual/html_mono/libc.html#Memory-Protection-Keys
-  static_assert(kNoMemoryProtectionKey == -1);
-  return pkey_alloc(/* flags, unused */ 0, kDisableAccess);
-}
-
-// static
-DISABLE_CFI_ICALL
-void MemoryProtectionKey::FreeKey(int key) {
-  DCHECK(pkey_api_initialized);
-  // Only free the key if one was allocated.
-  if (key == kNoMemoryProtectionKey) return;
-
-  // On platforms without PKU support, we should have already returned because
-  // the key must be {kNoMemoryProtectionKey}.
-  DCHECK_NOT_NULL(pkey_free);
-  CHECK_EQ(/* success */ 0, pkey_free(key));
 }
 
 // static

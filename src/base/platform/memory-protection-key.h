@@ -53,19 +53,6 @@ class V8_BASE_EXPORT MemoryProtectionKey {
   // platform and initialize global data structures.
   static void InitializeMemoryProtectionKeySupport();
 
-  // Allocates a memory protection key on platforms with PKU support, returns
-  // {kNoMemoryProtectionKey} on platforms without support or when allocation
-  // failed at runtime.
-  static int AllocateKey();
-
-  // Frees the given memory protection key, to make it available again for the
-  // next call to {AllocateKey()}. Note that this does NOT
-  // invalidate access rights to pages that are still tied to that key. That is,
-  // if the key is reused and pages with that key are still accessable, this
-  // might be a security issue. See
-  // https://www.gnu.org/software/libc/manual/html_mono/libc.html#Memory-Protection-Keys
-  static void FreeKey(int key);
-
   // Associates a memory protection {key} with the given {region}.
   // If {key} is {kNoMemoryProtectionKey} this behaves like "plain"
   // {SetPermissions()} and associates the default key to the region. That is,
