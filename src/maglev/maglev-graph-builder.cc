@@ -107,18 +107,10 @@ class FunctionContextSpecialization final : public AllStatic {
   static compiler::OptionalContextRef TryToRef(
       const MaglevCompilationUnit* unit, ValueNode* context, size_t* depth) {
     DCHECK(unit->info()->specialize_to_function_context());
-    compiler::OptionalContextRef ref;
-    if (InitialValue* n = context->TryCast<InitialValue>()) {
-      if (n->source().is_current_context()) {
-        ref = compiler::MakeRefAssumeMemoryFence(
-            unit->broker(), unit->broker()->CanonicalPersistentHandle(
-                                unit->info()->toplevel_function()->context()));
-      }
-    } else if (Constant* n = context->TryCast<Constant>()) {
-      ref = n->ref().AsContext();
+    if (Constant* n = context->TryCast<Constant>()) {
+      return n->ref().AsContext().previous(unit->broker(), depth);
     }
-    if (!ref.has_value()) return {};
-    return ref->previous(unit->broker(), depth);
+    return {};
   }
 };
 
@@ -374,6 +366,14 @@ void MaglevGraphBuilder::InitializeRegister(interpreter::Register reg,
 
 void MaglevGraphBuilder::BuildRegisterFrameInitialization(ValueNode* context,
                                                           ValueNode* closure) {
+  if (closure == nullptr &&
+      compilation_unit_->info()->specialize_to_function_context()) {
+    compiler::JSFunctionRef function = compiler::MakeRefAssumeMemoryFence(
+        broker(), broker()->CanonicalPersistentHandle(
+                      compilation_unit_->info()->toplevel_function()));
+    closure = GetConstant(function);
+    context = GetConstant(function.context(broker()));
+  }
   InitializeRegister(interpreter::Register::current_context(), context);
   InitializeRegister(interpreter::Register::function_closure(), closure);
 
@@ -4868,10 +4868,15 @@ void MaglevGraphBuilder::VisitDeletePropertySloppy() {
 
 void MaglevGraphBuilder::VisitGetSuperConstructor() {
   ValueNode* active_function = GetAccumulatorTagged();
-  ValueNode* map =
-      AddNewNode<LoadTaggedField>({active_function}, HeapObject::kMapOffset);
-  ValueNode* map_proto =
-      AddNewNode<LoadTaggedField>({map}, Map::kPrototypeOffset);
+  ValueNode* map_proto;
+  if (compiler::OptionalHeapObjectRef constant =
+          TryGetConstant(active_function)) {
+    map_proto = GetConstant(constant->map(broker()).prototype(broker()));
+  } else {
+    ValueNode* map =
+        AddNewNode<LoadTaggedField>({active_function}, HeapObject::kMapOffset);
+    map_proto = AddNewNode<LoadTaggedField>({map}, Map::kPrototypeOffset);
+  }
   StoreRegister(iterator_.GetRegisterOperand(0), map_proto);
 }
 
@@ -4879,11 +4884,64 @@ void MaglevGraphBuilder::VisitFindNonDefaultConstructorOrConstruct() {
   ValueNode* this_function = LoadRegisterTagged(0);
   ValueNode* new_target = LoadRegisterTagged(1);
 
-  CallBuiltin* call_builtin =
+  auto register_pair = iterator_.GetRegisterPairOperand(2);
+
+  if (compiler::OptionalHeapObjectRef constant =
+          TryGetConstant(this_function)) {
+    compiler::MapRef function_map = constant->map(broker());
+    compiler::HeapObjectRef current = function_map.prototype(broker());
+
+    while (true) {
+      if (!current.IsJSFunction()) break;
+      compiler::JSFunctionRef current_function = current.AsJSFunction();
+      if (current_function.shared(broker())
+              .requires_instance_members_initializer()) {
+        break;
+      }
+      if (current_function.context(broker())
+              .scope_info(broker())
+              .ClassScopeHasPrivateBrand()) {
+        break;
+      }
+      FunctionKind kind = current_function.shared(broker()).kind();
+      if (kind == FunctionKind::kDefaultDerivedConstructor) {
+        if (!broker()->dependencies()->DependOnArrayIteratorProtector()) break;
+      } else {
+        broker()->dependencies()->DependOnStablePrototypeChain(
+            function_map, WhereToStart::kStartAtReceiver, current_function);
+
+        compiler::OptionalHeapObjectRef new_target_function =
+            TryGetConstant(new_target);
+        if (kind == FunctionKind::kDefaultBaseConstructor) {
+          ValueNode* object;
+          if (new_target_function && new_target_function->IsJSFunction()) {
+            object = BuildAllocateFastObject(
+                FastObject(new_target_function->AsJSFunction(), zone(),
+                           broker()),
+                AllocationType::kYoung);
+          } else {
+            object = BuildCallBuiltin<Builtin::kFastNewObject>(
+                {GetConstant(current_function), new_target});
+          }
+          StoreRegister(register_pair.first, GetBooleanConstant(true));
+          StoreRegister(register_pair.second, object);
+          return;
+        }
+        break;
+      }
+
+      // Keep walking up the class tree.
+      current = current_function.map(broker()).prototype(broker());
+    }
+    StoreRegister(register_pair.first, GetBooleanConstant(false));
+    StoreRegister(register_pair.second, GetConstant(current));
+    return;
+  }
+
+  CallBuiltin* result =
       BuildCallBuiltin<Builtin::kFindNonDefaultConstructorOrConstruct>(
           {this_function, new_target});
-  auto result = iterator_.GetRegisterPairOperand(2);
-  StoreRegisterPair(result, call_builtin);
+  StoreRegisterPair(register_pair, result);
 }
 
 ReduceResult MaglevGraphBuilder::BuildInlined(ValueNode* context,
@@ -8317,6 +8375,7 @@ void MaglevGraphBuilder::VisitThrowReferenceErrorIfHole() {
 void MaglevGraphBuilder::VisitThrowSuperNotCalledIfHole() {
   // ThrowSuperNotCalledIfHole
   ValueNode* value = GetAccumulatorTagged();
+  if (CheckType(value, NodeType::kJSReceiver)) return;
   // Avoid the check if we know it is not the hole.
   if (IsConstantNode(value->opcode())) {
     if (IsTheHoleValue(value)) {

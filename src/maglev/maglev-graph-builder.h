@@ -238,6 +238,7 @@ class MaglevGraphBuilder {
       graph()->parameters().push_back(v);
       SetArgument(i, v);
     }
+
     BuildRegisterFrameInitialization();
 
     // Don't use the AddNewNode helper for the function entry stack check, so
