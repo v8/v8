@@ -124,6 +124,14 @@ Code BuildWithMacroAssembler(Isolate* isolate, Builtin builtin,
     HandlerTable::EmitReturnEntry(
         &masm, 0, isolate->builtins()->js_entry_handler_offset());
   }
+#if V8_ENABLE_WEBASSEMBLY && (V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64)
+  // TODO(v8:12191): Enable on all platforms once the builtin has been ported.
+  if (builtin == Builtin::kWasmReturnPromiseOnSuspend) {
+    handler_table_offset = HandlerTable::EmitReturnTableStart(&masm);
+    HandlerTable::EmitReturnEntry(
+        &masm, 0, isolate->builtins()->jspi_prompt_handler_offset());
+  }
+#endif
 
   CodeDesc desc;
   masm.GetCode(isolate, &desc, MacroAssembler::kNoSafepointTable,
