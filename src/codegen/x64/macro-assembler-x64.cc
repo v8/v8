@@ -1522,6 +1522,64 @@ MACRO_ASM_X64_ISPLAT_LIST(DEFINE_ISPLAT)
 
 #undef DEFINE_ISPLAT
 
+void MacroAssembler::F64x4Min(YMMRegister dst, YMMRegister lhs, YMMRegister rhs,
+                              YMMRegister scratch) {
+  ASM_CODE_COMMENT(this);
+  DCHECK(CpuFeatures::IsSupported(AVX2));
+  CpuFeatureScope scope(this, AVX2);
+  vminpd(scratch, lhs, rhs);
+  vminpd(dst, rhs, lhs);
+  vorpd(scratch, scratch, dst);
+  vcmpunordpd(dst, dst, scratch);
+  vorpd(scratch, scratch, dst);
+  vpsrlq(dst, dst, byte{13});
+  vandnpd(dst, dst, scratch);
+}
+
+void MacroAssembler::F64x4Max(YMMRegister dst, YMMRegister lhs, YMMRegister rhs,
+                              YMMRegister scratch) {
+  ASM_CODE_COMMENT(this);
+  DCHECK(CpuFeatures::IsSupported(AVX2));
+  CpuFeatureScope scope(this, AVX2);
+  vmaxpd(scratch, lhs, rhs);
+  vmaxpd(dst, rhs, lhs);
+  vxorpd(dst, dst, scratch);
+  vorpd(scratch, scratch, dst);
+  vsubpd(scratch, scratch, dst);
+  vcmpunordpd(dst, dst, scratch);
+  vpsrlq(dst, dst, byte{13});
+  vandnpd(dst, dst, scratch);
+}
+
+void MacroAssembler::F32x8Min(YMMRegister dst, YMMRegister lhs, YMMRegister rhs,
+                              YMMRegister scratch) {
+  ASM_CODE_COMMENT(this);
+  DCHECK(CpuFeatures::IsSupported(AVX2));
+  CpuFeatureScope scope(this, AVX2);
+  vminps(scratch, lhs, rhs);
+  vminps(dst, rhs, lhs);
+  vorps(scratch, scratch, dst);
+  vcmpunordps(dst, dst, scratch);
+  vorps(scratch, scratch, dst);
+  vpsrld(dst, dst, byte{10});
+  vandnps(dst, dst, scratch);
+}
+
+void MacroAssembler::F32x8Max(YMMRegister dst, YMMRegister lhs, YMMRegister rhs,
+                              YMMRegister scratch) {
+  ASM_CODE_COMMENT(this);
+  DCHECK(CpuFeatures::IsSupported(AVX2));
+  CpuFeatureScope scope(this, AVX2);
+  vmaxps(scratch, lhs, rhs);
+  vmaxps(dst, rhs, lhs);
+  vxorps(dst, dst, scratch);
+  vorps(scratch, scratch, dst);
+  vsubps(scratch, scratch, dst);
+  vcmpunordps(dst, dst, scratch);
+  vpsrld(dst, dst, byte{10});
+  vandnps(dst, dst, scratch);
+}
+
 void MacroAssembler::SmiTag(Register reg) {
   static_assert(kSmiTag == 0);
   DCHECK(SmiValuesAre32Bits() || SmiValuesAre31Bits());

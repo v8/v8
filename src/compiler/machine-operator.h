@@ -987,6 +987,8 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* TraceInstruction(uint32_t markid);
 
   // SIMD256
+  const Operator* F64x4Min();
+  const Operator* F64x4Max();
   const Operator* F64x4Add();
   const Operator* F64x4Sqrt();
   const Operator* F32x8Abs();
@@ -1050,6 +1052,19 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* I32x8MaxU();
   const Operator* I16x16MaxU();
   const Operator* I8x32MaxU();
+  const Operator* I64x4Ne();
+  const Operator* I32x8Ne();
+  const Operator* I32x8GtU();
+  const Operator* I32x8GeS();
+  const Operator* I32x8GeU();
+  const Operator* I16x16Ne();
+  const Operator* I16x16GtU();
+  const Operator* I16x16GeS();
+  const Operator* I16x16GeU();
+  const Operator* I8x32Ne();
+  const Operator* I8x32GtU();
+  const Operator* I8x32GeS();
+  const Operator* I8x32GeU();
   const Operator* F64x4ConvertI32x4S();
   const Operator* F32x8SConvertI32x8();
   const Operator* F32x4DemoteF64x4();

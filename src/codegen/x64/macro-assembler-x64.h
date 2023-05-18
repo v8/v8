@@ -220,6 +220,14 @@ class V8_EXPORT_PRIVATE MacroAssembler
   // SIMD256
   void I64x4Mul(YMMRegister dst, YMMRegister lhs, YMMRegister rhs,
                 YMMRegister tmp1, YMMRegister tmp2);
+  void F64x4Min(YMMRegister dst, YMMRegister lhs, YMMRegister rhs,
+                YMMRegister scratch);
+  void F64x4Max(YMMRegister dst, YMMRegister lhs, YMMRegister rhs,
+                YMMRegister scratch);
+  void F32x8Min(YMMRegister dst, YMMRegister lhs, YMMRegister rhs,
+                YMMRegister scratch);
+  void F32x8Max(YMMRegister dst, YMMRegister lhs, YMMRegister rhs,
+                YMMRegister scratch);
   void S256Not(YMMRegister dst, YMMRegister src, YMMRegister scratch);
   void S256Select(YMMRegister dst, YMMRegister mask, YMMRegister src1,
                   YMMRegister src2, YMMRegister scratch);

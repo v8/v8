@@ -3471,21 +3471,38 @@ VISIT_ATOMIC_BINOP(Xor)
 #define SIMD_BINOP_LANE_SIZE_VECTOR_LENGTH_LIST(V) \
   V(F64x2Min, FMin, kL64, kV128)                   \
   V(F32x4Min, FMin, kL32, kV128)                   \
+  V(F64x4Min, FMin, kL64, kV256)                   \
+  V(F32x8Min, FMin, kL32, kV256)                   \
   V(F64x2Max, FMax, kL64, kV128)                   \
   V(F32x4Max, FMax, kL32, kV128)                   \
+  V(F64x4Max, FMax, kL64, kV256)                   \
+  V(F32x8Max, FMax, kL32, kV256)                   \
   V(I64x2Ne, INe, kL64, kV128)                     \
   V(I32x4Ne, INe, kL32, kV128)                     \
   V(I16x8Ne, INe, kL16, kV128)                     \
   V(I8x16Ne, INe, kL8, kV128)                      \
+  V(I64x4Ne, INe, kL64, kV256)                     \
+  V(I32x8Ne, INe, kL32, kV256)                     \
+  V(I16x16Ne, INe, kL16, kV256)                    \
+  V(I8x32Ne, INe, kL8, kV256)                      \
   V(I32x4GtU, IGtU, kL32, kV128)                   \
   V(I16x8GtU, IGtU, kL16, kV128)                   \
   V(I8x16GtU, IGtU, kL8, kV128)                    \
+  V(I32x8GtU, IGtU, kL32, kV256)                   \
+  V(I16x16GtU, IGtU, kL16, kV256)                  \
+  V(I8x32GtU, IGtU, kL8, kV256)                    \
   V(I32x4GeS, IGeS, kL32, kV128)                   \
   V(I16x8GeS, IGeS, kL16, kV128)                   \
   V(I8x16GeS, IGeS, kL8, kV128)                    \
+  V(I32x8GeS, IGeS, kL32, kV256)                   \
+  V(I16x16GeS, IGeS, kL16, kV256)                  \
+  V(I8x32GeS, IGeS, kL8, kV256)                    \
   V(I32x4GeU, IGeU, kL32, kV128)                   \
   V(I16x8GeU, IGeU, kL16, kV128)                   \
-  V(I8x16GeU, IGeU, kL8, kV128)
+  V(I8x16GeU, IGeU, kL8, kV128)                    \
+  V(I32x8GeU, IGeU, kL32, kV256)                   \
+  V(I16x16GeU, IGeU, kL16, kV256)                  \
+  V(I8x32GeU, IGeU, kL8, kV256)
 
 #define SIMD_UNOP_LIST(V)   \
   V(F64x2ConvertLowI32x4S)  \

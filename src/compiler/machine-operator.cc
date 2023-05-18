@@ -459,8 +459,8 @@ std::ostream& operator<<(std::ostream& os, TruncateKind kind) {
   V(F64x2Sub, Operator::kNoProperties, 2, 0, 1)                            \
   V(F64x2Mul, Operator::kCommutative, 2, 0, 1)                             \
   V(F64x2Div, Operator::kNoProperties, 2, 0, 1)                            \
-  V(F64x2Min, Operator::kCommutative, 2, 0, 1)                             \
-  V(F64x2Max, Operator::kCommutative, 2, 0, 1)                             \
+  V(F64x2Min, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)    \
+  V(F64x2Max, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)    \
   V(F64x2Eq, Operator::kCommutative, 2, 0, 1)                              \
   V(F64x2Ne, Operator::kCommutative, 2, 0, 1)                              \
   V(F64x2Lt, Operator::kNoProperties, 2, 0, 1)                             \
@@ -486,8 +486,8 @@ std::ostream& operator<<(std::ostream& os, TruncateKind kind) {
   V(F32x4Sub, Operator::kNoProperties, 2, 0, 1)                            \
   V(F32x4Mul, Operator::kCommutative, 2, 0, 1)                             \
   V(F32x4Div, Operator::kNoProperties, 2, 0, 1)                            \
-  V(F32x4Min, Operator::kCommutative, 2, 0, 1)                             \
-  V(F32x4Max, Operator::kCommutative, 2, 0, 1)                             \
+  V(F32x4Min, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)    \
+  V(F32x4Max, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)    \
   V(F32x4Eq, Operator::kCommutative, 2, 0, 1)                              \
   V(F32x4Ne, Operator::kCommutative, 2, 0, 1)                              \
   V(F32x4Lt, Operator::kNoProperties, 2, 0, 1)                             \
@@ -655,6 +655,8 @@ std::ostream& operator<<(std::ostream& os, TruncateKind kind) {
   V(I16x8RelaxedQ15MulRS, Operator::kCommutative, 2, 0, 1)                 \
   V(I16x8DotI8x16I7x16S, Operator::kCommutative, 2, 0, 1)                  \
   V(I32x4DotI8x16I7x16AddS, Operator::kNoProperties, 3, 0, 1)              \
+  V(F64x4Min, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)    \
+  V(F64x4Max, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)    \
   V(F64x4Add, Operator::kCommutative, 2, 0, 1)                             \
   V(F64x4Sqrt, Operator::kNoProperties, 1, 0, 1)                           \
   V(F32x8Abs, Operator::kNoProperties, 1, 0, 1)                            \
@@ -686,6 +688,8 @@ std::ostream& operator<<(std::ostream& os, TruncateKind kind) {
   V(I8x32SubSatS, Operator::kNoProperties, 2, 0, 1)                        \
   V(I16x16SubSatU, Operator::kNoProperties, 2, 0, 1)                       \
   V(I8x32SubSatU, Operator::kNoProperties, 2, 0, 1)                        \
+  V(F32x8Min, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)    \
+  V(F32x8Max, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)    \
   V(F32x8Pmin, Operator::kNoProperties, 2, 0, 1)                           \
   V(F32x8Pmax, Operator::kNoProperties, 2, 0, 1)                           \
   V(F32x8Eq, Operator::kCommutative, 2, 0, 1)                              \
@@ -716,6 +720,19 @@ std::ostream& operator<<(std::ostream& os, TruncateKind kind) {
   V(I32x8MaxU, Operator::kNoProperties, 2, 0, 1)                           \
   V(I16x16MaxU, Operator::kNoProperties, 2, 0, 1)                          \
   V(I8x32MaxU, Operator::kNoProperties, 2, 0, 1)                           \
+  V(I64x4Ne, Operator::kCommutative, 2, 0, 1)                              \
+  V(I32x8Ne, Operator::kCommutative, 2, 0, 1)                              \
+  V(I32x8GtU, Operator::kNoProperties, 2, 0, 1)                            \
+  V(I32x8GeS, Operator::kNoProperties, 2, 0, 1)                            \
+  V(I32x8GeU, Operator::kNoProperties, 2, 0, 1)                            \
+  V(I16x16Ne, Operator::kCommutative, 2, 0, 1)                             \
+  V(I16x16GtU, Operator::kNoProperties, 2, 0, 1)                           \
+  V(I16x16GeS, Operator::kNoProperties, 2, 0, 1)                           \
+  V(I16x16GeU, Operator::kNoProperties, 2, 0, 1)                           \
+  V(I8x32Ne, Operator::kCommutative, 2, 0, 1)                              \
+  V(I8x32GtU, Operator::kNoProperties, 2, 0, 1)                            \
+  V(I8x32GeS, Operator::kNoProperties, 2, 0, 1)                            \
+  V(I8x32GeU, Operator::kNoProperties, 2, 0, 1)                            \
   V(F64x4ConvertI32x4S, Operator::kNoProperties, 1, 0, 1)                  \
   V(F32x8SConvertI32x8, Operator::kNoProperties, 1, 0, 1)                  \
   V(F32x4DemoteF64x4, Operator::kNoProperties, 1, 0, 1)                    \

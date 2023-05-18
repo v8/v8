@@ -122,6 +122,8 @@ using F3 = int(int8_t, int8_t*, int8_t*, int8_t*);
 using F4 = int(int16_t, int16_t*, int16_t*, int16_t*);
 using F5 = int(int32_t, int32_t*, int32_t*, int32_t*);
 using F6 = int(int64_t, int64_t*, int64_t*, int64_t*);
+using F7 = int(double*, double*, double*);
+using F8 = int(float*, float*, float*);
 
 #define __ masm->
 
@@ -1394,6 +1396,280 @@ TEST_ISLPAT(I32x8Splat, 32, 8, F5)
 TEST_ISLPAT(I64x4Splat, 64, 4, F6)
 
 #undef TEST_ISLPAT
+
+TEST_F(MacroAssemblerX64Test, F64x4Min) {
+  if (!CpuFeatures::IsSupported(AVX) || !CpuFeatures::IsSupported(AVX2)) return;
+  Isolate* isolate = i_isolate();
+  HandleScope handles(isolate);
+  auto buffer = AllocateAssemblerBuffer();
+  MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired::kYes,
+                           buffer->CreateView());
+  MacroAssembler* masm = &assembler;
+
+  const YMMRegister dst = ymm0;
+  const YMMRegister lhs = ymm1;
+  const YMMRegister rhs = ymm2;
+  const YMMRegister tmp = ymm3;
+
+  CpuFeatureScope avx_scope(masm, AVX);
+  CpuFeatureScope avx2_scope(masm, AVX2);
+
+  // Load array
+  __ vmovdqu(lhs, Operand(arg_reg_1, 0));
+  __ vmovdqu(rhs, Operand(arg_reg_2, 0));
+  // Calculation
+  __ F64x4Min(dst, lhs, rhs, tmp);
+  // Store result array
+  __ vmovdqu(Operand(arg_reg_3, 0), dst);
+  __ ret(0);
+
+  CodeDesc desc;
+  __ GetCode(i_isolate(), &desc);
+
+#ifdef OBJECT_PRINT
+  Handle<Code> code =
+      Factory::CodeBuilder(i_isolate(), desc, CodeKind::FOR_TESTING).Build();
+  StdoutStream os;
+  code->Print(os);
+#endif
+  buffer->MakeExecutable();
+  // Call the function from C++.
+  auto f = GeneratedCode<F7>::FromBuffer(i_isolate(), buffer->start());
+
+  constexpr double double_max = std::numeric_limits<double>::max();
+  constexpr double double_min = std::numeric_limits<double>::min();
+
+  std::vector<std::array<double, 8>> test_cases = {
+      {1, 2, 7, 8, 5, 6, 3, 4},
+      {32.4, 2.5, 12.4, 62.346, 235.6, 2.36, 1253.4, 63.46},
+      {34.5, 2.63, 234.6, 34.68, 234.6, 1.264, 23.6, 2.36},
+      {0, 0, 0, 0, 0, 0, 0, 0},
+      {double_min, double_min, double_max, double_max, double_max, double_max,
+       double_min, double_min}};
+
+  double left[4];
+  double right[4];
+  double output[4];
+
+  for (const auto& arr : test_cases) {
+    for (int i = 0; i < 4; i++) {
+      left[i] = arr[i];
+      right[i] = arr[i + 4];
+    }
+
+    f.Call(left, right, output);
+    for (int i = 0; i < 4; i++) {
+      CHECK_EQ(output[i], std::min(left[i], right[i]));
+    }
+  }
+}
+
+TEST_F(MacroAssemblerX64Test, F64x4Max) {
+  if (!CpuFeatures::IsSupported(AVX) || !CpuFeatures::IsSupported(AVX2)) return;
+  Isolate* isolate = i_isolate();
+  HandleScope handles(isolate);
+  auto buffer = AllocateAssemblerBuffer();
+  MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired::kYes,
+                           buffer->CreateView());
+  MacroAssembler* masm = &assembler;
+
+  const YMMRegister dst = ymm0;
+  const YMMRegister lhs = ymm1;
+  const YMMRegister rhs = ymm2;
+  const YMMRegister tmp = ymm3;
+
+  CpuFeatureScope avx_scope(masm, AVX);
+  CpuFeatureScope avx2_scope(masm, AVX2);
+
+  // Load array
+  __ vmovdqu(lhs, Operand(arg_reg_1, 0));
+  __ vmovdqu(rhs, Operand(arg_reg_2, 0));
+  // Calculation
+  __ F64x4Max(dst, lhs, rhs, tmp);
+  // Store result array
+  __ vmovdqu(Operand(arg_reg_3, 0), dst);
+  __ ret(0);
+
+  CodeDesc desc;
+  __ GetCode(i_isolate(), &desc);
+
+#ifdef OBJECT_PRINT
+  Handle<Code> code =
+      Factory::CodeBuilder(i_isolate(), desc, CodeKind::FOR_TESTING).Build();
+  StdoutStream os;
+  code->Print(os);
+#endif
+  buffer->MakeExecutable();
+  // Call the function from C++.
+  auto f = GeneratedCode<F7>::FromBuffer(i_isolate(), buffer->start());
+
+  constexpr double double_max = std::numeric_limits<double>::max();
+  constexpr double double_min = std::numeric_limits<double>::min();
+
+  std::vector<std::array<double, 8>> test_cases = {
+      {1, 2, 7, 8, 5, 6, 3, 4},
+      {32.4, 2.5, 12.4, 62.346, 235.6, 2.36, 1253.4, 63.46},
+      {34.5, 2.63, 234.6, 34.68, 234.6, 1.264, 23.6, 2.36},
+      {0, 0, 0, 0, 0, 0, 0, 0},
+      {double_min, double_min, double_max, double_max, double_max, double_max,
+       double_min, double_min}};
+
+  double left[4];
+  double right[4];
+  double output[4];
+
+  for (const auto& arr : test_cases) {
+    for (int i = 0; i < 4; i++) {
+      left[i] = arr[i];
+      right[i] = arr[i + 4];
+    }
+
+    f.Call(left, right, output);
+    for (int i = 0; i < 4; i++) {
+      CHECK_EQ(output[i], std::max(left[i], right[i]));
+    }
+  }
+}
+
+TEST_F(MacroAssemblerX64Test, F32x8Min) {
+  if (!CpuFeatures::IsSupported(AVX) || !CpuFeatures::IsSupported(AVX2)) return;
+  Isolate* isolate = i_isolate();
+  HandleScope handles(isolate);
+  auto buffer = AllocateAssemblerBuffer();
+  MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired::kYes,
+                           buffer->CreateView());
+  MacroAssembler* masm = &assembler;
+
+  const YMMRegister dst = ymm0;
+  const YMMRegister lhs = ymm1;
+  const YMMRegister rhs = ymm2;
+  const YMMRegister tmp = ymm3;
+
+  CpuFeatureScope avx_scope(masm, AVX);
+  CpuFeatureScope avx2_scope(masm, AVX2);
+
+  // Load array
+  __ vmovdqu(lhs, Operand(arg_reg_1, 0));
+  __ vmovdqu(rhs, Operand(arg_reg_2, 0));
+  // Calculation
+  __ F32x8Min(dst, lhs, rhs, tmp);
+  // Store result array
+  __ vmovdqu(Operand(arg_reg_3, 0), dst);
+  __ ret(0);
+
+  CodeDesc desc;
+  __ GetCode(i_isolate(), &desc);
+
+#ifdef OBJECT_PRINT
+  Handle<Code> code =
+      Factory::CodeBuilder(i_isolate(), desc, CodeKind::FOR_TESTING).Build();
+  StdoutStream os;
+  code->Print(os);
+#endif
+  buffer->MakeExecutable();
+  // Call the function from C++.
+  auto f = GeneratedCode<F8>::FromBuffer(i_isolate(), buffer->start());
+
+  constexpr float float_max = std::numeric_limits<float>::max();
+  constexpr float float_min = std::numeric_limits<float>::min();
+
+  std::vector<std::array<float, 16>> test_cases = {
+      {1, 2, 3, 4, 5, 6, 7, 8, 5, 6, 7, 8, 1, 2, 3, 4},
+      {32.4, 2.5, 12.4, 62.346, 235.6, 2.36, 1253.4, 63.46, 235.6, 2.36, 1253.4,
+       63.46, 32.4, 2.5, 12.4, 62.346},
+      {34.5, 2.63, 234.6, 34.68, 234.6, 1.264, 23.6, 2.36, 234.6, 1.264, 23.6,
+       2.36, 34.5, 2.63, 234.6, 34.68},
+      {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+      {float_min, float_min, float_max, float_max, float_max, float_max,
+       float_min, float_min, float_max, float_max, float_min, float_min,
+       float_min, float_min, float_max, float_max}};
+
+  float left[8];
+  float right[8];
+  float output[8];
+
+  for (const auto& arr : test_cases) {
+    for (int i = 0; i < 8; i++) {
+      left[i] = arr[i];
+      right[i] = arr[i + 8];
+    }
+
+    f.Call(left, right, output);
+    for (int i = 0; i < 8; i++) {
+      CHECK_EQ(output[i], std::min(left[i], right[i]));
+    }
+  }
+}
+
+TEST_F(MacroAssemblerX64Test, F32x8Max) {
+  if (!CpuFeatures::IsSupported(AVX) || !CpuFeatures::IsSupported(AVX2)) return;
+  Isolate* isolate = i_isolate();
+  HandleScope handles(isolate);
+  auto buffer = AllocateAssemblerBuffer();
+  MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired::kYes,
+                           buffer->CreateView());
+  MacroAssembler* masm = &assembler;
+
+  const YMMRegister dst = ymm0;
+  const YMMRegister lhs = ymm1;
+  const YMMRegister rhs = ymm2;
+  const YMMRegister tmp = ymm3;
+
+  CpuFeatureScope avx_scope(masm, AVX);
+  CpuFeatureScope avx2_scope(masm, AVX2);
+
+  // Load array
+  __ vmovdqu(lhs, Operand(arg_reg_1, 0));
+  __ vmovdqu(rhs, Operand(arg_reg_2, 0));
+  // Calculation
+  __ F32x8Max(dst, lhs, rhs, tmp);
+  // Store result array
+  __ vmovdqu(Operand(arg_reg_3, 0), dst);
+  __ ret(0);
+
+  CodeDesc desc;
+  __ GetCode(i_isolate(), &desc);
+
+#ifdef OBJECT_PRINT
+  Handle<Code> code =
+      Factory::CodeBuilder(i_isolate(), desc, CodeKind::FOR_TESTING).Build();
+  StdoutStream os;
+  code->Print(os);
+#endif
+  buffer->MakeExecutable();
+  // Call the function from C++.
+  auto f = GeneratedCode<F8>::FromBuffer(i_isolate(), buffer->start());
+
+  constexpr float float_max = std::numeric_limits<float>::max();
+  constexpr float float_min = std::numeric_limits<float>::min();
+
+  std::vector<std::array<float, 16>> test_cases = {
+      {1, 2, 3, 4, 5, 6, 7, 8, 5, 6, 7, 8, 1, 2, 3, 4},
+      {32.4, 2.5, 12.4, 62.346, 235.6, 2.36, 1253.4, 63.46, 235.6, 2.36, 1253.4,
+       63.46, 32.4, 2.5, 12.4, 62.346},
+      {34.5, 2.63, 234.6, 34.68, 234.6, 1.264, 23.6, 2.36, 234.6, 1.264, 23.6,
+       2.36, 34.5, 2.63, 234.6, 34.68},
+      {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+      {float_min, float_min, float_max, float_max, float_max, float_max,
+       float_min, float_min, float_max, float_max, float_min, float_min,
+       float_min, float_min, float_max, float_max}};
+
+  float left[8];
+  float right[8];
+  float output[8];
+
+  for (const auto& arr : test_cases) {
+    for (int i = 0; i < 8; i++) {
+      left[i] = arr[i];
+      right[i] = arr[i + 8];
+    }
+
+    f.Call(left, right, output);
+    for (int i = 0; i < 8; i++) {
+      CHECK_EQ(output[i], std::max(left[i], right[i]));
+    }
+  }
+}
 
 #undef __
 
