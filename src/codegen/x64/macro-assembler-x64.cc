@@ -1607,9 +1607,11 @@ void MacroAssembler::SmiUntag(Register reg) {
   // TODO(v8:7703): Is there a way to avoid this sign extension when pointer
   // compression is enabled?
   if (COMPRESS_POINTERS_BOOL) {
+    sarl(reg, Immediate(kSmiShift));
     movsxlq(reg, reg);
+  } else {
+    sarq(reg, Immediate(kSmiShift));
   }
-  sarq(reg, Immediate(kSmiShift));
 }
 
 void MacroAssembler::SmiUntagUnsigned(Register reg) {

@@ -599,6 +599,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<Smi> SmiTag(TNode<IntPtrT> value);
   // Untag a Smi value as an IntPtr.
   TNode<IntPtrT> SmiUntag(TNode<Smi> value);
+  // Untag a positive Smi value as an IntPtr, it's slightly better than
+  // SmiUntag() because it doesn't have to do sign extension.
+  TNode<IntPtrT> PositiveSmiUntag(TNode<Smi> value);
 
   // Smi conversions.
   TNode<Float64T> SmiToFloat64(TNode<Smi> value);
@@ -1250,8 +1253,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
         LoadFromObject(MachineTypeOf<T>::value, object,
                        IntPtrSub(offset, IntPtrConstant(kHeapObjectTag))));
   }
-  // Load a SMI field and untag it.
-  TNode<IntPtrT> LoadAndUntagObjectField(TNode<HeapObject> object, int offset);
+  // Load a positive SMI field and untag it.
+  TNode<IntPtrT> LoadAndUntagPositiveSmiObjectField(TNode<HeapObject> object,
+                                                    int offset);
   // Load a SMI field, untag it, and convert to Word32.
   TNode<Int32T> LoadAndUntagToWord32ObjectField(TNode<HeapObject> object,
                                                 int offset);
@@ -1390,6 +1394,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Load the length of a WeakFixedArray.
   TNode<Smi> LoadWeakFixedArrayLength(TNode<WeakFixedArray> array);
   TNode<IntPtrT> LoadAndUntagWeakFixedArrayLength(TNode<WeakFixedArray> array);
+  TNode<Uint32T> LoadAndUntagWeakFixedArrayLengthAsUint32(
+      TNode<WeakFixedArray> array);
   // Load the number of descriptors in DescriptorArray.
   TNode<Int32T> LoadNumberOfDescriptors(TNode<DescriptorArray> array);
   // Load the number of own descriptors of a map.
@@ -1980,14 +1986,14 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       ElementsKind kind, TNode<Map> array_map, TNode<Smi> capacity,
       TNode<Smi> length, base::Optional<TNode<AllocationSite>> allocation_site,
       AllocationFlags allocation_flags = AllocationFlag::kNone) {
-    return AllocateJSArray(kind, array_map, SmiUntag(capacity), length,
+    return AllocateJSArray(kind, array_map, PositiveSmiUntag(capacity), length,
                            allocation_site, allocation_flags);
   }
   TNode<JSArray> AllocateJSArray(
       ElementsKind kind, TNode<Map> array_map, TNode<Smi> capacity,
       TNode<Smi> length,
       AllocationFlags allocation_flags = AllocationFlag::kNone) {
-    return AllocateJSArray(kind, array_map, SmiUntag(capacity), length,
+    return AllocateJSArray(kind, array_map, PositiveSmiUntag(capacity), length,
                            base::nullopt, allocation_flags);
   }
   TNode<JSArray> AllocateJSArray(
@@ -2838,6 +2844,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // 2^32-1, inclusive.
   // ES#sec-touint32
   TNode<Number> ToUint32(TNode<Context> context, TNode<Object> input);
+
+  // No-op on 32-bit, otherwise zero extend.
+  TNode<IntPtrT> ChangePositiveInt32ToIntPtr(TNode<Int32T> input) {
+    CSA_DCHECK(this, Int32GreaterThanOrEqual(input, Int32Constant(0)));
+    return Signed(ChangeUint32ToWord(input));
+  }
 
   // Convert any object to a String.
   TNode<String> ToString_Inline(TNode<Context> context, TNode<Object> input);

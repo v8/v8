@@ -895,8 +895,8 @@ TNode<IntPtrT> CodeStubAssembler::SmiUntag(TNode<Smi> value) {
   }
   TNode<IntPtrT> raw_bits = BitcastTaggedToWordForTagAndSmiBits(value);
   if (COMPRESS_POINTERS_BOOL) {
-    // Clear the upper half using sign-extension.
-    raw_bits = ChangeInt32ToIntPtr(TruncateIntPtrToInt32(raw_bits));
+    return ChangeInt32ToIntPtr(Word32SarShiftOutZeros(
+        TruncateIntPtrToInt32(raw_bits), SmiShiftBitsConstant32()));
   }
   return Signed(WordSarShiftOutZeros(raw_bits, SmiShiftBitsConstant()));
 }
@@ -909,6 +909,10 @@ TNode<Int32T> CodeStubAssembler::SmiToInt32(TNode<Smi> value) {
   }
   TNode<IntPtrT> result = SmiUntag(value);
   return TruncateIntPtrToInt32(result);
+}
+
+TNode<IntPtrT> CodeStubAssembler::PositiveSmiUntag(TNode<Smi> value) {
+  return ChangePositiveInt32ToIntPtr(SmiToInt32(value));
 }
 
 TNode<Float64T> CodeStubAssembler::SmiToFloat64(TNode<Smi> value) {
@@ -1810,18 +1814,11 @@ TNode<Uint64T> CodeStubAssembler::LoadUint64Ptr(TNode<RawPtrT> ptr,
                 IntPtrMul(index, IntPtrConstant(sizeof(uint64_t)))));
 }
 
-TNode<IntPtrT> CodeStubAssembler::LoadAndUntagObjectField(
+TNode<IntPtrT> CodeStubAssembler::LoadAndUntagPositiveSmiObjectField(
     TNode<HeapObject> object, int offset) {
-  // Please use LoadMap(object) instead.
-  DCHECK_NE(offset, HeapObject::kMapOffset);
-  if (SmiValuesAre32Bits()) {
-#if V8_TARGET_LITTLE_ENDIAN
-    offset += 4;
-#endif
-    return ChangeInt32ToIntPtr(LoadObjectField<Int32T>(object, offset));
-  } else {
-    return SmiToIntPtr(LoadObjectField<Smi>(object, offset));
-  }
+  TNode<Int32T> value = LoadAndUntagToWord32ObjectField(object, offset);
+  CSA_DCHECK(this, Int32GreaterThanOrEqual(value, Int32Constant(0)));
+  return Signed(ChangeUint32ToWord(value));
 }
 
 TNode<Int32T> CodeStubAssembler::LoadAndUntagToWord32ObjectField(
@@ -1990,13 +1987,15 @@ TNode<Smi> CodeStubAssembler::LoadFixedArrayBaseLength(
 
 TNode<IntPtrT> CodeStubAssembler::LoadAndUntagFixedArrayBaseLength(
     TNode<FixedArrayBase> array) {
-  return LoadAndUntagObjectField(array, FixedArrayBase::kLengthOffset);
+  return LoadAndUntagPositiveSmiObjectField(array,
+                                            FixedArrayBase::kLengthOffset);
 }
 
 TNode<IntPtrT> CodeStubAssembler::LoadFeedbackVectorLength(
     TNode<FeedbackVector> vector) {
-  return ChangeInt32ToIntPtr(
-      LoadObjectField<Int32T>(vector, FeedbackVector::kLengthOffset));
+  TNode<Int32T> length =
+      LoadObjectField<Int32T>(vector, FeedbackVector::kLengthOffset);
+  return ChangePositiveInt32ToIntPtr(length);
 }
 
 TNode<Smi> CodeStubAssembler::LoadWeakFixedArrayLength(
@@ -2006,7 +2005,16 @@ TNode<Smi> CodeStubAssembler::LoadWeakFixedArrayLength(
 
 TNode<IntPtrT> CodeStubAssembler::LoadAndUntagWeakFixedArrayLength(
     TNode<WeakFixedArray> array) {
-  return LoadAndUntagObjectField(array, WeakFixedArray::kLengthOffset);
+  return LoadAndUntagPositiveSmiObjectField(array,
+                                            WeakFixedArray::kLengthOffset);
+}
+
+TNode<Uint32T> CodeStubAssembler::LoadAndUntagWeakFixedArrayLengthAsUint32(
+    TNode<WeakFixedArray> array) {
+  TNode<Int32T> length =
+      LoadAndUntagToWord32ObjectField(array, WeakFixedArray::kLengthOffset);
+  CSA_DCHECK(this, Int32GreaterThanOrEqual(length, Int32Constant(0)));
+  return Unsigned(length);
 }
 
 TNode<Int32T> CodeStubAssembler::LoadNumberOfDescriptors(
@@ -2163,9 +2171,10 @@ TNode<IntPtrT> CodeStubAssembler::LoadJSReceiverIdentityHash(
 
   BIND(&if_property_array);
   {
-    TNode<IntPtrT> length_and_hash = LoadAndUntagObjectField(
+    TNode<Int32T> length_and_hash = LoadAndUntagToWord32ObjectField(
         properties, PropertyArray::kLengthAndHashOffset);
-    var_hash = Signed(DecodeWord<PropertyArray::HashField>(length_and_hash));
+    var_hash = Signed(ChangeUint32ToWord(
+        DecodeWord32<PropertyArray::HashField>(length_and_hash)));
     Goto(&done);
   }
   if constexpr (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
@@ -2525,9 +2534,10 @@ TNode<Object> CodeStubAssembler::LoadPropertyArrayElement(
 
 TNode<IntPtrT> CodeStubAssembler::LoadPropertyArrayLength(
     TNode<PropertyArray> object) {
-  TNode<IntPtrT> value =
-      LoadAndUntagObjectField(object, PropertyArray::kLengthAndHashOffset);
-  return Signed(DecodeWord<PropertyArray::LengthField>(value));
+  TNode<Int32T> value = LoadAndUntagToWord32ObjectField(
+      object, PropertyArray::kLengthAndHashOffset);
+  return Signed(
+      ChangeUint32ToWord(DecodeWord32<PropertyArray::LengthField>(value)));
 }
 
 TNode<RawPtrT> CodeStubAssembler::LoadJSTypedArrayDataPtr(
@@ -2990,16 +3000,16 @@ TNode<ScopeInfo> CodeStubAssembler::LoadScopeInfo(TNode<Context> context) {
 
 TNode<BoolT> CodeStubAssembler::LoadScopeInfoHasExtensionField(
     TNode<ScopeInfo> scope_info) {
-  TNode<IntPtrT> value =
-      LoadAndUntagObjectField(scope_info, ScopeInfo::kFlagsOffset);
-  return IsSetWord<ScopeInfo::HasContextExtensionSlotBit>(value);
+  TNode<Int32T> value =
+      LoadAndUntagToWord32ObjectField(scope_info, ScopeInfo::kFlagsOffset);
+  return IsSetWord32<ScopeInfo::HasContextExtensionSlotBit>(value);
 }
 
 TNode<BoolT> CodeStubAssembler::LoadScopeInfoClassScopeHasPrivateBrand(
     TNode<ScopeInfo> scope_info) {
-  TNode<IntPtrT> value =
-      LoadAndUntagObjectField(scope_info, ScopeInfo::kFlagsOffset);
-  return IsSetWord<ScopeInfo::ClassScopeHasPrivateBrandBit>(value);
+  TNode<Int32T> value =
+      LoadAndUntagToWord32ObjectField(scope_info, ScopeInfo::kFlagsOffset);
+  return IsSetWord32<ScopeInfo::ClassScopeHasPrivateBrandBit>(value);
 }
 
 void CodeStubAssembler::StoreContextElementNoWriteBarrier(
@@ -3330,14 +3340,14 @@ void CodeStubAssembler::StoreFixedArrayOrPropertyArrayElement(
           Select<IntPtrT>(
               IsPropertyArray(object),
               [=] {
-                TNode<IntPtrT> length_and_hash = LoadAndUntagObjectField(
+                TNode<Int32T> length_and_hash = LoadAndUntagToWord32ObjectField(
                     object, PropertyArray::kLengthAndHashOffset);
-                return Signed(
-                    DecodeWord<PropertyArray::LengthField>(length_and_hash));
+                return Signed(ChangeUint32ToWord(
+                    DecodeWord32<PropertyArray::LengthField>(length_and_hash)));
               },
               [=] {
-                return LoadAndUntagObjectField(object,
-                                               FixedArrayBase::kLengthOffset);
+                return LoadAndUntagPositiveSmiObjectField(
+                    object, FixedArrayBase::kLengthOffset);
               }),
           FixedArray::kHeaderSize));
   if (barrier_mode == SKIP_WRITE_BARRIER) {
@@ -3900,14 +3910,15 @@ TNode<NameDictionary> CodeStubAssembler::AllocateNameDictionaryWithCapacity(
 TNode<NameDictionary> CodeStubAssembler::CopyNameDictionary(
     TNode<NameDictionary> dictionary, Label* large_object_fallback) {
   Comment("Copy boilerplate property dict");
-  TNode<IntPtrT> capacity = SmiUntag(GetCapacity<NameDictionary>(dictionary));
+  TNode<IntPtrT> capacity =
+      PositiveSmiUntag(GetCapacity<NameDictionary>(dictionary));
   CSA_DCHECK(this, IntPtrGreaterThanOrEqual(capacity, IntPtrConstant(0)));
   GotoIf(UintPtrGreaterThan(
              capacity, IntPtrConstant(NameDictionary::kMaxRegularCapacity)),
          large_object_fallback);
   TNode<NameDictionary> properties =
       AllocateNameDictionaryWithCapacity(capacity);
-  TNode<IntPtrT> length = SmiUntag(LoadFixedArrayBaseLength(dictionary));
+  TNode<IntPtrT> length = LoadAndUntagFixedArrayBaseLength(dictionary);
   CopyFixedArrayElements(PACKED_ELEMENTS, dictionary, properties, length,
                          SKIP_WRITE_BARRIER);
   return properties;
@@ -7540,8 +7551,8 @@ TNode<String> ToDirectStringAssembler::TryToDirect(Label* if_bailout) {
       Goto(if_bailout);
     } else {
       const TNode<String> string = var_string_.value();
-      const TNode<IntPtrT> sliced_offset =
-          LoadAndUntagObjectField(string, SlicedString::kOffsetOffset);
+      const TNode<IntPtrT> sliced_offset = LoadAndUntagPositiveSmiObjectField(
+          string, SlicedString::kOffsetOffset);
       var_offset_ = IntPtrAdd(var_offset_.value(), sliced_offset);
 
       const TNode<String> parent =
@@ -8933,7 +8944,8 @@ void CodeStubAssembler::NameDictionaryLookup(
 
   Label if_not_computed(this, Label::kDeferred);
 
-  TNode<IntPtrT> capacity = SmiUntag(GetCapacity<Dictionary>(dictionary));
+  TNode<IntPtrT> capacity =
+      PositiveSmiUntag(GetCapacity<Dictionary>(dictionary));
   TNode<IntPtrT> mask = IntPtrSub(capacity, IntPtrConstant(1));
   TNode<UintPtrT> hash =
       ChangeUint32ToWord(LoadNameHash(unique_name, &if_not_computed));
@@ -9069,7 +9081,8 @@ void CodeStubAssembler::NumberDictionaryLookup(
   DCHECK_EQ(MachineType::PointerRepresentation(), var_entry->rep());
   Comment("NumberDictionaryLookup");
 
-  TNode<IntPtrT> capacity = SmiUntag(GetCapacity<NumberDictionary>(dictionary));
+  TNode<IntPtrT> capacity =
+      PositiveSmiUntag(GetCapacity<NumberDictionary>(dictionary));
   TNode<IntPtrT> mask = IntPtrSub(capacity, IntPtrConstant(1));
 
   TNode<UintPtrT> hash = ChangeUint32ToWord(ComputeSeededHash(intptr_index));
@@ -9371,9 +9384,9 @@ TNode<Uint32T> CodeStubAssembler::NumberOfEntries<DescriptorArray>(
 template <>
 TNode<Uint32T> CodeStubAssembler::NumberOfEntries<TransitionArray>(
     TNode<TransitionArray> transitions) {
-  TNode<IntPtrT> length = LoadAndUntagWeakFixedArrayLength(transitions);
+  TNode<Uint32T> length = LoadAndUntagWeakFixedArrayLengthAsUint32(transitions);
   return Select<Uint32T>(
-      UintPtrLessThan(length, IntPtrConstant(TransitionArray::kFirstIndex)),
+      Uint32LessThan(length, Uint32Constant(TransitionArray::kFirstIndex)),
       [=] { return Unsigned(Int32Constant(0)); },
       [=] {
         return Unsigned(LoadAndUntagToWord32ArrayElement(
@@ -11998,7 +12011,7 @@ void CodeStubAssembler::EmitElementStore(
       },
       [=]() { return LoadFixedArrayBaseLength(elements); });
 
-  TNode<UintPtrT> length = Unsigned(SmiUntag(smi_length));
+  TNode<UintPtrT> length = Unsigned(PositiveSmiUntag(smi_length));
   if (IsGrowStoreMode(store_mode) &&
       !(IsSealedElementsKind(elements_kind) ||
         IsNonextensibleElementsKind(elements_kind))) {
@@ -12061,7 +12074,7 @@ TNode<FixedArrayBase> CodeStubAssembler::CheckForCapacityGrow(
   BIND(&grow_case);
   {
     TNode<IntPtrT> current_capacity =
-        SmiUntag(LoadFixedArrayBaseLength(elements));
+        LoadAndUntagFixedArrayBaseLength(elements);
     checked_elements = elements;
     Label fits_capacity(this);
     // If key is negative, we will notice in Runtime::kGrowArrayElements.
@@ -12115,7 +12128,7 @@ TNode<FixedArrayBase> CodeStubAssembler::CopyElementsOnWrite(
 
   GotoIfNot(IsFixedCOWArrayMap(LoadMap(elements)), &done);
   {
-    TNode<IntPtrT> capacity = SmiUntag(LoadFixedArrayBaseLength(elements));
+    TNode<IntPtrT> capacity = LoadAndUntagFixedArrayBaseLength(elements);
     TNode<FixedArrayBase> new_elements = GrowElementsCapacity(
         object, elements, kind, kind, length, capacity, bailout);
     new_elements_var = new_elements;
@@ -12144,13 +12157,12 @@ void CodeStubAssembler::TransitionElementsKind(TNode<JSObject> object,
     GotoIf(TaggedEqual(elements, EmptyFixedArrayConstant()), &done);
 
     // TODO(ishell): Use BInt for elements_length and array_length.
-    TNode<IntPtrT> elements_length =
-        SmiUntag(LoadFixedArrayBaseLength(elements));
+    TNode<IntPtrT> elements_length = LoadAndUntagFixedArrayBaseLength(elements);
     TNode<IntPtrT> array_length = Select<IntPtrT>(
         IsJSArray(object),
         [=]() {
           CSA_DCHECK(this, IsFastElementsKind(LoadElementsKind(object)));
-          return SmiUntag(LoadFastJSArrayLength(CAST(object)));
+          return PositiveSmiUntag(LoadFastJSArrayLength(CAST(object)));
         },
         [=]() { return elements_length; });
 
