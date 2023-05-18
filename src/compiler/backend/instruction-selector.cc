@@ -2545,22 +2545,6 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsSimd256(node), VisitI8x32Abs(node);
     case IrOpcode::kI8x32Neg:
       return MarkAsSimd256(node), VisitI8x32Neg(node);
-    case IrOpcode::kI64x4Shl:
-      return MarkAsSimd256(node), VisitI64x4Shl(node);
-    case IrOpcode::kI64x4ShrU:
-      return MarkAsSimd256(node), VisitI64x4ShrU(node);
-    case IrOpcode::kI32x8Shl:
-      return MarkAsSimd256(node), VisitI32x8Shl(node);
-    case IrOpcode::kI32x8ShrS:
-      return MarkAsSimd256(node), VisitI32x8ShrS(node);
-    case IrOpcode::kI32x8ShrU:
-      return MarkAsSimd256(node), VisitI32x8ShrU(node);
-    case IrOpcode::kI16x16Shl:
-      return MarkAsSimd256(node), VisitI16x16Shl(node);
-    case IrOpcode::kI16x16ShrS:
-      return MarkAsSimd256(node), VisitI16x16ShrS(node);
-    case IrOpcode::kI16x16ShrU:
-      return MarkAsSimd256(node), VisitI16x16ShrU(node);
     case IrOpcode::kI32x8DotI16x16S:
       return MarkAsSimd256(node), VisitI32x8DotI16x16S(node);
     case IrOpcode::kI16x16RoundingAverageU:

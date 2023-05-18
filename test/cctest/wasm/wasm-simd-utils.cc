@@ -288,57 +288,6 @@ void RunI16x8ShiftOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
   }
 }
 
-#ifdef V8_ENABLE_WASM_SIMD256_REVEC
-void RunI16x16ShiftOpRevecTest(WasmOpcode opcode, Int16ShiftOp expected_op) {
-  EXPERIMENTAL_FLAG_SCOPE(revectorize);
-  for (int shift = 1; shift <= 8; shift++) {
-    WasmRunner<int32_t, int32_t, int32_t> r(TestExecutionTier::kTurbofan);
-    int16_t* memory = r.builder().AddMemoryElems<int16_t>(34);
-    // Build fn to load an I16x16 vector with test value, shift using an
-    // immediate and a value loaded from memory. Write the result to another
-    // array.
-    byte param1 = 0;
-    byte param2 = 1;
-    byte temp1 = r.AllocateLocal(kWasmI32);
-    byte temp2 = r.AllocateLocal(kWasmS128);
-    byte temp3 = r.AllocateLocal(kWasmS128);
-    constexpr byte offset = 16;
-
-    r.Build(
-        {WASM_LOCAL_SET(temp2,
-                        WASM_SIMD_SHIFT_OP(
-                            opcode, WASM_SIMD_LOAD_MEM(WASM_LOCAL_GET(param1)),
-                            WASM_I32V(shift))),
-         WASM_LOCAL_SET(temp3,
-                        WASM_SIMD_SHIFT_OP(opcode,
-                                           WASM_SIMD_LOAD_MEM_OFFSET(
-                                               offset, WASM_LOCAL_GET(param1)),
-                                           WASM_I32V(shift))),
-         WASM_LOCAL_SET(temp1,
-                        WASM_LOAD_MEM(MachineType::Int32(), WASM_I32V(64))),
-         WASM_SIMD_STORE_MEM(WASM_LOCAL_GET(param2),
-                             WASM_SIMD_SHIFT_OP(opcode, WASM_LOCAL_GET(temp2),
-                                                WASM_LOCAL_GET(temp1))),
-         WASM_SIMD_STORE_MEM_OFFSET(
-             offset, WASM_LOCAL_GET(param2),
-             WASM_SIMD_SHIFT_OP(opcode, WASM_LOCAL_GET(temp3),
-                                WASM_LOCAL_GET(temp1))),
-         WASM_ONE});
-
-    r.builder().WriteMemory(reinterpret_cast<int32_t*>(&memory[32]), shift);
-    FOR_INT16_INPUTS(x) {
-      r.builder().WriteMemory(&memory[1], x);
-      r.builder().WriteMemory(&memory[10], x);
-      r.Call(0, 32);
-      // Shift twice
-      int16_t expected = expected_op(expected_op(x, shift), shift);
-      CHECK_EQ(expected, memory[17]);
-      CHECK_EQ(expected, memory[26]);
-    }
-  }
-}
-#endif
-
 void RunI16x8MixedRelationalOpTest(TestExecutionTier execution_tier,
                                    WasmOpcode opcode, Int16BinOp expected_op) {
   WasmRunner<int32_t, int32_t, int32_t> r(execution_tier);
@@ -475,57 +424,6 @@ void RunI32x4ShiftOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
   }
 }
 
-#ifdef V8_ENABLE_WASM_SIMD256_REVEC
-void RunI32x8ShiftOpRevecTest(WasmOpcode opcode, Int32ShiftOp expected_op) {
-  EXPERIMENTAL_FLAG_SCOPE(revectorize);
-  for (int shift = 1; shift <= 16; shift++) {
-    WasmRunner<int32_t, int32_t, int32_t> r(TestExecutionTier::kTurbofan);
-    int32_t* memory = r.builder().AddMemoryElems<int32_t>(17);
-    // Build fn to load an I32x8 vector with test value, shift using an
-    // immediate and a value loaded from memory. Write the result to another
-    // array.
-    byte param1 = 0;
-    byte param2 = 1;
-    byte temp1 = r.AllocateLocal(kWasmI32);
-    byte temp2 = r.AllocateLocal(kWasmS128);
-    byte temp3 = r.AllocateLocal(kWasmS128);
-    constexpr byte offset = 16;
-
-    r.Build(
-        {WASM_LOCAL_SET(temp2,
-                        WASM_SIMD_SHIFT_OP(
-                            opcode, WASM_SIMD_LOAD_MEM(WASM_LOCAL_GET(param1)),
-                            WASM_I32V(shift))),
-         WASM_LOCAL_SET(temp3,
-                        WASM_SIMD_SHIFT_OP(opcode,
-                                           WASM_SIMD_LOAD_MEM_OFFSET(
-                                               offset, WASM_LOCAL_GET(param1)),
-                                           WASM_I32V(shift))),
-         WASM_LOCAL_SET(temp1,
-                        WASM_LOAD_MEM(MachineType::Int32(), WASM_I32V(64))),
-         WASM_SIMD_STORE_MEM(WASM_LOCAL_GET(param2),
-                             WASM_SIMD_SHIFT_OP(opcode, WASM_LOCAL_GET(temp2),
-                                                WASM_LOCAL_GET(temp1))),
-         WASM_SIMD_STORE_MEM_OFFSET(
-             offset, WASM_LOCAL_GET(param2),
-             WASM_SIMD_SHIFT_OP(opcode, WASM_LOCAL_GET(temp3),
-                                WASM_LOCAL_GET(temp1))),
-         WASM_ONE});
-
-    r.builder().WriteMemory(&memory[16], shift);
-    FOR_INT32_INPUTS(x) {
-      r.builder().WriteMemory(&memory[1], x);
-      r.builder().WriteMemory(&memory[6], x);
-      r.Call(0, 32);
-      // Shift twice
-      int32_t expected = expected_op(expected_op(x, shift), shift);
-      CHECK_EQ(expected, memory[9]);
-      CHECK_EQ(expected, memory[14]);
-    }
-  }
-}
-#endif
-
 void RunI64x2UnOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
                       Int64UnOp expected_op) {
   WasmRunner<int32_t, int64_t> r(execution_tier);
@@ -604,57 +502,6 @@ void RunI64x2ShiftOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
     }
   }
 }
-
-#ifdef V8_ENABLE_WASM_SIMD256_REVEC
-void RunI64x4ShiftOpRevecTest(WasmOpcode opcode, Int64ShiftOp expected_op) {
-  EXPERIMENTAL_FLAG_SCOPE(revectorize);
-  for (int shift = 1; shift <= 32; shift++) {
-    WasmRunner<int32_t, int32_t, int32_t> r(TestExecutionTier::kTurbofan);
-    int64_t* memory = r.builder().AddMemoryElems<int64_t>(9);
-    // Build fn to load an I64x4 vector with test value, shift using an
-    // immediate and a value loaded from memory. Write the result to another
-    // array.
-    byte param1 = 0;
-    byte param2 = 1;
-    byte temp1 = r.AllocateLocal(kWasmI32);
-    byte temp2 = r.AllocateLocal(kWasmS128);
-    byte temp3 = r.AllocateLocal(kWasmS128);
-    constexpr byte offset = 16;
-
-    r.Build(
-        {WASM_LOCAL_SET(temp2,
-                        WASM_SIMD_SHIFT_OP(
-                            opcode, WASM_SIMD_LOAD_MEM(WASM_LOCAL_GET(param1)),
-                            WASM_I32V(shift))),
-         WASM_LOCAL_SET(temp3,
-                        WASM_SIMD_SHIFT_OP(opcode,
-                                           WASM_SIMD_LOAD_MEM_OFFSET(
-                                               offset, WASM_LOCAL_GET(param1)),
-                                           WASM_I32V(shift))),
-         WASM_LOCAL_SET(temp1,
-                        WASM_LOAD_MEM(MachineType::Int32(), WASM_I32V(64))),
-         WASM_SIMD_STORE_MEM(WASM_LOCAL_GET(param2),
-                             WASM_SIMD_SHIFT_OP(opcode, WASM_LOCAL_GET(temp2),
-                                                WASM_LOCAL_GET(temp1))),
-         WASM_SIMD_STORE_MEM_OFFSET(
-             offset, WASM_LOCAL_GET(param2),
-             WASM_SIMD_SHIFT_OP(opcode, WASM_LOCAL_GET(temp3),
-                                WASM_LOCAL_GET(temp1))),
-         WASM_ONE});
-
-    r.builder().WriteMemory(reinterpret_cast<int32_t*>(&memory[8]), shift);
-    FOR_INT64_INPUTS(x) {
-      r.builder().WriteMemory(&memory[0], x);
-      r.builder().WriteMemory(&memory[3], x);
-      r.Call(0, 32);
-      // Shift twice
-      int64_t expected = expected_op(expected_op(x, shift), shift);
-      CHECK_EQ(expected, memory[4]);
-      CHECK_EQ(expected, memory[7]);
-    }
-  }
-}
-#endif
 
 bool IsExtreme(float x) {
   float abs_x = std::fabs(x);

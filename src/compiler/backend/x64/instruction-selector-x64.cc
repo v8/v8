@@ -3570,15 +3570,7 @@ VISIT_ATOMIC_BINOP(Xor)
   V(I16x8ShrS, IShrS, kL16, kV128)                    \
   V(I64x2ShrU, IShrU, kL64, kV128)                    \
   V(I32x4ShrU, IShrU, kL32, kV128)                    \
-  V(I16x8ShrU, IShrU, kL16, kV128)                    \
-  V(I64x4Shl, IShl, kL64, kV256)                      \
-  V(I32x8Shl, IShl, kL32, kV256)                      \
-  V(I16x16Shl, IShl, kL16, kV256)                     \
-  V(I32x8ShrS, IShrS, kL32, kV256)                    \
-  V(I16x16ShrS, IShrS, kL16, kV256)                   \
-  V(I64x4ShrU, IShrU, kL64, kV256)                    \
-  V(I32x8ShrU, IShrU, kL32, kV256)                    \
-  V(I16x16ShrU, IShrU, kL16, kV256)
+  V(I16x8ShrU, IShrU, kL16, kV128)
 
 #define SIMD_NARROW_SHIFT_LANE_SIZE_VECTOR_LENGTH_OPCODES(V) \
   V(I8x16Shl, IShl, kL8, kV128)                              \

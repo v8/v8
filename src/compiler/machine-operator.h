@@ -1084,14 +1084,6 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* I16x16Abs();
   const Operator* I8x32Neg();
   const Operator* I8x32Abs();
-  const Operator* I64x4Shl();
-  const Operator* I64x4ShrU();
-  const Operator* I32x8Shl();
-  const Operator* I32x8ShrS();
-  const Operator* I32x8ShrU();
-  const Operator* I16x16Shl();
-  const Operator* I16x16ShrS();
-  const Operator* I16x16ShrU();
   const Operator* I32x8DotI16x16S();
   const Operator* I16x16RoundingAverageU();
   const Operator* I8x32RoundingAverageU();

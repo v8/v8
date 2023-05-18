@@ -1110,22 +1110,6 @@ void EmitTSANRelaxedLoadOOLIfNeeded(Zone* zone, CodeGenerator* codegen,
     }                                                                    \
   } while (false)
 
-#define ASSEMBLE_SIMD256_SHIFT(opcode, width)             \
-  do {                                                    \
-    CpuFeatureScope avx_scope(masm(), AVX2);              \
-    YMMRegister src = i.InputSimd256Register(0);          \
-    YMMRegister dst = i.OutputSimd256Register();          \
-    if (HasImmediateInput(instr, 1)) {                    \
-      __ v##opcode(dst, src, byte{i.InputInt##width(1)}); \
-    } else {                                              \
-      constexpr int mask = (1 << width) - 1;              \
-      __ movq(kScratchRegister, i.InputRegister(1));      \
-      __ andq(kScratchRegister, Immediate(mask));         \
-      __ Movq(kScratchDoubleReg, kScratchRegister);       \
-      __ v##opcode(dst, src, kScratchDoubleReg);          \
-    }                                                     \
-  } while (false)
-
 #define ASSEMBLE_PINSR(ASM_INSTR)                                        \
   do {                                                                   \
     XMMRegister dst = i.OutputSimd128Register();                         \
@@ -4048,33 +4032,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           default:
             UNREACHABLE();
         }
-      } else if (vec_len == kV256) {
-        switch (lane_size) {
-          case kL8: {
-            // I8x32Shl
-            UNIMPLEMENTED();
-          }
-          case kL16: {
-            // I16x16Shl
-            // Take shift value modulo 2^4.
-            ASSEMBLE_SIMD256_SHIFT(psllw, 4);
-            break;
-          }
-          case kL32: {
-            // I32x8Shl
-            // Take shift value modulo 2^5.
-            ASSEMBLE_SIMD256_SHIFT(pslld, 5);
-            break;
-          }
-          case kL64: {
-            // I64x4Shl
-            // Take shift value modulo 2^6.
-            ASSEMBLE_SIMD256_SHIFT(psllq, 6);
-            break;
-          }
-          default:
-            UNREACHABLE();
-        }
       } else {
         UNREACHABLE();
       }
@@ -4122,31 +4079,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                            i.TempSimd128Register(0), kScratchRegister);
             }
             break;
-          }
-          default:
-            UNREACHABLE();
-        }
-      } else if (vec_len == kV256) {
-        switch (lane_size) {
-          case kL8: {
-            // I8x32ShrS
-            UNIMPLEMENTED();
-          }
-          case kL16: {
-            // I16x8ShrS
-            // Take shift value modulo 2^4.
-            ASSEMBLE_SIMD256_SHIFT(psraw, 4);
-            break;
-          }
-          case kL32: {
-            // I32x4ShrS
-            // Take shift value modulo 2^5.
-            ASSEMBLE_SIMD256_SHIFT(psrad, 5);
-            break;
-          }
-          case kL64: {
-            // I64x2ShrS
-            UNIMPLEMENTED();
           }
           default:
             UNREACHABLE();
@@ -4630,33 +4562,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
             // I64x2ShrU
             // Take shift value modulo 2^6.
             ASSEMBLE_SIMD_SHIFT(psrlq, 6);
-            break;
-          }
-          default:
-            UNREACHABLE();
-        }
-      } else if (vec_len == kV256) {
-        switch (lane_size) {
-          case kL8: {
-            // I8x32ShrU
-            UNIMPLEMENTED();
-          }
-          case kL16: {
-            // I16x8ShrU
-            // Take shift value modulo 2^4.
-            ASSEMBLE_SIMD256_SHIFT(psrlw, 4);
-            break;
-          }
-          case kL32: {
-            // I32x4ShrU
-            // Take shift value modulo 2^5.
-            ASSEMBLE_SIMD256_SHIFT(psrld, 5);
-            break;
-          }
-          case kL64: {
-            // I64x2ShrU
-            // Take shift value modulo 2^6.
-            ASSEMBLE_SIMD256_SHIFT(psrlq, 6);
             break;
           }
           default:

@@ -148,18 +148,6 @@ bool AllSameOperator(const ZoneVector<Node*>& node_group) {
   return true;
 }
 
-bool ShiftBySameScalar(const ZoneVector<Node*>& node_group) {
-  auto node0 = node_group[0];
-  for (ZoneVector<Node*>::size_type i = 1; i < node_group.size(); i++) {
-    DCHECK_EQ(node_group[i]->op(), node0->op());
-    DCHECK_EQ(node0->InputCount(), 2);
-    if (node_group[i]->InputAt(1) != node0->InputAt(1)) {
-      return false;
-    }
-  }
-  return true;
-}
-
 class EffectChainIterator {
  public:
   explicit EffectChainIterator(Node* node) : node_(node) {}
@@ -496,16 +484,6 @@ PackNode* SLPTree::BuildTree(const ZoneVector<Node*>& roots) {
   V(F64x2Sqrt, F64x4Sqrt)  \
   V(F32x4Sqrt, F32x8Sqrt)
 
-#define SIMD_SHIFT_OP(V)   \
-  V(I64x2Shl, I64x4Shl)    \
-  V(I32x4Shl, I32x8Shl)    \
-  V(I16x8Shl, I16x16Shl)   \
-  V(I32x4ShrS, I32x8ShrS)  \
-  V(I16x8ShrS, I16x16ShrS) \
-  V(I64x2ShrU, I64x4ShrU)  \
-  V(I32x4ShrU, I32x8ShrU)  \
-  V(I16x8ShrU, I16x16ShrU)
-
 PackNode* SLPTree::BuildTreeRec(const ZoneVector<Node*>& node_group,
                                 unsigned recursion_depth) {
   TRACE("Enter %s\n", __func__);
@@ -650,20 +628,6 @@ PackNode* SLPTree::BuildTreeRec(const ZoneVector<Node*>& node_group,
                                                recursion_depth);
         PopStack();
         return pnode;
-      }
-#define SHIFT_CASE(op128, op256) case IrOpcode::k##op128:
-      SIMD_SHIFT_OP(SHIFT_CASE)
-#undef SHIFT_CASE
-      {
-        if (ShiftBySameScalar(node_group)) {
-          TRACE("Added a vector of shift op.\n");
-          PackNode* pnode =
-              NewPackNodeAndRecurs(node_group, 0, 1, recursion_depth);
-          PopStack();
-          return pnode;
-        }
-        TRACE("Failed due to shift with different scalar!\n");
-        return nullptr;
       }
     // TODO(jiepan): UnalignedStore, StoreTrapOnNull.
     case IrOpcode::kStore:
@@ -833,16 +797,6 @@ Node* Revectorizer::VectorizeTree(PackNode* pnode) {
       SIMPLE_SIMD_OP(SIMPLE_CASE)
 #undef SIMPLE_CASE
 #undef SIMPLE_SIMD_OP
-#define SHIFT_CASE(from, to)                   \
-  case IrOpcode::k##from: {                    \
-    DCHECK(ShiftBySameScalar(pnode->Nodes())); \
-    new_op = mcgraph_->machine()->to();        \
-    inputs[1] = node0->InputAt(1);             \
-    break;                                     \
-  }
-      SIMD_SHIFT_OP(SHIFT_CASE)
-#undef SHIFT_CASE
-#undef SIMD_SHIFT_OP
     case IrOpcode::kProtectedLoad: {
       DCHECK_EQ(LoadRepresentationOf(node0->op()).representation(),
                 MachineRepresentation::kSimd128);
