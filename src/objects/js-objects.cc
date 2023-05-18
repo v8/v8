@@ -2841,8 +2841,8 @@ void JSObject::SetNormalizedProperty(Handle<JSObject> object, Handle<Name> name,
         dictionary->SetEntry(entry, *name, *value, details);
       }
       // TODO(pthier): Add flags to swiss dictionaries.
-      if (name->IsInterestingSymbol()) {
-        dictionary->set_may_have_interesting_symbols(true);
+      if (name->IsInteresting(isolate)) {
+        dictionary->set_may_have_interesting_properties(true);
       }
     }
   }
@@ -3396,8 +3396,8 @@ void MigrateFastToSlow(Isolate* isolate, Handle<JSObject> object,
     // Copy the next enumeration index from instance descriptor.
     dictionary->set_next_enumeration_index(real_size + 1);
     // TODO(pthier): Add flags to swiss dictionaries.
-    dictionary->set_may_have_interesting_symbols(
-        map->may_have_interesting_symbols());
+    dictionary->set_may_have_interesting_properties(
+        map->may_have_interesting_properties());
   }
 
   // From here on we cannot fail and we shouldn't GC anymore.
@@ -3874,8 +3874,8 @@ void JSObject::MigrateSlowToFast(Handle<JSObject> object,
   Handle<Map> new_map = Map::CopyDropDescriptors(isolate, old_map);
   // We should not only set this bit if we need to. We should not retain the
   // old bit because turning a map into dictionary always sets this bit.
-  new_map->set_may_have_interesting_symbols(new_map->has_named_interceptor() ||
-                                            new_map->is_access_check_needed());
+  new_map->set_may_have_interesting_properties(
+      new_map->has_named_interceptor() || new_map->is_access_check_needed());
   new_map->set_is_dictionary_map(false);
 
   NotifyMapChange(old_map, new_map, isolate);
@@ -3946,8 +3946,8 @@ void JSObject::MigrateSlowToFast(Handle<JSObject> object,
     Handle<Name> key(k, isolate);
 
     // Properly mark the {new_map} if the {key} is an "interesting symbol".
-    if (key->IsInterestingSymbol()) {
-      new_map->set_may_have_interesting_symbols(true);
+    if (key->IsInteresting(isolate)) {
+      new_map->set_may_have_interesting_properties(true);
     }
 
     DCHECK_EQ(PropertyLocation::kField, details.location());

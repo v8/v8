@@ -2671,7 +2671,7 @@ Handle<JSGlobalObject> Factory::NewJSGlobalObject(
   // Create a new map for the global object.
   Handle<Map> new_map = Map::CopyDropDescriptors(isolate(), map);
   Map raw_map = *new_map;
-  raw_map.set_may_have_interesting_symbols(true);
+  raw_map.set_may_have_interesting_properties(true);
   raw_map.set_is_dictionary_map(true);
   LOG(isolate(), MapDetails(raw_map));
 
@@ -3357,7 +3357,7 @@ Handle<JSGlobalProxy> Factory::NewUninitializedJSGlobalProxy(int size) {
     DisallowGarbageCollection no_gc;
     Map raw = *map;
     raw.set_is_access_check_needed(true);
-    raw.set_may_have_interesting_symbols(true);
+    raw.set_may_have_interesting_properties(true);
     LOG(isolate(), MapDetails(raw));
   }
   Handle<JSGlobalProxy> proxy = Handle<JSGlobalProxy>::cast(

@@ -252,8 +252,8 @@ void NameDictionary::set_flags(uint32_t flags) {
   this->set(kFlagsIndex, Smi::FromInt(flags));
 }
 
-BIT_FIELD_ACCESSORS(NameDictionary, flags, may_have_interesting_symbols,
-                    NameDictionary::MayHaveInterestingSymbolsBit)
+BIT_FIELD_ACCESSORS(NameDictionary, flags, may_have_interesting_properties,
+                    NameDictionary::MayHaveInterestingPropertiesBit)
 
 PropertyCell GlobalDictionary::CellAt(InternalIndex entry) {
   PtrComprCageBase cage_base = GetPtrComprCageBase(*this);

@@ -967,7 +967,7 @@ TF_BUILTIN(ObjectToString, ObjectBuiltinsAssembler) {
       TNode<Map> holder_map = var_holder_map.value();
       GotoIf(IsNull(holder), &return_default);
       TNode<Uint32T> holder_bit_field3 = LoadMapBitField3(holder_map);
-      GotoIf(IsSetWord32<Map::Bits3::MayHaveInterestingSymbolsBit>(
+      GotoIf(IsSetWord32<Map::Bits3::MayHaveInterestingPropertiesBit>(
                  holder_bit_field3),
              &interesting_symbols);
       var_holder = LoadMapPrototype(holder_map);
@@ -989,9 +989,10 @@ TF_BUILTIN(ObjectToString, ObjectBuiltinsAssembler) {
           CSA_DCHECK(this, IsNameDictionary(CAST(properties)));
           TNode<Smi> flags =
               GetNameDictionaryFlags<NameDictionary>(CAST(properties));
-          GotoIf(IsSetSmi(flags,
-                          NameDictionary::MayHaveInterestingSymbolsBit::kMask),
-                 &return_generic);
+          GotoIf(
+              IsSetSmi(flags,
+                       NameDictionary::MayHaveInterestingPropertiesBit::kMask),
+              &return_generic);
           var_holder = LoadMapPrototype(holder_map);
           var_holder_map = LoadMap(var_holder.value());
         }

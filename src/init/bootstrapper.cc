@@ -1178,7 +1178,7 @@ void Genesis::CreateJSProxyMaps() {
   Handle<Map> proxy_map = factory()->NewMap(JS_PROXY_TYPE, JSProxy::kSize,
                                             TERMINAL_FAST_ELEMENTS_KIND);
   proxy_map->set_is_dictionary_map(true);
-  proxy_map->set_may_have_interesting_symbols(true);
+  proxy_map->set_may_have_interesting_properties(true);
   native_context()->set_proxy_map(*proxy_map);
   proxy_map->SetConstructor(native_context()->object_function());
 
@@ -1388,7 +1388,7 @@ Handle<JSGlobalObject> Genesis::CreateNewGlobals(
 
   js_global_object_function->initial_map().set_is_prototype_map(true);
   js_global_object_function->initial_map().set_is_dictionary_map(true);
-  js_global_object_function->initial_map().set_may_have_interesting_symbols(
+  js_global_object_function->initial_map().set_may_have_interesting_properties(
       true);
   Handle<JSGlobalObject> global_object =
       factory()->NewJSGlobalObject(js_global_object_function);
@@ -1411,7 +1411,8 @@ Handle<JSGlobalObject> Genesis::CreateNewGlobals(
         factory()->the_hole_value(), JS_GLOBAL_PROXY_TYPE);
   }
   global_proxy_function->initial_map().set_is_access_check_needed(true);
-  global_proxy_function->initial_map().set_may_have_interesting_symbols(true);
+  global_proxy_function->initial_map().set_may_have_interesting_properties(
+      true);
   native_context()->set_global_proxy_function(*global_proxy_function);
 
   // Set the global object as the (hidden) __proto__ of the global proxy after
@@ -6905,7 +6906,7 @@ Genesis::Genesis(Isolate* isolate,
   Handle<Map> global_proxy_map = isolate->factory()->NewMap(
       JS_GLOBAL_PROXY_TYPE, proxy_size, TERMINAL_FAST_ELEMENTS_KIND);
   global_proxy_map->set_is_access_check_needed(true);
-  global_proxy_map->set_may_have_interesting_symbols(true);
+  global_proxy_map->set_may_have_interesting_properties(true);
 
   // A remote global proxy has no native context.
   global_proxy->set_native_context(ReadOnlyRoots(heap()).null_value());

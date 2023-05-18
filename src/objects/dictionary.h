@@ -238,8 +238,8 @@ class V8_EXPORT_PRIVATE NameDictionary
   inline int hash() const;
 
   // Note: Flags are stored as smi, so only 31 bits are usable.
-  using MayHaveInterestingSymbolsBit = base::BitField<bool, 0, 1, uint32_t>;
-  DECL_BOOLEAN_ACCESSORS(may_have_interesting_symbols)
+  using MayHaveInterestingPropertiesBit = base::BitField<bool, 0, 1, uint32_t>;
+  DECL_BOOLEAN_ACCESSORS(may_have_interesting_properties)
 
   static constexpr int kFlagsDefault = 0;
 

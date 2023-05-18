@@ -593,18 +593,18 @@ void Map::MapVerify(Isolate* isolate) {
     }
   }
 
-  if (!may_have_interesting_symbols()) {
+  if (!may_have_interesting_properties()) {
     CHECK(!has_named_interceptor());
     CHECK(!is_dictionary_map());
     CHECK(!is_access_check_needed());
     DescriptorArray const descriptors = instance_descriptors(isolate);
     for (InternalIndex i : IterateOwnDescriptors()) {
-      CHECK(!descriptors.GetKey(i).IsInterestingSymbol());
+      CHECK(!descriptors.GetKey(i).IsInteresting(isolate));
     }
   }
-  CHECK_IMPLIES(has_named_interceptor(), may_have_interesting_symbols());
-  CHECK_IMPLIES(is_dictionary_map(), may_have_interesting_symbols());
-  CHECK_IMPLIES(is_access_check_needed(), may_have_interesting_symbols());
+  CHECK_IMPLIES(has_named_interceptor(), may_have_interesting_properties());
+  CHECK_IMPLIES(is_dictionary_map(), may_have_interesting_properties());
+  CHECK_IMPLIES(is_access_check_needed(), may_have_interesting_properties());
   CHECK_IMPLIES(IsJSObjectMap() && !CanHaveFastTransitionableElementsKind(),
                 IsDictionaryElementsKind(elements_kind()) ||
                     IsTerminalElementsKind(elements_kind()) ||

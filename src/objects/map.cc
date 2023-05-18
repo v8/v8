@@ -1280,7 +1280,7 @@ Handle<Map> Map::CopyNormalized(Isolate* isolate, Handle<Map> map,
     raw.SetInObjectUnusedPropertyFields(0);
     raw.set_is_dictionary_map(true);
     raw.set_is_migration_target(false);
-    raw.set_may_have_interesting_symbols(true);
+    raw.set_may_have_interesting_properties(true);
     raw.set_construction_counter(kNoSlackTracking);
   }
 
@@ -1389,8 +1389,8 @@ Handle<Map> Map::ShareDescriptor(Isolate* isolate, Handle<Map> map,
   Handle<Name> name = descriptor->GetKey();
 
   // Properly mark the {result} if the {name} is an "interesting symbol".
-  if (name->IsInterestingSymbol()) {
-    result->set_may_have_interesting_symbols(true);
+  if (name->IsInteresting(isolate)) {
+    result->set_may_have_interesting_properties(true);
   }
 
   // Ensure there's space for the new descriptor in the shared descriptor array.
@@ -1420,10 +1420,10 @@ Handle<Map> Map::ShareDescriptor(Isolate* isolate, Handle<Map> map,
 void Map::ConnectTransition(Isolate* isolate, Handle<Map> parent,
                             Handle<Map> child, Handle<Name> name,
                             SimpleTransitionFlag flag) {
-  DCHECK_IMPLIES(name->IsInterestingSymbol(),
-                 child->may_have_interesting_symbols());
-  DCHECK_IMPLIES(parent->may_have_interesting_symbols(),
-                 child->may_have_interesting_symbols());
+  DCHECK_IMPLIES(name->IsInteresting(isolate),
+                 child->may_have_interesting_properties());
+  DCHECK_IMPLIES(parent->may_have_interesting_properties(),
+                 child->may_have_interesting_properties());
   if (!parent->GetBackPointer().IsUndefined(isolate)) {
     parent->set_owns_descriptors(false);
   } else if (!parent->IsDetached(isolate)) {
@@ -1458,8 +1458,8 @@ Handle<Map> Map::CopyReplaceDescriptors(Isolate* isolate, Handle<Map> map,
 
   // Properly mark the {result} if the {name} is an "interesting symbol".
   Handle<Name> name;
-  if (maybe_name.ToHandle(&name) && name->IsInterestingSymbol()) {
-    result->set_may_have_interesting_symbols(true);
+  if (maybe_name.ToHandle(&name) && name->IsInteresting(isolate)) {
+    result->set_may_have_interesting_properties(true);
   }
 
   if (map->is_prototype_map()) {
@@ -1509,7 +1509,7 @@ Handle<Map> Map::AddMissingTransitions(Isolate* isolate, Handle<Map> split_map,
   Handle<Map> last_map = CopyDropDescriptors(isolate, split_map);
   last_map->InitializeDescriptors(isolate, *descriptors);
   last_map->SetInObjectUnusedPropertyFields(0);
-  last_map->set_may_have_interesting_symbols(true);
+  last_map->set_may_have_interesting_properties(true);
 
   // During creation of intermediate maps we violate descriptors sharing
   // invariant since the last map is not yet connected to the transition tree
@@ -1524,7 +1524,7 @@ Handle<Map> Map::AddMissingTransitions(Isolate* isolate, Handle<Map> split_map,
     map = new_map;
   }
   map->NotifyLeafMapLayoutChange(isolate);
-  last_map->set_may_have_interesting_symbols(false);
+  last_map->set_may_have_interesting_properties(false);
   InstallDescriptors(isolate, map, last_map, InternalIndex(nof_descriptors - 1),
                      descriptors);
   return last_map;
@@ -1546,8 +1546,9 @@ void Map::InstallDescriptors(Isolate* isolate, Handle<Map> parent,
   }
 
   Handle<Name> name = handle(descriptors->GetKey(new_descriptor), isolate);
-  if (parent->may_have_interesting_symbols() || name->IsInterestingSymbol()) {
-    child->set_may_have_interesting_symbols(true);
+  if (parent->may_have_interesting_properties() ||
+      name->IsInteresting(isolate)) {
+    child->set_may_have_interesting_properties(true);
   }
   ConnectTransition(isolate, parent, child, name, SIMPLE_PROPERTY_TRANSITION);
 }

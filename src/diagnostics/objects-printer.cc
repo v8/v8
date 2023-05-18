@@ -919,8 +919,8 @@ void PrintTableContentsGeneric(std::ostream& os, T dict,
 }
 
 void PrintNameDictionaryFlags(std::ostream& os, NameDictionary dict) {
-  if (dict.may_have_interesting_symbols()) {
-    os << "\n - may_have_interesting_symbols";
+  if (dict.may_have_interesting_properties()) {
+    os << "\n - may_have_interesting_properties";
   }
 }
 
@@ -2868,7 +2868,8 @@ void Map::MapPrint(std::ostream& os) {
   if (is_dictionary_map()) os << "\n - dictionary_map";
   if (has_named_interceptor()) os << "\n - named_interceptor";
   if (has_indexed_interceptor()) os << "\n - indexed_interceptor";
-  if (may_have_interesting_symbols()) os << "\n - may_have_interesting_symbols";
+  if (may_have_interesting_properties())
+    os << "\n - may_have_interesting_properties";
   if (is_undetectable()) os << "\n - undetectable";
   if (is_callable()) os << "\n - callable";
   if (is_constructor()) os << "\n - constructor";

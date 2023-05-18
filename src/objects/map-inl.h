@@ -121,8 +121,8 @@ BIT_FIELD_ACCESSORS(Map, relaxed_bit_field3, is_migration_target,
                     Map::Bits3::IsMigrationTargetBit)
 BIT_FIELD_ACCESSORS2(Map, relaxed_bit_field3, bit_field3, is_extensible,
                      Map::Bits3::IsExtensibleBit)
-BIT_FIELD_ACCESSORS(Map, bit_field3, may_have_interesting_symbols,
-                    Map::Bits3::MayHaveInterestingSymbolsBit)
+BIT_FIELD_ACCESSORS(Map, bit_field3, may_have_interesting_properties,
+                    Map::Bits3::MayHaveInterestingPropertiesBit)
 BIT_FIELD_ACCESSORS(Map, relaxed_bit_field3, construction_counter,
                     Map::Bits3::ConstructionCounterBits)
 
@@ -766,8 +766,8 @@ void Map::AppendDescriptor(Isolate* isolate, Descriptor* desc) {
 #endif
   }
   // Properly mark the map if the {desc} is an "interesting symbol".
-  if (desc->GetKey()->IsInterestingSymbol()) {
-    set_may_have_interesting_symbols(true);
+  if (desc->GetKey()->IsInteresting(isolate)) {
+    set_may_have_interesting_properties(true);
   }
   PropertyDetails details = desc->GetDetails();
   if (details.location() == PropertyLocation::kField) {

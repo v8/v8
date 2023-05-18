@@ -683,8 +683,8 @@ void LookupIterator::ApplyTransitionToDataProperty(
                               property_details_, &number_);
       receiver->SetProperties(*dictionary);
       // TODO(pthier): Add flags to swiss dictionaries.
-      if (name()->IsInterestingSymbol()) {
-        dictionary->set_may_have_interesting_symbols(true);
+      if (name()->IsInteresting(isolate())) {
+        dictionary->set_may_have_interesting_properties(true);
       }
       // Reload details containing proper enumeration index value.
       property_details_ = dictionary->DetailsAt(number_);

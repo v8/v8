@@ -146,7 +146,7 @@ void EnableAccessChecks(Isolate* isolate, Handle<JSObject> object) {
   // Copy map so it won't interfere constructor's initial map.
   Handle<Map> new_map = Map::Copy(isolate, old_map, "EnableAccessChecks");
   new_map->set_is_access_check_needed(true);
-  new_map->set_may_have_interesting_symbols(true);
+  new_map->set_may_have_interesting_properties(true);
   JSObject::MigrateToMap(isolate, object, new_map);
 }
 
@@ -628,7 +628,7 @@ MaybeHandle<JSObject> ApiNatives::InstantiateRemoteObject(
       TERMINAL_FAST_ELEMENTS_KIND);
   object_map->SetConstructor(*constructor);
   object_map->set_is_access_check_needed(true);
-  object_map->set_may_have_interesting_symbols(true);
+  object_map->set_may_have_interesting_properties(true);
 
   Handle<JSObject> object = isolate->factory()->NewJSObjectFromMap(object_map);
   JSObject::ForceSetPrototype(isolate, object,
@@ -757,13 +757,13 @@ Handle<JSFunction> ApiNatives::CreateApiFunction(
   // Mark as needs_access_check if needed.
   if (obj->needs_access_check()) {
     map->set_is_access_check_needed(true);
-    map->set_may_have_interesting_symbols(true);
+    map->set_may_have_interesting_properties(true);
   }
 
   // Set interceptor information in the map.
   if (!obj->GetNamedPropertyHandler().IsUndefined(isolate)) {
     map->set_has_named_interceptor(true);
-    map->set_may_have_interesting_symbols(true);
+    map->set_may_have_interesting_properties(true);
   }
   if (!obj->GetIndexedPropertyHandler().IsUndefined(isolate)) {
     map->set_has_indexed_interceptor(true);

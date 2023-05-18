@@ -457,8 +457,8 @@ RUNTIME_FUNCTION(Runtime_AddDictionaryProperty) {
     Handle<NameDictionary> dictionary(receiver->property_dictionary(), isolate);
     dictionary =
         NameDictionary::Add(isolate, dictionary, name, value, property_details);
-    if (name->IsInterestingSymbol()) {
-      dictionary->set_may_have_interesting_symbols(true);
+    if (name->IsInteresting(isolate)) {
+      dictionary->set_may_have_interesting_properties(true);
     }
     receiver->SetProperties(*dictionary);
   }

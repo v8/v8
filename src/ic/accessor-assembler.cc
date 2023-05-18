@@ -1490,8 +1490,9 @@ void AccessorAssembler::UpdateMayHaveInterestingSymbol(
     GotoIfNot(IsSetWord32<Symbol::IsInterestingSymbolBit>(symbol_flags), &done);
     TNode<Smi> flags = GetNameDictionaryFlags(dict);
     flags = SmiOr(
-        flags, SmiConstant(
-                   NameDictionary::MayHaveInterestingSymbolsBit::encode(true)));
+        flags,
+        SmiConstant(
+            NameDictionary::MayHaveInterestingPropertiesBit::encode(true)));
     SetNameDictionaryFlags(dict, flags);
     Goto(&done);
   }

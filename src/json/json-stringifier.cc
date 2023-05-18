@@ -126,7 +126,6 @@ class JsonStringifier {
 
   Isolate* isolate_;
   IncrementalStringBuilder builder_;
-  Handle<String> tojson_string_;
   Handle<FixedArray> property_list_;
   Handle<JSReceiver> replacer_function_;
   base::uc16* gap_;
@@ -218,9 +217,7 @@ JsonStringifier::JsonStringifier(Isolate* isolate)
       builder_(isolate),
       gap_(nullptr),
       indent_(0),
-      stack_() {
-  tojson_string_ = factory()->toJSON_string();
-}
+      stack_() {}
 
 MaybeHandle<Object> JsonStringifier::Stringify(Handle<Object> object,
                                                Handle<Object> replacer,
@@ -340,7 +337,7 @@ MaybeHandle<Object> JsonStringifier::ApplyToJsonFunction(Handle<Object> object,
   // Retrieve toJSON function. The LookupIterator automatically handles
   // the ToObject() equivalent ("GetRoot") if {object} is a BigInt.
   Handle<Object> fun;
-  LookupIterator it(isolate_, object, tojson_string_,
+  LookupIterator it(isolate_, object, factory()->toJSON_string(),
                     LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR);
   ASSIGN_RETURN_ON_EXCEPTION(isolate_, fun, Object::GetProperty(&it), Object);
   if (!fun->IsCallable()) return object;
@@ -521,6 +518,14 @@ Handle<String> JsonStringifier::ConstructCircularStructureErrorMessage(
   return result;
 }
 
+bool MayHaveInterestingSymbol(Isolate* isolate, JSReceiver object) {
+  for (PrototypeIterator iter(isolate, object, kStartAtReceiver);
+       !iter.IsAtEnd(); iter.Advance()) {
+    if (iter.GetCurrent().map().may_have_interesting_properties()) return true;
+  }
+  return false;
+}
+
 template <bool deferred_string_key>
 JsonStringifier::Result JsonStringifier::Serialize_(Handle<Object> object,
                                                     bool comma,
@@ -536,7 +541,8 @@ JsonStringifier::Result JsonStringifier::Serialize_(Handle<Object> object,
   if (!object->IsSmi()) {
     InstanceType instance_type =
         HeapObject::cast(*object).map(cage_base).instance_type();
-    if (InstanceTypeChecker::IsJSReceiver(instance_type) ||
+    if ((InstanceTypeChecker::IsJSReceiver(instance_type) &&
+         MayHaveInterestingSymbol(isolate_, JSReceiver::cast(*object))) ||
         InstanceTypeChecker::IsBigInt(instance_type)) {
       ASSIGN_RETURN_ON_EXCEPTION_VALUE(
           isolate_, object, ApplyToJsonFunction(object, key), EXCEPTION);
