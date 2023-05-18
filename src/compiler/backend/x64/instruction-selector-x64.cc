@@ -3347,7 +3347,13 @@ VISIT_ATOMIC_BINOP(Xor)
   V(I16x16SConvertI32x8)           \
   V(I16x16UConvertI32x8)           \
   V(I8x32SConvertI16x16)           \
-  V(I8x32UConvertI16x16)
+  V(I8x32UConvertI16x16)           \
+  V(I64x4ExtMulI32x4S)             \
+  V(I64x4ExtMulI32x4U)             \
+  V(I32x8ExtMulI16x8S)             \
+  V(I32x8ExtMulI16x8U)             \
+  V(I16x16ExtMulI8x16S)            \
+  V(I16x16ExtMulI8x16U)
 
 #define SIMD_BINOP_SSE_AVX_LANE_SIZE_VECTOR_LENGTH_LIST(V)  \
   V(F64x2Add, FAdd, kL64, kV128)                            \

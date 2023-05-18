@@ -186,8 +186,10 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kX64IShrU:
     case kX64I64x2ExtMulLowI32x4S:
     case kX64I64x2ExtMulHighI32x4S:
+    case kX64I64x4ExtMulI32x4S:
     case kX64I64x2ExtMulLowI32x4U:
     case kX64I64x2ExtMulHighI32x4U:
+    case kX64I64x4ExtMulI32x4U:
     case kX64I64x2SConvertI32x4Low:
     case kX64I64x2SConvertI32x4High:
     case kX64I64x4SConvertI32x4:
@@ -213,8 +215,10 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kX64I32x4DotI8x16I7x16AddS:
     case kX64I32x4ExtMulLowI16x8S:
     case kX64I32x4ExtMulHighI16x8S:
+    case kX64I32x8ExtMulI16x8S:
     case kX64I32x4ExtMulLowI16x8U:
     case kX64I32x4ExtMulHighI16x8U:
+    case kX64I32x8ExtMulI16x8U:
     case kX64I32x4ExtAddPairwiseI16x8S:
     case kX64I32x4ExtAddPairwiseI16x8U:
     case kX64I32x4TruncSatF64x2SZero:
@@ -238,8 +242,10 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kX64IRoundingAverageU:
     case kX64I16x8ExtMulLowI8x16S:
     case kX64I16x8ExtMulHighI8x16S:
+    case kX64I16x16ExtMulI8x16S:
     case kX64I16x8ExtMulLowI8x16U:
     case kX64I16x8ExtMulHighI8x16U:
+    case kX64I16x16ExtMulI8x16U:
     case kX64I16x8ExtAddPairwiseI8x16S:
     case kX64I16x8ExtAddPairwiseI8x16U:
     case kX64I16x8Q15MulRSatS:

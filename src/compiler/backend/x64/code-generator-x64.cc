@@ -6222,6 +6222,42 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vpermq(dst, dst, 0xD8);  // 0b11011000
       break;
     }
+    case kX64I64x4ExtMulI32x4S: {
+      __ I64x4ExtMul(i.OutputSimd256Register(), i.InputSimd128Register(0),
+                     i.InputSimd128Register(1), kScratchSimd256Reg,
+                     /*is_signed=*/true);
+      break;
+    }
+    case kX64I64x4ExtMulI32x4U: {
+      __ I64x4ExtMul(i.OutputSimd256Register(), i.InputSimd128Register(0),
+                     i.InputSimd128Register(1), kScratchSimd256Reg,
+                     /*is_signed=*/false);
+      break;
+    }
+    case kX64I32x8ExtMulI16x8S: {
+      __ I32x8ExtMul(i.OutputSimd256Register(), i.InputSimd128Register(0),
+                     i.InputSimd128Register(1), kScratchSimd256Reg,
+                     /*is_signed=*/true);
+      break;
+    }
+    case kX64I32x8ExtMulI16x8U: {
+      __ I32x8ExtMul(i.OutputSimd256Register(), i.InputSimd128Register(0),
+                     i.InputSimd128Register(1), kScratchSimd256Reg,
+                     /*is_signed=*/false);
+      break;
+    }
+    case kX64I16x16ExtMulI8x16S: {
+      __ I16x16ExtMul(i.OutputSimd256Register(), i.InputSimd128Register(0),
+                      i.InputSimd128Register(1), kScratchSimd256Reg,
+                      /*is_signed=*/true);
+      break;
+    }
+    case kX64I16x16ExtMulI8x16U: {
+      __ I16x16ExtMul(i.OutputSimd256Register(), i.InputSimd128Register(0),
+                      i.InputSimd128Register(1), kScratchSimd256Reg,
+                      /*is_signed=*/false);
+      break;
+    }
   }
   return kSuccess;
 }  // NOLadability/fn_size)

@@ -228,6 +228,12 @@ class V8_EXPORT_PRIVATE MacroAssembler
                 YMMRegister scratch);
   void F32x8Max(YMMRegister dst, YMMRegister lhs, YMMRegister rhs,
                 YMMRegister scratch);
+  void I64x4ExtMul(YMMRegister dst, XMMRegister src1, XMMRegister src2,
+                   YMMRegister scratch, bool is_signed);
+  void I32x8ExtMul(YMMRegister dst, XMMRegister src1, XMMRegister src2,
+                   YMMRegister scratch, bool is_signed);
+  void I16x16ExtMul(YMMRegister dst, XMMRegister src1, XMMRegister src2,
+                    YMMRegister scratch, bool is_signed);
   void S256Not(YMMRegister dst, YMMRegister src, YMMRegister scratch);
   void S256Select(YMMRegister dst, YMMRegister mask, YMMRegister src1,
                   YMMRegister src2, YMMRegister scratch);

@@ -1580,6 +1580,50 @@ void MacroAssembler::F32x8Max(YMMRegister dst, YMMRegister lhs, YMMRegister rhs,
   vandnps(dst, dst, scratch);
 }
 
+// 1. Zero extend 4 packed 32-bit integers in src1 to 4 packed 64-bit integers
+// in scratch
+// 2. Zero extend 4 packed 32-bit integers in src2 to 4 packed 64-bit integers
+// in dst
+// 3. Multiply packed doubleword integers in scratch with dst, the extended zero
+// are ignored
+void MacroAssembler::I64x4ExtMul(YMMRegister dst, XMMRegister src1,
+                                 XMMRegister src2, YMMRegister scratch,
+                                 bool is_signed) {
+  ASM_CODE_COMMENT(this);
+  CpuFeatureScope avx_scope(this, AVX2);
+  vpmovzxdq(scratch, src1);
+  vpmovzxdq(dst, src2);
+  if (is_signed) {
+    vpmuldq(dst, scratch, dst);
+  } else {
+    vpmuludq(dst, scratch, dst);
+  }
+}
+
+// 1. Extend 8 packed 16-bit integers in src1 to 8 packed 32-bit integers in
+// scratch
+// 2. Extend 8 packed 16-bit integers in src2 to 8 packed 32-bit integers in dst
+// 3. Multiply the packed doubleword integers in scratch and dst and store the
+// low 32 bits of each product in dst.
+void MacroAssembler::I32x8ExtMul(YMMRegister dst, XMMRegister src1,
+                                 XMMRegister src2, YMMRegister scratch,
+                                 bool is_signed) {
+  ASM_CODE_COMMENT(this);
+  CpuFeatureScope avx_scope(this, AVX2);
+  is_signed ? vpmovsxwd(scratch, src1) : vpmovzxwd(scratch, src1);
+  is_signed ? vpmovsxwd(dst, src2) : vpmovzxwd(dst, src2);
+  vpmulld(dst, dst, scratch);
+}
+
+void MacroAssembler::I16x16ExtMul(YMMRegister dst, XMMRegister src1,
+                                  XMMRegister src2, YMMRegister scratch,
+                                  bool is_signed) {
+  ASM_CODE_COMMENT(this);
+  is_signed ? vpmovsxbw(scratch, src1) : vpmovzxbw(scratch, src1);
+  is_signed ? vpmovsxbw(dst, src2) : vpmovzxbw(dst, src2);
+  vpmullw(dst, dst, scratch);
+}
+
 void MacroAssembler::SmiTag(Register reg) {
   static_assert(kSmiTag == 0);
   DCHECK(SmiValuesAre32Bits() || SmiValuesAre31Bits());

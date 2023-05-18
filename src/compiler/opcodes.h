@@ -1181,6 +1181,12 @@
   V(I32x8DotI16x16S)               \
   V(I16x16RoundingAverageU)        \
   V(I8x32RoundingAverageU)         \
+  V(I64x4ExtMulI32x4S)             \
+  V(I64x4ExtMulI32x4U)             \
+  V(I32x8ExtMulI16x8S)             \
+  V(I32x8ExtMulI16x8U)             \
+  V(I16x16ExtMulI8x16S)            \
+  V(I16x16ExtMulI8x16U)            \
   V(ExtractF128)                   \
   V(S256Zero)                      \
   V(S256Not)                       \

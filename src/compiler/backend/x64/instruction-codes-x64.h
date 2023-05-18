@@ -350,6 +350,12 @@ namespace compiler {
   V(X64Blendvpd)                                     \
   V(X64Blendvps)                                     \
   V(X64Pblendvb)                                     \
+  V(X64I64x4ExtMulI32x4S)                            \
+  V(X64I64x4ExtMulI32x4U)                            \
+  V(X64I32x8ExtMulI16x8S)                            \
+  V(X64I32x8ExtMulI16x8U)                            \
+  V(X64I16x16ExtMulI8x16S)                           \
+  V(X64I16x16ExtMulI8x16U)                           \
   V(X64TraceInstruction)
 // Addressing modes represent the "shape" of inputs to an instruction.
 // Many instructions support multiple addressing modes. Addressing modes

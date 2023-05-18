@@ -1330,7 +1330,14 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   }                                                                          \
   void v##instruction(XMMRegister dst, Operand src) {                        \
     vinstr(0x##opcode, dst, xmm0, src, k##prefix, k##escape1##escape2, kW0); \
+  }                                                                          \
+  void v##instruction(YMMRegister dst, XMMRegister src) {                    \
+    vinstr(0x##opcode, dst, ymm0, src, k##prefix, k##escape1##escape2, kW0); \
+  }                                                                          \
+  void v##instruction(YMMRegister dst, Operand src) {                        \
+    vinstr(0x##opcode, dst, ymm0, src, k##prefix, k##escape1##escape2, kW0); \
   }
+
   SSE4_UNOP_INSTRUCTION_LIST(DECLARE_SSE4_PMOV_AVX_INSTRUCTION)
 #undef DECLARE_SSE4_PMOV_AVX_INSTRUCTION
 

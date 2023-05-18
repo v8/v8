@@ -40,6 +40,7 @@
 #include "src/objects/smi.h"
 #include "src/utils/ostreams.h"
 #include "test/common/assembler-tester.h"
+#include "test/common/value-helper.h"
 #include "test/unittests/test-utils.h"
 
 namespace v8 {
@@ -1669,6 +1670,120 @@ TEST_F(MacroAssemblerX64Test, F32x8Max) {
       CHECK_EQ(output[i], std::max(left[i], right[i]));
     }
   }
+}
+
+namespace {
+
+template <typename S, typename T, typename OpType = T (*)(S, S)>
+void RunExtMulTest(Isolate* isolate, OpType expected_op) {
+  if (!CpuFeatures::IsSupported(AVX) || !CpuFeatures::IsSupported(AVX2)) return;
+
+  HandleScope handles(isolate);
+  auto buffer = AllocateAssemblerBuffer();
+  MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired::kYes,
+                           buffer->CreateView());
+  MacroAssembler* masm = &assembler;
+
+  const YMMRegister dst = ymm0;
+  const XMMRegister lhs = xmm1;
+  const XMMRegister rhs = xmm2;
+  const YMMRegister tmp = ymm3;
+
+  CpuFeatureScope avx_scope(masm, AVX);
+  CpuFeatureScope avx2_scope(masm, AVX2);
+
+  // Load array
+  __ vmovdqu(lhs, Operand(arg_reg_1, 0));
+  __ vmovdqu(rhs, Operand(arg_reg_2, 0));
+
+  bool is_signed = std::is_signed_v<T>;
+  // Calculation
+  switch (sizeof(T)) {
+    case 8:
+      __ I64x4ExtMul(dst, lhs, rhs, tmp, is_signed);
+      break;
+    case 4:
+      __ I32x8ExtMul(dst, lhs, rhs, tmp, is_signed);
+      break;
+    case 2:
+      __ I16x16ExtMul(dst, lhs, rhs, tmp, is_signed);
+      break;
+    default:
+      UNREACHABLE();
+  }
+
+  // Store result array
+  __ vmovdqu(Operand(arg_reg_3, 0), dst);
+  __ ret(0);
+
+  CodeDesc desc;
+  __ GetCode(isolate, &desc);
+
+  PrintCode(isolate, desc);
+
+  buffer->MakeExecutable();
+  // Call the function from C++.
+  auto f = GeneratedCode<F1>::FromBuffer(isolate, buffer->start());
+
+  uint64_t left[2];
+  uint64_t right[2];
+  uint64_t output[4];
+  constexpr int lanes = kSimd128Size / sizeof(S);
+  T* g = reinterpret_cast<T*>(output);
+  for (S x : compiler::ValueHelper::GetVector<S>()) {
+    for (S y : compiler::ValueHelper::GetVector<S>()) {
+      left[0] = 0;
+      right[0] = 0;
+      uint64_t mask = (static_cast<uint64_t>(1) << sizeof(S) * 8) - 1;
+      uint64_t lane_x = static_cast<uint64_t>(x) & mask;
+      uint64_t lane_y = static_cast<uint64_t>(y) & mask;
+      for (int i = 0; i < lanes / 2; i++) {
+        left[0] = left[0] | (lane_x << 8 * sizeof(S) * i);
+        right[0] = right[0] | (lane_y << 8 * sizeof(S) * i);
+      }
+      left[1] = left[0];
+      right[1] = right[0];
+
+      f.Call(left, right, output);
+
+      T expected = expected_op(x, y);
+      for (int i = 0; i < lanes; i++) {
+        CHECK_EQ(expected, g[i]);
+      }
+    }
+  }
+}
+
+}  // namespace
+
+TEST_F(MacroAssemblerX64Test, I16x16ExtMulI8x16S) {
+  Isolate* isolate = i_isolate();
+  RunExtMulTest<int8_t, int16_t>(isolate, MultiplyLong);
+}
+
+TEST_F(MacroAssemblerX64Test, I16x16ExtMulI8x16U) {
+  Isolate* isolate = i_isolate();
+  RunExtMulTest<uint8_t, uint16_t>(isolate, MultiplyLong);
+}
+
+TEST_F(MacroAssemblerX64Test, I32x8ExtMulI16x8S) {
+  Isolate* isolate = i_isolate();
+  RunExtMulTest<int16_t, int32_t>(isolate, MultiplyLong);
+}
+
+TEST_F(MacroAssemblerX64Test, I32x8ExtMulI16x8U) {
+  Isolate* isolate = i_isolate();
+  RunExtMulTest<uint16_t, uint32_t>(isolate, MultiplyLong);
+}
+
+TEST_F(MacroAssemblerX64Test, I64x4ExtMulI32x4S) {
+  Isolate* isolate = i_isolate();
+  RunExtMulTest<int32_t, int64_t>(isolate, MultiplyLong);
+}
+
+TEST_F(MacroAssemblerX64Test, I64x4ExtMulI32x4U) {
+  Isolate* isolate = i_isolate();
+  RunExtMulTest<uint32_t, uint64_t>(isolate, MultiplyLong);
 }
 
 #undef __

@@ -755,6 +755,12 @@ std::ostream& operator<<(std::ostream& os, TruncateKind kind) {
   V(I32x8DotI16x16S, Operator::kCommutative, 2, 0, 1)                      \
   V(I16x16RoundingAverageU, Operator::kCommutative, 2, 0, 1)               \
   V(I8x32RoundingAverageU, Operator::kCommutative, 2, 0, 1)                \
+  V(I64x4ExtMulI32x4S, Operator::kCommutative, 2, 0, 1)                    \
+  V(I64x4ExtMulI32x4U, Operator::kCommutative, 2, 0, 1)                    \
+  V(I32x8ExtMulI16x8S, Operator::kCommutative, 2, 0, 1)                    \
+  V(I32x8ExtMulI16x8U, Operator::kCommutative, 2, 0, 1)                    \
+  V(I16x16ExtMulI8x16S, Operator::kCommutative, 2, 0, 1)                   \
+  V(I16x16ExtMulI8x16U, Operator::kCommutative, 2, 0, 1)                   \
   V(S256Zero, Operator::kNoProperties, 0, 0, 1)                            \
   V(S256And, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)     \
   V(S256Or, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)      \
