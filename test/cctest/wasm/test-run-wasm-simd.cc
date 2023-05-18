@@ -599,6 +599,16 @@ WASM_EXEC_TEST(I64x2ShrU) {
   RunI64x2ShiftOpTest(execution_tier, kExprI64x2ShrU, LogicalShiftRight);
 }
 
+#ifdef V8_ENABLE_WASM_SIMD256_REVEC
+TEST(RunWasmTurbofan_I64x4Shl) {
+  RunI64x4ShiftOpRevecTest(kExprI64x2Shl, LogicalShiftLeft);
+}
+
+TEST(RunWasmTurbofan_I64x4ShrU) {
+  RunI64x4ShiftOpRevecTest(kExprI64x2ShrU, LogicalShiftRight);
+}
+#endif
+
 WASM_EXEC_TEST(I64x2ShiftAdd) {
   for (int imm = 0; imm <= 64; imm++) {
     RunShiftAddTestSequence<int64_t>(execution_tier, kExprI64x2ShrU,
@@ -1732,6 +1742,20 @@ WASM_EXEC_TEST(I32x4ShrU) {
   RunI32x4ShiftOpTest(execution_tier, kExprI32x4ShrU, LogicalShiftRight);
 }
 
+#ifdef V8_ENABLE_WASM_SIMD256_REVEC
+TEST(RunWasmTurbofan_I32x8Shl) {
+  RunI32x8ShiftOpRevecTest(kExprI32x4Shl, LogicalShiftLeft);
+}
+
+TEST(RunWasmTurbofan_I32x8ShrS) {
+  RunI32x8ShiftOpRevecTest(kExprI32x4ShrS, ArithmeticShiftRight);
+}
+
+TEST(RunWasmTurbofan_I32x8ShrU) {
+  RunI32x8ShiftOpRevecTest(kExprI32x4ShrU, LogicalShiftRight);
+}
+#endif
+
 WASM_EXEC_TEST(I32x4ShiftAdd) {
   for (int imm = 0; imm <= 32; imm++) {
     RunShiftAddTestSequence<int32_t>(execution_tier, kExprI32x4ShrU,
@@ -2160,6 +2184,20 @@ WASM_EXEC_TEST(I16x8ShrS) {
 WASM_EXEC_TEST(I16x8ShrU) {
   RunI16x8ShiftOpTest(execution_tier, kExprI16x8ShrU, LogicalShiftRight);
 }
+
+#ifdef V8_ENABLE_WASM_SIMD256_REVEC
+TEST(RunWasmTurbofan_I16x16Shl) {
+  RunI16x16ShiftOpRevecTest(kExprI16x8Shl, LogicalShiftLeft);
+}
+
+TEST(RunWasmTurbofan_I16x16ShrS) {
+  RunI16x16ShiftOpRevecTest(kExprI16x8ShrS, ArithmeticShiftRight);
+}
+
+TEST(RunWasmTurbofan_I16x16ShrU) {
+  RunI16x16ShiftOpRevecTest(kExprI16x8ShrU, LogicalShiftRight);
+}
+#endif
 
 WASM_EXEC_TEST(I16x8ShiftAdd) {
   for (int imm = 0; imm <= 16; imm++) {

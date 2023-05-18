@@ -180,6 +180,11 @@ void RunI16x16UnOpRevecTest(WasmOpcode opcode, Int16UnOp expected_op);
 void RunI32x8UnOpRevecTest(WasmOpcode opcode, Int32UnOp expected_op);
 void RunF32x8UnOpRevecTest(WasmOpcode opcode, FloatUnOp expected_op);
 void RunF64x4UnOpRevecTest(WasmOpcode opcode, DoubleUnOp expected_op);
+
+void RunI16x16ShiftOpRevecTest(WasmOpcode opcode, Int16ShiftOp expected_op);
+void RunI32x8ShiftOpRevecTest(WasmOpcode opcode, Int32ShiftOp expected_op);
+void RunI64x4ShiftOpRevecTest(WasmOpcode opcode, Int64ShiftOp expected_op);
+
 // TODO(yuhengwei): Add revec test for IGeU, IGeS, INe and IGtU
 #endif
 
