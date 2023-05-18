@@ -752,6 +752,14 @@ std::ostream& operator<<(std::ostream& os, TruncateKind kind) {
   V(I16x16Abs, Operator::kNoProperties, 1, 0, 1)                           \
   V(I8x32Neg, Operator::kNoProperties, 1, 0, 1)                            \
   V(I8x32Abs, Operator::kNoProperties, 1, 0, 1)                            \
+  V(I64x4Shl, Operator::kNoProperties, 2, 0, 1)                            \
+  V(I64x4ShrU, Operator::kNoProperties, 2, 0, 1)                           \
+  V(I32x8Shl, Operator::kNoProperties, 2, 0, 1)                            \
+  V(I32x8ShrS, Operator::kNoProperties, 2, 0, 1)                           \
+  V(I32x8ShrU, Operator::kNoProperties, 2, 0, 1)                           \
+  V(I16x16Shl, Operator::kNoProperties, 2, 0, 1)                           \
+  V(I16x16ShrS, Operator::kNoProperties, 2, 0, 1)                          \
+  V(I16x16ShrU, Operator::kNoProperties, 2, 0, 1)                          \
   V(I32x8DotI16x16S, Operator::kCommutative, 2, 0, 1)                      \
   V(I16x16RoundingAverageU, Operator::kCommutative, 2, 0, 1)               \
   V(I8x32RoundingAverageU, Operator::kCommutative, 2, 0, 1)                \

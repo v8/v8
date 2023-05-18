@@ -1178,6 +1178,14 @@
   V(I16x16Neg)                     \
   V(I8x32Abs)                      \
   V(I8x32Neg)                      \
+  V(I64x4Shl)                      \
+  V(I64x4ShrU)                     \
+  V(I32x8Shl)                      \
+  V(I32x8ShrS)                     \
+  V(I32x8ShrU)                     \
+  V(I16x16Shl)                     \
+  V(I16x16ShrS)                    \
+  V(I16x16ShrU)                    \
   V(I32x8DotI16x16S)               \
   V(I16x16RoundingAverageU)        \
   V(I8x32RoundingAverageU)         \
