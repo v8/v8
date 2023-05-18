@@ -23,13 +23,6 @@ load(
 # Use LUCI Scheduler BBv2 names and add Scheduler realms configs.
 lucicfg.enable_experiment("crbug.com/1182002")
 
-luci.builder.defaults.experiments.set(
-    {
-        # Omit python2 for all builds.
-        "luci.buildbucket.omit_python2": 100,
-    },
-)
-
 lucicfg.config(
     config_dir = "generated",
     tracked_files = [
