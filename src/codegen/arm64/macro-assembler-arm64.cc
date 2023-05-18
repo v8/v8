@@ -904,31 +904,56 @@ void MacroAssembler::AddSubWithCarryMacro(const Register& rd,
 
 void MacroAssembler::LoadStoreMacro(const CPURegister& rt,
                                     const MemOperand& addr, LoadStoreOp op) {
-  int64_t offset = addr.offset();
-  unsigned size = CalcLSDataSize(op);
+  // Call the most common addressing modes used by Liftoff directly for improved
+  // compilation performance: X register + immediate, X register + W register.
+  Instr memop = op | Rt(rt) | RnSP(addr.base());
+  if (addr.IsImmediateOffset()) {
+    int64_t offset = addr.offset();
+    unsigned size = CalcLSDataSize(op);
+    if (IsImmLSScaled(offset, size)) {
+      LoadStoreScaledImmOffset(memop, static_cast<int>(offset), size);
+      return;
+    } else if (IsImmLSUnscaled(offset)) {
+      LoadStoreUnscaledImmOffset(memop, static_cast<int>(offset));
+      return;
+    }
+  } else if (addr.IsRegisterOffset() && (addr.extend() == UXTW) &&
+             (addr.shift_amount() == 0)) {
+    LoadStoreWRegOffset(memop, addr.regoffset());
+    return;
+  }
 
-  // Check if an immediate offset fits in the immediate field of the
-  // appropriate instruction. If not, emit two instructions to perform
-  // the operation.
-  if (addr.IsImmediateOffset() && !IsImmLSScaled(offset, size) &&
-      !IsImmLSUnscaled(offset)) {
-    // Immediate offset that can't be encoded using unsigned or unscaled
-    // addressing modes.
+  // Remaining complex cases handled in sub-function.
+  LoadStoreMacroComplex(rt, addr, op);
+}
+
+void MacroAssembler::LoadStoreMacroComplex(const CPURegister& rt,
+                                           const MemOperand& addr,
+                                           LoadStoreOp op) {
+  int64_t offset = addr.offset();
+  bool is_imm_unscaled = IsImmLSUnscaled(offset);
+  if (addr.IsRegisterOffset() ||
+      (is_imm_unscaled && (addr.IsPostIndex() || addr.IsPreIndex()))) {
+    // Load/store encodable in one instruction.
+    LoadStore(rt, addr, op);
+  } else if (addr.IsImmediateOffset()) {
+    // Load/stores with immediate offset addressing should have been handled by
+    // the caller.
+    DCHECK(!IsImmLSScaled(offset, CalcLSDataSize(op)) && !is_imm_unscaled);
     UseScratchRegisterScope temps(this);
     Register temp = temps.AcquireSameSizeAs(addr.base());
-    Mov(temp, addr.offset());
+    Mov(temp, offset);
     LoadStore(rt, MemOperand(addr.base(), temp), op);
-  } else if (addr.IsPostIndex() && !IsImmLSUnscaled(offset)) {
+  } else if (addr.IsPostIndex()) {
     // Post-index beyond unscaled addressing range.
+    DCHECK(!is_imm_unscaled);
     LoadStore(rt, MemOperand(addr.base()), op);
     add(addr.base(), addr.base(), offset);
-  } else if (addr.IsPreIndex() && !IsImmLSUnscaled(offset)) {
-    // Pre-index beyond unscaled addressing range.
-    add(addr.base(), addr.base(), offset);
-    LoadStore(rt, MemOperand(addr.base()), op);
   } else {
-    // Encodable in one load/store instruction.
-    LoadStore(rt, addr, op);
+    // Pre-index beyond unscaled addressing range.
+    DCHECK(!is_imm_unscaled && addr.IsPreIndex());
+    add(addr.base(), addr.base(), offset);
+    LoadStore(rt, MemOperand(addr.base()), op);
   }
 }
 

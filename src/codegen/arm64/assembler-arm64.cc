@@ -4118,18 +4118,12 @@ void Assembler::LoadStore(const CPURegister& rt, const MemOperand& addr,
 
   if (addr.IsImmediateOffset()) {
     unsigned size = CalcLSDataSize(op);
+    int offset = static_cast<int>(addr.offset());
     if (IsImmLSScaled(addr.offset(), size)) {
-      int offset = static_cast<int>(addr.offset());
-      // Use the scaled addressing mode.
-      Emit(LoadStoreUnsignedOffsetFixed | memop |
-           ImmLSUnsigned(offset >> size));
-    } else if (IsImmLSUnscaled(addr.offset())) {
-      int offset = static_cast<int>(addr.offset());
-      // Use the unscaled addressing mode.
-      Emit(LoadStoreUnscaledOffsetFixed | memop | ImmLS(offset));
+      LoadStoreScaledImmOffset(memop, offset, size);
     } else {
-      // This case is handled in the macro assembler.
-      UNREACHABLE();
+      DCHECK(IsImmLSUnscaled(addr.offset()));
+      LoadStoreUnscaledImmOffset(memop, offset);
     }
   } else if (addr.IsRegisterOffset()) {
     Extend ext = addr.extend();
@@ -4149,29 +4143,16 @@ void Assembler::LoadStore(const CPURegister& rt, const MemOperand& addr,
          ExtendMode(ext) | ImmShiftLS((shift_amount > 0) ? 1 : 0));
   } else {
     // Pre-index and post-index modes.
+    DCHECK(IsImmLSUnscaled(addr.offset()));
     DCHECK_NE(rt, addr.base());
-    if (IsImmLSUnscaled(addr.offset())) {
-      int offset = static_cast<int>(addr.offset());
-      if (addr.IsPreIndex()) {
-        Emit(LoadStorePreIndexFixed | memop | ImmLS(offset));
-      } else {
-        DCHECK(addr.IsPostIndex());
-        Emit(LoadStorePostIndexFixed | memop | ImmLS(offset));
-      }
+    int offset = static_cast<int>(addr.offset());
+    if (addr.IsPreIndex()) {
+      Emit(LoadStorePreIndexFixed | memop | ImmLS(offset));
     } else {
-      // This case is handled in the macro assembler.
-      UNREACHABLE();
+      DCHECK(addr.IsPostIndex());
+      Emit(LoadStorePostIndexFixed | memop | ImmLS(offset));
     }
   }
-}
-
-bool Assembler::IsImmLSUnscaled(int64_t offset) { return is_int9(offset); }
-
-bool Assembler::IsImmLSScaled(int64_t offset, unsigned size) {
-  bool offset_is_size_multiple =
-      (static_cast<int64_t>(static_cast<uint64_t>(offset >> size) << size) ==
-       offset);
-  return offset_is_size_multiple && is_uint12(offset >> size);
 }
 
 bool Assembler::IsImmLSPair(int64_t offset, unsigned size) {

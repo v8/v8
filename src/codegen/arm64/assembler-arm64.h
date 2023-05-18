@@ -2973,8 +2973,15 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
     return op << NEONModImmOp_offset;
   }
 
-  static bool IsImmLSUnscaled(int64_t offset);
-  static bool IsImmLSScaled(int64_t offset, unsigned size);
+  static constexpr bool IsImmLSUnscaled(int64_t offset) {
+    return is_int9(offset);
+  }
+  static constexpr bool IsImmLSScaled(int64_t offset, unsigned size) {
+    bool offset_is_size_multiple =
+        (static_cast<int64_t>(static_cast<uint64_t>(offset >> size) << size) ==
+         offset);
+    return offset_is_size_multiple && is_uint12(offset >> size);
+  }
   static bool IsImmLLiteral(int64_t offset);
 
   // Move immediates encoding.
@@ -3070,6 +3077,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   inline const Register& AppropriateZeroRegFor(const CPURegister& reg) const;
 
   void LoadStore(const CPURegister& rt, const MemOperand& addr, LoadStoreOp op);
+  inline void LoadStoreScaledImmOffset(Instr memop, int offset, unsigned size);
+  inline void LoadStoreUnscaledImmOffset(Instr memop, int offset);
+  inline void LoadStoreWRegOffset(Instr memop, const Register& regoffset);
   void LoadStorePair(const CPURegister& rt, const CPURegister& rt2,
                      const MemOperand& addr, LoadStorePairOp op);
   void LoadStoreStruct(const VRegister& vt, const MemOperand& addr,

@@ -2212,6 +2212,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   void LoadStoreMacro(const CPURegister& rt, const MemOperand& addr,
                       LoadStoreOp op);
+  void LoadStoreMacroComplex(const CPURegister& rt, const MemOperand& addr,
+                             LoadStoreOp op);
 
   void LoadStorePairMacro(const CPURegister& rt, const CPURegister& rt2,
                           const MemOperand& addr, LoadStorePairOp op);
