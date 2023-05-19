@@ -24,8 +24,9 @@ void Disassemble(const WasmModule* module, ModuleWireBytes wire_bytes,
                  std::vector<int>* function_body_offsets) {
   MultiLineStringBuilder out;
   AccountingAllocator allocator;
+  constexpr bool kCollectOffsets = true;
   ModuleDisassembler md(out, module, names, wire_bytes, &allocator,
-                        function_body_offsets);
+                        kCollectOffsets, function_body_offsets);
   md.PrintModule({0, 2}, v8_flags.wasm_disassembly_max_mb);
   out.ToDisassemblyCollector(collector);
 }
@@ -723,12 +724,10 @@ class OffsetsProvider : public ITracer {
 ////////////////////////////////////////////////////////////////////////////////
 // ModuleDisassembler.
 
-ModuleDisassembler::ModuleDisassembler(MultiLineStringBuilder& out,
-                                       const WasmModule* module,
-                                       NamesProvider* names,
-                                       const ModuleWireBytes wire_bytes,
-                                       AccountingAllocator* allocator,
-                                       std::vector<int>* function_body_offsets)
+ModuleDisassembler::ModuleDisassembler(
+    MultiLineStringBuilder& out, const WasmModule* module, NamesProvider* names,
+    const ModuleWireBytes wire_bytes, AccountingAllocator* allocator,
+    bool collect_offsets, std::vector<int>* function_body_offsets)
     : out_(out),
       module_(module),
       names_(names),
@@ -737,7 +736,7 @@ ModuleDisassembler::ModuleDisassembler(MultiLineStringBuilder& out,
       zone_(allocator, "disassembler zone"),
       offsets_(new OffsetsProvider()),
       function_body_offsets_(function_body_offsets) {
-  if (function_body_offsets != nullptr) {
+  if (collect_offsets) {
     offsets_->CollectOffsets(module, wire_bytes_.module_bytes());
   }
 }

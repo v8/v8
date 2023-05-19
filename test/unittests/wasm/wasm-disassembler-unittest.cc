@@ -35,12 +35,14 @@ void CheckDisassemblerOutput(base::Vector<const uint8_t> module_bytes,
 
   MultiLineStringBuilder output_sb;
 
-  ModuleDisassembler md(output_sb, module, &names, wire_bytes, &allocator);
+  constexpr bool kNoOffsets = false;
+  ModuleDisassembler md(output_sb, module, &names, wire_bytes, &allocator,
+                        kNoOffsets);
   constexpr size_t max_mb = 100;  // Even 1 would be enough.
   md.PrintModule({0, 2}, max_mb);
 
   std::ostringstream output;
-  output_sb.WriteTo(output);
+  output_sb.WriteTo(output, kNoOffsets);
 
   // Remove comment lines from expected output since they cannot be recovered
   // by a disassembler.
