@@ -3449,10 +3449,10 @@ TEST_F(WasmModuleVerifyTest, Memory64DataSegment) {
           SECTION(Memory, ENTRY_COUNT(1),
                   enable_memory64 ? kMemory64WithMaximum : kWithMaximum, 28,
                   28),
-          SECTION(Data, ENTRY_COUNT(1), LINEAR_MEMORY_INDEX_0,  // -
-                  const_opcode, 0, kExprEnd,                    // dest addr
-                  U32V_1(3),                                    // source size
-                  'a', 'b', 'c')                                // data bytes
+          SECTION(Data, ENTRY_COUNT(1), ACTIVE_NO_INDEX,  // -
+                  const_opcode, 0, kExprEnd,              // dest addr
+                  U32V_1(3),                              // source size
+                  'a', 'b', 'c')                          // data bytes
       };
 
       if (enable_memory64 == use_memory64) {

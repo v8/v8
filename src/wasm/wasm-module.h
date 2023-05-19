@@ -108,16 +108,17 @@ struct WasmStringRefLiteral {
 
 // Static representation of a wasm data segment.
 struct WasmDataSegment {
-  // Construct an active segment.
-  explicit WasmDataSegment(ConstantExpression dest_addr)
-      : dest_addr(dest_addr), active(true) {}
+  WasmDataSegment(bool is_active, ConstantExpression dest_addr,
+                  WireBytesRef source)
+      : active(is_active), dest_addr(dest_addr), source(source) {}
 
-  // Construct a passive segment, which has no dest_addr.
-  WasmDataSegment() : active(false) {}
+  static WasmDataSegment PassiveForTesting() {
+    return WasmDataSegment{false, {}, {}};
+  }
 
-  ConstantExpression dest_addr;  // destination memory address of the data.
-  WireBytesRef source;           // start offset in the module bytes.
   bool active = true;  // true if copied automatically during instantiation.
+  ConstantExpression dest_addr;  // destination memory address (if active).
+  WireBytesRef source;           // start offset in the module bytes.
 };
 
 // Static representation of wasm element segment (table initializer).

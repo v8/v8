@@ -305,7 +305,7 @@ uint32_t TestingModuleBuilder::AddPassiveDataSegment(
   // Add a passive data segment. This isn't used by function compilation, but
   // but it keeps the index in sync. The data segment's source will not be
   // correct, since we don't store data in the module wire bytes.
-  test_module_->data_segments.emplace_back();
+  test_module_->data_segments.push_back(WasmDataSegment::PassiveForTesting());
 
   // The num_declared_data_segments (from the DataCount section) is used
   // to validate the segment index, during function compilation.

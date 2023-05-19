@@ -1211,28 +1211,14 @@ class ModuleDecoderImpl : public Decoder {
     if (!CheckDataSegmentsCount(data_segments_count)) return;
 
     module_->data_segments.reserve(data_segments_count);
-    for (uint32_t i = 0; ok() && i < data_segments_count; ++i) {
-      const uint8_t* pos = pc();
+    for (uint32_t i = 0; i < data_segments_count; ++i) {
       TRACE("DecodeDataSegment[%d] module+%d\n", i,
             static_cast<int>(pc_ - start_));
       if (tracer_) tracer_->DataOffset(pc_offset());
 
       bool is_active;
-      uint32_t memory_index;
       ConstantExpression dest_addr;
-      consume_data_segment_header(&is_active, &memory_index, &dest_addr);
-      if (failed()) break;
-
-      if (is_active) {
-        if (!module_->has_memory) {
-          error("cannot load data without memory");
-          break;
-        }
-        if (memory_index != 0) {
-          errorf(pos, "illegal memory index %u != 0", memory_index);
-          break;
-        }
-      }
+      std::tie(is_active, dest_addr) = consume_data_segment_header();
 
       uint32_t source_length = consume_u32v("source size", tracer_);
       if (tracer_) {
@@ -1241,23 +1227,16 @@ class ModuleDecoderImpl : public Decoder {
       }
       uint32_t source_offset = pc_offset();
 
-      if (is_active) {
-        module_->data_segments.emplace_back(std::move(dest_addr));
-      } else {
-        module_->data_segments.emplace_back();
-      }
-
-      WasmDataSegment* segment = &module_->data_segments.back();
-
       if (tracer_) {
         tracer_->Bytes(pc_, source_length);
         tracer_->Description("segment data");
         tracer_->NextLine();
       }
       consume_bytes(source_length, "segment data");
-      if (failed()) break;
 
-      segment->source = {source_offset, source_length};
+      if (failed()) break;
+      module_->data_segments.emplace_back(
+          is_active, dest_addr, WireBytesRef{source_offset, source_length});
     }
   }
 
@@ -2353,8 +2332,7 @@ class ModuleDecoderImpl : public Decoder {
     }
   }
 
-  void consume_data_segment_header(bool* is_active, uint32_t* index,
-                                   ConstantExpression* offset) {
+  std::tuple<bool, ConstantExpression> consume_data_segment_header() {
     const uint8_t* pos = pc();
     uint32_t flag = consume_u32v("flag: ", tracer_);
     if (tracer_) {
@@ -2371,27 +2349,31 @@ class ModuleDecoderImpl : public Decoder {
         flag != SegmentFlags::kPassive &&
         flag != SegmentFlags::kActiveWithIndex) {
       errorf(pos, "illegal flag value %u. Must be 0, 1, or 2", flag);
-      return;
+      return {};
     }
 
-    // We know now that the flag is valid. Time to read the rest.
-    ValueType expected_type = module_->is_memory64 ? kWasmI64 : kWasmI32;
-    if (flag == SegmentFlags::kActiveNoIndex) {
-      *is_active = true;
-      *index = 0;
-      *offset = consume_init_expr(module_.get(), expected_type);
-      return;
-    }
-    if (flag == SegmentFlags::kPassive) {
-      *is_active = false;
-      return;
-    }
+    bool is_active = flag == SegmentFlags::kActiveNoIndex ||
+                     flag == SegmentFlags::kActiveWithIndex;
+    ConstantExpression offset;
+
     if (flag == SegmentFlags::kActiveWithIndex) {
-      *is_active = true;
-      *index = consume_u32v("memory index", tracer_);
-      if (tracer_) tracer_->Description(*index);
-      *offset = consume_init_expr(module_.get(), expected_type);
+      uint32_t mem_index = consume_u32v("memory index", tracer_);
+      if (mem_index != 0) {
+        errorf(pos, "illegal memory index %u != 0", mem_index);
+        return {};
+      }
     }
+
+    if (is_active) {
+      if (!module_->has_memory) {
+        error(pos, "cannot load data without memory");
+        return {};
+      }
+      ValueType expected_type = module_->is_memory64 ? kWasmI64 : kWasmI32;
+      offset = consume_init_expr(module_.get(), expected_type);
+    }
+
+    return {is_active, offset};
   }
 
   uint32_t consume_element_func_index(WasmModule* module, ValueType expected) {
