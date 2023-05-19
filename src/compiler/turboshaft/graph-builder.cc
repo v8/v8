@@ -67,6 +67,7 @@ struct GraphBuilder {
   };
   NodeAuxData<OpIndex> op_mapping{phase_zone};
   ZoneVector<BlockData> block_mapping{schedule.RpoBlockCount(), phase_zone};
+  bool inside_region = false;
 
   base::Optional<BailoutReason> Run();
   Assembler<reducer_list<>>& Asm() { return assembler; }
@@ -1392,10 +1393,19 @@ OpIndex GraphBuilder::Process(
         UNIMPLEMENTED();
 #endif
       }
+
+      bool initializing_transitioning =
+          access.maybe_initializing_or_transitioning_store;
+      if (!inside_region) {
+        // Mark stores outside a region as non-initializing and
+        // non-transitioning.
+        initializing_transitioning = false;
+      }
+
       MemoryRepresentation rep =
           MemoryRepresentation::FromMachineType(machine_type);
       __ Store(object, value, kind, rep, access.write_barrier_kind,
-               access.offset, access.maybe_initializing_or_transitioning_store);
+               access.offset, initializing_transitioning);
       return OpIndex::Invalid();
     }
     case IrOpcode::kLoadFromObject:
@@ -2144,8 +2154,10 @@ OpIndex GraphBuilder::Process(
                                                    Map(node->InputAt(1)));
 
     case IrOpcode::kBeginRegion:
+      inside_region = true;
       return OpIndex::Invalid();
     case IrOpcode::kFinishRegion:
+      inside_region = false;
       return Map(node->InputAt(0));
 
     case IrOpcode::kTypeGuard:
