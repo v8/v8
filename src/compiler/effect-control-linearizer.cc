@@ -3028,7 +3028,7 @@ void EffectControlLinearizer::EndStringBuilderConcatForLoopPhi(
     // If we reach this point:
     //   - {user_block} cannot be before {block}, otherwise it couldn't use
     //     {node} which is defined in {block} (that was true at the beginning of
-    //     the loop already).
+    //     the loop already). (unless used as the backedge of a loop phi)
     //   - {user_block} cannot be inside the loop (we've checked that).
     // So {user_block} has to be after the loop. Then, since {user_block} is
     // after {block} and uses {node}:
@@ -3038,9 +3038,11 @@ void EffectControlLinearizer::EndStringBuilderConcatForLoopPhi(
     //     right above, so we're not in this case.
     //   - it is dominated by {block}. This is the only case that remains; we
     //     DCHECK it just to be safe.
-    DCHECK_EQ(BasicBlock::GetCommonDominator(block, user_block), block);
-    // {user_block} is dominated by {block}, which mean that we can safely
-    // update the edge.
+    DCHECK((BasicBlock::GetCommonDominator(block, user_block) == block) ||
+           (user_block->IsLoopHeader() &&
+            edge.from()->opcode() == IrOpcode::kPhi));
+    // {user_block} is dominated by {block}, or it's a loop header using {node}
+    // as the backedge, which mean that we can safely update the edge.
     DCHECK(!NodeProperties::IsControlEdge(edge) &&
            !NodeProperties::IsEffectEdge(edge));
     edge.UpdateTo(backing_store);
@@ -3249,7 +3251,7 @@ Node* EffectControlLinearizer::LowerStringConcat(Node* node) {
             ? __ Int32Constant(0)
             : ConstStringIsOneByte(node->InputAt(2));
     auto has_correct_representation =
-        __ MakeLabel(MachineType::PointerRepresentation());
+        __ MakeLabel(MachineRepresentation::kTaggedPointer);
     if (one_or_two_byte != OneOrTwoByteAnalysis::State::kOneByte &&
         one_or_two_byte != OneOrTwoByteAnalysis::State::kTwoByte) {
       Node* need_to_move_backing_store_to_2_bytes =
@@ -3265,10 +3267,10 @@ Node* EffectControlLinearizer::LowerStringConcat(Node* node) {
       {
         Node* new_backing_store = ConvertOneByteStringToTwoByte(
             init_backing_store, max_length, current_length);
-        __ StoreField(AccessBuilder::ForSlicedStringParent(), sliced_string,
-                      new_backing_store);
         __ StoreField(AccessBuilder::ForMap(), sliced_string,
                       __ HeapConstant(factory()->sliced_string_map()));
+        __ StoreField(AccessBuilder::ForSlicedStringParent(), sliced_string,
+                      new_backing_store);
         __ Goto(&has_correct_representation, new_backing_store);
       }
     } else {
@@ -3294,7 +3296,7 @@ Node* EffectControlLinearizer::LowerStringConcat(Node* node) {
         __ Int32Add(current_length, __ Int32Constant(literal_length));
     auto needs_realloc = __ MakeLabel();
     auto add_to_backing_store =
-        __ MakeLabel(MachineType::PointerRepresentation());
+        __ MakeLabel(MachineRepresentation::kTaggedPointer);
     Node* realloc_cond = __ Int32LessThan(max_length, new_length);
 
     __ GotoIf(realloc_cond, &needs_realloc);
