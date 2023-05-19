@@ -3882,7 +3882,10 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     int current_values = stack_.size() - limit;
     int additional_values = count - current_values;
     DCHECK_GT(additional_values, 0);
-    stack_.EnsureMoreCapacity(additional_values, this->zone_);
+    // Ensure that after this operation there is still room for one more value.
+    // Callers might not expect this operation to push values on the stack
+    // (because it only does so in exceptional cases).
+    stack_.EnsureMoreCapacity(additional_values + 1, this->zone_);
     Value unreachable_value = UnreachableValue(this->pc_);
     for (int i = 0; i < additional_values; ++i) stack_.push(unreachable_value);
     if (current_values > 0) {
