@@ -1204,6 +1204,9 @@
   # BUG(v8:13882) Skipped until we have a solution.
   'compiler/osr-literals': [SKIP],
   'compiler/osr-literals-adapted': [SKIP],
+
+  # BUG(v8:13950) Skipped until bug is solved.
+  'wasm/large-struct': [SKIP],
 }], # gc_fuzzer or deopt_fuzzer or interrupt_fuzzer
 
 ##############################################################################
