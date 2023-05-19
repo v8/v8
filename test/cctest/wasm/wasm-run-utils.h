@@ -39,9 +39,7 @@
 #include "test/common/value-helper.h"
 #include "test/common/wasm/flag-utils.h"
 
-namespace v8 {
-namespace internal {
-namespace wasm {
+namespace v8::internal::wasm {
 
 enum class TestExecutionTier : int8_t {
   kLiftoff = static_cast<int8_t>(ExecutionTier::kLiftoff),
@@ -104,16 +102,18 @@ class TestingModuleBuilder {
  public:
   TestingModuleBuilder(Zone*, ModuleOrigin origin, ManuallyImportedJSFunction*,
                        TestExecutionTier, RuntimeExceptionSupport,
-                       TestingModuleMemoryType, Isolate* isolate);
+                       Isolate* isolate);
   ~TestingModuleBuilder();
 
-  uint8_t* AddMemory(uint32_t size, SharedFlag shared = SharedFlag::kNotShared);
+  uint8_t* AddMemory(uint32_t size, SharedFlag shared = SharedFlag::kNotShared,
+                     TestingModuleMemoryType = kMemory32);
 
   size_t CodeTableLength() const { return native_module_->num_functions(); }
 
   template <typename T>
-  T* AddMemoryElems(uint32_t count) {
-    AddMemory(count * sizeof(T));
+  T* AddMemoryElems(uint32_t count,
+                    TestingModuleMemoryType mem_type = kMemory32) {
+    AddMemory(count * sizeof(T), SharedFlag::kNotShared, mem_type);
     return raw_mem_start<T>();
   }
 
@@ -191,7 +191,10 @@ class TestingModuleBuilder {
     }
   }
 
-  void SetHasSharedMemory() { test_module_->has_shared_memory = true; }
+  void SetMemoryShared() {
+    // TODO(13918): Adapt this for multi-memory.
+    test_module_->has_shared_memory = true;
+  }
 
   enum FunctionType { kImport, kWasm };
   uint32_t AddFunction(const FunctionSig* sig, const char* name,
@@ -398,12 +401,11 @@ class WasmRunnerBase : public InitializedHandleScope {
                  TestExecutionTier execution_tier, int num_params,
                  RuntimeExceptionSupport runtime_exception_support =
                      kNoRuntimeExceptionSupport,
-                 TestingModuleMemoryType mem_type = kMemory32,
                  Isolate* isolate = nullptr)
       : InitializedHandleScope(isolate),
         zone_(&allocator_, ZONE_NAME, kCompressGraphZone),
         builder_(&zone_, origin, maybe_import, execution_tier,
-                 runtime_exception_support, mem_type, isolate),
+                 runtime_exception_support, isolate),
         wrapper_(&zone_, num_params) {}
 
   static void SetUpTrapCallback() {
@@ -563,11 +565,10 @@ class WasmRunner : public WasmRunnerBase {
                       const char* main_fn_name = "main",
                       RuntimeExceptionSupport runtime_exception_support =
                           kNoRuntimeExceptionSupport,
-                      TestingModuleMemoryType mem_type = kMemory32,
                       Isolate* isolate = nullptr)
       : WasmRunnerBase(maybe_import, origin, execution_tier,
                        sizeof...(ParamTypes), runtime_exception_support,
-                       mem_type, isolate) {
+                       isolate) {
     WasmFunctionCompiler& main_fn =
         NewFunction<ReturnType, ParamTypes...>(main_fn_name);
     // Non-zero if there is an import.
@@ -648,8 +649,6 @@ class WasmRunner : public WasmRunnerBase {
   TEST(RunWasmLiftoff_##name) { RunWasm_##name(TestExecutionTier::kLiftoff); } \
   void RunWasm_##name(TestExecutionTier execution_tier)
 
-}  // namespace wasm
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal::wasm
 
 #endif

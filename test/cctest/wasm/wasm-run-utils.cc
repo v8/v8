@@ -47,14 +47,13 @@ bool IsSameNan(double expected, double actual) {
 TestingModuleBuilder::TestingModuleBuilder(
     Zone* zone, ModuleOrigin origin, ManuallyImportedJSFunction* maybe_import,
     TestExecutionTier tier, RuntimeExceptionSupport exception_support,
-    TestingModuleMemoryType mem_type, Isolate* isolate)
+    Isolate* isolate)
     : test_module_(std::make_shared<WasmModule>(origin)),
       isolate_(isolate ? isolate : CcTest::InitIsolateOnce()),
       enabled_features_(WasmFeatures::FromIsolate(isolate_)),
       execution_tier_(tier),
       runtime_exception_support_(exception_support) {
   WasmJs::Install(isolate_, true);
-  test_module_->is_memory64 = mem_type == kMemory64;
   test_module_->untagged_globals_buffer_size = kMaxGlobalsSize;
   // The GlobalsData must be located inside the sandbox, so allocate it from the
   // ArrayBuffer allocator.
@@ -108,19 +107,27 @@ TestingModuleBuilder::~TestingModuleBuilder() {
   CcTest::array_buffer_allocator()->Free(globals_data_, kMaxGlobalsSize);
 }
 
-uint8_t* TestingModuleBuilder::AddMemory(uint32_t size, SharedFlag shared) {
+uint8_t* TestingModuleBuilder::AddMemory(uint32_t size, SharedFlag shared,
+                                         TestingModuleMemoryType mem_type) {
+  // TODO(13918): Add support for multi-memory.
   CHECK(!test_module_->has_memory);
   CHECK_NULL(mem_start_);
   CHECK_EQ(0, mem_size_);
-  // TODO(13918): Support multiple memories.
-  DCHECK(!instance_object_->has_memory_object());
+  // Maxmimum pages must be set after adding the memory.
+  CHECK_EQ(0, test_module_->maximum_pages);
+  CHECK(!instance_object_->has_memory_object());
   uint32_t initial_pages = RoundUp(size, kWasmPageSize) / kWasmPageSize;
-  uint32_t maximum_pages = (test_module_->maximum_pages != 0)
-                               ? test_module_->maximum_pages
-                               : initial_pages;
+  uint32_t maximum_pages = initial_pages;
   test_module_->has_memory = true;
+  test_module_->is_memory64 = mem_type == kMemory64;
   test_module_->min_memory_size = initial_pages * kWasmPageSize;
   test_module_->max_memory_size = maximum_pages * kWasmPageSize;
+
+  if (mem_type == kMemory64) {
+    // TODO(13918): Store bounds checking strategy per memory.
+    native_module_->SetBoundsChecksForTesting(
+        BoundsCheckStrategy::kExplicitBoundsChecks);
+  }
 
   // Create the WasmMemoryObject.
   Handle<WasmMemoryObject> memory_object =
