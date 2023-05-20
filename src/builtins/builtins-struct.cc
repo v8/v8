@@ -198,8 +198,7 @@ BUILTIN(SharedStructTypeConstructor) {
     instance_map->SetOutOfObjectUnusedPropertyFields(0);
   }
   instance_map->set_is_extensible(false);
-  JSFunction::SetInitialMap(isolate, constructor, instance_map,
-                            factory->null_value(), factory->null_value());
+  constructor->set_prototype_or_initial_map(*instance_map, kReleaseStore);
 
   // Create a new {constructor, non-instance_prototype} tuple and store it
   // in Map::constructor field.

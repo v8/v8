@@ -266,7 +266,8 @@ class JSFunction : public TorqueGeneratedJSFunction<
                             Handle<Map> map, Handle<HeapObject> prototype);
   static void SetInitialMap(Isolate* isolate, Handle<JSFunction> function,
                             Handle<Map> map, Handle<HeapObject> prototype,
-                            Handle<HeapObject> constructor);
+                            Handle<JSFunction> constructor);
+
   DECL_GETTER(has_initial_map, bool)
   V8_EXPORT_PRIVATE static void EnsureHasInitialMap(
       Handle<JSFunction> function);
