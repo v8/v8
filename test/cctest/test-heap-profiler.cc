@@ -4166,9 +4166,6 @@ TEST(HeapSnapshotDeleteDuringTakeSnapshot) {
   v8::Isolate* isolate = env->GetIsolate();
   i::Heap* heap = reinterpret_cast<i::Isolate*>(isolate)->heap();
 
-  // We need to invoke GC without stack, otherwise some objects may survive.
-  i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
-
   {
     struct WeakData {
       const v8::HeapSnapshot* snapshot;
@@ -4192,6 +4189,13 @@ TEST(HeapSnapshotDeleteDuringTakeSnapshot) {
   }
   CHECK_EQ(gc_calls, 0);
 
-  CHECK(ValidateSnapshot(heap_profiler->TakeHeapSnapshot()));
+  // We need to invoke GC without stack, otherwise some objects may survive.
+  i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
+  // For the same reason, we need to take the snapshot without scanning the
+  // stack.
+  v8::HeapProfiler::HeapSnapshotOptions options;
+  options.stack_state = cppgc::EmbedderStackState::kNoHeapPointers;
+
+  CHECK(ValidateSnapshot(heap_profiler->TakeHeapSnapshot(options)));
   CHECK_EQ(gc_calls, 1);
 }
