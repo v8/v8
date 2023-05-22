@@ -470,7 +470,7 @@ bool MarkCompactCollector::StartCompaction(StartCompactionMode mode) {
     CollectEvacuationCandidates(heap()->shared_space());
   }
 
-  if (v8_flags.compact_code_space &&
+  if (isolate()->AllowsCodeCompaction() &&
       (!heap()->IsGCWithStack() || v8_flags.compact_code_space_with_stack)) {
     CollectEvacuationCandidates(heap()->code_space());
   } else if (v8_flags.trace_fragmentation) {

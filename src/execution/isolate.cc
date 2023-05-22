@@ -4816,6 +4816,10 @@ bool Isolate::IsLoggingCodeCreation() const {
          logger()->is_listening_to_code_events();
 }
 
+bool Isolate::AllowsCodeCompaction() const {
+  return v8_flags.compact_code_space && logger()->allows_code_compaction();
+}
+
 bool Isolate::NeedsSourcePositions() const {
   return
       // Static conditions.

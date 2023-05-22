@@ -109,6 +109,7 @@ class LogEventListener {
   virtual void WeakCodeClearEvent() = 0;
 
   virtual bool is_listening_to_code_events() { return false; }
+  virtual bool allows_code_compaction() { return true; }
 };
 
 // Dispatches code events to a set of registered listeners.
@@ -141,6 +142,13 @@ class Logger {
       if (listener->is_listening_to_code_events()) return true;
     }
     return false;
+  }
+
+  bool allows_code_compaction() const {
+    for (auto listener : listeners_) {
+      if (!listener->allows_code_compaction()) return false;
+    }
+    return true;
   }
 
   void CodeCreateEvent(CodeTag tag, Handle<AbstractCode> code,

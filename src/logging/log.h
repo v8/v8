@@ -271,6 +271,14 @@ class V8FileLogger : public LogEventListener {
         is_logging() || jit_logger_ != nullptr;
   }
 
+  bool allows_code_compaction() override {
+#if defined(V8_OS_WIN) && defined(V8_ENABLE_ETW_STACK_WALKING)
+    return etw_jit_logger_ == nullptr;
+#else
+    return true;
+#endif
+  }
+
   void LogExistingFunction(Handle<SharedFunctionInfo> shared,
                            Handle<AbstractCode> code);
   // Logs all compiled functions found in the heap.
