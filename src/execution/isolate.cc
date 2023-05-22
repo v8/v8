@@ -4271,6 +4271,8 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
   DCHECK_EQ(create_heap_objects, startup_snapshot_data == nullptr);
   DCHECK_EQ(create_heap_objects, read_only_snapshot_data == nullptr);
 
+  // Code space setup requires the permissions to be set to default state.
+  RwxMemoryWriteScope::SetDefaultPermissionsForNewThread();
   base::ElapsedTimer timer;
   if (create_heap_objects && v8_flags.profile_deserialization) timer.Start();
 
@@ -4674,6 +4676,7 @@ void Isolate::Enter() {
     }
   }
 
+  RwxMemoryWriteScope::SetDefaultPermissionsForNewThread();
   PerIsolateThreadData* data = FindOrAllocatePerThreadDataForThisThread();
   DCHECK_NOT_NULL(data);
   DCHECK(data->isolate_ == this);

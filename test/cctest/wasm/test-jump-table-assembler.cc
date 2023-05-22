@@ -203,6 +203,7 @@ class JumpTablePatcher : public v8::base::Thread {
         jump_table_mutex_(jump_table_mutex) {}
 
   void Run() override {
+    RwxMemoryWriteScope::SetDefaultPermissionsForNewThread();
     TRACE("Patcher %p is starting ...\n", this);
     RwxMemoryWriteScopeForTesting rwx_write_scope;
     Address slot_address =

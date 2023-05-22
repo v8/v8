@@ -60,6 +60,10 @@ class OptimizingCompileDispatcher::CompileTask : public CancelableTask {
             dispatcher_->recompilation_delay_));
       }
 
+      // This task doesn't modify code objects but it needs a read access to the
+      // code space in order to be able to get a bytecode array from a baseline
+      // code. See SharedFunctionInfo::GetActiveBytecodeArray() for details.
+      RwxMemoryWriteScope::SetDefaultPermissionsForNewThread();
       dispatcher_->CompileNext(job, &local_isolate);
     }
     {

@@ -74,6 +74,7 @@ class ConcurrentAllocationThread final : public v8::base::Thread {
         pending_(pending) {}
 
   void Run() override {
+    RwxMemoryWriteScope::SetDefaultPermissionsForNewThread();
     LocalHeap local_heap(heap_, ThreadKind::kBackground);
     UnparkedScope unparked_scope(&local_heap);
     AllocateSomeObjects(&local_heap);
@@ -480,6 +481,7 @@ class ConcurrentRecordRelocSlotThread final : public v8::base::Thread {
         value_(value) {}
 
   void Run() override {
+    RwxMemoryWriteScope::SetDefaultPermissionsForNewThread();
     LocalHeap local_heap(heap_, ThreadKind::kBackground);
     UnparkedScope unparked_scope(&local_heap);
     // Modification of InstructionStream object requires write access.
