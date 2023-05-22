@@ -715,7 +715,9 @@ config("internal_config") {
   }
 
   if (v8_current_cpu == "riscv64" || v8_current_cpu == "riscv32") {
-    libs = [ "atomic" ]
+    if (!is_clang) {
+      libs = [ "atomic" ]
+    }
   }
 }
 
@@ -787,7 +789,9 @@ config("external_config") {
   }
 
   if (current_cpu == "riscv64" || current_cpu == "riscv32") {
-    libs = [ "atomic" ]
+    if (!is_clang) {
+      libs = [ "atomic" ]
+    }
   }
 }
 
@@ -5568,7 +5572,9 @@ v8_source_set("v8_base_without_compiler") {
       v8_current_cpu == "ppc" || v8_current_cpu == "ppc64" ||
       v8_current_cpu == "s390" || v8_current_cpu == "s390x" ||
       v8_current_cpu == "riscv64" || v8_current_cpu == "riscv32") {
-    libs += [ "atomic" ]
+    if (!is_clang) {
+      libs += [ "atomic" ]
+    }
   }
 
   if (v8_enable_vtunetracemark && (is_linux || is_chromeos || is_win)) {
@@ -5968,7 +5974,9 @@ v8_component("v8_libbase") {
   }
 
   if (v8_current_cpu == "riscv64" || v8_current_cpu == "riscv32") {
-    libs += [ "atomic" ]
+    if (!is_clang) {
+      libs += [ "atomic" ]
+    }
   }
 
   if (is_tsan && !build_with_chromium) {
@@ -6078,7 +6086,9 @@ v8_component("v8_libplatform") {
   }
 
   if (v8_current_cpu == "riscv64" || v8_current_cpu == "riscv32") {
-    libs = [ "atomic" ]
+    if (!is_clang) {
+      libs = [ "atomic" ]
+    }
   }
 }
 
@@ -7017,7 +7027,9 @@ v8_executable("cppgc_hello_world") {
   sources = [ "samples/cppgc/hello-world.cc" ]
 
   if (v8_current_cpu == "riscv64" || v8_current_cpu == "riscv32") {
-    libs = [ "atomic" ]
+    if (!is_clang) {
+      libs = [ "atomic" ]
+    }
   }
 
   configs = [
