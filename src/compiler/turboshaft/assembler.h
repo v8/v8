@@ -2430,6 +2430,14 @@ class AssemblerOpInterface {
     }
     stack().ReduceDebugBreak();
   }
+  void DebugPrint(OpIndex input, RegisterRepresentation rep) {
+    // TODO(nicohartmann@): Relax this.
+    DCHECK_EQ(rep, RegisterRepresentation::PointerSized());
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return;
+    }
+    stack().ReduceDebugPrint(input, rep);
+  }
 
   V<Tagged> BigIntBinop(V<Tagged> left, V<Tagged> right, OpIndex frame_state,
                         BigIntBinopOp::Kind kind) {

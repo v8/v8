@@ -143,6 +143,7 @@ struct FrameStateOp;
   V(DoubleArrayMinMax)                \
   V(LoadFieldByIndex)                 \
   V(DebugBreak)                       \
+  V(DebugPrint)                       \
   V(BigIntBinop)                      \
   V(BigIntEqual)                      \
   V(BigIntComparison)                 \
@@ -3143,6 +3144,25 @@ struct DebugBreakOp : FixedArityOperationT<0, DebugBreakOp> {
   void Validate(const Graph& graph) const {}
 
   auto options() const { return std::tuple{}; }
+};
+
+struct DebugPrintOp : FixedArityOperationT<1, DebugPrintOp> {
+  RegisterRepresentation rep;
+
+  static constexpr OpProperties properties = OpProperties::AnySideEffects();
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return RepVector<>();
+  }
+
+  OpIndex input() const { return Base::input(0); }
+
+  DebugPrintOp(OpIndex input, RegisterRepresentation rep)
+      : Base(input), rep(rep) {}
+  void Validate(const Graph& graph) const {
+    DCHECK(ValidOpInputRep(graph, input(), rep));
+  }
+
+  auto options() const { return std::tuple{rep}; }
 };
 
 struct BigIntBinopOp : FixedArityOperationT<3, BigIntBinopOp> {

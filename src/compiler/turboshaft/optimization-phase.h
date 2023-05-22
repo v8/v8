@@ -762,6 +762,9 @@ class GraphVisitor {
   OpIndex AssembleOutputGraphDebugBreak(const DebugBreakOp& op) {
     return assembler().ReduceDebugBreak();
   }
+  OpIndex AssembleOutputGraphDebugPrint(const DebugPrintOp& op) {
+    return assembler().ReduceDebugPrint(MapToNewGraph(op.input()), op.rep);
+  }
   OpIndex AssembleOutputGraphBigIntBinop(const BigIntBinopOp& op) {
     return assembler().ReduceBigIntBinop(
         MapToNewGraph(op.left()), MapToNewGraph(op.right()),

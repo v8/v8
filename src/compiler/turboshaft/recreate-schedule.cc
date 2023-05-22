@@ -9,6 +9,7 @@
 #include "src/base/small-vector.h"
 #include "src/base/template-utils.h"
 #include "src/base/vector.h"
+#include "src/codegen/callable.h"
 #include "src/codegen/machine-type.h"
 #include "src/common/globals.h"
 #include "src/compiler/backend/instruction-selector.h"
@@ -27,6 +28,7 @@
 #include "src/compiler/turboshaft/graph.h"
 #include "src/compiler/turboshaft/operations.h"
 #include "src/compiler/turboshaft/phase.h"
+#include "src/compiler/turboshaft/representations.h"
 #include "src/compiler/write-barrier-kind.h"
 #include "src/utils/utils.h"
 #include "src/zone/zone-containers.h"
@@ -1435,6 +1437,27 @@ Node* ScheduleBuilder::ProcessOperation(const SwitchOp& op) {
 
 Node* ScheduleBuilder::ProcessOperation(const DebugBreakOp& op) {
   return AddNode(machine.DebugBreak(), {});
+}
+
+Node* ScheduleBuilder::ProcessOperation(const DebugPrintOp& op) {
+  // TODO(nicohartmann@): Support other representations.
+  DCHECK_EQ(op.rep, RegisterRepresentation::PointerSized());
+  Node* input = GetNode(op.input());
+
+  const Callable callable = Builtins::CallableFor(PipelineData::Get().isolate(),
+                                                  Builtin::kDebugPrintWordPtr);
+
+  const CallDescriptor* call_descriptor = Linkage::GetStubCallDescriptor(
+      graph_zone, callable.descriptor(),
+      callable.descriptor().GetStackParameterCount(), CallDescriptor::kNoFlags,
+      Operator::kNoThrow | Operator::kNoDeopt);
+
+  base::SmallVector<Node*, 8> inputs;
+  inputs.push_back(AddNode(common.HeapConstant(callable.code()), {}));
+  inputs.push_back(input);
+  inputs.push_back(AddNode(common.Int32Constant(Context::kNoContext), {}));
+
+  return AddNode(common.Call(call_descriptor), base::VectorOf(inputs));
 }
 
 Node* ScheduleBuilder::ProcessOperation(const LoadRootRegisterOp& op) {

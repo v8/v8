@@ -162,6 +162,7 @@ class TypeInferenceAnalysis {
         case Opcode::kTuple:
         case Opcode::kStaticAssert:
         case Opcode::kDebugBreak:
+        case Opcode::kDebugPrint:
           // These operations do not produce any output that needs to be typed.
           DCHECK_EQ(0, op.outputs_rep().size());
           break;

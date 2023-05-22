@@ -1172,6 +1172,33 @@ RUNTIME_FUNCTION(Runtime_DebugPrintPtr) {
   return args[0];
 }
 
+RUNTIME_FUNCTION(Runtime_DebugPrintWord) {
+  static constexpr int kNum16BitChunks = 4;
+  SealHandleScope shs(isolate);
+
+  // Args are: <bits 63-48>, <bits 47-32>, <bits 31-16>, <bits 15-0>, stream.
+  DCHECK_EQ(kNum16BitChunks + 1, args.length());
+
+  uint64_t value = 0;
+  for (int i = 0; i < kNum16BitChunks; ++i) {
+    value <<= 16;
+    CHECK(args[i].IsSmi());
+    uint32_t chunk = Smi::cast(args[i]).value();
+    // We encode 16 bit per chunk only!
+    CHECK_EQ(chunk & 0xFFFF0000, 0);
+    value |= chunk;
+  }
+
+  if (!args[4].IsSmi() || (Smi::cast(args[4]).value() == fileno(stderr))) {
+    StderrStream os;
+    os << "0x" << std::hex << value << std::dec << std::endl;
+  } else {
+    StdoutStream os;
+    os << "0x" << std::hex << value << std::dec << std::endl;
+  }
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
 RUNTIME_FUNCTION(Runtime_PrintWithNameForAssert) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(2, args.length());

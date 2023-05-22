@@ -2238,6 +2238,15 @@ class CheckTurboshaftFloat64TypeDescriptor
 #endif
 };
 
+class DebugPrintWordPtrDescriptor
+    : public StaticCallInterfaceDescriptor<DebugPrintWordPtrDescriptor> {
+ public:
+  DEFINE_RESULT_AND_PARAMETERS(1, kValue)
+  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::TaggedPointer(),
+                                    MachineType::UintPtr())
+  DECLARE_DEFAULT_DESCRIPTOR(DebugPrintWordPtrDescriptor)
+};
+
 #define DEFINE_TFS_BUILTIN_DESCRIPTOR(Name, ...)                 \
   class Name##Descriptor                                         \
       : public StaticCallInterfaceDescriptor<Name##Descriptor> { \
