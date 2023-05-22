@@ -2676,6 +2676,8 @@ NodeType StaticTypeForConstant(compiler::JSHeapBroker* broker,
   if (ref.IsSmi()) return NodeType::kSmi;
   return StaticTypeForMap(ref.AsHeapObject().map(broker));
 }
+}  // namespace
+
 NodeType StaticTypeForNode(compiler::JSHeapBroker* broker,
                            LocalIsolate* isolate, ValueNode* node) {
   switch (node->properties().value_representation()) {
@@ -2691,12 +2693,20 @@ NodeType StaticTypeForNode(compiler::JSHeapBroker* broker,
       break;
   }
   switch (node->opcode()) {
+    case Opcode::kPhi:
+      return node->Cast<Phi>()->type();
     case Opcode::kCheckedSmiTagInt32:
     case Opcode::kCheckedSmiTagUint32:
     case Opcode::kCheckedSmiTagFloat64:
     case Opcode::kUnsafeSmiTag:
     case Opcode::kSmiConstant:
       return NodeType::kSmi;
+    case Opcode::kInt32ToNumber:
+    case Opcode::kUint32ToNumber:
+    case Opcode::kFloat64ToTagged:
+      return NodeType::kNumber;
+    case Opcode::kHoleyFloat64ToTagged:
+      return NodeType::kNumberOrOddball;
     case Opcode::kAllocateRaw:
     case Opcode::kFoldedAllocation:
       return NodeType::kAnyHeapObject;
@@ -2780,7 +2790,6 @@ NodeType StaticTypeForNode(compiler::JSHeapBroker* broker,
       return NodeType::kUnknown;
   }
 }
-}  // namespace
 
 bool MaglevGraphBuilder::CheckStaticType(ValueNode* node, NodeType type,
                                          NodeType* old_type) {

@@ -25,6 +25,7 @@
 // TODO(dmercadier): move the Turboshaft utils functions to shared code (in
 // particular, any_of, which is the reason we're including this Turboshaft
 // header)
+#include "src/compiler/turboshaft/snapshot-table.h"
 #include "src/compiler/turboshaft/utils.h"
 #include "src/deoptimizer/deoptimize-reason.h"
 #include "src/interpreter/bytecode-flags.h"
@@ -458,6 +459,54 @@ inline constexpr bool IsDoubleRepresentation(ValueRepresentation repr) {
   return repr == ValueRepresentation::kFloat64 ||
          repr == ValueRepresentation::kHoleyFloat64;
 }
+
+// The intersection (using `&`) of any two NodeTypes must be a valid NodeType
+// (possibly "kUnknown").
+// All heap object types include the heap object bit, so that they can be
+// checked for AnyHeapObject with a single bit check.
+#define NODE_TYPE_LIST(V)                                         \
+  V(Unknown, 0)                                                   \
+  V(NumberOrOddball, (1 << 1))                                    \
+  V(Number, (1 << 2) | kNumberOrOddball)                          \
+  V(ObjectWithKnownMap, (1 << 3))                                 \
+  V(Smi, (1 << 4) | kObjectWithKnownMap | kNumber)                \
+  V(AnyHeapObject, (1 << 5))                                      \
+  V(Oddball, (1 << 6) | kAnyHeapObject | kNumberOrOddball)        \
+  V(Boolean, (1 << 7) | kOddball)                                 \
+  V(Name, (1 << 8) | kAnyHeapObject)                              \
+  V(String, (1 << 9) | kName)                                     \
+  V(InternalizedString, (1 << 10) | kString)                      \
+  V(Symbol, (1 << 11) | kName)                                    \
+  V(JSReceiver, (1 << 12) | kAnyHeapObject)                       \
+  V(HeapObjectWithKnownMap, kObjectWithKnownMap | kAnyHeapObject) \
+  V(HeapNumber, kHeapObjectWithKnownMap | kNumber)                \
+  V(JSReceiverWithKnownMap, kJSReceiver | kHeapObjectWithKnownMap)
+
+enum class NodeType : uint16_t {
+#define DEFINE_NODE_TYPE(Name, Value) k##Name = Value,
+  NODE_TYPE_LIST(DEFINE_NODE_TYPE)
+#undef DEFINE_NODE_TYPE
+};
+
+inline NodeType CombineType(NodeType left, NodeType right) {
+  return static_cast<NodeType>(static_cast<int>(left) |
+                               static_cast<int>(right));
+}
+inline NodeType IntersectType(NodeType left, NodeType right) {
+  return static_cast<NodeType>(static_cast<int>(left) &
+                               static_cast<int>(right));
+}
+inline bool NodeTypeIs(NodeType type, NodeType to_check) {
+  int right = static_cast<int>(to_check);
+  return (static_cast<int>(type) & right) == right;
+}
+
+#define DEFINE_NODE_TYPE_CHECK(Type, _)         \
+  inline bool NodeTypeIs##Type(NodeType type) { \
+    return NodeTypeIs(type, NodeType::k##Type); \
+  }
+NODE_TYPE_LIST(DEFINE_NODE_TYPE_CHECK)
+#undef DEFINE_NODE_TYPE_CHECK
 
 enum class TaggedToFloat64ConversionType : uint8_t {
   kOnlyNumber,
@@ -6405,8 +6454,8 @@ inline std::ostream& operator<<(std::ostream& os,
   }
 }
 
-typedef base::EnumSet<ValueRepresentation> ValueRepresentationSet;
-typedef base::EnumSet<UseRepresentation> UseRepresentationSet;
+typedef base::EnumSet<ValueRepresentation, int8_t> ValueRepresentationSet;
+typedef base::EnumSet<UseRepresentation, int8_t> UseRepresentationSet;
 
 // TODO(verwaest): It may make more sense to buffer phis in merged_states until
 // we set up the interpreter frame state for code generation. At that point we
@@ -6420,7 +6469,11 @@ class Phi : public ValueNodeT<Phi> {
   // TODO(jgruber): More intuitive constructors, if possible.
   Phi(uint64_t bitfield, MergePointInterpreterFrameState* merge_state,
       interpreter::Register owner)
-      : Base(bitfield), owner_(owner), merge_state_(merge_state) {
+      : Base(bitfield),
+        owner_(owner),
+        merge_state_(merge_state),
+        type_(NodeType::kUnknown),
+        post_loop_type_(NodeType::kUnknown) {
     DCHECK_NOT_NULL(merge_state);
   }
 
@@ -6462,15 +6515,72 @@ class Phi : public ValueNodeT<Phi> {
     return same_loop_uses_repr_hint_;
   }
 
+  void merge_post_loop_type(NodeType type) {
+    DCHECK(!has_key_);
+    post_loop_type_ = IntersectType(post_loop_type_, type);
+  }
+  void set_post_loop_type(NodeType type) {
+    DCHECK(!has_key_);
+    post_loop_type_ = type;
+  }
+  void promote_post_loop_type() {
+    DCHECK(!has_key_);
+    type_ = post_loop_type_;
+  }
+
+  void merge_type(NodeType type) {
+    DCHECK(!has_key_);
+    type_ = IntersectType(type_, type);
+  }
+  void set_type(NodeType type) {
+    DCHECK(!has_key_);
+    type_ = type;
+  }
+  NodeType type() const {
+    DCHECK(!has_key_);
+    return type_;
+  }
+
+  using Key = compiler::turboshaft::SnapshotTable<ValueNode*>::Key;
+  bool has_key() const { return has_key_; }
+  Key key() const {
+    DCHECK(has_key_);
+    return key_;
+  }
+  void set_key(Key key) {
+    has_key_ = true;
+    key_ = key;
+  }
+
  private:
   Phi** next() { return &next_; }
 
   const interpreter::Register owner_;
+  bool has_key_ = false;  // True if the {key_} field has been initialized.
+  UseRepresentationSet uses_repr_hint_ = {};
+  UseRepresentationSet same_loop_uses_repr_hint_ = {};
+
   Phi* next_ = nullptr;
   MergePointInterpreterFrameState* const merge_state_;
 
-  UseRepresentationSet uses_repr_hint_;
-  UseRepresentationSet same_loop_uses_repr_hint_;
+  union {
+    struct {
+      // The type of this Phi based on its predecessors' types.
+      NodeType type_;
+      // {type_} for loop Phis should always be Unknown until their backedge has
+      // been bound (because we don't know what will be the type of the
+      // backedge). However, once the backedge is bound, we might be able to
+      // refine it. {post_loop_type_} is thus used to keep track of loop Phi
+      // types: for loop Phis, we update {post_loop_type_} when we merge
+      // predecessors, but keep {type_} as Unknown. Once the backedge is bound,
+      // we set {type_} as {post_loop_type_}.
+      NodeType post_loop_type_;
+    };
+    // After graph building, {type_} and {post_loop_type_} are not used anymore,
+    // so we reuse this memory to store the SnapshotTable Key for this Phi for
+    // phi untagging.
+    Key key_;
+  };
 
   friend base::ThreadedListTraits<Phi>;
 };

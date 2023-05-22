@@ -218,6 +218,9 @@ enum class ToNumberHint {
 
 enum class UseReprHintRecording { kRecord, kDoNotRecord };
 
+NodeType StaticTypeForNode(compiler::JSHeapBroker* broker,
+                           LocalIsolate* isolate, ValueNode* node);
+
 class MaglevGraphBuilder {
  public:
   explicit MaglevGraphBuilder(
@@ -334,6 +337,8 @@ class MaglevGraphBuilder {
     return current_interpreter_frame_;
   }
   const MaglevGraphBuilder* parent() const { return parent_; }
+  compiler::JSHeapBroker* broker() const { return broker_; }
+  LocalIsolate* local_isolate() const { return local_isolate_; }
 
   bool has_graph_labeller() const {
     return compilation_unit_->has_graph_labeller();
@@ -1851,7 +1856,6 @@ class MaglevGraphBuilder {
 
   int NumPredecessors(int offset) { return predecessors_[offset]; }
 
-  compiler::JSHeapBroker* broker() const { return broker_; }
   compiler::FeedbackVectorRef feedback() const {
     return compilation_unit_->feedback();
   }
@@ -1870,7 +1874,6 @@ class MaglevGraphBuilder {
   const compiler::BytecodeAnalysis& bytecode_analysis() const {
     return bytecode_analysis_;
   }
-  LocalIsolate* local_isolate() const { return local_isolate_; }
   int parameter_count() const { return compilation_unit_->parameter_count(); }
   int parameter_count_without_receiver() { return parameter_count() - 1; }
   int register_count() const { return compilation_unit_->register_count(); }

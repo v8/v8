@@ -28,7 +28,6 @@ class MaglevPhiRepresentationSelector {
         new_nodes_current_block_start_(builder->zone()),
         new_nodes_current_block_end_(builder->zone()),
         phi_taggings_(builder->zone()),
-        phi_to_key_(builder->zone()),
         predecessors_(builder->zone()) {}
 
   void PreProcessGraph(Graph* graph) {
@@ -210,10 +209,7 @@ class MaglevPhiRepresentationSelector {
 
   // {phi_taggings_} is a SnapshotTable containing mappings from untagged Phis
   // to Tagged alternatives for those phis.
-  // Those mappings must be accessed through Keys rather than Phis;
-  // {phi_to_key_} thus maps Phis to their keys.
   SnapshotTable<ValueNode*> phi_taggings_;
-  ZoneUnorderedMap<Phi*, Key> phi_to_key_;
   // {predecessors_} is used during merging, but we use an instance variable for
   // it, in order to save memory and not reallocate it for each merge.
   ZoneVector<Snapshot> predecessors_;
