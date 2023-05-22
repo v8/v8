@@ -1244,10 +1244,6 @@ Variable* DeclarationScope::DeclareDynamicGlobal(const AstRawString* name,
   // TODO(neis): Mark variable as maybe-assigned?
 }
 
-bool Scope::RemoveUnresolved(VariableProxy* var) {
-  return unresolved_list_.Remove(var);
-}
-
 void Scope::DeleteUnresolved(VariableProxy* var) {
   DCHECK(unresolved_list_.Contains(var));
   var->mark_removed_from_unresolved();
