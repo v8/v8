@@ -2552,6 +2552,13 @@ TEST_F(AssemblerX64Test, AssemblerX64AVX2Op256bit) {
   __ vpbroadcastb(ymm3, Operand(rbx, rcx, times_4, 10000));
   __ vpbroadcastw(ymm15, xmm4);
   __ vpbroadcastw(ymm5, Operand(rbx, rcx, times_4, 10000));
+  __ vpmovsxbw(ymm6, xmm5);
+  __ vpmovsxwd(ymm1, Operand(rbx, rcx, times_4, 10000));
+  __ vpmovsxdq(ymm14, xmm6);
+  __ vpmovzxbw(ymm0, Operand(rbx, rcx, times_4, 10000));
+  __ vpmovzxbd(ymm14, xmm6);
+  __ vpmovzxwd(ymm7, Operand(rbx, rcx, times_4, 10000));
+  __ vpmovzxdq(ymm8, xmm6);
 
   CodeDesc desc;
   masm.GetCode(isolate, &desc);
@@ -2594,7 +2601,21 @@ TEST_F(AssemblerX64Test, AssemblerX64AVX2Op256bit) {
       // vpbroadcastw ymm15, xmm4
       0xc4, 0x62, 0x7d, 0x79, 0xfc,
       // vpbroadcastw ymm5, WORD PTR [rbx+rcx*4+0x2710]
-      0xc4, 0xe2, 0x7d, 0x79, 0xac, 0x8b, 0x10, 0x27, 0x00, 0x00};
+      0xc4, 0xe2, 0x7d, 0x79, 0xac, 0x8b, 0x10, 0x27, 0x00, 0x00,
+      // vpmovsxbw ymm6, xmm5
+      0xc4, 0xe2, 0x7d, 0x20, 0xf5,
+      // vpmovsxwd ymm1, XMMWORD PTR [rbx+rcx*4+0x2710]
+      0xc4, 0xe2, 0x7d, 0x23, 0x8c, 0x8b, 0x10, 0x27, 0x00, 0x00,
+      // vpmovsxdq ymm14, xmm6
+      0xc4, 0x62, 0x7d, 0x25, 0xf6,
+      // vpmovzxbw ymm0, XMMWORD PTR [rbx+rcx*4+0x2710]
+      0xc4, 0xe2, 0x7d, 0x30, 0x84, 0x8b, 0x10, 0x27, 0x00, 0x00,
+      // vpmovzxbd ymm14 xmm6
+      0xc4, 0x62, 0x7d, 0x31, 0xf6,
+      // vpmovzxwd ymm7, XMMWORD PTR [rbx+rcx*4+0x2710]
+      0xc4, 0xe2, 0x7d, 0x33, 0xbc, 0x8b, 0x10, 0x27, 0x00, 0x00,
+      // vpmovzxdq ymm8, xmm6
+      0xc4, 0x62, 0x7d, 0x35, 0xc6};
   CHECK_EQ(0, memcmp(expected, desc.buffer, sizeof(expected)));
 }
 
@@ -2824,6 +2845,8 @@ TEST_F(AssemblerX64Test, AssemblerX64CmpOperations256bit) {
   __ vcmpnltpd(ymm10, ymm12, Operand(r12, r11, times_4, 10000));
   __ vcmpnleps(ymm9, ymm11, Operand(r10, r9, times_8, 10000));
   __ vcmpgepd(ymm13, ymm3, ymm12);
+  __ vptest(ymm7, ymm1);
+  __ vptest(ymm10, Operand(rbx, rcx, times_4, 10000));
 
   CodeDesc desc;
   masm.GetCode(isolate, &desc);
@@ -2850,7 +2873,11 @@ TEST_F(AssemblerX64Test, AssemblerX64CmpOperations256bit) {
       // vcmpnleps ymm9, ymm11, YMMWORD PTR [r10+r9*8+0x2710]
       0xC4, 0x01, 0x24, 0xC2, 0x8C, 0xCA, 0x10, 0x27, 0x00, 0x00, 0x06,
       // vcmpgepd ymm13, ymm3, ymm12
-      0xC4, 0x41, 0x65, 0xC2, 0xEC, 0x0D};
+      0xC4, 0x41, 0x65, 0xC2, 0xEC, 0x0D,
+      // vptest ymm7, ymm1
+      0xc4, 0xe2, 0x7d, 0x17, 0xf9,
+      // vptest ymm10, YMMWORD PTR [rbx+rcx*4+0x2710]
+      0xc4, 0x62, 0x7d, 0x17, 0x94, 0x8b, 0x10, 0x27, 0x00, 0x00};
   CHECK_EQ(0, memcmp(expected, desc.buffer, sizeof(expected)));
 }
 

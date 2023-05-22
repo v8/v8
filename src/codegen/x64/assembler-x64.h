@@ -1330,16 +1330,27 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   }                                                                          \
   void v##instruction(XMMRegister dst, Operand src) {                        \
     vinstr(0x##opcode, dst, xmm0, src, k##prefix, k##escape1##escape2, kW0); \
-  }                                                                          \
-  void v##instruction(YMMRegister dst, XMMRegister src) {                    \
-    vinstr(0x##opcode, dst, ymm0, src, k##prefix, k##escape1##escape2, kW0); \
-  }                                                                          \
-  void v##instruction(YMMRegister dst, Operand src) {                        \
-    vinstr(0x##opcode, dst, ymm0, src, k##prefix, k##escape1##escape2, kW0); \
   }
-
   SSE4_UNOP_INSTRUCTION_LIST(DECLARE_SSE4_PMOV_AVX_INSTRUCTION)
 #undef DECLARE_SSE4_PMOV_AVX_INSTRUCTION
+
+#define DECLARE_SSE4_PMOV_AVX2_INSTRUCTION(instruction, prefix, escape1,     \
+                                           escape2, opcode)                  \
+  void v##instruction(YMMRegister dst, XMMRegister src) {                    \
+    vinstr(0x##opcode, dst, xmm0, src, k##prefix, k##escape1##escape2, kW0); \
+  }                                                                          \
+  void v##instruction(YMMRegister dst, Operand src) {                        \
+    vinstr(0x##opcode, dst, xmm0, src, k##prefix, k##escape1##escape2, kW0); \
+  }
+  SSE4_UNOP_INSTRUCTION_LIST_PMOV(DECLARE_SSE4_PMOV_AVX2_INSTRUCTION)
+#undef DECLARE_SSE4_PMOV_AVX2_INSTRUCTION
+
+  void vptest(YMMRegister dst, YMMRegister src) {
+    vinstr(0x17, dst, ymm0, src, k66, k0F38, kW0, AVX);
+  }
+  void vptest(YMMRegister dst, Operand src) {
+    vinstr(0x17, dst, ymm0, src, k66, k0F38, kW0, AVX);
+  }
 
 #define DECLARE_AVX_INSTRUCTION(instruction, prefix, escape1, escape2, opcode) \
   void v##instruction(Register dst, XMMRegister src, uint8_t imm8) {           \

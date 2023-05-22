@@ -1481,6 +1481,9 @@ TEST_F(DisasmX64Test, DisasmX64YMMRegister) {
             vcmpnlepd(ymm5, ymm4, Operand(rbx, rcx, times_4, 10000)));
     COMPARE("c5dcc2e90d           vcmpps ymm5,ymm4,ymm1, (ge)",
             vcmpgeps(ymm5, ymm4, ymm1));
+    COMPARE("c4e27d17f9           vptest ymm7,ymm1", vptest(ymm7, ymm1));
+    COMPARE("c4627d17948b10270000 vptest ymm10,[rbx+rcx*4+0x2710]",
+            vptest(ymm10, Operand(rbx, rcx, times_4, 10000)));
 
     // SSE2_UNOP
     COMPARE("c5fd51ca             vsqrtpd ymm1,ymm2", vsqrtpd(ymm1, ymm2));
@@ -1522,6 +1525,20 @@ TEST_F(DisasmX64Test, DisasmX64YMMRegister) {
             vpermq(ymm5, ymm3, 0xD8));
     COMPARE("c463fd00848b102700001e vpermq ymm8,[rbx+rcx*4+0x2710],0x1e",
             vpermq(ymm8, Operand(rbx, rcx, times_4, 10000), 0x1E));
+
+    // SSE4_UNOP
+    COMPARE("c4e27d20f5           vpmovsxbw ymm6,ymm5", vpmovsxbw(ymm6, ymm5));
+    COMPARE("c4e27d238c8b10270000 vpmovsxwd ymm1,[rbx+rcx*4+0x2710]",
+            vpmovsxwd(ymm1, Operand(rbx, rcx, times_4, 10000)));
+    COMPARE("c4627d25f6           vpmovsxdq ymm14,ymm6",
+            vpmovsxdq(ymm14, ymm6));
+    COMPARE("c4e27d30848b10270000 vpmovzxbw ymm0,[rbx+rcx*4+0x2710]",
+            vpmovzxbw(ymm0, Operand(rbx, rcx, times_4, 10000)));
+    COMPARE("c4627d31f6           vpmovzxbd ymm14,ymm6",
+            vpmovzxbd(ymm14, ymm6));
+    COMPARE("c4e27d33bc8b10270000 vpmovzxwd ymm7,[rbx+rcx*4+0x2710]",
+            vpmovzxwd(ymm7, Operand(rbx, rcx, times_4, 10000)));
+    COMPARE("c4627d35c6           vpmovzxdq ymm8,ymm6", vpmovzxdq(ymm8, ymm6));
   }
 }
 
