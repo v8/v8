@@ -613,22 +613,12 @@ class V8_EXPORT_PRIVATE LiveRange : public NON_EXPORTED_BASE(ZoneObject) {
   // Can this live range be spilled at this position.
   bool CanBeSpilled(LifetimePosition pos) const;
 
-  // Splitting primitive used by splitting members.
-  // Performs the split, but does not link the resulting ranges.
-  // The given position must follow the start of the range.
+  // Splits this live range and links the resulting ranges together.
+  // Returns the child, which starts at position.
   // All uses following the given position will be moved from this
   // live range to the result live range.
   // The current range will terminate at position, while result will start from
   // position.
-  enum HintConnectionOption : bool {
-    DoNotConnectHints = false,
-    ConnectHints = true
-  };
-  UsePosition* DetachAt(LifetimePosition position, LiveRange* result,
-                        Zone* zone, HintConnectionOption connect_hints);
-
-  // Detaches at position, and then links the resulting ranges. Returns the
-  // child, which starts at position.
   LiveRange* SplitAt(LifetimePosition position, Zone* zone);
 
   // Returns nullptr when no register is hinted, otherwise sets register_index.
@@ -1070,7 +1060,6 @@ class V8_EXPORT_PRIVATE TopLevelLiveRange final : public LiveRange {
   bool has_preassigned_slot_;
 
   int spill_start_index_;
-  UsePosition* last_pos_;
   LiveRange* last_child_covers_;
 };
 

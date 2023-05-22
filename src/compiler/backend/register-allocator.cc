@@ -531,25 +531,14 @@ void LiveRange::AdvanceLastProcessedMarker(
 }
 
 LiveRange* LiveRange::SplitAt(LifetimePosition position, Zone* zone) {
-  int new_id = TopLevel()->GetNextChildId();
-  LiveRange* child = zone->New<LiveRange>(new_id, representation(), TopLevel());
-  child->set_bundle(bundle_);
-  // If we split, we do so because we're about to switch registers or move
-  // to/from a slot, so there's no value in connecting hints.
-  DetachAt(position, child, zone, DoNotConnectHints);
-
-  child->top_level_ = TopLevel();
-  child->next_ = next_;
-  next_ = child;
-  return child;
-}
-
-UsePosition* LiveRange::DetachAt(LifetimePosition position, LiveRange* result,
-                                 Zone* zone,
-                                 HintConnectionOption connect_hints) {
   DCHECK(Start() < position);
   DCHECK(End() > position);
-  DCHECK(result->IsEmpty());
+
+  int new_id = TopLevel()->GetNextChildId();
+  LiveRange* result =
+      zone->New<LiveRange>(new_id, representation(), TopLevel());
+  result->set_bundle(bundle_);
+
   // Find the last interval that ends before the position. If the
   // position is contained in one of the intervals in the chain, we
   // split that interval and use the first part.
@@ -623,16 +612,15 @@ UsePosition* LiveRange::DetachAt(LifetimePosition position, LiveRange* result,
   last_processed_use_ = nullptr;
   current_interval_ = nullptr;
 
-  if (connect_hints == ConnectHints && use_before != nullptr &&
-      use_after != nullptr) {
-    use_after->SetHint(use_before);
-    result->current_hint_position_ = use_after;
-  }
 #ifdef DEBUG
   VerifyChildStructure();
   result->VerifyChildStructure();
 #endif
-  return use_before;
+
+  result->top_level_ = TopLevel();
+  result->next_ = next_;
+  next_ = result;
+  return result;
 }
 
 void LiveRange::UpdateParentForAllChildren(TopLevelLiveRange* new_top_level) {
@@ -816,7 +804,6 @@ TopLevelLiveRange::TopLevelLiveRange(int vreg, MachineRepresentation rep)
       spilled_in_deferred_blocks_(false),
       has_preassigned_slot_(false),
       spill_start_index_(kMaxInt),
-      last_pos_(nullptr),
       last_child_covers_(this) {
   bits_ |= SpillTypeField::encode(SpillType::kNoSpillType);
 }
