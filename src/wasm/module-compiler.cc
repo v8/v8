@@ -3851,8 +3851,7 @@ using JSToWasmWrapperUnitVector =
 
 class CompileJSToWasmWrapperJob final : public BaseCompileJSToWasmWrapperJob {
  public:
-  explicit CompileJSToWasmWrapperJob(
-      JSToWasmWrapperUnitVector* compilation_units)
+  CompileJSToWasmWrapperJob(JSToWasmWrapperUnitVector* compilation_units)
       : BaseCompileJSToWasmWrapperJob(compilation_units->size()),
         compilation_units_(compilation_units) {}
 
