@@ -348,11 +348,18 @@ void FeedbackVector::AddToVectorsForProfilingTools(
 
 void FeedbackVector::SetOptimizedCode(Code code) {
   DCHECK(CodeKindIsOptimizedJSFunction(code.kind()));
+  int32_t state = flags();
   // Skip setting optimized code if it would cause us to tier down.
-  if (has_optimized_code() && !optimized_code().marked_for_deoptimization() &&
-      (!CodeKindCanTierUp(optimized_code().kind()) ||
-       optimized_code().kind() > code.kind())) {
-    if (!v8_flags.stress_concurrent_inlining_attach_code) return;
+  if (has_optimized_code() && (!CodeKindCanTierUp(optimized_code().kind()) ||
+                               optimized_code().kind() > code.kind())) {
+    if (!v8_flags.stress_concurrent_inlining_attach_code &&
+        !optimized_code().marked_for_deoptimization()) {
+      return;
+    }
+    // If we fall through, we may be tiering down. This is fine since we only do
+    // that when the current code is marked for deoptimization, or because we're
+    // stress testing.
+    state = MaybeHasTurbofanCodeBit::update(state, false);
   }
   // TODO(mythria): We could see a CompileOptimized state here either from
   // tests that use %OptimizeFunctionOnNextCall, --always-turbofan or because we
@@ -360,7 +367,6 @@ void FeedbackVector::SetOptimizedCode(Code code) {
   // should avoid these cases and also check that marker isn't
   // TieringState::kRequestTurbofan*.
   set_maybe_optimized_code(HeapObjectReference::Weak(code));
-  int32_t state = flags();
   // TODO(leszeks): Reconsider whether this could clear the tiering state vs.
   // the callers doing so.
   state = TieringStateBits::update(state, TieringState::kNone);
