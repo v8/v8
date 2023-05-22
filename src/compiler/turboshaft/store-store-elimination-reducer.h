@@ -169,7 +169,10 @@ class MaybeRedundantStoresTable
     // We can only shadow stores to the exact same `base`+`offset` and keep
     // everything else because they might or might not alias.
     Key key = map_to_key(base, offset, size);
-    DCHECK_LE(key.data().size, size);
+    // If the `size` we want to mark unobservable here is less than the size we
+    // have seen for this key before, we do not overwrite the entire field, so
+    // preceeding stores are not (fully) unobservable.
+    if (size < key.data().size) return;
     Set(key, StoreObservability::kUnobservable);
   }
 
@@ -288,7 +291,7 @@ class RedundantStoreAnalysis {
         table_.Seal(&needs_revisit);
         if (needs_revisit) {
           Block* back_edge = block.LastPredecessor();
-          DCHECK_GT(back_edge->index(), block_index);
+          DCHECK_GE(back_edge->index(), block_index);
           processed = back_edge->index().id() + 1;
         }
       }
