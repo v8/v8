@@ -2977,12 +2977,11 @@ class KnownMapsMerger {
     if (map.is_migration_target()) {
       emit_check_with_migration_ = true;
     }
-    node_type_ = IntersectType(node_type_, StaticTypeForMap(map));
-    if (node_type_ == NodeType::kHeapNumber) {
-      // If this is a heap number map, the object may be a Smi, so mask away the
-      // known HeapObject bit.
-      node_type_ = IntersectType(node_type_, NodeType::kSmi);
+    NodeType new_type = StaticTypeForMap(map);
+    if (new_type == NodeType::kHeapNumber) {
+      new_type = IntersectType(new_type, NodeType::kSmi);
     }
+    node_type_ = IntersectType(node_type_, new_type);
     if (map.is_stable()) {
       // TODO(victorgomes): Add a DCHECK_SLOW that checks if the map already
       // exists in the CompilationDependencySet for the else branch.
