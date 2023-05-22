@@ -55,36 +55,35 @@ void RwxMemoryWriteScope::SetExecutable() {
 // static
 bool RwxMemoryWriteScope::IsSupported() {
   static_assert(base::MemoryProtectionKey::kNoMemoryProtectionKey == -1);
-  DCHECK(g_thread_isolation_data.initialized);
-  return g_thread_isolation_data.pkey >= 0;
+  DCHECK(pkey_initialized);
+  return memory_protection_key_ >= 0;
 }
 
 // static
 void RwxMemoryWriteScope::SetWritable() {
-  DCHECK(g_thread_isolation_data.initialized);
+  DCHECK(pkey_initialized);
   if (!IsSupported()) return;
   if (code_space_write_nesting_level_ == 0) {
-    DCHECK_NE(base::MemoryProtectionKey::GetKeyPermission(
-                  g_thread_isolation_data.pkey),
-              base::MemoryProtectionKey::kNoRestrictions);
-    base::MemoryProtectionKey::SetPermissionsForKey(
-        g_thread_isolation_data.pkey,
+    DCHECK_NE(
+        base::MemoryProtectionKey::GetKeyPermission(memory_protection_key_),
         base::MemoryProtectionKey::kNoRestrictions);
+    base::MemoryProtectionKey::SetPermissionsForKey(
+        memory_protection_key_, base::MemoryProtectionKey::kNoRestrictions);
   }
   code_space_write_nesting_level_++;
 }
 
 // static
 void RwxMemoryWriteScope::SetExecutable() {
-  DCHECK(g_thread_isolation_data.initialized);
+  DCHECK(pkey_initialized);
   if (!IsSupported()) return;
   code_space_write_nesting_level_--;
   if (code_space_write_nesting_level_ == 0) {
-    DCHECK_EQ(base::MemoryProtectionKey::GetKeyPermission(
-                  g_thread_isolation_data.pkey),
-              base::MemoryProtectionKey::kNoRestrictions);
+    DCHECK_EQ(
+        base::MemoryProtectionKey::GetKeyPermission(memory_protection_key_),
+        base::MemoryProtectionKey::kNoRestrictions);
     base::MemoryProtectionKey::SetPermissionsForKey(
-        g_thread_isolation_data.pkey, base::MemoryProtectionKey::kDisableWrite);
+        memory_protection_key_, base::MemoryProtectionKey::kDisableWrite);
   }
 }
 
