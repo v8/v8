@@ -141,12 +141,12 @@ class MaxCallDepthProcessor {
         return info.frame_size_in_bytes();
       }
       case DeoptFrame::FrameType::kInlinedArgumentsFrame: {
-        return static_cast<int>(
-                   deopt_frame->as_inlined_arguments().arguments().size() -
-                   deopt_frame->as_inlined_arguments()
-                       .unit()
-                       .parameter_count()) *
-               kSystemPointerSize;
+        return std::max(
+            0,
+            static_cast<int>(
+                deopt_frame->as_inlined_arguments().arguments().size() -
+                deopt_frame->as_inlined_arguments().unit().parameter_count()) *
+                kSystemPointerSize);
       }
       case DeoptFrame::FrameType::kBuiltinContinuationFrame: {
         // PC + FP + Closure + Params + Context
