@@ -85,9 +85,7 @@ TEST_F(SharedHeapTest, ConcurrentAllocationInSharedOldSpace) {
     threads.push_back(std::move(thread));
   }
 
-  for (auto& thread : threads) {
-    thread->ParkedJoin(parked);
-  }
+  ParkingThread::ParkedJoinAll(parked, threads);
 }
 
 namespace {
@@ -132,9 +130,7 @@ TEST_F(SharedHeapTest, ConcurrentAllocationInSharedLargeOldSpace) {
     threads.push_back(std::move(thread));
   }
 
-  for (auto& thread : threads) {
-    thread->ParkedJoin(parked);
-  }
+  ParkingThread::ParkedJoinAll(parked, threads);
 }
 
 namespace {
@@ -175,9 +171,7 @@ TEST_F(SharedHeapTest, ConcurrentAllocationInSharedMapSpace) {
     threads.push_back(std::move(thread));
   }
 
-  for (auto& thread : threads) {
-    thread->ParkedJoin(parked);
-  }
+  ParkingThread::ParkedJoinAll(parked, threads);
 }
 
 TEST_F(SharedHeapNoClientsTest, SharedCollectionWithoutClients) {
@@ -254,9 +248,7 @@ TEST_F(SharedHeapTest, SharedCollectionWithMultipleClients) {
     threads.push_back(std::move(thread));
   }
 
-  for (auto& thread : threads) {
-    thread->ParkedJoin(parked);
-  }
+  ParkingThread::ParkedJoinAll(parked, threads);
 }
 
 namespace {

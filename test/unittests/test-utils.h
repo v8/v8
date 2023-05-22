@@ -598,26 +598,6 @@ Handle<FeedbackVector> NewFeedbackVector(Isolate* isolate, Spec* spec) {
   return FeedbackVector::NewForTesting(isolate, spec);
 }
 
-class ParkingThread : public v8::base::Thread {
- public:
-  explicit ParkingThread(const Options& options) : v8::base::Thread(options) {}
-
-  void ParkedJoin(LocalIsolate* local_isolate) {
-    ParkedJoin(local_isolate->heap());
-  }
-  void ParkedJoin(LocalHeap* local_heap) {
-    ParkedScope scope(local_heap);
-    ParkedJoin(scope);
-  }
-  void ParkedJoin(const ParkedScope& scope) {
-    USE(scope);
-    Join();
-  }
-
- private:
-  using v8::base::Thread::Join;
-};
-
 #ifdef V8_CC_GNU
 
 #if V8_HOST_ARCH_X64

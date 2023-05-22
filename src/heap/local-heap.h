@@ -91,11 +91,11 @@ class V8_EXPORT_PRIVATE LocalHeap {
   bool IsHandleDereferenceAllowed();
 #endif
 
-  bool IsParked();
-  bool IsRunning();
+  bool IsParked() const;
+  bool IsRunning() const;
 
-  Heap* heap() { return heap_; }
-  Heap* AsHeap() { return heap(); }
+  Heap* heap() const { return heap_; }
+  Heap* AsHeap() const { return heap(); }
 
   MarkingBarrier* marking_barrier() { return marking_barrier_.get(); }
   ConcurrentAllocator* old_space_allocator() {
@@ -142,7 +142,7 @@ class V8_EXPORT_PRIVATE LocalHeap {
   static LocalHeap* Current();
 
 #ifdef DEBUG
-  void VerifyCurrent();
+  void VerifyCurrent() const;
 #endif
 
   // Allocate an uninitialized object.

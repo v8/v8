@@ -102,10 +102,7 @@ TEST_F(GlobalSafepointTest, Interrupt) {
     sema_execute_complete.ParkedWait(local_isolate);
   }
 
-  ParkedScope parked(local_isolate);
-  for (auto& thread : threads) {
-    thread->ParkedJoin(parked);
-  }
+  ParkingThread::ParkedJoinAll(local_isolate, threads);
 }
 
 }  // namespace internal

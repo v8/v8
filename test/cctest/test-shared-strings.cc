@@ -272,14 +272,14 @@ UNINITIALIZED_TEST(YoungInternalization) {
   }
 }
 
-class ConcurrentStringThreadBase : public v8::base::Thread {
+class ConcurrentStringThreadBase : public ParkingThread {
  public:
   ConcurrentStringThreadBase(const char* name, MultiClientIsolateTest* test,
                              Handle<FixedArray> shared_strings,
                              ParkingSemaphore* sema_ready,
                              ParkingSemaphore* sema_execute_start,
                              ParkingSemaphore* sema_execute_complete)
-      : v8::base::Thread(base::Thread::Options(name)),
+      : ParkingThread(base::Thread::Options(name)),
         test_(test),
         shared_strings_(shared_strings),
         sema_ready_(sema_ready),
@@ -314,14 +314,7 @@ class ConcurrentStringThreadBase : public v8::base::Thread {
     i_isolate = nullptr;
   }
 
-  void ParkedJoin(const ParkedScope& scope) {
-    USE(scope);
-    Join();
-  }
-
  protected:
-  using base::Thread::Join;
-
   Isolate* i_isolate;
   MultiClientIsolateTest* test_;
   Handle<FixedArray> shared_strings_;
@@ -458,10 +451,7 @@ void TestConcurrentInternalization(TestHitOrMiss hit_or_miss) {
     sema_execute_complete.ParkedWait(local_isolate);
   }
 
-  ParkedScope parked(local_isolate);
-  for (auto& thread : threads) {
-    thread->ParkedJoin(parked);
-  }
+  ParkingThread::ParkedJoinAll(local_isolate, threads);
 }
 }  // namespace
 
@@ -549,10 +539,7 @@ UNINITIALIZED_TEST(ConcurrentStringTableLookup) {
     sema_execute_complete.ParkedWait(local_isolate);
   }
 
-  ParkedScope parked(local_isolate);
-  for (auto& thread : threads) {
-    thread->ParkedJoin(parked);
-  }
+  ParkingThread::ParkedJoinAll(local_isolate, threads);
 }
 
 namespace {
@@ -1747,10 +1734,7 @@ void TestConcurrentExternalization(bool share_resources) {
                            threads);
   }
 
-  ParkedScope parked(local_isolate);
-  for (auto& thread : threads) {
-    thread->ParkedJoin(parked);
-  }
+  ParkingThread::ParkedJoinAll(local_isolate, threads);
 }
 
 UNINITIALIZED_TEST(ConcurrentExternalizationWithUniqueResources) {
@@ -1865,10 +1849,7 @@ void TestConcurrentExternalizationWithDeadStrings(bool share_resources,
     }
   }
 
-  ParkedScope parked(local_isolate);
-  for (auto& thread : threads) {
-    thread->ParkedJoin(parked);
-  }
+  ParkingThread::ParkedJoinAll(local_isolate, threads);
 }
 
 UNINITIALIZED_TEST(
@@ -1979,10 +1960,7 @@ void TestConcurrentExternalizationAndInternalization(
     CHECK(string.HasHashCode());
   }
 
-  ParkedScope parked(local_isolate);
-  for (auto& thread : threads) {
-    thread->ParkedJoin(parked);
-  }
+  ParkingThread::ParkedJoinAll(local_isolate, threads);
 }
 
 UNINITIALIZED_TEST(ConcurrentExternalizationAndInternalizationMiss) {

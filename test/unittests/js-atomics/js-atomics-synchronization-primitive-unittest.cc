@@ -83,10 +83,7 @@ TEST_F(JSAtomicsMutexTest, Contention) {
     sema_execute_complete.ParkedWait(local_isolate);
   }
 
-  ParkedScope parked(local_isolate);
-  for (auto& thread : threads) {
-    thread->ParkedJoin(parked);
-  }
+  ParkingThread::ParkedJoinAll(local_isolate, threads);
 
   EXPECT_FALSE(contended_mutex->IsHeld());
 }
@@ -179,10 +176,7 @@ TEST_F(JSAtomicsConditionTest, NotifyAll) {
     sema_execute_complete.ParkedWait(local_isolate);
   }
 
-  ParkedScope parked(local_isolate);
-  for (auto& thread : threads) {
-    thread->ParkedJoin(parked);
-  }
+  ParkingThread::ParkedJoinAll(local_isolate, threads);
 
   EXPECT_EQ(0U, waiting_threads_count);
   EXPECT_FALSE(mutex->IsHeld());

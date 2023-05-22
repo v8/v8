@@ -35,7 +35,7 @@ thread_local LocalHeap* current_local_heap = nullptr;
 LocalHeap* LocalHeap::Current() { return current_local_heap; }
 
 #ifdef DEBUG
-void LocalHeap::VerifyCurrent() {
+void LocalHeap::VerifyCurrent() const {
   LocalHeap* current = LocalHeap::Current();
 
   if (is_main_thread())
@@ -199,14 +199,14 @@ bool LocalHeap::IsHandleDereferenceAllowed() {
 }
 #endif
 
-bool LocalHeap::IsParked() {
+bool LocalHeap::IsParked() const {
 #ifdef DEBUG
   VerifyCurrent();
 #endif
   return state_.load_relaxed().IsParked();
 }
 
-bool LocalHeap::IsRunning() {
+bool LocalHeap::IsRunning() const {
 #ifdef DEBUG
   VerifyCurrent();
 #endif

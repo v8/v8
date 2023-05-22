@@ -87,8 +87,9 @@ class V8_NODISCARD ParkedRecursiveMutexGuard {
     }
   }
 
-  ParkedRecursiveMutexGuard(const ParkedMutexGuard&) = delete;
-  ParkedRecursiveMutexGuard& operator=(const ParkedMutexGuard&) = delete;
+  ParkedRecursiveMutexGuard(const ParkedRecursiveMutexGuard&) = delete;
+  ParkedRecursiveMutexGuard& operator=(const ParkedRecursiveMutexGuard&) =
+      delete;
 
   ~ParkedRecursiveMutexGuard() { mutex_->Unlock(); }
 
@@ -219,6 +220,48 @@ class V8_NODISCARD ParkingSemaphore final : public base::Semaphore {
  private:
   using base::Semaphore::Wait;
   using base::Semaphore::WaitFor;
+};
+
+class ParkingThread : public v8::base::Thread {
+ public:
+  explicit ParkingThread(const Options& options) : v8::base::Thread(options) {}
+
+  V8_INLINE void ParkedJoin(LocalIsolate* local_isolate) {
+    ParkedJoin(local_isolate->heap());
+  }
+
+  V8_INLINE void ParkedJoin(LocalHeap* local_heap) {
+    ParkedScope scope(local_heap);
+    ParkedJoin(scope);
+  }
+
+  void ParkedJoin(const ParkedScope& scope) {
+    USE(scope);
+    Join();
+  }
+
+  template <typename ThreadCollection>
+  static V8_INLINE void ParkedJoinAll(LocalIsolate* local_isolate,
+                                      const ThreadCollection& threads) {
+    ParkedJoinAll(local_isolate->heap(), threads);
+  }
+
+  template <typename ThreadCollection>
+  static V8_INLINE void ParkedJoinAll(LocalHeap* local_heap,
+                                      const ThreadCollection& threads) {
+    ParkedScope scope(local_heap);
+    ParkedJoinAll(scope, threads);
+  }
+
+  template <typename ThreadCollection>
+  static void ParkedJoinAll(const ParkedScope& scope,
+                            const ThreadCollection& threads) {
+    USE(scope);
+    for (auto& thread : threads) thread->Join();
+  }
+
+ private:
+  using v8::base::Thread::Join;
 };
 
 }  // namespace internal
