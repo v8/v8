@@ -22,9 +22,7 @@ class AgeTableTest : public testing::TestWithHeap {
   using AdjacentCardsPolicy = AgeTable::AdjacentCardsPolicy;
   static constexpr auto kCardSizeInBytes = AgeTable::kCardSizeInBytes;
 
-  AgeTableTest()
-      : disallow_gc_(GetHeapHandle()),
-        age_table_(CagedHeapLocalData::Get().age_table) {}
+  AgeTableTest() : age_table_(CagedHeapLocalData::Get().age_table) {}
 
   ~AgeTableTest() override { age_table_.ResetForTesting(); }
 
@@ -76,7 +74,6 @@ class AgeTableTest : public testing::TestWithHeap {
   }
 
  private:
-  subtle::DisallowGarbageCollectionScope disallow_gc_;
   std::vector<std::unique_ptr<BasePage, void (*)(BasePage*)>> allocated_pages_;
   AgeTable& age_table_;
 };
@@ -84,6 +81,7 @@ class AgeTableTest : public testing::TestWithHeap {
 }  // namespace
 
 TEST_F(AgeTableTest, SetAgeForNormalPage) {
+  subtle::DisallowGarbageCollectionScope disallow_gc(*Heap::From(GetHeap()));
   auto* page = AllocateNormalPage();
   // By default, everything is old.
   AssertAgeForAddressRange(page->PayloadStart(), page->PayloadEnd(), Age::kOld);
@@ -96,6 +94,7 @@ TEST_F(AgeTableTest, SetAgeForNormalPage) {
 }
 
 TEST_F(AgeTableTest, SetAgeForLargePage) {
+  subtle::DisallowGarbageCollectionScope disallow_gc(*Heap::From(GetHeap()));
   auto* page = AllocateLargePage();
   // By default, everything is old.
   AssertAgeForAddressRange(page->PayloadStart(), page->PayloadEnd(), Age::kOld);
@@ -108,6 +107,7 @@ TEST_F(AgeTableTest, SetAgeForLargePage) {
 }
 
 TEST_F(AgeTableTest, SetAgeForSingleCardWithUnalignedAddresses) {
+  subtle::DisallowGarbageCollectionScope disallow_gc(*Heap::From(GetHeap()));
   auto* page = AllocateNormalPage();
   Address object_begin = reinterpret_cast<Address>(
       RoundUp(reinterpret_cast<uintptr_t>(page->PayloadStart()),
@@ -128,6 +128,7 @@ TEST_F(AgeTableTest, SetAgeForSingleCardWithUnalignedAddresses) {
 }
 
 TEST_F(AgeTableTest, SetAgeForSingleCardWithAlignedAddresses) {
+  subtle::DisallowGarbageCollectionScope disallow_gc(*Heap::From(GetHeap()));
   auto* page = AllocateNormalPage();
   Address object_begin = reinterpret_cast<Address>(RoundUp(
       reinterpret_cast<uintptr_t>(page->PayloadStart()), kCardSizeInBytes));
@@ -144,6 +145,7 @@ TEST_F(AgeTableTest, SetAgeForSingleCardWithAlignedAddresses) {
 }
 
 TEST_F(AgeTableTest, SetAgeForSingleCardWithAlignedBeginButUnalignedEnd) {
+  subtle::DisallowGarbageCollectionScope disallow_gc(*Heap::From(GetHeap()));
   auto* page = AllocateNormalPage();
   Address object_begin = reinterpret_cast<Address>(RoundUp(
       reinterpret_cast<uintptr_t>(page->PayloadStart()), kCardSizeInBytes));
@@ -160,6 +162,7 @@ TEST_F(AgeTableTest, SetAgeForSingleCardWithAlignedBeginButUnalignedEnd) {
 }
 
 TEST_F(AgeTableTest, SetAgeForMultipleCardsWithUnalignedAddresses) {
+  subtle::DisallowGarbageCollectionScope disallow_gc(*Heap::From(GetHeap()));
   static constexpr size_t kNumberOfCards = 4;
   auto* page = AllocateNormalPage();
   Address object_begin = reinterpret_cast<Address>(
@@ -179,6 +182,7 @@ TEST_F(AgeTableTest, SetAgeForMultipleCardsWithUnalignedAddresses) {
 }
 
 TEST_F(AgeTableTest, SetAgeForMultipleCardsConsiderAdjacentCards) {
+  subtle::DisallowGarbageCollectionScope disallow_gc(*Heap::From(GetHeap()));
   static constexpr size_t kNumberOfCards = 4;
   auto* page = AllocateNormalPage();
   Address object_begin = reinterpret_cast<Address>(
@@ -200,6 +204,7 @@ TEST_F(AgeTableTest, SetAgeForMultipleCardsConsiderAdjacentCards) {
 }
 
 TEST_F(AgeTableTest, MarkAllCardsAsYoung) {
+  subtle::DisallowGarbageCollectionScope disallow_gc(*Heap::From(GetHeap()));
   uint8_t* heap_start = reinterpret_cast<uint8_t*>(CagedHeapBase::GetBase());
   void* heap_end = heap_start + kCagedHeapReservationSize - 1;
   AssertAgeForAddressRange(heap_start, heap_end, Age::kOld);
