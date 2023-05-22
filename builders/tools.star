@@ -2,7 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-load("//lib/lib.star", "GOMA", "RECLIENT", "defaults_ci", "v8_builder")
+load("//lib/lib.star", "RECLIENT", "defaults_ci", "v8_builder")
 load("//lib/service-accounts.star", "V8_CI_ACCOUNT")
 
 v8_builder(

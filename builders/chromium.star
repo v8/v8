@@ -2,7 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-load("//lib/lib.star", "GOMA", "RECLIENT", "v8_builder")
+load("//lib/lib.star", "RECLIENT", "v8_builder")
 
 def chromium_builder(name):
     v8_builder(

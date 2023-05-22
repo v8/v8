@@ -217,50 +217,6 @@ defaults_dict = {
     "ci.br.extwin": defaults_ci_br,
 }
 
-GOMA = struct(
-    DEFAULT = {
-        "server_host": "goma.chromium.org",
-        "rpc_extra_params": "?prod",
-        "use_luci_auth": True,
-    },
-    ATS = {
-        "server_host": "goma.chromium.org",
-        "enable_ats": True,
-        "rpc_extra_params": "?prod",
-        "use_luci_auth": True,
-    },
-    CACHE_SILO = {
-        "server_host": "goma.chromium.org",
-        "rpc_extra_params": "?prod",
-        "use_luci_auth": True,
-        "cache_silo": True,
-    },
-    NO = {"use_goma": False},
-    NONE = {},
-)
-
-def _goma_properties(use_goma, goma_jobs):
-    if use_goma == GOMA.NONE or use_goma == GOMA.NO:
-        return use_goma
-
-    ret = {}
-    properties = dict(use_goma)
-    if properties.get("cache_silo"):
-        properties.pop("cache_silo")
-        ret.update({
-            "$build/chromium": {
-                "goma_cache_silo": True,
-            },
-        })
-
-    if goma_jobs:
-        properties["jobs"] = goma_jobs
-
-    ret.update({
-        "$build/goma": properties,
-    })
-    return ret
-
 RECLIENT = struct(
     DEFAULT = {
         "instance": "rbe-chromium-trusted",
@@ -405,10 +361,6 @@ def v8_basic_builder(defaults, **kwargs):
     # Should be replaced by the description below at some point.
     properties["__builder_name__"] = kwargs["name"]
 
-    properties.update(_goma_properties(
-        kwargs.pop("use_goma", GOMA.NONE),
-        kwargs.pop("goma_jobs", None),
-    ))
     properties.update(_reclient_properties(
         kwargs.pop("use_remoteexec", None),
         kwargs.pop("reclient_jobs", None),
@@ -466,7 +418,6 @@ def multibranch_builder(**kwargs):
         first_branch_version = args.pop("first_branch_version", None)
         if triggered_by_gitiles:
             args.setdefault("triggered_by", []).append(branch.poller_name)
-            args["use_goma"] = args.get("use_goma", GOMA.NO)
             args["use_remoteexec"] = args.get("use_remoteexec", RECLIENT.DEFAULT)
         args["priority"] = branch.priority
 

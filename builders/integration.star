@@ -2,7 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-load("//lib/lib.star", "GOMA", "RECLIENT", "in_console", "v8_builder")
+load("//lib/lib.star", "RECLIENT", "in_console", "v8_builder")
 
 def integration_builder(**kwargs):
     return v8_builder(disable_resultdb_exports = True, **kwargs)

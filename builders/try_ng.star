@@ -619,7 +619,6 @@ trybot_pair(
     cq_properties = CQ.OPTIONAL,
     dimensions = {"os": "Windows-10", "cpu": "x86-64"},
     build_timeout = 3600,
-    properties = {"use_goma": False},
 )
 
 trybot_pair(
