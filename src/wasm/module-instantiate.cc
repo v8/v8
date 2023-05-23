@@ -809,7 +809,7 @@ class ReportLazyCompilationTimesTask : public v8::Task {
 
 class WriteOutPGOTask : public v8::Task {
  public:
-  WriteOutPGOTask(std::weak_ptr<NativeModule> native_module)
+  explicit WriteOutPGOTask(std::weak_ptr<NativeModule> native_module)
       : native_module_(std::move(native_module)) {}
 
   void Run() final {
