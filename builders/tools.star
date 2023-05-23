@@ -23,7 +23,7 @@ v8_builder(
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     service_account = V8_CI_ACCOUNT,
     executable = "recipe:v8/branch_monitor",
-    properties = {"max_gap_seconds": 43200},
+    properties = {"max_gap_seconds": 3600},
     schedule = "49 * * * *",
     in_list = "tools",
     notifies = ["branch monitor"],
