@@ -350,8 +350,10 @@ void FeedbackVector::SetOptimizedCode(Code code) {
   DCHECK(CodeKindIsOptimizedJSFunction(code.kind()));
   int32_t state = flags();
   // Skip setting optimized code if it would cause us to tier down.
-  if (has_optimized_code() && (!CodeKindCanTierUp(optimized_code().kind()) ||
-                               optimized_code().kind() > code.kind())) {
+  if (!has_optimized_code()) {
+    state = MaybeHasTurbofanCodeBit::update(state, false);
+  } else if (!CodeKindCanTierUp(optimized_code().kind()) ||
+             optimized_code().kind() > code.kind()) {
     if (!v8_flags.stress_concurrent_inlining_attach_code &&
         !optimized_code().marked_for_deoptimization()) {
       return;
