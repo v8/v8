@@ -45,7 +45,17 @@ PropertyKey::PropertyKey(Isolate* isolate, Handle<Object> key, bool* success) {
 template <bool is_element>
 void LookupIterator::Start() {
   // GetRoot might allocate if lookup_start_object_ is a string.
-  holder_ = GetRoot(isolate_, lookup_start_object_, index_);
+  MaybeHandle<JSReceiver> maybe_holder =
+      GetRoot(isolate_, lookup_start_object_, index_, configuration_);
+  if (!maybe_holder.ToHandle(&holder_)) {
+    // This is an attempt to perform an own property lookup on a non-JSReceiver
+    // that doesn't have any properties.
+    DCHECK(!lookup_start_object_->IsJSReceiver());
+    DCHECK(!check_prototype_chain());
+    has_property_ = false;
+    state_ = NOT_FOUND;
+    return;
+  }
 
   {
     DisallowGarbageCollection no_gc;
@@ -118,19 +128,27 @@ template void LookupIterator::RestartInternal<true>(InterceptorState);
 template void LookupIterator::RestartInternal<false>(InterceptorState);
 
 // static
-Handle<JSReceiver> LookupIterator::GetRootForNonJSReceiver(
-    Isolate* isolate, Handle<Object> lookup_start_object, size_t index) {
-  // Strings are the only objects with properties (only elements) directly on
-  // the wrapper. Hence we can skip generating the wrapper for all other cases.
-  if (lookup_start_object->IsString(isolate) &&
-      index <
-          static_cast<size_t>(String::cast(*lookup_start_object).length())) {
-    // TODO(verwaest): Speed this up. Perhaps use a cached wrapper on the native
-    // context, ensuring that we don't leak it into JS?
-    Handle<JSFunction> constructor = isolate->string_function();
-    Handle<JSObject> result = isolate->factory()->NewJSObject(constructor);
-    Handle<JSPrimitiveWrapper>::cast(result)->set_value(*lookup_start_object);
-    return result;
+MaybeHandle<JSReceiver> LookupIterator::GetRootForNonJSReceiver(
+    Isolate* isolate, Handle<Object> lookup_start_object, size_t index,
+    Configuration configuration) {
+  // Strings are the only non-JSReceiver objects with properties (only elements
+  // and 'length') directly on the wrapper. Hence we can skip generating
+  // the wrapper for all other cases.
+  bool own_property_lookup = (configuration & kPrototypeChain) == 0;
+  if (lookup_start_object->IsString(isolate)) {
+    if (own_property_lookup ||
+        index <
+            static_cast<size_t>(String::cast(*lookup_start_object).length())) {
+      // TODO(verwaest): Speed this up. Perhaps use a cached wrapper on the
+      // native context, ensuring that we don't leak it into JS?
+      Handle<JSFunction> constructor = isolate->string_function();
+      Handle<JSObject> result = isolate->factory()->NewJSObject(constructor);
+      Handle<JSPrimitiveWrapper>::cast(result)->set_value(*lookup_start_object);
+      return result;
+    }
+  } else if (own_property_lookup) {
+    // Signal that the lookup will not find anything.
+    return {};
   }
   Handle<HeapObject> root(
       lookup_start_object->GetPrototypeChainRootMap(isolate).prototype(isolate),
@@ -902,6 +920,7 @@ Handle<Object> LookupIterator::FetchValue(
 }
 
 bool LookupIterator::CanStayConst(Object value) const {
+  DCHECK(!holder_.is_null());
   DCHECK(!IsElement(*holder_));
   DCHECK(holder_->HasFastProperties(isolate_));
   DCHECK_EQ(PropertyLocation::kField, property_details_.location());
@@ -935,6 +954,7 @@ bool LookupIterator::CanStayConst(Object value) const {
 }
 
 bool LookupIterator::DictCanStayConst(Object value) const {
+  DCHECK(!holder_.is_null());
   DCHECK(!IsElement(*holder_));
   DCHECK(!holder_->HasFastProperties(isolate_));
   DCHECK(!holder_->IsJSGlobalObject());
@@ -981,6 +1001,7 @@ int LookupIterator::GetAccessorIndex() const {
 
 FieldIndex LookupIterator::GetFieldIndex() const {
   DCHECK(has_property_);
+  DCHECK(!holder_.is_null());
   DCHECK(holder_->HasFastProperties(isolate_));
   DCHECK_EQ(PropertyLocation::kField, property_details_.location());
   DCHECK(!IsElement(*holder_));
@@ -988,6 +1009,7 @@ FieldIndex LookupIterator::GetFieldIndex() const {
 }
 
 Handle<PropertyCell> LookupIterator::GetPropertyCell() const {
+  DCHECK(!holder_.is_null());
   DCHECK(!IsElement(*holder_));
   Handle<JSGlobalObject> holder = GetHolder<JSGlobalObject>();
   return handle(holder->global_dictionary(isolate_, kAcquireLoad)
