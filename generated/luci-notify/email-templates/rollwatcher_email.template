@@ -8,4 +8,4 @@ Please <a href="https://bugs.chromium.org/p/chromium/issues/entry?summary=Branch
 open a bug</a>.
 
 <a href="https://ci.chromium.org/b/{{.Build.Id}}">Build {{.Build.Number}}</a>
-on `{{.Build.EndTime | time}}`
+on {{.Build.EndTime | time}}

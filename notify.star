@@ -194,7 +194,7 @@ Please <a href=\"https://bugs.chromium.org/p/chromium/issues/entry?summary=Branc
 open a bug</a>.
 
 <a href=\"https://ci.chromium.org/b/{{.Build.Id}}\">Build {{.Build.Number}}</a>
-on `{{.Build.EndTime | time}}`
+on {{.Build.EndTime | time}}
 """,
     ),
 )
