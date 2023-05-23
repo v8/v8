@@ -1417,9 +1417,6 @@ class AssemblerOpInterface {
   DECL_CHANGE(TruncateFloat##FloatBits##ToInt##ResultBits##OverflowUndefined, \
               kSignedFloatTruncateOverflowToMin, kNoOverflow,                 \
               Float##FloatBits, Word##ResultBits)                             \
-  DECL_CHANGE(TruncateFloat##FloatBits##ToInt##ResultBits##OverflowToMin,     \
-              kSignedFloatTruncateOverflowToMin, kNoAssumption,               \
-              Float##FloatBits, Word##ResultBits)                             \
   DECL_TRY_CHANGE(TryTruncateFloat##FloatBits##ToInt##ResultBits,             \
                   kSignedFloatTruncateOverflowUndefined, Float##FloatBits,    \
                   Word##ResultBits)
@@ -1429,6 +1426,10 @@ class AssemblerOpInterface {
   DECL_SIGNED_FLOAT_TRUNCATE(32, 64)
   DECL_SIGNED_FLOAT_TRUNCATE(32, 32)
 #undef DECL_SIGNED_FLOAT_TRUNCATE
+  DECL_CHANGE(TruncateFloat64ToInt64OverflowToMin,
+              kSignedFloatTruncateOverflowToMin, kNoAssumption, Float64, Word64)
+  DECL_CHANGE(TruncateFloat32ToInt32OverflowToMin,
+              kSignedFloatTruncateOverflowToMin, kNoAssumption, Float32, Word32)
 
 #define DECL_UNSIGNED_FLOAT_TRUNCATE(FloatBits, ResultBits)                    \
   DECL_CHANGE(TruncateFloat##FloatBits##ToUint##ResultBits##OverflowUndefined, \
@@ -2430,6 +2431,7 @@ class AssemblerOpInterface {
     }
     stack().ReduceDebugBreak();
   }
+
   void DebugPrint(OpIndex input, RegisterRepresentation rep) {
     // TODO(nicohartmann@): Relax this.
     DCHECK_EQ(rep, RegisterRepresentation::PointerSized());
@@ -2437,6 +2439,9 @@ class AssemblerOpInterface {
       return;
     }
     stack().ReduceDebugPrint(input, rep);
+  }
+  void DebugPrint(V<WordPtr> input) {
+    return DebugPrint(input, RegisterRepresentation::PointerSized());
   }
 
   V<Tagged> BigIntBinop(V<Tagged> left, V<Tagged> right, OpIndex frame_state,

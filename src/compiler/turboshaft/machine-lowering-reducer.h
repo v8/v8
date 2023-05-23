@@ -110,7 +110,7 @@ class MachineLoweringReducer : public Next {
         return i32;
       }
       case ChangeOrDeoptOp::Kind::kFloat64ToInt64: {
-        V<Word64> i64 = __ TruncateFloat64ToInt64OverflowUndefined(input);
+        V<Word64> i64 = __ TruncateFloat64ToInt64OverflowToMin(input);
         __ DeoptimizeIfNot(__ Float64Equal(__ ChangeInt64ToFloat64(i64), input),
                            frame_state, DeoptimizeReason::kLostPrecisionOrNaN,
                            feedback);
