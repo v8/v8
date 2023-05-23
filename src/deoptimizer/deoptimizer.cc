@@ -2044,11 +2044,12 @@ unsigned Deoptimizer::ComputeInputFrameSize() const {
   unsigned result = fixed_size_above_fp + fp_to_sp_delta_;
   DCHECK(CodeKindCanDeoptimize(compiled_code_.kind()));
   unsigned stack_slots = compiled_code_.stack_slots();
-  if (compiled_code_.is_maglevved()) {
+  if (compiled_code_.is_maglevved() && !deoptimizing_throw_) {
     // Maglev code can deopt in deferred code which has spilled registers across
     // the call. These will be included in the fp_to_sp_delta, but the expected
     // frame size won't include them, so we need to check for less-equal rather
-    // than equal.
+    // than equal. For deoptimizing throws, these will have already been trimmed
+    // off.
     CHECK_LE(fixed_size_above_fp + (stack_slots * kSystemPointerSize) -
                  CommonFrameConstants::kFixedFrameSizeAboveFp,
              result);
