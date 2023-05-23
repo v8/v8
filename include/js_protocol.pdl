@@ -1443,7 +1443,7 @@ domain Runtime
       # resulting `objectId` is still provided.
       deprecated optional boolean generateWebDriverValue
       # Specifies the result serialization. If provided, overrides
-      # `returnByValue` and `generateWebDriverValue`.
+      # `generatePreview`, `returnByValue` and `generateWebDriverValue`.
       experimental optional SerializationOptions serializationOptions
 
     returns
@@ -1538,7 +1538,7 @@ domain Runtime
       # resulting `objectId` is still provided.
       deprecated optional boolean generateWebDriverValue
       # Specifies the result serialization. If provided, overrides
-      # `returnByValue` and `generateWebDriverValue`.
+      # `generatePreview`, `returnByValue` and `generateWebDriverValue`.
       experimental optional SerializationOptions serializationOptions
     returns
       # Evaluation result.
