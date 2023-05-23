@@ -526,6 +526,7 @@
   # i18n is required for Intl
   'regress/regress-crbug-1052647': [PASS,FAIL],
   'regress/regress-1409058': [SKIP],
+  'regress/regress-1447383': [SKIP],
 
   # Temporal intl tests won't work without i18n
   'temporal/function-exist': [FAIL],
