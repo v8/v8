@@ -12,7 +12,6 @@
 #include <atomic>
 #include <type_traits>
 
-#include "v8-version.h"  // NOLINT(build/include_directory)
 #include "v8config.h"    // NOLINT(build/include_directory)
 
 namespace v8 {
