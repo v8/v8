@@ -529,8 +529,17 @@ MaybeHandle<String> Object::NoSideEffectsToMaybeString(Isolate* isolate,
     IncrementalStringBuilder builder(isolate);
     builder.AppendCStringLiteral("Symbol(");
     if (symbol->description().IsString()) {
-      builder.AppendString(
-          handle(String::cast(symbol->description()), isolate));
+      Handle<String> description =
+          handle(String::cast(symbol->description()), isolate);
+      if (description->length() > 128) {
+        builder.AppendString(
+            isolate->factory()->NewSubString(description, 0, 56));
+        builder.AppendCStringLiteral("...<omitted>...");
+        builder.AppendString(isolate->factory()->NewSubString(
+            description, description->length() - 56, description->length()));
+      } else {
+        builder.AppendString(description);
+      }
     }
     builder.AppendCharacter(')');
 
