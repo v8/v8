@@ -971,7 +971,9 @@ class V8_EXPORT_PRIVATE JSGraphAssembler : public GraphAssembler {
   JSGRAPH_SINGLETON_CONSTANT_LIST(SINGLETON_CONST_TEST_DECL)
 #undef SINGLETON_CONST_TEST_DECL
 
-  Node* Allocate(AllocationType allocation, Node* size);
+  Node* Allocate(
+      AllocationType allocation, Node* size,
+      AllowLargeObjects allow_large_objects = AllowLargeObjects::kFalse);
   TNode<Map> LoadMap(TNode<HeapObject> object);
   Node* LoadField(FieldAccess const&, Node* object);
   template <typename T>

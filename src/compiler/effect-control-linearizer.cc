@@ -2720,7 +2720,10 @@ Node* EffectControlLinearizer::SizeForString(Node* length, Node* is_two_byte) {
 // {length}.
 Node* EffectControlLinearizer::AllocateSeqString(Node* length, bool one_byte) {
   Node* size = SizeForString(length, __ Int32Constant(!one_byte));
-  Node* seq_string = __ Allocate(AllocationType::kYoung, size);
+
+  Node* seq_string =
+      __ Allocate(AllocationType::kYoung, size, AllowLargeObjects::kTrue);
+
   __ StoreField(AccessBuilder::ForMap(), seq_string,
                 __ HeapConstant(one_byte ? factory()->one_byte_string_map()
                                          : factory()->string_map()));
@@ -2745,7 +2748,10 @@ Node* EffectControlLinearizer::AllocateSeqString(Node* length,
                                                  Node* is_one_byte) {
   Node* is_two_byte = __ Word32Xor(is_one_byte, __ Int32Constant(1));
   Node* size = SizeForString(length, is_two_byte);
-  Node* seq_string = __ Allocate(AllocationType::kYoung, size);
+
+  Node* seq_string =
+      __ Allocate(AllocationType::kYoung, size, AllowLargeObjects::kTrue);
+
   __ StoreField(AccessBuilder::ForNameRawHashField(), seq_string,
                 __ Int32Constant(Name::kEmptyHashField));
   __ StoreField(AccessBuilder::ForStringLength(), seq_string, length);
