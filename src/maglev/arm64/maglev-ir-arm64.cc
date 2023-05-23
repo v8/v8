@@ -332,8 +332,10 @@ void CheckMapsWithMigration::GenerateCode(MaglevAssembler* masm,
   __ LoadMap(object_map, object);
 
   RegisterSnapshot save_registers = register_snapshot();
-  // Make sure that object_map is not clobbered by the
+  // Make sure that object and object_map are not clobbered by the
   // Runtime::kTryMigrateInstance runtime call.
+  save_registers.live_registers.set(object);
+  save_registers.live_tagged_registers.set(object);
   save_registers.live_registers.set(object_map);
   save_registers.live_tagged_registers.set(object_map);
   // We can eager deopt after the snapshot, so make sure the nodes used by the
