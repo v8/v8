@@ -751,6 +751,10 @@ void DeclarationScope::DeclareThis(AstValueFactory* ast_value_factory) {
       THIS_VARIABLE,
       derived_constructor ? kNeedsInitialization : kCreatedInitialized,
       kNotAssigned);
+  // Derived constructors have hole checks when calling super. Mark the 'this'
+  // variable as having hole initialization forced so that TDZ elision analysis
+  // applies and numbers the variable.
+  if (derived_constructor) receiver_->ForceHoleInitialization();
   locals_.Add(receiver_);
 }
 

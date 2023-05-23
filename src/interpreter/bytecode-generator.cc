@@ -4031,7 +4031,7 @@ void BytecodeGenerator::BuildVariableAssignment(
       }
 
       if (mode != VariableMode::kConst || op == Token::INIT) {
-        if (op == Token::INIT) {
+        if (op == Token::INIT && variable->IsHoleInitializationForced()) {
           // After initializing a variable it won't be the hole anymore, so
           // elide subsequent checks.
           RememberHoleCheckInCurrentBlock(variable);
@@ -4072,7 +4072,7 @@ void BytecodeGenerator::BuildVariableAssignment(
       }
 
       if (mode != VariableMode::kConst || op == Token::INIT) {
-        if (op == Token::INIT) {
+        if (op == Token::INIT && variable->IsHoleInitializationForced()) {
           // After initializing a variable it won't be the hole anymore, so
           // elide subsequent checks.
           RememberHoleCheckInCurrentBlock(variable);
