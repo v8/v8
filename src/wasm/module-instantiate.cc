@@ -925,17 +925,6 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   //--------------------------------------------------------------------------
   // Set up the memory buffer and memory objects.
   //--------------------------------------------------------------------------
-  uint32_t initial_pages = module_->initial_pages;
-  auto initial_pages_counter = SELECT_WASM_COUNTER(
-      isolate_->counters(), module_->origin, wasm, min_mem_pages_count);
-  initial_pages_counter->AddSample(initial_pages);
-  if (module_->has_maximum_pages) {
-    DCHECK_EQ(kWasmOrigin, module_->origin);
-    auto max_pages_counter =
-        isolate_->counters()->wasm_wasm_max_mem_pages_count();
-    max_pages_counter->AddSample(module_->maximum_pages);
-  }
-
   if (is_asmjs_module(module_)) {
     Handle<JSArrayBuffer> buffer;
     if (memory_buffer_.ToHandle(&buffer)) {

@@ -47,12 +47,6 @@ namespace internal {
      100 * KB, GB, 51)                                                         \
   HR(wasm_asm_module_size_bytes, V8.WasmModuleSizeBytes.asm, 1, GB, 51)        \
   HR(wasm_wasm_module_size_bytes, V8.WasmModuleSizeBytes.wasm, 1, GB, 51)      \
-  HR(wasm_asm_min_mem_pages_count, V8.WasmMinMemPagesCount.asm, 1, 2 << 16,    \
-     51)                                                                       \
-  HR(wasm_wasm_min_mem_pages_count, V8.WasmMinMemPagesCount.wasm, 1, 2 << 16,  \
-     51)                                                                       \
-  HR(wasm_wasm_max_mem_pages_count, V8.WasmMaxMemPagesCount.wasm, 1, 2 << 16,  \
-     51)                                                                       \
   HR(wasm_compile_function_peak_memory_bytes,                                  \
      V8.WasmCompileFunctionPeakMemoryBytes, 1, GB, 51)                         \
   HR(wasm_compile_huge_function_peak_memory_bytes,                             \
