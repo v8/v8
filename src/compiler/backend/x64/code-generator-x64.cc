@@ -6845,8 +6845,13 @@ void CodeGenerator::AssembleReturn(InstructionOperand* additional_pop_count) {
         g.ToConstant(additional_pop_count).ToInt32() == 0) {
       // Canonicalize JSFunction return sites for now.
       if (return_label_.is_bound()) {
-        __ jmp(&return_label_);
-        return;
+        // Emit a far jump here can't save code size but may bring some
+        // regression, so we just forward when it is a near jump.
+        const bool is_near_jump = is_int8(return_label_.pos() - __ pc_offset());
+        if (drop_jsargs || is_near_jump) {
+          __ jmp(&return_label_);
+          return;
+        }
       } else {
         __ bind(&return_label_);
       }
