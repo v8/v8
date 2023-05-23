@@ -2482,46 +2482,55 @@ void Builtins::Generate_Call(MacroAssembler* masm, ConvertReceiverMode mode) {
   //  -- a1 : the target to call (can be any Object).
   // -----------------------------------
 
+  Register argc = a0;
+  Register target = a1;
+  Register map = t1;
+  Register instance_type = t2;
+  Register scratch = t6;
+  DCHECK(!AreAliased(argc, target, map, instance_type, scratch));
+
   Label non_callable, class_constructor;
-  UseScratchRegisterScope temps(masm);
-  temps.Include(t1, t2);
-  temps.Include(t4);
-  Register map = temps.Acquire(), type = temps.Acquire(),
-           range = temps.Acquire();
-  __ JumpIfSmi(a1, &non_callable);
-  __ LoadMap(map, a1);
-  __ GetInstanceTypeRange(map, type, FIRST_CALLABLE_JS_FUNCTION_TYPE, range);
+  __ JumpIfSmi(target, &non_callable);
+  __ LoadMap(map, target);
+  __ GetInstanceTypeRange(map, instance_type, FIRST_CALLABLE_JS_FUNCTION_TYPE,
+                          scratch);
   __ Jump(masm->isolate()->builtins()->CallFunction(mode),
-          RelocInfo::CODE_TARGET, Uless_equal, range,
+          RelocInfo::CODE_TARGET, ule, scratch,
           Operand(LAST_CALLABLE_JS_FUNCTION_TYPE -
                   FIRST_CALLABLE_JS_FUNCTION_TYPE));
   __ Jump(BUILTIN_CODE(masm->isolate(), CallBoundFunction),
-          RelocInfo::CODE_TARGET, eq, type, Operand(JS_BOUND_FUNCTION_TYPE));
-  Register scratch = map;
+          RelocInfo::CODE_TARGET, eq, instance_type,
+          Operand(JS_BOUND_FUNCTION_TYPE));
+
   // Check if target has a [[Call]] internal method.
-  __ Lbu(scratch, FieldMemOperand(map, Map::kBitFieldOffset));
-  __ And(scratch, scratch, Operand(Map::Bits1::IsCallableBit::kMask));
-  __ Branch(&non_callable, eq, scratch, Operand(zero_reg),
-            Label::Distance::kNear);
+  {
+    Register flags = t1;
+    __ Lbu(flags, FieldMemOperand(map, Map::kBitFieldOffset));
+    map = no_reg;
+    __ And(flags, flags, Operand(Map::Bits1::IsCallableBit::kMask));
+    __ Branch(&non_callable, eq, flags, Operand(zero_reg));
+  }
 
   __ Jump(BUILTIN_CODE(masm->isolate(), CallProxy), RelocInfo::CODE_TARGET, eq,
-          type, Operand(JS_PROXY_TYPE));
+          instance_type, Operand(JS_PROXY_TYPE));
 
   // Check if target is a wrapped function and call CallWrappedFunction external
   // builtin
   __ Jump(BUILTIN_CODE(masm->isolate(), CallWrappedFunction),
-          RelocInfo::CODE_TARGET, eq, type, Operand(JS_WRAPPED_FUNCTION_TYPE));
+          RelocInfo::CODE_TARGET, eq, instance_type,
+          Operand(JS_WRAPPED_FUNCTION_TYPE));
 
   // ES6 section 9.2.1 [[Call]] ( thisArgument, argumentsList)
   // Check that the function is not a "classConstructor".
-  __ Branch(&class_constructor, eq, type, Operand(JS_CLASS_CONSTRUCTOR_TYPE));
+  __ Branch(&class_constructor, eq, instance_type,
+            Operand(JS_CLASS_CONSTRUCTOR_TYPE));
 
   // 2. Call to something else, which might have a [[Call]] internal method (if
   // not we raise an exception).
   // Overwrite the original receiver with the (original) target.
-  __ StoreReceiver(a1, a0, kScratchReg);
+  __ StoreReceiver(target, argc, kScratchReg);
   // Let the "call_as_function_delegate" take care of the rest.
-  __ LoadNativeContextSlot(a1, Context::CALL_AS_FUNCTION_DELEGATE_INDEX);
+  __ LoadNativeContextSlot(target, Context::CALL_AS_FUNCTION_DELEGATE_INDEX);
   __ Jump(masm->isolate()->builtins()->CallFunction(
               ConvertReceiverMode::kNotNullOrUndefined),
           RelocInfo::CODE_TARGET);
@@ -2530,16 +2539,16 @@ void Builtins::Generate_Call(MacroAssembler* masm, ConvertReceiverMode mode) {
   __ bind(&non_callable);
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
-    __ Push(a1);
+    __ Push(target);
     __ CallRuntime(Runtime::kThrowCalledNonCallable);
   }
+
   // 4. The function is a "classConstructor", need to raise an exception.
   __ bind(&class_constructor);
   {
     FrameScope frame(masm, StackFrame::INTERNAL);
-    __ Push(a1);
+    __ Push(target);
     __ CallRuntime(Runtime::kThrowConstructorNonCallableError);
-    __ ebreak();
   }
 }
 
@@ -2608,7 +2617,6 @@ void Builtins::Generate_ConstructBoundFunction(MacroAssembler* masm) {
   __ Jump(BUILTIN_CODE(masm->isolate(), Construct), RelocInfo::CODE_TARGET);
 }
 
-// static
 void Builtins::Generate_Construct(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- a0 : the number of arguments
@@ -2617,34 +2625,40 @@ void Builtins::Generate_Construct(MacroAssembler* masm) {
   //          the JSFunction on which new was invoked initially)
   // -----------------------------------
 
+  Register argc = a0;
+  Register target = a1;
+  Register map = t1;
+  Register instance_type = t2;
+  Register scratch = t6;
+  DCHECK(!AreAliased(argc, target, map, instance_type, scratch));
+
   // Check if target is a Smi.
   Label non_constructor, non_proxy;
-  __ JumpIfSmi(a1, &non_constructor);
+  __ JumpIfSmi(target, &non_constructor);
 
   // Check if target has a [[Construct]] internal method.
-  UseScratchRegisterScope temps(masm);
-  temps.Include(t0, t1);
-  Register map = temps.Acquire();
-  Register scratch = temps.Acquire();
-  __ LoadTaggedField(map, FieldMemOperand(a1, HeapObject::kMapOffset));
-  __ Lbu(scratch, FieldMemOperand(map, Map::kBitFieldOffset));
-  __ And(scratch, scratch, Operand(Map::Bits1::IsConstructorBit::kMask));
-  __ Branch(&non_constructor, eq, scratch, Operand(zero_reg));
-  Register range = temps.Acquire();
+  __ LoadTaggedField(map, FieldMemOperand(target, HeapObject::kMapOffset));
+  {
+    Register flags = t3;
+    __ Lbu(flags, FieldMemOperand(map, Map::kBitFieldOffset));
+    __ And(flags, flags, Operand(Map::Bits1::IsConstructorBit::kMask));
+    __ Branch(&non_constructor, eq, flags, Operand(zero_reg));
+  }
+
   // Dispatch based on instance type.
-  __ GetInstanceTypeRange(map, scratch, FIRST_JS_FUNCTION_TYPE, range);
+  __ GetInstanceTypeRange(map, instance_type, FIRST_JS_FUNCTION_TYPE, scratch);
   __ Jump(BUILTIN_CODE(masm->isolate(), ConstructFunction),
-          RelocInfo::CODE_TARGET, Uless_equal, range,
+          RelocInfo::CODE_TARGET, Uless_equal, scratch,
           Operand(LAST_JS_FUNCTION_TYPE - FIRST_JS_FUNCTION_TYPE));
 
   // Only dispatch to bound functions after checking whether they are
   // constructors.
   __ Jump(BUILTIN_CODE(masm->isolate(), ConstructBoundFunction),
-          RelocInfo::CODE_TARGET, eq, scratch, Operand(JS_BOUND_FUNCTION_TYPE));
+          RelocInfo::CODE_TARGET, eq, instance_type,
+          Operand(JS_BOUND_FUNCTION_TYPE));
 
   // Only dispatch to proxies after checking whether they are constructors.
-  __ Branch(&non_proxy, ne, scratch, Operand(JS_PROXY_TYPE),
-            Label::Distance::kNear);
+  __ Branch(&non_proxy, ne, instance_type, Operand(JS_PROXY_TYPE));
   __ Jump(BUILTIN_CODE(masm->isolate(), ConstructProxy),
           RelocInfo::CODE_TARGET);
 
@@ -2652,9 +2666,10 @@ void Builtins::Generate_Construct(MacroAssembler* masm) {
   __ bind(&non_proxy);
   {
     // Overwrite the original receiver with the (original) target.
-    __ StoreReceiver(a1, a0, kScratchReg);
+    __ StoreReceiver(target, argc, kScratchReg);
     // Let the "call_as_constructor_delegate" take care of the rest.
-    __ LoadNativeContextSlot(a1, Context::CALL_AS_CONSTRUCTOR_DELEGATE_INDEX);
+    __ LoadNativeContextSlot(target,
+                             Context::CALL_AS_CONSTRUCTOR_DELEGATE_INDEX);
     __ Jump(masm->isolate()->builtins()->CallFunction(),
             RelocInfo::CODE_TARGET);
   }
@@ -2716,11 +2731,11 @@ void Builtins::Generate_WasmLiftoffFrameSetup(MacroAssembler* masm) {
   Register scratch = t2;
   Label allocate_vector, done;
 
-  __ LoadWord(vector,
+  __ LoadTaggedField(vector,
               FieldMemOperand(kWasmInstanceRegister,
                               WasmInstanceObject::kFeedbackVectorsOffset));
   __ CalcScaledAddress(vector, vector, func_index, kTaggedSizeLog2);
-  __ LoadWord(vector, FieldMemOperand(vector, FixedArray::kHeaderSize));
+  __ LoadTaggedField(vector, FieldMemOperand(vector, FixedArray::kHeaderSize));
   __ JumpIfSmi(vector, &allocate_vector);
   __ bind(&done);
   __ Push(vector);
