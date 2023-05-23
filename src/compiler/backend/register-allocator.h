@@ -601,11 +601,6 @@ class V8_EXPORT_PRIVATE LiveRange : public NON_EXPORTED_BASE(ZoneObject) {
   LifetimePosition NextLifetimePositionRegisterIsBeneficial(
       const LifetimePosition& start) const;
 
-  // Returns use position for which register is beneficial in this live
-  // range and which precedes start.
-  UsePosition* PreviousUsePositionRegisterIsBeneficial(
-      LifetimePosition start) const;
-
   // Returns use position for which spilling is detrimental in this live
   // range and which follows both start and last processed use position
   UsePosition* NextUsePositionSpillDetrimental(LifetimePosition start) const;
@@ -676,8 +671,6 @@ class V8_EXPORT_PRIVATE LiveRange : public NON_EXPORTED_BASE(ZoneObject) {
 
   explicit LiveRange(int relative_id, MachineRepresentation rep,
                      TopLevelLiveRange* top_level);
-
-  void UpdateParentForAllChildren(TopLevelLiveRange* new_top_level);
 
   void set_spilled(bool value) { bits_ = SpilledField::update(bits_, value); }
 

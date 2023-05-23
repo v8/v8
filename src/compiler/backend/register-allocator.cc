@@ -452,17 +452,6 @@ LifetimePosition LiveRange::NextLifetimePositionRegisterIsBeneficial(
   return next_use->pos();
 }
 
-UsePosition* LiveRange::PreviousUsePositionRegisterIsBeneficial(
-    LifetimePosition start) const {
-  UsePosition* pos = first_pos();
-  UsePosition* prev = nullptr;
-  while (pos != nullptr && pos->pos() < start) {
-    if (pos->RegisterIsBeneficial()) prev = pos;
-    pos = pos->next();
-  }
-  return prev;
-}
-
 UsePosition* LiveRange::NextUsePositionSpillDetrimental(
     LifetimePosition start) const {
   UsePosition* pos = NextUsePosition(start);
@@ -621,13 +610,6 @@ LiveRange* LiveRange::SplitAt(LifetimePosition position, Zone* zone) {
   result->next_ = next_;
   next_ = result;
   return result;
-}
-
-void LiveRange::UpdateParentForAllChildren(TopLevelLiveRange* new_top_level) {
-  LiveRange* child = this;
-  for (; child != nullptr; child = child->next()) {
-    child->top_level_ = new_top_level;
-  }
 }
 
 void LiveRange::ConvertUsesToOperand(const InstructionOperand& op,
