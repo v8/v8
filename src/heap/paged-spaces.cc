@@ -1070,8 +1070,6 @@ void PagedSpaceBase::RefillFreeList() {
   for (Page* p : heap()->sweeper()->GetAllSweptPagesSafe(this)) {
     // We regularly sweep NEVER_ALLOCATE_ON_PAGE pages. We drop the freelist
     // entries here to make them unavailable for allocations.
-    DCHECK_IMPLIES(identity() == NEW_SPACE,
-                   !p->IsFlagSet(Page::NEVER_ALLOCATE_ON_PAGE));
     if (p->IsFlagSet(Page::NEVER_ALLOCATE_ON_PAGE)) {
       DropFreeListCategories(p, free_list());
     }

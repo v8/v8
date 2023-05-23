@@ -1078,10 +1078,12 @@ void Sweeper::AddPage(AllocationSpace space, Page* page) {
 
 void Sweeper::AddNewSpacePage(Page* page) {
   DCHECK_EQ(NEW_SPACE, page->owner_identity());
+  DCHECK_LE(page->AgeInNewSpace(), v8_flags.minor_mc_max_page_age);
   size_t live_bytes = marking_state_->live_bytes(page);
   heap_->IncrementNewSpaceSurvivingObjectSize(live_bytes);
   heap_->IncrementYoungSurvivorsCounter(live_bytes);
   AddPageImpl(NEW_SPACE, page);
+  page->IncrementAgeInNewSpace();
 }
 
 void Sweeper::AddPromotedPageForIteration(MemoryChunk* chunk) {
@@ -1249,6 +1251,8 @@ void Sweeper::SweepEmptyNewSpacePage(Page* page) {
   }
 
   page->ResetAllocationStatistics();
+  page->ResetAgeInNewSpace();
+  page->ClearFlag(Page::NEVER_ALLOCATE_ON_PAGE);
   heap_->CreateFillerObjectAtSweeper(start, static_cast<int>(size));
   paged_space->UnaccountedFree(start, size);
   paged_space->IncreaseAllocatedBytes(0, page);

@@ -208,6 +208,10 @@ class MemoryChunk : public BasicMemoryChunk {
   }
   size_t AllocatedLabSize() const { return allocated_lab_size_; }
 
+  void IncrementAgeInNewSpace() { age_in_new_space_++; }
+  void ResetAgeInNewSpace() { age_in_new_space_ = 0; }
+  size_t AgeInNewSpace() const { return age_in_new_space_; }
+
   void ResetAllocationStatistics() {
     BasicMemoryChunk::ResetAllocationStatistics();
     allocated_lab_size_ = 0;
@@ -285,6 +289,10 @@ class MemoryChunk : public BasicMemoryChunk {
   // Counts overall allocated LAB size on the page since the last GC. Used
   // only for new space pages.
   size_t allocated_lab_size_ = 0;
+
+  // Counts the number of young gen GCs that a page survived in new space. This
+  // counter is reset to 0 whenever the page is empty.
+  size_t age_in_new_space_ = 0;
 
   MarkingBitmap marking_bitmap_;
 

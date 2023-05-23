@@ -313,6 +313,9 @@ void MemoryChunk::ValidateOffsets(MemoryChunk* chunk) {
   DCHECK_EQ(
       reinterpret_cast<Address>(&chunk->allocated_lab_size_) - chunk->address(),
       MemoryChunkLayout::kAllocatedLabSizeOffset);
+  DCHECK_EQ(
+      reinterpret_cast<Address>(&chunk->age_in_new_space_) - chunk->address(),
+      MemoryChunkLayout::kAgeInNewSpaceOffset);
 }
 #endif
 

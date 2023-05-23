@@ -87,6 +87,7 @@ void Page::ReleaseFreeListCategories() {
 Page* Page::ConvertNewToOld(Page* old_page) {
   DCHECK(old_page);
   DCHECK(old_page->InNewSpace());
+  old_page->ResetAgeInNewSpace();
   OldSpace* old_space = old_page->heap()->old_space();
   old_page->set_owner(old_space);
   old_page->ClearFlags(Page::kAllFlagsMask);

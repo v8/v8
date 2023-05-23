@@ -4413,6 +4413,13 @@ bool ShouldMovePageForYoungGC(Page* p, intptr_t live_bytes,
         NewSpacePageEvacuationThreshold(GarbageCollector::MINOR_MARK_COMPACTOR),
         p->AllocatedLabSize());
   }
+  if (!should_move_page &&
+      (p->AgeInNewSpace() == v8_flags.minor_mc_max_page_age)) {
+    // Don't allocate on old pages so that recently allocated objects on the
+    // page get a chance to die young. The page will be force promoted on the
+    // next GC because `AllocatedLabSize` will be 0.
+    p->SetFlag(Page::NEVER_ALLOCATE_ON_PAGE);
+  }
   return should_move_page;
 }
 
