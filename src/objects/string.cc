@@ -581,6 +581,11 @@ bool String::SupportsExternalization(v8::String::Encoding encoding) {
     return false;
   }
 
+  // Only strings in old space can be externalized.
+  if (Heap::InYoungGeneration(*this)) {
+    return false;
+  }
+
   // Encoding changes are not supported.
   static_assert(kStringEncodingMask == 1 << 3);
   static_assert(v8::String::Encoding::ONE_BYTE_ENCODING == 1 << 3);
