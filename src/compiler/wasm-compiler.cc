@@ -418,9 +418,7 @@ void WasmGraphBuilder::StackCheck(
       mcgraph()->machine()->StackPointerGreaterThan(StackCheckKind::kWasm),
       limit, effect()));
 
-  Node* if_true;
-  Node* if_false;
-  BranchExpectTrue(check, &if_true, &if_false);
+  auto [if_true, if_false] = BranchExpectTrue(check);
 
   if (stack_check_call_operator_ == nullptr) {
     // Build and cache the stack check call operator and the constant
@@ -1109,19 +1107,25 @@ Node* WasmGraphBuilder::Simd128Constant(const uint8_t value[16]) {
   return graph()->NewNode(mcgraph()->machine()->S128Const(value));
 }
 
-Node* WasmGraphBuilder::BranchNoHint(Node* cond, Node** true_node,
-                                     Node** false_node) {
-  return gasm_->Branch(cond, true_node, false_node, BranchHint::kNone);
+std::tuple<Node*, Node*> WasmGraphBuilder::BranchNoHint(Node* cond) {
+  Node* true_node;
+  Node* false_node;
+  gasm_->Branch(cond, &true_node, &false_node, BranchHint::kNone);
+  return {true_node, false_node};
 }
 
-Node* WasmGraphBuilder::BranchExpectFalse(Node* cond, Node** true_node,
-                                          Node** false_node) {
-  return gasm_->Branch(cond, true_node, false_node, BranchHint::kFalse);
+std::tuple<Node*, Node*> WasmGraphBuilder::BranchExpectFalse(Node* cond) {
+  Node* true_node;
+  Node* false_node;
+  gasm_->Branch(cond, &true_node, &false_node, BranchHint::kFalse);
+  return {true_node, false_node};
 }
 
-Node* WasmGraphBuilder::BranchExpectTrue(Node* cond, Node** true_node,
-                                         Node** false_node) {
-  return gasm_->Branch(cond, true_node, false_node, BranchHint::kTrue);
+std::tuple<Node*, Node*> WasmGraphBuilder::BranchExpectTrue(Node* cond) {
+  Node* true_node;
+  Node* false_node;
+  gasm_->Branch(cond, &true_node, &false_node, BranchHint::kTrue);
+  return {true_node, false_node};
 }
 
 Node* WasmGraphBuilder::Select(Node *cond, Node* true_node,
@@ -1146,9 +1150,9 @@ Node* WasmGraphBuilder::Select(Node *cond, Node* true_node,
                                        false_node);
   }
   // Default to control-flow.
-  Node* controls[2];
-  BranchNoHint(cond, &controls[0], &controls[1]);
-  Node* merge = Merge(2, controls);
+
+  auto [if_true, if_false] = BranchNoHint(cond);
+  Node* merge = Merge(if_true, if_false);
   SetControl(merge);
   Node* inputs[] = {true_node, false_node, merge};
   return Phi(type, 2, inputs);
@@ -2386,10 +2390,8 @@ Node* WasmGraphBuilder::BuildI32DivS(Node* left, Node* right,
                                      wasm::WasmCodePosition position) {
   ZeroCheck32(wasm::kTrapDivByZero, right, position);
   Node* previous_effect = effect();
-  Node* denom_is_m1;
-  Node* denom_is_not_m1;
-  BranchExpectFalse(gasm_->Word32Equal(right, Int32Constant(-1)), &denom_is_m1,
-                    &denom_is_not_m1);
+  auto [denom_is_m1, denom_is_not_m1] =
+      BranchExpectFalse(gasm_->Word32Equal(right, Int32Constant(-1)));
   SetControl(denom_is_m1);
   TrapIfEq32(wasm::kTrapDivUnrepresentable, left, kMinInt, position);
   Node* merge = Merge(control(), denom_is_not_m1);
@@ -2599,10 +2601,8 @@ Node* WasmGraphBuilder::BuildI64DivS(Node* left, Node* right,
   }
   ZeroCheck64(wasm::kTrapDivByZero, right, position);
   Node* previous_effect = effect();
-  Node* denom_is_m1;
-  Node* denom_is_not_m1;
-  BranchExpectFalse(gasm_->Word64Equal(right, Int64Constant(-1)), &denom_is_m1,
-                    &denom_is_not_m1);
+  auto [denom_is_m1, denom_is_not_m1] =
+      BranchExpectFalse(gasm_->Word64Equal(right, Int64Constant(-1)));
   SetControl(denom_is_m1);
   TrapIfEq64(wasm::kTrapDivUnrepresentable, left,
              std::numeric_limits<int64_t>::min(), position);
@@ -3155,9 +3155,9 @@ Node* WasmGraphBuilder::ReturnCallIndirect(uint32_t table_index,
                            kReturnCall);
 }
 
-void WasmGraphBuilder::BrOnNull(Node* ref_object, wasm::ValueType type,
-                                Node** null_node, Node** non_null_node) {
-  BranchExpectFalse(IsNull(ref_object, type), null_node, non_null_node);
+std::tuple<Node*, Node*> WasmGraphBuilder::BrOnNull(Node* ref_object,
+                                                    wasm::ValueType type) {
+  return BranchExpectFalse(IsNull(ref_object, type));
 }
 
 Node* WasmGraphBuilder::BuildI32Rol(Node* left, Node* right) {
@@ -5536,11 +5536,11 @@ void WasmGraphBuilder::StringCheck(Node* object, bool object_can_be_null,
   callbacks.fail_if_not(check, BranchHint::kTrue);
 }
 
-void WasmGraphBuilder::BrOnCastAbs(
-    Node** match_control, Node** match_effect, Node** no_match_control,
-    Node** no_match_effect, std::function<void(Callbacks)> type_checker) {
+WasmGraphBuilder::ResultNodesOfBr WasmGraphBuilder::BrOnCastAbs(
+    std::function<void(Callbacks)> type_checker) {
   SmallNodeVector no_match_controls, no_match_effects, match_controls,
       match_effects;
+  Node *match_control, *match_effect, *no_match_control, *no_match_effect;
 
   type_checker(BranchCallbacks(no_match_controls, no_match_effects,
                                match_controls, match_effects));
@@ -5552,27 +5552,29 @@ void WasmGraphBuilder::BrOnCastAbs(
   DCHECK_EQ(match_controls.size(), match_effects.size());
   unsigned match_count = static_cast<unsigned>(match_controls.size());
   if (match_count == 1) {
-    *match_control = match_controls[0];
-    *match_effect = match_effects[0];
+    match_control = match_controls[0];
+    match_effect = match_effects[0];
   } else {
-    *match_control = Merge(match_count, match_controls.data());
+    match_control = Merge(match_count, match_controls.data());
     // EffectPhis need their control dependency as an additional input.
-    match_effects.emplace_back(*match_control);
-    *match_effect = EffectPhi(match_count, match_effects.data());
+    match_effects.emplace_back(match_control);
+    match_effect = EffectPhi(match_count, match_effects.data());
   }
 
   DCHECK_EQ(no_match_controls.size(), no_match_effects.size());
   unsigned no_match_count = static_cast<unsigned>(no_match_controls.size());
   if (no_match_count == 1) {
-    *no_match_control = no_match_controls[0];
-    *no_match_effect = no_match_effects[0];
+    no_match_control = no_match_controls[0];
+    no_match_effect = no_match_effects[0];
   } else {
     // Range is 2..4, so casting to unsigned is safe.
-    *no_match_control = Merge(no_match_count, no_match_controls.data());
+    no_match_control = Merge(no_match_count, no_match_controls.data());
     // EffectPhis need their control dependency as an additional input.
-    no_match_effects.emplace_back(*no_match_control);
-    *no_match_effect = EffectPhi(no_match_count, no_match_effects.data());
+    no_match_effects.emplace_back(no_match_control);
+    no_match_effect = EffectPhi(no_match_count, no_match_effects.data());
   }
+
+  return {match_control, match_effect, no_match_control, no_match_effect};
 }
 
 Node* WasmGraphBuilder::RefTest(Node* object, Node* rtt,
@@ -5644,19 +5646,15 @@ Node* WasmGraphBuilder::RefCastAbstract(Node* object, wasm::HeapType type,
   }
 }
 
-void WasmGraphBuilder::BrOnCast(Node* object, Node* rtt,
-                                WasmTypeCheckConfig config,
-                                Node** match_control, Node** match_effect,
-                                Node** no_match_control,
-                                Node** no_match_effect) {
-  Node* true_node;
-  Node* false_node;
-  BranchNoHint(gasm_->WasmTypeCheck(object, rtt, config), &true_node,
-               &false_node);
+WasmGraphBuilder::ResultNodesOfBr WasmGraphBuilder::BrOnCast(
+    Node* object, Node* rtt, WasmTypeCheckConfig config) {
+  auto [true_node, false_node] =
+      BranchNoHint(gasm_->WasmTypeCheck(object, rtt, config));
 
-  *match_effect = *no_match_effect = effect();
-  *match_control = true_node;
-  *no_match_control = false_node;
+  return {true_node,   // control on match
+          effect(),    // effect on match
+          false_node,  // control on no match
+          effect()};   // effect on no match
 }
 
 Node* WasmGraphBuilder::RefIsEq(Node* object, bool object_can_be_null,
@@ -5679,25 +5677,21 @@ Node* WasmGraphBuilder::RefAsEq(Node* object, bool object_can_be_null,
   return object;
 }
 
-void WasmGraphBuilder::BrOnEq(Node* object, Node* /*rtt*/,
-                              WasmTypeCheckConfig config, Node** match_control,
-                              Node** match_effect, Node** no_match_control,
-                              Node** no_match_effect) {
-  BrOnCastAbs(match_control, match_effect, no_match_control, no_match_effect,
-              [this, config, object](Callbacks callbacks) -> void {
-                if (config.from.is_nullable()) {
-                  if (config.to.is_nullable()) {
-                    callbacks.succeed_if(gasm_->IsNull(object, config.from),
-                                         BranchHint::kFalse);
-                  } else {
-                    // The {IsDataRefMap} check below will fail for {null}.
-                  }
-                }
-                callbacks.succeed_if(gasm_->IsSmi(object), BranchHint::kFalse);
-                Node* map = gasm_->LoadMap(object);
-                callbacks.fail_if_not(gasm_->IsDataRefMap(map),
-                                      BranchHint::kTrue);
-              });
+WasmGraphBuilder::ResultNodesOfBr WasmGraphBuilder::BrOnEq(
+    Node* object, Node* /*rtt*/, WasmTypeCheckConfig config) {
+  return BrOnCastAbs([this, config, object](Callbacks callbacks) -> void {
+    if (config.from.is_nullable()) {
+      if (config.to.is_nullable()) {
+        callbacks.succeed_if(gasm_->IsNull(object, config.from),
+                             BranchHint::kFalse);
+      } else {
+        // The {IsDataRefMap} check below will fail for {null}.
+      }
+    }
+    callbacks.succeed_if(gasm_->IsSmi(object), BranchHint::kFalse);
+    Node* map = gasm_->LoadMap(object);
+    callbacks.fail_if_not(gasm_->IsDataRefMap(map), BranchHint::kTrue);
+  });
 }
 
 Node* WasmGraphBuilder::RefIsStruct(Node* object, bool object_can_be_null,
@@ -5721,14 +5715,10 @@ Node* WasmGraphBuilder::RefAsStruct(Node* object, bool object_can_be_null,
   return object;
 }
 
-void WasmGraphBuilder::BrOnStruct(Node* object, Node* /*rtt*/,
-                                  WasmTypeCheckConfig config,
-                                  Node** match_control, Node** match_effect,
-                                  Node** no_match_control,
-                                  Node** no_match_effect) {
+WasmGraphBuilder::ResultNodesOfBr WasmGraphBuilder::BrOnStruct(
+    Node* object, Node* /*rtt*/, WasmTypeCheckConfig config) {
   bool null_succeeds = config.to.is_nullable();
-  BrOnCastAbs(
-      match_control, match_effect, no_match_control, no_match_effect,
+  return BrOnCastAbs(
       [this, object, config, null_succeeds](Callbacks callbacks) -> void {
         return ManagedObjectInstanceCheck(object, config.from.is_nullable(),
                                           WASM_STRUCT_TYPE, callbacks,
@@ -5757,19 +5747,15 @@ Node* WasmGraphBuilder::RefAsArray(Node* object, bool object_can_be_null,
   return object;
 }
 
-void WasmGraphBuilder::BrOnArray(Node* object, Node* /*rtt*/,
-                                 WasmTypeCheckConfig config,
-                                 Node** match_control, Node** match_effect,
-                                 Node** no_match_control,
-                                 Node** no_match_effect) {
+WasmGraphBuilder::ResultNodesOfBr WasmGraphBuilder::BrOnArray(
+    Node* object, Node* /*rtt*/, WasmTypeCheckConfig config) {
   bool null_succeeds = config.to.is_nullable();
-  BrOnCastAbs(match_control, match_effect, no_match_control, no_match_effect,
-              [this, config, object,
-               null_succeeds](Callbacks callbacks) -> void {
-                return ManagedObjectInstanceCheck(
-                    object, config.from.is_nullable(), WASM_ARRAY_TYPE,
-                    callbacks, null_succeeds);
-              });
+  return BrOnCastAbs(
+      [this, config, object, null_succeeds](Callbacks callbacks) -> void {
+        return ManagedObjectInstanceCheck(object, config.from.is_nullable(),
+                                          WASM_ARRAY_TYPE, callbacks,
+                                          null_succeeds);
+      });
 }
 
 Node* WasmGraphBuilder::RefIsI31(Node* object, bool null_succeeds) {
@@ -5798,22 +5784,19 @@ Node* WasmGraphBuilder::RefAsI31(Node* object, wasm::WasmCodePosition position,
   return object;
 }
 
-void WasmGraphBuilder::BrOnI31(Node* object, Node* /* rtt */,
-                               WasmTypeCheckConfig config, Node** match_control,
-                               Node** match_effect, Node** no_match_control,
-                               Node** no_match_effect) {
-  BrOnCastAbs(match_control, match_effect, no_match_control, no_match_effect,
-              [this, object, config](Callbacks callbacks) -> void {
-                if (config.from.is_nullable()) {
-                  if (config.to.is_nullable()) {
-                    callbacks.succeed_if(gasm_->IsNull(object, config.from),
-                                         BranchHint::kFalse);
-                  } else {
-                    // Covered by the {IsSmi} check below.
-                  }
-                }
-                callbacks.fail_if_not(gasm_->IsSmi(object), BranchHint::kTrue);
-              });
+WasmGraphBuilder::ResultNodesOfBr WasmGraphBuilder::BrOnI31(
+    Node* object, Node* /* rtt */, WasmTypeCheckConfig config) {
+  return BrOnCastAbs([this, object, config](Callbacks callbacks) -> void {
+    if (config.from.is_nullable()) {
+      if (config.to.is_nullable()) {
+        callbacks.succeed_if(gasm_->IsNull(object, config.from),
+                             BranchHint::kFalse);
+      } else {
+        // Covered by the {IsSmi} check below.
+      }
+    }
+    callbacks.fail_if_not(gasm_->IsSmi(object), BranchHint::kTrue);
+  });
 }
 
 Node* WasmGraphBuilder::RefIsString(Node* object, bool object_can_be_null,
@@ -5836,14 +5819,10 @@ Node* WasmGraphBuilder::RefAsString(Node* object, bool object_can_be_null,
   return object;
 }
 
-void WasmGraphBuilder::BrOnString(Node* object, Node* /*rtt*/,
-                                  WasmTypeCheckConfig config,
-                                  Node** match_control, Node** match_effect,
-                                  Node** no_match_control,
-                                  Node** no_match_effect) {
+WasmGraphBuilder::ResultNodesOfBr WasmGraphBuilder::BrOnString(
+    Node* object, Node* /*rtt*/, WasmTypeCheckConfig config) {
   bool null_succeeds = config.to.is_nullable();
-  BrOnCastAbs(
-      match_control, match_effect, no_match_control, no_match_effect,
+  return BrOnCastAbs(
       [this, config, object, null_succeeds](Callbacks callbacks) -> void {
         return StringCheck(object, config.from.is_nullable(), callbacks,
                            null_succeeds);

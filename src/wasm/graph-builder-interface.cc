@@ -377,23 +377,15 @@ class WasmGraphBuildingInterface {
   }
 
   void If(FullDecoder* decoder, const Value& cond, Control* if_block) {
-    TFNode* if_true = nullptr;
-    TFNode* if_false = nullptr;
     WasmBranchHint hint = WasmBranchHint::kNoHint;
     if (branch_hints_) {
       hint = branch_hints_->GetHintFor(decoder->pc_relative_offset());
     }
-    switch (hint) {
-      case WasmBranchHint::kNoHint:
-        builder_->BranchNoHint(cond.node, &if_true, &if_false);
-        break;
-      case WasmBranchHint::kUnlikely:
-        builder_->BranchExpectFalse(cond.node, &if_true, &if_false);
-        break;
-      case WasmBranchHint::kLikely:
-        builder_->BranchExpectTrue(cond.node, &if_true, &if_false);
-        break;
-    }
+    auto [if_true, if_false] = hint == WasmBranchHint::kUnlikely
+                                   ? builder_->BranchExpectFalse(cond.node)
+                               : hint == WasmBranchHint::kLikely
+                                   ? builder_->BranchExpectTrue(cond.node)
+                                   : builder_->BranchNoHint(cond.node);
     SsaEnv* merge_env = ssa_env_;
     SsaEnv* false_env = Split(decoder->zone(), ssa_env_);
     false_env->control = if_false;
@@ -628,13 +620,16 @@ class WasmGraphBuildingInterface {
     }
     switch (hint) {
       case WasmBranchHint::kNoHint:
-        builder_->BranchNoHint(cond.node, &tenv->control, &fenv->control);
+        std::tie(tenv->control, fenv->control) =
+            builder_->BranchNoHint(cond.node);
         break;
       case WasmBranchHint::kUnlikely:
-        builder_->BranchExpectFalse(cond.node, &tenv->control, &fenv->control);
+        std::tie(tenv->control, fenv->control) =
+            builder_->BranchExpectFalse(cond.node);
         break;
       case WasmBranchHint::kLikely:
-        builder_->BranchExpectTrue(cond.node, &tenv->control, &fenv->control);
+        std::tie(tenv->control, fenv->control) =
+            builder_->BranchExpectTrue(cond.node);
         break;
     }
     builder_->SetControl(fenv->control);
@@ -967,8 +962,8 @@ class WasmGraphBuildingInterface {
     SsaEnv* false_env = ssa_env_;
     SsaEnv* true_env = Split(decoder->zone(), false_env);
     false_env->SetNotMerged();
-    builder_->BrOnNull(ref_object.node, ref_object.type, &true_env->control,
-                       &false_env->control);
+    std::tie(true_env->control, false_env->control) =
+        builder_->BrOnNull(ref_object.node, ref_object.type);
     builder_->SetControl(false_env->control);
     {
       ScopedSsaEnv scoped_env(this, true_env);
@@ -986,8 +981,8 @@ class WasmGraphBuildingInterface {
     SsaEnv* false_env = ssa_env_;
     SsaEnv* true_env = Split(decoder->zone(), false_env);
     false_env->SetNotMerged();
-    builder_->BrOnNull(ref_object.node, ref_object.type, &false_env->control,
-                       &true_env->control);
+    std::tie(false_env->control, true_env->control) =
+        builder_->BrOnNull(ref_object.node, ref_object.type);
     builder_->SetControl(false_env->control);
     ScopedSsaEnv scoped_env(this, true_env);
     BrOrRet(decoder, depth, 0);
@@ -1041,10 +1036,8 @@ class WasmGraphBuildingInterface {
                                    TFNode* exception, const WasmTag* tag,
                                    TFNode* caught_tag, TFNode* exception_tag,
                                    base::Vector<Value> values) {
-    TFNode* if_catch = nullptr;
-    TFNode* if_no_catch = nullptr;
     TFNode* compare = builder_->ExceptionTagEqual(caught_tag, exception_tag);
-    builder_->BranchNoHint(compare, &if_catch, &if_no_catch);
+    auto [if_catch, if_no_catch] = builder_->BranchNoHint(compare);
     // If the tags don't match we continue with the next tag by setting the
     // false environment as the new {TryInfo::catch_env} here.
     block->try_info->catch_env = Split(decoder->zone(), ssa_env_);
@@ -1086,11 +1079,8 @@ class WasmGraphBuildingInterface {
       // the JSTag signature, i.e. a single externref, otherwise we know
       // statically that it cannot be the JSTag.
 
-      TFNode* exn_is_wasm = nullptr;
-      TFNode* exn_is_js = nullptr;
-
       TFNode* is_js_exn = builder_->IsExceptionTagUndefined(caught_tag);
-      builder_->BranchExpectFalse(is_js_exn, &exn_is_js, &exn_is_wasm);
+      auto [exn_is_js, exn_is_wasm] = builder_->BranchExpectFalse(is_js_exn);
       SsaEnv* exn_is_js_env = Split(decoder->zone(), ssa_env_);
       exn_is_js_env->control = exn_is_js;
       SsaEnv* exn_is_wasm_env = Steal(decoder->zone(), ssa_env_);
@@ -1102,12 +1092,10 @@ class WasmGraphBuildingInterface {
                                   caught_tag, expected_tag, values);
 
       // Case 2: A JS exception.
-      TFNode* if_catch = nullptr;
-      TFNode* if_no_catch = nullptr;
       SetEnv(exn_is_js_env);
       TFNode* js_tag = builder_->LoadJSTag();
       TFNode* compare = builder_->ExceptionTagEqual(expected_tag, js_tag);
-      builder_->BranchNoHint(compare, &if_catch, &if_no_catch);
+      auto [if_catch, if_no_catch] = builder_->BranchNoHint(compare);
       // Merge the wasm no-catch and JS no-catch paths.
       SsaEnv* if_no_catch_env = Split(decoder->zone(), ssa_env_);
       if_no_catch_env->control = if_no_catch;
@@ -1444,9 +1432,9 @@ class WasmGraphBuildingInterface {
     SetAndTypeNode(result, builder_->TypeGuard(node, result->type));
   }
 
-  template <void (compiler::WasmGraphBuilder::*branch_function)(
-      TFNode*, TFNode*, WasmTypeCheckConfig, TFNode**, TFNode**, TFNode**,
-      TFNode**)>
+  template <compiler::WasmGraphBuilder::ResultNodesOfBr (
+      compiler::WasmGraphBuilder::*branch_function)(TFNode*, TFNode*,
+                                                    WasmTypeCheckConfig)>
   void BrOnCastAbs(FullDecoder* decoder, const Value& object, const Value& rtt,
                    Value* forwarding_value, uint32_t br_depth,
                    bool branch_on_match, bool null_succeeds) {
@@ -1461,11 +1449,16 @@ class WasmGraphBuildingInterface {
     // TODO(choongwoo): Clear locals of `no_branch_env` after use.
     SsaEnv* no_branch_env = Steal(decoder->zone(), ssa_env_);
     no_branch_env->SetNotMerged();
+    auto nodes_after_br =
+        (builder_->*branch_function)(object.node, rtt.node, config);
+
     SsaEnv* match_env = branch_on_match ? branch_env : no_branch_env;
     SsaEnv* no_match_env = branch_on_match ? no_branch_env : branch_env;
-    (builder_->*branch_function)(object.node, rtt.node, config,
-                                 &match_env->control, &match_env->effect,
-                                 &no_match_env->control, &no_match_env->effect);
+    match_env->control = nodes_after_br.control_on_match;
+    match_env->effect = nodes_after_br.effect_on_match;
+    no_match_env->control = nodes_after_br.control_on_no_match;
+    no_match_env->effect = nodes_after_br.effect_on_no_match;
+
     builder_->SetControl(no_branch_env->control);
 
     if (branch_on_match) {

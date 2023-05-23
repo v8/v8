@@ -272,9 +272,11 @@ class WasmGraphBuilder {
   //-----------------------------------------------------------------------
   // Operations that read and/or write {control} and {effect}.
   //-----------------------------------------------------------------------
-  Node* BranchNoHint(Node* cond, Node** true_node, Node** false_node);
-  Node* BranchExpectFalse(Node* cond, Node** true_node, Node** false_node);
-  Node* BranchExpectTrue(Node* cond, Node** true_node, Node** false_node);
+
+  // Branch nodes return the true and false projection.
+  std::tuple<Node*, Node*> BranchNoHint(Node* cond);
+  std::tuple<Node*, Node*> BranchExpectFalse(Node* cond);
+  std::tuple<Node*, Node*> BranchExpectTrue(Node* cond);
 
   void TrapIfTrue(wasm::TrapReason reason, Node* cond,
                   wasm::WasmCodePosition position);
@@ -333,8 +335,8 @@ class WasmGraphBuilder {
                                         Node** failure_control,
                                         bool is_last_case);
 
-  void BrOnNull(Node* ref_object, wasm::ValueType type, Node** non_null_node,
-                Node** null_node);
+  // BrOnNull returns the control for the null and non-null case.
+  std::tuple<Node*, Node*> BrOnNull(Node* ref_object, wasm::ValueType type);
 
   Node* Invert(Node* node);
 
@@ -493,39 +495,36 @@ class WasmGraphBuilder {
   Node* RefCastAbstract(Node* object, wasm::HeapType type,
                         wasm::WasmCodePosition position, bool is_nullable,
                         bool null_succeeds);
-  void BrOnCast(Node* object, Node* rtt, WasmTypeCheckConfig config,
-                Node** match_control, Node** match_effect,
-                Node** no_match_control, Node** no_match_effect);
+  struct ResultNodesOfBr {
+    Node* control_on_match;
+    Node* effect_on_match;
+    Node* control_on_no_match;
+    Node* effect_on_no_match;
+  };
+  ResultNodesOfBr BrOnCast(Node* object, Node* rtt, WasmTypeCheckConfig config);
+  ResultNodesOfBr BrOnEq(Node* object, Node* rtt, WasmTypeCheckConfig config);
+  ResultNodesOfBr BrOnStruct(Node* object, Node* rtt,
+                             WasmTypeCheckConfig config);
+  ResultNodesOfBr BrOnArray(Node* object, Node* rtt,
+                            WasmTypeCheckConfig config);
+  ResultNodesOfBr BrOnI31(Node* object, Node* rtt, WasmTypeCheckConfig config);
+  ResultNodesOfBr BrOnString(Node* object, Node* rtt,
+                             WasmTypeCheckConfig config);
   Node* RefIsEq(Node* object, bool object_can_be_null, bool null_succeeds);
   Node* RefAsEq(Node* object, bool object_can_be_null,
                 wasm::WasmCodePosition position, bool null_succeeds);
-  void BrOnEq(Node* object, Node* rtt, WasmTypeCheckConfig config,
-              Node** match_control, Node** match_effect,
-              Node** no_match_control, Node** no_match_effect);
   Node* RefIsStruct(Node* object, bool object_can_be_null, bool null_succeeds);
   Node* RefAsStruct(Node* object, bool object_can_be_null,
                     wasm::WasmCodePosition position, bool null_succeeds);
-  void BrOnStruct(Node* object, Node* rtt, WasmTypeCheckConfig config,
-                  Node** match_control, Node** match_effect,
-                  Node** no_match_control, Node** no_match_effect);
   Node* RefIsArray(Node* object, bool object_can_be_null, bool null_succeeds);
   Node* RefAsArray(Node* object, bool object_can_be_null,
                    wasm::WasmCodePosition position, bool null_succeeds);
-  void BrOnArray(Node* object, Node* rtt, WasmTypeCheckConfig config,
-                 Node** match_control, Node** match_effect,
-                 Node** no_match_control, Node** no_match_effect);
   Node* RefIsI31(Node* object, bool null_succeeds);
   Node* RefAsI31(Node* object, wasm::WasmCodePosition position,
                  bool null_succeeds);
-  void BrOnI31(Node* object, Node* rtt, WasmTypeCheckConfig config,
-               Node** match_control, Node** match_effect,
-               Node** no_match_control, Node** no_match_effect);
   Node* RefIsString(Node* object, bool object_can_be_null, bool null_succeeds);
   Node* RefAsString(Node* object, bool object_can_be_null,
                     wasm::WasmCodePosition position, bool null_succeeds);
-  void BrOnString(Node* object, Node* rtt, WasmTypeCheckConfig config,
-                  Node** match_control, Node** match_effect,
-                  Node** no_match_control, Node** no_match_effect);
   Node* StringNewWtf8(uint32_t memory, unibrow::Utf8Variant variant,
                       Node* offset, Node* size);
   Node* StringNewWtf8Array(unibrow::Utf8Variant variant, Node* array,
@@ -799,9 +798,8 @@ class WasmGraphBuilder {
   void StringCheck(Node* object, bool object_can_be_null, Callbacks callbacks,
                    bool null_succeeds);
 
-  void BrOnCastAbs(Node** match_control, Node** match_effect,
-                   Node** no_match_control, Node** no_match_effect,
-                   std::function<void(Callbacks)> type_checker);
+  // BrOnCastAbs returns four node:
+  ResultNodesOfBr BrOnCastAbs(std::function<void(Callbacks)> type_checker);
   void BoundsCheckArray(Node* array, Node* index, CheckForNull null_check,
                         wasm::WasmCodePosition position);
   void BoundsCheckArrayWithLength(Node* array, Node* index, Node* length,
