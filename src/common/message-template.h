@@ -400,8 +400,6 @@ namespace internal {
     "maximumFractionDigits not equal to minimumFractionDigits")                \
   T(NormalizationForm, "The normalization form should be one of %.")           \
   T(OutOfMemory, "%: Out of memory")                                           \
-  T(ParameterOfFunctionOutOfRange,                                             \
-    "Paramenter % of function %() is % and out of range")                      \
   T(ZeroDigitNumericSeparator,                                                 \
     "Numeric separator can not be used after leading 0.")                      \
   T(NumberFormatRange, "% argument must be between 0 and 100")                 \
