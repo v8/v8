@@ -3329,16 +3329,18 @@ void Heap::OnMoveEvent(HeapObject source, HeapObject target,
   for (auto& tracker : allocation_trackers_) {
     tracker->MoveEvent(source.address(), target.address(), size_in_bytes);
   }
-  if (target.IsSharedFunctionInfo()) {
+  if (target.IsSharedFunctionInfo(isolate_)) {
     LOG_CODE_EVENT(isolate_, SharedFunctionInfoMoveEvent(source.address(),
                                                          target.address()));
-  } else if (target.IsNativeContext()) {
+  } else if (target.IsNativeContext(isolate_)) {
     if (isolate_->current_embedder_state() != nullptr) {
       isolate_->current_embedder_state()->OnMoveEvent(source.address(),
                                                       target.address());
     }
     PROFILE(isolate_,
             NativeContextMoveEvent(source.address(), target.address()));
+  } else if (target.IsMap(isolate_)) {
+    LOG(isolate_, MapMoveEvent(Map::cast(source), Map::cast(target)));
   }
 }
 

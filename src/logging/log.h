@@ -228,6 +228,7 @@ class V8FileLogger : public LogEventListener {
                 Handle<HeapObject> name_or_sfi = Handle<HeapObject>());
   void MapCreate(Map map);
   void MapDetails(Map map);
+  void MapMoveEvent(Map from, Map to);
 
   void SharedLibraryEvent(const std::string& library_path, uintptr_t start,
                           uintptr_t end, intptr_t aslr_slide);
