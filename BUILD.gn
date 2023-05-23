@@ -1299,6 +1299,12 @@ config("toolchain") {
     defines += [ "V8_TARGET_ARCH_RISCV32" ]
     defines += [ "__riscv_xlen=32" ]
     defines += [ "CAN_USE_FPU_INSTRUCTIONS" ]
+
+    # TODO(riscv32): Add condition riscv_use_rvv and riscv_rvv_vlen here after
+    # 4538202 merge.
+    if (target_is_simulator) {
+      defines += [ "CAN_USE_RVV_INSTRUCTIONS" ]
+    }
   }
 
   if (v8_current_cpu == "x86") {

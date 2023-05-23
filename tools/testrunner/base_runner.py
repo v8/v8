@@ -562,8 +562,7 @@ class BaseTestRunner(object):
         not self.build_config.simd_mips):
       return True
 
-    if (self.build_config.arch == 'loong64' or
-        self.build_config.arch == 'riscv32'):
+    if self.build_config.arch == 'loong64':
       return True
 
     # S390 hosts without VEF1 do not support Simd.

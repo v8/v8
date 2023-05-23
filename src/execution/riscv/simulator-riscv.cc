@@ -1291,9 +1291,7 @@ struct type_sew_t<128> {
   set_rvv_vstart(0);                                                           \
   if (v8_flags.trace_sim) {                                                    \
     __int128_t value = Vregister_[rvv_vd_reg()];                               \
-    SNPrintF(trace_buf_,                                                       \
-             "%016" REGIx_FORMAT "%016" REGIx_FORMAT                           \
-             " <-- 0x%016" REGIx_FORMAT,                                       \
+    SNPrintF(trace_buf_, "%016" PRIx64 "%016" PRIx64 " <-- 0x%016" PRIx64,     \
              *(reinterpret_cast<int64_t*>(&value) + 1),                        \
              *reinterpret_cast<int64_t*>(&value),                              \
              (uint64_t)(get_register(rs1_reg())));                             \
@@ -1317,9 +1315,7 @@ struct type_sew_t<128> {
   set_rvv_vstart(0);                                                           \
   if (v8_flags.trace_sim) {                                                    \
     __int128_t value = Vregister_[rvv_vd_reg()];                               \
-    SNPrintF(trace_buf_,                                                       \
-             "%016" REGIx_FORMAT "%016" REGIx_FORMAT                           \
-             " --> 0x%016" REGIx_FORMAT,                                       \
+    SNPrintF(trace_buf_, "%016" PRIx64 "%016" PRIx64 " --> 0x%016" PRIx64,     \
              *(reinterpret_cast<int64_t*>(&value) + 1),                        \
              *reinterpret_cast<int64_t*>(&value),                              \
              (uint64_t)(get_register(rs1_reg())));                             \
@@ -1392,14 +1388,14 @@ static inline uint8_t get_round(int vxrm, uint64_t v, uint8_t shift) {
 
 template <typename Src, typename Dst>
 inline Dst signed_saturation(Src v, uint n) {
-  Dst smax = (Dst)(INTPTR_MAX >> (64 - n));
-  Dst smin = (Dst)(INTPTR_MIN >> (64 - n));
+  Dst smax = (Dst)(INTPTR_MAX >> (sizeof(intptr_t) * 8 - n));
+  Dst smin = (Dst)(INTPTR_MIN >> (sizeof(intptr_t) * 8 - n));
   return (v > smax) ? smax : ((v < smin) ? smin : (Dst)v);
 }
 
 template <typename Src, typename Dst>
 inline Dst unsigned_saturation(Src v, uint n) {
-  Dst umax = (Dst)(UINTPTR_MAX >> (64 - n));
+  Dst umax = (Dst)(UINTPTR_MAX >> (sizeof(uintptr_t) * 8 - n));
   return (v > umax) ? umax : ((v < 0) ? 0 : (Dst)v);
 }
 
@@ -1853,7 +1849,7 @@ void RiscvDebugger::Debug() {
 #ifdef CAN_USE_RVV_INSTRUCTIONS
             } else if (vregnum != kInvalidVRegister) {
               __int128_t v = GetVRegisterValue(vregnum);
-              PrintF("\t%s:0x%016" REGIx_FORMAT "%016" REGIx_FORMAT "\n",
+              PrintF("\t%s:0x%016" PRIx64 "%016" PRIx64 "\n",
                      VRegisters::Name(vregnum), (uint64_t)(v >> 64),
                      (uint64_t)v);
 #endif
@@ -6328,6 +6324,7 @@ void Simulator::DecodeRvvMVV() {
     }
     case RO_V_VWXUNARY0: {
       if (rvv_vs1_reg() == 0) {
+        // vmv.x.s
         switch (rvv_vsew()) {
           case E8:
             set_rd(Rvvelt<type_sew_t<8>::type>(rvv_vs2_reg(), 0));
@@ -6347,7 +6344,8 @@ void Simulator::DecodeRvvMVV() {
         set_rvv_vstart(0);
         rvv_trace_vd();
       } else if (rvv_vs1_reg() == 0b10000) {
-        uint64_t cnt = 0;
+        // vpopc
+        reg_t cnt = 0;
         RVV_VI_GENERAL_LOOP_BASE
         RVV_VI_LOOP_MASK_SKIP()
         const uint8_t idx = i / 64;
@@ -6358,7 +6356,8 @@ void Simulator::DecodeRvvMVV() {
         set_register(rd_reg(), cnt);
         rvv_trace_vd();
       } else if (rvv_vs1_reg() == 0b10001) {
-        int64_t index = -1;
+        // vfirst
+        sreg_t index = -1;
         RVV_VI_GENERAL_LOOP_BASE
         RVV_VI_LOOP_MASK_SKIP()
         const uint8_t idx = i / 64;

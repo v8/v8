@@ -1173,7 +1173,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   void WasmRvvEq(VRegister dst, VRegister lhs, VRegister rhs, VSew sew,
                  Vlmul lmul);
-
   void WasmRvvNe(VRegister dst, VRegister lhs, VRegister rhs, VSew sew,
                  Vlmul lmul);
   void WasmRvvGeS(VRegister dst, VRegister lhs, VRegister rhs, VSew sew,
@@ -1184,6 +1183,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
                   Vlmul lmul);
   void WasmRvvGtU(VRegister dst, VRegister lhs, VRegister rhs, VSew sew,
                   Vlmul lmul);
+
   void WasmRvvS128const(VRegister dst, const uint8_t imms[16]);
 
   void LoadLane(int sz, VRegister dst, uint8_t laneidx, MemOperand src);

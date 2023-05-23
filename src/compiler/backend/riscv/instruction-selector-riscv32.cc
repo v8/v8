@@ -1138,6 +1138,23 @@ void InstructionSelector::VisitInt32PairMul(Node* node) {
   VisitInt32PairBinop<4>(this, kRiscvMulPair, kRiscvMul32, node);
 }
 
+void InstructionSelector::VisitI64x2SplatI32Pair(Node* node) {
+  RiscvOperandGenerator g(this);
+  InstructionOperand low = g.UseRegister(node->InputAt(0));
+  InstructionOperand high = g.UseRegister(node->InputAt(1));
+  Emit(kRiscvI64x2SplatI32Pair, g.DefineAsRegister(node), low, high);
+}
+
+void InstructionSelector::VisitI64x2ReplaceLaneI32Pair(Node* node) {
+  RiscvOperandGenerator g(this);
+  InstructionOperand operand = g.UseRegister(node->InputAt(0));
+  InstructionOperand lane = g.UseImmediate(OpParameter<int32_t>(node->op()));
+  InstructionOperand low = g.UseRegister(node->InputAt(1));
+  InstructionOperand high = g.UseRegister(node->InputAt(2));
+  Emit(kRiscvI64x2ReplaceLaneI32Pair, g.DefineSameAsFirst(node), operand, lane,
+       low, high);
+}
+
 // Shared routine for multiple shift operations.
 static void VisitWord32PairShift(InstructionSelector* selector,
                                  InstructionCode opcode, Node* node) {

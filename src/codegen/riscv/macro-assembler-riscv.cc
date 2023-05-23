@@ -3106,8 +3106,8 @@ void MacroAssembler::RoundHelper(VRegister dst, VRegister src, Register scratch,
     } else {
 #ifdef V8_TARGET_ARCH_RISCV64
       fmv_d_x(kScratchDoubleReg, zero_reg);
-#else
-      UNIMPLEMENTED();
+#elif V8_TARGET_ARCH_RISCV32
+      fcvt_d_w(kScratchDoubleReg, zero_reg);
 #endif
     }
     vfadd_vf(dst, src, kScratchDoubleReg, MaskType::Mask);
@@ -5127,6 +5127,7 @@ void MacroAssembler::WasmRvvGtU(VRegister dst, VRegister lhs, VRegister rhs,
   vmerge_vx(dst, kScratchReg, dst);
 }
 
+#if V8_TARGET_ARCH_RISCV64
 void MacroAssembler::WasmRvvS128const(VRegister dst, const uint8_t imms[16]) {
   uint64_t vals[2];
   memcpy(vals, imms, sizeof(vals));
@@ -5137,12 +5138,28 @@ void MacroAssembler::WasmRvvS128const(VRegister dst, const uint8_t imms[16]) {
   li(kScratchReg, vals[0]);
   vmv_sx(dst, kScratchReg);
 }
+#elif V8_TARGET_ARCH_RISCV32
+void MacroAssembler::WasmRvvS128const(VRegister dst, const uint8_t imms[16]) {
+  uint32_t vals[4];
+  memcpy(vals, imms, sizeof(vals));
+  VU.set(kScratchReg, VSew::E32, Vlmul::m1);
+  li(kScratchReg, vals[3]);
+  vmv_vx(kSimd128ScratchReg, kScratchReg);
+  li(kScratchReg, vals[2]);
+  vmv_sx(kSimd128ScratchReg, kScratchReg);
+  li(kScratchReg, vals[1]);
+  vmv_vx(dst, kScratchReg);
+  li(kScratchReg, vals[0]);
+  vmv_sx(dst, kScratchReg);
+  vslideup_vi(dst, kSimd128ScratchReg, 2);
+}
+#endif
 
 void MacroAssembler::LoadLane(int ts, VRegister dst, uint8_t laneidx,
                               MemOperand src) {
   if (ts == 8) {
     Lbu(kScratchReg2, src);
-    VU.set(kScratchReg, E64, m1);
+    VU.set(kScratchReg, E32, m1);
     li(kScratchReg, 0x1 << laneidx);
     vmv_sx(v0, kScratchReg);
     VU.set(kScratchReg, E8, m1);
@@ -5160,11 +5177,19 @@ void MacroAssembler::LoadLane(int ts, VRegister dst, uint8_t laneidx,
     vmv_sx(v0, kScratchReg);
     vmerge_vx(dst, kScratchReg2, dst);
   } else if (ts == 64) {
+#if V8_TARGET_ARCH_RISCV64
     LoadWord(kScratchReg2, src);
     VU.set(kScratchReg, E64, m1);
     li(kScratchReg, 0x1 << laneidx);
     vmv_sx(v0, kScratchReg);
     vmerge_vx(dst, kScratchReg2, dst);
+#elif V8_TARGET_ARCH_RISCV32
+    LoadDouble(kScratchDoubleReg, src);
+    VU.set(kScratchReg, E64, m1);
+    li(kScratchReg, 0x1 << laneidx);
+    vmv_sx(v0, kScratchReg);
+    vfmerge_vf(dst, kScratchDoubleReg, dst);
+#endif
   } else {
     UNREACHABLE();
   }
@@ -5191,8 +5216,13 @@ void MacroAssembler::StoreLane(int sz, VRegister src, uint8_t laneidx,
     DCHECK_EQ(sz, 64);
     VU.set(kScratchReg, E64, m1);
     vslidedown_vi(kSimd128ScratchReg, src, laneidx);
+#if V8_TARGET_ARCH_RISCV64
     vmv_xs(kScratchReg, kSimd128ScratchReg);
     StoreWord(kScratchReg, dst);
+#elif V8_TARGET_ARCH_RISCV32
+    vfmv_fs(kScratchDoubleReg, kSimd128ScratchReg);
+    StoreDouble(kScratchDoubleReg, dst);
+#endif
   }
 }
 // -----------------------------------------------------------------------------
