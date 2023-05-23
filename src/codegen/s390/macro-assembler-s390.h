@@ -13,6 +13,7 @@
 #include "src/codegen/bailout-reason.h"
 #include "src/codegen/s390/assembler-s390.h"
 #include "src/common/globals.h"
+#include "src/execution/isolate-data.h"
 #include "src/objects/contexts.h"
 
 namespace v8 {
@@ -730,6 +731,10 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void InitializeRootRegister() {
     ExternalReference isolate_root = ExternalReference::isolate_root(isolate());
     mov(kRootRegister, Operand(isolate_root));
+#ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
+    LoadRootRelative(kPtrComprCageBaseRegister,
+                     IsolateData::cage_base_offset());
+#endif
   }
 
   // If the value is a NaN, canonicalize the value else, do nothing.
