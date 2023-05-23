@@ -616,13 +616,9 @@ class V8_EXPORT_PRIVATE LiveRange : public NON_EXPORTED_BASE(ZoneObject) {
   // position.
   LiveRange* SplitAt(LifetimePosition position, Zone* zone);
 
-  // Returns nullptr when no register is hinted, otherwise sets register_index.
+  // Returns false when no register is hinted, otherwise sets register_index.
   // Uses {current_hint_position_} as a cache, and tries to update it.
-  UsePosition* FirstHintPosition(int* register_index);
-  UsePosition* FirstHintPosition() {
-    int register_index;
-    return FirstHintPosition(&register_index);
-  }
+  bool RegisterFromFirstHint(int* register_index);
 
   UsePosition* current_hint_position() const {
     return current_hint_position_;

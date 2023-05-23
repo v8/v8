@@ -387,8 +387,8 @@ RegisterKind LiveRange::kind() const {
   }
 }
 
-UsePosition* LiveRange::FirstHintPosition(int* register_index) {
-  if (!first_pos_) return nullptr;
+bool LiveRange::RegisterFromFirstHint(int* register_index) {
+  if (!first_pos_) return false;
   if (current_hint_position_) {
     if (current_hint_position_->pos() < first_pos_->pos()) {
       current_hint_position_ = first_pos_;
@@ -421,7 +421,7 @@ UsePosition* LiveRange::FirstHintPosition(int* register_index) {
   }
   CHECK_EQ(pos, pos_check);
 #endif
-  return pos;
+  return pos != nullptr;
 }
 
 UsePosition* LiveRange::NextUsePosition(LifetimePosition start) const {
@@ -4130,7 +4130,7 @@ bool LinearScanAllocator::TryAllocatePreferredReg(
     LiveRange* current, base::Vector<const LifetimePosition> free_until_pos) {
   int hint_register;
   if (current->RegisterFromControlFlow(&hint_register) ||
-      current->FirstHintPosition(&hint_register) != nullptr ||
+      current->RegisterFromFirstHint(&hint_register) ||
       current->RegisterFromBundle(&hint_register)) {
     TRACE(
         "Found reg hint %s (free until [%d) for live range %d:%d (end %d[).\n",
@@ -4202,7 +4202,7 @@ bool LinearScanAllocator::TryAllocateFreeReg(
   // Compute register hint, if such exists.
   int hint_reg = kUnassignedRegister;
   current->RegisterFromControlFlow(&hint_reg) ||
-      current->FirstHintPosition(&hint_reg) != nullptr ||
+      current->RegisterFromFirstHint(&hint_reg) ||
       current->RegisterFromBundle(&hint_reg);
 
   int reg =
