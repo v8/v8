@@ -3456,6 +3456,9 @@ MaybeHandle<SharedFunctionInfo> GetSharedFunctionInfoForScriptImpl(
   if (compile_options == ScriptCompiler::kConsumeCompileHints) {
     DCHECK_NOT_NULL(compile_hint_callback);
     DCHECK_NOT_NULL(compile_hint_callback_data);
+  } else {
+    DCHECK_NULL(compile_hint_callback);
+    DCHECK_NULL(compile_hint_callback_data);
   }
 
   LanguageMode language_mode = construct_language_mode(v8_flags.use_strict);
