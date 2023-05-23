@@ -2566,8 +2566,10 @@ bool Compiler::Compile(Isolate* isolate, Handle<JSFunction> function,
   // We should never reach here if the function is already compiled or
   // optimized.
   DCHECK(!function->is_compiled());
-  DCHECK(IsNone(function->tiering_state()));
-  DCHECK(!function->HasAvailableOptimizedCode());
+  DCHECK_IMPLIES(!IsNone(function->tiering_state()),
+                 function->shared().is_compiled());
+  DCHECK_IMPLIES(function->HasAvailableOptimizedCode(),
+                 function->shared().is_compiled());
 
   // Reset the JSFunction if we are recompiling due to the bytecode having been
   // flushed.

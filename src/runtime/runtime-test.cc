@@ -1344,7 +1344,7 @@ RUNTIME_FUNCTION(Runtime_DisassembleFunction) {
   if (!func->is_compiled() && func->HasAvailableOptimizedCode()) {
     func->set_code(func->feedback_vector().optimized_code());
   }
-  CHECK(func->is_compiled() ||
+  CHECK(func->shared().is_compiled() ||
         Compiler::Compile(isolate, func, Compiler::KEEP_EXCEPTION,
                           &is_compiled_scope));
   StdoutStream os;
