@@ -3279,11 +3279,15 @@ MaybeHandle<SharedFunctionInfo> CompileScriptOnMainThread(
     const UnoptimizedCompileFlags flags, Handle<String> source,
     const ScriptDetails& script_details, NativesFlag natives,
     v8::Extension* extension, Isolate* isolate,
-    MaybeHandle<Script> maybe_script, IsCompiledScope* is_compiled_scope) {
+    MaybeHandle<Script> maybe_script, IsCompiledScope* is_compiled_scope,
+    CompileHintCallback compile_hint_callback = nullptr,
+    void* compile_hint_callback_data = nullptr) {
   UnoptimizedCompileState compile_state;
   ReusableUnoptimizedCompileState reusable_state(isolate);
   ParseInfo parse_info(isolate, flags, &compile_state, &reusable_state);
   parse_info.set_extension(extension);
+  parse_info.SetCompileHintCallbackAndData(compile_hint_callback,
+                                           compile_hint_callback_data);
 
   Handle<Script> script;
   if (!maybe_script.ToHandle(&script)) {
@@ -3565,7 +3569,8 @@ MaybeHandle<SharedFunctionInfo> GetSharedFunctionInfoForScriptImpl(
 
       maybe_result = CompileScriptOnMainThread(
           flags, source, script_details, natives, extension, isolate,
-          maybe_script, &is_compiled_scope);
+          maybe_script, &is_compiled_scope, compile_hint_callback,
+          compile_hint_callback_data);
     }
 
     // Add the result to the isolate cache.

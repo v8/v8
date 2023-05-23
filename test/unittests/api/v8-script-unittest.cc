@@ -329,8 +329,11 @@ TEST_F(ScriptTest, LocalCompileHints) {
   // positions of the requested compile hints match the positions of the
   // produced compile hints.
   {
-    // Artificially change the code so that the isolate cache won't hit.
-    const char* code = "function lazy1() {} function lazy2() {} //";
+    // Artificially change the code so that the isolate cache won't hit - also
+    // change the function names, so that the function retrieval scripts will
+    // surely return functions related to this script. The function positions
+    // must match the previous script.
+    const char* code = "function func1() {} function func2() {}";
     v8::ScriptCompiler::Source script_source(
         NewString(code), origin, CompileHintsCallback,
         reinterpret_cast<void*>(&compile_hints));
@@ -339,11 +342,13 @@ TEST_F(ScriptTest, LocalCompileHints) {
             v8_context(), &script_source,
             v8::ScriptCompiler::CompileOptions::kConsumeCompileHints)
             .ToLocalChecked();
-    USE(script);
+
+    v8::MaybeLocal<v8::Value> result = script->Run(context);
+    EXPECT_FALSE(result.IsEmpty());
 
     // Retrieve the function object for lazy1.
     {
-      const char* code2 = "lazy1";
+      const char* code2 = "func1";
       v8::ScriptCompiler::Source script_source2(NewString(code2), origin);
 
       Local<Script> script2 =
@@ -361,7 +366,7 @@ TEST_F(ScriptTest, LocalCompileHints) {
 
     // Retrieve the function object for lazy2.
     {
-      const char* code2 = "lazy2";
+      const char* code2 = "func2";
       v8::ScriptCompiler::Source script_source2(NewString(code2), origin);
 
       Local<Script> script2 =

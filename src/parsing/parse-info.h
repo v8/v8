@@ -17,6 +17,7 @@
 #include "src/objects/script.h"
 #include "src/parsing/pending-compilation-error-handler.h"
 #include "src/parsing/preparse-data.h"
+#include "v8-callbacks.h"
 
 namespace v8 {
 
@@ -346,6 +347,13 @@ class V8_EXPORT_PRIVATE ParseInfo {
   bool is_streaming_compilation() const { return is_streaming_compilation_; }
 
   void set_is_streaming_compilation() { is_streaming_compilation_ = true; }
+
+  void SetCompileHintCallbackAndData(CompileHintCallback callback, void* data) {
+    DCHECK_NULL(compile_hint_callback_);
+    DCHECK_NULL(compile_hint_callback_data_);
+    compile_hint_callback_ = callback;
+    compile_hint_callback_data_ = data;
+  }
 
   CompileHintCallback compile_hint_callback() const {
     return compile_hint_callback_;
