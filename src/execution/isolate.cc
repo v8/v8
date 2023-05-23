@@ -4800,6 +4800,12 @@ void Isolate::AbortConcurrentOptimization(BlockingBehavior behavior) {
     DisallowGarbageCollection no_recursive_gc;
     optimizing_compile_dispatcher()->Flush(behavior);
   }
+#ifdef V8_ENABLE_MAGLEV
+  if (maglev_concurrent_dispatcher()->is_enabled()) {
+    DisallowGarbageCollection no_recursive_gc;
+    maglev_concurrent_dispatcher()->Flush(behavior);
+  }
+#endif
 }
 
 std::shared_ptr<CompilationStatistics> Isolate::GetTurboStatistics() {

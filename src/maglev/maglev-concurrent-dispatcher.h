@@ -95,6 +95,8 @@ class V8_EXPORT_PRIVATE MaglevConcurrentDispatcher final {
 
   void AwaitCompileJobs();
 
+  void Flush(BlockingBehavior blocking_behavior);
+
   bool is_enabled() const { return static_cast<bool>(job_handle_); }
 
  private:

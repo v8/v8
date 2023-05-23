@@ -240,6 +240,22 @@ void MaglevConcurrentDispatcher::AwaitCompileJobs() {
   DCHECK(incoming_queue_.IsEmpty());
 }
 
+void MaglevConcurrentDispatcher::Flush(BlockingBehavior behavior) {
+  while (!incoming_queue_.IsEmpty()) {
+    std::unique_ptr<MaglevCompilationJob> job;
+    incoming_queue_.Dequeue(&job);
+  }
+  if (behavior == BlockingBehavior::kBlock) {
+    job_handle_->Cancel();
+    job_handle_ = V8::GetCurrentPlatform()->PostJob(
+        TaskPriority::kUserVisible, std::make_unique<JobTask>(this));
+  }
+  while (!outgoing_queue_.IsEmpty()) {
+    std::unique_ptr<MaglevCompilationJob> job;
+    outgoing_queue_.Dequeue(&job);
+  }
+}
+
 }  // namespace maglev
 }  // namespace internal
 }  // namespace v8
