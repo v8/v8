@@ -182,17 +182,26 @@
           'release_x64_asan_symbolized_expose_memory_corruption',
     },
     'client.v8.perf' : {
+      # Arm
       'V8 Arm - builder - perf': 'official_arm',
       'V8 Arm - builder - pgo - perf': 'official_arm_pgo',
+      # Android Arm
       'V8 Android Arm - builder - perf': 'official_android_arm',
+      'v8_android_arm_builder_perf_try': 'official_android_arm',
       'V8 Android Arm - builder - pgo - perf': 'official_android_arm_pgo',
       'V8 Android Arm64 - builder - perf': 'official_android_arm64',
+      'v8_android_arm64_builder_perf_try': 'official_android_arm64',
       'V8 Android Arm64 - builder - pgo - perf': 'official_android_arm64_pgo',
+      # Linux
       'V8 Linux - builder - perf': 'official_x86',
+      'v8_linux_builder_perf_try': 'official_x86',
       'V8 Linux - builder - pgo - perf': 'official_x86_pgo',
       'V8 Linux64 - builder - perf': 'official_x64',
+      'v8_linux64_builder_perf_try': 'official_x64',
       'V8 Linux64 - builder - pgo - perf': 'official_x64_pgo',
+      # Mac Arm
       'V8 Mac Arm64 - builder - perf': 'official_mac_arm64',
+      'v8_mac_arm64_builder_perf_try': 'official_mac_arm64',
       'V8 Mac Arm64 - builder - pgo - perf': 'official_mac_arm64_pgo',
     },
     'client.v8.ports': {
