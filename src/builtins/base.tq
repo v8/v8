@@ -697,6 +697,8 @@ extern transitioning macro ToThisValue(implicit context: Context)(
     JSAny, constexpr PrimitiveType, constexpr string): JSAny;
 extern transitioning macro GetProperty(implicit context: Context)(
     JSAny, JSAny): JSAny;
+extern macro GetInterestingProperty(Context, JSReceiver, Symbol): JSAny
+    labels NotFound;
 extern transitioning builtin SetProperty(implicit context: Context)(
     JSAny, JSAny, JSAny): JSAny;
 extern transitioning builtin SetPropertyIgnoreAttributes(

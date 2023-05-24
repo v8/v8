@@ -158,10 +158,11 @@ transitioning builtin ToObject(implicit context: Context)(input: JSAny):
 // ES6 section 7.1.1 ToPrimitive ( input [ , PreferredType ] )
 
 transitioning macro TryGetExoticToPrimitive(implicit context: Context)(
-    input: JSAny): JSAny labels OrdinaryToPrimitive {
+    input: JSReceiver): JSAny labels OrdinaryToPrimitive {
   // Look up the @@toPrimitive property.
   const exoticToPrimitive: JSAny =
-      GetProperty(input, ToPrimitiveSymbolConstant());
+      GetInterestingProperty(context, input, ToPrimitiveSymbolConstant())
+      otherwise OrdinaryToPrimitive;
   if (IsNullOrUndefined(exoticToPrimitive)) goto OrdinaryToPrimitive;
   return exoticToPrimitive;
 }

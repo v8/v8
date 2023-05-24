@@ -743,9 +743,9 @@ struct StaticReadOnlyRoot {
   static constexpr Tagged_t kintl_fallback_symbol = 0x5ed5;
   static constexpr Tagged_t kmatch_symbol = 0x5f0d;
   static constexpr Tagged_t ksearch_symbol = 0x5f35;
-  static constexpr Tagged_t kto_primitive_symbol = 0x5f61;
-  static constexpr Tagged_t kunscopables_symbol = 0x5f91;
-  static constexpr Tagged_t khas_instance_symbol = 0x5fc1;
+  static constexpr Tagged_t kunscopables_symbol = 0x5f61;
+  static constexpr Tagged_t khas_instance_symbol = 0x5f91;
+  static constexpr Tagged_t kto_primitive_symbol = 0x5fc1;
   static constexpr Tagged_t kto_string_tag_symbol = 0x5ff1;
   static constexpr Tagged_t kconstructor_string = 0x6049;
   static constexpr Tagged_t knext_string = 0x6061;
@@ -1415,9 +1415,9 @@ static constexpr std::array<Tagged_t, 740> StaticReadOnlyRootsPointerTable = {
     StaticReadOnlyRoot::kintl_fallback_symbol,
     StaticReadOnlyRoot::kmatch_symbol,
     StaticReadOnlyRoot::ksearch_symbol,
-    StaticReadOnlyRoot::kto_primitive_symbol,
     StaticReadOnlyRoot::kunscopables_symbol,
     StaticReadOnlyRoot::khas_instance_symbol,
+    StaticReadOnlyRoot::kto_primitive_symbol,
     StaticReadOnlyRoot::kto_string_tag_symbol,
     StaticReadOnlyRoot::kPromiseFulfillReactionJobTaskMap,
     StaticReadOnlyRoot::kPromiseRejectReactionJobTaskMap,

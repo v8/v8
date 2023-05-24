@@ -1148,6 +1148,7 @@ static bool TransitivelyCalledBuiltinHasNoSideEffect(Builtin caller,
     case Builtin::kGenericArrayToReversed:
     case Builtin::kGenericArrayWith:
     case Builtin::kGetProperty:
+    case Builtin::kGetPropertyWithReceiver:
     case Builtin::kHasProperty:
     case Builtin::kCreateHTML:
     case Builtin::kNonNumberToNumber:

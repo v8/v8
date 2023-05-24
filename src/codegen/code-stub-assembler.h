@@ -3314,6 +3314,17 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     return CallBuiltin(Builtin::kGetProperty, context, receiver, name);
   }
 
+  TNode<Object> GetInterestingProperty(TNode<Context> context,
+                                       TNode<JSReceiver> receiver,
+                                       TNode<Symbol> symbol,
+                                       Label* if_not_found);
+  TNode<Object> GetInterestingProperty(TNode<Context> context,
+                                       TNode<Object> receiver,
+                                       TVariable<HeapObject>* var_holder,
+                                       TVariable<Map>* var_holder_map,
+                                       TNode<Symbol> symbol,
+                                       Label* if_not_found, Label* if_proxy);
+
   TNode<Object> SetPropertyStrict(TNode<Context> context,
                                   TNode<Object> receiver, TNode<Object> key,
                                   TNode<Object> value) {

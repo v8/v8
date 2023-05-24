@@ -10563,6 +10563,78 @@ CodeStubAssembler::AllocatePropertyDescriptorObject(TNode<Context> context) {
   return CAST(result);
 }
 
+TNode<Object> CodeStubAssembler::GetInterestingProperty(
+    TNode<Context> context, TNode<JSReceiver> receiver, TNode<Symbol> symbol,
+    Label* if_not_found) {
+  TVARIABLE(HeapObject, var_holder, receiver);
+  TVARIABLE(Map, var_holder_map, LoadMap(receiver));
+
+  return GetInterestingProperty(context, receiver, &var_holder, &var_holder_map,
+                                symbol, if_not_found, nullptr);
+}
+
+TNode<Object> CodeStubAssembler::GetInterestingProperty(
+    TNode<Context> context, TNode<Object> receiver,
+    TVariable<HeapObject>* var_holder, TVariable<Map>* var_holder_map,
+    TNode<Symbol> symbol, Label* if_not_found, Label* if_proxy) {
+  CSA_DCHECK(this, IsSetWord32<Symbol::IsInterestingSymbolBit>(
+                       LoadObjectField<Uint32T>(symbol, Symbol::kFlagsOffset)));
+  // The lookup starts at the var_holder and var_holder_map must contain
+  // var_holder's map.
+  CSA_DCHECK(this, TaggedEqual(LoadMap((*var_holder).value()),
+                               (*var_holder_map).value()));
+  TVARIABLE(Object, var_result, UndefinedConstant());
+
+  // Check if all relevant maps (including the prototype maps) don't
+  // have any interesting properties (i.e. that none of them have the
+  // @@toStringTag or @@toPrimitive property).
+  Label loop(this, {var_holder, var_holder_map}),
+      lookup(this, Label::kDeferred);
+  Goto(&loop);
+  BIND(&loop);
+  {
+    Label interesting_properties(this);
+    TNode<HeapObject> holder = (*var_holder).value();
+    TNode<Map> holder_map = (*var_holder_map).value();
+    GotoIf(IsNull(holder), if_not_found);
+    TNode<Uint32T> holder_bit_field3 = LoadMapBitField3(holder_map);
+    GotoIf(IsSetWord32<Map::Bits3::MayHaveInterestingPropertiesBit>(
+               holder_bit_field3),
+           &interesting_properties);
+    *var_holder = LoadMapPrototype(holder_map);
+    *var_holder_map = LoadMap((*var_holder).value());
+    Goto(&loop);
+    BIND(&interesting_properties);
+    {
+      // Check flags for dictionary objects.
+      GotoIf(IsClearWord32<Map::Bits3::IsDictionaryMapBit>(holder_bit_field3),
+             &lookup);
+      GotoIf(InstanceTypeEqual(LoadMapInstanceType(holder_map), JS_PROXY_TYPE),
+             if_proxy ? if_proxy : &lookup);
+      TNode<Object> properties =
+          LoadObjectField(holder, JSObject::kPropertiesOrHashOffset);
+      CSA_DCHECK(this, TaggedIsNotSmi(properties));
+      // TODO(pthier): Support swiss dictionaries.
+      if constexpr (!V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
+        CSA_DCHECK(this, IsNameDictionary(CAST(properties)));
+        TNode<Smi> flags =
+            GetNameDictionaryFlags<NameDictionary>(CAST(properties));
+        GotoIf(IsSetSmi(flags,
+                        NameDictionary::MayHaveInterestingPropertiesBit::kMask),
+               &lookup);
+        *var_holder = LoadMapPrototype(holder_map);
+        *var_holder_map = LoadMap((*var_holder).value());
+      }
+      Goto(&loop);
+    }
+  }
+
+  BIND(&lookup);
+  return CallBuiltin(Builtin::kGetPropertyWithReceiver, context,
+                     (*var_holder).value(), symbol, receiver,
+                     SmiConstant(OnNonExistent::kReturnUndefined));
+}
+
 void CodeStubAssembler::TryLookupElement(
     TNode<HeapObject> object, TNode<Map> map, TNode<Int32T> instance_type,
     TNode<IntPtrT> intptr_index, Label* if_found, Label* if_absent,
