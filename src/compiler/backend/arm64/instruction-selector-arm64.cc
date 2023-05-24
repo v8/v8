@@ -3939,16 +3939,8 @@ void InstructionSelector::VisitS128Const(Node* node) {
   uint32_t val[kUint32Immediates];
   static_assert(sizeof(val) == kSimd128Size);
   memcpy(val, S128ImmediateParameterOf(node->op()).data(), kSimd128Size);
-  // If all bytes are zeros, avoid emitting code for generic constants
-  bool all_zeros = !(val[0] || val[1] || val[2] || val[3]);
-  InstructionOperand dst = g.DefineAsRegister(node);
-  if (all_zeros) {
-    Emit(kArm64S128Zero, dst);
-  } else {
-    Emit(kArm64S128Const, g.DefineAsRegister(node), g.UseImmediate(val[0]),
-         g.UseImmediate(val[1]), g.UseImmediate(val[2]),
-         g.UseImmediate(val[3]));
-  }
+  Emit(kArm64S128Const, g.DefineAsRegister(node), g.UseImmediate(val[0]),
+       g.UseImmediate(val[1]), g.UseImmediate(val[2]), g.UseImmediate(val[3]));
 }
 
 namespace {
@@ -4060,7 +4052,8 @@ void InstructionSelector::VisitS128And(Node* node) {
 
 void InstructionSelector::VisitS128Zero(Node* node) {
   Arm64OperandGenerator g(this);
-  Emit(kArm64S128Zero, g.DefineAsRegister(node));
+  Emit(kArm64S128Const, g.DefineAsRegister(node), g.UseImmediate(0),
+       g.UseImmediate(0), g.UseImmediate(0), g.UseImmediate(0));
 }
 
 void InstructionSelector::VisitI32x4DotI8x16I7x16AddS(Node* node) {

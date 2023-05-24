@@ -2809,11 +2809,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Movi(i.OutputSimd128Register().V16B(), imm2, imm1);
       break;
     }
-    case kArm64S128Zero: {
-      VRegister dst = i.OutputSimd128Register().V16B();
-      __ Eor(dst, dst, dst);
-      break;
-    }
       SIMD_BINOP_CASE(kArm64S128And, And, 16B);
       SIMD_BINOP_CASE(kArm64S128Or, Orr, 16B);
       SIMD_BINOP_CASE(kArm64S128Xor, Eor, 16B);
