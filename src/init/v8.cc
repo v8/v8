@@ -264,10 +264,10 @@ void V8::Initialize() {
   Bootstrapper::InitializeOncePerProcess();
   CallDescriptors::InitializeOncePerProcess();
 
-#if V8_HAS_PKU_JIT_WRITE_PROTECT
-  base::MemoryProtectionKey::InitializeMemoryProtectionKeySupport();
-  RwxMemoryWriteScope::InitializeMemoryProtectionKey();
-#endif
+  // Fetch the ThreadIsolatedAllocator once since we need to keep the pointer in
+  // protected memory.
+  g_thread_isolation_data.Initialize(
+      GetCurrentPlatform()->GetThreadIsolatedAllocator());
 
 #if V8_ENABLE_WEBASSEMBLY
   wasm::WasmEngine::InitializeOncePerProcess();
