@@ -198,3 +198,13 @@ on {{.Build.EndTime | time}}
 """,
     ),
 )
+
+v8_notifier(
+    name = "branch monitor - infra",
+    on_occurrence = ["FAILURE"],
+    notify_emails = [
+        "v8-infra-alerts-cc@google.com",
+        "v8-infra-alerts@google.com",
+        "liviurau@google.com",
+    ],
+)

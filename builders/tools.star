@@ -26,5 +26,5 @@ v8_builder(
     properties = {"max_gap_seconds": 3600},
     schedule = "49 * * * *",
     in_list = "tools",
-    notifies = ["branch monitor"],
+    notifies = ["branch monitor", "branch monitor - infra"],
 )
