@@ -2052,11 +2052,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   void VerifyStaticRoots();
 
-  void MaybeInitializeAlwaysSharedSpaceJSObjectMap(
-      RootIndex index, const std::function<Handle<Map>(Isolate*)>& create_map);
-
-  Handle<Map> GetAlwaysSharedSpaceJSObjectMap(RootIndex index);
-
  private:
   explicit Isolate(std::unique_ptr<IsolateAllocator> isolate_allocator);
   ~Isolate();

@@ -2105,26 +2105,13 @@ Map Factory::InitializeMap(Map map, InstanceType type, int instance_size,
   ReadOnlyRoots ro_roots(roots);
   map.init_prototype_and_constructor_or_back_pointer(ro_roots);
   map.set_instance_size(instance_size);
-  int inobject_unused_properties = inobject_properties;
   if (map.IsJSObjectMap()) {
+    DCHECK(!ReadOnlyHeap::Contains(map));
     map.SetInObjectPropertiesStartInWords(instance_size / kTaggedSize -
                                           inobject_properties);
     DCHECK_EQ(map.GetInObjectProperties(), inobject_properties);
-
-    if (!map.IsAlwaysSharedSpaceJSObjectMap()) {
-      DCHECK(!ReadOnlyHeap::Contains(map));
-      map.set_prototype_validity_cell(
-          ro_roots.invalid_prototype_validity_cell(), kRelaxedStore);
-    } else {
-      // Shared objects have fixed layout ahead of time, so there's no slack.
-      inobject_unused_properties = 0;
-      // Shared objects are not extensible and have a null prototype.
-      map.set_is_extensible(false);
-      // Shared space objects are not optimizable as prototypes because it is
-      // not threadsafe.
-      map.set_prototype_validity_cell(Smi::FromInt(Map::kPrototypeChainValid),
-                                      kRelaxedStore, SKIP_WRITE_BARRIER);
-    }
+    map.set_prototype_validity_cell(ro_roots.invalid_prototype_validity_cell(),
+                                    kRelaxedStore);
   } else {
     DCHECK_EQ(inobject_properties, 0);
     map.set_inobject_properties_start_or_constructor_function_index(0);
@@ -2135,7 +2122,7 @@ Map Factory::InitializeMap(Map map, InstanceType type, int instance_size,
                          SKIP_WRITE_BARRIER);
   map.set_raw_transitions(MaybeObject::FromSmi(Smi::zero()),
                           SKIP_WRITE_BARRIER);
-  map.SetInObjectUnusedPropertyFields(inobject_unused_properties);
+  map.SetInObjectUnusedPropertyFields(inobject_properties);
   map.SetInstanceDescriptors(isolate(), ro_roots.empty_descriptor_array(), 0);
   // Must be called only after |instance_type| and |instance_size| are set.
   map.set_visitor_id(Map::GetVisitorId(map));
@@ -4127,8 +4114,7 @@ Handle<JSSharedArray> Factory::NewJSSharedArray(Handle<JSFunction> constructor,
 
 Handle<JSAtomicsMutex> Factory::NewJSAtomicsMutex() {
   SharedObjectSafePublishGuard publish_guard;
-  Handle<Map> map =
-      isolate()->GetAlwaysSharedSpaceJSObjectMap(RootIndex::kJSAtomicsMutexMap);
+  Handle<Map> map = isolate()->js_atomics_mutex_map();
   Handle<JSAtomicsMutex> mutex = Handle<JSAtomicsMutex>::cast(
       NewJSObjectFromMap(map, AllocationType::kSharedOld));
   mutex->set_state(JSAtomicsMutex::kUnlocked);
@@ -4138,8 +4124,7 @@ Handle<JSAtomicsMutex> Factory::NewJSAtomicsMutex() {
 
 Handle<JSAtomicsCondition> Factory::NewJSAtomicsCondition() {
   SharedObjectSafePublishGuard publish_guard;
-  Handle<Map> map = isolate()->GetAlwaysSharedSpaceJSObjectMap(
-      RootIndex::kJSAtomicsConditionMap);
+  Handle<Map> map = isolate()->js_atomics_condition_map();
   Handle<JSAtomicsCondition> cond = Handle<JSAtomicsCondition>::cast(
       NewJSObjectFromMap(map, AllocationType::kSharedOld));
   cond->set_state(JSAtomicsCondition::kEmptyState);
