@@ -518,7 +518,7 @@ Handle<String> JsonStringifier::ConstructCircularStructureErrorMessage(
   return result;
 }
 
-bool MayHaveInterestingSymbol(Isolate* isolate, JSReceiver object) {
+bool MayHaveInterestingProperties(Isolate* isolate, JSReceiver object) {
   for (PrototypeIterator iter(isolate, object, kStartAtReceiver);
        !iter.IsAtEnd(); iter.Advance()) {
     if (iter.GetCurrent().map().may_have_interesting_properties()) return true;
@@ -542,7 +542,7 @@ JsonStringifier::Result JsonStringifier::Serialize_(Handle<Object> object,
     InstanceType instance_type =
         HeapObject::cast(*object).map(cage_base).instance_type();
     if ((InstanceTypeChecker::IsJSReceiver(instance_type) &&
-         MayHaveInterestingSymbol(isolate_, JSReceiver::cast(*object))) ||
+         MayHaveInterestingProperties(isolate_, JSReceiver::cast(*object))) ||
         InstanceTypeChecker::IsBigInt(instance_type)) {
       ASSIGN_RETURN_ON_EXCEPTION_VALUE(
           isolate_, object, ApplyToJsonFunction(object, key), EXCEPTION);

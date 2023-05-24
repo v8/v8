@@ -384,7 +384,7 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
 
   // Tells whether the instance with this map may have properties for
   // interesting symbols on it.
-  // An "interesting symbol" is one for which Name::IsInterestingSymbol()
+  // An "interesting symbol" is one for which Name::IsInteresting()
   // returns true, i.e. a well-known symbol like @@toStringTag.
   DECL_BOOLEAN_ACCESSORS(may_have_interesting_properties)
 
