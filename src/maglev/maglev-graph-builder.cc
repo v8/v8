@@ -2407,7 +2407,8 @@ ReduceResult MaglevGraphBuilder::TryBuildPropertyCellStore(
             property_cell_value.AsHeapObject().map(broker());
         broker()->dependencies()->DependOnStableMap(property_cell_value_map);
         BuildCheckHeapObject(value);
-        BuildCheckMaps(value, base::VectorOf({property_cell_value_map}));
+        RETURN_IF_ABORT(
+            BuildCheckMaps(value, base::VectorOf({property_cell_value_map})));
       } else {
         value = GetAccumulatorSmi();
       }
@@ -3028,7 +3029,7 @@ class KnownMapsMerger {
 
 }  // namespace
 
-void MaglevGraphBuilder::BuildCheckMaps(
+ReduceResult MaglevGraphBuilder::BuildCheckMaps(
     ValueNode* object, base::Vector<const compiler::MapRef> maps) {
   // TODO(verwaest): Support other objects with possible known stable maps as
   // well.
@@ -3041,7 +3042,7 @@ void MaglevGraphBuilder::BuildCheckMaps(
     if (std::find(maps.begin(), maps.end(), constant_map) != maps.end()) {
       if (constant_map.is_stable()) {
         broker()->dependencies()->DependOnStableMap(constant_map);
-        return;
+        return ReduceResult::Done();
       }
       // TODO(verwaest): Reduce maps to the constant map.
     } else {
@@ -3063,11 +3064,13 @@ void MaglevGraphBuilder::BuildCheckMaps(
   // If the known maps are the subset of the maps to check, we are done.
   if (merger.known_maps_are_subset_of_maps()) {
     DCHECK(NodeTypeIs(known_info->type, merger.node_type()));
-    return;
+    return ReduceResult::Done();
   }
 
-  // TODO(v8:7700): Insert an unconditional deopt here if intersect map sets are
-  // empty.
+  if (merger.intersect_set().is_empty()) {
+    EmitUnconditionalDeopt(DeoptimizeReason::kWrongMap);
+    return ReduceResult::DoneWithAbort();
+  }
 
   // TODO(v8:7700): Check if the {maps} - {known_maps} size is smaller than
   // {maps} \intersect {known_maps}, we can emit CheckNotMaps instead.
@@ -3081,6 +3084,7 @@ void MaglevGraphBuilder::BuildCheckMaps(
                           GetCheckType(known_info->type));
   }
   known_info->type = merger.node_type();
+  return ReduceResult::Done();
 }
 
 namespace {
@@ -3382,8 +3386,8 @@ ReduceResult MaglevGraphBuilder::TryBuildStoreField(
         // Emit a map check for the field type, if needed, otherwise just a
         // HeapObject check.
         if (access_info.field_map().has_value()) {
-          BuildCheckMaps(value,
-                         base::VectorOf({access_info.field_map().value()}));
+          RETURN_IF_ABORT(BuildCheckMaps(
+              value, base::VectorOf({access_info.field_map().value()})));
         } else {
           BuildCheckHeapObject(value);
         }
@@ -3550,6 +3554,11 @@ ReduceResult MaglevGraphBuilder::TryBuildNamedAccess(
       inferred_maps = merger.intersect_set();
     }
 
+    if (inferred_maps.is_empty()) {
+      EmitUnconditionalDeopt(DeoptimizeReason::kWrongMap);
+      return ReduceResult::DoneWithAbort();
+    }
+
     for (compiler::MapRef map : inferred_maps) {
       if (map.is_deprecated()) continue;
 
@@ -3587,7 +3596,7 @@ ReduceResult MaglevGraphBuilder::TryBuildNamedAccess(
     } else if (HasOnlyNumberMaps(maps)) {
       BuildCheckNumber(lookup_start_object);
     } else {
-      BuildCheckMaps(lookup_start_object, maps);
+      RETURN_IF_ABORT(BuildCheckMaps(lookup_start_object, maps));
     }
 
     // Generate the actual property
@@ -4036,8 +4045,8 @@ ReduceResult MaglevGraphBuilder::TryBuildElementStoreOnJSArrayOrJSObject(
               AddNewNode<EnsureWritableFastElements>({elements_array, object});
         } else {
           // Ensure that this is not a COW FixedArray.
-          BuildCheckMaps(elements_array,
-                         base::VectorOf({broker()->fixed_array_map()}));
+          RETURN_IF_ABORT(BuildCheckMaps(
+              elements_array, base::VectorOf({broker()->fixed_array_map()})));
         }
       }
     }
@@ -4169,8 +4178,8 @@ ReduceResult MaglevGraphBuilder::TryBuildElementAccess(
                                          transition_target);
     }
 
-    BuildCheckMaps(object,
-                   base::VectorOf(access_info.lookup_start_object_maps()));
+    RETURN_IF_ABORT(BuildCheckMaps(
+        object, base::VectorOf(access_info.lookup_start_object_maps())));
     if (IsTypedArrayElementsKind(access_info.elements_kind())) {
       return TryBuildElementAccessOnTypedArray(object, index_object,
                                                access_info, keyed_mode);
@@ -6589,7 +6598,8 @@ MaglevGraphBuilder::InferHasInPrototypeChain(
       }
     }
   }
-  DCHECK_IMPLIES(all, !none);
+  DCHECK_IMPLIES(all, !none || receiver_map_refs.empty());
+  if (receiver_map_refs.empty()) return kIsNotInPrototypeChain;
   if (!all && !none) return kMayBeInPrototypeChain;
 
   {
@@ -6708,8 +6718,9 @@ ReduceResult MaglevGraphBuilder::TryBuildFastInstanceOf(
 
     // Monomorphic property access.
     if (callable_node_if_not_constant) {
-      BuildCheckMaps(callable_node_if_not_constant,
-                     base::VectorOf(access_info.lookup_start_object_maps()));
+      RETURN_IF_ABORT(BuildCheckMaps(
+          callable_node_if_not_constant,
+          base::VectorOf(access_info.lookup_start_object_maps())));
     }
 
     return BuildOrdinaryHasInstance(object, callable,
@@ -6745,8 +6756,8 @@ ReduceResult MaglevGraphBuilder::TryBuildFastInstanceOf(
     } else {
       callable_node = GetConstant(callable);
     }
-    BuildCheckMaps(callable_node,
-                   base::VectorOf(access_info.lookup_start_object_maps()));
+    RETURN_IF_ABORT(BuildCheckMaps(
+        callable_node, base::VectorOf(access_info.lookup_start_object_maps())));
 
     // Special case the common case, where @@hasInstance is
     // Function.p.hasInstance. In this case we don't need to call ToBoolean (or
@@ -8162,7 +8173,8 @@ void MaglevGraphBuilder::VisitForInPrepare() {
     case ForInHint::kNone:
     case ForInHint::kEnumCacheKeysAndIndices:
     case ForInHint::kEnumCacheKeys: {
-      BuildCheckMaps(enumerator, base::VectorOf({broker()->meta_map()}));
+      RETURN_VOID_IF_ABORT(
+          BuildCheckMaps(enumerator, base::VectorOf({broker()->meta_map()})));
 
       auto* descriptor_array = AddNewNode<LoadTaggedField>(
           {enumerator}, Map::kInstanceDescriptorsOffset);

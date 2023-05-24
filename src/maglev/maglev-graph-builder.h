@@ -1568,8 +1568,8 @@ class MaglevGraphBuilder {
   void BuildCheckJSReceiver(ValueNode* object);
   void BuildCheckString(ValueNode* object);
   void BuildCheckSymbol(ValueNode* object);
-  void BuildCheckMaps(ValueNode* object,
-                      base::Vector<const compiler::MapRef> maps);
+  ReduceResult BuildCheckMaps(ValueNode* object,
+                              base::Vector<const compiler::MapRef> maps);
   // Emits an unconditional deopt and returns false if the node is a constant
   // that doesn't match the ref.
   ReduceResult BuildCheckValue(ValueNode* node, compiler::ObjectRef ref);
