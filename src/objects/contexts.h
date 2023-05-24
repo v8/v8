@@ -188,8 +188,6 @@ enum ContextLookupFlags {
     js_array_holey_double_elements_map)                                        \
   V(JS_ARRAY_TEMPLATE_LITERAL_OBJECT_MAP, Map,                                 \
     js_array_template_literal_object_map)                                      \
-  V(JS_ATOMICS_CONDITION_MAP, Map, js_atomics_condition_map)                   \
-  V(JS_ATOMICS_MUTEX_MAP, Map, js_atomics_mutex_map)                           \
   V(JS_MAP_FUN_INDEX, JSFunction, js_map_fun)                                  \
   V(JS_MAP_MAP_INDEX, Map, js_map_map)                                         \
   V(JS_MODULE_NAMESPACE_MAP, Map, js_module_namespace_map)                     \

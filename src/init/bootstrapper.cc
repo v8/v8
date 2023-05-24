@@ -593,8 +593,8 @@ V8_NOINLINE Handle<JSFunction> InstallFunctionAtSymbol(
 }
 
 V8_NOINLINE Handle<JSFunction> CreateSharedObjectConstructor(
-    Isolate* isolate, Handle<String> name, InstanceType type, int instance_size,
-    int inobject_properties, ElementsKind element_kind, Builtin builtin) {
+    Isolate* isolate, Handle<String> name, Handle<Map> instance_map,
+    Builtin builtin) {
   Factory* factory = isolate->factory();
   Handle<SharedFunctionInfo> info = factory->NewSharedFunctionInfoForBuiltin(
       name, builtin, FunctionKind::kNormalFunction);
@@ -603,16 +603,7 @@ V8_NOINLINE Handle<JSFunction> CreateSharedObjectConstructor(
       Factory::JSFunctionBuilder{isolate, info, isolate->native_context()}
           .set_map(isolate->strict_function_with_readonly_prototype_map())
           .Build();
-  Handle<Map> instance_map =
-      factory->NewMap(type, instance_size, element_kind, inobject_properties,
-                      AllocationType::kSharedMap);
-  // Shared objects have fixed layout ahead of time, so there's no slack.
-  instance_map->SetInObjectUnusedPropertyFields(0);
-  // Shared objects are not extensible and have a null prototype.
-  instance_map->set_is_extensible(false);
-
-  JSFunction::SetInitialMap(isolate, constructor, instance_map,
-                            factory->null_value(), factory->null_value());
+  constructor->set_prototype_or_initial_map(*instance_map, kReleaseStore);
 
   // Create a new {constructor, non-instance_prototype} tuple and store it
   // in Map::constructor field.
@@ -4847,8 +4838,7 @@ void Genesis::InitializeGlobal_harmony_struct() {
     native_context()->set_shared_space_js_object_has_instance(*has_instance);
   }
 
-  {
-    // SharedStructType
+  {  // SharedStructType
     Handle<String> name =
         isolate()->factory()->InternalizeUtf8String("SharedStructType");
     Handle<JSFunction> shared_struct_type_fun = CreateFunctionForBuiltin(
@@ -4868,28 +4858,38 @@ void Genesis::InitializeGlobal_harmony_struct() {
   }
 
   {  // SharedArray
+    isolate()->MaybeInitializeAlwaysSharedSpaceJSObjectMap(
+        RootIndex::kJSSharedArrayMap, [](Isolate* isolate) {
+          Factory* factory = isolate->factory();
+          Handle<Map> shared_array_map = factory->NewMap(
+              JS_SHARED_ARRAY_TYPE, JSSharedArray::kSize, SHARED_ARRAY_ELEMENTS,
+              JSSharedArray::kInObjectFieldCount, AllocationType::kSharedMap);
+
+          // Add the length accessor.
+          Handle<DescriptorArray> descriptors =
+              isolate->factory()->NewDescriptorArray(
+                  1, 0, AllocationType::kSharedOld);
+          Descriptor length_descriptor = Descriptor::DataField(
+              isolate->factory()->length_string(),
+              JSSharedArray::kLengthFieldIndex, ALL_ATTRIBUTES_MASK,
+              PropertyConstness::kConst, Representation::Smi(),
+              MaybeObjectHandle(FieldType::Any(isolate)));
+          descriptors->Set(InternalIndex(0), &length_descriptor);
+          shared_array_map->InitializeDescriptors(isolate, *descriptors);
+
+          return shared_array_map;
+        });
+
     Handle<String> shared_array_str =
         isolate()->factory()->InternalizeUtf8String("SharedArray");
+    Handle<Map> shared_array_map = isolate()->GetAlwaysSharedSpaceJSObjectMap(
+        RootIndex::kJSSharedArrayMap);
     Handle<JSFunction> shared_array_fun = CreateSharedObjectConstructor(
-        isolate(), shared_array_str, JS_SHARED_ARRAY_TYPE, JSSharedArray::kSize,
-        JSSharedArray::kInObjectFieldCount, SHARED_ARRAY_ELEMENTS,
+        isolate(), shared_array_str, shared_array_map,
         Builtin::kSharedArrayConstructor);
     shared_array_fun->shared().set_internal_formal_parameter_count(
         JSParameterCount(0));
     shared_array_fun->shared().set_length(0);
-
-    // Add the length accessor.
-    Handle<DescriptorArray> descriptors =
-        isolate()->factory()->NewDescriptorArray(1, 0,
-                                                 AllocationType::kSharedOld);
-    Descriptor length_descriptor = Descriptor::DataField(
-        isolate()->shared_space_isolate()->factory()->length_string(),
-        JSSharedArray::kLengthFieldIndex, ALL_ATTRIBUTES_MASK,
-        PropertyConstness::kConst, Representation::Smi(),
-        MaybeObjectHandle(FieldType::Any(isolate())));
-    descriptors->Set(InternalIndex(0), &length_descriptor);
-    shared_array_fun->initial_map().InitializeDescriptors(isolate(),
-                                                          *descriptors);
 
     // Install SharedArray constructor.
     JSObject::AddProperty(isolate(), global, "SharedArray", shared_array_fun,
@@ -4899,20 +4899,24 @@ void Genesis::InitializeGlobal_harmony_struct() {
                           Builtin::kSharedArrayIsSharedArray, 1, true);
   }
 
-  // TODO(v8:12547): Make a single canonical copy of the Mutex and Condition
-  // maps.
-
   {  // Atomics.Mutex
+    isolate()->MaybeInitializeAlwaysSharedSpaceJSObjectMap(
+        RootIndex::kJSAtomicsMutexMap, [](Isolate* isolate) {
+          return isolate->factory()->NewMap(
+              JS_ATOMICS_MUTEX_TYPE, JSAtomicsMutex::kHeaderSize,
+              TERMINAL_FAST_ELEMENTS_KIND, 0, AllocationType::kSharedMap);
+        });
+
     Handle<String> mutex_str =
         isolate()->factory()->InternalizeUtf8String("Mutex");
-    Handle<JSFunction> mutex_fun = CreateSharedObjectConstructor(
-        isolate(), mutex_str, JS_ATOMICS_MUTEX_TYPE,
-        JSAtomicsMutex::kHeaderSize, 0, TERMINAL_FAST_ELEMENTS_KIND,
-        Builtin::kAtomicsMutexConstructor);
+    Handle<Map> atomics_mutex_map = isolate()->GetAlwaysSharedSpaceJSObjectMap(
+        RootIndex::kJSAtomicsMutexMap);
+    Handle<JSFunction> mutex_fun =
+        CreateSharedObjectConstructor(isolate(), mutex_str, atomics_mutex_map,
+                                      Builtin::kAtomicsMutexConstructor);
     mutex_fun->shared().set_internal_formal_parameter_count(
         JSParameterCount(0));
     mutex_fun->shared().set_length(0);
-    native_context()->set_js_atomics_mutex_map(mutex_fun->initial_map());
     JSObject::AddProperty(isolate(), atomics_object, mutex_str, mutex_fun,
                           DONT_ENUM);
 
@@ -4925,17 +4929,24 @@ void Genesis::InitializeGlobal_harmony_struct() {
   }
 
   {  // Atomics.Condition
+    isolate()->MaybeInitializeAlwaysSharedSpaceJSObjectMap(
+        RootIndex::kJSAtomicsConditionMap, [](Isolate* isolate) {
+          return isolate->factory()->NewMap(
+              JS_ATOMICS_CONDITION_TYPE, JSAtomicsCondition::kHeaderSize,
+              TERMINAL_FAST_ELEMENTS_KIND, 0, AllocationType::kSharedMap);
+        });
+
     Handle<String> condition_str =
         isolate()->factory()->InternalizeUtf8String("Condition");
+    Handle<Map> atomics_condition_map =
+        isolate()->GetAlwaysSharedSpaceJSObjectMap(
+            RootIndex::kJSAtomicsConditionMap);
     Handle<JSFunction> condition_fun = CreateSharedObjectConstructor(
-        isolate(), condition_str, JS_ATOMICS_CONDITION_TYPE,
-        JSAtomicsCondition::kHeaderSize, 0, TERMINAL_FAST_ELEMENTS_KIND,
+        isolate(), condition_str, atomics_condition_map,
         Builtin::kAtomicsConditionConstructor);
     condition_fun->shared().set_internal_formal_parameter_count(
         JSParameterCount(0));
     condition_fun->shared().set_length(0);
-    native_context()->set_js_atomics_condition_map(
-        condition_fun->initial_map());
     JSObject::AddProperty(isolate(), atomics_object, condition_str,
                           condition_fun, DONT_ENUM);
 

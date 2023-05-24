@@ -234,6 +234,10 @@ bool Heap::CreateMutableHeapObjects() {
   set_dirty_js_finalization_registries_list(roots.undefined_value());
   set_dirty_js_finalization_registries_list_tail(roots.undefined_value());
 
+  set_js_shared_array_map(roots.undefined_value());
+  set_js_atomics_mutex_map(roots.undefined_value());
+  set_js_atomics_condition_map(roots.undefined_value());
+
   return true;
 }
 

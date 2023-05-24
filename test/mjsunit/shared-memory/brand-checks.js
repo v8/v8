@@ -11,17 +11,20 @@ function TestBrandChecks(struct1, struct2, sa, mutex, cv) {
     assertFalse(SharedStructType.isSharedStruct(x));
   }
 
-  assertTrue(SharedArray.isSharedArray(new SharedArray(1)));
+  assertTrue(SharedArray.isSharedArray(sa));
+  assertTrue(sa instanceof SharedArray);
   for (const x of [struct1, struct2, mutex, cv]) {
     assertFalse(SharedArray.isSharedArray(x));
   }
 
-  assertTrue(Atomics.Mutex.isMutex(new Atomics.Mutex()));
+  assertTrue(Atomics.Mutex.isMutex(mutex));
+  assertTrue(mutex instanceof Atomics.Mutex);
   for (const x of [struct1, struct2, sa, cv]) {
     assertFalse(Atomics.Mutex.isMutex(x));
   }
 
-  assertTrue(Atomics.Condition.isCondition(new Atomics.Condition()));
+  assertTrue(Atomics.Condition.isCondition(cv));
+  assertTrue(cv instanceof Atomics.Condition);
   for (const x of [struct1, struct2, sa, mutex]) {
     assertFalse(Atomics.Condition.isCondition(x));
   }
