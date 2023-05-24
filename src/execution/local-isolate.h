@@ -53,9 +53,10 @@ class V8_EXPORT_PRIVATE LocalIsolate final : private HiddenLocalFactory {
                                            OFFSET_OF(LocalIsolate, heap_));
   }
 
-  bool is_main_thread() { return heap()->is_main_thread(); }
+  bool is_main_thread() const { return heap()->is_main_thread(); }
 
   LocalHeap* heap() { return &heap_; }
+  const LocalHeap* heap() const { return &heap_; }
 
   inline Address cage_base() const;
   inline Address code_cage_base() const;
@@ -131,8 +132,6 @@ class V8_EXPORT_PRIVATE LocalIsolate final : private HiddenLocalFactory {
     if (!bigint_processor_) InitializeBigIntProcessor();
     return bigint_processor_;
   }
-
-  bool is_main_thread() const { return heap_.is_main_thread(); }
 
   // AsIsolate is only allowed on the main-thread.
   Isolate* AsIsolate() {

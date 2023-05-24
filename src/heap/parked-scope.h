@@ -30,6 +30,18 @@ class V8_NODISCARD ParkedScope {
   LocalHeap* const local_heap_;
 };
 
+class V8_NODISCARD ParkedScopeIfOnBackground {
+ public:
+  explicit ParkedScopeIfOnBackground(LocalIsolate* local_isolate)
+      : ParkedScopeIfOnBackground(local_isolate->heap()) {}
+  explicit ParkedScopeIfOnBackground(LocalHeap* local_heap) {
+    if (!local_heap->is_main_thread()) scope_.emplace(local_heap);
+  }
+
+ private:
+  base::Optional<ParkedScope> scope_;
+};
+
 // Scope that explicitly unparks a thread, allowing access to the heap and the
 // creation of handles.
 class V8_NODISCARD UnparkedScope {
@@ -44,6 +56,18 @@ class V8_NODISCARD UnparkedScope {
 
  private:
   LocalHeap* const local_heap_;
+};
+
+class V8_NODISCARD UnparkedScopeIfOnBackground {
+ public:
+  explicit UnparkedScopeIfOnBackground(LocalIsolate* local_isolate)
+      : UnparkedScopeIfOnBackground(local_isolate->heap()) {}
+  explicit UnparkedScopeIfOnBackground(LocalHeap* local_heap) {
+    if (!local_heap->is_main_thread()) scope_.emplace(local_heap);
+  }
+
+ private:
+  base::Optional<UnparkedScope> scope_;
 };
 
 // Scope that automatically parks the thread while blocking on the given
