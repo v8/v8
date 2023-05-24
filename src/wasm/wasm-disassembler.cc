@@ -835,7 +835,6 @@ void ModuleDisassembler::PrintModule(Indentation indentation, size_t max_mb) {
   }
 
   // III. Imports
-  bool memory_imported = false;
   for (uint32_t i = 0; i < module_->import_table.size(); i++) {
     const WasmImport& import = module_->import_table[i];
     out_.NextLine(offsets_->import_offset(i));
@@ -870,12 +869,13 @@ void ModuleDisassembler::PrintModule(Indentation indentation, size_t max_mb) {
         break;
       }
       case kExternalMemory:
-        memory_imported = true;
         out_ << "(memory ";
         names_->PrintMemoryName(out_, import.index, kIndicesAsComments);
-        if (module_->mem_export) PrintExportName(kExternalMemory, 0);
+        if (module_->memories[import.index].exported) {
+          PrintExportName(kExternalMemory, 0);
+        }
         PrintImportName(import);
-        PrintMemory();
+        PrintMemory(module_->memories[import.index]);
         break;
       case kExternalTag:
         out_ << "(tag ";
@@ -904,16 +904,15 @@ void ModuleDisassembler::PrintModule(Indentation indentation, size_t max_mb) {
   }
 
   // V. Memories
-  static_assert(kV8MaxWasmMemories == 1,
-                "Code below needs updating for multi-memory");
-  uint32_t num_memories = module_->has_memory ? 1 : 0;
-  for (uint32_t i = 0; i < num_memories; i++) {
-    if (memory_imported) continue;
+  uint32_t num_memories = static_cast<uint32_t>(module_->memories.size());
+  for (uint32_t memory_index = 0; memory_index < num_memories; ++memory_index) {
+    const WasmMemory& memory = module_->memories[memory_index];
+    if (memory.imported) continue;
     out_.NextLine(offsets_->memory_offset());
     out_ << indentation << "(memory ";
-    names_->PrintMemoryName(out_, 0, kIndicesAsComments);
-    if (module_->mem_export) PrintExportName(kExternalMemory, 0);
-    PrintMemory();
+    names_->PrintMemoryName(out_, memory_index, kIndicesAsComments);
+    if (memory.exported) PrintExportName(kExternalMemory, memory_index);
+    PrintMemory(memory);
     out_ << ")";
   }
 
@@ -1041,7 +1040,9 @@ void ModuleDisassembler::PrintModule(Indentation indentation, size_t max_mb) {
       names_->PrintDataSegmentName(out_, i, kIndicesAsComments);
     }
     if (data.active) {
-      ValueType type = module_->is_memory64 ? kWasmI64 : kWasmI32;
+      ValueType type = module_->memories[data.memory_index].is_memory64
+                           ? kWasmI64
+                           : kWasmI32;
       PrintInitExpression(data.dest_addr, type);
     }
     out_ << " \"";
@@ -1092,10 +1093,10 @@ void ModuleDisassembler::PrintTable(const WasmTable& table) {
   names_->PrintValueType(out_, table.type);
 }
 
-void ModuleDisassembler::PrintMemory() {
-  out_ << " " << module_->initial_pages;
-  if (module_->has_maximum_pages) out_ << " " << module_->maximum_pages;
-  if (module_->has_shared_memory) out_ << " shared";
+void ModuleDisassembler::PrintMemory(const WasmMemory& memory) {
+  out_ << " " << memory.initial_pages;
+  if (memory.has_maximum_pages) out_ << " " << memory.maximum_pages;
+  if (memory.is_shared) out_ << " shared";
 }
 
 void ModuleDisassembler::PrintGlobal(const WasmGlobal& global) {

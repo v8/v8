@@ -154,9 +154,9 @@ own<ExternType> GetImportExportType(const i::wasm::WasmModule* module,
       return TableType::make(std::move(elem), limits);
     }
     case i::wasm::kExternalMemory: {
-      DCHECK(module->has_memory);
-      Limits limits(module->initial_pages,
-                    module->has_maximum_pages ? module->maximum_pages : -1);
+      const i::wasm::WasmMemory& memory = module->memories[index];
+      Limits limits(memory.initial_pages,
+                    memory.has_maximum_pages ? memory.maximum_pages : -1);
       return MemoryType::make(limits);
     }
     case i::wasm::kExternalGlobal: {

@@ -808,7 +808,10 @@ BoundsCheckStrategy GetBoundsChecks(const WasmModule* module) {
   if (!v8_flags.wasm_bounds_checks) return kNoBoundsChecks;
   if (v8_flags.wasm_enforce_bounds_checks) return kExplicitBoundsChecks;
   // We do not have trap handler support for memory64 yet.
-  if (module->is_memory64) return kExplicitBoundsChecks;
+  // TODO(13918): Store bounds check strategy per memory.
+  for (const WasmMemory& memory : module->memories) {
+    if (memory.is_memory64) return kExplicitBoundsChecks;
+  }
   if (trap_handler::IsTrapHandlerEnabled()) return kTrapHandler;
   return kExplicitBoundsChecks;
 }

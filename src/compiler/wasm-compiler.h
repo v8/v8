@@ -651,8 +651,8 @@ class WasmGraphBuilder {
   Node* MemBuffer(uintptr_t offset);
 
   // BoundsCheckMem receives a 32/64-bit index (depending on
-  // WasmModule::is_memory64) and returns a ptrsize index and information about
-  // the kind of bounds check performed (or why none was needed).
+  // {WasmMemory::is_memory64}) and returns a ptrsize index and information
+  // about the kind of bounds check performed (or why none was needed).
   std::pair<Node*, BoundsCheckResult> BoundsCheckMem(uint8_t access_size,
                                                      Node* index,
                                                      uintptr_t offset,

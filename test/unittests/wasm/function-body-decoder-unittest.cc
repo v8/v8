@@ -143,10 +143,12 @@ class TestModuleBuilder {
   }
 
   void InitializeMemory(MemoryType mem_type = kMemory32) {
-    mod.has_memory = true;
-    mod.is_memory64 = mem_type == kMemory64;
-    mod.initial_pages = 1;
-    mod.maximum_pages = 100;
+    CHECK_EQ(0, mod.memories.size());
+    mod.memories.resize(1);
+    WasmMemory& memory = mod.memories[0];
+    memory.is_memory64 = mem_type == kMemory64;
+    memory.initial_pages = 1;
+    memory.maximum_pages = 100;
   }
 
   uint8_t InitializeTable(wasm::ValueType type) {

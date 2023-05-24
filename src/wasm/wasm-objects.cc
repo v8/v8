@@ -1104,8 +1104,12 @@ void WasmInstanceObject::SetRawMemory(int memory_index, uint8_t* mem_start,
                                       size_t mem_size) {
   // TODO(13918): Support multiple memories.
   CHECK_EQ(0, memory_index);
-  CHECK_LE(mem_size, module()->is_memory64 ? wasm::max_mem64_bytes()
-                                           : wasm::max_mem32_bytes());
+  // Note that we use this method to initialize the instance fields even if
+  // there is no declared memory.
+  const bool is_memory64 =
+      !module()->memories.empty() && module()->memories[0].is_memory64;
+  CHECK_LE(mem_size,
+           is_memory64 ? wasm::max_mem64_bytes() : wasm::max_mem32_bytes());
   set_memory0_start(mem_start);
   set_memory0_size(mem_size);
 }

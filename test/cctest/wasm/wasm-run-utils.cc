@@ -110,18 +110,23 @@ TestingModuleBuilder::~TestingModuleBuilder() {
 uint8_t* TestingModuleBuilder::AddMemory(uint32_t size, SharedFlag shared,
                                          TestingModuleMemoryType mem_type) {
   // TODO(13918): Add support for multi-memory.
-  CHECK(!test_module_->has_memory);
-  CHECK_NULL(mem_start_);
-  CHECK_EQ(0, mem_size_);
-  // Maxmimum pages must be set after adding the memory.
-  CHECK_EQ(0, test_module_->maximum_pages);
+  CHECK_EQ(0, test_module_->memories.size());
+  CHECK_NULL(mem0_start_);
+  CHECK_EQ(0, mem0_size_);
   CHECK(!instance_object_->has_memory_object());
   uint32_t initial_pages = RoundUp(size, kWasmPageSize) / kWasmPageSize;
   uint32_t maximum_pages = initial_pages;
-  test_module_->has_memory = true;
-  test_module_->is_memory64 = mem_type == kMemory64;
-  test_module_->min_memory_size = initial_pages * kWasmPageSize;
-  test_module_->max_memory_size = maximum_pages * kWasmPageSize;
+  test_module_->memories.resize(1);
+  WasmMemory* memory = &test_module_->memories[0];
+  memory->is_memory64 = mem_type == kMemory64;
+  memory->min_memory_size = initial_pages * kWasmPageSize;
+  memory->max_memory_size = maximum_pages * kWasmPageSize;
+
+  if (mem_type == kMemory64) {
+    // TODO(13918): Store bounds checking strategy per memory.
+    native_module_->SetBoundsChecksForTesting(
+        BoundsCheckStrategy::kExplicitBoundsChecks);
+  }
 
   if (mem_type == kMemory64) {
     // TODO(13918): Store bounds checking strategy per memory.
@@ -135,17 +140,17 @@ uint8_t* TestingModuleBuilder::AddMemory(uint32_t size, SharedFlag shared,
           .ToHandleChecked();
   instance_object_->set_memory_object(*memory_object);
 
-  mem_start_ =
+  mem0_start_ =
       reinterpret_cast<uint8_t*>(memory_object->array_buffer().backing_store());
-  mem_size_ = size;
-  CHECK(size == 0 || mem_start_);
+  mem0_size_ = size;
+  CHECK(size == 0 || mem0_start_);
 
   WasmMemoryObject::AddInstance(isolate_, memory_object, instance_object_);
-  // TODO(wasm): Delete the following two lines when test-run-wasm will use a
+  // TODO(wasm): Delete the following line when test-run-wasm will use a
   // multiple of kPageSize as memory size. At the moment, the effect of these
   // two lines is used to shrink the memory for testing purposes.
-  instance_object_->SetRawMemory(0, mem_start_, mem_size_);
-  return mem_start_;
+  instance_object_->SetRawMemory(0, mem0_start_, mem0_size_);
+  return mem0_start_;
 }
 
 uint32_t TestingModuleBuilder::AddFunction(const FunctionSig* sig,

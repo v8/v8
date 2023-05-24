@@ -2148,8 +2148,10 @@ Node* WasmGraphBuilder::BuildCcallConvertFloat(Node* input,
 }
 
 Node* WasmGraphBuilder::MemoryGrow(Node* input) {
+  // TODO(13918): Support multi-memory.
+  const uint32_t memory_index = 0;
   needs_stack_check_ = true;
-  if (!env_->module->is_memory64) {
+  if (!env_->module->memories[memory_index].is_memory64) {
     // For 32-bit memories, just call the builtin.
     return gasm_->CallRuntimeStub(wasm::WasmCode::kWasmMemoryGrow,
                                   Operator::kNoThrow, input);
@@ -3196,7 +3198,7 @@ void WasmGraphBuilder::InitInstanceCache(
 
   // Only cache memory start and size if there is a memory (the nodes would be
   // dead otherwise, but we can avoid creating them in the first place).
-  if (!env_->module->has_memory) return;
+  if (env_->module->memories.empty()) return;
 
   // Load the memory start.
   instance_cache->mem0_start =
@@ -3207,13 +3209,13 @@ void WasmGraphBuilder::InitInstanceCache(
   instance_cache->mem0_size =
       LOAD_INSTANCE_FIELD_NO_ELIMINATION(Memory0Size, MachineType::UintPtr());
   wasm::ValueType mem0_size_type =
-      env_->module->is_memory64 ? wasm::kWasmI64 : wasm::kWasmI32;
+      env_->module->memories[0].is_memory64 ? wasm::kWasmI64 : wasm::kWasmI32;
   SetType(instance_cache->mem0_size, mem0_size_type);
 }
 
 void WasmGraphBuilder::PrepareInstanceCacheForLoop(
     WasmInstanceCacheNodes* instance_cache, Node* control) {
-  if (!env_->module->has_memory) return;
+  if (env_->module->memories.empty()) return;
   for (auto field : WasmInstanceCacheNodes::kFields) {
     instance_cache->*field = graph()->NewNode(
         mcgraph()->common()->Phi(MachineType::PointerRepresentation(), 1),
@@ -3236,7 +3238,7 @@ void WasmGraphBuilder::NewInstanceCacheMerge(WasmInstanceCacheNodes* to,
 void WasmGraphBuilder::MergeInstanceCacheInto(WasmInstanceCacheNodes* to,
                                               WasmInstanceCacheNodes* from,
                                               Node* merge) {
-  if (!env_->module->has_memory) {
+  if (env_->module->memories.empty()) {
     // Instance cache nodes should be nullptr then.
     DCHECK(to->mem0_start == nullptr && to->mem0_size == nullptr &&
            from->mem0_start == nullptr && from->mem0_size == nullptr);
@@ -3326,7 +3328,7 @@ Node* WasmGraphBuilder::CurrentMemoryPages() {
   DCHECK_NOT_NULL(mem_size);
   Node* result =
       gasm_->WordShr(mem_size, Int32Constant(wasm::kWasmPageSizeLog2));
-  result = env_->module->is_memory64
+  result = env_->module->memories[0].is_memory64
                ? gasm_->BuildChangeIntPtrToInt64(result)
                : gasm_->BuildTruncateIntPtrToInt32(result);
   return result;
@@ -3509,13 +3511,16 @@ WasmGraphBuilder::BoundsCheckMem(uint8_t access_size, Node* index,
                                  EnforceBoundsCheck enforce_check) {
   DCHECK_LE(1, access_size);
 
+  // TODO(13918): Support multiple memories.
+  const wasm::WasmMemory* memory = env_->module->memories.data();
+
   // The function body decoder already validated that the access is not
   // statically OOB.
   DCHECK(base::IsInBounds<uintptr_t>(offset, access_size,
-                                     env_->module->max_memory_size));
+                                     memory->max_memory_size));
 
   // Convert the index to uintptr.
-  if (!env_->module->is_memory64) {
+  if (!memory->is_memory64) {
     index = gasm_->BuildChangeUint32ToUintPtr(index);
   } else if (kSystemPointerSize == kInt32Size) {
     // In memory64 mode on 32-bit systems, the upper 32 bits need to be zero to
@@ -3546,8 +3551,8 @@ WasmGraphBuilder::BoundsCheckMem(uint8_t access_size, Node* index,
   uintptr_t end_offset = offset + access_size - 1u;
 
   UintPtrMatcher match(index);
-  if (match.HasResolvedValue() && end_offset <= env_->module->min_memory_size &&
-      match.ResolvedValue() < env_->module->min_memory_size - end_offset) {
+  if (match.HasResolvedValue() && end_offset <= memory->min_memory_size &&
+      match.ResolvedValue() < memory->min_memory_size - end_offset) {
     // The input index is a constant and everything is statically within
     // bounds of the smallest possible memory.
     return {index, kInBounds};
@@ -3560,7 +3565,7 @@ WasmGraphBuilder::BoundsCheckMem(uint8_t access_size, Node* index,
 
   Node* mem_size = instance_cache_->mem0_size;
   Node* end_offset_node = mcgraph_->UintPtrConstant(end_offset);
-  if (end_offset > env_->module->min_memory_size) {
+  if (end_offset > memory->min_memory_size) {
     // The end offset is larger than the smallest memory.
     // Dynamically check the end offset against the dynamic memory size.
     Node* cond = gasm_->UintLessThan(end_offset_node, mem_size);
@@ -3914,6 +3919,7 @@ void WasmGraphBuilder::StoreMem(MachineRepresentation mem_rep, Node* index,
 
 Node* WasmGraphBuilder::BuildAsmjsLoadMem(MachineType type, Node* index) {
   DCHECK_NOT_NULL(instance_cache_);
+  DCHECK_EQ(1, env_->module->memories.size());
   Node* mem_start = instance_cache_->mem0_start;
   Node* mem_size = instance_cache_->mem0_size;
   DCHECK_NOT_NULL(mem_start);
@@ -3960,6 +3966,7 @@ Node* WasmGraphBuilder::BuildAsmjsLoadMem(MachineType type, Node* index) {
 Node* WasmGraphBuilder::BuildAsmjsStoreMem(MachineType type, Node* index,
                                            Node* val) {
   DCHECK_NOT_NULL(instance_cache_);
+  DCHECK_EQ(1, env_->module->memories.size());
   Node* mem_start = instance_cache_->mem0_start;
   Node* mem_size = instance_cache_->mem0_size;
   DCHECK_NOT_NULL(mem_start);
@@ -5170,7 +5177,10 @@ Node* WasmGraphBuilder::StoreArgsInStackSlot(
 
 void WasmGraphBuilder::MemTypeToUintPtrOrOOBTrap(
     std::initializer_list<Node**> nodes, wasm::WasmCodePosition position) {
-  if (!env_->module->is_memory64) {
+  // TODO(13918): Support bulk memory on multi-memory.
+  CHECK_EQ(1, env_->module->memories.size());
+  const wasm::WasmMemory* memory = &env_->module->memories[0];
+  if (!memory->is_memory64) {
     for (Node** node : nodes) {
       *node = gasm_->BuildChangeUint32ToUintPtr(*node);
     }

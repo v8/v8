@@ -585,15 +585,15 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
        << sig_index << " /* sig */);\n";
   }
 
-  if (module->has_memory) {
-    os << "builder.addMemory(" << module->initial_pages;
-    if (module->has_maximum_pages) {
-      os << ", " << module->maximum_pages;
+  for (const WasmMemory& memory : module->memories) {
+    os << "builder.addMemory(" << memory.initial_pages;
+    if (memory.has_maximum_pages) {
+      os << ", " << memory.maximum_pages;
     } else {
       os << ", undefined";
     }
-    os << ", " << (module->mem_export ? "true" : "false");
-    if (module->has_shared_memory) {
+    os << ", " << (memory.exported ? "true" : "false");
+    if (memory.is_shared) {
       os << ", true";
     }
     os << ");\n";

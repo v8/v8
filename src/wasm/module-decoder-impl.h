@@ -786,16 +786,25 @@ class ModuleDecoderImpl : public Decoder {
         }
         case kExternalMemory: {
           // ===== Imported memory =============================================
-          if (!AddMemory(module_.get())) break;
-          consume_memory_flags(&module_->has_shared_memory,
-                               &module_->is_memory64,
-                               &module_->has_maximum_pages);
-          uint32_t max_pages = module_->is_memory64 ? kSpecMaxMemory64Pages
-                                                    : kSpecMaxMemory32Pages;
+          if (!module_->memories.empty()) {
+            // TODO(13918): Support multiple memories.
+            error("At most one memory is supported");
+            break;
+          }
+          module_->memories.emplace_back();
+          WasmMemory* external_memory = &module_->memories.back();
+
+          consume_memory_flags(&external_memory->is_shared,
+                               &external_memory->is_memory64,
+                               &external_memory->has_maximum_pages);
+          uint32_t max_pages = external_memory->is_memory64
+                                   ? kSpecMaxMemory64Pages
+                                   : kSpecMaxMemory32Pages;
           consume_resizable_limits(
-              "memory", "pages", max_pages, &module_->initial_pages,
-              module_->has_maximum_pages, max_pages, &module_->maximum_pages,
-              module_->is_memory64 ? k64BitLimits : k32BitLimits);
+              "memory", "pages", max_pages, &external_memory->initial_pages,
+              external_memory->has_maximum_pages, max_pages,
+              &external_memory->maximum_pages,
+              external_memory->is_memory64 ? k64BitLimits : k32BitLimits);
           break;
         }
         case kExternalGlobal: {
@@ -827,7 +836,7 @@ class ModuleDecoderImpl : public Decoder {
           break;
       }
     }
-    UpdateMemorySizes();
+    UpdateComputedMemoryInformation();
     module_->type_feedback.well_known_imports.Initialize(
         module_->num_imported_functions);
     if (tracer_) tracer_->ImportsDone();
@@ -914,34 +923,45 @@ class ModuleDecoderImpl : public Decoder {
   }
 
   void DecodeMemorySection() {
+    const byte* mem_count_pc = pc();
     uint32_t memory_count = consume_count("memory count", kV8MaxWasmMemories);
+    size_t imported_memories = module_->memories.size();
+    if (memory_count + imported_memories > 1) {
+      // TODO(13918): Support multiple memories.
+      errorf(mem_count_pc,
+             "At most one memory is supported (declared %u, imported %zu)",
+             memory_count, imported_memories);
+    }
+    module_->memories.resize(imported_memories + memory_count);
 
     for (uint32_t i = 0; ok() && i < memory_count; i++) {
+      WasmMemory* memory = module_->memories.data() + imported_memories + i;
       if (tracer_) tracer_->MemoryOffset(pc_offset());
-      if (!AddMemory(module_.get())) break;
-      consume_memory_flags(&module_->has_shared_memory, &module_->is_memory64,
-                           &module_->has_maximum_pages);
+      consume_memory_flags(&memory->is_shared, &memory->is_memory64,
+                           &memory->has_maximum_pages);
       uint32_t max_pages =
-          module_->is_memory64 ? kSpecMaxMemory64Pages : kSpecMaxMemory32Pages;
+          memory->is_memory64 ? kSpecMaxMemory64Pages : kSpecMaxMemory32Pages;
       consume_resizable_limits(
-          "memory", "pages", max_pages, &module_->initial_pages,
-          module_->has_maximum_pages, max_pages, &module_->maximum_pages,
-          module_->is_memory64 ? k64BitLimits : k32BitLimits);
+          "memory", "pages", max_pages, &memory->initial_pages,
+          memory->has_maximum_pages, max_pages, &memory->maximum_pages,
+          memory->is_memory64 ? k64BitLimits : k32BitLimits);
     }
-    UpdateMemorySizes();
+    UpdateComputedMemoryInformation();
   }
 
-  void UpdateMemorySizes() {
-    // Set min and max memory size.
-    const uintptr_t platform_max_pages = module_->is_memory64
-                                             ? kV8MaxWasmMemory64Pages
-                                             : kV8MaxWasmMemory32Pages;
-    module_->min_memory_size =
-        std::min(platform_max_pages, uintptr_t{module_->initial_pages}) *
-        kWasmPageSize;
-    module_->max_memory_size =
-        std::min(platform_max_pages, uintptr_t{module_->maximum_pages}) *
-        kWasmPageSize;
+  void UpdateComputedMemoryInformation() {
+    for (WasmMemory& memory : module_->memories) {
+      // Set min and max memory size.
+      const uintptr_t platform_max_pages = memory.is_memory64
+                                               ? kV8MaxWasmMemory64Pages
+                                               : kV8MaxWasmMemory32Pages;
+      memory.min_memory_size =
+          std::min(platform_max_pages, uintptr_t{memory.initial_pages}) *
+          kWasmPageSize;
+      memory.max_memory_size =
+          std::min(platform_max_pages, uintptr_t{memory.maximum_pages}) *
+          kWasmPageSize;
+    }
   }
 
   void DecodeGlobalSection() {
@@ -1012,12 +1032,13 @@ class ModuleDecoderImpl : public Decoder {
         }
         case kExternalMemory: {
           uint32_t index = consume_u32v("memory index", tracer_);
-          // TODO(titzer): This should become more regular
-          // once we support multiple memories.
-          if (!module_->has_memory || index != 0) {
-            error("invalid memory index != 0");
+          size_t num_memories = module_->memories.size();
+          if (index >= module_->memories.size()) {
+            errorf(pos, "invalid exported memory index %u (having %zu memor%s)",
+                   index, num_memories, num_memories == 1 ? "y" : "ies");
+            break;
           }
-          module_->mem_export = true;
+          module_->memories[index].exported = true;
           break;
         }
         case kExternalGlobal: {
@@ -1217,8 +1238,10 @@ class ModuleDecoderImpl : public Decoder {
       if (tracer_) tracer_->DataOffset(pc_offset());
 
       bool is_active;
+      uint32_t memory_index;
       ConstantExpression dest_addr;
-      std::tie(is_active, dest_addr) = consume_data_segment_header();
+      std::tie(is_active, memory_index, dest_addr) =
+          consume_data_segment_header();
 
       uint32_t source_length = consume_u32v("source size", tracer_);
       if (tracer_) {
@@ -1236,7 +1259,8 @@ class ModuleDecoderImpl : public Decoder {
 
       if (failed()) break;
       module_->data_segments.emplace_back(
-          is_active, dest_addr, WireBytesRef{source_offset, source_length});
+          is_active, memory_index, dest_addr,
+          WireBytesRef{source_offset, source_length});
     }
   }
 
@@ -1728,16 +1752,6 @@ class ModuleDecoderImpl : public Decoder {
 
   uint32_t off(const uint8_t* ptr) {
     return static_cast<uint32_t>(ptr - start_) + buffer_offset_;
-  }
-
-  bool AddMemory(WasmModule* module) {
-    if (module->has_memory) {
-      error("At most one memory is supported");
-      return false;
-    } else {
-      module->has_memory = true;
-      return true;
-    }
   }
 
   // Calculate individual global offsets and total size of globals table. This
@@ -2332,7 +2346,7 @@ class ModuleDecoderImpl : public Decoder {
     }
   }
 
-  std::tuple<bool, ConstantExpression> consume_data_segment_header() {
+  std::tuple<bool, uint32_t, ConstantExpression> consume_data_segment_header() {
     const uint8_t* pos = pc();
     uint32_t flag = consume_u32v("flag: ", tracer_);
     if (tracer_) {
@@ -2354,26 +2368,25 @@ class ModuleDecoderImpl : public Decoder {
 
     bool is_active = flag == SegmentFlags::kActiveNoIndex ||
                      flag == SegmentFlags::kActiveWithIndex;
+    uint32_t mem_index = flag == SegmentFlags::kActiveWithIndex
+                             ? consume_u32v("memory index", tracer_)
+                             : 0;
     ConstantExpression offset;
 
-    if (flag == SegmentFlags::kActiveWithIndex) {
-      uint32_t mem_index = consume_u32v("memory index", tracer_);
-      if (mem_index != 0) {
-        errorf(pos, "illegal memory index %u != 0", mem_index);
-        return {};
-      }
-    }
-
     if (is_active) {
-      if (!module_->has_memory) {
-        error(pos, "cannot load data without memory");
+      size_t num_memories = module_->memories.size();
+      if (mem_index >= num_memories) {
+        errorf(pos,
+               "invalid memory index %u for data section (having %zu memor%s)",
+               mem_index, num_memories, num_memories == 1 ? "y" : "ies");
         return {};
       }
-      ValueType expected_type = module_->is_memory64 ? kWasmI64 : kWasmI32;
+      ValueType expected_type =
+          module_->memories[mem_index].is_memory64 ? kWasmI64 : kWasmI32;
       offset = consume_init_expr(module_.get(), expected_type);
     }
 
-    return {is_active, offset};
+    return {is_active, mem_index, offset};
   }
 
   uint32_t consume_element_func_index(WasmModule* module, ValueType expected) {

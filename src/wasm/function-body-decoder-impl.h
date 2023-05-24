@@ -1775,23 +1775,25 @@ class WasmDecoder : public Decoder {
   }
 
   bool Validate(const uint8_t* pc, MemoryIndexImmediate& imm) {
-    if (!VALIDATE(this->module_->has_memory)) {
-      this->DecodeError(pc, "memory instruction with no memory");
+    size_t num_memories = module_->memories.size();
+    if (!VALIDATE(imm.index < num_memories)) {
+      DecodeError(pc,
+                  "memory index %u exceeds number of declared memories (%zu)",
+                  imm.index, num_memories);
       return false;
     }
-    if (!VALIDATE(imm.index == uint8_t{0})) {
-      DecodeError(pc, "expected memory index 0, found %u", imm.index);
-      return false;
-    }
+    V8_ASSUME(imm.index < num_memories);
     return true;
   }
 
   bool Validate(const uint8_t* pc, MemoryAccessImmediate& imm) {
-    if (!VALIDATE(this->module_->has_memory)) {
-      this->DecodeError(pc, "memory instruction with no memory");
+    // TODO(13918): Add memory index to {MemoryAccessImmediate} and validate it.
+    if (!VALIDATE(!this->module_->memories.empty())) {
+      DecodeError(pc, "memory instruction with no memory");
       return false;
     }
-    if (!VALIDATE(this->module_->is_memory64 || imm.offset <= kMaxUInt32)) {
+    if (!VALIDATE(this->module_->memories[0].is_memory64 ||
+                  imm.offset <= kMaxUInt32)) {
       this->DecodeError(pc, "memory offset outside 32-bit range: %" PRIu64,
                         imm.offset);
       return false;
@@ -3566,7 +3568,9 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     if (!this->Validate(this->pc_ + 1, imm)) return 0;
     // This opcode will not be emitted by the asm translator.
     DCHECK_EQ(kWasmOrigin, this->module_->origin);
-    ValueType mem_type = this->module_->is_memory64 ? kWasmI64 : kWasmI32;
+    // TODO(13918): Support multiple memories.
+    ValueType mem_type =
+        this->module_->memories[0].is_memory64 ? kWasmI64 : kWasmI32;
     Value value = Pop(mem_type);
     Value* result = Push(mem_type);
     CALL_INTERFACE_IF_OK_AND_REACHABLE(MemoryGrow, value, result);
@@ -3576,7 +3580,9 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
   DECODE(MemorySize) {
     MemoryIndexImmediate imm(this, this->pc_ + 1, validate);
     if (!this->Validate(this->pc_ + 1, imm)) return 0;
-    ValueType result_type = this->module_->is_memory64 ? kWasmI64 : kWasmI32;
+    // TODO(13918): Support multiple memories.
+    ValueType result_type =
+        this->module_->memories[0].is_memory64 ? kWasmI64 : kWasmI32;
     Value* result = Push(result_type);
     CALL_INTERFACE_IF_OK_AND_REACHABLE(CurrentMemoryPages, result);
     return 1 + imm.length;
@@ -4030,7 +4036,9 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     MemoryAccessImmediate imm =
         MakeMemoryAccessImmediate(prefix_len, type.size_log_2());
     if (!this->Validate(this->pc_ + prefix_len, imm)) return 0;
-    ValueType index_type = this->module_->is_memory64 ? kWasmI64 : kWasmI32;
+    // TODO(13918): Support multiple memories.
+    ValueType index_type =
+        this->module_->memories[0].is_memory64 ? kWasmI64 : kWasmI32;
     Value index = Pop(index_type);
     Value* result = Push(type.value_type());
     if (V8_LIKELY(!CheckStaticallyOutOfBounds(type.size(), imm.offset))) {
@@ -4047,7 +4055,9 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     MemoryAccessImmediate imm =
         MakeMemoryAccessImmediate(opcode_length, max_alignment);
     if (!this->Validate(this->pc_ + opcode_length, imm)) return 0;
-    ValueType index_type = this->module_->is_memory64 ? kWasmI64 : kWasmI32;
+    // TODO(13918): Support multiple memories.
+    ValueType index_type =
+        this->module_->memories[0].is_memory64 ? kWasmI64 : kWasmI32;
     Value index = Pop(index_type);
     Value* result = Push(kWasmS128);
     uintptr_t op_size =
@@ -4066,7 +4076,9 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     SimdLaneImmediate lane_imm(this, this->pc_ + opcode_length + mem_imm.length,
                                validate);
     if (!this->Validate(this->pc_ + opcode_length, opcode, lane_imm)) return 0;
-    ValueType index_type = this->module_->is_memory64 ? kWasmI64 : kWasmI32;
+    // TODO(13918): Support multiple memories.
+    ValueType index_type =
+        this->module_->memories[0].is_memory64 ? kWasmI64 : kWasmI32;
     auto [index, v128] = Pop(index_type, kWasmS128);
 
     Value* result = Push(kWasmS128);
@@ -4085,7 +4097,9 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     SimdLaneImmediate lane_imm(this, this->pc_ + opcode_length + mem_imm.length,
                                validate);
     if (!this->Validate(this->pc_ + opcode_length, opcode, lane_imm)) return 0;
-    ValueType index_type = this->module_->is_memory64 ? kWasmI64 : kWasmI32;
+    // TODO(13918): Support multiple memories.
+    ValueType index_type =
+        this->module_->memories[0].is_memory64 ? kWasmI64 : kWasmI32;
     auto [index, v128] = Pop(index_type, kWasmS128);
 
     if (V8_LIKELY(!CheckStaticallyOutOfBounds(type.size(), mem_imm.offset))) {
@@ -4096,8 +4110,10 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
   }
 
   bool CheckStaticallyOutOfBounds(uint64_t size, uint64_t offset) {
-    const bool statically_oob = !base::IsInBounds<uint64_t>(
-        offset, size, this->module_->max_memory_size);
+    // TODO(13918): Support multiple memories.
+    const WasmMemory* memory = this->module_->memories.data();
+    const bool statically_oob =
+        !base::IsInBounds<uint64_t>(offset, size, memory->max_memory_size);
     if (V8_UNLIKELY(statically_oob)) {
       CALL_INTERFACE_IF_OK_AND_REACHABLE(Trap, TrapReason::kTrapMemOutOfBounds);
       SetSucceedingCodeDynamicallyUnreachable();
@@ -4109,7 +4125,9 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     MemoryAccessImmediate imm =
         MakeMemoryAccessImmediate(prefix_len, store.size_log_2());
     if (!this->Validate(this->pc_ + prefix_len, imm)) return 0;
-    ValueType index_type = this->module_->is_memory64 ? kWasmI64 : kWasmI32;
+    // TODO(13918): Support multiple memories.
+    ValueType index_type =
+        this->module_->memories[0].is_memory64 ? kWasmI64 : kWasmI32;
     auto [index, value] = Pop(index_type, store.value_type());
     if (V8_LIKELY(!CheckStaticallyOutOfBounds(store.size(), imm.offset))) {
       CALL_INTERFACE_IF_OK_AND_REACHABLE(StoreMem, store, imm, index, value);
@@ -5707,7 +5725,9 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     bool null_on_invalid = variant == unibrow::Utf8Variant::kUtf8NoTrap;
     MemoryIndexImmediate memory(this, this->pc_ + opcode_length, validate);
     if (!this->Validate(this->pc_ + opcode_length, memory)) return 0;
-    ValueType addr_type = this->module_->is_memory64 ? kWasmI64 : kWasmI32;
+    // TODO(13918): Support multiple memories.
+    ValueType addr_type =
+        this->module_->memories[0].is_memory64 ? kWasmI64 : kWasmI32;
     auto [offset, size] = Pop(addr_type, kWasmI32);
     Value result = CreateValue(ValueType::RefMaybeNull(
         HeapType::kString, null_on_invalid ? kNullable : kNonNullable));
@@ -5731,7 +5751,9 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     NON_CONST_ONLY
     MemoryIndexImmediate memory(this, this->pc_ + opcode_length, validate);
     if (!this->Validate(this->pc_ + opcode_length, memory)) return 0;
-    ValueType addr_type = this->module_->is_memory64 ? kWasmI64 : kWasmI32;
+    // TODO(13918): Support multiple memories.
+    ValueType addr_type =
+        this->module_->memories[0].is_memory64 ? kWasmI64 : kWasmI32;
     auto [str, addr] = Pop(kWasmStringRef, addr_type);
     Value* result = Push(kWasmI32);
     CALL_INTERFACE_IF_OK_AND_REACHABLE(StringEncodeWtf8, memory, variant, str,
@@ -5744,7 +5766,9 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     NON_CONST_ONLY
     MemoryIndexImmediate memory(this, this->pc_ + opcode_length, validate);
     if (!this->Validate(this->pc_ + opcode_length, memory)) return 0;
-    ValueType addr_type = this->module_->is_memory64 ? kWasmI64 : kWasmI32;
+    // TODO(13918): Support multiple memories.
+    ValueType addr_type =
+        this->module_->memories[0].is_memory64 ? kWasmI64 : kWasmI32;
     auto [view, addr, pos, bytes] =
         Pop(kWasmStringViewWtf8, addr_type, kWasmI32, kWasmI32);
     Value* next_pos = Push(kWasmI32);
@@ -5804,7 +5828,9 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         NON_CONST_ONLY
         MemoryIndexImmediate imm(this, this->pc_ + opcode_length, validate);
         if (!this->Validate(this->pc_ + opcode_length, imm)) return 0;
-        ValueType addr_type = this->module_->is_memory64 ? kWasmI64 : kWasmI32;
+        // TODO(13918): Support multiple memories.
+        ValueType addr_type =
+            this->module_->memories[0].is_memory64 ? kWasmI64 : kWasmI32;
         auto [offset, size] = Pop(addr_type, kWasmI32);
         Value* result = Push(ValueType::Ref(HeapType::kString));
         CALL_INTERFACE_IF_OK_AND_REACHABLE(StringNewWtf16, imm, offset, size,
@@ -5844,7 +5870,9 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         NON_CONST_ONLY
         MemoryIndexImmediate imm(this, this->pc_ + opcode_length, validate);
         if (!this->Validate(this->pc_ + opcode_length, imm)) return 0;
-        ValueType addr_type = this->module_->is_memory64 ? kWasmI64 : kWasmI32;
+        // TODO(13918): Support multiple memories.
+        ValueType addr_type =
+            this->module_->memories[0].is_memory64 ? kWasmI64 : kWasmI32;
         auto [str, addr] = Pop(kWasmStringRef, addr_type);
         Value* result = Push(kWasmI32);
         CALL_INTERFACE_IF_OK_AND_REACHABLE(StringEncodeWtf16, imm, str, addr,
@@ -5930,7 +5958,9 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         NON_CONST_ONLY
         MemoryIndexImmediate imm(this, this->pc_ + opcode_length, validate);
         if (!this->Validate(this->pc_ + opcode_length, imm)) return 0;
-        ValueType addr_type = this->module_->is_memory64 ? kWasmI64 : kWasmI32;
+        // TODO(13918): Support multiple memories.
+        ValueType addr_type =
+            this->module_->memories[0].is_memory64 ? kWasmI64 : kWasmI32;
         auto [view, addr, pos, codeunits] =
             Pop(kWasmStringViewWtf16, addr_type, kWasmI32, kWasmI32);
         Value* result = Push(kWasmI32);
@@ -6117,7 +6147,9 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     DCHECK_EQ(kWasmI32, sig->GetParam(0));
     EnsureStackArguments(parameter_count);
     ArgVector args(stack_value(parameter_count), parameter_count);
-    ValueType mem_type = this->module_->is_memory64 ? kWasmI64 : kWasmI32;
+    // TODO(13918): Support multiple memories.
+    ValueType mem_type =
+        this->module_->memories[0].is_memory64 ? kWasmI64 : kWasmI32;
     ValidateStackValue(0, args[0], mem_type);
     for (int i = 1; i < parameter_count; i++) {
       ValidateStackValue(i, args[i], sig->GetParam(i));
@@ -6164,7 +6196,9 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       case kExprMemoryInit: {
         MemoryInitImmediate imm(this, this->pc_ + opcode_length, validate);
         if (!this->Validate(this->pc_ + opcode_length, imm)) return 0;
-        ValueType mem_type = this->module_->is_memory64 ? kWasmI64 : kWasmI32;
+        // TODO(13918): Support multiple memories.
+        ValueType mem_type =
+            this->module_->memories[0].is_memory64 ? kWasmI64 : kWasmI32;
         auto [dst, offset, size] = Pop(mem_type, kWasmI32, kWasmI32);
         CALL_INTERFACE_IF_OK_AND_REACHABLE(MemoryInit, imm, dst, offset, size);
         return opcode_length + imm.length;
@@ -6181,7 +6215,9 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       case kExprMemoryCopy: {
         MemoryCopyImmediate imm(this, this->pc_ + opcode_length, validate);
         if (!this->Validate(this->pc_ + opcode_length, imm)) return 0;
-        ValueType mem_type = this->module_->is_memory64 ? kWasmI64 : kWasmI32;
+        // TODO(13918): Support multiple memories.
+        ValueType mem_type =
+            this->module_->memories[0].is_memory64 ? kWasmI64 : kWasmI32;
         auto [dst, src, size] = Pop(mem_type, mem_type, mem_type);
         CALL_INTERFACE_IF_OK_AND_REACHABLE(MemoryCopy, imm, dst, src, size);
         return opcode_length + imm.length;
@@ -6189,7 +6225,9 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       case kExprMemoryFill: {
         MemoryIndexImmediate imm(this, this->pc_ + opcode_length, validate);
         if (!this->Validate(this->pc_ + opcode_length, imm)) return 0;
-        ValueType mem_type = this->module_->is_memory64 ? kWasmI64 : kWasmI32;
+        // TODO(13918): Support multiple memories.
+        ValueType mem_type =
+            this->module_->memories[0].is_memory64 ? kWasmI64 : kWasmI32;
         auto [dst, value, size] = Pop(mem_type, kWasmI32, mem_type);
         CALL_INTERFACE_IF_OK_AND_REACHABLE(MemoryFill, imm, dst, value, size);
         return opcode_length + imm.length;

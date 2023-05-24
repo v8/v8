@@ -260,9 +260,10 @@ class WasmGraphBuildingInterface {
   // Reload the instance cache entries into the Ssa Environment, if memory can
   // actually grow.
   void ReloadInstanceCacheIntoSsa(SsaEnv* ssa_env, const WasmModule* module) {
-    if (module->initial_pages != module->maximum_pages) {
-      LoadInstanceCacheIntoSsa(ssa_env);
-    }
+    if (module->memories.empty()) return;
+    const WasmMemory* memory0 = &module->memories[0];
+    if (memory0->initial_pages == memory0->maximum_pages) return;
+    LoadInstanceCacheIntoSsa(ssa_env);
   }
 
   void StartFunctionBody(FullDecoder* decoder, Control* block) {}
@@ -313,7 +314,8 @@ class WasmGraphBuildingInterface {
     int instance_cache_index = decoder->num_locals();
     // If the module has shared memory, the stack guard might reallocate the
     // shared memory. We have to assume the instance cache will be updated.
-    if (decoder->module_->has_shared_memory) {
+    if (!decoder->module_->memories.empty() &&
+        decoder->module_->memories[0].is_shared) {
       assigned->Add(instance_cache_index);
     }
     DCHECK_NOT_NULL(assigned);
@@ -349,10 +351,11 @@ class WasmGraphBuildingInterface {
     // Now we setup a new environment for the inside of the loop.
     // TODO(choongwoo): Clear locals of the following SsaEnv after use.
     SetEnv(Split(decoder->zone(), ssa_env_));
-    builder_->StackCheck(decoder->module_->has_shared_memory
-                             ? &ssa_env_->instance_cache
-                             : nullptr,
-                         decoder->position());
+    bool has_shared_memory = !decoder->module_->memories.empty() &&
+                             decoder->module_->memories[0].is_shared;
+    builder_->StackCheck(
+        has_shared_memory ? &ssa_env_->instance_cache : nullptr,
+        decoder->position());
     ssa_env_->SetNotMerged();
 
     // Wrap input merge into phis.

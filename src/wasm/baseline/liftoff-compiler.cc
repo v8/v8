@@ -3108,9 +3108,11 @@ class LiftoffCompiler {
   Register BoundsCheckMem(FullDecoder* decoder, uint32_t access_size,
                           uint64_t offset, LiftoffRegister index,
                           LiftoffRegList pinned, ForceCheck force_check) {
+    // TODO(13918): Support multiple memories.
+    const WasmMemory* memory = env_->module->memories.data();
     // This is ensured by the decoder.
     DCHECK(base::IsInBounds<uintptr_t>(offset, access_size,
-                                       env_->module->max_memory_size));
+                                       memory->max_memory_size));
 
     // After bounds checking, we know that the index must be ptrsize, hence only
     // look at the lower word on 32-bit systems (the high word is bounds-checked
@@ -3124,7 +3126,7 @@ class LiftoffCompiler {
     }
 
     // Early return for trap handler.
-    DCHECK_IMPLIES(env_->module->is_memory64,
+    DCHECK_IMPLIES(memory->is_memory64,
                    env_->bounds_checks == kExplicitBoundsChecks);
     if (!force_check && env_->bounds_checks == kTrapHandler) {
       // With trap handlers we should not have a register pair as input (we
@@ -3142,10 +3144,10 @@ class LiftoffCompiler {
 
     // Convert the index to ptrsize, bounds-checking the high word on 32-bit
     // systems for memory64.
-    if (!env_->module->is_memory64) {
+    if (!memory->is_memory64) {
       __ emit_u32_to_uintptr(index_ptrsize, index_ptrsize);
     } else if (kSystemPointerSize == kInt32Size) {
-      DCHECK_GE(kMaxUInt32, env_->module->max_memory_size);
+      DCHECK_GE(kMaxUInt32, memory->max_memory_size);
       FREEZE_STATE(trapping);
       __ emit_cond_jump(kNotZero, trap_label, kI32, index.high_gp(), no_reg,
                         trapping);
@@ -3166,7 +3168,7 @@ class LiftoffCompiler {
     // If the end offset is larger than the smallest memory, dynamically check
     // the end offset against the actual memory size, which is not known at
     // compile time. Otherwise, only one check is required (see below).
-    if (end_offset > env_->module->min_memory_size) {
+    if (end_offset > memory->min_memory_size) {
       __ emit_cond_jump(kUnsignedGreaterThanEqual, trap_label, kIntPtrKind,
                         end_offset_reg.gp(), mem_size.gp(), trapping);
     }
@@ -3220,8 +3222,9 @@ class LiftoffCompiler {
     // Get one register for computing the effective offset (offset + index).
     LiftoffRegister effective_offset =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-    bool is_memory64 = env_->module->is_memory64;
-    if (is_memory64 && !kNeedI64RegPair) {
+    // TODO(13918): Support multiple memories.
+    const WasmMemory* memory = env_->module->memories.data();
+    if (memory->is_memory64 && !kNeedI64RegPair) {
       __ LoadConstant(effective_offset,
                       WasmValue(static_cast<uint64_t>(offset)));
       if (index != no_reg) {
@@ -3249,7 +3252,7 @@ class LiftoffCompiler {
     LiftoffRegister data = effective_offset;
 
     // Now store all information into the MemoryTracingInfo struct.
-    if (kSystemPointerSize == 8 && !is_memory64) {
+    if (kSystemPointerSize == 8 && !memory->is_memory64) {
       // Zero-extend the effective offset to u64.
       CHECK(__ emit_type_conversion(kExprI64UConvertI32, data, effective_offset,
                                     nullptr));
@@ -3289,9 +3292,11 @@ class LiftoffCompiler {
     const uintptr_t index = static_cast<uint32_t>(index_slot.i32_const());
     const uintptr_t effective_offset = index + *offset;
 
+    // TODO(13918): Support multiple memories.
+    const WasmMemory* memory = env_->module->memories.data();
     if (effective_offset < index  // overflow
         || !base::IsInBounds<uintptr_t>(effective_offset, access_size,
-                                        env_->module->min_memory_size)) {
+                                        memory->min_memory_size)) {
       return false;
     }
 
@@ -3546,14 +3551,16 @@ class LiftoffCompiler {
     LOAD_INSTANCE_FIELD(mem_size, Memory0Size, kSystemPointerSize, {});
     __ emit_ptrsize_shri(mem_size, mem_size, kWasmPageSizeLog2);
     LiftoffRegister result{mem_size};
-    if (env_->module->is_memory64 && kNeedI64RegPair) {
+    // TODO(13918): Support multiple memories.
+    const WasmMemory* memory = env_->module->memories.data();
+    if (memory->is_memory64 && kNeedI64RegPair) {
       LiftoffRegister high_word =
           __ GetUnusedRegister(kGpReg, LiftoffRegList{mem_size});
       // The high word is always 0 on 32-bit systems.
       __ LoadConstant(high_word, WasmValue{uint32_t{0}});
       result = LiftoffRegister::ForPair(mem_size, high_word.gp());
     }
-    __ PushRegister(env_->module->is_memory64 ? kI64 : kI32, result);
+    __ PushRegister(memory->is_memory64 ? kI64 : kI32, result);
   }
 
   void MemoryGrow(FullDecoder* decoder, const Value& value, Value* result_val) {
@@ -3566,7 +3573,9 @@ class LiftoffCompiler {
 
     Label done;
 
-    if (env_->module->is_memory64) {
+    // TODO(13918): Support multiple memories.
+    const WasmMemory* memory = env_->module->memories.data();
+    if (memory->is_memory64) {
       // If the high word is not 0, this will always fail (would grow by
       // >=256TB). The int32_t value will be sign-extended below.
       __ LoadConstant(result, WasmValue(int32_t{-1}));
@@ -3602,7 +3611,7 @@ class LiftoffCompiler {
 
     __ bind(&done);
 
-    if (env_->module->is_memory64) {
+    if (memory->is_memory64) {
       LiftoffRegister result64 = result;
       if (kNeedI64RegPair) result64 = __ GetUnusedRegister(kGpRegPair, pinned);
       __ emit_type_conversion(kExprI64SConvertI32, result64, result, nullptr);
@@ -5393,8 +5402,10 @@ class LiftoffCompiler {
                                        LiftoffRegList* pinned) {
     LiftoffRegister reg = __ PopToRegister(*pinned);
     LiftoffRegister intptr_reg = reg;
+    // TODO(13918): Support multiple memories.
+    const WasmMemory* memory = env_->module->memories.data();
     // For memory32 on 64-bit hosts, zero-extend.
-    if (kSystemPointerSize == kInt64Size && !env_->module->is_memory64) {
+    if (kSystemPointerSize == kInt64Size && !memory->is_memory64) {
       // Only overwrite {reg} if it's not used otherwise.
       if (pinned->has(reg) || __ cache_state()->is_used(reg)) {
         intptr_reg = __ GetUnusedRegister(kGpReg, *pinned);
@@ -5402,7 +5413,7 @@ class LiftoffCompiler {
       __ emit_u32_to_uintptr(intptr_reg.gp(), reg.gp());
     }
     // For memory32 or memory64 on 64-bit, we are done here.
-    if (kSystemPointerSize == kInt64Size || !env_->module->is_memory64) {
+    if (kSystemPointerSize == kInt64Size || !memory->is_memory64) {
       pinned->set(intptr_reg);
       return intptr_reg;
     }
@@ -5410,7 +5421,7 @@ class LiftoffCompiler {
     // For memory64 on 32-bit systems, combine all high words for a zero-check
     // and only use the low words afterwards. This keeps the register pressure
     // managable.
-    DCHECK_GE(kMaxUInt32, env_->module->max_memory_size);
+    DCHECK_GE(kMaxUInt32, memory->max_memory_size);
     pinned->set(reg.low());
     if (*high_word == no_reg) {
       // Choose a register to hold the (combination of) high word(s). It cannot

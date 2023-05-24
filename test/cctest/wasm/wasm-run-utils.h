@@ -134,29 +134,30 @@ class TestingModuleBuilder {
     return static_cast<uint8_t>(size - 1);
   }
 
-  uint32_t mem_size() { return mem_size_; }
+  // TODO(13918): Fix the following APIs for multi-memory.
+  uint32_t mem_size() { return mem0_size_; }
 
   template <typename T>
   T* raw_mem_start() {
-    DCHECK(mem_start_);
-    return reinterpret_cast<T*>(mem_start_);
+    DCHECK_NOT_NULL(mem0_start_);
+    return reinterpret_cast<T*>(mem0_start_);
   }
 
   template <typename T>
   T* raw_mem_end() {
-    DCHECK(mem_start_);
-    return reinterpret_cast<T*>(mem_start_ + mem_size_);
+    DCHECK_NOT_NULL(mem0_start_);
+    return reinterpret_cast<T*>(mem0_start_ + mem0_size_);
   }
 
   template <typename T>
   T raw_mem_at(int i) {
-    DCHECK(mem_start_);
-    return ReadMemory(&(reinterpret_cast<T*>(mem_start_)[i]));
+    DCHECK_NOT_NULL(mem0_start_);
+    return ReadMemory(&(reinterpret_cast<T*>(mem0_start_)[i]));
   }
 
   template <typename T>
   T raw_val_at(int i) {
-    return ReadMemory(reinterpret_cast<T*>(mem_start_ + i));
+    return ReadMemory(reinterpret_cast<T*>(mem0_start_ + i));
   }
 
   template <typename T>
@@ -172,7 +173,7 @@ class TestingModuleBuilder {
   // Zero-initialize the memory.
   void BlankMemory() {
     uint8_t* raw = raw_mem_start<uint8_t>();
-    memset(raw, 0, mem_size_);
+    memset(raw, 0, mem0_size_);
   }
 
   // Pseudo-randomly initialize the memory.
@@ -185,15 +186,16 @@ class TestingModuleBuilder {
   }
 
   void SetMaxMemPages(uint32_t maximum_pages) {
-    test_module_->maximum_pages = maximum_pages;
-    if (instance_object()->has_memory_object()) {
-      instance_object()->memory_object().set_maximum_pages(maximum_pages);
-    }
+    // TODO(13918): Adapt this for multi-memory.
+    DCHECK_EQ(1, test_module_->memories.size());
+    test_module_->memories[0].maximum_pages = maximum_pages;
+    instance_object_->memory_object().set_maximum_pages(maximum_pages);
   }
 
   void SetMemoryShared() {
     // TODO(13918): Adapt this for multi-memory.
-    test_module_->has_shared_memory = true;
+    DCHECK_EQ(1, test_module_->memories.size());
+    test_module_->memories[0].is_shared = true;
   }
 
   enum FunctionType { kImport, kWasm };
@@ -276,8 +278,9 @@ class TestingModuleBuilder {
   Isolate* isolate_;
   WasmFeatures enabled_features_;
   uint32_t global_offset = 0;
-  uint8_t* mem_start_ = nullptr;
-  uint32_t mem_size_ = 0;
+  // TODO(13918): Adapt for multi-memory.
+  uint8_t* mem0_start_ = nullptr;
+  uint32_t mem0_size_ = 0;
   uint8_t* globals_data_ = nullptr;
   TestExecutionTier execution_tier_;
   Handle<WasmInstanceObject> instance_object_;

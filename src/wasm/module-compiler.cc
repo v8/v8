@@ -1993,7 +1993,10 @@ std::shared_ptr<NativeModule> CompileToNativeModule(
   }
 
   // Embedder usage count for declared shared memories.
-  if (module->has_shared_memory) {
+  const bool has_shared_memory =
+      std::any_of(module->memories.begin(), module->memories.end(),
+                  [](auto& memory) { return memory.is_shared; });
+  if (has_shared_memory) {
     isolate->CountUsage(v8::Isolate::UseCounterFeature::kWasmSharedMemory);
   }
 
@@ -2264,7 +2267,10 @@ AsyncCompileJob::~AsyncCompileJob() {
 void AsyncCompileJob::CreateNativeModule(
     std::shared_ptr<const WasmModule> module, size_t code_size_estimate) {
   // Embedder usage count for declared shared memories.
-  if (module->has_shared_memory) {
+  const bool has_shared_memory =
+      std::any_of(module->memories.begin(), module->memories.end(),
+                  [](auto& memory) { return memory.is_shared; });
+  if (has_shared_memory) {
     isolate_->CountUsage(v8::Isolate::UseCounterFeature::kWasmSharedMemory);
   }
 

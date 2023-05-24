@@ -407,14 +407,13 @@ Handle<JSArray> GetImports(Isolate* isolate,
         break;
       case kExternalMemory:
         if (enabled_features.has_type_reflection()) {
-          DCHECK_EQ(0, import.index);  // Only one memory supported.
+          auto& memory = module->memories[import.index];
           base::Optional<uint32_t> maximum_size;
-          if (module->has_maximum_pages) {
-            maximum_size.emplace(module->maximum_pages);
+          if (memory.has_maximum_pages) {
+            maximum_size.emplace(memory.maximum_pages);
           }
-          type_value =
-              GetTypeForMemory(isolate, module->initial_pages, maximum_size,
-                               module->has_shared_memory);
+          type_value = GetTypeForMemory(isolate, memory.initial_pages,
+                                        maximum_size, memory.is_shared);
         }
         import_kind = memory_string;
         break;
@@ -505,14 +504,13 @@ Handle<JSArray> GetExports(Isolate* isolate,
         break;
       case kExternalMemory:
         if (enabled_features.has_type_reflection()) {
-          DCHECK_EQ(0, exp.index);  // Only one memory supported.
+          auto& memory = module->memories[exp.index];
           base::Optional<uint32_t> maximum_size;
-          if (module->has_maximum_pages) {
-            maximum_size.emplace(module->maximum_pages);
+          if (memory.has_maximum_pages) {
+            maximum_size.emplace(memory.maximum_pages);
           }
-          type_value =
-              GetTypeForMemory(isolate, module->initial_pages, maximum_size,
-                               module->has_shared_memory);
+          type_value = GetTypeForMemory(isolate, memory.initial_pages,
+                                        maximum_size, memory.is_shared);
         }
         export_kind = memory_string;
         break;

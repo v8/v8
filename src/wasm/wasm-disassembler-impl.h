@@ -149,7 +149,7 @@ class ModuleDisassembler {
   void PrintExportName(ImportExportKindCode kind, uint32_t index);
   void PrintMutableType(bool mutability, ValueType type);
   void PrintTable(const WasmTable& table);
-  void PrintMemory();
+  void PrintMemory(const WasmMemory& memory);
   void PrintGlobal(const WasmGlobal& global);
   void PrintInitExpression(const ConstantExpression& init,
                            ValueType expected_type);

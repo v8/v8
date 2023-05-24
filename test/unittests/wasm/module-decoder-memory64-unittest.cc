@@ -12,58 +12,62 @@
 
 namespace v8::internal::wasm {
 
-#define EXPECT_OK(result)                                        \
-  do {                                                           \
-    if (!result.ok()) {                                          \
-      GTEST_NONFATAL_FAILURE_(result.error().message().c_str()); \
-      return;                                                    \
-    }                                                            \
-  } while (false)
-
 class Memory64DecodingTest : public TestWithIsolateAndZone {
  public:
-  ModuleResult DecodeModule(std::initializer_list<uint8_t> module_body_bytes) {
+  std::shared_ptr<const WasmModule> DecodeModule(
+      std::initializer_list<uint8_t> module_body_bytes) {
     // Add the wasm magic and version number automatically.
     std::vector<uint8_t> module_bytes{WASM_MODULE_HEADER};
     module_bytes.insert(module_bytes.end(), module_body_bytes);
     static constexpr WasmFeatures kEnabledFeatures{
         WasmFeature::kFeature_memory64};
     bool kValidateFunctions = true;
-    return DecodeWasmModule(kEnabledFeatures, base::VectorOf(module_bytes),
-                            kValidateFunctions, kWasmOrigin);
+    ModuleResult result =
+        DecodeWasmModule(kEnabledFeatures, base::VectorOf(module_bytes),
+                         kValidateFunctions, kWasmOrigin);
+    EXPECT_TRUE(result.ok()) << result.error().message();
+    return result.ok() ? std::move(result).value() : nullptr;
   }
 };
 
 TEST_F(Memory64DecodingTest, MemoryLimitLEB64) {
   // 2 bytes LEB (32-bit range), no maximum.
-  ModuleResult result = DecodeModule(
+  auto module = DecodeModule(
       {SECTION(Memory, ENTRY_COUNT(1), kMemory64NoMaximum, U32V_2(5))});
-  EXPECT_OK(result);
-  EXPECT_EQ(5u, result.value()->initial_pages);
-  EXPECT_EQ(false, result.value()->has_maximum_pages);
+  ASSERT_NE(nullptr, module);
+  ASSERT_EQ(1u, module->memories.size());
+  const WasmMemory* memory = &module->memories[0];
+  EXPECT_EQ(5u, memory->initial_pages);
+  EXPECT_EQ(false, memory->has_maximum_pages);
 
   // 2 bytes LEB (32-bit range), with maximum.
-  result = DecodeModule({SECTION(Memory, ENTRY_COUNT(1), kMemory64WithMaximum,
+  module = DecodeModule({SECTION(Memory, ENTRY_COUNT(1), kMemory64WithMaximum,
                                  U32V_2(7), U32V_2(47))});
-  EXPECT_OK(result);
-  EXPECT_EQ(7u, result.value()->initial_pages);
-  EXPECT_EQ(true, result.value()->has_maximum_pages);
-  EXPECT_EQ(47u, result.value()->maximum_pages);
+  ASSERT_NE(nullptr, module);
+  ASSERT_EQ(1u, module->memories.size());
+  memory = &module->memories[0];
+  EXPECT_EQ(7u, memory->initial_pages);
+  EXPECT_EQ(true, memory->has_maximum_pages);
+  EXPECT_EQ(47u, memory->maximum_pages);
 
   // 10 bytes LEB, 32-bit range, no maximum.
-  result = DecodeModule(
+  module = DecodeModule(
       {SECTION(Memory, ENTRY_COUNT(1), kMemory64NoMaximum, U64V_10(2))});
-  EXPECT_OK(result);
-  EXPECT_EQ(2u, result.value()->initial_pages);
-  EXPECT_EQ(false, result.value()->has_maximum_pages);
+  ASSERT_NE(nullptr, module);
+  ASSERT_EQ(1u, module->memories.size());
+  memory = &module->memories[0];
+  EXPECT_EQ(2u, memory->initial_pages);
+  EXPECT_EQ(false, memory->has_maximum_pages);
 
   // 10 bytes LEB, 32-bit range, with maximum.
-  result = DecodeModule({SECTION(Memory, ENTRY_COUNT(1), kMemory64WithMaximum,
+  module = DecodeModule({SECTION(Memory, ENTRY_COUNT(1), kMemory64WithMaximum,
                                  U64V_10(2), U64V_10(6))});
-  EXPECT_OK(result);
-  EXPECT_EQ(2u, result.value()->initial_pages);
-  EXPECT_EQ(true, result.value()->has_maximum_pages);
-  EXPECT_EQ(6u, result.value()->maximum_pages);
+  ASSERT_NE(nullptr, module);
+  ASSERT_EQ(1u, module->memories.size());
+  memory = &module->memories[0];
+  EXPECT_EQ(2u, memory->initial_pages);
+  EXPECT_EQ(true, memory->has_maximum_pages);
+  EXPECT_EQ(6u, memory->maximum_pages);
 
   // TODO(clemensb): Test numbers outside the 32-bit range once that's
   // supported.
