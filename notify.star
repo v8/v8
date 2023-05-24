@@ -175,7 +175,7 @@ v8_notifier(
 
 v8_notifier(
     name = "branch monitor",
-    on_occurrence = ["FAILURE"],
+    on_new_status = ["FAILURE"],
     notify_emails = [
         "v8-infra-alerts@google.com",
         "v8-waterfall-sheriff@grotations.appspotmail.com",
@@ -201,7 +201,7 @@ on {{.Build.EndTime | time}}
 
 v8_notifier(
     name = "branch monitor - infra",
-    on_occurrence = ["FAILURE"],
+    on_new_status = ["SUCCESS", "FAILURE", "INFRA_FAILURE"],
     notify_emails = [
         "v8-infra-alerts-cc@google.com",
         "v8-infra-alerts@google.com",
