@@ -3921,21 +3921,39 @@ void MacroAssembler::Branch(Label* L, Condition cond, Register rs,
 }
 
 void MacroAssembler::Branch(Label* L, Condition cond, Register rs,
-                            RootIndex index, Label::Distance distance,
-                            bool need_sign_extend) {
+                            RootIndex index, Label::Distance distance) {
   UseScratchRegisterScope temps(this);
   Register right = temps.Acquire();
   if (COMPRESS_POINTERS_BOOL) {
     Register left = rs;
-    if (need_sign_extend) {
-      left = temps.Acquire();
-      Sll32(left, rs, 0);
-    }
     LoadTaggedRoot(right, index);
     Branch(L, cond, left, Operand(right));
   } else {
     LoadRoot(right, index);
     Branch(L, cond, rs, Operand(right));
+  }
+}
+
+void MacroAssembler::CompareTaggedAndBranch(Label* label, Condition cond,
+                                            Register r1, const Operand& r2,
+                                            bool need_link) {
+  if (COMPRESS_POINTERS_BOOL) {
+    UseScratchRegisterScope temps(this);
+    Register scratch0 = temps.Acquire();
+    Sll32(scratch0, r1, 0);
+    if (IsZero(r2)) {
+      Branch(label, cond, scratch0, Operand(zero_reg));
+    } else {
+      Register scratch1 = temps.Acquire();
+      if (r2.is_reg()) {
+        Sll32(scratch1, r2.rm(), 0);
+      } else {
+        li(scratch1, r2);
+      }
+      Branch(label, cond, scratch0, Operand(scratch1));
+    }
+  } else {
+    Branch(label, cond, r1, r2);
   }
 }
 
@@ -5856,6 +5874,44 @@ void MacroAssembler::JumpIfObjectType(Label* target, Condition cc,
   }
   GetObjectType(object, scratch, scratch);
   Branch(target, cc, scratch, Operand(instance_type));
+}
+
+void MacroAssembler::JumpIfJSAnyIsNotPrimitive(Register heap_object,
+                                               Register scratch, Label* target,
+                                               Label::Distance distance,
+                                               Condition cc) {
+  CHECK(cc == Condition::kUnsignedLessThan ||
+        cc == Condition::kUnsignedGreaterThanEqual);
+  if (V8_STATIC_ROOTS_BOOL) {
+#ifdef DEBUG
+    Label ok;
+    LoadMap(scratch, heap_object);
+    GetInstanceTypeRange(scratch, scratch, FIRST_JS_RECEIVER_TYPE, scratch);
+    Branch(&ok, Condition::kUnsignedLessThanEqual, scratch,
+           Operand(LAST_JS_RECEIVER_TYPE - FIRST_JS_RECEIVER_TYPE));
+
+    LoadMap(scratch, heap_object);
+    GetInstanceTypeRange(scratch, scratch, FIRST_PRIMITIVE_HEAP_OBJECT_TYPE,
+                         scratch);
+    Branch(&ok, Condition::kUnsignedLessThanEqual, scratch,
+           Operand(LAST_PRIMITIVE_HEAP_OBJECT_TYPE -
+                   FIRST_PRIMITIVE_HEAP_OBJECT_TYPE));
+
+    Abort(AbortReason::kInvalidReceiver);
+    bind(&ok);
+#endif  // DEBUG
+
+    // All primitive object's maps are allocated at the start of the read only
+    // heap. Thus JS_RECEIVER's must have maps with larger (compressed)
+    // addresses.
+    LoadCompressedMap(scratch, heap_object);
+    Branch(target, cc, scratch,
+           Operand(InstanceTypeChecker::kNonJsReceiverMapLimit));
+  } else {
+    static_assert(LAST_JS_RECEIVER_TYPE == LAST_TYPE);
+    GetObjectType(heap_object, scratch, scratch);
+    Branch(target, cc, scratch, Operand(FIRST_JS_RECEIVER_TYPE));
+  }
 }
 
 void MacroAssembler::AssertNotSmi(Register object, AbortReason reason) {

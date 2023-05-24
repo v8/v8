@@ -321,11 +321,11 @@ FPUCondition FlagsConditionToConditionCmpFPU(bool* predicate,
     __ sync();                                           \
   } while (0)
 
-#define ASSEMBLE_ATOMIC_STORE_INTEGER(asm_instr)               \
-  do {                                                         \
-    __ sync();                                                 \
-    __ asm_instr(i.InputOrZeroRegister(2), i.MemoryOperand()); \
-    __ sync();                                                 \
+#define ASSEMBLE_ATOMIC_STORE_INTEGER(asm_instr)                \
+  do {                                                          \
+    __ sync();                                                  \
+    __ asm_instr(i.InputOrZeroRegister(0), i.MemoryOperand(1)); \
+    __ sync();                                                  \
   } while (0)
 
 #define ASSEMBLE_ATOMIC_BINOP(load_linked, store_conditional, bin_instr)       \
@@ -1255,13 +1255,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kRiscvRor64:
       __ Dror(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
-#endif
-    case kRiscvRor32:
-      __ Ror(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
-      break;
-    case kRiscvTst:
+    case kRiscvTst64:
       __ And(kScratchReg, i.InputRegister(0), i.InputOperand(1));
       // Pseudo-instruction used for cmp/branch. No opcode emitted here.
+      break;
+#endif
+    case kRiscvTst32:
+      __ And(kScratchReg, i.InputRegister(0), i.InputOperand(1));
+      __ Sll32(kScratchReg, kScratchReg, 0x0);
+      // Pseudo-instruction used for cmp/branch. No opcode emitted here.
+      break;
+    case kRiscvRor32:
+      __ Ror(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
     case kRiscvCmp:
       // Pseudo-instruction used for cmp/branch. No opcode emitted here.
@@ -2200,9 +2205,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
 #if V8_TARGET_ARCH_RISCV64
     case kRiscvStoreCompressTagged: {
-      size_t index = 0;
-      MemOperand mem = i.MemoryOperand(&index);
-      __ StoreTaggedField(i.InputOrZeroRegister(index), mem);
+      MemOperand mem = i.MemoryOperand(1);
+      __ StoreTaggedField(i.InputOrZeroRegister(0), mem);
       break;
     }
     case kRiscvLoadDecompressTaggedSigned: {
@@ -3734,8 +3738,12 @@ void AssembleBranchToLabels(CodeGenerator* gen, MacroAssembler* masm,
   // instructions that do the actual comparison. Essential that the input
   // registers to compare pseudo-op are not modified before this branch op, as
   // they are tested here.
-
-  if (instr->arch_opcode() == kRiscvTst) {
+#if V8_TARGET_ARCH_RISCV64
+  if (instr->arch_opcode() == kRiscvTst64 ||
+      instr->arch_opcode() == kRiscvTst32) {
+#elif V8_TARGET_ARCH_RISCV32
+  if (instr->arch_opcode() == kRiscvTst32) {
+#endif
     Condition cc = FlagsConditionToConditionTst(condition);
     __ Branch(tlabel, cc, kScratchReg, Operand(zero_reg));
 #if V8_TARGET_ARCH_RISCV64
@@ -3909,7 +3917,12 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
   // implemented differently than on the other arch's. The compare operations
   // emit riscv64 pseudo-instructions, which are checked and handled here.
 
-  if (instr->arch_opcode() == kRiscvTst) {
+#if V8_TARGET_ARCH_RISCV64
+  if (instr->arch_opcode() == kRiscvTst64 ||
+      instr->arch_opcode() == kRiscvTst32) {
+#elif V8_TARGET_ARCH_RISCV32
+  if (instr->arch_opcode() == kRiscvTst32) {
+#endif
     Condition cc = FlagsConditionToConditionTst(condition);
     if (cc == eq) {
       __ Sltu(result, kScratchReg, 1);

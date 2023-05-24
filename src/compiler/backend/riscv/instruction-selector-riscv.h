@@ -346,7 +346,11 @@ void VisitWordCompare(InstructionSelector* selector, Node* node,
   }
   // Match immediates on right side of comparison.
   if (g.CanBeImmediate(right, opcode)) {
-    if (opcode == kRiscvTst) {
+#if V8_TARGET_ARCH_RISCV64
+    if (opcode == kRiscvTst64 || opcode == kRiscvTst32) {
+#elif V8_TARGET_ARCH_RISCV32
+    if (opcode == kRiscvTst32) {
+#endif
       VisitCompare(selector, opcode, g.UseRegister(left), g.UseImmediate(right),
                    cont);
     } else {

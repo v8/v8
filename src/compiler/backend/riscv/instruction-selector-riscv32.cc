@@ -33,7 +33,7 @@ bool RiscvOperandGenerator::CanBeImmediate(int64_t value,
     case kRiscvAnd:
     case kRiscvOr32:
     case kRiscvOr:
-    case kRiscvTst:
+    case kRiscvTst32:
     case kRiscvXor:
       return is_int12(value);
     case kRiscvLb:
@@ -720,8 +720,8 @@ void VisitAtomicStore(InstructionSelector* selector, Node* node,
   if (g.CanBeImmediate(index, opcode)) {
     selector->Emit(opcode | AddressingModeField::encode(kMode_MRI) |
                        AtomicWidthField::encode(width),
-                   g.NoOutput(), g.UseRegister(base), g.UseImmediate(index),
-                   g.UseRegisterOrImmediateZero(value));
+                   g.NoOutput(), g.UseRegisterOrImmediateZero(value),
+                   g.UseRegister(base), g.UseImmediate(index));
   } else {
     InstructionOperand addr_reg = g.TempRegister();
     selector->Emit(kRiscvAdd32 | AddressingModeField::encode(kMode_None),
@@ -729,8 +729,8 @@ void VisitAtomicStore(InstructionSelector* selector, Node* node,
     // Emit desired store opcode, using temp addr_reg.
     selector->Emit(opcode | AddressingModeField::encode(kMode_MRI) |
                        AtomicWidthField::encode(width),
-                   g.NoOutput(), addr_reg, g.TempImmediate(0),
-                   g.UseRegisterOrImmediateZero(value));
+                   g.NoOutput(), g.UseRegisterOrImmediateZero(value), addr_reg,
+                   g.TempImmediate(0));
   }
 }
 
@@ -879,7 +879,7 @@ void InstructionSelector::VisitWordCompareZero(Node* user, Node* value,
         }
         break;
       case IrOpcode::kWord32And:
-        return VisitWordCompare(this, value, kRiscvTst, cont, true);
+        return VisitWordCompare(this, value, kRiscvTst32, cont, true);
       case IrOpcode::kStackPointerGreaterThan:
         cont->OverwriteAndNegateIfEqual(kStackPointerGreaterThanCondition);
         return VisitStackPointerGreaterThan(value, cont);

@@ -259,9 +259,6 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
   masm->isolate()->heap()->SetConstructStubInvokeDeoptPCOffset(
       masm->pc_offset());
 
-  // Restore the context from the frame.
-  __ LoadWord(cp, MemOperand(fp, ConstructFrameConstants::kContextOffset));
-
   // If the result is an object (in the ECMA sense), we should get rid
   // of the receiver and use the result; see ECMA-262 section 13.2.2-7
   // on page 74.
@@ -370,7 +367,6 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   //  -- a1 : the JSGeneratorObject to resume
   //  -- ra : return address
   // -----------------------------------
-
   // Store input value into generator object.
   __ StoreTaggedField(
       a0, FieldMemOperand(a1, JSGeneratorObject::kInputOrDebugPosOffset));
@@ -804,6 +800,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
 #endif
     // s6 holds the root address. Do not clobber.
     // s7 is cp. Do not init.
+    // s11 is pointer cage base register (kPointerCageBaseRegister).
 
     // Invoke the code.
     Handle<Code> builtin = is_construct
@@ -992,10 +989,10 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
       BaselineOutOfLinePrologueDescriptor::kClosure);
   // Load the feedback vector from the closure.
   Register feedback_vector = temps.Acquire();
-  __ LoadWord(feedback_vector,
-              FieldMemOperand(closure, JSFunction::kFeedbackCellOffset));
-  __ LoadWord(feedback_vector,
-              FieldMemOperand(feedback_vector, Cell::kValueOffset));
+  __ LoadTaggedField(feedback_vector,
+                     FieldMemOperand(closure, JSFunction::kFeedbackCellOffset));
+  __ LoadTaggedField(feedback_vector,
+                     FieldMemOperand(feedback_vector, Cell::kValueOffset));
   {
     UseScratchRegisterScope temp(masm);
     Register type = temps.Acquire();
@@ -1748,8 +1745,8 @@ void OnStackReplacement(MacroAssembler* masm, OsrSourceTier source,
     // If maybe_target_code is not null, no need to call into runtime. A
     // precondition here is: if maybe_target_code is a InstructionStream object,
     // it must NOT be marked_for_deoptimization (callers must ensure this).
-    __ Branch(&jump_to_optimized_code, ne, maybe_target_code,
-              Operand(Smi::zero()));
+    __ CompareTaggedAndBranch(&jump_to_optimized_code, ne, maybe_target_code,
+                              Operand(Smi::zero()));
   }
   ASM_CODE_COMMENT(masm);
   {
@@ -1758,7 +1755,11 @@ void OnStackReplacement(MacroAssembler* masm, OsrSourceTier source,
   }
 
   // If the code object is null, just return to the caller.
-  __ Ret(eq, a0, Operand(Smi::zero()));
+  // If the code object is null, just return to the caller.
+  __ CompareTaggedAndBranch(&jump_to_optimized_code, ne, maybe_target_code,
+                            Operand(Smi::zero()));
+  __ Ret();
+
   __ bind(&jump_to_optimized_code);
 
   // OSR entry tracing.
@@ -1792,9 +1793,10 @@ void OnStackReplacement(MacroAssembler* masm, OsrSourceTier source,
 
   // Load the OSR entrypoint offset from the deoptimization data.
   // <osr_offset> = <deopt_data>[#header_size + #osr_pc_offset]
-  __ SmiUntag(a1, MemOperand(a1, FixedArray::OffsetOfElementAt(
-                                     DeoptimizationData::kOsrPcOffsetIndex) -
-                                     kHeapObjectTag));
+  __ SmiUntagField(a1,
+                   MemOperand(a1, FixedArray::OffsetOfElementAt(
+                                      DeoptimizationData::kOsrPcOffsetIndex) -
+                                      kHeapObjectTag));
 
   __ LoadCodeInstructionStart(a0, a0);
 
@@ -1835,6 +1837,7 @@ void Builtins::Generate_FunctionPrototypeApply(MacroAssembler* masm) {
   Register receiver = a1;
   Register this_arg = a5;
   Register undefined_value = a3;
+  Register scratch = a4;
 
   __ LoadRoot(undefined_value, RootIndex::kUndefinedValue);
 
@@ -1880,9 +1883,10 @@ void Builtins::Generate_FunctionPrototypeApply(MacroAssembler* masm) {
 
   // 3. Tail call with no arguments if argArray is null or undefined.
   Label no_arguments;
-  __ JumpIfRoot(arg_array, RootIndex::kNullValue, &no_arguments);
-  __ Branch(&no_arguments, eq, arg_array, Operand(undefined_value),
-            Label::Distance::kNear);
+  __ LoadRoot(scratch, RootIndex::kNullValue);
+  __ CompareTaggedAndBranch(&no_arguments, eq, arg_array, Operand(scratch));
+  __ CompareTaggedAndBranch(&no_arguments, eq, arg_array,
+                            Operand(undefined_value));
 
   // 4a. Apply the receiver to the given argArray.
   __ Jump(BUILTIN_CODE(masm->isolate(), CallWithArrayLike),
@@ -2165,11 +2169,7 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
     __ bind(&loop);
     __ LoadTaggedField(a5, MemOperand(src));
     __ AddWord(src, src, kTaggedSize);
-#if V8_STATIC_ROOTS_BOOL
-    __ Branch(&push, ne, a5, RootIndex::kTheHoleValue);
-#else
-    __ Branch(&push, ne, a5, Operand(hole_value));
-#endif
+    __ CompareTaggedAndBranch(&push, ne, a5, Operand(hole_value));
     __ LoadRoot(a5, RootIndex::kUndefinedValue);
     __ bind(&push);
     __ StoreWord(a5, MemOperand(a7, 0));
@@ -2280,15 +2280,10 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
   //  -- a0 : the number of arguments
   //  -- a1 : the function to call (checked to be a JSFunction)
   // -----------------------------------
-  __ AssertCallableFunction(a1);
+  __ AssertFunction(a1);
 
-  Label class_constructor;
   __ LoadTaggedField(
       a2, FieldMemOperand(a1, JSFunction::kSharedFunctionInfoOffset));
-  __ Load32U(a3, FieldMemOperand(a2, SharedFunctionInfo::kFlagsOffset));
-  __ And(kScratchReg, a3,
-         Operand(SharedFunctionInfo::IsClassConstructorBit::kMask));
-  __ Branch(&class_constructor, ne, kScratchReg, Operand(zero_reg));
 
   // Enter the context of the function; ToObject has to run in the function
   // context, and we also need to take the global proxy from the function
@@ -2316,10 +2311,7 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
       Label convert_to_object, convert_receiver;
       __ LoadReceiver(a3, a0);
       __ JumpIfSmi(a3, &convert_to_object);
-      static_assert(LAST_JS_RECEIVER_TYPE == LAST_TYPE);
-      __ GetObjectType(a3, a4, a4);
-      __ Branch(&done_convert, Ugreater_equal, a4,
-                Operand(FIRST_JS_RECEIVER_TYPE));
+      __ JumpIfJSAnyIsNotPrimitive(a3, a4, &done_convert);
       if (mode != ConvertReceiverMode::kNotNullOrUndefined) {
         Label convert_global_proxy;
         __ JumpIfRoot(a3, RootIndex::kUndefinedValue, &convert_global_proxy);
@@ -2366,14 +2358,6 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
   __ Lhu(a2,
          FieldMemOperand(a2, SharedFunctionInfo::kFormalParameterCountOffset));
   __ InvokeFunctionCode(a1, no_reg, a2, a0, InvokeType::kJump);
-
-  // The function is a "classConstructor", need to raise an exception.
-  __ bind(&class_constructor);
-  {
-    FrameScope frame(masm, StackFrame::INTERNAL);
-    __ Push(a1);
-    __ CallRuntime(Runtime::kThrowConstructorNonCallableError);
-  }
 }
 
 namespace {
@@ -2597,16 +2581,7 @@ void Builtins::Generate_ConstructBoundFunction(MacroAssembler* masm) {
 
   // Patch new.target to [[BoundTargetFunction]] if new.target equals target.
   Label skip;
-  {
-#ifdef V8_COMPRESS_POINTERS
-    UseScratchRegisterScope temps(masm);
-    Register scratch = temps.Acquire();
-    __ CmpTagged(scratch, a1, a3);
-    __ Branch(&skip, ne, scratch, Operand(zero_reg), Label::Distance::kNear);
-#else
-    __ Branch(&skip, ne, a1, Operand(a3), Label::Distance::kNear);
-#endif
-  }
+  __ CompareTaggedAndBranch(&skip, ne, a1, Operand(a3));
   __ LoadTaggedField(
       a3, FieldMemOperand(a1, JSBoundFunction::kBoundTargetFunctionOffset));
   __ bind(&skip);
@@ -2885,8 +2860,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
 
   // Check result for exception sentinel.
   Label exception_returned;
-  __ LoadRoot(a4, RootIndex::kException);
-  __ Branch(&exception_returned, eq, a4, Operand(a0));
+  __ Branch(&exception_returned, eq, a0, RootIndex::kException);
 
   // Check that there is no pending exception, otherwise we
   // should have returned the exception sentinel.
@@ -2896,9 +2870,8 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
         IsolateAddressId::kPendingExceptionAddress, masm->isolate());
     __ li(a2, pending_exception_address);
     __ LoadWord(a2, MemOperand(a2));
-    __ LoadRoot(a4, RootIndex::kTheHoleValue);
     // Cannot use check here as it attempts to generate call into runtime.
-    __ Branch(&okay, eq, a4, Operand(a2), Label::Distance::kNear);
+    __ Branch(&okay, eq, a2, RootIndex::kTheHoleValue);
     __ stop();
     __ bind(&okay);
   }
@@ -2954,6 +2927,15 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   __ Branch(&zero, eq, cp, Operand(zero_reg), Label::Distance::kNear);
   __ StoreWord(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
   __ bind(&zero);
+
+  // Clear c_entry_fp, like we do in `LeaveExitFrame`.
+  {
+    UseScratchRegisterScope temps(masm);
+    Register scratch = temps.Acquire();
+    __ li(scratch, ExternalReference::Create(IsolateAddressId::kCEntryFPAddress,
+                                             masm->isolate()));
+    __ StoreWord(zero_reg, MemOperand(scratch, 0));
+  }
 
   // Compute the handler entry address and jump to it.
   UseScratchRegisterScope temp(masm);
@@ -3138,8 +3120,8 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
       ER::handle_scope_level_address(isolate), no_reg);
 
   Register return_value = a0;
-  Register scratch = kScratchReg2;
-  Register scratch2 = s11;
+  Register scratch = a4;
+  Register scratch2 = a5;
 
   // Allocate HandleScope in callee-saved registers.
   // We will need to restore the HandleScope after the call to the API function,
@@ -3242,7 +3224,7 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
   {
     ASM_CODE_COMMENT_STRING(masm, "Convert return value");
     Label finish_return;
-    __ JumpIfNotRoot(return_value, RootIndex::kTheHoleValue, &finish_return);
+    __ Branch(&finish_return, ne, return_value, RootIndex::kTheHoleValue);
     __ LoadRoot(return_value, RootIndex::kUndefinedValue);
     __ bind(&finish_return);
   }

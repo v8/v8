@@ -1084,7 +1084,6 @@ void Assembler::li_ptr(Register rd, int64_t imm) {
     ori(rd, rd, a6);       // 6 bits are put in. 48 bis in rd
   } else {
     FATAL("SV57 is not supported");
-    UNIMPLEMENTED();
   }
 }
 

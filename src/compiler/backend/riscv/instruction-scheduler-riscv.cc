@@ -367,11 +367,12 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvTruncUwS:
     case kRiscvTruncWD:
     case kRiscvTruncWS:
-    case kRiscvTst:
+    case kRiscvTst32:
     case kRiscvXor:
     case kRiscvXor32:
       return kNoOpcodeFlags;
 #if V8_TARGET_ARCH_RISCV64
+    case kRiscvTst64:
     case kRiscvLd:
     case kRiscvLwu:
     case kRiscvUlwu:
@@ -1339,11 +1340,12 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
     case kRiscvShr64:
     case kRiscvSar64:
     case kRiscvRor64:
+    case kRiscvTst64:
 #endif
+    case kRiscvTst32:
+      return AndLatency(instr->InputAt(1)->IsRegister());
     case kRiscvRor32:
       return 1;
-    case kRiscvTst:
-      return AndLatency(instr->InputAt(1)->IsRegister());
     case kRiscvMov:
       return 1;
     case kRiscvCmpS:
