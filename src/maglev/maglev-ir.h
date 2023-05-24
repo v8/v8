@@ -5313,6 +5313,10 @@ class LoadTaggedFieldByFieldIndex
   Input& object_input() { return input(kObjectIndex); }
   Input& index_input() { return input(kIndexIndex); }
 
+  void MarkTaggedInputsAsDecompressing() {
+    // Only need to decompress the object, the index should be a Smi.
+    object_input().node()->SetTaggedResultNeedsDecompress();
+  }
   int MaxCallStackArgs() const { return 0; }
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
