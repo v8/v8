@@ -154,6 +154,16 @@ class MachineOptimizationReducer : public Next {
           to == WordRepresentation::Word32()) {
         return Asm().Word32Constant(DoubleToInt32_NoInline(value));
       }
+      if (kind == Kind::kExtractHighHalf) {
+        DCHECK_EQ(to, RegisterRepresentation::Word32());
+        return Asm().Word32Constant(
+            static_cast<uint32_t>(base::bit_cast<uint64_t>(value) >> 32));
+      }
+      if (kind == Kind::kExtractLowHalf) {
+        DCHECK_EQ(to, RegisterRepresentation::Word32());
+        return Asm().Word32Constant(
+            static_cast<uint32_t>(base::bit_cast<uint64_t>(value)));
+      }
     }
     if (float value; from == RegisterRepresentation::Float32() &&
                      Asm().MatchFloat32Constant(input, &value)) {
