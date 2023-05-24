@@ -5,8 +5,7 @@
 #include "src/base/platform/memory-protection-key.h"
 
 #if V8_HAS_PKU_JIT_WRITE_PROTECT
-#include <sys/mman.h>     // For {mprotect()} protection macros.
-#include <sys/utsname.h>  // For {uname()}.
+#include <sys/mman.h>  // For {mprotect()} protection macros.
 #undef MAP_TYPE  // Conflicts with MAP_TYPE in Torque-generated instance-types.h
 #endif
 
@@ -79,25 +78,6 @@ bool MemoryProtectionKey::InitializeMemoryProtectionKeySupport() {
   // Flip {pkey_api_initialized} (in debug mode) and check the new value.
   DCHECK_EQ(true, pkey_api_initialized = !pkey_api_initialized);
 #if V8_HAS_PKU_JIT_WRITE_PROTECT
-  // PKU was broken on Linux kernels before 5.13 (see
-  // https://lore.kernel.org/all/20210623121456.399107624@linutronix.de/).
-  // A fix is also included in the 5.4.182 and 5.10.103 versions ("x86/fpu:
-  // Correct pkru/xstate inconsistency" by Brian Geffon <bgeffon@google.com>).
-  // Thus check the kernel version we are running on, and bail out if does not
-  // contain the fix.
-  struct utsname uname_buffer;
-  CHECK_EQ(0, uname(&uname_buffer));
-  int kernel, major, minor;
-  // Conservatively return if the release does not match the format we expect.
-  if (sscanf(uname_buffer.release, "%d.%d.%d", &kernel, &major, &minor) != 3) {
-    return false;
-  }
-  bool kernel_has_pkru_fix =
-      kernel > 5 || (kernel == 5 && major >= 13) ||   // anything >= 5.13
-      (kernel == 5 && major == 4 && minor >= 182) ||  // 5.4 >= 5.4.182
-      (kernel == 5 && major == 10 && minor >= 103);   // 5.10 >= 5.10.103
-  if (!kernel_has_pkru_fix) return false;
-
   // Try to find the pkey functions in glibc.
   void* pkey_mprotect_ptr = dlsym(RTLD_DEFAULT, "pkey_mprotect");
   if (!pkey_mprotect_ptr) return false;
