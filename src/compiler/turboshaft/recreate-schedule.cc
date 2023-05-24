@@ -196,12 +196,11 @@ SHOULD_HAVE_BEEN_LOWERED(CheckEqualsInternalizedString)
 SHOULD_HAVE_BEEN_LOWERED(CheckMaps)
 SHOULD_HAVE_BEEN_LOWERED(CompareMaps)
 SHOULD_HAVE_BEEN_LOWERED(Convert)
-SHOULD_HAVE_BEEN_LOWERED(ConvertObjectToPrimitive)
-SHOULD_HAVE_BEEN_LOWERED(ConvertObjectToPrimitiveOrDeopt)
-SHOULD_HAVE_BEEN_LOWERED(ConvertOrDeopt)
-SHOULD_HAVE_BEEN_LOWERED(ConvertPrimitiveToObject)
-SHOULD_HAVE_BEEN_LOWERED(ConvertPrimitiveToObjectOrDeopt)
-SHOULD_HAVE_BEEN_LOWERED(ConvertReceiver)
+SHOULD_HAVE_BEEN_LOWERED(ConvertJSPrimitiveToUntagged)
+SHOULD_HAVE_BEEN_LOWERED(ConvertJSPrimitiveToUntaggedOrDeopt)
+SHOULD_HAVE_BEEN_LOWERED(ConvertUntaggedToJSPrimitive)
+SHOULD_HAVE_BEEN_LOWERED(ConvertUntaggedToJSPrimitiveOrDeopt)
+SHOULD_HAVE_BEEN_LOWERED(ConvertJSPrimitiveToObject)
 SHOULD_HAVE_BEEN_LOWERED(DecodeExternalPointer)
 SHOULD_HAVE_BEEN_LOWERED(DoubleArrayMinMax)
 SHOULD_HAVE_BEEN_LOWERED(EnsureWritableFastElements)
@@ -236,12 +235,12 @@ SHOULD_HAVE_BEEN_LOWERED(StringSubstring)
 #ifdef V8_INTL_SUPPORT
 SHOULD_HAVE_BEEN_LOWERED(StringToCaseIntl)
 #endif  // V8_INTL_SUPPORT
-SHOULD_HAVE_BEEN_LOWERED(Tag)
+SHOULD_HAVE_BEEN_LOWERED(TagSmi)
 SHOULD_HAVE_BEEN_LOWERED(TransitionAndStoreArrayElement)
 SHOULD_HAVE_BEEN_LOWERED(TransitionElementsKind)
-SHOULD_HAVE_BEEN_LOWERED(TruncateObjectToPrimitive)
-SHOULD_HAVE_BEEN_LOWERED(TruncateObjectToPrimitiveOrDeopt)
-SHOULD_HAVE_BEEN_LOWERED(Untag)
+SHOULD_HAVE_BEEN_LOWERED(TruncateJSPrimitiveToUntagged)
+SHOULD_HAVE_BEEN_LOWERED(TruncateJSPrimitiveToUntaggedOrDeopt)
+SHOULD_HAVE_BEEN_LOWERED(UntagSmi)
 #undef SHOULD_HAVE_BEEN_LOWERED
 
 Node* ScheduleBuilder::ProcessOperation(const WordBinopOp& op) {
@@ -888,15 +887,13 @@ Node* ScheduleBuilder::ProcessOperation(const TryChangeOp& op) {
   }
   return AddNode(o, {GetNode(op.input())});
 }
-Node* ScheduleBuilder::ProcessOperation(const Float64InsertWord32Op& op) {
-  switch (op.kind) {
-    case Float64InsertWord32Op::Kind::kHighHalf:
-      return AddNode(machine.Float64InsertHighWord32(),
-                     {GetNode(op.float64()), GetNode(op.word32())});
-    case Float64InsertWord32Op::Kind::kLowHalf:
-      return AddNode(machine.Float64InsertLowWord32(),
-                     {GetNode(op.float64()), GetNode(op.word32())});
-  }
+Node* ScheduleBuilder::ProcessOperation(
+    const BitcastWord32PairToFloat64Op& op) {
+  Node* temp = AddNode(
+      machine.Float64InsertHighWord32(),
+      {AddNode(common.Float64Constant(0), {}), GetNode(op.high_word32())});
+  return AddNode(machine.Float64InsertLowWord32(),
+                 {temp, GetNode(op.low_word32())});
 }
 Node* ScheduleBuilder::ProcessOperation(const TaggedBitcastOp& op) {
   const Operator* o;

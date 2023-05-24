@@ -362,15 +362,6 @@ std::ostream& operator<<(std::ostream& os, ChangeOp::Assumption assumption) {
   }
 }
 
-std::ostream& operator<<(std::ostream& os, Float64InsertWord32Op::Kind kind) {
-  switch (kind) {
-    case Float64InsertWord32Op::Kind::kLowHalf:
-      return os << "LowHalf";
-    case Float64InsertWord32Op::Kind::kHighHalf:
-      return os << "HighHalf";
-  }
-}
-
 std::ostream& operator<<(std::ostream& os, SelectOp::Implementation kind) {
   switch (kind) {
     case SelectOp::Implementation::kBranch:
@@ -388,13 +379,6 @@ std::ostream& operator<<(std::ostream& os, FrameConstantOp::Kind kind) {
       return os << "frame pointer";
     case FrameConstantOp::Kind::kParentFramePointer:
       return os << "parent frame pointer";
-  }
-}
-
-std::ostream& operator<<(std::ostream& os, TagKind kind) {
-  switch (kind) {
-    case TagKind::kSmiTag:
-      return os << "SmiTag";
   }
 }
 
@@ -855,161 +839,157 @@ std::ostream& operator<<(std::ostream& os, ConvertOp::Kind kind) {
   }
 }
 
-std::ostream& operator<<(std::ostream& os, ConvertOrDeoptOp::Kind kind) {
-  switch (kind) {
-    case ConvertOrDeoptOp::Kind::kObject:
-      return os << "Object";
-    case ConvertOrDeoptOp::Kind::kHeapObject:
-      return os << "HeapObject";
-    case ConvertOrDeoptOp::Kind::kSmi:
-      return os << "Smi";
-  }
-}
-
 std::ostream& operator<<(std::ostream& os,
-                         ConvertPrimitiveToObjectOp::Kind kind) {
+                         ConvertUntaggedToJSPrimitiveOp::JSPrimitiveKind kind) {
   switch (kind) {
-    case ConvertPrimitiveToObjectOp::Kind::kBigInt:
+    case ConvertUntaggedToJSPrimitiveOp::JSPrimitiveKind::kBigInt:
       return os << "BigInt";
-    case ConvertPrimitiveToObjectOp::Kind::kBoolean:
+    case ConvertUntaggedToJSPrimitiveOp::JSPrimitiveKind::kBoolean:
       return os << "Boolean";
-    case ConvertPrimitiveToObjectOp::Kind::kHeapNumber:
+    case ConvertUntaggedToJSPrimitiveOp::JSPrimitiveKind::kHeapNumber:
       return os << "HeapNumber";
-    case ConvertPrimitiveToObjectOp::Kind::kNumber:
+    case ConvertUntaggedToJSPrimitiveOp::JSPrimitiveKind::kNumber:
       return os << "Number";
-    case ConvertPrimitiveToObjectOp::Kind::kSmi:
+    case ConvertUntaggedToJSPrimitiveOp::JSPrimitiveKind::kSmi:
       return os << "Smi";
-    case ConvertPrimitiveToObjectOp::Kind::kString:
+    case ConvertUntaggedToJSPrimitiveOp::JSPrimitiveKind::kString:
       return os << "String";
   }
 }
 
 std::ostream& operator<<(
     std::ostream& os,
-    ConvertPrimitiveToObjectOp::InputInterpretation input_interpretation) {
+    ConvertUntaggedToJSPrimitiveOp::InputInterpretation input_interpretation) {
   switch (input_interpretation) {
-    case ConvertPrimitiveToObjectOp::InputInterpretation::kSigned:
+    case ConvertUntaggedToJSPrimitiveOp::InputInterpretation::kSigned:
       return os << "Signed";
-    case ConvertPrimitiveToObjectOp::InputInterpretation::kUnsigned:
+    case ConvertUntaggedToJSPrimitiveOp::InputInterpretation::kUnsigned:
       return os << "Unsigned";
-    case ConvertPrimitiveToObjectOp::InputInterpretation::kCharCode:
+    case ConvertUntaggedToJSPrimitiveOp::InputInterpretation::kCharCode:
       return os << "CharCode";
-    case ConvertPrimitiveToObjectOp::InputInterpretation::kCodePoint:
+    case ConvertUntaggedToJSPrimitiveOp::InputInterpretation::kCodePoint:
       return os << "CodePoint";
   }
 }
 
-std::ostream& operator<<(std::ostream& os,
-                         ConvertPrimitiveToObjectOrDeoptOp::Kind kind) {
+std::ostream& operator<<(
+    std::ostream& os,
+    ConvertUntaggedToJSPrimitiveOrDeoptOp::JSPrimitiveKind kind) {
   switch (kind) {
-    case ConvertPrimitiveToObjectOrDeoptOp::Kind::kSmi:
+    case ConvertUntaggedToJSPrimitiveOrDeoptOp::JSPrimitiveKind::kSmi:
       return os << "Smi";
   }
 }
 
-std::ostream& operator<<(std::ostream& os,
-                         ConvertPrimitiveToObjectOrDeoptOp::InputInterpretation
-                             input_interpretation) {
+std::ostream& operator<<(
+    std::ostream& os, ConvertUntaggedToJSPrimitiveOrDeoptOp::InputInterpretation
+                          input_interpretation) {
   switch (input_interpretation) {
-    case ConvertPrimitiveToObjectOrDeoptOp::InputInterpretation::kSigned:
+    case ConvertUntaggedToJSPrimitiveOrDeoptOp::InputInterpretation::kSigned:
       return os << "Signed";
-    case ConvertPrimitiveToObjectOrDeoptOp::InputInterpretation::kUnsigned:
+    case ConvertUntaggedToJSPrimitiveOrDeoptOp::InputInterpretation::kUnsigned:
       return os << "Unsigned";
   }
 }
 
 std::ostream& operator<<(std::ostream& os,
-                         ConvertObjectToPrimitiveOp::Kind kind) {
+                         ConvertJSPrimitiveToUntaggedOp::UntaggedKind kind) {
   switch (kind) {
-    case ConvertObjectToPrimitiveOp::Kind::kInt32:
+    case ConvertJSPrimitiveToUntaggedOp::UntaggedKind::kInt32:
       return os << "Int32";
-    case ConvertObjectToPrimitiveOp::Kind::kInt64:
+    case ConvertJSPrimitiveToUntaggedOp::UntaggedKind::kInt64:
       return os << "Int64";
-    case ConvertObjectToPrimitiveOp::Kind::kUint32:
+    case ConvertJSPrimitiveToUntaggedOp::UntaggedKind::kUint32:
       return os << "Uint32";
-    case ConvertObjectToPrimitiveOp::Kind::kBit:
+    case ConvertJSPrimitiveToUntaggedOp::UntaggedKind::kBit:
       return os << "Bit";
-    case ConvertObjectToPrimitiveOp::Kind::kFloat64:
+    case ConvertJSPrimitiveToUntaggedOp::UntaggedKind::kFloat64:
       return os << "Float64";
   }
 }
 
 std::ostream& operator<<(
     std::ostream& os,
-    ConvertObjectToPrimitiveOp::InputAssumptions input_assumptions) {
+    ConvertJSPrimitiveToUntaggedOp::InputAssumptions input_assumptions) {
   switch (input_assumptions) {
-    case ConvertObjectToPrimitiveOp::InputAssumptions::kObject:
+    case ConvertJSPrimitiveToUntaggedOp::InputAssumptions::kObject:
       return os << "Object";
-    case ConvertObjectToPrimitiveOp::InputAssumptions::kSmi:
+    case ConvertJSPrimitiveToUntaggedOp::InputAssumptions::kSmi:
       return os << "Smi";
-    case ConvertObjectToPrimitiveOp::InputAssumptions::kNumberOrOddball:
+    case ConvertJSPrimitiveToUntaggedOp::InputAssumptions::kNumberOrOddball:
       return os << "NumberOrOddball";
-    case ConvertObjectToPrimitiveOp::InputAssumptions::kPlainPrimitive:
+    case ConvertJSPrimitiveToUntaggedOp::InputAssumptions::kPlainPrimitive:
       return os << "PlainPrimitive";
   }
 }
 
 std::ostream& operator<<(
-    std::ostream& os, ConvertObjectToPrimitiveOrDeoptOp::PrimitiveKind kind) {
+    std::ostream& os,
+    ConvertJSPrimitiveToUntaggedOrDeoptOp::UntaggedKind kind) {
   switch (kind) {
-    case ConvertObjectToPrimitiveOrDeoptOp::PrimitiveKind::kInt32:
+    case ConvertJSPrimitiveToUntaggedOrDeoptOp::UntaggedKind::kInt32:
       return os << "Int32";
-    case ConvertObjectToPrimitiveOrDeoptOp::PrimitiveKind::kInt64:
+    case ConvertJSPrimitiveToUntaggedOrDeoptOp::UntaggedKind::kInt64:
       return os << "Int64";
-    case ConvertObjectToPrimitiveOrDeoptOp::PrimitiveKind::kFloat64:
+    case ConvertJSPrimitiveToUntaggedOrDeoptOp::UntaggedKind::kFloat64:
       return os << "Float64";
-    case ConvertObjectToPrimitiveOrDeoptOp::PrimitiveKind::kArrayIndex:
+    case ConvertJSPrimitiveToUntaggedOrDeoptOp::UntaggedKind::kArrayIndex:
       return os << "ArrayIndex";
   }
 }
 
-std::ostream& operator<<(std::ostream& os,
-                         ConvertObjectToPrimitiveOrDeoptOp::ObjectKind kind) {
+std::ostream& operator<<(
+    std::ostream& os,
+    ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind kind) {
   switch (kind) {
-    case ConvertObjectToPrimitiveOrDeoptOp::ObjectKind::kNumber:
+    case ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind::kNumber:
       return os << "Number";
-    case ConvertObjectToPrimitiveOrDeoptOp::ObjectKind::kNumberOrBoolean:
+    case ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind::
+        kNumberOrBoolean:
       return os << "NumberOrBoolean";
-    case ConvertObjectToPrimitiveOrDeoptOp::ObjectKind::kNumberOrOddball:
+    case ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind::
+        kNumberOrOddball:
       return os << "NumberOrOddball";
-    case ConvertObjectToPrimitiveOrDeoptOp::ObjectKind::kNumberOrString:
+    case ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind::
+        kNumberOrString:
       return os << "NumberOrString";
-    case ConvertObjectToPrimitiveOrDeoptOp::ObjectKind::kSmi:
+    case ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind::kSmi:
       return os << "Smi";
   }
 }
 
 std::ostream& operator<<(std::ostream& os,
-                         TruncateObjectToPrimitiveOp::Kind kind) {
+                         TruncateJSPrimitiveToUntaggedOp::UntaggedKind kind) {
   switch (kind) {
-    case TruncateObjectToPrimitiveOp::Kind::kInt32:
+    case TruncateJSPrimitiveToUntaggedOp::UntaggedKind::kInt32:
       return os << "Int32";
-    case TruncateObjectToPrimitiveOp::Kind::kInt64:
+    case TruncateJSPrimitiveToUntaggedOp::UntaggedKind::kInt64:
       return os << "Int64";
-    case TruncateObjectToPrimitiveOp::Kind::kBit:
+    case TruncateJSPrimitiveToUntaggedOp::UntaggedKind::kBit:
       return os << "Bit";
   }
 }
 
 std::ostream& operator<<(
     std::ostream& os,
-    TruncateObjectToPrimitiveOp::InputAssumptions input_assumptions) {
+    TruncateJSPrimitiveToUntaggedOp::InputAssumptions input_assumptions) {
   switch (input_assumptions) {
-    case TruncateObjectToPrimitiveOp::InputAssumptions::kBigInt:
+    case TruncateJSPrimitiveToUntaggedOp::InputAssumptions::kBigInt:
       return os << "BigInt";
-    case TruncateObjectToPrimitiveOp::InputAssumptions::kNumberOrOddball:
+    case TruncateJSPrimitiveToUntaggedOp::InputAssumptions::kNumberOrOddball:
       return os << "NumberOrOddball";
-    case TruncateObjectToPrimitiveOp::InputAssumptions::kHeapObject:
+    case TruncateJSPrimitiveToUntaggedOp::InputAssumptions::kHeapObject:
       return os << "HeapObject";
-    case TruncateObjectToPrimitiveOp::InputAssumptions::kObject:
+    case TruncateJSPrimitiveToUntaggedOp::InputAssumptions::kObject:
       return os << "Object";
   }
 }
 
-std::ostream& operator<<(std::ostream& os,
-                         TruncateObjectToPrimitiveOrDeoptOp::Kind kind) {
+std::ostream& operator<<(
+    std::ostream& os,
+    TruncateJSPrimitiveToUntaggedOrDeoptOp::UntaggedKind kind) {
   switch (kind) {
-    case TruncateObjectToPrimitiveOrDeoptOp::Kind::kInt32:
+    case TruncateJSPrimitiveToUntaggedOrDeoptOp::UntaggedKind::kInt32:
       return os << "Int32";
   }
 }

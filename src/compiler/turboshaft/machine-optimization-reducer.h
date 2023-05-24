@@ -183,26 +183,18 @@ class MachineOptimizationReducer : public Next {
     return Next::ReduceChange(input, kind, assumption, from, to);
   }
 
-  OpIndex REDUCE(Float64InsertWord32)(OpIndex float64, OpIndex word32,
-                                      Float64InsertWord32Op::Kind kind) {
+  OpIndex REDUCE(BitcastWord32PairToFloat64)(OpIndex hi_word32,
+                                             OpIndex lo_word32) {
     if (ShouldSkipOptimizationStep()) {
-      return Next::ReduceFloat64InsertWord32(float64, word32, kind);
+      return Next::ReduceBitcastWord32PairToFloat64(hi_word32, lo_word32);
     }
-    double f;
-    uint32_t w;
-    if (Asm().MatchFloat64Constant(float64, &f) &&
-        Asm().MatchWord32Constant(word32, &w)) {
-      uint64_t float_as_word = base::bit_cast<uint64_t>(f);
-      switch (kind) {
-        case Float64InsertWord32Op::Kind::kLowHalf:
-          return Asm().Float64Constant(base::bit_cast<double>(
-              (float_as_word & uint64_t{0xFFFFFFFF00000000}) | w));
-        case Float64InsertWord32Op::Kind::kHighHalf:
-          return Asm().Float64Constant(base::bit_cast<double>(
-              (float_as_word & uint64_t{0xFFFFFFFF}) | (uint64_t{w} << 32)));
-      }
+    uint32_t lo, hi;
+    if (Asm().MatchWord32Constant(hi_word32, &hi) &&
+        Asm().MatchWord32Constant(lo_word32, &lo)) {
+      return Asm().Float64Constant(
+          base::bit_cast<double>(uint64_t{hi} << 32 | uint64_t{lo}));
     }
-    return Next::ReduceFloat64InsertWord32(float64, word32, kind);
+    return Next::ReduceBitcastWord32PairToFloat64(hi_word32, lo_word32);
   }
 
   OpIndex REDUCE(TaggedBitcast)(OpIndex input, RegisterRepresentation from,

@@ -126,7 +126,7 @@ class FastApiCallReducer : public Next {
     if (BIND(handle_error)) {
       // We pass Smi(0) as the value here, although this should never be visible
       // when calling code reacts to `kFailureValue` properly.
-      GOTO(done, FastApiCallOp::kFailureValue, __ SmiTag(0));
+      GOTO(done, FastApiCallOp::kFailureValue, __ TagSmi(0));
     }
 
     BIND(done, state, value);
@@ -498,16 +498,16 @@ class FastApiCallReducer : public Next {
         CFunctionInfo::Int64Representation repr =
             c_signature->GetInt64Representation();
         if (repr == CFunctionInfo::Int64Representation::kBigInt) {
-          return __ ConvertPrimitiveToObject(
-              result, ConvertPrimitiveToObjectOp::Kind::kBigInt,
+          return __ ConvertUntaggedToJSPrimitive(
+              result, ConvertUntaggedToJSPrimitiveOp::JSPrimitiveKind::kBigInt,
               RegisterRepresentation::Word64(),
-              ConvertPrimitiveToObjectOp::InputInterpretation::kSigned,
+              ConvertUntaggedToJSPrimitiveOp::InputInterpretation::kSigned,
               CheckForMinusZeroMode::kDontCheckForMinusZero);
         } else if (repr == CFunctionInfo::Int64Representation::kNumber) {
-          return __ ConvertPrimitiveToObject(
-              result, ConvertPrimitiveToObjectOp::Kind::kNumber,
+          return __ ConvertUntaggedToJSPrimitive(
+              result, ConvertUntaggedToJSPrimitiveOp::JSPrimitiveKind::kNumber,
               RegisterRepresentation::Word64(),
-              ConvertPrimitiveToObjectOp::InputInterpretation::kSigned,
+              ConvertUntaggedToJSPrimitiveOp::InputInterpretation::kSigned,
               CheckForMinusZeroMode::kDontCheckForMinusZero);
         } else {
           UNREACHABLE();
@@ -517,16 +517,16 @@ class FastApiCallReducer : public Next {
         CFunctionInfo::Int64Representation repr =
             c_signature->GetInt64Representation();
         if (repr == CFunctionInfo::Int64Representation::kBigInt) {
-          return __ ConvertPrimitiveToObject(
-              result, ConvertPrimitiveToObjectOp::Kind::kBigInt,
+          return __ ConvertUntaggedToJSPrimitive(
+              result, ConvertUntaggedToJSPrimitiveOp::JSPrimitiveKind::kBigInt,
               RegisterRepresentation::Word64(),
-              ConvertPrimitiveToObjectOp::InputInterpretation::kUnsigned,
+              ConvertUntaggedToJSPrimitiveOp::InputInterpretation::kUnsigned,
               CheckForMinusZeroMode::kDontCheckForMinusZero);
         } else if (repr == CFunctionInfo::Int64Representation::kNumber) {
-          return __ ConvertPrimitiveToObject(
-              result, ConvertPrimitiveToObjectOp::Kind::kNumber,
+          return __ ConvertUntaggedToJSPrimitive(
+              result, ConvertUntaggedToJSPrimitiveOp::JSPrimitiveKind::kNumber,
               RegisterRepresentation::Word64(),
-              ConvertPrimitiveToObjectOp::InputInterpretation::kUnsigned,
+              ConvertUntaggedToJSPrimitiveOp::InputInterpretation::kUnsigned,
               CheckForMinusZeroMode::kDontCheckForMinusZero);
         } else {
           UNREACHABLE();

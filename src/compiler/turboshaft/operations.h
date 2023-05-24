@@ -78,106 +78,105 @@ struct FrameStateOp;
 #define TURBOSHAFT_INTL_OPERATION_LIST(V)
 #endif  // V8_INTL_SUPPORT
 
-#define TURBOSHAFT_OPERATION_LIST(V)  \
-  TURBOSHAFT_INTL_OPERATION_LIST(V)   \
-  V(WordBinop)                        \
-  V(FloatBinop)                       \
-  V(OverflowCheckedBinop)             \
-  V(WordUnary)                        \
-  V(FloatUnary)                       \
-  V(Shift)                            \
-  V(Equal)                            \
-  V(Comparison)                       \
-  V(Change)                           \
-  V(ChangeOrDeopt)                    \
-  V(TryChange)                        \
-  V(Float64InsertWord32)              \
-  V(TaggedBitcast)                    \
-  V(Select)                           \
-  V(PendingLoopPhi)                   \
-  V(Constant)                         \
-  V(Load)                             \
-  V(Store)                            \
-  V(Allocate)                         \
-  V(DecodeExternalPointer)            \
-  V(Retain)                           \
-  V(Parameter)                        \
-  V(OsrValue)                         \
-  V(Goto)                             \
-  V(StackPointerGreaterThan)          \
-  V(StackSlot)                        \
-  V(FrameConstant)                    \
-  V(Deoptimize)                       \
-  V(DeoptimizeIf)                     \
-  V(TrapIf)                           \
-  V(Phi)                              \
-  V(FrameState)                       \
-  V(Call)                             \
-  V(CallAndCatchException)            \
-  V(LoadException)                    \
-  V(TailCall)                         \
-  V(Unreachable)                      \
-  V(Return)                           \
-  V(Branch)                           \
-  V(Switch)                           \
-  V(Tuple)                            \
-  V(Projection)                       \
-  V(StaticAssert)                     \
-  V(CheckTurboshaftTypeOf)            \
-  V(ObjectIs)                         \
-  V(FloatIs)                          \
-  V(ObjectIsNumericValue)             \
-  V(Convert)                          \
-  V(ConvertOrDeopt)                   \
-  V(ConvertPrimitiveToObject)         \
-  V(ConvertPrimitiveToObjectOrDeopt)  \
-  V(ConvertObjectToPrimitive)         \
-  V(ConvertObjectToPrimitiveOrDeopt)  \
-  V(TruncateObjectToPrimitive)        \
-  V(TruncateObjectToPrimitiveOrDeopt) \
-  V(ConvertReceiver)                  \
-  V(Tag)                              \
-  V(Untag)                            \
-  V(NewConsString)                    \
-  V(NewArray)                         \
-  V(DoubleArrayMinMax)                \
-  V(LoadFieldByIndex)                 \
-  V(DebugBreak)                       \
-  V(DebugPrint)                       \
-  V(BigIntBinop)                      \
-  V(BigIntEqual)                      \
-  V(BigIntComparison)                 \
-  V(BigIntUnary)                      \
-  V(LoadRootRegister)                 \
-  V(StringAt)                         \
-  V(StringLength)                     \
-  V(StringIndexOf)                    \
-  V(StringFromCodePointAt)            \
-  V(StringSubstring)                  \
-  V(StringConcat)                     \
-  V(StringEqual)                      \
-  V(StringComparison)                 \
-  V(ArgumentsLength)                  \
-  V(NewArgumentsElements)             \
-  V(LoadTypedElement)                 \
-  V(LoadDataViewElement)              \
-  V(LoadStackArgument)                \
-  V(StoreTypedElement)                \
-  V(StoreDataViewElement)             \
-  V(TransitionAndStoreArrayElement)   \
-  V(CompareMaps)                      \
-  V(CheckMaps)                        \
-  V(CheckedClosure)                   \
-  V(CheckEqualsInternalizedString)    \
-  V(LoadMessage)                      \
-  V(StoreMessage)                     \
-  V(SameValue)                        \
-  V(Float64SameValue)                 \
-  V(FastApiCall)                      \
-  V(RuntimeAbort)                     \
-  V(EnsureWritableFastElements)       \
-  V(MaybeGrowFastElements)            \
-  V(TransitionElementsKind)           \
+#define TURBOSHAFT_OPERATION_LIST(V)      \
+  TURBOSHAFT_INTL_OPERATION_LIST(V)       \
+  V(WordBinop)                            \
+  V(FloatBinop)                           \
+  V(OverflowCheckedBinop)                 \
+  V(WordUnary)                            \
+  V(FloatUnary)                           \
+  V(Shift)                                \
+  V(Equal)                                \
+  V(Comparison)                           \
+  V(Change)                               \
+  V(ChangeOrDeopt)                        \
+  V(TryChange)                            \
+  V(BitcastWord32PairToFloat64)           \
+  V(TaggedBitcast)                        \
+  V(Select)                               \
+  V(PendingLoopPhi)                       \
+  V(Constant)                             \
+  V(Load)                                 \
+  V(Store)                                \
+  V(Allocate)                             \
+  V(DecodeExternalPointer)                \
+  V(Retain)                               \
+  V(Parameter)                            \
+  V(OsrValue)                             \
+  V(Goto)                                 \
+  V(StackPointerGreaterThan)              \
+  V(StackSlot)                            \
+  V(FrameConstant)                        \
+  V(Deoptimize)                           \
+  V(DeoptimizeIf)                         \
+  V(TrapIf)                               \
+  V(Phi)                                  \
+  V(FrameState)                           \
+  V(Call)                                 \
+  V(CallAndCatchException)                \
+  V(LoadException)                        \
+  V(TailCall)                             \
+  V(Unreachable)                          \
+  V(Return)                               \
+  V(Branch)                               \
+  V(Switch)                               \
+  V(Tuple)                                \
+  V(Projection)                           \
+  V(StaticAssert)                         \
+  V(CheckTurboshaftTypeOf)                \
+  V(ObjectIs)                             \
+  V(FloatIs)                              \
+  V(ObjectIsNumericValue)                 \
+  V(Convert)                              \
+  V(ConvertUntaggedToJSPrimitive)         \
+  V(ConvertUntaggedToJSPrimitiveOrDeopt)  \
+  V(ConvertJSPrimitiveToUntagged)         \
+  V(ConvertJSPrimitiveToUntaggedOrDeopt)  \
+  V(TruncateJSPrimitiveToUntagged)        \
+  V(TruncateJSPrimitiveToUntaggedOrDeopt) \
+  V(ConvertJSPrimitiveToObject)           \
+  V(TagSmi)                               \
+  V(UntagSmi)                             \
+  V(NewConsString)                        \
+  V(NewArray)                             \
+  V(DoubleArrayMinMax)                    \
+  V(LoadFieldByIndex)                     \
+  V(DebugBreak)                           \
+  V(DebugPrint)                           \
+  V(BigIntBinop)                          \
+  V(BigIntEqual)                          \
+  V(BigIntComparison)                     \
+  V(BigIntUnary)                          \
+  V(LoadRootRegister)                     \
+  V(StringAt)                             \
+  V(StringLength)                         \
+  V(StringIndexOf)                        \
+  V(StringFromCodePointAt)                \
+  V(StringSubstring)                      \
+  V(StringConcat)                         \
+  V(StringEqual)                          \
+  V(StringComparison)                     \
+  V(ArgumentsLength)                      \
+  V(NewArgumentsElements)                 \
+  V(LoadTypedElement)                     \
+  V(LoadDataViewElement)                  \
+  V(LoadStackArgument)                    \
+  V(StoreTypedElement)                    \
+  V(StoreDataViewElement)                 \
+  V(TransitionAndStoreArrayElement)       \
+  V(CompareMaps)                          \
+  V(CheckMaps)                            \
+  V(CheckedClosure)                       \
+  V(CheckEqualsInternalizedString)        \
+  V(LoadMessage)                          \
+  V(StoreMessage)                         \
+  V(SameValue)                            \
+  V(Float64SameValue)                     \
+  V(FastApiCall)                          \
+  V(RuntimeAbort)                         \
+  V(EnsureWritableFastElements)           \
+  V(MaybeGrowFastElements)                \
+  V(TransitionElementsKind)               \
   V(FindOrderedHashEntry)
 
 enum class Opcode : uint8_t {
@@ -1260,30 +1259,27 @@ struct TryChangeOp : FixedArityOperationT<1, TryChangeOp> {
 };
 std::ostream& operator<<(std::ostream& os, TryChangeOp::Kind kind);
 
-// TODO(tebbi): Unify with other operations.
-struct Float64InsertWord32Op : FixedArityOperationT<2, Float64InsertWord32Op> {
-  enum class Kind { kLowHalf, kHighHalf };
-  Kind kind;
-
+struct BitcastWord32PairToFloat64Op
+    : FixedArityOperationT<2, BitcastWord32PairToFloat64Op> {
   static constexpr OpProperties properties = OpProperties::PureNoAllocation();
   base::Vector<const RegisterRepresentation> outputs_rep() const {
     return RepVector<RegisterRepresentation::Float64()>();
   }
 
-  OpIndex float64() const { return input(0); }
-  OpIndex word32() const { return input(1); }
+  OpIndex high_word32() const { return input(0); }
+  OpIndex low_word32() const { return input(1); }
 
-  Float64InsertWord32Op(OpIndex float64, OpIndex word32, Kind kind)
-      : Base(float64, word32), kind(kind) {}
+  BitcastWord32PairToFloat64Op(OpIndex high_word32, OpIndex low_word32)
+      : Base(high_word32, low_word32) {}
 
   void Validate(const Graph& graph) const {
+    DCHECK(ValidOpInputRep(graph, high_word32(),
+                           RegisterRepresentation::Word32()));
     DCHECK(
-        ValidOpInputRep(graph, float64(), RegisterRepresentation::Float64()));
-    DCHECK(ValidOpInputRep(graph, word32(), RegisterRepresentation::Word32()));
+        ValidOpInputRep(graph, low_word32(), RegisterRepresentation::Word32()));
   }
-  auto options() const { return std::tuple{kind}; }
+  auto options() const { return std::tuple{}; }
 };
-std::ostream& operator<<(std::ostream& os, Float64InsertWord32Op::Kind kind);
 
 struct TaggedBitcastOp : FixedArityOperationT<1, TaggedBitcastOp> {
   RegisterRepresentation from;
@@ -2617,40 +2613,9 @@ struct ConvertOp : FixedArityOperationT<1, ConvertOp> {
 };
 std::ostream& operator<<(std::ostream& os, ConvertOp::Kind kind);
 
-struct ConvertOrDeoptOp : FixedArityOperationT<2, ConvertOrDeoptOp> {
-  enum class Kind : uint8_t {
-    kObject,
-    kSmi,
-    kHeapObject,
-  };
-  Kind from;
-  Kind to;
-  FeedbackSource feedback;
-
-  static constexpr OpProperties properties = OpProperties::CanAbort();
-  base::Vector<const RegisterRepresentation> outputs_rep() const {
-    return RepVector<RegisterRepresentation::Tagged()>();
-  }
-
-  OpIndex input() const { return Base::input(0); }
-  OpIndex frame_state() const { return Base::input(1); }
-
-  ConvertOrDeoptOp(OpIndex input, OpIndex frame_state, Kind from, Kind to,
-                   const FeedbackSource& feedback)
-      : Base(input, frame_state), from(from), to(to), feedback(feedback) {}
-
-  void Validate(const Graph& graph) const {
-    DCHECK(ValidOpInputRep(graph, input(), RegisterRepresentation::Tagged()));
-    DCHECK(Get(graph, frame_state()).Is<FrameStateOp>());
-  }
-
-  auto options() const { return std::tuple{from, to, feedback}; }
-};
-std::ostream& operator<<(std::ostream& os, ConvertOrDeoptOp::Kind kind);
-
-struct ConvertPrimitiveToObjectOp
-    : FixedArityOperationT<1, ConvertPrimitiveToObjectOp> {
-  enum class Kind : uint8_t {
+struct ConvertUntaggedToJSPrimitiveOp
+    : FixedArityOperationT<1, ConvertUntaggedToJSPrimitiveOp> {
+  enum class JSPrimitiveKind : uint8_t {
     kBigInt,
     kBoolean,
     kHeapNumber,
@@ -2664,7 +2629,7 @@ struct ConvertPrimitiveToObjectOp
     kCharCode,
     kCodePoint,
   };
-  Kind kind;
+  JSPrimitiveKind kind;
   RegisterRepresentation input_rep;
   InputInterpretation input_interpretation;
   CheckForMinusZeroMode minus_zero_mode;
@@ -2676,10 +2641,10 @@ struct ConvertPrimitiveToObjectOp
 
   OpIndex input() const { return Base::input(0); }
 
-  ConvertPrimitiveToObjectOp(OpIndex input, Kind kind,
-                             RegisterRepresentation input_rep,
-                             InputInterpretation input_interpretation,
-                             CheckForMinusZeroMode minus_zero_mode)
+  ConvertUntaggedToJSPrimitiveOp(OpIndex input, JSPrimitiveKind kind,
+                                 RegisterRepresentation input_rep,
+                                 InputInterpretation input_interpretation,
+                                 CheckForMinusZeroMode minus_zero_mode)
       : Base(input),
         kind(kind),
         input_rep(input_rep),
@@ -2688,32 +2653,32 @@ struct ConvertPrimitiveToObjectOp
 
   void Validate(const Graph& graph) const {
     switch (kind) {
-      case Kind::kBigInt:
+      case JSPrimitiveKind::kBigInt:
         DCHECK_EQ(input_rep, RegisterRepresentation::Word64());
         DCHECK(ValidOpInputRep(graph, input(), input_rep));
         DCHECK_EQ(minus_zero_mode,
                   CheckForMinusZeroMode::kDontCheckForMinusZero);
         break;
-      case Kind::kBoolean:
+      case JSPrimitiveKind::kBoolean:
         DCHECK_EQ(input_rep, RegisterRepresentation::Word32());
         DCHECK(ValidOpInputRep(graph, input(), input_rep));
         DCHECK_EQ(minus_zero_mode,
                   CheckForMinusZeroMode::kDontCheckForMinusZero);
         break;
-      case Kind::kNumber:
-      case Kind::kHeapNumber:
+      case JSPrimitiveKind::kNumber:
+      case JSPrimitiveKind::kHeapNumber:
         DCHECK(ValidOpInputRep(graph, input(), input_rep));
         DCHECK_IMPLIES(
             minus_zero_mode == CheckForMinusZeroMode::kCheckForMinusZero,
             input_rep == RegisterRepresentation::Float64());
         break;
-      case Kind::kSmi:
+      case JSPrimitiveKind::kSmi:
         DCHECK_EQ(input_rep, WordRepresentation::Word32());
         DCHECK_EQ(minus_zero_mode,
                   CheckForMinusZeroMode::kDontCheckForMinusZero);
         DCHECK(ValidOpInputRep(graph, input(), input_rep));
         break;
-      case Kind::kString:
+      case JSPrimitiveKind::kString:
         DCHECK_EQ(input_rep, WordRepresentation::Word32());
         DCHECK_EQ(input_interpretation,
                   any_of(InputInterpretation::kCharCode,
@@ -2728,18 +2693,18 @@ struct ConvertPrimitiveToObjectOp
   }
 };
 std::ostream& operator<<(std::ostream& os,
-                         ConvertPrimitiveToObjectOp::Kind kind);
+                         ConvertUntaggedToJSPrimitiveOp::JSPrimitiveKind kind);
 
-struct ConvertPrimitiveToObjectOrDeoptOp
-    : FixedArityOperationT<2, ConvertPrimitiveToObjectOrDeoptOp> {
-  enum class Kind : uint8_t {
+struct ConvertUntaggedToJSPrimitiveOrDeoptOp
+    : FixedArityOperationT<2, ConvertUntaggedToJSPrimitiveOrDeoptOp> {
+  enum class JSPrimitiveKind : uint8_t {
     kSmi,
   };
   enum class InputInterpretation : uint8_t {
     kSigned,
     kUnsigned,
   };
-  Kind kind;
+  JSPrimitiveKind kind;
   RegisterRepresentation input_rep;
   InputInterpretation input_interpretation;
   FeedbackSource feedback;
@@ -2752,10 +2717,10 @@ struct ConvertPrimitiveToObjectOrDeoptOp
   OpIndex input() const { return Base::input(0); }
   OpIndex frame_state() const { return Base::input(1); }
 
-  ConvertPrimitiveToObjectOrDeoptOp(OpIndex input, OpIndex frame_state,
-                                    Kind kind, RegisterRepresentation input_rep,
-                                    InputInterpretation input_interpretation,
-                                    const FeedbackSource& feedback)
+  ConvertUntaggedToJSPrimitiveOrDeoptOp(
+      OpIndex input, OpIndex frame_state, JSPrimitiveKind kind,
+      RegisterRepresentation input_rep,
+      InputInterpretation input_interpretation, const FeedbackSource& feedback)
       : Base(input, frame_state),
         kind(kind),
         input_rep(input_rep),
@@ -2771,15 +2736,16 @@ struct ConvertPrimitiveToObjectOrDeoptOp
     return std::tuple{kind, input_rep, input_interpretation, feedback};
   }
 };
-std::ostream& operator<<(std::ostream& os,
-                         ConvertPrimitiveToObjectOrDeoptOp::Kind kind);
-std::ostream& operator<<(std::ostream& os,
-                         ConvertPrimitiveToObjectOrDeoptOp::InputInterpretation
-                             input_interpretation);
+std::ostream& operator<<(
+    std::ostream& os,
+    ConvertUntaggedToJSPrimitiveOrDeoptOp::JSPrimitiveKind kind);
+std::ostream& operator<<(
+    std::ostream& os, ConvertUntaggedToJSPrimitiveOrDeoptOp::InputInterpretation
+                          input_interpretation);
 
-struct ConvertObjectToPrimitiveOp
-    : FixedArityOperationT<1, ConvertObjectToPrimitiveOp> {
-  enum class Kind : uint8_t {
+struct ConvertJSPrimitiveToUntaggedOp
+    : FixedArityOperationT<1, ConvertJSPrimitiveToUntaggedOp> {
+  enum class UntaggedKind : uint8_t {
     kInt32,
     kInt64,
     kUint32,
@@ -2792,27 +2758,27 @@ struct ConvertObjectToPrimitiveOp
     kNumberOrOddball,
     kPlainPrimitive,
   };
-  Kind kind;
+  UntaggedKind kind;
   InputAssumptions input_assumptions;
 
   static constexpr OpProperties properties = OpProperties::PureNoAllocation();
   base::Vector<const RegisterRepresentation> outputs_rep() const {
     switch (kind) {
-      case Kind::kInt32:
-      case Kind::kUint32:
-      case Kind::kBit:
+      case UntaggedKind::kInt32:
+      case UntaggedKind::kUint32:
+      case UntaggedKind::kBit:
         return RepVector<RegisterRepresentation::Word32()>();
-      case Kind::kInt64:
+      case UntaggedKind::kInt64:
         return RepVector<RegisterRepresentation::Word64()>();
-      case Kind::kFloat64:
+      case UntaggedKind::kFloat64:
         return RepVector<RegisterRepresentation::Float64()>();
     }
   }
 
   OpIndex input() const { return Base::input(0); }
 
-  ConvertObjectToPrimitiveOp(OpIndex input, Kind kind,
-                             InputAssumptions input_assumptions)
+  ConvertJSPrimitiveToUntaggedOp(OpIndex input, UntaggedKind kind,
+                                 InputAssumptions input_assumptions)
       : Base(input), kind(kind), input_assumptions(input_assumptions) {}
   void Validate(const Graph& graph) const {
     DCHECK(ValidOpInputRep(graph, input(), RegisterRepresentation::Tagged()));
@@ -2821,41 +2787,41 @@ struct ConvertObjectToPrimitiveOp
   auto options() const { return std::tuple{kind, input_assumptions}; }
 };
 std::ostream& operator<<(std::ostream& os,
-                         ConvertObjectToPrimitiveOp::Kind kind);
+                         ConvertJSPrimitiveToUntaggedOp::UntaggedKind kind);
 std::ostream& operator<<(
     std::ostream& os,
-    ConvertObjectToPrimitiveOp::InputAssumptions input_assumptions);
+    ConvertJSPrimitiveToUntaggedOp::InputAssumptions input_assumptions);
 
-struct ConvertObjectToPrimitiveOrDeoptOp
-    : FixedArityOperationT<2, ConvertObjectToPrimitiveOrDeoptOp> {
-  enum class PrimitiveKind : uint8_t {
+struct ConvertJSPrimitiveToUntaggedOrDeoptOp
+    : FixedArityOperationT<2, ConvertJSPrimitiveToUntaggedOrDeoptOp> {
+  enum class UntaggedKind : uint8_t {
     kInt32,
     kInt64,
     kFloat64,
     kArrayIndex,
   };
-  enum class ObjectKind : uint8_t {
+  enum class JSPrimitiveKind : uint8_t {
     kNumber,
     kNumberOrBoolean,
     kNumberOrOddball,
     kNumberOrString,
     kSmi,
   };
-  ObjectKind from_kind;
-  PrimitiveKind to_kind;
+  JSPrimitiveKind from_kind;
+  UntaggedKind to_kind;
   CheckForMinusZeroMode minus_zero_mode;
   FeedbackSource feedback;
 
   static constexpr OpProperties properties = OpProperties::ReadingAndCanAbort();
   base::Vector<const RegisterRepresentation> outputs_rep() const {
     switch (to_kind) {
-      case PrimitiveKind::kInt32:
+      case UntaggedKind::kInt32:
         return RepVector<RegisterRepresentation::Word32()>();
-      case PrimitiveKind::kInt64:
+      case UntaggedKind::kInt64:
         return RepVector<RegisterRepresentation::Word64()>();
-      case PrimitiveKind::kFloat64:
+      case UntaggedKind::kFloat64:
         return RepVector<RegisterRepresentation::Float64()>();
-      case PrimitiveKind::kArrayIndex:
+      case UntaggedKind::kArrayIndex:
         return Is64() ? RepVector<RegisterRepresentation::Word64()>()
                       : RepVector<RegisterRepresentation::Word32()>();
     }
@@ -2864,10 +2830,11 @@ struct ConvertObjectToPrimitiveOrDeoptOp
   OpIndex input() const { return Base::input(0); }
   OpIndex frame_state() const { return Base::input(1); }
 
-  ConvertObjectToPrimitiveOrDeoptOp(OpIndex input, OpIndex frame_state,
-                                    ObjectKind from_kind, PrimitiveKind to_kind,
-                                    CheckForMinusZeroMode minus_zero_mode,
-                                    const FeedbackSource& feedback)
+  ConvertJSPrimitiveToUntaggedOrDeoptOp(OpIndex input, OpIndex frame_state,
+                                        JSPrimitiveKind from_kind,
+                                        UntaggedKind to_kind,
+                                        CheckForMinusZeroMode minus_zero_mode,
+                                        const FeedbackSource& feedback)
       : Base(input, frame_state),
         from_kind(from_kind),
         to_kind(to_kind),
@@ -2882,14 +2849,15 @@ struct ConvertObjectToPrimitiveOrDeoptOp
     return std::tuple{from_kind, to_kind, minus_zero_mode, feedback};
   }
 };
-std::ostream& operator<<(std::ostream& os,
-                         ConvertObjectToPrimitiveOrDeoptOp::ObjectKind kind);
-std::ostream& operator<<(std::ostream& os,
-                         ConvertObjectToPrimitiveOrDeoptOp::PrimitiveKind kind);
+std::ostream& operator<<(
+    std::ostream& os,
+    ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind kind);
+std::ostream& operator<<(
+    std::ostream& os, ConvertJSPrimitiveToUntaggedOrDeoptOp::UntaggedKind kind);
 
-struct TruncateObjectToPrimitiveOp
-    : FixedArityOperationT<1, TruncateObjectToPrimitiveOp> {
-  enum class Kind : uint8_t {
+struct TruncateJSPrimitiveToUntaggedOp
+    : FixedArityOperationT<1, TruncateJSPrimitiveToUntaggedOp> {
+  enum class UntaggedKind : uint8_t {
     kInt32,
     kInt64,
     kBit,
@@ -2900,24 +2868,24 @@ struct TruncateObjectToPrimitiveOp
     kHeapObject,
     kObject,
   };
-  Kind kind;
+  UntaggedKind kind;
   InputAssumptions input_assumptions;
 
   static constexpr OpProperties properties = OpProperties::PureNoAllocation();
   base::Vector<const RegisterRepresentation> outputs_rep() const {
     switch (kind) {
-      case Kind::kInt32:
-      case Kind::kBit:
+      case UntaggedKind::kInt32:
+      case UntaggedKind::kBit:
         return RepVector<RegisterRepresentation::Word32()>();
-      case Kind::kInt64:
+      case UntaggedKind::kInt64:
         return RepVector<RegisterRepresentation::Word64()>();
     }
   }
 
   OpIndex input() const { return Base::input(0); }
 
-  TruncateObjectToPrimitiveOp(OpIndex input, Kind kind,
-                              InputAssumptions input_assumptions)
+  TruncateJSPrimitiveToUntaggedOp(OpIndex input, UntaggedKind kind,
+                                  InputAssumptions input_assumptions)
       : Base(input), kind(kind), input_assumptions(input_assumptions) {}
   void Validate(const Graph& graph) const {
     DCHECK(ValidOpInputRep(graph, input(), RegisterRepresentation::Tagged()));
@@ -2926,25 +2894,26 @@ struct TruncateObjectToPrimitiveOp
   auto options() const { return std::tuple{kind, input_assumptions}; }
 };
 std::ostream& operator<<(std::ostream& os,
-                         TruncateObjectToPrimitiveOp::Kind kind);
+                         TruncateJSPrimitiveToUntaggedOp::UntaggedKind kind);
 std::ostream& operator<<(
     std::ostream& os,
-    TruncateObjectToPrimitiveOp::InputAssumptions input_assumptions);
+    TruncateJSPrimitiveToUntaggedOp::InputAssumptions input_assumptions);
 
-struct TruncateObjectToPrimitiveOrDeoptOp
-    : FixedArityOperationT<2, TruncateObjectToPrimitiveOrDeoptOp> {
-  enum class Kind : uint8_t {
+struct TruncateJSPrimitiveToUntaggedOrDeoptOp
+    : FixedArityOperationT<2, TruncateJSPrimitiveToUntaggedOrDeoptOp> {
+  enum class UntaggedKind : uint8_t {
     kInt32,
   };
-  using InputRequirement = ConvertObjectToPrimitiveOrDeoptOp::ObjectKind;
-  Kind kind;
+  using InputRequirement =
+      ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind;
+  UntaggedKind kind;
   InputRequirement input_requirement;
   FeedbackSource feedback;
 
   static constexpr OpProperties properties = OpProperties::CanAbort();
   base::Vector<const RegisterRepresentation> outputs_rep() const {
     switch (kind) {
-      case Kind::kInt32:
+      case UntaggedKind::kInt32:
         return RepVector<RegisterRepresentation::Word32()>();
     }
   }
@@ -2952,10 +2921,10 @@ struct TruncateObjectToPrimitiveOrDeoptOp
   OpIndex input() const { return Base::input(0); }
   OpIndex frame_state() const { return Base::input(1); }
 
-  TruncateObjectToPrimitiveOrDeoptOp(OpIndex input, OpIndex frame_state,
-                                     Kind kind,
-                                     InputRequirement input_requirement,
-                                     const FeedbackSource& feedback)
+  TruncateJSPrimitiveToUntaggedOrDeoptOp(OpIndex input, OpIndex frame_state,
+                                         UntaggedKind kind,
+                                         InputRequirement input_requirement,
+                                         const FeedbackSource& feedback)
       : Base(input, frame_state),
         kind(kind),
         input_requirement(input_requirement),
@@ -2967,15 +2936,12 @@ struct TruncateObjectToPrimitiveOrDeoptOp
 
   auto options() const { return std::tuple{kind, input_requirement, feedback}; }
 };
-std::ostream& operator<<(std::ostream& os,
-                         TruncateObjectToPrimitiveOrDeoptOp::Kind kind);
+std::ostream& operator<<(
+    std::ostream& os,
+    TruncateJSPrimitiveToUntaggedOrDeoptOp::UntaggedKind kind);
 
-enum class TagKind {
-  kSmiTag,
-};
-std::ostream& operator<<(std::ostream& os, TagKind kind);
-
-struct ConvertReceiverOp : FixedArityOperationT<2, ConvertReceiverOp> {
+struct ConvertJSPrimitiveToObjectOp
+    : FixedArityOperationT<2, ConvertJSPrimitiveToObjectOp> {
   ConvertReceiverMode mode;
 
   static constexpr OpProperties properties = OpProperties::AnySideEffects();
@@ -2986,8 +2952,8 @@ struct ConvertReceiverOp : FixedArityOperationT<2, ConvertReceiverOp> {
   OpIndex value() const { return Base::input(0); }
   OpIndex global_proxy() const { return Base::input(1); }
 
-  ConvertReceiverOp(OpIndex value, OpIndex global_proxy,
-                    ConvertReceiverMode mode)
+  ConvertJSPrimitiveToObjectOp(OpIndex value, OpIndex global_proxy,
+                               ConvertReceiverMode mode)
       : Base(value, global_proxy), mode(mode) {}
 
   void Validate(const Graph& graph) const {
@@ -2999,9 +2965,7 @@ struct ConvertReceiverOp : FixedArityOperationT<2, ConvertReceiverOp> {
   auto options() const { return std::tuple{mode}; }
 };
 
-struct TagOp : FixedArityOperationT<1, TagOp> {
-  TagKind kind;
-
+struct TagSmiOp : FixedArityOperationT<1, TagSmiOp> {
   static constexpr OpProperties properties = OpProperties::PureNoAllocation();
   base::Vector<const RegisterRepresentation> outputs_rep() const {
     return RepVector<RegisterRepresentation::Tagged()>();
@@ -3009,32 +2973,28 @@ struct TagOp : FixedArityOperationT<1, TagOp> {
 
   OpIndex input() const { return Base::input(0); }
 
-  TagOp(OpIndex input, TagKind kind) : Base(input), kind(kind) {}
+  explicit TagSmiOp(OpIndex input) : Base(input) {}
   void Validate(const Graph& graph) const {
     DCHECK(ValidOpInputRep(graph, input(), RegisterRepresentation::Word32()));
   }
 
-  auto options() const { return std::tuple{kind}; }
+  auto options() const { return std::tuple{}; }
 };
 
-struct UntagOp : FixedArityOperationT<1, UntagOp> {
-  TagKind kind;
-  RegisterRepresentation rep;
-
+struct UntagSmiOp : FixedArityOperationT<1, UntagSmiOp> {
   static constexpr OpProperties properties = OpProperties::PureNoAllocation();
   base::Vector<const RegisterRepresentation> outputs_rep() const {
-    return base::VectorOf(&rep, 1);
+    return RepVector<RegisterRepresentation::Word32()>();
   }
 
   OpIndex input() const { return Base::input(0); }
 
-  UntagOp(OpIndex input, TagKind kind, RegisterRepresentation rep)
-      : Base(input), kind(kind), rep(rep) {}
+  explicit UntagSmiOp(OpIndex input) : Base(input) {}
   void Validate(const Graph& graph) const {
     DCHECK(ValidOpInputRep(graph, input(), RegisterRepresentation::Tagged()));
   }
 
-  auto options() const { return std::tuple{kind, rep}; }
+  auto options() const { return std::tuple{}; }
 };
 
 struct NewConsStringOp : FixedArityOperationT<3, NewConsStringOp> {

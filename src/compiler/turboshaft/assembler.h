@@ -1016,14 +1016,13 @@ class AssemblerOpInterface {
 #undef DECL_SINGLE_REP_UNARY_V
 #undef DECL_MULTI_REP_UNARY
 
-  V<Float64> Float64InsertWord32(ConstOrV<Float64> float64,
-                                 ConstOrV<Word32> word32,
-                                 Float64InsertWord32Op::Kind kind) {
+  V<Float64> BitcastWord32PairToFloat64(ConstOrV<Word32> high_word32,
+                                        ConstOrV<Word32> low_word32) {
     if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
       return OpIndex::Invalid();
     }
-    return stack().ReduceFloat64InsertWord32(resolve(float64), resolve(word32),
-                                             kind);
+    return stack().ReduceBitcastWord32PairToFloat64(resolve(high_word32),
+                                                    resolve(low_word32));
   }
 
   OpIndex TaggedBitcast(OpIndex input, RegisterRepresentation from,
@@ -1096,36 +1095,26 @@ class AssemblerOpInterface {
         Convert(input, ConvertOp::Kind::kString, ConvertOp::Kind::kNumber));
   }
 
-  V<Object> ConvertOrDeopt(V<Object> input, OpIndex frame_state,
-                           ConvertOrDeoptOp::Kind from,
-                           ConvertOrDeoptOp::Kind to,
-                           const FeedbackSource& feedback) {
-    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
-      return OpIndex::Invalid();
-    }
-    return stack().ReduceConvertOrDeopt(input, frame_state, from, to, feedback);
-  }
-
-  V<Object> ConvertPrimitiveToObject(
-      OpIndex input, ConvertPrimitiveToObjectOp::Kind kind,
+  V<Object> ConvertUntaggedToJSPrimitive(
+      OpIndex input, ConvertUntaggedToJSPrimitiveOp::JSPrimitiveKind kind,
       RegisterRepresentation input_rep,
-      ConvertPrimitiveToObjectOp::InputInterpretation input_interpretation,
+      ConvertUntaggedToJSPrimitiveOp::InputInterpretation input_interpretation,
       CheckForMinusZeroMode minus_zero_mode) {
     if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
       return OpIndex::Invalid();
     }
-    return stack().ReduceConvertPrimitiveToObject(
+    return stack().ReduceConvertUntaggedToJSPrimitive(
         input, kind, input_rep, input_interpretation, minus_zero_mode);
   }
-#define CONVERT_PRIMITIVE_TO_OBJECT(name, kind, input_rep, \
-                                    input_interpretation)  \
-  V<kind> name(V<input_rep> input) {                       \
-    return V<kind>::Cast(ConvertPrimitiveToObject(         \
-        input, ConvertPrimitiveToObjectOp::Kind::k##kind,  \
-        RegisterRepresentation::input_rep(),               \
-        ConvertPrimitiveToObjectOp::InputInterpretation::  \
-            k##input_interpretation,                       \
-        CheckForMinusZeroMode::kDontCheckForMinusZero));   \
+#define CONVERT_PRIMITIVE_TO_OBJECT(name, kind, input_rep,               \
+                                    input_interpretation)                \
+  V<kind> name(V<input_rep> input) {                                     \
+    return V<kind>::Cast(ConvertUntaggedToJSPrimitive(                   \
+        input, ConvertUntaggedToJSPrimitiveOp::JSPrimitiveKind::k##kind, \
+        RegisterRepresentation::input_rep(),                             \
+        ConvertUntaggedToJSPrimitiveOp::InputInterpretation::            \
+            k##input_interpretation,                                     \
+        CheckForMinusZeroMode::kDontCheckForMinusZero));                 \
   }
   CONVERT_PRIMITIVE_TO_OBJECT(ConvertInt32ToNumber, Number, Word32, Signed)
   CONVERT_PRIMITIVE_TO_OBJECT(ConvertUint32ToNumber, Number, Word32, Unsigned)
@@ -1133,77 +1122,78 @@ class AssemblerOpInterface {
 #undef CONVERT_PRIMITIVE_TO_OBJECT
   V<Number> ConvertFloat64ToNumber(V<Float64> input,
                                    CheckForMinusZeroMode minus_zero_mode) {
-    return V<Number>::Cast(ConvertPrimitiveToObject(
-        input, ConvertPrimitiveToObjectOp::Kind::kNumber,
+    return V<Number>::Cast(ConvertUntaggedToJSPrimitive(
+        input, ConvertUntaggedToJSPrimitiveOp::JSPrimitiveKind::kNumber,
         RegisterRepresentation::Float64(),
-        ConvertPrimitiveToObjectOp::InputInterpretation::kSigned,
+        ConvertUntaggedToJSPrimitiveOp::InputInterpretation::kSigned,
         minus_zero_mode));
   }
 
-  OpIndex ConvertPrimitiveToObjectOrDeopt(
+  OpIndex ConvertUntaggedToJSPrimitiveOrDeopt(
       OpIndex input, OpIndex frame_state,
-      ConvertPrimitiveToObjectOrDeoptOp::Kind kind,
+      ConvertUntaggedToJSPrimitiveOrDeoptOp::JSPrimitiveKind kind,
       RegisterRepresentation input_rep,
-      ConvertPrimitiveToObjectOrDeoptOp::InputInterpretation
+      ConvertUntaggedToJSPrimitiveOrDeoptOp::InputInterpretation
           input_interpretation,
       const FeedbackSource& feedback) {
     if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
       return OpIndex::Invalid();
     }
-    return stack().ReduceConvertPrimitiveToObjectOrDeopt(
+    return stack().ReduceConvertUntaggedToJSPrimitiveOrDeopt(
         input, frame_state, kind, input_rep, input_interpretation, feedback);
   }
 
-  OpIndex ConvertObjectToPrimitive(
-      V<Object> object, ConvertObjectToPrimitiveOp::Kind kind,
-      ConvertObjectToPrimitiveOp::InputAssumptions input_assumptions) {
+  OpIndex ConvertJSPrimitiveToUntagged(
+      V<Object> object, ConvertJSPrimitiveToUntaggedOp::UntaggedKind kind,
+      ConvertJSPrimitiveToUntaggedOp::InputAssumptions input_assumptions) {
     if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
       return OpIndex::Invalid();
     }
-    return stack().ReduceConvertObjectToPrimitive(object, kind,
-                                                  input_assumptions);
+    return stack().ReduceConvertJSPrimitiveToUntagged(object, kind,
+                                                      input_assumptions);
   }
 
-  OpIndex ConvertObjectToPrimitiveOrDeopt(
+  OpIndex ConvertJSPrimitiveToUntaggedOrDeopt(
       V<Object> object, OpIndex frame_state,
-      ConvertObjectToPrimitiveOrDeoptOp::ObjectKind from_kind,
-      ConvertObjectToPrimitiveOrDeoptOp::PrimitiveKind to_kind,
+      ConvertJSPrimitiveToUntaggedOrDeoptOp::JSPrimitiveKind from_kind,
+      ConvertJSPrimitiveToUntaggedOrDeoptOp::UntaggedKind to_kind,
       CheckForMinusZeroMode minus_zero_mode, const FeedbackSource& feedback) {
     if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
       return OpIndex::Invalid();
     }
-    return stack().ReduceConvertObjectToPrimitiveOrDeopt(
+    return stack().ReduceConvertJSPrimitiveToUntaggedOrDeopt(
         object, frame_state, from_kind, to_kind, minus_zero_mode, feedback);
   }
 
-  OpIndex TruncateObjectToPrimitive(
-      V<Object> object, TruncateObjectToPrimitiveOp::Kind kind,
-      TruncateObjectToPrimitiveOp::InputAssumptions input_assumptions) {
+  OpIndex TruncateJSPrimitiveToUntagged(
+      V<Object> object, TruncateJSPrimitiveToUntaggedOp::UntaggedKind kind,
+      TruncateJSPrimitiveToUntaggedOp::InputAssumptions input_assumptions) {
     if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
       return OpIndex::Invalid();
     }
-    return stack().ReduceTruncateObjectToPrimitive(object, kind,
-                                                   input_assumptions);
+    return stack().ReduceTruncateJSPrimitiveToUntagged(object, kind,
+                                                       input_assumptions);
   }
 
-  OpIndex TruncateObjectToPrimitiveOrDeopt(
+  OpIndex TruncateJSPrimitiveToUntaggedOrDeopt(
       V<Object> object, OpIndex frame_state,
-      TruncateObjectToPrimitiveOrDeoptOp::Kind kind,
-      TruncateObjectToPrimitiveOrDeoptOp::InputRequirement input_requirement,
+      TruncateJSPrimitiveToUntaggedOrDeoptOp::UntaggedKind kind,
+      TruncateJSPrimitiveToUntaggedOrDeoptOp::InputRequirement
+          input_requirement,
       const FeedbackSource& feedback) {
     if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
       return OpIndex::Invalid();
     }
-    return stack().ReduceTruncateObjectToPrimitiveOrDeopt(
+    return stack().ReduceTruncateJSPrimitiveToUntaggedOrDeopt(
         object, frame_state, kind, input_requirement, feedback);
   }
 
-  V<Object> ConvertReceiver(V<Object> value, V<Object> global_proxy,
-                            ConvertReceiverMode mode) {
+  V<Object> ConvertJSPrimitiveToObject(V<Object> value, V<Object> global_proxy,
+                                       ConvertReceiverMode mode) {
     if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
       return OpIndex::Invalid();
     }
-    return stack().ReduceConvertReceiver(value, global_proxy, mode);
+    return stack().ReduceConvertJSPrimitiveToObject(value, global_proxy, mode);
   }
 
   V<Word32> Word32Constant(uint32_t value) {
@@ -1308,7 +1298,7 @@ class AssemblerOpInterface {
         static_cast<uint64_t>(value));
   }
   V<Context> NoContextConstant() {
-    return V<Context>::Cast(SmiTag(Context::kNoContext));
+    return V<Context>::Cast(TagSmi(Context::kNoContext));
   }
   // TODO(nicohartmann@): Might want to get rid of the isolate when supporting
   // Wasm.
@@ -1490,24 +1480,18 @@ class AssemblerOpInterface {
                          minus_zero_mode, feedback);
   }
 
-  OpIndex Tag(OpIndex input, TagKind kind) {
+  V<Smi> TagSmi(ConstOrV<Word32> input) {
     if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
       return OpIndex::Invalid();
     }
-    return stack().ReduceTag(input, kind);
-  }
-  V<Smi> SmiTag(ConstOrV<Word32> input) {
-    return Tag(resolve(input), TagKind::kSmiTag);
+    return stack().ReduceTagSmi(resolve(input));
   }
 
-  OpIndex Untag(OpIndex input, TagKind kind, RegisterRepresentation rep) {
+  V<Word32> UntagSmi(V<Tagged> input) {
     if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
       return OpIndex::Invalid();
     }
-    return stack().ReduceUntag(input, kind, rep);
-  }
-  V<Word32> SmiUntag(V<Tagged> input) {
-    return Untag(input, TagKind::kSmiTag, RegisterRepresentation::Word32());
+    return stack().ReduceUntagSmi(input);
   }
 
   OpIndex Load(OpIndex base, OpIndex index, LoadOp::Kind kind,

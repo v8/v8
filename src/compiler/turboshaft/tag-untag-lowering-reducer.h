@@ -21,8 +21,7 @@ class TagUntagLoweringReducer : public Next {
  public:
   TURBOSHAFT_REDUCER_BOILERPLATE()
 
-  V<Object> REDUCE(Tag)(V<Word32> input, TagKind kind) {
-    DCHECK_EQ(kind, TagKind::kSmiTag);
+  V<Object> REDUCE(TagSmi)(V<Word32> input) {
     // Do shift on 32bit values if Smis are stored in the lower word.
     if constexpr (Is64() && SmiValuesAre31Bits()) {
       return ChangeTaggedInt32ToSmi(__ Word32ShiftLeft(input, kSmiShiftBits));
@@ -32,10 +31,7 @@ class TagUntagLoweringReducer : public Next {
     }
   }
 
-  V<Word32> REDUCE(Untag)(V<Object> input, TagKind kind,
-                          RegisterRepresentation rep) {
-    DCHECK_EQ(kind, TagKind::kSmiTag);
-    DCHECK_EQ(rep, RegisterRepresentation::Word32());
+  V<Word32> REDUCE(UntagSmi)(V<Object> input) {
     if constexpr (Is64() && SmiValuesAre31Bits()) {
       return __ Word32ShiftRightArithmeticShiftOutZeros(V<Word32>::Cast(input),
                                                         kSmiShiftBits);

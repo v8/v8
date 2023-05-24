@@ -216,7 +216,7 @@ class TypeInferenceAnalysis {
         case Opcode::kChange:
         case Opcode::kChangeOrDeopt:
         case Opcode::kTryChange:
-        case Opcode::kFloat64InsertWord32:
+        case Opcode::kBitcastWord32PairToFloat64:
         case Opcode::kTaggedBitcast:
         case Opcode::kSelect:
         case Opcode::kLoad:
@@ -235,16 +235,15 @@ class TypeInferenceAnalysis {
         case Opcode::kFloatIs:
         case Opcode::kObjectIsNumericValue:
         case Opcode::kConvert:
-        case Opcode::kConvertOrDeopt:
-        case Opcode::kConvertPrimitiveToObject:
-        case Opcode::kConvertPrimitiveToObjectOrDeopt:
-        case Opcode::kConvertObjectToPrimitive:
-        case Opcode::kConvertObjectToPrimitiveOrDeopt:
-        case Opcode::kTruncateObjectToPrimitive:
-        case Opcode::kTruncateObjectToPrimitiveOrDeopt:
-        case Opcode::kConvertReceiver:
-        case Opcode::kTag:
-        case Opcode::kUntag:
+        case Opcode::kConvertUntaggedToJSPrimitive:
+        case Opcode::kConvertUntaggedToJSPrimitiveOrDeopt:
+        case Opcode::kConvertJSPrimitiveToUntagged:
+        case Opcode::kConvertJSPrimitiveToUntaggedOrDeopt:
+        case Opcode::kTruncateJSPrimitiveToUntagged:
+        case Opcode::kTruncateJSPrimitiveToUntaggedOrDeopt:
+        case Opcode::kConvertJSPrimitiveToObject:
+        case Opcode::kTagSmi:
+        case Opcode::kUntagSmi:
         case Opcode::kNewConsString:
         case Opcode::kNewArray:
         case Opcode::kDoubleArrayMinMax:
