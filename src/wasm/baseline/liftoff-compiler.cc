@@ -1146,7 +1146,19 @@ class LiftoffCompiler {
       __ emit_i32_cond_jumpi(kGreaterThanEqual, &cont, max_steps.gp(), 0,
                              frozen);
       // Abort.
-      Trap(decoder, kTrapUnreachable);
+      if (trap_too_many_steps_ool_index_ == kInvalidOolIndex) {
+        // Only generate one out of line trap to jump to as for each out of line
+        // trap an out of line debug side table entry is generated which needs a
+        // lot of memory.
+        Label* trap_label = AddOutOfLineTrap(
+            decoder, GetRuntimeStubIdForTrapReason(kTrapUnreachable));
+        trap_too_many_steps_ool_index_ = out_of_line_code_.size() - 1;
+        CHECK_EQ(trap_label,
+                 out_of_line_code_[trap_too_many_steps_ool_index_].label.get());
+      }
+      __ emit_jump(
+          out_of_line_code_[trap_too_many_steps_ool_index_].label.get());
+      __ AssertUnreachable(AbortReason::kUnexpectedReturnFromWasmTrap);
       __ bind(&cont);
     }
   }
@@ -8403,6 +8415,10 @@ class LiftoffCompiler {
   std::vector<uint32_t> encountered_call_instructions_;
 
   int32_t* max_steps_;
+  static constexpr size_t kInvalidOolIndex = std::numeric_limits<size_t>::max();
+  // Index of the out of line trap to jump to if max steps are executed.
+  size_t trap_too_many_steps_ool_index_ = kInvalidOolIndex;
+
   int32_t* nondeterminism_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(LiftoffCompiler);
