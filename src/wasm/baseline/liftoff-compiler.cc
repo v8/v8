@@ -2070,19 +2070,15 @@ class LiftoffCompiler {
                            Label* trap_unrepresentable = nullptr) {
     // Cannot emit native instructions, build C call.
     LiftoffRegister ret = __ GetUnusedRegister(kGpReg, LiftoffRegList{dst});
-    LiftoffRegister tmp =
-        __ GetUnusedRegister(kGpReg, LiftoffRegList{dst, ret});
     LiftoffRegister arg_regs[] = {lhs, rhs};
     LiftoffRegister result_regs[] = {ret, dst};
     auto sig = MakeSig::Returns(kI32).Params(kI64, kI64);
     GenerateCCall(result_regs, &sig, kI64, arg_regs, ext_ref);
     FREEZE_STATE(trapping);
-    __ LoadConstant(tmp, WasmValue(int32_t{0}));
-    __ emit_cond_jump(kEqual, trap_by_zero, kI32, ret.gp(), tmp.gp(), trapping);
+    __ emit_i32_cond_jumpi(kEqual, trap_by_zero, ret.gp(), 0, trapping);
     if (trap_unrepresentable) {
-      __ LoadConstant(tmp, WasmValue(int32_t{-1}));
-      __ emit_cond_jump(kEqual, trap_unrepresentable, kI32, ret.gp(), tmp.gp(),
-                        trapping);
+      __ emit_i32_cond_jumpi(kEqual, trap_unrepresentable, ret.gp(), -1,
+                             trapping);
     }
   }
 
@@ -2436,11 +2432,10 @@ class LiftoffCompiler {
   }
 
   void RefFunc(FullDecoder* decoder, uint32_t function_index, Value* result) {
-    LiftoffRegister func_index_reg = __ GetUnusedRegister(kGpReg, {});
-    __ LoadConstant(func_index_reg, WasmValue(function_index));
-    LiftoffAssembler::VarState func_index_var(kI32, func_index_reg, 0);
-    CallRuntimeStub(WasmCode::kWasmRefFunc, MakeSig::Returns(kRef).Params(kI32),
-                    {func_index_var}, decoder->position());
+    CallRuntimeStub(
+        WasmCode::kWasmRefFunc, MakeSig::Returns(kRef).Params(kI32),
+        {LiftoffAssembler::VarState{kI32, static_cast<int>(function_index), 0}},
+        decoder->position());
     __ PushRegister(kRef, LiftoffRegister(kReturnRegister0));
   }
 
@@ -2725,12 +2720,8 @@ class LiftoffCompiler {
 
   void TableGet(FullDecoder* decoder, const Value&, Value*,
                 const IndexImmediate& imm) {
-    LiftoffRegList pinned;
-
-    LiftoffRegister table_index_reg =
-        pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-    __ LoadConstant(table_index_reg, WasmValue(imm.index));
-    LiftoffAssembler::VarState table_index{kI32, table_index_reg, 0};
+    LiftoffAssembler::VarState table_index{kI32, static_cast<int>(imm.index),
+                                           0};
 
     LiftoffAssembler::VarState index = __ cache_state()->stack_state.back();
 
@@ -2752,12 +2743,8 @@ class LiftoffCompiler {
 
   void TableSet(FullDecoder* decoder, const Value&, const Value&,
                 const IndexImmediate& imm) {
-    LiftoffRegList pinned;
-
-    LiftoffRegister table_index_reg =
-        pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-    __ LoadConstant(table_index_reg, WasmValue(imm.index));
-    LiftoffAssembler::VarState table_index{kI32, table_index_reg, 0};
+    LiftoffAssembler::VarState table_index{kI32, static_cast<int>(imm.index),
+                                           0};
 
     LiftoffAssembler::VarState value = __ cache_state()->stack_state.end()[-1];
     LiftoffAssembler::VarState index = __ cache_state()->stack_state.end()[-2];
@@ -2956,8 +2943,8 @@ class LiftoffCompiler {
 
   // Generate a branch table for input in [min, max).
   // TODO(wasm): Generate a real branch table (like TF TableSwitch).
-  void GenerateBrTable(FullDecoder* decoder, LiftoffRegister tmp,
-                       LiftoffRegister value, uint32_t min, uint32_t max,
+  void GenerateBrTable(FullDecoder* decoder, LiftoffRegister value,
+                       uint32_t min, uint32_t max,
                        BranchTableIterator<ValidationTag>* table_iterator,
                        ZoneMap<uint32_t, MovableLabel>* br_targets,
                        Register tmp1, Register tmp2,
@@ -2972,17 +2959,16 @@ class LiftoffCompiler {
 
     uint32_t split = min + (max - min) / 2;
     Label upper_half;
-    __ LoadConstant(tmp, WasmValue(split));
-    __ emit_cond_jump(kUnsignedGreaterThanEqual, &upper_half, kI32, value.gp(),
-                      tmp.gp(), frozen);
+    __ emit_i32_cond_jumpi(kUnsignedGreaterThanEqual, &upper_half, value.gp(),
+                           split, frozen);
     // Emit br table for lower half:
-    GenerateBrTable(decoder, tmp, value, min, split, table_iterator, br_targets,
+    GenerateBrTable(decoder, value, min, split, table_iterator, br_targets,
                     tmp1, tmp2, frozen);
     __ bind(&upper_half);
     // table_iterator will trigger a DCHECK if we don't stop decoding now.
     if (did_bailout()) return;
     // Emit br table for upper half:
-    GenerateBrTable(decoder, tmp, value, split, max, table_iterator, br_targets,
+    GenerateBrTable(decoder, value, split, max, table_iterator, br_targets,
                     tmp1, tmp2, frozen);
   }
 
@@ -3026,14 +3012,12 @@ class LiftoffCompiler {
     ZoneMap<uint32_t, MovableLabel> br_targets{zone_};
 
     if (imm.table_count > 0) {
-      LiftoffRegister tmp = __ GetUnusedRegister(kGpReg, pinned);
-      __ LoadConstant(tmp, WasmValue(uint32_t{imm.table_count}));
       FREEZE_STATE(frozen);
       Label case_default;
-      __ emit_cond_jump(kUnsignedGreaterThanEqual, &case_default, kI32,
-                        value.gp(), tmp.gp(), frozen);
+      __ emit_i32_cond_jumpi(kUnsignedGreaterThanEqual, &case_default,
+                             value.gp(), imm.table_count, frozen);
 
-      GenerateBrTable(decoder, tmp, value, 0, imm.table_count, &table_iterator,
+      GenerateBrTable(decoder, value, 0, imm.table_count, &table_iterator,
                       &br_targets, tmp1, tmp2, frozen);
 
       __ bind(&case_default);
@@ -5753,15 +5737,11 @@ class LiftoffCompiler {
   void StructNew(FullDecoder* decoder, const StructIndexImmediate& imm,
                  const Value& rtt, bool initial_values_on_stack) {
     LiftoffRegList pinned;
-    LiftoffRegister instance_size =
-        pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-    LiftoffAssembler::VarState instance_size_state(kI32, instance_size, 0);
+    LiftoffAssembler::VarState instance_size_state{
+        kI32, WasmStruct::Size(imm.struct_type), 0};
     LiftoffAssembler::VarState rtt_value =
         __ cache_state()->stack_state.end()[-1];
 
-    __ LoadConstant(
-        instance_size,
-        WasmValue(static_cast<int32_t>(WasmStruct::Size(imm.struct_type))));
     CallRuntimeStub(WasmCode::kWasmAllocateStructWithRtt,
                     MakeSig::Returns(kRef).Params(rtt.type.kind(), kI32),
                     {rtt_value, instance_size_state}, decoder->position());
@@ -5855,13 +5835,11 @@ class LiftoffCompiler {
     int elem_size = value_kind_size(elem_kind);
     // Allocate the array.
     {
-      LiftoffRegister elem_size_reg = __ GetUnusedRegister(kGpReg, {});
       LiftoffAssembler::VarState rtt_var =
           __ cache_state()->stack_state.end()[-1];
       LiftoffAssembler::VarState length_var =
           __ cache_state()->stack_state.end()[-2];
-      __ LoadConstant(elem_size_reg, WasmValue(elem_size));
-      LiftoffAssembler::VarState elem_size_var(kI32, elem_size_reg, 0);
+      LiftoffAssembler::VarState elem_size_var{kI32, elem_size, 0};
       CallRuntimeStub(WasmCode::kWasmAllocateArray_Uninitialized,
                       MakeSig::Returns(kRef).Params(rtt_kind, kI32, kI32),
                       {rtt_var, length_var, elem_size_var},
@@ -6030,18 +6008,9 @@ class LiftoffCompiler {
     int32_t elem_count = length_imm.index;
     // Allocate the array.
     {
-      LiftoffRegList pinned;
-      LiftoffRegister elem_size_reg =
-          pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-
-      __ LoadConstant(elem_size_reg, WasmValue(value_kind_size(elem_kind)));
-      LiftoffAssembler::VarState elem_size_var(kI32, elem_size_reg, 0);
-
-      LiftoffRegister length_reg =
-          pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-      __ LoadConstant(length_reg, WasmValue(elem_count));
-      LiftoffAssembler::VarState length_var(kI32, length_reg, 0);
-
+      LiftoffAssembler::VarState elem_size_var{kI32, value_kind_size(elem_kind),
+                                               0};
+      LiftoffAssembler::VarState length_var{kI32, elem_count, 0};
       LiftoffAssembler::VarState rtt_var =
           __ cache_state()->stack_state.end()[-1];
 
@@ -6078,12 +6047,8 @@ class LiftoffCompiler {
                        const IndexImmediate& segment_imm,
                        const Value& /* offset */, const Value& /* length */,
                        const Value& /* rtt */, Value* /* result */) {
-    LiftoffRegList pinned;
-    LiftoffRegister segment_index_reg =
-        pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-    __ LoadConstant(segment_index_reg,
-                    WasmValue(static_cast<int32_t>(segment_imm.index)));
-    LiftoffAssembler::VarState segment_index_var(kI32, segment_index_reg, 0);
+    LiftoffAssembler::VarState segment_index_var{
+        kI32, static_cast<int>(segment_imm.index), 0};
 
     CallRuntimeStub(WasmCode::kWasmArrayNewSegment,
                     MakeSig::Returns(kRef).Params(kI32, kI32, kI32, kRtt),
@@ -6891,11 +6856,8 @@ class LiftoffCompiler {
 
   void StringNewWtf16(FullDecoder* decoder, const MemoryIndexImmediate& imm,
                       const Value& offset, const Value& size, Value* result) {
-    LiftoffRegList pinned;
-    LiftoffRegister memory_reg =
-        pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-    __ LoadConstant(memory_reg, WasmValue(static_cast<int32_t>(imm.index)));
-    LiftoffAssembler::VarState memory_var(kI32, memory_reg, 0);
+    LiftoffAssembler::VarState memory_var{kI32, static_cast<int32_t>(imm.index),
+                                          0};
 
     CallRuntimeStub(WasmCode::kWasmStringNewWtf16,
                     MakeSig::Returns(kRef).Params(kI32, kI32, kI32),
@@ -6939,17 +6901,11 @@ class LiftoffCompiler {
 
   void StringConst(FullDecoder* decoder, const StringConstImmediate& imm,
                    Value* result) {
-    LiftoffRegList pinned;
-    LiftoffRegister index_reg =
-        pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-    __ LoadConstant(index_reg, WasmValue(static_cast<int32_t>(imm.index)));
-    LiftoffAssembler::VarState index_var(kI32, index_reg, 0);
+    LiftoffAssembler::VarState index_var{kI32, static_cast<int32_t>(imm.index),
+                                         0};
 
     CallRuntimeStub(WasmCode::kWasmStringConst,
-                    MakeSig::Returns(kRef).Params(kI32),
-                    {
-                        index_var,
-                    },
+                    MakeSig::Returns(kRef).Params(kI32), {index_var},
                     decoder->position());
     RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
 
