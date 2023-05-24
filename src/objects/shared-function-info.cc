@@ -571,9 +571,15 @@ void SharedFunctionInfo::InitFromFunctionLiteral(
 
     raw_sfi.UpdateExpectedNofPropertiesFromEstimate(lit);
   }
+  CreateAndSetUncompiledData(isolate, shared_info, lit);
+}
 
+template <typename IsolateT>
+void SharedFunctionInfo::CreateAndSetUncompiledData(
+    IsolateT* isolate, Handle<SharedFunctionInfo> shared_info,
+    FunctionLiteral* lit) {
+  DCHECK(!shared_info->HasUncompiledData());
   Handle<UncompiledData> data;
-
   ProducedPreparseData* scope_data = lit->produced_preparse_data();
   if (scope_data != nullptr) {
     Handle<PreparseData> preparse_data = scope_data->Serialize(isolate);
