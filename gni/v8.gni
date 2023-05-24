@@ -101,11 +101,6 @@ declare_args() {
   # Enable object names in cppgc for debug purposes.
   cppgc_enable_object_names = false
 
-  # Enable heap reservation of size 4GB. Only possible for 64bit archs.
-  cppgc_enable_caged_heap =
-      v8_current_cpu == "x64" || v8_current_cpu == "arm64" ||
-      v8_current_cpu == "loong64" || v8_current_cpu == "riscv64"
-
   # Enable young generation in cppgc.
   cppgc_enable_young_generation = false
 
@@ -196,11 +191,6 @@ assert(v8_enable_turbofan || !v8_enable_webassembly,
 v8_path_prefix = get_path_info("../", "abspath")
 
 v8_inspector_js_protocol = v8_path_prefix + "/include/js_protocol.pdl"
-
-if (cppgc_enable_caged_heap) {
-  # Always enable young generation compile time flag if caged heap is enabled.
-  cppgc_enable_young_generation = true
-}
 
 ###############################################################################
 # Templates
