@@ -129,17 +129,20 @@ class MemoryOptimizationReducer : public Next {
         type == AllocationType::kYoung
             ? ExternalReference::new_space_allocation_top_address(isolate_)
             : ExternalReference::old_space_allocation_top_address(isolate_));
-    Variable top =
-        Asm().NewFreshVariable(RegisterRepresentation::PointerSized());
-    Asm().Set(top, Asm().LoadOffHeap(top_address,
-                                     MemoryRepresentation::PointerSized()));
 
     if (analyzer_->IsFoldedAllocation(Asm().current_operation_origin())) {
-      Asm().StoreOffHeap(top_address, Asm().PointerAdd(Asm().Get(top), size),
+      DCHECK_NE(Asm().Get(top(type)), OpIndex::Invalid());
+      OpIndex obj_addr = Asm().Get(top(type));
+      Asm().Set(top(type), Asm().PointerAdd(Asm().Get(top(type)), size));
+      Asm().StoreOffHeap(top_address, Asm().Get(top(type)),
                          MemoryRepresentation::PointerSized());
-      return Asm().BitcastWordToTagged(Asm().PointerAdd(
-          Asm().Get(top), Asm().IntPtrConstant(kHeapObjectTag)));
+      return Asm().BitcastWordToTagged(
+          Asm().PointerAdd(obj_addr, Asm().IntPtrConstant(kHeapObjectTag)));
     }
+
+    Asm().Set(
+        top(type),
+        Asm().LoadOffHeap(top_address, MemoryRepresentation::PointerSized()));
 
     OpIndex allocate_builtin;
     if (type == AllocationType::kYoung) {
@@ -187,7 +190,7 @@ class MemoryOptimizationReducer : public Next {
     if (reachable) {
       Asm().Branch(
           Asm().UintPtrLessThan(
-              Asm().PointerAdd(Asm().Get(top), reservation_size), limit),
+              Asm().PointerAdd(Asm().Get(top(type)), reservation_size), limit),
           done, call_runtime, BranchHint::kTrue);
     }
 
@@ -195,17 +198,20 @@ class MemoryOptimizationReducer : public Next {
     if (Asm().Bind(call_runtime)) {
       OpIndex allocated = Asm().Call(allocate_builtin, {reservation_size},
                                      AllocateBuiltinDescriptor());
-      Asm().Set(top, Asm().PointerSub(Asm().BitcastTaggedToWord(allocated),
-                                      Asm().IntPtrConstant(kHeapObjectTag)));
+      Asm().Set(top(type),
+                Asm().PointerSub(Asm().BitcastTaggedToWord(allocated),
+                                 Asm().IntPtrConstant(kHeapObjectTag)));
       Asm().Goto(done);
     }
 
     Asm().BindReachable(done);
     // Compute the new top and write it back.
-    Asm().StoreOffHeap(top_address, Asm().PointerAdd(Asm().Get(top), size),
+    OpIndex obj_addr = Asm().Get(top(type));
+    Asm().Set(top(type), Asm().PointerAdd(Asm().Get(top(type)), size));
+    Asm().StoreOffHeap(top_address, Asm().Get(top(type)),
                        MemoryRepresentation::PointerSized());
     return Asm().BitcastWordToTagged(
-        Asm().PointerAdd(Asm().Get(top), Asm().IntPtrConstant(kHeapObjectTag)));
+        Asm().PointerAdd(obj_addr, Asm().IntPtrConstant(kHeapObjectTag)));
   }
 
   OpIndex REDUCE(DecodeExternalPointer)(OpIndex handle,
@@ -248,6 +254,18 @@ class MemoryOptimizationReducer : public Next {
   base::Optional<MemoryAnalyzer> analyzer_;
   Isolate* isolate_ = PipelineData::Get().isolate();
   const TSCallDescriptor* allocate_builtin_descriptor_ = nullptr;
+  base::Optional<Variable> top_[2];
+
+  static_assert(static_cast<int>(AllocationType::kYoung) == 0);
+  static_assert(static_cast<int>(AllocationType::kOld) == 1);
+  Variable top(AllocationType type) {
+    DCHECK(type == AllocationType::kYoung || type == AllocationType::kOld);
+    if (V8_UNLIKELY(!top_[static_cast<int>(type)].has_value())) {
+      top_[static_cast<int>(type)].emplace(
+          Asm().NewFreshVariable(RegisterRepresentation::PointerSized()));
+    }
+    return top_[static_cast<int>(type)].value();
+  }
 
   const TSCallDescriptor* AllocateBuiltinDescriptor() {
     if (allocate_builtin_descriptor_ == nullptr) {
