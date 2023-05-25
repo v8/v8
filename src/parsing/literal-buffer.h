@@ -5,6 +5,7 @@
 #ifndef V8_PARSING_LITERAL_BUFFER_H_
 #define V8_PARSING_LITERAL_BUFFER_H_
 
+#include "include/v8config.h"
 #include "src/base/strings.h"
 #include "src/base/vector.h"
 #include "src/strings/unicode-decoder.h"
@@ -15,8 +16,7 @@ namespace internal {
 // LiteralBuffer -  Collector of chars of literals.
 class LiteralBuffer final {
  public:
-  LiteralBuffer() : backing_store_(), position_(0), is_one_byte_(true) {}
-
+  LiteralBuffer() = default;
   ~LiteralBuffer() { backing_store_.Dispose(); }
 
   LiteralBuffer(const LiteralBuffer&) = delete;
@@ -73,9 +73,9 @@ class LiteralBuffer final {
   Handle<String> Internalize(IsolateT* isolate) const;
 
  private:
-  static const int kInitialCapacity = 16;
-  static const int kGrowthFactor = 4;
-  static const int kMaxGrowth = 1 * MB;
+  static constexpr int kInitialCapacity = 256;
+  static constexpr int kGrowthFactor = 4;
+  static constexpr int kMaxGrowth = 1 * MB;
 
   inline bool IsValidAscii(char code_unit) {
     // Control characters and printable characters span the range of
@@ -94,13 +94,12 @@ class LiteralBuffer final {
 
   void AddTwoByteChar(base::uc32 code_unit);
   int NewCapacity(int min_capacity);
-  void ExpandBuffer();
+  V8_NOINLINE V8_PRESERVE_MOST void ExpandBuffer();
   void ConvertToTwoByte();
 
   base::Vector<byte> backing_store_;
-  int position_;
-
-  bool is_one_byte_;
+  int position_ = 0;
+  bool is_one_byte_ = true;
 };
 
 }  // namespace internal
