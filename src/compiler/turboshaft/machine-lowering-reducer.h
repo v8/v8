@@ -2263,58 +2263,29 @@ class MachineLoweringReducer : public Next {
 
   V<Word32> REDUCE(CompareMaps)(V<HeapObject> heap_object,
                                 const ZoneRefSet<Map>& maps) {
-    Label<Word32> done(this);
-
-    V<Map> heap_object_map = __ LoadMapField(heap_object);
-
-    for (size_t i = 0; i < maps.size(); ++i) {
-      V<Map> map = __ HeapConstant(maps[i].object());
-      GOTO_IF(__ TaggedEqual(heap_object_map, map), done, 1);
-    }
-    GOTO(done, 0);
-
-    BIND(done, result);
-    return result;
+    return CompareMapAgainstMultipleMaps(__ LoadMapField(heap_object), maps);
   }
 
   OpIndex REDUCE(CheckMaps)(V<HeapObject> heap_object, OpIndex frame_state,
                             const ZoneRefSet<Map>& maps, CheckMapsFlags flags,
                             const FeedbackSource& feedback) {
-    Label<> done(this);
-    // If we need to migrate maps, we generate the same chain of map checks
-    // twice, with map migration in between the two. In this case we perform two
-    // runs of the below loop. Otherwise we just generate a single sequence of
-    // checks after which we deopt in case no map matches.
-    enum class Run { kTryMigrate, kDeopt };
-    base::SmallVector<Run, 2> runs;
+    if (maps.is_empty()) {
+      __ Deoptimize(frame_state, DeoptimizeReason::kWrongMap, feedback);
+      return OpIndex::Invalid();
+    }
+
     if (flags & CheckMapsFlag::kTryMigrateInstance) {
-      runs.push_back(Run::kTryMigrate);
-    }
-    runs.push_back(Run::kDeopt);
-
-    for (Run run : runs) {
-      // Load the current map of the {heap_object}.
       V<Map> heap_object_map = __ LoadMapField(heap_object);
-
-      // Perform the map checks.
-      for (size_t i = 0; i < maps.size(); ++i) {
-        V<Map> map = __ HeapConstant(maps[i].object());
-        GOTO_IF(__ TaggedEqual(heap_object_map, map), done);
+      IF_NOT (LIKELY(CompareMapAgainstMultipleMaps(heap_object_map, maps))) {
+        // Reloading the map slightly reduces register pressure, and we are on a
+        // slow path here anyway.
+        MigrateInstanceOrDeopt(heap_object, __ LoadMapField(heap_object),
+                               frame_state, feedback);
       }
-
-      if (run == Run::kTryMigrate) {
-        // If we didn't find a matching map in the `kTryMigrate` run, we migrate
-        // the maps.
-        MigrateInstanceOrDeopt(heap_object, heap_object_map, frame_state,
-                               feedback);
-      } else {
-        DCHECK_EQ(run, Run::kDeopt);
-        // If we didn't find a matching map in the `kDeopt` run, we deoptimize.
-        __ Deoptimize(frame_state, DeoptimizeReason::kWrongMap, feedback);
-      }
+      END_IF
     }
-
-    BIND(done);
+    __ DeoptimizeIfNot(__ CompareMaps(heap_object, maps), frame_state,
+                       DeoptimizeReason::kWrongMap, feedback);
     return OpIndex::Invalid();
   }
 
@@ -3086,6 +3057,24 @@ class MachineLoweringReducer : public Next {
       __ CallRuntime_TransitionElementsKind(isolate_, __ NoContextConstant(),
                                             array, __ HeapConstant(target_map));
     }
+  }
+
+  V<Word32> CompareMapAgainstMultipleMaps(V<Map> heap_object_map,
+                                          const ZoneRefSet<Map>& maps) {
+    if (maps.is_empty()) {
+      return __ Word32Constant(0);
+    }
+    V<Word32> result;
+    for (size_t i = 0; i < maps.size(); ++i) {
+      V<Map> map = __ HeapConstant(maps[i].object());
+      if (i == 0) {
+        result = __ TaggedEqual(heap_object_map, map);
+      } else {
+        result =
+            __ Word32BitwiseOr(result, __ TaggedEqual(heap_object_map, map));
+      }
+    }
+    return result;
   }
 
   Isolate* isolate_ = PipelineData::Get().isolate();
