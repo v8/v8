@@ -2281,11 +2281,14 @@ class MachineLoweringReducer : public Next {
         // slow path here anyway.
         MigrateInstanceOrDeopt(heap_object, __ LoadMapField(heap_object),
                                frame_state, feedback);
+        __ DeoptimizeIfNot(__ CompareMaps(heap_object, maps), frame_state,
+                           DeoptimizeReason::kWrongMap, feedback);
       }
       END_IF
+    } else {
+      __ DeoptimizeIfNot(__ CompareMaps(heap_object, maps), frame_state,
+                         DeoptimizeReason::kWrongMap, feedback);
     }
-    __ DeoptimizeIfNot(__ CompareMaps(heap_object, maps), frame_state,
-                       DeoptimizeReason::kWrongMap, feedback);
     return OpIndex::Invalid();
   }
 
