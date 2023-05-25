@@ -281,6 +281,9 @@ class MaglevAssembler : public MacroAssembler {
   inline void CompareFloat64(DoubleRegister src1, DoubleRegister src2);
 
   inline void CallSelf();
+  inline void CallBuiltin(Builtin builtin);
+  inline void CallRuntime(Runtime::FunctionId fid);
+  inline void CallRuntime(Runtime::FunctionId fid, int num_args);
 
   inline void Jump(Label* target, Label::Distance distance = Label::kFar);
   inline void JumpIf(Condition cond, Label* target,
@@ -364,6 +367,17 @@ class MaglevAssembler : public MacroAssembler {
     return scratch_register_scope_;
   }
 
+#ifdef DEBUG
+  bool allow_allocate() const { return allow_allocate_; }
+  void set_allow_allocate(bool value) { allow_allocate_ = value; }
+
+  bool allow_call() const { return allow_call_; }
+  void set_allow_call(bool value) { allow_call_ = value; }
+
+  bool allow_deferred_call() const { return allow_deferred_call_; }
+  void set_allow_deferred_call(bool value) { allow_deferred_call_ = value; }
+#endif  // DEBUG
+
  private:
   inline constexpr int GetFramePointerOffsetForStackSlot(int index) {
     return StandardFrameConstants::kExpressionsOffset -
@@ -372,6 +386,11 @@ class MaglevAssembler : public MacroAssembler {
 
   MaglevCodeGenState* const code_gen_state_;
   ScratchRegisterScope* scratch_register_scope_ = nullptr;
+#ifdef DEBUG
+  bool allow_allocate_ = false;
+  bool allow_call_ = false;
+  bool allow_deferred_call_ = false;
+#endif  // DEBUG
 };
 
 class SaveRegisterStateForCall {

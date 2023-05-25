@@ -166,15 +166,35 @@ class DeferredCodeInfoImpl final : public DeferredCodeInfo {
     MaglevAssembler::ScratchRegisterScope scratch_scope(masm);
     scratch_scope.SetAvailable(general_temporaries_);
     scratch_scope.SetAvailableDouble(double_temporaries_);
+#ifdef DEBUG
+    masm->set_allow_call(allow_call_);
+    masm->set_allow_deferred_call(allow_call_);
+    masm->set_allow_allocate(allow_allocate_);
+#endif  // DEBUG
     std::apply(function,
                std::tuple_cat(std::make_tuple(masm), std::move(args)));
+#ifdef DEBUG
+    masm->set_allow_call(false);
+    masm->set_allow_deferred_call(false);
+    masm->set_allow_allocate(false);
+#endif  // DEBUG
   }
+
+#ifdef DEBUG
+  void set_allow_call(bool value) { allow_call_ = value; }
+  void set_allow_allocate(bool value) { allow_allocate_ = value; }
+#endif  // DEBUG
 
  private:
   FunctionPointer function;
   Tuple args;
   RegList general_temporaries_;
   DoubleRegList double_temporaries_;
+
+#ifdef DEBUG
+  bool allow_call_ = false;
+  bool allow_allocate_ = false;
+#endif  // DEBUG
 };
 
 }  // namespace detail
@@ -199,6 +219,11 @@ inline Label* MaglevAssembler::MakeDeferredCode(Function&& deferred_code_gen,
           compilation_info(), scratch_scope.Available(),
           scratch_scope.AvailableDouble(), deferred_code_gen,
           std::forward<Args>(args)...);
+
+#ifdef DEBUG
+  deferred_code->set_allow_call(allow_deferred_call_);
+  deferred_code->set_allow_allocate(allow_allocate_);
+#endif  // DEBUG
 
   code_gen_state()->PushDeferredCode(deferred_code);
   return &deferred_code->deferred_code_label;
@@ -280,6 +305,24 @@ inline void MaglevAssembler::LoadTaggedSignedField(Register result,
                                                    Register object,
                                                    int offset) {
   MacroAssembler::LoadTaggedField(result, FieldMemOperand(object, offset));
+}
+
+inline void MaglevAssembler::CallBuiltin(Builtin builtin) {
+  // Special case allowing calls to DoubleToI, which takes care to preserve all
+  // registers and therefore doesn't require special spill handling.
+  DCHECK(allow_call() || builtin == Builtin::kDoubleToI);
+  MacroAssembler::CallBuiltin(builtin);
+}
+
+inline void MaglevAssembler::CallRuntime(Runtime::FunctionId fid) {
+  DCHECK(allow_call());
+  MacroAssembler::CallRuntime(fid);
+}
+
+inline void MaglevAssembler::CallRuntime(Runtime::FunctionId fid,
+                                         int num_args) {
+  DCHECK(allow_call());
+  MacroAssembler::CallRuntime(fid, num_args);
 }
 
 }  // namespace maglev
