@@ -3624,6 +3624,7 @@ class LiftoffCompiler {
       DebugSideTableBuilder::AssumeSpilling assume_spilling) {
     auto& stack_state = __ cache_state()->stack_state;
 
+#ifdef DEBUG
     // For value types, we use the cached {stack_value_types_for_debugging_}
     // vector (gathered in {NextInstruction}). This still includes call
     // arguments, which Liftoff has already popped at this point. Hence the size
@@ -3631,24 +3632,13 @@ class LiftoffCompiler {
     // that and use the lower part only.
     size_t expected_value_stack_size =
         stack_state.size() - num_exceptions_ - __ num_locals();
-
-    // WasmGC sometimes pushes a value on the stack before performing the actual
-    // operation, e.g. the rtt for array.new and friends.
-    // TODO(clemensb): Fix this.
-    size_t num_gc_stack_values_to_ignore = 0;
-    if (*decoder->pc() == kGCPrefix &&
-        expected_value_stack_size > stack_value_types_for_debugging_.size()) {
-      num_gc_stack_values_to_ignore =
-          expected_value_stack_size - stack_value_types_for_debugging_.size();
-    }
-
     DCHECK_LE(expected_value_stack_size,
-              stack_value_types_for_debugging_.size() +
-                  num_gc_stack_values_to_ignore);
+              stack_value_types_for_debugging_.size());
+#endif
 
     auto values =
         base::OwnedVector<DebugSideTable::Entry::Value>::NewForOverwrite(
-            stack_state.size() - num_gc_stack_values_to_ignore);
+            stack_state.size());
 
     int index = 0;
     ValueType* stack_value_type_ptr = stack_value_types_for_debugging_.begin();
@@ -3660,8 +3650,7 @@ class LiftoffCompiler {
       int end_index = next_control
                           ? next_control->stack_depth + __ num_locals() +
                                 next_control->num_exceptions
-                          : __ cache_state()->stack_height() -
-                                static_cast<int>(num_gc_stack_values_to_ignore);
+                          : __ cache_state()->stack_height();
       bool exception_on_stack =
           control->is_try_catch() || control->is_try_catchall();
       for (; index < end_index; ++index) {
@@ -3701,9 +3690,9 @@ class LiftoffCompiler {
       }
     }
     DCHECK_EQ(values.size(), index);
-    DCHECK_EQ(stack_value_types_for_debugging_.data() +
-                  expected_value_stack_size - num_gc_stack_values_to_ignore,
-              stack_value_type_ptr);
+    DCHECK_EQ(
+        stack_value_types_for_debugging_.data() + expected_value_stack_size,
+        stack_value_type_ptr);
     return values;
   }
 
