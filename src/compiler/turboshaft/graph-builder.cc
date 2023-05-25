@@ -2027,11 +2027,13 @@ OpIndex GraphBuilder::Process(
     case IrOpcode::kCheckFloat64Hole: {
       DCHECK(dominating_frame_state.valid());
       V<Float64> value = Map(node->InputAt(0));
-      __ DeoptimizeIf(__ FloatIs(value, NumericKind::kFloat64Hole,
-                                 FloatRepresentation::Float64()),
-                      dominating_frame_state, DeoptimizeReason::kHole,
-                      CheckFloat64HoleParametersOf(node->op()).feedback());
-      return value;
+      // TODO(tebbi): If we did partial block cloning, we could emit a
+      // `DeoptimizeIf` operation here. Alternatively, we could use a branch and
+      // a separate block with an unconditional `Deoptimize`.
+      return __ ChangeOrDeopt(
+          value, dominating_frame_state, ChangeOrDeoptOp::Kind::kFloat64NotHole,
+          CheckForMinusZeroMode::kDontCheckForMinusZero,
+          CheckFloat64HoleParametersOf(node->op()).feedback());
     }
 
     case IrOpcode::kCheckNotTaggedHole: {

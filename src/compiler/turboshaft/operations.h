@@ -1166,12 +1166,13 @@ struct ChangeOrDeoptOp : FixedArityOperationT<2, ChangeOrDeoptOp> {
     kUint64ToInt64,
     kFloat64ToInt32,
     kFloat64ToInt64,
+    kFloat64NotHole,
   };
   Kind kind;
   CheckForMinusZeroMode minus_zero_mode;
   FeedbackSource feedback;
 
-  static constexpr OpProperties properties = OpProperties::PureNoAllocation();
+  static constexpr OpProperties properties = OpProperties::CanAbort();
   base::Vector<const RegisterRepresentation> outputs_rep() const {
     switch (kind) {
       case Kind::kUint32ToInt32:
@@ -1182,6 +1183,8 @@ struct ChangeOrDeoptOp : FixedArityOperationT<2, ChangeOrDeoptOp> {
       case Kind::kUint64ToInt64:
       case Kind::kFloat64ToInt64:
         return RepVector<RegisterRepresentation::Word64()>();
+      case Kind::kFloat64NotHole:
+        return RepVector<RegisterRepresentation::Float64()>();
     }
   }
 
@@ -1210,6 +1213,7 @@ struct ChangeOrDeoptOp : FixedArityOperationT<2, ChangeOrDeoptOp> {
         break;
       case Kind::kFloat64ToInt32:
       case Kind::kFloat64ToInt64:
+      case Kind::kFloat64NotHole:
         DCHECK(
             ValidOpInputRep(graph, input(), RegisterRepresentation::Float64()));
         break;

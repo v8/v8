@@ -130,6 +130,18 @@ class MachineLoweringReducer : public Next {
 
         return i64;
       }
+      case ChangeOrDeoptOp::Kind::kFloat64NotHole: {
+        // First check whether {value} is a NaN at all...
+        IF_NOT (LIKELY(__ Float64Equal(input, input))) {
+          // ...and only if {value} is a NaN, perform the expensive bit
+          // check. See http://crbug.com/v8/8264 for details.
+          __ DeoptimizeIf(__ Word32Equal(__ Float64ExtractHighWord32(input),
+                                         kHoleNanUpper32),
+                          frame_state, DeoptimizeReason::kHole, feedback);
+        }
+        END_IF
+        return input;
+      }
     }
     UNREACHABLE();
   }
