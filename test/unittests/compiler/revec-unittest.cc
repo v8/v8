@@ -157,7 +157,11 @@ void RevecTest::TestBinOp(const Operator* bin_op) {
   V(I8x16MaxS, I8x32MaxS)  \
   V(I32x4MaxU, I32x8MaxU)  \
   V(I16x8MaxU, I16x16MaxU) \
-  V(I8x16MaxU, I8x32MaxU)
+  V(I8x16MaxU, I8x32MaxU)  \
+  V(F64x2Min, F64x4Min)    \
+  V(F64x2Max, F64x4Max)    \
+  V(F32x4Min, F32x8Min)    \
+  V(F32x4Max, F32x8Max)
 
 #define TEST_BIN_OP(op128, op256) \
   TEST_F(RevecTest, op256) { TestBinOp(machine()->op128()); }

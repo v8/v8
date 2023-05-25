@@ -494,7 +494,24 @@ PackNode* SLPTree::BuildTree(const ZoneVector<Node*>& roots) {
   V(I16x8Neg, I16x16Neg)   \
   V(I8x16Neg, I8x32Neg)    \
   V(F64x2Sqrt, F64x4Sqrt)  \
-  V(F32x4Sqrt, F32x8Sqrt)
+  V(F32x4Sqrt, F32x8Sqrt)  \
+  V(F64x2Min, F64x4Min)    \
+  V(F32x4Min, F32x8Min)    \
+  V(F64x2Max, F64x4Max)    \
+  V(F32x4Max, F32x8Max)    \
+  V(I64x2Ne, I64x4Ne)      \
+  V(I32x4Ne, I32x8Ne)      \
+  V(I16x8Ne, I16x16Ne)     \
+  V(I8x16Ne, I8x32Ne)      \
+  V(I32x4GtU, I32x8GtU)    \
+  V(I16x8GtU, I16x16GtU)   \
+  V(I8x16GtU, I8x32GtU)    \
+  V(I32x4GeS, I32x8GeS)    \
+  V(I16x8GeS, I16x16GeS)   \
+  V(I8x16GeS, I8x32GeS)    \
+  V(I32x4GeU, I32x8GeU)    \
+  V(I16x8GeU, I16x16GeU)   \
+  V(I8x16GeU, I8x32GeU)
 
 #define SIMD_SHIFT_OP(V)   \
   V(I64x2Shl, I64x4Shl)    \

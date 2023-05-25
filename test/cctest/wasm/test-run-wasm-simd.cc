@@ -636,6 +636,12 @@ WASM_EXEC_TEST(I64x2Ne) {
   RunI64x2BinOpTest(execution_tier, kExprI64x2Ne, NotEqual);
 }
 
+#ifdef V8_ENABLE_WASM_SIMD256_REVEC
+TEST(RunWasmTurbofan_I64x4Ne) {
+  RunI64x4BinOpRevecTest(kExprI64x2Ne, NotEqual);
+}
+#endif
+
 WASM_EXEC_TEST(I64x2LtS) {
   RunI64x2BinOpTest(execution_tier, kExprI64x2LtS, Less);
 }
@@ -1700,6 +1706,24 @@ WASM_EXEC_TEST(I32x4GeU) {
   RunI32x4BinOpTest(execution_tier, kExprI32x4GeU, UnsignedGreaterEqual);
 }
 
+#ifdef V8_ENABLE_WASM_SIMD256_REVEC
+TEST(RunWasmTurbofan_I32x8Ne) {
+  RunI32x8BinOpRevecTest(kExprI32x4Ne, NotEqual);
+}
+
+TEST(RunWasmTurbofan_I32x8GtU) {
+  RunI32x8BinOpRevecTest<uint32_t>(kExprI32x4GtU, UnsignedGreater);
+}
+
+TEST(RunWasmTurbofan_I32x8GeS) {
+  RunI32x8BinOpRevecTest(kExprI32x4GeS, GreaterEqual);
+}
+
+TEST(RunWasmTurbofan_I32x8GeU) {
+  RunI32x8BinOpRevecTest<uint32_t>(kExprI32x4GeU, UnsignedGreaterEqual);
+}
+#endif
+
 WASM_EXEC_TEST(I32x4EqZero) {
   RunICompareOpConstImmTest<int32_t>(execution_tier, kExprI32x4Eq,
                                      kExprI32x4Splat, Equal);
@@ -1932,6 +1956,22 @@ WASM_EXEC_TEST(I16x8LtU) {
 WASM_EXEC_TEST(I16x8LeU) {
   RunI16x8BinOpTest(execution_tier, kExprI16x8LeU, UnsignedLessEqual);
 }
+
+#ifdef V8_ENABLE_WASM_SIMD256_REVEC
+TEST(WasmTurbofan_I16x16Ne) { RunI16x16BinOpRevecTest(kExprI16x8Ne, NotEqual); }
+
+TEST(WasmTurbofan_I16x16GtU) {
+  RunI16x16BinOpRevecTest<uint16_t>(kExprI16x8GtU, UnsignedGreater);
+}
+
+TEST(WasmTurbofan_I16x16GeS) {
+  RunI16x16BinOpRevecTest(kExprI16x8GeS, GreaterEqual);
+}
+
+TEST(WasmTurbofan_I16x16GeU) {
+  RunI16x16BinOpRevecTest<uint16_t>(kExprI16x8GeU, UnsignedGreaterEqual);
+}
+#endif
 
 WASM_EXEC_TEST(I16x8EqZero) {
   RunICompareOpConstImmTest<int16_t>(execution_tier, kExprI16x8Eq,
@@ -2357,6 +2397,24 @@ WASM_EXEC_TEST(I8x16LtU) {
 WASM_EXEC_TEST(I8x16LeU) {
   RunI8x16BinOpTest(execution_tier, kExprI8x16LeU, UnsignedLessEqual);
 }
+
+#ifdef V8_ENABLE_WASM_SIMD256_REVEC
+TEST(RunWasmTurbofan_I8x32Ne) {
+  RunI8x32BinOpRevecTest(kExprI8x16Ne, NotEqual);
+}
+
+TEST(RunWasmTurbofan_I8x32GtU) {
+  RunI8x32BinOpRevecTest<uint8_t>(kExprI8x16GtU, UnsignedGreater);
+}
+
+TEST(RunWasmTurbofan_I8x32GeS) {
+  RunI8x32BinOpRevecTest(kExprI8x16GeS, GreaterEqual);
+}
+
+TEST(RunWasmTurbofan_I8x32GeU) {
+  RunI8x32BinOpRevecTest<uint8_t>(kExprI8x16GeU, UnsignedGreaterEqual);
+}
+#endif
 
 WASM_EXEC_TEST(I8x16EqZero) {
   RunICompareOpConstImmTest<int8_t>(execution_tier, kExprI8x16Eq,
