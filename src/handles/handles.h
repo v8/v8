@@ -258,7 +258,8 @@ class V8_NODISCARD HandleScope {
                                    Address* prev_limit);
 
   // Extend the handle scope making room for more handles.
-  V8_EXPORT_PRIVATE V8_NOINLINE static Address* Extend(Isolate* isolate);
+  V8_EXPORT_PRIVATE V8_NOINLINE V8_PRESERVE_MOST static Address* Extend(
+      Isolate* isolate);
 
 #ifdef ENABLE_HANDLE_ZAPPING
   // Zaps the handles in the half-open interval [start, end).
