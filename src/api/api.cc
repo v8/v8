@@ -10277,6 +10277,7 @@ int Isolate::ContextDisposedNotification(bool dependant_context) {
     }
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
+  i_isolate->AbortConcurrentOptimization(i::BlockingBehavior::kDontBlock);
   // TODO(ahaas): move other non-heap activity out of the heap call.
   return i_isolate->heap()->NotifyContextDisposed(dependant_context);
 }
