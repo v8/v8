@@ -2711,4 +2711,40 @@
       },
     ],
   },
+  # Try perf bots
+  'v8_android_arm_perf_try': {
+    'tests': [
+      {
+        'name': 'perf_integration',
+      },
+    ],
+  },
+  'v8_android_arm64_perf_try': {
+    'tests': [
+      {
+        'name': 'perf_integration',
+      },
+    ],
+  },
+  'v8_linux_perf_try': {
+    'tests': [
+      {
+        'name': 'perf_integration',
+      },
+    ],
+  },
+  'v8_linux64_perf_try': {
+    'tests': [
+      {
+        'name': 'perf_integration',
+      },
+    ],
+  },
+  'v8_mac_arm64_perf_try': {
+    'tests': [
+      {
+        'name': 'perf_integration',
+      },
+    ],
+  },
 }
