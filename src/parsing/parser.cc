@@ -858,8 +858,7 @@ void Parser::ParseFunction(Isolate* isolate, ParseInfo* info,
   // If the function is a class member initializer and there isn't a
   // scope mismatch, we will only deserialize up to the outer scope of
   // the class scope, and regenerate the class scope during reparsing.
-  if (flags().function_kind() ==
-          FunctionKind::kClassMembersInitializerFunction &&
+  if (IsClassMembersInitializerFunction(flags().function_kind()) &&
       shared_info->HasOuterScopeInfo() &&
       maybe_outer_scope_info.ToHandleChecked()->scope_type() == CLASS_SCOPE &&
       maybe_outer_scope_info.ToHandleChecked()->StartPosition() ==
@@ -1078,20 +1077,21 @@ FunctionLiteral* Parser::DoParseDeserializedFunction(
     Isolate* isolate, MaybeHandle<ScopeInfo> maybe_outer_scope_info,
     ParseInfo* info, int start_position, int end_position,
     int function_literal_id, const AstRawString* raw_name) {
-  if (flags().function_kind() ==
-      FunctionKind::kClassMembersInitializerFunction) {
-    return ParseClassForInstanceMemberInitialization(
-        isolate, maybe_outer_scope_info, start_position, function_literal_id,
-        end_position);
+  FunctionKind function_kind = flags().function_kind();
+  if (IsClassMembersInitializerFunction(function_kind)) {
+    return ParseClassForMemberInitialization(isolate, maybe_outer_scope_info,
+                                             function_kind, start_position,
+                                             function_literal_id, end_position);
   }
 
   return DoParseFunction(isolate, info, start_position, end_position,
                          function_literal_id, raw_name);
 }
 
-FunctionLiteral* Parser::ParseClassForInstanceMemberInitialization(
+FunctionLiteral* Parser::ParseClassForMemberInitialization(
     Isolate* isolate, MaybeHandle<ScopeInfo> maybe_class_scope_info,
-    int initializer_pos, int initializer_id, int initializer_end_pos) {
+    FunctionKind initalizer_kind, int initializer_pos, int initializer_id,
+    int initializer_end_pos) {
   // When the function is a kClassMembersInitializerFunction, we record the
   // source range of the entire class as its positions in its SFI, so at this
   // point the scanner should be rewound to the position of the class token.
@@ -1117,9 +1117,12 @@ FunctionLiteral* Parser::ParseClassForInstanceMemberInitialization(
   if (has_error()) return nullptr;
 
   DCHECK(expr->IsClassLiteral());
+  DCHECK(IsClassMembersInitializerFunction(initalizer_kind));
   ClassLiteral* literal = expr->AsClassLiteral();
   FunctionLiteral* initializer =
-      literal->instance_members_initializer_function();
+      initalizer_kind == FunctionKind::kClassMembersInitializerFunction
+          ? literal->instance_members_initializer_function()
+          : literal->static_initializer();
 
   // Reindex so that the function literal ids match.
   AstFunctionLiteralIdReindexer reindexer(
@@ -1142,8 +1145,7 @@ FunctionLiteral* Parser::ParseClassForInstanceMemberInitialization(
                                              needs_allocation_fixup);
   original_scope_ = reparsed_scope;
 
-  DCHECK_EQ(initializer->kind(),
-            FunctionKind::kClassMembersInitializerFunction);
+  DCHECK_EQ(initializer->kind(), initalizer_kind);
   DCHECK_EQ(initializer->function_literal_id(), initializer_id);
   DCHECK_EQ(initializer->end_position(), initializer_end_pos);
 

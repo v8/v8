@@ -1785,6 +1785,12 @@ DEFINE_INT(switch_table_spread_threshold, 3,
 DEFINE_INT(switch_table_min_cases, 6,
            "the number of Smi integer cases present in the switch statement "
            "before using the jump table optimization")
+// Note that enabling this stress mode might result in a failure to compile
+// even a top-level code.
+DEFINE_INT(stress_lazy_compilation, 0,
+           "stress lazy compilation by simulating stack overflow during "
+           "unoptimized bytecode generation with 1/n-th probability, "
+           "do nothing on 0")
 
 // codegen-ia32.cc / codegen-arm.cc
 DEFINE_BOOL(trace, false, "trace javascript function calls")

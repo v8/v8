@@ -1460,6 +1460,13 @@ bool NeedsContextInitialization(DeclarationScope* scope) {
 
 void BytecodeGenerator::GenerateBytecode(uintptr_t stack_limit) {
   InitializeAstVisitor(stack_limit);
+  if (v8_flags.stress_lazy_compilation) {
+    // Trigger stack overflow with 1/stress_lazy_compilation probability.
+    // TODO(ishell): introduce a mutex guarding access to the fuzzer_rng and
+    // enable the code below.
+    // stack_overflow_ = local_isolate_->fuzzer_rng()->NextInt(
+    //                       v8_flags.stress_lazy_compilation) == 0;
+  }
 
   // Initialize the incoming context.
   ContextScope incoming_context(this, closure_scope());
