@@ -4738,25 +4738,22 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       }
       case kExprI31New: {
         Value input = Pop(kWasmI32);
-        Value value = CreateValue(ValueType::Ref(HeapType::kI31));
-        CALL_INTERFACE_IF_OK_AND_REACHABLE(I31New, input, &value);
-        Push(value);
+        Value* value = Push(ValueType::Ref(HeapType::kI31));
+        CALL_INTERFACE_IF_OK_AND_REACHABLE(I31New, input, value);
         return opcode_length;
       }
       case kExprI31GetS: {
         NON_CONST_ONLY
         Value i31 = Pop(kWasmI31Ref);
-        Value value = CreateValue(kWasmI32);
-        CALL_INTERFACE_IF_OK_AND_REACHABLE(I31GetS, i31, &value);
-        Push(value);
+        Value* value = Push(kWasmI32);
+        CALL_INTERFACE_IF_OK_AND_REACHABLE(I31GetS, i31, value);
         return opcode_length;
       }
       case kExprI31GetU: {
         NON_CONST_ONLY
         Value i31 = Pop(kWasmI31Ref);
-        Value value = CreateValue(kWasmI32);
-        CALL_INTERFACE_IF_OK_AND_REACHABLE(I31GetU, i31, &value);
-        Push(value);
+        Value* value = Push(kWasmI32);
+        CALL_INTERFACE_IF_OK_AND_REACHABLE(I31GetU, i31, value);
         return opcode_length;
       }
       case kExprRefCast:
@@ -4881,7 +4878,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         if (!this->ValidateType(this->pc_ + opcode_length, imm)) return 0;
         opcode_length += imm.length;
         Value obj = Pop();
-        Value value = CreateValue(kWasmI32);
+        Value* value = Push(kWasmI32);
         if (!VALIDATE(IsSubtypeOf(obj.type, kWasmFuncRef, this->module_) ||
                       IsSubtypeOf(obj.type, kWasmStructRef, this->module_) ||
                       IsSubtypeOf(obj.type, kWasmArrayRef, this->module_) ||
@@ -4899,20 +4896,19 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
             if (obj.type.is_nullable()) {
               // We abuse ref.as_non_null, which isn't otherwise used as a unary
               // operator, as a sentinel for the negation of ref.is_null.
-              CALL_INTERFACE(UnOp, kExprRefAsNonNull, obj, &value);
+              CALL_INTERFACE(UnOp, kExprRefAsNonNull, obj, value);
             } else {
               CALL_INTERFACE(Drop);
-              CALL_INTERFACE(I32Const, &value, 1);
+              CALL_INTERFACE(I32Const, value, 1);
             }
           } else if (V8_UNLIKELY(TypeCheckAlwaysFails(obj, imm.index))) {
             CALL_INTERFACE(Drop);
-            CALL_INTERFACE(I32Const, &value, 0);
+            CALL_INTERFACE(I32Const, value, 0);
           } else {
-            CALL_INTERFACE(RefTest, imm.index, obj, &value,
+            CALL_INTERFACE(RefTest, imm.index, obj, value,
                            /*null_succeeds*/ false);
           }
         }
-        Push(value);
         return opcode_length;
       }
       case kExprRefCastNop: {
@@ -5498,8 +5494,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       // type is non-nullable.
       DCHECK(!source_type.is_bottom());
       Drop(obj);
-      Push(CreateValue(flags.res_is_null ? source_type.AsNonNull()
-                                         : source_type));
+      Push(flags.res_is_null ? source_type.AsNonNull() : source_type);
       CALL_INTERFACE_IF_OK_AND_REACHABLE(Forward, obj, stack_value(1));
     } else if (null_succeeds) {
       // TODO(mliedtke): This is only needed for the legacy br_on_cast_fail.
@@ -5508,7 +5503,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       // If null is treated as a successful cast, then the branch type is
       // guaranteed to be non-null.
       Drop(obj);
-      Push(CreateValue(obj.type.AsNonNull()));
+      Push(obj.type.AsNonNull());
       CALL_INTERFACE_IF_OK_AND_REACHABLE(Forward, obj, stack_value(1));
     }
     if (!VALIDATE(TypeCheckBranch<true>(c))) return 0;
@@ -5572,11 +5567,10 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     ValueType addr_type =
         this->module_->memories[0].is_memory64 ? kWasmI64 : kWasmI32;
     auto [offset, size] = Pop(addr_type, kWasmI32);
-    Value result = CreateValue(ValueType::RefMaybeNull(
+    Value* result = Push(ValueType::RefMaybeNull(
         HeapType::kString, null_on_invalid ? kNullable : kNonNullable));
     CALL_INTERFACE_IF_OK_AND_REACHABLE(StringNewWtf8, memory, variant, offset,
-                                       size, &result);
-    Push(result);
+                                       size, result);
     return opcode_length + memory.length;
   }
 
@@ -5852,10 +5846,9 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       case kExprStringViewIterSlice: {
         NON_CONST_ONLY
         auto [view, codepoints] = Pop(kWasmStringViewIter, kWasmI32);
-        Value result = CreateValue(ValueType::Ref(HeapType::kString));
+        Value* result = Push(ValueType::Ref(HeapType::kString));
         CALL_INTERFACE_IF_OK_AND_REACHABLE(StringViewIterSlice, view,
-                                           codepoints, &result);
-        Push(result);
+                                           codepoints, result);
         return opcode_length;
       }
       case kExprStringNewUtf8Array:
