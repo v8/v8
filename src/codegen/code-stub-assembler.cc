@@ -1750,8 +1750,6 @@ TNode<RawPtrT> CodeStubAssembler::LoadExternalPointerFromObject(
   // constant value (Uint32Constant uses cached nodes).
   TNode<Uint32T> index =
       Word32Shr(handle, UniqueUint32Constant(kExternalPointerIndexShift));
-  // TODO(v8:10391): consider updating ElementOffsetFromIndex to generate code
-  // that does one shift right instead of two shifts (right and then left).
   TNode<IntPtrT> table_offset = ElementOffsetFromIndex(
       ChangeUint32ToWord(index), SYSTEM_POINTER_ELEMENTS, 0);
 
@@ -1783,8 +1781,6 @@ void CodeStubAssembler::StoreExternalPointerToObject(TNode<HeapObject> object,
   // constant value (Uint32Constant uses cached nodes).
   TNode<Uint32T> index =
       Word32Shr(handle, UniqueUint32Constant(kExternalPointerIndexShift));
-  // TODO(v8:10391): consider updating ElementOffsetFromIndex to generate code
-  // that does one shift right instead of two shifts (right and then left).
   TNode<IntPtrT> table_offset = ElementOffsetFromIndex(
       ChangeUint32ToWord(index), SYSTEM_POINTER_ELEMENTS, 0);
 

@@ -3447,18 +3447,15 @@ void MacroAssembler::LoadExternalPointerField(Register destination,
     DCHECK(root_array_available_);
     isolate_root = kRootRegister;
   }
-    Ldr(external_table,
-        MemOperand(isolate_root,
-                   IsolateData::external_pointer_table_offset() +
-                       Internals::kExternalPointerTableBufferOffset));
-    Ldr(destination.W(), field_operand);
-    // MemOperand doesn't support LSR currently (only LSL), so here we do the
-    // offset computation separately first.
-    static_assert(kExternalPointerIndexShift > kSystemPointerSizeLog2);
-    int shift_amount = kExternalPointerIndexShift - kSystemPointerSizeLog2;
-    Mov(destination, Operand(destination, LSR, shift_amount));
-    Ldr(destination, MemOperand(external_table, destination));
-    And(destination, destination, Immediate(~tag));
+  Ldr(external_table,
+      MemOperand(isolate_root,
+                 IsolateData::external_pointer_table_offset() +
+                     Internals::kExternalPointerTableBufferOffset));
+  Ldr(destination.W(), field_operand);
+  Mov(destination, Operand(destination, LSR, kExternalPointerIndexShift));
+  Ldr(destination, MemOperand(external_table, destination, LSL,
+                              kExternalPointerTableEntrySizeLog2));
+  And(destination, destination, Immediate(~tag));
 #else
   Ldr(destination, field_operand);
 #endif  // V8_ENABLE_SANDBOX

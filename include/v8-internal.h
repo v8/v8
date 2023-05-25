@@ -258,8 +258,10 @@ static const uint32_t kExternalPointerIndexShift = 5;
 #endif  // V8_TARGET_OS_ANDROID
 
 // The maximum number of entries in an external pointer table.
+static const int kExternalPointerTableEntrySize = 8;
+static const int kExternalPointerTableEntrySizeLog2 = 3;
 static const size_t kMaxExternalPointers =
-    kExternalPointerTableReservationSize / kApiSystemPointerSize;
+    kExternalPointerTableReservationSize / kExternalPointerTableEntrySize;
 static_assert((1 << (32 - kExternalPointerIndexShift)) == kMaxExternalPointers,
               "kExternalPointerTableReservationSize and "
               "kExternalPointerIndexShift don't match");

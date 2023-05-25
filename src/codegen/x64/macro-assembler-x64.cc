@@ -456,11 +456,12 @@ void MacroAssembler::LoadExternalPointerField(
          Operand(scratch, IsolateData::external_pointer_table_offset() +
                               Internals::kExternalPointerTableBufferOffset));
   }
-    movl(destination, field_operand);
-    shrq(destination, Immediate(kExternalPointerIndexShift));
-    movq(destination, Operand(scratch, destination, times_8, 0));
-    movq(scratch, Immediate64(~tag));
-    andq(destination, scratch);
+  movl(destination, field_operand);
+  shrq(destination, Immediate(kExternalPointerIndexShift));
+  static_assert(kExternalPointerTableEntrySize == 8);
+  movq(destination, Operand(scratch, destination, times_8, 0));
+  movq(scratch, Immediate64(~tag));
+  andq(destination, scratch);
 #else
   movq(destination, field_operand);
 #endif  // V8_ENABLE_SANDBOX

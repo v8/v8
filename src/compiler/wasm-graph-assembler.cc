@@ -174,16 +174,15 @@ Node* WasmGraphAssembler::InitializeImmutableInObject(ObjectAccess access,
 }
 
 Node* WasmGraphAssembler::BuildLoadExternalPointerFromObject(
-    Node* object, int offset, ExternalPointerTag tag, Node* isolate_root) {
+    Node* object, int field_offset, ExternalPointerTag tag,
+    Node* isolate_root) {
 #ifdef V8_ENABLE_SANDBOX
   DCHECK_NE(tag, kExternalPointerNullTag);
-  Node* external_pointer = LoadFromObject(MachineType::Uint32(), object,
-                                          wasm::ObjectAccess::ToTagged(offset));
-  static_assert(kExternalPointerIndexShift > kSystemPointerSizeLog2);
-  Node* shift_amount =
-      Int32Constant(kExternalPointerIndexShift - kSystemPointerSizeLog2);
-  Node* scaled_index =
-      ChangeUint32ToUint64(Word32Shr(external_pointer, shift_amount));
+  Node* handle = LoadFromObject(MachineType::Uint32(), object,
+                                wasm::ObjectAccess::ToTagged(field_offset));
+  Node* index = Word32Shr(handle, Int32Constant(kExternalPointerIndexShift));
+  Node* offset = ChangeUint32ToUint64(
+      Word32Shl(index, Int32Constant(kExternalPointerTableEntrySizeLog2)));
   Node* table;
   if (IsSharedExternalPointerType(tag)) {
     Node* table_address =
@@ -196,11 +195,11 @@ Node* WasmGraphAssembler::BuildLoadExternalPointerFromObject(
                  IsolateData::external_pointer_table_offset() +
                      Internals::kExternalPointerTableBufferOffset);
   }
-  Node* decoded_ptr = Load(MachineType::Pointer(), table, scaled_index);
+  Node* decoded_ptr = Load(MachineType::Pointer(), table, offset);
   return WordAnd(decoded_ptr, IntPtrConstant(~tag));
 #else
   return LoadFromObject(MachineType::Pointer(), object,
-                        wasm::ObjectAccess::ToTagged(offset));
+                        wasm::ObjectAccess::ToTagged(field_offset));
 #endif  // V8_ENABLE_SANDBOX
 }
 
