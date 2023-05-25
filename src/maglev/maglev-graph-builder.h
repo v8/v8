@@ -1791,7 +1791,12 @@ class MaglevGraphBuilder {
   template <Operation kOperation>
   void VisitBinarySmiOperation();
 
-  base::Optional<int> TryFindNextBranch();
+  base::Optional<int> TryFindNextBranch(int* inline_level);
+  template <typename BranchControlNodeT, typename... Args>
+  void BuildFusedBranch(int branch_offset, int inline_level,
+                        BasicBlock* current_block, bool init_flip,
+                        std::initializer_list<ValueNode*> control_inputs,
+                        Args&&... args);
   template <typename BranchControlNodeT, bool init_flip = false,
             typename... Args>
   bool TryBuildBranchFor(std::initializer_list<ValueNode*> control_inputs,
@@ -1956,6 +1961,10 @@ class MaglevGraphBuilder {
 
   bool in_peeled_iteration_ = false;
   bool allow_loop_peeling_;
+
+  // True if a test in an inlined function is fused into a branch in the caller.
+  bool terminated_with_fused_branch_ = false;
+
   // When processing the peeled iteration of a loop, we need to reset the
   // decremented predecessor counts inside of the loop before processing the
   // body again. For this, we record offsets where we decremented the

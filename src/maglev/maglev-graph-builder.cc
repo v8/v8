@@ -1660,7 +1660,7 @@ void MaglevGraphBuilder::VisitBinarySmiOperation() {
   BuildGenericBinarySmiOperationNode<kOperation>();
 }
 
-base::Optional<int> MaglevGraphBuilder::TryFindNextBranch() {
+base::Optional<int> MaglevGraphBuilder::TryFindNextBranch(int* inline_level) {
   DisallowGarbageCollection no_gc;
   // Copy the iterator so we can search for the next branch without changing
   // current iterator state.
@@ -1696,6 +1696,11 @@ base::Optional<int> MaglevGraphBuilder::TryFindNextBranch() {
         if (store_reg.is_parameter() ||
             GetOutLivenessFor(it.current_offset())
                 ->RegisterIsLive(store_reg.index())) {
+          if (v8_flags.trace_maglev_graph_building) {
+            std::cout << "  ! Bailing out of test->branch fusion because "
+                         "accumulator stored to live register"
+                      << std::endl;
+          }
           return {};
         }
         continue;
@@ -1710,10 +1715,41 @@ base::Optional<int> MaglevGraphBuilder::TryFindNextBranch() {
           if (store_reg.is_parameter() ||
               GetOutLivenessFor(it.current_offset())
                   ->RegisterIsLive(store_reg.index())) {
+            if (v8_flags.trace_maglev_graph_building) {
+              std::cout << "  ! Bailing out of test->branch fusion because "
+                           "accumulator stored to live register"
+                        << std::endl;
+            }
             return {};
           }
           continue;
         }
+
+      case interpreter::Bytecode::kReturn:
+        if (!is_inline()) {
+          if (v8_flags.trace_maglev_graph_building) {
+            std::cout << "  ! Bailing out of test->branch fusion because no "
+                         "branch found"
+                      << std::endl;
+          }
+          return {};
+        }
+        // Check that the return is the last bytecode in the inlined function,
+        // without any other returns. Otherwise we would skip a required merge
+        // point.
+        if (it.next_bytecode() != interpreter::Bytecode::kIllegal ||
+            IsOffsetAMergePoint(inline_exit_offset())) {
+          if (v8_flags.trace_maglev_graph_building) {
+            std::cout
+                << "  ! Bailing out of test->branch fusion because returning "
+                   "from inlined function with merge points"
+                << std::endl;
+          }
+          return {};
+        }
+        DCHECK_NOT_NULL(parent_);
+        (*inline_level)++;
+        return parent_->TryFindNextBranch(inline_level);
 
       case interpreter::Bytecode::kJumpIfFalse:
       case interpreter::Bytecode::kJumpIfFalseConstant:
@@ -1726,6 +1762,11 @@ base::Optional<int> MaglevGraphBuilder::TryFindNextBranch() {
         return {it.current_offset()};
 
       default:
+        if (v8_flags.trace_maglev_graph_building) {
+          std::cout << "  ! Bailing out of test->branch fusion because of "
+                       "unsupported bytecode: "
+                    << it.current_bytecode() << std::endl;
+        }
         return {};
     }
   }
@@ -1733,29 +1774,20 @@ base::Optional<int> MaglevGraphBuilder::TryFindNextBranch() {
   return {};
 }
 
-template <typename BranchControlNodeT, bool init_flip, typename... Args>
-bool MaglevGraphBuilder::TryBuildBranchFor(
-    std::initializer_list<ValueNode*> control_inputs, Args&&... args) {
-  base::Optional<int> maybe_next_branch_offset = TryFindNextBranch();
-
-  // If we didn't find a branch, bail out.
-  if (!maybe_next_branch_offset) {
-    return false;
-  }
-
-  int next_branch_offset = *maybe_next_branch_offset;
-
-  if (v8_flags.trace_maglev_graph_building) {
-    std::cout << "  * Fusing test @" << iterator_.current_offset()
-              << " and branch @" << next_branch_offset << std::endl;
-  }
+template <typename BranchControlNodeT, typename... Args>
+void MaglevGraphBuilder::BuildFusedBranch(
+    int branch_offset, int inline_level, BasicBlock* current_block,
+    bool init_flip, std::initializer_list<ValueNode*> control_inputs,
+    Args&&... args) {
+  DisallowGarbageCollection no_gc;
   // Advance past the test.
   iterator_.Advance();
 
   // Evaluate Movs and LogicalNots between test and jump.
   bool flip = init_flip;
   for (;; iterator_.Advance()) {
-    DCHECK_LE(iterator_.current_offset(), next_branch_offset);
+    DCHECK_IMPLIES(inline_level == 0,
+                   iterator_.current_offset() <= branch_offset);
     UpdateSourceAndBytecodePosition(iterator_.current_offset());
     switch (iterator_.current_bytecode()) {
       case interpreter::Bytecode::kMov: {
@@ -1783,9 +1815,18 @@ bool MaglevGraphBuilder::TryBuildBranchFor(
         // already known to be dead.
         continue;
 
+      case interpreter::Bytecode::kReturn: {
+        DCHECK_GT(inline_level, 0);
+        terminated_with_fused_branch_ = true;
+        parent_->BuildFusedBranch<BranchControlNodeT>(
+            branch_offset, inline_level - 1, current_block, flip,
+            control_inputs, std::forward<Args>(args)...);
+        return;
+      }
       default:
         // Otherwise, we've reached the jump, so abort the iteration.
-        DCHECK_EQ(iterator_.current_offset(), next_branch_offset);
+        DCHECK_EQ(inline_level, 0);
+        DCHECK_EQ(iterator_.current_offset(), branch_offset);
         break;
     }
     break;
@@ -1818,17 +1859,49 @@ bool MaglevGraphBuilder::TryBuildBranchFor(
     false_offset = next_offset();
   }
 
+  // If we are fusing out of an inlined function the caller doesn't have an
+  // open block. Inherit the block from the inlined function.
+  if (current_block_ == nullptr) {
+    DCHECK_NOT_NULL(current_block);
+    current_block_ = current_block;
+  }
   BasicBlock* block = FinishBlock<BranchControlNodeT>(
       control_inputs, std::forward<Args>(args)..., &jump_targets_[true_offset],
       &jump_targets_[false_offset]);
 
   SetAccumulatorInBranch(GetBooleanConstant((jump_type == kJumpIfTrue) ^ flip));
-
   MergeIntoFrameState(block, iterator_.GetJumpTargetOffset());
-
   SetAccumulatorInBranch(
       GetBooleanConstant((jump_type == kJumpIfFalse) ^ flip));
   StartFallthroughBlock(next_offset(), block);
+}
+
+template <typename BranchControlNodeT, bool init_flip, typename... Args>
+bool MaglevGraphBuilder::TryBuildBranchFor(
+    std::initializer_list<ValueNode*> control_inputs, Args&&... args) {
+  int inline_level = 0;
+  base::Optional<int> maybe_next_branch_offset =
+      TryFindNextBranch(&inline_level);
+
+  // If we didn't find a branch, bail out.
+  if (!maybe_next_branch_offset) {
+    return false;
+  }
+
+  int next_branch_offset = *maybe_next_branch_offset;
+
+  if (v8_flags.trace_maglev_graph_building) {
+    std::cout << "  * Fusing test @" << iterator_.current_offset()
+              << " and branch @" << next_branch_offset;
+    if (inline_level > 0) {
+      std::cout << " (in caller " << inline_level << " level(s) out)";
+    }
+    std::cout << std::endl;
+  }
+
+  BuildFusedBranch<BranchControlNodeT>(
+      next_branch_offset, inline_level, current_block_, init_flip,
+      control_inputs, std::forward<Args>(args)...);
   return true;
 }
 
@@ -5037,6 +5110,14 @@ ReduceResult MaglevGraphBuilder::BuildInlined(ValueNode* context,
   // Build the inlined function body.
   BuildBody();
 
+  if (terminated_with_fused_branch_) {
+    // If we fused a test in the inlined function with a branch in the caller,
+    // the basic blocks are already wired correctly and there is no merge point
+    // to handle.
+    DCHECK_NULL(merge_states_[inline_exit_offset()]);
+    return ReduceResult::Done();
+  }
+
   // All returns in the inlined body jump to a merge point one past the
   // bytecode length (i.e. at offset bytecode.length()). Create a block at
   // this fake offset and have it jump out of the inlined function, into a new
@@ -5192,12 +5273,35 @@ ReduceResult MaglevGraphBuilder::TryBuildInlinedCall(
     MarkBytecodeDead();
     return ReduceResult::DoneWithAbort();
   }
-  DCHECK(result.IsDoneWithValue());
 
   // Propagate KnownNodeAspects back to the caller.
   current_interpreter_frame_.set_known_node_aspects(
       inner_graph_builder.current_interpreter_frame_.known_node_aspects());
 
+  if (result.IsDoneWithoutValue()) {
+    DCHECK(inner_graph_builder.terminated_with_fused_branch_);
+    // If we terminated inlining with a fused branch, we are skipping the
+    // creation of a new block.
+    // There are 3 possible states:
+    //   1) There is already a valid `current_block_` created by the fused
+    //   branch fallthrough.
+    //   2) The next offset is a merge point, in which case a new block will be
+    //   created for the next bytecode automatically in `VisitSingleBytecode()`.
+    //   3) The test condition was inlined into the current function and fused
+    //   into a branch in a parent of the current function. That means that we
+    //   fully processed the current function.
+    DCHECK(
+        /* (1) */ current_block_ != nullptr ||
+        /* (2) */
+        (iterator_.next_bytecode() != interpreter::Bytecode::kIllegal &&
+         IsOffsetAMergePoint(iterator_.next_offset())) ||
+        /* (3) */
+        (iterator_.current_bytecode() == interpreter::Bytecode::kReturn &&
+         iterator_.next_bytecode() == interpreter::Bytecode::kIllegal));
+    return result;
+  }
+
+  DCHECK(result.IsDoneWithValue());
   // Create a new block at our current offset, and resume execution. Do this
   // manually to avoid trying to resolve any merges to this offset, which will
   // have already been processed on entry to this visitor.
