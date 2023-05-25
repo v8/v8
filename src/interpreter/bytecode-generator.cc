@@ -1460,12 +1460,13 @@ bool NeedsContextInitialization(DeclarationScope* scope) {
 
 void BytecodeGenerator::GenerateBytecode(uintptr_t stack_limit) {
   InitializeAstVisitor(stack_limit);
-  if (v8_flags.stress_lazy_compilation) {
+  if (v8_flags.stress_lazy_compilation && local_isolate_->is_main_thread()) {
     // Trigger stack overflow with 1/stress_lazy_compilation probability.
-    // TODO(ishell): introduce a mutex guarding access to the fuzzer_rng and
-    // enable the code below.
-    // stack_overflow_ = local_isolate_->fuzzer_rng()->NextInt(
-    //                       v8_flags.stress_lazy_compilation) == 0;
+    // Do this only for the main thread compilations because querying random
+    // numbers from background threads will make the random values dependent
+    // on the thread scheduling and thus non-deterministic.
+    stack_overflow_ = local_isolate_->fuzzer_rng()->NextInt(
+                          v8_flags.stress_lazy_compilation) == 0;
   }
 
   // Initialize the incoming context.
