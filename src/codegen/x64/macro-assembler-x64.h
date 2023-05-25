@@ -836,6 +836,7 @@ class V8_EXPORT_PRIVATE MacroAssembler
   }
 
   void TestCodeIsMarkedForDeoptimization(Register code);
+  void TestCodeIsTurbofanned(Register code);
   Immediate ClearedValue() const;
 
   // Tiering support.
@@ -900,8 +901,9 @@ class V8_EXPORT_PRIVATE MacroAssembler
   // Falls through and sets scratch_and_result to 0 on failure, jumps to
   // on_result on success.
   void TryLoadOptimizedOsrCode(Register scratch_and_result,
-                               Register feedback_vector, FeedbackSlot slot,
-                               Label* on_result, Label::Distance distance);
+                               CodeKind min_opt_level, Register feedback_vector,
+                               FeedbackSlot slot, Label* on_result,
+                               Label::Distance distance);
 
   // ---------------------------------------------------------------------------
   // Runtime calls

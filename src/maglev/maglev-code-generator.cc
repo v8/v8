@@ -703,6 +703,11 @@ class MaglevCodeGeneratingNodeProcessor {
     // these fields between graph and code_gen_state.
     code_gen_state()->set_untagged_slots(graph->untagged_stack_slots());
     code_gen_state()->set_tagged_slots(graph->tagged_stack_slots());
+    if (graph->is_osr() &&
+        graph->min_maglev_stackslots_for_unoptimized_frame_size() >=
+            static_cast<uint32_t>(code_gen_state()->stack_slots())) {
+      code_gen_state()->set_needs_no_stack_check();
+    }
     code_gen_state()->set_max_deopted_stack_size(
         graph->max_deopted_stack_size());
     code_gen_state()->set_max_call_stack_args_(graph->max_call_stack_args());
@@ -1496,13 +1501,10 @@ void MaglevCodeGenerator::EmitCode() {
                 MaglevCodeGeneratingNodeProcessor{masm()});
   RecordInlinedFunctions();
 
-  if (code_gen_state_.compilation_info()->is_osr()) {
-    // Do we really want to have this offset or should we set it to 0?
+  if (graph_->is_osr()) {
     masm_.Abort(AbortReason::kShouldNotDirectlyEnterOsrFunction);
     masm_.RecordComment("-- OSR entrpoint --");
-    masm_.bind(code_gen_state_.osr_entry());
-    // TODO(v8:7700): Implement compilation with OSR offset.
-    masm_.Abort(AbortReason::kMaglevOsrTodo);
+    masm_.BindJumpTarget(code_gen_state_.osr_entry());
   }
 
   processor.ProcessGraph(graph_);
@@ -1651,6 +1653,7 @@ MaybeHandle<Code> MaglevCodeGenerator::BuildCodeObject(Isolate* isolate) {
   return Factory::CodeBuilder{isolate, desc, CodeKind::MAGLEV}
       .set_stack_slots(stack_slot_count_with_fixed_frame())
       .set_deoptimization_data(GenerateDeoptimizationData(isolate))
+      .set_osr_offset(code_gen_state_.compilation_info()->toplevel_osr_offset())
       .TryBuild();
 }
 
@@ -1719,8 +1722,9 @@ Handle<DeoptimizationData> MaglevCodeGenerator::GenerateDeoptimizationData(
   raw_data.SetInliningPositions(*inlining_positions);
 
   auto info = code_gen_state_.compilation_info();
-  raw_data.SetOsrBytecodeOffset(Smi::FromInt(info->osr_offset().ToInt()));
-  if (info->is_osr()) {
+  raw_data.SetOsrBytecodeOffset(
+      Smi::FromInt(info->toplevel_osr_offset().ToInt()));
+  if (graph_->is_osr()) {
     raw_data.SetOsrPcOffset(Smi::FromInt(code_gen_state_.osr_entry()->pos()));
   } else {
     raw_data.SetOsrPcOffset(Smi::FromInt(-1));

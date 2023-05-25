@@ -4,6 +4,7 @@
 
 #include "src/objects/js-function.h"
 
+#include "src/base/optional.h"
 #include "src/baseline/baseline-batch-compiler.h"
 #include "src/codegen/compiler.h"
 #include "src/common/globals.h"
@@ -229,9 +230,10 @@ void JSFunction::MarkForOptimization(Isolate* isolate, CodeKind target_kind,
   set_tiering_state(TieringStateFor(target_kind, mode));
 }
 
-void JSFunction::SetInterruptBudget(Isolate* isolate, bool deoptimize) {
+void JSFunction::SetInterruptBudget(
+    Isolate* isolate, base::Optional<CodeKind> override_active_tier) {
   raw_feedback_cell().set_interrupt_budget(
-      TieringManager::InterruptBudgetFor(isolate, *this, deoptimize));
+      TieringManager::InterruptBudgetFor(isolate, *this, override_active_tier));
 }
 
 // static

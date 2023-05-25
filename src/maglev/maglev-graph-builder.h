@@ -226,7 +226,7 @@ class MaglevGraphBuilder {
   explicit MaglevGraphBuilder(
       LocalIsolate* local_isolate, MaglevCompilationUnit* compilation_unit,
       Graph* graph, float call_frequency = 1.0f,
-      BytecodeOffset bytecode_offset = BytecodeOffset::None(),
+      BytecodeOffset caller_bytecode_offset = BytecodeOffset::None(),
       MaglevGraphBuilder* parent = nullptr);
 
   void Build() {
@@ -264,8 +264,7 @@ class MaglevGraphBuilder {
 
   void StartPrologue();
   void SetArgument(int i, ValueNode* value);
-  void InitializeRegister(interpreter::Register reg,
-                          ValueNode* value = nullptr);
+  void InitializeRegister(interpreter::Register reg, ValueNode* value);
   ValueNode* GetTaggedArgument(int i);
   void BuildRegisterFrameInitialization(ValueNode* context = nullptr,
                                         ValueNode* closure = nullptr);
@@ -274,7 +273,15 @@ class MaglevGraphBuilder {
   void PeelLoop();
 
   void BuildBody() {
-    for (iterator_.Reset(); !iterator_.done(); iterator_.Advance()) {
+    while (!source_position_iterator_.done() &&
+           source_position_iterator_.code_offset() < entrypoint_) {
+      source_position_iterator_.Advance();
+    }
+
+    // TODO(olivf) We might want to start collecting known_node_aspects_ for
+    // the whole bytecode array instead of starting at entrypoint_.
+    for (iterator_.SetOffset(entrypoint_); !iterator_.done();
+         iterator_.Advance()) {
       local_isolate_->heap()->Safepoint();
       if (V8_UNLIKELY(
               loop_headers_to_peel_.Contains(iterator_.current_offset()))) {
@@ -362,6 +369,12 @@ class MaglevGraphBuilder {
   }
 
  private:
+  // TODO(olivf): Currently identifying dead code relies on the fact that loops
+  // must be entered through the loop header by at least one of the
+  // predecessors. We might want to re-evaluate this in case we want to be able
+  // to OSR into nested loops while compiling the full continuation.
+  static constexpr bool kLoopsMustBeEnteredThroughHeader = true;
+
   class CallSpeculationScope;
   class LazyDeoptFrameScope;
 
@@ -437,6 +450,7 @@ class MaglevGraphBuilder {
     BasicBlockRef* old_jump_targets = jump_targets_[offset].Reset();
     while (old_jump_targets != nullptr) {
       BasicBlock* predecessor = merge_state.predecessor_at(predecessor_index);
+      CHECK(predecessor);
       ControlNode* control = predecessor->control_node();
       if (control->Is<ConditionalControlNode>()) {
         // CreateEmptyBlock automatically registers itself with the offset.
@@ -568,6 +582,14 @@ class MaglevGraphBuilder {
           return;
         }
         ProcessMergePointAtExceptionHandlerStart(offset);
+      } else if (merge_state->is_loop() && !merge_state->is_resumable_loop() &&
+                 merge_state->is_unreachable_loop()) {
+        // We encoutered a loop header that is only reachable by the JumpLoop
+        // back-edge, but the bytecode_analysis didn't notice upfront. This can
+        // e.g. be a loop that is entered on a dead fall-through.
+        static_assert(kLoopsMustBeEnteredThroughHeader);
+        MarkBytecodeDead();
+        return;
       } else {
         ProcessMergePoint(offset);
       }
@@ -631,6 +653,14 @@ class MaglevGraphBuilder {
     // Clear new nodes for the next VisitFoo
     new_nodes_.clear();
 #endif
+
+    if (iterator_.current_bytecode() == interpreter::Bytecode::kJumpLoop &&
+        iterator_.GetJumpTargetOffset() < entrypoint_) {
+      static_assert(kLoopsMustBeEnteredThroughHeader);
+      EmitUnconditionalDeopt(DeoptimizeReason::kOSREarlyExit);
+      return;
+    }
+
     switch (iterator_.current_bytecode()) {
 #define BYTECODE_CASE(name, ...)       \
   case interpreter::Bytecode::k##name: \
@@ -1792,13 +1822,15 @@ class MaglevGraphBuilder {
     // after the last bytecode.
     size_t array_length = bytecode().length() + 1;
     predecessors_ = zone()->NewArray<uint32_t>(array_length);
-    MemsetUint32(predecessors_, 1, array_length);
+    MemsetUint32(predecessors_, 0, entrypoint_);
+    MemsetUint32(predecessors_ + entrypoint_, 1, array_length - entrypoint_);
 
     // We count jumps from peeled loops to outside of the loop twice.
     bool is_loop_peeling_iteration = false;
     base::Optional<int> peeled_loop_end;
     interpreter::BytecodeArrayIterator iterator(bytecode().object());
-    for (; !iterator.done(); iterator.Advance()) {
+    for (iterator.SetOffset(entrypoint_); !iterator.done();
+         iterator.Advance()) {
       interpreter::Bytecode bytecode = iterator.current_bytecode();
       if (allow_loop_peeling_ &&
           bytecode_analysis().IsLoopHeader(iterator.current_offset())) {
@@ -1821,7 +1853,17 @@ class MaglevGraphBuilder {
           is_loop_peeling_iteration = false;
           peeled_loop_end = {};
         }
-        predecessors_[iterator.GetJumpTargetOffset()]++;
+        if (iterator.GetJumpTargetOffset() < entrypoint_) {
+          static_assert(kLoopsMustBeEnteredThroughHeader);
+          if (predecessors_[iterator.GetJumpTargetOffset()] == 1) {
+            // We encoutered a JumpLoop whose loop header is not reachable
+            // otherwise. This loop is either dead or the JumpLoop will bail
+            // with DeoptimizeReason::kOSREarlyExit.
+            predecessors_[iterator.GetJumpTargetOffset()] = 0;
+          }
+        } else {
+          predecessors_[iterator.GetJumpTargetOffset()]++;
+        }
         if (is_loop_peeling_iteration &&
             iterator.GetJumpTargetOffset() >= *peeled_loop_end) {
           // Jumps from within the peeled loop to outside need to be counted
@@ -1946,6 +1988,9 @@ class MaglevGraphBuilder {
   // base::Vector<ValueNode*>* inlined_arguments_ = nullptr;
   base::Optional<base::Vector<ValueNode*>> inlined_arguments_;
   BytecodeOffset caller_bytecode_offset_;
+
+  // Bytecode offset at which compilation should start.
+  int entrypoint_;
 
   LazyDeoptFrameScope* current_lazy_deopt_scope_ = nullptr;
 
