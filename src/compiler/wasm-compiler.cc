@@ -5426,8 +5426,9 @@ void WasmGraphBuilder::ArrayInitSegment(const wasm::ArrayType* type,
 }
 
 Node* WasmGraphBuilder::RttCanon(uint32_t type_index) {
-  return graph()->NewNode(gasm_->simplified()->RttCanon(type_index),
-                          GetInstance());
+  Node* rtt = graph()->NewNode(gasm_->simplified()->RttCanon(type_index),
+                               GetInstance());
+  return SetType(rtt, wasm::ValueType::Rtt(type_index));
 }
 
 WasmGraphBuilder::Callbacks WasmGraphBuilder::TestCallbacks(

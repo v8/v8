@@ -416,29 +416,29 @@ class InitExprInterface {
 
   // The following operations assume non-rtt versions of the instructions.
   void StructNew(FullDecoder* decoder, const StructIndexImmediate& imm,
-                 const Value& rtt, const Value args[], Value* result) {
+                 const Value args[], Value* result) {
     os_ << "kGCPrefix, kExprStructNew, " << index(imm.index);
   }
 
   void StructNewDefault(FullDecoder* decoder, const StructIndexImmediate& imm,
-                        const Value& rtt, Value* result) {
+                        Value* result) {
     os_ << "kGCPrefix, kExprStructNewDefault, " << index(imm.index);
   }
 
   void ArrayNew(FullDecoder* decoder, const ArrayIndexImmediate& imm,
                 const Value& length, const Value& initial_value,
-                const Value& rtt, Value* result) {
+                Value* result) {
     os_ << "kGCPrefix, kExprArrayNew, " << index(imm.index);
   }
 
   void ArrayNewDefault(FullDecoder* decoder, const ArrayIndexImmediate& imm,
-                       const Value& length, const Value& rtt, Value* result) {
+                       const Value& length, Value* result) {
     os_ << "kGCPrefix, kExprArrayNewDefault, " << index(imm.index);
   }
 
   void ArrayNewFixed(FullDecoder* decoder, const ArrayIndexImmediate& array_imm,
                      const IndexImmediate& length_imm, const Value elements[],
-                     const Value& rtt, Value* result) {
+                     Value* result) {
     os_ << "kGCPrefix, kExprArrayNewFixed, " << index(array_imm.index)
         << index(length_imm.index);
   }
@@ -447,7 +447,7 @@ class InitExprInterface {
                        const ArrayIndexImmediate& array_imm,
                        const IndexImmediate& data_segment_imm,
                        const Value& offset_value, const Value& length_value,
-                       const Value& rtt, Value* result) {
+                       Value* result) {
     // TODO(7748): Implement.
     UNIMPLEMENTED();
   }

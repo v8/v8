@@ -5735,21 +5735,18 @@ class LiftoffCompiler {
   }
 
   void StructNew(FullDecoder* decoder, const StructIndexImmediate& imm,
-                 const Value& rtt, bool initial_values_on_stack) {
-    LiftoffRegList pinned;
-    LiftoffAssembler::VarState instance_size_state{
-        kI32, WasmStruct::Size(imm.struct_type), 0};
-    LiftoffAssembler::VarState rtt_value =
-        __ cache_state()->stack_state.end()[-1];
+                 bool initial_values_on_stack) {
+    LiftoffRegister rtt = RttCanon(imm.index, {});
 
     CallRuntimeStub(WasmCode::kWasmAllocateStructWithRtt,
-                    MakeSig::Returns(kRef).Params(rtt.type.kind(), kI32),
-                    {rtt_value, instance_size_state}, decoder->position());
-    // Drop the RTT.
-    __ cache_state()->stack_state.pop_back(1);
+                    MakeSig::Returns(kRef).Params(kRtt, kI32),
+                    {LiftoffAssembler::VarState{kRtt, rtt, 0},
+                     LiftoffAssembler::VarState{
+                         kI32, WasmStruct::Size(imm.struct_type), 0}},
+                    decoder->position());
 
     LiftoffRegister obj(kReturnRegister0);
-    pinned.set(obj);
+    LiftoffRegList pinned{obj};
 
     for (uint32_t i = imm.struct_type->field_count(); i > 0;) {
       i--;
@@ -5781,13 +5778,13 @@ class LiftoffCompiler {
   }
 
   void StructNew(FullDecoder* decoder, const StructIndexImmediate& imm,
-                 const Value& rtt, const Value args[], Value* result) {
-    StructNew(decoder, imm, rtt, true);
+                 const Value args[], Value* result) {
+    StructNew(decoder, imm, true);
   }
 
   void StructNewDefault(FullDecoder* decoder, const StructIndexImmediate& imm,
-                        const Value& rtt, Value* result) {
-    StructNew(decoder, imm, rtt, false);
+                        Value* result) {
+    StructNew(decoder, imm, false);
   }
 
   void StructGet(FullDecoder* decoder, const Value& struct_obj,
@@ -5819,11 +5816,11 @@ class LiftoffCompiler {
   }
 
   void ArrayNew(FullDecoder* decoder, const ArrayIndexImmediate& imm,
-                ValueKind rtt_kind, bool initial_value_on_stack) {
+                bool initial_value_on_stack) {
     // Max length check.
     {
       LiftoffRegister length =
-          __ LoadToRegister(__ cache_state()->stack_state.end()[-2], {});
+          __ LoadToRegister(__ cache_state()->stack_state.end()[-1], {});
       Label* trap_label =
           AddOutOfLineTrap(decoder, WasmCode::kThrowWasmTrapArrayTooLarge);
       FREEZE_STATE(trapping);
@@ -5835,17 +5832,13 @@ class LiftoffCompiler {
     int elem_size = value_kind_size(elem_kind);
     // Allocate the array.
     {
-      LiftoffAssembler::VarState rtt_var =
-          __ cache_state()->stack_state.end()[-1];
-      LiftoffAssembler::VarState length_var =
-          __ cache_state()->stack_state.end()[-2];
-      LiftoffAssembler::VarState elem_size_var{kI32, elem_size, 0};
+      LiftoffRegister rtt = RttCanon(imm.index, {});
       CallRuntimeStub(WasmCode::kWasmAllocateArray_Uninitialized,
-                      MakeSig::Returns(kRef).Params(rtt_kind, kI32, kI32),
-                      {rtt_var, length_var, elem_size_var},
+                      MakeSig::Returns(kRef).Params(kRtt, kI32, kI32),
+                      {LiftoffAssembler::VarState{kRtt, rtt, 0},
+                       __ cache_state()->stack_state.end()[-1],  // length
+                       LiftoffAssembler::VarState{kI32, elem_size, 0}},
                       decoder->position());
-      // Drop the RTT.
-      __ cache_state()->stack_state.pop_back(1);
     }
 
     LiftoffRegister obj(kReturnRegister0);
@@ -5875,13 +5868,13 @@ class LiftoffCompiler {
 
   void ArrayNew(FullDecoder* decoder, const ArrayIndexImmediate& imm,
                 const Value& length_value, const Value& initial_value,
-                const Value& rtt, Value* result) {
-    ArrayNew(decoder, imm, rtt.type.kind(), true);
+                Value* result) {
+    ArrayNew(decoder, imm, true);
   }
 
   void ArrayNewDefault(FullDecoder* decoder, const ArrayIndexImmediate& imm,
-                       const Value& length, const Value& rtt, Value* result) {
-    ArrayNew(decoder, imm, rtt.type.kind(), false);
+                       const Value& length, Value* result) {
+    ArrayNew(decoder, imm, false);
   }
 
   void ArrayFill(FullDecoder* decoder, ArrayIndexImmediate& imm,
@@ -6001,26 +5994,18 @@ class LiftoffCompiler {
 
   void ArrayNewFixed(FullDecoder* decoder, const ArrayIndexImmediate& array_imm,
                      const IndexImmediate& length_imm,
-                     const Value* /* elements */, const Value& rtt,
-                     Value* /* result */) {
-    ValueKind rtt_kind = rtt.type.kind();
+                     const Value* /* elements */, Value* /* result */) {
+    LiftoffRegister rtt = RttCanon(array_imm.index, {});
     ValueKind elem_kind = array_imm.array_type->element_type().kind();
     int32_t elem_count = length_imm.index;
     // Allocate the array.
-    {
-      LiftoffAssembler::VarState elem_size_var{kI32, value_kind_size(elem_kind),
-                                               0};
-      LiftoffAssembler::VarState length_var{kI32, elem_count, 0};
-      LiftoffAssembler::VarState rtt_var =
-          __ cache_state()->stack_state.end()[-1];
-
-      CallRuntimeStub(WasmCode::kWasmAllocateArray_Uninitialized,
-                      MakeSig::Returns(kRef).Params(rtt_kind, kI32, kI32),
-                      {rtt_var, length_var, elem_size_var},
-                      decoder->position());
-      // Drop the RTT.
-      __ DropValues(1);
-    }
+    CallRuntimeStub(
+        WasmCode::kWasmAllocateArray_Uninitialized,
+        MakeSig::Returns(kRef).Params(kRtt, kI32, kI32),
+        {LiftoffAssembler::VarState{kRtt, rtt, 0},
+         LiftoffAssembler::VarState{kI32, elem_count, 0},
+         LiftoffAssembler::VarState{kI32, value_kind_size(elem_kind), 0}},
+        decoder->position());
 
     // Initialize the array with stack arguments.
     LiftoffRegister array(kReturnRegister0);
@@ -6046,22 +6031,23 @@ class LiftoffCompiler {
                        const ArrayIndexImmediate& array_imm,
                        const IndexImmediate& segment_imm,
                        const Value& /* offset */, const Value& /* length */,
-                       const Value& /* rtt */, Value* /* result */) {
-    LiftoffAssembler::VarState segment_index_var{
-        kI32, static_cast<int>(segment_imm.index), 0};
+                       Value* /* result */) {
+    LiftoffRegister rtt = RttCanon(array_imm.index, {});
 
-    CallRuntimeStub(WasmCode::kWasmArrayNewSegment,
-                    MakeSig::Returns(kRef).Params(kI32, kI32, kI32, kRtt),
-                    {
-                        segment_index_var,
-                        __ cache_state()->stack_state.end()[-3],  // offset
-                        __ cache_state()->stack_state.end()[-2],  // length
-                        __ cache_state()->stack_state.end()[-1]   // rtt
-                    },
-                    decoder->position());
+    CallRuntimeStub(
+        WasmCode::kWasmArrayNewSegment,
+        MakeSig::Returns(kRef).Params(kI32, kI32, kI32, kRtt),
+        {
+            LiftoffAssembler::VarState{
+                kI32, static_cast<int>(segment_imm.index), 0},  // segment
+            __ cache_state()->stack_state.end()[-2],            // offset
+            __ cache_state()->stack_state.end()[-1],            // length
+            LiftoffAssembler::VarState{kRtt, rtt, 0}            // rtt
+        },
+        decoder->position());
 
     // Pop parameters from the value stack.
-    __ DropValues(3);
+    __ DropValues(2);
     RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
 
     LiftoffRegister result(kReturnRegister0);
@@ -6077,16 +6063,15 @@ class LiftoffCompiler {
                         const Value& /* length */) {
     LiftoffRegister segment_index_reg = __ GetUnusedRegister(kGpReg, {});
     LoadSmi(segment_index_reg, static_cast<int32_t>(segment_imm.index));
-    LiftoffAssembler::VarState segment_index_var(kSmiKind, segment_index_reg,
-                                                 0);
 
-    // Builtin parameter order: segment_index, array_index, segment_offset,
-    //                          length, array.
+    // Builtin parameter order: array_index, segment_offset, length,
+    //                          segment_index, array.
     CallRuntimeStub(WasmCode::kWasmArrayInitSegment,
                     MakeSig::Params(kI32, kI32, kI32, kSmiKind, kRefNull),
                     {__ cache_state()->stack_state.end()[-3],
                      __ cache_state()->stack_state.end()[-2],
-                     __ cache_state()->stack_state.end()[-1], segment_index_var,
+                     __ cache_state()->stack_state.end()[-1],
+                     LiftoffAssembler::VarState{kSmiKind, segment_index_reg, 0},
                      __ cache_state()->stack_state.end()[-4]},
                     decoder->position());
     __ DropValues(4);
@@ -6140,14 +6125,13 @@ class LiftoffCompiler {
     __ PushRegister(kI32, dst);
   }
 
-  void RttCanon(FullDecoder* decoder, uint32_t type_index, Value* result) {
-    LiftoffRegList pinned;
+  LiftoffRegister RttCanon(uint32_t type_index, LiftoffRegList pinned) {
     LiftoffRegister rtt = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
     LOAD_TAGGED_PTR_INSTANCE_FIELD(rtt.gp(), ManagedObjectMaps, pinned);
     __ LoadTaggedPointer(
         rtt.gp(), rtt.gp(), no_reg,
         wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(type_index));
-    __ PushRegister(kRtt, rtt);
+    return rtt;
   }
 
   enum NullSucceeds : bool {  // --
@@ -6240,11 +6224,11 @@ class LiftoffCompiler {
     __ bind(&match);
   }
 
-  void RefTest(FullDecoder* decoder, const Value& obj, const Value& rtt,
+  void RefTest(FullDecoder* decoder, uint32_t ref_index, const Value& obj,
                Value* /* result_val */, bool null_succeeds) {
     Label return_false, done;
     LiftoffRegList pinned;
-    LiftoffRegister rtt_reg = pinned.set(__ PopToRegister(pinned));
+    LiftoffRegister rtt_reg = pinned.set(RttCanon(ref_index, pinned));
     LiftoffRegister obj_reg = pinned.set(__ PopToRegister(pinned));
     Register scratch_null =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
@@ -6256,8 +6240,9 @@ class LiftoffCompiler {
     {
       FREEZE_STATE(frozen);
       SubtypeCheck(decoder->module_, obj_reg.gp(), obj.type, rtt_reg.gp(),
-                   rtt.type, scratch_null, result.gp(), &return_false,
-                   null_succeeds ? kNullSucceeds : kNullFails, frozen);
+                   ValueType::Rtt(ref_index), scratch_null, result.gp(),
+                   &return_false, null_succeeds ? kNullSucceeds : kNullFails,
+                   frozen);
 
       __ LoadConstant(result, WasmValue(1));
       // TODO(jkummerow): Emit near jumps on platforms that have them.
@@ -6296,17 +6281,14 @@ class LiftoffCompiler {
     }
   }
 
-  void RefCast(FullDecoder* decoder, const Value& obj, const Value& rtt,
+  void RefCast(FullDecoder* decoder, uint32_t ref_index, const Value& obj,
                Value* result, bool null_succeeds) {
-    if (v8_flags.experimental_wasm_assume_ref_cast_succeeds) {
-      // Just drop the rtt.
-      __ DropValues(1);
-      return;
-    }
+    if (v8_flags.experimental_wasm_assume_ref_cast_succeeds) return;
+
     Label* trap_label =
         AddOutOfLineTrap(decoder, WasmCode::kThrowWasmTrapIllegalCast);
     LiftoffRegList pinned;
-    LiftoffRegister rtt_reg = pinned.set(__ PopToRegister(pinned));
+    LiftoffRegister rtt_reg = pinned.set(RttCanon(ref_index, pinned));
     LiftoffRegister obj_reg = pinned.set(__ PopToRegister(pinned));
     Register scratch_null =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
@@ -6319,8 +6301,8 @@ class LiftoffCompiler {
       FREEZE_STATE(frozen);
       NullSucceeds on_null = null_succeeds ? kNullSucceeds : kNullFails;
       SubtypeCheck(decoder->module_, obj_reg.gp(), obj.type, rtt_reg.gp(),
-                   rtt.type, scratch_null, scratch2, trap_label, on_null,
-                   frozen);
+                   ValueType::Rtt(ref_index), scratch_null, scratch2,
+                   trap_label, on_null, frozen);
     }
     __ PushRegister(obj.type.kind(), obj_reg);
   }
@@ -6351,7 +6333,7 @@ class LiftoffCompiler {
     }
   }
 
-  void BrOnCast(FullDecoder* decoder, const Value& obj, const Value& rtt,
+  void BrOnCast(FullDecoder* decoder, uint32_t ref_index, const Value& obj,
                 Value* /* result_on_branch */, uint32_t depth,
                 bool null_succeeds) {
     // Avoid having sequences of branches do duplicate work.
@@ -6361,7 +6343,7 @@ class LiftoffCompiler {
 
     Label cont_false;
     LiftoffRegList pinned;
-    LiftoffRegister rtt_reg = pinned.set(__ PopToRegister(pinned));
+    LiftoffRegister rtt_reg = pinned.set(RttCanon(ref_index, pinned));
     LiftoffRegister obj_reg = pinned.set(__ PeekToRegister(0, pinned));
     Register scratch_null =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
@@ -6373,15 +6355,15 @@ class LiftoffCompiler {
 
     NullSucceeds null_handling = null_succeeds ? kNullSucceeds : kNullFails;
     SubtypeCheck(decoder->module_, obj_reg.gp(), obj.type, rtt_reg.gp(),
-                 rtt.type, scratch_null, scratch2, &cont_false, null_handling,
-                 frozen);
+                 ValueType::Rtt(ref_index), scratch_null, scratch2, &cont_false,
+                 null_handling, frozen);
 
     BrOrRetImpl(decoder, depth, scratch_null, scratch2);
 
     __ bind(&cont_false);
   }
 
-  void BrOnCastFail(FullDecoder* decoder, const Value& obj, const Value& rtt,
+  void BrOnCastFail(FullDecoder* decoder, uint32_t ref_index, const Value& obj,
                     Value* /* result_on_fallthrough */, uint32_t depth,
                     bool null_succeeds) {
     // Avoid having sequences of branches do duplicate work.
@@ -6391,7 +6373,7 @@ class LiftoffCompiler {
 
     Label cont_branch, fallthrough;
     LiftoffRegList pinned;
-    LiftoffRegister rtt_reg = pinned.set(__ PopToRegister(pinned));
+    LiftoffRegister rtt_reg = pinned.set(RttCanon(ref_index, pinned));
     LiftoffRegister obj_reg = pinned.set(__ PeekToRegister(0, pinned));
     Register scratch_null =
         pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
@@ -6403,8 +6385,8 @@ class LiftoffCompiler {
 
     NullSucceeds null_handling = null_succeeds ? kNullSucceeds : kNullFails;
     SubtypeCheck(decoder->module_, obj_reg.gp(), obj.type, rtt_reg.gp(),
-                 rtt.type, scratch_null, scratch2, &cont_branch, null_handling,
-                 frozen);
+                 ValueType::Rtt(ref_index), scratch_null, scratch2,
+                 &cont_branch, null_handling, frozen);
     __ emit_jump(&fallthrough);
 
     __ bind(&cont_branch);
