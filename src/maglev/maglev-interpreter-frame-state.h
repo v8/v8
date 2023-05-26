@@ -120,8 +120,8 @@ struct NodeInfo {
 struct KnownNodeAspects {
   explicit KnownNodeAspects(Zone* zone)
       : node_infos(zone),
-        stable_maps(zone),
-        unstable_maps(zone),
+        possible_maps(zone),
+        any_map_for_any_node_is_unstable(false),
         loaded_constant_properties(zone),
         loaded_properties(zone),
         loaded_context_constants(zone),
@@ -144,15 +144,33 @@ struct KnownNodeAspects {
   KnownNodeAspects* CloneForLoopHeader(Zone* zone) const {
     KnownNodeAspects* clone = zone->New<KnownNodeAspects>(zone);
     clone->node_infos = node_infos;
-    clone->stable_maps = stable_maps;
+    clone->possible_maps = possible_maps;
+    if (any_map_for_any_node_is_unstable) {
+      clone->any_map_for_any_node_is_unstable = true;
+      clone->ClearUnstableMaps();
+      DCHECK(!clone->any_map_for_any_node_is_unstable);
+    }
     clone->loaded_constant_properties = loaded_constant_properties;
     clone->loaded_context_constants = loaded_context_constants;
-    // Remove any nodes from the stable map set that also had known unstable
-    // maps -- see MaglevGraphBuilder::MarkPossibleSideEffect.
-    for (auto node_and_map : unstable_maps) {
-      clone->stable_maps.erase(node_and_map.first);
-    }
     return clone;
+  }
+
+  void ClearUnstableMaps() {
+    // A side effect could change existing objects' maps. For stable maps we
+    // know this hasn't happened (because we added a dependency on the maps
+    // staying stable and therefore not possible to transition away from), but
+    // we can no longer assume that objects with unstable maps still have the
+    // same map. Unstable maps can also transition to stable ones, so we have to
+    // clear _all_ maps for a node if it had _any_ unstable map.
+    if (!any_map_for_any_node_is_unstable) return;
+    for (auto it = possible_maps.begin(); it != possible_maps.end();) {
+      if (it->second.any_map_is_unstable) {
+        it = possible_maps.erase(it);
+      } else {
+        ++it;
+      }
+    }
+    any_map_for_any_node_is_unstable = false;
   }
 
   ZoneMap<ValueNode*, NodeInfo>::iterator FindInfo(ValueNode* node) {
@@ -184,12 +202,20 @@ struct KnownNodeAspects {
 
   // Permanently valid if checked in a dominator.
   ZoneMap<ValueNode*, NodeInfo> node_infos;
-  // TODO(v8:7700): Investigate a better data structure to use than
-  // compiler::ZoneRefSet.
-  // Valid across side-effecting calls, as long as we install a dependency.
-  ZoneMap<ValueNode*, compiler::ZoneRefSet<Map>> stable_maps;
-  // Flushed after side-effecting calls.
-  ZoneMap<ValueNode*, compiler::ZoneRefSet<Map>> unstable_maps;
+
+  struct PossibleMaps {
+    // TODO(v8:7700): Investigate a better data structure to use than
+    // compiler::ZoneRefSet.
+    compiler::ZoneRefSet<Map> possible_maps;
+    // TODO(leszeks): Consider storing this in a more compact way.
+    bool any_map_is_unstable;
+  };
+  // Maps for a node. Sets of maps that only contain stable maps are valid
+  // across side-effecting calls, as long as we install a dependency, otherwise
+  // they are cleared on side-effects.
+  // TODO(v8:7700): Investigate a better data structure to use than ZoneMap.
+  ZoneMap<ValueNode*, PossibleMaps> possible_maps;
+  bool any_map_for_any_node_is_unstable;
 
   // Cached property loads.
 
