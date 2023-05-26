@@ -185,11 +185,19 @@ class StackTransferRecipe {
     }
     if (move_dst_regs_.has(dst)) {
       DCHECK_EQ(register_move(dst)->src, src);
-      // Non-fp registers can only occur with the exact same type.
-      DCHECK_IMPLIES(!dst.is_fp(), register_move(dst)->kind == kind);
-      // It can happen that one fp register holds both the f32 zero and the f64
-      // zero, as the initial value for local variables. Move the value as f64
-      // in that case.
+      // Check for compatible value kinds.
+      // - references can occur with mixed kRef / kRefNull kinds.
+      // - FP registers can only occur with mixed f32 / f64 kinds (if they hold
+      //   the initial zero value).
+      // - others must match exactly.
+      DCHECK_EQ(is_object_reference(register_move(dst)->kind),
+                is_object_reference(kind));
+      DCHECK_EQ(dst.is_fp(), register_move(dst)->kind == kF32 ||
+                                 register_move(dst)->kind == kF64);
+      if (!is_object_reference(kind) && !dst.is_fp()) {
+        DCHECK_EQ(register_move(dst)->kind, kind);
+      }
+      // Potentially upgrade an existing `kF32` move to a `kF64` move.
       if (kind == kF64) register_move(dst)->kind = kF64;
       return;
     }
@@ -409,7 +417,7 @@ enum ReuseRegisters : bool {
 // to set up the region such that later merges (via {MergeStackWith} /
 // {MergeFullStackWith} can successfully transfer their values to this new
 // state.
-void InitMergeRegion(LiftoffAssembler::CacheState* state,
+void InitMergeRegion(LiftoffAssembler::CacheState* target_state,
                      const VarState* source, VarState* target, uint32_t count,
                      MergeKeepStackSlots keep_stack_slots,
                      MergeAllowConstants allow_constants,
@@ -444,7 +452,7 @@ void InitMergeRegion(LiftoffAssembler::CacheState* state,
     bool needs_reg_transfer = true;
     if (allow_registers) {
       // First try: Keep the same register, if it's free.
-      if (source->is_reg() && state->is_free(source->reg())) {
+      if (source->is_reg() && target_state->is_free(source->reg())) {
         reg = source->reg();
         needs_reg_transfer = false;
       }
@@ -455,8 +463,8 @@ void InitMergeRegion(LiftoffAssembler::CacheState* state,
       }
       // Third try: Use any free register.
       RegClass rc = reg_class_for(source->kind());
-      if (!reg && state->has_unused_register(rc, used_regs)) {
-        reg = state->unused_register(rc, used_regs);
+      if (!reg && target_state->has_unused_register(rc, used_regs)) {
+        reg = target_state->unused_register(rc, used_regs);
       }
     }
     // See above: Recompute the stack offset if requested.
@@ -469,7 +477,7 @@ void InitMergeRegion(LiftoffAssembler::CacheState* state,
     if (reg) {
       if (needs_reg_transfer) transfers.LoadIntoRegister(*reg, *source);
       if (reuse_registers) register_reuse_map.Add(source->reg(), *reg);
-      state->inc_used(*reg);
+      target_state->inc_used(*reg);
       *target = VarState(source->kind(), *reg, target_offset);
     } else {
       // No free register; make this a stack slot.
