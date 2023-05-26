@@ -812,7 +812,8 @@ class MachineLoweringReducer : public Next {
           OpIndex test = __ Int32AddCheckOverflow(input, input);
           __ DeoptimizeIf(__ template Projection<Word32>(test, 1), frame_state,
                           DeoptimizeReason::kLostPrecision, feedback);
-          return __ TagSmi(input);
+          return __ BitcastWord32ToTagged(
+              __ template Projection<Word32>(test, 0));
         }
       } else {
         DCHECK_EQ(input_interpretation, ConvertUntaggedToJSPrimitiveOrDeoptOp::
@@ -837,7 +838,8 @@ class MachineLoweringReducer : public Next {
           OpIndex test = __ Int32AddCheckOverflow(i32, i32);
           __ DeoptimizeIf(__ template Projection<Word32>(test, 1), frame_state,
                           DeoptimizeReason::kLostPrecision, feedback);
-          return __ TagSmi(i32);
+          return __ BitcastWord32ToTagged(
+              __ template Projection<Word32>(test, 0));
         }
       } else {
         DCHECK_EQ(input_interpretation, ConvertUntaggedToJSPrimitiveOrDeoptOp::
@@ -1968,7 +1970,7 @@ class MachineLoweringReducer : public Next {
   V<Object> REDUCE(LoadStackArgument)(V<WordPtr> base, V<WordPtr> index) {
     V<WordPtr> argument = __ template LoadElement<WordPtr>(
         base, AccessBuilder::ForStackArgument(), index);
-    return __ BitcastWordToTagged(argument);
+    return __ BitcastWordPtrToTagged(argument);
   }
 
   OpIndex REDUCE(StoreTypedElement)(OpIndex buffer, V<Object> base,
@@ -2599,7 +2601,7 @@ class MachineLoweringReducer : public Next {
   }
 
   V<Object> REDUCE(LoadMessage)(V<WordPtr> offset) {
-    return __ BitcastWordToTagged(__ template LoadField<WordPtr>(
+    return __ BitcastWordPtrToTagged(__ template LoadField<WordPtr>(
         offset, AccessBuilder::ForExternalIntPtr()));
   }
 
@@ -2844,9 +2846,10 @@ class MachineLoweringReducer : public Next {
     // Since smi tagging shifts left by one, it's the same as adding value
     // twice.
     OpIndex add = __ Int32AddCheckOverflow(input, input);
-    V<Word32> check = __ Projection(add, 1, WordRepresentation::Word32());
+    V<Word32> check = __ template Projection<Word32>(add, 1);
     GOTO_IF(check, *overflow);
-    GOTO(*done, __ TagSmi(input));
+    GOTO(*done,
+         __ BitcastWord32ToTagged(__ template Projection<Word32>(add, 0)));
   }
 
   // `IsNonZero` converts any non-0 value into 1.

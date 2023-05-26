@@ -136,7 +136,7 @@ class MemoryOptimizationReducer : public Next {
       Asm().Set(top(type), Asm().PointerAdd(Asm().Get(top(type)), size));
       Asm().StoreOffHeap(top_address, Asm().Get(top(type)),
                          MemoryRepresentation::PointerSized());
-      return Asm().BitcastWordToTagged(
+      return Asm().BitcastWordPtrToTagged(
           Asm().PointerAdd(obj_addr, Asm().IntPtrConstant(kHeapObjectTag)));
     }
 
@@ -210,7 +210,7 @@ class MemoryOptimizationReducer : public Next {
     Asm().Set(top(type), Asm().PointerAdd(Asm().Get(top(type)), size));
     Asm().StoreOffHeap(top_address, Asm().Get(top(type)),
                        MemoryRepresentation::PointerSized());
-    return Asm().BitcastWordToTagged(
+    return Asm().BitcastWordPtrToTagged(
         Asm().PointerAdd(obj_addr, Asm().IntPtrConstant(kHeapObjectTag)));
   }
 

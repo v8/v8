@@ -1036,9 +1036,12 @@ class AssemblerOpInterface {
     return TaggedBitcast(tagged, RegisterRepresentation::Tagged(),
                          RegisterRepresentation::PointerSized());
   }
-  V<Object> BitcastWordToTagged(V<WordPtr> word) {
+  V<Object> BitcastWordPtrToTagged(V<WordPtr> word) {
     return TaggedBitcast(word, RegisterRepresentation::PointerSized(),
                          RegisterRepresentation::Tagged());
+  }
+  V<Object> BitcastWord32ToTagged(V<Word32> word) {
+    return BitcastWordPtrToTagged(ChangeInt32ToIntPtr(word));
   }
 
   V<Word32> ObjectIs(V<Object> input, ObjectIsOp::Kind kind,
