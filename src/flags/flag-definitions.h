@@ -482,6 +482,7 @@ DEFINE_BOOL(maglev_inlining, true,
 DEFINE_BOOL(maglev_loop_peeling, false,
             "enable loop peeling in the maglev optimizing compiler")
 DEFINE_WEAK_IMPLICATION(maglev_future, maglev_inlining)
+DEFINE_WEAK_IMPLICATION(maglev_future, maglev_osr)
 DEFINE_WEAK_IMPLICATION(maglev_future, maglev_loop_peeling)
 
 DEFINE_INT(max_maglev_inline_depth, 1,
