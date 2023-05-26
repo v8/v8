@@ -1142,10 +1142,7 @@ class LiftoffCompiler {
       __ emit_i32_subi(max_steps.gp(), max_steps.gp(), steps_done);
       __ Store(max_steps_addr.gp(), no_reg, 0, max_steps, StoreType::kI32Store,
                pinned);
-      Label cont;
-      __ emit_i32_cond_jumpi(kGreaterThanEqual, &cont, max_steps.gp(), 0,
-                             frozen);
-      // Abort.
+      // Abort if max steps have been executed.
       if (trap_too_many_steps_ool_index_ == kInvalidOolIndex) {
         // Only generate one out of line trap to jump to as for each out of line
         // trap an out of line debug side table entry is generated which needs a
@@ -1156,10 +1153,10 @@ class LiftoffCompiler {
         CHECK_EQ(trap_label,
                  out_of_line_code_[trap_too_many_steps_ool_index_].label.get());
       }
-      __ emit_jump(
-          out_of_line_code_[trap_too_many_steps_ool_index_].label.get());
-      __ AssertUnreachable(AbortReason::kUnexpectedReturnFromWasmTrap);
-      __ bind(&cont);
+      __ emit_i32_cond_jumpi(
+          kLessThan,
+          out_of_line_code_[trap_too_many_steps_ool_index_].label.get(),
+          max_steps.gp(), 0, frozen);
     }
   }
 
