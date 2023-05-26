@@ -5269,13 +5269,13 @@ Maybe<bool> v8::Object::HasRealNamedCallbackProperty(Local<Context> context,
 
 bool v8::Object::HasNamedLookupInterceptor() const {
   auto self = *Utils::OpenHandle(this);
-  if (self.IsJSObject()) return false;
+  if (!self.IsJSObject()) return false;
   return i::JSObject::cast(self).HasNamedInterceptor();
 }
 
 bool v8::Object::HasIndexedLookupInterceptor() const {
   auto self = *Utils::OpenHandle(this);
-  if (self.IsJSObject()) return false;
+  if (!self.IsJSObject()) return false;
   return i::JSObject::cast(self).HasIndexedInterceptor();
 }
 
