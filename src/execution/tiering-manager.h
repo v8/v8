@@ -5,6 +5,8 @@
 #ifndef V8_EXECUTION_TIERING_MANAGER_H_
 #define V8_EXECUTION_TIERING_MANAGER_H_
 
+#include <optional>
+
 #include "src/common/assert-scope.h"
 #include "src/handles/handles.h"
 #include "src/utils/allocation.h"
@@ -34,8 +36,9 @@ class TieringManager {
   void RequestOsrAtNextOpportunity(JSFunction function);
 
   // For use when a JSFunction is available.
-  static int InterruptBudgetFor(Isolate* isolate, JSFunction function,
-                                bool deoptimize = false);
+  static int InterruptBudgetFor(
+      Isolate* isolate, JSFunction function,
+      base::Optional<CodeKind> override_active_tier = {});
 
   void MarkForTurboFanOptimization(JSFunction function);
 

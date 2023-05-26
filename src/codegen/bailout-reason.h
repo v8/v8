@@ -67,6 +67,7 @@ namespace internal {
   V(kShouldNotDirectlyEnterOsrFunction,                                        \
     "Should not directly enter OSR-compiled function")                         \
   V(kStackAccessBelowStackPointer, "Stack access below stack pointer")         \
+  V(kOsrUnexpectedStackSize, "Unexpected stack size on OSR entry")             \
   V(kStackFrameTypesMustMatch, "Stack frame types must match")                 \
   V(kUint32IsNotAInt32,                                                        \
     "Uint32 cannot be converted to Int32 without loss of precision")           \

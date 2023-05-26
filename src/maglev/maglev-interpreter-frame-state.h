@@ -689,6 +689,7 @@ void InterpreterFrameState::CopyFrom(
       });
   // Move "what we know" across without copying -- we can safely mutate it
   // now, as we won't be entering this merge point again.
+  DCHECK_NOT_NULL(state.known_node_aspects_);
   known_node_aspects_ = state.known_node_aspects_;
 }
 

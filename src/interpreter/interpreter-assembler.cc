@@ -1360,13 +1360,13 @@ void InterpreterAssembler::OnStackReplacement(
     OnStackReplacementParams params) {
   // Three cases may cause us to attempt OSR, in the following order:
   //
-  // 1) Presence of cached OSR Turbofan code.
+  // 1) Presence of cached OSR Turbofan/Maglev code.
   // 2) Presence of cached OSR Sparkplug code.
   // 3) The OSR urgency exceeds the current loop depth - in that case, trigger
   //    a Turbofan OSR compilation.
 
   TVARIABLE(Object, maybe_target_code, SmiConstant(0));
-  Label osr_to_turbofan(this), osr_to_sparkplug(this);
+  Label osr_to_opt(this), osr_to_sparkplug(this);
 
   // Case 1).
   {
@@ -1378,7 +1378,7 @@ void InterpreterAssembler::OnStackReplacement(
 
     // Is it marked_for_deoptimization? If yes, clear the slot.
     GotoIfNot(IsMarkedForDeoptimization(CAST(maybe_target_code.value())),
-              &osr_to_turbofan);
+              &osr_to_opt);
     StoreFeedbackVectorSlot(feedback_vector, Unsigned(feedback_slot),
                             ClearedValue(), UNSAFE_SKIP_WRITE_BARRIER);
     maybe_target_code = SmiConstant(0);
@@ -1404,12 +1404,12 @@ void InterpreterAssembler::OnStackReplacement(
       static_assert(FeedbackVector::OsrUrgencyBits::kShift == 0);
       TNode<Int32T> osr_urgency = Word32And(
           osr_state, Int32Constant(FeedbackVector::OsrUrgencyBits::kMask));
-      GotoIf(Uint32LessThan(loop_depth, osr_urgency), &osr_to_turbofan);
+      GotoIf(Uint32LessThan(loop_depth, osr_urgency), &osr_to_opt);
       JumpBackward(relative_jump);
     }
   }
 
-  BIND(&osr_to_turbofan);
+  BIND(&osr_to_opt);
   {
     TNode<IntPtrT> length =
         LoadAndUntagFixedArrayBaseLength(BytecodeArrayTaggedPointer());

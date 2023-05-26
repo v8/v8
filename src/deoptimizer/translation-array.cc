@@ -394,6 +394,7 @@ Handle<TranslationArray> TranslationArrayBuilder::ToTranslationArray(
   FinishPendingInstructionIfNeeded();
   Handle<TranslationArray> result =
       factory->NewByteArray(SizeInBytes(), AllocationType::kOld);
+  if (SizeInBytes() == 0) return result;
   memcpy(result->GetDataStartAddress(), contents_.data(),
          contents_.size() * sizeof(uint8_t));
 #ifdef ENABLE_SLOW_DCHECKS

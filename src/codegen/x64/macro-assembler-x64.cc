@@ -2778,6 +2778,11 @@ void MacroAssembler::TestCodeIsMarkedForDeoptimization(Register code) {
         Immediate(1 << Code::kMarkedForDeoptimizationBit));
 }
 
+void MacroAssembler::TestCodeIsTurbofanned(Register code) {
+  testl(FieldOperand(code, Code::kFlagsOffset),
+        Immediate(1 << Code::kIsTurbofannedBit));
+}
+
 Immediate MacroAssembler::ClearedValue() const {
   return Immediate(
       static_cast<int32_t>(HeapObjectReference::ClearedValue(isolate()).ptr()));
@@ -3398,11 +3403,13 @@ void MacroAssembler::LoadNativeContextSlot(Register dst, int index) {
 }
 
 void MacroAssembler::TryLoadOptimizedOsrCode(Register scratch_and_result,
+                                             CodeKind min_opt_level,
                                              Register feedback_vector,
                                              FeedbackSlot slot,
                                              Label* on_result,
                                              Label::Distance distance) {
-  Label fallthrough;
+  ASM_CODE_COMMENT(this);
+  Label fallthrough, on_mark_deopt;
   LoadTaggedField(
       scratch_and_result,
       FieldOperand(feedback_vector,
@@ -3412,7 +3419,19 @@ void MacroAssembler::TryLoadOptimizedOsrCode(Register scratch_and_result,
   // Is it marked_for_deoptimization? If yes, clear the slot.
   {
     TestCodeIsMarkedForDeoptimization(scratch_and_result);
-    j(equal, on_result, distance);
+
+    if (min_opt_level == CodeKind::TURBOFAN) {
+      j(not_zero, &on_mark_deopt, Label::Distance::kNear);
+
+      TestCodeIsTurbofanned(scratch_and_result);
+      j(not_zero, on_result, distance);
+      jmp(&fallthrough);
+    } else {
+      DCHECK_EQ(min_opt_level, CodeKind::MAGLEV);
+      j(equal, on_result, distance);
+    }
+
+    bind(&on_mark_deopt);
     StoreTaggedField(
         FieldOperand(feedback_vector,
                      FeedbackVector::OffsetOfElementAt(slot.ToInt())),

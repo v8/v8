@@ -374,7 +374,9 @@ class UseMarkingProcessor {
 bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
                              MaglevCompilationInfo* compilation_info) {
   compiler::CurrentHeapBrokerScope current_broker(compilation_info->broker());
-  Graph* graph = Graph::New(compilation_info->zone());
+  Graph* graph =
+      Graph::New(compilation_info->zone(),
+                 compilation_info->toplevel_compilation_unit()->is_osr());
 
   // Build graph.
   if (v8_flags.print_maglev_code || v8_flags.code_comments ||
