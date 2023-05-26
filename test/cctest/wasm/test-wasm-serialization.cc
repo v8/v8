@@ -201,6 +201,7 @@ class WasmSerializationTest {
   v8::OwnedBuffer data_;
   v8::MemorySpan<const uint8_t> wire_bytes_ = {nullptr, 0};
   v8::MemorySpan<const uint8_t> serialized_bytes_ = {nullptr, 0};
+  FlagScope<int> tier_up_quickly_{&v8_flags.wasm_tiering_budget, 1000};
 };
 
 TEST(DeserializeValidModule) {
