@@ -16,7 +16,6 @@ namespace internal {
   V(CowArrayElementsChanged, "copy-on-write array's elements changed")         \
   V(CouldNotGrowElements, "failed to grow elements store")                     \
   V(PrepareForOnStackReplacement, "prepare for on stack replacement (OSR)")    \
-  V(OSREarlyExit, "exit from OSR'd inner loop")                                \
   V(DeoptimizeNow, "%_DeoptimizeNow")                                          \
   V(DivisionByZero, "division by zero")                                        \
   V(Hole, "hole")                                                              \
@@ -112,8 +111,7 @@ constexpr bool IsDeoptimizationWithoutCodeInvalidation(
   // unoptimized frame layout. Since no actual assumptions in the Maglev code
   // object are violated, it (and any associated cached optimized code) should
   // not be invalidated s.t. we may reenter it in the future.
-  return reason == DeoptimizeReason::kPrepareForOnStackReplacement ||
-         reason == DeoptimizeReason::kOSREarlyExit;
+  return reason == DeoptimizeReason::kPrepareForOnStackReplacement;
 }
 
 }  // namespace internal

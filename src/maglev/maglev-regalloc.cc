@@ -192,26 +192,6 @@ StraightForwardRegisterAllocator::StraightForwardRegisterAllocator(
   AllocateRegisters();
   uint32_t tagged_stack_slots = tagged_.top;
   uint32_t untagged_stack_slots = untagged_.top;
-  if (graph_->is_osr()) {
-    // Fix our stack frame to be compatible with the source stack frame of this
-    // OSR transition:
-    // 1) Ensure the section with tagged slots is big enough to receive all
-    //    live OSR-in values.
-    for (auto val : graph_->osr_values()) {
-      if (val->result().operand().IsAllocated() &&
-          val->stack_slot() >= tagged_stack_slots) {
-        tagged_stack_slots = val->stack_slot() + 1;
-      }
-    }
-    // 2) Ensure we never have to shrink stack frames when OSR'ing into Maglev.
-    //    We don't grow tagged slots or they might end up being uninitialized.
-    uint32_t source_frame_size =
-        graph_->min_maglev_stackslots_for_unoptimized_frame_size();
-    uint32_t target_frame_size = tagged_stack_slots + untagged_stack_slots;
-    if (source_frame_size > target_frame_size) {
-      untagged_stack_slots += source_frame_size - target_frame_size;
-    }
-  }
 #ifdef V8_TARGET_ARCH_ARM64
   // Due to alignment constraints, we add one untagged slot if
   // stack_slots + fixed_slot_count is odd.
@@ -788,25 +768,13 @@ void StraightForwardRegisterAllocator::AllocateNodeResult(ValueNode* node) {
 
   if (operand.basic_policy() == compiler::UnallocatedOperand::FIXED_SLOT) {
     DCHECK(node->Is<InitialValue>());
-    DCHECK_IMPLIES(!graph_->is_osr(), operand.fixed_slot_index() < 0);
+    DCHECK_LT(operand.fixed_slot_index(), 0);
     // Set the stack slot to exactly where the value is.
     compiler::AllocatedOperand location(compiler::AllocatedOperand::STACK_SLOT,
                                         node->GetMachineRepresentation(),
                                         operand.fixed_slot_index());
     node->result().SetAllocated(location);
     node->Spill(location);
-
-    int idx = operand.fixed_slot_index();
-    if (idx > 0) {
-      // Reserve this slot by increasing the top and also marking slots below as
-      // free. Assumes slots are processed in increasing order.
-      CHECK(node->is_tagged());
-      CHECK_GE(idx, tagged_.top);
-      for (int i = tagged_.top; i < idx; ++i) {
-        tagged_.free_slots.emplace_back(i, node->live_range().start);
-      }
-      tagged_.top = idx + 1;
-    }
     return;
   }
 

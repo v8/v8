@@ -387,8 +387,7 @@ RUNTIME_FUNCTION(Runtime_NotifyDeoptimized) {
   if (osr_offset.IsNone()) {
     Deoptimizer::DeoptimizeFunction(*function, *optimized_code);
     DeoptAllOsrLoopsContainingDeoptExit(isolate, *function, deopt_exit_offset);
-  } else if (deopt_reason != DeoptimizeReason::kOSREarlyExit &&
-             Deoptimizer::DeoptExitIsInsideOsrLoop(
+  } else if (Deoptimizer::DeoptExitIsInsideOsrLoop(
                  isolate, *function, deopt_exit_offset, osr_offset)) {
     Deoptimizer::DeoptimizeFunction(*function, *optimized_code);
   }
@@ -444,7 +443,7 @@ void GetOsrOffsetAndFunctionForOSR(Isolate* isolate, BytecodeOffset* osr_offset,
 }
 
 Object CompileOptimizedOSR(Isolate* isolate, Handle<JSFunction> function,
-                           CodeKind min_opt_level, BytecodeOffset osr_offset) {
+                           BytecodeOffset osr_offset) {
   const ConcurrencyMode mode =
       V8_LIKELY(isolate->concurrent_recompilation_enabled() &&
                 v8_flags.concurrent_osr)
@@ -452,11 +451,9 @@ Object CompileOptimizedOSR(Isolate* isolate, Handle<JSFunction> function,
           : ConcurrencyMode::kSynchronous;
 
   Handle<Code> result;
-  if (!Compiler::CompileOptimizedOSR(isolate, function, osr_offset, mode,
-                                     (v8_flags.maglev && v8_flags.maglev_osr &&
-                                      min_opt_level == CodeKind::MAGLEV)
-                                         ? CodeKind::MAGLEV
-                                         : CodeKind::TURBOFAN)
+  if (!Compiler::CompileOptimizedOSR(
+           isolate, function, osr_offset, mode,
+           v8_flags.maglev_osr ? CodeKind::MAGLEV : CodeKind::TURBOFAN)
            .ToHandle(&result) ||
       result->marked_for_deoptimization()) {
     // An empty result can mean one of two things:
@@ -496,7 +493,7 @@ RUNTIME_FUNCTION(Runtime_CompileOptimizedOSR) {
   Handle<JSFunction> function;
   GetOsrOffsetAndFunctionForOSR(isolate, &osr_offset, &function);
 
-  return CompileOptimizedOSR(isolate, function, CodeKind::MAGLEV, osr_offset);
+  return CompileOptimizedOSR(isolate, function, osr_offset);
 }
 
 namespace {
@@ -525,7 +522,7 @@ Object CompileOptimizedOSRFromMaglev(Isolate* isolate,
     return function->code();
   }
 
-  return CompileOptimizedOSR(isolate, function, CodeKind::TURBOFAN, osr_offset);
+  return CompileOptimizedOSR(isolate, function, osr_offset);
 }
 
 }  // namespace

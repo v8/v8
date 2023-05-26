@@ -1897,8 +1897,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   void JumpIfCodeIsMarkedForDeoptimization(Register code, Register scratch,
                                            Label* if_marked_for_deoptimization);
-  void JumpIfCodeIsTurbofanned(Register code, Register scratch,
-                               Label* if_marked_for_deoptimization);
   Operand ClearedValue() const;
 
   Operand ReceiverOperand(const Register arg_count);
@@ -2150,9 +2148,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // Falls through and sets scratch_and_result to 0 on failure, jumps to
   // on_result on success.
   void TryLoadOptimizedOsrCode(Register scratch_and_result,
-                               CodeKind min_opt_level, Register feedback_vector,
-                               FeedbackSlot slot, Label* on_result,
-                               Label::Distance distance);
+                               Register feedback_vector, FeedbackSlot slot,
+                               Label* on_result, Label::Distance distance);
 
  protected:
   // The actual Push and Pop implementations. These don't generate any code

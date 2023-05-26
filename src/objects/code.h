@@ -367,7 +367,6 @@ class Code : public HeapObject {
   // The {marked_for_deoptimization} field is accessed from generated code.
   static const int kMarkedForDeoptimizationBit =
       MarkedForDeoptimizationField::kShift;
-  static const int kIsTurbofannedBit = IsTurbofannedField::kShift;
 
   // Reserve one argument count value as the "don't adapt arguments" sentinel.
   static const int kArgumentsBits = 16;

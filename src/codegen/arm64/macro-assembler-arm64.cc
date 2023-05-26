@@ -2762,12 +2762,6 @@ void MacroAssembler::JumpIfCodeIsMarkedForDeoptimization(
        if_marked_for_deoptimization);
 }
 
-void MacroAssembler::JumpIfCodeIsTurbofanned(Register code, Register scratch,
-                                             Label* if_turbofanned) {
-  Ldr(scratch.W(), FieldMemOperand(code, Code::kFlagsOffset));
-  Tbnz(scratch.W(), Code::kIsTurbofannedBit, if_turbofanned);
-}
-
 Operand MacroAssembler::ClearedValue() const {
   return Operand(
       static_cast<int32_t>(HeapObjectReference::ClearedValue(isolate()).ptr()));
@@ -3705,7 +3699,6 @@ void MacroAssembler::LoadNativeContextSlot(Register dst, int index) {
 }
 
 void MacroAssembler::TryLoadOptimizedOsrCode(Register scratch_and_result,
-                                             CodeKind min_opt_level,
                                              Register feedback_vector,
                                              FeedbackSlot slot,
                                              Label* on_result,
@@ -3720,14 +3713,9 @@ void MacroAssembler::TryLoadOptimizedOsrCode(Register scratch_and_result,
   // Is it marked_for_deoptimization? If yes, clear the slot.
   {
     UseScratchRegisterScope temps(this);
-    Register temp = temps.AcquireX();
-    JumpIfCodeIsMarkedForDeoptimization(scratch_and_result, temp, &clear_slot);
-    if (min_opt_level == CodeKind::TURBOFAN) {
-      JumpIfCodeIsTurbofanned(scratch_and_result, temp, on_result);
-      B(&fallthrough);
-    } else {
-      B(on_result);
-    }
+    JumpIfCodeIsMarkedForDeoptimization(scratch_and_result, temps.AcquireX(),
+                                        &clear_slot);
+    B(on_result);
   }
 
   bind(&clear_slot);

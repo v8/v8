@@ -275,7 +275,7 @@ class FeedbackVector
   // slots either contain a Code object or the ClearedValue.
   inline base::Optional<Code> GetOptimizedOsrCode(Isolate* isolate,
                                                   FeedbackSlot slot);
-  void SetOptimizedOsrCode(Isolate* isolate, FeedbackSlot slot, Code code);
+  void SetOptimizedOsrCode(FeedbackSlot slot, Code code);
 
   inline TieringState tiering_state() const;
   void set_tiering_state(TieringState state);

@@ -391,14 +391,9 @@ void FeedbackVector::ClearOptimizedCode() {
   set_maybe_has_turbofan_code(false);
 }
 
-void FeedbackVector::SetOptimizedOsrCode(Isolate* isolate, FeedbackSlot slot,
-                                         Code code) {
+void FeedbackVector::SetOptimizedOsrCode(FeedbackSlot slot, Code code) {
   DCHECK(CodeKindIsOptimizedJSFunction(code.kind()));
   DCHECK(!slot.IsInvalid());
-  auto current = GetOptimizedOsrCode(isolate, slot);
-  if (V8_UNLIKELY(current && current->kind() > code.kind())) {
-    return;
-  }
   Set(slot, HeapObjectReference::Weak(code));
   set_maybe_has_optimized_osr_code(true);
 }

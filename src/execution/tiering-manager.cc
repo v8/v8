@@ -161,12 +161,6 @@ int InterruptBudgetFor(base::Optional<CodeKind> code_kind,
       (code_kind.has_value() && code_kind.value() == CodeKind::TURBOFAN)) {
     return v8_flags.invocation_count_for_osr * bytecode_length;
   }
-  // TODO(olivf) In case we are currently executing below Maglev and have
-  // CodeKind::MAGLEV waiting we should also OSR. But currently we cannot know
-  // if this helper is called from Maglev code or below.
-  if (v8_flags.maglev_osr && IsRequestMaglev(tiering_state)) {
-    return v8_flags.invocation_count_for_maglev_osr * bytecode_length;
-  }
   return TiersUpToMaglev(code_kind) && tiering_state == TieringState::kNone
              ? v8_flags.invocation_count_for_maglev * bytecode_length
              : v8_flags.invocation_count_for_turbofan * bytecode_length;
@@ -175,9 +169,8 @@ int InterruptBudgetFor(base::Optional<CodeKind> code_kind,
 }  // namespace
 
 // static
-int TieringManager::InterruptBudgetFor(
-    Isolate* isolate, JSFunction function,
-    base::Optional<CodeKind> override_active_tier) {
+int TieringManager::InterruptBudgetFor(Isolate* isolate, JSFunction function,
+                                       bool deoptimize) {
   DCHECK(function.shared().is_compiled());
   const int bytecode_length =
       function.shared().GetBytecodeArray(isolate).length();
@@ -188,9 +181,11 @@ int TieringManager::InterruptBudgetFor(
       // operation for forward jump.
       return INT_MAX / 2;
     }
-    return ::i::InterruptBudgetFor(
-        override_active_tier ? override_active_tier : function.GetActiveTier(),
-        function.tiering_state(), bytecode_length);
+    base::Optional<CodeKind> active_tier =
+        deoptimize ? CodeKind::INTERPRETED_FUNCTION : function.GetActiveTier();
+    TieringState tiering_state =
+        deoptimize ? TieringState::kNone : function.tiering_state();
+    return ::i::InterruptBudgetFor(active_tier, tiering_state, bytecode_length);
   }
 
   DCHECK(!function.has_feedback_vector());
@@ -268,14 +263,10 @@ void TieringManager::MaybeOptimizeFrame(JSFunction function,
 
   // Baseline OSR uses a separate mechanism and must not be considered here,
   // therefore we limit to kOptimizedJSFunctionCodeKindsMask.
-  if (IsRequestTurbofan(tiering_state) || IsRequestMaglev(tiering_state) ||
-      (current_code_kind < CodeKind::TURBOFAN &&
-       function.HasAvailableCodeKind(CodeKind::TURBOFAN)) ||
-      (current_code_kind < CodeKind::MAGLEV &&
-       function.HasAvailableCodeKind(CodeKind::MAGLEV))) {
-    if (current_code_kind == CodeKind::MAGLEV && !v8_flags.osr_from_maglev)
-      return;
-
+  // TODO(v8:7700): Change the condition below for Maglev OSR once it is
+  // implemented.
+  if (IsRequestTurbofan(tiering_state) ||
+      function.HasAvailableCodeKind(CodeKind::TURBOFAN)) {
     // OSR kicks in only once we've previously decided to tier up, but we are
     // still in a lower-tier frame (this implies a long-running loop).
     TryIncrementOsrUrgency(isolate_, function);

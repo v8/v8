@@ -650,15 +650,14 @@ RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
   }
 
   if (function->HasAvailableOptimizedCode() &&
-      (!function->code().is_maglevved() || !v8_flags.osr_from_maglev)) {
+      !function->code().is_maglevved()) {
     DCHECK(function->HasAttachedOptimizedCode() ||
            function->ChecksTieringState());
     // If function is already optimized, return.
     return ReadOnlyRoots(isolate).undefined_value();
   }
 
-  if (!it.frame()->is_unoptimized() &&
-      (!it.frame()->is_maglev() || !v8_flags.osr_from_maglev)) {
+  if (!it.frame()->is_unoptimized() && !it.frame()->is_maglev()) {
     // Nothing to be done.
     return ReadOnlyRoots(isolate).undefined_value();
   }
@@ -678,12 +677,7 @@ RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
   // If not (e.g. because we enter a nested loop first), the next JumpLoop will
   // see the cached OSR code with a mismatched offset, and trigger
   // non-concurrent OSR compilation and installation.
-  // To tier up from Maglev to TF we always do this, because the non-concurrent
-  // recompilation in `CompileOptimizedOSRFromMaglev` is broken. See the comment
-  // in `runtime-compiler.cc`.
-  bool concurrent_osr =
-      isolate->concurrent_recompilation_enabled() && v8_flags.concurrent_osr;
-  if (it.frame()->is_maglev() || concurrent_osr) {
+  if (isolate->concurrent_recompilation_enabled() && v8_flags.concurrent_osr) {
     BytecodeOffset osr_offset = BytecodeOffset::None();
     if (it.frame()->is_unoptimized()) {
       UnoptimizedFrame* frame = UnoptimizedFrame::cast(it.frame());
@@ -708,26 +702,18 @@ RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
 
     // Finalize first to ensure all pending tasks are done (since we can't
     // queue more than one OSR job for each function).
-    if (concurrent_osr) {
-      FinalizeOptimization(isolate);
-    }
+    FinalizeOptimization(isolate);
 
     // Queue the job.
     auto unused_result = Compiler::CompileOptimizedOSR(
-        isolate, function, osr_offset,
-        concurrent_osr ? ConcurrencyMode::kConcurrent
-                       : ConcurrencyMode::kSynchronous,
-        (v8_flags.maglev && v8_flags.maglev_osr && !it.frame()->is_maglev())
-            ? CodeKind::MAGLEV
-            : CodeKind::TURBOFAN);
+        isolate, function, osr_offset, ConcurrencyMode::kConcurrent,
+        v8_flags.maglev_osr ? CodeKind::MAGLEV : CodeKind::TURBOFAN);
     USE(unused_result);
 
     // Finalize again to finish the queued job. The next call into
     // Runtime::kCompileOptimizedOSR will pick up the cached InstructionStream
     // object.
-    if (concurrent_osr) {
-      FinalizeOptimization(isolate);
-    }
+    FinalizeOptimization(isolate);
   }
 
   return ReadOnlyRoots(isolate).undefined_value();

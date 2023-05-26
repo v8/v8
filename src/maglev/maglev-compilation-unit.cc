@@ -57,10 +57,6 @@ void MaglevCompilationUnit::RegisterNodeInGraphLabeller(const Node* node) {
   }
 }
 
-bool MaglevCompilationUnit::is_osr() const {
-  return inlining_depth_ == 0 && info_->toplevel_is_osr();
-}
-
 }  // namespace maglev
 }  // namespace internal
 }  // namespace v8

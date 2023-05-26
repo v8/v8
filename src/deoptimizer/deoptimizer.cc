@@ -885,17 +885,14 @@ void Deoptimizer::DoComputeOutputFrames() {
   // Don't reset the tiering state for OSR code since we might reuse OSR code
   // after deopt, and we still want to tier up to non-OSR code even if OSR code
   // deoptimized.
-  bool osr_early_exit = Deoptimizer::GetDeoptInfo().deopt_reason ==
-                        DeoptimizeReason::kOSREarlyExit;
   if (function_.IsJSFunction() &&
       (compiled_code_.osr_offset().IsNone()
            ? function_.code() == compiled_code_
-           : (!osr_early_exit &&
-              DeoptExitIsInsideOsrLoop(isolate(), function_,
-                                       bytecode_offset_in_outermost_frame_,
-                                       compiled_code_.osr_offset())))) {
+           : DeoptExitIsInsideOsrLoop(isolate(), function_,
+                                      bytecode_offset_in_outermost_frame_,
+                                      compiled_code_.osr_offset()))) {
+    function_.SetInterruptBudget(isolate_, true);
     function_.reset_tiering_state();
-    function_.SetInterruptBudget(isolate_, CodeKind::INTERPRETED_FUNCTION);
   }
 
   // Print some helpful diagnostic information.

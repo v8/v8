@@ -49,7 +49,6 @@ class MaglevCompilationUnit : public ZoneObject {
   Zone* zone() const;
   int register_count() const { return register_count_; }
   int parameter_count() const { return parameter_count_; }
-  bool is_osr() const;
   int inlining_depth() const { return inlining_depth_; }
   bool is_inline() const { return inlining_depth_ != 0; }
   bool has_graph_labeller() const;

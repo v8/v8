@@ -817,29 +817,18 @@ void RootConstant::SetValueLocationConstraints() { DefineAsConstant(this); }
 void RootConstant::GenerateCode(MaglevAssembler* masm,
                                 const ProcessingState& state) {}
 
-InitialValue::InitialValue(uint64_t bitfield, interpreter::Register source)
-    : Base(bitfield), source_(source) {}
-
 void InitialValue::SetValueLocationConstraints() {
+  // TODO(leszeks): Make this nicer.
   result().SetUnallocated(compiler::UnallocatedOperand::FIXED_SLOT,
-                          stack_slot(), kNoVreg);
+                          (StandardFrameConstants::kExpressionsOffset -
+                           UnoptimizedFrameConstants::kRegisterFileFromFp) /
+                                  kSystemPointerSize +
+                              source().index(),
+                          kNoVreg);
 }
 void InitialValue::GenerateCode(MaglevAssembler* masm,
                                 const ProcessingState& state) {
   // No-op, the value is already in the appropriate slot.
-}
-
-// static
-uint32_t InitialValue::stack_slot(uint32_t register_index) {
-  // TODO(leszeks): Make this nicer.
-  return (StandardFrameConstants::kExpressionsOffset -
-          UnoptimizedFrameConstants::kRegisterFileFromFp) /
-             kSystemPointerSize +
-         register_index;
-}
-
-uint32_t InitialValue::stack_slot() const {
-  return stack_slot(source_.index());
 }
 
 void RegisterInput::SetValueLocationConstraints() {
@@ -4209,8 +4198,8 @@ void AttemptOnStackReplacement(MaglevAssembler* masm,
   // Case 1).
   Label deopt;
   Register maybe_target_code = scratch1;
-  __ TryLoadOptimizedOsrCode(scratch1, CodeKind::TURBOFAN, scratch0,
-                             feedback_slot, &deopt, Label::kFar);
+  __ TryLoadOptimizedOsrCode(maybe_target_code, scratch0, feedback_slot, &deopt,
+                             Label::kFar);
 
   // Case 2).
   {
@@ -4218,7 +4207,7 @@ void AttemptOnStackReplacement(MaglevAssembler* masm,
                 FieldMemOperand(scratch0, FeedbackVector::kOsrStateOffset));
     __ DecodeField<FeedbackVector::OsrUrgencyBits>(scratch0);
     __ JumpIfByte(kUnsignedLessThanEqual, scratch0, loop_depth,
-                  *no_code_for_osr);
+                  *no_code_for_osr, Label::Distance::kNear);
 
     // The osr_urgency exceeds the current loop_depth, signaling an OSR
     // request. Call into runtime to compile.
@@ -4292,24 +4281,15 @@ void TryOnStackReplacement::GenerateCode(MaglevAssembler* masm,
   __ LoadByte(osr_state,
               FieldMemOperand(scratch0, FeedbackVector::kOsrStateOffset));
 
+  // The quick initial OSR check. If it passes, we proceed on to more
+  // expensive OSR logic.
+  static_assert(FeedbackVector::MaybeHasOptimizedOsrCodeBit::encode(true) >
+                FeedbackVector::kMaxOsrUrgency);
+  __ CompareInt32(osr_state, loop_depth_);
   ZoneLabelRef no_code_for_osr(masm);
-
-  if (!masm->compilation_info()->toplevel_is_osr()) {
-    // The quick initial OSR check. If it passes, we proceed on to more
-    // expensive OSR logic.
-    static_assert(FeedbackVector::MaybeHasOptimizedOsrCodeBit::encode(true) >
-                  FeedbackVector::kMaxOsrUrgency);
-    __ CompareInt32(osr_state, loop_depth_);
-    __ JumpToDeferredIf(kUnsignedGreaterThan, AttemptOnStackReplacement,
-                        no_code_for_osr, this, scratch0, scratch1, loop_depth_,
-                        feedback_slot_, osr_offset_);
-  } else {
-    // TODO(olivf) The above fast case is completely useless for maglev OSR'd
-    // code since the maybe_has_optimized_code bit is guaranteed to be set. We
-    // do have OSR maglev code ready (duh), but are waiting for TF.
-    AttemptOnStackReplacement(masm, no_code_for_osr, this, scratch0, scratch1,
-                              loop_depth_, feedback_slot_, osr_offset_);
-  }
+  __ JumpToDeferredIf(kUnsignedGreaterThan, AttemptOnStackReplacement,
+                      no_code_for_osr, this, scratch0, scratch1, loop_depth_,
+                      feedback_slot_, osr_offset_);
   __ bind(*no_code_for_osr);
 }
 
