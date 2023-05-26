@@ -5,10 +5,9 @@
 #ifndef V8_BASE_PLATFORM_MEMORY_PROTECTION_KEY_H_
 #define V8_BASE_PLATFORM_MEMORY_PROTECTION_KEY_H_
 
+#include "src/base/build_config.h"
+
 #if V8_HAS_PKU_JIT_WRITE_PROTECT
-#include <sys/mman.h>  // For static_assert of permission values.
-#undef MAP_TYPE  // Conflicts with MAP_TYPE in Torque-generated instance-types.h
-#endif
 
 #include "include/v8-platform.h"
 #include "src/base/address-region.h"
@@ -22,7 +21,7 @@ namespace base {
 // This class has static methods for the different platform specific
 // functions related to memory protection key support.
 
-// TODO(dlehmann): Consider adding this to {base::PageAllocator} (higher-level,
+// TODO(sroettger): Consider adding this to {base::PageAllocator} (higher-level,
 // exported API) once the API is more stable and we have converged on a better
 // design (e.g., typed class wrapper around int memory protection key).
 class V8_BASE_EXPORT MemoryProtectionKey {
@@ -78,5 +77,7 @@ class V8_BASE_EXPORT MemoryProtectionKey {
 
 }  // namespace base
 }  // namespace v8
+
+#endif  // V8_HAS_PKU_JIT_WRITE_PROTECT
 
 #endif  // V8_BASE_PLATFORM_MEMORY_PROTECTION_KEY_H_
