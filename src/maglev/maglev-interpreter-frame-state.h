@@ -147,6 +147,11 @@ struct KnownNodeAspects {
     clone->stable_maps = stable_maps;
     clone->loaded_constant_properties = loaded_constant_properties;
     clone->loaded_context_constants = loaded_context_constants;
+    // Remove any nodes from the stable map set that also had known unstable
+    // maps -- see MaglevGraphBuilder::MarkPossibleSideEffect.
+    for (auto node_and_map : unstable_maps) {
+      clone->stable_maps.erase(node_and_map.first);
+    }
     return clone;
   }
 
