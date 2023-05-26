@@ -14,6 +14,7 @@ v8_builder(
     executable = "recipe:v8/spike",
     schedule = "* * * * * 1970",
     in_list = "tools",
+    utility_builder = True,
 )
 
 v8_builder(
@@ -27,4 +28,5 @@ v8_builder(
     schedule = "49 * * * *",
     in_list = "tools",
     notifies = ["branch monitor - infra"],
+    utility_builder = True,
 )

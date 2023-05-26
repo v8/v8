@@ -14,6 +14,7 @@ v8_builder(
     in_list = "pgo",
     execution_timeout = 3600,
     notifies = ["infra-failure", "infra"],
+    utility_builder = True,
 )
 
 def pgo_compilator(name, os):
