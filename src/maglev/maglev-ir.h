@@ -4431,15 +4431,37 @@ class AssertInt32 : public FixedInputNodeT<2, AssertInt32> {
   AbortReason reason_;
 };
 
+// Helper for generating the platform-specific parts of map comparison
+// operations.
+class MapCompare {
+ public:
+  MapCompare() : register_for_map_compare_(Register::no_reg()) {}
+
+  // Call this first to load the map of the object.
+  void GenerateMapLoad(MaglevAssembler* masm, Register object);
+
+  // These can be used after GenerateMapLoad has been called.
+  void GenerateMapCompare(MaglevAssembler* masm, Handle<Map> map);
+  void GenerateMapDeprecatedCheck(MaglevAssembler* masm, Label* not_deprecated);
+
+  // Helpers:
+  Register GetScratchRegister(MaglevAssembler* masm);
+
+  // For counting the temporaries needed by the above operations:
+  int TemporaryCountForMapLoad();
+  int TemporaryCountForGetScratchRegister();
+
+ private:
+  Register register_for_map_compare_;
+};
+
 class CheckMaps : public FixedInputNodeT<1, CheckMaps> {
   using Base = FixedInputNodeT<1, CheckMaps>;
 
  public:
   explicit CheckMaps(uint64_t bitfield, const compiler::ZoneRefSet<Map>& maps,
                      CheckType check_type)
-      : Base(CheckTypeBitField::update(bitfield, check_type)),
-        maps_(maps),
-        register_for_map_compare_(Register::no_reg()) {}
+      : Base(CheckTypeBitField::update(bitfield, check_type)), maps_(maps) {}
 
   static constexpr OpProperties kProperties = OpProperties::EagerDeopt();
   static constexpr
@@ -4455,14 +4477,12 @@ class CheckMaps : public FixedInputNodeT<1, CheckMaps> {
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
 
- private:
-  void MaybeGenerateMapLoad(MaglevAssembler* masm, Register object);
-  void GenerateMapCompare(MaglevAssembler* masm, Handle<Map> map);
+  MapCompare& map_compare() { return map_compare_; }
 
+ private:
   using CheckTypeBitField = NextBitField<CheckType, 1>;
   const compiler::ZoneRefSet<Map> maps_;
-
-  Register register_for_map_compare_;
+  MapCompare map_compare_;
 };
 
 class CheckValue : public FixedInputNodeT<1, CheckValue> {
@@ -4770,9 +4790,12 @@ class CheckMapsWithMigration
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
 
+  MapCompare& map_compare() { return map_compare_; }
+
  private:
   using CheckTypeBitField = NextBitField<CheckType, 1>;
   const compiler::ZoneRefSet<Map> maps_;
+  MapCompare map_compare_;
 };
 
 class CheckFixedArrayNonEmpty

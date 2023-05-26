@@ -275,6 +275,10 @@ class MaglevAssembler : public MacroAssembler {
   inline void CompareTagged(Register reg, Handle<HeapObject> obj);
   inline void CompareTagged(Register src1, Register src2);
 
+  inline void CompareTaggedAndJumpIf(Register reg, Smi smi, Condition cond,
+                                     Label* target,
+                                     Label::Distance distance = Label::kFar);
+
   inline void CompareInt32(Register reg, int32_t imm);
   inline void CompareInt32(Register src1, Register src2);
 

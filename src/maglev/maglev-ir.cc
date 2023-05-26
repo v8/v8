@@ -1063,6 +1063,11 @@ void UnsafeSmiUntag::GenerateCode(MaglevAssembler* masm,
   __ SmiToInt32(value);
 }
 
+void CheckMaps::SetValueLocationConstraints() {
+  UseRegister(receiver_input());
+  set_temporaries_needed(map_compare().TemporaryCountForMapLoad());
+}
+
 void CheckMaps::GenerateCode(MaglevAssembler* masm,
                              const ProcessingState& state) {
   Register object = ToRegister(receiver_input());
@@ -1097,18 +1102,145 @@ void CheckMaps::GenerateCode(MaglevAssembler* masm,
   }
 
   MaglevAssembler::ScratchRegisterScope temps(masm);
-  MaybeGenerateMapLoad(masm, object);
+  map_compare().GenerateMapLoad(masm, object);
 
   size_t map_count = maps().size();
   for (size_t i = 0; i < map_count - 1; ++i) {
     Handle<Map> map = maps().at(i).object();
-    GenerateMapCompare(masm, map);
+    map_compare().GenerateMapCompare(masm, map);
     __ JumpIf(kEqual, &done, jump_distance);
   }
   Handle<Map> last_map = maps().at(map_count - 1).object();
-  GenerateMapCompare(masm, last_map);
+  map_compare().GenerateMapCompare(masm, last_map);
   __ EmitEagerDeoptIfNotEqual(DeoptimizeReason::kWrongMap, this);
   __ bind(&done);
+}
+
+int CheckMapsWithMigration::MaxCallStackArgs() const {
+  DCHECK_EQ(Runtime::FunctionForId(Runtime::kTryMigrateInstance)->nargs, 1);
+  return 1;
+}
+
+void CheckMapsWithMigration::SetValueLocationConstraints() {
+  UseRegister(receiver_input());
+  set_temporaries_needed(map_compare().TemporaryCountForMapLoad() +
+                         map_compare().TemporaryCountForGetScratchRegister());
+}
+
+void CheckMapsWithMigration::GenerateCode(MaglevAssembler* masm,
+                                          const ProcessingState& state) {
+  // TODO(victorgomes): This can happen, because we do not emit an unconditional
+  // deopt when we intersect the map sets.
+  if (maps().is_empty()) {
+    __ EmitEagerDeopt(this, DeoptimizeReason::kWrongMap);
+    return;
+  }
+
+  MaglevAssembler::ScratchRegisterScope temps(masm);
+  Register object = ToRegister(receiver_input());
+
+  bool maps_include_heap_number = AnyMapIsHeapNumber(maps());
+
+  ZoneLabelRef map_checks(masm), done(masm);
+
+  if (check_type() == CheckType::kOmitHeapObjectCheck) {
+    __ AssertNotSmi(object);
+  } else {
+    Condition is_smi = __ CheckSmi(object);
+    if (maps_include_heap_number) {
+      // Smis count as matching the HeapNumber map, so we're done.
+      __ JumpIf(is_smi, *done);
+    } else {
+      __ EmitEagerDeoptIf(is_smi, DeoptimizeReason::kWrongMap, this);
+    }
+  }
+
+  // If we jump from here from the deferred code (below), we need to reload
+  // the map.
+  __ bind(*map_checks);
+  map_compare().GenerateMapLoad(masm, object);
+
+  RegisterSnapshot save_registers = register_snapshot();
+  // Make sure that the object register is not clobbered by the
+  // Runtime::kMigrateInstance runtime call. It's ok to clobber the register
+  // where the object map is, since the map is reloaded after the runtime call.
+  save_registers.live_registers.set(object);
+  save_registers.live_tagged_registers.set(object);
+
+  // We can eager deopt after the snapshot, so make sure the nodes used by the
+  // deopt are included in it.
+  // TODO(leszeks): This is a bit of a footgun -- we likely want the snapshot to
+  // always include eager deopt input registers.
+  AddDeoptRegistersToSnapshot(&save_registers, eager_deopt_info());
+
+  size_t map_count = maps().size();
+  bool has_migration_targets = false;
+  for (size_t i = 0; i < map_count; ++i) {
+    Handle<Map> map_handle = maps().at(i).object();
+    map_compare().GenerateMapCompare(masm, map_handle);
+    const bool last_map = (i == map_count - 1);
+    if (!last_map) {
+      __ JumpIf(kEqual, *done);
+    }
+    if (map_handle->is_migration_target()) {
+      has_migration_targets = true;
+    }
+  }
+
+  if (!has_migration_targets) {
+    // Emit deopt for the last map.
+    __ EmitEagerDeoptIf(kNotEqual, DeoptimizeReason::kWrongMap, this);
+  } else {
+    ZoneLabelRef deopt(masm);
+    __ JumpToDeferredIf(
+        kNotEqual,
+        [](MaglevAssembler* masm, RegisterSnapshot register_snapshot,
+           ZoneLabelRef map_checks, ZoneLabelRef deopt, Register object,
+           CheckMapsWithMigration* node) {
+          // If the map is not deprecated, we fail the map check.
+          node->map_compare().GenerateMapDeprecatedCheck(masm, *deopt);
+
+          // Otherwise, try migrating the object.
+          Register return_val = Register::no_reg();
+          {
+            SaveRegisterStateForCall save_register_state(masm,
+                                                         register_snapshot);
+
+            __ Push(object);
+            __ Move(kContextRegister, masm->native_context().object());
+            __ CallRuntime(Runtime::kTryMigrateInstance);
+            save_register_state.DefineSafepoint();
+
+            // Make sure the return value is preserved across the live
+            // register restoring pop all.
+            return_val = kReturnRegister0;
+            Register scratch = node->map_compare().GetScratchRegister(masm);
+            if (register_snapshot.live_registers.has(return_val)) {
+              DCHECK(!register_snapshot.live_registers.has(scratch));
+              __ Move(scratch, return_val);
+              return_val = scratch;
+            }
+          }
+
+          // On failure, the returned value is Smi zero.
+          __ CompareTaggedAndJumpIf(return_val, Smi::zero(), kEqual, *deopt);
+
+          // Otherwise, the return value is the object (it's always the same
+          // object we called TryMigrate with). We already have it in a
+          // register, so we can ignore the return value. We'll need to reload
+          // the map though since it might have changed; it's done right after
+          // the map_checks label.
+          __ Jump(*map_checks);
+        },
+        save_registers, map_checks, deopt, object, this);
+    // If the jump to deferred code was not taken, the map was equal to the
+    // last map.
+    __ Jump(*done);
+
+    __ bind(*deopt);
+    __ EmitEagerDeopt(this, DeoptimizeReason::kWrongMap);
+  }  // End of the `has_migration_targets` case.
+  __ bind(*done);
 }
 
 int DeleteProperty::MaxCallStackArgs() const {
