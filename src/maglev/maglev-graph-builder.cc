@@ -4867,20 +4867,7 @@ void MaglevGraphBuilder::VisitBitwiseNot() {
 }
 
 void MaglevGraphBuilder::VisitToBooleanLogicalNot() {
-  ValueNode* value = GetAccumulatorTagged();
-  switch (value->opcode()) {
-#define CASE(Name)                                                             \
-  case Opcode::k##Name: {                                                      \
-    SetAccumulator(                                                            \
-        GetBooleanConstant(!value->Cast<Name>()->ToBoolean(local_isolate()))); \
-    return;                                                                    \
-  }
-    CONSTANT_VALUE_NODE_LIST(CASE)
-#undef CASE
-    default:
-      break;
-  }
-  BuildToBooleanLogicalNot(value);
+  BuildToBoolean</* flip */ true>(GetAccumulatorTagged());
 }
 
 void MaglevGraphBuilder::VisitLogicalNot() {
@@ -6843,30 +6830,49 @@ ReduceResult MaglevGraphBuilder::TryBuildFastInstanceOf(
   return ReduceResult::Fail();
 }
 
+template <bool flip>
 void MaglevGraphBuilder::BuildToBoolean(ValueNode* value) {
-  NodeType old_type;
-  if (CheckType(value, NodeType::kBoolean, &old_type)) {
-    if (!TryBuildBranchFor<BranchIfRootConstant>({value},
-                                                 RootIndex::kTrueValue)) {
+  if (IsConstantNode(value->opcode())) {
+    SetAccumulator(
+        GetBooleanConstant(FromConstantToBool(local_isolate(), value) ^ flip));
+    return;
+  }
+  NodeType value_type;
+  if (CheckType(value, NodeType::kJSReceiver, &value_type)) {
+    SetAccumulator(GetBooleanConstant(!flip));
+    return;
+  }
+  ValueNode* falsy_value = nullptr;
+  if (CheckType(value, NodeType::kString)) {
+    falsy_value = GetRootConstant(RootIndex::kempty_string);
+  } else if (CheckType(value, NodeType::kSmi)) {
+    falsy_value = GetSmiConstant(0);
+  }
+  if (falsy_value != nullptr) {
+    // Negate flip because we're comparing with a falsy value.
+    if (!TryBuildBranchFor<BranchIfReferenceCompare, !flip>(
+            {value, falsy_value}, Operation::kStrictEqual)) {
+      SetAccumulator(
+          AddNewNode<std::conditional_t<flip, TaggedEqual, TaggedNotEqual>>(
+              {value, falsy_value}));
+    }
+    return;
+  }
+  if (CheckType(value, NodeType::kBoolean)) {
+    if (!TryBuildBranchFor<BranchIfRootConstant>(
+            {value}, flip ? RootIndex::kFalseValue : RootIndex::kTrueValue)) {
+      if (flip) {
+        value = AddNewNode<LogicalNot>({value});
+      }
       SetAccumulator(value);
     }
-  } else if (!TryBuildBranchFor<BranchIfToBooleanTrue>(
-                 {value}, GetCheckType(old_type))) {
-    SetAccumulator(AddNewNode<ToBoolean>({value}, GetCheckType(old_type)));
+    return;
   }
-}
-
-void MaglevGraphBuilder::BuildToBooleanLogicalNot(ValueNode* value) {
-  NodeType old_type;
-  if (CheckType(value, NodeType::kBoolean, &old_type)) {
-    if (!TryBuildBranchFor<BranchIfRootConstant>({value},
-                                                 RootIndex::kFalseValue)) {
-      SetAccumulator(AddNewNode<LogicalNot>({value}));
-    }
-  } else if (!TryBuildBranchFor<BranchIfToBooleanTrue, /* flip */ true>(
-                 {value}, GetCheckType(old_type))) {
+  if (!TryBuildBranchFor<BranchIfToBooleanTrue, flip>(
+          {value}, GetCheckType(value_type))) {
     SetAccumulator(
-        AddNewNode<ToBooleanLogicalNot>({value}, GetCheckType(old_type)));
+        AddNewNode<std::conditional_t<flip, ToBooleanLogicalNot, ToBoolean>>(
+            {value}, GetCheckType(value_type)));
   }
 }
 
@@ -7030,20 +7036,7 @@ void MaglevGraphBuilder::VisitToString() {
 }
 
 void MaglevGraphBuilder::VisitToBoolean() {
-  ValueNode* value = GetAccumulatorTagged();
-  switch (value->opcode()) {
-#define CASE(Name)                                                            \
-  case Opcode::k##Name: {                                                     \
-    SetAccumulator(                                                           \
-        GetBooleanConstant(value->Cast<Name>()->ToBoolean(local_isolate()))); \
-    return;                                                                   \
-  }
-    CONSTANT_VALUE_NODE_LIST(CASE)
-#undef CASE
-    default:
-      break;
-  }
-  BuildToBoolean(value);
+  BuildToBoolean(GetAccumulatorTagged());
 }
 
 void FastObject::ClearFields() {
@@ -8072,6 +8065,16 @@ BasicBlock* MaglevGraphBuilder::BuildSpecializedBranchIfCompareNode(
         return FinishBlock<BranchIfRootConstant>({node}, RootIndex::kTrueValue,
                                                  true_target, false_target);
       }
+      if (CheckType(node, NodeType::kSmi)) {
+        return FinishBlock<BranchIfReferenceCompare>({node, GetSmiConstant(0)},
+                                                     Operation::kStrictEqual,
+                                                     false_target, true_target);
+      }
+      if (CheckType(node, NodeType::kString)) {
+        return FinishBlock<BranchIfRootConstant>(
+            {node}, RootIndex::kempty_string, false_target, true_target);
+      }
+      // TODO(verwaest): Number or oddball.
       return FinishBlock<BranchIfToBooleanTrue>({node}, GetCheckType(old_type),
                                                 true_target, false_target);
     }
@@ -8100,9 +8103,17 @@ void MaglevGraphBuilder::BuildBranchIfToBooleanTrue(ValueNode* node,
     jump_type = NegateJumpType(jump_type);
   }
 
+  bool known_to_boolean_value = false;
+  bool direction_is_true = true;
   if (IsConstantNode(node->opcode())) {
-    bool constant_is_true = FromConstantToBool(local_isolate(), node);
-    bool is_jump_taken = constant_is_true == (jump_type == kJumpIfTrue);
+    known_to_boolean_value = true;
+    direction_is_true = FromConstantToBool(local_isolate(), node);
+  } else if (CheckType(node, NodeType::kJSReceiver)) {
+    known_to_boolean_value = true;
+    direction_is_true = true;
+  }
+  if (known_to_boolean_value) {
+    bool is_jump_taken = direction_is_true == (jump_type == kJumpIfTrue);
     if (is_jump_taken) {
       BasicBlock* block = FinishBlock<Jump>({}, &jump_targets_[jump_offset]);
       MergeDeadIntoFrameState(fallthrough_offset);
@@ -8113,19 +8124,8 @@ void MaglevGraphBuilder::BuildBranchIfToBooleanTrue(ValueNode* node,
     return;
   }
 
-  BasicBlock* block;
-  switch (node->opcode()) {
-    // Known boolean-valued codes, we don't need to call ToBoolean on them.
-    case Opcode::kToBoolean:
-    case Opcode::kToBooleanLogicalNot: {
-      block = FinishBlock<BranchIfRootConstant>({node}, RootIndex::kTrueValue,
-                                                true_target, false_target);
-      break;
-    }
-    default:
-      block =
-          BuildSpecializedBranchIfCompareNode(node, true_target, false_target);
-  }
+  BasicBlock* block =
+      BuildSpecializedBranchIfCompareNode(node, true_target, false_target);
 
   MergeIntoFrameState(block, jump_offset);
   StartFallthroughBlock(fallthrough_offset, block);
