@@ -266,7 +266,7 @@ void V8::Initialize() {
 
   // Fetch the ThreadIsolatedAllocator once since we need to keep the pointer in
   // protected memory.
-  g_thread_isolation_data.Initialize(
+  ThreadIsolation::Initialize(
       GetCurrentPlatform()->GetThreadIsolatedAllocator());
 
 #if V8_ENABLE_WEBASSEMBLY

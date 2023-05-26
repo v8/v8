@@ -48,7 +48,7 @@ class CodeSpaceWriteScope;
 // Page size is not a compile time constant, but we need it for alignment and
 // padding of our global memory.
 // We use the maximum expected value here (currently x64 only) and test in
-// ThreadIsolationData::Initialize() that it's a multiple of the real pagesize.
+// ThreadIsolation::Initialize() that it's a multiple of the real pagesize.
 #define THREAD_ISOLATION_ALIGN_SZ 0x1000
 #define THREAD_ISOLATION_ALIGN alignas(THREAD_ISOLATION_ALIGN_SZ)
 #define THREAD_ISOLATION_ALIGN_OFFSET_MASK (THREAD_ISOLATION_ALIGN_SZ - 1)
@@ -68,23 +68,50 @@ class CodeSpaceWriteScope;
 // This data needs to be write-protected with the same mechanism we use for
 // thread isolation, hence it has to be aligned and padded to (a multiple of)
 // the system page size.
-struct THREAD_ISOLATION_ALIGN ThreadIsolationData {
-  void Initialize(ThreadIsolatedAllocator* allocator);
+class ThreadIsolation {
+ public:
+  static bool Enabled();
+  static void Initialize(ThreadIsolatedAllocator* allocator);
 
-  ThreadIsolatedAllocator* allocator = nullptr;
+  static ThreadIsolatedAllocator* allocator() {
+    return trusted_data_.allocator;
+  }
 
 #if V8_HAS_PKU_JIT_WRITE_PROTECT
-  int pkey = -1;
+  static int pkey() { return trusted_data_.pkey; }
+  // A copy of the pkey, but taken from untrusted memory. This function should
+  // only be used to grant read access to the pkey, never for write access.
+  static int untrusted_pkey() { return untrusted_data_.pkey; }
 #endif
+
 #if DEBUG
-  bool initialized = false;
+  static bool initialized() { return untrusted_data_.initialized; }
 #endif
+
+ private:
+  struct THREAD_ISOLATION_ALIGN TrustedData {
+    ThreadIsolatedAllocator* allocator = nullptr;
+
+#if V8_HAS_PKU_JIT_WRITE_PROTECT
+    int pkey = -1;
+#endif
+  };
+
+  struct UntrustedData {
+#if DEBUG
+    bool initialized = false;
+#endif
+#if V8_HAS_PKU_JIT_WRITE_PROTECT
+    int pkey = -1;
+#endif
+  };
+
+  static struct TrustedData trusted_data_;
+  static struct UntrustedData untrusted_data_;
+
+  static_assert(THREAD_ISOLATION_ALIGN_SZ == 0 ||
+                sizeof(trusted_data_) == THREAD_ISOLATION_ALIGN_SZ);
 };
-
-static_assert(THREAD_ISOLATION_ALIGN_SZ == 0 ||
-              sizeof(ThreadIsolationData) == THREAD_ISOLATION_ALIGN_SZ);
-
-extern ThreadIsolationData g_thread_isolation_data;
 
 // This scope is a wrapper for APRR/MAP_JIT machinery on MacOS on ARM64
 // ("Apple M1"/Apple Silicon) or Intel PKU (aka. memory protection keys)
@@ -123,9 +150,14 @@ class V8_NODISCARD RwxMemoryWriteScope {
   // Returns true if current configuration supports fast write-protection of
   // executable pages.
   V8_INLINE static bool IsSupported();
+  // An untrusted version of this check, i.e. the result might be
+  // attacker-controlled if we assume memory corruption. This is needed in
+  // signal handlers in which we might not have read access to the trusted
+  // memory.
+  V8_INLINE static bool IsSupportedUntrusted();
 
 #if V8_HAS_PKU_JIT_WRITE_PROTECT
-  static int memory_protection_key() { return g_thread_isolation_data.pkey; }
+  static int memory_protection_key() { return ThreadIsolation::pkey(); }
 
   static bool IsPKUWritable();
 

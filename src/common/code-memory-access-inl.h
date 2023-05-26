@@ -35,6 +35,9 @@ RwxMemoryWriteScope::~RwxMemoryWriteScope() {
 bool RwxMemoryWriteScope::IsSupported() { return true; }
 
 // static
+bool RwxMemoryWriteScope::IsSupportedUntrusted() { return true; }
+
+// static
 void RwxMemoryWriteScope::SetWritable() {
   if (code_space_write_nesting_level_ == 0) {
     base::SetJitWriteProtected(0);
@@ -54,36 +57,41 @@ void RwxMemoryWriteScope::SetExecutable() {
 // static
 bool RwxMemoryWriteScope::IsSupported() {
   static_assert(base::MemoryProtectionKey::kNoMemoryProtectionKey == -1);
-  DCHECK(g_thread_isolation_data.initialized);
-  return g_thread_isolation_data.pkey >= 0;
+  DCHECK(ThreadIsolation::initialized());
+  return ThreadIsolation::pkey() >= 0;
+}
+
+// static
+bool RwxMemoryWriteScope::IsSupportedUntrusted() {
+  DCHECK(ThreadIsolation::initialized());
+  return ThreadIsolation::untrusted_pkey() >= 0;
 }
 
 // static
 void RwxMemoryWriteScope::SetWritable() {
-  DCHECK(g_thread_isolation_data.initialized);
+  DCHECK(ThreadIsolation::initialized());
   if (!IsSupported()) return;
   if (code_space_write_nesting_level_ == 0) {
-    DCHECK_NE(base::MemoryProtectionKey::GetKeyPermission(
-                  g_thread_isolation_data.pkey),
-              base::MemoryProtectionKey::kNoRestrictions);
-    base::MemoryProtectionKey::SetPermissionsForKey(
-        g_thread_isolation_data.pkey,
+    DCHECK_NE(
+        base::MemoryProtectionKey::GetKeyPermission(ThreadIsolation::pkey()),
         base::MemoryProtectionKey::kNoRestrictions);
+    base::MemoryProtectionKey::SetPermissionsForKey(
+        ThreadIsolation::pkey(), base::MemoryProtectionKey::kNoRestrictions);
   }
   code_space_write_nesting_level_++;
 }
 
 // static
 void RwxMemoryWriteScope::SetExecutable() {
-  DCHECK(g_thread_isolation_data.initialized);
+  DCHECK(ThreadIsolation::initialized());
   if (!IsSupported()) return;
   code_space_write_nesting_level_--;
   if (code_space_write_nesting_level_ == 0) {
-    DCHECK_EQ(base::MemoryProtectionKey::GetKeyPermission(
-                  g_thread_isolation_data.pkey),
-              base::MemoryProtectionKey::kNoRestrictions);
+    DCHECK_EQ(
+        base::MemoryProtectionKey::GetKeyPermission(ThreadIsolation::pkey()),
+        base::MemoryProtectionKey::kNoRestrictions);
     base::MemoryProtectionKey::SetPermissionsForKey(
-        g_thread_isolation_data.pkey, base::MemoryProtectionKey::kDisableWrite);
+        ThreadIsolation::pkey(), base::MemoryProtectionKey::kDisableWrite);
   }
 }
 
@@ -91,6 +99,9 @@ void RwxMemoryWriteScope::SetExecutable() {
 
 // static
 bool RwxMemoryWriteScope::IsSupported() { return false; }
+
+// static
+bool RwxMemoryWriteScope::IsSupportedUntrusted() { return false; }
 
 // static
 void RwxMemoryWriteScope::SetWritable() {}

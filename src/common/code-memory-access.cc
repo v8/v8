@@ -8,7 +8,8 @@
 namespace v8 {
 namespace internal {
 
-ThreadIsolationData g_thread_isolation_data;
+ThreadIsolation::TrustedData ThreadIsolation::trusted_data_;
+ThreadIsolation::UntrustedData ThreadIsolation::untrusted_data_;
 
 #if V8_HAS_PTHREAD_JIT_WRITE_PROTECT || V8_HAS_PKU_JIT_WRITE_PROTECT
 thread_local int RwxMemoryWriteScope::code_space_write_nesting_level_ = 0;
@@ -17,17 +18,17 @@ thread_local int RwxMemoryWriteScope::code_space_write_nesting_level_ = 0;
 #if V8_HAS_PKU_JIT_WRITE_PROTECT
 
 bool RwxMemoryWriteScope::IsPKUWritable() {
-  DCHECK(g_thread_isolation_data.initialized);
-  return base::MemoryProtectionKey::GetKeyPermission(
-             g_thread_isolation_data.pkey) ==
+  DCHECK(ThreadIsolation::initialized());
+  return base::MemoryProtectionKey::GetKeyPermission(ThreadIsolation::pkey()) ==
          base::MemoryProtectionKey::kNoRestrictions;
 }
 
 void RwxMemoryWriteScope::SetDefaultPermissionsForSignalHandler() {
-  DCHECK(g_thread_isolation_data.initialized);
-  if (!RwxMemoryWriteScope::IsSupported()) return;
+  DCHECK(ThreadIsolation::initialized());
+  if (!RwxMemoryWriteScope::IsSupportedUntrusted()) return;
   base::MemoryProtectionKey::SetPermissionsForKey(
-      g_thread_isolation_data.pkey, base::MemoryProtectionKey::kDisableWrite);
+      ThreadIsolation::untrusted_pkey(),
+      base::MemoryProtectionKey::kDisableWrite);
 }
 
 #endif  // V8_HAS_PKU_JIT_WRITE_PROTECT
@@ -37,10 +38,11 @@ RwxMemoryWriteScopeForTesting::RwxMemoryWriteScopeForTesting()
 
 RwxMemoryWriteScopeForTesting::~RwxMemoryWriteScopeForTesting() {}
 
-void ThreadIsolationData::Initialize(
+// static
+void ThreadIsolation::Initialize(
     ThreadIsolatedAllocator* thread_isolated_allocator) {
 #if DEBUG
-  initialized = true;
+  untrusted_data_.initialized = true;
 #endif
 
   if (!thread_isolated_allocator) {
@@ -58,14 +60,15 @@ void ThreadIsolationData::Initialize(
   CHECK_GE(THREAD_ISOLATION_ALIGN_SZ,
            GetPlatformPageAllocator()->CommitPageSize());
 
-  allocator = thread_isolated_allocator;
+  trusted_data_.allocator = thread_isolated_allocator;
 
 #if V8_HAS_PKU_JIT_WRITE_PROTECT
-  pkey = allocator->Pkey();
+  trusted_data_.pkey = trusted_data_.allocator->Pkey();
+  untrusted_data_.pkey = trusted_data_.pkey;
   base::MemoryProtectionKey::SetPermissionsAndKey(
       GetPlatformPageAllocator(),
-      {reinterpret_cast<Address>(this), sizeof(*this)},
-      v8::PageAllocator::Permission::kRead, pkey);
+      {reinterpret_cast<Address>(&trusted_data_), sizeof(trusted_data_)},
+      v8::PageAllocator::Permission::kRead, trusted_data_.pkey);
 #endif
 }
 
