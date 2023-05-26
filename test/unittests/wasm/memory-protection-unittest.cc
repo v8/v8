@@ -42,7 +42,7 @@ class MemoryProtectionTest : public TestWithNativeContext {
   void Initialize(MemoryProtectionMode mode) {
     v8_flags.wasm_lazy_compilation = false;
     mode_ = mode;
-    v8_flags.wasm_memory_protection_keys = (mode == kPku);
+    v8_flags.memory_protection_keys = (mode == kPku);
     // The key is initially write-protected.
     CHECK_IMPLIES(WasmCodeManager::HasMemoryProtectionKeySupport(),
                   !WasmCodeManager::MemoryProtectionKeyWritable());

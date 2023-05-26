@@ -608,6 +608,9 @@ DEFINE_NEG_IMPLICATION(jitless, maglev)
 // Doesn't work without an executable code space.
 DEFINE_NEG_IMPLICATION(jitless, interpreted_frames_native_stack)
 
+DEFINE_BOOL(memory_protection_keys, true,
+            "protect code memory with PKU if available")
+
 DEFINE_BOOL(assert_types, false,
             "generate runtime type assertions to test the typer")
 // TODO(tebbi): Support allocating types from background thread.
@@ -1143,8 +1146,6 @@ DEFINE_INT(wasm_num_compilation_tasks, 128,
 DEFINE_VALUE_IMPLICATION(single_threaded, wasm_num_compilation_tasks, 0)
 DEFINE_DEBUG_BOOL(trace_wasm_native_heap, false,
                   "trace wasm native heap events")
-DEFINE_BOOL(wasm_memory_protection_keys, true,
-            "protect wasm code memory with PKU if available")
 DEFINE_DEBUG_BOOL(trace_wasm_serialization, false,
                   "trace serialization/deserialization")
 DEFINE_BOOL(wasm_async_compilation, true,

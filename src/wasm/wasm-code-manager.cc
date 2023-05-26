@@ -2074,8 +2074,7 @@ bool WasmCodeManager::HasMemoryProtectionKeySupport() {
 
 // static
 bool WasmCodeManager::MemoryProtectionKeysEnabled() {
-  return HasMemoryProtectionKeySupport() &&
-         v8_flags.wasm_memory_protection_keys;
+  return HasMemoryProtectionKeySupport();
 }
 
 // static

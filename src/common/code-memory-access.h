@@ -68,7 +68,7 @@ class CodeSpaceWriteScope;
 // This data needs to be write-protected with the same mechanism we use for
 // thread isolation, hence it has to be aligned and padded to (a multiple of)
 // the system page size.
-class ThreadIsolation {
+class V8_EXPORT ThreadIsolation {
  public:
   static bool Enabled();
   static void Initialize(ThreadIsolatedAllocator* allocator);
