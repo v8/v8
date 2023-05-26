@@ -17,7 +17,6 @@ void MaglevAssembler::Allocate(RegisterSnapshot register_snapshot,
                                Register object, int size_in_bytes,
                                AllocationType alloc_type,
                                AllocationAlignment alignment) {
-  DCHECK(allow_allocate());
   // TODO(victorgomes): Call the runtime for large object allocation.
   // TODO(victorgomes): Support double alignment.
   DCHECK_EQ(alignment, kTaggedAligned);

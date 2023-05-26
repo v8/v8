@@ -119,6 +119,7 @@ void CheckJSTypedArrayBounds::GenerateCode(MaglevAssembler* masm,
   __ EmitEagerDeoptIf(above_equal, DeoptimizeReason::kOutOfBounds, this);
 }
 
+int CheckJSDataViewBounds::MaxCallStackArgs() const { return 1; }
 void CheckJSDataViewBounds::SetValueLocationConstraints() {
   UseRegister(receiver_input());
   UseRegister(index_input());

@@ -651,11 +651,6 @@ class ExceptionHandlerTrampolineBuilder {
     __ RecordComment("EmitMaterialisationsAndPushResults");
 
     if (save_accumulator) __ Push(kReturnRegister0);
-
-#ifdef DEBUG
-    // Allow calls in these materialisations.
-    __ set_allow_call(true);
-#endif
     for (const Move& move : moves) {
       // We consider constants after all other operations, since constants
       // don't need to call NewHeapNumber.
@@ -663,9 +658,6 @@ class ExceptionHandlerTrampolineBuilder {
       __ MaterialiseValueNode(kReturnRegister0, move.source);
       __ Push(kReturnRegister0);
     }
-#ifdef DEBUG
-    __ set_allow_call(false);
-#endif
   }
 
   void EmitPopMaterialisedResults(const MoveVector& moves,
@@ -777,19 +769,7 @@ class MaglevCodeGeneratingNodeProcessor {
     scratch_scope.Include(node->general_temporaries());
     scratch_scope.IncludeDouble(node->double_temporaries());
 
-#ifdef DEBUG
-    masm()->set_allow_allocate(node->properties().can_allocate());
-    masm()->set_allow_call(node->properties().is_call());
-    masm()->set_allow_deferred_call(node->properties().is_deferred_call());
-#endif
-
     node->GenerateCode(masm(), state);
-
-#ifdef DEBUG
-    masm()->set_allow_allocate(false);
-    masm()->set_allow_call(false);
-    masm()->set_allow_deferred_call(false);
-#endif
 
     if (std::is_base_of<ValueNode, NodeT>::value) {
       ValueNode* value_node = node->template Cast<ValueNode>();
