@@ -183,7 +183,7 @@ v8_notifier(
         "vahl@google.com",
     ],
     template = luci.notifier_template(
-        name = "rollwatcher_email",
+        name = "branch_monitor_email",
         body = """Branch monitor found revision lagging behind
 
 The builder {{.Build.Builder.Builder}} has detected an active V8 branch where a

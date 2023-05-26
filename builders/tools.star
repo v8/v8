@@ -24,9 +24,9 @@ v8_builder(
     dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
     service_account = V8_CI_ACCOUNT,
     executable = "recipe:v8/branch_monitor",
-    properties = {"max_gap_seconds": 3600},
+    properties = {"max_gap_seconds": 43200},
     schedule = "49 * * * *",
     in_list = "tools",
-    notifies = ["branch monitor - infra"],
+    notifies = ["branch monitor", "branch monitor - infra"],
     utility_builder = True,
 )
