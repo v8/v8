@@ -189,9 +189,6 @@ ScavengerCollector::JobTask::JobTask(
       promotion_list_(promotion_list) {}
 
 void ScavengerCollector::JobTask::Run(JobDelegate* delegate) {
-  // The task accesses code pages and thus the permissions must be set to
-  // default state.
-  RwxMemoryWriteScope::SetDefaultPermissionsForNewThread();
   DCHECK_LT(delegate->GetTaskId(), scavengers_->size());
   Scavenger* scavenger = (*scavengers_)[delegate->GetTaskId()].get();
   if (delegate->IsJoiningThread()) {
