@@ -5519,8 +5519,8 @@ ReduceResult MaglevGraphBuilder::DoTryReduceMathRound(CallArguments& args,
       } else {
         LazyDeoptFrameScope continuation_scope(
             this, Float64Round::continuation(kind));
-        ToNumberOrNumeric* conversion = AddNewNode<ToNumberOrNumeric>(
-            {GetContext(), arg}, Object::Conversion::kToNumber);
+        ToNumberOrNumeric* conversion =
+            AddNewNode<ToNumberOrNumeric>({arg}, Object::Conversion::kToNumber);
         arg = AddNewNode<UncheckedNumberOrOddballToFloat64>(
             {conversion}, TaggedToFloat64ConversionType::kOnlyNumber);
       }
@@ -6956,8 +6956,7 @@ void MaglevGraphBuilder::BuildToNumberOrToNumeric(Object::Conversion mode) {
     case BinaryOperationHint::kString:
     case BinaryOperationHint::kAny:
       if (CheckType(value, NodeType::kNumber)) return;
-      SetAccumulator(
-          AddNewNode<ToNumberOrNumeric>({GetContext(), value}, mode));
+      SetAccumulator(AddNewNode<ToNumberOrNumeric>({value}, mode));
       break;
   }
 }

@@ -3569,20 +3569,19 @@ class ToName : public FixedInputValueNodeT<2, ToName> {
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 };
 
-class ToNumberOrNumeric : public FixedInputValueNodeT<2, ToNumberOrNumeric> {
-  using Base = FixedInputValueNodeT<2, ToNumberOrNumeric>;
+class ToNumberOrNumeric : public FixedInputValueNodeT<1, ToNumberOrNumeric> {
+  using Base = FixedInputValueNodeT<1, ToNumberOrNumeric>;
 
  public:
   explicit ToNumberOrNumeric(uint64_t bitfield, Object::Conversion mode)
       : Base(bitfield), mode_(mode) {}
 
-  // The implementation currently calls runtime.
-  static constexpr OpProperties kProperties = OpProperties::JSCall();
-  static constexpr typename Base::InputTypes kInputTypes{
-      ValueRepresentation::kTagged, ValueRepresentation::kTagged};
+  static constexpr OpProperties kProperties =
+      OpProperties::DeferredCall() | OpProperties::CanCallUserCode();
+  static constexpr
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
 
-  Input& context() { return Node::input(0); }
-  Input& value_input() { return Node::input(1); }
+  Input& value_input() { return Node::input(0); }
   Object::Conversion mode() const { return mode_; }
 
   int MaxCallStackArgs() const;

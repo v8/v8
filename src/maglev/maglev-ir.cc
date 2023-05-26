@@ -3440,22 +3440,52 @@ int ToNumberOrNumeric::MaxCallStackArgs() const {
   return TypeConversionDescriptor::GetStackParameterCount();
 }
 void ToNumberOrNumeric::SetValueLocationConstraints() {
-  using D = TypeConversionDescriptor;
-  UseFixed(context(), kContextRegister);
-  UseFixed(value_input(), D::GetRegisterParameter(D::kArgument));
-  DefineAsFixed(this, kReturnRegister0);
+  UseRegister(value_input());
+  set_temporaries_needed(1);
+  DefineAsRegister(this);
 }
 void ToNumberOrNumeric::GenerateCode(MaglevAssembler* masm,
                                      const ProcessingState& state) {
-  switch (mode()) {
-    case Object::Conversion::kToNumber:
-      __ CallBuiltin(Builtin::kToNumber);
-      break;
-    case Object::Conversion::kToNumeric:
-      __ CallBuiltin(Builtin::kToNumeric);
-      break;
-  }
-  masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
+  ZoneLabelRef done(masm);
+  Label move_and_return;
+  Register object = ToRegister(value_input());
+  Register result_reg = ToRegister(result());
+
+  __ JumpIfSmi(object, &move_and_return, Label::kNear);
+  MaglevAssembler::ScratchRegisterScope temps(masm);
+  Register scratch = temps.Acquire();
+  __ CompareMapWithRoot(object, RootIndex::kHeapNumberMap, scratch);
+  __ JumpToDeferredIf(
+      kNotEqual,
+      [](MaglevAssembler* masm, Object::Conversion mode, Register object,
+         Register result_reg, ToNumberOrNumeric* node, ZoneLabelRef done) {
+        {
+          RegisterSnapshot snapshot = node->register_snapshot();
+          snapshot.live_registers.clear(result_reg);
+          SaveRegisterStateForCall save_register_state(masm, snapshot);
+          using D = TypeConversionDescriptor;
+          __ Move(kContextRegister, masm->native_context().object());
+          __ Move(D::GetRegisterParameter(D::kArgument), object);
+          switch (mode) {
+            case Object::Conversion::kToNumber:
+              __ CallBuiltin(Builtin::kToNumber);
+              break;
+            case Object::Conversion::kToNumeric:
+              __ CallBuiltin(Builtin::kToNumeric);
+              break;
+          }
+          masm->DefineExceptionHandlerPoint(node);
+          save_register_state.DefineSafepointWithLazyDeopt(
+              node->lazy_deopt_info());
+          __ Move(result_reg, kReturnRegister0);
+        }
+        __ Jump(*done);
+      },
+      mode(), object, result_reg, this, done);
+  __ bind(&move_and_return);
+  __ Move(result_reg, object);
+
+  __ bind(*done);
 }
 
 int ToObject::MaxCallStackArgs() const {
