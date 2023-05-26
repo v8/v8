@@ -1343,7 +1343,7 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
     case kRiscvTst64:
 #endif
     case kRiscvTst32:
-      return AndLatency(instr->InputAt(1)->IsRegister());
+      return AndLatency(instr->InputAt(0)->IsRegister());
     case kRiscvRor32:
       return 1;
     case kRiscvMov:

@@ -3,6 +3,8 @@
 // found in the LICENSE file.
 
 #include "src/base/bits.h"
+#include "src/codegen/assembler-inl.h"
+#include "src/codegen/machine-type.h"
 #include "src/compiler/backend/instruction-selector-impl.h"
 #include "src/compiler/backend/riscv/instruction-selector-riscv.h"
 #include "src/compiler/node-matchers.h"
