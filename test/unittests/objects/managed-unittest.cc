@@ -8,6 +8,7 @@
 
 #include "src/objects/managed-inl.h"
 #include "src/objects/objects-inl.h"
+#include "test/unittests/heap/heap-utils.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -41,7 +42,7 @@ TEST_F(ManagedTest, GCCausesDestruction) {
 
   // We need to invoke GC without stack, otherwise the objects may survive.
   DisableConservativeStackScanningScopeForTesting scope(isolate()->heap());
-  CollectAllAvailableGarbage();
+  CollectAllAvailableGarbage(isolate());
 
   CHECK_EQ(1, deleted1);
   CHECK_EQ(0, deleted2);

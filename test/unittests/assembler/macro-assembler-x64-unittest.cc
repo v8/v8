@@ -548,9 +548,9 @@ TEST_F(MacroAssemblerX64Test, EmbeddedObj) {
   CHECK_EQ(old_array->ptr(), result.ptr());
 
   // Collect garbage to ensure reloc info can be walked by the heap.
-  CollectAllGarbage();
-  CollectAllGarbage();
-  CollectAllGarbage();
+  CollectGarbage(OLD_SPACE);
+  CollectGarbage(OLD_SPACE);
+  CollectGarbage(OLD_SPACE);
 
   PtrComprCageBase cage_base(isolate);
 
