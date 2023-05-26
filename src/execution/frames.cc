@@ -501,8 +501,13 @@ bool StackFrameIteratorForProfiler::IsValidCaller(StackFrame* frame) {
     // See EntryFrame::GetCallerState. It computes the caller FP address
     // and calls ExitFrame::GetStateForFramePointer on it. We need to be
     // sure that caller FP address is valid.
-    Address next_exit_frame_fp = Memory<Address>(
-        frame->fp() + EntryFrameConstants::kNextExitFrameFPOffset);
+    Address next_exit_frame_fp_address =
+        frame->fp() + EntryFrameConstants::kNextExitFrameFPOffset;
+    // Profiling tick might be triggered in the middle of JSEntry builtin
+    // before the next_exit_frame_fp value is initialized. IsValidExitFrame()
+    // is able to deal with such a case, so just suppress the MSan warning.
+    MSAN_MEMORY_IS_INITIALIZED(next_exit_frame_fp_address, kSystemPointerSize);
+    Address next_exit_frame_fp = Memory<Address>(next_exit_frame_fp_address);
     if (!IsValidExitFrame(next_exit_frame_fp)) return false;
   }
   frame->ComputeCallerState(&state);
