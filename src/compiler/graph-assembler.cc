@@ -261,8 +261,12 @@ Node* GraphAssembler::TruncateFloat64ToInt64(Node* value, TruncateKind kind) {
 }
 
 Node* GraphAssembler::Projection(int index, Node* value) {
+  // Use `start()` as the control input to allow optimization phases to merge
+  // Projection nodes more reliably. The control input of Projection nodes is
+  // only needed to force better scheduling decisions in the context of deopts,
+  // which is typically not an issue for graphs built with the `GraphAssembler`.
   return AddNode(
-      graph()->NewNode(common()->Projection(index), value, control()));
+      graph()->NewNode(common()->Projection(index), value, graph()->start()));
 }
 
 Node* JSGraphAssembler::Allocate(AllocationType allocation, Node* size,
