@@ -137,6 +137,16 @@ void ExecuteAgainstReference(Isolate* isolate,
   // module, and in particular it may not terminate.
   if (nondeterminism != 0) return;
 
+  if (exception_ref) {
+    if (strcmp(exception_ref.get(),
+               "RangeError: Maximum call stack size exceeded") == 0) {
+      // There was a stack overflow, which may happen nondeterministically. We
+      // cannot guarantee the behavior of the test module, and in particular it
+      // may not terminate.
+      return;
+    }
+  }
+
   // Instantiate a fresh instance for the actual (non-ref) execution.
   Handle<WasmInstanceObject> instance;
   {
