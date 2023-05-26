@@ -448,6 +448,15 @@ struct OperationT : Operation {
     this->inputs().OverwriteWith(inputs);
   }
 
+  bool EqualsForGVN(const Base& other) const {
+    // By default, GVN only removed identical Operations. However, some
+    // Operations (like DeoptimizeIf) can be GVNed when a dominating
+    // similar-but-not-identical one exists. In that case, the Operation should
+    // redefine EqualsForGVN, so that GVN knows which inputs or options of the
+    // Operation to ignore (you should also probably redefine hash_value,
+    // otherwise GVN won't even try to call EqualsForGVN).
+    return derived_this() == other.derived_this();
+  }
   bool operator==(const Base& other) const {
     return derived_this().inputs() == other.derived_this().inputs() &&
            derived_this().options() == other.derived_this().options();
@@ -2021,6 +2030,17 @@ struct DeoptimizeIfOp : FixedArityOperationT<2, DeoptimizeIfOp> {
         negated(negated),
         parameters(parameters) {}
 
+  bool EqualsForGVN(const DeoptimizeIfOp& other) const {
+    // As far as GVN is concerned, the `frame_state` and `parameters` don't
+    // matter: 2 DeoptimizeIf can be GVNed if they have the same `condition` and
+    // same `negated`, regardless of their `frame_state` and `parameters`.
+    return condition() == other.condition() && negated == other.negated;
+  }
+  size_t hash_value() const {
+    // To enable GVNing as described above in `EqualsForGVN`, `hash_value` has
+    // to ignore the `frame_state` and the `parameters`.
+    return fast_hash_combine(Opcode::kDeoptimizeIf, condition(), negated);
+  }
   void Validate(const Graph& graph) const {
     DCHECK(
         ValidOpInputRep(graph, condition(), RegisterRepresentation::Word32()));

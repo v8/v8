@@ -156,7 +156,7 @@ class ValueNumberingReducer : public Next {
         if (entry_op.Is<Op>() &&
             (!same_block_only ||
              entry.block == Asm().current_block()->index()) &&
-            entry_op.Cast<Op>() == op) {
+            entry_op.Cast<Op>().EqualsForGVN(op)) {
           Next::RemoveLast(op_idx);
           return entry.value;
         }
