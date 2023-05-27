@@ -56,7 +56,7 @@ vars = {
   'reclient_version': 're_client_version:0.105.0.d6a0caf-gomaip',
 
   # GN CIPD package version.
-  'gn_version': 'git_revision:e9e83d9095d3234adf68f3e2866f25daf766d5c7',
+  'gn_version': 'git_revision:e3978de3e8dafb50a2b11efa784e08699a43faf8',
 
   # ninja CIPD package version
   # https://chrome-infra-packages.appspot.com/p/infra/3pp/tools/ninja
@@ -108,7 +108,7 @@ deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '147f65333c38ddd1ebf554e89965c243c8ce50b3',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '3ec29d2ccaedd3d68fa6e7ca2149b3882aaea8cb',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '079e692ae2439092703bb420144d47a2588c32a2',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'edbefcee3d2cc45cdb0c60c2b01b673f8ba728bc',
   'buildtools/clang_format/script':
@@ -136,7 +136,7 @@ deps = {
   'buildtools/third_party/libc++/trunk':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxx.git' + '@' + 'f8279b01085b800724f5c5629dc365b9f040dc53',
   'buildtools/third_party/libc++abi/trunk':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + '742b61215283c95ac59c46e72f0aa3b4fd21acb7',
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/libcxxabi.git' + '@' + '5c8dbff7a4911fe1e0af0bc1628891e4187a3c90',
   'buildtools/third_party/libunwind/trunk':
     Var('chromium_url') + '/external/github.com/llvm/llvm-project/libunwind.git' + '@' + 'cd144ced35285edaa064a91561969e5b22c219b1',
   'buildtools/win': {
@@ -212,7 +212,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '303d3b56b066e8828a116b762b745b3db6e04208',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + 'a8f1b417bdecdb677fe7a447ab715e482e2def97',
     'condition': 'checkout_android',
   },
   'third_party/colorama/src': {
@@ -220,7 +220,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '0e3589eaf822ae60f8804ae43a94daaaa42e9f5b',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '04afb4b256a1aab562b0fcfaf7cd9ffe4ec42c1b',
   'third_party/fuchsia-sdk/sdk': {
     'packages': [
         {
