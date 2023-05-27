@@ -1598,10 +1598,6 @@ const Operator* CommonOperatorBuilder::TailCall(
   return zone()->New<TailCallOperator>(call_descriptor);
 }
 
-// Projections have a controll input, but don't actually need a control input.
-// It mostly exists to force better scheduling decisions, mostly in the context
-// of deopts. In many cases it is fine to use the start node as the control
-// input.
 const Operator* CommonOperatorBuilder::Projection(size_t index) {
   switch (index) {
 #define CACHED_PROJECTION(index) \
