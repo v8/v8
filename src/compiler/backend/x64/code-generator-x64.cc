@@ -5126,10 +5126,22 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                                    i.InputSimd128Register(0), kScratchRegister);
       break;
     }
+    case kX64I32x8ExtAddPairwiseI16x16S: {
+      __ I32x8ExtAddPairwiseI16x16S(i.OutputSimd256Register(),
+                                    i.InputSimd256Register(0),
+                                    kScratchSimd256Reg);
+      break;
+    }
     case kX64I32x4ExtAddPairwiseI16x8U: {
       __ I32x4ExtAddPairwiseI16x8U(i.OutputSimd128Register(),
                                    i.InputSimd128Register(0),
                                    kScratchDoubleReg);
+      break;
+    }
+    case kX64I32x8ExtAddPairwiseI16x16U: {
+      __ I32x8ExtAddPairwiseI16x16U(i.OutputSimd256Register(),
+                                    i.InputSimd256Register(0),
+                                    kScratchSimd256Reg);
       break;
     }
     case kX64I32X4ShiftZeroExtendI8x16: {
@@ -5466,9 +5478,21 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                                    kScratchRegister);
       break;
     }
+    case kX64I16x16ExtAddPairwiseI8x32S: {
+      __ I16x16ExtAddPairwiseI8x32S(i.OutputSimd256Register(),
+                                    i.InputSimd256Register(0),
+                                    kScratchSimd256Reg);
+      break;
+    }
     case kX64I16x8ExtAddPairwiseI8x16U: {
       __ I16x8ExtAddPairwiseI8x16U(i.OutputSimd128Register(),
                                    i.InputSimd128Register(0), kScratchRegister);
+      break;
+    }
+    case kX64I16x16ExtAddPairwiseI8x32U: {
+      __ I16x16ExtAddPairwiseI8x32U(i.OutputSimd256Register(),
+                                    i.InputSimd256Register(0),
+                                    kScratchSimd256Reg);
       break;
     }
     case kX64I16x8Q15MulRSatS: {

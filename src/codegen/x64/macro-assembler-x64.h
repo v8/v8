@@ -234,6 +234,18 @@ class V8_EXPORT_PRIVATE MacroAssembler
                    YMMRegister scratch, bool is_signed);
   void I16x16ExtMul(YMMRegister dst, XMMRegister src1, XMMRegister src2,
                     YMMRegister scratch, bool is_signed);
+#define MACRO_ASM_X64_IEXTADDPAIRWISE_LIST(V) \
+  V(I32x8ExtAddPairwiseI16x16S)               \
+  V(I32x8ExtAddPairwiseI16x16U)               \
+  V(I16x16ExtAddPairwiseI8x32S)               \
+  V(I16x16ExtAddPairwiseI8x32U)
+
+#define DECLARE_IEXTADDPAIRWISE(ExtAddPairwiseOp) \
+  void ExtAddPairwiseOp(YMMRegister dst, YMMRegister src, YMMRegister scratch);
+  MACRO_ASM_X64_IEXTADDPAIRWISE_LIST(DECLARE_IEXTADDPAIRWISE)
+#undef DECLARE_IEXTADDPAIRWISE
+#undef MACRO_ASM_X64_IEXTADDPAIRWISE_LIST
+
   void S256Not(YMMRegister dst, YMMRegister src, YMMRegister scratch);
   void S256Select(YMMRegister dst, YMMRegister mask, YMMRegister src1,
                   YMMRegister src2, YMMRegister scratch);

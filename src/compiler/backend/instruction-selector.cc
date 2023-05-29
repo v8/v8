@@ -2657,6 +2657,14 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsSimd256(node), VisitI16x16ExtMulI8x16S(node);
     case IrOpcode::kI16x16ExtMulI8x16U:
       return MarkAsSimd256(node), VisitI16x16ExtMulI8x16U(node);
+    case IrOpcode::kI32x8ExtAddPairwiseI16x16S:
+      return MarkAsSimd256(node), VisitI32x8ExtAddPairwiseI16x16S(node);
+    case IrOpcode::kI32x8ExtAddPairwiseI16x16U:
+      return MarkAsSimd256(node), VisitI32x8ExtAddPairwiseI16x16U(node);
+    case IrOpcode::kI16x16ExtAddPairwiseI8x32S:
+      return MarkAsSimd256(node), VisitI16x16ExtAddPairwiseI8x32S(node);
+    case IrOpcode::kI16x16ExtAddPairwiseI8x32U:
+      return MarkAsSimd256(node), VisitI16x16ExtAddPairwiseI8x32U(node);
 #endif  //  V8_TARGET_ARCH_X64
     default:
       FATAL("Unexpected operator #%d:%s @ node #%d", node->opcode(),

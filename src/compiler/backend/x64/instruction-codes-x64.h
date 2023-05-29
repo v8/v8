@@ -273,7 +273,9 @@ namespace compiler {
   V(X64I32x4ExtMulLowI16x8U)                         \
   V(X64I32x4ExtMulHighI16x8U)                        \
   V(X64I32x4ExtAddPairwiseI16x8S)                    \
+  V(X64I32x8ExtAddPairwiseI16x16S)                   \
   V(X64I32x4ExtAddPairwiseI16x8U)                    \
+  V(X64I32x8ExtAddPairwiseI16x16U)                   \
   V(X64I32x4TruncSatF64x2SZero)                      \
   V(X64I32x4TruncSatF64x2UZero)                      \
   V(X64I32X4ShiftZeroExtendI8x16)                    \
@@ -298,7 +300,9 @@ namespace compiler {
   V(X64I16x8ExtMulLowI8x16U)                         \
   V(X64I16x8ExtMulHighI8x16U)                        \
   V(X64I16x8ExtAddPairwiseI8x16S)                    \
+  V(X64I16x16ExtAddPairwiseI8x32S)                   \
   V(X64I16x8ExtAddPairwiseI8x16U)                    \
+  V(X64I16x16ExtAddPairwiseI8x32U)                   \
   V(X64I16x8Q15MulRSatS)                             \
   V(X64I16x8RelaxedQ15MulRS)                         \
   V(X64I16x8DotI8x16I7x16S)                          \

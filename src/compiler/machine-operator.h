@@ -1101,6 +1101,10 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* I32x8ExtMulI16x8U();
   const Operator* I16x16ExtMulI8x16S();
   const Operator* I16x16ExtMulI8x16U();
+  const Operator* I32x8ExtAddPairwiseI16x16S();
+  const Operator* I32x8ExtAddPairwiseI16x16U();
+  const Operator* I16x16ExtAddPairwiseI8x32S();
+  const Operator* I16x16ExtAddPairwiseI8x32U();
   const Operator* ExtractF128(int32_t lane_index);
   const Operator* I64x4Splat();
   const Operator* I32x8Splat();

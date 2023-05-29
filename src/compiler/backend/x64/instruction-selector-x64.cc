@@ -4496,12 +4496,24 @@ void InstructionSelector::VisitI32x4ExtAddPairwiseI16x8S(Node* node) {
   Emit(kX64I32x4ExtAddPairwiseI16x8S, dst, g.UseRegister(node->InputAt(0)));
 }
 
+void InstructionSelector::VisitI32x8ExtAddPairwiseI16x16S(Node* node) {
+  X64OperandGenerator g(this);
+  Emit(kX64I32x8ExtAddPairwiseI16x16S, g.DefineAsRegister(node),
+       g.UseRegister(node->InputAt(0)));
+}
+
 void InstructionSelector::VisitI32x4ExtAddPairwiseI16x8U(Node* node) {
   X64OperandGenerator g(this);
   InstructionOperand dst = CpuFeatures::IsSupported(AVX)
                                ? g.DefineAsRegister(node)
                                : g.DefineSameAsFirst(node);
   Emit(kX64I32x4ExtAddPairwiseI16x8U, dst, g.UseRegister(node->InputAt(0)));
+}
+
+void InstructionSelector::VisitI32x8ExtAddPairwiseI16x16U(Node* node) {
+  X64OperandGenerator g(this);
+  Emit(kX64I32x8ExtAddPairwiseI16x16U, g.DefineAsRegister(node),
+       g.UseRegister(node->InputAt(0)));
 }
 
 void InstructionSelector::VisitI16x8ExtAddPairwiseI8x16S(Node* node) {
@@ -4511,12 +4523,24 @@ void InstructionSelector::VisitI16x8ExtAddPairwiseI8x16S(Node* node) {
        g.UseUniqueRegister(node->InputAt(0)));
 }
 
+void InstructionSelector::VisitI16x16ExtAddPairwiseI8x32S(Node* node) {
+  X64OperandGenerator g(this);
+  Emit(kX64I16x16ExtAddPairwiseI8x32S, g.DefineAsRegister(node),
+       g.UseUniqueRegister(node->InputAt(0)));
+}
+
 void InstructionSelector::VisitI16x8ExtAddPairwiseI8x16U(Node* node) {
   X64OperandGenerator g(this);
   InstructionOperand dst = CpuFeatures::IsSupported(AVX)
                                ? g.DefineAsRegister(node)
                                : g.DefineSameAsFirst(node);
   Emit(kX64I16x8ExtAddPairwiseI8x16U, dst, g.UseRegister(node->InputAt(0)));
+}
+
+void InstructionSelector::VisitI16x16ExtAddPairwiseI8x32U(Node* node) {
+  X64OperandGenerator g(this);
+  Emit(kX64I16x16ExtAddPairwiseI8x32U, g.DefineAsRegister(node),
+       g.UseUniqueRegister(node->InputAt(0)));
 }
 
 void InstructionSelector::VisitI8x16Popcnt(Node* node) {

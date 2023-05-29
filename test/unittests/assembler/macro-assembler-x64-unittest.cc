@@ -125,6 +125,10 @@ using F5 = int(int32_t, int32_t*, int32_t*, int32_t*);
 using F6 = int(int64_t, int64_t*, int64_t*, int64_t*);
 using F7 = int(double*, double*, double*);
 using F8 = int(float*, float*, float*);
+using F9 = int(int16_t*, int32_t*);
+using F10 = int(int8_t*, int16_t*);
+using F11 = int(uint16_t*, uint32_t*);
+using F12 = int(uint8_t*, uint16_t*);
 
 #define __ masm->
 
@@ -1784,6 +1788,244 @@ TEST_F(MacroAssemblerX64Test, I64x4ExtMulI32x4S) {
 TEST_F(MacroAssemblerX64Test, I64x4ExtMulI32x4U) {
   Isolate* isolate = i_isolate();
   RunExtMulTest<uint32_t, uint64_t>(isolate, MultiplyLong);
+}
+
+TEST_F(MacroAssemblerX64Test, I32x8ExtAddPairwiseI16x16S) {
+  if (!CpuFeatures::IsSupported(AVX) || !CpuFeatures::IsSupported(AVX2)) return;
+  Isolate* isolate = i_isolate();
+  HandleScope handles(isolate);
+  auto buffer = AllocateAssemblerBuffer();
+  MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired::kYes,
+                           buffer->CreateView());
+  MacroAssembler* masm = &assembler;
+
+  const YMMRegister dst = ymm0;
+  const YMMRegister src = ymm1;
+  const YMMRegister tmp = ymm2;
+
+  CpuFeatureScope avx_scope(masm, AVX);
+  CpuFeatureScope avx2_scope(masm, AVX2);
+
+  // Load array
+  __ vmovdqu(src, Operand(arg_reg_1, 0));
+  // Calculation
+  __ I32x8ExtAddPairwiseI16x16S(dst, src, tmp);
+  // Store result array
+  __ vmovdqu(Operand(arg_reg_2, 0), dst);
+  __ ret(0);
+
+  CodeDesc desc;
+  __ GetCode(i_isolate(), &desc);
+
+  PrintCode(isolate, desc);
+
+  buffer->MakeExecutable();
+  // Call the function from C++.
+  auto f = GeneratedCode<F9>::FromBuffer(i_isolate(), buffer->start());
+
+  constexpr int16_t int16_max = std::numeric_limits<int16_t>::max();
+
+  std::vector<std::array<int16_t, 16>> test_cases = {
+      {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15},
+      {10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 110, 111, 112, 113, 114, 115},
+      {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+      {-1, 2, 3, -4, -5, 6, 7, -8, -9, 10, 11, -12, -13, 14, 15, -16},
+      {int16_max, int16_max, int16_max, int16_max, int16_max, int16_max,
+       int16_max, int16_max, int16_max, int16_max, int16_max, int16_max,
+       int16_max, int16_max, int16_max, int16_max}};
+
+  int16_t input[16];
+  int32_t output[8];
+
+  for (const auto& arr : test_cases) {
+    for (int i = 0; i < 16; i++) {
+      input[i] = arr[i];
+    }
+    f.Call(input, output);
+    for (int i = 0; i < 8; i++) {
+      CHECK_EQ(output[i], (int32_t)(input[2 * i] + input[2 * i + 1]));
+    }
+  }
+}
+
+TEST_F(MacroAssemblerX64Test, I16x16ExtAddPairwiseI8x32S) {
+  if (!CpuFeatures::IsSupported(AVX) || !CpuFeatures::IsSupported(AVX2)) return;
+  Isolate* isolate = i_isolate();
+  HandleScope handles(isolate);
+  auto buffer = AllocateAssemblerBuffer();
+  MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired::kYes,
+                           buffer->CreateView());
+  MacroAssembler* masm = &assembler;
+
+  const YMMRegister dst = ymm0;
+  const YMMRegister src = ymm1;
+  const YMMRegister tmp = ymm2;
+
+  CpuFeatureScope avx_scope(masm, AVX);
+  CpuFeatureScope avx2_scope(masm, AVX2);
+
+  // Load array
+  __ vmovdqu(src, Operand(arg_reg_1, 0));
+  // Calculation
+  __ I16x16ExtAddPairwiseI8x32S(dst, src, tmp);
+  // Store result array
+  __ vmovdqu(Operand(arg_reg_2, 0), dst);
+  __ ret(0);
+
+  CodeDesc desc;
+  __ GetCode(i_isolate(), &desc);
+
+  PrintCode(isolate, desc);
+
+  buffer->MakeExecutable();
+  // Call the function from C++.
+  auto f = GeneratedCode<F10>::FromBuffer(i_isolate(), buffer->start());
+
+  constexpr int8_t int8_max = std::numeric_limits<int8_t>::max();
+
+  std::vector<std::array<int8_t, 32>> test_cases = {
+      {0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12, 13, 14, 15,
+       16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31},
+      {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+      {-1,  2,  3,  -4,  -5,  6,  7,  -8,  -9,  10, 11, -12, -13, 14, 15, -16,
+       -17, 18, 19, -20, -21, 22, 23, -24, -25, 26, 27, -28, -29, 30, 31},
+      {int8_max, int8_max, int8_max, int8_max, int8_max, int8_max, int8_max,
+       int8_max, int8_max, int8_max, int8_max, int8_max, int8_max, int8_max,
+       int8_max, int8_max, int8_max, int8_max, int8_max, int8_max, int8_max,
+       int8_max, int8_max, int8_max, int8_max, int8_max, int8_max, int8_max,
+       int8_max, int8_max, int8_max, int8_max}};
+
+  int8_t input[32];
+  int16_t output[16];
+
+  for (const auto& arr : test_cases) {
+    for (int i = 0; i < 32; i++) {
+      input[i] = arr[i];
+    }
+    f.Call(input, output);
+    for (int i = 0; i < 16; i++) {
+      CHECK_EQ(output[i], (int16_t)(input[2 * i] + input[2 * i + 1]));
+    }
+  }
+}
+
+TEST_F(MacroAssemblerX64Test, I32x8ExtAddPairwiseI16x16U) {
+  if (!CpuFeatures::IsSupported(AVX) || !CpuFeatures::IsSupported(AVX2)) return;
+  Isolate* isolate = i_isolate();
+  HandleScope handles(isolate);
+  auto buffer = AllocateAssemblerBuffer();
+  MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired::kYes,
+                           buffer->CreateView());
+  MacroAssembler* masm = &assembler;
+
+  const YMMRegister dst = ymm0;
+  const YMMRegister src = ymm1;
+  const YMMRegister tmp = ymm2;
+
+  CpuFeatureScope avx_scope(masm, AVX);
+  CpuFeatureScope avx2_scope(masm, AVX2);
+
+  // Load array
+  __ vmovdqu(src, Operand(arg_reg_1, 0));
+  // Calculation
+  __ I32x8ExtAddPairwiseI16x16U(dst, src, tmp);
+  // Store result array
+  __ vmovdqu(Operand(arg_reg_2, 0), dst);
+  __ ret(0);
+
+  CodeDesc desc;
+  __ GetCode(i_isolate(), &desc);
+
+  PrintCode(isolate, desc);
+
+  buffer->MakeExecutable();
+  // Call the function from C++.
+  auto f = GeneratedCode<F11>::FromBuffer(i_isolate(), buffer->start());
+
+  constexpr uint16_t uint16_max = std::numeric_limits<uint16_t>::max();
+
+  std::vector<std::array<uint16_t, 16>> test_cases = {
+      {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15},
+      {10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 110, 111, 112, 113, 114, 115},
+      {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+      {uint16_max, uint16_max, uint16_max, uint16_max, uint16_max, uint16_max,
+       uint16_max, uint16_max, uint16_max, uint16_max, uint16_max, uint16_max,
+       uint16_max, uint16_max, uint16_max, uint16_max}};
+
+  uint16_t input[16];
+  uint32_t output[8];
+
+  for (const auto& arr : test_cases) {
+    for (int i = 0; i < 16; i++) {
+      input[i] = arr[i];
+    }
+    f.Call(input, output);
+    for (int i = 0; i < 8; i++) {
+      CHECK_EQ(output[i], (uint32_t)(input[2 * i] + input[2 * i + 1]));
+    }
+  }
+}
+
+TEST_F(MacroAssemblerX64Test, I16x16ExtAddPairwiseI8x32U) {
+  if (!CpuFeatures::IsSupported(AVX) || !CpuFeatures::IsSupported(AVX2)) return;
+  Isolate* isolate = i_isolate();
+  HandleScope handles(isolate);
+  auto buffer = AllocateAssemblerBuffer();
+  MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired::kYes,
+                           buffer->CreateView());
+  MacroAssembler* masm = &assembler;
+
+  const YMMRegister dst = ymm0;
+  const YMMRegister src = ymm1;
+  const YMMRegister tmp = ymm2;
+
+  CpuFeatureScope avx_scope(masm, AVX);
+  CpuFeatureScope avx2_scope(masm, AVX2);
+
+  // Load array
+  __ vmovdqu(src, Operand(arg_reg_1, 0));
+  // Calculation
+  __ I16x16ExtAddPairwiseI8x32U(dst, src, tmp);
+  // Store result array
+  __ vmovdqu(Operand(arg_reg_2, 0), dst);
+  __ ret(0);
+
+  CodeDesc desc;
+  __ GetCode(i_isolate(), &desc);
+
+  PrintCode(i_isolate(), desc);
+
+  buffer->MakeExecutable();
+  // Call the function from C++.
+  auto f = GeneratedCode<F12>::FromBuffer(i_isolate(), buffer->start());
+
+  constexpr uint8_t uint8_max = std::numeric_limits<uint8_t>::max();
+
+  std::vector<std::array<uint8_t, 32>> test_cases = {
+      {0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 12, 13, 14, 15,
+       16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31},
+      {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+      {uint8_max, uint8_max, uint8_max, uint8_max, uint8_max, uint8_max,
+       uint8_max, uint8_max, uint8_max, uint8_max, uint8_max, uint8_max,
+       uint8_max, uint8_max, uint8_max, uint8_max, uint8_max, uint8_max,
+       uint8_max, uint8_max, uint8_max, uint8_max, uint8_max, uint8_max,
+       uint8_max, uint8_max, uint8_max, uint8_max, uint8_max, uint8_max,
+       uint8_max, uint8_max}};
+
+  uint8_t input[32];
+  uint16_t output[16];
+
+  for (const auto& arr : test_cases) {
+    for (int i = 0; i < 32; i++) {
+      input[i] = arr[i];
+    }
+    f.Call(input, output);
+    for (int i = 0; i < 16; i++) {
+      CHECK_EQ(output[i], (uint16_t)(input[2 * i] + input[2 * i + 1]));
+    }
+  }
 }
 
 #undef __

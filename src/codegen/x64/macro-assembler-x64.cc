@@ -1625,6 +1625,61 @@ void MacroAssembler::I16x16ExtMul(YMMRegister dst, XMMRegister src1,
   vpmullw(dst, dst, scratch);
 }
 
+void MacroAssembler::I32x8ExtAddPairwiseI16x16S(YMMRegister dst,
+                                                YMMRegister src,
+                                                YMMRegister scratch) {
+  ASM_CODE_COMMENT(this);
+  DCHECK(CpuFeatures::IsSupported(AVX2));
+  CpuFeatureScope avx2_scope(this, AVX2);
+  Move(scratch, uint32_t{1});
+  vpbroadcastw(scratch, scratch);
+  // vpmaddwd multiplies signed words in src and op, producing
+  // signed doublewords, then adds pairwise.
+  // src = |l0|l1|...|l14|l15|
+  // dst = |l0*1+l1*1|l2*1+l3*1|...|l14*1+l15*1|
+  vpmaddwd(dst, src, scratch);
+}
+
+void MacroAssembler::I32x8ExtAddPairwiseI16x16U(YMMRegister dst,
+                                                YMMRegister src,
+                                                YMMRegister scratch) {
+  ASM_CODE_COMMENT(this);
+  DCHECK(CpuFeatures::IsSupported(AVX2));
+  CpuFeatureScope avx2_scope(this, AVX2);
+  // src = |l0|l1|...l14|l15|
+  // scratch = |0|l0|0|l2|...|0|l14|
+  vpsrld(scratch, src, 16);
+  // dst = |0|l1|0|l3|...|0|l15|
+  vpblendw(dst, src, scratch, 0xAA);
+  vpaddd(dst, dst, scratch);
+}
+
+void MacroAssembler::I16x16ExtAddPairwiseI8x32S(YMMRegister dst,
+                                                YMMRegister src,
+                                                YMMRegister scratch) {
+  ASM_CODE_COMMENT(this);
+  DCHECK(CpuFeatures::IsSupported(AVX2));
+  CpuFeatureScope avx2_scope(this, AVX2);
+  Move(scratch, uint32_t{1});
+  vpbroadcastb(scratch, scratch);
+  // pmaddubsw treats the first operand as unsigned, so scratch here should
+  // be first operand
+  // src = |l0|l1|...|l34|l35|
+  // dst = |l0*1+l1*1|l2*1+l3*1|...|l34*1+l35*1|
+  vpmaddubsw(dst, scratch, src);
+}
+
+void MacroAssembler::I16x16ExtAddPairwiseI8x32U(YMMRegister dst,
+                                                YMMRegister src,
+                                                YMMRegister scratch) {
+  ASM_CODE_COMMENT(this);
+  DCHECK(CpuFeatures::IsSupported(AVX2));
+  CpuFeatureScope avx2_scope(this, AVX2);
+  Move(scratch, uint32_t{1});
+  vpbroadcastb(scratch, scratch);
+  vpmaddubsw(dst, src, scratch);
+}
+
 void MacroAssembler::SmiTag(Register reg) {
   static_assert(kSmiTag == 0);
   DCHECK(SmiValuesAre32Bits() || SmiValuesAre31Bits());

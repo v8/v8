@@ -769,6 +769,10 @@ std::ostream& operator<<(std::ostream& os, TruncateKind kind) {
   V(I32x8ExtMulI16x8U, Operator::kCommutative, 2, 0, 1)                    \
   V(I16x16ExtMulI8x16S, Operator::kCommutative, 2, 0, 1)                   \
   V(I16x16ExtMulI8x16U, Operator::kCommutative, 2, 0, 1)                   \
+  V(I32x8ExtAddPairwiseI16x16S, Operator::kNoProperties, 1, 0, 1)          \
+  V(I32x8ExtAddPairwiseI16x16U, Operator::kNoProperties, 1, 0, 1)          \
+  V(I16x16ExtAddPairwiseI8x32S, Operator::kNoProperties, 1, 0, 1)          \
+  V(I16x16ExtAddPairwiseI8x32U, Operator::kNoProperties, 1, 0, 1)          \
   V(S256Zero, Operator::kNoProperties, 0, 0, 1)                            \
   V(S256And, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)     \
   V(S256Or, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)      \
