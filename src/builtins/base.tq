@@ -458,6 +458,9 @@ extern enum MessageTemplate {
   kPropertyDescObject,
   kMustBePositive,
   kIteratorReduceNoInitial,
+  kSizeIsNaN,
+  kArgumentIsNonObject,
+  kKeysMethodInvalid,
   ...
 }
 
@@ -538,9 +541,11 @@ extern macro DefaultStringConstant(): String;
 extern macro EmptyStringConstant(): EmptyString;
 extern macro ErrorsStringConstant(): String;
 extern macro FalseConstant(): False;
+extern macro HasStringConstant(): String;
 extern macro Int32FalseConstant(): bool;
 extern macro Int32TrueConstant(): bool;
 extern macro IteratorSymbolConstant(): PublicSymbol;
+extern macro KeysStringConstant(): String;
 extern macro LengthStringConstant(): String;
 extern macro MatchSymbolConstant(): Symbol;
 extern macro MessageStringConstant(): String;
@@ -551,6 +556,7 @@ extern macro NullConstant(): Null;
 extern macro NumberStringConstant(): String;
 extern macro ReturnStringConstant(): String;
 extern macro SearchSymbolConstant(): Symbol;
+extern macro SizeStringConstant(): String;
 extern macro StringStringConstant(): String;
 extern macro TheHoleConstant(): TheHole;
 extern macro ToPrimitiveSymbolConstant(): PublicSymbol;
@@ -570,6 +576,9 @@ const kLengthString: String = LengthStringConstant();
 const kMessageString: String = MessageStringConstant();
 const kNextString: String = NextStringConstant();
 const kReturnString: String = ReturnStringConstant();
+const kSizeString: String = SizeStringConstant();
+const kHasString: String = HasStringConstant();
+const kKeysString: String = KeysStringConstant();
 
 const kNaN: NaN = NanConstant();
 const kZero: Zero = %RawDownCast<Zero>(SmiConstant(0));

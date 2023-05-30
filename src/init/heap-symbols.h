@@ -417,6 +417,7 @@
   V(_, SharedArrayBuffer_string, "SharedArrayBuffer")                \
   V(_, SharedStruct_string, "SharedStruct")                          \
   V(_, sign_string, "sign")                                          \
+  V(_, size_string, "size")                                          \
   V(_, smallestUnit_string, "smallestUnit")                          \
   V(_, source_string, "source")                                      \
   V(_, sourceText_string, "sourceText")                              \

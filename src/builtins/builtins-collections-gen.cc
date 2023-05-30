@@ -1390,11 +1390,13 @@ const TNode<Object> CollectionsBuiltinsAssembler::NormalizeNumberKey(
 }
 
 template <typename CollectionType>
-void CollectionsBuiltinsAssembler::AddToOrderedHashTable(
+TNode<CollectionType> CollectionsBuiltinsAssembler::AddToOrderedHashTable(
     const TNode<CollectionType> table, const TNode<Object> key,
     const GrowCollection<CollectionType>& grow,
     const StoreAtEntry<CollectionType>& store_at_new_entry,
     const StoreAtEntry<CollectionType>& store_at_existing_entry) {
+  TVARIABLE(CollectionType, table_var, table);
+
   TVARIABLE(IntPtrT, entry_start_position_or_hash, IntPtrConstant(0));
   Label entry_found(this), not_found(this), done(this);
 
@@ -1424,7 +1426,6 @@ void CollectionsBuiltinsAssembler::AddToOrderedHashTable(
   BIND(&add_entry);
   TVARIABLE(IntPtrT, number_of_buckets);
   TVARIABLE(IntPtrT, occupancy);
-  TVARIABLE(CollectionType, table_var, table);
   {
     // Check we have enough space for the entry.
     number_of_buckets = PositiveSmiUntag(CAST(UnsafeLoadFixedArrayElement(
@@ -1465,6 +1466,7 @@ void CollectionsBuiltinsAssembler::AddToOrderedHashTable(
   }
 
   BIND(&done);
+  return table_var.value();
 }
 
 TF_BUILTIN(MapPrototypeSet, CollectionsBuiltinsAssembler) {
@@ -1646,6 +1648,34 @@ TF_BUILTIN(SetPrototypeAdd, CollectionsBuiltinsAssembler) {
   AddToOrderedHashTable(table, key, grow, store_at_new_entry,
                         store_at_existing_entry);
   Return(receiver);
+}
+
+TNode<OrderedHashSet> CollectionsBuiltinsAssembler::AddToSetTable(
+    const TNode<Object> context, TNode<OrderedHashSet> table, TNode<Object> key,
+    TNode<String> method_name) {
+  key = NormalizeNumberKey(key);
+
+  GrowCollection<OrderedHashSet> grow = [this, context, table, method_name]() {
+    TNode<OrderedHashSet> new_table = Cast(CallRuntime(
+        Runtime::kOrderedHashSetEnsureGrowable, context, table, method_name));
+    // TODO(v8:13556): check if the table is updated and remove pointer to the
+    // new table.
+    return new_table;
+  };
+
+  StoreAtEntry<OrderedHashSet> store_at_new_entry =
+      [this, key](const TNode<OrderedHashSet> table,
+                  const TNode<IntPtrT> entry_start) {
+        StoreKeyInOrderedHashSetEntry(table, key, entry_start);
+      };
+
+  StoreAtEntry<OrderedHashSet> store_at_existing_entry =
+      [](const TNode<OrderedHashSet>, const TNode<IntPtrT>) {
+        // If the entry was found, there is nothing to do.
+      };
+
+  return AddToOrderedHashTable(table, key, grow, store_at_new_entry,
+                               store_at_existing_entry);
 }
 
 void CollectionsBuiltinsAssembler::StoreKeyInOrderedHashSetEntry(

@@ -168,10 +168,12 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
   V(Function_string, function_string, FunctionString)                        \
   V(function_to_string, function_to_string, FunctionToString)                \
   V(has_instance_symbol, has_instance_symbol, HasInstanceSymbol)             \
+  V(has_string, has_string, HasString)                                       \
   V(Infinity_string, Infinity_string, InfinityString)                        \
   V(is_concat_spreadable_symbol, is_concat_spreadable_symbol,                \
     IsConcatSpreadableSymbol)                                                \
   V(iterator_symbol, iterator_symbol, IteratorSymbol)                        \
+  V(keys_string, keys_string, KeysString)                                    \
   V(length_string, length_string, LengthString)                              \
   V(ManyClosuresCellMap, many_closures_cell_map, ManyClosuresCellMap)        \
   V(match_symbol, match_symbol, MatchSymbol)                                 \
@@ -215,6 +217,7 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
   V(search_symbol, search_symbol, SearchSymbol)                              \
   V(SingleCharacterStringTable, single_character_string_table,               \
     SingleCharacterStringTable)                                              \
+  V(size_string, size_string, SizeString)                                    \
   V(species_symbol, species_symbol, SpeciesSymbol)                           \
   V(StaleRegister, stale_register, StaleRegister)                            \
   V(StoreHandler0Map, store_handler0_map, StoreHandler0Map)                  \

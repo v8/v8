@@ -162,6 +162,12 @@ class CollectionsBuiltinsAssembler : public BaseCollectionsAssembler {
                                                     Label* if_true,
                                                     Label* if_false);
 
+  // Adds an element to a set if the element is not already in the set.
+  TNode<OrderedHashSet> AddToSetTable(TNode<Object> context,
+                                      TNode<OrderedHashSet> table,
+                                      TNode<Object> key,
+                                      TNode<String> method_name);
+
  protected:
   template <typename IteratorType>
   TNode<HeapObject> AllocateJSCollectionIterator(
@@ -268,7 +274,7 @@ class CollectionsBuiltinsAssembler : public BaseCollectionsAssembler {
   using StoreAtEntry = std::function<void(const TNode<CollectionType> table,
                                           const TNode<IntPtrT> entry_start)>;
   template <typename CollectionType>
-  void AddToOrderedHashTable(
+  TNode<CollectionType> AddToOrderedHashTable(
       const TNode<CollectionType> table, const TNode<Object> key,
       const GrowCollection<CollectionType>& grow,
       const StoreAtEntry<CollectionType>& store_at_new_entry,

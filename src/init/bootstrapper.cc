@@ -4671,6 +4671,15 @@ void Genesis::InitializeGlobal_harmony_iterator_helpers() {
 #undef ITERATOR_HELPERS
 }
 
+void Genesis::InitializeGlobal_harmony_set_methods() {
+  if (!v8_flags.harmony_set_methods) return;
+
+  Handle<JSObject> set_prototype(native_context()->initial_set_prototype(),
+                                 isolate());
+  SimpleInstallFunction(isolate(), set_prototype, "union",
+                        Builtin::kSetPrototypeUnion, 1, true);
+}
+
 void Genesis::InitializeGlobal_harmony_json_parse_with_source() {
   if (!v8_flags.harmony_json_parse_with_source) return;
   Handle<Map> map = factory()->NewMap(JS_RAW_JSON_TYPE, JSRawJson::kInitialSize,

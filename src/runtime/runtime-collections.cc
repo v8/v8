@@ -17,6 +17,20 @@ RUNTIME_FUNCTION(Runtime_TheHole) {
   return ReadOnlyRoots(isolate).the_hole_value();
 }
 
+RUNTIME_FUNCTION(Runtime_OrderedHashSetEnsureGrowable) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  Handle<OrderedHashSet> table = args.at<OrderedHashSet>(0);
+  Handle<String> method_name = args.at<String>(1);
+  MaybeHandle<OrderedHashSet> table_candidate =
+      OrderedHashSet::EnsureGrowable(isolate, table);
+  if (!table_candidate.ToHandle(&table)) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewRangeError(MessageTemplate::kOutOfMemory, method_name));
+  }
+  return *table;
+}
+
 RUNTIME_FUNCTION(Runtime_SetGrow) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());

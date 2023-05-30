@@ -34,6 +34,7 @@ namespace internal {
   T(ArgumentsDisallowedInInitializerAndStaticBlock,                            \
     "'arguments' is not allowed in class field initializer or static "         \
     "initialization block")                                                    \
+  T(ArgumentIsNonObject, "% argument must be an object")                       \
   T(ArrayBufferDetachKeyDoesntMatch,                                           \
     "Provided key doesn't match [[ArrayBufferDetachKey]]")                     \
   T(ArrayBufferTooShort,                                                       \
@@ -139,6 +140,7 @@ namespace internal {
     "% requires that the property of the first argument, "                     \
     "items[Symbol.iterator], when exists, be a function")                      \
   T(IteratorValueNotAnObject, "Iterator value % is not an entry object")       \
+  T(KeysMethodInvalid, "Result of the keys method is not an object")           \
   T(LanguageID, "Language ID should be string or object.")                     \
   T(LocaleNotEmpty,                                                            \
     "First argument to Intl.Locale constructor can't be empty or missing")     \
@@ -318,6 +320,7 @@ namespace internal {
     "Incorrect RelativeDateTimeFormatter provided")                            \
   T(ResolverNotAFunction, "Promise resolver % is not a function")              \
   T(ReturnMethodNotCallable, "The iterator's 'return' method is not callable") \
+  T(SizeIsNaN, "The .size property is NaN")                                    \
   T(SharedArrayBufferTooShort,                                                 \
     "Derived SharedArrayBuffer constructor created a buffer which was too "    \
     "small")                                                                   \
