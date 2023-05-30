@@ -94,7 +94,7 @@ bool IsContinuousAccess(const ZoneVector<Node*>& node_group) {
     int64_t current_offset = GetMemoryOffsetValue(node_group[i]);
     int64_t diff = current_offset - previous_offset;
     if (diff != kSimd128Size) {
-      TRACE("Non-continuous store!");
+      TRACE("Non-continuous store!\n");
       return false;
     }
     previous_offset = current_offset;
@@ -158,6 +158,23 @@ bool ShiftBySameScalar(const ZoneVector<Node*>& node_group) {
     }
   }
   return true;
+}
+
+bool IsConvertCase(const ZoneVector<Node*>& node_group) {
+#define CHECK_CONVERT_CASE(low, high)                           \
+  if (node_group[0]->opcode() == IrOpcode::k##low &&            \
+      node_group[1]->opcode() == IrOpcode::k##high &&           \
+      node_group[0]->InputAt(0) == node_group[1]->InputAt(0)) { \
+    return true;                                                \
+  }
+  CHECK_CONVERT_CASE(I64x2SConvertI32x4Low, I64x2SConvertI32x4High);
+  CHECK_CONVERT_CASE(I64x2UConvertI32x4Low, I64x2UConvertI32x4High);
+  CHECK_CONVERT_CASE(I32x4SConvertI16x8Low, I32x4SConvertI16x8High);
+  CHECK_CONVERT_CASE(I32x4UConvertI16x8Low, I32x4UConvertI16x8High);
+  CHECK_CONVERT_CASE(I16x8SConvertI8x16Low, I16x8SConvertI8x16High);
+  CHECK_CONVERT_CASE(I16x8UConvertI8x16Low, I16x8UConvertI8x16High);
+#undef CHECK_CONVERT_CASE
+  return false;
 }
 
 class EffectChainIterator {
@@ -237,10 +254,11 @@ bool SLPTree::CanBePacked(const ZoneVector<Node*>& node_group) {
           node_group[0]->id(), node_group[1]->id());
     return false;
   }
-  if (!AllSameOperator(node_group)) {
-    TRACE("%s(#%d, #%d) have different operator!\n",
-          node_group[0]->op()->mnemonic(), node_group[0]->id(),
-          node_group[1]->id());
+  if (!AllSameOperator(node_group) && !IsConvertCase(node_group)) {
+    TRACE(
+        "%s(#%d, #%d) have different op, and are not sign extension operator\n",
+        node_group[0]->op()->mnemonic(), node_group[0]->id(),
+        node_group[1]->id());
     return false;
   }
   // TODO(jiepan): add support for Constant
@@ -523,6 +541,14 @@ PackNode* SLPTree::BuildTree(const ZoneVector<Node*>& roots) {
   V(I32x4ShrU, I32x8ShrU)  \
   V(I16x8ShrU, I16x16ShrU)
 
+#define SIGN_EXTENSION_SIMD_UNOP(V)             \
+  V(I64x2SConvertI32x4Low, I64x4SConvertI32x4)  \
+  V(I64x2UConvertI32x4Low, I64x4UConvertI32x4)  \
+  V(I32x4SConvertI16x8Low, I32x8SConvertI16x8)  \
+  V(I32x4UConvertI16x8Low, I32x8UConvertI16x8)  \
+  V(I16x8SConvertI8x16Low, I16x16SConvertI8x16) \
+  V(I16x8UConvertI8x16Low, I16x16UConvertI8x16)
+
 PackNode* SLPTree::BuildTreeRec(const ZoneVector<Node*>& node_group,
                                 unsigned recursion_depth) {
   TRACE("Enter %s\n", __func__);
@@ -549,7 +575,8 @@ PackNode* SLPTree::BuildTreeRec(const ZoneVector<Node*>& node_group,
     return nullptr;
   }
 
-  DCHECK(AllConstant(node_group) || AllSameOperator(node_group));
+  DCHECK(AllConstant(node_group) || AllSameOperator(node_group) ||
+         IsConvertCase(node_group));
 
   // Check if this is a duplicate of another entry.
   for (Node* node : node_group) {
@@ -681,6 +708,15 @@ PackNode* SLPTree::BuildTreeRec(const ZoneVector<Node*>& node_group,
         }
         TRACE("Failed due to shift with different scalar!\n");
         return nullptr;
+      }
+#define SIGN_EXTENSION_CONVERT_CASE(op128, op256) case IrOpcode::k##op128:
+      SIGN_EXTENSION_SIMD_UNOP(SIGN_EXTENSION_CONVERT_CASE)
+#undef SIGN_EXTENSION_CONVERT_CASE
+      {
+        TRACE("add a vector of sign extension un op and stop building tree\n");
+        PackNode* pnode = NewPackNode(node_group);
+        PopStack();
+        return pnode;
       }
     // TODO(jiepan): UnalignedStore, StoreTrapOnNull.
     case IrOpcode::kStore:
@@ -860,6 +896,18 @@ Node* Revectorizer::VectorizeTree(PackNode* pnode) {
       SIMD_SHIFT_OP(SHIFT_CASE)
 #undef SHIFT_CASE
 #undef SIMD_SHIFT_OP
+
+#define SIGN_EXTENSION_CONVERT_CASE(from, to)                         \
+  case IrOpcode::k##from: {                                           \
+    DCHECK_EQ(node0->InputAt(0), pnode->Nodes()[1]->InputAt(0));      \
+    DCHECK_EQ(node0->InputAt(0)->opcode(), IrOpcode::kProtectedLoad); \
+    new_op = mcgraph_->machine()->to();                               \
+    inputs[0] = node0->InputAt(0);                                    \
+    break;                                                            \
+  }
+      SIGN_EXTENSION_SIMD_UNOP(SIGN_EXTENSION_CONVERT_CASE)
+#undef SIGN_EXTENSION_CONVERT_CASE
+#undef SIGN_EXTENSION_SIMD_UNOP
     case IrOpcode::kProtectedLoad: {
       DCHECK_EQ(LoadRepresentationOf(node0->op()).representation(),
                 MachineRepresentation::kSimd128);
@@ -927,7 +975,6 @@ Node* Revectorizer::VectorizeTree(PackNode* pnode) {
         new_node->ReplaceInput(i, VectorizeTree(pnode->GetOperand(i)));
       }
     }
-
     // Extract Uses
     const ZoneVector<Node*>& nodes = pnode->Nodes();
     for (size_t i = 0; i < nodes.size(); i++) {

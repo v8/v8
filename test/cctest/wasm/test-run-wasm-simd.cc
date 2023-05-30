@@ -1422,6 +1422,52 @@ WASM_EXEC_TEST(I32x4ConvertI16x8) {
   }
 }
 
+#ifdef V8_ENABLE_WASM_SIMD256_REVEC
+TEST(RunWasmTurbofan_I32x8ConvertI16x8Revec) {
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+  WasmRunner<int32_t, int32_t, int32_t, int32_t> r(
+      TestExecutionTier::kTurbofan);
+  int16_t* memory = r.builder().AddMemoryElems<int16_t>(40);
+  byte param1 = 0;
+  byte param2 = 1;
+  byte param3 = 2;
+  byte temp1 = r.AllocateLocal(kWasmS128);
+  byte temp2 = r.AllocateLocal(kWasmS128);
+  byte temp3 = r.AllocateLocal(kWasmS128);
+  constexpr byte offset = 16;
+  r.Build({WASM_LOCAL_SET(temp3, WASM_SIMD_LOAD_MEM(WASM_LOCAL_GET(param1))),
+           WASM_LOCAL_SET(temp1, WASM_SIMD_UNOP(kExprI32x4SConvertI16x8Low,
+                                                WASM_LOCAL_GET(temp3))),
+           WASM_LOCAL_SET(temp2, WASM_SIMD_UNOP(kExprI32x4SConvertI16x8High,
+                                                WASM_LOCAL_GET(temp3))),
+           WASM_SIMD_STORE_MEM(WASM_LOCAL_GET(param2), WASM_LOCAL_GET(temp1)),
+           WASM_SIMD_STORE_MEM_OFFSET(offset, WASM_LOCAL_GET(param2),
+                                      WASM_LOCAL_GET(temp2)),
+           WASM_LOCAL_SET(temp1, WASM_SIMD_UNOP(kExprI32x4UConvertI16x8Low,
+                                                WASM_LOCAL_GET(temp3))),
+           WASM_LOCAL_SET(temp2, WASM_SIMD_UNOP(kExprI32x4UConvertI16x8High,
+                                                WASM_LOCAL_GET(temp3))),
+           WASM_SIMD_STORE_MEM(WASM_LOCAL_GET(param3), WASM_LOCAL_GET(temp1)),
+           WASM_SIMD_STORE_MEM_OFFSET(offset, WASM_LOCAL_GET(param3),
+                                      WASM_LOCAL_GET(temp2)),
+           WASM_ONE});
+
+  FOR_INT16_INPUTS(x) {
+    for (int i = 0; i < 8; i++) {
+      r.builder().WriteMemory(&memory[i], x);
+    }
+    r.Call(0, 16, 48);
+    int32_t expected_signed = static_cast<int32_t>(x);
+    uint32_t expected_unsigned =
+        static_cast<uint32_t>(static_cast<uint16_t>(x));
+    for (int i = 0; i < 8; i++) {
+      CHECK_EQ(expected_signed, memory[8 + i * 2]);
+      if (x > 0) CHECK_EQ(expected_unsigned, memory[24 + i * 2]);
+    }
+  }
+}
+#endif  // V8_ENABLE_WASM_SIMD256_REVEC
+
 // Tests both signed and unsigned conversion from I32x4 (unpacking).
 WASM_EXEC_TEST(I64x2ConvertI32x4) {
   WasmRunner<int32_t, int32_t> r(execution_tier);
@@ -1457,6 +1503,52 @@ WASM_EXEC_TEST(I64x2ConvertI32x4) {
     }
   }
 }
+
+#ifdef V8_ENABLE_WASM_SIMD256_REVEC
+TEST(RunWasmTurbofan_I64x4ConvertI32x4Revec) {
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+  WasmRunner<int32_t, int32_t, int32_t, int32_t> r(
+      TestExecutionTier::kTurbofan);
+  int32_t* memory = r.builder().AddMemoryElems<int32_t>(20);
+  byte param1 = 0;
+  byte param2 = 1;
+  byte param3 = 2;
+  byte temp1 = r.AllocateLocal(kWasmS128);
+  byte temp2 = r.AllocateLocal(kWasmS128);
+  byte temp3 = r.AllocateLocal(kWasmS128);
+  constexpr byte offset = 16;
+  r.Build({WASM_LOCAL_SET(temp3, WASM_SIMD_LOAD_MEM(WASM_LOCAL_GET(param1))),
+           WASM_LOCAL_SET(temp1, WASM_SIMD_UNOP(kExprI64x2SConvertI32x4Low,
+                                                WASM_LOCAL_GET(temp3))),
+           WASM_LOCAL_SET(temp2, WASM_SIMD_UNOP(kExprI64x2SConvertI32x4High,
+                                                WASM_LOCAL_GET(temp3))),
+           WASM_SIMD_STORE_MEM(WASM_LOCAL_GET(param2), WASM_LOCAL_GET(temp1)),
+           WASM_SIMD_STORE_MEM_OFFSET(offset, WASM_LOCAL_GET(param2),
+                                      WASM_LOCAL_GET(temp2)),
+           WASM_LOCAL_SET(temp1, WASM_SIMD_UNOP(kExprI64x2UConvertI32x4Low,
+                                                WASM_LOCAL_GET(temp3))),
+           WASM_LOCAL_SET(temp2, WASM_SIMD_UNOP(kExprI64x2UConvertI32x4High,
+                                                WASM_LOCAL_GET(temp3))),
+           WASM_SIMD_STORE_MEM(WASM_LOCAL_GET(param3), WASM_LOCAL_GET(temp1)),
+           WASM_SIMD_STORE_MEM_OFFSET(offset, WASM_LOCAL_GET(param3),
+                                      WASM_LOCAL_GET(temp2)),
+           WASM_ONE});
+
+  FOR_INT32_INPUTS(x) {
+    for (int i = 0; i < 4; i++) {
+      r.builder().WriteMemory(&memory[i], x);
+    }
+    r.Call(0, 16, 48);
+    int64_t expected_signed = static_cast<int64_t>(x);
+    uint64_t expected_unsigned =
+        static_cast<uint64_t>(static_cast<uint32_t>(x));
+    for (int i = 0; i < 4; i++) {
+      CHECK_EQ(expected_signed, memory[4 + i * 2]);
+      if (x > 0) CHECK_EQ(expected_unsigned, memory[12 + i * 2]);
+    }
+  }
+}
+#endif  // V8_ENABLE_WASM_SIMD256_REVEC
 
 WASM_EXEC_TEST(I32x4Neg) {
   RunI32x4UnOpTest(execution_tier, kExprI32x4Neg, base::NegateWithWraparound);
@@ -1825,6 +1917,51 @@ WASM_EXEC_TEST(I16x8ConvertI8x16) {
     }
   }
 }
+
+#ifdef V8_ENABLE_WASM_SIMD256_REVEC
+TEST(RunWasmTurbofan_I16x16ConvertI8x16Revec) {
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+  WasmRunner<int32_t, int32_t, int32_t, int32_t> r(
+      TestExecutionTier::kTurbofan);
+  int8_t* memory = r.builder().AddMemoryElems<int8_t>(80);
+  byte param1 = 0;
+  byte param2 = 1;
+  byte param3 = 2;
+  byte temp1 = r.AllocateLocal(kWasmS128);
+  byte temp2 = r.AllocateLocal(kWasmS128);
+  byte temp3 = r.AllocateLocal(kWasmS128);
+  constexpr byte offset = 16;
+  r.Build({WASM_LOCAL_SET(temp3, WASM_SIMD_LOAD_MEM(WASM_LOCAL_GET(param1))),
+           WASM_LOCAL_SET(temp1, WASM_SIMD_UNOP(kExprI16x8SConvertI8x16Low,
+                                                WASM_LOCAL_GET(temp3))),
+           WASM_LOCAL_SET(temp2, WASM_SIMD_UNOP(kExprI16x8SConvertI8x16High,
+                                                WASM_LOCAL_GET(temp3))),
+           WASM_SIMD_STORE_MEM(WASM_LOCAL_GET(param2), WASM_LOCAL_GET(temp1)),
+           WASM_SIMD_STORE_MEM_OFFSET(offset, WASM_LOCAL_GET(param2),
+                                      WASM_LOCAL_GET(temp2)),
+           WASM_LOCAL_SET(temp1, WASM_SIMD_UNOP(kExprI16x8UConvertI8x16Low,
+                                                WASM_LOCAL_GET(temp3))),
+           WASM_LOCAL_SET(temp2, WASM_SIMD_UNOP(kExprI16x8UConvertI8x16High,
+                                                WASM_LOCAL_GET(temp3))),
+           WASM_SIMD_STORE_MEM(WASM_LOCAL_GET(param3), WASM_LOCAL_GET(temp1)),
+           WASM_SIMD_STORE_MEM_OFFSET(offset, WASM_LOCAL_GET(param3),
+                                      WASM_LOCAL_GET(temp2)),
+           WASM_ONE});
+
+  FOR_INT8_INPUTS(x) {
+    for (int i = 0; i < 16; i++) {
+      r.builder().WriteMemory(&memory[i], x);
+    }
+    r.Call(0, 16, 48);
+    int16_t expected_signed = static_cast<int16_t>(x);
+    uint16_t expected_unsigned = static_cast<uint16_t>(static_cast<uint8_t>(x));
+    for (int i = 0; i < 16; i++) {
+      CHECK_EQ(expected_signed, memory[16 + i * 2]);
+      if (x > 0) CHECK_EQ(expected_unsigned, memory[48 + i * 2]);
+    }
+  }
+}
+#endif  // V8_ENABLE_WASM_SIMD256_REVEC
 
 // Tests both signed and unsigned conversion from I32x4 (packing).
 WASM_EXEC_TEST(I16x8ConvertI32x4) {
