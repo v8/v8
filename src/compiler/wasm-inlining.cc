@@ -330,6 +330,19 @@ void WasmInliner::InlineCall(Node* call, Node* callee_start, Node* callee_end,
         // inlinee. It will then be handled like any other return.
         auto descriptor = CallDescriptorOf(input->op());
         NodeProperties::ChangeOp(input, common()->Call(descriptor));
+
+        DCHECK_GT(input->op()->EffectOutputCount(), 0);
+        DCHECK_GT(input->op()->ControlOutputCount(), 0);
+        Node* effect = input;
+        Node* control = input;
+        if (is_exceptional_call) {
+          // Remember dangling exception (will be connected later).
+          Node* if_exception = graph()->NewNode(
+              mcgraph()->common()->IfException(), input, control);
+          dangling_exceptions->Add(if_exception, if_exception, if_exception);
+          control = graph()->NewNode(mcgraph()->common()->IfSuccess(), input);
+        }
+
         int return_arity = static_cast<int>(inlinee_sig->return_count());
         NodeVector return_inputs(zone());
         // The first input of a return node is always the 0 constant.
@@ -345,7 +358,7 @@ void WasmInliner::InlineCall(Node* call, Node* callee_start, Node* callee_end,
         } else if (return_arity > 1) {
           for (int i = 0; i < return_arity; i++) {
             Node* ith_projection =
-                graph()->NewNode(common()->Projection(i), input, input);
+                graph()->NewNode(common()->Projection(i), input, control);
             // Similarly here we have to type the call's projections.
             NodeProperties::SetType(
                 ith_projection,
@@ -353,16 +366,6 @@ void WasmInliner::InlineCall(Node* call, Node* callee_start, Node* callee_end,
                            graph()->zone()));
             return_inputs.push_back(ith_projection);
           }
-        }
-
-        Node* effect = input;
-        Node* control = input;
-        if (is_exceptional_call) {
-          // Remember dangling exception (will be connected later).
-          Node* if_exception = graph()->NewNode(
-              mcgraph()->common()->IfException(), input, input);
-          dangling_exceptions->Add(if_exception, if_exception, if_exception);
-          control = graph()->NewNode(mcgraph()->common()->IfSuccess(), input);
         }
 
         // Add effect and control inputs.
