@@ -86,6 +86,7 @@ class StructuralOptimizationReducer : public Next {
     LABEL_BLOCK(no_change) {
       return Next::ReduceInputGraphBranch(input_index, branch);
     }
+    if (ShouldSkipOptimizationStep()) goto no_change;
 
     TRACE("[structural] Calling ReduceInputGraphBranch for index: %u\n",
           static_cast<unsigned int>(input_index.id()));
@@ -200,10 +201,9 @@ class StructuralOptimizationReducer : public Next {
  private:
   static bool ContainsOnlyPureOps(const Block* block, const Graph& graph) {
     for (const auto& op : base::IterateWithoutLast(graph.operations(*block))) {
-      OpProperties props = op.Properties();
-      // It's fine to allow allocations and reads. Writes and
-      // aborting should be disallowed though.
-      if (props.observable_when_unused) {
+      // We are moving the block content to before the switch, effectively
+      // moving it before the previously existing branches.
+      if (!op.Effects().hoistable_before_a_branch()) {
         return false;
       }
     }

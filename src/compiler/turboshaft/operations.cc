@@ -737,17 +737,40 @@ std::ostream& operator<<(std::ostream& os, const Block* b) {
   return os << b->index();
 }
 
-std::ostream& operator<<(std::ostream& os, OpProperties opProperties) {
-#define PRINT_PROPERTY(Name, ...)             \
-  if (opProperties == OpProperties::Name()) { \
-    return os << #Name;                       \
-  }
-
-  ALL_OP_PROPERTIES(PRINT_PROPERTY)
-
-#undef PRINT_PROPERTY
-
-  UNREACHABLE();
+std::ostream& operator<<(std::ostream& os, OpEffects effects) {
+  auto produce_consume = [](bool produces, bool consumes) {
+    if (!produces && !consumes) {
+      return "🁣";
+    } else if (produces && !consumes) {
+      return "🁤";
+    } else if (!produces && consumes) {
+      return "🁪";
+    } else if (produces && consumes) {
+      return "🁫";
+    }
+    UNREACHABLE();
+  };
+  os << produce_consume(effects.produces.load_heap_memory,
+                        effects.consumes.load_heap_memory);
+  os << produce_consume(effects.produces.load_off_heap_memory,
+                        effects.consumes.load_off_heap_memory);
+  os << "\u2003";  // em space
+  os << produce_consume(effects.produces.store_heap_memory,
+                        effects.consumes.store_heap_memory);
+  os << produce_consume(effects.produces.store_off_heap_memory,
+                        effects.consumes.store_off_heap_memory);
+  os << "\u2003";  // em space
+  os << produce_consume(effects.produces.before_raw_heap_access,
+                        effects.consumes.before_raw_heap_access);
+  os << produce_consume(effects.produces.after_raw_heap_access,
+                        effects.consumes.after_raw_heap_access);
+  os << "\u2003";  // em space
+  os << produce_consume(effects.produces.control_flow,
+                        effects.consumes.control_flow);
+  os << "\u2003";  // em space
+  os << (effects.can_create_identity ? "i" : "_");
+  os << " " << (effects.can_allocate ? "a" : "_");
+  return os;
 }
 
 void SwitchOp::PrintOptions(std::ostream& os) const {
@@ -914,8 +937,8 @@ std::ostream& operator<<(
     std::ostream& os,
     ConvertJSPrimitiveToUntaggedOp::InputAssumptions input_assumptions) {
   switch (input_assumptions) {
-    case ConvertJSPrimitiveToUntaggedOp::InputAssumptions::kObject:
-      return os << "Object";
+    case ConvertJSPrimitiveToUntaggedOp::InputAssumptions::kBoolean:
+      return os << "Boolean";
     case ConvertJSPrimitiveToUntaggedOp::InputAssumptions::kSmi:
       return os << "Smi";
     case ConvertJSPrimitiveToUntaggedOp::InputAssumptions::kNumberOrOddball:

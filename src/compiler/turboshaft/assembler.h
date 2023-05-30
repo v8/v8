@@ -3015,7 +3015,7 @@ class Assembler : public GraphVisitor<Assembler<Reducers>>,
     op_to_block_[result] = current_block_;
     DCHECK(ValidInputs(result));
 #endif  // DEBUG
-    if (op.Properties().is_block_terminator) FinalizeBlock();
+    if (op.IsBlockTerminator()) FinalizeBlock();
     return result;
   }
 

@@ -45,7 +45,7 @@ class AssertTypesReducer
     if (!CanBeTyped(operation)) return og_index;
     // Unfortunately, we cannot insert assertions after block terminators, so we
     // skip them here.
-    if (operation.Properties().is_block_terminator) return og_index;
+    if (operation.IsBlockTerminator()) return og_index;
 
     auto reps = operation.outputs_rep();
     DCHECK_GT(reps.size(), 0);

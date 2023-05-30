@@ -35,25 +35,11 @@ struct PaddingSpace {
 };
 std::ostream& operator<<(std::ostream& os, PaddingSpace padding);
 
-struct AnalyzerBase {
-  Zone* phase_zone;
-  const Graph& graph;
-
-  void Run() {}
-  bool OpIsUsed(OpIndex i) const {
-    const Operation& op = graph.Get(i);
-    return op.saturated_use_count > 0 || op.Properties().observable_when_unused;
-  }
-
-  explicit AnalyzerBase(const Graph& graph, Zone* phase_zone)
-      : phase_zone(phase_zone), graph(graph) {}
-};
-
 // All operations whose `saturated_use_count` are unused and can be skipped.
 // Analyzers modify the input graph in-place when they want to mark some
 // Operations as removeable. In order to make that work for operations that have
 // no uses such as Goto and Branch, all operations that have the property
-// `observable_when_unused` have a non-zero `saturated_use_count`.
+// `IsRequiredWhenUnused()` have a non-zero `saturated_use_count`.
 V8_INLINE bool ShouldSkipOperation(const Operation& op) {
   return op.saturated_use_count == 0;
 }
@@ -288,7 +274,7 @@ class GraphVisitor {
     USE(first_output_index);
     const Operation& op = input_graph().Get(index);
     if constexpr (trace_reduction) TraceReductionStart(index);
-    if (ShouldSkipOperation(op)) {
+    if (!ShouldSkipOptimizationStep() && ShouldSkipOperation(op)) {
       if constexpr (trace_reduction) TraceOperationSkipped();
       return true;
     }
@@ -351,7 +337,7 @@ class GraphVisitor {
       std::cout << prefix << " n" << index.id() << ": "
                 << PaddingSpace{5 - CountDecimalDigits(index.id())}
                 << OperationPrintStyle{output_graph_.Get(index), "#n"} << "\n";
-      if (op.Properties().is_block_terminator && assembler().current_block() &&
+      if (op.IsBlockTerminator() && assembler().current_block() &&
           assembler().current_block() != current_block) {
         current_block = &assembler().output_graph().Get(
             BlockIndex(current_block->index().id() + 1));

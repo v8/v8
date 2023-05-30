@@ -559,11 +559,11 @@ class Graph {
     Op& op = Op::New(this, args...);
     IncrementInputUses(op);
 
-    if (op.Properties().observable_when_unused) {
+    if (op.IsRequiredWhenUnused()) {
       // Once the graph is built, an operation with a `saturated_use_count` of 0
       // is guaranteed to be unused and can be removed. Thus, to avoid removing
       // operations that never have uses (such as Goto or Branch), we set the
-      // `saturated_use_count` of Operations that are `required_when_unused`
+      // `saturated_use_count` of Operations that are `IsRequiredWhenUnused()`
       // to 1.
       op.saturated_use_count = 1;
     }

@@ -945,7 +945,7 @@ class MachineLoweringReducer : public Next {
       }
       case ConvertJSPrimitiveToUntaggedOp::UntaggedKind::kBit:
         DCHECK_EQ(input_assumptions,
-                  ConvertJSPrimitiveToUntaggedOp::InputAssumptions::kObject);
+                  ConvertJSPrimitiveToUntaggedOp::InputAssumptions::kBoolean);
         return __ TaggedEqual(object, __ HeapConstant(factory_->true_value()));
       case ConvertJSPrimitiveToUntaggedOp::UntaggedKind::kFloat64: {
         if (input_assumptions == ConvertJSPrimitiveToUntaggedOp::
@@ -1913,26 +1913,22 @@ class MachineLoweringReducer : public Next {
   OpIndex REDUCE(LoadTypedElement)(OpIndex buffer, V<Object> base,
                                    V<WordPtr> external, V<WordPtr> index,
                                    ExternalArrayType array_type) {
-    // We need to keep the {buffer} alive so that the GC will not release the
-    // ArrayBuffer (if there's any) as long as we are still operating on it.
-    __ Retain(buffer);
-
     V<WordPtr> data_ptr = BuildTypedArrayDataPointer(base, external);
 
     // Perform the actual typed element access.
-    return __ LoadElement(
+    OpIndex result = __ LoadElement(
         data_ptr, AccessBuilder::ForTypedArrayElement(array_type, true), index);
+
+    // We need to keep the {buffer} alive so that the GC will not release the
+    // ArrayBuffer (if there's any) as long as we are still operating on it.
+    __ Retain(buffer);
+    return result;
   }
 
   OpIndex REDUCE(LoadDataViewElement)(V<Object> object, V<Object> storage,
                                       V<WordPtr> index,
                                       V<Word32> is_little_endian,
                                       ExternalArrayType element_type) {
-    // We need to keep the {object} (either the JSArrayBuffer or the JSDataView)
-    // alive so that the GC will not release the JSArrayBuffer (if there's any)
-    // as long as we are still operating on it.
-    __ Retain(object);
-
     const MachineType machine_type =
         AccessBuilder::ForTypedArrayElement(element_type, true).machine_type;
 
@@ -1963,8 +1959,14 @@ class MachineLoweringReducer : public Next {
     END_IF
 
     __ Bind(done);
-    return __ Phi({little_value, big_value},
-                  RegisterRepresentationForArrayType(element_type));
+    OpIndex result = __ Phi({little_value, big_value},
+                            RegisterRepresentationForArrayType(element_type));
+
+    // We need to keep the {object} (either the JSArrayBuffer or the JSDataView)
+    // alive so that the GC will not release the JSArrayBuffer (if there's any)
+    // as long as we are still operating on it.
+    __ Retain(object);
+    return result;
   }
 
   V<Object> REDUCE(LoadStackArgument)(V<WordPtr> base, V<WordPtr> index) {
@@ -1977,16 +1979,16 @@ class MachineLoweringReducer : public Next {
                                     V<WordPtr> external, V<WordPtr> index,
                                     OpIndex value,
                                     ExternalArrayType array_type) {
-    // We need to keep the {buffer} alive so that the GC will not release the
-    // ArrayBuffer (if there's any) as long as we are still operating on it.
-    __ Retain(buffer);
-
     V<WordPtr> data_ptr = BuildTypedArrayDataPointer(base, external);
 
     // Perform the actual typed element access.
     __ StoreElement(data_ptr,
                     AccessBuilder::ForTypedArrayElement(array_type, true),
                     index, value);
+
+    // We need to keep the {buffer} alive so that the GC will not release the
+    // ArrayBuffer (if there's any) as long as we are still operating on it.
+    __ Retain(buffer);
     return {};
   }
 
@@ -1994,11 +1996,6 @@ class MachineLoweringReducer : public Next {
                                        V<WordPtr> index, OpIndex value,
                                        V<Word32> is_little_endian,
                                        ExternalArrayType element_type) {
-    // We need to keep the {object} (either the JSArrayBuffer or the JSDataView)
-    // alive so that the GC will not release the JSArrayBuffer (if there's any)
-    // as long as we are still operating on it.
-    __ Retain(object);
-
     const MachineType machine_type =
         AccessBuilder::ForTypedArrayElement(element_type, true).machine_type;
 
@@ -2031,6 +2028,11 @@ class MachineLoweringReducer : public Next {
     __ Store(storage, index, value_to_store, StoreOp::Kind::RawUnaligned(),
              MemoryRepresentation::FromMachineType(machine_type),
              WriteBarrierKind::kNoWriteBarrier);
+
+    // We need to keep the {object} (either the JSArrayBuffer or the JSDataView)
+    // alive so that the GC will not release the JSArrayBuffer (if there's any)
+    // as long as we are still operating on it.
+    __ Retain(object);
     return {};
   }
 

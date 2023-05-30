@@ -80,6 +80,7 @@ bool LateEscapeAnalysisAnalyzer::EscapesThroughUse(OpIndex alloc,
 }
 
 void LateEscapeAnalysisAnalyzer::MarkToRemove(OpIndex alloc) {
+  if (ShouldSkipOptimizationStep()) return;
   graph_.MarkAsUnused(alloc);
   if (alloc_uses_.find(alloc) == alloc_uses_.end()) {
     return;

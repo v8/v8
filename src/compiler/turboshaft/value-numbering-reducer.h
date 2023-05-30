@@ -88,6 +88,7 @@ class ValueNumberingReducer : public Next {
     OpIndex next_index = Asm().output_graph().next_operation_index(); \
     USE(next_index);                                                  \
     OpIndex result = Next::Reduce##Name(args...);                     \
+    if (ShouldSkipOptimizationStep()) return result;                  \
     DCHECK_EQ(next_index, result);                                    \
     return AddOrFind<Name##Op>(result);                               \
   }
@@ -132,8 +133,8 @@ class ValueNumberingReducer : public Next {
   template <class Op>
   OpIndex AddOrFind(OpIndex op_idx) {
     const Op& op = Asm().output_graph().Get(op_idx).template Cast<Op>();
-    if (std::is_same<Op, PendingLoopPhiOp>::value ||
-        !op.Properties().can_be_eliminated) {
+    if (std::is_same<Op, PendingLoopPhiOp>::value || op.IsBlockTerminator() ||
+        !op.Effects().repetition_is_eliminatable()) {
       return op_idx;
     }
     RehashIfNeeded();
