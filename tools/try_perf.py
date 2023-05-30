@@ -88,7 +88,7 @@ def main():
       print ('%s not found in our benchmark list. The respective trybot might '
             'fail, unless you run something this script isn\'t aware of. '
             'Available public benchmarks: %s' % (benchmark, PUBLIC_BENCHMARKS))
-      print('Proceed anyways? [Y/n] ', end=' ')
+      print('Proceed anyways? [Y/n] ', end=' ', flush=True)
       answer = sys.stdin.readline().strip()
       if answer != "" and answer != "Y" and answer != "y":
         return 1
@@ -100,6 +100,7 @@ def main():
   subprocess.check_output(
       'update_depot_tools', shell=True, stderr=subprocess.STDOUT, cwd=V8_BASE)
 
+  # Trigger the perf try bots.
   cmd = ['git cl try', '-B', 'v8-internal/try']
   cmd += ['-b %s' % bot for bot in options.bots]
   if options.revision:
@@ -114,6 +115,12 @@ def main():
     cmd.append('-vv')
     print('Running %s' % ' '.join(cmd))
   subprocess.check_call(' '.join(cmd), shell=True, cwd=V8_BASE)
+
+  # Show a hint to report bugs.
+  print('To file a bug or new feature:    %s' % (
+      'https://bugs.chromium.org/p/v8/issues/entry?summary=[perf-trybots]%20%'
+      '3CIssue%3E&components=Infrastructure'
+  ))
 
 if __name__ == '__main__':  # pragma: no cover
   sys.exit(main())
