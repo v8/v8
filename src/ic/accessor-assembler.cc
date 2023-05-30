@@ -281,10 +281,6 @@ void AccessorAssembler::HandleLoadAccessor(
   CSA_CHECK(this, IsNotCleared(maybe_context));
   TNode<HeapObject> context = GetHeapObjectAssumeWeak(maybe_context);
 
-  TNode<RawPtrT> callback = LoadCallHandlerInfoJsCallbackPtr(call_handler_info);
-  TNode<Object> data =
-      LoadObjectField(call_handler_info, CallHandlerInfo::kDataOffset);
-
   TVARIABLE(HeapObject, api_holder, CAST(p->lookup_start_object()));
   Label load(this);
   GotoIf(Word32Equal(handler_kind, LOAD_KIND(kApiGetter)), &load);
@@ -297,8 +293,9 @@ void AccessorAssembler::HandleLoadAccessor(
 
   BIND(&load);
   TNode<Int32T> argc = Int32Constant(0);
-  exit_point->Return(CallApiCallback(context, callback, argc, data,
-                                     api_holder.value(), p->receiver()));
+  exit_point->Return(CallBuiltin(Builtin::kCallApiCallbackGeneric, context,
+                                 argc, call_handler_info, api_holder.value(),
+                                 p->receiver()));
 }
 
 void AccessorAssembler::HandleLoadField(TNode<JSObject> holder,
@@ -1943,11 +1940,6 @@ void AccessorAssembler::HandleStoreICProtoHandler(
           IsCleared(maybe_context), [=] { return SmiConstant(0); },
           [=] { return GetHeapObjectAssumeWeak(maybe_context); });
 
-      TNode<RawPtrT> callback =
-          LoadCallHandlerInfoJsCallbackPtr(call_handler_info);
-      TNode<Object> data =
-          LoadObjectField(call_handler_info, CallHandlerInfo::kDataOffset);
-
       TVARIABLE(Object, api_holder, p->receiver());
       Label store(this);
       GotoIf(Word32Equal(handler_kind, STORE_KIND(kApiSetter)), &store);
@@ -1962,8 +1954,9 @@ void AccessorAssembler::HandleStoreICProtoHandler(
       {
         GotoIf(IsSideEffectFreeDebuggingActive(), &if_slow);
         TNode<Int32T> argc = Int32Constant(1);
-        Return(CallApiCallback(context, callback, argc, data,
-                               api_holder.value(), p->receiver(), p->value()));
+        Return(CallBuiltin(Builtin::kCallApiCallbackGeneric, context, argc,
+                           call_handler_info, api_holder.value(), p->receiver(),
+                           p->value()));
       }
     }
 

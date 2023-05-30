@@ -2768,7 +2768,10 @@ Node* JSNativeContextSpecialization::InlineApiCall(
   // Only setters have a value.
   int const argc = value == nullptr ? 0 : 1;
   // The stub always expects the receiver as the first param on the stack.
-  Callable call_api_callback = CodeFactory::CallApiCallback(isolate());
+  Callable call_api_callback = Builtins::CallableFor(
+      isolate(), call_handler_info.object()->IsSideEffectCallHandlerInfo()
+                     ? Builtin::kCallApiCallbackWithSideEffects
+                     : Builtin::kCallApiCallbackNoSideEffects);
   CallInterfaceDescriptor call_interface_descriptor =
       call_api_callback.descriptor();
   auto call_descriptor = Linkage::GetStubCallDescriptor(

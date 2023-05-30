@@ -232,7 +232,9 @@ namespace internal {
   ASM(ContinueToJavaScriptBuiltinWithResult, ContinueToBuiltin)                \
                                                                                \
   /* API callback handling */                                                  \
-  ASM(CallApiCallback, ApiCallback)                                            \
+  ASM(CallApiCallbackGeneric, CallApiCallbackGeneric)                          \
+  ASM(CallApiCallbackNoSideEffects, CallApiCallbackOptimized)                  \
+  ASM(CallApiCallbackWithSideEffects, CallApiCallbackOptimized)                \
   ASM(CallApiGetter, ApiGetter)                                                \
   CPP(HandleApiCall)                                                           \
   CPP(HandleApiCallAsFunction)                                                 \

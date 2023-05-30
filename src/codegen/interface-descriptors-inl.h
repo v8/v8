@@ -562,6 +562,19 @@ constexpr auto DefineKeyedOwnWithVectorDescriptor::registers() {
 }
 
 // static
+constexpr auto CallApiCallbackOptimizedDescriptor::registers() {
+  return RegisterArray(ApiFunctionAddressRegister(),
+                       ActualArgumentsCountRegister(), CallDataRegister(),
+                       HolderRegister());
+}
+
+// static
+constexpr auto CallApiCallbackGenericDescriptor::registers() {
+  return RegisterArray(ActualArgumentsCountRegister(),
+                       CallHandlerInfoRegister(), HolderRegister());
+}
+
+// static
 constexpr auto ApiGetterDescriptor::registers() {
   return RegisterArray(ReceiverRegister(), HolderRegister(),
                        CallbackRegister());

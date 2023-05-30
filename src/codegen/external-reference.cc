@@ -774,11 +774,40 @@ ExternalReference ExternalReference::thread_in_wasm_flag_address_address(
   return ExternalReference(isolate->thread_in_wasm_flag_address_address());
 }
 
-ExternalReference ExternalReference::invoke_function_callback() {
-  Address thunk_address = FUNCTION_ADDR(&InvokeFunctionCallback);
+ExternalReference ExternalReference::invoke_function_callback_generic() {
+  Address thunk_address = FUNCTION_ADDR(&InvokeFunctionCallbackGeneric);
   ExternalReference::Type thunk_type = ExternalReference::DIRECT_API_CALL;
   ApiFunction thunk_fun(thunk_address);
   return ExternalReference::Create(&thunk_fun, thunk_type);
+}
+
+ExternalReference
+ExternalReference::invoke_function_callback_with_side_effects() {
+  Address thunk_address = FUNCTION_ADDR(&InvokeFunctionCallbackWithSideEffects);
+  ExternalReference::Type thunk_type = ExternalReference::DIRECT_API_CALL;
+  ApiFunction thunk_fun(thunk_address);
+  return ExternalReference::Create(&thunk_fun, thunk_type);
+}
+
+ExternalReference
+ExternalReference::invoke_function_callback_no_side_effects() {
+  Address thunk_address = FUNCTION_ADDR(&InvokeFunctionCallbackNoSideEffects);
+  ExternalReference::Type thunk_type = ExternalReference::DIRECT_API_CALL;
+  ApiFunction thunk_fun(thunk_address);
+  return ExternalReference::Create(&thunk_fun, thunk_type);
+}
+
+// static
+ExternalReference ExternalReference::invoke_function_callback(
+    CallApiCallbackMode mode) {
+  switch (mode) {
+    case CallApiCallbackMode::kGeneric:
+      return invoke_function_callback_generic();
+    case CallApiCallbackMode::kWithSideEffects:
+      return invoke_function_callback_with_side_effects();
+    case CallApiCallbackMode::kNoSideEffects:
+      return invoke_function_callback_no_side_effects();
+  }
 }
 
 ExternalReference ExternalReference::invoke_accessor_getter_callback() {

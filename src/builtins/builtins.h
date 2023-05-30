@@ -309,6 +309,9 @@ class Builtins {
   static void Generate_InterpreterPushArgsThenConstructImpl(
       MacroAssembler* masm, InterpreterPushArgsMode mode);
 
+  static void Generate_CallApiCallbackImpl(MacroAssembler* masm,
+                                           CallApiCallbackMode mode);
+
 #define DECLARE_ASM(Name, ...) \
   static void Generate_##Name(MacroAssembler* masm);
 #define DECLARE_TF(Name, ...) \

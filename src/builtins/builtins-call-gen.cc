@@ -64,6 +64,18 @@ void Builtins::Generate_CallFunctionForwardVarargs(MacroAssembler* masm) {
       masm->isolate()->builtins()->CallFunction());
 }
 
+void Builtins::Generate_CallApiCallbackGeneric(MacroAssembler* masm) {
+  Generate_CallApiCallbackImpl(masm, CallApiCallbackMode::kGeneric);
+}
+
+void Builtins::Generate_CallApiCallbackNoSideEffects(MacroAssembler* masm) {
+  Generate_CallApiCallbackImpl(masm, CallApiCallbackMode::kNoSideEffects);
+}
+
+void Builtins::Generate_CallApiCallbackWithSideEffects(MacroAssembler* masm) {
+  Generate_CallApiCallbackImpl(masm, CallApiCallbackMode::kWithSideEffects);
+}
+
 // TODO(cbruni): Try reusing code between builtin versions to avoid binary
 // overhead.
 TF_BUILTIN(Call_ReceiverIsNullOrUndefined_Baseline_Compact,
@@ -734,12 +746,10 @@ void CallOrConstructBuiltinsAssembler::CallFunctionTemplate(
   // Perform the actual API callback invocation via CallApiCallback.
   TNode<CallHandlerInfo> call_handler_info = LoadObjectField<CallHandlerInfo>(
       function_template_info, FunctionTemplateInfo::kCallCodeOffset);
-  TNode<RawPtrT> callback = LoadCallHandlerInfoJsCallbackPtr(call_handler_info);
-  TNode<Object> call_data =
-      LoadObjectField<Object>(call_handler_info, CallHandlerInfo::kDataOffset);
-  TailCallStub(CodeFactory::CallApiCallback(isolate()), context, callback,
-               TruncateIntPtrToInt32(args.GetLengthWithoutReceiver()),
-               call_data, holder);
+  TailCallStub(
+      Builtins::CallableFor(isolate(), Builtin::kCallApiCallbackGeneric),
+      context, TruncateIntPtrToInt32(args.GetLengthWithoutReceiver()),
+      call_handler_info, holder);
 }
 
 TF_BUILTIN(CallFunctionTemplate_CheckAccess, CallOrConstructBuiltinsAssembler) {

@@ -4822,13 +4822,20 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
 // TODO(jgruber): I suspect that most of CallApiCallback could be implemented
 // as a C++ trampoline, vastly simplifying the assembly implementation.
 
-void Builtins::Generate_CallApiCallback(MacroAssembler* masm) {
+void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
+                                            CallApiCallbackMode mode) {
   // ----------- S t a t e -------------
-  //  -- rsi                 : context
+  // CallApiCallbackMode::kGeneric mode:
+  //  -- rcx                 : arguments count (not including the receiver)
+  //  -- rbx                 : call handler info
+  //  -- r8                  : holder
+  // CallApiCallbackMode::kNoSideEffects/kWithSideEffectsSideEffects modes:
   //  -- rdx                 : api function address
   //  -- rcx                 : arguments count (not including the receiver)
   //  -- rbx                 : call data
   //  -- rdi                 : holder
+  // Both modes:
+  //  -- rsi                 : context
   //  -- rsp[0]              : return address
   //  -- rsp[8]              : argument 0 (receiver)
   //  -- rsp[16]             : argument 1
@@ -4839,13 +4846,34 @@ void Builtins::Generate_CallApiCallback(MacroAssembler* masm) {
 
   Register function_callback_info_arg = arg_reg_1;
 
-  Register api_function_address = rdx;
-  Register argc = rcx;
-  Register call_data = rbx;
-  Register holder = rdi;
+  Register api_function_address = no_reg;
+  Register argc = no_reg;
+  Register call_data = no_reg;
+  Register callback = no_reg;
+  Register holder = no_reg;
+  Register scratch = rax;
+  Register scratch2 = no_reg;
 
-  DCHECK(!AreAliased(api_function_address, argc, holder, call_data,
-                     kScratchRegister));
+  switch (mode) {
+    case CallApiCallbackMode::kGeneric:
+      api_function_address = rdx;
+      scratch2 = r9;
+      argc = CallApiCallbackGenericDescriptor::ActualArgumentsCountRegister();
+      callback = CallApiCallbackGenericDescriptor::CallHandlerInfoRegister();
+      holder = CallApiCallbackGenericDescriptor::HolderRegister();
+      break;
+
+    case CallApiCallbackMode::kNoSideEffects:
+    case CallApiCallbackMode::kWithSideEffects:
+      api_function_address =
+          CallApiCallbackOptimizedDescriptor::ApiFunctionAddressRegister();
+      argc = CallApiCallbackOptimizedDescriptor::ActualArgumentsCountRegister();
+      call_data = CallApiCallbackOptimizedDescriptor::CallDataRegister();
+      holder = CallApiCallbackOptimizedDescriptor::HolderRegister();
+      break;
+  }
+  DCHECK(!AreAliased(api_function_address, argc, holder, call_data, callback,
+                     scratch, scratch2, kScratchRegister));
 
   using FCI = FunctionCallbackInfo<v8::Value>;
   using FCA = FunctionCallbackArguments;
@@ -4874,10 +4902,25 @@ void Builtins::Generate_CallApiCallback(MacroAssembler* masm) {
   // Existing state:
   //   rsp[7 * kSystemPointerSize]:          <= FCA:::values_
 
-  __ PopReturnAddressTo(rax);
+  __ PopReturnAddressTo(scratch);
   __ LoadRoot(kScratchRegister, RootIndex::kUndefinedValue);
   __ Push(kScratchRegister);  // kNewTarget
-  __ Push(call_data);
+  switch (mode) {
+    case CallApiCallbackMode::kGeneric:
+      __ PushTaggedField(FieldOperand(callback, CallHandlerInfo::kDataOffset),
+                         scratch2);
+      __ LoadExternalPointerField(
+          api_function_address,
+          FieldOperand(callback,
+                       CallHandlerInfo::kMaybeRedirectedCallbackOffset),
+          kCallHandlerInfoCallbackTag, scratch2);
+      break;
+
+    case CallApiCallbackMode::kNoSideEffects:
+    case CallApiCallbackMode::kWithSideEffects:
+      __ Push(call_data);
+      break;
+  }
   __ Push(kScratchRegister);  // kReturnValue
   __ Push(kScratchRegister);  // kUnused
   __ PushAddress(ExternalReference::isolate_address(masm->isolate()));
@@ -4886,7 +4929,7 @@ void Builtins::Generate_CallApiCallback(MacroAssembler* masm) {
   // We use it below to set up the FunctionCallbackInfo object.
   __ movq(holder, rsp);
 
-  __ PushReturnAddressFrom(rax);
+  __ PushReturnAddressFrom(scratch);
 
   // Allocate v8::FunctionCallbackInfo object and a number of bytes to drop
   // from the stack after the callback in non-GCed space of the exit frame.
@@ -4931,7 +4974,8 @@ void Builtins::Generate_CallApiCallback(MacroAssembler* masm) {
 
   DCHECK(!AreAliased(api_function_address, function_callback_info_arg));
 
-  ExternalReference thunk_ref = ExternalReference::invoke_function_callback();
+  ExternalReference thunk_ref =
+      ExternalReference::invoke_function_callback(mode);
   // Pass api function address to thunk wrapper in case profiler or side-effect
   // checking is enabled.
   Register thunk_arg = api_function_address;
@@ -4939,7 +4983,7 @@ void Builtins::Generate_CallApiCallback(MacroAssembler* masm) {
   Operand return_value_operand =
       ExitFrameCallerStackSlotOperand(FCA::kReturnValueIndex);
   static constexpr int kUseExitFrameStackSlotOperand = 0;
-  Operand stack_space_operand = ExitFrameStackSlotOperand(3);
+  Operand stack_space_operand = ExitFrameStackSlotOperand(kBytesToDropOffset);
 
   CallApiFunctionAndReturn(masm, api_function_address, thunk_ref, thunk_arg,
                            kUseExitFrameStackSlotOperand, &stack_space_operand,

@@ -691,6 +691,22 @@ enum class SaveFPRegsMode { kIgnore, kSave };
 // register.
 enum class ArgvMode { kStack, kRegister };
 
+enum class CallApiCallbackMode {
+  // This version of CallApiCallback used by IC system, it gets additional
+  // target function argument which is used both for stack trace reconstruction
+  // in case exception is thrown inside the callback and for callback
+  // side-effects checking by debugger.
+  kGeneric,
+
+  // The following two are used for generating calls from optimized code when
+  // the target CallHandlerInfo object is known and thus the expected
+  // side-effects of the callback. These versions don't get the target
+  // function because the target function can be reconstructed from the deopt
+  // info in case exception is thrown.
+  kNoSideEffects,
+  kWithSideEffects,
+};
+
 // This constant is used as an undefined value when passing source positions.
 constexpr int kNoSourcePosition = -1;
 

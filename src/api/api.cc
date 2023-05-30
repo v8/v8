@@ -11379,12 +11379,32 @@ void InvokeAccessorGetterCallback(
   getter(property, info);
 }
 
-void InvokeFunctionCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
+namespace {
+
+inline void InvokeFunctionCallback(
+    const v8::FunctionCallbackInfo<v8::Value>& info, CallApiCallbackMode mode) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   RCS_SCOPE(i_isolate, RuntimeCallCounterId::kFunctionCallback);
 
-  // TODO(v8:13825): perform side effect checks if necessary once
-  // CallHandlerInfo is passed here.
+  switch (mode) {
+    case CallApiCallbackMode::kGeneric: {
+      // TODO(v8:13825): perform side effect checks if necessary once
+      // CallHandlerInfo is passed here.
+      break;
+    }
+    case CallApiCallbackMode::kWithSideEffects: {
+      Handle<CallHandlerInfo> has_side_effects;
+      if (V8_UNLIKELY(i_isolate->should_check_side_effects()) &&
+          !i_isolate->debug()->PerformSideEffectCheckForCallback(
+              has_side_effects)) {
+        // Failed side effect check.
+        return;
+      }
+      break;
+    }
+    case CallApiCallbackMode::kNoSideEffects:
+      break;
+  }
 
   Address arg = i_isolate->isolate_data()->api_callback_thunk_argument();
   if (USE_SIMULATOR_BOOL) {
@@ -11393,6 +11413,22 @@ void InvokeFunctionCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::FunctionCallback callback = reinterpret_cast<v8::FunctionCallback>(arg);
   ExternalCallbackScope call_scope(i_isolate, FUNCTION_ADDR(callback));
   callback(info);
+}
+}  // namespace
+
+void InvokeFunctionCallbackGeneric(
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  InvokeFunctionCallback(info, CallApiCallbackMode::kGeneric);
+}
+
+void InvokeFunctionCallbackNoSideEffects(
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  InvokeFunctionCallback(info, CallApiCallbackMode::kNoSideEffects);
+}
+
+void InvokeFunctionCallbackWithSideEffects(
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  InvokeFunctionCallback(info, CallApiCallbackMode::kWithSideEffects);
 }
 
 void InvokeFinalizationRegistryCleanupFromTask(

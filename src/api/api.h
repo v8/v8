@@ -488,7 +488,12 @@ void InvokeAccessorGetterCallback(
 // enabled the side-effects checking mode.
 // It gets additional argument, the v8::FunctionCallback address, via
 // IsolateData::api_callback_thunk_argument slot.
-void InvokeFunctionCallback(const v8::FunctionCallbackInfo<v8::Value>& info);
+void InvokeFunctionCallbackGeneric(
+    const v8::FunctionCallbackInfo<v8::Value>& info);
+void InvokeFunctionCallbackNoSideEffects(
+    const v8::FunctionCallbackInfo<v8::Value>& info);
+void InvokeFunctionCallbackWithSideEffects(
+    const v8::FunctionCallbackInfo<v8::Value>& info);
 
 void InvokeFinalizationRegistryCleanupFromTask(
     Handle<Context> context,

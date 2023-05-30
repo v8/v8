@@ -24,7 +24,8 @@ namespace internal {
 #define INTERFACE_DESCRIPTOR_LIST(V)                 \
   V(Abort)                                           \
   V(Allocate)                                        \
-  V(ApiCallback)                                     \
+  V(CallApiCallbackGeneric)                          \
+  V(CallApiCallbackOptimized)                        \
   V(ApiGetter)                                       \
   V(ArrayConstructor)                                \
   V(ArrayNArgumentsConstructor)                      \
@@ -1732,8 +1733,8 @@ class CEntry1ArgvOnStackDescriptor
   static constexpr auto registers();
 };
 
-class ApiCallbackDescriptor
-    : public StaticCallInterfaceDescriptor<ApiCallbackDescriptor> {
+class CallApiCallbackOptimizedDescriptor
+    : public StaticCallInterfaceDescriptor<CallApiCallbackOptimizedDescriptor> {
  public:
   DEFINE_PARAMETERS_VARARGS(kApiFunctionAddress, kActualArgumentsCount,
                             kCallData, kHolder)
@@ -1743,7 +1744,30 @@ class ApiCallbackDescriptor
                          MachineType::Int32(),      // kActualArgumentsCount
                          MachineType::AnyTagged(),  // kCallData
                          MachineType::AnyTagged())  // kHolder
-  DECLARE_DESCRIPTOR(ApiCallbackDescriptor)
+  DECLARE_DESCRIPTOR(CallApiCallbackOptimizedDescriptor)
+
+  static constexpr inline Register ApiFunctionAddressRegister();
+  static constexpr inline Register ActualArgumentsCountRegister();
+  static constexpr inline Register CallDataRegister();
+  static constexpr inline Register HolderRegister();
+
+  static constexpr inline auto registers();
+};
+
+class CallApiCallbackGenericDescriptor
+    : public StaticCallInterfaceDescriptor<CallApiCallbackGenericDescriptor> {
+ public:
+  DEFINE_PARAMETERS_VARARGS(kActualArgumentsCount, kCallHandlerInfo, kHolder)
+  //                           receiver is implicit stack argument 1
+  //                           argv are implicit stack arguments [2, 2 + kArgc[
+  DEFINE_PARAMETER_TYPES(MachineType::Int32(),      // kActualArgumentsCount
+                         MachineType::AnyTagged(),  // kCallHandlerInfo
+                         MachineType::AnyTagged())  // kHolder
+  DECLARE_DESCRIPTOR(CallApiCallbackGenericDescriptor)
+
+  static constexpr inline Register ActualArgumentsCountRegister();
+  static constexpr inline Register CallHandlerInfoRegister();
+  static constexpr inline Register HolderRegister();
 
   static constexpr inline auto registers();
 };

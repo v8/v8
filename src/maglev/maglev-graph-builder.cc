@@ -3367,9 +3367,18 @@ ReduceResult MaglevGraphBuilder::TryBuildPropertyGetterCall(
     ApiFunction function(call_handler_info.callback());
     ExternalReference reference = ExternalReference::Create(
         &function, ExternalReference::DIRECT_API_CALL);
-    return BuildCallBuiltin<Builtin::kCallApiCallback>(
-        {GetExternalConstant(reference), GetInt32Constant(0),
-         GetConstant(call_handler_info.data(broker())), api_holder, receiver});
+    if (call_handler_info.object()->IsSideEffectCallHandlerInfo()) {
+      return BuildCallBuiltin<Builtin::kCallApiCallbackWithSideEffects>(
+          {GetExternalConstant(reference), GetInt32Constant(0),
+           GetConstant(call_handler_info.data(broker())), api_holder,
+           receiver});
+    } else {
+      DCHECK(call_handler_info.object()->IsSideEffectFreeCallHandlerInfo());
+      return BuildCallBuiltin<Builtin::kCallApiCallbackNoSideEffects>(
+          {GetExternalConstant(reference), GetInt32Constant(0),
+           GetConstant(call_handler_info.data(broker())), api_holder,
+           receiver});
+    }
   }
 }
 
