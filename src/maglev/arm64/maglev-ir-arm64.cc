@@ -1790,6 +1790,7 @@ void FunctionEntryStackCheck::SetValueLocationConstraints() {
 }
 void FunctionEntryStackCheck::GenerateCode(MaglevAssembler* masm,
                                            const ProcessingState& state) {
+  if (!masm->code_gen_state()->needs_stack_check()) return;
   // Stack check. This folds the checks for both the interrupt stack limit
   // check and the real stack limit into one by just checking for the
   // interrupt limit. The interrupt limit is either equal to the real

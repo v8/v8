@@ -5779,7 +5779,8 @@ ReduceResult MaglevGraphBuilder::TryBuildCallKnownJSFunction(
   ValueNode* closure = GetConstant(function);
   ValueNode* context = GetConstant(function.context(broker()));
   compiler::SharedFunctionInfoRef shared = function.shared(broker());
-  if (MaglevIsTopTier() && TargetIsCurrentCompilingUnit(function)) {
+  if (MaglevIsTopTier() && TargetIsCurrentCompilingUnit(function) &&
+      !graph_->is_osr()) {
     return BuildCallSelf(context, closure, new_target, shared, args);
   }
   if (v8_flags.maglev_inlining) {
