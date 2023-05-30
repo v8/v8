@@ -9,6 +9,7 @@ import os
 import re
 import sys
 import time
+import datetime
 import urllib.parse
 
 # Add depot tools to the sys path, for gerrit_util
@@ -164,7 +165,7 @@ def main():
     gerrit_util.SetReview(
         GERRIT_HOST, cherry_pick_id, labels={"Owners-Override": 1})
   except:
-    logging.WARNING("Could not set Owners-Override +1")
+    logging.warning("Could not set Owners-Override +1")
 
   print("Adding Rubber Stamper as a reviewer...")
   gerrit_util.AddReviewers(
@@ -203,6 +204,37 @@ def main():
   gerrit_util.CreateGerritTag(GERRIT_HOST,
                               urllib.parse.quote_plus(cherry_pick["project"]),
                               version_string, cherry_pick_commit['commit'])
+
+  print("Waiting for PGO profile tag (%s-pgo), this can take 15-20 minutes..." %
+        version_string)
+  pgo_tag = None
+  waiting_start_time = time.time()
+  while True:
+    # Print the waiting time so far
+    elapsed_time = time.time() - waiting_start_time
+    print(
+        "\r - waiting time: %s" %
+        datetime.timedelta(seconds=round(elapsed_time)),
+        end="",
+        flush=True)
+
+    pgo_tag = gerrit_util.CallGerritApi(
+        GERRIT_HOST,
+        'projects/%s/tags/%s-pgo' %
+        (urllib.parse.quote_plus(cherry_pick["project"]), version_string),
+        reqtype='GET',
+        accept_statuses=[200, 404])
+    if pgo_tag is not None:
+      # New line after progress printing.
+      print("")
+      break
+
+    time.sleep(5)
+
+  if pgo_tag['revision'] != cherry_pick_commit['commit']:
+    logging.fatal("PGO tagged revision %s does not match tagged cherry-pick %s",
+                  pgo_tag['revision'], cherry_pick_commit['commit'])
+    return 1
 
   print("Done.")
 
