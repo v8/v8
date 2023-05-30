@@ -525,10 +525,21 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
         // {offset_reg}.
         LiftoffRegList pinned_byte = pinned | LiftoffRegList{dst_addr};
         if (offset_reg != no_reg) pinned_byte.set(offset_reg);
-        Register byte_src =
-            GetUnusedRegister(liftoff::kByteRegs.MaskOut(pinned_byte)).gp();
-        mov(byte_src, src.gp());
-        mov_b(dst_op, byte_src);
+        LiftoffRegList candidates = liftoff::kByteRegs.MaskOut(pinned_byte);
+        if (!candidates.is_empty()) {
+          Register byte_src = GetUnusedRegister(candidates).gp();
+          mov(byte_src, src.gp());
+          mov_b(dst_op, byte_src);
+        } else {
+          // We have no available byte register. We will temporarily push the
+          // root register to use it as a scratch register.
+          static_assert(kRootRegister == ebx);
+          Register byte_src = kRootRegister;
+          Push(byte_src);
+          mov(byte_src, src.gp());
+          mov_b(dst_op, byte_src);
+          Pop(byte_src);
+        }
       }
       break;
     case StoreType::kI64Store16:

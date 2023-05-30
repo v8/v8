@@ -934,8 +934,8 @@ class LiftoffCompiler {
             pinned.set(__ GetUnusedRegister(kGpReg, pinned).gp());
         Register wasm_null_ref_reg =
             pinned.set(__ GetUnusedRegister(kGpReg, pinned).gp());
-        LoadNullValue(null_ref_reg, pinned, kWasmExternRef);
-        LoadNullValue(wasm_null_ref_reg, pinned, kWasmAnyRef);
+        LoadNullValue(null_ref_reg, kWasmExternRef);
+        LoadNullValue(wasm_null_ref_reg, kWasmAnyRef);
         for (uint32_t local_index = num_params; local_index < __ num_locals();
              ++local_index) {
           ValueType type = decoder->local_types_[local_index];
@@ -1988,7 +1988,7 @@ class LiftoffCompiler {
           FREEZE_STATE(frozen);
           __ emit_cond_jump(kNotEqual, &label, kRefNull, ref.gp(), null.gp(),
                             frozen);
-          LoadNullValue(ref.gp(), pinned, kWasmExternRef);
+          LoadNullValue(ref.gp(), kWasmExternRef);
           __ bind(&label);
         }
         __ PushRegister(kRefNull, ref);
@@ -2424,7 +2424,7 @@ class LiftoffCompiler {
 
   void RefNull(FullDecoder* decoder, ValueType type, Value*) {
     LiftoffRegister null = __ GetUnusedRegister(kGpReg, {});
-    LoadNullValue(null.gp(), {}, type);
+    LoadNullValue(null.gp(), type);
     __ PushRegister(type.kind(), null);
   }
 
@@ -5746,7 +5746,7 @@ class LiftoffCompiler {
         if (!CheckSupportedType(decoder, field_type.kind(), "default value")) {
           return;
         }
-        SetDefaultValue(value, field_type, pinned);
+        SetDefaultValue(value, field_type);
       }
       // Skipping the write barrier is safe as long as:
       // (1) {obj} is freshly allocated, and
@@ -5836,7 +5836,7 @@ class LiftoffCompiler {
       __ PopToFixedRegister(value);
     } else {
       if (!CheckSupportedType(decoder, elem_kind, "default value")) return;
-      SetDefaultValue(value, elem_type, pinned);
+      SetDefaultValue(value, elem_type);
     }
 
     LiftoffRegister index = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
@@ -6335,7 +6335,7 @@ class LiftoffCompiler {
         pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
     Register scratch2 = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
     if (obj.type.is_nullable()) {
-      LoadNullValue(scratch_null, pinned, kWasmAnyRef);
+      LoadNullValue(scratch_null, kWasmAnyRef);
     }
     FREEZE_STATE(frozen);
 
@@ -6365,7 +6365,7 @@ class LiftoffCompiler {
         pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
     Register scratch2 = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
     if (obj.type.is_nullable()) {
-      LoadNullValue(scratch_null, pinned, kWasmAnyRef);
+      LoadNullValue(scratch_null, kWasmAnyRef);
     }
     FREEZE_STATE(frozen);
 
@@ -6471,7 +6471,7 @@ class LiftoffCompiler {
     check.tmp1 = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
     check.tmp2 = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
     if (check.obj_type.is_nullable()) {
-      LoadNullValue(check.null_reg(), pinned, type);
+      LoadNullValue(check.null_reg(), type);
     }
   }
   void LoadInstanceType(TypeCheck& check, const FreezeCacheState& frozen,
@@ -8018,7 +8018,7 @@ class LiftoffCompiler {
     }
   }
 
-  void LoadNullValue(Register null, LiftoffRegList pinned, ValueType type) {
+  void LoadNullValue(Register null, ValueType type) {
     __ LoadFullPointer(
         null, kRootRegister,
         type == kWasmExternRef || type == kWasmNullExternRef
@@ -8041,7 +8041,7 @@ class LiftoffCompiler {
       __ LoadConstant(LiftoffRegister(null),
                       WasmValue(static_cast<uint32_t>(static_null)));
     } else {
-      LoadNullValue(null, pinned, type);
+      LoadNullValue(null, type);
     }
   }
 
@@ -8111,8 +8111,7 @@ class LiftoffCompiler {
     }
   }
 
-  void SetDefaultValue(LiftoffRegister reg, ValueType type,
-                       LiftoffRegList pinned) {
+  void SetDefaultValue(LiftoffRegister reg, ValueType type) {
     DCHECK(is_defaultable(type.kind()));
     switch (type.kind()) {
       case kI8:
@@ -8129,7 +8128,7 @@ class LiftoffCompiler {
         DCHECK(CpuFeatures::SupportsWasmSimd128());
         return __ emit_s128_xor(reg, reg, reg);
       case kRefNull:
-        return LoadNullValue(reg.gp(), pinned, type);
+        return LoadNullValue(reg.gp(), type);
       case kRtt:
       case kVoid:
       case kBottom:
@@ -8209,8 +8208,16 @@ class LiftoffCompiler {
       // cause any state changes.
       // TODO(jkummerow): See if we can make this more elegant, e.g. by passing
       // a temp register to {StoreObjectField}.
-      LiftoffRegister unused_and_unpinned = __ GetUnusedRegister(pinned);
-      USE(unused_and_unpinned);
+#if V8_TARGET_ARCH_IA32
+      bool store_needs_additional_register = elem_kind != kI64;
+#else
+      bool store_needs_additional_register = true;
+#endif
+      if (store_needs_additional_register) {
+        LiftoffRegister unused_and_unpinned =
+            __ GetUnusedRegister(kGpReg, pinned);
+        USE(unused_and_unpinned);
+      }
       FREEZE_STATE(in_this_case_its_fine);
       __ emit_cond_jump(kUnsignedGreaterThanEqual, &done, kI32, offset.gp(),
                         end_offset.gp(), in_this_case_its_fine);
