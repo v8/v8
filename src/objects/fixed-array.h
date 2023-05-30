@@ -644,6 +644,8 @@ class PodArray : public ByteArray {
   static Handle<PodArray<T>> New(
       Isolate* isolate, int length,
       AllocationType allocation = AllocationType::kYoung);
+  static Handle<PodArray<T>> New(LocalIsolate* isolate, int length);
+
   void copy_out(int index, T* result, int length) {
     ByteArray::copy_out(index * sizeof(T), reinterpret_cast<uint8_t*>(result),
                         length * sizeof(T));

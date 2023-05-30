@@ -2527,12 +2527,6 @@ Handle<JSObject> Factory::NewExternal(void* value) {
   return external;
 }
 
-Handle<DeoptimizationLiteralArray> Factory::NewDeoptimizationLiteralArray(
-    int length) {
-  return Handle<DeoptimizationLiteralArray>::cast(
-      NewWeakFixedArray(length, AllocationType::kOld));
-}
-
 Handle<Code> Factory::NewCodeObjectForEmbeddedBuiltin(Handle<Code> code,
                                                       Address off_heap_entry) {
   CHECK_NOT_NULL(isolate()->embedded_blob_code());

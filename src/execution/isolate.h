@@ -2377,7 +2377,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   bool initialized_ = false;
   bool jitless_ = false;
 
-  int next_optimization_id_ = 0;
+  std::atomic<int> next_optimization_id_ = 0;
 
 #if V8_SFI_HAS_UNIQUE_ID
   std::atomic<int> next_unique_sfi_id_;

@@ -257,6 +257,13 @@ Handle<ByteArray> FactoryBase<Impl>::NewByteArray(int length,
 }
 
 template <typename Impl>
+Handle<DeoptimizationLiteralArray>
+FactoryBase<Impl>::NewDeoptimizationLiteralArray(int length) {
+  return Handle<DeoptimizationLiteralArray>::cast(
+      NewWeakFixedArray(length, AllocationType::kOld));
+}
+
+template <typename Impl>
 Handle<BytecodeArray> FactoryBase<Impl>::NewBytecodeArray(
     int length, const byte* raw_bytecodes, int frame_size, int parameter_count,
     Handle<FixedArray> constant_pool) {

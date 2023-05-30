@@ -21,7 +21,19 @@ Handle<DeoptimizationData> DeoptimizationData::New(Isolate* isolate,
       LengthFor(deopt_entry_count), allocation));
 }
 
+Handle<DeoptimizationData> DeoptimizationData::New(LocalIsolate* isolate,
+                                                   int deopt_entry_count,
+                                                   AllocationType allocation) {
+  return Handle<DeoptimizationData>::cast(isolate->factory()->NewFixedArray(
+      LengthFor(deopt_entry_count), allocation));
+}
+
 Handle<DeoptimizationData> DeoptimizationData::Empty(Isolate* isolate) {
+  return Handle<DeoptimizationData>::cast(
+      isolate->factory()->empty_fixed_array());
+}
+
+Handle<DeoptimizationData> DeoptimizationData::Empty(LocalIsolate* isolate) {
   return Handle<DeoptimizationData>::cast(
       isolate->factory()->empty_fixed_array());
 }

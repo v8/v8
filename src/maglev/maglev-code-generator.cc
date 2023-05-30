@@ -1488,6 +1488,9 @@ MaglevCodeGenerator::MaglevCodeGenerator(
 void MaglevCodeGenerator::Assemble() {
   EmitCode();
   EmitMetadata();
+  if (v8_flags.maglev_deopt_data_on_background) {
+    GenerateDeoptimizationData(local_isolate_);
+  }
 }
 
 MaybeHandle<Code> MaglevCodeGenerator::Generate(Isolate* isolate) {
@@ -1650,34 +1653,52 @@ MaybeHandle<Code> MaglevCodeGenerator::BuildCodeObject(Isolate* isolate) {
   CodeDesc desc;
   masm()->GetCode(isolate, &desc, &safepoint_table_builder_,
                   handler_table_offset_);
+  if (!v8_flags.maglev_deopt_data_on_background) {
+    GenerateDeoptimizationData(isolate->main_thread_local_isolate());
+  }
+  DCHECK(!deopt_data_->is_null());
   return Factory::CodeBuilder{isolate, desc, CodeKind::MAGLEV}
       .set_stack_slots(stack_slot_count_with_fixed_frame())
-      .set_deoptimization_data(GenerateDeoptimizationData(isolate))
+      .set_deoptimization_data(deopt_data_)
       .set_osr_offset(code_gen_state_.compilation_info()->toplevel_osr_offset())
       .TryBuild();
 }
 
-Handle<DeoptimizationData> MaglevCodeGenerator::GenerateDeoptimizationData(
-    Isolate* isolate) {
+namespace {
+template <typename T>
+Handle<T> NewPersistentHandleIfNeeded(LocalIsolate* local_isolate,
+                                      Handle<T> object) {
+  if (v8_flags.maglev_deopt_data_on_background) {
+    return local_isolate->heap()->NewPersistentHandle(object);
+  }
+  return object;
+}
+}  // namespace
+
+void MaglevCodeGenerator::GenerateDeoptimizationData(
+    LocalIsolate* local_isolate) {
   int eager_deopt_count =
       static_cast<int>(code_gen_state_.eager_deopts().size());
   int lazy_deopt_count = static_cast<int>(code_gen_state_.lazy_deopts().size());
   int deopt_count = lazy_deopt_count + eager_deopt_count;
   if (deopt_count == 0 && !graph_->is_osr()) {
-    return DeoptimizationData::Empty(isolate);
+    deopt_data_ = NewPersistentHandleIfNeeded(
+        local_isolate, DeoptimizationData::Empty(local_isolate));
+    return;
   }
   Handle<DeoptimizationData> data =
-      DeoptimizationData::New(isolate, deopt_count, AllocationType::kOld);
+      DeoptimizationData::New(local_isolate, deopt_count, AllocationType::kOld);
 
   Handle<TranslationArray> translation_array =
-      translation_array_builder_.ToTranslationArray(isolate->factory());
+      translation_array_builder_.ToTranslationArray(local_isolate->factory());
   {
     DisallowGarbageCollection no_gc;
     auto raw_data = *data;
 
     raw_data.SetTranslationByteArray(*translation_array);
     raw_data.SetInlinedFunctionCount(Smi::FromInt(inlined_function_count_));
-    raw_data.SetOptimizationId(Smi::FromInt(isolate->NextOptimizationId()));
+    raw_data.SetOptimizationId(
+        Smi::FromInt(local_isolate->NextOptimizationId()));
 
     DCHECK_NE(deopt_exit_start_offset_, -1);
     raw_data.SetDeoptExitStart(Smi::FromInt(deopt_exit_start_offset_));
@@ -1693,10 +1714,10 @@ Handle<DeoptimizationData> MaglevCodeGenerator::GenerateDeoptimizationData(
   int inlined_functions_size =
       static_cast<int>(graph_->inlined_functions().size());
   Handle<DeoptimizationLiteralArray> literals =
-      isolate->factory()->NewDeoptimizationLiteralArray(
+      local_isolate->factory()->NewDeoptimizationLiteralArray(
           deopt_literals_.size() + inlined_functions_size + 1);
   Handle<PodArray<InliningPosition>> inlining_positions =
-      PodArray<InliningPosition>::New(isolate, inlined_functions_size);
+      PodArray<InliningPosition>::New(local_isolate, inlined_functions_size);
 
   DisallowGarbageCollection no_gc;
 
@@ -1755,7 +1776,7 @@ Handle<DeoptimizationData> MaglevCodeGenerator::GenerateDeoptimizationData(
     i++;
   }
 
-  return data;
+  deopt_data_ = NewPersistentHandleIfNeeded(local_isolate, data);
 }
 
 }  // namespace maglev

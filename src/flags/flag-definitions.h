@@ -482,6 +482,8 @@ DEFINE_BOOL(maglev_inlining, true,
             "enable inlining in the maglev optimizing compiler")
 DEFINE_BOOL(maglev_loop_peeling, false,
             "enable loop peeling in the maglev optimizing compiler")
+DEFINE_BOOL(maglev_deopt_data_on_background, false,
+            "Generate deopt data on background thread")
 DEFINE_WEAK_IMPLICATION(maglev_future, maglev_inlining)
 DEFINE_WEAK_IMPLICATION(maglev_future, maglev_osr)
 DEFINE_WEAK_IMPLICATION(maglev_future, maglev_loop_peeling)

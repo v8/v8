@@ -364,7 +364,7 @@ void TranslationArrayBuilder::Add(TranslationOpcode opcode, T... operands) {
 }
 
 Handle<TranslationArray> TranslationArrayBuilder::ToTranslationArray(
-    Factory* factory) {
+    LocalFactory* factory) {
 #ifdef V8_USE_ZLIB
   if (V8_UNLIKELY(v8_flags.turbo_compress_translation_arrays)) {
     const int input_size = SizeInBytes();

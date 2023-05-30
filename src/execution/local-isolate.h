@@ -149,6 +149,8 @@ class V8_EXPORT_PRIVATE LocalIsolate final : private HiddenLocalFactory {
     return isolate_->pending_message_address();
   }
 
+  int NextOptimizationId() { return isolate_->NextOptimizationId(); }
+
 #ifdef V8_INTL_SUPPORT
   // WARNING: This might be out-of-sync with the main-thread.
   const std::string& DefaultLocale();

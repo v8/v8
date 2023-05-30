@@ -919,8 +919,8 @@ Handle<DeoptimizationData> CodeGenerator::GenerateDeoptimizationData() {
   Handle<DeoptimizationData> data =
       DeoptimizationData::New(isolate(), deopt_count, AllocationType::kOld);
 
-  Handle<TranslationArray> translation_array =
-      translations_.ToTranslationArray(isolate()->factory());
+  Handle<TranslationArray> translation_array = translations_.ToTranslationArray(
+      isolate()->main_thread_local_isolate()->factory());
 
   data->SetTranslationByteArray(*translation_array);
   data->SetInlinedFunctionCount(

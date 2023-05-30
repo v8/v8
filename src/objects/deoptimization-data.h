@@ -113,9 +113,14 @@ class DeoptimizationData : public FixedArray {
   // Allocates a DeoptimizationData.
   static Handle<DeoptimizationData> New(Isolate* isolate, int deopt_entry_count,
                                         AllocationType allocation);
+  static Handle<DeoptimizationData> New(LocalIsolate* isolate,
+                                        int deopt_entry_count,
+                                        AllocationType allocation);
 
   // Return an empty DeoptimizationData.
   V8_EXPORT_PRIVATE static Handle<DeoptimizationData> Empty(Isolate* isolate);
+  V8_EXPORT_PRIVATE static Handle<DeoptimizationData> Empty(
+      LocalIsolate* isolate);
 
   DECL_CAST(DeoptimizationData)
 
