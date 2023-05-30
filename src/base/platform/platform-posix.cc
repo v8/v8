@@ -923,10 +923,12 @@ void OS::FPrint(FILE* out, const char* format, ...) {
 
 void OS::VFPrint(FILE* out, const char* format, va_list args) {
 #if defined(ANDROID) && !defined(V8_ANDROID_LOG_STDOUT)
-  __android_log_vprint(ANDROID_LOG_INFO, LOG_TAG, format, args);
-#else
-  vfprintf(out, format, args);
+  if (out == stdout) {
+    __android_log_vprint(ANDROID_LOG_INFO, LOG_TAG, format, args);
+    return;
+  }
 #endif
+  vfprintf(out, format, args);
 }
 
 

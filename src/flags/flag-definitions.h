@@ -2389,6 +2389,14 @@ DEFINE_PERF_PROF_BOOL(
     perf_basic_prof_only_functions,
     "Only report function code ranges to perf (i.e. no stubs).")
 DEFINE_PERF_PROF_IMPLICATION(perf_basic_prof_only_functions, perf_basic_prof)
+#if defined(ANDROID)
+#define DEFAULT_PERF_BASIC_PROF_PATH "/data/local/tmp"
+#else
+#define DEFAULT_PERF_BASIC_PROF_PATH "/tmp"
+#endif
+DEFINE_STRING(perf_basic_prof_path, DEFAULT_PERF_BASIC_PROF_PATH,
+              "directory to write perf-<pid>.map symbol file to")
+
 DEFINE_PERF_PROF_BOOL(
     perf_prof, "Enable perf linux profiler (experimental annotate support).")
 DEFINE_PERF_PROF_BOOL(
