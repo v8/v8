@@ -381,6 +381,7 @@ std::pair<ValueType, uint32_t> read_value_type(Decoder* decoder,
 template <typename ValidationTag>
 bool ValidateHeapType(Decoder* decoder, const uint8_t* pc,
                       const WasmModule* module, HeapType type) {
+  if (!VALIDATE(!type.is_bottom())) return false;
   if (!type.is_index()) return true;
   // A {nullptr} module is accepted if we are not validating anyway (e.g. for
   // opcode length computation).
@@ -396,6 +397,7 @@ bool ValidateHeapType(Decoder* decoder, const uint8_t* pc,
 template <typename ValidationTag>
 bool ValidateValueType(Decoder* decoder, const uint8_t* pc,
                        const WasmModule* module, ValueType type) {
+  if (!VALIDATE(!type.is_bottom())) return false;
   if (V8_LIKELY(!type.is_object_reference())) return true;
   return ValidateHeapType<ValidationTag>(decoder, pc, module, type.heap_type());
 }
