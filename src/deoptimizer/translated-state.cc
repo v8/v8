@@ -656,13 +656,6 @@ Handle<Object> TranslatedValue::GetValue() {
     //    pass the verifier.
     container_->EnsureObjectAllocatedAt(this);
 
-    // Finish any sweeping so that it becomes safe to overwrite the ByteArray
-    // headers.
-    // TODO(hpayer): Find a cleaner way to support a group of
-    // non-fully-initialized objects.
-    isolate()->heap()->EnsureSweepingCompleted(
-        Heap::SweepingForcedFinalizationMode::kV8Only);
-
     // 2. Initialize the objects. If we have allocated only byte arrays
     //    for some objects, we now overwrite the byte arrays with the
     //    correct object fields. Note that this phase does not allocate
@@ -2186,6 +2179,10 @@ void TranslatedState::InitializeJSObjectAt(
   isolate()->heap()->NotifyObjectLayoutChange(*object_storage, no_gc,
                                               InvalidateRecordedSlots::kNo);
 
+  // Finish any sweeping so that it becomes safe to overwrite the ByteArray
+  // headers. See chromium:1228036.
+  isolate()->heap()->EnsureSweepingCompletedForObject(*object_storage);
+
   // Fill the property array field.
   {
     Handle<Object> properties = GetValueAndAdvance(frame, value_index);
@@ -2247,6 +2244,10 @@ void TranslatedState::InitializeObjectWithTaggedFieldsAt(
   // Notify the concurrent marker about the layout change.
   isolate()->heap()->NotifyObjectLayoutChange(*object_storage, no_gc,
                                               InvalidateRecordedSlots::kNo);
+
+  // Finish any sweeping so that it becomes safe to overwrite the ByteArray
+  // headers. See chromium:1228036.
+  isolate()->heap()->EnsureSweepingCompletedForObject(*object_storage);
 
   // Write the fields to the object.
   for (int i = 1; i < children_count; i++) {
