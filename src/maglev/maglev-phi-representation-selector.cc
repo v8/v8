@@ -741,7 +741,9 @@ ValueNode* MaglevPhiRepresentationSelector::EnsurePhiTagged(
     // We inserted the new tagging node in a predecessor of the current block,
     // so we shouldn't update the snapshot table for the current block (and we
     // can't update it for the predecessor either since its snapshot is sealed).
-    DCHECK_NE(block, current_block_);
+    DCHECK_IMPLIES(block == current_block_,
+                   block->is_loop() && block->successors().size() == 1 &&
+                       block->successors().at(0) == block);
     return tagged;
   }
 
