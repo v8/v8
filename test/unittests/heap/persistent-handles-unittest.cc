@@ -189,7 +189,7 @@ TEST_F(PersistentHandlesTest, CreatePersistentHandles) {
 
   sema_started.Wait();
 
-  CollectAllGarbage();
+  CollectGarbage(OLD_SPACE);
   sema_gc_finished.Signal();
 
   thread->Join();
