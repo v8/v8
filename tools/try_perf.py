@@ -16,7 +16,7 @@ BOTS = {
   '--linux64': 'v8_linux64_perf_try',
   '--m1': 'v8_mac_arm64_perf_try',
   '--nexus5': 'v8_android_arm_perf_try',
-  '--pixel2': 'v8_android_arm64_perf_try',
+  '--pixel4': 'v8_android_arm64_perf_try',
 }
 
 DEFAULT_BOTS = [
