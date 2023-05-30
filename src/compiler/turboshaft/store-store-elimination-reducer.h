@@ -370,9 +370,16 @@ class RedundantStoreAnalysis {
 
   bool MayObserveStoreField(const Operation& op) {
     const auto& props = op.Properties();
+    if (op.Is<TaggedBitcastOp>()) {
+      // TaggedBitcast has the `Reading` property for scheduling purposes, but
+      // as far as store-store elimination is concerned, it is pure.
+      // TODO(tebbi): remove this special case once the effect system is landed.
+      return false;
+    }
     if (props.can_read || props.can_write || props.can_allocate ||
-        props.can_abort)
+        props.can_abort) {
       return true;
+    }
     // TODO(nicohartmann): Extend this.
     return false;
   }
