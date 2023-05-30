@@ -3475,8 +3475,10 @@ void ToNumberOrNumeric::GenerateCode(MaglevAssembler* masm,
           snapshot.live_registers.clear(result_reg);
           SaveRegisterStateForCall save_register_state(masm, snapshot);
           using D = TypeConversionDescriptor;
-          __ Move(kContextRegister, masm->native_context().object());
+          // Move the object first just in case the input aliases the context
+          // register.
           __ Move(D::GetRegisterParameter(D::kArgument), object);
+          __ Move(kContextRegister, masm->native_context().object());
           switch (mode) {
             case Object::Conversion::kToNumber:
               __ CallBuiltin(Builtin::kToNumber);
