@@ -758,7 +758,7 @@ V8 shared library set USING_V8_SHARED.
 #elif defined(__mips64)
 #define V8_HOST_ARCH_MIPS64 1
 #define V8_HOST_ARCH_64_BIT 1
-#elif defined(__loongarch64)
+#elif defined(__loongarch_lp64)
 #define V8_HOST_ARCH_LOONG64 1
 #define V8_HOST_ARCH_64_BIT 1
 #elif defined(__PPC64__) || defined(_ARCH_PPC64)
@@ -808,7 +808,7 @@ V8 shared library set USING_V8_SHARED.
 #define V8_TARGET_ARCH_ARM 1
 #elif defined(__mips64)
 #define V8_TARGET_ARCH_MIPS64 1
-#elif defined(__loongarch64)
+#elif defined(__loongarch_lp64)
 #define V8_TARGET_ARCH_LOONG64 1
 #elif defined(_ARCH_PPC64)
 #define V8_TARGET_ARCH_PPC64 1
