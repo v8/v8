@@ -609,40 +609,6 @@ void SharedFunctionInfo::set_bytecode_array(BytecodeArray bytecode) {
   set_function_data(bytecode, kReleaseStore);
 }
 
-bool SharedFunctionInfo::ShouldFlushCode(
-    base::EnumSet<CodeFlushMode> code_flush_mode) {
-  if (IsFlushingDisabled(code_flush_mode)) return false;
-
-  // TODO(rmcilroy): Enable bytecode flushing for resumable functions.
-  if (IsResumableFunction(kind()) || !allows_lazy_compilation()) {
-    return false;
-  }
-
-  // Get a snapshot of the function data field, and if it is a bytecode array,
-  // check if it is old. Note, this is done this way since this function can be
-  // called by the concurrent marker.
-  Object data = function_data(kAcquireLoad);
-  if (data.IsCode()) {
-    Code baseline_code = Code::cast(data);
-    DCHECK_EQ(baseline_code.kind(), CodeKind::BASELINE);
-    // If baseline code flushing isn't enabled and we have baseline data on SFI
-    // we cannot flush baseline / bytecode.
-    if (!IsBaselineCodeFlushingEnabled(code_flush_mode)) return false;
-    data = baseline_code.bytecode_or_interpreter_data();
-  } else if (!IsByteCodeFlushingEnabled(code_flush_mode)) {
-    // If bytecode flushing isn't enabled and there is no baseline code there is
-    // nothing to flush.
-    return false;
-  }
-  if (!data.IsBytecodeArray()) return false;
-
-  if (IsStressFlushingEnabled(code_flush_mode)) return true;
-
-  BytecodeArray bytecode = BytecodeArray::cast(data);
-
-  return bytecode.IsOld();
-}
-
 DEF_GETTER(SharedFunctionInfo, InterpreterTrampoline, Code) {
   DCHECK(HasInterpreterData(cage_base));
   return interpreter_data(cage_base).interpreter_trampoline(cage_base);

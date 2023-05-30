@@ -95,9 +95,7 @@ class BytecodeArray
   void CopyBytecodesTo(BytecodeArray to);
 
   // Bytecode aging
-  V8_EXPORT_PRIVATE bool IsOld() const;
-  V8_EXPORT_PRIVATE void MakeOlder(uint16_t increment);
-  V8_EXPORT_PRIVATE void EnsureOldForTesting();
+  V8_EXPORT_PRIVATE static void EnsureOldForTesting(BytecodeArray bytecode);
 
   // Clear uninitialized padding space. This ensures that the snapshot content
   // is deterministic.

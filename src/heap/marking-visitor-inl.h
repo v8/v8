@@ -16,6 +16,7 @@
 #include "src/heap/progress-bar.h"
 #include "src/heap/spaces.h"
 #include "src/objects/descriptor-array.h"
+#include "src/objects/object-macros.h"
 #include "src/objects/objects.h"
 #include "src/objects/property-details.h"
 #include "src/objects/smi.h"
@@ -172,7 +173,7 @@ int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitBytecodeArray(
   this->VisitMapPointer(object);
   BytecodeArray::BodyDescriptor::IterateBody(map, object, size, this);
   if (!should_keep_ages_unchanged_) {
-    object.MakeOlder(code_flushing_increase_);
+    MakeOlder(object);
   }
   return size;
 }
@@ -181,7 +182,7 @@ template <typename ConcreteVisitor, typename MarkingState>
 int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitJSFunction(
     Map map, JSFunction js_function) {
   int size = concrete_visitor()->VisitJSObjectSubclass(map, js_function);
-  if (js_function.ShouldFlushBaselineCode(code_flush_mode_)) {
+  if (ShouldFlushBaselineCode(js_function)) {
     DCHECK(IsBaselineCodeFlushingEnabled(code_flush_mode_));
     local_weak_objects_->baseline_flushing_candidates_local.Push(js_function);
   } else {
@@ -204,7 +205,7 @@ int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitSharedFunctionInfo(
   this->VisitMapPointer(shared_info);
   SharedFunctionInfo::BodyDescriptor::IterateBody(map, shared_info, size, this);
 
-  if (!shared_info.ShouldFlushCode(code_flush_mode_)) {
+  if (!ShouldFlushCode(shared_info)) {
     // If the SharedFunctionInfo doesn't have old bytecode visit the function
     // data strongly.
     VisitPointer(shared_info,
@@ -225,6 +226,108 @@ int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitSharedFunctionInfo(
     local_weak_objects_->code_flushing_candidates_local.Push(shared_info);
   }
   return size;
+}
+
+template <typename ConcreteVisitor, typename MarkingState>
+bool MarkingVisitorBase<ConcreteVisitor, MarkingState>::ShouldFlushCode(
+    SharedFunctionInfo sfi) const {
+  if (IsFlushingDisabled(code_flush_mode_)) return false;
+
+  // TODO(rmcilroy): Enable bytecode flushing for resumable functions.
+  if (IsResumableFunction(sfi.kind()) || !sfi.allows_lazy_compilation()) {
+    return false;
+  }
+
+  // Get a snapshot of the function data field, and if it is a bytecode array,
+  // check if it is old. Note, this is done this way since this function can be
+  // called by the concurrent marker.
+  Object data = sfi.function_data(kAcquireLoad);
+  if (data.IsCode()) {
+    Code baseline_code = Code::cast(data);
+    DCHECK_EQ(baseline_code.kind(), CodeKind::BASELINE);
+    // If baseline code flushing isn't enabled and we have baseline data on SFI
+    // we cannot flush baseline / bytecode.
+    if (!IsBaselineCodeFlushingEnabled(code_flush_mode_)) return false;
+    data = baseline_code.bytecode_or_interpreter_data();
+  } else if (!IsByteCodeFlushingEnabled(code_flush_mode_)) {
+    // If bytecode flushing isn't enabled and there is no baseline code there is
+    // nothing to flush.
+    return false;
+  }
+  if (!data.IsBytecodeArray()) return false;
+
+  if (IsStressFlushingEnabled(code_flush_mode_)) return true;
+
+  return IsOld(BytecodeArray::cast(data));
+}
+
+template <typename ConcreteVisitor, typename MarkingState>
+bool MarkingVisitorBase<ConcreteVisitor, MarkingState>::IsOld(
+    BytecodeArray bytecode) const {
+  if (v8_flags.flush_code_based_on_time) {
+    return bytecode.bytecode_age() >= v8_flags.bytecode_old_time;
+  } else {
+    return bytecode.bytecode_age() >= v8_flags.bytecode_old_age;
+  }
+}
+
+template <typename ConcreteVisitor, typename MarkingState>
+void MarkingVisitorBase<ConcreteVisitor, MarkingState>::MakeOlder(
+    BytecodeArray bytecode) const {
+  if (v8_flags.flush_code_based_on_time) {
+    DCHECK_NE(code_flushing_increase_, 0);
+    uint16_t current_age;
+    uint16_t updated_age;
+
+    do {
+      current_age = bytecode.bytecode_age();
+      // When the age is 0, it was reset by the function prologue in
+      // Ignition/Sparkplug. But that might have been some time after the last
+      // full GC. So in this case we don't increment the value like we normally
+      // would but just set the age to 1. All non-0 values can be incremented as
+      // expected (we add the number of seconds since the last GC) as they were
+      // definitely last executed before the last full GC.
+      updated_age = current_age == 0
+                        ? 1
+                        : SaturateAdd(current_age, code_flushing_increase_);
+    } while (bytecode.CompareExchangeBytecodeAge(current_age, updated_age) !=
+             current_age);
+  } else {
+    uint16_t age = bytecode.bytecode_age();
+    if (age < v8_flags.bytecode_old_age) {
+      bytecode.CompareExchangeBytecodeAge(age, age + 1);
+    }
+    DCHECK_LE(bytecode.bytecode_age(), v8_flags.bytecode_old_age);
+  }
+}
+
+template <typename ConcreteVisitor, typename MarkingState>
+bool MarkingVisitorBase<ConcreteVisitor, MarkingState>::ShouldFlushBaselineCode(
+    JSFunction js_function) const {
+  if (!IsBaselineCodeFlushingEnabled(code_flush_mode_)) return false;
+  // Do a raw read for shared and code fields here since this function may be
+  // called on a concurrent thread. JSFunction itself should be fully
+  // initialized here but the SharedFunctionInfo, InstructionStream objects may
+  // not be initialized. We read using acquire loads to defend against that.
+  Object maybe_shared =
+      ACQUIRE_READ_FIELD(js_function, JSFunction::kSharedFunctionInfoOffset);
+  if (!maybe_shared.IsSharedFunctionInfo()) return false;
+
+  // See crbug.com/v8/11972 for more details on acquire / release semantics for
+  // code field. We don't use release stores when copying code pointers from
+  // SFI / FV to JSFunction but it is safe in practice.
+  Object maybe_code = ACQUIRE_READ_FIELD(js_function, JSFunction::kCodeOffset);
+#ifdef THREAD_SANITIZER
+  // This is needed because TSAN does not process the memory fence
+  // emitted after page initialization.
+  BasicMemoryChunk::FromAddress(maybe_code.ptr())->SynchronizedHeapLoad();
+#endif
+  if (!maybe_code.IsCode()) return false;
+  Code code = Code::cast(maybe_code);
+  if (code.kind() != CodeKind::BASELINE) return false;
+
+  SharedFunctionInfo shared = SharedFunctionInfo::cast(maybe_shared);
+  return ShouldFlushCode(shared);
 }
 
 // ===========================================================================

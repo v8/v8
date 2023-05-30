@@ -189,6 +189,13 @@ class MarkingVisitorBase : public ConcurrentHeapVisitor<int, ConcreteVisitor> {
     return !MarkingState::kCollectRetainers;
   }
 
+  // Methods needed for supporting code flushing.
+  bool ShouldFlushCode(SharedFunctionInfo sfi) const;
+  bool ShouldFlushBaselineCode(JSFunction js_function) const;
+
+  bool IsOld(BytecodeArray bytecode) const;
+  void MakeOlder(BytecodeArray bytecode) const;
+
   MarkingWorklists::Local* const local_marking_worklists_;
   WeakObjects::Local* const local_weak_objects_;
   Heap* const heap_;

@@ -23706,7 +23706,7 @@ void StreamingWithIsolateScriptCache(bool run_gc) {
           i::Handle<i::JSFunction>::cast(v8::Utils::OpenHandle(*script));
       i::Handle<i::BytecodeArray> script_bytecode(
           script_function->shared().GetBytecodeArray(i_isolate), i_isolate);
-      script_bytecode->EnsureOldForTesting();
+      i::BytecodeArray::EnsureOldForTesting(*script_bytecode);
     }
   }
 

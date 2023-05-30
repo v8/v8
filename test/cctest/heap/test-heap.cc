@@ -691,7 +691,7 @@ TEST(BytecodeArrayAging) {
                                 kParameterCount, factory->empty_fixed_array());
 
   CHECK_EQ(0, array->bytecode_age());
-  array->EnsureOldForTesting();
+  BytecodeArray::EnsureOldForTesting(*array);
 }
 
 static const char* not_so_random_string_table[] = {
@@ -1134,7 +1134,8 @@ TEST(TestBytecodeFlushing) {
     heap::CollectAllGarbage(CcTest::heap());
     CHECK(function->shared().is_compiled());
 
-    function->shared().GetBytecodeArray(i_isolate).EnsureOldForTesting();
+    BytecodeArray::EnsureOldForTesting(
+        function->shared().GetBytecodeArray(i_isolate));
     heap::CollectAllGarbage(CcTest::heap());
 
     // foo should no longer be in the compilation cache
@@ -1208,7 +1209,7 @@ static void TestMultiReferencedBytecodeFlushing(bool sparkplug_compile) {
           i_isolate, copy, Compiler::CLEAR_EXCEPTION, &is_compiled_scope);
     }
 
-    shared->GetBytecodeArray(i_isolate).EnsureOldForTesting();
+    BytecodeArray::EnsureOldForTesting(shared->GetBytecodeArray(i_isolate));
     heap::CollectAllGarbage(CcTest::heap());
 
     // foo should no longer be in the compilation cache
@@ -1274,14 +1275,12 @@ HEAP_TEST(Regress10560) {
 
     // Pre-age bytecode so it will be flushed on next run.
     CHECK(function->shared().HasBytecodeArray());
-    function->shared().GetBytecodeArray(i_isolate).EnsureOldForTesting();
-
-    CHECK(function->shared().GetBytecodeArray(i_isolate).IsOld());
+    BytecodeArray::EnsureOldForTesting(
+        function->shared().GetBytecodeArray(i_isolate));
 
     heap::SimulateFullSpace(heap->old_space());
 
     // Just check bytecode isn't flushed still
-    CHECK(function->shared().GetBytecodeArray(i_isolate).IsOld());
     CHECK(function->shared().is_compiled());
 
     heap->set_force_gc_on_next_allocation();
@@ -1452,7 +1451,8 @@ TEST(TestOptimizeAfterBytecodeFlushingCandidate) {
   heap::CollectAllGarbage(CcTest::heap());
   CHECK(function->shared().is_compiled());
 
-  function->shared().GetBytecodeArray(isolate).EnsureOldForTesting();
+  BytecodeArray::EnsureOldForTesting(
+      function->shared().GetBytecodeArray(isolate));
   heap::CollectAllGarbage(CcTest::heap());
 
   CHECK(!function->shared().is_compiled());
@@ -1464,7 +1464,8 @@ TEST(TestOptimizeAfterBytecodeFlushingCandidate) {
     CompileRun("foo();");
   }
 
-  function->shared().GetBytecodeArray(isolate).EnsureOldForTesting();
+  BytecodeArray::EnsureOldForTesting(
+      function->shared().GetBytecodeArray(isolate));
   heap::SimulateIncrementalMarking(CcTest::heap());
 
   // Force optimization while incremental marking is active and while
@@ -1589,7 +1590,8 @@ void CompilationCacheCachingBehavior(bool retain_script) {
     Handle<SharedFunctionInfo> shared =
         lookup_result.toplevel_sfi().ToHandleChecked();
     CHECK(shared->HasBytecodeArray());
-    shared->GetBytecodeArray(CcTest::i_isolate()).EnsureOldForTesting();
+    BytecodeArray::EnsureOldForTesting(
+        shared->GetBytecodeArray(CcTest::i_isolate()));
   }
 
   // The first GC flushes the BytecodeArray from the SFI.
@@ -1631,7 +1633,8 @@ template <typename T>
 void AgeBytecode(v8::Local<T> function_or_script) {
   Handle<SharedFunctionInfo> shared = GetSharedFunctionInfo(function_or_script);
   CHECK(shared->HasBytecodeArray());
-  shared->GetBytecodeArray(CcTest::i_isolate()).EnsureOldForTesting();
+  BytecodeArray::EnsureOldForTesting(
+      shared->GetBytecodeArray(CcTest::i_isolate()));
 }
 
 void CompilationCacheRegeneration(bool retain_root_sfi, bool flush_root_sfi,

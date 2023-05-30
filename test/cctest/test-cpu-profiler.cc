@@ -4675,7 +4675,8 @@ TEST(BytecodeFlushEventsEagerLogging) {
     heap::CollectAllGarbage(CcTest::heap());
     CHECK(function->shared().is_compiled());
 
-    function->shared().GetBytecodeArray(i_isolate).EnsureOldForTesting();
+    BytecodeArray::EnsureOldForTesting(
+        function->shared().GetBytecodeArray(i_isolate));
     heap::CollectAllGarbage(CcTest::heap());
 
     // foo should no longer be in the compilation cache

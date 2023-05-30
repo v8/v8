@@ -352,7 +352,7 @@ class MergeDeserializedCodeTest : public DeserializeTest {
             i::SharedFunctionInfo::cast(
                 original_objects->Get(index).GetHeapObjectAssumeWeak())
                 .GetBytecodeArray(i_isolate);
-        bytecode.EnsureOldForTesting();
+        i::BytecodeArray::EnsureOldForTesting(bytecode);
       }
     }
 
@@ -667,7 +667,7 @@ TEST_F(MergeDeserializedCodeTest, MergeWithNoFollowUpWork) {
   // contain only the Script.
   i::BytecodeArray bytecode =
       GetSharedFunctionInfo(original_script).GetBytecodeArray(i_isolate);
-  bytecode.EnsureOldForTesting();
+  i::BytecodeArray::EnsureOldForTesting(bytecode);
   i_isolate->heap()->CollectAllGarbage(i::GCFlag::kNoFlags,
                                        i::GarbageCollectionReason::kTesting);
 
@@ -763,7 +763,7 @@ TEST_F(MergeDeserializedCodeTest, MergeThatCompilesLazyFunction) {
     // contain only the Script.
     i::BytecodeArray bytecode =
         GetSharedFunctionInfo(script).GetBytecodeArray(i_isolate);
-    bytecode.EnsureOldForTesting();
+    i::BytecodeArray::EnsureOldForTesting(bytecode);
   }
 
   i_isolate->heap()->CollectAllGarbage(i::GCFlag::kNoFlags,
@@ -842,7 +842,7 @@ TEST_F(MergeDeserializedCodeTest, MergeThatStartsButDoesNotFinish) {
     // contain only the Script.
     i::BytecodeArray bytecode =
         GetSharedFunctionInfo(script).GetBytecodeArray(i_isolate);
-    bytecode.EnsureOldForTesting();
+    i::BytecodeArray::EnsureOldForTesting(bytecode);
   }
 
   i_isolate->heap()->CollectAllGarbage(i::GCFlag::kNoFlags,
