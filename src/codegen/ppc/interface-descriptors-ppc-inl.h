@@ -260,11 +260,35 @@ constexpr auto BinarySmiOp_BaselineDescriptor::registers() {
 }
 
 // static
-constexpr auto ApiCallbackDescriptor::registers() {
-  return RegisterArray(r4,   // kApiFunctionAddress
-                       r5,   // kArgc
-                       r6,   // kCallData
-                       r3);  // kHolder
+constexpr Register
+CallApiCallbackOptimizedDescriptor::ApiFunctionAddressRegister() {
+  return r4;
+}
+// static
+constexpr Register
+CallApiCallbackOptimizedDescriptor::ActualArgumentsCountRegister() {
+  return r5;
+}
+// static
+constexpr Register CallApiCallbackOptimizedDescriptor::CallDataRegister() {
+  return r6;
+}
+// static
+constexpr Register CallApiCallbackOptimizedDescriptor::HolderRegister() {
+  return r3;
+}
+// static
+constexpr Register
+CallApiCallbackGenericDescriptor::ActualArgumentsCountRegister() {
+  return r5;
+}
+// static
+constexpr Register CallApiCallbackGenericDescriptor::CallHandlerInfoRegister() {
+  return r6;
+}
+// static
+constexpr Register CallApiCallbackGenericDescriptor::HolderRegister() {
+  return r3;
 }
 
 // static

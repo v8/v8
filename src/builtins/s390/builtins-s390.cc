@@ -3410,13 +3410,20 @@ MemOperand ExitFrameCallerStackSlotOperand(int index) {
 
 }  // namespace
 
-void Builtins::Generate_CallApiCallback(MacroAssembler* masm) {
+void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
+                                            CallApiCallbackMode mode) {
   // ----------- S t a t e -------------
-  //  -- cp                  : context
+  // CallApiCallbackMode::kGeneric mode:
+  //  -- r4                  : arguments count (not including the receiver)
+  //  -- r5                  : call handler info
+  //  -- r2                  : holder
+  // CallApiCallbackMode::kNoSideEffects/kWithSideEffectsSideEffects modes:
   //  -- r4                  : api function address
   //  -- r4                  : arguments count (not including the receiver)
   //  -- r5                  : call data
   //  -- r2                  : holder
+  // Both modes:
+  //  -- cp
   //  -- sp[0]               : receiver
   //  -- sp[8]               : first argument
   //  -- ...
@@ -3425,12 +3432,32 @@ void Builtins::Generate_CallApiCallback(MacroAssembler* masm) {
 
   Register function_callback_info_arg = arg_reg_1;
 
-  Register api_function_address = r3;
-  Register argc = r4;
-  Register call_data = r5;
-  Register holder = r2;
+  Register api_function_address = no_reg;
+  Register argc = no_reg;
+  Register call_data = no_reg;
+  Register holder = no_reg;
+  Register callback = no_reg;
   Register scratch = r6;
-  DCHECK(!AreAliased(api_function_address, argc, call_data, holder, scratch));
+  Register scratch2 = r7;
+
+  switch (mode) {
+    case CallApiCallbackMode::kGeneric:
+      api_function_address = r3;
+      argc = CallApiCallbackGenericDescriptor::ActualArgumentsCountRegister();
+      callback = CallApiCallbackGenericDescriptor::CallHandlerInfoRegister();
+      holder = CallApiCallbackGenericDescriptor::HolderRegister();
+      break;
+    case CallApiCallbackMode::kNoSideEffects:
+    case CallApiCallbackMode::kWithSideEffects:
+      api_function_address =
+          CallApiCallbackOptimizedDescriptor::ApiFunctionAddressRegister();
+      argc = CallApiCallbackOptimizedDescriptor::ActualArgumentsCountRegister();
+      call_data = CallApiCallbackOptimizedDescriptor::CallDataRegister();
+      holder = CallApiCallbackOptimizedDescriptor::HolderRegister();
+      break;
+  }
+  DCHECK(!AreAliased(api_function_address, argc, holder, call_data, callback,
+                     scratch, scratch2));
 
   using FCI = FunctionCallbackInfo<v8::Value>;
   using FCA = FunctionCallbackArguments;
@@ -3475,7 +3502,23 @@ void Builtins::Generate_CallApiCallback(MacroAssembler* masm) {
               MemOperand(sp, FCA::kReturnValueIndex * kSystemPointerSize));
 
   // kData.
-  __ StoreU64(call_data, MemOperand(sp, FCA::kDataIndex * kSystemPointerSize));
+  switch (mode) {
+    case CallApiCallbackMode::kGeneric:
+      __ LoadU64(scratch2,
+                 FieldMemOperand(callback, CallHandlerInfo::kDataOffset));
+      __ StoreU64(scratch2,
+                  MemOperand(sp, FCA::kDataIndex * kSystemPointerSize));
+      __ LoadU64(
+          api_function_address,
+          FieldMemOperand(callback,
+                          CallHandlerInfo::kMaybeRedirectedCallbackOffset));
+      break;
+    case CallApiCallbackMode::kNoSideEffects:
+    case CallApiCallbackMode::kWithSideEffects:
+      __ StoreU64(call_data,
+                  MemOperand(sp, FCA::kDataIndex * kSystemPointerSize));
+      break;
+  }
 
   // kNewTarget.
   __ StoreU64(scratch,
@@ -3535,7 +3578,8 @@ void Builtins::Generate_CallApiCallback(MacroAssembler* masm) {
 
   DCHECK(!AreAliased(api_function_address, function_callback_info_arg));
 
-  ExternalReference thunk_ref = ExternalReference::invoke_function_callback();
+  ExternalReference thunk_ref =
+      ExternalReference::invoke_function_callback(mode);
   // Pass api function address to thunk wrapper in case profiler or side-effect
   // checking is enabled.
   Register thunk_arg = api_function_address;
