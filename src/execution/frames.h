@@ -1491,8 +1491,11 @@ class V8_EXPORT_PRIVATE DebuggableStackFrameIterator {
 // Similar to StackFrameIterator, but can be created and used at any time and
 // any stack state. Currently, the only user is the profiler; if this ever
 // changes, find another name for this class.
-class V8_EXPORT_PRIVATE StackFrameIteratorForProfiler
-    : public StackFrameIteratorBase {
+// IMPORTANT: Do not mark this class as V8_EXPORT_PRIVATE. The profiler creates
+// instances of this class from a signal handler. If we use V8_EXPORT_PRIVATE
+// "ld" inserts a symbol stub for the constructor call that may crash with
+// a stackoverflow when called from a signal handler.
+class StackFrameIteratorForProfiler : public StackFrameIteratorBase {
  public:
   StackFrameIteratorForProfiler(Isolate* isolate, Address pc, Address fp,
                                 Address sp, Address lr, Address js_entry_sp);
@@ -1533,6 +1536,21 @@ class V8_EXPORT_PRIVATE StackFrameIteratorForProfiler
   StackFrame::Type top_frame_type_;
   ExternalCallbackScope* external_callback_scope_;
   Address top_link_register_;
+};
+
+// We cannot export 'StackFrameIteratorForProfiler' for cctests since the
+// linker inserted symbol stub may cuase a stack overflow
+// (https://crbug.com/1449195).
+// We subclass it and export the subclass instead.
+class V8_EXPORT_PRIVATE StackFrameIteratorForProfilerForTesting
+    : public StackFrameIteratorForProfiler {
+ public:
+  StackFrameIteratorForProfilerForTesting(Isolate* isolate, Address pc,
+                                          Address fp, Address sp, Address lr,
+                                          Address js_entry_sp);
+  // Re-declare methods needed by the test. Otherwise we'd have to
+  // export individual methods on the base class (which we don't want to risk).
+  void Advance();
 };
 
 // Frame layout helper classes. Used by the deoptimizer and instruction

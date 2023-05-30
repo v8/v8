@@ -210,6 +210,10 @@ DISABLE_ASAN void TickSample::Init(Isolate* v8_isolate,
   timestamp = base::TimeTicks::Now();
 }
 
+// IMPORTANT: 'GetStackSample' is sensitive to stack overflows. For this reason
+// we try not to use any function/method marked as V8_EXPORT_PRIVATE with their
+// only use-site in 'GetStackSample': The resulting linker stub needs quite
+// a bit of stack space and has caused stack overflow crashes in the past.
 bool TickSample::GetStackSample(Isolate* v8_isolate, RegisterState* regs,
                                 RecordCEntryFrame record_c_entry_frame,
                                 void** frames, size_t frames_limit,

@@ -113,7 +113,7 @@ class InterruptTest {
     state.sp = &state;
 #endif
 
-    i::StackFrameIteratorForProfiler it(
+    i::StackFrameIteratorForProfilerForTesting it(
         i_isolate, reinterpret_cast<i::Address>(state.pc),
         reinterpret_cast<i::Address>(state.fp),
         reinterpret_cast<i::Address>(state.sp),

@@ -562,6 +562,16 @@ void StackFrameIteratorForProfiler::Advance() {
   }
 }
 
+StackFrameIteratorForProfilerForTesting::
+    StackFrameIteratorForProfilerForTesting(Isolate* isolate, Address pc,
+                                            Address fp, Address sp, Address lr,
+                                            Address js_entry_sp)
+    : StackFrameIteratorForProfiler(isolate, pc, fp, sp, lr, js_entry_sp) {}
+
+void StackFrameIteratorForProfilerForTesting::Advance() {
+  StackFrameIteratorForProfiler::Advance();
+}
+
 // -------------------------------------------------------------------------
 
 namespace {
