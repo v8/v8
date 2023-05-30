@@ -560,7 +560,10 @@ RUNTIME_FUNCTION(Runtime_CompileOptimizedOSRFromMaglevInlined) {
   if (*function != frame->function()) {
     // We are OSRing an inlined function. Mark the top frame one for
     // optimization.
-    isolate->tiering_manager()->MarkForTurboFanOptimization(frame->function());
+    if (!function->ActiveTierIsTurbofan()) {
+      isolate->tiering_manager()->MarkForTurboFanOptimization(
+          frame->function());
+    }
   }
 
   return CompileOptimizedOSRFromMaglev(isolate, function, osr_offset);
