@@ -169,7 +169,7 @@ class SmallVector {
     resize_no_init(old_size + count);
     pos = begin_ + offset;
     T* old_end = begin_ + old_size;
-    DCHECK_LT(old_end, end_);
+    DCHECK_LE(old_end, end_);
     std::move_backward(pos, old_end, end_);
     std::fill_n(pos, count, value);
     return pos;
@@ -183,7 +183,7 @@ class SmallVector {
     resize_no_init(old_size + count);
     pos = begin_ + offset;
     T* old_end = begin_ + old_size;
-    DCHECK_LT(old_end, end_);
+    DCHECK_LE(old_end, end_);
     std::move_backward(pos, old_end, end_);
     std::copy(begin, end, pos);
     return pos;
