@@ -408,7 +408,11 @@ struct FloatOperationTyper {
   static type_t Range(float_t min, float_t max, uint32_t special_values,
                       Zone* zone) {
     DCHECK_LE(min, max);
-    if (min == max) return Set({min}, special_values, zone);
+    DCHECK_IMPLIES(detail::is_minus_zero(min),
+                   (special_values & type_t::kMinusZero));
+    DCHECK_IMPLIES(detail::is_minus_zero(max),
+                   (special_values & type_t::kMinusZero));
+    if (min == max) return Set({min + float_t{0}}, special_values, zone);
     return type_t::Range(min, max, special_values, zone);
   }
 
