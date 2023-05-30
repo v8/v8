@@ -212,6 +212,24 @@ class WithIsolateScopeMixin : public TMixin {
     iso->heap()->CollectGarbage(space, i::GarbageCollectionReason::kTesting);
   }
 
+  void CollectAllGarbage(i::Isolate* isolate = nullptr) {
+    i::Isolate* iso = isolate ? isolate : i_isolate();
+    iso->heap()->CollectAllGarbage(i::GCFlag::kNoFlags,
+                                   i::GarbageCollectionReason::kTesting);
+  }
+
+  void CollectAllAvailableGarbage(i::Isolate* isolate = nullptr) {
+    i::Isolate* iso = isolate ? isolate : i_isolate();
+    iso->heap()->CollectAllAvailableGarbage(
+        i::GarbageCollectionReason::kTesting);
+  }
+
+  void PreciseCollectAllGarbage(i::Isolate* isolate = nullptr) {
+    i::Isolate* iso = isolate ? isolate : i_isolate();
+    iso->heap()->PreciseCollectAllGarbage(i::GCFlag::kNoFlags,
+                                          i::GarbageCollectionReason::kTesting);
+  }
+
   v8::Local<v8::String> NewString(const char* string) {
     return v8::String::NewFromUtf8(this->v8_isolate(), string).ToLocalChecked();
   }

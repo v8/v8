@@ -65,7 +65,7 @@ class SharedOldSpaceAllocationThread final : public ParkingThread {
                 10, AllocationType::kSharedOld);
           }
 
-          CollectGarbage(OLD_SPACE, i_client_isolate);
+          CollectGarbage(OLD_SPACE, client_isolate);
 
           v8::platform::PumpMessageLoop(i::V8::GetCurrentPlatform(),
                                         client_isolate);
@@ -110,7 +110,7 @@ class SharedLargeOldSpaceAllocationThread final : public ParkingThread {
             CHECK(MemoryChunk::FromHeapObject(*fixed_array)->IsLargePage());
           }
 
-          CollectGarbage(OLD_SPACE, i_client_isolate);
+          CollectGarbage(OLD_SPACE, client_isolate);
 
           v8::platform::PumpMessageLoop(i::V8::GetCurrentPlatform(),
                                         client_isolate);
@@ -151,7 +151,7 @@ class SharedMapSpaceAllocationThread final : public ParkingThread {
                 TERMINAL_FAST_ELEMENTS_KIND, 0, AllocationType::kSharedMap);
           }
 
-          CollectGarbage(OLD_SPACE, i_client_isolate);
+          CollectGarbage(OLD_SPACE, client_isolate);
 
           v8::platform::PumpMessageLoop(i::V8::GetCurrentPlatform(),
                                         client_isolate);
@@ -175,7 +175,7 @@ TEST_F(SharedHeapTest, ConcurrentAllocationInSharedMapSpace) {
 }
 
 TEST_F(SharedHeapNoClientsTest, SharedCollectionWithoutClients) {
-  ::v8::internal::CollectGarbage(OLD_SPACE, i_shared_space_isolate());
+  ::v8::internal::CollectGarbage(OLD_SPACE, shared_space_isolate());
 }
 
 void AllocateInSharedHeap(int iterations = 100) {
@@ -458,10 +458,10 @@ void ToEachTheirOwnWithHandle(TestType* test) {
   });
 
   test->with_execute(
-      [](TestType* test) { i::CollectGarbage(space, test->i_isolate()); });
+      [](TestType* test) { i::CollectGarbage(space, test->v8_isolate()); });
 
   thread->with_execute([](ThreadType* thread) {
-    i::CollectGarbage(space, thread->i_client_isolate());
+    i::CollectGarbage(space, thread->client_isolate());
   });
 
   test->with_complete([](TestType* test) {
@@ -473,12 +473,12 @@ void ToEachTheirOwnWithHandle(TestType* test) {
     // The handle should keep the fixed array from being reclaimed.
     EXPECT_FALSE(thread->state()->weak.IsEmpty());
     thread->state()->scope.reset();  // Deallocate the handle scope.
-    i::CollectGarbage(space, thread->i_client_isolate());
+    i::CollectGarbage(space, thread->client_isolate());
   });
 
   test->with_teardown([](TestType* test) {
     test->state()->scope.reset();  // Deallocate the handle scope.
-    i::CollectGarbage(space, test->i_isolate());
+    i::CollectGarbage(space, test->v8_isolate());
   });
 
   // Perform the test.

@@ -15,7 +15,6 @@
 #include "src/handles/global-handles.h"
 #include "src/wasm/wasm-features.h"
 #include "test/common/flag-utils.h"
-#include "test/unittests/heap/heap-utils.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -125,7 +124,7 @@ TEST_F(ApiWasmTest, WasmStreamingCallback) {
   TestWasmStreaming(WasmStreamingCallbackTestCallbackIsCalled,
                     Promise::kPending);
   CHECK(wasm_streaming_callback_got_called);
-  CollectAllAvailableGarbage(i_isolate());
+  CollectAllAvailableGarbage();
   CHECK(wasm_streaming_data_got_collected);
 }
 
