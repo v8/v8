@@ -333,11 +333,6 @@ class EffectControlLinearizer {
   Node* JSAnyIsNotPrimitiveHeapObject(Node* value, Node* map = nullptr);
   Node* LoadFromSeqString(Node* receiver, Node* position, Node* is_one_byte);
   Node* TruncateWordToInt32(Node* value);
-  Node* MakeWeakForComparison(Node* heap_object);
-  Node* BuildIsWeakReferenceTo(Node* maybe_object, Node* value);
-  Node* BuildIsClearedWeakReference(Node* maybe_object);
-  Node* BuildIsStrongReference(Node* value);
-  Node* BuildStrongReferenceFromWeakReference(Node* value);
   Node* SmiMaxValueConstant();
   Node* SmiShiftBitsConstant();
 
@@ -8487,49 +8482,6 @@ Node* EffectControlLinearizer::TruncateWordToInt32(Node* value) {
     return __ TruncateInt64ToInt32(value);
   }
   return value;
-}
-
-Node* EffectControlLinearizer::BuildIsStrongReference(Node* value) {
-  return __ Word32Equal(
-      __ Word32And(
-          TruncateWordToInt32(__ BitcastTaggedToWordForTagAndSmiBits(value)),
-          __ Int32Constant(kHeapObjectTagMask)),
-      __ Int32Constant(kHeapObjectTag));
-}
-
-Node* EffectControlLinearizer::MakeWeakForComparison(Node* heap_object) {
-  // TODO(gsathya): Specialize this for pointer compression.
-  return __ BitcastWordToTagged(
-      __ WordOr(__ BitcastTaggedToWord(heap_object),
-                __ IntPtrConstant(kWeakHeapObjectTag)));
-}
-
-Node* EffectControlLinearizer::BuildStrongReferenceFromWeakReference(
-    Node* maybe_object) {
-  return __ BitcastWordToTagged(
-      __ WordAnd(__ BitcastMaybeObjectToWord(maybe_object),
-                 __ IntPtrConstant(~kWeakHeapObjectMask)));
-}
-
-Node* EffectControlLinearizer::BuildIsWeakReferenceTo(Node* maybe_object,
-                                                      Node* value) {
-  if (COMPRESS_POINTERS_BOOL) {
-    return __ Word32Equal(
-        __ Word32And(
-            TruncateWordToInt32(__ BitcastMaybeObjectToWord(maybe_object)),
-            __ Uint32Constant(~static_cast<uint32_t>(kWeakHeapObjectMask))),
-        TruncateWordToInt32(__ BitcastTaggedToWord(value)));
-  } else {
-    return __ WordEqual(__ WordAnd(__ BitcastMaybeObjectToWord(maybe_object),
-                                   __ IntPtrConstant(~kWeakHeapObjectMask)),
-                        __ BitcastTaggedToWord(value));
-  }
-}
-
-Node* EffectControlLinearizer::BuildIsClearedWeakReference(Node* maybe_object) {
-  return __ Word32Equal(
-      TruncateWordToInt32(__ BitcastMaybeObjectToWord(maybe_object)),
-      __ Int32Constant(kClearedWeakHeapObjectLower32));
 }
 
 // Pass {bitfield} = {digit} = nullptr to construct the canoncial 0n BigInt.

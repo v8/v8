@@ -68,8 +68,6 @@ namespace internal {
   V(Smi, "Smi")                                                                \
   V(StoreToConstant, "Storing to a constant field")                            \
   V(SuspendGeneratorIsDead, "SuspendGenerator is in a dead branch")            \
-  V(TransitionedToMonomorphicIC, "IC transitioned to monomorphic")             \
-  V(TransitionedToMegamorphicIC, "IC transitioned to megamorphic")             \
   V(Unknown, "(unknown)")                                                      \
   V(ValueMismatch, "value mismatch")                                           \
   V(WrongCallTarget, "wrong call target")                                      \
@@ -77,9 +75,7 @@ namespace internal {
   V(WrongFeedbackCell, "wrong feedback cell")                                  \
   V(WrongInstanceType, "wrong instance type")                                  \
   V(WrongMap, "wrong map")                                                     \
-  V(MissingMap, "missing map")                                                 \
   V(DeprecatedMap, "deprecated map")                                           \
-  V(WrongHandler, "wrong handler")                                             \
   V(WrongName, "wrong name")                                                   \
   V(WrongValue, "wrong value")                                                 \
   V(NoInitialElement, "no initial element")                                    \
