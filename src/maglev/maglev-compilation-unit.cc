@@ -61,6 +61,10 @@ bool MaglevCompilationUnit::is_osr() const {
   return inlining_depth_ == 0 && info_->toplevel_is_osr();
 }
 
+BytecodeOffset MaglevCompilationUnit::osr_offset() const {
+  return is_osr() ? info_->toplevel_osr_offset() : BytecodeOffset::None();
+}
+
 }  // namespace maglev
 }  // namespace internal
 }  // namespace v8

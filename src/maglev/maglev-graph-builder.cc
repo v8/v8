@@ -293,8 +293,8 @@ MaglevGraphBuilder::MaglevGraphBuilder(LocalIsolate* local_isolate,
       compilation_unit_(compilation_unit),
       parent_(parent),
       graph_(graph),
-      bytecode_analysis_(bytecode().object(), zone(), BytecodeOffset::None(),
-                         true),
+      bytecode_analysis_(bytecode().object(), zone(),
+                         compilation_unit->osr_offset(), true),
       iterator_(bytecode().object()),
       source_position_iterator_(bytecode().SourcePositionTable(broker())),
       allow_loop_peeling_(is_inline() ? parent_->allow_loop_peeling_
@@ -316,7 +316,9 @@ MaglevGraphBuilder::MaglevGraphBuilder(LocalIsolate* local_isolate,
                       : compilation_unit_->zone()->New<KnownNodeAspects>(
                             compilation_unit_->zone())),
       caller_bytecode_offset_(caller_bytecode_offset),
-      entrypoint_(0),
+      entrypoint_(compilation_unit->is_osr()
+                      ? bytecode_analysis_.osr_entry_point()
+                      : 0),
       catch_block_stack_(zone()) {
   memset(merge_states_, 0,
          (bytecode().length() + 1) * sizeof(InterpreterFrameState*));
@@ -342,18 +344,20 @@ MaglevGraphBuilder::MaglevGraphBuilder(LocalIsolate* local_isolate,
            graph_->is_osr());
   if (compilation_unit_->is_osr()) {
     CHECK(!is_inline());
-    int osr = compilation_unit_->info()->toplevel_osr_offset().ToInt();
+#ifdef DEBUG
     // OSR'ing into the middle of a loop is currently not supported. There
     // should not be any issue with OSR'ing outside of loops, just we currently
     // dont do it...
-    iterator_.SetOffset(osr);
-    CHECK_EQ(iterator_.current_bytecode(), interpreter::Bytecode::kJumpLoop);
-    entrypoint_ = iterator_.GetJumpTargetOffset();
+    iterator_.SetOffset(compilation_unit_->osr_offset().ToInt());
+    DCHECK_EQ(iterator_.current_bytecode(), interpreter::Bytecode::kJumpLoop);
+    DCHECK_EQ(entrypoint_, iterator_.GetJumpTargetOffset());
     iterator_.SetOffset(entrypoint_);
+#endif
 
     if (v8_flags.trace_maglev_graph_building) {
       std::cerr << "- Non-standard entrypoint @" << entrypoint_
-                << " by OSR from @" << osr << std::endl;
+                << " by OSR from @" << compilation_unit_->osr_offset().ToInt()
+                << std::endl;
     }
   }
   CHECK_IMPLIES(!compilation_unit_->is_osr(), entrypoint_ == 0);
