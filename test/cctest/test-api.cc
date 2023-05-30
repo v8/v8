@@ -13044,12 +13044,13 @@ UNINITIALIZED_TEST(SharedObjectGetConstructorName) {
   isolate->Dispose();
 }
 
+unsigned ApiTestFuzzer::linear_congruential_generator;
+std::vector<std::unique_ptr<ApiTestFuzzer>> ApiTestFuzzer::fuzzers_;
 bool ApiTestFuzzer::fuzzing_ = false;
 v8::base::Semaphore ApiTestFuzzer::all_tests_done_(0);
-int ApiTestFuzzer::active_tests_;
 int ApiTestFuzzer::tests_being_run_;
-int ApiTestFuzzer::current_;
-
+int ApiTestFuzzer::active_tests_;
+int ApiTestFuzzer::current_fuzzer_;
 
 // We are in a callback and want to switch to another thread (if we
 // are currently running the thread fuzzing test).
@@ -13060,31 +13061,37 @@ void ApiTestFuzzer::Fuzz() {
   CcTest::i_isolate()->IncrementJavascriptExecutionCounter();
 
   if (!fuzzing_) return;
-  ApiTestFuzzer* test = RegisterThreadedTest::nth(current_)->fuzzer_;
-  test->ContextSwitch();
+  fuzzers_[current_fuzzer_]->ContextSwitch();
 }
 
 
 // Let the next thread go.  Since it is also waiting on the V8 lock it may
 // not start immediately.
 bool ApiTestFuzzer::NextThread() {
-  int test_position = GetNextTestNumber();
-  const char* test_name = RegisterThreadedTest::nth(current_)->name();
-  if (test_position == current_) {
-    if (kLogThreading)
-      printf("Stay with %s\n", test_name);
+  int next_fuzzer = GetNextFuzzer();
+  if (next_fuzzer == current_fuzzer_) {
+    if (kLogThreading) {
+      int current_number = fuzzers_[current_fuzzer_]->test_number_;
+      printf("Stay with %s #%d\n",
+             RegisterThreadedTest::nth(current_number)->name(), current_number);
+    }
     return false;
   }
   if (kLogThreading) {
-    printf("Switch from %s to %s\n",
-           test_name,
-           RegisterThreadedTest::nth(test_position)->name());
+    int current_number =
+        current_fuzzer_ >= 0 ? fuzzers_[current_fuzzer_]->test_number_ : -1;
+    int next_number = fuzzers_[next_fuzzer]->test_number_;
+    printf("Switch from %s #%d to %s #%d\n",
+           current_number >= 0
+               ? RegisterThreadedTest::nth(current_number)->name()
+               : "<none>",
+           current_number, RegisterThreadedTest::nth(next_number)->name(),
+           next_number);
   }
-  current_ = test_position;
-  RegisterThreadedTest::nth(current_)->fuzzer_->gate_.Signal();
+  current_fuzzer_ = next_fuzzer;
+  fuzzers_[current_fuzzer_]->gate_.Signal();
   return true;
 }
-
 
 void ApiTestFuzzer::Run() {
   // Wait until it is our turn.
@@ -13108,10 +13115,6 @@ void ApiTestFuzzer::Run() {
   }
 }
 
-
-static unsigned linear_congruential_generator;
-
-
 void ApiTestFuzzer::SetUp(PartOfTest part) {
   linear_congruential_generator = i::v8_flags.testing_prng_seed;
   fuzzing_ = true;
@@ -13119,19 +13122,15 @@ void ApiTestFuzzer::SetUp(PartOfTest part) {
   int start =  count * part / (LAST_PART + 1);
   int end = (count * (part + 1) / (LAST_PART + 1)) - 1;
   active_tests_ = tests_being_run_ = end - start + 1;
+  fuzzers_.clear();
   for (int i = 0; i < tests_being_run_; i++) {
-    RegisterThreadedTest::nth(i)->fuzzer_ = new ApiTestFuzzer(i + start);
+    fuzzers_.push_back(
+        std::unique_ptr<ApiTestFuzzer>(new ApiTestFuzzer(i + start)));
   }
-  for (int i = 0; i < active_tests_; i++) {
-    CHECK(RegisterThreadedTest::nth(i)->fuzzer_->Start());
+  for (const auto& fuzzer : fuzzers_) {
+    CHECK(fuzzer->Start());
   }
 }
-
-
-static void CallTestNumber(int test_number) {
-  (RegisterThreadedTest::nth(test_number)->callback())();
-}
-
 
 void ApiTestFuzzer::RunAllTests() {
   // This method is called when running each THREADING_TEST, which is an
@@ -13140,7 +13139,7 @@ void ApiTestFuzzer::RunAllTests() {
   // their tests.
   CcTest::isolate()->Exit();
   // Set off the first test.
-  current_ = -1;
+  current_fuzzer_ = -1;
   NextThread();
   // Wait till they are all done.
   all_tests_done_.Wait();
@@ -13148,17 +13147,15 @@ void ApiTestFuzzer::RunAllTests() {
   CcTest::isolate()->Enter();
 }
 
-
-int ApiTestFuzzer::GetNextTestNumber() {
-  int next_test;
+int ApiTestFuzzer::GetNextFuzzer() {
+  int next;
   do {
-    next_test = (linear_congruential_generator >> 16) % tests_being_run_;
+    next = (linear_congruential_generator >> 16) % tests_being_run_;
     linear_congruential_generator *= 1664525u;
     linear_congruential_generator += 1013904223u;
-  } while (!RegisterThreadedTest::nth(next_test)->fuzzer_->active_);
-  return next_test;
+  } while (!fuzzers_[next]->active_);
+  return next;
 }
-
 
 void ApiTestFuzzer::ContextSwitch() {
   // If the new thread is the same as the current thread there is nothing to do.
@@ -13177,12 +13174,10 @@ void ApiTestFuzzer::ContextSwitch() {
   }
 }
 
-
 void ApiTestFuzzer::TearDown() {
   fuzzing_ = false;
-  for (int i = 0; i < RegisterThreadedTest::count(); i++) {
-    ApiTestFuzzer *fuzzer = RegisterThreadedTest::nth(i)->fuzzer_;
-    if (fuzzer != nullptr) fuzzer->Join();
+  for (const auto& fuzzer : fuzzers_) {
+    if (fuzzer) fuzzer->Join();
   }
 }
 
@@ -13191,7 +13186,7 @@ void ApiTestFuzzer::CallTest() {
   if (kLogThreading)
     printf("Start test %s #%d\n",
            RegisterThreadedTest::nth(test_number_)->name(), test_number_);
-  CallTestNumber(test_number_);
+  (RegisterThreadedTest::nth(test_number_)->callback())();
   if (kLogThreading)
     printf("End test %s #%d\n", RegisterThreadedTest::nth(test_number_)->name(),
            test_number_);

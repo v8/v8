@@ -406,8 +406,7 @@ int main(int argc, char* argv[]) {
   return 0;
 }
 
-RegisterThreadedTest* RegisterThreadedTest::first_ = nullptr;
-int RegisterThreadedTest::count_ = 0;
+std::vector<const RegisterThreadedTest*> RegisterThreadedTest::tests_;
 
 bool IsValidUnwrapObject(v8::Object* object) {
   i::Address addr = i::ValueHelper::ValueAsAddress(object);
