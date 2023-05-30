@@ -620,6 +620,12 @@ RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
   while (!it.done() && stack_depth--) it.Advance();
   if (!it.done()) {
     if (it.frame()->is_turbofan()) {
+      if (v8_flags.trace_osr) {
+        CodeTracer::Scope scope(isolate->GetCodeTracer());
+        PrintF(scope.file(),
+               "[OSR - %%OptimizeOsr failed because the current function could "
+               "not be found.]\n");
+      }
       // This can happen if %OptimizeOsr is in inlined function.
       return ReadOnlyRoots(isolate).undefined_value();
     } else if (it.frame()->is_maglev()) {
@@ -695,14 +701,21 @@ RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
       MaglevFrame* frame = MaglevFrame::cast(it.frame());
       Handle<BytecodeArray> bytecode_array(
           function->shared().GetBytecodeArray(isolate), isolate);
-      const int current_offset = frame->GetBytecodeOffsetForOSR().ToInt();
-      osr_offset =
-          OffsetOfNextJumpLoop(isolate, bytecode_array, current_offset);
+      const BytecodeOffset current_offset = frame->GetBytecodeOffsetForOSR();
+      // TODO(olivf) It's possible that a valid osr_offset happens to be the
+      // construct stub range but. We should use OptimizedFrame::Summarize here
+      // instead.
+      if (!function->IsConstructor() ||
+          !current_offset.IsValidForConstructStub()) {
+        osr_offset = OffsetOfNextJumpLoop(isolate, bytecode_array,
+                                          current_offset.ToInt());
+      }
     }
 
     if (osr_offset.IsNone()) {
       // The loop may have been elided by bytecode generation (e.g. for
-      // patterns such as `do { ... } while (false);`.
+      // patterns such as `do { ... } while (false);` or we are in an inlined
+      // constructor stub.
       return ReadOnlyRoots(isolate).undefined_value();
     }
 

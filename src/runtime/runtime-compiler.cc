@@ -522,6 +522,13 @@ Object CompileOptimizedOSRFromMaglev(Isolate* isolate,
     // letting it handle OSR. How do we trigger the early bailout? Returning
     // any non-null InstructionStream from this function triggers the deopt in
     // JumpLoop.
+    if (v8_flags.trace_osr) {
+      CodeTracer::Scope scope(isolate->GetCodeTracer());
+      PrintF(scope.file(),
+             "[OSR - Tiering from Maglev to Turbofan failed because "
+             "concurrent_osr is disabled. function: %s, osr offset: %d]\n",
+             function->DebugNameCStr().get(), osr_offset.ToInt());
+    }
     return function->code();
   }
 
