@@ -63,7 +63,7 @@ class MaglevSafepointTableBuilder;
 
 // Utility functions
 
-enum Condition : uint8_t {
+enum Condition : int {
   overflow = 0,
   no_overflow = 1,
   below = 2,

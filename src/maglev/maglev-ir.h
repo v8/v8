@@ -39,7 +39,7 @@
 namespace v8 {
 namespace internal {
 
-enum Condition : uint8_t;
+enum Condition : int;
 
 namespace maglev {
 
