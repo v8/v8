@@ -716,6 +716,7 @@ class OpProperties {
     // deferred calls as well.
     return kIsCallBit::decode(bitfield_);
   }
+  constexpr bool is_any_call() const { return is_call() || is_deferred_call(); }
   constexpr bool can_eager_deopt() const {
     return kCanEagerDeoptBit::decode(bitfield_);
   }
@@ -730,8 +731,8 @@ class OpProperties {
   }
   constexpr bool can_read() const { return kCanReadBit::decode(bitfield_); }
   constexpr bool can_write() const { return kCanWriteBit::decode(bitfield_); }
-  constexpr bool non_memory_side_effects() const {
-    return kNonMemorySideEffectsBit::decode(bitfield_);
+  constexpr bool can_allocate() const {
+    return kCanAllocate::decode(bitfield_);
   }
   constexpr ValueRepresentation value_representation() const {
     return kValueRepresentationBits::decode(bitfield_);
@@ -748,18 +749,14 @@ class OpProperties {
   constexpr bool is_pure() const {
     return (bitfield_ & kPureMask) == kPureValue;
   }
-  constexpr bool has_any_side_effects() const {
-    return can_write() || non_memory_side_effects();
-  }
   constexpr bool is_required_when_unused() {
     if (is_conversion()) {
-      // Calls in conversions are not counted as side-effect as far as
+      // Calls in conversions are not counted as a side-effect as far as
       // is_required_when_unused is concerned, since they should always be to
       // the Allocate builtin.
-      return has_any_side_effects() || can_throw() || can_deopt();
+      return can_write() || can_throw() || can_deopt();
     } else {
-      return has_any_side_effects() || can_throw() || can_deopt() ||
-             is_any_call();
+      return can_write() || can_throw() || can_deopt() || is_any_call();
     }
   }
 
@@ -777,17 +774,17 @@ class OpProperties {
   static constexpr OpProperties LazyDeopt() {
     return OpProperties(kCanLazyDeoptBit::encode(true));
   }
-  static constexpr OpProperties Throw() {
+  static constexpr OpProperties CanThrow() {
     return OpProperties(kCanThrowBit::encode(true)) | LazyDeopt();
   }
-  static constexpr OpProperties Reading() {
+  static constexpr OpProperties CanRead() {
     return OpProperties(kCanReadBit::encode(true));
   }
-  static constexpr OpProperties Writing() {
+  static constexpr OpProperties CanWrite() {
     return OpProperties(kCanWriteBit::encode(true));
   }
-  static constexpr OpProperties NonMemorySideEffects() {
-    return OpProperties(kNonMemorySideEffectsBit::encode(true));
+  static constexpr OpProperties CanAllocate() {
+    return OpProperties(kCanAllocate::encode(true));
   }
   static constexpr OpProperties TaggedValue() {
     return OpProperties(
@@ -817,7 +814,7 @@ class OpProperties {
     return OpProperties(kIsConversionBit::encode(true));
   }
   static constexpr OpProperties CanCallUserCode() {
-    return NonMemorySideEffects() | LazyDeopt() | Throw();
+    return AnySideEffects() | LazyDeopt() | CanThrow();
   }
   // Without auditing the call target, we must assume it can cause a lazy deopt
   // and throw. Use this when codegen calls runtime or a builtin, unless
@@ -829,7 +826,7 @@ class OpProperties {
   }
   static constexpr OpProperties JSCall() { return Call() | CanCallUserCode(); }
   static constexpr OpProperties AnySideEffects() {
-    return Reading() | Writing() | NonMemorySideEffects();
+    return CanRead() | CanWrite() | CanAllocate();
   }
   static constexpr OpProperties DeferredCall() {
     // Operations with a deferred call need a snapshot of register state,
@@ -857,20 +854,19 @@ class OpProperties {
   using kCanThrowBit = kCanLazyDeoptBit::Next<bool, 1>;
   using kCanReadBit = kCanThrowBit::Next<bool, 1>;
   using kCanWriteBit = kCanReadBit::Next<bool, 1>;
-  using kNonMemorySideEffectsBit = kCanWriteBit::Next<bool, 1>;
-  using kValueRepresentationBits =
-      kNonMemorySideEffectsBit::Next<ValueRepresentation, 3>;
+  using kCanAllocate = kCanWriteBit::Next<bool, 1>;
+  using kValueRepresentationBits = kCanAllocate::Next<ValueRepresentation, 3>;
   using kIsConversionBit = kValueRepresentationBits::Next<bool, 1>;
   using kNeedsRegisterSnapshotBit = kIsConversionBit::Next<bool, 1>;
 
-  static const uint32_t kPureMask = kCanReadBit::kMask | kCanWriteBit::kMask |
-                                    kNonMemorySideEffectsBit::kMask;
+  static const uint32_t kPureMask =
+      kCanReadBit::kMask | kCanWriteBit::kMask | kCanAllocate::kMask;
   static const uint32_t kPureValue = kCanReadBit::encode(false) |
                                      kCanWriteBit::encode(false) |
-                                     kNonMemorySideEffectsBit::encode(false);
+                                     kCanAllocate::encode(false);
 
   // NeedsRegisterSnapshot is only used for DeferredCall, and we rely on this in
-  // `is_any_call` to detect deferred calls. If you need to use
+  // `is_deferred_call` to detect deferred calls. If you need to use
   // NeedsRegisterSnapshot for something else that DeferredCalls, then you'll
   // have to update `is_any_call`.
   static constexpr OpProperties NeedsRegisterSnapshot() {
@@ -882,14 +878,14 @@ class OpProperties {
  public:
   static const size_t kSize = kNeedsRegisterSnapshotBit::kLastUsedBit + 1;
 
-  constexpr bool is_any_call() const {
+  constexpr bool is_deferred_call() const {
     // Currently, there is no kDeferredCall bit, but DeferredCall only sets a
     // single bit: kNeedsRegisterSnapShot. If this static assert breaks, it
     // means that you added additional properties to DeferredCall, and you
     // should update this function accordingly.
     static_assert(DeferredCall().bitfield_ ==
                   kNeedsRegisterSnapshotBit::encode(true));
-    return is_call() || needs_register_snapshot();
+    return needs_register_snapshot();
   }
 };
 
@@ -2888,8 +2884,9 @@ class Int32ToNumber : public FixedInputValueNodeT<1, Int32ToNumber> {
  public:
   explicit Int32ToNumber(uint64_t bitfield) : Base(bitfield) {}
 
-  static constexpr OpProperties kProperties =
-      OpProperties::DeferredCall() | OpProperties::ConversionNode();
+  static constexpr OpProperties kProperties = OpProperties::CanAllocate() |
+                                              OpProperties::DeferredCall() |
+                                              OpProperties::ConversionNode();
   static constexpr
       typename Base::InputTypes kInputTypes{ValueRepresentation::kInt32};
 
@@ -2907,8 +2904,9 @@ class Uint32ToNumber : public FixedInputValueNodeT<1, Uint32ToNumber> {
  public:
   explicit Uint32ToNumber(uint64_t bitfield) : Base(bitfield) {}
 
-  static constexpr OpProperties kProperties =
-      OpProperties::DeferredCall() | OpProperties::ConversionNode();
+  static constexpr OpProperties kProperties = OpProperties::CanAllocate() |
+                                              OpProperties::DeferredCall() |
+                                              OpProperties::ConversionNode();
   static constexpr
       typename Base::InputTypes kInputTypes{ValueRepresentation::kUint32};
 
@@ -2931,8 +2929,9 @@ class Float64ToTagged : public FixedInputValueNodeT<1, Float64ToTagged> {
   static constexpr
       typename Base::InputTypes kInputTypes{ValueRepresentation::kFloat64};
 
-  static constexpr OpProperties kProperties =
-      OpProperties::DeferredCall() | OpProperties::ConversionNode();
+  static constexpr OpProperties kProperties = OpProperties::CanAllocate() |
+                                              OpProperties::DeferredCall() |
+                                              OpProperties::ConversionNode();
 
   Input& input() { return Node::input(0); }
 
@@ -2961,8 +2960,9 @@ class HoleyFloat64ToTagged
   static constexpr
       typename Base::InputTypes kInputTypes{ValueRepresentation::kHoleyFloat64};
 
-  static constexpr OpProperties kProperties =
-      OpProperties::DeferredCall() | OpProperties::ConversionNode();
+  static constexpr OpProperties kProperties = OpProperties::CanAllocate() |
+                                              OpProperties::DeferredCall() |
+                                              OpProperties::ConversionNode();
 
   Input& input() { return Node::input(0); }
 
@@ -3361,7 +3361,7 @@ class SetPendingMessage : public FixedInputValueNodeT<1, SetPendingMessage> {
   explicit SetPendingMessage(uint64_t bitfield) : Base(bitfield) {}
 
   static constexpr OpProperties kProperties =
-      OpProperties::Writing() | OpProperties::Reading();
+      OpProperties::CanWrite() | OpProperties::CanRead();
   static constexpr
       typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
 
@@ -4065,8 +4065,9 @@ class CreateArrayLiteral : public FixedInputValueNodeT<0, CreateArrayLiteral> {
   int flags() const { return flags_; }
 
   // The implementation currently calls runtime.
-  static constexpr OpProperties kProperties =
-      OpProperties::Call() | OpProperties::Throw() | OpProperties::LazyDeopt();
+  static constexpr OpProperties kProperties = OpProperties::Call() |
+                                              OpProperties::CanThrow() |
+                                              OpProperties::LazyDeopt();
 
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
@@ -4133,8 +4134,9 @@ class CreateObjectLiteral
   int flags() const { return flags_; }
 
   // The implementation currently calls runtime.
-  static constexpr OpProperties kProperties =
-      OpProperties::Call() | OpProperties::Throw() | OpProperties::LazyDeopt();
+  static constexpr OpProperties kProperties = OpProperties::Call() |
+                                              OpProperties::CanThrow() |
+                                              OpProperties::LazyDeopt();
 
   int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
@@ -4192,7 +4194,8 @@ class AllocateRaw : public FixedInputValueNodeT<0, AllocateRaw> {
                        int size)
       : Base(bitfield), allocation_type_(allocation_type), size_(size) {}
 
-  static constexpr OpProperties kProperties = OpProperties::DeferredCall();
+  static constexpr OpProperties kProperties =
+      OpProperties::CanAllocate() | OpProperties::DeferredCall();
 
   int MaxCallStackArgs() const { return 0; }
   void SetValueLocationConstraints();
@@ -4564,8 +4567,10 @@ class CheckValueEqualsString
                                   compiler::InternalizedStringRef value)
       : Base(bitfield), value_(value) {}
 
-  static constexpr OpProperties kProperties =
-      OpProperties::EagerDeopt() | OpProperties::DeferredCall();
+  // Can allocate if strings are flattened for comparison.
+  static constexpr OpProperties kProperties = OpProperties::CanAllocate() |
+                                              OpProperties::EagerDeopt() |
+                                              OpProperties::DeferredCall();
   static constexpr
       typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
 
@@ -4764,9 +4769,10 @@ class CheckMapsWithMigration
                                   CheckType check_type)
       : Base(CheckTypeBitField::update(bitfield, check_type)), maps_(maps) {}
 
-  static constexpr OpProperties kProperties = OpProperties::EagerDeopt() |
-                                              OpProperties::DeferredCall() |
-                                              OpProperties::Writing();
+  static constexpr OpProperties kProperties =
+      OpProperties::EagerDeopt() | OpProperties::DeferredCall() |
+      OpProperties::CanAllocate() | OpProperties::CanWrite() |
+      OpProperties::CanRead();
   static constexpr
       typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
 
@@ -4834,8 +4840,7 @@ class CheckJSDataViewBounds : public FixedInputNodeT<2, CheckJSDataViewBounds> {
                                  ExternalArrayType element_type)
       : Base(bitfield), element_type_(element_type) {}
 
-  static constexpr OpProperties kProperties =
-      OpProperties::EagerDeopt() | OpProperties::DeferredCall();
+  static constexpr OpProperties kProperties = OpProperties::EagerDeopt();
   static constexpr typename Base::InputTypes kInputTypes{
       ValueRepresentation::kTagged, ValueRepresentation::kInt32};
 
@@ -5055,7 +5060,8 @@ class BuiltinStringFromCharCode
  public:
   explicit BuiltinStringFromCharCode(uint64_t bitfield) : Base(bitfield) {}
 
-  static constexpr OpProperties kProperties = OpProperties::DeferredCall();
+  static constexpr OpProperties kProperties =
+      OpProperties::CanAllocate() | OpProperties::DeferredCall();
   static constexpr
       typename Base::InputTypes kInputTypes{ValueRepresentation::kInt32};
 
@@ -5083,9 +5089,9 @@ class BuiltinStringPrototypeCharCodeOrCodePointAt
                                                        Mode mode)
       : Base(bitfield), mode_(mode) {}
 
-  static constexpr OpProperties kProperties = OpProperties::Reading() |
-                                              OpProperties::DeferredCall() |
-                                              OpProperties::Int32();
+  static constexpr OpProperties kProperties =
+      OpProperties::CanAllocate() | OpProperties::CanRead() |
+      OpProperties::DeferredCall() | OpProperties::Int32();
   static constexpr typename Base::InputTypes kInputTypes{
       ValueRepresentation::kTagged, ValueRepresentation::kInt32};
 
@@ -5218,9 +5224,9 @@ class LoadPolymorphicTaggedField
         field_representation_(field_representation),
         access_infos_(access_info) {}
 
-  static constexpr OpProperties kProperties = OpProperties::Reading() |
-                                              OpProperties::EagerDeopt() |
-                                              OpProperties::DeferredCall();
+  static constexpr OpProperties kProperties =
+      OpProperties::CanAllocate() | OpProperties::CanRead() |
+      OpProperties::EagerDeopt() | OpProperties::DeferredCall();
   static constexpr
       typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
 
@@ -5251,7 +5257,7 @@ class LoadPolymorphicDoubleField
       uint64_t bitfield, ZoneVector<PolymorphicAccessInfo>&& access_info)
       : Base(bitfield), access_infos_(access_info) {}
 
-  static constexpr OpProperties kProperties = OpProperties::Reading() |
+  static constexpr OpProperties kProperties = OpProperties::CanRead() |
                                               OpProperties::EagerDeopt() |
                                               OpProperties::Float64();
   static constexpr
@@ -5278,7 +5284,7 @@ class LoadTaggedField : public FixedInputValueNodeT<1, LoadTaggedField> {
   explicit LoadTaggedField(uint64_t bitfield, int offset)
       : Base(bitfield), offset_(offset) {}
 
-  static constexpr OpProperties kProperties = OpProperties::Reading();
+  static constexpr OpProperties kProperties = OpProperties::CanRead();
   static constexpr
       typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
 
@@ -5303,7 +5309,7 @@ class LoadDoubleField : public FixedInputValueNodeT<1, LoadDoubleField> {
       : Base(bitfield), offset_(offset) {}
 
   static constexpr OpProperties kProperties =
-      OpProperties::Reading() | OpProperties::Float64();
+      OpProperties::CanRead() | OpProperties::Float64();
   static constexpr
       typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
 
@@ -5327,8 +5333,9 @@ class LoadTaggedFieldByFieldIndex
  public:
   explicit LoadTaggedFieldByFieldIndex(uint64_t bitfield) : Base(bitfield) {}
 
-  static constexpr OpProperties kProperties =
-      OpProperties::Reading() | OpProperties::DeferredCall();
+  static constexpr OpProperties kProperties = OpProperties::CanAllocate() |
+                                              OpProperties::CanRead() |
+                                              OpProperties::DeferredCall();
   static constexpr typename Base::InputTypes kInputTypes{
       ValueRepresentation::kTagged, ValueRepresentation::kTagged};
 
@@ -5354,7 +5361,7 @@ class LoadFixedArrayElement
  public:
   explicit LoadFixedArrayElement(uint64_t bitfield) : Base(bitfield) {}
 
-  static constexpr OpProperties kProperties = OpProperties::Reading();
+  static constexpr OpProperties kProperties = OpProperties::CanRead();
   static constexpr typename Base::InputTypes kInputTypes{
       ValueRepresentation::kTagged, ValueRepresentation::kInt32};
 
@@ -5375,7 +5382,8 @@ class EnsureWritableFastElements
  public:
   explicit EnsureWritableFastElements(uint64_t bitfield) : Base(bitfield) {}
 
-  static constexpr OpProperties kProperties = OpProperties::DeferredCall();
+  static constexpr OpProperties kProperties =
+      OpProperties::CanAllocate() | OpProperties::DeferredCall();
   static constexpr typename Base::InputTypes kInputTypes{
       ValueRepresentation::kTagged, ValueRepresentation::kTagged};
 
@@ -5399,8 +5407,9 @@ class MaybeGrowAndEnsureWritableFastElements
                                                   ElementsKind elements_kind)
       : Base(bitfield), elements_kind_(elements_kind) {}
 
-  static constexpr OpProperties kProperties =
-      OpProperties::DeferredCall() | OpProperties::EagerDeopt();
+  static constexpr OpProperties kProperties = OpProperties::CanAllocate() |
+                                              OpProperties::DeferredCall() |
+                                              OpProperties::EagerDeopt();
   static constexpr typename Base::InputTypes kInputTypes{
       ValueRepresentation::kTagged, ValueRepresentation::kTagged,
       ValueRepresentation::kInt32, ValueRepresentation::kInt32};
@@ -5434,7 +5443,7 @@ class StoreFixedArrayElementWithWriteBarrier
       : Base(bitfield) {}
 
   static constexpr OpProperties kProperties =
-      OpProperties::Writing() | OpProperties::DeferredCall();
+      OpProperties::CanWrite() | OpProperties::DeferredCall();
   static constexpr typename Base::InputTypes kInputTypes{
       ValueRepresentation::kTagged, ValueRepresentation::kInt32,
       ValueRepresentation::kTagged};
@@ -5467,7 +5476,7 @@ class StoreFixedArrayElementNoWriteBarrier
       : Base(bitfield) {}
 
   static constexpr OpProperties kProperties =
-      OpProperties::Writing() | OpProperties::DeferredCall();
+      OpProperties::CanWrite() | OpProperties::DeferredCall();
   static constexpr typename Base::InputTypes kInputTypes{
       ValueRepresentation::kTagged, ValueRepresentation::kInt32,
       ValueRepresentation::kTagged};
@@ -5496,7 +5505,7 @@ class LoadFixedDoubleArrayElement
   explicit LoadFixedDoubleArrayElement(uint64_t bitfield) : Base(bitfield) {}
 
   static constexpr OpProperties kProperties =
-      OpProperties::Reading() | OpProperties::Float64();
+      OpProperties::CanRead() | OpProperties::Float64();
   static constexpr typename Base::InputTypes kInputTypes{
       ValueRepresentation::kTagged, ValueRepresentation::kInt32};
 
@@ -5519,7 +5528,7 @@ class LoadHoleyFixedDoubleArrayElement
       : Base(bitfield) {}
 
   static constexpr OpProperties kProperties =
-      OpProperties::Reading() | OpProperties::HoleyFloat64();
+      OpProperties::CanRead() | OpProperties::HoleyFloat64();
   static constexpr typename Base::InputTypes kInputTypes{
       ValueRepresentation::kTagged, ValueRepresentation::kInt32};
 
@@ -5540,7 +5549,7 @@ class StoreFixedDoubleArrayElement
  public:
   explicit StoreFixedDoubleArrayElement(uint64_t bitfield) : Base(bitfield) {}
 
-  static constexpr OpProperties kProperties = OpProperties::Writing();
+  static constexpr OpProperties kProperties = OpProperties::CanWrite();
   static constexpr typename Base::InputTypes kInputTypes{
       ValueRepresentation::kTagged, ValueRepresentation::kInt32,
       ValueRepresentation::kHoleyFloat64};
@@ -5571,7 +5580,7 @@ class LoadSignedIntDataViewElement
   }
 
   static constexpr OpProperties kProperties =
-      OpProperties::Reading() | OpProperties::Int32();
+      OpProperties::CanRead() | OpProperties::Int32();
   static constexpr typename Base::InputTypes kInputTypes{
       ValueRepresentation::kTagged, ValueRepresentation::kInt32,
       ValueRepresentation::kTagged};
@@ -5606,7 +5615,7 @@ class LoadDoubleDataViewElement
   }
 
   static constexpr OpProperties kProperties =
-      OpProperties::Reading() | OpProperties::Float64();
+      OpProperties::CanRead() | OpProperties::Float64();
   static constexpr typename Base::InputTypes kInputTypes{
       ValueRepresentation::kTagged, ValueRepresentation::kInt32,
       ValueRepresentation::kTagged};
@@ -5639,7 +5648,7 @@ class LoadDoubleDataViewElement
     }                                                                  \
                                                                        \
     static constexpr OpProperties kProperties =                        \
-        OpProperties::Reading() | properties;                          \
+        OpProperties::CanRead() | properties;                          \
     static constexpr typename Base::InputTypes kInputTypes{            \
         ValueRepresentation::kTagged, ValueRepresentation::kUint32};   \
                                                                        \
@@ -5723,20 +5732,20 @@ LOAD_TYPED_ARRAY(LoadDoubleTypedArrayElementNoDeopt, OpProperties::Float64(),
 // while the deopting versions have a runtime check that triggers a deopt if the
 // buffer is detached.
 STORE_TYPED_ARRAY(StoreIntTypedArrayElement,
-                  OpProperties::EagerDeopt() | OpProperties::Writing(),
+                  OpProperties::EagerDeopt() | OpProperties::CanWrite(),
                   ValueRepresentation::kInt32, INT8_ELEMENTS, INT16_ELEMENTS,
                   INT32_ELEMENTS, UINT8_ELEMENTS, UINT8_CLAMPED_ELEMENTS,
                   UINT16_ELEMENTS, UINT16_ELEMENTS, UINT32_ELEMENTS)
-STORE_TYPED_ARRAY(StoreIntTypedArrayElementNoDeopt, OpProperties::Writing(),
+STORE_TYPED_ARRAY(StoreIntTypedArrayElementNoDeopt, OpProperties::CanWrite(),
                   ValueRepresentation::kInt32, INT8_ELEMENTS, INT16_ELEMENTS,
                   INT32_ELEMENTS, UINT8_ELEMENTS, UINT8_CLAMPED_ELEMENTS,
                   UINT16_ELEMENTS, UINT16_ELEMENTS, UINT32_ELEMENTS)
 
 STORE_TYPED_ARRAY(StoreDoubleTypedArrayElement,
-                  OpProperties::EagerDeopt() | OpProperties::Writing(),
+                  OpProperties::EagerDeopt() | OpProperties::CanWrite(),
                   ValueRepresentation::kHoleyFloat64, FLOAT32_ELEMENTS,
                   FLOAT64_ELEMENTS)
-STORE_TYPED_ARRAY(StoreDoubleTypedArrayElementNoDeopt, OpProperties::Writing(),
+STORE_TYPED_ARRAY(StoreDoubleTypedArrayElementNoDeopt, OpProperties::CanWrite(),
                   ValueRepresentation::kHoleyFloat64, FLOAT32_ELEMENTS,
                   FLOAT64_ELEMENTS)
 #undef STORE_TYPED_ARRAY
@@ -5754,7 +5763,7 @@ class StoreSignedIntDataViewElement
            type == ExternalArrayType::kExternalInt32Array);
   }
 
-  static constexpr OpProperties kProperties = OpProperties::Writing();
+  static constexpr OpProperties kProperties = OpProperties::CanWrite();
   static constexpr typename Base::InputTypes kInputTypes{
       ValueRepresentation::kTagged, ValueRepresentation::kInt32,
       ValueRepresentation::kInt32, ValueRepresentation::kTagged};
@@ -5790,7 +5799,7 @@ class StoreDoubleDataViewElement
     DCHECK_EQ(type, ExternalArrayType::kExternalFloat64Array);
   }
 
-  static constexpr OpProperties kProperties = OpProperties::Writing();
+  static constexpr OpProperties kProperties = OpProperties::CanWrite();
   static constexpr typename Base::InputTypes kInputTypes{
       ValueRepresentation::kTagged, ValueRepresentation::kInt32,
       ValueRepresentation::kHoleyFloat64, ValueRepresentation::kTagged};
@@ -5820,7 +5829,7 @@ class StoreDoubleField : public FixedInputNodeT<2, StoreDoubleField> {
   explicit StoreDoubleField(uint64_t bitfield, int offset)
       : Base(bitfield), offset_(offset) {}
 
-  static constexpr OpProperties kProperties = OpProperties::Writing();
+  static constexpr OpProperties kProperties = OpProperties::CanWrite();
   static constexpr typename Base::InputTypes kInputTypes{
       ValueRepresentation::kTagged, ValueRepresentation::kFloat64};
 
@@ -5846,7 +5855,7 @@ class StoreFloat64 : public FixedInputNodeT<2, StoreFloat64> {
   explicit StoreFloat64(uint64_t bitfield, int offset)
       : Base(bitfield), offset_(offset) {}
 
-  static constexpr OpProperties kProperties = OpProperties::Writing();
+  static constexpr OpProperties kProperties = OpProperties::CanWrite();
   static constexpr typename Base::InputTypes kInputTypes{
       ValueRepresentation::kTagged, ValueRepresentation::kFloat64};
 
@@ -5880,7 +5889,7 @@ class StoreTaggedFieldNoWriteBarrier
   // StoreTaggedFieldNoWriteBarrier so that it's allocated with enough space for
   // the register snapshot.
   static constexpr OpProperties kProperties =
-      OpProperties::Writing() | OpProperties::DeferredCall();
+      OpProperties::CanWrite() | OpProperties::DeferredCall();
   static constexpr typename Base::InputTypes kInputTypes{
       ValueRepresentation::kTagged, ValueRepresentation::kTagged};
 
@@ -5915,7 +5924,7 @@ class StoreMap : public FixedInputNodeT<1, StoreMap> {
       : Base(bitfield), map_(map) {}
 
   static constexpr OpProperties kProperties =
-      OpProperties::Writing() | OpProperties::DeferredCall();
+      OpProperties::CanWrite() | OpProperties::DeferredCall();
   static constexpr
       typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
 
@@ -5940,7 +5949,7 @@ class StoreTaggedFieldWithWriteBarrier
       : Base(bitfield), offset_(offset) {}
 
   static constexpr OpProperties kProperties =
-      OpProperties::Writing() | OpProperties::DeferredCall();
+      OpProperties::CanWrite() | OpProperties::DeferredCall();
   static constexpr typename Base::InputTypes kInputTypes{
       ValueRepresentation::kTagged, ValueRepresentation::kTagged};
 
@@ -6033,7 +6042,7 @@ class UpdateJSArrayLength : public FixedInputNodeT<3, UpdateJSArrayLength> {
  public:
   explicit UpdateJSArrayLength(uint64_t bitfield) : Base(bitfield) {}
 
-  static constexpr OpProperties kProperties = OpProperties::Writing();
+  static constexpr OpProperties kProperties = OpProperties::CanWrite();
   static constexpr typename Base::InputTypes kInputTypes{
       ValueRepresentation::kTagged, ValueRepresentation::kInt32,
       ValueRepresentation::kInt32};
@@ -6158,7 +6167,7 @@ class LoadEnumCacheLength
   explicit LoadEnumCacheLength(uint64_t bitfield) : Base(bitfield) {}
 
   static constexpr OpProperties kProperties =
-      OpProperties::Reading() | OpProperties::Int32();
+      OpProperties::CanRead() | OpProperties::Int32();
   static constexpr
       typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
 
@@ -6176,8 +6185,9 @@ class StringAt : public FixedInputValueNodeT<2, StringAt> {
  public:
   explicit StringAt(uint64_t bitfield) : Base(bitfield) {}
 
-  static constexpr OpProperties kProperties =
-      OpProperties::Reading() | OpProperties::DeferredCall();
+  static constexpr OpProperties kProperties = OpProperties::CanRead() |
+                                              OpProperties::CanAllocate() |
+                                              OpProperties::DeferredCall();
   static constexpr typename Base::InputTypes kInputTypes{
       ValueRepresentation::kTagged, ValueRepresentation::kInt32};
 
@@ -6199,7 +6209,7 @@ class StringLength : public FixedInputValueNodeT<1, StringLength> {
   explicit StringLength(uint64_t bitfield) : Base(bitfield) {}
 
   static constexpr OpProperties kProperties =
-      OpProperties::Reading() | OpProperties::Int32();
+      OpProperties::CanRead() | OpProperties::Int32();
   static constexpr
       typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
 
@@ -6218,8 +6228,9 @@ class StringConcat : public FixedInputValueNodeT<2, StringConcat> {
  public:
   explicit StringConcat(uint64_t bitfield) : Base(bitfield) {}
 
-  static constexpr OpProperties kProperties =
-      OpProperties::Call() | OpProperties::LazyDeopt() | OpProperties::Throw();
+  static constexpr OpProperties kProperties = OpProperties::Call() |
+                                              OpProperties::LazyDeopt() |
+                                              OpProperties::CanThrow();
   static constexpr typename Base::InputTypes kInputTypes{
       ValueRepresentation::kTagged, ValueRepresentation::kTagged};
 
@@ -7171,7 +7182,7 @@ class CheckConstructResult
   Input& implicit_receiver_input() { return input(1); }
 
   static constexpr OpProperties kProperties =
-      OpProperties::Throw() | OpProperties::DeferredCall();
+      OpProperties::CanThrow() | OpProperties::DeferredCall();
   static constexpr typename Base::InputTypes kInputTypes{
       ValueRepresentation::kTagged, ValueRepresentation::kTagged};
 
@@ -7254,7 +7265,7 @@ class ThrowReferenceErrorIfHole
       : Base(bitfield), name_(name) {}
 
   static constexpr OpProperties kProperties =
-      OpProperties::Throw() | OpProperties::DeferredCall();
+      OpProperties::CanThrow() | OpProperties::DeferredCall();
   static constexpr
       typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
 
@@ -7279,7 +7290,7 @@ class ThrowSuperNotCalledIfHole
   explicit ThrowSuperNotCalledIfHole(uint64_t bitfield) : Base(bitfield) {}
 
   static constexpr OpProperties kProperties =
-      OpProperties::Throw() | OpProperties::DeferredCall();
+      OpProperties::CanThrow() | OpProperties::DeferredCall();
   static constexpr
       typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
 
@@ -7300,7 +7311,7 @@ class ThrowSuperAlreadyCalledIfNotHole
       : Base(bitfield) {}
 
   static constexpr OpProperties kProperties =
-      OpProperties::Throw() | OpProperties::DeferredCall();
+      OpProperties::CanThrow() | OpProperties::DeferredCall();
   static constexpr
       typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
 
@@ -7320,7 +7331,7 @@ class ThrowIfNotSuperConstructor
   explicit ThrowIfNotSuperConstructor(uint64_t bitfield) : Base(bitfield) {}
 
   static constexpr OpProperties kProperties =
-      OpProperties::Throw() | OpProperties::DeferredCall();
+      OpProperties::CanThrow() | OpProperties::DeferredCall();
   static constexpr typename Base::InputTypes kInputTypes{
       ValueRepresentation::kTagged, ValueRepresentation::kTagged};
 
@@ -7348,7 +7359,7 @@ class TransitionElementsKind
 
   // TODO(leszeks): Special case the case where all transitions are fast.
   static constexpr OpProperties kProperties =
-      OpProperties::DeferredCall() | OpProperties::Writing();
+      OpProperties::AnySideEffects() | OpProperties::DeferredCall();
   static constexpr
       typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
 

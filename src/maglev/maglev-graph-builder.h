@@ -726,7 +726,7 @@ class MaglevGraphBuilder {
     static_assert(!NodeT::kProperties.can_eager_deopt());
     static_assert(!NodeT::kProperties.can_lazy_deopt());
     static_assert(!NodeT::kProperties.can_throw());
-    static_assert(!NodeT::kProperties.has_any_side_effects());
+    static_assert(!NodeT::kProperties.can_write());
     return node;
   }
 
@@ -1282,7 +1282,7 @@ class MaglevGraphBuilder {
   template <typename NodeT>
   void MarkPossibleSideEffect(NodeT* node) {
     // Don't do anything for nodes without side effects.
-    if constexpr (!NodeT::kProperties.has_any_side_effects()) return;
+    if constexpr (!NodeT::kProperties.can_write()) return;
 
     // Simple field stores are stores which do nothing but change a field value
     // (i.e. no map transitions or calls into user code).
@@ -1381,7 +1381,7 @@ class MaglevGraphBuilder {
     AttachEagerDeoptInfo(control_node);
     static_assert(!ControlNodeT::kProperties.can_lazy_deopt());
     static_assert(!ControlNodeT::kProperties.can_throw());
-    static_assert(!ControlNodeT::kProperties.has_any_side_effects());
+    static_assert(!ControlNodeT::kProperties.can_write());
     current_block_->set_control_node(control_node);
 
     BasicBlock* block = current_block_;
