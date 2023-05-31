@@ -1783,7 +1783,6 @@ void MaglevGraphBuilder::BuildFusedBranch(
     int branch_offset, int inline_level, BasicBlock* current_block,
     bool init_flip, std::initializer_list<ValueNode*> control_inputs,
     Args&&... args) {
-  DisallowGarbageCollection no_gc;
   // Advance past the test.
   iterator_.Advance();
 
