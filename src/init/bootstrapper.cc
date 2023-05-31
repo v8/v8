@@ -4913,7 +4913,7 @@ void Genesis::InitializeGlobal_harmony_struct() {
         RootIndex::kJSAtomicsMutexMap, [](Isolate* isolate) {
           return isolate->factory()->NewMap(
               JS_ATOMICS_MUTEX_TYPE, JSAtomicsMutex::kHeaderSize,
-              TERMINAL_FAST_ELEMENTS_KIND, 0, AllocationType::kSharedMap);
+              DICTIONARY_ELEMENTS, 0, AllocationType::kSharedMap);
         });
 
     Handle<String> mutex_str =
@@ -4942,7 +4942,7 @@ void Genesis::InitializeGlobal_harmony_struct() {
         RootIndex::kJSAtomicsConditionMap, [](Isolate* isolate) {
           return isolate->factory()->NewMap(
               JS_ATOMICS_CONDITION_TYPE, JSAtomicsCondition::kHeaderSize,
-              TERMINAL_FAST_ELEMENTS_KIND, 0, AllocationType::kSharedMap);
+              DICTIONARY_ELEMENTS, 0, AllocationType::kSharedMap);
         });
 
     Handle<String> condition_str =
