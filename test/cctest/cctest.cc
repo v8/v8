@@ -433,7 +433,7 @@ ManualGCScope::ManualGCScope(i::Isolate* isolate)
   // running by the time a ManualGCScope is created. Finalizing existing marking
   // prevents any undefined/unexpected behavior.
   if (isolate && isolate->heap()->incremental_marking()->IsMarking()) {
-    i::heap::CollectGarbage(isolate->heap(), i::OLD_SPACE);
+    i::heap::InvokeMajorGC(isolate->heap());
   }
 
   i::v8_flags.concurrent_marking = false;

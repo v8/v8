@@ -134,7 +134,7 @@ TEST_F(EmbedderRootsHandlerTest,
   SetupOptimizedAndNonOptimizedHandle(v8_isolate(), kClassIdToOptimize,
                                       optimized_handle, non_optimized_handle);
   EXPECT_EQ(initial_count + 2, traced_handles->used_node_count());
-  CollectGarbage(NEW_SPACE);
+  InvokeMinorGC();
   EXPECT_EQ(initial_count + 1, traced_handles->used_node_count());
   EXPECT_TRUE(optimized_handle->IsEmpty());
   delete optimized_handle;
@@ -220,8 +220,8 @@ TEST_F(EmbedderRootsHandlerTest,
   TemporaryEmbedderRootsHandleScope roots_handler_scope(v8_isolate(), &handler);
   TracedReferenceTest(
       v8_isolate(), ConstructJSObject,
-      [](const TracedReference<v8::Object>&) {},
-      [this]() { CollectGarbage(OLD_SPACE); }, SurvivalMode::kDies);
+      [](const TracedReference<v8::Object>&) {}, [this]() { InvokeMajorGC(); },
+      SurvivalMode::kDies);
 }
 
 // EmbedderRootsHandler does not affect full GCs.
@@ -242,7 +242,7 @@ TEST_F(
             v8::Global<v8::Object>(v8_isolate(), handle.Get(v8_isolate()));
       },
       [this, &strong_global]() {
-        CollectGarbage(OLD_SPACE);
+        InvokeMajorGC();
         strong_global.Reset();
       },
       SurvivalMode::kDies);
@@ -258,8 +258,8 @@ TEST_F(EmbedderRootsHandlerTest,
   TemporaryEmbedderRootsHandleScope roots_handler_scope(v8_isolate(), &handler);
   TracedReferenceTest(
       v8_isolate(), ConstructJSObject,
-      [](const TracedReference<v8::Object>&) {},
-      [this]() { CollectGarbage(NEW_SPACE); }, SurvivalMode::kSurvives);
+      [](const TracedReference<v8::Object>&) {}, [this]() { InvokeMinorGC(); },
+      SurvivalMode::kSurvives);
 }
 
 // EmbedderRootsHandler does not affect non-API objects, even when the handle
@@ -277,7 +277,7 @@ TEST_F(
       [](TracedReference<v8::Object>& handle) {
         handle.SetWrapperClassId(kClassIdToOptimize);
       },
-      [this]() { CollectGarbage(NEW_SPACE); }, SurvivalMode::kSurvives);
+      [this]() { InvokeMinorGC(); }, SurvivalMode::kSurvives);
 }
 
 // EmbedderRootsHandler does not affect API objects for handles that have
@@ -291,8 +291,8 @@ TEST_F(EmbedderRootsHandlerTest,
   TemporaryEmbedderRootsHandleScope roots_handler_scope(v8_isolate(), &handler);
   TracedReferenceTest(
       v8_isolate(), ConstructJSApiObject<TracedReference<v8::Object>>,
-      [](const TracedReference<v8::Object>&) {},
-      [this]() { CollectGarbage(NEW_SPACE); }, SurvivalMode::kSurvives);
+      [](const TracedReference<v8::Object>&) {}, [this]() { InvokeMinorGC(); },
+      SurvivalMode::kSurvives);
 }
 
 // EmbedderRootsHandler resets API objects for handles that have their class ids
@@ -315,7 +315,7 @@ TEST_F(
           local->SetAlignedPointerInInternalField(0, &handle);
         }
       },
-      [this]() { CollectGarbage(NEW_SPACE); }, SurvivalMode::kDies);
+      [this]() { InvokeMinorGC(); }, SurvivalMode::kDies);
 }
 
 // Test that concurrently processed handles are reprocessed on the main thread.
@@ -350,7 +350,7 @@ TEST_F(EmbedderRootsHandlerTest, ReprocessConcurrentHandlesOnTheMainThread) {
     }
   }
 
-  CollectGarbage(NEW_SPACE);
+  InvokeMinorGC();
 
   EXPECT_TRUE(handler.unprocessed().empty());
 }

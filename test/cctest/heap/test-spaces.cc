@@ -612,7 +612,7 @@ UNINITIALIZED_TEST(InlineAllocationObserverCadence) {
 
     // Clear out any pre-existing garbage to make the test consistent
     // across snapshot/no-snapshot builds.
-    heap::CollectAllGarbage(i_isolate->heap());
+    heap::InvokeMajorGC(i_isolate->heap());
 
     NewSpace* new_space = i_isolate->heap()->new_space();
 

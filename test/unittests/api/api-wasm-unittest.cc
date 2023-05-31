@@ -125,7 +125,7 @@ TEST_F(ApiWasmTest, WasmStreamingCallback) {
   TestWasmStreaming(WasmStreamingCallbackTestCallbackIsCalled,
                     Promise::kPending);
   CHECK(wasm_streaming_callback_got_called);
-  CollectAllAvailableGarbage(i_isolate());
+  InvokeMemoryReducingMajorGCs(i_isolate());
   CHECK(wasm_streaming_data_got_collected);
 }
 

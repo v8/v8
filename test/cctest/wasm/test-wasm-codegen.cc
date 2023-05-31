@@ -113,7 +113,7 @@ TEST(PropertiesOfCodegenCallbacks) {
       bool found = TestModule(isolate, wire_bytes);
       bool expected = ExpectedResults[codegen][wasm_codegen];
       CHECK_EQ(expected, found);
-      heap::CollectAllAvailableGarbage(isolate->heap());
+      heap::InvokeMemoryReducingMajorGCs(isolate->heap());
     }
   }
 }

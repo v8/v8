@@ -42,13 +42,13 @@ void SimulateFullSpace(v8::internal::PagedSpace* space);
 
 void AbandonCurrentlyFreeMemory(PagedSpace* space);
 
-void CollectGarbage(Heap* heap, AllocationSpace space);
-void CollectAllGarbage(Heap* heap);
-void CollectAllAvailableGarbage(Heap* heap);
-void PreciseCollectAllGarbage(Heap* heap);
+void InvokeMajorGC(Heap* heap);
+void InvokeMajorGC(Heap* heap, GCFlag gc_flag);
+void InvokeMinorGC(Heap* heap);
+void InvokeAtomicMajorGC(Heap* heap);
+void InvokeAtomicMinorGC(Heap* heap);
+void InvokeMemoryReducingMajorGCs(Heap* heap);
 void CollectSharedGarbage(Heap* heap);
-
-void GcAndSweep(Heap* heap, AllocationSpace space);
 
 void EmptyNewSpaceUsingGC(Heap* heap);
 

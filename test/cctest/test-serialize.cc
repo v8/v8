@@ -168,7 +168,7 @@ static StartupBlobs Serialize(v8::Isolate* isolate) {
   }
 
   Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
-  heap::CollectAllAvailableGarbage(i_isolate->heap());
+  heap::InvokeMemoryReducingMajorGCs(i_isolate->heap());
 
   IsolateSafepointScope safepoint(i_isolate->heap());
   HandleScope scope(i_isolate);
@@ -351,7 +351,7 @@ static void SerializeContext(base::Vector<const uint8_t>* startup_blob_out,
 
     // If we don't do this then we end up with a stray root pointing at the
     // context even after we have disposed of env.
-    heap::CollectAllAvailableGarbage(heap);
+    heap::InvokeMemoryReducingMajorGCs(heap);
 
     {
       v8::HandleScope handle_scope(v8_isolate);
@@ -520,7 +520,7 @@ static void SerializeCustomContext(
     }
     // If we don't do this then we end up with a stray root pointing at the
     // context even after we have disposed of env.
-    heap::CollectAllAvailableGarbage(isolate->heap());
+    heap::InvokeMemoryReducingMajorGCs(isolate->heap());
 
     {
       v8::HandleScope handle_scope(v8_isolate);
@@ -2088,7 +2088,7 @@ TEST(CodeSerializerLargeCodeObjectWithIncrementalMarking) {
   // We should have missed a write barrier. Complete incremental marking
   // to flush out the bug.
   heap::SimulateIncrementalMarking(heap, true);
-  heap::CollectAllGarbage(heap);
+  heap::InvokeMajorGC(heap);
 
   Handle<JSFunction> copy_fun =
       Factory::JSFunctionBuilder{isolate, copy, isolate->native_context()}
@@ -2866,8 +2866,8 @@ static void CodeSerializerMergeDeserializedScript(bool retain_toplevel_sfi) {
   // GC twice in case incremental marking had already marked the bytecode array.
   // After this, the Isolate compilation cache contains a weak reference to the
   // Script but not the top-level SharedFunctionInfo.
-  heap::CollectAllGarbage(isolate->heap());
-  heap::CollectAllGarbage(isolate->heap());
+  heap::InvokeMajorGC(isolate->heap());
+  heap::InvokeMajorGC(isolate->heap());
 
   Handle<SharedFunctionInfo> copy =
       CompileScript(isolate, source, ScriptDetails(), cached_data,

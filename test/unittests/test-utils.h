@@ -207,9 +207,16 @@ class WithIsolateScopeMixin : public TMixin {
         .ToLocalChecked();
   }
 
-  void CollectGarbage(i::AllocationSpace space, i::Isolate* isolate = nullptr) {
+  void InvokeMajorGC(i::Isolate* isolate = nullptr) {
     i::Isolate* iso = isolate ? isolate : i_isolate();
-    iso->heap()->CollectGarbage(space, i::GarbageCollectionReason::kTesting);
+    iso->heap()->CollectGarbage(i::OLD_SPACE,
+                                i::GarbageCollectionReason::kTesting);
+  }
+
+  void InvokeMinorGC(i::Isolate* isolate = nullptr) {
+    i::Isolate* iso = isolate ? isolate : i_isolate();
+    iso->heap()->CollectGarbage(i::NEW_SPACE,
+                                i::GarbageCollectionReason::kTesting);
   }
 
   v8::Local<v8::String> NewString(const char* string) {

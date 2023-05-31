@@ -48,6 +48,7 @@
 #include "src/heap/gc-tracer.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap-verifier.h"
+#include "src/heap/heap.h"
 #include "src/heap/incremental-marking.h"
 #include "src/heap/large-spaces.h"
 #include "src/heap/mark-compact-inl.h"
@@ -354,7 +355,7 @@ TEST(GarbageCollection) {
 
   HandleScope sc(isolate);
   // Check GC.
-  heap::CollectGarbage(CcTest::heap(), NEW_SPACE);
+  heap::InvokeMinorGC(CcTest::heap());
 
   Handle<JSGlobalObject> global(CcTest::i_isolate()->context().global_object(),
                                 isolate);
@@ -381,7 +382,7 @@ TEST(GarbageCollection) {
              *Object::GetProperty(isolate, obj, prop_namex).ToHandleChecked());
   }
 
-  heap::CollectGarbage(CcTest::heap(), NEW_SPACE);
+  heap::InvokeMinorGC(CcTest::heap());
 
   // Function should be alive.
   CHECK(Just(true) == JSReceiver::HasOwnProperty(isolate, global, name));
@@ -400,7 +401,7 @@ TEST(GarbageCollection) {
   }
 
   // After gc, it should survive.
-  heap::CollectGarbage(CcTest::heap(), NEW_SPACE);
+  heap::InvokeMinorGC(CcTest::heap());
 
   CHECK(Just(true) == JSReceiver::HasOwnProperty(isolate, global, obj_name));
   Handle<Object> obj =
@@ -471,7 +472,7 @@ TEST(GlobalHandles) {
   }
 
   // after gc, it should survive
-  heap::CollectGarbage(CcTest::heap(), NEW_SPACE);
+  heap::InvokeMinorGC(CcTest::heap());
 
   CHECK((*h1).IsString());
   CHECK((*h2).IsHeapNumber());
@@ -533,8 +534,8 @@ TEST(WeakGlobalUnmodifiedApiHandlesScavenge) {
       h2.location(), reinterpret_cast<void*>(&handle_and_id),
       &TestWeakGlobalHandleCallback, v8::WeakCallbackType::kParameter);
 
-  heap::CollectGarbage(CcTest::heap(),
-                       v8_flags.single_generation ? OLD_SPACE : NEW_SPACE);
+  v8_flags.single_generation ? heap::InvokeMajorGC(CcTest::heap())
+                             : heap::InvokeMinorGC(CcTest::heap());
 
   CHECK((*h1).IsHeapNumber());
   CHECK(WeakPointerCleared);
@@ -575,7 +576,7 @@ TEST(WeakGlobalHandlesMark) {
       &TestWeakGlobalHandleCallback, v8::WeakCallbackType::kParameter);
 
   // Incremental marking potentially marked handles before they turned weak.
-  heap::CollectAllGarbage(CcTest::heap());
+  heap::InvokeMajorGC(CcTest::heap());
   CHECK((*h1).IsString());
   CHECK(WeakPointerCleared);
   GlobalHandles::Destroy(h1.location());
@@ -606,7 +607,7 @@ TEST(DeleteWeakGlobalHandle) {
                           &TestWeakGlobalHandleCallback,
                           v8::WeakCallbackType::kParameter);
   CHECK(!WeakPointerCleared);
-  heap::CollectGarbage(CcTest::heap(), OLD_SPACE);
+  heap::InvokeMajorGC(CcTest::heap());
   CHECK(WeakPointerCleared);
 }
 
@@ -660,7 +661,7 @@ TEST(BytecodeArray) {
   heap::ForceEvacuationCandidate(evac_page);
   // We need to invoke GC without stack, otherwise no compaction is performed.
   DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
-  heap::CollectAllGarbage(heap);
+  heap::InvokeMajorGC(heap);
 
   // BytecodeArray should survive.
   CHECK_EQ(array->length(), kRawBytesSize);
@@ -1130,13 +1131,13 @@ TEST(TestBytecodeFlushing) {
     CHECK(function->shared().is_compiled());
 
     // The code will survive at least two GCs.
-    heap::CollectAllGarbage(CcTest::heap());
-    heap::CollectAllGarbage(CcTest::heap());
+    heap::InvokeMajorGC(CcTest::heap());
+    heap::InvokeMajorGC(CcTest::heap());
     CHECK(function->shared().is_compiled());
 
     BytecodeArray::EnsureOldForTesting(
         function->shared().GetBytecodeArray(i_isolate));
-    heap::CollectAllGarbage(CcTest::heap());
+    heap::InvokeMajorGC(CcTest::heap());
 
     // foo should no longer be in the compilation cache
     CHECK(!function->shared().is_compiled());
@@ -1210,7 +1211,7 @@ static void TestMultiReferencedBytecodeFlushing(bool sparkplug_compile) {
     }
 
     BytecodeArray::EnsureOldForTesting(shared->GetBytecodeArray(i_isolate));
-    heap::CollectAllGarbage(CcTest::heap());
+    heap::InvokeMajorGC(CcTest::heap());
 
     // foo should no longer be in the compilation cache
     CHECK(!shared->is_compiled());
@@ -1323,16 +1324,16 @@ UNINITIALIZED_TEST(Regress10843) {
     for (int i = 0; i < 140; i++) {
       arrays.push_back(factory->NewFixedArray(10000));
     }
-    heap::CollectAllGarbage(heap);
-    heap::CollectAllGarbage(heap);
+    heap::InvokeMajorGC(heap);
+    heap::InvokeMajorGC(heap);
     for (int i = 0; i < 40; i++) {
       arrays.push_back(factory->NewFixedArray(10000));
     }
-    heap::CollectAllGarbage(heap);
+    heap::InvokeMajorGC(heap);
     for (int i = 0; i < 100; i++) {
       arrays.push_back(factory->NewFixedArray(10000));
     }
-    heap::CollectAllGarbage(heap);
+    heap::InvokeMajorGC(heap);
     CHECK(callback_was_invoked);
   }
   isolate->Dispose();
@@ -1375,11 +1376,11 @@ UNINITIALIZED_TEST(Regress12777) {
     for (int i = 0; i < 5; i++) {
       arrays.push_back(i_isolate->factory()->NewFixedArray(length));
     }
-    heap::CollectAllGarbage(i_isolate->heap());
+    heap::InvokeMajorGC(i_isolate->heap());
     for (int i = 0; i < 5; i++) {
       arrays.push_back(i_isolate->factory()->NewFixedArray(length));
     }
-    heap::CollectAllGarbage(i_isolate->heap());
+    heap::InvokeMajorGC(i_isolate->heap());
     for (int i = 0; i < 5; i++) {
       arrays.push_back(i_isolate->factory()->NewFixedArray(length));
     }
@@ -1447,13 +1448,13 @@ TEST(TestOptimizeAfterBytecodeFlushingCandidate) {
   CHECK(function->shared().is_compiled());
 
   // The code will survive at least two GCs.
-  heap::CollectAllGarbage(CcTest::heap());
-  heap::CollectAllGarbage(CcTest::heap());
+  heap::InvokeMajorGC(CcTest::heap());
+  heap::InvokeMajorGC(CcTest::heap());
   CHECK(function->shared().is_compiled());
 
   BytecodeArray::EnsureOldForTesting(
       function->shared().GetBytecodeArray(isolate));
-  heap::CollectAllGarbage(CcTest::heap());
+  heap::InvokeMajorGC(CcTest::heap());
 
   CHECK(!function->shared().is_compiled());
   CHECK(!function->is_compiled());
@@ -1478,7 +1479,7 @@ TEST(TestOptimizeAfterBytecodeFlushingCandidate) {
   }
 
   // Simulate one final GC and make sure the candidate wasn't flushed.
-  heap::CollectAllGarbage(CcTest::heap());
+  heap::InvokeMajorGC(CcTest::heap());
   CHECK(function->shared().is_compiled());
   CHECK(function->is_compiled());
 }
@@ -1578,7 +1579,7 @@ void CompilationCacheCachingBehavior(bool retain_script) {
 
   // Check that the code cache entry survives at least one GC.
   {
-    heap::CollectAllGarbage(CcTest::heap());
+    heap::InvokeMajorGC(CcTest::heap());
     v8::HandleScope scope(CcTest::isolate());
     ScriptDetails script_details(Handle<Object>(),
                                  v8::ScriptOriginOptions(true, false));
@@ -1595,9 +1596,9 @@ void CompilationCacheCachingBehavior(bool retain_script) {
   }
 
   // The first GC flushes the BytecodeArray from the SFI.
-  heap::CollectAllGarbage(CcTest::heap());
+  heap::InvokeMajorGC(CcTest::heap());
   // The second GC removes the SFI from the compilation cache.
-  heap::CollectAllGarbage(CcTest::heap());
+  heap::InvokeMajorGC(CcTest::heap());
 
   {
     v8::HandleScope scope(CcTest::isolate());
@@ -1730,13 +1731,13 @@ void CompilationCacheRegeneration(bool retain_root_sfi, bool flush_root_sfi,
     // This GC finishes incremental marking if it is already running. If
     // incremental marking was already running we would not flush the code right
     // away.
-    heap::CollectAllGarbage(CcTest::heap());
+    heap::InvokeMajorGC(CcTest::heap());
   }
 
   // The first GC performs code flushing.
-  heap::CollectAllGarbage(CcTest::heap());
+  heap::InvokeMajorGC(CcTest::heap());
   // The second GC clears the entry from the compilation cache.
-  heap::CollectAllGarbage(CcTest::heap());
+  heap::InvokeMajorGC(CcTest::heap());
 
   // The root SharedFunctionInfo can be retained either by a Global in this
   // function or by the compilation cache.
@@ -1904,7 +1905,7 @@ TEST(TestInternalWeakLists) {
     // Collect garbage that might have been created by one of the
     // installed extensions.
     isolate->compilation_cache()->Clear();
-    heap::CollectAllGarbage(CcTest::heap());
+    heap::InvokeMajorGC(CcTest::heap());
 
     CHECK_EQ(i + 1, CountNativeContexts());
 
@@ -1924,31 +1925,31 @@ TEST(TestInternalWeakLists) {
 
     // Scavenge treats these references as strong.
     for (int j = 0; j < 10; j++) {
-      heap::CollectGarbage(CcTest::heap(), NEW_SPACE);
+      heap::InvokeMinorGC(CcTest::heap());
     }
 
     // Mark compact handles the weak references.
     isolate->compilation_cache()->Clear();
-    heap::CollectAllGarbage(CcTest::heap());
+    heap::InvokeMajorGC(CcTest::heap());
 
     // Get rid of f3 and f5 in the same way.
     CompileRun("f3=null");
     for (int j = 0; j < 10; j++) {
-      heap::CollectGarbage(CcTest::heap(), NEW_SPACE);
+      heap::InvokeMinorGC(CcTest::heap());
     }
-    heap::CollectAllGarbage(CcTest::heap());
+    heap::InvokeMajorGC(CcTest::heap());
     CompileRun("f5=null");
     for (int j = 0; j < 10; j++) {
-      heap::CollectGarbage(CcTest::heap(), NEW_SPACE);
+      heap::InvokeMinorGC(CcTest::heap());
     }
-    heap::CollectAllGarbage(CcTest::heap());
+    heap::InvokeMajorGC(CcTest::heap());
 
     ctx[i]->Exit();
   }
 
   // Force compilation cache cleanup.
   CcTest::heap()->NotifyContextDisposed(true);
-  heap::CollectAllGarbage(CcTest::heap());
+  heap::InvokeMajorGC(CcTest::heap());
 
   // Dispose the native contexts one by one.
   for (int i = 0; i < kNumTestContexts; i++) {
@@ -1959,12 +1960,12 @@ TEST(TestInternalWeakLists) {
 
     // Scavenge treats these references as strong.
     for (int j = 0; j < 10; j++) {
-      heap::CollectGarbage(CcTest::heap(), NEW_SPACE);
+      heap::InvokeMinorGC(CcTest::heap());
       CHECK_EQ(kNumTestContexts - i, CountNativeContexts());
     }
 
     // Mark compact handles the weak references.
-    heap::CollectAllGarbage(CcTest::heap());
+    heap::InvokeMajorGC(CcTest::heap());
     CHECK_EQ(kNumTestContexts - i - 1, CountNativeContexts());
   }
 
@@ -2000,7 +2001,7 @@ TEST(TestSizeOfRegExpCode) {
 
   // Get initial heap size after several full GCs, which will stabilize
   // the heap size and return with sweeping finished completely.
-  heap::CollectAllAvailableGarbage(heap);
+  heap::InvokeMemoryReducingMajorGCs(heap);
   if (heap->sweeping_in_progress()) {
     heap->EnsureSweepingCompleted(
         Heap::SweepingForcedFinalizationMode::kV8Only);
@@ -2008,11 +2009,11 @@ TEST(TestSizeOfRegExpCode) {
   int initial_size = static_cast<int>(heap->SizeOfObjects());
 
   CompileRun("'foo'.match(reg_exp_source);");
-  heap::CollectAllAvailableGarbage(heap);
+  heap::InvokeMemoryReducingMajorGCs(heap);
   int size_with_regexp = static_cast<int>(heap->SizeOfObjects());
 
   CompileRun("'foo'.match(half_size_reg_exp);");
-  heap::CollectAllAvailableGarbage(heap);
+  heap::InvokeMemoryReducingMajorGCs(heap);
   int size_with_optimized_regexp = static_cast<int>(heap->SizeOfObjects());
 
   int size_of_regexp_code = size_with_regexp - initial_size;
@@ -2042,7 +2043,7 @@ HEAP_TEST(TestSizeOfObjects) {
 
   // Get initial heap size after several full GCs, which will stabilize
   // the heap size and return with sweeping finished completely.
-  heap::CollectAllAvailableGarbage(heap);
+  heap::InvokeMemoryReducingMajorGCs(heap);
   if (heap->sweeping_in_progress()) {
     heap->EnsureSweepingCompleted(
         Heap::SweepingForcedFinalizationMode::kV8Only);
@@ -2065,7 +2066,7 @@ HEAP_TEST(TestSizeOfObjects) {
 
   // The heap size should go back to initial size after a full GC, even
   // though sweeping didn't finish yet.
-  heap::CollectAllGarbage(heap);
+  heap::InvokeMajorGC(heap);
   // Normally sweeping would not be complete here, but no guarantees.
   CHECK_EQ(initial_size, static_cast<int>(heap->SizeOfObjects()));
   // Waiting for sweeper threads should not change heap size.
@@ -2359,7 +2360,7 @@ TEST(LeakNativeContextViaMap) {
     v8::Local<v8::Context>::New(isolate, ctx1p)->Enter();
   }
 
-  heap::CollectAllAvailableGarbage(CcTest::heap());
+  heap::InvokeMemoryReducingMajorGCs(CcTest::heap());
   CHECK_EQ(2, NumberOfGlobalObjects());
 
   {
@@ -2386,10 +2387,10 @@ TEST(LeakNativeContextViaMap) {
     ctx1p.Reset();
     isolate->ContextDisposedNotification();
   }
-  heap::CollectAllAvailableGarbage(CcTest::heap());
+  heap::InvokeMemoryReducingMajorGCs(CcTest::heap());
   CHECK_EQ(1, NumberOfGlobalObjects());
   ctx2p.Reset();
-  heap::CollectAllAvailableGarbage(CcTest::heap());
+  heap::InvokeMemoryReducingMajorGCs(CcTest::heap());
   CHECK_EQ(0, NumberOfGlobalObjects());
 }
 
@@ -2411,7 +2412,7 @@ TEST(LeakNativeContextViaFunction) {
     v8::Local<v8::Context>::New(isolate, ctx1p)->Enter();
   }
 
-  heap::CollectAllAvailableGarbage(CcTest::heap());
+  heap::InvokeMemoryReducingMajorGCs(CcTest::heap());
   CHECK_EQ(2, NumberOfGlobalObjects());
 
   {
@@ -2438,10 +2439,10 @@ TEST(LeakNativeContextViaFunction) {
     ctx1p.Reset();
     isolate->ContextDisposedNotification();
   }
-  heap::CollectAllAvailableGarbage(CcTest::heap());
+  heap::InvokeMemoryReducingMajorGCs(CcTest::heap());
   CHECK_EQ(1, NumberOfGlobalObjects());
   ctx2p.Reset();
-  heap::CollectAllAvailableGarbage(CcTest::heap());
+  heap::InvokeMemoryReducingMajorGCs(CcTest::heap());
   CHECK_EQ(0, NumberOfGlobalObjects());
 }
 
@@ -2461,7 +2462,7 @@ TEST(LeakNativeContextViaMapKeyed) {
     v8::Local<v8::Context>::New(isolate, ctx1p)->Enter();
   }
 
-  heap::CollectAllAvailableGarbage(CcTest::heap());
+  heap::InvokeMemoryReducingMajorGCs(CcTest::heap());
   CHECK_EQ(2, NumberOfGlobalObjects());
 
   {
@@ -2488,10 +2489,10 @@ TEST(LeakNativeContextViaMapKeyed) {
     ctx1p.Reset();
     isolate->ContextDisposedNotification();
   }
-  heap::CollectAllAvailableGarbage(CcTest::heap());
+  heap::InvokeMemoryReducingMajorGCs(CcTest::heap());
   CHECK_EQ(1, NumberOfGlobalObjects());
   ctx2p.Reset();
-  heap::CollectAllAvailableGarbage(CcTest::heap());
+  heap::InvokeMemoryReducingMajorGCs(CcTest::heap());
   CHECK_EQ(0, NumberOfGlobalObjects());
 }
 
@@ -2511,7 +2512,7 @@ TEST(LeakNativeContextViaMapProto) {
     v8::Local<v8::Context>::New(isolate, ctx1p)->Enter();
   }
 
-  heap::CollectAllAvailableGarbage(CcTest::heap());
+  heap::InvokeMemoryReducingMajorGCs(CcTest::heap());
   CHECK_EQ(2, NumberOfGlobalObjects());
 
   {
@@ -2542,10 +2543,10 @@ TEST(LeakNativeContextViaMapProto) {
     ctx1p.Reset();
     isolate->ContextDisposedNotification();
   }
-  heap::CollectAllAvailableGarbage(CcTest::heap());
+  heap::InvokeMemoryReducingMajorGCs(CcTest::heap());
   CHECK_EQ(1, NumberOfGlobalObjects());
   ctx2p.Reset();
-  heap::CollectAllAvailableGarbage(CcTest::heap());
+  heap::InvokeMemoryReducingMajorGCs(CcTest::heap());
   CHECK_EQ(0, NumberOfGlobalObjects());
 }
 
@@ -2613,7 +2614,7 @@ TEST(InstanceOfStubWriteBarrier) {
     g->Call(ctx, global, 0, nullptr).ToLocalChecked();
   }
 
-  heap::CollectGarbage(CcTest::heap(), OLD_SPACE);
+  heap::InvokeMajorGC(CcTest::heap());
 }
 
 HEAP_TEST(GCFlags) {
@@ -2623,8 +2624,7 @@ HEAP_TEST(GCFlags) {
 
   heap->current_gc_flags_ = GCFlag::kNoFlags;
   // Check whether we appropriately reset flags after GC.
-  CcTest::heap()->CollectAllGarbage(GCFlag::kReduceMemoryFootprint,
-                                    GarbageCollectionReason::kTesting);
+  heap::InvokeMajorGC(CcTest::heap(), GCFlag::kReduceMemoryFootprint);
   CHECK_EQ(heap->current_gc_flags_, GCFlag::kNoFlags);
 
   if (heap->sweeping_in_progress()) {
@@ -2638,11 +2638,11 @@ HEAP_TEST(GCFlags) {
                                 GarbageCollectionReason::kTesting);
   CHECK(heap->current_gc_flags_ & GCFlag::kReduceMemoryFootprint);
 
-  heap::CollectGarbage(heap, NEW_SPACE);
+  heap::InvokeMinorGC(heap);
   // NewSpace scavenges should not overwrite the flags.
   CHECK(heap->current_gc_flags_ & GCFlag::kReduceMemoryFootprint);
 
-  heap::CollectAllGarbage(heap);
+  heap::InvokeMajorGC(heap, GCFlag::kNoFlags);
   CHECK_EQ(heap->current_gc_flags_, GCFlag::kNoFlags);
 }
 
@@ -3185,7 +3185,7 @@ TEST(Regress1465) {
   CHECK_EQ(transitions_count, transitions_before);
 
   heap::SimulateIncrementalMarking(heap);
-  heap::CollectAllGarbage(heap);
+  heap::InvokeMajorGC(heap);
 
   // Count number of live transitions after marking.  Note that one transition
   // is left, because 'o' still holds an instance of one transition target.
@@ -3248,7 +3248,7 @@ TEST(TransitionArrayShrinksDuringAllocToZero) {
       "root = new F");
   root = GetByName("root");
   AddPropertyTo(2, root, "funny");
-  heap::CollectGarbage(CcTest::heap(), NEW_SPACE);
+  heap::InvokeMinorGC(CcTest::heap());
 
   // Count number of live transitions after marking.  Note that one transition
   // is left, because 'o' still holds an instance of one transition target.
@@ -3277,7 +3277,7 @@ TEST(TransitionArrayShrinksDuringAllocToOne) {
 
   root = GetByName("root");
   AddPropertyTo(2, root, "funny");
-  heap::CollectGarbage(CcTest::heap(), NEW_SPACE);
+  heap::InvokeMinorGC(CcTest::heap());
 
   // Count number of live transitions after marking.  Note that one transition
   // is left, because 'o' still holds an instance of one transition target.
@@ -3306,7 +3306,7 @@ TEST(TransitionArrayShrinksDuringAllocToOnePropertyFound) {
 
   root = GetByName("root");
   AddPropertyTo(0, root, "prop9");
-  heap::CollectGarbage(CcTest::heap(), OLD_SPACE);
+  heap::InvokeMajorGC(CcTest::heap());
 
   // Count number of live transitions after marking.  Note that one transition
   // is left, because 'o' still holds an instance of one transition target.
@@ -3362,14 +3362,14 @@ TEST(ReleaseOverReservedPages) {
 
   // Triggering one GC will cause a lot of garbage to be discovered but
   // even spread across all allocated pages.
-  heap::CollectAllGarbage(heap);
+  heap::InvokeMajorGC(heap);
   CHECK_GE(overall_page_count, old_space->CountTotalPages());
 
   // Triggering subsequent GCs should cause at least half of the pages
   // to be released to the OS after at most two cycles.
-  heap::CollectAllGarbage(heap);
+  heap::InvokeMajorGC(heap);
   CHECK_GE(overall_page_count, old_space->CountTotalPages());
-  heap::CollectAllGarbage(heap);
+  heap::InvokeMajorGC(heap);
   CHECK_GE(overall_page_count, old_space->CountTotalPages() * 2);
 
   // Triggering a last-resort GC should cause all pages to be released to the
@@ -3379,7 +3379,7 @@ TEST(ReleaseOverReservedPages) {
   // first page should be small in order to reduce memory used when the VM
   // boots, but if the 20 small arrays don't fit on the first page then that's
   // an indication that it is too small.
-  heap::CollectAllAvailableGarbage(heap);
+  heap::InvokeMemoryReducingMajorGCs(heap);
   CHECK_GE(initial_page_count, old_space->CountTotalPages());
 }
 
@@ -3470,7 +3470,7 @@ TEST(IncrementalMarkingPreservesMonomorphicCallIC) {
   CHECK(feedback_vector->Get(feedback_helper.slot(slot2))->IsWeak());
 
   heap::SimulateIncrementalMarking(CcTest::heap());
-  heap::CollectAllGarbage(CcTest::heap());
+  heap::InvokeMajorGC(CcTest::heap());
 
   CHECK(feedback_vector->Get(feedback_helper.slot(slot1))->IsWeak());
   CHECK(feedback_vector->Get(feedback_helper.slot(slot2))->IsWeak());
@@ -3509,7 +3509,7 @@ TEST(IncrementalMarkingPreservesMonomorphicConstructor) {
   CHECK(vector->Get(FeedbackSlot(0))->IsWeakOrCleared());
 
   heap::SimulateIncrementalMarking(CcTest::heap());
-  heap::CollectAllGarbage(CcTest::heap());
+  heap::InvokeMajorGC(CcTest::heap());
 
   CHECK(vector->Get(FeedbackSlot(0))->IsWeakOrCleared());
 }
@@ -3535,7 +3535,7 @@ TEST(IncrementalMarkingPreservesMonomorphicIC) {
   CheckVectorIC(f, 0, InlineCacheState::MONOMORPHIC);
 
   heap::SimulateIncrementalMarking(CcTest::heap());
-  heap::CollectAllGarbage(CcTest::heap());
+  heap::InvokeMajorGC(CcTest::heap());
 
   CheckVectorIC(f, 0, InlineCacheState::MONOMORPHIC);
 }
@@ -3578,7 +3578,7 @@ TEST(IncrementalMarkingPreservesPolymorphicIC) {
 
   // Fire context dispose notification.
   heap::SimulateIncrementalMarking(CcTest::heap());
-  heap::CollectAllGarbage(CcTest::heap());
+  heap::InvokeMajorGC(CcTest::heap());
 
   CheckVectorIC(f, 0, InlineCacheState::POLYMORPHIC);
 }
@@ -3622,7 +3622,7 @@ TEST(ContextDisposeDoesntClearPolymorphicIC) {
   // Fire context dispose notification.
   CcTest::isolate()->ContextDisposedNotification();
   heap::SimulateIncrementalMarking(CcTest::heap());
-  heap::CollectAllGarbage(CcTest::heap());
+  heap::InvokeMajorGC(CcTest::heap());
 
   CheckVectorIC(f, 0, InlineCacheState::POLYMORPHIC);
 }
@@ -3667,7 +3667,7 @@ void ReleaseStackTraceDataTest(v8::Isolate* isolate, const char* source,
     v8::Local<v8::Context> ctx = isolate->GetCurrentContext();
     v8::Local<v8::String> source_string =
         v8::String::NewExternalOneByte(isolate, resource).ToLocalChecked();
-    heap::CollectAllAvailableGarbage(i_isolate->heap());
+    heap::InvokeMemoryReducingMajorGCs(i_isolate->heap());
     v8::Script::Compile(ctx, source_string)
         .ToLocalChecked()
         ->Run(ctx)
@@ -3677,7 +3677,7 @@ void ReleaseStackTraceDataTest(v8::Isolate* isolate, const char* source,
   CHECK(!resource->IsDisposed());
 
   CompileRun(accessor);
-  heap::CollectAllAvailableGarbage(i_isolate->heap());
+  heap::InvokeMemoryReducingMajorGCs(i_isolate->heap());
 
   // External source has been released.
   CHECK(resource->IsDisposed());
@@ -3902,7 +3902,7 @@ TEST(Regress169928) {
             .FromJust());
 
   // First make sure we flip spaces
-  heap::CollectGarbage(CcTest::heap(), NEW_SPACE);
+  heap::InvokeMinorGC(CcTest::heap());
 
   // Allocate the object.
   Handle<FixedArray> array_data =
@@ -3985,7 +3985,7 @@ TEST(LargeObjectSlotRecording) {
   // Move the evacuation candidate object.
   // We need to invoke GC without stack, otherwise no compaction is performed.
   DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
-  heap::CollectAllGarbage(heap);
+  heap::InvokeMajorGC(heap);
 
   // Verify that the pointers in the large object got updated.
   for (int i = 0; i < size; i += kStep) {
@@ -4031,7 +4031,7 @@ static void TestFillersFromPersistentHandles(bool promote) {
 
   if (promote) {
     // Age the array so it's ready for promotion on next GC.
-    heap::CollectGarbage(heap, NEW_SPACE);
+    heap::InvokeMinorGC(heap);
   }
   CHECK(Heap::InYoungGeneration(*array));
 
@@ -4051,7 +4051,7 @@ static void TestFillersFromPersistentHandles(bool promote) {
       persistent_scope.Detach());
 
   // GC should retain the trimmed array but drop all of the three fillers.
-  heap::CollectGarbage(heap, NEW_SPACE);
+  heap::InvokeMinorGC(heap);
   if (!v8_flags.single_generation) {
     if (promote) {
       CHECK(heap->InOldSpace(*tail));
@@ -4214,7 +4214,7 @@ TEST(EnsureAllocationSiteDependentCodesProcessed) {
   // Now make sure that a gc should get rid of the function, even though we
   // still have the allocation site alive.
   for (int i = 0; i < 4; i++) {
-    heap::CollectAllGarbage(heap);
+    heap::InvokeMajorGC(heap);
   }
 
   // The site still exists because of our global handle, but the code is no
@@ -4364,7 +4364,7 @@ TEST(CellsInOptimizedCodeAreWeak) {
 
   // Now make sure that a gc should get rid of the function
   for (int i = 0; i < 4; i++) {
-    heap::CollectAllGarbage(heap);
+    heap::InvokeMajorGC(heap);
   }
 
   CHECK(code->marked_for_deoptimization());
@@ -4411,7 +4411,7 @@ TEST(ObjectsInOptimizedCodeAreWeak) {
 
   // Now make sure that a gc should get rid of the function
   for (int i = 0; i < 4; i++) {
-    heap::CollectAllGarbage(heap);
+    heap::InvokeMajorGC(heap);
   }
 
   CHECK(code->marked_for_deoptimization());
@@ -4465,7 +4465,7 @@ TEST(NewSpaceObjectsInOptimizedCode) {
                                            .ToLocalChecked())));
 
     CHECK(Heap::InYoungGeneration(*foo));
-    heap::CollectGarbage(CcTest::heap(), OLD_SPACE);
+    heap::InvokeMajorGC(CcTest::heap());
     CHECK(!Heap::InYoungGeneration(*foo));
 #ifdef VERIFY_HEAP
     HeapVerifier::VerifyHeap(CcTest::heap());
@@ -4477,7 +4477,7 @@ TEST(NewSpaceObjectsInOptimizedCode) {
 
   // Now make sure that a gc should get rid of the function
   for (int i = 0; i < 4; i++) {
-    heap::CollectAllGarbage(CcTest::heap());
+    heap::InvokeMajorGC(CcTest::heap());
   }
 
   CHECK(code->marked_for_deoptimization());
@@ -4526,7 +4526,7 @@ TEST(ObjectsInEagerlyDeoptimizedCodeAreWeak) {
 
   // Now make sure that a gc should get rid of the function
   for (int i = 0; i < 4; i++) {
-    heap::CollectAllGarbage(heap);
+    heap::InvokeMajorGC(heap);
   }
 
   CHECK(code->marked_for_deoptimization());
@@ -4609,7 +4609,7 @@ TEST(WeakFunctionInConstructor) {
   }
   weak_ic_cleared = false;
   garbage.SetWeak(&garbage, &ClearWeakIC, v8::WeakCallbackType::kParameter);
-  heap::CollectAllGarbage(CcTest::heap());
+  heap::InvokeMajorGC(CcTest::heap());
   CHECK(weak_ic_cleared);
 
   // We've determined the constructor in createObj has had it's weak cell
@@ -4621,7 +4621,7 @@ TEST(WeakFunctionInConstructor) {
     MaybeObject slot_value = feedback_vector->Get(FeedbackSlot(0));
     CHECK(slot_value->IsWeakOrCleared());
     if (slot_value->IsCleared()) break;
-    heap::CollectAllGarbage(CcTest::heap());
+    heap::InvokeMajorGC(CcTest::heap());
   }
 
   MaybeObject slot_value = feedback_vector->Get(FeedbackSlot(0));
@@ -4655,7 +4655,7 @@ void CheckWeakness(const char* source) {
   }
   weak_ic_cleared = false;
   garbage.SetWeak(&garbage, &ClearWeakIC, v8::WeakCallbackType::kParameter);
-  heap::CollectAllGarbage(CcTest::heap());
+  heap::InvokeMajorGC(CcTest::heap());
   CHECK(weak_ic_cleared);
 }
 
@@ -4870,7 +4870,7 @@ TEST(MonomorphicStaysMonomorphicAfterGC) {
     v8::HandleScope new_scope(CcTest::isolate());
     CompileRun("(testIC())");
   }
-  heap::CollectAllGarbage(CcTest::heap());
+  heap::InvokeMajorGC(CcTest::heap());
   CheckIC(loadIC, 0, InlineCacheState::MONOMORPHIC);
   {
     v8::HandleScope new_scope(CcTest::isolate());
@@ -4909,7 +4909,7 @@ TEST(PolymorphicStaysPolymorphicAfterGC) {
     v8::HandleScope new_scope(CcTest::isolate());
     CompileRun("(testIC())");
   }
-  heap::CollectAllGarbage(CcTest::heap());
+  heap::InvokeMajorGC(CcTest::heap());
   CheckIC(loadIC, 0, InlineCacheState::POLYMORPHIC);
   {
     v8::HandleScope new_scope(CcTest::isolate());
@@ -4958,7 +4958,7 @@ TEST(AddInstructionChangesNewSpacePromotion) {
   heap->DisableInlineAllocation();
   heap->set_allocation_timeout(1);
   g->Call(env.local(), global, 1, info1).ToLocalChecked();
-  heap::CollectAllGarbage(heap);
+  heap::InvokeMajorGC(heap);
 }
 
 
@@ -5024,7 +5024,7 @@ HEAP_TEST(Regress538257) {
       heap::ForceEvacuationCandidate(Page::FromHeapObject(*objects[i]));
     }
     heap::SimulateFullSpace(old_space);
-    heap::CollectAllGarbage(heap);
+    heap::InvokeMajorGC(heap);
     // If we get this far, we've successfully aborted compaction. Any further
     // allocations might trigger OOM.
   }
@@ -5164,7 +5164,7 @@ TEST(Regress3631) {
       "for (var i = 0; i < 50; i++) {"
       "  weak_map.set(future_keys[i], i);"
       "}");
-  heap::CollectGarbage(heap, OLD_SPACE);
+  heap::InvokeMajorGC(heap);
 }
 
 
@@ -5181,7 +5181,7 @@ TEST(Regress442710) {
   Handle<String> name = factory->InternalizeUtf8String("testArray");
   Object::SetProperty(isolate, global, name, array).Check();
   CompileRun("testArray[0] = 1; testArray[1] = 2; testArray.shift();");
-  heap::CollectGarbage(CcTest::heap(), OLD_SPACE);
+  heap::InvokeMajorGC(CcTest::heap());
 }
 
 
@@ -5218,14 +5218,14 @@ TEST(Regress3877) {
       "a.x = new cls();"
       "cls.prototype = null;");
   for (int i = 0; i < 4; i++) {
-    heap::CollectAllGarbage(CcTest::heap());
+    heap::InvokeMajorGC(CcTest::heap());
   }
   // The map of a.x keeps prototype alive
   CHECK(!weak_prototype_holder->Get(0)->IsCleared());
   // Change the map of a.x and make the previous map garbage collectable.
   CompileRun("a.x.__proto__ = {};");
   for (int i = 0; i < 4; i++) {
-    heap::CollectAllGarbage(CcTest::heap());
+    heap::InvokeMajorGC(CcTest::heap());
   }
   CHECK(weak_prototype_holder->Get(0)->IsCleared());
 }
@@ -5265,11 +5265,11 @@ void CheckMapRetainingFor(int n) {
   CHECK(array_with_map->Get(0)->IsWeak());
   for (int i = 0; i < n; i++) {
     heap::SimulateIncrementalMarking(heap);
-    heap::CollectGarbage(heap, OLD_SPACE);
+    heap::InvokeMajorGC(heap);
   }
   CHECK(array_with_map->Get(0)->IsWeak());
   heap::SimulateIncrementalMarking(heap);
-  heap::CollectGarbage(heap, OLD_SPACE);
+  heap::InvokeMajorGC(heap);
   CHECK(array_with_map->Get(0)->IsCleared());
 
   ctx->Exit();
@@ -5304,7 +5304,7 @@ TEST(RetainedMapsCleanup) {
       AddRetainedMap(isolate, native_context);
   CHECK(array_with_map->Get(0)->IsWeak());
   heap->NotifyContextDisposed(true);
-  heap::CollectAllGarbage(heap);
+  heap::InvokeMajorGC(heap);
   ctx->Exit();
 
   CHECK_EQ(ReadOnlyRoots(heap).empty_weak_array_list(),
@@ -5326,7 +5326,7 @@ TEST(PreprocessStackTrace) {
       Object::GetElement(isolate, stack_trace, 3).ToHandleChecked();
   CHECK(code->IsInstructionStream());
 
-  heap::CollectAllAvailableGarbage(CcTest::heap());
+  heap::InvokeMemoryReducingMajorGCs(CcTest::heap());
 
   Handle<Object> pos =
       Object::GetElement(isolate, stack_trace, 3).ToHandleChecked();
@@ -5369,7 +5369,7 @@ TEST(NewSpaceAllocationCounter) {
   AllocateInSpace(isolate, kSize, NEW_SPACE);
   size_t counter2 = heap->NewSpaceAllocationCounter();
   CHECK_EQ(kSize, counter2 - counter1);
-  heap::CollectGarbage(heap, NEW_SPACE);
+  heap::InvokeMinorGC(heap);
   size_t counter3 = heap->NewSpaceAllocationCounter();
   CHECK_EQ(0U, counter3 - counter2);
   // Test counter overflow.
@@ -5406,11 +5406,11 @@ TEST(OldSpaceAllocationCounter) {
   size_t counter2 = heap->OldGenerationAllocationCounter();
   // TODO(ulan): replace all CHECK_LE with CHECK_EQ after v8:4148 is fixed.
   CHECK_LE(kSize, counter2 - counter1);
-  heap::CollectGarbage(heap, NEW_SPACE);
+  heap::InvokeMinorGC(heap);
   size_t counter3 = heap->OldGenerationAllocationCounter();
   CHECK_EQ(0u, counter3 - counter2);
   AllocateInSpace(isolate, kSize, OLD_SPACE);
-  heap::CollectGarbage(heap, OLD_SPACE);
+  heap::InvokeMajorGC(heap);
   size_t counter4 = heap->OldGenerationAllocationCounter();
   CHECK_LE(kSize, counter4 - counter3);
   // Test counter overflow.
@@ -5482,7 +5482,7 @@ static void RemoveCodeAndGC(const v8::FunctionCallbackInfo<v8::Value>& info) {
   // Bytecode is code too.
   SharedFunctionInfo::DiscardCompiled(isolate, handle(fun->shared(), isolate));
   fun->set_code(*BUILTIN_CODE(isolate, CompileLazy));
-  heap::CollectAllAvailableGarbage(CcTest::heap());
+  heap::InvokeMemoryReducingMajorGCs(CcTest::heap());
 }
 
 TEST(CanonicalSharedFunctionInfo) {
@@ -5520,7 +5520,7 @@ TEST(ScriptIterator) {
   Heap* heap = CcTest::heap();
   LocalContext context;
 
-  heap::CollectAllGarbage(heap);
+  heap::InvokeMajorGC(heap);
 
   int script_count = 0;
   {
@@ -5588,7 +5588,7 @@ HEAP_TEST(Regress587004) {
   for (int i = 0; i < N; i++) {
     array->set(i, *number);
   }
-  heap::CollectGarbage(heap, OLD_SPACE);
+  heap::InvokeMajorGC(heap);
   heap::SimulateFullSpace(heap->old_space());
   heap->RightTrimFixedArray(*array, N - 1);
   heap->EnsureSweepingCompleted(Heap::SweepingForcedFinalizationMode::kV8Only);
@@ -5605,7 +5605,7 @@ HEAP_TEST(Regress587004) {
   }
   // Re-enable old space expansion to avoid OOM crash.
   heap->set_force_oom(false);
-  heap::CollectGarbage(heap, NEW_SPACE);
+  heap::InvokeMinorGC(heap);
 }
 
 HEAP_TEST(Regress589413) {
@@ -5620,8 +5620,8 @@ HEAP_TEST(Regress589413) {
   v8::HandleScope scope(CcTest::isolate());
   Heap* heap = CcTest::heap();
   // Get the heap in clean state.
-  heap::CollectGarbage(heap, OLD_SPACE);
-  heap::CollectGarbage(heap, OLD_SPACE);
+  heap::InvokeMajorGC(heap);
+  heap::InvokeMajorGC(heap);
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
   // Fill the new space with byte arrays with elements looking like pointers.
@@ -5654,7 +5654,7 @@ HEAP_TEST(Regress589413) {
     AlwaysAllocateScopeForTesting always_allocate(isolate->heap());
 
     // Make sure the byte arrays will be promoted on the next GC.
-    heap::CollectGarbage(heap, NEW_SPACE);
+    heap::InvokeMinorGC(heap);
     // This number is close to large free list category threshold.
     const int N = 0x3EEE;
 
@@ -5710,7 +5710,7 @@ HEAP_TEST(Regress589413) {
 
   // Force allocation from the free list.
   heap->set_force_oom(true);
-  heap::CollectGarbage(heap, OLD_SPACE);
+  heap::InvokeMajorGC(heap);
   heap->RemoveNearHeapLimitCallback(reset_oom, 0);
 }
 
@@ -5762,7 +5762,7 @@ TEST(Regress598319) {
   CHECK_NOT_NULL(page);
 
   // GC to cleanup state
-  heap::CollectGarbage(heap, OLD_SPACE);
+  heap::InvokeMajorGC(heap);
   if (heap->sweeping_in_progress()) {
     heap->EnsureSweepingCompleted(
         Heap::SweepingForcedFinalizationMode::kV8Only);
@@ -5832,7 +5832,7 @@ TEST(Regress598319) {
 Handle<FixedArray> ShrinkArrayAndCheckSize(Heap* heap, int length) {
   // Make sure there is no garbage and the compilation cache is empty.
   for (int i = 0; i < 5; i++) {
-    heap::CollectAllGarbage(heap);
+    heap::InvokeMajorGC(heap);
   }
   heap->EnsureSweepingCompleted(Heap::SweepingForcedFinalizationMode::kV8Only);
   // Disable LAB, such that calculations with SizeOfObjects() and object size
@@ -5848,7 +5848,7 @@ Handle<FixedArray> ShrinkArrayAndCheckSize(Heap* heap, int length) {
   // Shrinking does not change the space size immediately.
   CHECK_EQ(size_after_allocation, size_after_shrinking);
   // GC and sweeping updates the size to acccount for shrinking.
-  heap::CollectAllGarbage(heap);
+  heap::InvokeMajorGC(heap);
   heap->EnsureSweepingCompleted(Heap::SweepingForcedFinalizationMode::kV8Only);
   intptr_t size_after_gc = heap->SizeOfObjects();
   CHECK_EQ(size_after_gc, size_before_allocation + array->Size());
@@ -5881,7 +5881,7 @@ TEST(Regress615489) {
   v8::HandleScope scope(CcTest::isolate());
   Heap* heap = CcTest::heap();
   Isolate* isolate = heap->isolate();
-  heap::CollectAllGarbage(heap);
+  heap::InvokeMajorGC(heap);
 
   i::IncrementalMarking* marking = heap->incremental_marking();
   if (heap->sweeping_in_progress()) {
@@ -5906,7 +5906,7 @@ TEST(Regress615489) {
   }
   CHECK(marking->IsMajorMarkingComplete());
   intptr_t size_before = heap->SizeOfObjects();
-  heap::CollectAllGarbage(heap);
+  heap::InvokeMajorGC(heap);
   intptr_t size_after = heap->SizeOfObjects();
   // Live size does not increase after garbage collection.
   CHECK_LE(size_after, size_before);
@@ -5936,8 +5936,8 @@ TEST(Regress631969) {
   v8::HandleScope scope(CcTest::isolate());
   Heap* heap = CcTest::heap();
   // Get the heap in clean state.
-  heap::CollectGarbage(heap, OLD_SPACE);
-  heap::CollectGarbage(heap, OLD_SPACE);
+  heap::InvokeMajorGC(heap);
+  heap::InvokeMajorGC(heap);
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
   // Allocate two strings in a fresh page and mark the page as evacuation
@@ -5967,7 +5967,7 @@ TEST(Regress631969) {
   {
     StaticOneByteResource external_string("12345678901234");
     s3->MakeExternal(&external_string);
-    heap::CollectGarbage(heap, OLD_SPACE);
+    heap::InvokeMajorGC(heap);
     // This avoids the GC from trying to free stack allocated resources.
     i::Handle<i::ExternalOneByteString>::cast(s3)->SetResource(isolate,
                                                                nullptr);
@@ -5981,7 +5981,7 @@ TEST(ContinuousRightTrimFixedArrayInBlackArea) {
   v8::HandleScope scope(CcTest::isolate());
   Heap* heap = CcTest::heap();
   Isolate* isolate = CcTest::i_isolate();
-  heap::CollectAllGarbage(heap);
+  heap::InvokeMajorGC(heap);
 
   i::IncrementalMarking* marking = heap->incremental_marking();
   if (heap->sweeping_in_progress()) {
@@ -6032,7 +6032,7 @@ TEST(ContinuousRightTrimFixedArrayInBlackArea) {
     }
   }
 
-  heap::GcAndSweep(heap, OLD_SPACE);
+  heap::InvokeAtomicMajorGC(heap);
 }
 
 TEST(Regress618958) {
@@ -6072,7 +6072,7 @@ TEST(YoungGenerationLargeObjectAllocationScavenge) {
   Handle<Object> number = isolate->factory()->NewHeapNumber(123.456);
   array_small->set(0, *number);
 
-  heap::CollectGarbage(heap, NEW_SPACE);
+  heap::InvokeMinorGC(heap);
 
   // After the first young generation GC array_small will be in the old
   // generation large object space.
@@ -6080,7 +6080,7 @@ TEST(YoungGenerationLargeObjectAllocationScavenge) {
   CHECK_EQ(LO_SPACE, chunk->owner_identity());
   CHECK(!chunk->InYoungGeneration());
 
-  heap::CollectAllAvailableGarbage(heap);
+  heap::InvokeMemoryReducingMajorGCs(heap);
 }
 
 TEST(YoungGenerationLargeObjectAllocationMarkCompact) {
@@ -6101,7 +6101,7 @@ TEST(YoungGenerationLargeObjectAllocationMarkCompact) {
   Handle<Object> number = isolate->factory()->NewHeapNumber(123.456);
   array_small->set(0, *number);
 
-  heap::CollectGarbage(heap, OLD_SPACE);
+  heap::InvokeMajorGC(heap);
 
   // After the first full GC array_small will be in the old generation
   // large object space.
@@ -6109,7 +6109,7 @@ TEST(YoungGenerationLargeObjectAllocationMarkCompact) {
   CHECK_EQ(LO_SPACE, chunk->owner_identity());
   CHECK(!chunk->InYoungGeneration());
 
-  heap::CollectAllAvailableGarbage(heap);
+  heap::InvokeMemoryReducingMajorGCs(heap);
 }
 
 TEST(YoungGenerationLargeObjectAllocationReleaseScavenger) {
@@ -6130,7 +6130,7 @@ TEST(YoungGenerationLargeObjectAllocationReleaseScavenger) {
     }
   }
 
-  heap::CollectGarbage(heap, NEW_SPACE);
+  heap::InvokeMinorGC(heap);
   CHECK(isolate->heap()->new_lo_space()->IsEmpty());
   CHECK_EQ(0, isolate->heap()->new_lo_space()->Size());
   CHECK_EQ(0, isolate->heap()->new_lo_space()->SizeOfObjects());
@@ -6157,7 +6157,7 @@ TEST(UncommitUnusedLargeObjectMemory) {
   array->Shrink(isolate, 1);
   CHECK(array->Size() < size_before);
 
-  heap::CollectAllGarbage(heap);
+  heap::InvokeMajorGC(heap);
   CHECK(chunk->CommittedPhysicalMemory() < committed_memory_before);
   size_t shrinked_size = RoundUp(
       (array->address() - chunk->address()) + array->Size(), CommitPageSize());
@@ -6306,7 +6306,7 @@ TEST(RememberedSet_OldToOld) {
   // create OLD_TO_OLD remembered set to track the reference.
   // We need to invoke GC without stack, otherwise no compaction is performed.
   DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
-  heap::CollectAllGarbage(heap);
+  heap::InvokeMajorGC(heap);
   CHECK_NE(prev_location.ptr(), arr->ptr());
 }
 
@@ -6400,7 +6400,7 @@ HEAP_TEST(Regress670675) {
   v8::HandleScope scope(CcTest::isolate());
   Heap* heap = CcTest::heap();
   Isolate* isolate = heap->isolate();
-  heap::CollectAllGarbage(heap);
+  heap::InvokeMajorGC(heap);
 
   if (heap->sweeping_in_progress()) {
     heap->EnsureSweepingCompleted(
@@ -6438,7 +6438,7 @@ HEAP_TEST(RegressMissingWriteBarrierInAllocate) {
   v8::HandleScope scope(CcTest::isolate());
   Heap* heap = CcTest::heap();
   Isolate* isolate = heap->isolate();
-  heap::CollectAllGarbage(heap);
+  heap::InvokeMajorGC(heap);
   heap::SimulateIncrementalMarking(heap, false);
   Handle<Map> map;
   {
@@ -6455,7 +6455,7 @@ HEAP_TEST(RegressMissingWriteBarrierInAllocate) {
   // The object is black. If Factory::New sets the map without write-barrier,
   // then the map is white and will be freed prematurely.
   heap::SimulateIncrementalMarking(heap, true);
-  heap::CollectAllGarbage(heap);
+  heap::InvokeMajorGC(heap);
   if (heap->sweeping_in_progress()) {
     heap->EnsureSweepingCompleted(
         Heap::SweepingForcedFinalizationMode::kV8Only);
@@ -6470,14 +6470,14 @@ HEAP_TEST(MarkCompactEpochCounter) {
   v8::HandleScope scope(CcTest::isolate());
   Heap* heap = CcTest::heap();
   unsigned epoch0 = heap->mark_compact_collector()->epoch();
-  heap::CollectGarbage(heap, OLD_SPACE);
+  heap::InvokeMajorGC(heap);
   unsigned epoch1 = heap->mark_compact_collector()->epoch();
   CHECK_EQ(epoch0 + 1, epoch1);
   heap::SimulateIncrementalMarking(heap, true);
-  heap::CollectGarbage(heap, OLD_SPACE);
+  heap::InvokeMajorGC(heap);
   unsigned epoch2 = heap->mark_compact_collector()->epoch();
   CHECK_EQ(epoch1 + 1, epoch2);
-  heap::CollectGarbage(heap, NEW_SPACE);
+  heap::InvokeMinorGC(heap);
   unsigned epoch3 = heap->mark_compact_collector()->epoch();
   CHECK_EQ(epoch2, epoch3);
 }
@@ -6553,7 +6553,7 @@ UNINITIALIZED_TEST(OutOfMemoryIneffectiveGC) {
   isolate->SetOOMErrorHandler(OOMCallback);
   Factory* factory = i_isolate->factory();
   Heap* heap = i_isolate->heap();
-  heap::CollectAllGarbage(heap);
+  heap::InvokeMajorGC(heap);
   {
     HandleScope scope(i_isolate);
     while (heap->OldGenerationSizeOfObjects() <
@@ -6644,12 +6644,12 @@ HEAP_TEST(Regress779503) {
     // Delay sweeper tasks to allow the scavenger to sweep the page it is
     // currently scavenging.
     heap->delay_sweeper_tasks_for_testing_ = true;
-    heap::CollectGarbage(heap, OLD_SPACE);
+    heap::InvokeMajorGC(heap);
     CHECK(!Heap::InYoungGeneration(*byte_array));
   }
   // Scavenging and sweeping the same page will crash as slots will be
   // overridden.
-  heap::CollectGarbage(heap, NEW_SPACE);
+  heap::InvokeMinorGC(heap);
   heap->delay_sweeper_tasks_for_testing_ = false;
 }
 
@@ -6875,7 +6875,7 @@ TEST(Regress8617) {
   // the Scavenger will not record the slot of foo in the descriptor array.
   heap::EmptyNewSpaceUsingGC(heap);
   // Step 7. Complete the Mark-Compact.
-  heap::CollectAllGarbage(heap);
+  heap::InvokeMajorGC(heap);
   // Step 8. Use the descriptor for foo, which contains a stale pointer.
   CompileRun("obj.method()");
 }
@@ -6933,7 +6933,7 @@ TEST(CodeObjectRegistry) {
     CHECK(MemoryChunk::FromHeapObject(*code1)->Contains(code1->address()));
     CHECK(MemoryChunk::FromHeapObject(*code2)->Contains(code2->address()));
   }
-  heap::CollectAllAvailableGarbage(heap);
+  heap::InvokeMemoryReducingMajorGCs(heap);
   CHECK(MemoryChunk::FromHeapObject(*code1)->Contains(code1->address()));
   CHECK(MemoryChunk::FromAddress(code2_address)->Contains(code2_address));
 }
@@ -7005,10 +7005,10 @@ TEST(GarbageCollectionWithLocalHeap) {
 
   LocalHeap* local_heap = CcTest::i_isolate()->main_thread_local_heap();
 
-  heap::CollectGarbage(CcTest::heap(), OLD_SPACE);
+  heap::InvokeMajorGC(CcTest::heap());
 
   { ParkedScope parked_scope(local_heap); }
-  heap::CollectGarbage(CcTest::heap(), OLD_SPACE);
+  heap::InvokeMajorGC(CcTest::heap());
 }
 
 TEST(Regress10698) {
@@ -7212,7 +7212,7 @@ TEST(Regress10900) {
   }
   // Force garbage collection that compacts code pages and triggers
   // an assertion in Isolate::AddCodeMemoryRange before the bug fix.
-  heap::CollectAllAvailableGarbage(heap);
+  heap::InvokeMemoryReducingMajorGCs(heap);
 }
 
 namespace {
@@ -7235,7 +7235,7 @@ TEST(Regress11181) {
       std::memory_order_relaxed);
   v8::HandleScope scope(CcTest::isolate());
   GenerateGarbage();
-  heap::CollectAllAvailableGarbage(CcTest::heap());
+  heap::InvokeMemoryReducingMajorGCs(CcTest::heap());
 }
 
 TEST(LongTaskStatsFullAtomic) {
@@ -7247,7 +7247,7 @@ TEST(LongTaskStatsFullAtomic) {
   CHECK_EQ(0u, v8::metrics::LongTaskStats::Get(isolate)
                    .gc_full_atomic_wall_clock_duration_us);
   for (int i = 0; i < 10; ++i) {
-    heap::CollectAllAvailableGarbage(CcTest::heap());
+    heap::InvokeMemoryReducingMajorGCs(CcTest::heap());
   }
   CHECK_LT(0u, v8::metrics::LongTaskStats::Get(isolate)
                    .gc_full_atomic_wall_clock_duration_us);
@@ -7267,7 +7267,7 @@ TEST(LongTaskStatsFullIncremental) {
                    .gc_full_incremental_wall_clock_duration_us);
   for (int i = 0; i < 10; ++i) {
     heap::SimulateIncrementalMarking(CcTest::heap());
-    heap::CollectAllAvailableGarbage(CcTest::heap());
+    heap::InvokeMemoryReducingMajorGCs(CcTest::heap());
   }
   CHECK_LT(0u, v8::metrics::LongTaskStats::Get(isolate)
                    .gc_full_incremental_wall_clock_duration_us);
@@ -7287,7 +7287,7 @@ TEST(LongTaskStatsYoung) {
       0u,
       v8::metrics::LongTaskStats::Get(isolate).gc_young_wall_clock_duration_us);
   for (int i = 0; i < 10; ++i) {
-    heap::CollectGarbage(CcTest::heap(), NEW_SPACE);
+    heap::InvokeMinorGC(CcTest::heap());
   }
   CHECK_LT(
       0u,

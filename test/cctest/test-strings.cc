@@ -1358,8 +1358,8 @@ TEST(InternalizeExternal) {
     CHECK(string->IsInternalizedString());
     CHECK(!i::Heap::InYoungGeneration(*string));
   }
-  i::heap::CollectGarbage(CcTest::heap(), i::OLD_SPACE);
-  i::heap::CollectGarbage(CcTest::heap(), i::OLD_SPACE);
+  i::heap::InvokeMajorGC(CcTest::heap());
+  i::heap::InvokeMajorGC(CcTest::heap());
 }
 
 TEST(Regress1402187) {
@@ -1402,8 +1402,8 @@ TEST(Regress1402187) {
     CHECK(string->IsExternalString());
     CHECK(string->IsInternalizedString());
   }
-  i::heap::CollectGarbage(CcTest::heap(), i::OLD_SPACE);
-  i::heap::CollectGarbage(CcTest::heap(), i::OLD_SPACE);
+  i::heap::InvokeMajorGC(CcTest::heap());
+  i::heap::InvokeMajorGC(CcTest::heap());
 }
 
 TEST(SliceFromExternal) {

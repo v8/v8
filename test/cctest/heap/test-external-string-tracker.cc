@@ -87,7 +87,7 @@ TEST(ExternalString_ExternalBackingStoreSizeDecreases) {
     USE(es);
   }
 
-  heap::GcAndSweep(heap, OLD_SPACE);
+  heap::InvokeAtomicMajorGC(heap);
 
   const size_t backing_store_after =
       heap->old_space()->ExternalBackingStoreBytes(type);
@@ -121,14 +121,14 @@ TEST(ExternalString_ExternalBackingStoreSizeIncreasesMarkCompact) {
     Page* page_before_gc = Page::FromHeapObject(*esh);
     heap::ForceEvacuationCandidate(page_before_gc);
 
-    heap::CollectAllGarbage(heap);
+    heap::InvokeMajorGC(heap);
 
     const size_t backing_store_after =
         heap->old_space()->ExternalBackingStoreBytes(type);
     CHECK_EQ(es->Length(), backing_store_after - backing_store_before);
   }
 
-  heap::GcAndSweep(heap, OLD_SPACE);
+  heap::InvokeAtomicMajorGC(heap);
   const size_t backing_store_after =
       heap->old_space()->ExternalBackingStoreBytes(type);
   CHECK_EQ(0, backing_store_after - backing_store_before);
@@ -162,7 +162,7 @@ TEST(ExternalString_ExternalBackingStoreSizeIncreasesAfterExternalization) {
                     new_backing_store_before);
 
     // Trigger full GC so that the newly allocated string moves to old gen.
-    heap::GcAndSweep(heap, OLD_SPACE);
+    heap::InvokeAtomicMajorGC(heap);
 
     bool success =
         str->MakeExternal(new TestOneByteResource(i::StrDup(TEST_STR)));
@@ -172,7 +172,7 @@ TEST(ExternalString_ExternalBackingStoreSizeIncreasesAfterExternalization) {
                                 old_backing_store_before);
   }
 
-  heap::GcAndSweep(heap, OLD_SPACE);
+  heap::InvokeAtomicMajorGC(heap);
   const size_t backing_store_after =
       heap->old_space()->ExternalBackingStoreBytes(type);
   CHECK_EQ(0, backing_store_after - old_backing_store_before);
@@ -206,7 +206,7 @@ TEST(ExternalString_PromotedThinString) {
 
     // Collect thin string. References to the thin string will be updated to
     // point to the actual external string in the old space.
-    heap::GcAndSweep(heap, NEW_SPACE);
+    heap::InvokeAtomicMinorGC(heap);
 
     USE(isymbol1);
   }

@@ -41,7 +41,7 @@ TEST(WeakReferencesBasic) {
 
   MaybeObject code_object = lh->data1();
   CHECK(code_object->IsSmi());
-  heap::CollectAllGarbage(CcTest::heap());
+  heap::InvokeMajorGC(CcTest::heap());
   CHECK(!Heap::InYoungGeneration(*lh));
   CHECK_EQ(code_object, lh->data1());
 
@@ -62,13 +62,13 @@ TEST(WeakReferencesBasic) {
     CHECK(lh->data1()->GetHeapObjectIfWeak(&code_heap_object));
     CHECK_EQ(*code, code_heap_object);
 
-    heap::CollectAllGarbage(CcTest::heap());
+    heap::InvokeMajorGC(CcTest::heap());
 
     CHECK(lh->data1()->GetHeapObjectIfWeak(&code_heap_object));
     CHECK_EQ(*code, code_heap_object);
   }  // code will go out of scope.
 
-  heap::CollectAllGarbage(CcTest::heap());
+  heap::InvokeMajorGC(CcTest::heap());
   CHECK(lh->data1()->IsCleared());
 }
 
@@ -97,7 +97,7 @@ TEST(WeakReferencesOldToOld) {
 
   Page* page_before_gc = Page::FromHeapObject(*fixed_array);
   heap::ForceEvacuationCandidate(page_before_gc);
-  heap::CollectAllGarbage(heap);
+  heap::InvokeMajorGC(heap);
   CHECK(heap->InOldSpace(*fixed_array));
 
   HeapObject heap_object;
@@ -124,7 +124,7 @@ TEST(WeakReferencesOldToNew) {
   CHECK(Heap::InYoungGeneration(*fixed_array));
   lh->set_data1(HeapObjectReference::Weak(*fixed_array));
 
-  heap::CollectAllGarbage(heap);
+  heap::InvokeMajorGC(heap);
 
   HeapObject heap_object;
   CHECK(lh->data1()->GetHeapObjectIfWeak(&heap_object));
@@ -150,7 +150,7 @@ TEST(WeakReferencesOldToNewScavenged) {
   CHECK(Heap::InYoungGeneration(*fixed_array));
   lh->set_data1(HeapObjectReference::Weak(*fixed_array));
 
-  heap::CollectGarbage(heap, NEW_SPACE);
+  heap::InvokeMinorGC(heap);
 
   HeapObject heap_object;
   CHECK(lh->data1()->GetHeapObjectIfWeak(&heap_object));
@@ -174,7 +174,7 @@ TEST(WeakReferencesOldToCleared) {
   CHECK(heap->InOldSpace(*lh));
   lh->set_data1(HeapObjectReference::ClearedValue(isolate));
 
-  heap::CollectAllGarbage(heap);
+  heap::InvokeMajorGC(heap);
   CHECK(lh->data1()->IsCleared());
 }
 
@@ -209,13 +209,13 @@ TEST(ObjectMovesBeforeClearingWeakField) {
   SimulateIncrementalMarking(heap, true);
 
   // Scavenger will move *lh.
-  heap::CollectGarbage(heap, NEW_SPACE);
+  heap::InvokeMinorGC(heap);
   LoadHandler new_lh_location = *lh;
   CHECK_NE(lh_location, new_lh_location);
   CHECK(lh->data1()->IsWeak());
 
   // Now we try to clear *lh.
-  heap::CollectAllGarbage(heap);
+  heap::InvokeMajorGC(heap);
   CHECK(lh->data1()->IsCleared());
 }
 
@@ -249,10 +249,10 @@ TEST(ObjectWithWeakFieldDies) {
   }  // outer_scope goes out of scope
 
   // lh will die
-  heap::CollectGarbage(heap, NEW_SPACE);
+  heap::InvokeMinorGC(heap);
 
   // This used to crash when processing the dead weak reference.
-  heap::CollectAllGarbage(heap);
+  heap::InvokeMajorGC(heap);
 }
 
 TEST(ObjectWithWeakReferencePromoted) {
@@ -297,7 +297,7 @@ TEST(ObjectWithClearedWeakReferencePromoted) {
   CHECK(heap->InOldSpace(*lh));
   CHECK(lh->data1()->IsCleared());
 
-  heap::CollectAllGarbage(heap);
+  heap::InvokeMajorGC(heap);
   CHECK(lh->data1()->IsCleared());
 }
 
@@ -334,7 +334,7 @@ TEST(WeakReferenceWriteBarrier) {
     lh->set_data1(HeapObjectReference::Weak(*fixed_array2));
   }
 
-  heap::CollectAllGarbage(heap);
+  heap::InvokeMajorGC(heap);
 
   // Check that the write barrier treated the weak reference as strong.
   CHECK(lh->data1()->IsWeak());
@@ -403,7 +403,7 @@ TEST(WeakArraysBasic) {
 
   // TODO(marja): update this when/if we do handle weak references in the new
   // space.
-  heap::CollectGarbage(heap, NEW_SPACE);
+  heap::InvokeMinorGC(heap);
   HeapObject heap_object;
   CHECK(array->Get(0)->GetHeapObjectIfWeak(&heap_object));
   CHECK_EQ(Smi::cast(FixedArray::cast(heap_object).get(0)).value(), 2016);
@@ -414,7 +414,7 @@ TEST(WeakArraysBasic) {
   CHECK(array->Get(3)->GetHeapObjectIfWeak(&heap_object));
   CHECK_EQ(Smi::cast(FixedArray::cast(heap_object).get(0)).value(), 2019);
 
-  heap::CollectAllGarbage(heap);
+  heap::InvokeMajorGC(heap);
   CHECK(heap->InOldSpace(*array));
   CHECK(array->Get(0)->IsCleared());
   CHECK(array->Get(1)->GetHeapObjectIfWeak(&heap_object));
@@ -500,7 +500,7 @@ TEST(WeakArrayListBasic) {
 
   // TODO(marja): update this when/if we do handle weak references in the new
   // space.
-  heap::CollectGarbage(heap, NEW_SPACE);
+  heap::InvokeMinorGC(heap);
   HeapObject heap_object;
   CHECK_EQ(array->length(), 8);
   CHECK(array->Get(0)->GetHeapObjectIfWeak(&heap_object));
@@ -519,7 +519,7 @@ TEST(WeakArrayListBasic) {
   CHECK_EQ(Smi::cast(FixedArray::cast(heap_object).get(0)).value(), 2019);
   CHECK_EQ(array->Get(7).ToSmi().value(), 7);
 
-  heap::CollectAllGarbage(heap);
+  heap::InvokeMajorGC(heap);
   CHECK(heap->InOldSpace(*array));
   CHECK_EQ(array->length(), 8);
   CHECK(array->Get(0)->IsCleared());
@@ -619,14 +619,14 @@ TEST(Regress7768) {
   CompileRun("%DeoptimizeFunction(myfunc);");
 
   // The object pointed to by the weak reference won't be scavenged.
-  heap::CollectGarbage(heap, NEW_SPACE);
+  heap::InvokeMinorGC(heap);
 
   // Make sure the memory where it's stored is invalidated, so that we'll crash
   // if we try to access it.
   HeapTester::UncommitUnusedMemory(heap);
 
   // This used to crash when processing the dead weak reference.
-  heap::CollectAllGarbage(heap);
+  heap::InvokeMajorGC(heap);
 }
 
 TEST(PrototypeUsersBasic) {
@@ -755,7 +755,7 @@ TEST(PrototypeUsersCompacted) {
   }
 
   PrototypeUsers::MarkSlotEmpty(*array, 1);
-  heap::CollectAllGarbage(heap);
+  heap::InvokeMajorGC(heap);
   CHECK(array->Get(3)->IsCleared());
 
   CHECK_EQ(array->length(), 3 + PrototypeUsers::kFirstIndex);

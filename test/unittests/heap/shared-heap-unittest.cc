@@ -65,7 +65,7 @@ class SharedOldSpaceAllocationThread final : public ParkingThread {
                 10, AllocationType::kSharedOld);
           }
 
-          CollectGarbage(OLD_SPACE, i_client_isolate);
+          InvokeMajorGC(i_client_isolate);
 
           v8::platform::PumpMessageLoop(i::V8::GetCurrentPlatform(),
                                         client_isolate);
@@ -112,7 +112,7 @@ class SharedLargeOldSpaceAllocationThread final : public ParkingThread {
             CHECK(MemoryChunk::FromHeapObject(*fixed_array)->IsLargePage());
           }
 
-          CollectGarbage(OLD_SPACE, i_client_isolate);
+          InvokeMajorGC(i_client_isolate);
 
           v8::platform::PumpMessageLoop(i::V8::GetCurrentPlatform(),
                                         client_isolate);
@@ -156,7 +156,7 @@ class SharedMapSpaceAllocationThread final : public ParkingThread {
                 TERMINAL_FAST_ELEMENTS_KIND, 0, AllocationType::kSharedMap);
           }
 
-          CollectGarbage(OLD_SPACE, i_client_isolate);
+          InvokeMajorGC(i_client_isolate);
 
           v8::platform::PumpMessageLoop(i::V8::GetCurrentPlatform(),
                                         client_isolate);
@@ -182,7 +182,7 @@ TEST_F(SharedHeapTest, ConcurrentAllocationInSharedMapSpace) {
 }
 
 TEST_F(SharedHeapNoClientsTest, SharedCollectionWithoutClients) {
-  ::v8::internal::CollectGarbage(OLD_SPACE, i_shared_space_isolate());
+  ::v8::internal::InvokeMajorGC(i_shared_space_isolate());
 }
 
 void AllocateInSharedHeap(int iterations = 100) {
@@ -436,6 +436,10 @@ struct StateWithHandle {
 using SharedHeapTestStateWithHandle =
     SharedHeapTestBase<StateWithHandle, StateWithHandle>;
 
+void InvokeGC(AllocationSpace space, Isolate* isolate) {
+  space == NEW_SPACE ? InvokeMinorGC(isolate) : InvokeMajorGC(isolate);
+}
+
 template <typename TestType, AllocationType allocation, AllocationSpace space>
 void ToEachTheirOwnWithHandle(TestType* test) {
   using ThreadType = TestType::ThreadType;
@@ -467,11 +471,10 @@ void ToEachTheirOwnWithHandle(TestType* test) {
   });
 
   test->with_execute(
-      [](TestType* test) { i::CollectGarbage(space, test->i_isolate()); });
+      [](TestType* test) { InvokeGC(space, test->i_isolate()); });
 
-  thread->with_execute([](ThreadType* thread) {
-    i::CollectGarbage(space, thread->i_client_isolate());
-  });
+  thread->with_execute(
+      [](ThreadType* thread) { InvokeGC(space, thread->i_client_isolate()); });
 
   test->with_complete([](TestType* test) {
     // The handle should keep the fixed array from being reclaimed.
@@ -482,12 +485,12 @@ void ToEachTheirOwnWithHandle(TestType* test) {
     // The handle should keep the fixed array from being reclaimed.
     EXPECT_FALSE(thread->state()->weak.IsEmpty());
     thread->state()->scope.reset();  // Deallocate the handle scope.
-    i::CollectGarbage(space, thread->i_client_isolate());
+    InvokeGC(space, thread->i_client_isolate());
   });
 
   test->with_teardown([](TestType* test) {
     test->state()->scope.reset();  // Deallocate the handle scope.
-    i::CollectGarbage(space, test->i_isolate());
+    InvokeGC(space, test->i_isolate());
   });
 
   // Perform the test.
@@ -576,11 +579,10 @@ void ToEachTheirOwnWithRawPointer(TestType* test) {
   });
 
   test->with_execute(
-      [](TestType* test) { i::CollectGarbage(space, test->i_isolate()); });
+      [](TestType* test) { InvokeGC(space, test->i_isolate()); });
 
-  thread->with_execute([](ThreadType* thread) {
-    i::CollectGarbage(space, thread->i_client_isolate());
-  });
+  thread->with_execute(
+      [](ThreadType* thread) { InvokeGC(space, thread->i_client_isolate()); });
 
   test->with_complete([](TestType* test) {
     // With conservative stack scanning, the raw pointer should keep the fixed
@@ -592,11 +594,11 @@ void ToEachTheirOwnWithRawPointer(TestType* test) {
     // With conservative stack scanning, the raw pointer should keep the fixed
     // array from being reclaimed.
     EXPECT_FALSE(thread->state()->weak.IsEmpty());
-    i::CollectGarbage(space, thread->i_client_isolate());
+    InvokeGC(space, thread->i_client_isolate());
   });
 
   test->with_teardown(
-      [](TestType* test) { i::CollectGarbage(space, test->i_isolate()); });
+      [](TestType* test) { InvokeGC(space, test->i_isolate()); });
 
   // Perform the test.
   test->Interact();

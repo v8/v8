@@ -288,7 +288,7 @@ void FinalizeGCIfRunning(Isolate* isolate) {
   }
   auto* heap = isolate->heap();
   if (heap->incremental_marking()->IsMarking()) {
-    heap->CollectGarbage(OLD_SPACE, GarbageCollectionReason::kTesting);
+    InvokeMajorGC(isolate);
     heap->CompleteSweepingFull();
   }
 }

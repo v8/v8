@@ -277,8 +277,8 @@ TEST_F(HeapTest, GrowAndShrinkNewSpace) {
   }
 
   // Make sure we're in a consistent state to start out.
-  CollectAllGarbage();
-  CollectAllGarbage();
+  InvokeMajorGC();
+  InvokeMajorGC();
   ShrinkNewSpace(new_space);
 
   // Explicitly growing should double the space capacity.
@@ -346,7 +346,7 @@ TEST_F(HeapTest, CollectingAllAvailableGarbageShrinksNewSpace) {
     v8::HandleScope temporary_scope(iso);
     SimulateFullSpace(new_space);
   }
-  CollectAllAvailableGarbage();
+  InvokeMemoryReducingMajorGCs();
   new_capacity = new_space->TotalCapacity();
   CHECK_EQ(old_capacity, new_capacity);
 }
@@ -427,7 +427,7 @@ TEST_F(HeapTest, RememberedSet_InsertOnPromotingObjectToOld) {
     new_space->Grow();
     CHECK(new_space->EnsureCurrentCapacity());
   }
-  CollectGarbage(i::NEW_SPACE);
+  InvokeMinorGC();
   CHECK(Heap::InYoungGeneration(*arr));
 
   // Add into 'arr' a reference to an object one generation younger.
@@ -439,7 +439,7 @@ TEST_F(HeapTest, RememberedSet_InsertOnPromotingObjectToOld) {
 
   // Promote 'arr' into old, its element is still in new, the old to new
   // refs are inserted into the remembered sets during GC.
-  CollectGarbage(i::NEW_SPACE);
+  InvokeMinorGC();
   heap->EnsureSweepingCompleted(Heap::SweepingForcedFinalizationMode::kV8Only);
 
   CHECK(heap->InOldSpace(*arr));

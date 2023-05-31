@@ -38,7 +38,7 @@ TEST(Run_WasmModule_Buffer_Externalized_Detach) {
     int_buffer[0] = 0;
     // Embedder frees contents.
   }
-  heap::CollectAllAvailableGarbage(CcTest::heap());
+  heap::InvokeMemoryReducingMajorGCs(CcTest::heap());
 }
 
 TEST(Run_WasmModule_Buffer_Externalized_Regression_UseAfterFree) {
@@ -67,7 +67,7 @@ TEST(Run_WasmModule_Buffer_Externalized_Regression_UseAfterFree) {
         memory_object->array_buffer().backing_store());
     int_buffer[0] = 0;
   }
-  heap::CollectAllAvailableGarbage(CcTest::heap());
+  heap::InvokeMemoryReducingMajorGCs(CcTest::heap());
 }
 
 #if V8_TARGET_ARCH_64_BIT

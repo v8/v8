@@ -41,7 +41,7 @@ static void SetUpNewSpaceWithPoisonedMementoAtTop() {
   NewSpace* new_space = heap->new_space();
 
   // Make sure we can allocate some objects without causing a GC later.
-  heap::CollectAllGarbage(heap);
+  heap::InvokeMajorGC(heap);
 
   // Allocate a string, the GC may suspect a memento behind the string.
   Handle<SeqOneByteString> string =
@@ -72,7 +72,7 @@ TEST(Regress340063) {
 
   // Call GC to see if we can handle a poisonous memento right after the
   // current new space top pointer.
-  i::heap::PreciseCollectAllGarbage(CcTest::heap());
+  i::heap::InvokeAtomicMajorGC(CcTest::heap());
 }
 
 
@@ -97,7 +97,7 @@ TEST(Regress470390) {
 
   // Call GC to see if we can handle a poisonous memento right after the
   // current new space top pointer.
-  i::heap::PreciseCollectAllGarbage(CcTest::heap());
+  i::heap::InvokeAtomicMajorGC(CcTest::heap());
 }
 
 TEST(BadMementoAfterTopForceMinorGC) {
@@ -109,7 +109,7 @@ TEST(BadMementoAfterTopForceMinorGC) {
   SetUpNewSpaceWithPoisonedMementoAtTop();
 
   // Force GC to test the poisoned memento handling
-  i::heap::CollectGarbage(CcTest::heap(), i::NEW_SPACE);
+  i::heap::InvokeMinorGC(CcTest::heap());
 }
 
 }  // namespace internal

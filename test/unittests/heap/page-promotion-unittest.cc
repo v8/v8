@@ -57,7 +57,7 @@ TEST_F(PagePromotionTest, PagePromotion_NewToOld) {
 
     std::vector<Handle<FixedArray>> handles;
     SimulateFullSpace(heap->new_space(), &handles);
-    if (v8_flags.minor_mc) CollectGarbage(NEW_SPACE);
+    if (v8_flags.minor_mc) InvokeMinorGC();
     CHECK_GT(handles.size(), 0u);
     Page* const to_be_promoted_page = FindPageInNewSpace(handles);
     CHECK_NOT_NULL(to_be_promoted_page);

@@ -272,8 +272,7 @@ TEST_F(UnifiedHeapWithCustomSpaceSnapshotTest, ConsistentIdAfterCompaction) {
   CppHeap::From(isolate()->heap()->cpp_heap())
       ->compactor()
       .EnableForNextGCForTesting();
-  isolate()->heap()->CollectAllGarbage(i::GCFlag::kReduceMemoryFootprint,
-                                       i::GarbageCollectionReason::kTesting);
+  i::InvokeMajorGC(isolate(), i::GCFlag::kReduceMemoryFootprint);
   EXPECT_NE(original_pointer, gced->object);
 
   // In the second heap snapshot, the moved object should still have the same

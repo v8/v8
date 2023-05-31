@@ -64,8 +64,8 @@ TEST_F(SingleThreadedDefaultPlatformTest, SingleThreadedDefaultPlatform) {
         "f();");
   }
 
-  CollectGarbage(i::NEW_SPACE, i_isolate());
-  CollectAllAvailableGarbage(i_isolate());
+  InvokeMinorGC(i_isolate());
+  InvokeMemoryReducingMajorGCs(i_isolate());
 }
 
 }  // namespace v8

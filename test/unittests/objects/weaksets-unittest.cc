@@ -99,7 +99,7 @@ TEST_F(WeakSetsTest, WeakSet_Weakness) {
   CHECK_EQ(1, EphemeronHashTable::cast(weakset->table()).NumberOfElements());
 
   // Force a full GC.
-  PreciseCollectAllGarbage();
+  InvokeAtomicMajorGC();
   CHECK_EQ(0, NumberOfWeakCalls);
   CHECK_EQ(1, EphemeronHashTable::cast(weakset->table()).NumberOfElements());
   CHECK_EQ(
@@ -115,7 +115,7 @@ TEST_F(WeakSetsTest, WeakSet_Weakness) {
   // We need to invoke GC without stack here, otherwise the object may survive.
   DisableConservativeStackScanningScopeForTesting no_stack_scanning(
       isolate()->heap());
-  PreciseCollectAllGarbage();
+  InvokeAtomicMajorGC();
   CHECK_EQ(1, NumberOfWeakCalls);
   CHECK_EQ(0, EphemeronHashTable::cast(weakset->table()).NumberOfElements());
   CHECK_EQ(
@@ -149,7 +149,7 @@ TEST_F(WeakSetsTest, WeakSet_Shrinking) {
   CHECK_EQ(32, EphemeronHashTable::cast(weakset->table()).NumberOfElements());
   CHECK_EQ(
       0, EphemeronHashTable::cast(weakset->table()).NumberOfDeletedElements());
-  PreciseCollectAllGarbage();
+  InvokeAtomicMajorGC();
   CHECK_EQ(0, EphemeronHashTable::cast(weakset->table()).NumberOfElements());
   CHECK_EQ(
       32, EphemeronHashTable::cast(weakset->table()).NumberOfDeletedElements());
@@ -195,7 +195,7 @@ TEST_F(WeakSetsTest, WeakSet_Regress2060a) {
   CHECK(v8_flags.compact_on_every_full_gc);
   // We need to invoke GC without stack, otherwise no compaction is performed.
   DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
-  CollectAllGarbage();
+  InvokeMajorGC();
 }
 
 // Test that weak set keys on an evacuation candidate which are reachable by
@@ -239,9 +239,9 @@ TEST_F(WeakSetsTest, WeakSet_Regress2060b) {
   CHECK(v8_flags.compact_on_every_full_gc);
   // We need to invoke GC without stack, otherwise no compaction is performed.
   DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
-  CollectAllGarbage();
-  CollectAllGarbage();
-  CollectAllGarbage();
+  InvokeMajorGC();
+  InvokeMajorGC();
+  InvokeMajorGC();
 }
 
 }  // namespace test_weaksets

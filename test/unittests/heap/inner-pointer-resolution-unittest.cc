@@ -703,7 +703,7 @@ TEST_F(InnerPointerResolutionHeapTest, UnusedRegularYoungPages) {
 
   // Garbage collection should reclaim the two large objects with the weak
   // references, but not the small one with the strong reference.
-  GcAndSweep(NEW_SPACE);
+  InvokeAtomicMinorGC();
   EXPECT_TRUE(weak1.IsEmpty());
   EXPECT_TRUE(weak2.IsEmpty());
   EXPECT_TRUE(!strong.IsEmpty());
@@ -725,7 +725,7 @@ TEST_F(InnerPointerResolutionHeapTest, UnusedRegularYoungPages) {
   EXPECT_EQ(kNullAddress, ResolveInnerPointer(outside_ptr2));
 
   // Garbage collection once more.
-  GcAndSweep(NEW_SPACE);
+  InvokeAtomicMinorGC();
   EXPECT_EQ(AllocationSpace::NEW_SPACE, page1->owner_identity());
   EXPECT_EQ(AllocationSpace::NEW_SPACE, page2->owner_identity());
   // The two pages should still be around, in the new space.
@@ -777,7 +777,7 @@ TEST_F(InnerPointerResolutionHeapTest, UnusedLargeYoungPage) {
   }
 
   // Garbage collection should reclaim the object.
-  GcAndSweep(NEW_SPACE);
+  InvokeAtomicMinorGC();
   EXPECT_TRUE(weak.IsEmpty());
 
   // Inner pointer resolution should work with a pointer to an unused young

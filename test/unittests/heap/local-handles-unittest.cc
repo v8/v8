@@ -90,7 +90,7 @@ TEST_F(LocalHandlesTest, CreateLocalHandles) {
 
   sema_started.Wait();
 
-  CollectGarbage(OLD_SPACE);
+  InvokeMajorGC();
   sema_gc_finished.Signal();
 
   thread->Join();

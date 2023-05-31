@@ -817,11 +817,11 @@ UNINITIALIZED_TEST(PromotionMarkCompact) {
 
     // 1st GC moves `one_byte_seq` to old space and 2nd GC evacuates it within
     // old space.
-    heap::CollectAllGarbage(heap);
+    heap::InvokeMajorGC(heap);
     heap::ForceEvacuationCandidate(i::Page::FromHeapObject(*one_byte_seq));
     // We need to invoke GC without stack, otherwise no compaction is performed.
     DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
-    heap::CollectAllGarbage(heap);
+    heap::InvokeMajorGC(heap);
 
     // In-place-internalizable strings are promoted into the shared heap when
     // sharing.
@@ -858,7 +858,7 @@ UNINITIALIZED_TEST(PromotionScavenge) {
     CHECK(heap->InSpace(*one_byte_seq, NEW_SPACE));
 
     for (int i = 0; i < 2; i++) {
-      heap::CollectGarbage(heap, NEW_SPACE);
+      heap::InvokeMinorGC(heap);
     }
 
     // In-place-internalizable strings are promoted into the shared heap when
@@ -906,7 +906,7 @@ UNINITIALIZED_TEST(PromotionScavengeOldToShared) {
         RememberedSet<OLD_TO_NEW>::Contains(old_object_chunk, slot.address()));
 
     for (int i = 0; i < 2; i++) {
-      heap::CollectGarbage(heap, NEW_SPACE);
+      heap::InvokeMinorGC(heap);
     }
 
     // In-place-internalizable strings are promoted into the shared heap when
@@ -958,7 +958,7 @@ UNINITIALIZED_TEST(PromotionMarkCompactNewToShared) {
 
     // We need to invoke GC without stack, otherwise no compaction is performed.
     DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
-    heap::CollectGarbage(heap, OLD_SPACE);
+    heap::InvokeMajorGC(heap);
 
     // In-place-internalizable strings are promoted into the shared heap when
     // sharing.
@@ -1009,7 +1009,7 @@ UNINITIALIZED_TEST(PromotionMarkCompactOldToShared) {
     // Fill the page and do a full GC. Page promotion should kick in and promote
     // the page as is to old space.
     heap::FillCurrentPage(heap->new_space(), &handles);
-    heap->CollectGarbage(OLD_SPACE, GarbageCollectionReason::kTesting);
+    heap::InvokeMajorGC(heap);
     // Make sure 'one_byte_seq' is in old space.
     CHECK(!MemoryChunk::FromHeapObject(*one_byte_seq)->InYoungGeneration());
     CHECK(heap->Contains(*one_byte_seq));
@@ -1022,7 +1022,7 @@ UNINITIALIZED_TEST(PromotionMarkCompactOldToShared) {
     heap::ForceEvacuationCandidate(Page::FromHeapObject(*one_byte_seq));
     // We need to invoke GC without stack, otherwise no compaction is performed.
     DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
-    heap->CollectGarbage(OLD_SPACE, GarbageCollectionReason::kTesting);
+    heap::InvokeMajorGC(heap);
 
     // In-place-internalizable strings are promoted into the shared heap when
     // sharing.
@@ -1987,7 +1987,7 @@ UNINITIALIZED_TEST(SharedStringInGlobalHandle) {
                                           lh_shared_string);
   gh_shared_string.SetWeak();
 
-  heap::CollectGarbage(i_isolate->heap(), OLD_SPACE);
+  heap::InvokeMajorGC(i_isolate->heap());
 
   CHECK(!gh_shared_string.IsEmpty());
 }
@@ -2443,8 +2443,7 @@ class Regress1424955ClientIsolateThread : public v8::base::Thread {
       USE(array);
 
       // Start sweeping.
-      i_client_heap->CollectGarbage(OLD_SPACE,
-                                    GarbageCollectionReason::kTesting);
+      heap::InvokeMajorGC(i_client_heap);
       CHECK(i_client_heap->sweeping_in_progress());
 
       // Inform the initiator thread it's time to request a global safepoint.
@@ -2463,8 +2462,7 @@ class Regress1424955ClientIsolateThread : public v8::base::Thread {
       // Start a minor GC. This will cause this client isolate to join the
       // global safepoint. At which point, the initiator isolate will try to
       // finalize sweeping on behalf of this client isolate.
-      i_client_heap->CollectGarbage(NEW_SPACE,
-                                    GarbageCollectionReason::kTesting);
+      heap::InvokeMinorGC(i_client_heap);
     }
 
     // Wait for the initiator isolate to finish the shared GC.

@@ -157,8 +157,8 @@ void CheckDebuggerUnloaded() {
   // Collect garbage to ensure weak handles are cleared.
   i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
       CcTest::heap());
-  heap::CollectAllGarbage(CcTest::heap());
-  heap::CollectAllGarbage(CcTest::heap());
+  heap::InvokeMajorGC(CcTest::heap());
+  heap::InvokeMajorGC(CcTest::heap());
 
   // Iterate the heap and check that there are no debugger related objects left.
   HeapObjectIterator iterator(CcTest::heap());
@@ -218,10 +218,10 @@ class DebugEventBreakPointCollectGarbage : public v8::debug::DebugDelegate {
     break_point_hit_count++;
     if (break_point_hit_count % 2 == 0) {
       // Scavenge.
-      i::heap::CollectGarbage(CcTest::heap(), i::NEW_SPACE);
+      i::heap::InvokeMinorGC(CcTest::heap());
     } else {
       // Mark sweep compact.
-      i::heap::CollectAllGarbage(CcTest::heap());
+      i::heap::InvokeMajorGC(CcTest::heap());
     }
   }
 };
@@ -238,7 +238,7 @@ class DebugEventBreak : public v8::debug::DebugDelegate {
 
     // Run the garbage collector to enforce heap verification if option
     // --verify-heap is set.
-    i::heap::CollectGarbage(CcTest::heap(), i::NEW_SPACE);
+    i::heap::InvokeMinorGC(CcTest::heap());
 
     // Set the break flag again to come back here as soon as possible.
     v8::debug::SetBreakOnNextFunctionCall(CcTest::isolate());
@@ -1745,12 +1745,12 @@ static void CallAndGC(v8::Local<v8::Context> context,
     CHECK_EQ(1 + i * 3, break_point_hit_count);
 
     // Scavenge and call function.
-    i::heap::CollectGarbage(CcTest::heap(), i::NEW_SPACE);
+    i::heap::InvokeMinorGC(CcTest::heap());
     f->Call(context, recv, 0, nullptr).ToLocalChecked();
     CHECK_EQ(2 + i * 3, break_point_hit_count);
 
     // Mark sweep (and perhaps compact) and call function.
-    i::heap::CollectAllGarbage(CcTest::heap());
+    i::heap::InvokeMajorGC(CcTest::heap());
     f->Call(context, recv, 0, nullptr).ToLocalChecked();
     CHECK_EQ(3 + i * 3, break_point_hit_count);
   }

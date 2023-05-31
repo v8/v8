@@ -25,18 +25,41 @@ class HeapInternalsBase {
                        std::vector<Handle<FixedArray>>* out_handles = nullptr);
 };
 
-inline void CollectGarbage(AllocationSpace space, Isolate* isolate) {
-  isolate->heap()->CollectGarbage(space, GarbageCollectionReason::kTesting);
+inline void InvokeMajorGC(i::Isolate* isolate) {
+  isolate->heap()->CollectGarbage(OLD_SPACE, GarbageCollectionReason::kTesting);
 }
 
-inline void CollectAllAvailableGarbage(Isolate* isolate) {
+inline void InvokeMajorGC(i::Isolate* isolate, GCFlag gc_flag) {
+  isolate->heap()->CollectAllGarbage(gc_flag,
+                                     GarbageCollectionReason::kTesting);
+}
+
+inline void InvokeMinorGC(i::Isolate* isolate) {
+  isolate->heap()->CollectGarbage(NEW_SPACE, GarbageCollectionReason::kTesting);
+}
+
+inline void InvokeAtomicMajorGC(i::Isolate* isolate) {
+  Heap* heap = isolate->heap();
+  heap->PreciseCollectAllGarbage(GCFlag::kNoFlags,
+                                 GarbageCollectionReason::kTesting);
+  if (heap->sweeping_in_progress()) {
+    heap->EnsureSweepingCompleted(
+        Heap::SweepingForcedFinalizationMode::kUnifiedHeap);
+  }
+}
+
+inline void InvokeAtomicMinorGC(i::Isolate* isolate) {
+  InvokeMinorGC(isolate);
+  Heap* heap = isolate->heap();
+  if (heap->sweeping_in_progress()) {
+    heap->EnsureSweepingCompleted(
+        Heap::SweepingForcedFinalizationMode::kUnifiedHeap);
+  }
+}
+
+inline void InvokeMemoryReducingMajorGCs(i::Isolate* isolate) {
   isolate->heap()->CollectAllAvailableGarbage(
       GarbageCollectionReason::kTesting);
-}
-
-inline void PreciseCollectAllGarbage(Isolate* isolate) {
-  isolate->heap()->PreciseCollectAllGarbage(GCFlag::kNoFlags,
-                                            GarbageCollectionReason::kTesting);
 }
 
 template <typename TMixin>
@@ -46,17 +69,20 @@ class WithHeapInternals : public TMixin, HeapInternalsBase {
   WithHeapInternals(const WithHeapInternals&) = delete;
   WithHeapInternals& operator=(const WithHeapInternals&) = delete;
 
-  void CollectGarbage(AllocationSpace space) {
-    heap()->CollectGarbage(space, GarbageCollectionReason::kTesting);
+  void InvokeMajorGC() { i::InvokeMajorGC(this->i_isolate()); }
+
+  void InvokeMajorGC(GCFlag gc_flag) {
+    i::InvokeMajorGC(this->i_isolate(), gc_flag);
   }
 
-  void CollectAllGarbage() {
-    heap()->CollectAllGarbage(GCFlag::kNoFlags,
-                              GarbageCollectionReason::kTesting);
-  }
+  void InvokeMinorGC() { i::InvokeMinorGC(this->i_isolate()); }
 
-  void CollectAllAvailableGarbage() {
-    heap()->CollectAllAvailableGarbage(GarbageCollectionReason::kTesting);
+  void InvokeAtomicMajorGC() { i::InvokeAtomicMajorGC(this->i_isolate()); }
+
+  void InvokeAtomicMinorGC() { i::InvokeAtomicMinorGC(this->i_isolate()); }
+
+  void InvokeMemoryReducingMajorGCs() {
+    i::InvokeMemoryReducingMajorGCs(this->i_isolate());
   }
 
   void PreciseCollectAllGarbage() {
@@ -94,8 +120,8 @@ class WithHeapInternals : public TMixin, HeapInternalsBase {
     // test: v8_flags.stress_concurrent_allocation = false; Background thread
     // allocating concurrently interferes with this function.
     CHECK(!v8_flags.stress_concurrent_allocation);
-    CollectGarbage(OLD_SPACE);
-    CollectGarbage(OLD_SPACE);
+    InvokeMajorGC();
+    InvokeMajorGC();
     heap()->EnsureSweepingCompleted(
         Heap::SweepingForcedFinalizationMode::kV8Only);
     heap()->old_space()->FreeLinearAllocationArea();
@@ -104,16 +130,7 @@ class WithHeapInternals : public TMixin, HeapInternalsBase {
     }
   }
 
-  void GcAndSweep(AllocationSpace space) {
-    heap()->CollectGarbage(space, GarbageCollectionReason::kTesting);
-    if (heap()->sweeping_in_progress()) {
-      IsolateSafepointScope scope(heap());
-      heap()->EnsureSweepingCompleted(
-          Heap::SweepingForcedFinalizationMode::kV8Only);
-    }
-  }
-
-  void EmptyNewSpaceUsingGC() { CollectGarbage(OLD_SPACE); }
+  void EmptyNewSpaceUsingGC() { InvokeMajorGC(); }
 };
 
 using TestWithHeapInternals =                  //

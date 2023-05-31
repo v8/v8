@@ -31,8 +31,8 @@ void SealCurrentObjects(Heap* heap) {
   // v8_flags.stress_concurrent_allocation = false;
   // Background thread allocating concurrently interferes with this function.
   CHECK(!v8_flags.stress_concurrent_allocation);
-  heap::CollectAllGarbage(heap);
-  heap::CollectAllGarbage(heap);
+  heap::InvokeMajorGC(heap);
+  heap::InvokeMajorGC(heap);
   heap->EnsureSweepingCompleted(Heap::SweepingForcedFinalizationMode::kV8Only);
   heap->old_space()->FreeLinearAllocationArea();
   for (Page* page : *heap->old_space()) {
@@ -326,21 +326,37 @@ void AbandonCurrentlyFreeMemory(PagedSpace* space) {
   }
 }
 
-void CollectGarbage(Heap* heap, AllocationSpace space) {
-  heap->CollectGarbage(space, GarbageCollectionReason::kTesting);
+void InvokeMajorGC(Heap* heap) {
+  heap->CollectGarbage(OLD_SPACE, GarbageCollectionReason::kTesting);
 }
 
-void CollectAllGarbage(Heap* heap) {
-  heap->CollectAllGarbage(GCFlag::kNoFlags, GarbageCollectionReason::kTesting);
+void InvokeMajorGC(Heap* heap, GCFlag gc_flag) {
+  heap->CollectAllGarbage(gc_flag, GarbageCollectionReason::kTesting);
 }
 
-void CollectAllAvailableGarbage(Heap* heap) {
-  heap->CollectAllAvailableGarbage(GarbageCollectionReason::kTesting);
+void InvokeMinorGC(Heap* heap) {
+  heap->CollectGarbage(NEW_SPACE, GarbageCollectionReason::kTesting);
 }
 
-void PreciseCollectAllGarbage(Heap* heap) {
+void InvokeAtomicMajorGC(Heap* heap) {
   heap->PreciseCollectAllGarbage(GCFlag::kNoFlags,
                                  GarbageCollectionReason::kTesting);
+  if (heap->sweeping_in_progress()) {
+    heap->EnsureSweepingCompleted(
+        Heap::SweepingForcedFinalizationMode::kUnifiedHeap);
+  }
+}
+
+void InvokeAtomicMinorGC(Heap* heap) {
+  InvokeMinorGC(heap);
+  if (heap->sweeping_in_progress()) {
+    heap->EnsureSweepingCompleted(
+        Heap::SweepingForcedFinalizationMode::kUnifiedHeap);
+  }
+}
+
+void InvokeMemoryReducingMajorGCs(Heap* heap) {
+  heap->CollectAllAvailableGarbage(GarbageCollectionReason::kTesting);
 }
 
 void CollectSharedGarbage(Heap* heap) {
@@ -348,16 +364,7 @@ void CollectSharedGarbage(Heap* heap) {
                              GarbageCollectionReason::kTesting);
 }
 
-void GcAndSweep(Heap* heap, AllocationSpace space) {
-  CollectGarbage(heap, space);
-  if (heap->sweeping_in_progress()) {
-    IsolateSafepointScope scope(heap);
-    heap->EnsureSweepingCompleted(
-        Heap::SweepingForcedFinalizationMode::kV8Only);
-  }
-}
-
-void EmptyNewSpaceUsingGC(Heap* heap) { CollectGarbage(heap, OLD_SPACE); }
+void EmptyNewSpaceUsingGC(Heap* heap) { InvokeMajorGC(heap); }
 
 void ForceEvacuationCandidate(Page* page) {
   CHECK(v8_flags.manual_evacuation_candidates_selection);

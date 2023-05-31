@@ -68,7 +68,7 @@ THREADED_TEST(ArrayBuffer_ApiInternalToExternal) {
   Local<v8::ArrayBuffer> ab = v8::ArrayBuffer::New(isolate, 1024);
   CheckInternalFieldsAreZero(ab);
   CHECK_EQ(1024, ab->ByteLength());
-  i::heap::CollectAllGarbage(CcTest::heap());
+  i::heap::InvokeMajorGC(CcTest::heap());
 
   std::shared_ptr<v8::BackingStore> backing_store = Externalize(ab);
   CHECK_EQ(1024, backing_store->ByteLength());
@@ -307,7 +307,7 @@ THREADED_TEST(SharedArrayBuffer_ApiInternalToExternal) {
   Local<v8::SharedArrayBuffer> ab = v8::SharedArrayBuffer::New(isolate, 1024);
   CheckInternalFieldsAreZero(ab);
   CHECK_EQ(1024, ab->ByteLength());
-  i::heap::CollectAllGarbage(CcTest::heap());
+  i::heap::InvokeMajorGC(CcTest::heap());
 
   std::shared_ptr<v8::BackingStore> backing_store = Externalize(ab);
 
@@ -391,8 +391,8 @@ THREADED_TEST(SkipArrayBufferBackingStoreDuringGC) {
 
   // Should not crash
   i::heap::EmptyNewSpaceUsingGC(CcTest::heap());
-  i::heap::CollectAllGarbage(CcTest::heap());
-  i::heap::CollectAllGarbage(CcTest::heap());
+  i::heap::InvokeMajorGC(CcTest::heap());
+  i::heap::InvokeMajorGC(CcTest::heap());
 
   // Should not move the pointer
   CHECK_EQ(ab->GetBackingStore()->Data(), store_ptr);
@@ -413,7 +413,7 @@ THREADED_TEST(SkipArrayBufferDuringScavenge) {
   auto backing_store = v8::ArrayBuffer::NewBackingStore(
       store_ptr, 8, [](void*, size_t, void*) {}, nullptr);
 
-  i::heap::CollectGarbage(CcTest::heap(), i::NEW_SPACE);
+  i::heap::InvokeMinorGC(CcTest::heap());
 
   // Create ArrayBuffer with pointer-that-cannot-be-visited in the backing store
   Local<v8::ArrayBuffer> ab =

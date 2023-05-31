@@ -344,7 +344,7 @@ static void CheckAccessorArgsCorrect(
             ->Equals(info.GetIsolate()->GetCurrentContext(), v8_str("data"))
             .FromJust());
   CHECK(info.GetIsolate() == CcTest::isolate());
-  i::heap::CollectAllGarbage(CcTest::heap());
+  i::heap::InvokeMajorGC(CcTest::heap());
   CHECK(info.This() == info.Holder());
   CHECK(info.Data()
             ->Equals(info.GetIsolate()->GetCurrentContext(), v8_str("data"))

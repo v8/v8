@@ -75,9 +75,9 @@ class InterruptTest {
     i_thread.Join();
   }
 
-  static void CollectAllGarbage(Isolate* isolate, void* data) {
+  static void InvokeMajorGC(Isolate* isolate, void* data) {
     i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-    i::heap::PreciseCollectAllGarbage(i_isolate->heap());
+    i::heap::InvokeAtomicMajorGC(i_isolate->heap());
   }
 
   static void MakeSubjectOneByteExternal(Isolate* isolate, void* data) {
@@ -239,11 +239,11 @@ void SetCommonV8FlagsForInterruptTests() {
 
 }  // namespace
 
-TEST(InterruptAndCollectAllGarbage) {
+TEST(InterruptAndInvokeMajorGC) {
   // Move all movable objects on GC.
   i::v8_flags.compact_on_every_full_gc = true;
   SetCommonV8FlagsForInterruptTests();
-  InterruptTest{}.RunTest(InterruptTest::CollectAllGarbage);
+  InterruptTest{}.RunTest(InterruptTest::InvokeMajorGC);
 }
 
 TEST(InterruptAndMakeSubjectOneByteExternal) {

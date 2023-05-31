@@ -378,7 +378,7 @@ void InterceptorHasOwnPropertyGetter(
 void InterceptorHasOwnPropertyGetterGC(
     Local<Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
   // The request is not intercepted so don't call ApiTestFuzzer::Fuzz() here.
-  i::heap::CollectAllGarbage(CcTest::heap());
+  i::heap::InvokeMajorGC(CcTest::heap());
 }
 
 int query_counter_int = 0;

@@ -171,7 +171,7 @@ TEST_F(LocalHeapTest, GCEpilogue) {
   CHECK(thread2->Start());
   epilogue[1].WaitUntilStarted();
   epilogue[2].WaitUntilStarted();
-  PreciseCollectAllGarbage(i_isolate());
+  InvokeAtomicMajorGC(i_isolate());
   epilogue[1].RequestStop();
   epilogue[2].RequestStop();
   thread1->Join();

@@ -107,7 +107,7 @@ class WasmSerializationTest {
   void CollectGarbage() {
     // Try hard to collect all garbage and will therefore also invoke all weak
     // callbacks of actually unreachable persistent handles.
-    heap::CollectAllAvailableGarbage(CcTest::heap());
+    heap::InvokeMemoryReducingMajorGCs(CcTest::heap());
   }
 
   v8::MemorySpan<const uint8_t> wire_bytes() const { return wire_bytes_; }
