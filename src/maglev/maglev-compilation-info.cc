@@ -108,8 +108,8 @@ void MaglevCompilationInfo::set_code_generator(
 
 namespace {
 template <typename T>
-Handle<T> CanonicalHandle(CanonicalHandlesMap* canonical_handles, T object,
-                          Isolate* isolate) {
+Handle<T> CanonicalHandle(CanonicalHandlesMap* canonical_handles,
+                          Tagged<T> object, Isolate* isolate) {
   DCHECK_NOT_NULL(canonical_handles);
   DCHECK(PersistentHandlesScope::IsActive(isolate));
   auto find_result = canonical_handles->FindOrInsert(object);

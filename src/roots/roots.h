@@ -13,6 +13,7 @@
 #include "src/objects/objects-definitions.h"
 #include "src/objects/objects.h"
 #include "src/objects/slots.h"
+#include "src/objects/tagged.h"
 
 namespace v8 {
 namespace internal {
@@ -614,6 +615,10 @@ class RootsTable {
   friend class SoleReadOnlyHeap;
 };
 
+#define ROOT_TYPE_FWD_DECL(Type, name, CamelName) class Type;
+READ_ONLY_ROOT_LIST(ROOT_TYPE_FWD_DECL)
+#undef ROOT_TYPE_FWD_DECL
+
 class ReadOnlyRoots {
  public:
   static constexpr size_t kEntriesCount =
@@ -627,9 +632,9 @@ class ReadOnlyRoots {
   // map-word instead of a tagged heap pointer.
   MapWord one_pointer_filler_map_word();
 
-#define ROOT_ACCESSOR(Type, name, CamelName)     \
-  V8_INLINE class Type name() const;             \
-  V8_INLINE class Type unchecked_##name() const; \
+#define ROOT_ACCESSOR(Type, name, CamelName)       \
+  V8_INLINE Tagged<Type> name() const;             \
+  V8_INLINE Tagged<Type> unchecked_##name() const; \
   V8_INLINE Handle<Type> name##_handle() const;
 
   READ_ONLY_ROOT_LIST(ROOT_ACCESSOR)
@@ -646,7 +651,7 @@ class ReadOnlyRoots {
   Handle<HeapNumber> FindHeapNumber(double value);
 
   V8_INLINE Address address_at(RootIndex root_index) const;
-  V8_INLINE Object object_at(RootIndex root_index) const;
+  V8_INLINE Tagged<Object> object_at(RootIndex root_index) const;
   V8_INLINE Handle<Object> handle_at(RootIndex root_index) const;
 
   // Check if a slot is initialized yet. Should only be neccessary for code

@@ -667,7 +667,7 @@ void JSGeneratorObject::JSGeneratorObjectPrint(std::ostream& os) {
     if (fun_info.HasSourceCode()) {
       Script script = Script::cast(fun_info.script());
       String script_name = script.name().IsString()
-                               ? String::cast(script.name())
+                               ? Tagged<String>::cast(script.name())
                                : GetReadOnlyRoots().empty_string();
 
       os << "\n - source position: ";

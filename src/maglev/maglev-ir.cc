@@ -274,7 +274,7 @@ bool CheckToBooleanOnAllRoots(LocalIsolate* local_isolate) {
   /* Ignore 'undefined' roots that are not the undefined value itself. */ \
   if (roots.name() != roots.undefined_value() ||                          \
       RootIndex::k##CamelName == RootIndex::kUndefinedValue) {            \
-    DCHECK_EQ(roots.name().BooleanValue(local_isolate),                   \
+    DCHECK_EQ(roots.name()->BooleanValue(local_isolate),                  \
               RootToBoolean(RootIndex::k##CamelName));                    \
   }
   READ_ONLY_ROOT_LIST(DO_CHECK)

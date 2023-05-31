@@ -539,16 +539,15 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   TNode<Smi> NoContextConstant();
 
-#define HEAP_CONSTANT_ACCESSOR(rootIndexName, rootAccessorName, name)  \
-  TNode<std::remove_pointer<std::remove_reference<decltype(            \
-      std::declval<ReadOnlyRoots>().rootAccessorName())>::type>::type> \
+#define HEAP_CONSTANT_ACCESSOR(rootIndexName, rootAccessorName, name)    \
+  TNode<RemoveTagged<                                                    \
+      decltype(std::declval<ReadOnlyRoots>().rootAccessorName())>::type> \
       name##Constant();
   HEAP_IMMUTABLE_IMMOVABLE_OBJECT_LIST(HEAP_CONSTANT_ACCESSOR)
 #undef HEAP_CONSTANT_ACCESSOR
 
-#define HEAP_CONSTANT_ACCESSOR(rootIndexName, rootAccessorName, name) \
-  TNode<std::remove_pointer<std::remove_reference<decltype(           \
-      std::declval<Heap>().rootAccessorName())>::type>::type>         \
+#define HEAP_CONSTANT_ACCESSOR(rootIndexName, rootAccessorName, name)          \
+  TNode<RemoveTagged<decltype(std::declval<Heap>().rootAccessorName())>::type> \
       name##Constant();
   HEAP_MUTABLE_IMMOVABLE_OBJECT_LIST(HEAP_CONSTANT_ACCESSOR)
 #undef HEAP_CONSTANT_ACCESSOR

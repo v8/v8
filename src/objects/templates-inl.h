@@ -84,7 +84,7 @@ RARE_ACCESSORS(instance_call_handler, InstanceCallHandler, HeapObject,
                undefined)
 RARE_ACCESSORS(access_check_info, AccessCheckInfo, HeapObject, undefined)
 RARE_ACCESSORS(c_function_overloads, CFunctionOverloads, FixedArray,
-               GetReadOnlyRoots(cage_base).empty_fixed_array())
+               *GetReadOnlyRoots(cage_base).empty_fixed_array())
 #undef RARE_ACCESSORS
 
 int FunctionTemplateInfo::InstanceType() const {

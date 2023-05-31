@@ -474,6 +474,7 @@ class SmallOrderedHashTable : public HeapObject {
     return InternalIndex::Range(UsedCapacity());
   }
 
+  DECL_CAST(SmallOrderedHashTable)
   DECL_VERIFIER(SmallOrderedHashTable)
 
   static const int kMinCapacity = 4;

@@ -1955,6 +1955,7 @@ filegroup(
         "src/objects/synthetic-module.cc",
         "src/objects/synthetic-module.h",
         "src/objects/synthetic-module-inl.h",
+        "src/objects/tagged.h",
         "src/objects/tagged-field.h",
         "src/objects/tagged-field-inl.h",
         "src/objects/tagged-impl.cc",

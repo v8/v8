@@ -297,6 +297,13 @@ bool Heap::InYoungGeneration(HeapObject heap_object) {
 }
 
 // static
+template <typename T>
+inline bool Heap::InYoungGeneration(Tagged<T> object) {
+  static_assert(kTaggedCanConvertToRawObjects);
+  return InYoungGeneration(*object);
+}
+
+// static
 bool Heap::InWritableSharedSpace(MaybeObject object) {
   HeapObject heap_object;
   return object->GetHeapObject(&heap_object) &&
@@ -321,6 +328,13 @@ bool Heap::InFromPage(HeapObject heap_object) {
 }
 
 // static
+template <typename T>
+inline bool Heap::InFromPage(Tagged<T> object) {
+  static_assert(kTaggedCanConvertToRawObjects);
+  return InYoungGeneration(*object);
+}
+
+// static
 bool Heap::InToPage(Object object) {
   DCHECK(!HasWeakHeapObjectTag(object));
   return object.IsHeapObject() && InToPage(HeapObject::cast(object));
@@ -335,6 +349,13 @@ bool Heap::InToPage(MaybeObject object) {
 // static
 bool Heap::InToPage(HeapObject heap_object) {
   return BasicMemoryChunk::FromHeapObject(heap_object)->IsToPage();
+}
+
+// static
+template <typename T>
+inline bool Heap::InToPage(Tagged<T> object) {
+  static_assert(kTaggedCanConvertToRawObjects);
+  return InYoungGeneration(*object);
 }
 
 bool Heap::InOldSpace(Object object) {

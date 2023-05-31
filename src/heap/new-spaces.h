@@ -48,6 +48,8 @@ class SemiSpace final : public Space {
 
   inline bool Contains(HeapObject o) const;
   inline bool Contains(Object o) const;
+  template <typename T>
+  inline bool Contains(Tagged<T> o) const;
   inline bool ContainsSlow(Address a) const;
 
   void SetUp(size_t initial_capacity, size_t maximum_capacity);
@@ -227,6 +229,8 @@ class NewSpace : NON_EXPORTED_BASE(public SpaceWithLinearArea) {
 
   inline bool Contains(Object o) const;
   inline bool Contains(HeapObject o) const;
+  template <typename T>
+  inline bool Contains(Tagged<T> o) const;
   virtual bool ContainsSlow(Address a) const = 0;
 
 #if DEBUG

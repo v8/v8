@@ -653,7 +653,7 @@ class FeedbackMetadataIterator {
         next_slot_(FeedbackSlot(0)),
         slot_kind_(FeedbackSlotKind::kInvalid) {}
 
-  explicit FeedbackMetadataIterator(FeedbackMetadata metadata)
+  explicit FeedbackMetadataIterator(Tagged<FeedbackMetadata> metadata)
       : metadata_(metadata),
         next_slot_(FeedbackSlot(0)),
         slot_kind_(FeedbackSlotKind::kInvalid) {}
@@ -672,7 +672,7 @@ class FeedbackMetadataIterator {
   inline int entry_size() const;
 
  private:
-  FeedbackMetadata metadata() const {
+  Tagged<FeedbackMetadata> metadata() const {
     return !metadata_handle_.is_null() ? *metadata_handle_ : metadata_;
   }
 
@@ -680,7 +680,7 @@ class FeedbackMetadataIterator {
   // to have a single iterator implementation for both "handlified" and raw
   // pointer use cases.
   Handle<FeedbackMetadata> metadata_handle_;
-  FeedbackMetadata metadata_;
+  Tagged<FeedbackMetadata> metadata_;
   FeedbackSlot cur_slot_;
   FeedbackSlot next_slot_;
   FeedbackSlotKind slot_kind_;
@@ -763,7 +763,7 @@ class V8_EXPORT_PRIVATE FeedbackNexus final {
     DCHECK(vector_.is_null());
     return vector_handle_;
   }
-  FeedbackVector vector() const {
+  Tagged<FeedbackVector> vector() const {
     return vector_handle_.is_null() ? vector_ : *vector_handle_;
   }
 
@@ -771,7 +771,7 @@ class V8_EXPORT_PRIVATE FeedbackNexus final {
   FeedbackSlotKind kind() const { return kind_; }
 
   inline LanguageMode GetLanguageMode() const {
-    return vector().GetLanguageMode(slot());
+    return vector()->GetLanguageMode(slot());
   }
 
   InlineCacheState ic_state() const;
@@ -910,7 +910,7 @@ class V8_EXPORT_PRIVATE FeedbackNexus final {
   // you have a handle to the vector that is better because more operations can
   // be done, like allocation.
   Handle<FeedbackVector> vector_handle_;
-  FeedbackVector vector_;
+  Tagged<FeedbackVector> vector_;
   FeedbackSlot slot_;
   FeedbackSlotKind kind_;
   // When using the background-thread configuration, a cache is used to

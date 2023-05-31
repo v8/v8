@@ -975,6 +975,8 @@ class String;
 class StringStream;
 class Struct;
 class Symbol;
+template <typename T>
+class Tagged;
 class Variable;
 
 // Slots are either full-pointer slots or compressed slots depending on whether

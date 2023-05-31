@@ -46,7 +46,7 @@ class StringShape {
  public:
   V8_INLINE explicit StringShape(const String s);
   V8_INLINE explicit StringShape(const String s, PtrComprCageBase cage_base);
-  V8_INLINE explicit StringShape(Map s);
+  V8_INLINE explicit StringShape(Tagged<Map> s);
   V8_INLINE explicit StringShape(InstanceType t);
   V8_INLINE bool IsSequential() const;
   V8_INLINE bool IsExternal() const;
@@ -778,7 +778,7 @@ class SeqOneByteString
   int AllocatedSize();
 
   // A SeqOneByteString have different maps depending on whether it is shared.
-  static inline bool IsCompatibleMap(Map map, ReadOnlyRoots roots);
+  static inline bool IsCompatibleMap(Tagged<Map> map, ReadOnlyRoots roots);
 
   class BodyDescriptor;
 
@@ -826,7 +826,7 @@ class SeqTwoByteString
   int AllocatedSize();
 
   // A SeqTwoByteString have different maps depending on whether it is shared.
-  static inline bool IsCompatibleMap(Map map, ReadOnlyRoots roots);
+  static inline bool IsCompatibleMap(Tagged<Map> map, ReadOnlyRoots roots);
 
   class BodyDescriptor;
 

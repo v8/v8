@@ -451,9 +451,9 @@ bool Heap::CreateEarlyReadOnlyMaps() {
   FinalizePartialMap(roots.fixed_cow_array_map());
   FinalizePartialMap(roots.descriptor_array_map());
   FinalizePartialMap(roots.undefined_map());
-  roots.undefined_map().set_is_undetectable(true);
+  roots.undefined_map()->set_is_undetectable(true);
   FinalizePartialMap(roots.null_map());
-  roots.null_map().set_is_undetectable(true);
+  roots.null_map()->set_is_undetectable(true);
   FinalizePartialMap(roots.the_hole_map());
   for (const StructInit& entry : kStructTable) {
     if (!is_important_struct(entry.type)) continue;
@@ -477,7 +477,7 @@ bool Heap::CreateEarlyReadOnlyMaps() {
                                constructor_function_index)      \
   {                                                             \
     ALLOCATE_MAP((instance_type), (size), field_name);          \
-    roots.field_name##_map().SetConstructorFunctionIndex(       \
+    roots.field_name##_map()->SetConstructorFunctionIndex(      \
         (constructor_function_index));                          \
   }
 
@@ -521,7 +521,7 @@ bool Heap::CreateEarlyReadOnlyMaps() {
     }
 
     ALLOCATE_VARSIZE_MAP(FIXED_DOUBLE_ARRAY_TYPE, fixed_double_array)
-    roots.fixed_double_array_map().set_elements_kind(HOLEY_DOUBLE_ELEMENTS);
+    roots.fixed_double_array_map()->set_elements_kind(HOLEY_DOUBLE_ELEMENTS);
     ALLOCATE_VARSIZE_MAP(FEEDBACK_METADATA_TYPE, feedback_metadata)
     ALLOCATE_VARSIZE_MAP(BYTE_ARRAY_TYPE, byte_array)
     ALLOCATE_VARSIZE_MAP(BYTECODE_ARRAY_TYPE, bytecode_array)
@@ -554,10 +554,10 @@ bool Heap::CreateEarlyReadOnlyMaps() {
     // to be marked unstable because their objects can change maps.
     ALLOCATE_MAP(FEEDBACK_CELL_TYPE, FeedbackCell::kAlignedSize,
                  no_closures_cell)
-    roots.no_closures_cell_map().mark_unstable();
+    roots.no_closures_cell_map()->mark_unstable();
     ALLOCATE_MAP(FEEDBACK_CELL_TYPE, FeedbackCell::kAlignedSize,
                  one_closure_cell)
-    roots.one_closure_cell_map().mark_unstable();
+    roots.one_closure_cell_map()->mark_unstable();
     ALLOCATE_MAP(FEEDBACK_CELL_TYPE, FeedbackCell::kAlignedSize,
                  many_closures_cell)
 
@@ -793,7 +793,7 @@ bool Heap::CreateImportantReadOnlyObjects() {
   // The -0 value must be set before NewNumber works.
   set_minus_zero_value(
       *factory->NewHeapNumber<AllocationType::kReadOnly>(-0.0));
-  DCHECK(std::signbit(roots.minus_zero_value().Number()));
+  DCHECK(std::signbit(roots.minus_zero_value()->Number()));
 
   set_nan_value(*factory->NewHeapNumber<AllocationType::kReadOnly>(
       std::numeric_limits<double>::quiet_NaN()));
@@ -877,7 +877,7 @@ bool Heap::CreateReadOnlyObjects() {
 
   DCHECK(!InYoungGeneration(roots.empty_fixed_array()));
 
-  roots.bigint_map().SetConstructorFunctionIndex(
+  roots.bigint_map()->SetConstructorFunctionIndex(
       Context::BIGINT_FUNCTION_INDEX);
 
   // Allocate and initialize table for single character one byte strings.

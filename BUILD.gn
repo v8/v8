@@ -1742,6 +1742,7 @@ if (v8_postmortem_support) {
       "src/objects/string-inl.h",
       "src/objects/struct.h",
       "src/objects/struct-inl.h",
+      "src/objects/tagged.h",
     ]
 
     outputs = [ "$target_gen_dir/debug-support.cc" ]
@@ -3630,6 +3631,7 @@ v8_header_set("v8_internal_headers") {
     "src/objects/tagged-index.h",
     "src/objects/tagged-value-inl.h",
     "src/objects/tagged-value.h",
+    "src/objects/tagged.h",
     "src/objects/template-objects-inl.h",
     "src/objects/template-objects.h",
     "src/objects/templates-inl.h",

@@ -253,26 +253,26 @@ Handle<Script> ParseInfo::CreateScript(
   Handle<Script> script =
       isolate->factory()->NewScriptWithId(source, flags().script_id(), event);
   DisallowGarbageCollection no_gc;
-  auto raw_script = *script;
+  Tagged<Script> raw_script = *script;
   switch (natives) {
     case EXTENSION_CODE:
-      raw_script.set_type(Script::Type::kExtension);
+      raw_script->set_type(Script::Type::kExtension);
       break;
     case INSPECTOR_CODE:
-      raw_script.set_type(Script::Type::kInspector);
+      raw_script->set_type(Script::Type::kInspector);
       break;
     case NOT_NATIVES_CODE:
       break;
   }
-  raw_script.set_origin_options(origin_options);
-  raw_script.set_is_repl_mode(flags().is_repl_mode());
+  raw_script->set_origin_options(origin_options);
+  raw_script->set_is_repl_mode(flags().is_repl_mode());
 
   DCHECK_EQ(is_wrapped_as_function(), !maybe_wrapped_arguments.is_null());
   if (is_wrapped_as_function()) {
-    raw_script.set_wrapped_arguments(
+    raw_script->set_wrapped_arguments(
         *maybe_wrapped_arguments.ToHandleChecked());
   } else if (flags().is_eval()) {
-    raw_script.set_compilation_type(Script::CompilationType::kEval);
+    raw_script->set_compilation_type(Script::CompilationType::kEval);
   }
   CheckFlagsForToplevelCompileFromScript(raw_script);
 

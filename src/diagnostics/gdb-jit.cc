@@ -2052,7 +2052,7 @@ void EventHandler(const v8::JitCodeEvent* event) {
       std::string event_name(event->name.str, event->name.len);
       // It's called UnboundScript in the API but it's a SharedFunctionInfo.
       SharedFunctionInfo shared = event->script.IsEmpty()
-                                      ? SharedFunctionInfo()
+                                      ? Tagged<SharedFunctionInfo>()
                                       : *Utils::OpenHandle(*event->script);
       Isolate* isolate = reinterpret_cast<Isolate*>(event->isolate);
       bool is_function = false;

@@ -33,18 +33,18 @@ Handle<AccessorInfo> Accessors::MakeAccessor(
   Handle<AccessorInfo> info = factory->NewAccessorInfo();
   {
     DisallowGarbageCollection no_gc;
-    auto raw = *info;
-    raw.set_all_can_read(false);
-    raw.set_all_can_write(false);
-    raw.set_is_special_data_property(true);
-    raw.set_is_sloppy(false);
-    raw.set_replace_on_access(false);
-    raw.set_getter_side_effect_type(SideEffectType::kHasSideEffect);
-    raw.set_setter_side_effect_type(SideEffectType::kHasSideEffect);
-    raw.set_name(*name);
-    raw.set_getter(isolate, reinterpret_cast<Address>(getter));
+    Tagged<AccessorInfo> raw = *info;
+    raw->set_all_can_read(false);
+    raw->set_all_can_write(false);
+    raw->set_is_special_data_property(true);
+    raw->set_is_sloppy(false);
+    raw->set_replace_on_access(false);
+    raw->set_getter_side_effect_type(SideEffectType::kHasSideEffect);
+    raw->set_setter_side_effect_type(SideEffectType::kHasSideEffect);
+    raw->set_name(*name);
+    raw->set_getter(isolate, reinterpret_cast<Address>(getter));
     if (setter == nullptr) setter = &ReconfigureToDataProperty;
-    raw.set_setter(isolate, reinterpret_cast<Address>(setter));
+    raw->set_setter(isolate, reinterpret_cast<Address>(setter));
   }
   return info;
 }

@@ -172,7 +172,7 @@ void EnableETWLog(Isolate* isolate) {
 
 // TODO(v8/11911): UnboundScript::GetLineNumber should be replaced
 SharedFunctionInfo GetSharedFunctionInfo(const JitCodeEvent* event) {
-  return event->script.IsEmpty() ? SharedFunctionInfo()
+  return event->script.IsEmpty() ? Tagged<SharedFunctionInfo>()
                                  : *Utils::OpenHandle(*event->script);
 }
 

@@ -24,6 +24,7 @@
 #include "src/objects/code-kind.h"
 #include "src/objects/feedback-vector.h"
 #include "src/objects/objects.h"
+#include "src/objects/tagged.h"
 #include "src/roots/roots.h"
 #include "src/utils/address-map.h"
 #include "src/utils/identity-map.h"
@@ -280,7 +281,7 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   // that happens, we should be inside a persistent handle scope. Then, we would
   // just use the regular handle creation.
   template <typename T>
-  Handle<T> CanonicalPersistentHandle(T object) {
+  Handle<T> CanonicalPersistentHandle(Tagged<T> object) {
     DCHECK_NOT_NULL(canonical_handles_);
     Address address = object.ptr();
     if (Internals::HasHeapObjectTag(address)) {
@@ -303,6 +304,12 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
       *find_result.entry = Handle<T>(object, isolate()).location();
     }
     return Handle<T>(*find_result.entry);
+  }
+
+  template <typename T>
+  Handle<T> CanonicalPersistentHandle(T object) {
+    static_assert(kTaggedCanConvertToRawObjects);
+    return CanonicalPersistentHandle<T>(Tagged<T>(object));
   }
 
   template <typename T>
@@ -606,12 +613,20 @@ OptionalRef<typename ref_traits<T>::ref_type> TryMakeRef(JSHeapBroker* broker,
 template <class T,
           typename = std::enable_if_t<std::is_convertible<T*, Object*>::value>>
 OptionalRef<typename ref_traits<T>::ref_type> TryMakeRef(
-    JSHeapBroker* broker, T object, GetOrCreateDataFlags flags = {}) {
+    JSHeapBroker* broker, Tagged<T> object, GetOrCreateDataFlags flags = {}) {
   ObjectData* data = broker->TryGetOrCreateData(object, flags);
   if (data == nullptr) {
     TRACE_BROKER_MISSING(broker, "ObjectData for " << Brief(object));
   }
   return TryMakeRef<T>(broker, data);
+}
+
+template <class T,
+          typename = std::enable_if_t<std::is_convertible<T*, Object*>::value>>
+OptionalRef<typename ref_traits<T>::ref_type> TryMakeRef(
+    JSHeapBroker* broker, T object, GetOrCreateDataFlags flags = {}) {
+  static_assert(kTaggedCanConvertToRawObjects);
+  return TryMakeRef<T>(broker, Tagged<T>(object), flags);
 }
 
 template <class T,
@@ -628,8 +643,16 @@ OptionalRef<typename ref_traits<T>::ref_type> TryMakeRef(
 
 template <class T,
           typename = std::enable_if_t<std::is_convertible<T*, Object*>::value>>
-typename ref_traits<T>::ref_type MakeRef(JSHeapBroker* broker, T object) {
+typename ref_traits<T>::ref_type MakeRef(JSHeapBroker* broker,
+                                         Tagged<T> object) {
   return TryMakeRef(broker, object, kCrashOnError).value();
+}
+
+template <class T,
+          typename = std::enable_if_t<std::is_convertible<T*, Object*>::value>>
+typename ref_traits<T>::ref_type MakeRef(JSHeapBroker* broker, T object) {
+  static_assert(kTaggedCanConvertToRawObjects);
+  return TryMakeRef(broker, Tagged<T>(object), kCrashOnError).value();
 }
 
 template <class T,
@@ -642,7 +665,15 @@ typename ref_traits<T>::ref_type MakeRef(JSHeapBroker* broker,
 template <class T,
           typename = std::enable_if_t<std::is_convertible<T*, Object*>::value>>
 typename ref_traits<T>::ref_type MakeRefAssumeMemoryFence(JSHeapBroker* broker,
+                                                          Tagged<T> object) {
+  return TryMakeRef(broker, object, kAssumeMemoryFence | kCrashOnError).value();
+}
+
+template <class T,
+          typename = std::enable_if_t<std::is_convertible<T*, Object*>::value>>
+typename ref_traits<T>::ref_type MakeRefAssumeMemoryFence(JSHeapBroker* broker,
                                                           T object) {
+  static_assert(kTaggedCanConvertToRawObjects);
   return TryMakeRef(broker, object, kAssumeMemoryFence | kCrashOnError).value();
 }
 

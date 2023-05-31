@@ -1693,22 +1693,22 @@ void MaglevCodeGenerator::GenerateDeoptimizationData(
       translation_array_builder_.ToTranslationArray(local_isolate->factory());
   {
     DisallowGarbageCollection no_gc;
-    auto raw_data = *data;
+    Tagged<DeoptimizationData> raw_data = *data;
 
-    raw_data.SetTranslationByteArray(*translation_array);
-    raw_data.SetInlinedFunctionCount(Smi::FromInt(inlined_function_count_));
-    raw_data.SetOptimizationId(
+    raw_data->SetTranslationByteArray(*translation_array);
+    raw_data->SetInlinedFunctionCount(Smi::FromInt(inlined_function_count_));
+    raw_data->SetOptimizationId(
         Smi::FromInt(local_isolate->NextOptimizationId()));
 
     DCHECK_NE(deopt_exit_start_offset_, -1);
-    raw_data.SetDeoptExitStart(Smi::FromInt(deopt_exit_start_offset_));
-    raw_data.SetEagerDeoptCount(Smi::FromInt(eager_deopt_count));
-    raw_data.SetLazyDeoptCount(Smi::FromInt(lazy_deopt_count));
+    raw_data->SetDeoptExitStart(Smi::FromInt(deopt_exit_start_offset_));
+    raw_data->SetEagerDeoptCount(Smi::FromInt(eager_deopt_count));
+    raw_data->SetLazyDeoptCount(Smi::FromInt(lazy_deopt_count));
 
-    raw_data.SetSharedFunctionInfo(*code_gen_state_.compilation_info()
-                                        ->toplevel_compilation_unit()
-                                        ->shared_function_info()
-                                        .object());
+    raw_data->SetSharedFunctionInfo(*code_gen_state_.compilation_info()
+                                         ->toplevel_compilation_unit()
+                                         ->shared_function_info()
+                                         .object());
   }
 
   int inlined_functions_size =
@@ -1721,57 +1721,57 @@ void MaglevCodeGenerator::GenerateDeoptimizationData(
 
   DisallowGarbageCollection no_gc;
 
-  auto raw_literals = *literals;
-  auto raw_data = *data;
+  Tagged<DeoptimizationLiteralArray> raw_literals = *literals;
+  Tagged<DeoptimizationData> raw_data = *data;
   IdentityMap<int, base::DefaultAllocationPolicy>::IteratableScope iterate(
       &deopt_literals_);
   for (auto it = iterate.begin(); it != iterate.end(); ++it) {
-    raw_literals.set(*it.entry(), it.key());
+    raw_literals->set(*it.entry(), it.key());
   }
   // Add the bytecode to the deopt literals to make sure it's held strongly.
   auto literal_offsets = deopt_literals_.size();
   for (int i = 0; i < inlined_functions_size; i++) {
     auto inlined_function_info = graph_->inlined_functions()[i];
     inlining_positions->set(i, inlined_function_info.position);
-    raw_literals.set(literal_offsets++, *inlined_function_info.bytecode_array);
+    raw_literals->set(literal_offsets++, *inlined_function_info.bytecode_array);
   }
-  raw_literals.set(literal_offsets, *code_gen_state_.compilation_info()
-                                         ->toplevel_compilation_unit()
-                                         ->bytecode()
-                                         .object());
-  raw_data.SetLiteralArray(raw_literals);
-  raw_data.SetInliningPositions(*inlining_positions);
+  raw_literals->set(literal_offsets, *code_gen_state_.compilation_info()
+                                          ->toplevel_compilation_unit()
+                                          ->bytecode()
+                                          .object());
+  raw_data->SetLiteralArray(raw_literals);
+  raw_data->SetInliningPositions(*inlining_positions);
 
   auto info = code_gen_state_.compilation_info();
-  raw_data.SetOsrBytecodeOffset(
+  raw_data->SetOsrBytecodeOffset(
       Smi::FromInt(info->toplevel_osr_offset().ToInt()));
   if (graph_->is_osr()) {
-    raw_data.SetOsrPcOffset(Smi::FromInt(code_gen_state_.osr_entry()->pos()));
+    raw_data->SetOsrPcOffset(Smi::FromInt(code_gen_state_.osr_entry()->pos()));
   } else {
-    raw_data.SetOsrPcOffset(Smi::FromInt(-1));
+    raw_data->SetOsrPcOffset(Smi::FromInt(-1));
   }
 
   // Populate deoptimization entries.
   int i = 0;
   for (EagerDeoptInfo* deopt_info : code_gen_state_.eager_deopts()) {
     DCHECK_NE(deopt_info->translation_index(), -1);
-    raw_data.SetBytecodeOffset(i, GetBytecodeOffset(deopt_info->top_frame()));
-    raw_data.SetTranslationIndex(i,
-                                 Smi::FromInt(deopt_info->translation_index()));
-    raw_data.SetPc(i, Smi::FromInt(deopt_info->deopt_entry_label()->pos()));
+    raw_data->SetBytecodeOffset(i, GetBytecodeOffset(deopt_info->top_frame()));
+    raw_data->SetTranslationIndex(
+        i, Smi::FromInt(deopt_info->translation_index()));
+    raw_data->SetPc(i, Smi::FromInt(deopt_info->deopt_entry_label()->pos()));
 #ifdef DEBUG
-    raw_data.SetNodeId(i, Smi::FromInt(i));
+    raw_data->SetNodeId(i, Smi::FromInt(i));
 #endif  // DEBUG
     i++;
   }
   for (LazyDeoptInfo* deopt_info : code_gen_state_.lazy_deopts()) {
     DCHECK_NE(deopt_info->translation_index(), -1);
-    raw_data.SetBytecodeOffset(i, GetBytecodeOffset(deopt_info->top_frame()));
-    raw_data.SetTranslationIndex(i,
-                                 Smi::FromInt(deopt_info->translation_index()));
-    raw_data.SetPc(i, Smi::FromInt(deopt_info->deopt_entry_label()->pos()));
+    raw_data->SetBytecodeOffset(i, GetBytecodeOffset(deopt_info->top_frame()));
+    raw_data->SetTranslationIndex(
+        i, Smi::FromInt(deopt_info->translation_index()));
+    raw_data->SetPc(i, Smi::FromInt(deopt_info->deopt_entry_label()->pos()));
 #ifdef DEBUG
-    raw_data.SetNodeId(i, Smi::FromInt(i));
+    raw_data->SetNodeId(i, Smi::FromInt(i));
 #endif  // DEBUG
     i++;
   }

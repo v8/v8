@@ -130,13 +130,13 @@ bool JSObject::PrototypeHasNoElements(Isolate* isolate, JSObject object) {
   HeapObject prototype = HeapObject::cast(object.map().prototype());
   ReadOnlyRoots roots(isolate);
   HeapObject null = roots.null_value();
-  FixedArrayBase empty_fixed_array = roots.empty_fixed_array();
-  FixedArrayBase empty_slow_element_dictionary =
+  Tagged<FixedArrayBase> empty_fixed_array = roots.empty_fixed_array();
+  Tagged<FixedArrayBase> empty_slow_element_dictionary =
       roots.empty_slow_element_dictionary();
   while (prototype != null) {
     Map map = prototype.map();
     if (map.IsCustomElementsReceiverMap()) return false;
-    FixedArrayBase elements = JSObject::cast(prototype).elements();
+    Tagged<FixedArrayBase> elements = JSObject::cast(prototype).elements();
     if (elements != empty_fixed_array &&
         elements != empty_slow_element_dictionary) {
       return false;
@@ -254,7 +254,7 @@ void JSObject::SetMapAndElements(Handle<JSObject> object, Handle<Map> new_map,
 }
 
 void JSObject::initialize_elements() {
-  FixedArrayBase elements = map().GetInitialElements();
+  Tagged<FixedArrayBase> elements = map().GetInitialElements();
   set_elements(elements, SKIP_WRITE_BARRIER);
 }
 
@@ -622,13 +622,13 @@ SMI_ACCESSORS(JSMessageObject, raw_type, kMessageTypeOffset)
 DEF_GETTER(JSObject, GetElementsKind, ElementsKind) {
   ElementsKind kind = map(cage_base).elements_kind();
 #if VERIFY_HEAP && DEBUG
-  FixedArrayBase fixed_array = FixedArrayBase::unchecked_cast(
+  Tagged<FixedArrayBase> fixed_array = FixedArrayBase::unchecked_cast(
       TaggedField<HeapObject, kElementsOffset>::load(cage_base, *this));
 
   // If a GC was caused while constructing this object, the elements
   // pointer may point to a one pointer filler map.
   if (ElementsAreSafeToExamine(cage_base)) {
-    Map map = fixed_array.map(cage_base);
+    Tagged<Map> map = fixed_array->map(cage_base);
     if (IsSmiOrObjectElementsKind(kind)) {
       DCHECK(map == GetReadOnlyRoots(cage_base).fixed_array_map() ||
              map == GetReadOnlyRoots(cage_base).fixed_cow_array_map());

@@ -17,6 +17,7 @@
 #include "src/handles/handles.h"
 #include "src/handles/persistent-handles.h"
 #include "src/objects/objects.h"
+#include "src/objects/tagged.h"
 #include "src/utils/identity-map.h"
 #include "src/utils/utils.h"
 
@@ -173,6 +174,12 @@ class V8_EXPORT_PRIVATE OptimizedCompilationInfo final {
 
   template <typename T>
   Handle<T> CanonicalHandle(T object, Isolate* isolate) {
+    static_assert(kTaggedCanConvertToRawObjects);
+    return CanonicalHandle(Tagged<T>(object), isolate);
+  }
+
+  template <typename T>
+  Handle<T> CanonicalHandle(Tagged<T> object, Isolate* isolate) {
     DCHECK_NOT_NULL(canonical_handles_);
     DCHECK(PersistentHandlesScope::IsActive(isolate));
     auto find_result = canonical_handles_->FindOrInsert(object);

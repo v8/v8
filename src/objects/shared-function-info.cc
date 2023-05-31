@@ -515,52 +515,52 @@ void SharedFunctionInfo::InitFromFunctionLiteral(
   DCHECK(!shared_info->name_or_scope_info(kAcquireLoad).IsScopeInfo());
   {
     DisallowGarbageCollection no_gc;
-    auto raw_sfi = *shared_info;
+    Tagged<SharedFunctionInfo> raw_sfi = *shared_info;
     // When adding fields here, make sure DeclarationScope::AnalyzePartially is
     // updated accordingly.
-    raw_sfi.set_internal_formal_parameter_count(
+    raw_sfi->set_internal_formal_parameter_count(
         JSParameterCount(lit->parameter_count()));
-    raw_sfi.SetFunctionTokenPosition(lit->function_token_position(),
-                                     lit->start_position());
-    raw_sfi.set_syntax_kind(lit->syntax_kind());
-    raw_sfi.set_allows_lazy_compilation(lit->AllowsLazyCompilation());
-    raw_sfi.set_language_mode(lit->language_mode());
-    raw_sfi.set_function_literal_id(lit->function_literal_id());
+    raw_sfi->SetFunctionTokenPosition(lit->function_token_position(),
+                                      lit->start_position());
+    raw_sfi->set_syntax_kind(lit->syntax_kind());
+    raw_sfi->set_allows_lazy_compilation(lit->AllowsLazyCompilation());
+    raw_sfi->set_language_mode(lit->language_mode());
+    raw_sfi->set_function_literal_id(lit->function_literal_id());
     // FunctionKind must have already been set.
-    DCHECK(lit->kind() == raw_sfi.kind());
+    DCHECK(lit->kind() == raw_sfi->kind());
     DCHECK_IMPLIES(lit->requires_instance_members_initializer(),
                    IsClassConstructor(lit->kind()));
-    raw_sfi.set_requires_instance_members_initializer(
+    raw_sfi->set_requires_instance_members_initializer(
         lit->requires_instance_members_initializer());
     DCHECK_IMPLIES(lit->class_scope_has_private_brand(),
                    IsClassConstructor(lit->kind()));
-    raw_sfi.set_class_scope_has_private_brand(
+    raw_sfi->set_class_scope_has_private_brand(
         lit->class_scope_has_private_brand());
     DCHECK_IMPLIES(lit->has_static_private_methods_or_accessors(),
                    IsClassConstructor(lit->kind()));
-    raw_sfi.set_has_static_private_methods_or_accessors(
+    raw_sfi->set_has_static_private_methods_or_accessors(
         lit->has_static_private_methods_or_accessors());
 
-    raw_sfi.set_is_toplevel(is_toplevel);
-    DCHECK(raw_sfi.outer_scope_info().IsTheHole());
+    raw_sfi->set_is_toplevel(is_toplevel);
+    DCHECK(raw_sfi->outer_scope_info().IsTheHole());
     if (!is_toplevel) {
       Scope* outer_scope = lit->scope()->GetOuterScopeWithContext();
       if (outer_scope) {
-        raw_sfi.set_outer_scope_info(*outer_scope->scope_info());
-        raw_sfi.set_private_name_lookup_skips_outer_class(
+        raw_sfi->set_outer_scope_info(*outer_scope->scope_info());
+        raw_sfi->set_private_name_lookup_skips_outer_class(
             lit->scope()->private_name_lookup_skips_outer_class());
       }
     }
 
-    raw_sfi.set_length(lit->function_length());
+    raw_sfi->set_length(lit->function_length());
 
     // For lazy parsed functions, the following flags will be inaccurate since
     // we don't have the information yet. They're set later in
     // UpdateSharedFunctionFlagsAfterCompilation (compiler.cc), when the
     // function is really parsed and compiled.
     if (lit->ShouldEagerCompile()) {
-      raw_sfi.set_has_duplicate_parameters(lit->has_duplicate_parameters());
-      raw_sfi.UpdateAndFinalizeExpectedNofPropertiesFromEstimate(lit);
+      raw_sfi->set_has_duplicate_parameters(lit->has_duplicate_parameters());
+      raw_sfi->UpdateAndFinalizeExpectedNofPropertiesFromEstimate(lit);
       DCHECK_NULL(lit->produced_preparse_data());
 
       // If we're about to eager compile, we'll have the function literal
@@ -569,7 +569,7 @@ void SharedFunctionInfo::InitFromFunctionLiteral(
       return;
     }
 
-    raw_sfi.UpdateExpectedNofPropertiesFromEstimate(lit);
+    raw_sfi->UpdateExpectedNofPropertiesFromEstimate(lit);
   }
   CreateAndSetUncompiledData(isolate, shared_info, lit);
 }

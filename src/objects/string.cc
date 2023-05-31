@@ -92,9 +92,9 @@ Handle<String> String::SlowFlatten(Isolate* isolate, Handle<ConsString> cons,
   }
   {
     DisallowGarbageCollection no_gc;
-    auto raw_cons = *cons;
-    raw_cons.set_first(*result);
-    raw_cons.set_second(ReadOnlyRoots(isolate).empty_string());
+    Tagged<ConsString> raw_cons = *cons;
+    raw_cons->set_first(*result);
+    raw_cons->set_second(ReadOnlyRoots(isolate).empty_string());
   }
   DCHECK(result->IsFlat());
   return result;
@@ -1034,9 +1034,9 @@ Handle<FixedArray> String::CalculateLineEnds(IsolateT* isolate,
       isolate->factory()->NewFixedArray(line_count, AllocationType::kOld);
   {
     DisallowGarbageCollection no_gc;
-    auto raw_array = *array;
+    Tagged<FixedArray> raw_array = *array;
     for (int i = 0; i < line_count; i++) {
-      raw_array.set(i, Smi::FromInt(line_ends[i]));
+      raw_array->set(i, Smi::FromInt(line_ends[i]));
     }
   }
   return array;

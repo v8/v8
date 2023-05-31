@@ -44,7 +44,7 @@ Map Map::GetPrototypeChainRootMap(Isolate* isolate) const {
         JSFunction::cast(native_context.get(constructor_function_index));
     return constructor_function.initial_map();
   }
-  return ReadOnlyRoots(isolate).null_value().map();
+  return ReadOnlyRoots(isolate).null_value()->map();
 }
 
 // static

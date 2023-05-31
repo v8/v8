@@ -159,14 +159,14 @@ static constexpr char kRegisterAllocatorVerifierZoneName[] =
 namespace {
 
 Maybe<OuterContext> GetModuleContext(OptimizedCompilationInfo* info) {
-  Context current = info->closure()->context();
+  Tagged<Context> current = info->closure()->context();
   size_t distance = 0;
-  while (!current.IsNativeContext()) {
-    if (current.IsModuleContext()) {
+  while (!current->IsNativeContext()) {
+    if (current->IsModuleContext()) {
       return Just(OuterContext(
-          info->CanonicalHandle(current, current.GetIsolate()), distance));
+          info->CanonicalHandle(current, current->GetIsolate()), distance));
     }
-    current = current.previous();
+    current = current->previous();
     distance++;
   }
   return Nothing<OuterContext>();

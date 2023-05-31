@@ -13,6 +13,7 @@
 #include "src/heap/spaces-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/tagged-impl.h"
+#include "src/objects/tagged.h"
 
 namespace v8 {
 namespace internal {
@@ -31,6 +32,12 @@ bool SemiSpace::Contains(Object o) const {
   return o.IsHeapObject() && Contains(HeapObject::cast(o));
 }
 
+template <typename T>
+inline bool SemiSpace::Contains(Tagged<T> o) const {
+  static_assert(kTaggedCanConvertToRawObjects);
+  return Contains(*o);
+}
+
 bool SemiSpace::ContainsSlow(Address a) const {
   for (const Page* p : *this) {
     if (p == BasicMemoryChunk::FromAddress(a)) return true;
@@ -47,6 +54,12 @@ bool NewSpace::Contains(Object o) const {
 
 bool NewSpace::Contains(HeapObject o) const {
   return BasicMemoryChunk::FromHeapObject(o)->InNewSpace();
+}
+
+template <typename T>
+inline bool NewSpace::Contains(Tagged<T> o) const {
+  static_assert(kTaggedCanConvertToRawObjects);
+  return Contains(*o);
 }
 
 V8_WARN_UNUSED_RESULT inline AllocationResult NewSpace::AllocateRawSynchronized(

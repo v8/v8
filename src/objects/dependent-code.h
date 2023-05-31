@@ -77,6 +77,11 @@ class DependentCode : public WeakArrayList {
                                          DependencyGroups groups);
 
   template <typename ObjectT>
+  static void DeoptimizeDependencyGroups(Isolate* isolate,
+                                         Tagged<ObjectT> object,
+                                         DependencyGroups groups);
+
+  template <typename ObjectT>
   static bool MarkCodeForDeoptimization(Isolate* isolate, ObjectT object,
                                         DependencyGroups groups);
 

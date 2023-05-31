@@ -78,7 +78,7 @@ TEST_F(LocalHandlesTest, CreateLocalHandles) {
   {
     HandleScope handle_scope(isolate);
     Handle<HeapNumber> number = isolate->factory()->NewHeapNumber(42.0);
-    object = (*number).address();
+    object = number->address();
   }
 
   base::Semaphore sema_started(0);

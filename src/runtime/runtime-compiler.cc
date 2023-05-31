@@ -27,7 +27,7 @@ void LogExecution(Isolate* isolate, Handle<JSFunction> function) {
   Handle<SharedFunctionInfo> sfi(function->shared(), isolate);
   Handle<String> name = SharedFunctionInfo::DebugName(isolate, sfi);
   DisallowGarbageCollection no_gc;
-  auto raw_sfi = *sfi;
+  Tagged<SharedFunctionInfo> raw_sfi = *sfi;
   std::string event_name = "first-execution";
   CodeKind kind = function->abstract_code(isolate).kind(isolate);
   // Not adding "-interpreter" for tooling backwards compatiblity.
@@ -36,8 +36,8 @@ void LogExecution(Isolate* isolate, Handle<JSFunction> function) {
     event_name += CodeKindToString(kind);
   }
   LOG(isolate,
-      FunctionEvent(event_name.c_str(), Script::cast(raw_sfi.script()).id(), 0,
-                    raw_sfi.StartPosition(), raw_sfi.EndPosition(), *name));
+      FunctionEvent(event_name.c_str(), Script::cast(raw_sfi->script()).id(), 0,
+                    raw_sfi->StartPosition(), raw_sfi->EndPosition(), *name));
   function->feedback_vector().set_log_next_execution(false);
 }
 }  // namespace

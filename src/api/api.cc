@@ -4919,8 +4919,8 @@ Local<Object> v8::Object::FindInstanceInPrototypeChain(
   auto self = Utils::OpenHandle(this);
   auto i_isolate = self->GetIsolate();
   i::PrototypeIterator iter(i_isolate, *self, i::kStartAtReceiver);
-  auto tmpl_info = *Utils::OpenHandle(*tmpl);
-  while (!tmpl_info.IsTemplateFor(iter.GetCurrent<i::JSObject>())) {
+  i::Tagged<i::FunctionTemplateInfo> tmpl_info = *Utils::OpenHandle(*tmpl);
+  while (!tmpl_info->IsTemplateFor(iter.GetCurrent<i::JSObject>())) {
     iter.Advance();
     if (iter.IsAtEnd()) return Local<Object>();
     if (!iter.GetCurrent().IsJSObject()) return Local<Object>();

@@ -1619,7 +1619,8 @@ Object Isolate::StackOverflow() {
   return ReadOnlyRoots(heap()).exception();
 }
 
-Object Isolate::ThrowAt(Handle<JSObject> exception, MessageLocation* location) {
+Tagged<Object> Isolate::ThrowAt(Handle<JSObject> exception,
+                                MessageLocation* location) {
   Handle<Name> key_start_pos = factory()->error_start_pos_symbol();
   Object::SetProperty(this, exception, key_start_pos,
                       handle(Smi::FromInt(location->start_pos()), this),
@@ -2410,7 +2411,7 @@ Isolate::CatchType Isolate::PredictExceptionCatcher() {
   return NOT_CAUGHT;
 }
 
-Object Isolate::ThrowIllegalOperation() {
+Tagged<Object> Isolate::ThrowIllegalOperation() {
   if (v8_flags.stack_trace_on_illegal) PrintStack(stdout);
   return Throw(ReadOnlyRoots(heap()).illegal_access_string());
 }
@@ -5930,7 +5931,7 @@ SaveContext::SaveContext(Isolate* isolate) : isolate_(isolate) {
 }
 
 SaveContext::~SaveContext() {
-  isolate_->set_context(context_.is_null() ? Context() : *context_);
+  isolate_->set_context(context_.is_null() ? Tagged<Context>() : *context_);
 }
 
 SaveAndSwitchContext::SaveAndSwitchContext(Isolate* isolate,

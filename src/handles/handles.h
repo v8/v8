@@ -94,22 +94,6 @@ class HandleBase {
 template <typename T>
 class Handle final : public HandleBase {
  public:
-  // {ObjectRef} is returned by {Handle::operator->}. It should never be stored
-  // anywhere or used in any other code; no one should ever have to spell out
-  // {ObjectRef} in code. Its only purpose is to be dereferenced immediately by
-  // "operator-> chaining". Returning the address of the field is valid because
-  // this objects lifetime only ends at the end of the full statement.
-  class ObjectRef {
-   public:
-    T* operator->() { return &object_; }
-
-   private:
-    friend class Handle<T>;
-    explicit ObjectRef(T object) : object_(object) {}
-
-    T object_;
-  };
-
   V8_INLINE Handle() : HandleBase(nullptr) {
     // Skip static type check in order to allow Handle<XXX>::null() as default
     // parameter values in non-inl header files without requiring full
@@ -123,12 +107,12 @@ class Handle final : public HandleBase {
     // TODO(jkummerow): Runtime type check here as a SLOW_DCHECK?
   }
 
-  V8_INLINE Handle(T object, Isolate* isolate);
-  V8_INLINE Handle(T object, LocalIsolate* isolate);
-  V8_INLINE Handle(T object, LocalHeap* local_heap);
+  V8_INLINE Handle(Tagged<T> object, Isolate* isolate);
+  V8_INLINE Handle(Tagged<T> object, LocalIsolate* isolate);
+  V8_INLINE Handle(Tagged<T> object, LocalHeap* local_heap);
 
   // Allocate a new handle for the object.
-  V8_INLINE static Handle<T> New(T object, Isolate* isolate);
+  V8_INLINE static Handle<T> New(Tagged<T> object, Isolate* isolate);
 
   // Constructor for handling automatic up casting.
   // Ex. Handle<JSFunction> can be passed when Handle<Object> is expected.
@@ -136,13 +120,14 @@ class Handle final : public HandleBase {
                             std::is_convertible<S*, T*>::value>::type>
   V8_INLINE Handle(Handle<S> handle) : HandleBase(handle) {}
 
-  V8_INLINE ObjectRef operator->() const { return ObjectRef{**this}; }
+  V8_INLINE Tagged<T> operator->() const { return **this; }
 
-  V8_INLINE T operator*() const {
-    // unchecked_cast because we rather trust Handle<T> to contain a T than
-    // include all the respective -inl.h headers for SLOW_DCHECKs.
+  V8_INLINE Tagged<T> operator*() const {
+    // Direct construction of Tagged from address, without a type check, because
+    // we rather trust Handle<T> to contain a T than include all the respective
+    // -inl.h headers for SLOW_DCHECKs.
     SLOW_DCHECK(IsDereferenceAllowed());
-    return T::unchecked_cast(Object(*location()));
+    return Tagged<T>(*location());
   }
 
   template <typename S>

@@ -41,6 +41,7 @@
 #include "src/objects/contexts.h"
 #include "src/objects/debug-objects.h"
 #include "src/objects/js-objects.h"
+#include "src/objects/tagged.h"
 #include "src/runtime/runtime.h"
 #include "src/sandbox/external-pointer.h"
 #include "src/utils/allocation.h"
@@ -959,9 +960,11 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   // Exception throwing support. The caller should use the result
   // of Throw() as its return value.
-  Object Throw(Object exception) { return ThrowInternal(exception, nullptr); }
-  Object ThrowAt(Handle<JSObject> exception, MessageLocation* location);
-  Object ThrowIllegalOperation();
+  Tagged<Object> Throw(Object exception) {
+    return ThrowInternal(exception, nullptr);
+  }
+  Tagged<Object> ThrowAt(Handle<JSObject> exception, MessageLocation* location);
+  Tagged<Object> ThrowIllegalOperation();
 
   template <typename T>
   V8_WARN_UNUSED_RESULT MaybeHandle<T> Throw(Handle<Object> exception) {

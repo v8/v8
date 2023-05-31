@@ -326,7 +326,7 @@ void Compiler::LogFunctionCompilation(Isolate* isolate,
   int line_num = info.line + 1;
   int column_num = info.column + 1;
   Handle<String> script_name(script->name().IsString()
-                                 ? String::cast(script->name())
+                                 ? Tagged<String>::cast(script->name())
                                  : ReadOnlyRoots(isolate).empty_string(),
                              isolate);
   LogEventListener::CodeTag log_tag =
@@ -663,7 +663,7 @@ void InstallInterpreterTrampolineCopy(Isolate* isolate,
   int line_num = info.line + 1;
   int column_num = info.column + 1;
   Handle<String> script_name =
-      handle(script->name().IsString() ? String::cast(script->name())
+      handle(script->name().IsString() ? Tagged<String>::cast(script->name())
                                        : ReadOnlyRoots(isolate).empty_string(),
              isolate);
   PROFILE(isolate, CodeCreateEvent(log_tag, abstract_code, shared_info,

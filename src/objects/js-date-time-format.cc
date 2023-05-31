@@ -1991,7 +1991,7 @@ std::unique_ptr<icu::DateIntervalFormat> LazyCreateDateIntervalFormat(
           isolate, 0, std::move(date_interval_format));
   date_time_format->set_icu_date_interval_format(*managed_interval_format);
   return std::unique_ptr<icu::DateIntervalFormat>(
-      (*managed_interval_format).raw()->clone());
+      managed_interval_format->raw()->clone());
 }
 
 JSDateTimeFormat::HourCycle HourCycleFromPattern(

@@ -79,7 +79,7 @@ struct SmiTagging<4> {
       static_cast<intptr_t>(kUintptrAllBitsSet << (kSmiValueSize - 1));
   static constexpr intptr_t kSmiMaxValue = -(kSmiMinValue + 1);
 
-  V8_INLINE static int SmiToInt(Address value) {
+  V8_INLINE static constexpr int SmiToInt(Address value) {
     int shift_bits = kSmiTagSize + kSmiShiftSize;
     // Truncate and shift down (requires >> to be sign extending).
     return static_cast<int32_t>(static_cast<uint32_t>(value)) >> shift_bits;
@@ -104,7 +104,7 @@ struct SmiTagging<8> {
       static_cast<intptr_t>(kUintptrAllBitsSet << (kSmiValueSize - 1));
   static constexpr intptr_t kSmiMaxValue = -(kSmiMinValue + 1);
 
-  V8_INLINE static int SmiToInt(Address value) {
+  V8_INLINE static constexpr int SmiToInt(Address value) {
     int shift_bits = kSmiTagSize + kSmiShiftSize;
     // Shift down and throw away top 32 bits.
     return static_cast<int>(static_cast<intptr_t>(value) >> shift_bits);
@@ -648,11 +648,11 @@ class Internals {
 #endif
   }
 
-  V8_INLINE static bool HasHeapObjectTag(Address value) {
+  V8_INLINE static constexpr bool HasHeapObjectTag(Address value) {
     return (value & kHeapObjectTagMask) == static_cast<Address>(kHeapObjectTag);
   }
 
-  V8_INLINE static int SmiValue(Address value) {
+  V8_INLINE static constexpr int SmiValue(Address value) {
     return PlatformSmiTagging::SmiToInt(value);
   }
 

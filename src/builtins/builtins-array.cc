@@ -771,10 +771,10 @@ class ArrayConcatVisitor {
         array, fast_elements() ? HOLEY_ELEMENTS : DICTIONARY_ELEMENTS);
     {
       DisallowGarbageCollection no_gc;
-      auto raw = *array;
-      raw.set_length(*length);
-      raw.set_elements(*storage_fixed_array());
-      raw.set_map(*map, kReleaseStore);
+      Tagged<JSArray> raw = *array;
+      raw->set_length(*length);
+      raw->set_elements(*storage_fixed_array());
+      raw->set_map(*map, kReleaseStore);
     }
     return array;
   }

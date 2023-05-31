@@ -1201,12 +1201,18 @@ class Heap final {
   static inline bool InYoungGeneration(Object object);
   static inline bool InYoungGeneration(MaybeObject object);
   static inline bool InYoungGeneration(HeapObject heap_object);
+  template <typename T>
+  static inline bool InYoungGeneration(Tagged<T> object);
   static inline bool InFromPage(Object object);
   static inline bool InFromPage(MaybeObject object);
   static inline bool InFromPage(HeapObject heap_object);
+  template <typename T>
+  static inline bool InFromPage(Tagged<T> object);
   static inline bool InToPage(Object object);
   static inline bool InToPage(MaybeObject object);
   static inline bool InToPage(HeapObject heap_object);
+  template <typename T>
+  static inline bool InToPage(Tagged<T> object);
 
   // Returns whether the object resides in old space.
   inline bool InOldSpace(Object object);
@@ -1515,6 +1521,10 @@ class Heap final {
   // This predicate may be invoked from a background thread.
   inline bool IsPendingAllocation(HeapObject object);
   inline bool IsPendingAllocation(Object object);
+  template <typename T>
+  inline bool IsPendingAllocation(Tagged<T> object) {
+    return IsPendingAllocation(*object);
+  }
 
   // Notifies that all previously allocated objects are properly initialized
   // and ensures that IsPendingAllocation returns false for them. This function

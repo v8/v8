@@ -60,7 +60,7 @@ class V8_EXPORT_PRIVATE LocalHeap {
   LocalHandles* handles() { return handles_.get(); }
 
   template <typename T>
-  Handle<T> NewPersistentHandle(T object) {
+  Handle<T> NewPersistentHandle(Tagged<T> object) {
     if (!persistent_handles_) {
       EnsurePersistentHandles();
     }
@@ -70,6 +70,12 @@ class V8_EXPORT_PRIVATE LocalHeap {
   template <typename T>
   Handle<T> NewPersistentHandle(Handle<T> object) {
     return NewPersistentHandle(*object);
+  }
+
+  template <typename T>
+  Handle<T> NewPersistentHandle(T object) {
+    static_assert(kTaggedCanConvertToRawObjects);
+    return NewPersistentHandle(Tagged<T>(object));
   }
 
   template <typename T>

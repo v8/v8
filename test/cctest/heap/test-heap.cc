@@ -4056,7 +4056,7 @@ static void TestFillersFromPersistentHandles(bool promote) {
       CHECK(Heap::InYoungGeneration(*tail));
     }
   }
-  CHECK_EQ(n - 6, (*tail).length());
+  CHECK_EQ(n - 6, tail->length());
   CHECK(!filler_1->IsHeapObject());
   CHECK(!filler_2->IsHeapObject());
   CHECK(!filler_3->IsHeapObject());

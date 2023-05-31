@@ -140,7 +140,7 @@ StringShape::StringShape(const String str, PtrComprCageBase cage_base)
   DCHECK_EQ(type_ & kIsNotStringMask, kStringTag);
 }
 
-StringShape::StringShape(Map map) : type_(map.instance_type()) {
+StringShape::StringShape(Tagged<Map> map) : type_(map->instance_type()) {
   set_valid();
   DCHECK_EQ(type_ & kIsNotStringMask, kStringTag);
 }
@@ -1085,13 +1085,13 @@ inline int SeqTwoByteString::AllocatedSize() {
 }
 
 // static
-bool SeqOneByteString::IsCompatibleMap(Map map, ReadOnlyRoots roots) {
+bool SeqOneByteString::IsCompatibleMap(Tagged<Map> map, ReadOnlyRoots roots) {
   return map == roots.one_byte_string_map() ||
          map == roots.shared_one_byte_string_map();
 }
 
 // static
-bool SeqTwoByteString::IsCompatibleMap(Map map, ReadOnlyRoots roots) {
+bool SeqTwoByteString::IsCompatibleMap(Tagged<Map> map, ReadOnlyRoots roots) {
   return map == roots.string_map() || map == roots.shared_string_map();
 }
 

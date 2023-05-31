@@ -55,6 +55,7 @@
 #include "src/objects/code-inl.h"
 #include "src/objects/compilation-cache-table-inl.h"
 #include "src/objects/debug-objects-inl.h"
+#include "src/objects/dictionary.h"
 #include "src/objects/elements.h"
 #include "src/objects/embedder-data-array-inl.h"
 #include "src/objects/field-index-inl.h"
@@ -229,7 +230,7 @@ Handle<FieldType> Object::OptimalType(Isolate* isolate,
 Handle<Object> Object::NewStorageFor(Isolate* isolate, Handle<Object> object,
                                      Representation representation) {
   if (!representation.IsDouble()) return object;
-  auto result = isolate->factory()->NewHeapNumberWithHoleNaN();
+  Handle<HeapNumber> result = isolate->factory()->NewHeapNumberWithHoleNaN();
   if (object->IsUninitialized(isolate)) {
     result->set_value_as_bits(kHoleNanInt64, kRelaxedStore);
   } else if (object->IsHeapNumber()) {
@@ -653,7 +654,7 @@ MaybeHandle<Object> Object::ConvertToIndex(Isolate* isolate,
   ASSIGN_RETURN_ON_EXCEPTION(isolate, input, ToNumber(isolate, input), Object);
   if (input->IsSmi() && Smi::ToInt(*input) >= 0) return input;
   double len = DoubleToInteger(input->Number());
-  auto js_len = isolate->factory()->NewNumber(len);
+  Handle<Object> js_len = isolate->factory()->NewNumber(len);
   if (len < 0.0 || len > kMaxSafeInteger) {
     THROW_NEW_ERROR(isolate, NewRangeError(error_index, js_len), Object);
   }
@@ -2598,7 +2599,7 @@ Maybe<bool> Object::SetPropertyInternal(LookupIterator* it,
         // the bounds check. The bounds check has already happened here, but
         // perform the possibly effectful ToNumber (or ToBigInt) operation
         // anyways.
-        auto holder = it->GetHolder<JSTypedArray>();
+        Handle<JSTypedArray> holder = it->GetHolder<JSTypedArray>();
         Handle<Object> throwaway_value;
         if (holder->type() == kExternalBigInt64Array ||
             holder->type() == kExternalBigUint64Array) {
@@ -2833,7 +2834,7 @@ Maybe<bool> Object::SetDataProperty(LookupIterator* it, Handle<Object> value) {
   if (it->IsElement() && receiver->IsJSObject(isolate) &&
       JSObject::cast(*receiver).HasTypedArrayOrRabGsabTypedArrayElements(
           isolate)) {
-    auto receiver_ta = Handle<JSTypedArray>::cast(receiver);
+    Handle<JSTypedArray> receiver_ta = Handle<JSTypedArray>::cast(receiver);
     ElementsKind elements_kind = JSObject::cast(*receiver).GetElementsKind();
     if (IsBigIntTypedArrayElementsKind(elements_kind)) {
       ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, to_assign,
@@ -3902,14 +3903,14 @@ Handle<DescriptorArray> DescriptorArray::CopyUpToAddAttributes(
       DescriptorArray::Allocate(isolate, size, slack);
 
   DisallowGarbageCollection no_gc;
-  auto source = *source_handle;
-  auto copy = *copy_handle;
+  Tagged<DescriptorArray> source = *source_handle;
+  Tagged<DescriptorArray> copy = *copy_handle;
 
   if (attributes != NONE) {
     for (InternalIndex i : InternalIndex::Range(size)) {
-      MaybeObject value_or_field_type = source.GetValue(i);
-      Name key = source.GetKey(i);
-      PropertyDetails details = source.GetDetails(i);
+      MaybeObject value_or_field_type = source->GetValue(i);
+      Name key = source->GetKey(i);
+      PropertyDetails details = source->GetDetails(i);
       // Bulk attribute changes never affect private properties.
       if (!key.IsPrivate()) {
         int mask = DONT_DELETE | DONT_ENUM;
@@ -3923,15 +3924,15 @@ Handle<DescriptorArray> DescriptorArray::CopyUpToAddAttributes(
         details = details.CopyAddAttributes(
             static_cast<PropertyAttributes>(attributes & mask));
       }
-      copy.Set(i, key, value_or_field_type, details);
+      copy->Set(i, key, value_or_field_type, details);
     }
   } else {
     for (InternalIndex i : InternalIndex::Range(size)) {
-      copy.CopyFrom(i, source);
+      copy->CopyFrom(i, source);
     }
   }
 
-  if (source.number_of_descriptors() != enumeration_index) copy.Sort();
+  if (source->number_of_descriptors() != enumeration_index) copy->Sort();
 
   return copy_handle;
 }
@@ -3950,12 +3951,12 @@ Handle<DescriptorArray> DescriptorArray::CopyForFastObjectClone(
       DescriptorArray::Allocate(isolate, size, slack);
 
   DisallowGarbageCollection no_gc;
-  auto src = *src_handle;
-  auto descriptors = *descriptors_handle;
+  Tagged<DescriptorArray> src = *src_handle;
+  Tagged<DescriptorArray> descriptors = *descriptors_handle;
 
   for (InternalIndex i : InternalIndex::Range(size)) {
-    Name key = src.GetKey(i);
-    PropertyDetails details = src.GetDetails(i);
+    Name key = src->GetKey(i);
+    PropertyDetails details = src->GetDetails(i);
     Representation new_representation = details.representation();
 
     DCHECK(!key.IsPrivateName());
@@ -3964,7 +3965,7 @@ Handle<DescriptorArray> DescriptorArray::CopyForFastObjectClone(
     // If the new representation is an in-place changeable field, make it
     // generic as possible (under in-place changes) to avoid type confusion if
     // the source representation changes after this feedback has been collected.
-    MaybeObject type = src.GetValue(i);
+    MaybeObject type = src->GetValue(i);
     if (details.location() == PropertyLocation::kField) {
       type = MaybeObject::FromObject(FieldType::Any());
       // TODO(bmeurer,ishell): Igor suggested to use some kind of dynamic
@@ -3981,10 +3982,10 @@ Handle<DescriptorArray> DescriptorArray::CopyForFastObjectClone(
                                 details.constness(), new_representation,
                                 details.field_index());
 
-    descriptors.Set(i, key, type, new_details);
+    descriptors->Set(i, key, type, new_details);
   }
 
-  descriptors.Sort();
+  descriptors->Sort();
 
   return descriptors_handle;
 }
@@ -4020,12 +4021,12 @@ Handle<FixedArray> FixedArray::SetAndGrow(Isolate* isolate,
   Handle<FixedArray> new_array = isolate->factory()->NewFixedArray(capacity);
 
   DisallowGarbageCollection no_gc;
-  auto raw_src = *array;
-  auto raw_dst = *new_array;
-  raw_src.CopyTo(0, raw_dst, 0, src_length);
-  DCHECK_EQ(raw_dst.length(), capacity);
-  raw_dst.FillWithHoles(src_length, capacity);
-  raw_dst.set(index, *value);
+  Tagged<FixedArray> raw_src = *array;
+  Tagged<FixedArray> raw_dst = *new_array;
+  raw_src->CopyTo(0, raw_dst, 0, src_length);
+  DCHECK_EQ(raw_dst->length(), capacity);
+  raw_dst->FillWithHoles(src_length, capacity);
+  raw_dst->set(index, *value);
 
   return new_array;
 }
@@ -4069,9 +4070,9 @@ Handle<ArrayList> ArrayList::Add(Isolate* isolate, Handle<ArrayList> array,
   DCHECK_EQ(array->Length(), length);
   {
     DisallowGarbageCollection no_gc;
-    ArrayList raw_array = *array;
-    raw_array.Set(length, *obj);
-    raw_array.SetLength(length + 1);
+    Tagged<ArrayList> raw_array = *array;
+    raw_array->Set(length, *obj);
+    raw_array->SetLength(length + 1);
   }
   return array;
 }
@@ -4084,9 +4085,9 @@ Handle<ArrayList> ArrayList::Add(Isolate* isolate, Handle<ArrayList> array,
   DCHECK_EQ(array->Length(), length);
   {
     DisallowGarbageCollection no_gc;
-    ArrayList raw_array = *array;
-    raw_array.Set(length, obj1);
-    raw_array.SetLength(length + 1);
+    Tagged<ArrayList> raw_array = *array;
+    raw_array->Set(length, obj1);
+    raw_array->SetLength(length + 1);
   }
   return array;
 }
@@ -4100,10 +4101,10 @@ Handle<ArrayList> ArrayList::Add(Isolate* isolate, Handle<ArrayList> array,
   DCHECK_EQ(array->Length(), length);
   {
     DisallowGarbageCollection no_gc;
-    ArrayList raw_array = *array;
-    raw_array.Set(length, *obj1);
-    raw_array.Set(length + 1, *obj2);
-    raw_array.SetLength(length + 2);
+    Tagged<ArrayList> raw_array = *array;
+    raw_array->Set(length, *obj1);
+    raw_array->Set(length + 1, *obj2);
+    raw_array->SetLength(length + 2);
   }
   return array;
 }
@@ -4117,12 +4118,12 @@ Handle<ArrayList> ArrayList::Add(Isolate* isolate, Handle<ArrayList> array,
   DCHECK_EQ(array->Length(), length);
   {
     DisallowGarbageCollection no_gc;
-    ArrayList raw_array = *array;
-    raw_array.Set(length, *obj1);
-    raw_array.Set(length + 1, obj2);
-    raw_array.Set(length + 2, obj3);
-    raw_array.Set(length + 3, obj4);
-    raw_array.SetLength(length + 4);
+    Tagged<ArrayList> raw_array = *array;
+    raw_array->Set(length, *obj1);
+    raw_array->Set(length + 1, obj2);
+    raw_array->Set(length + 2, obj3);
+    raw_array->Set(length + 3, obj4);
+    raw_array->SetLength(length + 4);
   }
   return array;
 }
@@ -4164,7 +4165,7 @@ Handle<ArrayList> ArrayList::EnsureSpace(Isolate* isolate,
                                          Handle<ArrayList> array, int length,
                                          AllocationType allocation) {
   DCHECK_LT(0, length);
-  auto new_array = Handle<ArrayList>::cast(EnsureSpaceInFixedArray(
+  Handle<ArrayList> new_array = Handle<ArrayList>::cast(EnsureSpaceInFixedArray(
       isolate, array, kFirstIndex + length, allocation));
   DCHECK_EQ(array->Length(), new_array->Length());
   return new_array;
@@ -4589,10 +4590,10 @@ Handle<AccessorPair> AccessorPair::Copy(Isolate* isolate,
                                         Handle<AccessorPair> pair) {
   Handle<AccessorPair> copy = isolate->factory()->NewAccessorPair();
   DisallowGarbageCollection no_gc;
-  auto raw_src = *pair;
-  auto raw_copy = *copy;
-  raw_copy.set_getter(raw_src.getter());
-  raw_copy.set_setter(raw_src.setter());
+  Tagged<AccessorPair> raw_src = *pair;
+  Tagged<AccessorPair> raw_copy = *copy;
+  raw_copy->set_getter(raw_src->getter());
+  raw_copy->set_setter(raw_src->setter());
   return copy;
 }
 
@@ -4603,10 +4604,11 @@ Handle<Object> AccessorPair::GetComponent(Isolate* isolate,
   Handle<Object> accessor(accessor_pair->get(component), isolate);
   if (accessor->IsFunctionTemplateInfo()) {
     // TODO(v8:5962): pass the right name here: "get "/"set " + prop.
-    auto function = ApiNatives::InstantiateFunction(
-                        isolate, native_context,
-                        Handle<FunctionTemplateInfo>::cast(accessor))
-                        .ToHandleChecked();
+    Handle<JSFunction> function =
+        ApiNatives::InstantiateFunction(
+            isolate, native_context,
+            Handle<FunctionTemplateInfo>::cast(accessor))
+            .ToHandleChecked();
     accessor_pair->set(component, *function, kReleaseStore);
     return function;
   }
@@ -5810,10 +5812,10 @@ Handle<Derived> HashTable<Derived, Shape>::NewInternal(
       Derived::GetMap(ReadOnlyRoots(isolate)), length, allocation);
   Handle<Derived> table = Handle<Derived>::cast(array);
   DisallowGarbageCollection no_gc;
-  auto raw_table = *table;
-  raw_table.SetNumberOfElements(0);
-  raw_table.SetNumberOfDeletedElements(0);
-  raw_table.SetCapacity(capacity);
+  Tagged<Derived> raw_table = *table;
+  raw_table->SetNumberOfElements(0);
+  raw_table->SetNumberOfDeletedElements(0);
+  raw_table->SetCapacity(capacity);
   return table;
 }
 
@@ -6110,8 +6112,9 @@ Handle<NameDictionary> NameDictionary::New(IsolateT* isolate,
                                            int at_least_space_for,
                                            AllocationType allocation,
                                            MinimumCapacity capacity_option) {
-  auto dict = BaseNameDictionary<NameDictionary, NameDictionaryShape>::New(
-      isolate, at_least_space_for, allocation, capacity_option);
+  Handle<NameDictionary> dict =
+      BaseNameDictionary<NameDictionary, NameDictionaryShape>::New(
+          isolate, at_least_space_for, allocation, capacity_option);
   dict->set_flags(kFlagsDefault);
   return dict;
 }
@@ -6365,10 +6368,10 @@ Handle<FixedArray> BaseNameDictionary<Derived, Shape>::IterationIndices(
   int array_size = 0;
   {
     DisallowGarbageCollection no_gc;
-    Derived raw_dictionary = *dictionary;
+    Tagged<Derived> raw_dictionary = *dictionary;
     for (InternalIndex i : dictionary->IterateEntries()) {
       Object k;
-      if (!raw_dictionary.ToKey(roots, i, &k)) continue;
+      if (!raw_dictionary->ToKey(roots, i, &k)) continue;
       array->set(array_size++, Smi::FromInt(i.as_int()));
     }
 

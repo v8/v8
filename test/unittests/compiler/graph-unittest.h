@@ -69,6 +69,11 @@ class GraphTest : public TestWithNativeContextAndZone {
   JSHeapBroker* broker() { return &broker_; }
   template <typename T>
   Handle<T> CanonicalHandle(T object) {
+    static_assert(kTaggedCanConvertToRawObjects);
+    return CanonicalHandle(Tagged<T>(object));
+  }
+  template <typename T>
+  Handle<T> CanonicalHandle(Tagged<T> object) {
     return broker()->CanonicalPersistentHandle(object);
   }
   template <typename T>

@@ -358,7 +358,7 @@ void FinalizeDeserialization(Isolate* isolate,
   }
 
   Handle<String> name(script->name().IsString()
-                          ? String::cast(script->name())
+                          ? Tagged<String>::cast(script->name())
                           : ReadOnlyRoots(isolate).empty_string(),
                       isolate);
 

@@ -539,18 +539,18 @@ Handle<FixedArray> FastKeyAccumulator::InitializeFastPropertyEnumCache(
     indices = isolate->factory()->NewFixedArray(enum_length, allocation);
     index = 0;
     DisallowGarbageCollection no_gc;
-    auto raw_map = *map;
-    auto raw_indices = *indices;
-    auto raw_descriptors = *descriptors;
-    for (InternalIndex i : raw_map.IterateOwnDescriptors()) {
-      PropertyDetails details = raw_descriptors.GetDetails(i);
+    Tagged<Map> raw_map = *map;
+    Tagged<FixedArray> raw_indices = *indices;
+    Tagged<DescriptorArray> raw_descriptors = *descriptors;
+    for (InternalIndex i : raw_map->IterateOwnDescriptors()) {
+      PropertyDetails details = raw_descriptors->GetDetails(i);
       if (details.IsDontEnum()) continue;
-      Object key = raw_descriptors.GetKey(i);
+      Object key = raw_descriptors->GetKey(i);
       if (key.IsSymbol()) continue;
       DCHECK_EQ(PropertyKind::kData, details.kind());
       DCHECK_EQ(PropertyLocation::kField, details.location());
       FieldIndex field_index = FieldIndex::ForDetails(raw_map, details);
-      raw_indices.set(index, Smi::FromInt(field_index.GetLoadByFieldIndex()));
+      raw_indices->set(index, Smi::FromInt(field_index.GetLoadByFieldIndex()));
       index++;
     }
     DCHECK_EQ(index, indices->length());

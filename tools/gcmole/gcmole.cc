@@ -34,15 +34,19 @@
 #include <set>
 #include <stack>
 
+#include "clang/AST/APValue.h"
 #include "clang/AST/AST.h"
 #include "clang/AST/ASTConsumer.h"
 #include "clang/AST/DeclCXX.h"
+#include "clang/AST/DeclTemplate.h"
 #include "clang/AST/Mangle.h"
 #include "clang/AST/RecursiveASTVisitor.h"
 #include "clang/AST/StmtVisitor.h"
+#include "clang/AST/TemplateBase.h"
 #include "clang/Basic/FileManager.h"
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Frontend/FrontendPluginRegistry.h"
+#include "llvm/Support/Casting.h"
 #include "llvm/Support/raw_ostream.h"
 
 namespace {
@@ -642,12 +646,14 @@ class FunctionAnalyzer {
   FunctionAnalyzer(clang::MangleContext* ctx, clang::CXXRecordDecl* object_decl,
                    clang::CXXRecordDecl* maybe_object_decl,
                    clang::CXXRecordDecl* smi_decl,
+                   clang::ClassTemplateDecl* tagged_decl,
                    clang::CXXRecordDecl* no_gc_mole_decl,
                    clang::DiagnosticsEngine& d, clang::SourceManager& sm)
       : ctx_(ctx),
         object_decl_(object_decl),
         maybe_object_decl_(maybe_object_decl),
         smi_decl_(smi_decl),
+        tagged_decl_(tagged_decl),
         no_gc_mole_decl_(no_gc_mole_decl),
         d_(d),
         sm_(sm),
@@ -1243,6 +1249,32 @@ class FunctionAnalyzer {
     return (record == base) || record->isDerivedFrom(base);
   }
 
+  // Tagged<T> -> T
+  const clang::CXXRecordDecl* ExtractPointedToTypeIfTagged(
+      const clang::CXXRecordDecl* record) {
+    if (record == nullptr) return nullptr;
+    if (!InV8Namespace(record)) return nullptr;
+    auto* specialization =
+        llvm::dyn_cast<clang::ClassTemplateSpecializationDecl>(record);
+    if (!specialization) return record;
+    auto* template_decl =
+        specialization->getSpecializedTemplate()->getCanonicalDecl();
+    if (template_decl != tagged_decl_) return record;
+    auto& template_args = specialization->getTemplateArgs();
+    if (template_args.size() != 1) {
+      llvm::errs() << "v8::internal::Tagged<T> should have exactly one "
+                      "template argument\n";
+      specialization->dump(llvm::errs());
+      return nullptr;
+    }
+    if (template_args[0].getKind() != clang::TemplateArgument::Type) {
+      llvm::errs() << "v8::internal::Tagged<T>, T should be a type argument\n";
+      specialization->dump(llvm::errs());
+      return nullptr;
+    }
+    return template_args[0].getAsType()->getAsCXXRecordDecl();
+  }
+
   const clang::CXXRecordDecl* GetDefinitionOrNull(
       const clang::CXXRecordDecl* record) {
     if (record == nullptr) return nullptr;
@@ -1252,12 +1284,16 @@ class FunctionAnalyzer {
   }
 
   bool IsDerivedFromInternalPointer(const clang::CXXRecordDecl* record) {
+    record = ExtractPointedToTypeIfTagged(record);
     const clang::CXXRecordDecl* definition = GetDefinitionOrNull(record);
     if (!definition) return false;
-    bool result = (IsDerivedFrom(record, object_decl_) &&
-                   !IsDerivedFrom(record, smi_decl_)) ||
-                  IsDerivedFrom(record, maybe_object_decl_);
-    return result;
+    if (IsDerivedFrom(record, object_decl_)) {
+      return !IsDerivedFrom(record, smi_decl_);
+    }
+    if (IsDerivedFrom(record, maybe_object_decl_)) {
+      return true;
+    }
+    return false;
   }
 
   bool IsRawPointerType(const clang::PointerType* type) {
@@ -1406,6 +1442,7 @@ class FunctionAnalyzer {
   clang::CXXRecordDecl* object_decl_;
   clang::CXXRecordDecl* maybe_object_decl_;
   clang::CXXRecordDecl* smi_decl_;
+  clang::ClassTemplateDecl* tagged_decl_;
   clang::CXXRecordDecl* no_gc_mole_decl_;
   clang::CXXRecordDecl* no_heap_access_decl_;
 
@@ -1493,6 +1530,9 @@ class ProblemsFinder : public clang::ASTConsumer,
     clang::CXXRecordDecl* smi_decl =
         v8_internal.Resolve<clang::CXXRecordDecl>("Smi");
 
+    clang::ClassTemplateDecl* tagged_decl =
+        v8_internal.Resolve<clang::ClassTemplateDecl>("Tagged");
+
     if (object_decl != nullptr) object_decl = object_decl->getDefinition();
 
     if (maybe_object_decl != nullptr) {
@@ -1501,11 +1541,13 @@ class ProblemsFinder : public clang::ASTConsumer,
 
     if (smi_decl != nullptr) smi_decl = smi_decl->getDefinition();
 
+    if (tagged_decl != nullptr) tagged_decl = tagged_decl->getCanonicalDecl();
+
     if (object_decl != nullptr && smi_decl != nullptr &&
-        maybe_object_decl != nullptr) {
+        maybe_object_decl != nullptr && tagged_decl != nullptr) {
       function_analyzer_ = new FunctionAnalyzer(
           clang::ItaniumMangleContext::create(ctx, d_), object_decl,
-          maybe_object_decl, smi_decl, no_gc_mole_decl, d_, sm_);
+          maybe_object_decl, smi_decl, tagged_decl, no_gc_mole_decl, d_, sm_);
       TraverseDecl(ctx.getTranslationUnitDecl());
     } else if (g_verbose) {
       if (object_decl == nullptr) {
@@ -1516,6 +1558,9 @@ class ProblemsFinder : public clang::ASTConsumer,
       }
       if (smi_decl == nullptr) {
         llvm::errs() << "Failed to resolve v8::internal::Smi\n";
+      }
+      if (tagged_decl == nullptr) {
+        llvm::errs() << "Failed to resolve v8::internal::Tagged<T>\n";
       }
     }
   }

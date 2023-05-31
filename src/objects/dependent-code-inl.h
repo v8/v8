@@ -7,6 +7,7 @@
 
 #include "src/objects/dependent-code.h"
 #include "src/objects/fixed-array-inl.h"
+#include "src/objects/tagged.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -21,9 +22,18 @@ CAST_ACCESSOR(DependentCode)
 template <typename ObjectT>
 void DependentCode::DeoptimizeDependencyGroups(Isolate* isolate, ObjectT object,
                                                DependencyGroups groups) {
+  static_assert(kTaggedCanConvertToRawObjects);
+  DeoptimizeDependencyGroups(isolate, Tagged<ObjectT>(object), groups);
+}
+
+// static
+template <typename ObjectT>
+void DependentCode::DeoptimizeDependencyGroups(Isolate* isolate,
+                                               Tagged<ObjectT> object,
+                                               DependencyGroups groups) {
   // Shared objects are designed to never invalidate code.
-  DCHECK(!object.InSharedHeap());
-  object.dependent_code().DeoptimizeDependencyGroups(isolate, groups);
+  DCHECK(!object->InSharedHeap());
+  object->dependent_code().DeoptimizeDependencyGroups(isolate, groups);
 }
 
 // static
