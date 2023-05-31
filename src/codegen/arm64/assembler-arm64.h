@@ -3316,30 +3316,28 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   }
 #endif
 
-  class FarBranchInfo {
-   public:
-    FarBranchInfo(int offset, Label* label)
-        : pc_offset_(offset), label_(label) {}
-    // Offset of the branch in the code generation buffer.
-    int pc_offset_;
-    // The label branched to.
-    Label* label_;
-  };
-
  protected:
   // Information about unresolved (forward) branches.
   // The Assembler is only allowed to delete out-of-date information from here
   // after a label is bound. The MacroAssembler uses this information to
   // generate veneers.
   //
-  // The second member gives information about the unresolved branch. The first
-  // member of the pair is the maximum offset that the branch can reach in the
-  // buffer. The map is sorted according to this reachable offset, allowing to
-  // easily check when veneers need to be emitted.
+  // The first member of the pair (max_pc) is the maximum offset that the branch
+  // can reach in the buffer, with the bottom bit set to indicate a
+  // test-and-branch instruction. This bit is used to help in calculating the
+  // address of the branch, ie.
+  //
+  //   branch_addr = { max_pc - 2^21,     if max_pc<0> == 0 (B.cond, CB[N]Z)
+  //                 { max_pc - 2^16 - 1, if max_pc<0> == 1 (TB[N]Z)
+  //
+  // The second member is a pointer to the Label targetted by the branch.
+  //
+  // The map is sorted according to the reachable offset, max_pc, allowing to
+  // check easily when veneers need to be emitted.
   // Note that the maximum reachable offset (first member of the pairs) should
   // always be positive but has the same type as the return value for
   // pc_offset() for convenience.
-  std::multimap<int, FarBranchInfo> unresolved_branches_;
+  std::map<int, Label*> unresolved_branches_;
 
   // We generate a veneer for a branch if we reach within this distance of the
   // limit of the range.
@@ -3352,8 +3350,11 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
       kVeneerNoProtectionFactor * kVeneerDistanceMargin;
   int unresolved_branches_first_limit() const {
     DCHECK(!unresolved_branches_.empty());
-    return unresolved_branches_.begin()->first;
+
+    // Mask branch type tag bit.
+    return unresolved_branches_.begin()->first & ~1;
   }
+
   // This PC-offset of the next veneer pool check helps reduce the overhead
   // of checking for veneer pools.
   // It is maintained to the closest unresolved branch limit minus the maximum

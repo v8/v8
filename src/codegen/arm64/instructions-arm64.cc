@@ -210,12 +210,6 @@ Instruction* Instruction::ImmPCOffsetTarget() {
   return InstructionAtOffset(ImmPCOffset());
 }
 
-bool Instruction::IsValidImmPCOffset(ImmBranchType branch_type,
-                                     ptrdiff_t offset) {
-  DCHECK_EQ(offset % kInstrSize, 0);
-  return is_intn(offset / kInstrSize, ImmBranchRangeBitwidth(branch_type));
-}
-
 bool Instruction::IsTargetInImmPCOffsetRange(Instruction* target) {
   return IsValidImmPCOffset(BranchType(), DistanceTo(target));
 }
@@ -224,8 +218,14 @@ void Instruction::SetImmPCOffsetTarget(const AssemblerOptions& options,
                                        Instruction* target) {
   if (IsPCRelAddressing()) {
     SetPCRelImmTarget(options, target);
-  } else if (BranchType() != UnknownBranchType) {
-    SetBranchImmTarget(target);
+  } else if (IsCondBranchImm()) {
+    SetBranchImmTarget<CondBranchType>(target);
+  } else if (IsUncondBranchImm()) {
+    SetBranchImmTarget<UncondBranchType>(target);
+  } else if (IsCompareBranch()) {
+    SetBranchImmTarget<CompareBranchType>(target);
+  } else if (IsTestBranch()) {
+    SetBranchImmTarget<TestBranchType>(target);
   } else if (IsUnresolvedInternalReference()) {
     SetUnresolvedInternalReferenceImmTarget(options, target);
   } else {
@@ -249,39 +249,6 @@ void Instruction::SetPCRelImmTarget(const AssemblerOptions& options,
                               PatchingAssembler::kAdrFarPatchableNInstrs);
     patcher.PatchAdrFar(target_offset);
   }
-}
-
-void Instruction::SetBranchImmTarget(Instruction* target) {
-  DCHECK(IsAligned(DistanceTo(target), kInstrSize));
-  DCHECK(IsValidImmPCOffset(BranchType(), DistanceTo(target)));
-  int offset = static_cast<int>(DistanceTo(target) >> kInstrSizeLog2);
-  Instr branch_imm = 0;
-  uint32_t imm_mask = 0;
-  switch (BranchType()) {
-    case CondBranchType: {
-      branch_imm = Assembler::ImmCondBranch(offset);
-      imm_mask = ImmCondBranch_mask;
-      break;
-    }
-    case UncondBranchType: {
-      branch_imm = Assembler::ImmUncondBranch(offset);
-      imm_mask = ImmUncondBranch_mask;
-      break;
-    }
-    case CompareBranchType: {
-      branch_imm = Assembler::ImmCmpBranch(offset);
-      imm_mask = ImmCmpBranch_mask;
-      break;
-    }
-    case TestBranchType: {
-      branch_imm = Assembler::ImmTestBranch(offset);
-      imm_mask = ImmTestBranch_mask;
-      break;
-    }
-    default:
-      UNREACHABLE();
-  }
-  SetInstructionBits(Mask(~imm_mask) | branch_imm);
 }
 
 void Instruction::SetUnresolvedInternalReferenceImmTarget(

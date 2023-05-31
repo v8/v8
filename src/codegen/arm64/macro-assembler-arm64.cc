@@ -996,29 +996,6 @@ void MacroAssembler::LoadStorePairMacro(const CPURegister& rt,
   }
 }
 
-bool MacroAssembler::NeedExtraInstructionsOrRegisterBranch(
-    Label* label, ImmBranchType b_type) {
-  bool need_longer_range = false;
-  // There are two situations in which we care about the offset being out of
-  // range:
-  //  - The label is bound but too far away.
-  //  - The label is not bound but linked, and the previous branch
-  //    instruction in the chain is too far away.
-  if (label->is_bound() || label->is_linked()) {
-    need_longer_range =
-        !Instruction::IsValidImmPCOffset(b_type, label->pos() - pc_offset());
-  }
-  if (!need_longer_range && !label->is_bound()) {
-    int max_reachable_pc = pc_offset() + Instruction::ImmBranchRange(b_type);
-    unresolved_branches_.insert(std::pair<int, FarBranchInfo>(
-        max_reachable_pc, FarBranchInfo(pc_offset(), label)));
-    // Also maintain the next pool check.
-    next_veneer_pool_check_ = std::min(
-        next_veneer_pool_check_, max_reachable_pc - kVeneerDistanceCheckMargin);
-  }
-  return need_longer_range;
-}
-
 void MacroAssembler::Adr(const Register& rd, Label* label, AdrHint hint) {
   DCHECK(allow_macro_instructions());
   DCHECK(!rd.IsZero());
@@ -1089,7 +1066,7 @@ void MacroAssembler::B(Label* label, Condition cond) {
 
   Label done;
   bool need_extra_instructions =
-      NeedExtraInstructionsOrRegisterBranch(label, CondBranchType);
+      NeedExtraInstructionsOrRegisterBranch<CondBranchType>(label);
 
   if (need_extra_instructions) {
     b(&done, NegateCondition(cond));
@@ -1105,7 +1082,7 @@ void MacroAssembler::Tbnz(const Register& rt, unsigned bit_pos, Label* label) {
 
   Label done;
   bool need_extra_instructions =
-      NeedExtraInstructionsOrRegisterBranch(label, TestBranchType);
+      NeedExtraInstructionsOrRegisterBranch<TestBranchType>(label);
 
   if (need_extra_instructions) {
     tbz(rt, bit_pos, &done);
@@ -1121,7 +1098,7 @@ void MacroAssembler::Tbz(const Register& rt, unsigned bit_pos, Label* label) {
 
   Label done;
   bool need_extra_instructions =
-      NeedExtraInstructionsOrRegisterBranch(label, TestBranchType);
+      NeedExtraInstructionsOrRegisterBranch<TestBranchType>(label);
 
   if (need_extra_instructions) {
     tbnz(rt, bit_pos, &done);
@@ -1137,7 +1114,7 @@ void MacroAssembler::Cbnz(const Register& rt, Label* label) {
 
   Label done;
   bool need_extra_instructions =
-      NeedExtraInstructionsOrRegisterBranch(label, CompareBranchType);
+      NeedExtraInstructionsOrRegisterBranch<CompareBranchType>(label);
 
   if (need_extra_instructions) {
     cbz(rt, &done);
@@ -1153,7 +1130,7 @@ void MacroAssembler::Cbz(const Register& rt, Label* label) {
 
   Label done;
   bool need_extra_instructions =
-      NeedExtraInstructionsOrRegisterBranch(label, CompareBranchType);
+      NeedExtraInstructionsOrRegisterBranch<CompareBranchType>(label);
 
   if (need_extra_instructions) {
     cbnz(rt, &done);

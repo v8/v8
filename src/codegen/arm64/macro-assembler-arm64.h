@@ -2208,8 +2208,40 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // for generating appropriate code.
   // Otherwise it returns false.
   // This function also checks wether veneers need to be emitted.
-  bool NeedExtraInstructionsOrRegisterBranch(Label* label,
-                                             ImmBranchType branch_type);
+  template <ImmBranchType branch_type>
+  bool NeedExtraInstructionsOrRegisterBranch(Label* label) {
+    static_assert((branch_type == CondBranchType) ||
+                  (branch_type == CompareBranchType) ||
+                  (branch_type == TestBranchType));
+
+    bool need_longer_range = false;
+    // There are two situations in which we care about the offset being out of
+    // range:
+    //  - The label is bound but too far away.
+    //  - The label is not bound but linked, and the previous branch
+    //    instruction in the chain is too far away.
+    if (label->is_bound() || label->is_linked()) {
+      need_longer_range = !Instruction::IsValidImmPCOffset(
+          branch_type, label->pos() - pc_offset());
+    }
+    if (!need_longer_range && !label->is_bound()) {
+      int max_reachable_pc =
+          pc_offset() + Instruction::ImmBranchRange(branch_type);
+
+      // Use the LSB of the max_reachable_pc (always four-byte aligned) to
+      // encode the branch type. We need only distinguish between TB[N]Z and
+      // CB[N]Z/conditional branch, as the ranges for the latter are the same.
+      int branch_type_tag = (branch_type == TestBranchType) ? 1 : 0;
+
+      unresolved_branches_.insert(
+          std::pair<int, Label*>(max_reachable_pc + branch_type_tag, label));
+      // Also maintain the next pool check.
+      next_veneer_pool_check_ =
+          std::min(next_veneer_pool_check_,
+                   max_reachable_pc - kVeneerDistanceCheckMargin);
+    }
+    return need_longer_range;
+  }
 
   void Movi16bitHelper(const VRegister& vd, uint64_t imm);
   void Movi32bitHelper(const VRegister& vd, uint64_t imm);
