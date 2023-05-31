@@ -31,6 +31,9 @@ class DefaultOSContext:
   def terminate_process(self, process):
     pass
 
+  def platform_shell(self, shell, outdir):
+    return shell
+
 
 class LinuxContext(DefaultOSContext):
 
@@ -51,6 +54,9 @@ class WindowsContext(DefaultOSContext):
 
   def terminate_process(self, process):
     taskkill_windows(process, verbose=True, force=False)
+
+  def platform_shell(self, shell, outdir):
+    return shell + '.exe'
 
 
 class AndroidOSContext(DefaultOSContext):
@@ -74,6 +80,15 @@ class IOSContext(DefaultOSContext):
 
   def terminate_process(self, process):
     os.kill(process.pid, signal.SIGTERM)
+
+  def platform_shell(self, shell, outdir):
+    # Rather than having to use a physical device (iPhone, iPad, etc), we use
+    # the iOS Simulator for the test runners in order to ease the job of
+    # builders and testers.
+    # At the moment Chromium's iossim tool is being used, which is a wrapper
+    # around 'simctl' macOS command utility.
+    iossim = "iossim -d 'iPhone X' "
+    return outdir + '/' + iossim + outdir + '/' + shell + ".app"
 
 # TODO(liviurau): Add documentation with diagrams to describe how context and
 # its components gets initialized and eventually teared down and how does it
