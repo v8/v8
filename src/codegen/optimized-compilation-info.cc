@@ -236,6 +236,7 @@ void OptimizedCompilationInfo::SetTracingFlags(bool passes_filter) {
   if (v8_flags.trace_turbo_scheduled) set_trace_turbo_scheduled();
   if (v8_flags.trace_turbo_alloc) set_trace_turbo_allocation();
   if (v8_flags.trace_heap_broker) set_trace_heap_broker();
+  if (v8_flags.turboshaft_trace_reduction) set_turboshaft_trace_reduction();
 }
 
 OptimizedCompilationInfo::InlinedFunctionHolder::InlinedFunctionHolder(

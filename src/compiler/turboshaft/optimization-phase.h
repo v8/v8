@@ -15,6 +15,7 @@
 #include "src/base/logging.h"
 #include "src/base/small-vector.h"
 #include "src/base/vector.h"
+#include "src/codegen/optimized-compilation-info.h"
 #include "src/compiler/node-origin-table.h"
 #include "src/compiler/turboshaft/graph.h"
 #include "src/compiler/turboshaft/index.h"
@@ -53,7 +54,7 @@ class OptimizationPhaseImpl {
     Assembler<reducer_list<Reducers...>> phase(
         input_graph, input_graph.GetOrCreateCompanion(), phase_zone,
         data.node_origins());
-    if (v8_flags.turboshaft_trace_reduction) {
+    if (data.info()->turboshaft_trace_reduction()) {
       phase.template VisitGraph<true>();
     } else {
       phase.template VisitGraph<false>();
