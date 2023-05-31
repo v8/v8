@@ -23,21 +23,18 @@ void KnownNodeAspects::Merge(const KnownNodeAspects& other, Zone* zone) {
                            return !lhs.is_empty();
                          });
 
-  bool any_merged_map_is_unstable = false;
-  auto merge_known_maps = [&](PossibleMaps& lhs, const PossibleMaps& rhs) {
-    // Map sets are the set of _possible_ maps, so on a merge we need to _union_
-    // them together (i.e. intersect the set of impossible maps).
-    lhs.possible_maps.Union(rhs.possible_maps, zone);
-    lhs.any_map_is_unstable =
-        lhs.any_map_is_unstable || rhs.any_map_is_unstable;
-    // Remember whether _any_ of these merges observed unstable maps.
-    any_merged_map_is_unstable =
-        any_merged_map_is_unstable || lhs.any_map_is_unstable;
-    // We should always add the value even if the set is empty.
+  auto merge_known_maps = [zone](compiler::ZoneRefSet<Map>& lhs,
+                                 const compiler::ZoneRefSet<Map>& rhs) {
+    // Map sets are the set of _possible_ maps, so on
+    // a merge we need to _union_ them together (i.e.
+    // intersect the set of impossible maps).
+    lhs.Union(rhs, zone);
+    // We should always add the value even if the set is
+    // empty.
     return true;
   };
-  DestructivelyIntersect(possible_maps, other.possible_maps, merge_known_maps);
-  this->any_map_for_any_node_is_unstable = any_merged_map_is_unstable;
+  DestructivelyIntersect(stable_maps, other.stable_maps, merge_known_maps);
+  DestructivelyIntersect(unstable_maps, other.unstable_maps, merge_known_maps);
 
   auto merge_loaded_properties =
       [](ZoneMap<ValueNode*, ValueNode*>& lhs,

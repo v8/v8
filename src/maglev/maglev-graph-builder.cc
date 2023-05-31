@@ -3031,74 +3031,74 @@ namespace {
 class KnownMapsMerger {
  public:
   explicit KnownMapsMerger(compiler::JSHeapBroker* broker,
-                           base::Vector<const compiler::MapRef> requested_maps)
-      : broker_(broker), requested_maps_(requested_maps) {}
+                           base::Vector<const compiler::MapRef> maps)
+      : broker_(broker),
+        maps_(maps),
+        known_maps_are_subset_of_maps_(true),
+        emit_check_with_migration_(false) {}
 
   void IntersectWithKnownNodeAspects(
       ValueNode* object, const KnownNodeAspects& known_node_aspects) {
-    auto it = known_node_aspects.possible_maps.find(object);
-    if (it != known_node_aspects.possible_maps.end()) {
-      // TODO(v8:7700): Make intersection non-quadratic.
-      for (compiler::MapRef possible_map : it->second.possible_maps) {
-        if (std::find(requested_maps_.begin(), requested_maps_.end(),
-                      possible_map) != requested_maps_.end()) {
-          // No need to add dependencies, we already have them for all known
-          // possible maps.
-          InsertMap(possible_map, false);
-        } else {
-          known_maps_are_subset_of_requested_maps_ = false;
-        }
-      }
-    } else {
-      // A missing entry here means the universal set, i.e., we don't know
-      // anything about the possible maps of the object. Intersect with the
-      // universal set, which means just insert all requested maps.
-      known_maps_are_subset_of_requested_maps_ = false;
-      for (compiler::MapRef map : requested_maps_) {
-        InsertMap(map, true);
-      }
-    }
+    // A non-value value here means the universal set, i.e., we don't know
+    // anything about the possible maps of the object.
+    base::Optional<compiler::ZoneRefSet<Map>> known_stable_map_set =
+        GetKnownMapSet(object, known_node_aspects.stable_maps);
+    base::Optional<compiler::ZoneRefSet<Map>> known_unstable_map_set =
+        GetKnownMapSet(object, known_node_aspects.unstable_maps);
+
+    IntersectKnownMaps(known_stable_map_set, true);
+    IntersectKnownMaps(known_unstable_map_set, false);
   }
 
   void UpdateKnownNodeAspects(ValueNode* object,
                               KnownNodeAspects& known_node_aspects) {
     // Update known maps.
-    known_node_aspects.possible_maps[object] =
-        KnownNodeAspects::PossibleMaps{intersect_set_, any_map_is_unstable_};
-    // Make sure known_node_aspects.any_map_for_any_node_is_unstable is updated
-    // in case any_map_is_unstable changed to true for this object -- this can
-    // happen if this was an intersection with the universal set which added new
-    // possible unstable maps.
-    if (any_map_is_unstable_) {
-      known_node_aspects.any_map_for_any_node_is_unstable = true;
-    }
-    // At this point, known_node_aspects.any_map_for_any_node_is_unstable may be
-    // true despite there no longer being any unstable maps for any nodes (if
-    // this was the only node with unstable maps and this intersection removed
-    // those). This is ok, because that's at worst just an overestimate -- we
-    // could track whether this node's any_map_is_unstable flipped from true to
-    // false, but this is likely overkill.
+    known_node_aspects.stable_maps[object] = stable_map_set_;
+    known_node_aspects.unstable_maps[object] = unstable_map_set_;
   }
 
-  bool known_maps_are_subset_of_requested_maps() const {
-    return known_maps_are_subset_of_requested_maps_;
+  bool known_maps_are_subset_of_maps() const {
+    return known_maps_are_subset_of_maps_;
   }
   bool emit_check_with_migration() const { return emit_check_with_migration_; }
 
-  compiler::ZoneRefSet<Map> intersect_set() const { return intersect_set_; }
+  compiler::ZoneRefSet<Map> intersect_set() const {
+    compiler::ZoneRefSet<Map> map_set;
+    map_set.Union(stable_map_set_, zone());
+    map_set.Union(unstable_map_set_, zone());
+    return map_set;
+  }
 
   NodeType node_type() const { return node_type_; }
 
  private:
   compiler::JSHeapBroker* broker_;
-  base::Vector<const compiler::MapRef> requested_maps_;
-  compiler::ZoneRefSet<Map> intersect_set_;
-  bool known_maps_are_subset_of_requested_maps_ = true;
-  bool emit_check_with_migration_ = false;
-  bool any_map_is_unstable_ = false;
+  base::Vector<const compiler::MapRef> maps_;
+  bool known_maps_are_subset_of_maps_;
+  bool emit_check_with_migration_;
+  compiler::ZoneRefSet<Map> stable_map_set_;
+  compiler::ZoneRefSet<Map> unstable_map_set_;
   NodeType node_type_ = static_cast<NodeType>(-1);
 
   Zone* zone() const { return broker_->zone(); }
+
+  base::Optional<compiler::ZoneRefSet<Map>> GetKnownMapSet(
+      ValueNode* object,
+      const ZoneMap<ValueNode*, compiler::ZoneRefSet<Map>>& map_of_map_set) {
+    auto it = map_of_map_set.find(object);
+    if (it == map_of_map_set.end()) {
+      return {};
+    }
+    return it->second;
+  }
+
+  compiler::OptionalMapRef FindMapRefInMaps(compiler::MapRef source_map) {
+    auto it = std::find_if(
+        maps_.begin(), maps_.end(),
+        [&](compiler::MapRef map_ref) { return map_ref == source_map; });
+    if (it == maps_.end()) return {};
+    return *it;
+  }
 
   void InsertMap(compiler::MapRef map, bool add_dependency) {
     if (map.is_migration_target()) {
@@ -3115,10 +3115,32 @@ class KnownMapsMerger {
       if (add_dependency) {
         broker_->dependencies()->DependOnStableMap(map);
       }
+      stable_map_set_.insert(map, zone());
     } else {
-      any_map_is_unstable_ = true;
+      unstable_map_set_.insert(map, zone());
     }
-    intersect_set_.insert(map, zone());
+  }
+
+  void IntersectKnownMaps(base::Optional<compiler::ZoneRefSet<Map>>& known_maps,
+                          bool is_set_with_stable_maps) {
+    if (known_maps.has_value()) {
+      // TODO(v8:7700): Make intersection non-quadratic.
+      for (compiler::MapRef known_map : *known_maps) {
+        if (std::find(maps_.begin(), maps_.end(), known_map) != maps_.end()) {
+          InsertMap(known_map, false);
+        } else {
+          known_maps_are_subset_of_maps_ = false;
+        }
+      }
+    } else {
+      // Intersect with the universal set.
+      known_maps_are_subset_of_maps_ = false;
+      for (compiler::MapRef map : maps_) {
+        if (map.is_stable() == is_set_with_stable_maps) {
+          InsertMap(map, true);
+        }
+      }
+    }
   }
 };
 
@@ -3154,16 +3176,11 @@ ReduceResult MaglevGraphBuilder::BuildCheckMaps(
   // whether we should emit check with migration.
   KnownMapsMerger merger(broker(), maps);
   merger.IntersectWithKnownNodeAspects(object, known_node_aspects());
+  merger.UpdateKnownNodeAspects(object, known_node_aspects());
 
   // If the known maps are the subset of the maps to check, we are done.
-  if (merger.known_maps_are_subset_of_requested_maps()) {
+  if (merger.known_maps_are_subset_of_maps()) {
     DCHECK(NodeTypeIs(known_info->type, merger.node_type()));
-#ifdef DEBUG
-    for (compiler::MapRef map : maps) {
-      DCHECK(known_node_aspects().possible_maps[object].possible_maps.contains(
-          map));
-    }
-#endif
     return ReduceResult::Done();
   }
 
@@ -3171,8 +3188,6 @@ ReduceResult MaglevGraphBuilder::BuildCheckMaps(
     EmitUnconditionalDeopt(DeoptimizeReason::kWrongMap);
     return ReduceResult::DoneWithAbort();
   }
-
-  merger.UpdateKnownNodeAspects(object, known_node_aspects());
 
   // TODO(v8:7700): Check if the {maps} - {known_maps} size is smaller than
   // {maps} \intersect {known_maps}, we can emit CheckNotMaps instead.
@@ -3420,8 +3435,10 @@ ValueNode* MaglevGraphBuilder::BuildLoadField(
       DCHECK(access_info.field_map().value().IsJSReceiverMap());
       known_info->type = NodeType::kJSReceiverWithKnownMap;
       auto map = access_info.field_map().value();
-      known_node_aspects().possible_maps[value] =
-          KnownNodeAspects::PossibleMaps{compiler::ZoneRefSet<Map>(map), false};
+      compiler::ZoneRefSet<Map> stable_maps(map);
+      compiler::ZoneRefSet<Map> unstable_maps;
+      known_node_aspects().stable_maps.emplace(value, stable_maps);
+      known_node_aspects().unstable_maps.emplace(value, unstable_maps);
       broker()->dependencies()->DependOnStableMap(map);
     } else {
       known_info->type = NodeType::kAnyHeapObject;
@@ -3437,13 +3454,16 @@ void MaglevGraphBuilder::BuildStoreReceiverMap(ValueNode* receiver,
   DCHECK(map.IsJSReceiverMap());
   node_info->type = NodeType::kJSReceiverWithKnownMap;
   if (map.is_stable()) {
-    known_node_aspects().possible_maps[receiver] =
-        KnownNodeAspects::PossibleMaps{compiler::ZoneRefSet<Map>(map), false};
+    compiler::ZoneRefSet<Map> stable_maps(map);
+    compiler::ZoneRefSet<Map> unstable_maps;
+    known_node_aspects().stable_maps.emplace(receiver, stable_maps);
+    known_node_aspects().unstable_maps.emplace(receiver, unstable_maps);
     broker()->dependencies()->DependOnStableMap(map);
   } else {
-    known_node_aspects().possible_maps[receiver] =
-        KnownNodeAspects::PossibleMaps{compiler::ZoneRefSet<Map>(map), true};
-    known_node_aspects().any_map_for_any_node_is_unstable = true;
+    compiler::ZoneRefSet<Map> stable_maps;
+    compiler::ZoneRefSet<Map> unstable_maps(map);
+    known_node_aspects().stable_maps.emplace(receiver, stable_maps);
+    known_node_aspects().unstable_maps.emplace(receiver, unstable_maps);
   }
 }
 
@@ -5503,21 +5523,15 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayPrototypePush(
   if (args.count() != 1) return ReduceResult::Fail();
   ValueNode* receiver = GetTaggedOrUndefined(args.receiver());
 
-  auto possible_maps_it = known_node_aspects().possible_maps.find(receiver);
-  // If the map set is not found, then we don't know anything about the map of
-  // the receiver, so bail.
-  if (possible_maps_it == known_node_aspects().possible_maps.end()) {
-    return ReduceResult::Fail();
-  }
+  auto stable_it = known_node_aspects().stable_maps.find(receiver);
+  auto unstable_it = known_node_aspects().unstable_maps.find(receiver);
+  auto stable_end = known_node_aspects().stable_maps.end();
+  auto unstable_end = known_node_aspects().unstable_maps.end();
 
-  // If the set of possible maps is empty, then there's no possible map for this
-  // receiver, therefore this path is unreachable at runtime. We're unlikely to
-  // ever hit this case, BuildCheckMaps should already unconditionally deopt,
-  // but check it in case another checking operation fails to statically
-  // unconditionally deopt.
-  if (possible_maps_it->second.possible_maps.is_empty()) {
-    // TODO(leszeks): Add an unreachable assert here.
-    return ReduceResult::DoneWithAbort();
+  // If either of the map sets is not found, then we don't know anything about
+  // the map of the receiver, so bail.
+  if (stable_it == stable_end || unstable_it == unstable_end) {
+    return ReduceResult::Fail();
   }
 
   if (!broker()->dependencies()->DependOnNoElementsProtector()) {
@@ -5528,19 +5542,22 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayPrototypePush(
   ZoneVector<compiler::MapRef> receiver_map_refs(zone());
   // Check that all receiver maps are JSArray maps with compatible elements
   // kinds.
-  for (compiler::MapRef map : possible_maps_it->second.possible_maps) {
-    if (!map.IsJSArrayMap()) return ReduceResult::Fail();
-    ElementsKind packed = GetPackedElementsKind(map.elements_kind());
-    if (!IsFastElementsKind(packed)) return ReduceResult::Fail();
-    if (!map.supports_fast_array_resize(broker())) {
-      return ReduceResult::Fail();
+  for (const compiler::ZoneRefSet<Map>& map_set :
+       {stable_it->second, unstable_it->second}) {
+    for (compiler::MapRef map : map_set) {
+      if (!map.IsJSArrayMap()) return ReduceResult::Fail();
+      ElementsKind packed = GetPackedElementsKind(map.elements_kind());
+      if (!IsFastElementsKind(packed)) return ReduceResult::Fail();
+      if (!map.supports_fast_array_resize(broker())) {
+        return ReduceResult::Fail();
+      }
+      if (receiver_map_refs.empty()) {
+        kind = packed;
+      } else if (kind != packed) {
+        return ReduceResult::Fail();
+      }
+      receiver_map_refs.push_back(map);
     }
-    if (receiver_map_refs.empty()) {
-      kind = packed;
-    } else if (kind != packed) {
-      return ReduceResult::Fail();
-    }
-    receiver_map_refs.push_back(map);
   }
 
   ValueNode* value = ConvertForStoring(args[0], kind);
@@ -6680,21 +6697,14 @@ void MaglevGraphBuilder::VisitTestGreaterThanOrEqual() {
 MaglevGraphBuilder::InferHasInPrototypeChainResult
 MaglevGraphBuilder::InferHasInPrototypeChain(
     ValueNode* receiver, compiler::HeapObjectRef prototype) {
-  auto possible_maps_it = known_node_aspects().possible_maps.find(receiver);
-  // If the map set is not found, then we don't know anything about the map of
-  // the receiver, so bail.
-  if (possible_maps_it == known_node_aspects().possible_maps.end()) {
+  auto stable_it = known_node_aspects().stable_maps.find(receiver);
+  auto unstable_it = known_node_aspects().unstable_maps.find(receiver);
+  auto stable_end = known_node_aspects().stable_maps.end();
+  auto unstable_end = known_node_aspects().unstable_maps.end();
+  // If either of the map sets is not found, then we don't know anything about
+  // the map of the receiver, so bail.
+  if (stable_it == stable_end || unstable_it == unstable_end) {
     return kMayBeInPrototypeChain;
-  }
-
-  // If the set of possible maps is empty, then there's no possible map for this
-  // receiver, therefore this path is unreachable at runtime. We're unlikely to
-  // ever hit this case, BuildCheckMaps should already unconditionally deopt,
-  // but check it in case another checking operation fails to statically
-  // unconditionally deopt.
-  if (possible_maps_it->second.possible_maps.is_empty()) {
-    // TODO(leszeks): Add an unreachable assert here.
-    return kIsNotInPrototypeChain;
   }
 
   ZoneVector<compiler::MapRef> receiver_map_refs(zone());
@@ -6704,34 +6714,37 @@ MaglevGraphBuilder::InferHasInPrototypeChain(
   // kMayBeInPrototypeChain.
   bool all = true;
   bool none = true;
-  for (compiler::MapRef map : possible_maps_it->second.possible_maps) {
-    receiver_map_refs.push_back(map);
-    while (true) {
-      if (IsSpecialReceiverInstanceType(map.instance_type())) {
-        return kMayBeInPrototypeChain;
-      }
-      if (!map.IsJSObjectMap()) {
-        all = false;
-        break;
-      }
-      compiler::HeapObjectRef map_prototype = map.prototype(broker());
-      if (map_prototype.equals(prototype)) {
-        none = false;
-        break;
-      }
-      map = map_prototype.map(broker());
-      // TODO(v8:11457) Support dictionary mode protoypes here.
-      if (!map.is_stable() || map.is_dictionary_map()) {
-        return kMayBeInPrototypeChain;
-      }
-      if (map.oddball_type(broker()) == compiler::OddballType::kNull) {
-        all = false;
-        break;
+  for (const compiler::ZoneRefSet<Map>& map_set :
+       {stable_it->second, unstable_it->second}) {
+    for (compiler::MapRef map : map_set) {
+      receiver_map_refs.push_back(map);
+      while (true) {
+        if (IsSpecialReceiverInstanceType(map.instance_type())) {
+          return kMayBeInPrototypeChain;
+        }
+        if (!map.IsJSObjectMap()) {
+          all = false;
+          break;
+        }
+        compiler::HeapObjectRef map_prototype = map.prototype(broker());
+        if (map_prototype.equals(prototype)) {
+          none = false;
+          break;
+        }
+        map = map_prototype.map(broker());
+        // TODO(v8:11457) Support dictionary mode protoypes here.
+        if (!map.is_stable() || map.is_dictionary_map()) {
+          return kMayBeInPrototypeChain;
+        }
+        if (map.oddball_type(broker()) == compiler::OddballType::kNull) {
+          all = false;
+          break;
+        }
       }
     }
   }
-  DCHECK(!receiver_map_refs.empty());
-  DCHECK_IMPLIES(all, !none);
+  DCHECK_IMPLIES(all, !none || receiver_map_refs.empty());
+  if (receiver_map_refs.empty()) return kIsNotInPrototypeChain;
   if (!all && !none) return kMayBeInPrototypeChain;
 
   {

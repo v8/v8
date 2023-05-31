@@ -1310,8 +1310,22 @@ class MaglevGraphBuilder {
     // the parent, since we'll anyway copy the known_node_aspects to the parent
     // once we finish the inlined function.
     if constexpr (should_clear_unstable_node_aspects) {
-      known_node_aspects().ClearUnstableMaps();
-      // Side-effects can change object contents, so we have to clear
+      // A side effect could change existing objects' maps. For stable maps we
+      // know this hasn't happened (because we added a dependency on the maps
+      // staying stable and therefore not possible to transition away from), but
+      // we can no longer assume that objects with unstable maps still have the
+      // same map. Unstable maps can also transition to stable ones, so the
+      // set of stable maps becomes invalid for a not that had a unstable map.
+      auto it = known_node_aspects().unstable_maps.begin();
+      while (it != known_node_aspects().unstable_maps.end()) {
+        if (it->second.size() == 0) {
+          it++;
+        } else {
+          known_node_aspects().stable_maps.erase(it->first);
+          it = known_node_aspects().unstable_maps.erase(it);
+        }
+      }
+      // Similarly, side-effects can change object contents, so we have to clear
       // our known loaded properties -- however, constant properties are known
       // to not change (and we added a dependency on this), so we don't have to
       // clear those.
