@@ -112,6 +112,7 @@ TranslationOpcode TranslationArrayIterator::NextOpcode() {
   if (remaining_ops_to_use_from_previous_translation_) {
     return NextOpcodeAtPreviousIndex();
   }
+  CHECK_LT(index_, buffer_.length());
   uint8_t opcode_byte = buffer_.get(index_++);
 
   // If the opcode byte is greater than any valid opcode, then the opcode is
