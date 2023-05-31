@@ -23,8 +23,8 @@ namespace wasm {
 // static
 constexpr const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
   switch (opcode) {
-#define CASE(opcode, binary, sig, name) \
-  case kExpr##opcode:                   \
+#define CASE(opcode, binary, sig, name, ...) \
+  case kExpr##opcode:                        \
     return name;
     FOREACH_OPCODE(CASE)
 #undef CASE
@@ -189,8 +189,16 @@ constexpr WasmOpcodeSig GetRelaxedSimdOpcodeSigIndex(uint8_t opcode) {
 #undef CASE
 }
 
-constexpr WasmOpcodeSig GetAtomicOpcodeSigIndex(uint8_t opcode) {
+constexpr WasmOpcodeSig GetAtomicOpcodeMem32SigIndex(uint8_t opcode) {
 #define CASE(name, opc, sig, ...) opcode == (opc & 0xFF) ? kSigEnum_##sig:
+  return FOREACH_ATOMIC_OPCODE(CASE) FOREACH_ATOMIC_0_OPERAND_OPCODE(CASE)
+      kSigEnum_None;
+#undef CASE
+}
+
+constexpr WasmOpcodeSig GetAtomicOpcodeMem64SigIndex(uint8_t opcode) {
+#define CASE(name, opc, sig32, text, sig64) \
+  opcode == (opc & 0xFF) ? kSigEnum_##sig64:
   return FOREACH_ATOMIC_OPCODE(CASE) FOREACH_ATOMIC_0_OPERAND_OPCODE(CASE)
       kSigEnum_None;
 #undef CASE
@@ -210,8 +218,10 @@ constexpr std::array<WasmOpcodeSig, 256> kSimdExprSigTable =
     base::make_array<256>(GetSimdOpcodeSigIndex);
 constexpr std::array<WasmOpcodeSig, 256> kRelaxedSimdExprSigTable =
     base::make_array<256>(GetRelaxedSimdOpcodeSigIndex);
-constexpr std::array<WasmOpcodeSig, 256> kAtomicExprSigTable =
-    base::make_array<256>(GetAtomicOpcodeSigIndex);
+constexpr std::array<WasmOpcodeSig, 256> kAtomicExprSigTableMem32 =
+    base::make_array<256>(GetAtomicOpcodeMem32SigIndex);
+constexpr std::array<WasmOpcodeSig, 256> kAtomicExprSigTableMem64 =
+    base::make_array<256>(GetAtomicOpcodeMem64SigIndex);
 constexpr std::array<WasmOpcodeSig, 256> kNumericExprSigTable =
     base::make_array<256>(GetNumericOpcodeSigIndex);
 
@@ -234,12 +244,19 @@ constexpr const FunctionSig* WasmOpcodes::Signature(WasmOpcode opcode) {
       }
       return nullptr;
     }
-    case kAtomicPrefix:
-      return impl::kCachedSigs[impl::kAtomicExprSigTable[opcode & 0xff]];
     case kNumericPrefix:
       return impl::kCachedSigs[impl::kNumericExprSigTable[opcode & 0xff]];
     default:
       UNREACHABLE();  // invalid prefix.
+  }
+}
+
+constexpr const FunctionSig* WasmOpcodes::SignatureForAtomicOp(
+    WasmOpcode opcode, bool is_memory64) {
+  if (is_memory64) {
+    return impl::kCachedSigs[impl::kAtomicExprSigTableMem64[opcode & 0xff]];
+  } else {
+    return impl::kCachedSigs[impl::kAtomicExprSigTableMem32[opcode & 0xff]];
   }
 }
 

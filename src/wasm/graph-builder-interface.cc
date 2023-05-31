@@ -1173,11 +1173,11 @@ class WasmGraphBuildingInterface {
     SetEnv(block->try_info->catch_env);
   }
 
-  void AtomicOp(FullDecoder* decoder, WasmOpcode opcode,
-                base::Vector<Value> args, const MemoryAccessImmediate& imm,
+  void AtomicOp(FullDecoder* decoder, WasmOpcode opcode, const Value args[],
+                const size_t argc, const MemoryAccessImmediate& imm,
                 Value* result) {
-    NodeVector inputs(args.size());
-    GetNodes(inputs.begin(), args);
+    NodeVector inputs(argc);
+    GetNodes(inputs.begin(), args, argc);
     TFNode* node = builder_->AtomicOp(opcode, inputs.begin(), imm.alignment,
                                       imm.offset, decoder->position());
     if (result) SetAndTypeNode(result, node);
