@@ -548,6 +548,102 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   void LoadMap(Register destination, Register object);
 
+  void PushAll(RegList registers) {
+    if (registers.is_empty()) return;
+    ASM_CODE_COMMENT(this);
+    stm(db_w, sp, registers);
+  }
+
+  void PopAll(RegList registers) {
+    if (registers.is_empty()) return;
+    ASM_CODE_COMMENT(this);
+    ldm(ia_w, sp, registers);
+  }
+
+  void PushAll(DoubleRegList registers, int stack_slot_size = kDoubleSize) {
+    if (registers.is_empty()) return;
+    ASM_CODE_COMMENT(this);
+    // TODO(victorgomes): vstm only works for consecutive double registers. We
+    // could check if it is the case and optimize here.
+    for (DoubleRegister reg : registers) {
+      vpush(reg);
+    }
+  }
+
+  void PopAll(DoubleRegList registers, int stack_slot_size = kDoubleSize) {
+    if (registers.is_empty()) return;
+    ASM_CODE_COMMENT(this);
+    // TODO(victorgomes): vldm only works for consecutive double registers. We
+    // could check if it is the case and optimize here.
+    for (DoubleRegister reg : base::Reversed(registers)) {
+      vpop(reg);
+    }
+  }
+
+  inline void Cmp(const Register& rn, int imm) { cmp(rn, Operand(imm)); }
+
+  inline void CmpTagged(const Register& r1, const Register& r2) { cmp(r1, r2); }
+
+  // Functions performing a check on a known or potential smi. Returns
+  // a condition that is satisfied if the check is successful.
+  Condition CheckSmi(Register src) {
+    SmiTst(src);
+    return eq;
+  }
+
+  void DecompressTagged(const Register& destination,
+                        const MemOperand& field_operand) {
+    // No pointer compression on arm, we do just a simple load.
+    LoadTaggedField(destination, field_operand);
+  }
+
+  void DecompressTagged(const Register& destination, const Register& source) {
+    // No pointer compression on arm. Do nothing.
+  }
+
+  void AssertMap(Register object) NOOP_UNLESS_DEBUG_CODE;
+
+  void LoadTaggedField(const Register& destination,
+                       const MemOperand& field_operand) {
+    ldr(destination, field_operand);
+  }
+
+  void LoadTaggedFieldWithoutDecompressing(const Register& destination,
+                                           const MemOperand& field_operand) {
+    LoadTaggedField(destination, field_operand);
+  }
+
+  void StoreTaggedField(const Register& value,
+                        const MemOperand& dst_field_operand) {
+    str(value, dst_field_operand);
+  }
+
+  // For compatibility with platform-independent code.
+  void StoreTaggedField(const MemOperand& dst_field_operand,
+                        const Register& value) {
+    StoreTaggedField(value, dst_field_operand);
+  }
+
+  void Switch(Register scratch, Register value, int case_value_base,
+              Label** labels, int num_labels);
+
+  void JumpIfCodeIsMarkedForDeoptimization(Register code, Register scratch,
+                                           Label* if_marked_for_deoptimization);
+
+  void JumpIfCodeIsTurbofanned(Register code, Register scratch,
+                               Label* if_turbofanned);
+
+  // Falls through and sets scratch_and_result to 0 on failure, jumps to
+  // on_result on success.
+  void TryLoadOptimizedOsrCode(Register scratch_and_result,
+                               CodeKind min_opt_level, Register feedback_vector,
+                               FeedbackSlot slot, Label* on_result,
+                               Label::Distance distance);
+
+  void AssertZeroExtended(Register int32_register) {
+    // In arm32, we don't have top 32 bits, so do nothing.
+  }
+
   // Performs a truncating conversion of a floating point number as used by
   // the JS bitwise operations. See ECMA-262 9.5: ToInt32. Goes to 'done' if it
   // succeeds, otherwise falls through if result is saturated. On return
@@ -812,8 +908,12 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void JumpIfNotSmi(Register value, Label* not_smi_label);
 
   // Abort execution if argument is a smi, enabled via --debug-code.
-  void AssertNotSmi(Register object) NOOP_UNLESS_DEBUG_CODE;
-  void AssertSmi(Register object) NOOP_UNLESS_DEBUG_CODE;
+  void AssertNotSmi(Register object,
+                    AbortReason reason = AbortReason::kOperandIsASmi)
+      NOOP_UNLESS_DEBUG_CODE;
+  void AssertSmi(Register object,
+                 AbortReason reason = AbortReason::kOperandIsNotASmi)
+      NOOP_UNLESS_DEBUG_CODE;
 
   // Abort execution if argument is not a Constructor, enabled via --debug-code.
   void AssertConstructor(Register object) NOOP_UNLESS_DEBUG_CODE;

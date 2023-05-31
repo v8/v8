@@ -2116,20 +2116,32 @@ void MacroAssembler::AssertUnreachable(AbortReason reason) {
   if (v8_flags.debug_code) Abort(reason);
 }
 
-void MacroAssembler::AssertNotSmi(Register object) {
+void MacroAssembler::AssertNotSmi(Register object, AbortReason reason) {
   if (!v8_flags.debug_code) return;
   ASM_CODE_COMMENT(this);
   static_assert(kSmiTag == 0);
   tst(object, Operand(kSmiTagMask));
-  Check(ne, AbortReason::kOperandIsASmi);
+  Check(ne, reason);
 }
 
-void MacroAssembler::AssertSmi(Register object) {
+void MacroAssembler::AssertSmi(Register object, AbortReason reason) {
   if (!v8_flags.debug_code) return;
   ASM_CODE_COMMENT(this);
   static_assert(kSmiTag == 0);
   tst(object, Operand(kSmiTagMask));
-  Check(eq, AbortReason::kOperandIsNotASmi);
+  Check(eq, reason);
+}
+
+void MacroAssembler::AssertMap(Register object) {
+  if (!v8_flags.debug_code) return;
+  ASM_CODE_COMMENT(this);
+  AssertNotSmi(object, AbortReason::kOperandIsNotAMap);
+
+  UseScratchRegisterScope temps(this);
+  Register temp = temps.Acquire();
+
+  CompareObjectType(object, temp, temp, MAP_TYPE);
+  Check(eq, AbortReason::kOperandIsNotAMap);
 }
 
 void MacroAssembler::AssertConstructor(Register object) {
@@ -2914,6 +2926,79 @@ void MacroAssembler::F64x2ConvertLowI32x4U(QwNeonRegister dst,
 void MacroAssembler::F64x2PromoteLowF32x4(QwNeonRegister dst,
                                           QwNeonRegister src) {
   F64x2ConvertLowHelper(this, dst, src, &Assembler::vcvt_f64_f32);
+}
+
+void MacroAssembler::Switch(Register scratch, Register value,
+                            int case_value_base, Label** labels,
+                            int num_labels) {
+  Register table = scratch;
+  Label fallthrough, jump_table;
+  if (case_value_base != 0) {
+    sub(value, value, Operand(case_value_base));
+  }
+  cmp(value, Operand(num_labels));
+  b(&fallthrough, hs);
+  mov_label_offset(table, &jump_table);
+  ldr(table, MemOperand(table, value, LSL, kSystemPointerSizeLog2));
+  blx(table);
+  // Emit the jump table inline, under the assumption that it's not too big.
+  Align(kSystemPointerSize);
+  bind(&jump_table);
+  for (int i = 0; i < num_labels; ++i) {
+    dd(labels[i]->pos());
+  }
+  bind(&fallthrough);
+}
+
+void MacroAssembler::JumpIfCodeIsMarkedForDeoptimization(
+    Register code, Register scratch, Label* if_marked_for_deoptimization) {
+  ldr(scratch, FieldMemOperand(code, Code::kFlagsOffset));
+  tst(scratch, Operand(Code::kMarkedForDeoptimizationBit));
+  b(if_marked_for_deoptimization, ne);
+}
+
+void MacroAssembler::JumpIfCodeIsTurbofanned(Register code, Register scratch,
+                                             Label* if_turbofanned) {
+  ldr(scratch, FieldMemOperand(code, Code::kFlagsOffset));
+  tst(scratch, Operand(Code::kIsTurbofannedBit));
+  b(if_turbofanned, ne);
+}
+
+void MacroAssembler::TryLoadOptimizedOsrCode(Register scratch_and_result,
+                                             CodeKind min_opt_level,
+                                             Register feedback_vector,
+                                             FeedbackSlot slot,
+                                             Label* on_result,
+                                             Label::Distance) {
+  Label fallthrough, clear_slot;
+  LoadTaggedField(
+      scratch_and_result,
+      FieldMemOperand(feedback_vector,
+                      FeedbackVector::OffsetOfElementAt(slot.ToInt())));
+  LoadWeakValue(scratch_and_result, scratch_and_result, &fallthrough);
+
+  // Is it marked_for_deoptimization? If yes, clear the slot.
+  {
+    UseScratchRegisterScope temps(this);
+    Register temp = temps.Acquire();
+    JumpIfCodeIsMarkedForDeoptimization(scratch_and_result, temp, &clear_slot);
+    if (min_opt_level == CodeKind::TURBOFAN) {
+      JumpIfCodeIsTurbofanned(scratch_and_result, temp, on_result);
+      b(&fallthrough);
+    } else {
+      b(on_result);
+    }
+  }
+
+  bind(&clear_slot);
+  Move(scratch_and_result, ClearedValue());
+  StoreTaggedField(
+      scratch_and_result,
+      FieldMemOperand(feedback_vector,
+                      FeedbackVector::OffsetOfElementAt(slot.ToInt())));
+
+  bind(&fallthrough);
+  Move(scratch_and_result, Operand(0));
 }
 
 }  // namespace internal
