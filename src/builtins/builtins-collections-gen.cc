@@ -1487,13 +1487,14 @@ TF_BUILTIN(MapPrototypeSet, CollectionsBuiltinsAssembler) {
   StoreAtEntry<OrderedHashMap> store_at_new_entry =
       [this, key, value](const TNode<OrderedHashMap> table,
                          const TNode<IntPtrT> entry_start) {
-        StoreKeyValueInOrderedHashMapEntry(table, key, value, entry_start);
+        UnsafeStoreKeyValueInOrderedHashMapEntry(table, key, value,
+                                                 entry_start);
       };
 
   StoreAtEntry<OrderedHashMap> store_at_existing_entry =
       [this, value](const TNode<OrderedHashMap> table,
                     const TNode<IntPtrT> entry_start) {
-        StoreValueInOrderedHashMapEntry(table, value, entry_start);
+        UnsafeStoreValueInOrderedHashMapEntry(table, value, entry_start);
       };
 
   const TNode<OrderedHashMap> table =
@@ -1540,20 +1541,21 @@ void CollectionsBuiltinsAssembler::StoreOrderedHashTableNewEntry(
 
 void CollectionsBuiltinsAssembler::StoreValueInOrderedHashMapEntry(
     const TNode<OrderedHashMap> table, const TNode<Object> value,
-    const TNode<IntPtrT> entry_start) {
-  UnsafeStoreFixedArrayElement(
-      table, entry_start, value, UPDATE_WRITE_BARRIER,
-      kTaggedSize * (OrderedHashMap::HashTableStartIndex() +
-                     OrderedHashMap::kValueOffset));
+    const TNode<IntPtrT> entry_start, CheckBounds check_bounds) {
+  StoreFixedArrayElement(table, entry_start, value, UPDATE_WRITE_BARRIER,
+                         kTaggedSize * (OrderedHashMap::HashTableStartIndex() +
+                                        OrderedHashMap::kValueOffset),
+                         check_bounds);
 }
 
 void CollectionsBuiltinsAssembler::StoreKeyValueInOrderedHashMapEntry(
     const TNode<OrderedHashMap> table, const TNode<Object> key,
-    const TNode<Object> value, const TNode<IntPtrT> entry_start) {
-  UnsafeStoreFixedArrayElement(
-      table, entry_start, key, UPDATE_WRITE_BARRIER,
-      kTaggedSize * OrderedHashMap::HashTableStartIndex());
-  StoreValueInOrderedHashMapEntry(table, value, entry_start);
+    const TNode<Object> value, const TNode<IntPtrT> entry_start,
+    CheckBounds check_bounds) {
+  StoreFixedArrayElement(table, entry_start, key, UPDATE_WRITE_BARRIER,
+                         kTaggedSize * OrderedHashMap::HashTableStartIndex(),
+                         check_bounds);
+  StoreValueInOrderedHashMapEntry(table, value, entry_start, check_bounds);
 }
 
 TF_BUILTIN(MapPrototypeDelete, CollectionsBuiltinsAssembler) {
@@ -1581,13 +1583,9 @@ TF_BUILTIN(MapPrototypeDelete, CollectionsBuiltinsAssembler) {
 
   BIND(&entry_found);
   // If we found the entry, mark the entry as deleted.
-  StoreFixedArrayElement(table, entry_start_position_or_hash.value(),
-                         TheHoleConstant(), UPDATE_WRITE_BARRIER,
-                         kTaggedSize * OrderedHashMap::HashTableStartIndex());
-  StoreFixedArrayElement(table, entry_start_position_or_hash.value(),
-                         TheHoleConstant(), UPDATE_WRITE_BARRIER,
-                         kTaggedSize * (OrderedHashMap::HashTableStartIndex() +
-                                        OrderedHashMap::kValueOffset));
+  StoreKeyValueInOrderedHashMapEntry(table, TheHoleConstant(),
+                                     TheHoleConstant(),
+                                     entry_start_position_or_hash.value());
 
   // Decrement the number of elements, increment the number of deleted elements.
   const TNode<Smi> number_of_elements = SmiSub(
@@ -1635,7 +1633,7 @@ TF_BUILTIN(SetPrototypeAdd, CollectionsBuiltinsAssembler) {
   StoreAtEntry<OrderedHashSet> store_at_new_entry =
       [this, key](const TNode<OrderedHashSet> table,
                   const TNode<IntPtrT> entry_start) {
-        StoreKeyInOrderedHashSetEntry(table, key, entry_start);
+        UnsafeStoreKeyInOrderedHashSetEntry(table, key, entry_start);
       };
 
   StoreAtEntry<OrderedHashSet> store_at_existing_entry =
@@ -1666,7 +1664,7 @@ TNode<OrderedHashSet> CollectionsBuiltinsAssembler::AddToSetTable(
   StoreAtEntry<OrderedHashSet> store_at_new_entry =
       [this, key](const TNode<OrderedHashSet> table,
                   const TNode<IntPtrT> entry_start) {
-        StoreKeyInOrderedHashSetEntry(table, key, entry_start);
+        UnsafeStoreKeyInOrderedHashSetEntry(table, key, entry_start);
       };
 
   StoreAtEntry<OrderedHashSet> store_at_existing_entry =
@@ -1680,10 +1678,10 @@ TNode<OrderedHashSet> CollectionsBuiltinsAssembler::AddToSetTable(
 
 void CollectionsBuiltinsAssembler::StoreKeyInOrderedHashSetEntry(
     const TNode<OrderedHashSet> table, const TNode<Object> key,
-    const TNode<IntPtrT> entry_start) {
-  UnsafeStoreFixedArrayElement(
-      table, entry_start, key, UPDATE_WRITE_BARRIER,
-      kTaggedSize * OrderedHashSet::HashTableStartIndex());
+    const TNode<IntPtrT> entry_start, CheckBounds check_bounds) {
+  StoreFixedArrayElement(table, entry_start, key, UPDATE_WRITE_BARRIER,
+                         kTaggedSize * OrderedHashSet::HashTableStartIndex(),
+                         check_bounds);
 }
 
 TF_BUILTIN(SetPrototypeDelete, CollectionsBuiltinsAssembler) {
@@ -1711,9 +1709,8 @@ TF_BUILTIN(SetPrototypeDelete, CollectionsBuiltinsAssembler) {
 
   BIND(&entry_found);
   // If we found the entry, mark the entry as deleted.
-  StoreFixedArrayElement(table, entry_start_position_or_hash.value(),
-                         TheHoleConstant(), UPDATE_WRITE_BARRIER,
-                         kTaggedSize * OrderedHashSet::HashTableStartIndex());
+  StoreKeyInOrderedHashSetEntry(table, TheHoleConstant(),
+                                entry_start_position_or_hash.value());
 
   // Decrement the number of elements, increment the number of deleted elements.
   const TNode<Smi> number_of_elements = SmiSub(

@@ -301,16 +301,39 @@ class CollectionsBuiltinsAssembler : public BaseCollectionsAssembler {
 
   // Store payload (key, value, or both) in {table} at {entry}. Does not connect
   // the bucket chain and update the bucket head.
-  void StoreValueInOrderedHashMapEntry(const TNode<OrderedHashMap> table,
-                                       const TNode<Object> value,
-                                       const TNode<IntPtrT> entry);
-  void StoreKeyValueInOrderedHashMapEntry(const TNode<OrderedHashMap> table,
-                                          const TNode<Object> key,
-                                          const TNode<Object> value,
-                                          const TNode<IntPtrT> entry);
-  void StoreKeyInOrderedHashSetEntry(const TNode<OrderedHashSet> table,
-                                     const TNode<Object> key,
-                                     const TNode<IntPtrT> entry);
+  void StoreValueInOrderedHashMapEntry(
+      const TNode<OrderedHashMap> table, const TNode<Object> value,
+      const TNode<IntPtrT> entry,
+      CheckBounds check_bounds = CheckBounds::kAlways);
+  void StoreKeyValueInOrderedHashMapEntry(
+      const TNode<OrderedHashMap> table, const TNode<Object> key,
+      const TNode<Object> value, const TNode<IntPtrT> entry,
+      CheckBounds check_bounds = CheckBounds::kAlways);
+  void StoreKeyInOrderedHashSetEntry(
+      const TNode<OrderedHashSet> table, const TNode<Object> key,
+      const TNode<IntPtrT> entry,
+      CheckBounds check_bounds = CheckBounds::kAlways);
+
+  void UnsafeStoreValueInOrderedHashMapEntry(const TNode<OrderedHashMap> table,
+                                             const TNode<Object> value,
+                                             const TNode<IntPtrT> entry) {
+    return StoreValueInOrderedHashMapEntry(table, value, entry,
+                                           CheckBounds::kDebugOnly);
+  }
+
+  void UnsafeStoreKeyValueInOrderedHashMapEntry(
+      const TNode<OrderedHashMap> table, const TNode<Object> key,
+      const TNode<Object> value, const TNode<IntPtrT> entry) {
+    return StoreKeyValueInOrderedHashMapEntry(table, key, value, entry,
+                                              CheckBounds::kDebugOnly);
+  }
+
+  void UnsafeStoreKeyInOrderedHashSetEntry(const TNode<OrderedHashSet> table,
+                                           const TNode<Object> key,
+                                           const TNode<IntPtrT> entry) {
+    return StoreKeyInOrderedHashSetEntry(table, key, entry,
+                                         CheckBounds::kDebugOnly);
+  }
 
   // Create a JSArray with PACKED_ELEMENTS kind from a Map.prototype.keys() or
   // Map.prototype.values() iterator. The iterator is assumed to satisfy
