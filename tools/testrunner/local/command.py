@@ -96,6 +96,9 @@ class BaseCommand(object):
     self.verbose = verbose
     self.handle_sigterm = handle_sigterm
 
+  def _result_overrides(self, returncode):
+    pass
+
   def execute(self):
     if self.verbose:
       print('# %s' % self)
@@ -115,6 +118,7 @@ class BaseCommand(object):
 
       timer.cancel()
 
+    self._result_overrides(process)
     return output.Output(
       process.returncode,
       timeout_occured[0],
@@ -233,34 +237,11 @@ def taskkill_windows(process, verbose=False, force=True):
 
 class IOSCommand(BaseCommand):
 
-  def execute(self):
-    if self.verbose:
-      print('# %s' % self)
-
-    process = self._start_process()
-
-    with handle_sigterm(process, self._abort, self.handle_sigterm):
-      # Variable to communicate with the timer.
-      timeout_occured = [False]
-      timer = threading.Timer(self.timeout, self._abort,
-                              [process, timeout_occured])
-      timer.start()
-
-      start_time = time.time()
-      stdout, stderr = process.communicate()
-      duration = time.time() - start_time
-
-      timer.cancel()
-
+  def _result_overrides(self, process):
     # TODO(crbug.com/1445694): if iossim returns with code 65, force a
     # successful exit instead.
     if (process.returncode == 65):
       process.returncode = 0
-
-    return output.Output(process.returncode, timeout_occured[0],
-                         stdout.decode('utf-8', 'replace'),
-                         stderr.decode('utf-8', 'replace'), process.pid,
-                         duration)
 
   def _start_process(self):
     try:
