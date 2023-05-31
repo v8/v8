@@ -17,17 +17,9 @@
 namespace v8 {
 namespace internal {
 
-RwxMemoryWriteScope::RwxMemoryWriteScope(const char* comment) {
-  if (!v8_flags.jitless) {
-    SetWritable();
-  }
-}
+RwxMemoryWriteScope::RwxMemoryWriteScope(const char* comment) { SetWritable(); }
 
-RwxMemoryWriteScope::~RwxMemoryWriteScope() {
-  if (!v8_flags.jitless) {
-    SetExecutable();
-  }
-}
+RwxMemoryWriteScope::~RwxMemoryWriteScope() { SetExecutable(); }
 
 #if V8_HAS_PTHREAD_JIT_WRITE_PROTECT
 

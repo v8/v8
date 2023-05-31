@@ -751,7 +751,8 @@ bool MemoryAllocator::SetPermissionsOnExecutableMemoryChunk(VirtualMemory* vm,
         // Commit the executable code body.
         bool set_permission_successed = false;
 #if V8_HEAP_USE_PKU_JIT_WRITE_PROTECT
-        if (!jitless && RwxMemoryWriteScope::IsSupported()) {
+        if (RwxMemoryWriteScope::IsSupported()) {
+          DCHECK(!jitless);
           base::AddressRegion region(code_area, aligned_area_size);
           set_permission_successed =
               base::MemoryProtectionKey::SetPermissionsAndKey(
