@@ -900,8 +900,7 @@ Node* ScheduleBuilder::ProcessOperation(const TaggedBitcastOp& op) {
   if (op.from == RegisterRepresentation::Tagged() &&
       op.to == RegisterRepresentation::PointerSized()) {
     o = machine.BitcastTaggedToWord();
-  } else if (op.from == RegisterRepresentation::PointerSized() &&
-             op.to == RegisterRepresentation::Tagged()) {
+  } else if (op.from.IsWord() && op.to == RegisterRepresentation::Tagged()) {
     o = machine.BitcastWordToTagged();
   } else if (op.from == RegisterRepresentation::Compressed() &&
              op.to == RegisterRepresentation::Word32()) {

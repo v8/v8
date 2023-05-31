@@ -1585,8 +1585,7 @@ struct TaggedBitcastOp : FixedArityOperationT<1, TaggedBitcastOp> {
       : Base(input), from(from), to(to) {}
 
   void Validate(const Graph& graph) const {
-    DCHECK((from == RegisterRepresentation::PointerSized() &&
-            to == RegisterRepresentation::Tagged()) ||
+    DCHECK((from.IsWord() && to == RegisterRepresentation::Tagged()) ||
            (from == RegisterRepresentation::Tagged() &&
             to == RegisterRepresentation::PointerSized()) ||
            (from == RegisterRepresentation::Compressed() &&
