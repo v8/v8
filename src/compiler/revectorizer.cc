@@ -8,6 +8,7 @@
 #include "src/base/logging.h"
 #include "src/compiler/all-nodes.h"
 #include "src/compiler/machine-operator.h"
+#include "src/compiler/opcodes.h"
 #include "src/compiler/verifier.h"
 
 namespace v8 {
@@ -549,6 +550,12 @@ PackNode* SLPTree::BuildTree(const ZoneVector<Node*>& roots) {
   V(I16x8SConvertI8x16Low, I16x16SConvertI8x16) \
   V(I16x8UConvertI8x16Low, I16x16UConvertI8x16)
 
+#define SIMD_SPLAT_OP(V)     \
+  V(I8x16Splat, I8x32Splat)  \
+  V(I16x8Splat, I16x16Splat) \
+  V(I32x4Splat, I32x8Splat)  \
+  V(I64x2Splat, I64x4Splat)
+
 PackNode* SLPTree::BuildTreeRec(const ZoneVector<Node*>& node_group,
                                 unsigned recursion_depth) {
   TRACE("Enter %s\n", __func__);
@@ -663,6 +670,8 @@ PackNode* SLPTree::BuildTreeRec(const ZoneVector<Node*>& node_group,
   }
 
   int value_in_count = node0->op()->ValueInputCount();
+
+#define CASE(op128, op256) case IrOpcode::k##op128:
   switch (node0->opcode()) {
     case IrOpcode::kPhi: {
       TRACE("Added a vector of PHI nodes.\n");
@@ -685,39 +694,43 @@ PackNode* SLPTree::BuildTreeRec(const ZoneVector<Node*>& node_group,
       PopStack();
       return pnode;
     }
-#define SIMPLE_CASE(op128, op256) case IrOpcode::k##op128:
-      SIMPLE_SIMD_OP(SIMPLE_CASE)
-#undef SIMPLE_CASE
-      {
-        TRACE("Added a vector of un/bin/ter op.\n");
-        PackNode* pnode = NewPackNodeAndRecurs(node_group, 0, value_in_count,
-                                               recursion_depth);
+      // clang-format off
+    SIMPLE_SIMD_OP(CASE) {
+      TRACE("Added a vector of %s.\n", node0->op()->mnemonic());
+      PackNode* pnode = NewPackNodeAndRecurs(node_group, 0, value_in_count,
+                                              recursion_depth);
+      PopStack();
+      return pnode;
+    }
+    SIMD_SHIFT_OP(CASE) {
+      if (ShiftBySameScalar(node_group)) {
+        TRACE("Added a vector of %s.\n", node0->op()->mnemonic());
+        PackNode* pnode =
+            NewPackNodeAndRecurs(node_group, 0, 1, recursion_depth);
         PopStack();
         return pnode;
       }
-#define SHIFT_CASE(op128, op256) case IrOpcode::k##op128:
-      SIMD_SHIFT_OP(SHIFT_CASE)
-#undef SHIFT_CASE
-      {
-        if (ShiftBySameScalar(node_group)) {
-          TRACE("Added a vector of shift op.\n");
-          PackNode* pnode =
-              NewPackNodeAndRecurs(node_group, 0, 1, recursion_depth);
-          PopStack();
-          return pnode;
-        }
-        TRACE("Failed due to shift with different scalar!\n");
+      TRACE("Failed due to shift with different scalar!\n");
+      return nullptr;
+    }
+    SIGN_EXTENSION_SIMD_UNOP(CASE) {
+      TRACE("add a vector of sign extension un op and stop building tree\n");
+      PackNode* pnode = NewPackNode(node_group);
+      PopStack();
+      return pnode;
+    }
+    SIMD_SPLAT_OP(CASE) {
+      TRACE("Added a vector of %s.\n", node0->op()->mnemonic());
+      if (node0->InputAt(0) != node1->InputAt(0)) {
+        TRACE("Failed due to different splat input");
         return nullptr;
       }
-#define SIGN_EXTENSION_CONVERT_CASE(op128, op256) case IrOpcode::k##op128:
-      SIGN_EXTENSION_SIMD_UNOP(SIGN_EXTENSION_CONVERT_CASE)
-#undef SIGN_EXTENSION_CONVERT_CASE
-      {
-        TRACE("add a vector of sign extension un op and stop building tree\n");
-        PackNode* pnode = NewPackNode(node_group);
-        PopStack();
-        return pnode;
-      }
+      PackNode* pnode = NewPackNode(node_group);
+      PopStack();
+      return pnode;
+    }
+    // clang-format on
+
     // TODO(jiepan): UnalignedStore, StoreTrapOnNull.
     case IrOpcode::kStore:
     case IrOpcode::kProtectedStore: {
@@ -734,6 +747,7 @@ PackNode* SLPTree::BuildTreeRec(const ZoneVector<Node*>& node_group,
       TRACE("Default branch #%d:%s\n", node0->id(), node0->op()->mnemonic());
       break;
   }
+#undef CASE
   return nullptr;
 }
 
@@ -879,6 +893,7 @@ Node* Revectorizer::VectorizeTree(PackNode* pnode) {
       inputs[input_count - 1] = NodeProperties::GetControlInput(node0);
       break;
     }
+
 #define SIMPLE_CASE(from, to)           \
   case IrOpcode::k##from:               \
     new_op = mcgraph_->machine()->to(); \
@@ -886,6 +901,7 @@ Node* Revectorizer::VectorizeTree(PackNode* pnode) {
       SIMPLE_SIMD_OP(SIMPLE_CASE)
 #undef SIMPLE_CASE
 #undef SIMPLE_SIMD_OP
+
 #define SHIFT_CASE(from, to)                   \
   case IrOpcode::k##from: {                    \
     DCHECK(ShiftBySameScalar(pnode->Nodes())); \
@@ -908,6 +924,16 @@ Node* Revectorizer::VectorizeTree(PackNode* pnode) {
       SIGN_EXTENSION_SIMD_UNOP(SIGN_EXTENSION_CONVERT_CASE)
 #undef SIGN_EXTENSION_CONVERT_CASE
 #undef SIGN_EXTENSION_SIMD_UNOP
+
+#define SPLAT_CASE(from, to)            \
+  case IrOpcode::k##from:               \
+    new_op = mcgraph_->machine()->to(); \
+    inputs[0] = node0->InputAt(0);      \
+    break;
+      SIMD_SPLAT_OP(SPLAT_CASE)
+#undef SPLAT_CASE
+#undef SIMD_SPLAT_OP
+
     case IrOpcode::kProtectedLoad: {
       DCHECK_EQ(LoadRepresentationOf(node0->op()).representation(),
                 MachineRepresentation::kSimd128);
