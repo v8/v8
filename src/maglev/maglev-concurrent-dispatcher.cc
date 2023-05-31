@@ -153,6 +153,20 @@ void MaglevCompilationJob::RecordCompilationStats(Isolate* isolate) const {
     counters->maglev_optimize_total_time()->AddSample(
         static_cast<int>(ElapsedTime().InMicroseconds()));
   }
+  if (v8_flags.trace_opt_stats) {
+    static double compilation_time = 0.0;
+    static int compiled_functions = 0;
+    static int code_size = 0;
+
+    compilation_time += (time_taken_to_prepare_.InMillisecondsF() +
+                         time_taken_to_execute_.InMillisecondsF() +
+                         time_taken_to_finalize_.InMillisecondsF());
+    compiled_functions++;
+    code_size += function()->shared().SourceSize();
+    PrintF(
+        "[maglev] Compiled: %d functions with %d byte source size in %fms.\n",
+        compiled_functions, code_size, compilation_time);
+  }
 }
 
 // The JobTask is posted to V8::GetCurrentPlatform(). It's responsible for

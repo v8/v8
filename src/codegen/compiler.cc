@@ -536,8 +536,10 @@ void TurbofanCompilationJob::RecordCompilationStats(ConcurrencyMode mode,
       compilation_time += (ms_creategraph + ms_optimize + ms_codegen);
       compiled_functions++;
       code_size += function->shared().SourceSize();
-      PrintF("Compiled: %d functions with %d byte source size in %fms.\n",
-             compiled_functions, code_size, compilation_time);
+      PrintF(
+          "[turbofan] Compiled: %d functions with %d byte source size in "
+          "%fms.\n",
+          compiled_functions, code_size, compilation_time);
     }
   }
   // Don't record samples from machines without high-resolution timers,
