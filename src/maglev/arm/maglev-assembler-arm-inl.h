@@ -52,6 +52,9 @@ class MaglevAssembler::ScratchRegisterScope {
 
   ~ScratchRegisterScope() { masm_->scratch_register_scope_ = prev_scope_; }
 
+  Register GetDefaultScratchRegister() { return Acquire(); }
+  DoubleRegister GetDefaultScratchDoubleRegister() { return AcquireDouble(); }
+
   Register Acquire() { return wrapped_scope_.Acquire(); }
   void Include(Register reg) { wrapped_scope_.Include(reg); }
   void Include(const RegList list) { wrapped_scope_.Include(list); }
