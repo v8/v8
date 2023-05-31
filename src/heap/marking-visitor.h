@@ -55,7 +55,8 @@ class MarkingVisitorBase : public ConcurrentHeapVisitor<int, ConcreteVisitor> {
         trace_embedder_fields_(trace_embedder_fields),
         should_keep_ages_unchanged_(should_keep_ages_unchanged),
         should_mark_shared_heap_(heap->isolate()->is_shared_space_isolate()),
-        code_flushing_increase_(code_flushing_increase)
+        code_flushing_increase_(code_flushing_increase),
+        isolate_in_background_(heap->isolate()->IsIsolateInBackground())
 #ifdef V8_ENABLE_SANDBOX
         ,
         external_pointer_table_(&heap->isolate()->external_pointer_table()),
@@ -205,6 +206,7 @@ class MarkingVisitorBase : public ConcurrentHeapVisitor<int, ConcreteVisitor> {
   const bool should_keep_ages_unchanged_;
   const bool should_mark_shared_heap_;
   const uint16_t code_flushing_increase_;
+  const bool isolate_in_background_;
 #ifdef V8_ENABLE_SANDBOX
   ExternalPointerTable* const external_pointer_table_;
   ExternalPointerTable* const shared_external_pointer_table_;

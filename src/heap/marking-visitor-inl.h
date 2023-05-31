@@ -266,6 +266,9 @@ bool MarkingVisitorBase<ConcreteVisitor, MarkingState>::IsOld(
     BytecodeArray bytecode) const {
   if (v8_flags.flush_code_based_on_time) {
     return bytecode.bytecode_age() >= v8_flags.bytecode_old_time;
+  } else if (v8_flags.flush_code_based_on_tab_visibility) {
+    return isolate_in_background_ ||
+           V8_UNLIKELY(bytecode.bytecode_age() == BytecodeArray::kMaxAge);
   } else {
     return bytecode.bytecode_age() >= v8_flags.bytecode_old_age;
   }
@@ -292,6 +295,8 @@ void MarkingVisitorBase<ConcreteVisitor, MarkingState>::MakeOlder(
                         : SaturateAdd(current_age, code_flushing_increase_);
     } while (bytecode.CompareExchangeBytecodeAge(current_age, updated_age) !=
              current_age);
+  } else if (v8_flags.flush_code_based_on_tab_visibility) {
+    // No need to increment age.
   } else {
     uint16_t age = bytecode.bytecode_age();
     if (age < v8_flags.bytecode_old_age) {

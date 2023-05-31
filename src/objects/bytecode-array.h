@@ -50,6 +50,7 @@ class BytecodeArray
   static constexpr int kBytecodeAgeSize = kUInt16Size;
   static_assert(kBytecodeAgeOffset + kBytecodeAgeSize - 1 ==
                 kBytecodeAgeOffsetEnd);
+  static constexpr uint16_t kMaxAge = UINT16_MAX;
 
   inline uint16_t bytecode_age() const;
   inline void set_bytecode_age(uint16_t age);

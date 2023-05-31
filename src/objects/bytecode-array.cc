@@ -167,8 +167,9 @@ void BytecodeArray::CopyBytecodesTo(BytecodeArray to) {
 
 // static
 void BytecodeArray::EnsureOldForTesting(BytecodeArray bytecode) {
-  uint16_t old_age = v8_flags.flush_code_based_on_time
-                         ? UINT16_MAX
+  uint16_t old_age = v8_flags.flush_code_based_on_time ||
+                             v8_flags.flush_code_based_on_tab_visibility
+                         ? kMaxAge
                          : v8_flags.bytecode_old_age;
   bytecode.set_bytecode_age(old_age);
 }
