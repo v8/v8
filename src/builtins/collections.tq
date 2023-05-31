@@ -28,6 +28,113 @@ extern macro CodeStubAssembler::CloneFixedArray(
 extern macro CollectionsBuiltinsAssembler::AddToSetTable(
     implicit context: Context)(OrderedHashSet, Object, String): OrderedHashSet;
 
+// Direct iteration helpers.
+@export
+struct KeyIndexPair {
+  key: JSAny;
+  index: intptr;
+}
+extern macro CollectionsBuiltinsAssembler::NextKeyIndexPair(
+    OrderedHashMap, int32, int32, intptr): KeyIndexPair labels Done;
+extern macro CollectionsBuiltinsAssembler::NextKeyIndexPair(
+    OrderedHashSet, int32, int32, intptr): KeyIndexPair labels Done;
+
+// The underlying table must not be resized during iteration!
+struct OrderedHashSetIterator {
+  // macro Next(): JSAny labels Done {
+  //   this.current = NextKeyIndexPair(
+  //       this.table, this.numBuckets, this.usedCapacity, this.current.index)
+  //       otherwise Done;
+  //   return this.current.key;
+  // }
+  const table: OrderedHashSet;
+  const numBuckets: int32;
+  const usedCapacity: int32;
+  current: KeyIndexPair;
+}
+
+macro LoadOrderedHashTableMetadata(
+    table: OrderedHashMap|OrderedHashSet, fieldIndex: constexpr int32): int32 {
+  return Convert<int32>(UnsafeCast<Smi>(table.objects[fieldIndex]));
+}
+
+const kOrderedHashSetNumberOfBucketsIndex:
+    constexpr int32 generates 'OrderedHashSet::NumberOfBucketsIndex()';
+const kOrderedHashSetNumberOfElementsIndex:
+    constexpr int32 generates 'OrderedHashSet::NumberOfElementsIndex()';
+const kOrderedHashSetNumberOfDeletedElementsIndex: constexpr int32
+    generates 'OrderedHashSet::NumberOfDeletedElementsIndex()';
+
+// TODO(v8:13556): Remove @export once used.
+@export
+macro NewOrderedHashSetIterator(table: OrderedHashSet): OrderedHashSetIterator {
+  const numBuckets =
+      LoadOrderedHashTableMetadata(table, kOrderedHashSetNumberOfBucketsIndex);
+  const numElements =
+      LoadOrderedHashTableMetadata(table, kOrderedHashSetNumberOfElementsIndex);
+  const numDeleted = LoadOrderedHashTableMetadata(
+      table, kOrderedHashSetNumberOfDeletedElementsIndex);
+  const usedCapacity = numElements + numDeleted;
+  return OrderedHashSetIterator{
+    table: table,
+    numBuckets: numBuckets,
+    usedCapacity: usedCapacity,
+    current: KeyIndexPair {
+      key: Undefined, index: 0
+    }
+  };
+}
+
+@export
+struct KeyValueIndexTuple {
+  key: JSAny;
+  value: JSAny;
+  index: intptr;
+}
+extern macro CollectionsBuiltinsAssembler::NextKeyValueIndexTuple(
+    OrderedHashMap, int32, int32, intptr): KeyValueIndexTuple labels Done;
+
+// The underlying table must not be resized during iteration!
+struct OrderedHashMapIterator {
+  // macro Next(): KeyValuePair labels Done {
+  //   this.current = NextKeyValueIndexTuple(
+  //       this.table, this.numBuckets, this.usedCapacity, this.current.index)
+  //       otherwise Done;
+  //   return KeyValuePair{key: this.current.key, value: this.current.value};
+  // }
+  const table: OrderedHashMap;
+  const numBuckets: int32;
+  const usedCapacity: int32;
+  current: KeyValueIndexTuple;
+}
+
+const kOrderedHashMapNumberOfBucketsIndex:
+    constexpr int32 generates 'OrderedHashMap::NumberOfBucketsIndex()';
+const kOrderedHashMapNumberOfElementsIndex:
+    constexpr int32 generates 'OrderedHashMap::NumberOfElementsIndex()';
+const kOrderedHashMapNumberOfDeletedElementsIndex: constexpr int32
+    generates 'OrderedHashMap::NumberOfDeletedElementsIndex()';
+
+// TODO(v8:12499): Remove @export once used.
+@export
+macro NewOrderedHashMapIterator(table: OrderedHashMap): OrderedHashMapIterator {
+  const numBuckets =
+      LoadOrderedHashTableMetadata(table, kOrderedHashMapNumberOfBucketsIndex);
+  const numElements =
+      LoadOrderedHashTableMetadata(table, kOrderedHashMapNumberOfElementsIndex);
+  const numDeleted = LoadOrderedHashTableMetadata(
+      table, kOrderedHashMapNumberOfDeletedElementsIndex);
+  const usedCapacity = numElements + numDeleted;
+  return OrderedHashMapIterator{
+    table: table,
+    numBuckets: numBuckets,
+    usedCapacity: usedCapacity,
+    current: KeyValueIndexTuple {
+      key: Undefined, value: Undefined, index: 0
+    }
+  };
+}
+
 @export
 macro LoadKeyValuePairNoSideEffects(implicit context: Context)(o: JSAny):
     KeyValuePair labels MayHaveSideEffects {

@@ -167,6 +167,17 @@ class CollectionsBuiltinsAssembler : public BaseCollectionsAssembler {
                                       TNode<OrderedHashSet> table,
                                       TNode<Object> key,
                                       TNode<String> method_name);
+  // Direct iteration helpers.
+  template <typename CollectionType>
+  TorqueStructKeyIndexPair NextKeyIndexPair(
+      const TNode<CollectionType>, const TNode<Int32T> number_of_buckets,
+      const TNode<Int32T> used_capacity, const TNode<IntPtrT> index,
+      Label* if_end);
+
+  TorqueStructKeyValueIndexTuple NextKeyValueIndexTuple(
+      const TNode<OrderedHashMap> table, const TNode<Int32T> number_of_buckets,
+      const TNode<Int32T> used_capacity, const TNode<IntPtrT> index,
+      Label* if_end);
 
  protected:
   template <typename IteratorType>
@@ -194,6 +205,10 @@ class CollectionsBuiltinsAssembler : public BaseCollectionsAssembler {
   template <typename TableType>
   std::tuple<TNode<Object>, TNode<IntPtrT>, TNode<IntPtrT>> NextSkipHoles(
       TNode<TableType> table, TNode<IntPtrT> index, Label* if_end);
+  template <typename TableType>
+  std::tuple<TNode<Object>, TNode<IntPtrT>, TNode<IntPtrT>> NextSkipHoles(
+      TNode<TableType> table, TNode<Int32T> number_of_buckets,
+      TNode<Int32T> used_capacity, TNode<IntPtrT> index, Label* if_end);
 
   // Specialization for Smi.
   // The {result} variable will contain the entry index if the key was found,
@@ -320,19 +335,38 @@ class CollectionsBuiltinsAssembler : public BaseCollectionsAssembler {
     return StoreValueInOrderedHashMapEntry(table, value, entry,
                                            CheckBounds::kDebugOnly);
   }
-
   void UnsafeStoreKeyValueInOrderedHashMapEntry(
       const TNode<OrderedHashMap> table, const TNode<Object> key,
       const TNode<Object> value, const TNode<IntPtrT> entry) {
     return StoreKeyValueInOrderedHashMapEntry(table, key, value, entry,
                                               CheckBounds::kDebugOnly);
   }
-
   void UnsafeStoreKeyInOrderedHashSetEntry(const TNode<OrderedHashSet> table,
                                            const TNode<Object> key,
                                            const TNode<IntPtrT> entry) {
     return StoreKeyInOrderedHashSetEntry(table, key, entry,
                                          CheckBounds::kDebugOnly);
+  }
+
+  // Load payload (key or value) from {table} at {entry}.
+  template <typename CollectionType>
+  TNode<Object> LoadKeyFromOrderedHashTableEntry(
+      const TNode<CollectionType> table, const TNode<IntPtrT> entry,
+      CheckBounds check_bounds = CheckBounds::kAlways);
+  TNode<Object> LoadValueFromOrderedHashMapEntry(
+      const TNode<OrderedHashMap> table, const TNode<IntPtrT> entry,
+      CheckBounds check_bounds = CheckBounds::kAlways);
+
+  template <typename CollectionType>
+  TNode<Object> UnsafeLoadKeyFromOrderedHashTableEntry(
+      const TNode<CollectionType> table, const TNode<IntPtrT> entry) {
+    return LoadKeyFromOrderedHashTableEntry(table, entry,
+                                            CheckBounds::kDebugOnly);
+  }
+  TNode<Object> UnsafeLoadValueFromOrderedHashMapEntry(
+      const TNode<OrderedHashMap> table, const TNode<IntPtrT> entry) {
+    return LoadValueFromOrderedHashMapEntry(table, entry,
+                                            CheckBounds::kDebugOnly);
   }
 
   // Create a JSArray with PACKED_ELEMENTS kind from a Map.prototype.keys() or
