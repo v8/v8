@@ -133,8 +133,11 @@ class ValueNumberingReducer : public Next {
   template <class Op>
   OpIndex AddOrFind(OpIndex op_idx) {
     const Op& op = Asm().output_graph().Get(op_idx).template Cast<Op>();
-    if (std::is_same<Op, PendingLoopPhiOp>::value || op.IsBlockTerminator() ||
-        !op.Effects().repetition_is_eliminatable()) {
+    if (std::is_same_v<Op, PendingLoopPhiOp> || op.IsBlockTerminator() ||
+        (!op.Effects().repetition_is_eliminatable() &&
+         !std::is_same_v<Op, DeoptimizeIfOp>)) {
+      // GVNing DeoptimizeIf is safe, despite its lack of
+      // repetition_is_eliminatable.
       return op_idx;
     }
     RehashIfNeeded();
