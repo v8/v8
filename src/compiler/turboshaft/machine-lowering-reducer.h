@@ -146,6 +146,36 @@ class MachineLoweringReducer : public Next {
     UNREACHABLE();
   }
 
+  OpIndex REDUCE(DeoptimizeIf)(OpIndex condition, OpIndex frame_state,
+                               bool negated,
+                               const DeoptimizeParameters* parameters) {
+    LABEL_BLOCK(no_change) {
+      return Next::ReduceDeoptimizeIf(condition, frame_state, negated,
+                                      parameters);
+    }
+    if (ShouldSkipOptimizationStep()) goto no_change;
+    // Block cloning only works for branches, but not for `DeoptimizeIf`. On the
+    // other hand, explicit control flow makes the overall pipeline and
+    // escpecially the register allocator slower. So we only switch a
+    // `DeoptiomizeIf` to a branch if it has a phi input, which indicates that
+    // block cloning could be helpful.
+    if (__ Get(condition).template Is<PhiOp>()) {
+      if (negated) {
+        IF_NOT (LIKELY(condition)) {
+          __ Deoptimize(frame_state, parameters);
+        }
+        END_IF
+      } else {
+        IF (UNLIKELY(condition)) {
+          __ Deoptimize(frame_state, parameters);
+        }
+        END_IF
+      }
+      return OpIndex::Invalid();
+    }
+    goto no_change;
+  }
+
   V<Word32> REDUCE(ObjectIs)(V<Tagged> input, ObjectIsOp::Kind kind,
                              ObjectIsOp::InputAssumptions input_assumptions) {
     switch (kind) {

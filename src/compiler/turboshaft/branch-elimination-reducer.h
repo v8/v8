@@ -357,7 +357,10 @@ class BranchEliminationReducer : public Next {
     if (ShouldSkipOptimizationStep()) goto no_change;
 
     base::Optional<bool> condition_value = known_conditions_.Get(condition);
-    if (!condition_value.has_value()) goto no_change;
+    if (!condition_value.has_value()) {
+      known_conditions_.InsertNewKey(condition, negated);
+      goto no_change;
+    }
 
     if ((*condition_value && !negated) || (!*condition_value && negated)) {
       // The condition is true, so we always deoptimize.
@@ -376,7 +379,10 @@ class BranchEliminationReducer : public Next {
     if (ShouldSkipOptimizationStep()) goto no_change;
 
     base::Optional<bool> condition_value = known_conditions_.Get(condition);
-    if (!condition_value.has_value()) goto no_change;
+    if (!condition_value.has_value()) {
+      known_conditions_.InsertNewKey(condition, negated);
+      goto no_change;
+    }
 
     if (Asm().template Is<ConstantOp>(condition)) {
       goto no_change;
