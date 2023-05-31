@@ -219,6 +219,10 @@ deps = {
     'url': Var('chromium_url') + '/external/colorama.git' + '@' + '3de9f013df4b470069d03d250224062e8cf15c49',
     'condition': 'checkout_android',
   },
+  'third_party/cpu_features/src': {
+    'url': Var('chromium_url') + '/external/github.com/google/cpu_features.git' + '@' + '936b9ab5515dead115606559502e3864958f7f6e',
+    'condition': 'checkout_android',
+  },
   'third_party/depot_tools':
     Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '530d86d40b2aab70e0541ea0f296388ec09f0576',
   'third_party/fuchsia-sdk/sdk': {
