@@ -3044,7 +3044,7 @@ class KnownMapsMerger {
                       possible_map) != requested_maps_.end()) {
           // No need to add dependencies, we already have them for all known
           // possible maps.
-          InsertMap(possible_map, false);
+          InsertMap(possible_map);
         } else {
           known_maps_are_subset_of_requested_maps_ = false;
         }
@@ -3054,8 +3054,9 @@ class KnownMapsMerger {
       // anything about the possible maps of the object. Intersect with the
       // universal set, which means just insert all requested maps.
       known_maps_are_subset_of_requested_maps_ = false;
+      existing_known_maps_found_ = false;
       for (compiler::MapRef map : requested_maps_) {
-        InsertMap(map, true);
+        InsertMap(map);
       }
     }
   }
@@ -3078,6 +3079,20 @@ class KnownMapsMerger {
     // those). This is ok, because that's at worst just an overestimate -- we
     // could track whether this node's any_map_is_unstable flipped from true to
     // false, but this is likely overkill.
+
+    // Insert stable map dependencies which weren't inserted yet. This is only
+    // needed if our set of known maps was empty and we created it anew based on
+    // maps we checked.
+    if (!existing_known_maps_found_) {
+      for (compiler::MapRef map : intersect_set_) {
+        if (map.is_stable()) {
+          broker_->dependencies()->DependOnStableMap(map);
+        }
+      }
+    } else {
+      // TODO(victorgomes): Add a DCHECK_SLOW that checks if the maps already
+      // exist in the CompilationDependencySet.
+    }
   }
 
   bool known_maps_are_subset_of_requested_maps() const {
@@ -3094,13 +3109,14 @@ class KnownMapsMerger {
   base::Vector<const compiler::MapRef> requested_maps_;
   compiler::ZoneRefSet<Map> intersect_set_;
   bool known_maps_are_subset_of_requested_maps_ = true;
+  bool existing_known_maps_found_ = true;
   bool emit_check_with_migration_ = false;
   bool any_map_is_unstable_ = false;
   NodeType node_type_ = static_cast<NodeType>(-1);
 
   Zone* zone() const { return broker_->zone(); }
 
-  void InsertMap(compiler::MapRef map, bool add_dependency) {
+  void InsertMap(compiler::MapRef map) {
     if (map.is_migration_target()) {
       emit_check_with_migration_ = true;
     }
@@ -3109,13 +3125,7 @@ class KnownMapsMerger {
       new_type = IntersectType(new_type, NodeType::kSmi);
     }
     node_type_ = IntersectType(node_type_, new_type);
-    if (map.is_stable()) {
-      // TODO(victorgomes): Add a DCHECK_SLOW that checks if the map already
-      // exists in the CompilationDependencySet for the else branch.
-      if (add_dependency) {
-        broker_->dependencies()->DependOnStableMap(map);
-      }
-    } else {
+    if (!map.is_stable()) {
       any_map_is_unstable_ = true;
     }
     intersect_set_.insert(map, zone());
