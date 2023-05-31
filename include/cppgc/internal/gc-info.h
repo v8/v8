@@ -77,34 +77,6 @@ DISPATCH(false, false,                                     //
 
 #undef DISPATCH
 
-// Fold types based on finalizer behavior. Note that finalizer characteristics
-// align with trace behavior, i.e., destructors are virtual when trace methods
-// are and vice versa.
-template <typename T, typename ParentMostGarbageCollectedType>
-struct GCInfoFolding {
-  static constexpr bool kHasVirtualDestructorAtBase =
-      std::has_virtual_destructor<ParentMostGarbageCollectedType>::value;
-  static constexpr bool kBothTypesAreTriviallyDestructible =
-      std::is_trivially_destructible<ParentMostGarbageCollectedType>::value &&
-      std::is_trivially_destructible<T>::value;
-  static constexpr bool kHasCustomFinalizerDispatchAtBase =
-      internal::HasFinalizeGarbageCollectedObject<
-          ParentMostGarbageCollectedType>::value;
-#ifdef CPPGC_SUPPORTS_OBJECT_NAMES
-  static constexpr bool kWantsDetailedObjectNames = true;
-#else   // !CPPGC_SUPPORTS_OBJECT_NAMES
-  static constexpr bool kWantsDetailedObjectNames = false;
-#endif  // !CPPGC_SUPPORTS_OBJECT_NAMES
-
-  // Folding would regresses name resolution when deriving names from C++
-  // class names as it would just folds a name to the base class name.
-  using ResultType = std::conditional_t<(kHasVirtualDestructorAtBase ||
-                                         kBothTypesAreTriviallyDestructible ||
-                                         kHasCustomFinalizerDispatchAtBase) &&
-                                            !kWantsDetailedObjectNames,
-                                        ParentMostGarbageCollectedType, T>;
-};
-
 // Trait determines how the garbage collector treats objects wrt. to traversing,
 // finalization, and naming.
 template <typename T>
@@ -121,6 +93,55 @@ struct GCInfoTrait final {
     }
     return index;
   }
+
+  static constexpr bool CheckCallbacksAreDefined() {
+    // No USE() macro available and (void) cast doesn't work with function
+    // pointers.
+    constexpr auto use = [](auto x) {};
+    use.template operator()<TraceCallback>(TraceTrait<T>::Trace);
+    use.template operator()<FinalizationCallback>(FinalizerTrait<T>::kCallback);
+    use.template operator()<NameCallback>(NameTrait<T>::GetName);
+    return true;
+  }
+};
+
+// Fold types based on finalizer behavior. Note that finalizer characteristics
+// align with trace behavior, i.e., destructors are virtual when trace methods
+// are and vice versa.
+template <typename T, typename ParentMostGarbageCollectedType>
+struct GCInfoFolding final {
+  static constexpr bool kHasVirtualDestructorAtBase =
+      std::has_virtual_destructor<ParentMostGarbageCollectedType>::value;
+  static constexpr bool kBothTypesAreTriviallyDestructible =
+      std::is_trivially_destructible<ParentMostGarbageCollectedType>::value &&
+      std::is_trivially_destructible<T>::value;
+  static constexpr bool kHasCustomFinalizerDispatchAtBase =
+      internal::HasFinalizeGarbageCollectedObject<
+          ParentMostGarbageCollectedType>::value;
+#ifdef CPPGC_SUPPORTS_OBJECT_NAMES
+  static constexpr bool kWantsDetailedObjectNames = true;
+#else   // !CPPGC_SUPPORTS_OBJECT_NAMES
+  static constexpr bool kWantsDetailedObjectNames = false;
+#endif  // !CPPGC_SUPPORTS_OBJECT_NAMES
+
+  // Always true. Forces the compiler to resolve callbacks which ensures that
+  // both modes don't break without requiring compiling a separate
+  // configuration. Only a single GCInfo (for `ResultType` below) will actually
+  // be instantiated but existence (and well-formedness) of all callbacks is
+  // checked.
+  static constexpr bool kCheckTypeGuardAlwaysTrue =
+      GCInfoTrait<T>::CheckCallbacksAreDefined() &&
+      GCInfoTrait<ParentMostGarbageCollectedType>::CheckCallbacksAreDefined();
+
+  // Folding would regress name resolution when deriving names from C++
+  // class names as it would just folds a name to the base class name.
+  using ResultType =
+      std::conditional_t<kCheckTypeGuardAlwaysTrue &&
+                             (kHasVirtualDestructorAtBase ||
+                              kBothTypesAreTriviallyDestructible ||
+                              kHasCustomFinalizerDispatchAtBase) &&
+                             !kWantsDetailedObjectNames,
+                         ParentMostGarbageCollectedType, T>;
 };
 
 }  // namespace internal
