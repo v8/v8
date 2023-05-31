@@ -1671,6 +1671,7 @@ class NodeBase : public ZoneObject {
 
  private:
   template <class Derived, typename... Args>
+
   static Derived* Allocate(Zone* zone, size_t input_count, Args&&... args) {
     static_assert(
         !Derived::kProperties.can_eager_deopt() ||
@@ -1679,13 +1680,11 @@ class NodeBase : public ZoneObject {
         "that we cannot have both lazy and eager deopts on a node. If we ever "
         "need this, we have to update accessors to check node->properties() "
         "for which deopts are active.");
-    constexpr size_t size_before_inputs = RoundUp<alignof(Input)>(
-        (Derived::kProperties.can_throw() ? sizeof(ExceptionHandlerInfo) : 0) +
-        (Derived::kProperties.needs_register_snapshot()
-             ? sizeof(RegisterSnapshot)
-             : 0) +
-        (Derived::kProperties.can_eager_deopt() ? sizeof(EagerDeoptInfo) : 0) +
-        (Derived::kProperties.can_lazy_deopt() ? sizeof(LazyDeoptInfo) : 0));
+    constexpr size_t size_before_inputs =
+        ExceptionHandlerInfoSize(Derived::kProperties) +
+        RegisterSnapshotSize(Derived::kProperties) +
+        EagerDeoptInfoSize(Derived::kProperties) +
+        LazyDeoptInfoSize(Derived::kProperties);
 
     static_assert(IsAligned(size_before_inputs, alignof(Input)));
     const size_t size_before_node =
@@ -1704,29 +1703,46 @@ class NodeBase : public ZoneObject {
     return node;
   }
 
+  static constexpr size_t ExceptionHandlerInfoSize(OpProperties properties) {
+    return RoundUp<alignof(Input)>(
+        properties.can_throw() ? sizeof(ExceptionHandlerInfo) : 0);
+  }
+
+  static constexpr size_t RegisterSnapshotSize(OpProperties properties) {
+    return RoundUp<alignof(Input)>(
+        properties.needs_register_snapshot() ? sizeof(RegisterSnapshot) : 0);
+  }
+
+  static constexpr size_t EagerDeoptInfoSize(OpProperties properties) {
+    return RoundUp<alignof(Input)>(
+        properties.can_eager_deopt() ? sizeof(EagerDeoptInfo) : 0);
+  }
+
+  static constexpr size_t LazyDeoptInfoSize(OpProperties properties) {
+    return RoundUp<alignof(Input)>(
+        properties.can_lazy_deopt() ? sizeof(LazyDeoptInfo) : 0);
+  }
+
   // Returns the position of deopt info if it exists, otherwise returns
   // its position as if DeoptInfo size were zero.
   Address deopt_info_address() const {
     DCHECK(!properties().can_eager_deopt() || !properties().can_lazy_deopt());
-    size_t extra = RoundUp<alignof(Input)>(
-        (properties().can_eager_deopt() ? sizeof(EagerDeoptInfo) : 0) +
-        (properties().can_lazy_deopt() ? sizeof(LazyDeoptInfo) : 0));
+    size_t extra =
+        EagerDeoptInfoSize(properties()) + LazyDeoptInfoSize(properties());
     return last_input_address() - extra;
   }
 
   // Returns the position of register snapshot if it exists, otherwise returns
   // its position as if RegisterSnapshot size were zero.
   Address register_snapshot_address() const {
-    size_t extra = RoundUp<alignof(Input)>((
-        properties().needs_register_snapshot() ? sizeof(RegisterSnapshot) : 0));
+    size_t extra = RegisterSnapshotSize(properties());
     return deopt_info_address() - extra;
   }
 
   // Returns the position of exception handler info if it exists, otherwise
   // returns its position as if ExceptionHandlerInfo size were zero.
   Address exception_handler_address() const {
-    size_t extra = RoundUp<alignof(Input)>(
-        (properties().can_throw() ? sizeof(ExceptionHandlerInfo) : 0));
+    size_t extra = ExceptionHandlerInfoSize(properties());
     return register_snapshot_address() - extra;
   }
 
