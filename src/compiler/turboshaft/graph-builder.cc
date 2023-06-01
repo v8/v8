@@ -821,7 +821,7 @@ OpIndex GraphBuilder::Process(
           input, __ HeapConstant(isolate->factory()->the_hole_value()));
       return __ Conditional(
           is_the_hole, __ HeapConstant(isolate->factory()->undefined_value()),
-          input);
+          input, BranchHint::kFalse);
     }
 
     case IrOpcode::kConvertReceiver:

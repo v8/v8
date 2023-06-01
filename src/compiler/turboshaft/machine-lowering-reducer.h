@@ -249,7 +249,7 @@ class MachineLoweringReducer : public Next {
 
         // Check for Smi if necessary.
         if (NeedsHeapObjectCheck(input_assumptions)) {
-          GOTO_IF(IsSmi(input), done, 0);
+          GOTO_IF(UNLIKELY(IsSmi(input)), done, 0);
         }
 
         // Load bitfield from map.
@@ -2879,7 +2879,7 @@ class MachineLoweringReducer : public Next {
     // twice.
     OpIndex add = __ Int32AddCheckOverflow(input, input);
     V<Word32> check = __ template Projection<Word32>(add, 1);
-    GOTO_IF(check, *overflow);
+    GOTO_IF(UNLIKELY(check), *overflow);
     GOTO(*done,
          __ BitcastWord32ToTagged(__ template Projection<Word32>(add, 0)));
   }

@@ -1790,9 +1790,10 @@ class AssemblerOpInterface {
   }
   template <typename T, typename U>
   V<std::common_type_t<T, U>> Conditional(V<Word32> cond, V<T> vtrue,
-                                          V<U> vfalse) {
-    return Select(cond, vtrue, vfalse, V<std::common_type_t<T, U>>::rep,
-                  BranchHint::kNone, SelectOp::Implementation::kBranch);
+                                          V<U> vfalse,
+                                          BranchHint hint = BranchHint::kNone) {
+    return Select(cond, vtrue, vfalse, V<std::common_type_t<T, U>>::rep, hint,
+                  SelectOp::Implementation::kBranch);
   }
   void Switch(OpIndex input, base::Vector<const SwitchOp::Case> cases,
               Block* default_case,
