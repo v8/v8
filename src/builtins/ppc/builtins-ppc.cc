@@ -3471,6 +3471,7 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
       callback = CallApiCallbackGenericDescriptor::CallHandlerInfoRegister();
       holder = CallApiCallbackGenericDescriptor::HolderRegister();
       break;
+
     case CallApiCallbackMode::kNoSideEffects:
     case CallApiCallbackMode::kWithSideEffects:
       api_function_address =
@@ -3528,8 +3529,9 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
   // kData.
   switch (mode) {
     case CallApiCallbackMode::kGeneric:
-      __ LoadU64(scratch2,
-                 FieldMemOperand(callback, CallHandlerInfo::kDataOffset), r0);
+      __ LoadTaggedField(
+          scratch2, FieldMemOperand(callback, CallHandlerInfo::kDataOffset),
+          r0);
       __ StoreU64(scratch2,
                   MemOperand(sp, FCA::kDataIndex * kSystemPointerSize));
       __ LoadU64(api_function_address,
@@ -3537,6 +3539,7 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
                      callback, CallHandlerInfo::kMaybeRedirectedCallbackOffset),
                  r0);
       break;
+
     case CallApiCallbackMode::kNoSideEffects:
     case CallApiCallbackMode::kWithSideEffects:
       __ StoreU64(call_data,
