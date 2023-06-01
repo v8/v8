@@ -786,26 +786,24 @@ bool MemoryAllocator::SetPermissionsOnExecutableMemoryChunk(VirtualMemory* vm,
   return false;
 }
 
-#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
-
-const BasicMemoryChunk* MemoryAllocator::LookupChunkContainingAddress(
-    Address addr) const {
-  // All threads should be either parked or in a safepoint whenever this method
-  // is called, thus pages cannot be allocated or freed at the same time and a
-  // mutex is not required here.
+// static
+const MemoryChunk* MemoryAllocator::LookupChunkContainingAddress(
+    const NormalPagesSet& normal_pages, const LargePagesSet& large_pages,
+    Address addr) {
   // As the address may not correspond to a valid heap object, the chunk we
   // obtain below is not necessarily a valid chunk.
   BasicMemoryChunk* chunk = BasicMemoryChunk::FromAddress(addr);
   // Check if it corresponds to a known normal or large page.
-  if (auto it = normal_pages_.find(chunk); it != normal_pages_.end()) {
+  if (auto it = normal_pages.find(static_cast<Page*>(chunk));
+      it != normal_pages.end()) {
     // The chunk is a normal page.
     auto* normal_page = Page::cast(chunk);
     DCHECK_LE(normal_page->address(), addr);
     if (normal_page->Contains(addr)) return normal_page;
-  } else if (auto it = large_pages_.upper_bound(chunk);
-             it != large_pages_.begin()) {
+  } else if (auto it = large_pages.upper_bound(static_cast<LargePage*>(chunk));
+             it != large_pages.begin()) {
     // The chunk could be inside a large page.
-    DCHECK_IMPLIES(it != large_pages_.end(), addr < (*it)->address());
+    DCHECK_IMPLIES(it != large_pages.end(), addr < (*it)->address());
     auto* large_page = *std::next(it, -1);
     DCHECK_NOT_NULL(large_page);
     DCHECK_LE(large_page->address(), addr);
@@ -815,42 +813,40 @@ const BasicMemoryChunk* MemoryAllocator::LookupChunkContainingAddress(
   return nullptr;
 }
 
-#endif  // V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+const MemoryChunk* MemoryAllocator::LookupChunkContainingAddress(
+    Address addr) const {
+  // All threads should be either parked or in a safepoint whenever this method
+  // is called, thus pages cannot be allocated or freed at the same time and a
+  // mutex is not required here,
+  return LookupChunkContainingAddress(normal_pages_, large_pages_, addr);
+}
 
 void MemoryAllocator::RecordNormalPageCreated(const Page& page) {
-#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
   base::MutexGuard guard(&pages_mutex_);
   auto result = normal_pages_.insert(&page);
   USE(result);
   DCHECK(result.second);
-#endif  // V8_ENABLE_CONSERVATIVE_STACK_SCANNING
 }
 
 void MemoryAllocator::RecordNormalPageDestroyed(const Page& page) {
-#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
   base::MutexGuard guard(&pages_mutex_);
   auto size = normal_pages_.erase(&page);
   USE(size);
   DCHECK_EQ(1u, size);
-#endif  // V8_ENABLE_CONSERVATIVE_STACK_SCANNING
 }
 
 void MemoryAllocator::RecordLargePageCreated(const LargePage& page) {
-#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
   base::MutexGuard guard(&pages_mutex_);
   auto result = large_pages_.insert(&page);
   USE(result);
   DCHECK(result.second);
-#endif  // V8_ENABLE_CONSERVATIVE_STACK_SCANNING
 }
 
 void MemoryAllocator::RecordLargePageDestroyed(const LargePage& page) {
-#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
   base::MutexGuard guard(&pages_mutex_);
   auto size = large_pages_.erase(&page);
   USE(size);
   DCHECK_EQ(1u, size);
-#endif  // V8_ENABLE_CONSERVATIVE_STACK_SCANNING
 }
 
 }  // namespace internal

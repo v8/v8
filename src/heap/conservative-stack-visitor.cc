@@ -5,7 +5,6 @@
 #include "src/heap/conservative-stack-visitor.h"
 
 #include "src/execution/isolate-inl.h"
-#include "src/heap/basic-memory-chunk.h"
 #include "src/heap/marking-inl.h"
 #include "src/objects/visitors.h"
 
@@ -29,7 +28,7 @@ Address ConservativeStackVisitor::FindBasePtrForMarking(
     GarbageCollector collector) {
   // Check if the pointer is contained by a normal or large page owned by this
   // heap. Bail out if it is not.
-  const BasicMemoryChunk* chunk =
+  const MemoryChunk* chunk =
       allocator->LookupChunkContainingAddress(maybe_inner_ptr);
   if (chunk == nullptr) return kNullAddress;
   DCHECK(chunk->Contains(maybe_inner_ptr));
