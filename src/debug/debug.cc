@@ -98,7 +98,7 @@ Debug::Debug(Isolate* isolate)
       break_on_caught_exception_(false),
       break_on_uncaught_exception_(false),
       side_effect_check_failed_(false),
-      debug_info_list_(nullptr),
+      debug_infos_(isolate),
       feature_tracker_(isolate),
       isolate_(isolate) {
   ThreadInit();
@@ -467,16 +467,54 @@ void Debug::Iterate(RootVisitor* v, ThreadLocal* thread_local_data) {
                       FullObjectSlot(&thread_local_data->promise_stack_));
 }
 
-DebugInfoListNode::DebugInfoListNode(Isolate* isolate, DebugInfo debug_info)
-    : next_(nullptr) {
-  GlobalHandles* global_handles = isolate->global_handles();
-  debug_info_ = global_handles->Create(debug_info).location();
+void DebugInfoCollection::Insert(SharedFunctionInfo sfi, DebugInfo debug_info) {
+  DCHECK(!Contains(sfi));
+  HandleLocation location =
+      isolate_->global_handles()->Create(debug_info).location();
+  list_.push_back(location);
+  map_.Insert(sfi, location);
+  DCHECK(Contains(sfi));
 }
 
-DebugInfoListNode::~DebugInfoListNode() {
-  if (debug_info_ == nullptr) return;
-  GlobalHandles::Destroy(debug_info_);
-  debug_info_ = nullptr;
+bool DebugInfoCollection::Contains(SharedFunctionInfo sfi) const {
+  HandleLocation* result = map_.Find(sfi);
+  return result != nullptr;
+}
+
+MaybeHandle<DebugInfo> DebugInfoCollection::Find(SharedFunctionInfo sfi) const {
+  HandleLocation* result = map_.Find(sfi);
+  if (result == nullptr) return {};
+  return Handle<DebugInfo>(*result);
+}
+
+void DebugInfoCollection::DeleteSlow(SharedFunctionInfo sfi) {
+  DebugInfoCollection::Iterator it(this);
+  for (; it.HasNext(); it.Advance()) {
+    Handle<DebugInfo> debug_info = it.Next();
+    if (debug_info->shared() != sfi) continue;
+    it.DeleteNext();
+    return;
+  }
+  UNREACHABLE();
+}
+
+void DebugInfoCollection::DeleteIndex(size_t index) {
+  Handle<DebugInfo> debug_info = EntryAsHandle(index);
+  SharedFunctionInfo sfi = debug_info->shared();
+  DCHECK(Contains(sfi));
+
+  // Pack the script back into the SFI.
+  sfi.set_script_or_debug_info(debug_info->script(), kReleaseStore);
+
+  HandleLocation location;
+  map_.Delete(sfi, &location);
+  DCHECK_EQ(location, list_[index]);
+
+  list_[index] = list_.back();
+  list_.pop_back();
+
+  GlobalHandles::Destroy(location);
+  DCHECK(!Contains(sfi));
 }
 
 void Debug::Unload() {
@@ -900,17 +938,20 @@ void Debug::ClearBreakPoint(Handle<BreakPoint> break_point) {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
   HandleScope scope(isolate_);
 
-  for (DebugInfoListNode* node = debug_info_list_; node != nullptr;
-       node = node->next()) {
-    if (!node->debug_info()->HasBreakInfo()) continue;
-    Handle<Object> result = DebugInfo::FindBreakPointInfo(
-        isolate_, node->debug_info(), break_point);
+  DebugInfoCollection::Iterator it(&debug_infos_);
+  for (; it.HasNext(); it.Advance()) {
+    Handle<DebugInfo> debug_info = it.Next();
+    if (!debug_info->HasBreakInfo()) continue;
+
+    Handle<Object> result =
+        DebugInfo::FindBreakPointInfo(isolate_, debug_info, break_point);
     if (result->IsUndefined(isolate_)) continue;
-    Handle<DebugInfo> debug_info = node->debug_info();
+
     if (DebugInfo::ClearBreakPoint(isolate_, debug_info, break_point)) {
       ClearBreakPoints(debug_info);
       if (debug_info->GetBreakPointCount(isolate_) == 0) {
-        RemoveBreakInfoAndMaybeFree(debug_info);
+        debug_info->ClearBreakInfo(isolate_);
+        if (debug_info->IsEmpty()) it.DeleteNext();
       } else {
         ApplyBreakPoints(debug_info);
       }
@@ -1464,9 +1505,9 @@ void Debug::ClearOneShot() {
   // The current implementation just runs through all the breakpoints. When the
   // last break point for a function is removed that function is automatically
   // removed from the list.
-  for (DebugInfoListNode* node = debug_info_list_; node != nullptr;
-       node = node->next()) {
-    Handle<DebugInfo> debug_info = node->debug_info();
+  DebugInfoCollection::Iterator it(&debug_infos_);
+  for (; it.HasNext(); it.Advance()) {
+    Handle<DebugInfo> debug_info = it.Next();
     ClearBreakPoints(debug_info);
     ApplyBreakPoints(debug_info);
   }
@@ -1646,11 +1687,13 @@ void Debug::InstallDebugBreakTrampoline() {
   bool needs_to_use_trampoline = false;
   // If there we break at entry to an api callback, we need to clear ICs.
   bool needs_to_clear_ic = false;
-  for (DebugInfoListNode* current = debug_info_list_; current != nullptr;
-       current = current->next()) {
-    if (current->debug_info()->CanBreakAtEntry()) {
+
+  DebugInfoCollection::Iterator it(&debug_infos_);
+  for (; it.HasNext(); it.Advance()) {
+    Handle<DebugInfo> debug_info = it.Next();
+    if (debug_info->CanBreakAtEntry()) {
       needs_to_use_trampoline = true;
-      if (current->debug_info()->shared().IsApiFunction()) {
+      if (debug_info->shared().IsApiFunction()) {
         needs_to_clear_ic = true;
         break;
       }
@@ -2083,14 +2126,12 @@ void Debug::CreateBreakInfo(Handle<SharedFunctionInfo> shared) {
 Handle<DebugInfo> Debug::GetOrCreateDebugInfo(
     Handle<SharedFunctionInfo> shared) {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
-  if (shared->HasDebugInfo()) return handle(shared->GetDebugInfo(), isolate_);
 
-  // Create debug info and add it to the list.
-  Handle<DebugInfo> debug_info = isolate_->factory()->NewDebugInfo(shared);
-  DebugInfoListNode* node = new DebugInfoListNode(isolate_, *debug_info);
-  node->set_next(debug_info_list_);
-  debug_info_list_ = node;
+  Handle<DebugInfo> debug_info;
+  if (debug_infos_.Find(*shared).ToHandle(&debug_info)) return debug_info;
 
+  debug_info = isolate_->factory()->NewDebugInfo(shared);
+  debug_infos_.Insert(*shared, *debug_info);
   return debug_info;
 }
 
@@ -2119,36 +2160,14 @@ void Debug::ClearAllDebuggerHints() {
       [=](Handle<DebugInfo> info) { info->set_debugger_hints(0); });
 }
 
-void Debug::FindDebugInfo(Handle<DebugInfo> debug_info,
-                          DebugInfoListNode** prev, DebugInfoListNode** curr) {
-  RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
-  HandleScope scope(isolate_);
-  *prev = nullptr;
-  *curr = debug_info_list_;
-  while (*curr != nullptr) {
-    if ((*curr)->debug_info().is_identical_to(debug_info)) return;
-    *prev = *curr;
-    *curr = (*curr)->next();
-  }
-
-  UNREACHABLE();
-}
-
 void Debug::ClearAllDebugInfos(const DebugInfoClearFunction& clear_function) {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
-  DebugInfoListNode* prev = nullptr;
-  DebugInfoListNode* current = debug_info_list_;
-  while (current != nullptr) {
-    DebugInfoListNode* next = current->next();
-    Handle<DebugInfo> debug_info = current->debug_info();
+
+  DebugInfoCollection::Iterator it(&debug_infos_);
+  for (; it.HasNext(); it.Advance()) {
+    Handle<DebugInfo> debug_info = it.Next();
     clear_function(debug_info);
-    if (debug_info->IsEmpty()) {
-      FreeDebugInfoListNode(prev, current);
-      current = next;
-    } else {
-      prev = current;
-      current = next;
-    }
+    if (debug_info->IsEmpty()) it.DeleteNext();
   }
 }
 
@@ -2156,32 +2175,8 @@ void Debug::RemoveBreakInfoAndMaybeFree(Handle<DebugInfo> debug_info) {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
   debug_info->ClearBreakInfo(isolate_);
   if (debug_info->IsEmpty()) {
-    DebugInfoListNode* prev;
-    DebugInfoListNode* node;
-    FindDebugInfo(debug_info, &prev, &node);
-    FreeDebugInfoListNode(prev, node);
+    debug_infos_.DeleteSlow(debug_info->shared());
   }
-}
-
-void Debug::FreeDebugInfoListNode(DebugInfoListNode* prev,
-                                  DebugInfoListNode* node) {
-  RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
-  DCHECK(node->debug_info()->IsEmpty());
-
-  // Unlink from list. If prev is nullptr we are looking at the first element.
-  if (prev == nullptr) {
-    debug_info_list_ = node->next();
-  } else {
-    prev->set_next(node->next());
-  }
-
-  // Pack script back into the
-  // SFI::script_or_debug_info field.
-  Handle<DebugInfo> debug_info(node->debug_info());
-  debug_info->shared().set_script_or_debug_info(debug_info->script(),
-                                                kReleaseStore);
-
-  delete node;
 }
 
 bool Debug::IsBreakAtReturn(JavaScriptFrame* frame) {
@@ -2770,11 +2765,12 @@ void Debug::UpdateDebugInfosForExecutionMode() {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
   // Walk all debug infos and update their execution mode if it is different
   // from the isolate execution mode.
-  DebugInfoListNode* current = debug_info_list_;
-  DebugInfo::ExecutionMode current_debug_execution_mode =
+  const DebugInfo::ExecutionMode current_debug_execution_mode =
       isolate_->debug_execution_mode();
-  while (current != nullptr) {
-    Handle<DebugInfo> debug_info = current->debug_info();
+
+  DebugInfoCollection::Iterator it(&debug_infos_);
+  for (; it.HasNext(); it.Advance()) {
+    Handle<DebugInfo> debug_info = it.Next();
     if (debug_info->HasInstrumentedBytecodeArray() &&
         debug_info->DebugExecutionMode() != current_debug_execution_mode) {
       DCHECK(debug_info->shared().HasBytecodeArray());
@@ -2786,7 +2782,6 @@ void Debug::UpdateDebugInfosForExecutionMode() {
         ApplySideEffectChecks(debug_info);
       }
     }
-    current = current->next();
   }
 }
 

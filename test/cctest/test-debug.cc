@@ -131,39 +131,28 @@ static void PrepareStep(i::StepAction step_action) {
 namespace v8 {
 namespace internal {
 
-// Collect the currently debugged functions.
 Handle<FixedArray> GetDebuggedFunctions() {
-  Debug* debug = CcTest::i_isolate()->debug();
+  DebugInfoCollection* infos = &CcTest::i_isolate()->debug()->debug_infos_;
 
-  v8::internal::DebugInfoListNode* node = debug->debug_info_list_;
-
-  // Find the number of debugged functions.
-  int count = 0;
-  while (node) {
-    count++;
-    node = node->next();
-  }
-
-  // Allocate array for the debugged functions
+  int count = static_cast<int>(infos->Size());
   Handle<FixedArray> debugged_functions =
       CcTest::i_isolate()->factory()->NewFixedArray(count);
 
-  // Run through the debug info objects and collect all functions.
-  count = 0;
-  while (node) {
-    debugged_functions->set(count++, *node->debug_info());
-    node = node->next();
+  int i = 0;
+  DebugInfoCollection::Iterator it(infos);
+  for (; it.HasNext(); it.Advance()) {
+    Handle<DebugInfo> debug_info = it.Next();
+    debugged_functions->set(i++, *debug_info);
   }
 
   return debugged_functions;
 }
 
-
 // Check that the debugger has been fully unloaded.
 void CheckDebuggerUnloaded() {
   // Check that the debugger context is cleared and that there is no debug
   // information stored for the debugger.
-  CHECK(!CcTest::i_isolate()->debug()->debug_info_list_);
+  CHECK_EQ(CcTest::i_isolate()->debug()->debug_infos_.Size(), 0);
 
   // Collect garbage to ensure weak handles are cleared.
   i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(

@@ -3548,7 +3548,7 @@ void Isolate::Deinit() {
 
   FutexEmulation::IsolateDeinit(this);
 
-  debug()->Unload();
+  debug()->TearDown();
 
 #if V8_ENABLE_WEBASSEMBLY
   wasm::GetWasmEngine()->DeleteCompileJobsOnIsolate(this);
