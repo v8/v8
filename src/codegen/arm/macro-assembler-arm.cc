@@ -416,6 +416,11 @@ void MacroAssembler::Push(Smi smi) {
   push(scratch);
 }
 
+void MacroAssembler::Push(TaggedIndex index) {
+  // TaggedIndex is the same as Smi for 32 bit archs.
+  Push(Smi::FromIntptr(index.value()));
+}
+
 void MacroAssembler::PushArray(Register array, Register size, Register scratch,
                                PushArrayOrder order) {
   ASM_CODE_COMMENT(this);
@@ -2788,6 +2793,28 @@ void MacroAssembler::ComputeCodeStartAddress(Register dst) {
   ASM_CODE_COMMENT(this);
   // We can use the register pc - 8 for the address of the current instruction.
   sub(dst, pc, Operand(pc_offset() + Instruction::kPcLoadDelta));
+}
+
+// Check if the code object is marked for deoptimization. If it is, then it
+// jumps to the CompileLazyDeoptimizedCode builtin. In order to do this we need
+// to:
+//    1. read from memory the word that contains that bit, which can be found in
+//       the flags in the referenced {Code} object;
+//    2. test kMarkedForDeoptimizationBit in those flags; and
+//    3. if it is not zero then it jumps to the builtin.
+void MacroAssembler::BailoutIfDeoptimized() {
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  int offset = InstructionStream::kCodeOffset - InstructionStream::kHeaderSize;
+  LoadTaggedField(scratch,
+                  MemOperand(kJavaScriptCallCodeStartRegister, offset));
+  ldr(scratch, FieldMemOperand(scratch, Code::kFlagsOffset));
+  Label not_deoptimized;
+  tst(scratch, Operand(Code::kMarkedForDeoptimizationBit));
+  b(eq, &not_deoptimized);
+  Jump(BUILTIN_CODE(isolate(), CompileLazyDeoptimizedCode),
+       RelocInfo::CODE_TARGET);
+  bind(&not_deoptimized);
 }
 
 void MacroAssembler::CallForDeoptimization(Builtin target, int, Label* exit,

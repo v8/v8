@@ -1472,6 +1472,8 @@ void MaglevCodeGenerator::Assemble() {
   EmitCode();
 #ifdef V8_TARGET_ARCH_ARM
   if (masm_.failed()) {
+    // Even if we fail, we force emit the constant pool, so that it is empty.
+    __ CheckConstPool(true, false);
     return;
   }
 #endif

@@ -7,6 +7,7 @@
 
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/codegen/macro-assembler-inl.h"
+#include "src/common/globals.h"
 #include "src/compiler/compilation-dependencies.h"
 #include "src/maglev/maglev-assembler.h"
 #include "src/maglev/maglev-basic-block.h"
@@ -74,14 +75,100 @@ class MaglevAssembler::ScratchRegisterScope {
   ScratchRegisterScope* prev_scope_;
 };
 
+namespace detail {
+
+template <typename... Args>
+struct PushAllHelper;
+
+template <>
+struct PushAllHelper<> {
+  static void Push(MaglevAssembler* masm) {}
+  static void PushReverse(MaglevAssembler* masm) {}
+};
+
+inline void PushInput(MaglevAssembler* masm, const Input& input) {
+  if (input.operand().IsConstant()) {
+    MaglevAssembler::ScratchRegisterScope temps(masm);
+    Register scratch = temps.Acquire();
+    input.node()->LoadToRegister(masm, scratch);
+    masm->Push(scratch);
+  } else {
+    // TODO(leszeks): Consider special casing the value. (Toon: could possibly
+    // be done through Input directly?)
+    const compiler::AllocatedOperand& operand =
+        compiler::AllocatedOperand::cast(input.operand());
+    if (operand.IsRegister()) {
+      masm->Push(operand.GetRegister());
+    } else {
+      DCHECK(operand.IsStackSlot());
+      MaglevAssembler::ScratchRegisterScope temps(masm);
+      Register scratch = temps.Acquire();
+      masm->ldr(scratch, masm->GetStackSlot(operand));
+      masm->Push(scratch);
+    }
+  }
+}
+
+template <typename T, typename... Args>
+inline void PushIterator(MaglevAssembler* masm, base::iterator_range<T> range,
+                         Args... args) {
+  for (auto iter = range.begin(), end = range.end(); iter != end; ++iter) {
+    masm->Push(*iter);
+  }
+  PushAllHelper<Args...>::Push(masm, args...);
+}
+
+template <typename T, typename... Args>
+inline void PushIteratorReverse(MaglevAssembler* masm,
+                                base::iterator_range<T> range, Args... args) {
+  PushAllHelper<Args...>::PushReverse(masm, args...);
+  for (auto iter = range.rbegin(), end = range.rend(); iter != end; ++iter) {
+    masm->Push(*iter);
+  }
+}
+
+template <typename... Args>
+struct PushAllHelper<Input, Args...> {
+  static void Push(MaglevAssembler* masm, const Input& arg, Args... args) {
+    PushInput(masm, arg);
+    PushAllHelper<Args...>::Push(masm, args...);
+  }
+  static void PushReverse(MaglevAssembler* masm, const Input& arg,
+                          Args... args) {
+    PushAllHelper<Args...>::PushReverse(masm, args...);
+    PushInput(masm, arg);
+  }
+};
+template <typename Arg, typename... Args>
+struct PushAllHelper<Arg, Args...> {
+  static void Push(MaglevAssembler* masm, Arg arg, Args... args) {
+    if constexpr (is_iterator_range<Arg>::value) {
+      PushIterator(masm, arg, args...);
+    } else {
+      masm->MacroAssembler::Push(arg);
+      PushAllHelper<Args...>::Push(masm, args...);
+    }
+  }
+  static void PushReverse(MaglevAssembler* masm, Arg arg, Args... args) {
+    if constexpr (is_iterator_range<Arg>::value) {
+      PushIteratorReverse(masm, arg, args...);
+    } else {
+      PushAllHelper<Args...>::PushReverse(masm, args...);
+      masm->Push(arg);
+    }
+  }
+};
+
+}  // namespace detail
+
 template <typename... T>
 void MaglevAssembler::Push(T... vals) {
-  MAGLEV_NOT_IMPLEMENTED();
+  detail::PushAllHelper<T...>::Push(this, vals...);
 }
 
 template <typename... T>
 void MaglevAssembler::PushReverse(T... vals) {
-  MAGLEV_NOT_IMPLEMENTED();
+  detail::PushAllHelper<T...>::PushReverse(this, vals...);
 }
 
 inline void MaglevAssembler::BindJumpTarget(Label* label) { bind(label); }
@@ -234,19 +321,17 @@ inline void MaglevAssembler::Move(DoubleRegister dst, DoubleRegister src) {
   MAGLEV_NOT_IMPLEMENTED();
 }
 inline void MaglevAssembler::Move(Register dst, Smi src) {
-  MAGLEV_NOT_IMPLEMENTED();
+  MacroAssembler::Move(dst, src);
 }
 inline void MaglevAssembler::Move(Register dst, ExternalReference src) {
-  MAGLEV_NOT_IMPLEMENTED();
+  MacroAssembler::Move(dst, src);
 }
-inline void MaglevAssembler::Move(Register dst, Register src) {
-  MAGLEV_NOT_IMPLEMENTED();
-}
+inline void MaglevAssembler::Move(Register dst, Register src) { mov(dst, src); }
 inline void MaglevAssembler::Move(Register dst, TaggedIndex i) {
   MAGLEV_NOT_IMPLEMENTED();
 }
 inline void MaglevAssembler::Move(Register dst, int32_t i) {
-  MAGLEV_NOT_IMPLEMENTED();
+  mov(dst, Operand(i));
 }
 inline void MaglevAssembler::Move(DoubleRegister dst, double n) {
   MAGLEV_NOT_IMPLEMENTED();
@@ -255,7 +340,7 @@ inline void MaglevAssembler::Move(DoubleRegister dst, Float64 n) {
   MAGLEV_NOT_IMPLEMENTED();
 }
 inline void MaglevAssembler::Move(Register dst, Handle<HeapObject> obj) {
-  MAGLEV_NOT_IMPLEMENTED();
+  MacroAssembler::Move(dst, obj);
 }
 
 inline void MaglevAssembler::SignExtend32To64Bits(Register dst, Register src) {
@@ -444,10 +529,18 @@ inline void MaglevAssembler::Int32ToDouble(DoubleRegister result, Register n) {
 inline void MaglevAssembler::Pop(Register dst) { MAGLEV_NOT_IMPLEMENTED(); }
 
 inline void MaglevAssembler::AssertStackSizeCorrect() {
-  MAGLEV_NOT_IMPLEMENTED();
+  if (v8_flags.debug_code) {
+    ScratchRegisterScope temps(this);
+    Register scratch = temps.Acquire();
+    add(scratch, sp,
+        Operand(code_gen_state()->stack_slots() * kSystemPointerSize +
+                StandardFrameConstants::kFixedFrameSizeFromFp));
+    cmp(scratch, fp);
+    Assert(eq, AbortReason::kStackAccessBelowStackPointer);
+  }
 }
 
-inline void MaglevAssembler::FinishCode() { MAGLEV_NOT_IMPLEMENTED(); }
+inline void MaglevAssembler::FinishCode() { CheckConstPool(true, false); }
 
 template <typename NodeT>
 inline void MaglevAssembler::EmitEagerDeoptIfNotEqual(DeoptimizeReason reason,
