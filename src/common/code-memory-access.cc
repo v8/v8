@@ -49,10 +49,6 @@ void ThreadIsolation::Initialize(
     return;
   }
 
-  if (v8_flags.jitless) {
-    return;
-  }
-
 #if V8_HAS_PKU_JIT_WRITE_PROTECT
   if (!base::MemoryProtectionKey::InitializeMemoryProtectionKeySupport()) {
     return;
