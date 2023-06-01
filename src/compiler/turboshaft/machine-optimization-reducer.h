@@ -1159,7 +1159,7 @@ class MachineOptimizationReducer : public Next {
                   left, &x, rep_w, &k1) &&
               Asm().MatchWordConstant(right, rep_w, &k2) &&
               CountLeadingSignBits(k2, rep_w) > k1 &&
-              Asm().Get(left).saturated_use_count == 0) {
+              Asm().Get(left).saturated_use_count.IsZero()) {
             return Asm().Equal(
                 x, Asm().WordConstant(base::bits::Unsigned(k2) << k1, rep_w),
                 rep_w);
@@ -1338,7 +1338,7 @@ class MachineOptimizationReducer : public Next {
                                                                  rep_w, &k1) &&
             Asm().MatchWordConstant(right, rep_w, &k2) &&
             CountLeadingSignBits(k2, rep_w) > k1 &&
-            Asm().Get(left).saturated_use_count == 0) {
+            Asm().Get(left).saturated_use_count.IsZero()) {
           return Asm().Comparison(
               x, Asm().WordConstant(base::bits::Unsigned(k2) << k1, rep_w),
               kind, rep_w);
@@ -1350,7 +1350,7 @@ class MachineOptimizationReducer : public Next {
                                                                  rep_w, &k1) &&
             Asm().MatchWordConstant(left, rep_w, &k2) &&
             CountLeadingSignBits(k2, rep_w) > k1 &&
-            Asm().Get(right).saturated_use_count == 0) {
+            Asm().Get(right).saturated_use_count.IsZero()) {
           return Asm().Comparison(
               Asm().WordConstant(base::bits::Unsigned(k2) << k1, rep_w), x,
               kind, rep_w);

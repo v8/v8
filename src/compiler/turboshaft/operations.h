@@ -522,6 +522,37 @@ inline bool CannotSwapOperations(OpEffects first, OpEffects second) {
 
 std::ostream& operator<<(std::ostream& os, OpEffects op_effects);
 
+// SaturatedUint8 is a wrapper around a uint8_t, which can be incremented and
+// decremented with the `Incr` and `Decr` methods. These methods prevent over-
+// and underflow, and saturate once the uint8_t reaches the maximum (255):
+// future increment and decrement will not change the value then.
+// We purposefuly do not expose the uint8_t directly, so that users go through
+// Incr/Decr/SetToZero/SetToOne to manipulate it, so that the saturation and
+// lack of over/underflow is always respected.
+class SaturatedUint8 {
+ public:
+  void Incr() {
+    if (V8_LIKELY(val != kMax)) {
+      val++;
+    }
+  }
+  void Decr() {
+    if (V8_LIKELY(val != 0 && val != kMax)) {
+      val--;
+    }
+  }
+
+  void SetToZero() { val = 0; }
+  void SetToOne() { val = 1; }
+
+  bool IsZero() const { return val == 0; }
+  uint8_t Get() const { return val; }
+
+ private:
+  uint8_t val = 0;
+  static constexpr uint8_t kMax = std::numeric_limits<uint8_t>::max();
+};
+
 // Baseclass for all Turboshaft operations.
 // The `alignas(OpIndex)` is necessary because it is followed by an array of
 // `OpIndex` inputs.
@@ -534,9 +565,7 @@ struct alignas(OpIndex) Operation {
   // We use such a small type to save memory and because nodes with a high
   // number of uses are rare. Additionally, we usually only care if the number
   // of uses is 0, 1 or bigger than 1.
-  uint8_t saturated_use_count = 0;
-  static constexpr uint8_t kUnknownUseCount =
-      std::numeric_limits<uint8_t>::max();
+  SaturatedUint8 saturated_use_count;
 
   const uint16_t input_count;
 

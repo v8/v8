@@ -273,7 +273,7 @@ class DeadCodeAnalysis {
             rewritable_branch_targets_.erase(it);
           }
         }
-      } else if (op.saturated_use_count == 0) {
+      } else if (op.saturated_use_count.IsZero()) {
         // Operation is already recognized as dead by a previous analysis.
         DCHECK_EQ(op_state, OperationState::kDead);
       } else if (op.Is<GotoOp>()) {
