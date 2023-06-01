@@ -7868,7 +7868,7 @@ void MaglevGraphBuilder::VisitJumpLoop() {
 
   if (ShouldEmitInterruptBudgetChecks()) {
     AddNewNode<ReduceInterruptBudgetForLoop>(
-        {}, relative_jump_bytecode_offset + iterator_.current_bytecode_size());
+        {}, relative_jump_bytecode_offset ? relative_jump_bytecode_offset : 1);
   }
 
   if (in_peeled_iteration_) {
