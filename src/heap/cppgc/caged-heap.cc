@@ -83,8 +83,10 @@ VirtualMemory ReserveCagedHeap(PageAllocator& platform_allocator) {
 }  // namespace
 
 // static
-void CagedHeap::InitializeIfNeeded(PageAllocator& platform_allocator) {
-  static v8::base::LeakyObject<CagedHeap> caged_heap(platform_allocator);
+void CagedHeap::InitializeIfNeeded(PageAllocator& platform_allocator,
+                                   size_t desired_heap_size) {
+  static v8::base::LeakyObject<CagedHeap> caged_heap(platform_allocator,
+                                                     desired_heap_size);
 }
 
 // static
@@ -93,7 +95,8 @@ CagedHeap& CagedHeap::Instance() {
   return *instance_;
 }
 
-CagedHeap::CagedHeap(PageAllocator& platform_allocator)
+CagedHeap::CagedHeap(PageAllocator& platform_allocator,
+                     size_t desired_heap_size)
     : reserved_area_(ReserveCagedHeap(platform_allocator)) {
   using CagedAddress = CagedHeap::AllocatorType::Address;
 
@@ -117,9 +120,13 @@ CagedHeap::CagedHeap(PageAllocator& platform_allocator)
   CageBaseGlobalUpdater::UpdateCageBase(CagedHeapBase::g_heap_base_);
 #endif  // defined(CPPGC_POINTER_COMPRESSION)
 
+  const size_t total_heap_size = std::clamp<size_t>(
+      v8::base::bits::RoundUpToPowerOfTwo64(desired_heap_size),
+      api_constants::kCagedHeapDefaultReservationSize,
+      api_constants::kCagedHeapMaxReservationSize);
+
   const size_t local_data_size =
-      CagedHeapLocalData::CalculateLocalDataSizeForHeapSize(
-          api_constants::kCagedHeapDefaultReservationSize);
+      CagedHeapLocalData::CalculateLocalDataSizeForHeapSize(total_heap_size);
   if (!platform_allocator.SetPermissions(
           cage_start,
           RoundUp(local_data_size, platform_allocator.CommitPageSize()),
@@ -134,9 +141,7 @@ CagedHeap::CagedHeap(PageAllocator& platform_allocator)
 
   page_bounded_allocator_ = std::make_unique<v8::base::BoundedPageAllocator>(
       &platform_allocator, caged_heap_start,
-      api_constants::kCagedHeapDefaultReservationSize -
-          local_data_size_with_padding,
-      kPageSize,
+      total_heap_size - local_data_size_with_padding, kPageSize,
       v8::base::PageInitializationMode::kAllocatedPagesMustBeZeroInitialized,
       v8::base::PageFreeingMode::kMakeInaccessible);
 

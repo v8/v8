@@ -41,7 +41,8 @@ class V8_EXPORT_PRIVATE CagedHeap final {
            ~(api_constants::kCagedHeapReservationAlignment - 1);
   }
 
-  static void InitializeIfNeeded(PageAllocator&);
+  static void InitializeIfNeeded(PageAllocator& platform_allocator,
+                                 size_t desired_heap_size);
 
   static CagedHeap& Instance();
 
@@ -66,7 +67,8 @@ class V8_EXPORT_PRIVATE CagedHeap final {
   friend class v8::base::LeakyObject<CagedHeap>;
   friend class testing::TestWithHeap;
 
-  explicit CagedHeap(PageAllocator& platform_allocator);
+  explicit CagedHeap(PageAllocator& platform_allocator,
+                     size_t desired_heap_size);
 
   static CagedHeap* instance_;
 
