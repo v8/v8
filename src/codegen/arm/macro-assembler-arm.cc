@@ -2958,7 +2958,21 @@ void MacroAssembler::F64x2PromoteLowF32x4(QwNeonRegister dst,
 void MacroAssembler::Switch(Register scratch, Register value,
                             int case_value_base, Label** labels,
                             int num_labels) {
-  // TODO(victorgomes): Not implemented yet.
+  Label fallthrough;
+  if (case_value_base != 0) {
+    sub(value, value, Operand(case_value_base));
+  }
+  // This {cmp} might still emit a constant pool entry.
+  cmp(value, Operand(num_labels));
+  // Ensure to emit the constant pool first if necessary.
+  CheckConstPool(true, true);
+  BlockConstPoolFor(num_labels + 2);
+  add(pc, pc, Operand(value, LSL, 2), LeaveCC, lo);
+  b(&fallthrough);
+  for (int i = 0; i < num_labels; ++i) {
+    b(labels[i]);
+  }
+  bind(&fallthrough);
 }
 
 void MacroAssembler::JumpIfCodeIsMarkedForDeoptimization(
