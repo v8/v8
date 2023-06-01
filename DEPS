@@ -166,11 +166,11 @@ deps = {
   'test/test262/data':
     Var('chromium_url') + '/external/github.com/tc39/test262.git' + '@' + 'beb4f26eb4e6f6f2bf71c8441521aaa950e62052',
   'third_party/android_ndk': {
-    'url': Var('chromium_url') + '/android_ndk.git' + '@' + '8388a2be5421311dc75c5f937aae13d821a27f3d',
+    'url': Var('chromium_url') + '/android_ndk.git' + '@' + '310956bd122ec2b96049f8d7398de6b717f3452e',
     'condition': 'checkout_android',
   },
   'third_party/android_platform': {
-    'url': Var('chromium_url') + '/chromium/src/third_party/android_platform.git' + '@' + 'f312145c4191affc66e7a1d46194f0d6c9dec438',
+    'url': Var('chromium_url') + '/chromium/src/third_party/android_platform.git' + '@' + '9f29aca7dd5ad56865863e5810ffb96756c241c3',
     'condition': 'checkout_android',
   },
   'third_party/android_sdk/public': {
@@ -277,7 +277,7 @@ deps = {
       'condition': 'checkout_android',
   },
   'third_party/zlib':
-    Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '337322d10f407b25671768f092e55f306c1a1101',
+    Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '982b036a257e63240142358a0fce0dbfdd40d9cb',
   'tools/clang':
     Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '3ad8228c907ab5af58f49f4d093d8aef7768c198',
   'tools/luci-go': {
