@@ -380,14 +380,9 @@ v8::StartupData Snapshot::Create(
   DCHECK_GT(contexts->size(), 0);
   HandleScope scope(isolate);
 
-  if (!isolate->initialized_from_snapshot()) {
-    // When creating the snapshot from scratch, we are responsible for sealing
-    // the RO heap here. Note we cannot delegate the responsibility e.g. to
-    // Isolate::Init since it should still be possible to allocate into RO
-    // space after the Isolate has been initialized, for example as part of
-    // Context creation.
-    isolate->read_only_heap()->OnCreateHeapObjectsComplete(isolate);
-  }
+  // The HeapSafepointScope ensures we are in a safepoint scope so that the
+  // string table is safe to iterate. Unlike mksnapshot, embedders may have
+  // background threads running.
 
   ReadOnlySerializer read_only_serializer(isolate, flags);
   read_only_serializer.Serialize();

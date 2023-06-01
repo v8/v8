@@ -56,7 +56,7 @@ class ReadOnlyHeap {
   // have been created and will not be written to. This should only be called if
   // a deserializer was not previously provided to Setup. When V8_SHARED_RO_HEAP
   // is enabled, this releases the ReadOnlyHeap creation lock.
-  V8_EXPORT_PRIVATE void OnCreateHeapObjectsComplete(Isolate* isolate);
+  void OnCreateHeapObjectsComplete(Isolate* isolate);
   // Indicates that all objects reachable by the read only roots table have been
   // set up.
   void OnCreateRootsComplete(Isolate* isolate);

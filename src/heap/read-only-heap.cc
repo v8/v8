@@ -134,10 +134,6 @@ void ReadOnlyHeap::OnCreateRootsComplete(Isolate* isolate) {
 void ReadOnlyHeap::OnCreateHeapObjectsComplete(Isolate* isolate) {
   DCHECK_NOT_NULL(isolate);
   InitFromIsolate(isolate);
-
-#ifdef VERIFY_HEAP
-  if (v8_flags.verify_heap) HeapVerifier::VerifyReadOnlyHeap(isolate->heap());
-#endif
 }
 
 // Only for compressed spaces

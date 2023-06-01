@@ -1095,13 +1095,14 @@ FactoryBase<Impl>::AllocateRawOneByteInternalizedString(
   DCHECK_IMPLIES(length == 0, !impl()->EmptyStringRootIsInitialized());
 
   Map map = read_only_roots().one_byte_internalized_string_map();
-  const int size = SeqOneByteString::SizeFor(length);
-  const AllocationType allocation =
+  int size = SeqOneByteString::SizeFor(length);
+  HeapObject result = AllocateRawWithImmortalMap(
+      size,
       RefineAllocationTypeForInPlaceInternalizableString(
           impl()->CanAllocateInReadOnlySpace() ? AllocationType::kReadOnly
                                                : AllocationType::kOld,
-          map);
-  HeapObject result = AllocateRawWithImmortalMap(size, allocation, map);
+          map),
+      map);
   SeqOneByteString answer = SeqOneByteString::cast(result);
   DisallowGarbageCollection no_gc;
   answer.clear_padding_destructively(length);

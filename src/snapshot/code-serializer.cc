@@ -121,6 +121,12 @@ void CodeSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
 
     instance_type = raw.map().instance_type();
     CHECK(!InstanceTypeChecker::IsInstructionStream(instance_type));
+
+    if (ElideObject(raw)) {
+      AllowGarbageCollection allow_gc;
+      return SerializeObject(roots.undefined_value_handle(),
+                             SlotType::kAnySlot);
+    }
   }
 
   if (InstanceTypeChecker::IsScript(instance_type)) {
