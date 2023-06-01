@@ -518,7 +518,7 @@ class MachineLoweringReducer : public Next {
       case ConvertOp::Kind::kSmi: {
         DCHECK_EQ(from, ConvertOp::Kind::kNumberOrOddball);
         Label<Smi> done(this);
-        GOTO_IF(__ ObjectIsSmi(input), done, V<Smi>::Cast(input));
+        GOTO_IF(LIKELY(__ ObjectIsSmi(input)), done, V<Smi>::Cast(input));
 
         STATIC_ASSERT_FIELD_OFFSETS_EQUAL(HeapNumber::kValueOffset,
                                           Oddball::kToNumberRawOffset);
@@ -1191,7 +1191,7 @@ class MachineLoweringReducer : public Next {
                                          InputAssumptions::kNumberOrOddball);
         Label<Word32> done(this);
 
-        IF (__ ObjectIsSmi(object)) {
+        IF (LIKELY(__ ObjectIsSmi(object))) {
           GOTO(done, __ UntagSmi(object));
         }
         ELSE {
@@ -1308,7 +1308,7 @@ class MachineLoweringReducer : public Next {
               TruncateJSPrimitiveToUntaggedOrDeoptOp::UntaggedKind::kInt32);
     Label<Word32> done(this);
     // In the Smi case, just convert to int32.
-    GOTO_IF(__ ObjectIsSmi(input), done, __ UntagSmi(input));
+    GOTO_IF(LIKELY(__ ObjectIsSmi(input)), done, __ UntagSmi(input));
 
     // Otherwise, check that it's a heap number or oddball and truncate the
     // value to int32.
