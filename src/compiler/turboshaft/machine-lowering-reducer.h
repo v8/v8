@@ -898,7 +898,7 @@ class MachineLoweringReducer : public Next {
                        kNumberOrOddball) {
           Label<Word32> done(this);
 
-          IF (__ ObjectIsSmi(object)) {
+          IF (LIKELY(__ ObjectIsSmi(object))) {
             GOTO(done, __ UntagSmi(object));
           }
           ELSE {
@@ -936,7 +936,7 @@ class MachineLoweringReducer : public Next {
                                            InputAssumptions::kNumberOrOddball);
           Label<Word64> done(this);
 
-          IF(__ ObjectIsSmi(object)) {
+          IF (LIKELY(__ ObjectIsSmi(object))) {
             GOTO(done, __ ChangeInt32ToInt64(__ UntagSmi(object)));
           }
           ELSE {
@@ -958,7 +958,7 @@ class MachineLoweringReducer : public Next {
             ConvertJSPrimitiveToUntaggedOp::InputAssumptions::kNumberOrOddball);
         Label<Word32> done(this);
 
-        IF (__ ObjectIsSmi(object)) {
+        IF (LIKELY(__ ObjectIsSmi(object))) {
           GOTO(done, __ UntagSmi(object));
         }
         ELSE {
@@ -982,7 +982,7 @@ class MachineLoweringReducer : public Next {
                                      InputAssumptions::kNumberOrOddball) {
           Label<Float64> done(this);
 
-          IF(__ ObjectIsSmi(object)) {
+          IF (LIKELY(__ ObjectIsSmi(object))) {
             GOTO(done, __ ChangeInt32ToFloat64(__ UntagSmi(object)));
           }
           ELSE {
