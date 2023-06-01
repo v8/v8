@@ -39,7 +39,7 @@ class SerializerDeserializer : public RootVisitor {
 // clang-format off
 #define UNUSED_SERIALIZER_BYTE_CODES(V)                           \
   /* Free range 0x10..0x1f */                                     \
-  V(0x1b) V(0x1c) V(0x1d) V(0x1e) V(0x1f)                         \
+  V(0x1a) V(0x1b) V(0x1c) V(0x1d) V(0x1e) V(0x1f)                 \
   /* Free range 0x20..0x2f */                                     \
   V(0x20) V(0x21) V(0x22) V(0x23) V(0x24) V(0x25) V(0x26) V(0x27) \
   V(0x28) V(0x29) V(0x2a) V(0x2b) V(0x2c) V(0x2d) V(0x2e) V(0x2f) \
@@ -101,8 +101,6 @@ class SerializerDeserializer : public RootVisitor {
     kRootArray,
     // Object provided in the attached list.
     kAttachedReference,
-    // Object in the read-only object cache.
-    kReadOnlyObjectCache,
     // Object in the shared heap object cache.
     kSharedHeapObjectCache,
     // Do nothing, used for padding.
@@ -261,16 +259,6 @@ class SerializerDeserializer : public RootVisitor {
   // This backing store reference value represents empty backing stores during
   // serialization/deserialization.
   static const uint32_t kEmptyBackingStoreRefSentinel = 0;
-};
-
-class HeapImageSerializer {
- public:
-  enum Bytecode {
-    kReadOnlyPage,
-    kReadOnlySegment,
-    kFinalizeReadOnlyPage,
-    kSynchronize,
-  };
 };
 
 }  // namespace internal

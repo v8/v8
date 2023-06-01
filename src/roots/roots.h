@@ -687,6 +687,7 @@ class ReadOnlyRoots {
 
   friend class ReadOnlyHeap;
   friend class DeserializerAllocator;
+  friend class ReadOnlyHeapImageDeserializer;
 };
 
 }  // namespace internal

@@ -34,6 +34,9 @@ void SnapshotByteSink::PutInt(uintptr_t integer, const char* description) {
 
 void SnapshotByteSink::PutRaw(const uint8_t* data, int number_of_bytes,
                               const char* description) {
+#ifdef MEMORY_SANITIZER
+  __msan_check_mem_is_initialized(data, number_of_bytes);
+#endif
   data_.insert(data_.end(), data, data + number_of_bytes);
 }
 

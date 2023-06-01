@@ -178,25 +178,7 @@ ReadOnlyHeap* PointerCompressedReadOnlyArtifacts::GetReadOnlyHeapForIsolate(
     Isolate* isolate) {
   DCHECK(ReadOnlyHeap::IsReadOnlySpaceShared());
   InitializeRootsIn(isolate);
-
-  SharedReadOnlySpace* shared_read_only_space = CreateReadOnlySpace(isolate);
-  ReadOnlyHeap* read_only_heap = new ReadOnlyHeap(shared_read_only_space);
-
-  // TODO(v8:10699): The cache should just live uncompressed in
-  // ReadOnlyArtifacts and be decompressed on the fly.
-  auto original_cache = read_only_heap_->read_only_object_cache_;
-  auto& cache = read_only_heap->read_only_object_cache_;
-  Address isolate_root = isolate->isolate_root();
-  for (Object original_object : original_cache) {
-    Address original_address = original_object.ptr();
-    Address new_address =
-        isolate_root +
-        V8HeapCompressionScheme::CompressObject(original_address);
-    Object new_object = Object(new_address);
-    cache.push_back(new_object);
-  }
-
-  return read_only_heap;
+  return new ReadOnlyHeap(CreateReadOnlySpace(isolate));
 }
 
 std::unique_ptr<::v8::PageAllocator::SharedMemoryMapping>
@@ -748,6 +730,13 @@ SharedReadOnlySpace::SharedReadOnlySpace(Heap* heap,
   pages_ = artifacts->pages();
 }
 
+void ReadOnlySpace::AllocateNextPage() {
+  ReadOnlyPage* page = heap_->memory_allocator()->AllocateReadOnlyPage(this);
+  capacity_ += AreaSize();
+  AccountCommitted(page->size());
+  pages_.push_back(page);
+}
+
 void ReadOnlySpace::AllocateNextPageAt(Address pos) {
   ReadOnlyPage* page =
       heap_->memory_allocator()->AllocateReadOnlyPage(this, pos);
@@ -763,12 +752,21 @@ void ReadOnlySpace::FinalizeExternallyInitializedPage() {
   cur_page->IncreaseAllocatedBytes(top_ - cur_page->area_start());
   cur_page->high_water_mark_ = top_ - cur_page->address();
   limit_ = top_;
-  heap()->CreateFillerObjectAt(top_,
-                               static_cast<int>(cur_page->area_end() - top_));
-  cur_page->ShrinkToHighWaterMark();
-  accounting_stats_.IncreaseCapacity(cur_page->area_size());
-  accounting_stats_.IncreaseAllocatedBytes(cur_page->allocated_bytes(),
-                                           cur_page);
+  // Note we can't shrink the page yet because the roots table is uninitialized
+  // (therefore we cannot access filler object maps). That'll happen later in
+  // FinalizeExternallyInitializedSpace.
+}
+
+void ReadOnlySpace::FinalizeExternallyInitializedSpace() {
+  // The ReadOnlyRoots table is now initialized. Create fillers, shrink pages,
+  // and update accounting stats.
+  for (ReadOnlyPage* page : pages_) {
+    Address top = page->address() + page->high_water_mark_;
+    heap()->CreateFillerObjectAt(top, static_cast<int>(page->area_end() - top));
+    page->ShrinkToHighWaterMark();
+    accounting_stats_.IncreaseCapacity(page->area_size());
+    accounting_stats_.IncreaseAllocatedBytes(page->allocated_bytes(), page);
+  }
 }
 
 }  // namespace internal

@@ -38,7 +38,6 @@ class Code;
   V(kExtensions, "(Extensions)")                        \
   V(kCodeFlusher, "(Code flusher)")                     \
   V(kStartupObjectCache, "(Startup object cache)")      \
-  V(kReadOnlyObjectCache, "(Read-only object cache)")   \
   V(kSharedHeapObjectCache, "(Shareable object cache)") \
   V(kWeakCollections, "(Weak collections)")             \
   V(kWrapperTracing, "(Wrapper tracing)")               \

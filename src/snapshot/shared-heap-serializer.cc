@@ -33,11 +33,9 @@ bool SharedHeapSerializer::ShouldBeInSharedHeapObjectCache(HeapObject obj) {
   return false;
 }
 
-SharedHeapSerializer::SharedHeapSerializer(
-    Isolate* isolate, Snapshot::SerializerFlags flags,
-    ReadOnlySerializer* read_only_serializer)
-    : RootsSerializer(isolate, flags, RootIndex::kFirstStrongRoot),
-      read_only_serializer_(read_only_serializer)
+SharedHeapSerializer::SharedHeapSerializer(Isolate* isolate,
+                                           Snapshot::SerializerFlags flags)
+    : RootsSerializer(isolate, flags, RootIndex::kFirstStrongRoot)
 #ifdef DEBUG
       ,
       serialized_objects_(isolate->heap())
@@ -77,11 +75,6 @@ void SharedHeapSerializer::FinalizeSerialization() {
     CHECK(!ReadOnlyHeap::Contains(obj));
   }
 #endif
-}
-
-bool SharedHeapSerializer::SerializeUsingReadOnlyObjectCache(
-    SnapshotByteSink* sink, Handle<HeapObject> obj) {
-  return read_only_serializer_->SerializeUsingReadOnlyObjectCache(sink, obj);
 }
 
 bool SharedHeapSerializer::SerializeUsingSharedHeapObjectCache(
@@ -176,7 +169,7 @@ void SharedHeapSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
     if (SerializeHotObject(raw)) return;
     if (IsRootAndHasBeenSerialized(raw) && SerializeRoot(raw)) return;
   }
-  if (SerializeUsingReadOnlyObjectCache(&sink_, obj)) return;
+  if (SerializeReadOnlyObjectReference(*obj, &sink_)) return;
   {
     DisallowGarbageCollection no_gc;
     HeapObject raw = *obj;

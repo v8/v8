@@ -385,22 +385,19 @@ v8::StartupData Snapshot::Create(
   // background threads running.
 
   ReadOnlySerializer read_only_serializer(isolate, flags);
-  read_only_serializer.SerializeReadOnlyRoots();
+  read_only_serializer.Serialize();
 
-  SharedHeapSerializer shared_heap_serializer(isolate, flags,
-                                              &read_only_serializer);
+  // TODO(v8:6593): generalize rehashing, and remove this flag.
+  bool can_be_rehashed = read_only_serializer.can_be_rehashed();
 
-  StartupSerializer startup_serializer(isolate, flags, &read_only_serializer,
-                                       &shared_heap_serializer);
+  SharedHeapSerializer shared_heap_serializer(isolate, flags);
+  StartupSerializer startup_serializer(isolate, flags, &shared_heap_serializer);
   startup_serializer.SerializeStrongReferences(no_gc);
 
   // Serialize each context with a new serializer.
   const int num_contexts = static_cast<int>(contexts->size());
   std::vector<SnapshotData*> context_snapshots;
   context_snapshots.reserve(num_contexts);
-
-  // TODO(v8:6593): generalize rehashing, and remove this flag.
-  bool can_be_rehashed = true;
 
   std::vector<int> context_allocation_sizes;
   for (int i = 0; i < num_contexts; i++) {
@@ -422,9 +419,6 @@ v8::StartupData Snapshot::Create(
 
   shared_heap_serializer.FinalizeSerialization();
   can_be_rehashed = can_be_rehashed && shared_heap_serializer.can_be_rehashed();
-
-  read_only_serializer.FinalizeSerialization();
-  can_be_rehashed = can_be_rehashed && read_only_serializer.can_be_rehashed();
 
   if (v8_flags.serialization_statistics) {
     DCHECK_NE(read_only_serializer.TotalAllocationSize(), 0);
