@@ -1027,6 +1027,16 @@ class DeoptFrame {
   inline InlinedArgumentsDeoptFrame& as_inlined_arguments();
   inline ConstructStubDeoptFrame& as_construct_stub();
   inline BuiltinContinuationDeoptFrame& as_builtin_continuation();
+  bool IsJsFrame() const {
+    switch (data_.tag()) {
+      case FrameType::kInterpretedFrame:
+      case FrameType::kBuiltinContinuationFrame:
+        return true;
+      case FrameType::kConstructStubFrame:
+      case FrameType::kInlinedArgumentsFrame:
+        return false;
+    }
+  }
 
  protected:
   DeoptFrame(InterpretedFrameData&& data, DeoptFrame* parent)

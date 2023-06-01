@@ -2485,7 +2485,7 @@ void OptimizedFrame::GetFunctions(
   // in the deoptimization translation are ordered bottom-to-top.
   while (jsframe_count != 0) {
     opcode = it.NextOpcode();
-    if (IsTranslationFrameOpcode(opcode)) {
+    if (IsTranslationJsFrameOpcode(opcode)) {
       it.NextOperand();  // Skip bailout id.
       jsframe_count--;
 

@@ -967,7 +967,7 @@ FrameCount GetFrameCount(const DeoptFrame* deopt_frame) {
   int js_frame = 1;
   while (deopt_frame->parent()) {
     deopt_frame = deopt_frame->parent();
-    if (deopt_frame->type() != DeoptFrame::FrameType::kInlinedArgumentsFrame) {
+    if (deopt_frame->IsJsFrame()) {
       js_frame++;
     }
     total++;
