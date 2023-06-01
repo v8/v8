@@ -617,7 +617,6 @@ class RunnableLeafTraceConfig(LeafTraceConfig, RunnableConfig):
       logging.error("No owners provided for %s" % self.name)
 
   def ProcessOutput(self, output, result_tracker, count):
-    result_tracker.AddRunnableDuration(self, output.duration)
     self.ConsumeOutput(output, result_tracker)
 
 
