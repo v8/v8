@@ -222,11 +222,6 @@ class V8_EXPORT_PRIVATE LookupIterator final {
                         Handle<Object> lookup_start_object,
                         Configuration configuration);
 
-  // For |ForTransitionHandler|.
-  LookupIterator(Isolate* isolate, Handle<Object> receiver, Handle<Name> name,
-                 Handle<Map> transition_map, PropertyDetails details,
-                 bool has_property);
-
   static void InternalUpdateProtector(Isolate* isolate, Handle<Object> receiver,
                                       Handle<Name> name);
 
@@ -286,12 +281,12 @@ class V8_EXPORT_PRIVATE LookupIterator final {
                                                    Configuration configuration,
                                                    Handle<Name> name);
 
-  static Handle<JSReceiver> GetRootForNonJSReceiver(
-      Isolate* isolate, Handle<Object> lookup_start_object,
-      size_t index = kInvalidIndex);
-  static inline Handle<JSReceiver> GetRoot(Isolate* isolate,
-                                           Handle<Object> lookup_start_object,
-                                           size_t index = kInvalidIndex);
+  static MaybeHandle<JSReceiver> GetRootForNonJSReceiver(
+      Isolate* isolate, Handle<Object> lookup_start_object, size_t index,
+      Configuration configuration);
+  static inline MaybeHandle<JSReceiver> GetRoot(
+      Isolate* isolate, Handle<Object> lookup_start_object, size_t index,
+      Configuration configuration);
 
   State NotFound(JSReceiver const holder) const;
 
