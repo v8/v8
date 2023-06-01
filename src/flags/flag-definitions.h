@@ -1025,8 +1025,9 @@ DEFINE_NEG_VALUE_IMPLICATION(use_osr, maglev_osr, false)
 DEFINE_NEG_VALUE_IMPLICATION(turbofan, osr_from_maglev, false)
 DEFINE_BOOL(concurrent_osr, true, "enable concurrent OSR")
 
-DEFINE_BOOL(turbo_string_builder, false, "use TurboFan fast string builder")
-DEFINE_WEAK_IMPLICATION(future, turbo_string_builder)
+// TODO(dmercadier): fix and re-enable string builder.
+DEFINE_BOOL_READONLY(turbo_string_builder, false,
+                     "use TurboFan fast string builder")
 
 DEFINE_BOOL(trace_osr, false, "trace on-stack replacement")
 DEFINE_BOOL(log_or_trace_osr, false,
