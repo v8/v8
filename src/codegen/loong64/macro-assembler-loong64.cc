@@ -181,6 +181,70 @@ void MacroAssembler::RecordWriteField(Register object, int offset,
   bind(&done);
 }
 
+void MacroAssembler::DecodeSandboxedPointer(Register value) {
+  ASM_CODE_COMMENT(this);
+#ifdef V8_ENABLE_SANDBOX
+  srli_d(value, value, kSandboxedPointerShift);
+  Add_d(value, value, kPtrComprCageBaseRegister);
+#else
+  UNREACHABLE();
+#endif
+}
+
+void MacroAssembler::LoadSandboxedPointerField(
+    Register destination, const MemOperand& field_operand) {
+#ifdef V8_ENABLE_SANDBOX
+  ASM_CODE_COMMENT(this);
+  Ld_d(destination, field_operand);
+  DecodeSandboxedPointer(destination);
+#else
+  UNREACHABLE();
+#endif
+}
+
+void MacroAssembler::StoreSandboxedPointerField(
+    Register value, const MemOperand& dst_field_operand) {
+#ifdef V8_ENABLE_SANDBOX
+  ASM_CODE_COMMENT(this);
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  Sub_d(scratch, value, kPtrComprCageBaseRegister);
+  slli_d(scratch, scratch, kSandboxedPointerShift);
+  St_d(scratch, dst_field_operand);
+#else
+  UNREACHABLE();
+#endif
+}
+
+void MacroAssembler::LoadExternalPointerField(Register destination,
+                                              MemOperand field_operand,
+                                              ExternalPointerTag tag,
+                                              Register isolate_root) {
+  DCHECK(!AreAliased(destination, isolate_root));
+  ASM_CODE_COMMENT(this);
+#ifdef V8_ENABLE_SANDBOX
+  DCHECK_NE(tag, kExternalPointerNullTag);
+  DCHECK(!IsSharedExternalPointerType(tag));
+  UseScratchRegisterScope temps(this);
+  Register external_table = temps.Acquire();
+  if (isolate_root == no_reg) {
+    DCHECK(root_array_available_);
+    isolate_root = kRootRegister;
+  }
+  Ld_d(external_table,
+       MemOperand(isolate_root,
+                  IsolateData::external_pointer_table_offset() +
+                      Internals::kExternalPointerTableBufferOffset));
+  Ld_wu(destination, field_operand);
+  srli_d(destination, destination, kExternalPointerIndexShift);
+  slli_d(destination, destination, kExternalPointerTableEntrySizeLog2);
+  Ld_d(destination, MemOperand(external_table, destination));
+  And(destination, destination, Operand(~tag));
+#else
+  Ld_d(destination, field_operand);
+#endif  // V8_ENABLE_SANDBOX
+}
+
 void MacroAssembler::MaybeSaveRegisters(RegList registers) {
   if (registers.is_empty()) return;
   MultiPush(registers);
@@ -3803,7 +3867,8 @@ void MacroAssembler::JumpIfJSAnyIsNotPrimitive(Register heap_object,
     // heap. Thus JS_RECEIVER's must have maps with larger (compressed)
     // addresses.
     LoadCompressedMap(scratch, heap_object);
-    Branch(target, cc, scratch, Operand(InstanceTypeChecker::kNonJsReceiverMapLimit));
+    Branch(target, cc, scratch,
+           Operand(InstanceTypeChecker::kNonJsReceiverMapLimit));
   } else {
     static_assert(LAST_JS_RECEIVER_TYPE == LAST_TYPE);
     GetObjectType(heap_object, scratch, scratch);

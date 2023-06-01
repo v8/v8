@@ -509,19 +509,17 @@ void InstructionSelector::VisitLoad(Node* node) {
       opcode = kLoong64Ld_d;
       break;
     case MachineRepresentation::kCompressedPointer:  // Fall through.
+    case MachineRepresentation::kCompressed:
 #ifdef V8_COMPRESS_POINTERS
       opcode = kLoong64Ld_wu;
       break;
 #endif
-    case MachineRepresentation::kCompressed:  // Fall through.
-#ifdef V8_COMPRESS_POINTERS
-      opcode = kLoong64Ld_wu;
+    case MachineRepresentation::kSandboxedPointer:
+      opcode = kLoong64LoadDecodeSandboxedPointer;
       break;
-#endif
-    case MachineRepresentation::kSandboxedPointer:  // Fall through.
-    case MachineRepresentation::kMapWord:           // Fall through.
-    case MachineRepresentation::kNone:              // Fall through.
-    case MachineRepresentation::kSimd128:           // Fall through.
+    case MachineRepresentation::kMapWord:  // Fall through.
+    case MachineRepresentation::kNone:     // Fall through.
+    case MachineRepresentation::kSimd128:  // Fall through.
     case MachineRepresentation::kSimd256:
       UNREACHABLE();
   }
@@ -599,19 +597,21 @@ void InstructionSelector::VisitStore(Node* node) {
         break;
       case MachineRepresentation::kTaggedSigned:   // Fall through.
       case MachineRepresentation::kTaggedPointer:  // Fall through.
-      case MachineRepresentation::kTagged:         // Fall through.
+      case MachineRepresentation::kTagged:
         opcode = kLoong64StoreCompressTagged;
         break;
       case MachineRepresentation::kCompressedPointer:  // Fall through.
-      case MachineRepresentation::kCompressed:         // Fall through.
+      case MachineRepresentation::kCompressed:
 #ifdef V8_COMPRESS_POINTERS
         opcode = kLoong64StoreCompressTagged;
         break;
 #endif
-      case MachineRepresentation::kSandboxedPointer:  // Fall through.
-      case MachineRepresentation::kMapWord:           // Fall through.
-      case MachineRepresentation::kNone:              // Fall through.
-      case MachineRepresentation::kSimd128:           // Fall through.
+      case MachineRepresentation::kSandboxedPointer:
+        opcode = kLoong64StoreEncodeSandboxedPointer;
+        break;
+      case MachineRepresentation::kMapWord:  // Fall through.
+      case MachineRepresentation::kNone:     // Fall through.
+      case MachineRepresentation::kSimd128:  // Fall through.
       case MachineRepresentation::kSimd256:
         UNREACHABLE();
     }

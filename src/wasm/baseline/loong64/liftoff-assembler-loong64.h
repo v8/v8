@@ -357,6 +357,13 @@ void LiftoffAssembler::LoadTaggedPointerFromInstance(Register dst,
   LoadTaggedField(dst, MemOperand(instance, offset));
 }
 
+void LiftoffAssembler::LoadExternalPointer(Register dst, Register instance,
+                                           int offset, ExternalPointerTag tag,
+                                           Register /* scratch */) {
+  LoadExternalPointerField(dst, FieldMemOperand(instance, offset), tag,
+                           kRootRegister);
+}
+
 void LiftoffAssembler::SpillInstance(Register instance) {
   St_d(instance, liftoff::GetInstanceOperand());
 }
