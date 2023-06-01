@@ -6,7 +6,7 @@
 #include "src/base/platform/platform.h"
 #include "src/heap/heap.h"
 #include "src/heap/local-heap.h"
-#include "src/heap/parked-scope.h"
+#include "src/heap/parked-scope-inl.h"
 #include "src/heap/safepoint.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"

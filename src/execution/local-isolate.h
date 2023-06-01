@@ -151,6 +151,9 @@ class V8_EXPORT_PRIVATE LocalIsolate final : private HiddenLocalFactory {
 
   int NextOptimizationId() { return isolate_->NextOptimizationId(); }
 
+  template <typename Callback>
+  V8_INLINE void BlockMainThreadWhileParked(Callback callback);
+
 #ifdef V8_INTL_SUPPORT
   // WARNING: This might be out-of-sync with the main-thread.
   const std::string& DefaultLocale();

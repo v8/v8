@@ -8,9 +8,9 @@
 #include "src/codegen/compiler.h"
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/execution/isolate.h"
-#include "src/execution/local-isolate.h"
+#include "src/execution/local-isolate-inl.h"
 #include "src/handles/handles-inl.h"
-#include "src/heap/local-heap.h"
+#include "src/heap/local-heap-inl.h"
 #include "src/init/v8.h"
 #include "src/logging/counters.h"
 #include "src/logging/log.h"
@@ -138,8 +138,8 @@ void OptimizingCompileDispatcher::FlushInputQueue() {
 void OptimizingCompileDispatcher::AwaitCompileTasks() {
   {
     AllowGarbageCollection allow_before_parking;
-    ParkedScope parked_scope(isolate_->main_thread_local_isolate());
-    job_handle_->Join();
+    isolate_->main_thread_local_isolate()->BlockMainThreadWhileParked(
+        [this]() { job_handle_->Join(); });
   }
   // Join kills the job handle, so drop it and post a new one.
   job_handle_ = V8::GetCurrentPlatform()->PostJob(

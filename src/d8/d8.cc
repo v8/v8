@@ -54,7 +54,7 @@
 #include "src/execution/vm-state-inl.h"
 #include "src/flags/flags.h"
 #include "src/handles/maybe-handles.h"
-#include "src/heap/parked-scope.h"
+#include "src/heap/parked-scope-inl.h"
 #include "src/init/v8.h"
 #include "src/interpreter/interpreter.h"
 #include "src/logging/counters.h"
@@ -2949,9 +2949,11 @@ void Shell::WorkerTerminateAndWait(
     return;
   }
 
-  i::ParkedScope parked(
-      reinterpret_cast<i::Isolate*>(isolate)->main_thread_local_isolate());
-  worker->TerminateAndWaitForThread(parked);
+  reinterpret_cast<i::Isolate*>(isolate)
+      ->main_thread_local_isolate()
+      ->BlockMainThreadWhileParked([worker](const i::ParkedScope& parked) {
+        worker->TerminateAndWaitForThread(parked);
+      });
 }
 
 void Shell::QuitOnce(v8::FunctionCallbackInfo<v8::Value>* info) {
@@ -2973,8 +2975,8 @@ void Shell::QuitOnce(v8::FunctionCallbackInfo<v8::Value>* info) {
   // When disposing the shared space isolate, the workers (client isolates) need
   // to be terminated first.
   if (i_isolate->is_shared_space_isolate()) {
-    i::ParkedScope parked(i_isolate->main_thread_local_isolate());
-    WaitForRunningWorkers(parked);
+    i_isolate->main_thread_local_isolate()->BlockMainThreadWhileParked(
+        [](const i::ParkedScope& parked) { WaitForRunningWorkers(parked); });
   }
 
   OnExit(isolate, false);
@@ -5163,19 +5165,19 @@ int Shell::RunMain(v8::Isolate* isolate, bool last_run) {
   bool success = RunMainIsolate(isolate, keep_context_alive);
   CollectGarbage(isolate);
 
-  {
-    // Park the main thread here to prevent deadlocks in shared GCs when waiting
-    // in JoinThread.
-    i::ParkedScope parked(i_isolate->main_thread_local_isolate());
-    for (int i = 1; i < options.num_isolates; ++i) {
-      if (last_run) {
-        options.isolate_sources[i].JoinThread(parked);
-      } else {
-        options.isolate_sources[i].WaitForThread(parked);
-      }
-    }
-    WaitForRunningWorkers(parked);
-  }
+  // Park the main thread here to prevent deadlocks in shared GCs when
+  // waiting in JoinThread.
+  i_isolate->main_thread_local_heap()->BlockMainThreadWhileParked(
+      [last_run](const i::ParkedScope& parked) {
+        for (int i = 1; i < options.num_isolates; ++i) {
+          if (last_run) {
+            options.isolate_sources[i].JoinThread(parked);
+          } else {
+            options.isolate_sources[i].WaitForThread(parked);
+          }
+        }
+        WaitForRunningWorkers(parked);
+      });
 
   // Other threads have terminated, we can now run the artifical
   // serialize-deserialize pass (which destructively mutates heap state).
@@ -5970,32 +5972,32 @@ int Shell::Main(int argc, char* argv[]) {
           result = RunMain(isolate, last_run);
         }
       } else if (options.code_cache_options != ShellOptions::kNoProduceCache) {
-        {
-          // Park the main thread here in case the new isolate wants to perform
-          // a shared GC to prevent a deadlock.
-          i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-          i::ParkedScope parked(i_isolate->main_thread_local_isolate());
+        // Park the main thread here in case the new isolate wants to perform
+        // a shared GC to prevent a deadlock.
+        reinterpret_cast<i::Isolate*>(isolate)
+            ->main_thread_local_isolate()
+            ->BlockMainThreadWhileParked([&result]() {
+              printf("============ Run: Produce code cache ============\n");
+              // First run to produce the cache
+              Isolate::CreateParams create_params2;
+              create_params2.array_buffer_allocator =
+                  Shell::array_buffer_allocator;
+              // Use a different hash seed.
+              i::v8_flags.hash_seed = i::v8_flags.hash_seed ^ 1337;
+              Isolate* isolate2 = Isolate::New(create_params2);
+              // Restore old hash seed.
+              i::v8_flags.hash_seed = i::v8_flags.hash_seed ^ 1337;
+              {
+                Isolate::Scope isolate_scope(isolate2);
+                D8Console console2(isolate2);
+                Initialize(isolate2, &console2);
+                PerIsolateData data2(isolate2);
 
-          printf("============ Run: Produce code cache ============\n");
-          // First run to produce the cache
-          Isolate::CreateParams create_params2;
-          create_params2.array_buffer_allocator = Shell::array_buffer_allocator;
-          // Use a different hash seed.
-          i::v8_flags.hash_seed = i::v8_flags.hash_seed ^ 1337;
-          Isolate* isolate2 = Isolate::New(create_params2);
-          // Restore old hash seed.
-          i::v8_flags.hash_seed = i::v8_flags.hash_seed ^ 1337;
-          {
-            Isolate::Scope isolate_scope(isolate2);
-            D8Console console2(isolate2);
-            Initialize(isolate2, &console2);
-            PerIsolateData data2(isolate2);
-
-            result = RunMain(isolate2, false);
-            ResetOnProfileEndListener(isolate2);
-          }
-          isolate2->Dispose();
-        }
+                result = RunMain(isolate2, false);
+                ResetOnProfileEndListener(isolate2);
+              }
+              isolate2->Dispose();
+            });
 
         // Change the options to consume cache
         DCHECK(options.compile_options == v8::ScriptCompiler::kEagerCompile ||

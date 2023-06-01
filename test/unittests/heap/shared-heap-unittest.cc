@@ -5,7 +5,7 @@
 #include "src/base/optional.h"
 #include "src/base/platform/platform.h"
 #include "src/heap/heap.h"
-#include "src/heap/parked-scope.h"
+#include "src/heap/parked-scope-inl.h"
 #include "test/unittests/heap/heap-utils.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -75,17 +75,19 @@ class SharedOldSpaceAllocationThread final : public ParkingThread {
 }  // namespace
 
 TEST_F(SharedHeapTest, ConcurrentAllocationInSharedOldSpace) {
-  std::vector<std::unique_ptr<SharedOldSpaceAllocationThread>> threads;
-  const int kThreads = 4;
+  i_isolate()->main_thread_local_isolate()->BlockMainThreadWhileParked(
+      [](const ParkedScope& parked) {
+        std::vector<std::unique_ptr<SharedOldSpaceAllocationThread>> threads;
+        const int kThreads = 4;
 
-  ParkedScope parked(i_isolate()->main_thread_local_isolate());
-  for (int i = 0; i < kThreads; i++) {
-    auto thread = std::make_unique<SharedOldSpaceAllocationThread>();
-    CHECK(thread->Start());
-    threads.push_back(std::move(thread));
-  }
+        for (int i = 0; i < kThreads; i++) {
+          auto thread = std::make_unique<SharedOldSpaceAllocationThread>();
+          CHECK(thread->Start());
+          threads.push_back(std::move(thread));
+        }
 
-  ParkingThread::ParkedJoinAll(parked, threads);
+        ParkingThread::ParkedJoinAll(parked, threads);
+      });
 }
 
 namespace {
@@ -120,17 +122,20 @@ class SharedLargeOldSpaceAllocationThread final : public ParkingThread {
 }  // namespace
 
 TEST_F(SharedHeapTest, ConcurrentAllocationInSharedLargeOldSpace) {
-  std::vector<std::unique_ptr<SharedLargeOldSpaceAllocationThread>> threads;
-  const int kThreads = 4;
+  i_isolate()->main_thread_local_isolate()->BlockMainThreadWhileParked(
+      [](const ParkedScope& parked) {
+        std::vector<std::unique_ptr<SharedLargeOldSpaceAllocationThread>>
+            threads;
+        const int kThreads = 4;
 
-  ParkedScope parked(i_isolate()->main_thread_local_isolate());
-  for (int i = 0; i < kThreads; i++) {
-    auto thread = std::make_unique<SharedLargeOldSpaceAllocationThread>();
-    CHECK(thread->Start());
-    threads.push_back(std::move(thread));
-  }
+        for (int i = 0; i < kThreads; i++) {
+          auto thread = std::make_unique<SharedLargeOldSpaceAllocationThread>();
+          CHECK(thread->Start());
+          threads.push_back(std::move(thread));
+        }
 
-  ParkingThread::ParkedJoinAll(parked, threads);
+        ParkingThread::ParkedJoinAll(parked, threads);
+      });
 }
 
 namespace {
@@ -161,17 +166,19 @@ class SharedMapSpaceAllocationThread final : public ParkingThread {
 }  // namespace
 
 TEST_F(SharedHeapTest, ConcurrentAllocationInSharedMapSpace) {
-  std::vector<std::unique_ptr<SharedMapSpaceAllocationThread>> threads;
-  const int kThreads = 4;
+  i_isolate()->main_thread_local_isolate()->BlockMainThreadWhileParked(
+      [](const ParkedScope& parked) {
+        std::vector<std::unique_ptr<SharedMapSpaceAllocationThread>> threads;
+        const int kThreads = 4;
 
-  ParkedScope parked(i_isolate()->main_thread_local_isolate());
-  for (int i = 0; i < kThreads; i++) {
-    auto thread = std::make_unique<SharedMapSpaceAllocationThread>();
-    CHECK(thread->Start());
-    threads.push_back(std::move(thread));
-  }
+        for (int i = 0; i < kThreads; i++) {
+          auto thread = std::make_unique<SharedMapSpaceAllocationThread>();
+          CHECK(thread->Start());
+          threads.push_back(std::move(thread));
+        }
 
-  ParkingThread::ParkedJoinAll(parked, threads);
+        ParkingThread::ParkedJoinAll(parked, threads);
+      });
 }
 
 TEST_F(SharedHeapNoClientsTest, SharedCollectionWithoutClients) {
@@ -220,8 +227,8 @@ void AllocateInSharedHeap(int iterations = 100) {
 
 TEST_F(SharedHeapTest, SharedCollectionWithOneClient) {
   v8_flags.max_old_space_size = 8;
-  ParkedScope parked(i_isolate()->main_thread_local_isolate());
-  AllocateInSharedHeap();
+  i_isolate()->main_thread_local_isolate()->BlockMainThreadWhileParked(
+      []() { AllocateInSharedHeap(); });
 }
 
 namespace {
@@ -238,17 +245,19 @@ class SharedFixedArrayAllocationThread final : public ParkingThread {
 TEST_F(SharedHeapTest, SharedCollectionWithMultipleClients) {
   v8_flags.max_old_space_size = 8;
 
-  std::vector<std::unique_ptr<SharedFixedArrayAllocationThread>> threads;
-  const int kThreads = 4;
+  i_isolate()->main_thread_local_isolate()->BlockMainThreadWhileParked(
+      [](const ParkedScope& parked) {
+        std::vector<std::unique_ptr<SharedFixedArrayAllocationThread>> threads;
+        const int kThreads = 4;
 
-  ParkedScope parked(i_isolate()->main_thread_local_isolate());
-  for (int i = 0; i < kThreads; i++) {
-    auto thread = std::make_unique<SharedFixedArrayAllocationThread>();
-    CHECK(thread->Start());
-    threads.push_back(std::move(thread));
-  }
+        for (int i = 0; i < kThreads; i++) {
+          auto thread = std::make_unique<SharedFixedArrayAllocationThread>();
+          CHECK(thread->Start());
+          threads.push_back(std::move(thread));
+        }
 
-  ParkingThread::ParkedJoinAll(parked, threads);
+        ParkingThread::ParkedJoinAll(parked, threads);
+      });
 }
 
 namespace {

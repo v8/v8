@@ -12,6 +12,7 @@
 #include "src/heap/concurrent-allocator-inl.h"
 #include "src/heap/heap.h"
 #include "src/heap/local-heap.h"
+#include "src/heap/parked-scope.h"
 
 namespace v8 {
 namespace internal {
@@ -83,6 +84,35 @@ Address LocalHeap::AllocateRawOrFail(int object_size, AllocationType type,
   if (result.To(&object)) return object.address();
   return PerformCollectionAndAllocateAgain(object_size, type, origin,
                                            alignment);
+}
+
+template <typename Callback>
+V8_INLINE void LocalHeap::ParkAndExecuteCallback(Callback callback) {
+  ParkedScope parked(this);
+  // Provide the parked scope as a witness, if the callback expects it.
+  if constexpr (std::is_invocable_v<Callback, const ParkedScope&>) {
+    callback(parked);
+  } else {
+    callback();
+  }
+}
+
+template <typename Callback>
+V8_INLINE void LocalHeap::BlockWhileParked(Callback callback) {
+  if (is_main_thread()) {
+    BlockMainThreadWhileParked(callback);
+  } else {
+    ParkAndExecuteCallback(callback);
+  }
+}
+
+template <typename Callback>
+V8_INLINE void LocalHeap::BlockMainThreadWhileParked(Callback callback) {
+  DCHECK(is_main_thread());
+  // TODO(v8:13257): Enter the trampoline here for saving the stack marker and
+  // the registers, so that if a GC happens while the main thread is parked, the
+  // stack can be scanned conservatively.
+  ParkAndExecuteCallback(callback);
 }
 
 }  // namespace internal

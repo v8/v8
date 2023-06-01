@@ -38,6 +38,7 @@ include_rules = [
   "+src/heap/memory-chunk.h",
   "+src/heap/memory-chunk-inl.h",
   "+src/heap/paged-spaces-inl.h",
+  "+src/heap/parked-scope-inl.h",
   "+src/heap/parked-scope.h",
   "+src/heap/read-only-heap-inl.h",
   "+src/heap/read-only-heap.h",

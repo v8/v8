@@ -4,7 +4,7 @@
 
 #include "src/base/platform/platform.h"
 #include "src/base/platform/time.h"
-#include "src/heap/parked-scope.h"
+#include "src/heap/parked-scope-inl.h"
 #include "src/objects/js-atomics-synchronization-inl.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"

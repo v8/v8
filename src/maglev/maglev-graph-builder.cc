@@ -21,7 +21,7 @@
 #include "src/compiler/compilation-dependencies.h"
 #include "src/compiler/feedback-source.h"
 #include "src/compiler/heap-refs.h"
-#include "src/compiler/js-heap-broker.h"
+#include "src/compiler/js-heap-broker-inl.h"
 #include "src/compiler/processed-feedback.h"
 #include "src/deoptimizer/deoptimize-reason.h"
 #include "src/flags/flags.h"

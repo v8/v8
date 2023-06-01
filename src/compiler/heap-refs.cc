@@ -13,7 +13,7 @@
 #include "src/api/api-inl.h"
 #include "src/base/optional.h"
 #include "src/compiler/compilation-dependencies.h"
-#include "src/compiler/js-heap-broker.h"
+#include "src/compiler/js-heap-broker-inl.h"
 #include "src/execution/protectors-inl.h"
 #include "src/objects/allocation-site-inl.h"
 #include "src/objects/descriptor-array.h"

@@ -37,7 +37,7 @@
 #include "src/codegen/script-details.h"
 #include "src/common/assert-scope.h"
 #include "src/heap/heap-inl.h"
-#include "src/heap/parked-scope.h"
+#include "src/heap/parked-scope-inl.h"
 #include "src/heap/read-only-heap.h"
 #include "src/heap/safepoint.h"
 #include "src/heap/spaces.h"
@@ -5164,23 +5164,17 @@ UNINITIALIZED_TEST(SharedStrings) {
   Isolate* i_isolate2 = reinterpret_cast<Isolate*>(isolate2);
 
   CHECK_EQ(i_isolate1->string_table(), i_isolate2->string_table());
-  {
-    ParkedScope parked(i_isolate2->main_thread_local_heap());
-    CheckObjectsAreInSharedHeap(i_isolate1);
-  }
+  i_isolate2->main_thread_local_heap()->BlockMainThreadWhileParked(
+      [i_isolate1]() { CheckObjectsAreInSharedHeap(i_isolate1); });
 
-  {
-    ParkedScope parked(i_isolate1->main_thread_local_heap());
-    CheckObjectsAreInSharedHeap(i_isolate2);
-  }
+  i_isolate1->main_thread_local_heap()->BlockMainThreadWhileParked(
+      [i_isolate2]() { CheckObjectsAreInSharedHeap(i_isolate2); });
 
-  {
-    // Because both isolate1 and isolate2 are considered running on the main
-    // thread, one must be parked to avoid deadlock in the shared heap
-    // verification that may happen on client heap disposal.
-    ParkedScope parked(i_isolate1->main_thread_local_isolate());
-    isolate2->Dispose();
-  }
+  // Because both isolate1 and isolate2 are considered running on the main
+  // thread, one must be parked to avoid deadlock in the shared heap
+  // verification that may happen on client heap disposal.
+  i_isolate1->main_thread_local_heap()->BlockMainThreadWhileParked(
+      [isolate2]() { isolate2->Dispose(); });
   isolate1->Dispose();
 
   blobs.Dispose();

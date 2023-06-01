@@ -11,7 +11,7 @@
 #include "src/handles/handles.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap.h"
-#include "src/heap/local-heap.h"
+#include "src/heap/local-heap-inl.h"
 #include "src/heap/parked-scope.h"
 
 namespace v8 {
@@ -109,13 +109,19 @@ bool CollectionBarrier::AwaitCollectionBackground(LocalHeap* local_heap) {
         std::make_unique<BackgroundCollectionInterruptTask>(heap_));
   }
 
-  ParkedScope scope(local_heap);
-  base::MutexGuard guard(&mutex_);
+  bool return_false = false;
+  local_heap->BlockWhileParked([this, &return_false]() {
+    base::MutexGuard guard(&mutex_);
 
-  while (block_for_collection_) {
-    if (shutdown_requested_) return false;
-    cv_wakeup_.Wait(&mutex_);
-  }
+    while (block_for_collection_) {
+      if (shutdown_requested_) {
+        return_false = true;
+        return;
+      }
+      cv_wakeup_.Wait(&mutex_);
+    }
+  });
+  if (return_false) return false;
 
   // Collection may have been cancelled while blocking for it.
   return collection_performed_;

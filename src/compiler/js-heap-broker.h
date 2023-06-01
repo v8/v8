@@ -346,14 +346,9 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   // occurrence. This is done to have a recursive shared lock on {mutex}.
   class V8_NODISCARD RecursiveSharedMutexGuardIfNeeded {
    protected:
-    RecursiveSharedMutexGuardIfNeeded(LocalIsolate* local_isolate,
-                                      base::SharedMutex* mutex,
-                                      int* mutex_depth_address)
-        : mutex_depth_address_(mutex_depth_address),
-          initial_mutex_depth_(*mutex_depth_address_),
-          shared_mutex_guard_(local_isolate, mutex, initial_mutex_depth_ == 0) {
-      (*mutex_depth_address_)++;
-    }
+    V8_INLINE RecursiveSharedMutexGuardIfNeeded(LocalIsolate* local_isolate,
+                                                base::SharedMutex* mutex,
+                                                int* mutex_depth_address);
 
     ~RecursiveSharedMutexGuardIfNeeded() {
       DCHECK_GE((*mutex_depth_address_), 1);
@@ -370,21 +365,13 @@ class V8_EXPORT_PRIVATE JSHeapBroker {
   class MapUpdaterGuardIfNeeded final
       : public RecursiveSharedMutexGuardIfNeeded {
    public:
-    explicit MapUpdaterGuardIfNeeded(JSHeapBroker* broker)
-        : RecursiveSharedMutexGuardIfNeeded(
-              broker->local_isolate_or_isolate(),
-              broker->isolate()->map_updater_access(),
-              &broker->map_updater_mutex_depth_) {}
+    V8_INLINE explicit MapUpdaterGuardIfNeeded(JSHeapBroker* broker);
   };
 
   class BoilerplateMigrationGuardIfNeeded final
       : public RecursiveSharedMutexGuardIfNeeded {
    public:
-    explicit BoilerplateMigrationGuardIfNeeded(JSHeapBroker* broker)
-        : RecursiveSharedMutexGuardIfNeeded(
-              broker->local_isolate_or_isolate(),
-              broker->isolate()->boilerplate_migration_access(),
-              &broker->boilerplate_migration_mutex_depth_) {}
+    V8_INLINE explicit BoilerplateMigrationGuardIfNeeded(JSHeapBroker* broker);
   };
 
   // If this returns false, the object is guaranteed to be fully initialized and

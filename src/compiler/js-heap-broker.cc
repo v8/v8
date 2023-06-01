@@ -9,6 +9,7 @@
 #endif
 
 #include "src/codegen/optimized-compilation-info.h"
+#include "src/compiler/js-heap-broker-inl.h"
 #include "src/handles/handles-inl.h"
 #include "src/heap/heap-inl.h"
 #include "src/objects/allocation-site-inl.h"
