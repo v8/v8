@@ -244,7 +244,7 @@ RECLIENT_JOBS = struct(
     J150 = 150,
 )
 
-def _reclient_properties(use_remoteexec, reclient_jobs, name):
+def _reclient_properties(use_remoteexec, reclient_jobs, name, scandeps_server):
     if use_remoteexec == None:
         return {}
 
@@ -273,6 +273,9 @@ def _reclient_properties(use_remoteexec, reclient_jobs, name):
 
     if reclient_jobs:
         reclient["jobs"] = reclient_jobs
+
+    if scandeps_server:
+        reclient["scandeps_server"] = True
 
     return {
         "$build/reclient": reclient,
@@ -362,10 +365,12 @@ def v8_basic_builder(defaults, **kwargs):
     # Should be replaced by the description below at some point.
     properties["__builder_name__"] = kwargs["name"]
 
+    scandeps_server = kwargs.get("dimensions", {}).get("os", "").lower() == "mac"
     properties.update(_reclient_properties(
         kwargs.pop("use_remoteexec", None),
         kwargs.pop("reclient_jobs", None),
         kwargs["name"],
+        scandeps_server,
     ))
     properties.update(_gclient_vars_properties(kwargs.pop("gclient_vars", [])))
 
