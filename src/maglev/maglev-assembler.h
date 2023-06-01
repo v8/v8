@@ -584,6 +584,24 @@ inline Condition ToCondition(AssertCondition cond) {
   }
 }
 
+constexpr Condition ConditionFor(Operation operation) {
+  switch (operation) {
+    case Operation::kEqual:
+    case Operation::kStrictEqual:
+      return kEqual;
+    case Operation::kLessThan:
+      return kLessThan;
+    case Operation::kLessThanOrEqual:
+      return kLessThanEqual;
+    case Operation::kGreaterThan:
+      return kGreaterThan;
+    case Operation::kGreaterThanOrEqual:
+      return kGreaterThanEqual;
+    default:
+      UNREACHABLE();
+  }
+}
+
 }  // namespace maglev
 }  // namespace internal
 }  // namespace v8

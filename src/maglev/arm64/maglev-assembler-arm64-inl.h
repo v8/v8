@@ -16,24 +16,6 @@ namespace v8 {
 namespace internal {
 namespace maglev {
 
-constexpr Condition ConditionFor(Operation operation) {
-  switch (operation) {
-    case Operation::kEqual:
-    case Operation::kStrictEqual:
-      return eq;
-    case Operation::kLessThan:
-      return lt;
-    case Operation::kLessThanOrEqual:
-      return le;
-    case Operation::kGreaterThan:
-      return gt;
-    case Operation::kGreaterThanOrEqual:
-      return ge;
-    default:
-      UNREACHABLE();
-  }
-}
-
 constexpr Condition ConditionForFloat64(Operation operation) {
   return ConditionFor(operation);
 }
