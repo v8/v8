@@ -563,9 +563,11 @@ class ExceptionHandlerTrampolineBuilder {
     EmitMaterialisationsAndPushResults(materialising_moves, save_accumulator);
 
     __ RecordComment("EmitMoves");
-// TODO(victorgomes): Add a scratch register scope to MaglevAssembler and
-// remove this arch depedent code.
-#ifdef V8_TARGET_ARCH_ARM64
+// TODO(victorgomes): Remove this arch depedent code.
+#ifdef V8_TARGET_ARCH_ARM
+    UseScratchRegisterScope temps(masm_);
+    Register scratch = temps.Acquire();
+#elif V8_TARGET_ARCH_ARM64
     UseScratchRegisterScope temps(masm_);
     Register scratch = temps.AcquireX();
 #elif V8_TARGET_ARCH_X64
@@ -826,9 +828,12 @@ class MaglevCodeGeneratingNodeProcessor {
 
     int predecessor_id = state.block()->predecessor_id();
 
-// TODO(victorgomes): Add a scratch register scope to MaglevAssembler and
-// remove this arch depedent code.
-#ifdef V8_TARGET_ARCH_ARM64
+// TODO(victorgomes): Remove this arch depedent code.
+#ifdef V8_TARGET_ARCH_ARM
+    UseScratchRegisterScope temps(masm_);
+    Register scratch = temps.Acquire();
+    DoubleRegister double_scratch = temps.AcquireD();
+#elif V8_TARGET_ARCH_ARM64
     UseScratchRegisterScope temps(masm_);
     Register scratch = temps.AcquireX();
     DoubleRegister double_scratch = temps.AcquireD();
@@ -1487,6 +1492,11 @@ MaglevCodeGenerator::MaglevCodeGenerator(
 
 void MaglevCodeGenerator::Assemble() {
   EmitCode();
+#ifdef V8_TARGET_ARCH_ARM
+  if (masm_.failed()) {
+    return;
+  }
+#endif
   EmitMetadata();
   if (v8_flags.maglev_deopt_data_on_background) {
     GenerateDeoptimizationData(local_isolate_);

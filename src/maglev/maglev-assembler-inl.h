@@ -9,7 +9,9 @@
 
 #include "src/maglev/maglev-assembler.h"
 
-#ifdef V8_TARGET_ARCH_ARM64
+#ifdef V8_TARGET_ARCH_ARM
+#include "src/maglev/arm/maglev-assembler-arm-inl.h"
+#elif V8_TARGET_ARCH_ARM64
 #include "src/maglev/arm64/maglev-assembler-arm64-inl.h"
 #elif V8_TARGET_ARCH_X64
 #include "src/maglev/x64/maglev-assembler-x64-inl.h"

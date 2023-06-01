@@ -28,6 +28,10 @@ class MaglevCodeGenerator final {
 
   MaybeHandle<Code> Generate(Isolate* isolate);
 
+#ifdef V8_TARGET_ARCH_ARM
+  bool AssembleHasFailed() const { return masm_.failed(); }
+#endif
+
  private:
   void EmitCode();
   void EmitDeferredCode();

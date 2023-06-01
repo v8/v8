@@ -47,6 +47,16 @@ struct ScriptStreamingData;
 
 namespace maglev {
 class MaglevCompilationJob;
+
+static inline bool IsMaglevEnabled() {
+  // TODO(victorgomes): Currently arm ignores the --maglev flag.
+#ifdef V8_TARGET_ARCH_ARM
+  return v8_flags.maglev_arm;
+#else
+  return v8_flags.maglev;
+#endif
+}
+
 }  // namespace maglev
 
 // The V8 compiler API.

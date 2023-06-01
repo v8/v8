@@ -452,11 +452,12 @@ Object CompileOptimizedOSR(Isolate* isolate, Handle<JSFunction> function,
           : ConcurrencyMode::kSynchronous;
 
   Handle<Code> result;
-  if (!Compiler::CompileOptimizedOSR(isolate, function, osr_offset, mode,
-                                     (v8_flags.maglev && v8_flags.maglev_osr &&
-                                      min_opt_level == CodeKind::MAGLEV)
-                                         ? CodeKind::MAGLEV
-                                         : CodeKind::TURBOFAN)
+  if (!Compiler::CompileOptimizedOSR(
+           isolate, function, osr_offset, mode,
+           (maglev::IsMaglevEnabled() && v8_flags.maglev_osr &&
+            min_opt_level == CodeKind::MAGLEV)
+               ? CodeKind::MAGLEV
+               : CodeKind::TURBOFAN)
            .ToHandle(&result) ||
       result->marked_for_deoptimization()) {
     // An empty result can mean one of two things:

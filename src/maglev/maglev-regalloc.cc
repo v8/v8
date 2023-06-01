@@ -27,7 +27,9 @@
 #include "src/maglev/maglev-regalloc-data.h"
 #include "src/zone/zone-containers.h"
 
-#ifdef V8_TARGET_ARCH_ARM64
+#ifdef V8_TARGET_ARCH_ARM
+#include "src/codegen/arm/register-arm.h"
+#elif V8_TARGET_ARCH_ARM64
 #include "src/codegen/arm64/register-arm64.h"
 #elif V8_TARGET_ARCH_X64
 #include "src/codegen/x64/register-x64.h"

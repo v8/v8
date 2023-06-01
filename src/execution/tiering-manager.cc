@@ -147,7 +147,7 @@ namespace {
 
 bool TiersUpToMaglev(CodeKind code_kind) {
   // TODO(v8:7700): Flip the UNLIKELY when appropriate.
-  return V8_UNLIKELY(v8_flags.maglev) &&
+  return V8_UNLIKELY(maglev::IsMaglevEnabled()) &&
          CodeKindIsUnoptimizedJSFunction(code_kind);
 }
 
@@ -266,7 +266,7 @@ void TieringManager::MaybeOptimizeFrame(JSFunction function,
     // Continue below and do a normal optimized compile as well.
   }
 
-  const bool maglev_osr = v8_flags.maglev && v8_flags.maglev_osr;
+  const bool maglev_osr = maglev::IsMaglevEnabled() && v8_flags.maglev_osr;
   // Baseline OSR uses a separate mechanism and must not be considered here,
   // therefore we limit to kOptimizedJSFunctionCodeKindsMask.
   if (IsRequestTurbofan(tiering_state) ||

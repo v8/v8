@@ -278,7 +278,9 @@ bool CanOptimizeFunction(CodeKind target_kind, Handle<JSFunction> function,
   }
 
   if (target_kind == CodeKind::TURBOFAN && !v8_flags.turbofan) return false;
-  if (target_kind == CodeKind::MAGLEV && !v8_flags.maglev) return false;
+  if (target_kind == CodeKind::MAGLEV && !maglev::IsMaglevEnabled()) {
+    return false;
+  }
 
   if (function->shared().optimization_disabled() &&
       function->shared().disabled_optimization_reason() ==
@@ -474,7 +476,7 @@ RUNTIME_FUNCTION(Runtime_IsSparkplugEnabled) {
 
 RUNTIME_FUNCTION(Runtime_IsMaglevEnabled) {
   DCHECK_EQ(args.length(), 0);
-  return isolate->heap()->ToBoolean(v8_flags.maglev);
+  return isolate->heap()->ToBoolean(maglev::IsMaglevEnabled());
 }
 
 RUNTIME_FUNCTION(Runtime_IsTurbofanEnabled) {
@@ -730,7 +732,8 @@ RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
         isolate, function, osr_offset,
         concurrent_osr ? ConcurrencyMode::kConcurrent
                        : ConcurrencyMode::kSynchronous,
-        (v8_flags.maglev && v8_flags.maglev_osr && !it.frame()->is_maglev())
+        (maglev::IsMaglevEnabled() && v8_flags.maglev_osr &&
+         !it.frame()->is_maglev())
             ? CodeKind::MAGLEV
             : CodeKind::TURBOFAN);
     USE(unused_result);

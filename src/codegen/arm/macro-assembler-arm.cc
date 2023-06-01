@@ -2931,23 +2931,7 @@ void MacroAssembler::F64x2PromoteLowF32x4(QwNeonRegister dst,
 void MacroAssembler::Switch(Register scratch, Register value,
                             int case_value_base, Label** labels,
                             int num_labels) {
-  Register table = scratch;
-  Label fallthrough, jump_table;
-  if (case_value_base != 0) {
-    sub(value, value, Operand(case_value_base));
-  }
-  cmp(value, Operand(num_labels));
-  b(&fallthrough, hs);
-  mov_label_offset(table, &jump_table);
-  ldr(table, MemOperand(table, value, LSL, kSystemPointerSizeLog2));
-  blx(table);
-  // Emit the jump table inline, under the assumption that it's not too big.
-  Align(kSystemPointerSize);
-  bind(&jump_table);
-  for (int i = 0; i < num_labels; ++i) {
-    dd(labels[i]->pos());
-  }
-  bind(&fallthrough);
+  // TODO(victorgomes): Not implemented yet.
 }
 
 void MacroAssembler::JumpIfCodeIsMarkedForDeoptimization(

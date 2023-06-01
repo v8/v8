@@ -1256,6 +1256,9 @@ static void TickLines(bool optimize) {
 #ifdef V8_ENABLE_MAGLEV
   // TODO(v8:7700): Also test maglev here.
   v8_flags.maglev = false;
+#ifdef V8_TARGET_ARCH_ARM
+  v8_flags.maglev_arm = false;
+#endif
 #endif  // V8_ENABLE_MAGLEV
 #endif  // !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
   CcTest::InitializeVM();

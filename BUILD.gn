@@ -470,8 +470,9 @@ if (v8_enable_external_code_space == "") {
 }
 if (v8_enable_maglev == "") {
   v8_enable_maglev = v8_enable_turbofan &&
-                     (v8_current_cpu == "x64" || v8_current_cpu == "arm64") &&
-                     v8_enable_pointer_compression
+                     (v8_current_cpu == "arm" ||
+                      ((v8_current_cpu == "x64" || v8_current_cpu == "arm64") &&
+                       v8_enable_pointer_compression))
 }
 assert(v8_enable_turbofan || !v8_enable_maglev,
        "Maglev is not available when Turbofan is disabled.")
@@ -3846,7 +3847,9 @@ v8_header_set("v8_internal_headers") {
       "src/maglev/maglev-register-frame-array.h",
       "src/maglev/maglev.h",
     ]
-    if (v8_current_cpu == "arm64") {
+    if (v8_current_cpu == "arm") {
+      sources += [ "src/maglev/arm/maglev-assembler-arm-inl.h" ]
+    } else if (v8_current_cpu == "arm64") {
       sources += [ "src/maglev/arm64/maglev-assembler-arm64-inl.h" ]
     } else if (v8_current_cpu == "x64") {
       sources += [ "src/maglev/x64/maglev-assembler-x64-inl.h" ]
@@ -5164,7 +5167,12 @@ v8_source_set("v8_base_without_compiler") {
       "src/maglev/maglev-regalloc.cc",
       "src/maglev/maglev.cc",
     ]
-    if (v8_current_cpu == "arm64") {
+    if (v8_current_cpu == "arm") {
+      sources += [
+        "src/maglev/arm/maglev-assembler-arm.cc",
+        "src/maglev/arm/maglev-ir-arm.cc",
+      ]
+    } else if (v8_current_cpu == "arm64") {
       sources += [
         "src/maglev/arm64/maglev-assembler-arm64.cc",
         "src/maglev/arm64/maglev-ir-arm64.cc",

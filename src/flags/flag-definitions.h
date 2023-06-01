@@ -474,6 +474,10 @@ DEFINE_BOOL(force_emit_interrupt_budget_checks, false,
 #define V8_ENABLE_MAGLEV_BOOL true
 DEFINE_BOOL(maglev, false, "enable the maglev optimizing compiler")
 DEFINE_WEAK_IMPLICATION(future, maglev)
+#ifdef V8_TARGET_ARCH_ARM
+DEFINE_EXPERIMENTAL_FEATURE(maglev_arm, "enable maglev on arm")
+DEFINE_IMPLICATION(maglev_arm, maglev)
+#endif
 DEFINE_EXPERIMENTAL_FEATURE(
     maglev_future,
     "enable maglev features that we want to ship in the not-too-far future")
@@ -519,6 +523,9 @@ DEFINE_IMPLICATION(stress_maglev, maglev)
 DEFINE_WEAK_VALUE_IMPLICATION(stress_maglev, invocation_count_for_maglev, 4)
 #else
 #define V8_ENABLE_MAGLEV_BOOL false
+#ifdef V8_TARGET_ARCH_ARM
+DEFINE_BOOL_READONLY(maglev_arm, false, "enable maglev on arm")
+#endif
 DEFINE_BOOL_READONLY(maglev, false, "enable the maglev optimizing compiler")
 DEFINE_BOOL_READONLY(
     maglev_future, false,

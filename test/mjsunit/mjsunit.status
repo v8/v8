@@ -1995,6 +1995,47 @@
   'regress/regress-1376663': [SKIP],
 }], # variant == stress_maglev_no_turbofan
 
+# TODO(victorgomes): Remove these once we support Maglev on arm.
+['arch == arm', {
+  'baseline/test-osr-maglev': [FAIL],
+  'baseline/test-osr-maglev-tf': [FAIL],
+  'maglev/add-number': [FAIL],
+  'maglev/add-smi': [FAIL],
+  'maglev/call-js-runtime': [FAIL],
+  'maglev/call-runtime-for-pair': [FAIL],
+  'maglev/destructuring-assignment-with-exclude-properties': [FAIL],
+  'maglev/get-template-object': [FAIL],
+  'maglev/inner-function': [FAIL],
+  'maglev/int32-branch': [FAIL],
+  'maglev/lazy-deopt-with-onstack-activation': [FAIL],
+  'maglev/lazy-deopt-without-onstack-activation': [FAIL],
+  'maglev/lda-global-inside-typeof': [FAIL],
+  'maglev/lda-global': [FAIL],
+  'maglev/lda-module-variable': [FAIL],
+  'maglev/literals': [FAIL],
+  'maglev/load-named': [FAIL],
+  'maglev/negate': [FAIL],
+  'maglev/omit-default-ctors-array-iterator': [FAIL],
+  'maglev/omit-default-ctors': [FAIL],
+  'maglev/osr-from-ml-to-tf' : [SKIP],
+  'maglev/tier-to-ml-to-tf': [SKIP],
+  'maglev/shift-right-logical-smi': [FAIL],
+  'maglev/shift-right-logical': [FAIL],
+  'maglev/shift-right-smi': [FAIL],
+  'maglev/shift-right': [FAIL],
+  'maglev/spill-double': [FAIL],
+  'maglev/sta-module-variable': [FAIL],
+  'maglev/string-compare': [FAIL],
+  'maglev/super-ic': [FAIL],
+  'maglev/undefined-or-null-branch': [FAIL],
+  'maglev/unstable-map-transition': [FAIL],
+  'maglev/regress/regress-1405651': [FAIL],
+  'maglev/polymorphic-load': [FAIL],
+  'maglev/polymorphic-load-migration': [FAIL],
+  'maglev/typedarray-resizablearraybuffer': [FAIL],
+  'maglev/phi-untagging-conversions': [FAIL],
+}], # arch == arm
+
 ##############################################################################
 ['clang_coverage and mode == debug', {
   # Too slow tests.

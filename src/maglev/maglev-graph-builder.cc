@@ -60,12 +60,12 @@ enum class CpuOperation {
 // TODO(leszeks): Add a generic mechanism for marking nodes as optionally
 // supported.
 bool IsSupported(CpuOperation op) {
-#ifdef V8_TARGET_ARCH_X64
+#if defined(V8_TARGET_ARCH_X64)
   switch (op) {
     case CpuOperation::kFloat64Round:
       return CpuFeatures::IsSupported(SSE4_1) || CpuFeatures::IsSupported(AVX);
   }
-#elif V8_TARGET_ARCH_ARM64
+#elif defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_ARM64)
   return true;
 #else
 #error "Maglev does not support this architecture."

@@ -464,6 +464,12 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
                                               graph);
     code_generator->Assemble();
 
+#ifdef V8_TARGET_ARCH_ARM
+    if (code_generator->AssembleHasFailed()) {
+      return false;
+    }
+#endif
+
     // Stash the compiled code_generator on the compilation info.
     compilation_info->set_code_generator(std::move(code_generator));
   }

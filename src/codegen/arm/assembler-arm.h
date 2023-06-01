@@ -1412,6 +1412,11 @@ class V8_EXPORT_PRIVATE V8_NODISCARD UseScratchRegisterScope {
   bool CanAcquireD() const { return CanAcquireVfp<DwVfpRegister>(); }
   bool CanAcquireQ() const { return CanAcquireVfp<QwNeonRegister>(); }
 
+  RegList Available() { return *assembler_->GetScratchRegisterList(); }
+  void SetAvailable(RegList available) {
+    *assembler_->GetScratchRegisterList() = available;
+  }
+
   void Include(const Register& reg1, const Register& reg2 = no_reg) {
     RegList* available = assembler_->GetScratchRegisterList();
     DCHECK_NOT_NULL(available);
@@ -1419,6 +1424,11 @@ class V8_EXPORT_PRIVATE V8_NODISCARD UseScratchRegisterScope {
     DCHECK(!available->has(reg2));
     available->set(reg1);
     available->set(reg2);
+  }
+  void Include(RegList list) {
+    RegList* available = assembler_->GetScratchRegisterList();
+    DCHECK_NOT_NULL(available);
+    *available = *available | list;
   }
   void Include(VfpRegList list) {
     VfpRegList* available = assembler_->GetScratchVfpRegisterList();
