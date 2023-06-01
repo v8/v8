@@ -105,7 +105,6 @@ class CodeSerializer : public Serializer {
   CodeSerializer(Isolate* isolate, uint32_t source_hash);
   ~CodeSerializer() override { OutputStatistics("CodeSerializer"); }
 
-  virtual bool ElideObject(Object obj) { return false; }
   void SerializeGeneric(Handle<HeapObject> heap_object, SlotType slot_type);
 
  private:
