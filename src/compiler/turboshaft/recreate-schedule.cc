@@ -235,12 +235,10 @@ SHOULD_HAVE_BEEN_LOWERED(StringSubstring)
 #ifdef V8_INTL_SUPPORT
 SHOULD_HAVE_BEEN_LOWERED(StringToCaseIntl)
 #endif  // V8_INTL_SUPPORT
-SHOULD_HAVE_BEEN_LOWERED(TagSmi)
 SHOULD_HAVE_BEEN_LOWERED(TransitionAndStoreArrayElement)
 SHOULD_HAVE_BEEN_LOWERED(TransitionElementsKind)
 SHOULD_HAVE_BEEN_LOWERED(TruncateJSPrimitiveToUntagged)
 SHOULD_HAVE_BEEN_LOWERED(TruncateJSPrimitiveToUntaggedOrDeopt)
-SHOULD_HAVE_BEEN_LOWERED(UntagSmi)
 #undef SHOULD_HAVE_BEEN_LOWERED
 
 Node* ScheduleBuilder::ProcessOperation(const WordBinopOp& op) {

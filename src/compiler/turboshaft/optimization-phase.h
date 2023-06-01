@@ -563,13 +563,6 @@ class GraphVisitor {
     return assembler().ReduceTryChange(MapToNewGraph(op.input()), op.kind,
                                        op.from, op.to);
   }
-  OpIndex AssembleOutputGraphTagSmi(const TagSmiOp& op) {
-    return assembler().ReduceTagSmi(MapToNewGraph(op.input()));
-  }
-  OpIndex AssembleOutputGraphUntagSmi(const UntagSmiOp& op) {
-    return assembler().ReduceUntagSmi(MapToNewGraph(op.input()));
-  }
-
   OpIndex AssembleOutputGraphBitcastWord32PairToFloat64(
       const BitcastWord32PairToFloat64Op& op) {
     return assembler().ReduceBitcastWord32PairToFloat64(

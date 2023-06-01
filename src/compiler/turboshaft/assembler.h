@@ -1485,17 +1485,29 @@ class AssemblerOpInterface {
   }
 
   V<Smi> TagSmi(ConstOrV<Word32> input) {
-    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
-      return OpIndex::Invalid();
+    constexpr int kSmiShiftBits = kSmiShiftSize + kSmiTagSize;
+    // Do shift on 32bit values if Smis are stored in the lower word.
+    if constexpr (Is64() && SmiValuesAre31Bits()) {
+      V<Word32> shifted = Word32ShiftLeft(resolve(input), kSmiShiftBits);
+      // In pointer compression, we smi-corrupt. Then, the upper bits are not
+      // important.
+      return V<Smi>::Cast(COMPRESS_POINTERS_BOOL
+                              ? BitcastWord32ToWord64(shifted)
+                              : ChangeInt32ToIntPtr(shifted));
+    } else {
+      return V<Smi>::Cast(
+          WordPtrShiftLeft(ChangeInt32ToIntPtr(resolve(input)), kSmiShiftBits));
     }
-    return stack().ReduceTagSmi(resolve(input));
   }
 
   V<Word32> UntagSmi(V<Tagged> input) {
-    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
-      return OpIndex::Invalid();
+    constexpr int kSmiShiftBits = kSmiShiftSize + kSmiTagSize;
+    if constexpr (Is64() && SmiValuesAre31Bits()) {
+      return Word32ShiftRightArithmeticShiftOutZeros(V<Word32>::Cast(input),
+                                                     kSmiShiftBits);
     }
-    return stack().ReduceUntagSmi(input);
+    return V<Word32>::Cast(WordPtrShiftRightArithmeticShiftOutZeros(
+        V<WordPtr>::Cast(input), kSmiShiftBits));
   }
 
   OpIndex Load(OpIndex base, OpIndex index, LoadOp::Kind kind,

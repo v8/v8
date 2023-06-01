@@ -139,8 +139,6 @@ struct FrameStateOp;
   V(TruncateJSPrimitiveToUntagged)                        \
   V(TruncateJSPrimitiveToUntaggedOrDeopt)                 \
   V(ConvertJSPrimitiveToObject)                           \
-  V(TagSmi)                                               \
-  V(UntagSmi)                                             \
   V(NewConsString)                                        \
   V(NewArray)                                             \
   V(DoubleArrayMinMax)                                    \
@@ -3329,38 +3327,6 @@ struct ConvertJSPrimitiveToObjectOp
   }
 
   auto options() const { return std::tuple{mode}; }
-};
-
-struct TagSmiOp : FixedArityOperationT<1, TagSmiOp> {
-  static constexpr OpEffects effects = OpEffects();
-  base::Vector<const RegisterRepresentation> outputs_rep() const {
-    return RepVector<RegisterRepresentation::Tagged()>();
-  }
-
-  OpIndex input() const { return Base::input(0); }
-
-  explicit TagSmiOp(OpIndex input) : Base(input) {}
-  void Validate(const Graph& graph) const {
-    DCHECK(ValidOpInputRep(graph, input(), RegisterRepresentation::Word32()));
-  }
-
-  auto options() const { return std::tuple{}; }
-};
-
-struct UntagSmiOp : FixedArityOperationT<1, UntagSmiOp> {
-  static constexpr OpEffects effects = OpEffects();
-  base::Vector<const RegisterRepresentation> outputs_rep() const {
-    return RepVector<RegisterRepresentation::Word32()>();
-  }
-
-  OpIndex input() const { return Base::input(0); }
-
-  explicit UntagSmiOp(OpIndex input) : Base(input) {}
-  void Validate(const Graph& graph) const {
-    DCHECK(ValidOpInputRep(graph, input(), RegisterRepresentation::Tagged()));
-  }
-
-  auto options() const { return std::tuple{}; }
 };
 
 struct NewConsStringOp : FixedArityOperationT<3, NewConsStringOp> {

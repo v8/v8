@@ -242,8 +242,6 @@ class TypeInferenceAnalysis {
         case Opcode::kTruncateJSPrimitiveToUntagged:
         case Opcode::kTruncateJSPrimitiveToUntaggedOrDeopt:
         case Opcode::kConvertJSPrimitiveToObject:
-        case Opcode::kTagSmi:
-        case Opcode::kUntagSmi:
         case Opcode::kNewConsString:
         case Opcode::kNewArray:
         case Opcode::kDoubleArrayMinMax:
