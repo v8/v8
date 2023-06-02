@@ -24,40 +24,41 @@ TEST(ResourceConstraints, ConfigureDefaultsFromHeapSizeSmall) {
 TEST(ResourceConstraints, ConfigureDefaultsFromHeapSizeLarge) {
   const size_t KB = static_cast<size_t>(i::KB);
   const size_t MB = static_cast<size_t>(i::MB);
+  const size_t GB = static_cast<size_t>(i::GB);
   const size_t pm = i::Heap::kPointerMultiplier;
-  // MinorMC doubles the max capacity but not the initial capacity.
-  const size_t max_semi_space_multiplier = internal::v8_flags.minor_mc ? 4 : 3;
-  const size_t initial_semi_space_multiplier =
-      internal::v8_flags.minor_mc ? 2 : 3;
   v8::ResourceConstraints constraints;
-  constraints.ConfigureDefaultsFromHeapSize(50u * MB, 3000u * MB);
+  constraints.ConfigureDefaultsFromHeapSize(50u * MB, 3u * GB);
   // Check that for large heap sizes max semi space size is set to the maximum
   // supported capacity (i.e. 8MB with pointer compression and 16MB without;
   // MinorMC supports double capacity).
-  ASSERT_EQ(max_semi_space_multiplier * 8192 * pm * KB,
+  ASSERT_EQ(internal::v8_flags.minor_mc ? 2 * i::Heap::DefaultMaxSemiSpaceSize()
+                                        : 3 * 8 * pm * MB,
             constraints.max_young_generation_size_in_bytes());
-  ASSERT_EQ(3000u * MB - max_semi_space_multiplier * 8192 * pm * KB,
+  ASSERT_EQ(3u * GB - (internal::v8_flags.minor_mc
+                           ? 2 * i::Heap::DefaultMaxSemiSpaceSize()
+                           : 3 * 8 * pm * MB),
             constraints.max_old_generation_size_in_bytes());
   // Check that for small initial heap sizes initial semi space size is set to
   // the minimum supported capacity (i.e. 1MB with pointer compression and 512KB
   // without).
-  ASSERT_EQ(initial_semi_space_multiplier * 512 * pm * KB,
+  ASSERT_EQ((internal::v8_flags.minor_mc ? 2 : 3) * 512 * pm * KB,
             constraints.initial_young_generation_size_in_bytes());
-  ASSERT_EQ(50u * MB - initial_semi_space_multiplier * 512 * pm * KB,
+  ASSERT_EQ(50u * MB - (internal::v8_flags.minor_mc ? 2 : 3) * 512 * pm * KB,
             constraints.initial_old_generation_size_in_bytes());
 }
 
 TEST(ResourceConstraints, ConfigureDefaults) {
-  const size_t KB = static_cast<size_t>(i::KB);
   const size_t MB = static_cast<size_t>(i::MB);
+  const size_t GB = static_cast<size_t>(i::GB);
   const size_t pm = i::Heap::kPointerMultiplier;
   const size_t hlm = i::Heap::kHeapLimitMultiplier;
   v8::ResourceConstraints constraints;
-  constraints.ConfigureDefaults(2048u * MB, 0u);
+  constraints.ConfigureDefaults(2u * GB, 0u);
   ASSERT_EQ(512u * hlm * MB, constraints.max_old_generation_size_in_bytes());
-  ASSERT_EQ((internal::v8_flags.minor_mc ? 4 : 3) * 4096 * pm * KB,
-            constraints.max_young_generation_size_in_bytes());
   ASSERT_EQ(0u, constraints.initial_old_generation_size_in_bytes());
+  ASSERT_EQ(internal::v8_flags.minor_mc ? 2 * i::Heap::DefaultMaxSemiSpaceSize()
+                                        : 3 * 4 * pm * MB,
+            constraints.max_young_generation_size_in_bytes());
   ASSERT_EQ(0u, constraints.initial_young_generation_size_in_bytes());
 }
 
