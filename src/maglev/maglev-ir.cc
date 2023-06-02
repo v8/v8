@@ -4452,22 +4452,21 @@ void TryOnStackReplacement::GenerateCode(MaglevAssembler* masm,
 
   ZoneLabelRef no_code_for_osr(masm);
 
-  if (!masm->compilation_info()->toplevel_is_osr()) {
-    // The quick initial OSR check. If it passes, we proceed on to more
-    // expensive OSR logic.
-    static_assert(FeedbackVector::MaybeHasOptimizedOsrCodeBit::encode(true) >
-                  FeedbackVector::kMaxOsrUrgency);
-    __ CompareInt32(osr_state, loop_depth_);
-    __ JumpToDeferredIf(kUnsignedGreaterThan, AttemptOnStackReplacement,
-                        no_code_for_osr, this, scratch0, scratch1, loop_depth_,
-                        feedback_slot_, osr_offset_);
-  } else {
-    // TODO(olivf) The above fast case is completely useless for maglev OSR'd
-    // code since the maybe_has_optimized_code bit is guaranteed to be set. We
-    // do have OSR maglev code ready (duh), but are waiting for TF.
-    AttemptOnStackReplacement(masm, no_code_for_osr, this, scratch0, scratch1,
-                              loop_depth_, feedback_slot_, osr_offset_);
+  if (masm->compilation_info()->toplevel_is_osr()) {
+    // TODO(olivf) The maybe_has_optimized_code bit is guaranteed to be set
+    // since we have optimized maglev code -- but are waiting for TF. Thus we
+    // have to go into the slow case more than neccessary.
+    __ DecodeField<FeedbackVector::OsrUrgencyBits>(osr_state);
   }
+
+  // The quick initial OSR check. If it passes, we proceed on to more
+  // expensive OSR logic.
+  static_assert(FeedbackVector::MaybeHasOptimizedOsrCodeBit::encode(true) >
+                FeedbackVector::kMaxOsrUrgency);
+  __ CompareInt32(osr_state, loop_depth_);
+  __ JumpToDeferredIf(kUnsignedGreaterThan, AttemptOnStackReplacement,
+                      no_code_for_osr, this, scratch0, scratch1, loop_depth_,
+                      feedback_slot_, osr_offset_);
   __ bind(*no_code_for_osr);
 }
 

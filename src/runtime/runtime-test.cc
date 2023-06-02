@@ -691,6 +691,7 @@ RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
   // in `runtime-compiler.cc`.
   bool concurrent_osr =
       isolate->concurrent_recompilation_enabled() && v8_flags.concurrent_osr;
+  bool is_maglev = false;
   if (it.frame()->is_maglev() || concurrent_osr) {
     BytecodeOffset osr_offset = BytecodeOffset::None();
     if (it.frame()->is_unoptimized()) {
@@ -712,6 +713,7 @@ RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
         osr_offset = OffsetOfNextJumpLoop(isolate, bytecode_array,
                                           current_offset.ToInt());
       }
+      is_maglev = true;
     }
 
     if (osr_offset.IsNone()) {
@@ -743,6 +745,13 @@ RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
     // object.
     if (concurrent_osr) {
       FinalizeOptimization(isolate);
+    }
+
+    if (is_maglev) {
+      // Maglev ignores the maybe_has_optimized_osr_code flag, thus we also need
+      // to set a maximum urgency.
+      function->feedback_vector().set_osr_urgency(
+          FeedbackVector::kMaxOsrUrgency);
     }
   }
 
