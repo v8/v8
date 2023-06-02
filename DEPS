@@ -211,6 +211,16 @@ deps = {
       'condition': 'checkout_android',
       'dep_type': 'cipd',
   },
+  'third_party/android_toolchain': {
+    'packages': [
+      {
+        'package': 'chromium/third_party/android_toolchain/r23c/android_toolchain',
+        'version': 'version:2@r23c.cr0',
+      },
+    ],
+    'condition': 'checkout_android',
+    'dep_type': 'cipd',
+  },
   'third_party/catapult': {
     'url': Var('chromium_url') + '/catapult.git' + '@' + '1c6d2fbaf7fc1e982bd48bc91dfa296fb5cb98b1',
     'condition': 'checkout_android',
