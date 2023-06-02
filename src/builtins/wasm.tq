@@ -402,17 +402,21 @@ builtin WasmAllocateArray_Uninitialized(
 }
 
 builtin WasmArrayNewSegment(
-    segmentIndex: uint32, offset: uint32, length: uint32, rtt: Map): Object {
+    segmentIndex: uint32, offset: uint32, length: uint32, isElement: Smi,
+    rtt: Map): Object {
   const instance = LoadInstanceFromFrame();
   try {
-    const smiOffset =
-        Convert<PositiveSmi>(offset) otherwise ElementSegmentOutOfBounds;
+    const smiOffset = Convert<PositiveSmi>(offset) otherwise SegmentOutOfBounds;
     const smiLength = Convert<PositiveSmi>(length) otherwise ArrayTooLarge;
     tail runtime::WasmArrayNewSegment(
         LoadContextFromInstance(instance), instance,
         SmiFromUint32(segmentIndex), smiOffset, smiLength, rtt);
-  } label ElementSegmentOutOfBounds {
-    tail ThrowWasmTrapElementSegmentOutOfBounds();
+  } label SegmentOutOfBounds {
+    if (isElement == SmiConstant(0)) {
+      tail ThrowWasmTrapDataSegmentOutOfBounds();
+    } else {
+      tail ThrowWasmTrapElementSegmentOutOfBounds();
+    }
   } label ArrayTooLarge {
     tail ThrowWasmTrapArrayTooLarge();
   }
@@ -421,7 +425,7 @@ builtin WasmArrayNewSegment(
 // {segmentIndex} has to be tagged as a possible stack parameter.
 builtin WasmArrayInitSegment(
     arrayIndex: uint32, segmentOffset: uint32, length: uint32,
-    segmentIndex: Smi, arrayRaw: HeapObject): JSAny {
+    segmentIndex: Smi, isElement: Smi, arrayRaw: HeapObject): JSAny {
   const instance = LoadInstanceFromFrame();
   if (arrayRaw == kWasmNull) {
     tail ThrowWasmTrapNullDereference();
@@ -431,14 +435,18 @@ builtin WasmArrayInitSegment(
     const smiArrayIndex =
         Convert<PositiveSmi>(arrayIndex) otherwise ArrayOutOfBounds;
     const smiOffset =
-        Convert<PositiveSmi>(segmentOffset) otherwise ElementSegmentOutOfBounds;
+        Convert<PositiveSmi>(segmentOffset) otherwise SegmentOutOfBounds;
     const smiLength = Convert<PositiveSmi>(length) otherwise ArrayOutOfBounds;
 
     tail runtime::WasmArrayInitSegment(
         LoadContextFromInstance(instance), instance, segmentIndex, array,
         smiArrayIndex, smiOffset, smiLength);
-  } label ElementSegmentOutOfBounds {
-    tail ThrowWasmTrapElementSegmentOutOfBounds();
+  } label SegmentOutOfBounds {
+    if (isElement == SmiConstant(0)) {
+      tail ThrowWasmTrapDataSegmentOutOfBounds();
+    } else {
+      tail ThrowWasmTrapElementSegmentOutOfBounds();
+    }
   } label ArrayOutOfBounds {
     tail ThrowWasmTrapArrayOutOfBounds();
   }

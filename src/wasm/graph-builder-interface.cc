@@ -1360,10 +1360,11 @@ class WasmGraphBuildingInterface {
                        const IndexImmediate& segment_imm, const Value& offset,
                        const Value& length, Value* result) {
     TFNode* rtt = builder_->RttCanon(array_imm.index);
-    SetAndTypeNode(result, builder_->ArrayNewSegment(array_imm.array_type,
-                                                     segment_imm.index,
-                                                     offset.node, length.node,
-                                                     rtt, decoder->position()));
+    SetAndTypeNode(result,
+                   builder_->ArrayNewSegment(
+                       segment_imm.index, offset.node, length.node, rtt,
+                       array_imm.array_type->element_type().is_reference(),
+                       decoder->position()));
   }
 
   void ArrayInitSegment(FullDecoder* decoder,
@@ -1372,8 +1373,9 @@ class WasmGraphBuildingInterface {
                         const Value& array_index, const Value& segment_offset,
                         const Value& length) {
     builder_->ArrayInitSegment(
-        array_imm.array_type, segment_imm.index, array.node, array_index.node,
-        segment_offset.node, length.node, decoder->position());
+        segment_imm.index, array.node, array_index.node, segment_offset.node,
+        length.node, array_imm.array_type->element_type().is_reference(),
+        decoder->position());
   }
 
   void I31New(FullDecoder* decoder, const Value& input, Value* result) {

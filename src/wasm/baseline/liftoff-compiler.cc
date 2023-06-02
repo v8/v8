@@ -6019,16 +6019,22 @@ class LiftoffCompiler {
                        const Value& /* offset */, const Value& /* length */,
                        Value* /* result */) {
     LiftoffRegister rtt = RttCanon(array_imm.index, {});
+    LiftoffRegister is_element_reg =
+        __ GetUnusedRegister(kGpReg, LiftoffRegList{rtt});
+    LoadSmi(is_element_reg,
+            array_imm.array_type->element_type().is_reference());
 
     CallRuntimeStub(
         WasmCode::kWasmArrayNewSegment,
-        MakeSig::Returns(kRef).Params(kI32, kI32, kI32, kRtt),
+        MakeSig::Returns(kRef).Params(kI32, kI32, kI32, kSmiKind, kRtt),
         {
             LiftoffAssembler::VarState{
                 kI32, static_cast<int>(segment_imm.index), 0},  // segment
             __ cache_state()->stack_state.end()[-2],            // offset
             __ cache_state()->stack_state.end()[-1],            // length
-            LiftoffAssembler::VarState{kRtt, rtt, 0}            // rtt
+            LiftoffAssembler::VarState{kSmiKind, is_element_reg,
+                                       0},            // is_element
+            LiftoffAssembler::VarState{kRtt, rtt, 0}  // rtt
         },
         decoder->position());
 
@@ -6041,7 +6047,7 @@ class LiftoffCompiler {
   }
 
   void ArrayInitSegment(FullDecoder* decoder,
-                        const ArrayIndexImmediate& /* array_imm */,
+                        const ArrayIndexImmediate& array_imm,
                         const IndexImmediate& segment_imm,
                         const Value& /* array */,
                         const Value& /* array_index */,
@@ -6049,17 +6055,23 @@ class LiftoffCompiler {
                         const Value& /* length */) {
     LiftoffRegister segment_index_reg = __ GetUnusedRegister(kGpReg, {});
     LoadSmi(segment_index_reg, static_cast<int32_t>(segment_imm.index));
+    LiftoffRegister is_element_reg =
+        __ GetUnusedRegister(kGpReg, LiftoffRegList{segment_index_reg});
+    LoadSmi(is_element_reg,
+            array_imm.array_type->element_type().is_reference());
 
     // Builtin parameter order: array_index, segment_offset, length,
     //                          segment_index, array.
-    CallRuntimeStub(WasmCode::kWasmArrayInitSegment,
-                    MakeSig::Params(kI32, kI32, kI32, kSmiKind, kRefNull),
-                    {__ cache_state()->stack_state.end()[-3],
-                     __ cache_state()->stack_state.end()[-2],
-                     __ cache_state()->stack_state.end()[-1],
-                     LiftoffAssembler::VarState{kSmiKind, segment_index_reg, 0},
-                     __ cache_state()->stack_state.end()[-4]},
-                    decoder->position());
+    CallRuntimeStub(
+        WasmCode::kWasmArrayInitSegment,
+        MakeSig::Params(kI32, kI32, kI32, kSmiKind, kSmiKind, kRefNull),
+        {__ cache_state()->stack_state.end()[-3],
+         __ cache_state()->stack_state.end()[-2],
+         __ cache_state()->stack_state.end()[-1],
+         LiftoffAssembler::VarState{kSmiKind, segment_index_reg, 0},
+         LiftoffAssembler::VarState{kSmiKind, is_element_reg, 0},
+         __ cache_state()->stack_state.end()[-4]},
+        decoder->position());
     __ DropValues(4);
   }
 

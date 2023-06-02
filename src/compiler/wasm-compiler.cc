@@ -5406,23 +5406,27 @@ Node* WasmGraphBuilder::ArrayNewFixed(const wasm::ArrayType* type, Node* rtt,
   return array;
 }
 
-Node* WasmGraphBuilder::ArrayNewSegment(const wasm::ArrayType* type,
-                                        uint32_t segment_index, Node* offset,
+Node* WasmGraphBuilder::ArrayNewSegment(uint32_t segment_index, Node* offset,
                                         Node* length, Node* rtt,
+                                        bool is_element,
                                         wasm::WasmCodePosition position) {
-  return gasm_->CallBuiltin(
+  Node* array = gasm_->CallBuiltin(
       Builtin::kWasmArrayNewSegment, Operator::kNoDeopt | Operator::kNoThrow,
-      gasm_->Uint32Constant(segment_index), offset, length, rtt);
+      gasm_->Uint32Constant(segment_index), offset, length,
+      gasm_->SmiConstant(is_element ? 1 : 0), rtt);
+  SetSourcePosition(array, position);
+  return array;
 }
 
-void WasmGraphBuilder::ArrayInitSegment(const wasm::ArrayType* type,
-                                        uint32_t segment_index, Node* array,
+void WasmGraphBuilder::ArrayInitSegment(uint32_t segment_index, Node* array,
                                         Node* array_index, Node* segment_offset,
-                                        Node* length,
+                                        Node* length, bool is_element,
                                         wasm::WasmCodePosition position) {
   gasm_->CallBuiltin(Builtin::kWasmArrayInitSegment, Operator::kNoProperties,
                      array_index, segment_offset, length,
-                     gasm_->SmiConstant(segment_index), array);
+                     gasm_->SmiConstant(segment_index),
+                     gasm_->SmiConstant(is_element ? 1 : 0), array);
+  SetSourcePosition(control(), position);
 }
 
 Node* WasmGraphBuilder::RttCanon(uint32_t type_index) {

@@ -474,12 +474,12 @@ class WasmGraphBuilder {
                  wasm::WasmCodePosition position);
   Node* ArrayNewFixed(const wasm::ArrayType* type, Node* rtt,
                       base::Vector<Node*> elements);
-  Node* ArrayNewSegment(const wasm::ArrayType* type, uint32_t segment_index,
-                        Node* offset, Node* length, Node* rtt,
+  Node* ArrayNewSegment(uint32_t segment_index, Node* offset, Node* length,
+                        Node* rtt, bool is_element,
                         wasm::WasmCodePosition position);
-  void ArrayInitSegment(const wasm::ArrayType* type, uint32_t segment_index,
-                        Node* array, Node* array_index, Node* segment_offset,
-                        Node* length, wasm::WasmCodePosition position);
+  void ArrayInitSegment(uint32_t segment_index, Node* array, Node* array_index,
+                        Node* segment_offset, Node* length, bool is_element,
+                        wasm::WasmCodePosition position);
   Node* I31New(Node* input);
   Node* I31GetS(Node* input, CheckForNull null_check,
                 wasm::WasmCodePosition position);
