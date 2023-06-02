@@ -489,7 +489,6 @@ DEFINE_BOOL(maglev_loop_peeling, false,
 DEFINE_BOOL(maglev_deopt_data_on_background, false,
             "Generate deopt data on background thread")
 DEFINE_WEAK_IMPLICATION(maglev_future, maglev_inlining)
-DEFINE_WEAK_IMPLICATION(maglev_future, maglev_osr)
 DEFINE_WEAK_IMPLICATION(maglev_future, maglev_loop_peeling)
 
 DEFINE_INT(max_maglev_inline_depth, 1,
@@ -891,6 +890,12 @@ DEFINE_WEAK_IMPLICATION(maglev, maglev_overwrite_budget)
 DEFINE_NEG_IMPLICATION(stress_concurrent_inlining, maglev_overwrite_budget)
 DEFINE_WEAK_VALUE_IMPLICATION(maglev_overwrite_budget,
                               invocation_count_for_turbofan, 5000)
+DEFINE_BOOL(maglev_overwrite_osr_budget, false,
+            "whether maglev resets the OSR interrupt budget")
+DEFINE_WEAK_IMPLICATION(maglev_osr, maglev_overwrite_osr_budget)
+DEFINE_NEG_IMPLICATION(stress_concurrent_inlining, maglev_overwrite_osr_budget)
+DEFINE_WEAK_VALUE_IMPLICATION(maglev_overwrite_osr_budget,
+                              invocation_count_for_osr, 800)
 DEFINE_BOOL(stress_concurrent_inlining_attach_code, false,
             "create additional concurrent optimization jobs")
 DEFINE_IMPLICATION(stress_concurrent_inlining_attach_code,
@@ -1016,8 +1021,8 @@ DEFINE_BOOL(trace_turbo_inlining, false, "trace TurboFan inlining")
 DEFINE_BOOL(turbo_inline_array_builtins, true,
             "inline array builtins in TurboFan code")
 DEFINE_BOOL(use_osr, true, "use on-stack replacement")
-DEFINE_EXPERIMENTAL_FEATURE(maglev_osr,
-                            "use maglev as on-stack replacement target")
+DEFINE_WEAK_IMPLICATION(maglev, maglev_osr)
+DEFINE_BOOL(maglev_osr, false, "use maglev as on-stack replacement target")
 // When using maglev as OSR target allow us to tier up further
 DEFINE_WEAK_VALUE_IMPLICATION(maglev_osr, osr_from_maglev, true)
 DEFINE_NEG_VALUE_IMPLICATION(maglev, maglev_osr, false)
