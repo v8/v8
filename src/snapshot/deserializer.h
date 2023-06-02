@@ -179,6 +179,8 @@ class Deserializer : public SerializerDeserializer {
   template <typename SlotAccessor>
   int ReadStartupObjectCache(uint8_t data, SlotAccessor slot_accessor);
   template <typename SlotAccessor>
+  int ReadReadOnlyObjectCache(uint8_t data, SlotAccessor slot_accessor);
+  template <typename SlotAccessor>
   int ReadSharedHeapObjectCache(uint8_t data, SlotAccessor slot_accessor);
   template <typename SlotAccessor>
   int ReadNewMetaMap(uint8_t data, SlotAccessor slot_accessor);

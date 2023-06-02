@@ -12,16 +12,22 @@ namespace internal {
 
 class SnapshotData;
 
-// Deserializes the read-only blob and creates the read-only roots table.
+// Deserializes the read-only blob, creating the read-only roots and the
+// Read-only object cache used by the other deserializers.
 class ReadOnlyDeserializer final : public Deserializer<Isolate> {
  public:
   ReadOnlyDeserializer(Isolate* isolate, const SnapshotData* data,
                        bool can_rehash);
 
+  // Deserialize the snapshot into an empty heap.
   void DeserializeIntoIsolate();
 
  private:
-  void PostProcessNewObjects();
+#ifdef V8_STATIC_ROOTS
+  void PostProcessNewObjectsIfStaticRootsEnabled();
+#else
+  void PostProcessNewObjectsIfStaticRootsEnabled() {}
+#endif  // V8_STATIC_ROOTS
 };
 
 }  // namespace internal

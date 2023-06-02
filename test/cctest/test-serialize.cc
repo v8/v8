@@ -176,18 +176,19 @@ static StartupBlobs Serialize(v8::Isolate* isolate) {
   DisallowGarbageCollection no_gc;
   ReadOnlySerializer read_only_serializer(i_isolate,
                                           Snapshot::kDefaultSerializerFlags);
-  read_only_serializer.Serialize();
+  read_only_serializer.SerializeReadOnlyRoots();
 
   SharedHeapSerializer shared_space_serializer(
-      i_isolate, Snapshot::kDefaultSerializerFlags);
+      i_isolate, Snapshot::kDefaultSerializerFlags, &read_only_serializer);
 
   StartupSerializer ser(i_isolate, Snapshot::kDefaultSerializerFlags,
-                        &shared_space_serializer);
+                        &read_only_serializer, &shared_space_serializer);
   ser.SerializeStrongReferences(no_gc);
 
   ser.SerializeWeakReferencesAndDeferred();
 
   shared_space_serializer.FinalizeSerialization();
+  read_only_serializer.FinalizeSerialization();
   SnapshotData startup_snapshot(&ser);
   SnapshotData read_only_snapshot(&read_only_serializer);
   SnapshotData shared_space_snapshot(&shared_space_serializer);
@@ -368,14 +369,15 @@ static void SerializeContext(base::Vector<const uint8_t>* startup_blob_out,
     SnapshotByteSink read_only_sink;
     ReadOnlySerializer read_only_serializer(isolate,
                                             Snapshot::kDefaultSerializerFlags);
-    read_only_serializer.Serialize();
+    read_only_serializer.SerializeReadOnlyRoots();
 
     SharedHeapSerializer shared_space_serializer(
-        isolate, Snapshot::kDefaultSerializerFlags);
+        isolate, Snapshot::kDefaultSerializerFlags, &read_only_serializer);
 
     SnapshotByteSink startup_sink;
     StartupSerializer startup_serializer(
-        isolate, Snapshot::kDefaultSerializerFlags, &shared_space_serializer);
+        isolate, Snapshot::kDefaultSerializerFlags, &read_only_serializer,
+        &shared_space_serializer);
     startup_serializer.SerializeStrongReferences(no_gc);
 
     SnapshotByteSink context_sink;
@@ -387,6 +389,7 @@ static void SerializeContext(base::Vector<const uint8_t>* startup_blob_out,
     startup_serializer.SerializeWeakReferencesAndDeferred();
 
     shared_space_serializer.FinalizeSerialization();
+    read_only_serializer.FinalizeSerialization();
 
     SnapshotData read_only_snapshot(&read_only_serializer);
     SnapshotData shared_space_snapshot(&shared_space_serializer);
@@ -535,14 +538,15 @@ static void SerializeCustomContext(
     SnapshotByteSink read_only_sink;
     ReadOnlySerializer read_only_serializer(isolate,
                                             Snapshot::kDefaultSerializerFlags);
-    read_only_serializer.Serialize();
+    read_only_serializer.SerializeReadOnlyRoots();
 
     SharedHeapSerializer shared_space_serializer(
-        isolate, Snapshot::kDefaultSerializerFlags);
+        isolate, Snapshot::kDefaultSerializerFlags, &read_only_serializer);
 
     SnapshotByteSink startup_sink;
     StartupSerializer startup_serializer(
-        isolate, Snapshot::kDefaultSerializerFlags, &shared_space_serializer);
+        isolate, Snapshot::kDefaultSerializerFlags, &read_only_serializer,
+        &shared_space_serializer);
     startup_serializer.SerializeStrongReferences(no_gc);
 
     SnapshotByteSink context_sink;
@@ -554,6 +558,7 @@ static void SerializeCustomContext(
     startup_serializer.SerializeWeakReferencesAndDeferred();
 
     shared_space_serializer.FinalizeSerialization();
+    read_only_serializer.FinalizeSerialization();
 
     SnapshotData read_only_snapshot(&read_only_serializer);
     SnapshotData shared_space_snapshot(&shared_space_serializer);

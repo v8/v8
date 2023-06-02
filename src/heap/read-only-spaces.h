@@ -266,10 +266,8 @@ class ReadOnlySpace : public BaseSpace {
                                       AllocationAlignment alignment);
   HeapObject TryAllocateLinearlyAligned(int size_in_bytes,
                                         AllocationAlignment alignment);
-  void AllocateNextPage();
   void AllocateNextPageAt(Address pos);
   void FinalizeExternallyInitializedPage();
-  void FinalizeExternallyInitializedSpace();
   void EnsureSpaceForAllocation(int size_in_bytes);
   void FreeLinearAllocationArea();
 
@@ -277,6 +275,7 @@ class ReadOnlySpace : public BaseSpace {
   const size_t area_size_;
 
   friend class Heap;
+  friend class ReadOnlySerializer;  // For Unseal.
   friend class ReadOnlyHeapImageDeserializer;
 };
 

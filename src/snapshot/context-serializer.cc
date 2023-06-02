@@ -132,7 +132,10 @@ void ContextSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
     if (SerializeHotObject(raw)) return;
     if (SerializeRoot(raw)) return;
     if (SerializeBackReference(raw)) return;
-    if (SerializeReadOnlyObjectReference(raw, &sink_)) return;
+  }
+
+  if (startup_serializer_->SerializeUsingReadOnlyObjectCache(&sink_, obj)) {
+    return;
   }
 
   if (startup_serializer_->SerializeUsingSharedHeapObjectCache(&sink_, obj)) {
