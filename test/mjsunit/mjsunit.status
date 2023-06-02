@@ -1989,11 +1989,11 @@
   'regress/regress-map-invalidation-2': [FAIL],
 }], # variant == stress_maglev or variant == stress_maglev_future
 
-['variant == stress_maglev_no_turbofan', {
+['variant == maglev_no_turbofan or variant == stress_maglev_no_turbofan', {
   # Relies on OSR from maglev to turbofan due to a missing interrupt check.
   # TODO(olivf): Add interrupt check for inlined functions.
   'regress/regress-1376663': [SKIP],
-}], # variant == stress_maglev_no_turbofan
+}], # variant == maglev_no_turbofan or variant == stress_maglev_no_turbofan
 
 # TODO(victorgomes): Remove these once we support Maglev on arm.
 ['arch == arm', {
