@@ -101,7 +101,8 @@ class JSCallReducerAssembler : public JSGraphAssembler {
   TNode<Smi> CheckSmi(TNode<Object> value);
   TNode<Number> CheckNumber(TNode<Object> value);
   TNode<String> CheckString(TNode<Object> value);
-  TNode<Number> CheckBounds(TNode<Number> value, TNode<Number> limit);
+  TNode<Number> CheckBounds(TNode<Number> value, TNode<Number> limit,
+                            CheckBoundsFlags flags = {});
 
   // Common operators.
   TNode<Smi> TypeGuardUnsignedSmall(TNode<Object> value);
@@ -776,9 +777,11 @@ TNode<String> JSCallReducerAssembler::CheckString(TNode<Object> value) {
 }
 
 TNode<Number> JSCallReducerAssembler::CheckBounds(TNode<Number> value,
-                                                  TNode<Number> limit) {
-  return AddNode<Number>(graph()->NewNode(simplified()->CheckBounds(feedback()),
-                                          value, limit, effect(), control()));
+                                                  TNode<Number> limit,
+                                                  CheckBoundsFlags flags) {
+  return AddNode<Number>(
+      graph()->NewNode(simplified()->CheckBounds(feedback(), flags), value,
+                       limit, effect(), control()));
 }
 
 TNode<Smi> JSCallReducerAssembler::TypeGuardUnsignedSmall(TNode<Object> value) {
@@ -1161,6 +1164,10 @@ TNode<Object> IteratingArrayBuiltinReducerAssembler::ReduceArrayPrototypeAt(
            UndefinedConstant());
     GotoIfNot(NumberLessThan(real_index_num, length), &out,
               UndefinedConstant());
+    if (v8_flags.turbo_typer_hardening) {
+      real_index_num = CheckBounds(real_index_num, length,
+                                   CheckBoundsFlag::kAbortOnOutOfBounds);
+    }
 
     // Retrieving element at index.
     TNode<Object> element = LoadElement<Object>(
@@ -5784,12 +5791,12 @@ Reduction JSCallReducer::ReduceArrayPrototypePop(Node* node) {
       Node* new_length = graph()->NewNode(simplified()->NumberSubtract(),
                                           length, jsgraph()->OneConstant());
 
-      // This extra check exists solely to break an exploitation technique
-      // that abuses typer mismatches.
-      new_length = efalse = graph()->NewNode(
-          simplified()->CheckBounds(p.feedback(),
-                                    CheckBoundsFlag::kAbortOnOutOfBounds),
-          new_length, length, efalse, if_false);
+      if (v8_flags.turbo_typer_hardening) {
+        new_length = efalse = graph()->NewNode(
+            simplified()->CheckBounds(p.feedback(),
+                                      CheckBoundsFlag::kAbortOnOutOfBounds),
+            new_length, length, efalse, if_false);
+      }
 
       // Store the new {length} to the {receiver}.
       efalse = graph()->NewNode(
@@ -5998,12 +6005,12 @@ Reduction JSCallReducer::ReduceArrayPrototypeShift(Node* node) {
         Node* new_length = graph()->NewNode(simplified()->NumberSubtract(),
                                             length, jsgraph()->OneConstant());
 
-        // This extra check exists solely to break an exploitation technique
-        // that abuses typer mismatches.
-        new_length = etrue1 = graph()->NewNode(
-            simplified()->CheckBounds(p.feedback(),
-                                      CheckBoundsFlag::kAbortOnOutOfBounds),
-            new_length, length, etrue1, if_true1);
+        if (v8_flags.turbo_typer_hardening) {
+          new_length = etrue1 = graph()->NewNode(
+              simplified()->CheckBounds(p.feedback(),
+                                        CheckBoundsFlag::kAbortOnOutOfBounds),
+              new_length, length, etrue1, if_true1);
+        }
 
         // Store the new {length} to the {receiver}.
         etrue1 = graph()->NewNode(
@@ -6369,10 +6376,12 @@ Reduction JSCallReducer::ReduceArrayIteratorPrototypeNext(Node* node) {
   {
     // This extra check exists to refine the type of {index} but also to break
     // an exploitation technique that abuses typer mismatches.
-    index = etrue = graph()->NewNode(
-        simplified()->CheckBounds(p.feedback(),
-                                  CheckBoundsFlag::kAbortOnOutOfBounds),
-        index, length, etrue, if_true);
+    if (v8_flags.turbo_typer_hardening) {
+      index = etrue = graph()->NewNode(
+          simplified()->CheckBounds(p.feedback(),
+                                    CheckBoundsFlag::kAbortOnOutOfBounds),
+          index, length, etrue, if_true);
+    }
 
     done_true = jsgraph()->FalseConstant();
     if (iteration_kind == IterationKind::kKeys) {

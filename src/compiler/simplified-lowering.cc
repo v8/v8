@@ -1890,7 +1890,12 @@ class RepresentationSelector {
             // The bounds check is redundant if we already know that
             // the index is within the bounds of [0.0, length[.
             // TODO(neis): Move this into TypedOptimization?
-            new_flags |= CheckBoundsFlag::kAbortOnOutOfBounds;
+            if (v8_flags.turbo_typer_hardening) {
+              new_flags |= CheckBoundsFlag::kAbortOnOutOfBounds;
+            } else {
+              DeferReplacement(node, NodeProperties::GetValueInput(node, 0));
+              return;
+            }
           }
           ChangeOp(node,
                    simplified()->CheckedUint32Bounds(feedback, new_flags));

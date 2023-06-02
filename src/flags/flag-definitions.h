@@ -1076,6 +1076,9 @@ DEFINE_IMPLICATION(turbo_stress_instruction_scheduling,
 DEFINE_BOOL(turbo_store_elimination, true,
             "enable store-store elimination in TurboFan")
 DEFINE_BOOL(trace_store_elimination, false, "trace store elimination")
+DEFINE_BOOL_READONLY(turbo_typer_hardening, true,
+                     "extra bounds checks to protect against some known typer "
+                     "mismatch exploit techniques (best effort)")
 
 #if defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_IA32)
 DEFINE_BOOL(turbo_rewrite_far_jumps, true,

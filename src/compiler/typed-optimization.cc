@@ -176,12 +176,17 @@ Reduction TypedOptimization::ReduceMaybeGrowFastElements(Node* node) {
 
   if (!index_type.IsNone() && !length_type.IsNone() &&
       index_type.Max() < length_type.Min()) {
-    Node* check_bounds = graph()->NewNode(
-        simplified()->CheckBounds(FeedbackSource{},
-                                  CheckBoundsFlag::kAbortOnOutOfBounds),
-        index, length, effect, control);
-    ReplaceWithValue(node, elements, check_bounds);
-    return Replace(check_bounds);
+    if (v8_flags.turbo_typer_hardening) {
+      Node* check_bounds = graph()->NewNode(
+          simplified()->CheckBounds(FeedbackSource{},
+                                    CheckBoundsFlag::kAbortOnOutOfBounds),
+          index, length, effect, control);
+      ReplaceWithValue(node, elements, check_bounds);
+      return Replace(check_bounds);
+    } else {
+      RelaxEffectsAndControls(node);
+      return Replace(elements);
+    }
   }
 
   return NoChange();
