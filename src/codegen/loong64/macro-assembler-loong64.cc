@@ -3325,7 +3325,9 @@ void MacroAssembler::GetInstanceTypeRange(Register map, Register type_reg,
                                           InstanceType lower_limit,
                                           Register range) {
   Ld_hu(type_reg, FieldMemOperand(map, Map::kInstanceTypeOffset));
-  Sub_d(range, type_reg, Operand(lower_limit));
+  if (lower_limit != 0 || type_reg != range) {
+    Sub_d(range, type_reg, Operand(lower_limit));
+  }
 }
 
 // -----------------------------------------------------------------------------
