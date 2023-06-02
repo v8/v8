@@ -336,8 +336,9 @@ class V8_EXPORT_PRIVATE GraphAssembler {
   Node* Uint64Constant(uint64_t value);
   Node* UniqueIntPtrConstant(intptr_t value);
   Node* Float64Constant(double value);
-  Node* Projection(int index, Node* value);
   Node* ExternalConstant(ExternalReference ref);
+
+  Node* Projection(int index, Node* value, Node* ctrl = nullptr);
 
   Node* Parameter(int index);
 
@@ -540,6 +541,8 @@ class V8_EXPORT_PRIVATE GraphAssembler {
 
   Control control() const { return Control(control_); }
   Effect effect() const { return Effect(effect_); }
+
+  Node* start() const { return graph()->start(); }
 
  protected:
   constexpr bool Is64() const { return kSystemPointerSize == 8; }

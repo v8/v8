@@ -6800,20 +6800,20 @@ Node* EffectControlLinearizer::AdaptFastCallArgument(
         switch (arg_type.GetType()) {
           case CTypeInfo::Type::kInt32:
             truncation = __ TryTruncateFloat64ToInt32(node);
-            __ GotoIfNot(__ Projection(1, truncation), if_error);
-            return __ Projection(0, truncation);
+            __ GotoIfNot(__ Projection(1, truncation, __ start()), if_error);
+            return __ Projection(0, truncation, __ start());
           case CTypeInfo::Type::kUint32:
             truncation = __ TryTruncateFloat64ToUint32(node);
-            __ GotoIfNot(__ Projection(1, truncation), if_error);
-            return __ Projection(0, truncation);
+            __ GotoIfNot(__ Projection(1, truncation, __ start()), if_error);
+            return __ Projection(0, truncation, __ start());
           case CTypeInfo::Type::kInt64:
             truncation = __ TryTruncateFloat64ToInt64(node);
-            __ GotoIfNot(__ Projection(1, truncation), if_error);
-            return __ Projection(0, truncation);
+            __ GotoIfNot(__ Projection(1, truncation, __ start()), if_error);
+            return __ Projection(0, truncation, __ start());
           case CTypeInfo::Type::kUint64:
             truncation = __ TryTruncateFloat64ToUint64(node);
-            __ GotoIfNot(__ Projection(1, truncation), if_error);
-            return __ Projection(0, truncation);
+            __ GotoIfNot(__ Projection(1, truncation, __ start()), if_error);
+            return __ Projection(0, truncation, __ start());
           default: {
             __ Goto(if_error);
             return node;
