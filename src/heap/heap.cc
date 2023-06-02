@@ -308,18 +308,13 @@ size_t Heap::MaxReserved() const {
 
 size_t Heap::YoungGenerationSizeFromOldGenerationSize(size_t old_generation) {
   // Compute the semi space size and cap it.
-  bool is_low_memory = old_generation <= kOldGenerationLowMemory;
-  size_t semi_space;
-  if (v8_flags.minor_mc && !is_low_memory) {
-    semi_space = DefaultMaxSemiSpaceSize();
-  } else {
-    size_t ratio = is_low_memory ? OldGenerationToSemiSpaceRatioLowMemory()
-                                 : OldGenerationToSemiSpaceRatio();
-    semi_space = old_generation / ratio;
-    semi_space = std::min({semi_space, DefaultMaxSemiSpaceSize()});
-    semi_space = std::max({semi_space, DefaultMinSemiSpaceSize()});
-    semi_space = RoundUp(semi_space, Page::kPageSize);
-  }
+  size_t ratio = old_generation <= kOldGenerationLowMemory
+                     ? OldGenerationToSemiSpaceRatioLowMemory()
+                     : OldGenerationToSemiSpaceRatio();
+  size_t semi_space = old_generation / ratio;
+  semi_space = std::min({semi_space, DefaultMaxSemiSpaceSize()});
+  semi_space = std::max({semi_space, DefaultMinSemiSpaceSize()});
+  semi_space = RoundUp(semi_space, Page::kPageSize);
   return YoungGenerationSizeFromSemiSpaceSize(semi_space);
 }
 
@@ -4840,8 +4835,12 @@ void Heap::ConfigureHeap(const v8::ResourceConstraints& constraints) {
       // This will cause more frequent GCs when stressing.
       max_semi_space_size_ = MB;
     }
+    // TODO(dinfuehr): Rounding to a power of 2 is not longer needed. Remove it.
     max_semi_space_size_ =
-        std::max(max_semi_space_size_, DefaultMinSemiSpaceSize());
+        static_cast<size_t>(base::bits::RoundUpToPowerOfTwo64(
+            static_cast<uint64_t>(max_semi_space_size_)));
+    max_semi_space_size_ =
+        std::max({max_semi_space_size_, DefaultMinSemiSpaceSize()});
     max_semi_space_size_ = RoundDown<Page::kPageSize>(max_semi_space_size_);
   }
 

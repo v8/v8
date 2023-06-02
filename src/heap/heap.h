@@ -369,10 +369,9 @@ class Heap final {
 
   // Young generation size is the same for compressed heaps and 32-bit heaps.
   static size_t OldGenerationToSemiSpaceRatio() {
-    DCHECK(!v8_flags.minor_mc);
     static constexpr size_t kOldGenerationToSemiSpaceRatio =
         128 * kHeapLimitMultiplier / kPointerMultiplier;
-    return kOldGenerationToSemiSpaceRatio;
+    return kOldGenerationToSemiSpaceRatio / (v8_flags.minor_mc ? 2 : 1);
   }
   static size_t OldGenerationToSemiSpaceRatioLowMemory() {
     static constexpr size_t kOldGenerationToSemiSpaceRatioLowMemory =
