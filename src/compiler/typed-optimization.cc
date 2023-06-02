@@ -318,6 +318,7 @@ Reduction TypedOptimization::ReduceNumberFloor(Node* node) {
     Type const lhs_type = NodeProperties::GetType(lhs);
     Node* const rhs = NodeProperties::GetValueInput(input, 1);
     Type const rhs_type = NodeProperties::GetType(rhs);
+    if (lhs_type.IsNone() || rhs_type.IsNone()) return NoChange();
     if (lhs_type.Is(Type::Unsigned32()) && rhs_type.Is(Type::Unsigned32())) {
       // We can replace
       //
