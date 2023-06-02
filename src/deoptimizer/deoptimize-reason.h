@@ -79,8 +79,7 @@ namespace internal {
   V(WrongName, "wrong name")                                                   \
   V(WrongValue, "wrong value")                                                 \
   V(NoInitialElement, "no initial element")                                    \
-  V(ArrayLengthChanged, "the array length changed")                            \
-  V(WasmTrap, "Wasm Trap (no real deopt, for call stacks only)")
+  V(ArrayLengthChanged, "the array length changed")
 
 enum class DeoptimizeReason : uint8_t {
 #define DEOPTIMIZE_REASON(Name, message) k##Name,

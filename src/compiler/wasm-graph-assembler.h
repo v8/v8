@@ -16,6 +16,8 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
+// TODO(mliedtke): Remove this duplication with RuntimeStubIdToBuiltinName() in
+// wasm-code-manager.h?
 constexpr Builtin WasmRuntimeStubIdToBuiltinName(
     wasm::WasmCode::RuntimeStubId runtime_stub_id) {
   switch (runtime_stub_id) {
@@ -65,11 +67,14 @@ class WasmGraphAssembler : public GraphAssembler {
   template <typename... Args>
   Node* CallBuiltin(Builtin name, Operator::Properties properties,
                     Args... args) {
-    auto* call_descriptor = GetBuiltinCallDescriptor(
-        name, temp_zone(), StubCallMode::kCallBuiltinPointer, false,
-        properties);
-    Node* call_target = GetBuiltinPointerTarget(name);
-    return Call(call_descriptor, call_target, args...);
+    return CallBuiltinImpl(name, false, properties, args...);
+  }
+
+  template <typename... Args>
+  Node* CallBuiltinWithFrameState(Builtin name, Operator::Properties properties,
+                                  Node* frame_state, Args... args) {
+    DCHECK_EQ(frame_state->opcode(), IrOpcode::kFrameState);
+    return CallBuiltinImpl(name, true, properties, frame_state, args...);
   }
 
   // Sets {true_node} and {false_node} to their corresponding Branch outputs.
@@ -310,6 +315,16 @@ class WasmGraphAssembler : public GraphAssembler {
   SimplifiedOperatorBuilder* simplified() override { return &simplified_; }
 
  private:
+  template <typename... Args>
+  Node* CallBuiltinImpl(Builtin name, bool needs_frame_state,
+                        Operator::Properties properties, Args... args) {
+    auto* call_descriptor = GetBuiltinCallDescriptor(
+        name, temp_zone(), StubCallMode::kCallBuiltinPointer, needs_frame_state,
+        properties);
+    Node* call_target = GetBuiltinPointerTarget(name);
+    return Call(call_descriptor, call_target, args...);
+  }
+
   SimplifiedOperatorBuilder simplified_;
 };
 

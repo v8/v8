@@ -78,9 +78,8 @@ class FlagsContinuation final {
   }
 
   // Creates a new flags continuation for a wasm trap.
-  static FlagsContinuation ForTrap(FlagsCondition condition, TrapId trap_id,
-                                   NodeId node_id, Node* frame_state) {
-    return FlagsContinuation(condition, trap_id, node_id, frame_state);
+  static FlagsContinuation ForTrap(FlagsCondition condition, TrapId trap_id) {
+    return FlagsContinuation(condition, trap_id);
   }
 
   static FlagsContinuation ForSelect(FlagsCondition condition, Node* result,
@@ -103,7 +102,7 @@ class FlagsContinuation final {
     return reason_;
   }
   NodeId node_id() const {
-    DCHECK(IsDeoptimize() || IsTrap());
+    DCHECK(IsDeoptimize());
     return node_id_;
   }
   FeedbackSource const& feedback() const {
@@ -111,7 +110,7 @@ class FlagsContinuation final {
     return feedback_;
   }
   Node* frame_state() const {
-    DCHECK(IsDeoptimize() || IsTrap());
+    DCHECK(IsDeoptimize());
     return frame_state_or_result_;
   }
   Node* result() const {
@@ -218,13 +217,8 @@ class FlagsContinuation final {
     DCHECK_NOT_NULL(result);
   }
 
-  FlagsContinuation(FlagsCondition condition, TrapId trap_id, NodeId node_id,
-                    Node* frame_state)
-      : mode_(kFlags_trap),
-        condition_(condition),
-        node_id_(node_id),
-        frame_state_or_result_(frame_state),
-        trap_id_(trap_id) {}
+  FlagsContinuation(FlagsCondition condition, TrapId trap_id)
+      : mode_(kFlags_trap), condition_(condition), trap_id_(trap_id) {}
 
   FlagsContinuation(FlagsCondition condition, Node* result, Node* true_value,
                     Node* false_value)

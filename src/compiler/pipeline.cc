@@ -128,6 +128,7 @@
 #include "src/compiler/wasm-gc-lowering.h"
 #include "src/compiler/wasm-gc-operator-reducer.h"
 #include "src/compiler/wasm-inlining.h"
+#include "src/compiler/wasm-js-lowering.h"
 #include "src/compiler/wasm-load-elimination.h"
 #include "src/compiler/wasm-loop-peeling.h"
 #include "src/compiler/wasm-typer.h"
@@ -2256,6 +2257,19 @@ struct WasmOptimizationPhase {
     }
   }
 };
+
+struct WasmJSLoweringPhase {
+  DECL_PIPELINE_PHASE_CONSTANTS(WasmJSLowering)
+
+  void Run(PipelineData* data, Zone* temp_zone) {
+    GraphReducer graph_reducer(
+        temp_zone, data->graph(), &data->info()->tick_counter(), data->broker(),
+        data->jsgraph()->Dead(), data->observe_node_manager());
+    WasmJSLowering lowering(&graph_reducer, data->jsgraph());
+    AddReducer(data, &graph_reducer, &lowering);
+    graph_reducer.ReduceGraph();
+  }
+};
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 struct CsaEarlyOptimizationPhase {
@@ -3036,11 +3050,17 @@ bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
 
     Run<DecompressionOptimizationPhase>();
     RunPrintAndVerify(DecompressionOptimizationPhase::phase_name(), true);
+
+#if V8_ENABLE_WEBASSEMBLY
+    if (data->has_js_wasm_calls() && v8_flags.experimental_wasm_js_inlining) {
+      Run<WasmJSLoweringPhase>();
+      RunPrintAndVerify(WasmJSLoweringPhase::phase_name(), true);
+    }
+#endif  // V8_ENABLE_WEBASSEMBLY
   }
 
   Run<BranchConditionDuplicationPhase>();
   RunPrintAndVerify(BranchConditionDuplicationPhase::phase_name(), true);
-
   data->source_positions()->RemoveDecorator();
   if (data->info()->trace_turbo_json()) {
     data->node_origins()->RemoveDecorator();

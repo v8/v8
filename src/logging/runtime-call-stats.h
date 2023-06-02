@@ -398,6 +398,7 @@ class RuntimeCallTimer final {
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, WasmLoopPeeling)                 \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, WasmLoopUnrolling)               \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, WasmOptimization)                \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, WasmJSLowering)                  \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, WasmTyping)                      \
                                                                             \
   ADD_THREAD_SPECIFIC_COUNTER(V, Parse, ArrowFunctionLiteral)               \

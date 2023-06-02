@@ -862,17 +862,6 @@ Instruction* InstructionSelector::EmitWithContinuation(
   } else if (cont->IsTrap()) {
     int trap_id = static_cast<int>(cont->trap_id());
     continuation_inputs_.push_back(g.UseImmediate(trap_id));
-
-    if (cont->frame_state()) {
-      int immediate_args_count = 0;
-      opcode |=
-          DeoptImmedArgsCountField::encode(immediate_args_count) |
-          DeoptFrameStateOffsetField::encode(static_cast<int>(input_count + 1));
-      AppendDeoptimizeArguments(
-          &continuation_inputs_, DeoptimizeReason::kWasmTrap, cont->node_id(),
-          FeedbackSource{}, FrameState{cont->frame_state()},
-          DeoptimizeKind::kLazy);
-    }
   } else {
     DCHECK(cont->IsNone());
   }
@@ -3530,22 +3519,20 @@ void InstructionSelector::VisitSelect(Node* node) {
 }
 
 void InstructionSelector::VisitTrapIf(Node* node, TrapId trap_id) {
-  Node* frame_state =
-      node->op()->ValueInputCount() > 1 ? node->InputAt(1) : nullptr;
-  DCHECK_IMPLIES(frame_state != nullptr,
-                 frame_state->opcode() == IrOpcode::kFrameState);
-  FlagsContinuation cont =
-      FlagsContinuation::ForTrap(kNotEqual, trap_id, node->id(), frame_state);
+  // FrameStates are only used for wasm traps inlined in JS. In that case the
+  // trap node will be lowered (replaced) before instruction selection.
+  // Therefore any TrapIf node has only one input.
+  DCHECK_EQ(node->op()->ValueInputCount(), 1);
+  FlagsContinuation cont = FlagsContinuation::ForTrap(kNotEqual, trap_id);
   VisitWordCompareZero(node, node->InputAt(0), &cont);
 }
 
 void InstructionSelector::VisitTrapUnless(Node* node, TrapId trap_id) {
-  Node* frame_state =
-      node->op()->ValueInputCount() > 1 ? node->InputAt(1) : nullptr;
-  DCHECK_IMPLIES(frame_state != nullptr,
-                 frame_state->opcode() == IrOpcode::kFrameState);
-  FlagsContinuation cont =
-      FlagsContinuation::ForTrap(kEqual, trap_id, node->id(), frame_state);
+  // FrameStates are only used for wasm traps inlined in JS. In that case the
+  // trap node will be lowered (replaced) before instruction selection.
+  // Therefore any TrapUnless node has only one input.
+  DCHECK_EQ(node->op()->ValueInputCount(), 1);
+  FlagsContinuation cont = FlagsContinuation::ForTrap(kEqual, trap_id);
   VisitWordCompareZero(node, node->InputAt(0), &cont);
 }
 

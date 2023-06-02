@@ -400,9 +400,10 @@ class WasmOutOfLineTrap : public OutOfLineCode {
   WasmOutOfLineTrap(CodeGenerator* gen, Instruction* instr)
       : OutOfLineCode(gen), gen_(gen), instr_(instr) {}
   void Generate() override {
-    auto [trap_id, frame_state_offset] =
-        gen_->DecodeTrapIdAndFrameStateOffset<Arm64OperandConverter>(instr_);
-    GenerateCallToTrap(trap_id, frame_state_offset);
+    Arm64OperandConverter i(gen_, instr_);
+    TrapId trap_id =
+        static_cast<TrapId>(i.InputInt32(instr_->InputCount() - 1));
+    GenerateCallToTrap(trap_id);
   }
 
  protected:
@@ -411,7 +412,7 @@ class WasmOutOfLineTrap : public OutOfLineCode {
   void GenerateWithTrapId(TrapId trap_id) { GenerateCallToTrap(trap_id); }
 
  private:
-  void GenerateCallToTrap(TrapId trap_id, size_t frame_state_offset = 0) {
+  void GenerateCallToTrap(TrapId trap_id) {
     if (!gen_->wasm_runtime_exception_support()) {
       // We cannot test calls to the runtime in cctest/test-run-wasm.
       // Therefore we emit a call to C here instead of a call to the runtime.
@@ -425,26 +426,10 @@ class WasmOutOfLineTrap : public OutOfLineCode {
       __ Ret();
     } else {
       gen_->AssembleSourcePosition(instr_);
-      // A direct call to a wasm runtime stub defined in this module.
-      // Just encode the stub index. This will be patched when the code
-      // is added to the native module and copied into wasm code space.
-      if (gen_->IsWasm() || gen_->isolate()->is_short_builtin_calls_enabled()) {
-        __ Call(static_cast<Address>(trap_id), RelocInfo::WASM_STUB_CALL);
-      } else {
-        // For wasm traps inlined into JavaScript force indirect call if pointer
-        // compression is disabled as it can't be guaranteed that the built-in's
-        // address is close enough for a near call.
-        __ IndirectCall(static_cast<Address>(trap_id),
-                        RelocInfo::WASM_STUB_CALL);
-      }
+      __ Call(static_cast<Address>(trap_id), RelocInfo::WASM_STUB_CALL);
       ReferenceMap* reference_map =
           gen_->zone()->New<ReferenceMap>(gen_->zone());
       gen_->RecordSafepoint(reference_map);
-      // If we have a frame state, the offset is not 0.
-      if (frame_state_offset != 0) {
-        gen_->BuildTranslation(instr_, masm()->pc_offset(), frame_state_offset,
-                               0, OutputFrameStateCombine::Ignore());
-      }
       __ AssertUnreachable(AbortReason::kUnexpectedReturnFromWasmTrap);
     }
   }
