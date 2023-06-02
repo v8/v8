@@ -665,6 +665,12 @@ DEFINE_BOOL(minor_mc_shortcut_strings, false,
             "short cut strings during marking")
 DEFINE_UINT(minor_mc_max_page_age, 4,
             "max age for a page after which it is force promoted to old space")
+DEFINE_UINT(minor_mc_max_new_space_capacity_mb, 16,
+            "max new space capacity in MBs when using MinorMC. When pointer "
+            "compression is disabled, twice the capacity is used.")
+DEFINE_UINT(scavenger_max_new_space_capacity_mb, 8,
+            "max new space capacity in MBs when using Scavenger. When pointer "
+            "compression is disabled, twice the capacity is used.")
 DEFINE_BOOL(trace_page_promotions, false, "trace page promotion decisions")
 DEFINE_BOOL(trace_pretenuring, false,
             "trace pretenuring decisions of HAllocate instructions")

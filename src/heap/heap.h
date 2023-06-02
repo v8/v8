@@ -357,14 +357,20 @@ class Heap final {
 
   static size_t DefaultMaxSemiSpaceSize() {
 #if ENABLE_HUGEPAGE
-    static constexpr size_t kMaxSemiSpaceSize =
-        kHugePageSize * 16 * kPointerMultiplier;
+    static constexpr size_t kMaxSemiSpaceCapacityBaseUnit =
+        kHugePageSize * 2 * kPointerMultiplier;
 #else
-    static constexpr size_t kMaxSemiSpaceSize = 8192 * KB * kPointerMultiplier;
+    static constexpr size_t kMaxSemiSpaceCapacityBaseUnit =
+        MB * kPointerMultiplier;
 #endif
-    static_assert(kMaxSemiSpaceSize % (1 << kPageSizeBits) == 0);
+    static_assert(kMaxSemiSpaceCapacityBaseUnit % (1 << kPageSizeBits) == 0);
 
-    return (v8_flags.minor_mc ? 2 : 1) * kMaxSemiSpaceSize;
+    size_t max_semi_space_size =
+        (v8_flags.minor_mc ? v8_flags.minor_mc_max_new_space_capacity_mb
+                           : v8_flags.scavenger_max_new_space_capacity_mb) *
+        kMaxSemiSpaceCapacityBaseUnit;
+    DCHECK_EQ(0, max_semi_space_size % (1 << kPageSizeBits));
+    return max_semi_space_size;
   }
 
   // Young generation size is the same for compressed heaps and 32-bit heaps.
