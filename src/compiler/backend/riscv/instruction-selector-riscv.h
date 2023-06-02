@@ -60,6 +60,24 @@ class RiscvOperandGenerator final : public OperandGenerator {
   }
 
   bool CanBeImmediate(Node* node, InstructionCode mode) {
+    if (node->opcode() == IrOpcode::kCompressedHeapConstant) {
+      if (!COMPRESS_POINTERS_BOOL) return false;
+      // For builtin code we need static roots
+      if (selector()->isolate()->bootstrapper() && !V8_STATIC_ROOTS_BOOL) {
+        return false;
+      }
+      const RootsTable& roots_table = selector()->isolate()->roots_table();
+      RootIndex root_index;
+      CompressedHeapObjectMatcher m(node);
+      if (m.HasResolvedValue() &&
+          roots_table.IsRootHandle(m.ResolvedValue(), &root_index)) {
+        if (!RootsTable::IsReadOnly(root_index)) return false;
+        return CanBeImmediate(MacroAssemblerBase::ReadOnlyRootPtr(
+                                  root_index, selector()->isolate()),
+                              mode);
+      }
+      return false;
+    }
     return IsIntegerConstant(node) &&
            CanBeImmediate(GetIntegerConstantValue(node), mode);
   }
@@ -351,8 +369,13 @@ void VisitWordCompare(InstructionSelector* selector, Node* node,
 #elif V8_TARGET_ARCH_RISCV32
     if (opcode == kRiscvTst32) {
 #endif
-      VisitCompare(selector, opcode, g.UseRegister(left), g.UseImmediate(right),
-                   cont);
+      if (left->opcode() == IrOpcode::kTruncateInt64ToInt32) {
+        VisitCompare(selector, opcode, g.UseRegister(left->InputAt(0)),
+                     g.UseImmediate(right), cont);
+      } else {
+        VisitCompare(selector, opcode, g.UseRegister(left),
+                     g.UseImmediate(right), cont);
+      }
     } else {
       switch (cont->condition()) {
         case kEqual:
@@ -726,24 +749,26 @@ void InstructionSelector::VisitWord32Shr(Node* node) {
 
 void InstructionSelector::VisitWord32Sar(Node* node) {
   Int32BinopMatcher m(node);
-  if (m.left().IsWord32Shl() && CanCover(node, m.left().node())) {
-    Int32BinopMatcher mleft(m.left().node());
-    if (m.right().HasResolvedValue() && mleft.right().HasResolvedValue()) {
-      RiscvOperandGenerator g(this);
-      uint32_t sar = m.right().ResolvedValue();
-      uint32_t shl = mleft.right().ResolvedValue();
-      if ((sar == shl) && (sar == 16)) {
-        Emit(kRiscvSignExtendShort, g.DefineAsRegister(node),
-             g.UseRegister(mleft.left().node()));
-        return;
-      } else if ((sar == shl) && (sar == 24)) {
-        Emit(kRiscvSignExtendByte, g.DefineAsRegister(node),
-             g.UseRegister(mleft.left().node()));
-        return;
-      } else if ((sar == shl) && (sar == 32)) {
-        Emit(kRiscvShl32, g.DefineAsRegister(node),
-             g.UseRegister(mleft.left().node()), g.TempImmediate(0));
-        return;
+  if (CanCover(node, m.left().node())) {
+    RiscvOperandGenerator g(this);
+    if (m.left().IsWord32Shl()) {
+      Int32BinopMatcher mleft(m.left().node());
+      if (m.right().HasResolvedValue() && mleft.right().HasResolvedValue()) {
+        uint32_t sar = m.right().ResolvedValue();
+        uint32_t shl = mleft.right().ResolvedValue();
+        if ((sar == shl) && (sar == 16)) {
+          Emit(kRiscvSignExtendShort, g.DefineAsRegister(node),
+               g.UseRegister(mleft.left().node()));
+          return;
+        } else if ((sar == shl) && (sar == 24)) {
+          Emit(kRiscvSignExtendByte, g.DefineAsRegister(node),
+               g.UseRegister(mleft.left().node()));
+          return;
+        } else if ((sar == shl) && (sar == 32)) {
+          Emit(kRiscvShl32, g.DefineAsRegister(node),
+               g.UseRegister(mleft.left().node()), g.TempImmediate(0));
+          return;
+        }
       }
     }
   }

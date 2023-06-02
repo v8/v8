@@ -2218,6 +2218,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ DecompressTagged(result, operand);
       break;
     }
+    case kRiscvAtomicLoadDecompressTaggedSigned:
+      __ AtomicDecompressTaggedSigned(i.OutputRegister(), i.MemoryOperand());
+      break;
+    case kRiscvAtomicLoadDecompressTagged:
+      __ AtomicDecompressTagged(i.OutputRegister(), i.MemoryOperand());
+      break;
+    case kRiscvAtomicStoreCompressTagged: {
+      size_t index = 0;
+      MemOperand mem = i.MemoryOperand(&index);
+      __ AtomicStoreTaggedField(i.InputOrZeroRegister(index), mem);
+      break;
+    }
 #endif
     case kRiscvRvvSt: {
       (__ VU).set(kScratchReg, VSew::E8, Vlmul::m1);

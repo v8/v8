@@ -7682,17 +7682,18 @@ void Simulator::InstructionDecode(Instruction* instr) {
            " ",
            reinterpret_cast<intptr_t>(watch_address_), *watch_address_,
            *watch_address_);
-    Object obj(*watch_address_);
-    Heap* current_heap = isolate_->heap();
-    if (obj.IsSmi() || IsValidHeapObject(current_heap, HeapObject::cast(obj))) {
-      PrintF(" (");
-      if (obj.IsSmi()) {
-        PrintF("smi %d", Smi::ToInt(obj));
-      } else {
-        obj.ShortPrint();
-      }
-      PrintF(")");
-    }
+    // Object obj(*watch_address_);
+    // Heap* current_heap = isolate_->heap();
+    // if (obj.IsSmi() || IsValidHeapObject(current_heap,
+    // HeapObject::cast(obj))) {
+    //   PrintF(" (");
+    //   if (obj.IsSmi()) {
+    //     PrintF("smi %d", Smi::ToInt(obj));
+    //   } else {
+    //     obj.ShortPrint();
+    //   }
+    //   PrintF(")");
+    // }
     PrintF("\n");
     if (watch_value_ != *watch_address_) {
       RiscvDebugger dbg(this);

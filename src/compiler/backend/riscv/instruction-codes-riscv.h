@@ -65,6 +65,9 @@ namespace compiler {
   V(RiscvStoreCompressTagged)               \
   V(RiscvLoadDecompressTaggedSigned)        \
   V(RiscvLoadDecompressTagged)              \
+  V(RiscvAtomicLoadDecompressTaggedSigned)  \
+  V(RiscvAtomicLoadDecompressTagged)        \
+  V(RiscvAtomicStoreCompressTagged)         \
   V(RiscvWord64AtomicCompareExchangeUint64) \
   V(RiscvTst64)
 #elif V8_TARGET_ARCH_RISCV32

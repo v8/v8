@@ -561,6 +561,19 @@ void InstructionSelector::VisitWord64Shr(Node* node) {
 
 void InstructionSelector::VisitWord64Sar(Node* node) {
   if (TryEmitExtendingLoad(this, node, node)) return;
+  Int64BinopMatcher m(node);
+  if (m.left().IsChangeInt32ToInt64() && m.right().HasResolvedValue() &&
+      is_uint5(m.right().ResolvedValue()) && CanCover(node, m.left().node())) {
+    if ((m.left().InputAt(0)->opcode() != IrOpcode::kLoad &&
+         m.left().InputAt(0)->opcode() != IrOpcode::kLoadImmutable) ||
+        !CanCover(m.left().node(), m.left().InputAt(0))) {
+      RiscvOperandGenerator g(this);
+      Emit(kRiscvSar32, g.DefineAsRegister(node),
+           g.UseRegister(m.left().node()->InputAt(0)),
+           g.UseImmediate(m.right().node()));
+      return;
+    }
+  }
   VisitRRO(this, kRiscvSar64, node);
 }
 
@@ -1044,52 +1057,6 @@ void InstructionSelector::VisitBitcastWord32ToWord64(Node* node) {
 void EmitSignExtendWord(InstructionSelector* selector, Node* node) {
   RiscvOperandGenerator g(selector);
   Node* value = node->InputAt(0);
-  IrOpcode::Value lastOpCode = value->opcode();
-  if (lastOpCode == IrOpcode::kInt32Add || lastOpCode == IrOpcode::kInt32Sub ||
-      lastOpCode == IrOpcode::kWord32And || lastOpCode == IrOpcode::kWord32Or ||
-      lastOpCode == IrOpcode::kWord32Xor ||
-      lastOpCode == IrOpcode::kWord32Shl ||
-      lastOpCode == IrOpcode::kWord32Shr ||
-      lastOpCode == IrOpcode::kWord32Sar ||
-      lastOpCode == IrOpcode::kUint32Mod) {
-    selector->Emit(kArchNop, g.DefineSameAsFirst(node), g.Use(value));
-    return;
-  }
-  if (lastOpCode == IrOpcode::kInt32Mul) {
-    Node* left = value->InputAt(0);
-    Node* right = value->InputAt(1);
-    if (selector->CanCover(value, left) && selector->CanCover(value, right)) {
-      if (left->opcode() == IrOpcode::kWord64Sar &&
-          right->opcode() == IrOpcode::kWord64Sar) {
-        Int64BinopMatcher leftInput(left), rightInput(right);
-        if (leftInput.right().Is(32) && rightInput.right().Is(32)) {
-          selector->Emit(kRiscvSignExtendWord, g.DefineAsRegister(node),
-                         g.UseRegister(value));
-          return;
-        }
-      }
-    }
-    selector->Emit(kArchNop, g.DefineSameAsFirst(node), g.Use(value));
-    return;
-  }
-  if (lastOpCode == IrOpcode::kInt32Mod) {
-    Node* left = value->InputAt(0);
-    Node* right = value->InputAt(1);
-    if (selector->CanCover(value, left) && selector->CanCover(value, right)) {
-      if (left->opcode() == IrOpcode::kWord64Sar &&
-          right->opcode() == IrOpcode::kWord64Sar) {
-        Int64BinopMatcher rightInput(right), leftInput(left);
-        if (rightInput.right().Is(32) && leftInput.right().Is(32)) {
-          // Combine both shifted operands with Dmod.
-          selector->Emit(kRiscvSignExtendWord, g.DefineAsRegister(node),
-                         g.UseRegister(value));
-          return;
-        }
-      }
-    }
-    selector->Emit(kArchNop, g.DefineSameAsFirst(node), g.Use(value));
-    return;
-  }
   selector->Emit(kRiscvSignExtendWord, g.DefineAsRegister(node),
                  g.UseRegister(value));
 }
@@ -1117,6 +1084,8 @@ void InstructionSelector::VisitChangeInt32ToInt64(Node* node) {
         // with kWord64 can also reach this line.
         // For RV64, the lw loads a 32 bit value from memory and sign-extend it
         // to 64 bits before storing it in rd register
+      case MachineRepresentation::kTaggedSigned:
+      case MachineRepresentation::kTagged:
         opcode = kRiscvLw;
         break;
       default:
@@ -1125,6 +1094,7 @@ void InstructionSelector::VisitChangeInt32ToInt64(Node* node) {
     EmitLoad(this, value, opcode, node);
   } else {
     EmitSignExtendWord(this, node);
+    return;
   }
 }
 
@@ -1184,12 +1154,12 @@ void InstructionSelector::VisitTruncateInt64ToInt32(Node* node) {
         break;
     }
   }
-
   // Semantics of this machine IR is not clear. For example, x86 zero-extend the
   // truncated value; arm treats it as nop thus the upper 32-bit as undefined;
   // Riscv emits ext instruction which zero-extend the 32-bit value; for riscv,
   // we do sign-extension of the truncated value
-  EmitSignExtendWord(this, node);
+  Emit(kRiscvSignExtendWord, g.DefineAsRegister(node),
+       g.UseRegister(node->InputAt(0)), g.TempImmediate(0));
 }
 
 void InstructionSelector::VisitRoundInt64ToFloat32(Node* node) {
@@ -1566,12 +1536,22 @@ void VisitAtomicLoad(InstructionSelector* selector, Node* node,
     case MachineRepresentation::kWord64:
       code = kRiscvWord64AtomicLoadUint64;
       break;
+#ifdef V8_COMPRESS_POINTERS
+    case MachineRepresentation::kTaggedSigned:
+      code = kRiscvAtomicLoadDecompressTaggedSigned;
+      break;
+    case MachineRepresentation::kTaggedPointer:
+    case MachineRepresentation::kTagged:
+      code = kRiscvAtomicLoadDecompressTagged;
+      break;
+#else
     case MachineRepresentation::kTaggedSigned:   // Fall through.
     case MachineRepresentation::kTaggedPointer:  // Fall through.
     case MachineRepresentation::kTagged:
       DCHECK_EQ(kTaggedSize, 8);
       code = kRiscvWord64AtomicLoadUint64;
       break;
+#endif
     default:
       UNREACHABLE();
   }
@@ -1758,7 +1738,6 @@ void InstructionSelector::VisitWordCompareZero(Node* user, Node* value,
     } else {
       break;
     }
-
     cont->Negate();
   }
 

@@ -5476,7 +5476,8 @@ void MacroAssembler::JumpToExternalReference(const ExternalReference& builtin,
 void MacroAssembler::LoadWeakValue(Register out, Register in,
                                    Label* target_if_cleared) {
   ASM_CODE_COMMENT(this);
-  Branch(target_if_cleared, eq, in, Operand(kClearedWeakHeapObjectLower32));
+  CompareTaggedAndBranch(target_if_cleared, eq, in,
+                         Operand(kClearedWeakHeapObjectLower32));
   And(out, in, Operand(~kWeakHeapObjectMask));
 }
 
@@ -6412,6 +6413,18 @@ void MacroAssembler::StoreTaggedField(const Register& value,
   }
 }
 
+void MacroAssembler::AtomicStoreTaggedField(Register src,
+                                            const MemOperand& dst) {
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  AddWord(scratch, dst.rm(), dst.offset());
+  if (COMPRESS_POINTERS_BOOL) {
+    amoswap_w(true, true, zero_reg, src, scratch);
+  } else {
+    amoswap_d(true, true, zero_reg, src, scratch);
+  }
+}
+
 void MacroAssembler::DecompressTaggedSigned(const Register& destination,
                                             const MemOperand& field_operand) {
   ASM_CODE_COMMENT(this);
@@ -6436,6 +6449,27 @@ void MacroAssembler::DecompressTagged(const Register& destination,
   And(destination, source, Operand(0xFFFFFFFF));
   AddWord(destination, kPtrComprCageBaseRegister, Operand(destination));
 }
+
+void MacroAssembler::AtomicDecompressTaggedSigned(Register dst,
+                                                  const MemOperand& src) {
+  ASM_CODE_COMMENT(this);
+  Lwu(dst, src);
+  sync();
+  if (v8_flags.debug_code) {
+    // Corrupt the top 32 bits. Made up of 16 fixed bits and 16 pc offset bits.
+    AddWord(dst, dst,
+            Operand(((kDebugZapValue << 16) | (pc_offset() & 0xffff)) << 32));
+  }
+}
+
+void MacroAssembler::AtomicDecompressTagged(Register dst,
+                                            const MemOperand& src) {
+  ASM_CODE_COMMENT(this);
+  Lwu(dst, src);
+  sync();
+  AddWord(dst, kPtrComprCageBaseRegister, dst);
+}
+
 #endif
 void MacroAssembler::DropArguments(Register count, ArgumentsCountType type,
                                    ArgumentsCountMode mode, Register scratch) {

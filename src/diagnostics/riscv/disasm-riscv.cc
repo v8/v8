@@ -2943,7 +2943,7 @@ int Decoder::InstructionDecode(uint8_t* instr_ptr) {
 #endif
     default:
       Format(instr, "UNSUPPORTED");
-      UNSUPPORTED_RISCV();
+      break;
   }
   return instr->InstructionSize();
 }

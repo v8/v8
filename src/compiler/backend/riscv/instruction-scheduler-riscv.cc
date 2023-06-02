@@ -381,6 +381,9 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvWord64AtomicLoadUint64:
     case kRiscvLoadDecompressTaggedSigned:
     case kRiscvLoadDecompressTagged:
+    case kRiscvAtomicLoadDecompressTaggedSigned:
+    case kRiscvAtomicLoadDecompressTagged:
+    case kRiscvAtomicStoreCompressTagged:
 #elif V8_TARGET_ARCH_RISCV32
     case kRiscvWord32AtomicPairLoad:
 #endif

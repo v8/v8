@@ -72,11 +72,10 @@ void BaselineCompiler::PrologueFillFrame() {
 
 void BaselineCompiler::VerifyFrameSize() {
   ASM_CODE_COMMENT(&masm_);
-  __ masm()->AddWord(kScratchReg, sp,
+  __ masm()->AddWord(t0, sp,
                      Operand(InterpreterFrameConstants::kFixedFrameSizeFromFp +
                              bytecode_->frame_size()));
-  __ masm()->Assert(eq, AbortReason::kUnexpectedStackPointer, kScratchReg,
-                    Operand(fp));
+  __ masm()->Assert(eq, AbortReason::kUnexpectedStackPointer, t0, Operand(fp));
 }
 
 #undef __

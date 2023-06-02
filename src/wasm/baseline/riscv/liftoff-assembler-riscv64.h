@@ -173,7 +173,7 @@ void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value) {
 void LiftoffAssembler::LoadTaggedPointer(Register dst, Register src_addr,
                                          Register offset_reg,
                                          int32_t offset_imm, bool needs_shift) {
-  unsigned shift_amount = !needs_shift ? 0 : 3;
+  unsigned shift_amount = !needs_shift ? 0 : COMPRESS_POINTERS_BOOL ? 2 : 3;
   MemOperand src_op = liftoff::GetMemOp(this, src_addr, offset_reg, offset_imm,
                                         false, shift_amount);
   LoadTaggedField(dst, src_op);
@@ -1299,35 +1299,52 @@ void LiftoffAssembler::emit_cond_jump(Condition cond, Label* label,
                                       Register rhs,
                                       const FreezeCacheState& frozen) {
   if (rhs == no_reg) {
-    DCHECK(kind == kI32 || kind == kI64);
-    MacroAssembler::Branch(label, cond, lhs, Operand(zero_reg));
+    if (kind == kI32) {
+      UseScratchRegisterScope temps(this);
+      Register scratch0 = temps.Acquire();
+      slliw(scratch0, lhs, 0);
+      MacroAssembler::Branch(label, cond, scratch0, Operand(zero_reg));
+    } else {
+      DCHECK(kind == kI64);
+      MacroAssembler::Branch(label, cond, lhs, Operand(zero_reg));
+    }
   } else {
-    DCHECK((kind == kI32 || kind == kI64) ||
-           (is_reference(kind) && (cond == kEqual || cond == kNotEqual)));
-    MacroAssembler::Branch(label, cond, lhs, Operand(rhs));
+    if (kind == kI64) {
+      MacroAssembler::Branch(label, cond, lhs, Operand(rhs));
+    } else {
+      DCHECK((kind == kI32) || (kind == kRtt) || (kind == kRef) ||
+             (kind == kRefNull));
+      MacroAssembler::CompareTaggedAndBranch(label, cond, lhs, Operand(rhs));
+    }
   }
 }
 
 void LiftoffAssembler::emit_i32_cond_jumpi(Condition cond, Label* label,
                                            Register lhs, int32_t imm,
                                            const FreezeCacheState& frozen) {
-  MacroAssembler::Branch(label, cond, lhs, Operand(imm));
+  MacroAssembler::CompareTaggedAndBranch(label, cond, lhs, Operand(imm));
 }
 
 void LiftoffAssembler::emit_i32_subi_jump_negative(
     Register value, int subtrahend, Label* result_negative,
     const FreezeCacheState& frozen) {
-  Sub64(value, value, Operand(subtrahend));
+  Sub32(value, value, Operand(subtrahend));
   MacroAssembler::Branch(result_negative, lt, value, Operand(zero_reg));
 }
 
 void LiftoffAssembler::emit_i32_eqz(Register dst, Register src) {
+  MacroAssembler::slliw(dst, src, 0);
   MacroAssembler::Sltu(dst, src, 1);
 }
 
 void LiftoffAssembler::emit_i32_set_cond(Condition cond, Register dst,
                                          Register lhs, Register rhs) {
-  MacroAssembler::CompareI(dst, lhs, Operand(rhs), cond);
+  UseScratchRegisterScope temps(this);
+  Register scratch0 = temps.Acquire();
+  Register scratch1 = kScratchReg;
+  MacroAssembler::slliw(scratch0, lhs, 0);
+  MacroAssembler::slliw(scratch1, rhs, 0);
+  MacroAssembler::CompareI(dst, scratch0, Operand(scratch1), cond);
 }
 
 void LiftoffAssembler::emit_i64_eqz(Register dst, LiftoffRegister src) {

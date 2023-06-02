@@ -1759,6 +1759,7 @@ void OnStackReplacement(MacroAssembler* masm, OsrSourceTier source,
   __ CompareTaggedAndBranch(&jump_to_optimized_code, ne, maybe_target_code,
                             Operand(Smi::zero()));
   __ Ret();
+  DCHECK_EQ(maybe_target_code, a0);  // Already in the right spot.
 
   __ bind(&jump_to_optimized_code);
 

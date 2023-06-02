@@ -1113,6 +1113,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // Compresses and stores tagged value to given on-heap location.
   void StoreTaggedField(const Register& value,
                         const MemOperand& dst_field_operand);
+  void AtomicStoreTaggedField(Register dst, const MemOperand& src);
 
   void DecompressTaggedSigned(const Register& destination,
                               const MemOperand& field_operand);
@@ -1120,6 +1121,10 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
                         const MemOperand& field_operand);
   void DecompressTagged(const Register& destination, const Register& source);
   void DecompressTagged(Register dst, Tagged_t immediate);
+
+  void AtomicDecompressTaggedSigned(Register dst, const MemOperand& src);
+  void AtomicDecompressTagged(Register dst, const MemOperand& src);
+
   void CmpTagged(const Register& rd, const Register& rs1, const Register& rs2) {
     if (COMPRESS_POINTERS_BOOL) {
       Sub32(rd, rs1, rs2);
