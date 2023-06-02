@@ -25,6 +25,8 @@ namespace internal {
 // - CodePageMemoryModificationScopeForPerf:
 //     A scope to mark places where we switch permissions more broadly for
 //     performance reasons.
+// - CodePageMemoryModificationScopeForDebugging:
+//     A scope only used in non-release builds, e.g. for code zapping.
 // - wasm::CodeSpaceWriteScope:
 //     Allows access to Wasm code
 //

@@ -2575,6 +2575,26 @@ class V8_NODISCARD CodePageMemoryModificationScope {
   DISALLOW_GARBAGE_COLLECTION(no_heap_allocation_)
 };
 
+class CodePageMemoryModificationScopeForDebugging {
+ public:
+  // When we zap newly allocated MemoryChunks, the chunk is not initialized yet
+  // and we can't use the regular CodePageMemoryModificationScope since it will
+  // access the page header. Hence, use the VirtualMemory for tracking instead.
+  explicit CodePageMemoryModificationScopeForDebugging(
+      Heap* heap, VirtualMemory* reservation, base::AddressRegion region);
+  explicit CodePageMemoryModificationScopeForDebugging(BasicMemoryChunk* chunk);
+  ~CodePageMemoryModificationScopeForDebugging();
+
+ private:
+#if V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT || V8_HEAP_USE_PKU_JIT_WRITE_PROTECT
+  RwxMemoryWriteScope rwx_write_scope_;
+#else
+  VirtualMemory* reservation_ = nullptr;
+  base::Optional<base::AddressRegion> region_;
+  base::Optional<CodePageMemoryModificationScope> memory_modification_scope_;
+#endif
+};
+
 class V8_NODISCARD IgnoreLocalGCRequests {
  public:
   explicit inline IgnoreLocalGCRequests(Heap* heap);

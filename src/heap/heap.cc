@@ -4450,7 +4450,7 @@ void Heap::VerifyCommittedPhysicalMemory() {
 
 void Heap::ZapCodeObject(Address start_address, int size_in_bytes) {
 #ifdef DEBUG
-  CodePageMemoryModificationScope code_modification_scope(
+  CodePageMemoryModificationScopeForDebugging code_modification_scope(
       BasicMemoryChunk::FromAddress(start_address));
   DCHECK(IsAligned(start_address, kIntSize));
   for (int i = 0; i < size_in_bytes / kIntSize; i++) {
@@ -7198,6 +7198,70 @@ CppClassNamesAsHeapObjectNameScope::CppClassNamesAsHeapObjectNameScope(
 
 CppClassNamesAsHeapObjectNameScope::~CppClassNamesAsHeapObjectNameScope() =
     default;
+
+#if V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT || V8_HEAP_USE_PKU_JIT_WRITE_PROTECT
+
+CodePageMemoryModificationScopeForDebugging::
+    CodePageMemoryModificationScopeForDebugging(Heap* heap,
+                                                VirtualMemory* reservation,
+                                                base::AddressRegion region)
+    : rwx_write_scope_("Write access for zapping.") {
+#if !defined(DEBUG) && !defined(VERIFY_HEAP)
+  UNREACHABLE();
+#endif
+}
+
+CodePageMemoryModificationScopeForDebugging::
+    CodePageMemoryModificationScopeForDebugging(BasicMemoryChunk* chunk)
+    : rwx_write_scope_("Write access for zapping.") {
+#if !defined(DEBUG) && !defined(VERIFY_HEAP)
+  UNREACHABLE();
+#endif
+}
+
+CodePageMemoryModificationScopeForDebugging::
+    ~CodePageMemoryModificationScopeForDebugging() {}
+
+#else  // V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT ||
+       // V8_HEAP_USE_PKU_JIT_WRITE_PROTECT
+
+CodePageMemoryModificationScopeForDebugging::
+    CodePageMemoryModificationScopeForDebugging(Heap* heap,
+                                                VirtualMemory* reservation,
+                                                base::AddressRegion region) {
+#if !defined(DEBUG) && !defined(VERIFY_HEAP)
+  UNREACHABLE();
+#else
+  if (heap->write_protect_code_memory()) {
+    reservation_ = reservation;
+    region_.emplace(region);
+    CHECK(reservation_->SetPermissions(
+        region_->begin(), region_->size(),
+        MemoryChunk::GetCodeModificationPermission()));
+  }
+#endif
+}
+
+CodePageMemoryModificationScopeForDebugging::
+    CodePageMemoryModificationScopeForDebugging(BasicMemoryChunk* chunk)
+    : memory_modification_scope_(chunk) {
+#if !defined(DEBUG) && !defined(VERIFY_HEAP)
+  UNREACHABLE();
+#endif
+}
+
+CodePageMemoryModificationScopeForDebugging::
+    ~CodePageMemoryModificationScopeForDebugging() {
+  if (reservation_) {
+    DCHECK(region_.has_value());
+    CHECK(reservation_->SetPermissions(
+        region_->begin(), region_->size(),
+        v8_flags.jitless ? PageAllocator::Permission::kRead
+                         : PageAllocator::Permission::kReadExecute));
+  }
+}
+
+#endif
 
 }  // namespace internal
 }  // namespace v8

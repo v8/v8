@@ -385,6 +385,12 @@ MemoryAllocator::AllocateUninitializedChunkAt(BaseSpace* space,
       // first.
       ZapBlock(base, MemoryChunkLayout::CodePageGuardStartOffset(), kZapValue);
       // Now zap object area.
+      Address code_start =
+          base + MemoryChunkLayout::ObjectPageOffsetInCodePage();
+      CodePageMemoryModificationScopeForDebugging memory_write_scope(
+          isolate_->heap(), &reservation,
+          base::AddressRegion(code_start,
+                              RoundUp(area_size, GetCommitPageSize())));
       ZapBlock(base + MemoryChunkLayout::ObjectPageOffsetInCodePage(),
                area_size, kZapValue);
     } else {
