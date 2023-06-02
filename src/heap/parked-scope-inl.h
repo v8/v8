@@ -62,13 +62,56 @@ ParkedSharedMutexGuardIf<kIsShared, Behavior>::ParkedSharedMutexGuardIf(
   }
 }
 
+V8_INLINE void ParkingConditionVariable::ParkedWait(LocalIsolate* local_isolate,
+                                                    base::Mutex* mutex) {
+  ParkedWait(local_isolate->heap(), mutex);
+}
+
+V8_INLINE void ParkingConditionVariable::ParkedWait(LocalHeap* local_heap,
+                                                    base::Mutex* mutex) {
+  local_heap->BlockWhileParked(
+      [this, mutex](const ParkedScope& parked) { ParkedWait(parked, mutex); });
+}
+
+V8_INLINE bool ParkingConditionVariable::ParkedWaitFor(
+    LocalIsolate* local_isolate, base::Mutex* mutex,
+    const base::TimeDelta& rel_time) {
+  return ParkedWaitFor(local_isolate->heap(), mutex, rel_time);
+}
+
+V8_INLINE bool ParkingConditionVariable::ParkedWaitFor(
+    LocalHeap* local_heap, base::Mutex* mutex,
+    const base::TimeDelta& rel_time) {
+  bool result;
+  local_heap->BlockWhileParked(
+      [this, mutex, rel_time, &result](const ParkedScope& parked) {
+        result = ParkedWaitFor(parked, mutex, rel_time);
+      });
+  return result;
+}
+
 V8_INLINE void ParkingSemaphore::ParkedWait(LocalIsolate* local_isolate) {
   ParkedWait(local_isolate->heap());
 }
 
 V8_INLINE void ParkingSemaphore::ParkedWait(LocalHeap* local_heap) {
-  ParkedScope parked(local_heap);
-  ParkedWait(parked);
+  local_heap->BlockWhileParked(
+      [this](const ParkedScope& parked) { ParkedWait(parked); });
+}
+
+V8_INLINE bool ParkingSemaphore::ParkedWaitFor(
+    LocalIsolate* local_isolate, const base::TimeDelta& rel_time) {
+  return ParkedWaitFor(local_isolate->heap(), rel_time);
+}
+
+V8_INLINE bool ParkingSemaphore::ParkedWaitFor(
+    LocalHeap* local_heap, const base::TimeDelta& rel_time) {
+  bool result;
+  local_heap->BlockWhileParked(
+      [this, rel_time, &result](const ParkedScope& parked) {
+        result = ParkedWaitFor(parked, rel_time);
+      });
+  return result;
 }
 
 V8_INLINE void ParkingThread::ParkedJoin(LocalIsolate* local_isolate) {

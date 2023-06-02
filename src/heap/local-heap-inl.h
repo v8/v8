@@ -108,11 +108,30 @@ V8_INLINE void LocalHeap::BlockWhileParked(Callback callback) {
 
 template <typename Callback>
 V8_INLINE void LocalHeap::BlockMainThreadWhileParked(Callback callback) {
+  ExecuteWithStackMarker(
+      [this, callback]() { ParkAndExecuteCallback(callback); });
+}
+
+template <typename Callback>
+V8_INLINE void LocalHeap::ExecuteWithStackMarker(Callback callback) {
+  // Conservative stack scanning is only performed for main threads, therefore
+  // this method should only be invoked from the main thread. In this case,
+  // heap()->stack() below is the stack object of the main thread that has last
+  // entered the isolate. Notice also that the trampoline is not re-entrant.
   DCHECK(is_main_thread());
-  // TODO(v8:13257): Enter the trampoline here for saving the stack marker and
-  // the registers, so that if a GC happens while the main thread is parked, the
-  // stack can be scanned conservatively.
-  ParkAndExecuteCallback(callback);
+  DCHECK(!is_in_trampoline());
+  is_in_trampoline_ = true;
+  heap()->stack().SetMarkerAndCallback(callback);
+  is_in_trampoline_ = false;
+}
+
+template <typename Callback>
+V8_INLINE void LocalHeap::ExecuteWithStackMarkerIfNeeded(Callback callback) {
+  if (is_main_thread()) {
+    ExecuteWithStackMarker(callback);
+  } else {
+    callback();
+  }
 }
 
 }  // namespace internal

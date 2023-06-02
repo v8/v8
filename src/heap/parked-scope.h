@@ -142,27 +142,21 @@ class V8_NODISCARD ParkingConditionVariable final
   ParkingConditionVariable(const ParkingConditionVariable&) = delete;
   ParkingConditionVariable& operator=(const ParkingConditionVariable&) = delete;
 
-  void ParkedWait(LocalIsolate* local_isolate, base::Mutex* mutex) {
-    ParkedWait(local_isolate->heap(), mutex);
-  }
-  void ParkedWait(LocalHeap* local_heap, base::Mutex* mutex) {
-    ParkedScope scope(local_heap);
-    ParkedWait(scope, mutex);
-  }
+  V8_INLINE void ParkedWait(LocalIsolate* local_isolate, base::Mutex* mutex);
+  V8_INLINE void ParkedWait(LocalHeap* local_heap, base::Mutex* mutex);
+
   void ParkedWait(const ParkedScope& scope, base::Mutex* mutex) {
     USE(scope);
     Wait(mutex);
   }
 
-  bool ParkedWaitFor(LocalIsolate* local_isolate, base::Mutex* mutex,
-                     const base::TimeDelta& rel_time) V8_WARN_UNUSED_RESULT {
-    return ParkedWaitFor(local_isolate->heap(), mutex, rel_time);
-  }
-  bool ParkedWaitFor(LocalHeap* local_heap, base::Mutex* mutex,
-                     const base::TimeDelta& rel_time) V8_WARN_UNUSED_RESULT {
-    ParkedScope scope(local_heap);
-    return ParkedWaitFor(scope, mutex, rel_time);
-  }
+  V8_INLINE bool ParkedWaitFor(LocalIsolate* local_isolate, base::Mutex* mutex,
+                               const base::TimeDelta& rel_time)
+      V8_WARN_UNUSED_RESULT;
+  V8_INLINE bool ParkedWaitFor(LocalHeap* local_heap, base::Mutex* mutex,
+                               const base::TimeDelta& rel_time)
+      V8_WARN_UNUSED_RESULT;
+
   bool ParkedWaitFor(const ParkedScope& scope, base::Mutex* mutex,
                      const base::TimeDelta& rel_time) V8_WARN_UNUSED_RESULT {
     USE(scope);
@@ -190,15 +184,13 @@ class V8_NODISCARD ParkingSemaphore final : public base::Semaphore {
     Wait();
   }
 
-  bool ParkedWaitFor(LocalIsolate* local_isolate,
-                     const base::TimeDelta& rel_time) V8_WARN_UNUSED_RESULT {
-    return ParkedWaitFor(local_isolate->heap(), rel_time);
-  }
-  bool ParkedWaitFor(LocalHeap* local_heap,
-                     const base::TimeDelta& rel_time) V8_WARN_UNUSED_RESULT {
-    ParkedScope scope(local_heap);
-    return ParkedWaitFor(scope, rel_time);
-  }
+  V8_INLINE bool ParkedWaitFor(LocalIsolate* local_isolate,
+                               const base::TimeDelta& rel_time)
+      V8_WARN_UNUSED_RESULT;
+  V8_INLINE bool ParkedWaitFor(LocalHeap* local_heap,
+                               const base::TimeDelta& rel_time)
+      V8_WARN_UNUSED_RESULT;
+
   bool ParkedWaitFor(const ParkedScope& scope,
                      const base::TimeDelta& rel_time) {
     USE(scope);
