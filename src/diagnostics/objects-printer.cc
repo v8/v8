@@ -1338,12 +1338,18 @@ void FeedbackNexus::Print(std::ostream& os) {
     case FeedbackSlotKind::kSetKeyedStrict: {
       os << InlineCacheState2String(ic_state());
       if (ic_state() == InlineCacheState::MONOMORPHIC) {
-        os << "\n   " << Brief(GetFeedback()) << ": ";
-        Object handler = GetFeedbackExtra().GetHeapObjectOrSmi();
-        if (handler.IsWeakFixedArray()) {
-          handler = WeakFixedArray::cast(handler).Get(0).GetHeapObjectOrSmi();
+        HeapObject feedback = GetFeedback().GetHeapObject();
+        HeapObject feedback_extra = GetFeedbackExtra().GetHeapObject();
+        if (feedback.IsName()) {
+          os << " with name " << Brief(feedback);
+          WeakFixedArray array = WeakFixedArray::cast(feedback_extra);
+          os << "\n   " << Brief(array.Get(0)) << ": ";
+          Object handler = array.Get(1).GetHeapObjectOrSmi();
+          StoreHandler::PrintHandler(handler, os);
+        } else {
+          os << "\n   " << Brief(feedback) << ": ";
+          StoreHandler::PrintHandler(feedback_extra, os);
         }
-        StoreHandler::PrintHandler(handler, os);
       } else if (ic_state() == InlineCacheState::POLYMORPHIC) {
         HeapObject feedback = GetFeedback().GetHeapObject();
         WeakFixedArray array;
