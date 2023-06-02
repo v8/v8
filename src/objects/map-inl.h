@@ -589,6 +589,10 @@ bool Map::has_fast_elements() const {
   return IsFastElementsKind(elements_kind());
 }
 
+bool Map::has_fast_packed_elements() const {
+  return IsFastPackedElementsKind(elements_kind());
+}
+
 bool Map::has_sloppy_arguments_elements() const {
   return IsSloppyArgumentsElementsKind(elements_kind());
 }
