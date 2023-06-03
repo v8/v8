@@ -31,6 +31,14 @@ class BytecodeJumpTable;
 
 class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
  public:
+  enum TypeHint : uint8_t {
+    kBoolean = 1 << 0,
+    kInternalizedString = 1 << 1,
+    kString = kInternalizedString | (1 << 2),
+    kAny = kBoolean | kString,
+    kUnknown = 0xFFu
+  };
+
   explicit BytecodeGenerator(
       LocalIsolate* local_isolate, Zone* zone, UnoptimizedCompilationInfo* info,
       const AstStringConstants* ast_string_constants,
@@ -43,6 +51,15 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
                                          Handle<Script> script);
   template <typename IsolateT>
   Handle<ByteArray> FinalizeSourcePositionTable(IsolateT* isolate);
+
+  // Check if hint2 is same or the subtype of hint1.
+  static bool IsSameOrSubTypeHint(TypeHint hint1, TypeHint hint2) {
+    return hint1 == (hint1 | hint2);
+  }
+
+  static bool IsStringTypeHint(TypeHint hint) {
+    return IsSameOrSubTypeHint(TypeHint::kString, hint);
+  }
 
 #ifdef DEBUG
   int CheckBytecodeMatches(BytecodeArray bytecode);
@@ -86,7 +103,6 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   using ToBooleanMode = BytecodeArrayBuilder::ToBooleanMode;
 
   enum class TestFallthrough { kThen, kElse, kNone };
-  enum class TypeHint { kAny, kBoolean, kString };
   enum class AccumulatorPreservingMode { kNone, kPreserve };
 
   // An assignment has to evaluate its LHS before its RHS, but has to assign to
@@ -447,6 +463,10 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void VisitInSameTestExecutionScope(Expression* expr);
 
   Register GetRegisterForLocalVariable(Variable* variable);
+
+  bool IsLocalVariableWithInternalizedStringHint(Expression* expr);
+
+  TypeHint GetTypeHintForLocalVariable(Variable* variable);
 
   // Returns the runtime function id for a store to super for the function's
   // language mode.
