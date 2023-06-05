@@ -838,12 +838,10 @@ void GraphC1Visualizer::PrintLiveRange(const LiveRange* range, const char* type,
           << interval->end().value() << "[";
     }
 
-    UsePosition* current_pos = range->first_pos();
-    while (current_pos != nullptr) {
-      if (current_pos->RegisterIsBeneficial() || v8_flags.trace_all_uses) {
-        os_ << " " << current_pos->pos().value() << " M";
+    for (const UsePosition* pos : range->positions()) {
+      if (pos->RegisterIsBeneficial() || v8_flags.trace_all_uses) {
+        os_ << " " << pos->pos().value() << " M";
       }
-      current_pos = current_pos->next();
     }
 
     os_ << " \"\"\n";
@@ -1057,14 +1055,13 @@ std::ostream& operator<<(std::ostream& os,
 
   os << "],\"uses\":[";
   first = true;
-  for (UsePosition* current_pos = range.first_pos(); current_pos != nullptr;
-       current_pos = current_pos->next()) {
+  for (const UsePosition* pos : range.positions()) {
     if (first) {
       first = false;
     } else {
       os << ",";
     }
-    os << current_pos->pos().value();
+    os << pos->pos().value();
   }
 
   os << "]}";
