@@ -3201,6 +3201,38 @@ ReduceResult MaglevGraphBuilder::BuildCheckMaps(
   return ReduceResult::Done();
 }
 
+ReduceResult MaglevGraphBuilder::BuildTransitionElementsKindOrCheckMap(
+    ValueNode* object, base::Vector<const compiler::MapRef> transition_sources,
+    compiler::MapRef transition_target) {
+  // TODO(marja): Optimizations based on what we know about the intersection of
+  // known maps and transition sources or transition target.
+
+  // TransitionElementsKind doesn't happen in cases where we'd need to do
+  // CheckMapsWithMigration instead of CheckMaps.
+  CHECK(!transition_target.is_migration_target());
+  for (const compiler::MapRef transition_source : transition_sources) {
+    CHECK(!transition_source.is_migration_target());
+  }
+
+  NodeInfo* known_info = known_node_aspects().GetOrCreateInfoFor(object);
+  known_info->type = CombineType(
+      known_info->type, StaticTypeForNode(broker(), local_isolate(), object));
+
+  AddNewNode<TransitionElementsKindOrCheckMap>({object}, transition_sources,
+                                               transition_target,
+                                               GetCheckType(known_info->type));
+  // After this operation, object's map is transition_target (or we deopted).
+  known_node_aspects().possible_maps[object] = KnownNodeAspects::PossibleMaps{
+      compiler::ZoneRefSet<Map>(transition_target),
+      !transition_target.is_stable()};
+  DCHECK(transition_target.IsJSReceiverMap());
+  known_info->type = NodeType::kJSReceiverWithKnownMap;
+  if (transition_target.is_stable()) {
+    broker()->dependencies()->DependOnStableMap(transition_target);
+  }
+  return ReduceResult::Done();
+}
+
 namespace {
 AllocateRaw* GetAllocation(ValueNode* object) {
   if (object->Is<FoldedAllocation>()) {
@@ -4292,12 +4324,12 @@ ReduceResult MaglevGraphBuilder::TryBuildElementAccess(
     if (!access_info.transition_sources().empty()) {
       base::Vector<compiler::MapRef> transition_sources =
           zone()->CloneVector(base::VectorOf(access_info.transition_sources()));
-      AddNewNode<TransitionElementsKind>({object}, transition_sources,
-                                         transition_target);
+      RETURN_IF_ABORT(BuildTransitionElementsKindOrCheckMap(
+          object, transition_sources, transition_target));
+    } else {
+      RETURN_IF_ABORT(BuildCheckMaps(
+          object, base::VectorOf(access_info.lookup_start_object_maps())));
     }
-
-    RETURN_IF_ABORT(BuildCheckMaps(
-        object, base::VectorOf(access_info.lookup_start_object_maps())));
     if (IsTypedArrayElementsKind(access_info.elements_kind())) {
       return TryBuildElementAccessOnTypedArray(object, index_object,
                                                access_info, keyed_mode);

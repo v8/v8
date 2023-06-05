@@ -575,6 +575,13 @@ inline bool AnyMapIsHeapNumber(const compiler::ZoneRefSet<Map>& maps) {
   });
 }
 
+inline bool AnyMapIsHeapNumber(
+    const base::Vector<const compiler::MapRef>& maps) {
+  return std::any_of(maps.begin(), maps.end(), [](compiler::MapRef map) {
+    return map.IsHeapNumberMap();
+  });
+}
+
 inline Condition ToCondition(AssertCondition cond) {
   switch (cond) {
 #define CASE(Name)               \
