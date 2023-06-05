@@ -16,23 +16,6 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-// TODO(mliedtke): Remove this duplication with RuntimeStubIdToBuiltinName() in
-// wasm-code-manager.h?
-constexpr Builtin WasmRuntimeStubIdToBuiltinName(
-    wasm::WasmCode::RuntimeStubId runtime_stub_id) {
-  switch (runtime_stub_id) {
-#define DEF_CASE(name)          \
-  case wasm::WasmCode::k##name: \
-    return Builtin::k##name;
-#define DEF_TRAP_CASE(name) DEF_CASE(ThrowWasm##name)
-    WASM_RUNTIME_STUB_LIST(DEF_CASE, DEF_TRAP_CASE)
-#undef DEF_CASE
-#undef DEF_TRAP_CASE
-    default:
-      UNREACHABLE();
-  }
-}
-
 CallDescriptor* GetBuiltinCallDescriptor(
     Builtin name, Zone* zone, StubCallMode stub_mode,
     bool needs_frame_state = false,
@@ -50,7 +33,7 @@ class WasmGraphAssembler : public GraphAssembler {
   Node* CallRuntimeStub(wasm::WasmCode::RuntimeStubId stub_id,
                         Operator::Properties properties, Args... args) {
     auto* call_descriptor = GetBuiltinCallDescriptor(
-        WasmRuntimeStubIdToBuiltinName(stub_id), temp_zone(),
+        RuntimeStubIdToBuiltinName(stub_id), temp_zone(),
         StubCallMode::kCallWasmRuntimeStub, false, properties);
     // A direct call to a wasm runtime stub defined in this module.
     // Just encode the stub index. This will be patched at relocation.

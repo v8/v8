@@ -2431,6 +2431,13 @@ Builtin RuntimeStubIdToBuiltinName(WasmCode::RuntimeStubId stub_id) {
 #undef RUNTIME_STUB_NAME_TRAP
   static_assert(arraysize(builtin_names) == WasmCode::kRuntimeStubCount);
 
+#define RUNTIME_STUB_NAME(Name) \
+  static_assert(Builtin::k##Name == builtin_names[wasm::WasmCode::k##Name]);
+#define RUNTIME_STUB_NAME_TRAP(Name) RUNTIME_STUB_NAME(ThrowWasm##Name)
+  WASM_RUNTIME_STUB_LIST(RUNTIME_STUB_NAME, RUNTIME_STUB_NAME_TRAP);
+#undef RUNTIME_STUB_NAME
+#undef RUNTIME_STUB_NAME_TRAP
+
   DCHECK_GT(arraysize(builtin_names), stub_id);
   return builtin_names[stub_id];
 }
