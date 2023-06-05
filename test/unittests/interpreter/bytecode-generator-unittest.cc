@@ -1122,37 +1122,6 @@ TEST_F(BytecodeGeneratorTest, CompareTypeOf) {
                      LoadGolden("CompareTypeOf.golden")));
 }
 
-TEST_F(BytecodeGeneratorTest, VariableWithHint) {
-  printer().set_wrap(false);
-  printer().set_test_function_name("test");
-
-  std::string snippets[] = {
-      "var test;\n"
-      "(function () {\n"
-      "    function foo() {\n"
-      "        let a = typeof('str'); if (a === 'string') {}\n"
-      "        let b = typeof('str'); if (b === 1) {}\n"
-      "        let c = typeof('str'); c = 1; if (c === 'string') {}\n"
-      "        let d = typeof('str');\n"
-      "        if (d === 'string' || d === 'number') {}\n"
-      "        let e = 'hello world';\n"
-      "        if (e == 'string' || e == 'number') {}\n"
-      "        let f = 'hi';\n"
-      "        for (let i = 0; i < 2; ++i) {\n"
-      "            if (f === 'hi') {}\n"
-      "        }\n"
-      "        let g = true;\n"
-      "        if (g === 's') {}\n"
-      "    }\n"
-      "    foo();\n"
-      "    test = foo;\n"
-      "})();\n",
-  };
-
-  CHECK(CompareTexts(BuildActual(printer(), snippets),
-                     LoadGolden("VariableWithHint.golden")));
-}
-
 TEST_F(BytecodeGeneratorTest, CompareBoolean) {
   std::string snippets[] = {
       "var a = 1;\n"

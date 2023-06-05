@@ -1979,7 +1979,6 @@ class CompareOperation final : public Expression {
   bool IsLiteralStrictCompareBoolean(Expression** expr, Literal** literal);
   bool IsLiteralCompareUndefined(Expression** expr);
   bool IsLiteralCompareNull(Expression** expr);
-  bool IsLiteralCompareEqualVariable(Expression** expr, Literal** literal);
 
  private:
   friend class AstNodeFactory;
