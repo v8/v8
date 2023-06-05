@@ -406,5 +406,61 @@ void GrowNewSpaceToMaximumCapacity(Heap* heap) {
 }
 
 }  // namespace heap
+
+ManualGCScope::ManualGCScope(Isolate* isolate)
+    : isolate_(isolate),
+      flag_concurrent_marking_(v8_flags.concurrent_marking),
+      flag_concurrent_sweeping_(v8_flags.concurrent_sweeping),
+      flag_concurrent_minor_mc_marking_(v8_flags.concurrent_minor_mc_marking),
+      flag_stress_concurrent_allocation_(v8_flags.stress_concurrent_allocation),
+      flag_stress_incremental_marking_(v8_flags.stress_incremental_marking),
+      flag_parallel_marking_(v8_flags.parallel_marking),
+      flag_detect_ineffective_gcs_near_heap_limit_(
+          v8_flags.detect_ineffective_gcs_near_heap_limit),
+      flag_cppheap_concurrent_marking_(v8_flags.cppheap_concurrent_marking) {
+  // Some tests run threaded (back-to-back) and thus the GC may already be
+  // running by the time a ManualGCScope is created. Finalizing existing marking
+  // prevents any undefined/unexpected behavior.
+  if (isolate) {
+    auto* heap = isolate->heap();
+    if (heap->incremental_marking()->IsMarking()) {
+      heap::InvokeAtomicMajorGC(heap);
+    }
+  }
+
+  v8_flags.concurrent_marking = false;
+  v8_flags.concurrent_sweeping = false;
+  v8_flags.concurrent_minor_mc_marking = false;
+  v8_flags.stress_incremental_marking = false;
+  v8_flags.stress_concurrent_allocation = false;
+  // Parallel marking has a dependency on concurrent marking.
+  v8_flags.parallel_marking = false;
+  v8_flags.detect_ineffective_gcs_near_heap_limit = false;
+  // CppHeap concurrent marking has a dependency on concurrent marking.
+  v8_flags.cppheap_concurrent_marking = false;
+
+  if (isolate_ && isolate_->heap()->cpp_heap()) {
+    CppHeap::From(isolate_->heap()->cpp_heap())
+        ->UpdateGCCapabilitiesFromFlagsForTesting();
+  }
+}
+
+ManualGCScope::~ManualGCScope() {
+  v8_flags.concurrent_marking = flag_concurrent_marking_;
+  v8_flags.concurrent_sweeping = flag_concurrent_sweeping_;
+  v8_flags.concurrent_minor_mc_marking = flag_concurrent_minor_mc_marking_;
+  v8_flags.stress_concurrent_allocation = flag_stress_concurrent_allocation_;
+  v8_flags.stress_incremental_marking = flag_stress_incremental_marking_;
+  v8_flags.parallel_marking = flag_parallel_marking_;
+  v8_flags.detect_ineffective_gcs_near_heap_limit =
+      flag_detect_ineffective_gcs_near_heap_limit_;
+  v8_flags.cppheap_concurrent_marking = flag_cppheap_concurrent_marking_;
+
+  if (isolate_ && isolate_->heap()->cpp_heap()) {
+    CppHeap::From(isolate_->heap()->cpp_heap())
+        ->UpdateGCCapabilitiesFromFlagsForTesting();
+  }
+}
+
 }  // namespace internal
 }  // namespace v8

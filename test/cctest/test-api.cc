@@ -858,7 +858,7 @@ THREADED_TEST(NewExternalForVeryLongString) {
 }
 
 TEST(ScavengeExternalString) {
-  ManualGCScope manual_gc_scope;
+  i::ManualGCScope manual_gc_scope;
   i::v8_flags.stress_compaction = false;
   i::v8_flags.gc_global = false;
   i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
@@ -887,7 +887,7 @@ TEST(ScavengeExternalString) {
 }
 
 TEST(ScavengeExternalOneByteString) {
-  ManualGCScope manual_gc_scope;
+  i::ManualGCScope manual_gc_scope;
   i::v8_flags.stress_compaction = false;
   i::v8_flags.gc_global = false;
   i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
@@ -7654,7 +7654,7 @@ static void SetFlag(const v8::WeakCallbackInfo<FlagAndPersistent>& data) {
 }
 
 static void IndependentWeakHandle(bool global_gc, bool interlinked) {
-  ManualGCScope manual_gc_scope;
+  i::ManualGCScope manual_gc_scope;
   i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
       CcTest::heap());
   // Parallel scavenge introduces too much fragmentation.
@@ -7763,7 +7763,7 @@ void InternalFieldCallback(bool global_gc) {
   // setting internal pointer fields mark the object for a heap layout change,
   // which prevents it from being reclaimed and the callbacks from being
   // executed.
-  ManualGCScope manual_gc_scope;
+  i::ManualGCScope manual_gc_scope;
   i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
       CcTest::heap());
 
@@ -16717,7 +16717,7 @@ static void CreateGarbageInOldSpace() {
 // Test that idle notification can be handled and eventually collects garbage.
 TEST(TestIdleNotification) {
   if (!i::v8_flags.incremental_marking) return;
-  ManualGCScope manual_gc_scope;
+  i::ManualGCScope manual_gc_scope;
   const intptr_t MB = 1024 * 1024;
   const double IdlePauseInSeconds = 1.0;
   LocalContext env;
@@ -17356,7 +17356,7 @@ THREADED_TEST(SpaghettiStackReThrow) {
 
 
 TEST(Regress528) {
-  ManualGCScope manual_gc_scope;
+  i::ManualGCScope manual_gc_scope;
   v8::Isolate* isolate = CcTest::isolate();
   i::v8_flags.retain_maps_for_n_gc = 0;
   v8::HandleScope scope(isolate);

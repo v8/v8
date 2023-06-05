@@ -10,7 +10,9 @@
 #include "src/heap/heap.h"
 #include "test/cctest/cctest.h"
 
-namespace v8::internal::heap {
+namespace v8::internal {
+
+namespace heap {
 
 void SealCurrentObjects(Heap* heap);
 
@@ -91,6 +93,32 @@ class ManualEvacuationCandidatesSelectionScope {
  private:
 };
 
-}  // namespace v8::internal::heap
+}  // namespace heap
+
+// ManualGCScope allows for disabling GC heuristics. This is useful for tests
+// that want to check specific corner cases around GC.
+//
+// The scope will finalize any ongoing GC on the provided Isolate. If no Isolate
+// is manually provided, it is assumed that a CcTest setup (e.g.
+// CcTest::InitializeVM()) is used.
+class V8_NODISCARD ManualGCScope final {
+ public:
+  explicit ManualGCScope(
+      Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate_));
+  ~ManualGCScope();
+
+ private:
+  Isolate* const isolate_;
+  const bool flag_concurrent_marking_;
+  const bool flag_concurrent_sweeping_;
+  const bool flag_concurrent_minor_mc_marking_;
+  const bool flag_stress_concurrent_allocation_;
+  const bool flag_stress_incremental_marking_;
+  const bool flag_parallel_marking_;
+  const bool flag_detect_ineffective_gcs_near_heap_limit_;
+  const bool flag_cppheap_concurrent_marking_;
+};
+
+}  // namespace v8::internal
 
 #endif  // HEAP_HEAP_UTILS_H_

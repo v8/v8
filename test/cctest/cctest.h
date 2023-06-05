@@ -54,6 +54,7 @@ namespace internal {
 const auto GetRegConfig = RegisterConfiguration::Default;
 
 class HandleScope;
+class ManualGCScope;
 class Zone;
 
 namespace compiler {
@@ -219,7 +220,7 @@ class CcTest {
   TestPlatformFactory* test_platform_factory_;
 
   friend int main(int argc, char** argv);
-  friend class ManualGCScope;
+  friend class v8::internal::ManualGCScope;
 };
 
 // Switches between all the Api tests using the threading support.
@@ -683,28 +684,6 @@ class StaticOneByteResource : public v8::String::ExternalOneByteStringResource {
 
  private:
   const char* data_;
-};
-
-// ManualGCScope allows for disabling GC heuristics. This is useful for tests
-// that want to check specific corner cases around GC.
-//
-// The scope will finalize any ongoing GC on the provided Isolate. If no Isolate
-// is manually provided, it is assumed that a CcTest setup (e.g.
-// CcTest::InitializeVM()) is used.
-class V8_NODISCARD ManualGCScope {
- public:
-  explicit ManualGCScope(
-      i::Isolate* isolate = reinterpret_cast<i::Isolate*>(CcTest::isolate_));
-  ~ManualGCScope();
-
- private:
-  const bool flag_concurrent_marking_;
-  const bool flag_concurrent_sweeping_;
-  const bool flag_concurrent_minor_mc_marking_;
-  const bool flag_stress_concurrent_allocation_;
-  const bool flag_stress_incremental_marking_;
-  const bool flag_parallel_marking_;
-  const bool flag_detect_ineffective_gcs_near_heap_limit_;
 };
 
 // This is a base class that can be overridden to implement a test platform. It

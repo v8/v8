@@ -7,6 +7,7 @@
 #include "src/objects/objects-inl.h"
 #include "src/parsing/scanner-character-streams.h"
 #include "src/parsing/scanner.h"
+#include "test/unittests/heap/heap-utils.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 

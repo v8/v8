@@ -11,6 +11,7 @@
 #include "src/objects/heap-number-inl.h"
 #include "src/objects/objects.h"
 #include "src/zone/zone.h"
+#include "test/unittests/heap/heap-utils.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 

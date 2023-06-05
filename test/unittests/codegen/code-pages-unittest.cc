@@ -11,6 +11,7 @@
 #include "src/heap/factory.h"
 #include "src/heap/spaces.h"
 #include "src/libsampler/sampler.h"
+#include "test/unittests/heap/heap-utils.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 

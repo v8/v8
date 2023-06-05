@@ -27,7 +27,7 @@ UnifiedHeapTest::UnifiedHeapTest(
                               WrapperHelper::DefaultWrapperDescriptor()})) {
   // --stress-incremental-marking may have started an incremental GC at this
   // point already.
-  FinalizeGCIfRunning(isolate());
+  InvokeAtomicMajorGC();
   isolate()->heap()->AttachCppHeap(cpp_heap_.get());
 }
 

@@ -2249,7 +2249,6 @@ class ClientIsolateThreadForRetainingByRememberedSet : public v8::base::Thread {
     Isolate* i_client = reinterpret_cast<Isolate*>(client_isolate_);
     Factory* factory = i_client->factory();
     Heap* heap = i_client->heap();
-    ManualGCScope manual_gc_scope(i_client);
 
     // Cache the thread's task runner.
     task_runner_ =

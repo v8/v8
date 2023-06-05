@@ -418,45 +418,6 @@ bool IsValidUnwrapObject(v8::Object* object) {
           instance_type == i::Internals::kJSSpecialApiObjectType);
 }
 
-ManualGCScope::ManualGCScope(i::Isolate* isolate)
-    : flag_concurrent_marking_(i::v8_flags.concurrent_marking),
-      flag_concurrent_sweeping_(i::v8_flags.concurrent_sweeping),
-      flag_concurrent_minor_mc_marking_(
-          i::v8_flags.concurrent_minor_mc_marking),
-      flag_stress_concurrent_allocation_(
-          i::v8_flags.stress_concurrent_allocation),
-      flag_stress_incremental_marking_(i::v8_flags.stress_incremental_marking),
-      flag_parallel_marking_(i::v8_flags.parallel_marking),
-      flag_detect_ineffective_gcs_near_heap_limit_(
-          i::v8_flags.detect_ineffective_gcs_near_heap_limit) {
-  // Some tests run threaded (back-to-back) and thus the GC may already be
-  // running by the time a ManualGCScope is created. Finalizing existing marking
-  // prevents any undefined/unexpected behavior.
-  if (isolate && isolate->heap()->incremental_marking()->IsMarking()) {
-    i::heap::InvokeMajorGC(isolate->heap());
-  }
-
-  i::v8_flags.concurrent_marking = false;
-  i::v8_flags.concurrent_sweeping = false;
-  i::v8_flags.concurrent_minor_mc_marking = false;
-  i::v8_flags.stress_incremental_marking = false;
-  i::v8_flags.stress_concurrent_allocation = false;
-  // Parallel marking has a dependency on concurrent marking.
-  i::v8_flags.parallel_marking = false;
-  i::v8_flags.detect_ineffective_gcs_near_heap_limit = false;
-}
-
-ManualGCScope::~ManualGCScope() {
-  i::v8_flags.concurrent_marking = flag_concurrent_marking_;
-  i::v8_flags.concurrent_sweeping = flag_concurrent_sweeping_;
-  i::v8_flags.concurrent_minor_mc_marking = flag_concurrent_minor_mc_marking_;
-  i::v8_flags.stress_concurrent_allocation = flag_stress_concurrent_allocation_;
-  i::v8_flags.stress_incremental_marking = flag_stress_incremental_marking_;
-  i::v8_flags.parallel_marking = flag_parallel_marking_;
-  i::v8_flags.detect_ineffective_gcs_near_heap_limit =
-      flag_detect_ineffective_gcs_near_heap_limit_;
-}
-
 v8::PageAllocator* TestPlatform::GetPageAllocator() {
   return CcTest::default_platform()->GetPageAllocator();
 }
