@@ -156,10 +156,13 @@ class MaglevAssembler : public MacroAssembler {
                                         RegisterSnapshot register_snapshot,
                                         ValueIsCompressed value_is_compressed,
                                         ValueCanBeSmi value_can_be_smi);
+  inline void StoreTaggedFieldNoWriteBarrier(Register object, int offset,
+                                             Register value);
   inline void StoreTaggedSignedField(Register object, int offset,
                                      Register value);
   inline void StoreTaggedSignedField(Register object, int offset, Smi value);
 
+  inline void StoreInt32Field(Register object, int offset, int32_t value);
   inline void StoreField(MemOperand operand, Register value, int element_size);
   inline void ReverseByteOrder(Register value, int element_size);
 
@@ -345,7 +348,8 @@ class MaglevAssembler : public MacroAssembler {
 
   inline void AssertStackSizeCorrect();
 
-  inline void SetHeapNumberMap(Register object);
+  inline void SetMapAsRoot(Register object, RootIndex map);
+
   inline void LoadHeapNumberValue(DoubleRegister result, Register heap_number);
 
   void LoadDataField(const PolymorphicAccessInfo& access_info, Register result,

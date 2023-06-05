@@ -199,11 +199,6 @@ void MaglevAssembler::MaybeEmitDeoptBuiltinsCall(size_t eager_deopt_count,
   CheckConstPool(true, false);
 }
 
-void MaglevAssembler::AllocateTwoByteString(RegisterSnapshot register_snapshot,
-                                            Register result, int length) {
-  MAGLEV_NOT_IMPLEMENTED();
-}
-
 void MaglevAssembler::StringFromCharCode(RegisterSnapshot register_snapshot,
                                          Label* char_code_fits_one_byte,
                                          Register result, Register char_code,

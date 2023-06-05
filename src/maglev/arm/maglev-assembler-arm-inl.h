@@ -274,14 +274,32 @@ inline void MaglevAssembler::LoadUnsignedField(Register result,
   MAGLEV_NOT_IMPLEMENTED();
 }
 
+inline void MaglevAssembler::StoreTaggedFieldNoWriteBarrier(Register object,
+                                                            int offset,
+                                                            Register value) {
+  MacroAssembler::StoreTaggedField(value, FieldMemOperand(object, offset));
+}
+
 inline void MaglevAssembler::StoreTaggedSignedField(Register object, int offset,
                                                     Register value) {
-  MAGLEV_NOT_IMPLEMENTED();
+  AssertSmi(value);
+  MacroAssembler::StoreTaggedField(value, FieldMemOperand(object, offset));
 }
 
 inline void MaglevAssembler::StoreTaggedSignedField(Register object, int offset,
                                                     Smi value) {
-  MAGLEV_NOT_IMPLEMENTED();
+  ScratchRegisterScope scope(this);
+  Register scratch = scope.Acquire();
+  Move(scratch, value);
+  MacroAssembler::StoreTaggedField(scratch, FieldMemOperand(object, offset));
+}
+
+inline void MaglevAssembler::StoreInt32Field(Register object, int offset,
+                                             int32_t value) {
+  ScratchRegisterScope scope(this);
+  Register scratch = scope.Acquire();
+  Move(scratch, value);
+  str(scratch, FieldMemOperand(object, offset));
 }
 
 inline void MaglevAssembler::StoreField(MemOperand operand, Register value,

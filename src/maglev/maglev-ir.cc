@@ -2803,7 +2803,7 @@ void UpdateJSArrayLength::GenerateCode(MaglevAssembler* masm,
   __ JumpIf(kUnsignedLessThan, &done);
   __ IncrementInt32(index);  // This cannot overflow.
   __ SmiTag(index);
-  __ StoreTaggedField(FieldMemOperand(object, JSArray::kLengthOffset), index);
+  __ StoreTaggedSignedField(object, JSArray::kLengthOffset, index);
   __ bind(&done);
 }
 
@@ -2993,8 +2993,9 @@ void GeneratorRestoreRegister::GenerateCode(MaglevAssembler* masm,
       value, FieldMemOperand(array, FixedArray::OffsetOfElementAt(index())));
 
   // And trashs it with StaleRegisterConstant.
-  __ StoreTaggedField(
-      FieldMemOperand(array, FixedArray::OffsetOfElementAt(index())), stale);
+  DCHECK(stale_input().node()->Is<RootConstant>());
+  __ StoreTaggedFieldNoWriteBarrier(
+      array, FixedArray::OffsetOfElementAt(index()), stale);
 
   if (value != result_reg) {
     __ Move(result_reg, value);
@@ -3190,7 +3191,7 @@ void StoreTaggedFieldNoWriteBarrier::GenerateCode(
   Register value = ToRegister(value_input());
 
   __ AssertNotSmi(object);
-  __ StoreTaggedField(FieldMemOperand(object, offset()), value);
+  __ StoreTaggedFieldNoWriteBarrier(object, offset(), value);
 }
 
 int StringAt::MaxCallStackArgs() const {

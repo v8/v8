@@ -19,8 +19,18 @@ void MaglevAssembler::AllocateHeapNumber(RegisterSnapshot register_snapshot,
   // allocation call might trash it.
   register_snapshot.live_double_registers.set(value);
   Allocate(register_snapshot, result, HeapNumber::kSize);
-  SetHeapNumberMap(result);
+  SetMapAsRoot(result, RootIndex::kHeapNumberMap);
   Move(FieldMemOperand(result, HeapNumber::kValueOffset), value);
+}
+
+void MaglevAssembler::AllocateTwoByteString(RegisterSnapshot register_snapshot,
+                                            Register result, int length) {
+  int size = SeqTwoByteString::SizeFor(length);
+  Allocate(register_snapshot, result, size);
+  StoreInt32Field(result, size - kObjectAlignment, 0);
+  SetMapAsRoot(result, RootIndex::kStringMap);
+  StoreInt32Field(result, Name::kRawHashFieldOffset, Name::kEmptyHashField);
+  StoreInt32Field(result, String::kLengthOffset, length);
 }
 
 Register MaglevAssembler::FromAnyToRegister(const Input& input,

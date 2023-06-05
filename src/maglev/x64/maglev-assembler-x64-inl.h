@@ -337,6 +337,12 @@ inline void MaglevAssembler::LoadUnsignedField(Register result, Operand operand,
   }
 }
 
+inline void MaglevAssembler::StoreTaggedFieldNoWriteBarrier(Register object,
+                                                            int offset,
+                                                            Register value) {
+  MacroAssembler::StoreTaggedField(FieldOperand(object, offset), value);
+}
+
 inline void MaglevAssembler::StoreTaggedSignedField(Register object, int offset,
                                                     Register value) {
   AssertSmi(value);
@@ -346,6 +352,11 @@ inline void MaglevAssembler::StoreTaggedSignedField(Register object, int offset,
 inline void MaglevAssembler::StoreTaggedSignedField(Register object, int offset,
                                                     Smi value) {
   MacroAssembler::StoreTaggedSignedField(FieldOperand(object, offset), value);
+}
+
+inline void MaglevAssembler::StoreInt32Field(Register object, int offset,
+                                             int32_t value) {
+  movl(FieldOperand(object, offset), Immediate(value));
 }
 
 inline void MaglevAssembler::StoreField(Operand operand, Register value,

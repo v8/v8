@@ -84,7 +84,7 @@ void MaglevAssembler::StoreTaggedFieldWithWriteBarrier(
     RegisterSnapshot register_snapshot, ValueIsCompressed value_is_compressed,
     ValueCanBeSmi value_can_be_smi) {
   AssertNotSmi(object);
-  StoreTaggedField(FieldMemOperand(object, offset), value);
+  MacroAssembler::StoreTaggedField(FieldMemOperand(object, offset), value);
 
   ZoneLabelRef done(this);
   Label* deferred_write_barrier = MakeDeferredCode(
@@ -510,21 +510,6 @@ void MaglevAssembler::MaybeEmitDeoptBuiltinsCall(size_t eager_deopt_count,
     LoadEntryFromBuiltin(Builtin::kDeoptimizationEntry_Lazy, scratch);
     MacroAssembler::Jump(scratch);
   }
-}
-
-void MaglevAssembler::AllocateTwoByteString(RegisterSnapshot register_snapshot,
-                                            Register result, int length) {
-  int size = SeqTwoByteString::SizeFor(length);
-  Allocate(register_snapshot, result, size);
-  ScratchRegisterScope scope(this);
-  Register scratch = scope.Acquire();
-  StoreTaggedField(xzr, FieldMemOperand(result, size - kObjectAlignment));
-  LoadTaggedRoot(scratch, RootIndex::kStringMap);
-  StoreTaggedField(scratch, FieldMemOperand(result, HeapObject::kMapOffset));
-  Move(scratch, Name::kEmptyHashField);
-  StoreTaggedField(scratch, FieldMemOperand(result, Name::kRawHashFieldOffset));
-  Move(scratch, length);
-  StoreTaggedField(scratch, FieldMemOperand(result, String::kLengthOffset));
 }
 
 void MaglevAssembler::LoadSingleCharacterString(Register result,

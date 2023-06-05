@@ -76,20 +76,6 @@ void MaglevAssembler::Allocate(RegisterSnapshot register_snapshot,
   bind(*done);
 }
 
-void MaglevAssembler::AllocateTwoByteString(RegisterSnapshot register_snapshot,
-                                            Register result, int length) {
-  int size = SeqTwoByteString::SizeFor(length);
-  Allocate(register_snapshot, result, size);
-  LoadRoot(kScratchRegister, RootIndex::kStringMap);
-  StoreTaggedField(FieldOperand(result, size - kObjectAlignment), Immediate(0));
-  StoreTaggedField(FieldOperand(result, HeapObject::kMapOffset),
-                   kScratchRegister);
-  StoreTaggedField(FieldOperand(result, Name::kRawHashFieldOffset),
-                   Immediate(Name::kEmptyHashField));
-  StoreTaggedField(FieldOperand(result, String::kLengthOffset),
-                   Immediate(length));
-}
-
 void MaglevAssembler::LoadSingleCharacterString(Register result,
                                                 Register char_code,
                                                 Register scratch) {
@@ -112,7 +98,7 @@ void MaglevAssembler::StoreTaggedFieldWithWriteBarrier(
   DCHECK_NE(object, kScratchRegister);
   DCHECK_NE(value, kScratchRegister);
   AssertNotSmi(object);
-  StoreTaggedField(FieldOperand(object, offset), value);
+  MacroAssembler::StoreTaggedField(FieldOperand(object, offset), value);
 
   ZoneLabelRef done(this);
   Label* deferred_write_barrier = MakeDeferredCode(
