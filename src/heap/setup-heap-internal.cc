@@ -26,7 +26,9 @@
 #include "src/objects/foreign.h"
 #include "src/objects/heap-number.h"
 #include "src/objects/instance-type-inl.h"
+#include "src/objects/js-atomics-synchronization.h"
 #include "src/objects/js-generator.h"
+#include "src/objects/js-shared-array.h"
 #include "src/objects/js-weak-refs.h"
 #include "src/objects/literal-objects-inl.h"
 #include "src/objects/lookup-cache.h"
@@ -73,6 +75,8 @@ Handle<SharedFunctionInfo> CreateSharedFunctionInfo(
 #ifdef DEBUG
 bool IsMutableMap(InstanceType instance_type, ElementsKind elements_kind) {
   bool is_js_object = InstanceTypeChecker::IsJSObject(instance_type);
+  bool is_always_shared_space_js_object =
+      InstanceTypeChecker::IsAlwaysSharedSpaceJSObject(instance_type);
   bool is_wasm_object = false;
 #if V8_ENABLE_WEBASSEMBLY
   is_wasm_object =
@@ -81,10 +85,12 @@ bool IsMutableMap(InstanceType instance_type, ElementsKind elements_kind) {
   DCHECK_IMPLIES(is_js_object &&
                      !Map::CanHaveFastTransitionableElementsKind(instance_type),
                  IsDictionaryElementsKind(elements_kind) ||
-                     IsTerminalElementsKind(elements_kind));
+                     IsTerminalElementsKind(elements_kind) ||
+                     (is_always_shared_space_js_object &&
+                      elements_kind == SHARED_ARRAY_ELEMENTS));
   // JSObjects have maps with a mutable prototype_validity_cell, so they cannot
   // go in RO_SPACE. Maps for managed Wasm objects have mutable subtype lists.
-  return is_js_object || is_wasm_object;
+  return (is_js_object && !is_always_shared_space_js_object) || is_wasm_object;
 }
 #endif
 
@@ -184,9 +190,16 @@ bool Heap::CreateReadOnlyHeapObjects() {
   USE(ro_space);
 #endif
 
-  if (!CreateLateReadOnlyMaps()) return false;
+  if (!CreateLateReadOnlyNonJSReceiverMaps()) return false;
   CreateReadOnlyApiObjects();
   if (!CreateReadOnlyObjects()) return false;
+
+  // Order is important. JSReceiver maps must come after all non-JSReceiver maps
+  // in RO space with a sufficiently large gap in address. Currently there are
+  // no JSReceiver instances in RO space.
+  //
+  // See InstanceTypeChecker::kNonJsReceiverMapLimit.
+  if (!CreateLateReadOnlyJSReceiverMaps()) return false;
 
 #ifdef DEBUG
   ReadOnlyRoots roots(isolate());
@@ -581,7 +594,7 @@ bool Heap::CreateEarlyReadOnlyMaps() {
   }
 }
 
-bool Heap::CreateLateReadOnlyMaps() {
+bool Heap::CreateLateReadOnlyNonJSReceiverMaps() {
   ReadOnlyRoots roots(this);
   {
     // Setup the struct maps.
@@ -655,6 +668,57 @@ bool Heap::CreateLateReadOnlyMaps() {
 
     ALLOCATE_MAP(WEAK_CELL_TYPE, WeakCell::kSize, weak_cell)
   }
+
+  return true;
+}
+
+bool Heap::CreateLateReadOnlyJSReceiverMaps() {
+#define ALLOCATE_ALWAYS_SHARED_SPACE_JSOBJECT_MAP(instance_type, size, \
+                                                  field_name)          \
+  {                                                                    \
+    Map map;                                                           \
+    if (!AllocateMap(AllocationType::kReadOnly, (instance_type), size, \
+                     DICTIONARY_ELEMENTS)                              \
+             .To(&map)) {                                              \
+      return false;                                                    \
+    }                                                                  \
+    AlwaysSharedSpaceJSObject::PrepareMapNoEnumerableProperties(map);  \
+    set_##field_name##_map(map);                                       \
+  }
+
+  HandleScope late_jsreceiver_maps_handle_scope(isolate());
+  Factory* factory = isolate()->factory();
+  ReadOnlyRoots roots(this);
+
+  // Shared space object maps are immutable and can be in RO space.
+  {
+    Map shared_array_map;
+    if (!AllocateMap(AllocationType::kReadOnly, JS_SHARED_ARRAY_TYPE,
+                     JSSharedArray::kSize, SHARED_ARRAY_ELEMENTS,
+                     JSSharedArray::kInObjectFieldCount)
+             .To(&shared_array_map)) {
+      return false;
+    }
+    AlwaysSharedSpaceJSObject::PrepareMapNoEnumerableProperties(
+        shared_array_map);
+    Handle<DescriptorArray> descriptors =
+        factory->NewDescriptorArray(1, 0, AllocationType::kReadOnly);
+    Descriptor length_descriptor = Descriptor::DataField(
+        factory->length_string(), JSSharedArray::kLengthFieldIndex,
+        ALL_ATTRIBUTES_MASK, PropertyConstness::kConst, Representation::Smi(),
+        MaybeObjectHandle(FieldType::Any(isolate())));
+    descriptors->Set(InternalIndex(0), &length_descriptor);
+    shared_array_map.InitializeDescriptors(isolate(), *descriptors);
+    set_js_shared_array_map(shared_array_map);
+  }
+
+  ALLOCATE_ALWAYS_SHARED_SPACE_JSOBJECT_MAP(
+      JS_ATOMICS_MUTEX_TYPE, JSAtomicsMutex::kHeaderSize, js_atomics_mutex)
+  ALLOCATE_ALWAYS_SHARED_SPACE_JSOBJECT_MAP(JS_ATOMICS_CONDITION_TYPE,
+                                            JSAtomicsCondition::kHeaderSize,
+                                            js_atomics_condition)
+
+#undef ALLOCATE_ALWAYS_SHARED_SPACE_JSOBJECT_MAP
 #undef ALLOCATE_PRIMITIVE_MAP
 #undef ALLOCATE_VARSIZE_MAP
 #undef ALLOCATE_MAP

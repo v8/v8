@@ -12,7 +12,6 @@
 
 #if V8_STATIC_ROOTS_BOOL
 
-#include "src/objects/instance-type.h"
 #include "src/roots/roots.h"
 
 // Disabling Wasm or Intl invalidates the contents of static-roots.h.
@@ -769,9 +768,12 @@ struct StaticReadOnlyRoot {
   static constexpr Tagged_t kShadowRealmScopeInfo = 0x61d5;
   static constexpr Tagged_t kWasmNullPadding = 0x61ed;
   static constexpr Tagged_t kWasmNull = 0xfffd;
+  static constexpr Tagged_t kJSSharedArrayMap = 0x20001;
+  static constexpr Tagged_t kJSAtomicsMutexMap = 0x20045;
+  static constexpr Tagged_t kJSAtomicsConditionMap = 0x2006d;
 };
 
-static constexpr std::array<Tagged_t, 741> StaticReadOnlyRootsPointerTable = {
+static constexpr std::array<Tagged_t, 744> StaticReadOnlyRootsPointerTable = {
     StaticReadOnlyRoot::kFreeSpaceMap,
     StaticReadOnlyRoot::kOnePointerFillerMap,
     StaticReadOnlyRoot::kTwoPointerFillerMap,
@@ -889,6 +891,9 @@ static constexpr std::array<Tagged_t, 741> StaticReadOnlyRootsPointerTable = {
     StaticReadOnlyRoot::kStaleRegisterMap,
     StaticReadOnlyRoot::kSelfReferenceMarkerMap,
     StaticReadOnlyRoot::kBasicBlockCountersMarkerMap,
+    StaticReadOnlyRoot::kJSSharedArrayMap,
+    StaticReadOnlyRoot::kJSAtomicsMutexMap,
+    StaticReadOnlyRoot::kJSAtomicsConditionMap,
     StaticReadOnlyRoot::kEmptyEnumCache,
     StaticReadOnlyRoot::kEmptyPropertyArray,
     StaticReadOnlyRoot::kEmptyByteArray,

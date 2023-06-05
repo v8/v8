@@ -19,6 +19,12 @@ class AlwaysSharedSpaceJSObject
     : public TorqueGeneratedAlwaysSharedSpaceJSObject<AlwaysSharedSpaceJSObject,
                                                       JSObject> {
  public:
+  // Prepare a Map to be used as the instance map for shared JS objects.
+  static void PrepareMapNoEnumerableProperties(Map map);
+  static void PrepareMapWithEnumerableProperties(
+      Isolate* isolate, Handle<Map> map, Handle<DescriptorArray> descriptors,
+      int enum_length);
+
   V8_WARN_UNUSED_RESULT static Maybe<bool> DefineOwnProperty(
       Isolate* isolate, Handle<AlwaysSharedSpaceJSObject> shared_obj,
       Handle<Object> key, PropertyDescriptor* desc,

@@ -7,6 +7,7 @@
 
 #include "src/objects/elements-kind.h"
 #include "src/objects/objects-definitions.h"
+#include "src/roots/static-roots.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -353,13 +354,27 @@ V8_INLINE constexpr bool IsReferenceComparable(InstanceType instance_type);
 namespace InstanceTypeChecker {
 #if V8_STATIC_ROOTS_BOOL
 
-// Maps for primitive objects are allocated in r/o space. JS_RECEIVER maps are
-// all allocated later, i.e. they have a compressed address above the last read
-// only root. Thus, if we have a receiver and need to distinguish whether it is
-// either a primitive object or a JS receiver, it suffices to check if its map
-// is allocated above the following limit address.
-// The actual value is chosen such that it can be encoded as arm64 immediate.
-constexpr Tagged_t kNonJsReceiverMapLimit = 0x10000;
+// Maps for primitive objects and a select few JS objects are allocated in r/o
+// space. All JS_RECEIVER maps must come after primitive object maps, i.e. they
+// have a compressed address above the last primitive object map root. If we
+// have a receiver and need to distinguish whether it is either a primitive
+// object or a JS receiver, it suffices to check if its map is allocated above
+// the following limit address.
+constexpr Tagged_t kNonJsReceiverMapLimit =
+    StaticReadOnlyRootsPointerTable[static_cast<size_t>(
+        RootIndex::kFirstJSReceiverMapRoot)] &
+    ~0xFFF;
+
+// For performance, the limit is chosen to be encodable as an Arm64
+// constant. See Assembler::IsImmAddSub in assembler-arm64.cc.
+//
+// If this assert fails, then you have perturbed the allocation pattern in
+// Heap::CreateReadOnlyHeapObjects. Currently this limit is ensured to exist by
+// allocating the first JSReceiver map in RO space a sufficiently large distance
+// away from the last non-JSReceiver map.
+static_assert(kNonJsReceiverMapLimit != 0 &&
+              is_uint12(kNonJsReceiverMapLimit >> 12) &&
+              ((kNonJsReceiverMapLimit & 0xFFF) == 0));
 
 #else
 

@@ -757,11 +757,10 @@ void JSFunction::SetInitialMap(Isolate* isolate, Handle<JSFunction> function,
 
 void JSFunction::SetInitialMap(Isolate* isolate, Handle<JSFunction> function,
                                Handle<Map> map, Handle<HeapObject> prototype,
-                               Handle<HeapObject> constructor) {
+                               Handle<JSFunction> constructor) {
   if (map->prototype() != *prototype) {
     Map::SetPrototype(isolate, map, prototype);
   }
-  DCHECK_IMPLIES(!constructor->IsJSFunction(), map->InSharedHeap());
   map->SetConstructor(*constructor);
   function->set_prototype_or_initial_map(*map, kReleaseStore);
   if (v8_flags.log_maps) {

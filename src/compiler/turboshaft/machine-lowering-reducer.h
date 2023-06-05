@@ -1326,9 +1326,9 @@ class MachineLoweringReducer : public Next {
       value_map = __ LoadMapField(value);
     }
 #if V8_STATIC_ROOTS_BOOL
-    // Assumes only primitive objects and JS_RECEIVER's are passed here.
-    // All primitive object's maps are allocated at the start of the read only
-    // heap. Thus JS_RECEIVER's must have maps with larger (compressed)
+    // Assumes only primitive objects and JS_RECEIVER's are passed here. All
+    // primitive object's maps are in RO space and are allocated before all
+    // JS_RECEIVER maps. Thus primitive object maps have smaller (compressed)
     // addresses.
     return __ Uint32LessThan(InstanceTypeChecker::kNonJsReceiverMapLimit,
                              __ BitcastTaggedToWord(value_map));

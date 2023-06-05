@@ -75,7 +75,6 @@ void StaticRootsTableGen::write(Isolate* isolate, const char* file) {
       << "\n"
       << "#if V8_STATIC_ROOTS_BOOL\n"
       << "\n"
-      << "#include \"src/objects/instance-type.h\"\n"
       << "#include \"src/roots/roots.h\"\n"
       << "\n"
       << "// Disabling Wasm or Intl invalidates the contents of "

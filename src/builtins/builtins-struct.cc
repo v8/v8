@@ -189,17 +189,19 @@ BUILTIN(SharedStructTypeConstructor) {
   Handle<Map> instance_map =
       factory->NewMap(JS_SHARED_STRUCT_TYPE, instance_size, DICTIONARY_ELEMENTS,
                       in_object_properties, AllocationType::kSharedMap);
+  if (num_fields == 0) {
+    AlwaysSharedSpaceJSObject::PrepareMapNoEnumerableProperties(*instance_map);
+  } else {
+    AlwaysSharedSpaceJSObject::PrepareMapWithEnumerableProperties(
+        isolate, instance_map, maybe_descriptors, num_fields);
+  }
 
   // Structs have fixed layout ahead of time, so there's no slack.
   int out_of_object_properties = num_fields - in_object_properties;
-  if (out_of_object_properties == 0) {
-    instance_map->SetInObjectUnusedPropertyFields(0);
-  } else {
+  if (out_of_object_properties != 0) {
     instance_map->SetOutOfObjectUnusedPropertyFields(0);
   }
-  instance_map->set_is_extensible(false);
-  JSFunction::SetInitialMap(isolate, constructor, instance_map,
-                            factory->null_value(), factory->null_value());
+  constructor->set_prototype_or_initial_map(*instance_map, kReleaseStore);
 
   // Create a new {constructor, non-instance_prototype} tuple and store it
   // in Map::constructor field.
@@ -209,17 +211,6 @@ BUILTIN(SharedStructTypeConstructor) {
                                     AllocationType::kOld);
   constructor->map().set_has_non_instance_prototype(true);
   constructor->map().SetConstructor(*non_instance_prototype_constructor_tuple);
-
-  // Pre-create the enum cache in the shared space, as otherwise for-in
-  // enumeration will incorrectly create an enum cache in the per-thread heap.
-  if (num_fields == 0) {
-    instance_map->SetEnumLength(0);
-  } else {
-    instance_map->InitializeDescriptors(isolate, *maybe_descriptors);
-    FastKeyAccumulator::InitializeFastPropertyEnumCache(
-        isolate, instance_map, num_fields, AllocationType::kSharedOld);
-    DCHECK_EQ(num_fields, instance_map->EnumLength());
-  }
 
   int num_elements = num_properties - num_fields;
   if (num_elements != 0) {

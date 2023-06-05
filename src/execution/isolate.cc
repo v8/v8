@@ -4209,7 +4209,7 @@ void Isolate::VerifyStaticRoots() {
         V8HeapCompressionScheme::CompressObject(map.ptr()) <
             InstanceTypeChecker::kNonJsReceiverMapLimit);
     CHECK_IMPLIES(InstanceTypeChecker::IsJSReceiver(map.instance_type()),
-                  V8HeapCompressionScheme::CompressObject(map.ptr()) >
+                  V8HeapCompressionScheme::CompressObject(map.ptr()) >=
                       InstanceTypeChecker::kNonJsReceiverMapLimit);
     CHECK(InstanceTypeChecker::kNonJsReceiverMapLimit <
           read_only_heap()->read_only_space()->Size());

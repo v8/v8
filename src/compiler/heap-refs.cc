@@ -426,7 +426,7 @@ class JSFunctionData : public JSObjectData {
     DCHECK(serialized_);
     return context_;
   }
-  MapData* initial_map() const {
+  ObjectData* initial_map() const {
     DCHECK(serialized_);
     return initial_map_;
   }
@@ -484,7 +484,8 @@ class JSFunctionData : public JSObjectData {
   bool PrototypeRequiresRuntimeLookup_ = false;
 
   ObjectData* context_ = nullptr;
-  MapData* initial_map_ = nullptr;  // Derives from prototype_or_initial_map_.
+  ObjectData* initial_map_ =
+      nullptr;  // Derives from prototype_or_initial_map_.
   ObjectData* instance_prototype_ =
       nullptr;  // Derives from prototype_or_initial_map_.
   ObjectData* shared_ = nullptr;
@@ -612,7 +613,10 @@ void JSFunctionData::Cache(JSHeapBroker* broker) {
 
     has_initial_map_ = prototype_or_initial_map_->IsMap();
     if (has_initial_map_) {
-      initial_map_ = prototype_or_initial_map_->AsMap();
+      // MapData is not used for initial_map_ because some
+      // AlwaysSharedSpaceJSObject subclass constructors (e.g. SharedArray) have
+      // initial maps in RO space, which can be accessed directly.
+      initial_map_ = prototype_or_initial_map_;
 
       MapRef initial_map_ref = TryMakeRef<Map>(broker, initial_map_).value();
       if (initial_map_ref.IsInobjectSlackTrackingInProgress()) {

@@ -484,6 +484,9 @@ KNOWN_MAPS = {
     ("read_only_space", 0x01f65): (269, "WasmContinuationObjectMap"),
     ("read_only_space", 0x01f8d): (271, "WasmNullMap"),
     ("read_only_space", 0x01fb5): (276, "WeakCellMap"),
+    ("read_only_space", 0x20001): (2104, "JSSharedArrayMap"),
+    ("read_only_space", 0x20045): (2103, "JSAtomicsMutexMap"),
+    ("read_only_space", 0x2006d): (2102, "JSAtomicsConditionMap"),
     ("old_space", 0x04b65): (2124, "ExternalMap"),
     ("old_space", 0x04b8d): (2128, "JSMessageObjectMap"),
 }

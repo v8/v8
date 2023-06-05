@@ -192,6 +192,10 @@ class Symbol;
   V(Map, stale_register_map, StaleRegisterMap)                                 \
   V(Map, self_reference_marker_map, SelfReferenceMarkerMap)                    \
   V(Map, basic_block_counters_marker_map, BasicBlockCountersMarkerMap)         \
+  /* Shared space object maps */                                               \
+  V(Map, js_shared_array_map, JSSharedArrayMap)                                \
+  V(Map, js_atomics_mutex_map, JSAtomicsMutexMap)                              \
+  V(Map, js_atomics_condition_map, JSAtomicsConditionMap)                      \
   /* Canonical empty values */                                                 \
   V(EnumCache, empty_enum_cache, EmptyEnumCache)                               \
   V(PropertyArray, empty_property_array, EmptyPropertyArray)                   \
@@ -448,6 +452,10 @@ enum class RootIndex : uint16_t {
 
   kFirstHeapNumberRoot = kNanValue,
   kLastHeapNumberRoot = kSmiMaxValuePlusOne,
+
+  // Keep this in sync with the first map allocated by
+  // Heap::CreateLateReadOnlyJSReceiverMaps.
+  kFirstJSReceiverMapRoot = kJSSharedArrayMap,
 
   // Use for fast protector update checks
   kFirstNameForProtector = kconstructor_string,

@@ -2106,7 +2106,10 @@ Map Factory::InitializeMap(Map map, InstanceType type, int instance_size,
   map.init_prototype_and_constructor_or_back_pointer(ro_roots);
   map.set_instance_size(instance_size);
   if (map.IsJSObjectMap()) {
-    DCHECK(!ReadOnlyHeap::Contains(map));
+    // Shared space JS objects have fixed layout and can have RO maps. No other
+    // JS objects have RO maps.
+    DCHECK_IMPLIES(!map.IsAlwaysSharedSpaceJSObjectMap(),
+                   !ReadOnlyHeap::Contains(map));
     map.SetInObjectPropertiesStartInWords(instance_size / kTaggedSize -
                                           inobject_properties);
     DCHECK_EQ(map.GetInObjectProperties(), inobject_properties);
@@ -4108,7 +4111,7 @@ Handle<JSSharedArray> Factory::NewJSSharedArray(Handle<JSFunction> constructor,
 
 Handle<JSAtomicsMutex> Factory::NewJSAtomicsMutex() {
   SharedObjectSafePublishGuard publish_guard;
-  Handle<Map> map = isolate()->js_atomics_mutex_map();
+  Handle<Map> map = read_only_roots().js_atomics_mutex_map_handle();
   Handle<JSAtomicsMutex> mutex = Handle<JSAtomicsMutex>::cast(
       NewJSObjectFromMap(map, AllocationType::kSharedOld));
   mutex->set_state(JSAtomicsMutex::kUnlocked);
@@ -4118,7 +4121,7 @@ Handle<JSAtomicsMutex> Factory::NewJSAtomicsMutex() {
 
 Handle<JSAtomicsCondition> Factory::NewJSAtomicsCondition() {
   SharedObjectSafePublishGuard publish_guard;
-  Handle<Map> map = isolate()->js_atomics_condition_map();
+  Handle<Map> map = read_only_roots().js_atomics_condition_map_handle();
   Handle<JSAtomicsCondition> cond = Handle<JSAtomicsCondition>::cast(
       NewJSObjectFromMap(map, AllocationType::kSharedOld));
   cond->set_state(JSAtomicsCondition::kEmptyState);

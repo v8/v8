@@ -1791,7 +1791,8 @@ class Heap final {
 
   bool CreateEarlyReadOnlyMaps();
   bool CreateImportantReadOnlyObjects();
-  bool CreateLateReadOnlyMaps();
+  bool CreateLateReadOnlyNonJSReceiverMaps();
+  bool CreateLateReadOnlyJSReceiverMaps();
   bool CreateReadOnlyObjects();
 
   void CreateInternalAccessorInfoObjects();

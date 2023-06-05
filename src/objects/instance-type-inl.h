@@ -9,7 +9,6 @@
 #include "src/execution/isolate-utils-inl.h"
 #include "src/objects/instance-type.h"
 #include "src/objects/map-inl.h"
-#include "src/roots/static-roots.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -144,10 +143,6 @@ inline bool CheckInstanceMapRange(RootIndexRange expected, Map map) {
       StaticReadOnlyRootsPointerTable[static_cast<size_t>(expected.second)];
   return ptr >= first && ptr <= last;
 }
-
-static_assert(kNonJsReceiverMapLimit >
-              StaticReadOnlyRootsPointerTable[static_cast<size_t>(
-                  RootIndex::kLastReadOnlyRoot)]);
 
 #else
 
