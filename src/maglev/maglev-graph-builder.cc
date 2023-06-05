@@ -3348,7 +3348,7 @@ ReduceResult MaglevGraphBuilder::TryBuildPropertyGetterCall(
             ? ConvertReceiverMode::kNotNullOrUndefined
             : ConvertReceiverMode::kAny;
     CallArguments args(receiver_mode, {receiver});
-    return ReduceCall(constant.AsJSFunction(), args);
+    return ReduceCallForConstant(constant.AsJSFunction(), args);
   } else if (receiver != lookup_start_object) {
     return ReduceResult::Fail();
   } else {
@@ -3385,7 +3385,7 @@ ReduceResult MaglevGraphBuilder::TryBuildPropertySetterCall(
   if (constant.IsJSFunction()) {
     CallArguments args(ConvertReceiverMode::kNotNullOrUndefined,
                        {receiver, value});
-    return ReduceCall(constant.AsJSFunction(), args);
+    return ReduceCallForConstant(constant.AsJSFunction(), args);
   } else {
     // TODO(victorgomes): API calls.
     return ReduceResult::Fail();
@@ -5502,8 +5502,7 @@ ReduceResult MaglevGraphBuilder::TryReduceFunctionPrototypeCall(
       broker()->GetFeedbackForCall(source);
   DCHECK_EQ(processed_feedback.kind(), compiler::ProcessedFeedback::kCall);
   const compiler::CallFeedback& call_feedback = processed_feedback.AsCall();
-  BuildCall(receiver, args, source, call_feedback.speculation_mode());
-  return ReduceResult::Done();
+  return ReduceCall(receiver, args, source, call_feedback.speculation_mode());
 }
 
 ReduceResult MaglevGraphBuilder::TryReduceArrayPrototypePush(
@@ -5772,6 +5771,10 @@ ReduceResult MaglevGraphBuilder::TryReduceBuiltin(
   if (!shared.HasBuiltinId()) {
     return ReduceResult::Fail();
   }
+  if (v8_flags.trace_maglev_graph_building) {
+    std::cout << "  ! Trying to reduce builtin "
+              << Builtins::name(shared.builtin_id()) << std::endl;
+  }
   switch (shared.builtin_id()) {
 #define CASE(Name)       \
   case Builtin::k##Name: \
@@ -6001,7 +6004,7 @@ ReduceResult MaglevGraphBuilder::BuildCheckValue(ValueNode* node,
   return ReduceResult::Done();
 }
 
-ReduceResult MaglevGraphBuilder::ReduceCall(
+ReduceResult MaglevGraphBuilder::ReduceCallForConstant(
     compiler::JSFunctionRef target, CallArguments& args,
     const compiler::FeedbackSource& feedback_source,
     SpeculationMode speculation_mode) {
@@ -6034,7 +6037,7 @@ ReduceResult MaglevGraphBuilder::ReduceCallForTarget(
     const compiler::FeedbackSource& feedback_source,
     SpeculationMode speculation_mode) {
   RETURN_IF_ABORT(BuildCheckValue(target_node, target));
-  return ReduceCall(target, args, feedback_source, speculation_mode);
+  return ReduceCallForConstant(target, args, feedback_source, speculation_mode);
 }
 
 ReduceResult MaglevGraphBuilder::ReduceCallForNewClosure(
@@ -6130,11 +6133,12 @@ void MaglevGraphBuilder::BuildCallWithFeedback(
     RETURN_VOID_IF_ABORT(BuildCheckValue(target_node, feedback_target));
   }
 
-  BuildCall(target_node, args, feedback_source,
-            call_feedback.speculation_mode());
+  PROCESS_AND_RETURN_IF_DONE(ReduceCall(target_node, args, feedback_source,
+                                        call_feedback.speculation_mode()),
+                             SetAccumulator);
 }
 
-void MaglevGraphBuilder::BuildCall(
+ReduceResult MaglevGraphBuilder::ReduceCall(
     ValueNode* target_node, CallArguments& args,
     const compiler::FeedbackSource& feedback_source,
     SpeculationMode speculation_mode) {
@@ -6144,7 +6148,7 @@ void MaglevGraphBuilder::BuildCall(
       ReduceResult result =
           ReduceCallForTarget(target_node, maybe_constant->AsJSFunction(), args,
                               feedback_source, speculation_mode);
-      PROCESS_AND_RETURN_IF_DONE(result, SetAccumulator);
+      RETURN_IF_DONE(result);
     }
   }
 
@@ -6158,7 +6162,7 @@ void MaglevGraphBuilder::BuildCall(
         create_closure->shared_function_info(),
         create_closure->feedback_cell().feedback_vector(broker()), args,
         feedback_source, speculation_mode);
-    PROCESS_AND_RETURN_IF_DONE(result, SetAccumulator);
+    RETURN_IF_DONE(result);
   } else if (CreateClosure* create_closure =
                  target_node->TryCast<CreateClosure>()) {
     ReduceResult result = ReduceCallForNewClosure(
@@ -6166,11 +6170,11 @@ void MaglevGraphBuilder::BuildCall(
         create_closure->shared_function_info(),
         create_closure->feedback_cell().feedback_vector(broker()), args,
         feedback_source, speculation_mode);
-    PROCESS_AND_RETURN_IF_DONE(result, SetAccumulator);
+    RETURN_IF_DONE(result);
   }
 
   // On fallthrough, create a generic call.
-  SetAccumulator(BuildGenericCall(target_node, Call::TargetType::kAny, args));
+  return BuildGenericCall(target_node, Call::TargetType::kAny, args);
 }
 
 void MaglevGraphBuilder::BuildCallFromRegisterList(
@@ -6929,7 +6933,7 @@ ReduceResult MaglevGraphBuilder::TryBuildFastInstanceOf(
 
       if (has_instance_field->IsJSFunction()) {
         ReduceResult result =
-            ReduceCall(has_instance_field->AsJSFunction(), args);
+            ReduceCallForConstant(has_instance_field->AsJSFunction(), args);
         DCHECK(!result.IsDoneWithAbort());
         call_result = result.value();
       } else {
