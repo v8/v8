@@ -4235,29 +4235,6 @@ void Isolate::VerifyStaticRoots() {
 #endif  // V8_STATIC_ROOTS_BOOL
 }
 
-void Isolate::MaybeInitializeAlwaysSharedSpaceJSObjectMap(
-    RootIndex index, const std::function<Handle<Map>(Isolate*)>& create_map) {
-  // While the shared space isolate is guaranteed to be created first, the first
-  // NativeContext initialized may be in a client isolate. The first context
-  // initialized in the process allocates the shared map in the shared space and
-  // caches it on the shared space isolate.
-  FullObjectSlot slot =
-      shared_space_isolate()->heap()->roots_table().slot(index);
-  Object current_value = slot.Relaxed_Load(this);
-  if (current_value.IsUndefined(this)) {
-    slot.Relaxed_CompareAndSwap(current_value, *create_map(this));
-  }
-}
-
-Handle<Map> Isolate::GetAlwaysSharedSpaceJSObjectMap(RootIndex index) {
-  return handle(Map::cast(shared_space_isolate()
-                              ->heap()
-                              ->roots_table()
-                              .slot(index)
-                              .Relaxed_Load(this)),
-                this);
-}
-
 bool Isolate::Init(SnapshotData* startup_snapshot_data,
                    SnapshotData* read_only_snapshot_data,
                    SnapshotData* shared_heap_snapshot_data, bool can_rehash) {
