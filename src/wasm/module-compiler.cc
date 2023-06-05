@@ -3447,7 +3447,9 @@ void CompilationStateImpl::InitializeCompilationProgressAfterDeserialization(
   }
   auto builder = std::make_unique<CompilationUnitBuilder>(native_module_);
   InitializeCompilationUnits(std::move(builder));
-  WaitForCompilationEvent(CompilationEvent::kFinishedBaselineCompilation);
+  if (!v8_flags.wasm_lazy_compilation) {
+    WaitForCompilationEvent(CompilationEvent::kFinishedBaselineCompilation);
+  }
 }
 
 void CompilationStateImpl::AddCallback(
