@@ -2876,13 +2876,14 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
         : OutOfLineCode(gen), instr_(instr), gen_(gen) {}
 
     void Generate() final {
-      auto [trap_id, frame_state_offset] =
-          gen_->DecodeTrapIdAndFrameStateOffset<PPCOperandConverter>(instr_);
-      GenerateCallToTrap(trap_id, frame_state_offset);
+      PPCOperandConverter i(gen_, instr_);
+      TrapId trap_id =
+          static_cast<TrapId>(i.InputInt32(instr_->InputCount() - 1));
+      GenerateCallToTrap(trap_id);
     }
 
    private:
-    void GenerateCallToTrap(TrapId trap_id, size_t frame_state_offset) {
+    void GenerateCallToTrap(TrapId trap_id) {
       if (trap_id == TrapId::kInvalid) {
         // We cannot test calls to the runtime in cctest/test-run-wasm.
         // Therefore we emit a call to C here instead of a call to the runtime.
@@ -2905,12 +2906,6 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
         ReferenceMap* reference_map =
             gen_->zone()->New<ReferenceMap>(gen_->zone());
         gen_->RecordSafepoint(reference_map);
-        // If we have a frame state, the offset is not 0.
-        if (frame_state_offset != 0) {
-          gen_->BuildTranslation(instr_, masm()->pc_offset(),
-                                 frame_state_offset, 0,
-                                 OutputFrameStateCombine::Ignore());
-        }
         if (v8_flags.debug_code) {
           __ stop();
         }
