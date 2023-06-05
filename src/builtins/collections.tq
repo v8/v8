@@ -41,12 +41,12 @@ extern macro CollectionsBuiltinsAssembler::NextKeyIndexPair(
 
 // The underlying table must not be resized during iteration!
 struct OrderedHashSetIterator {
-  // macro Next(): JSAny labels Done {
-  //   this.current = NextKeyIndexPair(
-  //       this.table, this.numBuckets, this.usedCapacity, this.current.index)
-  //       otherwise Done;
-  //   return this.current.key;
-  // }
+  macro Next(): JSAny labels Done {
+    this.current = NextKeyIndexPair(
+        this.table, this.numBuckets, this.usedCapacity, this.current.index)
+        otherwise Done;
+    return this.current.key;
+  }
   const table: OrderedHashSet;
   const numBuckets: int32;
   const usedCapacity: int32;
@@ -65,8 +65,6 @@ const kOrderedHashSetNumberOfElementsIndex:
 const kOrderedHashSetNumberOfDeletedElementsIndex: constexpr int32
     generates 'OrderedHashSet::NumberOfDeletedElementsIndex()';
 
-// TODO(v8:13556): Remove @export once used.
-@export
 macro NewOrderedHashSetIterator(table: OrderedHashSet): OrderedHashSetIterator {
   const numBuckets =
       LoadOrderedHashTableMetadata(table, kOrderedHashSetNumberOfBucketsIndex);
@@ -96,12 +94,12 @@ extern macro CollectionsBuiltinsAssembler::NextKeyValueIndexTuple(
 
 // The underlying table must not be resized during iteration!
 struct OrderedHashMapIterator {
-  // macro Next(): KeyValuePair labels Done {
-  //   this.current = NextKeyValueIndexTuple(
-  //       this.table, this.numBuckets, this.usedCapacity, this.current.index)
-  //       otherwise Done;
-  //   return KeyValuePair{key: this.current.key, value: this.current.value};
-  // }
+  macro Next(): KeyValuePair labels Done {
+    this.current = NextKeyValueIndexTuple(
+        this.table, this.numBuckets, this.usedCapacity, this.current.index)
+        otherwise Done;
+    return KeyValuePair{key: this.current.key, value: this.current.value};
+  }
   const table: OrderedHashMap;
   const numBuckets: int32;
   const usedCapacity: int32;
@@ -115,8 +113,6 @@ const kOrderedHashMapNumberOfElementsIndex:
 const kOrderedHashMapNumberOfDeletedElementsIndex: constexpr int32
     generates 'OrderedHashMap::NumberOfDeletedElementsIndex()';
 
-// TODO(v8:12499): Remove @export once used.
-@export
 macro NewOrderedHashMapIterator(table: OrderedHashMap): OrderedHashMapIterator {
   const numBuckets =
       LoadOrderedHashTableMetadata(table, kOrderedHashMapNumberOfBucketsIndex);

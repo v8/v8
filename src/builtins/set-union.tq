@@ -18,47 +18,78 @@ transitioning javascript builtin SetPrototypeUnion(
 
   const table = Cast<OrderedHashSet>(o.table) otherwise unreachable;
 
-  // TODO(v8:13556): Add a fast path when `other` is a `JSSet` or a `JSMap`.
-  // 3. Let otherRec be ? GetSetRecord(other).
-  let otherRec = GetSetRecord(other, methodName);
-
-  // 4. Let keysIter be ? GetKeysIterator(otherRec).
-  let keysIter =
-      GetKeysIterator(otherRec.object, UnsafeCast<Callable>(otherRec.keys));
-
   // 5. Let resultSetData be a copy of O.[[SetData]].
   let resultSetData = Cast<OrderedHashSet>(CloneFixedArray(
       table, ExtractFixedArrayFlag::kFixedArrays)) otherwise unreachable;
 
-  // 6. Let next be true.
-  let nextRecord: JSReceiver;
-  // 7. Repeat, while next is not false,
-  while (true) {
-    try {
+  try {
+    typeswitch (other) {
+      case (otherSet: JSSet): {
+        // TODO(v8:13556): Add a protector to check JSSet conditions.
+        const otherTable =
+            Cast<OrderedHashSet>(otherSet.table) otherwise unreachable;
+
+        let otherIterator = collections::NewOrderedHashSetIterator(otherTable);
+
+        while (true) {
+          const nextValue = otherIterator.Next() otherwise Done;
+          resultSetData = AddToSetTable(resultSetData, nextValue, methodName);
+        }
+      }
+      case (otherMap: JSMap): {
+        // TODO(v8:13556): Add a protector to check JSMap conditions.
+        const otherTable =
+            Cast<OrderedHashMap>(otherMap.table) otherwise unreachable;
+
+        let otherIterator = collections::NewOrderedHashMapIterator(otherTable);
+
+        while (true) {
+          const nextValue = otherIterator.Next() otherwise Done;
+          resultSetData =
+              AddToSetTable(resultSetData, nextValue.key, methodName);
+        }
+      }
+      case (JSAny): {
+        goto SlowPath;
+      }
+    }
+  } label SlowPath {
+    // 3. Let otherRec be ? GetSetRecord(other).
+    let otherRec = GetSetRecord(other, methodName);
+
+    // 4. Let keysIter be ? GetKeysIterator(otherRec).
+    let keysIter =
+        GetKeysIterator(otherRec.object, UnsafeCast<Callable>(otherRec.keys));
+
+    // 6. Let next be true.
+    let nextRecord: JSReceiver;
+    // 7. Repeat, while next is not false,
+    while (true) {
       //  a. Set next to ? IteratorStep(keysIter).
       nextRecord = iterator::IteratorStep(keysIter, fastIteratorResultMap)
           otherwise Done;
-    } label Done {
-      // 8. Let result be
-      // OrdinaryObjectCreate(%Set.prototype%, « [[SetData]]»).
-      // 9. Set result.[[SetData]] to resultSetData.
-      // 10. Return result.
-      return new JSSet{
-        map: *NativeContextSlot(ContextSlot::JS_SET_MAP_INDEX),
-        properties_or_hash: kEmptyFixedArray,
-        elements: kEmptyFixedArray,
-        table: resultSetData
-      };
-    }
-    //  b. If next is not false, then
-    //      i. Let nextValue be ? IteratorValue(next).
-    const nextValue =
-        iterator::IteratorValue(nextRecord, fastIteratorResultMap);
 
-    //      ii. If nextValue is -0𝔽, set nextValue to +0𝔽.
-    //      iii. If SetDataHas(resultSetData, nextValue) is false, then
-    //          1. Append nextValue to resultSetData.
-    resultSetData = AddToSetTable(resultSetData, nextValue, methodName);
+      //  b. If next is not false, then
+      //      i. Let nextValue be ? IteratorValue(next).
+      const nextValue =
+          iterator::IteratorValue(nextRecord, fastIteratorResultMap);
+
+      //      ii. If nextValue is -0𝔽, set nextValue to +0𝔽.
+      //      iii. If SetDataHas(resultSetData, nextValue) is false, then
+      //          1. Append nextValue to resultSetData.
+      resultSetData = AddToSetTable(resultSetData, nextValue, methodName);
+    }
+  } label Done {
+    // 8. Let result be
+    // OrdinaryObjectCreate(%Set.prototype%, « [[SetData]]»).
+    // 9. Set result.[[SetData]] to resultSetData.
+    // 10. Return result.
+    return new JSSet{
+      map: *NativeContextSlot(ContextSlot::JS_SET_MAP_INDEX),
+      properties_or_hash: kEmptyFixedArray,
+      elements: kEmptyFixedArray,
+      table: resultSetData
+    };
   }
   unreachable;
 }
