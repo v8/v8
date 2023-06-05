@@ -127,13 +127,10 @@ void MaglevAssembler::EnsureWritableFastElements(
       [](MaglevAssembler* masm, ZoneLabelRef done, Register object,
          Register result_reg, RegisterSnapshot snapshot) {
         {
-          using D = CallInterfaceDescriptorFor<
-              Builtin::kCopyFastSmiOrObjectElements>::type;
           snapshot.live_registers.clear(result_reg);
           snapshot.live_tagged_registers.clear(result_reg);
           SaveRegisterStateForCall save_register_state(masm, snapshot);
-          __ Move(D::GetRegisterParameter(D::kObject), object);
-          __ CallBuiltin(Builtin::kCopyFastSmiOrObjectElements);
+          __ CallBuiltin<Builtin::kCopyFastSmiOrObjectElements>(object);
           save_register_state.DefineSafepoint();
           __ Move(result_reg, kReturnRegister0);
         }

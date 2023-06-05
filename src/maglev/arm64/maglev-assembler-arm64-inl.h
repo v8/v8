@@ -848,6 +848,7 @@ inline void MaglevAssembler::MaterialiseValueNode(Register dst,
   DCHECK(!value->allocation().IsConstant());
   DCHECK(value->allocation().IsAnyStackSlot());
   using D = NewHeapNumberDescriptor;
+  DoubleRegister builtin_input_value = D::GetDoubleRegisterParameter(D::kValue);
   MemOperand src = ToMemOperand(value->allocation());
   switch (value->properties().value_representation()) {
     case ValueRepresentation::kInt32: {
@@ -859,8 +860,8 @@ inline void MaglevAssembler::MaterialiseValueNode(Register dst,
       B(&done, vc);
       // If we overflow, instead of bailing out (deopting), we change
       // representation to a HeapNumber.
-      Scvtf(D::GetDoubleRegisterParameter(D::kValue), scratch);
-      CallBuiltin(Builtin::kNewHeapNumber);
+      Scvtf(builtin_input_value, scratch);
+      CallBuiltin<Builtin::kNewHeapNumber>(builtin_input_value);
       Move(dst, kReturnRegister0);
       bind(&done);
       break;
@@ -873,8 +874,8 @@ inline void MaglevAssembler::MaterialiseValueNode(Register dst,
       B(&tag_smi, ls);
       // If we don't fit in a Smi, instead of bailing out (deopting), we
       // change representation to a HeapNumber.
-      Ucvtf(D::GetDoubleRegisterParameter(D::kValue), dst.W());
-      CallBuiltin(Builtin::kNewHeapNumber);
+      Ucvtf(builtin_input_value, dst.W());
+      CallBuiltin<Builtin::kNewHeapNumber>(builtin_input_value);
       Move(dst, kReturnRegister0);
       B(&done);
       bind(&tag_smi);
@@ -883,8 +884,8 @@ inline void MaglevAssembler::MaterialiseValueNode(Register dst,
       break;
     }
     case ValueRepresentation::kFloat64:
-      Ldr(D::GetDoubleRegisterParameter(D::kValue), src);
-      CallBuiltin(Builtin::kNewHeapNumber);
+      Ldr(builtin_input_value, src);
+      CallBuiltin<Builtin::kNewHeapNumber>(builtin_input_value);
       Move(dst, kReturnRegister0);
       break;
     case ValueRepresentation::kHoleyFloat64: {
@@ -896,8 +897,8 @@ inline void MaglevAssembler::MaterialiseValueNode(Register dst,
       Jump(&done);
 
       bind(&box);
-      Mov(D::GetDoubleRegisterParameter(D::kValue), 0, dst);
-      CallBuiltin(Builtin::kNewHeapNumber);
+      Mov(builtin_input_value, 0, dst);
+      CallBuiltin<Builtin::kNewHeapNumber>(builtin_input_value);
       Move(dst, kReturnRegister0);
 
       bind(&done);

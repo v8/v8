@@ -5,8 +5,12 @@
 #ifndef V8_MAGLEV_MAGLEV_ASSEMBLER_INL_H_
 #define V8_MAGLEV_MAGLEV_ASSEMBLER_INL_H_
 
+#include <algorithm>
 #include <type_traits>
 
+#include "src/base/iterator.h"
+#include "src/base/template-utils.h"
+#include "src/codegen/machine-type.h"
 #include "src/maglev/maglev-assembler.h"
 
 #ifdef V8_TARGET_ARCH_ARM
@@ -309,11 +313,301 @@ inline void MaglevAssembler::LoadTaggedSignedField(Register result,
   MacroAssembler::LoadTaggedField(result, FieldMemOperand(object, offset));
 }
 
+namespace detail {
+
+#ifdef DEBUG
+inline bool ClobberedBy(RegList written_registers, Register reg) {
+  return written_registers.has(reg);
+}
+inline bool ClobberedBy(RegList written_registers, DoubleRegister reg) {
+  return false;
+}
+inline bool ClobberedBy(RegList written_registers, Handle<Object> handle) {
+  return false;
+}
+inline bool ClobberedBy(RegList written_registers, Smi smi) { return false; }
+inline bool ClobberedBy(RegList written_registers, TaggedIndex index) {
+  return false;
+}
+inline bool ClobberedBy(RegList written_registers, int32_t imm) {
+  return false;
+}
+inline bool ClobberedBy(RegList written_registers, RootIndex index) {
+  return false;
+}
+inline bool ClobberedBy(RegList written_registers, const Input& input) {
+  if (!input.IsGeneralRegister()) return false;
+  return ClobberedBy(written_registers, input.AssignedGeneralRegister());
+}
+
+inline bool ClobberedBy(DoubleRegList written_registers, Register reg) {
+  return false;
+}
+inline bool ClobberedBy(DoubleRegList written_registers, DoubleRegister reg) {
+  return written_registers.has(reg);
+}
+inline bool ClobberedBy(DoubleRegList written_registers,
+                        Handle<Object> handle) {
+  return false;
+}
+inline bool ClobberedBy(DoubleRegList written_registers, Smi smi) {
+  return false;
+}
+inline bool ClobberedBy(DoubleRegList written_registers, TaggedIndex index) {
+  return false;
+}
+inline bool ClobberedBy(DoubleRegList written_registers, int32_t imm) {
+  return false;
+}
+inline bool ClobberedBy(DoubleRegList written_registers, RootIndex index) {
+  return false;
+}
+inline bool ClobberedBy(DoubleRegList written_registers, const Input& input) {
+  if (!input.IsDoubleRegister()) return false;
+  return ClobberedBy(written_registers, input.AssignedDoubleRegister());
+}
+
+// We don't know what's inside machine registers or operands, so assume they
+// match.
+inline bool MachineTypeMatches(MachineType type, Register reg) {
+  return !IsFloatingPoint(type.representation());
+}
+inline bool MachineTypeMatches(MachineType type, DoubleRegister reg) {
+  return IsFloatingPoint(type.representation());
+}
+inline bool MachineTypeMatches(MachineType type, MemOperand reg) {
+  return true;
+}
+inline bool MachineTypeMatches(MachineType type, Handle<HeapObject> handle) {
+  return type.IsTagged() && !type.IsTaggedSigned();
+}
+inline bool MachineTypeMatches(MachineType type, Smi handle) {
+  return type.IsTagged() && !type.IsTaggedPointer();
+}
+inline bool MachineTypeMatches(MachineType type, TaggedIndex handle) {
+  // TaggedIndex doesn't have a separate type, so check for the same type as for
+  // Smis.
+  return type.IsTagged() && !type.IsTaggedPointer();
+}
+inline bool MachineTypeMatches(MachineType type, int32_t imm) {
+  // 32-bit immediates can be used for 64-bit params -- they'll be
+  // zero-extended.
+  return type.representation() == MachineRepresentation::kWord32 ||
+         type.representation() == MachineRepresentation::kWord64;
+}
+inline bool MachineTypeMatches(MachineType type, RootIndex index) {
+  return type.IsTagged() && !type.IsTaggedSigned();
+}
+inline bool MachineTypeMatches(MachineType type, const Input& input) {
+  if (type.representation() == input.node()->GetMachineRepresentation()) {
+    return true;
+  }
+  if (type.IsTagged()) {
+    return input.node()->is_tagged();
+  }
+  return false;
+}
+
+template <typename Descriptor, typename Arg>
+void CheckArg(MaglevAssembler* masm, Arg& arg, int& i) {
+  if (i >= Descriptor::GetParameterCount()) {
+    CHECK(Descriptor::AllowVarArgs());
+  }
+  CHECK(MachineTypeMatches(Descriptor::GetParameterType(i), arg));
+  ++i;
+}
+
+template <typename Descriptor, typename Iterator>
+void CheckArg(MaglevAssembler* masm,
+              const base::iterator_range<Iterator>& range, int& i) {
+  for (auto it = range.begin(), end = range.end(); it != end; ++it, ++i) {
+    if (i >= Descriptor::GetParameterCount()) {
+      CHECK(Descriptor::AllowVarArgs());
+    }
+    CHECK(MachineTypeMatches(Descriptor::GetParameterType(i), *it));
+  }
+}
+
+template <typename Descriptor, typename... Args>
+void CheckArgs(MaglevAssembler* masm, const std::tuple<Args...>& args) {
+  int i = 0;
+  base::tuple_for_each(args,
+                       [&](auto&& arg) { CheckArg<Descriptor>(masm, arg, i); });
+  if (Descriptor::AllowVarArgs()) {
+    CHECK_GE(i, Descriptor::GetParameterCount());
+  } else {
+    CHECK_EQ(i, Descriptor::GetParameterCount());
+  }
+}
+
+#else  // DEBUG
+
+template <typename Descriptor, typename... Args>
+void CheckArgs(Args&&... args) {}
+
+#endif  // DEBUG
+
+template <typename Descriptor, typename... Args>
+void PushArgumentsForBuiltin(MaglevAssembler* masm, std::tuple<Args...> args) {
+  std::apply(
+      [&](auto&&... stack_args) {
+        if (Descriptor::kStackArgumentOrder == StackArgumentOrder::kDefault) {
+          masm->Push(std::forward<decltype(stack_args)>(stack_args)...);
+        } else {
+          masm->PushReverse(std::forward<decltype(stack_args)>(stack_args)...);
+        }
+      },
+      args);
+}
+
+template <typename Descriptor>
+void PushArgumentsForBuiltin(MaglevAssembler* masm, std::tuple<> empty_args) {}
+
+template <Builtin kBuiltin, typename... Args>
+void MoveArgumentsForBuiltin(MaglevAssembler* masm, Args&&... args) {
+  using Descriptor = typename CallInterfaceDescriptorFor<kBuiltin>::type;
+
+  // Put the args into a tuple for easier manipulation.
+  std::tuple<Args&&...> args_tuple{std::forward<Args>(args)...};
+
+  // If there is a context, the first argument is the context parameter. Use
+  // the remaining args as the actual arguments. We pass the context first
+  // instead of last to avoid ambiguity around dealing with on-stack
+  // arguments.
+  constexpr size_t context_args = Descriptor::HasContextParameter() ? 1 : 0;
+  static_assert(context_args <= std::tuple_size_v<decltype(args_tuple)>,
+                "Not enough arguments passed in to builtin (are you missing a "
+                "context argument?)");
+  auto args_tuple_without_context = base::tuple_drop<context_args>(args_tuple);
+  CheckArgs<Descriptor>(masm, args_tuple_without_context);
+
+  // Split args into register and stack args.
+  static_assert(Descriptor::GetRegisterParameterCount() <=
+                    std::tuple_size_v<decltype(args_tuple_without_context)>,
+                "Not enough arguments passed in to builtin (are you missing a "
+                "context argument?)");
+  auto register_args =
+      base::tuple_head<Descriptor::GetRegisterParameterCount()>(
+          args_tuple_without_context);
+  auto stack_args = base::tuple_drop<Descriptor::GetRegisterParameterCount()>(
+      args_tuple_without_context);
+
+  // Split stack args into fixed and variable.
+  static_assert(
+      Descriptor::GetStackParameterCount() <=
+          std::tuple_size_v<decltype(stack_args)>,
+      "Not enough stack arguments passed in to builtin (are you missing a "
+      "context argument?)");
+  auto fixed_stack_args =
+      base::tuple_head<Descriptor::GetStackParameterCount()>(stack_args);
+  auto vararg_stack_args =
+      base::tuple_drop<Descriptor::GetStackParameterCount()>(stack_args);
+
+  if constexpr (!Descriptor::AllowVarArgs()) {
+    static_assert(std::tuple_size_v<decltype(vararg_stack_args)> == 0,
+                  "Too many arguments passed in to builtin that expects no "
+                  "vararg stack arguments");
+  }
+
+  // First push stack arguments (if any), since some of these may be in
+  // registers and we don't want to clobber them. This supports any thing
+  // `masm->Push` supports, including iterator ranges, so the tuple size may be
+  // smaller than the number of arguments actually pushed. We push fixed and
+  // vararg stack arguments separately, so that there's an appropriate amount
+  // of padding between them.
+  if (Descriptor::kStackArgumentOrder == StackArgumentOrder::kDefault) {
+    PushArgumentsForBuiltin<Descriptor>(
+        masm, std::forward<decltype(fixed_stack_args)>(fixed_stack_args));
+    PushArgumentsForBuiltin<Descriptor>(
+        masm, std::forward<decltype(vararg_stack_args)>(vararg_stack_args));
+  } else {
+    PushArgumentsForBuiltin<Descriptor>(
+        masm, std::forward<decltype(vararg_stack_args)>(vararg_stack_args));
+    PushArgumentsForBuiltin<Descriptor>(
+        masm, std::forward<decltype(fixed_stack_args)>(fixed_stack_args));
+  }
+
+// Then, set register arguments.
+// TODO(leszeks): Use the parallel move helper to do register moves, instead
+// of detecting clobbering.
+#ifdef DEBUG
+  RegList written_registers = {};
+  DoubleRegList written_double_registers = {};
+#endif  // DEBUG
+
+  base::tuple_for_each_with_index(register_args, [&](auto&& arg, auto index) {
+    using Arg = decltype(arg);
+    static_assert(index < Descriptor::GetRegisterParameterCount());
+
+    // Make sure the argument wasn't clobbered by any previous write.
+    DCHECK(!ClobberedBy(written_registers, arg));
+    DCHECK(!ClobberedBy(written_double_registers, arg));
+
+    static constexpr bool use_double_register =
+        IsFloatingPoint(Descriptor::GetParameterType(index).representation());
+    if constexpr (use_double_register) {
+      DoubleRegister target = Descriptor::GetDoubleRegisterParameter(index);
+      if constexpr (std::is_same_v<Input, std::decay_t<Arg>>) {
+        DCHECK_EQ(target, arg.AssignedDoubleRegister());
+      } else {
+        masm->Move(target, std::forward<Arg>(arg));
+      }
+#ifdef DEBUG
+      written_double_registers.set(target);
+#endif  // DEBUG
+    } else {
+      Register target = Descriptor::GetRegisterParameter(index);
+      if constexpr (std::is_same_v<Input, std::decay_t<Arg>>) {
+        DCHECK_EQ(target, arg.AssignedGeneralRegister());
+      } else {
+        masm->Move(target, std::forward<Arg>(arg));
+      }
+#ifdef DEBUG
+      written_registers.set(target);
+#endif  // DEBUG
+    }
+
+    // TODO(leszeks): Support iterator range for register args.
+  });
+
+  // Set the context last (to avoid clobbering).
+  if constexpr (Descriptor::HasContextParameter()) {
+    auto&& context = std::get<0>(args_tuple);
+    DCHECK(!ClobberedBy(written_registers, context));
+    DCHECK(!ClobberedBy(written_double_registers, context));
+    DCHECK(MachineTypeMatches(MachineType::AnyTagged(), context));
+
+    if constexpr (std::is_same_v<Input, std::decay_t<decltype(context)>>) {
+      DCHECK_EQ(Descriptor::ContextRegister(),
+                context.AssignedGeneralRegister());
+    } else {
+      // Don't allow raw Register here, force materialisation from a constant.
+      // This is because setting parameters could have clobbered the register.
+      // TODO(leszeks): Include the context register in the parallel moves
+      // described above.
+      static_assert(!std::is_same_v<Register, std::decay_t<decltype(context)>>);
+      masm->Move(Descriptor::ContextRegister(), context);
+    }
+  }
+}
+
+}  // namespace detail
+
 inline void MaglevAssembler::CallBuiltin(Builtin builtin) {
   // Special case allowing calls to DoubleToI, which takes care to preserve all
   // registers and therefore doesn't require special spill handling.
   DCHECK(allow_call() || builtin == Builtin::kDoubleToI);
   MacroAssembler::CallBuiltin(builtin);
+}
+
+template <Builtin kBuiltin, typename... Args>
+inline void MaglevAssembler::CallBuiltin(Args&&... args) {
+  // Special case allowing calls to DoubleToI, which takes care to preserve all
+  // registers and therefore doesn't require special spill handling.
+  DCHECK(allow_call() || kBuiltin == Builtin::kDoubleToI);
+  ASM_CODE_COMMENT(this);
+  detail::MoveArgumentsForBuiltin<kBuiltin>(this, std::forward<Args>(args)...);
+  MacroAssembler::CallBuiltin(kBuiltin);
 }
 
 inline void MaglevAssembler::CallRuntime(Runtime::FunctionId fid) {

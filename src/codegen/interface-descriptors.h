@@ -457,6 +457,10 @@ class StaticCallInterfaceDescriptor : public CallInterfaceDescriptor {
   // If set to true, builtins will callee save the set returned by registers().
   static constexpr bool kCalleeSaveRegisters = false;
 
+  // If set to true, the descriptor will define a kMachineTypes array with the
+  // types of each result value and parameter.
+  static constexpr bool kCustomMachineTypes = false;
+
   // End of customization points.
   // ===========================================================================
 
@@ -488,6 +492,7 @@ class StaticCallInterfaceDescriptor : public CallInterfaceDescriptor {
   static constexpr inline Register* GetRegisterData();
   static constexpr inline Register GetRegisterParameter(int i);
   static constexpr inline int GetStackParameterIndex(int i);
+  static constexpr inline MachineType GetParameterType(int i);
 
   // Interface descriptors don't really support double registers.
   // This reinterprets the i-th register as a double with the same code.
@@ -515,6 +520,7 @@ class StaticCallInterfaceDescriptor : public CallInterfaceDescriptor {
   // is overwritable by subclasses. By default, all parameters have
   // MachineType::AnyTagged() type.
   static void InitializeTypes(CallInterfaceDescriptorData* data) {
+    DCHECK(!kCustomMachineTypes);
     data->InitializeTypes(nullptr, 0);
   }
 };
@@ -624,12 +630,13 @@ constexpr EmptyRegisterArray RegisterArray() { return {}; }
   static constexpr bool kNoContext = true;
 
 #define DEFINE_RESULT_AND_PARAMETER_TYPES(...)                                \
+  static constexpr bool kCustomMachineTypes = true;                           \
+  static constexpr MachineType kMachineTypes[] = {__VA_ARGS__};               \
   static void InitializeTypes(CallInterfaceDescriptorData* data) {            \
-    MachineType machine_types[] = {__VA_ARGS__};                              \
     static_assert(                                                            \
-        kReturnCount + kParameterCount == arraysize(machine_types),           \
+        kReturnCount + kParameterCount == arraysize(kMachineTypes),           \
         "Parameter names definition is not consistent with parameter types"); \
-    data->InitializeTypes(machine_types, arraysize(machine_types));           \
+    data->InitializeTypes(kMachineTypes, arraysize(kMachineTypes));           \
   }
 
 #define DEFINE_PARAMETER_TYPES(...)                                        \

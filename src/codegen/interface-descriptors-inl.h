@@ -189,6 +189,7 @@ StaticCallInterfaceDescriptor<DerivedDescriptor>::GetStackParameterCount() {
 template <typename DerivedDescriptor>
 constexpr Register
 StaticCallInterfaceDescriptor<DerivedDescriptor>::GetRegisterParameter(int i) {
+  DCHECK(!IsFloatingPoint(GetParameterType(i).representation()));
   return DerivedDescriptor::registers()[i];
 }
 
@@ -202,9 +203,30 @@ StaticCallInterfaceDescriptor<DerivedDescriptor>::GetStackParameterIndex(
 
 // static
 template <typename DerivedDescriptor>
+constexpr MachineType
+StaticCallInterfaceDescriptor<DerivedDescriptor>::GetParameterType(int i) {
+  if constexpr (!DerivedDescriptor::kCustomMachineTypes) {
+    // If there are no custom machine types, all results and parameters are
+    // tagged.
+    return MachineType::AnyTagged();
+  } else {
+    // All varags are tagged.
+    if (DerivedDescriptor::AllowVarArgs() &&
+        i >= DerivedDescriptor::GetParameterCount()) {
+      return MachineType::AnyTagged();
+    }
+    DCHECK_LT(i, DerivedDescriptor::GetParameterCount());
+    return DerivedDescriptor::kMachineTypes
+        [DerivedDescriptor::GetReturnCount() + i];
+  }
+}
+
+// static
+template <typename DerivedDescriptor>
 constexpr DoubleRegister
 StaticCallInterfaceDescriptor<DerivedDescriptor>::GetDoubleRegisterParameter(
     int i) {
+  DCHECK(IsFloatingPoint(GetParameterType(i).representation()));
   return DoubleRegister::from_code(DerivedDescriptor::registers()[i].code());
 }
 

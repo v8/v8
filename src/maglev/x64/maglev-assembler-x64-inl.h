@@ -707,6 +707,7 @@ inline void MaglevAssembler::MaterialiseValueNode(Register dst,
   DCHECK(!value->allocation().IsConstant());
   DCHECK(value->allocation().IsAnyStackSlot());
   using D = NewHeapNumberDescriptor;
+  DoubleRegister builtin_input_value = D::GetDoubleRegisterParameter(D::kValue);
   MemOperand src = ToMemOperand(value->allocation());
   switch (value->properties().value_representation()) {
     case ValueRepresentation::kInt32: {
@@ -716,8 +717,8 @@ inline void MaglevAssembler::MaterialiseValueNode(Register dst,
       j(no_overflow, &done, Label::kNear);
       // If we overflow, instead of bailing out (deopting), we change
       // representation to a HeapNumber.
-      Cvtlsi2sd(D::GetDoubleRegisterParameter(D::kValue), src);
-      CallBuiltin(Builtin::kNewHeapNumber);
+      Cvtlsi2sd(builtin_input_value, src);
+      CallBuiltin<Builtin::kNewHeapNumber>(builtin_input_value);
       Move(dst, kReturnRegister0);
       bind(&done);
       break;
@@ -733,8 +734,8 @@ inline void MaglevAssembler::MaterialiseValueNode(Register dst,
       // The value was loaded with movl, so is zero extended in 64-bit.
       // Therefore, we can do an unsigned 32-bit converstion to double with a
       // 64-bit signed conversion (Cvt_q_si2sd instead of Cvt_l_si2sd).
-      Cvtqsi2sd(D::GetDoubleRegisterParameter(D::kValue), dst);
-      CallBuiltin(Builtin::kNewHeapNumber);
+      Cvtqsi2sd(builtin_input_value, dst);
+      CallBuiltin<Builtin::kNewHeapNumber>(builtin_input_value);
       Move(dst, kReturnRegister0);
       jmp(&done, Label::kNear);
       bind(&tag_smi);
@@ -743,8 +744,8 @@ inline void MaglevAssembler::MaterialiseValueNode(Register dst,
       break;
     }
     case ValueRepresentation::kFloat64:
-      Movsd(D::GetDoubleRegisterParameter(D::kValue), src);
-      CallBuiltin(Builtin::kNewHeapNumber);
+      Movsd(builtin_input_value, src);
+      CallBuiltin<Builtin::kNewHeapNumber>(builtin_input_value);
       Move(dst, kReturnRegister0);
       break;
     case ValueRepresentation::kHoleyFloat64: {
@@ -756,8 +757,8 @@ inline void MaglevAssembler::MaterialiseValueNode(Register dst,
       jmp(&done, Label::kNear);
 
       bind(&box);
-      Movq(D::GetDoubleRegisterParameter(D::kValue), dst);
-      CallBuiltin(Builtin::kNewHeapNumber);
+      Movq(builtin_input_value, dst);
+      CallBuiltin<Builtin::kNewHeapNumber>(builtin_input_value);
       Move(dst, kReturnRegister0);
 
       bind(&done);

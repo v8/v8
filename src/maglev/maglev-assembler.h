@@ -289,6 +289,8 @@ class MaglevAssembler : public MacroAssembler {
 
   inline void CallSelf();
   inline void CallBuiltin(Builtin builtin);
+  template <Builtin kBuiltin, typename... Args>
+  inline void CallBuiltin(Args&&... args);
   inline void CallRuntime(Runtime::FunctionId fid);
   inline void CallRuntime(Runtime::FunctionId fid, int num_args);
 

@@ -916,12 +916,12 @@ void UnaryWithFeedbackNode<Derived, kOperation>::SetValueLocationConstraints() {
 template <class Derived, Operation kOperation>
 void UnaryWithFeedbackNode<Derived, kOperation>::GenerateCode(
     MaglevAssembler* masm, const ProcessingState& state) {
-  using D = UnaryOp_WithFeedbackDescriptor;
-  DCHECK_EQ(ToRegister(operand_input()), D::GetRegisterParameter(D::kValue));
-  __ Move(kContextRegister, masm->native_context().object());
-  __ Move(D::GetRegisterParameter(D::kSlot), feedback().index());
-  __ Move(D::GetRegisterParameter(D::kFeedbackVector), feedback().vector);
-  __ CallBuiltin(BuiltinFor(kOperation));
+  __ CallBuiltin<BuiltinFor(kOperation)>(
+      masm->native_context().object(),  // context
+      operand_input(),                  // value
+      feedback().index(),               // feedback slot
+      feedback().vector                 // feedback vector
+  );
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
@@ -937,13 +937,13 @@ void BinaryWithFeedbackNode<Derived,
 template <class Derived, Operation kOperation>
 void BinaryWithFeedbackNode<Derived, kOperation>::GenerateCode(
     MaglevAssembler* masm, const ProcessingState& state) {
-  using D = BinaryOp_WithFeedbackDescriptor;
-  DCHECK_EQ(ToRegister(left_input()), D::GetRegisterParameter(D::kLeft));
-  DCHECK_EQ(ToRegister(right_input()), D::GetRegisterParameter(D::kRight));
-  __ Move(kContextRegister, masm->native_context().object());
-  __ Move(D::GetRegisterParameter(D::kSlot), feedback().index());
-  __ Move(D::GetRegisterParameter(D::kFeedbackVector), feedback().vector);
-  __ CallBuiltin(BuiltinFor(kOperation));
+  __ CallBuiltin<BuiltinFor(kOperation)>(
+      masm->native_context().object(),  // context
+      left_input(),                     // left
+      right_input(),                    // right
+      feedback().index(),               // feedback slot
+      feedback().vector                 // feedback vector
+  );
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
@@ -1261,13 +1261,12 @@ void DeleteProperty::SetValueLocationConstraints() {
 }
 void DeleteProperty::GenerateCode(MaglevAssembler* masm,
                                   const ProcessingState& state) {
-  using D = CallInterfaceDescriptorFor<Builtin::kDeleteProperty>::type;
-  DCHECK_EQ(ToRegister(context()), kContextRegister);
-  DCHECK_EQ(ToRegister(object()), D::GetRegisterParameter(D::kObject));
-  DCHECK_EQ(ToRegister(key()), D::GetRegisterParameter(D::kKey));
-  __ Move(D::GetRegisterParameter(D::kLanguageMode),
-          Smi::FromInt(static_cast<int>(mode())));
-  __ CallBuiltin(Builtin::kDeleteProperty);
+  __ CallBuiltin<Builtin::kDeleteProperty>(
+      context(),                              // context
+      object(),                               // object
+      key(),                                  // key
+      Smi::FromInt(static_cast<int>(mode()))  // language mode
+  );
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
@@ -1283,13 +1282,12 @@ void ForInPrepare::SetValueLocationConstraints() {
 }
 void ForInPrepare::GenerateCode(MaglevAssembler* masm,
                                 const ProcessingState& state) {
-  using D = CallInterfaceDescriptorFor<Builtin::kForInPrepare>::type;
-  DCHECK_EQ(ToRegister(context()), kContextRegister);
-  DCHECK_EQ(ToRegister(enumerator()), D::GetRegisterParameter(D::kEnumerator));
-  __ Move(D::GetRegisterParameter(D::kVectorIndex),
-          TaggedIndex::FromIntptr(feedback().index()));
-  __ Move(D::GetRegisterParameter(D::kFeedbackVector), feedback().vector);
-  __ CallBuiltin(Builtin::kForInPrepare);
+  __ CallBuiltin<Builtin::kForInPrepare>(
+      context(),                                    // context
+      enumerator(),                                 // enumerator
+      TaggedIndex::FromIntptr(feedback().index()),  // feedback slot
+      feedback().vector                             // feedback vector
+  );
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
@@ -1308,18 +1306,14 @@ void ForInNext::SetValueLocationConstraints() {
 }
 void ForInNext::GenerateCode(MaglevAssembler* masm,
                              const ProcessingState& state) {
-  using D = CallInterfaceDescriptorFor<Builtin::kForInNext>::type;
-  DCHECK_EQ(ToRegister(context()), kContextRegister);
-  DCHECK_EQ(ToRegister(receiver()), D::GetRegisterParameter(D::kReceiver));
-  DCHECK_EQ(ToRegister(cache_array()), D::GetRegisterParameter(D::kCacheArray));
-  DCHECK_EQ(ToRegister(cache_type()), D::GetRegisterParameter(D::kCacheType));
-  DCHECK_EQ(ToRegister(cache_index()), D::GetRegisterParameter(D::kCacheIndex));
-  __ Move(D::GetRegisterParameter(D::kSlot), feedback().index());
-  // Feedback vector is pushed into the stack.
-  static_assert(D::GetStackParameterIndex(D::kFeedbackVector) == 0);
-  static_assert(D::GetStackParameterCount() == 1);
-  __ Push(feedback().vector);
-  __ CallBuiltin(Builtin::kForInNext);
+  __ CallBuiltin<Builtin::kForInNext>(context(),           // context
+                                      feedback().index(),  // feedback slot
+                                      receiver(),          // receiver
+                                      cache_array(),       // cache array
+                                      cache_type(),        // cache type
+                                      cache_index(),       // cache index
+                                      feedback().vector    // feedback vector
+  );
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
@@ -1335,15 +1329,13 @@ void GetIterator::SetValueLocationConstraints() {
 }
 void GetIterator::GenerateCode(MaglevAssembler* masm,
                                const ProcessingState& state) {
-  using D = CallInterfaceDescriptorFor<Builtin::kGetIteratorWithFeedback>::type;
-  DCHECK_EQ(ToRegister(context()), kContextRegister);
-  DCHECK_EQ(ToRegister(receiver()), D::GetRegisterParameter(D::kReceiver));
-  __ Move(D::GetRegisterParameter(D::kLoadSlot),
-          TaggedIndex::FromIntptr(load_slot()));
-  __ Move(D::GetRegisterParameter(D::kCallSlot),
-          TaggedIndex::FromIntptr(call_slot()));
-  __ Move(D::GetRegisterParameter(D::kMaybeFeedbackVector), feedback());
-  __ CallBuiltin(Builtin::kGetIteratorWithFeedback);
+  __ CallBuiltin<Builtin::kGetIteratorWithFeedback>(
+      context(),                             // context
+      receiver(),                            // receiver
+      TaggedIndex::FromIntptr(load_slot()),  // feedback load slot
+      TaggedIndex::FromIntptr(call_slot()),  // feedback call slot
+      feedback()                             // feedback vector
+  );
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
@@ -1976,27 +1968,21 @@ void LoadGlobal::SetValueLocationConstraints() {
 }
 void LoadGlobal::GenerateCode(MaglevAssembler* masm,
                               const ProcessingState& state) {
-  // TODO(leszeks): Port the nice Sparkplug CallBuiltin helper.
   if (typeof_mode() == TypeofMode::kNotInside) {
-    using D = CallInterfaceDescriptorFor<Builtin::kLoadGlobalIC>::type;
-    DCHECK_EQ(ToRegister(context()), kContextRegister);
-    __ Move(D::GetRegisterParameter(D::kName), name().object());
-    __ Move(D::GetRegisterParameter(D::kSlot),
-            TaggedIndex::FromIntptr(feedback().index()));
-    __ Move(D::GetRegisterParameter(D::kVector), feedback().vector);
-
-    __ CallBuiltin(Builtin::kLoadGlobalIC);
+    __ CallBuiltin<Builtin::kLoadGlobalIC>(
+        context(),                                    // context
+        name().object(),                              // name
+        TaggedIndex::FromIntptr(feedback().index()),  // feedback slot
+        feedback().vector                             // feedback vector
+    );
   } else {
     DCHECK_EQ(typeof_mode(), TypeofMode::kInside);
-    using D =
-        CallInterfaceDescriptorFor<Builtin::kLoadGlobalICInsideTypeof>::type;
-    DCHECK_EQ(ToRegister(context()), kContextRegister);
-    __ Move(D::GetRegisterParameter(D::kName), name().object());
-    __ Move(D::GetRegisterParameter(D::kSlot),
-            TaggedIndex::FromIntptr(feedback().index()));
-    __ Move(D::GetRegisterParameter(D::kVector), feedback().vector);
-
-    __ CallBuiltin(Builtin::kLoadGlobalICInsideTypeof);
+    __ CallBuiltin<Builtin::kLoadGlobalICInsideTypeof>(
+        context(),                                    // context
+        name().object(),                              // name
+        TaggedIndex::FromIntptr(feedback().index()),  // feedback slot
+        feedback().vector                             // feedback vector
+    );
   }
 
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
@@ -2014,15 +2000,13 @@ void StoreGlobal::SetValueLocationConstraints() {
 }
 void StoreGlobal::GenerateCode(MaglevAssembler* masm,
                                const ProcessingState& state) {
-  using D = CallInterfaceDescriptorFor<Builtin::kStoreGlobalIC>::type;
-  DCHECK_EQ(ToRegister(context()), kContextRegister);
-  DCHECK_EQ(ToRegister(value()), D::GetRegisterParameter(D::kValue));
-  __ Move(D::GetRegisterParameter(D::kName), name().object());
-  __ Move(D::GetRegisterParameter(D::kSlot),
-          TaggedIndex::FromIntptr(feedback().index()));
-  __ Move(D::GetRegisterParameter(D::kVector), feedback().vector);
-
-  __ CallBuiltin(Builtin::kStoreGlobalIC);
+  __ CallBuiltin<Builtin::kStoreGlobalIC>(
+      context(),                                    // context
+      name().object(),                              // name
+      value(),                                      // value
+      TaggedIndex::FromIntptr(feedback().index()),  // feedback slot
+      feedback().vector                             // feedback vector
+  );
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
@@ -2087,14 +2071,15 @@ void CheckValueEqualsString::GenerateCode(MaglevAssembler* masm,
         __ StringLength(string_length, target);
         __ CompareInt32(string_length, node->value().length());
         __ EmitEagerDeoptIf(kNotEqual, DeoptimizeReason::kWrongValue, node);
-
         RegisterSnapshot snapshot = node->register_snapshot();
         AddDeoptRegistersToSnapshot(&snapshot, node->eager_deopt_info());
         {
           SaveRegisterStateForCall save_register_state(masm, snapshot);
-          __ Move(kContextRegister, masm->native_context().object());
-          __ Move(D::GetRegisterParameter(D::kRight), node->value().object());
-          __ CallBuiltin(Builtin::kStringEqual);
+          __ CallBuiltin<Builtin::kStringEqual>(
+              node->target_input(),    // left
+              node->value().object(),  // right
+              string_length            // length
+          );
           save_register_state.DefineSafepoint();
           // Compare before restoring registers, so that the deopt below has the
           // correct register set.
@@ -2281,9 +2266,8 @@ void ConvertReceiver::GenerateCode(MaglevAssembler* masm,
   }
 
   __ bind(&convert_to_object);
-  // ToObject needs to be ran with the target context installed.
-  __ Move(kContextRegister, native_context_.object());
-  __ CallBuiltin(Builtin::kToObject);
+  __ CallBuiltin<Builtin::kToObject>(native_context_.object(),
+                                     receiver_input());
   __ bind(&done);
 }
 
@@ -2350,7 +2334,8 @@ void CreateObjectLiteral::GenerateCode(MaglevAssembler* masm,
 }
 
 int CreateShallowArrayLiteral::MaxCallStackArgs() const {
-  using D = CallInterfaceDescriptorFor<Builtin::kCreateEmptyArrayLiteral>::type;
+  using D =
+      CallInterfaceDescriptorFor<Builtin::kCreateShallowArrayLiteral>::type;
   return D::GetStackParameterCount();
 }
 void CreateShallowArrayLiteral::SetValueLocationConstraints() {
@@ -2358,15 +2343,13 @@ void CreateShallowArrayLiteral::SetValueLocationConstraints() {
 }
 void CreateShallowArrayLiteral::GenerateCode(MaglevAssembler* masm,
                                              const ProcessingState& state) {
-  using D = CreateShallowArrayLiteralDescriptor;
-  __ Move(D::ContextRegister(), masm->native_context().object());
-  __ Move(D::GetRegisterParameter(D::kMaybeFeedbackVector), feedback().vector);
-  __ Move(D::GetRegisterParameter(D::kSlot),
-          TaggedIndex::FromIntptr(feedback().index()));
-  __ Move(D::GetRegisterParameter(D::kConstantElements),
-          constant_elements().object());
-  __ Move(D::GetRegisterParameter(D::kFlags), Smi::FromInt(flags()));
-  __ CallBuiltin(Builtin::kCreateShallowArrayLiteral);
+  __ CallBuiltin<Builtin::kCreateShallowArrayLiteral>(
+      masm->native_context().object(),              // context
+      feedback().vector,                            // feedback vector
+      TaggedIndex::FromIntptr(feedback().index()),  // feedback slot
+      constant_elements().object(),                 // constant elements
+      Smi::FromInt(flags())                         // flags
+  );
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
@@ -2396,14 +2379,13 @@ void CreateShallowObjectLiteral::SetValueLocationConstraints() {
 }
 void CreateShallowObjectLiteral::GenerateCode(MaglevAssembler* masm,
                                               const ProcessingState& state) {
-  using D = CreateShallowObjectLiteralDescriptor;
-  __ Move(D::ContextRegister(), masm->native_context().object());
-  __ Move(D::GetRegisterParameter(D::kMaybeFeedbackVector), feedback().vector);
-  __ Move(D::GetRegisterParameter(D::kSlot),
-          TaggedIndex::FromIntptr(feedback().index()));
-  __ Move(D::GetRegisterParameter(D::kDesc), boilerplate_descriptor().object());
-  __ Move(D::GetRegisterParameter(D::kFlags), Smi::FromInt(flags()));
-  __ CallBuiltin(Builtin::kCreateShallowObjectLiteral);
+  __ CallBuiltin<Builtin::kCreateShallowObjectLiteral>(
+      masm->native_context().object(),              // context
+      feedback().vector,                            // feedback vector
+      TaggedIndex::FromIntptr(feedback().index()),  // feedback slot
+      boilerplate_descriptor().object(),            // desc
+      Smi::FromInt(flags())                         // flags
+  );
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
@@ -2446,13 +2428,11 @@ void FastCreateClosure::SetValueLocationConstraints() {
 }
 void FastCreateClosure::GenerateCode(MaglevAssembler* masm,
                                      const ProcessingState& state) {
-  using D = CallInterfaceDescriptorFor<Builtin::kFastNewClosure>::type;
-
-  DCHECK_EQ(ToRegister(context()), D::ContextRegister());
-  __ Move(D::GetRegisterParameter(D::kSharedFunctionInfo),
-          shared_function_info().object());
-  __ Move(D::GetRegisterParameter(D::kFeedbackCell), feedback_cell().object());
-  __ CallBuiltin(Builtin::kFastNewClosure);
+  __ CallBuiltin<Builtin::kFastNewClosure>(
+      context(),                        // context
+      shared_function_info().object(),  // shared function info
+      feedback_cell().object()          // feedback cell
+  );
   masm->DefineLazyDeoptPoint(lazy_deopt_info());
 }
 
@@ -2488,21 +2468,17 @@ void CreateFunctionContext::SetValueLocationConstraints() {
 void CreateFunctionContext::GenerateCode(MaglevAssembler* masm,
                                          const ProcessingState& state) {
   if (scope_type() == FUNCTION_SCOPE) {
-    using D = CallInterfaceDescriptorFor<
-        Builtin::kFastNewFunctionContextFunction>::type;
-    DCHECK_EQ(ToRegister(context()), D::ContextRegister());
-    __ Move(D::GetRegisterParameter(D::kScopeInfo), scope_info().object());
-    __ Move(D::GetRegisterParameter(D::kSlots), slot_count());
-    // TODO(leszeks): Consider inlining this allocation.
-    __ CallBuiltin(Builtin::kFastNewFunctionContextFunction);
+    __ CallBuiltin<Builtin::kFastNewFunctionContextFunction>(
+        context(),              // context
+        scope_info().object(),  // scope info
+        slot_count()            // slots
+    );
   } else {
-    DCHECK_EQ(scope_type(), ScopeType::EVAL_SCOPE);
-    using D =
-        CallInterfaceDescriptorFor<Builtin::kFastNewFunctionContextEval>::type;
-    DCHECK_EQ(ToRegister(context()), D::ContextRegister());
-    __ Move(D::GetRegisterParameter(D::kScopeInfo), scope_info().object());
-    __ Move(D::GetRegisterParameter(D::kSlots), slot_count());
-    __ CallBuiltin(Builtin::kFastNewFunctionContextEval);
+    __ CallBuiltin<Builtin::kFastNewFunctionContextEval>(
+        context(),              // context
+        scope_info().object(),  // scope info
+        slot_count()            // slots
+    );
   }
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
@@ -2516,14 +2492,13 @@ void CreateRegExpLiteral::SetValueLocationConstraints() {
 }
 void CreateRegExpLiteral::GenerateCode(MaglevAssembler* masm,
                                        const ProcessingState& state) {
-  using D = CreateRegExpLiteralDescriptor;
-  __ Move(D::ContextRegister(), masm->native_context().object());
-  __ Move(D::GetRegisterParameter(D::kMaybeFeedbackVector), feedback().vector);
-  __ Move(D::GetRegisterParameter(D::kSlot),
-          TaggedIndex::FromIntptr(feedback().index()));
-  __ Move(D::GetRegisterParameter(D::kPattern), pattern().object());
-  __ Move(D::GetRegisterParameter(D::kFlags), Smi::FromInt(flags()));
-  __ CallBuiltin(Builtin::kCreateRegExpLiteral);
+  __ CallBuiltin<Builtin::kCreateRegExpLiteral>(
+      masm->native_context().object(),              // context
+      feedback().vector,                            // feedback vector
+      TaggedIndex::FromIntptr(feedback().index()),  // feedback slot
+      pattern().object(),                           // pattern
+      Smi::FromInt(flags())                         // flags
+  );
 }
 
 int GetTemplateObject::MaxCallStackArgs() const {
@@ -2537,12 +2512,13 @@ void GetTemplateObject::SetValueLocationConstraints() {
 }
 void GetTemplateObject::GenerateCode(MaglevAssembler* masm,
                                      const ProcessingState& state) {
-  using D = GetTemplateObjectDescriptor;
-  __ Move(D::ContextRegister(), masm->native_context().object());
-  __ Move(D::GetRegisterParameter(D::kMaybeFeedbackVector), feedback().vector);
-  __ Move(D::GetRegisterParameter(D::kSlot), feedback().slot.ToInt());
-  __ Move(D::GetRegisterParameter(D::kShared), shared_function_info_.object());
-  __ CallBuiltin(Builtin::kGetTemplateObject);
+  __ CallBuiltin<Builtin::kGetTemplateObject>(
+      masm->native_context().object(),  // context
+      shared_function_info_.object(),   // shared function info
+      description(),                    // description
+      feedback().index(),               // feedback slot
+      feedback().vector                 // feedback vector
+  );
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
@@ -2693,14 +2669,13 @@ void LoadNamedGeneric::SetValueLocationConstraints() {
 }
 void LoadNamedGeneric::GenerateCode(MaglevAssembler* masm,
                                     const ProcessingState& state) {
-  using D = LoadWithVectorDescriptor;
-  DCHECK_EQ(ToRegister(context()), kContextRegister);
-  DCHECK_EQ(ToRegister(object_input()), D::GetRegisterParameter(D::kReceiver));
-  __ Move(D::GetRegisterParameter(D::kName), name().object());
-  __ Move(D::GetRegisterParameter(D::kSlot),
-          Smi::FromInt(feedback().slot.ToInt()));
-  __ Move(D::GetRegisterParameter(D::kVector), feedback().vector);
-  __ CallBuiltin(Builtin::kLoadIC);
+  __ CallBuiltin<Builtin::kLoadIC>(
+      context(),                                    // context
+      object_input(),                               // receiver
+      name().object(),                              // name
+      TaggedIndex::FromIntptr(feedback().index()),  // feedback slot
+      feedback().vector                             // feedback vector
+  );
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
@@ -2717,16 +2692,14 @@ void LoadNamedFromSuperGeneric::SetValueLocationConstraints() {
 }
 void LoadNamedFromSuperGeneric::GenerateCode(MaglevAssembler* masm,
                                              const ProcessingState& state) {
-  using D = LoadWithReceiverAndVectorDescriptor;
-  DCHECK_EQ(ToRegister(context()), kContextRegister);
-  DCHECK_EQ(ToRegister(receiver()), D::GetRegisterParameter(D::kReceiver));
-  DCHECK_EQ(ToRegister(lookup_start_object()),
-            D::GetRegisterParameter(D::kLookupStartObject));
-  __ Move(D::GetRegisterParameter(D::kName), name().object());
-  __ Move(D::GetRegisterParameter(D::kSlot),
-          Smi::FromInt(feedback().slot.ToInt()));
-  __ Move(D::GetRegisterParameter(D::kVector), feedback().vector);
-  __ CallBuiltin(Builtin::kLoadSuperIC);
+  __ CallBuiltin<Builtin::kLoadSuperIC>(
+      context(),                                    // context
+      receiver(),                                   // receiver
+      lookup_start_object(),                        // lookup start object
+      name().object(),                              // name
+      TaggedIndex::FromIntptr(feedback().index()),  // feedback slot
+      feedback().vector                             // feedback vector
+  );
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
@@ -2743,15 +2716,14 @@ void SetNamedGeneric::SetValueLocationConstraints() {
 }
 void SetNamedGeneric::GenerateCode(MaglevAssembler* masm,
                                    const ProcessingState& state) {
-  using D = CallInterfaceDescriptorFor<Builtin::kStoreIC>::type;
-  DCHECK_EQ(ToRegister(context()), kContextRegister);
-  DCHECK_EQ(ToRegister(object_input()), D::GetRegisterParameter(D::kReceiver));
-  DCHECK_EQ(ToRegister(value_input()), D::GetRegisterParameter(D::kValue));
-  __ Move(D::GetRegisterParameter(D::kName), name().object());
-  __ Move(D::GetRegisterParameter(D::kSlot),
-          TaggedIndex::FromIntptr(feedback().index()));
-  __ Move(D::GetRegisterParameter(D::kVector), feedback().vector);
-  __ CallBuiltin(Builtin::kStoreIC);
+  __ CallBuiltin<Builtin::kStoreIC>(
+      context(),                                    // context
+      object_input(),                               // receiver
+      name().object(),                              // name
+      value_input(),                                // value
+      TaggedIndex::FromIntptr(feedback().index()),  // feedback slot
+      feedback().vector                             // feedback vector
+  );
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
@@ -2768,15 +2740,14 @@ void DefineNamedOwnGeneric::SetValueLocationConstraints() {
 }
 void DefineNamedOwnGeneric::GenerateCode(MaglevAssembler* masm,
                                          const ProcessingState& state) {
-  using D = CallInterfaceDescriptorFor<Builtin::kDefineNamedOwnIC>::type;
-  DCHECK_EQ(ToRegister(context()), kContextRegister);
-  DCHECK_EQ(ToRegister(object_input()), D::GetRegisterParameter(D::kReceiver));
-  DCHECK_EQ(ToRegister(value_input()), D::GetRegisterParameter(D::kValue));
-  __ Move(D::GetRegisterParameter(D::kName), name().object());
-  __ Move(D::GetRegisterParameter(D::kSlot),
-          TaggedIndex::FromIntptr(feedback().index()));
-  __ Move(D::GetRegisterParameter(D::kVector), feedback().vector);
-  __ CallBuiltin(Builtin::kDefineNamedOwnIC);
+  __ CallBuiltin<Builtin::kDefineNamedOwnIC>(
+      context(),                                    // context
+      object_input(),                               // receiver
+      name().object(),                              // name
+      value_input(),                                // value
+      TaggedIndex::FromIntptr(feedback().index()),  // feedback slot
+      feedback().vector                             // feedback vector
+  );
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
@@ -2858,17 +2829,17 @@ void MaybeGrowAndEnsureWritableFastElements::GenerateCode(
           if (index == D::GetRegisterParameter(D::kObject)) {
             // That implies that the first parameter move will clobber the index
             // value. So we use the result register as temporary.
+            // TODO(leszeks): Use parallel moves to resolve cases like this.
             __ SmiTag(result_reg, index);
             index = result_reg;
           } else {
             __ SmiTag(index);
           }
-          __ Move(D::GetRegisterParameter(D::kObject), object);
-          __ Move(D::GetRegisterParameter(D::kKey), index);
           if (IsDoubleElementsKind(node->elements_kind())) {
-            __ CallBuiltin(Builtin::kGrowFastDoubleElements);
+            __ CallBuiltin<Builtin::kGrowFastDoubleElements>(object, index);
           } else {
-            __ CallBuiltin(Builtin::kGrowFastSmiOrObjectElements);
+            __ CallBuiltin<Builtin::kGrowFastSmiOrObjectElements>(object,
+                                                                  index);
           }
           save_register_state.DefineSafepoint();
           __ Move(result_reg, kReturnRegister0);
@@ -2904,15 +2875,14 @@ void SetKeyedGeneric::SetValueLocationConstraints() {
 }
 void SetKeyedGeneric::GenerateCode(MaglevAssembler* masm,
                                    const ProcessingState& state) {
-  using D = CallInterfaceDescriptorFor<Builtin::kKeyedStoreIC>::type;
-  DCHECK_EQ(ToRegister(context()), kContextRegister);
-  DCHECK_EQ(ToRegister(object_input()), D::GetRegisterParameter(D::kReceiver));
-  DCHECK_EQ(ToRegister(key_input()), D::GetRegisterParameter(D::kName));
-  DCHECK_EQ(ToRegister(value_input()), D::GetRegisterParameter(D::kValue));
-  __ Move(D::GetRegisterParameter(D::kSlot),
-          TaggedIndex::FromIntptr(feedback().index()));
-  __ Move(D::GetRegisterParameter(D::kVector), feedback().vector);
-  __ CallBuiltin(Builtin::kKeyedStoreIC);
+  __ CallBuiltin<Builtin::kKeyedStoreIC>(
+      context(),                                    // context
+      object_input(),                               // receiver
+      key_input(),                                  // name
+      value_input(),                                // value
+      TaggedIndex::FromIntptr(feedback().index()),  // feedback slot
+      feedback().vector                             // feedback vector
+  );
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
@@ -2931,16 +2901,15 @@ void DefineKeyedOwnGeneric::SetValueLocationConstraints() {
 }
 void DefineKeyedOwnGeneric::GenerateCode(MaglevAssembler* masm,
                                          const ProcessingState& state) {
-  using D = CallInterfaceDescriptorFor<Builtin::kDefineKeyedOwnIC>::type;
-  DCHECK_EQ(ToRegister(context()), kContextRegister);
-  DCHECK_EQ(ToRegister(object_input()), D::GetRegisterParameter(D::kReceiver));
-  DCHECK_EQ(ToRegister(key_input()), D::GetRegisterParameter(D::kName));
-  DCHECK_EQ(ToRegister(value_input()), D::GetRegisterParameter(D::kValue));
-  DCHECK_EQ(ToRegister(flags_input()), D::GetRegisterParameter(D::kFlags));
-  __ Move(D::GetRegisterParameter(D::kSlot),
-          TaggedIndex::FromIntptr(feedback().index()));
-  __ Push(feedback().vector);
-  __ CallBuiltin(Builtin::kDefineKeyedOwnIC);
+  __ CallBuiltin<Builtin::kDefineKeyedOwnIC>(
+      context(),                                    // context
+      object_input(),                               // receiver
+      key_input(),                                  // name
+      value_input(),                                // value
+      flags_input(),                                // flags
+      TaggedIndex::FromIntptr(feedback().index()),  // feedback slot
+      feedback().vector                             // feedback vector
+  );
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
@@ -2958,15 +2927,14 @@ void StoreInArrayLiteralGeneric::SetValueLocationConstraints() {
 }
 void StoreInArrayLiteralGeneric::GenerateCode(MaglevAssembler* masm,
                                               const ProcessingState& state) {
-  using D = CallInterfaceDescriptorFor<Builtin::kStoreInArrayLiteralIC>::type;
-  DCHECK_EQ(ToRegister(context()), kContextRegister);
-  DCHECK_EQ(ToRegister(object_input()), D::GetRegisterParameter(D::kReceiver));
-  DCHECK_EQ(ToRegister(value_input()), D::GetRegisterParameter(D::kValue));
-  DCHECK_EQ(ToRegister(name_input()), D::GetRegisterParameter(D::kName));
-  __ Move(D::GetRegisterParameter(D::kSlot),
-          TaggedIndex::FromIntptr(feedback().index()));
-  __ Move(D::GetRegisterParameter(D::kVector), feedback().vector);
-  __ CallBuiltin(Builtin::kStoreInArrayLiteralIC);
+  __ CallBuiltin<Builtin::kStoreInArrayLiteralIC>(
+      context(),                                    // context
+      object_input(),                               // receiver
+      name_input(),                                 // name
+      value_input(),                                // value
+      TaggedIndex::FromIntptr(feedback().index()),  // feedback slot
+      feedback().vector                             // feedback vector
+  );
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
@@ -3083,14 +3051,13 @@ void GetKeyedGeneric::SetValueLocationConstraints() {
 }
 void GetKeyedGeneric::GenerateCode(MaglevAssembler* masm,
                                    const ProcessingState& state) {
-  using D = CallInterfaceDescriptorFor<Builtin::kKeyedLoadIC>::type;
-  DCHECK_EQ(ToRegister(context()), kContextRegister);
-  DCHECK_EQ(ToRegister(object_input()), D::GetRegisterParameter(D::kReceiver));
-  DCHECK_EQ(ToRegister(key_input()), D::GetRegisterParameter(D::kName));
-  __ Move(D::GetRegisterParameter(D::kSlot),
-          TaggedIndex::FromIntptr(feedback().slot.ToInt()));
-  __ Move(D::GetRegisterParameter(D::kVector), feedback().vector);
-  __ CallBuiltin(Builtin::kKeyedLoadIC);
+  __ CallBuiltin<Builtin::kKeyedLoadIC>(
+      context(),                                    // context
+      object_input(),                               // receiver
+      key_input(),                                  // name
+      TaggedIndex::FromIntptr(feedback().index()),  // feedback slot
+      feedback().vector                             // feedback vector
+  );
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
@@ -3241,14 +3208,11 @@ void StringConcat::SetValueLocationConstraints() {
 }
 void StringConcat::GenerateCode(MaglevAssembler* masm,
                                 const ProcessingState& state) {
-#ifdef DEBUG
-  using D = StringAdd_CheckNoneDescriptor;
-  DCHECK_EQ(D::GetRegisterParameter(D::kLeft), ToRegister(lhs()));
-  DCHECK_EQ(D::GetRegisterParameter(D::kRight), ToRegister(rhs()));
-#endif  // DEBUG
-  // TODO(leszeks): Fast path simple string additions.
-  __ Move(kContextRegister, masm->native_context().object());
-  __ CallBuiltin(Builtin::kStringAdd_CheckNone);
+  __ CallBuiltin<Builtin::kStringAdd_CheckNone>(
+      masm->native_context().object(),  // context
+      lhs(),                            // left
+      rhs()                             // right
+  );
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
   DCHECK_EQ(kReturnRegister0, ToRegister(result()));
 }
@@ -3284,7 +3248,9 @@ void StringEqual::GenerateCode(MaglevAssembler* masm,
   // and the |length| input of the builtin is where we loaded the length of the
   // right string (which matches the length of the left string when we get
   // here).
-  __ CallBuiltin(Builtin::kStringEqual);
+  DCHECK_EQ(right_length, D::GetRegisterParameter(D::kLength));
+  __ CallBuiltin<Builtin::kStringEqual>(lhs(), rhs(),
+                                        D::GetRegisterParameter(D::kLength));
   masm->DefineLazyDeoptPoint(this->lazy_deopt_info());
   __ Jump(&done, Label::Distance::kNear);
 
@@ -3345,15 +3311,13 @@ void TestInstanceOf::SetValueLocationConstraints() {
 }
 void TestInstanceOf::GenerateCode(MaglevAssembler* masm,
                                   const ProcessingState& state) {
-  using D = CallInterfaceDescriptorFor<Builtin::kInstanceOf_WithFeedback>::type;
-#ifdef DEBUG
-  DCHECK_EQ(ToRegister(context()), kContextRegister);
-  DCHECK_EQ(ToRegister(object()), D::GetRegisterParameter(D::kLeft));
-  DCHECK_EQ(ToRegister(callable()), D::GetRegisterParameter(D::kRight));
-#endif
-  __ Move(D::GetRegisterParameter(D::kFeedbackVector), feedback().vector);
-  __ Move(D::GetRegisterParameter(D::kSlot), feedback().index());
-  __ CallBuiltin(Builtin::kInstanceOf_WithFeedback);
+  __ CallBuiltin<Builtin::kInstanceOf_WithFeedback>(
+      context(),           // context
+      object(),            // left
+      callable(),          // right
+      feedback().index(),  // feedback slot
+      feedback().vector    // feedback vector
+  );
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
@@ -3433,12 +3397,9 @@ void ToName::SetValueLocationConstraints() {
   DefineAsFixed(this, kReturnRegister0);
 }
 void ToName::GenerateCode(MaglevAssembler* masm, const ProcessingState& state) {
-#ifdef DEBUG
-  using D = CallInterfaceDescriptorFor<Builtin::kToName>::type;
-  DCHECK_EQ(ToRegister(context()), kContextRegister);
-  DCHECK_EQ(ToRegister(value_input()), D::GetRegisterParameter(D::kInput));
-#endif  // DEBUG
-  __ CallBuiltin(Builtin::kToName);
+  __ CallBuiltin<Builtin::kToName>(context(),     // context
+                                   value_input()  // input
+  );
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
@@ -3469,17 +3430,14 @@ void ToNumberOrNumeric::GenerateCode(MaglevAssembler* masm,
           RegisterSnapshot snapshot = node->register_snapshot();
           snapshot.live_registers.clear(result_reg);
           SaveRegisterStateForCall save_register_state(masm, snapshot);
-          using D = TypeConversionDescriptor;
-          // Move the object first just in case the input aliases the context
-          // register.
-          __ Move(D::GetRegisterParameter(D::kArgument), object);
-          __ Move(kContextRegister, masm->native_context().object());
           switch (mode) {
             case Object::Conversion::kToNumber:
-              __ CallBuiltin(Builtin::kToNumber);
+              __ CallBuiltin<Builtin::kToNumber>(
+                  masm->native_context().object(), object);
               break;
             case Object::Conversion::kToNumeric:
-              __ CallBuiltin(Builtin::kToNumeric);
+              __ CallBuiltin<Builtin::kToNumeric>(
+                  masm->native_context().object(), object);
               break;
           }
           masm->DefineExceptionHandlerPoint(node);
@@ -3508,11 +3466,6 @@ void ToObject::SetValueLocationConstraints() {
 }
 void ToObject::GenerateCode(MaglevAssembler* masm,
                             const ProcessingState& state) {
-#ifdef DEBUG
-  using D = CallInterfaceDescriptorFor<Builtin::kToObject>::type;
-  DCHECK_EQ(ToRegister(context()), kContextRegister);
-  DCHECK_EQ(ToRegister(value_input()), D::GetRegisterParameter(D::kInput));
-#endif  // DEBUG
   Register value = ToRegister(value_input());
   Label call_builtin, done;
   // Avoid the builtin call if {value} is a JSReceiver.
@@ -3523,7 +3476,9 @@ void ToObject::GenerateCode(MaglevAssembler* masm,
   }
   __ JumpIfJSAnyIsNotPrimitive(value, &done, Label::Distance::kNear);
   __ bind(&call_builtin);
-  __ CallBuiltin(Builtin::kToObject);
+  __ CallBuiltin<Builtin::kToObject>(context(),     // context
+                                     value_input()  // input
+  );
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
   __ bind(&done);
 }
@@ -3540,11 +3495,6 @@ void ToString::SetValueLocationConstraints() {
 }
 void ToString::GenerateCode(MaglevAssembler* masm,
                             const ProcessingState& state) {
-#ifdef DEBUG
-  using D = CallInterfaceDescriptorFor<Builtin::kToString>::type;
-  DCHECK_EQ(ToRegister(context()), kContextRegister);
-  DCHECK_EQ(ToRegister(value_input()), D::GetRegisterParameter(D::kO));
-#endif  // DEBUG
   Register value = ToRegister(value_input());
   Label call_builtin, done;
   // Avoid the builtin call if {value} is a string.
@@ -3559,7 +3509,9 @@ void ToString::GenerateCode(MaglevAssembler* masm,
     __ Jump(&done, Label::kNear);
   }
   __ bind(&call_builtin);
-  __ CallBuiltin(Builtin::kToString);
+  __ CallBuiltin<Builtin::kToString>(context(),     // context
+                                     value_input()  // input
+  );
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
   __ bind(&done);
 }
@@ -3571,11 +3523,7 @@ void NumberToString::SetValueLocationConstraints() {
 }
 void NumberToString::GenerateCode(MaglevAssembler* masm,
                                   const ProcessingState& state) {
-#ifdef DEBUG
-  using D = CallInterfaceDescriptorFor<Builtin::kNumberToString>::type;
-  DCHECK_EQ(ToRegister(value_input()), D::GetRegisterParameter(D::kInput));
-#endif  // DEBUG
-  __ CallBuiltin(Builtin::kNumberToString);
+  __ CallBuiltin<Builtin::kNumberToString>(value_input());
   masm->DefineLazyDeoptPoint(this->lazy_deopt_info());
 }
 
@@ -3882,45 +3830,38 @@ void Call::SetValueLocationConstraints() {
 }
 
 void Call::GenerateCode(MaglevAssembler* masm, const ProcessingState& state) {
-  // TODO(leszeks): Port the nice Sparkplug CallBuiltin helper.
-#ifdef DEBUG
-  using D = CallTrampolineDescriptor;
-  DCHECK_EQ(ToRegister(function()), D::GetRegisterParameter(D::kFunction));
-#endif
-  DCHECK_EQ(ToRegister(context()), kContextRegister);
-
   __ PushReverse(base::make_iterator_range(args_begin(), args_end()));
 
   uint32_t arg_count = num_args();
   if (target_type_ == TargetType::kAny) {
-    using D = CallTrampolineDescriptor;
-    __ Move(D::GetRegisterParameter(D::kActualArgumentsCount), arg_count);
-
     switch (receiver_mode_) {
       case ConvertReceiverMode::kNullOrUndefined:
-        __ CallBuiltin(Builtin::kCall_ReceiverIsNullOrUndefined);
+        __ CallBuiltin<Builtin::kCall_ReceiverIsNullOrUndefined>(
+            context(), function(), arg_count);
         break;
       case ConvertReceiverMode::kNotNullOrUndefined:
-        __ CallBuiltin(Builtin::kCall_ReceiverIsNotNullOrUndefined);
+        __ CallBuiltin<Builtin::kCall_ReceiverIsNotNullOrUndefined>(
+            context(), function(), arg_count);
         break;
       case ConvertReceiverMode::kAny:
-        __ CallBuiltin(Builtin::kCall_ReceiverIsAny);
+        __ CallBuiltin<Builtin::kCall_ReceiverIsAny>(context(), function(),
+                                                     arg_count);
         break;
     }
   } else {
     DCHECK_EQ(TargetType::kJSFunction, target_type_);
-    using D = CallTrampolineDescriptor;
-    __ Move(D::GetRegisterParameter(D::kActualArgumentsCount), arg_count);
-
     switch (receiver_mode_) {
       case ConvertReceiverMode::kNullOrUndefined:
-        __ CallBuiltin(Builtin::kCallFunction_ReceiverIsNullOrUndefined);
+        __ CallBuiltin<Builtin::kCallFunction_ReceiverIsNullOrUndefined>(
+            context(), function(), arg_count);
         break;
       case ConvertReceiverMode::kNotNullOrUndefined:
-        __ CallBuiltin(Builtin::kCallFunction_ReceiverIsNotNullOrUndefined);
+        __ CallBuiltin<Builtin::kCallFunction_ReceiverIsNotNullOrUndefined>(
+            context(), function(), arg_count);
         break;
       case ConvertReceiverMode::kAny:
-        __ CallBuiltin(Builtin::kCallFunction_ReceiverIsAny);
+        __ CallBuiltin<Builtin::kCallFunction_ReceiverIsAny>(
+            context(), function(), arg_count);
         break;
     }
   }
@@ -4164,17 +4105,14 @@ void CallWithSpread::SetValueLocationConstraints() {
 }
 void CallWithSpread::GenerateCode(MaglevAssembler* masm,
                                   const ProcessingState& state) {
-#ifdef DEBUG
-  using D = CallInterfaceDescriptorFor<Builtin::kCallWithSpread>::type;
-  DCHECK_EQ(ToRegister(function()), D::GetRegisterParameter(D::kTarget));
-  DCHECK_EQ(ToRegister(spread()), D::GetRegisterParameter(D::kSpread));
-  DCHECK_EQ(ToRegister(context()), kContextRegister);
-#endif
-  using D = CallInterfaceDescriptorFor<Builtin::kCallWithSpread>::type;
-  __ PushReverse(
-      base::make_iterator_range(args_no_spread_begin(), args_no_spread_end()));
-  __ Move(D::GetRegisterParameter(D::kArgumentsCount), num_args_no_spread());
-  __ CallBuiltin(Builtin::kCallWithSpread);
+  __ CallBuiltin<Builtin::kCallWithSpread>(
+      context(),             // context
+      function(),            // target
+      num_args_no_spread(),  // arguments count
+      spread(),              // spread
+      base::make_iterator_range(args_no_spread_begin(),
+                                args_no_spread_end())  // pushed args
+  );
 
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
@@ -4193,15 +4131,18 @@ void CallWithArrayLike::SetValueLocationConstraints() {
 }
 void CallWithArrayLike::GenerateCode(MaglevAssembler* masm,
                                      const ProcessingState& state) {
-#ifdef DEBUG
-  using D = CallInterfaceDescriptorFor<Builtin::kCallWithArrayLike>::type;
-  DCHECK_EQ(ToRegister(function()), D::GetRegisterParameter(D::kTarget));
-  DCHECK_EQ(ToRegister(arguments_list()),
-            D::GetRegisterParameter(D::kArgumentsList));
-  DCHECK_EQ(ToRegister(context()), kContextRegister);
-#endif  // DEBUG
+  // CallWithArrayLike is a weird builtin that expects a receiver as top of the
+  // stack, but doesn't explicitly list it as an extra argument. Push it
+  // manually, and assert that there are no other stack arguments.
+  static_assert(
+      CallInterfaceDescriptorFor<
+          Builtin::kCallWithArrayLike>::type::GetStackParameterCount() == 0);
   __ Push(receiver());
-  __ CallBuiltin(Builtin::kCallWithArrayLike);
+  __ CallBuiltin<Builtin::kCallWithArrayLike>(
+      context(),        // context
+      function(),       // target
+      arguments_list()  // arguments list
+  );
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
@@ -4225,23 +4166,15 @@ void Construct::SetValueLocationConstraints() {
 }
 void Construct::GenerateCode(MaglevAssembler* masm,
                              const ProcessingState& state) {
-  using D = Construct_WithFeedbackDescriptor;
-  DCHECK_EQ(ToRegister(function()), D::GetRegisterParameter(D::kTarget));
-  DCHECK_EQ(ToRegister(new_target()), D::GetRegisterParameter(D::kNewTarget));
-  DCHECK_EQ(ToRegister(context()), kContextRegister);
-
-  __ PushReverse(base::make_iterator_range(args_begin(), args_end()));
-  // Feedback needs to be pushed (aligned) separately as it is consumed by
-  // Construct_WithFeedback directly while the other arguments on the stack
-  // are passed through to Construct.
-  static_assert(D::GetStackParameterIndex(D::kFeedbackVector) == 0);
-  static_assert(D::GetStackParameterCount() == 1);
-  __ Push(feedback().vector);
-
-  __ Move(D::GetRegisterParameter(D::kActualArgumentsCount), num_args());
-  __ Move(D::GetRegisterParameter(D::kSlot), feedback().index());
-
-  __ CallBuiltin(Builtin::kConstruct_WithFeedback);
+  __ CallBuiltin<Builtin::kConstruct_WithFeedback>(
+      context(),           // context
+      function(),          // target
+      new_target(),        // new target
+      num_args(),          // actual arguments count
+      feedback().index(),  // feedback slot
+      feedback().vector,   // feedback vector
+      base::make_iterator_range(args_begin(), args_end())  // args
+  );
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
@@ -4265,25 +4198,17 @@ void ConstructWithSpread::SetValueLocationConstraints() {
 }
 void ConstructWithSpread::GenerateCode(MaglevAssembler* masm,
                                        const ProcessingState& state) {
-  using D = CallInterfaceDescriptorFor<
-      Builtin::kConstructWithSpread_WithFeedback>::type;
-  DCHECK_EQ(ToRegister(function()), D::GetRegisterParameter(D::kTarget));
-  DCHECK_EQ(ToRegister(new_target()), D::GetRegisterParameter(D::kNewTarget));
-  DCHECK_EQ(ToRegister(context()), kContextRegister);
-  __ PushReverse(
-      base::make_iterator_range(args_no_spread_begin(), args_no_spread_end()));
-
-  // Feedback needs to be pushed (aligned) separately as it is consumed by
-  // Construct_WithFeedback directly while the other arguments on the stack
-  // are passed through to Construct.
-  static_assert(D::GetStackParameterIndex(D::kFeedbackVector) == 0);
-  static_assert(D::GetStackParameterCount() == 1);
-  __ Push(feedback().vector);
-
-  __ Move(D::GetRegisterParameter(D::kActualArgumentsCount),
-          num_args_no_spread());
-  __ Move(D::GetRegisterParameter(D::kSlot), feedback().index());
-  __ CallBuiltin(Builtin::kConstructWithSpread_WithFeedback);
+  __ CallBuiltin<Builtin::kConstructWithSpread_WithFeedback>(
+      context(),             // context
+      function(),            // target
+      new_target(),          // new target
+      num_args_no_spread(),  // actual arguments count
+      feedback().index(),    // feedback slot
+      spread(),              // spread
+      feedback().vector,     // feedback vector
+      base::make_iterator_range(args_no_spread_begin(),
+                                args_no_spread_end())  // args
+  );
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
