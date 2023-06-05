@@ -95,12 +95,10 @@ struct GCInfoTrait final {
   }
 
   static constexpr bool CheckCallbacksAreDefined() {
-    // No USE() macro available and (void) cast doesn't work with function
-    // pointers.
-    constexpr auto use = [](auto x) {};
-    use.template operator()<TraceCallback>(TraceTrait<T>::Trace);
-    use.template operator()<FinalizationCallback>(FinalizerTrait<T>::kCallback);
-    use.template operator()<NameCallback>(NameTrait<T>::GetName);
+    // No USE() macro available.
+    (void)static_cast<TraceCallback>(TraceTrait<T>::Trace);
+    (void)static_cast<FinalizationCallback>(FinalizerTrait<T>::kCallback);
+    (void)static_cast<NameCallback>(NameTrait<T>::GetName);
     return true;
   }
 };
