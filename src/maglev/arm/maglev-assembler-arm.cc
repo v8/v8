@@ -86,12 +86,6 @@ void MaglevAssembler::StoreTaggedFieldWithWriteBarrier(
   MAGLEV_NOT_IMPLEMENTED();
 }
 
-void MaglevAssembler::ToBoolean(Register value, CheckType check_type,
-                                ZoneLabelRef is_true, ZoneLabelRef is_false,
-                                bool fallthrough_when_true) {
-  MAGLEV_NOT_IMPLEMENTED();
-}
-
 void MaglevAssembler::TestTypeOf(
     Register object, interpreter::TestTypeOfFlags::LiteralFlag literal,
     Label* is_true, Label::Distance true_distance, bool fallthrough_when_true,

@@ -653,15 +653,45 @@ inline void MaglevAssembler::CompareTaggedAndJumpIf(Register r1, Smi value,
   JumpIf(cond, target, distance);
 }
 
+inline void MaglevAssembler::CompareDoubleAndJumpIfZeroOrNaN(
+    DoubleRegister reg, Label* target, Label::Distance distance) {
+  // Sets scratch register to 0.0.
+  Xorpd(kScratchDoubleReg, kScratchDoubleReg);
+  // Sets ZF if equal to 0.0, -0.0 or NaN.
+  Ucomisd(kScratchDoubleReg, reg);
+  JumpIf(kZero, target, distance);
+}
+
+inline void MaglevAssembler::CompareDoubleAndJumpIfZeroOrNaN(
+    MemOperand operand, Label* target, Label::Distance distance) {
+  // Sets scratch register to 0.0.
+  Xorpd(kScratchDoubleReg, kScratchDoubleReg);
+  // Sets ZF if equal to 0.0, -0.0 or NaN.
+  Ucomisd(kScratchDoubleReg, operand);
+  JumpIf(kZero, target, distance);
+}
+
 inline void MaglevAssembler::TestInt32AndJumpIfAnySet(
     Register r1, int32_t mask, Label* target, Label::Distance distance) {
   testl(r1, Immediate(mask));
   JumpIf(kNotZero, target, distance);
 }
 
+inline void MaglevAssembler::TestInt32AndJumpIfAnySet(
+    MemOperand operand, int32_t mask, Label* target, Label::Distance distance) {
+  testl(operand, Immediate(mask));
+  JumpIf(kNotZero, target, distance);
+}
+
 inline void MaglevAssembler::TestInt32AndJumpIfAllClear(
     Register r1, int32_t mask, Label* target, Label::Distance distance) {
   testl(r1, Immediate(mask));
+  JumpIf(kZero, target, distance);
+}
+
+inline void MaglevAssembler::TestInt32AndJumpIfAllClear(
+    MemOperand operand, int32_t mask, Label* target, Label::Distance distance) {
+  testl(operand, Immediate(mask));
   JumpIf(kZero, target, distance);
 }
 

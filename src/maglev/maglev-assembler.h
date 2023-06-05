@@ -316,10 +316,25 @@ class MaglevAssembler : public MacroAssembler {
   inline void CompareSmiAndJumpIf(Register r1, Smi value, Condition cond,
                                   Label* target,
                                   Label::Distance distance = Label::kFar);
+
+  inline void CompareDoubleAndJumpIfZeroOrNaN(
+      DoubleRegister reg, Label* target,
+      Label::Distance distance = Label::kFar);
+  inline void CompareDoubleAndJumpIfZeroOrNaN(
+      MemOperand operand, Label* target,
+      Label::Distance distance = Label::kFar);
+
   inline void TestInt32AndJumpIfAnySet(Register r1, int32_t mask, Label* target,
                                        Label::Distance distance = Label::kFar);
+  inline void TestInt32AndJumpIfAnySet(MemOperand operand, int32_t mask,
+                                       Label* target,
+                                       Label::Distance distance = Label::kFar);
+
   inline void TestInt32AndJumpIfAllClear(
       Register r1, int32_t mask, Label* target,
+      Label::Distance distance = Label::kFar);
+  inline void TestInt32AndJumpIfAllClear(
+      MemOperand operand, int32_t mask, Label* target,
       Label::Distance distance = Label::kFar);
 
   inline void Int32ToDouble(DoubleRegister result, Register n);

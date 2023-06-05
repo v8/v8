@@ -140,6 +140,71 @@ void MaglevAssembler::EnsureWritableFastElements(
   bind(*done);
 }
 
+void MaglevAssembler::ToBoolean(Register value, CheckType check_type,
+                                ZoneLabelRef is_true, ZoneLabelRef is_false,
+                                bool fallthrough_when_true) {
+  ScratchRegisterScope temps(this);
+  Register map = temps.GetDefaultScratchRegister();
+
+  if (check_type == CheckType::kCheckHeapObject) {
+    // Check if {{value}} is Smi.
+    Condition is_smi = CheckSmi(value);
+    JumpToDeferredIf(
+        is_smi,
+        [](MaglevAssembler* masm, Register value, ZoneLabelRef is_true,
+           ZoneLabelRef is_false) {
+          // Check if {value} is not zero.
+          __ CompareSmiAndJumpIf(value, Smi::FromInt(0), kEqual, *is_false);
+          __ Jump(*is_true);
+        },
+        value, is_true, is_false);
+  } else if (v8_flags.debug_code) {
+    AssertNotSmi(value);
+  }
+  // Check if {{value}} is false.
+  CompareRoot(value, RootIndex::kFalseValue);
+  JumpIf(kEqual, *is_false);
+
+  // Check if {{value}} is empty string.
+  CompareRoot(value, RootIndex::kempty_string);
+  JumpIf(kEqual, *is_false);
+
+  // Check if {{value}} is undetectable.
+  LoadMap(map, value);
+  TestInt32AndJumpIfAnySet(FieldMemOperand(map, Map::kBitFieldOffset),
+                           Map::Bits1::IsUndetectableBit::kMask, *is_false);
+
+  // Check if {{value}} is a HeapNumber.
+  CompareRoot(map, RootIndex::kHeapNumberMap);
+  JumpToDeferredIf(
+      kEqual,
+      [](MaglevAssembler* masm, Register value, ZoneLabelRef is_true,
+         ZoneLabelRef is_false) {
+        __ CompareDoubleAndJumpIfZeroOrNaN(
+            FieldMemOperand(value, HeapNumber::kValueOffset), *is_false);
+        __ Jump(*is_true);
+      },
+      value, is_true, is_false);
+
+  // Check if {{value}} is a BigInt.
+  CompareRoot(map, RootIndex::kBigIntMap);
+  JumpToDeferredIf(
+      kEqual,
+      [](MaglevAssembler* masm, Register value, ZoneLabelRef is_true,
+         ZoneLabelRef is_false) {
+        __ TestInt32AndJumpIfAllClear(
+            FieldMemOperand(value, BigInt::kBitfieldOffset),
+            BigInt::LengthBits::kMask, *is_false);
+        __ Jump(*is_true);
+      },
+      value, is_true, is_false);
+
+  // Otherwise true.
+  if (!fallthrough_when_true) {
+    Jump(*is_true);
+  }
+}
+
 }  // namespace maglev
 }  // namespace internal
 }  // namespace v8

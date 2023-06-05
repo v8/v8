@@ -535,14 +535,47 @@ inline void MaglevAssembler::CompareTaggedAndJumpIf(Register r1, Smi value,
   MAGLEV_NOT_IMPLEMENTED();
 }
 
+inline void MaglevAssembler::CompareDoubleAndJumpIfZeroOrNaN(
+    DoubleRegister reg, Label* target, Label::Distance distance) {
+  vcmp(reg, 0.0);
+  JumpIf(eq, target);
+  JumpIf(vs, target);  // NaN check
+}
+
+inline void MaglevAssembler::CompareDoubleAndJumpIfZeroOrNaN(
+    MemOperand operand, Label* target, Label::Distance distance) {
+  ScratchRegisterScope temps(this);
+  DoubleRegister value_double = temps.AcquireDouble();
+  vldr(value_double, operand);
+  CompareDoubleAndJumpIfZeroOrNaN(value_double, target, distance);
+}
+
 inline void MaglevAssembler::TestInt32AndJumpIfAnySet(
     Register r1, int32_t mask, Label* target, Label::Distance distance) {
-  MAGLEV_NOT_IMPLEMENTED();
+  tst(r1, Operand(mask));
+  b(ne, target);
+}
+
+inline void MaglevAssembler::TestInt32AndJumpIfAnySet(
+    MemOperand operand, int32_t mask, Label* target, Label::Distance distance) {
+  ScratchRegisterScope temps(this);
+  Register value = temps.Acquire();
+  ldr(value, operand);
+  TestInt32AndJumpIfAnySet(value, mask, target);
 }
 
 inline void MaglevAssembler::TestInt32AndJumpIfAllClear(
     Register r1, int32_t mask, Label* target, Label::Distance distance) {
-  MAGLEV_NOT_IMPLEMENTED();
+  tst(r1, Operand(mask));
+  b(eq, target);
+}
+
+inline void MaglevAssembler::TestInt32AndJumpIfAllClear(
+    MemOperand operand, int32_t mask, Label* target, Label::Distance distance) {
+  ScratchRegisterScope temps(this);
+  Register value = temps.Acquire();
+  ldr(value, operand);
+  TestInt32AndJumpIfAllClear(value, mask, target);
 }
 
 inline void MaglevAssembler::LoadHeapNumberValue(DoubleRegister result,
