@@ -307,7 +307,7 @@ class MergePointInterpreterFrameState;
   V(ThrowSuperNotCalledIfHole)              \
   V(ThrowSuperAlreadyCalledIfNotHole)       \
   V(ThrowIfNotSuperConstructor)             \
-  V(TransitionElementsKindOrCheckMap)       \
+  V(TransitionElementsKind)                 \
   V(UpdateJSArrayLength)                    \
   GAP_MOVE_NODE_LIST(V)                     \
   VALUE_NODE_LIST(V)
@@ -7371,27 +7371,24 @@ class ThrowIfNotSuperConstructor
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 };
 
-class TransitionElementsKindOrCheckMap
-    : public FixedInputNodeT<1, TransitionElementsKindOrCheckMap> {
-  using Base = FixedInputNodeT<1, TransitionElementsKindOrCheckMap>;
+class TransitionElementsKind
+    : public FixedInputNodeT<1, TransitionElementsKind> {
+  using Base = FixedInputNodeT<1, TransitionElementsKind>;
 
  public:
-  explicit TransitionElementsKindOrCheckMap(
+  explicit TransitionElementsKind(
       uint64_t bitfield,
       base::Vector<const compiler::MapRef> transition_sources,
-      compiler::MapRef transition_target, CheckType check_type)
-      : Base(CheckTypeBitField::update(bitfield, check_type)),
+      compiler::MapRef transition_target)
+      : Base(bitfield),
         transition_sources_(transition_sources),
         transition_target_(transition_target) {}
 
   // TODO(leszeks): Special case the case where all transitions are fast.
-  static constexpr OpProperties kProperties = OpProperties::AnySideEffects() |
-                                              OpProperties::DeferredCall() |
-                                              OpProperties::EagerDeopt();
+  static constexpr OpProperties kProperties =
+      OpProperties::AnySideEffects() | OpProperties::DeferredCall();
   static constexpr
       typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
-
-  CheckType check_type() const { return CheckTypeBitField::decode(bitfield()); }
 
   Input& object_input() { return Node::input(0); }
 
@@ -7401,8 +7398,6 @@ class TransitionElementsKindOrCheckMap
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 
  private:
-  using CheckTypeBitField = NextBitField<CheckType, 1>;
-
   const base::Vector<const compiler::MapRef> transition_sources_;
   const compiler::MapRef transition_target_;
 };

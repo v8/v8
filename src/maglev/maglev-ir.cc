@@ -4286,31 +4286,26 @@ void ConstructWithSpread::GenerateCode(MaglevAssembler* masm,
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
-int TransitionElementsKindOrCheckMap::MaxCallStackArgs() const {
+int TransitionElementsKind::MaxCallStackArgs() const {
   return std::max(WriteBarrierDescriptor::GetStackParameterCount(), 2);
 }
-
-void TransitionElementsKindOrCheckMap::SetValueLocationConstraints() {
+void TransitionElementsKind::SetValueLocationConstraints() {
   UseRegister(object_input());
   set_temporaries_needed(1);
 }
-
-void TransitionElementsKindOrCheckMap::GenerateCode(
-    MaglevAssembler* masm, const ProcessingState& state) {
+void TransitionElementsKind::GenerateCode(MaglevAssembler* masm,
+                                          const ProcessingState& state) {
   MaglevAssembler::ScratchRegisterScope temps(masm);
   Register object = ToRegister(object_input());
 
   ZoneLabelRef done(masm);
 
-  DCHECK(!AnyMapIsHeapNumber(transition_sources_));
-  DCHECK(!transition_target_.object()->IsHeapNumberMap());
-
-  if (check_type() == CheckType::kOmitHeapObjectCheck) {
-    __ AssertNotSmi(object);
-  } else {
-    Condition is_smi = __ CheckSmi(object);
-    __ EmitEagerDeoptIf(is_smi, DeoptimizeReason::kWrongMap, this);
-  }
+  // TODO(leszeks): We could consider just deopting straight away if the object
+  // is a Smi, but it's also fine to not deopt since there will be another Smi
+  // check in the map check after this transition. This second Smi check could
+  // be elided if we deopted here, but OTOH then we'd need extra deopt info for
+  // this node.
+  __ JumpIfSmi(object, *done, Label::kNear);
 
   Register map = temps.Acquire();
   __ LoadMap(map, object);
@@ -4322,18 +4317,16 @@ void TransitionElementsKindOrCheckMap::GenerateCode(
     // TODO(leszeks): If there are a lot of transition source maps, move the
     // source into a register and share the deferred code between maps.
     __ CompareTagged(map, transition_source.object());
-    // We can use `map` as a temporary register, since the deferred code will
-    // jump to `done`, so we won't use it afterwards.
     __ JumpToDeferredIf(
         kEqual,
-        [](MaglevAssembler* masm, Register object, Register temp,
+        [](MaglevAssembler* masm, Register object, Register map,
            RegisterSnapshot register_snapshot,
            compiler::MapRef transition_target, bool is_simple,
            ZoneLabelRef done) {
           if (is_simple) {
-            __ Move(temp, transition_target.object());
+            __ Move(map, transition_target.object());
             __ StoreTaggedFieldWithWriteBarrier(
-                object, HeapObject::kMapOffset, temp, register_snapshot,
+                object, HeapObject::kMapOffset, map, register_snapshot,
                 MaglevAssembler::kValueIsDecompressed,
                 MaglevAssembler::kValueCannotBeSmi);
           } else {
@@ -4347,8 +4340,6 @@ void TransitionElementsKindOrCheckMap::GenerateCode(
         },
         object, map, register_snapshot(), transition_target_, is_simple, done);
   }
-  __ CompareTagged(map, transition_target_.object());
-  __ EmitEagerDeoptIfNotEqual(DeoptimizeReason::kWrongMap, this);
   __ bind(*done);
 }
 
