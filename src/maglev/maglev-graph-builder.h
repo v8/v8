@@ -1594,6 +1594,10 @@ class MaglevGraphBuilder {
   void BuildCheckSymbol(ValueNode* object);
   ReduceResult BuildCheckMaps(ValueNode* object,
                               base::Vector<const compiler::MapRef> maps);
+  ReduceResult BuildTransitionElementsKindOrCheckMap(
+      ValueNode* object,
+      base::Vector<const compiler::MapRef> transition_sources,
+      compiler::MapRef transition_target);
   // Emits an unconditional deopt and returns false if the node is a constant
   // that doesn't match the ref.
   ReduceResult BuildCheckValue(ValueNode* node, compiler::ObjectRef ref);
