@@ -185,7 +185,8 @@ class V8_EXPORT_PRIVATE CallInterfaceDescriptorData {
   void InitializeRegisters(Flags flags, int return_count, int parameter_count,
                            StackArgumentOrder stack_order,
                            int register_parameter_count,
-                           const Register* registers);
+                           const Register* registers,
+                           const DoubleRegister* double_registers);
 
   // if machine_types is null, then an array of size
   // (return_count + parameter_count) will be created with
@@ -209,6 +210,9 @@ class V8_EXPORT_PRIVATE CallInterfaceDescriptorData {
   int param_count() const { return param_count_; }
   int register_param_count() const { return register_param_count_; }
   Register register_param(int index) const { return register_params_[index]; }
+  DoubleRegister double_register_param(int index) const {
+    return double_register_params_[index];
+  }
   MachineType return_type(int index) const {
     DCHECK_LT(index, return_count_);
     return machine_types_[index];
@@ -265,6 +269,7 @@ class V8_EXPORT_PRIVATE CallInterfaceDescriptorData {
   // is a static local stored in the caller function. The machine types are
   // allocated dynamically by the InterfaceDescriptor and freed on destruction.
   const Register* register_params_ = nullptr;
+  const DoubleRegister* double_register_params_ = nullptr;
   MachineType* machine_types_ = nullptr;
 };
 
@@ -366,6 +371,11 @@ class V8_EXPORT_PRIVATE CallInterfaceDescriptor {
     return data()->register_param(index);
   }
 
+  DoubleRegister GetDoubleRegisterParameter(int index) const {
+    DCHECK_LT(index, data()->register_param_count());
+    return data()->double_register_param(index);
+  }
+
   MachineType GetParameterType(int index) const {
     DCHECK_LT(index, data()->param_count());
     return data()->param_type(index);
@@ -397,6 +407,7 @@ class V8_EXPORT_PRIVATE CallInterfaceDescriptor {
   // Use auto for the return type to allow different architectures to have
   // differently sized default register arrays.
   static constexpr inline auto DefaultRegisterArray();
+  static constexpr inline auto DefaultDoubleRegisterArray();
   static constexpr inline std::array<Register, kJSBuiltinRegisterParams>
   DefaultJSRegisterArray();
 
@@ -443,6 +454,7 @@ class StaticCallInterfaceDescriptor : public CallInterfaceDescriptor {
   //
   // Defaults to CallInterfaceDescriptor::DefaultRegisterArray().
   static constexpr inline auto registers();
+  static constexpr inline auto double_registers();
 
   // An additional limit on the number of register parameters allowed. This is
   // here so that it can be overwritten to kMaxTFSBuiltinRegisterParams for TFS
@@ -556,6 +568,25 @@ constexpr std::array<Register, 1 + sizeof...(Registers)> RegisterArray(
   return {first_reg, regs...};
 }
 constexpr EmptyRegisterArray RegisterArray() { return {}; }
+
+// Stub class replacing std::array<Register, 0>, as a workaround for MSVC's
+// https://github.com/microsoft/STL/issues/942
+struct EmptyDoubleRegisterArray {
+  DoubleRegister* data() { return nullptr; }
+  size_t size() const { return 0; }
+  DoubleRegister operator[](size_t i) const { UNREACHABLE(); }
+};
+
+// Helper method for defining an array of unique registers for the various
+// Descriptor::double_registers() methods.
+template <typename... Registers>
+constexpr std::array<DoubleRegister, 1 + sizeof...(Registers)>
+DoubleRegisterArray(DoubleRegister first_reg, Registers... regs) {
+  DCHECK(!AreAliased(first_reg, regs...));
+  return {first_reg, regs...};
+}
+
+constexpr EmptyDoubleRegisterArray DoubleRegisterArray() { return {}; }
 
 #define DECLARE_DESCRIPTOR_WITH_BASE(name, base)                  \
  public:                                                          \
@@ -743,11 +774,6 @@ class NewHeapNumberDescriptor
   DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::TaggedPointer(),  // Result
                                     MachineType::Float64())        // kValue
   DECLARE_DESCRIPTOR(NewHeapNumberDescriptor)
-
-#if V8_TARGET_ARCH_IA32
-  // We need a custom descriptor on ia32 to avoid using xmm0.
-  static constexpr inline auto registers();
-#endif
 };
 
 // This descriptor defines the JavaScript calling convention that can be used
@@ -2030,11 +2056,6 @@ class WasmFloat32ToNumberDescriptor final
   DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::AnyTagged(),  // result
                                     MachineType::Float32())    // value
   DECLARE_DESCRIPTOR(WasmFloat32ToNumberDescriptor)
-
-#if V8_TARGET_ARCH_IA32
-  // We need a custom descriptor on ia32 to avoid using xmm0.
-  static constexpr inline auto registers();
-#endif
 };
 
 class WasmFloat64ToTaggedDescriptor final
@@ -2044,11 +2065,6 @@ class WasmFloat64ToTaggedDescriptor final
   DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::AnyTagged(),  // result
                                     MachineType::Float64())    // value
   DECLARE_DESCRIPTOR(WasmFloat64ToTaggedDescriptor)
-
-#if V8_TARGET_ARCH_IA32
-  // We need a custom descriptor on ia32 to avoid using xmm0.
-  static constexpr inline auto registers();
-#endif
 };
 
 class WasmSuspendDescriptor final
@@ -2246,11 +2262,6 @@ class CheckTurboshaftFloat32TypeDescriptor
                                     MachineType::TaggedPointer(),
                                     MachineType::TaggedSigned())
   DECLARE_DEFAULT_DESCRIPTOR(CheckTurboshaftFloat32TypeDescriptor)
-
-#if V8_TARGET_ARCH_IA32
-  // We need a custom descriptor on ia32 to avoid using xmm0.
-  static constexpr inline auto registers();
-#endif
 };
 
 class CheckTurboshaftFloat64TypeDescriptor
@@ -2263,11 +2274,6 @@ class CheckTurboshaftFloat64TypeDescriptor
                                     MachineType::TaggedPointer(),
                                     MachineType::TaggedSigned())
   DECLARE_DEFAULT_DESCRIPTOR(CheckTurboshaftFloat64TypeDescriptor)
-
-#if V8_TARGET_ARCH_IA32
-  // We need a custom descriptor on ia32 to avoid using xmm0.
-  static constexpr inline auto registers();
-#endif
 };
 
 class DebugPrintWordPtrDescriptor

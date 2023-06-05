@@ -481,15 +481,14 @@ CallDescriptor* Linkage::GetStubCallDescriptor(
   for (int i = 0; i < js_parameter_count; i++) {
     if (i < register_parameter_count) {
       // The first parameters go in registers.
-      // TODO(bbudge) Add floating point registers to the InterfaceDescriptor
-      // and use them for FP types. Currently, this works because on most
-      // platforms, all FP registers are available for use. On ia32, xmm0 is
-      // not allocatable and so we must work around that with platform-specific
-      // descriptors, adjusting the GP register set to avoid eax, which has
-      // register code 0.
-      Register reg = descriptor.GetRegisterParameter(i);
       MachineType type = descriptor.GetParameterType(i);
-      locations.AddParam(regloc(reg, type));
+      if (IsFloatingPoint(type.representation())) {
+        DoubleRegister reg = descriptor.GetDoubleRegisterParameter(i);
+        locations.AddParam(regloc(reg, type));
+      } else {
+        Register reg = descriptor.GetRegisterParameter(i);
+        locations.AddParam(regloc(reg, type));
+      }
     } else {
       // The rest of the parameters go on the stack.
       int stack_slot = i - register_parameter_count - stack_parameter_count;

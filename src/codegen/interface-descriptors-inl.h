@@ -52,6 +52,13 @@ constexpr auto StaticCallInterfaceDescriptor<DerivedDescriptor>::registers() {
 
 // static
 template <typename DerivedDescriptor>
+constexpr auto
+StaticCallInterfaceDescriptor<DerivedDescriptor>::double_registers() {
+  return CallInterfaceDescriptor::DefaultDoubleRegisterArray();
+}
+
+// static
+template <typename DerivedDescriptor>
 constexpr auto StaticJSCallInterfaceDescriptor<DerivedDescriptor>::registers() {
   return CallInterfaceDescriptor::DefaultJSRegisterArray();
 }
@@ -67,6 +74,7 @@ void StaticCallInterfaceDescriptor<DerivedDescriptor>::Initialize(
   // Static local copy of the Registers array, for platform-specific
   // initialization
   static auto registers = DerivedDescriptor::registers();
+  static auto double_registers = DerivedDescriptor::double_registers();
 
   // The passed pointer should be a modifiable pointer to our own data.
   DCHECK_EQ(data, this->data());
@@ -78,11 +86,12 @@ void StaticCallInterfaceDescriptor<DerivedDescriptor>::Initialize(
     DCHECK(!DerivedDescriptor::kCalleeSaveRegisters);
   }
 
-  data->InitializeRegisters(
-      DerivedDescriptor::flags(), DerivedDescriptor::kReturnCount,
-      DerivedDescriptor::GetParameterCount(),
-      DerivedDescriptor::kStackArgumentOrder,
-      DerivedDescriptor::GetRegisterParameterCount(), registers.data());
+  data->InitializeRegisters(DerivedDescriptor::flags(),
+                            DerivedDescriptor::kReturnCount,
+                            DerivedDescriptor::GetParameterCount(),
+                            DerivedDescriptor::kStackArgumentOrder,
+                            DerivedDescriptor::GetRegisterParameterCount(),
+                            registers.data(), double_registers.data());
 
   // InitializeTypes is customizable by the DerivedDescriptor subclass.
   DerivedDescriptor::InitializeTypes(data);

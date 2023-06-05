@@ -18,6 +18,12 @@ constexpr auto CallInterfaceDescriptor::DefaultRegisterArray() {
   return registers;
 }
 
+constexpr auto CallInterfaceDescriptor::DefaultDoubleRegisterArray() {
+  // xmm0 isn't allocatable.
+  auto registers = DoubleRegisterArray(xmm1, xmm2, xmm3, xmm4, xmm5, xmm6);
+  return registers;
+}
+
 #if DEBUG
 template <typename DerivedDescriptor>
 void StaticCallInterfaceDescriptor<DerivedDescriptor>::
@@ -322,41 +328,6 @@ constexpr auto ResumeGeneratorDescriptor::registers() {
 // static
 constexpr auto RunMicrotasksEntryDescriptor::registers() {
   return RegisterArray();
-}
-
-// static
-constexpr auto WasmFloat32ToNumberDescriptor::registers() {
-  // Work around using eax, whose register code is 0, and leads to the FP
-  // parameter being passed via xmm0, which is not allocatable on ia32.
-  return RegisterArray(ecx);
-}
-
-// static
-constexpr auto WasmFloat64ToTaggedDescriptor::registers() {
-  // Work around using eax, whose register code is 0, and leads to the FP
-  // parameter being passed via xmm0, which is not allocatable on ia32.
-  return RegisterArray(ecx);
-}
-
-// static
-constexpr auto NewHeapNumberDescriptor::registers() {
-  // Work around using eax, whose register code is 0, and leads to the FP
-  // parameter being passed via xmm0, which is not allocatable on ia32.
-  return RegisterArray(ecx);
-}
-
-// static
-constexpr auto CheckTurboshaftFloat32TypeDescriptor::registers() {
-  // Work around using eax, whose register code is 0, and leads to the FP
-  // parameter being passed via xmm0, which is not allocatable on ia32.
-  return RegisterArray(ecx);
-}
-
-// static
-constexpr auto CheckTurboshaftFloat64TypeDescriptor::registers() {
-  // Work around using eax, whose register code is 0, and leads to the FP
-  // parameter being passed via xmm0, which is not allocatable on ia32.
-  return RegisterArray(ecx);
 }
 
 }  // namespace internal
