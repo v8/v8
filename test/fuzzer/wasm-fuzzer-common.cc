@@ -458,7 +458,7 @@ class InitExprInterface {
                        const IndexImmediate& data_segment_imm,
                        const Value& offset_value, const Value& length_value,
                        Value* result) {
-    // TODO(7748): Implement.
+    // TODO(14034): Implement. Needed when/if array.newData becomes const.
     UNIMPLEMENTED();
   }
 

@@ -1570,11 +1570,11 @@ void PushArgs(const i::wasm::FunctionSig* sig, const Val args[],
         break;
       case i::wasm::kRef:
       case i::wasm::kRefNull:
-        // TODO(7748): Make sure this works for all heap types.
+        // TODO(14034): Make sure this works for all heap types.
         packer->Push(WasmRefToV8(store->i_isolate(), args[i].ref())->ptr());
         break;
       case i::wasm::kS128:
-        // TODO(7748): Implement.
+        // TODO(14034): Implement.
         UNIMPLEMENTED();
       case i::wasm::kRtt:
       case i::wasm::kI8:
@@ -1606,14 +1606,14 @@ void PopArgs(const i::wasm::FunctionSig* sig, Val results[],
         break;
       case i::wasm::kRef:
       case i::wasm::kRefNull: {
-        // TODO(7748): Make sure this works for all heap types.
+        // TODO(14034): Make sure this works for all heap types.
         i::Address raw = packer->Pop<i::Address>();
         i::Handle<i::Object> obj(i::Object(raw), store->i_isolate());
         results[i] = Val(V8RefValueToWasm(store, obj));
         break;
       }
       case i::wasm::kS128:
-        // TODO(7748): Implement.
+        // TODO(14034): Implement.
         UNIMPLEMENTED();
       case i::wasm::kRtt:
       case i::wasm::kI8:
@@ -1874,7 +1874,7 @@ auto Global::get() const -> Val {
       return Val(v8_global->GetF64());
     case i::wasm::kRef:
     case i::wasm::kRefNull: {
-      // TODO(7748): Handle types other than funcref and externref if needed.
+      // TODO(14034): Handle types other than funcref and externref if needed.
       StoreImpl* store = impl(this)->store();
       i::HandleScope scope(store->i_isolate());
       v8::Isolate::Scope isolate_scope(store->isolate());
@@ -1889,7 +1889,7 @@ auto Global::get() const -> Val {
       return Val(V8RefValueToWasm(store, result));
     }
     case i::wasm::kS128:
-      // TODO(7748): Implement these.
+      // TODO(14034): Implement these.
       UNIMPLEMENTED();
     case i::wasm::kRtt:
     case i::wasm::kI8:
@@ -2013,7 +2013,7 @@ auto Table::type() const -> own<TableType> {
   return TableType::make(ValType::make(kind), Limits(min, max));
 }
 
-// TODO(7748): Handle types other than funcref and externref if needed.
+// TODO(14034): Handle types other than funcref and externref if needed.
 auto Table::get(size_t index) const -> own<Ref> {
   i::Handle<i::WasmTableObject> table = impl(this)->v8_object();
   if (index >= static_cast<size_t>(table->current_length())) return own<Ref>();

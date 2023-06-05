@@ -157,14 +157,14 @@ ValueType GetValueTypeHelper(DataRange* data, uint32_t num_nullable_types,
   const bool nullable =
       (allow_non_nullable == kAllowNonNullables) ? data->get<bool>() : true;
   if (nullable) {
-    // TODO(7748): kWasmExternRef should also be allowed for non-nullable types.
-    // This probably requires having an imported (ref extern) global.
+    // TODO(14034): kWasmExternRef should also be allowed for non-nullable
+    // types. This probably requires having an imported (ref extern) global.
     types.insert(types.end(),
                  {kWasmI31Ref, kWasmFuncRef, kWasmExternRef, kWasmNullRef,
                   kWasmNullExternRef, kWasmNullFuncRef});
   }
   if (include_generics == kIncludeGenerics) {
-    // TODO(7748): Add support for kWasmArrayRef.
+    // TODO(14034): Add support for kWasmArrayRef.
     types.insert(types.end(), {kWasmStructRef, kWasmAnyRef, kWasmEqRef});
   }
 
@@ -984,7 +984,7 @@ class WasmGenerator {
     Var local = GetRandomLocal(data);
     // TODO(manoskouk): Ideally we would check for subtyping here over type
     // equality, but we don't have a module.
-    // TODO(7748): Allow initialized non-nullable locals.
+    // TODO(14034): Allow initialized non-nullable locals.
     if (nullable == kNullable && local.is_valid() &&
         local.type.is_object_reference() && type == local.type.heap_type()) {
       builder_->EmitWithU32V(kExprLocalGet, local.index);
@@ -1032,7 +1032,7 @@ class WasmGenerator {
         case kExprArrayNewElem:
         case kExprArrayNewData: {
           // This is more restrictive than it has to be.
-          // TODO(7748): Also support nonnullable and non-index reference
+          // TODO(14034): Also support nonnullable and non-index reference
           // types.
           if (element_type.is_reference() && element_type.is_nullable() &&
               element_type.has_index()) {
@@ -1040,7 +1040,7 @@ class WasmGenerator {
             uint32_t element_segment = GenerateRefTypeElementSegment(
                 data, builder_->builder(), element_type);
             // Generate offset, length.
-            // TODO(7748): Change the distribution here to make it more likely
+            // TODO(14034): Change the distribution here to make it more likely
             // that the numbers are in range.
             Generate(base::VectorOf({kWasmI32, kWasmI32}), data);
             // Generate array.new_elem instruction.
@@ -1256,7 +1256,7 @@ class WasmGenerator {
     if (num_arrays_ == 0) {
       return;
     }
-    // TODO(7748): The source element type only has to be a subtype of the
+    // TODO(14034): The source element type only has to be a subtype of the
     // destination element type. Currently this only generates copy from same
     // typed arrays.
     int array_index = (data->get<uint8_t>() % num_arrays_) + num_structs_;
@@ -1328,7 +1328,7 @@ class WasmGenerator {
     DCHECK(array_type->mutability());
     ValueType element_type = array_type->element_type().Unpacked();
     // This is more restrictive than it has to be.
-    // TODO(7748): Also support nonnullable and non-index reference
+    // TODO(14034): Also support nonnullable and non-index reference
     // types.
     if (!element_type.is_reference() || element_type.is_non_nullable() ||
         !element_type.has_index()) {
@@ -1338,7 +1338,7 @@ class WasmGenerator {
     uint32_t element_segment =
         GenerateRefTypeElementSegment(data, builder_->builder(), element_type);
     // Generate array, index, elem_offset, length.
-    // TODO(7748): Change the distribution here to make it more likely
+    // TODO(14034): Change the distribution here to make it more likely
     // that the numbers are in range.
     Generate(base::VectorOf({ValueType::RefNull(array_index), kWasmI32,
                              kWasmI32, kWasmI32}),
@@ -1381,7 +1381,7 @@ class WasmGenerator {
       DCHECK(builder->IsStructType(i));
       int field_count = builder->GetStructType(i)->field_count();
       for (int index = 0; index < field_count; index++) {
-        // TODO(7748): This should be a subtype check!
+        // TODO(14034): This should be a subtype check!
         if (builder->GetStructType(i)->field(index) == value_type) {
           field_index.push_back(index);
           struct_index.push_back(i);
@@ -1523,7 +1523,7 @@ class WasmGenerator {
           return type;
         }
         // Collect all (direct) sub types.
-        // TODO(7748): Also collect indirect sub types.
+        // TODO(14034): Also collect indirect sub types.
         std::vector<uint32_t> subtypes;
         uint32_t type_count = builder_->builder()->NumTypes();
         for (uint32_t i = 0; i < type_count; ++i) {
@@ -3064,7 +3064,7 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
       if (supertype != kNoSuperType) {
         const StructType* parent = builder.GetStructType(supertype);
         for (; field_index < parent->field_count(); ++field_index) {
-          // TODO(7748): This could also be any sub type of the supertype's
+          // TODO(14034): This could also be any sub type of the supertype's
           // element type.
           struct_builder.AddField(parent->field(field_index),
                                   parent->mutability(field_index));
@@ -3080,7 +3080,7 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
         //   that are defined earlier. The reason is that every type can only
         //   reference types in its own or earlier recursive groups, and we do
         //   not support recursive groups yet. Also relevant for arrays and
-        //   functions. TODO(7748): Change the number of nullable types once
+        //   functions. TODO(14034): Change the number of nullable types once
         //   we support rec. groups.
         // - We exclude the generics types anyref, dataref, and eqref from the
         //   fields of struct 0. This is because in GenerateInitExpr we
@@ -3098,39 +3098,39 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
       builder.AddStructType(struct_fuz, false, supertype);
     }
 
-      for (int array_index = 0; array_index < num_arrays; array_index++) {
+    for (int array_index = 0; array_index < num_arrays; array_index++) {
       ValueType type = GetValueTypeHelper(
           &module_range, builder.NumTypes(), builder.NumTypes(),
           kAllowNonNullables, kIncludePackedTypes, kIncludeGenerics);
       uint32_t supertype = kNoSuperType;
       if (array_index > 0 && module_range.get<bool>()) {
         supertype = (module_range.get<uint8_t>() % array_index) + num_structs;
-        // TODO(7748): This could also be any sub type of the supertype's
+        // TODO(14034): This could also be any sub type of the supertype's
         // element type.
         type = builder.GetArrayType(supertype)->element_type();
       }
-        ArrayType* array_fuz = zone->New<ArrayType>(type, true);
-        builder.AddArrayType(array_fuz, false, supertype);
-      }
+      ArrayType* array_fuz = zone->New<ArrayType>(type, true);
+      builder.AddArrayType(array_fuz, false, supertype);
+    }
 
     // We keep the signature for the first (main) function constant.
-      function_signatures.push_back(
-          builder.ForceAddSignature(sigs.i_iii(), v8_flags.wasm_final_types));
+    function_signatures.push_back(
+        builder.ForceAddSignature(sigs.i_iii(), v8_flags.wasm_final_types));
 
-      for (uint8_t i = 1; i < num_functions; i++) {
-        FunctionSig* sig =
-            GenerateSig(zone, &module_range, kFunctionSig, builder.NumTypes());
-        uint32_t signature_index =
-            builder.ForceAddSignature(sig, v8_flags.wasm_final_types);
-        function_signatures.push_back(signature_index);
-      }
+    for (uint8_t i = 1; i < num_functions; i++) {
+      FunctionSig* sig =
+          GenerateSig(zone, &module_range, kFunctionSig, builder.NumTypes());
+      uint32_t signature_index =
+          builder.ForceAddSignature(sig, v8_flags.wasm_final_types);
+      function_signatures.push_back(signature_index);
+    }
 
-      int num_exceptions = 1 + (module_range.get<uint8_t>() % kMaxExceptions);
-      for (int i = 0; i < num_exceptions; ++i) {
-        FunctionSig* sig =
-            GenerateSig(zone, &module_range, kExceptionSig, num_types);
-        builder.AddException(sig);
-      }
+    int num_exceptions = 1 + (module_range.get<uint8_t>() % kMaxExceptions);
+    for (int i = 0; i < num_exceptions; ++i) {
+      FunctionSig* sig =
+          GenerateSig(zone, &module_range, kExceptionSig, num_types);
+      builder.AddException(sig);
+    }
 
     // Generate function declarations before tables. This will be needed once we
     // have typed-function tables.
@@ -3140,7 +3140,7 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
       // performed by adding a function by {FunctionSig}, because we emit
       // everything in one recursive group which blocks signature
       // canonicalization.
-      // TODO(7748): Relax this when we implement proper recursive-group
+      // TODO(14034): Relax this when we implement proper recursive-group
       // support.
       functions.push_back(builder.AddFunction(function_signatures[i]));
     }

@@ -123,7 +123,7 @@ class TestingModuleBuilder {
     return reinterpret_cast<T*>(globals_data_ + global->offset);
   }
 
-  // TODO(7748): Allow selecting type finality.
+  // TODO(14034): Allow selecting type finality.
   uint8_t AddSignature(const FunctionSig* sig) {
     test_module_->add_signature(sig, kNoSuperType, v8_flags.wasm_final_types);
     GetTypeCanonicalizer()->AddRecursiveGroup(test_module_.get(), 1);

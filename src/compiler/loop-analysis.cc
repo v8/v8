@@ -700,8 +700,8 @@ ZoneUnorderedSet<Node*>* LoopFinder::FindSmallInnermostLoopFromHeader(
   }
 
   // Only peel functions containing instructions for which loop peeling is known
-  // to be useful. TODO(7748): Add more instructions to get more benefits out of
-  // loop peeling.
+  // to be useful. TODO(14034): Add more instructions to get more benefits out
+  // of loop peeling.
   if (purpose == Purpose::kLoopPeeling && !has_instruction_worth_peeling) {
     return nullptr;
   }

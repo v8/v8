@@ -100,7 +100,7 @@ function testOptimized(run, fctToOptimize) {
     testOptimized(() => assertTraps(trap, getLargeNumber), getLargeNumber);
 
     print("- test inlining into try block");
-    // TODO(7748): This is currently not supported by inlining yet.
+    // TODO(14034): This is currently not supported by inlining yet.
     const getTry = () => {
       try {
         get(null);
@@ -161,7 +161,6 @@ function testOptimized(run, fctToOptimize) {
       kExprLocalGet, 0,
       kGCPrefix, kExprExternInternalize,
       kGCPrefix, kExprRefCast, struct,
-      // TODO(7748): Currently struct.get_s / struct.get_u does not get inlined.
       kGCPrefix, kExprStructGetS, struct, 2,
     ])
     .exportFunc();
@@ -170,7 +169,6 @@ function testOptimized(run, fctToOptimize) {
       kExprLocalGet, 0,
       kGCPrefix, kExprExternInternalize,
       kGCPrefix, kExprRefCast, struct,
-      // TODO(7748): Currently struct.get_s / struct.get_u does not get inlined.
       kGCPrefix, kExprStructGetU, struct, 3,
     ])
     .exportFunc();
@@ -650,7 +648,7 @@ function testStackTrace(error, expected) {
         testStackTrace(e, [
           /RuntimeError: illegal cast/,
           /at getField \(wasm:\/\/wasm\/[0-9a-f]+:wasm-function\[1\]:0x50/,
-          /at getTrap .*\.js:642:19/,
+          /at getTrap .*\.js:640:19/,
         ]);
       }
     };
@@ -675,8 +673,8 @@ function testStackTrace(error, expected) {
       testStackTrace(e, [
         /RuntimeError: illegal cast/,
         /at getField \(wasm:\/\/wasm\/[0-9a-f]+:wasm-function\[1\]:0x50/,
-        /at inlined .*\.js:664:40/,
-        /at getTrapNested .*\.js:663:14/,
+        /at inlined .*\.js:662:40/,
+        /at getTrapNested .*\.js:661:14/,
       ]);
       assertOptimized(getTrapNested);
     }

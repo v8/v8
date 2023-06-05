@@ -419,7 +419,7 @@ Reduction JSInliner::ReduceJSWasmCall(Node* node) {
   Node* inlinee_body_start = nullptr;
   Node* inlinee_body_end = nullptr;
   base::Optional<SharedFunctionInfoRef> shared_fct_info;
-  // TODO(7748): It would be useful to also support inlining of wasm functions
+  // TODO(14034): It would be useful to also support inlining of wasm functions
   // if they are surrounded by a try block which requires further work, so that
   // the wasm trap gets forwarded to the corresponding catch block.
   if (native_module->enabled_features().has_gc() &&
@@ -545,7 +545,7 @@ void JSInliner::InlineWasmFunction(Node* call, Node* inlinee_start,
                                    Node* inlinee_end, Node* frame_state,
                                    SharedFunctionInfoRef shared_fct_info,
                                    int argument_count, Node* context) {
-  // TODO(7748): This is very similar to what is done for wasm inlining inside
+  // TODO(14034): This is very similar to what is done for wasm inlining inside
   // another wasm function. Can we reuse some of its code?
   // 1) Rewire function entry.
   Node* control = NodeProperties::GetControlInput(call);

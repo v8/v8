@@ -1426,7 +1426,6 @@ WASM_COMPILED_EXEC_TEST(RefTrivialCastsStatic) {
 }
 
 WASM_COMPILED_EXEC_TEST(TrivialAbstractCasts) {
-  // TODO(7748): Add tests for branch_on_*.
   WasmGCTester tester(execution_tier);
   uint8_t type_index = tester.DefineArray(wasm::kWasmI32, true);
   uint8_t struct_type_index = tester.DefineStruct({F(wasm::kWasmI32, true)});

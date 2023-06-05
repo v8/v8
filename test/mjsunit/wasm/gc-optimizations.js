@@ -561,8 +561,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
       // local.get 0 is known to be null until end of block.
       kExprLocalGet, 0,
       // This cast is a no-op and shold be optimized away.
-      // TODO(7748): Replace with "ref.cast null".
-      kGCPrefix, kExprRefCastDeprecated, struct_b,
+      kGCPrefix, kExprRefCastNull, struct_b,
       kExprEnd,
       kExprRefIsNull,
     ]);

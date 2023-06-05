@@ -1377,7 +1377,7 @@ WasmInstanceObject::GetOrCreateWasmInternalFunction(
       instance->module_object().native_module()->enabled_features().has_gc();
   if (has_gc) {
     int sig_index = instance->module()->functions[function_index].sig_index;
-    // TODO(7748): Create funcref RTTs lazily?
+    // TODO(14034): Create funcref RTTs lazily?
     rtt = handle(Map::cast(instance->managed_object_maps().get(sig_index)),
                  isolate);
   } else {
@@ -1703,10 +1703,10 @@ bool WasmCapiFunction::MatchesSignature(
   Zone zone(&allocator, ZONE_NAME);
   const wasm::FunctionSig* sig = GetSignature(&zone);
 #if DEBUG
-  // TODO(7748): Change this if indexed types are allowed.
+  // TODO(14034): Change this if indexed types are allowed.
   for (wasm::ValueType type : sig->all()) CHECK(!type.has_index());
 #endif
-  // TODO(7748): Check for subtyping instead if C API functions can define
+  // TODO(14034): Check for subtyping instead if C API functions can define
   // signature supertype.
   return wasm::GetWasmEngine()->type_canonicalizer()->AddRecursiveGroup(sig) ==
          other_canonical_sig_index;
@@ -2186,10 +2186,10 @@ bool WasmJSFunction::MatchesSignature(
   Zone zone(&allocator, ZONE_NAME);
   const wasm::FunctionSig* sig = GetSignature(&zone);
 #if DEBUG
-  // TODO(7748): Change this if indexed types are allowed.
+  // TODO(14034): Change this if indexed types are allowed.
   for (wasm::ValueType type : sig->all()) CHECK(!type.has_index());
 #endif
-  // TODO(7748): Check for subtyping instead if WebAssembly.Function can define
+  // TODO(14034): Check for subtyping instead if WebAssembly.Function can define
   // signature supertype.
   return wasm::GetWasmEngine()->type_canonicalizer()->AddRecursiveGroup(sig) ==
          other_canonical_sig_index;
@@ -2300,7 +2300,7 @@ MaybeHandle<Object> JSToWasmObject(Isolate* isolate, Handle<Object> value,
     }
   }
 
-  // TODO(7748): Streamline interaction of undefined and (ref any).
+  // TODO(14034): Streamline interaction of undefined and (ref any).
   switch (expected_canonical.heap_representation()) {
     case HeapType::kFunc: {
       if (!(WasmExternalFunction::IsWasmExternalFunction(*value) ||

@@ -7167,7 +7167,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
       case wasm::kRef:
       case wasm::kRefNull: {
         switch (type.heap_representation()) {
-          // TODO(7748): Add more fast paths?
+          // TODO(14034): Add more fast paths?
           case wasm::HeapType::kExtern:
           case wasm::HeapType::kNoExtern:
             if (type.kind() == wasm::kRef) {

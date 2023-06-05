@@ -1590,8 +1590,9 @@ void WebAssemblyGlobal(const v8::FunctionCallbackInfo<v8::Value>& info) {
           (info.Length() < 2) ? i_isolate->factory()->null_value()
                               : Utils::OpenHandle(*value);
       const char* error_message;
-      // The JS API does not allow for indexed types.
-      // TODO(7748): Fix this if that changes.
+      // While the JS API generally allows indexed types, it currently has
+      // no way to specify such types in `new WebAssembly.Global(...)`.
+      // TODO(14034): Fix this if that changes.
       DCHECK(!type.has_index());
       if (!i::wasm::JSToWasmObject(i_isolate, value_handle, type,
                                    &error_message)
@@ -2131,7 +2132,7 @@ void WebAssemblyFunction(const v8::FunctionCallbackInfo<v8::Value>& info) {
         instance->module_object().native_module()->enabled_features().has_gc();
     if (has_gc) {
       int sig_index = instance->module()->functions[func_index].sig_index;
-      // TODO(7748): Create funcref RTTs lazily?
+      // TODO(14034): Create funcref RTTs lazily?
       rtt = handle(i::Map::cast(instance->managed_object_maps().get(sig_index)),
                    i_isolate);
     } else {

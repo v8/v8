@@ -101,7 +101,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
               () => init_and_get_active(0, 1, 0));
 })();
 
-// TODO(7748): Reenable when we have constant array.new_elem.
+// TODO(14034): Reenable when we have constant array.new_elem.
 /*
 (function TestArrayNewElemConstant() {
   print(arguments.callee.name);
@@ -211,7 +211,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
                /segment type.*is not a subtype of array element type.*/);
 })();
 
-// TODO(7748): Reenable when we have constant array.new_elem.
+// TODO(14034): Reenable when we have constant array.new_elem.
 /*
 // Element segments are defined after globals, so currently it is not valid
 // to refer to an element segment in the global section.

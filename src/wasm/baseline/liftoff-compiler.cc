@@ -5961,7 +5961,7 @@ class LiftoffCompiler {
   void ArrayCopy(FullDecoder* decoder, const Value& dst, const Value& dst_index,
                  const Value& src, const Value& src_index,
                  const ArrayIndexImmediate& src_imm, const Value& length) {
-    // TODO(7748): Unify implementation with TF: Implement this with
+    // TODO(14034): Unify implementation with TF: Implement this with
     // GenerateCCall. Remove runtime function and builtin in wasm.tq.
     CallRuntimeStub(v8_flags.experimental_wasm_skip_bounds_checks
                         ? WasmCode::kWasmArrayCopy

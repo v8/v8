@@ -1722,7 +1722,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kWasmArrayInitializeLength:
     case IrOpcode::kStringAsWtf16:
     case IrOpcode::kStringPrepareForGetCodeunit:
-      // TODO(manoskouk): What are the constraints here?
+      // TODO(7748): What are the constraints here?
       break;
 #endif  // V8_ENABLE_WEBASSEMBLY
 

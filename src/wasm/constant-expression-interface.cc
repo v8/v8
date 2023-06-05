@@ -272,7 +272,7 @@ void ConstantExpressionInterface::ArrayNewFixed(
                 ValueType::Ref(HeapType(array_imm.index)));
 }
 
-// TODO(7748): These expressions are non-constant for now. There are plans to
+// TODO(14034): These expressions are non-constant for now. There are plans to
 // make them constant in the future, so we retain the required infrastructure
 // here.
 void ConstantExpressionInterface::ArrayNewSegment(

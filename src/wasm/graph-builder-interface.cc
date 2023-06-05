@@ -1533,7 +1533,7 @@ class WasmGraphBuildingInterface {
         DCHECK(null_succeeds);
         // This is needed for BrOnNull. {value_on_branch} is on the value stack
         // and BrOnNull interacts with the values on the stack.
-        // TODO(7748): The compiler shouldn't have to access the stack used by
+        // TODO(14034): The compiler shouldn't have to access the stack used by
         // the decoder ideally.
         SetAndTypeNode(value_on_branch,
                        builder_->TypeGuard(object.node, value_on_branch->type));
@@ -1571,7 +1571,7 @@ class WasmGraphBuildingInterface {
         DCHECK(null_succeeds);
         // We need to store a node in the stack where the decoder so far only
         // pushed a value and expects the `BrOnCastFailAbstract` to set it.
-        // TODO(7748): The compiler shouldn't have to access the stack used by
+        // TODO(14034): The compiler shouldn't have to access the stack used by
         // the decoder ideally.
         Forward(decoder, object, decoder->stack_value(1));
         return BrOnNonNull(decoder, object, value_on_fallthrough, br_depth,
@@ -1601,7 +1601,7 @@ class WasmGraphBuildingInterface {
   void BrOnNonEq(FullDecoder* decoder, const Value& object,
                  Value* value_on_fallthrough, uint32_t br_depth,
                  bool null_succeeds) {
-    // TODO(7748): Merge BrOn* and BrOnNon* instructions as their only
+    // TODO(14034): Merge BrOn* and BrOnNon* instructions as their only
     // difference is a boolean flag passed to BrOnCastAbs. This could also be
     // leveraged to merge BrOnCastFailAbstract and BrOnCastAbstract.
     BrOnCastAbs<&compiler::WasmGraphBuilder::BrOnEq>(
