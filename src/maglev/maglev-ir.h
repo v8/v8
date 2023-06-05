@@ -4321,8 +4321,9 @@ class FastCreateClosure : public FixedInputValueNodeT<1, FastCreateClosure> {
   Input& context() { return input(0); }
 
   // The implementation currently calls runtime.
-  static constexpr OpProperties kProperties =
-      OpProperties::GenericRuntimeOrBuiltinCall();
+  static constexpr OpProperties kProperties = OpProperties::Call() |
+                                              OpProperties::CanAllocate() |
+                                              OpProperties::LazyDeopt();
   static constexpr
       typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
 

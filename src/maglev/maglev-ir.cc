@@ -2453,7 +2453,7 @@ void FastCreateClosure::GenerateCode(MaglevAssembler* masm,
           shared_function_info().object());
   __ Move(D::GetRegisterParameter(D::kFeedbackCell), feedback_cell().object());
   __ CallBuiltin(Builtin::kFastNewClosure);
-  masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
+  masm->DefineLazyDeoptPoint(lazy_deopt_info());
 }
 
 int CreateFunctionContext::MaxCallStackArgs() const {
