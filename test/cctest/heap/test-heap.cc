@@ -6978,7 +6978,7 @@ UNINITIALIZED_TEST(HugeHeapLimit) {
 #endif
 
 UNINITIALIZED_TEST(HeapLimit) {
-  uint64_t kMemoryGB = 15;
+  uint64_t kMemoryGB = 8;
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   create_params.constraints.ConfigureDefaults(kMemoryGB * GB, kMemoryGB * GB);

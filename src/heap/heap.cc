@@ -387,13 +387,13 @@ size_t Heap::AllocatorLimitOnMaxOldGenerationSize() {
 
 size_t Heap::MaxOldGenerationSize(uint64_t physical_memory) {
   size_t max_size = V8HeapTrait::kMaxSize;
-  // Finch experiment: Increase the heap size from 2GB to 4GB for 64-bit
-  // systems with physical memory bigger than 16GB. The physical memory
-  // is rounded up to GB.
+  // Increase the heap size from 2GB to 4GB for 64-bit systems with physical
+  // memory at least 16GB. The theshold is set to 15GB to accomodate for some
+  // memory being reserved by the hardware.
   constexpr bool x64_bit = Heap::kHeapLimitMultiplier >= 2;
   if (v8_flags.huge_max_old_generation_size && x64_bit &&
-      (physical_memory + 512 * MB) / GB >= 16) {
-    DCHECK_EQ(max_size / GB, 2);
+      (physical_memory / GB) >= 15) {
+    DCHECK_EQ(max_size / GB, 2u);
     max_size *= 2;
   }
   return std::min(max_size, AllocatorLimitOnMaxOldGenerationSize());
