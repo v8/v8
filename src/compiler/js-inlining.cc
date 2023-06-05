@@ -258,16 +258,36 @@ FrameState JSInliner::CreateArtificialFrameState(
   const Operator* op0 = common()->StateValues(0, SparseInputMask::Dense());
   Node* node0 = graph()->NewNode(op0);
 
-  NodeVector params(local_zone_);
-  params.push_back(
-      node->InputAt(JSCallOrConstructNode::ReceiverOrNewTargetIndex()));
-  for (int i = 0; i < parameter_count; i++) {
-    params.push_back(node->InputAt(JSCallOrConstructNode::ArgumentIndex(i)));
+  Node* params_node = nullptr;
+#if V8_ENABLE_WEBASSEMBLY
+  const bool skip_params =
+      frame_state_type == FrameStateType::kWasmInlinedIntoJS;
+#else
+  const bool skip_params = false;
+#endif
+  if (skip_params) {
+    // For wasm inlined into JS the frame state doesn't need to be used for
+    // deopts. Also, due to different calling conventions, there isn't a
+    // receiver at input 1. We still need to store an undefined node here as the
+    // code requires this state values to have at least 1 entry.
+    // TODO(mliedtke): Can we clean up the FrameState handling, so that wasm
+    // inline FrameStates are closer to JS FrameStates without affecting
+    // performance?
+    const Operator* op_param =
+        common()->StateValues(1, SparseInputMask::Dense());
+    params_node = graph()->NewNode(op_param, jsgraph()->UndefinedConstant());
+  } else {
+    NodeVector params(local_zone_);
+    params.push_back(
+        node->InputAt(JSCallOrConstructNode::ReceiverOrNewTargetIndex()));
+    for (int i = 0; i < parameter_count; i++) {
+      params.push_back(node->InputAt(JSCallOrConstructNode::ArgumentIndex(i)));
+    }
+    const Operator* op_param = common()->StateValues(
+        static_cast<int>(params.size()), SparseInputMask::Dense());
+    params_node = graph()->NewNode(op_param, static_cast<int>(params.size()),
+                                   &params.front());
   }
-  const Operator* op_param = common()->StateValues(
-      static_cast<int>(params.size()), SparseInputMask::Dense());
-  Node* params_node = graph()->NewNode(
-      op_param, static_cast<int>(params.size()), &params.front());
   if (context == nullptr) context = jsgraph()->UndefinedConstant();
   if (callee == nullptr) {
     callee = node->InputAt(JSCallOrConstructNode::TargetIndex());
