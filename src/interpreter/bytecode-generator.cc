@@ -624,7 +624,7 @@ class V8_NODISCARD BytecodeGenerator::ExpressionResultScope {
       : outer_(generator->execution_result()),
         allocator_(generator),
         kind_(kind),
-        type_hint_(TypeHint::kUnknown) {
+        type_hint_(TypeHint::kAny) {
     generator->set_execution_result(this);
   }
 
@@ -646,18 +646,13 @@ class V8_NODISCARD BytecodeGenerator::ExpressionResultScope {
 
   // Specify expression always returns a Boolean result value.
   void SetResultIsBoolean() {
-    DCHECK_EQ(type_hint_, TypeHint::kUnknown);
+    DCHECK_EQ(type_hint_, TypeHint::kAny);
     type_hint_ = TypeHint::kBoolean;
   }
 
   void SetResultIsString() {
-    DCHECK_EQ(type_hint_, TypeHint::kUnknown);
+    DCHECK_EQ(type_hint_, TypeHint::kAny);
     type_hint_ = TypeHint::kString;
-  }
-
-  void SetResultIsInternalizedString() {
-    DCHECK_EQ(type_hint_, TypeHint::kUnknown);
-    type_hint_ = TypeHint::kInternalizedString;
   }
 
   TypeHint type_hint() const { return type_hint_; }
@@ -3243,7 +3238,7 @@ void BytecodeGenerator::VisitLiteral(Literal* expr) {
       break;
     case Literal::kString:
       builder()->LoadLiteral(expr->AsRawString());
-      execution_result()->SetResultIsInternalizedString();
+      execution_result()->SetResultIsString();
       break;
     case Literal::kBigInt:
       builder()->LoadLiteral(expr->AsBigInt());
@@ -6221,7 +6216,6 @@ void BytecodeGenerator::VisitForTypeOfValue(Expression* expr) {
 void BytecodeGenerator::VisitTypeOf(UnaryOperation* expr) {
   VisitForTypeOfValue(expr->expression());
   builder()->TypeOf();
-  execution_result()->SetResultIsInternalizedString();
 }
 
 void BytecodeGenerator::VisitNot(UnaryOperation* expr) {
@@ -6629,15 +6623,6 @@ void BytecodeGenerator::BuildLiteralStrictCompareBoolean(Literal* literal) {
   builder()->CompareReference(result);
 }
 
-bool BytecodeGenerator::IsLocalVariableWithInternalizedStringHint(
-    Expression* expr) {
-  VariableProxy* proxy = expr->AsVariableProxy();
-  return proxy != nullptr && proxy->is_resolved() &&
-         proxy->var()->IsStackLocal() &&
-         GetTypeHintForLocalVariable(proxy->var()) ==
-             TypeHint::kInternalizedString;
-}
-
 void BytecodeGenerator::VisitCompareOperation(CompareOperation* expr) {
   Expression* sub_expr;
   Literal* literal;
@@ -6666,11 +6651,6 @@ void BytecodeGenerator::VisitCompareOperation(CompareOperation* expr) {
     VisitForAccumulatorValue(sub_expr);
     builder()->SetExpressionPosition(expr);
     BuildLiteralCompareNil(expr->op(), BytecodeArrayBuilder::kNullValue);
-  } else if (expr->IsLiteralCompareEqualVariable(&sub_expr, &literal) &&
-             IsLocalVariableWithInternalizedStringHint(sub_expr)) {
-    builder()->LoadLiteral(literal->AsRawString());
-    builder()->CompareReference(
-        GetRegisterForLocalVariable(sub_expr->AsVariableProxy()->var()));
   } else {
     if (expr->op() == Token::IN && expr->left()->IsPrivateName()) {
       Variable* var = expr->left()->AsVariableProxy()->var();
@@ -6707,7 +6687,7 @@ void BytecodeGenerator::VisitArithmeticExpression(BinaryOperation* expr) {
     builder()->SetExpressionPosition(expr);
     builder()->BinaryOperationSmiLiteral(expr->op(), literal,
                                          feedback_index(slot));
-    if (expr->op() == Token::ADD && IsStringTypeHint(type_hint)) {
+    if (expr->op() == Token::ADD && type_hint == TypeHint::kString) {
       execution_result()->SetResultIsString();
     }
   } else {
@@ -6716,7 +6696,7 @@ void BytecodeGenerator::VisitArithmeticExpression(BinaryOperation* expr) {
     builder()->StoreAccumulatorInRegister(lhs);
     TypeHint rhs_type = VisitForAccumulatorValue(expr->right());
     if (expr->op() == Token::ADD &&
-        (IsStringTypeHint(lhs_type) || IsStringTypeHint(rhs_type))) {
+        (lhs_type == TypeHint::kString || rhs_type == TypeHint::kString)) {
       execution_result()->SetResultIsString();
     }
 
@@ -6740,7 +6720,7 @@ void BytecodeGenerator::VisitNaryArithmeticExpression(NaryOperation* expr) {
       Register lhs = register_allocator()->NewRegister();
       builder()->StoreAccumulatorInRegister(lhs);
       TypeHint rhs_hint = VisitForAccumulatorValue(expr->subsequent(i));
-      if (IsStringTypeHint(rhs_hint)) type_hint = TypeHint::kString;
+      if (rhs_hint == TypeHint::kString) type_hint = TypeHint::kString;
       builder()->SetExpressionPosition(expr->subsequent_op_position(i));
       builder()->BinaryOperation(
           expr->op(), lhs,
@@ -6748,7 +6728,7 @@ void BytecodeGenerator::VisitNaryArithmeticExpression(NaryOperation* expr) {
     }
   }
 
-  if (IsStringTypeHint(type_hint) && expr->op() == Token::ADD) {
+  if (type_hint == TypeHint::kString && expr->op() == Token::ADD) {
     // If any operand of an ADD is a String, a String is produced.
     execution_result()->SetResultIsString();
   }
@@ -6960,7 +6940,7 @@ void BytecodeGenerator::VisitTemplateLiteral(TemplateLiteral* expr) {
     }
 
     TypeHint type_hint = VisitForAccumulatorValue(substitutions[i]);
-    if (!IsStringTypeHint(type_hint)) {
+    if (type_hint != TypeHint::kString) {
       builder()->ToString();
     }
     if (last_part_valid) {
@@ -7546,13 +7526,7 @@ BytecodeGenerator::TypeHint BytecodeGenerator::VisitForAccumulatorValue(
     Expression* expr) {
   ValueResultScope accumulator_scope(this);
   Visit(expr);
-  // Record the type hint for the result of current expression in accumulator.
-  const TypeHint type_hint = accumulator_scope.type_hint();
-  BytecodeRegisterOptimizer* optimizer = builder()->GetRegisterOptimizer();
-  if (optimizer && type_hint != TypeHint::kUnknown) {
-    optimizer->SetTypeHintForAccumulator(type_hint);
-  }
-  return type_hint;
+  return accumulator_scope.type_hint();
 }
 
 void BytecodeGenerator::VisitForAccumulatorValueOrTheHole(Expression* expr) {
@@ -7706,16 +7680,6 @@ BytecodeGenerator::VisitInHoleCheckElisionScopeForAccumulatorValue(
 Register BytecodeGenerator::GetRegisterForLocalVariable(Variable* variable) {
   DCHECK_EQ(VariableLocation::LOCAL, variable->location());
   return builder()->Local(variable->index());
-}
-
-BytecodeGenerator::TypeHint BytecodeGenerator::GetTypeHintForLocalVariable(
-    Variable* variable) {
-  BytecodeRegisterOptimizer* optimizer = builder()->GetRegisterOptimizer();
-  if (optimizer) {
-    Register reg = GetRegisterForLocalVariable(variable);
-    return optimizer->GetTypeHint(reg);
-  }
-  return TypeHint::kAny;
 }
 
 FunctionKind BytecodeGenerator::function_kind() const {
