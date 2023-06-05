@@ -769,16 +769,6 @@ void SetPendingMessage::GenerateCode(MaglevAssembler* masm,
   MAGLEV_NODE_NOT_IMPLEMENTED(SetPendingMessage);
 }
 
-int ThrowIfNotSuperConstructor::MaxCallStackArgs() const { return 2; }
-void ThrowIfNotSuperConstructor::SetValueLocationConstraints() {
-  UseRegister(constructor());
-  UseRegister(function());
-}
-void ThrowIfNotSuperConstructor::GenerateCode(MaglevAssembler* masm,
-                                              const ProcessingState& state) {
-  MAGLEV_NODE_NOT_IMPLEMENTED(ThrowIfNotSuperConstructor);
-}
-
 int FunctionEntryStackCheck::MaxCallStackArgs() const { return 1; }
 void FunctionEntryStackCheck::SetValueLocationConstraints() {
   set_temporaries_needed(2);

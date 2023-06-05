@@ -1785,29 +1785,6 @@ void ReduceInterruptBudgetForReturn::GenerateCode(
                                 amount());
 }
 
-int ThrowIfNotSuperConstructor::MaxCallStackArgs() const { return 2; }
-void ThrowIfNotSuperConstructor::SetValueLocationConstraints() {
-  UseRegister(constructor());
-  UseRegister(function());
-}
-void ThrowIfNotSuperConstructor::GenerateCode(MaglevAssembler* masm,
-                                              const ProcessingState& state) {
-  __ LoadMap(kScratchRegister, ToRegister(constructor()));
-  __ testl(FieldOperand(kScratchRegister, Map::kBitFieldOffset),
-           Immediate(Map::Bits1::IsConstructorBit::kMask));
-  __ JumpToDeferredIf(
-      equal,
-      [](MaglevAssembler* masm, ThrowIfNotSuperConstructor* node) {
-        __ Push(ToRegister(node->constructor()));
-        __ Push(ToRegister(node->function()));
-        __ Move(kContextRegister, masm->native_context().object());
-        __ CallRuntime(Runtime::kThrowNotSuperConstructor, 2);
-        masm->DefineExceptionHandlerAndLazyDeoptPoint(node);
-        __ Abort(AbortReason::kUnexpectedReturnFromThrow);
-      },
-      this);
-}
-
 int FunctionEntryStackCheck::MaxCallStackArgs() const { return 1; }
 void FunctionEntryStackCheck::SetValueLocationConstraints() {}
 void FunctionEntryStackCheck::GenerateCode(MaglevAssembler* masm,

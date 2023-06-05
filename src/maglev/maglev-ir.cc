@@ -3630,6 +3630,34 @@ void ThrowSuperAlreadyCalledIfNotHole::GenerateCode(
       this);
 }
 
+int ThrowIfNotSuperConstructor::MaxCallStackArgs() const { return 2; }
+void ThrowIfNotSuperConstructor::SetValueLocationConstraints() {
+  UseRegister(constructor());
+  UseRegister(function());
+  set_temporaries_needed(1);
+}
+void ThrowIfNotSuperConstructor::GenerateCode(MaglevAssembler* masm,
+                                              const ProcessingState& state) {
+  MaglevAssembler::ScratchRegisterScope temps(masm);
+  Register scratch = temps.Acquire();
+  __ LoadMap(scratch, ToRegister(constructor()));
+  static_assert(Map::kBitFieldOffsetEnd + 1 - Map::kBitFieldOffset == 1);
+  __ LoadUnsignedField(scratch, FieldMemOperand(scratch, Map::kBitFieldOffset),
+                       1);
+  __ TestInt32AndJumpIfAllClear(
+      scratch, Map::Bits1::IsConstructorBit::kMask,
+      __ MakeDeferredCode(
+          [](MaglevAssembler* masm, ThrowIfNotSuperConstructor* node) {
+            __ Push(ToRegister(node->constructor()),
+                    ToRegister(node->function()));
+            __ Move(kContextRegister, masm->native_context().object());
+            __ CallRuntime(Runtime::kThrowNotSuperConstructor, 2);
+            masm->DefineExceptionHandlerAndLazyDeoptPoint(node);
+            __ Abort(AbortReason::kUnexpectedReturnFromThrow);
+          },
+          this));
+}
+
 void TruncateUint32ToInt32::SetValueLocationConstraints() {
   UseRegister(input());
   DefineSameAsFirst(this);

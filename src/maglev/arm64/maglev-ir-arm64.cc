@@ -1760,30 +1760,6 @@ void SetPendingMessage::GenerateCode(MaglevAssembler* masm,
   }
 }
 
-int ThrowIfNotSuperConstructor::MaxCallStackArgs() const { return 2; }
-void ThrowIfNotSuperConstructor::SetValueLocationConstraints() {
-  UseRegister(constructor());
-  UseRegister(function());
-}
-void ThrowIfNotSuperConstructor::GenerateCode(MaglevAssembler* masm,
-                                              const ProcessingState& state) {
-  Label* deferred_abort = __ MakeDeferredCode(
-      [](MaglevAssembler* masm, ThrowIfNotSuperConstructor* node) {
-        __ Push(ToRegister(node->constructor()), ToRegister(node->function()));
-        __ Move(kContextRegister, masm->native_context().object());
-        __ CallRuntime(Runtime::kThrowNotSuperConstructor, 2);
-        masm->DefineExceptionHandlerAndLazyDeoptPoint(node);
-        __ Abort(AbortReason::kUnexpectedReturnFromThrow);
-      },
-      this);
-  MaglevAssembler::ScratchRegisterScope temps(masm);
-  Register scratch = temps.Acquire();
-  __ LoadMap(scratch, ToRegister(constructor()));
-  __ Ldr(scratch, FieldMemOperand(scratch, Map::kBitFieldOffset));
-  __ TestAndBranchIfAllClear(scratch, Map::Bits1::IsConstructorBit::kMask,
-                             deferred_abort);
-}
-
 int FunctionEntryStackCheck::MaxCallStackArgs() const { return 1; }
 void FunctionEntryStackCheck::SetValueLocationConstraints() {
   set_temporaries_needed(2);
