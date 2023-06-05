@@ -345,6 +345,7 @@ class MaglevAssembler : public MacroAssembler {
 
   inline void AssertStackSizeCorrect();
 
+  inline void SetHeapNumberMap(Register object);
   inline void LoadHeapNumberValue(DoubleRegister result, Register heap_number);
 
   void LoadDataField(const PolymorphicAccessInfo& access_info, Register result,

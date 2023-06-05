@@ -5,6 +5,7 @@
 #ifndef V8_MAGLEV_ARM_MAGLEV_ASSEMBLER_ARM_INL_H_
 #define V8_MAGLEV_ARM_MAGLEV_ASSEMBLER_ARM_INL_H_
 
+#include "src/base/numbers/double.h"
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/codegen/macro-assembler-inl.h"
 #include "src/common/globals.h"
@@ -62,6 +63,9 @@ class MaglevAssembler::ScratchRegisterScope {
 
   DoubleRegister AcquireDouble() { return wrapped_scope_.AcquireD(); }
   void IncludeDouble(const DoubleRegList list) {}
+
+  // Available only in arm specific code.
+  SwVfpRegister AcquireFloat32() { return wrapped_scope_.AcquireS(); }
 
   RegList Available() { return wrapped_scope_.Available(); }
   void SetAvailable(RegList list) { wrapped_scope_.SetAvailable(list); }
@@ -294,31 +298,33 @@ inline void MaglevAssembler::IncrementInt32(Register reg) {
 }
 
 inline void MaglevAssembler::Move(StackSlot dst, Register src) {
-  MAGLEV_NOT_IMPLEMENTED();
+  str(src, StackSlotOperand(dst));
 }
 inline void MaglevAssembler::Move(StackSlot dst, DoubleRegister src) {
-  MAGLEV_NOT_IMPLEMENTED();
+  vstr(src, StackSlotOperand(dst));
 }
 inline void MaglevAssembler::Move(Register dst, StackSlot src) {
-  MAGLEV_NOT_IMPLEMENTED();
+  ldr(dst, StackSlotOperand(src));
 }
 inline void MaglevAssembler::Move(DoubleRegister dst, StackSlot src) {
-  MAGLEV_NOT_IMPLEMENTED();
+  vldr(dst, StackSlotOperand(src));
 }
 inline void MaglevAssembler::Move(MemOperand dst, Register src) {
-  MAGLEV_NOT_IMPLEMENTED();
+  str(src, dst);
 }
 inline void MaglevAssembler::Move(MemOperand dst, DoubleRegister src) {
-  MAGLEV_NOT_IMPLEMENTED();
+  vstr(src, dst);
 }
 inline void MaglevAssembler::Move(Register dst, MemOperand src) {
-  MAGLEV_NOT_IMPLEMENTED();
+  ldr(dst, src);
 }
 inline void MaglevAssembler::Move(DoubleRegister dst, MemOperand src) {
-  MAGLEV_NOT_IMPLEMENTED();
+  vldr(dst, src);
 }
 inline void MaglevAssembler::Move(DoubleRegister dst, DoubleRegister src) {
-  MAGLEV_NOT_IMPLEMENTED();
+  if (dst != src) {
+    vmov(dst, src);
+  }
 }
 inline void MaglevAssembler::Move(Register dst, Smi src) {
   MacroAssembler::Move(dst, src);
@@ -326,18 +332,22 @@ inline void MaglevAssembler::Move(Register dst, Smi src) {
 inline void MaglevAssembler::Move(Register dst, ExternalReference src) {
   MacroAssembler::Move(dst, src);
 }
-inline void MaglevAssembler::Move(Register dst, Register src) { mov(dst, src); }
+inline void MaglevAssembler::Move(Register dst, Register src) {
+  if (dst != src) {
+    mov(dst, src);
+  }
+}
 inline void MaglevAssembler::Move(Register dst, TaggedIndex i) {
-  MAGLEV_NOT_IMPLEMENTED();
+  mov(dst, Operand(i.ptr()));
 }
 inline void MaglevAssembler::Move(Register dst, int32_t i) {
   mov(dst, Operand(i));
 }
 inline void MaglevAssembler::Move(DoubleRegister dst, double n) {
-  MAGLEV_NOT_IMPLEMENTED();
+  vmov(dst, base::Double(n));
 }
 inline void MaglevAssembler::Move(DoubleRegister dst, Float64 n) {
-  MAGLEV_NOT_IMPLEMENTED();
+  vmov(dst, base::Double(n.get_bits()));
 }
 inline void MaglevAssembler::Move(Register dst, Handle<HeapObject> obj) {
   MacroAssembler::Move(dst, obj);
@@ -556,17 +566,33 @@ inline void MaglevAssembler::MaterialiseValueNode(Register dst,
 template <>
 inline void MaglevAssembler::MoveRepr(MachineRepresentation repr, Register dst,
                                       Register src) {
-  MAGLEV_NOT_IMPLEMENTED();
+  Move(dst, src);
 }
 template <>
 inline void MaglevAssembler::MoveRepr(MachineRepresentation repr, Register dst,
                                       MemOperand src) {
-  MAGLEV_NOT_IMPLEMENTED();
+  switch (repr) {
+    case MachineRepresentation::kWord32:
+    case MachineRepresentation::kTagged:
+    case MachineRepresentation::kTaggedPointer:
+    case MachineRepresentation::kTaggedSigned:
+      return ldr(dst, src);
+    default:
+      UNREACHABLE();
+  }
 }
 template <>
 inline void MaglevAssembler::MoveRepr(MachineRepresentation repr,
                                       MemOperand dst, Register src) {
-  MAGLEV_NOT_IMPLEMENTED();
+  switch (repr) {
+    case MachineRepresentation::kWord32:
+    case MachineRepresentation::kTagged:
+    case MachineRepresentation::kTaggedPointer:
+    case MachineRepresentation::kTaggedSigned:
+      return str(src, dst);
+    default:
+      UNREACHABLE();
+  }
 }
 template <>
 inline void MaglevAssembler::MoveRepr(MachineRepresentation repr,

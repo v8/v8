@@ -17,13 +17,66 @@ void MaglevAssembler::Allocate(RegisterSnapshot register_snapshot,
                                Register object, int size_in_bytes,
                                AllocationType alloc_type,
                                AllocationAlignment alignment) {
-  MAGLEV_NOT_IMPLEMENTED();
-}
+  DCHECK(allow_allocate());
+  // TODO(victorgomes): Call the runtime for large object allocation.
+  // TODO(victorgomes): Support double alignment.
+  DCHECK_EQ(alignment, kTaggedAligned);
+  size_in_bytes = ALIGN_TO_ALLOCATION_ALIGNMENT(size_in_bytes);
+  if (v8_flags.single_generation) {
+    alloc_type = AllocationType::kOld;
+  }
+  bool in_new_space = alloc_type == AllocationType::kYoung;
+  ExternalReference top =
+      in_new_space
+          ? ExternalReference::new_space_allocation_top_address(isolate_)
+          : ExternalReference::old_space_allocation_top_address(isolate_);
+  ExternalReference limit =
+      in_new_space
+          ? ExternalReference::new_space_allocation_limit_address(isolate_)
+          : ExternalReference::old_space_allocation_limit_address(isolate_);
 
-void MaglevAssembler::AllocateHeapNumber(RegisterSnapshot register_snapshot,
-                                         Register result,
-                                         DoubleRegister value) {
-  MAGLEV_NOT_IMPLEMENTED();
+  ZoneLabelRef done(this);
+  ScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  // We are a bit short on registers, so we use the same register for {object}
+  // and {new_top}. Once we have defined {new_top}, we don't use {object} until
+  // {new_top} is used for the last time. And there (at the end of this
+  // function), we recover the original {object} from {new_top} by subtracting
+  // {size_in_bytes}.
+  Register new_top = object;
+  // Check if there is enough space.
+  ldr(object, ExternalReferenceAsOperand(top, scratch));
+  add(new_top, object, Operand(size_in_bytes), LeaveCC);
+  ldr(scratch, ExternalReferenceAsOperand(limit, scratch));
+  cmp(new_top, scratch);
+  // Otherwise call runtime.
+  JumpToDeferredIf(
+      ge,
+      [](MaglevAssembler* masm, RegisterSnapshot register_snapshot,
+         Register object, Builtin builtin, int size_in_bytes,
+         ZoneLabelRef done) {
+        // Remove {object} from snapshot, since it is the returned allocated
+        // HeapObject.
+        register_snapshot.live_registers.clear(object);
+        register_snapshot.live_tagged_registers.clear(object);
+        {
+          SaveRegisterStateForCall save_register_state(masm, register_snapshot);
+          using D = AllocateDescriptor;
+          __ Move(D::GetRegisterParameter(D::kRequestedSize), size_in_bytes);
+          __ CallBuiltin(builtin);
+          save_register_state.DefineSafepoint();
+          __ Move(object, kReturnRegister0);
+        }
+        __ b(*done);
+      },
+      register_snapshot, object,
+      in_new_space ? Builtin::kAllocateRegularInYoungGeneration
+                   : Builtin::kAllocateRegularInOldGeneration,
+      size_in_bytes, done);
+  // Store new top and tag object.
+  Move(ExternalReferenceAsOperand(top, scratch), new_top);
+  add(object, object, Operand(kHeapObjectTag - size_in_bytes), LeaveCC);
+  bind(*done);
 }
 
 void MaglevAssembler::StoreTaggedFieldWithWriteBarrier(

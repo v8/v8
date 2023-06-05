@@ -41,7 +41,13 @@ void Int32IncrementWithOverflow::SetValueLocationConstraints() {
 
 void Int32IncrementWithOverflow::GenerateCode(MaglevAssembler* masm,
                                               const ProcessingState& state) {
-  MAGLEV_NODE_NOT_IMPLEMENTED(Int32IncrementWithOverflow);
+  Register value = ToRegister(value_input());
+  Register out = ToRegister(result());
+  __ add(out, value, Operand(1));
+  // Output register must not be a register input into the eager deopt info.
+  DCHECK_REGLIST_EMPTY(RegList{out} &
+                       GetGeneralRegistersUsedAsInputs(eager_deopt_info()));
+  __ EmitEagerDeoptIf(vs, DeoptimizeReason::kOverflow, this);
 }
 
 void Int32DecrementWithOverflow::SetValueLocationConstraints() {
@@ -186,7 +192,30 @@ void Int32ToNumber::SetValueLocationConstraints() {
 }
 void Int32ToNumber::GenerateCode(MaglevAssembler* masm,
                                  const ProcessingState& state) {
-  MAGLEV_NODE_NOT_IMPLEMENTED(Int32ToNumber);
+  ZoneLabelRef done(masm);
+  Register object = ToRegister(result());
+  Register value = ToRegister(input());
+  MaglevAssembler::ScratchRegisterScope temps(masm);
+  Register scratch = temps.Acquire();
+  __ add(scratch, value, value, SetCC);
+  __ JumpToDeferredIf(
+      vs,
+      [](MaglevAssembler* masm, Register object, Register value,
+         Register scratch, ZoneLabelRef done, Int32ToNumber* node) {
+        MaglevAssembler::ScratchRegisterScope temps(masm);
+        // We can include {scratch} back to the temporary set, since we jump
+        // over its use to the label {done}.
+        temps.Include(scratch);
+        DoubleRegister double_value = temps.AcquireDouble();
+        SwVfpRegister temp_float = temps.AcquireFloat32();
+        __ vmov(temp_float, value);
+        __ vcvt_f64_s32(double_value, temp_float);
+        __ AllocateHeapNumber(node->register_snapshot(), object, double_value);
+        __ b(*done);
+      },
+      object, value, scratch, done, this);
+  __ Move(object, scratch);
+  __ bind(*done);
 }
 
 void Uint32ToNumber::SetValueLocationConstraints() {

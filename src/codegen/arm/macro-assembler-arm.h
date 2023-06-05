@@ -537,6 +537,9 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void SmiToInt32(Register smi) { SmiUntag(smi); }
 
   // Load an object from the root table.
+  void LoadTaggedRoot(Register destination, RootIndex index) {
+    LoadRoot(destination, index);
+  }
   void LoadRoot(Register destination, RootIndex index) final {
     LoadRoot(destination, index, al);
   }

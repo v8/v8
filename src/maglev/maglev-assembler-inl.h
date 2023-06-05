@@ -327,6 +327,13 @@ inline void MaglevAssembler::CallRuntime(Runtime::FunctionId fid,
   MacroAssembler::CallRuntime(fid, num_args);
 }
 
+inline void MaglevAssembler::SetHeapNumberMap(Register object) {
+  ScratchRegisterScope temps(this);
+  Register scratch = temps.GetDefaultScratchRegister();
+  LoadTaggedRoot(scratch, RootIndex::kHeapNumberMap);
+  StoreTaggedField(FieldMemOperand(object, HeapObject::kMapOffset), scratch);
+}
+
 }  // namespace maglev
 }  // namespace internal
 }  // namespace v8

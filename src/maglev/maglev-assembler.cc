@@ -11,6 +11,18 @@ namespace maglev {
 
 #define __ masm->
 
+void MaglevAssembler::AllocateHeapNumber(RegisterSnapshot register_snapshot,
+                                         Register result,
+                                         DoubleRegister value) {
+  // In the case we need to call the runtime, we should spill the value
+  // register. Even if it is not live in the next node, otherwise the
+  // allocation call might trash it.
+  register_snapshot.live_double_registers.set(value);
+  Allocate(register_snapshot, result, HeapNumber::kSize);
+  SetHeapNumberMap(result);
+  Move(FieldMemOperand(result, HeapNumber::kValueOffset), value);
+}
+
 Register MaglevAssembler::FromAnyToRegister(const Input& input,
                                             Register scratch) {
   if (input.operand().IsConstant()) {
