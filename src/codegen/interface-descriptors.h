@@ -683,6 +683,8 @@ constexpr EmptyRegisterArray RegisterArray() { return {}; }
 class V8_EXPORT_PRIVATE VoidDescriptor
     : public StaticCallInterfaceDescriptor<VoidDescriptor> {
  public:
+  // The void descriptor could (and indeed probably should) also be NO_CONTEXT,
+  // but this breaks some code assembler unittests.
   DEFINE_PARAMETERS()
   DEFINE_PARAMETER_TYPES()
   DECLARE_DESCRIPTOR(VoidDescriptor)
@@ -1792,7 +1794,7 @@ class ApiGetterDescriptor
 class GrowArrayElementsDescriptor
     : public StaticCallInterfaceDescriptor<GrowArrayElementsDescriptor> {
  public:
-  DEFINE_PARAMETERS(kObject, kKey)
+  DEFINE_PARAMETERS_NO_CONTEXT(kObject, kKey)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kObject
                          MachineType::AnyTagged())  // kKey
   DECLARE_DESCRIPTOR(GrowArrayElementsDescriptor)
@@ -2270,12 +2272,13 @@ class DebugPrintWordPtrDescriptor
   DECLARE_DEFAULT_DESCRIPTOR(DebugPrintWordPtrDescriptor)
 };
 
-#define DEFINE_TFS_BUILTIN_DESCRIPTOR(Name, ...)                 \
-  class Name##Descriptor                                         \
-      : public StaticCallInterfaceDescriptor<Name##Descriptor> { \
-   public:                                                       \
-    DEFINE_PARAMETERS(__VA_ARGS__)                               \
-    DECLARE_DEFAULT_DESCRIPTOR(Name##Descriptor)                 \
+#define DEFINE_TFS_BUILTIN_DESCRIPTOR(Name, DoesNeedContext, ...)            \
+  class Name##Descriptor                                                     \
+      : public StaticCallInterfaceDescriptor<Name##Descriptor> {             \
+   public:                                                                   \
+    DEFINE_PARAMETERS(__VA_ARGS__)                                           \
+    static constexpr bool kNoContext = DoesNeedContext == NeedsContext::kNo; \
+    DECLARE_DEFAULT_DESCRIPTOR(Name##Descriptor)                             \
   };
 BUILTIN_LIST_TFS(DEFINE_TFS_BUILTIN_DESCRIPTOR)
 #undef DEFINE_TFS_BUILTIN_DESCRIPTOR

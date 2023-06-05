@@ -2694,8 +2694,8 @@ class MachineLoweringReducer : public Next {
             done, elements);
 
     // We need to take a copy of the {elements} and set them up for {object}.
-    V<Object> copy = __ CallBuiltin_CopyFastSmiOrObjectElements(
-        isolate_, __ NoContextConstant(), object);
+    V<Object> copy =
+        __ CallBuiltin_CopyFastSmiOrObjectElements(isolate_, object);
     GOTO(done, copy);
 
     BIND(done, result);
@@ -2715,12 +2715,12 @@ class MachineLoweringReducer : public Next {
     V<Object> new_elements;
     switch (mode) {
       case GrowFastElementsMode::kDoubleElements:
-        new_elements = __ CallBuiltin_GrowFastDoubleElements(
-            isolate_, __ NoContextConstant(), object, __ TagSmi(index));
+        new_elements = __ CallBuiltin_GrowFastDoubleElements(isolate_, object,
+                                                             __ TagSmi(index));
         break;
       case GrowFastElementsMode::kSmiOrObjectElements:
         new_elements = __ CallBuiltin_GrowFastSmiOrObjectElements(
-            isolate_, __ NoContextConstant(), object, __ TagSmi(index));
+            isolate_, object, __ TagSmi(index));
         break;
     }
 

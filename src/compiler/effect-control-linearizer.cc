@@ -6494,8 +6494,8 @@ Node* EffectControlLinearizer::LowerEnsureWritableFastElements(Node* node) {
   auto call_descriptor = Linkage::GetStubCallDescriptor(
       graph()->zone(), callable.descriptor(),
       callable.descriptor().GetStackParameterCount(), flags, properties);
-  Node* result = __ Call(call_descriptor, __ HeapConstant(callable.code()),
-                         object, __ NoContextConstant());
+  Node* result =
+      __ Call(call_descriptor, __ HeapConstant(callable.code()), object);
   __ Goto(&done, result);
 
   __ Bind(&done);
@@ -6534,7 +6534,7 @@ Node* EffectControlLinearizer::LowerMaybeGrowFastElements(Node* node,
       callable.descriptor().GetStackParameterCount(), call_flags, properties);
   Node* new_elements =
       __ Call(call_descriptor, __ HeapConstant(callable.code()), object,
-              ChangeInt32ToSmi(index), __ NoContextConstant());
+              ChangeInt32ToSmi(index));
 
   // Ensure that we were able to grow the {elements}.
   __ DeoptimizeIf(DeoptimizeReason::kCouldNotGrowElements, params.feedback(),

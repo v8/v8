@@ -91,7 +91,7 @@ struct BuiltinCallDescriptor {
     using result_t = V<Object>;
 
     static constexpr bool NeedsFrameState = false;
-    static constexpr bool NeedsContext = true;
+    static constexpr bool NeedsContext = false;
     static constexpr Operator::Properties Properties = Operator::kEliminatable;
   };
 
@@ -117,7 +117,7 @@ struct BuiltinCallDescriptor {
     using result_t = V<Object>;
 
     static constexpr bool NeedsFrameState = false;
-    static constexpr bool NeedsContext = true;
+    static constexpr bool NeedsContext = false;
     static constexpr Operator::Properties Properties = Operator::kEliminatable;
   };
   using GrowFastDoubleElements =

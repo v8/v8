@@ -1937,11 +1937,10 @@ class AssemblerOpInterface {
         isolate, context, {object, allocated_type, node_id});
   }
   V<Object> CallBuiltin_CopyFastSmiOrObjectElements(Isolate* isolate,
-                                                    V<Context> context,
                                                     V<Object> object) {
     return CallBuiltin<
-        typename BuiltinCallDescriptor::CopyFastSmiOrObjectElements>(
-        isolate, context, {object});
+        typename BuiltinCallDescriptor::CopyFastSmiOrObjectElements>(isolate,
+                                                                     {object});
   }
   V<Smi> CallBuiltin_FindOrderedHashMapEntry(Isolate* isolate,
                                              V<Context> context,
@@ -1956,18 +1955,16 @@ class AssemblerOpInterface {
         isolate, context, {set, key});
   }
   V<Object> CallBuiltin_GrowFastDoubleElements(Isolate* isolate,
-                                               V<Context> context,
                                                V<Object> object, V<Smi> size) {
     return CallBuiltin<typename BuiltinCallDescriptor::GrowFastDoubleElements>(
-        isolate, context, {object, size});
+        isolate, {object, size});
   }
   V<Object> CallBuiltin_GrowFastSmiOrObjectElements(Isolate* isolate,
-                                                    V<Context> context,
                                                     V<Object> object,
                                                     V<Smi> size) {
     return CallBuiltin<
         typename BuiltinCallDescriptor::GrowFastSmiOrObjectElements>(
-        isolate, context, {object, size});
+        isolate, {object, size});
   }
   V<FixedArray> CallBuiltin_NewSloppyArgumentsElements(
       Isolate* isolate, V<WordPtr> frame, V<WordPtr> formal_parameter_count,

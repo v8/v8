@@ -2131,6 +2131,8 @@ enum class StubCallMode {
   kCallBuiltinPointer,
 };
 
+enum class NeedsContext { kYes, kNo };
+
 constexpr int kFunctionLiteralIdInvalid = -1;
 constexpr int kFunctionLiteralIdTopLevel = 0;
 
