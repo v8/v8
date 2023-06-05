@@ -1060,6 +1060,18 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
         node, zone()->New<TryFinallyStatementSourceRanges>(body_range));
   }
 
+  V8_INLINE FunctionLiteral::EagerCompileHint GetEmbedderCompileHint(
+      FunctionLiteral::EagerCompileHint current_compile_hint, int position) {
+    if (current_compile_hint == FunctionLiteral::kShouldLazyCompile) {
+      v8::CompileHintCallback callback = info_->compile_hint_callback();
+      if (callback != nullptr &&
+          callback(position, info_->compile_hint_callback_data())) {
+        return FunctionLiteral::kShouldEagerCompile;
+      }
+    }
+    return current_compile_hint;
+  }
+
   // Generate the next internal variable name for binding an exported namespace
   // object (used to implement the "export * as" syntax).
   const AstRawString* NextInternalNamespaceExportName();

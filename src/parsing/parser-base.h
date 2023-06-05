@@ -4569,6 +4569,11 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
   FunctionKind kind = formal_parameters.scope->function_kind();
   FunctionLiteral::EagerCompileHint eager_compile_hint =
       default_eager_compile_hint_;
+
+  int compile_hint_position = formal_parameters.scope->start_position();
+  eager_compile_hint =
+      impl()->GetEmbedderCompileHint(eager_compile_hint, compile_hint_position);
+
   bool can_preparse = impl()->parse_lazily() &&
                       eager_compile_hint == FunctionLiteral::kShouldLazyCompile;
   // TODO(marja): consider lazy-parsing inner arrow functions too. is_this
