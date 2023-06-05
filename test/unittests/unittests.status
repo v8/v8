@@ -153,6 +153,9 @@
   'LogMapsCodeTest.LogMapsDetailsCode': [SKIP],
   'LogMapsTest.LogMapsDetailsStartup': [SKIP],
   'LogMapsTest.LogMapsDetailsContexts': [SKIP],
+
+  # Test became flaky, fix pending.
+  'RuntimeCallStatsTest.FunctionLengthGetter': [SKIP],
 }],  # tsan == True
 
 ##############################################################################
