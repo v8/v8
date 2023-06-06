@@ -1027,11 +1027,12 @@ DEFINE_BOOL(trace_turbo_inlining, false, "trace TurboFan inlining")
 DEFINE_BOOL(turbo_inline_array_builtins, true,
             "inline array builtins in TurboFan code")
 DEFINE_BOOL(use_osr, true, "use on-stack replacement")
-DEFINE_WEAK_IMPLICATION(maglev, maglev_osr)
-DEFINE_BOOL(maglev_osr, false, "use maglev as on-stack replacement target")
+
+DEFINE_BOOL(maglev_osr, true, "use maglev as on-stack replacement target")
+DEFINE_NEG_VALUE_IMPLICATION(maglev, maglev_osr, false)
+
 // When using maglev as OSR target allow us to tier up further
 DEFINE_WEAK_VALUE_IMPLICATION(maglev_osr, osr_from_maglev, true)
-DEFINE_NEG_VALUE_IMPLICATION(maglev, maglev_osr, false)
 DEFINE_NEG_VALUE_IMPLICATION(use_osr, maglev_osr, false)
 DEFINE_NEG_VALUE_IMPLICATION(turbofan, osr_from_maglev, false)
 DEFINE_BOOL(concurrent_osr, true, "enable concurrent OSR")
