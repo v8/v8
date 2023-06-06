@@ -2225,7 +2225,8 @@ bool V8HeapExplorer::IsEssentialObject(Object object) {
   }
   Isolate* isolate = heap_->isolate();
   ReadOnlyRoots roots(isolate);
-  return !object.IsOddball(isolate) && object != roots.empty_byte_array() &&
+  return !object.IsOddball(isolate) && object != roots.the_hole_value() &&
+         object != roots.empty_byte_array() &&
          object != roots.empty_fixed_array() &&
          object != roots.empty_weak_fixed_array() &&
          object != roots.empty_descriptor_array() &&
