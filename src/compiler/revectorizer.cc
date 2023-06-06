@@ -1299,7 +1299,10 @@ bool Revectorizer::ReduceStoreChains(
                                     chain_iter->second.end(), zone_);
       for (auto it = store_chain.begin(); it < store_chain.end(); it = it + 2) {
         ZoneVector<Node*> stores_unit(it, it + 2, zone_);
-        if (ReduceStoreChain(stores_unit)) {
+        if ((NodeProperties::GetEffectInput(stores_unit[0]) == stores_unit[1] ||
+             NodeProperties::GetEffectInput(stores_unit[1]) ==
+                 stores_unit[0]) &&
+            ReduceStoreChain(stores_unit)) {
           changed = true;
         }
       }
