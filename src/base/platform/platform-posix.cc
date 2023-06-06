@@ -103,8 +103,6 @@ bool g_hard_abort = false;
 
 const char* g_gc_fake_mmap = nullptr;
 
-int g_main_thread_id = -1;
-
 DEFINE_LAZY_LEAKY_OBJECT_GETTER(RandomNumberGenerator,
                                 GetPlatformRandomNumberGenerator)
 static LazyMutex rng_mutex = LAZY_MUTEX_INITIALIZER;
@@ -248,11 +246,6 @@ bool OS::ArmUsingHardFloat() {
 void PosixInitializeCommon(bool hard_abort, const char* const gc_fake_mmap) {
   g_hard_abort = hard_abort;
   g_gc_fake_mmap = gc_fake_mmap;
-  if (g_main_thread_id == -1) {
-    g_main_thread_id = OS::GetCurrentThreadId();
-  } else {
-    CHECK_EQ(OS::GetCurrentThreadId(), g_main_thread_id);
-  }
 }
 
 #if !V8_OS_FUCHSIA
@@ -1256,25 +1249,6 @@ void Thread::SetThreadLocal(LocalStorageKey key, void* value) {
 
 // static
 Stack::StackSlot Stack::ObtainCurrentThreadStackStart() {
-#if defined(V8_LIBC_GLIBC)
-  if (g_main_thread_id == -1) {
-    // This method may be called before the OS is initialized. Assume it is
-    // called by the main thread. This will be verified later when the main
-    // thread initializes the OS.
-    g_main_thread_id = OS::GetCurrentThreadId();
-  }
-  // Prefer using __libc_stack_end for the main thread if it exists and is
-  // initialized, since it is generally faster and provides a tighter limit
-  // for CSS. __libc_stack_end is process global and thus is only valid for
-  // the main thread. Otherwise we fallback to pthread_getattr_np, which can
-  // fail for the main thread (See
-  // https://code.google.com/p/nativeclient/issues/detail?id=3431).
-  DCHECK_NE(-1, g_main_thread_id);
-  if ((OS::GetCurrentThreadId() == g_main_thread_id) && __libc_stack_end) {
-    return __libc_stack_end;
-  }
-#endif  // !defined(V8_LIBC_GLIBC)
-
   pthread_attr_t attr;
   int error = pthread_getattr_np(pthread_self(), &attr);
   if (!error) {
@@ -1285,7 +1259,16 @@ Stack::StackSlot Stack::ObtainCurrentThreadStackStart() {
     pthread_attr_destroy(&attr);
     return reinterpret_cast<uint8_t*>(base) + size;
   }
+
+#if defined(V8_LIBC_GLIBC)
+  // pthread_getattr_np can fail for the main thread. In this case
+  // just like NaCl we rely on the __libc_stack_end to give us
+  // the start of the stack.
+  // See https://code.google.com/p/nativeclient/issues/detail?id=3431.
+  return __libc_stack_end;
+#else
   return nullptr;
+#endif  // !defined(V8_LIBC_GLIBC)
 }
 
 #endif  // !defined(V8_OS_FREEBSD) && !defined(V8_OS_DARWIN) &&
