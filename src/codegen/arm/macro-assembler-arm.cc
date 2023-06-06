@@ -2811,7 +2811,7 @@ void MacroAssembler::BailoutIfDeoptimized() {
   ldr(scratch, FieldMemOperand(scratch, Code::kFlagsOffset));
   Label not_deoptimized;
   tst(scratch, Operand(Code::kMarkedForDeoptimizationBit));
-  b(eq, &not_deoptimized);
+  b(ne, &not_deoptimized);
   Jump(BUILTIN_CODE(isolate(), CompileLazyDeoptimizedCode),
        RelocInfo::CODE_TARGET);
   bind(&not_deoptimized);

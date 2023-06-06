@@ -31,7 +31,18 @@ void Int32NegateWithOverflow::SetValueLocationConstraints() {
 
 void Int32NegateWithOverflow::GenerateCode(MaglevAssembler* masm,
                                            const ProcessingState& state) {
-  MAGLEV_NODE_NOT_IMPLEMENTED(Int32NegateWithOverflow);
+  Register value = ToRegister(value_input());
+  Register out = ToRegister(result());
+
+  // Deopt when result would be -0.
+  __ cmp(value, Operand(0));
+  __ EmitEagerDeoptIf(eq, DeoptimizeReason::kOverflow, this);
+
+  __ rsb(out, value, Operand(0), SetCC);
+  // Output register must not be a register input into the eager deopt info.
+  DCHECK_REGLIST_EMPTY(RegList{out} &
+                       GetGeneralRegistersUsedAsInputs(eager_deopt_info()));
+  __ EmitEagerDeoptIf(vs, DeoptimizeReason::kOverflow, this);
 }
 
 void Int32IncrementWithOverflow::SetValueLocationConstraints() {
@@ -43,7 +54,7 @@ void Int32IncrementWithOverflow::GenerateCode(MaglevAssembler* masm,
                                               const ProcessingState& state) {
   Register value = ToRegister(value_input());
   Register out = ToRegister(result());
-  __ add(out, value, Operand(1));
+  __ add(out, value, Operand(1), SetCC);
   // Output register must not be a register input into the eager deopt info.
   DCHECK_REGLIST_EMPTY(RegList{out} &
                        GetGeneralRegistersUsedAsInputs(eager_deopt_info()));
@@ -57,7 +68,13 @@ void Int32DecrementWithOverflow::SetValueLocationConstraints() {
 
 void Int32DecrementWithOverflow::GenerateCode(MaglevAssembler* masm,
                                               const ProcessingState& state) {
-  MAGLEV_NODE_NOT_IMPLEMENTED(Int32DecrementWithOverflow);
+  Register value = ToRegister(value_input());
+  Register out = ToRegister(result());
+  __ sub(out, value, Operand(1), SetCC);
+  // Output register must not be a register input into the eager deopt info.
+  DCHECK_REGLIST_EMPTY(RegList{out} &
+                       GetGeneralRegistersUsedAsInputs(eager_deopt_info()));
+  __ EmitEagerDeoptIf(vs, DeoptimizeReason::kOverflow, this);
 }
 
 int BuiltinStringFromCharCode::MaxCallStackArgs() const {
@@ -235,7 +252,15 @@ void Int32AddWithOverflow::SetValueLocationConstraints() {
 
 void Int32AddWithOverflow::GenerateCode(MaglevAssembler* masm,
                                         const ProcessingState& state) {
-  MAGLEV_NODE_NOT_IMPLEMENTED(Int32AddWithOverflow);
+  Register left = ToRegister(left_input());
+  Register right = ToRegister(right_input());
+  Register out = ToRegister(result());
+  __ add(out, left, right, SetCC);
+  // The output register shouldn't be a register input into the eager deopt
+  // info.
+  DCHECK_REGLIST_EMPTY(RegList{out} &
+                       GetGeneralRegistersUsedAsInputs(eager_deopt_info()));
+  __ EmitEagerDeoptIf(vs, DeoptimizeReason::kOverflow, this);
 }
 
 void Int32SubtractWithOverflow::SetValueLocationConstraints() {
@@ -278,7 +303,7 @@ void Int32ModulusWithOverflow::GenerateCode(MaglevAssembler* masm,
   MAGLEV_NODE_NOT_IMPLEMENTED(Int32ModulusWithOverflow);
 }
 
-#define DEF_BITWISE_BINOP(Instruction, opcode)                   \
+#define DEF_BITWISE_BINOP(Instruction, opcode, right_modifier)   \
   void Instruction::SetValueLocationConstraints() {              \
     UseRegister(left_input());                                   \
     UseRegister(right_input());                                  \
@@ -287,14 +312,17 @@ void Int32ModulusWithOverflow::GenerateCode(MaglevAssembler* masm,
                                                                  \
   void Instruction::GenerateCode(MaglevAssembler* masm,          \
                                  const ProcessingState& state) { \
-    MAGLEV_NODE_NOT_IMPLEMENTED(Instruction);                    \
+    Register left = ToRegister(left_input());                    \
+    Register right = ToRegister(right_input());                  \
+    Register out = ToRegister(result());                         \
+    __ opcode(out, left, right_modifier(right));                 \
   }
-DEF_BITWISE_BINOP(Int32BitwiseAnd, and_)
-DEF_BITWISE_BINOP(Int32BitwiseOr, orr)
-DEF_BITWISE_BINOP(Int32BitwiseXor, eor)
-DEF_BITWISE_BINOP(Int32ShiftLeft, lslv)
-DEF_BITWISE_BINOP(Int32ShiftRight, asrv)
-DEF_BITWISE_BINOP(Int32ShiftRightLogical, lsrv)
+DEF_BITWISE_BINOP(Int32BitwiseAnd, and_, )
+DEF_BITWISE_BINOP(Int32BitwiseOr, orr, )
+DEF_BITWISE_BINOP(Int32BitwiseXor, eor, )
+DEF_BITWISE_BINOP(Int32ShiftLeft, lsl, Operand)
+DEF_BITWISE_BINOP(Int32ShiftRight, asr, Operand)
+DEF_BITWISE_BINOP(Int32ShiftRightLogical, lsr, Operand)
 #undef DEF_BITWISE_BINOP
 
 void Int32BitwiseNot::SetValueLocationConstraints() {
@@ -304,7 +332,9 @@ void Int32BitwiseNot::SetValueLocationConstraints() {
 
 void Int32BitwiseNot::GenerateCode(MaglevAssembler* masm,
                                    const ProcessingState& state) {
-  MAGLEV_NODE_NOT_IMPLEMENTED(Int32BitwiseNot);
+  Register value = ToRegister(value_input());
+  Register out = ToRegister(result());
+  __ mvn(out, Operand(value));
 }
 
 void Float64Add::SetValueLocationConstraints() {
