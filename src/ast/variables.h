@@ -196,8 +196,8 @@ class Variable final : public ZoneObject {
     DCHECK_NE(kHoleInitializationNotForced, flag);
     DCHECK(IsLexicalVariableMode(mode()) ||
            IsPrivateMethodOrAccessorVariableMode(mode()));
-    hole_check_analysis_bit_field_ = ForceHoleInitializationFlagField::update(
-        hole_check_analysis_bit_field_, flag);
+    hole_check_analysis_bit_field_ |=
+        ForceHoleInitializationFlagField::encode(flag);
   }
 
   // The first N-1 lexical bindings that need hole checks in a compilation are
