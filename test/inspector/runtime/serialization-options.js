@@ -24,6 +24,7 @@ async function testExpression(expression) {
   await testSerializationOptions(expression, { serialization: "json" })
   await testSerializationOptions(expression, { serialization: "json", maxDepth: 1 })
   await testSerializationOptions(expression, { serialization: "idOnly" })
+  await testSerializationOptions(expression, { serialization: "INCORRECT_SERIALIZATION_TYPE" })
 }
 
 async function testSerializationOptions(expression, serializationOptions) {

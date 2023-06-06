@@ -420,3 +420,23 @@ serializationOptions: {"serialization":"idOnly"}
         }
     }
 }
+Runtime.evaluate
+expression: "{key_level_1: {key_level_2: {key_level_3: 'value_level_3'}}}"
+serializationOptions: {"serialization":"INCORRECT_SERIALIZATION_TYPE"}
+{
+    error : {
+        code : -32602
+        message : Unknown serializationOptions.serialization value INCORRECT_SERIALIZATION_TYPE
+    }
+    id : <messageId>
+}
+Runtime.callFunctionOn
+expression: "{key_level_1: {key_level_2: {key_level_3: 'value_level_3'}}}"
+serializationOptions: {"serialization":"INCORRECT_SERIALIZATION_TYPE"}
+{
+    error : {
+        code : -32602
+        message : Unknown serializationOptions.serialization value INCORRECT_SERIALIZATION_TYPE
+    }
+    id : <messageId>
+}
