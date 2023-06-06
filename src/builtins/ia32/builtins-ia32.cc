@@ -864,9 +864,16 @@ static void AdvanceBytecodeOffsetOrReturn(MacroAssembler* masm,
 
 namespace {
 
-void ResetBytecodeAge(MacroAssembler* masm, Register bytecode_array) {
-  __ mov_w(FieldOperand(bytecode_array, BytecodeArray::kBytecodeAgeOffset),
-           Immediate(0));
+void ResetSharedFunctionInfoAge(MacroAssembler* masm, Register sfi) {
+  __ mov_w(FieldOperand(sfi, SharedFunctionInfo::kAgeOffset), Immediate(0));
+}
+
+void ResetJSFunctionAge(MacroAssembler* masm, Register js_function,
+                        Register scratch) {
+  const Register shared_function_info(scratch);
+  __ Move(shared_function_info,
+          FieldOperand(js_function, JSFunction::kSharedFunctionInfoOffset));
+  ResetSharedFunctionInfoAge(masm, shared_function_info);
 }
 
 void ResetFeedbackVectorOsrUrgency(MacroAssembler* masm,
@@ -967,6 +974,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(
   // Get the bytecode array from the function object and load it into
   // kInterpreterBytecodeArrayRegister.
   __ mov(eax, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
+  ResetSharedFunctionInfoAge(masm, eax);
   __ mov(kInterpreterBytecodeArrayRegister,
          FieldOperand(eax, SharedFunctionInfo::kFunctionDataOffset));
   GetSharedFunctionInfoBytecode(masm, kInterpreterBytecodeArrayRegister, eax);
@@ -980,8 +988,6 @@ void Builtins::Generate_InterpreterEntryTrampoline(
         equal,
         AbortReason::kFunctionDataShouldBeBytecodeArrayOnInterpreterEntry);
   }
-
-  ResetBytecodeAge(masm, kInterpreterBytecodeArrayRegister);
 
   // Push bytecode array.
   __ push(kInterpreterBytecodeArrayRegister);
@@ -1604,6 +1610,7 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
         BaselineOutOfLinePrologueDescriptor::kClosure);
     DCHECK_EQ(callee_js_function, kJavaScriptCallTargetRegister);
     DCHECK_EQ(callee_js_function, kJSFunctionRegister);
+    ResetJSFunctionAge(masm, callee_js_function, scratch);
     __ Push(callee_js_function);        // Callee's JS function.
     __ Push(saved_arg_count, scratch);  // Push actual argument count.
 
@@ -1611,7 +1618,6 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
     // the frame, so load it into a register.
     Register bytecode_array = scratch;
     __ movd(bytecode_array, saved_bytecode_array);
-    ResetBytecodeAge(masm, bytecode_array);
     __ Push(bytecode_array);
 
     // Baseline code frames store the feedback vector where interpreter would
@@ -4415,7 +4421,8 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
   __ pop(kInterpreterAccumulatorRegister);
 
   if (is_osr) {
-    ResetBytecodeAge(masm, kInterpreterBytecodeArrayRegister);
+    __ mov(closure, MemOperand(ebp, StandardFrameConstants::kFunctionOffset));
+    ResetJSFunctionAge(masm, closure, closure);
     Generate_OSREntry(masm, code_obj);
   } else {
     __ jmp(code_obj);

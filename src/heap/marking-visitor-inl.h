@@ -172,9 +172,6 @@ int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitBytecodeArray(
   int size = BytecodeArray::BodyDescriptor::SizeOf(map, object);
   this->VisitMapPointer(object);
   BytecodeArray::BodyDescriptor::IterateBody(map, object, size, this);
-  if (!should_keep_ages_unchanged_) {
-    MakeOlder(object);
-  }
   return size;
 }
 
@@ -229,8 +226,8 @@ int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitSharedFunctionInfo(
 }
 
 template <typename ConcreteVisitor, typename MarkingState>
-bool MarkingVisitorBase<ConcreteVisitor, MarkingState>::ShouldFlushCode(
-    SharedFunctionInfo sfi) const {
+bool MarkingVisitorBase<ConcreteVisitor, MarkingState>::
+    HasBytecodeArrayForFlushing(SharedFunctionInfo sfi) const {
   if (IsFlushingDisabled(code_flush_mode_)) return false;
 
   // TODO(rmcilroy): Enable bytecode flushing for resumable functions.
@@ -254,36 +251,47 @@ bool MarkingVisitorBase<ConcreteVisitor, MarkingState>::ShouldFlushCode(
     // nothing to flush.
     return false;
   }
-  if (!data.IsBytecodeArray()) return false;
 
-  if (IsStressFlushingEnabled(code_flush_mode_)) return true;
+  return data.IsBytecodeArray();
+}
 
-  return IsOld(BytecodeArray::cast(data));
+template <typename ConcreteVisitor, typename MarkingState>
+bool MarkingVisitorBase<ConcreteVisitor, MarkingState>::ShouldFlushCode(
+    SharedFunctionInfo sfi) const {
+  if (!HasBytecodeArrayForFlushing(sfi)) return false;
+
+  // We found a BytecodeArray that can be flushed. Increment the age of the SFI.
+  if (!should_keep_ages_unchanged_) {
+    MakeOlder(sfi);
+  }
+
+  // Check if the SFI shall be flushed.
+  return IsStressFlushingEnabled(code_flush_mode_) || IsOld(sfi);
 }
 
 template <typename ConcreteVisitor, typename MarkingState>
 bool MarkingVisitorBase<ConcreteVisitor, MarkingState>::IsOld(
-    BytecodeArray bytecode) const {
+    SharedFunctionInfo sfi) const {
   if (v8_flags.flush_code_based_on_time) {
-    return bytecode.bytecode_age() >= v8_flags.bytecode_old_time;
+    return sfi.age() >= v8_flags.bytecode_old_time;
   } else if (v8_flags.flush_code_based_on_tab_visibility) {
     return isolate_in_background_ ||
-           V8_UNLIKELY(bytecode.bytecode_age() == BytecodeArray::kMaxAge);
+           V8_UNLIKELY(sfi.age() == SharedFunctionInfo::kMaxAge);
   } else {
-    return bytecode.bytecode_age() >= v8_flags.bytecode_old_age;
+    return sfi.age() >= v8_flags.bytecode_old_age;
   }
 }
 
 template <typename ConcreteVisitor, typename MarkingState>
 void MarkingVisitorBase<ConcreteVisitor, MarkingState>::MakeOlder(
-    BytecodeArray bytecode) const {
+    SharedFunctionInfo sfi) const {
   if (v8_flags.flush_code_based_on_time) {
     DCHECK_NE(code_flushing_increase_, 0);
     uint16_t current_age;
     uint16_t updated_age;
 
     do {
-      current_age = bytecode.bytecode_age();
+      current_age = sfi.age();
       // When the age is 0, it was reset by the function prologue in
       // Ignition/Sparkplug. But that might have been some time after the last
       // full GC. So in this case we don't increment the value like we normally
@@ -293,16 +301,15 @@ void MarkingVisitorBase<ConcreteVisitor, MarkingState>::MakeOlder(
       updated_age = current_age == 0
                         ? 1
                         : SaturateAdd(current_age, code_flushing_increase_);
-    } while (bytecode.CompareExchangeBytecodeAge(current_age, updated_age) !=
-             current_age);
+    } while (sfi.CompareExchangeAge(current_age, updated_age) != current_age);
   } else if (v8_flags.flush_code_based_on_tab_visibility) {
     // No need to increment age.
   } else {
-    uint16_t age = bytecode.bytecode_age();
+    uint16_t age = sfi.age();
     if (age < v8_flags.bytecode_old_age) {
-      bytecode.CompareExchangeBytecodeAge(age, age + 1);
+      sfi.CompareExchangeAge(age, age + 1);
     }
-    DCHECK_LE(bytecode.bytecode_age(), v8_flags.bytecode_old_age);
+    DCHECK_LE(sfi.age(), v8_flags.bytecode_old_age);
   }
 }
 

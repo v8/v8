@@ -23663,7 +23663,6 @@ void StreamingWithIsolateScriptCache(bool run_gc) {
                           nullptr};
   const char* full_source = chunks[0];
   v8::Isolate* isolate = CcTest::isolate();
-  auto i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   v8::HandleScope scope(isolate);
   v8::ScriptOrigin origin(isolate, v8_str("http://foo.com"), 0, 0, false, -1,
                           v8::Local<v8::Value>(), false, false, false);
@@ -23698,9 +23697,7 @@ void StreamingWithIsolateScriptCache(bool run_gc) {
       // alive and reachable via the Isolate script cache.
       i::Handle<i::JSFunction> script_function =
           i::Handle<i::JSFunction>::cast(v8::Utils::OpenHandle(*script));
-      i::Handle<i::BytecodeArray> script_bytecode(
-          script_function->shared().GetBytecodeArray(i_isolate), i_isolate);
-      i::BytecodeArray::EnsureOldForTesting(*script_bytecode);
+      i::SharedFunctionInfo::EnsureOldForTesting(script_function->shared());
     }
   }
 
