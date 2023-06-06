@@ -4840,6 +4840,13 @@ void Heap::ConfigureHeap(const v8::ResourceConstraints& constraints) {
       // This will cause more frequent GCs when stressing.
       max_semi_space_size_ = MB;
     }
+    if (!v8_flags.minor_mc) {
+      // TODO(dinfuehr): Rounding to a power of 2 is technically no longer
+      // needed but yields best performance on Pixel2.
+      max_semi_space_size_ =
+          static_cast<size_t>(base::bits::RoundUpToPowerOfTwo64(
+              static_cast<uint64_t>(max_semi_space_size_)));
+    }
     max_semi_space_size_ =
         std::max(max_semi_space_size_, DefaultMinSemiSpaceSize());
     max_semi_space_size_ = RoundDown<Page::kPageSize>(max_semi_space_size_);
