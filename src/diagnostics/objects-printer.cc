@@ -2098,7 +2098,16 @@ void WasmStruct::WasmStructPrint(std::ostream& os) {
         break;
       }
       case wasm::kS128:
-        os << "UNIMPLEMENTED";  // TODO(7748): Implement.
+        os << "0x" << std::hex << std::setfill('0');
+#ifdef V8_TARGET_BIG_ENDIAN
+        for (int j = 0; j < kSimd128Size; j++) {
+#else
+        for (int j = kSimd128Size - 1; j >= 0; j--) {
+#endif
+          os << std::setw(2)
+             << static_cast<int>(reinterpret_cast<byte*>(field_address)[j]);
+        }
+        os << std::dec << std::setfill(' ');
         break;
       case wasm::kBottom:
       case wasm::kVoid:
@@ -2159,15 +2168,18 @@ void WasmArray::WasmArrayPrint(std::ostream& os) {
       for (uint32_t i = 0;
            i < std::min(this->length(), kWasmArrayMaximumPrintedElements);
            i++) {
-        os << "\n   " << static_cast<int>(i) << " - 0x" << std::hex;
+        os << "\n   " << static_cast<int>(i) << " - 0x" << std::hex
+           << std::setfill('0');
 #ifdef V8_TARGET_BIG_ENDIAN
         for (int j = 0; j < kSimd128Size; j++) {
 #else
         for (int j = kSimd128Size - 1; j >= 0; j--) {
 #endif
-          os << reinterpret_cast<uint8_t*>(this->ElementAddress(i))[j];
+          os << std::setw(2)
+             << static_cast<int>(
+                    reinterpret_cast<byte*>(this->ElementAddress(i))[j]);
         }
-        os << std::dec;
+        os << std::dec << std::setfill(' ');
       }
       if (this->length() > kWasmArrayMaximumPrintedElements) os << "\n   ...";
       break;
