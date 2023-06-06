@@ -187,7 +187,8 @@ inline void MaglevAssembler::DoubleToInt64Repr(Register dst,
 }
 
 inline void MaglevAssembler::SmiTagInt32(Register obj, Label* fail) {
-  MAGLEV_NOT_IMPLEMENTED();
+  add(obj, obj, obj, SetCC);
+  b(vs, fail);
 }
 
 inline Condition MaglevAssembler::IsInt64Constant(Register reg,
@@ -198,7 +199,15 @@ inline Condition MaglevAssembler::IsInt64Constant(Register reg,
 
 inline Condition MaglevAssembler::IsRootConstant(Input input,
                                                  RootIndex root_index) {
-  MAGLEV_NOT_IMPLEMENTED();
+  if (input.operand().IsRegister()) {
+    CompareRoot(ToRegister(input), root_index);
+  } else {
+    DCHECK(input.operand().IsStackSlot());
+    ScratchRegisterScope temps(this);
+    Register scratch = temps.Acquire();
+    ldr(scratch, ToMemOperand(input));
+    CompareRoot(scratch, root_index);
+  }
   return eq;
 }
 
@@ -230,48 +239,82 @@ inline void MaglevAssembler::LoadTaggedFieldByIndex(Register result,
                                                     Register object,
                                                     Register index, int scale,
                                                     int offset) {
-  MAGLEV_NOT_IMPLEMENTED();
+  if (scale == 1) {
+    add(result, object, index);
+  } else {
+    add(result, object, Operand(index, LSL, ShiftFromScale(scale / 2)));
+  }
+  MacroAssembler::LoadTaggedField(result, FieldMemOperand(result, offset));
 }
 
 inline void MaglevAssembler::LoadBoundedSizeFromObject(Register result,
                                                        Register object,
                                                        int offset) {
-  MAGLEV_NOT_IMPLEMENTED();
+  Move(result, FieldMemOperand(object, offset));
 }
 
 inline void MaglevAssembler::LoadExternalPointerField(Register result,
                                                       MemOperand operand) {
-#ifdef V8_ENABLE_SANDBOX
-  LoadSandboxedPointerField(result, operand);
-#else
   Move(result, operand);
-#endif
 }
 
 void MaglevAssembler::LoadFixedArrayElement(Register result, Register array,
                                             Register index) {
-  MAGLEV_NOT_IMPLEMENTED();
+  if (v8_flags.debug_code) {
+    AssertNotSmi(array);
+    IsObjectType(array, FIXED_ARRAY_TYPE);
+    Assert(kEqual, AbortReason::kUnexpectedValue);
+    CompareInt32(index, 0);
+    Assert(kUnsignedGreaterThanEqual, AbortReason::kUnexpectedNegativeValue);
+  }
+  add(result, array, Operand(index, LSL, kTaggedSizeLog2));
+  ldr(result, FieldMemOperand(result, FixedArray::kHeaderSize));
 }
 
 void MaglevAssembler::LoadFixedArrayElementWithoutDecompressing(
     Register result, Register array, Register index) {
-  MAGLEV_NOT_IMPLEMENTED();
+  // No compression mode on arm.
+  LoadFixedArrayElement(result, array, index);
 }
 
 void MaglevAssembler::LoadFixedDoubleArrayElement(DoubleRegister result,
                                                   Register array,
                                                   Register index) {
-  MAGLEV_NOT_IMPLEMENTED();
+  ScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  if (v8_flags.debug_code) {
+    AssertNotSmi(array);
+    IsObjectType(array, FIXED_DOUBLE_ARRAY_TYPE);
+    Assert(kEqual, AbortReason::kUnexpectedValue);
+    CompareInt32(index, 0);
+    Assert(kUnsignedGreaterThanEqual, AbortReason::kUnexpectedNegativeValue);
+  }
+  add(scratch, array, Operand(index, LSL, kDoubleSizeLog2));
+  vldr(result, FieldMemOperand(scratch, FixedArray::kHeaderSize));
 }
 
 inline void MaglevAssembler::LoadSignedField(Register result,
                                              MemOperand operand, int size) {
-  MAGLEV_NOT_IMPLEMENTED();
+  if (size == 1) {
+    ldrsb(result, operand);
+  } else if (size == 2) {
+    ldrsh(result, operand);
+  } else {
+    DCHECK_EQ(size, 4);
+    ldr(result, operand);
+  }
 }
 
 inline void MaglevAssembler::LoadUnsignedField(Register result,
                                                MemOperand operand, int size) {
-  MAGLEV_NOT_IMPLEMENTED();
+  if (size == 1) {
+    ldrb(result, operand);
+  } else if (size == 2) {
+    ldrh(result, operand);
+  } else {
+    DCHECK_EQ(size, 4);
+    ldr(result, operand);
+  }
 }
 
 inline void MaglevAssembler::StoreTaggedFieldNoWriteBarrier(Register object,
@@ -304,7 +347,15 @@ inline void MaglevAssembler::StoreInt32Field(Register object, int offset,
 
 inline void MaglevAssembler::StoreField(MemOperand operand, Register value,
                                         int size) {
-  MAGLEV_NOT_IMPLEMENTED();
+  DCHECK(size == 1 || size == 2 || size == 4);
+  if (size == 1) {
+    strb(value, operand);
+  } else if (size == 2) {
+    strh(value, operand);
+  } else {
+    DCHECK_EQ(size, 4);
+    str(value, operand);
+  }
 }
 
 inline void MaglevAssembler::ReverseByteOrder(Register value, int size) {
@@ -312,7 +363,7 @@ inline void MaglevAssembler::ReverseByteOrder(Register value, int size) {
 }
 
 inline void MaglevAssembler::IncrementInt32(Register reg) {
-  MAGLEV_NOT_IMPLEMENTED();
+  add(reg, reg, Operand(1));
 }
 
 inline void MaglevAssembler::Move(StackSlot dst, Register src) {
@@ -375,7 +426,7 @@ inline void MaglevAssembler::SignExtend32To64Bits(Register dst, Register src) {
   MAGLEV_NOT_IMPLEMENTED();
 }
 inline void MaglevAssembler::NegateInt32(Register val) {
-  MAGLEV_NOT_IMPLEMENTED();
+  rsb(val, val, Operand(0));
 }
 
 inline void MaglevAssembler::ToUint8Clamped(Register result,
@@ -388,16 +439,30 @@ template <typename NodeT>
 inline void MaglevAssembler::DeoptIfBufferDetached(Register array,
                                                    Register scratch,
                                                    NodeT* node) {
-  MAGLEV_NOT_IMPLEMENTED();
+  if (!code_gen_state()
+           ->broker()
+           ->dependencies()
+           ->DependOnArrayBufferDetachingProtector()) {
+    // A detached buffer leads to megamorphic feedback, so we won't have a deopt
+    // loop if we deopt here.
+    LoadTaggedField(scratch,
+                    FieldMemOperand(array, JSArrayBufferView::kBufferOffset));
+    LoadTaggedField(scratch,
+                    FieldMemOperand(scratch, JSArrayBuffer::kBitFieldOffset));
+    tst(scratch, Operand(JSArrayBuffer::WasDetachedBit::kMask));
+    EmitEagerDeoptIf(ne, DeoptimizeReason::kArrayBufferWasDetached, node);
+  }
 }
 
 inline void MaglevAssembler::LoadByte(Register dst, MemOperand src) {
-  MAGLEV_NOT_IMPLEMENTED();
+  ldrb(dst, src);
 }
 
 inline void MaglevAssembler::IsObjectType(Register heap_object,
                                           InstanceType type) {
-  MAGLEV_NOT_IMPLEMENTED();
+  ScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  MacroAssembler::CompareObjectType(heap_object, scratch, scratch, type);
 }
 
 inline void MaglevAssembler::CompareObjectType(Register heap_object,
@@ -431,7 +496,8 @@ inline void MaglevAssembler::CompareObjectTypeRange(Register heap_object,
 inline void MaglevAssembler::CompareMapWithRoot(Register object,
                                                 RootIndex index,
                                                 Register scratch) {
-  MAGLEV_NOT_IMPLEMENTED();
+  LoadMap(scratch, object);
+  CompareRoot(scratch, index);
 }
 
 inline void MaglevAssembler::CompareInstanceTypeRange(
@@ -449,29 +515,29 @@ inline void MaglevAssembler::CompareInstanceTypeRange(
 }
 
 inline void MaglevAssembler::CompareTagged(Register reg, Smi smi) {
-  MAGLEV_NOT_IMPLEMENTED();
+  cmp(reg, Operand(smi));
 }
 
 inline void MaglevAssembler::CompareTagged(Register reg,
                                            Handle<HeapObject> obj) {
-  MAGLEV_NOT_IMPLEMENTED();
+  cmp(reg, Operand(obj));
 }
 
 inline void MaglevAssembler::CompareTagged(Register src1, Register src2) {
-  MAGLEV_NOT_IMPLEMENTED();
+  cmp(src1, src2);
 }
 
 inline void MaglevAssembler::CompareInt32(Register reg, int32_t imm) {
-  MAGLEV_NOT_IMPLEMENTED();
+  cmp(reg, Operand(imm));
 }
 
 inline void MaglevAssembler::CompareInt32(Register src1, Register src2) {
-  MAGLEV_NOT_IMPLEMENTED();
+  cmp(src1, src2);
 }
 
 inline void MaglevAssembler::CompareFloat64(DoubleRegister src1,
                                             DoubleRegister src2) {
-  MAGLEV_NOT_IMPLEMENTED();
+  vcmp(src1, src2);
 }
 
 inline void MaglevAssembler::CallSelf() {
@@ -505,34 +571,39 @@ inline void MaglevAssembler::JumpIfSmi(Register src, Label* on_smi,
 
 void MaglevAssembler::JumpIfByte(Condition cc, Register value, int32_t byte,
                                  Label* target, Label::Distance) {
-  MAGLEV_NOT_IMPLEMENTED();
+  cmp(value, Operand(byte));
+  b(cc, target);
 }
 
 inline void MaglevAssembler::CompareInt32AndJumpIf(Register r1, Register r2,
                                                    Condition cond,
                                                    Label* target,
                                                    Label::Distance distance) {
-  MAGLEV_NOT_IMPLEMENTED();
+  cmp(r1, r2);
+  b(cond, target);
 }
 
 inline void MaglevAssembler::CompareInt32AndJumpIf(Register r1, int32_t value,
                                                    Condition cond,
                                                    Label* target,
                                                    Label::Distance distance) {
-  MAGLEV_NOT_IMPLEMENTED();
+  cmp(r1, Operand(value));
+  b(cond, target);
 }
 
 inline void MaglevAssembler::CompareSmiAndJumpIf(Register r1, Smi value,
                                                  Condition cond, Label* target,
                                                  Label::Distance distance) {
-  MAGLEV_NOT_IMPLEMENTED();
+  cmp(r1, Operand(value));
+  b(cond, target);
 }
 
 inline void MaglevAssembler::CompareTaggedAndJumpIf(Register r1, Smi value,
                                                     Condition cond,
                                                     Label* target,
                                                     Label::Distance distance) {
-  MAGLEV_NOT_IMPLEMENTED();
+  cmp(r1, Operand(value));
+  b(cond, target);
 }
 
 inline void MaglevAssembler::CompareDoubleAndJumpIfZeroOrNaN(
@@ -580,14 +651,17 @@ inline void MaglevAssembler::TestInt32AndJumpIfAllClear(
 
 inline void MaglevAssembler::LoadHeapNumberValue(DoubleRegister result,
                                                  Register heap_number) {
-  MAGLEV_NOT_IMPLEMENTED();
+  vldr(result, FieldMemOperand(heap_number, HeapNumber::kValueOffset));
 }
 
 inline void MaglevAssembler::Int32ToDouble(DoubleRegister result, Register n) {
-  MAGLEV_NOT_IMPLEMENTED();
+  ScratchRegisterScope temps(this);
+  SwVfpRegister temp_float = temps.AcquireFloat32();
+  vmov(temp_float, n);
+  vcvt_f64_s32(result, temp_float);
 }
 
-inline void MaglevAssembler::Pop(Register dst) { MAGLEV_NOT_IMPLEMENTED(); }
+inline void MaglevAssembler::Pop(Register dst) { pop(dst); }
 
 inline void MaglevAssembler::AssertStackSizeCorrect() {
   if (v8_flags.debug_code) {
