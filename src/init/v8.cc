@@ -314,6 +314,11 @@ void V8::DisposePlatform() {
 #endif  // V8_ENABLE_SANDBOX
 
   platform_ = nullptr;
+
+#if DEBUG
+  internal::ThreadIsolation::CheckTrackedMemoryEmpty();
+#endif
+
   AdvanceStartupState(V8StartupState::kPlatformDisposed);
 }
 

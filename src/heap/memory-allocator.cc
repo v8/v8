@@ -472,6 +472,12 @@ void MemoryAllocator::UnregisterBasicMemoryChunk(BasicMemoryChunk* chunk,
 #ifdef DEBUG
     UnregisterExecutableMemoryChunk(static_cast<MemoryChunk*>(chunk));
 #endif  // DEBUG
+
+#if V8_HEAP_USE_PKU_JIT_WRITE_PROTECT
+    Address rwx_start =
+        chunk->address() + MemoryChunkLayout::ObjectPageOffsetInCodePage();
+    ThreadIsolation::UnregisterJitPage(rwx_start);
+#endif
   }
   chunk->SetFlag(MemoryChunk::UNREGISTERED);
 }
@@ -757,13 +763,12 @@ bool MemoryAllocator::SetPermissionsOnExecutableMemoryChunk(VirtualMemory* vm,
         // Commit the executable code body.
         bool set_permission_successed = false;
 #if V8_HEAP_USE_PKU_JIT_WRITE_PROTECT
-        if (!jitless && RwxMemoryWriteScope::IsSupported()) {
+        if (ThreadIsolation::Enabled()) {
+          DCHECK(!jitless);
           base::AddressRegion region(code_area, aligned_area_size);
           set_permission_successed =
-              base::MemoryProtectionKey::SetPermissionsAndKey(
-                  code_page_allocator_, region,
-                  PageAllocator::kReadWriteExecute,
-                  RwxMemoryWriteScope::memory_protection_key());
+              ThreadIsolation::RegisterJitPageAndMakeExecutable(
+                  code_area, aligned_area_size);
         } else
 #endif
         {

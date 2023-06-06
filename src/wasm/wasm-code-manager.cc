@@ -1853,8 +1853,7 @@ void WasmCodeManager::Commit(base::AddressRegion region) {
         ":0x%" PRIxPTR "\n",
         region.begin(), region.end());
     success = base::MemoryProtectionKey::SetPermissionsAndKey(
-        GetPlatformPageAllocator(), region, permission,
-        RwxMemoryWriteScope::memory_protection_key());
+        region, permission, RwxMemoryWriteScope::memory_protection_key());
 #else
     UNREACHABLE();
 #endif  // V8_HAS_PKU_JIT_WRITE_PROTECT

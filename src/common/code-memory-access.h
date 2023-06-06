@@ -5,9 +5,13 @@
 #ifndef V8_COMMON_CODE_MEMORY_ACCESS_H_
 #define V8_COMMON_CODE_MEMORY_ACCESS_H_
 
+#include <map>
+
+#include "include/v8-internal.h"
 #include "include/v8-platform.h"
 #include "src/base/build_config.h"
 #include "src/base/macros.h"
+#include "src/base/platform/mutex.h"
 
 namespace v8 {
 namespace internal {
@@ -66,18 +70,25 @@ class CodeSpaceWriteScope;
 
 #endif  // V8_HAS_PKU_JIT_WRITE_PROTECT
 
-// Global data used for thread isolation (== per-thread memory permissions).
-// This data needs to be write-protected with the same mechanism we use for
-// thread isolation, hence it has to be aligned and padded to (a multiple of)
-// the system page size.
+// The ThreadIsolation API is used to protect executable memory using per-thread
+// memory permissions and perform validation for any writes into it.
+//
+// It keeps metadata about all JIT regions in write-protected memory and will
+// use it validate that the writes are safe from a CFI perspective.
+// Its tasks are:
+// * track JIT pages and allocations and check for validity
+// * check for dangling pointers on the shadow stack (not implemented)
+// * validate code writes like code creation, relocation, etc. (not implemented)
 class V8_EXPORT ThreadIsolation {
  public:
   static bool Enabled();
   static void Initialize(ThreadIsolatedAllocator* allocator);
 
-  static ThreadIsolatedAllocator* allocator() {
-    return trusted_data_.allocator;
-  }
+  // Register a new JIT region and make it exectuable. Should only be called if
+  // Enabled() is true.
+  static bool RegisterJitPageAndMakeExecutable(Address address, size_t size);
+  // Unregister a JIT region that is about to be unmpapped.
+  static void UnregisterJitPage(Address address);
 
 #if V8_HAS_PKU_JIT_WRITE_PROTECT
   static int pkey() { return trusted_data_.pkey; }
@@ -88,15 +99,58 @@ class V8_EXPORT ThreadIsolation {
 
 #if DEBUG
   static bool initialized() { return untrusted_data_.initialized; }
+  static void CheckTrackedMemoryEmpty();
 #endif
 
+  class JitPage {
+   public:
+    explicit JitPage(size_t size) : size_(size) {}
+    size_t Size() const { return size_; }
+
+   private:
+    size_t size_;
+  };
+
+  // A std::allocator implementation that wraps the ThreadIsolated allocator.
+  // This is needed to create STL containers backed by ThreadIsolated memory.
+  template <class T>
+  struct StlAllocator {
+    typedef T value_type;
+
+    template <class Type>
+    struct rebind {
+      typedef StlAllocator<Type> other;
+    };
+
+    static value_type* allocate(size_t n) {
+      return reinterpret_cast<value_type*>(
+          ThreadIsolation::allocator()->Allocate(n * sizeof(value_type)));
+    }
+    static void deallocate(value_type* ptr, size_t n) {
+      ThreadIsolation::allocator()->Free(ptr);
+    }
+  };
+
  private:
+  static ThreadIsolatedAllocator* allocator() {
+    return trusted_data_.allocator;
+  }
+
+  typedef std::map<Address, JitPage, std::less<Address>,
+                   StlAllocator<std::pair<const Address, JitPage>>>
+      JitPageMap;
+
+  // The TrustedData needs to be page aligned so that we can protect it using
+  // per-thread memory permissions (e.g. pkeys on x64).
   struct THREAD_ISOLATION_ALIGN TrustedData {
     ThreadIsolatedAllocator* allocator = nullptr;
 
 #if V8_HAS_PKU_JIT_WRITE_PROTECT
     int pkey = -1;
 #endif
+
+    base::Mutex* jit_pages_mutex_;
+    JitPageMap* jit_pages_;
   };
 
   struct UntrustedData {
@@ -113,6 +167,16 @@ class V8_EXPORT ThreadIsolation {
 
   static_assert(THREAD_ISOLATION_ALIGN_SZ == 0 ||
                 sizeof(trusted_data_) == THREAD_ISOLATION_ALIGN_SZ);
+
+  // Allocate and construct C++ objects using memory backed by the
+  // ThreadIsolated allocator.
+  template <typename T, typename... Args>
+  static void ConstructNew(T** ptr, Args&&... args);
+
+  static void CheckForRegionOverlapLocked(Address addr, size_t size);
+
+  template <class T>
+  friend struct StlAllocator;
 };
 
 // This scope is a wrapper for APRR/MAP_JIT machinery on MacOS on ARM64
