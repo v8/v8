@@ -75,7 +75,6 @@ class BaselineCompilerTask {
     }
 
     shared_function_info_->set_baseline_code(*code, kReleaseStore);
-    shared_function_info_->set_age(0);
     if (v8_flags.trace_baseline_concurrent_compilation) {
       CodeTracer::Scope scope(isolate->GetCodeTracer());
       std::stringstream ss;

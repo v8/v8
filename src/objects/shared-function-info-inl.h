@@ -363,21 +363,6 @@ void SharedFunctionInfo::CalculateConstructAsBuiltin() {
   set_flags(f, kRelaxedStore);
 }
 
-uint16_t SharedFunctionInfo::age() const {
-  return RELAXED_READ_UINT16_FIELD(*this, kAgeOffset);
-}
-
-void SharedFunctionInfo::set_age(uint16_t value) {
-  RELAXED_WRITE_UINT16_FIELD(*this, kAgeOffset, value);
-}
-
-uint16_t SharedFunctionInfo::CompareExchangeAge(uint16_t expected_age,
-                                                uint16_t new_age) {
-  Address age_addr = address() + kAgeOffset;
-  return base::AsAtomic16::Relaxed_CompareAndSwap(
-      reinterpret_cast<base::Atomic16*>(age_addr), expected_age, new_age);
-}
-
 int SharedFunctionInfo::function_map_index() const {
   // Note: Must be kept in sync with the FastNewClosure builtin.
   int index = Context::FIRST_FUNCTION_MAP_INDEX +
@@ -397,10 +382,9 @@ void SharedFunctionInfo::set_function_map_index(int index) {
 }
 
 void SharedFunctionInfo::clear_padding() {
-  set_padding(0);
-#if TAGGED_SIZE_8_BYTES
+#if V8_SFI_NEEDS_PADDING
   set_optional_padding(0);
-#endif
+#endif  // V8_SFI_NEEDS_PADDING
 }
 
 void SharedFunctionInfo::UpdateFunctionMapIndex() {

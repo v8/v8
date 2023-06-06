@@ -634,8 +634,8 @@ Handle<HeapObject> Deserializer<IsolateT>::ReadObject(SnapshotSpace space) {
 
   // Make sure BytecodeArrays have a valid age, so that the marker doesn't
   // break when making them older.
-  if (raw_obj.IsSharedFunctionInfo(isolate())) {
-    SharedFunctionInfo::cast(raw_obj).set_age(0);
+  if (raw_obj.IsBytecodeArray(isolate())) {
+    BytecodeArray::cast(raw_obj).set_bytecode_age(0);
   } else if (raw_obj.IsEphemeronHashTable()) {
     // Make sure EphemeronHashTables have valid HeapObject keys, so that the
     // marker does not break when marking EphemeronHashTable, see

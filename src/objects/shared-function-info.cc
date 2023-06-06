@@ -65,8 +65,6 @@ void SharedFunctionInfo::Init(ReadOnlyRoots ro_roots, int unique_id) {
 
   UpdateFunctionMapIndex();
 
-  set_age(0);
-
   clear_padding();
 }
 
@@ -267,18 +265,11 @@ void SharedFunctionInfo::CopyFrom(SharedFunctionInfo other) {
   set_unique_id(other.unique_id());
 #endif
 
-#if DEBUG
-  // Copy age just for the following memcmp-check.
-  set_age(other.age());
-
   // This should now be byte-for-byte identical to the input.
   DCHECK_EQ(memcmp(reinterpret_cast<void*>(address()),
                    reinterpret_cast<void*>(other.address()),
                    SharedFunctionInfo::kSize),
             0);
-#endif
-
-  set_age(0);
 }
 
 bool SharedFunctionInfo::HasBreakInfo() const {
@@ -834,16 +825,6 @@ void SharedFunctionInfo::UninstallDebugBytecode(SharedFunctionInfo shared,
       ReadOnlyRoots(isolate).undefined_value(), kReleaseStore);
   debug_info.set_debug_bytecode_array(ReadOnlyRoots(isolate).undefined_value(),
                                       kReleaseStore);
-}
-
-// static
-void SharedFunctionInfo::EnsureOldForTesting(SharedFunctionInfo sfi) {
-  if (v8_flags.flush_code_based_on_time ||
-      v8_flags.flush_code_based_on_tab_visibility) {
-    sfi.set_age(kMaxAge);
-  } else {
-    sfi.set_age(v8_flags.bytecode_old_age);
-  }
 }
 
 }  // namespace internal

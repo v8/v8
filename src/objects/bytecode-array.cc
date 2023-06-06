@@ -89,6 +89,7 @@ void BytecodeArray::Disassemble(Handle<BytecodeArray> handle,
   os << "Parameter count " << handle->parameter_count() << "\n";
   os << "Register count " << handle->register_count() << "\n";
   os << "Frame size " << handle->frame_size() << "\n";
+  os << "Bytecode age: " << handle->bytecode_age() << "\n";
 
   Address base_address = handle->GetFirstBytecodeAddress();
   SourcePositionTableIterator source_positions(handle->SourcePositionTable());
@@ -162,6 +163,15 @@ void BytecodeArray::CopyBytecodesTo(BytecodeArray to) {
   CopyBytes(reinterpret_cast<uint8_t*>(to.GetFirstBytecodeAddress()),
             reinterpret_cast<uint8_t*>(from.GetFirstBytecodeAddress()),
             from.length());
+}
+
+// static
+void BytecodeArray::EnsureOldForTesting(BytecodeArray bytecode) {
+  uint16_t old_age = v8_flags.flush_code_based_on_time ||
+                             v8_flags.flush_code_based_on_tab_visibility
+                         ? kMaxAge
+                         : v8_flags.bytecode_old_age;
+  bytecode.set_bytecode_age(old_age);
 }
 
 }  // namespace internal
