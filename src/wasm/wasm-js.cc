@@ -1154,7 +1154,8 @@ i::Handle<i::Object> DefaultReferenceValue(i::Isolate* isolate,
   DCHECK(type.is_object_reference());
   // Use undefined for JS type (externref) but null for wasm types as wasm does
   // not know undefined.
-  if (type.heap_representation() == i::wasm::HeapType::kExtern) {
+  if (type.heap_representation() == i::wasm::HeapType::kExtern ||
+      type.heap_representation() == i::wasm::HeapType::kNoExtern) {
     return isolate->factory()->undefined_value();
   }
   return isolate->factory()->wasm_null();
@@ -1586,19 +1587,22 @@ void WebAssemblyGlobal(const v8::FunctionCallbackInfo<v8::Value>& info) {
       V8_FALLTHROUGH;
     case i::wasm::kRefNull: {
       // We need the wasm default value {null} over {undefined}.
-      i::Handle<i::Object> value_handle =
-          (info.Length() < 2) ? i_isolate->factory()->null_value()
-                              : Utils::OpenHandle(*value);
-      const char* error_message;
-      // While the JS API generally allows indexed types, it currently has
-      // no way to specify such types in `new WebAssembly.Global(...)`.
-      // TODO(14034): Fix this if that changes.
-      DCHECK(!type.has_index());
-      if (!i::wasm::JSToWasmObject(i_isolate, value_handle, type,
-                                   &error_message)
-               .ToHandle(&value_handle)) {
-        thrower.TypeError("%s", error_message);
-        break;
+      i::Handle<i::Object> value_handle;
+      if (info.Length() < 2) {
+        value_handle = DefaultReferenceValue(i_isolate, type);
+      } else {
+        value_handle = Utils::OpenHandle(*value);
+        const char* error_message;
+        // While the JS API generally allows indexed types, it currently has
+        // no way to specify such types in `new WebAssembly.Global(...)`.
+        // TODO(14034): Fix this if that changes.
+        DCHECK(!type.has_index());
+        if (!i::wasm::JSToWasmObject(i_isolate, value_handle, type,
+                                     &error_message)
+                 .ToHandle(&value_handle)) {
+          thrower.TypeError("%s", error_message);
+          break;
+        }
       }
       global_obj->SetRef(value_handle);
       break;
@@ -2282,7 +2286,7 @@ void WebAssemblyTableGrow(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
   i::Handle<i::Object> init_value;
 
-  if (info.Length() >= 2 && !info[1]->IsUndefined()) {
+  if (info.Length() >= 2) {
     init_value = Utils::OpenHandle(*info[1]);
     const char* error_message;
     if (!i::WasmTableObject::JSToWasmElement(i_isolate, receiver, init_value,

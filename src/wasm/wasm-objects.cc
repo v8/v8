@@ -2300,7 +2300,6 @@ MaybeHandle<Object> JSToWasmObject(Isolate* isolate, Handle<Object> value,
     }
   }
 
-  // TODO(14034): Streamline interaction of undefined and (ref any).
   switch (expected_canonical.heap_representation()) {
     case HeapType::kFunc: {
       if (!(WasmExternalFunction::IsWasmExternalFunction(*value) ||
