@@ -3137,7 +3137,11 @@ void Shell::ReportException(Isolate* isolate, Local<v8::Message> message,
 }
 
 void Shell::ReportException(v8::Isolate* isolate, v8::TryCatch* try_catch) {
-  ReportException(isolate, try_catch->Message(), try_catch->Exception());
+  if (isolate->IsExecutionTerminating()) {
+    printf("Got Execution Termination Exception\n");
+  } else {
+    ReportException(isolate, try_catch->Message(), try_catch->Exception());
+  }
 }
 
 void Counter::Bind(const char* name, bool is_histogram) {

@@ -151,15 +151,16 @@ std::shared_ptr<WasmStreaming> WasmStreaming::Unpack(Isolate* isolate,
 
 namespace {
 
-#define ASSIGN(type, var, expr)                      \
-  Local<type> var;                                   \
-  do {                                               \
-    if (!expr.ToLocal(&var)) {                       \
-      DCHECK(i_isolate->has_scheduled_exception());  \
-      return;                                        \
-    } else {                                         \
-      DCHECK(!i_isolate->has_scheduled_exception()); \
-    }                                                \
+#define ASSIGN(type, var, expr)                          \
+  Local<type> var;                                       \
+  do {                                                   \
+    if (!expr.ToLocal(&var)) {                           \
+      DCHECK(i_isolate->has_scheduled_exception());      \
+      return;                                            \
+    } else {                                             \
+      if (i_isolate->is_execution_terminating()) return; \
+      DCHECK(!i_isolate->has_scheduled_exception());     \
+    }                                                    \
   } while (false)
 
 i::Handle<i::String> v8_str(i::Isolate* isolate, const char* str) {
