@@ -143,7 +143,7 @@ transitioning javascript builtin IteratorPrototypeMap(
 
   // 3. If IsCallable(mapper) is false, throw a TypeError exception.
   const mapper = Cast<Callable>(mapper)
-      otherwise ThrowTypeError(MessageTemplate::kCalledNonCallable, methodName);
+      otherwise ThrowCalledNonCallable(methodName);
 
   // 4. Let iterated be ? GetIteratorDirect(O).
   const iterated = GetIteratorDirect(o);
@@ -239,7 +239,7 @@ transitioning javascript builtin IteratorPrototypeFilter(
 
   // 3. If IsCallable(predicate) is false, throw a TypeError exception.
   const predicate = Cast<Callable>(predicate)
-      otherwise ThrowTypeError(MessageTemplate::kCalledNonCallable, methodName);
+      otherwise ThrowCalledNonCallable(methodName);
 
   // 4. Let iterated be ? GetIteratorDirect(O).
   const iterated = GetIteratorDirect(o);
@@ -679,7 +679,7 @@ transitioning javascript builtin IteratorPrototypeReduce(
 
   // 3. If IsCallable(reducer) is false, throw a TypeError exception.
   const reducer = Cast<Callable>(arguments[0])
-      otherwise ThrowTypeError(MessageTemplate::kCalledNonCallable, methodName);
+      otherwise ThrowCalledNonCallable(methodName);
 
   // 4. Let iterated be ? GetIteratorDirect(O).
   const iterated = GetIteratorDirect(o);
@@ -798,7 +798,7 @@ transitioning javascript builtin IteratorPrototypeForEach(
 
   // 3. If IsCallable(fn) is false, throw a TypeError exception.
   const fn = Cast<Callable>(fn)
-      otherwise ThrowTypeError(MessageTemplate::kCalledNonCallable, methodName);
+      otherwise ThrowCalledNonCallable(methodName);
 
   // 4. Let iterated be ? GetIteratorDirect(O).
   const iterated = GetIteratorDirect(o);
@@ -854,7 +854,7 @@ transitioning javascript builtin IteratorPrototypeSome(
 
   // 3. If IsCallable(predicate) is false, throw a TypeError exception.
   const predicate = Cast<Callable>(predicate)
-      otherwise ThrowTypeError(MessageTemplate::kCalledNonCallable, methodName);
+      otherwise ThrowCalledNonCallable(methodName);
 
   // 4. Let iterated be ? GetIteratorDirect(O).
   const iterated = GetIteratorDirect(o);
@@ -918,7 +918,7 @@ transitioning javascript builtin IteratorPrototypeEvery(
 
   // 3. If IsCallable(predicate) is false, throw a TypeError exception.
   const predicate = Cast<Callable>(predicate)
-      otherwise ThrowTypeError(MessageTemplate::kCalledNonCallable, methodName);
+      otherwise ThrowCalledNonCallable(methodName);
 
   // 4. Let iterated be ? GetIteratorDirect(O).
   const iterated = GetIteratorDirect(o);
@@ -982,7 +982,7 @@ transitioning javascript builtin IteratorPrototypeFind(
 
   // 3. If IsCallable(predicate) is false, throw a TypeError exception.
   const predicate = Cast<Callable>(predicate)
-      otherwise ThrowTypeError(MessageTemplate::kCalledNonCallable, methodName);
+      otherwise ThrowCalledNonCallable(methodName);
 
   // 4. Let iterated be ? GetIteratorDirect(O).
   const iterated = GetIteratorDirect(o);

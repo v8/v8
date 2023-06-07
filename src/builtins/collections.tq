@@ -206,14 +206,14 @@ transitioning macro GetSetRecord(implicit context: Context)(
 
   // 8. If IsCallable(has) is false, throw a TypeError exception.
   has = Cast<Callable>(has)
-      otherwise ThrowTypeError(MessageTemplate::kCalledNonCallable, kHasString);
+      otherwise ThrowCalledNonCallable(kHasString);
 
   // 9. Let keys be ? Get(obj, "keys").
   let keys = GetProperty(obj, kKeysString);
 
   // 10. If IsCallable(keys) is false, throw a TypeError exception.
   keys = Cast<Callable>(keys)
-      otherwise ThrowTypeError(MessageTemplate::kCalledNonCallable, kKeysString);
+      otherwise ThrowCalledNonCallable(kKeysString);
 
   // 11. Return a new Set Record { [[Set]]: obj, [[Size]]: intSize, [[Has]]:
   // has, [[Keys]]: keys }.
@@ -235,7 +235,7 @@ transitioning macro GetKeysIterator(implicit context: Context)(
 
   // 4. If IsCallable(nextMethod) is false, throw a TypeError exception.
   Cast<Callable>(nextMethod)
-      otherwise ThrowTypeError(MessageTemplate::kCalledNonCallable, kNextString);
+      otherwise ThrowCalledNonCallable(kNextString);
 
   // 5. Return a new Iterator Record { [[Iterator]]: keysIter, [[NextMethod]]:
   // nextMethod, [[Done]]: false }.
