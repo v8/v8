@@ -1029,142 +1029,39 @@ class MaglevTranslationArrayBuilder {
         deopt_literals_(deopt_literals) {}
 
   void BuildEagerDeopt(EagerDeoptInfo* deopt_info) {
-    auto [frame_count, jsframe_count] = GetFrameCount(&deopt_info->top_frame());
-    deopt_info->set_translation_index(
-        translation_array_builder_->BeginTranslation(
-            frame_count, jsframe_count,
-            deopt_info->feedback_to_update().IsValid()));
-    if (deopt_info->feedback_to_update().IsValid()) {
-      translation_array_builder_->AddUpdateFeedback(
-          GetDeoptLiteral(*deopt_info->feedback_to_update().vector),
-          deopt_info->feedback_to_update().index());
-    }
+    BuildBeginDeopt(deopt_info);
 
     const InputLocation* current_input_location = deopt_info->input_locations();
-    BuildDeoptFrame(deopt_info->top_frame(), current_input_location);
+    RecursiveBuildDeoptFrame(deopt_info->top_frame(), current_input_location);
   }
 
   void BuildLazyDeopt(LazyDeoptInfo* deopt_info) {
-    auto [frame_count, jsframe_count] = GetFrameCount(&deopt_info->top_frame());
-    deopt_info->set_translation_index(
-        translation_array_builder_->BeginTranslation(
-            frame_count, jsframe_count,
-            deopt_info->feedback_to_update().IsValid()));
-    if (deopt_info->feedback_to_update().IsValid()) {
-      translation_array_builder_->AddUpdateFeedback(
-          GetDeoptLiteral(*deopt_info->feedback_to_update().vector),
-          deopt_info->feedback_to_update().index());
-    }
+    BuildBeginDeopt(deopt_info);
 
     const InputLocation* current_input_location = deopt_info->input_locations();
 
     if (deopt_info->top_frame().parent()) {
       // Deopt input locations are in the order of deopt frame emission, so
       // update the pointer after emitting the parent frame.
-      BuildDeoptFrame(*deopt_info->top_frame().parent(),
-                      current_input_location);
+      RecursiveBuildDeoptFrame(*deopt_info->top_frame().parent(),
+                               current_input_location);
     }
 
     const DeoptFrame& top_frame = deopt_info->top_frame();
     switch (top_frame.type()) {
-      case DeoptFrame::FrameType::kInterpretedFrame: {
-        const InterpretedDeoptFrame& interpreted_frame =
-            top_frame.as_interpreted();
-
-        // Return offsets are counted from the end of the translation frame,
-        // which is the array [parameters..., locals..., accumulator]. Since
-        // it's the end, we don't need to worry about earlier frames.
-        int return_offset;
-        if (deopt_info->result_location() ==
-            interpreter::Register::virtual_accumulator()) {
-          return_offset = 0;
-        } else if (deopt_info->result_location().is_parameter()) {
-          // This is slightly tricky to reason about because of zero indexing
-          // and fence post errors. As an example, consider a frame with 2
-          // locals and 2 parameters, where we want argument index 1 -- looking
-          // at the array in reverse order we have:
-          //   [acc, r1, r0, a1, a0]
-          //                  ^
-          // and this calculation gives, correctly:
-          //   2 + 2 - 1 = 3
-          return_offset = interpreted_frame.unit().register_count() +
-                          interpreted_frame.unit().parameter_count() -
-                          deopt_info->result_location().ToParameterIndex();
-        } else {
-          return_offset = interpreted_frame.unit().register_count() -
-                          deopt_info->result_location().index();
-        }
-        translation_array_builder_->BeginInterpretedFrame(
-            interpreted_frame.bytecode_position(),
-            GetDeoptLiteral(GetSharedFunctionInfo(interpreted_frame)),
-            interpreted_frame.unit().register_count(), return_offset,
-            deopt_info->result_size());
-
-        BuildDeoptFrameValues(
-            interpreted_frame.unit(), interpreted_frame.frame_state(),
-            interpreted_frame.closure(), current_input_location,
+      case DeoptFrame::FrameType::kInterpretedFrame:
+        return BuildSingleDeoptFrame(
+            top_frame.as_interpreted(), current_input_location,
             deopt_info->result_location(), deopt_info->result_size());
-        break;
-      }
       case DeoptFrame::FrameType::kInlinedArgumentsFrame:
         // The inlined arguments frame can never be the top frame.
         UNREACHABLE();
-      case DeoptFrame::FrameType::kConstructStubFrame: {
-        // TODO(victorgomes): This is very similar to inlined arguments, should
-        // we generalise that?
-        const ConstructStubDeoptFrame& construct_stub_frame =
-            top_frame.as_construct_stub();
-
-        translation_array_builder_->BeginConstructStubFrame(
-            construct_stub_frame.bytecode_position(),
-            GetDeoptLiteral(GetSharedFunctionInfo(construct_stub_frame)),
-            construct_stub_frame.arguments_without_receiver().length() + 1);
-
-        // Closure
-        BuildDeoptFrameSingleValue(construct_stub_frame.closure(),
-                                   *current_input_location);
-        current_input_location++;
-
-        // Arguments
-        BuildDeoptFrameSingleValue(construct_stub_frame.receiver(),
-                                   *current_input_location);
-        current_input_location++;
-        for (ValueNode* value :
-             construct_stub_frame.arguments_without_receiver()) {
-          BuildDeoptFrameSingleValue(value, *current_input_location);
-          current_input_location++;
-        }
-
-        // Context
-        ValueNode* value = construct_stub_frame.context();
-        BuildDeoptFrameSingleValue(value, *current_input_location);
-        current_input_location++;
-        break;
-      }
-      case DeoptFrame::FrameType::kBuiltinContinuationFrame: {
-        const BuiltinContinuationDeoptFrame& builtin_continuation_frame =
-            top_frame.as_builtin_continuation();
-
-        translation_array_builder_->BeginBuiltinContinuationFrame(
-            Builtins::GetContinuationBytecodeOffset(
-                builtin_continuation_frame.builtin_id()),
-            GetDeoptLiteral(GetSharedFunctionInfo(builtin_continuation_frame)),
-            builtin_continuation_frame.parameters().length());
-
-        // Closure
-        translation_array_builder_->StoreOptimizedOut();
-
-        // Parameters
-        for (ValueNode* value : builtin_continuation_frame.parameters()) {
-          BuildDeoptFrameSingleValue(value, *current_input_location);
-          current_input_location++;
-        }
-
-        // Context
-        ValueNode* value = builtin_continuation_frame.context();
-        BuildDeoptFrameSingleValue(value, *current_input_location);
-        current_input_location++;
-      }
+      case DeoptFrame::FrameType::kConstructStubFrame:
+        return BuildSingleDeoptFrame(top_frame.as_construct_stub(),
+                                     current_input_location);
+      case DeoptFrame::FrameType::kBuiltinContinuationFrame:
+        return BuildSingleDeoptFrame(top_frame.as_builtin_continuation(),
+                                     current_input_location);
     }
   }
 
@@ -1187,115 +1084,156 @@ class MaglevTranslationArrayBuilder {
                            result_location.index() + result_size - 1);
   }
 
-  void BuildDeoptFrame(const DeoptFrame& frame,
-                       const InputLocation*& current_input_location) {
+  void BuildBeginDeopt(DeoptInfo* deopt_info) {
+    auto [frame_count, jsframe_count] = GetFrameCount(&deopt_info->top_frame());
+    deopt_info->set_translation_index(
+        translation_array_builder_->BeginTranslation(
+            frame_count, jsframe_count,
+            deopt_info->feedback_to_update().IsValid()));
+    if (deopt_info->feedback_to_update().IsValid()) {
+      translation_array_builder_->AddUpdateFeedback(
+          GetDeoptLiteral(*deopt_info->feedback_to_update().vector),
+          deopt_info->feedback_to_update().index());
+    }
+  }
+
+  void RecursiveBuildDeoptFrame(const DeoptFrame& frame,
+                                const InputLocation*& current_input_location) {
     if (frame.parent()) {
       // Deopt input locations are in the order of deopt frame emission, so
       // update the pointer after emitting the parent frame.
-      BuildDeoptFrame(*frame.parent(), current_input_location);
+      RecursiveBuildDeoptFrame(*frame.parent(), current_input_location);
     }
 
     switch (frame.type()) {
-      case DeoptFrame::FrameType::kInterpretedFrame: {
-        const InterpretedDeoptFrame& interpreted_frame = frame.as_interpreted();
-        // Returns are used for updating an accumulator or register after a
-        // lazy deopt.
-        const int return_offset = 0;
-        const int return_count = 0;
-        translation_array_builder_->BeginInterpretedFrame(
-            interpreted_frame.bytecode_position(),
-            GetDeoptLiteral(GetSharedFunctionInfo(interpreted_frame)),
-            interpreted_frame.unit().register_count(), return_offset,
-            return_count);
-
-        BuildDeoptFrameValues(
-            interpreted_frame.unit(), interpreted_frame.frame_state(),
-            interpreted_frame.closure(), current_input_location,
-            interpreter::Register::invalid_value(), return_count);
-        break;
-      }
-      case DeoptFrame::FrameType::kInlinedArgumentsFrame: {
-        const InlinedArgumentsDeoptFrame& inlined_arguments_frame =
-            frame.as_inlined_arguments();
-
-        translation_array_builder_->BeginInlinedExtraArguments(
-            GetDeoptLiteral(GetSharedFunctionInfo(inlined_arguments_frame)),
-            static_cast<uint32_t>(inlined_arguments_frame.arguments().size()));
-
-        // Closure
-        BuildDeoptFrameSingleValue(inlined_arguments_frame.closure(),
-                                   *current_input_location);
-        current_input_location++;
-
-        // Arguments
-        // TODO(victorgomes): Technically we don't need all arguments, only the
-        // extra ones. But doing this at the moment, since it matches the
-        // TurboFan behaviour.
-        for (ValueNode* value : inlined_arguments_frame.arguments()) {
-          BuildDeoptFrameSingleValue(value, *current_input_location);
-          current_input_location++;
-        }
-        break;
-      }
-      case DeoptFrame::FrameType::kConstructStubFrame: {
-        // TODO(victorgomes): This is very similar to inlined arguments, should
-        // we generalise that?
-        const ConstructStubDeoptFrame& construct_stub_frame =
-            frame.as_construct_stub();
-
-        translation_array_builder_->BeginConstructStubFrame(
-            construct_stub_frame.bytecode_position(),
-            GetDeoptLiteral(GetSharedFunctionInfo(construct_stub_frame)),
-            construct_stub_frame.arguments_without_receiver().length() + 1);
-
-        // Closure
-        BuildDeoptFrameSingleValue(construct_stub_frame.closure(),
-                                   *current_input_location);
-        current_input_location++;
-
-        // Arguments
-        BuildDeoptFrameSingleValue(construct_stub_frame.receiver(),
-                                   *current_input_location);
-        current_input_location++;
-        for (ValueNode* value :
-             construct_stub_frame.arguments_without_receiver()) {
-          BuildDeoptFrameSingleValue(value, *current_input_location);
-          current_input_location++;
-        }
-
-        // Context
-        ValueNode* value = construct_stub_frame.context();
-        BuildDeoptFrameSingleValue(value, *current_input_location);
-        current_input_location++;
-        break;
-      }
-      case DeoptFrame::FrameType::kBuiltinContinuationFrame: {
-        const BuiltinContinuationDeoptFrame& builtin_continuation_frame =
-            frame.as_builtin_continuation();
-
-        translation_array_builder_->BeginBuiltinContinuationFrame(
-            Builtins::GetContinuationBytecodeOffset(
-                builtin_continuation_frame.builtin_id()),
-            GetDeoptLiteral(GetSharedFunctionInfo(builtin_continuation_frame)),
-            builtin_continuation_frame.parameters().length());
-
-        // Closure
-        translation_array_builder_->StoreOptimizedOut();
-
-        // Parameters
-        for (ValueNode* value : builtin_continuation_frame.parameters()) {
-          BuildDeoptFrameSingleValue(value, *current_input_location);
-          current_input_location++;
-        }
-
-        // Context
-        ValueNode* value = builtin_continuation_frame.context();
-        BuildDeoptFrameSingleValue(value, *current_input_location);
-        current_input_location++;
-
-        break;
-      }
+      case DeoptFrame::FrameType::kInterpretedFrame:
+        return BuildSingleDeoptFrame(frame.as_interpreted(),
+                                     current_input_location);
+      case DeoptFrame::FrameType::kInlinedArgumentsFrame:
+        return BuildSingleDeoptFrame(frame.as_inlined_arguments(),
+                                     current_input_location);
+      case DeoptFrame::FrameType::kConstructStubFrame:
+        return BuildSingleDeoptFrame(frame.as_construct_stub(),
+                                     current_input_location);
+      case DeoptFrame::FrameType::kBuiltinContinuationFrame:
+        return BuildSingleDeoptFrame(frame.as_builtin_continuation(),
+                                     current_input_location);
     }
+  }
+
+  void BuildSingleDeoptFrame(const InterpretedDeoptFrame& frame,
+                             const InputLocation*& current_input_location,
+                             interpreter::Register result_location,
+                             int result_size) {
+    // Return offsets are counted from the end of the translation frame,
+    // which is the array [parameters..., locals..., accumulator]. Since
+    // it's the end, we don't need to worry about earlier frames.
+    int return_offset;
+    if (result_location == interpreter::Register::virtual_accumulator()) {
+      return_offset = 0;
+    } else if (result_location.is_parameter()) {
+      // This is slightly tricky to reason about because of zero indexing
+      // and fence post errors. As an example, consider a frame with 2
+      // locals and 2 parameters, where we want argument index 1 -- looking
+      // at the array in reverse order we have:
+      //   [acc, r1, r0, a1, a0]
+      //                  ^
+      // and this calculation gives, correctly:
+      //   2 + 2 - 1 = 3
+      return_offset = frame.unit().register_count() +
+                      frame.unit().parameter_count() -
+                      result_location.ToParameterIndex();
+    } else {
+      return_offset = frame.unit().register_count() - result_location.index();
+    }
+    translation_array_builder_->BeginInterpretedFrame(
+        frame.bytecode_position(),
+        GetDeoptLiteral(GetSharedFunctionInfo(frame)),
+        frame.unit().register_count(), return_offset, result_size);
+
+    BuildDeoptFrameValues(frame.unit(), frame.frame_state(), frame.closure(),
+                          current_input_location, result_location, result_size);
+  }
+
+  void BuildSingleDeoptFrame(const InterpretedDeoptFrame& frame,
+                             const InputLocation*& current_input_location) {
+    // Returns offset/count is used for updating an accumulator or register
+    // after a lazy deopt -- this function is overloaded to allow them to be
+    // passed in.
+    const int return_offset = 0;
+    const int return_count = 0;
+    translation_array_builder_->BeginInterpretedFrame(
+        frame.bytecode_position(),
+        GetDeoptLiteral(GetSharedFunctionInfo(frame)),
+        frame.unit().register_count(), return_offset, return_count);
+
+    BuildDeoptFrameValues(frame.unit(), frame.frame_state(), frame.closure(),
+                          current_input_location,
+                          interpreter::Register::invalid_value(), return_count);
+  }
+
+  void BuildSingleDeoptFrame(const InlinedArgumentsDeoptFrame& frame,
+                             const InputLocation*& current_input_location) {
+    translation_array_builder_->BeginInlinedExtraArguments(
+        GetDeoptLiteral(GetSharedFunctionInfo(frame)),
+        static_cast<uint32_t>(frame.arguments().size()));
+
+    // Closure
+    BuildDeoptFrameSingleValue(frame.closure(), current_input_location);
+
+    // Arguments
+    // TODO(victorgomes): Technically we don't need all arguments, only the
+    // extra ones. But doing this at the moment, since it matches the
+    // TurboFan behaviour.
+    for (ValueNode* value : frame.arguments()) {
+      BuildDeoptFrameSingleValue(value, current_input_location);
+    }
+  }
+
+  void BuildSingleDeoptFrame(const ConstructStubDeoptFrame& frame,
+                             const InputLocation*& current_input_location) {
+    // TODO(victorgomes): This is very similar to inlined arguments, should
+    // we generalise that?
+    translation_array_builder_->BeginConstructStubFrame(
+        frame.bytecode_position(),
+        GetDeoptLiteral(GetSharedFunctionInfo(frame)),
+        frame.arguments_without_receiver().length() + 1);
+
+    // Closure
+    BuildDeoptFrameSingleValue(frame.closure(), current_input_location);
+
+    // Arguments
+    BuildDeoptFrameSingleValue(frame.receiver(), current_input_location);
+    for (ValueNode* value : frame.arguments_without_receiver()) {
+      BuildDeoptFrameSingleValue(value, current_input_location);
+    }
+
+    // Context
+    ValueNode* value = frame.context();
+    BuildDeoptFrameSingleValue(value, current_input_location);
+  }
+
+  void BuildSingleDeoptFrame(const BuiltinContinuationDeoptFrame& frame,
+                             const InputLocation*& current_input_location) {
+    BytecodeOffset bailout_id =
+        Builtins::GetContinuationBytecodeOffset(frame.builtin_id());
+    int literal_id = GetDeoptLiteral(GetSharedFunctionInfo(frame));
+    int height = frame.parameters().length();
+
+    translation_array_builder_->BeginBuiltinContinuationFrame(
+        bailout_id, literal_id, height);
+
+    // Closure
+    translation_array_builder_->StoreOptimizedOut();
+
+    // Parameters
+    for (ValueNode* value : frame.parameters()) {
+      BuildDeoptFrameSingleValue(value, current_input_location);
+    }
+
+    // Context
+    ValueNode* value = frame.context();
+    BuildDeoptFrameSingleValue(value, current_input_location);
   }
 
   void BuildDeoptStoreRegister(const compiler::AllocatedOperand& operand,
@@ -1348,13 +1286,13 @@ class MaglevTranslationArrayBuilder {
   }
 
   void BuildDeoptFrameSingleValue(const ValueNode* value,
-                                  const InputLocation& input_location) {
-    if (input_location.operand().IsConstant()) {
+                                  const InputLocation*& input_location) {
+    if (input_location->operand().IsConstant()) {
       translation_array_builder_->StoreLiteral(
           GetDeoptLiteral(*value->Reify(local_isolate_)));
     } else {
       const compiler::AllocatedOperand& operand =
-          compiler::AllocatedOperand::cast(input_location.operand());
+          compiler::AllocatedOperand::cast(input_location->operand());
       ValueRepresentation repr = value->properties().value_representation();
       if (operand.IsAnyRegister()) {
         BuildDeoptStoreRegister(operand, repr);
@@ -1362,6 +1300,7 @@ class MaglevTranslationArrayBuilder {
         BuildDeoptStoreStackSlot(operand, repr);
       }
     }
+    input_location++;
   }
 
   void BuildDeoptFrameValues(
@@ -1374,8 +1313,7 @@ class MaglevTranslationArrayBuilder {
     // should make this clearer and guard against this invariant failing.
 
     // Closure
-    BuildDeoptFrameSingleValue(closure, *input_location);
-    input_location++;
+    BuildDeoptFrameSingleValue(closure, input_location);
 
     // Parameters
     {
@@ -1386,8 +1324,7 @@ class MaglevTranslationArrayBuilder {
             if (InReturnValues(reg, result_location, result_size)) {
               translation_array_builder_->StoreOptimizedOut();
             } else {
-              BuildDeoptFrameSingleValue(value, *input_location);
-              input_location++;
+              BuildDeoptFrameSingleValue(value, input_location);
             }
             i++;
           });
@@ -1395,8 +1332,7 @@ class MaglevTranslationArrayBuilder {
 
     // Context
     ValueNode* value = checkpoint_state->context(compilation_unit);
-    BuildDeoptFrameSingleValue(value, *input_location);
-    input_location++;
+    BuildDeoptFrameSingleValue(value, input_location);
 
     // Locals
     {
@@ -1410,8 +1346,7 @@ class MaglevTranslationArrayBuilder {
               i++;
             }
             DCHECK_EQ(i, reg.index());
-            BuildDeoptFrameSingleValue(value, *input_location);
-            input_location++;
+            BuildDeoptFrameSingleValue(value, input_location);
             i++;
           });
       while (i < compilation_unit.register_count()) {
@@ -1426,8 +1361,7 @@ class MaglevTranslationArrayBuilder {
           !InReturnValues(interpreter::Register::virtual_accumulator(),
                           result_location, result_size)) {
         ValueNode* value = checkpoint_state->accumulator(compilation_unit);
-        BuildDeoptFrameSingleValue(value, *input_location);
-        input_location++;
+        BuildDeoptFrameSingleValue(value, input_location);
       } else {
         translation_array_builder_->StoreOptimizedOut();
       }
