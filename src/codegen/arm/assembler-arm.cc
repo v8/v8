@@ -522,7 +522,8 @@ Assembler::Assembler(const AssemblerOptions& options,
                      std::unique_ptr<AssemblerBuffer> buffer)
     : AssemblerBase(options, std::move(buffer)),
       pending_32_bit_constants_(),
-      scratch_register_list_({ip}) {
+      scratch_register_list_(DefaultTmpList()),
+      scratch_vfp_register_list_(DefaultFPTmpList()) {
   reloc_info_writer.Reposition(buffer_start_ + buffer_->size(), pc_);
   constant_pool_deadline_ = kMaxInt;
   const_pool_blocked_nesting_ = 0;
@@ -534,19 +535,28 @@ Assembler::Assembler(const AssemblerOptions& options,
     // it's awkward to use CpuFeatures::VFP32DREGS with CpuFeatureScope. To make
     // its use consistent with other features, we always enable it if we can.
     EnableCpuFeature(VFP32DREGS);
-    // Make sure we pick two D registers which alias a Q register. This way, we
-    // can use a Q as a scratch if NEON is supported.
-    scratch_vfp_register_list_ = d14.ToVfpRegList() | d15.ToVfpRegList();
-  } else {
-    // When VFP32DREGS is not supported, d15 become allocatable. Therefore we
-    // cannot use it as a scratch.
-    scratch_vfp_register_list_ = d14.ToVfpRegList();
   }
 }
 
 Assembler::~Assembler() {
   DCHECK_EQ(const_pool_blocked_nesting_, 0);
   DCHECK_EQ(first_const_pool_32_use_, -1);
+}
+
+// static
+RegList Assembler::DefaultTmpList() { return {ip}; }
+
+// static
+VfpRegList Assembler::DefaultFPTmpList() {
+  if (CpuFeatures::IsSupported(VFP32DREGS)) {
+    // Make sure we pick two D registers which alias a Q register. This way, we
+    // can use a Q as a scratch if NEON is supported.
+    return d14.ToVfpRegList() | d15.ToVfpRegList();
+  } else {
+    // When VFP32DREGS is not supported, d15 become allocatable. Therefore we
+    // cannot use it as a scratch.
+    return d14.ToVfpRegList();
+  }
 }
 
 void Assembler::GetCode(Isolate* isolate, CodeDesc* desc,

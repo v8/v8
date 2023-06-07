@@ -309,6 +309,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   ~Assembler() override;
 
+  static RegList DefaultTmpList();
+  static VfpRegList DefaultFPTmpList();
+
   void AbortedCodeGeneration() override {
     pending_32_bit_constants_.clear();
     first_const_pool_32_use_ = -1;

@@ -55,10 +55,8 @@ class MaglevAssembler::ScratchRegisterScope {
   ~ScratchRegisterScope() { masm_->scratch_register_scope_ = prev_scope_; }
 
   void ResetToDefault() {
-    // TODO(leszeks): These defaults are based on the constructor in
-    // assembler-arm.cc, ideally we'd have a single definition here.
-    wrapped_scope_.SetAvailable({ip});
-    // TODO(leszeks): Set the default double registers.
+    wrapped_scope_.SetAvailable(Assembler::DefaultTmpList());
+    wrapped_scope_.SetAvailableVfp(Assembler::DefaultFPTmpList());
   }
 
   Register GetDefaultScratchRegister() { return Acquire(); }
@@ -74,8 +72,34 @@ class MaglevAssembler::ScratchRegisterScope {
   RegList Available() { return wrapped_scope_.Available(); }
   void SetAvailable(RegList list) { wrapped_scope_.SetAvailable(list); }
 
-  DoubleRegList AvailableDouble() { UNREACHABLE(); }
-  void SetAvailableDouble(DoubleRegList list) { UNREACHABLE(); }
+  DoubleRegList AvailableDouble() {
+    return VpfToDoubleRegList(wrapped_scope_.AvailableVfp());
+  }
+  void SetAvailableDouble(DoubleRegList list) {
+    wrapped_scope_.SetAvailableVfp(DoubleToVpfRegList(list));
+  }
+
+  // TODO(victorgomes): These are very inefficient, but it suffices for now to
+  // bootstrap arm. We should be able to define a special DoubleRegList for arm
+  // that takes VpfRegList into account directly.
+  DoubleRegList VpfToDoubleRegList(VfpRegList list) {
+    DoubleRegList double_list;
+    for (int index = 0; index < DoubleRegister::kNumRegisters; index++) {
+      DoubleRegister reg = DoubleRegister::from_code(index);
+      uint64_t mask = reg.ToVfpRegList();
+      if ((list & mask) == mask) {
+        double_list.set(reg);
+      }
+    }
+    return double_list;
+  }
+  VfpRegList DoubleToVpfRegList(DoubleRegList list) {
+    VfpRegList vfp_list = 0;
+    for (DoubleRegister reg : list) {
+      vfp_list |= reg.ToVfpRegList();
+    }
+    return vfp_list;
+  }
 
  private:
   UseScratchRegisterScope wrapped_scope_;
