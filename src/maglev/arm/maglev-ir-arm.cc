@@ -426,39 +426,6 @@ void Float64Ieee754Unary::GenerateCode(MaglevAssembler* masm,
   MAGLEV_NODE_NOT_IMPLEMENTED(Float64Ieee754Unary);
 }
 
-void CheckInt32IsSmi::SetValueLocationConstraints() { UseRegister(input()); }
-void CheckInt32IsSmi::GenerateCode(MaglevAssembler* masm,
-                                   const ProcessingState& state) {
-  MAGLEV_NODE_NOT_IMPLEMENTED(CheckInt32IsSmi);
-}
-
-void CheckHoleyFloat64IsSmi::SetValueLocationConstraints() {
-  UseRegister(input());
-  set_temporaries_needed(1);
-}
-void CheckHoleyFloat64IsSmi::GenerateCode(MaglevAssembler* masm,
-                                          const ProcessingState& state) {
-  MAGLEV_NODE_NOT_IMPLEMENTED(CheckHoleyFloat64IsSmi);
-}
-
-void CheckedSmiTagInt32::SetValueLocationConstraints() {
-  UseRegister(input());
-  DefineAsRegister(this);
-}
-void CheckedSmiTagInt32::GenerateCode(MaglevAssembler* masm,
-                                      const ProcessingState& state) {
-  MAGLEV_NODE_NOT_IMPLEMENTED(CheckedSmiTagInt32);
-}
-
-void CheckedSmiTagUint32::SetValueLocationConstraints() {
-  UseRegister(input());
-  DefineAsRegister(this);
-}
-void CheckedSmiTagUint32::GenerateCode(MaglevAssembler* masm,
-                                       const ProcessingState& state) {
-  MAGLEV_NODE_NOT_IMPLEMENTED(CheckedSmiTagUint32);
-}
-
 void CheckJSTypedArrayBounds::SetValueLocationConstraints() {
   UseRegister(receiver_input());
   if (ElementsKindSize(elements_kind_) == 1) {
@@ -492,15 +459,6 @@ void CheckedInternalizedString::SetValueLocationConstraints() {
 void CheckedInternalizedString::GenerateCode(MaglevAssembler* masm,
                                              const ProcessingState& state) {
   MAGLEV_NODE_NOT_IMPLEMENTED(CheckedInternalizedString);
-}
-
-void UnsafeSmiTag::SetValueLocationConstraints() {
-  UseRegister(input());
-  DefineAsRegister(this);
-}
-void UnsafeSmiTag::GenerateCode(MaglevAssembler* masm,
-                                const ProcessingState& state) {
-  MAGLEV_NODE_NOT_IMPLEMENTED(UnsafeSmiTag);
 }
 
 void CheckedNumberOrOddballToFloat64::SetValueLocationConstraints() {

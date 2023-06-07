@@ -1074,6 +1074,79 @@ void UnsafeSmiUntag::GenerateCode(MaglevAssembler* masm,
   __ SmiToInt32(value);
 }
 
+void CheckInt32IsSmi::SetValueLocationConstraints() { UseRegister(input()); }
+void CheckInt32IsSmi::GenerateCode(MaglevAssembler* masm,
+                                   const ProcessingState& state) {
+  // TODO(leszeks): This basically does a SmiTag and throws the result away.
+  // Don't throw the result away if we want to actually use it.
+  Register reg = ToRegister(input());
+  Label* fail = __ GetDeoptLabel(this, DeoptimizeReason::kNotASmi);
+  __ JumpIfNotSmi(reg, fail);
+}
+
+void CheckHoleyFloat64IsSmi::SetValueLocationConstraints() {
+  UseRegister(input());
+  set_temporaries_needed(1);
+}
+void CheckHoleyFloat64IsSmi::GenerateCode(MaglevAssembler* masm,
+                                          const ProcessingState& state) {
+  DoubleRegister value = ToDoubleRegister(input());
+  MaglevAssembler::ScratchRegisterScope temps(masm);
+  Register scratch = temps.Acquire();
+  Label* fail = __ GetDeoptLabel(this, DeoptimizeReason::kNotASmi);
+  __ TryTruncateDoubleToInt32(scratch, value, fail);
+  __ JumpIfNotSmi(scratch, fail);
+}
+
+void CheckedSmiTagInt32::SetValueLocationConstraints() {
+  UseAndClobberRegister(input());
+  DefineSameAsFirst(this);
+}
+void CheckedSmiTagInt32::GenerateCode(MaglevAssembler* masm,
+                                      const ProcessingState& state) {
+  Register reg = ToRegister(input());
+  Label* fail = __ GetDeoptLabel(this, DeoptimizeReason::kNotASmi);
+  // None of the mutated input registers should be a register input into the
+  // eager deopt info.
+  DCHECK_REGLIST_EMPTY(RegList{reg} &
+                       GetGeneralRegistersUsedAsInputs(eager_deopt_info()));
+  __ SmiTagInt32(reg, fail);
+}
+
+void CheckedSmiTagUint32::SetValueLocationConstraints() {
+  UseRegister(input());
+  DefineSameAsFirst(this);
+}
+void CheckedSmiTagUint32::GenerateCode(MaglevAssembler* masm,
+                                       const ProcessingState& state) {
+  Register reg = ToRegister(input());
+  Label* fail = __ GetDeoptLabel(this, DeoptimizeReason::kNotASmi);
+  // None of the mutated input registers should be a register input into the
+  // eager deopt info.
+  DCHECK_REGLIST_EMPTY(RegList{reg} &
+                       GetGeneralRegistersUsedAsInputs(eager_deopt_info()));
+  __ SmiTagUint32(reg, fail);
+}
+
+void UnsafeSmiTag::SetValueLocationConstraints() {
+  UseRegister(input());
+  DefineSameAsFirst(this);
+}
+void UnsafeSmiTag::GenerateCode(MaglevAssembler* masm,
+                                const ProcessingState& state) {
+  Register reg = ToRegister(input());
+  switch (input().node()->properties().value_representation()) {
+    case ValueRepresentation::kInt32:
+      __ SmiTagInt32(reg, nullptr);
+      break;
+    case ValueRepresentation::kUint32:
+      __ SmiTagUint32(reg, nullptr);
+      break;
+    default:
+      UNREACHABLE();
+  }
+}
+
 void CheckMaps::SetValueLocationConstraints() {
   UseRegister(receiver_input());
   set_temporaries_needed(map_compare().TemporaryCountForMapLoad());

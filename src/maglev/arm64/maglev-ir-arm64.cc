@@ -828,67 +828,6 @@ void Float64Ieee754Unary::GenerateCode(MaglevAssembler* masm,
   __ CallCFunction(ieee_function_, 1);
 }
 
-void CheckInt32IsSmi::SetValueLocationConstraints() { UseRegister(input()); }
-void CheckInt32IsSmi::GenerateCode(MaglevAssembler* masm,
-                                   const ProcessingState& state) {
-  // TODO(leszeks): This basically does a SmiTag and throws the result away.
-  // Don't throw the result away if we want to actually use it.
-  Register reg = ToRegister(input()).W();
-  __ Adds(wzr, reg, reg);
-  __ EmitEagerDeoptIf(vs, DeoptimizeReason::kNotASmi, this);
-}
-
-void CheckHoleyFloat64IsSmi::SetValueLocationConstraints() {
-  UseRegister(input());
-  set_temporaries_needed(1);
-}
-void CheckHoleyFloat64IsSmi::GenerateCode(MaglevAssembler* masm,
-                                          const ProcessingState& state) {
-  DoubleRegister value = ToDoubleRegister(input());
-  MaglevAssembler::ScratchRegisterScope temps(masm);
-  Register scratch = temps.Acquire();
-  Label not_a_smi, done;
-  __ TryTruncateDoubleToInt32(scratch.W(), value, &not_a_smi);
-  __ Adds(wzr, scratch.W(), scratch.W());
-  __ JumpIf(vc, &done);
-
-  __ bind(&not_a_smi);
-  __ EmitEagerDeopt(this, DeoptimizeReason::kNotASmi);
-
-  __ bind(&done);
-}
-
-void CheckedSmiTagInt32::SetValueLocationConstraints() {
-  UseRegister(input());
-  DefineAsRegister(this);
-}
-void CheckedSmiTagInt32::GenerateCode(MaglevAssembler* masm,
-                                      const ProcessingState& state) {
-  Register reg = ToRegister(input()).W();
-  Register out = ToRegister(result()).W();
-  __ Adds(out, reg, reg);
-  // None of the mutated input registers should be a register input into the
-  // eager deopt info.
-  DCHECK_REGLIST_EMPTY(RegList{out} &
-                       GetGeneralRegistersUsedAsInputs(eager_deopt_info()));
-  __ EmitEagerDeoptIf(vs, DeoptimizeReason::kOverflow, this);
-}
-
-void CheckedSmiTagUint32::SetValueLocationConstraints() {
-  UseRegister(input());
-  DefineAsRegister(this);
-}
-void CheckedSmiTagUint32::GenerateCode(MaglevAssembler* masm,
-                                       const ProcessingState& state) {
-  Register reg = ToRegister(input()).W();
-  Register result_reg = ToRegister(result()).W();
-  // Perform an unsigned comparison against Smi::kMaxValue.
-  __ Cmp(reg, Immediate(Smi::kMaxValue));
-  __ EmitEagerDeoptIf(hi, DeoptimizeReason::kOverflow, this);
-  __ Adds(result_reg, reg, reg);
-  __ Assert(vc, AbortReason::kInputDoesNotFitSmi);
-}
-
 void CheckJSTypedArrayBounds::SetValueLocationConstraints() {
   UseRegister(receiver_input());
   if (ElementsKindSize(elements_kind_) == 1) {
@@ -1007,27 +946,6 @@ void CheckedInternalizedString::GenerateCode(MaglevAssembler* masm,
       },
       done, object, this, eager_deopt_info(), scratch);
   __ Bind(*done);
-}
-
-void UnsafeSmiTag::SetValueLocationConstraints() {
-  UseRegister(input());
-  DefineAsRegister(this);
-}
-void UnsafeSmiTag::GenerateCode(MaglevAssembler* masm,
-                                const ProcessingState& state) {
-  Register reg = ToRegister(input()).W();
-  Register out = ToRegister(result()).W();
-  if (v8_flags.debug_code) {
-    if (input().node()->properties().value_representation() ==
-        ValueRepresentation::kUint32) {
-      __ Cmp(reg, Immediate(Smi::kMaxValue));
-      __ Check(ls, AbortReason::kInputDoesNotFitSmi);
-    }
-  }
-  __ Adds(out, reg, reg);
-  if (v8_flags.debug_code) {
-    __ Check(vc, AbortReason::kInputDoesNotFitSmi);
-  }
 }
 
 namespace {

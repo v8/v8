@@ -190,6 +190,7 @@ class MaglevAssembler : public MacroAssembler {
 
   // Smi-tags {obj} in place.
   inline void SmiTagInt32(Register obj, Label* fail);
+  inline void SmiTagUint32(Register obj, Label* fail);
 
   inline void DoubleToInt64Repr(Register dst, DoubleRegister src);
   void TruncateDoubleToInt32(Register dst, DoubleRegister src);
@@ -304,6 +305,8 @@ class MaglevAssembler : public MacroAssembler {
                             Label::Distance distance = Label::kFar);
   inline void JumpIfSmi(Register src, Label* on_smi,
                         Label::Distance near_jump = Label::kFar);
+  inline void JumpIfNotSmi(Register src, Label* on_not_smi,
+                           Label::Distance near_jump = Label::kFar);
   inline void JumpIfByte(Condition cc, Register value, int32_t byte,
                          Label* target, Label::Distance distance = Label::kFar);
 
