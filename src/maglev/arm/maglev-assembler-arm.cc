@@ -214,12 +214,58 @@ void MaglevAssembler::StringCharCodeOrCodePointAt(
 }
 
 void MaglevAssembler::TruncateDoubleToInt32(Register dst, DoubleRegister src) {
-  MAGLEV_NOT_IMPLEMENTED();
+  ZoneLabelRef done(this);
+  Label* slow_path = MakeDeferredCode(
+      [](MaglevAssembler* masm, DoubleRegister src, Register dst,
+         ZoneLabelRef done) {
+        __ push(lr);
+        __ AllocateStackSpace(kDoubleSize);
+        __ vstr(src, MemOperand(sp, 0));
+        __ CallBuiltin(Builtin::kDoubleToI);
+        __ ldr(dst, MemOperand(sp, 0));
+        __ add(sp, sp, Operand(kDoubleSize));
+        __ pop(lr);
+        __ Jump(*done);
+      },
+      src, dst, done);
+  TryInlineTruncateDoubleToI(dst, src, *done);
+  Jump(slow_path);
+  bind(*done);
 }
 
 void MaglevAssembler::TryTruncateDoubleToInt32(Register dst, DoubleRegister src,
                                                Label* fail) {
-  MAGLEV_NOT_IMPLEMENTED();
+  UseScratchRegisterScope temps(this);
+  LowDwVfpRegister low_double = temps.AcquireLowD();
+  SwVfpRegister temp_vfps = low_double.low();
+  DoubleRegister converted_back = low_double;
+  Label done;
+
+  // Convert the input float64 value to int32.
+  vcvt_s32_f64(temp_vfps, src);
+  vmov(dst, temp_vfps);
+
+  // Convert that int32 value back to float64.
+  vcvt_f64_s32(converted_back, temp_vfps);
+
+  // Check that the result of the float64->int32->float64 is equal to the input
+  // (i.e. that the conversion didn't truncate.
+  VFPCompareAndSetFlags(src, converted_back);
+  JumpIf(kNotEqual, fail);
+
+  // Check if {input} is -0.
+  tst(dst, dst);
+  JumpIf(kNotEqual, &done);
+
+  // In case of 0, we need to check the high bits for the IEEE -0 pattern.
+  {
+    Register high_word32_of_input = temps.Acquire();
+    VmovHigh(high_word32_of_input, src);
+    cmp(high_word32_of_input, Operand(0));
+    JumpIf(kLessThan, fail);
+  }
+
+  bind(&done);
 }
 
 void MaglevAssembler::StringLength(Register result, Register string) {

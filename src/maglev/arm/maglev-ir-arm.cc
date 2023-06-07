@@ -224,9 +224,7 @@ void Int32ToNumber::GenerateCode(MaglevAssembler* masm,
         // over its use to the label {done}.
         temps.Include(scratch);
         DoubleRegister double_value = temps.AcquireDouble();
-        SwVfpRegister temp_float = temps.AcquireFloat32();
-        __ vmov(temp_float, value);
-        __ vcvt_f64_s32(double_value, temp_float);
+        __ Int32ToDouble(double_value, value);
         __ AllocateHeapNumber(node->register_snapshot(), object, double_value);
         __ b(*done);
       },

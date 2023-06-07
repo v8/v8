@@ -71,9 +71,6 @@ class MaglevAssembler::ScratchRegisterScope {
   DoubleRegister AcquireDouble() { return wrapped_scope_.AcquireD(); }
   void IncludeDouble(const DoubleRegList list) {}
 
-  // Available only in arm specific code.
-  SwVfpRegister AcquireFloat32() { return wrapped_scope_.AcquireS(); }
-
   RegList Available() { return wrapped_scope_.Available(); }
   void SetAvailable(RegList list) { wrapped_scope_.SetAvailable(list); }
 
@@ -684,10 +681,15 @@ inline void MaglevAssembler::LoadHeapNumberValue(DoubleRegister result,
 }
 
 inline void MaglevAssembler::Int32ToDouble(DoubleRegister result, Register n) {
-  ScratchRegisterScope temps(this);
-  SwVfpRegister temp_float = temps.AcquireFloat32();
-  vmov(temp_float, n);
-  vcvt_f64_s32(result, temp_float);
+  UseScratchRegisterScope temps(this);
+  SwVfpRegister temp_vfps = SwVfpRegister::no_reg();
+  if (result.code() < 16) {
+    temp_vfps = LowDwVfpRegister::from_code(result.code()).low();
+  } else {
+    temp_vfps = temps.AcquireS();
+  }
+  vmov(temp_vfps, n);
+  vcvt_f64_s32(result, temp_vfps);
 }
 
 inline void MaglevAssembler::Pop(Register dst) { pop(dst); }
