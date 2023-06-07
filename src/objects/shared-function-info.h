@@ -236,8 +236,6 @@ class SharedFunctionInfo
   DECL_ACQUIRE_GETTER(scope_info, ScopeInfo)
   // Deprecated, use the ACQUIRE version instead.
   DECL_GETTER(scope_info, ScopeInfo)
-  // Slow but safe:
-  inline ScopeInfo EarlyScopeInfo(AcquireLoadTag tag);
 
   // Set scope_info without moving the existing name onto the ScopeInfo.
   inline void set_raw_scope_info(ScopeInfo scope_info,
@@ -732,14 +730,6 @@ class SharedFunctionInfo
 
   TQ_OBJECT_CONSTRUCTORS(SharedFunctionInfo)
 };
-
-static constexpr int kStaticRootsWithUniqueIdSFISize = 40;
-static constexpr int kStaticRootsWithoutUniqueIdSFISize = 36;
-#if defined(V8_STATIC_ROOTS) && V8_SFI_HAS_UNIQUE_ID
-static_assert(SharedFunctionInfo::kSize == kStaticRootsWithUniqueIdSFISize);
-#elif defined(V8_STATIC_ROOTS) && !V8_SFI_HAS_UNIQUE_ID
-static_assert(SharedFunctionInfo::kSize == kStaticRootsWithoutUniqueIdSFISize);
-#endif
 
 // Printing support.
 struct SourceCodeOf {
