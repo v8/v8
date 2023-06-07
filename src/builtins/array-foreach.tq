@@ -122,7 +122,7 @@ ArrayForEach(
     return ArrayForEachLoopContinuation(
         o, callbackfn, thisArg, Undefined, o, k, len, Undefined);
   } label TypeError deferred {
-    ThrowCalledNonCallable(arguments[0]);
+    ThrowTypeError(MessageTemplate::kCalledNonCallable, arguments[0]);
   }
 }
 }

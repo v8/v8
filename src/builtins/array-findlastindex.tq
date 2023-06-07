@@ -105,7 +105,7 @@ ArrayPrototypeFindLastIndex(
       return ArrayFindLastIndexLoopContinuation(predicate, thisArg, o, k);
     }
   } label NotCallableError deferred {
-    ThrowCalledNonCallable(arguments[0]);
+    ThrowTypeError(MessageTemplate::kCalledNonCallable, arguments[0]);
   }
 }
 }

@@ -73,7 +73,7 @@ TypedArrayPrototypeSome(
   } label IsDetachedOrOutOfBounds deferred {
     ThrowTypeError(MessageTemplate::kDetachedOperation, kBuiltinNameSome);
   } label NotCallable deferred {
-    ThrowCalledNonCallable(arguments[0]);
+    ThrowTypeError(MessageTemplate::kCalledNonCallable, arguments[0]);
   }
 }
 }

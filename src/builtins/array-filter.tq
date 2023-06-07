@@ -193,7 +193,7 @@ ArrayFilter(
     return ArrayFilterLoopContinuation(
         o, callbackfn, thisArg, output, o, k, len, to);
   } label TypeError deferred {
-    ThrowCalledNonCallable(arguments[0]);
+    ThrowTypeError(MessageTemplate::kCalledNonCallable, arguments[0]);
   }
 }
 }

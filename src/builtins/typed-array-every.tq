@@ -71,7 +71,7 @@ TypedArrayPrototypeEvery(
   } label IsDetachedOrOutOfBounds deferred {
     ThrowTypeError(MessageTemplate::kDetachedOperation, kBuiltinNameEvery);
   } label NotCallable deferred {
-    ThrowCalledNonCallable(arguments[0]);
+    ThrowTypeError(MessageTemplate::kCalledNonCallable, arguments[0]);
   }
 }
 }

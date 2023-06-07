@@ -190,7 +190,7 @@ ArrayReduce(
           o, callbackfn, accumulator, o, value, len);
     }
   } label NoCallableError deferred {
-    ThrowCalledNonCallable(arguments[0]);
+    ThrowTypeError(MessageTemplate::kCalledNonCallable, arguments[0]);
   }
 }
 }

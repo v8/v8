@@ -349,8 +349,10 @@ class JSCallReducerAssembler : public JSGraphAssembler {
                           FrameState frame_state) {
     IfNot(ObjectIsCallable(maybe_callable))
         .Then(_ {
-          JSCallRuntime1(Runtime::kThrowCalledNonCallable, maybe_callable,
-                         ContextInput(), frame_state);
+          JSCallRuntime2(Runtime::kThrowTypeError,
+                         NumberConstant(static_cast<double>(
+                             MessageTemplate::kCalledNonCallable)),
+                         maybe_callable, ContextInput(), frame_state);
           Unreachable();  // The runtime call throws unconditionally.
         })
         .ExpectTrue();
