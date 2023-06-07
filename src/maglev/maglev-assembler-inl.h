@@ -597,17 +597,30 @@ inline void MaglevAssembler::CallBuiltin(Builtin builtin) {
   // Special case allowing calls to DoubleToI, which takes care to preserve all
   // registers and therefore doesn't require special spill handling.
   DCHECK(allow_call() || builtin == Builtin::kDoubleToI);
+
+  // Temporaries have to be reset before calling CallBuiltin, in case it uses
+  // temporaries that alias register parameters.
+  ScratchRegisterScope reset_temps(this);
+  reset_temps.ResetToDefault();
+
+  // Make sure that none of the register parameters alias the default
+  // temporaries.
+#ifdef DEBUG
+  CallInterfaceDescriptor descriptor =
+      Builtins::CallInterfaceDescriptorFor(builtin);
+  for (int i = 0; i < descriptor.GetRegisterParameterCount(); ++i) {
+    DCHECK(!reset_temps.Available().has(descriptor.GetRegisterParameter(i)));
+  }
+#endif
+
   MacroAssembler::CallBuiltin(builtin);
 }
 
 template <Builtin kBuiltin, typename... Args>
 inline void MaglevAssembler::CallBuiltin(Args&&... args) {
-  // Special case allowing calls to DoubleToI, which takes care to preserve all
-  // registers and therefore doesn't require special spill handling.
-  DCHECK(allow_call() || kBuiltin == Builtin::kDoubleToI);
   ASM_CODE_COMMENT(this);
   detail::MoveArgumentsForBuiltin<kBuiltin>(this, std::forward<Args>(args)...);
-  MacroAssembler::CallBuiltin(kBuiltin);
+  CallBuiltin(kBuiltin);
 }
 
 inline void MaglevAssembler::CallRuntime(Runtime::FunctionId fid) {

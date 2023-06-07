@@ -1417,6 +1417,11 @@ class V8_EXPORT_PRIVATE V8_NODISCARD UseScratchRegisterScope {
     *assembler_->GetScratchRegisterList() = available;
   }
 
+  VfpRegList AvailableVfp() { return *assembler_->GetScratchVfpRegisterList(); }
+  void SetAvailableVfp(VfpRegList available) {
+    *assembler_->GetScratchVfpRegisterList() = available;
+  }
+
   void Include(const Register& reg1, const Register& reg2 = no_reg) {
     RegList* available = assembler_->GetScratchRegisterList();
     DCHECK_NOT_NULL(available);

@@ -54,6 +54,13 @@ class MaglevAssembler::ScratchRegisterScope {
 
   ~ScratchRegisterScope() { masm_->scratch_register_scope_ = prev_scope_; }
 
+  void ResetToDefault() {
+    // TODO(leszeks): These defaults are based on the constructor in
+    // assembler-arm.cc, ideally we'd have a single definition here.
+    wrapped_scope_.SetAvailable({ip});
+    // TODO(leszeks): Set the default double registers.
+  }
+
   Register GetDefaultScratchRegister() { return Acquire(); }
   DoubleRegister GetDefaultScratchDoubleRegister() { return AcquireDouble(); }
 
@@ -70,8 +77,8 @@ class MaglevAssembler::ScratchRegisterScope {
   RegList Available() { return wrapped_scope_.Available(); }
   void SetAvailable(RegList list) { wrapped_scope_.SetAvailable(list); }
 
-  DoubleRegList AvailableDouble() { return {}; }
-  void SetAvailableDouble(DoubleRegList list) {}
+  DoubleRegList AvailableDouble() { UNREACHABLE(); }
+  void SetAvailableDouble(DoubleRegList list) { UNREACHABLE(); }
 
  private:
   UseScratchRegisterScope wrapped_scope_;

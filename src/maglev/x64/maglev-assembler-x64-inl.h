@@ -70,6 +70,11 @@ class MaglevAssembler::ScratchRegisterScope {
   }
   ~ScratchRegisterScope() { masm_->scratch_register_scope_ = prev_scope_; }
 
+  void ResetToDefault() {
+    available_ = {};
+    available_double_ = {};
+  }
+
   Register GetDefaultScratchRegister() { return kScratchRegister; }
   DoubleRegister GetDefaultScratchDoubleRegister() { return kScratchDoubleReg; }
 

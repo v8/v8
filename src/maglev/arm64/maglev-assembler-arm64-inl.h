@@ -46,6 +46,11 @@ class MaglevAssembler::ScratchRegisterScope {
 
   ~ScratchRegisterScope() { masm_->scratch_register_scope_ = prev_scope_; }
 
+  void ResetToDefault() {
+    wrapped_scope_.SetAvailable(masm_->DefaultTmpList());
+    wrapped_scope_.SetAvailableFP(masm_->DefaultFPTmpList());
+  }
+
   Register GetDefaultScratchRegister() { return Acquire(); }
   DoubleRegister GetDefaultScratchDoubleRegister() { return AcquireDouble(); }
 
