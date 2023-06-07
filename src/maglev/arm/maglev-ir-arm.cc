@@ -343,7 +343,10 @@ void Float64Add::SetValueLocationConstraints() {
 
 void Float64Add::GenerateCode(MaglevAssembler* masm,
                               const ProcessingState& state) {
-  MAGLEV_NODE_NOT_IMPLEMENTED(Float64Add);
+  DoubleRegister left = ToDoubleRegister(left_input());
+  DoubleRegister right = ToDoubleRegister(right_input());
+  DoubleRegister out = ToDoubleRegister(result());
+  __ vadd(out, left, right);
 }
 
 void Float64Subtract::SetValueLocationConstraints() {
@@ -354,7 +357,10 @@ void Float64Subtract::SetValueLocationConstraints() {
 
 void Float64Subtract::GenerateCode(MaglevAssembler* masm,
                                    const ProcessingState& state) {
-  MAGLEV_NODE_NOT_IMPLEMENTED(Float64Subtract);
+  DoubleRegister left = ToDoubleRegister(left_input());
+  DoubleRegister right = ToDoubleRegister(right_input());
+  DoubleRegister out = ToDoubleRegister(result());
+  __ vsub(out, left, right);
 }
 
 void Float64Multiply::SetValueLocationConstraints() {
@@ -365,7 +371,10 @@ void Float64Multiply::SetValueLocationConstraints() {
 
 void Float64Multiply::GenerateCode(MaglevAssembler* masm,
                                    const ProcessingState& state) {
-  MAGLEV_NODE_NOT_IMPLEMENTED(Float64Multiply);
+  DoubleRegister left = ToDoubleRegister(left_input());
+  DoubleRegister right = ToDoubleRegister(right_input());
+  DoubleRegister out = ToDoubleRegister(result());
+  __ vmul(out, left, right);
 }
 
 void Float64Divide::SetValueLocationConstraints() {
@@ -376,7 +385,10 @@ void Float64Divide::SetValueLocationConstraints() {
 
 void Float64Divide::GenerateCode(MaglevAssembler* masm,
                                  const ProcessingState& state) {
-  MAGLEV_NODE_NOT_IMPLEMENTED(Float64Divide);
+  DoubleRegister left = ToDoubleRegister(left_input());
+  DoubleRegister right = ToDoubleRegister(right_input());
+  DoubleRegister out = ToDoubleRegister(result());
+  __ vdiv(out, left, right);
 }
 
 void Float64Modulus::SetValueLocationConstraints() {
@@ -395,7 +407,9 @@ void Float64Negate::SetValueLocationConstraints() {
 }
 void Float64Negate::GenerateCode(MaglevAssembler* masm,
                                  const ProcessingState& state) {
-  MAGLEV_NODE_NOT_IMPLEMENTED(Float64Negate);
+  DoubleRegister value = ToDoubleRegister(input());
+  DoubleRegister out = ToDoubleRegister(result());
+  __ vneg(out, value);
 }
 
 void Float64Round::GenerateCode(MaglevAssembler* masm,
