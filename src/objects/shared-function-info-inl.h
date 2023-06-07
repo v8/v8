@@ -418,16 +418,6 @@ DEF_GETTER(SharedFunctionInfo, scope_info, ScopeInfo) {
   return scope_info(cage_base, kAcquireLoad);
 }
 
-ScopeInfo SharedFunctionInfo::EarlyScopeInfo(AcquireLoadTag tag) {
-  // Keep in sync with the scope_info getter above.
-  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
-  Object maybe_scope_info = name_or_scope_info(cage_base, tag);
-  if (maybe_scope_info.IsScopeInfo(cage_base)) {
-    return ScopeInfo::cast(maybe_scope_info);
-  }
-  return EarlyGetReadOnlyRoots().empty_scope_info();
-}
-
 void SharedFunctionInfo::SetScopeInfo(ScopeInfo scope_info,
                                       WriteBarrierMode mode) {
   // Move the existing name onto the ScopeInfo.
@@ -856,8 +846,6 @@ DEF_GETTER(SharedFunctionInfo, script, HeapObject) {
 }
 
 void SharedFunctionInfo::set_script(HeapObject script) {
-  DCHECK_IMPLIES(!ReadOnlyHeap::Contains(script),
-                 !ReadOnlyHeap::Contains(*this));
   HeapObject maybe_debug_info = script_or_debug_info(kAcquireLoad);
   if (maybe_debug_info.IsDebugInfo()) {
     DebugInfo::cast(maybe_debug_info).set_script(script);

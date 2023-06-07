@@ -443,43 +443,11 @@ FactoryBase<Impl>::NewUncompiledDataWithPreparseDataAndJob(
       AllocationType::kOld);
 }
 
-namespace {
-
-template <typename IsolateT>
-bool ShouldAllocateSharedFunctionInfoInReadOnlySpace(IsolateT* isolate,
-                                                     Builtin builtin) {
-  if (!isolate->serializer_enabled()) return false;
-  switch (builtin) {
-    case Builtin::kNoBuiltinId:
-      // Only builtin SFIs can be in RO space (for now).
-      return false;
-    case Builtin::kEmptyFunction:
-      // The empty function SFI points at a (non-RO) Script object.
-      return false;
-    default:
-      return true;
-  }
-  UNREACHABLE();
-}
-
-}  // namespace
-
 template <typename Impl>
 Handle<SharedFunctionInfo> FactoryBase<Impl>::NewSharedFunctionInfo(
     MaybeHandle<String> maybe_name, MaybeHandle<HeapObject> maybe_function_data,
     Builtin builtin, FunctionKind kind) {
-  AllocationType allocation = AllocationType::kOld;
-  WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER;
-
-  // TODO(jgruber): Enable RO allocation once DebugInfos are no longer attached
-  // to the SFI.
-  // if (ShouldAllocateSharedFunctionInfoInReadOnlySpace(isolate(), builtin)) {
-  //   allocation = AllocationType::kReadOnly;
-  //   barrier_mode = SKIP_WRITE_BARRIER;
-  // }
-  USE(ShouldAllocateSharedFunctionInfoInReadOnlySpace(isolate(), builtin));
-
-  Handle<SharedFunctionInfo> shared = NewSharedFunctionInfo(allocation);
+  Handle<SharedFunctionInfo> shared = NewSharedFunctionInfo();
   DisallowGarbageCollection no_gc;
   SharedFunctionInfo raw = *shared;
   // Function names are assumed to be flat elsewhere.
@@ -487,9 +455,7 @@ Handle<SharedFunctionInfo> FactoryBase<Impl>::NewSharedFunctionInfo(
   bool has_shared_name = maybe_name.ToHandle(&shared_name);
   if (has_shared_name) {
     DCHECK(shared_name->IsFlat());
-    DCHECK_IMPLIES(allocation == AllocationType::kReadOnly,
-                   ReadOnlyHeap::Contains(*shared_name));
-    raw.set_name_or_scope_info(*shared_name, kReleaseStore, barrier_mode);
+    raw.set_name_or_scope_info(*shared_name, kReleaseStore);
   } else {
     DCHECK_EQ(raw.name_or_scope_info(kAcquireLoad),
               SharedFunctionInfo::kNoSharedNameSentinel);
@@ -501,9 +467,7 @@ Handle<SharedFunctionInfo> FactoryBase<Impl>::NewSharedFunctionInfo(
     // the function_data should not be code with a builtin.
     DCHECK(!Builtins::IsBuiltinId(builtin));
     DCHECK(!function_data->IsInstructionStream());
-    DCHECK_IMPLIES(allocation == AllocationType::kReadOnly,
-                   ReadOnlyHeap::Contains(*function_data));
-    raw.set_function_data(*function_data, kReleaseStore, barrier_mode);
+    raw.set_function_data(*function_data, kReleaseStore);
   } else if (Builtins::IsBuiltinId(builtin)) {
     raw.set_builtin_id(builtin);
   } else {
@@ -1064,12 +1028,11 @@ Handle<SourceTextModuleInfo> FactoryBase<Impl>::NewSourceTextModuleInfo() {
 }
 
 template <typename Impl>
-Handle<SharedFunctionInfo> FactoryBase<Impl>::NewSharedFunctionInfo(
-    AllocationType allocation) {
+Handle<SharedFunctionInfo> FactoryBase<Impl>::NewSharedFunctionInfo() {
   Map map = read_only_roots().shared_function_info_map();
 
   SharedFunctionInfo shared =
-      SharedFunctionInfo::cast(NewWithImmortalMap(map, allocation));
+      SharedFunctionInfo::cast(NewWithImmortalMap(map, AllocationType::kOld));
   DisallowGarbageCollection no_gc;
   int unique_id = -1;
 #if V8_SFI_HAS_UNIQUE_ID
