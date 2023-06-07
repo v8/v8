@@ -973,12 +973,29 @@ void JSFunction::JSFunctionVerify(Isolate* isolate) {
 
 void SharedFunctionInfo::SharedFunctionInfoVerify(Isolate* isolate) {
   // TODO(leszeks): Add a TorqueGeneratedClassVerifier for LocalIsolate.
-  this->SharedFunctionInfoVerify(ReadOnlyRoots(isolate));
+  SharedFunctionInfoVerify(ReadOnlyRoots(isolate));
 }
 
 void SharedFunctionInfo::SharedFunctionInfoVerify(LocalIsolate* isolate) {
-  this->SharedFunctionInfoVerify(ReadOnlyRoots(isolate));
+  SharedFunctionInfoVerify(ReadOnlyRoots(isolate));
 }
+
+namespace {
+
+bool ShouldVerifySharedFunctionInfoFunctionIndex(SharedFunctionInfo sfi) {
+  if (!sfi.HasBuiltinId()) return true;
+  switch (sfi.builtin_id()) {
+    case Builtin::kPromiseCapabilityDefaultReject:
+    case Builtin::kPromiseCapabilityDefaultResolve:
+      // For these we manually set custom function indices.
+      return false;
+    default:
+      return true;
+  }
+  UNREACHABLE();
+}
+
+}  // namespace
 
 void SharedFunctionInfo::SharedFunctionInfoVerify(ReadOnlyRoots roots) {
   Object value = name_or_scope_info(kAcquireLoad);
@@ -1012,12 +1029,14 @@ void SharedFunctionInfo::SharedFunctionInfoVerify(ReadOnlyRoots roots) {
     CHECK(feedback_metadata().IsFeedbackMetadata());
   }
 
-  int expected_map_index =
-      Context::FunctionMapIndex(language_mode(), kind(), HasSharedName());
-  CHECK_EQ(expected_map_index, function_map_index());
+  if (ShouldVerifySharedFunctionInfoFunctionIndex(*this)) {
+    int expected_map_index =
+        Context::FunctionMapIndex(language_mode(), kind(), HasSharedName());
+    CHECK_EQ(expected_map_index, function_map_index());
+  }
 
-  if (!scope_info().IsEmpty()) {
-    ScopeInfo info = scope_info();
+  ScopeInfo info = EarlyScopeInfo(kAcquireLoad);
+  if (!info.IsEmpty()) {
     CHECK(kind() == info.function_kind());
     CHECK_EQ(internal::IsModule(kind()), info.scope_type() == MODULE_SCOPE);
   }

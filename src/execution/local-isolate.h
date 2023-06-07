@@ -100,6 +100,7 @@ class V8_EXPORT_PRIVATE LocalIsolate final : private HiddenLocalFactory {
   AccountingAllocator* allocator() { return isolate_->allocator(); }
 
   bool has_pending_exception() const { return false; }
+  bool serializer_enabled() const { return isolate_->serializer_enabled(); }
 
   void RegisterDeserializerStarted();
   void RegisterDeserializerFinished();

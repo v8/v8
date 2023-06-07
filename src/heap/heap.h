@@ -1789,6 +1789,10 @@ class Heap final {
                                 GarbageCollectionReason gc_reason,
                                 const char* collector_reason);
 
+  // For static-roots builds, pads the object to the required size.
+  void StaticRootsEnsureAllocatedSize(HeapObject obj, int required);
+  // TODO(jgruber): Remove this once the created SFIs are allocated in RO space.
+  void CreateImportantSharedFunctionInfos();
   bool CreateEarlyReadOnlyMaps();
   bool CreateImportantReadOnlyObjects();
   bool CreateLateReadOnlyNonJSReceiverMaps();
