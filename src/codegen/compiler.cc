@@ -1601,7 +1601,8 @@ DeferredFinalizationJobData::DeferredFinalizationJobData(
 
 BackgroundCompileTask::BackgroundCompileTask(
     ScriptStreamingData* streamed_data, Isolate* isolate, ScriptType type,
-    ScriptCompiler::CompileOptions options)
+    ScriptCompiler::CompileOptions options,
+    CompileHintCallback compile_hint_callback, void* compile_hint_callback_data)
     : isolate_for_local_isolate_(isolate),
       flags_(UnoptimizedCompileFlags::ForToplevelCompile(
           isolate, true, construct_language_mode(v8_flags.use_strict),
@@ -1616,11 +1617,20 @@ BackgroundCompileTask::BackgroundCompileTask(
       timer_(isolate->counters()->compile_script_on_background()),
       start_position_(0),
       end_position_(0),
-      function_literal_id_(kFunctionLiteralIdTopLevel) {
+      function_literal_id_(kFunctionLiteralIdTopLevel),
+      compile_hint_callback_(compile_hint_callback),
+      compile_hint_callback_data_(compile_hint_callback_data) {
   if (options == ScriptCompiler::CompileOptions::kProduceCompileHints) {
     flags_.set_produce_compile_hints(true);
   }
   DCHECK(is_streaming_compilation());
+  if (options == ScriptCompiler::kConsumeCompileHints) {
+    DCHECK_NOT_NULL(compile_hint_callback);
+    DCHECK_NOT_NULL(compile_hint_callback_data);
+  } else {
+    DCHECK_NULL(compile_hint_callback);
+    DCHECK_NULL(compile_hint_callback_data);
+  }
 }
 
 BackgroundCompileTask::BackgroundCompileTask(
@@ -1833,6 +1843,8 @@ void BackgroundCompileTask::Run(
   ParseInfo info(isolate, flags_, &compile_state_, reusable_state,
                  GetCurrentStackPosition() - stack_size_ * KB);
   info.set_character_stream(std::move(character_stream_));
+  info.SetCompileHintCallbackAndData(compile_hint_callback_,
+                                     compile_hint_callback_data_);
   if (is_streaming_compilation()) info.set_is_streaming_compilation();
 
   if (toplevel_script_compilation) {

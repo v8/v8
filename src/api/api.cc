@@ -2928,17 +2928,19 @@ void ScriptCompiler::ScriptStreamingTask::Run() { data_->task->Run(); }
 
 ScriptCompiler::ScriptStreamingTask* ScriptCompiler::StartStreaming(
     Isolate* v8_isolate, StreamedSource* source, v8::ScriptType type,
-    CompileOptions options) {
-  Utils::ApiCheck(options == kNoCompileOptions || options == kEagerCompile ||
-                      options == kProduceCompileHints,
-                  "v8::ScriptCompiler::StartStreaming",
-                  "Invalid CompileOptions");
+    CompileOptions options, CompileHintCallback compile_hint_callback,
+    void* compile_hint_callback_data) {
+  Utils::ApiCheck(
+      options == kNoCompileOptions || options == kEagerCompile ||
+          options == kProduceCompileHints || options == kConsumeCompileHints,
+      "v8::ScriptCompiler::StartStreaming", "Invalid CompileOptions");
   if (!i::v8_flags.script_streaming) return nullptr;
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   i::ScriptStreamingData* data = source->impl();
   std::unique_ptr<i::BackgroundCompileTask> task =
-      std::make_unique<i::BackgroundCompileTask>(data, i_isolate, type,
-                                                 options);
+      std::make_unique<i::BackgroundCompileTask>(data, i_isolate, type, options,
+                                                 compile_hint_callback,
+                                                 compile_hint_callback_data);
   data->task = std::move(task);
   return new ScriptCompiler::ScriptStreamingTask(data);
 }

@@ -543,7 +543,9 @@ class V8_EXPORT_PRIVATE BackgroundCompileTask {
   // Note: does not take ownership of |data|.
   BackgroundCompileTask(ScriptStreamingData* data, Isolate* isolate,
                         v8::ScriptType type,
-                        ScriptCompiler::CompileOptions options);
+                        ScriptCompiler::CompileOptions options,
+                        CompileHintCallback compile_hint_callback = nullptr,
+                        void* compile_hint_callback_data = nullptr);
   BackgroundCompileTask(const BackgroundCompileTask&) = delete;
   BackgroundCompileTask& operator=(const BackgroundCompileTask&) = delete;
   ~BackgroundCompileTask();
@@ -605,6 +607,9 @@ class V8_EXPORT_PRIVATE BackgroundCompileTask {
   int start_position_;
   int end_position_;
   int function_literal_id_;
+
+  CompileHintCallback compile_hint_callback_ = nullptr;
+  void* compile_hint_callback_data_ = nullptr;
 };
 
 // Contains all data which needs to be transmitted between threads for

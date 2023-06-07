@@ -78,6 +78,7 @@
 #include "test/cctest/heap/heap-tester.h"
 #include "test/cctest/heap/heap-utils.h"
 #include "test/common/flag-utils.h"
+#include "test/common/streaming-helper.h"
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-engine.h"
@@ -23129,48 +23130,6 @@ TEST(Regress411793) {
       "    { get: function() {}, set: function() {} });");
 }
 
-class TestSourceStream : public v8::ScriptCompiler::ExternalSourceStream {
- public:
-  explicit TestSourceStream(const char** chunks) : chunks_(chunks), index_(0) {}
-
-  size_t GetMoreData(const uint8_t** src) override {
-    // Unlike in real use cases, this function will never block.
-    if (chunks_[index_] == nullptr) {
-      return 0;
-    }
-    // Copy the data, since the caller takes ownership of it.
-    size_t len = strlen(chunks_[index_]);
-    // We don't need to zero-terminate since we return the length.
-    uint8_t* copy = new uint8_t[len];
-    memcpy(copy, chunks_[index_], len);
-    *src = copy;
-    ++index_;
-    return len;
-  }
-
-  // Helper for constructing a string from chunks (the compilation needs it
-  // too).
-  static char* FullSourceString(const char** chunks) {
-    size_t total_len = 0;
-    for (size_t i = 0; chunks[i] != nullptr; ++i) {
-      total_len += strlen(chunks[i]);
-    }
-    char* full_string = new char[total_len + 1];
-    size_t offset = 0;
-    for (size_t i = 0; chunks[i] != nullptr; ++i) {
-      size_t len = strlen(chunks[i]);
-      memcpy(full_string + offset, chunks[i], len);
-      offset += len;
-    }
-    full_string[total_len] = 0;
-    return full_string;
-  }
-
- private:
-  const char** chunks_;
-  unsigned index_;
-};
-
 v8::MaybeLocal<Module> UnexpectedModuleResolveCallback(
     Local<Context> context, Local<String> specifier,
     Local<FixedArray> import_assertions, Local<Module> referrer) {
@@ -23190,7 +23149,7 @@ void RunStreamingTest(const char** chunks, v8::ScriptType type,
   v8::TryCatch try_catch(isolate);
 
   v8::ScriptCompiler::StreamedSource source(
-      std::make_unique<TestSourceStream>(chunks), encoding);
+      std::make_unique<i::TestSourceStream>(chunks), encoding);
   v8::ScriptCompiler::ScriptStreamingTask* task =
       v8::ScriptCompiler::StartStreaming(isolate, &source, type);
 
@@ -23206,7 +23165,7 @@ void RunStreamingTest(const char** chunks, v8::ScriptType type,
                           v8::Local<v8::Value>(), false, false,
                           type == v8::ScriptType::kModule);
 
-  char* full_source = TestSourceStream::FullSourceString(chunks);
+  char* full_source = i::TestSourceStream::FullSourceString(chunks);
   if (type == v8::ScriptType::kClassic) {
     v8::MaybeLocal<Script> script = v8::ScriptCompiler::Compile(
         env.local(), &source, v8_str(full_source), origin);
@@ -23514,7 +23473,7 @@ TEST(StreamingWithDebuggingEnabledLate) {
   v8::TryCatch try_catch(isolate);
 
   v8::ScriptCompiler::StreamedSource source(
-      std::make_unique<TestSourceStream>(chunks),
+      std::make_unique<i::TestSourceStream>(chunks),
       v8::ScriptCompiler::StreamedSource::ONE_BYTE);
   v8::ScriptCompiler::ScriptStreamingTask* task =
       v8::ScriptCompiler::StartStreaming(isolate, &source);
@@ -23527,7 +23486,7 @@ TEST(StreamingWithDebuggingEnabledLate) {
   CHECK(!try_catch.HasCaught());
 
   v8::ScriptOrigin origin(isolate, v8_str("http://foo.com"));
-  char* full_source = TestSourceStream::FullSourceString(chunks);
+  char* full_source = i::TestSourceStream::FullSourceString(chunks);
 
   EnableDebugger(isolate);
 
@@ -23627,7 +23586,7 @@ TEST(StreamingWithHarmonyScopes) {
 
   v8::TryCatch try_catch(isolate);
   v8::ScriptCompiler::StreamedSource source(
-      std::make_unique<TestSourceStream>(chunks),
+      std::make_unique<i::TestSourceStream>(chunks),
       v8::ScriptCompiler::StreamedSource::ONE_BYTE);
   v8::ScriptCompiler::ScriptStreamingTask* task =
       v8::ScriptCompiler::StartStreaming(isolate, &source);
@@ -23642,7 +23601,7 @@ TEST(StreamingWithHarmonyScopes) {
   CHECK(!try_catch.HasCaught());
 
   v8::ScriptOrigin origin(isolate, v8_str("http://foo.com"));
-  char* full_source = TestSourceStream::FullSourceString(chunks);
+  char* full_source = i::TestSourceStream::FullSourceString(chunks);
   v8::Local<Script> script =
       v8::ScriptCompiler::Compile(env.local(), &source, v8_str(full_source),
                                   origin)
@@ -23677,7 +23636,7 @@ void StreamingWithIsolateScriptCache(bool run_gc) {
     v8::EscapableHandleScope inner_scope(isolate);
 
     v8::ScriptCompiler::StreamedSource source(
-        std::make_unique<TestSourceStream>(chunks),
+        std::make_unique<i::TestSourceStream>(chunks),
         v8::ScriptCompiler::StreamedSource::ONE_BYTE);
     v8::ScriptCompiler::ScriptStreamingTask* task =
         v8::ScriptCompiler::StartStreaming(isolate, &source,
