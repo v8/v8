@@ -80,12 +80,8 @@ extern class SharedFunctionInfo extends HeapObject {
   // even if the GC moves this SharedFunctionInfo.
   @if(V8_SFI_HAS_UNIQUE_ID) unique_id: int32;
 
-  // Age used for code flushing.
-  // TODO: Merge this field with function_literal_id to save memory.
-  age: uint16;
-
-  padding: uint16;
   @if(V8_SFI_NEEDS_PADDING) optional_padding: uint32;
+  @ifnot(V8_SFI_NEEDS_PADDING) optional_padding: void;
 }
 
 const kDontAdaptArgumentsSentinel: constexpr int32

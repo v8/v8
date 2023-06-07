@@ -298,7 +298,7 @@ const size_t kShortBuiltinCallsOldSpaceSizeThreshold = size_t{2} * GB;
 #define V8_SFI_HAS_UNIQUE_ID false
 #endif
 
-#if !V8_SFI_HAS_UNIQUE_ID && TAGGED_SIZE_8_BYTES
+#if V8_SFI_HAS_UNIQUE_ID && TAGGED_SIZE_8_BYTES
 #define V8_SFI_NEEDS_PADDING true
 #else
 #define V8_SFI_NEEDS_PADDING false

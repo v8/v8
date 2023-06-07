@@ -348,9 +348,11 @@ class MergeDeserializedCodeTest : public DeserializeTest {
                         i::Isolate* i_isolate) {
     for (int index = 0; index < kScriptObjectsCount; ++index) {
       if ((sfis_to_age & (1 << index)) == (1 << index)) {
-        i::SharedFunctionInfo sfi = i::SharedFunctionInfo::cast(
-            original_objects->Get(index).GetHeapObjectAssumeWeak());
-        i::SharedFunctionInfo::EnsureOldForTesting(sfi);
+        i::BytecodeArray bytecode =
+            i::SharedFunctionInfo::cast(
+                original_objects->Get(index).GetHeapObjectAssumeWeak())
+                .GetBytecodeArray(i_isolate);
+        i::BytecodeArray::EnsureOldForTesting(bytecode);
       }
     }
 
@@ -660,8 +662,9 @@ TEST_F(MergeDeserializedCodeTest, MergeWithNoFollowUpWork) {
 
   // Age the top-level bytecode so that the Isolate compilation cache will
   // contain only the Script.
-  i::SharedFunctionInfo::EnsureOldForTesting(
-      GetSharedFunctionInfo(original_script));
+  i::BytecodeArray bytecode =
+      GetSharedFunctionInfo(original_script).GetBytecodeArray(i_isolate);
+  i::BytecodeArray::EnsureOldForTesting(bytecode);
   InvokeMajorGC(i_isolate);
 
   // A second round of GC is necessary in case incremental marking had already
@@ -753,7 +756,9 @@ TEST_F(MergeDeserializedCodeTest, MergeThatCompilesLazyFunction) {
 
     // Age the top-level bytecode so that the Isolate compilation cache will
     // contain only the Script.
-    i::SharedFunctionInfo::EnsureOldForTesting(GetSharedFunctionInfo(script));
+    i::BytecodeArray bytecode =
+        GetSharedFunctionInfo(script).GetBytecodeArray(i_isolate);
+    i::BytecodeArray::EnsureOldForTesting(bytecode);
   }
 
   InvokeMajorGC(i_isolate);
@@ -828,7 +833,9 @@ TEST_F(MergeDeserializedCodeTest, MergeThatStartsButDoesNotFinish) {
 
     // Age the top-level bytecode so that the Isolate compilation cache will
     // contain only the Script.
-    i::SharedFunctionInfo::EnsureOldForTesting(GetSharedFunctionInfo(script));
+    i::BytecodeArray bytecode =
+        GetSharedFunctionInfo(script).GetBytecodeArray(i_isolate);
+    i::BytecodeArray::EnsureOldForTesting(bytecode);
   }
 
   InvokeMajorGC(i_isolate);
