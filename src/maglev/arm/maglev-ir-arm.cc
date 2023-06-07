@@ -461,42 +461,6 @@ void CheckedInternalizedString::GenerateCode(MaglevAssembler* masm,
   MAGLEV_NODE_NOT_IMPLEMENTED(CheckedInternalizedString);
 }
 
-void CheckedNumberOrOddballToFloat64::SetValueLocationConstraints() {
-  UseAndClobberRegister(input());
-  DefineAsRegister(this);
-}
-void CheckedNumberOrOddballToFloat64::GenerateCode(
-    MaglevAssembler* masm, const ProcessingState& state) {
-  MAGLEV_NODE_NOT_IMPLEMENTED(CheckedNumberOrOddballToFloat64);
-}
-
-void UncheckedNumberOrOddballToFloat64::SetValueLocationConstraints() {
-  UseAndClobberRegister(input());
-  DefineAsRegister(this);
-}
-void UncheckedNumberOrOddballToFloat64::GenerateCode(
-    MaglevAssembler* masm, const ProcessingState& state) {
-  MAGLEV_NODE_NOT_IMPLEMENTED(UncheckedNumberOrOddballToFloat64);
-}
-
-void CheckedTruncateNumberOrOddballToInt32::SetValueLocationConstraints() {
-  UseRegister(input());
-  DefineSameAsFirst(this);
-}
-void CheckedTruncateNumberOrOddballToInt32::GenerateCode(
-    MaglevAssembler* masm, const ProcessingState& state) {
-  MAGLEV_NODE_NOT_IMPLEMENTED(CheckedTruncateNumberOrOddballToInt32);
-}
-
-void TruncateNumberOrOddballToInt32::SetValueLocationConstraints() {
-  UseRegister(input());
-  DefineSameAsFirst(this);
-}
-void TruncateNumberOrOddballToInt32::GenerateCode(
-    MaglevAssembler* masm, const ProcessingState& state) {
-  MAGLEV_NODE_NOT_IMPLEMENTED(TruncateNumberOrOddballToInt32);
-}
-
 void HoleyFloat64ToMaybeNanFloat64::SetValueLocationConstraints() {
   UseRegister(input());
   DefineAsRegister(this);
