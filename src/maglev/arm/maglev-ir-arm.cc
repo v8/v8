@@ -419,23 +419,36 @@ void Float64Round::GenerateCode(MaglevAssembler* masm,
 
 int Float64Exponentiate::MaxCallStackArgs() const { return 0; }
 void Float64Exponentiate::SetValueLocationConstraints() {
-  UseFixed(left_input(), d0);
-  UseFixed(right_input(), d1);
-  DefineSameAsFirst(this);
+  UseRegister(left_input());
+  UseRegister(right_input());
+  DefineAsRegister(this);
 }
 void Float64Exponentiate::GenerateCode(MaglevAssembler* masm,
                                        const ProcessingState& state) {
-  MAGLEV_NODE_NOT_IMPLEMENTED(Float64Exponentiate);
+  DoubleRegister left = ToDoubleRegister(left_input());
+  DoubleRegister right = ToDoubleRegister(right_input());
+  DoubleRegister out = ToDoubleRegister(result());
+  FrameScope scope(masm, StackFrame::MANUAL);
+  __ PrepareCallCFunction(0, 2);
+  __ MovToFloatParameters(left, right);
+  __ CallCFunction(ExternalReference::ieee754_pow_function(), 0, 2);
+  __ MovFromFloatResult(out);
 }
 
 int Float64Ieee754Unary::MaxCallStackArgs() const { return 0; }
 void Float64Ieee754Unary::SetValueLocationConstraints() {
-  UseFixed(input(), d0);
-  DefineSameAsFirst(this);
+  UseRegister(input());
+  DefineAsRegister(this);
 }
 void Float64Ieee754Unary::GenerateCode(MaglevAssembler* masm,
                                        const ProcessingState& state) {
-  MAGLEV_NODE_NOT_IMPLEMENTED(Float64Ieee754Unary);
+  DoubleRegister value = ToDoubleRegister(input());
+  DoubleRegister out = ToDoubleRegister(result());
+  FrameScope scope(masm, StackFrame::MANUAL);
+  __ PrepareCallCFunction(0, 1);
+  __ MovToFloatParameter(value);
+  __ CallCFunction(ieee_function_, 0, 1);
+  __ MovFromFloatResult(out);
 }
 
 void CheckJSTypedArrayBounds::SetValueLocationConstraints() {
