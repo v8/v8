@@ -2161,8 +2161,7 @@ Object Isolate::UnwindAndFindHandler() {
         // The code might be a dynamically generated stub or a turbofanned
         // embedded builtin.
         Code code = stub_frame->LookupCode();
-        if (code.kind() != CodeKind::BUILTIN || !code.is_turbofanned() ||
-            !code.has_handler_table()) {
+        if (!code.is_turbofanned() || !code.has_handler_table()) {
           break;
         }
 

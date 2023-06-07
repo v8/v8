@@ -1683,7 +1683,7 @@ HeapObject StubFrame::unchecked_code() const {
 int StubFrame::LookupExceptionHandlerInTable() {
   Code code = LookupCode();
   DCHECK(code.is_turbofanned());
-  DCHECK_EQ(code.kind(), CodeKind::BUILTIN);
+  DCHECK(code.has_handler_table());
   HandlerTable table(code);
   int pc_offset = code.GetOffsetFromInstructionStart(isolate(), pc());
   return table.LookupReturn(pc_offset);
