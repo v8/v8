@@ -635,8 +635,10 @@ Response InjectedScript::wrapObjectMirror(
 
     V8SerializationDuplicateTracker duplicateTracker{context};
 
-    std::unique_ptr<protocol::DictionaryValue> deepSerializedValueDict =
-        mirror.buildDeepSerializedValue(context, maxDepth, duplicateTracker);
+    std::unique_ptr<protocol::DictionaryValue> deepSerializedValueDict;
+    response = mirror.buildDeepSerializedValue(
+        context, maxDepth, duplicateTracker, &deepSerializedValueDict);
+    if (!response.IsSuccess()) return response;
 
     String16 type;
     deepSerializedValueDict->getString("type", &type);
@@ -664,10 +666,11 @@ Response InjectedScript::wrapObjectMirror(
   if (wrapOptions.mode == WrapMode::kDeep) {
     V8SerializationDuplicateTracker duplicateTracker{context};
 
-    std::unique_ptr<protocol::DictionaryValue> deepSerializedValueDict =
-        mirror.buildDeepSerializedValue(
-            context, wrapOptions.serializationOptions.maxDepth,
-            duplicateTracker);
+    std::unique_ptr<protocol::DictionaryValue> deepSerializedValueDict;
+    response = mirror.buildDeepSerializedValue(
+        context, wrapOptions.serializationOptions.maxDepth, duplicateTracker,
+        &deepSerializedValueDict);
+    if (!response.IsSuccess()) return response;
 
     String16 type;
     deepSerializedValueDict->getString("type", &type);

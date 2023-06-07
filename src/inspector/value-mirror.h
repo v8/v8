@@ -68,9 +68,10 @@ class ValueMirror {
       std::unique_ptr<protocol::Runtime::ObjectPreview>*) const {}
   virtual v8::Local<v8::Value> v8Value() const = 0;
   // https://goo.gle/browser-automation-deepserialization
-  virtual std::unique_ptr<protocol::DictionaryValue> buildDeepSerializedValue(
+  virtual Response buildDeepSerializedValue(
       v8::Local<v8::Context> context, int maxDepth,
-      V8SerializationDuplicateTracker& duplicateTracker) const = 0;
+      V8SerializationDuplicateTracker& duplicateTracker,
+      std::unique_ptr<protocol::DictionaryValue>* result) const = 0;
 
   class PropertyAccumulator {
    public:

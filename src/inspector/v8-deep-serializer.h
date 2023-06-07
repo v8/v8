@@ -12,10 +12,10 @@ namespace v8_inspector {
 
 class V8DeepSerializer {
  public:
-  static std::unique_ptr<protocol::DictionaryValue> serializeV8Value(
+  static protocol::Response serializeV8Value(
       v8::Local<v8::Object> value, v8::Local<v8::Context> context, int maxDepth,
       V8SerializationDuplicateTracker& duplicateTracker,
-      std::unique_ptr<protocol::DictionaryValue> result);
+      protocol::DictionaryValue& result);
 
   V8_EXPORT explicit V8DeepSerializer(v8::Isolate* isolate);
 };
