@@ -1570,12 +1570,19 @@ void StraightForwardRegisterAllocator::AllocateSpillSlot(ValueNode* node) {
   uint32_t free_slot;
   bool is_tagged = (node->properties().value_representation() ==
                     ValueRepresentation::kTagged);
-  // TODO(v8:7700): We will need a new class of SpillSlots for doubles in 32-bit
-  // architectures.
+  uint32_t slot_size = 1;
+  if constexpr (kDoubleSize != kSystemPointerSize) {
+    if (IsDoubleRepresentation(node->properties().value_representation())) {
+      slot_size = kDoubleSize / kSystemPointerSize;
+    }
+  }
   SpillSlots& slots = is_tagged ? tagged_ : untagged_;
   MachineRepresentation representation = node->GetMachineRepresentation();
-  if (!v8_flags.maglev_reuse_stack_slots || slots.free_slots.empty()) {
-    free_slot = slots.top++;
+  // TODO(victorgomes): We don't currently reuse double slots on arm.
+  if (!v8_flags.maglev_reuse_stack_slots || slot_size > 1 ||
+      slots.free_slots.empty()) {
+    free_slot = slots.top;
+    slots.top += slot_size;
   } else {
     NodeIdT start = node->live_range().start;
     auto it =
