@@ -281,6 +281,7 @@ class MaglevAssembler : public MacroAssembler {
   inline void CompareFloat64(DoubleRegister src1, DoubleRegister src2);
 
   inline void CallSelf();
+  inline void CallBuiltin(Builtin builtin);
 
   inline void Jump(Label* target, Label::Distance distance = Label::kFar);
   inline void JumpIf(Condition cond, Label* target,
