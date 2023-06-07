@@ -4678,8 +4678,7 @@ TEST(BytecodeFlushEventsEagerLogging) {
     heap::InvokeMajorGC(CcTest::heap());
     CHECK(function->shared().is_compiled());
 
-    BytecodeArray::EnsureOldForTesting(
-        function->shared().GetBytecodeArray(i_isolate));
+    i::SharedFunctionInfo::EnsureOldForTesting(function->shared());
     heap::InvokeMajorGC(CcTest::heap());
 
     // foo should no longer be in the compilation cache

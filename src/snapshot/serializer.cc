@@ -1158,12 +1158,12 @@ void Serializer::ObjectSerializer::OutputRawData(Address up_to) {
         reinterpret_cast<void*>(object_start + base), bytes_to_output);
 #endif  // MEMORY_SANITIZER
     PtrComprCageBase cage_base(isolate_);
-    if (object_->IsBytecodeArray(cage_base)) {
+    if (object_->IsSharedFunctionInfo(cage_base)) {
       // The bytecode age field can be changed by GC concurrently.
-      static_assert(BytecodeArray::kBytecodeAgeSize == kUInt16Size);
+      static_assert(SharedFunctionInfo::kAgeSize == kUInt16Size);
       uint16_t field_value = 0;
       OutputRawWithCustomField(sink_, object_start, base, bytes_to_output,
-                               BytecodeArray::kBytecodeAgeOffset,
+                               SharedFunctionInfo::kAgeOffset,
                                sizeof(field_value),
                                reinterpret_cast<uint8_t*>(&field_value));
     } else if (object_->IsDescriptorArray(cage_base)) {

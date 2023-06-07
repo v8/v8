@@ -689,6 +689,7 @@ void InstallUnoptimizedCode(UnoptimizedCompilationInfo* compilation_info,
 #endif  // V8_ENABLE_WEBASSEMBLY
 
     shared_info->set_bytecode_array(*compilation_info->bytecode_array());
+    shared_info->set_age(0);
 
     Handle<FeedbackMetadata> feedback_metadata = FeedbackMetadata::New(
         isolate, compilation_info->feedback_vector_spec());
@@ -2093,7 +2094,7 @@ void BackgroundMergeTask::BeginMergeInBackground(LocalIsolate* isolate,
             // flushed right away. This operation might be racing against
             // concurrent modification by another thread, but such a race is not
             // catastrophic.
-            old_sfi.GetBytecodeArray(isolate).set_bytecode_age(0);
+            old_sfi.set_age(0);
           } else {
             // The old SFI can use the compiled data from the new SFI.
             new_compiled_data_for_cached_sfis_.push_back(
@@ -2704,6 +2705,7 @@ bool Compiler::CompileSharedWithBaseline(Isolate* isolate,
       return false;
     }
     shared->set_baseline_code(*code, kReleaseStore);
+    shared->set_age(0);
   }
   double time_taken_ms = time_taken.InMillisecondsF();
 
