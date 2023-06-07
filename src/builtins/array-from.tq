@@ -35,7 +35,7 @@ ArrayFrom(js-implicit context: NativeContext, receiver: JSAny)(...arguments):
   } else {
     // a. If IsCallable(mapfn) is false, throw a TypeError exception.
     if (!Is<Callable>(mapfn)) deferred {
-        ThrowTypeError(MessageTemplate::kCalledNonCallable, mapfn);
+        ThrowCalledNonCallable(mapfn);
       }
     // b. Let mapping be true.
     mapping = true;
