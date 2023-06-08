@@ -14,13 +14,12 @@ vars = {
   #
   # Available images:
   #   Emulation:
-  #   - qemu.x64 (pulls terminal.qemu-x64-release)
-  #   - qemu.arm64 (pulls terminal.qemu-arm64-release)
+  #   - terminal.qemu-x64
+  #   - terminal.qemu-arm64
   #   - workstation.qemu-x64-release
   #   Hardware:
-  #   - generic.x64 (pulls terminal.x64-debug)
-  #   - generic.arm64 (pulls terminal.arm64-debug)
-  #   - chromebook.x64 (pulls terminal.chromebook-x64-debug)
+  #   - minimal.x64
+  #   - core.x64-dfv2
   #
   # Since the images are hundreds of MB, default to only downloading the image
   # most commonly useful for developers. Bots and developers that need to use
@@ -50,7 +49,7 @@ vars = {
   'check_v8_header_includes': False,
 
   # By default, download the fuchsia sdk from the public sdk directory.
-  'fuchsia_sdk_cipd_prefix': 'fuchsia/sdk/gn/',
+  'fuchsia_sdk_cipd_prefix': 'fuchsia/sdk/core/',
 
   # reclient CIPD package version
   'reclient_version': 're_client_version:0.107.1.0b39c4c-gomaip',
@@ -231,15 +230,9 @@ deps = {
   },
   'third_party/depot_tools':
     Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '19ea2048e4fdee2118f5abccf3a6b6eafdd04c8f',
-  'third_party/fuchsia-sdk/sdk': {
-    'packages': [
-        {
-            'package': Var('fuchsia_sdk_cipd_prefix') + '${{platform}}',
-            'version': Var('fuchsia_version'),
-        },
-    ],
+  'third_party/fuchsia-gn-sdk': {
+    'url': Var('chromium_url') + '/chromium/src/third_party/fuchsia-gn-sdk.git' + '@' + '76a95f0b13ba2d7f5be0f0e84006e7d489a00d6a',
     'condition': 'checkout_fuchsia',
-    'dep_type': 'cipd',
   },
   'third_party/google_benchmark/src': {
     'url': Var('chromium_url') + '/external/github.com/google/benchmark.git' + '@' + 'b177433f3ee2513b1075140c723d73ab8901790f',
@@ -598,6 +591,17 @@ hooks = [
     'pattern': '.',
     'action': ['python3', 'build/util/lastchange.py',
                '-o', 'build/util/LASTCHANGE'],
+  },
+  {
+    'name': 'Download Fuchsia SDK from GCS',
+    'pattern': '.',
+    'condition': 'checkout_fuchsia',
+    'action': [
+      'python3',
+      'build/fuchsia/update_sdk.py',
+      '--cipd-prefix={fuchsia_sdk_cipd_prefix}',
+      '--version={fuchsia_version}',
+    ],
   },
   {
     'name': 'Download Fuchsia system images',
