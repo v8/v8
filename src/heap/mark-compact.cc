@@ -1599,6 +1599,7 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
       {
         CodePageMemoryModificationScope memory_modification_scope(
             BasicMemoryChunk::FromAddress(dst_addr));
+        ThreadIsolation::RegisterInstructionStreamAllocation(dst_addr, size);
         base->heap_->CopyBlock(dst_addr, src_addr, size);
         InstructionStream istream = InstructionStream::cast(dst);
         istream.Relocate(dst_addr - src_addr);

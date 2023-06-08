@@ -7064,6 +7064,8 @@ HEAP_TEST(CodeLargeObjectSpace) {
         size_in_bytes, AllocationType::kCode, AllocationOrigin::kRuntime);
     CHECK(allocation.To(&obj));
     CHECK_EQ(allocation.ToAddress(), allocation_tracker.address());
+    ThreadIsolation::RegisterInstructionStreamAllocation(obj.address(),
+                                                         size_in_bytes);
 
     heap->CreateFillerObjectAt(obj.address(), size_in_bytes);
   }
@@ -7097,6 +7099,8 @@ UNINITIALIZED_HEAP_TEST(CodeLargeObjectSpace64k) {
           size_in_bytes, AllocationType::kCode, AllocationOrigin::kRuntime);
       CHECK(allocation.To(&obj));
       CHECK_EQ(allocation.ToAddress(), allocation_tracker.address());
+      ThreadIsolation::RegisterInstructionStreamAllocation(obj.address(),
+                                                           size_in_bytes);
 
       heap->CreateFillerObjectAt(obj.address(), size_in_bytes);
     }
@@ -7118,6 +7122,8 @@ UNINITIALIZED_HEAP_TEST(CodeLargeObjectSpace64k) {
           size_in_bytes, AllocationType::kCode, AllocationOrigin::kRuntime);
       CHECK(allocation.To(&obj));
       CHECK_EQ(allocation.ToAddress(), allocation_tracker.address());
+      ThreadIsolation::RegisterInstructionStreamAllocation(obj.address(),
+                                                           size_in_bytes);
 
       heap->CreateFillerObjectAt(obj.address(), size_in_bytes);
     }

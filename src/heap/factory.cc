@@ -166,8 +166,10 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
       DisallowGarbageCollection no_gc;
       InstructionStream raw_istream = *istream;
       CodePageMemoryModificationScope memory_modification_scope(raw_istream);
-      raw_istream.set_body_size(code_desc_.instruction_size() +
-                                code_desc_.metadata_size());
+      int body_size = code_desc_.body_size();
+      ThreadIsolation::RegisterInstructionStreamAllocation(
+          raw_istream.address(), InstructionStream::SizeFor(body_size));
+      raw_istream.set_body_size(body_size);
       raw_istream.initialize_code_to_smi_zero(kReleaseStore);
       raw_istream.set_relocation_info(*reloc_info);
       raw_istream.clear_padding();

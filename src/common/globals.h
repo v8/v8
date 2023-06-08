@@ -278,7 +278,7 @@ const size_t kShortBuiltinCallsOldSpaceSizeThreshold = size_t{2} * GB;
 // TODO(v8:13023): enable PKU support when we have a test coverage
 #if V8_HAS_PKU_JIT_WRITE_PROTECT && \
     !(defined(V8_COMPRESS_POINTERS) && !defined(V8_EXTERNAL_CODE_SPACE))
-#define V8_HEAP_USE_PKU_JIT_WRITE_PROTECT false
+#define V8_HEAP_USE_PKU_JIT_WRITE_PROTECT true
 #else
 #define V8_HEAP_USE_PKU_JIT_WRITE_PROTECT false
 #endif

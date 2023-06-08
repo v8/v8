@@ -12,6 +12,7 @@
 #include "src/base/build_config.h"
 #include "src/base/macros.h"
 #include "src/base/platform/mutex.h"
+#include "src/heap/memory-chunk.h"
 
 namespace v8 {
 namespace internal {
@@ -90,6 +91,11 @@ class V8_EXPORT ThreadIsolation {
   // Unregister a JIT region that is about to be unmpapped.
   static void UnregisterJitPage(Address address);
 
+  // Track individual allocations. The caller needs to hold an rwx write scope.
+  static void RegisterInstructionStreamAllocation(Address addr, size_t size);
+  static void UnregisterInstructionStreamsInPageExcept(
+      MemoryChunk* chunk, const std::vector<Address>& keep);
+
 #if V8_HAS_PKU_JIT_WRITE_PROTECT
   static int pkey() { return trusted_data_.pkey; }
   // A copy of the pkey, but taken from untrusted memory. This function should
@@ -101,15 +107,6 @@ class V8_EXPORT ThreadIsolation {
   static bool initialized() { return untrusted_data_.initialized; }
   static void CheckTrackedMemoryEmpty();
 #endif
-
-  class JitPage {
-   public:
-    explicit JitPage(size_t size) : size_(size) {}
-    size_t Size() const { return size_; }
-
-   private:
-    size_t size_;
-  };
 
   // A std::allocator implementation that wraps the ThreadIsolated allocator.
   // This is needed to create STL containers backed by ThreadIsolated memory.
@@ -131,13 +128,64 @@ class V8_EXPORT ThreadIsolation {
     }
   };
 
+  class JitAllocation {
+   public:
+    explicit JitAllocation(size_t size) : size_(size) {}
+    size_t Size() const { return size_; }
+
+   private:
+    size_t size_;
+  };
+
+  class JitPage;
+
+  // All accesses to the JitPage go through the JitPageReference class, which
+  // will guard it against concurrent access.
+  class JitPageReference {
+   public:
+    explicit JitPageReference(JitPage* page);
+    JitPageReference(JitPageReference&&) V8_NOEXCEPT = default;
+    JitPageReference(const JitPageReference&) = delete;
+    JitPageReference& operator=(const JitPageReference&) = delete;
+
+    size_t Size() const;
+    void RegisterAllocation(Address addr, size_t size);
+    void UnregisterAllocationsExcept(const std::vector<Address>& addr);
+    bool Empty() const;
+
+   private:
+    base::MutexGuard page_lock_;
+    JitPage* jit_page_;
+  };
+
+  class JitPage {
+   public:
+    explicit JitPage(Address address, size_t size)
+        : address_(address), size_(size) {}
+    ~JitPage();
+
+   private:
+    base::Mutex mutex_;
+    typedef std::map<Address, JitAllocation, std::less<Address>,
+                     StlAllocator<std::pair<const Address, JitAllocation>>>
+        AllocationMap;
+    AllocationMap allocations_;
+    Address address_;
+    size_t size_;
+
+    friend class JitPageReference;
+    friend void ThreadIsolation::UnregisterJitPage(Address address);
+  };
+
  private:
   static ThreadIsolatedAllocator* allocator() {
     return trusted_data_.allocator;
   }
 
-  typedef std::map<Address, JitPage, std::less<Address>,
-                   StlAllocator<std::pair<const Address, JitPage>>>
+  // We store pointers in the map since we want to use the entries without
+  // keeping the map locked.
+  typedef std::map<Address, JitPage*, std::less<Address>,
+                   StlAllocator<std::pair<const Address, JitPage*>>>
       JitPageMap;
 
   // The TrustedData needs to be page aligned so that we can protect it using
@@ -172,8 +220,15 @@ class V8_EXPORT ThreadIsolation {
   // ThreadIsolated allocator.
   template <typename T, typename... Args>
   static void ConstructNew(T** ptr, Args&&... args);
+  template <typename T>
+  static void Delete(T* ptr);
 
-  static void CheckForRegionOverlapLocked(Address addr, size_t size);
+  static Address JitPageAddressFromInstructionStream(Address addr);
+
+  static void RegisterJitAllocation(Address page, Address obj, size_t size);
+
+  // The caller needs to hold a lock of the jit_pages_mutex_.
+  static JitPageReference LookupJitPageLocked(Address page);
 
   template <class T>
   friend struct StlAllocator;

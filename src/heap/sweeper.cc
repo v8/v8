@@ -769,7 +769,13 @@ int Sweeper::RawSweep(Page* p, FreeSpaceTreatmentMode free_space_treatment_mode,
                                          *active_system_pages_after_sweeping);
   }
 
+  DCHECK_IMPLIES(!code_object_registry,
+                 !p->IsFlagSet(MemoryChunk::Flag::IS_EXECUTABLE));
   if (code_object_registry) {
+    if (p->IsFlagSet(MemoryChunk::Flag::IS_EXECUTABLE)) {
+      ThreadIsolation::UnregisterInstructionStreamsInPageExcept(p,
+                                                                code_objects);
+    }
     code_object_registry->ReinitializeFrom(std::move(code_objects));
   }
 

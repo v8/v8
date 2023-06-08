@@ -473,11 +473,8 @@ void MemoryAllocator::UnregisterBasicMemoryChunk(BasicMemoryChunk* chunk,
     UnregisterExecutableMemoryChunk(static_cast<MemoryChunk*>(chunk));
 #endif  // DEBUG
 
-#if V8_HEAP_USE_PKU_JIT_WRITE_PROTECT
-    Address rwx_start =
-        chunk->address() + MemoryChunkLayout::ObjectPageOffsetInCodePage();
-    ThreadIsolation::UnregisterJitPage(rwx_start);
-#endif
+    ThreadIsolation::UnregisterJitPage(
+        chunk->address() + MemoryChunkLayout::ObjectPageOffsetInCodePage());
   }
   chunk->SetFlag(MemoryChunk::UNREGISTERED);
 }
