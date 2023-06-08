@@ -18,14 +18,18 @@ transitioning javascript builtin SetPrototypeUnion(
 
   const table = Cast<OrderedHashSet>(o.table) otherwise unreachable;
 
+  // 3. Let otherRec be ? GetSetRecord(other).
+  let otherRec = GetSetRecord(other, methodName);
+
   // 5. Let resultSetData be a copy of O.[[SetData]].
   let resultSetData = Cast<OrderedHashSet>(CloneFixedArray(
       table, ExtractFixedArrayFlag::kFixedArrays)) otherwise unreachable;
 
   try {
     typeswitch (other) {
-      case (otherSet: JSSet): {
-        // TODO(v8:13556): Add a protector to check JSSet conditions.
+      case (otherSet: JSSetWithNoCustomIteration): {
+        CheckSetRecordIsJSSet(otherRec) otherwise SlowPath;
+
         const otherTable =
             Cast<OrderedHashSet>(otherSet.table) otherwise unreachable;
 
@@ -36,8 +40,9 @@ transitioning javascript builtin SetPrototypeUnion(
           resultSetData = AddToSetTable(resultSetData, nextValue, methodName);
         }
       }
-      case (otherMap: JSMap): {
-        // TODO(v8:13556): Add a protector to check JSMap conditions.
+      case (otherMap: JSMapWithNoCustomIteration): {
+        CheckSetRecordIsJSMap(otherRec) otherwise SlowPath;
+
         const otherTable =
             Cast<OrderedHashMap>(otherMap.table) otherwise unreachable;
 
@@ -54,9 +59,6 @@ transitioning javascript builtin SetPrototypeUnion(
       }
     }
   } label SlowPath {
-    // 3. Let otherRec be ? GetSetRecord(other).
-    let otherRec = GetSetRecord(other, methodName);
-
     // 4. Let keysIter be ? GetKeysIterator(otherRec).
     let keysIter =
         GetKeysIterator(otherRec.object, UnsafeCast<Callable>(otherRec.keys));

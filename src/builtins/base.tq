@@ -58,6 +58,8 @@ type TaggedZeroPattern extends TaggedIndex;
 // A value with the size of Tagged which may contain arbitrary data.
 type Uninitialized extends Tagged;
 
+type BuiltinsName extends int31 constexpr 'Builtin';
+
 extern macro MakeWeak(HeapObject): WeakHeapObject;
 extern macro GetHeapObjectAssumeWeak(MaybeObject): HeapObject labels IfCleared;
 extern macro GetHeapObjectIfStrong(MaybeObject): HeapObject labels IfNotStrong;
@@ -1349,6 +1351,8 @@ extern macro IsMockArrayBufferAllocatorFlag(): bool;
 extern macro HasBuiltinSubclassingFlag(): bool;
 extern macro IsPrototypeTypedArrayPrototype(implicit context: Context)(Map):
     bool;
+extern macro IsSetIteratorProtectorCellInvalid(): bool;
+extern macro IsMapIteratorProtectorCellInvalid(): bool;
 
 extern operator '.data_ptr' macro LoadJSTypedArrayDataPtr(JSTypedArray): RawPtr;
 

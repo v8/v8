@@ -6,6 +6,15 @@
 
 namespace collections {
 
+const kSetPrototypeValues: constexpr BuiltinsName
+    generates 'Builtin::kSetPrototypeValues';
+const kSetPrototypeHas: constexpr BuiltinsName
+    generates 'Builtin::kSetPrototypeHas';
+const kMapPrototypeKeys: constexpr BuiltinsName
+    generates 'Builtin::kMapPrototypeKeys';
+const kMapPrototypeHas: constexpr BuiltinsName
+    generates 'Builtin::kMapPrototypeHas';
+
 @export
 struct SetRecord {
   // SetRecord.[[Set]]
@@ -240,5 +249,33 @@ transitioning macro GetKeysIterator(implicit context: Context)(
   // 5. Return a new Iterator Record { [[Iterator]]: keysIter, [[NextMethod]]:
   // nextMethod, [[Done]]: false }.
   return iterator::IteratorRecord{object: keysIterObj, next: nextMethod};
+}
+
+macro CheckSetRecordIsJSSet(setRecord: SetRecord):
+    void labels HasUserProvidedMethods {
+  const keys =
+      Cast<JSFunction>(setRecord.keys) otherwise HasUserProvidedMethods;
+  const has = Cast<JSFunction>(setRecord.has) otherwise HasUserProvidedMethods;
+  if (!(TaggedEqual(
+            keys.shared_function_info.function_data,
+            SmiConstant(kSetPrototypeValues)) &&
+        TaggedEqual(
+            has.shared_function_info.function_data,
+            SmiConstant(kSetPrototypeHas))))
+    goto HasUserProvidedMethods;
+}
+
+macro CheckSetRecordIsJSMap(setRecord: SetRecord):
+    void labels HasUserProvidedMethods {
+  const keys =
+      Cast<JSFunction>(setRecord.keys) otherwise HasUserProvidedMethods;
+  const has = Cast<JSFunction>(setRecord.has) otherwise HasUserProvidedMethods;
+  if (!(TaggedEqual(
+            keys.shared_function_info.function_data,
+            SmiConstant(kMapPrototypeKeys)) &&
+        TaggedEqual(
+            has.shared_function_info.function_data,
+            SmiConstant(kMapPrototypeHas))))
+    goto HasUserProvidedMethods;
 }
 }

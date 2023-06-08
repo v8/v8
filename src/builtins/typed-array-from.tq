@@ -7,7 +7,6 @@
 namespace typed_array {
 const kBuiltinNameFrom: constexpr string = '%TypedArray%.from';
 
-type BuiltinsName extends int31 constexpr 'Builtin';
 const kTypedArrayPrototypeValues: constexpr BuiltinsName
     generates 'Builtin::kTypedArrayPrototypeValues';
 const kArrayPrototypeValues: constexpr BuiltinsName

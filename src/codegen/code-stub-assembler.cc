@@ -6574,6 +6574,20 @@ CodeStubAssembler::IsNumberStringNotRegexpLikeProtectorCellInvalid() {
   return TaggedEqual(cell_value, invalid);
 }
 
+TNode<BoolT> CodeStubAssembler::IsSetIteratorProtectorCellInvalid() {
+  TNode<Smi> invalid = SmiConstant(Protectors::kProtectorInvalid);
+  TNode<PropertyCell> cell = SetIteratorProtectorConstant();
+  TNode<Object> cell_value = LoadObjectField(cell, PropertyCell::kValueOffset);
+  return TaggedEqual(cell_value, invalid);
+}
+
+TNode<BoolT> CodeStubAssembler::IsMapIteratorProtectorCellInvalid() {
+  TNode<Smi> invalid = SmiConstant(Protectors::kProtectorInvalid);
+  TNode<PropertyCell> cell = MapIteratorProtectorConstant();
+  TNode<Object> cell_value = LoadObjectField(cell, PropertyCell::kValueOffset);
+  return TaggedEqual(cell_value, invalid);
+}
+
 TNode<BoolT> CodeStubAssembler::IsPrototypeInitialArrayPrototype(
     TNode<Context> context, TNode<Map> map) {
   const TNode<NativeContext> native_context = LoadNativeContext(context);
