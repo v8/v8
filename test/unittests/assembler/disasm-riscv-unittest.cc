@@ -537,10 +537,10 @@ TEST_F(DisasmRiscv64Test, RVV) {
   SET_UP();
   COMPARE(VU.set(kScratchReg, E64, m1),
           "018079d7       vsetvli   s3, zero_reg, E64, m1");
-  COMPARE(vl(v2, a0, 0, VSew::E8), "02050107       vle8.v       v2, (a0)");
-  COMPARE(vl(v2, a0, 0, VSew::E8), "02050107       vle8.v       v2, (a0)");
-  COMPARE(vl(v2, a0, 0, VSew::E16), "02055107       vle16.v       v2, (a0)");
-  COMPARE(vl(v2, a0, 0, VSew::E32), "02056107       vle32.v       v2, (a0)");
+  COMPARE(vl(v2, a0, 0, VSew::E8), "02050107       vle8.v    v2, (a0)");
+  COMPARE(vl(v2, a0, 0, VSew::E16), "02055107       vle16.v    v2, (a0)");
+  COMPARE(vl(v2, a0, 0, VSew::E32), "02056107       vle32.v    v2, (a0)");
+  COMPARE(vl(v2, a0, 0, VSew::E64), "02057107       vle64.v    v2, (a0)");
 
   COMPARE(vadd_vv(v0, v0, v1), "02008057       vadd.vv   v0, v0, v1");
   COMPARE(vadd_vx(v0, v1, t0), "0212c057       vadd.vx   v0, v1, t0");
@@ -646,9 +646,9 @@ TEST_F(DisasmRiscv64Test, RVV) {
   COMPARE(vfwsub_wf(v17, v28, fa5), "dbc7d8d7       vfwsub.wf v17, v28, fa5");
 
   // Vector Widening Floating-Point Reduction Instructions
-  COMPARE(vfwredusum_vv(v17, v14, v28),
+  COMPARE(vfwredusum_vs(v17, v14, v28),
           "c6ee18d7       vfwredusum.vs v17, v14, v28");
-  COMPARE(vfwredosum_vv(v17, v14, v28),
+  COMPARE(vfwredosum_vs(v17, v14, v28),
           "ceee18d7       vfwredosum.vs v17, v14, v28");
 
   // Vector Widening Floating-Point Multiply

@@ -1291,10 +1291,12 @@ struct type_sew_t<128> {
   set_rvv_vstart(0);                                                           \
   if (v8_flags.trace_sim) {                                                    \
     __int128_t value = Vregister_[rvv_vd_reg()];                               \
-    SNPrintF(trace_buf_, "%016" PRIx64 "%016" PRIx64 " <-- 0x%016" PRIx64,     \
+    SNPrintF(trace_buf_,                                                       \
+             "%016" PRIx64 "%016" PRIx64 "    (%" PRId64 ")    vlen:%" PRId64  \
+             " <-- [addr: %" REGIx_FORMAT "]",                                 \
              *(reinterpret_cast<int64_t*>(&value) + 1),                        \
-             *reinterpret_cast<int64_t*>(&value),                              \
-             (uint64_t)(get_register(rs1_reg())));                             \
+             *reinterpret_cast<int64_t*>(&value), icount_, rvv_vlen(),         \
+             (sreg_t)(get_register(rs1_reg())));                               \
   }
 
 #define RVV_VI_ST(stride, offset, elt_width, is_mask_ldst)                     \
@@ -1315,10 +1317,12 @@ struct type_sew_t<128> {
   set_rvv_vstart(0);                                                           \
   if (v8_flags.trace_sim) {                                                    \
     __int128_t value = Vregister_[rvv_vd_reg()];                               \
-    SNPrintF(trace_buf_, "%016" PRIx64 "%016" PRIx64 " --> 0x%016" PRIx64,     \
+    SNPrintF(trace_buf_,                                                       \
+             "%016" PRIx64 "%016" PRIx64 "    (%" PRId64 ")    vlen:%" PRId64  \
+             " --> [addr: %" REGIx_FORMAT "]",                                 \
              *(reinterpret_cast<int64_t*>(&value) + 1),                        \
-             *reinterpret_cast<int64_t*>(&value),                              \
-             (uint64_t)(get_register(rs1_reg())));                             \
+             *reinterpret_cast<int64_t*>(&value), icount_, rvv_vlen(),         \
+             (sreg_t)(get_register(rs1_reg())));                               \
   }
 
 #define VI_VFP_LOOP_SCALE_BASE                      \
@@ -7115,8 +7119,8 @@ void Simulator::DecodeRvvFVV() {
           },
           false)
       break;
-    case RO_V_VFWREDUSUM_VV:
-    case RO_V_VFWREDOSUM_VV:
+    case RO_V_VFWREDUSUM_VS:
+    case RO_V_VFWREDOSUM_VS:
       RVV_VI_CHECK_DSS(true);
       switch (rvv_vsew()) {
         case E16:
@@ -7149,7 +7153,7 @@ void Simulator::DecodeRvvFVV() {
           require(false);
           break;
       }
-
+      rvv_trace_vd();
       break;
     case RO_V_VFMADD_VV:
       RVV_VI_VFP_FMA_VV_LOOP({RVV_VI_VFP_FMA(float, vd, vs1, vs2)},
@@ -7205,20 +7209,19 @@ void Simulator::DecodeRvvFVV() {
           UNIMPLEMENTED();
         }
         case E32: {
-          float fs2 = Rvvelt<float>(rvv_vs2_reg(), 0);
-          set_fpu_register_float(rd_reg(), fs2);
+          uint32_t fs2 = Rvvelt<uint32_t>(rvv_vs2_reg(), 0);
+          set_frd(Float32::FromBits(fs2));
           break;
         }
         case E64: {
-          double fs2 = Rvvelt<double>(rvv_vs2_reg(), 0);
-          set_fpu_register_double(rd_reg(), fs2);
+          uint64_t fs2 = Rvvelt<uint64_t>(rvv_vs2_reg(), 0);
+          set_drd(Float64::FromBits(fs2));
           break;
         }
         default:
           require(0);
           break;
       }
-      rvv_trace_vd();
       break;
     default:
       UNSUPPORTED_RISCV();

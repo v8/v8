@@ -282,8 +282,8 @@ class AssemblerRISCVV : public AssemblerRiscvBase {
   DEFINE_OPFWF(vfwsub, VFWSUB_W_FUNCT6)
 
   // Vector Widening Floating-Point Reduction Instructions
-  DEFINE_OPFVV(vfwredusum, VFWREDUSUM_FUNCT6)
-  DEFINE_OPFVV(vfwredosum, VFWREDOSUM_FUNCT6)
+  DEFINE_OPFRED(vfwredusum, VFWREDUSUM_FUNCT6)
+  DEFINE_OPFRED(vfwredosum, VFWREDOSUM_FUNCT6)
 
   // Vector Widening Floating-Point Multiply
   DEFINE_OPFVV(vfwmul, VFWMUL_FUNCT6)
