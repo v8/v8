@@ -650,7 +650,8 @@ InstructionBlock::InstructionBlock(Zone* zone, RpoNumber rpo_number,
       loop_header_alignment_(false),
       needs_frame_(false),
       must_construct_frame_(false),
-      must_deconstruct_frame_(false) {}
+      must_deconstruct_frame_(false),
+      omitted_by_jump_threading_(false) {}
 
 size_t InstructionBlock::PredecessorIndexOf(RpoNumber rpo_number) const {
   size_t j = 0;

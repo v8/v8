@@ -281,7 +281,7 @@ void CodeGenerator::AssembleCode() {
     // Bind a label for a block.
     current_block_ = block->rpo_number();
     unwinding_info_writer_.BeginInstructionBlock(masm()->pc_offset(), block);
-    if (v8_flags.code_comments) {
+    if (v8_flags.code_comments && !block->omitted_by_jump_threading()) {
       std::ostringstream buffer;
       buffer << "-- B" << block->rpo_number().ToInt() << " start";
       if (block->IsDeferred()) buffer << " (deferred)";
