@@ -36,6 +36,7 @@ static_assert(api_constants::kCagedHeapReservationAlignment ==
               kCagedHeapReservationAlignment);
 
 uintptr_t CagedHeapBase::g_heap_base_ = 0u;
+size_t CagedHeapBase::g_age_table_size_ = 0u;
 
 CagedHeap* CagedHeap::instance_ = nullptr;
 
@@ -122,17 +123,18 @@ CagedHeap::CagedHeap(PageAllocator& platform_allocator)
   CageBaseGlobalUpdater::UpdateCageBase(CagedHeapBase::g_heap_base_);
 #endif  // defined(CPPGC_POINTER_COMPRESSION)
 
+  const size_t local_data_size =
+      CagedHeapLocalData::CalculateLocalDataSizeForHeapSize(
+          kCagedHeapReservationSize);
   if (!platform_allocator.SetPermissions(
           cage_start,
-          RoundUp(sizeof(CagedHeapLocalData),
-                  platform_allocator.CommitPageSize()),
+          RoundUp(local_data_size, platform_allocator.CommitPageSize()),
           PageAllocator::kReadWrite)) {
     GetGlobalOOMHandler()("Oilpan: CagedHeap commit CageHeapLocalData.");
   }
 
   const CagedAddress caged_heap_start = RoundUp(
-      reinterpret_cast<CagedAddress>(cage_start) + sizeof(CagedHeapLocalData),
-      kPageSize);
+      reinterpret_cast<CagedAddress>(cage_start) + local_data_size, kPageSize);
   const size_t local_data_size_with_padding =
       caged_heap_start - reinterpret_cast<CagedAddress>(cage_start);
 
@@ -143,6 +145,8 @@ CagedHeap::CagedHeap(PageAllocator& platform_allocator)
       v8::base::PageFreeingMode::kMakeInaccessible);
 
   instance_ = this;
+  CagedHeapBase::g_age_table_size_ =
+      AgeTable::CalculateAgeTableSizeForHeapSize(kCagedHeapReservationSize);
 }
 
 }  // namespace internal

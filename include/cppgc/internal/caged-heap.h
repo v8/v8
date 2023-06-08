@@ -46,11 +46,13 @@ class V8_EXPORT CagedHeapBase {
   }
 
   V8_INLINE static uintptr_t GetBase() { return g_heap_base_; }
+  V8_INLINE static size_t GetAgeTableSize() { return g_age_table_size_; }
 
  private:
   friend class CagedHeap;
 
   static uintptr_t g_heap_base_;
+  static size_t g_age_table_size_;
 };
 
 }  // namespace internal
