@@ -549,6 +549,7 @@ void MoveArgumentsForBuiltin(MaglevAssembler* masm, Args&&... args) {
       DoubleRegister target = Descriptor::GetDoubleRegisterParameter(index);
       if constexpr (std::is_same_v<Input, std::decay_t<Arg>>) {
         DCHECK_EQ(target, arg.AssignedDoubleRegister());
+        USE(target);
       } else {
         masm->Move(target, std::forward<Arg>(arg));
       }
@@ -559,6 +560,7 @@ void MoveArgumentsForBuiltin(MaglevAssembler* masm, Args&&... args) {
       Register target = Descriptor::GetRegisterParameter(index);
       if constexpr (std::is_same_v<Input, std::decay_t<Arg>>) {
         DCHECK_EQ(target, arg.AssignedGeneralRegister());
+        USE(target);
       } else {
         masm->Move(target, std::forward<Arg>(arg));
       }
