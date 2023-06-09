@@ -331,9 +331,7 @@ class MergePointInterpreterFrameState;
 
 #define UNCONDITIONAL_CONTROL_NODE_LIST(V) \
   V(Jump)                                  \
-  V(JumpLoop)                              \
-  V(JumpToInlined)                         \
-  V(JumpFromInlined)
+  V(JumpLoop)
 
 #define TERMINAL_CONTROL_NODE_LIST(V) \
   V(Abort)                            \
@@ -7547,36 +7545,6 @@ class JumpLoop : public UnconditionalControlNodeT<JumpLoop> {
 
  private:
   base::Vector<Input> used_node_locations_;
-};
-
-class JumpToInlined : public UnconditionalControlNodeT<JumpToInlined> {
-  using Base = UnconditionalControlNodeT<JumpToInlined>;
-
- public:
-  explicit JumpToInlined(uint64_t bitfield, BasicBlockRef* target_refs,
-                         MaglevCompilationUnit* unit)
-      : Base(bitfield, target_refs), unit_(unit) {}
-
-  void SetValueLocationConstraints();
-  void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
-
-  const MaglevCompilationUnit* unit() const { return unit_; }
-
- private:
-  MaglevCompilationUnit* const unit_;
-};
-
-class JumpFromInlined : public UnconditionalControlNodeT<JumpFromInlined> {
-  using Base = UnconditionalControlNodeT<JumpFromInlined>;
-
- public:
-  explicit JumpFromInlined(uint64_t bitfield, BasicBlockRef* target_refs)
-      : Base(bitfield, target_refs) {}
-
-  void SetValueLocationConstraints();
-  void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 };
 
 class Abort : public TeminalControlNodeT<0, Abort> {

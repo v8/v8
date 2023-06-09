@@ -4496,23 +4496,6 @@ void Jump::GenerateCode(MaglevAssembler* masm, const ProcessingState& state) {
   }
 }
 
-void JumpToInlined::SetValueLocationConstraints() {}
-void JumpToInlined::GenerateCode(MaglevAssembler* masm,
-                                 const ProcessingState& state) {
-  // Avoid emitting a jump to the next block.
-  if (target() != state.next_block()) {
-    __ Jump(target()->label());
-  }
-}
-void JumpFromInlined::SetValueLocationConstraints() {}
-void JumpFromInlined::GenerateCode(MaglevAssembler* masm,
-                                   const ProcessingState& state) {
-  // Avoid emitting a jump to the next block.
-  if (target() != state.next_block()) {
-    __ Jump(target()->label());
-  }
-}
-
 namespace {
 
 void AttemptOnStackReplacement(MaglevAssembler* masm,
@@ -5227,11 +5210,6 @@ void ReduceInterruptBudgetForReturn::PrintParams(
 void Deopt::PrintParams(std::ostream& os,
                         MaglevGraphLabeller* graph_labeller) const {
   os << "(" << DeoptimizeReasonToString(reason()) << ")";
-}
-
-void JumpToInlined::PrintParams(std::ostream& os,
-                                MaglevGraphLabeller* graph_labeller) const {
-  os << "(" << Brief(*unit()->shared_function_info().object()) << ")";
 }
 
 void BranchIfRootConstant::PrintParams(

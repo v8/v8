@@ -259,8 +259,7 @@ class MaglevGraphBuilder {
   }
 
   ReduceResult BuildInlined(ValueNode* context, ValueNode* function,
-                            const CallArguments& args, BasicBlockRef* start_ref,
-                            BasicBlockRef* end_ref);
+                            const CallArguments& args);
 
   void StartPrologue();
   void SetArgument(int i, ValueNode* value);
@@ -1785,8 +1784,7 @@ class MaglevGraphBuilder {
 
   base::Optional<int> TryFindNextBranch(int* inline_level);
   template <typename BranchControlNodeT, typename... Args>
-  void BuildFusedBranch(int branch_offset, int inline_level,
-                        BasicBlock* current_block, bool init_flip,
+  void BuildFusedBranch(int branch_offset, int inline_level, bool init_flip,
                         std::initializer_list<ValueNode*> control_inputs,
                         Args&&... args);
   template <typename BranchControlNodeT, bool init_flip = false,

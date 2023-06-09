@@ -962,7 +962,7 @@ void StraightForwardRegisterAllocator::AllocateControlNode(ControlNode* node,
   // Control nodes can't lazy deopt at the moment.
   DCHECK(!node->properties().can_lazy_deopt());
 
-  if (node->Is<JumpToInlined>() || node->Is<Abort>()) {
+  if (node->Is<Abort>()) {
     // Do nothing.
     DCHECK(node->general_temporaries().is_empty());
     DCHECK(node->double_temporaries().is_empty());

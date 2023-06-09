@@ -1780,9 +1780,8 @@ base::Optional<int> MaglevGraphBuilder::TryFindNextBranch(int* inline_level) {
 
 template <typename BranchControlNodeT, typename... Args>
 void MaglevGraphBuilder::BuildFusedBranch(
-    int branch_offset, int inline_level, BasicBlock* current_block,
-    bool init_flip, std::initializer_list<ValueNode*> control_inputs,
-    Args&&... args) {
+    int branch_offset, int inline_level, bool init_flip,
+    std::initializer_list<ValueNode*> control_inputs, Args&&... args) {
   // Advance past the test.
   iterator_.Advance();
 
@@ -1821,9 +1820,11 @@ void MaglevGraphBuilder::BuildFusedBranch(
       case interpreter::Bytecode::kReturn: {
         DCHECK_GT(inline_level, 0);
         terminated_with_fused_branch_ = true;
+        parent_->current_block_ = current_block_;
+        current_block_ = nullptr;
         parent_->BuildFusedBranch<BranchControlNodeT>(
-            branch_offset, inline_level - 1, current_block, flip,
-            control_inputs, std::forward<Args>(args)...);
+            branch_offset, inline_level - 1, flip, control_inputs,
+            std::forward<Args>(args)...);
         return;
       }
       default:
@@ -1862,12 +1863,6 @@ void MaglevGraphBuilder::BuildFusedBranch(
     false_offset = next_offset();
   }
 
-  // If we are fusing out of an inlined function the caller doesn't have an
-  // open block. Inherit the block from the inlined function.
-  if (current_block_ == nullptr) {
-    DCHECK_NOT_NULL(current_block);
-    current_block_ = current_block;
-  }
   BasicBlock* block = FinishBlock<BranchControlNodeT>(
       control_inputs, std::forward<Args>(args)..., &jump_targets_[true_offset],
       &jump_targets_[false_offset]);
@@ -1902,9 +1897,9 @@ bool MaglevGraphBuilder::TryBuildBranchFor(
     std::cout << std::endl;
   }
 
-  BuildFusedBranch<BranchControlNodeT>(
-      next_branch_offset, inline_level, current_block_, init_flip,
-      control_inputs, std::forward<Args>(args)...);
+  BuildFusedBranch<BranchControlNodeT>(next_branch_offset, inline_level,
+                                       init_flip, control_inputs,
+                                       std::forward<Args>(args)...);
   return true;
 }
 
@@ -5100,14 +5095,12 @@ void MaglevGraphBuilder::VisitFindNonDefaultConstructorOrConstruct() {
 
 ReduceResult MaglevGraphBuilder::BuildInlined(ValueNode* context,
                                               ValueNode* function,
-                                              const CallArguments& args,
-                                              BasicBlockRef* start_ref,
-                                              BasicBlockRef* end_ref) {
+                                              const CallArguments& args) {
   DCHECK(is_inline());
 
   // Manually create the prologue of the inner function graph, so that we
   // can manually set up the arguments.
-  StartPrologue();
+  DCHECK_NOT_NULL(current_block_);
 
   // Set receiver.
   ValueNode* receiver =
@@ -5136,14 +5129,7 @@ ReduceResult MaglevGraphBuilder::BuildInlined(ValueNode* context,
 
   BuildRegisterFrameInitialization(context, function);
   BuildMergeStates();
-  BasicBlock* inlined_prologue = EndPrologue();
-
-  // Set the entry JumpToInlined to jump to the prologue block.
-  // TODO(leszeks): Passing start_ref to JumpToInlined creates a two-element
-  // linked list of refs. Consider adding a helper to explicitly set the target
-  // instead.
-  start_ref->SetToBlockAndReturnNext(inlined_prologue)
-      ->SetToBlockAndReturnNext(inlined_prologue);
+  EndPrologue();
 
   // Build the inlined function body.
   BuildBody();
@@ -5152,27 +5138,27 @@ ReduceResult MaglevGraphBuilder::BuildInlined(ValueNode* context,
     // If we fused a test in the inlined function with a branch in the caller,
     // the basic blocks are already wired correctly and there is no merge point
     // to handle.
+    DCHECK_NULL(current_block_);
     DCHECK_NULL(merge_states_[inline_exit_offset()]);
     return ReduceResult::Done();
   }
 
-  // All returns in the inlined body jump to a merge point one past the
-  // bytecode length (i.e. at offset bytecode.length()). Create a block at
-  // this fake offset and have it jump out of the inlined function, into a new
-  // block that we create which resumes execution of the outer function.
-  // TODO(leszeks): Wrap this up in a helper.
-  DCHECK_NULL(current_block_);
+  // All returns in the inlined body jump to a merge point one past the bytecode
+  // length (i.e. at offset bytecode.length()). If there isn't one already,
+  // create a block at this fake offset and have it jump out of the inlined
+  // function, into a new block that we create which resumes execution of the
+  // outer function.
+  if (!current_block_) {
+    // If we don't have a merge state at the inline_exit_offset, then there is
+    // no control flow that reaches the end of the inlined function, either
+    // because of infinite loops or deopts
+    if (merge_states_[inline_exit_offset()] == nullptr) {
+      return ReduceResult::DoneWithAbort();
+    }
 
-  // If we don't have a merge state at the inline_exit_offset, then there is no
-  // control flow that reaches the end of the inlined function, either because
-  // of infinite loops or deopts
-  if (merge_states_[inline_exit_offset()] == nullptr) {
-    return ReduceResult::DoneWithAbort();
+    ProcessMergePoint(inline_exit_offset());
+    StartNewBlock(inline_exit_offset(), /*predecessor*/ nullptr);
   }
-
-  ProcessMergePoint(inline_exit_offset());
-  StartNewBlock(inline_exit_offset(), /*predecessor*/ nullptr);
-  FinishBlock<JumpFromInlined>({}, end_ref);
 
   // Pull the returned accumulator value out of the inlined function's final
   // merged return state.
@@ -5284,6 +5270,10 @@ ReduceResult MaglevGraphBuilder::TryBuildInlinedCall(
     return ReduceResult::Fail();
   }
 
+  if (v8_flags.trace_maglev_graph_building) {
+    std::cout << "== Inlining " << shared.object() << std::endl;
+  }
+
   compiler::BytecodeArrayRef bytecode = shared.GetBytecodeArray(broker());
   graph()->inlined_functions().push_back(
       OptimizedCompilationInfo::InlinedFunctionHolder(
@@ -5300,15 +5290,19 @@ ReduceResult MaglevGraphBuilder::TryBuildInlinedCall(
   // Propagate catch block.
   inner_graph_builder.parent_catch_ = GetCurrentTryCatchBlock();
 
-  // Finish the current block with a jump to the inlined function.
-  BasicBlockRef start_ref, end_ref;
-  BasicBlock* block = FinishBlock<JumpToInlined>({}, &start_ref, inner_unit);
+  // Set the inner graph builder to build in the current block.
+  inner_graph_builder.current_block_ = current_block_;
 
-  ReduceResult result = inner_graph_builder.BuildInlined(
-      context, function, args, &start_ref, &end_ref);
-  start_ref.block_ptr()->set_predecessor(block);
+  ReduceResult result =
+      inner_graph_builder.BuildInlined(context, function, args);
   if (result.IsDoneWithAbort()) {
+    DCHECK_NULL(inner_graph_builder.current_block_);
+    current_block_ = nullptr;
     MarkBytecodeDead();
+    if (v8_flags.trace_maglev_graph_building) {
+      std::cout << "== Finished inlining (abort) " << shared.object()
+                << std::endl;
+    }
     return ReduceResult::DoneWithAbort();
   }
 
@@ -5336,25 +5330,20 @@ ReduceResult MaglevGraphBuilder::TryBuildInlinedCall(
         /* (3) */
         (iterator_.current_bytecode() == interpreter::Bytecode::kReturn &&
          iterator_.next_bytecode() == interpreter::Bytecode::kIllegal));
+    if (v8_flags.trace_maglev_graph_building) {
+      std::cout << "== Finished inlining (fused branch) " << shared.object()
+                << std::endl;
+    }
     return result;
   }
 
   DCHECK(result.IsDoneWithValue());
-  // Create a new block at our current offset, and resume execution. Do this
-  // manually to avoid trying to resolve any merges to this offset, which will
-  // have already been processed on entry to this visitor.
-  current_block_ = zone()->New<BasicBlock>(
-      MergePointInterpreterFrameState::New(
-          *compilation_unit_, current_interpreter_frame_,
-          iterator_.current_offset(), 1, block, GetInLiveness()),
-      zone());
-  // Set the exit JumpFromInlined to jump to this resume block.
-  // TODO(leszeks): Passing start_ref to JumpFromInlined creates a two-element
-  // linked list of refs. Consider adding a helper to explicitly set the
-  // target instead.
-  end_ref.SetToBlockAndReturnNext(current_block_)
-      ->SetToBlockAndReturnNext(current_block_);
+  // Resume execution using the final block of the inner builder.
+  current_block_ = inner_graph_builder.current_block_;
 
+  if (v8_flags.trace_maglev_graph_building) {
+    std::cout << "== Finished inlining " << shared.object() << std::endl;
+  }
   return result;
 }
 
@@ -8532,12 +8521,14 @@ void MaglevGraphBuilder::VisitReturn() {
 
   // All inlined function returns instead jump to one past the end of the
   // bytecode, where we'll later create a final basic block which resumes
-  // execution of the caller.
-  // TODO(leszeks): Consider shortcutting this Jump for cases where there is
-  // only one return and no need to merge return states.
-  BasicBlock* block =
-      FinishBlock<Jump>({}, &jump_targets_[inline_exit_offset()]);
-  MergeIntoInlinedReturnFrameState(block);
+  // execution of the caller. If there is only one return, at the end of the
+  // function, we can elide this jump and just continue in the same basic block.
+  if (iterator_.next_offset() != inline_exit_offset() ||
+      NumPredecessors(inline_exit_offset()) > 1) {
+    BasicBlock* block =
+        FinishBlock<Jump>({}, &jump_targets_[inline_exit_offset()]);
+    MergeIntoInlinedReturnFrameState(block);
+  }
 }
 
 void MaglevGraphBuilder::VisitThrowReferenceErrorIfHole() {
