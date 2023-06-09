@@ -88,7 +88,7 @@ namespace heap {
 
 // We only start allocation-site tracking with the second instantiation.
 static const int kPretenureCreationCount =
-    AllocationSite::kPretenureMinimumCreated + 1;
+    PretenuringHandler::kMinMementoCount + 1;
 
 static void CheckMap(Map map, int type, int instance_size) {
   CHECK(map.IsHeapObject());
@@ -2808,22 +2808,23 @@ TEST(OptimizedPretenuringNestedInObjectProperties) {
 
   // Keep the nested literal alive while its root is freed
   base::ScopedVector<char> source(1024);
-  base::SNPrintF(source,
-                 "let number_elements = %d;"
-                 "let elements = new Array(number_elements);"
-                 "function f() {"
-                 "  for (let i = 0; i < number_elements; i++) {"
-                 "     let l =  {a: {c: 2.2, d: {e: 3.3}}, b: 1.1}; "
-                 "    elements[i] = l.a;"
-                 "  }"
-                 "  return elements[number_elements-1];"
-                 "};"
-                 "%%PrepareFunctionForOptimization(f);"
-                 "f(); gc(); gc();"
-                 "f(); f();"
-                 "%%OptimizeFunctionOnNextCall(f);"
-                 "f();",
-                 kPretenureCreationCount);
+  base::SNPrintF(
+      source,
+      "let number_elements = %d;"
+      "let elements = new Array(number_elements);"
+      "function f() {"
+      "  for (let i = 0; i < number_elements; i++) {"
+      "     let l =  {a: {b: {c: {d: {e: 2.2}, e: 3.3}, g: {h: 1.1}}}}; "
+      "    elements[i] = l.a.b.c.d;"
+      "  }"
+      "  return elements[number_elements-1];"
+      "};"
+      "%%PrepareFunctionForOptimization(f);"
+      "f(); gc(); gc();"
+      "f(); f();"
+      "%%OptimizeFunctionOnNextCall(f);"
+      "f();",
+      kPretenureCreationCount);
 
   v8::Local<v8::Value> res = CompileRun(source.begin());
 

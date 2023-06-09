@@ -22,8 +22,6 @@ class AllocationSite : public Struct {
  public:
   NEVER_READ_ONLY_SPACE
   static const uint32_t kMaximumArrayBytesToPretransition = 8 * 1024;
-  static const double kPretenureRatio;
-  static const int kPretenureMinimumCreated = 100;
 
   // Values for pretenure decision field.
   enum PretenureDecision {

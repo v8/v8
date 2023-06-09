@@ -5332,8 +5332,6 @@ bool JSArray::SetLengthWouldNormalize(uint32_t new_length) {
                                      &new_capacity);
 }
 
-const double AllocationSite::kPretenureRatio = 0.85;
-
 void AllocationSite::ResetPretenureDecision() {
   set_pretenure_decision(kUndecided);
   set_memento_found_count(0);

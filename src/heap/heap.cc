@@ -1159,11 +1159,6 @@ void Heap::IncrementDeferredCount(v8::Isolate::UseCounterFeature feature) {
   deferred_counters_[feature]++;
 }
 
-bool Heap::IsNewSpaceCapacityAbovePretenuringThreshold() const {
-  return new_space_ &&
-         new_space_->TotalCapacity() >= min_semi_space_size_for_pretenuring_;
-}
-
 void Heap::GarbageCollectionPrologue(
     GarbageCollectionReason gc_reason,
     const v8::GCCallbackFlags gc_callback_flags) {
@@ -1203,11 +1198,6 @@ void Heap::GarbageCollectionPrologue(
   if (v8_flags.gc_verbose) Print();
 #endif  // DEBUG
 
-  if (IsNewSpaceCapacityAbovePretenuringThreshold()) {
-    minor_gc_above_pretenuring_threshold_++;
-  } else {
-    minor_gc_above_pretenuring_threshold_ = 0;
-  }
   memory_allocator()->unmapper()->PrepareForGC();
 }
 
@@ -2321,6 +2311,8 @@ void Heap::PerformGarbageCollection(GarbageCollector collector,
   // capacity is set in the epilogue.
   PauseAllocationObserversScope pause_observers(this);
 
+  size_t new_space_capacity_before_gc = NewSpaceTargetCapacity();
+
   if (collector == GarbageCollector::MARK_COMPACTOR) {
     MarkCompact();
   } else if (collector == GarbageCollector::MINOR_MARK_COMPACTOR) {
@@ -2330,7 +2322,7 @@ void Heap::PerformGarbageCollection(GarbageCollector collector,
     Scavenge();
   }
 
-  pretenuring_handler_.ProcessPretenuringFeedback();
+  pretenuring_handler_.ProcessPretenuringFeedback(new_space_capacity_before_gc);
 
   UpdateSurvivalStatistics(static_cast<int>(start_young_generation_size));
   ConfigureInitialOldGenerationSize();
@@ -4851,9 +4843,6 @@ void Heap::ConfigureHeap(const v8::ResourceConstraints& constraints) {
         std::max(max_semi_space_size_, DefaultMinSemiSpaceSize());
     max_semi_space_size_ = RoundDown<Page::kPageSize>(max_semi_space_size_);
   }
-
-  min_semi_space_size_for_pretenuring_ =
-      std::min(max_semi_space_size_, kDefaultMinSemiSpaceSizeForPretenuring);
 
   // Initialize max_old_generation_size_ and max_global_memory_.
   {

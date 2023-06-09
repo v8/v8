@@ -21,6 +21,8 @@ class Heap;
 class PretenuringHandler final {
  public:
   static const int kInitialFeedbackCapacity = 256;
+  static const int kMinMementoCount = 100;
+
   using PretenuringFeedbackMap =
       std::unordered_map<AllocationSite, size_t, Object::Hasher>;
   enum FindMementoMode { kForRuntime, kForGC };
@@ -63,7 +65,7 @@ class PretenuringHandler final {
   // Pretenuring decisions are made based on feedback collected during new space
   // evacuation. Note that between feedback collection and calling this method
   // object in old space must not move.
-  void ProcessPretenuringFeedback();
+  void ProcessPretenuringFeedback(size_t new_space_capacity_before_gc);
 
   // Removes an entry from the global pretenuring storage.
   void RemoveAllocationSitePretenuringFeedback(AllocationSite site);
@@ -73,8 +75,6 @@ class PretenuringHandler final {
   }
 
  private:
-  bool DeoptMaybeTenuredAllocationSites() const;
-
   Heap* const heap_;
 
   // The feedback storage is used to store allocation sites (keys) and how often

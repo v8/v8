@@ -42,6 +42,7 @@
 #include "src/debug/debug.h"
 #include "src/handles/global-handles.h"
 #include "src/heap/heap-inl.h"
+#include "src/heap/pretenuring-handler.h"
 #include "src/objects/objects-inl.h"
 #include "src/profiler/allocation-tracker.h"
 #include "src/profiler/heap-profiler.h"
@@ -3945,7 +3946,7 @@ TEST(SamplingHeapProfilerPretenuredInlineAllocations) {
                      "%%OptimizeFunctionOnNextCall(f);"
                      "f();"
                      "f;",
-                     i::AllocationSite::kPretenureMinimumCreated + 1);
+                     i::PretenuringHandler::kMinMementoCount + 1);
 
   v8::Local<v8::Function> f =
       v8::Local<v8::Function>::Cast(CompileRun(source.begin()));

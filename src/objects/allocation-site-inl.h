@@ -186,7 +186,7 @@ bool AllocationSite::IncrementMementoFoundCount(int increment) {
 
   int value = memento_found_count();
   set_memento_found_count(value + increment);
-  return memento_found_count() >= kPretenureMinimumCreated;
+  return memento_found_count() >= PretenuringHandler::kMinMementoCount;
 }
 
 inline void AllocationSite::IncrementMementoCreateCount() {
