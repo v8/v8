@@ -392,6 +392,74 @@ SPLAT_OP_LIST(TEST_SPLAT)
 #undef TEST_SPLAT
 #undef SPLAT_OP_LIST
 
+// Create a graph which multiplies a F32x8 vector with a shuffle splat vector.
+//   float *a, *b, *c;
+//   c[0123] = a[0123] * b[1111];
+//   c[4567] = a[4567] * b[1111];
+//
+// After the revectorization phase, two consecutive 128-bit loads and multiplies
+// can be coalesced using 256-bit operators:
+//   c[01234567] = a[01234567] * b[11111111];
+TEST_F(RevecTest, ShuffleForSplat) {
+  if (!CpuFeatures::IsSupported(AVX2)) return;
+
+  Node* start = graph()->NewNode(common()->Start(4));
+  graph()->SetStart(start);
+
+  Node* zero = graph()->NewNode(common()->Int32Constant(0));
+  Node* sixteen = graph()->NewNode(common()->Int64Constant(16));
+  Node* offset = graph()->NewNode(common()->Int64Constant(23));
+
+  // Wasm array base address
+  Node* p0 = graph()->NewNode(common()->Parameter(0), start);
+  // Load base address a*
+  Node* p1 = graph()->NewNode(common()->Parameter(1), start);
+  // Load for shuffle base address b*
+  Node* p2 = graph()->NewNode(common()->Parameter(2), start);
+  // Store base address c*
+  Node* p3 = graph()->NewNode(common()->Parameter(3), start);
+
+  LoadRepresentation load_rep(MachineType::Simd128());
+  StoreRepresentation store_rep(MachineRepresentation::kSimd128,
+                                WriteBarrierKind::kNoWriteBarrier);
+  Node* base = graph()->NewNode(machine()->Load(MachineType::Int64()), p0,
+                                offset, start, start);
+  Node* load0 = graph()->NewNode(machine()->ProtectedLoad(load_rep), base, p1,
+                                 base, start);
+  Node* base16 = graph()->NewNode(machine()->Int64Add(), base, sixteen);
+  Node* load1 = graph()->NewNode(machine()->ProtectedLoad(load_rep), base16, p1,
+                                 load0, start);
+
+  // Load and shuffle for splat
+  Node* load2 = graph()->NewNode(machine()->ProtectedLoad(load_rep), base, p2,
+                                 load1, start);
+  const uint8_t mask[16] = {4, 5, 6, 7, 4, 5, 6, 7, 4, 5, 6, 7, 4, 5, 6, 7};
+  Node* shuffle = graph()->NewNode(machine()->I8x16Shuffle(mask), load2, load2);
+
+  Node* mul0 = graph()->NewNode(machine()->F32x4Mul(), load0, shuffle);
+  Node* mul1 = graph()->NewNode(machine()->F32x4Mul(), load1, shuffle);
+  Node* store0 = graph()->NewNode(machine()->Store(store_rep), base, p3, mul0,
+                                  load2, start);
+  Node* base16_store = graph()->NewNode(machine()->Int64Add(), base, sixteen);
+  Node* store1 = graph()->NewNode(machine()->Store(store_rep), base16_store, p3,
+                                  mul1, store0, start);
+  Node* ret = graph()->NewNode(common()->Return(0), zero, store1, start);
+  Node* end = graph()->NewNode(common()->End(1), ret);
+  graph()->SetEnd(end);
+
+  graph()->RecordSimdStore(store0);
+  graph()->RecordSimdStore(store1);
+  graph()->SetSimd(true);
+
+  Revectorizer revec(zone(), graph(), mcgraph());
+  EXPECT_TRUE(revec.TryRevectorize(nullptr));
+
+  // Test whether the graph has been revectorized
+  Node* store_256 = ret->InputAt(1);
+  EXPECT_EQ(StoreRepresentationOf(store_256->op()).representation(),
+            MachineRepresentation::kSimd256);
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

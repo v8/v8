@@ -10,6 +10,7 @@
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/opcodes.h"
 #include "src/compiler/verifier.h"
+#include "src/wasm/simd-shuffle.h"
 
 namespace v8 {
 namespace internal {
@@ -694,6 +695,24 @@ PackNode* SLPTree::BuildTreeRec(const ZoneVector<Node*>& node_group,
       PopStack();
       return pnode;
     }
+    case IrOpcode::kI8x16Shuffle: {
+      // Try match 32x8Splat or 64x4Splat.
+      if (IsSplat(node_group)) {
+        const uint8_t* shuffle = S128ImmediateParameterOf(node0->op()).data();
+        int index;
+        if ((wasm::SimdShuffle::TryMatchSplat<4>(shuffle, &index) &&
+             node0->InputAt(index >> 2)->opcode() ==
+                 IrOpcode::kProtectedLoad) ||
+            (wasm::SimdShuffle::TryMatchSplat<2>(shuffle, &index) &&
+             node0->InputAt(index >> 1)->opcode() ==
+                 IrOpcode::kProtectedLoad)) {
+          PopStack();
+          return NewPackNode(node_group);
+        }
+      }
+      TRACE("Failed due to Unsupported I8x16Shuffle.\n");
+      return nullptr;
+    }
       // clang-format off
     SIMPLE_SIMD_OP(CASE) {
       TRACE("Added a vector of %s.\n", node0->op()->mnemonic());
@@ -872,6 +891,7 @@ Node* Revectorizer::VectorizeTree(PackNode* pnode) {
 
   IrOpcode::Value op = node0->opcode();
   const Operator* new_op = nullptr;
+  Node* source = nullptr;
   Node* dead = mcgraph()->Dead();
   base::SmallVector<Node*, 2> inputs(input_count);
   for (int i = 0; i < input_count; i++) inputs[i] = dead;
@@ -934,6 +954,43 @@ Node* Revectorizer::VectorizeTree(PackNode* pnode) {
 #undef SPLAT_CASE
 #undef SIMD_SPLAT_OP
 
+    case IrOpcode::kI8x16Shuffle: {
+      DCHECK(IsSplat(pnode->Nodes()));
+      const uint8_t* shuffle = S128ImmediateParameterOf(node0->op()).data();
+      int index, offset;
+
+      // Match Splat and Revectorize to LoadSplat as AVX-256 does not support
+      // shuffling across 128-bit lane.
+      if (wasm::SimdShuffle::TryMatchSplat<4>(shuffle, &index)) {
+        new_op = mcgraph_->machine()->LoadTransform(
+            MemoryAccessKind::kProtected, LoadTransformation::kS256Load32Splat);
+        offset = index * 4;
+      } else if (wasm::SimdShuffle::TryMatchSplat<2>(shuffle, &index)) {
+        new_op = mcgraph_->machine()->LoadTransform(
+            MemoryAccessKind::kProtected, LoadTransformation::kS256Load64Splat);
+        offset = index * 8;
+      } else {
+        UNREACHABLE();
+      }
+
+      source = node0->InputAt(offset >> 4);
+      DCHECK_EQ(source->opcode(), IrOpcode::kProtectedLoad);
+      inputs.resize_no_init(4);
+      // Update LoadSplat offset.
+      if (index) {
+        inputs[0] = graph()->NewNode(mcgraph_->machine()->Int64Add(),
+                                     source->InputAt(0),
+                                     mcgraph_->Int64Constant(offset));
+      } else {
+        inputs[0] = source->InputAt(0);
+      }
+      // Keep source index, effect and control inputs.
+      inputs[1] = source->InputAt(1);
+      inputs[2] = source->InputAt(2);
+      inputs[3] = source->InputAt(3);
+      input_count = 4;
+      break;
+    }
     case IrOpcode::kProtectedLoad: {
       DCHECK_EQ(LoadRepresentationOf(node0->op()).representation(),
                 MachineRepresentation::kSimd128);
@@ -1034,6 +1091,23 @@ Node* Revectorizer::VectorizeTree(PackNode* pnode) {
       }
       if (nodes[i]->uses().empty()) nodes[i]->Kill();
     }
+
+    // Update effect use of NewNode from the dependent source.
+    if (op == IrOpcode::kI8x16Shuffle) {
+      DCHECK(IsSplat(nodes) && source);
+      NodeProperties::ReplaceEffectInput(source, new_node, 0);
+      TRACE("Replace Effect Edge from %d:%s, to %d:%s\n", source->id(),
+            source->op()->mnemonic(), new_node->id(),
+            new_node->op()->mnemonic());
+      // Remove unused value use, so that we can safely elimite the node later.
+      NodeProperties::ReplaceValueInput(node0, dead, 0);
+      NodeProperties::ReplaceValueInput(node0, dead, 1);
+      TRACE("Remove Value Input of %d:%s\n", node0->id(),
+            node0->op()->mnemonic());
+
+      // We will try cleanup source nodes later
+      sources_.insert(source);
+    }
   }
 
   return pnode->RevectorizedNode();
@@ -1064,6 +1138,39 @@ bool Revectorizer::TryRevectorize(const char* function) {
     TRACE("Finish revectorize %s\n", function);
   }
   return success;
+}
+
+void Revectorizer::UpdateSources() {
+  for (auto* src : sources_) {
+    std::vector<Node*> effect_uses;
+    bool hasExternalValueUse = false;
+    for (auto edge : src->use_edges()) {
+      Node* use = edge.from();
+      if (!GetPackNode(use)) {
+        if (NodeProperties::IsValueEdge(edge)) {
+          TRACE("Source node has external value dependence %d:%s\n",
+                edge.from()->id(), edge.from()->op()->mnemonic());
+          hasExternalValueUse = true;
+          break;
+        } else if (NodeProperties::IsEffectEdge(edge)) {
+          effect_uses.push_back(use);
+        }
+      }
+    }
+
+    if (!hasExternalValueUse) {
+      // Remove unused source and linearize effect chain.
+      Node* effect = NodeProperties::GetEffectInput(src);
+      for (auto use : effect_uses) {
+        TRACE("Replace Effect Edge for source node from %d:%s, to %d:%s\n",
+              use->id(), use->op()->mnemonic(), effect->id(),
+              effect->op()->mnemonic());
+        NodeProperties::ReplaceEffectInput(use, effect, 0);
+      }
+    }
+  }
+
+  sources_.clear();
 }
 
 void Revectorizer::CollectSeeds() {
@@ -1131,6 +1238,7 @@ bool Revectorizer::ReduceStoreChain(const ZoneVector<Node*>& Stores) {
 
   if (DecideVectorize()) {
     VectorizeTree(root);
+    UpdateSources();
     slp_tree_->Print("After vectorize tree");
   }
 
