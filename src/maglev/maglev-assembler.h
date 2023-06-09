@@ -192,6 +192,10 @@ class MaglevAssembler : public MacroAssembler {
   inline void SmiTagInt32(Register obj, Label* fail);
   inline void SmiTagUint32(Register obj, Label* fail);
 
+  // Try to smi-tag {obj}. Result is thrown away.
+  inline void CheckInt32IsSmi(Register obj, Label* fail,
+                              Register scratch = Register::no_reg());
+
   inline void DoubleToInt64Repr(Register dst, DoubleRegister src);
   void TruncateDoubleToInt32(Register dst, DoubleRegister src);
   void TryTruncateDoubleToInt32(Register dst, DoubleRegister src, Label* fail);

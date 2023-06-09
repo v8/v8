@@ -225,6 +225,16 @@ inline void MaglevAssembler::SmiTagUint32(Register obj, Label* fail) {
   Assert(kNoOverflow, AbortReason::kInputDoesNotFitSmi);
 }
 
+inline void MaglevAssembler::CheckInt32IsSmi(Register obj, Label* fail,
+                                             Register scratch) {
+  if (scratch == Register::no_reg()) {
+    scratch = kScratchRegister;
+  }
+  movl(scratch, obj);
+  addl(scratch, scratch);
+  JumpIf(kOverflow, fail);
+}
+
 inline Condition MaglevAssembler::IsInt64Constant(Register reg,
                                                   int64_t constant) {
   movq(kScratchRegister, constant);

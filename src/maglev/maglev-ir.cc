@@ -1081,7 +1081,7 @@ void CheckInt32IsSmi::GenerateCode(MaglevAssembler* masm,
   // Don't throw the result away if we want to actually use it.
   Register reg = ToRegister(input());
   Label* fail = __ GetDeoptLabel(this, DeoptimizeReason::kNotASmi);
-  __ JumpIfNotSmi(reg, fail);
+  __ CheckInt32IsSmi(reg, fail);
 }
 
 void CheckHoleyFloat64IsSmi::SetValueLocationConstraints() {
@@ -1095,7 +1095,7 @@ void CheckHoleyFloat64IsSmi::GenerateCode(MaglevAssembler* masm,
   Register scratch = temps.Acquire();
   Label* fail = __ GetDeoptLabel(this, DeoptimizeReason::kNotASmi);
   __ TryTruncateDoubleToInt32(scratch, value, fail);
-  __ JumpIfNotSmi(scratch, fail);
+  __ CheckInt32IsSmi(scratch, fail, scratch);
 }
 
 void CheckedSmiTagInt32::SetValueLocationConstraints() {

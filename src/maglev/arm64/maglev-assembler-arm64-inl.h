@@ -334,6 +334,12 @@ inline void MaglevAssembler::SmiTagUint32(Register obj, Label* fail) {
   Assert(kNoOverflow, AbortReason::kInputDoesNotFitSmi);
 }
 
+inline void MaglevAssembler::CheckInt32IsSmi(Register obj, Label* fail,
+                                             Register scratch) {
+  Adds(wzr, obj.W(), obj.W());
+  JumpIf(kOverflow, fail);
+}
+
 inline Condition MaglevAssembler::IsInt64Constant(Register reg,
                                                   int64_t constant) {
   ScratchRegisterScope temps(this);
