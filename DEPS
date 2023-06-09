@@ -14,13 +14,12 @@ vars = {
   #
   # Available images:
   #   Emulation:
-  #   - qemu.x64 (pulls terminal.qemu-x64-release)
-  #   - qemu.arm64 (pulls terminal.qemu-arm64-release)
+  #   - terminal.qemu-x64
+  #   - terminal.qemu-arm64
   #   - workstation.qemu-x64-release
   #   Hardware:
-  #   - generic.x64 (pulls terminal.x64-debug)
-  #   - generic.arm64 (pulls terminal.arm64-debug)
-  #   - chromebook.x64 (pulls terminal.chromebook-x64-debug)
+  #   - minimal.x64
+  #   - core.x64-dfv2
   #
   # Since the images are hundreds of MB, default to only downloading the image
   # most commonly useful for developers. Bots and developers that need to use
@@ -50,7 +49,7 @@ vars = {
   'check_v8_header_includes': False,
 
   # By default, download the fuchsia sdk from the public sdk directory.
-  'fuchsia_sdk_cipd_prefix': 'fuchsia/sdk/gn/',
+  'fuchsia_sdk_cipd_prefix': 'fuchsia/sdk/core/',
 
   # reclient CIPD package version
   'reclient_version': 're_client_version:0.107.1.0b39c4c-gomaip',
@@ -108,7 +107,7 @@ deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '147f65333c38ddd1ebf554e89965c243c8ce50b3',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '49e5a3e7855d250f6e110dff7f88b8d9c3a7df61',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '1a35bf2972f67c44e7567323f1f076a9b90b1cb0',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '3819ac6f3de594da7386c62474cedcf3b7194bb7',
   'buildtools/clang_format/script':
@@ -231,15 +230,9 @@ deps = {
   },
   'third_party/depot_tools':
     Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'eac2c9ebe907f7042cecf4f79b274c1e7b8573d1',
-  'third_party/fuchsia-sdk/sdk': {
-    'packages': [
-        {
-            'package': Var('fuchsia_sdk_cipd_prefix') + '${{platform}}',
-            'version': Var('fuchsia_version'),
-        },
-    ],
+  'third_party/fuchsia-gn-sdk': {
+    'url': Var('chromium_url') + '/chromium/src/third_party/fuchsia-gn-sdk.git' + '@' + '0d6902558d92fe3d49ba9a8f638ddea829be595b',
     'condition': 'checkout_fuchsia',
-    'dep_type': 'cipd',
   },
   'third_party/google_benchmark/src': {
     'url': Var('chromium_url') + '/external/github.com/google/benchmark.git' + '@' + 'b177433f3ee2513b1075140c723d73ab8901790f',
@@ -598,6 +591,17 @@ hooks = [
     'pattern': '.',
     'action': ['python3', 'build/util/lastchange.py',
                '-o', 'build/util/LASTCHANGE'],
+  },
+  {
+    'name': 'Download Fuchsia SDK from GCS',
+    'pattern': '.',
+    'condition': 'checkout_fuchsia',
+    'action': [
+      'python3',
+      'build/fuchsia/update_sdk.py',
+      '--cipd-prefix={fuchsia_sdk_cipd_prefix}',
+      '--version={fuchsia_version}',
+    ],
   },
   {
     'name': 'Download Fuchsia system images',
