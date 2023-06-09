@@ -4785,8 +4785,6 @@ InstructionSelector::SupportedMachineOperatorFlags() {
          MachineOperatorBuilder::kSatConversionIsSafe |
          MachineOperatorBuilder::kFloat32Select |
          MachineOperatorBuilder::kFloat64Select |
-         MachineOperatorBuilder::kWord32Select |
-         MachineOperatorBuilder::kWord64Select |
          MachineOperatorBuilder::kLoadStorePairs;
 }
 
