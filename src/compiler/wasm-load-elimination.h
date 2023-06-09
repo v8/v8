@@ -146,12 +146,14 @@ class V8_EXPORT_PRIVATE WasmLoadElimination final
   Isolate* isolate() const;
   Graph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }
+  Node* dead() const { return dead_; }
   Zone* zone() const { return zone_; }
   AbstractState const* empty_state() const { return &empty_state_; }
 
   AbstractState const empty_state_;
   NodeAuxData<AbstractState const*> node_states_;
   JSGraph* const jsgraph_;
+  Node* dead_;
   Zone* zone_;
 };
 

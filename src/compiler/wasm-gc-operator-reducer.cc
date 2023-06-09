@@ -191,6 +191,7 @@ Reduction WasmGCOperatorReducer::ReduceIf(Node* node, bool condition) {
   DCHECK(node->opcode() == IrOpcode::kIfTrue ||
          node->opcode() == IrOpcode::kIfFalse);
   Node* branch = NodeProperties::GetControlInput(node);
+  if (branch->opcode() == IrOpcode::kDead) return NoChange();
   DCHECK_EQ(branch->opcode(), IrOpcode::kBranch);
   if (!IsReduced(branch)) return NoChange();
   ControlPathTypes parent_state = GetState(branch);
@@ -317,11 +318,9 @@ Reduction WasmGCOperatorReducer::ReduceCheckNull(Node* node) {
 Reduction WasmGCOperatorReducer::ReduceWasmExternInternalize(Node* node) {
   DCHECK_EQ(node->opcode(), IrOpcode::kWasmExternInternalize);
   // Remove redundant extern.internalize(extern.externalize(...)) pattern.
-  // TODO(mliedtke): Currently this doesn't get fully removed, probably due to
-  // not running dead code elimination in this pipeline step. What would it cost
-  // us to run it here?
-  if (NodeProperties::GetValueInput(node, 0)->opcode() ==
-      IrOpcode::kWasmExternExternalize) {
+  Node* object = NodeProperties::GetValueInput(node, 0);
+  if (object->opcode() == IrOpcode::kDead) return NoChange();
+  if (object->opcode() == IrOpcode::kWasmExternExternalize) {
     Node* externalize = node->InputAt(0);
     Node* input = externalize->InputAt(0);
     ReplaceWithValue(node, input);

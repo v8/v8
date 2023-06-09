@@ -2159,10 +2159,11 @@ struct WasmGCOptimizationPhase {
                                          temp_zone);
     WasmGCOperatorReducer wasm_gc(&graph_reducer, temp_zone, mcgraph, module,
                                   data->source_positions());
-    // Note: if we want to add DeadCodeElimination here, we'll have to update
-    // the existing reducers to handle kDead and kDeadValue nodes everywhere.
+    DeadCodeElimination dead_code_elimination(&graph_reducer, data->graph(),
+                                              data->common(), temp_zone);
     AddReducer(data, &graph_reducer, &load_elimination);
     AddReducer(data, &graph_reducer, &wasm_gc);
+    AddReducer(data, &graph_reducer, &dead_code_elimination);
     graph_reducer.ReduceGraph();
   }
 };
