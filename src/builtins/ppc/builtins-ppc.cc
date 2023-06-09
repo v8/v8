@@ -3534,10 +3534,6 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
           r0);
       __ StoreU64(scratch2,
                   MemOperand(sp, FCA::kDataIndex * kSystemPointerSize));
-      __ LoadU64(api_function_address,
-                 FieldMemOperand(
-                     callback, CallHandlerInfo::kMaybeRedirectedCallbackOffset),
-                 r0);
       break;
 
     case CallApiCallbackMode::kNoSideEffects:
@@ -3568,9 +3564,37 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
   static_assert(FCI::kImplicitArgsOffset == 0);
   static_assert(FCI::kValuesOffset == 1 * kSystemPointerSize);
   static_assert(FCI::kLengthOffset == 2 * kSystemPointerSize);
+  const int exit_frame_params_size =
+      mode == CallApiCallbackMode::kGeneric ? 2 : 0;
 
   FrameScope frame_scope(masm, StackFrame::MANUAL);
-  __ EnterExitFrame(kApiStackSpace, StackFrame::EXIT);
+  if (mode == CallApiCallbackMode::kGeneric) {
+    ASM_CODE_COMMENT_STRING(masm, "Push API_CALLBACK_EXIT frame arguments");
+    __ AllocateStackSpace(exit_frame_params_size * kSystemPointerSize);
+
+    // Argc parameter as a Smi.
+    static_assert(ApiCallbackExitFrameConstants::kArgcOffset ==
+                  3 * kSystemPointerSize);
+    __ SmiTag(scratch, argc);
+    __ StoreU64(scratch, MemOperand(sp, 1 * kSystemPointerSize));
+
+    // Target parameter.
+    static_assert(ApiCallbackExitFrameConstants::kTargetOffset ==
+                  2 * kSystemPointerSize);
+    __ LoadTaggedField(
+        scratch,
+        FieldMemOperand(callback, CallHandlerInfo::kOwnerTemplateOffset), r0);
+    __ StoreU64(scratch, MemOperand(sp, 0 * kSystemPointerSize));
+
+    __ LoadU64(api_function_address,
+               FieldMemOperand(callback,
+                               CallHandlerInfo::kMaybeRedirectedCallbackOffset),
+               r0);
+
+    __ EnterExitFrame(kApiStackSpace, StackFrame::API_CALLBACK_EXIT);
+  } else {
+    __ EnterExitFrame(kApiStackSpace, StackFrame::EXIT);
+  }
 
   {
     ASM_CODE_COMMENT_STRING(masm, "Initialize FunctionCallbackInfo");
@@ -3592,8 +3616,9 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
   // from the API function here.
   MemOperand stack_space_operand =
       ExitFrameStackSlotOperand(FCI::kLengthOffset + kSlotsToDropOnStackSize);
-  __ mov(scratch,
-         Operand((FCA::kArgsLength + 1 /* receiver */) * kSystemPointerSize));
+  __ mov(scratch, Operand((FCA::kArgsLength + 1 /* receiver */ +
+                           exit_frame_params_size) *
+                          kSystemPointerSize));
   __ ShiftLeftU64(ip, argc, Operand(kSystemPointerSizeLog2));
   __ add(scratch, scratch, ip);
   __ StoreU64(scratch, stack_space_operand);
@@ -3610,8 +3635,8 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
   // checking is enabled.
   Register thunk_arg = api_function_address;
 
-  MemOperand return_value_operand =
-      ExitFrameCallerStackSlotOperand(FCA::kReturnValueIndex);
+  MemOperand return_value_operand = ExitFrameCallerStackSlotOperand(
+      FCA::kReturnValueIndex + exit_frame_params_size);
   static constexpr int kUseStackSpaceOperand = 0;
 
   CallApiFunctionAndReturn(masm, api_function_address, thunk_ref, thunk_arg,
