@@ -4107,17 +4107,17 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
   {
     // Set up the call-as-function delegate.
-    Handle<JSFunction> delegate =
-        SimpleCreateFunction(isolate_, factory->empty_string(),
-                             Builtin::kHandleApiCallAsFunction, 0, false);
+    Handle<JSFunction> delegate = SimpleCreateFunction(
+        isolate_, factory->empty_string(),
+        Builtin::kHandleApiCallAsFunctionDelegate, 0, false);
     native_context()->set_call_as_function_delegate(*delegate);
   }
 
   {
     // Set up the call-as-constructor delegate.
-    Handle<JSFunction> delegate =
-        SimpleCreateFunction(isolate_, factory->empty_string(),
-                             Builtin::kHandleApiCallAsConstructor, 0, false);
+    Handle<JSFunction> delegate = SimpleCreateFunction(
+        isolate_, factory->empty_string(),
+        Builtin::kHandleApiCallAsConstructorDelegate, 0, false);
     native_context()->set_call_as_constructor_delegate(*delegate);
   }
 }

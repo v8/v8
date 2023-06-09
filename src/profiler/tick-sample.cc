@@ -316,7 +316,8 @@ bool TickSample::GetStackSample(Isolate* v8_isolate, RegisterState* regs,
   size_t i = 0;
   if (record_c_entry_frame == kIncludeCEntryFrame &&
       (it.top_frame_type() == internal::StackFrame::EXIT ||
-       it.top_frame_type() == internal::StackFrame::BUILTIN_EXIT)) {
+       it.top_frame_type() == internal::StackFrame::BUILTIN_EXIT ||
+       it.top_frame_type() == internal::StackFrame::API_CALLBACK_EXIT)) {
     frames[i] = reinterpret_cast<void*>(isolate->c_function());
     i++;
   }

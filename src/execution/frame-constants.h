@@ -288,7 +288,8 @@ class ExitFrameConstants : public TypedFrameConstants {
   static constexpr int kCallerSPDisplacement = kCallerSPOffset;
 };
 
-// Behaves like an exit frame but with target and new target args.
+// Behaves like an exit frame but with target, new target and arguments count
+// args.
 class BuiltinExitFrameConstants : public ExitFrameConstants {
  public:
   static constexpr int kNewTargetOffset =
@@ -302,6 +303,31 @@ class BuiltinExitFrameConstants : public ExitFrameConstants {
   static constexpr int kNumExtraArgsWithoutReceiver = 4;
   static constexpr int kNumExtraArgsWithReceiver =
       kNumExtraArgsWithoutReceiver + 1;
+};
+
+// Behaves like an exit frame but with target and arguments count args followed
+// by v8::FunctionCallbackInfo's implicit arguments, followed by JS arguments
+// passed to the JS function (receiver and etc.).
+class ApiCallbackExitFrameConstants : public ExitFrameConstants {
+ public:
+  // The following two constants must be in sync with v8::FunctionCallbackInfo's
+  // layout.
+  static constexpr int kFunctionCallbackInfoNewTargetIndex = 5;
+  static constexpr int kFunctionCallbackInfoArgsLength = 6;
+
+  // Target and argc.
+  static constexpr int kTargetOffset = kCallerPCOffset + 1 * kSystemPointerSize;
+  static constexpr int kArgcOffset = kTargetOffset + 1 * kSystemPointerSize;
+  // FunctionCallbackInfo.
+  static constexpr int kFunctionCallbackInfoOffset =
+      kArgcOffset + 1 * kSystemPointerSize;
+  static constexpr int kNewTargetOffset =
+      kFunctionCallbackInfoOffset +
+      kFunctionCallbackInfoNewTargetIndex * kSystemPointerSize;
+  // JS arguments.
+  static constexpr int kFirstArgumentOffset =
+      kFunctionCallbackInfoOffset +
+      kFunctionCallbackInfoArgsLength * kSystemPointerSize;
 };
 
 // Unoptimized frames are used for interpreted and baseline-compiled JavaScript

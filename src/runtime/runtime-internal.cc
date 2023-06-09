@@ -34,8 +34,11 @@ RUNTIME_FUNCTION(Runtime_AccessCheck) {
   if (!isolate->MayAccess(handle(isolate->context(), isolate), object)) {
     isolate->ReportFailedAccessCheck(object);
     RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
+    // TODO(ishell): Force throw an exception if the callback doesn't, so we
+    // can remove reliance on return values.
+    return ReadOnlyRoots(isolate).false_value();
   }
-  return ReadOnlyRoots(isolate).undefined_value();
+  return ReadOnlyRoots(isolate).true_value();
 }
 
 RUNTIME_FUNCTION(Runtime_FatalProcessOutOfMemoryInAllocateRaw) {

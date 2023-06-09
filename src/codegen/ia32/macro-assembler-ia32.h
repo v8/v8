@@ -459,8 +459,8 @@ class V8_EXPORT_PRIVATE MacroAssembler
                    SaveFPRegsMode save_fp,
                    SmiCheck smi_check = SmiCheck::kInline);
 
-  // Allocates an EXIT/BUILTIN_EXIT frame with given number of slots in
-  // non-GCed area.
+  // Allocates an EXIT/BUILTIN_EXIT/API_CALLBACK_EXIT frame with given number
+  // of slots in non-GCed area.
   void EnterExitFrame(int extra_slots, StackFrame::Type frame_type,
                       Register c_function);
   void LeaveExitFrame(Register scratch);

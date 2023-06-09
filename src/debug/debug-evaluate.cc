@@ -1077,7 +1077,7 @@ DebugInfo::SideEffectState DebugEvaluate::FunctionGetSideEffectState(
   } else if (info->IsApiFunction()) {
     Code code = info->GetCode(isolate);
     if (code.is_builtin()) {
-      return code.builtin_id() == Builtin::kHandleApiCall
+      return code.builtin_id() == Builtin::kHandleApiCallOrConstruct
                  ? DebugInfo::kHasNoSideEffect
                  : DebugInfo::kHasSideEffects;
     }

@@ -738,10 +738,7 @@ void AccessorAssembler::HandleLoadICSmiHandlerLoadNamedCase(
   }
 
   BIND(&native_data_property);
-  {
-    GotoIf(IsSideEffectFreeDebuggingActive(), &slow);
-    HandleLoadCallbackProperty(p, CAST(holder), handler_word, exit_point);
-  }
+  HandleLoadCallbackProperty(p, CAST(holder), handler_word, exit_point);
 
   BIND(&api_getter);
   {
@@ -750,7 +747,6 @@ void AccessorAssembler::HandleLoadICSmiHandlerLoadNamedCase(
       // the correct receiver checks.
       Goto(&slow);
     } else {
-      GotoIf(IsSideEffectFreeDebuggingActive(), &slow);
       HandleLoadAccessor(p, CAST(holder), handler_word, CAST(handler),
                          handler_kind, exit_point);
     }
@@ -1952,7 +1948,6 @@ void AccessorAssembler::HandleStoreICProtoHandler(
 
       BIND(&store);
       {
-        GotoIf(IsSideEffectFreeDebuggingActive(), &if_slow);
         TNode<Int32T> argc = Int32Constant(1);
         Return(CallBuiltin(Builtin::kCallApiCallbackGeneric, context, argc,
                            call_handler_info, api_holder.value(), p->receiver(),

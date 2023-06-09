@@ -1615,6 +1615,7 @@ void FunctionTemplate::SetCallHandler(
   i::HandleScope scope(i_isolate);
   i::Handle<i::CallHandlerInfo> obj = i_isolate->factory()->NewCallHandlerInfo(
       side_effect_type == SideEffectType::kHasNoSideEffect);
+  obj->set_owner_template(*info);
   obj->set_callback(i_isolate, reinterpret_cast<i::Address>(callback));
   if (data.IsEmpty()) {
     data = v8::Undefined(reinterpret_cast<v8::Isolate*>(i_isolate));
@@ -2066,6 +2067,7 @@ void ObjectTemplate::SetCallAsFunctionHandler(FunctionCallback callback,
   EnsureNotPublished(cons, "v8::ObjectTemplate::SetCallAsFunctionHandler");
   i::Handle<i::CallHandlerInfo> obj =
       i_isolate->factory()->NewCallHandlerInfo();
+  obj->set_owner_template(*Utils::OpenHandle(this));
   obj->set_callback(i_isolate, reinterpret_cast<i::Address>(callback));
   if (data.IsEmpty()) {
     data = v8::Undefined(reinterpret_cast<v8::Isolate*>(i_isolate));
@@ -11390,8 +11392,22 @@ inline void InvokeFunctionCallback(
 
   switch (mode) {
     case CallApiCallbackMode::kGeneric: {
-      // TODO(v8:13825): perform side effect checks if necessary once
-      // CallHandlerInfo is passed here.
+      if (V8_UNLIKELY(i_isolate->should_check_side_effects())) {
+        // Load FunctionTemplateInfo from API_CALLBACK_EXIT frame.
+        // If this ever becomes a performance bottleneck, one can pass function
+        // template info here explicitly.
+        StackFrameIterator it(i_isolate);
+        CHECK(it.frame()->is_api_callback_exit());
+        ApiCallbackExitFrame* frame = ApiCallbackExitFrame::cast(it.frame());
+        FunctionTemplateInfo fti = FunctionTemplateInfo::cast(frame->target());
+        CallHandlerInfo call_handler_info =
+            CallHandlerInfo::cast(fti.call_code(kAcquireLoad));
+        if (!i_isolate->debug()->PerformSideEffectCheckForCallback(
+                handle(call_handler_info, i_isolate))) {
+          // Failed side effect check.
+          return;
+        }
+      }
       break;
     }
     case CallApiCallbackMode::kWithSideEffects: {

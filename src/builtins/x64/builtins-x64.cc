@@ -4909,11 +4909,6 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
     case CallApiCallbackMode::kGeneric:
       __ PushTaggedField(FieldOperand(callback, CallHandlerInfo::kDataOffset),
                          scratch2);
-      __ LoadExternalPointerField(
-          api_function_address,
-          FieldOperand(callback,
-                       CallHandlerInfo::kMaybeRedirectedCallbackOffset),
-          kCallHandlerInfoCallbackTag, scratch2);
       break;
 
     case CallApiCallbackMode::kNoSideEffects:
@@ -4929,14 +4924,43 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
   // We use it below to set up the FunctionCallbackInfo object.
   __ movq(holder, rsp);
 
-  __ PushReturnAddressFrom(scratch);
-
   // Allocate v8::FunctionCallbackInfo object and a number of bytes to drop
   // from the stack after the callback in non-GCed space of the exit frame.
   static constexpr int kApiStackSpace = 4;
   static_assert((kApiStackSpace - 1) * kSystemPointerSize == sizeof(FCI));
+  const int exit_frame_params_size =
+      mode == CallApiCallbackMode::kGeneric ? 2 : 0;
 
-  __ EnterExitFrame(kApiStackSpace, StackFrame::EXIT, api_function_address);
+  if (mode == CallApiCallbackMode::kGeneric) {
+    ASM_CODE_COMMENT_STRING(masm, "Push API_CALLBACK_EXIT frame arguments");
+
+    // Argc parameter as a Smi.
+    static_assert(ApiCallbackExitFrameConstants::kArgcOffset ==
+                  3 * kSystemPointerSize);
+    __ Move(kScratchRegister, argc);
+    __ SmiTag(kScratchRegister);
+    __ Push(kScratchRegister);  // argc as a Smi
+
+    // Target parameter.
+    static_assert(ApiCallbackExitFrameConstants::kTargetOffset ==
+                  2 * kSystemPointerSize);
+    __ PushTaggedField(
+        FieldOperand(callback, CallHandlerInfo::kOwnerTemplateOffset),
+        scratch2);
+
+    __ PushReturnAddressFrom(scratch);
+
+    __ LoadExternalPointerField(
+        api_function_address,
+        FieldOperand(callback, CallHandlerInfo::kMaybeRedirectedCallbackOffset),
+        kCallHandlerInfoCallbackTag, kScratchRegister);
+
+    __ EnterExitFrame(kApiStackSpace, StackFrame::API_CALLBACK_EXIT,
+                      api_function_address);
+  } else {
+    __ PushReturnAddressFrom(scratch);
+    __ EnterExitFrame(kApiStackSpace, StackFrame::EXIT, api_function_address);
+  }
   constexpr int kImplicitArgsOffset = 0;
   constexpr int kLengthOffset = 2;
   {
@@ -4956,16 +4980,18 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
 
     // FunctionCallbackInfo::length_.
     static_assert(kLengthOffset == offsetof(FCI, length_) / kSystemPointerSize);
-    __ movq(ExitFrameStackSlotOperand(2), argc);
+    __ movq(ExitFrameStackSlotOperand(kLengthOffset), argc);
   }
 
   // We also store the number of bytes to drop from the stack after returning
   // from the API function here.
   constexpr int kBytesToDropOffset = kLengthOffset + 1;
   static_assert(kBytesToDropOffset == kApiStackSpace - 1);
-  __ leaq(kScratchRegister, Operand(argc, times_system_pointer_size,
-                                    FCA::kArgsLength * kSystemPointerSize +
-                                        kReceiverOnStackSize));
+  __ leaq(
+      kScratchRegister,
+      Operand(argc, times_system_pointer_size,
+              (FCA::kArgsLength + exit_frame_params_size) * kSystemPointerSize +
+                  kReceiverOnStackSize));
   __ movq(ExitFrameStackSlotOperand(kBytesToDropOffset), kScratchRegister);
 
   __ RecordComment("v8::FunctionCallback's argument.");
@@ -4980,8 +5006,8 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
   // checking is enabled.
   Register thunk_arg = api_function_address;
 
-  Operand return_value_operand =
-      ExitFrameCallerStackSlotOperand(FCA::kReturnValueIndex);
+  Operand return_value_operand = ExitFrameCallerStackSlotOperand(
+      FCA::kReturnValueIndex + exit_frame_params_size);
   static constexpr int kUseExitFrameStackSlotOperand = 0;
   Operand stack_space_operand = ExitFrameStackSlotOperand(kBytesToDropOffset);
 

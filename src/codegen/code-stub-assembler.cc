@@ -10239,9 +10239,7 @@ TNode<Object> CodeStubAssembler::CallGetterIfAccessor(
 
       BIND(&if_function_template_info);
       {
-        Label runtime(this, Label::kDeferred);
         Label use_cached_property(this);
-        GotoIf(IsSideEffectFreeDebuggingActive(), &runtime);
         TNode<HeapObject> cached_property_name = LoadObjectField<HeapObject>(
             getter, FunctionTemplateInfo::kCachedPropertyNameOffset);
 
@@ -10276,13 +10274,6 @@ TNode<Object> CodeStubAssembler::CallGetterIfAccessor(
 
           var_value = GetProperty(context, holder, cached_property_name);
 
-          Goto(&done);
-        }
-
-        BIND(&runtime);
-        {
-          var_value = CallRuntime(Runtime::kGetProperty, context, holder, name,
-                                  receiver);
           Goto(&done);
         }
       }
@@ -15601,16 +15592,6 @@ TNode<BoolT> CodeStubAssembler::IsDebugActive() {
   return Word32NotEqual(is_debug_active, Int32Constant(0));
 }
 
-// TODO(v8:13825): remove once CallApiGetter/CallApiAccessor are able to handle
-// side effects checking.
-TNode<BoolT> CodeStubAssembler::IsSideEffectFreeDebuggingActive() {
-  TNode<Uint8T> execution_mode = Load<Uint8T>(
-      ExternalConstant(ExternalReference::execution_mode_address(isolate())));
-  int32_t mask =
-      static_cast<int32_t>(IsolateExecutionModeFlag::kCheckSideEffects);
-  return IsSetWord32(execution_mode, mask);
-}
-
 TNode<BoolT> CodeStubAssembler::HasAsyncEventDelegate() {
   const TNode<RawPtrT> async_event_delegate = Load<RawPtrT>(ExternalConstant(
       ExternalReference::async_event_delegate_address(isolate())));
@@ -15767,7 +15748,7 @@ TNode<Code> CodeStubAssembler::GetSharedFunctionInfoCode(
 
   // IsFunctionTemplateInfo: API call
   BIND(&check_is_function_template_info);
-  sfi_code = HeapConstant(BUILTIN_CODE(isolate(), HandleApiCall));
+  sfi_code = HeapConstant(BUILTIN_CODE(isolate(), HandleApiCallOrConstruct));
   Goto(&done);
 
   // IsInterpreterData: Interpret bytecode

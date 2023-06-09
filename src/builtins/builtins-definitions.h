@@ -236,9 +236,10 @@ namespace internal {
   ASM(CallApiCallbackNoSideEffects, CallApiCallbackOptimized)                  \
   ASM(CallApiCallbackWithSideEffects, CallApiCallbackOptimized)                \
   ASM(CallApiGetter, ApiGetter)                                                \
-  CPP(HandleApiCall)                                                           \
-  CPP(HandleApiCallAsFunction)                                                 \
-  CPP(HandleApiCallAsConstructor)                                              \
+  TFJ(HandleApiCallOrConstruct, kDontAdaptArgumentsSentinel)                   \
+  CPP(HandleApiConstruct)                                                      \
+  CPP(HandleApiCallAsFunctionDelegate)                                         \
+  CPP(HandleApiCallAsConstructorDelegate)                                      \
                                                                                \
   /* Adapters for Turbofan into runtime */                                     \
   TFC(AllocateInYoungGeneration, Allocate)                                     \

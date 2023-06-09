@@ -2967,8 +2967,11 @@ bool Debug::PerformSideEffectCheckForCallback(
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
   DCHECK_EQ(isolate_->debug_execution_mode(), DebugInfo::kSideEffects);
 
-  CallHandlerInfo info = CallHandlerInfo::cast(*call_handler_info);
-  if (info.IsSideEffectFreeCallHandlerInfo()) {
+  // If an empty |call_handler_info| handle is passed here then it means that
+  // the callback IS side-effectful (see CallApiCallbackWithSideEffects
+  // builtin).
+  if (!call_handler_info.is_null() &&
+      call_handler_info->IsSideEffectFreeCallHandlerInfo()) {
     return true;
   }
   if (!ignore_side_effects_for_call_handler_info_.is_null()) {

@@ -3834,7 +3834,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   // Debug helpers
   TNode<BoolT> IsDebugActive();
-  TNode<BoolT> IsSideEffectFreeDebuggingActive();
 
   // JSArrayBuffer helpers
   TNode<UintPtrT> LoadJSArrayBufferByteLength(

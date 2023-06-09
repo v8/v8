@@ -8,6 +8,8 @@
 #include <memory>
 #include <sstream>
 
+#include "src/api/api-arguments.h"
+#include "src/api/api-natives.h"
 #include "src/base/bits.h"
 #include "src/codegen/interface-descriptors.h"
 #include "src/codegen/macro-assembler.h"
@@ -547,7 +549,8 @@ void StackFrameIteratorForProfiler::Advance() {
       break;
     }
 #endif  // V8_ENABLE_WEBASSEMBLY
-    if (frame_->is_exit() || frame_->is_builtin_exit()) {
+    if (frame_->is_exit() || frame_->is_builtin_exit() ||
+        frame_->is_api_callback_exit()) {
       // Some of the EXIT frames may have ExternalCallbackScope allocated on
       // top of them. In that case the scope corresponds to the first EXIT
       // frame beneath it. There may be other EXIT frames on top of the
@@ -659,6 +662,7 @@ StackFrame::Type ComputeBuiltinFrameType(GcSafeCode code) {
 StackFrame::Type SafeStackFrameType(StackFrame::Type candidate) {
   DCHECK_LE(static_cast<uintptr_t>(candidate), StackFrame::NUMBER_OF_TYPES);
   switch (candidate) {
+    case StackFrame::API_CALLBACK_EXIT:
     case StackFrame::BUILTIN_CONTINUATION:
     case StackFrame::BUILTIN_EXIT:
     case StackFrame::CONSTRUCT:
@@ -919,7 +923,7 @@ StackFrame::Type ExitFrame::GetStateForFramePointer(Address fp, State* state) {
 }
 
 StackFrame::Type ExitFrame::ComputeFrameType(Address fp) {
-  // Distinguish between between regular and builtin exit frames.
+  // Distinguish between different exit frame types.
   // Default to EXIT in all hairy cases (e.g., when called from profiler).
   const int offset = ExitFrameConstants::kFrameTypeOffset;
   Object marker(Memory<Address>(fp + offset));
@@ -933,6 +937,7 @@ StackFrame::Type ExitFrame::ComputeFrameType(Address fp) {
   StackFrame::Type frame_type = static_cast<StackFrame::Type>(marker_int >> 1);
   switch (frame_type) {
     case BUILTIN_EXIT:
+    case API_CALLBACK_EXIT:
 #if V8_ENABLE_WEBASSEMBLY
     case WASM_EXIT:
     case STACK_SWITCH:
@@ -1024,6 +1029,90 @@ bool BuiltinExitFrame::IsConstructor() const {
   return !new_target_slot_object().IsUndefined(isolate());
 }
 
+// Ensure layout of v8::FunctionCallbackInfo is in sync with
+// ApiCallbackExitFrameConstants.
+static_assert(
+    ApiCallbackExitFrameConstants::kFunctionCallbackInfoNewTargetIndex ==
+    FunctionCallbackArguments::kNewTargetIndex);
+static_assert(ApiCallbackExitFrameConstants::kFunctionCallbackInfoArgsLength ==
+              FunctionCallbackArguments::kArgsLength);
+
+HeapObject ApiCallbackExitFrame::target() const {
+  Object function = *target_slot();
+  DCHECK(function.IsJSFunction() || function.IsFunctionTemplateInfo());
+  return HeapObject::cast(function);
+}
+
+Handle<JSFunction> ApiCallbackExitFrame::GetFunction() const {
+  HeapObject maybe_function = target();
+  if (maybe_function.IsJSFunction()) {
+    return Handle<JSFunction>(
+        reinterpret_cast<Address*>(target_slot().address()));
+  }
+  DCHECK(maybe_function.IsFunctionTemplateInfo());
+  Handle<FunctionTemplateInfo> function_template_info(
+      FunctionTemplateInfo::cast(maybe_function), isolate());
+  Handle<JSFunction> function =
+      ApiNatives::InstantiateFunction(isolate(), isolate()->native_context(),
+                                      function_template_info)
+          .ToHandleChecked();
+
+  set_target(*function);
+  return function;
+}
+
+Object ApiCallbackExitFrame::receiver() const { return *receiver_slot(); }
+
+Object ApiCallbackExitFrame::GetParameter(int i) const {
+  DCHECK(i >= 0 && i < ComputeParametersCount());
+  int offset = ApiCallbackExitFrameConstants::kFirstArgumentOffset +
+               i * kSystemPointerSize;
+  return Object(Memory<Address>(fp() + offset));
+}
+
+int ApiCallbackExitFrame::ComputeParametersCount() const {
+  Object argc_value = *argc_slot();
+  DCHECK(argc_value.IsSmi());
+  int argc = Smi::ToInt(argc_value);
+  DCHECK_GE(argc, 0);
+  return argc;
+}
+
+Handle<FixedArray> ApiCallbackExitFrame::GetParameters() const {
+  if (V8_LIKELY(!v8_flags.detailed_error_stack_trace)) {
+    return isolate()->factory()->empty_fixed_array();
+  }
+  int param_count = ComputeParametersCount();
+  auto parameters = isolate()->factory()->NewFixedArray(param_count);
+  for (int i = 0; i < param_count; i++) {
+    parameters->set(i, GetParameter(i));
+  }
+  return parameters;
+}
+
+bool ApiCallbackExitFrame::IsConstructor() const {
+  return !(*new_target_slot()).IsUndefined(isolate());
+}
+
+void ApiCallbackExitFrame::set_target(HeapObject function) const {
+  DCHECK(function.IsJSFunction() || function.IsFunctionTemplateInfo());
+  base::Memory<Address>(fp() + BuiltinExitFrameConstants::kTargetOffset) =
+      function.ptr();
+}
+
+void ApiCallbackExitFrame::Summarize(std::vector<FrameSummary>* frames) const {
+  DCHECK(frames->empty());
+  Handle<FixedArray> parameters = GetParameters();
+  Handle<JSFunction> function = GetFunction();
+  DisallowGarbageCollection no_gc;
+  Code code = LookupCode();
+  int code_offset = code.GetOffsetFromInstructionStart(isolate(), pc());
+  FrameSummary::JavaScriptFrameSummary summary(
+      isolate(), receiver(), *function, AbstractCode::cast(code), code_offset,
+      IsConstructor(), *parameters);
+  frames->push_back(summary);
+}
+
 namespace {
 void PrintIndex(StringStream* accumulator, StackFrame::PrintMode mode,
                 int index) {
@@ -1062,6 +1151,29 @@ void BuiltinExitFrame::Print(StringStream* accumulator, PrintMode mode,
   accumulator->Add("builtin exit frame: ");
   if (IsConstructor()) accumulator->Add("new ");
   accumulator->PrintFunction(function, receiver);
+
+  accumulator->Add("(this=%o", receiver);
+
+  // Print the parameters.
+  int parameters_count = ComputeParametersCount();
+  for (int i = 0; i < parameters_count; i++) {
+    accumulator->Add(",%o", GetParameter(i));
+  }
+
+  accumulator->Add(")\n\n");
+}
+
+void ApiCallbackExitFrame::Print(StringStream* accumulator, PrintMode mode,
+                                 int index) const {
+  Handle<JSFunction> function = GetFunction();
+  DisallowGarbageCollection no_gc;
+  Object receiver = this->receiver();
+
+  accumulator->PrintSecurityTokenIfChanged(*function);
+  PrintIndex(accumulator, mode, index);
+  accumulator->Add("api callback exit frame: ");
+  if (IsConstructor()) accumulator->Add("new ");
+  accumulator->PrintFunction(*function, receiver);
 
   accumulator->Add("(this=%o", receiver);
 

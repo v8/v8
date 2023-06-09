@@ -67,7 +67,8 @@ static void construct_call(const v8::FunctionCallbackInfo<v8::Value>& info) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   i::StackFrameIterator frame_iterator(isolate);
   CHECK(frame_iterator.frame()->is_exit() ||
-        frame_iterator.frame()->is_builtin_exit());
+        frame_iterator.frame()->is_builtin_exit() ||
+        frame_iterator.frame()->is_api_callback_exit());
   frame_iterator.Advance();
   CHECK(frame_iterator.frame()->is_construct());
   frame_iterator.Advance();

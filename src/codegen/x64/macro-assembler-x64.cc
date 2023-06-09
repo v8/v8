@@ -3381,7 +3381,8 @@ void MacroAssembler::EnterExitFrame(int extra_slots,
                                     Register c_function) {
   ASM_CODE_COMMENT(this);
   DCHECK(frame_type == StackFrame::EXIT ||
-         frame_type == StackFrame::BUILTIN_EXIT);
+         frame_type == StackFrame::BUILTIN_EXIT ||
+         frame_type == StackFrame::API_CALLBACK_EXIT);
 
   // Set up the frame structure on the stack.
   // All constants are relative to the frame pointer of the exit frame.

@@ -124,7 +124,7 @@ Code SharedFunctionInfo::GetCode(Isolate* isolate) const {
   if (data.IsFunctionTemplateInfo()) {
     // Having a function template info means we are an API function.
     DCHECK(IsApiFunction());
-    return isolate->builtins()->code(Builtin::kHandleApiCall);
+    return isolate->builtins()->code(Builtin::kHandleApiCallOrConstruct);
   }
   if (data.IsInterpreterData()) {
     Code code = InterpreterTrampoline();

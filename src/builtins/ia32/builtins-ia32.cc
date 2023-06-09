@@ -3261,7 +3261,7 @@ void Builtins::Generate_DoubleToI(MacroAssembler* masm) {
 
 namespace {
 
-// Generates an Operand for saving parameters after PrepareCallApiFunction.
+// Generates an Operand for saving parameters after EnterExitFrame.
 Operand ApiParameterOperand(int index) {
   return Operand(esp, index * kSystemPointerSize);
 }
@@ -3270,20 +3270,6 @@ Operand ExitFrameCallerStackSlotOperand(int index) {
   return Operand(ebp,
                  (BuiltinExitFrameConstants::kFixedSlotCountAboveFp + index) *
                      kSystemPointerSize);
-}
-
-// Prepares stack to put arguments (aligns and so on). Reserves
-// space for return value if needed (assumes the return value is a handle).
-// Arguments must be stored in ApiParameterOperand(0), ApiParameterOperand(1)
-// etc. Saves context (esi). If space was reserved for return value then
-// stores the pointer to the reserved slot into esi.
-void PrepareCallApiFunction(MacroAssembler* masm, int extra_slots,
-                            Register c_function) {
-  ASM_CODE_COMMENT(masm);
-  __ EnterExitFrame(extra_slots, StackFrame::EXIT, c_function);
-  if (v8_flags.debug_code) {
-    __ mov(esi, Immediate(base::bit_cast<int32_t>(kZapValue)));
-  }
 }
 
 // Calls an API function.  Allocates HandleScope, extracts returned value
@@ -3529,9 +3515,6 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
   switch (mode) {
     case CallApiCallbackMode::kGeneric:
       __ push(FieldOperand(callback, CallHandlerInfo::kDataOffset));
-      __ mov(api_function_address,
-             FieldOperand(callback,
-                          CallHandlerInfo::kMaybeRedirectedCallbackOffset));
       break;
 
     case CallApiCallbackMode::kNoSideEffects:
@@ -3547,11 +3530,6 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
   // We use it below to set up the FunctionCallbackInfo object.
   __ mov(holder, esp);
 
-  __ PushReturnAddressFrom(argc);
-
-  // Reload argc from xmm0.
-  __ movd(argc, xmm0);
-
   // The API function takes v8::FunctionCallbackInfo reference, allocate it
   // in non-GCed space of the exit frame.
   static constexpr int kApiArgc = 1;
@@ -3559,8 +3537,45 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
   // from the stack after the callback in non-GCed space of the exit frame.
   static constexpr int kApiStackSpace = 4;
   static_assert((kApiStackSpace - 1) * kSystemPointerSize == sizeof(FCI));
+  const int exit_frame_params_size =
+      mode == CallApiCallbackMode::kGeneric ? 2 : 0;
 
-  PrepareCallApiFunction(masm, kApiArgc + kApiStackSpace, api_function_address);
+  if (mode == CallApiCallbackMode::kGeneric) {
+    ASM_CODE_COMMENT_STRING(masm, "Push API_CALLBACK_EXIT frame arguments");
+    // Reload argc from xmm0.
+    __ movd(api_function_address, xmm0);
+
+    // Argc parameter as a Smi.
+    static_assert(ApiCallbackExitFrameConstants::kArgcOffset ==
+                  3 * kSystemPointerSize);
+    __ SmiTag(api_function_address);
+    __ Push(api_function_address);
+
+    // Target parameter.
+    static_assert(ApiCallbackExitFrameConstants::kTargetOffset ==
+                  2 * kSystemPointerSize);
+    __ push(FieldOperand(callback, CallHandlerInfo::kOwnerTemplateOffset));
+
+    __ PushReturnAddressFrom(argc);
+
+    __ mov(api_function_address,
+           FieldOperand(callback,
+                        CallHandlerInfo::kMaybeRedirectedCallbackOffset));
+
+    __ EnterExitFrame(kApiArgc + kApiStackSpace, StackFrame::API_CALLBACK_EXIT,
+                      api_function_address);
+  } else {
+    __ PushReturnAddressFrom(argc);
+    __ EnterExitFrame(kApiArgc + kApiStackSpace, StackFrame::EXIT,
+                      api_function_address);
+  }
+
+  if (v8_flags.debug_code) {
+    __ mov(esi, Immediate(base::bit_cast<int32_t>(kZapValue)));
+  }
+
+  // Reload argc from xmm0.
+  __ movd(argc, xmm0);
 
   {
     ASM_CODE_COMMENT_STRING(masm, "Initialize FunctionCallbackInfo");
@@ -3580,9 +3595,10 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
 
   // We also store the number of bytes to drop from the stack after returning
   // from the API function here.
-  __ lea(scratch,
-         Operand(argc, times_system_pointer_size,
-                 (FCA::kArgsLength + 1 /* receiver */) * kSystemPointerSize));
+  __ lea(scratch, Operand(argc, times_system_pointer_size,
+                          (FCA::kArgsLength + 1 /* receiver */ +
+                           exit_frame_params_size) *
+                              kSystemPointerSize));
   __ mov(ApiParameterOperand(kApiArgc + 3), scratch);
 
   __ RecordComment("v8::FunctionCallback's argument.");
@@ -3595,8 +3611,8 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
   // checking is enabled.
   Register thunk_arg = api_function_address;
 
-  Operand return_value_operand =
-      ExitFrameCallerStackSlotOperand(FCA::kReturnValueIndex);
+  Operand return_value_operand = ExitFrameCallerStackSlotOperand(
+      FCA::kReturnValueIndex + exit_frame_params_size);
   static constexpr int kUseStackSpaceOperand = 0;
   Operand stack_space_operand = ApiParameterOperand(kApiArgc + 3);
 
@@ -3682,7 +3698,11 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   static constexpr int kApiStackSpace = 1;
   static_assert(kApiStackSpace * kSystemPointerSize == sizeof(PCI));
 
-  PrepareCallApiFunction(masm, kApiArgc + kApiStackSpace, api_function_address);
+  __ EnterExitFrame(kApiArgc + kApiStackSpace, StackFrame::EXIT,
+                    api_function_address);
+  if (v8_flags.debug_code) {
+    __ mov(esi, Immediate(base::bit_cast<int32_t>(kZapValue)));
+  }
 
   __ RecordComment("Create v8::PropertyCallbackInfo object on the stack.");
   // Initialize its args_ field.
