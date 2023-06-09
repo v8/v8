@@ -769,6 +769,14 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   inline void WriteExternalPointerField(size_t offset, Isolate* isolate,
                                         Address value);
 
+  //
+  // CodePointer field accessors.
+  //
+  inline void InitCodePointerField(size_t offset, Isolate* isolate,
+                                   Address value);
+  inline Address ReadCodePointerField(size_t offset) const;
+  inline void WriteCodePointerField(size_t offset, Address value);
+
   // If the receiver is the JSGlobalObject, the store was contextual. In case
   // the property did not exist yet on the global object itself, we have to
   // throw a reference error in strict mode.  In sloppy mode, we continue.

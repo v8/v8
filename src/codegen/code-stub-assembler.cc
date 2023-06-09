@@ -1772,7 +1772,6 @@ void CodeStubAssembler::StoreExternalPointerToObject(TNode<HeapObject> object,
   TNode<RawPtrT> table = UncheckedCast<RawPtrT>(
       Load(MachineType::Pointer(), external_pointer_table_address,
            UintPtrConstant(Internals::kExternalPointerTableBufferOffset)));
-
   TNode<ExternalPointerHandleT> handle =
       LoadObjectField<ExternalPointerHandleT>(object, offset);
 
@@ -1791,6 +1790,30 @@ void CodeStubAssembler::StoreExternalPointerToObject(TNode<HeapObject> object,
 #else
   StoreObjectFieldNoWriteBarrier<RawPtrT>(object, offset, pointer);
 #endif  // V8_ENABLE_SANDBOX
+}
+
+TNode<RawPtrT> CodeStubAssembler::LoadCodePointerFromObject(
+    TNode<HeapObject> object, TNode<IntPtrT> field_offset) {
+#ifdef V8_CODE_POINTER_SANDBOXING
+  TNode<RawPtrT> table =
+      ExternalConstant(ExternalReference::code_pointer_table_address());
+  TNode<CodePointerHandleT> handle =
+      LoadObjectField<CodePointerHandleT>(object, field_offset);
+  // Use UniqueUint32Constant instead of Uint32Constant here in order to ensure
+  // that the graph structure does not depend on the configuration-specific
+  // constant value (Uint32Constant uses cached nodes).
+  TNode<Uint32T> index =
+      Word32Shr(handle, UniqueUint32Constant(kCodePointerIndexShift));
+  // We're using a 32-bit shift here to reduce code size, but for that we need
+  // to be sure that the offset will always fit into a 32-bit integer.
+  static_assert(kCodePointerTableReservationSize <= 4ULL * GB);
+  TNode<UintPtrT> offset = ChangeUint32ToWord(
+      Word32Shl(index, UniqueUint32Constant(kCodePointerTableEntrySizeLog2)));
+
+  return Load<RawPtrT>(table, offset);
+#else
+  return LoadObjectField<RawPtrT>(object, field_offset);
+#endif  // V8_CODE_POINTER_SANDBOXING
 }
 
 TNode<Object> CodeStubAssembler::LoadFromParentFrame(int offset) {
@@ -15786,8 +15809,7 @@ TNode<Code> CodeStubAssembler::GetSharedFunctionInfoCode(
 }
 
 TNode<RawPtrT> CodeStubAssembler::LoadCodeInstructionStart(TNode<Code> code) {
-  return LoadObjectField<RawPtrT>(
-      code, IntPtrConstant(Code::kInstructionStartOffset));
+  return LoadCodePointerFromObject(code, Code::kInstructionStartOffset);
 }
 
 TNode<BoolT> CodeStubAssembler::IsMarkedForDeoptimization(TNode<Code> code) {

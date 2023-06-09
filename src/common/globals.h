@@ -531,13 +531,21 @@ static_assert(kPointerSize == (1 << kPointerSizeLog2));
 #define V8_COMPRESS_POINTERS_8GB_BOOL false
 #endif
 
-// This type defines raw storage type for external (or off-V8 heap) pointers
+// This type defines the raw storage type for external (or off-V8 heap) pointers
 // stored on V8 heap.
 constexpr int kExternalPointerSlotSize = sizeof(ExternalPointer_t);
 #ifdef V8_ENABLE_SANDBOX
 static_assert(kExternalPointerSlotSize == kTaggedSize);
 #else
 static_assert(kExternalPointerSlotSize == kSystemPointerSize);
+#endif
+
+// This type defines the raw storage type for code pointers stored on V8 heap.
+constexpr int kCodePointerSlotSize = sizeof(CodePointer_t);
+#ifdef V8_CODE_POINTER_SANDBOXING
+static_assert(kCodePointerSlotSize == kTaggedSize);
+#else
+static_assert(kCodePointerSlotSize == kSystemPointerSize);
 #endif
 
 constexpr int kEmbedderDataSlotSize = kSystemPointerSize;

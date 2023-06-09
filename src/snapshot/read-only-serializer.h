@@ -43,7 +43,7 @@ class V8_EXPORT_PRIVATE ReadOnlySerializer : public RootsSerializer {
                                          Handle<HeapObject> obj);
 
 #ifdef V8_STATIC_ROOTS
-  using InstructionStartVector = std::vector<Address>;
+  using InstructionStartVector = std::vector<CodePointer_t>;
   void WipeInstructionStartsForDeterministicSerialization(
       InstructionStartVector& saved_entry_points);
   void RestoreInstructionStarts(

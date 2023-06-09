@@ -2441,7 +2441,8 @@ void MacroAssembler::TailCallBuiltin(Builtin builtin, Condition cond) {
 void MacroAssembler::LoadCodeInstructionStart(Register destination,
                                               Register code_object) {
   ASM_CODE_COMMENT(this);
-  Ldr(destination, FieldMemOperand(code_object, Code::kInstructionStartOffset));
+  LoadCodePointerField(
+      destination, FieldMemOperand(code_object, Code::kInstructionStartOffset));
 }
 
 void MacroAssembler::CallCodeObject(Register code_object) {
@@ -3466,6 +3467,22 @@ void MacroAssembler::LoadExternalPointerField(Register destination,
 #else
   Ldr(destination, field_operand);
 #endif  // V8_ENABLE_SANDBOX
+}
+
+void MacroAssembler::LoadCodePointerField(Register destination,
+                                          MemOperand field_operand) {
+  ASM_CODE_COMMENT(this);
+#ifdef V8_CODE_POINTER_SANDBOXING
+  UseScratchRegisterScope temps(this);
+  Register table = temps.AcquireX();
+  Mov(table, ExternalReference::code_pointer_table_address());
+  Ldr(destination.W(), field_operand);
+  Mov(destination, Operand(destination, LSR, kCodePointerIndexShift));
+  Ldr(destination,
+      MemOperand(table, destination, LSL, kCodePointerTableEntrySizeLog2));
+#else
+  Ldr(destination, field_operand);
+#endif  // V8_CODE_POINTER_SANDBOXING
 }
 
 void MacroAssembler::MaybeSaveRegisters(RegList registers) {

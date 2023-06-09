@@ -467,6 +467,22 @@ void MacroAssembler::LoadExternalPointerField(
 #endif  // V8_ENABLE_SANDBOX
 }
 
+void MacroAssembler::LoadCodePointerField(Register destination,
+                                          Operand field_operand,
+                                          Register scratch) {
+  DCHECK(!AreAliased(destination, scratch));
+#ifdef V8_CODE_POINTER_SANDBOXING
+  DCHECK(!field_operand.AddressUsesRegister(scratch));
+  LoadAddress(scratch, ExternalReference::code_pointer_table_address());
+  movl(destination, field_operand);
+  shrl(destination, Immediate(kCodePointerIndexShift));
+  static_assert(kCodePointerTableEntrySize == 8);
+  movq(destination, Operand(scratch, destination, times_8, 0));
+#else
+  movq(destination, field_operand);
+#endif  // V8_CODE_POINTER_SANDBOXING
+}
+
 void MacroAssembler::CallEphemeronKeyBarrier(Register object,
                                              Register slot_address,
                                              SaveFPRegsMode fp_mode) {
@@ -2493,7 +2509,9 @@ void MacroAssembler::TailCallBuiltin(Builtin builtin, Condition cc) {
 void MacroAssembler::LoadCodeInstructionStart(Register destination,
                                               Register code_object) {
   ASM_CODE_COMMENT(this);
-  movq(destination, FieldOperand(code_object, Code::kInstructionStartOffset));
+  LoadCodePointerField(destination,
+                       FieldOperand(code_object, Code::kInstructionStartOffset),
+                       kScratchRegister);
 }
 
 void MacroAssembler::CallCodeObject(Register code_object) {

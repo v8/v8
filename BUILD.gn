@@ -319,6 +319,10 @@ declare_args() {
   # Sets -DV8_ENABLE_SANDBOX.
   v8_enable_sandbox = ""
 
+  # Enable experimental code pointer sandboxing for the V8 sandbox.
+  # Sets -DV8_CODE_POINTER_SANDBOXING
+  v8_code_pointer_sandboxing = false
+
   # Expose the memory corruption API to JavaScript. Useful for testing the sandbox.
   # WARNING This will expose builtins that (by design) cause memory corruption.
   # Sets -DV8_EXPOSE_MEMORY_CORRUPTION_API
@@ -633,6 +637,9 @@ assert(!v8_enable_sandbox || v8_enable_pointer_compression_shared_cage,
 
 assert(!v8_enable_sandbox || v8_enable_external_code_space,
        "The sandbox requires the external code space")
+
+assert(!v8_code_pointer_sandboxing || v8_enable_sandbox,
+       "Code pointer sandboxing requires the sandbox")
 
 assert(!v8_expose_memory_corruption_api || v8_enable_sandbox,
        "The Memory Corruption API requires the sandbox")
@@ -1154,6 +1161,9 @@ config("features") {
   }
   if (v8_enable_wasm_simd256_revec) {
     defines += [ "V8_ENABLE_WASM_SIMD256_REVEC" ]
+  }
+  if (v8_code_pointer_sandboxing) {
+    defines += [ "V8_CODE_POINTER_SANDBOXING" ]
   }
 }
 
@@ -3723,6 +3733,10 @@ v8_header_set("v8_internal_headers") {
     "src/runtime/runtime.h",
     "src/sandbox/bounded-size-inl.h",
     "src/sandbox/bounded-size.h",
+    "src/sandbox/code-pointer-inl.h",
+    "src/sandbox/code-pointer-table-inl.h",
+    "src/sandbox/code-pointer-table.h",
+    "src/sandbox/code-pointer.h",
     "src/sandbox/external-entity-table-inl.h",
     "src/sandbox/external-entity-table.h",
     "src/sandbox/external-pointer-inl.h",
@@ -5095,6 +5109,7 @@ v8_source_set("v8_base_without_compiler") {
     "src/runtime/runtime-typedarray.cc",
     "src/runtime/runtime-weak-refs.cc",
     "src/runtime/runtime.cc",
+    "src/sandbox/code-pointer-table.cc",
     "src/sandbox/external-pointer-table.cc",
     "src/sandbox/sandbox.cc",
     "src/sandbox/testing.cc",

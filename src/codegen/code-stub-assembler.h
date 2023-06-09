@@ -1123,6 +1123,15 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                     TNode<RawPtrT> pointer,
                                     ExternalPointerTag tag);
 
+  // Load a code pointer from an object.
+  TNode<RawPtrT> LoadCodePointerFromObject(TNode<HeapObject> object,
+                                           int offset) {
+    return LoadCodePointerFromObject(object, IntPtrConstant(offset));
+  }
+
+  TNode<RawPtrT> LoadCodePointerFromObject(TNode<HeapObject> object,
+                                           TNode<IntPtrT> offset);
+
   TNode<RawPtrT> LoadForeignForeignAddressPtr(TNode<Foreign> object) {
     return LoadExternalPointerFromObject(object, Foreign::kForeignAddressOffset,
                                          kForeignForeignAddressTag);

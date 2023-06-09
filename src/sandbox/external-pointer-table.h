@@ -170,9 +170,13 @@ struct ExternalPointerTableEntry {
 #if defined(LEAK_SANITIZER)
 //  When LSan is active, we need "fat" entries, see above.
 static_assert(sizeof(ExternalPointerTableEntry) == 16);
+constexpr size_t kExternalPointerTableReservationSizeAfterAccountingForLSan =
+    kExternalPointerTableReservationSize * 2;
 #else
 //  We expect ExternalPointerTable entries to consist of a single 64-bit word.
 static_assert(sizeof(ExternalPointerTableEntry) == 8);
+constexpr size_t kExternalPointerTableReservationSizeAfterAccountingForLSan =
+    kExternalPointerTableReservationSize;
 #endif
 
 /**
@@ -217,20 +221,21 @@ static_assert(sizeof(ExternalPointerTableEntry) == 8);
  * alignment requirements in heap object fields via indirection.
  */
 class V8_EXPORT_PRIVATE ExternalPointerTable
-    : public ExternalEntityTable<ExternalPointerTableEntry> {
+    : public ExternalEntityTable<
+          ExternalPointerTableEntry,
+          kExternalPointerTableReservationSizeAfterAccountingForLSan> {
  public:
   // Size of an ExternalPointerTable, for layout computation in IsolateData.
-  // Asserted to be equal to the actual size in external-pointer-table.cc.
   static int constexpr kSize = 4 * kSystemPointerSize;
+  static_assert(kMaxExternalPointers == kMaxCapacity);
 
   ExternalPointerTable() = default;
-
   ExternalPointerTable(const ExternalPointerTable&) = delete;
   ExternalPointerTable& operator=(const ExternalPointerTable&) = delete;
 
   // Initializes this external pointer table by reserving the backing memory
   // and initializing the freelist.
-  void Init(Isolate* isolate);
+  void Init();
 
   // Resets this external pointer table and deletes all associated memory.
   void TearDown();
@@ -260,7 +265,7 @@ class V8_EXPORT_PRIVATE ExternalPointerTable
   //
   // This method is atomic and can be called from background threads.
   inline ExternalPointerHandle AllocateAndInitializeEntry(
-      Isolate* isolate, Address initial_value, ExternalPointerTag tag);
+      Address initial_value, ExternalPointerTag tag);
 
   // Marks the specified entry as alive.
   //

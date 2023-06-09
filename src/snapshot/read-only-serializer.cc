@@ -219,8 +219,8 @@ void ReadOnlySerializer::WipeInstructionStartsForDeterministicSerialization(
        object = iterator.Next()) {
     if (!object.IsCode()) continue;
     Code code = Code::cast(object);
-    saved_entry_points.push_back(code.instruction_start());
-    code.SetInstructionStartForSerialization(isolate(), kNullAddress);
+    saved_entry_points.push_back(
+        code.ClearInstructionStartForSerialization(isolate()));
   }
 }
 
@@ -232,8 +232,8 @@ void ReadOnlySerializer::RestoreInstructionStarts(
        object = iterator.Next()) {
     if (!object.IsCode()) continue;
     Code code = Code::cast(object);
-    code.SetInstructionStartForSerialization(isolate(),
-                                             saved_entry_points[i++]);
+    code.RestoreInstructionStartForSerialization(isolate(),
+                                                 saved_entry_points[i++]);
   }
 }
 #endif  // V8_STATIC_ROOTS

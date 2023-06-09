@@ -1102,9 +1102,7 @@ void Serializer::ObjectSerializer::VisitExternalPointer(
         InstanceTypeChecker::IsNativeContext(instance_type) ||
         // See ContextSerializer::SerializeJSObjectWithEmbedderFields().
         (InstanceTypeChecker::IsJSObject(instance_type) &&
-         JSObject::cast(host).GetEmbedderFieldCount() > 0) ||
-        // See ObjectSerializer::OutputRawData().
-        InstanceTypeChecker::IsCode(instance_type));
+         JSObject::cast(host).GetEmbedderFieldCount() > 0));
   }
 }
 
@@ -1179,7 +1177,7 @@ void Serializer::ObjectSerializer::OutputRawData(Address up_to) {
       // instruction_start field contains a raw value that will be recomputed
       // after deserialization, so write zeros to keep the snapshot
       // deterministic.
-      static uint8_t field_value[kSystemPointerSize] = {0};
+      static uint8_t field_value[kCodePointerSlotSize] = {0};
       OutputRawWithCustomField(sink_, object_start, base, bytes_to_output,
                                Code::kInstructionStartOffset,
                                sizeof(field_value), field_value);

@@ -95,6 +95,8 @@ namespace internal {
   /* Counted after sweeping the table at the end of mark-compact GC. */        \
   HR(external_pointers_count, V8.SandboxedExternalPointersCount, 0,            \
      kMaxExternalPointers, 101)                                                \
+  HR(code_pointers_count, V8.SandboxedCodePointersCount, 0, kMaxCodePointers,  \
+     101)                                                                      \
   HR(wasm_num_lazy_compilations_5sec, V8.WasmNumLazyCompilations5Sec, 0,       \
      200000, 50)                                                               \
   HR(wasm_num_lazy_compilations_20sec, V8.WasmNumLazyCompilations20Sec, 0,     \

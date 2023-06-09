@@ -47,6 +47,7 @@
 #include "src/objects/templates.h"
 #include "src/roots/roots.h"
 #include "src/sandbox/bounded-size-inl.h"
+#include "src/sandbox/code-pointer-inl.h"
 #include "src/sandbox/external-pointer-inl.h"
 #include "src/sandbox/sandboxed-pointer-inl.h"
 
@@ -718,6 +719,19 @@ template <ExternalPointerTag tag>
 void Object::WriteExternalPointerField(size_t offset, Isolate* isolate,
                                        Address value) {
   i::WriteExternalPointerField<tag>(field_address(offset), isolate, value);
+}
+
+void Object::InitCodePointerField(size_t offset, Isolate* isolate,
+                                  Address value) {
+  i::InitCodePointerField(field_address(offset), isolate, value);
+}
+
+Address Object::ReadCodePointerField(size_t offset) const {
+  return i::ReadCodePointerField(field_address(offset));
+}
+
+void Object::WriteCodePointerField(size_t offset, Address value) {
+  i::WriteCodePointerField(field_address(offset), value);
 }
 
 ObjectSlot HeapObject::RawField(int byte_offset) const {

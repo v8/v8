@@ -4,8 +4,6 @@
 
 #include "src/sandbox/external-pointer-table.h"
 
-#include <algorithm>
-
 #include "src/execution/isolate.h"
 #include "src/logging/counters.h"
 #include "src/sandbox/external-pointer-table-inl.h"
@@ -15,8 +13,8 @@
 namespace v8 {
 namespace internal {
 
-void ExternalPointerTable::Init(Isolate* isolate) {
-  InitializeTable(isolate);
+void ExternalPointerTable::Init() {
+  InitializeTable();
 
   extra_.store(kNotCompactingMarker);
 
@@ -114,6 +112,9 @@ uint32_t ExternalPointerTable::SweepAndCompact(Isolate* isolate) {
       ResolveEvacuationEntryDuringSweeping(i, handle_location,
                                            start_of_evacuation_area);
     } else if (!payload.HasMarkBitSet()) {
+      static_assert(
+          (kExternalPointerFreeEntryTag & kExternalPointerMarkBit) == 0,
+          "Freelist entries should not have their marking bit set");
       at(i).MakeFreelistEntry(current_freelist_head);
       current_freelist_head = i;
       current_freelist_length++;

@@ -588,15 +588,15 @@ Object Code::raw_instruction_stream(PtrComprCageBase cage_base,
 }
 
 DEF_GETTER(Code, instruction_start, Address) {
-  return ReadField<Address>(kInstructionStartOffset);
+  return ReadCodePointerField(kInstructionStartOffset);
 }
 
 void Code::init_instruction_start(Isolate* isolate, Address value) {
-  set_instruction_start(isolate, value);
+  InitCodePointerField(kInstructionStartOffset, isolate, value);
 }
 
 void Code::set_instruction_start(Isolate* isolate, Address value) {
-  WriteField<Address>(kInstructionStartOffset, value);
+  WriteCodePointerField(kInstructionStartOffset, value);
 }
 
 void Code::SetInstructionStreamAndInstructionStart(Isolate* isolate_for_sandbox,
@@ -612,9 +612,25 @@ void Code::SetInstructionStartForOffHeapBuiltin(Isolate* isolate_for_sandbox,
   set_instruction_start(isolate_for_sandbox, entry);
 }
 
-void Code::SetInstructionStartForSerialization(Isolate* isolate,
-                                               Address entry) {
-  set_instruction_start(isolate, entry);
+CodePointer_t Code::ClearInstructionStartForSerialization(Isolate* isolate) {
+#ifdef V8_CODE_POINTER_SANDBOXING
+  auto previous_value = ReadField<CodePointerHandle>(kInstructionStartOffset);
+  WriteField<CodePointerHandle>(kInstructionStartOffset,
+                                kNullCodePointerHandle);
+#else
+  auto previous_value = instruction_start(isolate);
+  set_instruction_start(isolate, kNullAddress);
+#endif  // V8_CODE_POINTER_SANDBOXING
+  return previous_value;
+}
+
+void Code::RestoreInstructionStartForSerialization(
+    Isolate* isolate, CodePointer_t previous_value) {
+#ifdef V8_CODE_POINTER_SANDBOXING
+  return WriteField<CodePointerHandle>(kInstructionStartOffset, previous_value);
+#else
+  set_instruction_start(isolate, previous_value);
+#endif  // V8_CODE_POINTER_SANDBOXING
 }
 
 void Code::UpdateInstructionStart(Isolate* isolate_for_sandbox,

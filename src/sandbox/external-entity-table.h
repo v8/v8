@@ -35,10 +35,12 @@ class Isolate;
  * does not implement any logic for reclaiming entries such as garbage
  * collection. This must be done by the child classes.
  */
-template <typename Entry>
+template <typename Entry, size_t size>
 class V8_EXPORT_PRIVATE ExternalEntityTable {
  protected:
-  static const int kEntrySize = sizeof(Entry);
+  static constexpr int kEntrySize = sizeof(Entry);
+  static constexpr size_t kReservationSize = size;
+  static constexpr size_t kMaxCapacity = kReservationSize / kEntrySize;
 
   ExternalEntityTable() = default;
   ExternalEntityTable(const ExternalEntityTable&) = delete;
@@ -72,7 +74,7 @@ class V8_EXPORT_PRIVATE ExternalEntityTable {
 
   // Initializes the table by reserving the backing memory, allocating an
   // initial block, and populating the freelist.
-  void InitializeTable(Isolate* isolate);
+  void InitializeTable();
 
   // Deallocates all memory associated with this table.
   void TearDownTable();
@@ -81,7 +83,7 @@ class V8_EXPORT_PRIVATE ExternalEntityTable {
   //
   // If there are no free entries, then this will grow the table.
   // This method is atomic and can be called from background threads.
-  uint32_t AllocateEntry(Isolate* isolate);
+  uint32_t AllocateEntry();
 
   // Attempts to allocate an entry below the specified index.
   //
@@ -135,7 +137,7 @@ class V8_EXPORT_PRIVATE ExternalEntityTable {
   // If the table cannot be grown, either because it is already at its maximum
   // size or because the memory for it could not be allocated, this method will
   // fail with an OOM crash.
-  FreelistHead Grow(Isolate* isolate);
+  FreelistHead Grow();
 
   // Shrink the table to the new capacity.
   // The new capacity must be less than the current capacity and must be a

@@ -15,74 +15,68 @@
 namespace v8 {
 namespace internal {
 
-template <typename Entry>
-Entry& ExternalEntityTable<Entry>::at(uint32_t index) {
+template <typename Entry, size_t size>
+Entry& ExternalEntityTable<Entry, size>::at(uint32_t index) {
   DCHECK_LT(index, capacity());
   return buffer_[index];
 }
 
-template <typename Entry>
-const Entry& ExternalEntityTable<Entry>::at(uint32_t index) const {
+template <typename Entry, size_t size>
+const Entry& ExternalEntityTable<Entry, size>::at(uint32_t index) const {
   DCHECK_LT(index, capacity());
   return buffer_[index];
 }
 
-template <typename Entry>
-bool ExternalEntityTable<Entry>::is_initialized() const {
+template <typename Entry, size_t size>
+bool ExternalEntityTable<Entry, size>::is_initialized() const {
   return buffer_ != nullptr;
 }
 
-template <typename Entry>
-uint32_t ExternalEntityTable<Entry>::capacity() const {
+template <typename Entry, size_t size>
+uint32_t ExternalEntityTable<Entry, size>::capacity() const {
   return capacity_.load(std::memory_order_relaxed);
 }
 
-template <typename Entry>
-uint32_t ExternalEntityTable<Entry>::freelist_length() const {
+template <typename Entry, size_t size>
+uint32_t ExternalEntityTable<Entry, size>::freelist_length() const {
   auto freelist = freelist_head_.load(std::memory_order_relaxed);
   DCHECK_LE(freelist.length(), capacity());
   return freelist.length();
 }
 
-template <typename Entry>
-void ExternalEntityTable<Entry>::InitializeTable(Isolate* isolate) {
+template <typename Entry, size_t size>
+void ExternalEntityTable<Entry, size>::InitializeTable() {
   DCHECK(!is_initialized());
 
   VirtualAddressSpace* root_space = GetPlatformVirtualAddressSpace();
-  DCHECK(IsAligned(kExternalPointerTableReservationSize,
-                   root_space->allocation_granularity()));
-
-  size_t reservation_size = kExternalPointerTableReservationSize;
+  DCHECK(IsAligned(kReservationSize, root_space->allocation_granularity()));
 
   Address buffer_start = root_space->AllocatePages(
-      VirtualAddressSpace::kNoHint, reservation_size,
+      VirtualAddressSpace::kNoHint, kReservationSize,
       root_space->allocation_granularity(), PagePermissions::kNoAccess);
   if (!buffer_start) {
-    V8::FatalProcessOutOfMemory(
-        isolate,
-        "Failed to reserve memory for ExternalPointerTable backing buffer");
+    V8::FatalProcessOutOfMemory(nullptr,
+                                "ExternalEntityTable::InitializeTable");
   }
   buffer_ = reinterpret_cast<Entry*>(buffer_start);
 
   mutex_ = new base::Mutex;
   if (!mutex_) {
-    V8::FatalProcessOutOfMemory(
-        isolate, "Failed to allocate mutex for ExternalPointerTable");
+    V8::FatalProcessOutOfMemory(nullptr,
+                                "ExternalEntityTable::InitializeTable");
   }
 
   // Allocate the initial block. Mutex must be held for that.
   base::MutexGuard guard(mutex_);
-  Grow(isolate);
+  Grow();
 }
 
-template <typename Entry>
-void ExternalEntityTable<Entry>::TearDownTable() {
+template <typename Entry, size_t size>
+void ExternalEntityTable<Entry, size>::TearDownTable() {
   DCHECK(is_initialized());
 
-  size_t reservation_size = kExternalPointerTableReservationSize;
-
   Address buffer_start = reinterpret_cast<Address>(buffer_);
-  GetPlatformVirtualAddressSpace()->FreePages(buffer_start, reservation_size);
+  GetPlatformVirtualAddressSpace()->FreePages(buffer_start, kReservationSize);
   delete mutex_;
 
   buffer_ = nullptr;
@@ -92,8 +86,8 @@ void ExternalEntityTable<Entry>::TearDownTable() {
   extra_ = 0;
 }
 
-template <typename Entry>
-uint32_t ExternalEntityTable<Entry>::AllocateEntry(Isolate* isolate) {
+template <typename Entry, size_t size>
+uint32_t ExternalEntityTable<Entry, size>::AllocateEntry() {
   DCHECK(is_initialized());
 
   // We currently don't want entry allocation to trigger garbage collection as
@@ -122,7 +116,7 @@ uint32_t ExternalEntityTable<Entry>::AllocateEntry(Isolate* isolate) {
 
       if (freelist.is_empty()) {
         // Freelist is (still) empty so grow the table.
-        freelist = Grow(isolate);
+        freelist = Grow();
         // Grow() adds one block to the table and so to the freelist.
         DCHECK_EQ(freelist.length(), kEntriesPerBlock);
       }
@@ -137,8 +131,8 @@ uint32_t ExternalEntityTable<Entry>::AllocateEntry(Isolate* isolate) {
   return allocated_entry;
 }
 
-template <typename Entry>
-uint32_t ExternalEntityTable<Entry>::AllocateEntryBelow(
+template <typename Entry, size_t size>
+uint32_t ExternalEntityTable<Entry, size>::AllocateEntryBelow(
     uint32_t threshold_index) {
   DCHECK(is_initialized());
   DCHECK_LE(threshold_index, capacity());
@@ -159,8 +153,8 @@ uint32_t ExternalEntityTable<Entry>::AllocateEntryBelow(
   return allocated_entry;
 }
 
-template <typename Entry>
-bool ExternalEntityTable<Entry>::TryAllocateEntryFromFreelist(
+template <typename Entry, size_t size>
+bool ExternalEntityTable<Entry, size>::TryAllocateEntryFromFreelist(
     FreelistHead freelist) {
   DCHECK(!freelist.is_empty());
   DCHECK_LT(freelist.next(), capacity());
@@ -184,9 +178,9 @@ bool ExternalEntityTable<Entry>::TryAllocateEntryFromFreelist(
   return success;
 }
 
-template <typename Entry>
-typename ExternalEntityTable<Entry>::FreelistHead
-ExternalEntityTable<Entry>::Grow(Isolate* isolate) {
+template <typename Entry, size_t size>
+typename ExternalEntityTable<Entry, size>::FreelistHead
+ExternalEntityTable<Entry, size>::Grow() {
   // Freelist should be empty when calling this method.
   DCHECK_EQ(freelist_length(), 0);
   // The caller must lock the mutex before calling Grow().
@@ -197,16 +191,14 @@ ExternalEntityTable<Entry>::Grow(Isolate* isolate) {
   DCHECK(IsAligned(kBlockSize, root_space->page_size()));
   uint32_t old_capacity = capacity();
   uint32_t new_capacity = old_capacity + kEntriesPerBlock;
-  if (new_capacity > kMaxExternalPointers) {
-    V8::FatalProcessOutOfMemory(
-        isolate, "Cannot grow ExternalPointerTable past its maximum capacity");
+  if (new_capacity > kMaxCapacity) {
+    V8::FatalProcessOutOfMemory(nullptr, "ExternalEntityTable::Grow");
   }
   Address buffer_start = reinterpret_cast<Address>(buffer_);
   if (!root_space->SetPagePermissions(buffer_start + old_capacity * kEntrySize,
                                       kBlockSize,
                                       PagePermissions::kReadWrite)) {
-    V8::FatalProcessOutOfMemory(
-        isolate, "Failed to grow the ExternalPointerTable backing buffer");
+    V8::FatalProcessOutOfMemory(nullptr, "ExternalEntityTable::Grow");
   }
 
   capacity_.store(new_capacity, std::memory_order_relaxed);
@@ -229,8 +221,8 @@ ExternalEntityTable<Entry>::Grow(Isolate* isolate) {
   return new_freelist_head;
 }
 
-template <typename Entry>
-void ExternalEntityTable<Entry>::Shrink(uint32_t new_capacity) {
+template <typename Entry, size_t size>
+void ExternalEntityTable<Entry, size>::Shrink(uint32_t new_capacity) {
   uint32_t old_capacity = capacity();
   DCHECK(IsAligned(new_capacity, kEntriesPerBlock));
   DCHECK_GT(new_capacity, 0);

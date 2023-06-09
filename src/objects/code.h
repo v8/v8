@@ -84,8 +84,9 @@ class Code : public HeapObject {
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   inline void SetInstructionStartForOffHeapBuiltin(Isolate* isolate_for_sandbox,
                                                    Address entry);
-  inline void SetInstructionStartForSerialization(Isolate* isolate,
-                                                  Address entry);
+  inline CodePointer_t ClearInstructionStartForSerialization(Isolate* isolate);
+  inline void RestoreInstructionStartForSerialization(
+      Isolate* isolate, CodePointer_t previous_value);
   inline void UpdateInstructionStart(Isolate* isolate_for_sandbox,
                                      InstructionStream istream);
 
@@ -316,7 +317,7 @@ class Code : public HeapObject {
   V(kInstructionStreamOffset, kTaggedSize)                                    \
   V(kEndOfStrongFieldsOffset, 0)                                              \
   /* Untagged data not directly visited by GC starts here. */                 \
-  V(kInstructionStartOffset, kSystemPointerSize)                              \
+  V(kInstructionStartOffset, kCodePointerSlotSize)                            \
   /* The serializer needs to copy bytes starting from here verbatim. */       \
   V(kFlagsOffset, kUInt32Size)                                                \
   V(kInstructionSizeOffset, kIntSize)                                         \

@@ -3023,11 +3023,32 @@ Node* WasmGraphBuilder::BuildIndirectCall(uint32_t table_index,
   }
 }
 
+Node* WasmGraphBuilder::BuildLoadCodePointerFromObject(Node* object,
+                                                       int field_offset) {
+#ifdef V8_CODE_POINTER_SANDBOXING
+  Node* handle =
+      gasm_->LoadFromObject(MachineType::Uint32(), object,
+                            wasm::ObjectAccess::ToTagged(field_offset));
+  Node* index =
+      gasm_->Word32Shr(handle, gasm_->Int32Constant(kCodePointerIndexShift));
+  Node* offset = gasm_->ChangeUint32ToUint64(gasm_->Word32Shl(
+      index, gasm_->Int32Constant(kCodePointerTableEntrySizeLog2)));
+  Node* table =
+      gasm_->ExternalConstant(ExternalReference::code_pointer_table_address());
+
+  return gasm_->Load(MachineType::Pointer(), table, offset);
+#else
+  return gasm_->LoadFromObject(MachineType::Pointer(), object,
+                               wasm::ObjectAccess::ToTagged(field_offset));
+#endif  // V8_CODE_POINTER_SANDBOXING
+}
+
 Node* WasmGraphBuilder::BuildLoadCallTargetFromExportedFunctionData(
     Node* function) {
   Node* internal = gasm_->LoadFromObject(
       MachineType::TaggedPointer(), function,
       wasm::ObjectAccess::ToTagged(WasmExportedFunctionData::kInternalOffset));
+  // TODO(saelo): should this become a CodePointer instead?
   return gasm_->BuildLoadExternalPointerFromObject(
       internal, WasmInternalFunction::kCallTargetOffset,
       kWasmInternalFunctionCallTargetTag, BuildLoadIsolateRoot());
@@ -3074,9 +3095,8 @@ Node* WasmGraphBuilder::BuildCallRef(const wasm::FunctionSig* sig,
     Node* wrapper_code = gasm_->LoadImmutableFromObject(
         MachineType::TaggedPointer(), function,
         wasm::ObjectAccess::ToTagged(WasmInternalFunction::kCodeOffset));
-    Node* call_target = gasm_->LoadFromObject(
-        MachineType::Pointer(), wrapper_code,
-        wasm::ObjectAccess::ToTagged(Code::kInstructionStartOffset));
+    Node* call_target = BuildLoadCodePointerFromObject(
+        wrapper_code, Code::kInstructionStartOffset);
     gasm_->Goto(&end_label, call_target);
   }
 

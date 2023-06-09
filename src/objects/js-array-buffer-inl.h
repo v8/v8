@@ -116,8 +116,7 @@ void JSArrayBuffer::set_extension(ArrayBufferExtension* extension) {
 
     // We need Release semantics here, see above.
     ExternalPointerHandle handle = table.AllocateAndInitializeEntry(
-        isolate, reinterpret_cast<Address>(extension),
-        kArrayBufferExtensionTag);
+        reinterpret_cast<Address>(extension), kArrayBufferExtensionTag);
     base::AsAtomic32::Release_Store(extension_handle_location(), handle);
   } else {
     // This special handling of nullptr is required as it is used to initialize

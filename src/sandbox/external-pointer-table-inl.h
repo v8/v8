@@ -5,7 +5,6 @@
 #ifndef V8_SANDBOX_EXTERNAL_POINTER_TABLE_INL_H_
 #define V8_SANDBOX_EXTERNAL_POINTER_TABLE_INL_H_
 
-#include "src/base/atomicops.h"
 #include "src/sandbox/external-entity-table-inl.h"
 #include "src/sandbox/external-pointer-table.h"
 #include "src/sandbox/external-pointer.h"
@@ -141,8 +140,8 @@ Address ExternalPointerTable::Exchange(ExternalPointerHandle handle,
 }
 
 ExternalPointerHandle ExternalPointerTable::AllocateAndInitializeEntry(
-    Isolate* isolate, Address initial_value, ExternalPointerTag tag) {
-  uint32_t index = AllocateEntry(isolate);
+    Address initial_value, ExternalPointerTag tag) {
+  uint32_t index = AllocateEntry();
   at(index).MakeExternalPointerEntry(initial_value, tag);
   return IndexToHandle(index);
 }
