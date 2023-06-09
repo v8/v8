@@ -3227,7 +3227,9 @@ ReduceResult MaglevGraphBuilder::BuildTransitionElementsKindOrCheckMap(
       !transition_target.is_stable()};
   DCHECK(transition_target.IsJSReceiverMap());
   known_info->type = NodeType::kJSReceiverWithKnownMap;
-  if (transition_target.is_stable()) {
+  if (!transition_target.is_stable()) {
+    known_node_aspects().any_map_for_any_node_is_unstable = true;
+  } else {
     broker()->dependencies()->DependOnStableMap(transition_target);
   }
   return ReduceResult::Done();
