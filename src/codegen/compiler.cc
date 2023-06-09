@@ -817,6 +817,7 @@ bool IterativelyExecuteAndFinalizeUnoptimizedCompilationJobs(
   std::vector<FunctionLiteral*> functions_to_compile;
   functions_to_compile.push_back(parse_info->literal());
 
+  bool compilation_succeeded = true;
   bool is_first = true;
   while (!functions_to_compile.empty()) {
     FunctionLiteral* literal = functions_to_compile.back();
@@ -841,7 +842,19 @@ bool IterativelyExecuteAndFinalizeUnoptimizedCompilationJobs(
                                                allocator, &functions_to_compile,
                                                isolate->AsLocalIsolate());
 
-    if (!job) return false;
+    if (!job) {
+      // Compilation failed presumably because of stack overflow, make sure
+      // the shared function info contains uncompiled data for the next
+      // compilation attempts.
+      if (!shared_info->HasUncompiledData()) {
+        SharedFunctionInfo::CreateAndSetUncompiledData(isolate, shared_info,
+                                                       literal);
+      }
+      compilation_succeeded = false;
+      // Proceed finalizing other functions in case they don't have uncompiled
+      // data.
+      continue;
+    }
 
     UpdateSharedFunctionFlagsAfterCompilation(literal, *shared_info);
 
@@ -859,7 +872,10 @@ bool IterativelyExecuteAndFinalizeUnoptimizedCompilationJobs(
         break;
 
       case CompilationJob::FAILED:
-        return false;
+        compilation_succeeded = false;
+        // Proceed finalizing other functions in case they don't have uncompiled
+        // data.
+        continue;
 
       case CompilationJob::RETRY_ON_MAIN_THREAD:
         // This should not happen on the main thread.
@@ -881,7 +897,7 @@ bool IterativelyExecuteAndFinalizeUnoptimizedCompilationJobs(
     parse_info->pending_error_handler()->PrepareWarnings(isolate);
   }
 
-  return true;
+  return compilation_succeeded;
 }
 
 bool FinalizeDeferredUnoptimizedCompilationJobs(
