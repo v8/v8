@@ -122,6 +122,8 @@
   # https://crbug.com/v8/13234
   'octane/box2d': [SKIP],
   'octane/earley-boyer': [SKIP],
+  'octane/gbemu-part1': [SKIP],
+  'octane/pdfjs': [SKIP],
 }],  # 'verify_predictable'
 
 ['variant == stress_snapshot', {
