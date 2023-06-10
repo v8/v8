@@ -52,17 +52,17 @@ vars = {
   'fuchsia_sdk_cipd_prefix': 'fuchsia/sdk/core/',
 
   # reclient CIPD package version
-  'reclient_version': 're_client_version:0.107.1.0b39c4c-gomaip',
+  'reclient_version': 're_client_version:0.108.0.7cdbbe9-gomaip',
 
   # GN CIPD package version.
-  'gn_version': 'git_revision:e5aee7bbd8033e0365d5d631871e409934dc3283',
+  'gn_version': 'git_revision:1cd35c1b722472e714c30d12031af81443bb20ae',
 
   # ninja CIPD package version
   # https://chrome-infra-packages.appspot.com/p/infra/3pp/tools/ninja
   'ninja_version': 'version:2@1.11.1.chromium.6',
 
   # luci-go CIPD package version.
-  'luci_go': 'git_revision:0ecab437ae2532a879b1203efc48f54bc6cadb77',
+  'luci_go': 'git_revision:e99800d3fd42249c9cdda3f58ba31c674b4876f6',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Fuchsia sdk
@@ -107,7 +107,7 @@ deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '147f65333c38ddd1ebf554e89965c243c8ce50b3',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '1a35bf2972f67c44e7567323f1f076a9b90b1cb0',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '474334a8f494e23fd5c220cea8ef404da6eae2da',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '3819ac6f3de594da7386c62474cedcf3b7194bb7',
   'buildtools/clang_format/script':
@@ -217,7 +217,7 @@ deps = {
     'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + 'a52fe894ec5768dd7d2f1be9e40342c676ff5518',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + 'f51324c1c818a663f7d9682f8784c3d3f5a92fe0',
     'condition': 'checkout_android',
   },
   'third_party/colorama/src': {
@@ -229,7 +229,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'eac2c9ebe907f7042cecf4f79b274c1e7b8573d1',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '6eaeb04ac1fb53c19cdb18f666a4c054da037f08',
   'third_party/fuchsia-gn-sdk': {
     'url': Var('chromium_url') + '/chromium/src/third_party/fuchsia-gn-sdk.git' + '@' + '0d6902558d92fe3d49ba9a8f638ddea829be595b',
     'condition': 'checkout_fuchsia',
