@@ -3378,10 +3378,6 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
           scratch2, FieldMemOperand(callback, CallHandlerInfo::kDataOffset));
       __ StoreWord(scratch2,
                    MemOperand(sp, FCA::kDataIndex * kSystemPointerSize));
-      __ LoadWord(
-          api_function_address,
-          FieldMemOperand(callback,
-                          CallHandlerInfo::kMaybeRedirectedCallbackOffset));
       break;
 
     case CallApiCallbackMode::kNoSideEffects:
@@ -3408,9 +3404,38 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
   static_assert(FCI::kImplicitArgsOffset == 0);
   static_assert(FCI::kValuesOffset == 1 * kSystemPointerSize);
   static_assert(FCI::kLengthOffset == 2 * kSystemPointerSize);
+  const int exit_frame_params_size =
+      mode == CallApiCallbackMode::kGeneric ? 2 : 0;
 
   FrameScope frame_scope(masm, StackFrame::MANUAL);
-  __ EnterExitFrame(kApiStackSpace);
+  if (mode == CallApiCallbackMode::kGeneric) {
+    ASM_CODE_COMMENT_STRING(masm, "Push API_CALLBACK_EXIT frame arguments");
+    __ AllocateStackSpace(exit_frame_params_size * kSystemPointerSize);
+
+    // Argc parameter as a Smi.
+    static_assert(ApiCallbackExitFrameConstants::kArgcOffset ==
+                  3 * kSystemPointerSize);
+    __ SmiTag(scratch, argc);
+    __ StoreWord(scratch, MemOperand(sp, 1 * kSystemPointerSize));
+
+    // Target parameter.
+    static_assert(ApiCallbackExitFrameConstants::kTargetOffset ==
+                  2 * kSystemPointerSize);
+    __ LoadTaggedField(
+        scratch,
+        FieldMemOperand(callback, CallHandlerInfo::kOwnerTemplateOffset));
+    __ StoreWord(scratch, MemOperand(sp, 0 * kSystemPointerSize));
+
+    __ LoadExternalPointerField(
+        api_function_address,
+        FieldMemOperand(callback,
+                        CallHandlerInfo::kMaybeRedirectedCallbackOffset),
+        kCallHandlerInfoCallbackTag);
+
+    __ EnterExitFrame(kApiStackSpace, StackFrame::API_CALLBACK_EXIT);
+  } else {
+    __ EnterExitFrame(kApiStackSpace, StackFrame::EXIT);
+  }
 
   // EnterExitFrame may align the sp.
   {
@@ -3436,7 +3461,8 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
   // drop, not the number of bytes.
   MemOperand stack_space_operand =
       ExitFrameStackSlotOperand(FCI::kLengthOffset + kSlotsToDropOnStackSize);
-  __ AddWord(scratch, argc, Operand(FCA::kArgsLengthWithReceiver));
+  __ AddWord(scratch, argc,
+             Operand(FCA::kArgsLengthWithReceiver + exit_frame_params_size));
   __ StoreWord(scratch, stack_space_operand);
 
   __ RecordComment("v8::FunctionCallback's argument.");
@@ -3448,8 +3474,8 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
   ExternalReference thunk_ref =
       ExternalReference::invoke_function_callback(mode);
 
-  MemOperand return_value_operand =
-      ExitFrameCallerStackSlotOperand(FCA::kReturnValueIndex);
+  MemOperand return_value_operand = ExitFrameCallerStackSlotOperand(
+      FCA::kReturnValueIndex + exit_frame_params_size);
 
   // Pass api function address to thunk wrapper in case profiler or side-effect
   // checking is enabled.
