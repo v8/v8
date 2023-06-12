@@ -3651,10 +3651,8 @@ Maybe<bool> JSObject::DefineOwnPropertyIgnoreAttributes(
         // own property without the interceptor.
         Isolate* isolate = it->isolate();
         Handle<Object> receiver = it->GetReceiver();
-        LookupIterator::Configuration c = LookupIterator::OWN_SKIP_INTERCEPTOR;
-        LookupIterator own_lookup =
-            it->IsElement() ? LookupIterator(isolate, receiver, it->index(), c)
-                            : LookupIterator(isolate, receiver, it->name(), c);
+        LookupIterator own_lookup(isolate, receiver, it->GetKey(),
+                                  LookupIterator::OWN_SKIP_INTERCEPTOR);
         return JSObject::DefineOwnPropertyIgnoreAttributes(
             &own_lookup, value, attributes, should_throw, handling, semantics,
             store_origin);
