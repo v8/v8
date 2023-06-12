@@ -215,6 +215,11 @@ bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
       os << PrefixName(prefix) << ", ";
     }
 
+    if (WasmOpcodes::IsRelaxedSimdOpcode(opcode)) {
+      // Expand multi-byte opcodes.
+      os << "...";
+      offset += 1;
+    }
     os << RawOpcodeName(opcode) << ",";
 
     if (opcode == kExprLoop || opcode == kExprIf || opcode == kExprBlock ||

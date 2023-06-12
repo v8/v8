@@ -914,6 +914,28 @@ let kExprI32x4TruncSatF64x2UZero = 0xfd;
 let kExprF64x2ConvertLowI32x4S = 0xfe;
 let kExprF64x2ConvertLowI32x4U = 0xff;
 
+// Relaxed SIMD.
+let kExprI8x16RelaxedSwizzle = wasmSignedLeb(0x100);
+let kExprI32x4RelaxedTruncF32x4S = wasmSignedLeb(0x101);
+let kExprI32x4RelaxedTruncF32x4U = wasmSignedLeb(0x102);
+let kExprI32x4RelaxedTruncF64x2SZero = wasmSignedLeb(0x103);
+let kExprI32x4RelaxedTruncF64x2UZero = wasmSignedLeb(0x104);
+let kExprF32x4Qfma = wasmSignedLeb(0x105);
+let kExprF32x4Qfms = wasmSignedLeb(0x106);
+let kExprF64x2Qfma = wasmSignedLeb(0x107);
+let kExprF64x2Qfms = wasmSignedLeb(0x108);
+let kExprI8x16RelaxedLaneSelect = wasmSignedLeb(0x109);
+let kExprI16x8RelaxedLaneSelect = wasmSignedLeb(0x10a);
+let kExprI32x4RelaxedLaneSelect = wasmSignedLeb(0x10b);
+let kExprI64x2RelaxedLaneSelect = wasmSignedLeb(0x10c);
+let kExprF32x4RelaxedMin = wasmSignedLeb(0x10d);
+let kExprF32x4RelaxedMax = wasmSignedLeb(0x10e);
+let kExprF64x2RelaxedMin = wasmSignedLeb(0x10f);
+let kExprF64x2RelaxedMax = wasmSignedLeb(0x110);
+let kExprI16x8RelaxedQ15MulRS = wasmSignedLeb(0x111);
+let kExprI16x8DotI8x16I7x16S = wasmSignedLeb(0x112);
+let kExprI32x4DotI8x16I7x16AddS = wasmSignedLeb(0x113);
+
 // Compilation hint constants.
 let kCompilationHintStrategyDefault = 0x00;
 let kCompilationHintStrategyLazy = 0x01;
