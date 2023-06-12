@@ -1043,6 +1043,11 @@ HeapObject ApiCallbackExitFrame::target() const {
   return HeapObject::cast(function);
 }
 
+void ApiCallbackExitFrame::set_target(HeapObject function) const {
+  DCHECK(function.IsJSFunction() || function.IsFunctionTemplateInfo());
+  target_slot().store(function);
+}
+
 Handle<JSFunction> ApiCallbackExitFrame::GetFunction() const {
   HeapObject maybe_function = target();
   if (maybe_function.IsJSFunction()) {
@@ -1092,12 +1097,6 @@ Handle<FixedArray> ApiCallbackExitFrame::GetParameters() const {
 
 bool ApiCallbackExitFrame::IsConstructor() const {
   return !(*new_target_slot()).IsUndefined(isolate());
-}
-
-void ApiCallbackExitFrame::set_target(HeapObject function) const {
-  DCHECK(function.IsJSFunction() || function.IsFunctionTemplateInfo());
-  base::Memory<Address>(fp() + BuiltinExitFrameConstants::kTargetOffset) =
-      function.ptr();
 }
 
 void ApiCallbackExitFrame::Summarize(std::vector<FrameSummary>* frames) const {
