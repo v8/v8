@@ -95,7 +95,7 @@ Response SerializeArrayValue(v8::Local<v8::Array> value,
   for (uint32_t i = 0; i < length; i++) {
     v8::Local<v8::Value> elementValue;
     bool success = value->Get(context, i).ToLocal(&elementValue);
-    DCHECK(success);
+    CHECK(success);
     USE(success);
 
     std::unique_ptr<protocol::DictionaryValue> elementProtocolValue;
@@ -150,10 +150,10 @@ Response SerializeMap(v8::Local<v8::Map> value, v8::Local<v8::Context> context,
       std::unique_ptr<protocol::DictionaryValue> propertyProtocolValue;
 
       bool success = propertiesAndValues->Get(context, i).ToLocal(&keyV8Value);
-      DCHECK(success);
+      CHECK(success);
       success =
           propertiesAndValues->Get(context, i + 1).ToLocal(&propertyV8Value);
-      DCHECK(success);
+      CHECK(success);
       USE(success);
 
       if (keyV8Value->IsString()) {
@@ -212,10 +212,17 @@ Response SerializeObjectValue(v8::Local<v8::Object> value,
                               std::unique_ptr<protocol::ListValue>* result) {
   std::unique_ptr<protocol::ListValue> serializedValue =
       protocol::ListValue::create();
-  // Iterate through object's properties.
+  // Iterate through object's enumerable properties ignoring symbols.
   v8::Local<v8::Array> propertyNames;
-  bool success = value->GetOwnPropertyNames(context).ToLocal(&propertyNames);
-  DCHECK(success);
+  bool success =
+      value
+          ->GetOwnPropertyNames(context,
+                                static_cast<v8::PropertyFilter>(
+                                    v8::PropertyFilter::ONLY_ENUMERABLE |
+                                    v8::PropertyFilter::SKIP_SYMBOLS),
+                                v8::KeyConversionMode::kConvertToString)
+          .ToLocal(&propertyNames);
+  CHECK(success);
 
   uint32_t length = propertyNames->Length();
   serializedValue->reserve(length);
@@ -225,30 +232,20 @@ Response SerializeObjectValue(v8::Local<v8::Object> value,
     std::unique_ptr<protocol::DictionaryValue> propertyProtocolValue;
 
     success = propertyNames->Get(context, i).ToLocal(&keyV8Value);
-    DCHECK(success);
+    CHECK(success);
+    CHECK(keyV8Value->IsString());
 
-    if (keyV8Value->IsString()) {
-      v8::Maybe<bool> hasRealNamedProperty =
-          value->HasRealNamedProperty(context, keyV8Value.As<v8::String>());
-      // Don't access properties with interceptors.
-      if (hasRealNamedProperty.IsNothing() ||
-          !hasRealNamedProperty.FromJust()) {
-        continue;
-      }
-      keyProtocolValue = protocol::StringValue::create(
-          toProtocolString(context->GetIsolate(), keyV8Value.As<v8::String>()));
-    } else {
-      std::unique_ptr<protocol::DictionaryValue> keyDictionaryProtocolValue;
-      Response response = ValueMirror::create(context, keyV8Value)
-                              ->buildDeepSerializedValue(
-                                  context, maxDepth - 1, duplicateTracker,
-                                  &keyDictionaryProtocolValue);
-      if (!response.IsSuccess()) return response;
-      keyProtocolValue = std::move(keyDictionaryProtocolValue);
+    v8::Maybe<bool> hasRealNamedProperty =
+        value->HasRealNamedProperty(context, keyV8Value.As<v8::String>());
+    // Don't access properties with interceptors.
+    if (hasRealNamedProperty.IsNothing() || !hasRealNamedProperty.FromJust()) {
+      continue;
     }
+    keyProtocolValue = protocol::StringValue::create(
+        toProtocolString(context->GetIsolate(), keyV8Value.As<v8::String>()));
 
     success = value->Get(context, keyV8Value).ToLocal(&propertyV8Value);
-    DCHECK(success);
+    CHECK(success);
     USE(success);
 
     Response response =

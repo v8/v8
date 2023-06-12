@@ -570,10 +570,7 @@ Runtime.evaluate
     type : object
     value : [
         [0] : [
-            [0] : {
-                type : number
-                value : 1
-            }
+            [0] : 1
             [1] : {
                 type : object
                 value : [
@@ -590,20 +587,14 @@ Runtime.evaluate
             }
         ]
         [1] : [
-            [0] : {
-                type : number
-                value : 2
-            }
+            [0] : 2
             [1] : {
                 type : object
                 weakLocalObjectReference : 1
             }
         ]
         [2] : [
-            [0] : {
-                type : number
-                value : 3
-            }
+            [0] : 3
             [1] : {
                 type : array
                 value : [
@@ -620,10 +611,7 @@ Runtime.evaluate
             }
         ]
         [3] : [
-            [0] : {
-                type : number
-                value : 4
-            }
+            [0] : 4
             [1] : {
                 type : array
                 weakLocalObjectReference : 2
@@ -644,10 +632,7 @@ Runtime.callFunctionOn
     type : object
     value : [
         [0] : [
-            [0] : {
-                type : number
-                value : 1
-            }
+            [0] : 1
             [1] : {
                 type : object
                 value : [
@@ -664,20 +649,14 @@ Runtime.callFunctionOn
             }
         ]
         [1] : [
-            [0] : {
-                type : number
-                value : 2
-            }
+            [0] : 2
             [1] : {
                 type : object
                 weakLocalObjectReference : 1
             }
         ]
         [2] : [
-            [0] : {
-                type : number
-                value : 3
-            }
+            [0] : 3
             [1] : {
                 type : array
                 value : [
@@ -694,10 +673,7 @@ Runtime.callFunctionOn
             }
         ]
         [3] : [
-            [0] : {
-                type : number
-                value : 4
-            }
+            [0] : 4
             [1] : {
                 type : array
                 weakLocalObjectReference : 2
@@ -913,5 +889,72 @@ Runtime.callFunctionOn
                 ]
             }
         ]
+    ]
+}
+testing expression: {1: 'value'}
+Runtime.evaluate
+{
+    type : object
+    value : [
+        [0] : [
+            [0] : 1
+            [1] : {
+                type : string
+                value : value
+            }
+        ]
+    ]
+}
+Runtime.callFunctionOn
+{
+    type : object
+    value : [
+        [0] : [
+            [0] : 1
+            [1] : {
+                type : string
+                value : value
+            }
+        ]
+    ]
+}
+testing expression: {'1': 'value'}
+Runtime.evaluate
+{
+    type : object
+    value : [
+        [0] : [
+            [0] : 1
+            [1] : {
+                type : string
+                value : value
+            }
+        ]
+    ]
+}
+Runtime.callFunctionOn
+{
+    type : object
+    value : [
+        [0] : [
+            [0] : 1
+            [1] : {
+                type : string
+                value : value
+            }
+        ]
+    ]
+}
+testing expression: (()=>{const s = Symbol('foo'); const a={}; a[s]='symbol_value'; return a;})()
+Runtime.evaluate
+{
+    type : object
+    value : [
+    ]
+}
+Runtime.callFunctionOn
+{
+    type : object
+    value : [
     ]
 }

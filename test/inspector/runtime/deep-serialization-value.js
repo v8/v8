@@ -84,6 +84,12 @@ InspectorTest.runAsyncTestSuite([
     await testExpression("{nullKey: null, stringKey: 'foo',boolKey: true,numberKey: 123,bigintKey: 123n,symbolKey: Symbol('foo'),functionKey: () => {},arrayKey:[1],undefinedKey:undefined}");
     // Object in-depth serialization.
     await testExpression("{key_level_1: {key_level_2: {key_level_3: 'value_level_3'}}}");
+    // Object with number property name.
+    await testExpression("{1: 'value'}");
+    // Object with string number property name.
+    await testExpression("{'1': 'value'}");
+    // Object with a symbol as a property name.
+    await testExpression("(()=>{const s = Symbol('foo'); const a={}; a[s]='symbol_value'; return a;})()");
  }]);
 
 async function serializeViaEvaluate(expression) {

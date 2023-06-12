@@ -508,40 +508,28 @@ Runtime.evaluate
     type : object
     value : [
         [0] : [
-            [0] : {
-                type : number
-                value : 1
-            }
+            [0] : 1
             [1] : {
                 type : object
                 weakLocalObjectReference : 1
             }
         ]
         [1] : [
-            [0] : {
-                type : number
-                value : 2
-            }
+            [0] : 2
             [1] : {
                 type : object
                 weakLocalObjectReference : 1
             }
         ]
         [2] : [
-            [0] : {
-                type : number
-                value : 3
-            }
+            [0] : 3
             [1] : {
                 type : array
                 weakLocalObjectReference : 2
             }
         ]
         [3] : [
-            [0] : {
-                type : number
-                value : 4
-            }
+            [0] : 4
             [1] : {
                 type : array
                 weakLocalObjectReference : 2
@@ -562,40 +550,28 @@ Runtime.callFunctionOn
     type : object
     value : [
         [0] : [
-            [0] : {
-                type : number
-                value : 1
-            }
+            [0] : 1
             [1] : {
                 type : object
                 weakLocalObjectReference : 1
             }
         ]
         [1] : [
-            [0] : {
-                type : number
-                value : 2
-            }
+            [0] : 2
             [1] : {
                 type : object
                 weakLocalObjectReference : 1
             }
         ]
         [2] : [
-            [0] : {
-                type : number
-                value : 3
-            }
+            [0] : 3
             [1] : {
                 type : array
                 weakLocalObjectReference : 2
             }
         ]
         [3] : [
-            [0] : {
-                type : number
-                value : 4
-            }
+            [0] : 4
             [1] : {
                 type : array
                 weakLocalObjectReference : 2
