@@ -194,8 +194,9 @@ class MarkingVisitorBase : public ConcurrentHeapVisitor<int, ConcreteVisitor> {
   bool ShouldFlushCode(SharedFunctionInfo sfi) const;
   bool ShouldFlushBaselineCode(JSFunction js_function) const;
 
-  bool IsOld(BytecodeArray bytecode) const;
-  void MakeOlder(BytecodeArray bytecode) const;
+  bool HasBytecodeArrayForFlushing(SharedFunctionInfo sfi) const;
+  bool IsOld(SharedFunctionInfo sfi) const;
+  void MakeOlder(SharedFunctionInfo sfi) const;
 
   MarkingWorklists::Local* const local_marking_worklists_;
   WeakObjects::Local* const local_weak_objects_;

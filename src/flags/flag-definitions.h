@@ -1632,7 +1632,7 @@ DEFINE_BOOL(flush_baseline_code, false,
             "flush of baseline code when it has not been executed recently")
 DEFINE_BOOL(flush_bytecode, true,
             "flush of bytecode when it has not been executed recently")
-DEFINE_INT(bytecode_old_age, 5, "number of gcs before we flush code")
+DEFINE_INT(bytecode_old_age, 6, "number of gcs before we flush code")
 DEFINE_BOOL(flush_code_based_on_time, false,
             "Use time-base code flushing instead of age.")
 DEFINE_BOOL(flush_code_based_on_tab_visibility, false,

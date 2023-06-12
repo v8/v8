@@ -47,19 +47,6 @@ class BytecodeArray
   inline void set_incoming_new_target_or_generator_register(
       interpreter::Register incoming_new_target_or_generator_register);
 
-  static constexpr int kBytecodeAgeSize = kUInt16Size;
-  static_assert(kBytecodeAgeOffset + kBytecodeAgeSize - 1 ==
-                kBytecodeAgeOffsetEnd);
-  static constexpr uint16_t kMaxAge = UINT16_MAX;
-
-  inline uint16_t bytecode_age() const;
-  inline void set_bytecode_age(uint16_t age);
-
-  // Replaces the current bytecode_age with a new value if the current value
-  // matches the one expected. Returns the value before this operation.
-  inline uint16_t CompareExchangeBytecodeAge(uint16_t expected_age,
-                                             uint16_t new_age);
-
   inline bool HasSourcePositionTable() const;
   inline bool DidSourcePositionGenerationFail() const;
 
@@ -94,9 +81,6 @@ class BytecodeArray
                                             std::ostream& os);
 
   void CopyBytecodesTo(BytecodeArray to);
-
-  // Bytecode aging
-  V8_EXPORT_PRIVATE static void EnsureOldForTesting(BytecodeArray bytecode);
 
   // Clear uninitialized padding space. This ensures that the snapshot content
   // is deterministic.

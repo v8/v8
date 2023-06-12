@@ -677,24 +677,6 @@ TEST(BytecodeArray) {
   CHECK_NE(array->constant_pool().ptr(), old_constant_pool_address.ptr());
 }
 
-TEST(BytecodeArrayAging) {
-  static const uint8_t kRawBytes[] = {0xC3, 0x7E, 0xA5, 0x5A};
-  static const int kRawBytesSize = sizeof(kRawBytes);
-  static const int32_t kFrameSize = 32;
-  static const int32_t kParameterCount = 2;
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
-  Factory* factory = isolate->factory();
-  HandleScope scope(isolate);
-
-  Handle<BytecodeArray> array =
-      factory->NewBytecodeArray(kRawBytesSize, kRawBytes, kFrameSize,
-                                kParameterCount, factory->empty_fixed_array());
-
-  CHECK_EQ(0, array->bytecode_age());
-  BytecodeArray::EnsureOldForTesting(*array);
-}
-
 static const char* not_so_random_string_table[] = {
     "abstract",   "boolean",      "break",      "byte",    "case",
     "catch",      "char",         "class",      "const",   "continue",
@@ -1135,8 +1117,7 @@ TEST(TestBytecodeFlushing) {
     heap::InvokeMajorGC(CcTest::heap());
     CHECK(function->shared().is_compiled());
 
-    BytecodeArray::EnsureOldForTesting(
-        function->shared().GetBytecodeArray(i_isolate));
+    i::SharedFunctionInfo::EnsureOldForTesting(function->shared());
     heap::InvokeMajorGC(CcTest::heap());
 
     // foo should no longer be in the compilation cache
@@ -1210,18 +1191,18 @@ static void TestMultiReferencedBytecodeFlushing(bool sparkplug_compile) {
           i_isolate, copy, Compiler::CLEAR_EXCEPTION, &is_compiled_scope);
     }
 
-    BytecodeArray::EnsureOldForTesting(shared->GetBytecodeArray(i_isolate));
+    i::SharedFunctionInfo::EnsureOldForTesting(*shared);
     heap::InvokeMajorGC(CcTest::heap());
 
-    // foo should no longer be in the compilation cache
-    CHECK(!shared->is_compiled());
-    CHECK(!copy->is_compiled());
-    CHECK(!function->is_compiled());
+    // shared SFI is marked old but BytecodeArray is kept alive by copy.
+    CHECK(shared->is_compiled());
+    CHECK(copy->is_compiled());
+    CHECK(function->is_compiled());
 
     // The feedback metadata for both SharedFunctionInfo instances should have
     // been reset.
-    CHECK(!shared->HasFeedbackMetadata());
-    CHECK(!copy->HasFeedbackMetadata());
+    CHECK(shared->HasFeedbackMetadata());
+    CHECK(copy->HasFeedbackMetadata());
   }
 }
 
@@ -1276,8 +1257,7 @@ HEAP_TEST(Regress10560) {
 
     // Pre-age bytecode so it will be flushed on next run.
     CHECK(function->shared().HasBytecodeArray());
-    BytecodeArray::EnsureOldForTesting(
-        function->shared().GetBytecodeArray(i_isolate));
+    SharedFunctionInfo::EnsureOldForTesting(function->shared());
 
     heap::SimulateFullSpace(heap->old_space());
 
@@ -1452,8 +1432,7 @@ TEST(TestOptimizeAfterBytecodeFlushingCandidate) {
   heap::InvokeMajorGC(CcTest::heap());
   CHECK(function->shared().is_compiled());
 
-  BytecodeArray::EnsureOldForTesting(
-      function->shared().GetBytecodeArray(isolate));
+  i::SharedFunctionInfo::EnsureOldForTesting(function->shared());
   heap::InvokeMajorGC(CcTest::heap());
 
   CHECK(!function->shared().is_compiled());
@@ -1465,8 +1444,7 @@ TEST(TestOptimizeAfterBytecodeFlushingCandidate) {
     CompileRun("foo();");
   }
 
-  BytecodeArray::EnsureOldForTesting(
-      function->shared().GetBytecodeArray(isolate));
+  SharedFunctionInfo::EnsureOldForTesting(function->shared());
   heap::SimulateIncrementalMarking(CcTest::heap());
 
   // Force optimization while incremental marking is active and while
@@ -1591,8 +1569,7 @@ void CompilationCacheCachingBehavior(bool retain_script) {
     Handle<SharedFunctionInfo> shared =
         lookup_result.toplevel_sfi().ToHandleChecked();
     CHECK(shared->HasBytecodeArray());
-    BytecodeArray::EnsureOldForTesting(
-        shared->GetBytecodeArray(CcTest::i_isolate()));
+    SharedFunctionInfo::EnsureOldForTesting(*shared);
   }
 
   // The first GC flushes the BytecodeArray from the SFI.
@@ -1634,8 +1611,7 @@ template <typename T>
 void AgeBytecode(v8::Local<T> function_or_script) {
   Handle<SharedFunctionInfo> shared = GetSharedFunctionInfo(function_or_script);
   CHECK(shared->HasBytecodeArray());
-  BytecodeArray::EnsureOldForTesting(
-      shared->GetBytecodeArray(CcTest::i_isolate()));
+  SharedFunctionInfo::EnsureOldForTesting(*shared);
 }
 
 void CompilationCacheRegeneration(bool retain_root_sfi, bool flush_root_sfi,

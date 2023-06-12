@@ -2848,9 +2848,7 @@ static void CodeSerializerMergeDeserializedScript(bool retain_toplevel_sfi) {
     Handle<SharedFunctionInfo> shared = CompileScriptAndProduceCache(
         isolate, source, ScriptDetails(), &cached_data,
         v8::ScriptCompiler::kNoCompileOptions);
-    Handle<BytecodeArray> bytecode =
-        handle(shared->GetBytecodeArray(isolate), isolate);
-    BytecodeArray::EnsureOldForTesting(*bytecode);
+    SharedFunctionInfo::EnsureOldForTesting(*shared);
     Handle<Script> local_script =
         handle(Script::cast(shared->script()), isolate);
     script = first_compilation_scope.CloseAndEscape(local_script);
