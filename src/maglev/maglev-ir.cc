@@ -1084,6 +1084,17 @@ void CheckInt32IsSmi::GenerateCode(MaglevAssembler* masm,
   __ CheckInt32IsSmi(reg, fail);
 }
 
+void CheckedInt32ToUint32::SetValueLocationConstraints() {
+  UseRegister(input());
+  DefineSameAsFirst(this);
+}
+void CheckedInt32ToUint32::GenerateCode(MaglevAssembler* masm,
+                                        const ProcessingState& state) {
+  __ CompareInt32AndJumpIf(
+      ToRegister(input()), 0, kLessThan,
+      __ GetDeoptLabel(this, DeoptimizeReason::kNotUint32));
+}
+
 void CheckHoleyFloat64IsSmi::SetValueLocationConstraints() {
   UseRegister(input());
   set_temporaries_needed(1);
@@ -1278,6 +1289,24 @@ void TruncateNumberOrOddballToInt32::GenerateCode(
   DCHECK_EQ(value, result_reg);
   EmitTruncateNumberOrOddballToInt32(masm, value, result_reg, conversion_type(),
                                      nullptr);
+}
+
+void ChangeInt32ToFloat64::SetValueLocationConstraints() {
+  UseRegister(input());
+  DefineAsRegister(this);
+}
+void ChangeInt32ToFloat64::GenerateCode(MaglevAssembler* masm,
+                                        const ProcessingState& state) {
+  __ Int32ToDouble(ToDoubleRegister(result()), ToRegister(input()));
+}
+
+void ChangeUint32ToFloat64::SetValueLocationConstraints() {
+  UseRegister(input());
+  DefineAsRegister(this);
+}
+void ChangeUint32ToFloat64::GenerateCode(MaglevAssembler* masm,
+                                         const ProcessingState& state) {
+  __ Uint32ToDouble(ToDoubleRegister(result()), ToRegister(input()));
 }
 
 void CheckMaps::SetValueLocationConstraints() {

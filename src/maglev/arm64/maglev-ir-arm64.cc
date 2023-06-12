@@ -151,35 +151,6 @@ void FoldedAllocation::GenerateCode(MaglevAssembler* masm,
   __ Add(ToRegister(result()), ToRegister(raw_allocation()), offset());
 }
 
-void CheckedInt32ToUint32::SetValueLocationConstraints() {
-  UseRegister(input());
-  DefineSameAsFirst(this);
-}
-void CheckedInt32ToUint32::GenerateCode(MaglevAssembler* masm,
-                                        const ProcessingState& state) {
-  Register input_reg = ToRegister(input()).W();
-  __ Tst(input_reg, input_reg);
-  __ EmitEagerDeoptIf(mi, DeoptimizeReason::kNotUint32, this);
-}
-
-void ChangeInt32ToFloat64::SetValueLocationConstraints() {
-  UseRegister(input());
-  DefineAsRegister(this);
-}
-void ChangeInt32ToFloat64::GenerateCode(MaglevAssembler* masm,
-                                        const ProcessingState& state) {
-  __ Scvtf(ToDoubleRegister(result()), ToRegister(input()).W());
-}
-
-void ChangeUint32ToFloat64::SetValueLocationConstraints() {
-  UseRegister(input());
-  DefineAsRegister(this);
-}
-void ChangeUint32ToFloat64::GenerateCode(MaglevAssembler* masm,
-                                         const ProcessingState& state) {
-  __ Ucvtf(ToDoubleRegister(result()), ToRegister(input()).W());
-}
-
 void CheckedTruncateFloat64ToUint32::SetValueLocationConstraints() {
   UseRegister(input());
   DefineAsRegister(this);

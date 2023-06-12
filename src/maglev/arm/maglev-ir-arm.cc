@@ -123,34 +123,7 @@ void FoldedAllocation::SetValueLocationConstraints() {
 
 void FoldedAllocation::GenerateCode(MaglevAssembler* masm,
                                     const ProcessingState& state) {
-  MAGLEV_NODE_NOT_IMPLEMENTED(FoldedAllocation);
-}
-
-void CheckedInt32ToUint32::SetValueLocationConstraints() {
-  UseRegister(input());
-  DefineSameAsFirst(this);
-}
-void CheckedInt32ToUint32::GenerateCode(MaglevAssembler* masm,
-                                        const ProcessingState& state) {
-  MAGLEV_NODE_NOT_IMPLEMENTED(CheckedInt32ToUint32);
-}
-
-void ChangeInt32ToFloat64::SetValueLocationConstraints() {
-  UseRegister(input());
-  DefineAsRegister(this);
-}
-void ChangeInt32ToFloat64::GenerateCode(MaglevAssembler* masm,
-                                        const ProcessingState& state) {
-  MAGLEV_NODE_NOT_IMPLEMENTED(ChangeInt32ToFloat64);
-}
-
-void ChangeUint32ToFloat64::SetValueLocationConstraints() {
-  UseRegister(input());
-  DefineAsRegister(this);
-}
-void ChangeUint32ToFloat64::GenerateCode(MaglevAssembler* masm,
-                                         const ProcessingState& state) {
-  MAGLEV_NODE_NOT_IMPLEMENTED(ChangeUint32ToFloat64);
+  __ add(ToRegister(result()), ToRegister(raw_allocation()), Operand(offset()));
 }
 
 void CheckedTruncateFloat64ToUint32::SetValueLocationConstraints() {

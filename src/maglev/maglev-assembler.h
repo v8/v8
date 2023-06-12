@@ -344,7 +344,8 @@ class MaglevAssembler : public MacroAssembler {
       MemOperand operand, int32_t mask, Label* target,
       Label::Distance distance = Label::kFar);
 
-  inline void Int32ToDouble(DoubleRegister result, Register n);
+  inline void Int32ToDouble(DoubleRegister result, Register src);
+  inline void Uint32ToDouble(DoubleRegister result, Register src);
   inline void SmiToDouble(DoubleRegister result, Register smi);
 
   void StringLength(Register result, Register string);

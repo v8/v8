@@ -604,7 +604,7 @@ inline void MaglevAssembler::CompareTagged(Register src1, Register src2) {
 }
 
 inline void MaglevAssembler::CompareInt32(Register reg, int32_t imm) {
-  cmpl(reg, Immediate(imm));
+  Cmp(reg, imm);
 }
 
 inline void MaglevAssembler::CompareInt32(Register src1, Register src2) {
@@ -737,8 +737,17 @@ inline void MaglevAssembler::LoadHeapNumberValue(DoubleRegister result,
   Movsd(result, FieldOperand(heap_number, HeapNumber::kValueOffset));
 }
 
-inline void MaglevAssembler::Int32ToDouble(DoubleRegister result, Register n) {
-  Cvtlsi2sd(result, n);
+inline void MaglevAssembler::Int32ToDouble(DoubleRegister result,
+                                           Register src) {
+  Cvtlsi2sd(result, src);
+}
+
+inline void MaglevAssembler::Uint32ToDouble(DoubleRegister result,
+                                            Register src) {
+  // TODO(leszeks): Cvtlui2sd does a manual movl to clear the top bits of the
+  // input register. We could eliminate this movl by ensuring that word32
+  // registers are always written with 32-bit ops and not 64-bit ones.
+  Cvtlui2sd(result, src);
 }
 
 inline void MaglevAssembler::Pop(Register dst) { MacroAssembler::Pop(dst); }

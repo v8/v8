@@ -1423,38 +1423,6 @@ void SetPendingMessage::GenerateCode(MaglevAssembler* masm,
   }
 }
 
-void CheckedInt32ToUint32::SetValueLocationConstraints() {
-  UseRegister(input());
-  DefineSameAsFirst(this);
-}
-void CheckedInt32ToUint32::GenerateCode(MaglevAssembler* masm,
-                                        const ProcessingState& state) {
-  Register input_reg = ToRegister(input());
-  __ testl(input_reg, input_reg);
-  __ EmitEagerDeoptIf(negative, DeoptimizeReason::kNotUint32, this);
-}
-
-void ChangeInt32ToFloat64::SetValueLocationConstraints() {
-  UseRegister(input());
-  DefineAsRegister(this);
-}
-void ChangeInt32ToFloat64::GenerateCode(MaglevAssembler* masm,
-                                        const ProcessingState& state) {
-  __ Cvtlsi2sd(ToDoubleRegister(result()), ToRegister(input()));
-}
-
-void ChangeUint32ToFloat64::SetValueLocationConstraints() {
-  UseRegister(input());
-  DefineAsRegister(this);
-}
-void ChangeUint32ToFloat64::GenerateCode(MaglevAssembler* masm,
-                                         const ProcessingState& state) {
-  // TODO(leszeks): Cvtlui2sd does a manual movl to clear the top bits of the
-  // input register. We could eliminate this movl by ensuring that word32
-  // registers are always written with 32-bit ops and not 64-bit ones.
-  __ Cvtlui2sd(ToDoubleRegister(result()), ToRegister(input()));
-}
-
 void CheckedTruncateFloat64ToUint32::SetValueLocationConstraints() {
   UseRegister(input());
   DefineAsRegister(this);

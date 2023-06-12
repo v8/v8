@@ -714,7 +714,8 @@ inline void MaglevAssembler::LoadHeapNumberValue(DoubleRegister result,
   vldr(result, FieldMemOperand(heap_number, HeapNumber::kValueOffset));
 }
 
-inline void MaglevAssembler::Int32ToDouble(DoubleRegister result, Register n) {
+inline void MaglevAssembler::Int32ToDouble(DoubleRegister result,
+                                           Register src) {
   UseScratchRegisterScope temps(this);
   SwVfpRegister temp_vfps = SwVfpRegister::no_reg();
   if (result.code() < 16) {
@@ -722,8 +723,21 @@ inline void MaglevAssembler::Int32ToDouble(DoubleRegister result, Register n) {
   } else {
     temp_vfps = temps.AcquireS();
   }
-  vmov(temp_vfps, n);
+  vmov(temp_vfps, src);
   vcvt_f64_s32(result, temp_vfps);
+}
+
+inline void MaglevAssembler::Uint32ToDouble(DoubleRegister result,
+                                            Register src) {
+  UseScratchRegisterScope temps(this);
+  SwVfpRegister temp_vfps = SwVfpRegister::no_reg();
+  if (result.code() < 16) {
+    temp_vfps = LowDwVfpRegister::from_code(result.code()).low();
+  } else {
+    temp_vfps = temps.AcquireS();
+  }
+  vmov(temp_vfps, src);
+  vcvt_f64_u32(result, temp_vfps);
 }
 
 inline void MaglevAssembler::Pop(Register dst) { pop(dst); }
