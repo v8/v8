@@ -1795,7 +1795,8 @@ class CalendarCache {
     DCHECK_NOT_NULL(calendar.get());
 
     if (calendar->getDynamicClassID() ==
-        icu::GregorianCalendar::getStaticClassID()) {
+            icu::GregorianCalendar::getStaticClassID() ||
+        strcmp(calendar->getType(), "iso8601") == 0) {
       icu::GregorianCalendar* gc =
           static_cast<icu::GregorianCalendar*>(calendar.get());
       status = U_ZERO_ERROR;
