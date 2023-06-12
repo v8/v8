@@ -2421,40 +2421,45 @@ struct InstructionSelectionPhase {
 
   base::Optional<BailoutReason> Run(PipelineData* data, Zone* temp_zone,
                                     Linkage* linkage) {
-    InstructionSelector selector(
-        temp_zone, data->graph()->NodeCount(), linkage, data->sequence(),
-        data->schedule(), data->source_positions(), data->frame(),
-        data->info()->switch_jump_table()
-            ? InstructionSelector::kEnableSwitchJumpTable
-            : InstructionSelector::kDisableSwitchJumpTable,
-        &data->info()->tick_counter(), data->broker(),
-        data->address_of_max_unoptimized_frame_height(),
-        data->address_of_max_pushed_argument_count(),
-        data->info()->source_positions()
-            ? InstructionSelector::kAllSourcePositions
-            : InstructionSelector::kCallSourcePositions,
-        InstructionSelector::SupportedFeatures(),
-        v8_flags.turbo_instruction_scheduling
-            ? InstructionSelector::kEnableScheduling
-            : InstructionSelector::kDisableScheduling,
-        data->assembler_options().enable_root_relative_access
-            ? InstructionSelector::kEnableRootsRelativeAddressing
-            : InstructionSelector::kDisableRootsRelativeAddressing,
-        data->info()->trace_turbo_json()
-            ? InstructionSelector::kEnableTraceTurboJson
-            : InstructionSelector::kDisableTraceTurboJson);
-    if (base::Optional<BailoutReason> bailout = selector.SelectInstructions()) {
-      return bailout;
+    if (v8_flags.turboshaft && v8_flags.turboshaft_instruction_selection) {
+      UNIMPLEMENTED();
+    } else {
+      InstructionSelector selector(
+          temp_zone, data->graph()->NodeCount(), linkage, data->sequence(),
+          data->schedule(), data->source_positions(), data->frame(),
+          data->info()->switch_jump_table()
+              ? InstructionSelector::kEnableSwitchJumpTable
+              : InstructionSelector::kDisableSwitchJumpTable,
+          &data->info()->tick_counter(), data->broker(),
+          data->address_of_max_unoptimized_frame_height(),
+          data->address_of_max_pushed_argument_count(),
+          data->info()->source_positions()
+              ? InstructionSelector::kAllSourcePositions
+              : InstructionSelector::kCallSourcePositions,
+          InstructionSelector::SupportedFeatures(),
+          v8_flags.turbo_instruction_scheduling
+              ? InstructionSelector::kEnableScheduling
+              : InstructionSelector::kDisableScheduling,
+          data->assembler_options().enable_root_relative_access
+              ? InstructionSelector::kEnableRootsRelativeAddressing
+              : InstructionSelector::kDisableRootsRelativeAddressing,
+          data->info()->trace_turbo_json()
+              ? InstructionSelector::kEnableTraceTurboJson
+              : InstructionSelector::kDisableTraceTurboJson);
+      if (base::Optional<BailoutReason> bailout =
+              selector.SelectInstructions()) {
+        return bailout;
+      }
+      if (data->info()->trace_turbo_json()) {
+        TurboJsonFile json_of(data->info(), std::ios_base::app);
+        json_of << "{\"name\":\"" << phase_name()
+                << "\",\"type\":\"instructions\""
+                << InstructionRangesAsJSON{data->sequence(),
+                                           &selector.instr_origins()}
+                << "},\n";
+      }
+      return base::nullopt;
     }
-    if (data->info()->trace_turbo_json()) {
-      TurboJsonFile json_of(data->info(), std::ios_base::app);
-      json_of << "{\"name\":\"" << phase_name()
-              << "\",\"type\":\"instructions\""
-              << InstructionRangesAsJSON{data->sequence(),
-                                         &selector.instr_origins()}
-              << "},\n";
-    }
-    return base::nullopt;
   }
 };
 

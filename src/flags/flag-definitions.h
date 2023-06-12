@@ -1152,6 +1152,9 @@ DEFINE_EXPERIMENTAL_FEATURE(turboshaft_wasm,
 DEFINE_EXPERIMENTAL_FEATURE(turboshaft_typed_optimizations,
                             "enable an additional Turboshaft phase that "
                             "performs optimizations based on type information")
+DEFINE_EXPERIMENTAL_FEATURE(
+    turboshaft_instruction_selection,
+    "run instruction selection on Turboshaft IR directly")
 #ifdef DEBUG
 DEFINE_UINT64(turboshaft_opt_bisect_limit, std::numeric_limits<uint64_t>::max(),
               "stop applying optional optimizations after a specified number "

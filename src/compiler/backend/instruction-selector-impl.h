@@ -68,11 +68,26 @@ class SwitchInfo {
   BasicBlock* default_branch_;
 };
 
+#define OPERAND_GENERATOR_T_BOILERPLATE(adapter)           \
+  using super = OperandGeneratorT<adapter>;                \
+  using RegisterMode = typename super::RegisterMode;       \
+  using RegisterUseKind = typename super::RegisterUseKind; \
+  using super::selector;                                   \
+  using super::DefineAsRegister;                           \
+  using super::TempImmediate;                              \
+  using super::UseFixed;                                   \
+  using super::UseImmediate;                               \
+  using super::UseNegatedImmediate;                        \
+  using super::UseRegister;                                \
+  using super::UseRegisterWithMode;                        \
+  using super::UseUniqueRegister;
+
 // A helper class for the instruction selector that simplifies construction of
 // Operands. This class implements a base for architecture-specific helpers.
-class OperandGenerator {
+template <typename Adapter>
+class OperandGeneratorT {
  public:
-  explicit OperandGenerator(InstructionSelector* selector)
+  explicit OperandGeneratorT(InstructionSelectorT<Adapter>* selector)
       : selector_(selector) {}
 
   InstructionOperand NoOutput() {
@@ -326,7 +341,7 @@ class OperandGenerator {
   }
 
  protected:
-  InstructionSelector* selector() const { return selector_; }
+  InstructionSelectorT<Adapter>* selector() const { return selector_; }
   InstructionSequence* sequence() const { return selector()->sequence(); }
   Zone* zone() const { return selector()->instruction_zone(); }
 
@@ -465,7 +480,7 @@ class OperandGenerator {
                               location.AsRegister(), virtual_register);
   }
 
-  InstructionSelector* selector_;
+  InstructionSelectorT<Adapter>* selector_;
 };
 
 }  // namespace compiler
