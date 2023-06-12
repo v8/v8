@@ -4457,7 +4457,10 @@ class AssertInt32 : public FixedInputNodeT<2, AssertInt32> {
 // operations.
 class MapCompare {
  public:
-  MapCompare() : register_for_map_compare_(Register::no_reg()) {}
+  explicit MapCompare(size_t map_count)
+      : register_for_map_compare_(Register::no_reg()), map_count_(map_count) {
+    USE(map_count_);
+  }
 
   // Call this first to load the map of the object.
   void GenerateMapLoad(MaglevAssembler* masm, Register object);
@@ -4475,6 +4478,7 @@ class MapCompare {
 
  private:
   Register register_for_map_compare_;
+  size_t map_count_;
 };
 
 class CheckMaps : public FixedInputNodeT<1, CheckMaps> {
@@ -4483,7 +4487,9 @@ class CheckMaps : public FixedInputNodeT<1, CheckMaps> {
  public:
   explicit CheckMaps(uint64_t bitfield, const compiler::ZoneRefSet<Map>& maps,
                      CheckType check_type)
-      : Base(CheckTypeBitField::update(bitfield, check_type)), maps_(maps) {}
+      : Base(CheckTypeBitField::update(bitfield, check_type)),
+        maps_(maps),
+        map_compare_(maps.size()) {}
 
   static constexpr OpProperties kProperties = OpProperties::EagerDeopt();
   static constexpr
@@ -4792,7 +4798,9 @@ class CheckMapsWithMigration
   explicit CheckMapsWithMigration(uint64_t bitfield,
                                   const compiler::ZoneRefSet<Map>& maps,
                                   CheckType check_type)
-      : Base(CheckTypeBitField::update(bitfield, check_type)), maps_(maps) {}
+      : Base(CheckTypeBitField::update(bitfield, check_type)),
+        maps_(maps),
+        map_compare_(maps.size()) {}
 
   static constexpr OpProperties kProperties =
       OpProperties::EagerDeopt() | OpProperties::DeferredCall() |
