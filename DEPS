@@ -107,7 +107,7 @@ deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '147f65333c38ddd1ebf554e89965c243c8ce50b3',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '2513c22ec447af11eb1aba3d5bb396c8e17bb7fb',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '5e03e46b477265cea55afeffb2a86732fb234690',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '3819ac6f3de594da7386c62474cedcf3b7194bb7',
   'buildtools/clang_format/script':
@@ -210,7 +210,7 @@ deps = {
     'packages': [
       {
         'package': 'chromium/third_party/android_toolchain/android_toolchain',
-        'version': 'version:2@r23c.cr0',
+        'version': 'version:2@r25c.cr0',
       },
     ],
     'condition': 'checkout_android',
