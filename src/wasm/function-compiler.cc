@@ -186,37 +186,24 @@ void WasmCompilationUnit::CompileWasmFunction(Counters* counters,
 }
 
 namespace {
-bool UseGenericWrapper(const FunctionSig* sig) {
-#if V8_TARGET_ARCH_ARM64
-  if (!v8_flags.enable_wasm_arm64_generic_wrapper) {
+bool UseGenericWrapper(const WasmModule* module, const FunctionSig* sig) {
+  if constexpr (!SmiValuesAre31Bits()) {
+    // The generic wrapper does not work without pointer compression at the
+    // moment because without pointer compression, a JavaScript Smi does not fit
+    // into a WebAssembly I31. The JSToWasm wrapper then has to canonicalize Smi
+    // and allocate a HeapNumber for Smis that don't fit into an I31. This
+    // HeapNumber allocation may cause a GC, and the wrapper cannot handle this
+    // GC yet.
+    // TODO(ahaas): Support the generic wrapper in the no-pointer-compression
+    // build.
     return false;
   }
-#endif
-#if (V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64)
-  if (sig->returns().size() > 1) {
-    return false;
-  }
-  if (sig->returns().size() == 1) {
-    ValueType ret = sig->GetReturn(0);
-    if (ret.kind() == kS128) return false;
-    if (ret.is_reference()) {
-      if (ret.heap_representation() != wasm::HeapType::kExtern &&
-          ret.heap_representation() != wasm::HeapType::kFunc) {
-        return false;
-      }
-    }
-  }
-  for (ValueType type : sig->parameters()) {
-    if (type.kind() != kI32 && type.kind() != kI64 && type.kind() != kF32 &&
-        type.kind() != kF64 &&
-        // TODO(7748): The generic wrapper should also take care of null
-        // checks.
-        !(type.kind() == kRefNull &&
-          type.heap_representation() == wasm::HeapType::kExtern)) {
-      return false;
-    }
-  }
-  return v8_flags.wasm_generic_wrapper;
+#if (V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_IA32 || \
+     V8_TARGET_ARCH_ARM)
+  // We don't use the generic wrapper for asm.js, because it creates invalid
+  // stack traces.
+  return !is_asmjs_module(module) && v8_flags.wasm_generic_wrapper &&
+         IsJSCompatibleSignature(sig);
 #else
   return false;
 #endif
@@ -231,7 +218,7 @@ JSToWasmWrapperCompilationUnit::JSToWasmWrapperCompilationUnit(
       is_import_(is_import),
       sig_(sig),
       canonical_sig_index_(canonical_sig_index),
-      use_generic_wrapper_(allow_generic && UseGenericWrapper(sig) &&
+      use_generic_wrapper_(allow_generic && UseGenericWrapper(module, sig) &&
                            !is_import),
       job_(use_generic_wrapper_
                ? nullptr
@@ -251,7 +238,7 @@ void JSToWasmWrapperCompilationUnit::Execute() {
 
 Handle<Code> JSToWasmWrapperCompilationUnit::Finalize() {
   if (use_generic_wrapper_) {
-    return isolate_->builtins()->code_handle(Builtin::kGenericJSToWasmWrapper);
+    return isolate_->builtins()->code_handle(Builtin::kJSToWasmWrapper);
   }
 
   CompilationJob::Status status = job_->FinalizeJob(isolate_);

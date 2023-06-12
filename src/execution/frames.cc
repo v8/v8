@@ -2897,8 +2897,13 @@ WasmInstanceObject WasmToJsFrame::wasm_instance() const {
 }
 
 void JsToWasmFrame::Iterate(RootVisitor* v) const {
-  DCHECK_EQ(GetContainingCode(isolate(), pc())->builtin_id(),
-            Builtin::kGenericJSToWasmWrapper);
+  auto builtin = GetContainingCode(isolate(), pc())->builtin_id();
+  if (builtin == Builtin::kNewGenericJSToWasmWrapper) {
+    // This builtin does not have to scan anything.
+    return;
+  }
+
+  DCHECK_EQ(builtin, Builtin::kGenericJSToWasmWrapper);
 
   //  GenericJSToWasmWrapper stack layout
   //  ------+-----------------+----------------------

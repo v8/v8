@@ -2999,6 +2999,129 @@ void Builtins::Generate_GenericJSToWasmWrapper(MacroAssembler* masm) {
   __ Trap();
 }
 
+void Builtins::Generate_NewGenericJSToWasmWrapper(MacroAssembler* masm) {
+  __ EnterFrame(StackFrame::JS_TO_WASM);
+  Register wrapper_buffer =
+      WasmNewJSToWasmWrapperDescriptor::WrapperBufferRegister();
+  // Push the wrapper_buffer stack, it's needed later for the results.
+  __ push(wrapper_buffer);
+  Register result_size = eax;
+  __ mov(result_size,
+         MemOperand(
+             wrapper_buffer,
+             JSToWasmWrapperConstants::kWrapperBufferStackReturnBufferSize));
+  __ shl(result_size, kSystemPointerSizeLog2);
+  __ sub(esp, result_size);
+  __ mov(MemOperand(
+             wrapper_buffer,
+             JSToWasmWrapperConstants::kWrapperBufferStackReturnBufferStart),
+         esp);
+  Register params_start = eax;
+  __ mov(params_start,
+         MemOperand(wrapper_buffer,
+                    JSToWasmWrapperConstants::kWrapperBufferParamStart));
+  Register params_end = esi;
+  __ mov(params_end,
+         MemOperand(wrapper_buffer,
+                    JSToWasmWrapperConstants::kWrapperBufferParamEnd));
+  Register call_target = edi;
+  __ mov(call_target,
+         MemOperand(wrapper_buffer,
+                    JSToWasmWrapperConstants::kWrapperBufferCallTarget));
+
+  Register last_stack_param = ecx;
+
+  // The first GP parameter is the instance, which we handle specially.
+  int stack_params_offset =
+      (arraysize(wasm::kGpParamRegisters) - 1) * kSystemPointerSize +
+      arraysize(wasm::kFpParamRegisters) * kDoubleSize;
+  int param_padding = stack_params_offset & kSystemPointerSize;
+  stack_params_offset += param_padding;
+  __ lea(last_stack_param, MemOperand(params_start, stack_params_offset));
+
+  Label loop_start;
+  __ bind(&loop_start);
+
+  Label finish_stack_params;
+  __ cmp(last_stack_param, params_end);
+  __ j(greater_equal, &finish_stack_params);
+
+  // Push parameter
+  __ sub(params_end, Immediate(kSystemPointerSize));
+  __ push(MemOperand(params_end, 0));
+  __ jmp(&loop_start);
+
+  __ bind(&finish_stack_params);
+
+  int next_offset = stack_params_offset;
+  for (size_t i = arraysize(wasm::kFpParamRegisters) - 1;
+       i < arraysize(wasm::kFpParamRegisters); --i) {
+    next_offset -= kDoubleSize;
+    __ Movsd(wasm::kFpParamRegisters[i], MemOperand(params_start, next_offset));
+  }
+
+  // Set the flag-in-wasm flag before loading the parameter registers. There are
+  // not so many registers, so we use one of the parameter registers before it
+  // is blocked.
+  Register thread_in_wasm_flag_addr = ecx;
+  __ mov(
+      thread_in_wasm_flag_addr,
+      MemOperand(kRootRegister, Isolate::thread_in_wasm_flag_address_offset()));
+  __ mov(MemOperand(thread_in_wasm_flag_addr, 0), Immediate(1));
+
+  next_offset -= param_padding;
+  for (size_t i = arraysize(wasm::kGpParamRegisters) - 1; i > 0; --i) {
+    next_offset -= kSystemPointerSize;
+    __ mov(wasm::kGpParamRegisters[i], MemOperand(params_start, next_offset));
+  }
+  DCHECK_EQ(next_offset, 0);
+  // Since there are so few registers, {params_start} overlaps with one of the
+  // parameter registers. Make sure it overlaps with the last one we fill.
+  DCHECK_EQ(params_start, wasm::kGpParamRegisters[1]);
+
+  __ mov(kWasmInstanceRegister,
+         MemOperand(ebp, JSToWasmWrapperConstants::kInstanceOffset));
+
+  __ call(call_target);
+
+  __ mov(
+      thread_in_wasm_flag_addr,
+      MemOperand(kRootRegister, Isolate::thread_in_wasm_flag_address_offset()));
+  __ mov(MemOperand(thread_in_wasm_flag_addr, 0), Immediate(0));
+  thread_in_wasm_flag_addr = no_reg;
+
+  wrapper_buffer = esi;
+  __ mov(wrapper_buffer, MemOperand(ebp, -2 * kSystemPointerSize));
+
+  __ Movsd(
+      MemOperand(wrapper_buffer,
+                 JSToWasmWrapperConstants::kWrapperBufferFPReturnRegister1),
+      wasm::kFpReturnRegisters[0]);
+  __ Movsd(
+      MemOperand(wrapper_buffer,
+                 JSToWasmWrapperConstants::kWrapperBufferFPReturnRegister2),
+      wasm::kFpReturnRegisters[1]);
+  __ mov(MemOperand(wrapper_buffer,
+                    JSToWasmWrapperConstants::kWrapperBufferGPReturnRegister1),
+         wasm::kGpReturnRegisters[0]);
+  __ mov(MemOperand(wrapper_buffer,
+                    JSToWasmWrapperConstants::kWrapperBufferGPReturnRegister2),
+         wasm::kGpReturnRegisters[1]);
+
+  // Call the return value builtin with
+  // eax: wasm instance.
+  // ecx: the result JSArray for multi-return.
+  // edx: pointer to the wrapper buffer which contains all parameters.
+  __ mov(eax, MemOperand(ebp, JSToWasmWrapperConstants::kInstanceOffset));
+  __ mov(ecx, MemOperand(ebp, JSToWasmWrapperConstants::kResultArrayOffset));
+  __ mov(edx, wrapper_buffer);
+  __ Call(BUILTIN_CODE(masm->isolate(), JSToWasmHandleReturns),
+          RelocInfo::CODE_TARGET);
+
+  __ LeaveFrame(StackFrame::JS_TO_WASM);
+  __ ret(0);
+}
+
 void Builtins::Generate_WasmReturnPromiseOnSuspend(MacroAssembler* masm) {
   // TODO(v8:12191): Implement for this platform.
   __ Trap();

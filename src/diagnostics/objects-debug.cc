@@ -1947,6 +1947,7 @@ void WasmExportedFunctionData::WasmExportedFunctionDataVerify(
       wrapper_code().kind() == CodeKind::C_WASM_ENTRY ||
       (wrapper_code().is_builtin() &&
        (wrapper_code().builtin_id() == Builtin::kGenericJSToWasmWrapper ||
+        wrapper_code().builtin_id() == Builtin::kJSToWasmWrapper ||
         wrapper_code().builtin_id() == Builtin::kWasmReturnPromiseOnSuspend)));
 }
 
