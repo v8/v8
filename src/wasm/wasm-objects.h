@@ -1114,11 +1114,10 @@ MaybeHandle<Object> JSToWasmObject(Isolate* isolate, const WasmModule* module,
                                    Handle<Object> value, ValueType expected,
                                    const char** error_message);
 
-// Takes a {value} in the Wasm representation and tries to transform it to the
-// respective JS representation. If the transformation fails, the empty handle
-// is returned.
-MaybeHandle<Object> WasmToJSObject(Isolate* isolate, Handle<Object> value,
-                                   HeapType type, const char** error_message);
+// Takes a {value} in the Wasm representation and transforms it to the
+// respective JS representation. The caller is responsible for not providing an
+// object which cannot be transformed to JS.
+Handle<Object> WasmToJSObject(Isolate* isolate, Handle<Object> value);
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

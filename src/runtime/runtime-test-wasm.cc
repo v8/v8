@@ -327,7 +327,18 @@ RUNTIME_FUNCTION(Runtime_GetWasmExceptionValues) {
       WasmExceptionPackage::GetExceptionValues(isolate, exception);
   CHECK(values_obj->IsFixedArray());  // Only called with correct input.
   Handle<FixedArray> values = Handle<FixedArray>::cast(values_obj);
-  return *isolate->factory()->NewJSArrayWithElements(values);
+  Handle<FixedArray> externalized_values =
+      isolate->factory()->NewFixedArray(values->length());
+  for (int i = 0; i < values->length(); i++) {
+    Handle<Object> value = handle(values->get(i), isolate);
+    if (!value->IsSmi()) {
+      // Note: This will leak string views to JS. This should be fine for a
+      // debugging function.
+      value = wasm::WasmToJSObject(isolate, value);
+    }
+    externalized_values->set(i, *value);
+  }
+  return *isolate->factory()->NewJSArrayWithElements(externalized_values);
 }
 
 RUNTIME_FUNCTION(Runtime_SerializeWasmModule) {

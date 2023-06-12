@@ -2461,46 +2461,14 @@ MaybeHandle<Object> JSToWasmObject(Isolate* isolate, const WasmModule* module,
   return JSToWasmObject(isolate, value, expected_canonical, error_message);
 }
 
-MaybeHandle<Object> WasmToJSObject(Isolate* isolate, Handle<Object> value,
-                                   HeapType type, const char** error_message) {
-  switch (type.representation()) {
-    case i::wasm::HeapType::kExtern:
-    case i::wasm::HeapType::kString:
-    case i::wasm::HeapType::kI31:
-    case i::wasm::HeapType::kStruct:
-    case i::wasm::HeapType::kArray:
-    case i::wasm::HeapType::kEq:
-    case i::wasm::HeapType::kAny:
-      return value->IsWasmNull() ? isolate->factory()->null_value() : value;
-    case i::wasm::HeapType::kFunc: {
-      if (value->IsWasmNull()) {
-        return isolate->factory()->null_value();
-      } else {
-        DCHECK(value->IsWasmInternalFunction());
-        return i::WasmInternalFunction::GetOrCreateExternal(
-            i::Handle<i::WasmInternalFunction>::cast(value));
-      }
-    }
-    case i::wasm::HeapType::kStringViewWtf8:
-      *error_message = "stringview_wtf8 has no JS representation";
-      return {};
-    case i::wasm::HeapType::kStringViewWtf16:
-      *error_message = "stringview_wtf16 has no JS representation";
-      return {};
-    case i::wasm::HeapType::kStringViewIter:
-      *error_message = "stringview_iter has no JS representation";
-      return {};
-    case i::wasm::HeapType::kBottom:
-      UNREACHABLE();
-    default:
-      if (value->IsWasmNull()) {
-        return isolate->factory()->null_value();
-      } else if (value->IsWasmInternalFunction()) {
-        return i::WasmInternalFunction::GetOrCreateExternal(
-            i::Handle<i::WasmInternalFunction>::cast(value));
-      } else {
-        return value;
-      }
+Handle<Object> WasmToJSObject(Isolate* isolate, Handle<Object> value) {
+  if (value->IsWasmNull()) {
+    return isolate->factory()->null_value();
+  } else if (value->IsWasmInternalFunction()) {
+    return i::WasmInternalFunction::GetOrCreateExternal(
+        i::Handle<i::WasmInternalFunction>::cast(value));
+  } else {
+    return value;
   }
 }
 
