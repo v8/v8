@@ -16,6 +16,9 @@ function testOptimized(run, fctToOptimize) {
   }
   %OptimizeFunctionOnNextCall(fctToOptimize);
   run();
+  // Re-prepare the function immediately to make sure type feedback isn't
+  // cleared by an untimely gc.
+  %PrepareFunctionForOptimization(fctToOptimize);
   assertOptimized(fctToOptimize);
 }
 
