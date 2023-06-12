@@ -390,6 +390,10 @@ declare_args() {
   # iOS (non-simulator) does not have executable pages for 3rd party
   # applications yet so disable jit.
   v8_jitless = v8_enable_lite_mode || target_is_ios_device
+
+  # Enable Maglev's graph printer.
+  # Sets -DV8_MAGLEV_GRAPH_PRINTER.
+  v8_enable_maglev_graph_printer = !build_with_chromium
 }
 
 # Derived defaults.
@@ -1164,6 +1168,9 @@ config("features") {
   }
   if (v8_code_pointer_sandboxing) {
     defines += [ "V8_CODE_POINTER_SANDBOXING" ]
+  }
+  if (v8_enable_maglev_graph_printer) {
+    defines += [ "V8_ENABLE_MAGLEV_GRAPH_PRINTER" ]
   }
 }
 

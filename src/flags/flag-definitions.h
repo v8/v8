@@ -544,19 +544,33 @@ DEFINE_BOOL(maglev_assert, false, "insert extra assertion in maglev code")
 DEFINE_DEBUG_BOOL(maglev_assert_stack_size, true,
                   "insert stack size checks before every IR node")
 DEFINE_BOOL(maglev_break_on_entry, false, "insert an int3 on maglev entries")
-DEFINE_BOOL(print_maglev_graph, false, "print the final maglev graph")
-DEFINE_BOOL(print_maglev_graphs, false, "print maglev graph across all phases")
 DEFINE_BOOL(maglev_print_feedback, true,
             "print feedback vector for maglev compiled code")
-DEFINE_BOOL(print_maglev_deopt_verbose, false, "print verbose deopt info")
+
 DEFINE_BOOL(print_maglev_code, false, "print maglev code")
 DEFINE_BOOL(trace_maglev_graph_building, false, "trace maglev graph building")
 DEFINE_BOOL(trace_maglev_inlining, false, "trace maglev inlining")
 DEFINE_BOOL(trace_maglev_inlining_verbose, false,
             "trace maglev inlining (verbose)")
 DEFINE_IMPLICATION(trace_maglev_inlining_verbose, trace_maglev_inlining)
+
+#ifdef V8_ENABLE_MAGLEV_GRAPH_PRINTER
+DEFINE_BOOL(print_maglev_deopt_verbose, false, "print verbose deopt info")
+DEFINE_BOOL(print_maglev_graph, false, "print the final maglev graph")
+DEFINE_BOOL(print_maglev_graphs, false, "print maglev graph across all phases")
 DEFINE_BOOL(trace_maglev_phi_untagging, false, "trace maglev phi untagging")
 DEFINE_BOOL(trace_maglev_regalloc, false, "trace maglev register allocation")
+#else
+DEFINE_BOOL_READONLY(print_maglev_deopt_verbose, false,
+                     "print verbose deopt info")
+DEFINE_BOOL_READONLY(print_maglev_graph, false, "print the final maglev graph")
+DEFINE_BOOL_READONLY(print_maglev_graphs, false,
+                     "print maglev graph across all phases")
+DEFINE_BOOL_READONLY(trace_maglev_phi_untagging, false,
+                     "trace maglev phi untagging")
+DEFINE_BOOL_READONLY(trace_maglev_regalloc, false,
+                     "trace maglev register allocation")
+#endif  // V8_ENABLE_MAGLEV_GRAPH_PRINTER
 
 // TODO(v8:7700): Remove once stable.
 DEFINE_BOOL(maglev_function_context_specialization, true,

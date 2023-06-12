@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef V8_ENABLE_MAGLEV_GRAPH_PRINTER
+
 #include "src/maglev/maglev-graph-printer.h"
 
 #include <initializer_list>
@@ -876,20 +878,12 @@ void PrintNode::Print(std::ostream& os) const {
   node_->Print(os, graph_labeller_, skip_targets_);
 }
 
-std::ostream& operator<<(std::ostream& os, const PrintNode& printer) {
-  printer.Print(os);
-  return os;
-}
-
 void PrintNodeLabel::Print(std::ostream& os) const {
   graph_labeller_->PrintNodeLabel(os, node_);
-}
-
-std::ostream& operator<<(std::ostream& os, const PrintNodeLabel& printer) {
-  printer.Print(os);
-  return os;
 }
 
 }  // namespace maglev
 }  // namespace internal
 }  // namespace v8
+
+#endif  // V8_ENABLE_MAGLEV_GRAPH_PRINTER
