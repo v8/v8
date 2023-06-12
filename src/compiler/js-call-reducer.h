@@ -156,6 +156,7 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
       const Operator* string_access_operator, Node* node);
   Reduction ReduceStringPrototypeCharAt(Node* node);
   Reduction ReduceStringPrototypeStartsWith(Node* node);
+  Reduction ReduceStringPrototypeEndsWith(Node* node);
 
 #ifdef V8_INTL_SUPPORT
   Reduction ReduceStringPrototypeToLowerCaseIntl(Node* node);
