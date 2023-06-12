@@ -92,13 +92,20 @@ void Generate_OSREntry(MacroAssembler* masm, Register entry_address,
   __ Ret();
 }
 
-void ResetBytecodeAge(MacroAssembler* masm, Register bytecode_array,
-                      Register scratch) {
-  DCHECK(!AreAliased(bytecode_array, scratch));
-  __ mov(r0, Operand(0));
-  __ StoreU16(
-      r0, FieldMemOperand(bytecode_array, BytecodeArray::kBytecodeAgeOffset),
-      scratch);
+void ResetSharedFunctionInfoAge(MacroAssembler* masm, Register sfi,
+                                Register scratch) {
+  DCHECK(!AreAliased(sfi, scratch));
+  __ mov(scratch, Operand(0));
+  __ StoreU16(scratch, FieldMemOperand(sfi, SharedFunctionInfo::kAgeOffset),
+              no_reg);
+}
+
+void ResetJSFunctionAge(MacroAssembler* masm, Register js_function,
+                        Register scratch1, Register scratch2) {
+  __ LoadTaggedField(
+      scratch1,
+      FieldMemOperand(js_function, JSFunction::kSharedFunctionInfoOffset));
+  ResetSharedFunctionInfoAge(masm, scratch1, scratch2);
 }
 
 void ResetFeedbackVectorOsrUrgency(MacroAssembler* masm,
@@ -131,6 +138,11 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
   __ LoadTaggedField(
       code_obj,
       FieldMemOperand(closure, JSFunction::kSharedFunctionInfoOffset));
+
+  if (is_osr) {
+    ResetSharedFunctionInfoAge(masm, code_obj, r5);
+  }
+
   __ LoadTaggedField(
       code_obj,
       FieldMemOperand(code_obj, SharedFunctionInfo::kFunctionDataOffset));
@@ -232,7 +244,6 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
   if (is_osr) {
     // TODO(pthier): Separate baseline Sparkplug from TF arming and don't
     // disarm Sparkplug here.
-    ResetBytecodeAge(masm, kInterpreterBytecodeArrayRegister, r1);
     Generate_OSREntry(masm, code_obj, Operand(0));
   } else {
     __ Jump(code_obj);
@@ -1283,6 +1294,7 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
         BaselineOutOfLinePrologueDescriptor::kCalleeContext);
     Register callee_js_function = descriptor.GetRegisterParameter(
         BaselineOutOfLinePrologueDescriptor::kClosure);
+    ResetJSFunctionAge(masm, callee_js_function, r1, r0);
     __ Push(callee_context, callee_js_function);
     DCHECK_EQ(callee_js_function, kJavaScriptCallTargetRegister);
     DCHECK_EQ(callee_js_function, kJSFunctionRegister);
@@ -1293,7 +1305,6 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
     // the frame, so load it into a register.
     Register bytecodeArray = descriptor.GetRegisterParameter(
         BaselineOutOfLinePrologueDescriptor::kInterpreterBytecodeArray);
-    ResetBytecodeAge(masm, bytecodeArray, r1);
 
     __ Push(argc, bytecodeArray);
 
@@ -1402,6 +1413,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(
   // kInterpreterBytecodeArrayRegister.
   __ LoadTaggedField(
       r6, FieldMemOperand(closure, JSFunction::kSharedFunctionInfoOffset));
+  ResetSharedFunctionInfoAge(masm, r6, ip);
   // Load original bytecode array or the debug copy.
   __ LoadTaggedField(
       kInterpreterBytecodeArrayRegister,
@@ -1468,8 +1480,6 @@ void Builtins::Generate_InterpreterEntryTrampoline(
 #endif  // !V8_JITLESS
   FrameScope frame_scope(masm, StackFrame::MANUAL);
   __ PushStandardFrame(closure);
-
-  ResetBytecodeAge(masm, kInterpreterBytecodeArrayRegister, r1);
 
   // Load the initial bytecode offset.
   __ mov(kInterpreterBytecodeOffsetRegister,
