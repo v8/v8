@@ -5157,7 +5157,15 @@ bool Heap::IsMainThreadParked(LocalHeap* local_heap) {
 }
 
 bool Heap::IsMajorMarkingComplete(LocalHeap* local_heap) {
+  // Only check this on the main thread.
   if (!local_heap || !local_heap->is_main_thread()) return false;
+
+  // But also ignore main threads of client isolates.
+  if (local_heap->heap() != this) {
+    DCHECK(isolate()->is_shared_space_isolate());
+    return false;
+  }
+
   return incremental_marking()->IsMajorMarkingComplete();
 }
 
