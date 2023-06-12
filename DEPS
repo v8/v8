@@ -110,8 +110,6 @@ deps = {
     Var('chromium_url') + '/chromium/src/build.git' + '@' + '5e03e46b477265cea55afeffb2a86732fb234690',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '3819ac6f3de594da7386c62474cedcf3b7194bb7',
-  'buildtools/clang_format/script':
-    Var('chromium_url') + '/external/github.com/llvm/llvm-project/clang/tools/clang-format.git' + '@' + '3fa7e3754ef2c795adc6a07acce70f9e9fa5b359',
   'buildtools/linux64': {
     'packages': [
       {
@@ -220,6 +218,8 @@ deps = {
     'url': Var('chromium_url') + '/catapult.git' + '@' + 'f51324c1c818a663f7d9682f8784c3d3f5a92fe0',
     'condition': 'checkout_android',
   },
+  'third_party/clang-format/script':
+    Var('chromium_url') + '/external/github.com/llvm/llvm-project/clang/tools/clang-format.git' + '@' + 'f97059df7f8b205064625cdb5f97b56668a125ef',
   'third_party/colorama/src': {
     'url': Var('chromium_url') + '/external/colorama.git' + '@' + '3de9f013df4b470069d03d250224062e8cf15c49',
     'condition': 'checkout_android',
