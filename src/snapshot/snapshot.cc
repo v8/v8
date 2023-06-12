@@ -7,7 +7,8 @@
 #include "src/snapshot/snapshot.h"
 
 #include "src/common/assert-scope.h"
-#include "src/heap/parked-scope.h"
+#include "src/execution/local-isolate-inl.h"
+#include "src/heap/local-heap-inl.h"
 #include "src/heap/safepoint.h"
 #include "src/init/bootstrapper.h"
 #include "src/logging/runtime-call-stats-scope.h"
@@ -336,33 +337,35 @@ void Snapshot::SerializeDeserializeAndVerifyForTesting(
   // The shared heap is verified on Heap teardown, which performs a global
   // safepoint. Both isolate and new_isolate are running in the same thread, so
   // park isolate before running new_isolate to avoid deadlock.
-  ParkedScope parked(isolate->main_thread_local_isolate());
+  isolate->main_thread_local_isolate()->BlockMainThreadWhileParked(
+      [&serialized_data]() {
+        // Test deserialization.
+        Isolate* new_isolate = Isolate::New();
+        std::unique_ptr<v8::ArrayBuffer::Allocator> array_buffer_allocator(
+            v8::ArrayBuffer::Allocator::NewDefaultAllocator());
+        {
+          // Set serializer_enabled() to not install extensions and experimental
+          // natives on the new isolate.
+          // TODO(v8:10416): This should be a separate setting on the isolate.
+          new_isolate->enable_serializer();
+          new_isolate->Enter();
+          new_isolate->set_snapshot_blob(&serialized_data);
+          new_isolate->set_array_buffer_allocator(array_buffer_allocator.get());
+          CHECK(Snapshot::Initialize(new_isolate));
 
-  // Test deserialization.
-  Isolate* new_isolate = Isolate::New();
-  std::unique_ptr<v8::ArrayBuffer::Allocator> array_buffer_allocator(
-      v8::ArrayBuffer::Allocator::NewDefaultAllocator());
-  {
-    // Set serializer_enabled() to not install extensions and experimental
-    // natives on the new isolate.
-    // TODO(v8:10416): This should be a separate setting on the isolate.
-    new_isolate->enable_serializer();
-    new_isolate->Enter();
-    new_isolate->set_snapshot_blob(&serialized_data);
-    new_isolate->set_array_buffer_allocator(array_buffer_allocator.get());
-    CHECK(Snapshot::Initialize(new_isolate));
-
-    HandleScope scope(new_isolate);
-    Handle<Context> new_native_context =
-        new_isolate->bootstrapper()->CreateEnvironmentForTesting();
-    CHECK(new_native_context->IsNativeContext());
+          HandleScope scope(new_isolate);
+          Handle<Context> new_native_context =
+              new_isolate->bootstrapper()->CreateEnvironmentForTesting();
+          CHECK(new_native_context->IsNativeContext());
 
 #ifdef VERIFY_HEAP
-    if (v8_flags.verify_heap) HeapVerifier::VerifyHeap(new_isolate->heap());
+          if (v8_flags.verify_heap)
+            HeapVerifier::VerifyHeap(new_isolate->heap());
 #endif  // VERIFY_HEAP
-  }
-  new_isolate->Exit();
-  Isolate::Delete(new_isolate);
+        }
+        new_isolate->Exit();
+        Isolate::Delete(new_isolate);
+      });
 }
 
 // static
