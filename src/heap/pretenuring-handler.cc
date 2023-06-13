@@ -28,13 +28,12 @@ double GetPretenuringRatioThreshold(size_t new_space_capacity) {
   static constexpr double kScavengerPretenureRatio = 0.85;
   // MinorMC allows for a much larger new space, thus we require a lower
   // survival rate for pretenuring.
-  static constexpr double kMinorMCPretenureMaxRatio = 0.9;
+  static constexpr double kMinorMCPretenureMaxRatio = 0.8;
   static constexpr double kMinorMCMinCapacity = 16 * MB;
   if (!v8_flags.minor_mc) return kScavengerPretenureRatio;
   if (new_space_capacity <= kMinorMCMinCapacity)
     return kMinorMCPretenureMaxRatio;
-  // MinorMC by default uses 72MB as the new space max capacity. When capacity
-  // is 72MB, the pretenuring ratio would be 0.2.
+  // When capacity is 64MB, the pretenuring ratio would be 0.2.
   return kMinorMCPretenureMaxRatio * kMinorMCMinCapacity / new_space_capacity;
 }
 
