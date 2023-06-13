@@ -29,16 +29,16 @@ class V8_EXPORT_PRIVATE CagedHeap final {
 
   template <typename RetType = uintptr_t>
   static RetType OffsetFromAddress(const void* address) {
-    static_assert(
-        std::numeric_limits<RetType>::max() >= (kCagedHeapReservationSize - 1),
-        "The return type should be large enough");
+    static_assert(std::numeric_limits<RetType>::max() >=
+                      (api_constants::kCagedHeapMaxReservationSize - 1),
+                  "The return type should be large enough");
     return reinterpret_cast<uintptr_t>(address) &
-           (kCagedHeapReservationAlignment - 1);
+           (api_constants::kCagedHeapReservationAlignment - 1);
   }
 
   static uintptr_t BaseFromAddress(const void* address) {
     return reinterpret_cast<uintptr_t>(address) &
-           ~(kCagedHeapReservationAlignment - 1);
+           ~(api_constants::kCagedHeapReservationAlignment - 1);
   }
 
   static void InitializeIfNeeded(PageAllocator&);

@@ -46,7 +46,7 @@ class V8_EXPORT AgeTable final {
   enum class AdjacentCardsPolicy : uint8_t { kConsider, kIgnore };
 
   static constexpr size_t kCardSizeInBytes =
-      api_constants::kCagedHeapReservationSize / kRequiredSize;
+      api_constants::kCagedHeapDefaultReservationSize / kRequiredSize;
 
   static constexpr size_t CalculateAgeTableSizeForHeapSize(size_t heap_size) {
     return heap_size / kCardSizeInBytes;
