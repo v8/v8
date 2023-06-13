@@ -335,6 +335,10 @@ constexpr auto RunMicrotasksEntryDescriptor::registers() {
   return RegisterArray(r2, r3);
 }
 
+constexpr auto WasmNewJSToWasmWrapperDescriptor::registers() {
+  // Arbitrarily picked register.
+  return RegisterArray(r10);
+}
 }  // namespace internal
 }  // namespace v8
 
