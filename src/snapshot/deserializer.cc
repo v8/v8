@@ -800,8 +800,6 @@ int Deserializer<IsolateT>::ReadSingleBytecodeData(uint8_t data,
       return ReadRootArray(data, slot_accessor);
     case kStartupObjectCache:
       return ReadStartupObjectCache(data, slot_accessor);
-    case kReadOnlyObjectCache:
-      return ReadReadOnlyObjectCache(data, slot_accessor);
     case kSharedHeapObjectCache:
       return ReadSharedHeapObjectCache(data, slot_accessor);
     case kNewMetaMap:
@@ -885,15 +883,11 @@ int Deserializer<IsolateT>::ReadBackref(uint8_t data,
   return slot_accessor.Write(heap_object, GetAndResetNextReferenceType());
 }
 
-// Reference an object in the read-only heap. This should be used when an
-// object is read-only, but is not a root. Except with static roots we
-// always use this reference to refer to read only objects since they are
-// created by loading a memory dump of r/o space.
+// Reference an object in the read-only heap.
 template <typename IsolateT>
 template <typename SlotAccessor>
 int Deserializer<IsolateT>::ReadReadOnlyHeapRef(uint8_t data,
                                                 SlotAccessor slot_accessor) {
-  DCHECK(isolate()->heap()->deserialization_complete() || V8_STATIC_ROOTS_BOOL);
   uint32_t chunk_index = source_.GetInt();
   uint32_t chunk_offset = source_.GetInt();
 
@@ -930,21 +924,6 @@ int Deserializer<IsolateT>::ReadStartupObjectCache(uint8_t data,
   // entry as a Handle backing?
   HeapObject heap_object = HeapObject::cast(
       main_thread_isolate()->startup_object_cache()->at(cache_index));
-  return slot_accessor.Write(heap_object, GetAndResetNextReferenceType());
-}
-
-// Find an object in the read-only object cache and write a pointer to it
-// to the current object.
-template <typename IsolateT>
-template <typename SlotAccessor>
-int Deserializer<IsolateT>::ReadReadOnlyObjectCache(
-    uint8_t data, SlotAccessor slot_accessor) {
-  DCHECK(!V8_STATIC_ROOTS_BOOL);
-  int cache_index = source_.GetInt();
-  // TODO(leszeks): Could we use the address of the cached_read_only_object
-  // entry as a Handle backing?
-  HeapObject heap_object = HeapObject::cast(
-      isolate()->read_only_heap()->cached_read_only_object(cache_index));
   return slot_accessor.Write(heap_object, GetAndResetNextReferenceType());
 }
 

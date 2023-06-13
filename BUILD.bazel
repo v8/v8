@@ -2171,6 +2171,7 @@ filegroup(
         "src/snapshot/read-only-deserializer.h",
         "src/snapshot/read-only-serializer.cc",
         "src/snapshot/read-only-serializer.h",
+        "src/snapshot/read-only-serializer-deserializer.h",
         "src/snapshot/references.h",
         "src/snapshot/roots-serializer.cc",
         "src/snapshot/roots-serializer.h",

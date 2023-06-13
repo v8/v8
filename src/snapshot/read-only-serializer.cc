@@ -4,19 +4,191 @@
 
 #include "src/snapshot/read-only-serializer.h"
 
-#include "src/api/api.h"
-#include "src/base/bounds.h"
-#include "src/execution/v8threads.h"
-#include "src/heap/factory-inl.h"
+#include "src/heap/heap-inl.h"
 #include "src/heap/read-only-heap.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/slots.h"
-#include "src/snapshot/serializer-inl.h"
+#include "src/snapshot/read-only-serializer-deserializer.h"
 
 namespace v8 {
 namespace internal {
 
 namespace {
+
+struct ReadOnlySegmentForSerialization {
+  ReadOnlySegmentForSerialization(Isolate* isolate, const ReadOnlyPage* page,
+                                  Address segment_start, size_t segment_size)
+      : page(page),
+        segment_start(segment_start),
+        segment_size(segment_size),
+        segment_offset(segment_start - page->area_start()),
+        contents(new uint8_t[segment_size]),
+        tagged_slots(segment_size / kTaggedSize) {
+    // .. because tagged_slots records a bit for each slot:
+    DCHECK(IsAligned(segment_size, kTaggedSize));
+
+    MemCopy(contents.get(), reinterpret_cast<void*>(segment_start),
+            segment_size);
+    WipeCodeInstructionStart(isolate);
+    if (!V8_STATIC_ROOTS_BOOL) EncodeTaggedSlots(isolate);
+  }
+
+  void WipeCodeInstructionStart(Isolate* isolate) {
+    // Iterate the RO page and the contents copy in lockstep, wiping fields
+    // in contents as we go along.
+    //
+    // See also ObjectSerializer::OutputRawData.
+    DCHECK_GE(segment_start, page->area_start());
+    const Address segment_end = segment_start + segment_size;
+    ReadOnlyPageObjectIterator it(page, segment_start);
+    for (HeapObject o = it.Next(); !o.is_null(); o = it.Next()) {
+      if (o.address() >= segment_end) break;
+      if (!o.IsCode()) continue;
+
+      size_t o_offset = o.ptr() - segment_start;
+      Address o_dst = reinterpret_cast<Address>(contents.get()) + o_offset;
+      Code code = Code::cast(Object(o_dst));
+      code.ClearInstructionStartForSerialization(isolate);
+    }
+  }
+
+  void EncodeTaggedSlots(Isolate* isolate);
+
+  const ReadOnlyPage* const page;
+  const Address segment_start;
+  const size_t segment_size;
+  const size_t segment_offset;
+  // The (mutated) off-heap copy of the on-heap segment.
+  std::unique_ptr<uint8_t[]> contents;
+  // The relocation table.
+  ro::BitSet tagged_slots;
+
+  friend class EncodeRelocationsVisitor;
+};
+
+ro::EncodedTagged_t Encode(Isolate* isolate, HeapObject o) {
+  Address o_address = o.address();
+  BasicMemoryChunk* chunk = BasicMemoryChunk::FromAddress(o_address);
+
+  int page_index = 0;
+  for (ReadOnlyPage* page : isolate->heap()->read_only_space()->pages()) {
+    if (chunk == page) break;
+    ++page_index;
+  }
+
+  ro::EncodedTagged_t encoded;
+  DCHECK_LT(page_index, 1UL << ro::EncodedTagged_t::kPageIndexBits);
+  encoded.page_index = page_index;
+  uint32_t chunk_offset = static_cast<int>(chunk->Offset(o_address));
+  DCHECK(IsAligned(chunk_offset, kTaggedSize));
+  DCHECK_LT(chunk_offset / kTaggedSize,
+            1UL << ro::EncodedTagged_t::kOffsetBits);
+  encoded.offset = chunk_offset / kTaggedSize;
+
+  return encoded;
+}
+
+// If relocations are needed, this class
+// - encodes all tagged slots s.t. valid pointers can be reconstructed during
+//   deserialization, and
+// - records the location of all tagged slots in a table.
+class EncodeRelocationsVisitor final : public ObjectVisitor {
+ public:
+  EncodeRelocationsVisitor(Isolate* isolate,
+                           ReadOnlySegmentForSerialization* segment)
+      : isolate_(isolate), segment_(segment) {
+    DCHECK(!V8_STATIC_ROOTS_BOOL);
+  }
+
+  void VisitPointers(HeapObject host, ObjectSlot start,
+                     ObjectSlot end) override {
+    VisitPointers(host, MaybeObjectSlot(start), MaybeObjectSlot(end));
+  }
+
+  void VisitPointers(HeapObject host, MaybeObjectSlot start,
+                     MaybeObjectSlot end) override {
+    for (MaybeObjectSlot slot = start; slot < end; slot++) {
+      ProcessSlot(slot);
+    }
+  }
+
+  void VisitMapPointer(HeapObject host) override {
+    ProcessSlot(host.RawMaybeWeakField(HeapObject::kMapOffset));
+  }
+
+  // Sanity-checks:
+  void VisitInstructionStreamPointer(Code host,
+                                     InstructionStreamSlot slot) override {
+    // RO space contains only builtin Code objects.
+    DCHECK(!host.has_instruction_stream());
+  }
+  void VisitCodeTarget(InstructionStream, RelocInfo*) override {
+    UNREACHABLE();
+  }
+  void VisitEmbeddedPointer(InstructionStream, RelocInfo*) override {
+    UNREACHABLE();
+  }
+  void VisitExternalReference(InstructionStream, RelocInfo*) override {
+    UNREACHABLE();
+  }
+  void VisitInternalReference(InstructionStream, RelocInfo*) override {
+    UNREACHABLE();
+  }
+  void VisitOffHeapTarget(InstructionStream, RelocInfo*) override {
+    UNREACHABLE();
+  }
+  void VisitExternalPointer(HeapObject, ExternalPointerSlot,
+                            ExternalPointerTag) override {
+    UNREACHABLE();
+  }
+
+ private:
+  void ProcessSlot(MaybeObjectSlot slot) {
+    MaybeObject o = *slot;
+    if (!o.IsStrongOrWeak()) return;  // Smis don't need relocation.
+    DCHECK(o.IsStrong());
+
+    int slot_offset = SegmentOffsetOf(slot);
+    DCHECK(IsAligned(slot_offset, kTaggedSize));
+
+    // Encode:
+    ro::EncodedTagged_t encoded = Encode(isolate_, o.GetHeapObject());
+    memcpy(segment_->contents.get() + slot_offset, &encoded,
+           ro::EncodedTagged_t::kSize);
+
+    // Record:
+    segment_->tagged_slots.set(AsSlot(slot_offset));
+  }
+
+  int SegmentOffsetOf(MaybeObjectSlot slot) {
+    Address addr = slot.address();
+    DCHECK_GE(addr, segment_->segment_start);
+    DCHECK_LT(addr, segment_->segment_start + segment_->segment_size);
+    return static_cast<int>(addr - segment_->segment_start);
+  }
+
+  static constexpr int AsSlot(int byte_offset) {
+    return byte_offset / kTaggedSize;
+  }
+
+  Isolate* const isolate_;
+  ReadOnlySegmentForSerialization* const segment_;
+};
+
+void ReadOnlySegmentForSerialization::EncodeTaggedSlots(Isolate* isolate) {
+  DCHECK(!V8_STATIC_ROOTS_BOOL);
+  EncodeRelocationsVisitor v(isolate, this);
+  PtrComprCageBase cage_base(isolate);
+
+  DCHECK_GE(segment_start, page->area_start());
+  const Address segment_end = segment_start + segment_size;
+  ReadOnlyPageObjectIterator it(page, segment_start,
+                                SkipFreeSpaceOrFiller::kNo);
+  for (HeapObject o = it.Next(); !o.is_null(); o = it.Next()) {
+    if (o.address() >= segment_end) break;
+    o.Iterate(cage_base, &v);
+  }
+}
 
 class ReadOnlyHeapImageSerializer {
  public:
@@ -25,156 +197,104 @@ class ReadOnlyHeapImageSerializer {
     size_t size;
   };
 
-  using Bytecode = HeapImageSerializer::Bytecode;
-
-  static void Serialize(ReadOnlySpace* space, SnapshotByteSink& sink,
-                        Isolate* isolate,
+  static void Serialize(Isolate* isolate, SnapshotByteSink* sink,
                         const std::vector<MemoryRegion>& unmapped_regions) {
-    // Memory dump serializer format, for pages of type T
-    // --------------------------------------------------------------------
-    // page_content_[1..n]     - content of each page
-    // kSynchronize            - end mark
-    // --------------------------------------------------------------------
-    //   page_content:
-    //   ------------------------------------------------------------------
-    //   kTPage                  - page begin mark
-    //   segment_content_[1..n]  - content of each segment
-    //   kFinalizeTPage          - page end mark
-    //   ------------------------------------------------------------------
-    //     segment_content:
-    //     ----------------------------------------------------------------
-    //     kTSegment               - segment mark
-    //     offset                  - start of segment rel. to area_start
-    //     size                    - size of segment in bytes
-    //     bytes_[1..size]         - content
-    //     ----------------------------------------------------------------
-
-    DCHECK_EQ(sink.Position(), 0);
-
-    auto writeSegment = [&sink](const BasicMemoryChunk* p, Address pos,
-                                size_t page_content_bytes) {
-      sink.Put(Bytecode::kReadOnlySegment, "segment begin");
-      sink.PutInt(pos - p->area_start(), "segment start offset");
-      sink.PutInt(page_content_bytes, "segment byte size");
-#ifdef MEMORY_SANITIZER
-      __msan_check_mem_is_initialized(reinterpret_cast<void*>(pos),
-                                      static_cast<int>(page_content_bytes));
-#endif
-      sink.PutRaw(reinterpret_cast<const uint8_t*>(pos),
-                  static_cast<int>(page_content_bytes), "page");
-    };
-
-    for (const ReadOnlyPage* page : space->pages()) {
-      sink.Put(Bytecode::kReadOnlyPage, "page begin");
-      Tagged_t ptr =
-          V8HeapCompressionScheme::CompressAny(reinterpret_cast<Address>(page));
-      sink.PutInt(ptr, "page start offset");
-
-      Address pos = page->area_start();
-
-      // If this page contains unmapped regions split it into multiple segments.
-      for (auto r = unmapped_regions.begin(); r != unmapped_regions.end();
-           ++r) {
-        // Regions must be sorted an non-overlapping
-        if (r + 1 != unmapped_regions.end()) {
-          CHECK(r->start < (r + 1)->start);
-          CHECK(r->start + r->size < (r + 1)->start);
-        }
-        if (base::IsInRange(r->start, pos, page->area_end())) {
-          size_t content_bytes = r->start - pos;
-          writeSegment(page, pos, content_bytes);
-          pos += content_bytes + r->size;
-        }
-      }
-
-      // Pages are shrunk, but memory at the end of the area is still
-      // uninitialized and we do not want to include it in the snapshot.
-      size_t page_content_bytes = page->HighWaterMark() - pos;
-      writeSegment(page, pos, page_content_bytes);
-      sink.Put(Bytecode::kFinalizeReadOnlyPage, "page end");
-    }
-    sink.Put(Bytecode::kSynchronize, "space end");
+    ReadOnlyHeapImageSerializer{isolate, sink}.SerializeImpl(unmapped_regions);
   }
+
+ private:
+  using Bytecode = ro::Bytecode;
+
+  ReadOnlyHeapImageSerializer(Isolate* isolate, SnapshotByteSink* sink)
+      : isolate_(isolate), sink_(sink) {}
+
+  void SerializeImpl(const std::vector<MemoryRegion>& unmapped_regions) {
+    DCHECK_EQ(sink_->Position(), 0);
+
+    ReadOnlySpace* ro_space = isolate_->read_only_heap()->read_only_space();
+    for (const ReadOnlyPage* page : ro_space->pages()) {
+      WritePage(page, unmapped_regions);
+    }
+
+    SerializeReadOnlyRootsTable();
+    sink_->Put(Bytecode::kFinalizeReadOnlySpace, "space end");
+  }
+
+  void WritePage(const ReadOnlyPage* page,
+                 const std::vector<MemoryRegion>& unmapped_regions) {
+    sink_->Put(Bytecode::kPage, "page begin");
+    if (V8_STATIC_ROOTS_BOOL) {
+      auto page_addr = reinterpret_cast<Address>(page);
+      sink_->PutInt(V8HeapCompressionScheme::CompressAny(page_addr),
+                    "page start offset");
+    }
+
+    Address pos = page->area_start();
+
+    // If this page contains unmapped regions split it into multiple segments.
+    for (auto r = unmapped_regions.begin(); r != unmapped_regions.end(); ++r) {
+      // Regions must be sorted and non-overlapping.
+      if (r + 1 != unmapped_regions.end()) {
+        CHECK(r->start < (r + 1)->start);
+        CHECK(r->start + r->size < (r + 1)->start);
+      }
+      if (base::IsInRange(r->start, pos, page->HighWaterMark())) {
+        size_t segment_size = r->start - pos;
+        ReadOnlySegmentForSerialization segment(isolate_, page, pos,
+                                                segment_size);
+        WriteSegment(&segment);
+        pos += segment_size + r->size;
+      }
+    }
+
+    // Pages are shrunk, but memory at the end of the area is still
+    // uninitialized and we do not want to include it in the snapshot.
+    size_t segment_size = page->HighWaterMark() - pos;
+    ReadOnlySegmentForSerialization segment(isolate_, page, pos, segment_size);
+    WriteSegment(&segment);
+
+    sink_->Put(Bytecode::kFinalizePage, "page end");
+  }
+
+  void WriteSegment(const ReadOnlySegmentForSerialization* segment) {
+    sink_->Put(Bytecode::kSegment, "segment begin");
+    sink_->PutInt(segment->segment_offset, "segment start offset");
+    sink_->PutInt(segment->segment_size, "segment byte size");
+    sink_->PutRaw(segment->contents.get(),
+                  static_cast<int>(segment->segment_size), "page");
+    if (!V8_STATIC_ROOTS_BOOL) {
+      sink_->Put(Bytecode::kRelocateSegment, "relocate segment");
+      sink_->PutRaw(segment->tagged_slots.data(),
+                    static_cast<int>(segment->tagged_slots.size_in_bytes()),
+                    "tagged_slots");
+    }
+  }
+
+  void SerializeReadOnlyRootsTable() {
+    sink_->Put(Bytecode::kReadOnlyRootsTable, "read only roots table");
+    if (!V8_STATIC_ROOTS_BOOL) {
+      ReadOnlyRoots roots(isolate_);
+      for (size_t i = 0; i < ReadOnlyRoots::kEntriesCount; i++) {
+        RootIndex rudi = static_cast<RootIndex>(i);
+        HeapObject rudolf = HeapObject::cast(roots.object_at(rudi));
+        ro::EncodedTagged_t encoded = Encode(isolate_, rudolf);
+        sink_->PutInt(encoded.ToUint32(), "read only roots entry");
+      }
+    }
+  }
+
+  Isolate* const isolate_;
+  SnapshotByteSink* const sink_;
 };
 
-}  // namespace
-
-ReadOnlySerializer::ReadOnlySerializer(Isolate* isolate,
-                                       Snapshot::SerializerFlags flags)
-    : RootsSerializer(isolate, flags, RootIndex::kFirstReadOnlyRoot)
-#ifdef DEBUG
-      ,
-      serialized_objects_(isolate->heap()),
-      did_serialize_not_mapped_symbol_(false)
-#endif
-{
-  static_assert(RootIndex::kFirstReadOnlyRoot == RootIndex::kFirstRoot);
-}
-
-ReadOnlySerializer::~ReadOnlySerializer() {
-  OutputStatistics("ReadOnlySerializer");
-}
-
-void ReadOnlySerializer::SerializeObjectImpl(Handle<HeapObject> obj,
-                                             SlotType slot_type) {
-  CHECK(ReadOnlyHeap::Contains(*obj));
-  CHECK_IMPLIES(obj->IsString(), obj->IsInternalizedString());
-  DCHECK(!V8_STATIC_ROOTS_BOOL);
-
-  // There should be no references to the not_mapped_symbol except for the entry
-  // in the root table, so don't try to serialize a reference and rely on the
-  // below CHECK(!did_serialize_not_mapped_symbol_) to make sure it doesn't
-  // serialize twice.
-  {
-    DisallowGarbageCollection no_gc;
-    HeapObject raw = *obj;
-    if (!IsNotMappedSymbol(raw)) {
-      if (SerializeHotObject(raw)) return;
-      if (IsRootAndHasBeenSerialized(raw) && SerializeRoot(raw)) return;
-      if (SerializeBackReference(raw)) return;
-    }
-
-    CheckRehashability(raw);
-  }
-
-  // Object has not yet been serialized.  Serialize it here.
-  ObjectSerializer object_serializer(this, obj, &sink_);
-  object_serializer.Serialize(slot_type);
-#ifdef DEBUG
-  if (IsNotMappedSymbol(*obj)) {
-    CHECK(!did_serialize_not_mapped_symbol_);
-    did_serialize_not_mapped_symbol_ = true;
-  } else {
-    CHECK_NULL(serialized_objects_.Find(obj));
-    // There's no "IdentitySet", so use an IdentityMap with a value that is
-    // later ignored.
-    serialized_objects_.Insert(obj, 0);
-  }
-#endif
-}
-
-void ReadOnlySerializer::SerializeReadOnlyRoots() {
-  // No active threads.
-  CHECK_NULL(isolate()->thread_manager()->FirstThreadStateInUse());
-  // No active or weak handles.
-  CHECK_IMPLIES(!allow_active_isolate_for_testing(),
-                isolate()->handle_scope_implementer()->blocks()->empty());
-
-#if V8_STATIC_ROOTS_BOOL
-  // STATIC_ROOTS builds do not iterate the roots for serialization. Instead
-  // we use a memory snapshot format.
-
-  // TODO(v8:13840, olivf): Integrate this into the ReadOnlyHeapImageSerializer
-  // without actually having to wipe.
-  isolate()->heap()->read_only_space()->Unseal();
-  InstructionStartVector saved_entry_points;
-  WipeInstructionStartsForDeterministicSerialization(saved_entry_points);
-
+std::vector<ReadOnlyHeapImageSerializer::MemoryRegion> GetUnmappedRegions(
+    Isolate* isolate) {
+#ifdef V8_STATIC_ROOTS
   // WasmNull's payload is aligned to the OS page and consists of
   // WasmNull::kPayloadSize bytes of unmapped memory. To avoid inflating the
-  // snapshot size and access uninitialized and/or unmapped memory, the
-  // serializer skipps the padding bytes and the payload.
-  ReadOnlyRoots ro_roots(isolate());
+  // snapshot size and accessing uninitialized and/or unmapped memory, the
+  // serializer skips the padding bytes and the payload.
+  ReadOnlyRoots ro_roots(isolate);
   WasmNull wasm_null = ro_roots.wasm_null();
   HeapObject wasm_null_padding = ro_roots.wasm_null_padding();
   CHECK(wasm_null_padding.IsFreeSpace());
@@ -186,131 +306,33 @@ void ReadOnlySerializer::SerializeReadOnlyRoots() {
                         wasm_null.address() - wasm_null_padding_start});
   }
   unmapped.push_back({wasm_null.payload(), WasmNull::kPayloadSize});
-  ReadOnlyHeapImageSerializer::Serialize(
-      isolate()->read_only_heap()->read_only_space(), sink_, isolate(),
-      unmapped);
-
-  RestoreInstructionStarts(saved_entry_points);
-  isolate()->heap()->read_only_space()->Seal(
-      ReadOnlySpace::SealMode::kDoNotDetachFromHeap);
-
-  if (v8_flags.serialization_statistics) {
-    ReadOnlyHeapObjectIterator iterator(isolate()->read_only_heap());
-    for (HeapObject object = iterator.Next(); !object.is_null();
-         object = iterator.Next()) {
-      CountAllocation(object.map(), object.Size(),
-                      SnapshotSpace::kReadOnlyHeap);
-    }
-  }
+  return unmapped;
 #else
-  ReadOnlyRoots(isolate()).Iterate(this);
-  if (reconstruct_read_only_and_shared_object_caches_for_testing()) {
-    ReconstructReadOnlyObjectCacheForTesting();
-  }
-#endif  // STATIC_ROOTS_BOOL
-}
-
-#ifdef V8_STATIC_ROOTS
-void ReadOnlySerializer::WipeInstructionStartsForDeterministicSerialization(
-    ReadOnlySerializer::InstructionStartVector& saved_entry_points) {
-  // See also ObjectSerializer::OutputRawData.
-  ReadOnlyHeapObjectIterator iterator(isolate()->read_only_heap());
-  for (HeapObject object = iterator.Next(); !object.is_null();
-       object = iterator.Next()) {
-    if (!object.IsCode()) continue;
-    Code code = Code::cast(object);
-    saved_entry_points.push_back(
-        code.ClearInstructionStartForSerialization(isolate()));
-  }
-}
-
-void ReadOnlySerializer::RestoreInstructionStarts(
-    const ReadOnlySerializer::InstructionStartVector& saved_entry_points) {
-  int i = 0;
-  ReadOnlyHeapObjectIterator iterator(isolate()->read_only_heap());
-  for (HeapObject object = iterator.Next(); !object.is_null();
-       object = iterator.Next()) {
-    if (!object.IsCode()) continue;
-    Code code = Code::cast(object);
-    code.RestoreInstructionStartForSerialization(isolate(),
-                                                 saved_entry_points[i++]);
-  }
-}
+  return {};
 #endif  // V8_STATIC_ROOTS
+}
 
-void ReadOnlySerializer::FinalizeSerialization() {
-  if (V8_STATIC_ROOTS_BOOL) {
-    DCHECK(object_cache_empty());
-    DCHECK(deferred_objects_empty());
-    return;
-  }
+}  // namespace
 
-  // This comes right after serialization of the other snapshots, where we
-  // add entries to the read-only object cache. Add one entry with 'undefined'
-  // to terminate the read-only object cache.
-  Object undefined = ReadOnlyRoots(isolate()).undefined_value();
-  VisitRootPointer(Root::kReadOnlyObjectCache, nullptr,
-                   FullObjectSlot(&undefined));
-  SerializeDeferredObjects();
+ReadOnlySerializer::ReadOnlySerializer(Isolate* isolate,
+                                       Snapshot::SerializerFlags flags)
+    : RootsSerializer(isolate, flags, RootIndex::kFirstReadOnlyRoot) {}
 
-#ifdef DEBUG
-  // Check that every object on read-only heap is reachable (and was
-  // serialized).
-  ReadOnlyHeapObjectIterator iterator(isolate()->read_only_heap());
-  for (HeapObject object = iterator.Next(); !object.is_null();
-       object = iterator.Next()) {
-    if (IsNotMappedSymbol(object)) {
-      CHECK(did_serialize_not_mapped_symbol_);
-    } else {
-      CHECK_NOT_NULL(serialized_objects_.Find(object));
+ReadOnlySerializer::~ReadOnlySerializer() {
+  OutputStatistics("ReadOnlySerializer");
+}
+
+void ReadOnlySerializer::Serialize() {
+  DisallowGarbageCollection no_gc;
+  ReadOnlyHeapImageSerializer::Serialize(isolate(), &sink_,
+                                         GetUnmappedRegions(isolate()));
+
+  ReadOnlyHeapObjectIterator it(isolate()->read_only_heap());
+  for (HeapObject o = it.Next(); !o.is_null(); o = it.Next()) {
+    CheckRehashability(o);
+    if (v8_flags.serialization_statistics) {
+      CountAllocation(o.map(), o.Size(), SnapshotSpace::kReadOnlyHeap);
     }
-  }
-#endif  // DEBUG
-  Pad();
-}
-
-bool ReadOnlySerializer::MustBeDeferred(HeapObject object) {
-  if (Serializer::MustBeDeferred(object)) return true;
-  if (root_has_been_serialized(RootIndex::kFreeSpaceMap) &&
-      root_has_been_serialized(RootIndex::kOnePointerFillerMap) &&
-      root_has_been_serialized(RootIndex::kTwoPointerFillerMap)) {
-    // All required root objects are serialized, so any aligned objects can
-    // be saved without problems.
-    return false;
-  }
-  // Defer objects with special alignment requirements until the filler roots
-  // are serialized.
-  return HeapObject::RequiredAlignment(object.map()) != kTaggedAligned;
-}
-
-bool ReadOnlySerializer::SerializeUsingReadOnlyObjectCache(
-    SnapshotByteSink* sink, Handle<HeapObject> obj) {
-  if (!ReadOnlyHeap::Contains(*obj)) return false;
-
-  if (V8_STATIC_ROOTS_BOOL) {
-    SerializeReadOnlyObjectReference(*obj, sink);
-  } else {
-    // Get the cache index and serialize it into the read-only snapshot if
-    // necessary.
-    int cache_index = SerializeInObjectCache(obj);
-    // Writing out the cache entry into the calling serializer's sink.
-    sink->Put(kReadOnlyObjectCache, "ReadOnlyObjectCache");
-    sink->PutInt(cache_index, "read_only_object_cache_index");
-  }
-
-  return true;
-}
-
-void ReadOnlySerializer::ReconstructReadOnlyObjectCacheForTesting() {
-  ReadOnlyHeap* ro_heap = isolate()->read_only_heap();
-  DCHECK(ro_heap->read_only_object_cache_is_initialized());
-  for (size_t i = 0, size = ro_heap->read_only_object_cache_size(); i < size;
-       i++) {
-    Handle<HeapObject> obj(
-        HeapObject::cast(ro_heap->cached_read_only_object(i)), isolate());
-    int cache_index = SerializeInObjectCache(obj);
-    USE(cache_index);
-    DCHECK_EQ(cache_index, i);
   }
 }
 

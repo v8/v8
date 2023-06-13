@@ -99,8 +99,10 @@ class SnapshotByteSource final {
   // Returns length.
   int GetBlob(const uint8_t** data);
 
-  int position() { return position_; }
+  int position() const { return position_; }
   void set_position(int position) { position_ = position; }
+
+  const uint8_t* data() const { return data_; }
 
  private:
   const uint8_t* data_;
