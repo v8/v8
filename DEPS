@@ -107,7 +107,7 @@ deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '147f65333c38ddd1ebf554e89965c243c8ce50b3',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '5ff0dfa5f541a49a0d6daf9572ac97df86bcd715',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'f0c26abe519822b2dfcf631a3ef9a75be4416e91',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '3819ac6f3de594da7386c62474cedcf3b7194bb7',
   'buildtools/linux64': {
@@ -208,14 +208,14 @@ deps = {
     'packages': [
       {
         'package': 'chromium/third_party/android_toolchain/android_toolchain',
-        'version': 'version:2@r25c.cr0',
+        'version': 'version:2@r25c.cr1',
       },
     ],
     'condition': 'checkout_android',
     'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + 'f51324c1c818a663f7d9682f8784c3d3f5a92fe0',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '793b83da0634b8de30f0b9d9d1ace14134280ca3',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
@@ -229,7 +229,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '6eaeb04ac1fb53c19cdb18f666a4c054da037f08',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '7b5e3d7868de02d85e22fc48ed955846ab521a80',
   'third_party/fuchsia-gn-sdk': {
     'url': Var('chromium_url') + '/chromium/src/third_party/fuchsia-gn-sdk.git' + '@' + '0d6902558d92fe3d49ba9a8f638ddea829be595b',
     'condition': 'checkout_fuchsia',
@@ -278,7 +278,7 @@ deps = {
   'third_party/zlib':
     Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '3ca9f16f02950edffa391ec19cea856090158e9e',
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'fc015c03580fae4e99b3a9333f28221fe01212cf',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '381a058eb7e71635ea843c292e58c62ee31fbc70',
   'tools/luci-go': {
       'packages': [
         {
