@@ -758,8 +758,7 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
     }
 
     if (index.is_found()) {
-      if (access_mode == AccessMode::kStore ||
-          access_mode == AccessMode::kStoreInLiteral) {
+      if (IsAnyStore(access_mode)) {
         DCHECK(!map.is_dictionary_map());
 
         // Don't bother optimizing stores to read-only properties.
