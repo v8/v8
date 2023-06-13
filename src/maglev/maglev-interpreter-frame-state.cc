@@ -5,12 +5,14 @@
 #include "src/maglev/maglev-interpreter-frame-state.h"
 
 #include "src/handles/handles-inl.h"
+#include "src/interpreter/bytecode-register.h"
 #include "src/maglev/maglev-basic-block.h"
 #include "src/maglev/maglev-compilation-info.h"
 #include "src/maglev/maglev-compilation-unit.h"
 #include "src/maglev/maglev-graph-builder.h"
 #include "src/maglev/maglev-graph-printer.h"
 #include "src/maglev/maglev-graph.h"
+#include "src/objects/function-kind.h"
 
 namespace v8 {
 namespace internal {
@@ -161,14 +163,10 @@ MergePointInterpreterFrameState::NewForCatchBlock(
     frame_state.accumulator(unit) = state->NewExceptionPhi(
         zone, interpreter::Register::virtual_accumulator());
   }
-  frame_state.ForEachParameter(
+  frame_state.ForEachRegister(
       unit,
       [&](ValueNode*& entry, interpreter::Register reg) { entry = nullptr; });
-  // The context is always an exception phi of another register.
-  frame_state.context(unit) = state->NewExceptionPhi(zone, context_register);
-  frame_state.ForEachLocal(
-      unit,
-      [&](ValueNode*& entry, interpreter::Register reg) { entry = nullptr; });
+  state->catch_block_context_register_ = context_register;
   return state;
 }
 
@@ -309,6 +307,20 @@ void MergePointInterpreterFrameState::MergeThrow(
                        handler_builder_frame.get(reg), nullptr);
     PrintAfterMerge(*handler_unit, value);
   });
+
+  // Pick out the context value from the incoming registers.
+  // TODO(leszeks): This should be the same for all incoming states, but we lose
+  // the identity for generator-restored context. If generator value restores
+  // were handled differently, we could avoid emitting a Phi here.
+  ValueNode*& context = frame_state_.context(*handler_unit);
+  PrintBeforeMerge(*handler_unit, context,
+                   handler_builder_frame.get(catch_block_context_register_),
+                   interpreter::Register::current_context());
+  context = MergeValue(builder, interpreter::Register::current_context(),
+                       *unmerged.known_node_aspects(), context,
+                       handler_builder_frame.get(catch_block_context_register_),
+                       nullptr);
+  PrintAfterMerge(*handler_unit, context);
 
   if (known_node_aspects_ == nullptr) {
     DCHECK_EQ(predecessors_so_far_, 0);
@@ -514,6 +526,16 @@ ValueNode* MergePointInterpreterFrameState::MergeValue(
     }
     return merged;
   }
+
+  // We should always statically know what the context is, so we should never
+  // create Phis for it. The exception is resumable functions and OSR, where the
+  // context should be statically known but we lose that static information
+  // across the resume / OSR entry.
+  DCHECK_IMPLIES(
+      owner == interpreter::Register::current_context(),
+      IsResumableFunction(
+          builder->compilation_unit()->shared_function_info().kind()) ||
+          builder->compilation_unit()->is_osr());
 
   // Up to this point all predecessors had the same value for this interpreter
   // frame slot. Now that we find a distinct value, insert a copy of the first
