@@ -1754,7 +1754,18 @@ void EncodeExceptionValues(v8::Isolate* isolate,
     thrower->TypeError("Exception values must be an iterable object");
     return;
   }
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   auto values = arg.As<Object>();
+  uint32_t length = GetIterableLength(i_isolate, context, values);
+  if (length == i::kMaxUInt32) {
+    thrower->TypeError("Exception values argument has no length");
+    return;
+  }
+  if (length != static_cast<uint32_t>(signature->length())) {
+    thrower->TypeError(
+        "Number of exception values does not match signature length");
+    return;
+  }
   for (int i = 0; i < signature->length(); ++i) {
     MaybeLocal<Value> maybe_value = values->Get(context, i);
     i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);

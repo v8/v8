@@ -94,6 +94,11 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
       {parameters: ['i32', 'f32', 'i64', 'f64', 'externref']});
   assertThrows(() => new WebAssembly.Exception(
       tag, [1n, 2, 3n, 4, {}]), TypeError);
+  assertThrows(() => new WebAssembly.Exception(
+      tag, {}), TypeError, /Exception values argument has no length/);
+  assertThrows(() => new WebAssembly.Exception(
+      tag, []), TypeError,
+      /Number of exception values does not match signature length/);
   assertDoesNotThrow(() => new WebAssembly.Exception(tag, [3, 4, 5n, 6, {}]));
 })();
 
