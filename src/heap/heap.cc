@@ -1573,17 +1573,26 @@ void ReportDuplicates(int size, std::vector<HeapObject>* objects) {
 }  // anonymous namespace
 
 void Heap::CollectAllAvailableGarbage(GarbageCollectionReason gc_reason) {
-  // Since we are ignoring the return value, the exact choice of space does
-  // not matter, so long as we do not specify NEW_SPACE, which would not
-  // cause a full GC.
-  // Major GC would invoke weak handle callbacks on weakly reachable
-  // handles, but won't collect weakly reachable objects until next
-  // major GC.  Therefore if we collect aggressively and weak handle callback
-  // has been invoked, we rerun major GC to release objects which become
-  // garbage.
-  // Note: as weak callbacks can execute arbitrary code, we cannot
-  // hope that eventually there will be no weak callbacks invocations.
-  // Therefore stop recollecting after several attempts.
+  // Min and max number of attempts for GC. The method will continue with more
+  // GCs until the root set is stable.
+  static constexpr int kMaxNumberOfAttempts = 7;
+  static constexpr int kMinNumberOfAttempts = 2;
+
+  // Returns the number of roots. We assume stack layout is stable but global
+  // roots could change between GCs due to finalizers and weak callbacks.
+  const auto num_roots = [this]() {
+    size_t js_roots = 0;
+    js_roots += isolate()->global_handles()->handles_count();
+    js_roots += isolate()->eternal_handles()->handles_count();
+    size_t cpp_roots = 0;
+    if (auto* cpp_heap = CppHeap::From(cpp_heap_)) {
+      cpp_roots += cpp_heap->GetStrongPersistentRegion().NodesInUse();
+      cpp_roots +=
+          cpp_heap->GetStrongCrossThreadPersistentRegion().NodesInUse();
+    }
+    return js_roots + cpp_roots;
+  };
+
   if (gc_reason == GarbageCollectionReason::kLastResort) {
     InvokeNearHeapLimitCallback();
   }
@@ -1599,12 +1608,11 @@ void Heap::CollectAllAvailableGarbage(GarbageCollectionReason gc_reason) {
       (gc_reason == GarbageCollectionReason::kLowMemoryNotification
            ? GCFlag::kForced
            : GCFlag::kNoFlags);
-  constexpr int kMaxNumberOfAttempts = 7;
-  constexpr int kMinNumberOfAttempts = 2;
   for (int attempt = 0; attempt < kMaxNumberOfAttempts; attempt++) {
+    const size_t roots_before = num_roots();
     CollectGarbage(OLD_SPACE, gc_reason, kNoGCCallbackFlags);
-    if ((isolate()->global_handles()->last_gc_custom_callbacks() == 0) &&
-        (attempt + 1 >= kMinNumberOfAttempts)) {
+    if ((roots_before == num_roots()) &&
+        ((attempt + 1) >= kMinNumberOfAttempts)) {
       break;
     }
   }

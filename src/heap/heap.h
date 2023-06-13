@@ -990,7 +990,8 @@ class Heap final {
       GCFlags gc_flags, GarbageCollectionReason gc_reason,
       const GCCallbackFlags gc_callback_flags = kNoGCCallbackFlags);
 
-  // Last hope GC, should try to squeeze as much as possible.
+  // Last hope garbage collection. Will try to free as much memory as possible
+  // with multiple rounds of garbage collection.
   V8_EXPORT_PRIVATE void CollectAllAvailableGarbage(
       GarbageCollectionReason gc_reason);
 
