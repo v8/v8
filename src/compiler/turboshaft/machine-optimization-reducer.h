@@ -925,7 +925,7 @@ class MachineOptimizationReducer : public Next {
     // Note the side condition for XOR: the optimization doesn't hold for
     // an effective rotation amount of 0.
 
-    if (!(kind == any_of(WordBinopOp::Kind::kBitwiseAnd,
+    if (!(kind == any_of(WordBinopOp::Kind::kBitwiseOr,
                          WordBinopOp::Kind::kBitwiseXor))) {
       return {};
     }
