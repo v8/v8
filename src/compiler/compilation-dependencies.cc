@@ -120,11 +120,11 @@ class PendingDependencies final {
   void Register(Handle<HeapObject> object,
                 DependentCode::DependencyGroup group) {
     // InstructionStream, which are per-local Isolate, cannot depend on objects
-    // in the shared heap. Shared heap dependencies are designed to never
-    // invalidate assumptions. E.g., maps for shared structs do not have
-    // transitions or change the shape of their fields. See
+    // in the shared or RO heaps. Shared and RO heap dependencies are designed
+    // to never invalidate assumptions. E.g., maps for shared structs do not
+    // have transitions or change the shape of their fields. See
     // DependentCode::DeoptimizeDependencyGroups for corresponding DCHECK.
-    if (object->InWritableSharedSpace()) return;
+    if (object->InWritableSharedSpace() || object->InReadOnlySpace()) return;
     deps_.LookupOrInsert(object, HandleValueHash(object))->value |= group;
   }
 
