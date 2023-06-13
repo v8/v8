@@ -611,7 +611,7 @@ struct BlockTypeImmediate {
 
   template <typename ValidationTag>
   BlockTypeImmediate(const WasmFeatures& enabled, Decoder* decoder,
-                     const byte* pc, ValidationTag = {}) {
+                     const uint8_t* pc, ValidationTag = {}) {
     int64_t block_type;
     std::tie(block_type, length) =
         decoder->read_i33v<ValidationTag>(pc, "block type");

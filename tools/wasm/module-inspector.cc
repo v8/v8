@@ -72,9 +72,9 @@ namespace wasm {
 enum class OutputMode { kWat, kHexDump };
 static constexpr char kHexChars[] = "0123456789abcdef";
 
-char* PrintHexBytesCore(char* ptr, uint32_t num_bytes, const byte* start) {
+char* PrintHexBytesCore(char* ptr, uint32_t num_bytes, const uint8_t* start) {
   for (uint32_t i = 0; i < num_bytes; i++) {
-    byte b = *(start + i);
+    uint8_t b = *(start + i);
     *(ptr++) = '0';
     *(ptr++) = 'x';
     *(ptr++) = kHexChars[b >> 4];
@@ -214,7 +214,7 @@ class ExtendedFunctionDis : public FunctionBodyDisassembler {
  public:
   ExtendedFunctionDis(Zone* zone, const WasmModule* module, uint32_t func_index,
                       WasmFeatures* detected, const FunctionSig* sig,
-                      const byte* start, const byte* end, uint32_t offset,
+                      const uint8_t* start, const uint8_t* end, uint32_t offset,
                       const ModuleWireBytes wire_bytes, NamesProvider* names)
       : FunctionBodyDisassembler(zone, module, func_index, detected, sig, start,
                                  end, offset, wire_bytes, names) {}
@@ -310,8 +310,8 @@ class ExtendedFunctionDis : public FunctionBodyDisassembler {
     }
   }
 
-  void PrintHexBytes(StringBuilder& out, uint32_t num_bytes, const byte* start,
-                     uint32_t fill_to_minimum = 0) {
+  void PrintHexBytes(StringBuilder& out, uint32_t num_bytes,
+                     const uint8_t* start, uint32_t fill_to_minimum = 0) {
     constexpr int kCharsPerByte = 6;  // Length of "0xFF, ".
     uint32_t max = std::max(num_bytes, fill_to_minimum) * kCharsPerByte + 2;
     char* ptr = out.allocate(max);
@@ -406,7 +406,7 @@ class HexDumpModuleDis : public ITracer {
   }
 
   // Tracer hooks.
-  void Bytes(const byte* start, uint32_t count) override {
+  void Bytes(const uint8_t* start, uint32_t count) override {
     if (count > kMaxBytesPerLine) {
       DCHECK_EQ(queue_, nullptr);
       queue_ = start;
@@ -559,7 +559,7 @@ class HexDumpModuleDis : public ITracer {
 
   // The following two hooks give us an opportunity to call the hex-dumping
   // function body disassembler for initializers and functions.
-  void InitializerExpression(const byte* start, const byte* end,
+  void InitializerExpression(const uint8_t* start, const uint8_t* end,
                              ValueType expected_type) override {
     WasmFeatures detected;
     auto sig = FixedSizeSignature<ValueType>::Returns(expected_type);
@@ -572,8 +572,8 @@ class HexDumpModuleDis : public ITracer {
     total_bytes_ += static_cast<size_t>(end - start);
   }
 
-  void FunctionBody(const WasmFunction* func, const byte* start) override {
-    const byte* end = start + func->code.length();
+  void FunctionBody(const WasmFunction* func, const uint8_t* start) override {
+    const uint8_t* end = start + func->code.length();
     WasmFeatures detected;
     DCHECK_EQ(start - wire_bytes_.start(), pc_offset());
     uint32_t offset = pc_offset();
@@ -587,7 +587,7 @@ class HexDumpModuleDis : public ITracer {
 
   // We have to do extra work for the name section here, because the regular
   // decoder mostly just skips over it.
-  void NameSection(const byte* start, const byte* end,
+  void NameSection(const uint8_t* start, const uint8_t* end,
                    uint32_t offset) override {
     Decoder decoder(start, end, offset);
     while (decoder.ok() && decoder.more()) {
@@ -632,7 +632,7 @@ class HexDumpModuleDis : public ITracer {
   static constexpr uint32_t kPadBytes = 4;
 
   void PrintHexBytes(StringBuilder& out, uint32_t num_bytes,
-                     const byte* start) {
+                     const uint8_t* start) {
     char* ptr = out.allocate(num_bytes * 6);
     PrintHexBytesCore(ptr, num_bytes, start);
   }
@@ -704,7 +704,7 @@ class HexDumpModuleDis : public ITracer {
   Zone zone_;
 
   StringBuilder description_;
-  const byte* queue_{nullptr};
+  const uint8_t* queue_{nullptr};
   uint32_t queue_length_{0};
   uint32_t line_bytes_{0};
   size_t total_bytes_{0};
@@ -731,7 +731,8 @@ class FormatConverter {
       : output_(output), out_(output_.get()), print_offsets_(print_offsets) {
     if (!output_.ok()) return;
     if (!LoadFile(input)) return;
-    base::Vector<const byte> wire_bytes(raw_bytes_.data(), raw_bytes_.size());
+    base::Vector<const uint8_t> wire_bytes(raw_bytes_.data(),
+                                           raw_bytes_.size());
     wire_bytes_ = ModuleWireBytes({raw_bytes_.data(), raw_bytes_.size()});
     status_ = kIoInitialized;
     ModuleResult result = DecodeWasmModuleForDisassembler(raw_bytes());
@@ -863,7 +864,7 @@ class FormatConverter {
          i < module()->functions.size(); i++) {
       const WasmFunction* func = &module()->functions[i];
       WasmFeatures detected;
-      base::Vector<const byte> code = wire_bytes_.GetFunctionBytes(func);
+      base::Vector<const uint8_t> code = wire_bytes_.GetFunctionBytes(func);
       ExtendedFunctionDis d(&zone, module(), i, &detected, func->sig,
                             code.begin(), code.end(), func->code.offset(),
                             wire_bytes_, names());
@@ -887,7 +888,7 @@ class FormatConverter {
     const WasmFunction* func = &module()->functions[func_index];
     Zone zone(&allocator_, "disassembler");
     WasmFeatures detected;
-    base::Vector<const byte> code = wire_bytes_.GetFunctionBytes(func);
+    base::Vector<const uint8_t> code = wire_bytes_.GetFunctionBytes(func);
 
     ExtendedFunctionDis d(&zone, module(), func_index, &detected, func->sig,
                           code.begin(), code.end(), func->code.offset(),
@@ -986,7 +987,8 @@ class FormatConverter {
     input.putback(c0);
     if (c0 == 0 && c1 == 'a' && c2 == 's' && c3 == 'm') {
       // Wasm binary module.
-      raw_bytes_ = std::vector<byte>(std::istreambuf_iterator<char>(input), {});
+      raw_bytes_ =
+          std::vector<uint8_t>(std::istreambuf_iterator<char>(input), {});
       return true;
     }
     if (TryParseLiteral(input, raw_bytes_)) return true;
@@ -1004,7 +1006,8 @@ class FormatConverter {
   //   braces is ignored.
   // - Whitespace, line comments, and block comments are ignored.
   // So in particular, this can consume what --full-hexdump produces.
-  bool TryParseLiteral(std::istream& input, std::vector<byte>& output_bytes) {
+  bool TryParseLiteral(std::istream& input,
+                       std::vector<uint8_t>& output_bytes) {
     int c = input.get();
     // Skip anything before the first opening '['.
     while (c != '[' && c != EOF) c = input.get();
@@ -1057,14 +1060,14 @@ class FormatConverter {
       DCHECK(state == kDecimal || state == kHex || state == kAfterValue);
       if (c == ',') {
         DCHECK_LT(value, 256);
-        output_bytes.push_back(static_cast<byte>(value));
+        output_bytes.push_back(static_cast<uint8_t>(value));
         state = kBeforeValue;
         value = 0;
         continue;
       }
       if (c == ']') {
         DCHECK_LT(value, 256);
-        output_bytes.push_back(static_cast<byte>(value));
+        output_bytes.push_back(static_cast<uint8_t>(value));
         return true;
       }
       if (state == kAfterValue) {

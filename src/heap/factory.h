@@ -131,7 +131,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   Handle<Oddball> NewOddball(Handle<Map> map, const char* to_string,
                              Handle<Object> to_number, const char* type_of,
-                             byte kind);
+                             uint8_t kind);
 
   // Marks self references within code generation.
   Handle<Oddball> NewSelfReferenceMarker();

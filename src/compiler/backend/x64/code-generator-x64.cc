@@ -1104,20 +1104,20 @@ void EmitTSANRelaxedLoadOOLIfNeeded(Zone* zone, CodeGenerator* codegen,
     }                                                                    \
   } while (false)
 
-#define ASSEMBLE_SIMD256_SHIFT(opcode, width)             \
-  do {                                                    \
-    CpuFeatureScope avx_scope(masm(), AVX2);              \
-    YMMRegister src = i.InputSimd256Register(0);          \
-    YMMRegister dst = i.OutputSimd256Register();          \
-    if (HasImmediateInput(instr, 1)) {                    \
-      __ v##opcode(dst, src, byte{i.InputInt##width(1)}); \
-    } else {                                              \
-      constexpr int mask = (1 << width) - 1;              \
-      __ movq(kScratchRegister, i.InputRegister(1));      \
-      __ andq(kScratchRegister, Immediate(mask));         \
-      __ Movq(kScratchDoubleReg, kScratchRegister);       \
-      __ v##opcode(dst, src, kScratchDoubleReg);          \
-    }                                                     \
+#define ASSEMBLE_SIMD256_SHIFT(opcode, width)                \
+  do {                                                       \
+    CpuFeatureScope avx_scope(masm(), AVX2);                 \
+    YMMRegister src = i.InputSimd256Register(0);             \
+    YMMRegister dst = i.OutputSimd256Register();             \
+    if (HasImmediateInput(instr, 1)) {                       \
+      __ v##opcode(dst, src, uint8_t{i.InputInt##width(1)}); \
+    } else {                                                 \
+      constexpr int mask = (1 << width) - 1;                 \
+      __ movq(kScratchRegister, i.InputRegister(1));         \
+      __ andq(kScratchRegister, Immediate(mask));            \
+      __ Movq(kScratchDoubleReg, kScratchRegister);          \
+      __ v##opcode(dst, src, kScratchDoubleReg);             \
+    }                                                        \
   } while (false)
 
 #define ASSEMBLE_PINSR(ASM_INSTR)                                        \
@@ -2521,11 +2521,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
             if (dst == src) {
               __ vpcmpeqd(kScratchSimd256Reg, kScratchSimd256Reg,
                           kScratchSimd256Reg);
-              __ vpsrld(kScratchSimd256Reg, kScratchSimd256Reg, byte{1});
+              __ vpsrld(kScratchSimd256Reg, kScratchSimd256Reg, uint8_t{1});
               __ vpand(dst, dst, kScratchSimd256Reg);
             } else {
               __ vpcmpeqd(dst, dst, dst);
-              __ vpsrld(dst, dst, byte{1});
+              __ vpsrld(dst, dst, uint8_t{1});
               __ vpand(dst, dst, src);
             }
             break;
@@ -2586,11 +2586,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
             if (dst == src) {
               __ vpcmpeqd(kScratchSimd256Reg, kScratchSimd256Reg,
                           kScratchSimd256Reg);
-              __ vpslld(kScratchSimd256Reg, kScratchSimd256Reg, byte{31});
+              __ vpslld(kScratchSimd256Reg, kScratchSimd256Reg, uint8_t{31});
               __ vpxor(dst, dst, kScratchSimd256Reg);
             } else {
               __ vpcmpeqd(dst, dst, dst);
-              __ vpslld(dst, dst, byte{31});
+              __ vpslld(dst, dst, uint8_t{31});
               __ vxorps(dst, dst, src);
             }
             break;

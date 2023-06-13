@@ -1549,7 +1549,7 @@ void MacroAssembler::F64x4Min(YMMRegister dst, YMMRegister lhs, YMMRegister rhs,
   vorpd(scratch, scratch, dst);
   vcmpunordpd(dst, dst, scratch);
   vorpd(scratch, scratch, dst);
-  vpsrlq(dst, dst, byte{13});
+  vpsrlq(dst, dst, uint8_t{13});
   vandnpd(dst, dst, scratch);
 }
 
@@ -1564,7 +1564,7 @@ void MacroAssembler::F64x4Max(YMMRegister dst, YMMRegister lhs, YMMRegister rhs,
   vorpd(scratch, scratch, dst);
   vsubpd(scratch, scratch, dst);
   vcmpunordpd(dst, dst, scratch);
-  vpsrlq(dst, dst, byte{13});
+  vpsrlq(dst, dst, uint8_t{13});
   vandnpd(dst, dst, scratch);
 }
 
@@ -1578,7 +1578,7 @@ void MacroAssembler::F32x8Min(YMMRegister dst, YMMRegister lhs, YMMRegister rhs,
   vorps(scratch, scratch, dst);
   vcmpunordps(dst, dst, scratch);
   vorps(scratch, scratch, dst);
-  vpsrld(dst, dst, byte{10});
+  vpsrld(dst, dst, uint8_t{10});
   vandnps(dst, dst, scratch);
 }
 
@@ -1593,7 +1593,7 @@ void MacroAssembler::F32x8Max(YMMRegister dst, YMMRegister lhs, YMMRegister rhs,
   vorps(scratch, scratch, dst);
   vsubps(scratch, scratch, dst);
   vcmpunordps(dst, dst, scratch);
-  vpsrld(dst, dst, byte{10});
+  vpsrld(dst, dst, uint8_t{10});
   vandnps(dst, dst, scratch);
 }
 

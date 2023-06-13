@@ -214,7 +214,7 @@ class V8FileLogger : public LogEventListener {
                                   JitCodeEvent::CodeType code_type);
 #if V8_ENABLE_WEBASSEMBLY
   void WasmCodeLinePosInfoRecordEvent(
-      Address code_start, base::Vector<const byte> source_position_table);
+      Address code_start, base::Vector<const uint8_t> source_position_table);
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   void CodeNameEvent(Address addr, int pos, const char* code_name);

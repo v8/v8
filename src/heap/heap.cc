@@ -5588,7 +5588,7 @@ void Heap::InitializeHashSeed() {
     new_hash_seed = static_cast<uint64_t>(v8_flags.hash_seed);
   }
   ReadOnlyRoots(this).hash_seed()->copy_in(
-      0, reinterpret_cast<byte*>(&new_hash_seed), kInt64Size);
+      0, reinterpret_cast<uint8_t*>(&new_hash_seed), kInt64Size);
 }
 
 // static

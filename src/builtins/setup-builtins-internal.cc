@@ -79,7 +79,7 @@ using CodeAssemblerGenerator = void (*)(compiler::CodeAssemblerState*);
 
 Handle<Code> BuildPlaceholder(Isolate* isolate, Builtin builtin) {
   HandleScope scope(isolate);
-  byte buffer[kBufferSize];
+  uint8_t buffer[kBufferSize];
   MacroAssembler masm(isolate, CodeObjectRequired::kYes,
                       ExternalAssemblerBuffer(buffer, kBufferSize));
   DCHECK(!masm.has_frame());
@@ -103,7 +103,7 @@ Code BuildWithMacroAssembler(Isolate* isolate, Builtin builtin,
                              MacroAssemblerGenerator generator,
                              const char* s_name) {
   HandleScope scope(isolate);
-  byte buffer[kBufferSize];
+  uint8_t buffer[kBufferSize];
 
   MacroAssembler masm(isolate, BuiltinAssemblerOptions(isolate, builtin),
                       CodeObjectRequired::kYes,
@@ -150,7 +150,7 @@ Code BuildWithMacroAssembler(Isolate* isolate, Builtin builtin,
 Code BuildAdaptor(Isolate* isolate, Builtin builtin, Address builtin_address,
                   const char* name) {
   HandleScope scope(isolate);
-  byte buffer[kBufferSize];
+  uint8_t buffer[kBufferSize];
   MacroAssembler masm(isolate, BuiltinAssemblerOptions(isolate, builtin),
                       CodeObjectRequired::kYes,
                       ExternalAssemblerBuffer(buffer, kBufferSize));

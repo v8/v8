@@ -401,7 +401,7 @@ Handle<Code> Builtins::CreateInterpreterEntryTrampolineForProfiling(
       Builtin::kInterpreterEntryTrampolineForProfiling);
 
   CodeDesc desc;
-  desc.buffer = reinterpret_cast<byte*>(code.instruction_start());
+  desc.buffer = reinterpret_cast<uint8_t*>(code.instruction_start());
 
   int instruction_size = code.instruction_size();
   desc.buffer_size = instruction_size;

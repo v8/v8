@@ -1565,7 +1565,7 @@ void V8FileLogger::CodeCreateEvent(CodeTag tag, const wasm::WasmCode* code,
   // to the native module + function index works well enough.
   // TODO(herhut) Clean up the tick processor code instead.
   void* tag_ptr =
-      reinterpret_cast<byte*>(code->native_module()) + code->index();
+      reinterpret_cast<uint8_t*>(code->native_module()) + code->index();
   msg << kNext << tag_ptr << kNext << ComputeMarker(code);
   msg.WriteToLogFile();
 }
@@ -1708,7 +1708,7 @@ void V8FileLogger::CodeLinePosInfoRecordEvent(
 
 #if V8_ENABLE_WEBASSEMBLY
 void V8FileLogger::WasmCodeLinePosInfoRecordEvent(
-    Address code_start, base::Vector<const byte> source_position_table) {
+    Address code_start, base::Vector<const uint8_t> source_position_table) {
   if (!jit_logger_) return;
   SourcePositionTableIterator iter(source_position_table);
   CodeLinePosEvent(*jit_logger_, code_start, iter, JitCodeEvent::WASM_CODE);

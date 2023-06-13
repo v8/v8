@@ -32,7 +32,7 @@ bool IsSamePage(i::Address ptr1, i::Address ptr2) {
 bool IsNoFrameRegion(i::Address address) {
   struct Pattern {
     int bytes_count;
-    i::byte bytes[8];
+    uint8_t bytes[8];
     int offsets[4];
   };
   static Pattern patterns[] = {
@@ -59,7 +59,7 @@ bool IsNoFrameRegion(i::Address address) {
 #endif
     {0, {}, {}}
   };
-  i::byte* pc = reinterpret_cast<i::byte*>(address);
+  uint8_t* pc = reinterpret_cast<uint8_t*>(address);
   for (Pattern* pattern = patterns; pattern->bytes_count; ++pattern) {
     for (int* offset_ptr = pattern->offsets; *offset_ptr != -1; ++offset_ptr) {
       int offset = *offset_ptr;

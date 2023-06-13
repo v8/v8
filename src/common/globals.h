@@ -334,8 +334,6 @@ class AllStatic {
 #endif
 };
 
-using byte = uint8_t;
-
 // -----------------------------------------------------------------------------
 // Constants
 
@@ -357,7 +355,7 @@ constexpr int kMinUInt32 = 0;
 
 constexpr int kInt8Size = sizeof(int8_t);
 constexpr int kUInt8Size = sizeof(uint8_t);
-constexpr int kByteSize = sizeof(byte);
+constexpr int kByteSize = 1;
 constexpr int kCharSize = sizeof(char);
 constexpr int kShortSize = sizeof(short);  // NOLINT
 constexpr int kInt16Size = sizeof(int16_t);
@@ -604,7 +602,7 @@ constexpr unsigned kMaxModuleAsyncEvaluatingOrdinal = (1 << 30) - 1;
 // FUNCTION_CAST<F>(addr) casts an address into a function
 // of type F. Used to invoke generated code from within C.
 template <typename F>
-F FUNCTION_CAST(byte* addr) {
+F FUNCTION_CAST(uint8_t* addr) {
   return reinterpret_cast<F>(reinterpret_cast<Address>(addr));
 }
 

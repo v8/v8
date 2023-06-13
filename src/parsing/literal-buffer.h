@@ -24,13 +24,13 @@ class LiteralBuffer final {
 
   V8_INLINE void AddChar(char code_unit) {
     DCHECK(IsValidAscii(code_unit));
-    AddOneByteChar(static_cast<byte>(code_unit));
+    AddOneByteChar(static_cast<uint8_t>(code_unit));
   }
 
   V8_INLINE void AddChar(base::uc32 code_unit) {
     if (is_one_byte()) {
       if (code_unit <= static_cast<base::uc32>(unibrow::Latin1::kMaxChar)) {
-        AddOneByteChar(static_cast<byte>(code_unit));
+        AddOneByteChar(static_cast<uint8_t>(code_unit));
         return;
       }
       ConvertToTwoByte();
@@ -85,7 +85,7 @@ class LiteralBuffer final {
     return iscntrl(code_unit) || isprint(code_unit);
   }
 
-  V8_INLINE void AddOneByteChar(byte one_byte_char) {
+  V8_INLINE void AddOneByteChar(uint8_t one_byte_char) {
     DCHECK(is_one_byte());
     if (position_ >= backing_store_.length()) ExpandBuffer();
     backing_store_[position_] = one_byte_char;
@@ -97,7 +97,7 @@ class LiteralBuffer final {
   V8_NOINLINE V8_PRESERVE_MOST void ExpandBuffer();
   void ConvertToTwoByte();
 
-  base::Vector<byte> backing_store_;
+  base::Vector<uint8_t> backing_store_;
   int position_ = 0;
   bool is_one_byte_ = true;
 };

@@ -794,8 +794,8 @@ Handle<HeapObject> RegExpMacroAssemblerARM64::GetCode(Handle<String> source) {
   // Arguments on entry:
   // x0:  String   input
   // x1:  int      start_offset
-  // x2:  byte*    input_start
-  // x3:  byte*    input_end
+  // x2:  uint8_t*    input_start
+  // x3:  uint8_t*    input_end
   // x4:  int*     output array
   // x5:  int      output array size
   // x6:  int      direct_call

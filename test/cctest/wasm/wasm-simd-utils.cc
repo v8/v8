@@ -50,11 +50,11 @@ void RunI8x32UnOpRevecTest(WasmOpcode opcode, Int8UnOp expected_op) {
   int8_t* memory = r.builder().AddMemoryElems<int8_t>(64);
   // Build fn to load a I8x32 vector with test value, perform unop, and write
   // the result to another array.
-  byte param1 = 0;
-  byte param2 = 1;
-  byte temp1 = r.AllocateLocal(kWasmS128);
-  byte temp2 = r.AllocateLocal(kWasmS128);
-  constexpr byte offset = 16;
+  uint8_t param1 = 0;
+  uint8_t param2 = 1;
+  uint8_t temp1 = r.AllocateLocal(kWasmS128);
+  uint8_t temp2 = r.AllocateLocal(kWasmS128);
+  constexpr uint8_t offset = 16;
 
   r.Build(
       {WASM_LOCAL_SET(
@@ -125,12 +125,12 @@ void RunI8x32BinOpRevecTest(WasmOpcode opcode, OpType expected_op) {
   //   simd128 *a,*b,*c;
   //   *c = *a bin_op *b;
   //   *(c+1) = *(a+1) bin_op *(b+1);
-  byte param1 = 0;
-  byte param2 = 1;
-  byte param3 = 2;
-  byte temp1 = r.AllocateLocal(kWasmS128);
-  byte temp2 = r.AllocateLocal(kWasmS128);
-  constexpr byte offset = 16;
+  uint8_t param1 = 0;
+  uint8_t param2 = 1;
+  uint8_t param3 = 2;
+  uint8_t temp1 = r.AllocateLocal(kWasmS128);
+  uint8_t temp2 = r.AllocateLocal(kWasmS128);
+  constexpr uint8_t offset = 16;
 
   r.Build({WASM_LOCAL_SET(
                temp1, WASM_SIMD_BINOP(
@@ -251,11 +251,11 @@ void RunI16x16UnOpRevecTest(WasmOpcode opcode, Int16UnOp expected_op) {
   int16_t* memory = r.builder().AddMemoryElems<int16_t>(32);
   // Build fn to load a I16x16 vector with test value, perform unop, and write
   // the result to another array.
-  byte param1 = 0;
-  byte param2 = 1;
-  byte temp1 = r.AllocateLocal(kWasmS128);
-  byte temp2 = r.AllocateLocal(kWasmS128);
-  constexpr byte offset = 16;
+  uint8_t param1 = 0;
+  uint8_t param2 = 1;
+  uint8_t temp1 = r.AllocateLocal(kWasmS128);
+  uint8_t temp2 = r.AllocateLocal(kWasmS128);
+  constexpr uint8_t offset = 16;
 
   r.Build(
       {WASM_LOCAL_SET(
@@ -325,12 +325,12 @@ void RunI16x16BinOpRevecTest(WasmOpcode opcode, OpType expected_op) {
   //   simd128 *a,*b,*c;
   //   *c = *a bin_op *b;
   //   *(c+1) = *(a+1) bin_op *(b+1);
-  byte param1 = 0;
-  byte param2 = 1;
-  byte param3 = 2;
-  byte temp1 = r.AllocateLocal(kWasmS128);
-  byte temp2 = r.AllocateLocal(kWasmS128);
-  constexpr byte offset = 16;
+  uint8_t param1 = 0;
+  uint8_t param2 = 1;
+  uint8_t param3 = 2;
+  uint8_t temp1 = r.AllocateLocal(kWasmS128);
+  uint8_t temp2 = r.AllocateLocal(kWasmS128);
+  constexpr uint8_t offset = 16;
 
   r.Build({WASM_LOCAL_SET(
                temp1, WASM_SIMD_BINOP(
@@ -411,12 +411,12 @@ void RunI16x16ShiftOpRevecTest(WasmOpcode opcode, Int16ShiftOp expected_op) {
     // Build fn to load an I16x16 vector with test value, shift using an
     // immediate and a value loaded from memory. Write the result to another
     // array.
-    byte param1 = 0;
-    byte param2 = 1;
-    byte temp1 = r.AllocateLocal(kWasmI32);
-    byte temp2 = r.AllocateLocal(kWasmS128);
-    byte temp3 = r.AllocateLocal(kWasmS128);
-    constexpr byte offset = 16;
+    uint8_t param1 = 0;
+    uint8_t param2 = 1;
+    uint8_t temp1 = r.AllocateLocal(kWasmI32);
+    uint8_t temp2 = r.AllocateLocal(kWasmS128);
+    uint8_t temp3 = r.AllocateLocal(kWasmS128);
+    constexpr uint8_t offset = 16;
 
     r.Build(
         {WASM_LOCAL_SET(temp2,
@@ -502,11 +502,11 @@ void RunI32x8UnOpRevecTest(WasmOpcode opcode, Int32UnOp expected_op) {
   int32_t* memory = r.builder().AddMemoryElems<int32_t>(16);
   // Build fn to load a I32x8 vector with test value, perform unop, and write
   // the result to another array.
-  byte param1 = 0;
-  byte param2 = 1;
-  byte temp1 = r.AllocateLocal(kWasmS128);
-  byte temp2 = r.AllocateLocal(kWasmS128);
-  constexpr byte offset = 16;
+  uint8_t param1 = 0;
+  uint8_t param2 = 1;
+  uint8_t temp1 = r.AllocateLocal(kWasmS128);
+  uint8_t temp2 = r.AllocateLocal(kWasmS128);
+  constexpr uint8_t offset = 16;
 
   r.Build(
       {WASM_LOCAL_SET(
@@ -569,12 +569,12 @@ void RunI32x8BinOpRevecTest(WasmOpcode opcode, OpType expected_op) {
   //   simd128 *a,*b,*c;
   //   *c = *a bin_op *b;
   //   *(c+1) = *(a+1) bin_op *(b+1);
-  byte param1 = 0;
-  byte param2 = 1;
-  byte param3 = 2;
-  byte temp1 = r.AllocateLocal(kWasmS128);
-  byte temp2 = r.AllocateLocal(kWasmS128);
-  constexpr byte offset = 16;
+  uint8_t param1 = 0;
+  uint8_t param2 = 1;
+  uint8_t param3 = 2;
+  uint8_t temp1 = r.AllocateLocal(kWasmS128);
+  uint8_t temp2 = r.AllocateLocal(kWasmS128);
+  constexpr uint8_t offset = 16;
 
   r.Build({WASM_LOCAL_SET(
                temp1, WASM_SIMD_BINOP(
@@ -655,12 +655,12 @@ void RunI32x8ShiftOpRevecTest(WasmOpcode opcode, Int32ShiftOp expected_op) {
     // Build fn to load an I32x8 vector with test value, shift using an
     // immediate and a value loaded from memory. Write the result to another
     // array.
-    byte param1 = 0;
-    byte param2 = 1;
-    byte temp1 = r.AllocateLocal(kWasmI32);
-    byte temp2 = r.AllocateLocal(kWasmS128);
-    byte temp3 = r.AllocateLocal(kWasmS128);
-    constexpr byte offset = 16;
+    uint8_t param1 = 0;
+    uint8_t param2 = 1;
+    uint8_t temp1 = r.AllocateLocal(kWasmI32);
+    uint8_t temp2 = r.AllocateLocal(kWasmS128);
+    uint8_t temp3 = r.AllocateLocal(kWasmS128);
+    constexpr uint8_t offset = 16;
 
     r.Build(
         {WASM_LOCAL_SET(temp2,
@@ -755,12 +755,12 @@ void RunI64x4BinOpRevecTest(WasmOpcode opcode, Int64BinOp expected_op) {
   //   simd128 *a,*b,*c;
   //   *c = *a bin_op *b;
   //   *(c+1) = *(a+1) bin_op *(b+1);
-  byte param1 = 0;
-  byte param2 = 1;
-  byte param3 = 2;
-  byte temp1 = r.AllocateLocal(kWasmS128);
-  byte temp2 = r.AllocateLocal(kWasmS128);
-  constexpr byte offset = 16;
+  uint8_t param1 = 0;
+  uint8_t param2 = 1;
+  uint8_t param3 = 2;
+  uint8_t temp1 = r.AllocateLocal(kWasmS128);
+  uint8_t temp2 = r.AllocateLocal(kWasmS128);
+  constexpr uint8_t offset = 16;
 
   r.Build({WASM_LOCAL_SET(
                temp1, WASM_SIMD_BINOP(
@@ -836,12 +836,12 @@ void RunI64x4ShiftOpRevecTest(WasmOpcode opcode, Int64ShiftOp expected_op) {
     // Build fn to load an I64x4 vector with test value, shift using an
     // immediate and a value loaded from memory. Write the result to another
     // array.
-    byte param1 = 0;
-    byte param2 = 1;
-    byte temp1 = r.AllocateLocal(kWasmI32);
-    byte temp2 = r.AllocateLocal(kWasmS128);
-    byte temp3 = r.AllocateLocal(kWasmS128);
-    constexpr byte offset = 16;
+    uint8_t param1 = 0;
+    uint8_t param2 = 1;
+    uint8_t temp1 = r.AllocateLocal(kWasmI32);
+    uint8_t temp2 = r.AllocateLocal(kWasmS128);
+    uint8_t temp3 = r.AllocateLocal(kWasmS128);
+    constexpr uint8_t offset = 16;
 
     r.Build(
         {WASM_LOCAL_SET(temp2,
@@ -974,11 +974,11 @@ void RunF32x8UnOpRevecTest(WasmOpcode opcode, FloatUnOp expected_op) {
   float* memory = r.builder().AddMemoryElems<float>(16);
   // Build fn to load a F32x8 vector with test value, perform unop, and write
   // the result to another array.
-  byte param1 = 0;
-  byte param2 = 1;
-  byte temp1 = r.AllocateLocal(kWasmS128);
-  byte temp2 = r.AllocateLocal(kWasmS128);
-  constexpr byte offset = 16;
+  uint8_t param1 = 0;
+  uint8_t param2 = 1;
+  uint8_t temp1 = r.AllocateLocal(kWasmS128);
+  uint8_t temp2 = r.AllocateLocal(kWasmS128);
+  constexpr uint8_t offset = 16;
 
   r.Build(
       {WASM_LOCAL_SET(
@@ -1210,11 +1210,11 @@ void RunF64x4UnOpRevecTest(WasmOpcode opcode, DoubleUnOp expected_op) {
   double* memory = r.builder().AddMemoryElems<double>(8);
   // Build fn to load a F64x4 vector with test value, perform unop, and write
   // the result to another array.
-  byte param1 = 0;
-  byte param2 = 1;
-  byte temp1 = r.AllocateLocal(kWasmS128);
-  byte temp2 = r.AllocateLocal(kWasmS128);
-  constexpr byte offset = 16;
+  uint8_t param1 = 0;
+  uint8_t param2 = 1;
+  uint8_t temp1 = r.AllocateLocal(kWasmS128);
+  uint8_t temp2 = r.AllocateLocal(kWasmS128);
+  constexpr uint8_t offset = 16;
 
   r.Build(
       {WASM_LOCAL_SET(

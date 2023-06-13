@@ -923,7 +923,7 @@ class ModuleDecoderImpl : public Decoder {
   }
 
   void DecodeMemorySection() {
-    const byte* mem_count_pc = pc();
+    const uint8_t* mem_count_pc = pc();
     uint32_t memory_count = consume_count("memory count", kV8MaxWasmMemories);
     size_t imported_memories = module_->memories.size();
     if (memory_count + imported_memories > 1) {

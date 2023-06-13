@@ -2105,7 +2105,7 @@ void WasmStruct::WasmStructPrint(std::ostream& os) {
         for (int j = kSimd128Size - 1; j >= 0; j--) {
 #endif
           os << std::setw(2)
-             << static_cast<int>(reinterpret_cast<byte*>(field_address)[j]);
+             << static_cast<int>(reinterpret_cast<uint8_t*>(field_address)[j]);
         }
         os << std::dec << std::setfill(' ');
         break;
@@ -2177,7 +2177,7 @@ void WasmArray::WasmArrayPrint(std::ostream& os) {
 #endif
           os << std::setw(2)
              << static_cast<int>(
-                    reinterpret_cast<byte*>(this->ElementAddress(i))[j]);
+                    reinterpret_cast<uint8_t*>(this->ElementAddress(i))[j]);
         }
         os << std::dec << std::setfill(' ');
       }

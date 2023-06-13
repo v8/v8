@@ -266,8 +266,8 @@ FactoryBase<Impl>::NewDeoptimizationLiteralArray(int length) {
 
 template <typename Impl>
 Handle<BytecodeArray> FactoryBase<Impl>::NewBytecodeArray(
-    int length, const byte* raw_bytecodes, int frame_size, int parameter_count,
-    Handle<FixedArray> constant_pool) {
+    int length, const uint8_t* raw_bytecodes, int frame_size,
+    int parameter_count, Handle<FixedArray> constant_pool) {
   if (length < 0 || length > BytecodeArray::kMaxLength) {
     FATAL("Fatal JavaScript invalid size error %d", length);
     UNREACHABLE();
@@ -291,7 +291,7 @@ Handle<BytecodeArray> FactoryBase<Impl>::NewBytecodeArray(
                              SKIP_WRITE_BARRIER);
   instance.set_source_position_table(read_only_roots().undefined_value(),
                                      kReleaseStore, SKIP_WRITE_BARRIER);
-  CopyBytes(reinterpret_cast<byte*>(instance.GetFirstBytecodeAddress()),
+  CopyBytes(reinterpret_cast<uint8_t*>(instance.GetFirstBytecodeAddress()),
             raw_bytecodes, length);
   instance.clear_padding();
   return handle(instance, isolate());
@@ -613,7 +613,7 @@ Handle<FeedbackMetadata> FactoryBase<Impl>::NewFeedbackMetadata(
   // Initialize the data section to 0.
   int data_size = size - FeedbackMetadata::kHeaderSize;
   Address data_start = result.address() + FeedbackMetadata::kHeaderSize;
-  memset(reinterpret_cast<byte*>(data_start), 0, data_size);
+  memset(reinterpret_cast<uint8_t*>(data_start), 0, data_size);
   // Fields have been zeroed out but not initialized, so this object will not
   // pass object verification at this point.
   return handle(result, isolate());

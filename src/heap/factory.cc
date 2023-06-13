@@ -453,7 +453,7 @@ Handle<Tuple2> Factory::NewTuple2(Handle<Object> value1, Handle<Object> value2,
 
 Handle<Oddball> Factory::NewOddball(Handle<Map> map, const char* to_string,
                                     Handle<Object> to_number,
-                                    const char* type_of, byte kind) {
+                                    const char* type_of, uint8_t kind) {
   Handle<Oddball> oddball(Oddball::cast(New(map, AllocationType::kReadOnly)),
                           isolate());
   Oddball::Initialize(isolate(), oddball, to_string, to_number, type_of, kind);
@@ -1813,7 +1813,7 @@ Handle<WasmArray> Factory::NewWasmArray(const wasm::ArrayType* type,
       wasm::WasmValue packed = initial_value.Packed(type->element_type());
       for (uint32_t i = 0; i < length; i++) {
         Address address = result.ElementAddress(i);
-        packed.CopyTo(reinterpret_cast<byte*>(address));
+        packed.CopyTo(reinterpret_cast<uint8_t*>(address));
       }
     }
   } else {
@@ -1835,7 +1835,7 @@ Handle<WasmArray> Factory::NewWasmArrayFromElements(
       Address address = result.ElementAddress(i);
       elements[i]
           .Packed(type->element_type())
-          .CopyTo(reinterpret_cast<byte*>(address));
+          .CopyTo(reinterpret_cast<uint8_t*>(address));
     }
   } else {
     for (uint32_t i = 0; i < length; i++) {
@@ -1901,7 +1901,9 @@ Handle<WasmStruct> Factory::NewWasmStruct(const wasm::StructType* type,
     int offset = type->field_offset(i);
     if (type->field(i).is_numeric()) {
       Address address = result.RawFieldAddress(offset);
-      args[i].Packed(type->field(i)).CopyTo(reinterpret_cast<byte*>(address));
+      args[i]
+          .Packed(type->field(i))
+          .CopyTo(reinterpret_cast<uint8_t*>(address));
     } else {
       offset += WasmStruct::kHeaderSize;
       TaggedField<Object>::store(result, offset, *args[i].to_ref());
