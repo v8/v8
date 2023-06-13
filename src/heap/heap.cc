@@ -5529,7 +5529,7 @@ void Heap::SetUpSpaces(LinearAllocationArea& new_allocation_info,
 
   if (new_space()) {
     minor_gc_job_.reset(new MinorGCJob());
-    if (v8_flags.concurrent_minor_mc_marking) {
+    if (v8_flags.minor_mc && v8_flags.concurrent_minor_mc_marking) {
       // TODO(v8:13012): Atomic MinorMC should not use ScavengeJob. Instead, we
       // should schedule MinorMC tasks at a soft limit, which are used by atomic
       // MinorMC, and to finalize concurrent MinorMC. The condition
