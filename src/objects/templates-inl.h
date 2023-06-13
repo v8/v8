@@ -26,24 +26,34 @@ TQ_OBJECT_CONSTRUCTORS_IMPL(FunctionTemplateRareData)
 
 NEVER_READ_ONLY_SPACE_IMPL(TemplateInfo)
 
-BOOL_ACCESSORS(FunctionTemplateInfo, flag, undetectable,
+BOOL_ACCESSORS(FunctionTemplateInfo, relaxed_flag, undetectable,
                UndetectableBit::kShift)
-BOOL_ACCESSORS(FunctionTemplateInfo, flag, needs_access_check,
+BOOL_ACCESSORS(FunctionTemplateInfo, relaxed_flag, needs_access_check,
                NeedsAccessCheckBit::kShift)
-BOOL_ACCESSORS(FunctionTemplateInfo, flag, read_only_prototype,
+BOOL_ACCESSORS(FunctionTemplateInfo, relaxed_flag, read_only_prototype,
                ReadOnlyPrototypeBit::kShift)
-BOOL_ACCESSORS(FunctionTemplateInfo, flag, remove_prototype,
+BOOL_ACCESSORS(FunctionTemplateInfo, relaxed_flag, remove_prototype,
                RemovePrototypeBit::kShift)
-BOOL_ACCESSORS(FunctionTemplateInfo, flag, accept_any_receiver,
+BOOL_ACCESSORS(FunctionTemplateInfo, relaxed_flag, accept_any_receiver,
                AcceptAnyReceiverBit::kShift)
-BOOL_ACCESSORS(FunctionTemplateInfo, flag, published, PublishedBit::kShift)
+BOOL_ACCESSORS(FunctionTemplateInfo, relaxed_flag, published,
+               PublishedBit::kShift)
 
 BIT_FIELD_ACCESSORS(
-    FunctionTemplateInfo, flag, allowed_receiver_instance_type_range_start,
+    FunctionTemplateInfo, relaxed_flag,
+    allowed_receiver_instance_type_range_start,
     FunctionTemplateInfo::AllowedReceiverInstanceTypeRangeStartBits)
 BIT_FIELD_ACCESSORS(
-    FunctionTemplateInfo, flag, allowed_receiver_instance_type_range_end,
+    FunctionTemplateInfo, relaxed_flag,
+    allowed_receiver_instance_type_range_end,
     FunctionTemplateInfo::AllowedReceiverInstanceTypeRangeEndBits)
+
+int32_t FunctionTemplateInfo::relaxed_flag() const {
+  return flag(kRelaxedLoad);
+}
+void FunctionTemplateInfo::set_relaxed_flag(int32_t flags) {
+  return set_flag(flags, kRelaxedStore);
+}
 
 // static
 FunctionTemplateRareData FunctionTemplateInfo::EnsureFunctionTemplateRareData(

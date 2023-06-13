@@ -1398,7 +1398,7 @@ void Template::SetAccessorProperty(v8::Local<v8::Name> name,
 static void InitializeFunctionTemplate(i::FunctionTemplateInfo info,
                                        bool do_not_cache) {
   InitializeTemplate(info, Consts::FUNCTION_TEMPLATE, do_not_cache);
-  info.set_flag(0);
+  info.set_flag(0, kRelaxedStore);
 }
 
 namespace {
