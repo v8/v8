@@ -42,6 +42,9 @@ void MarkingBarrier::Write(HeapObject host, HeapObjectSlot slot,
   DCHECK(IsCurrentMarkingBarrier(host));
   DCHECK(is_activated_ || shared_heap_worklist_.has_value());
   DCHECK(MemoryChunk::FromHeapObject(host)->IsMarking());
+
+  if (!marking_state_.IsMarked(host)) return;
+
   MarkValue(host, value);
 
   if (slot.address() && IsCompacting(host)) {
@@ -71,6 +74,9 @@ void MarkingBarrier::Write(InstructionStream host, RelocInfo* reloc_info,
   DCHECK(!host.InWritableSharedSpace());
   DCHECK(is_activated_ || shared_heap_worklist_.has_value());
   DCHECK(MemoryChunk::FromHeapObject(host)->IsMarking());
+
+  if (!marking_state_.IsMarked(host)) return;
+
   MarkValue(host, value);
   if (is_compacting_) {
     DCHECK(is_major());
@@ -89,6 +95,8 @@ void MarkingBarrier::Write(JSArrayBuffer host,
   DCHECK(IsCurrentMarkingBarrier(host));
   DCHECK(!host.InWritableSharedSpace());
   DCHECK(MemoryChunk::FromHeapObject(host)->IsMarking());
+
+  if (!marking_state_.IsMarked(host)) return;
 
   if (is_minor()) {
     if (Heap::InYoungGeneration(host)) {
