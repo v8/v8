@@ -207,10 +207,19 @@ class V8_EXPORT_PRIVATE Type {
   inline bool IsAny() const { return kind_ == Kind::kAny; }
   template <size_t B>
   inline bool IsWord() const {
+    static_assert(B == 32 || B == 64);
     if constexpr (B == 32)
       return IsWord32();
     else
       return IsWord64();
+  }
+  template <size_t B>
+  inline bool IsFloat() const {
+    static_assert(B == 32 || B == 64);
+    if constexpr (B == 32)
+      return IsFloat32();
+    else
+      return IsFloat64();
   }
 
   // Casts
@@ -221,10 +230,19 @@ class V8_EXPORT_PRIVATE Type {
   inline const TupleType& AsTuple() const;
   template <size_t B>
   inline const auto& AsWord() const {
+    static_assert(B == 32 || B == 64);
     if constexpr (B == 32)
       return AsWord32();
     else
       return AsWord64();
+  }
+  template <size_t B>
+  inline const auto& AsFloat() const {
+    static_assert(B == 32 || B == 64);
+    if constexpr (B == 32)
+      return AsFloat32();
+    else
+      return AsFloat64();
   }
 
   // Comparison
@@ -746,8 +764,11 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) FloatType : public Type {
     }
     return Special::kNoSpecialValues;
   }
-  static FloatType ReplacedSpecialValues(const FloatType& t,
-                                         uint32_t special_values) {
+  static Type ReplacedSpecialValues(const FloatType& t,
+                                    uint32_t special_values) {
+    if (special_values == 0 && t.is_only_special_values()) {
+      return FloatType::None();
+    }
     auto result = t;
     result.bitfield_ = special_values;
     DCHECK_EQ(result.bitfield_, result.special_values());
