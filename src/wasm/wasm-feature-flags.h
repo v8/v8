@@ -63,7 +63,12 @@
   /* Reference-Typed Strings Proposal. */                                      \
   /* https://github.com/WebAssembly/stringref */                               \
   /* V8 side owner: jkummerow */                                               \
-  V(stringref, "reference-typed strings", false)
+  V(stringref, "reference-typed strings", false)                               \
+                                                                               \
+  /* Multi-memory Proposal. */                                                 \
+  /* https://github.com/WebAssembly/multi-memory */                            \
+  /* V8 side owner: clemensb */                                                \
+  V(multi_memory, "multi-memory", false)
 
 // #############################################################################
 // Staged features (disabled by default, but enabled via --wasm-staging (also

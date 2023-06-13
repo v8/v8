@@ -5230,7 +5230,7 @@ TEST_F(BytecodeIteratorTest, WithLocalDecls) {
 }
 
 /*******************************************************************************
- * Memory64 tests
+ * Memory64 tests.
  ******************************************************************************/
 
 class FunctionBodyDecoderTestOnBothMemoryTypes
@@ -5347,6 +5347,50 @@ TEST_P(FunctionBodyDecoderTestOnBothMemoryTypes, MemoryGrow) {
   ExpectFailure(&sig_l_i, {WASM_MEMORY_GROW(WASM_LOCAL_GET(0))});
   auto sig_i_l = MakeSig::Returns(kWasmI32).Params(kWasmI64);
   ExpectFailure(&sig_i_l, {WASM_MEMORY_GROW(WASM_LOCAL_GET(0))});
+}
+
+/*******************************************************************************
+ * Multi-memory tests.
+ ******************************************************************************/
+
+enum MultiMemoryEnabled : bool { kMultiMemory = true, kNoMultiMemory = false };
+
+class FunctionBodyDecoderTestWithMultiMemory
+    : public FunctionBodyDecoderTestBase<WithDefaultPlatformMixin<
+          ::testing::TestWithParam<MultiMemoryEnabled>>> {
+ public:
+  FunctionBodyDecoderTestWithMultiMemory() {
+    if (is_multi_memory_enabled()) enabled_features_.Add(kFeature_multi_memory);
+  }
+
+  bool is_multi_memory_enabled() const { return GetParam(); }
+};
+
+std::string PrintMultiMemoryEnabled(
+    ::testing::TestParamInfo<MultiMemoryEnabled> info) {
+  return info.param ? "kMultiMemory" : "kNoMultiMemory";
+}
+
+INSTANTIATE_TEST_SUITE_P(MultiMemory, FunctionBodyDecoderTestWithMultiMemory,
+                         ::testing::Values(kMultiMemory, kNoMultiMemory),
+                         PrintMultiMemoryEnabled);
+
+TEST_P(FunctionBodyDecoderTestWithMultiMemory, ExtendedMemoryAccessImmediate) {
+  builder.InitializeMemory();
+  // The memory index can be encoded in a separate field, after a 0x40
+  // alignment. For now, only memory index 0 is allowed.
+  // TODO(13918): Extend this test once we actually more than one memory.
+  Validate(is_multi_memory_enabled(), sigs.i_v(),
+           {WASM_ZERO, kExprI32LoadMem, 0x40 /* alignment */,
+            0 /* memory index */, 0 /* offset */});
+  // The memory index is LEB-encoded, so index 0 can also be store in 5 bytes.
+  Validate(is_multi_memory_enabled(), sigs.i_v(),
+           {WASM_ZERO, kExprI32LoadMem, 0x40 /* alignment */,
+            U32V_5(0) /* memory index */, 0 /* offset */});
+  // Memory index 1 is invalid.
+  Validate(false, sigs.i_v(),
+           {WASM_ZERO, kExprI32LoadMem, 0x40 /* alignment */,
+            1 /* memory index */, 0 /* offset */});
 }
 
 #undef B1
