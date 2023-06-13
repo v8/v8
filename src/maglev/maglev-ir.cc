@@ -1311,7 +1311,7 @@ void ChangeUint32ToFloat64::GenerateCode(MaglevAssembler* masm,
 
 void CheckMaps::SetValueLocationConstraints() {
   UseRegister(receiver_input());
-  set_temporaries_needed(map_compare().TemporaryCountForMapLoad());
+  set_temporaries_needed(MapCompare::TemporaryCount(maps_.size()));
 }
 
 void CheckMaps::GenerateCode(MaglevAssembler* masm,
@@ -1344,17 +1344,15 @@ void CheckMaps::GenerateCode(MaglevAssembler* masm,
     }
   }
 
-  MaglevAssembler::ScratchRegisterScope temps(masm);
-  map_compare().GenerateMapLoad(masm, object);
-
+  MapCompare map_compare(masm, object, maps_.size());
   size_t map_count = maps().size();
   for (size_t i = 0; i < map_count - 1; ++i) {
     Handle<Map> map = maps().at(i).object();
-    map_compare().GenerateMapCompare(masm, map);
+    map_compare.Generate(map);
     __ JumpIf(kEqual, &done, jump_distance);
   }
   Handle<Map> last_map = maps().at(map_count - 1).object();
-  map_compare().GenerateMapCompare(masm, last_map);
+  map_compare.Generate(last_map);
   __ EmitEagerDeoptIfNotEqual(DeoptimizeReason::kWrongMap, this);
   __ bind(&done);
 }
@@ -1366,8 +1364,7 @@ int CheckMapsWithMigration::MaxCallStackArgs() const {
 
 void CheckMapsWithMigration::SetValueLocationConstraints() {
   UseRegister(receiver_input());
-  set_temporaries_needed(map_compare().TemporaryCountForMapLoad() +
-                         map_compare().TemporaryCountForGetScratchRegister());
+  set_temporaries_needed(MapCompare::TemporaryCount(maps_.size()));
 }
 
 void CheckMapsWithMigration::GenerateCode(MaglevAssembler* masm,
@@ -1398,7 +1395,6 @@ void CheckMapsWithMigration::GenerateCode(MaglevAssembler* masm,
   // If we jump from here from the deferred code (below), we need to reload
   // the map.
   __ bind(*map_checks);
-  map_compare().GenerateMapLoad(masm, object);
 
   RegisterSnapshot save_registers = register_snapshot();
   // Make sure that the object register is not clobbered by the
@@ -1415,9 +1411,10 @@ void CheckMapsWithMigration::GenerateCode(MaglevAssembler* masm,
 
   size_t map_count = maps().size();
   bool has_migration_targets = false;
+  MapCompare map_compare(masm, object, maps_.size());
   for (size_t i = 0; i < map_count; ++i) {
     Handle<Map> map_handle = maps().at(i).object();
-    map_compare().GenerateMapCompare(masm, map_handle);
+    map_compare.Generate(map_handle);
     const bool last_map = (i == map_count - 1);
     if (!last_map) {
       __ JumpIf(kEqual, *done);
@@ -1431,14 +1428,16 @@ void CheckMapsWithMigration::GenerateCode(MaglevAssembler* masm,
     // Emit deopt for the last map.
     __ EmitEagerDeoptIf(kNotEqual, DeoptimizeReason::kWrongMap, this);
   } else {
-    ZoneLabelRef deopt(masm);
     __ JumpToDeferredIf(
         kNotEqual,
         [](MaglevAssembler* masm, RegisterSnapshot register_snapshot,
-           ZoneLabelRef map_checks, ZoneLabelRef deopt, Register object,
+           ZoneLabelRef map_checks, MapCompare map_compare,
            CheckMapsWithMigration* node) {
+          Label* deopt = __ GetDeoptLabel(node, DeoptimizeReason::kWrongMap);
           // If the map is not deprecated, we fail the map check.
-          node->map_compare().GenerateMapDeprecatedCheck(masm, *deopt);
+          __ TestInt32AndJumpIfAllClear(
+              FieldMemOperand(map_compare.GetMap(), Map::kBitField3Offset),
+              Map::Bits3::IsDeprecatedBit::kMask, deopt);
 
           // Otherwise, try migrating the object.
           Register return_val = Register::no_reg();
@@ -1446,7 +1445,7 @@ void CheckMapsWithMigration::GenerateCode(MaglevAssembler* masm,
             SaveRegisterStateForCall save_register_state(masm,
                                                          register_snapshot);
 
-            __ Push(object);
+            __ Push(map_compare.GetObject());
             __ Move(kContextRegister, masm->native_context().object());
             __ CallRuntime(Runtime::kTryMigrateInstance);
             save_register_state.DefineSafepoint();
@@ -1454,7 +1453,8 @@ void CheckMapsWithMigration::GenerateCode(MaglevAssembler* masm,
             // Make sure the return value is preserved across the live
             // register restoring pop all.
             return_val = kReturnRegister0;
-            Register scratch = node->map_compare().GetScratchRegister(masm);
+            MaglevAssembler::ScratchRegisterScope temps(masm);
+            Register scratch = temps.GetDefaultScratchRegister();
             if (register_snapshot.live_registers.has(return_val)) {
               DCHECK(!register_snapshot.live_registers.has(scratch));
               __ Move(scratch, return_val);
@@ -1463,7 +1463,7 @@ void CheckMapsWithMigration::GenerateCode(MaglevAssembler* masm,
           }
 
           // On failure, the returned value is Smi zero.
-          __ CompareTaggedAndJumpIf(return_val, Smi::zero(), kEqual, *deopt);
+          __ CompareTaggedAndJumpIf(return_val, Smi::zero(), kEqual, deopt);
 
           // Otherwise, the return value is the object (it's always the same
           // object we called TryMigrate with). We already have it in a
@@ -1472,13 +1472,10 @@ void CheckMapsWithMigration::GenerateCode(MaglevAssembler* masm,
           // the map_checks label.
           __ Jump(*map_checks);
         },
-        save_registers, map_checks, deopt, object, this);
+        save_registers, map_checks, map_compare, this);
     // If the jump to deferred code was not taken, the map was equal to the
     // last map.
     __ Jump(*done);
-
-    __ bind(*deopt);
-    __ EmitEagerDeopt(this, DeoptimizeReason::kWrongMap);
   }  // End of the `has_migration_targets` case.
   __ bind(*done);
 }

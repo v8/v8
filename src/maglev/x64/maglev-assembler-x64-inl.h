@@ -100,6 +100,40 @@ class MaglevAssembler::ScratchRegisterScope {
   DoubleRegList available_double_;
 };
 
+inline MapCompare::MapCompare(MaglevAssembler* masm, Register object,
+                              size_t map_count)
+    : masm_(masm), object_(object), map_count_(map_count) {
+  if (map_count_ != 1) {
+    map_ = masm_->scratch_register_scope()->Acquire();
+    masm_->LoadMap(map_, object_);
+  }
+}
+
+void MapCompare::Generate(Handle<Map> map) {
+  if (map_count_ == 1) {
+    masm_->Cmp(FieldOperand(object_, HeapObject::kMapOffset), map);
+  } else {
+    masm_->CompareTagged(map_, map);
+  }
+}
+
+Register MapCompare::GetMap() {
+  if (map_count_ == 1) {
+    DCHECK_EQ(map_, Register::no_reg());
+    // Load the map; the object is in register_for_map_compare_. This
+    // avoids loading the map in the fast path of CheckMapsWithMigration.
+    masm_->LoadMap(kScratchRegister, object_);
+    return kScratchRegister;
+  } else {
+    DCHECK_NE(map_, Register::no_reg());
+    return map_;
+  }
+}
+
+int MapCompare::TemporaryCount(size_t map_count) {
+  return map_count == 1 ? 0 : 1;
+}
+
 namespace detail {
 
 template <typename... Args>

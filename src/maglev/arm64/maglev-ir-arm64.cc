@@ -184,36 +184,6 @@ void CheckedTruncateFloat64ToUint32::GenerateCode(
   __ Bind(&check_done);
 }
 
-void MapCompare::GenerateMapLoad(MaglevAssembler* masm, Register object) {
-  register_for_map_compare_ = masm->scratch_register_scope()->Acquire();
-  __ LoadMap(register_for_map_compare_, object);
-}
-
-void MapCompare::GenerateMapCompare(MaglevAssembler* masm, Handle<Map> map) {
-  MaglevAssembler::ScratchRegisterScope temps(masm);
-  Register temp = temps.Acquire();
-  __ Move(temp, map);
-  __ CmpTagged(register_for_map_compare_, temp);
-}
-
-void MapCompare::GenerateMapDeprecatedCheck(MaglevAssembler* masm,
-                                            Label* not_deprecated) {
-  MaglevAssembler::ScratchRegisterScope temps(masm);
-  Register temp = temps.Acquire();
-  __ Ldr(temp.W(),
-         FieldMemOperand(register_for_map_compare_, Map::kBitField3Offset));
-  __ TestAndBranchIfAllClear(temp.W(), Map::Bits3::IsDeprecatedBit::kMask,
-                             not_deprecated);
-}
-
-int MapCompare::TemporaryCountForMapLoad() { return 1; }
-
-Register MapCompare::GetScratchRegister(MaglevAssembler* masm) {
-  return masm->scratch_register_scope()->Acquire();
-}
-
-int MapCompare::TemporaryCountForGetScratchRegister() { return 1; }
-
 void CheckNumber::SetValueLocationConstraints() {
   UseRegister(receiver_input());
 }

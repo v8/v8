@@ -107,6 +107,25 @@ class MaglevAssembler::ScratchRegisterScope {
   ScratchRegisterScope* prev_scope_;
 };
 
+inline MapCompare::MapCompare(MaglevAssembler* masm, Register object,
+                              size_t map_count)
+    : masm_(masm), object_(object), map_count_(map_count) {
+  map_ = masm_->scratch_register_scope()->Acquire();
+  masm_->LoadMap(map_, object_);
+  USE(map_count_);
+}
+
+void MapCompare::Generate(Handle<Map> map) {
+  MaglevAssembler::ScratchRegisterScope temps(masm_);
+  Register temp = temps.Acquire();
+  masm_->Move(temp, map);
+  masm_->cmp(map_, temp);
+}
+
+Register MapCompare::GetMap() { return map_; }
+
+int MapCompare::TemporaryCount(size_t map_count) { return 1; }
+
 namespace detail {
 
 template <typename... Args>

@@ -135,28 +135,6 @@ void CheckedTruncateFloat64ToUint32::GenerateCode(
   MAGLEV_NODE_NOT_IMPLEMENTED(CheckedTruncateFloat64ToUint32);
 }
 
-void MapCompare::GenerateMapLoad(MaglevAssembler* masm, Register object) {
-  register_for_map_compare_ = masm->scratch_register_scope()->Acquire();
-  __ LoadMap(register_for_map_compare_, object);
-}
-
-void MapCompare::GenerateMapCompare(MaglevAssembler* masm, Handle<Map> map) {
-  MAGLEV_NODE_NOT_IMPLEMENTED(GenerateMapCompare);
-}
-
-void MapCompare::GenerateMapDeprecatedCheck(MaglevAssembler* masm,
-                                            Label* not_deprecated) {
-  MAGLEV_NODE_NOT_IMPLEMENTED(GenerateMapDeprecatedCheck);
-}
-
-int MapCompare::TemporaryCountForMapLoad() { return 1; }
-
-Register MapCompare::GetScratchRegister(MaglevAssembler* masm) {
-  return masm->scratch_register_scope()->Acquire();
-}
-
-int MapCompare::TemporaryCountForGetScratchRegister() { return 1; }
-
 void CheckNumber::SetValueLocationConstraints() {
   UseRegister(receiver_input());
 }

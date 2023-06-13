@@ -87,6 +87,10 @@ struct CopyForDeferredHelper<LazyDeoptInfo*>
 template <>
 struct CopyForDeferredHelper<ZoneLabelRef>
     : public CopyForDeferredByValue<ZoneLabelRef> {};
+// MapCompare is copied by value.
+template <>
+struct CopyForDeferredHelper<MapCompare>
+    : public CopyForDeferredByValue<MapCompare> {};
 // RegList are copied by value.
 template <>
 struct CopyForDeferredHelper<RegList> : public CopyForDeferredByValue<RegList> {

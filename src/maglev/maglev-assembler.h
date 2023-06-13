@@ -45,6 +45,27 @@ struct StackSlot {
   int32_t index;
 };
 
+// Helper for generating the platform-specific parts of map comparison
+// operations.
+class MapCompare {
+ public:
+  inline explicit MapCompare(MaglevAssembler* masm, Register object,
+                             size_t map_count);
+
+  inline void Generate(Handle<Map> map);
+  inline Register GetObject() const { return object_; }
+  inline Register GetMap();
+
+  // For counting the temporaries needed by the above operations:
+  static inline int TemporaryCount(size_t map_count);
+
+ private:
+  MaglevAssembler* masm_;
+  const Register object_;
+  const size_t map_count_;
+  Register map_ = Register::no_reg();
+};
+
 class MaglevAssembler : public MacroAssembler {
  public:
   class ScratchRegisterScope;

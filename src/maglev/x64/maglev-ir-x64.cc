@@ -60,49 +60,6 @@ void CheckNumber::GenerateCode(MaglevAssembler* masm,
   __ bind(&done);
 }
 
-void MapCompare::GenerateMapLoad(MaglevAssembler* masm, Register object) {
-  if (map_count_ == 1) {
-    register_for_map_compare_ = object;
-  } else {
-    register_for_map_compare_ = masm->scratch_register_scope()->Acquire();
-    __ LoadMap(register_for_map_compare_, object);
-  }
-}
-
-void MapCompare::GenerateMapCompare(MaglevAssembler* masm, Handle<Map> map) {
-  if (map_count_ == 1) {
-    __ Cmp(FieldOperand(register_for_map_compare_, HeapObject::kMapOffset),
-           map);
-  } else {
-    __ CompareTagged(register_for_map_compare_, map);
-  }
-}
-
-void MapCompare::GenerateMapDeprecatedCheck(MaglevAssembler* masm,
-                                            Label* not_deprecated) {
-  Register map = Register::no_reg();
-  if (map_count_ == 1) {
-    // Load the map; the object is in register_for_map_compare_. This
-    // avoids loading the map in the fast path of CheckMapsWithMigration.
-    __ LoadMap(kScratchRegister, register_for_map_compare_);
-    map = kScratchRegister;
-  } else {
-    // The map is in register_for_map_compare_.
-    map = register_for_map_compare_;
-  }
-  __ movl(kScratchRegister, FieldOperand(map, Map::kBitField3Offset));
-  __ testl(kScratchRegister, Immediate(Map::Bits3::IsDeprecatedBit::kMask));
-  __ j(zero, not_deprecated);
-}
-
-Register MapCompare::GetScratchRegister(MaglevAssembler* masm) {
-  return kScratchRegister;
-}
-
-int MapCompare::TemporaryCountForMapLoad() { return map_count_ == 1 ? 0 : 1; }
-
-int MapCompare::TemporaryCountForGetScratchRegister() { return 0; }
-
 void CheckJSTypedArrayBounds::SetValueLocationConstraints() {
   UseRegister(receiver_input());
   if (ElementsKindSize(elements_kind_) == 1) {
