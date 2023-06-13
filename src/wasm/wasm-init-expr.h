@@ -24,7 +24,6 @@ class WasmFeatures;
 // Representation of an constant expression. Unlike {ConstantExpression}, this
 // does not use {WireBytesRef}, i.e., it does not depend on a wasm module's
 // bytecode representation.
-// TODO(7748): Add missing kinds of expressions.
 class WasmInitExpr : public ZoneObject {
  public:
   enum Operator {
@@ -45,9 +44,13 @@ class WasmInitExpr : public ZoneObject {
     kRefFuncConst,
     kStructNew,
     kStructNewDefault,
+    kArrayNew,
+    kArrayNewDefault,
     kArrayNewFixed,
     kI31New,
     kStringConst,
+    kExternInternalize,
+    kExternExternalize
   };
 
   union Immediate {
@@ -84,9 +87,7 @@ class WasmInitExpr : public ZoneObject {
                             WasmInitExpr rhs) {
     DCHECK(op == kI32Add || op == kI32Sub || op == kI32Mul || op == kI64Add ||
            op == kI64Sub || op == kI64Mul);
-    return WasmInitExpr(
-        op, zone->New<ZoneVector<WasmInitExpr>>(
-                std::initializer_list<WasmInitExpr>{lhs, rhs}, zone));
+    return WasmInitExpr(zone, op, {lhs, rhs});
   }
 
   static WasmInitExpr GlobalGet(uint32_t index) {
@@ -124,6 +125,20 @@ class WasmInitExpr : public ZoneObject {
     return expr;
   }
 
+  static WasmInitExpr ArrayNew(Zone* zone, uint32_t index, WasmInitExpr initial,
+                               WasmInitExpr length) {
+    WasmInitExpr expr(zone, kArrayNew, {initial, length});
+    expr.immediate_.index = index;
+    return expr;
+  }
+
+  static WasmInitExpr ArrayNewDefault(Zone* zone, uint32_t index,
+                                      WasmInitExpr length) {
+    WasmInitExpr expr(zone, kArrayNewDefault, {length});
+    expr.immediate_.index = index;
+    return expr;
+  }
+
   static WasmInitExpr ArrayNewFixed(uint32_t index,
                                     ZoneVector<WasmInitExpr>* elements) {
     WasmInitExpr expr(kArrayNewFixed, elements);
@@ -132,9 +147,7 @@ class WasmInitExpr : public ZoneObject {
   }
 
   static WasmInitExpr I31New(Zone* zone, WasmInitExpr value) {
-    WasmInitExpr expr(kI31New,
-                      zone->New<ZoneVector<WasmInitExpr>>(
-                          std::initializer_list<WasmInitExpr>{value}, zone));
+    WasmInitExpr expr(zone, kI31New, {value});
     return expr;
   }
 
@@ -143,6 +156,14 @@ class WasmInitExpr : public ZoneObject {
     expr.kind_ = kStringConst;
     expr.immediate_.index = index;
     return expr;
+  }
+
+  static WasmInitExpr ExternInternalize(Zone* zone, WasmInitExpr arg) {
+    return WasmInitExpr(zone, kExternInternalize, {arg});
+  }
+
+  static WasmInitExpr ExternExternalize(Zone* zone, WasmInitExpr arg) {
+    return WasmInitExpr(zone, kExternExternalize, {arg});
   }
 
   Immediate immediate() const { return immediate_; }
@@ -180,6 +201,8 @@ class WasmInitExpr : public ZoneObject {
         return immediate().heap_type == other.immediate().heap_type;
       case kStructNew:
       case kStructNewDefault:
+      case kArrayNew:
+      case kArrayNewDefault:
         if (immediate().index != other.immediate().index) return false;
         DCHECK_EQ(operands()->size(), other.operands()->size());
         for (uint32_t i = 0; i < operands()->size(); i++) {
@@ -193,9 +216,10 @@ class WasmInitExpr : public ZoneObject {
           if (operands()[i] != other.operands()[i]) return false;
         }
         return true;
-      case kI31New: {
+      case kI31New:
+      case kExternInternalize:
+      case kExternExternalize:
         return operands_[0] == other.operands_[0];
-      }
     }
   }
 
@@ -206,6 +230,10 @@ class WasmInitExpr : public ZoneObject {
  private:
   WasmInitExpr(Operator kind, const ZoneVector<WasmInitExpr>* operands)
       : kind_(kind), operands_(operands) {}
+  WasmInitExpr(Zone* zone, Operator kind,
+               std::initializer_list<WasmInitExpr> operands)
+      : kind_(kind),
+        operands_(zone->New<ZoneVector<WasmInitExpr>>(operands, zone)) {}
   Immediate immediate_;
   Operator kind_;
   const ZoneVector<WasmInitExpr>* operands_;

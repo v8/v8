@@ -406,8 +406,16 @@ class InitExprInterface {
 
   void UnOp(FullDecoder* decoder, WasmOpcode opcode, const Value& value,
             Value* result) {
-    // TODO(12089): Implement.
-    UNIMPLEMENTED();
+    switch (opcode) {
+      case kExprExternInternalize:
+        os_ << "kGCPrefix, kExprExternInternalize, ";
+        break;
+      case kExprExternExternalize:
+        os_ << "kGCPrefix, kExprExternExternalize, ";
+        break;
+      default:
+        UNREACHABLE();
+    }
   }
 
   void RefNull(FullDecoder* decoder, ValueType type, Value* result) {
@@ -458,7 +466,7 @@ class InitExprInterface {
                        const IndexImmediate& data_segment_imm,
                        const Value& offset_value, const Value& length_value,
                        Value* result) {
-    // TODO(14034): Implement. Needed when/if array.newData becomes const.
+    // TODO(14034): Implement when/if array.new_data/element becomes const.
     UNIMPLEMENTED();
   }
 

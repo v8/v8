@@ -461,9 +461,63 @@ void WasmModuleBuilder::SetMaxMemorySize(uint32_t value) {
 void WasmModuleBuilder::SetHasSharedMemory() { has_shared_memory_ = true; }
 
 namespace {
-void WriteInitializerExpressionWithEnd(ZoneBuffer* buffer,
-                                       const WasmInitExpr& init,
-                                       ValueType type) {
+
+WasmOpcode FromInitExprOperator(WasmInitExpr::Operator op) {
+  switch (op) {
+    case WasmInitExpr::kNone:
+      UNREACHABLE();
+    case WasmInitExpr::kGlobalGet:
+      return kExprGlobalGet;
+    case WasmInitExpr::kI32Const:
+      return kExprI32Const;
+    case WasmInitExpr::kI64Const:
+      return kExprI64Const;
+    case WasmInitExpr::kF32Const:
+      return kExprF32Const;
+    case WasmInitExpr::kF64Const:
+      return kExprF64Const;
+    case WasmInitExpr::kS128Const:
+      return kExprS128Const;
+    case WasmInitExpr::kI32Add:
+      return kExprI32Add;
+    case WasmInitExpr::kI32Sub:
+      return kExprI32Sub;
+    case WasmInitExpr::kI32Mul:
+      return kExprI32Mul;
+    case WasmInitExpr::kI64Add:
+      return kExprI64Add;
+    case WasmInitExpr::kI64Sub:
+      return kExprI64Sub;
+    case WasmInitExpr::kI64Mul:
+      return kExprI64Mul;
+    case WasmInitExpr::kRefNullConst:
+      return kExprRefNull;
+    case WasmInitExpr::kRefFuncConst:
+      return kExprRefFunc;
+    case WasmInitExpr::kStructNew:
+      return kExprStructNew;
+    case WasmInitExpr::kStructNewDefault:
+      return kExprStructNewDefault;
+    case WasmInitExpr::kArrayNew:
+      return kExprArrayNew;
+    case WasmInitExpr::kArrayNewDefault:
+      return kExprArrayNewDefault;
+    case WasmInitExpr::kArrayNewFixed:
+      return kExprArrayNewFixed;
+    case WasmInitExpr::kI31New:
+      return kExprI31New;
+    case WasmInitExpr::kStringConst:
+      return kExprStringConst;
+    case WasmInitExpr::kExternInternalize:
+      return kExprExternInternalize;
+    case WasmInitExpr::kExternExternalize:
+      return kExprExternExternalize;
+  }
+}
+
+void WriteInitializerExpressionWithoutEnd(ZoneBuffer* buffer,
+                                          const WasmInitExpr& init,
+                                          ValueType type) {
   switch (init.kind()) {
     case WasmInitExpr::kI32Const:
       buffer->write_u8(kExprI32Const);
@@ -487,46 +541,14 @@ void WriteInitializerExpressionWithEnd(ZoneBuffer* buffer,
       buffer->write(init.immediate().s128_const.data(), kSimd128Size);
       break;
     case WasmInitExpr::kI32Add:
-      WriteInitializerExpressionWithEnd(buffer, (*init.operands())[0],
-                                        kWasmI32);
-      WriteInitializerExpressionWithEnd(buffer, (*init.operands())[1],
-                                        kWasmI32);
-      buffer->write_u8(kExprI32Add);
-      break;
     case WasmInitExpr::kI32Sub:
-      WriteInitializerExpressionWithEnd(buffer, (*init.operands())[0],
-                                        kWasmI32);
-      WriteInitializerExpressionWithEnd(buffer, (*init.operands())[1],
-                                        kWasmI32);
-      buffer->write_u8(kExprI32Sub);
-      break;
     case WasmInitExpr::kI32Mul:
-      WriteInitializerExpressionWithEnd(buffer, (*init.operands())[0],
-                                        kWasmI32);
-      WriteInitializerExpressionWithEnd(buffer, (*init.operands())[1],
-                                        kWasmI32);
-      buffer->write_u8(kExprI32Mul);
-      break;
     case WasmInitExpr::kI64Add:
-      WriteInitializerExpressionWithEnd(buffer, (*init.operands())[0],
-                                        kWasmI64);
-      WriteInitializerExpressionWithEnd(buffer, (*init.operands())[1],
-                                        kWasmI64);
-      buffer->write_u8(kExprI64Add);
-      break;
     case WasmInitExpr::kI64Sub:
-      WriteInitializerExpressionWithEnd(buffer, (*init.operands())[0],
-                                        kWasmI64);
-      WriteInitializerExpressionWithEnd(buffer, (*init.operands())[1],
-                                        kWasmI64);
-      buffer->write_u8(kExprI64Sub);
-      break;
     case WasmInitExpr::kI64Mul:
-      WriteInitializerExpressionWithEnd(buffer, (*init.operands())[0],
-                                        kWasmI64);
-      WriteInitializerExpressionWithEnd(buffer, (*init.operands())[1],
-                                        kWasmI64);
-      buffer->write_u8(kExprI64Mul);
+      WriteInitializerExpressionWithoutEnd(buffer, (*init.operands())[0], type);
+      WriteInitializerExpressionWithoutEnd(buffer, (*init.operands())[1], type);
+      buffer->write_u8(FromInitExprOperator(init.kind()));
       break;
     case WasmInitExpr::kGlobalGet:
       buffer->write_u8(kExprGlobalGet);
@@ -582,33 +604,24 @@ void WriteInitializerExpressionWithEnd(ZoneBuffer* buffer,
     }
     case WasmInitExpr::kStructNew:
     case WasmInitExpr::kStructNewDefault:
-      static_assert((kExprStructNew >> 8) == kGCPrefix);
-      static_assert((kExprStructNewDefault >> 8) == kGCPrefix);
-      static_assert((kExprStructNew & 0x80) == 0);
-      static_assert((kExprStructNewDefault & 0x80) == 0);
+    case WasmInitExpr::kArrayNew:
+    case WasmInitExpr::kArrayNewDefault: {
       for (const WasmInitExpr& operand : *init.operands()) {
-        WriteInitializerExpressionWithEnd(buffer, operand, kWasmBottom);
+        WriteInitializerExpressionWithoutEnd(buffer, operand, kWasmBottom);
       }
+      WasmOpcode opcode = FromInitExprOperator(init.kind());
+      DCHECK_EQ(opcode >> 8, kGCPrefix);
+      DCHECK_EQ(opcode & 0x80, 0);
       buffer->write_u8(kGCPrefix);
-      WasmOpcode opcode;
-      switch (init.kind()) {
-        case WasmInitExpr::kStructNew:
-          opcode = kExprStructNew;
-          break;
-        case WasmInitExpr::kStructNewDefault:
-          opcode = kExprStructNewDefault;
-          break;
-        default:
-          UNREACHABLE();
-      }
       buffer->write_u8(static_cast<uint8_t>(opcode));
       buffer->write_u32v(init.immediate().index);
       break;
+    }
     case WasmInitExpr::kArrayNewFixed: {
       static_assert((kExprArrayNewFixed >> 8) == kGCPrefix);
       static_assert((kExprArrayNewFixed & 0x80) == 0);
       for (const WasmInitExpr& operand : *init.operands()) {
-        WriteInitializerExpressionWithEnd(buffer, operand, kWasmBottom);
+        WriteInitializerExpressionWithoutEnd(buffer, operand, kWasmBottom);
       }
       buffer->write_u8(kGCPrefix);
       buffer->write_u8(static_cast<uint8_t>(kExprArrayNewFixed));
@@ -617,15 +630,17 @@ void WriteInitializerExpressionWithEnd(ZoneBuffer* buffer,
       break;
     }
     case WasmInitExpr::kI31New:
-      WriteInitializerExpressionWithEnd(buffer, (*init.operands())[0],
-                                        kWasmI32);
-      static_assert((kExprI31New >> 8) == kGCPrefix);
-      static_assert((kExprI31New & 0x80) == 0);
-
+    case WasmInitExpr::kExternInternalize:
+    case WasmInitExpr::kExternExternalize: {
+      WriteInitializerExpressionWithoutEnd(buffer, (*init.operands())[0],
+                                           kWasmI32);
+      WasmOpcode opcode = FromInitExprOperator(init.kind());
+      DCHECK_EQ(opcode >> 8, kGCPrefix);
+      DCHECK_EQ(opcode & 0x80, 0);
       buffer->write_u8(kGCPrefix);
-      buffer->write_u8(static_cast<uint8_t>(kExprI31New));
-
+      buffer->write_u8(opcode);
       break;
+    }
     case WasmInitExpr::kStringConst:
       buffer->write_u8(kGCPrefix);
       buffer->write_u32v(kExprStringConst & 0xFF);
@@ -636,7 +651,7 @@ void WriteInitializerExpressionWithEnd(ZoneBuffer* buffer,
 
 void WriteInitializerExpression(ZoneBuffer* buffer, const WasmInitExpr& init,
                                 ValueType type) {
-  WriteInitializerExpressionWithEnd(buffer, init, type);
+  WriteInitializerExpressionWithoutEnd(buffer, init, type);
   buffer->write_u8(kExprEnd);
 }
 }  // namespace
