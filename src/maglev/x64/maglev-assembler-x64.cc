@@ -536,6 +536,22 @@ void MaglevAssembler::TryTruncateDoubleToInt32(Register dst, DoubleRegister src,
   bind(&check_done);
 }
 
+void MaglevAssembler::TryChangeFloat64ToIndex(Register result,
+                                              DoubleRegister value,
+                                              Label* success, Label* fail) {
+  DoubleRegister converted_back = kScratchDoubleReg;
+  // Convert the input float64 value to int32.
+  Cvttsd2si(result, value);
+  // Convert that int32 value back to float64.
+  Cvtlsi2sd(converted_back, result);
+  // Check that the result of the float64->int32->float64 is equal to
+  // the input (i.e. that the conversion didn't truncate).
+  Ucomisd(value, converted_back);
+  JumpIf(parity_even, fail);
+  JumpIf(kEqual, success);
+  Jump(fail);
+}
+
 void MaglevAssembler::Prologue(Graph* graph) {
   if (!graph->is_osr()) {
     BailoutIfDeoptimized(rbx);

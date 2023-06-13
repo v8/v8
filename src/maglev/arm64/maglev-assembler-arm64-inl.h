@@ -765,6 +765,9 @@ inline void MaglevAssembler::CompareFloat64(DoubleRegister src1,
   Fcmp(src1, src2);
 }
 
+inline void MaglevAssembler::PrepareCallCFunction(int num_reg_arguments,
+                                                  int num_double_registers) {}
+
 inline void MaglevAssembler::CallSelf() {
   DCHECK(allow_call());
   DCHECK(code_gen_state()->entry_label()->is_bound());

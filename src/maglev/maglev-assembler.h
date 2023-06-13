@@ -223,6 +223,9 @@ class MaglevAssembler : public MacroAssembler {
   void TruncateDoubleToInt32(Register dst, DoubleRegister src);
   void TryTruncateDoubleToInt32(Register dst, DoubleRegister src, Label* fail);
 
+  void TryChangeFloat64ToIndex(Register result, DoubleRegister value,
+                               Label* success, Label* fail);
+
   inline void DefineLazyDeoptPoint(LazyDeoptInfo* info);
   inline void DefineExceptionHandlerPoint(NodeBase* node);
   inline void DefineExceptionHandlerAndLazyDeoptPoint(NodeBase* node);
@@ -314,6 +317,9 @@ class MaglevAssembler : public MacroAssembler {
   inline void CompareInt32(Register src1, Register src2);
 
   inline void CompareFloat64(DoubleRegister src1, DoubleRegister src2);
+
+  inline void PrepareCallCFunction(int num_reg_arguments,
+                                   int num_double_registers = 0);
 
   inline void CallSelf();
   inline void CallBuiltin(Builtin builtin);

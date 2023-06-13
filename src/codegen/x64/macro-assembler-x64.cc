@@ -1798,8 +1798,9 @@ void MacroAssembler::SmiToInt32(Register reg) {
 }
 
 void MacroAssembler::SmiToInt32(Register dst, Register src) {
-  DCHECK(dst != src);
-  mov_tagged(dst, src);
+  if (dst != src) {
+    mov_tagged(dst, src);
+  }
   SmiToInt32(dst);
 }
 

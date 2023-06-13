@@ -1263,6 +1263,67 @@ void EmitTruncateNumberOrOddballToInt32(
 
 }  // namespace
 
+void CheckedObjectToIndex::SetValueLocationConstraints() {
+  UseRegister(object_input());
+  DefineAsRegister(this);
+  set_double_temporaries_needed(1);
+}
+void CheckedObjectToIndex::GenerateCode(MaglevAssembler* masm,
+                                        const ProcessingState& state) {
+  Register object = ToRegister(object_input());
+  Register result_reg = ToRegister(result());
+  ZoneLabelRef done(masm);
+  __ JumpIfNotSmi(
+      object,
+      __ MakeDeferredCode(
+          [](MaglevAssembler* masm, Register object, Register result_reg,
+             ZoneLabelRef done, CheckedObjectToIndex* node) {
+            MaglevAssembler::ScratchRegisterScope temps(masm);
+            Register map = temps.GetDefaultScratchRegister();
+            Label check_string;
+            __ LoadMap(map, object);
+            __ JumpIfNotRoot(map, RootIndex::kHeapNumberMap, &check_string,
+                             Label::kNear);
+            {
+              DoubleRegister number_value = temps.AcquireDouble();
+              __ LoadHeapNumberValue(number_value, object);
+              __ TryChangeFloat64ToIndex(
+                  result_reg, number_value, *done,
+                  __ GetDeoptLabel(node, DeoptimizeReason::kNotInt32));
+            }
+            __ bind(&check_string);
+            __ CompareInstanceTypeRange(map, map, FIRST_STRING_TYPE,
+                                        LAST_STRING_TYPE);
+            // The IC will go generic if it encounters something other than a
+            // Number or String key.
+            __ EmitEagerDeoptIf(kUnsignedGreaterThan,
+                                DeoptimizeReason::kNotInt32, node);
+            {
+              // TODO(verwaest): Load the cached number from the string hash.
+              RegisterSnapshot snapshot = node->register_snapshot();
+              snapshot.live_registers.clear(result_reg);
+              DCHECK(!snapshot.live_tagged_registers.has(result_reg));
+              {
+                SaveRegisterStateForCall save_register_state(masm, snapshot);
+                AllowExternalCallThatCantCauseGC scope(masm);
+                __ PrepareCallCFunction(1);
+                __ Move(arg_reg_1, object);
+                __ CallCFunction(
+                    ExternalReference::string_to_array_index_function(), 1);
+                // No need for safepoint since this is a fast C call.
+                __ Move(result_reg, kReturnRegister0);
+              }
+              __ CompareInt32AndJumpIf(result_reg, 0, kGreaterThanEqual, *done);
+              __ EmitEagerDeopt(node, DeoptimizeReason::kNotInt32);
+            }
+          },
+          object, result_reg, done, this));
+
+  // If we didn't enter the deferred block, we're a Smi.
+  __ SmiToInt32(result_reg, object);
+  __ bind(*done);
+}
+
 void CheckedTruncateNumberOrOddballToInt32::SetValueLocationConstraints() {
   UseRegister(input());
   DefineSameAsFirst(this);

@@ -268,6 +268,25 @@ void MaglevAssembler::TryTruncateDoubleToInt32(Register dst, DoubleRegister src,
   bind(&done);
 }
 
+void MaglevAssembler::TryChangeFloat64ToIndex(Register result,
+                                              DoubleRegister value,
+                                              Label* success, Label* fail) {
+  UseScratchRegisterScope temps(this);
+  LowDwVfpRegister low_double = temps.AcquireLowD();
+  SwVfpRegister temp_vfps = low_double.low();
+  DoubleRegister converted_back = low_double;
+  // Convert the input float64 value to int32.
+  vcvt_s32_f64(temp_vfps, value);
+  vmov(result, temp_vfps);
+  // Convert that int32 value back to float64.
+  vcvt_f64_s32(converted_back, temp_vfps);
+  // Check that the result of the float64->int32->float64 is equal to
+  // the input (i.e. that the conversion didn't truncate).
+  VFPCompareAndSetFlags(value, converted_back);
+  JumpIf(kEqual, success);
+  Jump(fail);
+}
+
 void MaglevAssembler::StringLength(Register result, Register string) {
   MAGLEV_NOT_IMPLEMENTED();
 }

@@ -144,15 +144,6 @@ void CheckNumber::GenerateCode(MaglevAssembler* masm,
 }
 
 int CheckedObjectToIndex::MaxCallStackArgs() const { return 0; }
-void CheckedObjectToIndex::SetValueLocationConstraints() {
-  UseRegister(object_input());
-  DefineAsRegister(this);
-  set_double_temporaries_needed(1);
-}
-void CheckedObjectToIndex::GenerateCode(MaglevAssembler* masm,
-                                        const ProcessingState& state) {
-  MAGLEV_NODE_NOT_IMPLEMENTED(CheckedObjectToIndex);
-}
 
 void Int32ToNumber::SetValueLocationConstraints() {
   UseRegister(input());

@@ -740,6 +740,22 @@ void MaglevAssembler::TryTruncateDoubleToInt32(Register dst, DoubleRegister src,
   Bind(&check_done);
 }
 
+void MaglevAssembler::TryChangeFloat64ToIndex(Register result,
+                                              DoubleRegister value,
+                                              Label* success, Label* fail) {
+  ScratchRegisterScope temps(this);
+  DoubleRegister converted_back = temps.AcquireDouble();
+  // Convert the input float64 value to int32.
+  Fcvtzs(result.W(), value);
+  // Convert that int32 value back to float64.
+  Scvtf(converted_back, result.W());
+  // Check that the result of the float64->int32->float64 is equal to
+  // the input (i.e. that the conversion didn't truncate).
+  Fcmp(value, converted_back);
+  JumpIf(kEqual, success);
+  Jump(fail);
+}
+
 void MaglevAssembler::StringLength(Register result, Register string) {
   if (v8_flags.debug_code) {
     // Check if {string} is a string.
