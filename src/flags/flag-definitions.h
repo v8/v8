@@ -1043,6 +1043,7 @@ DEFINE_BOOL(turbo_inline_array_builtins, true,
 DEFINE_BOOL(use_osr, true, "use on-stack replacement")
 
 DEFINE_BOOL(maglev_osr, true, "use maglev as on-stack replacement target")
+DEFINE_WEAK_IMPLICATION(maglev, maglev_osr)
 DEFINE_NEG_VALUE_IMPLICATION(maglev, maglev_osr, false)
 
 // When using maglev as OSR target allow us to tier up further
