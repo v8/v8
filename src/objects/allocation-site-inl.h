@@ -181,12 +181,12 @@ void AllocationSite::set_memento_create_count(int count) {
   set_pretenure_create_count(count);
 }
 
-bool AllocationSite::IncrementMementoFoundCount(int increment) {
-  if (IsZombie()) return false;
+int AllocationSite::IncrementMementoFoundCount(int increment) {
+  DCHECK(!IsZombie());
 
-  int value = memento_found_count();
-  set_memento_found_count(value + increment);
-  return memento_found_count() >= PretenuringHandler::kMinMementoCount;
+  int new_value = memento_found_count() + increment;
+  set_memento_found_count(new_value);
+  return new_value;
 }
 
 inline void AllocationSite::IncrementMementoCreateCount() {

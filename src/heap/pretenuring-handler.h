@@ -21,7 +21,6 @@ class Heap;
 class PretenuringHandler final {
  public:
   static const int kInitialFeedbackCapacity = 256;
-  static const int kMinMementoCount = 100;
 
   using PretenuringFeedbackMap =
       std::unordered_map<AllocationSite, size_t, Object::Hasher>;
@@ -73,6 +72,8 @@ class PretenuringHandler final {
   bool HasPretenuringFeedback() const {
     return !global_pretenuring_feedback_.empty();
   }
+
+  V8_EXPORT_PRIVATE static int GetMinMementoCountForTesting();
 
  private:
   Heap* const heap_;

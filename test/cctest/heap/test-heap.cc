@@ -88,7 +88,7 @@ namespace heap {
 
 // We only start allocation-site tracking with the second instantiation.
 static const int kPretenureCreationCount =
-    PretenuringHandler::kMinMementoCount + 1;
+    PretenuringHandler::GetMinMementoCountForTesting() + 1;
 
 static void CheckMap(Map map, int type, int instance_size) {
   CHECK(map.IsHeapObject());

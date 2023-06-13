@@ -3946,7 +3946,7 @@ TEST(SamplingHeapProfilerPretenuredInlineAllocations) {
                      "%%OptimizeFunctionOnNextCall(f);"
                      "f();"
                      "f;",
-                     i::PretenuringHandler::kMinMementoCount + 1);
+                     i::PretenuringHandler::GetMinMementoCountForTesting() + 1);
 
   v8::Local<v8::Function> f =
       v8::Local<v8::Function>::Cast(CompileRun(source.begin()));

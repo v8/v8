@@ -20,32 +20,9 @@ PretenuringHandler::PretenuringHandler(Heap* heap)
 
 PretenuringHandler::~PretenuringHandler() = default;
 
-void PretenuringHandler::MergeAllocationSitePretenuringFeedback(
-    const PretenuringFeedbackMap& local_pretenuring_feedback) {
-  PtrComprCageBase cage_base(heap_->isolate());
-  AllocationSite site;
-  for (auto& site_and_count : local_pretenuring_feedback) {
-    site = site_and_count.first;
-    MapWord map_word = site.map_word(cage_base, kRelaxedLoad);
-    if (map_word.IsForwardingAddress()) {
-      site = AllocationSite::cast(map_word.ToForwardingAddress(site));
-    }
-
-    // We have not validated the allocation site yet, since we have not
-    // dereferenced the site during collecting information.
-    // This is an inlined check of AllocationMemento::IsValid.
-    if (!site.IsAllocationSite() || site.IsZombie()) continue;
-
-    const int value = static_cast<int>(site_and_count.second);
-    DCHECK_LT(0, value);
-    if (site.IncrementMementoFoundCount(value)) {
-      // For sites in the global map the count is accessed through the site.
-      global_pretenuring_feedback_.insert(std::make_pair(site, 0));
-    }
-  }
-}
-
 namespace {
+
+static constexpr int kMinMementoCount = 100;
 
 double GetPretenuringRatioThreshold(size_t new_space_capacity) {
   static constexpr double kScavengerPretenureRatio = 0.85;
@@ -100,8 +77,7 @@ inline bool DigestPretenuringFeedback(
   bool deopt = false;
   int create_count = site.memento_create_count();
   int found_count = site.memento_found_count();
-  bool minimum_mementos_created =
-      create_count >= PretenuringHandler::kMinMementoCount;
+  bool minimum_mementos_created = create_count >= kMinMementoCount;
   double ratio =
       minimum_mementos_created || v8_flags.trace_pretenuring_statistics
           ? static_cast<double>(found_count) / create_count
@@ -153,6 +129,36 @@ bool PretenureAllocationSiteManually(Isolate* isolate, AllocationSite site) {
 }
 
 }  // namespace
+
+// static
+int PretenuringHandler::GetMinMementoCountForTesting() {
+  return kMinMementoCount;
+}
+
+void PretenuringHandler::MergeAllocationSitePretenuringFeedback(
+    const PretenuringFeedbackMap& local_pretenuring_feedback) {
+  PtrComprCageBase cage_base(heap_->isolate());
+  AllocationSite site;
+  for (auto& site_and_count : local_pretenuring_feedback) {
+    site = site_and_count.first;
+    MapWord map_word = site.map_word(cage_base, kRelaxedLoad);
+    if (map_word.IsForwardingAddress()) {
+      site = AllocationSite::cast(map_word.ToForwardingAddress(site));
+    }
+
+    // We have not validated the allocation site yet, since we have not
+    // dereferenced the site during collecting information.
+    // This is an inlined check of AllocationMemento::IsValid.
+    if (!site.IsAllocationSite() || site.IsZombie()) continue;
+
+    const int value = static_cast<int>(site_and_count.second);
+    DCHECK_LT(0, value);
+    if (site.IncrementMementoFoundCount(value) >= kMinMementoCount) {
+      // For sites in the global map the count is accessed through the site.
+      global_pretenuring_feedback_.insert(std::make_pair(site, 0));
+    }
+  }
+}
 
 void PretenuringHandler::RemoveAllocationSitePretenuringFeedback(
     AllocationSite site) {
