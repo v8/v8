@@ -751,6 +751,13 @@ void DeclarationScope::DeclareThis(AstValueFactory* ast_value_factory) {
       THIS_VARIABLE,
       derived_constructor ? kNeedsInitialization : kCreatedInitialized,
       kNotAssigned);
+  // Derived constructors have hole checks when calling super. Mark the 'this'
+  // variable as having hole initialization forced so that TDZ elision analysis
+  // applies and numbers the variable.
+  if (derived_constructor) {
+    receiver_->ForceHoleInitialization(
+        Variable::kHasHoleCheckUseInUnknownScope);
+  }
   locals_.Add(receiver_);
 }
 
@@ -2282,9 +2289,10 @@ void Scope::ResolveVariable(VariableProxy* proxy) {
 
 namespace {
 
-void SetNeedsHoleCheck(Variable* var, VariableProxy* proxy) {
+void SetNeedsHoleCheck(Variable* var, VariableProxy* proxy,
+                       Variable::ForceHoleInitializationFlag flag) {
   proxy->set_needs_hole_check();
-  var->ForceHoleInitialization();
+  var->ForceHoleInitialization(flag);
 }
 
 void UpdateNeedsHoleCheck(Variable* var, VariableProxy* proxy, Scope* scope) {
@@ -2303,7 +2311,7 @@ void UpdateNeedsHoleCheck(Variable* var, VariableProxy* proxy, Scope* scope) {
   // unknown at compilation time whether the binding referred to in the
   // exporting module itself requires hole checks.
   if (var->location() == VariableLocation::MODULE && !var->IsExport()) {
-    SetNeedsHoleCheck(var, proxy);
+    SetNeedsHoleCheck(var, proxy, Variable::kHasHoleCheckUseInUnknownScope);
     return;
   }
 
@@ -2326,7 +2334,8 @@ void UpdateNeedsHoleCheck(Variable* var, VariableProxy* proxy, Scope* scope) {
   // The scope of the variable needs to be checked, in case the use is
   // in a sub-block which may be linear.
   if (var->scope()->GetClosureScope() != scope->GetClosureScope()) {
-    SetNeedsHoleCheck(var, proxy);
+    SetNeedsHoleCheck(var, proxy,
+                      Variable::kHasHoleCheckUseInDifferentClosureScope);
     return;
   }
 
@@ -2336,7 +2345,7 @@ void UpdateNeedsHoleCheck(Variable* var, VariableProxy* proxy, Scope* scope) {
 
   if (var->scope()->is_nonlinear() ||
       var->initializer_position() >= proxy->position()) {
-    SetNeedsHoleCheck(var, proxy);
+    SetNeedsHoleCheck(var, proxy, Variable::kHasHoleCheckUseInSameClosureScope);
     return;
   }
 }

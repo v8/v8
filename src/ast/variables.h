@@ -30,16 +30,18 @@ class Variable final : public ZoneObject {
         next_(nullptr),
         index_(-1),
         initializer_position_(kNoSourcePosition),
-        hole_check_bitmap_index_(kUncacheableHoleCheckBitmapIndex),
         bit_field_(MaybeAssignedFlagField::encode(maybe_assigned_flag) |
                    InitializationFlagField::encode(initialization_flag) |
                    VariableModeField::encode(mode) |
                    IsUsedField::encode(false) |
                    ForceContextAllocationBit::encode(false) |
-                   ForceHoleInitializationField::encode(false) |
                    LocationField::encode(VariableLocation::UNALLOCATED) |
                    VariableKindField::encode(kind) |
-                   IsStaticFlagField::encode(is_static_flag)) {
+                   IsStaticFlagField::encode(is_static_flag)),
+        hole_check_analysis_bit_field_(HoleCheckBitmapIndexField::encode(
+                                           kUncacheableHoleCheckBitmapIndex) |
+                                       ForceHoleInitializationFlagField::encode(
+                                           kHoleInitializationNotForced)) {
     // Var declared variables never need initialization.
     DCHECK(!(mode == VariableMode::kVar &&
              initialization_flag == kNeedsInitialization));
@@ -164,18 +166,38 @@ class Variable final : public ZoneObject {
     return initialization_flag() == kNeedsInitialization;
   }
 
+  enum ForceHoleInitializationFlag {
+    kHoleInitializationNotForced = 0,
+    kHasHoleCheckUseInDifferentClosureScope = 1 << 0,
+    kHasHoleCheckUseInSameClosureScope = 1 << 1,
+    kHasHoleCheckUseInUnknownScope = kHasHoleCheckUseInDifferentClosureScope |
+                                     kHasHoleCheckUseInSameClosureScope
+  };
+  ForceHoleInitializationFlag force_hole_initialization_flag_field() const {
+    return ForceHoleInitializationFlagField::decode(
+        hole_check_analysis_bit_field_);
+  }
+
   bool IsHoleInitializationForced() const {
-    return ForceHoleInitializationField::decode(bit_field_);
+    return force_hole_initialization_flag_field() !=
+           kHoleInitializationNotForced;
+  }
+
+  bool HasHoleCheckUseInSameClosureScope() const {
+    return force_hole_initialization_flag_field() &
+           kHasHoleCheckUseInSameClosureScope;
   }
 
   // Called during scope analysis when a VariableProxy is found to
   // reference this Variable in such a way that a hole check will
   // be required at runtime.
-  void ForceHoleInitialization() {
+  void ForceHoleInitialization(ForceHoleInitializationFlag flag) {
     DCHECK_EQ(kNeedsInitialization, initialization_flag());
+    DCHECK_NE(kHoleInitializationNotForced, flag);
     DCHECK(IsLexicalVariableMode(mode()) ||
            IsPrivateMethodOrAccessorVariableMode(mode()));
-    bit_field_ = ForceHoleInitializationField::update(bit_field_, true);
+    hole_check_analysis_bit_field_ |=
+        ForceHoleInitializationFlagField::encode(flag);
   }
 
   // The first N-1 lexical bindings that need hole checks in a compilation are
@@ -193,28 +215,29 @@ class Variable final : public ZoneObject {
       std::numeric_limits<HoleCheckBitmap>::digits;
 
   void ResetHoleCheckBitmapIndex() {
-    hole_check_bitmap_index_ = kUncacheableHoleCheckBitmapIndex;
+    hole_check_analysis_bit_field_ = HoleCheckBitmapIndexField::update(
+        hole_check_analysis_bit_field_, kUncacheableHoleCheckBitmapIndex);
   }
 
   void RememberHoleCheckInBitmap(HoleCheckBitmap& bitmap,
                                  ZoneVector<Variable*>& list) {
     DCHECK(v8_flags.ignition_elide_redundant_tdz_checks);
-    if (V8_UNLIKELY(hole_check_bitmap_index_ ==
-                    kUncacheableHoleCheckBitmapIndex)) {
-      uint8_t next_index = list.size() + 1;
+    uint8_t index = HoleCheckBitmapIndex();
+    if (V8_UNLIKELY(index == kUncacheableHoleCheckBitmapIndex)) {
+      index = list.size() + 1;
       // The bitmap is full.
-      if (next_index == kHoleCheckBitmapBits) return;
-      AssignHoleCheckBitmapIndex(list, next_index);
+      if (index == kHoleCheckBitmapBits) return;
+      AssignHoleCheckBitmapIndex(list, index);
     }
-    bitmap |= HoleCheckBitmap{1} << hole_check_bitmap_index_;
+    bitmap |= HoleCheckBitmap{1} << index;
     DCHECK_EQ(
         0, bitmap & (HoleCheckBitmap{1} << kUncacheableHoleCheckBitmapIndex));
   }
 
   bool HasRememberedHoleCheck(HoleCheckBitmap bitmap) const {
-    bool result = bitmap & (HoleCheckBitmap{1} << hole_check_bitmap_index_);
-    DCHECK_IMPLIES(hole_check_bitmap_index_ == kUncacheableHoleCheckBitmapIndex,
-                   !result);
+    uint8_t index = HoleCheckBitmapIndex();
+    bool result = bitmap & (HoleCheckBitmap{1} << index);
+    DCHECK_IMPLIES(index == kUncacheableHoleCheckBitmapIndex, !result);
     return result;
   }
 
@@ -305,11 +328,15 @@ class Variable final : public ZoneObject {
   Variable* next_;
   int index_;
   int initializer_position_;
-  uint8_t hole_check_bitmap_index_;
   uint16_t bit_field_;
+  uint16_t hole_check_analysis_bit_field_;
 
   void set_maybe_assigned() {
     bit_field_ = MaybeAssignedFlagField::update(bit_field_, kMaybeAssigned);
+  }
+
+  uint8_t HoleCheckBitmapIndex() const {
+    return HoleCheckBitmapIndexField::decode(hole_check_analysis_bit_field_);
   }
 
   void AssignHoleCheckBitmapIndex(ZoneVector<Variable*>& list,
@@ -321,10 +348,13 @@ class Variable final : public ZoneObject {
   using ForceContextAllocationBit = LocationField::Next<bool, 1>;
   using IsUsedField = ForceContextAllocationBit::Next<bool, 1>;
   using InitializationFlagField = IsUsedField::Next<InitializationFlag, 1>;
-  using ForceHoleInitializationField = InitializationFlagField::Next<bool, 1>;
   using MaybeAssignedFlagField =
-      ForceHoleInitializationField::Next<MaybeAssignedFlag, 1>;
+      InitializationFlagField::Next<MaybeAssignedFlag, 1>;
   using IsStaticFlagField = MaybeAssignedFlagField::Next<IsStaticFlag, 1>;
+
+  using HoleCheckBitmapIndexField = base::BitField16<uint8_t, 0, 8>;
+  using ForceHoleInitializationFlagField =
+      HoleCheckBitmapIndexField::Next<ForceHoleInitializationFlag, 2>;
 
   Variable** next() { return &next_; }
   friend List;
