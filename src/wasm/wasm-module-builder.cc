@@ -464,8 +464,6 @@ namespace {
 
 WasmOpcode FromInitExprOperator(WasmInitExpr::Operator op) {
   switch (op) {
-    case WasmInitExpr::kNone:
-      UNREACHABLE();
     case WasmInitExpr::kGlobalGet:
       return kExprGlobalGet;
     case WasmInitExpr::kI32Const:
@@ -516,8 +514,7 @@ WasmOpcode FromInitExprOperator(WasmInitExpr::Operator op) {
 }
 
 void WriteInitializerExpressionWithoutEnd(ZoneBuffer* buffer,
-                                          const WasmInitExpr& init,
-                                          ValueType type) {
+                                          const WasmInitExpr& init) {
   switch (init.kind()) {
     case WasmInitExpr::kI32Const:
       buffer->write_u8(kExprI32Const);
@@ -546,8 +543,8 @@ void WriteInitializerExpressionWithoutEnd(ZoneBuffer* buffer,
     case WasmInitExpr::kI64Add:
     case WasmInitExpr::kI64Sub:
     case WasmInitExpr::kI64Mul:
-      WriteInitializerExpressionWithoutEnd(buffer, (*init.operands())[0], type);
-      WriteInitializerExpressionWithoutEnd(buffer, (*init.operands())[1], type);
+      WriteInitializerExpressionWithoutEnd(buffer, (*init.operands())[0]);
+      WriteInitializerExpressionWithoutEnd(buffer, (*init.operands())[1]);
       buffer->write_u8(FromInitExprOperator(init.kind()));
       break;
     case WasmInitExpr::kGlobalGet:
@@ -562,52 +559,12 @@ void WriteInitializerExpressionWithoutEnd(ZoneBuffer* buffer,
       buffer->write_u8(kExprRefFunc);
       buffer->write_u32v(init.immediate().index);
       break;
-    case WasmInitExpr::kNone: {
-      // No initializer, emit a default value.
-      switch (type.kind()) {
-        case kI32:
-          buffer->write_u8(kExprI32Const);
-          // LEB encoding of 0.
-          buffer->write_u8(0);
-          break;
-        case kI64:
-          buffer->write_u8(kExprI64Const);
-          // LEB encoding of 0.
-          buffer->write_u8(0);
-          break;
-        case kF32:
-          buffer->write_u8(kExprF32Const);
-          buffer->write_f32(0.f);
-          break;
-        case kF64:
-          buffer->write_u8(kExprF64Const);
-          buffer->write_f64(0.);
-          break;
-        case kRefNull:
-          buffer->write_u8(kExprRefNull);
-          buffer->write_i32v(type.heap_type().code());
-          break;
-        case kS128:
-          buffer->write_u8(static_cast<uint8_t>(kSimdPrefix));
-          buffer->write_u8(static_cast<uint8_t>(kExprS128Const & 0xff));
-          for (int i = 0; i < kSimd128Size; i++) buffer->write_u8(0);
-          break;
-        case kI8:
-        case kI16:
-        case kVoid:
-        case kBottom:
-        case kRef:
-        case kRtt:
-          UNREACHABLE();
-      }
-      break;
-    }
     case WasmInitExpr::kStructNew:
     case WasmInitExpr::kStructNewDefault:
     case WasmInitExpr::kArrayNew:
     case WasmInitExpr::kArrayNewDefault: {
       for (const WasmInitExpr& operand : *init.operands()) {
-        WriteInitializerExpressionWithoutEnd(buffer, operand, kWasmBottom);
+        WriteInitializerExpressionWithoutEnd(buffer, operand);
       }
       WasmOpcode opcode = FromInitExprOperator(init.kind());
       DCHECK_EQ(opcode >> 8, kGCPrefix);
@@ -621,7 +578,7 @@ void WriteInitializerExpressionWithoutEnd(ZoneBuffer* buffer,
       static_assert((kExprArrayNewFixed >> 8) == kGCPrefix);
       static_assert((kExprArrayNewFixed & 0x80) == 0);
       for (const WasmInitExpr& operand : *init.operands()) {
-        WriteInitializerExpressionWithoutEnd(buffer, operand, kWasmBottom);
+        WriteInitializerExpressionWithoutEnd(buffer, operand);
       }
       buffer->write_u8(kGCPrefix);
       buffer->write_u8(static_cast<uint8_t>(kExprArrayNewFixed));
@@ -632,8 +589,7 @@ void WriteInitializerExpressionWithoutEnd(ZoneBuffer* buffer,
     case WasmInitExpr::kI31New:
     case WasmInitExpr::kExternInternalize:
     case WasmInitExpr::kExternExternalize: {
-      WriteInitializerExpressionWithoutEnd(buffer, (*init.operands())[0],
-                                           kWasmI32);
+      WriteInitializerExpressionWithoutEnd(buffer, (*init.operands())[0]);
       WasmOpcode opcode = FromInitExprOperator(init.kind());
       DCHECK_EQ(opcode >> 8, kGCPrefix);
       DCHECK_EQ(opcode & 0x80, 0);
@@ -649,9 +605,8 @@ void WriteInitializerExpressionWithoutEnd(ZoneBuffer* buffer,
   }
 }
 
-void WriteInitializerExpression(ZoneBuffer* buffer, const WasmInitExpr& init,
-                                ValueType type) {
-  WriteInitializerExpressionWithoutEnd(buffer, init, type);
+void WriteInitializerExpression(ZoneBuffer* buffer, const WasmInitExpr& init) {
+  WriteInitializerExpressionWithoutEnd(buffer, init);
   buffer->write_u8(kExprEnd);
 }
 }  // namespace
@@ -764,13 +719,11 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
     size_t start = EmitSection(kTableSectionCode, buffer);
     buffer->write_size(tables_.size());
     for (const WasmTable& table : tables_) {
+      if (table.init) UNIMPLEMENTED();  // TODO(14034): Implement.
       WriteValueType(buffer, table.type);
       buffer->write_u8(table.has_maximum ? kWithMaximum : kNoMaximum);
       buffer->write_size(table.min_size);
       if (table.has_maximum) buffer->write_size(table.max_size);
-      if (table.init.kind() != WasmInitExpr::kNone) {
-        WriteInitializerExpression(buffer, table.init, table.type);
-      }
     }
     FixupSection(buffer, start);
   }
@@ -811,7 +764,7 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
     for (const WasmGlobal& global : globals_) {
       WriteValueType(buffer, global.type);
       buffer->write_u8(global.mutability ? 1 : 0);
-      WriteInitializerExpression(buffer, global.init, global.type);
+      WriteInitializerExpression(buffer, global.init);
     }
     FixupSection(buffer, start);
   }
@@ -868,7 +821,7 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
       buffer->write_u8(kind_mask | expressions_as_elements_mask);
       if (is_active) {
         buffer->write_u32v(segment.table_index);
-        WriteInitializerExpression(buffer, segment.offset, segment.type);
+        WriteInitializerExpression(buffer, segment.offset);
       }
       WriteValueType(buffer, segment.type);
       buffer->write_size(segment.entries.size());

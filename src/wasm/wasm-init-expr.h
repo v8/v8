@@ -27,7 +27,6 @@ class WasmFeatures;
 class WasmInitExpr : public ZoneObject {
  public:
   enum Operator {
-    kNone,
     kGlobalGet,
     kI32Const,
     kI64Const,
@@ -63,9 +62,6 @@ class WasmInitExpr : public ZoneObject {
     HeapType::Representation heap_type;
   };
 
-  WasmInitExpr() : kind_(kNone), operands_(nullptr) {
-    immediate_.i32_const = 0;
-  }
   explicit WasmInitExpr(int32_t v) : kind_(kI32Const), operands_(nullptr) {
     immediate_.i32_const = v;
   }
@@ -91,22 +87,19 @@ class WasmInitExpr : public ZoneObject {
   }
 
   static WasmInitExpr GlobalGet(uint32_t index) {
-    WasmInitExpr expr;
-    expr.kind_ = kGlobalGet;
+    WasmInitExpr expr(kGlobalGet);
     expr.immediate_.index = index;
     return expr;
   }
 
   static WasmInitExpr RefFuncConst(uint32_t index) {
-    WasmInitExpr expr;
-    expr.kind_ = kRefFuncConst;
+    WasmInitExpr expr(kRefFuncConst);
     expr.immediate_.index = index;
     return expr;
   }
 
   static WasmInitExpr RefNullConst(HeapType::Representation heap_type) {
-    WasmInitExpr expr;
-    expr.kind_ = kRefNullConst;
+    WasmInitExpr expr(kRefNullConst);
     expr.immediate_.heap_type = heap_type;
     return expr;
   }
@@ -119,8 +112,7 @@ class WasmInitExpr : public ZoneObject {
   }
 
   static WasmInitExpr StructNewDefault(uint32_t index) {
-    WasmInitExpr expr;
-    expr.kind_ = kStructNewDefault;
+    WasmInitExpr expr(kStructNewDefault);
     expr.immediate_.index = index;
     return expr;
   }
@@ -152,8 +144,7 @@ class WasmInitExpr : public ZoneObject {
   }
 
   static WasmInitExpr StringConst(uint32_t index) {
-    WasmInitExpr expr;
-    expr.kind_ = kStringConst;
+    WasmInitExpr expr(kStringConst);
     expr.immediate_.index = index;
     return expr;
   }
@@ -173,8 +164,6 @@ class WasmInitExpr : public ZoneObject {
   bool operator==(const WasmInitExpr& other) const {
     if (kind() != other.kind()) return false;
     switch (kind()) {
-      case kNone:
-        return true;
       case kGlobalGet:
       case kRefFuncConst:
       case kStringConst:
@@ -227,9 +216,37 @@ class WasmInitExpr : public ZoneObject {
     return !(*this == other);
   }
 
+  static WasmInitExpr DefaultValue(ValueType type) {
+    // No initializer, emit a default value.
+    switch (type.kind()) {
+      case kI8:
+      case kI16:
+      case kI32:
+        return WasmInitExpr(int32_t{0});
+      case kI64:
+        return WasmInitExpr(int64_t{0});
+      case kF32:
+        return WasmInitExpr(0.0f);
+      case kF64:
+        return WasmInitExpr(0.0);
+      case kRefNull:
+        return WasmInitExpr::RefNullConst(type.heap_representation());
+      case kS128: {
+        uint8_t value[kSimd128Size] = {0};
+        return WasmInitExpr(value);
+      }
+      case kVoid:
+      case kBottom:
+      case kRef:
+      case kRtt:
+        UNREACHABLE();
+    }
+  }
+
  private:
   WasmInitExpr(Operator kind, const ZoneVector<WasmInitExpr>* operands)
       : kind_(kind), operands_(operands) {}
+  explicit WasmInitExpr(Operator kind) : kind_(kind), operands_(nullptr) {}
   WasmInitExpr(Zone* zone, Operator kind,
                std::initializer_list<WasmInitExpr> operands)
       : kind_(kind),

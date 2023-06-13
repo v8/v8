@@ -228,7 +228,8 @@ void AsmJsParser::AddGlobalImport(base::Vector<const char> name, AsmType* type,
   // Allocate a separate variable for the import.
   // TODO(asmjs): Consider using the imported global directly instead of
   // allocating a separate global variable for immutable (i.e. const) imports.
-  DeclareGlobal(info, mutable_variable, type, vtype);
+  DeclareGlobal(info, mutable_variable, type, vtype,
+                WasmInitExpr::DefaultValue(vtype));
 
   // Record the need to initialize the global from the import.
   global_imports_.push_back({name, vtype, info});

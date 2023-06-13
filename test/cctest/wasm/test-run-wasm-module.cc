@@ -422,8 +422,8 @@ TEST(Run_WasmModule_Global) {
     TestSignatures sigs;
 
     WasmModuleBuilder* builder = zone.New<WasmModuleBuilder>(&zone);
-    uint32_t global1 = builder->AddGlobal(kWasmI32);
-    uint32_t global2 = builder->AddGlobal(kWasmI32);
+    uint32_t global1 = builder->AddGlobal(kWasmI32, true, WasmInitExpr(0));
+    uint32_t global2 = builder->AddGlobal(kWasmI32, true, WasmInitExpr(0));
     WasmFunctionBuilder* f1 = builder->AddFunction(sigs.i_v());
     uint8_t code1[] = {
         WASM_I32_ADD(WASM_GLOBAL_GET(global1), WASM_GLOBAL_GET(global2))};
