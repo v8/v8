@@ -3611,6 +3611,7 @@ py_binary(
         "third_party/inspector_protocol/templates/TypeBuilder_cpp.template",
         "third_party/inspector_protocol/templates/TypeBuilder_h.template",
     ],
+    imports = ["third_party/inspector_protocol/"],
     python_version = "PY3",
     deps = [
         requirement("jinja2"),
