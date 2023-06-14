@@ -77,8 +77,7 @@ static v8::Local<v8::Function> CompileFunction(LocalContext* env,
 static bool HasBreakInfo(v8::Local<v8::Function> fun) {
   Handle<v8::internal::JSFunction> f =
       Handle<v8::internal::JSFunction>::cast(v8::Utils::OpenHandle(*fun));
-  Handle<v8::internal::SharedFunctionInfo> shared(f->shared(), f->GetIsolate());
-  return shared->HasBreakInfo();
+  return f->shared().HasBreakInfo(f->GetIsolate());
 }
 
 // Set a break point in a function with a position relative to function start,
@@ -132,7 +131,8 @@ namespace v8 {
 namespace internal {
 
 Handle<FixedArray> GetDebuggedFunctions() {
-  DebugInfoCollection* infos = &CcTest::i_isolate()->debug()->debug_infos_;
+  i::Isolate* isolate = CcTest::i_isolate();
+  DebugInfoCollection* infos = &isolate->debug()->debug_infos_;
 
   int count = static_cast<int>(infos->Size());
   Handle<FixedArray> debugged_functions =
@@ -141,7 +141,7 @@ Handle<FixedArray> GetDebuggedFunctions() {
   int i = 0;
   DebugInfoCollection::Iterator it(infos);
   for (; it.HasNext(); it.Advance()) {
-    Handle<DebugInfo> debug_info = it.Next();
+    Handle<DebugInfo> debug_info(it.Next(), isolate);
     debugged_functions->set(i++, *debug_info);
   }
 
@@ -4327,7 +4327,7 @@ TEST(BreakLocationIterator) {
   CHECK(i_isolate->debug()->EnsureBreakInfo(shared));
   i_isolate->debug()->PrepareFunctionForDebugExecution(shared);
 
-  Handle<i::DebugInfo> debug_info(shared->GetDebugInfo(), i_isolate);
+  Handle<i::DebugInfo> debug_info(shared->GetDebugInfo(i_isolate), i_isolate);
 
   {
     i::BreakIterator iterator(debug_info);

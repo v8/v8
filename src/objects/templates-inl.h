@@ -125,11 +125,11 @@ bool FunctionTemplateInfo::instantiated() {
   return shared_function_info().IsSharedFunctionInfo();
 }
 
-inline bool FunctionTemplateInfo::BreakAtEntry() {
+inline bool FunctionTemplateInfo::BreakAtEntry(Isolate* isolate) {
   Object maybe_shared = shared_function_info();
   if (maybe_shared.IsSharedFunctionInfo()) {
     SharedFunctionInfo shared = SharedFunctionInfo::cast(maybe_shared);
-    return shared.BreakAtEntry();
+    return shared.BreakAtEntry(isolate);
   }
   return false;
 }

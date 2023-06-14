@@ -1016,9 +1016,8 @@ void SharedFunctionInfo::SharedFunctionInfoVerify(ReadOnlyRoots roots) {
         HasUncompiledDataWithoutPreparseData());
 
   {
-    auto script = script_or_debug_info(kAcquireLoad);
-    CHECK(script.IsUndefined(roots) || script.IsScript() ||
-          script.IsDebugInfo());
+    HeapObject script = this->script(kAcquireLoad);
+    CHECK(script.IsUndefined(roots) || script.IsScript());
   }
 
   if (!is_compiled()) {

@@ -1005,7 +1005,6 @@ class ScopeInfoRef : public HeapObjectRef {
   V(FunctionKind, kind)                                         \
   V(LanguageMode, language_mode)                                \
   V(bool, native)                                               \
-  V(bool, HasBreakInfo)                                         \
   V(bool, HasBuiltinId)                                         \
   V(bool, construct_as_builtin)                                 \
   V(bool, HasBytecodeArray)                                     \
@@ -1027,6 +1026,7 @@ class V8_EXPORT_PRIVATE SharedFunctionInfoRef : public HeapObjectRef {
   int context_header_size() const;
   int context_parameters_start() const;
   BytecodeArrayRef GetBytecodeArray(JSHeapBroker* broker) const;
+  bool HasBreakInfo(JSHeapBroker* broker) const;
   SharedFunctionInfo::Inlineability GetInlineability(
       JSHeapBroker* broker) const;
   OptionalFunctionTemplateInfoRef function_template_info(

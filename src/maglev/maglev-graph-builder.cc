@@ -6039,7 +6039,7 @@ ReduceResult MaglevGraphBuilder::ReduceCallForConstant(
   compiler::SharedFunctionInfoRef shared = target.shared(broker());
   ValueNode* target_node = GetConstant(target);
   // Do not reduce calls to functions with break points.
-  if (!shared.HasBreakInfo()) {
+  if (!shared.HasBreakInfo(broker())) {
     if (IsClassConstructor(shared.kind())) {
       // If we have a class constructor, we should raise an exception.
       return BuildCallRuntime(Runtime::kThrowConstructorNonCallableError,
@@ -6075,7 +6075,7 @@ ReduceResult MaglevGraphBuilder::ReduceCallForNewClosure(
     // directly if arguments list is an array.
     return ReduceResult::Fail();
   }
-  if (!shared.HasBreakInfo()) {
+  if (!shared.HasBreakInfo(broker())) {
     if (IsClassConstructor(shared.kind())) {
       // If we have a class constructor, we should raise an exception.
       return BuildCallRuntime(Runtime::kThrowConstructorNonCallableError,
@@ -6530,7 +6530,7 @@ ReduceResult MaglevGraphBuilder::ReduceConstruct(
 
       // Do not inline constructors with break points.
       compiler::SharedFunctionInfoRef sfi = function.shared(broker());
-      if (sfi.HasBreakInfo()) {
+      if (sfi.HasBreakInfo(broker())) {
         return ReduceResult::Fail();
       }
 

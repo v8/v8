@@ -2047,7 +2047,7 @@ Handle<WasmExportedFunction> WasmExportedFunction::New(
   DCHECK_EQ(is_asm_js_module, js_function->IsConstructor());
   shared->set_length(arity);
   shared->set_internal_formal_parameter_count(JSParameterCount(arity));
-  shared->set_script(instance->module_object().script());
+  shared->set_script(instance->module_object().script(), kReleaseStore);
   function_data->internal().set_external(*js_function);
   return Handle<WasmExportedFunction>::cast(js_function);
 }

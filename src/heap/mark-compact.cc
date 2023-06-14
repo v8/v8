@@ -3011,7 +3011,7 @@ void MarkCompactCollector::FlushBytecodeFromSFI(
                 UncompiledDataWithoutPreparseData::kSize);
 
   // Replace bytecode array with an uncompiled data array.
-  HeapObject compiled_data = shared_info.GetBytecodeArray(isolate());
+  HeapObject compiled_data = shared_info.GetActiveBytecodeArray();
   Address compiled_data_start = compiled_data.address();
   int compiled_data_size = ALIGN_TO_ALLOCATION_ALIGNMENT(compiled_data.Size());
   MemoryChunk* chunk = MemoryChunk::FromAddress(compiled_data_start);
@@ -3104,10 +3104,18 @@ bool MarkCompactCollector::ProcessOldBytecodeSFI(
   const bool bytecode_already_decompiled =
       flushing_candidate.function_data(isolate(), kAcquireLoad)
           .IsUncompiledData(isolate());
+  // Note the use of SFI::GetActiveBytecodeArray vs. SFI::GetBytecodeArray.
+  // The former simply fetches the active bytecode array from the SFI, while
+  // the latter reads through DebugInfo to fetch the 'real' non-debug bytecode
+  // array when the SFI is being debugged. Using the former is fine: when
+  // debugging is active, the bytecode array is guaranteed to be live since it
+  // is strongly held by the DebugInfo. And the latter cannot be used here
+  // since DebugInfos are held in an IdentityMap, which cannot be accessed
+  // during the mark-compact phase.
   const bool is_bytecode_live =
       !bytecode_already_decompiled &&
       non_atomic_marking_state()->IsMarked(
-          flushing_candidate.GetBytecodeArray(isolate()));
+          flushing_candidate.GetActiveBytecodeArray());
 
   if (!is_bytecode_live) {
     FlushSFI(flushing_candidate, bytecode_already_decompiled);
@@ -3132,10 +3140,18 @@ bool MarkCompactCollector::ProcessOldBaselineSFI(
   // CloneSharedFunctionInfo().
   const bool bytecode_already_decompiled =
       baseline_bytecode_or_interpreter_data.IsUncompiledData(isolate());
+  // Note the use of SFI::GetActiveBytecodeArray vs. SFI::GetBytecodeArray.
+  // The former simply fetches the active bytecode array from the SFI, while
+  // the latter reads through DebugInfo to fetch the 'real' non-debug bytecode
+  // array when the SFI is being debugged. Using the former is fine: when
+  // debugging is active, the bytecode array is guaranteed to be live since it
+  // is strongly held by the DebugInfo. And the latter cannot be used here
+  // since DebugInfos are held in an IdentityMap, which cannot be accessed
+  // during the mark-compact phase.
   const bool is_bytecode_live =
       !bytecode_already_decompiled &&
       non_atomic_marking_state()->IsMarked(
-          flushing_candidate.GetBytecodeArray(isolate()));
+          flushing_candidate.GetActiveBytecodeArray());
 
   if (non_atomic_marking_state()->IsMarked(baseline_istream)) {
     // Currently baseline code holds bytecode array strongly and it is

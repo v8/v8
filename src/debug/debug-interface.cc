@@ -1013,8 +1013,8 @@ void ResetBlackboxedStateCache(Isolate* v8_isolate, Local<Script> script) {
                                              *Utils::OpenHandle(*script));
   for (i::SharedFunctionInfo info = iter.Next(); !info.is_null();
        info = iter.Next()) {
-    if (info.HasDebugInfo()) {
-      info.GetDebugInfo().set_computed_debug_is_blackboxed(false);
+    if (auto debug_info = isolate->debug()->TryGetDebugInfo(info)) {
+      debug_info->set_computed_debug_is_blackboxed(false);
     }
   }
 }

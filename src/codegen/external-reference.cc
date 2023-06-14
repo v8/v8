@@ -354,6 +354,29 @@ FUNCTION_REFERENCE(shared_barrier_from_code_function,
 FUNCTION_REFERENCE(insert_remembered_set_function,
                    Heap::InsertIntoRememberedSetFromCode)
 
+namespace {
+
+intptr_t DebugBreakAtEntry(Isolate* isolate, Address raw_sfi) {
+  DisallowGarbageCollection no_gc;
+  SharedFunctionInfo sfi = SharedFunctionInfo::cast(Object(raw_sfi));
+  return isolate->debug()->BreakAtEntry(sfi) ? 1 : 0;
+}
+
+Address DebugGetCoverageInfo(Isolate* isolate, Address raw_sfi) {
+  DisallowGarbageCollection no_gc;
+  SharedFunctionInfo sfi = SharedFunctionInfo::cast(Object(raw_sfi));
+  base::Optional<DebugInfo> debug_info = isolate->debug()->TryGetDebugInfo(sfi);
+  if (debug_info.has_value() && debug_info->HasCoverageInfo()) {
+    return debug_info->coverage_info().ptr();
+  }
+  return Smi::zero().ptr();
+}
+
+}  // namespace
+
+FUNCTION_REFERENCE(debug_break_at_entry_function, DebugBreakAtEntry)
+FUNCTION_REFERENCE(debug_get_coverage_info_function, DebugGetCoverageInfo)
+
 FUNCTION_REFERENCE(delete_handle_scope_extensions,
                    HandleScope::DeleteExtensions)
 

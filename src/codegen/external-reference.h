@@ -134,6 +134,8 @@ class StatsCounter;
   V(copy_typed_array_elements_to_typed_array,                                  \
     "copy_typed_array_elements_to_typed_array")                                \
   V(cpu_features, "cpu_features")                                              \
+  V(debug_break_at_entry_function, "DebugBreakAtEntry")                        \
+  V(debug_get_coverage_info_function, "DebugGetCoverageInfo")                  \
   V(delete_handle_scope_extensions, "HandleScope::DeleteExtensions")           \
   V(ephemeron_key_write_barrier_function,                                      \
     "Heap::EphemeronKeyWriteBarrierFromCode")                                  \

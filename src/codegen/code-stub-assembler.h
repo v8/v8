@@ -754,6 +754,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   //  1 iff x > y.
   TNode<Smi> SmiLexicographicCompare(TNode<Smi> x, TNode<Smi> y);
 
+  // Returns Smi::zero() if no CoverageInfo exists.
+  TNode<Object> GetCoverageInfo(TNode<SharedFunctionInfo> sfi);
+
 #ifdef BINT_IS_SMI
 #define BINT_COMPARISON_OP(BIntOpName, SmiOpName, IntPtrOpName) \
   TNode<BoolT> BIntOpName(TNode<BInt> a, TNode<BInt> b) {       \

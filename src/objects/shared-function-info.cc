@@ -9,6 +9,7 @@
 #include "src/codegen/compilation-cache.h"
 #include "src/codegen/compiler.h"
 #include "src/common/globals.h"
+#include "src/debug/debug.h"
 #include "src/diagnostics/code-tracer.h"
 #include "src/execution/isolate-utils.h"
 #include "src/objects/shared-function-info-inl.h"
@@ -22,7 +23,7 @@ V8_EXPORT_PRIVATE constexpr Smi SharedFunctionInfo::kNoSharedNameSentinel;
 uint32_t SharedFunctionInfo::Hash() {
   // Hash SharedFunctionInfo based on its start position and script id. Note: we
   // don't use the function's literal id since getting that is slow for compiled
-  // funcitons.
+  // functions.
   int start_pos = StartPosition();
   int script_id = script().IsScript() ? Script::cast(script()).id() : 0;
   return static_cast<uint32_t>(base::hash_combine(start_pos, script_id));
@@ -45,8 +46,7 @@ void SharedFunctionInfo::Init(ReadOnlyRoots ro_roots, int unique_id) {
   // SharedFunctionInfo in a consistent state.
   set_raw_outer_scope_info_or_feedback_metadata(ro_roots.the_hole_value(),
                                                 SKIP_WRITE_BARRIER);
-  set_script_or_debug_info(ro_roots.undefined_value(), kReleaseStore,
-                           SKIP_WRITE_BARRIER);
+  set_script(ro_roots.undefined_value(), kReleaseStore, SKIP_WRITE_BARRIER);
   set_function_literal_id(kFunctionLiteralIdInvalid);
 #if V8_SFI_HAS_UNIQUE_ID
   set_unique_id(unique_id);
@@ -242,7 +242,7 @@ void SharedFunctionInfo::SetScript(ReadOnlyRoots roots,
   }
 
   // Finally set new script.
-  set_script(script_object);
+  set_script(script_object, kReleaseStore);
 }
 
 void SharedFunctionInfo::CopyFrom(SharedFunctionInfo other) {
@@ -253,8 +253,7 @@ void SharedFunctionInfo::CopyFrom(SharedFunctionInfo other) {
                          kReleaseStore);
   set_outer_scope_info_or_feedback_metadata(
       other.outer_scope_info_or_feedback_metadata(cage_base));
-  set_script_or_debug_info(other.script_or_debug_info(cage_base, kAcquireLoad),
-                           kReleaseStore);
+  set_script(other.script(cage_base, kAcquireLoad), kReleaseStore);
 
   set_length(other.length());
   set_formal_parameter_count(other.formal_parameter_count());
@@ -281,30 +280,34 @@ void SharedFunctionInfo::CopyFrom(SharedFunctionInfo other) {
   set_age(0);
 }
 
-bool SharedFunctionInfo::HasBreakInfo() const {
-  if (!HasDebugInfo()) return false;
-  DebugInfo info = GetDebugInfo();
-  bool has_break_info = info.HasBreakInfo();
-  return has_break_info;
+bool SharedFunctionInfo::HasDebugInfo(Isolate* isolate) const {
+  return isolate->debug()->HasDebugInfo(*this);
 }
 
-bool SharedFunctionInfo::BreakAtEntry() const {
-  if (!HasDebugInfo()) return false;
-  DebugInfo info = GetDebugInfo();
-  bool break_at_entry = info.BreakAtEntry();
-  return break_at_entry;
+DebugInfo SharedFunctionInfo::GetDebugInfo(Isolate* isolate) const {
+  return isolate->debug()->TryGetDebugInfo(*this).value();
 }
 
-bool SharedFunctionInfo::HasCoverageInfo() const {
-  if (!HasDebugInfo()) return false;
-  DebugInfo info = GetDebugInfo();
-  bool has_coverage_info = info.HasCoverageInfo();
-  return has_coverage_info;
+base::Optional<DebugInfo> SharedFunctionInfo::TryGetDebugInfo(
+    Isolate* isolate) const {
+  return isolate->debug()->TryGetDebugInfo(*this);
 }
 
-CoverageInfo SharedFunctionInfo::GetCoverageInfo() const {
-  DCHECK(HasCoverageInfo());
-  return CoverageInfo::cast(GetDebugInfo().coverage_info());
+bool SharedFunctionInfo::HasBreakInfo(Isolate* isolate) const {
+  return isolate->debug()->HasBreakInfo(*this);
+}
+
+bool SharedFunctionInfo::BreakAtEntry(Isolate* isolate) const {
+  return isolate->debug()->BreakAtEntry(*this);
+}
+
+bool SharedFunctionInfo::HasCoverageInfo(Isolate* isolate) const {
+  return isolate->debug()->HasCoverageInfo(*this);
+}
+
+CoverageInfo SharedFunctionInfo::GetCoverageInfo(Isolate* isolate) const {
+  DCHECK(HasCoverageInfo(isolate));
+  return CoverageInfo::cast(GetDebugInfo(isolate).coverage_info());
 }
 
 std::unique_ptr<char[]> SharedFunctionInfo::DebugNameCStr() const {
@@ -812,7 +815,7 @@ void SharedFunctionInfo::InstallDebugBytecode(Handle<SharedFunctionInfo> shared,
     DisallowGarbageCollection no_gc;
     base::SharedMutexGuard<base::kExclusive> mutex_guard(
         isolate->shared_function_info_access());
-    DebugInfo debug_info = shared->GetDebugInfo();
+    DebugInfo debug_info = shared->GetDebugInfo(isolate);
     debug_info.set_original_bytecode_array(*original_bytecode_array,
                                            kReleaseStore);
     debug_info.set_debug_bytecode_array(*debug_bytecode_array, kReleaseStore);
@@ -826,7 +829,7 @@ void SharedFunctionInfo::UninstallDebugBytecode(SharedFunctionInfo shared,
   DisallowGarbageCollection no_gc;
   base::SharedMutexGuard<base::kExclusive> mutex_guard(
       isolate->shared_function_info_access());
-  DebugInfo debug_info = shared.GetDebugInfo();
+  DebugInfo debug_info = shared.GetDebugInfo(isolate);
   BytecodeArray original_bytecode_array = debug_info.OriginalBytecodeArray();
   DCHECK(!shared.HasBaselineCode());
   shared.SetActiveBytecodeArray(original_bytecode_array);

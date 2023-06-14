@@ -1255,6 +1255,17 @@ TNode<Smi> CodeStubAssembler::SmiLexicographicCompare(TNode<Smi> x,
                             std::make_pair(MachineType::AnyTagged(), y)));
 }
 
+TNode<Object> CodeStubAssembler::GetCoverageInfo(
+    TNode<SharedFunctionInfo> sfi) {
+  TNode<ExternalReference> f =
+      ExternalConstant(ExternalReference::debug_get_coverage_info_function());
+  TNode<ExternalReference> isolate_ptr =
+      ExternalConstant(ExternalReference::isolate_address(isolate()));
+  return CAST(CallCFunction(f, MachineType::AnyTagged(),
+                            std::make_pair(MachineType::Pointer(), isolate_ptr),
+                            std::make_pair(MachineType::TaggedPointer(), sfi)));
+}
+
 TNode<Int32T> CodeStubAssembler::TruncateWordToInt32(TNode<WordT> value) {
   if (Is64()) {
     return TruncateInt64ToInt32(ReinterpretCast<Int64T>(value));

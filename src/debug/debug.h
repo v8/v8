@@ -191,16 +191,14 @@ class DebugInfoCollection final {
   void Insert(SharedFunctionInfo sfi, DebugInfo debug_info);
 
   bool Contains(SharedFunctionInfo sfi) const;
-  MaybeHandle<DebugInfo> Find(SharedFunctionInfo sfi) const;
+  base::Optional<DebugInfo> Find(SharedFunctionInfo sfi) const;
 
   void DeleteSlow(SharedFunctionInfo sfi);
 
   size_t Size() const { return list_.size(); }
 
-  void TearDown() {
-    list_.clear();
-    map_.Clear();
-  }
+  // Call this before the Isolate dies.
+  void TearDown();
 
   class Iterator final {
    public:
@@ -211,10 +209,10 @@ class DebugInfoCollection final {
       return index_ < static_cast<int>(collection_->list_.size());
     }
 
-    Handle<DebugInfo> Next() const {
+    DebugInfo Next() const {
       DCHECK_GE(index_, 0);
       if (!HasNext()) return {};
-      return collection_->EntryAsHandle(index_);
+      return collection_->EntryAsDebugInfo(index_);
     }
 
     void Advance() {
@@ -236,10 +234,7 @@ class DebugInfoCollection final {
   };
 
  private:
-  Handle<DebugInfo> EntryAsHandle(size_t index) const {
-    DCHECK_LT(index, list_.size());
-    return Handle<DebugInfo>(list_[index]);
-  }
+  V8_EXPORT_PRIVATE DebugInfo EntryAsDebugInfo(size_t index) const;
   void DeleteIndex(size_t index);
 
   Isolate* const isolate_;
@@ -300,6 +295,13 @@ class V8_EXPORT_PRIVATE Debug {
 
   // Scripts handling.
   Handle<FixedArray> GetLoadedScripts();
+
+  // DebugInfo accessors.
+  base::Optional<DebugInfo> TryGetDebugInfo(SharedFunctionInfo sfi);
+  bool HasDebugInfo(SharedFunctionInfo sfi);
+  bool HasCoverageInfo(SharedFunctionInfo sfi);
+  bool HasBreakInfo(SharedFunctionInfo sfi);
+  bool BreakAtEntry(SharedFunctionInfo sfi);
 
   // Break point handling.
   enum BreakPointKind { kRegular, kInstrumentation };

@@ -2012,7 +2012,7 @@ void JavaScriptFrame::CollectFunctionAndOffsetForICStats(JSFunction function,
   ic_info.script_offset = code_offset;
 
   int source_pos = code.SourcePosition(cage_base, code_offset);
-  Object maybe_script = shared.script(cage_base);
+  Object maybe_script = shared.script(cage_base, kAcquireLoad);
   if (maybe_script.IsScript(cage_base)) {
     Script script = Script::cast(maybe_script);
     Script::PositionInfo info;

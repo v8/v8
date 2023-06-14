@@ -4702,7 +4702,7 @@ Reduction JSCallReducer::ReduceJSCall(Node* node,
   // If this state changes during background compilation, the compilation
   // job will be aborted from the main thread (see
   // Debug::PrepareFunctionForDebugExecution()).
-  if (shared.HasBreakInfo()) return NoChange();
+  if (shared.HasBreakInfo(broker())) return NoChange();
 
   // Class constructors are callable, but [[Call]] will raise an exception.
   // See ES6 section 9.2.1 [[Call]] ( thisArgument, argumentsList ).
@@ -5281,7 +5281,7 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
       // job will be aborted from the main thread (see
       // Debug::PrepareFunctionForDebugExecution()).
       SharedFunctionInfoRef sfi = function.shared(broker());
-      if (sfi.HasBreakInfo()) return NoChange();
+      if (sfi.HasBreakInfo(broker())) return NoChange();
 
       // Don't inline cross native context.
       if (!function.native_context(broker()).equals(native_context())) {
