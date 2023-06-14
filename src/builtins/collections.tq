@@ -37,21 +37,24 @@ extern macro CodeStubAssembler::CloneFixedArray(
 extern macro CollectionsBuiltinsAssembler::AddToSetTable(
     implicit context: Context)(OrderedHashSet, Object, String): OrderedHashSet;
 
+extern macro CollectionsBuiltinsAssembler::SetTableHasKey(
+    implicit context: Context)(Object, Object): bool;
+
 // Direct iteration helpers.
 @export
 struct KeyIndexPair {
   key: JSAny;
   index: intptr;
 }
-extern macro CollectionsBuiltinsAssembler::NextKeyIndexPair(
+extern macro CollectionsBuiltinsAssembler::NextKeyIndexPairUnmodifiedTable(
     OrderedHashMap, int32, int32, intptr): KeyIndexPair labels Done;
-extern macro CollectionsBuiltinsAssembler::NextKeyIndexPair(
+extern macro CollectionsBuiltinsAssembler::NextKeyIndexPairUnmodifiedTable(
     OrderedHashSet, int32, int32, intptr): KeyIndexPair labels Done;
 
 // The underlying table must not be resized during iteration!
-struct OrderedHashSetIterator {
+struct UnmodifiedOrderedHashSetIterator {
   macro Next(): JSAny labels Done {
-    this.current = NextKeyIndexPair(
+    this.current = NextKeyIndexPairUnmodifiedTable(
         this.table, this.numBuckets, this.usedCapacity, this.current.index)
         otherwise Done;
     return this.current.key;
@@ -59,6 +62,22 @@ struct OrderedHashSetIterator {
   const table: OrderedHashSet;
   const numBuckets: int32;
   const usedCapacity: int32;
+  current: KeyIndexPair;
+}
+
+extern macro CollectionsBuiltinsAssembler::NextKeyIndexPair(
+    OrderedHashMap, intptr): KeyIndexPair labels Done;
+extern macro CollectionsBuiltinsAssembler::NextKeyIndexPair(
+    OrderedHashSet, intptr): KeyIndexPair labels Done;
+
+// The underlying table can be resized during iteration.
+struct OrderedHashSetIterator {
+  macro Next(): JSAny labels Done {
+    this.current = NextKeyIndexPair(this.table, this.current.index)
+        otherwise Done;
+    return this.current.key;
+  }
+  const table: OrderedHashSet;
   current: KeyIndexPair;
 }
 
@@ -74,7 +93,8 @@ const kOrderedHashSetNumberOfElementsIndex:
 const kOrderedHashSetNumberOfDeletedElementsIndex: constexpr int32
     generates 'OrderedHashSet::NumberOfDeletedElementsIndex()';
 
-macro NewOrderedHashSetIterator(table: OrderedHashSet): OrderedHashSetIterator {
+macro NewUnmodifiedOrderedHashSetIterator(table: OrderedHashSet):
+    UnmodifiedOrderedHashSetIterator {
   const numBuckets =
       LoadOrderedHashTableMetadata(table, kOrderedHashSetNumberOfBucketsIndex);
   const numElements =
@@ -82,10 +102,19 @@ macro NewOrderedHashSetIterator(table: OrderedHashSet): OrderedHashSetIterator {
   const numDeleted = LoadOrderedHashTableMetadata(
       table, kOrderedHashSetNumberOfDeletedElementsIndex);
   const usedCapacity = numElements + numDeleted;
-  return OrderedHashSetIterator{
+  return UnmodifiedOrderedHashSetIterator{
     table: table,
     numBuckets: numBuckets,
     usedCapacity: usedCapacity,
+    current: KeyIndexPair {
+      key: Undefined, index: 0
+    }
+  };
+}
+
+macro NewOrderedHashSetIterator(table: OrderedHashSet): OrderedHashSetIterator {
+  return OrderedHashSetIterator{
+    table: table,
     current: KeyIndexPair {
       key: Undefined, index: 0
     }

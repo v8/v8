@@ -785,6 +785,7 @@ extern macro CodeStubAssembler::AllocateOrderedNameDictionary(constexpr int32):
     OrderedNameDictionary;
 extern macro CodeStubAssembler::AllocateSwissNameDictionary(constexpr int32):
     SwissNameDictionary;
+extern macro CodeStubAssembler::AllocateOrderedHashSet(): OrderedHashSet;
 
 extern builtin ToObject(Context, JSAny): JSReceiver;
 extern macro ToObject_Inline(Context, JSAny): JSReceiver;

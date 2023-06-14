@@ -1340,7 +1340,8 @@ CollectionsBuiltinsAssembler::NextSkipHoles(TNode<TableType> table,
 }
 
 template <typename CollectionType>
-TorqueStructKeyIndexPair CollectionsBuiltinsAssembler::NextKeyIndexPair(
+TorqueStructKeyIndexPair
+CollectionsBuiltinsAssembler::NextKeyIndexPairUnmodifiedTable(
     const TNode<CollectionType> table, const TNode<Int32T> number_of_buckets,
     const TNode<Int32T> used_capacity, const TNode<IntPtrT> index,
     Label* if_end) {
@@ -1355,14 +1356,37 @@ TorqueStructKeyIndexPair CollectionsBuiltinsAssembler::NextKeyIndexPair(
 }
 
 template TorqueStructKeyIndexPair
-CollectionsBuiltinsAssembler::NextKeyIndexPair(
+CollectionsBuiltinsAssembler::NextKeyIndexPairUnmodifiedTable(
     const TNode<OrderedHashMap> table, const TNode<Int32T> number_of_buckets,
     const TNode<Int32T> used_capacity, const TNode<IntPtrT> index,
     Label* if_end);
 template TorqueStructKeyIndexPair
-CollectionsBuiltinsAssembler::NextKeyIndexPair(
+CollectionsBuiltinsAssembler::NextKeyIndexPairUnmodifiedTable(
     const TNode<OrderedHashSet> table, const TNode<Int32T> number_of_buckets,
     const TNode<Int32T> used_capacity, const TNode<IntPtrT> index,
+    Label* if_end);
+
+template <typename CollectionType>
+TorqueStructKeyIndexPair CollectionsBuiltinsAssembler::NextKeyIndexPair(
+    const TNode<CollectionType> table, const TNode<IntPtrT> index,
+    Label* if_end) {
+  TNode<Object> key;
+  TNode<IntPtrT> entry_start_position;
+  TNode<IntPtrT> next_index;
+
+  std::tie(key, entry_start_position, next_index) =
+      NextSkipHoles<CollectionType>(table, index, if_end);
+
+  return TorqueStructKeyIndexPair{key, next_index};
+}
+
+template TorqueStructKeyIndexPair
+CollectionsBuiltinsAssembler::NextKeyIndexPair(
+    const TNode<OrderedHashMap> table, const TNode<IntPtrT> index,
+    Label* if_end);
+template TorqueStructKeyIndexPair
+CollectionsBuiltinsAssembler::NextKeyIndexPair(
+    const TNode<OrderedHashSet> table, const TNode<IntPtrT> index,
     Label* if_end);
 
 TorqueStructKeyValueIndexTuple
@@ -1997,18 +2021,23 @@ TF_BUILTIN(SetPrototypeHas, CollectionsBuiltinsAssembler) {
 
   const TNode<Object> table =
       LoadObjectField(CAST(receiver), JSMap::kTableOffset);
-  TNode<Smi> index =
-      CAST(CallBuiltin(Builtin::kFindOrderedHashSetEntry, context, table, key));
 
   Label if_found(this), if_not_found(this);
-  Branch(SmiGreaterThanOrEqual(index, SmiConstant(0)), &if_found,
-         &if_not_found);
+  Branch(SetTableHasKey(context, table, key), &if_found, &if_not_found);
 
   BIND(&if_found);
   Return(TrueConstant());
 
   BIND(&if_not_found);
   Return(FalseConstant());
+}
+
+TNode<BoolT> CollectionsBuiltinsAssembler::SetTableHasKey(
+    const TNode<Object> context, TNode<Object> table, TNode<Object> key) {
+  TNode<Smi> index =
+      CAST(CallBuiltin(Builtin::kFindOrderedHashSetEntry, context, table, key));
+
+  return SmiGreaterThanOrEqual(index, SmiConstant(0));
 }
 
 TF_BUILTIN(SetPrototypeEntries, CollectionsBuiltinsAssembler) {

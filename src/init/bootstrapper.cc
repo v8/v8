@@ -4680,6 +4680,8 @@ void Genesis::InitializeGlobal_harmony_set_methods() {
                                  isolate());
   SimpleInstallFunction(isolate(), set_prototype, "union",
                         Builtin::kSetPrototypeUnion, 1, true);
+  SimpleInstallFunction(isolate(), set_prototype, "intersection",
+                        Builtin::kSetPrototypeIntersection, 1, true);
 }
 
 void Genesis::InitializeGlobal_harmony_json_parse_with_source() {

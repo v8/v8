@@ -169,15 +169,24 @@ class CollectionsBuiltinsAssembler : public BaseCollectionsAssembler {
                                       TNode<String> method_name);
   // Direct iteration helpers.
   template <typename CollectionType>
-  TorqueStructKeyIndexPair NextKeyIndexPair(
+  TorqueStructKeyIndexPair NextKeyIndexPairUnmodifiedTable(
       const TNode<CollectionType>, const TNode<Int32T> number_of_buckets,
       const TNode<Int32T> used_capacity, const TNode<IntPtrT> index,
       Label* if_end);
+
+  template <typename CollectionType>
+  TorqueStructKeyIndexPair NextKeyIndexPair(const TNode<CollectionType>,
+                                            const TNode<IntPtrT> index,
+                                            Label* if_end);
 
   TorqueStructKeyValueIndexTuple NextKeyValueIndexTuple(
       const TNode<OrderedHashMap> table, const TNode<Int32T> number_of_buckets,
       const TNode<Int32T> used_capacity, const TNode<IntPtrT> index,
       Label* if_end);
+
+  // Checks if the set contains a key.
+  TNode<BoolT> SetTableHasKey(const TNode<Object> context, TNode<Object> table,
+                              TNode<Object> key);
 
  protected:
   template <typename IteratorType>

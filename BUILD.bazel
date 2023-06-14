@@ -881,6 +881,7 @@ filegroup(
         "src/builtins/regexp-source.tq",
         "src/builtins/regexp-split.tq",
         "src/builtins/regexp-test.tq",
+        "src/builtins/set-intersection.tq",
         "src/builtins/set-union.tq",
         "src/builtins/string-at.tq",
         "src/builtins/string-endswith.tq",

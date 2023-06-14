@@ -33,7 +33,8 @@ transitioning javascript builtin SetPrototypeUnion(
         const otherTable =
             Cast<OrderedHashSet>(otherSet.table) otherwise unreachable;
 
-        let otherIterator = collections::NewOrderedHashSetIterator(otherTable);
+        let otherIterator =
+            collections::NewUnmodifiedOrderedHashSetIterator(otherTable);
 
         while (true) {
           const nextValue = otherIterator.Next() otherwise Done;
