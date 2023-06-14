@@ -798,10 +798,10 @@ TF_BUILTIN(CallFunctionTemplate_CheckAccessAndCompatibleReceiver,
 }
 
 TF_BUILTIN(HandleApiCallOrConstruct, CallOrConstructBuiltinsAssembler) {
-  auto target = Parameter<Object>(Descriptor::kJSTarget);
-  auto new_target = Parameter<Object>(Descriptor::kJSNewTarget);
+  auto target = Parameter<Object>(Descriptor::kTarget);
+  auto new_target = Parameter<Object>(Descriptor::kNewTarget);
   auto context = Parameter<Context>(Descriptor::kContext);
-  auto argc = UncheckedParameter<Int32T>(Descriptor::kJSActualArgumentsCount);
+  auto argc = UncheckedParameter<Int32T>(Descriptor::kActualArgumentsCount);
 
   Label if_call(this), if_construct(this);
   Branch(IsUndefined(new_target), &if_call, &if_construct);

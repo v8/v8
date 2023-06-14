@@ -236,7 +236,7 @@ namespace internal {
   ASM(CallApiCallbackNoSideEffects, CallApiCallbackOptimized)                  \
   ASM(CallApiCallbackWithSideEffects, CallApiCallbackOptimized)                \
   ASM(CallApiGetter, ApiGetter)                                                \
-  TFJ(HandleApiCallOrConstruct, kDontAdaptArgumentsSentinel)                   \
+  TFC(HandleApiCallOrConstruct, JSTrampoline)                                  \
   CPP(HandleApiConstruct)                                                      \
   CPP(HandleApiCallAsFunctionDelegate)                                         \
   CPP(HandleApiCallAsConstructorDelegate)                                      \
