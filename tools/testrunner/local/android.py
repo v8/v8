@@ -18,6 +18,11 @@ BASE_DIR = os.path.normpath(
 ANDROID_DIR = os.path.join(BASE_DIR, 'build', 'android')
 DEVICE_DIR = '/data/local/tmp/v8/'
 
+FILTER_LINES_EXPRESSIONS = [
+  r'WARNING: linker: .+ unsupported flags DT_FLAGS_1=0x8000001',
+  r'WARNING: linker: .+ unused DT entry:.*type 0x70000001 arg 0x0.*',
+]
+FILTER_LINES_EXPRESSIONS = [re.compile(exp) for exp in FILTER_LINES_EXPRESSIONS]
 
 class TimeoutException(Exception):
   def __init__(self, timeout, output=None):
@@ -150,6 +155,12 @@ class Driver(object):
         skip_if_missing=True,
     )
 
+  def filter_line(self, line):
+    for exp in FILTER_LINES_EXPRESSIONS:
+      if exp.match(line):
+        return False
+    return True
+
   def run(self, target_dir, binary, args, rel_path, timeout, env=None,
           logcat_file=False):
     """Execute a command on the device's shell.
@@ -176,7 +187,8 @@ class Driver(object):
             timeout=timeout,
             retries=0,
         )
-        return '\n'.join(output)
+        # Return output without linker warnings (https://crbug.com/1454414).
+        return '\n'.join(filter(self.filter_line, output))
       except device_errors.AdbCommandFailedError as e:
         raise CommandFailedException(e.status, e.output)
       except device_errors.CommandTimeoutError as e:
