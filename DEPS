@@ -107,9 +107,9 @@ deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '147f65333c38ddd1ebf554e89965c243c8ce50b3',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'f0c26abe519822b2dfcf631a3ef9a75be4416e91',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '66f08295265f69ed629b4f804d4ae5e0e9ec2a97',
   'buildtools':
-    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '3819ac6f3de594da7386c62474cedcf3b7194bb7',
+    Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '3739a3619309af3b788379ad0936ca00b981616e',
   'buildtools/linux64': {
     'packages': [
       {
@@ -215,7 +215,7 @@ deps = {
     'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '793b83da0634b8de30f0b9d9d1ace14134280ca3',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + 'ca32af6260e4fbe258113f0563b3678924e5cb0f',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
@@ -229,7 +229,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '7b5e3d7868de02d85e22fc48ed955846ab521a80',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '2b19afb82030a638f8a3d8f592fa25269b924800',
   'third_party/fuchsia-gn-sdk': {
     'url': Var('chromium_url') + '/chromium/src/third_party/fuchsia-gn-sdk.git' + '@' + '0d6902558d92fe3d49ba9a8f638ddea829be595b',
     'condition': 'checkout_fuchsia',
@@ -278,7 +278,7 @@ deps = {
   'third_party/zlib':
     Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '3ca9f16f02950edffa391ec19cea856090158e9e',
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '381a058eb7e71635ea843c292e58c62ee31fbc70',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '21289a1a1b0ee05a20f4999d96edd3f8c1e60f9a',
   'tools/luci-go': {
       'packages': [
         {
