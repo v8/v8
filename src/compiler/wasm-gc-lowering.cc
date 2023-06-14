@@ -42,8 +42,12 @@ Reduction WasmGCLowering::Reduce(Node* node) {
   switch (node->opcode()) {
     case IrOpcode::kWasmTypeCheck:
       return ReduceWasmTypeCheck(node);
+    case IrOpcode::kWasmTypeCheckAbstract:
+      return ReduceWasmTypeCheckAbstract(node);
     case IrOpcode::kWasmTypeCast:
       return ReduceWasmTypeCast(node);
+    case IrOpcode::kWasmTypeCastAbstract:
+      return ReduceWasmTypeCastAbstract(node);
     case IrOpcode::kAssertNotNull:
       return ReduceAssertNotNull(node);
     case IrOpcode::kNull:
@@ -120,9 +124,9 @@ Reduction WasmGCLowering::ReduceWasmTypeCheck(Node* node) {
   auto end_label = gasm_.MakeLabel(MachineRepresentation::kWord32);
   bool is_cast_from_any = config.from.is_reference_to(wasm::HeapType::kAny);
 
-  // Skip the null check if casting from any and if null results in check
-  // failure. In that case the instance type check will identify null as not
-  // being a wasm object and return 0 (failure).
+  // If we are casting from any and null results in check failure, then the
+  // {IsDataRefMap} check below subsumes the null check. Otherwise, perform
+  // an explicit null check now.
   if (object_can_be_null && (!is_cast_from_any || config.to.is_nullable())) {
     const int kResult = config.to.is_nullable() ? 1 : 0;
     gasm_.GotoIf(IsNull(object, wasm::kWasmAnyRef), &end_label,
@@ -181,6 +185,88 @@ Reduction WasmGCLowering::ReduceWasmTypeCheck(Node* node) {
   return Replace(end_label.PhiAt(0));  // Meaningless argument.
 }
 
+Reduction WasmGCLowering::ReduceWasmTypeCheckAbstract(Node* node) {
+  DCHECK_EQ(node->opcode(), IrOpcode::kWasmTypeCheckAbstract);
+
+  Node* object = node->InputAt(0);
+  Node* effect_input = NodeProperties::GetEffectInput(node);
+  Node* control_input = NodeProperties::GetControlInput(node);
+  WasmTypeCheckConfig config = OpParameter<WasmTypeCheckConfig>(node->op());
+  const bool object_can_be_null = config.from.is_nullable();
+  const bool null_succeeds = config.to.is_nullable();
+  const bool object_can_be_i31 =
+      wasm::IsSubtypeOf(wasm::kWasmI31Ref.AsNonNull(), config.from, module_) ||
+      config.from.heap_representation() == wasm::HeapType::kExtern;
+
+  gasm_.InitializeEffectControl(effect_input, control_input);
+
+  Node* result = nullptr;
+  auto end_label = gasm_.MakeLabel(MachineRepresentation::kWord32);
+
+  wasm::HeapType::Representation to_rep = config.to.heap_representation();
+  do {
+    // The none-types only perform a null check. They need no control flow.
+    if (to_rep == wasm::HeapType::kNone ||
+        to_rep == wasm::HeapType::kNoExtern ||
+        to_rep == wasm::HeapType::kNoFunc) {
+      result = IsNull(object, config.from);
+      break;
+    }
+    // Null checks performed by any other type check need control flow. We can
+    // skip the null check if null fails, because it's covered by the Smi check
+    // or instance type check we'll do later.
+    if (object_can_be_null && null_succeeds) {
+      const int kResult = null_succeeds ? 1 : 0;
+      gasm_.GotoIf(IsNull(object, wasm::kWasmAnyRef), &end_label,
+                   BranchHint::kFalse, gasm_.Int32Constant(kResult));
+    }
+    // i31 is special in that the Smi check is the last thing to do.
+    if (to_rep == wasm::HeapType::kI31) {
+      DCHECK(object_can_be_i31);  // Ensured by WasmGCOperatorReducer.
+      result = gasm_.IsSmi(object);
+      break;
+    }
+    if (to_rep == wasm::HeapType::kEq) {
+      DCHECK(object_can_be_i31);  // Ensured by WasmGCOperatorReducer.
+      gasm_.GotoIf(gasm_.IsSmi(object), &end_label, BranchHint::kFalse,
+                   gasm_.Int32Constant(1));
+      result = gasm_.IsDataRefMap(gasm_.LoadMap(object));
+      break;
+    }
+    // array, struct, string: i31 fails.
+    if (object_can_be_i31) {
+      gasm_.GotoIf(gasm_.IsSmi(object), &end_label, BranchHint::kFalse,
+                   gasm_.Int32Constant(0));
+    }
+    if (to_rep == wasm::HeapType::kArray) {
+      result = gasm_.HasInstanceType(object, WASM_ARRAY_TYPE);
+      break;
+    }
+    if (to_rep == wasm::HeapType::kStruct) {
+      result = gasm_.HasInstanceType(object, WASM_STRUCT_TYPE);
+      break;
+    }
+    if (to_rep == wasm::HeapType::kString) {
+      Node* instance_type = gasm_.LoadInstanceType(gasm_.LoadMap(object));
+      result = gasm_.Uint32LessThan(instance_type,
+                                    gasm_.Uint32Constant(FIRST_NONSTRING_TYPE));
+      break;
+    }
+    UNREACHABLE();
+  } while (false);
+
+  DCHECK_NOT_NULL(result);
+  if (end_label.IsUsed()) {
+    gasm_.Goto(&end_label, result);
+    gasm_.Bind(&end_label);
+    result = end_label.PhiAt(0);
+  }
+
+  ReplaceWithValue(node, result, gasm_.effect(), gasm_.control());
+  node->Kill();
+  return Replace(result);  // Meaningless argument.
+}
+
 Reduction WasmGCLowering::ReduceWasmTypeCast(Node* node) {
   DCHECK_EQ(node->opcode(), IrOpcode::kWasmTypeCast);
 
@@ -199,9 +285,9 @@ Reduction WasmGCLowering::ReduceWasmTypeCast(Node* node) {
   auto end_label = gasm_.MakeLabel();
   bool is_cast_from_any = config.from.is_reference_to(wasm::HeapType::kAny);
 
-  // Skip the null check if casting from any and if null results in check
-  // failure. In that case the instance type check will identify null as not
-  // being a wasm object and trap.
+  // If we are casting from any and null results in check failure, then the
+  // {IsDataRefMap} check below subsumes the null check. Otherwise, perform
+  // an explicit null check now.
   if (object_can_be_null && (!is_cast_from_any || config.to.is_nullable())) {
     Node* is_null = IsNull(object, wasm::kWasmAnyRef);
     if (config.to.is_nullable()) {
@@ -264,6 +350,94 @@ Reduction WasmGCLowering::ReduceWasmTypeCast(Node* node) {
   }
 
   gasm_.Bind(&end_label);
+
+  ReplaceWithValue(node, object, gasm_.effect(), gasm_.control());
+  node->Kill();
+  return Replace(object);
+}
+
+Reduction WasmGCLowering::ReduceWasmTypeCastAbstract(Node* node) {
+  DCHECK_EQ(node->opcode(), IrOpcode::kWasmTypeCastAbstract);
+
+  Node* object = node->InputAt(0);
+  Node* effect_input = NodeProperties::GetEffectInput(node);
+  Node* control_input = NodeProperties::GetControlInput(node);
+  WasmTypeCheckConfig config = OpParameter<WasmTypeCheckConfig>(node->op());
+  const bool object_can_be_null = config.from.is_nullable();
+  const bool null_succeeds = config.to.is_nullable();
+  const bool object_can_be_i31 =
+      wasm::IsSubtypeOf(wasm::kWasmI31Ref.AsNonNull(), config.from, module_) ||
+      config.from.heap_representation() == wasm::HeapType::kExtern;
+
+  gasm_.InitializeEffectControl(effect_input, control_input);
+
+  auto end_label = gasm_.MakeLabel();
+
+  wasm::HeapType::Representation to_rep = config.to.heap_representation();
+
+  do {
+    // The none-types only perform a null check.
+    if (to_rep == wasm::HeapType::kNone ||
+        to_rep == wasm::HeapType::kNoExtern ||
+        to_rep == wasm::HeapType::kNoFunc) {
+      gasm_.TrapUnless(IsNull(object, config.from), TrapId::kTrapIllegalCast);
+      UpdateSourcePosition(gasm_.effect(), node);
+      break;
+    }
+    // Null checks performed by any other type cast can be skipped if null
+    // fails, because it's covered by the Smi check
+    // or instance type check we'll do later.
+    if (object_can_be_null && null_succeeds &&
+        !v8_flags.experimental_wasm_skip_null_checks) {
+      gasm_.GotoIf(IsNull(object, config.from), &end_label, BranchHint::kFalse);
+    }
+    if (to_rep == wasm::HeapType::kI31) {
+      DCHECK(object_can_be_i31);  // Ensured by WasmGCOperatorBuilder.
+      gasm_.TrapUnless(gasm_.IsSmi(object), TrapId::kTrapIllegalCast);
+      UpdateSourcePosition(gasm_.effect(), node);
+      break;
+    }
+    if (to_rep == wasm::HeapType::kEq) {
+      DCHECK(object_can_be_i31);  // Ensured by WasmGCOperatorReducer.
+      gasm_.GotoIf(gasm_.IsSmi(object), &end_label, BranchHint::kFalse);
+      gasm_.TrapUnless(gasm_.IsDataRefMap(gasm_.LoadMap(object)),
+                       TrapId::kTrapIllegalCast);
+      UpdateSourcePosition(gasm_.effect(), node);
+      break;
+    }
+    // array, struct, string: i31 fails.
+    if (object_can_be_i31) {
+      gasm_.TrapIf(gasm_.IsSmi(object), TrapId::kTrapIllegalCast);
+      UpdateSourcePosition(gasm_.effect(), node);
+    }
+    if (to_rep == wasm::HeapType::kArray) {
+      gasm_.TrapUnless(gasm_.HasInstanceType(object, WASM_ARRAY_TYPE),
+                       TrapId::kTrapIllegalCast);
+      UpdateSourcePosition(gasm_.effect(), node);
+      break;
+    }
+    if (to_rep == wasm::HeapType::kStruct) {
+      gasm_.TrapUnless(gasm_.HasInstanceType(object, WASM_STRUCT_TYPE),
+                       TrapId::kTrapIllegalCast);
+      UpdateSourcePosition(gasm_.effect(), node);
+      break;
+    }
+    if (to_rep == wasm::HeapType::kString) {
+      Node* instance_type = gasm_.LoadInstanceType(gasm_.LoadMap(object));
+      gasm_.TrapUnless(
+          gasm_.Uint32LessThan(instance_type,
+                               gasm_.Uint32Constant(FIRST_NONSTRING_TYPE)),
+          TrapId::kTrapIllegalCast);
+      UpdateSourcePosition(gasm_.effect(), node);
+      break;
+    }
+    UNREACHABLE();
+  } while (false);
+
+  if (end_label.IsUsed()) {
+    gasm_.Goto(&end_label);
+    gasm_.Bind(&end_label);
+  }
 
   ReplaceWithValue(node, object, gasm_.effect(), gasm_.control());
   node->Kill();

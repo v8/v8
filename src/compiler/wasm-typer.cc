@@ -56,7 +56,8 @@ Reduction WasmTyper::Reduce(Node* node) {
       computed_type = wasm::Intersection(guarded_type, input_type);
       break;
     }
-    case IrOpcode::kWasmTypeCast: {
+    case IrOpcode::kWasmTypeCast:
+    case IrOpcode::kWasmTypeCastAbstract: {
       if (!AllInputsTyped(node)) return NoChange();
       TypeInModule object_type =
           NodeProperties::GetType(NodeProperties::GetValueInput(node, 0))

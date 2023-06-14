@@ -234,8 +234,10 @@ class WasmGraphAssembler : public GraphAssembler {
   Node* IsDataRefMap(Node* map);
 
   Node* WasmTypeCheck(Node* object, Node* rtt, WasmTypeCheckConfig config);
+  Node* WasmTypeCheckAbstract(Node* object, WasmTypeCheckConfig config);
 
   Node* WasmTypeCast(Node* object, Node* rtt, WasmTypeCheckConfig config);
+  Node* WasmTypeCastAbstract(Node* object, WasmTypeCheckConfig config);
 
   Node* Null(wasm::ValueType type);
 

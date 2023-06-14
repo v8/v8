@@ -61,7 +61,9 @@ class WasmGCOperatorReducer final
   Reduction ReduceAssertNotNull(Node* node);
   Reduction ReduceCheckNull(Node* node);
   Reduction ReduceWasmTypeCheck(Node* node);
+  Reduction ReduceWasmTypeCheckAbstract(Node* node);
   Reduction ReduceWasmTypeCast(Node* node);
+  Reduction ReduceWasmTypeCastAbstract(Node* node);
   Reduction ReduceTypeGuard(Node* node);
   Reduction ReduceWasmExternInternalize(Node* node);
   Reduction ReduceMerge(Node* node);

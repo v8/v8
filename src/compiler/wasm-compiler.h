@@ -488,13 +488,11 @@ class WasmGraphBuilder {
   Node* RttCanon(uint32_t type_index);
 
   Node* RefTest(Node* object, Node* rtt, WasmTypeCheckConfig config);
-  Node* RefTestAbstract(Node* object, wasm::HeapType type, bool is_nullable,
-                        bool null_succeeds);
+  Node* RefTestAbstract(Node* object, WasmTypeCheckConfig config);
   Node* RefCast(Node* object, Node* rtt, WasmTypeCheckConfig config,
                 wasm::WasmCodePosition position);
-  Node* RefCastAbstract(Node* object, wasm::HeapType type,
-                        wasm::WasmCodePosition position, bool is_nullable,
-                        bool null_succeeds);
+  Node* RefCastAbstract(Node* object, WasmTypeCheckConfig config,
+                        wasm::WasmCodePosition position);
   struct ResultNodesOfBr {
     Node* control_on_match;
     Node* effect_on_match;
@@ -510,21 +508,7 @@ class WasmGraphBuilder {
   ResultNodesOfBr BrOnI31(Node* object, Node* rtt, WasmTypeCheckConfig config);
   ResultNodesOfBr BrOnString(Node* object, Node* rtt,
                              WasmTypeCheckConfig config);
-  Node* RefIsEq(Node* object, bool object_can_be_null, bool null_succeeds);
-  Node* RefAsEq(Node* object, bool object_can_be_null,
-                wasm::WasmCodePosition position, bool null_succeeds);
-  Node* RefIsStruct(Node* object, bool object_can_be_null, bool null_succeeds);
-  Node* RefAsStruct(Node* object, bool object_can_be_null,
-                    wasm::WasmCodePosition position, bool null_succeeds);
-  Node* RefIsArray(Node* object, bool object_can_be_null, bool null_succeeds);
-  Node* RefAsArray(Node* object, bool object_can_be_null,
-                   wasm::WasmCodePosition position, bool null_succeeds);
-  Node* RefIsI31(Node* object, bool null_succeeds);
-  Node* RefAsI31(Node* object, wasm::WasmCodePosition position,
-                 bool null_succeeds);
-  Node* RefIsString(Node* object, bool object_can_be_null, bool null_succeeds);
-  Node* RefAsString(Node* object, bool object_can_be_null,
-                    wasm::WasmCodePosition position, bool null_succeeds);
+
   Node* StringNewWtf8(uint32_t memory, unibrow::Utf8Variant variant,
                       Node* offset, Node* size);
   Node* StringNewWtf8Array(unibrow::Utf8Variant variant, Node* array,

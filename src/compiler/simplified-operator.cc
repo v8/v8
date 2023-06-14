@@ -1270,7 +1270,8 @@ struct SimplifiedOperatorGlobalCache final {
 
   struct StringAsWtf16Operator final : public Operator {
     StringAsWtf16Operator()
-        : Operator(IrOpcode::kStringAsWtf16, Operator::kEliminatable,
+        : Operator(IrOpcode::kStringAsWtf16,
+                   Operator::kEliminatable | Operator::kIdempotent,
                    "StringAsWtf16", 1, 1, 1, 1, 1, 1) {}
   };
   StringAsWtf16Operator kStringAsWtf16;
@@ -1485,12 +1486,28 @@ const Operator* SimplifiedOperatorBuilder::WasmTypeCheck(
       "WasmTypeCheck", 2, 1, 1, 1, 1, 1, config);
 }
 
+const Operator* SimplifiedOperatorBuilder::WasmTypeCheckAbstract(
+    WasmTypeCheckConfig config) {
+  return zone_->New<Operator1<WasmTypeCheckConfig>>(
+      IrOpcode::kWasmTypeCheckAbstract,
+      Operator::kEliminatable | Operator::kIdempotent, "WasmTypeCheckAbstract",
+      1, 1, 1, 1, 1, 1, config);
+}
+
 const Operator* SimplifiedOperatorBuilder::WasmTypeCast(
     WasmTypeCheckConfig config) {
   return zone_->New<Operator1<WasmTypeCheckConfig>>(
       IrOpcode::kWasmTypeCast,
       Operator::kNoWrite | Operator::kNoThrow | Operator::kIdempotent,
       "WasmTypeCast", 2, 1, 1, 1, 1, 1, config);
+}
+
+const Operator* SimplifiedOperatorBuilder::WasmTypeCastAbstract(
+    WasmTypeCheckConfig config) {
+  return zone_->New<Operator1<WasmTypeCheckConfig>>(
+      IrOpcode::kWasmTypeCastAbstract,
+      Operator::kNoWrite | Operator::kNoThrow | Operator::kIdempotent,
+      "WasmTypeCastAbstract", 1, 1, 1, 1, 1, 1, config);
 }
 
 const Operator* SimplifiedOperatorBuilder::RttCanon(int index) {

@@ -380,10 +380,22 @@ Node* WasmGraphAssembler::WasmTypeCheck(Node* object, Node* rtt,
                                   rtt, effect(), control()));
 }
 
+Node* WasmGraphAssembler::WasmTypeCheckAbstract(Node* object,
+                                                WasmTypeCheckConfig config) {
+  return AddNode(graph()->NewNode(simplified_.WasmTypeCheckAbstract(config),
+                                  object, effect(), control()));
+}
+
 Node* WasmGraphAssembler::WasmTypeCast(Node* object, Node* rtt,
                                        WasmTypeCheckConfig config) {
   return AddNode(graph()->NewNode(simplified_.WasmTypeCast(config), object, rtt,
                                   effect(), control()));
+}
+
+Node* WasmGraphAssembler::WasmTypeCastAbstract(Node* object,
+                                               WasmTypeCheckConfig config) {
+  return AddNode(graph()->NewNode(simplified_.WasmTypeCastAbstract(config),
+                                  object, effect(), control()));
 }
 
 Node* WasmGraphAssembler::Null(wasm::ValueType type) {

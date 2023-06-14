@@ -556,7 +556,9 @@
   V(Null)                          \
   V(RttCanon)                      \
   V(WasmTypeCast)                  \
+  V(WasmTypeCastAbstract)          \
   V(WasmTypeCheck)                 \
+  V(WasmTypeCheckAbstract)         \
   V(WasmExternInternalize)         \
   V(WasmExternExternalize)         \
   V(WasmStructGet)                 \

@@ -1189,7 +1189,6 @@ struct ControlBase : public PcForErrors<ValidationTag::full_validation> {
   F(BrOnCastFailAbstract, const Value& obj, HeapType type,                     \
     Value* result_on_fallthrough, uint32_t depth, bool null_succeeds)          \
   F(RefIsStruct, const Value& object, Value* result)                           \
-  F(RefIsEq, const Value& object, Value* result)                               \
   F(RefIsI31, const Value& object, Value* result)                              \
   F(RefIsArray, const Value& object, Value* result)                            \
   F(RefAsStruct, const Value& object, Value* result)                           \

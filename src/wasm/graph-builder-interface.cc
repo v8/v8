@@ -1399,7 +1399,7 @@ class WasmGraphBuildingInterface {
   void RefTest(FullDecoder* decoder, uint32_t ref_index, const Value& object,
                Value* result, bool null_succeeds) {
     TFNode* rtt = builder_->RttCanon(ref_index);
-    WasmTypeCheckConfig config = {
+    WasmTypeCheckConfig config{
         object.type, ValueType::RefMaybeNull(
                          ref_index, null_succeeds ? kNullable : kNonNullable)};
     SetAndTypeNode(result, builder_->RefTest(object.node, rtt, config));
@@ -1407,33 +1407,37 @@ class WasmGraphBuildingInterface {
 
   void RefTestAbstract(FullDecoder* decoder, const Value& object,
                        wasm::HeapType type, Value* result, bool null_succeeds) {
-    bool is_nullable = object.type.is_nullable();
-    SetAndTypeNode(result, builder_->RefTestAbstract(
-                               object.node, type, is_nullable, null_succeeds));
+    WasmTypeCheckConfig config{
+        object.type, ValueType::RefMaybeNull(
+                         type, null_succeeds ? kNullable : kNonNullable)};
+    SetAndTypeNode(result, builder_->RefTestAbstract(object.node, config));
   }
 
   void RefCast(FullDecoder* decoder, uint32_t ref_index, const Value& object,
                Value* result, bool null_succeeds) {
-    TFNode* rtt = builder_->RttCanon(ref_index);
-    WasmTypeCheckConfig config = {
-        object.type, ValueType::RefMaybeNull(
-                         ref_index, null_succeeds ? kNullable : kNonNullable)};
-    TFNode* cast_node =
-        v8_flags.experimental_wasm_assume_ref_cast_succeeds
-            ? builder_->TypeGuard(object.node, result->type)
-            : builder_->RefCast(object.node, rtt, config, decoder->position());
-    SetAndTypeNode(result, cast_node);
+    TFNode* node = object.node;
+    if (v8_flags.experimental_wasm_assume_ref_cast_succeeds) {
+      node = builder_->TypeGuard(node, result->type);
+    } else {
+      TFNode* rtt = builder_->RttCanon(ref_index);
+      WasmTypeCheckConfig config{object.type, result->type};
+      node = builder_->RefCast(object.node, rtt, config, decoder->position());
+    }
+    SetAndTypeNode(result, node);
   }
 
+  // TODO(jkummerow): {type} is redundant.
   void RefCastAbstract(FullDecoder* decoder, const Value& object,
                        wasm::HeapType type, Value* result, bool null_succeeds) {
     TFNode* node = object.node;
-    if (!v8_flags.experimental_wasm_assume_ref_cast_succeeds) {
-      bool is_nullable = object.type.is_nullable();
-      node = builder_->RefCastAbstract(object.node, type, decoder->position(),
-                                       is_nullable, null_succeeds);
+    if (v8_flags.experimental_wasm_assume_ref_cast_succeeds) {
+      node = builder_->TypeGuard(node, result->type);
+    } else {
+      WasmTypeCheckConfig config{object.type, result->type};
+      node =
+          builder_->RefCastAbstract(object.node, config, decoder->position());
     }
-    SetAndTypeNode(result, builder_->TypeGuard(node, result->type));
+    SetAndTypeNode(result, node);
   }
 
   template <compiler::WasmGraphBuilder::ResultNodesOfBr (
@@ -1450,7 +1454,7 @@ class WasmGraphBuildingInterface {
     ValueType to_type = ValueType::RefMaybeNull(
         type.is_bottom() ? HeapType::kNone : type.ref_index(),
         null_succeeds ? kNullable : kNonNullable);
-    WasmTypeCheckConfig config = {object.type, to_type};
+    WasmTypeCheckConfig config{object.type, to_type};
     SsaEnv* branch_env = Split(decoder->zone(), ssa_env_);
     // TODO(choongwoo): Clear locals of `no_branch_env` after use.
     SsaEnv* no_branch_env = Steal(decoder->zone(), ssa_env_);
@@ -1584,13 +1588,6 @@ class WasmGraphBuildingInterface {
     }
   }
 
-  void RefIsEq(FullDecoder* decoder, const Value& object, Value* result) {
-    bool null_succeeds = false;
-    SetAndTypeNode(result,
-                   builder_->RefIsEq(object.node, object.type.is_nullable(),
-                                     null_succeeds));
-  }
-
   void BrOnEq(FullDecoder* decoder, const Value& object, Value* value_on_branch,
               uint32_t br_depth, bool null_succeeds) {
     BrOnCastAbs<&compiler::WasmGraphBuilder::BrOnEq>(
@@ -1610,17 +1607,14 @@ class WasmGraphBuildingInterface {
   }
 
   void RefIsStruct(FullDecoder* decoder, const Value& object, Value* result) {
-    bool null_succeeds = false;
-    SetAndTypeNode(result,
-                   builder_->RefIsStruct(object.node, object.type.is_nullable(),
-                                         null_succeeds));
+    WasmTypeCheckConfig config{object.type, ValueType::Ref(HeapType::kStruct)};
+    SetAndTypeNode(result, builder_->RefTestAbstract(object.node, config));
   }
 
   void RefAsStruct(FullDecoder* decoder, const Value& object, Value* result) {
-    bool null_succeeds = false;
+    WasmTypeCheckConfig config{object.type, ValueType::Ref(HeapType::kStruct)};
     TFNode* cast_object =
-        builder_->RefAsStruct(object.node, object.type.is_nullable(),
-                              decoder->position(), null_succeeds);
+        builder_->RefCastAbstract(object.node, config, decoder->position());
     TFNode* rename = builder_->TypeGuard(cast_object, result->type);
     SetAndTypeNode(result, rename);
   }
@@ -1642,17 +1636,14 @@ class WasmGraphBuildingInterface {
   }
 
   void RefIsArray(FullDecoder* decoder, const Value& object, Value* result) {
-    bool null_succeeds = false;
-    SetAndTypeNode(result,
-                   builder_->RefIsArray(object.node, object.type.is_nullable(),
-                                        null_succeeds));
+    WasmTypeCheckConfig config{object.type, ValueType::Ref(HeapType::kArray)};
+    SetAndTypeNode(result, builder_->RefTestAbstract(object.node, config));
   }
 
   void RefAsArray(FullDecoder* decoder, const Value& object, Value* result) {
-    bool null_succeeds = false;
+    WasmTypeCheckConfig config{object.type, ValueType::Ref(HeapType::kArray)};
     TFNode* cast_object =
-        builder_->RefAsArray(object.node, object.type.is_nullable(),
-                             decoder->position(), null_succeeds);
+        builder_->RefCastAbstract(object.node, config, decoder->position());
     TFNode* rename = builder_->TypeGuard(cast_object, result->type);
     SetAndTypeNode(result, rename);
   }
@@ -1674,14 +1665,14 @@ class WasmGraphBuildingInterface {
   }
 
   void RefIsI31(FullDecoder* decoder, const Value& object, Value* result) {
-    bool null_succeeds = false;
-    SetAndTypeNode(result, builder_->RefIsI31(object.node, null_succeeds));
+    WasmTypeCheckConfig config{object.type, ValueType::Ref(HeapType::kI31)};
+    SetAndTypeNode(result, builder_->RefTestAbstract(object.node, config));
   }
 
   void RefAsI31(FullDecoder* decoder, const Value& object, Value* result) {
-    bool null_succeeds = false;
+    WasmTypeCheckConfig config{object.type, ValueType::Ref(HeapType::kI31)};
     TFNode* cast_object =
-        builder_->RefAsI31(object.node, decoder->position(), null_succeeds);
+        builder_->RefCastAbstract(object.node, config, decoder->position());
     TFNode* rename = builder_->TypeGuard(cast_object, result->type);
     SetAndTypeNode(result, rename);
   }
@@ -1699,22 +1690,6 @@ class WasmGraphBuildingInterface {
     BrOnCastAbs<&compiler::WasmGraphBuilder::BrOnI31>(
         decoder, HeapType{kBottom}, object, value_on_fallthrough, br_depth,
         false, null_succeeds);
-  }
-
-  void RefIsString(FullDecoder* decoder, const Value& object, Value* result) {
-    bool null_succeeds = false;
-    SetAndTypeNode(result,
-                   builder_->RefIsString(object.node, object.type.is_nullable(),
-                                         null_succeeds));
-  }
-
-  void RefAsString(FullDecoder* decoder, const Value& object, Value* result) {
-    bool null_succeeds = false;
-    TFNode* cast_object =
-        builder_->RefAsString(object.node, object.type.is_nullable(),
-                              decoder->position(), null_succeeds);
-    TFNode* rename = builder_->TypeGuard(cast_object, result->type);
-    SetAndTypeNode(result, rename);
   }
 
   void BrOnString(FullDecoder* decoder, const Value& object,

@@ -6579,6 +6579,7 @@ class LiftoffCompiler {
     AbstractTypeCheck<&LiftoffCompiler::StructCheck>(object, null_succeeds);
   }
 
+  // TODO(jkummerow): Inline.
   void RefIsEq(FullDecoder* /* decoder */, const Value& object,
                Value* /* result_val */, bool null_succeeds) {
     AbstractTypeCheck<&LiftoffCompiler::EqCheck>(object, null_succeeds);

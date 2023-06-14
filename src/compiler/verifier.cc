@@ -1706,7 +1706,9 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CheckValueInputIs(node, 0, Type::Any());  // callee
       break;
     case IrOpcode::kWasmTypeCheck:
+    case IrOpcode::kWasmTypeCheckAbstract:
     case IrOpcode::kWasmTypeCast:
+    case IrOpcode::kWasmTypeCastAbstract:
     case IrOpcode::kRttCanon:
     case IrOpcode::kNull:
     case IrOpcode::kIsNull:

@@ -46,6 +46,7 @@ bool MayAlias(Node* lhs, Node* rhs) {
 
 Node* ResolveAliases(Node* node) {
   while (node->opcode() == IrOpcode::kWasmTypeCast ||
+         node->opcode() == IrOpcode::kWasmTypeCastAbstract ||
          node->opcode() == IrOpcode::kAssertNotNull ||
          node->opcode() == IrOpcode::kTypeGuard) {
     node = NodeProperties::GetValueInput(node, 0);
