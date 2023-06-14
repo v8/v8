@@ -23,7 +23,7 @@ The suite json format is expected to be:
   "timeout_XXX": <how long test is allowed run run for arch XXX>,
   "retry_count": <how many times to retry failures (in addition to first try)",
   "retry_count_XXX": <how many times to retry failures for arch XXX>
-  "resources": [<js file to be moved to android device>, ...]
+  "resources": [<js file to be moved to android device or "*">, ...]
   "variants": [
     {
       "name": <name of the variant>,
@@ -980,7 +980,10 @@ class AndroidPlatform(Platform):  # pragma: no cover
     if isinstance(node, RunnableConfig):
       self.driver.push_file(bench_abs, node.main, bench_rel)
     for resource in node.resources:
-      self.driver.push_file(bench_abs, resource, bench_rel)
+      if resource == '*':
+        self.driver.push_files_rec(bench_abs, bench_rel)
+      else:
+        self.driver.push_file(bench_abs, resource, bench_rel)
 
   def _Run(self, runnable, count, secondary=False, post_process=True):
     target_dir = 'bin_secondary' if secondary else 'bin'

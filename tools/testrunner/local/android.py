@@ -11,6 +11,8 @@ import os
 import sys
 import re
 
+from pathlib import Path
+
 BASE_DIR = os.path.normpath(
     os.path.join(os.path.dirname(__file__), '..', '..', '..'))
 ANDROID_DIR = os.path.join(BASE_DIR, 'build', 'android')
@@ -108,6 +110,13 @@ class Driver(object):
     self.device.adb.Shell('mkdir -p %s' % folder_on_device)
     self.device.adb.Shell('cp %s %s' % (file_on_device_tmp, file_on_device))
     self.pushed.add(file_on_host)
+
+  def push_files_rec(self, host_dir, target_rel='.'):
+    """As above, but push the whole directory tree under host_dir."""
+    root = Path(host_dir)
+    for entry in root.rglob('*'):
+      if entry.is_file():
+        self.push_file(host_dir, entry.relative_to(root), target_rel)
 
   def push_executable(self, shell_dir, target_dir, binary):
     """Push files required to run a V8 executable.
