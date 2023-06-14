@@ -912,14 +912,14 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
 
     isolate->compilation_cache()->Remove(sfi);
     isolate->debug()->DeoptimizeFunction(sfi);
-    if (base::Optional<DebugInfo> di = sfi->TryGetDebugInfo(isolate)) {
-      Handle<DebugInfo> debug_info(di.value(), isolate);
+    if (sfi->HasDebugInfo()) {
+      Handle<DebugInfo> debug_info(sfi->GetDebugInfo(), isolate);
       isolate->debug()->RemoveBreakInfoAndMaybeFree(debug_info);
     }
     SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate, sfi);
     UpdatePositions(isolate, sfi, mapping.second, diffs);
 
-    sfi->set_script(*new_script, kReleaseStore);
+    sfi->set_script(*new_script);
     sfi->set_function_literal_id(mapping.second->function_literal_id());
     new_script->shared_function_infos().Set(
         mapping.second->function_literal_id(), HeapObjectReference::Weak(*sfi));

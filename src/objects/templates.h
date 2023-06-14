@@ -164,7 +164,7 @@ class FunctionTemplateInfo
   bool IsLeafTemplateForApiObject(Object object) const;
   inline bool instantiated();
 
-  bool BreakAtEntry(Isolate* isolate);
+  bool BreakAtEntry();
   bool HasInstanceType();
 
   // Helper function for cached accessors.

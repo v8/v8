@@ -113,8 +113,10 @@ RUNTIME_FUNCTION(Runtime_DebugBreakAtEntry) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   Handle<JSFunction> function = args.at<JSFunction>(0);
+  USE(function);
 
-  DCHECK(function->shared().BreakAtEntry(isolate));
+  DCHECK(function->shared().HasDebugInfo());
+  DCHECK(function->shared().GetDebugInfo().BreakAtEntry());
 
   // Get the top-most JavaScript frame. This is the debug target function.
   JavaScriptStackFrameIterator it(isolate);

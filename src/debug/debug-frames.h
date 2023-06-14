@@ -70,8 +70,7 @@ class RedirectActiveFunctions : public ThreadVisitor {
     kUseDebugBytecode,
   };
 
-  RedirectActiveFunctions(Isolate* isolate, SharedFunctionInfo shared,
-                          Mode mode);
+  explicit RedirectActiveFunctions(SharedFunctionInfo shared, Mode mode);
 
   void VisitThread(Isolate* isolate, ThreadLocalTop* top) override;
 

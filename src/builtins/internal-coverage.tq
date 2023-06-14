@@ -6,15 +6,14 @@
 
 namespace internal_coverage {
 
-extern macro GetCoverageInfo(SharedFunctionInfo): Object;
-
 macro GetCoverageInfo(implicit context: Context)(function: JSFunction):
     CoverageInfo labels IfNoCoverageInfo {
   const shared: SharedFunctionInfo = function.shared_function_info;
-  const maybeCoverageInfo = GetCoverageInfo(shared);
-  const coverageInfo = Cast<CoverageInfo>(maybeCoverageInfo)
+  const debugInfo = Cast<DebugInfo>(shared.script_or_debug_info)
       otherwise goto IfNoCoverageInfo;
-  return coverageInfo;
+
+  if (!debugInfo.flags.has_coverage_info) goto IfNoCoverageInfo;
+  return UnsafeCast<CoverageInfo>(debugInfo.coverage_info);
 }
 
 macro IncrementBlockCount(implicit context: Context)(

@@ -1562,8 +1562,9 @@ void V8HeapExplorer::ExtractSharedFunctionInfoReferences(
   }
   SetInternalReference(entry, "name_or_scope_info", name_or_scope_info,
                        SharedFunctionInfo::kNameOrScopeInfoOffset);
-  SetInternalReference(entry, "script", shared.script(kAcquireLoad),
-                       SharedFunctionInfo::kScriptOffset);
+  SetInternalReference(entry, "script_or_debug_info",
+                       shared.script_or_debug_info(kAcquireLoad),
+                       SharedFunctionInfo::kScriptOrDebugInfoOffset);
   SetInternalReference(entry, "function_data",
                        shared.function_data(kAcquireLoad),
                        SharedFunctionInfo::kFunctionDataOffset);

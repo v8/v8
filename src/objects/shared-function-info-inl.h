@@ -105,13 +105,8 @@ RELEASE_ACQUIRE_ACCESSORS(SharedFunctionInfo, function_data, Object,
                           kFunctionDataOffset)
 RELEASE_ACQUIRE_ACCESSORS(SharedFunctionInfo, name_or_scope_info, Object,
                           kNameOrScopeInfoOffset)
-RELEASE_ACQUIRE_ACCESSORS(SharedFunctionInfo, script, HeapObject, kScriptOffset)
-RELEASE_ACQUIRE_ACCESSORS(SharedFunctionInfo, raw_script, Object, kScriptOffset)
-
-HeapObject SharedFunctionInfo::script() const { return script(kAcquireLoad); }
-HeapObject SharedFunctionInfo::script(PtrComprCageBase cage_base) const {
-  return script(cage_base, kAcquireLoad);
-}
+RELEASE_ACQUIRE_ACCESSORS(SharedFunctionInfo, script_or_debug_info, HeapObject,
+                          kScriptOrDebugInfoOffset)
 
 RENAME_TORQUE_ACCESSORS(SharedFunctionInfo,
                         raw_outer_scope_info_or_feedback_metadata,
@@ -220,7 +215,6 @@ int SharedFunctionInfo::function_token_position() const {
 template <typename IsolateT>
 bool SharedFunctionInfo::AreSourcePositionsAvailable(IsolateT* isolate) const {
   if (v8_flags.enable_lazy_source_positions) {
-    AllowHandleDereferenceAllThreads allow_deref;
     return !HasBytecodeArray() ||
            GetBytecodeArray(isolate).HasSourcePositionTable();
   }
@@ -248,18 +242,11 @@ SharedFunctionInfo::Inlineability SharedFunctionInfo::GetInlineability(
   // inline.
   if (!HasBytecodeArray()) return kHasNoBytecode;
 
-  if (GetActiveBytecodeArray().length() > v8_flags.max_inlined_bytecode_size) {
+  if (GetBytecodeArray(isolate).length() > v8_flags.max_inlined_bytecode_size) {
     return kExceedsBytecodeLimit;
   }
 
-  {
-    SharedMutexGuardIfOffThread<IsolateT, base::kShared> mutex_guard(
-        isolate->shared_function_info_access(), isolate);
-    AllowHandleDereferenceAllThreads allow_deref;
-    if (HasBreakInfo(isolate->GetMainThreadIsolateUnsafe())) {
-      return kMayContainBreakPoints;
-    }
-  }
+  if (HasBreakInfo()) return kMayContainBreakPoints;
 
   if (optimization_disabled()) return kHasOptimizationDisabled;
 
@@ -549,7 +536,7 @@ IsCompiledScope::IsCompiledScope(const SharedFunctionInfo shared,
   if (shared.HasBaselineCode()) {
     retain_code_ = handle(shared.baseline_code(kAcquireLoad), isolate);
   } else if (shared.HasBytecodeArray()) {
-    retain_code_ = handle(shared.GetActiveBytecodeArray(), isolate);
+    retain_code_ = handle(shared.GetBytecodeArray(isolate), isolate);
   } else {
     retain_code_ = MaybeHandle<HeapObject>();
   }
@@ -565,7 +552,7 @@ IsCompiledScope::IsCompiledScope(const SharedFunctionInfo shared,
         shared.baseline_code(kAcquireLoad));
   } else if (shared.HasBytecodeArray()) {
     retain_code_ =
-        isolate->heap()->NewPersistentHandle(shared.GetActiveBytecodeArray());
+        isolate->heap()->NewPersistentHandle(shared.GetBytecodeArray(isolate));
   } else {
     retain_code_ = MaybeHandle<HeapObject>();
   }
@@ -607,11 +594,8 @@ BytecodeArray SharedFunctionInfo::GetBytecodeArray(IsolateT* isolate) const {
       isolate->shared_function_info_access(), isolate);
 
   DCHECK(HasBytecodeArray());
-
-  base::Optional<DebugInfo> debug_info =
-      TryGetDebugInfo(isolate->GetMainThreadIsolateUnsafe());
-  if (debug_info.has_value() && debug_info->HasInstrumentedBytecodeArray()) {
-    return debug_info->OriginalBytecodeArray();
+  if (HasDebugInfo() && GetDebugInfo().HasInstrumentedBytecodeArray()) {
+    return GetDebugInfo().OriginalBytecodeArray();
   }
 
   return GetActiveBytecodeArray();
@@ -879,8 +863,43 @@ void UncompiledData::InitAfterBytecodeFlush(
   set_end_position(end_position);
 }
 
+DEF_GETTER(SharedFunctionInfo, script, HeapObject) {
+  HeapObject maybe_script = script_or_debug_info(cage_base, kAcquireLoad);
+  if (maybe_script.IsDebugInfo(cage_base)) {
+    return DebugInfo::cast(maybe_script).script();
+  }
+  return maybe_script;
+}
+
+void SharedFunctionInfo::set_script(HeapObject script) {
+  DCHECK_IMPLIES(!ReadOnlyHeap::Contains(script),
+                 !ReadOnlyHeap::Contains(*this));
+  HeapObject maybe_debug_info = script_or_debug_info(kAcquireLoad);
+  if (maybe_debug_info.IsDebugInfo()) {
+    DebugInfo::cast(maybe_debug_info).set_script(script);
+  } else {
+    set_script_or_debug_info(script, kReleaseStore);
+  }
+}
+
 bool SharedFunctionInfo::is_repl_mode() const {
   return script().IsScript() && Script::cast(script()).is_repl_mode();
+}
+
+DEF_GETTER(SharedFunctionInfo, HasDebugInfo, bool) {
+  return script_or_debug_info(cage_base, kAcquireLoad).IsDebugInfo(cage_base);
+}
+
+DEF_GETTER(SharedFunctionInfo, GetDebugInfo, DebugInfo) {
+  auto debug_info = script_or_debug_info(cage_base, kAcquireLoad);
+  DCHECK(debug_info.IsDebugInfo(cage_base));
+  return DebugInfo::cast(debug_info);
+}
+
+void SharedFunctionInfo::SetDebugInfo(DebugInfo debug_info) {
+  DCHECK(!HasDebugInfo());
+  DCHECK_EQ(debug_info.script(), script_or_debug_info(kAcquireLoad));
+  set_script_or_debug_info(debug_info, kReleaseStore);
 }
 
 bool SharedFunctionInfo::HasInferredName() {

@@ -2439,11 +2439,12 @@ void ExistingCodeLogger::LogCompiledFunctions(
   for (auto& pair : compiled_funcs) {
     Handle<SharedFunctionInfo> shared = pair.first;
 
-    // If the script is a Smi, then the SharedFunctionInfo is in
+    // If the script_or_debug_info is a Smi, then the SharedFunctionInfo is in
     // the process of being deserialized.
-    Object script = shared->raw_script(kAcquireLoad);
-    if (script.IsSmi()) {
-      DCHECK_EQ(script, Smi::uninitialized_deserialization_value());
+    Object script_or_debug_info = shared->script_or_debug_info(kAcquireLoad);
+    if (script_or_debug_info.IsSmi()) {
+      DCHECK_EQ(script_or_debug_info,
+                Smi::uninitialized_deserialization_value());
       continue;
     }
 

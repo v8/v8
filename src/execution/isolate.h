@@ -1963,7 +1963,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   Isolate* AsIsolate() { return this; }
   LocalIsolate* AsLocalIsolate() { return main_thread_local_isolate(); }
-  Isolate* GetMainThreadIsolateUnsafe() { return this; }
 
   LocalHeap* main_thread_local_heap();
   LocalHeap* CurrentLocalHeap();

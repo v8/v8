@@ -40,14 +40,14 @@ bool CanCompileWithBaseline(Isolate* isolate, SharedFunctionInfo shared) {
   // Do not optimize when debugger needs to hook into every call.
   if (isolate->debug()->needs_check_on_function_call()) return false;
 
-  base::Optional<DebugInfo> debug_info = shared.TryGetDebugInfo(isolate);
-  if (debug_info.has_value()) {
-    // Functions with breakpoints have to stay interpreted.
-    if (debug_info->HasBreakInfo()) return false;
+  // Functions with breakpoints have to stay interpreted.
+  if (shared.HasBreakInfo()) return false;
 
-    // Functions with instrumented bytecode can't be baseline compiled since the
-    // baseline code's bytecode array pointer is immutable.
-    if (debug_info->HasInstrumentedBytecodeArray()) return false;
+  // Functions with instrumented bytecode can't be baseline compiled since the
+  // baseline code's bytecode array pointer is immutable.
+  if (shared.HasDebugInfo() &&
+      shared.GetDebugInfo().HasInstrumentedBytecodeArray()) {
+    return false;
   }
 
   // Do not baseline compile if function doesn't pass sparkplug_filter.

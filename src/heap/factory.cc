@@ -3506,7 +3506,7 @@ Handle<String> Factory::SizeToString(size_t value, bool check_cache) {
 }
 
 Handle<DebugInfo> Factory::NewDebugInfo(Handle<SharedFunctionInfo> shared) {
-  DCHECK(!shared->HasDebugInfo(isolate()));
+  DCHECK(!shared->HasDebugInfo());
 
   auto debug_info =
       NewStructInternal<DebugInfo>(DEBUG_INFO_TYPE, AllocationType::kOld);
@@ -3516,13 +3516,16 @@ Handle<DebugInfo> Factory::NewDebugInfo(Handle<SharedFunctionInfo> shared) {
   debug_info.set_shared(raw_shared);
   debug_info.set_debugger_hints(0);
   DCHECK_EQ(DebugInfo::kNoDebuggingId, debug_info.debugging_id());
-  debug_info.set_script(raw_shared.script(kAcquireLoad));
+  debug_info.set_script(raw_shared.script_or_debug_info(kAcquireLoad));
   HeapObject undefined = *undefined_value();
   debug_info.set_original_bytecode_array(undefined, kReleaseStore,
                                          SKIP_WRITE_BARRIER);
   debug_info.set_debug_bytecode_array(undefined, kReleaseStore,
                                       SKIP_WRITE_BARRIER);
   debug_info.set_break_points(*empty_fixed_array(), SKIP_WRITE_BARRIER);
+
+  // Link debug info to function.
+  raw_shared.SetDebugInfo(debug_info);
 
   return handle(debug_info, isolate());
 }

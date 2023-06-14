@@ -172,25 +172,24 @@ void CodeSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
       DCHECK(!sfi.HasAsmWasmData());
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-      base::Optional<DebugInfo> maybe_debug_info =
-          sfi.TryGetDebugInfo(isolate());
-      if (maybe_debug_info.has_value()) {
-        debug_info = handle(maybe_debug_info.value(), isolate());
+      if (sfi.HasDebugInfo()) {
         // Clear debug info.
-        if (debug_info->HasInstrumentedBytecodeArray()) {
+        DebugInfo raw_debug_info = sfi.GetDebugInfo();
+        if (raw_debug_info.HasInstrumentedBytecodeArray()) {
           restore_bytecode = true;
-          sfi.SetActiveBytecodeArray(debug_info->OriginalBytecodeArray());
+          sfi.SetActiveBytecodeArray(raw_debug_info.OriginalBytecodeArray());
         }
-        sfi.set_script(debug_info->script(), kReleaseStore);
+        sfi.set_script_or_debug_info(raw_debug_info.script(), kReleaseStore);
+        debug_info = handle(raw_debug_info, isolate());
       }
-      DCHECK(!sfi.HasDebugInfo(isolate()));
+      DCHECK(!sfi.HasDebugInfo());
     }
     SerializeGeneric(obj, slot_type);
     // Restore debug info
     if (!debug_info.is_null()) {
       DisallowGarbageCollection no_gc;
       SharedFunctionInfo sfi = SharedFunctionInfo::cast(*obj);
-      sfi.set_script(*debug_info, kReleaseStore);
+      sfi.set_script_or_debug_info(*debug_info, kReleaseStore);
       if (restore_bytecode) {
         sfi.SetActiveBytecodeArray(debug_info->DebugBytecodeArray());
       }

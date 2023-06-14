@@ -1782,7 +1782,7 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
     // If this state changes during background compilation, the compilation
     // job will be aborted from the main thread (see
     // Debug::PrepareFunctionForDebugExecution()).
-    if (shared->HasBreakInfo(broker())) return NoChange();
+    if (shared->HasBreakInfo()) return NoChange();
 
     // Class constructors are callable, but [[Call]] will raise an exception.
     // See ES6 section 9.2.1 [[Call]] ( thisArgument, argumentsList ).

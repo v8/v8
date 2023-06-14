@@ -1600,7 +1600,6 @@ BytecodeArrayRef SharedFunctionInfoRef::GetBytecodeArray(
   CHECK(HasBytecodeArray());
   BytecodeArray bytecode_array;
   if (!broker->IsMainThread()) {
-    AllowHandleDereferenceAllThreads allow_deref;
     bytecode_array = object()->GetBytecodeArray(broker->local_isolate());
   } else {
     bytecode_array = object()->GetBytecodeArray(broker->isolate());
@@ -1612,18 +1611,6 @@ BytecodeArrayRef SharedFunctionInfoRef::GetBytecodeArray(
   HEAP_ACCESSOR_C(SharedFunctionInfo, type, name)
 BROKER_SFI_FIELDS(DEF_SFI_ACCESSOR)
 #undef DEF_SFI_ACCESSOR
-
-bool SharedFunctionInfoRef::HasBreakInfo(JSHeapBroker* broker) const {
-  if (broker->IsMainThread()) {
-    return object()->HasBreakInfo(broker->isolate());
-  } else {
-    LocalIsolate* local_isolate = broker->local_isolate();
-    SharedMutexGuardIfOffThread<LocalIsolate, base::kShared> mutex_guard(
-        local_isolate->shared_function_info_access(), local_isolate);
-    AllowHandleDereferenceAllThreads allow_deref;
-    return object()->HasBreakInfo(local_isolate->GetMainThreadIsolateUnsafe());
-  }
-}
 
 SharedFunctionInfo::Inlineability SharedFunctionInfoRef::GetInlineability(
     JSHeapBroker* broker) const {

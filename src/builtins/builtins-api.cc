@@ -185,7 +185,7 @@ MaybeHandle<Object> Builtins::InvokeApiFunction(
 
   // We assume that all lazy accessor pairs have been instantiated when setting
   // a break point on any API function.
-  DCHECK(!Handle<FunctionTemplateInfo>::cast(function)->BreakAtEntry(isolate));
+  DCHECK(!Handle<FunctionTemplateInfo>::cast(function)->BreakAtEntry());
 
   base::SmallVector<Address, 32> argv(argc + 1);
   argv[0] = receiver->ptr();

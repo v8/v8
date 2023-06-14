@@ -1858,6 +1858,11 @@ void SharedFunctionInfo::SharedFunctionInfoPrint(std::ostream& os) {
   os << "\n - function token position: " << function_token_position();
   os << "\n - start position: " << StartPosition();
   os << "\n - end position: " << EndPosition();
+  if (HasDebugInfo()) {
+    os << "\n - debug info: " << Brief(GetDebugInfo());
+  } else {
+    os << "\n - no debug info";
+  }
   os << "\n - scope info: " << Brief(scope_info());
   if (HasOuterScopeInfo()) {
     os << "\n - outer scope info: " << Brief(GetOuterScopeInfo());

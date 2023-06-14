@@ -761,13 +761,9 @@ CompilationJob::Status FinalizeSingleUnoptimizedCompilationJob(
     InstallUnoptimizedCode(compilation_info, shared_info, isolate);
 
     MaybeHandle<CoverageInfo> coverage_info;
-    if (compilation_info->has_coverage_info()) {
-      SharedMutexGuardIfOffThread<IsolateT, base::kShared> mutex_guard(
-          isolate->shared_function_info_access(), isolate);
-      if (!shared_info->HasCoverageInfo(
-              isolate->GetMainThreadIsolateUnsafe())) {
-        coverage_info = compilation_info->coverage_info();
-      }
+    if (compilation_info->has_coverage_info() &&
+        !shared_info->HasCoverageInfo()) {
+      coverage_info = compilation_info->coverage_info();
     }
 
     finalize_unoptimized_compilation_data_list->emplace_back(
@@ -1304,7 +1300,7 @@ MaybeHandle<Code> GetOrCompileOptimized(
   if (isolate->debug()->needs_check_on_function_call()) return {};
 
   // Do not optimize if we need to be able to set break points.
-  if (shared->HasBreakInfo(isolate)) return {};
+  if (shared->HasBreakInfo()) return {};
 
   // Do not optimize if optimization is disabled or function doesn't pass
   // turbo_filter.
@@ -1752,8 +1748,9 @@ class MergeAssumptionChecker final : public ObjectVisitor {
                 (current_object_kind_ == kScriptSfiList && is_weak));
         } else if (obj.IsScript()) {
           CHECK(host.IsSharedFunctionInfo() &&
-                current == MaybeObjectSlot(host.address() +
-                                           SharedFunctionInfo::kScriptOffset));
+                current == MaybeObjectSlot(
+                               host.address() +
+                               SharedFunctionInfo::kScriptOrDebugInfoOffset));
         } else if (obj.IsFixedArray() &&
                    current_object_kind_ == kConstantPool) {
           // Constant pools can contain nested fixed arrays, which in turn can
@@ -2110,7 +2107,7 @@ void BackgroundMergeTask::BeginMergeInBackground(LocalIsolate* isolate,
         // The old script didn't have a SharedFunctionInfo for this function
         // literal, so it can use the new SharedFunctionInfo.
         DCHECK_EQ(i, new_sfi.function_literal_id());
-        new_sfi.set_script(*old_script, kReleaseStore);
+        new_sfi.set_script(*old_script);
         used_new_sfis_.push_back(local_heap->NewPersistentHandle(new_sfi));
         if (new_sfi.HasBytecodeArray()) {
           forwarder.AddBytecodeArray(new_sfi.GetBytecodeArray(isolate));
@@ -2143,13 +2140,14 @@ Handle<SharedFunctionInfo> BackgroundMergeTask::CompleteMergeInForeground(
         new_compiled_data.new_sfi->is_compiled()) {
       // Updating existing DebugInfos is not supported, but we don't expect
       // uncompiled SharedFunctionInfos to contain DebugInfos.
-      DCHECK(!new_compiled_data.cached_sfi->HasDebugInfo(isolate));
-      // The goal here is to copy every field except script from
+      DCHECK(!new_compiled_data.cached_sfi->HasDebugInfo());
+      // The goal here is to copy every field except script_or_debug_info from
       // new_sfi to cached_sfi. The safest way to do so (including a DCHECK that
-      // no fields were skipped) is to first copy the script from
+      // no fields were skipped) is to first copy the script_or_debug_info from
       // cached_sfi to new_sfi, and then copy every field using CopyFrom.
-      new_compiled_data.new_sfi->set_script(
-          new_compiled_data.cached_sfi->script(kAcquireLoad), kReleaseStore);
+      new_compiled_data.new_sfi->set_script_or_debug_info(
+          new_compiled_data.cached_sfi->script_or_debug_info(kAcquireLoad),
+          kReleaseStore);
       new_compiled_data.cached_sfi->CopyFrom(*new_compiled_data.new_sfi);
     }
   }
@@ -2489,14 +2487,12 @@ bool Compiler::CollectSourcePositions(Isolate* isolate,
 
   // If debugging, make sure that instrumented bytecode has the source position
   // table set on it as well.
-  if (base::Optional<DebugInfo> debug_info =
-          shared_info->TryGetDebugInfo(isolate)) {
-    if (debug_info->HasInstrumentedBytecodeArray()) {
-      ByteArray source_position_table =
-          job->compilation_info()->bytecode_array()->SourcePositionTable();
-      shared_info->GetActiveBytecodeArray().set_source_position_table(
-          source_position_table, kReleaseStore);
-    }
+  if (shared_info->HasDebugInfo() &&
+      shared_info->GetDebugInfo().HasInstrumentedBytecodeArray()) {
+    ByteArray source_position_table =
+        job->compilation_info()->bytecode_array()->SourcePositionTable();
+    shared_info->GetActiveBytecodeArray().set_source_position_table(
+        source_position_table, kReleaseStore);
   }
 
   DCHECK(!isolate->has_pending_exception());
@@ -3963,7 +3959,7 @@ void Compiler::FinalizeTurbofanCompilationJob(TurbofanCompilationJob* job,
   const bool use_result = !compilation_info->discard_result_for_testing();
   const BytecodeOffset osr_offset = compilation_info->osr_offset();
 
-  DCHECK(!shared->HasBreakInfo(isolate));
+  DCHECK(!shared->HasBreakInfo());
 
   // 1) Optimization on the concurrent thread may have failed.
   // 2) The function may have already been optimized by OSR.  Simply continue.
@@ -4031,7 +4027,7 @@ void Compiler::FinalizeMaglevCompilationJob(maglev::MaglevCompilationJob* job,
 
   if (status == CompilationJob::SUCCEEDED) {
     Handle<SharedFunctionInfo> shared(function->shared(), isolate);
-    DCHECK(!shared->HasBreakInfo(isolate));
+    DCHECK(!shared->HasBreakInfo());
 
     // Note the finalized InstructionStream object has already been installed on
     // the function by MaglevCompilationJob::FinalizeJobImpl.
