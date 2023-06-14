@@ -312,6 +312,11 @@ bool AddDescriptorsByTemplate(
     }
     DisallowGarbageCollection no_gc;
     Name name = descriptors_template->GetKey(i);
+    // TODO(v8:5799): consider adding a ClassBoilerplate flag
+    // "has_interesting_properties".
+    if (name.IsInteresting(isolate)) {
+      map->set_may_have_interesting_properties(true);
+    }
     DCHECK(name.IsUniqueName());
     PropertyDetails details = descriptors_template->GetDetails(i);
     if (details.location() == PropertyLocation::kDescriptor) {
