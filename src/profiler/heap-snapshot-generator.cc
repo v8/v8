@@ -1539,6 +1539,7 @@ void V8HeapExplorer::ExtractMapReferences(HeapEntry* entry, Map map) {
 
 void V8HeapExplorer::ExtractSharedFunctionInfoReferences(
     HeapEntry* entry, SharedFunctionInfo shared) {
+  TagObject(shared, "(shared function info)");
   {
     std::unique_ptr<char[]> name = shared.DebugNameCStr();
     Code code = shared.GetCode(isolate());
@@ -1628,6 +1629,9 @@ void V8HeapExplorer::TagBuiltinCodeObject(Code code, const char* name) {
 
 void V8HeapExplorer::ExtractCodeReferences(HeapEntry* entry, Code code) {
   if (!code.has_instruction_stream()) return;
+
+  SetInternalReference(entry, "instruction_stream", code.instruction_stream(),
+                       Code::kInstructionStreamOffset);
 
   if (code.kind() == CodeKind::BASELINE) {
     TagObject(code.bytecode_or_interpreter_data(), "(interpreter data)");
