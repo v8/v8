@@ -49,11 +49,6 @@ class ValueHelper final {
     return *reinterpret_cast<T**>(slot);
   }
 
-  template <typename T>
-  V8_INLINE static T* ValueAsSlot(T* const& value) {
-    return reinterpret_cast<T*>(const_cast<T**>(&value));
-  }
-
 #else  // !V8_ENABLE_DIRECT_LOCAL
 
   template <typename T>
@@ -64,11 +59,6 @@ class ValueHelper final {
   template <typename T, typename S>
   V8_INLINE static T* SlotAsValue(S* slot) {
     return reinterpret_cast<T*>(slot);
-  }
-
-  template <typename T>
-  V8_INLINE static T* ValueAsSlot(T* const& value) {
-    return value;
   }
 
 #endif  // V8_ENABLE_DIRECT_LOCAL

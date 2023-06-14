@@ -97,6 +97,29 @@ inline std::ostream& operator<<(std::ostream& os, Handle<T> handle) {
   return os << Brief(*handle);
 }
 
+#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+
+template <typename T>
+V8_INLINE DirectHandle<T>::DirectHandle(Tagged<T> object)
+    : obj_(object.ptr()) {}
+
+template <typename T>
+template <typename S>
+V8_INLINE const DirectHandle<T> DirectHandle<T>::cast(DirectHandle<S> that) {
+  T::cast(Object(that.address()));
+  return DirectHandle<T>(that.address());
+}
+
+template <typename T>
+template <typename S>
+V8_INLINE const DirectHandle<T> DirectHandle<T>::cast(Handle<S> that) {
+  DCHECK(that.location() != nullptr);
+  T::cast(*FullObjectSlot(that.address()));
+  return DirectHandle<T>(*that.location());
+}
+
+#endif  // V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+
 HandleScope::HandleScope(Isolate* isolate) {
   HandleScopeData* data = isolate->handle_scope_data();
   isolate_ = isolate;

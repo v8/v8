@@ -37,6 +37,7 @@
 #include "include/v8-locker.h"
 #include "src/base/lazy-instance.h"
 #include "src/base/logging.h"
+#include "src/base/optional.h"
 #include "src/base/platform/condition-variable.h"
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/semaphore.h"
@@ -162,9 +163,10 @@ void CcTest::Run(const char* snapshot_directory) {
   {
 #ifdef V8_ENABLE_DIRECT_LOCAL
     // TODO(v8:13270): This handle scope should not be needed. It will be
-    // removed when the implementation of direct locals is complete and they
-    // can never implicitly be converted to indirect locals.
-    v8::HandleScope scope(isolate_);
+    // removed when the implementation of direct handles is complete and they
+    // can never implicitly be converted to indirect handles.
+    v8::base::Optional<v8::HandleScope> scope;
+    if (initialize_) scope.emplace(isolate_);
 #endif
     callback_();
   }

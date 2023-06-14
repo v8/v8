@@ -895,6 +895,10 @@ class InstructionStream;
 class Code;
 class CodeSpace;
 class Context;
+#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+template <typename T>
+class DirectHandle;
+#endif
 class DeclarationScope;
 class Debug;
 class DebugInfo;
