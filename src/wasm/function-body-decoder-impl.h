@@ -2432,7 +2432,7 @@ class WasmDecoder : public Decoder {
           case kExprStringViewWtf8Slice:
           case kExprStringAsWtf16:
           case kExprStringViewWtf16Length:
-          case kExprStringViewWtf16GetCodeUnit:
+          case kExprStringViewWtf16GetCodeunit:
           case kExprStringViewWtf16Slice:
           case kExprStringAsIter:
           case kExprStringViewIterNext:
@@ -5820,7 +5820,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         CALL_INTERFACE_IF_OK_AND_REACHABLE(StringMeasureWtf16, view, result);
         return opcode_length;
       }
-      case kExprStringViewWtf16GetCodeUnit: {
+      case kExprStringViewWtf16GetCodeunit: {
         NON_CONST_ONLY
         auto [view, pos] = Pop(kWasmStringViewWtf16, kWasmI32);
         Value* result = Push(kWasmI32);

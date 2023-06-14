@@ -766,7 +766,7 @@ V8_EXPORT_PRIVATE bool IsJSCompatibleSignature(const FunctionSig* sig);
   V(StringViewWtf8EncodeWtf8, 0xfb95, _, "stringview_wtf8.encode_wtf8")        \
   V(StringAsWtf16, 0xfb98, _, "string.as_wtf16")                               \
   V(StringViewWtf16Length, 0xfb99, _, "stringview_wtf16.length")               \
-  V(StringViewWtf16GetCodeUnit, 0xfb9a, _, "stringview_wtf16.get_codeunit")    \
+  V(StringViewWtf16GetCodeunit, 0xfb9a, _, "stringview_wtf16.get_codeunit")    \
   V(StringViewWtf16Encode, 0xfb9b, _, "stringview_wtf16.encode")               \
   V(StringViewWtf16Slice, 0xfb9c, _, "stringview_wtf16.slice")                 \
   V(StringAsIter, 0xfba0, _, "string.as_iter")                                 \
