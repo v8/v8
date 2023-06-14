@@ -615,7 +615,6 @@ class CompilationStateImpl {
 
   void OnFinishedUnits(base::Vector<WasmCode*>);
   void OnFinishedJSToWasmWrapperUnits();
-  void NotifyTierUpFinishedForTesting(size_t code_size);
 
   void OnCompilationStopped(WasmFeatures detected);
   void PublishDetectedFeatures(Isolate*);
@@ -1427,10 +1426,6 @@ void TierUpNowForTesting(Isolate* isolate, WasmInstanceObject instance,
   wasm::GetWasmEngine()->CompileFunction(isolate->counters(), native_module,
                                          func_index,
                                          wasm::ExecutionTier::kTurbofan);
-  WasmCodeRefScope code_ref_scope;
-  Impl(native_module->compilation_state())
-      ->NotifyTierUpFinishedForTesting(
-          native_module->GetCode(func_index)->instructions().size());
   CHECK(!native_module->compilation_state()->failed());
 }
 
@@ -3626,12 +3621,6 @@ void CompilationStateImpl::OnFinishedUnits(
 void CompilationStateImpl::OnFinishedJSToWasmWrapperUnits() {
   base::MutexGuard guard(&callbacks_mutex_);
   has_outstanding_export_wrappers_ = false;
-  TriggerCallbacks();
-}
-
-void CompilationStateImpl::NotifyTierUpFinishedForTesting(size_t code_size) {
-  base::MutexGuard guard(&callbacks_mutex_);
-  bytes_since_last_chunk_ += code_size;
   TriggerCallbacks();
 }
 
