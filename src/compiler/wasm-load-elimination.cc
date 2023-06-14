@@ -475,8 +475,11 @@ WasmLoadElimination::HalfState const* WasmLoadElimination::HalfState::KillField(
 WasmLoadElimination::AbstractState const* WasmLoadElimination::ComputeLoopState(
     Node* node, AbstractState const* state) const {
   DCHECK_EQ(node->opcode(), IrOpcode::kEffectPhi);
+  if (state->mutable_state.IsEmpty()) return state;
   std::queue<Node*> queue;
-  std::unordered_set<Node*> visited;
+  AccountingAllocator allocator;
+  Zone temp_set_zone(&allocator, ZONE_NAME);
+  ZoneUnorderedSet<Node*> visited(&temp_set_zone);
   visited.insert(node);
   for (int i = 1; i < node->InputCount() - 1; ++i) {
     queue.push(node->InputAt(i));

@@ -60,6 +60,10 @@ class V8_EXPORT_PRIVATE WasmLoadElimination final
     bool Equals(HalfState const* that) const {
       return fields_ == that->fields_ && elements_ == that->elements_;
     }
+    bool IsEmpty() const {
+      return fields_.begin() == fields_.end() &&
+             elements_.begin() == elements_.end();
+    }
     void IntersectWith(HalfState const* that);
     HalfState const* KillField(int field_index, Node* object) const;
     HalfState const* AddField(int field_index, Node* object, Node* value) const;
