@@ -25,7 +25,6 @@
 #include "src/codegen/cpu-features.h"
 #include "src/codegen/machine-type.h"
 #include "src/common/globals.h"
-#include "src/compiler/opcodes.h"
 #include "src/flags/flags.h"
 #include "src/utils/utils.h"
 #include "src/wasm/compilation-environment.h"
@@ -383,16 +382,13 @@ WASM_EXEC_TEST(F32x4Sqrt) {
 
 #ifdef V8_ENABLE_WASM_SIMD256_REVEC
 TEST(RunWasmTurbofan_F32x8Abs) {
-  RunF32x8UnOpRevecTest(kExprF32x4Abs, std::abs, compiler::IrOpcode::kF32x8Abs);
+  RunF32x8UnOpRevecTest(kExprF32x4Abs, std::abs);
 }
 
-TEST(RunWasmTurbofan_F32x8Neg) {
-  RunF32x8UnOpRevecTest(kExprF32x4Neg, Negate, compiler::IrOpcode::kF32x8Neg);
-}
+TEST(RunWasmTurbofan_F32x8Neg) { RunF32x8UnOpRevecTest(kExprF32x4Neg, Negate); }
 
 TEST(RunWasmTurbofan_F32x8Sqrt) {
-  RunF32x8UnOpRevecTest(kExprF32x4Sqrt, std::sqrt,
-                        compiler::IrOpcode::kF32x8Sqrt);
+  RunF32x8UnOpRevecTest(kExprF32x4Sqrt, std::sqrt);
 }
 #endif
 
@@ -605,13 +601,11 @@ WASM_EXEC_TEST(I64x2ShrU) {
 
 #ifdef V8_ENABLE_WASM_SIMD256_REVEC
 TEST(RunWasmTurbofan_I64x4Shl) {
-  RunI64x4ShiftOpRevecTest(kExprI64x2Shl, LogicalShiftLeft,
-                           compiler::IrOpcode::kI64x4Shl);
+  RunI64x4ShiftOpRevecTest(kExprI64x2Shl, LogicalShiftLeft);
 }
 
 TEST(RunWasmTurbofan_I64x4ShrU) {
-  RunI64x4ShiftOpRevecTest(kExprI64x2ShrU, LogicalShiftRight,
-                           compiler::IrOpcode::kI64x4ShrU);
+  RunI64x4ShiftOpRevecTest(kExprI64x2ShrU, LogicalShiftRight);
 }
 #endif
 
@@ -644,7 +638,7 @@ WASM_EXEC_TEST(I64x2Ne) {
 
 #ifdef V8_ENABLE_WASM_SIMD256_REVEC
 TEST(RunWasmTurbofan_I64x4Ne) {
-  RunI64x4BinOpRevecTest(kExprI64x2Ne, NotEqual, compiler::IrOpcode::kI64x4Ne);
+  RunI64x4BinOpRevecTest(kExprI64x2Ne, NotEqual);
 }
 #endif
 
@@ -838,8 +832,7 @@ WASM_EXEC_TEST(F64x2Sqrt) {
 
 #ifdef V8_ENABLE_WASM_SIMD256_REVEC
 TEST(RunWasmTurbofan_F64x4Sqrt) {
-  RunF64x4UnOpRevecTest(kExprF64x2Sqrt, std::sqrt,
-                        compiler::IrOpcode::kF64x4Sqrt);
+  RunF64x4UnOpRevecTest(kExprF64x2Sqrt, std::sqrt);
 }
 #endif
 
@@ -1567,12 +1560,11 @@ WASM_EXEC_TEST(I32x4Abs) {
 
 #ifdef V8_ENABLE_WASM_SIMD256_REVEC
 TEST(RunWasmTurbofan_I32x8Neg) {
-  RunI32x8UnOpRevecTest(kExprI32x4Neg, base::NegateWithWraparound,
-                        compiler::IrOpcode::kI32x8Neg);
+  RunI32x8UnOpRevecTest(kExprI32x4Neg, base::NegateWithWraparound);
 }
 
 TEST(RunWasmTurbofan_I32x8Abs) {
-  RunI32x8UnOpRevecTest(kExprI32x4Abs, std::abs, compiler::IrOpcode::kI32x8Abs);
+  RunI32x8UnOpRevecTest(kExprI32x4Abs, std::abs);
 }
 #endif
 
@@ -1808,22 +1800,19 @@ WASM_EXEC_TEST(I32x4GeU) {
 
 #ifdef V8_ENABLE_WASM_SIMD256_REVEC
 TEST(RunWasmTurbofan_I32x8Ne) {
-  RunI32x8BinOpRevecTest(kExprI32x4Ne, NotEqual, compiler::IrOpcode::kI32x8Ne);
+  RunI32x8BinOpRevecTest(kExprI32x4Ne, NotEqual);
 }
 
 TEST(RunWasmTurbofan_I32x8GtU) {
-  RunI32x8BinOpRevecTest<uint32_t>(kExprI32x4GtU, UnsignedGreater,
-                                   compiler::IrOpcode::kI32x8GtU);
+  RunI32x8BinOpRevecTest<uint32_t>(kExprI32x4GtU, UnsignedGreater);
 }
 
 TEST(RunWasmTurbofan_I32x8GeS) {
-  RunI32x8BinOpRevecTest(kExprI32x4GeS, GreaterEqual,
-                         compiler::IrOpcode::kI32x8GeS);
+  RunI32x8BinOpRevecTest(kExprI32x4GeS, GreaterEqual);
 }
 
 TEST(RunWasmTurbofan_I32x8GeU) {
-  RunI32x8BinOpRevecTest<uint32_t>(kExprI32x4GeU, UnsignedGreaterEqual,
-                                   compiler::IrOpcode::kI32x8GeU);
+  RunI32x8BinOpRevecTest<uint32_t>(kExprI32x4GeU, UnsignedGreaterEqual);
 }
 #endif
 
@@ -1871,18 +1860,15 @@ WASM_EXEC_TEST(I32x4ShrU) {
 
 #ifdef V8_ENABLE_WASM_SIMD256_REVEC
 TEST(RunWasmTurbofan_I32x8Shl) {
-  RunI32x8ShiftOpRevecTest(kExprI32x4Shl, LogicalShiftLeft,
-                           compiler::IrOpcode::kI32x8Shl);
+  RunI32x8ShiftOpRevecTest(kExprI32x4Shl, LogicalShiftLeft);
 }
 
 TEST(RunWasmTurbofan_I32x8ShrS) {
-  RunI32x8ShiftOpRevecTest(kExprI32x4ShrS, ArithmeticShiftRight,
-                           compiler::IrOpcode::kI32x8ShrS);
+  RunI32x8ShiftOpRevecTest(kExprI32x4ShrS, ArithmeticShiftRight);
 }
 
 TEST(RunWasmTurbofan_I32x8ShrU) {
-  RunI32x8ShiftOpRevecTest(kExprI32x4ShrU, LogicalShiftRight,
-                           compiler::IrOpcode::kI32x8ShrU);
+  RunI32x8ShiftOpRevecTest(kExprI32x4ShrU, LogicalShiftRight);
 }
 #endif
 
@@ -2016,13 +2002,10 @@ WASM_EXEC_TEST(I16x8Abs) {
 
 #ifdef V8_ENABLE_WASM_SIMD256_REVEC
 TEST(RunWasmTurbofan_I16x16Neg) {
-  RunI16x16UnOpRevecTest(kExprI16x8Neg, base::NegateWithWraparound,
-                         compiler::IrOpcode::kI16x16Neg);
+  RunI16x16UnOpRevecTest(kExprI16x8Neg, base::NegateWithWraparound);
 }
 
-TEST(RunWasmTurbofan_I16x16Abs) {
-  RunI16x16UnOpRevecTest(kExprI16x8Abs, Abs, compiler::IrOpcode::kI16x16Abs);
-}
+TEST(RunWasmTurbofan_I16x16Abs) { RunI16x16UnOpRevecTest(kExprI16x8Abs, Abs); }
 #endif
 
 WASM_EXEC_TEST(I16x8Add) {
@@ -2112,24 +2095,18 @@ WASM_EXEC_TEST(I16x8LeU) {
 }
 
 #ifdef V8_ENABLE_WASM_SIMD256_REVEC
-TEST(WasmTurbofan_I16x16Ne) {
-  RunI16x16BinOpRevecTest(kExprI16x8Ne, NotEqual,
-                          compiler::IrOpcode::kI16x16Ne);
-}
+TEST(WasmTurbofan_I16x16Ne) { RunI16x16BinOpRevecTest(kExprI16x8Ne, NotEqual); }
 
 TEST(WasmTurbofan_I16x16GtU) {
-  RunI16x16BinOpRevecTest<uint16_t>(kExprI16x8GtU, UnsignedGreater,
-                                    compiler::IrOpcode::kI16x16GtU);
+  RunI16x16BinOpRevecTest<uint16_t>(kExprI16x8GtU, UnsignedGreater);
 }
 
 TEST(WasmTurbofan_I16x16GeS) {
-  RunI16x16BinOpRevecTest(kExprI16x8GeS, GreaterEqual,
-                          compiler::IrOpcode::kI16x16GeS);
+  RunI16x16BinOpRevecTest(kExprI16x8GeS, GreaterEqual);
 }
 
 TEST(WasmTurbofan_I16x16GeU) {
-  RunI16x16BinOpRevecTest<uint16_t>(kExprI16x8GeU, UnsignedGreaterEqual,
-                                    compiler::IrOpcode::kI16x16GeU);
+  RunI16x16BinOpRevecTest<uint16_t>(kExprI16x8GeU, UnsignedGreaterEqual);
 }
 #endif
 
@@ -2387,18 +2364,15 @@ WASM_EXEC_TEST(I16x8ShrU) {
 
 #ifdef V8_ENABLE_WASM_SIMD256_REVEC
 TEST(RunWasmTurbofan_I16x16Shl) {
-  RunI16x16ShiftOpRevecTest(kExprI16x8Shl, LogicalShiftLeft,
-                            compiler::IrOpcode::kI16x16Shl);
+  RunI16x16ShiftOpRevecTest(kExprI16x8Shl, LogicalShiftLeft);
 }
 
 TEST(RunWasmTurbofan_I16x16ShrS) {
-  RunI16x16ShiftOpRevecTest(kExprI16x8ShrS, ArithmeticShiftRight,
-                            compiler::IrOpcode::kI16x16ShrS);
+  RunI16x16ShiftOpRevecTest(kExprI16x8ShrS, ArithmeticShiftRight);
 }
 
 TEST(RunWasmTurbofan_I16x16ShrU) {
-  RunI16x16ShiftOpRevecTest(kExprI16x8ShrU, LogicalShiftRight,
-                            compiler::IrOpcode::kI16x16ShrU);
+  RunI16x16ShiftOpRevecTest(kExprI16x8ShrU, LogicalShiftRight);
 }
 #endif
 
@@ -2423,13 +2397,10 @@ WASM_EXEC_TEST(I8x16Abs) {
 
 #ifdef V8_ENABLE_WASM_SIMD256_REVEC
 TEST(RunWasmTurbofan_I8x32Neg) {
-  RunI8x32UnOpRevecTest(kExprI8x16Neg, base::NegateWithWraparound,
-                        compiler::IrOpcode::kI8x32Neg);
+  RunI8x32UnOpRevecTest(kExprI8x16Neg, base::NegateWithWraparound);
 }
 
-TEST(RunWasmTurbofan_I8x32Abs) {
-  RunI8x32UnOpRevecTest(kExprI8x16Abs, Abs, compiler::IrOpcode::kI8x32Abs);
-}
+TEST(RunWasmTurbofan_I8x32Abs) { RunI8x32UnOpRevecTest(kExprI8x16Abs, Abs); }
 #endif
 
 WASM_EXEC_TEST(I8x16Popcnt) {
@@ -2566,22 +2537,19 @@ WASM_EXEC_TEST(I8x16LeU) {
 
 #ifdef V8_ENABLE_WASM_SIMD256_REVEC
 TEST(RunWasmTurbofan_I8x32Ne) {
-  RunI8x32BinOpRevecTest(kExprI8x16Ne, NotEqual, compiler::IrOpcode::kI8x32Ne);
+  RunI8x32BinOpRevecTest(kExprI8x16Ne, NotEqual);
 }
 
 TEST(RunWasmTurbofan_I8x32GtU) {
-  RunI8x32BinOpRevecTest<uint8_t>(kExprI8x16GtU, UnsignedGreater,
-                                  compiler::IrOpcode::kI8x32GtU);
+  RunI8x32BinOpRevecTest<uint8_t>(kExprI8x16GtU, UnsignedGreater);
 }
 
 TEST(RunWasmTurbofan_I8x32GeS) {
-  RunI8x32BinOpRevecTest(kExprI8x16GeS, GreaterEqual,
-                         compiler::IrOpcode::kI8x32GeS);
+  RunI8x32BinOpRevecTest(kExprI8x16GeS, GreaterEqual);
 }
 
 TEST(RunWasmTurbofan_I8x32GeU) {
-  RunI8x32BinOpRevecTest<uint8_t>(kExprI8x16GeU, UnsignedGreaterEqual,
-                                  compiler::IrOpcode::kI8x32GeU);
+  RunI8x32BinOpRevecTest<uint8_t>(kExprI8x16GeU, UnsignedGreaterEqual);
 }
 #endif
 

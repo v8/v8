@@ -8,10 +8,8 @@
 #include "src/base/logging.h"
 #include "src/compiler/all-nodes.h"
 #include "src/compiler/machine-operator.h"
-#include "src/compiler/node-observer.h"
 #include "src/compiler/opcodes.h"
 #include "src/compiler/verifier.h"
-#include "src/execution/isolate-inl.h"
 #include "src/wasm/simd-shuffle.h"
 
 namespace v8 {
@@ -802,18 +800,6 @@ void SLPTree::ForEach(FunctionType callback) {
 }
 
 //////////////////////////////////////////////////////
-
-Revectorizer::Revectorizer(Zone* zone, Graph* graph, MachineGraph* mcgraph)
-    : zone_(zone),
-      graph_(graph),
-      mcgraph_(mcgraph),
-      group_of_stores_(zone),
-      support_simd256_(false),
-      node_observer_for_test_(Isolate::Current()->node_observer()) {
-  DetectCPUFeatures();
-  slp_tree_ = zone_->New<SLPTree>(zone, graph);
-}
-
 bool Revectorizer::DecideVectorize() {
   TRACE("Enter %s\n", __func__);
 
@@ -1254,15 +1240,6 @@ bool Revectorizer::ReduceStoreChain(const ZoneVector<Node*>& Stores) {
     VectorizeTree(root);
     UpdateSources();
     slp_tree_->Print("After vectorize tree");
-
-    if (node_observer_for_test_) {
-      slp_tree_->ForEach([&](const PackNode* pnode) {
-        Node* node = pnode->RevectorizedNode();
-        if (node) {
-          node_observer_for_test_->OnNodeCreated(node);
-        }
-      });
-    }
   }
 
   TRACE("\n");
