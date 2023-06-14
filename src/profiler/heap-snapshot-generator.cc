@@ -10,6 +10,7 @@
 #include "src/base/optional.h"
 #include "src/base/vector.h"
 #include "src/codegen/assembler-inl.h"
+#include "src/common/assert-scope.h"
 #include "src/common/globals.h"
 #include "src/debug/debug.h"
 #include "src/handles/global-handles.h"
@@ -26,6 +27,7 @@
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-collection-inl.h"
 #include "src/objects/js-generator-inl.h"
+#include "src/objects/js-objects.h"
 #include "src/objects/js-promise-inl.h"
 #include "src/objects/js-regexp-inl.h"
 #include "src/objects/js-weak-refs-inl.h"
@@ -40,6 +42,7 @@
 #include "src/profiler/heap-profiler.h"
 #include "src/profiler/heap-snapshot-generator-inl.h"
 #include "src/profiler/output-stream-writer.h"
+#include "v8-persistent-handle.h"
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/names-provider.h"
@@ -2502,7 +2505,9 @@ void V8HeapExplorer::RecursivelyTagConstantPool(Object obj, const char* tag,
 
 class GlobalObjectsEnumerator : public RootVisitor {
  public:
-  explicit GlobalObjectsEnumerator(Isolate* isolate) : isolate_(isolate) {}
+  GlobalObjectsEnumerator(Isolate* isolate,
+                          std::function<void(Handle<JSGlobalObject>)> handler)
+      : isolate_(isolate), handler_(handler) {}
 
   void VisitRootPointers(Root root, const char* description,
                          FullObjectSlot start, FullObjectSlot end) override {
@@ -2514,9 +2519,6 @@ class GlobalObjectsEnumerator : public RootVisitor {
                          OffHeapObjectSlot end) override {
     VisitRootPointersImpl(root, description, start, end);
   }
-
-  int count() const { return static_cast<int>(objects_.size()); }
-  Handle<JSGlobalObject>& at(int i) { return objects_[i]; }
 
  private:
   template <typename TSlot>
@@ -2530,37 +2532,48 @@ class GlobalObjectsEnumerator : public RootVisitor {
       if (!proxy.IsJSGlobalProxy(isolate_)) continue;
       Object global = proxy.map(isolate_).prototype(isolate_);
       if (!global.IsJSGlobalObject(isolate_)) continue;
-      objects_.push_back(handle(JSGlobalObject::cast(global), isolate_));
+      handler_(handle(JSGlobalObject::cast(global), isolate_));
     }
   }
 
   Isolate* isolate_;
-  std::vector<Handle<JSGlobalObject>> objects_;
+  std::function<void(Handle<JSGlobalObject>)> handler_;
 };
 
+V8HeapExplorer::TemporaryGlobalObjectTags
+V8HeapExplorer::CollectTemporaryGlobalObjectsTags() {
+  if (!global_object_name_resolver_) return {};
 
-// Modifies heap. Must not be run during heap traversal.
-void V8HeapExplorer::CollectGlobalObjectsTags() {
-  if (!global_object_name_resolver_) return;
-
-  Isolate* isolate = Isolate::FromHeap(heap_);
-  GlobalObjectsEnumerator enumerator(isolate);
+  Isolate* isolate = heap_->isolate();
+  TemporaryGlobalObjectTags global_object_tags;
+  HandleScope scope(isolate);
+  GlobalObjectsEnumerator enumerator(
+      isolate, [this, isolate,
+                &global_object_tags](Handle<JSGlobalObject> global_object) {
+        if (const char* tag = global_object_name_resolver_->GetName(
+                Utils::ToLocal(Handle<JSObject>::cast(global_object)))) {
+          global_object_tags.emplace_back(
+              Global<v8::Object>(
+                  reinterpret_cast<v8::Isolate*>(isolate),
+                  Utils::ToLocal(Handle<JSObject>::cast(global_object))),
+              tag);
+          global_object_tags.back().first.SetWeak();
+        }
+      });
   isolate->global_handles()->IterateAllRoots(&enumerator);
   isolate->traced_handles()->Iterate(&enumerator);
-  for (int i = 0, l = enumerator.count(); i < l; ++i) {
-    Handle<JSGlobalObject> obj = enumerator.at(i);
-    const char* tag = global_object_name_resolver_->GetName(
-        Utils::ToLocal(Handle<JSObject>::cast(obj)));
-    if (tag) {
-      global_object_tag_pairs_.emplace_back(obj, tag);
-    }
-  }
+  return global_object_tags;
 }
 
 void V8HeapExplorer::MakeGlobalObjectTagMap(
-    const IsolateSafepointScope& safepoint_scope) {
-  for (const auto& pair : global_object_tag_pairs_) {
-    global_object_tag_map_.emplace(*pair.first, pair.second);
+    TemporaryGlobalObjectTags&& global_object_tags) {
+  HandleScope scope(heap_->isolate());
+  for (const auto& pair : global_object_tags) {
+    if (!pair.first.IsEmpty()) {
+      // Temporary local.
+      auto local = Utils::OpenPersistent(pair.first);
+      global_object_tag_map_.emplace(JSGlobalObject::cast(*local), pair.second);
+    }
   }
 }
 
@@ -2833,34 +2846,28 @@ bool HeapSnapshotGenerator::GenerateSnapshot() {
   v8::base::ElapsedTimer timer;
   timer.Start();
 
-  Isolate* isolate = Isolate::FromHeap(heap_);
+  IsolateSafepointScope scope(heap_);
+
+  Isolate* isolate = heap_->isolate();
   v8_heap_explorer_.PopulateLineEnds();
-  base::Optional<HandleScope> handle_scope(base::in_place, isolate);
-  v8_heap_explorer_.CollectGlobalObjectsTags();
+  auto temporary_global_object_tags =
+      v8_heap_explorer_.CollectTemporaryGlobalObjectsTags();
 
   EmbedderStackStateScope stack_scope(
       heap_, EmbedderStackStateScope::kImplicitThroughTask, stack_state_);
   heap_->CollectAllAvailableGarbage(GarbageCollectionReason::kHeapProfiler);
 
-  NullContextForSnapshotScope null_context_scope(isolate);
-  IsolateSafepointScope scope(heap_);
-  v8_heap_explorer_.MakeGlobalObjectTagMap(scope);
-  handle_scope.reset();
+  // No allocation that could trigger GC from here onwards. We cannot use a
+  // DisallowGarbageCollection scope as the HeapObjectIterator used during
+  // snapshot creation enters a safepoint as well. However, in practice we
+  // already enter a safepoint above so that should never trigger a GC.
 
-#ifdef VERIFY_HEAP
-  Heap* debug_heap = heap_;
-  if (v8_flags.verify_heap) {
-    HeapVerifier::VerifyHeap(debug_heap);
-  }
-#endif
+  NullContextForSnapshotScope null_context_scope(isolate);
+
+  v8_heap_explorer_.MakeGlobalObjectTagMap(
+      std::move(temporary_global_object_tags));
 
   InitProgressCounter();
-
-#ifdef VERIFY_HEAP
-  if (v8_flags.verify_heap) {
-    HeapVerifier::VerifyHeap(debug_heap);
-  }
-#endif
 
   snapshot_->AddSyntheticRootEntries();
 
