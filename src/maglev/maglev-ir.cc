@@ -3642,7 +3642,6 @@ void TestTypeOf::GenerateCode(MaglevAssembler* masm,
 void ToBoolean::SetValueLocationConstraints() {
   UseRegister(value());
   DefineAsRegister(this);
-  set_temporaries_needed(MaglevAssembler::ToBooleanTemporaryCount());
 }
 void ToBoolean::GenerateCode(MaglevAssembler* masm,
                              const ProcessingState& state) {
@@ -3664,7 +3663,6 @@ void ToBoolean::GenerateCode(MaglevAssembler* masm,
 void ToBooleanLogicalNot::SetValueLocationConstraints() {
   UseRegister(value());
   DefineAsRegister(this);
-  set_temporaries_needed(MaglevAssembler::ToBooleanTemporaryCount());
 }
 void ToBooleanLogicalNot::GenerateCode(MaglevAssembler* masm,
                                        const ProcessingState& state) {
@@ -4730,7 +4728,6 @@ void BranchIfRootConstant::GenerateCode(MaglevAssembler* masm,
 void BranchIfToBooleanTrue::SetValueLocationConstraints() {
   // TODO(victorgomes): consider using any input instead.
   UseRegister(condition_input());
-  set_temporaries_needed(MaglevAssembler::ToBooleanTemporaryCount());
 }
 void BranchIfToBooleanTrue::GenerateCode(MaglevAssembler* masm,
                                          const ProcessingState& state) {

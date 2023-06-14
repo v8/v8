@@ -144,7 +144,6 @@ void MaglevAssembler::ToBoolean(Register value, CheckType check_type,
                                 ZoneLabelRef is_true, ZoneLabelRef is_false,
                                 bool fallthrough_when_true) {
   ScratchRegisterScope temps(this);
-  DCHECK_GE(temps.Available().Count(), ToBooleanTemporaryCount());
   Register map = temps.GetDefaultScratchRegister();
 
   if (check_type == CheckType::kCheckHeapObject) {

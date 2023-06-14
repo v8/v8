@@ -1881,6 +1881,10 @@ RegListBase<RegisterT> GetReservedRegisters(NodeBase* node_base) {
   compiler::UnallocatedOperand operand =
       compiler::UnallocatedOperand::cast(node->result().operand());
   RegListBase<RegisterT> reserved = {node->GetRegisterHint<RegisterT>()};
+  if (operand.basic_policy() == compiler::UnallocatedOperand::FIXED_SLOT) {
+    DCHECK(node->Is<InitialValue>());
+    return reserved;
+  }
   if constexpr (std::is_same_v<RegisterT, Register>) {
     if (operand.extended_policy() ==
         compiler::UnallocatedOperand::FIXED_REGISTER) {
@@ -1901,6 +1905,20 @@ template <typename RegisterT>
 void StraightForwardRegisterAllocator::AssignArbitraryTemporaries(
     RegisterFrameState<RegisterT>& registers, NodeBase* node) {
   int num_temporaries_needed = node->num_temporaries_needed<RegisterT>();
+
+#ifdef V8_TARGET_ARCH_ARM
+  if constexpr (std::is_same_v<RegisterT, Register>) {
+    // Arm has only a single default scratch register. See
+    // Assembler::DefaultTmpList. However, almost any instruction might
+    // potentially need an extra scratch. This is because the instructions
+    // generator AddrMode{1,2,3,4,5} might need a scratch register.
+    // A lot of MaglevAssembler macros, even simple one as CompareRoot, also use
+    // an extra scratch register. That means that *almost* all IR nodes would
+    // need an extra register.
+    num_temporaries_needed++;
+  }
+#endif
+
   if (num_temporaries_needed == 0) return;
 
   DCHECK_GT(num_temporaries_needed, 0);

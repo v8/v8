@@ -233,8 +233,6 @@ inline void MaglevAssembler::DoubleToInt64Repr(Register dst,
   MAGLEV_NOT_IMPLEMENTED();
 }
 
-inline int MaglevAssembler::ToBooleanTemporaryCount() { return 1; }
-
 inline void MaglevAssembler::SmiTagInt32(Register obj, Label* fail) {
   add(obj, obj, obj, SetCC);
   if (fail != nullptr) {
