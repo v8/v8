@@ -999,7 +999,6 @@ namespace internal {
                                                                                \
   /* Wasm */                                                                   \
   IF_WASM(ASM, GenericJSToWasmWrapper, WasmDummy)                              \
-  IF_WASM(ASM, NewGenericJSToWasmWrapper, WasmNewJSToWasmWrapper)              \
   IF_WASM(ASM, WasmReturnPromiseOnSuspend, WasmDummy)                          \
   IF_WASM(ASM, WasmSuspend, WasmSuspend)                                       \
   IF_WASM(ASM, WasmResume, WasmDummy)                                          \

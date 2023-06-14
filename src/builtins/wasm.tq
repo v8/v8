@@ -71,6 +71,7 @@ extern runtime WasmJSToWasmObject(Context, JSAny, Smi): JSAny;
 }
 
 namespace unsafe {
+extern macro TimesTaggedSize(intptr): intptr;
 extern macro Allocate(intptr, constexpr AllocationFlag): HeapObject;
 }
 
@@ -121,17 +122,13 @@ builtin WasmFuncRefToJS(implicit context: Context)(val: WasmInternalFunction|
   }
 }
 
-builtin WasmTaggedNonSmiToInt32(implicit context: Context)(val: HeapObject):
+builtin WasmTaggedNonSmiToInt32(implicit context: Context)(val: JSAnyNotSmi):
     int32 {
   return ChangeTaggedNonSmiToInt32(val);
 }
 
 builtin WasmTaggedToFloat64(implicit context: Context)(val: JSAny): float64 {
   return ChangeTaggedToFloat64(val);
-}
-
-builtin WasmTaggedToFloat32(implicit context: Context)(val: JSAny): float32 {
-  return TruncateFloat64ToFloat32(ChangeTaggedToFloat64(val));
 }
 
 builtin WasmMemoryGrow(numPages: int32): int32 {
@@ -536,7 +533,6 @@ builtin UintPtr53ToNumber(value: uintptr): Number {
 }
 
 extern builtin I64ToBigInt(intptr): BigInt;
-extern builtin I32PairToBigInt(/*low*/ intptr, /*high*/ intptr): BigInt;
 
 builtin WasmAtomicNotify(offset: uintptr, count: uint32): uint32 {
   const instance: WasmInstanceObject = LoadInstanceFromFrame();
@@ -1379,5 +1375,4 @@ builtin WasmExternInternalize(externObject: JSAny): JSAny {
   tail runtime::WasmJSToWasmObject(
       context, externObject, SmiConstant(kAnyType));
 }
-
-}  // namespace wasm
+}

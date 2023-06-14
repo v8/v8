@@ -3494,8 +3494,6 @@ class RegisterAllocator {
   Register Name = no_reg; \
   regs.Pinned(Reg, &Name);
 
-#define ASSIGN_PINNED(Name, Reg) regs.Pinned(Reg, &Name);
-
 #define DEFINE_SCOPED(Name) \
   DEFINE_REG(Name) \
   RegisterAllocator::Scoped scope_##Name(&regs, &Name);
@@ -4494,11 +4492,11 @@ void GenericJSToWasmWrapperHelper(MacroAssembler* masm, bool stack_switch) {
     __ Stp(wasm_instance, function_data,
       MemOperand(sp, -2 * kSystemPointerSize, PreIndex));
     // Push the arguments for the runtime call.
-    __ Push(xzr, function_data);
+    __ Push(wasm_instance, function_data);
     // Set up context.
     __ Move(kContextRegister, Smi::zero());
     // Call the runtime function that kicks off compilation.
-    __ CallRuntime(Runtime::kWasmCompileWrapper, 1);
+    __ CallRuntime(Runtime::kWasmCompileWrapper, 2);
     __ Ldp(wasm_instance, function_data,
       MemOperand(sp, 2 * kSystemPointerSize, PostIndex));
     __ jmp(&compile_wrapper_done);
@@ -4864,184 +4862,6 @@ void Builtins::Generate_WasmOnStackReplace(MacroAssembler* masm) {
   // Only needed on x64.
   __ Trap();
 }
-
-void Builtins::Generate_NewGenericJSToWasmWrapper(MacroAssembler* masm) {
-  auto regs = RegisterAllocator::WithAllocatableGeneralRegisters();
-  __ EnterFrame(StackFrame::JS_TO_WASM);
-  DEFINE_PINNED(wrapper_buffer,
-                WasmNewJSToWasmWrapperDescriptor::WrapperBufferRegister());
-  // Push the wrapper_buffer stack, it's needed later for the results.
-  __ Push(wrapper_buffer, xzr);
-  {
-    DEFINE_SCOPED(result_size);
-    __ Ldr(result_size,
-           MemOperand(
-               wrapper_buffer,
-               JSToWasmWrapperConstants::kWrapperBufferStackReturnBufferSize));
-    // The `result_size` is the number of slots needed on the stack to store the
-    // return values of the wasm function. If `result_size` is an odd number, we
-    // have to add `1` to preserve stack pointer alignment.
-    __ Add(result_size, result_size, 1);
-    __ Bic(result_size, result_size, 1);
-    __ Sub(sp, sp, Operand(result_size, LSL, kSystemPointerSizeLog2));
-  }
-  {
-    DEFINE_SCOPED(scratch);
-    __ Mov(scratch, sp);
-    __ Str(scratch,
-           MemOperand(
-               wrapper_buffer,
-               JSToWasmWrapperConstants::kWrapperBufferStackReturnBufferStart));
-  }
-  DEFINE_PINNED(param1, wasm::kGpParamRegisters[1]);
-  DEFINE_PINNED(param2, wasm::kGpParamRegisters[2]);
-  DEFINE_PINNED(param3, wasm::kGpParamRegisters[3]);
-  DEFINE_PINNED(param4, wasm::kGpParamRegisters[4]);
-  DEFINE_PINNED(param5, wasm::kGpParamRegisters[5]);
-  DEFINE_PINNED(param6, wasm::kGpParamRegisters[6]);
-
-  // The first GP parameter is the instance, which we handle specially.
-  int stack_params_offset =
-      (arraysize(wasm::kGpParamRegisters) - 1) * kSystemPointerSize +
-      arraysize(wasm::kFpParamRegisters) * kDoubleSize;
-
-  {
-    DEFINE_SCOPED(params_start);
-    __ Ldr(params_start,
-           MemOperand(wrapper_buffer,
-                      JSToWasmWrapperConstants::kWrapperBufferParamStart));
-
-    {
-      // Push stack parameters on the stack.
-      DEFINE_SCOPED(params_end);
-      __ Ldr(params_end,
-             MemOperand(wrapper_buffer,
-                        JSToWasmWrapperConstants::kWrapperBufferParamEnd));
-      DEFINE_SCOPED(last_stack_param);
-
-      __ Add(last_stack_param, params_start, Immediate(stack_params_offset));
-
-      Label loop_start;
-      {
-        DEFINE_SCOPED(scratch);
-        // Check if there is an even number of parameters, so no alignment
-        // needed.
-        __ Sub(scratch, params_end, last_stack_param);
-        __ TestAndBranchIfAllClear(scratch, 0x8, &loop_start);
-
-        // Push the first parameter with alignment.
-        __ Ldr(scratch, MemOperand(params_end, -kSystemPointerSize, PreIndex));
-        __ Push(xzr, scratch);
-      }
-      __ bind(&loop_start);
-
-      Label finish_stack_params;
-      __ Cmp(last_stack_param, params_end);
-      __ B(ge, &finish_stack_params);
-
-      // Push parameter
-      {
-        DEFINE_SCOPED(scratch1);
-        DEFINE_SCOPED(scratch2);
-        __ Ldp(scratch2, scratch1,
-               MemOperand(params_end, -2 * kSystemPointerSize, PreIndex));
-        __ Push(scratch1, scratch2);
-      }
-      __ jmp(&loop_start);
-
-      __ bind(&finish_stack_params);
-    }
-
-    size_t next_offset = 0;
-    for (size_t i = 1; i < arraysize(wasm::kGpParamRegisters); i += 2) {
-      // Check that {params_start} does not overlap with any of the parameter
-      // registers, so that we don't overwrite it by accident with the loads
-      // below.
-      DCHECK_NE(params_start, wasm::kGpParamRegisters[i]);
-      DCHECK_NE(params_start, wasm::kGpParamRegisters[i + 1]);
-      __ Ldp(wasm::kGpParamRegisters[i], wasm::kGpParamRegisters[i + 1],
-             MemOperand(params_start, next_offset));
-      next_offset += 2 * kSystemPointerSize;
-    }
-
-    for (size_t i = 0; i < arraysize(wasm::kFpParamRegisters); i += 2) {
-      __ Ldp(wasm::kFpParamRegisters[i], wasm::kFpParamRegisters[i + 1],
-             MemOperand(params_start, next_offset));
-      next_offset += 2 * kDoubleSize;
-    }
-    DCHECK_EQ(next_offset, stack_params_offset);
-  }
-
-  DEFINE_PINNED(wasm_instance, kWasmInstanceRegister);
-  __ Ldr(wasm_instance,
-         MemOperand(fp, JSToWasmWrapperConstants::kInstanceOffset));
-
-  {
-    DEFINE_SCOPED(thread_in_wasm_flag_addr);
-    __ Ldr(thread_in_wasm_flag_addr,
-           MemOperand(kRootRegister,
-                      Isolate::thread_in_wasm_flag_address_offset()));
-    DEFINE_SCOPED(scratch);
-    __ Mov(scratch, 1);
-    __ Str(scratch, MemOperand(thread_in_wasm_flag_addr, 0));
-  }
-
-  {
-    DEFINE_SCOPED(call_target);
-    __ Ldr(call_target,
-           MemOperand(wrapper_buffer,
-                      JSToWasmWrapperConstants::kWrapperBufferCallTarget));
-    __ Call(call_target);
-  }
-  FREE_REG(wasm_instance);
-  FREE_REG(param6);
-  FREE_REG(param5);
-  FREE_REG(param4);
-  FREE_REG(param3);
-  FREE_REG(param2);
-  FREE_REG(param1);
-  // The wrapper_buffer has to be in x2 as the correct parameter register.
-  FREE_REG(wrapper_buffer);
-  ASSIGN_PINNED(wrapper_buffer, x2);
-  DEFINE_PINNED(gp_result1, x0);
-  DEFINE_PINNED(gp_result2, x1);
-  {
-    DEFINE_SCOPED(thread_in_wasm_flag_addr);
-    __ Ldr(thread_in_wasm_flag_addr,
-           MemOperand(kRootRegister,
-                      Isolate::thread_in_wasm_flag_address_offset()));
-    __ Str(xzr, MemOperand(thread_in_wasm_flag_addr, 0));
-  }
-
-  __ Ldr(wrapper_buffer, MemOperand(fp, -3 * kSystemPointerSize));
-
-  __ Str(wasm::kFpReturnRegisters[0],
-         MemOperand(wrapper_buffer,
-                    JSToWasmWrapperConstants::kWrapperBufferFPReturnRegister1));
-  __ Str(wasm::kFpReturnRegisters[1],
-         MemOperand(wrapper_buffer,
-                    JSToWasmWrapperConstants::kWrapperBufferFPReturnRegister2));
-  __ Str(wasm::kGpReturnRegisters[0],
-         MemOperand(wrapper_buffer,
-                    JSToWasmWrapperConstants::kWrapperBufferGPReturnRegister1));
-  __ Str(wasm::kGpReturnRegisters[1],
-         MemOperand(wrapper_buffer,
-                    JSToWasmWrapperConstants::kWrapperBufferGPReturnRegister2));
-
-  // Call the return value builtin with
-  // x0: wasm instance.
-  // x1: the result JSArray for multi-return.
-  // x2: pointer to the byte buffer which contains all parameters.
-  __ Ldr(x1, MemOperand(fp, JSToWasmWrapperConstants::kResultArrayOffset));
-  __ Ldr(x0, MemOperand(fp, JSToWasmWrapperConstants::kInstanceOffset));
-  __ Call(BUILTIN_CODE(masm->isolate(), JSToWasmHandleReturns),
-          RelocInfo::CODE_TARGET);
-
-  __ LeaveFrame(StackFrame::JS_TO_WASM);
-  __ DropArguments(2, MacroAssembler::kCountIncludesReceiver);
-  __ Ret();
-}
-
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
