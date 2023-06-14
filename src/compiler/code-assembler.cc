@@ -238,8 +238,16 @@ TNode<Int32T> CodeAssembler::Int32Constant(int32_t value) {
   return UncheckedCast<Int32T>(jsgraph()->Int32Constant(value));
 }
 
+TNode<Int64T> CodeAssembler::UniqueInt64Constant(int64_t value) {
+  return UncheckedCast<Int64T>(jsgraph()->UniqueInt64Constant(value));
+}
+
 TNode<Int64T> CodeAssembler::Int64Constant(int64_t value) {
   return UncheckedCast<Int64T>(jsgraph()->Int64Constant(value));
+}
+
+TNode<IntPtrT> CodeAssembler::UniqueIntPtrConstant(intptr_t value) {
+  return UncheckedCast<IntPtrT>(jsgraph()->UniqueIntPtrConstant(value));
 }
 
 TNode<IntPtrT> CodeAssembler::IntPtrConstant(intptr_t value) {

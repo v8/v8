@@ -513,11 +513,13 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   // Constants.
   TNode<Int32T> UniqueInt32Constant(int32_t value);
   TNode<Int32T> Int32Constant(int32_t value);
+  TNode<Int64T> UniqueInt64Constant(int64_t value);
   TNode<Int64T> Int64Constant(int64_t value);
   TNode<Uint64T> Uint64Constant(uint64_t value) {
     return Unsigned(Int64Constant(base::bit_cast<int64_t>(value)));
   }
   TNode<IntPtrT> IntPtrConstant(intptr_t value);
+  TNode<IntPtrT> UniqueIntPtrConstant(intptr_t value);
   TNode<Uint32T> UniqueUint32Constant(int32_t value) {
     return Unsigned(UniqueInt32Constant(base::bit_cast<int32_t>(value)));
   }
