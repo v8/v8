@@ -2461,31 +2461,15 @@ void OptimizedFrame::Summarize(std::vector<FrameSummary>* frames) const {
     } else if (it->kind() == TranslatedFrame::kWasmInlinedIntoJS) {
       Handle<SharedFunctionInfo> shared_info = it->shared_info();
       DCHECK_NE(isolate()->heap()->gc_state(), Heap::MARK_COMPACT);
-      Handle<Code> js_code = handle(code->UnsafeCastToCode(), isolate());
-      SourcePositionTableIterator iter(js_code->source_position_table());
-      const int offset = code->GetOffsetFromInstructionStart(isolate(), pc());
-      SourcePosition pos;
-      // Search for the source position before or at the current pc.
-      while (!iter.done() && iter.code_offset() < offset) {
-        pos = iter.source_position();
-        iter.Advance();
-      }
-      if (pos.IsKnown()) {
-        DCHECK_EQ(*shared_info,
-                  DeoptimizationData::cast(js_code->deoptimization_data())
-                      .GetInlinedFunction(pos.InliningId()));
-        DCHECK(shared_info->HasWasmExportedFunctionData());
-        WasmExportedFunctionData function_data =
-            shared_info->wasm_exported_function_data();
-        Handle<WasmInstanceObject> instance =
-            handle(function_data.instance(), isolate());
-        int func_index = function_data.function_index();
-        FrameSummary::WasmInlinedFrameSummary summary(
-            isolate(), instance, func_index, pos.ScriptOffset());
-        frames->push_back(summary);
-      } else {
-        DCHECK(false && "Missing source position for inlined wasm frame");
-      }
+
+      WasmExportedFunctionData function_data =
+          shared_info->wasm_exported_function_data();
+      Handle<WasmInstanceObject> instance =
+          handle(function_data.instance(), isolate());
+      int func_index = function_data.function_index();
+      FrameSummary::WasmInlinedFrameSummary summary(
+          isolate(), instance, func_index, it->bytecode_offset().ToInt());
+      frames->push_back(summary);
 #endif  // V8_ENABLE_WEBASSEMBLY
     }
   }

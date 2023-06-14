@@ -46,10 +46,11 @@ class WasmJSLoweringReducer : public Next {
     const TSCallDescriptor* ts_descriptor =
         TSCallDescriptor::Create(tf_descriptor, Asm().graph_zone());
 
+    OpIndex new_frame_state = CreateFrameStateWithUpdatedBailoutId(frame_state);
     OpIndex should_trap = negated ? __ Word32Equal(condition, 0) : condition;
     IF (UNLIKELY(should_trap)) {
       OpIndex call_target = __ NumberConstant(static_cast<int>(trap));
-      __ Call(call_target, frame_state, {}, ts_descriptor);
+      __ Call(call_target, new_frame_state, {}, ts_descriptor);
       __ Unreachable();  // The trap builtin never returns.
     }
     END_IF
@@ -57,7 +58,31 @@ class WasmJSLoweringReducer : public Next {
   }
 
  private:
+  OpIndex CreateFrameStateWithUpdatedBailoutId(OpIndex frame_state) {
+    // Create new FrameState with the correct source position (the position of
+    // the trap location).
+    const FrameStateOp& frame_state_op =
+        Asm().output_graph().Get(frame_state).template Cast<FrameStateOp>();
+    const FrameStateData* data = frame_state_op.data;
+    const FrameStateInfo& info = data->frame_state_info;
+
+    OpIndex origin = Asm().current_operation_origin();
+    DCHECK(origin.valid());
+    int offset = __ input_graph().source_positions()[origin].ScriptOffset();
+
+    const FrameStateInfo* new_info =
+        Asm().graph_zone()->template New<FrameStateInfo>(
+            BytecodeOffset(offset), info.state_combine(), info.function_info());
+    FrameStateData* new_data = Asm().graph_zone()->template New<FrameStateData>(
+        FrameStateData{*new_info, data->instructions, data->machine_types,
+                       data->int_operands});
+    return __ FrameState(frame_state_op.inputs(), frame_state_op.inlined,
+                         new_data);
+  }
+
   Isolate* isolate_ = PipelineData::Get().isolate();
+  SourcePositionTable* source_positions_ =
+      PipelineData::Get().source_positions();
 };
 
 #include "src/compiler/turboshaft/undef-assembler-macros.inc"

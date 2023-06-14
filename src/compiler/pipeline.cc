@@ -1474,6 +1474,17 @@ struct InliningPhase {
       DCHECK(call_reducer.wasm_module_for_inlining() != nullptr);
       data->set_wasm_module_for_inlining(
           call_reducer.wasm_module_for_inlining());
+      // Enable source positions if not enabled yet. While JS only uses the
+      // source position table for tracing, profiling, ..., wasm needs it at
+      // compile time for keeping track of source locations for wasm traps.
+      // Note: By not setting data->info()->set_source_positions(), even with
+      // wasm inlining, source positions shouldn't be kept alive after
+      // compilation is finished (if not for tracing, ...)
+      if (v8_flags.experimental_wasm_js_inlining &&
+          !data->source_positions()->IsEnabled()) {
+        data->source_positions()->Enable();
+        data->source_positions()->AddDecorator();
+      }
     }
 #endif
   }
@@ -2266,7 +2277,8 @@ struct WasmJSLoweringPhase {
     GraphReducer graph_reducer(
         temp_zone, data->graph(), &data->info()->tick_counter(), data->broker(),
         data->jsgraph()->Dead(), data->observe_node_manager());
-    WasmJSLowering lowering(&graph_reducer, data->jsgraph());
+    WasmJSLowering lowering(&graph_reducer, data->jsgraph(),
+                            data->source_positions());
     AddReducer(data, &graph_reducer, &lowering);
     graph_reducer.ReduceGraph();
   }

@@ -13,10 +13,12 @@
 
 namespace v8::internal::compiler {
 
-WasmJSLowering::WasmJSLowering(Editor* editor, MachineGraph* mcgraph)
+WasmJSLowering::WasmJSLowering(Editor* editor, MachineGraph* mcgraph,
+                               SourcePositionTable* source_position_table)
     : AdvancedReducer(editor),
       gasm_(mcgraph, mcgraph->zone()),
-      mcgraph_(mcgraph) {}
+      mcgraph_(mcgraph),
+      source_position_table_(source_position_table) {}
 
 Reduction WasmJSLowering::Reduce(Node* node) {
   switch (node->opcode()) {
@@ -44,9 +46,19 @@ Reduction WasmJSLowering::Reduce(Node* node) {
       Builtin trap = wasm::RuntimeStubIdToBuiltinName(
           static_cast<wasm::WasmCode::RuntimeStubId>(trap_id));
 
+      // Create new FrameState with the correct source position (the position
+      // of the trap location).
       Node* frame_state = NodeProperties::GetValueInput(node, 1);
+      const FrameStateInfo& info = FrameState(frame_state).frame_state_info();
+      SourcePosition position = source_position_table_->GetSourcePosition(node);
+      Node* new_frame_state = mcgraph_->graph()->CloneNode(frame_state);
+      BytecodeOffset bailout_id(position.ScriptOffset());
+      const Operator* frame_state_op = mcgraph_->common()->FrameState(
+          bailout_id, info.state_combine(), info.function_info());
+      NodeProperties::ChangeOp(new_frame_state, frame_state_op);
+
       gasm_.CallBuiltinWithFrameState(trap, Operator::kNoProperties,
-                                      frame_state);
+                                      new_frame_state);
       Node* terminate = mcgraph_->graph()->NewNode(
           mcgraph_->common()->Throw(), gasm_.effect(), gasm_.control());
       NodeProperties::MergeControlToEnd(mcgraph_->graph(), mcgraph_->common(),

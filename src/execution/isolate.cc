@@ -4828,13 +4828,6 @@ bool Isolate::NeedsSourcePositions() const {
       v8_flags.trace_turbo_graph || v8_flags.turbo_profiling ||
       v8_flags.print_maglev_code || v8_flags.perf_prof || v8_flags.log_maps ||
       v8_flags.log_ic || v8_flags.log_function_events ||
-#if V8_ENABLE_WEBASSEMBLY
-      // TODO(mliedtke): We need the source positions of wasm trap nodes.
-      // All other positions are not needed. For wasm we do not have the source
-      // position in the FrameState as we only have one FrameState per inlined
-      // function which itself could have many trap instructions.
-      v8_flags.experimental_wasm_js_inlining ||
-#endif  // V8_ENABLE_WEBASSEMBLY
       // Dynamic conditions; changing any of these conditions triggers source
       // position collection for the entire heap
       // (CollectSourcePositionsForAllBytecodeArrays).

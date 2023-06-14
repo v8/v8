@@ -24,7 +24,8 @@ class SourcePositionTable;
 // deferred code containing a call to the trap builtin.
 class WasmJSLowering final : public AdvancedReducer {
  public:
-  WasmJSLowering(Editor* editor, MachineGraph* mcgraph);
+  WasmJSLowering(Editor* editor, MachineGraph* mcgraph,
+                 SourcePositionTable* source_position_table);
 
   const char* reducer_name() const override { return "WasmJSLowering"; }
   Reduction Reduce(Node* node) final;
@@ -32,6 +33,7 @@ class WasmJSLowering final : public AdvancedReducer {
  private:
   WasmGraphAssembler gasm_;
   const MachineGraph* mcgraph_;
+  SourcePositionTable* source_position_table_;
 };
 
 }  // namespace v8::internal::compiler
