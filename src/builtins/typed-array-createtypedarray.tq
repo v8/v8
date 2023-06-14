@@ -10,6 +10,7 @@ extern builtin IterableToListMayPreserveHoles(
 
 extern macro TypedArrayBuiltinsAssembler::AllocateEmptyOnHeapBuffer(
     implicit context: Context)(): JSArrayBuffer;
+extern macro CodeStubAssembler::AllocateByteArray(uintptr): ByteArray;
 extern macro TypedArrayBuiltinsAssembler::GetDefaultConstructor(
     implicit context: Context)(JSTypedArray): JSFunction;
 extern macro TypedArrayBuiltinsAssembler::SetupTypedArrayEmbedderFields(

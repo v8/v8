@@ -253,37 +253,6 @@ class WasmExitFrameConstants : public WasmFrameConstants {
   static const int kCallingPCOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(1);
   DEFINE_TYPED_FRAME_SIZES(2);
 };
-
-class JSToWasmWrapperConstants {
- public:
-  // FP-relative.
-  static constexpr int kResultArrayOffset = 2 * kSystemPointerSize;
-  static constexpr int kInstanceOffset = 3 * kSystemPointerSize;
-
-  // Offsets into the wrapper buffer for values passed from Torque to the
-  // assembly builtin.
-  static constexpr size_t kWrapperBufferReturnCount = 0;
-  static constexpr size_t kWrapperBufferRefReturnCount = 4;
-  static constexpr size_t kWrapperBufferSigRepresentationArray = 8;
-  static constexpr size_t kWrapperBufferStackReturnBufferSize = 16;
-  static constexpr size_t kWrapperBufferCallTarget = 24;
-  static constexpr size_t kWrapperBufferParamStart = 32;
-  static constexpr size_t kWrapperBufferParamEnd = 40;
-
-  // Offsets into the wrapper buffer for values passed from the assembly builtin
-  // to Torque.
-  static constexpr size_t kWrapperBufferStackReturnBufferStart = 16;
-  static constexpr size_t kWrapperBufferFPReturnRegister1 = 24;
-  static constexpr size_t kWrapperBufferFPReturnRegister2 = 32;
-  static constexpr size_t kWrapperBufferGPReturnRegister1 = 40;
-  static constexpr size_t kWrapperBufferGPReturnRegister2 =
-      kWrapperBufferGPReturnRegister1 + kSystemPointerSize;
-
-  // Size of the wrapper buffer
-  static constexpr int kWrapperBufferSize =
-      kWrapperBufferGPReturnRegister2 + kSystemPointerSize;
-};
-
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 class BuiltinContinuationFrameConstants : public TypedFrameConstants {

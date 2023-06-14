@@ -5944,89 +5944,107 @@ TNode<Int32T> CodeStubAssembler::TruncateHeapNumberValueToWord32(
   return Signed(TruncateFloat64ToWord32(value));
 }
 
-TNode<Smi> CodeStubAssembler::TryHeapNumberToSmi(TNode<HeapNumber> number,
-                                                 Label* not_smi) {
+void CodeStubAssembler::TryHeapNumberToSmi(TNode<HeapNumber> number,
+                                           TVariable<Smi>* var_result_smi,
+                                           Label* if_smi) {
   TNode<Float64T> value = LoadHeapNumberValue(number);
-  return TryFloat64ToSmi(value, not_smi);
+  TryFloat64ToSmi(value, var_result_smi, if_smi);
 }
 
-TNode<Smi> CodeStubAssembler::TryFloat32ToSmi(TNode<Float32T> value,
-                                              Label* not_smi) {
+void CodeStubAssembler::TryFloat32ToSmi(TNode<Float32T> value,
+                                        TVariable<Smi>* var_result_smi,
+                                        Label* if_smi) {
   TNode<Int32T> ivalue = TruncateFloat32ToInt32(value);
   TNode<Float32T> fvalue = RoundInt32ToFloat32(ivalue);
 
-  Label if_int32(this);
+  Label if_int32(this), if_heap_number(this);
 
-  GotoIfNot(Float32Equal(value, fvalue), not_smi);
+  GotoIfNot(Float32Equal(value, fvalue), &if_heap_number);
   GotoIfNot(Word32Equal(ivalue, Int32Constant(0)), &if_int32);
-  // if (value == -0.0)
   Branch(Int32LessThan(UncheckedCast<Int32T>(BitcastFloat32ToInt32(value)),
                        Int32Constant(0)),
-         not_smi, &if_int32);
+         &if_heap_number, &if_int32);
 
+  TVARIABLE(Number, var_result);
   BIND(&if_int32);
-  if (SmiValuesAre32Bits()) {
-    return SmiTag(ChangeInt32ToIntPtr(ivalue));
-  } else {
-    DCHECK(SmiValuesAre31Bits());
-    TNode<PairT<Int32T, BoolT>> pair = Int32AddWithOverflow(ivalue, ivalue);
-    TNode<BoolT> overflow = Projection<1>(pair);
-    GotoIf(overflow, not_smi);
-    return BitcastWordToTaggedSigned(ChangeInt32ToIntPtr(Projection<0>(pair)));
+  {
+    if (SmiValuesAre32Bits()) {
+      *var_result_smi = SmiTag(ChangeInt32ToIntPtr(ivalue));
+    } else {
+      DCHECK(SmiValuesAre31Bits());
+      TNode<PairT<Int32T, BoolT>> pair = Int32AddWithOverflow(ivalue, ivalue);
+      TNode<BoolT> overflow = Projection<1>(pair);
+      GotoIf(overflow, &if_heap_number);
+      *var_result_smi =
+          BitcastWordToTaggedSigned(ChangeInt32ToIntPtr(Projection<0>(pair)));
+    }
+    Goto(if_smi);
   }
+  BIND(&if_heap_number);
 }
 
-TNode<Smi> CodeStubAssembler::TryFloat64ToSmi(TNode<Float64T> value,
-                                              Label* not_smi) {
+void CodeStubAssembler::TryFloat64ToSmi(TNode<Float64T> value,
+                                        TVariable<Smi>* var_result_smi,
+                                        Label* if_smi) {
   TNode<Int32T> value32 = RoundFloat64ToInt32(value);
   TNode<Float64T> value64 = ChangeInt32ToFloat64(value32);
 
-  Label if_int32(this);
+  Label if_int32(this), if_heap_number(this, Label::kDeferred);
 
-  GotoIfNot(Float64Equal(value, value64), not_smi);
+  GotoIfNot(Float64Equal(value, value64), &if_heap_number);
   GotoIfNot(Word32Equal(value32, Int32Constant(0)), &if_int32);
   Branch(Int32LessThan(UncheckedCast<Int32T>(Float64ExtractHighWord32(value)),
                        Int32Constant(0)),
-         not_smi, &if_int32);
+         &if_heap_number, &if_int32);
 
   TVARIABLE(Number, var_result);
   BIND(&if_int32);
-  if (SmiValuesAre32Bits()) {
-    return SmiTag(ChangeInt32ToIntPtr(value32));
-  } else {
-    DCHECK(SmiValuesAre31Bits());
-    TNode<PairT<Int32T, BoolT>> pair = Int32AddWithOverflow(value32, value32);
-    TNode<BoolT> overflow = Projection<1>(pair);
-    GotoIf(overflow, not_smi);
-    return BitcastWordToTaggedSigned(ChangeInt32ToIntPtr(Projection<0>(pair)));
+  {
+    if (SmiValuesAre32Bits()) {
+      *var_result_smi = SmiTag(ChangeInt32ToIntPtr(value32));
+    } else {
+      DCHECK(SmiValuesAre31Bits());
+      TNode<PairT<Int32T, BoolT>> pair = Int32AddWithOverflow(value32, value32);
+      TNode<BoolT> overflow = Projection<1>(pair);
+      GotoIf(overflow, &if_heap_number);
+      *var_result_smi =
+          BitcastWordToTaggedSigned(ChangeInt32ToIntPtr(Projection<0>(pair)));
+    }
+    Goto(if_smi);
   }
+  BIND(&if_heap_number);
 }
 
 TNode<Number> CodeStubAssembler::ChangeFloat32ToTagged(TNode<Float32T> value) {
-  Label not_smi(this), done(this);
+  Label if_smi(this), done(this);
+  TVARIABLE(Smi, var_smi_result);
   TVARIABLE(Number, var_result);
-  var_result = TryFloat32ToSmi(value, &not_smi);
+  TryFloat32ToSmi(value, &var_smi_result, &if_smi);
+
+  var_result = AllocateHeapNumberWithValue(ChangeFloat32ToFloat64(value));
   Goto(&done);
 
-  BIND(&not_smi);
+  BIND(&if_smi);
   {
-    var_result = AllocateHeapNumberWithValue(ChangeFloat32ToFloat64(value));
+    var_result = var_smi_result.value();
     Goto(&done);
   }
-
   BIND(&done);
   return var_result.value();
 }
 
 TNode<Number> CodeStubAssembler::ChangeFloat64ToTagged(TNode<Float64T> value) {
-  Label not_smi(this), done(this);
+  Label if_smi(this), done(this);
+  TVARIABLE(Smi, var_smi_result);
   TVARIABLE(Number, var_result);
-  var_result = TryFloat64ToSmi(value, &not_smi);
+  TryFloat64ToSmi(value, &var_smi_result, &if_smi);
+
+  var_result = AllocateHeapNumberWithValue(value);
   Goto(&done);
 
-  BIND(&not_smi);
+  BIND(&if_smi);
   {
-    var_result = AllocateHeapNumberWithValue(value);
+    var_result = var_smi_result.value();
     Goto(&done);
   }
   BIND(&done);
@@ -7684,7 +7702,7 @@ TNode<String> CodeStubAssembler::NumberToString(TNode<Number> input,
                                                 Label* bailout) {
   TVARIABLE(String, result);
   TVARIABLE(Smi, smi_input);
-  Label if_smi(this), not_smi(this), if_heap_number(this), done(this, &result);
+  Label if_smi(this), if_heap_number(this), done(this, &result);
 
   // Load the number string cache.
   TNode<FixedArray> number_string_cache = NumberStringCacheConstant();
@@ -7702,13 +7720,42 @@ TNode<String> CodeStubAssembler::NumberToString(TNode<Number> input,
   Goto(&if_smi);
 
   BIND(&if_heap_number);
-  TNode<HeapNumber> heap_number_input = CAST(input);
   {
     Comment("NumberToString - HeapNumber");
+    TNode<HeapNumber> heap_number_input = CAST(input);
     // Try normalizing the HeapNumber.
-    smi_input = TryHeapNumberToSmi(heap_number_input, &not_smi);
-    Goto(&if_smi);
+    TryHeapNumberToSmi(heap_number_input, &smi_input, &if_smi);
+
+    // Make a hash from the two 32-bit values of the double.
+    TNode<Int32T> low =
+        LoadObjectField<Int32T>(heap_number_input, HeapNumber::kValueOffset);
+    TNode<Int32T> high = LoadObjectField<Int32T>(
+        heap_number_input, HeapNumber::kValueOffset + kIntSize);
+    TNode<Word32T> hash = Word32And(Word32Xor(low, high), mask);
+    TNode<IntPtrT> entry_index =
+        Signed(ChangeUint32ToWord(Int32Add(hash, hash)));
+
+    // Cache entry's key must be a heap number
+    TNode<Object> number_key =
+        UnsafeLoadFixedArrayElement(number_string_cache, entry_index);
+    GotoIf(TaggedIsSmi(number_key), bailout);
+    TNode<HeapObject> number_key_heap_object = CAST(number_key);
+    GotoIfNot(IsHeapNumber(number_key_heap_object), bailout);
+
+    // Cache entry's key must match the heap number value we're looking for.
+    TNode<Int32T> low_compare = LoadObjectField<Int32T>(
+        number_key_heap_object, HeapNumber::kValueOffset);
+    TNode<Int32T> high_compare = LoadObjectField<Int32T>(
+        number_key_heap_object, HeapNumber::kValueOffset + kIntSize);
+    GotoIfNot(Word32Equal(low, low_compare), bailout);
+    GotoIfNot(Word32Equal(high, high_compare), bailout);
+
+    // Heap number match, return value from cache entry.
+    result = CAST(UnsafeLoadFixedArrayElement(number_string_cache, entry_index,
+                                              kTaggedSize));
+    Goto(&done);
   }
+
   BIND(&if_smi);
   {
     Comment("NumberToString - Smi");
@@ -7751,38 +7798,6 @@ TNode<String> CodeStubAssembler::NumberToString(TNode<Number> input,
         Goto(&done);
       }
     }
-  }
-
-  BIND(&not_smi);
-  {
-    // Make a hash from the two 32-bit values of the double.
-    TNode<Int32T> low =
-        LoadObjectField<Int32T>(heap_number_input, HeapNumber::kValueOffset);
-    TNode<Int32T> high = LoadObjectField<Int32T>(
-        heap_number_input, HeapNumber::kValueOffset + kIntSize);
-    TNode<Word32T> hash = Word32And(Word32Xor(low, high), mask);
-    TNode<IntPtrT> entry_index =
-        Signed(ChangeUint32ToWord(Int32Add(hash, hash)));
-
-    // Cache entry's key must be a heap number
-    TNode<Object> number_key =
-        UnsafeLoadFixedArrayElement(number_string_cache, entry_index);
-    GotoIf(TaggedIsSmi(number_key), bailout);
-    TNode<HeapObject> number_key_heap_object = CAST(number_key);
-    GotoIfNot(IsHeapNumber(number_key_heap_object), bailout);
-
-    // Cache entry's key must match the heap number value we're looking for.
-    TNode<Int32T> low_compare = LoadObjectField<Int32T>(
-        number_key_heap_object, HeapNumber::kValueOffset);
-    TNode<Int32T> high_compare = LoadObjectField<Int32T>(
-        number_key_heap_object, HeapNumber::kValueOffset + kIntSize);
-    GotoIfNot(Word32Equal(low, low_compare), bailout);
-    GotoIfNot(Word32Equal(high, high_compare), bailout);
-
-    // Heap number match, return value from cache entry.
-    result = CAST(UnsafeLoadFixedArrayElement(number_string_cache, entry_index,
-                                              kTaggedSize));
-    Goto(&done);
   }
   BIND(&done);
   return result.value();
@@ -11836,17 +11851,6 @@ TNode<BigInt> CodeStubAssembler::PrepareValueForWriteToTypedArray<BigInt>(
          elements_kind == BIGUINT64_ELEMENTS);
   return ToBigInt(context, input);
 }
-
-#if V8_ENABLE_WEBASSEMBLY
-TorqueStructInt64AsInt32Pair CodeStubAssembler::BigIntToRawBytes(
-    TNode<BigInt> value) {
-  TVARIABLE(UintPtrT, var_low);
-  // Only used on 32-bit platforms.
-  TVARIABLE(UintPtrT, var_high);
-  BigIntToRawBytes(value, &var_low, &var_high);
-  return {var_low.value(), var_high.value()};
-}
-#endif  // V8_ENABLE_WEBASSEMBLY
 
 void CodeStubAssembler::BigIntToRawBytes(TNode<BigInt> bigint,
                                          TVariable<UintPtrT>* var_low,

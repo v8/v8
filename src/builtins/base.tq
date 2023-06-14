@@ -443,7 +443,6 @@ extern enum MessageTemplate {
   kWasmTrapFuncSigMismatch,
   kWasmTrapDataSegmentOutOfBounds,
   kWasmTrapElementSegmentOutOfBounds,
-  kWasmTrapJSTypeError,
   kWasmTrapTableOutOfBounds,
   kWasmTrapRethrowNull,
   kWasmTrapNullDereference,
@@ -1251,12 +1250,10 @@ extern macro SmiToTaggedIndex(Smi): TaggedIndex;
 extern macro RoundIntPtrToFloat64(intptr): float64;
 extern macro IntPtrRoundUpToPowerOfTwo32(intptr): intptr;
 extern macro ChangeFloat32ToFloat64(float32): float64;
-extern macro RoundInt32ToFloat32(int32): float32;
 extern macro ChangeNumberToFloat64(Number): float64;
 extern macro ChangeNumberToUint32(Number): uint32;
-extern macro ChangeTaggedNonSmiToInt32(implicit context: Context)(HeapObject):
+extern macro ChangeTaggedNonSmiToInt32(implicit context: Context)(JSAnyNotSmi):
     int32;
-extern macro ChangeFloat32ToTagged(float32): Number;
 extern macro ChangeTaggedToFloat64(implicit context: Context)(JSAny): float64;
 extern macro ChangeFloat64ToTagged(float64): Number;
 extern macro ChangeFloat64ToUintPtr(float64): uintptr;

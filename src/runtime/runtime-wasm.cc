@@ -121,56 +121,6 @@ Object ThrowWasmError(Isolate* isolate, MessageTemplate message,
 }
 }  // namespace
 
-RUNTIME_FUNCTION(Runtime_WasmGenericWasmToJSObject) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  Handle<Object> value(args[0], isolate);
-  if (value->IsWasmInternalFunction()) {
-    Handle<WasmInternalFunction> internal =
-        Handle<WasmInternalFunction>::cast(value);
-    return *WasmInternalFunction::GetOrCreateExternal(internal);
-  }
-  if (value->IsWasmNull()) return ReadOnlyRoots(isolate).null_value();
-  return *value;
-}
-
-// Takes a JS object and a wasm type as Smi. Type checks the object against the
-// type; if the check succeeds, returns the object in its wasm representation;
-// otherwise throws a type error.
-RUNTIME_FUNCTION(Runtime_WasmGenericJSToWasmObject) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(3, args.length());
-  Handle<WasmInstanceObject> instance(WasmInstanceObject::cast(args[0]),
-                                      isolate);
-  Handle<Object> value(args[1], isolate);
-  // Make sure ValueType fits properly in a Smi.
-  static_assert(wasm::ValueType::kLastUsedBit + 1 <= kSmiValueSize);
-  int raw_type = args.smi_value_at(2);
-
-  const wasm::WasmModule* module = instance->module();
-  wasm::ValueType type = wasm::ValueType::FromRawBitField(raw_type);
-  if (type.has_index()) {
-    DCHECK_NOT_NULL(module);
-    uint32_t canonical_index =
-        module->isorecursive_canonical_type_ids[type.ref_index()];
-    type = wasm::ValueType::RefMaybeNull(canonical_index, type.nullability());
-  }
-  const char* error_message;
-  {
-    // TODO(ahaas): Make the wrapper GC-safe, and enable it for 32-bit Smis. For
-    // 32-bit Smis, allocations happen at the moment due to smi
-    // canonicalization.
-    DisallowHeapAllocation no_gc;
-    Handle<Object> result;
-    if (JSToWasmObject(isolate, value, type, &error_message)
-            .ToHandle(&result)) {
-      return *result;
-    }
-  }
-  return isolate->Throw(
-      *isolate->factory()->NewTypeError(MessageTemplate::kWasmTrapJSTypeError));
-}
-
 // Takes a JS object and a wasm type as Smi. Type checks the object against the
 // type; if the check succeeds, returns the object in its wasm representation;
 // otherwise throws a type error.
@@ -190,10 +140,11 @@ RUNTIME_FUNCTION(Runtime_WasmJSToWasmObject) {
   wasm::ValueType expected_canonical =
       wasm::ValueType::FromRawBitField(raw_type);
   const char* error_message;
+
   Handle<Object> result;
-  bool success =
-      JSToWasmObject(isolate, value, expected_canonical, &error_message)
-          .ToHandle(&result);
+  bool success = internal::wasm::JSToWasmObject(
+                     isolate, value, expected_canonical, &error_message)
+                     .ToHandle(&result);
   Object ret = success ? *result
                        : isolate->Throw(*isolate->factory()->NewTypeError(
                              MessageTemplate::kWasmTrapJSTypeError));
@@ -369,10 +320,11 @@ void ReplaceWrapper(Isolate* isolate, Handle<WasmInstanceObject> instance,
 
 RUNTIME_FUNCTION(Runtime_WasmCompileWrapper) {
   HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
+  DCHECK_EQ(2, args.length());
+  Handle<WasmInstanceObject> instance(WasmInstanceObject::cast(args[0]),
+                                      isolate);
   Handle<WasmExportedFunctionData> function_data(
-      WasmExportedFunctionData::cast(args[0]), isolate);
-  Handle<WasmInstanceObject> instance(function_data->instance(), isolate);
+      WasmExportedFunctionData::cast(args[1]), isolate);
   DCHECK(isolate->context().is_null());
   isolate->set_context(instance->native_context());
 

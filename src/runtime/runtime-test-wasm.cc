@@ -274,10 +274,8 @@ RUNTIME_FUNCTION(Runtime_IsWasmCode) {
   DCHECK_EQ(1, args.length());
   auto function = JSFunction::cast(args[0]);
   Code code = function.code();
-  bool is_js_to_wasm =
-      code.kind() == CodeKind::JS_TO_WASM_FUNCTION ||
-      (code.builtin_id() == Builtin::kGenericJSToWasmWrapper) ||
-      (code.builtin_id() == Builtin::kJSToWasmWrapper);
+  bool is_js_to_wasm = code.kind() == CodeKind::JS_TO_WASM_FUNCTION ||
+                       (code.builtin_id() == Builtin::kGenericJSToWasmWrapper);
   return isolate->heap()->ToBoolean(is_js_to_wasm);
 }
 
