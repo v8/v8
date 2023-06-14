@@ -5040,47 +5040,47 @@ void MaglevGraphBuilder::VisitFindNonDefaultConstructorOrConstruct() {
     compiler::MapRef function_map = constant->map(broker());
     compiler::HeapObjectRef current = function_map.prototype(broker());
 
-    while (true) {
-      if (!current.IsJSFunction()) break;
-      compiler::JSFunctionRef current_function = current.AsJSFunction();
-      if (current_function.shared(broker())
-              .requires_instance_members_initializer()) {
-        break;
-      }
-      if (current_function.context(broker())
-              .scope_info(broker())
-              .ClassScopeHasPrivateBrand()) {
-        break;
-      }
-      FunctionKind kind = current_function.shared(broker()).kind();
-      if (kind == FunctionKind::kDefaultDerivedConstructor) {
-        if (!broker()->dependencies()->DependOnArrayIteratorProtector()) break;
-      } else {
-        broker()->dependencies()->DependOnStablePrototypeChain(
-            function_map, WhereToStart::kStartAtReceiver, current_function);
-
-        compiler::OptionalHeapObjectRef new_target_function =
-            TryGetConstant(new_target);
-        if (kind == FunctionKind::kDefaultBaseConstructor) {
-          ValueNode* object;
-          if (new_target_function && new_target_function->IsJSFunction()) {
-            object = BuildAllocateFastObject(
-                FastObject(new_target_function->AsJSFunction(), zone(),
-                           broker()),
-                AllocationType::kYoung);
-          } else {
-            object = BuildCallBuiltin<Builtin::kFastNewObject>(
-                {GetConstant(current_function), new_target});
-          }
-          StoreRegister(register_pair.first, GetBooleanConstant(true));
-          StoreRegister(register_pair.second, object);
-          return;
+    if (broker()->dependencies()->DependOnArrayIteratorProtector()) {
+      while (true) {
+        if (!current.IsJSFunction()) break;
+        compiler::JSFunctionRef current_function = current.AsJSFunction();
+        if (current_function.shared(broker())
+                .requires_instance_members_initializer()) {
+          break;
         }
-        break;
-      }
+        if (current_function.context(broker())
+                .scope_info(broker())
+                .ClassScopeHasPrivateBrand()) {
+          break;
+        }
+        FunctionKind kind = current_function.shared(broker()).kind();
+        if (kind != FunctionKind::kDefaultDerivedConstructor) {
+          broker()->dependencies()->DependOnStablePrototypeChain(
+              function_map, WhereToStart::kStartAtReceiver, current_function);
 
-      // Keep walking up the class tree.
-      current = current_function.map(broker()).prototype(broker());
+          compiler::OptionalHeapObjectRef new_target_function =
+              TryGetConstant(new_target);
+          if (kind == FunctionKind::kDefaultBaseConstructor) {
+            ValueNode* object;
+            if (new_target_function && new_target_function->IsJSFunction()) {
+              object = BuildAllocateFastObject(
+                  FastObject(new_target_function->AsJSFunction(), zone(),
+                             broker()),
+                  AllocationType::kYoung);
+            } else {
+              object = BuildCallBuiltin<Builtin::kFastNewObject>(
+                  {GetConstant(current_function), new_target});
+            }
+            StoreRegister(register_pair.first, GetBooleanConstant(true));
+            StoreRegister(register_pair.second, object);
+            return;
+          }
+          break;
+        }
+
+        // Keep walking up the class tree.
+        current = current_function.map(broker()).prototype(broker());
+      }
     }
     StoreRegister(register_pair.first, GetBooleanConstant(false));
     StoreRegister(register_pair.second, GetConstant(current));
