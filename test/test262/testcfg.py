@@ -260,3 +260,6 @@ class TestCase(testcase.D8TestCase):
     if self.expected_outcomes == outproc.OUTCOMES_PASS:
       return test262.PASS_NO_EXCEPTION
     return test262.NoExceptionOutProc(self.expected_outcomes)
+
+  def skip_rdb(self, result):
+    return not result.has_unexpected_output

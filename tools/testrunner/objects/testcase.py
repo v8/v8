@@ -314,6 +314,13 @@ class TestCase(object):
   def only_standard_variant(self):
     return statusfile.NO_VARIANTS in self._statusfile_outcomes
 
+  @property
+  def shell(self):
+    return self.get_shell()
+
+  def skip_rdb(self, result):
+    return False
+
   def get_command(self, ctx):
     params = self._get_cmd_params()
     env = self._get_cmd_env()

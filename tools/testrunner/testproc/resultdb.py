@@ -30,6 +30,8 @@ class ResultDBIndicator(ProgressIndicator):
     # We need to recalculate the observed (but lost) test behaviour.
     # `result.has_unexpected_output` indicates that the run behaviour of the
     # test matches the expected behaviour irrespective of passing or failing.
+    if test.skip_rdb(result):
+      return
     result_expected = not result.has_unexpected_output
     test_should_pass = not test.is_fail
     run_passed = (result_expected == test_should_pass)
@@ -62,15 +64,8 @@ class ResultDBIndicator(ProgressIndicator):
 
     rdb_result.update(tags=extract_tags(record))
 
-    if not self.filter_result(rdb_result):
-      self.rpc.send(rdb_result)
+    self.rpc.send(rdb_result)
 
-  def filter_result(self, result):
-    """
-    Filter out expected results from test262.
-    TODO(liviurau): refactor class to be easier to test and add unittests.
-    """
-    return result['testId'].startswith('//test262/') and result['expected']
 
 def write_artifact(value):
   with tempfile.NamedTemporaryFile(mode='w', delete=False) as tmp:
