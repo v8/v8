@@ -118,21 +118,10 @@ uint8_t* TestingModuleBuilder::AddMemory(uint32_t size, SharedFlag shared,
   uint32_t maximum_pages = initial_pages;
   test_module_->memories.resize(1);
   WasmMemory* memory = &test_module_->memories[0];
+  memory->initial_pages = initial_pages;
+  memory->maximum_pages = maximum_pages;
   memory->is_memory64 = mem_type == kMemory64;
-  memory->min_memory_size = initial_pages * kWasmPageSize;
-  memory->max_memory_size = maximum_pages * kWasmPageSize;
-
-  if (mem_type == kMemory64) {
-    // TODO(13918): Store bounds checking strategy per memory.
-    native_module_->SetBoundsChecksForTesting(
-        BoundsCheckStrategy::kExplicitBoundsChecks);
-  }
-
-  if (mem_type == kMemory64) {
-    // TODO(13918): Store bounds checking strategy per memory.
-    native_module_->SetBoundsChecksForTesting(
-        BoundsCheckStrategy::kExplicitBoundsChecks);
-  }
+  UpdateComputedInformation(memory);
 
   // Create the WasmMemoryObject.
   Handle<WasmMemoryObject> memory_object =
@@ -358,8 +347,8 @@ uint32_t TestingModuleBuilder::AddPassiveDataSegment(
 }
 
 CompilationEnv TestingModuleBuilder::CreateCompilationEnv() {
-  return {test_module_.get(), native_module_->bounds_checks(),
-          runtime_exception_support_, enabled_features_, kNoDynamicTiering};
+  return {test_module_.get(), runtime_exception_support_, enabled_features_,
+          kNoDynamicTiering};
 }
 
 const WasmGlobal* TestingModuleBuilder::AddGlobal(ValueType type) {

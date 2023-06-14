@@ -951,16 +951,7 @@ class ModuleDecoderImpl : public Decoder {
 
   void UpdateComputedMemoryInformation() {
     for (WasmMemory& memory : module_->memories) {
-      // Set min and max memory size.
-      const uintptr_t platform_max_pages = memory.is_memory64
-                                               ? kV8MaxWasmMemory64Pages
-                                               : kV8MaxWasmMemory32Pages;
-      memory.min_memory_size =
-          std::min(platform_max_pages, uintptr_t{memory.initial_pages}) *
-          kWasmPageSize;
-      memory.max_memory_size =
-          std::min(platform_max_pages, uintptr_t{memory.maximum_pages}) *
-          kWasmPageSize;
+      UpdateComputedInformation(&memory);
     }
   }
 

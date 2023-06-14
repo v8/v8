@@ -352,9 +352,9 @@ class WasmGraphBuilder {
   Node* CurrentMemoryPages();
   void TraceMemoryOperation(bool is_store, MachineRepresentation, Node* index,
                             uintptr_t offset, wasm::WasmCodePosition);
-  Node* LoadMem(wasm::ValueType type, MachineType memtype, Node* index,
-                uintptr_t offset, uint32_t alignment,
-                wasm::WasmCodePosition position);
+  Node* LoadMem(const wasm::WasmMemory* memory, wasm::ValueType type,
+                MachineType memtype, Node* index, uintptr_t offset,
+                uint32_t alignment, wasm::WasmCodePosition position);
 #if defined(V8_TARGET_BIG_ENDIAN) || defined(V8_TARGET_ARCH_S390_LE_SIM)
   Node* LoadTransformBigEndian(wasm::ValueType type, MachineType memtype,
                                wasm::LoadTransformationKind transform,
@@ -362,19 +362,22 @@ class WasmGraphBuilder {
                                uint32_t alignment,
                                wasm::WasmCodePosition position);
 #endif
-  Node* LoadTransform(wasm::ValueType type, MachineType memtype,
+  Node* LoadTransform(const wasm::WasmMemory* memory, wasm::ValueType type,
+                      MachineType memtype,
                       wasm::LoadTransformationKind transform, Node* index,
                       uintptr_t offset, uint32_t alignment,
                       wasm::WasmCodePosition position);
-  Node* LoadLane(wasm::ValueType type, MachineType memtype, Node* value,
-                 Node* index, uintptr_t offset, uint32_t alignment,
-                 uint8_t laneidx, wasm::WasmCodePosition position);
-  void StoreMem(MachineRepresentation mem_rep, Node* index, uintptr_t offset,
-                uint32_t alignment, Node* val, wasm::WasmCodePosition position,
-                wasm::ValueType type);
-  void StoreLane(MachineRepresentation mem_rep, Node* index, uintptr_t offset,
-                 uint32_t alignment, Node* val, uint8_t laneidx,
-                 wasm::WasmCodePosition position, wasm::ValueType type);
+  Node* LoadLane(const wasm::WasmMemory* memory, wasm::ValueType type,
+                 MachineType memtype, Node* value, Node* index,
+                 uintptr_t offset, uint32_t alignment, uint8_t laneidx,
+                 wasm::WasmCodePosition position);
+  void StoreMem(const wasm::WasmMemory* memory, MachineRepresentation mem_rep,
+                Node* index, uintptr_t offset, uint32_t alignment, Node* val,
+                wasm::WasmCodePosition position, wasm::ValueType type);
+  void StoreLane(const wasm::WasmMemory* memory, MachineRepresentation mem_rep,
+                 Node* index, uintptr_t offset, uint32_t alignment, Node* val,
+                 uint8_t laneidx, wasm::WasmCodePosition position,
+                 wasm::ValueType type);
   static void PrintDebugName(Node* node);
 
   Node* effect();
@@ -424,8 +427,8 @@ class WasmGraphBuilder {
 
   Node* Simd8x16ShuffleOp(const uint8_t shuffle[16], Node* const* inputs);
 
-  Node* AtomicOp(wasm::WasmOpcode opcode, Node* const* inputs,
-                 uint32_t alignment, uintptr_t offset,
+  Node* AtomicOp(const wasm::WasmMemory* memory, wasm::WasmOpcode opcode,
+                 Node* const* inputs, uint32_t alignment, uintptr_t offset,
                  wasm::WasmCodePosition position);
   void AtomicFence();
 
@@ -600,10 +603,6 @@ class WasmGraphBuilder {
 
   bool has_simd() const { return has_simd_; }
 
-  wasm::BoundsCheckStrategy bounds_checks() const {
-    return env_->bounds_checks;
-  }
-
   Node* DefaultValue(wasm::ValueType type);
 
   MachineGraph* mcgraph() { return mcgraph_; }
@@ -635,17 +634,15 @@ class WasmGraphBuilder {
   Node* MemBuffer(uintptr_t offset);
 
   // BoundsCheckMem receives a 32/64-bit index (depending on
-  // {WasmMemory::is_memory64}) and returns a ptrsize index and information
-  // about the kind of bounds check performed (or why none was needed).
-  std::pair<Node*, BoundsCheckResult> BoundsCheckMem(uint8_t access_size,
-                                                     Node* index,
-                                                     uintptr_t offset,
-                                                     wasm::WasmCodePosition,
-                                                     EnforceBoundsCheck);
+  // {memory->is_memory64}) and returns a ptrsize index and information about
+  // the kind of bounds check performed (or why none was needed).
+  std::pair<Node*, BoundsCheckResult> BoundsCheckMem(
+      const wasm::WasmMemory* memory, uint8_t access_size, Node* index,
+      uintptr_t offset, wasm::WasmCodePosition, EnforceBoundsCheck);
 
   std::pair<Node*, BoundsCheckResult> CheckBoundsAndAlignment(
-      int8_t access_size, Node* index, uintptr_t offset, wasm::WasmCodePosition,
-      EnforceBoundsCheck);
+      const wasm::WasmMemory* memory, int8_t access_size, Node* index,
+      uintptr_t offset, wasm::WasmCodePosition, EnforceBoundsCheck);
 
   const Operator* GetSafeLoadOperator(int offset, wasm::ValueType type);
   const Operator* GetSafeStoreOperator(int offset, wasm::ValueType type);

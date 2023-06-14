@@ -1094,16 +1094,19 @@ struct ControlBase : public PcForErrors<ValidationTag::full_validation> {
   F(BrIf, const Value& cond, uint32_t depth)                                   \
   F(BrTable, const BranchTableImmediate& imm, const Value& key)                \
   F(Else, Control* if_block)                                                   \
-  F(LoadMem, LoadType type, const MemoryAccessImmediate& imm,                  \
-    const Value& index, Value* result)                                         \
-  F(LoadTransform, LoadType type, LoadTransformationKind transform,            \
+  F(LoadMem, const WasmMemory* memory, LoadType type,                          \
     const MemoryAccessImmediate& imm, const Value& index, Value* result)       \
-  F(LoadLane, LoadType type, const Value& value, const Value& index,           \
-    const MemoryAccessImmediate& imm, const uint8_t laneidx, Value* result)    \
-  F(StoreMem, StoreType type, const MemoryAccessImmediate& imm,                \
-    const Value& index, const Value& value)                                    \
-  F(StoreLane, StoreType type, const MemoryAccessImmediate& imm,               \
-    const Value& index, const Value& value, const uint8_t laneidx)             \
+  F(LoadTransform, const WasmMemory* memory, LoadType type,                    \
+    LoadTransformationKind transform, const MemoryAccessImmediate& imm,        \
+    const Value& index, Value* result)                                         \
+  F(LoadLane, const WasmMemory* memory, LoadType type, const Value& value,     \
+    const Value& index, const MemoryAccessImmediate& imm,                      \
+    const uint8_t laneidx, Value* result)                                      \
+  F(StoreMem, const WasmMemory* memory, StoreType type,                        \
+    const MemoryAccessImmediate& imm, const Value& index, const Value& value)  \
+  F(StoreLane, const WasmMemory* memory, StoreType type,                       \
+    const MemoryAccessImmediate& imm, const Value& index, const Value& value,  \
+    const uint8_t laneidx)                                                     \
   F(CurrentMemoryPages, Value* result)                                         \
   F(MemoryGrow, const Value& value, Value* result)                             \
   F(CallDirect, const CallFunctionImmediate& imm, const Value args[],          \
@@ -1132,8 +1135,8 @@ struct ControlBase : public PcForErrors<ValidationTag::full_validation> {
     base::Vector<Value> caught_values)                                         \
   F(Delegate, uint32_t depth, Control* block)                                  \
   F(CatchAll, Control* block)                                                  \
-  F(AtomicOp, WasmOpcode opcode, const Value args[], const size_t argc,        \
-    const MemoryAccessImmediate& imm, Value* result)                           \
+  F(AtomicOp, const WasmMemory* memory, WasmOpcode opcode, const Value args[], \
+    const size_t argc, const MemoryAccessImmediate& imm, Value* result)        \
   F(AtomicFence)                                                               \
   F(MemoryInit, const MemoryInitImmediate& imm, const Value& dst,              \
     const Value& src, const Value& size)                                       \
@@ -4076,8 +4079,8 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     Value* result = Push(type.value_type());
     if (V8_LIKELY(
             !CheckStaticallyOutOfBounds(memory, type.size(), imm.offset))) {
-      // TODO(13918): Pass memory index for multi-memory support.
-      CALL_INTERFACE_IF_OK_AND_REACHABLE(LoadMem, type, imm, index, result);
+      CALL_INTERFACE_IF_OK_AND_REACHABLE(LoadMem, memory, type, imm, index,
+                                         result);
     }
     return prefix_len + imm.length;
   }
@@ -4097,9 +4100,8 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     uintptr_t op_size =
         transform == LoadTransformationKind::kExtend ? 8 : type.size();
     if (V8_LIKELY(!CheckStaticallyOutOfBounds(memory, op_size, imm.offset))) {
-      // TODO(13918): Pass memory index for multi-memory support.
-      CALL_INTERFACE_IF_OK_AND_REACHABLE(LoadTransform, type, transform, imm,
-                                         index, result);
+      CALL_INTERFACE_IF_OK_AND_REACHABLE(LoadTransform, memory, type, transform,
+                                         imm, index, result);
     }
     return opcode_length + imm.length;
   }
@@ -4118,9 +4120,8 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     Value* result = Push(kWasmS128);
     if (V8_LIKELY(
             !CheckStaticallyOutOfBounds(memory, type.size(), mem_imm.offset))) {
-      // TODO(13918): Pass memory index for multi-memory support.
-      CALL_INTERFACE_IF_OK_AND_REACHABLE(LoadLane, type, v128, index, mem_imm,
-                                         lane_imm.lane, result);
+      CALL_INTERFACE_IF_OK_AND_REACHABLE(LoadLane, memory, type, v128, index,
+                                         mem_imm, lane_imm.lane, result);
     }
     return opcode_length + mem_imm.length + lane_imm.length;
   }
@@ -4140,8 +4141,8 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     if (V8_LIKELY(
             !CheckStaticallyOutOfBounds(memory, type.size(), mem_imm.offset))) {
       // TODO(13918): Pass memory index for multi-memory support.
-      CALL_INTERFACE_IF_OK_AND_REACHABLE(StoreLane, type, mem_imm, index, v128,
-                                         lane_imm.lane);
+      CALL_INTERFACE_IF_OK_AND_REACHABLE(StoreLane, memory, type, mem_imm,
+                                         index, v128, lane_imm.lane);
     }
     return opcode_length + mem_imm.length + lane_imm.length;
   }
@@ -4166,8 +4167,8 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     auto [index, value] = Pop(index_type, store.value_type());
     if (V8_LIKELY(
             !CheckStaticallyOutOfBounds(memory, store.size(), imm.offset))) {
-      // TODO(13918): Pass memory index for multi-memory support.
-      CALL_INTERFACE_IF_OK_AND_REACHABLE(StoreMem, store, imm, index, value);
+      CALL_INTERFACE_IF_OK_AND_REACHABLE(StoreMem, memory, store, imm, index,
+                                         value);
     }
     return prefix_len + imm.length;
   }
@@ -4182,35 +4183,32 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
   uint32_t SimdExtractLane(WasmOpcode opcode, ValueType type,
                            uint32_t opcode_length) {
     SimdLaneImmediate imm(this, this->pc_ + opcode_length, validate);
-    if (this->Validate(this->pc_ + opcode_length, opcode, imm)) {
-      Value input = Pop(kWasmS128);
-      Value* result = Push(type);
-      CALL_INTERFACE_IF_OK_AND_REACHABLE(SimdLaneOp, opcode, imm,
-                                         base::VectorOf({input}), result);
-    }
+    if (!this->Validate(this->pc_ + opcode_length, opcode, imm)) return 0;
+    Value input = Pop(kWasmS128);
+    Value* result = Push(type);
+    CALL_INTERFACE_IF_OK_AND_REACHABLE(SimdLaneOp, opcode, imm,
+                                       base::VectorOf({input}), result);
     return opcode_length + imm.length;
   }
 
   uint32_t SimdReplaceLane(WasmOpcode opcode, ValueType type,
                            uint32_t opcode_length) {
     SimdLaneImmediate imm(this, this->pc_ + opcode_length, validate);
-    if (this->Validate(this->pc_ + opcode_length, opcode, imm)) {
-      auto [v128, lane_val] = Pop(kWasmS128, type);
-      Value* result = Push(kWasmS128);
-      CALL_INTERFACE_IF_OK_AND_REACHABLE(
-          SimdLaneOp, opcode, imm, base::VectorOf({v128, lane_val}), result);
-    }
+    if (!this->Validate(this->pc_ + opcode_length, opcode, imm)) return 0;
+    auto [v128, lane_val] = Pop(kWasmS128, type);
+    Value* result = Push(kWasmS128);
+    CALL_INTERFACE_IF_OK_AND_REACHABLE(
+        SimdLaneOp, opcode, imm, base::VectorOf({v128, lane_val}), result);
     return opcode_length + imm.length;
   }
 
   uint32_t Simd8x16ShuffleOp(uint32_t opcode_length) {
     Simd128Immediate imm(this, this->pc_ + opcode_length, validate);
-    if (this->Validate(this->pc_ + opcode_length, imm)) {
-      auto [input0, input1] = Pop(kWasmS128, kWasmS128);
-      Value* result = Push(kWasmS128);
-      CALL_INTERFACE_IF_OK_AND_REACHABLE(Simd8x16ShuffleOp, imm, input0, input1,
-                                         result);
-    }
+    if (!this->Validate(this->pc_ + opcode_length, imm)) return 0;
+    auto [input0, input1] = Pop(kWasmS128, kWasmS128);
+    Value* result = Push(kWasmS128);
+    CALL_INTERFACE_IF_OK_AND_REACHABLE(Simd8x16ShuffleOp, imm, input0, input1,
+                                       result);
     return opcode_length + 16;
   }
 
@@ -6019,7 +6017,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     Value* result = sig->return_count() ? Push(sig->GetReturn()) : nullptr;
     if (V8_LIKELY(!CheckStaticallyOutOfBounds(memory, memtype.MemSize(),
                                               imm.offset))) {
-      CALL_INTERFACE_IF_OK_AND_REACHABLE(AtomicOp, opcode, args.data(),
+      CALL_INTERFACE_IF_OK_AND_REACHABLE(AtomicOp, memory, opcode, args.data(),
                                          sig->parameter_count(), imm, result);
     }
 

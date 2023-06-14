@@ -2129,9 +2129,8 @@ static void TestBuildGraphForSimpleExpression(WasmOpcode opcode) {
   const FunctionSig* sig = WasmOpcodes::Signature(opcode);
   WasmModule module;
   WasmFeatures enabled;
-  CompilationEnv env(&module, BoundsCheckStrategy::kExplicitBoundsChecks,
-                     RuntimeExceptionSupport::kRuntimeExceptionSupport, enabled,
-                     DynamicTiering::kDynamicTiering);
+  CompilationEnv env(&module, RuntimeExceptionSupport::kRuntimeExceptionSupport,
+                     enabled, DynamicTiering::kDynamicTiering);
 
   if (sig->parameter_count() == 1) {
     uint8_t code[] = {WASM_NO_LOCALS, kExprLocalGet, 0,

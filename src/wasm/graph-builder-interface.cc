@@ -672,45 +672,48 @@ class WasmGraphBuildingInterface {
     SetEnv(if_block->false_env);
   }
 
-  void LoadMem(FullDecoder* decoder, LoadType type,
+  void LoadMem(FullDecoder* decoder, const WasmMemory* memory, LoadType type,
                const MemoryAccessImmediate& imm, const Value& index,
                Value* result) {
-    SetAndTypeNode(result, builder_->LoadMem(
-                               type.value_type(), type.mem_type(), index.node,
-                               imm.offset, imm.alignment, decoder->position()));
+    SetAndTypeNode(result,
+                   builder_->LoadMem(memory, type.value_type(), type.mem_type(),
+                                     index.node, imm.offset, imm.alignment,
+                                     decoder->position()));
   }
 
-  void LoadTransform(FullDecoder* decoder, LoadType type,
-                     LoadTransformationKind transform,
+  void LoadTransform(FullDecoder* decoder, const WasmMemory* memory,
+                     LoadType type, LoadTransformationKind transform,
                      const MemoryAccessImmediate& imm, const Value& index,
                      Value* result) {
-    SetAndTypeNode(result,
-                   builder_->LoadTransform(type.value_type(), type.mem_type(),
-                                           transform, index.node, imm.offset,
-                                           imm.alignment, decoder->position()));
+    SetAndTypeNode(result, builder_->LoadTransform(
+                               memory, type.value_type(), type.mem_type(),
+                               transform, index.node, imm.offset, imm.alignment,
+                               decoder->position()));
   }
 
-  void LoadLane(FullDecoder* decoder, LoadType type, const Value& value,
-                const Value& index, const MemoryAccessImmediate& imm,
-                const uint8_t laneidx, Value* result) {
-    SetAndTypeNode(
-        result, builder_->LoadLane(
-                    type.value_type(), type.mem_type(), value.node, index.node,
-                    imm.offset, imm.alignment, laneidx, decoder->position()));
+  void LoadLane(FullDecoder* decoder, const WasmMemory* memory, LoadType type,
+                const Value& value, const Value& index,
+                const MemoryAccessImmediate& imm, const uint8_t laneidx,
+                Value* result) {
+    SetAndTypeNode(result, builder_->LoadLane(
+                               memory, type.value_type(), type.mem_type(),
+                               value.node, index.node, imm.offset,
+                               imm.alignment, laneidx, decoder->position()));
   }
 
-  void StoreMem(FullDecoder* decoder, StoreType type,
+  void StoreMem(FullDecoder* decoder, const WasmMemory* memory, StoreType type,
                 const MemoryAccessImmediate& imm, const Value& index,
                 const Value& value) {
-    builder_->StoreMem(type.mem_rep(), index.node, imm.offset, imm.alignment,
-                       value.node, decoder->position(), type.value_type());
+    builder_->StoreMem(memory, type.mem_rep(), index.node, imm.offset,
+                       imm.alignment, value.node, decoder->position(),
+                       type.value_type());
   }
 
-  void StoreLane(FullDecoder* decoder, StoreType type,
+  void StoreLane(FullDecoder* decoder, const WasmMemory* memory, StoreType type,
                  const MemoryAccessImmediate& imm, const Value& index,
                  const Value& value, const uint8_t laneidx) {
-    builder_->StoreLane(type.mem_rep(), index.node, imm.offset, imm.alignment,
-                        value.node, laneidx, decoder->position(),
+    builder_->StoreLane(memory, type.mem_rep(), index.node, imm.offset,
+                        imm.alignment, value.node, laneidx, decoder->position(),
                         type.value_type());
   }
 
@@ -1173,13 +1176,14 @@ class WasmGraphBuildingInterface {
     SetEnv(block->try_info->catch_env);
   }
 
-  void AtomicOp(FullDecoder* decoder, WasmOpcode opcode, const Value args[],
-                const size_t argc, const MemoryAccessImmediate& imm,
-                Value* result) {
+  void AtomicOp(FullDecoder* decoder, const WasmMemory* memory,
+                WasmOpcode opcode, const Value args[], const size_t argc,
+                const MemoryAccessImmediate& imm, Value* result) {
     NodeVector inputs(argc);
     GetNodes(inputs.begin(), args, argc);
-    TFNode* node = builder_->AtomicOp(opcode, inputs.begin(), imm.alignment,
-                                      imm.offset, decoder->position());
+    TFNode* node =
+        builder_->AtomicOp(memory, opcode, inputs.begin(), imm.alignment,
+                           imm.offset, decoder->position());
     if (result) SetAndTypeNode(result, node);
   }
 

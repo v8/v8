@@ -803,20 +803,6 @@ size_t WasmCodeAllocator::GetNumCodeSpaces() const {
   return owned_code_space_.size();
 }
 
-namespace {
-BoundsCheckStrategy GetBoundsChecks(const WasmModule* module) {
-  if (!v8_flags.wasm_bounds_checks) return kNoBoundsChecks;
-  if (v8_flags.wasm_enforce_bounds_checks) return kExplicitBoundsChecks;
-  // We do not have trap handler support for memory64 yet.
-  // TODO(13918): Store bounds check strategy per memory.
-  for (const WasmMemory& memory : module->memories) {
-    if (memory.is_memory64) return kExplicitBoundsChecks;
-  }
-  if (trap_handler::IsTrapHandlerEnabled()) return kTrapHandler;
-  return kExplicitBoundsChecks;
-}
-}  // namespace
-
 NativeModule::NativeModule(const WasmFeatures& enabled,
                            DynamicTiering dynamic_tiering,
                            VirtualMemory code_space,
@@ -829,8 +815,7 @@ NativeModule::NativeModule(const WasmFeatures& enabled,
       enabled_features_(enabled),
       module_(std::move(module)),
       import_wrapper_cache_(std::unique_ptr<WasmImportWrapperCache>(
-          new WasmImportWrapperCache())),
-      bounds_checks_(GetBoundsChecks(module_.get())) {
+          new WasmImportWrapperCache())) {
   DCHECK(engine_scope_);
   // We receive a pointer to an empty {std::shared_ptr}, and install ourselve
   // there.
@@ -904,7 +889,7 @@ void NativeModule::LogWasmCodes(Isolate* isolate, Script script) {
 }
 
 CompilationEnv NativeModule::CreateCompilationEnv() const {
-  return {module(), bounds_checks_, kRuntimeExceptionSupport, enabled_features_,
+  return {module(), kRuntimeExceptionSupport, enabled_features_,
           compilation_state()->dynamic_tiering()};
 }
 

@@ -724,17 +724,12 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // being used.
   CompilationEnv CreateCompilationEnv() const;
 
-  void SetBoundsChecksForTesting(BoundsCheckStrategy bounds_checks) {
-    bounds_checks_ = bounds_checks;
-  }
-
   uint32_t num_functions() const {
     return module_->num_declared_functions + module_->num_imported_functions;
   }
   uint32_t num_imported_functions() const {
     return module_->num_imported_functions;
   }
-  BoundsCheckStrategy bounds_checks() const { return bounds_checks_; }
   void set_lazy_compile_frozen(bool frozen) { lazy_compile_frozen_ = frozen; }
   bool lazy_compile_frozen() const { return lazy_compile_frozen_; }
   base::Vector<const uint8_t> wire_bytes() const {
@@ -1028,9 +1023,6 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // End of fields protected by {allocation_mutex_}.
   //////////////////////////////////////////////////////////////////////////////
 
-  // TODO(13918): Remove the {bounds_checks_} field; store bounds checking
-  // strategy per memory.
-  BoundsCheckStrategy bounds_checks_;
   bool lazy_compile_frozen_ = false;
   std::atomic<size_t> liftoff_bailout_count_{0};
   std::atomic<size_t> liftoff_code_size_{0};

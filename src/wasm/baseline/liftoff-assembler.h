@@ -243,6 +243,8 @@ class LiftoffAssembler : public MacroAssembler {
     uint32_t register_use_count[kAfterMaxLiftoffRegCode] = {0};
     LiftoffRegList last_spilled_regs;
     Register cached_instance = no_reg;
+    // TODO(13918): Consider caching the hottest / LRU memory instead of always
+    // memory 0.
     Register cached_mem0_start = no_reg;
 #if DEBUG
     uint32_t frozen = 0;

@@ -18,6 +18,7 @@
 #include "src/codegen/signature.h"
 #include "src/common/globals.h"
 #include "src/handles/handles.h"
+#include "src/trap-handler/trap-handler.h"
 #include "src/wasm/branch-hint-map.h"
 #include "src/wasm/constant-expression.h"
 #include "src/wasm/struct-types.h"
@@ -100,18 +101,53 @@ struct WasmTag {
   uint32_t sig_index;
 };
 
+enum BoundsCheckStrategy : int8_t {
+  // Emit protected instructions, use the trap handler for OOB detection.
+  kTrapHandler,
+  // Emit explicit bounds checks.
+  kExplicitBoundsChecks,
+  // Emit no bounds checks at all (for testing only).
+  kNoBoundsChecks
+};
+
 // Static representation of a wasm memory.
 struct WasmMemory {
   uint32_t initial_pages = 0;      // initial size of the memory in 64k pages
   uint32_t maximum_pages = 0;      // maximum size of the memory in 64k pages
-  uintptr_t min_memory_size = 0;   // smallest size of any memory in bytes
-  uintptr_t max_memory_size = 0;   // largest size of any memory in bytes
   bool is_shared = false;          // true if memory is a SharedArrayBuffer
   bool has_maximum_pages = false;  // true if there is a maximum memory size
   bool is_memory64 = false;        // true if the memory is 64 bit
   bool imported = false;           // true if the memory is imported
   bool exported = false;           // true if the memory is exported
+  // Computed information, cached here for faster compilation.
+  // Updated via {UpdateComputedInformation}.
+  uintptr_t min_memory_size = 0;  // smallest size of any memory in bytes
+  uintptr_t max_memory_size = 0;  // largest size of any memory in bytes
+  BoundsCheckStrategy bounds_checks = kExplicitBoundsChecks;
 };
+
+inline void UpdateComputedInformation(WasmMemory* memory) {
+  const uintptr_t platform_max_pages =
+      memory->is_memory64 ? kV8MaxWasmMemory64Pages : kV8MaxWasmMemory32Pages;
+  memory->min_memory_size =
+      std::min(platform_max_pages, uintptr_t{memory->initial_pages}) *
+      kWasmPageSize;
+  memory->max_memory_size =
+      std::min(platform_max_pages, uintptr_t{memory->maximum_pages}) *
+      kWasmPageSize;
+
+  if (!v8_flags.wasm_bounds_checks) {
+    memory->bounds_checks = kNoBoundsChecks;
+  } else if (v8_flags.wasm_enforce_bounds_checks) {
+    memory->bounds_checks = kExplicitBoundsChecks;
+  } else if (memory->is_memory64) {
+    memory->bounds_checks = kExplicitBoundsChecks;
+  } else if (trap_handler::IsTrapHandlerEnabled()) {
+    memory->bounds_checks = kTrapHandler;
+  } else {
+    memory->bounds_checks = kExplicitBoundsChecks;
+  }
+}
 
 // Static representation of a wasm literal stringref.
 struct WasmStringRefLiteral {
