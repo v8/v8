@@ -165,6 +165,13 @@ WasmGraphBuilder::~WasmGraphBuilder() = default;
 bool WasmGraphBuilder::TryWasmInlining(int fct_index,
                                        wasm::NativeModule* native_module,
                                        int inlining_id) {
+#define TRACE(x)                         \
+  do {                                   \
+    if (v8_flags.trace_turbo_inlining) { \
+      StdoutStream() << x << "\n";       \
+    }                                    \
+  } while (false)
+
   DCHECK(v8_flags.experimental_wasm_js_inlining);
   DCHECK(native_module->enabled_features().has_gc());
   DCHECK(native_module->HasWireBytes());
@@ -173,10 +180,12 @@ bool WasmGraphBuilder::TryWasmInlining(int fct_index,
   // TODO(mliedtke): What would be a proper maximum size?
   const uint32_t kMaxWasmInlineeSize = 30;
   if (inlinee.code.length() > kMaxWasmInlineeSize) {
+    TRACE("- not inlining: function body is larger than max inlinee size ("
+          << inlinee.code.length() << " > " << kMaxWasmInlineeSize << ")");
     return false;
   }
   if (inlinee.imported) {
-    // Inlining of imported functions is not supported.
+    TRACE("- not inlining: function is imported");
     return false;
   }
   base::Vector<const uint8_t> bytes(native_module->wire_bytes().SubVector(
@@ -193,13 +202,20 @@ bool WasmGraphBuilder::TryWasmInlining(int fct_index,
       // Since this situation is highly unlikely though, we just ignore this
       // inlinee and move on. The same validation error will be triggered
       // again when actually compiling the invalid function.
+      TRACE("- not inlining: function body is invalid");
       return false;
     }
     module->set_function_validated(fct_index);
   }
-  return WasmIntoJSInliner::TryInlining(graph()->zone(), module, mcgraph_,
-                                        inlinee_body, bytes,
-                                        source_position_table_, inlining_id);
+  bool result = WasmIntoJSInliner::TryInlining(
+      graph()->zone(), module, mcgraph_, inlinee_body, bytes,
+      source_position_table_, inlining_id);
+  TRACE((
+      result
+          ? "- inlining"
+          : "- not inlining: function body contains unsupported instructions"));
+  return result;
+#undef TRACE
 }
 
 void WasmGraphBuilder::Start(unsigned params) {

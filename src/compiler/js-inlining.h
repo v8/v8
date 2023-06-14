@@ -90,6 +90,12 @@ class JSInliner final : public AdvancedReducer {
                        const NodeVector& uncaught_subcalls, int argument_count);
 
 #if V8_ENABLE_WEBASSEMBLY
+  struct WasmInlineResult {
+    bool can_inline_body = false;
+    Node* body_start = nullptr;
+    Node* body_end = nullptr;
+  };
+  WasmInlineResult TryWasmInlining(const JSWasmCallNode& call_node);
   Reduction InlineJSWasmCall(Node* call, Node* new_target, Node* context,
                              Node* frame_state, StartNode start, Node* end,
                              Node* exception_target,
