@@ -1414,7 +1414,11 @@ void Shell::DoHostImportModuleDynamically(void* import_data) {
                               module_type)
                   .ToLocal(&root_module)) {
     CHECK(try_catch.HasCaught());
-    resolver->Reject(realm, try_catch.Exception()).ToChecked();
+    if (isolate->IsExecutionTerminating()) {
+      Shell::ReportException(isolate, &try_catch);
+    } else {
+      resolver->Reject(realm, try_catch.Exception()).ToChecked();
+    }
     return;
   }
 
