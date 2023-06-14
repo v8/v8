@@ -3108,6 +3108,10 @@ void Builtins::Generate_WasmOnStackReplace(MacroAssembler* masm) {
   // Only needed on x64.
   __ Trap();
 }
+
+void Builtins::Generate_NewGenericJSToWasmWrapper(MacroAssembler* masm) {
+  __ Trap();
+}
 namespace {
 
 // Calls an API function. Allocates HandleScope, extracts returned value
