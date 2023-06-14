@@ -5353,7 +5353,7 @@ class LiftoffCompiler {
         AtomicNotify(decoder, imm);
         break;
       default:
-        unsupported(decoder, kAtomics, "atomicop");
+        UNREACHABLE();
     }
   }
 
