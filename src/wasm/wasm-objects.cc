@@ -708,30 +708,30 @@ void WasmIndirectFunctionTable::Resize(Isolate* isolate,
 
 namespace {
 
-void SetInstanceMemory(Handle<WasmInstanceObject> instance,
-                       Handle<JSArrayBuffer> buffer) {
+void SetInstanceMemory(WasmInstanceObject instance, JSArrayBuffer buffer) {
+  DisallowHeapAllocation no_gc;
   // TODO(13918): Support multiple memories.
   int memory_index = 0;
-  const wasm::WasmMemory& memory = instance->module()->memories[memory_index];
+  const wasm::WasmMemory& memory = instance.module()->memories[memory_index];
 
-  bool is_wasm_module = instance->module()->origin == wasm::kWasmOrigin;
+  bool is_wasm_module = instance.module()->origin == wasm::kWasmOrigin;
   bool use_trap_handler = memory.bounds_checks == wasm::kTrapHandler;
   CHECK_IMPLIES(use_trap_handler, is_wasm_module);
   // Wasm modules compiled to use the trap handler don't have bounds checks,
   // so they must have a memory that has guard regions.
   CHECK_IMPLIES(use_trap_handler,
-                buffer->GetBackingStore()->has_guard_regions());
+                buffer.GetBackingStore()->has_guard_regions());
 
-  instance->SetRawMemory(memory_index,
-                         reinterpret_cast<uint8_t*>(buffer->backing_store()),
-                         buffer->byte_length());
+  instance.SetRawMemory(memory_index,
+                        reinterpret_cast<uint8_t*>(buffer.backing_store()),
+                        buffer.byte_length());
 #if DEBUG
   if (!v8_flags.mock_arraybuffer_allocator) {
     // To flush out bugs earlier, in DEBUG mode, check that all pages of the
     // memory are accessible by reading and writing one byte on each page.
     // Don't do this if the mock ArrayBuffer allocator is enabled.
-    uint8_t* mem_start = instance->memory0_start();
-    size_t mem_size = instance->memory0_size();
+    uint8_t* mem_start = instance.memory0_start();
+    size_t mem_size = instance.memory0_size();
     for (size_t offset = 0; offset < mem_size; offset += wasm::kWasmPageSize) {
       uint8_t val = mem_start[offset];
       USE(val);
@@ -740,6 +740,7 @@ void SetInstanceMemory(Handle<WasmInstanceObject> instance,
   }
 #endif
 }
+
 }  // namespace
 
 Handle<WasmMemoryObject> WasmMemoryObject::New(Isolate* isolate,
@@ -825,38 +826,35 @@ MaybeHandle<WasmMemoryObject> WasmMemoryObject::New(
   return New(isolate, buffer, maximum);
 }
 
-void WasmMemoryObject::AddInstance(Isolate* isolate,
-                                   Handle<WasmMemoryObject> memory,
-                                   Handle<WasmInstanceObject> instance) {
+void WasmMemoryObject::UseInInstance(Isolate* isolate,
+                                     Handle<WasmMemoryObject> memory,
+                                     Handle<WasmInstanceObject> instance) {
+  SetInstanceMemory(*instance, memory->array_buffer());
   Handle<WeakArrayList> old_instances =
       memory->has_instances()
           ? Handle<WeakArrayList>(memory->instances(), isolate)
-          : handle(ReadOnlyRoots(isolate->heap()).empty_weak_array_list(),
-                   isolate);
+          : isolate->factory()->empty_weak_array_list();
   Handle<WeakArrayList> new_instances = WeakArrayList::Append(
       isolate, old_instances, MaybeObjectHandle::Weak(instance));
   memory->set_instances(*new_instances);
-  Handle<JSArrayBuffer> buffer(memory->array_buffer(), isolate);
-  SetInstanceMemory(instance, buffer);
 }
 
-void WasmMemoryObject::update_instances(Isolate* isolate,
-                                        Handle<JSArrayBuffer> buffer) {
+void WasmMemoryObject::SetNewBuffer(JSArrayBuffer new_buffer) {
+  DisallowGarbageCollection no_gc;
+  set_array_buffer(new_buffer);
   if (has_instances()) {
-    Handle<WeakArrayList> instances(this->instances(), isolate);
-    for (int i = 0; i < instances->length(); i++) {
-      MaybeObject elem = instances->Get(i);
-      HeapObject heap_object;
-      if (elem->GetHeapObjectIfWeak(&heap_object)) {
-        Handle<WasmInstanceObject> instance(
-            WasmInstanceObject::cast(heap_object), isolate);
-        SetInstanceMemory(instance, buffer);
-      } else {
-        DCHECK(elem->IsCleared());
-      }
+    WeakArrayList instances = this->instances();
+    for (int i = 0, len = instances.length(); i < len; ++i) {
+      MaybeObject elem = instances.Get(i);
+      if (elem->IsCleared()) continue;
+      WasmInstanceObject instance =
+          WasmInstanceObject::cast(elem->GetHeapObjectAssumeWeak());
+      // TODO(13918): Avoid the iteration if we ever see larger numbers of
+      // memories.
+      DCHECK_EQ(instance.memory_object(), *this);
+      SetInstanceMemory(instance, new_buffer);
     }
   }
-  set_array_buffer(*buffer);
 }
 
 // static
@@ -924,7 +922,7 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
     JSArrayBuffer::Detach(old_buffer, true).Check();
     Handle<JSArrayBuffer> new_buffer =
         isolate->factory()->NewJSArrayBuffer(std::move(backing_store));
-    memory_object->update_instances(isolate, new_buffer);
+    memory_object->SetNewBuffer(*new_buffer);
     // For debugging purposes we memorize a link from the JSArrayBuffer
     // to it's owning WasmMemoryObject instance.
     Handle<Symbol> symbol =
@@ -964,7 +962,7 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
   JSArrayBuffer::Detach(old_buffer, true).Check();
   Handle<JSArrayBuffer> new_buffer =
       isolate->factory()->NewJSArrayBuffer(std::move(new_backing_store));
-  memory_object->update_instances(isolate, new_buffer);
+  memory_object->SetNewBuffer(*new_buffer);
   // For debugging purposes we memorize a link from the JSArrayBuffer
   // to it's owning WasmMemoryObject instance.
   Handle<Symbol> symbol = isolate->factory()->array_buffer_wasm_memory_symbol();
@@ -1107,12 +1105,11 @@ void WasmInstanceObject::SetRawMemory(int memory_index, uint8_t* mem_start,
                                       size_t mem_size) {
   // TODO(13918): Support multiple memories.
   CHECK_EQ(0, memory_index);
-  // Note that we use this method to initialize the instance fields even if
-  // there is no declared memory.
-  const bool is_memory64 =
-      !module()->memories.empty() && module()->memories[0].is_memory64;
-  CHECK_LE(mem_size,
-           is_memory64 ? wasm::max_mem64_bytes() : wasm::max_mem32_bytes());
+  CHECK_LE(memory_index, module()->memories.size());
+
+  CHECK_LE(mem_size, module()->memories[memory_index].is_memory64
+                         ? wasm::max_mem64_bytes()
+                         : wasm::max_mem32_bytes());
   set_memory0_start(mem_start);
   set_memory0_size(mem_size);
 }
@@ -1201,8 +1198,12 @@ Handle<WasmInstanceObject> WasmInstanceObject::New(
   instance->set_tiering_budget_array(
       module_object->native_module()->tiering_budget_array());
   instance->set_break_on_entry(module_object->script().break_on_entry());
-  instance->SetRawMemory(
-      0, reinterpret_cast<uint8_t*>(EmptyBackingStoreBuffer()), 0);
+  InitDataSegmentArrays(instance, module_object);
+
+  uint8_t* empty_backing_store_buffer =
+      reinterpret_cast<uint8_t*>(EmptyBackingStoreBuffer());
+  instance->set_memory0_start(empty_backing_store_buffer);
+  instance->set_memory0_size(0);
 
   // Insert the new instance into the scripts weak list of instances. This list
   // is used for breakpoints affecting all instances belonging to the script.
@@ -1213,8 +1214,6 @@ Handle<WasmInstanceObject> WasmInstanceObject::New(
         isolate, weak_instance_list, MaybeObjectHandle::Weak(instance));
     module_object->script().set_wasm_weak_instance_list(*weak_instance_list);
   }
-
-  InitDataSegmentArrays(instance, module_object);
 
   return instance;
 }

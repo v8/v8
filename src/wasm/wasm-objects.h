@@ -256,10 +256,12 @@ class WasmMemoryObject
  public:
   DECL_OPTIONAL_ACCESSORS(instances, WeakArrayList)
 
-  // Add an instance to the internal (weak) list.
-  V8_EXPORT_PRIVATE static void AddInstance(Isolate* isolate,
-                                            Handle<WasmMemoryObject> memory,
-                                            Handle<WasmInstanceObject> object);
+  // Add a use of this memory object to the given instance. This updates the
+  // internal weak list of instances that use this memory and also updates the
+  // fields of the instance to reference this memory's buffer.
+  V8_EXPORT_PRIVATE static void UseInInstance(
+      Isolate* isolate, Handle<WasmMemoryObject> memory,
+      Handle<WasmInstanceObject> object);
   inline bool has_maximum_pages();
 
   V8_EXPORT_PRIVATE static Handle<WasmMemoryObject> New(
@@ -271,12 +273,14 @@ class WasmMemoryObject
       SharedFlag shared = SharedFlag::kNotShared,
       WasmMemoryFlag memory_type = WasmMemoryFlag::kWasmMemory32);
 
-  static constexpr int kNoMaximum = -1;
-
-  void update_instances(Isolate* isolate, Handle<JSArrayBuffer> buffer);
+  // Assign a new (grown) buffer to this memory, also updating the shortcut
+  // fields of all instances that use this memory.
+  void SetNewBuffer(JSArrayBuffer new_buffer);
 
   V8_EXPORT_PRIVATE static int32_t Grow(Isolate*, Handle<WasmMemoryObject>,
                                         uint32_t pages);
+
+  static constexpr int kNoMaximum = -1;
 
   TQ_OBJECT_CONSTRUCTORS(WasmMemoryObject)
 };

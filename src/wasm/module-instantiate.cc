@@ -957,7 +957,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
                          wasm::kWasmPageSize);
     Handle<WasmMemoryObject> memory_object =
         WasmMemoryObject::New(isolate_, buffer, maximum_pages);
-    WasmMemoryObject::AddInstance(isolate_, memory_object, instance);
+    WasmMemoryObject::UseInInstance(isolate_, memory_object, instance);
     instance->set_memory_object(*memory_object);
   } else {
     CHECK(memory_buffer_.is_null());
@@ -973,7 +973,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
         DCHECK(isolate_->has_pending_exception() || thrower_->error());
         return {};
       }
-      WasmMemoryObject::AddInstance(isolate_, memory_object_, instance);
+      WasmMemoryObject::UseInInstance(isolate_, memory_object_, instance);
       instance->set_memory_object(*memory_object_);
     }
   }

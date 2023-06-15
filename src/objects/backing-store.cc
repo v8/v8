@@ -942,7 +942,7 @@ void GlobalBackingStoreRegistry::UpdateSharedWasmMemoryObjects(
 
     Handle<JSArrayBuffer> new_buffer =
         isolate->factory()->NewJSSharedArrayBuffer(std::move(backing_store));
-    memory_object->update_instances(isolate, new_buffer);
+    memory_object->SetNewBuffer(*new_buffer);
   }
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
