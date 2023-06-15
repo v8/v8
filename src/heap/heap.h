@@ -1951,7 +1951,7 @@ class Heap final {
   // v8 browsing benchmarks.
   static const int kMaxLoadTimeMs = 7000;
 
-  bool ShouldOptimizeForLoadTime();
+  V8_EXPORT_PRIVATE bool ShouldOptimizeForLoadTime();
 
   size_t old_generation_allocation_limit() const {
     return old_generation_allocation_limit_.load(std::memory_order_relaxed);
