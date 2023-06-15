@@ -16004,6 +16004,25 @@ TEST(internal_reference_linked) {
   CHECK_EQUAL_64(0x1, x0);
 }
 
+TEST(scalar_movi) {
+  INIT_V8();
+  SETUP();
+  START();
+
+  // Make sure that V0 is initialized to a non-zero value.
+  __ Movi(v0.V16B(), 0xFF);
+  // This constant value can't be encoded in a MOVI instruction,
+  // so the program would use a fallback path that must set the
+  // upper 64 bits of the destination vector to 0.
+  __ Movi(v0.V1D(), 0xDECAFC0FFEE);
+  __ Mov(x0, v0.V2D(), 1);
+
+  END();
+  RUN();
+
+  CHECK_EQUAL_64(0, x0);
+}
+
 }  // namespace internal
 }  // namespace v8
 

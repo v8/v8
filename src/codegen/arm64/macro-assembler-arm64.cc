@@ -576,7 +576,7 @@ void MacroAssembler::Movi64bitHelper(const VRegister& vd, uint64_t imm) {
     Register temp = temps.AcquireX();
     Mov(temp, imm);
     if (vd.Is1D()) {
-      mov(vd.D(), 0, temp);
+      fmov(vd.D(), temp);
     } else {
       dup(vd.V2D(), temp);
     }
