@@ -891,9 +891,16 @@ static void AdvanceBytecodeOffsetOrReturn(MacroAssembler* masm,
 }
 
 namespace {
-void ResetBytecodeAge(MacroAssembler* masm, Register bytecode_array) {
-  __ Sh(zero_reg,
-        FieldMemOperand(bytecode_array, BytecodeArray::kBytecodeAgeOffset));
+
+void ResetSharedFunctionInfoAge(MacroAssembler* masm, Register sfi) {
+  __ Sh(zero_reg, FieldMemOperand(sfi, SharedFunctionInfo::kAgeOffset));
+}
+
+void ResetJSFunctionAge(MacroAssembler* masm, Register js_function,
+                        Register scratch) {
+  __ Ld(scratch,
+        FieldMemOperand(js_function, JSFunction::kSharedFunctionInfoOffset));
+  ResetSharedFunctionInfoAge(masm, scratch);
 }
 
 void ResetFeedbackVectorOsrUrgency(MacroAssembler* masm,
@@ -964,6 +971,10 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
         BaselineOutOfLinePrologueDescriptor::kCalleeContext);
     Register callee_js_function = descriptor.GetRegisterParameter(
         BaselineOutOfLinePrologueDescriptor::kClosure);
+    {
+      UseScratchRegisterScope temps(masm);
+      ResetJSFunctionAge(masm, callee_js_function, temps.Acquire());
+    }
     __ Push(callee_context, callee_js_function);
     DCHECK_EQ(callee_js_function, kJavaScriptCallTargetRegister);
     DCHECK_EQ(callee_js_function, kJSFunctionRegister);
@@ -974,7 +985,6 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
     // the frame, so load it into a register.
     Register bytecode_array = descriptor.GetRegisterParameter(
         BaselineOutOfLinePrologueDescriptor::kInterpreterBytecodeArray);
-    ResetBytecodeAge(masm, bytecode_array);
     __ Push(argc, bytecode_array);
 
     // Baseline code frames store the feedback vector where interpreter would
@@ -1087,6 +1097,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(
   // kInterpreterBytecodeArrayRegister.
   __ Ld(kScratchReg,
         FieldMemOperand(closure, JSFunction::kSharedFunctionInfoOffset));
+  ResetSharedFunctionInfoAge(masm, kScratchReg);
   __ Ld(kInterpreterBytecodeArrayRegister,
         FieldMemOperand(kScratchReg, SharedFunctionInfo::kFunctionDataOffset));
   Label is_baseline;
@@ -1147,8 +1158,6 @@ void Builtins::Generate_InterpreterEntryTrampoline(
 #endif  // !V8_JITLESS
   FrameScope frame_scope(masm, StackFrame::MANUAL);
   __ PushStandardFrame(closure);
-
-  ResetBytecodeAge(masm, kInterpreterBytecodeArrayRegister);
 
   // Load initial bytecode offset.
   __ li(kInterpreterBytecodeOffsetRegister,
@@ -3802,6 +3811,11 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
   Register code_obj = s1;
   __ Ld(code_obj,
         FieldMemOperand(closure, JSFunction::kSharedFunctionInfoOffset));
+
+  if (is_osr) {
+    ResetSharedFunctionInfoAge(masm, code_obj);
+  }
+
   __ Ld(code_obj,
         FieldMemOperand(code_obj, SharedFunctionInfo::kFunctionDataOffset));
 
@@ -3901,7 +3915,6 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
     // TODO(liuyu): Remove Ld as arm64 after register reallocation.
     __ Ld(kInterpreterBytecodeArrayRegister,
           MemOperand(fp, InterpreterFrameConstants::kBytecodeArrayFromFp));
-    ResetBytecodeAge(masm, kInterpreterBytecodeArrayRegister);
     Generate_OSREntry(masm, code_obj);
   } else {
     __ Jump(code_obj);
