@@ -57,7 +57,6 @@ load(":bazel/v8-non-pointer-compression.bzl", "v8_binary_non_pointer_compression
 # v8_use_mips_abi_hardfloat
 # v8_enable_gdbjit
 # v8_check_header_includes
-# v8_enable_shared_ro_heap
 # v8_enable_lazy_source_positions
 # v8_enable_third_party_heap
 # v8_third_party_heap_files
@@ -225,6 +224,13 @@ selects.config_setting_group(
 # Pointer cage, true by default if v8_enable_pointer_compression.
 v8_flag(
     name = "v8_enable_pointer_compression_shared_cage",
+    default = True,
+)
+
+# Shared RO heap. Flag has to be set to false when
+# v8_enable_pointer_compression_shared_cage is set to false.
+v8_flag(
+    name = "v8_enable_shared_ro_heap",
     default = True,
 )
 
@@ -413,6 +419,10 @@ v8_config(
             "V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE",
         ],
         "//conditions:default": [],
+    }) + select({
+        ":is_v8_enable_shared_ro_heap": [
+            "V8_SHARED_RO_HEAP",
+        ],
     }) + select({
         ":is_v8_enable_short_builtin_calls": [
             "V8_SHORT_BUILTIN_CALLS",
