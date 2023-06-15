@@ -3681,9 +3681,21 @@ void LiftoffAssembler::CallC(const ValueKindSig* sig,
   if (sig->return_count() > 0) {
     DCHECK_EQ(1, sig->return_count());
     constexpr Register kReturnReg = v0;
+#ifdef USE_SIMULATOR
+    // When call to a host function in simulator, if the function return an
+    // int32 value, the simulator does not sign-extend it to int64 because
+    // in simulator we do not know whether the function returns an int32 or
+    // int64. so we need to sign extend it here.
+    if (sig->GetReturn(0) == kI32) {
+      sll(next_result_reg->gp(), kReturnReg, 0);
+    } else if (kReturnReg != next_result_reg->gp()) {
+      Move(*next_result_reg, LiftoffRegister(kReturnReg), sig->GetReturn(0));
+    }
+#else
     if (kReturnReg != next_result_reg->gp()) {
       Move(*next_result_reg, LiftoffRegister(kReturnReg), sig->GetReturn(0));
     }
+#endif
     ++next_result_reg;
   }
 
