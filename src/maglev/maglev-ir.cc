@@ -2063,7 +2063,6 @@ void EmitPolymorphicAccesses(MaglevAssembler* masm, NodeT* node,
                              Register object, Function&& f, Args&&... args) {
   MaglevAssembler::ScratchRegisterScope temps(masm);
   Register object_map = temps.Acquire();
-
   Label done;
   Label is_number;
 
@@ -2078,7 +2077,9 @@ void EmitPolymorphicAccesses(MaglevAssembler* masm, NodeT* node,
 
     bool has_number_map = false;
     if (HasOnlyStringMaps(base::VectorOf(maps))) {
-      __ CompareInstanceTypeRange(object_map, FIRST_STRING_TYPE,
+      MaglevAssembler::ScratchRegisterScope temps(masm);
+      Register scratch = temps.Acquire();
+      __ CompareInstanceTypeRange(object_map, scratch, FIRST_STRING_TYPE,
                                   LAST_STRING_TYPE);
       __ JumpIf(kUnsignedGreaterThan, &next);
       // Fallthrough... to map_found.
@@ -2126,7 +2127,7 @@ void EmitPolymorphicAccesses(MaglevAssembler* masm, NodeT* node,
 void LoadPolymorphicTaggedField::SetValueLocationConstraints() {
   UseRegister(object_input());
   DefineAsRegister(this);
-  set_temporaries_needed(1);
+  set_temporaries_needed(2);
   set_double_temporaries_needed(1);
 }
 void LoadPolymorphicTaggedField::GenerateCode(MaglevAssembler* masm,
@@ -2454,7 +2455,8 @@ void CheckInstanceType::GenerateCode(MaglevAssembler* masm,
     MaglevAssembler::ScratchRegisterScope temps(masm);
     Register map = temps.Acquire();
     __ LoadMap(map, object);
-    __ CompareInstanceTypeRange(map, first_instance_type_, last_instance_type_);
+    __ CompareInstanceTypeRange(map, map, first_instance_type_,
+                                last_instance_type_);
     __ EmitEagerDeoptIf(kUnsignedGreaterThan,
                         DeoptimizeReason::kWrongInstanceType, this);
   }

@@ -590,11 +590,6 @@ inline void MaglevAssembler::CompareMapWithRoot(Register object,
 }
 
 inline void MaglevAssembler::CompareInstanceTypeRange(
-    Register map, InstanceType lower_limit, InstanceType higher_limit) {
-  CompareInstanceTypeRange(map, kScratchRegister, lower_limit, higher_limit);
-}
-
-inline void MaglevAssembler::CompareInstanceTypeRange(
     Register map, Register instance_type_out, InstanceType lower_limit,
     InstanceType higher_limit) {
   CmpInstanceTypeRange(map, instance_type_out, lower_limit, higher_limit);
