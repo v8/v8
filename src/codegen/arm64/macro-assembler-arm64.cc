@@ -217,9 +217,6 @@ void MacroAssembler::LogicalMacro(const Register& rd, const Register& rn,
 
     // Ignore the top 32 bits of an immediate if we're moving to a W register.
     if (rd.Is32Bits()) {
-      // Check that the top 32 bits are consistent.
-      DCHECK(((immediate >> kWRegSizeInBits) == 0) ||
-             ((immediate >> kWRegSizeInBits) == -1));
       immediate &= kWRegMask;
     }
 

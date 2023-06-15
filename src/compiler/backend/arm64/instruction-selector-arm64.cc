@@ -122,7 +122,7 @@ class Arm64OperandGeneratorT final : public OperandGeneratorT<Adapter> {
       case kLogical32Imm:
         // TODO(dcarney): some unencodable values can be handled by
         // switching instructions.
-        return Assembler::IsImmLogical(static_cast<uint64_t>(value), 32,
+        return Assembler::IsImmLogical(static_cast<uint32_t>(value), 32,
                                        &ignored, &ignored, &ignored);
       case kLogical64Imm:
         return Assembler::IsImmLogical(static_cast<uint64_t>(value), 64,
