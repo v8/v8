@@ -10,6 +10,8 @@
 #include <set>
 #include <vector>
 
+#include "src/maglev/maglev-compilation-unit.h"
+#include "src/maglev/maglev-graph-labeller.h"
 #include "src/maglev/maglev-graph-processor.h"
 #include "src/maglev/maglev-ir.h"
 
@@ -50,6 +52,7 @@ class MaglevPrintingVisitor {
   std::set<BasicBlock*> loop_headers_;
   std::vector<BasicBlock*> targets_;
   NodeIdT max_node_id_ = kInvalidNodeId;
+  MaglevGraphLabeller::Provenance existing_provenance_;
 };
 
 void PrintGraph(std::ostream& os, MaglevCompilationInfo* compilation_info,

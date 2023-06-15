@@ -13,11 +13,16 @@
 #include <vector>
 
 #include "src/base/logging.h"
+#include "src/common/assert-scope.h"
+#include "src/interpreter/bytecode-array-iterator.h"
+#include "src/interpreter/bytecode-decoder.h"
 #include "src/maglev/maglev-basic-block.h"
 #include "src/maglev/maglev-graph-labeller.h"
 #include "src/maglev/maglev-graph-processor.h"
 #include "src/maglev/maglev-graph.h"
 #include "src/maglev/maglev-ir.h"
+#include "src/objects/script-inl.h"
+#include "src/objects/shared-function-info-inl.h"
 #include "src/utils/utils.h"
 
 namespace v8 {
@@ -641,6 +646,75 @@ void MaybePrintLazyDeoptOrExceptionHandler(std::ostream& os,
   }
 }
 
+void MaybePrintProvenance(std::ostream& os, std::vector<BasicBlock*> targets,
+                          MaglevGraphLabeller::Provenance provenance,
+                          MaglevGraphLabeller::Provenance existing_provenance) {
+  DisallowGarbageCollection no_gc;
+
+  // Print function every time the compilation unit changes.
+  bool needs_function_print = provenance.unit != existing_provenance.unit;
+  Script script;
+  Script::PositionInfo position_info;
+  bool has_position_info = false;
+
+  // Print position inside function every time either the position or the
+  // compilation unit changes.
+  if (provenance.position.IsKnown() &&
+      (provenance.position != existing_provenance.position ||
+       provenance.unit != existing_provenance.unit)) {
+    script = Script::cast(
+        provenance.unit->shared_function_info().object()->script());
+    has_position_info =
+        script.GetPositionInfo(provenance.position.ScriptOffset(),
+                               &position_info, Script::OffsetFlag::kNoOffset);
+    needs_function_print = true;
+  }
+
+  // Do the actual function + position print.
+  if (needs_function_print) {
+    if (script.is_null()) {
+      script = Script::cast(
+          provenance.unit->shared_function_info().object()->script());
+    }
+    PrintVerticalArrows(os, targets);
+    if (v8_flags.log_colour) {
+      os << "\033[1;34m";
+    }
+    os << *provenance.unit->shared_function_info().object() << " ("
+       << script.GetNameOrSourceURL();
+    if (has_position_info) {
+      os << ":" << position_info.line << ":" << position_info.column;
+    } else if (provenance.position.IsKnown()) {
+      os << "@" << provenance.position.ScriptOffset();
+    }
+    os << ")\n";
+    if (v8_flags.log_colour) {
+      os << "\033[m";
+    }
+  }
+
+  // Print current bytecode every time the offset or current compilation unit
+  // (i.e. bytecode array) changes.
+  if (!provenance.bytecode_offset.IsNone() &&
+      (provenance.bytecode_offset != existing_provenance.bytecode_offset ||
+       provenance.unit != existing_provenance.unit)) {
+    PrintVerticalArrows(os, targets);
+
+    interpreter::BytecodeArrayIterator iterator(
+        provenance.unit->bytecode().object(),
+        provenance.bytecode_offset.ToInt(), no_gc);
+    if (v8_flags.log_colour) {
+      os << "\033[0;34m";
+    }
+    os << std::setw(4) << iterator.current_offset() << " : ";
+    interpreter::BytecodeDecoder::Decode(os, iterator.current_address(), false);
+    os << "\n";
+    if (v8_flags.log_colour) {
+      os << "\033[m";
+    }
+  }
+}
+
 }  // namespace
 
 ProcessResult MaglevPrintingVisitor::Process(Phi* phi,
@@ -701,6 +775,13 @@ ProcessResult MaglevPrintingVisitor::Process(Phi* phi,
 
 ProcessResult MaglevPrintingVisitor::Process(Node* node,
                                              const ProcessingState& state) {
+  MaglevGraphLabeller::Provenance provenance =
+      graph_labeller_->GetNodeProvenance(node);
+  if (provenance.unit != nullptr) {
+    MaybePrintProvenance(os_, targets_, provenance, existing_provenance_);
+    existing_provenance_ = provenance;
+  }
+
   MaybePrintEagerDeopt(os_, targets_, node, graph_labeller_, max_node_id_);
 
   PrintVerticalArrows(os_, targets_);
@@ -720,6 +801,13 @@ ProcessResult MaglevPrintingVisitor::Process(Node* node,
 
 ProcessResult MaglevPrintingVisitor::Process(ControlNode* control_node,
                                              const ProcessingState& state) {
+  MaglevGraphLabeller::Provenance provenance =
+      graph_labeller_->GetNodeProvenance(control_node);
+  if (provenance.unit != nullptr) {
+    MaybePrintProvenance(os_, targets_, provenance, existing_provenance_);
+    existing_provenance_ = provenance;
+  }
+
   MaybePrintEagerDeopt(os_, targets_, control_node, graph_labeller_,
                        max_node_id_);
 

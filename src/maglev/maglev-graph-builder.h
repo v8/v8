@@ -425,7 +425,9 @@ class MaglevGraphBuilder {
     // Register exception phis.
     if (has_graph_labeller()) {
       for (Phi* phi : *merge_states_[offset]->phis()) {
-        graph_labeller()->RegisterNode(phi);
+        graph_labeller()->RegisterNode(phi, compilation_unit_,
+                                       BytecodeOffset(offset),
+                                       current_source_position_);
         if (v8_flags.trace_maglev_graph_building) {
           std::cout << "  " << phi << "  "
                     << PrintNodeLabel(graph_labeller(), phi) << ": "
@@ -703,7 +705,10 @@ class MaglevGraphBuilder {
 
   void AddInitializedNodeToGraph(Node* node) {
     current_block_->nodes().Add(node);
-    if (has_graph_labeller()) graph_labeller()->RegisterNode(node);
+    if (has_graph_labeller())
+      graph_labeller()->RegisterNode(node, compilation_unit_,
+                                     BytecodeOffset(iterator_.current_offset()),
+                                     current_source_position_);
     if (v8_flags.trace_maglev_graph_building) {
       std::cout << "  " << node << "  "
                 << PrintNodeLabel(graph_labeller(), node) << ": "
@@ -1406,6 +1411,9 @@ class MaglevGraphBuilder {
 
     graph()->Add(block);
     if (has_graph_labeller()) {
+      graph_labeller()->RegisterNode(control_node, compilation_unit_,
+                                     BytecodeOffset(iterator_.current_offset()),
+                                     current_source_position_);
       graph_labeller()->RegisterBasicBlock(block);
       if (v8_flags.trace_maglev_graph_building) {
         bool kSkipTargets = true;
