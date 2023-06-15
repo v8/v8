@@ -5762,34 +5762,6 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayForEach(
   sub_builder.GotoIfFalse<BranchIfInt32Compare>(
       &loop_end, {index_int32, original_length_int32}, Operation::kLessThan);
 
-  // If there are unstable maps, we have to re-check the maps on each iteration,
-  // in case the callback changed them.
-  // TODO(leszeks): We could emit this check _after_ the callback, since we know
-  // that the maps are valid on the first iteration, and then elide it if the
-  // receiver maps are still known to be valid.
-  if (receiver_maps.any_map_is_unstable) {
-    // Make sure to finish the loop if we deopt from the map check.
-    DeoptFrameScope eager_deopt_scope(
-        this, Builtin::kArrayForEachLoopEagerDeoptContinuation, target,
-        base::VectorOf<ValueNode*>(
-            {receiver, callback, this_arg, index_tagged, original_length}));
-
-    // Build the CheckMap manually, since we're doing it with already known
-    // maps rather than feedback, and we don't need to update known node aspects
-    // or types since we're just re-checking existing known info.
-    bool emit_check_with_migration = std::any_of(
-        receiver_maps.possible_maps.begin(), receiver_maps.possible_maps.end(),
-        [](compiler::MapRef map) { return map.is_migration_target(); });
-    if (emit_check_with_migration) {
-      AddNewNode<CheckMapsWithMigration>({receiver},
-                                         receiver_maps.possible_maps,
-                                         CheckType::kOmitHeapObjectCheck);
-    } else {
-      AddNewNode<CheckMaps>({receiver}, receiver_maps.possible_maps,
-                            CheckType::kOmitHeapObjectCheck);
-    }
-  }
-
   // ```
   // next_index = index + 1
   // ```
@@ -5824,6 +5796,11 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayForEach(
     }
   }
 
+  // Remember the receiver map set before the call.
+  bool recheck_maps_after_call = receiver_maps.any_map_is_unstable;
+  compiler::ZoneRefSet<Map> receiver_maps_before_call =
+      receiver_maps.possible_maps;
+
   // ```
   // callback(this_arg, element, array)
   // ```
@@ -5846,6 +5823,7 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayForEach(
         current_speculation_feedback_, compiler::FeedbackSource());
     result = ReduceCall(callback, call_args, feedback_source,
                         SpeculationMode::kAllowSpeculation);
+    current_speculation_feedback_ = feedback_source;
   }
 
   // ```
@@ -5853,6 +5831,53 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayForEach(
   // jump loop_header
   // ```
   DCHECK_IMPLIES(result.IsDoneWithAbort(), current_block_ == nullptr);
+
+  // If any of the receiver's maps were unstable maps, we have to re-check the
+  // maps on each iteration, in case the callback changed them. That said, we
+  // know that the maps are valid on the first iteration, so we can rotate the
+  // check to _after_ the callback, and then elide it if the receiver maps are
+  // still known to be valid (i.e. the known maps after the call are contained
+  // inside the known maps before the call).
+  if (recheck_maps_after_call) {
+    if (current_block_ == nullptr) {
+      // No need to recheck maps if this code is unreachable.
+      recheck_maps_after_call = false;
+    } else {
+      // No need to recheck maps if there are known maps...
+      auto receiver_maps_after_call_it =
+          known_node_aspects().possible_maps.find(receiver);
+      if (receiver_maps_after_call_it !=
+          known_node_aspects().possible_maps.end()) {
+        // ... and those known maps are equal to, or a subset of, the maps
+        // before the call.
+        compiler::ZoneRefSet<Map> receiver_maps_after_call =
+            receiver_maps_after_call_it->second.possible_maps;
+        recheck_maps_after_call =
+            receiver_maps_before_call.contains(receiver_maps_after_call);
+      }
+    }
+  }
+  if (recheck_maps_after_call) {
+    // Make sure to finish the loop if we eager deopt in the map check.
+    DeoptFrameScope eager_deopt_scope(
+        this, Builtin::kArrayForEachLoopEagerDeoptContinuation, target,
+        base::VectorOf<ValueNode*>(
+            {receiver, callback, this_arg, index_tagged, original_length}));
+
+    // Build the CheckMap manually, since we're doing it with already known
+    // maps rather than feedback, and we don't need to update known node
+    // aspects or types since we're at the end of the loop anyway.
+    bool emit_check_with_migration = std::any_of(
+        receiver_maps_before_call.begin(), receiver_maps_before_call.end(),
+        [](compiler::MapRef map) { return map.is_migration_target(); });
+    if (emit_check_with_migration) {
+      AddNewNode<CheckMapsWithMigration>({receiver}, receiver_maps_before_call,
+                                         CheckType::kOmitHeapObjectCheck);
+    } else {
+      AddNewNode<CheckMaps>({receiver}, receiver_maps_before_call,
+                            CheckType::kOmitHeapObjectCheck);
+    }
+  }
 
   if (skip_call.has_value()) {
     sub_builder.Goto(&*skip_call);
