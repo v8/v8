@@ -577,6 +577,7 @@ class ExceptionHandlerTrampolineBuilder {
                    const CompactInterpreterFrameState* register_frame,
                    ParallelMoveResolver<Register, true>* direct_moves,
                    MoveVector* materialising_moves, bool* save_accumulator) {
+    if (!catch_block->has_phi()) return;
     for (Phi* phi : *catch_block->phis()) {
       DCHECK(phi->is_exception_phi());
       if (!phi->has_valid_live_range()) continue;
