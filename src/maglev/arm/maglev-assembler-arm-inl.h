@@ -587,7 +587,7 @@ inline void MaglevAssembler::CompareInt32(Register src1, Register src2) {
 
 inline void MaglevAssembler::CompareFloat64(DoubleRegister src1,
                                             DoubleRegister src2) {
-  vcmp(src1, src2);
+  VFPCompareAndSetFlags(src1, src2);
 }
 
 inline void MaglevAssembler::PrepareCallCFunction(int num_reg_arguments,
@@ -700,7 +700,7 @@ inline void MaglevAssembler::CompareTaggedAndJumpIf(Register r1, Smi value,
 
 inline void MaglevAssembler::CompareDoubleAndJumpIfZeroOrNaN(
     DoubleRegister reg, Label* target, Label::Distance distance) {
-  vcmp(reg, 0.0);
+  VFPCompareAndSetFlags(reg, 0.0);
   JumpIf(eq, target);
   JumpIf(vs, target);  // NaN check
 }
