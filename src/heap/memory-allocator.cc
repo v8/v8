@@ -473,8 +473,12 @@ void MemoryAllocator::UnregisterBasicMemoryChunk(BasicMemoryChunk* chunk,
     UnregisterExecutableMemoryChunk(static_cast<MemoryChunk*>(chunk));
 #endif  // DEBUG
 
-    ThreadIsolation::UnregisterJitPage(
-        chunk->address() + MemoryChunkLayout::ObjectPageOffsetInCodePage());
+    Address executable_page_start =
+        chunk->address() + MemoryChunkLayout::ObjectPageOffsetInCodePage();
+    size_t aligned_area_size =
+        RoundUp(chunk->area_end() - executable_page_start, GetCommitPageSize());
+    ThreadIsolation::UnregisterJitPage(executable_page_start,
+                                       aligned_area_size);
   }
   chunk->SetFlag(MemoryChunk::UNREGISTERED);
 }
@@ -726,6 +730,8 @@ bool MemoryAllocator::SetPermissionsOnExecutableMemoryChunk(VirtualMemory* vm,
 
   bool jitless = isolate_->jitless();
 
+  ThreadIsolation::RegisterJitPage(code_area, aligned_area_size);
+
   if (V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT && !jitless) {
     DCHECK(isolate_->RequiresCodeRange());
     // Commit the header, from start to pre-code guard page.
@@ -759,16 +765,12 @@ bool MemoryAllocator::SetPermissionsOnExecutableMemoryChunk(VirtualMemory* vm,
                              PageAllocator::kNoAccess)) {
         // Commit the executable code body.
         bool set_permission_successed = false;
-#if V8_HEAP_USE_PKU_JIT_WRITE_PROTECT
         if (ThreadIsolation::Enabled()) {
           DCHECK(!jitless);
-          base::AddressRegion region(code_area, aligned_area_size);
           set_permission_successed =
-              ThreadIsolation::RegisterJitPageAndMakeExecutable(
-                  code_area, aligned_area_size);
-        } else
-#endif
-        {
+              ThreadIsolation::MakeExecutable(code_area, aligned_area_size);
+
+        } else {
           set_permission_successed = vm->SetPermissions(
               code_area, aligned_area_size,
               jitless ? PageAllocator::kReadWrite
@@ -790,6 +792,8 @@ bool MemoryAllocator::SetPermissionsOnExecutableMemoryChunk(VirtualMemory* vm,
                                PageAllocator::kNoAccess));
     }
   }
+
+  ThreadIsolation::UnregisterJitPage(code_area, aligned_area_size);
   return false;
 }
 

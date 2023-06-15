@@ -75,7 +75,7 @@ class CodeSpaceWriteScope;
 // memory permissions and perform validation for any writes into it.
 //
 // It keeps metadata about all JIT regions in write-protected memory and will
-// use it validate that the writes are safe from a CFI perspective.
+// use it to validate that the writes are safe from a CFI perspective.
 // Its tasks are:
 // * track JIT pages and allocations and check for validity
 // * check for dangling pointers on the shadow stack (not implemented)
@@ -85,16 +85,24 @@ class V8_EXPORT ThreadIsolation {
   static bool Enabled();
   static void Initialize(ThreadIsolatedAllocator* allocator);
 
-  // Register a new JIT region and make it exectuable. Should only be called if
-  // Enabled() is true.
-  static bool RegisterJitPageAndMakeExecutable(Address address, size_t size);
+  // Register a new JIT region.
+  static void RegisterJitPage(Address address, size_t size);
   // Unregister a JIT region that is about to be unmpapped.
-  static void UnregisterJitPage(Address address);
+  static void UnregisterJitPage(Address address, size_t size);
+  // Make a page executable. Needs to be registered first. Should only be called
+  // if Enabled() is true.
+  V8_NODISCARD static bool MakeExecutable(Address address, size_t size);
 
   // Track individual allocations. The caller needs to hold an rwx write scope.
   static void RegisterInstructionStreamAllocation(Address addr, size_t size);
   static void UnregisterInstructionStreamsInPageExcept(
       MemoryChunk* chunk, const std::vector<Address>& keep);
+  static void RegisterWasmAllocation(Address addr, size_t size);
+  static void UnregisterWasmAllocation(Address addr, size_t size);
+
+  // For testing.
+  static void UnregisterAllocationsInPageExcept(
+      Address page, size_t page_size, const std::vector<Address>& keep);
 
 #if V8_HAS_PKU_JIT_WRITE_PROTECT
   static int pkey() { return trusted_data_.pkey; }
@@ -114,10 +122,9 @@ class V8_EXPORT ThreadIsolation {
   struct StlAllocator {
     typedef T value_type;
 
-    template <class Type>
-    struct rebind {
-      typedef StlAllocator<Type> other;
-    };
+    StlAllocator() = default;
+    template <class U>
+    explicit StlAllocator(const StlAllocator<U>&) noexcept {}
 
     static value_type* allocate(size_t n) {
       return reinterpret_cast<value_type*>(
@@ -143,25 +150,35 @@ class V8_EXPORT ThreadIsolation {
   // will guard it against concurrent access.
   class JitPageReference {
    public:
-    explicit JitPageReference(JitPage* page);
+    JitPageReference(class JitPage* page, Address address);
     JitPageReference(JitPageReference&&) V8_NOEXCEPT = default;
     JitPageReference(const JitPageReference&) = delete;
     JitPageReference& operator=(const JitPageReference&) = delete;
 
+    base::Address Address() const { return address_; }
     size_t Size() const;
-    void RegisterAllocation(Address addr, size_t size);
-    void UnregisterAllocationsExcept(const std::vector<Address>& addr);
+    base::Address End() const { return Address() + Size(); }
+    void RegisterAllocation(base::Address addr, size_t size);
+    void UnregisterAllocation(base::Address addr);
+    void UnregisterAllocationsExcept(base::Address start, size_t size,
+                                     const std::vector<base::Address>& addr);
     bool Empty() const;
+    void Shrink(class JitPage* tail);
+    void Expand(size_t offset);
+    void Merge(JitPageReference& next);
+    class JitPage* JitPage() { return jit_page_; }
 
    private:
     base::MutexGuard page_lock_;
-    JitPage* jit_page_;
+    class JitPage* jit_page_;
+    // We get the address from the key of the map when we do a JitPage lookup.
+    // We can save some memory by storing it as part of the reference instead.
+    base::Address address_;
   };
 
   class JitPage {
    public:
-    explicit JitPage(Address address, size_t size)
-        : address_(address), size_(size) {}
+    explicit JitPage(size_t size) : size_(size) {}
     ~JitPage();
 
    private:
@@ -170,11 +187,9 @@ class V8_EXPORT ThreadIsolation {
                      StlAllocator<std::pair<const Address, JitAllocation>>>
         AllocationMap;
     AllocationMap allocations_;
-    Address address_;
     size_t size_;
 
     friend class JitPageReference;
-    friend void ThreadIsolation::UnregisterJitPage(Address address);
   };
 
  private:
@@ -223,16 +238,27 @@ class V8_EXPORT ThreadIsolation {
   template <typename T>
   static void Delete(T* ptr);
 
-  static Address JitPageAddressFromInstructionStream(Address addr);
+  static void RegisterJitAllocation(Address obj, size_t size);
 
-  static void RegisterJitAllocation(Address page, Address obj, size_t size);
-
-  // The caller needs to hold a lock of the jit_pages_mutex_.
-  static JitPageReference LookupJitPageLocked(Address page);
+  static JitPageReference LookupJitPage(Address addr, size_t size);
+  // The caller needs to hold a lock of the jit_pages_mutex_
+  static JitPageReference LookupJitPageLocked(Address addr, size_t size);
 
   template <class T>
   friend struct StlAllocator;
 };
+
+template <class T>
+bool operator==(const ThreadIsolation::StlAllocator<T>&,
+                const ThreadIsolation::StlAllocator<T>&) {
+  return true;
+}
+
+template <class T>
+bool operator!=(const ThreadIsolation::StlAllocator<T>&,
+                const ThreadIsolation::StlAllocator<T>&) {
+  return false;
+}
 
 // This scope is a wrapper for APRR/MAP_JIT machinery on MacOS on ARM64
 // ("Apple M1"/Apple Silicon) or Intel PKU (aka. memory protection keys)

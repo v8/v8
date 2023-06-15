@@ -767,6 +767,8 @@ void WasmCodeAllocator::FreeCode(base::Vector<WasmCode* const> codes) {
     code_size += code->instructions().size();
     freed_regions.Merge(base::AddressRegion{code->instruction_start(),
                                             code->instructions().size()});
+    ThreadIsolation::UnregisterWasmAllocation(code->instruction_start(),
+                                              code->instructions().size());
   }
   freed_code_size_.fetch_add(code_size);
 
@@ -933,6 +935,8 @@ WasmCode* NativeModule::AddCodeForTesting(Handle<Code> code) {
       code_allocator_.AllocateForCode(this, instructions.size());
   {
     CodeSpaceWriteScope write_scope;
+    ThreadIsolation::RegisterWasmAllocation(
+        reinterpret_cast<Address>(dst_code_bytes.begin()), instructions.size());
     memcpy(dst_code_bytes.begin(), instructions.begin(), instructions.size());
 
     // Apply the relocation delta by iterating over the RelocInfo.
@@ -1087,6 +1091,8 @@ std::unique_ptr<WasmCode> NativeModule::AddCodeWithCodeSpace(
 
   {
     CodeSpaceWriteScope write_scope;
+    ThreadIsolation::RegisterWasmAllocation(
+        reinterpret_cast<Address>(dst_code_bytes.begin()), desc.instr_size);
     memcpy(dst_code_bytes.begin(), desc.buffer,
            static_cast<size_t>(desc.instr_size));
 
@@ -1416,6 +1422,8 @@ WasmCode* NativeModule::CreateEmptyJumpTableInRegionLocked(
                    WasmCode::kJumpTable,  // kind
                    ExecutionTier::kNone,  // tier
                    kNotForDebugging}};    // for_debugging
+  ThreadIsolation::RegisterWasmAllocation(
+      reinterpret_cast<Address>(code_space.begin()), code_space.size());
   return PublishCodeLocked(std::move(code));
 }
 
@@ -1837,8 +1845,12 @@ void WasmCodeManager::Commit(base::AddressRegion region) {
         "Setting rwx permissions and memory protection key for 0x%" PRIxPTR
         ":0x%" PRIxPTR "\n",
         region.begin(), region.end());
-    success = base::MemoryProtectionKey::SetPermissionsAndKey(
-        region, permission, RwxMemoryWriteScope::memory_protection_key());
+    if (ThreadIsolation::Enabled()) {
+      success = ThreadIsolation::MakeExecutable(region.begin(), region.size());
+    } else {
+      success = base::MemoryProtectionKey::SetPermissionsAndKey(
+          region, permission, RwxMemoryWriteScope::memory_protection_key());
+    }
 #else
     UNREACHABLE();
 #endif  // V8_HAS_PKU_JIT_WRITE_PROTECT
@@ -1901,6 +1913,8 @@ VirtualMemory WasmCodeManager::TryAllocate(size_t size, void* hint) {
   if (!mem.IsReserved()) return {};
   TRACE_HEAP("VMem alloc: 0x%" PRIxPTR ":0x%" PRIxPTR " (%zu)\n", mem.address(),
              mem.end(), mem.size());
+
+  ThreadIsolation::RegisterJitPage(mem.address(), mem.size());
 
   // TODO(v8:8462): Remove eager commit once perf supports remapping.
   if (v8_flags.perf_prof) {
@@ -2348,6 +2362,7 @@ void WasmCodeManager::FreeNativeModule(
 #endif  // V8_OS_WIN64
 
     lookup_map_.erase(code_space.address());
+    ThreadIsolation::UnregisterJitPage(code_space.address(), code_space.size());
     code_space.Free();
     DCHECK(!code_space.IsReserved());
   }

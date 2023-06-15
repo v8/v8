@@ -829,6 +829,9 @@ DeserializationUnit NativeModuleDeserializer::ReadCode(int fn_index,
 void NativeModuleDeserializer::CopyAndRelocate(
     const DeserializationUnit& unit) {
   CodeSpaceWriteScope write_scope;
+  ThreadIsolation::RegisterWasmAllocation(
+      reinterpret_cast<Address>(unit.code->instructions().begin()),
+      unit.src_code_buffer.size());
   memcpy(unit.code->instructions().begin(), unit.src_code_buffer.begin(),
          unit.src_code_buffer.size());
 
