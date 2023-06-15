@@ -951,7 +951,7 @@ class ModuleDecoderImpl : public Decoder {
 
   void UpdateComputedMemoryInformation() {
     for (WasmMemory& memory : module_->memories) {
-      UpdateComputedInformation(&memory);
+      UpdateComputedInformation(&memory, module_->origin);
     }
   }
 

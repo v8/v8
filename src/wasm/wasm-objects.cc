@@ -710,15 +710,16 @@ namespace {
 
 void SetInstanceMemory(Handle<WasmInstanceObject> instance,
                        Handle<JSArrayBuffer> buffer) {
-  bool is_wasm_module = instance->module()->origin == wasm::kWasmOrigin;
   // TODO(13918): Support multiple memories.
   int memory_index = 0;
   const wasm::WasmMemory& memory = instance->module()->memories[memory_index];
 
+  bool is_wasm_module = instance->module()->origin == wasm::kWasmOrigin;
   bool use_trap_handler = memory.bounds_checks == wasm::kTrapHandler;
+  CHECK_IMPLIES(use_trap_handler, is_wasm_module);
   // Wasm modules compiled to use the trap handler don't have bounds checks,
   // so they must have a memory that has guard regions.
-  CHECK_IMPLIES(is_wasm_module && use_trap_handler,
+  CHECK_IMPLIES(use_trap_handler,
                 buffer->GetBackingStore()->has_guard_regions());
 
   instance->SetRawMemory(memory_index,

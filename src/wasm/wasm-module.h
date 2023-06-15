@@ -101,6 +101,12 @@ struct WasmTag {
   uint32_t sig_index;
 };
 
+enum ModuleOrigin : uint8_t {
+  kWasmOrigin,
+  kAsmJsSloppyOrigin,
+  kAsmJsStrictOrigin
+};
+
 enum BoundsCheckStrategy : int8_t {
   // Emit protected instructions, use the trap handler for OOB detection.
   kTrapHandler,
@@ -126,7 +132,7 @@ struct WasmMemory {
   BoundsCheckStrategy bounds_checks = kExplicitBoundsChecks;
 };
 
-inline void UpdateComputedInformation(WasmMemory* memory) {
+inline void UpdateComputedInformation(WasmMemory* memory, ModuleOrigin origin) {
   const uintptr_t platform_max_pages =
       memory->is_memory64 ? kV8MaxWasmMemory64Pages : kV8MaxWasmMemory32Pages;
   memory->min_memory_size =
@@ -139,12 +145,18 @@ inline void UpdateComputedInformation(WasmMemory* memory) {
   if (!v8_flags.wasm_bounds_checks) {
     memory->bounds_checks = kNoBoundsChecks;
   } else if (v8_flags.wasm_enforce_bounds_checks) {
+    // Explicit bounds checks requested via flag (for testing).
+    memory->bounds_checks = kExplicitBoundsChecks;
+  } else if (origin != kWasmOrigin) {
+    // Asm.js modules can't use trap handling.
     memory->bounds_checks = kExplicitBoundsChecks;
   } else if (memory->is_memory64) {
+    // Memory64 currently always requires explicit bounds checks.
     memory->bounds_checks = kExplicitBoundsChecks;
   } else if (trap_handler::IsTrapHandlerEnabled()) {
     memory->bounds_checks = kTrapHandler;
   } else {
+    // If the trap handler is not enabled, fall back to explicit bounds checks.
     memory->bounds_checks = kExplicitBoundsChecks;
   }
 }
@@ -264,12 +276,6 @@ struct WasmCompilationHint {
   WasmCompilationHintStrategy strategy;
   WasmCompilationHintTier baseline_tier;
   WasmCompilationHintTier top_tier;
-};
-
-enum ModuleOrigin : uint8_t {
-  kWasmOrigin,
-  kAsmJsSloppyOrigin,
-  kAsmJsStrictOrigin
 };
 
 #define SELECT_WASM_COUNTER(counters, origin, prefix, suffix)     \

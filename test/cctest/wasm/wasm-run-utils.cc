@@ -121,7 +121,7 @@ uint8_t* TestingModuleBuilder::AddMemory(uint32_t size, SharedFlag shared,
   memory->initial_pages = initial_pages;
   memory->maximum_pages = maximum_pages;
   memory->is_memory64 = mem_type == kMemory64;
-  UpdateComputedInformation(memory);
+  UpdateComputedInformation(memory, test_module_->origin);
 
   // Create the WasmMemoryObject.
   Handle<WasmMemoryObject> memory_object =
