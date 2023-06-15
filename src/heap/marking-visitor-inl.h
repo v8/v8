@@ -642,6 +642,8 @@ void MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitDescriptorsForMap(
   }
 
   DescriptorArray descriptors = DescriptorArray::cast(maybe_descriptors);
+  // Synchronize reading of page flags for tsan.
+  SynchronizePageAccess(descriptors);
   // Normal processing of descriptor arrays through the pointers iteration that
   // follows this call:
   // - Array in read only space;
