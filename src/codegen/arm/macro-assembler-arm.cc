@@ -2807,15 +2807,11 @@ void MacroAssembler::BailoutIfDeoptimized() {
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
   int offset = InstructionStream::kCodeOffset - InstructionStream::kHeaderSize;
-  LoadTaggedField(scratch,
-                  MemOperand(kJavaScriptCallCodeStartRegister, offset));
+  ldr(scratch, MemOperand(kJavaScriptCallCodeStartRegister, offset));
   ldr(scratch, FieldMemOperand(scratch, Code::kFlagsOffset));
-  Label not_deoptimized;
-  tst(scratch, Operand(Code::kMarkedForDeoptimizationBit));
-  b(ne, &not_deoptimized);
+  tst(scratch, Operand(1 << Code::kMarkedForDeoptimizationBit));
   Jump(BUILTIN_CODE(isolate(), CompileLazyDeoptimizedCode),
-       RelocInfo::CODE_TARGET);
-  bind(&not_deoptimized);
+       RelocInfo::CODE_TARGET, ne);
 }
 
 void MacroAssembler::CallForDeoptimization(Builtin target, int, Label* exit,
