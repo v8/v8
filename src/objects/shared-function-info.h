@@ -745,13 +745,10 @@ class SharedFunctionInfo
   TQ_OBJECT_CONSTRUCTORS(SharedFunctionInfo)
 };
 
-static constexpr int kStaticRootsWithUniqueIdSFISize = 44;
-static constexpr int kStaticRootsWithoutUniqueIdSFISize = 40;
-#if defined(V8_STATIC_ROOTS) && V8_SFI_HAS_UNIQUE_ID
-static_assert(SharedFunctionInfo::kSize == kStaticRootsWithUniqueIdSFISize);
-#elif defined(V8_STATIC_ROOTS) && !V8_SFI_HAS_UNIQUE_ID
-static_assert(SharedFunctionInfo::kSize == kStaticRootsWithoutUniqueIdSFISize);
-#endif
+static constexpr int kStaticRootsSFISize = 44;
+#ifdef V8_STATIC_ROOTS
+static_assert(SharedFunctionInfo::kSize == kStaticRootsSFISize);
+#endif  // V8_STATIC_ROOTS
 
 // Printing support.
 struct SourceCodeOf {

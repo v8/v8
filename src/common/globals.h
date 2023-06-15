@@ -291,19 +291,6 @@ const size_t kShortBuiltinCallsOldSpaceSizeThreshold = size_t{2} * GB;
 #define TAGGED_SIZE_8_BYTES false
 #endif
 
-// Some types of tracing require the SFI to store a unique ID.
-#if defined(V8_TRACE_MAPS) || defined(V8_TRACE_UNOPTIMIZED)
-#define V8_SFI_HAS_UNIQUE_ID true
-#else
-#define V8_SFI_HAS_UNIQUE_ID false
-#endif
-
-#if !V8_SFI_HAS_UNIQUE_ID && TAGGED_SIZE_8_BYTES
-#define V8_SFI_NEEDS_PADDING true
-#else
-#define V8_SFI_NEEDS_PADDING false
-#endif
-
 #if defined(V8_OS_WIN) && defined(V8_TARGET_ARCH_X64)
 #define V8_OS_WIN_X64 true
 #endif

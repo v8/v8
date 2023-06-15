@@ -3403,9 +3403,7 @@ Isolate::Isolate(std::unique_ptr<i::IsolateAllocator> isolate_allocator)
       detailed_source_positions_for_profiling_(v8_flags.detailed_line_info),
       persistent_handles_list_(new PersistentHandlesList()),
       jitless_(v8_flags.jitless),
-#if V8_SFI_HAS_UNIQUE_ID
       next_unique_sfi_id_(0),
-#endif
       next_module_async_evaluating_ordinal_(
           SourceTextModule::kFirstAsyncEvaluatingOrdinal),
       cancelable_task_manager_(new CancelableTaskManager()) {

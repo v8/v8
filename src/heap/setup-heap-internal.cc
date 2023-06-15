@@ -761,9 +761,7 @@ void Heap::CreateImportantSharedFunctionInfos() {
         Handle<SharedFunctionInfo> sfi =
             CreateSharedFunctionInfo(isolate, builtin, len, kind);
         if (kSharedFunctionInfosInReadOnlySpace) {
-          static_assert(kStaticRootsWithUniqueIdSFISize >=
-                        kStaticRootsWithoutUniqueIdSFISize);
-          StaticRootsEnsureAllocatedSize(sfi, kStaticRootsWithUniqueIdSFISize);
+          StaticRootsEnsureAllocatedSize(sfi, kStaticRootsSFISize);
         }
         return sfi;
       };

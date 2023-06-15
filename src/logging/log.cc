@@ -1956,9 +1956,7 @@ void V8FileLogger::MapEvent(const char* type, Handle<Map> from, Handle<Map> to,
     } else if (name_or_sfi->IsSharedFunctionInfo()) {
       SharedFunctionInfo sfi = SharedFunctionInfo::cast(*name_or_sfi);
       msg << sfi.DebugNameCStr().get();
-#if V8_SFI_HAS_UNIQUE_ID
       msg << " " << sfi.unique_id();
-#endif  // V8_SFI_HAS_UNIQUE_ID
     }
   }
   msg.WriteToLogFile();

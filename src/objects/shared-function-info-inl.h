@@ -396,12 +396,7 @@ void SharedFunctionInfo::set_function_map_index(int index) {
             kRelaxedStore);
 }
 
-void SharedFunctionInfo::clear_padding() {
-  set_padding(0);
-#if V8_SFI_NEEDS_PADDING
-  set_optional_padding(0);
-#endif
-}
+void SharedFunctionInfo::clear_padding() { set_padding(0); }
 
 void SharedFunctionInfo::UpdateFunctionMapIndex() {
   int map_index =

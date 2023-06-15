@@ -1653,21 +1653,9 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   int GetNextScriptId();
 
-#if V8_SFI_HAS_UNIQUE_ID
-  int GetNextUniqueSharedFunctionInfoId() {
-    int current_id = next_unique_sfi_id_.load(std::memory_order_relaxed);
-    int next_id;
-    do {
-      if (current_id >= Smi::kMaxValue) {
-        next_id = 0;
-      } else {
-        next_id = current_id + 1;
-      }
-    } while (!next_unique_sfi_id_.compare_exchange_weak(
-        current_id, next_id, std::memory_order_relaxed));
-    return current_id;
+  uint32_t GetNextUniqueSharedFunctionInfoId() {
+    return next_unique_sfi_id_.fetch_add(1, std::memory_order_relaxed);
   }
-#endif
 
 #ifdef V8_ENABLE_JAVASCRIPT_PROMISE_HOOKS
   void SetHasContextPromiseHooks(bool context_promise_hook) {
@@ -2378,9 +2366,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   std::atomic<int> next_optimization_id_ = 0;
 
-#if V8_SFI_HAS_UNIQUE_ID
-  std::atomic<int> next_unique_sfi_id_;
-#endif
+  std::atomic<uint32_t> next_unique_sfi_id_;
 
   unsigned next_module_async_evaluating_ordinal_;
 

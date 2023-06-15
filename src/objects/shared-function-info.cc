@@ -48,9 +48,7 @@ void SharedFunctionInfo::Init(ReadOnlyRoots ro_roots, int unique_id) {
   set_script_or_debug_info(ro_roots.undefined_value(), kReleaseStore,
                            SKIP_WRITE_BARRIER);
   set_function_literal_id(kFunctionLiteralIdInvalid);
-#if V8_SFI_HAS_UNIQUE_ID
   set_unique_id(unique_id);
-#endif
 
   // Set integer fields (smi or int, depending on the architecture).
   set_length(0);
@@ -263,9 +261,7 @@ void SharedFunctionInfo::CopyFrom(SharedFunctionInfo other) {
   set_flags2(other.flags2());
   set_flags(other.flags(kRelaxedLoad), kRelaxedStore);
   set_function_literal_id(other.function_literal_id());
-#if V8_SFI_HAS_UNIQUE_ID
   set_unique_id(other.unique_id());
-#endif
 
 #if DEBUG
   // Copy age just for the following memcmp-check.

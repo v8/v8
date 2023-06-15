@@ -1071,12 +1071,8 @@ Handle<SharedFunctionInfo> FactoryBase<Impl>::NewSharedFunctionInfo(
   SharedFunctionInfo shared =
       SharedFunctionInfo::cast(NewWithImmortalMap(map, allocation));
   DisallowGarbageCollection no_gc;
-  int unique_id = -1;
-#if V8_SFI_HAS_UNIQUE_ID
-  unique_id = isolate()->GetNextUniqueSharedFunctionInfoId();
-#endif  // V8_SFI_HAS_UNIQUE_ID
-
-  shared.Init(read_only_roots(), unique_id);
+  shared.Init(read_only_roots(),
+              isolate()->GetNextUniqueSharedFunctionInfoId());
 
 #ifdef VERIFY_HEAP
   if (v8_flags.verify_heap) shared.SharedFunctionInfoVerify(isolate());
