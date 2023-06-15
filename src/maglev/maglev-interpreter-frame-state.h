@@ -462,7 +462,7 @@ class MergePointRegisterState {
   template <typename Function>
   void ForEachGeneralRegister(Function&& f) {
     RegisterState* current_value = &values_[0];
-    for (Register reg : kAllocatableGeneralRegisters) {
+    for (Register reg : MaglevAssembler::GetAllocatableRegisters()) {
       f(reg, *current_value);
       ++current_value;
     }
@@ -471,7 +471,8 @@ class MergePointRegisterState {
   template <typename Function>
   void ForEachDoubleRegister(Function&& f) {
     RegisterState* current_value = &double_values_[0];
-    for (DoubleRegister reg : kAllocatableDoubleRegisters) {
+    for (DoubleRegister reg :
+         MaglevAssembler::GetAllocatableDoubleRegisters()) {
       f(reg, *current_value);
       ++current_value;
     }

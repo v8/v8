@@ -4268,7 +4268,7 @@ void CallKnownJSFunction::GenerateCode(MaglevAssembler* masm,
   // helper methods below wants to use a temp and one of these is in the temp
   // list (in particular, this can happen on arm64 where cp is a temp register
   // by default).
-  temps.SetAvailable(kAllocatableGeneralRegisters -
+  temps.SetAvailable(MaglevAssembler::GetAllocatableRegisters() -
                      RegList{kContextRegister, kJavaScriptCallCodeStartRegister,
                              kJavaScriptCallTargetRegister,
                              kJavaScriptCallNewTargetRegister,

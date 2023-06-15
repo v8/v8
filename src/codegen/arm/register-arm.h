@@ -329,6 +329,8 @@ constexpr Register kRootRegister = r10;  // Roots array pointer.
 
 constexpr DoubleRegister kFPReturnRegister0 = d0;
 
+constexpr Register kMaglevExtraScratchRegister = r9;
+
 }  // namespace internal
 }  // namespace v8
 

@@ -74,6 +74,18 @@ class MaglevAssembler : public MacroAssembler {
       : MacroAssembler(isolate, CodeObjectRequired::kNo),
         code_gen_state_(code_gen_state) {}
 
+  static constexpr RegList GetAllocatableRegisters() {
+#ifdef V8_TARGET_ARCH_ARM
+    return kAllocatableGeneralRegisters - kMaglevExtraScratchRegister;
+#else
+    return kAllocatableGeneralRegisters;
+#endif  // V8_TARGET_ARCH_ARM
+  }
+
+  static constexpr DoubleRegList GetAllocatableDoubleRegisters() {
+    return kAllocatableDoubleRegisters;
+  }
+
   inline MemOperand GetStackSlot(const compiler::AllocatedOperand& operand);
   inline MemOperand ToMemOperand(const compiler::InstructionOperand& operand);
   inline MemOperand ToMemOperand(const ValueLocation& location);

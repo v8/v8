@@ -45,12 +45,13 @@ template <typename RegisterT>
 struct RegisterTHelper;
 template <>
 struct RegisterTHelper<Register> {
-  static constexpr RegList kAllocatableRegisters = kAllocatableGeneralRegisters;
+  static constexpr RegList kAllocatableRegisters =
+      MaglevAssembler::GetAllocatableRegisters();
 };
 template <>
 struct RegisterTHelper<DoubleRegister> {
   static constexpr DoubleRegList kAllocatableRegisters =
-      kAllocatableDoubleRegisters;
+      MaglevAssembler::GetAllocatableDoubleRegisters();
 };
 
 enum NeedsDecompression { kDoesNotNeedDecompression, kNeedsDecompression };

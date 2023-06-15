@@ -50,12 +50,17 @@ class MaglevAssembler::ScratchRegisterScope {
         masm_(masm),
         prev_scope_(masm->scratch_register_scope_) {
     masm_->scratch_register_scope_ = this;
+    if (prev_scope_ == nullptr) {
+      // Add extra scratch register if no previous scope.
+      wrapped_scope_.Include(kMaglevExtraScratchRegister);
+    }
   }
 
   ~ScratchRegisterScope() { masm_->scratch_register_scope_ = prev_scope_; }
 
   void ResetToDefault() {
-    wrapped_scope_.SetAvailable(Assembler::DefaultTmpList());
+    wrapped_scope_.SetAvailable(Assembler::DefaultTmpList() |
+                                kMaglevExtraScratchRegister);
     wrapped_scope_.SetAvailableVfp(Assembler::DefaultFPTmpList());
   }
 
