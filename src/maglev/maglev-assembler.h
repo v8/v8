@@ -365,6 +365,9 @@ class MaglevAssembler : public MacroAssembler {
   inline void JumpIfHoleNan(DoubleRegister value, Register scratch,
                             Label* target,
                             Label::Distance distance = Label::kFar);
+  inline void JumpIfNotHoleNan(DoubleRegister value, Register scratch,
+                               Label* target,
+                               Label::Distance distance = Label::kFar);
   inline void JumpIfNotHoleNan(MemOperand operand, Label* target,
                                Label::Distance distance = Label::kFar);
 

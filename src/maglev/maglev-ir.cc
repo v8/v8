@@ -4795,6 +4795,36 @@ void BranchIfFloat64ToBooleanTrue::GenerateCode(MaglevAssembler* masm,
   __ Branch(kEqual, if_false(), if_true(), state.next_block());
 }
 
+void BranchIfFloat64IsHole::SetValueLocationConstraints() {
+  UseRegister(condition_input());
+  set_temporaries_needed(1);
+}
+void BranchIfFloat64IsHole::GenerateCode(MaglevAssembler* masm,
+                                         const ProcessingState& state) {
+  MaglevAssembler::ScratchRegisterScope temps(masm);
+  Register scratch = temps.Acquire();
+  DoubleRegister input = ToDoubleRegister(condition_input());
+  // See MaglevAssembler::Branch.
+  bool fallthrough_when_true = if_true() == state.next_block();
+  bool fallthrough_when_false = if_false() == state.next_block();
+  if (fallthrough_when_false) {
+    if (fallthrough_when_true) {
+      // If both paths are a fallthrough, do nothing.
+      DCHECK_EQ(if_true(), if_false());
+      return;
+    }
+    // Jump over the false block if true, otherwise fall through into it.
+    __ JumpIfHoleNan(input, scratch, if_true()->label(), Label::kFar);
+  } else {
+    // Jump to the false block if true.
+    __ JumpIfNotHoleNan(input, scratch, if_false()->label(), Label::kFar);
+    // Jump to the true block if it's not the next block.
+    if (!fallthrough_when_true) {
+      __ Jump(if_true()->label(), Label::kFar);
+    }
+  }
+}
+
 void BranchIfFloat64Compare::SetValueLocationConstraints() {
   UseRegister(left_input());
   UseRegister(right_input());

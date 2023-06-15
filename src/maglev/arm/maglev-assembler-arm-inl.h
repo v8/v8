@@ -644,6 +644,21 @@ void MaglevAssembler::JumpIfHoleNan(DoubleRegister value, Register scratch,
   bind(&not_hole_nan);
 }
 
+void MaglevAssembler::JumpIfNotHoleNan(DoubleRegister value, Register scratch,
+                                       Label* target,
+                                       Label::Distance distance) {
+  MaglevAssembler::ScratchRegisterScope temps(this);
+  Register repr = temps.Acquire();
+  static_assert(kHoleNanLower32 == kHoleNanUpper32);
+  Move(scratch, kHoleNanLower32);
+  VmovLow(repr, value);
+  cmp(repr, scratch);
+  JumpIf(kNotEqual, target, distance);
+  VmovHigh(repr, value);
+  cmp(repr, scratch);
+  JumpIf(kNotEqual, target, distance);
+}
+
 void MaglevAssembler::JumpIfNotHoleNan(MemOperand operand, Label* target,
                                        Label::Distance distance) {
   MaglevAssembler::ScratchRegisterScope temps(this);

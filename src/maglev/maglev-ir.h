@@ -318,6 +318,7 @@ class MergePointInterpreterFrameState;
   V(BranchIfToBooleanTrue)          \
   V(BranchIfInt32ToBooleanTrue)     \
   V(BranchIfFloat64ToBooleanTrue)   \
+  V(BranchIfFloat64IsHole)          \
   V(BranchIfReferenceCompare)       \
   V(BranchIfInt32Compare)           \
   V(BranchIfFloat64Compare)         \
@@ -7812,6 +7813,25 @@ class BranchIfFloat64ToBooleanTrue
   explicit BranchIfFloat64ToBooleanTrue(uint64_t bitfield,
                                         BasicBlockRef* if_true_refs,
                                         BasicBlockRef* if_false_refs)
+      : Base(bitfield, if_true_refs, if_false_refs) {}
+
+  static constexpr
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kHoleyFloat64};
+
+  Input& condition_input() { return input(0); }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
+class BranchIfFloat64IsHole
+    : public BranchControlNodeT<1, BranchIfFloat64IsHole> {
+  using Base = BranchControlNodeT<1, BranchIfFloat64IsHole>;
+
+ public:
+  explicit BranchIfFloat64IsHole(uint64_t bitfield, BasicBlockRef* if_true_refs,
+                                 BasicBlockRef* if_false_refs)
       : Base(bitfield, if_true_refs, if_false_refs) {}
 
   static constexpr

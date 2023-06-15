@@ -5704,16 +5704,6 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayForEach(
     return ReduceResult::Fail();
   }
 
-  if (elements_kind == HOLEY_DOUBLE_ELEMENTS) {
-    // TODO(leszeks): Handle holes.
-    if (v8_flags.trace_maglev_graph_building) {
-      std::cout << "  ! Failed to reduce Array.prototype.forEach - we don't "
-                   "currently support holey double elements"
-                << std::endl;
-    }
-    return ReduceResult::Fail();
-  }
-
   // TODO(leszeks): May only be needed for holey elements kinds.
   if (!broker()->dependencies()->DependOnNoElementsProtector()) {
     if (v8_flags.trace_maglev_graph_building) {
@@ -5825,14 +5815,13 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayForEach(
     // ```
     // if (element is hole) goto skip_call
     // ```
-    DCHECK_NE(elements_kind, HOLEY_DOUBLE_ELEMENTS);
-    // TODO(leszeks): Handle holey doubles, by adding a new node like:
-    // if (IsDoubleElementsKind(elements_kind)) {
-    //   AddNewNode<BranchIfFloat64IsHole>({element});
-    // }
     skip_call.emplace(&sub_builder, 2);
-    sub_builder.GotoIfTrue<BranchIfRootConstant>(&*skip_call, {element},
-                                                 RootIndex::kTheHoleValue);
+    if (elements_kind == HOLEY_DOUBLE_ELEMENTS) {
+      sub_builder.GotoIfTrue<BranchIfFloat64IsHole>(&*skip_call, {element});
+    } else {
+      sub_builder.GotoIfTrue<BranchIfRootConstant>(&*skip_call, {element},
+                                                   RootIndex::kTheHoleValue);
+    }
   }
 
   // ```
