@@ -131,6 +131,7 @@ wasm::TypeInModule WasmGCOperatorReducer::ObjectTypeFromContext(
     Node* object, Node* control, bool allow_non_wasm) {
   if (object->opcode() == IrOpcode::kDead) return {};
   if (!IsReduced(control)) return {};
+  if (allow_non_wasm && !NodeProperties::IsTyped(object)) return {};
   Type raw_type = NodeProperties::GetType(object);
   if (allow_non_wasm && !raw_type.IsWasm()) return {};
   wasm::TypeInModule type_from_node = raw_type.AsWasm();
