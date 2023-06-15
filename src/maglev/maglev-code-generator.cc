@@ -1220,15 +1220,41 @@ class MaglevTranslationArrayBuilder {
     int literal_id = GetDeoptLiteral(GetSharedFunctionInfo(frame));
     int height = frame.parameters().length();
 
-    translation_array_builder_->BeginBuiltinContinuationFrame(
-        bailout_id, literal_id, height);
+    constexpr int kExtraFixedJSFrameParameters = 3;
+    if (frame.is_javascript()) {
+      translation_array_builder_->BeginJavaScriptBuiltinContinuationFrame(
+          bailout_id, literal_id, height + kExtraFixedJSFrameParameters);
+    } else {
+      translation_array_builder_->BeginBuiltinContinuationFrame(
+          bailout_id, literal_id, height);
+    }
 
     // Closure
-    translation_array_builder_->StoreOptimizedOut();
+    if (frame.is_javascript()) {
+      translation_array_builder_->StoreLiteral(
+          GetDeoptLiteral(frame.javascript_target()));
+    } else {
+      translation_array_builder_->StoreOptimizedOut();
+    }
 
     // Parameters
     for (ValueNode* value : frame.parameters()) {
       BuildDeoptFrameSingleValue(value, current_input_location);
+    }
+
+    // Extra fixed JS frame parameters. These at the end since JS builtins
+    // push their parameters in reverse order.
+    if (frame.is_javascript()) {
+      static_assert(kExtraFixedJSFrameParameters == 3);
+      // kJavaScriptCallTargetRegister
+      translation_array_builder_->StoreLiteral(
+          GetDeoptLiteral(frame.javascript_target()));
+      // kJavaScriptCallNewTargetRegister
+      translation_array_builder_->StoreLiteral(
+          GetDeoptLiteral(ReadOnlyRoots(local_isolate_).undefined_value()));
+      // kJavaScriptCallArgCountRegister
+      translation_array_builder_->StoreLiteral(
+          GetDeoptLiteral(Smi::FromInt(frame.parameters().length() + 1)));
     }
 
     // Context

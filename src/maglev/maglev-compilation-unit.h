@@ -33,6 +33,13 @@ class MaglevCompilationUnit : public ZoneObject {
     return zone->New<MaglevCompilationUnit>(
         caller->info(), caller, shared_function_info, feedback_vector);
   }
+  static MaglevCompilationUnit* NewDummy(Zone* zone,
+                                         const MaglevCompilationUnit* caller,
+                                         int register_count,
+                                         int parameter_count) {
+    return zone->New<MaglevCompilationUnit>(caller->info(), caller,
+                                            register_count, parameter_count);
+  }
 
   MaglevCompilationUnit(MaglevCompilationInfo* info,
                         Handle<JSFunction> function);
@@ -41,6 +48,10 @@ class MaglevCompilationUnit : public ZoneObject {
                         const MaglevCompilationUnit* caller,
                         compiler::SharedFunctionInfoRef shared_function_info,
                         compiler::FeedbackVectorRef feedback_vector);
+
+  MaglevCompilationUnit(MaglevCompilationInfo* info,
+                        const MaglevCompilationUnit* caller, int register_count,
+                        int parameter_count);
 
   MaglevCompilationInfo* info() const { return info_; }
   const MaglevCompilationUnit* caller() const { return caller_; }
@@ -56,19 +67,19 @@ class MaglevCompilationUnit : public ZoneObject {
   bool has_graph_labeller() const;
   MaglevGraphLabeller* graph_labeller() const;
   compiler::SharedFunctionInfoRef shared_function_info() const {
-    return shared_function_info_;
+    return shared_function_info_.value();
   }
-  compiler::BytecodeArrayRef bytecode() const { return bytecode_; }
-  compiler::FeedbackVectorRef feedback() const { return feedback_; }
+  compiler::BytecodeArrayRef bytecode() const { return bytecode_.value(); }
+  compiler::FeedbackVectorRef feedback() const { return feedback_.value(); }
 
   void RegisterNodeInGraphLabeller(const Node* node);
 
  private:
   MaglevCompilationInfo* const info_;
   const MaglevCompilationUnit* const caller_;
-  const compiler::SharedFunctionInfoRef shared_function_info_;
-  const compiler::BytecodeArrayRef bytecode_;
-  const compiler::FeedbackVectorRef feedback_;
+  const compiler::OptionalSharedFunctionInfoRef shared_function_info_;
+  const compiler::OptionalBytecodeArrayRef bytecode_;
+  const compiler::OptionalFeedbackVectorRef feedback_;
   const int register_count_;
   const int parameter_count_;
   const int inlining_depth_;

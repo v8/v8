@@ -251,7 +251,7 @@ class InterpreterFrameState {
             info, info.zone()->New<KnownNodeAspects>(info.zone())) {}
 
   inline void CopyFrom(const MaglevCompilationUnit& info,
-                       const MergePointInterpreterFrameState& state);
+                       MergePointInterpreterFrameState& state);
 
   void set_accumulator(ValueNode* value) {
     // Conversions should be stored in known_node_aspects/NodeInfo.
@@ -292,6 +292,8 @@ class InterpreterFrameState {
     DCHECK_NOT_NULL(known_node_aspects);
     known_node_aspects_ = known_node_aspects;
   }
+
+  void clear_known_node_aspects() { known_node_aspects_ = nullptr; }
 
  private:
   RegisterFrameArray<ValueNode*> frame_;
@@ -508,10 +510,17 @@ class MergePointInterpreterFrameState {
   // framestate.
   void Merge(MaglevGraphBuilder* graph_builder, InterpreterFrameState& unmerged,
              BasicBlock* predecessor);
+  void Merge(MaglevGraphBuilder* graph_builder,
+             MaglevCompilationUnit& compilation_unit,
+             InterpreterFrameState& unmerged, BasicBlock* predecessor);
 
   // Merges an unmerged framestate with a possibly merged framestate into |this|
   // framestate.
   void MergeLoop(MaglevGraphBuilder* graph_builder,
+                 InterpreterFrameState& loop_end_state,
+                 BasicBlock* loop_end_block);
+  void MergeLoop(MaglevGraphBuilder* graph_builder,
+                 MaglevCompilationUnit& compilation_unit,
                  InterpreterFrameState& loop_end_state,
                  BasicBlock* loop_end_block);
 
@@ -545,6 +554,13 @@ class MergePointInterpreterFrameState {
     // This means that this is no longer a loop.
     bitfield_ =
         kBasicBlockTypeBits::update(bitfield_, BasicBlockType::kDefault);
+  }
+
+  // Returns and clears the known node aspects on this state. Expects to only
+  // ever be called once, when starting a basic block with this state.
+  KnownNodeAspects* TakeKnownNodeAspects() {
+    DCHECK_NOT_NULL(known_node_aspects_);
+    return std::exchange(known_node_aspects_, nullptr);
   }
 
   const CompactInterpreterFrameState& frame_state() const {
@@ -640,10 +656,6 @@ class MergePointInterpreterFrameState {
   };
   NodeType AlternativeType(const Alternatives* alt);
 
-  friend void InterpreterFrameState::CopyFrom(
-      const MaglevCompilationUnit& info,
-      const MergePointInterpreterFrameState& state);
-
   template <typename T, typename... Args>
   friend T* Zone::New(Args&&... args);
 
@@ -706,17 +718,15 @@ class MergePointInterpreterFrameState {
   base::Optional<const compiler::LoopInfo*> loop_info_ = base::nullopt;
 };
 
-void InterpreterFrameState::CopyFrom(
-    const MaglevCompilationUnit& info,
-    const MergePointInterpreterFrameState& state) {
+void InterpreterFrameState::CopyFrom(const MaglevCompilationUnit& info,
+                                     MergePointInterpreterFrameState& state) {
   state.frame_state().ForEachValue(
       info, [&](ValueNode* value, interpreter::Register reg) {
         frame_[reg] = value;
       });
   // Move "what we know" across without copying -- we can safely mutate it
   // now, as we won't be entering this merge point again.
-  DCHECK_NOT_NULL(state.known_node_aspects_);
-  known_node_aspects_ = state.known_node_aspects_;
+  known_node_aspects_ = state.TakeKnownNodeAspects();
 }
 
 }  // namespace maglev

@@ -306,6 +306,7 @@ class MergePointInterpreterFrameState;
   V(ThrowReferenceErrorIfHole)              \
   V(ThrowSuperNotCalledIfHole)              \
   V(ThrowSuperAlreadyCalledIfNotHole)       \
+  V(ThrowIfNotCallable)                     \
   V(ThrowIfNotSuperConstructor)             \
   V(TransitionElementsKindOrCheckMap)       \
   V(UpdateJSArrayLength)                    \
@@ -476,6 +477,7 @@ inline constexpr bool IsDoubleRepresentation(ValueRepresentation repr) {
   V(InternalizedString, (1 << 10) | kString)                      \
   V(Symbol, (1 << 11) | kName)                                    \
   V(JSReceiver, (1 << 12) | kAnyHeapObject)                       \
+  V(Callable, (1 << 13) | kJSReceiver | kAnyHeapObject)           \
   V(HeapObjectWithKnownMap, kObjectWithKnownMap | kAnyHeapObject) \
   V(HeapNumber, kHeapObjectWithKnownMap | kNumber)                \
   V(JSReceiverWithKnownMap, kJSReceiver | kHeapObjectWithKnownMap)
@@ -680,6 +682,16 @@ class BasicBlockRef {
     next_ref_ = ref_list_head->next_ref_;
     ref_list_head->next_ref_ = this;
     return old_next_ptr;
+  }
+
+  void Bind(BasicBlock* block) {
+    DCHECK_EQ(state_, kRefList);
+
+    BasicBlockRef* next_ref = SetToBlockAndReturnNext(block);
+    while (next_ref != nullptr) {
+      next_ref = next_ref->SetToBlockAndReturnNext(block);
+    }
+    DCHECK_EQ(block_ptr(), block);
   }
 
   BasicBlock* block_ptr() const {
@@ -1004,6 +1016,7 @@ class DeoptFrame {
     const Builtin builtin_id;
     const base::Vector<ValueNode*> parameters;
     ValueNode* context;
+    compiler::OptionalJSFunctionRef maybe_js_target;
   };
 
   using FrameData = base::DiscriminatedUnion<
@@ -1177,15 +1190,21 @@ class BuiltinContinuationDeoptFrame : public DeoptFrame {
  public:
   BuiltinContinuationDeoptFrame(Builtin builtin_id,
                                 base::Vector<ValueNode*> parameters,
-                                ValueNode* context, DeoptFrame* parent)
-      : DeoptFrame(
-            BuiltinContinuationFrameData{builtin_id, parameters, context},
-            parent) {}
+                                ValueNode* context,
+                                compiler::OptionalJSFunctionRef maybe_js_target,
+                                DeoptFrame* parent)
+      : DeoptFrame(BuiltinContinuationFrameData{builtin_id, parameters, context,
+                                                maybe_js_target},
+                   parent) {}
 
   const Builtin& builtin_id() const { return data().builtin_id; }
   base::Vector<ValueNode*> parameters() const { return data().parameters; }
   ValueNode*& context() { return data().context; }
   ValueNode* context() const { return data().context; }
+  bool is_javascript() const { return data().maybe_js_target.has_value(); }
+  compiler::JSFunctionRef javascript_target() const {
+    return data().maybe_js_target.value();
+  }
 
  private:
   BuiltinContinuationFrameData& data() {
@@ -1217,7 +1236,7 @@ class DeoptInfo {
  public:
   DeoptFrame& top_frame() { return top_frame_; }
   const DeoptFrame& top_frame() const { return top_frame_; }
-  const compiler::FeedbackSource& feedback_to_update() {
+  const compiler::FeedbackSource& feedback_to_update() const {
     return feedback_to_update_;
   }
 
@@ -7308,6 +7327,25 @@ class ThrowSuperAlreadyCalledIfNotHole
  public:
   explicit ThrowSuperAlreadyCalledIfNotHole(uint64_t bitfield)
       : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties =
+      OpProperties::CanThrow() | OpProperties::DeferredCall();
+  static constexpr
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
+
+  Input& value() { return Node::input(0); }
+
+  int MaxCallStackArgs() const;
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
+class ThrowIfNotCallable : public FixedInputNodeT<1, ThrowIfNotCallable> {
+  using Base = FixedInputNodeT<1, ThrowIfNotCallable>;
+
+ public:
+  explicit ThrowIfNotCallable(uint64_t bitfield) : Base(bitfield) {}
 
   static constexpr OpProperties kProperties =
       OpProperties::CanThrow() | OpProperties::DeferredCall();

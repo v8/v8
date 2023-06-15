@@ -213,11 +213,16 @@ void PrintAfterMerge(const MaglevCompilationUnit& compilation_unit,
 void MergePointInterpreterFrameState::Merge(MaglevGraphBuilder* builder,
                                             InterpreterFrameState& unmerged,
                                             BasicBlock* predecessor) {
+  Merge(builder, *builder->compilation_unit(), unmerged, predecessor);
+}
+
+void MergePointInterpreterFrameState::Merge(
+    MaglevGraphBuilder* builder, MaglevCompilationUnit& compilation_unit,
+    InterpreterFrameState& unmerged, BasicBlock* predecessor) {
   DCHECK_GT(predecessor_count_, 1);
   DCHECK_LT(predecessors_so_far_, predecessor_count_);
   predecessors_[predecessors_so_far_] = predecessor;
 
-  MaglevCompilationUnit& compilation_unit = *builder->compilation_unit();
   if (v8_flags.trace_maglev_graph_building) {
     std::cout << "Merging..." << std::endl;
   }
@@ -247,12 +252,18 @@ void MergePointInterpreterFrameState::Merge(MaglevGraphBuilder* builder,
 void MergePointInterpreterFrameState::MergeLoop(
     MaglevGraphBuilder* builder, InterpreterFrameState& loop_end_state,
     BasicBlock* loop_end_block) {
+  MergeLoop(builder, *builder->compilation_unit(), loop_end_state,
+            loop_end_block);
+}
+
+void MergePointInterpreterFrameState::MergeLoop(
+    MaglevGraphBuilder* builder, MaglevCompilationUnit& compilation_unit,
+    InterpreterFrameState& loop_end_state, BasicBlock* loop_end_block) {
   // This should be the last predecessor we try to merge.
   DCHECK_EQ(predecessors_so_far_, predecessor_count_ - 1);
   DCHECK(is_unmerged_loop());
   predecessors_[predecessor_count_ - 1] = loop_end_block;
 
-  MaglevCompilationUnit& compilation_unit = *builder->compilation_unit();
   backedge_deopt_frame_ =
       builder->zone()->New<DeoptFrame>(builder->GetLatestCheckpointedFrame());
 

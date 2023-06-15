@@ -3871,6 +3871,36 @@ void ThrowSuperAlreadyCalledIfNotHole::GenerateCode(
       this);
 }
 
+int ThrowIfNotCallable::MaxCallStackArgs() const { return 1; }
+void ThrowIfNotCallable::SetValueLocationConstraints() {
+  UseRegister(value());
+  set_temporaries_needed(1);
+}
+void ThrowIfNotCallable::GenerateCode(MaglevAssembler* masm,
+                                      const ProcessingState& state) {
+  Label* if_not_callable = __ MakeDeferredCode(
+      [](MaglevAssembler* masm, ThrowIfNotCallable* node) {
+        __ Push(node->value());
+        __ Move(kContextRegister, masm->native_context().object());
+        __ CallRuntime(Runtime::kThrowCalledNonCallable, 1);
+        masm->DefineExceptionHandlerAndLazyDeoptPoint(node);
+        __ Abort(AbortReason::kUnexpectedReturnFromThrow);
+      },
+      this);
+
+  Register value_reg = ToRegister(value());
+  __ JumpIfSmi(value_reg, if_not_callable);
+
+  MaglevAssembler::ScratchRegisterScope temps(masm);
+  Register scratch = temps.Acquire();
+  __ LoadMap(scratch, value_reg);
+  static_assert(Map::kBitFieldOffsetEnd + 1 - Map::kBitFieldOffset == 1);
+  __ LoadUnsignedField(scratch, FieldMemOperand(scratch, Map::kBitFieldOffset),
+                       1);
+  __ TestInt32AndJumpIfAllClear(scratch, Map::Bits1::IsCallableBit::kMask,
+                                if_not_callable);
+}
+
 int ThrowIfNotSuperConstructor::MaxCallStackArgs() const { return 2; }
 void ThrowIfNotSuperConstructor::SetValueLocationConstraints() {
   UseRegister(constructor());

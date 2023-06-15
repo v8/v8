@@ -369,6 +369,8 @@ class MaglevGraphBuilder {
   }
 
  private:
+  class MaglevSubGraphBuilder;
+
   // TODO(olivf): Currently identifying dead code relies on the fact that loops
   // must be entered through the loop header by at least one of the
   // predecessors. We might want to re-evaluate this in case we want to be able
@@ -376,7 +378,7 @@ class MaglevGraphBuilder {
   static constexpr bool kLoopsMustBeEnteredThroughHeader = true;
 
   class CallSpeculationScope;
-  class LazyDeoptFrameScope;
+  class DeoptFrameScope;
 
   bool CheckStaticType(ValueNode* node, NodeType type, NodeType* old = nullptr);
   bool CheckType(ValueNode* node, NodeType type, NodeType* old = nullptr);
@@ -394,13 +396,14 @@ class MaglevGraphBuilder {
     return true;
   }
   bool MaglevIsTopTier() const { return !v8_flags.turbofan && v8_flags.maglev; }
-  BasicBlock* CreateEdgeSplitBlock(int offset, BasicBlock* predecessor) {
+  BasicBlock* CreateEdgeSplitBlock(BasicBlockRef& jump_targets,
+                                   BasicBlock* predecessor) {
     if (v8_flags.trace_maglev_graph_building) {
       std::cout << "== New empty block ==" << std::endl;
     }
     DCHECK_NULL(current_block_);
     current_block_ = zone()->New<BasicBlock>(nullptr, zone());
-    BasicBlock* result = FinishBlock<Jump>({}, &jump_targets_[offset]);
+    BasicBlock* result = FinishBlock<Jump>({}, &jump_targets);
     result->set_edge_split_block(predecessor);
 #ifdef DEBUG
     new_nodes_.clear();
@@ -417,7 +420,7 @@ class MaglevGraphBuilder {
 
     // Merges aren't simple fallthroughs, so we should reset the checkpoint
     // validity.
-    latest_checkpointed_frame_.reset();
+    ResetBuilderCachedState();
 
     // Register exception phis.
     if (has_graph_labeller()) {
@@ -437,10 +440,16 @@ class MaglevGraphBuilder {
     MergePointInterpreterFrameState& merge_state = *merge_states_[offset];
     current_interpreter_frame_.CopyFrom(*compilation_unit_, merge_state);
 
-    // Merges aren't simple fallthroughs, so we should reset the checkpoint
-    // and for-in state validity.
-    latest_checkpointed_frame_.reset();
-    current_for_in_state.receiver_needs_map_check = true;
+    ProcessMergePointPredecessors(merge_state, jump_targets_[offset]);
+  }
+
+  // Splits incoming critical edges and labels predecessors.
+  void ProcessMergePointPredecessors(
+      MergePointInterpreterFrameState& merge_state,
+      BasicBlockRef& jump_targets) {
+    // Merges aren't simple fallthroughs, so we should reset state which is
+    // cached directly on the builder instead of on the merge states.
+    ResetBuilderCachedState();
 
     if (merge_state.predecessor_count() == 1) return;
 
@@ -453,34 +462,40 @@ class MaglevGraphBuilder {
       DCHECK(merge_state.is_unmerged_loop());
       predecessor_index--;
     }
-    BasicBlockRef* old_jump_targets = jump_targets_[offset].Reset();
+    BasicBlockRef* old_jump_targets = jump_targets.Reset();
     while (old_jump_targets != nullptr) {
       BasicBlock* predecessor = merge_state.predecessor_at(predecessor_index);
       CHECK(predecessor);
       ControlNode* control = predecessor->control_node();
       if (control->Is<ConditionalControlNode>()) {
         // CreateEmptyBlock automatically registers itself with the offset.
-        predecessor = CreateEdgeSplitBlock(offset, predecessor);
+        predecessor = CreateEdgeSplitBlock(jump_targets, predecessor);
         // Set the old predecessor's (the conditional block) reference to
         // point to the new empty predecessor block.
         old_jump_targets =
             old_jump_targets->SetToBlockAndReturnNext(predecessor);
       } else {
         // Re-register the block in the offset's ref list.
-        old_jump_targets =
-            old_jump_targets->MoveToRefList(&jump_targets_[offset]);
+        old_jump_targets = old_jump_targets->MoveToRefList(&jump_targets);
       }
+      // We only set the predecessor id after splitting critical edges, to make
+      // sure the edge split blocks pick up the correct predecessor index.
       predecessor->set_predecessor_id(predecessor_index--);
     }
     DCHECK_EQ(predecessor_index, -1);
-    if (has_graph_labeller()) {
-      for (Phi* phi : *merge_states_[offset]->phis()) {
-        graph_labeller()->RegisterNode(phi);
-        if (v8_flags.trace_maglev_graph_building) {
-          std::cout << "  " << phi << "  "
-                    << PrintNodeLabel(graph_labeller(), phi) << ": "
-                    << PrintNode(graph_labeller(), phi) << std::endl;
-        }
+    RegisterPhisWithGraphLabeller(merge_state);
+  }
+
+  void RegisterPhisWithGraphLabeller(
+      MergePointInterpreterFrameState& merge_state) {
+    if (!has_graph_labeller()) return;
+
+    for (Phi* phi : *merge_state.phis()) {
+      graph_labeller()->RegisterNode(phi);
+      if (v8_flags.trace_maglev_graph_building) {
+        std::cout << "  " << phi << "  "
+                  << PrintNodeLabel(graph_labeller(), phi) << ": "
+                  << PrintNode(graph_labeller(), phi) << std::endl;
       }
     }
   }
@@ -1275,7 +1290,7 @@ class MaglevGraphBuilder {
 
   DeoptFrame* GetParentDeoptFrame();
   DeoptFrame GetDeoptFrameForLazyDeopt();
-  DeoptFrame GetDeoptFrameForLazyDeoptHelper(LazyDeoptFrameScope* scope,
+  DeoptFrame GetDeoptFrameForLazyDeoptHelper(DeoptFrameScope* scope,
                                              bool mark_accumulator_dead);
   InterpretedDeoptFrame GetDeoptFrameForEntryStackCheck();
 
@@ -1310,6 +1325,9 @@ class MaglevGraphBuilder {
     // the parent, since we'll anyway copy the known_node_aspects to the parent
     // once we finish the inlined function.
     if constexpr (should_clear_unstable_node_aspects) {
+      if (v8_flags.trace_maglev_graph_building) {
+        std::cout << "  ! Clearing unstable node aspects" << std::endl;
+      }
       known_node_aspects().ClearUnstableMaps();
       // Side-effects can change object contents, so we have to clear
       // our known loaded properties -- however, constant properties are known
@@ -1319,17 +1337,24 @@ class MaglevGraphBuilder {
       known_node_aspects().loaded_context_slots.clear();
     }
 
-    // Other kinds of side effect have to be propagated up to the parent.
+    // All user-observable side effects need to clear state that is cached on
+    // the builder. This reset has to be propagated up through the parents.
+    // TODO(leszeks): What side effects aren't observable? Maybe migrations?
     for (MaglevGraphBuilder* builder = this; builder != nullptr;
          builder = builder->parent_) {
-      // All user-observable side effects need to clear the checkpointed frame.
-      // TODO(leszeks): What side effects aren't observable? Maybe migrations?
-      builder->latest_checkpointed_frame_.reset();
+      builder->ResetBuilderCachedState<is_possible_map_change>();
+    }
+  }
 
-      // If a map might have changed, then we need to re-check it for for-in.
-      if (is_possible_map_change) {
-        builder->current_for_in_state.receiver_needs_map_check = true;
-      }
+  template <bool is_possible_map_change = true>
+  void ResetBuilderCachedState() {
+    latest_checkpointed_frame_.reset();
+
+    // If a map might have changed, then we need to re-check it for for-in.
+    // TODO(leszeks): Track this on merge states / known node aspects, rather
+    // than on the graph, so that it can survive control flow.
+    if constexpr (is_possible_map_change) {
+      current_for_in_state.receiver_needs_map_check = true;
     }
   }
 
@@ -1350,13 +1375,19 @@ class MaglevGraphBuilder {
   }
 
   void StartNewBlock(int offset, BasicBlock* predecessor) {
+    StartNewBlock(predecessor, merge_states_[offset], jump_targets_[offset]);
+  }
+
+  void StartNewBlock(BasicBlock* predecessor,
+                     MergePointInterpreterFrameState* merge_state,
+                     BasicBlockRef& refs_to_block) {
     DCHECK_NULL(current_block_);
-    current_block_ = zone()->New<BasicBlock>(merge_states_[offset], zone());
-    if (merge_states_[offset] == nullptr) {
+    current_block_ = zone()->New<BasicBlock>(merge_state, zone());
+    if (merge_state == nullptr) {
       DCHECK_NOT_NULL(predecessor);
       current_block_->set_predecessor(predecessor);
     }
-    ResolveJumpsToBlockAtOffset(current_block_, offset);
+    refs_to_block.Bind(current_block_);
   }
 
   template <typename ControlNodeT, typename... Args>
@@ -1385,18 +1416,6 @@ class MaglevGraphBuilder {
       }
     }
     return block;
-  }
-
-  // Update all jumps which were targetting the not-yet-created block at the
-  // given `block_offset`, to now point to the given `block`.
-  void ResolveJumpsToBlockAtOffset(BasicBlock* block, int block_offset) {
-    BasicBlockRef* jump_target_refs_head =
-        jump_targets_[block_offset].SetToBlockAndReturnNext(block);
-    while (jump_target_refs_head != nullptr) {
-      jump_target_refs_head =
-          jump_target_refs_head->SetToBlockAndReturnNext(block);
-    }
-    DCHECK_EQ(jump_targets_[block_offset].block_ptr(), block);
   }
 
   void StartFallthroughBlock(int next_block_offset, BasicBlock* predecessor) {
@@ -1463,6 +1482,7 @@ class MaglevGraphBuilder {
   V(MathTanh)
 
 #define MAGLEV_REDUCED_BUILTIN(V)  \
+  V(ArrayForEach)                  \
   V(DataViewPrototypeGetInt8)      \
   V(DataViewPrototypeSetInt8)      \
   V(DataViewPrototypeGetInt16)     \
@@ -1485,8 +1505,9 @@ class MaglevGraphBuilder {
   V(StringPrototypeCodePointAt)    \
   MATH_UNARY_IEEE_BUILTIN(V)
 
-#define DEFINE_BUILTIN_REDUCER(Name) \
-  ReduceResult TryReduce##Name(CallArguments& args);
+#define DEFINE_BUILTIN_REDUCER(Name)                           \
+  ReduceResult TryReduce##Name(compiler::JSFunctionRef target, \
+                               CallArguments& args);
   MAGLEV_REDUCED_BUILTIN(DEFINE_BUILTIN_REDUCER)
 #undef DEFINE_BUILTIN_REDUCER
 
@@ -1500,7 +1521,8 @@ class MaglevGraphBuilder {
                            ValueNode* new_target,
                            compiler::SharedFunctionInfoRef shared,
                            CallArguments& args);
-  ReduceResult TryReduceBuiltin(compiler::SharedFunctionInfoRef shared,
+  ReduceResult TryReduceBuiltin(compiler::JSFunctionRef target,
+                                compiler::SharedFunctionInfoRef shared,
                                 CallArguments& args,
                                 const compiler::FeedbackSource& feedback_source,
                                 SpeculationMode speculation_mode);
@@ -1966,7 +1988,7 @@ class MaglevGraphBuilder {
 
   // Current block information.
   BasicBlock* current_block_ = nullptr;
-  base::Optional<InterpretedDeoptFrame> latest_checkpointed_frame_;
+  base::Optional<DeoptFrame> latest_checkpointed_frame_;
   SourcePosition current_source_position_;
   struct ForInState {
     ValueNode* receiver = nullptr;
@@ -1999,7 +2021,7 @@ class MaglevGraphBuilder {
   // Bytecode offset at which compilation should start.
   int entrypoint_;
 
-  LazyDeoptFrameScope* current_lazy_deopt_scope_ = nullptr;
+  DeoptFrameScope* current_deopt_scope_ = nullptr;
 
   struct HandlerTableEntry {
     int end;

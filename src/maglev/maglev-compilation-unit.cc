@@ -30,10 +30,19 @@ MaglevCompilationUnit::MaglevCompilationUnit(
     : info_(info),
       caller_(caller),
       shared_function_info_(shared_function_info),
-      bytecode_(shared_function_info_.GetBytecodeArray(broker())),
+      bytecode_(shared_function_info.GetBytecodeArray(broker())),
       feedback_(feedback_vector),
-      register_count_(bytecode_.register_count()),
-      parameter_count_(bytecode_.parameter_count()),
+      register_count_(bytecode_->register_count()),
+      parameter_count_(bytecode_->parameter_count()),
+      inlining_depth_(caller == nullptr ? 0 : caller->inlining_depth_ + 1) {}
+
+MaglevCompilationUnit::MaglevCompilationUnit(
+    MaglevCompilationInfo* info, const MaglevCompilationUnit* caller,
+    int register_count, int parameter_count)
+    : info_(info),
+      caller_(caller),
+      register_count_(register_count),
+      parameter_count_(parameter_count),
       inlining_depth_(caller == nullptr ? 0 : caller->inlining_depth_ + 1) {}
 
 compiler::JSHeapBroker* MaglevCompilationUnit::broker() const {
