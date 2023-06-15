@@ -647,6 +647,79 @@ inline void MaglevAssembler::SetMapAsRoot(Register object, RootIndex map) {
   StoreTaggedFieldNoWriteBarrier(object, HeapObject::kMapOffset, scratch);
 }
 
+inline void MaglevAssembler::SmiTagInt32AndJumpIfFail(
+    Register dst, Register src, Label* fail, Label::Distance distance) {
+  SmiTagInt32AndSetFlags(dst, src);
+  JumpIf(kOverflow, fail, distance);
+}
+
+inline void MaglevAssembler::SmiTagInt32AndJumpIfFail(
+    Register reg, Label* fail, Label::Distance distance) {
+  SmiTagInt32AndJumpIfFail(reg, reg, fail, distance);
+}
+
+inline void MaglevAssembler::SmiTagInt32AndJumpIfSuccess(
+    Register dst, Register src, Label* success, Label::Distance distance) {
+  SmiTagInt32AndSetFlags(dst, src);
+  JumpIf(kNoOverflow, success, distance);
+}
+
+inline void MaglevAssembler::SmiTagInt32AndJumpIfSuccess(
+    Register reg, Label* success, Label::Distance distance) {
+  SmiTagInt32AndJumpIfSuccess(reg, reg, success, distance);
+}
+
+inline void MaglevAssembler::UncheckedSmiTagInt32(Register dst, Register src) {
+  SmiTagInt32AndSetFlags(dst, src);
+  Assert(kNoOverflow, AbortReason::kInputDoesNotFitSmi);
+}
+
+inline void MaglevAssembler::UncheckedSmiTagInt32(Register reg) {
+  UncheckedSmiTagInt32(reg, reg);
+}
+
+inline void MaglevAssembler::SmiTagUint32AndJumpIfFail(
+    Register dst, Register src, Label* fail, Label::Distance distance) {
+  // Perform an unsigned comparison against Smi::kMaxValue.
+  CompareInt32AndJumpIf(src, Smi::kMaxValue, kUnsignedGreaterThan, fail,
+                        distance);
+  SmiTagInt32AndSetFlags(dst, src);
+  Assert(kNoOverflow, AbortReason::kInputDoesNotFitSmi);
+}
+
+inline void MaglevAssembler::SmiTagUint32AndJumpIfFail(
+    Register reg, Label* fail, Label::Distance distance) {
+  SmiTagUint32AndJumpIfFail(reg, reg, fail, distance);
+}
+
+inline void MaglevAssembler::SmiTagUint32AndJumpIfSuccess(
+    Register dst, Register src, Label* success, Label::Distance distance) {
+  // Perform an unsigned comparison against Smi::kMaxValue.
+  CompareInt32AndJumpIf(src, Smi::kMaxValue, kUnsignedLessThanEqual, success,
+                        distance);
+  SmiTagInt32AndSetFlags(dst, src);
+  Assert(kNoOverflow, AbortReason::kInputDoesNotFitSmi);
+}
+
+inline void MaglevAssembler::SmiTagUint32AndJumpIfSuccess(
+    Register reg, Label* success, Label::Distance distance) {
+  SmiTagUint32AndJumpIfSuccess(reg, reg, success, distance);
+}
+
+inline void MaglevAssembler::UncheckedSmiTagUint32(Register dst, Register src) {
+  if (v8_flags.debug_code) {
+    // Perform an unsigned comparison against Smi::kMaxValue.
+    CompareInt32(src, Smi::kMaxValue);
+    Check(kUnsignedLessThanEqual, AbortReason::kInputDoesNotFitSmi);
+  }
+  SmiTagInt32AndSetFlags(dst, src);
+  Assert(kNoOverflow, AbortReason::kInputDoesNotFitSmi);
+}
+
+inline void MaglevAssembler::UncheckedSmiTagUint32(Register reg) {
+  UncheckedSmiTagUint32(reg, reg);
+}
+
 }  // namespace maglev
 }  // namespace internal
 }  // namespace v8

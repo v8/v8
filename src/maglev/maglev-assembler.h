@@ -112,7 +112,6 @@ class MaglevAssembler : public MacroAssembler {
   inline void BindJumpTarget(Label* label);
   inline void BindBlock(BasicBlock* block);
 
-  inline Condition IsInt64Constant(Register reg, int64_t constant);
   inline Condition IsRootConstant(Input input, RootIndex root_index);
 
   inline void Branch(Condition condition, BasicBlock* if_true,
@@ -210,15 +209,36 @@ class MaglevAssembler : public MacroAssembler {
                   bool fallthrough_when_true, Label* if_false,
                   Label::Distance false_distance, bool fallthrough_when_false);
 
-  // Smi-tags {obj} in place.
-  inline void SmiTagInt32(Register obj, Label* fail);
-  inline void SmiTagUint32(Register obj, Label* fail);
+  inline void SmiTagInt32AndJumpIfFail(Register dst, Register src, Label* fail,
+                                       Label::Distance distance = Label::kFar);
+  inline void SmiTagInt32AndJumpIfFail(Register reg, Label* fail,
+                                       Label::Distance distance = Label::kFar);
+  inline void SmiTagInt32AndJumpIfSuccess(
+      Register dst, Register src, Label* success,
+      Label::Distance distance = Label::kFar);
+  inline void SmiTagInt32AndJumpIfSuccess(
+      Register reg, Label* success, Label::Distance distance = Label::kFar);
+  inline void UncheckedSmiTagInt32(Register dst, Register src);
+  inline void UncheckedSmiTagInt32(Register reg);
+
+  inline void SmiTagUint32AndJumpIfFail(Register dst, Register src, Label* fail,
+                                        Label::Distance distance = Label::kFar);
+  inline void SmiTagUint32AndJumpIfFail(Register reg, Label* fail,
+                                        Label::Distance distance = Label::kFar);
+  inline void SmiTagUint32AndJumpIfSuccess(
+      Register dst, Register src, Label* success,
+      Label::Distance distance = Label::kFar);
+  inline void SmiTagUint32AndJumpIfSuccess(
+      Register reg, Label* success, Label::Distance distance = Label::kFar);
+  inline void UncheckedSmiTagUint32(Register dst, Register src);
+  inline void UncheckedSmiTagUint32(Register reg);
 
   // Try to smi-tag {obj}. Result is thrown away.
   inline void CheckInt32IsSmi(Register obj, Label* fail,
                               Register scratch = Register::no_reg());
 
-  inline void DoubleToInt64Repr(Register dst, DoubleRegister src);
+  inline void MoveHeapNumber(Register dst, double value);
+
   void TruncateDoubleToInt32(Register dst, DoubleRegister src);
   void TryTruncateDoubleToInt32(Register dst, DoubleRegister src, Label* fail);
 
@@ -250,7 +270,7 @@ class MaglevAssembler : public MacroAssembler {
   template <typename NodeT>
   inline void EmitEagerDeoptIfNotEqual(DeoptimizeReason reason, NodeT* node);
 
-  inline void MaterialiseValueNode(Register dst, ValueNode* value);
+  void MaterialiseValueNode(Register dst, ValueNode* value);
 
   inline void IncrementInt32(Register reg);
 
@@ -341,6 +361,12 @@ class MaglevAssembler : public MacroAssembler {
                            Label::Distance near_jump = Label::kFar);
   inline void JumpIfByte(Condition cc, Register value, int32_t byte,
                          Label* target, Label::Distance distance = Label::kFar);
+
+  inline void JumpIfHoleNan(DoubleRegister value, Register scratch,
+                            Label* target,
+                            Label::Distance distance = Label::kFar);
+  inline void JumpIfNotHoleNan(MemOperand operand, Label* target,
+                               Label::Distance distance = Label::kFar);
 
   inline void CompareInt32AndJumpIf(Register r1, Register r2, Condition cond,
                                     Label* target,
@@ -450,6 +476,8 @@ class MaglevAssembler : public MacroAssembler {
     return StandardFrameConstants::kExpressionsOffset -
            index * kSystemPointerSize;
   }
+
+  inline void SmiTagInt32AndSetFlags(Register dst, Register src);
 
   MaglevCodeGenState* const code_gen_state_;
   ScratchRegisterScope* scratch_register_scope_ = nullptr;

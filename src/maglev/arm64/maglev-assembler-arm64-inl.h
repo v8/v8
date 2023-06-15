@@ -326,31 +326,9 @@ inline void MaglevAssembler::BindBlock(BasicBlock* block) {
   }
 }
 
-inline void MaglevAssembler::DoubleToInt64Repr(Register dst,
-                                               DoubleRegister src) {
-  Mov(dst, src, 0);
-}
-
-inline void MaglevAssembler::SmiTagInt32(Register obj, Label* fail) {
-  Adds(obj.W(), obj.W(), obj.W());
-  if (fail != nullptr) {
-    JumpIf(kOverflow, fail);
-  } else if (v8_flags.debug_code) {
-    Check(kNoOverflow, AbortReason::kInputDoesNotFitSmi);
-  }
-}
-
-inline void MaglevAssembler::SmiTagUint32(Register obj, Label* fail) {
-  // Perform an unsigned comparison against Smi::kMaxValue.
-  if (fail != nullptr) {
-    Cmp(obj, Immediate(Smi::kMaxValue));
-    JumpIf(kUnsignedGreaterThan, fail);
-  } else if (v8_flags.debug_code) {
-    Cmp(obj, Immediate(Smi::kMaxValue));
-    Check(kUnsignedLessThanEqual, AbortReason::kInputDoesNotFitSmi);
-  }
-  Adds(obj.W(), obj.W(), obj.W());
-  Assert(kNoOverflow, AbortReason::kInputDoesNotFitSmi);
+inline void MaglevAssembler::SmiTagInt32AndSetFlags(Register dst,
+                                                    Register src) {
+  Adds(dst.W(), src.W(), src.W());
 }
 
 inline void MaglevAssembler::CheckInt32IsSmi(Register obj, Label* fail,
@@ -359,13 +337,8 @@ inline void MaglevAssembler::CheckInt32IsSmi(Register obj, Label* fail,
   JumpIf(kOverflow, fail);
 }
 
-inline Condition MaglevAssembler::IsInt64Constant(Register reg,
-                                                  int64_t constant) {
-  ScratchRegisterScope temps(this);
-  Register scratch = temps.Acquire();
-  Mov(scratch, constant);
-  Cmp(reg, scratch);
-  return eq;
+inline void MaglevAssembler::MoveHeapNumber(Register dst, double value) {
+  Mov(dst, Operand::EmbeddedHeapNumber(value));
 }
 
 inline Condition MaglevAssembler::IsRootConstant(Input input,
@@ -806,6 +779,27 @@ void MaglevAssembler::JumpIfByte(Condition cc, Register value, int32_t byte,
   CompareAndBranch(value, Immediate(byte), cc, target);
 }
 
+void MaglevAssembler::JumpIfHoleNan(DoubleRegister value, Register scratch,
+                                    Label* target, Label::Distance distance) {
+  MaglevAssembler::ScratchRegisterScope temps(this);
+  Register repr = temps.Acquire();
+  Mov(repr, value, 0);
+  Mov(scratch, kHoleNanInt64);
+  Cmp(repr, scratch);
+  JumpIf(kEqual, target, distance);
+}
+
+void MaglevAssembler::JumpIfNotHoleNan(MemOperand operand, Label* target,
+                                       Label::Distance distance) {
+  MaglevAssembler::ScratchRegisterScope temps(this);
+  Register repr = temps.Acquire();
+  Register scratch = temps.Acquire();
+  Ldr(repr, operand);
+  Mov(scratch, kHoleNanInt64);
+  Cmp(repr, scratch);
+  JumpIf(kNotEqual, target, distance);
+}
+
 inline void MaglevAssembler::CompareInt32AndJumpIf(Register r1, Register r2,
                                                    Condition cond,
                                                    Label* target,
@@ -913,93 +907,6 @@ template <typename NodeT>
 inline void MaglevAssembler::EmitEagerDeoptIfNotEqual(DeoptimizeReason reason,
                                                       NodeT* node) {
   EmitEagerDeoptIf(ne, reason, node);
-}
-
-inline void MaglevAssembler::MaterialiseValueNode(Register dst,
-                                                  ValueNode* value) {
-  switch (value->opcode()) {
-    case Opcode::kInt32Constant: {
-      int32_t int_value = value->Cast<Int32Constant>()->value();
-      if (Smi::IsValid(int_value)) {
-        Move(dst, Smi::FromInt(int_value));
-      } else {
-        MoveHeapNumber(dst, int_value);
-      }
-      return;
-    }
-    case Opcode::kFloat64Constant: {
-      double double_value =
-          value->Cast<Float64Constant>()->value().get_scalar();
-      MoveHeapNumber(dst, double_value);
-      return;
-    }
-    default:
-      break;
-  }
-
-  DCHECK(!value->allocation().IsConstant());
-  DCHECK(value->allocation().IsAnyStackSlot());
-  using D = NewHeapNumberDescriptor;
-  DoubleRegister builtin_input_value = D::GetDoubleRegisterParameter(D::kValue);
-  MemOperand src = ToMemOperand(value->allocation());
-  switch (value->properties().value_representation()) {
-    case ValueRepresentation::kInt32: {
-      Label done;
-      ScratchRegisterScope temps(this);
-      Register scratch = temps.Acquire();
-      Ldr(scratch.W(), src);
-      Adds(dst.W(), scratch.W(), scratch.W());
-      B(&done, vc);
-      // If we overflow, instead of bailing out (deopting), we change
-      // representation to a HeapNumber.
-      Scvtf(builtin_input_value, scratch);
-      CallBuiltin<Builtin::kNewHeapNumber>(builtin_input_value);
-      Move(dst, kReturnRegister0);
-      bind(&done);
-      break;
-    }
-    case ValueRepresentation::kUint32: {
-      Label done, tag_smi;
-      Ldr(dst.W(), src);
-      // Unsigned comparison against Smi::kMaxValue.
-      Cmp(dst.W(), Immediate(Smi::kMaxValue));
-      B(&tag_smi, ls);
-      // If we don't fit in a Smi, instead of bailing out (deopting), we
-      // change representation to a HeapNumber.
-      Ucvtf(builtin_input_value, dst.W());
-      CallBuiltin<Builtin::kNewHeapNumber>(builtin_input_value);
-      Move(dst, kReturnRegister0);
-      B(&done);
-      bind(&tag_smi);
-      SmiTag(dst);
-      bind(&done);
-      break;
-    }
-    case ValueRepresentation::kFloat64:
-      Ldr(builtin_input_value, src);
-      CallBuiltin<Builtin::kNewHeapNumber>(builtin_input_value);
-      Move(dst, kReturnRegister0);
-      break;
-    case ValueRepresentation::kHoleyFloat64: {
-      Label done, box;
-      Ldr(dst, src);
-      JumpIf(NegateCondition(IsInt64Constant(dst, kHoleNanInt64)), &box,
-             Label::kNear);
-      LoadRoot(dst, RootIndex::kUndefinedValue);
-      Jump(&done);
-
-      bind(&box);
-      Mov(builtin_input_value, 0, dst);
-      CallBuiltin<Builtin::kNewHeapNumber>(builtin_input_value);
-      Move(dst, kReturnRegister0);
-
-      bind(&done);
-      break;
-    }
-    case ValueRepresentation::kWord64:
-    case ValueRepresentation::kTagged:
-      UNREACHABLE();
-  }
 }
 
 template <>

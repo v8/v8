@@ -1121,7 +1121,7 @@ void CheckedSmiTagInt32::GenerateCode(MaglevAssembler* masm,
   // eager deopt info.
   DCHECK_REGLIST_EMPTY(RegList{reg} &
                        GetGeneralRegistersUsedAsInputs(eager_deopt_info()));
-  __ SmiTagInt32(reg, fail);
+  __ SmiTagInt32AndJumpIfFail(reg, fail);
 }
 
 void CheckedSmiTagUint32::SetValueLocationConstraints() {
@@ -1136,7 +1136,7 @@ void CheckedSmiTagUint32::GenerateCode(MaglevAssembler* masm,
   // eager deopt info.
   DCHECK_REGLIST_EMPTY(RegList{reg} &
                        GetGeneralRegistersUsedAsInputs(eager_deopt_info()));
-  __ SmiTagUint32(reg, fail);
+  __ SmiTagUint32AndJumpIfFail(reg, fail);
 }
 
 void UnsafeSmiTag::SetValueLocationConstraints() {
@@ -1148,10 +1148,10 @@ void UnsafeSmiTag::GenerateCode(MaglevAssembler* masm,
   Register reg = ToRegister(input());
   switch (input().node()->properties().value_representation()) {
     case ValueRepresentation::kInt32:
-      __ SmiTagInt32(reg, nullptr);
+      __ UncheckedSmiTagInt32(reg);
       break;
     case ValueRepresentation::kUint32:
-      __ SmiTagUint32(reg, nullptr);
+      __ UncheckedSmiTagUint32(reg);
       break;
     default:
       UNREACHABLE();
@@ -1732,11 +1732,8 @@ void CheckedHoleyFloat64ToFloat64::SetValueLocationConstraints() {
 void CheckedHoleyFloat64ToFloat64::GenerateCode(MaglevAssembler* masm,
                                                 const ProcessingState& state) {
   MaglevAssembler::ScratchRegisterScope temps(masm);
-  Register scratch = temps.Acquire();
-  DoubleRegister value = ToDoubleRegister(input());
-  __ DoubleToInt64Repr(scratch, value);
-  __ EmitEagerDeoptIf(__ IsInt64Constant(scratch, kHoleNanInt64),
-                      DeoptimizeReason::kHole, this);
+  __ JumpIfHoleNan(ToDoubleRegister(input()), temps.Acquire(),
+                   __ GetDeoptLabel(this, DeoptimizeReason::kHole));
 }
 
 void CheckBounds::SetValueLocationConstraints() {
@@ -3365,7 +3362,7 @@ void Float64ToTagged::GenerateCode(MaglevAssembler* masm,
   Label box, done;
   if (canonicalize_smi()) {
     __ TryTruncateDoubleToInt32(object, value, &box);
-    __ SmiTagInt32(object, &box);
+    __ SmiTagInt32AndJumpIfFail(object, &box);
     __ Jump(&done, Label::kNear);
     __ bind(&box);
   }
@@ -3383,25 +3380,24 @@ void HoleyFloat64ToTagged::GenerateCode(MaglevAssembler* masm,
                                         const ProcessingState& state) {
   ZoneLabelRef done(masm);
   DoubleRegister value = ToDoubleRegister(input());
-  // Using return as scratch register.
-  Register repr = ToRegister(result());
   Register object = ToRegister(result());
   Label box;
   if (canonicalize_smi()) {
     __ TryTruncateDoubleToInt32(object, value, &box);
-    __ SmiTagInt32(object, &box);
+    __ SmiTagInt32AndJumpIfFail(object, &box);
     __ Jump(*done, Label::kNear);
     __ bind(&box);
   }
-  __ DoubleToInt64Repr(repr, value);
-  __ JumpToDeferredIf(
-      __ IsInt64Constant(repr, kHoleNanInt64),
-      [](MaglevAssembler* masm, Register object, ZoneLabelRef done) {
-        // TODO(leszeks): Evaluate whether this is worth deferring.
-        __ LoadRoot(object, RootIndex::kUndefinedValue);
-        __ Jump(*done);
-      },
-      object, done);
+  // Using return as scratch register.
+  __ JumpIfHoleNan(
+      value, ToRegister(result()),
+      __ MakeDeferredCode(
+          [](MaglevAssembler* masm, Register object, ZoneLabelRef done) {
+            // TODO(leszeks): Evaluate whether this is worth deferring.
+            __ LoadRoot(object, RootIndex::kUndefinedValue);
+            __ Jump(*done);
+          },
+          object, done));
   __ AllocateHeapNumber(register_snapshot(), object, value);
   __ bind(*done);
 }
@@ -3425,7 +3421,8 @@ void CheckedSmiTagFloat64::GenerateCode(MaglevAssembler* masm,
 
   __ TryTruncateDoubleToInt32(
       object, value, __ GetDeoptLabel(this, DeoptimizeReason::kNotASmi));
-  __ SmiTagInt32(object, __ GetDeoptLabel(this, DeoptimizeReason::kNotASmi));
+  __ SmiTagInt32AndJumpIfFail(
+      object, __ GetDeoptLabel(this, DeoptimizeReason::kNotASmi));
 }
 
 void StoreFloat64::SetValueLocationConstraints() {

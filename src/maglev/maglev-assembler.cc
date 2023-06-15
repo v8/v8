@@ -207,6 +207,84 @@ void MaglevAssembler::ToBoolean(Register value, CheckType check_type,
   }
 }
 
+void MaglevAssembler::MaterialiseValueNode(Register dst, ValueNode* value) {
+  switch (value->opcode()) {
+    case Opcode::kInt32Constant: {
+      int32_t int_value = value->Cast<Int32Constant>()->value();
+      if (Smi::IsValid(int_value)) {
+        Move(dst, Smi::FromInt(int_value));
+      } else {
+        MoveHeapNumber(dst, int_value);
+      }
+      return;
+    }
+    case Opcode::kFloat64Constant: {
+      double double_value =
+          value->Cast<Float64Constant>()->value().get_scalar();
+      MoveHeapNumber(dst, double_value);
+      return;
+    }
+    default:
+      break;
+  }
+  DCHECK(!value->allocation().IsConstant());
+  DCHECK(value->allocation().IsAnyStackSlot());
+  using D = NewHeapNumberDescriptor;
+  DoubleRegister builtin_input_value = D::GetDoubleRegisterParameter(D::kValue);
+  MemOperand src = ToMemOperand(value->allocation());
+  switch (value->properties().value_representation()) {
+    case ValueRepresentation::kInt32: {
+      Label done;
+      ScratchRegisterScope temps(this);
+      Register scratch = temps.GetDefaultScratchRegister();
+      Move(scratch, src);
+      SmiTagInt32AndJumpIfSuccess(dst, scratch, &done, Label::kNear);
+      // If smi tagging fails, instead of bailing out (deopting), we change
+      // representation to a HeapNumber.
+      Int32ToDouble(builtin_input_value, scratch);
+      CallBuiltin<Builtin::kNewHeapNumber>(builtin_input_value);
+      Move(dst, kReturnRegister0);
+      bind(&done);
+      break;
+    }
+    case ValueRepresentation::kUint32: {
+      Label done;
+      ScratchRegisterScope temps(this);
+      Register scratch = temps.GetDefaultScratchRegister();
+      Move(scratch, src);
+      SmiTagUint32AndJumpIfSuccess(dst, scratch, &done, Label::kNear);
+      // If smi tagging fails, instead of bailing out (deopting), we change
+      // representation to a HeapNumber.
+      Uint32ToDouble(builtin_input_value, scratch);
+      CallBuiltin<Builtin::kNewHeapNumber>(builtin_input_value);
+      Move(dst, kReturnRegister0);
+      bind(&done);
+      break;
+    }
+    case ValueRepresentation::kFloat64:
+      Move(builtin_input_value, src);
+      CallBuiltin<Builtin::kNewHeapNumber>(builtin_input_value);
+      Move(dst, kReturnRegister0);
+      break;
+    case ValueRepresentation::kHoleyFloat64: {
+      // TODO(victorgomes): Check if this is a reachable case.
+      Label done, box;
+      JumpIfNotHoleNan(src, &box, Label::kNear);
+      LoadRoot(dst, RootIndex::kUndefinedValue);
+      Jump(&done);
+      bind(&box);
+      Move(builtin_input_value, src);
+      CallBuiltin<Builtin::kNewHeapNumber>(builtin_input_value);
+      Move(dst, kReturnRegister0);
+      bind(&done);
+      break;
+    }
+    case ValueRepresentation::kWord64:
+    case ValueRepresentation::kTagged:
+      UNREACHABLE();
+  }
+}
+
 }  // namespace maglev
 }  // namespace internal
 }  // namespace v8

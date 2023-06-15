@@ -228,31 +228,9 @@ inline void MaglevAssembler::BindBlock(BasicBlock* block) {
   bind(block->label());
 }
 
-inline void MaglevAssembler::DoubleToInt64Repr(Register dst,
-                                               DoubleRegister src) {
-  MAGLEV_NOT_IMPLEMENTED();
-}
-
-inline void MaglevAssembler::SmiTagInt32(Register obj, Label* fail) {
-  add(obj, obj, obj, SetCC);
-  if (fail != nullptr) {
-    JumpIf(kOverflow, fail);
-  } else if (v8_flags.debug_code) {
-    Check(kNoOverflow, AbortReason::kInputDoesNotFitSmi);
-  }
-}
-
-inline void MaglevAssembler::SmiTagUint32(Register obj, Label* fail) {
-  // Perform an unsigned comparison against Smi::kMaxValue.
-  if (fail != nullptr) {
-    cmp(obj, Operand(Smi::kMaxValue));
-    JumpIf(kUnsignedGreaterThan, fail);
-  } else if (v8_flags.debug_code) {
-    cmp(obj, Operand(Smi::kMaxValue));
-    Check(kUnsignedLessThanEqual, AbortReason::kInputDoesNotFitSmi);
-  }
-  add(obj, obj, obj, SetCC);
-  Assert(kNoOverflow, AbortReason::kInputDoesNotFitSmi);
+inline void MaglevAssembler::SmiTagInt32AndSetFlags(Register dst,
+                                                    Register src) {
+  add(dst, src, src, SetCC);
 }
 
 inline void MaglevAssembler::CheckInt32IsSmi(Register obj, Label* fail,
@@ -265,10 +243,8 @@ inline void MaglevAssembler::CheckInt32IsSmi(Register obj, Label* fail,
   JumpIf(kOverflow, fail);
 }
 
-inline Condition MaglevAssembler::IsInt64Constant(Register reg,
-                                                  int64_t constant) {
-  MAGLEV_NOT_IMPLEMENTED();
-  return eq;
+inline void MaglevAssembler::MoveHeapNumber(Register dst, double value) {
+  mov(dst, Operand::EmbeddedNumber(value));
 }
 
 inline Condition MaglevAssembler::IsRootConstant(Input input,
@@ -659,6 +635,38 @@ void MaglevAssembler::JumpIfByte(Condition cc, Register value, int32_t byte,
   b(cc, target);
 }
 
+void MaglevAssembler::JumpIfHoleNan(DoubleRegister value, Register scratch,
+                                    Label* target, Label::Distance distance) {
+  MaglevAssembler::ScratchRegisterScope temps(this);
+  Register repr = temps.Acquire();
+  Label not_hole_nan;
+  static_assert(kHoleNanLower32 == kHoleNanUpper32);
+  Move(scratch, kHoleNanLower32);
+  VmovLow(repr, value);
+  cmp(repr, scratch);
+  JumpIf(kNotEqual, &not_hole_nan, Label::kNear);
+  VmovHigh(repr, value);
+  cmp(repr, scratch);
+  JumpIf(kEqual, target, distance);
+  bind(&not_hole_nan);
+}
+
+void MaglevAssembler::JumpIfNotHoleNan(MemOperand operand, Label* target,
+                                       Label::Distance distance) {
+  MaglevAssembler::ScratchRegisterScope temps(this);
+  Register repr = temps.Acquire();
+  Register scratch = temps.Acquire();
+  static_assert(kHoleNanLower32 == kHoleNanUpper32);
+  Move(scratch, kHoleNanUpper32);
+  ldr(repr, operand);
+  cmp(repr, scratch);
+  JumpIf(kNotEqual, target, distance);
+  operand.set_offset(operand.offset() + 4);
+  ldr(repr, operand);
+  cmp(repr, scratch);
+  JumpIf(kNotEqual, target, distance);
+}
+
 inline void MaglevAssembler::CompareInt32AndJumpIf(Register r1, Register r2,
                                                    Condition cond,
                                                    Label* target,
@@ -784,11 +792,6 @@ template <typename NodeT>
 inline void MaglevAssembler::EmitEagerDeoptIfNotEqual(DeoptimizeReason reason,
                                                       NodeT* node) {
   EmitEagerDeoptIf(ne, reason, node);
-}
-
-inline void MaglevAssembler::MaterialiseValueNode(Register dst,
-                                                  ValueNode* value) {
-  MAGLEV_NOT_IMPLEMENTED();
 }
 
 template <>
