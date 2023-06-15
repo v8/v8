@@ -564,6 +564,10 @@ class ExceptionHandlerTrampolineBuilder {
 
     __ RecordComment("EmitMoves");
     MaglevAssembler::ScratchRegisterScope temps(masm_);
+    // Add an extra register to the scratch set.
+    // kReturnRegister1 should be free.
+    static_assert(kReturnRegister0 != kReturnRegister1);
+    temps.Include(kReturnRegister1);
     Register scratch = temps.GetDefaultScratchRegister();
     direct_moves.EmitMoves(scratch);
     EmitPopMaterialisedResults(materialising_moves, save_accumulator, scratch);
