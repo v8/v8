@@ -138,6 +138,7 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
     AllocationSiteWithoutWeakNextMap)                                        \
   V(AllocationSiteWithWeakNextMap, allocation_site_map, AllocationSiteMap)   \
   V(arguments_to_string, arguments_to_string, ArgumentsToString)             \
+  V(ArrayListMap, array_list_map, ArrayListMap)                              \
   V(Array_string, Array_string, ArrayString)                                 \
   V(array_to_string, array_to_string, ArrayToString)                         \
   V(BooleanMap, boolean_map, BooleanMap)                                     \
@@ -148,6 +149,7 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
   V(constructor_string, constructor_string, ConstructorString)               \
   V(date_to_string, date_to_string, DateToString)                            \
   V(default_string, default_string, DefaultString)                           \
+  V(EmptyArrayList, empty_array_list, EmptyArrayList)                        \
   V(EmptyByteArray, empty_byte_array, EmptyByteArray)                        \
   V(EmptyFixedArray, empty_fixed_array, EmptyFixedArray)                     \
   V(EmptyScopeInfo, empty_scope_info, EmptyScopeInfo)                        \
@@ -2244,6 +2246,22 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
            cast_fail);
     return UncheckedCast<FixedDoubleArray>(base);
   }
+
+  TNode<ArrayList> AllocateArrayList(TNode<Smi> size);
+
+  TNode<ArrayList> ArrayListEnsureSpace(TNode<ArrayList> array,
+                                        TNode<Smi> size);
+
+  TNode<ArrayList> ArrayListAdd(TNode<ArrayList> array, TNode<Object> object);
+
+  void ArrayListSet(TNode<ArrayList> array, TNode<Smi> index,
+                    TNode<Object> object);
+
+  TNode<Smi> ArrayListGetLength(TNode<ArrayList> array);
+
+  void ArrayListSetLength(TNode<ArrayList> array, TNode<Smi> length);
+
+  TNode<FixedArray> ArrayListElements(TNode<ArrayList> array);
 
   template <typename T>
   bool ClassHasMapConstant() {

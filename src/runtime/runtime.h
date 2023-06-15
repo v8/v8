@@ -225,6 +225,7 @@ namespace internal {
   F(DoubleToStringWithRadix, 2, 1)                         \
   F(FatalProcessOutOfMemoryInAllocateRaw, 0, 1)            \
   F(FatalProcessOutOfMemoryInvalidArrayLength, 0, 1)       \
+  F(FatalInvalidSize, 0, 1)                                \
   F(GetAndResetRuntimeCallStats, -1 /* <= 2 */, 1)         \
   F(GetAndResetTurboProfilingData, 0, 1)                   \
   F(GetTemplateObject, 3, 1)                               \

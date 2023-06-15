@@ -4147,6 +4147,7 @@ namespace {
 Handle<FixedArray> EnsureSpaceInFixedArray(Isolate* isolate,
                                            Handle<FixedArray> array, int length,
                                            AllocationType allocation) {
+  // Ensure calculation matches CodeStubAssembler::ArrayListEnsureSpace.
   int capacity = array->length();
   if (capacity < length) {
     int new_capacity = length;

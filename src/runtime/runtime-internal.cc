@@ -55,6 +55,13 @@ RUNTIME_FUNCTION(Runtime_FatalProcessOutOfMemoryInvalidArrayLength) {
   UNREACHABLE();
 }
 
+RUNTIME_FUNCTION(Runtime_FatalInvalidSize) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(0, args.length());
+  FATAL("Invalid size");
+  UNREACHABLE();
+}
+
 RUNTIME_FUNCTION(Runtime_Throw) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());

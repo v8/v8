@@ -471,7 +471,7 @@ class ArrayList : public TorqueGeneratedArrayList<ArrayList, FixedArray> {
                                                  Handle<ArrayList> array,
                                                  Handle<Object> obj1, Smi obj2,
                                                  Smi obj3, Smi obj4);
-  static Handle<ArrayList> New(Isolate* isolate, int size);
+  V8_EXPORT_PRIVATE static Handle<ArrayList> New(Isolate* isolate, int size);
 
   // Returns the number of elements in the list, not the allocated size, which
   // is length(). Lower and upper case length() return different results!
@@ -496,7 +496,8 @@ class ArrayList : public TorqueGeneratedArrayList<ArrayList, FixedArray> {
 
   // Return a copy of the list of size Length() without the first entry. The
   // number returned by Length() is stored in the first entry.
-  static Handle<FixedArray> Elements(Isolate* isolate, Handle<ArrayList> array);
+  V8_EXPORT_PRIVATE static Handle<FixedArray> Elements(Isolate* isolate,
+                                                       Handle<ArrayList> array);
 
   static const int kHeaderFields = 1;
 

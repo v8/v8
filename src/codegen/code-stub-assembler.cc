@@ -17123,5 +17123,115 @@ void CodeStubAssembler::SharedValueBarrier(
   BIND(&done);
 }
 
+TNode<ArrayList> CodeStubAssembler::AllocateArrayList(TNode<Smi> size) {
+  TVARIABLE(ArrayList, result);
+  Label empty(this), nonempty(this), done(this);
+
+  Branch(SmiEqual(size, SmiConstant(0)), &empty, &nonempty);
+
+  BIND(&nonempty);
+  {
+    TNode<Smi> fixed_array_size =
+        SmiAdd(size, SmiConstant(ArrayList::kFirstIndex));
+    result =
+        CAST(AllocateFixedArray(PACKED_ELEMENTS, fixed_array_size,
+                                AllocationFlag::kNone, ArrayListMapConstant()));
+    ArrayListSetLength(result.value(), SmiConstant(0));
+
+    Goto(&done);
+  }
+
+  BIND(&empty);
+  {
+    result = EmptyArrayListConstant();
+    Goto(&done);
+  }
+
+  BIND(&done);
+  return result.value();
+}
+
+TNode<ArrayList> CodeStubAssembler::ArrayListEnsureSpace(
+    TNode<ArrayList> array, TNode<Smi> requested_size) {
+  Label overflow(this, Label::kDeferred);
+  TNode<Smi> capacity = LoadFixedArrayBaseLength(array);
+  TNode<Smi> requested_capacity =
+      TrySmiAdd(requested_size, SmiConstant(ArrayList::kFirstIndex), &overflow);
+
+  Label grow(this), done(this);
+
+  TVARIABLE(ArrayList, result_array, array);
+
+  GotoIf(SmiLessThan(capacity, requested_capacity), &grow);
+  Goto(&done);
+
+  BIND(&grow);
+  {
+    // new_capacity = new_length;
+    // new_capacity = capacity + max(capacity / 2, 2);
+    //
+    // Ensure calculation matches ArrayList::EnsureSpace.
+    TNode<Smi> new_capacity = TrySmiAdd(
+        requested_capacity,
+        SmiMax(SmiShr(requested_capacity, 1), SmiConstant(2)), &overflow);
+    result_array = CAST(
+        ExtractFixedArray<Smi>(array, SmiConstant(0), capacity, new_capacity,
+                               ExtractFixedArrayFlag::kFixedArrays));
+    Goto(&done);
+  }
+
+  BIND(&overflow);
+  CallRuntime(Runtime::kFatalInvalidSize, NoContextConstant());
+  Unreachable();
+
+  BIND(&done);
+  return result_array.value();
+}
+
+TNode<ArrayList> CodeStubAssembler::ArrayListAdd(TNode<ArrayList> array,
+                                                 TNode<Object> object) {
+  TNode<Smi> length = ArrayListGetLength(array);
+  TNode<Smi> new_length = SmiAdd(length, SmiConstant(1));
+  TNode<ArrayList> array_with_space = ArrayListEnsureSpace(array, new_length);
+
+  CSA_DCHECK(this, SmiEqual(ArrayListGetLength(array_with_space), length));
+
+  ArrayListSet(array_with_space, length, object);
+  ArrayListSetLength(array_with_space, new_length);
+
+  return array_with_space;
+}
+
+void CodeStubAssembler::ArrayListSet(TNode<ArrayList> array, TNode<Smi> index,
+                                     TNode<Object> object) {
+  StoreFixedArrayElement(
+      array, SmiAdd(SmiConstant(ArrayList::kFirstIndex), index), object);
+}
+
+TNode<Smi> CodeStubAssembler::ArrayListGetLength(TNode<ArrayList> array) {
+  TNode<Smi> capacity = LoadFixedArrayBaseLength(array);
+  return Select<Smi>(
+      SmiEqual(capacity, SmiConstant(0)), [=]() { return SmiConstant(0); },
+      [=]() {
+        return CAST(
+            LoadFixedArrayElement(array, SmiConstant(ArrayList::kLengthIndex)));
+      });
+}
+
+void CodeStubAssembler::ArrayListSetLength(TNode<ArrayList> array,
+                                           TNode<Smi> length) {
+  StoreFixedArrayElement(array, SmiConstant(ArrayList::kLengthIndex), length);
+}
+
+TNode<FixedArray> CodeStubAssembler::ArrayListElements(TNode<ArrayList> array) {
+  // TODO(v8:12499): Consider supporting other ElementsKinds.
+  constexpr ElementsKind kind = ElementsKind::PACKED_ELEMENTS;
+  TNode<IntPtrT> length = PositiveSmiUntag(ArrayListGetLength(array));
+  TNode<FixedArrayBase> elements = AllocateFixedArray(kind, length);
+  CopyElements(kind, elements, IntPtrConstant(0), array,
+               IntPtrConstant(ArrayList::kFirstIndex), length);
+  return CAST(elements);
+}
+
 }  // namespace internal
 }  // namespace v8
