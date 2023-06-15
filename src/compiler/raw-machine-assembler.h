@@ -98,6 +98,9 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   Node* StackSlot(MachineRepresentation rep, int alignment = 0) {
     return AddNode(machine()->StackSlot(rep, alignment));
   }
+  Node* StackSlot(int size, int alignment) {
+    return AddNode(machine()->StackSlot(size, alignment));
+  }
   Node* Int64Constant(int64_t value) {
     return AddNode(common()->Int64Constant(value));
   }

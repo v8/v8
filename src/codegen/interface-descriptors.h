@@ -137,6 +137,7 @@ namespace internal {
   V(Void)                                            \
   V(WasmFloat32ToNumber)                             \
   V(WasmFloat64ToTagged)                             \
+  V(WasmNewJSToWasmWrapper)                          \
   V(WasmSuspend)                                     \
   V(WriteBarrier)                                    \
   IF_TSAN(V, TSANLoad)                               \
@@ -2065,6 +2066,27 @@ class WasmFloat64ToTaggedDescriptor final
   DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::AnyTagged(),  // result
                                     MachineType::Float64())    // value
   DECLARE_DESCRIPTOR(WasmFloat64ToTaggedDescriptor)
+};
+
+class WasmNewJSToWasmWrapperDescriptor final
+    : public StaticCallInterfaceDescriptor<WasmNewJSToWasmWrapperDescriptor> {
+ public:
+  DEFINE_PARAMETERS_NO_CONTEXT(kWrapperBuffer, kInstance, kResultJSArray)
+  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::AnyTagged(),  // result
+                                    MachineType::IntPtr(),     // ParamBuffer
+                                    MachineType::AnyTagged(),  // Instance
+                                    MachineType::AnyTagged())  // Result jsarray
+  DECLARE_DESCRIPTOR(WasmNewJSToWasmWrapperDescriptor)
+
+  static constexpr int kMaxRegisterParams = 1;
+  // Only the first parameter, `WrapperBuffer` gets passed over a register, the
+  // instance and the js-array get passed over the stack. The reason is that
+  // these parameters get forwarded to another function, and GC's may happen
+  // until this other function gets called. By passing these parameters over the
+  // stack the references get scanned as part of the caller frame, and the GC
+  // does not have to scan anything on the `WasmNewJSToWasmWrapper` frame.
+  static constexpr inline auto registers();
+  static constexpr inline Register WrapperBufferRegister();
 };
 
 class WasmSuspendDescriptor final

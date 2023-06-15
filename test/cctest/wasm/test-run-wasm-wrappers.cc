@@ -17,7 +17,8 @@ namespace test_run_wasm_wrappers {
 
 using testing::CompileAndInstantiateForTesting;
 
-#if (V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64)
+#if V8_COMPRESS_POINTERS && (V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || \
+                             V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM)
 namespace {
 Handle<WasmInstanceObject> CompileModule(Zone* zone, Isolate* isolate,
                                          WasmModuleBuilder* builder) {
@@ -34,7 +35,7 @@ Handle<WasmInstanceObject> CompileModule(Zone* zone, Isolate* isolate,
 
 bool IsGeneric(Code wrapper) {
   return wrapper.is_builtin() &&
-         wrapper.builtin_id() == Builtin::kGenericJSToWasmWrapper;
+         wrapper.builtin_id() == Builtin::kJSToWasmWrapper;
 }
 
 bool IsSpecific(Code wrapper) {

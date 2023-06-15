@@ -647,9 +647,14 @@ constexpr auto ArraySingleArgumentConstructorDescriptor::registers() {
 }
 
 // static
-// static
 constexpr Register RunMicrotasksDescriptor::MicrotaskQueueRegister() {
   return GetRegisterParameter(0);
+}
+
+// static
+constexpr inline Register
+WasmNewJSToWasmWrapperDescriptor::WrapperBufferRegister() {
+  return std::get<kWrapperBuffer>(registers());
 }
 
 #define DEFINE_STATIC_BUILTIN_DESCRIPTOR_GETTER(Name, DescriptorName) \

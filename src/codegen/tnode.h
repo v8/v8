@@ -122,7 +122,9 @@ using TaggedT = IntPtrT;
 #endif
 
 // Result of a comparison operation.
-struct BoolT : Word32T {};
+struct BoolT : Word32T {
+  static constexpr MachineType kMachineType = MachineType::Int32();
+};
 
 // Value type of a Turbofan node with two results.
 template <class T1, class T2>

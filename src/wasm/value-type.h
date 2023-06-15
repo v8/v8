@@ -734,6 +734,7 @@ constexpr ValueType kWasmNullFuncRef = ValueType::RefNull(HeapType::kNoFunc);
 
 // Constants used by the generic js-to-wasm wrapper.
 constexpr int kWasmValueKindBitsMask = (1u << ValueType::kKindBits) - 1;
+constexpr int kWasmHeapTypeBitsMask = (1u << ValueType::kHeapTypeBits) - 1;
 
 #define FOREACH_WASMVALUE_CTYPES(V) \
   V(kI32, int32_t)                  \

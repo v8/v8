@@ -555,6 +555,10 @@ TNode<RawPtrT> CodeAssembler::LoadParentFramePointer() {
   return UncheckedCast<RawPtrT>(raw_assembler()->LoadParentFramePointer());
 }
 
+TNode<RawPtrT> CodeAssembler::StackSlotPtr(int size, int alignment) {
+  return UncheckedCast<RawPtrT>(raw_assembler()->StackSlot(size, alignment));
+}
+
 #define DEFINE_CODE_ASSEMBLER_BINARY_OP(name, ResType, Arg1Type, Arg2Type)   \
   TNode<ResType> CodeAssembler::name(TNode<Arg1Type> a, TNode<Arg2Type> b) { \
     return UncheckedCast<ResType>(raw_assembler()->name(a, b));              \

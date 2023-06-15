@@ -2457,12 +2457,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<Int32T> TruncateHeapNumberValueToWord32(TNode<HeapNumber> object);
 
   // Conversions.
-  void TryHeapNumberToSmi(TNode<HeapNumber> number, TVariable<Smi>* output,
-                          Label* if_smi);
-  void TryFloat32ToSmi(TNode<Float32T> number, TVariable<Smi>* output,
-                       Label* if_smi);
-  void TryFloat64ToSmi(TNode<Float64T> number, TVariable<Smi>* output,
-                       Label* if_smi);
+  TNode<Smi> TryHeapNumberToSmi(TNode<HeapNumber> number, Label* not_smi);
+  TNode<Smi> TryFloat32ToSmi(TNode<Float32T> number, Label* not_smi);
+  TNode<Smi> TryFloat64ToSmi(TNode<Float64T> number, Label* not_smi);
   TNode<Number> ChangeFloat32ToTagged(TNode<Float32T> value);
   TNode<Number> ChangeFloat64ToTagged(TNode<Float64T> value);
   TNode<Number> ChangeInt32ToTagged(TNode<Int32T> value);
@@ -3571,6 +3568,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // {var_high} is only used on 32-bit platforms.
   void BigIntToRawBytes(TNode<BigInt> bigint, TVariable<UintPtrT>* var_low,
                         TVariable<UintPtrT>* var_high);
+
+#if V8_ENABLE_WEBASSEMBLY
+  TorqueStructInt64AsInt32Pair BigIntToRawBytes(TNode<BigInt> value);
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   void EmitElementStore(TNode<JSObject> object, TNode<Object> key,
                         TNode<Object> value, ElementsKind elements_kind,
