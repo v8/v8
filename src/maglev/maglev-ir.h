@@ -1975,6 +1975,14 @@ class ValueNode : public Node {
     }
   }
 
+  void InitializeRegisterData() {
+    if (use_double_register()) {
+      double_registers_with_result_ = kEmptyDoubleRegList;
+    } else {
+      registers_with_result_ = kEmptyRegList;
+    }
+  }
+
   void AddRegister(Register reg) {
     DCHECK(!use_double_register());
     registers_with_result_.set(reg);
@@ -2048,11 +2056,7 @@ class ValueNode : public Node {
         state_(kLastUse)
 #endif  // DEBUG
   {
-    if (use_double_register()) {
-      double_registers_with_result_ = kEmptyDoubleRegList;
-    } else {
-      registers_with_result_ = kEmptyRegList;
-    }
+    InitializeRegisterData();
   }
 
   int FirstRegisterCode() const {

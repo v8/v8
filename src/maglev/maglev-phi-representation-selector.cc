@@ -323,6 +323,9 @@ void MaglevPhiRepresentationSelector::ConvertTaggedPhiTo(
          repr == ValueRepresentation::kFloat64 ||
          repr == ValueRepresentation::kHoleyFloat64);
   phi->change_representation(repr);
+  // Re-initialise register data, since we might have changed from integer
+  // registers to floating registers.
+  phi->InitializeRegisterData();
 
   for (int i = 0; i < phi->input_count(); i++) {
     ValueNode* input = phi->input(i).node();
