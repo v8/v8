@@ -259,14 +259,15 @@ class MaglevGraphBuilder {
   }
 
   ReduceResult BuildInlined(ValueNode* context, ValueNode* function,
-                            const CallArguments& args);
+                            ValueNode* new_target, const CallArguments& args);
 
   void StartPrologue();
   void SetArgument(int i, ValueNode* value);
   void InitializeRegister(interpreter::Register reg, ValueNode* value);
   ValueNode* GetTaggedArgument(int i);
   void BuildRegisterFrameInitialization(ValueNode* context = nullptr,
-                                        ValueNode* closure = nullptr);
+                                        ValueNode* closure = nullptr,
+                                        ValueNode* new_target = nullptr);
   void BuildMergeStates();
   BasicBlock* EndPrologue();
   void PeelLoop();
@@ -1508,7 +1509,7 @@ class MaglevGraphBuilder {
       compiler::JSFunctionRef function, ValueNode* new_target,
       CallArguments& args, const compiler::FeedbackSource& feedback_source);
   ReduceResult TryBuildCallKnownJSFunction(
-      ValueNode* context, ValueNode* function,
+      ValueNode* context, ValueNode* function, ValueNode* new_target,
       compiler::SharedFunctionInfoRef shared,
       compiler::OptionalFeedbackVectorRef feedback_vector, CallArguments& args,
       const compiler::FeedbackSource& feedback_source);
@@ -1516,7 +1517,7 @@ class MaglevGraphBuilder {
                         compiler::OptionalFeedbackVectorRef feedback_vector,
                         float call_frequency);
   ReduceResult TryBuildInlinedCall(
-      ValueNode* context, ValueNode* function,
+      ValueNode* context, ValueNode* function, ValueNode* new_target,
       compiler::SharedFunctionInfoRef shared,
       compiler::OptionalFeedbackVectorRef feedback_vector, CallArguments& args,
       const compiler::FeedbackSource& feedback_source);
@@ -1993,6 +1994,7 @@ class MaglevGraphBuilder {
   // base::Vector<ValueNode*>* inlined_arguments_ = nullptr;
   base::Optional<base::Vector<ValueNode*>> inlined_arguments_;
   BytecodeOffset caller_bytecode_offset_;
+  ValueNode* inlined_new_target_ = nullptr;
 
   // Bytecode offset at which compilation should start.
   int entrypoint_;

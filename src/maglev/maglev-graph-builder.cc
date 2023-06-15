@@ -391,8 +391,8 @@ void MaglevGraphBuilder::InitializeRegister(interpreter::Register reg,
       reg, value ? value : AddNewNode<InitialValue>({}, reg));
 }
 
-void MaglevGraphBuilder::BuildRegisterFrameInitialization(ValueNode* context,
-                                                          ValueNode* closure) {
+void MaglevGraphBuilder::BuildRegisterFrameInitialization(
+    ValueNode* context, ValueNode* closure, ValueNode* new_target) {
   if (closure == nullptr &&
       compilation_unit_->info()->specialize_to_function_context()) {
     compiler::JSFunctionRef function = compiler::MakeRefAssumeMemoryFence(
@@ -429,7 +429,8 @@ void MaglevGraphBuilder::BuildRegisterFrameInitialization(ValueNode* context,
     }
     current_interpreter_frame_.set(
         new_target_or_generator_register,
-        GetRegisterInput(kJavaScriptCallNewTargetRegister));
+        new_target ? new_target
+                   : GetRegisterInput(kJavaScriptCallNewTargetRegister));
     register_index++;
   }
   for (; register_index < register_count(); register_index++) {
@@ -1738,6 +1739,22 @@ base::Optional<int> MaglevGraphBuilder::TryFindNextBranch(int* inline_level) {
           }
           return {};
         }
+        // The inlined new.target is the root constant iff we are not inlining
+        // a constructor. Bail out for constructors.
+        // TODO(leszeks): Since we know we are returning a primitive true/false,
+        // which will then be replaced with a new.target that ToBooleans to
+        // true, we could treat this as an unconditional "true" for branch
+        // fusion.
+        if (!inlined_new_target_->Is<RootConstant>()) {
+          if (v8_flags.trace_maglev_graph_building) {
+            std::cout << "  ! Bailing out of test->branch fusion because "
+                         "returning from a constructor"
+                      << std::endl;
+          }
+          return {};
+        }
+        DCHECK_EQ(inlined_new_target_->Cast<RootConstant>()->index(),
+                  RootIndex::kUndefinedValue);
         // Check that the return is the last bytecode in the inlined function,
         // without any other returns. Otherwise we would skip a required merge
         // point.
@@ -5095,6 +5112,7 @@ void MaglevGraphBuilder::VisitFindNonDefaultConstructorOrConstruct() {
 
 ReduceResult MaglevGraphBuilder::BuildInlined(ValueNode* context,
                                               ValueNode* function,
+                                              ValueNode* new_target,
                                               const CallArguments& args) {
   DCHECK(is_inline());
 
@@ -5126,8 +5144,9 @@ ReduceResult MaglevGraphBuilder::BuildInlined(ValueNode* context,
       (*inlined_arguments_)[i + 1] = args[i];
     }
   }
+  inlined_new_target_ = new_target;
 
-  BuildRegisterFrameInitialization(context, function);
+  BuildRegisterFrameInitialization(context, function, new_target);
   BuildMergeStates();
   EndPrologue();
 
@@ -5253,7 +5272,7 @@ bool MaglevGraphBuilder::ShouldInlineCall(
 }
 
 ReduceResult MaglevGraphBuilder::TryBuildInlinedCall(
-    ValueNode* context, ValueNode* function,
+    ValueNode* context, ValueNode* function, ValueNode* new_target,
     compiler::SharedFunctionInfoRef shared,
     compiler::OptionalFeedbackVectorRef feedback_vector, CallArguments& args,
     const compiler::FeedbackSource& feedback_source) {
@@ -5294,7 +5313,7 @@ ReduceResult MaglevGraphBuilder::TryBuildInlinedCall(
   inner_graph_builder.current_block_ = current_block_;
 
   ReduceResult result =
-      inner_graph_builder.BuildInlined(context, function, args);
+      inner_graph_builder.BuildInlined(context, function, new_target, args);
   if (result.IsDoneWithAbort()) {
     DCHECK_NULL(inner_graph_builder.current_block_);
     current_block_ = nullptr;
@@ -5921,7 +5940,7 @@ ReduceResult MaglevGraphBuilder::TryBuildCallKnownJSFunction(
     return BuildCallSelf(context, closure, new_target, shared, args);
   }
   if (v8_flags.maglev_inlining) {
-    RETURN_IF_DONE(TryBuildInlinedCall(context, closure, shared,
+    RETURN_IF_DONE(TryBuildInlinedCall(context, closure, new_target, shared,
                                        function.feedback_vector(broker()), args,
                                        feedback_source));
   }
@@ -5938,12 +5957,12 @@ ReduceResult MaglevGraphBuilder::TryBuildCallKnownJSFunction(
 }
 
 ReduceResult MaglevGraphBuilder::TryBuildCallKnownJSFunction(
-    ValueNode* context, ValueNode* function,
+    ValueNode* context, ValueNode* function, ValueNode* new_target,
     compiler::SharedFunctionInfoRef shared,
     compiler::OptionalFeedbackVectorRef feedback_vector, CallArguments& args,
     const compiler::FeedbackSource& feedback_source) {
   if (v8_flags.maglev_inlining) {
-    RETURN_IF_DONE(TryBuildInlinedCall(context, function, shared,
+    RETURN_IF_DONE(TryBuildInlinedCall(context, function, new_target, shared,
                                        feedback_vector, args, feedback_source));
   }
   ValueNode* receiver = GetConvertReceiver(shared, args);
@@ -6081,9 +6100,10 @@ ReduceResult MaglevGraphBuilder::ReduceCallForNewClosure(
       return BuildCallRuntime(Runtime::kThrowConstructorNonCallableError,
                               {target_node});
     }
-    RETURN_IF_DONE(TryBuildCallKnownJSFunction(target_context, target_node,
-                                               shared, feedback_vector, args,
-                                               feedback_source));
+    RETURN_IF_DONE(TryBuildCallKnownJSFunction(
+        target_context, target_node,
+        GetRootConstant(RootIndex::kUndefinedValue), shared, feedback_vector,
+        args, feedback_source));
   }
   return BuildGenericCall(target_node, Call::TargetType::kJSFunction, args);
 }
