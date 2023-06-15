@@ -771,9 +771,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     __ mov(r5, r4);
     __ mov(r6, r4);
     __ mov(r8, r4);
-    if (kR9Available == 1) {
-      __ mov(r9, r4);
-    }
+    __ mov(r9, r4);
 
     // Invoke the code.
     Handle<Code> builtin = is_construct
@@ -3150,7 +3148,6 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
 
   Register return_value = r0;
   Register scratch = r8;
-  CHECK(kR9Available);
   Register scratch2 = r9;
 
   // Allocate HandleScope in callee-saved registers.
