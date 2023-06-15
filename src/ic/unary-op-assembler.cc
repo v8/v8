@@ -28,9 +28,12 @@ class UnaryOpAssemblerImpl final : public CodeStubAssembler {
     TVARIABLE(BigInt, var_bigint);
     TVARIABLE(Object, var_result);
     Label if_number(this), if_bigint(this, Label::kDeferred), out(this);
+    LazyNode<HeapObject> get_vector = [&]() { return maybe_feedback_vector; };
+    FeedbackValues feedback = {&var_feedback, &get_vector, &slot,
+                               update_feedback_mode};
     TaggedToWord32OrBigIntWithFeedback(context, value, &if_number, &var_word32,
                                        &if_bigint, nullptr, &var_bigint,
-                                       &var_feedback);
+                                       feedback);
 
     // Number case.
     BIND(&if_number);

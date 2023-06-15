@@ -21,13 +21,11 @@ let postIncrement = () => symbol++;
 let postDecrement = () => symbol--;
 let unaryPlus = () => -symbol;
 let unaryMinus = () => -symbol;
-let negate = () => ~symbol;
+let bitwiseNot = () => ~symbol;
 testThrowsRepeated(preIncrement);
 testThrowsRepeated(preDecrement);
 testThrowsRepeated(postIncrement);
 testThrowsRepeated(postDecrement);
 testThrowsRepeated(unaryPlus);
 testThrowsRepeated(unaryMinus);
-// TODO(mliedtke): negate seems to use a different code path and still produces
-// repeated deopts.
-// testThrowsRepeated(negate);
+testThrowsRepeated(bitwiseNot);

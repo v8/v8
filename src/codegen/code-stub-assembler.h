@@ -2441,16 +2441,22 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                               Label* if_number, TVariable<Word32T>* var_word32,
                               Label* if_bigint, Label* if_bigint64,
                               TVariable<BigInt>* var_maybe_bigint);
+  struct FeedbackValues {
+    TVariable<Smi>* var_feedback = nullptr;
+    const LazyNode<HeapObject>* maybe_feedback_vector = nullptr;
+    TNode<UintPtrT>* slot = nullptr;
+    UpdateFeedbackMode update_mode = UpdateFeedbackMode::kNoFeedback;
+  };
   void TaggedToWord32OrBigIntWithFeedback(TNode<Context> context,
                                           TNode<Object> value, Label* if_number,
                                           TVariable<Word32T>* var_word32,
                                           Label* if_bigint, Label* if_bigint64,
                                           TVariable<BigInt>* var_maybe_bigint,
-                                          TVariable<Smi>* var_feedback);
+                                          const FeedbackValues& feedback);
   void TaggedPointerToWord32OrBigIntWithFeedback(
       TNode<Context> context, TNode<HeapObject> pointer, Label* if_number,
       TVariable<Word32T>* var_word32, Label* if_bigint, Label* if_bigint64,
-      TVariable<BigInt>* var_maybe_bigint, TVariable<Smi>* var_feedback);
+      TVariable<BigInt>* var_maybe_bigint, const FeedbackValues& feedback);
 
   TNode<Int32T> TruncateNumberToWord32(TNode<Number> value);
   // Truncate the floating point value of a HeapNumber to an Int32.
@@ -4392,14 +4398,13 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   enum IsKnownTaggedPointer { kNo, kYes };
   template <Object::Conversion conversion>
-  void TaggedToWord32OrBigIntImpl(TNode<Context> context, TNode<Object> value,
-                                  Label* if_number,
-                                  TVariable<Word32T>* var_word32,
-                                  IsKnownTaggedPointer is_known_tagged_pointer,
-                                  Label* if_bigint = nullptr,
-                                  Label* if_bigint64 = nullptr,
-                                  TVariable<BigInt>* var_maybe_bigint = nullptr,
-                                  TVariable<Smi>* var_feedback = nullptr);
+  void TaggedToWord32OrBigIntImpl(
+      TNode<Context> context, TNode<Object> value, Label* if_number,
+      TVariable<Word32T>* var_word32,
+      IsKnownTaggedPointer is_known_tagged_pointer,
+      const FeedbackValues& feedback, Label* if_bigint = nullptr,
+      Label* if_bigint64 = nullptr,
+      TVariable<BigInt>* var_maybe_bigint = nullptr);
 
   // Low-level accessors for Descriptor arrays.
   template <typename T>
