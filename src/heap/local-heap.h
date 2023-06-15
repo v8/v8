@@ -307,6 +307,8 @@ class V8_EXPORT_PRIVATE LocalHeap {
   template <typename Callback>
   V8_INLINE void ExecuteWithStackMarker(Callback callback);
   template <typename Callback>
+  V8_INLINE void ExecuteWithStackMarkerReentrant(Callback callback);
+  template <typename Callback>
   V8_INLINE void ExecuteWithStackMarkerIfNeeded(Callback callback);
 
   void Park() {

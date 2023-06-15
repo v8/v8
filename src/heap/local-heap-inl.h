@@ -108,7 +108,7 @@ V8_INLINE void LocalHeap::BlockWhileParked(Callback callback) {
 
 template <typename Callback>
 V8_INLINE void LocalHeap::BlockMainThreadWhileParked(Callback callback) {
-  ExecuteWithStackMarker(
+  ExecuteWithStackMarkerReentrant(
       [this, callback]() { ParkAndExecuteCallback(callback); });
 }
 
@@ -126,9 +126,21 @@ V8_INLINE void LocalHeap::ExecuteWithStackMarker(Callback callback) {
 }
 
 template <typename Callback>
+V8_INLINE void LocalHeap::ExecuteWithStackMarkerReentrant(Callback callback) {
+  // The trampoline is not re-entrant. This method ensures that we only enter it
+  // if we have not entered it before.
+  DCHECK(is_main_thread());
+  if (!is_in_trampoline()) {
+    ExecuteWithStackMarker(callback);
+  } else {
+    callback();
+  }
+}
+
+template <typename Callback>
 V8_INLINE void LocalHeap::ExecuteWithStackMarkerIfNeeded(Callback callback) {
   if (is_main_thread()) {
-    ExecuteWithStackMarker(callback);
+    ExecuteWithStackMarkerReentrant(callback);
   } else {
     callback();
   }
