@@ -1278,6 +1278,9 @@
   # BUG(v8:13234)
   'wasm/shared-memory-worker-gc-stress': [SKIP],
   'object-literal': [SKIP],
+
+  # Slow tests.
+  'wasm/serialization-with-compilation-hints': [SKIP],
 }],  # 'verify_predictable'
 
 ##############################################################################
