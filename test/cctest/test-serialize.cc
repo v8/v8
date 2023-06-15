@@ -64,13 +64,7 @@
 namespace v8 {
 namespace internal {
 
-enum CodeCacheType { kLazy, kEager, kAfterExecute };
-
-void DisableAlwaysOpt() {
-  // Isolates prepared for serialization do not optimize. The only exception is
-  // with the flag --always-turbofan.
-  v8_flags.always_turbofan = false;
-}
+namespace {
 
 // A convenience struct to simplify management of the blobs required to
 // deserialize an isolate.
@@ -85,6 +79,8 @@ struct StartupBlobs {
     shared_space.Dispose();
   }
 };
+
+}  // namespace
 
 // TestSerializer is used for testing isolate serialization.
 class TestSerializer {
@@ -136,15 +132,23 @@ class TestSerializer {
   }
 };
 
-static base::Vector<const uint8_t> WritePayload(
-    base::Vector<const uint8_t> payload) {
+namespace {
+
+enum CodeCacheType { kLazy, kEager, kAfterExecute };
+
+void DisableAlwaysOpt() {
+  // Isolates prepared for serialization do not optimize. The only exception is
+  // with the flag --always-turbofan.
+  v8_flags.always_turbofan = false;
+}
+
+base::Vector<const uint8_t> WritePayload(
+    const base::Vector<const uint8_t>& payload) {
   int length = payload.length();
   uint8_t* blob = NewArray<uint8_t>(length);
   memcpy(blob, payload.begin(), length);
   return base::Vector<const uint8_t>(const_cast<const uint8_t*>(blob), length);
 }
-
-namespace {
 
 // Convenience wrapper around the convenience wrapper.
 v8::StartupData CreateSnapshotDataBlob(const char* embedded_source) {
@@ -153,9 +157,13 @@ v8::StartupData CreateSnapshotDataBlob(const char* embedded_source) {
   return data;
 }
 
-}  // namespace
+enum class SerializeQuirks {
+  kNone,
+  kReadOnlySpaceIsSealed,
+};
 
-static StartupBlobs Serialize(v8::Isolate* isolate) {
+StartupBlobs Serialize(v8::Isolate* isolate,
+                       SerializeQuirks quirks = SerializeQuirks::kNone) {
   // We have to create one context.  One reason for this is so that the builtins
   // can be loaded from self hosted JS builtins and their addresses can be
   // processed.  This will clear the pending fixups array, which would otherwise
@@ -170,8 +178,20 @@ static StartupBlobs Serialize(v8::Isolate* isolate) {
   Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
   heap::InvokeMemoryReducingMajorGCs(i_isolate->heap());
 
+  // Note this effectively reimplements Snapshot::Create, keep in sync.
+
   IsolateSafepointScope safepoint(i_isolate->heap());
   HandleScope scope(i_isolate);
+
+  if (!i_isolate->initialized_from_snapshot() &&
+      quirks != SerializeQuirks::kReadOnlySpaceIsSealed) {
+    // When creating the snapshot from scratch, we are responsible for sealing
+    // the RO heap here. Note we cannot delegate the responsibility e.g. to
+    // Isolate::Init since it should still be possible to allocate into RO
+    // space after the Isolate has been initialized, for example as part of
+    // Context creation.
+    i_isolate->read_only_heap()->OnCreateHeapObjectsComplete(i_isolate);
+  }
 
   DisallowGarbageCollection no_gc;
   ReadOnlySerializer read_only_serializer(i_isolate,
@@ -212,13 +232,13 @@ base::Vector<const char> ConstructSource(base::Vector<const char> head,
   return base::VectorOf(source, source_length);
 }
 
-static v8::Isolate* Deserialize(const StartupBlobs& blobs) {
+v8::Isolate* Deserialize(const StartupBlobs& blobs) {
   v8::Isolate* isolate = TestSerializer::NewIsolateFromBlob(blobs);
   CHECK(isolate);
   return isolate;
 }
 
-static void SanityCheck(v8::Isolate* v8_isolate) {
+void SanityCheck(v8::Isolate* v8_isolate) {
   Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate);
   v8::HandleScope scope(v8_isolate);
 #ifdef VERIFY_HEAP
@@ -248,6 +268,8 @@ void TestStartupSerializerOnceImpl() {
   FreeCurrentEmbeddedBlob();
 }
 
+}  // namespace
+
 UNINITIALIZED_TEST(StartupSerializerOnce) {
   DisableAlwaysOpt();
   TestStartupSerializerOnceImpl();
@@ -257,7 +279,8 @@ UNINITIALIZED_TEST(StartupSerializerTwice) {
   DisableAlwaysOpt();
   v8::Isolate* isolate = TestSerializer::NewIsolateInitialized();
   StartupBlobs blobs1 = Serialize(isolate);
-  StartupBlobs blobs2 = Serialize(isolate);
+  StartupBlobs blobs2 =
+      Serialize(isolate, SerializeQuirks::kReadOnlySpaceIsSealed);
   isolate->Dispose();
   blobs1.Dispose();
   isolate = Deserialize(blobs2);
@@ -304,7 +327,8 @@ UNINITIALIZED_TEST(StartupSerializerTwiceRunScript) {
   DisableAlwaysOpt();
   v8::Isolate* isolate = TestSerializer::NewIsolateInitialized();
   StartupBlobs blobs1 = Serialize(isolate);
-  StartupBlobs blobs2 = Serialize(isolate);
+  StartupBlobs blobs2 =
+      Serialize(isolate, SerializeQuirks::kReadOnlySpaceIsSealed);
   isolate->Dispose();
   blobs1.Dispose();
   isolate = Deserialize(blobs2);
@@ -363,6 +387,15 @@ static void SerializeContext(base::Vector<const uint8_t>* startup_blob_out,
     env.Reset();
 
     IsolateSafepointScope safepoint(heap);
+
+    if (!isolate->initialized_from_snapshot()) {
+      // When creating the snapshot from scratch, we are responsible for sealing
+      // the RO heap here. Note we cannot delegate the responsibility e.g. to
+      // Isolate::Init since it should still be possible to allocate into RO
+      // space after the Isolate has been initialized, for example as part of
+      // Context creation.
+      isolate->read_only_heap()->OnCreateHeapObjectsComplete(isolate);
+    }
 
     DisallowGarbageCollection no_gc;
     SnapshotByteSink read_only_sink;
@@ -530,6 +563,15 @@ static void SerializeCustomContext(
     env.Reset();
 
     IsolateSafepointScope safepoint(isolate->heap());
+
+    if (!isolate->initialized_from_snapshot()) {
+      // When creating the snapshot from scratch, we are responsible for sealing
+      // the RO heap here. Note we cannot delegate the responsibility e.g. to
+      // Isolate::Init since it should still be possible to allocate into RO
+      // space after the Isolate has been initialized, for example as part of
+      // Context creation.
+      isolate->read_only_heap()->OnCreateHeapObjectsComplete(isolate);
+    }
 
     DisallowGarbageCollection no_gc;
     SnapshotByteSink read_only_sink;

@@ -133,7 +133,18 @@ void ReadOnlyHeap::OnCreateRootsComplete(Isolate* isolate) {
 
 void ReadOnlyHeap::OnCreateHeapObjectsComplete(Isolate* isolate) {
   DCHECK_NOT_NULL(isolate);
+
+  // InitFromIsolate mutates MemoryChunk flags which would race with any
+  // concurrently-running sweeper tasks. Ensure that sweeping has been
+  // completed, i.e. no sweeper tasks are currently running.
+  isolate->heap()->EnsureSweepingCompleted(
+      Heap::SweepingForcedFinalizationMode::kV8Only);
+
   InitFromIsolate(isolate);
+
+#ifdef VERIFY_HEAP
+  if (v8_flags.verify_heap) HeapVerifier::VerifyReadOnlyHeap(isolate->heap());
+#endif
 }
 
 // Only for compressed spaces
