@@ -1004,8 +1004,6 @@ bool PagedSpaceForNewSpace::AddPageBeyondCapacity(int size_in_bytes,
     // will exceed the available size of old space.
     return false;
   }
-  DCHECK_IMPLIES(heap()->incremental_marking()->IsMarking(),
-                 heap()->incremental_marking()->IsMajorMarking());
   if (!AllocatePage()) return false;
   return TryAllocationFromFreeListMain(static_cast<size_t>(size_in_bytes),
                                        origin);

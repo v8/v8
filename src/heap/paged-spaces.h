@@ -354,6 +354,9 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
 
   std::atomic<size_t> committed_physical_memory_{0};
 
+  // Used for tracking bytes allocated since last gc in new space.
+  size_t size_at_last_gc_ = 0;
+
  private:
   class ConcurrentAllocationMutex {
    public:

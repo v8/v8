@@ -5746,8 +5746,10 @@ void YoungGenerationMarkingTask::DrainMarkingWorklist() {
     // atomics.
     Map map = Map::cast(*heap_object.map_slot());
     // kDataOnly objects are filtered on push.
-    DCHECK_EQ(Map::ObjectFieldsFrom(map.visitor_id()),
-              ObjectFields::kMaybePointers);
+    // TODO(v8:13012): Re-enable this DCHECK once the this optimization is
+    // implemented for MinorMC concurrent marking.
+    // DCHECK_EQ(Map::ObjectFieldsFrom(map.visitor_id()),
+    //           ObjectFields::kMaybePointers);
     const auto visited_size = visitor_.Visit(map, heap_object);
     if (visited_size) {
       visitor_.marking_state()->IncrementLiveBytes(
@@ -6098,6 +6100,10 @@ void MinorMarkCompactCollector::DrainMarkingWorklist() {
       // Maps won't change in the atomic pause, so the map can be read without
       // atomics.
       Map map = Map::cast(*heap_object.map_slot());
+      // TODO(v8:13012): Re-enable this DCHECK once the this optimization is
+      // implemented for MinorMC concurrent marking.
+      // DCHECK_EQ(Map::ObjectFieldsFrom(map.visitor_id()),
+      //           ObjectFields::kMaybePointers);
       const auto visited_size = main_marking_visitor_->Visit(map, heap_object);
       if (visited_size) {
         marking_state_->IncrementLiveBytes(

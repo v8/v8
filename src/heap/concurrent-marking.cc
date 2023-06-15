@@ -130,12 +130,14 @@ class ConcurrentMarkingVisitor final
     : public MarkingVisitorBase<ConcurrentMarkingVisitor,
                                 ConcurrentMarkingState> {
  public:
-  ConcurrentMarkingVisitor(
-      int task_id, MarkingWorklists::Local* local_marking_worklists,
-      WeakObjects::Local* local_weak_objects, Heap* heap,
-      unsigned mark_compact_epoch, base::EnumSet<CodeFlushMode> code_flush_mode,
-      bool embedder_tracing_enabled, bool should_keep_ages_unchanged,
-      uint16_t code_flushing_increase, MemoryChunkDataMap* memory_chunk_data)
+  ConcurrentMarkingVisitor(MarkingWorklists::Local* local_marking_worklists,
+                           WeakObjects::Local* local_weak_objects, Heap* heap,
+                           unsigned mark_compact_epoch,
+                           base::EnumSet<CodeFlushMode> code_flush_mode,
+                           bool embedder_tracing_enabled,
+                           bool should_keep_ages_unchanged,
+                           uint16_t code_flushing_increase,
+                           MemoryChunkDataMap* memory_chunk_data)
       : MarkingVisitorBase(local_marking_worklists, local_weak_objects, heap,
                            mark_compact_epoch, code_flush_mode,
                            embedder_tracing_enabled, should_keep_ages_unchanged,
@@ -305,10 +307,9 @@ void ConcurrentMarking::RunMajor(JobDelegate* delegate,
                               : MarkingWorklists::Local::kNoCppMarkingState);
   WeakObjects::Local local_weak_objects(weak_objects_);
   ConcurrentMarkingVisitor visitor(
-      task_id, &local_marking_worklists, &local_weak_objects, heap_,
-      mark_compact_epoch, code_flush_mode, heap_->cpp_heap(),
-      should_keep_ages_unchanged, heap_->tracer()->CodeFlushingIncrease(),
-      &task_state->memory_chunk_data);
+      &local_marking_worklists, &local_weak_objects, heap_, mark_compact_epoch,
+      code_flush_mode, heap_->cpp_heap(), should_keep_ages_unchanged,
+      heap_->tracer()->CodeFlushingIncrease(), &task_state->memory_chunk_data);
   NativeContextInferrer& native_context_inferrer =
       task_state->native_context_inferrer;
   NativeContextStats& native_context_stats = task_state->native_context_stats;
@@ -425,9 +426,12 @@ void ConcurrentMarking::RunMajor(JobDelegate* delegate,
 }
 
 void ConcurrentMarking::RunMinor(JobDelegate* delegate) {
+  DCHECK_NOT_NULL(heap_->new_space());
+  DCHECK_NOT_NULL(heap_->new_lo_space());
   size_t kBytesUntilInterruptCheck = 64 * KB;
   int kObjectsUntilInterruptCheck = 1000;
   uint8_t task_id = delegate->GetTaskId() + 1;
+  DCHECK_LT(task_id, task_state_.size());
   TaskState* task_state = task_state_[task_id].get();
   EphemeronRememberedSet::TableList::Local local_ephemeron_table_list(
       *heap_->minor_mark_compact_collector()->ephemeron_table_list());
@@ -462,19 +466,10 @@ void ConcurrentMarking::RunMinor(JobDelegate* delegate) {
         }
         objects_processed++;
 
-        Address new_space_top = kNullAddress;
-        Address new_space_limit = kNullAddress;
-        Address new_large_object = kNullAddress;
-
-        if (heap_->new_space()) {
-          // The order of the two loads is important.
-          new_space_top = heap_->new_space()->original_top_acquire();
-          new_space_limit = heap_->new_space()->original_limit_relaxed();
-        }
-
-        if (heap_->new_lo_space()) {
-          new_large_object = heap_->new_lo_space()->pending_object();
-        }
+        // The order of the two loads is important.
+        Address new_space_top = heap_->new_space()->original_top_acquire();
+        Address new_space_limit = heap_->new_space()->original_limit_relaxed();
+        Address new_large_object = heap_->new_lo_space()->pending_object();
 
         Address addr = object.address();
 
@@ -503,6 +498,7 @@ void ConcurrentMarking::RunMinor(JobDelegate* delegate) {
     }
 
     local_marking_worklists.Publish();
+    local_ephemeron_table_list.Publish();
     base::AsAtomicWord::Relaxed_Store<size_t>(&task_state->marked_bytes, 0);
     total_marked_bytes_ += marked_bytes;
   }

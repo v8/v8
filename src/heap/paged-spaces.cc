@@ -251,7 +251,9 @@ void PagedSpaceBase::RefineAllocatedBytesAfterSweeping(Page* page) {
   size_t new_counter = page->allocated_bytes();
   DCHECK_GE(old_counter, new_counter);
   if (old_counter > new_counter) {
-    DecreaseAllocatedBytes(old_counter - new_counter, page);
+    size_t counter_diff = old_counter - new_counter;
+    if (identity() == NEW_SPACE) size_at_last_gc_ -= counter_diff;
+    DecreaseAllocatedBytes(counter_diff, page);
   }
   marking_state->SetLiveBytes(page, 0);
 }
@@ -661,6 +663,8 @@ void PagedSpaceBase::Print() {}
 #ifdef VERIFY_HEAP
 void PagedSpaceBase::Verify(Isolate* isolate,
                             SpaceVerificationVisitor* visitor) const {
+  CHECK_IMPLIES(identity() != NEW_SPACE, size_at_last_gc_ == 0);
+
   bool allocation_pointer_found_in_space =
       (allocation_info_.top() == allocation_info_.limit());
   size_t external_space_bytes[kNumTypes];
