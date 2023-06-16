@@ -37,6 +37,7 @@ ALL_VARIANT_FLAGS = {
     "concurrent_sparkplug": [["--concurrent-sparkplug", "--sparkplug"]],
     "always_sparkplug": [["--always-sparkplug", "--sparkplug"]],
     "minor_mc": [["--minor-mc"]],
+    "concurrent_minor_mc": [["--minor-mc", "--concurrent-minor-mc-marking"]],
     "no_lfa": [["--no-lazy-feedback-allocation"]],
     # No optimization means disable all optimizations. OptimizeFunctionOnNextCall
     # would not force optimization too. It turns into a Nop. Please see
@@ -120,13 +121,19 @@ INCOMPATIBLE_FLAGS_PER_VARIANT = {
     "maglev": ["--jitless", "--no-maglev"],
     "maglev_future": ["--jitless", "--no-maglev", "--no-maglev-future"],
     "maglev_no_turbofan": [
-        "--jitless", "--no-maglev", "--turbofan", "--always-turbofan",
+        "--jitless",
+        "--no-maglev",
+        "--turbofan",
+        "--always-turbofan",
         "--stress-concurrent-inlining",
     ],
     "stress_maglev": ["--jitless"],
     "stress_maglev_future": ["--jitless", "--no-maglev", "--no-maglev-future"],
     "stress_maglev_no_turbofan": [
-        "--jitless", "--no-maglev", "--turbofan", "--always-turbofan",
+        "--jitless",
+        "--no-maglev",
+        "--turbofan",
+        "--always-turbofan",
         "--stress-concurrent-inlining",
     ],
     "always_sparkplug": ["--jitless", "--no-sparkplug"],
@@ -137,6 +144,11 @@ INCOMPATIBLE_FLAGS_PER_VARIANT = {
     "assert_types": [
         "--concurrent-recompilation", "--stress_concurrent_inlining",
         "--no-assert-types"
+    ],
+    "concurrent_minor_mc": [
+        "--predictable", "--single_threaded_gc", "--single_threaded",
+        "--stress_snapshot", "--trace_gc_object_stats",
+        "--no-incremental-marking", "--no-concurrent-marking"
     ],
 }
 
