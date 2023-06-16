@@ -173,41 +173,62 @@ struct FastField {
   };
 };
 
-#define RETURN_IF_DONE(result) \
-  do {                         \
-    auto res = result;         \
-    if (res.IsDone()) {        \
-      return res;              \
-    }                          \
+#define RETURN_IF_DONE(result)   \
+  do {                           \
+    ReduceResult res = (result); \
+    if (res.IsDone()) {          \
+      return res;                \
+    }                            \
   } while (false)
 
 #define RETURN_VOID_IF_DONE(result) \
   do {                              \
-    auto res = result;              \
+    ReduceResult res = (result);    \
     if (res.IsDone()) {             \
+      if (res.IsDoneWithAbort()) {  \
+        MarkBytecodeDead();         \
+        return;                     \
+      }                             \
       return;                       \
     }                               \
   } while (false)
 
 #define PROCESS_AND_RETURN_IF_DONE(result, value_processor) \
   do {                                                      \
-    auto res = result;                                      \
+    ReduceResult res = (result);                            \
     if (res.IsDone()) {                                     \
-      if (res.IsDoneWithValue()) {                          \
+      if (res.IsDoneWithAbort()) {                          \
+        MarkBytecodeDead();                                 \
+      } else if (res.IsDoneWithValue()) {                   \
         value_processor(res.value());                       \
       }                                                     \
       return;                                               \
     }                                                       \
   } while (false)
 
-#define RETURN_IF_ABORT(result)           \
-  if (result.IsDoneWithAbort()) {         \
-    return ReduceResult::DoneWithAbort(); \
-  }
-#define RETURN_VOID_IF_ABORT(result) \
-  if (result.IsDoneWithAbort()) {    \
+#define RETURN_IF_ABORT(result)             \
+  do {                                      \
+    if ((result).IsDoneWithAbort()) {       \
+      return ReduceResult::DoneWithAbort(); \
+    }                                       \
+  } while (false)
+
+#define RETURN_VOID_IF_ABORT(result)  \
+  do {                                \
+    if ((result).IsDoneWithAbort()) { \
+      MarkBytecodeDead();             \
+      return;                         \
+    }                                 \
+  } while (false)
+
+#define RETURN_VOID_ON_ABORT(result) \
+  do {                               \
+    ReduceResult res = (result);     \
+    USE(res);                        \
+    DCHECK(res.IsDoneWithAbort());   \
+    MarkBytecodeDead();              \
     return;                          \
-  }
+  } while (false)
 
 enum class ToNumberHint {
   kDisallowToNumber,
@@ -511,11 +532,11 @@ class MaglevGraphBuilder {
   }
 
   // Called when a block is killed by an unconditional eager deopt.
-  void EmitUnconditionalDeopt(DeoptimizeReason reason) {
+  ReduceResult EmitUnconditionalDeopt(DeoptimizeReason reason) {
     // Create a block rather than calling finish, since we don't yet know the
     // next block's offset before the loop skipping the rest of the bytecodes.
     FinishBlock<Deopt>({}, reason);
-    MarkBytecodeDead();
+    return ReduceResult::DoneWithAbort();
   }
 
   void MarkBytecodeDead() {
@@ -682,8 +703,8 @@ class MaglevGraphBuilder {
     if (iterator_.current_bytecode() == interpreter::Bytecode::kJumpLoop &&
         iterator_.GetJumpTargetOffset() < entrypoint_) {
       static_assert(kLoopsMustBeEnteredThroughHeader);
-      EmitUnconditionalDeopt(DeoptimizeReason::kOSREarlyExit);
-      return;
+      RETURN_VOID_ON_ABORT(
+          EmitUnconditionalDeopt(DeoptimizeReason::kOSREarlyExit));
     }
 
     switch (iterator_.current_bytecode()) {

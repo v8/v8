@@ -1834,8 +1834,8 @@ void MaglevGraphBuilder::VisitUnaryOperation() {
   BinaryOperationHint feedback_hint = nexus.GetBinaryOperationFeedback();
   switch (feedback_hint) {
     case BinaryOperationHint::kNone:
-      return EmitUnconditionalDeopt(
-          DeoptimizeReason::kInsufficientTypeFeedbackForBinaryOperation);
+      RETURN_VOID_ON_ABORT(EmitUnconditionalDeopt(
+          DeoptimizeReason::kInsufficientTypeFeedbackForBinaryOperation));
     case BinaryOperationHint::kSignedSmall:
     case BinaryOperationHint::kSignedSmallInputs:
     case BinaryOperationHint::kNumber:
@@ -1866,8 +1866,8 @@ void MaglevGraphBuilder::VisitBinaryOperation() {
   BinaryOperationHint feedback_hint = nexus.GetBinaryOperationFeedback();
   switch (feedback_hint) {
     case BinaryOperationHint::kNone:
-      return EmitUnconditionalDeopt(
-          DeoptimizeReason::kInsufficientTypeFeedbackForBinaryOperation);
+      RETURN_VOID_ON_ABORT(EmitUnconditionalDeopt(
+          DeoptimizeReason::kInsufficientTypeFeedbackForBinaryOperation));
     case BinaryOperationHint::kSignedSmall:
     case BinaryOperationHint::kSignedSmallInputs:
     case BinaryOperationHint::kNumber:
@@ -1913,8 +1913,8 @@ void MaglevGraphBuilder::VisitBinarySmiOperation() {
   BinaryOperationHint feedback_hint = nexus.GetBinaryOperationFeedback();
   switch (feedback_hint) {
     case BinaryOperationHint::kNone:
-      return EmitUnconditionalDeopt(
-          DeoptimizeReason::kInsufficientTypeFeedbackForBinaryOperation);
+      RETURN_VOID_ON_ABORT(EmitUnconditionalDeopt(
+          DeoptimizeReason::kInsufficientTypeFeedbackForBinaryOperation));
     case BinaryOperationHint::kSignedSmall:
     case BinaryOperationHint::kSignedSmallInputs:
     case BinaryOperationHint::kNumber:
@@ -2276,9 +2276,9 @@ void MaglevGraphBuilder::VisitCompareOperation() {
   FeedbackNexus nexus = FeedbackNexusForOperand(1);
   switch (nexus.GetCompareOperationFeedback()) {
     case CompareOperationHint::kNone:
-      EmitUnconditionalDeopt(
-          DeoptimizeReason::kInsufficientTypeFeedbackForCompareOperation);
-      return;
+      RETURN_VOID_ON_ABORT(EmitUnconditionalDeopt(
+          DeoptimizeReason::kInsufficientTypeFeedbackForCompareOperation));
+
     case CompareOperationHint::kSignedSmall: {
       ValueNode* left = LoadRegisterInt32(0);
       ValueNode* right = GetAccumulatorInt32();
@@ -2769,9 +2769,8 @@ ReduceResult MaglevGraphBuilder::TryBuildPropertyCellStore(
   compiler::ObjectRef property_cell_value = property_cell.value(broker());
   if (property_cell_value.IsTheHole()) {
     // The property cell is no longer valid.
-    EmitUnconditionalDeopt(
+    return EmitUnconditionalDeopt(
         DeoptimizeReason::kInsufficientTypeFeedbackForGenericNamedAccess);
-    return ReduceResult::DoneWithAbort();
   }
 
   PropertyDetails property_details = property_cell.property_details();
@@ -2878,9 +2877,8 @@ ReduceResult MaglevGraphBuilder::TryBuildPropertyCellLoad(
   compiler::ObjectRef property_cell_value = property_cell.value(broker());
   if (property_cell_value.IsTheHole()) {
     // The property cell is no longer valid.
-    EmitUnconditionalDeopt(
+    return EmitUnconditionalDeopt(
         DeoptimizeReason::kInsufficientTypeFeedbackForGenericNamedAccess);
-    return ReduceResult::DoneWithAbort();
   }
 
   PropertyDetails property_details = property_cell.property_details();
@@ -2967,9 +2965,8 @@ void MaglevGraphBuilder::VisitStaGlobal() {
       broker()->GetFeedbackForGlobalAccess(feedback_source);
 
   if (access_feedback.IsInsufficient()) {
-    EmitUnconditionalDeopt(
-        DeoptimizeReason::kInsufficientTypeFeedbackForGenericGlobalAccess);
-    return;
+    RETURN_VOID_ON_ABORT(EmitUnconditionalDeopt(
+        DeoptimizeReason::kInsufficientTypeFeedbackForGenericGlobalAccess));
   }
 
   const compiler::GlobalAccessFeedback& global_access_feedback =
@@ -3486,8 +3483,7 @@ ReduceResult MaglevGraphBuilder::BuildCheckMaps(
   }
 
   if (merger.intersect_set().is_empty()) {
-    EmitUnconditionalDeopt(DeoptimizeReason::kWrongMap);
-    return ReduceResult::DoneWithAbort();
+    return EmitUnconditionalDeopt(DeoptimizeReason::kWrongMap);
   }
 
   merger.UpdateKnownNodeAspects(object, known_node_aspects());
@@ -3814,8 +3810,7 @@ ReduceResult MaglevGraphBuilder::TryBuildStoreField(
     }
   } else if (access_info.IsFastDataConstant() &&
              access_mode == compiler::AccessMode::kStore) {
-    EmitUnconditionalDeopt(DeoptimizeReason::kStoreToConstant);
-    return ReduceResult::DoneWithAbort();
+    return EmitUnconditionalDeopt(DeoptimizeReason::kStoreToConstant);
   }
 
   ValueNode* store_target;
@@ -3934,11 +3929,12 @@ ReduceResult MaglevGraphBuilder::TryBuildPropertyStore(
                                       GetAccumulatorTagged());
   } else {
     DCHECK(access_info.IsDataField() || access_info.IsFastDataConstant());
-    if (TryBuildStoreField(access_info, receiver, access_mode).IsDone()) {
+    ReduceResult res = TryBuildStoreField(access_info, receiver, access_mode);
+    if (res.IsDone()) {
       RecordKnownProperty(receiver, name,
                           current_interpreter_frame_.accumulator(), access_info,
                           access_mode);
-      return ReduceResult::Done();
+      return res;
     }
     return ReduceResult::Fail();
   }
@@ -4013,8 +4009,7 @@ ReduceResult MaglevGraphBuilder::TryBuildNamedAccess(
     }
 
     if (inferred_maps.is_empty()) {
-      EmitUnconditionalDeopt(DeoptimizeReason::kWrongMap);
-      return ReduceResult::DoneWithAbort();
+      return EmitUnconditionalDeopt(DeoptimizeReason::kWrongMap);
     }
 
     for (compiler::MapRef map : inferred_maps) {
@@ -4760,9 +4755,8 @@ void MaglevGraphBuilder::VisitGetNamedProperty() {
 
   switch (processed_feedback.kind()) {
     case compiler::ProcessedFeedback::kInsufficient:
-      EmitUnconditionalDeopt(
-          DeoptimizeReason::kInsufficientTypeFeedbackForGenericNamedAccess);
-      return;
+      RETURN_VOID_ON_ABORT(EmitUnconditionalDeopt(
+          DeoptimizeReason::kInsufficientTypeFeedbackForGenericNamedAccess));
 
     case compiler::ProcessedFeedback::kNamedAccess: {
       ReduceResult result = TryReuseKnownPropertyLoad(object, name);
@@ -4828,9 +4822,8 @@ void MaglevGraphBuilder::VisitGetNamedPropertyFromSuper() {
 
   switch (processed_feedback.kind()) {
     case compiler::ProcessedFeedback::kInsufficient:
-      EmitUnconditionalDeopt(
-          DeoptimizeReason::kInsufficientTypeFeedbackForGenericNamedAccess);
-      return;
+      RETURN_VOID_ON_ABORT(EmitUnconditionalDeopt(
+          DeoptimizeReason::kInsufficientTypeFeedbackForGenericNamedAccess));
 
     case compiler::ProcessedFeedback::kNamedAccess: {
       ReduceResult result =
@@ -4889,9 +4882,8 @@ void MaglevGraphBuilder::VisitGetKeyedProperty() {
 
   switch (processed_feedback.kind()) {
     case compiler::ProcessedFeedback::kInsufficient:
-      EmitUnconditionalDeopt(
-          DeoptimizeReason::kInsufficientTypeFeedbackForGenericKeyedAccess);
-      return;
+      RETURN_VOID_ON_ABORT(EmitUnconditionalDeopt(
+          DeoptimizeReason::kInsufficientTypeFeedbackForGenericKeyedAccess));
 
     case compiler::ProcessedFeedback::kElementAccess: {
       // Get the accumulator without conversion. TryBuildElementAccess
@@ -5016,9 +5008,8 @@ void MaglevGraphBuilder::BuildLoadGlobal(
       broker()->GetFeedbackForGlobalAccess(feedback_source);
 
   if (access_feedback.IsInsufficient()) {
-    EmitUnconditionalDeopt(
-        DeoptimizeReason::kInsufficientTypeFeedbackForGenericGlobalAccess);
-    return;
+    RETURN_VOID_ON_ABORT(EmitUnconditionalDeopt(
+        DeoptimizeReason::kInsufficientTypeFeedbackForGenericGlobalAccess));
   }
 
   const compiler::GlobalAccessFeedback& global_access_feedback =
@@ -5044,9 +5035,8 @@ void MaglevGraphBuilder::VisitSetNamedProperty() {
 
   switch (processed_feedback.kind()) {
     case compiler::ProcessedFeedback::kInsufficient:
-      EmitUnconditionalDeopt(
-          DeoptimizeReason::kInsufficientTypeFeedbackForGenericNamedAccess);
-      return;
+      RETURN_VOID_ON_ABORT(EmitUnconditionalDeopt(
+          DeoptimizeReason::kInsufficientTypeFeedbackForGenericNamedAccess));
 
     case compiler::ProcessedFeedback::kNamedAccess:
       RETURN_VOID_IF_DONE(TryBuildNamedAccess(
@@ -5076,9 +5066,8 @@ void MaglevGraphBuilder::VisitDefineNamedOwnProperty() {
 
   switch (processed_feedback.kind()) {
     case compiler::ProcessedFeedback::kInsufficient:
-      EmitUnconditionalDeopt(
-          DeoptimizeReason::kInsufficientTypeFeedbackForGenericNamedAccess);
-      return;
+      RETURN_VOID_ON_ABORT(EmitUnconditionalDeopt(
+          DeoptimizeReason::kInsufficientTypeFeedbackForGenericNamedAccess));
 
     case compiler::ProcessedFeedback::kNamedAccess:
       RETURN_VOID_IF_DONE(TryBuildNamedAccess(
@@ -5109,9 +5098,8 @@ void MaglevGraphBuilder::VisitSetKeyedProperty() {
 
   switch (processed_feedback.kind()) {
     case compiler::ProcessedFeedback::kInsufficient:
-      EmitUnconditionalDeopt(
-          DeoptimizeReason::kInsufficientTypeFeedbackForGenericKeyedAccess);
-      return;
+      RETURN_VOID_ON_ABORT(EmitUnconditionalDeopt(
+          DeoptimizeReason::kInsufficientTypeFeedbackForGenericKeyedAccess));
 
     case compiler::ProcessedFeedback::kElementAccess: {
       // Get the key without conversion. TryBuildElementAccess will try to pick
@@ -5165,9 +5153,8 @@ void MaglevGraphBuilder::VisitStaInArrayLiteral() {
 
   switch (processed_feedback.kind()) {
     case compiler::ProcessedFeedback::kInsufficient:
-      EmitUnconditionalDeopt(
-          DeoptimizeReason::kInsufficientTypeFeedbackForGenericKeyedAccess);
-      return;
+      RETURN_VOID_ON_ABORT(EmitUnconditionalDeopt(
+          DeoptimizeReason::kInsufficientTypeFeedbackForGenericKeyedAccess));
 
     case compiler::ProcessedFeedback::kElementAccess: {
       RETURN_VOID_IF_DONE(TryBuildElementAccess(
@@ -5611,7 +5598,6 @@ ReduceResult MaglevGraphBuilder::TryBuildInlinedCall(
   if (result.IsDoneWithAbort()) {
     DCHECK_NULL(inner_graph_builder.current_block_);
     current_block_ = nullptr;
-    MarkBytecodeDead();
     if (v8_flags.trace_maglev_graph_building) {
       std::cout << "== Finished inlining (abort) " << shared.object()
                 << std::endl;
@@ -6543,8 +6529,7 @@ ReduceResult MaglevGraphBuilder::BuildCheckValue(ValueNode* node,
     if (maybe_constant.value().equals(ref)) {
       return ReduceResult::Done();
     }
-    EmitUnconditionalDeopt(DeoptimizeReason::kUnknown);
-    return ReduceResult::DoneWithAbort();
+    return EmitUnconditionalDeopt(DeoptimizeReason::kUnknown);
   }
   if (ref.IsString()) {
     DCHECK(ref.IsInternalizedString());
@@ -6572,8 +6557,7 @@ ReduceResult MaglevGraphBuilder::BuildCheckValue(ValueNode* node,
           node->Cast<Int32Constant>()->value() == ref_value) {
         return ReduceResult::Done();
       }
-      EmitUnconditionalDeopt(DeoptimizeReason::kUnknown);
-      return ReduceResult::DoneWithAbort();
+      return EmitUnconditionalDeopt(DeoptimizeReason::kUnknown);
     }
     AddNewNode<CheckValueEqualsInt32>({GetInt32(node)}, ref_value);
   } else {
@@ -6584,8 +6568,7 @@ ReduceResult MaglevGraphBuilder::BuildCheckValue(ValueNode* node,
         return ReduceResult::Done();
       }
       // TODO(verwaest): Handle NaN.
-      EmitUnconditionalDeopt(DeoptimizeReason::kUnknown);
-      return ReduceResult::DoneWithAbort();
+      return EmitUnconditionalDeopt(DeoptimizeReason::kUnknown);
     } else if (compiler::OptionalHeapObjectRef constant =
                    TryGetConstant(node)) {
       if (constant.value().IsHeapNumber() &&
@@ -6593,8 +6576,7 @@ ReduceResult MaglevGraphBuilder::BuildCheckValue(ValueNode* node,
         return ReduceResult::Done();
       }
       // TODO(verwaest): Handle NaN.
-      EmitUnconditionalDeopt(DeoptimizeReason::kUnknown);
-      return ReduceResult::DoneWithAbort();
+      return EmitUnconditionalDeopt(DeoptimizeReason::kUnknown);
     }
     AddNewNode<CheckValueEqualsFloat64>({GetFloat64(node)}, ref_value);
   }
@@ -6708,8 +6690,8 @@ void MaglevGraphBuilder::BuildCallWithFeedback(
   const compiler::ProcessedFeedback& processed_feedback =
       broker()->GetFeedbackForCall(feedback_source);
   if (processed_feedback.IsInsufficient()) {
-    EmitUnconditionalDeopt(DeoptimizeReason::kInsufficientTypeFeedbackForCall);
-    return;
+    RETURN_VOID_ON_ABORT(EmitUnconditionalDeopt(
+        DeoptimizeReason::kInsufficientTypeFeedbackForCall));
   }
 
   DCHECK_EQ(processed_feedback.kind(), compiler::ProcessedFeedback::kCall);
@@ -7209,9 +7191,8 @@ void MaglevGraphBuilder::BuildConstruct(
   compiler::ProcessedFeedback const& processed_feedback =
       broker()->GetFeedbackForCall(feedback_source);
   if (processed_feedback.IsInsufficient()) {
-    EmitUnconditionalDeopt(
-        DeoptimizeReason::kInsufficientTypeFeedbackForConstruct);
-    return;
+    RETURN_VOID_ON_ABORT(EmitUnconditionalDeopt(
+        DeoptimizeReason::kInsufficientTypeFeedbackForConstruct));
   }
 
   DCHECK_EQ(processed_feedback.kind(), compiler::ProcessedFeedback::kCall);
@@ -7602,9 +7583,8 @@ ReduceResult MaglevGraphBuilder::TryBuildFastInstanceOfWithFeedback(
       broker()->GetFeedbackForInstanceOf(feedback_source);
 
   if (feedback.IsInsufficient()) {
-    EmitUnconditionalDeopt(
+    return EmitUnconditionalDeopt(
         DeoptimizeReason::kInsufficientTypeFeedbackForInstanceOf);
-    return ReduceResult::DoneWithAbort();
   }
 
   // Check if the right hand side is a known receiver, or
@@ -7800,9 +7780,8 @@ void MaglevGraphBuilder::VisitCreateArrayLiteral() {
       broker()->GetFeedbackForArrayOrObjectLiteral(feedback_source);
 
   if (processed_feedback.IsInsufficient()) {
-    EmitUnconditionalDeopt(
-        DeoptimizeReason::kInsufficientTypeFeedbackForArrayLiteral);
-    return;
+    RETURN_VOID_ON_ABORT(EmitUnconditionalDeopt(
+        DeoptimizeReason::kInsufficientTypeFeedbackForArrayLiteral));
   }
 
   ReduceResult result =
@@ -7834,9 +7813,8 @@ void MaglevGraphBuilder::VisitCreateEmptyArrayLiteral() {
   compiler::ProcessedFeedback const& processed_feedback =
       broker()->GetFeedbackForArrayOrObjectLiteral(feedback_source);
   if (processed_feedback.IsInsufficient()) {
-    EmitUnconditionalDeopt(
-        DeoptimizeReason::kInsufficientTypeFeedbackForArrayLiteral);
-    return;
+    RETURN_VOID_ON_ABORT(EmitUnconditionalDeopt(
+        DeoptimizeReason::kInsufficientTypeFeedbackForArrayLiteral));
   }
   compiler::AllocationSiteRef site = processed_feedback.AsLiteral().value();
 
@@ -8221,9 +8199,8 @@ void MaglevGraphBuilder::VisitCreateObjectLiteral() {
   compiler::ProcessedFeedback const& processed_feedback =
       broker()->GetFeedbackForArrayOrObjectLiteral(feedback_source);
   if (processed_feedback.IsInsufficient()) {
-    EmitUnconditionalDeopt(
-        DeoptimizeReason::kInsufficientTypeFeedbackForObjectLiteral);
-    return;
+    RETURN_VOID_ON_ABORT(EmitUnconditionalDeopt(
+        DeoptimizeReason::kInsufficientTypeFeedbackForObjectLiteral));
   }
 
   ReduceResult result =
