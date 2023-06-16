@@ -218,7 +218,7 @@ WasmModule::WasmModule(ModuleOrigin origin)
     : signature_zone(GetWasmEngine()->allocator(), "signature zone"),
       origin(origin) {}
 
-bool IsWasmCodegenAllowed(Isolate* isolate, Handle<Context> context) {
+bool IsWasmCodegenAllowed(Isolate* isolate, Handle<NativeContext> context) {
   // TODO(wasm): Once wasm has its own CSP policy, we should introduce a
   // separate callback that includes information about the module about to be
   // compiled. For the time being, pass an empty string as placeholder for the

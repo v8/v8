@@ -537,9 +537,8 @@ Debug::OnInstrumentationBreak() {
   HandleScope scope(isolate_);
   DisableBreak no_recursive_break(this);
 
-  Handle<Context> native_context(isolate_->native_context());
   return debug_delegate_->BreakOnInstrumentation(
-      v8::Utils::ToLocal(native_context), kInstrumentationId);
+      v8::Utils::ToLocal(isolate_->native_context()), kInstrumentationId);
 }
 
 void Debug::Break(JavaScriptFrame* frame, Handle<JSFunction> break_target) {
@@ -810,10 +809,9 @@ bool Debug::CheckBreakPoint(Handle<BreakPoint> break_point,
 
   {
     RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebuggerCallback);
-    Handle<Context> native_context(isolate_->native_context());
     debug_delegate_->BreakpointConditionEvaluated(
-        v8::Utils::ToLocal(native_context), break_point->id(), exception_thrown,
-        v8::Utils::ToLocal(maybe_exception));
+        v8::Utils::ToLocal(isolate_->native_context()), break_point->id(),
+        exception_thrown, v8::Utils::ToLocal(maybe_exception));
   }
 
   return !result.is_null() ? result->BooleanValue(isolate_) : false;
@@ -2348,10 +2346,10 @@ void Debug::OnException(Handle<Object> exception, Handle<Object> promise,
 
   {
     RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebuggerCallback);
-    Handle<Context> native_context(isolate_->native_context());
     debug_delegate_->ExceptionThrown(
-        v8::Utils::ToLocal(native_context), v8::Utils::ToLocal(exception),
-        v8::Utils::ToLocal(promise), uncaught, exception_type);
+        v8::Utils::ToLocal(isolate_->native_context()),
+        v8::Utils::ToLocal(exception), v8::Utils::ToLocal(promise), uncaught,
+        exception_type);
   }
 }
 
@@ -2389,12 +2387,11 @@ void Debug::OnDebugBreak(Handle<FixedArray> break_points_hit,
   }
   {
     RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebuggerCallback);
-    Handle<Context> native_context(isolate_->native_context());
     if (lastStepAction != StepAction::StepNone)
       break_reasons.Add(debug::BreakReason::kStep);
-    debug_delegate_->BreakProgramRequested(v8::Utils::ToLocal(native_context),
-                                           inspector_break_points_hit,
-                                           break_reasons);
+    debug_delegate_->BreakProgramRequested(
+        v8::Utils::ToLocal(isolate_->native_context()),
+        inspector_break_points_hit, break_reasons);
   }
 }
 

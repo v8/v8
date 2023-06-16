@@ -29258,7 +29258,7 @@ TEST(TestSetSabConstructorEnabledCallback) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   v8::HandleScope scope(isolate);
   v8::Local<v8::Context> context = v8::Context::New(CcTest::isolate());
-  i::Handle<i::Context> i_context = v8::Utils::OpenHandle(*context);
+  i::Handle<i::NativeContext> i_context = v8::Utils::OpenHandle(*context);
 
   // No callback
   i::v8_flags.enable_sharedarraybuffer_per_context = false;

@@ -4252,7 +4252,7 @@ Maybe<bool> JSObject::PreventExtensions(Isolate* isolate,
   }
 
   if (object->IsAccessCheckNeeded() &&
-      !isolate->MayAccess(handle(isolate->context(), isolate), object)) {
+      !isolate->MayAccess(isolate->native_context(), object)) {
     isolate->ReportFailedAccessCheck(object);
     RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate, Nothing<bool>());
     RETURN_FAILURE(isolate, should_throw,
@@ -4301,7 +4301,7 @@ Maybe<bool> JSObject::PreventExtensions(Isolate* isolate,
 
 bool JSObject::IsExtensible(Isolate* isolate, Handle<JSObject> object) {
   if (object->IsAccessCheckNeeded() &&
-      !isolate->MayAccess(handle(isolate->context(), isolate), object)) {
+      !isolate->MayAccess(isolate->native_context(), object)) {
     return true;
   }
   if (object->IsJSGlobalProxy()) {
@@ -4375,7 +4375,7 @@ Maybe<bool> JSObject::PreventExtensionsWithTransition(
   DCHECK_IMPLIES(object->IsJSModuleNamespace(), attrs == NONE);
 
   if (object->IsAccessCheckNeeded() &&
-      !isolate->MayAccess(handle(isolate->context(), isolate), object)) {
+      !isolate->MayAccess(isolate->native_context(), object)) {
     isolate->ReportFailedAccessCheck(object);
     RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate, Nothing<bool>());
     RETURN_FAILURE(isolate, should_throw,
@@ -5199,7 +5199,7 @@ Maybe<bool> JSObject::SetPrototype(Isolate* isolate, Handle<JSObject> object,
 
   if (from_javascript) {
     if (object->IsAccessCheckNeeded() &&
-        !isolate->MayAccess(handle(isolate->context(), isolate), object)) {
+        !isolate->MayAccess(isolate->native_context(), object)) {
       isolate->ReportFailedAccessCheck(object);
       RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate, Nothing<bool>());
       RETURN_FAILURE(isolate, should_throw,

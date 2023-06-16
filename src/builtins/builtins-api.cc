@@ -86,7 +86,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> HandleApiCallHelper(
       // Proxies never need access checks.
       DCHECK(js_receiver->IsJSObject());
       Handle<JSObject> js_object = Handle<JSObject>::cast(js_receiver);
-      if (!isolate->MayAccess(handle(isolate->context(), isolate), js_object)) {
+      if (!isolate->MayAccess(isolate->native_context(), js_object)) {
         isolate->ReportFailedAccessCheck(js_object);
         RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
         return isolate->factory()->undefined_value();

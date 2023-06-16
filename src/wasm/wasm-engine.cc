@@ -699,7 +699,7 @@ void WasmEngine::AsyncCompile(
       base::OwnedVector<const uint8_t>::Of(bytes.module_bytes());
 
   AsyncCompileJob* job = CreateAsyncCompileJob(
-      isolate, enabled, std::move(copy), handle(isolate->context(), isolate),
+      isolate, enabled, std::move(copy), isolate->native_context(),
       api_method_name_for_errors, std::move(resolver), compilation_id);
   job->Start();
 }
@@ -964,7 +964,7 @@ AsyncCompileJob* WasmEngine::CreateAsyncCompileJob(
     base::OwnedVector<const uint8_t> bytes, Handle<Context> context,
     const char* api_method_name,
     std::shared_ptr<CompilationResultResolver> resolver, int compilation_id) {
-  Handle<Context> incumbent_context = isolate->GetIncumbentContext();
+  Handle<NativeContext> incumbent_context = isolate->GetIncumbentContext();
   AsyncCompileJob* job = new AsyncCompileJob(
       isolate, enabled, std::move(bytes), context, incumbent_context,
       api_method_name, std::move(resolver), compilation_id);

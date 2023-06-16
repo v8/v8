@@ -175,17 +175,18 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
 
   // Create a (bound) function for a String source within a context for eval.
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSFunction> GetFunctionFromString(
-      Handle<Context> context, Handle<i::Object> source,
+      Handle<NativeContext> context, Handle<i::Object> source,
       ParseRestriction restriction, int parameters_end_pos, bool is_code_like);
 
   // Decompose GetFunctionFromString into two functions, to allow callers to
   // deal seperately with a case of object not handled by the embedder.
   V8_WARN_UNUSED_RESULT static std::pair<MaybeHandle<String>, bool>
-  ValidateDynamicCompilationSource(Isolate* isolate, Handle<Context> context,
+  ValidateDynamicCompilationSource(Isolate* isolate,
+                                   Handle<NativeContext> context,
                                    Handle<i::Object> source_object,
                                    bool is_code_like = false);
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSFunction>
-  GetFunctionFromValidatedString(Handle<Context> context,
+  GetFunctionFromValidatedString(Handle<NativeContext> context,
                                  MaybeHandle<String> source,
                                  ParseRestriction restriction,
                                  int parameters_end_pos);

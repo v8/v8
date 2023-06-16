@@ -638,12 +638,12 @@ UNINITIALIZED_TEST(ContextSerializerCustomContext) {
                  v8::DeserializeInternalFieldsCallback())
                  .ToHandleChecked();
       CHECK(root->IsContext());
-      Handle<Context> context = Handle<Context>::cast(root);
+      Handle<NativeContext> context = Handle<NativeContext>::cast(root);
 
       // Add context to the weak native context list
-      context->set(Context::NEXT_CONTEXT_LINK,
-                   isolate->heap()->native_contexts_list(),
-                   UPDATE_WRITE_BARRIER);
+      Handle<Context>::cast(context)->set(
+          Context::NEXT_CONTEXT_LINK, isolate->heap()->native_contexts_list(),
+          UPDATE_WRITE_BARRIER);
       isolate->heap()->set_native_contexts_list(*context);
 
       CHECK(context->global_proxy() == *global_proxy);

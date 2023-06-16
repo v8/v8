@@ -169,7 +169,7 @@ TEST_F(ApiWasmTest, WasmStreamingSetCallback) {
 TEST_F(ApiWasmTest, WasmEnableDisableGC) {
   Local<Context> context_local = Context::New(isolate());
   Context::Scope context_scope(context_local);
-  i::Handle<i::Context> context = v8::Utils::OpenHandle(*context_local);
+  i::Handle<i::NativeContext> context = v8::Utils::OpenHandle(*context_local);
   // When using the flags, stringref and GC are controlled independently.
   {
     i::FlagScope<bool> flag_gc(&i::v8_flags.experimental_wasm_gc, false);

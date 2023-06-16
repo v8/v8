@@ -2941,7 +2941,8 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
 
 // Check whether embedder allows code generation in this context.
 // (via v8::Isolate::SetAllowCodeGenerationFromStringsCallback)
-bool CodeGenerationFromStringsAllowed(Isolate* isolate, Handle<Context> context,
+bool CodeGenerationFromStringsAllowed(Isolate* isolate,
+                                      Handle<NativeContext> context,
                                       Handle<String> source) {
   RCS_SCOPE(isolate, RuntimeCallCounterId::kCodeGenerationFromStringsCallbacks);
   DCHECK(context->allow_code_gen_from_strings().IsFalse(isolate));
@@ -2957,7 +2958,8 @@ bool CodeGenerationFromStringsAllowed(Isolate* isolate, Handle<Context> context,
 // Check whether embedder allows code generation in this context.
 // (via v8::Isolate::SetModifyCodeGenerationFromStringsCallback
 //  or v8::Isolate::SetModifyCodeGenerationFromStringsCallback2)
-bool ModifyCodeGenerationFromStrings(Isolate* isolate, Handle<Context> context,
+bool ModifyCodeGenerationFromStrings(Isolate* isolate,
+                                     Handle<NativeContext> context,
                                      Handle<i::Object>* source,
                                      bool is_code_like) {
   DCHECK(isolate->modify_code_gen_callback() ||
@@ -2999,7 +3001,7 @@ bool ModifyCodeGenerationFromStrings(Isolate* isolate, Handle<Context> context,
 
 // static
 std::pair<MaybeHandle<String>, bool> Compiler::ValidateDynamicCompilationSource(
-    Isolate* isolate, Handle<Context> context,
+    Isolate* isolate, Handle<NativeContext> context,
     Handle<i::Object> original_source, bool is_code_like) {
   // Check if the context unconditionally allows code gen from strings.
   // allow_code_gen_from_strings can be many things, so we'll always check
@@ -3061,10 +3063,9 @@ std::pair<MaybeHandle<String>, bool> Compiler::ValidateDynamicCompilationSource(
 
 // static
 MaybeHandle<JSFunction> Compiler::GetFunctionFromValidatedString(
-    Handle<Context> context, MaybeHandle<String> source,
+    Handle<NativeContext> native_context, MaybeHandle<String> source,
     ParseRestriction restriction, int parameters_end_pos) {
-  Isolate* const isolate = context->GetIsolate();
-  Handle<Context> native_context(context->native_context(), isolate);
+  Isolate* const isolate = native_context->GetIsolate();
 
   // Raise an EvalError if we did not receive a string.
   if (source.is_null()) {
@@ -3089,7 +3090,7 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromValidatedString(
 
 // static
 MaybeHandle<JSFunction> Compiler::GetFunctionFromString(
-    Handle<Context> context, Handle<Object> source,
+    Handle<NativeContext> context, Handle<Object> source,
     ParseRestriction restriction, int parameters_end_pos, bool is_code_like) {
   Isolate* const isolate = context->GetIsolate();
   MaybeHandle<String> validated_source =

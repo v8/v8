@@ -184,7 +184,7 @@ class Genesis {
   Builtins* builtins() const { return isolate_->builtins(); }
   Heap* heap() const { return isolate_->heap(); }
 
-  Handle<Context> result() { return result_; }
+  Handle<NativeContext> result() { return result_; }
 
   Handle<JSGlobalProxy> global_proxy() { return global_proxy_; }
 
@@ -311,7 +311,7 @@ class Genesis {
   static bool CompileExtension(Isolate* isolate, v8::Extension* extension);
 
   Isolate* isolate_;
-  Handle<Context> result_;
+  Handle<NativeContext> result_;
   Handle<NativeContext> native_context_;
   Handle<JSGlobalProxy> global_proxy_;
 
@@ -327,21 +327,21 @@ void Bootstrapper::Iterate(RootVisitor* v) {
   v->Synchronize(VisitorSynchronization::kExtensions);
 }
 
-Handle<Context> Bootstrapper::CreateEnvironment(
+Handle<NativeContext> Bootstrapper::CreateEnvironment(
     MaybeHandle<JSGlobalProxy> maybe_global_proxy,
     v8::Local<v8::ObjectTemplate> global_proxy_template,
     v8::ExtensionConfiguration* extensions, size_t context_snapshot_index,
     v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer,
     v8::MicrotaskQueue* microtask_queue) {
   HandleScope scope(isolate_);
-  Handle<Context> env;
+  Handle<NativeContext> env;
   {
     Genesis genesis(isolate_, maybe_global_proxy, global_proxy_template,
                     context_snapshot_index, embedder_fields_deserializer,
                     microtask_queue);
     env = genesis.result();
     if (env.is_null() || !InstallExtensions(env, extensions)) {
-      return Handle<Context>();
+      return {};
     }
   }
   LogAllMaps();
@@ -6719,8 +6719,8 @@ Genesis::Genesis(
     v8::MicrotaskQueue* microtask_queue)
     : isolate_(isolate), active_(isolate->bootstrapper()) {
   RCS_SCOPE(isolate, RuntimeCallCounterId::kGenesis);
-  result_ = Handle<Context>::null();
-  global_proxy_ = Handle<JSGlobalProxy>::null();
+  result_ = {};
+  global_proxy_ = {};
 
   // Before creating the roots we must save the context and restore it
   // on all function exits.
@@ -6854,8 +6854,8 @@ Genesis::Genesis(Isolate* isolate,
                  MaybeHandle<JSGlobalProxy> maybe_global_proxy,
                  v8::Local<v8::ObjectTemplate> global_proxy_template)
     : isolate_(isolate), active_(isolate->bootstrapper()) {
-  result_ = Handle<Context>::null();
-  global_proxy_ = Handle<JSGlobalProxy>::null();
+  result_ = {};
+  global_proxy_ = {};
 
   // Before creating the roots we must save the context and restore it
   // on all function exits.

@@ -1639,7 +1639,7 @@ IF_TSAN(FUNCTION_REFERENCE, tsan_relaxed_load_function_64_bits,
 
 static int EnterMicrotaskContextWrapper(HandleScopeImplementer* hsi,
                                         Address raw_context) {
-  Context context = Context::cast(Object(raw_context));
+  NativeContext context = NativeContext::cast(Object(raw_context));
   hsi->EnterMicrotaskContext(context);
   return 0;
 }

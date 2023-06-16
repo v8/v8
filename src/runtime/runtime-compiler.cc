@@ -601,8 +601,7 @@ static Object CompileGlobalEval(Isolate* isolate,
                                 Handle<SharedFunctionInfo> outer_info,
                                 LanguageMode language_mode,
                                 int eval_scope_position, int eval_position) {
-  Handle<Context> context(isolate->context(), isolate);
-  Handle<Context> native_context(context->native_context(), isolate);
+  Handle<NativeContext> native_context = isolate->native_context();
 
   // Check if native context allows code generation from
   // strings. Throw an exception if it doesn't.
@@ -628,6 +627,7 @@ static Object CompileGlobalEval(Isolate* isolate,
   // and return the compiled function bound in the local context.
   static const ParseRestriction restriction = NO_PARSE_RESTRICTION;
   Handle<JSFunction> compiled;
+  Handle<Context> context(isolate->context(), isolate);
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, compiled,
       Compiler::GetFunctionFromEval(

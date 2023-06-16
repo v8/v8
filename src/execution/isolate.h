@@ -762,13 +762,13 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     return thread_local_top()->thread_id_.load(std::memory_order_relaxed);
   }
 
-  void InstallConditionalFeatures(Handle<Context> context);
+  void InstallConditionalFeatures(Handle<NativeContext> context);
 
-  bool IsSharedArrayBufferConstructorEnabled(Handle<Context> context);
+  bool IsSharedArrayBufferConstructorEnabled(Handle<NativeContext> context);
 
-  bool IsWasmGCEnabled(Handle<Context> context);
-  bool IsWasmStringRefEnabled(Handle<Context> context);
-  bool IsWasmInliningEnabled(Handle<Context> context);
+  bool IsWasmGCEnabled(Handle<NativeContext> context);
+  bool IsWasmStringRefEnabled(Handle<NativeContext> context);
+  bool IsWasmInliningEnabled(Handle<NativeContext> context);
 
   THREAD_LOCAL_TOP_ADDRESS(Context, pending_handler_context)
   THREAD_LOCAL_TOP_ADDRESS(Address, pending_handler_entrypoint)
@@ -954,7 +954,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // Returns if the given context may access the given global object. If
   // the result is false, the pending exception is guaranteed to be
   // set.
-  bool MayAccess(Handle<Context> accessing_context, Handle<JSObject> receiver);
+  bool MayAccess(Handle<NativeContext> accessing_context,
+                 Handle<JSObject> receiver);
 
   void SetFailedAccessCheckCallback(v8::FailedAccessCheckCallback callback);
   void ReportFailedAccessCheck(Handle<JSObject> receiver);
@@ -1075,7 +1076,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   inline Handle<NativeContext> native_context();
   inline NativeContext raw_native_context();
 
-  Handle<Context> GetIncumbentContext();
+  Handle<NativeContext> GetIncumbentContext();
 
   void RegisterTryCatchHandler(v8::TryCatch* that);
   void UnregisterTryCatchHandler(v8::TryCatch* that);
@@ -1854,7 +1855,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 #endif  // V8_OS_WIN64
 
   void SetPrepareStackTraceCallback(PrepareStackTraceCallback callback);
-  MaybeHandle<Object> RunPrepareStackTraceCallback(Handle<Context>,
+  MaybeHandle<Object> RunPrepareStackTraceCallback(Handle<NativeContext>,
                                                    Handle<JSObject> Error,
                                                    Handle<JSArray> sites);
   bool HasPrepareStackTraceCallback() const;

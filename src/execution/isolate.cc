@@ -1525,7 +1525,7 @@ void Isolate::ReportFailedAccessCheck(Handle<JSObject> receiver) {
       v8::Utils::ToLocal(receiver), v8::ACCESS_HAS, v8::Utils::ToLocal(data));
 }
 
-bool Isolate::MayAccess(Handle<Context> accessing_context,
+bool Isolate::MayAccess(Handle<NativeContext> accessing_context,
                         Handle<JSObject> receiver) {
   DCHECK(receiver->IsJSGlobalProxy() || receiver->IsAccessCheckNeeded());
 
@@ -1541,13 +1541,10 @@ bool Isolate::MayAccess(Handle<Context> accessing_context,
       Object receiver_context = JSGlobalProxy::cast(*receiver).native_context();
       if (!receiver_context.IsContext()) return false;
 
-      // Get the native context of current top context.
-      // avoid using Isolate::native_context() because it uses Handle.
-      Context native_context = accessing_context->native_context();
-      if (receiver_context == native_context) return true;
+      if (receiver_context == *accessing_context) return true;
 
       if (Context::cast(receiver_context).security_token() ==
-          native_context.security_token())
+          accessing_context->security_token())
         return true;
     }
   }
@@ -2945,7 +2942,7 @@ void Isolate::SetAbortOnUncaughtExceptionCallback(
   abort_on_uncaught_exception_callback_ = callback;
 }
 
-void Isolate::InstallConditionalFeatures(Handle<Context> context) {
+void Isolate::InstallConditionalFeatures(Handle<NativeContext> context) {
   Handle<JSGlobalObject> global = handle(context->global_object(), this);
   // If some fuzzer decided to make the global object non-extensible, then
   // we can't install any features (and would CHECK-fail if we tried).
@@ -2960,7 +2957,8 @@ void Isolate::InstallConditionalFeatures(Handle<Context> context) {
   }
 }
 
-bool Isolate::IsSharedArrayBufferConstructorEnabled(Handle<Context> context) {
+bool Isolate::IsSharedArrayBufferConstructorEnabled(
+    Handle<NativeContext> context) {
   if (!v8_flags.enable_sharedarraybuffer_per_context) return true;
 
   if (sharedarraybuffer_constructor_enabled_callback()) {
@@ -2970,7 +2968,7 @@ bool Isolate::IsSharedArrayBufferConstructorEnabled(Handle<Context> context) {
   return false;
 }
 
-bool Isolate::IsWasmGCEnabled(Handle<Context> context) {
+bool Isolate::IsWasmGCEnabled(Handle<NativeContext> context) {
 #ifdef V8_ENABLE_WEBASSEMBLY
   v8::WasmGCEnabledCallback callback = wasm_gc_enabled_callback();
   if (callback) {
@@ -2983,7 +2981,7 @@ bool Isolate::IsWasmGCEnabled(Handle<Context> context) {
 #endif
 }
 
-bool Isolate::IsWasmStringRefEnabled(Handle<Context> context) {
+bool Isolate::IsWasmStringRefEnabled(Handle<NativeContext> context) {
   // If Wasm GC is explicitly enabled via a callback, also enable stringref.
 #ifdef V8_ENABLE_WEBASSEMBLY
   v8::WasmGCEnabledCallback callback = wasm_gc_enabled_callback();
@@ -2997,7 +2995,7 @@ bool Isolate::IsWasmStringRefEnabled(Handle<Context> context) {
 #endif
 }
 
-bool Isolate::IsWasmInliningEnabled(Handle<Context> context) {
+bool Isolate::IsWasmInliningEnabled(Handle<NativeContext> context) {
   // If Wasm GC is explicitly enabled via a callback, also enable inlining.
 #ifdef V8_ENABLE_WEBASSEMBLY
   v8::WasmGCEnabledCallback callback = wasm_gc_enabled_callback();
@@ -3011,7 +3009,7 @@ bool Isolate::IsWasmInliningEnabled(Handle<Context> context) {
 #endif
 }
 
-Handle<Context> Isolate::GetIncumbentContext() {
+Handle<NativeContext> Isolate::GetIncumbentContext() {
   JavaScriptStackFrameIterator it(this);
 
   // 1st candidate: most-recently-entered author function's context
@@ -3025,7 +3023,7 @@ Handle<Context> Isolate::GetIncumbentContext() {
   if (!it.done() &&
       (!top_backup_incumbent || it.frame()->sp() < top_backup_incumbent)) {
     Context context = Context::cast(it.frame()->context());
-    return Handle<Context>(context.native_context(), this);
+    return Handle<NativeContext>(context.native_context(), this);
   }
 
   // 2nd candidate: the last Context::Scope's incumbent context if any.
@@ -5120,8 +5118,7 @@ MaybeHandle<JSPromise> Isolate::RunHostImportModuleDynamicallyCallback(
     MaybeHandle<Object> maybe_import_assertions_argument) {
   DCHECK(!is_execution_terminating());
   DCHECK(!is_execution_termination_pending());
-  v8::Local<v8::Context> api_context =
-      v8::Utils::ToLocal(Handle<Context>::cast(native_context()));
+  v8::Local<v8::Context> api_context = v8::Utils::ToLocal(native_context());
   if (host_import_module_dynamically_with_import_assertions_callback_ ==
           nullptr &&
       host_import_module_dynamically_callback_ == nullptr) {
@@ -5294,8 +5291,7 @@ MaybeHandle<JSObject> Isolate::RunHostInitializeImportMetaObjectCallback(
   CHECK(module->import_meta(kAcquireLoad).IsTheHole(this));
   Handle<JSObject> import_meta = factory()->NewJSObjectWithNullProto();
   if (host_initialize_import_meta_object_callback_ != nullptr) {
-    v8::Local<v8::Context> api_context =
-        v8::Utils::ToLocal(Handle<Context>(native_context()));
+    v8::Local<v8::Context> api_context = v8::Utils::ToLocal(native_context());
     host_initialize_import_meta_object_callback_(
         api_context, Utils::ToLocal(Handle<Module>::cast(module)),
         v8::Local<v8::Object>::Cast(v8::Utils::ToLocal(import_meta)));
@@ -5325,8 +5321,7 @@ MaybeHandle<NativeContext> Isolate::RunHostCreateShadowRealmContextCallback() {
     return kNullMaybeHandle;
   }
 
-  v8::Local<v8::Context> api_context =
-      v8::Utils::ToLocal(Handle<Context>(native_context()));
+  v8::Local<v8::Context> api_context = v8::Utils::ToLocal(native_context());
   v8::Local<v8::Context> shadow_realm_context;
   ASSIGN_RETURN_ON_SCHEDULED_EXCEPTION_VALUE(
       this, shadow_realm_context,
@@ -5341,7 +5336,8 @@ MaybeHandle<NativeContext> Isolate::RunHostCreateShadowRealmContextCallback() {
 }
 
 MaybeHandle<Object> Isolate::RunPrepareStackTraceCallback(
-    Handle<Context> context, Handle<JSObject> error, Handle<JSArray> sites) {
+    Handle<NativeContext> context, Handle<JSObject> error,
+    Handle<JSArray> sites) {
   v8::Local<v8::Context> api_context = Utils::ToLocal(context);
 
   v8::Local<v8::Value> stack;

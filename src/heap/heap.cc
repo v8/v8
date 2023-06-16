@@ -4182,8 +4182,7 @@ bool Heap::MeasureMemory(std::unique_ptr<v8::MeasureMemoryDelegate> delegate,
   std::vector<Handle<NativeContext>> contexts = FindAllNativeContexts();
   std::vector<Handle<NativeContext>> to_measure;
   for (auto& current : contexts) {
-    if (delegate->ShouldMeasure(
-            v8::Utils::ToLocal(Handle<Context>::cast(current)))) {
+    if (delegate->ShouldMeasure(v8::Utils::ToLocal(current))) {
       to_measure.push_back(current);
     }
   }

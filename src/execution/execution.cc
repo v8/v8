@@ -380,7 +380,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> Invoke(Isolate* isolate,
   isolate->IncrementJavascriptExecutionCounter();
 
   if (params.execution_target == Execution::Target::kCallable) {
-    Handle<Context> context = isolate->native_context();
+    Handle<NativeContext> context = isolate->native_context();
     if (!context->script_execution_callback().IsUndefined(isolate)) {
       v8::Context::AbortScriptExecutionCallback callback =
           v8::ToCData<v8::Context::AbortScriptExecutionCallback>(

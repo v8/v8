@@ -1449,7 +1449,7 @@ Maybe<bool> DebugPropertyIterator::Advance() {
     return Nothing<bool>();
   }
   Local<v8::Context> context =
-      Utils::ToLocal(handle(isolate_->context(), isolate_));
+      Utils::ToLocal(handle(isolate_->context().native_context(), isolate_));
   CallDepthScope<false> call_depth_scope(isolate_, context);
 
   if (!AdvanceInternal()) {

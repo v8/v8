@@ -517,7 +517,7 @@ void WebAssemblyCompile(const v8::FunctionCallbackInfo<v8::Value>& info) {
   HandleScope scope(isolate);
   ScheduledErrorThrower thrower(i_isolate, kAPIMethodName);
 
-  i::Handle<i::Context> native_context = i_isolate->native_context();
+  i::Handle<i::NativeContext> native_context = i_isolate->native_context();
   if (!i::wasm::IsWasmCodegenAllowed(i_isolate, native_context)) {
     i::Handle<i::String> error =
         i::wasm::ErrorStringForCodegen(i_isolate, native_context);
@@ -601,7 +601,7 @@ void WebAssemblyCompileStreaming(
   auto resolver = std::make_shared<AsyncCompilationResolver>(isolate, context,
                                                              promise_resolver);
 
-  i::Handle<i::Context> native_context = i_isolate->native_context();
+  i::Handle<i::NativeContext> native_context = i_isolate->native_context();
   if (!i::wasm::IsWasmCodegenAllowed(i_isolate, native_context)) {
     i::Handle<i::String> error =
         i::wasm::ErrorStringForCodegen(i_isolate, native_context);
@@ -716,7 +716,7 @@ void WebAssemblyModule(const v8::FunctionCallbackInfo<v8::Value>& info) {
     thrower.TypeError("WebAssembly.Module must be invoked with 'new'");
     return;
   }
-  i::Handle<i::Context> native_context = i_isolate->native_context();
+  i::Handle<i::NativeContext> native_context = i_isolate->native_context();
   if (!i::wasm::IsWasmCodegenAllowed(i_isolate, native_context)) {
     i::Handle<i::String> error =
         i::wasm::ErrorStringForCodegen(i_isolate, native_context);
@@ -910,7 +910,7 @@ void WebAssemblyInstantiateStreaming(
   std::unique_ptr<i::wasm::InstantiationResultResolver> resolver(
       new InstantiateModuleResultResolver(isolate, context, result_resolver));
 
-  i::Handle<i::Context> native_context = i_isolate->native_context();
+  i::Handle<i::NativeContext> native_context = i_isolate->native_context();
   if (!i::wasm::IsWasmCodegenAllowed(i_isolate, native_context)) {
     i::Handle<i::String> error =
         i::wasm::ErrorStringForCodegen(i_isolate, native_context);
@@ -1039,7 +1039,7 @@ void WebAssemblyInstantiate(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
   // The first parameter is a buffer source, we have to check if we are allowed
   // to compile it.
-  i::Handle<i::Context> native_context = i_isolate->native_context();
+  i::Handle<i::NativeContext> native_context = i_isolate->native_context();
   if (!i::wasm::IsWasmCodegenAllowed(i_isolate, native_context)) {
     i::Handle<i::String> error =
         i::wasm::ErrorStringForCodegen(i_isolate, native_context);

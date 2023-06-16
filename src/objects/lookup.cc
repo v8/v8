@@ -168,8 +168,7 @@ Handle<Map> LookupIterator::GetReceiverMap() const {
 bool LookupIterator::HasAccess() const {
   // TRANSITION is true when being called from DefineNamedOwnIC.
   DCHECK(state_ == ACCESS_CHECK || state_ == TRANSITION);
-  return isolate_->MayAccess(handle(isolate_->context(), isolate_),
-                             GetHolder<JSObject>());
+  return isolate_->MayAccess(isolate_->native_context(), GetHolder<JSObject>());
 }
 
 template <bool is_element>

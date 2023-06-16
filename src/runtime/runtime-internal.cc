@@ -31,7 +31,7 @@ RUNTIME_FUNCTION(Runtime_AccessCheck) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   Handle<JSObject> object = args.at<JSObject>(0);
-  if (!isolate->MayAccess(handle(isolate->context(), isolate), object)) {
+  if (!isolate->MayAccess(isolate->native_context(), object)) {
     isolate->ReportFailedAccessCheck(object);
     RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
     // TODO(ishell): Force throw an exception if the callback doesn't, so we

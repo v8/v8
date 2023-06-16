@@ -2039,7 +2039,7 @@ std::shared_ptr<NativeModule> CompileToNativeModule(
 AsyncCompileJob::AsyncCompileJob(
     Isolate* isolate, WasmFeatures enabled_features,
     base::OwnedVector<const uint8_t> bytes, Handle<Context> context,
-    Handle<Context> incumbent_context, const char* api_method_name,
+    Handle<NativeContext> incumbent_context, const char* api_method_name,
     std::shared_ptr<CompilationResultResolver> resolver, int compilation_id)
     : isolate_(isolate),
       api_method_name_(api_method_name),

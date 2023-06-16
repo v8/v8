@@ -664,7 +664,7 @@ bool FastKeyAccumulator::TryPrototypeInfoCache(Handle<JSReceiver> receiver) {
   if (!object->HasFastProperties()) return false;
   if (object->HasNamedInterceptor()) return false;
   if (object->IsAccessCheckNeeded() &&
-      !isolate_->MayAccess(handle(isolate_->context(), isolate_), object)) {
+      !isolate_->MayAccess(isolate_->native_context(), object)) {
     return false;
   }
   DisallowGarbageCollection no_gc;
@@ -1140,7 +1140,7 @@ Maybe<bool> KeyAccumulator::CollectOwnKeys(Handle<JSReceiver> receiver,
                                            Handle<JSObject> object) {
   // Check access rights if required.
   if (object->IsAccessCheckNeeded() &&
-      !isolate_->MayAccess(handle(isolate_->context(), isolate_), object)) {
+      !isolate_->MayAccess(isolate_->native_context(), object)) {
     // The cross-origin spec says that [[Enumerate]] shall return an empty
     // iterator when it doesn't have access...
     if (mode_ == KeyCollectionMode::kIncludePrototypes) {
