@@ -211,9 +211,12 @@ RUNTIME_FUNCTION(Runtime_WasmMemoryGrow) {
   // {delta_pages} is checked to be a positive smi in the WasmMemoryGrow builtin
   // which calls this runtime function.
   uint32_t delta_pages = args.positive_smi_value_at(1);
+  // TODO(13918): Support multiple memories.
+  uint32_t memory_index = 0;
 
-  int ret = WasmMemoryObject::Grow(
-      isolate, handle(instance.memory_object(), isolate), delta_pages);
+  Handle<WasmMemoryObject> memory_object{instance.memory_object(memory_index),
+                                         isolate};
+  int ret = WasmMemoryObject::Grow(isolate, memory_object, delta_pages);
   // The WasmMemoryGrow builtin which calls this runtime function expects us to
   // always return a Smi.
   DCHECK(!isolate->has_pending_exception());
@@ -461,8 +464,11 @@ RUNTIME_FUNCTION(Runtime_WasmAtomicNotify) {
   double offset_double = args.number_value_at(1);
   uintptr_t offset = static_cast<uintptr_t>(offset_double);
   uint32_t count = NumberToUint32(args[2]);
-  Handle<JSArrayBuffer> array_buffer{instance.memory_object().array_buffer(),
-                                     isolate};
+  // TODO(13918): Support multiple memories.
+  uint32_t memory_index = 0;
+
+  Handle<JSArrayBuffer> array_buffer{
+      instance.memory_object(memory_index).array_buffer(), isolate};
   // Should have trapped if address was OOB.
   DCHECK_LT(offset, array_buffer->byte_length());
   if (!array_buffer->is_shared()) return Smi::FromInt(0);
@@ -478,9 +484,11 @@ RUNTIME_FUNCTION(Runtime_WasmI32AtomicWait) {
   uintptr_t offset = static_cast<uintptr_t>(offset_double);
   int32_t expected_value = NumberToInt32(args[2]);
   BigInt timeout_ns = BigInt::cast(args[3]);
+  // TODO(13918): Support multiple memories.
+  uint32_t memory_index = 0;
 
-  Handle<JSArrayBuffer> array_buffer{instance.memory_object().array_buffer(),
-                                     isolate};
+  Handle<JSArrayBuffer> array_buffer{
+      instance.memory_object(memory_index).array_buffer(), isolate};
   // Should have trapped if address was OOB.
   DCHECK_LT(offset, array_buffer->byte_length());
 
@@ -503,9 +511,11 @@ RUNTIME_FUNCTION(Runtime_WasmI64AtomicWait) {
   uintptr_t offset = static_cast<uintptr_t>(offset_double);
   BigInt expected_value = BigInt::cast(args[2]);
   BigInt timeout_ns = BigInt::cast(args[3]);
+  // TODO(13918): Support multiple memories.
+  uint32_t memory_index = 0;
 
-  Handle<JSArrayBuffer> array_buffer{instance.memory_object().array_buffer(),
-                                     isolate};
+  Handle<JSArrayBuffer> array_buffer{
+      instance.memory_object(memory_index).array_buffer(), isolate};
   // Should have trapped if address was OOB.
   DCHECK_LT(offset, array_buffer->byte_length());
 

@@ -227,8 +227,7 @@ ACCESSORS(WasmInstanceObject, module_object, WasmModuleObject,
           kModuleObjectOffset)
 ACCESSORS(WasmInstanceObject, exports_object, JSObject, kExportsObjectOffset)
 ACCESSORS(WasmInstanceObject, native_context, Context, kNativeContextOffset)
-OPTIONAL_ACCESSORS(WasmInstanceObject, memory_object, WasmMemoryObject,
-                   kMemoryObjectOffset)
+ACCESSORS(WasmInstanceObject, memory_objects, FixedArray, kMemoryObjectsOffset)
 OPTIONAL_ACCESSORS(WasmInstanceObject, untagged_globals_buffer, JSArrayBuffer,
                    kUntaggedGlobalsBufferOffset)
 OPTIONAL_ACCESSORS(WasmInstanceObject, tagged_globals_buffer, FixedArray,
@@ -258,6 +257,10 @@ void WasmInstanceObject::clear_padding() {
     memset(reinterpret_cast<void*>(address() + kOptionalPaddingOffset), 0,
            FIELD_SIZE(kOptionalPaddingOffset));
   }
+}
+
+WasmMemoryObject WasmInstanceObject::memory_object(int memory_index) const {
+  return WasmMemoryObject::cast(memory_objects().get(memory_index));
 }
 
 ImportedFunctionEntry::ImportedFunctionEntry(

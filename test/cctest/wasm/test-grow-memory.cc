@@ -97,7 +97,7 @@ TEST(Run_WasmModule_Buffer_Externalized_GrowMem) {
         CompileAndInstantiateForTesting(
             isolate, &thrower, ModuleWireBytes(buffer.begin(), buffer.end()))
             .ToHandleChecked();
-    Handle<WasmMemoryObject> memory_object(instance->memory_object(), isolate);
+    Handle<WasmMemoryObject> memory_object{instance->memory_object(0), isolate};
 
     // Fake the Embedder flow by externalizing the array buffer.
     ManuallyExternalizedBuffer external1(

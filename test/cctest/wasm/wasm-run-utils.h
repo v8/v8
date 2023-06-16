@@ -189,7 +189,9 @@ class TestingModuleBuilder {
     // TODO(13918): Adapt this for multi-memory.
     DCHECK_EQ(1, test_module_->memories.size());
     test_module_->memories[0].maximum_pages = maximum_pages;
-    instance_object_->memory_object().set_maximum_pages(maximum_pages);
+    DCHECK_EQ(instance_object_->memory_objects().length(),
+              test_module_->memories.size());
+    instance_object_->memory_object(0).set_maximum_pages(maximum_pages);
   }
 
   void SetMemoryShared() {

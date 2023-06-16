@@ -425,7 +425,8 @@ RUNTIME_FUNCTION(Runtime_WasmNumCodeSpaces) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmTraceMemory) {
-  HandleScope scope(isolate);
+  SealHandleScope scope(isolate);
+  DisallowGarbageCollection no_gc;
   DCHECK_EQ(1, args.length());
   auto info_addr = Smi::cast(args[0]);
 
@@ -439,8 +440,10 @@ RUNTIME_FUNCTION(Runtime_WasmTraceMemory) {
   DCHECK(it.is_wasm());
   WasmFrame* frame = WasmFrame::cast(it.frame());
 
-  uint8_t* mem_start = reinterpret_cast<uint8_t*>(
-      frame->wasm_instance().memory_object().array_buffer().backing_store());
+  // TODO(13918): Fix for multi-memory.
+  auto memory_object = frame->wasm_instance().memory_object(0);
+  uint8_t* mem_start =
+      reinterpret_cast<uint8_t*>(memory_object.array_buffer().backing_store());
   int func_index = frame->function_index();
   int pos = frame->position();
   wasm::ExecutionTier tier = frame->wasm_code()->is_liftoff()

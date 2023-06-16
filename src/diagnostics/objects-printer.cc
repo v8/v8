@@ -2227,7 +2227,7 @@ void WasmInstanceObject::WasmInstanceObjectPrint(std::ostream& os) {
   PRINT_WASM_INSTANCE_FIELD(module_object, Brief);
   PRINT_WASM_INSTANCE_FIELD(exports_object, Brief);
   PRINT_WASM_INSTANCE_FIELD(native_context, Brief);
-  PRINT_OPTIONAL_WASM_INSTANCE_FIELD(memory_object, Brief);
+  PRINT_WASM_INSTANCE_FIELD(memory_objects, Brief);
   PRINT_OPTIONAL_WASM_INSTANCE_FIELD(untagged_globals_buffer, Brief);
   PRINT_OPTIONAL_WASM_INSTANCE_FIELD(tagged_globals_buffer, Brief);
   PRINT_OPTIONAL_WASM_INSTANCE_FIELD(imported_mutable_globals_buffers, Brief);

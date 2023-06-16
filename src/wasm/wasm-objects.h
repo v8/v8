@@ -334,7 +334,7 @@ class V8_EXPORT_PRIVATE WasmInstanceObject : public JSObject {
   DECL_ACCESSORS(module_object, WasmModuleObject)
   DECL_ACCESSORS(exports_object, JSObject)
   DECL_ACCESSORS(native_context, Context)
-  DECL_OPTIONAL_ACCESSORS(memory_object, WasmMemoryObject)
+  DECL_ACCESSORS(memory_objects, FixedArray)
   DECL_OPTIONAL_ACCESSORS(untagged_globals_buffer, JSArrayBuffer)
   DECL_OPTIONAL_ACCESSORS(tagged_globals_buffer, FixedArray)
   DECL_OPTIONAL_ACCESSORS(imported_mutable_globals_buffers, FixedArray)
@@ -373,6 +373,8 @@ class V8_EXPORT_PRIVATE WasmInstanceObject : public JSObject {
   // Clear uninitialized padding space. This ensures that the snapshot content
   // is deterministic. Depending on the V8 build mode there could be no padding.
   V8_INLINE void clear_padding();
+
+  inline WasmMemoryObject memory_object(int memory_index) const;
 
   // Dispatched behavior.
   DECL_PRINTER(WasmInstanceObject)
@@ -413,7 +415,7 @@ class V8_EXPORT_PRIVATE WasmInstanceObject : public JSObject {
   V(kModuleObjectOffset, kTaggedSize)                                     \
   V(kExportsObjectOffset, kTaggedSize)                                    \
   V(kNativeContextOffset, kTaggedSize)                                    \
-  V(kMemoryObjectOffset, kTaggedSize)                                     \
+  V(kMemoryObjectsOffset, kTaggedSize)                                    \
   V(kUntaggedGlobalsBufferOffset, kTaggedSize)                            \
   V(kTaggedGlobalsBufferOffset, kTaggedSize)                              \
   V(kImportedMutableGlobalsBuffersOffset, kTaggedSize)                    \
@@ -452,7 +454,7 @@ class V8_EXPORT_PRIVATE WasmInstanceObject : public JSObject {
       kModuleObjectOffset,
       kExportsObjectOffset,
       kNativeContextOffset,
-      kMemoryObjectOffset,
+      kMemoryObjectsOffset,
       kUntaggedGlobalsBufferOffset,
       kTaggedGlobalsBufferOffset,
       kImportedMutableGlobalsBuffersOffset,

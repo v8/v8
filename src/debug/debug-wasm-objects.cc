@@ -324,13 +324,13 @@ struct MemoriesProxy : NamedDebugProxy<MemoriesProxy, kMemoriesProxy> {
   static constexpr char const* kClassName = "Memories";
 
   static uint32_t Count(Isolate* isolate, Handle<WasmInstanceObject> instance) {
-    return instance->has_memory_object() ? 1 : 0;
+    return instance->memory_objects().length();
   }
 
   static Handle<Object> Get(Isolate* isolate,
                             Handle<WasmInstanceObject> instance,
                             uint32_t index) {
-    return handle(instance->memory_object(), isolate);
+    return handle(instance->memory_object(index), isolate);
   }
 
   static Handle<String> GetName(Isolate* isolate,

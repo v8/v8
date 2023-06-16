@@ -851,8 +851,16 @@ void WasmMemoryObject::SetNewBuffer(JSArrayBuffer new_buffer) {
           WasmInstanceObject::cast(elem->GetHeapObjectAssumeWeak());
       // TODO(13918): Avoid the iteration if we ever see larger numbers of
       // memories.
-      DCHECK_EQ(instance.memory_object(), *this);
-      SetInstanceMemory(instance, new_buffer);
+      FixedArray memory_objects = instance.memory_objects();
+      int num_memories = memory_objects.length();
+      for (int mem_idx = 0; mem_idx < num_memories; ++mem_idx) {
+        if (memory_objects.get(mem_idx) == *this) {
+          // TODO(13918): Store multiple memory starts and sizes in the
+          // instance.
+          CHECK_EQ(0, mem_idx);
+          SetInstanceMemory(instance, new_buffer);
+        }
+      }
     }
   }
 }
@@ -1150,6 +1158,9 @@ Handle<WasmInstanceObject> WasmInstanceObject::New(
   Handle<FixedUInt32Array> data_segment_sizes =
       FixedUInt32Array::New(isolate, num_data_segments);
 
+  Handle<FixedArray> memory_objects = isolate->factory()->NewFixedArray(
+      static_cast<int>(module->memories.size()));
+
   // Now allocate the instance itself.
   Handle<JSFunction> instance_cons(
       isolate->native_context()->wasm_instance_constructor(), isolate);
@@ -1211,6 +1222,7 @@ Handle<WasmInstanceObject> WasmInstanceObject::New(
     instance.InitDataSegmentArrays(*module_object);
     instance.set_memory0_start(empty_backing_store_buffer);
     instance.set_memory0_size(0);
+    instance.set_memory_objects(*memory_objects);
   }
 
   // Insert the new instance into the scripts weak list of instances. This list
