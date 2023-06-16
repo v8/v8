@@ -28,7 +28,7 @@ transitioning javascript builtin SetPrototypeUnion(
   try {
     typeswitch (other) {
       case (otherSet: JSSetWithNoCustomIteration): {
-        CheckSetRecordIsJSSet(otherRec) otherwise SlowPath;
+        CheckSetRecordHasJSSetMethods(otherRec) otherwise SlowPath;
 
         const otherTable =
             Cast<OrderedHashSet>(otherSet.table) otherwise unreachable;
@@ -42,7 +42,7 @@ transitioning javascript builtin SetPrototypeUnion(
         }
       }
       case (otherMap: JSMapWithNoCustomIteration): {
-        CheckSetRecordIsJSMap(otherRec) otherwise SlowPath;
+        CheckSetRecordHasJSMapMethods(otherRec) otherwise SlowPath;
 
         const otherTable =
             Cast<OrderedHashMap>(otherMap.table) otherwise unreachable;

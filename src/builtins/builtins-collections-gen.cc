@@ -1390,7 +1390,7 @@ CollectionsBuiltinsAssembler::NextKeyIndexPair(
     Label* if_end);
 
 TorqueStructKeyValueIndexTuple
-CollectionsBuiltinsAssembler::NextKeyValueIndexTupleUnmodifiedMap(
+CollectionsBuiltinsAssembler::NextKeyValueIndexTupleUnmodifiedTable(
     const TNode<OrderedHashMap> table, const TNode<Int32T> number_of_buckets,
     const TNode<Int32T> used_capacity, const TNode<IntPtrT> index,
     Label* if_end) {
@@ -1400,6 +1400,23 @@ CollectionsBuiltinsAssembler::NextKeyValueIndexTupleUnmodifiedMap(
 
   std::tie(key, entry_start_position, next_index) =
       NextSkipHoles(table, number_of_buckets, used_capacity, index, if_end);
+
+  TNode<Object> value =
+      UnsafeLoadValueFromOrderedHashMapEntry(table, entry_start_position);
+
+  return TorqueStructKeyValueIndexTuple{key, value, next_index};
+}
+
+TorqueStructKeyValueIndexTuple
+CollectionsBuiltinsAssembler::NextKeyValueIndexTuple(
+    const TNode<OrderedHashMap> table, const TNode<IntPtrT> index,
+    Label* if_end) {
+  TNode<Object> key;
+  TNode<IntPtrT> entry_start_position;
+  TNode<IntPtrT> next_index;
+
+  std::tie(key, entry_start_position, next_index) =
+      NextSkipHoles(table, index, if_end);
 
   TNode<Object> value =
       UnsafeLoadValueFromOrderedHashMapEntry(table, entry_start_position);
@@ -1437,20 +1454,26 @@ TF_BUILTIN(MapPrototypeHas, CollectionsBuiltinsAssembler) {
 
   ThrowIfNotInstanceType(context, receiver, JS_MAP_TYPE, "Map.prototype.has");
 
-  const TNode<Object> table =
-      LoadObjectField(CAST(receiver), JSMap::kTableOffset);
-  TNode<Smi> index =
-      CAST(CallBuiltin(Builtin::kFindOrderedHashMapEntry, context, table, key));
+  const TNode<OrderedHashMap> table =
+      CAST(LoadObjectField(CAST(receiver), JSMap::kTableOffset));
 
   Label if_found(this), if_not_found(this);
-  Branch(SmiGreaterThanOrEqual(index, SmiConstant(0)), &if_found,
-         &if_not_found);
+  Branch(TableHasKey(context, table, key), &if_found, &if_not_found);
 
   BIND(&if_found);
   Return(TrueConstant());
 
   BIND(&if_not_found);
   Return(FalseConstant());
+}
+
+TNode<BoolT> CollectionsBuiltinsAssembler::TableHasKey(
+    const TNode<Object> context, TNode<OrderedHashMap> table,
+    TNode<Object> key) {
+  TNode<Smi> index =
+      CAST(CallBuiltin(Builtin::kFindOrderedHashMapEntry, context, table, key));
+
+  return SmiGreaterThanOrEqual(index, SmiConstant(0));
 }
 
 const TNode<Object> CollectionsBuiltinsAssembler::NormalizeNumberKey(
@@ -2018,11 +2041,11 @@ TF_BUILTIN(SetPrototypeHas, CollectionsBuiltinsAssembler) {
 
   ThrowIfNotInstanceType(context, receiver, JS_SET_TYPE, "Set.prototype.has");
 
-  const TNode<Object> table =
-      LoadObjectField(CAST(receiver), JSMap::kTableOffset);
+  const TNode<OrderedHashSet> table =
+      CAST(LoadObjectField(CAST(receiver), JSMap::kTableOffset));
 
   Label if_found(this), if_not_found(this);
-  Branch(SetTableHasKey(context, table, key), &if_found, &if_not_found);
+  Branch(TableHasKey(context, table, key), &if_found, &if_not_found);
 
   BIND(&if_found);
   Return(TrueConstant());
@@ -2031,8 +2054,9 @@ TF_BUILTIN(SetPrototypeHas, CollectionsBuiltinsAssembler) {
   Return(FalseConstant());
 }
 
-TNode<BoolT> CollectionsBuiltinsAssembler::SetTableHasKey(
-    const TNode<Object> context, TNode<Object> table, TNode<Object> key) {
+TNode<BoolT> CollectionsBuiltinsAssembler::TableHasKey(
+    const TNode<Object> context, TNode<OrderedHashSet> table,
+    TNode<Object> key) {
   TNode<Smi> index =
       CAST(CallBuiltin(Builtin::kFindOrderedHashSetEntry, context, table, key));
 

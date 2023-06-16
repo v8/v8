@@ -179,14 +179,20 @@ class CollectionsBuiltinsAssembler : public BaseCollectionsAssembler {
                                             const TNode<IntPtrT> index,
                                             Label* if_end);
 
-  TorqueStructKeyValueIndexTuple NextKeyValueIndexTupleUnmodifiedMap(
+  TorqueStructKeyValueIndexTuple NextKeyValueIndexTupleUnmodifiedTable(
       const TNode<OrderedHashMap> table, const TNode<Int32T> number_of_buckets,
       const TNode<Int32T> used_capacity, const TNode<IntPtrT> index,
       Label* if_end);
 
-  // Checks if the set contains a key.
-  TNode<BoolT> SetTableHasKey(const TNode<Object> context, TNode<Object> table,
-                              TNode<Object> key);
+  TorqueStructKeyValueIndexTuple NextKeyValueIndexTuple(
+      const TNode<OrderedHashMap> table, const TNode<IntPtrT> index,
+      Label* if_end);
+
+  // Checks if the set/map contains a key.
+  TNode<BoolT> TableHasKey(const TNode<Object> context,
+                           TNode<OrderedHashSet> table, TNode<Object> key);
+  TNode<BoolT> TableHasKey(const TNode<Object> context,
+                           TNode<OrderedHashMap> table, TNode<Object> key);
 
   // Adds {value} to a FixedArray keyed by {key} in {groups}.
   //
