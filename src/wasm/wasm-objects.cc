@@ -1120,21 +1120,21 @@ const WasmModule* WasmInstanceObject::module() {
 
 Handle<WasmInstanceObject> WasmInstanceObject::New(
     Isolate* isolate, Handle<WasmModuleObject> module_object) {
-  Handle<JSFunction> instance_cons(
-      isolate->native_context()->wasm_instance_constructor(), isolate);
-  Handle<JSObject> instance_object =
-      isolate->factory()->NewJSObject(instance_cons, AllocationType::kOld);
+  // Do first allocate all objects that will be stored in instance fields,
+  // because otherwise we would have to allocate when the instance is not fully
+  // initialized yet, which can lead to heap verification errors.
+  const WasmModule* module = module_object->module();
 
-  Handle<WasmInstanceObject> instance(
-      WasmInstanceObject::cast(*instance_object), isolate);
-  instance->clear_padding();
-
-  auto module = module_object->module();
-
-  auto num_imported_functions = module->num_imported_functions;
+  int num_imported_functions = module->num_imported_functions;
   Handle<FixedAddressArray> imported_function_targets =
       FixedAddressArray::New(isolate, num_imported_functions);
-  instance->set_imported_function_targets(*imported_function_targets);
+  Handle<FixedArray> imported_function_refs =
+      isolate->factory()->NewFixedArray(num_imported_functions);
+  Handle<FixedArray> well_known_imports =
+      isolate->factory()->NewFixedArray(num_imported_functions);
+
+  Handle<FixedArray> functions = isolate->factory()->NewFixedArrayWithZeroes(
+      static_cast<int>(module->functions.size()));
 
   int num_imported_mutable_globals = module->num_imported_mutable_globals;
   // The imported_mutable_globals is essentially a FixedAddressArray (storing
@@ -1143,67 +1143,75 @@ Handle<WasmInstanceObject> WasmInstanceObject::New(
   // raw ByteArray.
   Handle<FixedAddressArray> imported_mutable_globals =
       FixedAddressArray::New(isolate, num_imported_mutable_globals);
-  instance->set_imported_mutable_globals(*imported_mutable_globals);
 
   int num_data_segments = module->num_declared_data_segments;
   Handle<FixedAddressArray> data_segment_starts =
       FixedAddressArray::New(isolate, num_data_segments);
-  instance->set_data_segment_starts(*data_segment_starts);
-
   Handle<FixedUInt32Array> data_segment_sizes =
       FixedUInt32Array::New(isolate, num_data_segments);
-  instance->set_data_segment_sizes(*data_segment_sizes);
 
-  instance->set_element_segments(*isolate->factory()->empty_fixed_array());
+  // Now allocate the instance itself.
+  Handle<JSFunction> instance_cons(
+      isolate->native_context()->wasm_instance_constructor(), isolate);
+  Handle<JSObject> instance_object =
+      isolate->factory()->NewJSObject(instance_cons, AllocationType::kOld);
 
-  Handle<FixedArray> imported_function_refs =
-      isolate->factory()->NewFixedArray(num_imported_functions);
-  instance->set_imported_function_refs(*imported_function_refs);
+  // Initialize the instance. During this step, no more allocations should
+  // happen because the instance is incomplete yet, so we should not trigger
+  // heap verification at this point.
+  {
+    DisallowHeapAllocation no_gc;
 
-  instance->set_stack_limit_address(
-      isolate->stack_guard()->address_of_jslimit());
-  instance->set_real_stack_limit_address(
-      isolate->stack_guard()->address_of_real_jslimit());
-  instance->set_new_allocation_limit_address(
-      isolate->heap()->NewSpaceAllocationLimitAddress());
-  instance->set_new_allocation_top_address(
-      isolate->heap()->NewSpaceAllocationTopAddress());
-  instance->set_old_allocation_limit_address(
-      isolate->heap()->OldSpaceAllocationLimitAddress());
-  instance->set_old_allocation_top_address(
-      isolate->heap()->OldSpaceAllocationTopAddress());
-  instance->set_globals_start(
-      reinterpret_cast<uint8_t*>(EmptyBackingStoreBuffer()));
-  instance->set_indirect_function_table_size(0);
-  instance->set_indirect_function_table_refs(
-      ReadOnlyRoots(isolate).empty_fixed_array());
-  instance->set_indirect_function_table_sig_ids(
-      FixedUInt32Array::cast(ReadOnlyRoots(isolate).empty_byte_array()));
-  instance->set_indirect_function_table_targets(
-      FixedAddressArray::cast(ReadOnlyRoots(isolate).empty_byte_array()));
-  instance->set_native_context(*isolate->native_context());
-  instance->set_module_object(*module_object);
-  instance->set_jump_table_start(
-      module_object->native_module()->jump_table_start());
-  instance->set_hook_on_function_call_address(
-      isolate->debug()->hook_on_function_call_address());
-  instance->set_managed_object_maps(*isolate->factory()->empty_fixed_array());
-  Handle<FixedArray> well_known_imports =
-      isolate->factory()->NewFixedArray(num_imported_functions);
-  instance->set_well_known_imports(*well_known_imports);
-  Handle<FixedArray> functions = isolate->factory()->NewFixedArrayWithZeroes(
-      static_cast<int>(module->functions.size()));
-  instance->set_wasm_internal_functions(*functions);
-  instance->set_feedback_vectors(*isolate->factory()->empty_fixed_array());
-  instance->set_tiering_budget_array(
-      module_object->native_module()->tiering_budget_array());
-  instance->set_break_on_entry(module_object->script().break_on_entry());
-  InitDataSegmentArrays(instance, module_object);
+    // Some constants:
+    uint8_t* empty_backing_store_buffer =
+        reinterpret_cast<uint8_t*>(EmptyBackingStoreBuffer());
+    FixedArray empty_fixed_array = ReadOnlyRoots(isolate).empty_fixed_array();
+    ByteArray empty_byte_array = ReadOnlyRoots(isolate).empty_byte_array();
 
-  uint8_t* empty_backing_store_buffer =
-      reinterpret_cast<uint8_t*>(EmptyBackingStoreBuffer());
-  instance->set_memory0_start(empty_backing_store_buffer);
-  instance->set_memory0_size(0);
+    WasmInstanceObject instance = WasmInstanceObject::cast(*instance_object);
+    instance.clear_padding();
+    instance.set_imported_function_targets(*imported_function_targets);
+    instance.set_imported_mutable_globals(*imported_mutable_globals);
+    instance.set_data_segment_starts(*data_segment_starts);
+    instance.set_data_segment_sizes(*data_segment_sizes);
+    instance.set_element_segments(empty_fixed_array);
+    instance.set_imported_function_refs(*imported_function_refs);
+    instance.set_stack_limit_address(
+        isolate->stack_guard()->address_of_jslimit());
+    instance.set_real_stack_limit_address(
+        isolate->stack_guard()->address_of_real_jslimit());
+    instance.set_new_allocation_limit_address(
+        isolate->heap()->NewSpaceAllocationLimitAddress());
+    instance.set_new_allocation_top_address(
+        isolate->heap()->NewSpaceAllocationTopAddress());
+    instance.set_old_allocation_limit_address(
+        isolate->heap()->OldSpaceAllocationLimitAddress());
+    instance.set_old_allocation_top_address(
+        isolate->heap()->OldSpaceAllocationTopAddress());
+    instance.set_globals_start(empty_backing_store_buffer);
+    instance.set_indirect_function_table_size(0);
+    instance.set_indirect_function_table_refs(empty_fixed_array);
+    instance.set_indirect_function_table_sig_ids(
+        FixedUInt32Array::cast(empty_byte_array));
+    instance.set_indirect_function_table_targets(
+        FixedAddressArray::cast(empty_byte_array));
+    instance.set_native_context(*isolate->native_context());
+    instance.set_module_object(*module_object);
+    instance.set_jump_table_start(
+        module_object->native_module()->jump_table_start());
+    instance.set_hook_on_function_call_address(
+        isolate->debug()->hook_on_function_call_address());
+    instance.set_managed_object_maps(*isolate->factory()->empty_fixed_array());
+    instance.set_well_known_imports(*well_known_imports);
+    instance.set_wasm_internal_functions(*functions);
+    instance.set_feedback_vectors(*isolate->factory()->empty_fixed_array());
+    instance.set_tiering_budget_array(
+        module_object->native_module()->tiering_budget_array());
+    instance.set_break_on_entry(module_object->script().break_on_entry());
+    instance.InitDataSegmentArrays(*module_object);
+    instance.set_memory0_start(empty_backing_store_buffer);
+    instance.set_memory0_size(0);
+  }
 
   // Insert the new instance into the scripts weak list of instances. This list
   // is used for breakpoints affecting all instances belonging to the script.
@@ -1211,19 +1219,16 @@ Handle<WasmInstanceObject> WasmInstanceObject::New(
     Handle<WeakArrayList> weak_instance_list(
         module_object->script().wasm_weak_instance_list(), isolate);
     weak_instance_list = WeakArrayList::Append(
-        isolate, weak_instance_list, MaybeObjectHandle::Weak(instance));
+        isolate, weak_instance_list, MaybeObjectHandle::Weak(instance_object));
     module_object->script().set_wasm_weak_instance_list(*weak_instance_list);
   }
 
-  return instance;
+  return Handle<WasmInstanceObject>::cast(instance_object);
 }
 
-// static
-void WasmInstanceObject::InitDataSegmentArrays(
-    Handle<WasmInstanceObject> instance,
-    Handle<WasmModuleObject> module_object) {
-  auto module = module_object->module();
-  auto wire_bytes = module_object->native_module()->wire_bytes();
+void WasmInstanceObject::InitDataSegmentArrays(WasmModuleObject module_object) {
+  auto module = module_object.module();
+  auto wire_bytes = module_object.native_module()->wire_bytes();
   auto num_data_segments = module->num_declared_data_segments;
   // The number of declared data segments will be zero if there is no DataCount
   // section. These arrays will not be allocated nor initialized in that case,
@@ -1237,13 +1242,13 @@ void WasmInstanceObject::InitDataSegmentArrays(
     // Initialize the pointer and size of passive segments.
     auto source_bytes = wire_bytes.SubVector(segment.source.offset(),
                                              segment.source.end_offset());
-    instance->data_segment_starts().set(
-        i, reinterpret_cast<Address>(source_bytes.begin()));
+    data_segment_starts().set(i,
+                              reinterpret_cast<Address>(source_bytes.begin()));
     // Set the active segments to being already dropped, since memory.init on
     // a dropped passive segment and an active segment have the same
     // behavior.
-    instance->data_segment_sizes().set(
-        static_cast<int>(i), segment.active ? 0 : source_bytes.length());
+    data_segment_sizes().set(static_cast<int>(i),
+                             segment.active ? 0 : source_bytes.length());
   }
 }
 

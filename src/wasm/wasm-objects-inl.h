@@ -253,7 +253,7 @@ ACCESSORS(WasmInstanceObject, well_known_imports, FixedArray,
           kWellKnownImportsOffset)
 
 void WasmInstanceObject::clear_padding() {
-  if (FIELD_SIZE(kOptionalPaddingOffset) != 0) {
+  if constexpr (FIELD_SIZE(kOptionalPaddingOffset) != 0) {
     DCHECK_EQ(4, FIELD_SIZE(kOptionalPaddingOffset));
     memset(reinterpret_cast<void*>(address() + kOptionalPaddingOffset), 0,
            FIELD_SIZE(kOptionalPaddingOffset));
