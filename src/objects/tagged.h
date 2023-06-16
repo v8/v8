@@ -208,6 +208,9 @@ class Tagged : public detail::GetBaseForTagged<T> {
  private:
   // Handles of the same type are allowed to access the Address constructor.
   friend class Handle<T>;
+#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+  friend class DirectHandle<T>;
+#endif
 
   using Base::Base;
   constexpr T ToRawPtr() const {
@@ -332,6 +335,9 @@ class Tagged<Smi> : public TaggedBase {
  private:
   // Handles of the same type are allowed to access the Address constructor.
   friend class Handle<Smi>;
+#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+  friend class DirectHandle<Smi>;
+#endif
 
   using TaggedBase::TaggedBase;
 };

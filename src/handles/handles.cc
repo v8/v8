@@ -90,40 +90,6 @@ bool HandleBase::IsDereferenceAllowed() const {
   return true;
 }
 
-#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
-
-template <typename T>
-bool DirectHandle<T>::IsDereferenceAllowed() const {
-  DCHECK_NE(obj_, kTaggedNullAddress);
-  Object object(obj_);
-  if (object.IsSmi()) return true;
-  HeapObject heap_object = HeapObject::cast(object);
-  if (IsReadOnlyHeapObject(heap_object)) return true;
-  Isolate* isolate = GetIsolateFromWritableObject(heap_object);
-  if (!AllowHandleDereference::IsAllowed()) return false;
-
-  // Allocations in the shared heap may be dereferenced by multiple threads.
-  if (heap_object.InWritableSharedSpace()) return true;
-
-  LocalHeap* local_heap = isolate->CurrentLocalHeap();
-
-  // Local heap can't access handles when parked
-  if (!local_heap->IsHandleDereferenceAllowed()) {
-    StdoutStream{} << "Cannot dereference handle owned by "
-                   << "non-running local heap\n";
-    return false;
-  }
-
-  // If LocalHeap::Current() is null, we're on the main thread -- if we were to
-  // check main thread HandleScopes here, we should additionally check the
-  // main-thread LocalHeap.
-  DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
-
-  return true;
-}
-
-#endif  // V8_ENABLE_CONSERVATIVE_STACK_SCANNING
-
 #endif  // DEBUG
 
 int HandleScope::NumberOfHandles(Isolate* isolate) {
