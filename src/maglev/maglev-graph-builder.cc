@@ -5816,13 +5816,13 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayForEach(
   // ```
   // callback(this_arg, element, array)
   // ```
+  ValueNode* next_index_tagged = GetTaggedValue(next_index_int32);
   ReduceResult result;
   {
     DeoptFrameScope lazy_deopt_scope(
         this, Builtin::kArrayForEachLoopLazyDeoptContinuation, target,
         base::VectorOf<ValueNode*>({receiver, callback, this_arg,
-                                    GetTaggedValue(next_index_int32),
-                                    original_length}));
+                                    next_index_tagged, original_length}));
 
     CallArguments call_args =
         args.count() < 2
@@ -5873,8 +5873,8 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayForEach(
     // Make sure to finish the loop if we eager deopt in the map check.
     DeoptFrameScope eager_deopt_scope(
         this, Builtin::kArrayForEachLoopEagerDeoptContinuation, target,
-        base::VectorOf<ValueNode*>(
-            {receiver, callback, this_arg, index_tagged, original_length}));
+        base::VectorOf<ValueNode*>({receiver, callback, this_arg,
+                                    next_index_tagged, original_length}));
 
     // Build the CheckMap manually, since we're doing it with already known
     // maps rather than feedback, and we don't need to update known node

@@ -1255,8 +1255,8 @@ class MaglevTranslationArrayBuilder {
       translation_array_builder_->StoreLiteral(
           GetDeoptLiteral(ReadOnlyRoots(local_isolate_).undefined_value()));
       // kJavaScriptCallArgCountRegister
-      translation_array_builder_->StoreLiteral(
-          GetDeoptLiteral(Smi::FromInt(frame.parameters().length() + 1)));
+      translation_array_builder_->StoreLiteral(GetDeoptLiteral(
+          Smi::FromInt(Builtins::GetStackParameterCount(frame.builtin_id()))));
     }
 
     // Context
