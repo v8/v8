@@ -5726,8 +5726,18 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayForEach(
   }
 
   ValueNode* callback = args[0];
-  ValueNode* this_arg =
-      args.count() > 1 ? args[1] : GetRootConstant(RootIndex::kUndefinedValue);
+  if (!callback->is_tagged()) {
+    if (v8_flags.trace_maglev_graph_building) {
+      std::cout << "  ! Failed to reduce Array.prototype.forEach - callback is "
+                   "untagged value"
+                << std::endl;
+    }
+    return ReduceResult::Fail();
+  }
+
+  ValueNode* this_arg = args.count() > 1
+                            ? GetTaggedValue(args[1])
+                            : GetRootConstant(RootIndex::kUndefinedValue);
 
   // TODO(leszeks): Load cached value if any.
   ValueNode* original_length =
