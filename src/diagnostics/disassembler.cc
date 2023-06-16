@@ -321,6 +321,19 @@ static int DecodeIt(Isolate* isolate, ExternalReferenceEncoder* ref_encoder,
                  reinterpret_cast<intptr_t>(ptr),
                  static_cast<size_t>(ptr - begin));
         pc += sizeof(ptr);
+#ifdef V8_TARGET_ARCH_X64
+      } else if (!rit.done() &&
+                 rit.rinfo()->pc() == reinterpret_cast<Address>(pc) &&
+                 rit.rinfo()->rmode() ==
+                     RelocInfo::RELATIVE_SWITCH_TABLE_ENTRY) {
+        int target_pc_offset = static_cast<int>(rit.rinfo()->data());
+        uint8_t* ptr = begin + target_pc_offset;
+        SNPrintF(decode_buffer, "%08" V8PRIxPTR "       jump table entry %4zx",
+                 reinterpret_cast<intptr_t>(ptr),
+                 static_cast<size_t>(target_pc_offset));
+        // We use emitl (4 bytes) for the value in the table.
+        pc += 4;
+#endif  // V8_TARGET_ARCH_X64
       } else {
         decode_buffer[0] = '\0';
         pc += d.InstructionDecode(decode_buffer, pc);

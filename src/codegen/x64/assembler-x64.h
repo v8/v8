@@ -51,6 +51,7 @@
 #include "src/codegen/x64/register-x64.h"
 #include "src/codegen/x64/sse-instr.h"
 #include "src/objects/smi.h"
+
 #if defined(V8_OS_WIN_X64)
 #include "src/diagnostics/unwinding-info-win64.h"
 #endif
@@ -2195,6 +2196,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void dq(uint64_t data);
   void dp(uintptr_t data) { dq(data); }
   void dq(Label* label);
+
+  void WriteBuiltinJumpTableEntry(Label* label, const int table_pos);
 
   // Patch entries for partial constant pool.
   void PatchConstPool();

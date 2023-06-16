@@ -646,7 +646,7 @@ void Assembler::emit_operand(int code, Operand adr) {
 
   // Compute the opcode extension to be encoded in the ModR/M byte.
   V8_ASSUME(0 <= code && code <= 7);
-  DCHECK((adr.memory().buf[0] & 0x38) == 0);
+  DCHECK_EQ((adr.memory().buf[0] & 0x38), 0);
   uint8_t opcode_extension = code << 3;
 
   // Use an optimized routine for copying the 1-6 bytes into the assembler
@@ -4539,6 +4539,14 @@ void Assembler::dq(Label* label) {
       label->link_to(current);
     }
   }
+}
+
+void Assembler::WriteBuiltinJumpTableEntry(Label* label, const int table_pos) {
+  EnsureSpace ensure_space(this);
+  CHECK(label->is_bound());
+  int32_t value = label->pos() - table_pos;
+  RecordRelocInfo(RelocInfo::RELATIVE_SWITCH_TABLE_ENTRY, label->pos());
+  emitl(value);
 }
 
 // Relocation information implementations.

@@ -408,6 +408,9 @@ declare_args() {
   # Enable Maglev's graph printer.
   # Sets -DV8_MAGLEV_GRAPH_PRINTER.
   v8_enable_maglev_graph_printer = !build_with_chromium
+
+  # Enable jump table switch for built-in.
+  v8_enable_builtin_jump_table_switch = v8_current_cpu == "x64"
 }
 
 # Derived defaults.
@@ -1188,6 +1191,9 @@ config("features") {
   }
   if (v8_enable_maglev_graph_printer) {
     defines += [ "V8_ENABLE_MAGLEV_GRAPH_PRINTER" ]
+  }
+  if (v8_enable_builtin_jump_table_switch) {
+    defines += [ "V8_ENABLE_BUILTIN_JUMP_TABLE_SWITCH" ]
   }
 }
 

@@ -453,6 +453,13 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
         !v8_flags.debug_code) {
       return false;
     }
+    if (RelocInfo::IsOnlyForDisassembler(rmode)) {
+#ifdef ENABLE_DISASSEMBLER
+      return true;
+#else
+      return false;
+#endif  // ENABLE_DISASSEMBLER
+    }
     return true;
   }
 
