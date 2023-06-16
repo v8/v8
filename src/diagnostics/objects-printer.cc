@@ -2262,6 +2262,7 @@ void WasmInstanceObject::WasmInstanceObjectPrint(std::ostream& os) {
   PRINT_WASM_INSTANCE_FIELD(element_segments, Brief);
   PRINT_WASM_INSTANCE_FIELD(hook_on_function_call_address, to_void_ptr);
   PRINT_WASM_INSTANCE_FIELD(tiering_budget_array, to_void_ptr);
+  PRINT_WASM_INSTANCE_FIELD(memory_bases_and_sizes, Brief);
   PRINT_WASM_INSTANCE_FIELD(break_on_entry, static_cast<int>);
   JSObjectPrintBody(os, *this);
   os << "\n";

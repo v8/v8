@@ -958,7 +958,8 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
     Handle<WasmMemoryObject> memory_object = WasmMemoryObject::New(
         isolate_, buffer, maximum_pages, WasmMemoryFlag::kWasmMemory32);
     constexpr int kMemoryIndexZero = 0;
-    WasmMemoryObject::UseInInstance(isolate_, memory_object, instance);
+    WasmMemoryObject::UseInInstance(isolate_, memory_object, instance,
+                                    kMemoryIndexZero);
     instance->memory_objects().set(kMemoryIndexZero, *memory_object);
   } else {
     CHECK(asmjs_memory_buffer_.is_null());
@@ -975,7 +976,8 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
         DCHECK(isolate_->has_pending_exception() || thrower_->error());
         return {};
       }
-      WasmMemoryObject::UseInInstance(isolate_, memory_object, instance);
+      WasmMemoryObject::UseInInstance(isolate_, memory_object, instance,
+                                      memory_index);
       instance->memory_objects().set(memory_index, *memory_object);
     }
   }

@@ -214,6 +214,8 @@ PRIMITIVE_ACCESSORS(WasmInstanceObject, hook_on_function_call_address, Address,
                     kHookOnFunctionCallAddressOffset)
 PRIMITIVE_ACCESSORS(WasmInstanceObject, tiering_budget_array, uint32_t*,
                     kTieringBudgetArrayOffset)
+ACCESSORS(WasmInstanceObject, memory_bases_and_sizes, FixedAddressArray,
+          kMemoryBasesAndSizesOffset)
 ACCESSORS(WasmInstanceObject, data_segment_starts, FixedAddressArray,
           kDataSegmentStartsOffset)
 ACCESSORS(WasmInstanceObject, data_segment_sizes, FixedUInt32Array,
@@ -261,6 +263,14 @@ void WasmInstanceObject::clear_padding() {
 
 WasmMemoryObject WasmInstanceObject::memory_object(int memory_index) const {
   return WasmMemoryObject::cast(memory_objects().get(memory_index));
+}
+
+Address WasmInstanceObject::memory_base(int memory_index) const {
+  return memory_bases_and_sizes().get_sandboxed_pointer(2 * memory_index);
+}
+
+size_t WasmInstanceObject::memory_size(int memory_index) const {
+  return memory_bases_and_sizes().get(2 * memory_index + 1);
 }
 
 ImportedFunctionEntry::ImportedFunctionEntry(

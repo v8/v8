@@ -135,12 +135,21 @@ uint8_t* TestingModuleBuilder::AddMemory(uint32_t size, SharedFlag shared,
   memory_objects->set(0, *memory_object);
   instance_object_->set_memory_objects(*memory_objects);
 
-  mem0_start_ =
+  // Create the memory_bases_and_sizes array.
+  Handle<FixedAddressArray> memory_bases_and_sizes =
+      FixedAddressArray::New(isolate_, 2);
+  uint8_t* mem_start =
       reinterpret_cast<uint8_t*>(memory_object->array_buffer().backing_store());
+  memory_bases_and_sizes->set_sandboxed_pointer(
+      0, reinterpret_cast<Address>(mem_start));
+  memory_bases_and_sizes->set(1, size);
+  instance_object_->set_memory_bases_and_sizes(*memory_bases_and_sizes);
+
+  mem0_start_ = mem_start;
   mem0_size_ = size;
   CHECK(size == 0 || mem0_start_);
 
-  WasmMemoryObject::UseInInstance(isolate_, memory_object, instance_object_);
+  WasmMemoryObject::UseInInstance(isolate_, memory_object, instance_object_, 0);
   // TODO(wasm): Delete the following line when test-run-wasm will use a
   // multiple of kPageSize as memory size. At the moment, the effect of these
   // two lines is used to shrink the memory for testing purposes.

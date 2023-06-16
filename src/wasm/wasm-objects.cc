@@ -708,10 +708,9 @@ void WasmIndirectFunctionTable::Resize(Isolate* isolate,
 
 namespace {
 
-void SetInstanceMemory(WasmInstanceObject instance, JSArrayBuffer buffer) {
+void SetInstanceMemory(WasmInstanceObject instance, JSArrayBuffer buffer,
+                       int memory_index) {
   DisallowHeapAllocation no_gc;
-  // TODO(13918): Support multiple memories.
-  int memory_index = 0;
   const wasm::WasmMemory& memory = instance.module()->memories[memory_index];
 
   bool is_wasm_module = instance.module()->origin == wasm::kWasmOrigin;
@@ -828,8 +827,10 @@ MaybeHandle<WasmMemoryObject> WasmMemoryObject::New(
 
 void WasmMemoryObject::UseInInstance(Isolate* isolate,
                                      Handle<WasmMemoryObject> memory,
-                                     Handle<WasmInstanceObject> instance) {
-  SetInstanceMemory(*instance, memory->array_buffer());
+                                     Handle<WasmInstanceObject> instance,
+                                     int memory_index_in_instance) {
+  SetInstanceMemory(*instance, memory->array_buffer(),
+                    memory_index_in_instance);
   Handle<WeakArrayList> old_instances =
       memory->has_instances()
           ? Handle<WeakArrayList>(memory->instances(), isolate)
@@ -855,10 +856,7 @@ void WasmMemoryObject::SetNewBuffer(JSArrayBuffer new_buffer) {
       int num_memories = memory_objects.length();
       for (int mem_idx = 0; mem_idx < num_memories; ++mem_idx) {
         if (memory_objects.get(mem_idx) == *this) {
-          // TODO(13918): Store multiple memory starts and sizes in the
-          // instance.
-          CHECK_EQ(0, mem_idx);
-          SetInstanceMemory(instance, new_buffer);
+          SetInstanceMemory(instance, new_buffer, mem_idx);
         }
       }
     }
@@ -1111,15 +1109,21 @@ bool WasmInstanceObject::EnsureIndirectFunctionTableWithMinimumSize(
 
 void WasmInstanceObject::SetRawMemory(int memory_index, uint8_t* mem_start,
                                       size_t mem_size) {
-  // TODO(13918): Support multiple memories.
-  CHECK_EQ(0, memory_index);
   CHECK_LE(memory_index, module()->memories.size());
 
   CHECK_LE(mem_size, module()->memories[memory_index].is_memory64
                          ? wasm::max_mem64_bytes()
                          : wasm::max_mem32_bytes());
-  set_memory0_start(mem_start);
-  set_memory0_size(mem_size);
+  // All memory bases and sizes are stored in a FixedAddressArray.
+  FixedAddressArray bases_and_sizes = memory_bases_and_sizes();
+  bases_and_sizes.set_sandboxed_pointer(memory_index * 2,
+                                        reinterpret_cast<Address>(mem_start));
+  bases_and_sizes.set(memory_index * 2 + 1, mem_size);
+  // Memory 0 has fast-access fields.
+  if (memory_index == 0) {
+    set_memory0_start(mem_start);
+    set_memory0_size(mem_size);
+  }
 }
 
 const WasmModule* WasmInstanceObject::module() {
@@ -1158,8 +1162,12 @@ Handle<WasmInstanceObject> WasmInstanceObject::New(
   Handle<FixedUInt32Array> data_segment_sizes =
       FixedUInt32Array::New(isolate, num_data_segments);
 
-  Handle<FixedArray> memory_objects = isolate->factory()->NewFixedArray(
-      static_cast<int>(module->memories.size()));
+  static_assert(wasm::kV8MaxWasmMemories < kMaxInt / 2);
+  int num_memories = static_cast<int>(module->memories.size());
+  Handle<FixedArray> memory_objects =
+      isolate->factory()->NewFixedArray(num_memories);
+  Handle<FixedAddressArray> memory_bases_and_sizes =
+      FixedAddressArray::New(isolate, 2 * num_memories);
 
   // Now allocate the instance itself.
   Handle<JSFunction> instance_cons(
@@ -1223,6 +1231,13 @@ Handle<WasmInstanceObject> WasmInstanceObject::New(
     instance.set_memory0_start(empty_backing_store_buffer);
     instance.set_memory0_size(0);
     instance.set_memory_objects(*memory_objects);
+    instance.set_memory_bases_and_sizes(*memory_bases_and_sizes);
+
+    for (int i = 0; i < num_memories; ++i) {
+      memory_bases_and_sizes->set_sandboxed_pointer(
+          2 * i, reinterpret_cast<Address>(empty_backing_store_buffer));
+      memory_bases_and_sizes->set(2 * i + 1, 0);
+    }
   }
 
   // Insert the new instance into the scripts weak list of instances. This list

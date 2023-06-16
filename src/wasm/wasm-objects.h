@@ -259,9 +259,10 @@ class WasmMemoryObject
   // Add a use of this memory object to the given instance. This updates the
   // internal weak list of instances that use this memory and also updates the
   // fields of the instance to reference this memory's buffer.
-  V8_EXPORT_PRIVATE static void UseInInstance(
-      Isolate* isolate, Handle<WasmMemoryObject> memory,
-      Handle<WasmInstanceObject> object);
+  V8_EXPORT_PRIVATE static void UseInInstance(Isolate* isolate,
+                                              Handle<WasmMemoryObject> memory,
+                                              Handle<WasmInstanceObject> object,
+                                              int memory_index_in_instance);
   inline bool has_maximum_pages();
 
   V8_EXPORT_PRIVATE static Handle<WasmMemoryObject> New(
@@ -365,6 +366,7 @@ class V8_EXPORT_PRIVATE WasmInstanceObject : public JSObject {
   DECL_PRIMITIVE_ACCESSORS(jump_table_start, Address)
   DECL_PRIMITIVE_ACCESSORS(hook_on_function_call_address, Address)
   DECL_PRIMITIVE_ACCESSORS(tiering_budget_array, uint32_t*)
+  DECL_ACCESSORS(memory_bases_and_sizes, FixedAddressArray)
   DECL_ACCESSORS(data_segment_starts, FixedAddressArray)
   DECL_ACCESSORS(data_segment_sizes, FixedUInt32Array)
   DECL_ACCESSORS(element_segments, FixedArray)
@@ -375,6 +377,8 @@ class V8_EXPORT_PRIVATE WasmInstanceObject : public JSObject {
   V8_INLINE void clear_padding();
 
   inline WasmMemoryObject memory_object(int memory_index) const;
+  inline Address memory_base(int memory_index) const;
+  inline size_t memory_size(int memory_index) const;
 
   // Dispatched behavior.
   DECL_PRINTER(WasmInstanceObject)
@@ -409,6 +413,7 @@ class V8_EXPORT_PRIVATE WasmInstanceObject : public JSObject {
   V(kHookOnFunctionCallAddressOffset, kSystemPointerSize)                 \
   V(kTieringBudgetArrayOffset, kSystemPointerSize)                        \
   /* Less than system pointer size aligned fields are below. */           \
+  V(kMemoryBasesAndSizesOffset, kTaggedSize)                              \
   V(kDataSegmentStartsOffset, kTaggedSize)                                \
   V(kDataSegmentSizesOffset, kTaggedSize)                                 \
   V(kElementSegmentsOffset, kTaggedSize)                                  \
@@ -467,6 +472,7 @@ class V8_EXPORT_PRIVATE WasmInstanceObject : public JSObject {
       kWellKnownImportsOffset,
       kImportedMutableGlobalsOffset,
       kImportedFunctionTargetsOffset,
+      kMemoryBasesAndSizesOffset,
       kDataSegmentStartsOffset,
       kDataSegmentSizesOffset,
       kElementSegmentsOffset};
