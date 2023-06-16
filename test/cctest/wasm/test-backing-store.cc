@@ -46,8 +46,8 @@ TEST(Run_WasmModule_Buffer_Externalized_Regression_UseAfterFree) {
     // Regression test for https://crbug.com/813876
     Isolate* isolate = CcTest::InitIsolateOnce();
     HandleScope scope(isolate);
-    MaybeHandle<WasmMemoryObject> result =
-        WasmMemoryObject::New(isolate, 1, 1, SharedFlag::kNotShared);
+    MaybeHandle<WasmMemoryObject> result = WasmMemoryObject::New(
+        isolate, 1, 1, SharedFlag::kNotShared, WasmMemoryFlag::kWasmMemory32);
     Handle<WasmMemoryObject> memory_object = result.ToHandleChecked();
     Handle<JSArrayBuffer> buffer(memory_object->array_buffer(), isolate);
 

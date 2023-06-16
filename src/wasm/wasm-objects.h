@@ -266,12 +266,11 @@ class WasmMemoryObject
 
   V8_EXPORT_PRIVATE static Handle<WasmMemoryObject> New(
       Isolate* isolate, Handle<JSArrayBuffer> buffer, int maximum,
-      WasmMemoryFlag memory_type = WasmMemoryFlag::kWasmMemory32);
+      WasmMemoryFlag memory_type);
 
   V8_EXPORT_PRIVATE static MaybeHandle<WasmMemoryObject> New(
-      Isolate* isolate, int initial, int maximum,
-      SharedFlag shared = SharedFlag::kNotShared,
-      WasmMemoryFlag memory_type = WasmMemoryFlag::kWasmMemory32);
+      Isolate* isolate, int initial, int maximum, SharedFlag shared,
+      WasmMemoryFlag memory_type);
 
   // Assign a new (grown) buffer to this memory, also updating the shortcut
   // fields of all instances that use this memory.

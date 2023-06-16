@@ -823,7 +823,7 @@ MaybeHandle<WasmMemoryObject> WasmMemoryObject::New(
           ? isolate->factory()->NewJSSharedArrayBuffer(std::move(backing_store))
           : isolate->factory()->NewJSArrayBuffer(std::move(backing_store));
 
-  return New(isolate, buffer, maximum);
+  return New(isolate, buffer, maximum, memory_type);
 }
 
 void WasmMemoryObject::UseInInstance(Isolate* isolate,

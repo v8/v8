@@ -2337,8 +2337,9 @@ MaybeHandle<WasmMemoryObject> ValueDeserializer::ReadWasmMemory() {
   Handle<JSArrayBuffer> buffer = Handle<JSArrayBuffer>::cast(buffer_object);
   if (!buffer->is_shared()) return {};
 
-  Handle<WasmMemoryObject> result =
-      WasmMemoryObject::New(isolate_, buffer, maximum_pages);
+  // TODO(14075): Fix postmessaging of memory64 memories.
+  Handle<WasmMemoryObject> result = WasmMemoryObject::New(
+      isolate_, buffer, maximum_pages, WasmMemoryFlag::kWasmMemory32);
 
   AddObjectWithID(id, result);
   return result;

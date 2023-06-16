@@ -1315,7 +1315,7 @@ void WebAssemblyMemory(const v8::FunctionCallbackInfo<v8::Value>& info) {
   Local<Context> context = isolate->GetCurrentContext();
   Local<v8::Object> descriptor = Local<Object>::Cast(info[0]);
 
-  // TODO(clemensb): The JS API spec is not updated for memory64 yet; fix this
+  // TODO(14076): The JS API spec is not updated for memory64 yet; fix this
   // code once it is.
   int64_t initial = 0;
   if (!GetInitialOrMinimumProperty(isolate, &thrower, context, descriptor,
@@ -1351,8 +1351,10 @@ void WebAssemblyMemory(const v8::FunctionCallbackInfo<v8::Value>& info) {
   }
 
   i::Handle<i::JSObject> memory_obj;
+  // TODO(14076): Pass {kWasmMemory64} for 64-bit memories.
   if (!i::WasmMemoryObject::New(i_isolate, static_cast<int>(initial),
-                                static_cast<int>(maximum), shared)
+                                static_cast<int>(maximum), shared,
+                                i::WasmMemoryFlag::kWasmMemory32)
            .ToHandle(&memory_obj)) {
     thrower.RangeError("could not allocate memory");
     return;

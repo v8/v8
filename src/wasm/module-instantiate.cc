@@ -955,8 +955,8 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
     auto maximum_pages =
         static_cast<int>(RoundUp(buffer->byte_length(), wasm::kWasmPageSize) /
                          wasm::kWasmPageSize);
-    Handle<WasmMemoryObject> memory_object =
-        WasmMemoryObject::New(isolate_, buffer, maximum_pages);
+    Handle<WasmMemoryObject> memory_object = WasmMemoryObject::New(
+        isolate_, buffer, maximum_pages, WasmMemoryFlag::kWasmMemory32);
     WasmMemoryObject::UseInInstance(isolate_, memory_object, instance);
     instance->set_memory_object(*memory_object);
   } else {

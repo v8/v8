@@ -231,6 +231,40 @@ function allowOOM(fn) {
   assertEquals(4n, grow(6n));   // Just at the maximum of 10.
 })();
 
+(function TestGrow64_Above4GB() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let max_pages = 5 * GB / kPageSize;
+  builder.addMemory64(1, max_pages, true);
+
+  builder.addFunction('grow', makeSig([kWasmI64], [kWasmI64]))
+      .addBody([
+        kExprLocalGet, 0,    // local.get 0
+        kExprMemoryGrow, 0,  // memory.grow 0
+      ])
+      .exportFunc();
+
+  let instance = builder.instantiate();
+
+  // Grow from 1 to 3 pages.
+  assertEquals(1n, instance.exports.grow(2n));
+  // Grow from 3 to {max_pages - 1} pages.
+  // This step can fail. We have to allow this, even though it weakens this test
+  // (we do not know if we failed because of OOM or because of a wrong
+  // engine-internal limit of 4GB).
+  let grow_big_result = instance.exports.grow(BigInt(max_pages) - 4n);
+  if (grow_big_result == -1) return;
+  assertEquals(3n, grow_big_result);
+  // Cannot grow by 2 pages.
+  assertEquals(-1n, instance.exports.grow(2n));
+  // Cannot grow by 2^32 pages.
+  assertEquals(-1n, instance.exports.grow(1n << 32n));
+  // Grow by one more page to the maximum.
+  assertEquals(BigInt(max_pages) - 1n, instance.exports.grow(1n));
+  // Cannot grow further.
+  assertEquals(-1n, instance.exports.grow(1n));
+})();
+
 (function TestBulkMemoryOperations() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();

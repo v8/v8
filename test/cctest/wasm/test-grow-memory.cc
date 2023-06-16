@@ -44,7 +44,8 @@ TEST(GrowMemDetaches) {
     Isolate* isolate = CcTest::InitIsolateOnce();
     HandleScope scope(isolate);
     Handle<WasmMemoryObject> memory_object =
-        WasmMemoryObject::New(isolate, 16, 100, SharedFlag::kNotShared)
+        WasmMemoryObject::New(isolate, 16, 100, SharedFlag::kNotShared,
+                              WasmMemoryFlag::kWasmMemory32)
             .ToHandleChecked();
     Handle<JSArrayBuffer> buffer(memory_object->array_buffer(), isolate);
     int32_t result = WasmMemoryObject::Grow(isolate, memory_object, 0);
@@ -60,7 +61,8 @@ TEST(Externalized_GrowMemMemSize) {
     Isolate* isolate = CcTest::InitIsolateOnce();
     HandleScope scope(isolate);
     Handle<WasmMemoryObject> memory_object =
-        WasmMemoryObject::New(isolate, 16, 100, SharedFlag::kNotShared)
+        WasmMemoryObject::New(isolate, 16, 100, SharedFlag::kNotShared,
+                              WasmMemoryFlag::kWasmMemory32)
             .ToHandleChecked();
     ManuallyExternalizedBuffer external(
         handle(memory_object->array_buffer(), isolate));

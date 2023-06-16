@@ -125,7 +125,10 @@ uint8_t* TestingModuleBuilder::AddMemory(uint32_t size, SharedFlag shared,
 
   // Create the WasmMemoryObject.
   Handle<WasmMemoryObject> memory_object =
-      WasmMemoryObject::New(isolate_, initial_pages, maximum_pages, shared)
+      WasmMemoryObject::New(isolate_, initial_pages, maximum_pages, shared,
+                            mem_type == kMemory64
+                                ? WasmMemoryFlag::kWasmMemory64
+                                : WasmMemoryFlag::kWasmMemory32)
           .ToHandleChecked();
   instance_object_->set_memory_object(*memory_object);
 
