@@ -48,7 +48,7 @@ class PackNode final : public NON_EXPORTED_BASE(ZoneObject) {
   bool IsSame(const ZoneVector<Node*>& node_group) const {
     return nodes_ == node_group;
   }
-  Node* RevectorizedNode() { return revectorized_node_; }
+  Node* RevectorizedNode() const { return revectorized_node_; }
   void SetRevectorizedNode(Node* node) { revectorized_node_ = node; }
   // returns the index operand of this PackNode.
   PackNode* GetOperand(size_t index) {
@@ -161,16 +161,7 @@ class SLPTree : public NON_EXPORTED_BASE(ZoneObject) {
 class V8_EXPORT_PRIVATE Revectorizer final
     : public NON_EXPORTED_BASE(ZoneObject) {
  public:
-  Revectorizer(Zone* zone, Graph* graph, MachineGraph* mcgraph)
-      : zone_(zone),
-        graph_(graph),
-        mcgraph_(mcgraph),
-        group_of_stores_(zone),
-        support_simd256_(false) {
-    DetectCPUFeatures();
-    slp_tree_ = zone_->New<SLPTree>(zone, graph);
-  }
-
+  Revectorizer(Zone* zone, Graph* graph, MachineGraph* mcgraph);
   void DetectCPUFeatures();
   bool TryRevectorize(const char* name);
 
@@ -205,6 +196,8 @@ class V8_EXPORT_PRIVATE Revectorizer final
   SLPTree* slp_tree_;
 
   bool support_simd256_;
+
+  compiler::NodeObserver* node_observer_for_test_;
 };
 
 }  // namespace compiler
