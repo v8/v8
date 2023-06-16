@@ -107,10 +107,19 @@ class Command(object):
 
 
 class Output(object):
-  def __init__(self, exit_code, stdout, pid):
+  def __init__(self, exit_code, stdout_bytes, pid):
     self.exit_code = exit_code
-    self.stdout = stdout
+    self.stdout_bytes = stdout_bytes
     self.pid = pid
+
+  @property
+  def stdout(self):
+    if PYTHON3:
+      try:
+        return self.stdout_bytes.decode('utf-8')
+      except UnicodeDecodeError:
+        return self.stdout_bytes.decode('latin-1')
+    return self.stdout_bytes
 
   def HasCrashed(self):
     return self.exit_code < 0
@@ -140,20 +149,14 @@ def Execute(args, cwd, timeout=None):
 
   timer = Timer(timeout, kill_process)
   timer.start()
-  stdout, _ = process.communicate()
+  stdout_bytes, _ = process.communicate()
   timer.cancel()
 
   if timeout_event.is_set():
     raise PassException('# V8 correctness - T-I-M-E-O-U-T')
 
-  if PYTHON3:
-    try:
-      stdout = stdout.decode('utf-8')
-    except UnicodeDecodeError:
-      stdout = stdout.decode('latin-1')
-
   return Output(
       process.returncode,
-      stdout,
+      stdout_bytes,
       process.pid,
   )

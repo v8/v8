@@ -203,14 +203,15 @@ other weird stuff
   def testOutputCapping(self):
     def output(stdout, is_crash):
       exit_code = -1 if is_crash else 0
-      return v8_commands.Output(exit_code=exit_code, stdout=stdout, pid=0)
+      return v8_commands.Output(
+          exit_code=exit_code, stdout_bytes=stdout.encode('utf-8'), pid=0)
 
     def check(stdout1, stdout2, is_crash1, is_crash2, capped_lines1,
               capped_lines2):
       output1 = output(stdout1, is_crash1)
       output2 = output(stdout2, is_crash2)
       self.assertEqual(
-          (capped_lines1, capped_lines2),
+          (capped_lines1.encode('utf-8'), capped_lines2.encode('utf-8')),
           v8_suppressions.get_output_capped(output1, output2))
 
     # No capping, already equal.
