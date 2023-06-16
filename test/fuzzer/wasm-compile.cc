@@ -137,35 +137,38 @@ bool DataRange::get() {
   return get<uint8_t>() % 2;
 }
 
-enum NonNullables { kAllowNonNullables, kDisallowNonNullables };
+enum NumericTypes { kIncludeNumericTypes, kExcludeNumericTypes };
 enum PackedTypes { kIncludePackedTypes, kExcludePackedTypes };
-enum Generics { kIncludeGenerics, kExcludeGenerics };
+enum Generics {
+  kAlwaysIncludeAllGenerics,
+  kExcludeSomeGenericsWhenTypeIsNonNullable
+};
 
 ValueType GetValueTypeHelper(DataRange* data, uint32_t num_nullable_types,
                              uint32_t num_non_nullable_types,
-                             NonNullables allow_non_nullable,
+                             NumericTypes include_numeric_types,
                              PackedTypes include_packed_types,
                              Generics include_generics) {
+  std::vector<ValueType> types;
   // Non wasm-gc types.
-  std::vector<ValueType> types{kWasmI32, kWasmI64, kWasmF32, kWasmF64,
-                               kWasmS128};
-
-  if (include_packed_types == kIncludePackedTypes) {
-    types.insert(types.end(), {kWasmI8, kWasmI16});
+  if (include_numeric_types == kIncludeNumericTypes) {
+    types.insert(types.end(),
+                 {kWasmI32, kWasmI64, kWasmF32, kWasmF64, kWasmS128});
+    if (include_packed_types == kIncludePackedTypes) {
+      types.insert(types.end(), {kWasmI8, kWasmI16});
+    }
   }
   // Decide if the return type will be nullable or not.
-  const bool nullable =
-      (allow_non_nullable == kAllowNonNullables) ? data->get<bool>() : true;
+  const bool nullable = data->get<bool>();
+
+  types.insert(types.end(), {kWasmI31Ref, kWasmFuncRef});
   if (nullable) {
-    // TODO(14034): kWasmExternRef should also be allowed for non-nullable
-    // types. This probably requires having an imported (ref extern) global.
     types.insert(types.end(),
-                 {kWasmI31Ref, kWasmFuncRef, kWasmExternRef, kWasmNullRef,
-                  kWasmNullExternRef, kWasmNullFuncRef});
+                 {kWasmNullRef, kWasmNullExternRef, kWasmNullFuncRef});
   }
-  if (include_generics == kIncludeGenerics) {
-    // TODO(14034): Add support for kWasmArrayRef.
-    types.insert(types.end(), {kWasmStructRef, kWasmAnyRef, kWasmEqRef});
+  if (nullable || include_generics == kAlwaysIncludeAllGenerics) {
+    types.insert(types.end(), {kWasmStructRef, kWasmArrayRef, kWasmAnyRef,
+                               kWasmEqRef, kWasmExternRef});
   }
 
   // The last index of user-defined types allowed is different based on the
@@ -193,8 +196,8 @@ ValueType GetValueTypeHelper(DataRange* data, uint32_t num_nullable_types,
 }
 
 ValueType GetValueType(DataRange* data, uint32_t num_types) {
-  return GetValueTypeHelper(data, num_types, num_types, kAllowNonNullables,
-                            kExcludePackedTypes, kIncludeGenerics);
+  return GetValueTypeHelper(data, num_types, num_types, kIncludeNumericTypes,
+                            kExcludePackedTypes, kAlwaysIncludeAllGenerics);
 }
 
 void GeneratePassiveDataSegment(DataRange* range, WasmModuleBuilder* builder) {
@@ -982,11 +985,15 @@ class WasmGenerator {
 
   bool get_local_ref(HeapType type, DataRange* data, Nullability nullable) {
     Var local = GetRandomLocal(data);
-    // TODO(manoskouk): Ideally we would check for subtyping here over type
+    // TODO(14034): Ideally we would check for subtyping here over type
     // equality, but we don't have a module.
-    // TODO(14034): Allow initialized non-nullable locals.
-    if (nullable == kNullable && local.is_valid() &&
-        local.type.is_object_reference() && type == local.type.heap_type()) {
+    if (local.is_valid() && local.type.is_object_reference() &&
+        local.type.heap_type() == type &&
+        (local.type.is_nullable()
+             ? nullable == kNullable  // We check for nullability-subtyping
+             : locals_initialized_    // If the local is not nullable, we cannot
+                                      // use it during locals initialization
+         )) {
       builder_->EmitWithU32V(kExprLocalGet, local.index);
       return true;
     }
@@ -1733,7 +1740,8 @@ class WasmGenerator {
         globals_(globals),
         mutable_globals_(mutable_globals),
         num_structs_(num_structs),
-        num_arrays_(num_arrays) {
+        num_arrays_(num_arrays),
+        locals_initialized_(false) {
     const FunctionSig* sig = fn->signature();
     blocks_.emplace_back();
     for (size_t i = 0; i < sig->return_count(); ++i) {
@@ -1744,9 +1752,7 @@ class WasmGenerator {
     uint32_t num_types =
         static_cast<uint32_t>(functions_.size()) + num_structs_ + num_arrays_;
     for (ValueType& local : locals_) {
-      local =
-          GetValueTypeHelper(data, num_types, num_types, kDisallowNonNullables,
-                             kExcludePackedTypes, kIncludeGenerics);
+      local = GetValueType(data, num_types);
       fn->AddLocal(local);
     }
   }
@@ -1780,6 +1786,18 @@ class WasmGenerator {
                           DataRange* data);
   bool HasSimd() { return has_simd_; }
 
+  void InitializeNonDefaultableLocals(DataRange* data) {
+    for (uint32_t i = 0; i < locals_.size(); i++) {
+      if (!locals_[i].is_defaultable()) {
+        GenerateRef(locals_[i].heap_type(), data, kNonNullable);
+        builder_->EmitWithU32V(
+            kExprLocalSet, i + static_cast<uint32_t>(
+                                   builder_->signature()->parameter_count()));
+      }
+    }
+    locals_initialized_ = true;
+  }
+
  private:
   WasmFunctionBuilder* builder_;
   std::vector<std::vector<ValueType>> blocks_;
@@ -1793,6 +1811,7 @@ class WasmGenerator {
   uint32_t num_structs_;
   uint32_t num_arrays_;
   static constexpr uint32_t kMaxRecursionDepth = 64;
+  bool locals_initialized_;
 
   bool recursion_limit_reached() {
     return recursion_depth >= kMaxRecursionDepth;
@@ -2903,16 +2922,24 @@ WasmInitExpr GenerateStructNewInitExpr(Zone* zone, DataRange& range,
                                        uint32_t index, int num_structs,
                                        int num_arrays) {
   const StructType* struct_type = builder->GetStructType(index);
-  ZoneVector<WasmInitExpr>* elements =
-      zone->New<ZoneVector<WasmInitExpr>>(zone);
-  int field_count = struct_type->field_count();
-  for (int field_index = 0; field_index < field_count; field_index++) {
-    elements->push_back(GenerateInitExpr(zone, range, builder,
-                                         struct_type->field(field_index),
-                                         num_structs, num_arrays));
+  bool use_new_default =
+      std::all_of(struct_type->fields().begin(), struct_type->fields().end(),
+                  [](ValueType type) { return type.is_defaultable(); }) &&
+      range.get<bool>();
+
+  if (use_new_default) {
+    return WasmInitExpr::StructNewDefault(index);
+  } else {
+    ZoneVector<WasmInitExpr>* elements =
+        zone->New<ZoneVector<WasmInitExpr>>(zone);
+    int field_count = struct_type->field_count();
+    for (int field_index = 0; field_index < field_count; field_index++) {
+      elements->push_back(GenerateInitExpr(zone, range, builder,
+                                           struct_type->field(field_index),
+                                           num_structs, num_arrays));
+    }
+    return WasmInitExpr::StructNew(index, elements);
   }
-  // TODO(14034): Add StructNewDefault.
-  return WasmInitExpr::StructNew(index, elements);
 }
 
 WasmInitExpr GenerateArrayInitExpr(Zone* zone, DataRange& range,
@@ -2922,11 +2949,13 @@ WasmInitExpr GenerateArrayInitExpr(Zone* zone, DataRange& range,
   uint8_t choice = range.get<uint8_t>() % 3;
   ValueType element_type = builder->GetArrayType(index)->element_type();
   if (choice == 0) {
-    // TODO(14034): Allow more than 1 element.
+    int element_count = range.get<uint8_t>() % kMaxArrayLength;
     ZoneVector<WasmInitExpr>* elements =
         zone->New<ZoneVector<WasmInitExpr>>(zone);
-    elements->push_back(GenerateInitExpr(zone, range, builder, element_type,
-                                         num_structs, num_arrays));
+    for (int i = 0; i < element_count; i++) {
+      elements->push_back(GenerateInitExpr(zone, range, builder, element_type,
+                                           num_structs, num_arrays));
+    }
     return WasmInitExpr::ArrayNewFixed(index, elements);
   } else if (choice == 1 || !element_type.is_defaultable()) {
     // TODO(14034): Add other int expressions to length (same below).
@@ -3155,14 +3184,15 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
         //   not support recursive groups yet. Also relevant for arrays and
         //   functions. TODO(14034): Change the number of nullable types once
         //   we support rec. groups.
-        // - We exclude the generics types anyref, structref, and eqref from the
-        //   fields of struct 0. This is because in GenerateInitExpr we
-        //   materialize these types with (ref 0), and having such fields in
-        //   struct 0 would produce an infinite recursion.
+        // - We exclude the non-nullable generic types arrayref, anyref,
+        //   structref, eqref and externref from the fields of structs and
+        //   arrays. This is so that GenerateInitExpr has a way to break a
+        //   recursion between a struct/array field and those types
+        //   ((ref extern) gets materialized through (ref any)).
         ValueType type = GetValueTypeHelper(
             &module_range, builder.NumTypes(), builder.NumTypes(),
-            kAllowNonNullables, kIncludePackedTypes,
-            struct_index != 0 ? kIncludeGenerics : kExcludeGenerics);
+            kIncludeNumericTypes, kIncludePackedTypes,
+            kExcludeSomeGenericsWhenTypeIsNonNullable);
 
         bool mutability = module_range.get<bool>();
         struct_builder.AddField(type, mutability);
@@ -3174,7 +3204,8 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
     for (int array_index = 0; array_index < num_arrays; array_index++) {
       ValueType type = GetValueTypeHelper(
           &module_range, builder.NumTypes(), builder.NumTypes(),
-          kAllowNonNullables, kIncludePackedTypes, kIncludeGenerics);
+          kIncludeNumericTypes, kIncludePackedTypes,
+          kExcludeSomeGenericsWhenTypeIsNonNullable);
       uint32_t supertype = kNoSuperType;
       if (array_index > 0 && module_range.get<bool>()) {
         supertype = (module_range.get<uint8_t>() % array_index) + num_structs;
@@ -3225,9 +3256,7 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
     mutable_globals.reserve(num_globals);
 
     for (int i = 0; i < num_globals; ++i) {
-      ValueType type = GetValueTypeHelper(
-          &module_range, num_types, num_types, kAllowNonNullables,
-          kExcludePackedTypes, kIncludeGenerics);
+      ValueType type = GetValueType(&module_range, num_types);
       // 1/8 of globals are immutable.
       const bool mutability = (module_range.get<uint8_t>() % 8) != 0;
 
@@ -3243,28 +3272,35 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
     // Always generate at least one table for call_indirect.
     int num_tables = module_range.get<uint8_t>() % kMaxTables + 1;
     for (int i = 0; i < num_tables; i++) {
-      // Table 0 has to reference all functions in the program. This is so that
-      // all functions count as declared so they can be referenced with
-      // ref.func.
-      // TODO(11954): Consider removing this restriction.
       uint32_t min_size =
           i == 0 ? num_functions : module_range.get<uint8_t>() % kMaxTableSize;
       uint32_t max_size =
           module_range.get<uint8_t>() % (kMaxTableSize - min_size) + min_size;
-      // Table 0 is always funcref.
-      // TODO(11954): Remove this requirement once we support call_indirect with
-      // other table indices.
-      // TODO(11954): Support typed function tables.
-      bool use_funcref = i == 0 || module_range.get<bool>();
-      ValueType type = use_funcref ? kWasmFuncRef : kWasmExternRef;
-      uint32_t table_index = builder.AddTable(type, min_size, max_size);
-      if (type == kWasmFuncRef) {
+      // Table 0 is always funcref. This guarantees that
+      // - call_indirect has at least one funcref table to work with,
+      // - we have a place to reference all functions in the program, so they
+      //   count as "declared" for ref.func.
+      bool force_funcref = i == 0;
+      ValueType type =
+          force_funcref
+              ? kWasmFuncRef
+              : GetValueTypeHelper(&module_range, num_types, num_types,
+                                   kExcludeNumericTypes, kExcludePackedTypes,
+                                   kAlwaysIncludeAllGenerics);
+      bool use_initializer = !type.is_defaultable() || module_range.get<bool>();
+      uint32_t table_index =
+          use_initializer ? builder.AddTable(
+                                type, min_size, max_size,
+                                GenerateInitExpr(zone, module_range, &builder,
+                                                 type, num_structs, num_arrays))
+                          : builder.AddTable(type, min_size, max_size);
+      if (type.is_reference_to(HeapType::kFunc)) {
         // For function tables, initialize them with functions from the program.
-        // Currently, the fuzzer assumes that every function table contains the
-        // functions in the program in the order they are defined.
+        // Currently, the fuzzer assumes that every funcref/(ref func) table
+        // contains the functions in the program in the order they are defined.
         // TODO(11954): Consider generalizing this.
-        WasmModuleBuilder::WasmElemSegment segment(
-            zone, kWasmFuncRef, table_index, WasmInitExpr(0));
+        WasmModuleBuilder::WasmElemSegment segment(zone, type, table_index,
+                                                   WasmInitExpr(0));
         for (int entry_index = 0; entry_index < static_cast<int>(min_size);
              entry_index++) {
           segment.entries.emplace_back(
@@ -3293,6 +3329,7 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
       const FunctionSig* sig = f->signature();
       base::Vector<const ValueType> return_types(sig->returns().begin(),
                                                  sig->return_count());
+      gen.InitializeNonDefaultableLocals(&function_range);
       gen.Generate(return_types, &function_range);
       if (!CheckHardwareSupportsSimd() && gen.HasSimd()) return false;
       f->Emit(kExprEnd);

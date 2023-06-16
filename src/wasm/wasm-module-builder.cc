@@ -378,7 +378,7 @@ uint32_t WasmModuleBuilder::AddTable(ValueType type, uint32_t min_size,
 
 uint32_t WasmModuleBuilder::AddTable(ValueType type, uint32_t min_size,
                                      uint32_t max_size, WasmInitExpr init) {
-  tables_.push_back({type, min_size, max_size, true, init});
+  tables_.push_back({type, min_size, max_size, true, {init}});
   return static_cast<uint32_t>(tables_.size() - 1);
 }
 
@@ -563,8 +563,10 @@ void WriteInitializerExpressionWithoutEnd(ZoneBuffer* buffer,
     case WasmInitExpr::kStructNewDefault:
     case WasmInitExpr::kArrayNew:
     case WasmInitExpr::kArrayNewDefault: {
-      for (const WasmInitExpr& operand : *init.operands()) {
-        WriteInitializerExpressionWithoutEnd(buffer, operand);
+      if (init.operands() != nullptr) {
+        for (const WasmInitExpr& operand : *init.operands()) {
+          WriteInitializerExpressionWithoutEnd(buffer, operand);
+        }
       }
       WasmOpcode opcode = FromInitExprOperator(init.kind());
       DCHECK_EQ(opcode >> 8, kGCPrefix);
@@ -719,11 +721,17 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer* buffer) const {
     size_t start = EmitSection(kTableSectionCode, buffer);
     buffer->write_size(tables_.size());
     for (const WasmTable& table : tables_) {
-      if (table.init) UNIMPLEMENTED();  // TODO(14034): Implement.
+      if (table.init) {
+        buffer->write_u8(0x40);  // table-with-initializer
+        buffer->write_u8(0x00);  // reserved byte
+      }
       WriteValueType(buffer, table.type);
       buffer->write_u8(table.has_maximum ? kWithMaximum : kNoMaximum);
       buffer->write_size(table.min_size);
       if (table.has_maximum) buffer->write_size(table.max_size);
+      if (table.init) {
+        WriteInitializerExpression(buffer, *table.init);
+      }
     }
     FixupSection(buffer, start);
   }
