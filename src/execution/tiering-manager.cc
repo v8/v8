@@ -164,7 +164,7 @@ int InterruptBudgetFor(base::Optional<CodeKind> code_kind,
   // TODO(olivf) In case we are currently executing below Maglev and have
   // CodeKind::MAGLEV waiting we should also OSR. But currently we cannot know
   // if this helper is called from Maglev code or below.
-  if (v8_flags.maglev_osr && IsRequestMaglev(tiering_state)) {
+  if (maglev::IsMaglevOsrEnabled() && IsRequestMaglev(tiering_state)) {
     return v8_flags.invocation_count_for_maglev_osr * bytecode_length;
   }
   return TiersUpToMaglev(code_kind) && tiering_state == TieringState::kNone
@@ -266,7 +266,7 @@ void TieringManager::MaybeOptimizeFrame(JSFunction function,
     // Continue below and do a normal optimized compile as well.
   }
 
-  const bool maglev_osr = maglev::IsMaglevEnabled() && v8_flags.maglev_osr;
+  const bool maglev_osr = maglev::IsMaglevOsrEnabled();
   // Baseline OSR uses a separate mechanism and must not be considered here,
   // therefore we limit to kOptimizedJSFunctionCodeKindsMask.
   if (IsRequestTurbofan(tiering_state) ||

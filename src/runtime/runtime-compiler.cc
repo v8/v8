@@ -454,8 +454,7 @@ Object CompileOptimizedOSR(Isolate* isolate, Handle<JSFunction> function,
   Handle<Code> result;
   if (!Compiler::CompileOptimizedOSR(
            isolate, function, osr_offset, mode,
-           (maglev::IsMaglevEnabled() && v8_flags.maglev_osr &&
-            min_opt_level == CodeKind::MAGLEV)
+           (maglev::IsMaglevOsrEnabled() && min_opt_level == CodeKind::MAGLEV)
                ? CodeKind::MAGLEV
                : CodeKind::TURBOFAN)
            .ToHandle(&result) ||

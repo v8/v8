@@ -638,8 +638,8 @@ RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
   }
   if (function.is_null()) return CrashUnlessFuzzing(isolate);
 
-  if (V8_UNLIKELY((!v8_flags.turbofan && !v8_flags.maglev) ||
-                  (!v8_flags.maglev_osr && !v8_flags.use_osr))) {
+  if (V8_UNLIKELY((!v8_flags.turbofan && !maglev::IsMaglevEnabled()) ||
+                  (!v8_flags.use_osr && !maglev::IsMaglevOsrEnabled()))) {
     return ReadOnlyRoots(isolate).undefined_value();
   }
 
@@ -735,8 +735,7 @@ RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
         isolate, function, osr_offset,
         concurrent_osr ? ConcurrencyMode::kConcurrent
                        : ConcurrencyMode::kSynchronous,
-        (maglev::IsMaglevEnabled() && v8_flags.maglev_osr &&
-         !it.frame()->is_maglev())
+        (maglev::IsMaglevOsrEnabled() && !it.frame()->is_maglev())
             ? CodeKind::MAGLEV
             : CodeKind::TURBOFAN);
     USE(unused_result);

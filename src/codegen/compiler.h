@@ -57,6 +57,10 @@ static inline bool IsMaglevEnabled() {
 #endif
 }
 
+static inline bool IsMaglevOsrEnabled() {
+  return IsMaglevEnabled() && v8_flags.maglev_osr;
+}
+
 }  // namespace maglev
 
 // The V8 compiler API.

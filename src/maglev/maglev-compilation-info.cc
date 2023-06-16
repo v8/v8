@@ -62,7 +62,8 @@ MaglevCompilationInfo::MaglevCompilationInfo(Isolate* isolate,
           function->raw_feedback_cell().map() ==
               ReadOnlyRoots(isolate).one_closure_cell_map()) {
   DCHECK(maglev::IsMaglevEnabled());
-  DCHECK_IMPLIES(osr_offset != BytecodeOffset::None(), v8_flags.maglev_osr);
+  DCHECK_IMPLIES(osr_offset != BytecodeOffset::None(),
+                 maglev::IsMaglevOsrEnabled());
   canonical_handles_ = std::make_unique<CanonicalHandlesMap>(
       isolate->heap(), ZoneAllocationPolicy(&zone_));
   compiler::CurrentHeapBrokerScope current_broker(broker_.get());
