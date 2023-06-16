@@ -1586,6 +1586,8 @@
 ##############################################################################
 ['variant == stress_incremental_marking', {
   'wasm/shared-memory-worker-stress': [PASS, SLOW, ['tsan', SKIP]],
+  'regress/regress-740784': [PASS, ['tsan', SKIP]],
+  'regress/regress-crbug-820312': [PASS, SLOW],
 }],  # variant == stress_incremental_marking
 
 ##############################################################################
@@ -1711,6 +1713,13 @@
   'es6/collections-constructor-*': [SKIP],
   'es6/map-constructor-entry-side-effect*': [SKIP],
 }], # single_generation
+
+################################################################################
+['conservative_stack_scanning', {
+  # These tests are known to timeout with CSS, especially with variants that
+  # stress the GC.
+  'regress/regress-crbug-820312': [SKIP],
+}], # conservative_stack_scanning
 
 ################################################################################
 ['third_party_heap', {

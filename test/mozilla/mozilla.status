@@ -1035,6 +1035,11 @@
 }],  # variant == stress
 
 ##############################################################################
+['variant == stress_incremental_marking', {
+  'js1_5/Regress/regress-360969-05': [PASS, ['tsan', SKIP]],
+}],  # variant == stress_incremental_marking
+
+##############################################################################
 ['variant == no_wasm_traps', {
   '*': [SKIP],
 }],  # variant == no_wasm_traps
