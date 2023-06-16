@@ -4,12 +4,14 @@
 
 #include "src/heap/concurrent-marking.h"
 
+#include <algorithm>
 #include <stack>
 #include <unordered_map>
 
 #include "include/v8config.h"
 #include "src/common/globals.h"
 #include "src/execution/isolate.h"
+#include "src/flags/flags.h"
 #include "src/heap/ephemeron-remembered-set.h"
 #include "src/heap/gc-tracer-inl.h"
 #include "src/heap/gc-tracer.h"
@@ -27,6 +29,7 @@
 #include "src/heap/object-lock.h"
 #include "src/heap/objects-visiting-inl.h"
 #include "src/heap/objects-visiting.h"
+#include "src/heap/pretenuring-handler.h"
 #include "src/heap/weak-object-worklists.h"
 #include "src/init/v8.h"
 #include "src/objects/data-handler-inl.h"
@@ -71,13 +74,18 @@ class YoungGenerationConcurrentMarkingVisitor final
           YoungGenerationConcurrentMarkingVisitor, ConcurrentMarkingState> {
  public:
   YoungGenerationConcurrentMarkingVisitor(
-      Heap* heap, MarkingWorklists::Local* worklists_local,
+      Heap* heap, MarkingWorklists* marking_worklists,
       MemoryChunkDataMap* memory_chunk_data,
-      EphemeronRememberedSet::TableList::Local* epemeron_table_list_local)
+      PretenuringHandler::PretenuringFeedbackMap* local_pretenuring_feedback)
       : YoungGenerationMarkingVisitorBase<
             YoungGenerationConcurrentMarkingVisitor, ConcurrentMarkingState>(
-            heap->isolate(), worklists_local, epemeron_table_list_local),
-        marking_state_(heap->isolate(), memory_chunk_data) {}
+            heap->isolate(), &local_marking_worklists_,
+            &local_ephemeron_table_list_, local_pretenuring_feedback),
+        marking_state_(heap->isolate(), memory_chunk_data),
+        local_ephemeron_table_list_(
+            *heap->minor_mark_compact_collector()->ephemeron_table_list()),
+        local_marking_worklists_(marking_worklists,
+                                 MarkingWorklists::Local::kNoCppMarkingState) {}
 
   using YoungGenerationMarkingVisitorBase<
       YoungGenerationConcurrentMarkingVisitor,
@@ -99,6 +107,15 @@ class YoungGenerationConcurrentMarkingVisitor final
       // running concurrently with the mutator.
       VisitObjectImpl(target);
     }
+  }
+
+  MarkingWorklists::Local& local_marking_worklists() {
+    return local_marking_worklists_;
+  }
+
+  void PublishWorklists() {
+    local_ephemeron_table_list_.Publish();
+    local_marking_worklists_.Publish();
   }
 
  private:
@@ -124,6 +141,8 @@ class YoungGenerationConcurrentMarkingVisitor final
   }
 
   ConcurrentMarkingState marking_state_;
+  EphemeronRememberedSet::TableList::Local local_ephemeron_table_list_;
+  MarkingWorklists::Local local_marking_worklists_;
 };
 
 class ConcurrentMarkingVisitor final
@@ -198,6 +217,14 @@ class ConcurrentMarkingVisitor final
 
   friend class MarkingVisitorBase<ConcurrentMarkingVisitor,
                                   ConcurrentMarkingState>;
+};
+
+struct ConcurrentMarking::TaskState {
+  size_t marked_bytes = 0;
+  MemoryChunkDataMap memory_chunk_data;
+  NativeContextStats native_context_stats;
+  PretenuringHandler::PretenuringFeedbackMap local_pretenuring_feedback{
+      PretenuringHandler::kInitialFeedbackCapacity};
 };
 
 class ConcurrentMarking::JobTaskMajor : public v8::JobTask {
@@ -292,6 +319,8 @@ ConcurrentMarking::ConcurrentMarking(Heap* heap, WeakObjects* weak_objects)
   }
 }
 
+ConcurrentMarking::~ConcurrentMarking() = default;
+
 void ConcurrentMarking::RunMajor(JobDelegate* delegate,
                                  base::EnumSet<CodeFlushMode> code_flush_mode,
                                  unsigned mark_compact_epoch,
@@ -310,8 +339,7 @@ void ConcurrentMarking::RunMajor(JobDelegate* delegate,
       &local_marking_worklists, &local_weak_objects, heap_, mark_compact_epoch,
       code_flush_mode, heap_->cpp_heap(), should_keep_ages_unchanged,
       heap_->tracer()->CodeFlushingIncrease(), &task_state->memory_chunk_data);
-  NativeContextInferrer& native_context_inferrer =
-      task_state->native_context_inferrer;
+  NativeContextInferrer native_context_inferrer;
   NativeContextStats& native_context_stats = task_state->native_context_stats;
   double time_ms;
   size_t marked_bytes = 0;
@@ -433,13 +461,11 @@ void ConcurrentMarking::RunMinor(JobDelegate* delegate) {
   uint8_t task_id = delegate->GetTaskId() + 1;
   DCHECK_LT(task_id, task_state_.size());
   TaskState* task_state = task_state_[task_id].get();
-  EphemeronRememberedSet::TableList::Local local_ephemeron_table_list(
-      *heap_->minor_mark_compact_collector()->ephemeron_table_list());
-  MarkingWorklists::Local local_marking_worklists(
-      marking_worklists_, MarkingWorklists::Local::kNoCppMarkingState);
   YoungGenerationConcurrentMarkingVisitor visitor(
-      heap_, &local_marking_worklists, &task_state->memory_chunk_data,
-      &local_ephemeron_table_list);
+      heap_, marking_worklists_, &task_state->memory_chunk_data,
+      &task_state->local_pretenuring_feedback);
+  MarkingWorklists::Local& local_marking_worklists =
+      visitor.local_marking_worklists();
   double time_ms;
   size_t marked_bytes = 0;
   Isolate* isolate = heap_->isolate();
@@ -497,8 +523,7 @@ void ConcurrentMarking::RunMinor(JobDelegate* delegate) {
       }
     }
 
-    local_marking_worklists.Publish();
-    local_ephemeron_table_list.Publish();
+    visitor.PublishWorklists();
     base::AsAtomicWord::Relaxed_Store<size_t>(&task_state->marked_bytes, 0);
     total_marked_bytes_ += marked_bytes;
   }
@@ -532,6 +557,10 @@ void ConcurrentMarking::ScheduleJob(GarbageCollector garbage_collector,
     priority = TaskPriority::kUserBlocking;
   }
 
+  DCHECK(
+      std::all_of(task_state_.begin(), task_state_.end(), [](auto& task_state) {
+        return task_state->local_pretenuring_feedback.empty();
+      }));
   garbage_collector_ = garbage_collector;
   if (garbage_collector == GarbageCollector::MARK_COMPACTOR) {
     marking_worklists_ = heap_->mark_compact_collector()->marking_worklists();
@@ -575,10 +604,26 @@ void ConcurrentMarking::RescheduleJobIfNeeded(
   }
 }
 
+void ConcurrentMarking::FlushPretenuringFeedback() {
+  PretenuringHandler* pretenuring_handler = heap_->pretenuring_handler();
+  if (garbage_collector_ == GarbageCollector::MINOR_MARK_COMPACTOR) {
+    for (auto& task_state : task_state_) {
+      pretenuring_handler->MergeAllocationSitePretenuringFeedback(
+          task_state->local_pretenuring_feedback);
+      task_state->local_pretenuring_feedback.clear();
+    }
+  }
+  DCHECK(
+      std::all_of(task_state_.begin(), task_state_.end(), [](auto& task_state) {
+        return task_state->local_pretenuring_feedback.empty();
+      }));
+}
+
 void ConcurrentMarking::Join() {
   DCHECK(v8_flags.parallel_marking || v8_flags.concurrent_marking);
   if (!job_handle_ || !job_handle_->IsValid()) return;
   job_handle_->Join();
+  FlushPretenuringFeedback();
   garbage_collector_.reset();
 }
 
@@ -592,6 +637,7 @@ bool ConcurrentMarking::Pause() {
 
 void ConcurrentMarking::Cancel() {
   Pause();
+  FlushPretenuringFeedback();
   garbage_collector_.reset();
 }
 
@@ -663,6 +709,7 @@ ConcurrentMarking::PauseScope::PauseScope(ConcurrentMarking* concurrent_marking)
     : concurrent_marking_(concurrent_marking),
       resume_on_exit_(v8_flags.concurrent_marking &&
                       concurrent_marking_->Pause()) {
+  DCHECK(!v8_flags.minor_mc);
   DCHECK_IMPLIES(resume_on_exit_, v8_flags.concurrent_marking);
 }
 

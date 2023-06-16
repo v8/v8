@@ -220,11 +220,10 @@ class YoungGenerationMarkingVisitorBase
  public:
   YoungGenerationMarkingVisitorBase(
       Isolate* isolate, MarkingWorklists::Local* worklists_local,
-      EphemeronRememberedSet::TableList::Local* ephemeron_tables_local);
+      EphemeronRememberedSet::TableList::Local* ephemeron_tables_local,
+      PretenuringHandler::PretenuringFeedbackMap* local_pretenuring_feedback);
 
-  ~YoungGenerationMarkingVisitorBase() override {
-    DCHECK(local_pretenuring_feedback_.empty());
-  }
+  ~YoungGenerationMarkingVisitorBase() override;
 
   YoungGenerationMarkingVisitorBase(const YoungGenerationMarkingVisitorBase&) =
       delete;
@@ -257,12 +256,12 @@ class YoungGenerationMarkingVisitorBase
   V8_INLINE int VisitJSObjectSubclass(Map map, T object);
   V8_INLINE int VisitJSTypedArray(Map map, JSTypedArray object);
 
-  V8_INLINE void Finalize();
-
  protected:
   using NewSpaceVisitor<ConcreteVisitor>::concrete_visitor;
 
   MarkingWorklists::Local* worklists_local() const { return worklists_local_; }
+
+  PretenuringHandler* pretenuring_handler() { return pretenuring_handler_; }
 
   template <typename T>
   int VisitEmbedderTracingSubClassWithEmbedderTracing(Map map, T object);
@@ -271,7 +270,7 @@ class YoungGenerationMarkingVisitorBase
   MarkingWorklists::Local* worklists_local_;
   EphemeronRememberedSet::TableList::Local* ephemeron_tables_local_;
   PretenuringHandler* const pretenuring_handler_;
-  PretenuringHandler::PretenuringFeedbackMap local_pretenuring_feedback_;
+  PretenuringHandler::PretenuringFeedbackMap* const local_pretenuring_feedback_;
 };
 
 }  // namespace internal

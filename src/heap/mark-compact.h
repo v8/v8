@@ -20,6 +20,7 @@
 #include "src/heap/marking.h"
 #include "src/heap/memory-measurement.h"
 #include "src/heap/parallel-work-item.h"
+#include "src/heap/pretenuring-handler.h"
 #include "src/heap/spaces.h"
 #include "src/heap/sweeper.h"
 
@@ -116,6 +117,8 @@ class YoungGenerationMainMarkingVisitor final
       Isolate* isolate, MarkingWorklists::Local* worklists_local,
       EphemeronRememberedSet::TableList::Local* ephemeron_table_list_local);
 
+  ~YoungGenerationMainMarkingVisitor() override;
+
   YoungGenerationMainMarkingVisitor(const YoungGenerationMainMarkingVisitor&) =
       delete;
   YoungGenerationMainMarkingVisitor& operator=(
@@ -141,10 +144,13 @@ class YoungGenerationMainMarkingVisitor final
             SlotTreatmentMode slot_treatment_mode, typename TSlot>
   V8_INLINE bool VisitObjectViaSlot(TSlot slot);
 
+  V8_INLINE void Finalize();
+
  private:
   V8_INLINE bool ShortCutStrings(HeapObjectSlot slot, HeapObject* heap_object);
 
   YoungGenerationMarkingState marking_state_;
+  PretenuringHandler::PretenuringFeedbackMap local_pretenuring_feedback_;
   const bool shortcut_strings_;
 
   friend class YoungGenerationMarkingVisitorBase<
@@ -616,7 +622,7 @@ class MinorMarkCompactCollector final : public CollectorBase {
   void MarkLiveObjects();
   void MarkLiveObjectsInParallel(RootMarkingVisitor* root_visitor,
                                  bool was_marked_incrementally);
-  void DrainMarkingWorklist();
+  void DrainMarkingWorklist(YoungGenerationMainMarkingVisitor& visitor);
   void TraceFragmentation();
   void ClearNonLiveReferences();
 
@@ -632,12 +638,8 @@ class MinorMarkCompactCollector final : public CollectorBase {
   std::unique_ptr<EphemeronRememberedSet::TableList> ephemeron_table_list_;
   std::unique_ptr<EphemeronRememberedSet::TableList::Local>
       local_ephemeron_table_list_;
-  std::unique_ptr<YoungGenerationMainMarkingVisitor> main_marking_visitor_;
-  Sweeper* const sweeper_;
 
-  friend class YoungGenerationMarkingTask;
-  friend class YoungGenerationMarkingJob;
-  friend class YoungGenerationMainMarkingVisitor;
+  Sweeper* const sweeper_;
 };
 
 class PageMarkingItem : public ParallelWorkItem {

@@ -697,13 +697,18 @@ template <typename ConcreteVisitor, typename MarkingState>
 YoungGenerationMarkingVisitorBase<ConcreteVisitor, MarkingState>::
     YoungGenerationMarkingVisitorBase(
         Isolate* isolate, MarkingWorklists::Local* worklists_local,
-        EphemeronRememberedSet::TableList::Local* ephemeron_tables_local)
+        EphemeronRememberedSet::TableList::Local* ephemeron_tables_local,
+        PretenuringHandler::PretenuringFeedbackMap* local_pretenuring_feedback)
     : NewSpaceVisitor<ConcreteVisitor>(isolate),
       worklists_local_(worklists_local),
       ephemeron_tables_local_(ephemeron_tables_local),
       pretenuring_handler_(isolate->heap()->pretenuring_handler()),
-      local_pretenuring_feedback_(
-          PretenuringHandler::kInitialFeedbackCapacity) {}
+      local_pretenuring_feedback_(local_pretenuring_feedback) {}
+
+template <typename ConcreteVisitor, typename MarkingState>
+YoungGenerationMarkingVisitorBase<
+    ConcreteVisitor, MarkingState>::~YoungGenerationMarkingVisitorBase() =
+    default;
 
 template <typename ConcreteVisitor, typename MarkingState>
 template <typename T>
@@ -770,7 +775,7 @@ int YoungGenerationMarkingVisitorBase<
   int result = NewSpaceVisitor<ConcreteVisitor>::VisitJSObject(map, object);
   DCHECK_LT(0, result);
   pretenuring_handler_->UpdateAllocationSite(map, object,
-                                             &local_pretenuring_feedback_);
+                                             local_pretenuring_feedback_);
   return result;
 }
 
@@ -781,7 +786,7 @@ int YoungGenerationMarkingVisitorBase<
   int result = NewSpaceVisitor<ConcreteVisitor>::VisitJSObjectFast(map, object);
   DCHECK_LT(0, result);
   pretenuring_handler_->UpdateAllocationSite(map, object,
-                                             &local_pretenuring_feedback_);
+                                             local_pretenuring_feedback_);
   return result;
 }
 
@@ -793,16 +798,8 @@ int YoungGenerationMarkingVisitorBase<
       T, TBodyDescriptor>(map, object);
   DCHECK_LT(0, result);
   pretenuring_handler_->UpdateAllocationSite(map, object,
-                                             &local_pretenuring_feedback_);
+                                             local_pretenuring_feedback_);
   return result;
-}
-
-template <typename ConcreteVisitor, typename MarkingState>
-void YoungGenerationMarkingVisitorBase<ConcreteVisitor,
-                                       MarkingState>::Finalize() {
-  pretenuring_handler_->MergeAllocationSitePretenuringFeedback(
-      local_pretenuring_feedback_);
-  local_pretenuring_feedback_.clear();
 }
 
 }  // namespace internal

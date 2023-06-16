@@ -5398,10 +5398,22 @@ YoungGenerationMainMarkingVisitor::YoungGenerationMainMarkingVisitor(
     EphemeronRememberedSet::TableList::Local* ephemeron_table_list_local)
     : YoungGenerationMarkingVisitorBase<YoungGenerationMainMarkingVisitor,
                                         MarkingState>(
-          isolate, worklists_local, ephemeron_table_list_local),
+          isolate, worklists_local, ephemeron_table_list_local,
+          &local_pretenuring_feedback_),
       marking_state_(PtrComprCageBase(isolate)),
+      local_pretenuring_feedback_(PretenuringHandler::kInitialFeedbackCapacity),
       shortcut_strings_(isolate->heap()->CanShortcutStringsDuringGC(
           GarbageCollector::MINOR_MARK_COMPACTOR)) {}
+
+YoungGenerationMainMarkingVisitor::~YoungGenerationMainMarkingVisitor() {
+  DCHECK(local_pretenuring_feedback_.empty());
+}
+
+void YoungGenerationMainMarkingVisitor::Finalize() {
+  pretenuring_handler()->MergeAllocationSitePretenuringFeedback(
+      local_pretenuring_feedback_);
+  local_pretenuring_feedback_.clear();
+}
 
 MinorMarkCompactCollector::~MinorMarkCompactCollector() = default;
 
@@ -5454,7 +5466,7 @@ void MinorMarkCompactCollector::PerformWrapperTracing() {
 class MinorMarkCompactCollector::RootMarkingVisitor final : public RootVisitor {
  public:
   explicit RootMarkingVisitor(
-      YoungGenerationMainMarkingVisitor* main_marking_visitor)
+      YoungGenerationMainMarkingVisitor& main_marking_visitor)
       : main_marking_visitor_(main_marking_visitor) {}
 
   void VisitRootPointer(Root root, const char* description,
@@ -5476,7 +5488,7 @@ class MinorMarkCompactCollector::RootMarkingVisitor final : public RootVisitor {
   void VisitPointersImpl(Root root, TSlot start, TSlot end) {
     if (root == Root::kStackRoots) {
       for (TSlot slot = start; slot < end; ++slot) {
-        main_marking_visitor_->VisitObjectViaSlot<
+        main_marking_visitor_.VisitObjectViaSlot<
             YoungGenerationMainMarkingVisitor::ObjectVisitationMode::
                 kPushToWorklist,
             YoungGenerationMainMarkingVisitor::SlotTreatmentMode::kReadOnly>(
@@ -5484,7 +5496,7 @@ class MinorMarkCompactCollector::RootMarkingVisitor final : public RootVisitor {
       }
     } else {
       for (TSlot slot = start; slot < end; ++slot) {
-        main_marking_visitor_->VisitObjectViaSlot<
+        main_marking_visitor_.VisitObjectViaSlot<
             YoungGenerationMainMarkingVisitor::ObjectVisitationMode::
                 kPushToWorklist,
             YoungGenerationMainMarkingVisitor::SlotTreatmentMode::kReadWrite>(
@@ -5493,7 +5505,7 @@ class MinorMarkCompactCollector::RootMarkingVisitor final : public RootVisitor {
     }
   }
 
-  YoungGenerationMainMarkingVisitor* const main_marking_visitor_;
+  YoungGenerationMainMarkingVisitor& main_marking_visitor_;
 };
 
 void MinorMarkCompactCollector::StartMarking() {
@@ -5521,9 +5533,6 @@ void MinorMarkCompactCollector::StartMarking() {
       marking_worklists(),
       cpp_heap ? cpp_heap->CreateCppMarkingStateForMutatorThread()
                : MarkingWorklists::Local::kNoCppMarkingState);
-  main_marking_visitor_ = std::make_unique<YoungGenerationMainMarkingVisitor>(
-      heap()->isolate(), local_marking_worklists(),
-      local_ephemeron_table_list_.get());
   if (cpp_heap && cpp_heap->generational_gc_supported()) {
     TRACE_GC(heap()->tracer(),
              GCTracer::Scope::MINOR_MC_MARK_EMBEDDER_PROLOGUE);
@@ -6058,9 +6067,12 @@ void MinorMarkCompactCollector::MarkLiveObjects() {
   }
 
   DCHECK_NOT_NULL(local_marking_worklists_);
-  DCHECK_NOT_NULL(main_marking_visitor_);
 
-  RootMarkingVisitor root_visitor(main_marking_visitor_.get());
+  YoungGenerationMainMarkingVisitor main_marking_visitor(
+      heap()->isolate(), local_marking_worklists(),
+      local_ephemeron_table_list_.get());
+
+  RootMarkingVisitor root_visitor(main_marking_visitor);
 
   MarkLiveObjectsInParallel(&root_visitor, was_marked_incrementally);
 
@@ -6070,23 +6082,23 @@ void MinorMarkCompactCollector::MarkLiveObjects() {
     if (auto* cpp_heap = CppHeap::From(heap_->cpp_heap())) {
       cpp_heap->FinishConcurrentMarkingIfNeeded();
     }
-    DrainMarkingWorklist();
+    DrainMarkingWorklist(main_marking_visitor);
   }
 
   if (was_marked_incrementally) {
     MarkingBarrier::DeactivateAll(heap());
   }
 
-  main_marking_visitor_->Finalize();
+  main_marking_visitor.Finalize();
   local_marking_worklists_.reset();
-  main_marking_visitor_.reset();
 
   if (v8_flags.minor_mc_trace_fragmentation) {
     TraceFragmentation();
   }
 }
 
-void MinorMarkCompactCollector::DrainMarkingWorklist() {
+void MinorMarkCompactCollector::DrainMarkingWorklist(
+    YoungGenerationMainMarkingVisitor& visitor) {
   PtrComprCageBase cage_base(isolate());
   do {
     PerformWrapperTracing();
@@ -6104,7 +6116,7 @@ void MinorMarkCompactCollector::DrainMarkingWorklist() {
       // implemented for MinorMC concurrent marking.
       // DCHECK_EQ(Map::ObjectFieldsFrom(map.visitor_id()),
       //           ObjectFields::kMaybePointers);
-      const auto visited_size = main_marking_visitor_->Visit(map, heap_object);
+      const auto visited_size = visitor.Visit(map, heap_object);
       if (visited_size) {
         marking_state_->IncrementLiveBytes(
             MemoryChunk::cast(BasicMemoryChunk::FromHeapObject(heap_object)),

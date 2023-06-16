@@ -104,6 +104,7 @@ class V8_EXPORT_PRIVATE ConcurrentMarking {
   };
 
   ConcurrentMarking(Heap* heap, WeakObjects* weak_objects);
+  ~ConcurrentMarking();
 
   // Schedules asynchronous job to perform concurrent marking at |priority|.
   // Objects in the heap should not be moved while these are active (can be
@@ -143,18 +144,14 @@ class V8_EXPORT_PRIVATE ConcurrentMarking {
   bool another_ephemeron_iteration() {
     return another_ephemeron_iteration_.load();
   }
-  base::Optional<GarbageCollector> garbage_collector() const {
-    return garbage_collector_;
+
+  GarbageCollector garbage_collector() const {
+    DCHECK(garbage_collector_.has_value());
+    return garbage_collector_.value();
   }
 
  private:
-  struct TaskState {
-    size_t marked_bytes = 0;
-    MemoryChunkDataMap memory_chunk_data;
-    NativeContextInferrer native_context_inferrer;
-    NativeContextStats native_context_stats;
-    char cache_line_padding[64];
-  };
+  struct TaskState;
   class JobTaskMinor;
   class JobTaskMajor;
   void RunMinor(JobDelegate* delegate);
@@ -164,6 +161,7 @@ class V8_EXPORT_PRIVATE ConcurrentMarking {
   size_t GetMaxConcurrency(size_t worker_count);
   bool IsWorkLeft();
   void Resume();
+  void FlushPretenuringFeedback();
 
   std::unique_ptr<JobHandle> job_handle_;
   Heap* const heap_;
