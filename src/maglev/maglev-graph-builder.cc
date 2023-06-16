@@ -3221,6 +3221,17 @@ bool MaglevGraphBuilder::EnsureType(ValueNode* node, NodeType type,
   return false;
 }
 
+template <typename Function>
+bool MaglevGraphBuilder::EnsureType(ValueNode* node, NodeType type,
+                                    Function ensure_new_type) {
+  if (CheckStaticType(node, type)) return true;
+  NodeInfo* known_info = known_node_aspects().GetOrCreateInfoFor(node);
+  if (NodeTypeIs(known_info->type, type)) return true;
+  ensure_new_type(known_info->type);
+  known_info->type = CombineType(known_info->type, type);
+  return false;
+}
+
 void MaglevGraphBuilder::SetKnownType(ValueNode* node, NodeType type) {
   NodeInfo* known_info = known_node_aspects().GetOrCreateInfoFor(node);
   // TODO(verwaest): The following would be nice; but currently isn't the case
@@ -5722,7 +5733,8 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayForEach(
   ValueNode* original_length =
       AddNewNode<LoadTaggedField>({receiver}, JSArray::kLengthOffset);
 
-  if (!EnsureType(callback, NodeType::kCallable)) {
+  // Elide the callable check if the node is known callable.
+  EnsureType(callback, NodeType::kCallable, [&](NodeType old_type) {
     // ThrowIfNotCallable is wrapped in a lazy_deopt_scope to make sure the
     // exception has the right call stack.
     DeoptFrameScope lazy_deopt_scope(
@@ -5730,7 +5742,7 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayForEach(
         base::VectorOf<ValueNode*>({receiver, callback, this_arg,
                                     GetSmiConstant(0), original_length}));
     AddNewNode<ThrowIfNotCallable>({callback});
-  }
+  });
 
   ValueNode* original_length_int32 =
       AddNewNode<UnsafeSmiUntag>({original_length});

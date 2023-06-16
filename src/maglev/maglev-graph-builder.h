@@ -383,6 +383,8 @@ class MaglevGraphBuilder {
   bool CheckStaticType(ValueNode* node, NodeType type, NodeType* old = nullptr);
   bool CheckType(ValueNode* node, NodeType type, NodeType* old = nullptr);
   bool EnsureType(ValueNode* node, NodeType type, NodeType* old = nullptr);
+  template <typename Function>
+  bool EnsureType(ValueNode* node, NodeType type, Function ensure_new_type);
   void SetKnownType(ValueNode* node, NodeType type);
   void SetKnownValue(ValueNode* node, compiler::ObjectRef constant);
   bool ShouldEmitInterruptBudgetChecks() {

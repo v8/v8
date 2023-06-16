@@ -638,7 +638,8 @@ RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
   }
   if (function.is_null()) return CrashUnlessFuzzing(isolate);
 
-  if (V8_UNLIKELY(!v8_flags.turbofan) || V8_UNLIKELY(!v8_flags.use_osr)) {
+  if (V8_UNLIKELY((!v8_flags.turbofan && !v8_flags.maglev) ||
+                  (!v8_flags.maglev_osr && !v8_flags.use_osr))) {
     return ReadOnlyRoots(isolate).undefined_value();
   }
 

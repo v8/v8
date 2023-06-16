@@ -666,7 +666,7 @@ void MaybePrintProvenance(std::ostream& os, std::vector<BasicBlock*> targets,
         provenance.unit->shared_function_info().object()->script());
     has_position_info =
         script.GetPositionInfo(provenance.position.ScriptOffset(),
-                               &position_info, Script::OffsetFlag::kNoOffset);
+                               &position_info, Script::OffsetFlag::kWithOffset);
     needs_function_print = true;
   }
 
@@ -744,7 +744,7 @@ ProcessResult MaglevPrintingVisitor::Process(Phi* phi,
   if (phi->input_count() == 0) {
     os_ << "ₑ " << phi->owner().ToString();
   } else {
-    os_ << " (";
+    os_ << " " << phi->owner().ToString() << " (";
     // Manually walk Phi inputs to print just the node labels, without
     // input locations (which are shown in the predecessor block's gap
     // moves).
@@ -910,7 +910,8 @@ ProcessResult MaglevPrintingVisitor::Process(ControlNode* control_node,
           case ValueRepresentation::kWord64:
             UNREACHABLE();
         }
-        os_ << " " << phi->result().operand() << "\n";
+        os_ << " " << phi->owner().ToString() << " " << phi->result().operand()
+            << "\n";
       }
       if (target->state()->register_state().is_initialized()) {
         PrintVerticalArrows(os_, targets_);
