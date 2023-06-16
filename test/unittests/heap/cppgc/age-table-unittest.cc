@@ -198,7 +198,7 @@ TEST_F(AgeTableTest, SetAgeForMultipleCardsConsiderAdjacentCards) {
 
 TEST_F(AgeTableTest, MarkAllCardsAsYoung) {
   uint8_t* heap_start = reinterpret_cast<uint8_t*>(CagedHeapBase::GetBase());
-  void* heap_end = heap_start + kCagedHeapReservationSize - 1;
+  void* heap_end = heap_start + api_constants::kCagedHeapDefaultReservationSize - 1;
   AssertAgeForAddressRange(heap_start, heap_end, Age::kOld);
   SetAgeForAddressRange(heap_start, heap_end, Age::kYoung,
                         AdjacentCardsPolicy::kIgnore);
@@ -212,7 +212,7 @@ TEST_F(AgeTableTest, AgeTableSize) {
   // Pretend there's a larger cage and verify that the age table reserves the
   // correct amount of space for itself.
   size_t age_table_size = AgeTable::CalculateAgeTableSizeForHeapSize(
-      api_constants::kCagedHeapReservationSize * 4);
+      api_constants::kCagedHeapDefaultReservationSize * 4);
   EXPECT_EQ(4 * kMB, age_table_size);
 }
 
