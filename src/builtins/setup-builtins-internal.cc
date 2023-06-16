@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <fstream>
+
 #include "src/builtins/builtins.h"
 #include "src/builtins/profile-data-reader.h"
 #include "src/codegen/assembler-inl.h"
@@ -290,6 +292,11 @@ Code GenerateBytecodeHandler(Isolate* isolate, Builtin builtin,
 void SetupIsolateDelegate::SetupBuiltinsInternal(Isolate* isolate) {
   Builtins* builtins = isolate->builtins();
   DCHECK(!builtins->initialized_);
+
+  if (v8_flags.dump_builtins_hashes_to_file) {
+    // Create an empty file.
+    std::ofstream(v8_flags.dump_builtins_hashes_to_file, std::ios_base::trunc);
+  }
 
   PopulateWithPlaceholders(isolate);
 

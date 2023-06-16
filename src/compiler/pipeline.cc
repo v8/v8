@@ -3212,9 +3212,9 @@ MaybeHandle<Code> Pipeline::GenerateCodeForCodeStub(
   ZoneStats zone_stats(isolate->allocator());
   NodeOriginTable node_origins(graph);
   JumpOptimizationInfo jump_opt;
-  bool should_optimize_jumps = isolate->serializer_enabled() &&
-                               v8_flags.turbo_rewrite_far_jumps &&
-                               !v8_flags.turbo_profiling;
+  bool should_optimize_jumps =
+      isolate->serializer_enabled() && v8_flags.turbo_rewrite_far_jumps &&
+      !v8_flags.turbo_profiling && !v8_flags.dump_builtins_hashes_to_file;
   PipelineData data(&zone_stats, &info, isolate, isolate->allocator(), graph,
                     jsgraph, nullptr, source_positions, &node_origins,
                     should_optimize_jumps ? &jump_opt : nullptr, options,
@@ -3248,8 +3248,15 @@ MaybeHandle<Code> Pipeline::GenerateCodeForCodeStub(
   }
 
   int initial_graph_hash = 0;
-  if (v8_flags.turbo_profiling || profile_data != nullptr) {
+  if (v8_flags.turbo_profiling || v8_flags.dump_builtins_hashes_to_file ||
+      profile_data != nullptr) {
     initial_graph_hash = HashGraphForPGO(data.graph());
+    if (v8_flags.dump_builtins_hashes_to_file) {
+      std::ofstream out(v8_flags.dump_builtins_hashes_to_file,
+                        std::ios_base::app);
+      out << "Builtin: " << Builtins::name(builtin) << ", hash: 0x" << std::hex
+          << initial_graph_hash << std::endl;
+    }
   }
 
   if (profile_data != nullptr && profile_data->hash() != initial_graph_hash) {

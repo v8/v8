@@ -1084,6 +1084,10 @@ DEFINE_BOOL(abort_on_bad_builtin_profile_data, false,
 DEFINE_BOOL(
     warn_about_builtin_profile_data, false,
     "flag for mksnapshot, emit warnings when applying builtin profile data")
+DEFINE_STRING(
+    dump_builtins_hashes_to_file, nullptr,
+    "flag for mksnapshot, dump CSA builtins graph hashes to this file")
+
 DEFINE_BOOL(turbo_verify_allocation, DEBUG_BOOL,
             "verify register allocation in TurboFan")
 DEFINE_BOOL(turbo_move_optimization, true, "optimize gap moves in TurboFan")
