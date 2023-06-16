@@ -7449,6 +7449,16 @@ ReduceResult MaglevGraphBuilder::TryBuildFastInstanceOf(
       RETURN_IF_ABORT(BuildCheckMaps(
           callable_node_if_not_constant,
           base::VectorOf(access_info.lookup_start_object_maps())));
+    } else {
+      // Even if we have a constant receiver, we still have to make sure its
+      // map is correct, in case it migrates.
+      if (receiver_map.is_stable()) {
+        broker()->dependencies()->DependOnStableMap(receiver_map);
+      } else {
+        RETURN_IF_ABORT(BuildCheckMaps(
+            GetConstant(callable),
+            base::VectorOf(access_info.lookup_start_object_maps())));
+      }
     }
 
     return BuildOrdinaryHasInstance(object, callable,
