@@ -5743,6 +5743,11 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayForEach(
   ValueNode* original_length_int32 =
       AddNewNode<UnsafeSmiUntag>({original_length});
 
+  // Remember the receiver map set before entering the loop the call.
+  bool receiver_maps_were_unstable = receiver_maps.any_map_is_unstable;
+  compiler::ZoneRefSet<Map> receiver_maps_before_loop =
+      receiver_maps.possible_maps;
+
   // Create a sub graph builder with one variable (for the index)
   MaglevSubGraphBuilder sub_builder(this, 1);
   MaglevSubGraphBuilder::Variable var_index(0);
@@ -5756,6 +5761,19 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayForEach(
   sub_builder.set(var_index, GetSmiConstant(0));
   MaglevSubGraphBuilder::LoopLabel loop_header =
       sub_builder.BeginLoop({&var_index});
+
+  // Reset the known receiver maps if necessary (BeginLoop will clear out
+  // unstable ones because it doesn't know what side effects the loop will
+  // have). We'll re-check them at the end of the loop.
+  if (receiver_maps_were_unstable) {
+    known_node_aspects().possible_maps[receiver] =
+        KnownNodeAspects::PossibleMaps{receiver_maps_before_loop,
+                                       receiver_maps_were_unstable};
+    known_node_aspects().any_map_for_any_node_is_unstable = true;
+  } else {
+    DCHECK_EQ(known_node_aspects().possible_maps[receiver].possible_maps,
+              receiver_maps_before_loop);
+  }
 
   // ```
   // if (index_int32 < length_int32)
@@ -5818,11 +5836,6 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayForEach(
     }
   }
 
-  // Remember the receiver map set before the call.
-  bool recheck_maps_after_call = receiver_maps.any_map_is_unstable;
-  compiler::ZoneRefSet<Map> receiver_maps_before_call =
-      receiver_maps.possible_maps;
-
   // ```
   // callback(this_arg, element, array)
   // ```
@@ -5860,6 +5873,7 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayForEach(
   // check to _after_ the callback, and then elide it if the receiver maps are
   // still known to be valid (i.e. the known maps after the call are contained
   // inside the known maps before the call).
+  bool recheck_maps_after_call = receiver_maps_were_unstable;
   if (recheck_maps_after_call) {
     if (current_block_ == nullptr) {
       // No need to recheck maps if this code is unreachable.
@@ -5875,7 +5889,7 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayForEach(
         compiler::ZoneRefSet<Map> receiver_maps_after_call =
             receiver_maps_after_call_it->second.possible_maps;
         recheck_maps_after_call =
-            receiver_maps_before_call.contains(receiver_maps_after_call);
+            receiver_maps_before_loop.contains(receiver_maps_after_call);
       }
     }
   }
@@ -5890,13 +5904,13 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayForEach(
     // maps rather than feedback, and we don't need to update known node
     // aspects or types since we're at the end of the loop anyway.
     bool emit_check_with_migration = std::any_of(
-        receiver_maps_before_call.begin(), receiver_maps_before_call.end(),
+        receiver_maps_before_loop.begin(), receiver_maps_before_loop.end(),
         [](compiler::MapRef map) { return map.is_migration_target(); });
     if (emit_check_with_migration) {
-      AddNewNode<CheckMapsWithMigration>({receiver}, receiver_maps_before_call,
+      AddNewNode<CheckMapsWithMigration>({receiver}, receiver_maps_before_loop,
                                          CheckType::kOmitHeapObjectCheck);
     } else {
-      AddNewNode<CheckMaps>({receiver}, receiver_maps_before_call,
+      AddNewNode<CheckMaps>({receiver}, receiver_maps_before_loop,
                             CheckType::kOmitHeapObjectCheck);
     }
   }
