@@ -170,16 +170,16 @@ class CollectionsBuiltinsAssembler : public BaseCollectionsAssembler {
   // Direct iteration helpers.
   template <typename CollectionType>
   TorqueStructKeyIndexPair NextKeyIndexPairUnmodifiedTable(
-      const TNode<CollectionType>, const TNode<Int32T> number_of_buckets,
+      const TNode<CollectionType> table, const TNode<Int32T> number_of_buckets,
       const TNode<Int32T> used_capacity, const TNode<IntPtrT> index,
       Label* if_end);
 
   template <typename CollectionType>
-  TorqueStructKeyIndexPair NextKeyIndexPair(const TNode<CollectionType>,
+  TorqueStructKeyIndexPair NextKeyIndexPair(const TNode<CollectionType> table,
                                             const TNode<IntPtrT> index,
                                             Label* if_end);
 
-  TorqueStructKeyValueIndexTuple NextKeyValueIndexTuple(
+  TorqueStructKeyValueIndexTuple NextKeyValueIndexTupleUnmodifiedMap(
       const TNode<OrderedHashMap> table, const TNode<Int32T> number_of_buckets,
       const TNode<Int32T> used_capacity, const TNode<IntPtrT> index,
       Label* if_end);
@@ -187,6 +187,16 @@ class CollectionsBuiltinsAssembler : public BaseCollectionsAssembler {
   // Checks if the set contains a key.
   TNode<BoolT> SetTableHasKey(const TNode<Object> context, TNode<Object> table,
                               TNode<Object> key);
+
+  // Adds {value} to a FixedArray keyed by {key} in {groups}.
+  //
+  // Utility used by Object.groupBy and Map.groupBy.
+  const TNode<OrderedHashMap> AddValueToKeyedGroup(
+      const TNode<OrderedHashMap> groups, const TNode<Object> key,
+      const TNode<Object> value, const TNode<String> methodName);
+
+  // Normalizes -0 to +0.
+  const TNode<Object> NormalizeNumberKey(const TNode<Object> key);
 
  protected:
   template <typename IteratorType>
@@ -310,8 +320,6 @@ class CollectionsBuiltinsAssembler : public BaseCollectionsAssembler {
                                       TVariable<IntPtrT>* result,
                                       Label* if_entry_found,
                                       Label* if_not_found);
-
-  const TNode<Object> NormalizeNumberKey(const TNode<Object> key);
 
   // Generates code to store a new entry into {table}, connecting to the bucket
   // chain, and updating the bucket head. {store_new_entry} is called to
@@ -478,6 +486,9 @@ class WeakCollectionsBuiltinsAssembler : public BaseCollectionsAssembler {
                               TNode<IntPtrT> number_of_elements);
   TNode<IntPtrT> ValueIndexFromKeyIndex(TNode<IntPtrT> key_index);
 };
+
+// Controls the key coercion behavior for Object.groupBy and Map.groupBy.
+enum class GroupByCoercionMode { kZero, kProperty };
 
 }  // namespace internal
 }  // namespace v8

@@ -130,5 +130,19 @@ RUNTIME_FUNCTION(Runtime_WeakCollectionSet) {
   return *weak_collection;
 }
 
+RUNTIME_FUNCTION(Runtime_OrderedHashMapEnsureGrowable) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  Handle<OrderedHashMap> table = args.at<OrderedHashMap>(0);
+  Handle<String> methodName = args.at<String>(1);
+  MaybeHandle<OrderedHashMap> table_candidate =
+      OrderedHashMap::EnsureGrowable(isolate, table);
+  if (!table_candidate.ToHandle(&table)) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewRangeError(MessageTemplate::kOutOfMemory, methodName));
+  }
+  return *table;
+}
+
 }  // namespace internal
 }  // namespace v8

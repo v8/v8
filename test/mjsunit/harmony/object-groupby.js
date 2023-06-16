@@ -1,14 +1,12 @@
-// Copyright 2022 the V8 project authors. All rights reserved.
+// Copyright 2023 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 // Flags: --harmony-array-grouping
 
-assertEquals(Array.prototype[Symbol.unscopables].group, true);
-
 var array = [-0, 1, 0, 2];
 var group = () => {
-  let result = array.group(v => v > 0);
+  let result = Object.groupBy(array, v => v > 0);
   result = Array.from(Object.entries(result));
   return result;
 }
@@ -50,7 +48,7 @@ for (var idx = 0; idx < length; idx++) {
   array[idx] = idx;
 }
 var group = () => {
-  let result = array.group(v => v % 2);
+  let result = Object.groupBy(array, v => v % 2);
   result = Array.from(Object.entries(result));
   return result;
 }
@@ -63,7 +61,7 @@ assertEquals(result, [
 // check array changed by callbackfn
 var array = [-0, 0, 1, 2];
 group = () => {
-  let result = array.group((v, idx) => {
+  let result = Object.groupBy(array, (v, idx) => {
     if (idx === 1) {
       array[2] = {a: 'b'};
     }
@@ -82,7 +80,7 @@ assertEquals(group(), [
 // check array with holes
 var array = [1, , 2, , 3, , 4];
 var group = () => {
-  let result = array.group(v => v % 2 === 0 ? 'even' : 'not_even');
+  let result = Object.groupBy(array, v => v % 2 === 0 ? 'even' : 'not_even');
   result = Array.from(Object.entries(result));
   return result;
 };
@@ -109,23 +107,22 @@ checkNoHoles(result[0][1]);
 checkNoHoles(result[1][1]);
 
 // array like objects
-var arrayLikeObjects = [
-  {
-    '0': -1,
-    '1': 1,
-    '2': 2,
-    length: 3,
-  },
+var iterableObjects = [
+  (function* f(){
+    yield -1;
+    yield 1;
+    yield 2;
+  })(),
   (function () { return arguments })(-1, 1, 2),
   Int8Array.from([-1, 1, 2]),
   Float32Array.from([-1, 1, 2]),
 ];
 var group = () => {
-  let result = Array.prototype.group.call(array, v => v > 0);
+  let result = Object.groupBy(iterable, v => v > 0);
   result = Array.from(Object.entries(result));
   return result;
 };
-for (var array of arrayLikeObjects) {
+for (var iterable of iterableObjects) {
   assertEquals(group(), [
     ['false', [-1]],
     ['true', [1, 2]],
@@ -136,7 +133,7 @@ for (var array of arrayLikeObjects) {
 // check proto elements
 var array = [,];
 var group = () => {
-  let result = array.group(v => v);
+  let result = Object.groupBy(array, v => v);
   result = Array.from(Object.entries(result));
   return result;
 }
@@ -154,7 +151,7 @@ assertEquals(group(), [
 // callbackfn throws
 var array = [-0, 1, 0, 2];
 assertThrows(
-  () => array.group(() => { throw new Error('foobar'); }),
+  () => Object.groupBy(array, () => { throw new Error('foobar'); }),
   Error,
   'foobar'
 );
@@ -163,7 +160,7 @@ assertThrows(
 // ToPropertyKey throws
 var array = [-0, 1, 0, 2];
 assertThrows(
-  () => array.group(() => {
+  () => Object.groupBy(array, () => {
     return {
       toString() {
         throw new Error('foobar');
@@ -178,6 +175,6 @@ assertThrows(
 // callbackfn is not callable
 var array = [-0, 1, 0, 2];
 assertThrows(
-  () => array.group('foobar'),
+  () => Object.groupBy(array, 'foobar'),
   TypeError,
 );

@@ -1902,7 +1902,7 @@ void AccessorAssembler::HandleStoreICProtoHandler(
       TNode<PropertyDictionary> properties =
           CAST(LoadSlowProperties(CAST(p->receiver())));
       TNode<Name> name = CAST(p->name());
-      Add<PropertyDictionary>(properties, name, p->value(), &slow);
+      AddToDictionary<PropertyDictionary>(properties, name, p->value(), &slow);
       UpdateMayHaveInterestingSymbol(properties, name);
       Return(p->value());
 

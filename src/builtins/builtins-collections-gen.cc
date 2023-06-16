@@ -1390,7 +1390,7 @@ CollectionsBuiltinsAssembler::NextKeyIndexPair(
     Label* if_end);
 
 TorqueStructKeyValueIndexTuple
-CollectionsBuiltinsAssembler::NextKeyValueIndexTuple(
+CollectionsBuiltinsAssembler::NextKeyValueIndexTupleUnmodifiedMap(
     const TNode<OrderedHashMap> table, const TNode<Int32T> number_of_buckets,
     const TNode<Int32T> used_capacity, const TNode<IntPtrT> index,
     Label* if_end) {
@@ -1478,7 +1478,6 @@ TNode<CollectionType> CollectionsBuiltinsAssembler::AddToOrderedHashTable(
     const StoreAtEntry<CollectionType>& store_at_new_entry,
     const StoreAtEntry<CollectionType>& store_at_existing_entry) {
   TVARIABLE(CollectionType, table_var, table);
-
   TVARIABLE(IntPtrT, entry_start_position_or_hash, IntPtrConstant(0));
   Label entry_found(this), not_found(this), done(this);
 
@@ -2269,6 +2268,50 @@ TF_BUILTIN(FindOrderedHashSetEntry, CollectionsBuiltinsAssembler) {
 
   BIND(&not_found);
   Return(SmiConstant(-1));
+}
+
+const TNode<OrderedHashMap> CollectionsBuiltinsAssembler::AddValueToKeyedGroup(
+    const TNode<OrderedHashMap> groups, const TNode<Object> key,
+    const TNode<Object> value, const TNode<String> methodName) {
+  GrowCollection<OrderedHashMap> grow = [this, groups, methodName]() {
+    TNode<OrderedHashMap> new_groups =
+        CAST(CallRuntime(Runtime::kOrderedHashMapEnsureGrowable,
+                         NoContextConstant(), groups, methodName));
+    // The groups OrderedHashMap is not escaped to user script while grouping
+    // items, so there can't be live iterators. So we don't need to keep the
+    // pointer from the old table to the new one.
+    Label did_grow(this), done(this);
+    Branch(TaggedEqual(groups, new_groups), &done, &did_grow);
+    BIND(&did_grow);
+    {
+      StoreObjectFieldNoWriteBarrier(groups, OrderedHashMap::NextTableIndex(),
+                                     SmiConstant(0));
+      Goto(&done);
+    }
+    BIND(&done);
+    return new_groups;
+  };
+
+  StoreAtEntry<OrderedHashMap> store_at_new_entry =
+      [this, key, value](const TNode<OrderedHashMap> table,
+                         const TNode<IntPtrT> entry_start) {
+        TNode<ArrayList> array = AllocateArrayList(SmiConstant(1));
+        ArrayListSet(array, SmiConstant(0), value);
+        ArrayListSetLength(array, SmiConstant(1));
+        StoreKeyValueInOrderedHashMapEntry(table, key, array, entry_start);
+      };
+
+  StoreAtEntry<OrderedHashMap> store_at_existing_entry =
+      [this, key, value](const TNode<OrderedHashMap> table,
+                         const TNode<IntPtrT> entry_start) {
+        TNode<ArrayList> array =
+            CAST(LoadValueFromOrderedHashMapEntry(table, entry_start));
+        TNode<ArrayList> new_array = ArrayListAdd(array, value);
+        StoreKeyValueInOrderedHashMapEntry(table, key, new_array, entry_start);
+      };
+
+  return AddToOrderedHashTable(groups, key, grow, store_at_new_entry,
+                               store_at_existing_entry);
 }
 
 void WeakCollectionsBuiltinsAssembler::AddEntry(

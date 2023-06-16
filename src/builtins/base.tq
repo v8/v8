@@ -781,11 +781,19 @@ extern macro SpeciesConstructor(implicit context: Context)(
 extern macro ConstructorBuiltinsAssembler::IsDictionaryMap(Map): bool;
 extern macro CodeStubAssembler::AllocateNameDictionary(constexpr int32):
     NameDictionary;
+extern macro CodeStubAssembler::AllocateNameDictionary(intptr): NameDictionary;
 extern macro CodeStubAssembler::AllocateOrderedNameDictionary(constexpr int32):
     OrderedNameDictionary;
 extern macro CodeStubAssembler::AllocateSwissNameDictionary(constexpr int32):
     SwissNameDictionary;
-extern macro CodeStubAssembler::AllocateOrderedHashSet(): OrderedHashSet;
+
+extern macro CodeStubAssembler::AddToDictionary(
+    NameDictionary, Name, Object): void labels Bailout;
+extern macro CodeStubAssembler::AddToDictionary(
+    SwissNameDictionary, Name, Object): void labels Bailout;
+
+extern macro AllocateOrderedHashSet(): OrderedHashSet;
+extern macro AllocateOrderedHashMap(): OrderedHashMap;
 
 extern builtin ToObject(Context, JSAny): JSReceiver;
 extern macro ToObject_Inline(Context, JSAny): JSReceiver;
@@ -812,6 +820,8 @@ transitioning macro ToPrimitiveDefault(implicit context: Context)(v: JSAny):
 extern transitioning runtime NormalizeElements(Context, JSObject): void;
 extern transitioning runtime TransitionElementsKindWithKind(
     Context, JSObject, Smi): void;
+
+extern macro ArrayListElements(ArrayList): FixedArray;
 
 extern macro LoadObjectField(HeapObject, constexpr int32): Object;
 
@@ -1901,6 +1911,8 @@ GetDerivedMap(Context, JSFunction, JSReceiver, JSAny): Map;
 }
 extern macro IsDeprecatedMap(Map): bool;
 
+extern macro LoadSlowObjectWithNullPrototypeMap(NativeContext): Map;
+
 transitioning builtin FastCreateDataProperty(implicit context: Context)(
     receiver: JSReceiver, key: JSAny, value: JSAny): Object {
   try {
@@ -2068,6 +2080,8 @@ operator '==' macro HashFieldTypeEquals(
 const kNoHashSentinel:
     constexpr int32 generates 'PropertyArray::kNoHashSentinel';
 extern macro LoadNameHash(Name): uint32;
+
+extern transitioning builtin ToName(implicit context: Context)(JSAny): AnyName;
 
 extern macro LoadSimd128(intptr): Simd128;
 extern macro I8x16BitMask(I8X16): int32;

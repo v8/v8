@@ -4938,8 +4938,7 @@ void Genesis::InitializeGlobal_harmony_array_grouping() {
   Handle<JSObject> array_prototype(
       JSObject::cast(array_function->instance_prototype()), isolate());
 
-  SimpleInstallFunction(isolate_, array_prototype, "group",
-                        Builtin::kArrayPrototypeGroup, 1, false);
+  // TODO(v8:12499): Remove groupToMap once Map.groupBy implemented.
   SimpleInstallFunction(isolate_, array_prototype, "groupToMap",
                         Builtin::kArrayPrototypeGroupToMap, 1, false);
 
@@ -4947,9 +4946,16 @@ void Genesis::InitializeGlobal_harmony_array_grouping() {
       JSObject::GetProperty(isolate(), array_prototype,
                             isolate()->factory()->unscopables_symbol())
           .ToHandleChecked());
-
-  InstallTrueValuedProperty(isolate_, unscopables, "group");
   InstallTrueValuedProperty(isolate_, unscopables, "groupToMap");
+
+  Handle<JSFunction> object_function(native_context()->object_function(),
+                                     isolate());
+  Handle<JSFunction> map_function(native_context()->js_map_fun(), isolate());
+
+  SimpleInstallFunction(isolate_, object_function, "groupBy",
+                        Builtin::kObjectGroupBy, 2, true);
+  SimpleInstallFunction(isolate_, map_function, "groupBy", Builtin::kMapGroupBy,
+                        2, true);
 }
 
 void Genesis::InitializeGlobal_sharedarraybuffer() {

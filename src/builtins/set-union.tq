@@ -47,7 +47,8 @@ transitioning javascript builtin SetPrototypeUnion(
         const otherTable =
             Cast<OrderedHashMap>(otherMap.table) otherwise unreachable;
 
-        let otherIterator = collections::NewOrderedHashMapIterator(otherTable);
+        let otherIterator =
+            collections::NewUnmodifiedOrderedHashMapIterator(otherTable);
 
         while (true) {
           const nextValue = otherIterator.Next() otherwise Done;

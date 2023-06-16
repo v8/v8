@@ -9269,8 +9269,9 @@ void CodeStubAssembler::InsertEntry<GlobalDictionary>(
 }
 
 template <class Dictionary>
-void CodeStubAssembler::Add(TNode<Dictionary> dictionary, TNode<Name> key,
-                            TNode<Object> value, Label* bailout) {
+void CodeStubAssembler::AddToDictionary(TNode<Dictionary> dictionary,
+                                        TNode<Name> key, TNode<Object> value,
+                                        Label* bailout) {
   CSA_DCHECK(this, Word32BinaryNot(IsEmptyPropertyDictionary(dictionary)));
   TNode<Smi> capacity = GetCapacity<Dictionary>(dictionary);
   TNode<Smi> nof = GetNumberOfElements<Dictionary>(dictionary);
@@ -9305,9 +9306,9 @@ void CodeStubAssembler::Add(TNode<Dictionary> dictionary, TNode<Name> key,
 }
 
 template <>
-void CodeStubAssembler::Add(TNode<SwissNameDictionary> dictionary,
-                            TNode<Name> key, TNode<Object> value,
-                            Label* bailout) {
+void CodeStubAssembler::AddToDictionary(TNode<SwissNameDictionary> dictionary,
+                                        TNode<Name> key, TNode<Object> value,
+                                        Label* bailout) {
   PropertyDetails d(PropertyKind::kData, NONE,
                     PropertyDetails::kConstIfDictConstnessTracking);
 
@@ -9329,9 +9330,8 @@ void CodeStubAssembler::Add(TNode<SwissNameDictionary> dictionary,
   SwissNameDictionaryAdd(dictionary, key, value, var_details.value(), bailout);
 }
 
-template void CodeStubAssembler::Add<NameDictionary>(TNode<NameDictionary>,
-                                                     TNode<Name>, TNode<Object>,
-                                                     Label*);
+template void CodeStubAssembler::AddToDictionary<NameDictionary>(
+    TNode<NameDictionary>, TNode<Name>, TNode<Object>, Label*);
 
 template <class Dictionary>
 TNode<Smi> CodeStubAssembler::GetNumberOfElements(
