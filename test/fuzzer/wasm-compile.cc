@@ -3151,12 +3151,44 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
     uint8_t num_arrays = 1 + module_range.get<uint8_t>() % kMaxArrays;
     uint16_t num_types = num_functions + num_structs + num_arrays;
 
-    for (int struct_index = 0; struct_index < num_structs; struct_index++) {
+    // (Type_index -> end of explicit rec group).
+    std::map<uint8_t, uint8_t> explicit_rec_groups;
+    {
+      uint8_t current_type_index = 0;
+      while (current_type_index < num_types) {
+        // First, pick a random start for the next group. We allow it to be
+        // beyond the end of types (i.e., we add no further recursive groups).
+        uint8_t group_start =
+            module_range.get<uint8_t>() % (num_types - current_type_index + 1) +
+            current_type_index;
+        DCHECK_GE(group_start, current_type_index);
+        current_type_index = group_start;
+        if (group_start < num_types) {
+          // If we did not reach the end of the types, pick a random group size.
+          uint8_t group_size =
+              module_range.get<uint8_t>() % (num_types - group_start) + 1;
+          DCHECK_LE(group_start + group_size, num_types);
+          for (uint8_t i = group_start; i < group_start + group_size; i++) {
+            explicit_rec_groups.emplace(i, group_start + group_size - 1);
+          }
+          builder.AddRecursiveTypeGroup(group_start, group_size);
+          current_type_index += group_size;
+        }
+      }
+    }
+
+    uint8_t current_type_index = 0;
+    for (; current_type_index < num_structs; current_type_index++) {
+      auto rec_group = explicit_rec_groups.find(current_type_index);
+      uint8_t current_rec_group_end = rec_group != explicit_rec_groups.end()
+                                          ? rec_group->second
+                                          : current_type_index;
+
       uint32_t supertype = kNoSuperType;
       uint8_t num_fields = module_range.get<uint8_t>() % (kMaxStructFields + 1);
 
-      if (struct_index > 0 && module_range.get<bool>()) {
-        supertype = module_range.get<uint8_t>() % struct_index;
+      if (current_type_index > 0 && module_range.get<bool>()) {
+        supertype = module_range.get<uint8_t>() % current_type_index;
         num_fields += builder.GetStructType(supertype)->field_count();
       }
       StructType::Builder struct_builder(zone, num_fields);
@@ -3172,25 +3204,20 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
                                   parent->mutability(field_index));
         }
       }
-
       for (; field_index < num_fields; field_index++) {
         // Notes:
         // - We allow a type to only have non-nullable fields of types that
         //   are defined earlier. This way we avoid infinite non-nullable
         //   constructions. Also relevant for arrays and functions.
-        // - Currently, we also allow nullable fields to only reference types
-        //   that are defined earlier. The reason is that every type can only
-        //   reference types in its own or earlier recursive groups, and we do
-        //   not support recursive groups yet. Also relevant for arrays and
-        //   functions. TODO(14034): Change the number of nullable types once
-        //   we support rec. groups.
+        // - On the other hand, nullable fields can be picked up to the end of
+        //   the current recursive group.
         // - We exclude the non-nullable generic types arrayref, anyref,
         //   structref, eqref and externref from the fields of structs and
         //   arrays. This is so that GenerateInitExpr has a way to break a
         //   recursion between a struct/array field and those types
         //   ((ref extern) gets materialized through (ref any)).
         ValueType type = GetValueTypeHelper(
-            &module_range, builder.NumTypes(), builder.NumTypes(),
+            &module_range, current_rec_group_end + 1, current_type_index,
             kIncludeNumericTypes, kIncludePackedTypes,
             kExcludeSomeGenericsWhenTypeIsNonNullable);
 
@@ -3201,14 +3228,21 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
       builder.AddStructType(struct_fuz, false, supertype);
     }
 
-    for (int array_index = 0; array_index < num_arrays; array_index++) {
+    for (; current_type_index < num_structs + num_arrays;
+         current_type_index++) {
+      auto rec_group = explicit_rec_groups.find(current_type_index);
+      uint8_t current_rec_group_end = rec_group != explicit_rec_groups.end()
+                                          ? rec_group->second
+                                          : current_type_index;
       ValueType type = GetValueTypeHelper(
-          &module_range, builder.NumTypes(), builder.NumTypes(),
+          &module_range, current_rec_group_end + 1, current_type_index,
           kIncludeNumericTypes, kIncludePackedTypes,
           kExcludeSomeGenericsWhenTypeIsNonNullable);
       uint32_t supertype = kNoSuperType;
-      if (array_index > 0 && module_range.get<bool>()) {
-        supertype = (module_range.get<uint8_t>() % array_index) + num_structs;
+      if (current_type_index > num_structs && module_range.get<bool>()) {
+        supertype =
+            module_range.get<uint8_t>() % (current_type_index - num_structs) +
+            num_structs;
         // TODO(14034): This could also be any sub type of the supertype's
         // element type.
         type = builder.GetArrayType(supertype)->element_type();
@@ -3220,10 +3254,15 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
     // We keep the signature for the first (main) function constant.
     function_signatures.push_back(
         builder.ForceAddSignature(sigs.i_iii(), v8_flags.wasm_final_types));
+    current_type_index++;
 
-    for (uint8_t i = 1; i < num_functions; i++) {
-      FunctionSig* sig =
-          GenerateSig(zone, &module_range, kFunctionSig, builder.NumTypes());
+    for (; current_type_index < num_types; current_type_index++) {
+      auto rec_group = explicit_rec_groups.find(current_type_index);
+      uint8_t current_rec_group_end = rec_group != explicit_rec_groups.end()
+                                          ? rec_group->second
+                                          : current_type_index;
+      FunctionSig* sig = GenerateSig(zone, &module_range, kFunctionSig,
+                                     current_rec_group_end + 1);
       uint32_t signature_index =
           builder.ForceAddSignature(sig, v8_flags.wasm_final_types);
       function_signatures.push_back(signature_index);

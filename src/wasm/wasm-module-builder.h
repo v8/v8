@@ -380,6 +380,10 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
     current_recursive_group_start_ = -1;
   }
 
+  void AddRecursiveTypeGroup(uint32_t start, uint32_t size) {
+    recursive_groups_.emplace(start, size);
+  }
+
   // Writing methods.
   void WriteTo(ZoneBuffer* buffer) const;
   void WriteAsmJsOffsetTable(ZoneBuffer* buffer) const;

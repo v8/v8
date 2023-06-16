@@ -112,12 +112,14 @@ ModuleResult DecodeWasmModule(
   return result;
 }
 
-ModuleResult DecodeWasmModule(WasmFeatures enabled_features,
-                              base::Vector<const uint8_t> wire_bytes,
-                              bool validate_functions, ModuleOrigin origin) {
+ModuleResult DecodeWasmModule(
+    WasmFeatures enabled_features, base::Vector<const uint8_t> wire_bytes,
+    bool validate_functions, ModuleOrigin origin,
+    PopulateExplicitRecGroups populate_explicit_rec_groups) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
                "wasm.DecodeWasmModule");
-  ModuleDecoderImpl decoder{enabled_features, wire_bytes, origin};
+  ModuleDecoderImpl decoder{enabled_features, wire_bytes, origin,
+                            populate_explicit_rec_groups};
   return decoder.DecodeModule(validate_functions);
 }
 

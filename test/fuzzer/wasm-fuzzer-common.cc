@@ -525,9 +525,9 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
                       bool compiles) {
   constexpr bool kVerifyFunctions = false;
   auto enabled_features = WasmFeatures::FromIsolate(isolate);
-  ModuleResult module_res =
-      DecodeWasmModule(enabled_features, wire_bytes.module_bytes(),
-                       kVerifyFunctions, ModuleOrigin::kWasmOrigin);
+  ModuleResult module_res = DecodeWasmModule(
+      enabled_features, wire_bytes.module_bytes(), kVerifyFunctions,
+      ModuleOrigin::kWasmOrigin, kPopulateExplicitRecGroups);
   CHECK_WITH_MSG(module_res.ok(), module_res.error().message().c_str());
   WasmModule* module = module_res.value().get();
   CHECK_NOT_NULL(module);
@@ -560,7 +560,13 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
         "\n"
         "const builder = new WasmModuleBuilder();\n";
 
+  int recursive_group_end = -1;
   for (int i = 0; i < static_cast<int>(module->types.size()); i++) {
+    auto rec_group = module->explicit_recursive_type_groups.find(i);
+    if (rec_group != module->explicit_recursive_type_groups.end()) {
+      os << "builder.startRecGroup();\n";
+      recursive_group_end = rec_group->first + rec_group->second - 1;
+    }
     if (module->has_struct(i)) {
       const StructType* struct_type = module->types[i].struct_type;
       os << "builder.addStruct([";
@@ -590,6 +596,10 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
       const FunctionSig* sig = module->types[i].function_sig;
       os << "builder.addType(makeSig(" << PrintParameters(sig) << ", "
          << PrintReturns(sig) << "));\n";
+    }
+
+    if (i == recursive_group_end) {
+      os << "builder.endRecGroup();\n";
     }
   }
 

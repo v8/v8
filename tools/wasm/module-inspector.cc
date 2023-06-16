@@ -1114,7 +1114,8 @@ class FormatConverter {
 DumpingModuleDecoder::DumpingModuleDecoder(ModuleWireBytes wire_bytes,
                                            HexDumpModuleDis* module_dis)
     : ModuleDecoderImpl(WasmFeatures::All(), wire_bytes.module_bytes(),
-                        kWasmOrigin, module_dis) {}
+                        kWasmOrigin, kDoNotPopulateExplicitRecGroups,
+                        module_dis) {}
 
 }  // namespace wasm
 }  // namespace internal
