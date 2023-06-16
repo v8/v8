@@ -37,6 +37,7 @@ ALL_VARIANT_FLAGS = {
     "concurrent_sparkplug": [["--concurrent-sparkplug", "--sparkplug"]],
     "always_sparkplug": [["--always-sparkplug", "--sparkplug"]],
     "minor_mc": [["--minor-mc"]],
+    "concurrent_minor_mc": [["--minor-mc", "--concurrent-minor-mc-marking"]],
     "no_lfa": [["--no-lazy-feedback-allocation"]],
     # No optimization means disable all optimizations. OptimizeFunctionOnNextCall
     # would not force optimization too. It turns into a Nop. Please see
