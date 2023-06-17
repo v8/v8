@@ -16,8 +16,7 @@ load(
     "v8_library",
     "v8_mksnapshot",
     "v8_string",
-    "v8_torque_definitions",
-    "v8_torque_initializers",
+    "v8_torque_files",
 )
 load(":bazel/v8-non-pointer-compression.bzl", "v8_binary_non_pointer_compression")
 
@@ -3556,10 +3555,36 @@ filegroup(
 # Generated files
 # =================================================
 
+# Define file groups for torque definitions and initializers. Both are
+# generated together, but we can use output_group to split them.
+filegroup(
+    name = "icu/generated_torque_definitions",
+    srcs = [":icu/generated_torque_files"],
+    output_group = "definitions",
+)
+
+filegroup(
+    name = "noicu/generated_torque_definitions",
+    srcs = [":noicu/generated_torque_files"],
+    output_group = "definitions",
+)
+
+filegroup(
+    name = "icu/generated_torque_initializers",
+    srcs = [":icu/generated_torque_files"],
+    output_group = "initializers",
+)
+
+filegroup(
+    name = "noicu/generated_torque_initializers",
+    srcs = [":noicu/generated_torque_files"],
+    output_group = "initializers",
+)
+
 # TODO(victorgomes): Add support to tools/debug_helper,
 # which needs class-debug-readers and debug-macros.
-v8_torque_definitions(
-    name = "generated_torque_definitions",
+v8_torque_files(
+    name = "generated_torque_files",
     args = select({
         ":is_v8_annotate_torque_ir": ["-annotate-ir"],
         "//conditions:default": [],
@@ -3567,7 +3592,13 @@ v8_torque_definitions(
         "@v8//bazel/config:v8_target_is_32_bits": ["-m32"],
         "//conditions:default": [],
     }),
-    extras = [
+    initializer_extras = [
+        "csa-types.h",
+        "enum-verifiers.cc",
+        "exported-macros-assembler.cc",
+        "exported-macros-assembler.h",
+    ],
+    definition_extras = [
         "bit-fields.h",
         "builtin-definitions.h",
         # "class-debug-readers.cc",
@@ -3584,25 +3615,7 @@ v8_torque_definitions(
         "objects-body-descriptors-inl.inc",
         "objects-printer.cc",
         "visitor-lists.h",
-    ],
-    icu_srcs = [":icu/torque_files"],
-    noicu_srcs = [":noicu/torque_files"],
-)
 
-v8_torque_initializers(
-    name = "generated_torque_initializers",
-    args = select({
-        ":is_v8_annotate_torque_ir": ["-annotate-ir"],
-        "//conditions:default": [],
-    }) + select({
-        "@v8//bazel/config:v8_target_is_32_bits": ["-m32"],
-        "//conditions:default": [],
-    }),
-    extras = [
-        "csa-types.h",
-        "enum-verifiers.cc",
-        "exported-macros-assembler.cc",
-        "exported-macros-assembler.h",
     ],
     icu_srcs = [":icu/torque_files"],
     noicu_srcs = [":noicu/torque_files"],
