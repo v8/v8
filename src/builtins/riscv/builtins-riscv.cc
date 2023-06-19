@@ -943,7 +943,7 @@ static void AdvanceBytecodeOffsetOrReturn(MacroAssembler* masm,
 
 namespace {
 void ResetSharedFunctionInfoAge(MacroAssembler* masm, Register sfi) {
-  __ StoreWord(zero_reg, FieldMemOperand(sfi, SharedFunctionInfo::kAgeOffset));
+  __ Sh(zero_reg, FieldMemOperand(sfi, SharedFunctionInfo::kAgeOffset));
 }
 
 void ResetJSFunctionAge(MacroAssembler* masm, Register js_function,
