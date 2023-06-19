@@ -2078,7 +2078,7 @@ void EmitPolymorphicAccesses(MaglevAssembler* masm, NodeT* node,
     bool has_number_map = false;
     if (HasOnlyStringMaps(base::VectorOf(maps))) {
       MaglevAssembler::ScratchRegisterScope temps(masm);
-      Register scratch = temps.Acquire();
+      Register scratch = temps.GetDefaultScratchRegister();
       __ CompareInstanceTypeRange(object_map, scratch, FIRST_STRING_TYPE,
                                   LAST_STRING_TYPE);
       __ JumpIf(kUnsignedGreaterThan, &next);
