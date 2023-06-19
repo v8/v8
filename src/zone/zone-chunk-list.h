@@ -31,7 +31,9 @@ class ZoneChunkListIterator;
 // This list will maintain a doubly-linked list of chunks. When a chunk is
 // filled up, a new one gets appended. New chunks appended at the end will
 // grow in size up to a certain limit to avoid over-allocation and to keep
-// the zone clean.
+// the zone clean. Chunks may be partially filled. In particular, chunks may
+// be empty after rewinding, such that they can be reused when inserting
+// again at a later point in time.
 template <typename T>
 class ZoneChunkList : public ZoneObject {
  public:
@@ -49,10 +51,12 @@ class ZoneChunkList : public ZoneObject {
   ZoneChunkList& operator=(const ZoneChunkList&) = delete;
 
   size_t size() const { return size_; }
-  bool is_empty() const { return size() == 0; }
+  bool empty() const { return size() == 0; }
 
-  T& front() const;
-  T& back() const;
+  T& front();
+  const T& front() const;
+  T& back();
+  const T& back() const;
 
   void push_back(const T& item);
 
@@ -99,6 +103,12 @@ class ZoneChunkList : public ZoneObject {
     Chunk* previous_ = nullptr;
     T* items() { return reinterpret_cast<T*>(this + 1); }
     const T* items() const { return reinterpret_cast<const T*>(this + 1); }
+    uint32_t size() const {
+      DCHECK_LE(position_, capacity_);
+      return position_;
+    }
+    bool empty() const { return size() == 0; }
+    bool full() const { return size() == capacity_; }
   };
 
   Chunk* NewChunk(const uint32_t capacity) {
@@ -106,6 +116,10 @@ class ZoneChunkList : public ZoneObject {
     Chunk* chunk = new (memory) Chunk();
     chunk->capacity_ = capacity;
     return chunk;
+  }
+
+  static uint32_t NextChunkCapacity(uint32_t previous_capacity) {
+    return std::min(previous_capacity * 2, kMaxChunkCapacity);
   }
 
   struct SeekResult {
@@ -117,11 +131,45 @@ class ZoneChunkList : public ZoneObject {
   // index. Will skip entire chunks and is therefore faster than iterating.
   SeekResult SeekIndex(size_t index) const;
 
+#ifdef DEBUG
+  // Check the invariants.
+  void Verify() const {
+    if (front_ == nullptr) {
+      // Initial empty state.
+      DCHECK_NULL(last_nonempty_);
+      DCHECK_EQ(0, size());
+    } else if (empty()) {
+      // Special case: Fully rewound list, with only empty chunks.
+      DCHECK_EQ(front_, last_nonempty_);
+      DCHECK_EQ(0, size());
+      for (Chunk* chunk = front_; chunk != nullptr; chunk = chunk->next_) {
+        DCHECK(chunk->empty());
+      }
+    } else {
+      // Normal state: Somewhat filled and (partially) rewound.
+      DCHECK_NOT_NULL(last_nonempty_);
+
+      size_t size_check = 0;
+      bool in_empty_tail = false;
+      for (Chunk* chunk = front_; chunk != nullptr; chunk = chunk->next_) {
+        // Chunks from `front_` to `last_nonempty_` (inclusive) are non-empty.
+        DCHECK_EQ(in_empty_tail, chunk->empty());
+        size_check += chunk->size();
+
+        if (chunk == last_nonempty_) {
+          in_empty_tail = true;
+        }
+      }
+      DCHECK_EQ(size_check, size());
+    }
+  }
+#endif
+
   Zone* zone_;
 
   size_t size_ = 0;
   Chunk* front_ = nullptr;
-  Chunk* back_ = nullptr;
+  Chunk* last_nonempty_ = nullptr;
 };
 
 template <typename T, bool backwards, bool modifiable>
@@ -168,9 +216,11 @@ class ZoneChunkListIterator
   }
 
   void Advance(int amount) {
+    static_assert(!backwards, "Advance only works on forward iterators");
+
     // Move forwards.
     DCHECK_GE(amount, 0);
-#if DEBUG
+#ifdef DEBUG
     ZoneChunkListIterator clone(*this);
     for (int i = 0; i < amount; ++i) {
       ++clone;
@@ -178,15 +228,15 @@ class ZoneChunkListIterator
 #endif
 
     position_ += amount;
-    while (position_ > 0 && position_ >= current_->capacity_) {
-      auto overshoot = position_ - current_->capacity_;
+    while (position_ > 0 && position_ >= current_->position_) {
+      auto overshoot = position_ - current_->position_;
       current_ = current_->next_;
       position_ = overshoot;
 
       DCHECK(position_ == 0 || current_);
     }
 
-#if DEBUG
+#ifdef DEBUG
     DCHECK_EQ(clone, *this);
 #endif
   }
@@ -199,16 +249,11 @@ class ZoneChunkListIterator
     if (!backwards) return ZoneChunkListIterator(list->front_, 0);
 
     // Backward iterator:
-    if (list->back_ == nullptr) return End(list);
-    if (list->back_->position_ == 0) {
-      if (list->back_->previous_ != nullptr) {
-        return ZoneChunkListIterator(list->back_->previous_,
-                                     list->back_->previous_->capacity_ - 1);
-      } else {
-        return End(list);
-      }
-    }
-    return ZoneChunkListIterator(list->back_, list->back_->position_ - 1);
+    if (list->empty()) return End(list);
+
+    DCHECK(!list->last_nonempty_->empty());
+    return ZoneChunkListIterator(list->last_nonempty_,
+                                 list->last_nonempty_->position_ - 1);
   }
 
   static ZoneChunkListIterator End(ChunkList* list) {
@@ -216,14 +261,9 @@ class ZoneChunkListIterator
     if (backwards) return ZoneChunkListIterator(nullptr, 0);
 
     // Forward iterator:
-    if (list->back_ == nullptr) return Begin(list);
+    if (list->empty()) return Begin(list);
 
-    DCHECK_LE(list->back_->position_, list->back_->capacity_);
-    if (list->back_->position_ == list->back_->capacity_) {
-      return ZoneChunkListIterator(list->back_->next_, 0);
-    }
-
-    return ZoneChunkListIterator(list->back_, list->back_->position_);
+    return ZoneChunkListIterator(list->last_nonempty_->next_, 0);
   }
 
   ZoneChunkListIterator(Chunk* current, size_t position)
@@ -237,14 +277,14 @@ class ZoneChunkListIterator
       // Move backwards.
       if (position_ == 0) {
         current_ = current_->previous_;
-        position_ = current_ ? current_->capacity_ - 1 : 0;
+        position_ = current_ ? current_->position_ - 1 : 0;
       } else {
         --position_;
       }
     } else {
       // Move forwards.
       ++position_;
-      if (position_ >= current_->capacity_) {
+      if (position_ >= current_->position_) {
         current_ = current_->next_;
         position_ = 0;
       }
@@ -256,43 +296,54 @@ class ZoneChunkListIterator
 };
 
 template <typename T>
-T& ZoneChunkList<T>::front() const {
-  DCHECK_LT(size_t(0), size());
-  return front_->items()[0];
+T& ZoneChunkList<T>::front() {
+  DCHECK(!empty());
+  return *begin();
 }
 
 template <typename T>
-T& ZoneChunkList<T>::back() const {
-  DCHECK_LT(size_t(0), size());
+const T& ZoneChunkList<T>::front() const {
+  DCHECK(!empty());
+  return *begin();
+}
 
-  if (back_->position_ == 0) {
-    return back_->previous_->items()[back_->previous_->position_ - 1];
-  } else {
-    return back_->items()[back_->position_ - 1];
-  }
+template <typename T>
+T& ZoneChunkList<T>::back() {
+  DCHECK(!empty());
+  // Avoid the branch in `ZoneChunkListIterator::Begin()`.
+  V8_ASSUME(size_ != 0);
+  return *rbegin();
+}
+
+template <typename T>
+const T& ZoneChunkList<T>::back() const {
+  DCHECK(!empty());
+  // Avoid the branch in `ZoneChunkListIterator::Begin()`.
+  V8_ASSUME(size_ != 0);
+  return *rbegin();
 }
 
 template <typename T>
 void ZoneChunkList<T>::push_back(const T& item) {
-  if (back_ == nullptr) {
+  if (last_nonempty_ == nullptr) {
+    // Initially empty chunk list.
     front_ = NewChunk(kInitialChunkCapacity);
-    back_ = front_;
+    last_nonempty_ = front_;
+  } else if (last_nonempty_->full()) {
+    // If there is an empty chunk following, reuse that, otherwise allocate.
+    if (last_nonempty_->next_ == nullptr) {
+      Chunk* chunk = NewChunk(NextChunkCapacity(last_nonempty_->capacity_));
+      last_nonempty_->next_ = chunk;
+      chunk->previous_ = last_nonempty_;
+    }
+    last_nonempty_ = last_nonempty_->next_;
+    DCHECK(!last_nonempty_->full());
   }
 
-  DCHECK_LE(back_->position_, back_->capacity_);
-  if (back_->position_ == back_->capacity_) {
-    if (back_->next_ == nullptr) {
-      constexpr auto max_capacity = kMaxChunkCapacity;
-      Chunk* chunk = NewChunk(std::min(back_->capacity_ << 1, max_capacity));
-      back_->next_ = chunk;
-      chunk->previous_ = back_;
-    }
-    back_ = back_->next_;
-  }
-  back_->items()[back_->position_] = item;
-  ++back_->position_;
+  last_nonempty_->items()[last_nonempty_->position_] = item;
+  ++last_nonempty_->position_;
   ++size_;
-  DCHECK_LE(back_->position_, back_->capacity_);
+  DCHECK_LE(last_nonempty_->position_, last_nonempty_->capacity_);
 }
 
 template <typename T>
@@ -302,7 +353,7 @@ void ZoneChunkList<T>::push_front(const T& item) {
   if (front_) {
     front_->previous_ = chunk;
   } else {
-    back_ = chunk;
+    last_nonempty_ = chunk;
   }
   front_ = chunk;
 
@@ -334,8 +385,8 @@ void ZoneChunkList<T>::Rewind(const size_t limit) {
   // Do a partial rewind of the chunk containing the index.
   seek_result.chunk_->position_ = seek_result.chunk_index_;
 
-  // Set back_ so iterators will work correctly.
-  back_ = seek_result.chunk_;
+  // Set last_nonempty_ so iterators will work correctly.
+  last_nonempty_ = seek_result.chunk_;
 
   // Do full rewind of all subsequent chunks.
   for (Chunk* current = seek_result.chunk_->next_; current != nullptr;
@@ -344,6 +395,10 @@ void ZoneChunkList<T>::Rewind(const size_t limit) {
   }
 
   size_ = limit;
+
+#ifdef DEBUG
+  Verify();
+#endif
 }
 
 template <typename T>

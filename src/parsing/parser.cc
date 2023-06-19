@@ -1708,7 +1708,7 @@ Statement* Parser::ParseExportDeclaration() {
         const ImportAssertions* import_assertions = ParseImportAssertClause();
         ExpectSemicolon();
 
-        if (export_data->is_empty()) {
+        if (export_data->empty()) {
           module()->AddEmptyImport(module_specifier, import_assertions,
                                    specifier_loc, zone());
         } else {

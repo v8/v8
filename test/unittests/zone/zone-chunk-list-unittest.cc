@@ -21,10 +21,12 @@ TEST_F(ZoneChunkListTest, ForwardIterationTest) {
   Zone zone(&allocator, ZONE_NAME);
 
   ZoneChunkList<uintptr_t> zone_chunk_list(&zone);
+  EXPECT_EQ(zone_chunk_list.begin(), zone_chunk_list.end());
 
   for (size_t i = 0; i < kItemCount; ++i) {
     zone_chunk_list.push_back(static_cast<uintptr_t>(i));
   }
+  EXPECT_NE(zone_chunk_list.begin(), zone_chunk_list.end());
 
   size_t count = 0;
 
@@ -41,10 +43,12 @@ TEST_F(ZoneChunkListTest, ReverseIterationTest) {
   Zone zone(&allocator, ZONE_NAME);
 
   ZoneChunkList<uintptr_t> zone_chunk_list(&zone);
+  EXPECT_EQ(zone_chunk_list.rbegin(), zone_chunk_list.rend());
 
   for (size_t i = 0; i < kItemCount; ++i) {
     zone_chunk_list.push_back(static_cast<uintptr_t>(i));
   }
+  EXPECT_NE(zone_chunk_list.rbegin(), zone_chunk_list.rend());
 
   size_t count = 0;
 
