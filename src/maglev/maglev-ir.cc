@@ -4549,6 +4549,29 @@ void ConstructWithSpread::GenerateCode(MaglevAssembler* masm,
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
+void SetPendingMessage::SetValueLocationConstraints() {
+  UseRegister(value());
+  DefineAsRegister(this);
+}
+
+void SetPendingMessage::GenerateCode(MaglevAssembler* masm,
+                                     const ProcessingState& state) {
+  Register new_message = ToRegister(value());
+  Register return_value = ToRegister(result());
+  MaglevAssembler::ScratchRegisterScope temps(masm);
+  Register scratch = temps.GetDefaultScratchRegister();
+  MemOperand pending_message_operand = __ ExternalReferenceAsOperand(
+      ExternalReference::address_of_pending_message(masm->isolate()), scratch);
+  if (new_message != return_value) {
+    __ Move(return_value, pending_message_operand);
+    __ Move(pending_message_operand, new_message);
+  } else {
+    __ Move(scratch, pending_message_operand);
+    __ Move(pending_message_operand, new_message);
+    __ Move(return_value, scratch);
+  }
+}
+
 int TransitionElementsKindOrCheckMap::MaxCallStackArgs() const {
   return std::max(WriteBarrierDescriptor::GetStackParameterCount(), 2);
 }

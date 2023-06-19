@@ -1376,32 +1376,6 @@ void StoreDoubleDataViewElement::GenerateCode(MaglevAssembler* masm,
   }
 }
 
-void SetPendingMessage::SetValueLocationConstraints() {
-  UseRegister(value());
-  DefineAsRegister(this);
-}
-
-void SetPendingMessage::GenerateCode(MaglevAssembler* masm,
-                                     const ProcessingState& state) {
-  Register new_message = ToRegister(value());
-  Register return_value = ToRegister(result());
-
-  MaglevAssembler::ScratchRegisterScope temps(masm);
-  Register scratch0 = temps.Acquire();
-  MemOperand pending_message_operand = __ ExternalReferenceAsOperand(
-      ExternalReference::address_of_pending_message(masm->isolate()), scratch0);
-
-  if (new_message != return_value) {
-    __ Ldr(return_value, pending_message_operand);
-    __ Str(new_message, pending_message_operand);
-  } else {
-    Register scratch1 = temps.Acquire();
-    __ Ldr(scratch1, pending_message_operand);
-    __ Str(new_message, pending_message_operand);
-    __ Move(return_value, scratch1);
-  }
-}
-
 int FunctionEntryStackCheck::MaxCallStackArgs() const { return 1; }
 void FunctionEntryStackCheck::SetValueLocationConstraints() {
   set_temporaries_needed(2);

@@ -707,16 +707,6 @@ void StoreDoubleDataViewElement::GenerateCode(MaglevAssembler* masm,
   MAGLEV_NODE_NOT_IMPLEMENTED(StoreDoubleDataViewElement);
 }
 
-void SetPendingMessage::SetValueLocationConstraints() {
-  UseRegister(value());
-  DefineAsRegister(this);
-}
-
-void SetPendingMessage::GenerateCode(MaglevAssembler* masm,
-                                     const ProcessingState& state) {
-  MAGLEV_NODE_NOT_IMPLEMENTED(SetPendingMessage);
-}
-
 int FunctionEntryStackCheck::MaxCallStackArgs() const { return 1; }
 void FunctionEntryStackCheck::SetValueLocationConstraints() {
   set_temporaries_needed(2);

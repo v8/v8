@@ -1291,33 +1291,6 @@ void HoleyFloat64ToMaybeNanFloat64::GenerateCode(MaglevAssembler* masm,
   __ Subsd(value, kScratchDoubleReg);
 }
 
-void SetPendingMessage::SetValueLocationConstraints() {
-  UseRegister(value());
-  set_temporaries_needed(1);
-  DefineAsRegister(this);
-}
-
-void SetPendingMessage::GenerateCode(MaglevAssembler* masm,
-                                     const ProcessingState& state) {
-  Register new_message = ToRegister(value());
-  Register return_value = ToRegister(result());
-
-  MemOperand pending_message_operand = __ ExternalReferenceAsOperand(
-      ExternalReference::address_of_pending_message(masm->isolate()),
-      kScratchRegister);
-
-  if (new_message != return_value) {
-    __ Move(return_value, pending_message_operand);
-    __ movq(pending_message_operand, new_message);
-  } else {
-    MaglevAssembler::ScratchRegisterScope temps(masm);
-    Register scratch = temps.Acquire();
-    __ Move(scratch, pending_message_operand);
-    __ movq(pending_message_operand, new_message);
-    __ Move(return_value, scratch);
-  }
-}
-
 void CheckedTruncateFloat64ToUint32::SetValueLocationConstraints() {
   UseRegister(input());
   DefineAsRegister(this);
