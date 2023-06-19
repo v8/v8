@@ -251,6 +251,7 @@ namespace internal {
   F(PerformMicrotaskCheckpoint, 0, 1)                      \
   F(SharedValueBarrierSlow, 1, 1)                          \
   F(StackGuard, 0, 1)                                      \
+  F(HandleNoHeapWritesInterrupts, 0, 1)                    \
   F(StackGuardWithGap, 1, 1)                               \
   F(Throw, 1, 1)                                           \
   F(ThrowApplyNonFunction, 1, 1)                           \

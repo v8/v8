@@ -298,7 +298,8 @@ RUNTIME_FUNCTION(Runtime_WasmStackGuard) {
   StackLimitCheck check(isolate);
   if (check.JsHasOverflowed()) return isolate->StackOverflow();
 
-  return isolate->stack_guard()->HandleInterrupts();
+  return isolate->stack_guard()->HandleInterrupts(
+      StackGuard::InterruptLevel::kAnyEffect);
 }
 
 RUNTIME_FUNCTION(Runtime_WasmCompileLazy) {
