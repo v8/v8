@@ -36,24 +36,28 @@ function CreateWasmObjects() {
   };
 }
 
-function testThrowsRepeated(fn, ErrorType) {
-  %PrepareFunctionForOptimization(fn);
-  for (let i = 0; i < 5; i++) assertThrows(fn, ErrorType);
-  %OptimizeFunctionOnNextCall(fn);
-  assertThrows(fn, ErrorType);
-  // TODO(7748): This assertion doesn't hold true, as some cases run into
-  // deopt loops.
-  // assertTrue(%ActiveTierIsTurbofan(fn));
+function testThrowsRepeated(fn, ErrorType, ignoreDeopts = false) {
+  const maxRuns = 3;
+  for (let run = 0; run < maxRuns; ++run) {
+    %PrepareFunctionForOptimization(fn);
+    for (let i = 0; i < 5; i++) assertThrows(fn, ErrorType);
+    %OptimizeFunctionOnNextCall(fn);
+    assertThrows(fn, ErrorType);
+    if (isOptimized(fn) || ignoreDeopts) return;
+  }
+  assertOptimized(fn);
 }
 
-function repeated(fn) {
-  %PrepareFunctionForOptimization(fn);
-  for (let i = 0; i < 5; i++) fn();
-  %OptimizeFunctionOnNextCall(fn);
-  fn();
-  // TODO(7748): This assertion doesn't hold true, as some cases run into
-  // deopt loops.
-  // assertTrue(%ActiveTierIsTurbofan(fn));
+function repeated(fn, ignoreDeopts = false) {
+  const maxRuns = 3;
+  for (let run = 0; run < maxRuns; ++run) {
+    %PrepareFunctionForOptimization(fn);
+    for (let i = 0; i < 5; i++) fn();
+    %OptimizeFunctionOnNextCall(fn);
+    fn();
+    if (isOptimized(fn) || ignoreDeopts) return;
+  }
+  assertOptimized(fn);
 }
 
 // Prevent optimization, so that the test functions can not be inlined which

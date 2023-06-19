@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --experimental-wasm-gc --wasm-test-streaming
-// Flags: --allow-natives-syntax
+// Flags: --allow-natives-syntax --turbofan --no-always-turbofan
 
 d8.file.execute('test/mjsunit/wasm/gc-js-interop-helpers.js');
 
