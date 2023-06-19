@@ -131,7 +131,44 @@ void MaglevAssembler::Prologue(Graph* graph) {
   }
 
   if (graph->is_osr()) {
-    MAGLEV_NOT_IMPLEMENTED();
+    Register scratch = temps.Acquire();
+
+    uint32_t source_frame_size =
+        graph->min_maglev_stackslots_for_unoptimized_frame_size();
+
+    if (v8_flags.maglev_assert_stack_size && v8_flags.debug_code) {
+      add(scratch, sp,
+          Operand(source_frame_size * kSystemPointerSize +
+                  StandardFrameConstants::kFixedFrameSizeFromFp),
+          SetCC);
+      cmp(scratch, fp);
+      Assert(eq, AbortReason::kOsrUnexpectedStackSize);
+    }
+
+    uint32_t target_frame_size =
+        graph->tagged_stack_slots() + graph->untagged_stack_slots();
+    CHECK_LE(source_frame_size, target_frame_size);
+
+    if (source_frame_size < target_frame_size) {
+      ASM_CODE_COMMENT_STRING(this, "Growing frame for OSR");
+      uint32_t additional_tagged =
+          source_frame_size < graph->tagged_stack_slots()
+              ? graph->tagged_stack_slots() - source_frame_size
+              : 0;
+      if (additional_tagged) {
+        Move(scratch, 0);
+      }
+      for (size_t i = 0; i < additional_tagged; ++i) {
+        Push(scratch);
+      }
+      uint32_t size_so_far = source_frame_size + additional_tagged;
+      CHECK_LE(size_so_far, target_frame_size);
+      if (size_so_far < target_frame_size) {
+        sub(sp, sp,
+            Operand((target_frame_size - size_so_far) * kSystemPointerSize));
+      }
+    }
+    return;
   }
 
   EnterFrame(StackFrame::MAGLEV);
