@@ -267,7 +267,6 @@ void MaglevAssembler::MaterialiseValueNode(Register dst, ValueNode* value) {
       Move(dst, kReturnRegister0);
       break;
     case ValueRepresentation::kHoleyFloat64: {
-      // TODO(victorgomes): Check if this is a reachable case.
       Label done, box;
       JumpIfNotHoleNan(src, &box, Label::kNear);
       LoadRoot(dst, RootIndex::kUndefinedValue);
