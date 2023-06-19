@@ -557,7 +557,7 @@ class Internals {
   static const int kExternalOneByteRepresentationTag = 0x0a;
 
   static const uint32_t kNumIsolateDataSlots = 4;
-  static const int kStackGuardSize = 7 * kApiSystemPointerSize;
+  static const int kStackGuardSize = 8 * kApiSystemPointerSize;
   static const int kBuiltinTier0EntryTableSize = 7 * kApiSystemPointerSize;
   static const int kBuiltinTier0TableSize = 7 * kApiSystemPointerSize;
   static const int kLinearAllocationAreaSize = 3 * kApiSystemPointerSize;

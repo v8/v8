@@ -521,6 +521,15 @@ ExternalReference ExternalReference::address_of_jslimit(Isolate* isolate) {
   return ExternalReference(address);
 }
 
+ExternalReference ExternalReference::address_of_no_heap_write_interrupt_request(
+    Isolate* isolate) {
+  Address address = isolate->stack_guard()->address_of_interrupt_request(
+      StackGuard::InterruptLevel::kNoHeapWrites);
+  // For efficient generated code, this should be root-register-addressable.
+  DCHECK(isolate->root_register_addressable_region().contains(address));
+  return ExternalReference(address);
+}
+
 ExternalReference ExternalReference::address_of_real_jslimit(Isolate* isolate) {
   Address address = isolate->stack_guard()->address_of_real_jslimit();
   // For efficient generated code, this should be root-register-addressable.

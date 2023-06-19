@@ -38,6 +38,9 @@ class StatsCounter;
   V(isolate_root, "Isolate::isolate_root()")                                   \
   V(allocation_sites_list_address, "Heap::allocation_sites_list_address()")    \
   V(address_of_jslimit, "StackGuard::address_of_jslimit()")                    \
+  V(address_of_no_heap_write_interrupt_request,                                \
+    "StackGuard::address_of_interrupt_request(StackGuard::InterruptLevel::"    \
+    "kNoHeapWrites)")                                                          \
   V(address_of_real_jslimit, "StackGuard::address_of_real_jslimit()")          \
   V(heap_is_marking_flag_address, "heap_is_marking_flag_address")              \
   V(heap_is_minor_marking_flag_address, "heap_is_minor_marking_flag_address")  \
