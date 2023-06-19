@@ -6074,8 +6074,11 @@ ReduceResult MaglevGraphBuilder::TryReduceFunctionPrototypeCall(
   ValueNode* receiver = GetTaggedOrUndefined(args.receiver());
   args.PopReceiver(ConvertReceiverMode::kAny);
 
-  // Reset speculation feedback source to no feedback.
   compiler::FeedbackSource source = current_speculation_feedback_;
+  if (!source.IsValid()) {
+    return ReduceCall(receiver, args);
+  }
+  // Reset speculation feedback source to no feedback.
   current_speculation_feedback_ = compiler::FeedbackSource();
   const compiler::ProcessedFeedback& processed_feedback =
       broker()->GetFeedbackForCall(source);
