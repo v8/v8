@@ -324,9 +324,9 @@ class TestCase(object):
   def get_command(self, ctx):
     params = self._get_cmd_params()
     env = self._get_cmd_env()
-    shell = ctx.platform_shell(self.get_shell(),
-                               os.path.abspath(self.test_config.shell_dir))
     shell_flags = self._get_shell_flags()
+    shell = ctx.platform_shell(self.get_shell(), shell_flags + params,
+                               os.path.abspath(self.test_config.shell_dir))
     timeout = self._get_timeout(params)
     return self._create_cmd(ctx, shell, shell_flags + params, env, timeout)
 

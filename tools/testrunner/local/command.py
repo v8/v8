@@ -259,6 +259,9 @@ class IOSCommand(BaseCommand):
       sys.stderr.write('Error executing: %s\n' % self)
       raise e
 
+  def _to_args_list(self):
+    return self.cmd_prefix + [self.shell]
+
 
 class WindowsCommand(BaseCommand):
   def _start_process(self, **kwargs):

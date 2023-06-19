@@ -29,17 +29,13 @@ class VariantsGenerator(testsuite.VariantsGenerator):
 
 class TestLoader(testsuite.TestLoader):
   def _list_test_filenames(self):
-    shell = os.path.abspath(
-      os.path.join(self.test_config.shell_dir, "v8_unittests"))
-    if utils.IsWindows():
-      shell += ".exe"
-
+    args = ['--gtest_list_tests'] + self.test_config.extra_flags
+    shell = self.ctx.platform_shell("v8_unittests", args,
+                                    self.test_config.shell_dir)
     output = None
     for i in range(3): # Try 3 times in case of errors.
       cmd = self.ctx.command(
-          cmd_prefix=self.test_config.command_prefix,
-          shell=shell,
-          args=['--gtest_list_tests'] + self.test_config.extra_flags)
+          cmd_prefix=self.test_config.command_prefix, shell=shell, args=args)
       output = cmd.execute()
       if output.exit_code == 0:
         break
@@ -59,6 +55,12 @@ class TestLoader(testsuite.TestLoader):
     test_names = []
     test_case = ''
     for line in output.stdout.splitlines():
+      # When the command runs through another executable (e.g. iOS Simulator),
+      # it is possible that the stdout will show something else besides the
+      # actual test output, so it is necessary to harness this case by checking
+      # whether the line exists here.
+      if not line.strip().split():
+        continue
       test_desc = line.strip().split()[0]
       if test_desc.endswith('.'):
         test_case = test_desc
