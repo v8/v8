@@ -138,6 +138,7 @@
       'V8 Linux - vtunejit': 'debug_x86_vtunejit',
       'V8 Linux64 - Fuzzilli - builder': 'release_x64_fuzzilli',
       'V8 Linux64 - predictable - builder': 'release_x64_predictable',
+      'V8 Linux64 - verify builtins': 'release_x64_verify_builtins',
       'V8 Linux64 - verify deterministic': 'release_x64_verify_deterministic',
       'V8 Linux - full debug builder': 'full_debug_x86',
       'V8 Mac64 - full debug builder': 'full_debug_x64',
@@ -293,6 +294,7 @@
       'v8_linux64_tsan_isolates_compile_rel':
           'release_x64_tsan_minimal_symbols',
       'v8_linux64_ubsan_compile_rel': 'release_x64_ubsan_minimal_symbols',
+      'v8_linux64_verify_builtins_rel': 'release_x64_verify_builtins',
       'v8_linux64_verify_deterministic_rel': 'release_x64_verify_deterministic',
       'v8_odroid_arm_compile_rel': 'release_arm',
       'v8_linux_torque_compare': 'torque_compare',
@@ -612,6 +614,8 @@
       'release_bot', 'x64', 'ubsan_recover'],
     'release_x64_shared_verify_heap': [
       'release_bot', 'x64', 'shared', 'v8_verify_heap'],
+    'release_x64_verify_builtins': [
+      'release_bot', 'x64', 'v8_verify_builtins'],
     'release_x64_verify_csa': [
       'release_bot', 'x64', 'dcheck_always_on',
       'v8_enable_slow_dchecks', 'v8_verify_csa'],
@@ -1100,6 +1104,10 @@
 
     'v8_verify_heap': {
       'gn_args': 'v8_enable_verify_heap=true',
+    },
+
+    'v8_verify_builtins': {
+      'gn_args': 'v8_verify_builtins_compatibility=true',
     },
 
     'v8_verify_csa': {

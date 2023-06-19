@@ -278,6 +278,9 @@ declare_args() {
   # Use switch-based dispatch if this is false
   v8_enable_regexp_interpreter_threaded_dispatch = true
 
+  # Enforce equality of builtins hashes from compatible architectures.
+  v8_verify_builtins_compatibility = false
+
   # Check mksnapshot determinism by running it multiple times.
   v8_verify_deterministic_mksnapshot = false
 
@@ -2421,6 +2424,56 @@ if (v8_verify_deterministic_mksnapshot) {
       "7",  # Length of the 'runs' list.
     ]
     outputs = [ report_file ]
+  }
+}
+
+if (v8_verify_builtins_compatibility) {
+  # This specifies a separate mksnapshot target for each of:
+  # x86, x64, arm, arm64.
+  hashes = "builtins_hashes_$v8_current_cpu"
+  run_mksnapshot("dump_$v8_current_cpu") {
+    args = ["--dump-builtins-hashes-to-file", hashes]
+    embedded_variant = "Default"
+  }
+
+  # This template defines a comparison action for the architecture the pgo
+  # profile is made for (e.g. x64) and the architecture the profile is used
+  # for (e.g. arm64 with toolchain x64_v8_arm64).
+  template("verify_builtins_hashes") {
+    forward_variables_from(invoker, ["profile_arch", "target_arch"])
+    profile_toolchain = "//build/toolchain/linux:clang_${profile_arch}"
+    target_toolchain = "//build/toolchain/linux:clang_${profile_arch}_v8_${target_arch}"
+    action("compare_builtins_$target_name") {
+      deps = [
+        ":run_mksnapshot_dump_${profile_arch}($profile_toolchain)",
+        ":run_mksnapshot_dump_${target_arch}($target_toolchain)",
+      ]
+      report_file = "$root_build_dir/builtins_comparison_$target_name"
+      script = "tools/builtins-pgo/assert_builtins_hashes.py"
+      args = [
+        "builtins_hashes_${profile_arch}",
+        "builtins_hashes_${target_arch}",
+        rebase_path(report_file, root_build_dir),
+      ]
+      outputs = [ report_file ]
+    }
+  }
+
+  verify_builtins_hashes("x86_arm") {
+    profile_arch = "x86"
+    target_arch = "arm"
+  }
+
+  verify_builtins_hashes("x64_arm64") {
+    profile_arch = "x64"
+    target_arch = "arm64"
+  }
+
+  group("verify_all_builtins_hashes") {
+    deps = [
+      ":compare_builtins_x86_arm",
+      ":compare_builtins_x64_arm64",
+    ]
   }
 }
 
