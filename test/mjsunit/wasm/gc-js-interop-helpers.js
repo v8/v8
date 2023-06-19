@@ -51,9 +51,3 @@ function repeated(fn) {
   // deopt loops.
   // assertTrue(%ActiveTierIsTurbofan(fn));
 }
-
-// Prevent optimization, so that the test functions can not be inlined which
-// can cause issues in combination with `assertOptimized` and deopts in test
-// code.
-%NeverOptimizeFunction(testThrowsRepeated);
-%NeverOptimizeFunction(repeated);
