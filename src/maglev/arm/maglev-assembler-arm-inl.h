@@ -287,7 +287,14 @@ inline MemOperand MaglevAssembler::ToMemOperand(const ValueLocation& location) {
 
 inline void MaglevAssembler::BuildTypedArrayDataPointer(Register data_pointer,
                                                         Register object) {
-  MAGLEV_NOT_IMPLEMENTED();
+  DCHECK_NE(data_pointer, object);
+  ldr(data_pointer,
+      FieldMemOperand(object, JSTypedArray::kExternalPointerOffset));
+  if (JSTypedArray::kMaxSizeInHeap == 0) return;
+  ScratchRegisterScope temps(this);
+  Register base = temps.Acquire();
+  ldr(base, FieldMemOperand(object, JSTypedArray::kBasePointerOffset));
+  add(data_pointer, data_pointer, base);
 }
 
 inline void MaglevAssembler::LoadTaggedFieldByIndex(Register result,
@@ -414,7 +421,14 @@ inline void MaglevAssembler::StoreField(MemOperand operand, Register value,
 }
 
 inline void MaglevAssembler::ReverseByteOrder(Register value, int size) {
-  MAGLEV_NOT_IMPLEMENTED();
+  if (size == 2) {
+    rev(value, value);
+    asr(value, value, Operand(16));
+  } else if (size == 4) {
+    rev(value, value);
+  } else {
+    DCHECK_EQ(size, 1);
+  }
 }
 
 inline void MaglevAssembler::IncrementInt32(Register reg) {
@@ -478,7 +492,7 @@ inline void MaglevAssembler::Move(Register dst, Handle<HeapObject> obj) {
 }
 
 inline void MaglevAssembler::SignExtend32To64Bits(Register dst, Register src) {
-  MAGLEV_NOT_IMPLEMENTED();
+  // No 64-bit registers.
 }
 inline void MaglevAssembler::NegateInt32(Register val) {
   rsb(val, val, Operand(0));
@@ -487,7 +501,20 @@ inline void MaglevAssembler::NegateInt32(Register val) {
 inline void MaglevAssembler::ToUint8Clamped(Register result,
                                             DoubleRegister value, Label* min,
                                             Label* max, Label* done) {
-  MAGLEV_NOT_IMPLEMENTED();
+  ScratchRegisterScope temps(this);
+  DoubleRegister scratch = temps.AcquireDouble();
+  Move(scratch, 0.0);
+  VFPCompareAndSetFlags(scratch, value);
+  // Set to 0 if NaN.
+  JumpIf(kOverflow, min);
+  JumpIf(kGreaterThanEqual, min);
+  Move(scratch, 255.0);
+  VFPCompareAndSetFlags(value, scratch);
+  JumpIf(kGreaterThanEqual, max);
+  // if value in [0, 255], then round up to the nearest.
+  vrintn(scratch, value);
+  TruncateDoubleToInt32(result, scratch);
+  Jump(done);
 }
 
 template <typename NodeT>
@@ -529,7 +556,14 @@ inline void MaglevAssembler::CompareObjectType(Register heap_object,
 
 inline void MaglevAssembler::JumpIfJSAnyIsNotPrimitive(
     Register heap_object, Label* target, Label::Distance distance) {
-  MAGLEV_NOT_IMPLEMENTED();
+  // If the type of the result (stored in its map) is less than
+  // FIRST_JS_RECEIVER_TYPE, it is not an object in the ECMA sense.
+  static_assert(LAST_JS_RECEIVER_TYPE == LAST_TYPE);
+  ScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  MacroAssembler::CompareObjectType(heap_object, scratch, scratch,
+                                    FIRST_JS_RECEIVER_TYPE);
+  JumpIf(kUnsignedGreaterThanEqual, target, distance);
 }
 
 inline void MaglevAssembler::CompareObjectType(Register heap_object,
