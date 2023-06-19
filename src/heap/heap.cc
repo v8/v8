@@ -2278,8 +2278,10 @@ void Heap::PerformGarbageCollection(GarbageCollector collector,
   }
 
   tracer()->StartAtomicPause();
-  if (!Heap::IsYoungGenerationCollector(collector) &&
+  if ((!Heap::IsYoungGenerationCollector(collector) || v8_flags.minor_mc) &&
       incremental_marking_->IsMarking()) {
+    DCHECK_IMPLIES(Heap::IsYoungGenerationCollector(collector),
+                   incremental_marking_->IsMinorMarking());
     tracer()->UpdateCurrentEvent(gc_reason, collector_reason);
   }
 

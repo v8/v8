@@ -253,7 +253,8 @@ void GCTracer::UpdateCurrentEvent(GarbageCollectionReason gc_reason,
                                   const char* collector_reason) {
   // For incremental marking, the event has already been created and we just
   // need to update a few fields.
-  DCHECK_EQ(Event::INCREMENTAL_MARK_COMPACTOR, current_.type);
+  DCHECK(current_.type == Event::INCREMENTAL_MARK_COMPACTOR ||
+         current_.type == Event::INCREMENTAL_MINOR_MARK_COMPACTOR);
   DCHECK_EQ(Event::State::ATOMIC, current_.state);
   DCHECK(IsInObservablePause());
   current_.gc_reason = gc_reason;
