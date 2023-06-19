@@ -322,6 +322,110 @@ serializationOptions: {"serialization":"deep","maxDepth":999}
 }
 Runtime.evaluate
 expression: "{key_level_1: {key_level_2: {key_level_3: 'value_level_3'}}}"
+serializationOptions: {"serialization":"deep","maxDepth":999,"additionalParameters":{"foo":"bar","baz":"qux"}}
+{
+    id : <messageId>
+    result : {
+        result : {
+            className : Object
+            deepSerializedValue : {
+                type : object
+                value : [
+                    [0] : [
+                        [0] : key_level_1
+                        [1] : {
+                            type : object
+                            value : [
+                                [0] : [
+                                    [0] : key_level_2
+                                    [1] : {
+                                        type : object
+                                        value : [
+                                            [0] : [
+                                                [0] : key_level_3
+                                                [1] : {
+                                                    type : string
+                                                    value : value_level_3
+                                                }
+                                            ]
+                                        ]
+                                    }
+                                ]
+                            ]
+                        }
+                    ]
+                ]
+            }
+            description : Object
+            objectId : <objectId>
+            type : object
+        }
+    }
+}
+Runtime.callFunctionOn
+expression: "{key_level_1: {key_level_2: {key_level_3: 'value_level_3'}}}"
+serializationOptions: {"serialization":"deep","maxDepth":999,"additionalParameters":{"foo":"bar","baz":"qux"}}
+{
+    id : <messageId>
+    result : {
+        result : {
+            className : Object
+            deepSerializedValue : {
+                type : object
+                value : [
+                    [0] : [
+                        [0] : key_level_1
+                        [1] : {
+                            type : object
+                            value : [
+                                [0] : [
+                                    [0] : key_level_2
+                                    [1] : {
+                                        type : object
+                                        value : [
+                                            [0] : [
+                                                [0] : key_level_3
+                                                [1] : {
+                                                    type : string
+                                                    value : value_level_3
+                                                }
+                                            ]
+                                        ]
+                                    }
+                                ]
+                            ]
+                        }
+                    ]
+                ]
+            }
+            description : Object
+            objectId : <objectId>
+            type : object
+        }
+    }
+}
+Runtime.evaluate
+expression: "{key_level_1: {key_level_2: {key_level_3: 'value_level_3'}}}"
+serializationOptions: {"serialization":"deep","maxDepth":999,"additionalParameters":{"INCORRECT_ADDITIONAL_PARAMETER":{}}}
+{
+    error : {
+        code : -32602
+        message : Values of serializationOptions.additionalParameters can be only of type string or integer.
+    }
+    id : <messageId>
+}
+Runtime.callFunctionOn
+expression: "{key_level_1: {key_level_2: {key_level_3: 'value_level_3'}}}"
+serializationOptions: {"serialization":"deep","maxDepth":999,"additionalParameters":{"INCORRECT_ADDITIONAL_PARAMETER":{}}}
+{
+    error : {
+        code : -32602
+        message : Values of serializationOptions.additionalParameters can be only of type string or integer.
+    }
+    id : <messageId>
+}
+Runtime.evaluate
+expression: "{key_level_1: {key_level_2: {key_level_3: 'value_level_3'}}}"
 serializationOptions: {"serialization":"json"}
 {
     id : <messageId>

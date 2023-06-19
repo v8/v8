@@ -516,7 +516,7 @@ Response InjectedScript::getInternalAndPrivateProperties(
     for (const auto& internalProperty : internalPropertiesWrappers) {
       std::unique_ptr<RemoteObject> remoteObject;
       Response response = internalProperty.value->buildRemoteObject(
-          m_context->context(), WrapOptions({WrapMode::kIdOnly, {}}),
+          m_context->context(), WrapOptions({WrapMode::kIdOnly}),
           &remoteObject);
       if (!response.IsSuccess()) return response;
       response = bindRemoteObjectIfNeeded(sessionId, context,
@@ -545,7 +545,7 @@ Response InjectedScript::getInternalAndPrivateProperties(
            (!!privateProperty.value));
     if (privateProperty.value) {
       Response response = privateProperty.value->buildRemoteObject(
-          context, WrapOptions({WrapMode::kIdOnly, {}}), &remoteObject);
+          context, WrapOptions({WrapMode::kIdOnly}), &remoteObject);
       if (!response.IsSuccess()) return response;
       response = bindRemoteObjectIfNeeded(sessionId, context,
                                           privateProperty.value->v8Value(),
@@ -556,7 +556,7 @@ Response InjectedScript::getInternalAndPrivateProperties(
 
     if (privateProperty.getter) {
       Response response = privateProperty.getter->buildRemoteObject(
-          context, WrapOptions({WrapMode::kIdOnly, {}}), &remoteObject);
+          context, WrapOptions({WrapMode::kIdOnly}), &remoteObject);
       if (!response.IsSuccess()) return response;
       response = bindRemoteObjectIfNeeded(sessionId, context,
                                           privateProperty.getter->v8Value(),
@@ -567,7 +567,7 @@ Response InjectedScript::getInternalAndPrivateProperties(
 
     if (privateProperty.setter) {
       Response response = privateProperty.setter->buildRemoteObject(
-          context, WrapOptions({WrapMode::kIdOnly, {}}), &remoteObject);
+          context, WrapOptions({WrapMode::kIdOnly}), &remoteObject);
       if (!response.IsSuccess()) return response;
       response = bindRemoteObjectIfNeeded(sessionId, context,
                                           privateProperty.setter->v8Value(),
@@ -637,7 +637,8 @@ Response InjectedScript::wrapObjectMirror(
 
     std::unique_ptr<protocol::DictionaryValue> deepSerializedValueDict;
     response = mirror.buildDeepSerializedValue(
-        context, maxDepth, duplicateTracker, &deepSerializedValueDict);
+        context, maxDepth, v8::Local<v8::Object>(), duplicateTracker,
+        &deepSerializedValueDict);
     if (!response.IsSuccess()) return response;
 
     String16 type;
@@ -668,7 +669,8 @@ Response InjectedScript::wrapObjectMirror(
 
     std::unique_ptr<protocol::DictionaryValue> deepSerializedValueDict;
     response = mirror.buildDeepSerializedValue(
-        context, wrapOptions.serializationOptions.maxDepth, duplicateTracker,
+        context, wrapOptions.serializationOptions.maxDepth,
+        wrapOptions.serializationOptions.additionalParameters, duplicateTracker,
         &deepSerializedValueDict);
     if (!response.IsSuccess()) return response;
 
@@ -712,7 +714,7 @@ std::unique_ptr<protocol::Runtime::RemoteObject> InjectedScript::wrapTable(
 
   std::unique_ptr<RemoteObject> remoteObject;
   Response response = wrapObject(
-      table, "console", WrapOptions({WrapMode::kIdOnly, {}}), &remoteObject);
+      table, "console", WrapOptions({WrapMode::kIdOnly}), &remoteObject);
   if (!remoteObject || !response.IsSuccess()) return nullptr;
 
   auto mirror = ValueMirror::create(context, table);
@@ -901,11 +903,11 @@ Response InjectedScript::addExceptionToDetails(
     const String16& objectGroup) {
   if (exception.IsEmpty()) return Response::Success();
   std::unique_ptr<protocol::Runtime::RemoteObject> wrapped;
-  Response response = wrapObject(exception, objectGroup,
-                                 exception->IsNativeError()
-                                     ? WrapOptions({WrapMode::kIdOnly, {}})
-                                     : WrapOptions({WrapMode::kPreview, {}}),
-                                 &wrapped);
+  Response response =
+      wrapObject(exception, objectGroup,
+                 exception->IsNativeError() ? WrapOptions({WrapMode::kIdOnly})
+                                            : WrapOptions({WrapMode::kPreview}),
+                 &wrapped);
   if (!response.IsSuccess()) return response;
   exceptionDetails->setException(std::move(wrapped));
   return Response::Success();
@@ -990,8 +992,8 @@ Response InjectedScript::wrapEvaluateResult(
     }
     Response response = wrapObject(exception, objectGroup,
                                    exception->IsNativeError()
-                                       ? WrapOptions({WrapMode::kIdOnly, {}})
-                                       : WrapOptions({WrapMode::kPreview, {}}),
+                                       ? WrapOptions({WrapMode::kIdOnly})
+                                       : WrapOptions({WrapMode::kPreview}),
                                    result);
     if (!response.IsSuccess()) return response;
     // We send exception in result for compatibility reasons, even though it's

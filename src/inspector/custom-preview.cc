@@ -120,8 +120,8 @@ bool substituteObjectTags(int sessionId, const String16& groupName,
     }
     std::unique_ptr<protocol::Runtime::RemoteObject> wrapper;
     protocol::Response response = injectedScript->wrapObject(
-        originValue, groupName, WrapOptions({WrapMode::kIdOnly, {}}),
-        configValue, maxDepth - 1, &wrapper);
+        originValue, groupName, WrapOptions({WrapMode::kIdOnly}), configValue,
+        maxDepth - 1, &wrapper);
     if (!response.IsSuccess() || !wrapper) {
       reportError(context, tryCatch, "cannot wrap value");
       return false;

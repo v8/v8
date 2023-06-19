@@ -21,6 +21,21 @@ async function testExpression(expression) {
   await testSerializationOptions(expression, { serialization: "deep", maxDepth: 1 })
   await testSerializationOptions(expression, { serialization: "deep", maxDepth: 2 })
   await testSerializationOptions(expression, { serialization: "deep", maxDepth: 999 })
+  await testSerializationOptions(expression, {
+    serialization: "deep",
+    maxDepth: 999,
+    additionalParameters: {
+      "foo": "bar",
+      "baz": "qux"
+    }
+  });
+  await testSerializationOptions(expression, {
+    serialization: "deep",
+    maxDepth: 999,
+    additionalParameters: {
+      "INCORRECT_ADDITIONAL_PARAMETER": {}
+    }
+  });
   await testSerializationOptions(expression, { serialization: "json" })
   await testSerializationOptions(expression, { serialization: "json", maxDepth: 1 })
   await testSerializationOptions(expression, { serialization: "idOnly" })

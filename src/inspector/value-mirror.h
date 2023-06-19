@@ -70,6 +70,7 @@ class ValueMirror {
   // https://goo.gle/browser-automation-deepserialization
   virtual Response buildDeepSerializedValue(
       v8::Local<v8::Context> context, int maxDepth,
+      v8::Local<v8::Object> additionalParameters,
       V8SerializationDuplicateTracker& duplicateTracker,
       std::unique_ptr<protocol::DictionaryValue>* result) const = 0;
 

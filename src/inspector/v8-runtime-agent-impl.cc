@@ -171,8 +171,8 @@ void innerCallFunctionOn(
   if (scope.tryCatch().HasCaught()) {
     wrapEvaluateResultAsync(scope.injectedScript(), maybeFunctionValue,
                             scope.tryCatch(), objectGroup,
-                            WrapOptions({WrapMode::kIdOnly, {}}),
-                            throwOnSideEffect, callback.get());
+                            WrapOptions({WrapMode::kIdOnly}), throwOnSideEffect,
+                            callback.get());
     return;
   }
 
@@ -242,31 +242,71 @@ Response ensureContext(V8InspectorImpl* inspector, int contextGroupId,
   return Response::Success();
 }
 
+Response parseAdditionalSerializationParameters(
+    protocol::DictionaryValue* additionalParameters, v8::Isolate* isolate,
+    v8::Local<v8::Object>* result) {
+  std::vector<v8::Local<v8::Name>> keys;
+  std::vector<v8::Local<v8::Value>> values;
+
+  if (additionalParameters != nullptr) {
+    for (size_t i = 0; i < additionalParameters->size(); ++i) {
+      String16 key = (*additionalParameters).at(i).first;
+      keys.push_back(toV8String(isolate, key));
+
+      protocol::Value* value = (*additionalParameters).at(i).second;
+      String16 stringValue;
+      if (value->asString(&stringValue)) {
+        values.push_back(toV8String(isolate, stringValue));
+        continue;
+      }
+      int intValue;
+      if (value->asInteger(&intValue)) {
+        values.push_back(v8::Int32::New(isolate, intValue));
+        continue;
+      }
+      return Response::InvalidParams(
+          "Values of serializationOptions.additionalParameters can be only of "
+          "type string or integer.");
+    }
+  }
+  CHECK(keys.size() == values.size());
+  *result = v8::Object::New(isolate, v8::Null(isolate), keys.data(),
+                            values.data(), keys.size());
+
+  return Response::Success();
+}
+
 Response getWrapOptions(
     Maybe<bool> returnByValue, Maybe<bool> generatePreview,
     Maybe<bool> generateWebDriverValue,
     Maybe<protocol::Runtime::SerializationOptions> maybeSerializationOptions,
-    std::unique_ptr<WrapOptions>* result) {
+    v8::Isolate* isolate, std::unique_ptr<WrapOptions>* result) {
   if (maybeSerializationOptions.isJust()) {
     auto serializationOptions = maybeSerializationOptions.fromJust();
     String16 serializationModeStr = serializationOptions->getSerialization();
     if (serializationModeStr ==
         protocol::Runtime::SerializationOptions::SerializationEnum::Deep) {
-      *result = std::make_unique<WrapOptions>(WrapOptions{
-          WrapMode::kDeep,
-          {serializationOptions->getMaxDepth(v8::internal::kMaxInt)}});
+      v8::Local<v8::Object> additionalParameters;
+      Response response = parseAdditionalSerializationParameters(
+          serializationOptions->getAdditionalParameters(nullptr), isolate,
+          &additionalParameters);
+      if (!response.IsSuccess()) {
+        return response;
+      }
+      *result = std::make_unique<WrapOptions>(
+          WrapOptions{WrapMode::kDeep,
+                      {serializationOptions->getMaxDepth(v8::internal::kMaxInt),
+                       additionalParameters}});
       return Response::Success();
     }
     if (serializationModeStr ==
         protocol::Runtime::SerializationOptions::SerializationEnum::Json) {
-      *result = std::make_unique<WrapOptions>(
-          WrapOptions{WrapMode::kJson, {v8::internal::kMaxInt}});
+      *result = std::make_unique<WrapOptions>(WrapOptions{WrapMode::kJson});
       return Response::Success();
     }
     if (serializationModeStr ==
         protocol::Runtime::SerializationOptions::SerializationEnum::IdOnly) {
-      *result =
-          std::make_unique<WrapOptions>(WrapOptions{WrapMode::kIdOnly, {}});
+      *result = std::make_unique<WrapOptions>(WrapOptions{WrapMode::kIdOnly});
       return Response::Success();
     }
     return Response::InvalidParams(
@@ -275,32 +315,31 @@ Response getWrapOptions(
   }
 
   if (generateWebDriverValue.fromMaybe(false)) {
-    *result =
-        std::make_unique<WrapOptions>(WrapOptions{WrapMode::kWebDriver, {}});
+    *result = std::make_unique<WrapOptions>(WrapOptions{WrapMode::kWebDriver});
     return Response::Success();
   }
   if (returnByValue.fromMaybe(false)) {
-    *result = std::make_unique<WrapOptions>(WrapOptions{WrapMode::kJson, {}});
+    *result = std::make_unique<WrapOptions>(WrapOptions{WrapMode::kJson});
     return Response::Success();
   }
   if (generatePreview.fromMaybe(false)) {
-    *result =
-        std::make_unique<WrapOptions>(WrapOptions{WrapMode::kPreview, {}});
+    *result = std::make_unique<WrapOptions>(WrapOptions{WrapMode::kPreview});
     return Response::Success();
   }
-  *result = std::make_unique<WrapOptions>(WrapOptions{WrapMode::kIdOnly, {}});
+  *result = std::make_unique<WrapOptions>(WrapOptions{WrapMode::kIdOnly});
   return Response::Success();
 }
 
 Response getWrapOptions(Maybe<bool> returnByValue, Maybe<bool> generatePreview,
                         Maybe<bool> generateWebDriverValue,
+                        v8::Isolate* isolate,
                         std::unique_ptr<WrapOptions>* result) {
   return getWrapOptions(
       std::move(returnByValue), std::move(generatePreview),
       std::move(generateWebDriverValue),
       Maybe<protocol::Runtime::
                 SerializationOptions>() /* empty serialization options */,
-      result);
+      isolate, result);
 }
 
 }  // namespace
@@ -392,10 +431,10 @@ void V8RuntimeAgentImpl::evaluate(
   }
 
   std::unique_ptr<WrapOptions> wrapOptions;
-  response =
-      getWrapOptions(std::move(returnByValue), std::move(generatePreview),
-                     std::move(generateWebDriverValue),
-                     std::move(serializationOptions), &wrapOptions);
+  response = getWrapOptions(
+      std::move(returnByValue), std::move(generatePreview),
+      std::move(generateWebDriverValue), std::move(serializationOptions),
+      m_inspector->isolate(), &wrapOptions);
   if (!response.IsSuccess()) {
     callback->sendFailure(response);
     return;
@@ -433,9 +472,9 @@ void V8RuntimeAgentImpl::awaitPromise(
   }
 
   std::unique_ptr<WrapOptions> wrapOptions;
-  response =
-      getWrapOptions(std::move(returnByValue), std::move(generatePreview),
-                     false /* generateWebDriverValue */, &wrapOptions);
+  response = getWrapOptions(
+      std::move(returnByValue), std::move(generatePreview),
+      false /* generateWebDriverValue */, m_inspector->isolate(), &wrapOptions);
   if (!response.IsSuccess()) {
     callback->sendFailure(response);
     return;
@@ -474,16 +513,6 @@ void V8RuntimeAgentImpl::callFunctionOn(
     return;
   }
 
-  std::unique_ptr<WrapOptions> wrapOptions;
-  Response response =
-      getWrapOptions(std::move(returnByValue), std::move(generatePreview),
-                     std::move(generateWebDriverValue),
-                     std::move(serializationOptions), &wrapOptions);
-  if (!response.IsSuccess()) {
-    callback->sendFailure(response);
-    return;
-  }
-
   if (objectId.isJust()) {
     InjectedScript::ObjectScope scope(m_session, objectId.fromJust());
     Response response = scope.initialize();
@@ -491,6 +520,17 @@ void V8RuntimeAgentImpl::callFunctionOn(
       callback->sendFailure(response);
       return;
     }
+
+    std::unique_ptr<WrapOptions> wrapOptions;
+    response = getWrapOptions(
+        std::move(returnByValue), std::move(generatePreview),
+        std::move(generateWebDriverValue), std::move(serializationOptions),
+        m_inspector->isolate(), &wrapOptions);
+    if (!response.IsSuccess()) {
+      callback->sendFailure(response);
+      return;
+    }
+
     innerCallFunctionOn(m_session, scope, scope.object(), expression,
                         std::move(optionalArguments), silent.fromMaybe(false),
                         std::move(wrapOptions), userGesture.fromMaybe(false),
@@ -514,6 +554,17 @@ void V8RuntimeAgentImpl::callFunctionOn(
       callback->sendFailure(response);
       return;
     }
+
+    std::unique_ptr<WrapOptions> wrapOptions;
+    response = getWrapOptions(
+        std::move(returnByValue), std::move(generatePreview),
+        std::move(generateWebDriverValue), std::move(serializationOptions),
+        m_inspector->isolate(), &wrapOptions);
+    if (!response.IsSuccess()) {
+      callback->sendFailure(response);
+      return;
+    }
+
     innerCallFunctionOn(
         m_session, scope, scope.context()->Global(), expression,
         std::move(optionalArguments), silent.fromMaybe(false),
@@ -550,9 +601,9 @@ Response V8RuntimeAgentImpl::getProperties(
   v8::Local<v8::Object> object = scope.object().As<v8::Object>();
 
   std::unique_ptr<WrapOptions> wrapOptions;
-  response =
-      getWrapOptions(false /* returnByValue */, std::move(generatePreview),
-                     false /* generateWebDriverValue */, &wrapOptions);
+  response = getWrapOptions(
+      false /* returnByValue */, std::move(generatePreview),
+      false /* generateWebDriverValue */, m_inspector->isolate(), &wrapOptions);
   if (!response.IsSuccess()) return response;
 
   response = scope.injectedScript()->getProperties(
@@ -736,9 +787,9 @@ void V8RuntimeAgentImpl::runScript(
   }
 
   std::unique_ptr<WrapOptions> wrapOptions;
-  response =
-      getWrapOptions(std::move(returnByValue), std::move(generatePreview),
-                     false /* generateWebDriverValue */, &wrapOptions);
+  response = getWrapOptions(
+      std::move(returnByValue), std::move(generatePreview),
+      false /* generateWebDriverValue */, m_inspector->isolate(), &wrapOptions);
   if (!response.IsSuccess()) {
     callback->sendFailure(response);
     return;
@@ -771,7 +822,7 @@ Response V8RuntimeAgentImpl::queryObjects(
       scope.context(), scope.object().As<v8::Object>());
   return scope.injectedScript()->wrapObject(
       resultArray, objectGroup.fromMaybe(scope.objectGroupName()),
-      WrapOptions({WrapMode::kIdOnly, {}}), objects);
+      WrapOptions({WrapMode::kIdOnly}), objects);
 }
 
 Response V8RuntimeAgentImpl::globalLexicalScopeNames(
