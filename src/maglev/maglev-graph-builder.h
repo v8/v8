@@ -598,6 +598,13 @@ class MaglevGraphBuilder {
   }
 
   void VisitSingleBytecode() {
+    if (v8_flags.trace_maglev_graph_building) {
+      std::cout << std::setw(4) << iterator_.current_offset() << " : ";
+      interpreter::BytecodeDecoder::Decode(std::cout,
+                                           iterator_.current_address());
+      std::cout << std::endl;
+    }
+
     int offset = iterator_.current_offset();
     UpdateSourceAndBytecodePosition(offset);
 
@@ -689,12 +696,6 @@ class MaglevGraphBuilder {
     }
 
     DCHECK_NOT_NULL(current_block_);
-    if (v8_flags.trace_maglev_graph_building) {
-      std::cout << std::setw(4) << iterator_.current_offset() << " : ";
-      interpreter::BytecodeDecoder::Decode(std::cout,
-                                           iterator_.current_address());
-      std::cout << std::endl;
-    }
 #ifdef DEBUG
     // Clear new nodes for the next VisitFoo
     new_nodes_.clear();
