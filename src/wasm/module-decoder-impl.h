@@ -698,7 +698,8 @@ class ModuleDecoderImpl : public Decoder {
       }
     }
 
-    // Check validity of explicitly defined supertypes.
+    // Check validity of explicitly defined supertypes and propagate subtyping
+    // depth.
     const WasmModule* module = module_.get();
     for (uint32_t i = 0; ok() && i < module_->types.size(); ++i) {
       uint32_t explicit_super = module_->supertype(i);
@@ -711,7 +712,8 @@ class ModuleDecoderImpl : public Decoder {
         errorf("type %u: forward-declared supertype %u", i, explicit_super);
         continue;
       }
-      int depth = GetSubtypingDepth(module, i);
+      uint8_t depth = module->types[explicit_super].subtyping_depth + 1;
+      module_->types[i].subtyping_depth = depth;
       DCHECK_GE(depth, 0);
       if (depth > static_cast<int>(kV8MaxRttSubtypingDepth)) {
         errorf("type %u: subtyping depth is greater than allowed", i);

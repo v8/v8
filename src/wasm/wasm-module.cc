@@ -112,17 +112,10 @@ int GetContainingWasmFunction(const WasmModule* module, uint32_t byte_offset) {
   return func_index;
 }
 
-// TODO(7748): Measure whether this iterative implementation is fast enough.
-// We could cache the result on the module, in yet another vector indexed by
-// type index.
 int GetSubtypingDepth(const WasmModule* module, uint32_t type_index) {
-  uint32_t starting_point = type_index;
-  int depth = 0;
-  while ((type_index = module->supertype(type_index)) != kNoSuperType) {
-    if (type_index == starting_point) return -1;  // Cycle detected.
-    depth++;
-    if (depth > static_cast<int>(kV8MaxRttSubtypingDepth)) break;
-  }
+  DCHECK_LT(type_index, module->types.size());
+  int depth = module->types[type_index].subtyping_depth;
+  DCHECK_LE(depth, kV8MaxRttSubtypingDepth);
   return depth;
 }
 

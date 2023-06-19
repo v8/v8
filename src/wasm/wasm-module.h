@@ -458,6 +458,7 @@ struct TypeDefinition {
   uint32_t supertype;
   Kind kind;
   bool is_final;
+  uint8_t subtyping_depth = 0;
 };
 
 struct V8_EXPORT_PRIVATE WasmDebugSymbols {
@@ -654,6 +655,13 @@ struct V8_EXPORT_PRIVATE WasmModule {
   // ================ Accessors ================================================
   void add_type(TypeDefinition type) {
     types.push_back(type);
+    if (type.supertype != kNoSuperType) {
+      // Set the subtyping depth. Outside of unit tests this is done by the
+      // module decoder.
+      DCHECK_GT(types.size(), 0);
+      DCHECK_LT(type.supertype, types.size() - 1);
+      types.back().subtyping_depth = types[type.supertype].subtyping_depth + 1;
+    }
     // Isorecursive canonical type will be computed later.
     isorecursive_canonical_type_ids.push_back(kNoSuperType);
   }
