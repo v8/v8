@@ -148,6 +148,13 @@ in_category(
         use_remoteexec = RECLIENT.DEFAULT,
     ),
     main_multibranch_builder(
+        name = "V8 Linux64 - verify builtins",
+        dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
+        properties = {"default_targets": ["verify_all_builtins_hashes"]},
+        use_remoteexec = RECLIENT.DEFAULT,
+        first_branch_version = "11.6",
+    ),
+    main_multibranch_builder(
         name = "V8 Linux64 - verify deterministic",
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"default_targets": ["verify_deterministic_mksnapshot"]},
