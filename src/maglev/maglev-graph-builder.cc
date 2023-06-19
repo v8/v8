@@ -8417,7 +8417,11 @@ void MaglevGraphBuilder::PeelLoop() {
       if (merge_state->is_exception_handler()) {
         merge_state = MergePointInterpreterFrameState::NewForCatchBlock(
             *compilation_unit_, merge_state->frame_state().liveness(), offset,
-            merge_state->catch_block_context_register(), graph_);
+            merge_state->frame_state()
+                .context(*compilation_unit_)
+                ->Cast<Phi>()
+                ->owner(),
+            graph_);
       } else {
         // We only peel innermost loops.
         DCHECK(!merge_state->is_loop());
@@ -9086,9 +9090,6 @@ void MaglevGraphBuilder::VisitReturn() {
       NumPredecessors(inline_exit_offset()) > 1) {
     BasicBlock* block =
         FinishBlock<Jump>({}, &jump_targets_[inline_exit_offset()]);
-    // The context is dead by now, set it to optimized out to avoid creating
-    // unnecessary phis.
-    SetContext(GetRootConstant(RootIndex::kOptimizedOut));
     MergeIntoInlinedReturnFrameState(block);
   }
 }
