@@ -139,6 +139,15 @@ try_builder(
 )
 
 try_builder(
+    name = "v8_linux64_verify_builtins_rel",
+    bucket = "try",
+    cq_properties = CQ.OPTIONAL,
+    dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
+    properties = {"default_targets": ["verify_all_builtins_hashes"]},
+    use_remoteexec = RECLIENT.DEFAULT_UNTRUSTED,
+)
+
+try_builder(
     name = "v8_linux64_verify_deterministic_rel",
     bucket = "try",
     cq_properties = CQ.BLOCK,
