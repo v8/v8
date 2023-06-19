@@ -4898,7 +4898,7 @@ void MaglevGraphBuilder::VisitGetKeyedProperty() {
     case compiler::ProcessedFeedback::kNamedAccess: {
       ValueNode* key = GetAccumulatorTagged();
       compiler::NameRef name = processed_feedback.AsNamedAccess().name();
-      if (BuildCheckValue(key, name).IsDoneWithAbort()) return;
+      RETURN_VOID_IF_ABORT(BuildCheckValue(key, name));
 
       ReduceResult result = TryReuseKnownPropertyLoad(object, name);
       PROCESS_AND_RETURN_IF_DONE(result, SetAccumulator);
