@@ -24,7 +24,8 @@ CQ_INCLUDE_TRYBOTS=luci.chromium.try:linux-blink-rel
 CQ_INCLUDE_TRYBOTS=luci.chromium.try:linux_optional_gpu_tests_rel
 CQ_INCLUDE_TRYBOTS=luci.chromium.try:mac_optional_gpu_tests_rel
 CQ_INCLUDE_TRYBOTS=luci.chromium.try:win_optional_gpu_tests_rel
-CQ_INCLUDE_TRYBOTS=luci.chromium.try:android_optional_gpu_tests_rel""")
+CQ_INCLUDE_TRYBOTS=luci.chromium.try:android_optional_gpu_tests_rel
+CQ_INCLUDE_TRYBOTS=luci.chromium.try:dawn-linux-x64-deps-rel""")
 
 REF_LINE_PATTERN = r"refs\/tags\/(\d+(?:\.\d+){2,3})-pgo\ ([0-9a-f]{40})"
 

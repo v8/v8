@@ -540,6 +540,7 @@ CQ_INCLUDE_TRYBOTS=luci.chromium.try:linux_optional_gpu_tests_rel
 CQ_INCLUDE_TRYBOTS=luci.chromium.try:mac_optional_gpu_tests_rel
 CQ_INCLUDE_TRYBOTS=luci.chromium.try:win_optional_gpu_tests_rel
 CQ_INCLUDE_TRYBOTS=luci.chromium.try:android_optional_gpu_tests_rel
+CQ_INCLUDE_TRYBOTS=luci.chromium.try:dawn-linux-x64-deps-rel
 
 R=reviewer@chromium.org"""
 
