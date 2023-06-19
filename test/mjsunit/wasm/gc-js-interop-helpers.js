@@ -4,6 +4,10 @@
 
 // Helpers to test interoperability of Wasm objects in JavaScript.
 
+// The following flags are required:
+// Flags: --turbofan --no-always-turbofan --experimental-wasm-gc
+// Flags: --allow-natives-syntax
+
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 function CreateWasmObjects() {
@@ -51,3 +55,9 @@ function repeated(fn) {
   // deopt loops.
   // assertTrue(%ActiveTierIsTurbofan(fn));
 }
+
+// Prevent optimization, so that the test functions can not be inlined which
+// can cause issues in combination with `assertOptimized` and deopts in test
+// code.
+%NeverOptimizeFunction(testThrowsRepeated);
+%NeverOptimizeFunction(repeated);
