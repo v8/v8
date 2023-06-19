@@ -464,7 +464,7 @@ class RegExpClassSetExpression final : public RegExpTree {
       RegExpTree* root, ZoneList<CharacterRange>* temp_ranges, Zone* zone);
 
   const OperationType operation_;
-  const bool is_negated_;
+  bool is_negated_;
   const bool may_contain_strings_;
   ZoneList<RegExpTree*>* operands_ = nullptr;
   int max_match_;

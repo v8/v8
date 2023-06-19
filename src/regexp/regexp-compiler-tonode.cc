@@ -682,6 +682,7 @@ RegExpClassSetOperand* RegExpClassSetExpression::ComputeExpression(
     CharacterRange::Negate(result->ranges(), temp_ranges, zone);
     std::swap(*result->ranges(), *temp_ranges);
     temp_ranges->Rewind(0);
+    node->is_negated_ = false;
   }
   // Store the result as single operand of the current node.
   node->operands()->Set(0, result);
