@@ -178,3 +178,6 @@ assertThrows(
   () => Object.groupBy(array, 'foobar'),
   TypeError,
 );
+
+// Lots of groups to hit grow path in the intermediate OrderedHashMap
+Object.groupBy('Strings are iterable, actually,', (x) => x);

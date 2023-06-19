@@ -2261,7 +2261,8 @@ TEST(ZeroSizeOrderedHashMap) {
   {
     Handle<OrderedHashMap> map = empty;
 
-    map = OrderedHashMap::EnsureGrowable(isolate, map).ToHandleChecked();
+    map =
+        OrderedHashMap::EnsureCapacityForAdding(isolate, map).ToHandleChecked();
 
     CHECK_LT(0, map->NumberOfBuckets());
     CHECK_EQ(0, map->NumberOfElements());
@@ -2336,7 +2337,8 @@ TEST(ZeroSizeOrderedHashSet) {
   {
     Handle<OrderedHashSet> set = empty;
 
-    set = OrderedHashSet::EnsureGrowable(isolate, set).ToHandleChecked();
+    set =
+        OrderedHashSet::EnsureCapacityForAdding(isolate, set).ToHandleChecked();
 
     CHECK_LT(0, set->NumberOfBuckets());
     CHECK_EQ(0, set->NumberOfElements());

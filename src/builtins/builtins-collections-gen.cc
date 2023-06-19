@@ -1758,8 +1758,8 @@ TNode<OrderedHashSet> CollectionsBuiltinsAssembler::AddToSetTable(
   key = NormalizeNumberKey(key);
 
   GrowCollection<OrderedHashSet> grow = [this, context, table, method_name]() {
-    TNode<OrderedHashSet> new_table = Cast(CallRuntime(
-        Runtime::kOrderedHashSetEnsureGrowable, context, table, method_name));
+    TNode<OrderedHashSet> new_table = Cast(
+        CallRuntime(Runtime::kOrderedHashSetGrow, context, table, method_name));
     // TODO(v8:13556): check if the table is updated and remove pointer to the
     // new table.
     return new_table;
@@ -2298,9 +2298,8 @@ const TNode<OrderedHashMap> CollectionsBuiltinsAssembler::AddValueToKeyedGroup(
     const TNode<OrderedHashMap> groups, const TNode<Object> key,
     const TNode<Object> value, const TNode<String> methodName) {
   GrowCollection<OrderedHashMap> grow = [this, groups, methodName]() {
-    TNode<OrderedHashMap> new_groups =
-        CAST(CallRuntime(Runtime::kOrderedHashMapEnsureGrowable,
-                         NoContextConstant(), groups, methodName));
+    TNode<OrderedHashMap> new_groups = CAST(CallRuntime(
+        Runtime::kOrderedHashMapGrow, NoContextConstant(), groups, methodName));
     // The groups OrderedHashMap is not escaped to user script while grouping
     // items, so there can't be live iterators. So we don't need to keep the
     // pointer from the old table to the new one.
@@ -2308,7 +2307,7 @@ const TNode<OrderedHashMap> CollectionsBuiltinsAssembler::AddValueToKeyedGroup(
     Branch(TaggedEqual(groups, new_groups), &done, &did_grow);
     BIND(&did_grow);
     {
-      StoreObjectFieldNoWriteBarrier(groups, OrderedHashMap::NextTableIndex(),
+      StoreObjectFieldNoWriteBarrier(groups, OrderedHashMap::NextTableOffset(),
                                      SmiConstant(0));
       Goto(&done);
     }

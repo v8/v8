@@ -68,8 +68,8 @@ class OrderedHashTable : public FixedArray {
  public:
   // Returns an OrderedHashTable (possibly |table|) with enough space
   // to add at least one new element.
-  static MaybeHandle<Derived> EnsureGrowable(Isolate* isolate,
-                                             Handle<Derived> table);
+  static MaybeHandle<Derived> EnsureCapacityForAdding(Isolate* isolate,
+                                                      Handle<Derived> table);
 
   // Returns an OrderedHashTable (possibly |table|) that's shrunken
   // if possible.

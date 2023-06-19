@@ -99,13 +99,13 @@ namespace internal {
 #define FOR_EACH_INTRINSIC_COLLECTIONS(F, I) \
   F(MapGrow, 1, 1)                           \
   F(MapShrink, 1, 1)                         \
-  F(OrderedHashSetEnsureGrowable, 2, 1)      \
+  F(OrderedHashSetGrow, 2, 1)                \
   F(SetGrow, 1, 1)                           \
   F(SetShrink, 1, 1)                         \
   F(TheHole, 0, 1)                           \
   F(WeakCollectionDelete, 3, 1)              \
   F(WeakCollectionSet, 4, 1)                 \
-  F(OrderedHashMapEnsureGrowable, 2, 1)
+  F(OrderedHashMapGrow, 2, 1)
 
 #define FOR_EACH_INTRINSIC_COMPILER(F, I)       \
   F(CompileOptimizedOSR, 0, 1)                  \

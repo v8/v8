@@ -67,7 +67,8 @@ MaybeHandle<Derived> OrderedHashTable<Derived, entrysize>::AllocateEmpty(
 }
 
 template <class Derived, int entrysize>
-MaybeHandle<Derived> OrderedHashTable<Derived, entrysize>::EnsureGrowable(
+MaybeHandle<Derived>
+OrderedHashTable<Derived, entrysize>::EnsureCapacityForAdding(
     Isolate* isolate, Handle<Derived> table) {
   DCHECK(!table->IsObsolete());
 
@@ -189,7 +190,7 @@ MaybeHandle<OrderedHashSet> OrderedHashSet::Add(Isolate* isolate,
   }
 
   MaybeHandle<OrderedHashSet> table_candidate =
-      OrderedHashSet::EnsureGrowable(isolate, table);
+      OrderedHashSet::EnsureCapacityForAdding(isolate, table);
   if (!table_candidate.ToHandle(&table)) {
     CHECK(isolate->has_pending_exception());
     return table_candidate;
@@ -395,7 +396,7 @@ MaybeHandle<OrderedHashMap> OrderedHashMap::Add(Isolate* isolate,
   }
 
   MaybeHandle<OrderedHashMap> table_candidate =
-      OrderedHashMap::EnsureGrowable(isolate, table);
+      OrderedHashMap::EnsureCapacityForAdding(isolate, table);
   if (!table_candidate.ToHandle(&table)) {
     return table_candidate;
   }
@@ -461,7 +462,7 @@ MaybeHandle<OrderedNameDictionary> OrderedNameDictionary::Add(
   DCHECK(table->FindEntry(isolate, *key).is_not_found());
 
   MaybeHandle<OrderedNameDictionary> table_candidate =
-      OrderedNameDictionary::EnsureGrowable(isolate, table);
+      OrderedNameDictionary::EnsureCapacityForAdding(isolate, table);
   if (!table_candidate.ToHandle(&table)) {
     return table_candidate;
   }
@@ -571,7 +572,7 @@ MaybeHandle<OrderedNameDictionary> OrderedNameDictionary::AllocateEmpty(
 }
 
 template V8_EXPORT_PRIVATE MaybeHandle<OrderedHashSet>
-OrderedHashTable<OrderedHashSet, 1>::EnsureGrowable(
+OrderedHashTable<OrderedHashSet, 1>::EnsureCapacityForAdding(
     Isolate* isolate, Handle<OrderedHashSet> table);
 
 template V8_EXPORT_PRIVATE Handle<OrderedHashSet>
@@ -595,7 +596,7 @@ template V8_EXPORT_PRIVATE InternalIndex
 OrderedHashTable<OrderedHashSet, 1>::FindEntry(Isolate* isolate, Object key);
 
 template V8_EXPORT_PRIVATE MaybeHandle<OrderedHashMap>
-OrderedHashTable<OrderedHashMap, 2>::EnsureGrowable(
+OrderedHashTable<OrderedHashMap, 2>::EnsureCapacityForAdding(
     Isolate* isolate, Handle<OrderedHashMap> table);
 
 template V8_EXPORT_PRIVATE Handle<OrderedHashMap>
@@ -623,7 +624,7 @@ OrderedHashTable<OrderedNameDictionary, 3>::Shrink(
     Isolate* isolate, Handle<OrderedNameDictionary> table);
 
 template MaybeHandle<OrderedNameDictionary>
-OrderedHashTable<OrderedNameDictionary, 3>::EnsureGrowable(
+OrderedHashTable<OrderedNameDictionary, 3>::EnsureCapacityForAdding(
     Isolate* isolate, Handle<OrderedNameDictionary> table);
 
 template V8_EXPORT_PRIVATE InternalIndex
