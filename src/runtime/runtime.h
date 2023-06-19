@@ -575,6 +575,7 @@ namespace internal {
   F(MapIteratorProtector, 0, 1)               \
   F(NeverOptimizeFunction, 1, 1)              \
   F(NewRegExpWithBacktrackLimit, 3, 1)        \
+  F(NoElementsProtector, 0, 1)                \
   F(NotifyContextDisposed, 0, 1)              \
   F(OptimizeMaglevOnNextCall, 1, 1)           \
   F(OptimizeFunctionOnNextCall, -1, 1)        \

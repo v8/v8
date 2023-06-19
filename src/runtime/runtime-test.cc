@@ -1664,6 +1664,13 @@ RUNTIME_FUNCTION(Runtime_ArrayIteratorProtector) {
   return isolate->heap()->ToBoolean(
       Protectors::IsArrayIteratorLookupChainIntact(isolate));
 }
+
+RUNTIME_FUNCTION(Runtime_NoElementsProtector) {
+  SealHandleScope shs(isolate);
+  DCHECK_EQ(0, args.length());
+  return isolate->heap()->ToBoolean(Protectors::IsNoElementsIntact(isolate));
+}
+
 // For use by tests and fuzzers. It
 //
 // 1. serializes a snapshot of the current isolate,

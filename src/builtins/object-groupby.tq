@@ -13,10 +13,9 @@ extern macro CollectionsBuiltinsAssembler::NormalizeNumberKey(JSAny): JSAny;
 
 // https://tc39.es/proposal-array-grouping/#sec-group-by
 transitioning builtin GroupByGeneric(implicit context: Context)(
-    items: JSAny, callbackfn: Callable, coerceToProperty: Boolean,
-    methodName: String): OrderedHashMap {
-  // 3. Let groups be a new empty List.
-  let groups = AllocateOrderedHashMap();
+    items: JSAny, initialGroups: OrderedHashMap, callbackfn: Callable,
+    coerceToProperty: Boolean, methodName: String): OrderedHashMap {
+  let groups = initialGroups;
 
   // 4. Let iteratorRecord be ? GetIterator(items, sync).
   const fastIteratorResultMap = GetIteratorResultMap();
@@ -98,9 +97,62 @@ transitioning macro GroupByImpl(implicit context: Context)(
   const callbackfn = Cast<Callable>(callback)
       otherwise ThrowTypeError(MessageTemplate::kCalledNonCallable, callback);
 
-  // TODO(v8:12499): Array fast path.
-  return GroupByGeneric(
-      items, callbackfn, /* coerceToProperty */ True, methodName);
+  // 3. Let groups be a new empty List.
+  let groups = AllocateOrderedHashMap();
+
+  try {
+    typeswitch (items) {
+      case (array: FastJSArrayForReadWithNoCustomIteration): {
+        // Per spec, the iterator and its next method are cached up front. This
+        // means that we only need to check for no custom iteration once up
+        // front. Even though the grouping callback has arbitrary side effects,
+        // mutations to %ArrayIteratorPrototype% will not be reflected during
+        // the iteration itself. Therefore we don't need a "no custom iteration"
+        // witness.
+        let fastArrayWitness = NewFastJSArrayForReadWitness(array);
+        const stableArray = fastArrayWitness.stable;
+        let k: Smi = 0;
+
+        try {
+          while (k < stableArray.length) {
+            fastArrayWitness.Recheck() otherwise goto SlowArrayContinuation;
+            let value: JSAny;
+            try {
+              value =
+                  fastArrayWitness.LoadElementNoHole(k) otherwise IsUndefined;
+            } label IsUndefined {
+              value = Undefined;
+            }
+            const key = ToName(Call(context, callbackfn, Undefined, value, k));
+            groups = collections::AddValueToKeyedGroup(
+                groups, key, value, methodName);
+            ++k;
+          }
+        } label SlowArrayContinuation deferred {
+          // The grouping callback can mutate the array such that it is no
+          // longer fast, but it is still a JSArray. Since the spec caches the
+          // iterator up front, a fully generic fallback is not needed. Instead
+          // we encode the array iterator logic here directly for the rest of
+          // the loop.
+          while (k < stableArray.length) {
+            const value = GetProperty(stableArray, k);
+            const key = ToName(Call(context, callbackfn, Undefined, value, k));
+            groups = collections::AddValueToKeyedGroup(
+                groups, key, value, methodName);
+            ++k;
+          }
+        }
+
+        return groups;
+      }
+      case (JSAny): {
+        goto SlowGeneric;
+      }
+    }
+  } label SlowGeneric {
+    return GroupByGeneric(
+        items, groups, callbackfn, /* coerceToProperty */ True, methodName);
+  }
 }
 
 transitioning javascript builtin

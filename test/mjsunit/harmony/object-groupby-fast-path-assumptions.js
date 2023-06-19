@@ -33,3 +33,13 @@ assertArrayEquals(['undefined'], Object.getOwnPropertyNames(grouped2));
 // to length 2.
 let expectedGrouped2 = [0,1];
 assertArrayEquals(expectedGrouped2, grouped2['undefined']);
+
+// Test holey elements
+let arr3 = [0, 1, 2, 3, , , , , 8, 9];
+let grouped3 = Object.groupBy(arr3, () => {});
+// 'undefined' is the only group.
+assertArrayEquals(['undefined'], Object.getOwnPropertyNames(grouped3));
+
+let expectedGrouped3 =
+    [0, 1, 2, 3, undefined, undefined, undefined, undefined, 8, 9];
+assertArrayEquals(expectedGrouped3, grouped3['undefined']);
