@@ -60,11 +60,10 @@ class ZoneChunkList : public ZoneObject {
 
   void push_back(const T& item);
 
-  // Will push a separate chunk to the front of the chunk-list.
-  // Very memory-inefficient. Do only use sparsely! If you have many items to
-  // add in front, consider using 'push_front_many'.
+  // If the first chunk has space, inserts into it at the front. Otherwise
+  // allocate a new chunk with the same growth strategy as `push_back`.
+  // This limits the amount of copying to O(`kMaxChunkCapacity`).
   void push_front(const T& item);
-  // TODO(heimbuef): Add 'push_front_many'.
 
   // Cuts the last list elements so at most 'limit' many remain. Does not
   // free the actual memory, since it is zone allocated.
@@ -348,18 +347,26 @@ void ZoneChunkList<T>::push_back(const T& item) {
 
 template <typename T>
 void ZoneChunkList<T>::push_front(const T& item) {
-  Chunk* chunk = NewChunk(1);  // Yes, this gets really inefficient.
-  chunk->next_ = front_;
-  if (front_) {
+  if (front_ == nullptr) {
+    // Initially empty chunk list.
+    front_ = NewChunk(kInitialChunkCapacity);
+    last_nonempty_ = front_;
+  } else if (front_->full()) {
+    // First chunk at capacity, so prepend a new chunk.
+    DCHECK_NULL(front_->previous_);
+    Chunk* chunk = NewChunk(NextChunkCapacity(front_->capacity_));
     front_->previous_ = chunk;
-  } else {
-    last_nonempty_ = chunk;
+    chunk->next_ = front_;
+    front_ = chunk;
   }
-  front_ = chunk;
+  DCHECK(!front_->full());
 
-  chunk->items()[0] = item;
-  chunk->position_ = 1;
+  T* end = front_->items() + front_->position_;
+  std::move_backward(front_->items(), end, end + 1);
+  front_->items()[0] = item;
+  ++front_->position_;
   ++size_;
+  DCHECK_LE(front_->position_, front_->capacity_);
 }
 
 template <typename T>
