@@ -86,9 +86,11 @@ class JSInliningHeuristic final : public AdvancedReducer {
   Reduction InlineCandidate(Candidate const& candidate, bool small_function);
   void CreateOrReuseDispatch(Node* node, Node* callee,
                              Candidate const& candidate, Node** if_successes,
-                             Node** calls, Node** inputs, int input_count);
+                             Node** calls, Node** inputs, int input_count,
+                             int* num_calls);
   bool TryReuseDispatch(Node* node, Node* callee, Node** if_successes,
-                        Node** calls, Node** inputs, int input_count);
+                        Node** calls, Node** inputs, int input_count,
+                        int* num_calls);
   enum StateCloneMode { kCloneState, kChangeInPlace };
   FrameState DuplicateFrameStateAndRename(FrameState frame_state, Node* from,
                                           Node* to, StateCloneMode mode);
