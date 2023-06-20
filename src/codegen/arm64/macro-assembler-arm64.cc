@@ -607,8 +607,14 @@ void MacroAssembler::Movi(const VRegister& vd, uint64_t imm, Shift shift,
 void MacroAssembler::Movi(const VRegister& vd, uint64_t hi, uint64_t lo) {
   // TODO(v8:11033): Move 128-bit values in a more efficient way.
   DCHECK(vd.Is128Bits());
-  Movi(vd.V2D(), lo);
-  if (lo != hi) {
+  if (hi == lo) {
+    Movi(vd.V2D(), lo);
+    return;
+  }
+
+  Movi(vd.V1D(), lo);
+
+  if (hi != 0) {
     UseScratchRegisterScope temps(this);
     Register temp = temps.AcquireX();
     Mov(temp, hi);

@@ -3121,8 +3121,8 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void AddSub(const Register& rd, const Register& rn, const Operand& operand,
               FlagsUpdate S, AddSubOp op);
 
-  static bool IsImmFP32(float imm);
-  static bool IsImmFP64(double imm);
+  static bool IsImmFP32(uint32_t bits);
+  static bool IsImmFP64(uint64_t bits);
 
   // Find an appropriate LoadStoreOp or LoadStorePairOp for the specified
   // registers. Only simple loads are supported; sign- and zero-extension (such

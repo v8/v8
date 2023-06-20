@@ -723,6 +723,12 @@ void MacroAssembler::Fmov(VRegister fd, Register rn) {
 
 void MacroAssembler::Fmov(VRegister vd, double imm) {
   DCHECK(allow_macro_instructions());
+  uint64_t bits = base::bit_cast<uint64_t>(imm);
+
+  if (bits == 0) {
+    Movi(vd.D(), 0);
+    return;
+  }
 
   if (vd.Is1S() || vd.Is2S() || vd.Is4S()) {
     Fmov(vd, static_cast<float>(imm));
@@ -730,49 +736,37 @@ void MacroAssembler::Fmov(VRegister vd, double imm) {
   }
 
   DCHECK(vd.Is1D() || vd.Is2D());
-  if (IsImmFP64(imm)) {
+  if (IsImmFP64(bits)) {
     fmov(vd, imm);
   } else {
-    uint64_t bits = base::bit_cast<uint64_t>(imm);
-    if (vd.IsScalar()) {
-      if (bits == 0) {
-        fmov(vd, xzr);
-      } else {
-        UseScratchRegisterScope temps(this);
-        Register tmp = temps.AcquireX();
-        Mov(tmp, bits);
-        fmov(vd, tmp);
-      }
-    } else {
-      Movi(vd, bits);
-    }
+    Movi64bitHelper(vd, bits);
   }
 }
 
 void MacroAssembler::Fmov(VRegister vd, float imm) {
   DCHECK(allow_macro_instructions());
+  uint32_t bits = base::bit_cast<uint32_t>(imm);
+
+  if (bits == 0) {
+    Movi(vd.D(), 0);
+    return;
+  }
+
   if (vd.Is1D() || vd.Is2D()) {
     Fmov(vd, static_cast<double>(imm));
     return;
   }
 
   DCHECK(vd.Is1S() || vd.Is2S() || vd.Is4S());
-  if (IsImmFP32(imm)) {
+  if (IsImmFP32(bits)) {
     fmov(vd, imm);
+  } else if (vd.IsScalar()) {
+    UseScratchRegisterScope temps(this);
+    Register tmp = temps.AcquireW();
+    Mov(tmp, bits);
+    Fmov(vd, tmp);
   } else {
-    uint32_t bits = base::bit_cast<uint32_t>(imm);
-    if (vd.IsScalar()) {
-      if (bits == 0) {
-        fmov(vd, wzr);
-      } else {
-        UseScratchRegisterScope temps(this);
-        Register tmp = temps.AcquireW();
-        Mov(tmp, bits);
-        Fmov(vd, tmp);
-      }
-    } else {
-      Movi(vd, bits);
-    }
+    Movi(vd, bits);
   }
 }
 
