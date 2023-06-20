@@ -1637,8 +1637,6 @@ class Heap final {
     return result;
   }
 
-  void RegisterCodeObject(Handle<Code> code);
-
   static const char* GarbageCollectionReasonToString(
       GarbageCollectionReason gc_reason);
 

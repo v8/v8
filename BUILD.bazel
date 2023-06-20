@@ -1458,8 +1458,6 @@ filegroup(
         "src/heap/base/active-system-pages.h",
         "src/heap/basic-memory-chunk.cc",
         "src/heap/basic-memory-chunk.h",
-        "src/heap/code-object-registry.cc",
-        "src/heap/code-object-registry.h",
         "src/heap/code-range.cc",
         "src/heap/code-range.h",
         "src/heap/code-stats.cc",

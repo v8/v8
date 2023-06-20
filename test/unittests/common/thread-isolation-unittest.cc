@@ -29,9 +29,6 @@ TEST(ThreadIsolation, ReuseJitPage) {
 
 TEST(ThreadIsolation, CatchJitPageOverlap) {
   ThreadIsolation::Initialize(nullptr);
-  // TODO(sroettger): remove this bailout and below once tracking is enabled
-  // unconditionally.
-  if (!ThreadIsolation::Enabled()) return;
 
   Address address1 = 0x4100000;
   size_t size = 0x1000;
@@ -65,14 +62,13 @@ TEST(ThreadIsolation, JitAllocation) {
 
 TEST(ThreadIsolation, CatchOOBJitAllocation) {
   ThreadIsolation::Initialize(nullptr);
-  if (!ThreadIsolation::Enabled()) return;
 
   Address address1 = 0x4100000;
   size_t size = 0x1000;
   ThreadIsolation::RegisterJitPage(address1, size);
   EXPECT_DEATH_IF_SUPPORTED(
       { ThreadIsolation::RegisterWasmAllocation(address1 + size, 1); },
-      "jit_page.Size\\(\\) > start_offset");
+      "Check failed: jit_page.has_value\\(\\)");
   ThreadIsolation::UnregisterJitPage(address1, size);
 }
 
@@ -105,7 +101,6 @@ TEST(ThreadIsolation, MergeJitPages) {
 
 TEST(ThreadIsolation, UnregisterAllocationsExcept) {
   ThreadIsolation::Initialize(nullptr);
-  if (!ThreadIsolation::Enabled()) return;
 
   Address address1 = 0x4100000;
   size_t size = 0x1000;
@@ -142,7 +137,6 @@ TEST(ThreadIsolation, UnregisterAllocationsExcept) {
 
 TEST(ThreadIsolation, UnregisterAllocationsExceptNextPage) {
   ThreadIsolation::Initialize(nullptr);
-  if (!ThreadIsolation::Enabled()) return;
 
   Address address1 = 0x4100000;
   size_t size = 0x1000;

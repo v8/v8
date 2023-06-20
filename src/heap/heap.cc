@@ -42,7 +42,6 @@
 #include "src/heap/base/stack.h"
 #include "src/heap/base/worklist.h"
 #include "src/heap/basic-memory-chunk.h"
-#include "src/heap/code-object-registry.h"
 #include "src/heap/code-range.h"
 #include "src/heap/code-stats.h"
 #include "src/heap/collection-barrier.h"
@@ -4485,16 +4484,6 @@ void Heap::ZapCodeObject(Address start_address, int size_in_bytes) {
 #endif
 }
 
-void Heap::RegisterCodeObject(Handle<Code> code) {
-  InstructionStream istream = code->instruction_stream();
-  Address addr = istream.address();
-  if (!V8_ENABLE_THIRD_PARTY_HEAP_BOOL && code_space()->Contains(addr)) {
-    MemoryChunk::FromHeapObject(istream)
-        ->GetCodeObjectRegistry()
-        ->RegisterNewlyAllocatedCodeObject(addr);
-  }
-}
-
 void Heap::IterateWeakRoots(RootVisitor* v, base::EnumSet<SkipRoot> options) {
   DCHECK(!options.contains(SkipRoot::kWeak));
 
@@ -6776,21 +6765,10 @@ Heap::GcSafeTryFindInstructionStreamForInnerPointer(Address inner_pointer) {
     return InstructionStream::unchecked_cast(HeapObject::FromAddress(start));
   }
 
-  // Check if the inner pointer points into a large object chunk.
-  LargePage* large_page = code_lo_space()->FindPage(inner_pointer);
-  if (large_page != nullptr) {
-    return InstructionStream::unchecked_cast(large_page->GetObject());
-  }
-
-  if (V8_LIKELY(code_space()->Contains(inner_pointer))) {
-    // Iterate through the page until we reach the end or find an object
-    // starting after the inner pointer.
-    Page* page = Page::FromAddress(inner_pointer);
-
-    Address start =
-        page->GetCodeObjectRegistry()->GetCodeObjectStartFromInnerAddress(
-            inner_pointer);
-    return InstructionStream::unchecked_cast(HeapObject::FromAddress(start));
+  base::Optional<Address> start =
+      ThreadIsolation::StartOfJitAllocationAt(inner_pointer);
+  if (start.has_value()) {
+    return InstructionStream::unchecked_cast(HeapObject::FromAddress(*start));
   }
 
   return {};

@@ -235,34 +235,6 @@ size_t LargeObjectSpace::CommittedPhysicalMemory() const {
   return CommittedMemory();
 }
 
-LargePage* CodeLargeObjectSpace::FindPage(Address a) {
-  base::RecursiveMutexGuard guard(&allocation_mutex_);
-  const Address key = BasicMemoryChunk::FromAddress(a)->address();
-  auto it = chunk_map_.find(key);
-  if (it != chunk_map_.end()) {
-    LargePage* page = it->second;
-    CHECK(page->Contains(a));
-    return page;
-  }
-  return nullptr;
-}
-
-void CodeLargeObjectSpace::InsertChunkMapEntries(LargePage* page) {
-  for (Address current = reinterpret_cast<Address>(page);
-       current < reinterpret_cast<Address>(page) + page->size();
-       current += MemoryChunk::kPageSize) {
-    chunk_map_[current] = page;
-  }
-}
-
-void CodeLargeObjectSpace::RemoveChunkMapEntries(LargePage* page) {
-  for (Address current = page->address();
-       current < reinterpret_cast<Address>(page) + page->size();
-       current += MemoryChunk::kPageSize) {
-    chunk_map_.erase(current);
-  }
-}
-
 void OldLargeObjectSpace::PromoteNewLargeObject(LargePage* page) {
   DCHECK_EQ(page->owner_identity(), NEW_LO_SPACE);
   DCHECK(page->IsLargePage());
@@ -533,8 +505,7 @@ void NewLargeObjectSpace::SetCapacity(size_t capacity) {
 }
 
 CodeLargeObjectSpace::CodeLargeObjectSpace(Heap* heap)
-    : OldLargeObjectSpace(heap, CODE_LO_SPACE),
-      chunk_map_(kInitialChunkMapCapacity) {}
+    : OldLargeObjectSpace(heap, CODE_LO_SPACE) {}
 
 AllocationResult CodeLargeObjectSpace::AllocateRaw(int object_size) {
   DCHECK(!v8_flags.enable_third_party_heap);
@@ -552,11 +523,9 @@ AllocationResult CodeLargeObjectSpace::AllocateRawBackground(
 
 void CodeLargeObjectSpace::AddPage(LargePage* page, size_t object_size) {
   OldLargeObjectSpace::AddPage(page, object_size);
-  InsertChunkMapEntries(page);
 }
 
 void CodeLargeObjectSpace::RemovePage(LargePage* page) {
-  RemoveChunkMapEntries(page);
   heap()->isolate()->RemoveCodeMemoryChunk(page);
   OldLargeObjectSpace::RemovePage(page);
 }

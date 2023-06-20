@@ -236,21 +236,9 @@ class CodeLargeObjectSpace : public OldLargeObjectSpace {
   V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT AllocationResult
   AllocateRawBackground(LocalHeap* local_heap, int object_size);
 
-  // Finds a large object page containing the given address, returns nullptr if
-  // such a page doesn't exist.
-  LargePage* FindPage(Address a);
-
  protected:
   void AddPage(LargePage* page, size_t object_size) override;
   void RemovePage(LargePage* page) override;
-
- private:
-  static const size_t kInitialChunkMapCapacity = 1024;
-  void InsertChunkMapEntries(LargePage* page);
-  void RemoveChunkMapEntries(LargePage* page);
-
-  // Page-aligned addresses to their corresponding LargePage.
-  std::unordered_map<Address, LargePage*> chunk_map_;
 };
 
 class LargeObjectSpaceObjectIterator : public ObjectIterator {

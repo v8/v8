@@ -697,7 +697,6 @@
   'test-lab/*': [SKIP],
   'test-heap/TestAlignedOverAllocation': [SKIP],
   'test-heap/RememberedSetRemoveRange': [SKIP],
-  'test-heap/CodeObjectRegistry': [SKIP],
   'test-heap/DeepEagerCompilationPeakMemory': [SKIP],
   'test-api/GetHeapStatistics': [SKIP],
   'test-api/GetHeapSpaceStatistics': [SKIP],

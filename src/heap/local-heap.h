@@ -114,10 +114,6 @@ class V8_EXPORT_PRIVATE LocalHeap {
     return shared_old_space_allocator_.get();
   }
 
-  void RegisterCodeObject(Handle<Code> code) {
-    heap()->RegisterCodeObject(code);
-  }
-
   // Mark/Unmark linear allocation areas black. Used for black allocation.
   void MarkLinearAllocationAreaBlack();
   void UnmarkLinearAllocationArea();

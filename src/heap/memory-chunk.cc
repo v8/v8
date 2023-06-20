@@ -9,7 +9,6 @@
 #include "src/base/platform/platform.h"
 #include "src/common/globals.h"
 #include "src/heap/basic-memory-chunk.h"
-#include "src/heap/code-object-registry.h"
 #include "src/heap/marking-state-inl.h"
 #include "src/heap/memory-allocator.h"
 #include "src/heap/memory-chunk-inl.h"
@@ -109,10 +108,7 @@ MemoryChunk::MemoryChunk(Heap* heap, BaseSpace* space, size_t chunk_size,
                        std::move(reservation)),
       mutex_(new base::Mutex()),
       shared_mutex_(new base::SharedMutex()),
-      page_protection_change_mutex_(new base::Mutex()),
-      code_object_registry_(owner()->identity() == CODE_SPACE
-                                ? new CodeObjectRegistry()
-                                : nullptr) {
+      page_protection_change_mutex_(new base::Mutex()) {
   DCHECK_NE(space->identity(), RO_SPACE);
 
   if (executable == EXECUTABLE) {
@@ -191,10 +187,6 @@ void MemoryChunk::ReleaseAllocatedMemoryNeededForWritableChunk() {
   if (page_protection_change_mutex_ != nullptr) {
     delete page_protection_change_mutex_;
     page_protection_change_mutex_ = nullptr;
-  }
-  if (code_object_registry_ != nullptr) {
-    delete code_object_registry_;
-    code_object_registry_ = nullptr;
   }
 
   if (active_system_pages_ != nullptr) {
@@ -301,9 +293,6 @@ void MemoryChunk::ValidateOffsets(MemoryChunk* chunk) {
             MemoryChunkLayout::kListNodeOffset);
   DCHECK_EQ(reinterpret_cast<Address>(&chunk->categories_) - chunk->address(),
             MemoryChunkLayout::kCategoriesOffset);
-  DCHECK_EQ(reinterpret_cast<Address>(&chunk->code_object_registry_) -
-                chunk->address(),
-            MemoryChunkLayout::kCodeObjectRegistryOffset);
   DCHECK_EQ(reinterpret_cast<Address>(&chunk->possibly_empty_buckets_) -
                 chunk->address(),
             MemoryChunkLayout::kPossiblyEmptyBucketsOffset);

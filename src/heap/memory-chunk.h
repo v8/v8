@@ -20,7 +20,6 @@
 namespace v8 {
 namespace internal {
 
-class CodeObjectRegistry;
 class FreeListCategory;
 class Space;
 
@@ -191,8 +190,6 @@ class MemoryChunk : public BasicMemoryChunk {
   heap::ListNode<MemoryChunk>& list_node() { return list_node_; }
   const heap::ListNode<MemoryChunk>& list_node() const { return list_node_; }
 
-  CodeObjectRegistry* GetCodeObjectRegistry() { return code_object_registry_; }
-
   PossiblyEmptyBuckets* possibly_empty_buckets() {
     return &possibly_empty_buckets_;
   }
@@ -279,8 +276,6 @@ class MemoryChunk : public BasicMemoryChunk {
   heap::ListNode<MemoryChunk> list_node_;
 
   FreeListCategory** categories_ = nullptr;
-
-  CodeObjectRegistry* code_object_registry_;
 
   PossiblyEmptyBuckets possibly_empty_buckets_;
 

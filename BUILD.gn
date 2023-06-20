@@ -2432,7 +2432,10 @@ if (v8_verify_builtins_compatibility) {
   # x86, x64, arm, arm64.
   hashes = "builtins_hashes_$v8_current_cpu"
   run_mksnapshot("dump_$v8_current_cpu") {
-    args = ["--dump-builtins-hashes-to-file", hashes]
+    args = [
+      "--dump-builtins-hashes-to-file",
+      hashes,
+    ]
     embedded_variant = "Default"
   }
 
@@ -2440,9 +2443,14 @@ if (v8_verify_builtins_compatibility) {
   # profile is made for (e.g. x64) and the architecture the profile is used
   # for (e.g. arm64 with toolchain x64_v8_arm64).
   template("verify_builtins_hashes") {
-    forward_variables_from(invoker, ["profile_arch", "target_arch"])
+    forward_variables_from(invoker,
+                           [
+                             "profile_arch",
+                             "target_arch",
+                           ])
     profile_toolchain = "//build/toolchain/linux:clang_${profile_arch}"
-    target_toolchain = "//build/toolchain/linux:clang_${profile_arch}_v8_${target_arch}"
+    target_toolchain =
+        "//build/toolchain/linux:clang_${profile_arch}_v8_${target_arch}"
     action("compare_builtins_$target_name") {
       deps = [
         ":run_mksnapshot_dump_${profile_arch}($profile_toolchain)",
@@ -2471,8 +2479,8 @@ if (v8_verify_builtins_compatibility) {
 
   group("verify_all_builtins_hashes") {
     deps = [
-      ":compare_builtins_x86_arm",
       ":compare_builtins_x64_arm64",
+      ":compare_builtins_x86_arm",
     ]
   }
 }
@@ -3356,7 +3364,6 @@ v8_header_set("v8_internal_headers") {
     "src/heap/array-buffer-sweeper.h",
     "src/heap/base-space.h",
     "src/heap/basic-memory-chunk.h",
-    "src/heap/code-object-registry.h",
     "src/heap/code-range.h",
     "src/heap/code-stats.h",
     "src/heap/collection-barrier.h",
@@ -4926,7 +4933,6 @@ v8_source_set("v8_base_without_compiler") {
     "src/heap/array-buffer-sweeper.cc",
     "src/heap/base-space.cc",
     "src/heap/basic-memory-chunk.cc",
-    "src/heap/code-object-registry.cc",
     "src/heap/code-range.cc",
     "src/heap/code-stats.cc",
     "src/heap/collection-barrier.cc",

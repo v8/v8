@@ -26,7 +26,6 @@
 #include "src/handles/global-handles.h"
 #include "src/heap/array-buffer-sweeper.h"
 #include "src/heap/basic-memory-chunk.h"
-#include "src/heap/code-object-registry.h"
 #include "src/heap/concurrent-allocator.h"
 #include "src/heap/ephemeron-remembered-set.h"
 #include "src/heap/evacuation-allocator-inl.h"
@@ -1671,11 +1670,6 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
     }
     if (allocation.To(target_object)) {
       MigrateObject(*target_object, object, size, target_space);
-      if (target_space == CODE_SPACE) {
-        MemoryChunk::FromHeapObject(*target_object)
-            ->GetCodeObjectRegistry()
-            ->RegisterNewlyAllocatedCodeObject((*target_object).address());
-      }
       return true;
     }
     return false;

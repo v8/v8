@@ -15,7 +15,6 @@
 #include "src/execution/vm-state-inl.h"
 #include "src/flags/flags.h"
 #include "src/heap/base/active-system-pages.h"
-#include "src/heap/code-object-registry.h"
 #include "src/heap/ephemeron-remembered-set.h"
 #include "src/heap/free-list-inl.h"
 #include "src/heap/gc-tracer-inl.h"
@@ -691,7 +690,6 @@ int Sweeper::RawSweep(Page* p, FreeSpaceTreatmentMode free_space_treatment_mode,
 
   // Phase 1: Prepare the page for sweeping.
 
-  CodeObjectRegistry* code_object_registry = p->GetCodeObjectRegistry();
   std::vector<Address> code_objects;
 
   base::Optional<ActiveSystemPages> active_system_pages_after_sweeping;
@@ -723,7 +721,8 @@ int Sweeper::RawSweep(Page* p, FreeSpaceTreatmentMode free_space_treatment_mode,
   Address free_start = p->area_start();
   PtrComprCageBase cage_base(heap_->isolate());
   for (auto [object, size] : LiveObjectRange(p)) {
-    if (code_object_registry) code_objects.push_back(object.address());
+    if (p->IsFlagSet(MemoryChunk::Flag::IS_EXECUTABLE))
+      code_objects.push_back(object.address());
     DCHECK(marking_state_->IsMarked(object));
     Address free_end = object.address();
     if (free_end != free_start) {
@@ -769,14 +768,8 @@ int Sweeper::RawSweep(Page* p, FreeSpaceTreatmentMode free_space_treatment_mode,
                                          *active_system_pages_after_sweeping);
   }
 
-  DCHECK_IMPLIES(!code_object_registry,
-                 !p->IsFlagSet(MemoryChunk::Flag::IS_EXECUTABLE));
-  if (code_object_registry) {
-    if (p->IsFlagSet(MemoryChunk::Flag::IS_EXECUTABLE)) {
-      ThreadIsolation::UnregisterInstructionStreamsInPageExcept(p,
-                                                                code_objects);
-    }
-    code_object_registry->ReinitializeFrom(std::move(code_objects));
+  if (p->IsFlagSet(MemoryChunk::Flag::IS_EXECUTABLE)) {
+    ThreadIsolation::UnregisterInstructionStreamsInPageExcept(p, code_objects);
   }
 
   return static_cast<int>(

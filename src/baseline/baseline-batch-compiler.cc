@@ -53,10 +53,6 @@ class BaselineCompilerTask {
     compiler.GenerateCode();
     maybe_code_ = local_isolate->heap()->NewPersistentMaybeHandle(
         compiler.Build(local_isolate));
-    Handle<Code> code;
-    if (maybe_code_.ToHandle(&code)) {
-      local_isolate->heap()->RegisterCodeObject(code);
-    }
     time_taken_ms_ = timer.Elapsed().InMillisecondsF();
   }
 

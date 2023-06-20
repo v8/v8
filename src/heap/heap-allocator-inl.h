@@ -131,11 +131,6 @@ V8_WARN_UNUSED_RESULT V8_INLINE AllocationResult HeapAllocator::AllocateRaw(
   if (allocation.To(&object)) {
     if (AllocationType::kCode == type && !V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
       heap_->ZapCodeObject(object.address(), size_in_bytes);
-      if (!large_object) {
-        MemoryChunk::FromHeapObject(object)
-            ->GetCodeObjectRegistry()
-            ->RegisterNewlyAllocatedCodeObject(object.address());
-      }
     }
 
     for (auto& tracker : heap_->allocation_trackers_) {

@@ -17,7 +17,6 @@ namespace v8 {
 namespace internal {
 
 class MarkingBitmap;
-class CodeObjectRegistry;
 class FreeListCategory;
 class Heap;
 class TypedSlotsSet;
@@ -65,7 +64,6 @@ class V8_EXPORT_PRIVATE MemoryChunkLayout {
     FIELD(std::atomic<size_t>[kNumTypes], ExternalBackingStoreBytes),
     FIELD(heap::ListNode<MemoryChunk>, ListNode),
     FIELD(FreeListCategory**, Categories),
-    FIELD(CodeObjectRegistry*, CodeObjectRegistry),
     FIELD(PossiblyEmptyBuckets, PossiblyEmptyBuckets),
     FIELD(ActiveSystemPages*, ActiveSystemPages),
     FIELD(size_t, AllocatedLabSize),

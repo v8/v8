@@ -50,16 +50,24 @@ bool ThreadIsolation::Enabled() {
 // static
 template <typename T, typename... Args>
 void ThreadIsolation::ConstructNew(T** ptr, Args&&... args) {
-  *ptr = reinterpret_cast<T*>(trusted_data_.allocator->Allocate(sizeof(T)));
-  if (!*ptr) return;
-  new (*ptr) T(std::forward<Args>(args)...);
+  if (Enabled()) {
+    *ptr = reinterpret_cast<T*>(trusted_data_.allocator->Allocate(sizeof(T)));
+    if (!*ptr) return;
+    new (*ptr) T(std::forward<Args>(args)...);
+  } else {
+    *ptr = new T(std::forward<Args>(args)...);
+  }
 }
 
 // static
 template <typename T>
 void ThreadIsolation::Delete(T* ptr) {
-  ptr->~T();
-  trusted_data_.allocator->Free(ptr);
+  if (Enabled()) {
+    ptr->~T();
+    trusted_data_.allocator->Free(ptr);
+  } else {
+    delete ptr;
+  }
 }
 
 // static
@@ -69,36 +77,40 @@ void ThreadIsolation::Initialize(
   untrusted_data_.initialized = true;
 #endif
 
-  if (!thread_isolated_allocator) {
-    return;
-  }
-
-  if (v8_flags.jitless) {
-    return;
-  }
+  bool enable = thread_isolated_allocator != nullptr && !v8_flags.jitless;
 
 #if V8_HAS_PKU_JIT_WRITE_PROTECT
-  if (!base::MemoryProtectionKey::InitializeMemoryProtectionKeySupport()) {
-    return;
+  if (enable &&
+      !base::MemoryProtectionKey::InitializeMemoryProtectionKeySupport()) {
+    enable = false;
   }
 #endif
 
-  // Check that our compile time assumed page size that we use for padding was
-  // large enough.
-  CHECK_GE(THREAD_ISOLATION_ALIGN_SZ,
-           GetPlatformPageAllocator()->CommitPageSize());
-
-  trusted_data_.allocator = thread_isolated_allocator;
-
+  if (enable) {
+    trusted_data_.allocator = thread_isolated_allocator;
 #if V8_HAS_PKU_JIT_WRITE_PROTECT
-  trusted_data_.pkey = trusted_data_.allocator->Pkey();
-  untrusted_data_.pkey = trusted_data_.pkey;
+    trusted_data_.pkey = trusted_data_.allocator->Pkey();
+    untrusted_data_.pkey = trusted_data_.pkey;
+#endif
+  }
 
   {
+    // We need to allocate the memory for jit page tracking even if we don't
+    // enable the ThreadIsolation protections.
     RwxMemoryWriteScope write_scope("Initialize thread isolation.");
     ConstructNew(&trusted_data_.jit_pages_mutex_);
     ConstructNew(&trusted_data_.jit_pages_);
   }
+
+  if (!enable) {
+    return;
+  }
+
+#if V8_HAS_PKU_JIT_WRITE_PROTECT
+  // Check that our compile time assumed page size that we use for padding was
+  // large enough.
+  CHECK_GE(THREAD_ISOLATION_ALIGN_SZ,
+           GetPlatformPageAllocator()->CommitPageSize());
 
   base::MemoryProtectionKey::SetPermissionsAndKey(
       {reinterpret_cast<Address>(&trusted_data_), sizeof(trusted_data_)},
@@ -110,28 +122,44 @@ void ThreadIsolation::Initialize(
 ThreadIsolation::JitPageReference ThreadIsolation::LookupJitPage(Address addr,
                                                                  size_t size) {
   base::MutexGuard guard(trusted_data_.jit_pages_mutex_);
-  return LookupJitPageLocked(addr, size);
+  base::Optional<JitPageReference> jit_page =
+      TryLookupJitPageLocked(addr, size);
+  CHECK(jit_page.has_value());
+  return std::move(jit_page.value());
 }
 
 // static
-ThreadIsolation::JitPageReference ThreadIsolation::LookupJitPageLocked(
-    Address addr, size_t size) {
+base::Optional<ThreadIsolation::JitPageReference>
+ThreadIsolation::TryLookupJitPage(Address addr, size_t size) {
+  base::MutexGuard guard(trusted_data_.jit_pages_mutex_);
+  return TryLookupJitPageLocked(addr, size);
+}
+
+// static
+base::Optional<ThreadIsolation::JitPageReference>
+ThreadIsolation::TryLookupJitPageLocked(Address addr, size_t size) {
   trusted_data_.jit_pages_mutex_->AssertHeld();
 
   // upper_bound gives us an iterator to the position after address.
   auto it = trusted_data_.jit_pages_->upper_bound(addr);
 
   // The previous page should be the one we're looking for.
-  CHECK_NE(it, trusted_data_.jit_pages_->begin());
+  if (it == trusted_data_.jit_pages_->begin()) {
+    return {};
+  }
   it--;
 
   JitPageReference jit_page(it->second, it->first);
   size_t start_offset = addr - it->first;
   size_t end_offset = start_offset + size;
 
+  // If the address is not in the range of the jit page, return.
+  if (jit_page.Size() <= start_offset) {
+    return {};
+  }
+
   // Check that the page includes the whole range.
   CHECK_GT(end_offset, start_offset);
-  CHECK_GT(jit_page.Size(), start_offset);
   CHECK_GE(jit_page.Size(), end_offset);
 
   return jit_page;
@@ -258,10 +286,18 @@ void ThreadIsolation::JitPageReference::UnregisterAllocationsExcept(
   jit_page_->allocations_.swap(keep_allocations);
 }
 
+base::Address ThreadIsolation::JitPageReference::StartOfAllocationAt(
+    base::Address inner_pointer) {
+  auto it = jit_page_->allocations_.upper_bound(inner_pointer);
+  CHECK_NE(it, jit_page_->allocations_.begin());
+  it--;
+  size_t offset = inner_pointer - it->first;
+  CHECK_GT(it->second.Size(), offset);
+  return it->first;
+}
+
 // static
 void ThreadIsolation::RegisterJitPage(Address address, size_t size) {
-  if (!Enabled()) return;
-
   RwxMemoryWriteScope write_scope("Adding new executable memory.");
 
   {
@@ -315,15 +351,16 @@ void ThreadIsolation::RegisterJitPage(Address address, size_t size) {
 }
 
 void ThreadIsolation::UnregisterJitPage(Address address, size_t size) {
-  if (!Enabled()) return;
-
   RwxMemoryWriteScope write_scope("Removing executable memory.");
 
   JitPage* to_delete;
 
   {
     base::MutexGuard guard(trusted_data_.jit_pages_mutex_);
-    JitPageReference jit_page = LookupJitPageLocked(address, size);
+    base::Optional<JitPageReference> jit_page_lookup =
+        TryLookupJitPageLocked(address, size);
+    CHECK(jit_page_lookup.has_value());
+    JitPageReference jit_page = std::move(jit_page_lookup.value());
 
     // We're merging jit pages together, so potentially split them back up
     // if we're only freeing a subrange.
@@ -380,15 +417,12 @@ bool ThreadIsolation::MakeExecutable(Address address, size_t size) {
 
 // static
 void ThreadIsolation::RegisterJitAllocation(Address obj, size_t size) {
-  // This method is private, so we skip the Enabled() check.
   LookupJitPage(obj, size).RegisterAllocation(obj, size);
 }
 
 // static
 void ThreadIsolation::RegisterInstructionStreamAllocation(Address addr,
                                                           size_t size) {
-  if (!Enabled()) return;
-
   return RegisterJitAllocation(addr, size);
 }
 
@@ -402,32 +436,34 @@ void ThreadIsolation::UnregisterAllocationsInPageExcept(
 // static
 void ThreadIsolation::UnregisterInstructionStreamsInPageExcept(
     MemoryChunk* chunk, const std::vector<Address>& keep) {
-  if (!Enabled()) return;
-
   UnregisterAllocationsInPageExcept(chunk->area_start(), chunk->area_size(),
                                     keep);
 }
 
 // static
 void ThreadIsolation::RegisterWasmAllocation(Address addr, size_t size) {
-  if (!Enabled()) return;
-
   return RegisterJitAllocation(addr, size);
 }
 
 // static
 void ThreadIsolation::UnregisterWasmAllocation(Address addr, size_t size) {
-  if (!Enabled()) return;
-
   LookupJitPage(addr, size).UnregisterAllocation(addr);
+}
+
+// static
+base::Optional<Address> ThreadIsolation::StartOfJitAllocationAt(
+    Address inner_pointer) {
+  base::Optional<JitPageReference> page = TryLookupJitPage(inner_pointer, 1);
+  if (!page) {
+    return {};
+  }
+  return page->StartOfAllocationAt(inner_pointer);
 }
 
 #if DEBUG
 
 // static
 void ThreadIsolation::CheckTrackedMemoryEmpty() {
-  if (!Enabled()) return;
-
   DCHECK(trusted_data_.jit_pages_->empty());
 }
 

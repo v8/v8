@@ -100,6 +100,8 @@ class V8_EXPORT ThreadIsolation {
   static void RegisterWasmAllocation(Address addr, size_t size);
   static void UnregisterWasmAllocation(Address addr, size_t size);
 
+  static base::Optional<Address> StartOfJitAllocationAt(Address inner_pointer);
+
   // For testing.
   static void UnregisterAllocationsInPageExcept(
       Address page, size_t page_size, const std::vector<Address>& keep);
@@ -126,12 +128,21 @@ class V8_EXPORT ThreadIsolation {
     template <class U>
     explicit StlAllocator(const StlAllocator<U>&) noexcept {}
 
-    static value_type* allocate(size_t n) {
-      return reinterpret_cast<value_type*>(
-          ThreadIsolation::allocator()->Allocate(n * sizeof(value_type)));
+    value_type* allocate(size_t n) {
+      if (Enabled()) {
+        return static_cast<value_type*>(
+            ThreadIsolation::allocator()->Allocate(n * sizeof(value_type)));
+      } else {
+        return static_cast<value_type*>(::operator new(n * sizeof(T)));
+      }
     }
-    static void deallocate(value_type* ptr, size_t n) {
-      ThreadIsolation::allocator()->Free(ptr);
+
+    void deallocate(value_type* ptr, size_t n) {
+      if (Enabled()) {
+        ThreadIsolation::allocator()->Free(ptr);
+      } else {
+        ::operator delete(ptr);
+      }
     }
   };
 
@@ -162,6 +173,9 @@ class V8_EXPORT ThreadIsolation {
     void UnregisterAllocation(base::Address addr);
     void UnregisterAllocationsExcept(base::Address start, size_t size,
                                      const std::vector<base::Address>& addr);
+
+    base::Address StartOfAllocationAt(base::Address inner_pointer);
+
     bool Empty() const;
     void Shrink(class JitPage* tail);
     void Expand(size_t offset);
@@ -241,8 +255,11 @@ class V8_EXPORT ThreadIsolation {
   static void RegisterJitAllocation(Address obj, size_t size);
 
   static JitPageReference LookupJitPage(Address addr, size_t size);
+  static base::Optional<JitPageReference> TryLookupJitPage(Address addr,
+                                                           size_t size);
   // The caller needs to hold a lock of the jit_pages_mutex_
-  static JitPageReference LookupJitPageLocked(Address addr, size_t size);
+  static base::Optional<JitPageReference> TryLookupJitPageLocked(Address addr,
+                                                                 size_t size);
 
   template <class T>
   friend struct StlAllocator;
