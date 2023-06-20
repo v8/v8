@@ -712,10 +712,10 @@ class ModuleDecoderImpl : public Decoder {
         errorf("type %u: forward-declared supertype %u", i, explicit_super);
         continue;
       }
-      uint8_t depth = module->types[explicit_super].subtyping_depth + 1;
+      uint32_t depth = module->types[explicit_super].subtyping_depth + 1;
       module_->types[i].subtyping_depth = depth;
       DCHECK_GE(depth, 0);
-      if (depth > static_cast<int>(kV8MaxRttSubtypingDepth)) {
+      if (depth > kV8MaxRttSubtypingDepth) {
         errorf("type %u: subtyping depth is greater than allowed", i);
         continue;
       }

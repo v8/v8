@@ -24,6 +24,11 @@
 
 namespace v8::internal::wasm {
 
+// Ensure that the max subtyping depth can be stored in the TypeDefinition.
+static_assert(
+    kV8MaxRttSubtypingDepth <=
+    std::numeric_limits<decltype(TypeDefinition().subtyping_depth)>::max());
+
 template <class Value>
 void AdaptiveMap<Value>::FinishInitialization() {
   uint32_t count = 0;
