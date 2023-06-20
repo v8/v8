@@ -79,22 +79,22 @@ struct SsaEnv : public ZoneObject {
   enum State { kUnreachable, kReached, kMerged };
 
   State state;
-  TFNode* control;
   TFNode* effect;
+  TFNode* control;
   compiler::WasmInstanceCacheNodes instance_cache;
   LocalsVector locals;
 
-  SsaEnv(LocalsAllocator* alloc, State state, TFNode* control, TFNode* effect,
+  SsaEnv(LocalsAllocator* alloc, State state, TFNode* effect, TFNode* control,
          uint32_t locals_size)
       : state(state),
-        control(control),
         effect(effect),
+        control(control),
         locals(alloc, locals_size) {}
 
   SsaEnv(const SsaEnv& other) V8_NOEXCEPT = default;
   SsaEnv(SsaEnv&& other) V8_NOEXCEPT : state(other.state),
-                                       control(other.control),
                                        effect(other.effect),
+                                       control(other.control),
                                        instance_cache(other.instance_cache),
                                        locals(std::move(other.locals)) {
     other.Kill();
