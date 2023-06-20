@@ -49,6 +49,8 @@ inline ScaleFactor ScaleFactorFromInt(int n) {
       return times_2;
     case 4:
       return times_4;
+    case 8:
+      return times_8;
     default:
       UNREACHABLE();
   }
@@ -289,6 +291,11 @@ inline void MaglevAssembler::BuildTypedArrayDataPointer(Register data_pointer,
   addq(data_pointer, base);
 }
 
+inline MemOperand MaglevAssembler::TypedArrayElementOperand(
+    Register data_pointer, Register index, int element_size) {
+  return Operand(data_pointer, index, ScaleFactorFromInt(element_size), 0);
+}
+
 inline void MaglevAssembler::LoadTaggedFieldByIndex(Register result,
                                                     Register object,
                                                     Register index, int scale,
@@ -451,10 +458,6 @@ inline void MaglevAssembler::Move(MemOperand dst, Register src) {
   movq(dst, src);
 }
 
-inline void MaglevAssembler::Move(MemOperand dst, DoubleRegister src) {
-  Movsd(dst, src);
-}
-
 inline void MaglevAssembler::Move(Register dst, TaggedIndex i) {
   MacroAssembler::Move(dst, i);
 }
@@ -473,10 +476,6 @@ inline void MaglevAssembler::Move(Register dst, ExternalReference src) {
 
 inline void MaglevAssembler::Move(Register dst, MemOperand src) {
   MacroAssembler::Move(dst, src);
-}
-
-inline void MaglevAssembler::Move(DoubleRegister dst, MemOperand src) {
-  Movsd(dst, src);
 }
 
 inline void MaglevAssembler::Move(Register dst, Register src) {
@@ -498,6 +497,21 @@ inline void MaglevAssembler::Move(DoubleRegister dst, Float64 n) {
 
 inline void MaglevAssembler::Move(Register dst, Handle<HeapObject> obj) {
   MacroAssembler::Move(dst, obj);
+}
+
+inline void MaglevAssembler::LoadFloat32(DoubleRegister dst, MemOperand src) {
+  Movss(dst, src);
+  Cvtss2sd(dst, dst);
+}
+inline void MaglevAssembler::StoreFloat32(MemOperand dst, DoubleRegister src) {
+  Cvtsd2ss(kScratchDoubleReg, src);
+  Movss(dst, kScratchDoubleReg);
+}
+inline void MaglevAssembler::LoadFloat64(DoubleRegister dst, MemOperand src) {
+  Movsd(dst, src);
+}
+inline void MaglevAssembler::StoreFloat64(MemOperand dst, DoubleRegister src) {
+  Movsd(dst, src);
 }
 
 inline void MaglevAssembler::SignExtend32To64Bits(Register dst, Register src) {

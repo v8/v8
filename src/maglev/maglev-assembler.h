@@ -198,7 +198,10 @@ class MaglevAssembler : public MacroAssembler {
   inline void StoreField(MemOperand operand, Register value, int element_size);
   inline void ReverseByteOrder(Register value, int element_size);
 
-  void BuildTypedArrayDataPointer(Register data_pointer, Register object);
+  inline void BuildTypedArrayDataPointer(Register data_pointer,
+                                         Register object);
+  inline MemOperand TypedArrayElementOperand(Register data_pointer,
+                                             Register index, int element_size);
 
   // Warning: Input registers {string} and {index} will be scratched.
   // {result} is allowed to alias with one the other 3 input registers.
@@ -292,9 +295,7 @@ class MaglevAssembler : public MacroAssembler {
   inline void Move(Register dst, StackSlot src);
   inline void Move(DoubleRegister dst, StackSlot src);
   inline void Move(MemOperand dst, Register src);
-  inline void Move(MemOperand dst, DoubleRegister src);
   inline void Move(Register dst, MemOperand src);
-  inline void Move(DoubleRegister dst, MemOperand src);
   inline void Move(DoubleRegister dst, DoubleRegister src);
   inline void Move(Register dst, Smi src);
   inline void Move(Register dst, ExternalReference src);
@@ -306,6 +307,11 @@ class MaglevAssembler : public MacroAssembler {
   inline void Move(Register dst, Handle<HeapObject> obj);
 
   inline void LoadByte(Register dst, MemOperand src);
+
+  inline void LoadFloat32(DoubleRegister dst, MemOperand src);
+  inline void StoreFloat32(MemOperand dst, DoubleRegister src);
+  inline void LoadFloat64(DoubleRegister dst, MemOperand src);
+  inline void StoreFloat64(MemOperand dst, DoubleRegister src);
 
   inline void SignExtend32To64Bits(Register dst, Register src);
   inline void NegateInt32(Register val);

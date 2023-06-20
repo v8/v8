@@ -30,6 +30,8 @@ inline int ShiftFromScale(int n) {
       return 1;
     case 4:
       return 2;
+    case 8:
+      return 3;
     default:
       UNREACHABLE();
   }
@@ -387,6 +389,13 @@ inline void MaglevAssembler::BuildTypedArrayDataPointer(Register data_pointer,
   Add(data_pointer, data_pointer, base);
 }
 
+inline MemOperand MaglevAssembler::TypedArrayElementOperand(
+    Register data_pointer, Register index, int element_size) {
+  Add(data_pointer, data_pointer,
+      Operand(index, LSL, ShiftFromScale(element_size)));
+  return MemOperand(data_pointer);
+}
+
 inline void MaglevAssembler::LoadTaggedFieldByIndex(Register result,
                                                     Register object,
                                                     Register index, int scale,
@@ -467,21 +476,19 @@ inline void MaglevAssembler::LoadSignedField(Register result,
     Ldrsh(result, operand);
   } else {
     DCHECK_EQ(size, 4);
-    DCHECK(result.IsW());
-    Ldr(result, operand);
+    Ldr(result.W(), operand);
   }
 }
 
 inline void MaglevAssembler::LoadUnsignedField(Register result,
                                                MemOperand operand, int size) {
   if (size == 1) {
-    Ldrb(result, operand);
+    Ldrb(result.W(), operand);
   } else if (size == 2) {
-    Ldrh(result, operand);
+    Ldrh(result.W(), operand);
   } else {
     DCHECK_EQ(size, 4);
-    DCHECK(result.IsW());
-    Ldr(result, operand);
+    Ldr(result.W(), operand);
   }
 }
 
@@ -521,13 +528,12 @@ inline void MaglevAssembler::StoreField(MemOperand operand, Register value,
                                         int size) {
   DCHECK(size == 1 || size == 2 || size == 4);
   if (size == 1) {
-    Strb(value, operand);
+    Strb(value.W(), operand);
   } else if (size == 2) {
-    Strh(value, operand);
+    Strh(value.W(), operand);
   } else {
     DCHECK_EQ(size, 4);
-    DCHECK(value.IsW());
-    Str(value, operand);
+    Str(value.W(), operand);
   }
 }
 
@@ -560,13 +566,7 @@ inline void MaglevAssembler::Move(DoubleRegister dst, StackSlot src) {
 inline void MaglevAssembler::Move(MemOperand dst, Register src) {
   Str(src, dst);
 }
-inline void MaglevAssembler::Move(MemOperand dst, DoubleRegister src) {
-  Str(src, dst);
-}
 inline void MaglevAssembler::Move(Register dst, MemOperand src) {
-  Ldr(dst, src);
-}
-inline void MaglevAssembler::Move(DoubleRegister dst, MemOperand src) {
   Ldr(dst, src);
 }
 inline void MaglevAssembler::Move(DoubleRegister dst, DoubleRegister src) {
@@ -595,6 +595,23 @@ inline void MaglevAssembler::Move(DoubleRegister dst, Float64 n) {
 }
 inline void MaglevAssembler::Move(Register dst, Handle<HeapObject> obj) {
   Mov(dst, Operand(obj));
+}
+
+inline void MaglevAssembler::LoadFloat32(DoubleRegister dst, MemOperand src) {
+  Ldr(dst.S(), src);
+  Fcvt(dst, dst.S());
+}
+inline void MaglevAssembler::StoreFloat32(MemOperand dst, DoubleRegister src) {
+  ScratchRegisterScope temps(this);
+  DoubleRegister scratch = temps.AcquireDouble();
+  Fcvt(scratch.S(), src);
+  Str(scratch.S(), dst);
+}
+inline void MaglevAssembler::LoadFloat64(DoubleRegister dst, MemOperand src) {
+  Ldr(dst, src);
+}
+inline void MaglevAssembler::StoreFloat64(MemOperand dst, DoubleRegister src) {
+  Str(src, dst);
 }
 
 inline void MaglevAssembler::SignExtend32To64Bits(Register dst, Register src) {

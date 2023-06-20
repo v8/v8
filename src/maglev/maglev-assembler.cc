@@ -20,7 +20,7 @@ void MaglevAssembler::AllocateHeapNumber(RegisterSnapshot register_snapshot,
   register_snapshot.live_double_registers.set(value);
   Allocate(register_snapshot, result, HeapNumber::kSize);
   SetMapAsRoot(result, RootIndex::kHeapNumberMap);
-  Move(FieldMemOperand(result, HeapNumber::kValueOffset), value);
+  StoreFloat64(FieldMemOperand(result, HeapNumber::kValueOffset), value);
 }
 
 void MaglevAssembler::AllocateTwoByteString(RegisterSnapshot register_snapshot,
@@ -262,7 +262,7 @@ void MaglevAssembler::MaterialiseValueNode(Register dst, ValueNode* value) {
       break;
     }
     case ValueRepresentation::kFloat64:
-      Move(builtin_input_value, src);
+      LoadFloat64(builtin_input_value, src);
       CallBuiltin<Builtin::kNewHeapNumber>(builtin_input_value);
       Move(dst, kReturnRegister0);
       break;
@@ -272,7 +272,7 @@ void MaglevAssembler::MaterialiseValueNode(Register dst, ValueNode* value) {
       LoadRoot(dst, RootIndex::kUndefinedValue);
       Jump(&done);
       bind(&box);
-      Move(builtin_input_value, src);
+      LoadFloat64(builtin_input_value, src);
       CallBuiltin<Builtin::kNewHeapNumber>(builtin_input_value);
       Move(dst, kReturnRegister0);
       bind(&done);

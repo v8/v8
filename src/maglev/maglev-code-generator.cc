@@ -796,8 +796,8 @@ class MaglevCodeGeneratingNodeProcessor {
             __ Move(masm()->GetStackSlot(value_node->spill_slot()),
                     ToRegister(source));
           } else {
-            __ Move(masm()->GetStackSlot(value_node->spill_slot()),
-                    ToDoubleRegister(source));
+            __ StoreFloat64(masm()->GetStackSlot(value_node->spill_slot()),
+                            ToDoubleRegister(source));
           }
         } else {
           // Otherwise, the result source stack slot should be equal to the

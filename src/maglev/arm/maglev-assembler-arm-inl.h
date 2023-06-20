@@ -38,6 +38,8 @@ inline int ShiftFromScale(int n) {
       return 1;
     case 4:
       return 2;
+    case 8:
+      return 3;
     default:
       UNREACHABLE();
   }
@@ -297,6 +299,13 @@ inline void MaglevAssembler::BuildTypedArrayDataPointer(Register data_pointer,
   add(data_pointer, data_pointer, base);
 }
 
+inline MemOperand MaglevAssembler::TypedArrayElementOperand(
+    Register data_pointer, Register index, int element_size) {
+  add(data_pointer, data_pointer,
+      Operand(index, LSL, ShiftFromScale(element_size)));
+  return MemOperand(data_pointer);
+}
+
 inline void MaglevAssembler::LoadTaggedFieldByIndex(Register result,
                                                     Register object,
                                                     Register index, int scale,
@@ -450,14 +459,8 @@ inline void MaglevAssembler::Move(DoubleRegister dst, StackSlot src) {
 inline void MaglevAssembler::Move(MemOperand dst, Register src) {
   str(src, dst);
 }
-inline void MaglevAssembler::Move(MemOperand dst, DoubleRegister src) {
-  vstr(src, dst);
-}
 inline void MaglevAssembler::Move(Register dst, MemOperand src) {
   ldr(dst, src);
-}
-inline void MaglevAssembler::Move(DoubleRegister dst, MemOperand src) {
-  vldr(dst, src);
 }
 inline void MaglevAssembler::Move(DoubleRegister dst, DoubleRegister src) {
   if (dst != src) {
@@ -489,6 +492,30 @@ inline void MaglevAssembler::Move(DoubleRegister dst, Float64 n) {
 }
 inline void MaglevAssembler::Move(Register dst, Handle<HeapObject> obj) {
   MacroAssembler::Move(dst, obj);
+}
+
+inline void MaglevAssembler::LoadFloat32(DoubleRegister dst, MemOperand src) {
+  UseScratchRegisterScope temps(this);
+  SwVfpRegister temp_vfps = SwVfpRegister::no_reg();
+  if (dst.code() < 16) {
+    temp_vfps = LowDwVfpRegister::from_code(dst.code()).low();
+  } else {
+    temp_vfps = temps.AcquireS();
+  }
+  vldr(temp_vfps, src);
+  vcvt_f64_f32(dst, temp_vfps);
+}
+inline void MaglevAssembler::StoreFloat32(MemOperand dst, DoubleRegister src) {
+  UseScratchRegisterScope temps(this);
+  SwVfpRegister temp_vfps = temps.AcquireS();
+  vcvt_f32_f64(temp_vfps, src);
+  vstr(temp_vfps, dst);
+}
+inline void MaglevAssembler::LoadFloat64(DoubleRegister dst, MemOperand src) {
+  vldr(dst, src);
+}
+inline void MaglevAssembler::StoreFloat64(MemOperand dst, DoubleRegister src) {
+  vstr(src, dst);
 }
 
 inline void MaglevAssembler::SignExtend32To64Bits(Register dst, Register src) {
