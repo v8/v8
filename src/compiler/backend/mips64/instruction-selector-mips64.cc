@@ -3711,9 +3711,8 @@ void InstructionSelectorT<Adapter>::AddOutputToSelectContinuation(
 }
 
 // static
-template <typename Adapter>
 MachineOperatorBuilder::Flags
-InstructionSelectorT<Adapter>::SupportedMachineOperatorFlags() {
+InstructionSelector::SupportedMachineOperatorFlags() {
   MachineOperatorBuilder::Flags flags = MachineOperatorBuilder::kNoFlags;
   return flags | MachineOperatorBuilder::kWord32Ctz |
          MachineOperatorBuilder::kWord64Ctz |
@@ -3733,9 +3732,8 @@ InstructionSelectorT<Adapter>::SupportedMachineOperatorFlags() {
 }
 
 // static
-template <typename Adapter>
 MachineOperatorBuilder::AlignmentRequirements
-InstructionSelectorT<Adapter>::AlignmentRequirements() {
+InstructionSelector::AlignmentRequirements() {
   if (kArchVariant == kMips64r6) {
     return MachineOperatorBuilder::AlignmentRequirements::
         FullUnalignedAccessSupport();

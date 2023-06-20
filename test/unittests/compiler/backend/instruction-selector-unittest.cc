@@ -44,7 +44,7 @@ InstructionSelectorTest::Stream InstructionSelectorTest::StreamBuilder::Build(
   TickCounter tick_counter;
   size_t max_unoptimized_frame_height = 0;
   size_t max_pushed_argument_count = 0;
-  InstructionSelector selector(
+  InstructionSelector selector = InstructionSelector::ForTurbofan(
       test_->zone(), node_count, &linkage, &sequence, schedule,
       &source_position_table, nullptr,
       InstructionSelector::kEnableSwitchJumpTable, &tick_counter, nullptr,

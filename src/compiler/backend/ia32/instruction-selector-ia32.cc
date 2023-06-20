@@ -21,6 +21,7 @@
 #include "src/codegen/macro-assembler-base.h"
 #include "src/common/globals.h"
 #include "src/compiler/backend/instruction-codes.h"
+#include "src/compiler/backend/instruction-selector-adapter.h"
 #include "src/compiler/backend/instruction-selector-impl.h"
 #include "src/compiler/backend/instruction-selector.h"
 #include "src/compiler/backend/instruction.h"
@@ -203,44 +204,51 @@ class IA32OperandGeneratorT final : public OperandGeneratorT<Adapter> {
                                        register_mode);
   }
 
+  DECLARE_UNREACHABLE_TURBOSHAFT_FALLBACK(AddressingMode,
+                                          GetEffectiveAddressMemoryOperand)
   AddressingMode GetEffectiveAddressMemoryOperand(
-      Node* node, InstructionOperand inputs[], size_t* input_count,
+      node_t node, InstructionOperand inputs[], size_t* input_count,
       RegisterMode register_mode = RegisterMode::kRegister) {
-    {
-      LoadMatcher<ExternalReferenceMatcher> m(node);
-      if (m.index().HasResolvedValue() && m.object().HasResolvedValue() &&
-          selector()->CanAddressRelativeToRootsRegister(
-              m.object().ResolvedValue())) {
-        ptrdiff_t const delta =
-            m.index().ResolvedValue() +
-            MacroAssemblerBase::RootRegisterOffsetForExternalReference(
-                selector()->isolate(), m.object().ResolvedValue());
-        if (is_int32(delta)) {
-          inputs[(*input_count)++] = TempImmediate(static_cast<int32_t>(delta));
-          return kMode_Root;
+    if constexpr (Adapter::IsTurboshaft) {
+      UNIMPLEMENTED();
+    } else {
+      {
+        LoadMatcher<ExternalReferenceMatcher> m(node);
+        if (m.index().HasResolvedValue() && m.object().HasResolvedValue() &&
+            selector()->CanAddressRelativeToRootsRegister(
+                m.object().ResolvedValue())) {
+          ptrdiff_t const delta =
+              m.index().ResolvedValue() +
+              MacroAssemblerBase::RootRegisterOffsetForExternalReference(
+                  selector()->isolate(), m.object().ResolvedValue());
+          if (is_int32(delta)) {
+            inputs[(*input_count)++] =
+                TempImmediate(static_cast<int32_t>(delta));
+            return kMode_Root;
+          }
         }
       }
-    }
 
-    BaseWithIndexAndDisplacement32Matcher m(node, AddressOption::kAllowAll);
-    DCHECK(m.matches());
-    if (m.base() != nullptr &&
-        m.base()->opcode() == IrOpcode::kLoadRootRegister) {
-      DCHECK_EQ(m.index(), nullptr);
-      DCHECK_EQ(m.scale(), 0);
-      inputs[(*input_count)++] = UseImmediate(m.displacement());
-      return kMode_Root;
-    } else if ((m.displacement() == nullptr ||
-                CanBeImmediate(m.displacement()))) {
-      return GenerateMemoryOperandInputs(
-          m.index(), m.scale(), m.base(), m.displacement(),
-          m.displacement_mode(), inputs, input_count, register_mode);
-    } else {
-      inputs[(*input_count)++] =
-          UseRegisterWithMode(node->InputAt(0), register_mode);
-      inputs[(*input_count)++] =
-          UseRegisterWithMode(node->InputAt(1), register_mode);
-      return kMode_MR1;
+      BaseWithIndexAndDisplacement32Matcher m(node, AddressOption::kAllowAll);
+      DCHECK(m.matches());
+      if (m.base() != nullptr &&
+          m.base()->opcode() == IrOpcode::kLoadRootRegister) {
+        DCHECK_EQ(m.index(), nullptr);
+        DCHECK_EQ(m.scale(), 0);
+        inputs[(*input_count)++] = UseImmediate(m.displacement());
+        return kMode_Root;
+      } else if ((m.displacement() == nullptr ||
+                  CanBeImmediate(m.displacement()))) {
+        return GenerateMemoryOperandInputs(
+            m.index(), m.scale(), m.base(), m.displacement(),
+            m.displacement_mode(), inputs, input_count, register_mode);
+      } else {
+        inputs[(*input_count)++] =
+            UseRegisterWithMode(node->InputAt(0), register_mode);
+        inputs[(*input_count)++] =
+            UseRegisterWithMode(node->InputAt(1), register_mode);
+        return kMode_MR1;
+      }
     }
   }
 
@@ -255,7 +263,8 @@ class IA32OperandGeneratorT final : public OperandGeneratorT<Adapter> {
     }
   }
 
-  bool CanBeBetterLeftOperand(Node* node) const {
+  DECLARE_UNREACHABLE_TURBOSHAFT_FALLBACK(bool, CanBeBetterLeftOperand)
+  bool CanBeBetterLeftOperand(node_t node) const {
     return !selector()->IsLive(node);
   }
 };
@@ -623,7 +632,7 @@ void InstructionSelectorT<Adapter>::VisitLoadTransform(Node* node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitLoad(Node* node, Node* value,
+void InstructionSelectorT<Adapter>::VisitLoad(node_t node, node_t value,
                                               InstructionCode opcode) {
   IA32OperandGeneratorT<Adapter> g(this);
   InstructionOperand outputs[1];
@@ -637,8 +646,8 @@ void InstructionSelectorT<Adapter>::VisitLoad(Node* node, Node* value,
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitLoad(Node* node) {
-  LoadRepresentation load_rep = LoadRepresentationOf(node->op());
+void InstructionSelectorT<Adapter>::VisitLoad(node_t node) {
+  LoadRepresentation load_rep = this->load_view(node).loaded_rep();
   DCHECK(!load_rep.IsMapWord());
   VisitLoad(node, node, GetLoadOpcode(load_rep));
 }
@@ -856,7 +865,7 @@ namespace {
 // Shared routine for multiple binary operations.
 template <typename Adapter>
 void VisitBinop(InstructionSelectorT<Adapter>* selector, Node* node,
-                InstructionCode opcode, FlagsContinuation* cont) {
+                InstructionCode opcode, FlagsContinuationT<Adapter>* cont) {
   IA32OperandGeneratorT<Adapter> g(selector);
   Int32BinopMatcher m(node);
   Node* left = m.left().node();
@@ -915,7 +924,7 @@ void VisitBinop(InstructionSelectorT<Adapter>* selector, Node* node,
 template <typename Adapter>
 void VisitBinop(InstructionSelectorT<Adapter>* selector, Node* node,
                 InstructionCode opcode) {
-  FlagsContinuation cont;
+  FlagsContinuationT<Adapter> cont;
   VisitBinop(selector, node, opcode, &cont);
 }
 
@@ -944,50 +953,55 @@ void InstructionSelectorT<Adapter>::VisitWord32Xor(Node* node) {
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitStackPointerGreaterThan(
-    Node* node, FlagsContinuation* cont) {
-  StackCheckKind kind = StackCheckKindOf(node->op());
-  InstructionCode opcode =
-      kArchStackPointerGreaterThan | MiscField::encode(static_cast<int>(kind));
-
-  int effect_level = GetEffectLevel(node, cont);
-
-  IA32OperandGeneratorT<Adapter> g(this);
-
-  // No outputs.
-  InstructionOperand* const outputs = nullptr;
-  const int output_count = 0;
-
-  // Applying an offset to this stack check requires a temp register. Offsets
-  // are only applied to the first stack check. If applying an offset, we must
-  // ensure the input and temp registers do not alias, thus kUniqueRegister.
-  InstructionOperand temps[] = {g.TempRegister()};
-  const int temp_count = (kind == StackCheckKind::kJSFunctionEntry) ? 1 : 0;
-  const auto register_mode = (kind == StackCheckKind::kJSFunctionEntry)
-                                 ? OperandGenerator::kUniqueRegister
-                                 : OperandGenerator::kRegister;
-
-  Node* const value = node->InputAt(0);
-  if (g.CanBeMemoryOperand(kIA32Cmp, node, value, effect_level)) {
-    DCHECK(value->opcode() == IrOpcode::kLoad ||
-           value->opcode() == IrOpcode::kLoadImmutable);
-
-    // GetEffectiveAddressMemoryOperand can create at most 3 inputs.
-    static constexpr int kMaxInputCount = 3;
-
-    size_t input_count = 0;
-    InstructionOperand inputs[kMaxInputCount];
-    AddressingMode addressing_mode = g.GetEffectiveAddressMemoryOperand(
-        value, inputs, &input_count, register_mode);
-    opcode |= AddressingModeField::encode(addressing_mode);
-    DCHECK_LE(input_count, kMaxInputCount);
-
-    EmitWithContinuation(opcode, output_count, outputs, input_count, inputs,
-                         temp_count, temps, cont);
+    node_t node, FlagsContinuation* cont) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
   } else {
-    InstructionOperand inputs[] = {g.UseRegisterWithMode(value, register_mode)};
-    static constexpr int input_count = arraysize(inputs);
-    EmitWithContinuation(opcode, output_count, outputs, input_count, inputs,
-                         temp_count, temps, cont);
+    StackCheckKind kind = StackCheckKindOf(node->op());
+    InstructionCode opcode = kArchStackPointerGreaterThan |
+                             MiscField::encode(static_cast<int>(kind));
+
+    int effect_level = GetEffectLevel(node, cont);
+
+    IA32OperandGeneratorT<Adapter> g(this);
+
+    // No outputs.
+    InstructionOperand* const outputs = nullptr;
+    const int output_count = 0;
+
+    // Applying an offset to this stack check requires a temp register. Offsets
+    // are only applied to the first stack check. If applying an offset, we must
+    // ensure the input and temp registers do not alias, thus kUniqueRegister.
+    InstructionOperand temps[] = {g.TempRegister()};
+    const int temp_count = (kind == StackCheckKind::kJSFunctionEntry) ? 1 : 0;
+    const auto register_mode = (kind == StackCheckKind::kJSFunctionEntry)
+                                   ? OperandGenerator::kUniqueRegister
+                                   : OperandGenerator::kRegister;
+
+    Node* const value = node->InputAt(0);
+    if (g.CanBeMemoryOperand(kIA32Cmp, node, value, effect_level)) {
+      DCHECK(value->opcode() == IrOpcode::kLoad ||
+             value->opcode() == IrOpcode::kLoadImmutable);
+
+      // GetEffectiveAddressMemoryOperand can create at most 3 inputs.
+      static constexpr int kMaxInputCount = 3;
+
+      size_t input_count = 0;
+      InstructionOperand inputs[kMaxInputCount];
+      AddressingMode addressing_mode = g.GetEffectiveAddressMemoryOperand(
+          value, inputs, &input_count, register_mode);
+      opcode |= AddressingModeField::encode(addressing_mode);
+      DCHECK_LE(input_count, kMaxInputCount);
+
+      EmitWithContinuation(opcode, output_count, outputs, input_count, inputs,
+                           temp_count, temps, cont);
+    } else {
+      InstructionOperand inputs[] = {
+          g.UseRegisterWithMode(value, register_mode)};
+      static constexpr int input_count = arraysize(inputs);
+      EmitWithContinuation(opcode, output_count, outputs, input_count, inputs,
+                           temp_count, temps, cont);
+    }
   }
 }
 
@@ -1547,7 +1561,8 @@ void InstructionSelectorT<Adapter>::VisitFloat64Ieee754Unop(
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::EmitMoveParamToFPR(Node* node, int index) {}
+void InstructionSelectorT<Adapter>::EmitMoveParamToFPR(node_t node, int index) {
+}
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::EmitMoveFPRToParam(
@@ -1556,58 +1571,63 @@ void InstructionSelectorT<Adapter>::EmitMoveFPRToParam(
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::EmitPrepareArguments(
     ZoneVector<PushParameter>* arguments, const CallDescriptor* call_descriptor,
-    Node* node) {
-  IA32OperandGeneratorT<Adapter> g(this);
-
-  // Prepare for C function call.
-  if (call_descriptor->IsCFunctionCall()) {
-    InstructionOperand temps[] = {g.TempRegister()};
-    size_t const temp_count = arraysize(temps);
-    Emit(kArchPrepareCallCFunction | MiscField::encode(static_cast<int>(
-                                         call_descriptor->ParameterCount())),
-         0, nullptr, 0, nullptr, temp_count, temps);
-
-    // Poke any stack arguments.
-    for (size_t n = 0; n < arguments->size(); ++n) {
-      PushParameter input = (*arguments)[n];
-      if (input.node) {
-        int const slot = static_cast<int>(n);
-        InstructionOperand value = g.CanBeImmediate(node)
-                                       ? g.UseImmediate(input.node)
-                                       : g.UseRegister(input.node);
-        Emit(kIA32Poke | MiscField::encode(slot), g.NoOutput(), value);
-      }
-    }
+    node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
   } else {
-    // Push any stack arguments.
-    int effect_level = GetEffectLevel(node);
-    int stack_decrement = 0;
-    for (PushParameter input : base::Reversed(*arguments)) {
-      stack_decrement += kSystemPointerSize;
-      // Skip holes in the param array. These represent both extra slots for
-      // multi-slot values and padding slots for alignment.
-      if (input.node == nullptr) continue;
-      InstructionOperand decrement = g.UseImmediate(stack_decrement);
-      stack_decrement = 0;
-      if (g.CanBeImmediate(input.node)) {
-        Emit(kIA32Push, g.NoOutput(), decrement, g.UseImmediate(input.node));
-      } else if (IsSupported(INTEL_ATOM) ||
-                 sequence()->IsFP(GetVirtualRegister(input.node))) {
-        // TODO(bbudge): IA32Push cannot handle stack->stack double moves
-        // because there is no way to encode fixed double slots.
-        Emit(kIA32Push, g.NoOutput(), decrement, g.UseRegister(input.node));
-      } else if (g.CanBeMemoryOperand(kIA32Push, node, input.node,
-                                      effect_level)) {
-        InstructionOperand outputs[1];
-        InstructionOperand inputs[5];
-        size_t input_count = 0;
-        inputs[input_count++] = decrement;
-        AddressingMode mode = g.GetEffectiveAddressMemoryOperand(
-            input.node, inputs, &input_count);
-        InstructionCode opcode = kIA32Push | AddressingModeField::encode(mode);
-        Emit(opcode, 0, outputs, input_count, inputs);
-      } else {
-        Emit(kIA32Push, g.NoOutput(), decrement, g.UseAny(input.node));
+    IA32OperandGeneratorT<Adapter> g(this);
+
+    // Prepare for C function call.
+    if (call_descriptor->IsCFunctionCall()) {
+      InstructionOperand temps[] = {g.TempRegister()};
+      size_t const temp_count = arraysize(temps);
+      Emit(kArchPrepareCallCFunction | MiscField::encode(static_cast<int>(
+                                           call_descriptor->ParameterCount())),
+           0, nullptr, 0, nullptr, temp_count, temps);
+
+      // Poke any stack arguments.
+      for (size_t n = 0; n < arguments->size(); ++n) {
+        PushParameter input = (*arguments)[n];
+        if (input.node) {
+          int const slot = static_cast<int>(n);
+          InstructionOperand value = g.CanBeImmediate(node)
+                                         ? g.UseImmediate(input.node)
+                                         : g.UseRegister(input.node);
+          Emit(kIA32Poke | MiscField::encode(slot), g.NoOutput(), value);
+        }
+      }
+    } else {
+      // Push any stack arguments.
+      int effect_level = GetEffectLevel(node);
+      int stack_decrement = 0;
+      for (PushParameter input : base::Reversed(*arguments)) {
+        stack_decrement += kSystemPointerSize;
+        // Skip holes in the param array. These represent both extra slots for
+        // multi-slot values and padding slots for alignment.
+        if (input.node == nullptr) continue;
+        InstructionOperand decrement = g.UseImmediate(stack_decrement);
+        stack_decrement = 0;
+        if (g.CanBeImmediate(input.node)) {
+          Emit(kIA32Push, g.NoOutput(), decrement, g.UseImmediate(input.node));
+        } else if (IsSupported(INTEL_ATOM) ||
+                   sequence()->IsFP(GetVirtualRegister(input.node))) {
+          // TODO(bbudge): IA32Push cannot handle stack->stack double moves
+          // because there is no way to encode fixed double slots.
+          Emit(kIA32Push, g.NoOutput(), decrement, g.UseRegister(input.node));
+        } else if (g.CanBeMemoryOperand(kIA32Push, node, input.node,
+                                        effect_level)) {
+          InstructionOperand outputs[1];
+          InstructionOperand inputs[5];
+          size_t input_count = 0;
+          inputs[input_count++] = decrement;
+          AddressingMode mode = g.GetEffectiveAddressMemoryOperand(
+              input.node, inputs, &input_count);
+          InstructionCode opcode =
+              kIA32Push | AddressingModeField::encode(mode);
+          Emit(opcode, 0, outputs, input_count, inputs);
+        } else {
+          Emit(kIA32Push, g.NoOutput(), decrement, g.UseAny(input.node));
+        }
       }
     }
   }
@@ -1616,25 +1636,29 @@ void InstructionSelectorT<Adapter>::EmitPrepareArguments(
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::EmitPrepareResults(
     ZoneVector<PushParameter>* results, const CallDescriptor* call_descriptor,
-    Node* node) {
-  IA32OperandGeneratorT<Adapter> g(this);
+    node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    IA32OperandGeneratorT<Adapter> g(this);
 
-  for (PushParameter output : *results) {
-    if (!output.location.IsCallerFrameSlot()) continue;
-    // Skip any alignment holes in nodes.
-    if (output.node != nullptr) {
-      DCHECK(!call_descriptor->IsCFunctionCall());
-      if (output.location.GetType() == MachineType::Float32()) {
-        MarkAsFloat32(output.node);
-      } else if (output.location.GetType() == MachineType::Float64()) {
-        MarkAsFloat64(output.node);
-      } else if (output.location.GetType() == MachineType::Simd128()) {
-        MarkAsSimd128(output.node);
+    for (PushParameter output : *results) {
+      if (!output.location.IsCallerFrameSlot()) continue;
+      // Skip any alignment holes in nodes.
+      if (output.node != nullptr) {
+        DCHECK(!call_descriptor->IsCFunctionCall());
+        if (output.location.GetType() == MachineType::Float32()) {
+          MarkAsFloat32(output.node);
+        } else if (output.location.GetType() == MachineType::Float64()) {
+          MarkAsFloat64(output.node);
+        } else if (output.location.GetType() == MachineType::Simd128()) {
+          MarkAsSimd128(output.node);
+        }
+        int offset = call_descriptor->GetOffsetToReturns();
+        int reverse_slot = -output.location.GetLocation() - offset;
+        Emit(kIA32Peek, g.DefineAsRegister(output.node),
+             g.UseImmediate(reverse_slot));
       }
-      int offset = call_descriptor->GetOffsetToReturns();
-      int reverse_slot = -output.location.GetLocation() - offset;
-      Emit(kIA32Peek, g.DefineAsRegister(output.node),
-           g.UseImmediate(reverse_slot));
     }
   }
 }
@@ -1650,7 +1674,7 @@ template <typename Adapter>
 void VisitCompareWithMemoryOperand(InstructionSelectorT<Adapter>* selector,
                                    InstructionCode opcode, Node* left,
                                    InstructionOperand right,
-                                   FlagsContinuation* cont) {
+                                   FlagsContinuationT<Adapter>* cont) {
   DCHECK(left->opcode() == IrOpcode::kLoad ||
          left->opcode() == IrOpcode::kLoadImmutable);
   IA32OperandGeneratorT<Adapter> g(selector);
@@ -1668,15 +1692,16 @@ void VisitCompareWithMemoryOperand(InstructionSelectorT<Adapter>* selector,
 template <typename Adapter>
 void VisitCompare(InstructionSelectorT<Adapter>* selector,
                   InstructionCode opcode, InstructionOperand left,
-                  InstructionOperand right, FlagsContinuation* cont) {
+                  InstructionOperand right, FlagsContinuationT<Adapter>* cont) {
   selector->EmitWithContinuation(opcode, left, right, cont);
 }
 
 // Shared routine for multiple compare operations.
 template <typename Adapter>
 void VisitCompare(InstructionSelectorT<Adapter>* selector,
-                  InstructionCode opcode, Node* left, Node* right,
-                  FlagsContinuation* cont, bool commutative) {
+                  InstructionCode opcode, typename Adapter::node_t left,
+                  typename Adapter::node_t right,
+                  FlagsContinuationT<Adapter>* cont, bool commutative) {
   IA32OperandGeneratorT<Adapter> g(selector);
   if (commutative && g.CanBeBetterLeftOperand(right)) {
     std::swap(left, right);
@@ -1728,8 +1753,10 @@ MachineType MachineTypeForNarrow(Node* node, Node* hint_node) {
 
 // Tries to match the size of the given opcode to that of the operands, if
 // possible.
+template <typename Adapter>
 InstructionCode TryNarrowOpcodeSize(InstructionCode opcode, Node* left,
-                                    Node* right, FlagsContinuation* cont) {
+                                    Node* right,
+                                    FlagsContinuationT<Adapter>* cont) {
   // TODO(epertoso): we can probably get some size information out of phi nodes.
   // If the load representations don't match, both operands will be
   // zero/sign-extended to 32bit.
@@ -1770,71 +1797,79 @@ InstructionCode TryNarrowOpcodeSize(InstructionCode opcode, Node* left,
 
 // Shared routine for multiple float32 compare operations (inputs commuted).
 template <typename Adapter>
-void VisitFloat32Compare(InstructionSelectorT<Adapter>* selector, Node* node,
-                         FlagsContinuation* cont) {
-  Node* const left = node->InputAt(0);
-  Node* const right = node->InputAt(1);
+void VisitFloat32Compare(InstructionSelectorT<Adapter>* selector,
+                         typename Adapter::node_t node,
+                         FlagsContinuationT<Adapter>* cont) {
+  auto left = selector->input_at(node, 0);
+  auto right = selector->input_at(node, 1);
   VisitCompare(selector, kIA32Float32Cmp, right, left, cont, false);
 }
 
 // Shared routine for multiple float64 compare operations (inputs commuted).
 template <typename Adapter>
-void VisitFloat64Compare(InstructionSelectorT<Adapter>* selector, Node* node,
-                         FlagsContinuation* cont) {
-  Node* const left = node->InputAt(0);
-  Node* const right = node->InputAt(1);
+void VisitFloat64Compare(InstructionSelectorT<Adapter>* selector,
+                         typename Adapter::node_t node,
+                         FlagsContinuationT<Adapter>* cont) {
+  auto left = selector->input_at(node, 0);
+  auto right = selector->input_at(node, 1);
   VisitCompare(selector, kIA32Float64Cmp, right, left, cont, false);
 }
 
 // Shared routine for multiple word compare operations.
 template <typename Adapter>
-void VisitWordCompare(InstructionSelectorT<Adapter>* selector, Node* node,
-                      InstructionCode opcode, FlagsContinuation* cont) {
-  IA32OperandGeneratorT<Adapter> g(selector);
-  Node* left = node->InputAt(0);
-  Node* right = node->InputAt(1);
+void VisitWordCompare(InstructionSelectorT<Adapter>* selector,
+                      typename Adapter::node_t node, InstructionCode opcode,
+                      FlagsContinuationT<Adapter>* cont) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    IA32OperandGeneratorT<TurbofanAdapter> g(selector);
+    Node* left = node->InputAt(0);
+    Node* right = node->InputAt(1);
 
-  InstructionCode narrowed_opcode =
-      TryNarrowOpcodeSize(opcode, left, right, cont);
+    InstructionCode narrowed_opcode =
+        TryNarrowOpcodeSize(opcode, left, right, cont);
 
-  int effect_level = selector->GetEffectLevel(node, cont);
+    int effect_level = selector->GetEffectLevel(node, cont);
 
-  // If one of the two inputs is an immediate, make sure it's on the right, or
-  // if one of the two inputs is a memory operand, make sure it's on the left.
-  if ((!g.CanBeImmediate(right) && g.CanBeImmediate(left)) ||
-      (g.CanBeMemoryOperand(narrowed_opcode, node, right, effect_level) &&
-       !g.CanBeMemoryOperand(narrowed_opcode, node, left, effect_level))) {
-    if (!node->op()->HasProperty(Operator::kCommutative)) cont->Commute();
-    std::swap(left, right);
-  }
-
-  // Match immediates on right side of comparison.
-  if (g.CanBeImmediate(right)) {
-    if (g.CanBeMemoryOperand(narrowed_opcode, node, left, effect_level)) {
-      return VisitCompareWithMemoryOperand(selector, narrowed_opcode, left,
-                                           g.UseImmediate(right), cont);
+    // If one of the two inputs is an immediate, make sure it's on the right, or
+    // if one of the two inputs is a memory operand, make sure it's on the left.
+    if ((!g.CanBeImmediate(right) && g.CanBeImmediate(left)) ||
+        (g.CanBeMemoryOperand(narrowed_opcode, node, right, effect_level) &&
+         !g.CanBeMemoryOperand(narrowed_opcode, node, left, effect_level))) {
+      if (!node->op()->HasProperty(Operator::kCommutative)) cont->Commute();
+      std::swap(left, right);
     }
-    return VisitCompare(selector, opcode, g.Use(left), g.UseImmediate(right),
-                        cont);
-  }
 
-  // Match memory operands on left side of comparison.
-  if (g.CanBeMemoryOperand(narrowed_opcode, node, left, effect_level)) {
-    bool needs_byte_register =
-        narrowed_opcode == kIA32Test8 || narrowed_opcode == kIA32Cmp8;
-    return VisitCompareWithMemoryOperand(
-        selector, narrowed_opcode, left,
-        needs_byte_register ? g.UseByteRegister(right) : g.UseRegister(right),
-        cont);
-  }
+    // Match immediates on right side of comparison.
+    if (g.CanBeImmediate(right)) {
+      if (g.CanBeMemoryOperand(narrowed_opcode, node, left, effect_level)) {
+        return VisitCompareWithMemoryOperand(selector, narrowed_opcode, left,
+                                             g.UseImmediate(right), cont);
+      }
+      return VisitCompare(selector, opcode, g.Use(left), g.UseImmediate(right),
+                          cont);
+    }
 
-  return VisitCompare(selector, opcode, left, right, cont,
-                      node->op()->HasProperty(Operator::kCommutative));
+    // Match memory operands on left side of comparison.
+    if (g.CanBeMemoryOperand(narrowed_opcode, node, left, effect_level)) {
+      bool needs_byte_register =
+          narrowed_opcode == kIA32Test8 || narrowed_opcode == kIA32Cmp8;
+      return VisitCompareWithMemoryOperand(
+          selector, narrowed_opcode, left,
+          needs_byte_register ? g.UseByteRegister(right) : g.UseRegister(right),
+          cont);
+    }
+
+    return VisitCompare(selector, opcode, left, right, cont,
+                        node->op()->HasProperty(Operator::kCommutative));
+  }
 }
 
 template <typename Adapter>
-void VisitWordCompare(InstructionSelectorT<Adapter>* selector, Node* node,
-                      FlagsContinuation* cont) {
+void VisitWordCompare(InstructionSelectorT<Adapter>* selector,
+                      typename Adapter::node_t node,
+                      FlagsContinuationT<Adapter>* cont) {
   VisitWordCompare(selector, node, kIA32Cmp, cont);
 }
 
@@ -1902,95 +1937,100 @@ void VisitPairAtomicBinOp(InstructionSelectorT<Adapter>* selector, Node* node,
 // Shared routine for word comparison with zero.
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWordCompareZero(
-    Node* user, Node* value, FlagsContinuation* cont) {
-  // Try to combine with comparisons against 0 by simply inverting the branch.
-  while (value->opcode() == IrOpcode::kWord32Equal && CanCover(user, value)) {
-    Int32BinopMatcher m(value);
-    if (!m.right().Is(0)) break;
+    node_t user, node_t value, FlagsContinuation* cont) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    // Try to combine with comparisons against 0 by simply inverting the branch.
+    while (value->opcode() == IrOpcode::kWord32Equal && CanCover(user, value)) {
+      Int32BinopMatcher m(value);
+      if (!m.right().Is(0)) break;
 
-    user = value;
-    value = m.left().node();
-    cont->Negate();
-  }
+      user = value;
+      value = m.left().node();
+      cont->Negate();
+    }
 
-  if (CanCover(user, value)) {
-    switch (value->opcode()) {
-      case IrOpcode::kWord32Equal:
-        cont->OverwriteAndNegateIfEqual(kEqual);
-        return VisitWordCompare(this, value, cont);
-      case IrOpcode::kInt32LessThan:
-        cont->OverwriteAndNegateIfEqual(kSignedLessThan);
-        return VisitWordCompare(this, value, cont);
-      case IrOpcode::kInt32LessThanOrEqual:
-        cont->OverwriteAndNegateIfEqual(kSignedLessThanOrEqual);
-        return VisitWordCompare(this, value, cont);
-      case IrOpcode::kUint32LessThan:
-        cont->OverwriteAndNegateIfEqual(kUnsignedLessThan);
-        return VisitWordCompare(this, value, cont);
-      case IrOpcode::kUint32LessThanOrEqual:
-        cont->OverwriteAndNegateIfEqual(kUnsignedLessThanOrEqual);
-        return VisitWordCompare(this, value, cont);
-      case IrOpcode::kFloat32Equal:
-        cont->OverwriteAndNegateIfEqual(kUnorderedEqual);
-        return VisitFloat32Compare(this, value, cont);
-      case IrOpcode::kFloat32LessThan:
-        cont->OverwriteAndNegateIfEqual(kUnsignedGreaterThan);
-        return VisitFloat32Compare(this, value, cont);
-      case IrOpcode::kFloat32LessThanOrEqual:
-        cont->OverwriteAndNegateIfEqual(kUnsignedGreaterThanOrEqual);
-        return VisitFloat32Compare(this, value, cont);
-      case IrOpcode::kFloat64Equal:
-        cont->OverwriteAndNegateIfEqual(kUnorderedEqual);
-        return VisitFloat64Compare(this, value, cont);
-      case IrOpcode::kFloat64LessThan:
-        cont->OverwriteAndNegateIfEqual(kUnsignedGreaterThan);
-        return VisitFloat64Compare(this, value, cont);
-      case IrOpcode::kFloat64LessThanOrEqual:
-        cont->OverwriteAndNegateIfEqual(kUnsignedGreaterThanOrEqual);
-        return VisitFloat64Compare(this, value, cont);
-      case IrOpcode::kProjection:
-        // Check if this is the overflow output projection of an
-        // <Operation>WithOverflow node.
-        if (ProjectionIndexOf(value->op()) == 1u) {
-          // We cannot combine the <Operation>WithOverflow with this branch
-          // unless the 0th projection (the use of the actual value of the
-          // <Operation> is either nullptr, which means there's no use of the
-          // actual value, or was already defined, which means it is scheduled
-          // *AFTER* this branch).
-          Node* const node = value->InputAt(0);
-          Node* const result = NodeProperties::FindProjection(node, 0);
-          if (result == nullptr || IsDefined(result)) {
-            switch (node->opcode()) {
-              case IrOpcode::kInt32AddWithOverflow:
-                cont->OverwriteAndNegateIfEqual(kOverflow);
-                return VisitBinop(this, node, kIA32Add, cont);
-              case IrOpcode::kInt32SubWithOverflow:
-                cont->OverwriteAndNegateIfEqual(kOverflow);
-                return VisitBinop(this, node, kIA32Sub, cont);
-              case IrOpcode::kInt32MulWithOverflow:
-                cont->OverwriteAndNegateIfEqual(kOverflow);
-                return VisitBinop(this, node, kIA32Imul, cont);
-              default:
-                break;
+    if (CanCover(user, value)) {
+      switch (value->opcode()) {
+        case IrOpcode::kWord32Equal:
+          cont->OverwriteAndNegateIfEqual(kEqual);
+          return VisitWordCompare(this, value, cont);
+        case IrOpcode::kInt32LessThan:
+          cont->OverwriteAndNegateIfEqual(kSignedLessThan);
+          return VisitWordCompare(this, value, cont);
+        case IrOpcode::kInt32LessThanOrEqual:
+          cont->OverwriteAndNegateIfEqual(kSignedLessThanOrEqual);
+          return VisitWordCompare(this, value, cont);
+        case IrOpcode::kUint32LessThan:
+          cont->OverwriteAndNegateIfEqual(kUnsignedLessThan);
+          return VisitWordCompare(this, value, cont);
+        case IrOpcode::kUint32LessThanOrEqual:
+          cont->OverwriteAndNegateIfEqual(kUnsignedLessThanOrEqual);
+          return VisitWordCompare(this, value, cont);
+        case IrOpcode::kFloat32Equal:
+          cont->OverwriteAndNegateIfEqual(kUnorderedEqual);
+          return VisitFloat32Compare(this, value, cont);
+        case IrOpcode::kFloat32LessThan:
+          cont->OverwriteAndNegateIfEqual(kUnsignedGreaterThan);
+          return VisitFloat32Compare(this, value, cont);
+        case IrOpcode::kFloat32LessThanOrEqual:
+          cont->OverwriteAndNegateIfEqual(kUnsignedGreaterThanOrEqual);
+          return VisitFloat32Compare(this, value, cont);
+        case IrOpcode::kFloat64Equal:
+          cont->OverwriteAndNegateIfEqual(kUnorderedEqual);
+          return VisitFloat64Compare(this, value, cont);
+        case IrOpcode::kFloat64LessThan:
+          cont->OverwriteAndNegateIfEqual(kUnsignedGreaterThan);
+          return VisitFloat64Compare(this, value, cont);
+        case IrOpcode::kFloat64LessThanOrEqual:
+          cont->OverwriteAndNegateIfEqual(kUnsignedGreaterThanOrEqual);
+          return VisitFloat64Compare(this, value, cont);
+        case IrOpcode::kProjection:
+          // Check if this is the overflow output projection of an
+          // <Operation>WithOverflow node.
+          if (ProjectionIndexOf(value->op()) == 1u) {
+            // We cannot combine the <Operation>WithOverflow with this branch
+            // unless the 0th projection (the use of the actual value of the
+            // <Operation> is either nullptr, which means there's no use of the
+            // actual value, or was already defined, which means it is scheduled
+            // *AFTER* this branch).
+            Node* const node = value->InputAt(0);
+            Node* const result = NodeProperties::FindProjection(node, 0);
+            if (result == nullptr || IsDefined(result)) {
+              switch (node->opcode()) {
+                case IrOpcode::kInt32AddWithOverflow:
+                  cont->OverwriteAndNegateIfEqual(kOverflow);
+                  return VisitBinop(this, node, kIA32Add, cont);
+                case IrOpcode::kInt32SubWithOverflow:
+                  cont->OverwriteAndNegateIfEqual(kOverflow);
+                  return VisitBinop(this, node, kIA32Sub, cont);
+                case IrOpcode::kInt32MulWithOverflow:
+                  cont->OverwriteAndNegateIfEqual(kOverflow);
+                  return VisitBinop(this, node, kIA32Imul, cont);
+                default:
+                  break;
+              }
             }
           }
-        }
-        break;
-      case IrOpcode::kInt32Sub:
-        return VisitWordCompare(this, value, cont);
-      case IrOpcode::kWord32And:
-        return VisitWordCompare(this, value, kIA32Test, cont);
-      case IrOpcode::kStackPointerGreaterThan:
-        cont->OverwriteAndNegateIfEqual(kStackPointerGreaterThanCondition);
-        return VisitStackPointerGreaterThan(value, cont);
-      default:
-        break;
+          break;
+        case IrOpcode::kInt32Sub:
+          return VisitWordCompare(this, value, cont);
+        case IrOpcode::kWord32And:
+          return VisitWordCompare(this, value, kIA32Test, cont);
+        case IrOpcode::kStackPointerGreaterThan:
+          cont->OverwriteAndNegateIfEqual(kStackPointerGreaterThanCondition);
+          return VisitStackPointerGreaterThan(value, cont);
+        default:
+          break;
+      }
     }
-  }
 
-  // Continuation could not be combined with a compare, emit compare against 0.
-  IA32OperandGeneratorT<Adapter> g(this);
-  VisitCompare(this, kIA32Cmp, g.Use(value), g.TempImmediate(0), cont);
+    // Continuation could not be combined with a compare, emit compare against
+    // 0.
+    IA32OperandGeneratorT<Adapter> g(this);
+    VisitCompare(this, kIA32Cmp, g.Use(value), g.TempImmediate(0), cont);
+  }
 }
 
 template <typename Adapter>
@@ -2000,7 +2040,8 @@ void InstructionSelectorT<Adapter>::VisitSwitch(Node* node,
   InstructionOperand value_operand = g.UseRegister(node->InputAt(0));
 
   // Emit either ArchTableSwitch or ArchBinarySearchSwitch.
-  if (enable_switch_jump_table_ == kEnableSwitchJumpTable) {
+  if (enable_switch_jump_table_ ==
+      InstructionSelector::kEnableSwitchJumpTable) {
     static const size_t kMaxTableSwitchValueRange = 2 << 16;
     size_t table_space_cost = 4 + sw.value_range();
     size_t table_time_cost = 3;
@@ -2027,36 +2068,40 @@ void InstructionSelectorT<Adapter>::VisitSwitch(Node* node,
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord32Equal(Node* const node) {
+void InstructionSelectorT<Adapter>::VisitWord32Equal(node_t node) {
   FlagsContinuation cont = FlagsContinuation::ForSet(kEqual, node);
-  Int32BinopMatcher m(node);
-  if (m.right().Is(0)) {
-    return VisitWordCompareZero(m.node(), m.left().node(), &cont);
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    Int32BinopMatcher m(node);
+    if (m.right().Is(0)) {
+      return VisitWordCompareZero(m.node(), m.left().node(), &cont);
+    }
   }
   VisitWordCompare(this, node, &cont);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitInt32LessThan(Node* node) {
+void InstructionSelectorT<Adapter>::VisitInt32LessThan(node_t node) {
   FlagsContinuation cont = FlagsContinuation::ForSet(kSignedLessThan, node);
   VisitWordCompare(this, node, &cont);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitInt32LessThanOrEqual(Node* node) {
+void InstructionSelectorT<Adapter>::VisitInt32LessThanOrEqual(node_t node) {
   FlagsContinuation cont =
       FlagsContinuation::ForSet(kSignedLessThanOrEqual, node);
   VisitWordCompare(this, node, &cont);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitUint32LessThan(Node* node) {
+void InstructionSelectorT<Adapter>::VisitUint32LessThan(node_t node) {
   FlagsContinuation cont = FlagsContinuation::ForSet(kUnsignedLessThan, node);
   VisitWordCompare(this, node, &cont);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitUint32LessThanOrEqual(Node* node) {
+void InstructionSelectorT<Adapter>::VisitUint32LessThanOrEqual(node_t node) {
   FlagsContinuation cont =
       FlagsContinuation::ForSet(kUnsignedLessThanOrEqual, node);
   VisitWordCompare(this, node, &cont);
@@ -2064,69 +2109,81 @@ void InstructionSelectorT<Adapter>::VisitUint32LessThanOrEqual(Node* node) {
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitInt32AddWithOverflow(Node* node) {
-  if (Node* ovf = NodeProperties::FindProjection(node, 1)) {
-    FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf);
-    return VisitBinop(this, node, kIA32Add, &cont);
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    if (Node* ovf = NodeProperties::FindProjection(node, 1)) {
+      FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf);
+      return VisitBinop(this, node, kIA32Add, &cont);
+    }
+    FlagsContinuation cont;
+    VisitBinop(this, node, kIA32Add, &cont);
   }
-  FlagsContinuation cont;
-  VisitBinop(this, node, kIA32Add, &cont);
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitInt32SubWithOverflow(Node* node) {
-  if (Node* ovf = NodeProperties::FindProjection(node, 1)) {
-    FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf);
-    return VisitBinop(this, node, kIA32Sub, &cont);
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    if (Node* ovf = NodeProperties::FindProjection(node, 1)) {
+      FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf);
+      return VisitBinop(this, node, kIA32Sub, &cont);
+    }
+    FlagsContinuation cont;
+    VisitBinop(this, node, kIA32Sub, &cont);
   }
-  FlagsContinuation cont;
-  VisitBinop(this, node, kIA32Sub, &cont);
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitInt32MulWithOverflow(Node* node) {
-  if (Node* ovf = NodeProperties::FindProjection(node, 1)) {
-    FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf);
-    return VisitBinop(this, node, kIA32Imul, &cont);
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    if (Node* ovf = NodeProperties::FindProjection(node, 1)) {
+      FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf);
+      return VisitBinop(this, node, kIA32Imul, &cont);
+    }
+    FlagsContinuation cont;
+    VisitBinop(this, node, kIA32Imul, &cont);
   }
-  FlagsContinuation cont;
-  VisitBinop(this, node, kIA32Imul, &cont);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat32Equal(Node* node) {
+void InstructionSelectorT<Adapter>::VisitFloat32Equal(node_t node) {
   FlagsContinuation cont = FlagsContinuation::ForSet(kUnorderedEqual, node);
   VisitFloat32Compare(this, node, &cont);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat32LessThan(Node* node) {
+void InstructionSelectorT<Adapter>::VisitFloat32LessThan(node_t node) {
   FlagsContinuation cont =
       FlagsContinuation::ForSet(kUnsignedGreaterThan, node);
   VisitFloat32Compare(this, node, &cont);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat32LessThanOrEqual(Node* node) {
+void InstructionSelectorT<Adapter>::VisitFloat32LessThanOrEqual(node_t node) {
   FlagsContinuation cont =
       FlagsContinuation::ForSet(kUnsignedGreaterThanOrEqual, node);
   VisitFloat32Compare(this, node, &cont);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat64Equal(Node* node) {
+void InstructionSelectorT<Adapter>::VisitFloat64Equal(node_t node) {
   FlagsContinuation cont = FlagsContinuation::ForSet(kUnorderedEqual, node);
   VisitFloat64Compare(this, node, &cont);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat64LessThan(Node* node) {
+void InstructionSelectorT<Adapter>::VisitFloat64LessThan(node_t node) {
   FlagsContinuation cont =
       FlagsContinuation::ForSet(kUnsignedGreaterThan, node);
   VisitFloat64Compare(this, node, &cont);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat64LessThanOrEqual(Node* node) {
+void InstructionSelectorT<Adapter>::VisitFloat64LessThanOrEqual(node_t node) {
   FlagsContinuation cont =
       FlagsContinuation::ForSet(kUnsignedGreaterThanOrEqual, node);
   VisitFloat64Compare(this, node, &cont);
@@ -2134,33 +2191,45 @@ void InstructionSelectorT<Adapter>::VisitFloat64LessThanOrEqual(Node* node) {
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitFloat64InsertLowWord32(Node* node) {
-  IA32OperandGeneratorT<Adapter> g(this);
-  Node* left = node->InputAt(0);
-  Node* right = node->InputAt(1);
-  Float64Matcher mleft(left);
-  if (mleft.HasResolvedValue() &&
-      (base::bit_cast<uint64_t>(mleft.ResolvedValue()) >> 32) == 0u) {
-    Emit(kIA32Float64LoadLowWord32, g.DefineAsRegister(node), g.Use(right));
-    return;
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    IA32OperandGeneratorT<Adapter> g(this);
+    Node* left = node->InputAt(0);
+    Node* right = node->InputAt(1);
+    Float64Matcher mleft(left);
+    if (mleft.HasResolvedValue() &&
+        (base::bit_cast<uint64_t>(mleft.ResolvedValue()) >> 32) == 0u) {
+      Emit(kIA32Float64LoadLowWord32, g.DefineAsRegister(node), g.Use(right));
+      return;
+    }
+    Emit(kIA32Float64InsertLowWord32, g.DefineSameAsFirst(node),
+         g.UseRegister(left), g.Use(right));
   }
-  Emit(kIA32Float64InsertLowWord32, g.DefineSameAsFirst(node),
-       g.UseRegister(left), g.Use(right));
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitFloat64InsertHighWord32(Node* node) {
-  IA32OperandGeneratorT<Adapter> g(this);
-  Node* left = node->InputAt(0);
-  Node* right = node->InputAt(1);
-  Emit(kIA32Float64InsertHighWord32, g.DefineSameAsFirst(node),
-       g.UseRegister(left), g.Use(right));
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    IA32OperandGeneratorT<Adapter> g(this);
+    Node* left = node->InputAt(0);
+    Node* right = node->InputAt(1);
+    Emit(kIA32Float64InsertHighWord32, g.DefineSameAsFirst(node),
+         g.UseRegister(left), g.Use(right));
+  }
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitFloat64SilenceNaN(Node* node) {
-  IA32OperandGeneratorT<Adapter> g(this);
-  Emit(kIA32Float64SilenceNaN, g.DefineSameAsFirst(node),
-       g.UseRegister(node->InputAt(0)));
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    IA32OperandGeneratorT<Adapter> g(this);
+    Emit(kIA32Float64SilenceNaN, g.DefineSameAsFirst(node),
+         g.UseRegister(node->InputAt(0)));
+  }
 }
 
 template <typename Adapter>
@@ -3575,14 +3644,13 @@ void InstructionSelectorT<Adapter>::VisitI32x4DotI8x16I7x16AddS(Node* node) {
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::AddOutputToSelectContinuation(
-    OperandGenerator* g, int first_input_index, Node* node) {
+    OperandGeneratorT<Adapter>* g, int first_input_index, node_t node) {
   UNREACHABLE();
 }
 
 // static
-template <typename Adapter>
 MachineOperatorBuilder::Flags
-InstructionSelectorT<Adapter>::SupportedMachineOperatorFlags() {
+InstructionSelector::SupportedMachineOperatorFlags() {
   MachineOperatorBuilder::Flags flags =
       MachineOperatorBuilder::kWord32ShiftIsSafe |
       MachineOperatorBuilder::kWord32Ctz | MachineOperatorBuilder::kWord32Rol;
@@ -3603,9 +3671,8 @@ InstructionSelectorT<Adapter>::SupportedMachineOperatorFlags() {
 }
 
 // static
-template <typename Adapter>
 MachineOperatorBuilder::AlignmentRequirements
-InstructionSelectorT<Adapter>::AlignmentRequirements() {
+InstructionSelector::AlignmentRequirements() {
   return MachineOperatorBuilder::AlignmentRequirements::
       FullUnalignedAccessSupport();
 }

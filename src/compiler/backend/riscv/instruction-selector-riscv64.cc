@@ -2362,9 +2362,8 @@ void InstructionSelectorT<Adapter>::VisitSignExtendWord32ToInt64(Node* node) {
 }
 
 // static
-template <typename Adapter>
 MachineOperatorBuilder::Flags
-InstructionSelectorT<Adapter>::SupportedMachineOperatorFlags() {
+InstructionSelector::SupportedMachineOperatorFlags() {
   MachineOperatorBuilder::Flags flags = MachineOperatorBuilder::kNoFlags;
   return flags | MachineOperatorBuilder::kWord32Ctz |
          MachineOperatorBuilder::kWord64Ctz |

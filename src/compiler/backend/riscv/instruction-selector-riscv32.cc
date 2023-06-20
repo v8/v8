@@ -1460,9 +1460,8 @@ void InstructionSelectorT<Adapter>::VisitWord32AtomicPairCompareExchange(
        temps);
 }
 // static
-template <typename Adapter>
 MachineOperatorBuilder::Flags
-InstructionSelectorT<Adapter>::SupportedMachineOperatorFlags() {
+InstructionSelector::SupportedMachineOperatorFlags() {
   MachineOperatorBuilder::Flags flags = MachineOperatorBuilder::kNoFlags;
   return flags | MachineOperatorBuilder::kWord32Ctz |
          MachineOperatorBuilder::kWord32Ctz |

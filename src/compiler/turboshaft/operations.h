@@ -546,6 +546,8 @@ class SaturatedUint8 {
   void SetToOne() { val = 1; }
 
   bool IsZero() const { return val == 0; }
+  bool IsOne() const { return val == 1; }
+  bool IsSaturated() const { return val == kMax; }
   uint8_t Get() const { return val; }
 
  private:
@@ -1258,6 +1260,8 @@ struct EqualOp : FixedArityOperationT<2, EqualOp> {
 
   OpIndex left() const { return input(0); }
   OpIndex right() const { return input(1); }
+
+  static bool IsCommutative() { return true; }
 
   bool ValidInputRep(
       base::Vector<const RegisterRepresentation> input_reps) const;

@@ -107,9 +107,13 @@ bool FrameElider::PropagateIntoBlock(InstructionBlock* block) {
   // Already marked, nothing to do...
   if (block->needs_frame()) return false;
 
-  // Never mark the dummy end node, otherwise we might incorrectly decide to
-  // put frame deconstruction code there later,
-  if (block->successors().empty()) return false;
+  // Turbofan does have an empty dummy end block, which we need to ignore here.
+  // However, Turboshaft does not have such a block.
+  if (!v8_flags.turboshaft_instruction_selection) {
+    // Never mark the dummy end node, otherwise we might incorrectly decide to
+    // put frame deconstruction code there later,
+    if (block->successors().empty()) return false;
+  }
 
   // Propagate towards the end ("downwards") if there is a predecessor needing
   // a frame, but don't "bleed" from deferred code to non-deferred code.

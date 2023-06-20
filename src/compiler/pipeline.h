@@ -40,6 +40,13 @@ class Schedule;
 class SourcePositionTable;
 struct WasmCompilationData;
 
+struct InstructionRangesAsJSON {
+  const InstructionSequence* sequence;
+  const ZoneVector<std::pair<int, int>>* instr_origins;
+};
+
+std::ostream& operator<<(std::ostream& out, const InstructionRangesAsJSON& s);
+
 class Pipeline : public AllStatic {
  public:
   // Returns a new compilation job for the given JavaScript function.

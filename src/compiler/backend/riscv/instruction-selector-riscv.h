@@ -1417,9 +1417,8 @@ void InstructionSelectorT<Adapter>::VisitF64x2Pmax(Node* node) {
 }
 
 // static
-template <typename Adapter>
 MachineOperatorBuilder::AlignmentRequirements
-InstructionSelectorT<Adapter>::AlignmentRequirements() {
+InstructionSelector::AlignmentRequirements() {
 #ifdef RISCV_HAS_NO_UNALIGNED
   return MachineOperatorBuilder::AlignmentRequirements::
       NoUnalignedAccessSupport();

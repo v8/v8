@@ -3047,10 +3047,8 @@ void InstructionSelectorT<Adapter>::VisitF32x4NearestInt(Node* node) {
   UNREACHABLE();
 }
 
-// static
-template <typename Adapter>
 MachineOperatorBuilder::Flags
-InstructionSelectorT<Adapter>::SupportedMachineOperatorFlags() {
+InstructionSelector::SupportedMachineOperatorFlags() {
   return MachineOperatorBuilder::kFloat32RoundDown |
          MachineOperatorBuilder::kFloat64RoundDown |
          MachineOperatorBuilder::kFloat32RoundUp |
@@ -3063,10 +3061,7 @@ InstructionSelectorT<Adapter>::SupportedMachineOperatorFlags() {
   // We omit kWord32ShiftIsSafe as s[rl]w use 0x3F as a mask rather than 0x1F.
 }
 
-// static
-template <typename Adapter>
-MachineOperatorBuilder::AlignmentRequirements
-InstructionSelectorT<Adapter>::AlignmentRequirements() {
+MachineOperatorBuilder::AlignmentRequirements AlignmentRequirements() {
   return MachineOperatorBuilder::AlignmentRequirements::
       FullUnalignedAccessSupport();
 }

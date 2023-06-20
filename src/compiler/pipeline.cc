@@ -88,6 +88,7 @@
 #include "src/compiler/turboshaft/graph-visualizer.h"
 #include "src/compiler/turboshaft/graph.h"
 #include "src/compiler/turboshaft/index.h"
+#include "src/compiler/turboshaft/instruction-selection-phase.h"
 #include "src/compiler/turboshaft/machine-lowering-phase.h"
 #include "src/compiler/turboshaft/optimization-phase.h"
 #include "src/compiler/turboshaft/optimize-phase.h"
@@ -375,9 +376,19 @@ class PipelineData {
   Graph* graph() const { return graph_; }
   void set_graph(Graph* graph) { graph_ = graph; }
   turboshaft::PipelineData CreateTurboshaftPipeline() {
-    return turboshaft::PipelineData{info_,        schedule_, graph_zone_,
-                                    broker_,      isolate_,  source_positions_,
-                                    node_origins_};
+    return turboshaft::PipelineData{info_,
+                                    schedule_,
+                                    graph_zone_,
+                                    broker_,
+                                    isolate_,
+                                    source_positions_,
+                                    node_origins_,
+                                    sequence_,
+                                    frame_,
+                                    assembler_options_,
+                                    &max_unoptimized_frame_height_,
+                                    &max_pushed_argument_count_,
+                                    instruction_zone_};
   }
   SourcePositionTable* source_positions() const { return source_positions_; }
   NodeOriginTable* node_origins() const { return node_origins_; }
@@ -751,8 +762,16 @@ class PipelineImpl final {
   void Revectorize();
 #endif  // V8_ENABLE_WASM_SIMD256_REVEC
 
-  // Substep B.2. Select instructions from a scheduled graph.
+  // Substep B.2.turbofan Select instructions from a scheduled graph.
   bool SelectInstructions(Linkage* linkage);
+
+  // Substep B.2.turboshaft Select instructions from a turboshaft graph.
+  bool SelectInstructionsTurboshaft(
+      Linkage* linkage,
+      base::Optional<turboshaft::PipelineData::Scope>& turboshaft_scope);
+
+  // Substep B.3. Run register allocation on the instruction sequence.
+  bool AllocateRegisters(CallDescriptor* call_descriptor);
 
   // Step C. Run the code assembly pass.
   void AssembleCode(Linkage* linkage);
@@ -1359,6 +1378,7 @@ auto PipelineImpl::Run(Args&&... args) {
     using result_t =
         decltype(phase.Run(scope.zone(), std::forward<Args>(args)...));
     CodeTracer* code_tracer = nullptr;
+    USE(code_tracer);
     if (turboshaft::PipelineData::Get().info()->trace_turbo_graph()) {
       // NOTE: We must not call `GetCodeTracer` if tracing is not enabled,
       // because it may not yet be initialized then and doing so from the
@@ -1367,13 +1387,17 @@ auto PipelineImpl::Run(Args&&... args) {
     }
     if constexpr (std::is_same_v<result_t, void>) {
       phase.Run(scope.zone(), std::forward<Args>(args)...);
-      turboshaft::PrintTurboshaftGraph(scope.zone(), code_tracer,
-                                       Phase::phase_name());
+      if constexpr (turboshaft::produces_printable_graph<Phase>::value) {
+        turboshaft::PrintTurboshaftGraph(scope.zone(), code_tracer,
+                                         Phase::phase_name());
+      }
       return;
     } else {
       auto result = phase.Run(scope.zone(), std::forward<Args>(args)...);
-      turboshaft::PrintTurboshaftGraph(scope.zone(), code_tracer,
-                                       Phase::phase_name());
+      if constexpr (turboshaft::produces_printable_graph<Phase>::value) {
+        turboshaft::PrintTurboshaftGraph(scope.zone(), code_tracer,
+                                         Phase::phase_name());
+      }
       return result;
     }
   }
@@ -2397,82 +2421,45 @@ struct RevectorizePhase {
 };
 #endif  // V8_ENABLE_WASM_SIMD256_REVEC
 
-struct InstructionRangesAsJSON {
-  const InstructionSequence* sequence;
-  const ZoneVector<std::pair<int, int>>* instr_origins;
-};
-
-std::ostream& operator<<(std::ostream& out, const InstructionRangesAsJSON& s) {
-  const int max = static_cast<int>(s.sequence->LastInstructionIndex());
-
-  out << ", \"nodeIdToInstructionRange\": {";
-  bool need_comma = false;
-  for (size_t i = 0; i < s.instr_origins->size(); ++i) {
-    std::pair<int, int> offset = (*s.instr_origins)[i];
-    if (offset.first == -1) continue;
-    const int first = max - offset.first + 1;
-    const int second = max - offset.second + 1;
-    if (need_comma) out << ", ";
-    out << "\"" << i << "\": [" << first << ", " << second << "]";
-    need_comma = true;
-  }
-  out << "}";
-  out << ", \"blockIdToInstructionRange\": {";
-  need_comma = false;
-  for (auto block : s.sequence->instruction_blocks()) {
-    if (need_comma) out << ", ";
-    out << "\"" << block->rpo_number() << "\": [" << block->code_start() << ", "
-        << block->code_end() << "]";
-    need_comma = true;
-  }
-  out << "}";
-  return out;
-}
-
 struct InstructionSelectionPhase {
   DECL_PIPELINE_PHASE_CONSTANTS(SelectInstructions)
 
   base::Optional<BailoutReason> Run(PipelineData* data, Zone* temp_zone,
                                     Linkage* linkage) {
-    if (v8_flags.turboshaft && v8_flags.turboshaft_instruction_selection) {
-      UNIMPLEMENTED();
-    } else {
-      InstructionSelector selector(
-          temp_zone, data->graph()->NodeCount(), linkage, data->sequence(),
-          data->schedule(), data->source_positions(), data->frame(),
-          data->info()->switch_jump_table()
-              ? InstructionSelector::kEnableSwitchJumpTable
-              : InstructionSelector::kDisableSwitchJumpTable,
-          &data->info()->tick_counter(), data->broker(),
-          data->address_of_max_unoptimized_frame_height(),
-          data->address_of_max_pushed_argument_count(),
-          data->info()->source_positions()
-              ? InstructionSelector::kAllSourcePositions
-              : InstructionSelector::kCallSourcePositions,
-          InstructionSelector::SupportedFeatures(),
-          v8_flags.turbo_instruction_scheduling
-              ? InstructionSelector::kEnableScheduling
-              : InstructionSelector::kDisableScheduling,
-          data->assembler_options().enable_root_relative_access
-              ? InstructionSelector::kEnableRootsRelativeAddressing
-              : InstructionSelector::kDisableRootsRelativeAddressing,
-          data->info()->trace_turbo_json()
-              ? InstructionSelector::kEnableTraceTurboJson
-              : InstructionSelector::kDisableTraceTurboJson);
-      if (base::Optional<BailoutReason> bailout =
-              selector.SelectInstructions()) {
-        return bailout;
-      }
-      if (data->info()->trace_turbo_json()) {
-        TurboJsonFile json_of(data->info(), std::ios_base::app);
-        json_of << "{\"name\":\"" << phase_name()
-                << "\",\"type\":\"instructions\""
-                << InstructionRangesAsJSON{data->sequence(),
-                                           &selector.instr_origins()}
-                << "},\n";
-      }
-      return base::nullopt;
+    InstructionSelector selector = InstructionSelector::ForTurbofan(
+        temp_zone, data->graph()->NodeCount(), linkage, data->sequence(),
+        data->schedule(), data->source_positions(), data->frame(),
+        data->info()->switch_jump_table()
+            ? InstructionSelector::kEnableSwitchJumpTable
+            : InstructionSelector::kDisableSwitchJumpTable,
+        &data->info()->tick_counter(), data->broker(),
+        data->address_of_max_unoptimized_frame_height(),
+        data->address_of_max_pushed_argument_count(),
+        data->info()->source_positions()
+            ? InstructionSelector::kAllSourcePositions
+            : InstructionSelector::kCallSourcePositions,
+        InstructionSelector::SupportedFeatures(),
+        v8_flags.turbo_instruction_scheduling
+            ? InstructionSelector::kEnableScheduling
+            : InstructionSelector::kDisableScheduling,
+        data->assembler_options().enable_root_relative_access
+            ? InstructionSelector::kEnableRootsRelativeAddressing
+            : InstructionSelector::kDisableRootsRelativeAddressing,
+        data->info()->trace_turbo_json()
+            ? InstructionSelector::kEnableTraceTurboJson
+            : InstructionSelector::kDisableTraceTurboJson);
+    if (base::Optional<BailoutReason> bailout = selector.SelectInstructions()) {
+      return bailout;
     }
+    if (data->info()->trace_turbo_json()) {
+      TurboJsonFile json_of(data->info(), std::ios_base::app);
+      json_of << "{\"name\":\"" << phase_name()
+              << "\",\"type\":\"instructions\""
+              << InstructionRangesAsJSON{data->sequence(),
+                                         &selector.instr_origins()}
+              << "},\n";
+    }
+    return base::nullopt;
   }
 };
 
@@ -3090,7 +3077,7 @@ bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
     UnparkedScopeIfNeeded scope(data->broker(),
                                 v8_flags.turboshaft_trace_reduction);
 
-    turboshaft::PipelineData::Scope turboshaft_pipeline(
+    base::Optional<turboshaft::PipelineData::Scope> turboshaft_pipeline(
         data->CreateTurboshaftPipeline());
     turboshaft::Tracing::Scope tracing_scope(data->info());
 
@@ -3120,6 +3107,13 @@ bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
     Run<turboshaft::DeadCodeEliminationPhase>();
     Run<turboshaft::DecompressionOptimizationPhase>();
 
+    if (v8_flags.turboshaft_instruction_selection) {
+      // Run Turboshaft instruction selection.
+      return SelectInstructionsTurboshaft(linkage, turboshaft_pipeline);
+    }
+
+    // Otherwise, translate back to Turbofan and run instruction selection on
+    // the sea of nodes graph.
     auto [new_graph, new_schedule] =
         Run<turboshaft::RecreateSchedulePhase>(linkage);
     data->set_graph(new_graph);
@@ -3948,6 +3942,61 @@ bool PipelineImpl::SelectInstructions(Linkage* linkage) {
 
   data->DeleteGraphZone();
 
+  return AllocateRegisters(call_descriptor);
+}
+
+bool PipelineImpl::SelectInstructionsTurboshaft(
+    Linkage* linkage,
+    base::Optional<turboshaft::PipelineData::Scope>& turboshaft_scope) {
+  auto call_descriptor = linkage->GetIncomingDescriptor();
+  PipelineData* turbofan_data = this->data_;
+
+  turboshaft_scope->Value().InitializeInstructionSequence(call_descriptor);
+
+  // Depending on which code path led us to this function, the frame may or
+  // may not have been initialized. If it hasn't yet, initialize it now.
+  if (!turbofan_data->frame()) {
+    turbofan_data->InitializeFrameData(call_descriptor);
+  }
+  // Select and schedule instructions covering the scheduled graph.
+  if (base::Optional<BailoutReason> bailout =
+          Run<turboshaft::InstructionSelectionPhase>(linkage)) {
+    info()->AbortOptimization(*bailout);
+    turbofan_data->EndPhaseKind();
+    return false;
+  }
+
+  // TODO(nicohartmann@): We might need to provide this.
+  // if (info()->trace_turbo_json()) {
+  //   UnparkedScopeIfNeeded scope(turbofan_data->broker());
+  //   AllowHandleDereference allow_deref;
+  //   TurboCfgFile tcf(isolate());
+  //   tcf << AsC1V("CodeGen", turbofan_data->schedule(),
+  //                turbofan_data->source_positions(),
+  //                turbofan_data->sequence());
+
+  //   std::ostringstream source_position_output;
+  //   // Output source position information before the graph is deleted.
+  //   if (data_->source_positions() != nullptr) {
+  //     data_->source_positions()->PrintJson(source_position_output);
+  //   } else {
+  //     source_position_output << "{}";
+  //   }
+  //   source_position_output << ",\n\"nodeOrigins\" : ";
+  //   data_->node_origins()->PrintJson(source_position_output);
+  //   data_->set_source_position_output(source_position_output.str());
+  // }
+
+  turboshaft_scope.reset();
+  turbofan_data->DeleteGraphZone();
+
+  return AllocateRegisters(call_descriptor);
+}
+
+bool PipelineImpl::AllocateRegisters(CallDescriptor* call_descriptor) {
+  PipelineData* data = this->data_;
+  DCHECK_NOT_NULL(data->sequence());
+
   data->BeginPhaseKind("V8.TFRegisterAllocation");
 
   bool run_verifier = v8_flags.turbo_verify_allocation;
@@ -4360,6 +4409,33 @@ CodeGenerator* PipelineImpl::code_generator() const {
 
 ObserveNodeManager* PipelineImpl::observe_node_manager() const {
   return data_->observe_node_manager();
+}
+
+std::ostream& operator<<(std::ostream& out, const InstructionRangesAsJSON& s) {
+  const int max = static_cast<int>(s.sequence->LastInstructionIndex());
+
+  out << ", \"nodeIdToInstructionRange\": {";
+  bool need_comma = false;
+  for (size_t i = 0; i < s.instr_origins->size(); ++i) {
+    std::pair<int, int> offset = (*s.instr_origins)[i];
+    if (offset.first == -1) continue;
+    const int first = max - offset.first + 1;
+    const int second = max - offset.second + 1;
+    if (need_comma) out << ", ";
+    out << "\"" << i << "\": [" << first << ", " << second << "]";
+    need_comma = true;
+  }
+  out << "}";
+  out << ", \"blockIdToInstructionRange\": {";
+  need_comma = false;
+  for (auto block : s.sequence->instruction_blocks()) {
+    if (need_comma) out << ", ";
+    out << "\"" << block->rpo_number() << "\": [" << block->code_start() << ", "
+        << block->code_end() << "]";
+    need_comma = true;
+  }
+  out << "}";
+  return out;
 }
 
 }  // namespace compiler

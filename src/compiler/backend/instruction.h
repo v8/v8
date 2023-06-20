@@ -31,6 +31,10 @@ namespace compiler {
 class Schedule;
 class SourcePositionTable;
 
+namespace turboshaft {
+class Graph;
+}
+
 #if defined(V8_CC_MSVC) && defined(V8_TARGET_ARCH_IA32)
 // MSVC on x86 has issues with ALIGNAS(8) on InstructionOperand, but does
 // align the object to 8 bytes anyway (covered by a static assert below).
@@ -1254,6 +1258,8 @@ enum class StateValueKind : uint8_t {
   kDuplicate
 };
 
+std::ostream& operator<<(std::ostream& os, StateValueKind kind);
+
 class StateValueDescriptor {
  public:
   StateValueDescriptor()
@@ -1309,6 +1315,8 @@ class StateValueDescriptor {
     DCHECK(kind_ == StateValueKind::kArgumentsElements);
     return args_type_;
   }
+
+  void Print(std::ostream& os) const;
 
  private:
   StateValueDescriptor(StateValueKind kind, MachineType type)
@@ -1711,6 +1719,8 @@ class V8_EXPORT_PRIVATE InstructionSequence final
  public:
   static InstructionBlocks* InstructionBlocksFor(Zone* zone,
                                                  const Schedule* schedule);
+  static InstructionBlocks* InstructionBlocksFor(
+      Zone* zone, const turboshaft::Graph& graph);
   InstructionSequence(Isolate* isolate, Zone* zone,
                       InstructionBlocks* instruction_blocks);
   InstructionSequence(const InstructionSequence&) = delete;

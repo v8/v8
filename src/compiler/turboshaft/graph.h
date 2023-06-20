@@ -237,7 +237,7 @@ class RandomAccessStackDominatorNode
  public:
   void SetDominator(Derived* dominator);
   void SetAsDominatorRoot();
-  Derived* GetDominator() { return nxt_; }
+  Derived* GetDominator() const { return nxt_; }
 
   // Returns the lowest common dominator of {this} and {other}.
   Derived* GetCommonDominator(
@@ -779,6 +779,7 @@ class Graph {
             base::DerefPtrIterator<const Block>(bound_blocks_.data() +
                                                 bound_blocks_.size())};
   }
+  const ZoneVector<Block*>& blocks_vector() const { return bound_blocks_; }
 
   bool IsLoopBackedge(const GotoOp& op) const {
     DCHECK(op.destination->IsBound());
