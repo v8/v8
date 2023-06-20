@@ -263,14 +263,9 @@ void Sweeper::SweepingState<scope>::StartConcurrentSweeping() {
         concurrent_sweepers_.emplace_back(sweeper_);
       }
     }
-    TaskPriority priority = TaskPriority::kUserVisible;
-    if (scope == SweepingScope::kMinor &&
-        v8_flags.concurrent_minor_mc_sweeping_high_priority_threads) {
-      priority = TaskPriority::kUserBlocking;
-    }
     DCHECK_EQ(max_concurrent_sweeper_count, concurrent_sweepers_.size());
     job_handle_ = V8::GetCurrentPlatform()->PostJob(
-        priority,
+        TaskPriority::kUserVisible,
         std::make_unique<SweeperJob>(sweeper_->heap_->isolate(), sweeper_));
   }
 }
