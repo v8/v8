@@ -6202,7 +6202,7 @@ bool MinorMarkCompactCollector::StartSweepNewSpace() {
     if (ShouldMovePageForYoungGC(p, live_bytes_on_page, p->wasted_memory())) {
       EvacuateNewToOldSpacePageVisitor::Move(p);
       has_promoted_pages = true;
-      sweeper()->AddPromotedPageForIteration(p);
+      sweeper()->AddPromotedPage(p);
     } else {
       // Page is not promoted. Sweep it instead.
       sweeper()->AddNewSpacePage(p);
@@ -6246,7 +6246,7 @@ bool MinorMarkCompactCollector::SweepNewLargeSpace() {
     current->ProgressBar().ResetIfEnabled();
     old_lo_space->PromoteNewLargeObject(current);
     has_promoted_pages = true;
-    sweeper()->AddPromotedPageForIteration(current);
+    sweeper()->AddPromotedPage(current);
   }
   new_lo_space->set_objects_size(0);
 

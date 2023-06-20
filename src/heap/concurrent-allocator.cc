@@ -187,7 +187,7 @@ ConcurrentAllocator::AllocateFromSpaceFreeList(size_t min_size_in_bytes,
   if (result) return result;
 
   // Sweeping is still in progress.
-  if (owning_heap()->major_sweeping_in_progress()) {
+  if (owning_heap()->sweeping_in_progress()) {
     // First try to refill the free-list, concurrent sweeper threads
     // may have freed some objects in the meantime.
     {
@@ -202,24 +202,26 @@ ConcurrentAllocator::AllocateFromSpaceFreeList(size_t min_size_in_bytes,
         min_size_in_bytes, max_size_in_bytes, origin);
     if (result) return result;
 
-    // Now contribute to sweeping from background thread and then try to
-    // reallocate.
-    int max_freed;
-    {
-      TRACE_GC_EPOCH(owning_heap()->tracer(),
-                     GCTracer::Scope::MC_BACKGROUND_SWEEPING,
-                     ThreadKind::kBackground);
-      const int kMaxPagesToSweep = 1;
-      max_freed = owning_heap()->sweeper()->ParallelSweepSpace(
-          space_->identity(), Sweeper::SweepingMode::kLazyOrConcurrent,
-          static_cast<int>(min_size_in_bytes), kMaxPagesToSweep);
-      space_->RefillFreeList();
-    }
+    if (owning_heap()->major_sweeping_in_progress()) {
+      // Now contribute to sweeping from background thread and then try to
+      // reallocate.
+      int max_freed;
+      {
+        TRACE_GC_EPOCH(owning_heap()->tracer(),
+                       GCTracer::Scope::MC_BACKGROUND_SWEEPING,
+                       ThreadKind::kBackground);
+        const int kMaxPagesToSweep = 1;
+        max_freed = owning_heap()->sweeper()->ParallelSweepSpace(
+            space_->identity(), Sweeper::SweepingMode::kLazyOrConcurrent,
+            static_cast<int>(min_size_in_bytes), kMaxPagesToSweep);
+        space_->RefillFreeList();
+      }
 
-    if (static_cast<size_t>(max_freed) >= min_size_in_bytes) {
-      result = space_->TryAllocationFromFreeListBackground(
-          min_size_in_bytes, max_size_in_bytes, origin);
-      if (result) return result;
+      if (static_cast<size_t>(max_freed) >= min_size_in_bytes) {
+        result = space_->TryAllocationFromFreeListBackground(
+            min_size_in_bytes, max_size_in_bytes, origin);
+        if (result) return result;
+      }
     }
   }
 

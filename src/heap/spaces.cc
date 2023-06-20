@@ -92,7 +92,7 @@ Page* Page::ConvertNewToOld(Page* old_page) {
   old_page->set_owner(old_space);
   old_page->ClearFlags(Page::kAllFlagsMask);
   Page* new_page = old_space->InitializePage(old_page);
-  old_space->AddPage(new_page);
+  old_space->AddPromotedPage(new_page);
   return new_page;
 }
 

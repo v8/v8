@@ -673,7 +673,7 @@ void Heap::PrintShortHeapStatistics() {
                ", available: %6zu KB%s"
                ", committed: %6zu KB\n",
                old_space_->SizeOfObjects() / KB, old_space_->Available() / KB,
-               major_sweeping_in_progress() ? "*" : "",
+               sweeping_in_progress() ? "*" : "",
                old_space_->CommittedMemory() / KB);
   PrintIsolate(isolate_,
                "Code space,             used: %6zu KB"
@@ -7168,6 +7168,7 @@ void Heap::EnsureYoungSweepingCompleted() {
 
   sweeper()->EnsureMinorCompleted();
   paged_new_space()->paged_space()->RefillFreeList();
+  old_space()->RefillFreeList();
 
   tracer()->NotifyYoungSweepingCompleted();
 }

@@ -67,9 +67,8 @@ class Sweeper {
     int ParallelSweepPage(Page* page, AllocationSpace identity,
                           SweepingMode sweeping_mode);
 
-    void ParallelIteratePromotedPagesForRememberedSets();
-    void ParallelIteratePromotedPageForRememberedSets(MemoryChunk* chunk);
-    void CleanPromotedPages();
+    void ParallelIterateAndSweepPromotedPages();
+    void ParallelIterateAndSweepPromotedPage(MemoryChunk* chunk);
 
     Sweeper* const sweeper_;
 
@@ -97,7 +96,7 @@ class Sweeper {
 
   void AddPage(AllocationSpace space, Page* page);
   void AddNewSpacePage(Page* page);
-  void AddPromotedPageForIteration(MemoryChunk* chunk);
+  void AddPromotedPage(MemoryChunk* chunk);
 
   int ParallelSweepSpace(AllocationSpace identity, SweepingMode sweeping_mode,
                          int required_freed_bytes, int max_pages = 0);
@@ -138,9 +137,8 @@ class Sweeper {
   NonAtomicMarkingState* marking_state() const { return marking_state_; }
 
   int RawSweep(Page* p, FreeSpaceTreatmentMode free_space_treatment_mode,
-               SweepingMode sweeping_mode, bool should_reduce_memory);
-
-  void RawIteratePromotedPageForRememberedSets(MemoryChunk* chunk);
+               SweepingMode sweeping_mode, bool should_reduce_memory,
+               bool is_promoted_page);
 
   void AddPageImpl(AllocationSpace space, Page* page);
 
@@ -203,7 +201,7 @@ class Sweeper {
   size_t ConcurrentMajorSweepingPageCount();
 
   Page* GetSweepingPageSafe(AllocationSpace space);
-  MemoryChunk* GetPromotedPageForIterationSafe();
+  MemoryChunk* GetPromotedPageSafe();
   std::vector<MemoryChunk*> GetAllPromotedPagesForIterationSafe();
   bool TryRemoveSweepingPageSafe(AllocationSpace space, Page* page);
   bool TryRemovePromotedPageSafe(MemoryChunk* chunk);

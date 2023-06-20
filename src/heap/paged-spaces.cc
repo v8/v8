@@ -12,6 +12,7 @@
 #include "src/common/globals.h"
 #include "src/execution/isolate.h"
 #include "src/execution/vm-state-inl.h"
+#include "src/flags/flags.h"
 #include "src/heap/allocation-observer.h"
 #include "src/heap/array-buffer-sweeper.h"
 #include "src/heap/gc-tracer-inl.h"
@@ -102,6 +103,9 @@ bool PagedSpaceObjectIterator::AdvanceToNextPage() {
   DCHECK(cur_page->SweepingDone());
   return true;
 }
+
+// ----------------------------------------------------------------------------
+// PagedSpaceBase implementation
 
 Page* PagedSpaceBase::InitializePage(MemoryChunk* chunk) {
   Page* page = static_cast<Page*>(chunk);
@@ -266,7 +270,7 @@ Page* PagedSpaceBase::RemovePageSafe(int size_in_bytes) {
   return page;
 }
 
-size_t PagedSpaceBase::AddPage(Page* page) {
+void PagedSpaceBase::AddPageImpl(Page* page) {
   DCHECK_NOT_NULL(page);
   CHECK(page->SweepingDone());
   page->set_owner(this);
@@ -281,6 +285,10 @@ size_t PagedSpaceBase::AddPage(Page* page) {
     IncrementExternalBackingStoreBytes(t, page->ExternalBackingStoreBytes(t));
   }
   IncrementCommittedPhysicalMemory(page->CommittedPhysicalMemory());
+}
+
+size_t PagedSpaceBase::AddPage(Page* page) {
+  AddPageImpl(page);
   return RelinkFreeListCategories(page);
 }
 
@@ -814,67 +822,10 @@ void PagedSpaceBase::UpdateInlineAllocationLimit() {
   DecreaseLimit(new_limit);
 }
 
-// -----------------------------------------------------------------------------
-// OldSpace implementation
-
 bool PagedSpaceBase::RefillLabMain(int size_in_bytes, AllocationOrigin origin) {
   VMState<GC> state(heap()->isolate());
   RCS_SCOPE(heap()->isolate(),
             RuntimeCallCounterId::kGC_Custom_SlowAllocateRaw);
-  return RawRefillLabMain(size_in_bytes, origin);
-}
-
-Page* CompactionSpace::TryExpandImpl(
-    MemoryAllocator::AllocationMode allocation_mode) {
-  DCHECK_NE(NEW_SPACE, identity());
-  Page* page = PagedSpaceBase::TryExpandImpl(allocation_mode);
-  new_pages_.push_back(page);
-  return page;
-}
-
-namespace {
-
-void DropFreeListCategories(Page* page, FreeList* free_list) {
-  size_t previously_available = 0;
-  page->ForAllFreeListCategories(
-      [free_list, &previously_available](FreeListCategory* category) {
-        previously_available += category->available();
-        category->Reset(free_list);
-      });
-  page->add_wasted_memory(previously_available);
-}
-
-}  // namespace
-
-void CompactionSpace::RefillFreeList() {
-  DCHECK_NE(NEW_SPACE, identity());
-
-  Sweeper* sweeper = heap()->sweeper();
-  size_t added = 0;
-  Page* p = nullptr;
-  while ((added <= kCompactionMemoryWanted) &&
-         (p = sweeper->GetSweptPageSafe(this))) {
-    // We regularly sweep NEVER_ALLOCATE_ON_PAGE pages. We drop the freelist
-    // entries here to make them unavailable for allocations.
-    if (p->IsFlagSet(Page::NEVER_ALLOCATE_ON_PAGE)) {
-      DropFreeListCategories(p, free_list());
-    }
-
-    // Only during compaction pages can actually change ownership. This is
-    // safe because there exists no other competing action on the page links
-    // during compaction.
-    DCHECK_NE(this, p->owner());
-    PagedSpace* owner = static_cast<PagedSpace*>(p->owner());
-    base::MutexGuard guard(owner->mutex());
-    owner->RefineAllocatedBytesAfterSweeping(p);
-    owner->RemovePage(p);
-    added += AddPage(p);
-    added += p->wasted_memory();
-  }
-}
-
-bool CompactionSpace::RefillLabMain(int size_in_bytes,
-                                    AllocationOrigin origin) {
   return RawRefillLabMain(size_in_bytes, origin);
 }
 
@@ -934,7 +885,7 @@ bool PagedSpaceBase::RawRefillLabMain(int size_in_bytes,
   const auto sweeping_scope_id =
       heap()->sweeper()->GetTracingScope(identity(), is_main_thread);
   // Sweeping is still in progress.
-  if (heap()->sweeping_in_progress_for_space(identity())) {
+  if (heap()->sweeping_in_progress()) {
     // First try to refill the free-list, concurrent sweeper threads
     // may have freed some objects in the meantime.
     if (heap()->sweeper()->ShouldRefillFreelistForSpace(identity())) {
@@ -1061,6 +1012,20 @@ size_t PagedSpaceBase::RelinkFreeListCategories(Page* page) {
   return added;
 }
 
+namespace {
+
+void DropFreeListCategories(Page* page, FreeList* free_list) {
+  size_t previously_available = 0;
+  page->ForAllFreeListCategories(
+      [free_list, &previously_available](FreeListCategory* category) {
+        previously_available += category->available();
+        category->Reset(free_list);
+      });
+  page->add_wasted_memory(previously_available);
+}
+
+}  // namespace
+
 void PagedSpaceBase::RefillFreeList() {
   // Any PagedSpace might invoke RefillFreeList.
   DCHECK(identity() == OLD_SPACE || identity() == CODE_SPACE ||
@@ -1082,6 +1047,65 @@ void PagedSpaceBase::RefillFreeList() {
     DCHECK_EQ(this, p->owner());
     RefineAllocatedBytesAfterSweeping(p);
     RelinkFreeListCategories(p);
+  }
+}
+
+// -----------------------------------------------------------------------------
+// CompactionSpace implementation
+
+Page* CompactionSpace::TryExpandImpl(
+    MemoryAllocator::AllocationMode allocation_mode) {
+  DCHECK_NE(NEW_SPACE, identity());
+  Page* page = PagedSpaceBase::TryExpandImpl(allocation_mode);
+  new_pages_.push_back(page);
+  return page;
+}
+
+void CompactionSpace::RefillFreeList() {
+  DCHECK_NE(NEW_SPACE, identity());
+
+  Sweeper* sweeper = heap()->sweeper();
+  size_t added = 0;
+  Page* p = nullptr;
+  while ((added <= kCompactionMemoryWanted) &&
+         (p = sweeper->GetSweptPageSafe(this))) {
+    // We regularly sweep NEVER_ALLOCATE_ON_PAGE pages. We drop the freelist
+    // entries here to make them unavailable for allocations.
+    if (p->IsFlagSet(Page::NEVER_ALLOCATE_ON_PAGE)) {
+      DropFreeListCategories(p, free_list());
+    }
+
+    // Only during compaction pages can actually change ownership. This is
+    // safe because there exists no other competing action on the page links
+    // during compaction.
+    DCHECK_NE(this, p->owner());
+    PagedSpace* owner = static_cast<PagedSpace*>(p->owner());
+    base::MutexGuard guard(owner->mutex());
+    owner->RefineAllocatedBytesAfterSweeping(p);
+    owner->RemovePage(p);
+    added += AddPage(p);
+    added += p->wasted_memory();
+  }
+}
+
+bool CompactionSpace::RefillLabMain(int size_in_bytes,
+                                    AllocationOrigin origin) {
+  return RawRefillLabMain(size_in_bytes, origin);
+}
+
+// -----------------------------------------------------------------------------
+// OldSpace implementation
+
+void OldSpace::AddPromotedPage(Page* page) {
+  if (v8_flags.minor_mc) {
+    // Reset the page's allocated bytes. The page will be swept and the
+    // allocated bytes will be updated to match the live bytes.
+    DCHECK_EQ(page->area_size(), page->allocated_bytes());
+    page->DecreaseAllocatedBytes(page->area_size());
+  }
+  AddPageImpl(page);
+  if (!v8_flags.minor_mc) {
+    RelinkFreeListCategories(page);
   }
 }
 

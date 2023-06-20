@@ -340,6 +340,8 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
 
   void ReleasePageImpl(Page* page, MemoryAllocator::FreeMode free_mode);
 
+  void AddPageImpl(Page* page);
+
   Executability executable_;
 
   CompactionSpaceKind compaction_space_kind_;
@@ -482,6 +484,8 @@ class OldSpace final : public PagedSpace {
     return static_cast<intptr_t>(addr & kPageAlignmentMask) ==
            MemoryChunkLayout::ObjectStartOffsetInDataPage();
   }
+
+  void AddPromotedPage(Page* page);
 
   size_t ExternalBackingStoreBytes(ExternalBackingStoreType type) const final {
     if (type == ExternalBackingStoreType::kArrayBuffer)
