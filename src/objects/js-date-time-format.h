@@ -150,8 +150,6 @@ class JSDateTimeFormat
   DECL_ACCESSORS(icu_simple_date_format, Managed<icu::SimpleDateFormat>)
   DECL_ACCESSORS(icu_date_interval_format, Managed<icu::DateIntervalFormat>)
 
-  DECL_BOOLEAN_ACCESSORS(alt_calendar)
-
   DECL_PRINTER(JSDateTimeFormat)
 
   TQ_OBJECT_CONSTRUCTORS(JSDateTimeFormat)

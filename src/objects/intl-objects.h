@@ -21,7 +21,7 @@
 #include "unicode/locid.h"
 #include "unicode/uversion.h"
 
-#define V8_MINIMUM_ICU_VERSION 71
+#define V8_MINIMUM_ICU_VERSION 73
 
 namespace U_ICU_NAMESPACE {
 class BreakIterator;
