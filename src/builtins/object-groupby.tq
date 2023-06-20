@@ -12,6 +12,20 @@ extern macro CollectionsBuiltinsAssembler::NormalizeNumberKey(JSAny): JSAny;
 }  // namespace collections
 
 // https://tc39.es/proposal-array-grouping/#sec-group-by
+transitioning macro CoerceGroupKey(implicit context: Context)(
+    key: JSAny, coerceToProperty: Boolean): JSAny {
+  // 6.g. If coercion is property, then
+  if (coerceToProperty == True) {
+    // i. Set key to Completion(ToPropertyKey(key)).
+    return ToName(key);
+  }
+  // 6.h. Else,
+  //    i. Assert: coercion is zero.
+  //   ii. If key is -0𝔽, set key to +0𝔽.
+  return collections::NormalizeNumberKey(key);
+}
+
+// https://tc39.es/proposal-array-grouping/#sec-group-by
 transitioning builtin GroupByGeneric(implicit context: Context)(
     items: JSAny, initialGroups: OrderedHashMap, callbackfn: Callable,
     coerceToProperty: Boolean, methodName: String): OrderedHashMap {
@@ -57,18 +71,7 @@ transitioning builtin GroupByGeneric(implicit context: Context)(
     let key: JSAny;
     try {
       key = Call(context, callbackfn, Undefined, value, k);
-
-      // g. If coercion is property, then
-      if (coerceToProperty == True) {
-        // i. Set key to Completion(ToPropertyKey(key)).
-        key = ToName(key);
-      }
-      // h. Else,
-      else {
-        // i. Assert: coercion is zero.
-        // ii. If key is -0𝔽, set key to +0𝔽.
-        key = collections::NormalizeNumberKey(key);
-      }
+      key = CoerceGroupKey(key, coerceToProperty);
     } catch (e, message) {
       // f. and g.ii.
       // IfAbruptCloseIterator(key, iteratorRecord).
@@ -88,7 +91,7 @@ transitioning builtin GroupByGeneric(implicit context: Context)(
 
 // https://tc39.es/proposal-array-grouping/#sec-group-by
 transitioning macro GroupByImpl(implicit context: Context)(
-    items: JSAny, callback: JSAny,
+    items: JSAny, callback: JSAny, coerceToProperty: Boolean,
     methodName: constexpr string): OrderedHashMap {
   // 1. Perform ? RequireObjectCoercible(items).
   RequireObjectCoercible(items, methodName);
@@ -123,7 +126,9 @@ transitioning macro GroupByImpl(implicit context: Context)(
             } label IsUndefined {
               value = Undefined;
             }
-            const key = ToName(Call(context, callbackfn, Undefined, value, k));
+            const key = CoerceGroupKey(
+                Call(context, callbackfn, Undefined, value, k),
+                coerceToProperty);
             groups = collections::AddValueToKeyedGroup(
                 groups, key, value, methodName);
             ++k;
@@ -136,7 +141,9 @@ transitioning macro GroupByImpl(implicit context: Context)(
           // the loop.
           while (k < stableArray.length) {
             const value = GetProperty(stableArray, k);
-            const key = ToName(Call(context, callbackfn, Undefined, value, k));
+            const key = CoerceGroupKey(
+                Call(context, callbackfn, Undefined, value, k),
+                coerceToProperty);
             groups = collections::AddValueToKeyedGroup(
                 groups, key, value, methodName);
             ++k;
@@ -151,7 +158,7 @@ transitioning macro GroupByImpl(implicit context: Context)(
     }
   } label SlowGeneric {
     return GroupByGeneric(
-        items, groups, callbackfn, /* coerceToProperty */ True, methodName);
+        items, groups, callbackfn, coerceToProperty, methodName);
   }
 }
 
@@ -159,7 +166,8 @@ transitioning javascript builtin
 ObjectGroupBy(js-implicit context: NativeContext, receiver: JSAny)(
     items: JSAny, callback: JSAny): JSAny {
   // 1. Let groups be ? GroupBy(items, callbackfn, property).
-  const groups: OrderedHashMap = GroupByImpl(items, callback, 'Object.groupBy');
+  const groups: OrderedHashMap = GroupByImpl(
+      items, callback, /* coerceToProperty */ True, 'Object.groupBy');
 
   let iter = collections::NewUnmodifiedOrderedHashMapIterator(groups);
 

@@ -204,6 +204,14 @@ class CollectionsBuiltinsAssembler : public BaseCollectionsAssembler {
   // Normalizes -0 to +0.
   const TNode<Object> NormalizeNumberKey(const TNode<Object> key);
 
+  // Exposed for MapGroupBy in Torque.
+  void UnsafeStoreValueInOrderedHashMapEntry(const TNode<OrderedHashMap> table,
+                                             const TNode<Object> value,
+                                             const TNode<IntPtrT> entry) {
+    return StoreValueInOrderedHashMapEntry(table, value, entry,
+                                           CheckBounds::kDebugOnly);
+  }
+
  protected:
   template <typename IteratorType>
   TNode<HeapObject> AllocateJSCollectionIterator(
@@ -352,12 +360,6 @@ class CollectionsBuiltinsAssembler : public BaseCollectionsAssembler {
       const TNode<IntPtrT> entry,
       CheckBounds check_bounds = CheckBounds::kAlways);
 
-  void UnsafeStoreValueInOrderedHashMapEntry(const TNode<OrderedHashMap> table,
-                                             const TNode<Object> value,
-                                             const TNode<IntPtrT> entry) {
-    return StoreValueInOrderedHashMapEntry(table, value, entry,
-                                           CheckBounds::kDebugOnly);
-  }
   void UnsafeStoreKeyValueInOrderedHashMapEntry(
       const TNode<OrderedHashMap> table, const TNode<Object> key,
       const TNode<Object> value, const TNode<IntPtrT> entry) {

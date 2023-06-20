@@ -1536,19 +1536,6 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=13791
   'intl402/NumberFormat/constructor-roundingIncrement': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=12499
-  'built-ins/Map/groupBy/callback-arg': [FAIL],
-  'built-ins/Map/groupBy/callback-throws': [FAIL],
-  'built-ins/Map/groupBy/emptyList': [FAIL],
-  'built-ins/Map/groupBy/evenOdd': [FAIL],
-  'built-ins/Map/groupBy/groupLength': [FAIL],
-  'built-ins/Map/groupBy/invalid-callback': [FAIL],
-  'built-ins/Map/groupBy/invalid-iterable': [FAIL],
-  'built-ins/Map/groupBy/map-instance': [FAIL],
-  'built-ins/Map/groupBy/negativeZero': [FAIL],
-  'built-ins/Map/groupBy/toPropertyKey': [FAIL],
-  'built-ins/Map/groupBy/iterator-next-throws': [FAIL],
-
   ######################## NEEDS INVESTIGATION ###########################
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=7833

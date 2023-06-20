@@ -2,13 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-array-grouping
+// Flags: --harmony-array-grouping --allow-natives-syntax
 
-assertEquals(Array.prototype[Symbol.unscopables].groupToMap, true);
+function verifyGroupByResult(result) {
+  assertInstanceof(result, Map);
+  %HeapObjectVerify(result);
+}
 
 var array = [-0, 1, 0, 2];
 var groupToMap = () => {
-  let result = array.groupToMap(v => v > 0);
+  let result = Map.groupBy(array, v => v > 0);
+  verifyGroupByResult(result);
   result = Array.from(result.entries());
   return result;
 }
@@ -50,7 +54,8 @@ for (var idx = 0; idx < length; idx++) {
   array[idx] = idx;
 }
 var groupToMap = () => {
-  let result = array.groupToMap(v => v % 2);
+  let result = Map.groupBy(array, v => v % 2);
+  verifyGroupByResult(result);
   result = Array.from(result.entries());
   return result;
 }
@@ -63,19 +68,21 @@ assertEquals(result, [
 
 // check #sec-array.prototype.groupbymap 6.d
 var array = [-0, 0];
-var result = array.groupToMap(v => v);
+var result = Map.groupBy(array, v => v);
+verifyGroupByResult(result);
 assertEquals(result.get(0), [-0, 0]);
 
 
 // check array changed by callbackfn
 var array = [-0, 0, 1, 2];
 var groupToMap = () => {
-  let result = array.groupToMap((v, idx) => {
+  let result = Map.groupBy(array, (v, idx) => {
     if (idx === 1) {
       array[2] = {a: 'b'};
     }
     return v > 0;
   });
+  verifyGroupByResult(result);
   result = Array.from(result.entries());
   return result;
 }
@@ -88,7 +95,8 @@ assertEquals(groupToMap(), [
 // check array with holes
 var array = [1, , 2, , 3, , 4];
 var groupToMap = () => {
-  let result = array.groupToMap(v => v % 2 === 0 ? 'even' : 'not_even');
+  let result = Map.groupBy(array, v => v % 2 === 0 ? 'even' : 'not_even');
+  verifyGroupByResult(result);
   result = Array.from(result.entries());
   return result;
 };
@@ -116,18 +124,18 @@ checkNoHoles(result[1][1]);
 
 // array like objects
 var arrayLikeObjects = [
-  {
-    '0': -1,
-    '1': 1,
-    '2': 2,
-    length: 3,
-  },
+  (function* f(){
+    yield -1;
+    yield 1;
+    yield 2;
+  })(),
   (function () { return arguments })(-1, 1, 2),
   Int8Array.from([-1, 1, 2]),
   Float32Array.from([-1, 1, 2]),
 ];
 var groupToMap = () => {
-  let result = Array.prototype.groupToMap.call(array, v => v > 0);
+  let result = Map.groupBy(array, v => v > 0);
+  verifyGroupByResult(result);
   result = Array.from(result.entries());
   return result;
 };
@@ -141,7 +149,8 @@ for (var array of arrayLikeObjects) {
 // check proto elements
 var array = [,];
 var groupToMap = () => {
-  let result = array.groupToMap(v => v);
+  let result = Map.groupBy(array, v => v);
+  verifyGroupByResult(result);
   result = Array.from(result.entries());
   return result;
 }
@@ -158,7 +167,7 @@ assertEquals(groupToMap(), [
 // callbackfn throws
 var array = [-0, 1, 0, 2];
 assertThrows(
-  () => array.groupToMap(() => { throw new Error('foobar'); }),
+  () => Map.groupBy(array, () => { throw new Error('foobar'); }),
   Error,
   'foobar'
 );
@@ -167,6 +176,9 @@ assertThrows(
 // callbackfn is not callable
 var array = [-0, 1, 0, 2];
 assertThrows(
-  () => array.groupToMap('foobar'),
+  () => Map.groupBy(array, 'foobar'),
   TypeError,
 );
+
+// Lots of groups to hit grow path in the intermediate OrderedHashMap
+Map.groupBy("Strings are iterable, actually,", (x) => x);
