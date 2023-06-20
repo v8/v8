@@ -391,6 +391,7 @@ void Assembler::Reset() {
   pc_ = buffer_start_;
   reloc_info_writer.Reposition(buffer_start_ + buffer_->size(), pc_);
   constpool_.Clear();
+  constpool_.SetNextCheckIn(ConstantPool::kCheckInterval);
   next_veneer_pool_check_ = kMaxInt;
 }
 

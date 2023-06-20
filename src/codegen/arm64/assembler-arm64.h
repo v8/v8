@@ -3008,6 +3008,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Check if the const pool needs to be emitted while pretending that {margin}
   // more bytes of instructions have already been emitted.
   void EmitConstPoolWithJumpIfNeeded(size_t margin = 0) {
+    if (constpool_.IsEmpty()) return;
     constpool_.Check(Emission::kIfNeeded, Jump::kRequired, margin);
   }
 
