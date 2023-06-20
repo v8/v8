@@ -5993,18 +5993,18 @@ void MinorMarkCompactCollector::MarkLiveObjectsInParallel(
 
     if (!was_marked_incrementally) {
       // Create items for each page.
-      OldGenerationMemoryChunkIterator::ForAll(
-          heap(), [&marking_items](MemoryChunk* chunk) {
-            if (chunk->slot_set<OLD_TO_NEW>() ||
-                chunk->slot_set<OLD_TO_NEW_BACKGROUND>()) {
-              marking_items.emplace_back(
-                  chunk, PageMarkingItem::SlotsType::kRegularSlots);
-            }
-            if (chunk->typed_slot_set<OLD_TO_NEW>()) {
-              marking_items.emplace_back(
-                  chunk, PageMarkingItem::SlotsType::kTypedSlots);
-            }
-          });
+      OldGenerationMemoryChunkIterator::ForAll(heap(), [&marking_items](
+                                                           MemoryChunk* chunk) {
+        if (chunk->slot_set<OLD_TO_NEW, AccessMode::NON_ATOMIC>() ||
+            chunk->slot_set<OLD_TO_NEW_BACKGROUND, AccessMode::NON_ATOMIC>()) {
+          marking_items.emplace_back(chunk,
+                                     PageMarkingItem::SlotsType::kRegularSlots);
+        }
+        if (chunk->typed_slot_set<OLD_TO_NEW, AccessMode::NON_ATOMIC>()) {
+          marking_items.emplace_back(chunk,
+                                     PageMarkingItem::SlotsType::kTypedSlots);
+        }
+      });
     }
   }
 

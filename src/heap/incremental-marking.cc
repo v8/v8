@@ -232,18 +232,18 @@ void IncrementalMarking::MarkRoots() {
 
     std::vector<PageMarkingItem> marking_items;
 
-    OldGenerationMemoryChunkIterator::ForAll(
-        heap(), [&marking_items](MemoryChunk* chunk) {
-          if (chunk->slot_set<OLD_TO_NEW>() ||
-              chunk->slot_set<OLD_TO_NEW_BACKGROUND>()) {
-            marking_items.emplace_back(
-                chunk, PageMarkingItem::SlotsType::kRegularSlots);
-          }
-          if (chunk->typed_slot_set<OLD_TO_NEW>()) {
-            marking_items.emplace_back(chunk,
-                                       PageMarkingItem::SlotsType::kTypedSlots);
-          }
-        });
+    OldGenerationMemoryChunkIterator::ForAll(heap(), [&marking_items](
+                                                         MemoryChunk* chunk) {
+      if (chunk->slot_set<OLD_TO_NEW, AccessMode::NON_ATOMIC>() ||
+          chunk->slot_set<OLD_TO_NEW_BACKGROUND, AccessMode::NON_ATOMIC>()) {
+        marking_items.emplace_back(chunk,
+                                   PageMarkingItem::SlotsType::kRegularSlots);
+      }
+      if (chunk->typed_slot_set<OLD_TO_NEW, AccessMode::NON_ATOMIC>()) {
+        marking_items.emplace_back(chunk,
+                                   PageMarkingItem::SlotsType::kTypedSlots);
+      }
+    });
 
     std::vector<std::unique_ptr<YoungGenerationMarkingTask>> tasks;
     for (size_t i = 0; i < (v8_flags.parallel_marking
