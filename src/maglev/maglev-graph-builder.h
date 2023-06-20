@@ -297,6 +297,7 @@ class MaglevGraphBuilder {
     while (!source_position_iterator_.done() &&
            source_position_iterator_.code_offset() < entrypoint_) {
       source_position_iterator_.Advance();
+      UpdateSourceAndBytecodePosition(source_position_iterator_.code_offset());
     }
 
     // TODO(olivf) We might want to start collecting known_node_aspects_ for
