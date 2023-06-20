@@ -993,20 +993,25 @@ bool PagedSpaceForNewSpace::ShouldReleaseEmptyPage() const {
 bool PagedSpaceForNewSpace::AddPageBeyondCapacity(int size_in_bytes,
                                                   AllocationOrigin origin) {
   DCHECK(heap()->sweeper()->IsSweepingDoneForSpace(NEW_SPACE));
-  if (!force_allocation_success_ &&
-      ((UsableCapacity() >= TotalCapacity()) ||
-       (TotalCapacity() - UsableCapacity() < Page::kPageSize)))
-    return false;
-  if (!heap()->CanExpandOldGeneration(Size() + heap()->new_lo_space()->Size() +
-                                      Page::kPageSize)) {
-    // Assuming all of new space is alive, doing a full GC and promoting all
-    // objects should still succeed. Don't let new space grow if it means it
-    // will exceed the available size of old space.
-    return false;
+  // Allocate another page is `force_allocation_success_` is true,
+  // `UsableCapacity()` is below `TotalCapacity()` and allocating another page
+  // won't exceed `TotalCapacity()`, or `ShouldOptimizeForLoadTime()` is true.
+  if (force_allocation_success_ ||
+      ((UsableCapacity() < TotalCapacity()) &&
+       (TotalCapacity() - UsableCapacity() >= Page::kPageSize)) ||
+      heap_->ShouldOptimizeForLoadTime()) {
+    if (!heap()->CanExpandOldGeneration(
+            Size() + heap()->new_lo_space()->Size() + Page::kPageSize)) {
+      // Assuming all of new space is alive, doing a full GC and promoting all
+      // objects should still succeed. Don't let new space grow if it means it
+      // will exceed the available size of old space.
+      return false;
+    }
+    if (!AllocatePage()) return false;
+    return TryAllocationFromFreeListMain(static_cast<size_t>(size_in_bytes),
+                                         origin);
   }
-  if (!AllocatePage()) return false;
-  return TryAllocationFromFreeListMain(static_cast<size_t>(size_in_bytes),
-                                       origin);
+  return false;
 }
 
 bool PagedSpaceForNewSpace::AllocatePage() {
