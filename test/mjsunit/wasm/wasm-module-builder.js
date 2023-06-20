@@ -1327,10 +1327,12 @@ class WasmModuleBuilder {
     this.memory = {
       min: min,
       max: max,
-      exported: exported,
       shared: shared || false,
       is_memory64: false
     };
+    if (exported) {
+      this.exports.push({name: 'memory', kind: kExternalMemory, index: 0});
+    }
     return this;
   }
 
@@ -1338,10 +1340,12 @@ class WasmModuleBuilder {
     this.memory = {
       min: min,
       max: max,
-      exported: exported,
       shared: shared || false,
       is_memory64: true
     };
+    if (exported) {
+      this.exports.push({name: 'memory', kind: kExternalMemory, index: 0});
+    }
     return this;
   }
 
@@ -1853,8 +1857,7 @@ class WasmModuleBuilder {
     }
 
     // Add export table.
-    var mem_export = (wasm.memory !== undefined && wasm.memory.exported);
-    var exports_count = wasm.exports.length + (mem_export ? 1 : 0);
+    var exports_count = wasm.exports.length;
     if (exports_count > 0) {
       if (debug) print('emitting exports @ ' + binary.length);
       binary.emit_section(kExportSectionCode, section => {
@@ -1863,11 +1866,6 @@ class WasmModuleBuilder {
           section.emit_string(exp.name);
           section.emit_u8(exp.kind);
           section.emit_u32v(exp.index);
-        }
-        if (mem_export) {
-          section.emit_string('memory');
-          section.emit_u8(kExternalMemory);
-          section.emit_u8(0);
         }
       });
     }
