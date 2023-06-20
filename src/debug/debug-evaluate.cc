@@ -560,6 +560,7 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtin id) {
     case Builtin::kObjectGetOwnPropertyNames:
     case Builtin::kObjectGetOwnPropertySymbols:
     case Builtin::kObjectGetPrototypeOf:
+    case Builtin::kObjectGroupBy:
     case Builtin::kObjectHasOwn:
     case Builtin::kObjectIs:
     case Builtin::kObjectIsExtensible:
@@ -589,8 +590,6 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtin id) {
     case Builtin::kArrayPrototypeFlat:
     case Builtin::kArrayPrototypeFlatMap:
     case Builtin::kArrayPrototypeJoin:
-    case Builtin::kArrayPrototypeGroup:
-    case Builtin::kArrayPrototypeGroupToMap:
     case Builtin::kArrayPrototypeKeys:
     case Builtin::kArrayPrototypeLastIndexOf:
     case Builtin::kArrayPrototypeSlice:
@@ -706,6 +705,7 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtin id) {
     case Builtin::kDatePrototypeValueOf:
     // Map builtins.
     case Builtin::kMapConstructor:
+    case Builtin::kMapGroupBy:
     case Builtin::kMapPrototypeForEach:
     case Builtin::kMapPrototypeGet:
     case Builtin::kMapPrototypeHas:
@@ -1149,6 +1149,7 @@ static bool TransitivelyCalledBuiltinHasNoSideEffect(Builtin caller,
     case Builtin::kGenericArrayWith:
     case Builtin::kGetProperty:
     case Builtin::kGetPropertyWithReceiver:
+    case Builtin::kGroupByGeneric:
     case Builtin::kHasProperty:
     case Builtin::kCreateHTML:
     case Builtin::kNonNumberToNumber:

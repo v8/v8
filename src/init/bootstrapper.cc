@@ -4933,21 +4933,6 @@ void Genesis::InitializeGlobal_harmony_struct() {
 void Genesis::InitializeGlobal_harmony_array_grouping() {
   if (!v8_flags.harmony_array_grouping) return;
 
-  Handle<JSFunction> array_function(native_context()->array_function(),
-                                    isolate());
-  Handle<JSObject> array_prototype(
-      JSObject::cast(array_function->instance_prototype()), isolate());
-
-  // TODO(v8:12499): Remove groupToMap once Map.groupBy implemented.
-  SimpleInstallFunction(isolate_, array_prototype, "groupToMap",
-                        Builtin::kArrayPrototypeGroupToMap, 1, false);
-
-  Handle<JSObject> unscopables = Handle<JSObject>::cast(
-      JSObject::GetProperty(isolate(), array_prototype,
-                            isolate()->factory()->unscopables_symbol())
-          .ToHandleChecked());
-  InstallTrueValuedProperty(isolate_, unscopables, "groupToMap");
-
   Handle<JSFunction> object_function(native_context()->object_function(),
                                      isolate());
   Handle<JSFunction> map_function(native_context()->js_map_fun(), isolate());
