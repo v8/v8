@@ -1681,6 +1681,9 @@ DEFINE_INT(gc_memory_reducer_start_delay_ms, 8000,
 DEFINE_BOOL(concurrent_marking_high_priority_threads, false,
             "use high priority threads for concurrent Marking")
 
+DEFINE_BOOL(concurrent_minor_mc_sweeping_high_priority_threads, false,
+            "use high priority threads for MinorMC's concurrent sweeping")
+
 DEFINE_BOOL(disable_abortjs, false, "disables AbortJS runtime function")
 
 DEFINE_BOOL(randomize_all_allocations, false,
