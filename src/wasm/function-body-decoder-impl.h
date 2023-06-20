@@ -2583,6 +2583,11 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         static_cast<uint32_t>(this->sig_->parameter_count());
     for (uint32_t index = params_count; index < this->num_locals(); index++) {
       if (!this->local_type(index).is_defaultable()) non_defaultable++;
+      // We need this because reference locals are initialized with null, and
+      // later we run a lowering step for null based on {detected_}.
+      if (this->local_type(index).is_reference()) {
+        this->detected_->Add(kFeature_reftypes);
+      }
     }
     this->InitializeInitializedLocalsTracking(non_defaultable);
 
@@ -3642,6 +3647,11 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     Value* returns = PushReturns(imm.sig);
     CALL_INTERFACE_IF_OK_AND_REACHABLE(CallIndirect, index, imm, args.data(),
                                        returns);
+    if (this->enabled_.has_gc() &&
+        !this->module_->types[imm.sig_imm.index].is_final) {
+      // In this case we emit an rtt.canon as part of the indirect call.
+      this->detected_->Add(kFeature_gc);
+    }
     return 1 + imm.length;
   }
 
@@ -3675,6 +3685,11 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     CALL_INTERFACE_IF_OK_AND_REACHABLE(ReturnCallIndirect, index, imm,
                                        args.data());
     EndControl();
+    if (this->enabled_.has_gc() &&
+        !this->module_->types[imm.sig_imm.index].is_final) {
+      // In this case we emit an rtt.canon as part of the indirect call.
+      this->detected_->Add(kFeature_gc);
+    }
     return 1 + imm.length;
   }
 

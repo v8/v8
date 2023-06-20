@@ -785,7 +785,12 @@ class WasmGraphBuildingInterface {
       maybe_call_count = feedback.call_count(0);
     }
     // This must happen after the {next_call_feedback()} call.
-    if (HandleWellKnownImport(decoder, imm.index, args, returns)) return;
+    if (HandleWellKnownImport(decoder, imm.index, args, returns)) {
+      // TODO(jkummerow): Move this into {HandleWKI} when we support
+      // non-stringref imports there.
+      decoder->detected_->Add(kFeature_stringref);
+      return;
+    }
     DoCall(decoder, CallInfo::CallDirect(imm.index, maybe_call_count), imm.sig,
            args, returns);
   }

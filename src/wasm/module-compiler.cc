@@ -1477,7 +1477,7 @@ CompilationExecutionResult ExecuteCompilationUnits(
   CompilationUnitQueues::Queue* queue;
   base::Optional<WasmCompilationUnit> unit;
 
-  WasmFeatures detected_features = WasmFeatures::None();
+  WasmFeatures global_detected_features = WasmFeatures::None();
 
   // Preparation (synchronized): Initialize the fields above and get the first
   // compilation unit.
@@ -1500,9 +1500,14 @@ CompilationExecutionResult ExecuteCompilationUnits(
     const char* event_name = GetCompilationEventName(unit.value(), env.value());
     TRACE_EVENT0("v8.wasm", event_name);
     while (unit->tier() == current_tier) {
+      // Track detected features on a per-function basis before collecting them
+      // into {global_detected_features}.
+      WasmFeatures per_function_detected_features = WasmFeatures::None();
       // (asynchronous): Execute the compilation.
-      WasmCompilationResult result = unit->ExecuteCompilation(
-          &env.value(), wire_bytes.get(), counters, &detected_features);
+      WasmCompilationResult result =
+          unit->ExecuteCompilation(&env.value(), wire_bytes.get(), counters,
+                                   &per_function_detected_features);
+      global_detected_features.Add(per_function_detected_features);
       results_to_publish.emplace_back(std::move(result));
 
       bool yield = delegate && delegate->ShouldYield();
@@ -1531,7 +1536,7 @@ CompilationExecutionResult ExecuteCompilationUnits(
         compile_scope.compilation_state()->SchedulePublishCompilationResults(
             std::move(unpublished_code), tier);
         compile_scope.compilation_state()->OnCompilationStopped(
-            detected_features);
+            global_detected_features);
         return yield ? kYield : kNoMoreUnits;
       }
 

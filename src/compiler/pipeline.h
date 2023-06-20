@@ -26,6 +26,7 @@ struct WasmInliningPosition;
 namespace wasm {
 struct CompilationEnv;
 struct WasmCompilationResult;
+class WasmFeatures;
 }  // namespace wasm
 
 namespace compiler {
@@ -56,11 +57,14 @@ class Pipeline : public AllStatic {
                     BytecodeOffset osr_offset = BytecodeOffset::None());
 
   // Run the pipeline for the WebAssembly compilation info.
+  // Note: We pass a pointer to {detected} as it might get mutated while
+  // inlining.
   static void GenerateCodeForWasmFunction(
       OptimizedCompilationInfo* info, wasm::CompilationEnv* env,
       WasmCompilationData& compilation_data, MachineGraph* mcgraph,
       CallDescriptor* call_descriptor,
-      ZoneVector<WasmInliningPosition>* inlining_positions);
+      ZoneVector<WasmInliningPosition>* inlining_positions,
+      wasm::WasmFeatures* detected);
 
   // Run the pipeline on a machine graph and generate code.
   static wasm::WasmCompilationResult GenerateCodeForWasmNativeStub(

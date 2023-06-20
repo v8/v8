@@ -359,8 +359,9 @@ Node* WasmGraphBuilder::EffectPhi(unsigned count, Node** effects_and_control) {
 }
 
 Node* WasmGraphBuilder::RefNull(wasm::ValueType type) {
-  return (enabled_features_.has_gc() && parameter_mode_ == kInstanceMode)
-             ? gasm_->Null(type)
+  // We immediately lower null in wrappers, as they do not go through a lowering
+  // phase.
+  return parameter_mode_ == kInstanceMode ? gasm_->Null(type)
          : (type == wasm::kWasmExternRef || type == wasm::kWasmNullExternRef)
              ? LOAD_ROOT(NullValue, null_value)
              : LOAD_ROOT(WasmNull, wasm_null);
@@ -2695,7 +2696,9 @@ Node* WasmGraphBuilder::BuildDiv64Call(Node* left, Node* right,
 }
 
 Node* WasmGraphBuilder::IsNull(Node* object, wasm::ValueType type) {
-  return (enabled_features_.has_gc() && parameter_mode_ == kInstanceMode)
+  // We immediately lower null in wrappers, as they do not go through a lowering
+  // phase.
+  return parameter_mode_ == kInstanceMode
              ? gasm_->IsNull(object, type)
              : gasm_->TaggedEqual(object, RefNull(type));
 }
@@ -8839,8 +8842,7 @@ wasm::WasmCompilationResult ExecuteTurbofanWasmCompilation(
   data.loop_infos = &loop_infos;
   data.assumptions = new wasm::AssumptionsJournal();
 
-  wasm::WasmFeatures unused_detected_features;
-  if (!detected) detected = &unused_detected_features;
+  DCHECK_NOT_NULL(detected);
   BuildGraphForWasmFunction(env, data, detected, mcgraph);
 
   if (data.node_origins) {
@@ -8859,7 +8861,8 @@ wasm::WasmCompilationResult ExecuteTurbofanWasmCompilation(
   }
 
   Pipeline::GenerateCodeForWasmFunction(&info, env, data, mcgraph,
-                                        call_descriptor, &inlining_positions);
+                                        call_descriptor, &inlining_positions,
+                                        detected);
 
   if (counters) {
     int zone_bytes =

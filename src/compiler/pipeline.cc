@@ -1756,7 +1756,8 @@ struct WasmInliningPhase {
 
   void Run(PipelineData* data, Zone* temp_zone, wasm::CompilationEnv* env,
            WasmCompilationData& compilation_data,
-           ZoneVector<WasmInliningPosition>* inlining_positions) {
+           ZoneVector<WasmInliningPosition>* inlining_positions,
+           wasm::WasmFeatures* detected) {
     if (!WasmInliner::graph_size_allows_inlining(data->graph()->NodeCount())) {
       return;
     }
@@ -1767,7 +1768,7 @@ struct WasmInliningPhase {
                              temp_zone);
     std::unique_ptr<char[]> debug_name = data->info()->GetDebugName();
     WasmInliner inliner(&graph_reducer, env, compilation_data, data->mcgraph(),
-                        debug_name.get(), inlining_positions);
+                        debug_name.get(), inlining_positions, detected);
     AddReducer(data, &graph_reducer, &dead);
     AddReducer(data, &graph_reducer, &inliner);
     graph_reducer.ReduceGraph();
@@ -2236,12 +2237,12 @@ struct WasmOptimizationPhase {
   void Run(PipelineData* data, Zone* temp_zone,
            MachineOperatorReducer::SignallingNanPropagation
                signalling_nan_propagation,
-           wasm::WasmFeatures features) {
+           const wasm::WasmFeatures* features) {
     // Run optimizations in two rounds: First one around load elimination and
     // then one around branch elimination. This is because those two
     // optimizations sometimes display quadratic complexity when run together.
     // We only need load elimination for managed objects.
-    if (features.has_gc()) {
+    if (features->has_gc()) {
       GraphReducer graph_reducer(temp_zone, data->graph(),
                                  &data->info()->tick_counter(), data->broker(),
                                  data->jsgraph()->Dead(),
@@ -3498,10 +3499,11 @@ void Pipeline::GenerateCodeForWasmFunction(
     OptimizedCompilationInfo* info, wasm::CompilationEnv* env,
     WasmCompilationData& compilation_data, MachineGraph* mcgraph,
     CallDescriptor* call_descriptor,
-    ZoneVector<WasmInliningPosition>* inlining_positions) {
+    ZoneVector<WasmInliningPosition>* inlining_positions,
+    wasm::WasmFeatures* detected) {
   auto* wasm_engine = wasm::GetWasmEngine();
   const wasm::WasmModule* module = env->module;
-  wasm::WasmFeatures features = env->enabled_features;
+  wasm::WasmFeatures enabled = env->enabled_features;
   base::TimeTicks start_time;
   if (V8_UNLIKELY(v8_flags.trace_wasm_compilation_times)) {
     start_time = base::TimeTicks::Now();
@@ -3535,8 +3537,9 @@ void Pipeline::GenerateCodeForWasmFunction(
 #endif  // V8_ENABLE_WASM_SIMD256_REVEC
 
   data.BeginPhaseKind("V8.WasmOptimization");
-  if (features.has_inlining()) {
-    pipeline.Run<WasmInliningPhase>(env, compilation_data, inlining_positions);
+  if (enabled.has_inlining()) {
+    pipeline.Run<WasmInliningPhase>(env, compilation_data, inlining_positions,
+                                    detected);
     pipeline.RunPrintAndVerify(WasmInliningPhase::phase_name(), true);
   }
   if (v8_flags.wasm_loop_peeling) {
@@ -3552,7 +3555,12 @@ void Pipeline::GenerateCodeForWasmFunction(
       is_asm_js ? MachineOperatorReducer::kPropagateSignallingNan
                 : MachineOperatorReducer::kSilenceSignallingNan;
 
-  if (features.has_gc() || features.has_stringref()) {
+#define DETECTED_IMPLIES_ENABLED(feature, ...) \
+  DCHECK_IMPLIES(detected->has_##feature(), enabled.has_##feature());
+  FOREACH_WASM_FEATURE_FLAG(DETECTED_IMPLIES_ENABLED)
+#undef DETECTED_IMPLIES_ENABLED
+
+  if (detected->has_gc() || detected->has_stringref()) {
     pipeline.Run<WasmTypingPhase>(compilation_data.func_index);
     pipeline.RunPrintAndVerify(WasmTypingPhase::phase_name(), true);
     if (v8_flags.wasm_opt) {
@@ -3562,8 +3570,8 @@ void Pipeline::GenerateCodeForWasmFunction(
   }
 
   // These proposals use gc nodes.
-  if (features.has_gc() || features.has_typed_funcref() ||
-      features.has_stringref()) {
+  if (detected->has_gc() || detected->has_typed_funcref() ||
+      detected->has_stringref() || detected->has_reftypes()) {
     pipeline.Run<WasmGCLoweringPhase>(module);
     pipeline.RunPrintAndVerify(WasmGCLoweringPhase::phase_name(), true);
   }
@@ -3576,7 +3584,7 @@ void Pipeline::GenerateCodeForWasmFunction(
              pipeline);
 
   if (v8_flags.wasm_opt || is_asm_js) {
-    pipeline.Run<WasmOptimizationPhase>(signalling_nan_propagation, features);
+    pipeline.Run<WasmOptimizationPhase>(signalling_nan_propagation, detected);
     pipeline.RunPrintAndVerify(WasmOptimizationPhase::phase_name(), true);
   } else {
     pipeline.Run<WasmBaseOptimizationPhase>();
@@ -3586,7 +3594,7 @@ void Pipeline::GenerateCodeForWasmFunction(
   pipeline.Run<MemoryOptimizationPhase>();
   pipeline.RunPrintAndVerify(MemoryOptimizationPhase::phase_name(), true);
 
-  if (features.has_gc() && v8_flags.wasm_opt) {
+  if (detected->has_gc() && v8_flags.wasm_opt) {
     // Run value numbering and machine operator reducer to optimize load/store
     // address computation (in particular, reuse the address computation
     // whenever possible).

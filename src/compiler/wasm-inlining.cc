@@ -180,9 +180,8 @@ void WasmInliner::Finalize() {
     // If the inlinee was not validated before, do that now.
     if (V8_UNLIKELY(
             !module()->function_was_validated(candidate.inlinee_index))) {
-      wasm::WasmFeatures unused_detected_features;
-      if (ValidateFunctionBody(env_->enabled_features, module(),
-                               &unused_detected_features, inlinee_body)
+      if (ValidateFunctionBody(env_->enabled_features, module(), detected_,
+                               inlinee_body)
               .failed()) {
         Trace(candidate, "function is invalid");
         // At this point we cannot easily raise a compilation error any more.
@@ -194,7 +193,6 @@ void WasmInliner::Finalize() {
       module()->set_function_validated(candidate.inlinee_index);
     }
 
-    wasm::WasmFeatures detected;
     std::vector<WasmLoopInfo> inlinee_loop_infos;
     wasm::DanglingExceptions dangling_exceptions;
 
@@ -213,7 +211,7 @@ void WasmInliner::Finalize() {
     {
       Graph::SubgraphScope scope(graph());
       wasm::BuildTFGraph(zone()->allocator(), env_->enabled_features, module(),
-                         &builder, &detected, inlinee_body, &inlinee_loop_infos,
+                         &builder, detected_, inlinee_body, &inlinee_loop_infos,
                          &dangling_exceptions, data_.node_origins,
                          candidate.inlinee_index, data_.assumptions,
                          NodeProperties::IsExceptionalCall(call)
