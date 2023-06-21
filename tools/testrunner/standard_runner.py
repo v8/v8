@@ -35,10 +35,10 @@ from testrunner.testproc.variant import VariantProc
 VARIANTS = ['default']
 
 MORE_VARIANTS = [
-  'jitless',
   'stress',
   'stress_js_bg_compile_wasm_code_gc',
   'stress_incremental_marking',
+  'future',
 ]
 
 VARIANT_ALIASES = {
@@ -53,7 +53,7 @@ VARIANT_ALIASES = {
         MORE_VARIANTS + VARIANTS,
     # Additional variants, run on a subset of bots.
     'extra': [
-        'nooptimization', 'future', 'no_wasm_traps', 'instruction_scheduling',
+        'jitless', 'nooptimization', 'no_wasm_traps', 'instruction_scheduling',
         'always_sparkplug', 'turboshaft'
     ],
 }
