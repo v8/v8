@@ -220,7 +220,8 @@
   ##################### FLAKY TESTS #####################
 
   # BUG(v8:12558): These tests time out on Windows and also in debug mode.
-  'js1_5/Regress/regress-360969-05': [PASS, SLOW, ['mode == debug', NO_VARIANTS], ['system == windows', SKIP]],
+  # BUG(v8:14088): The former also times out with --stress-incremental-marking.
+  'js1_5/Regress/regress-360969-05': [PASS, SLOW, ['mode == debug', NO_VARIANTS], ['system == windows', SKIP], '--no-stress-incremental-marking'],
   'js1_5/Regress/regress-360969-06': [PASS, SLOW, ['mode == debug', NO_VARIANTS], ['system == windows', SKIP]],
 
   # These tests time out in debug mode but pass in product mode
@@ -1033,11 +1034,6 @@
   'js1_5/Regress/regress-360969-05': [SKIP],
   'js1_5/Regress/regress-360969-06': [SKIP],
 }],  # variant == stress
-
-##############################################################################
-['variant == stress_incremental_marking', {
-  'js1_5/Regress/regress-360969-05': [PASS, ['tsan', SKIP]],
-}],  # variant == stress_incremental_marking
 
 ##############################################################################
 ['variant == no_wasm_traps', {
