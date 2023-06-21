@@ -351,4 +351,12 @@ void V8::SetSnapshotBlob(StartupData* snapshot_blob) {
 double Platform::SystemClockTimeMillis() {
   return base::OS::TimeCurrentMillis();
 }
+
+// static
+void ThreadIsolatedAllocator::SetDefaultPermissionsForSignalHandler() {
+#if V8_HAS_PKU_JIT_WRITE_PROTECT
+  internal::RwxMemoryWriteScope::SetDefaultPermissionsForSignalHandler();
+#endif
+}
+
 }  // namespace v8

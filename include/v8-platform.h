@@ -597,6 +597,14 @@ class ThreadIsolatedAllocator {
    * Return the pkey used to implement the thread isolation if Type == kPkey.
    */
   virtual int Pkey() const { return -1; }
+
+  /**
+   * Per-thread permissions can be reset on signal handler entry. Even reading
+   * ThreadIsolated memory will segfault in that case.
+   * Call this function on signal handler entry to ensure that read permissions
+   * are restored.
+   */
+  static void SetDefaultPermissionsForSignalHandler();
 };
 
 // Opaque type representing a handle to a shared memory region.
