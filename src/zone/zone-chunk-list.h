@@ -27,7 +27,8 @@ class ZoneChunkListIterator;
 // * offers forward- and backwards-iteration,
 // * offers relatively fast seeking,
 // * offers bidirectional iterators,
-// * can be rewound without freeing the backing store.
+// * can be rewound without freeing the backing store,
+// * can be split and joined again efficiently.
 // This list will maintain a doubly-linked list of chunks. When a chunk is
 // filled up, a new one gets appended. New chunks appended at the end will
 // grow in size up to a certain limit to avoid over-allocation and to keep
@@ -47,8 +48,7 @@ class ZoneChunkList : public ZoneObject {
 
   explicit ZoneChunkList(Zone* zone) : zone_(zone) {}
 
-  ZoneChunkList(const ZoneChunkList&) = delete;
-  ZoneChunkList& operator=(const ZoneChunkList&) = delete;
+  MOVE_ONLY_NO_DEFAULT_CONSTRUCTOR(ZoneChunkList);
 
   size_t size() const { return size_; }
   bool empty() const { return size() == 0; }
@@ -76,6 +76,12 @@ class ZoneChunkList : public ZoneObject {
   // TODO(heimbuef): Add 'rFind', seeking from the end and returning a
   // reverse iterator.
 
+  // Splits off a new list that contains the elements from `split_begin` to
+  // `end()`. The current list is truncated to end just before `split_begin`.
+  // This naturally invalidates all iterators, including `split_begin`.
+  ZoneChunkList<T> SplitAt(iterator split_begin);
+  void Append(ZoneChunkList<T> other);
+
   void CopyTo(T* ptr);
 
   iterator begin() { return iterator::Begin(this); }
@@ -89,6 +95,13 @@ class ZoneChunkList : public ZoneObject {
   }
   const_reverse_iterator rend() const {
     return const_reverse_iterator::End(this);
+  }
+
+  void swap(ZoneChunkList<T>& other) {
+    DCHECK_EQ(zone_, other.zone_);
+    std::swap(size_, other.size_);
+    std::swap(front_, other.front_);
+    std::swap(last_nonempty_, other.last_nonempty_);
   }
 
  private:
@@ -214,19 +227,17 @@ class ZoneChunkListIterator
     return clone;
   }
 
-  void Advance(int amount) {
+  void Advance(uint32_t amount) {
     static_assert(!backwards, "Advance only works on forward iterators");
 
-    // Move forwards.
-    DCHECK_GE(amount, 0);
 #ifdef DEBUG
     ZoneChunkListIterator clone(*this);
-    for (int i = 0; i < amount; ++i) {
+    for (uint32_t i = 0; i < amount; ++i) {
       ++clone;
     }
 #endif
 
-    position_ += amount;
+    CHECK(!base::bits::UnsignedAddOverflow32(position_, amount, &position_));
     while (position_ > 0 && position_ >= current_->position_) {
       auto overshoot = position_ - current_->position_;
       current_ = current_->next_;
@@ -265,7 +276,7 @@ class ZoneChunkListIterator
     return ZoneChunkListIterator(list->last_nonempty_->next_, 0);
   }
 
-  ZoneChunkListIterator(Chunk* current, size_t position)
+  ZoneChunkListIterator(Chunk* current, uint32_t position)
       : current_(current), position_(position) {
     DCHECK(current == nullptr || position < current->capacity_);
   }
@@ -291,7 +302,7 @@ class ZoneChunkListIterator
   }
 
   Chunk* current_;
-  size_t position_;
+  uint32_t position_;
 };
 
 template <typename T>
@@ -421,6 +432,79 @@ typename ZoneChunkList<T>::const_iterator ZoneChunkList<T>::Find(
   SeekResult seek_result = SeekIndex(index);
   return typename ZoneChunkList<T>::const_iterator(seek_result.chunk_,
                                                    seek_result.chunk_index_);
+}
+
+template <typename T>
+ZoneChunkList<T> ZoneChunkList<T>::SplitAt(iterator split_begin) {
+  ZoneChunkList<T> result(zone_);
+
+  // `result` is an empty freshly-constructed list.
+  if (split_begin == end()) return result;
+
+  // `this` is empty after the split and `result` contains everything.
+  if (split_begin == begin()) {
+    this->swap(result);
+    return result;
+  }
+
+  // There is at least one element in both `this` and `result`.
+
+  // Split the chunk.
+  Chunk* split_chunk = split_begin.current_;
+  DCHECK_LE(split_begin.position_, split_chunk->position_);
+  T* chunk_split_begin = split_chunk->items() + split_begin.position_;
+  T* chunk_split_end = split_chunk->items() + split_chunk->position_;
+  uint32_t new_chunk_size =
+      static_cast<uint32_t>(chunk_split_end - chunk_split_begin);
+  uint32_t new_chunk_capacity = std::max(
+      kInitialChunkCapacity, base::bits::RoundUpToPowerOfTwo32(new_chunk_size));
+  CHECK_LE(new_chunk_size, new_chunk_capacity);
+  Chunk* new_chunk = NewChunk(new_chunk_capacity);
+  std::copy(chunk_split_begin, chunk_split_end, new_chunk->items());
+  new_chunk->position_ = new_chunk_size;
+  split_chunk->position_ = split_begin.position_;
+
+  // Split the linked list.
+  result.front_ = new_chunk;
+  result.last_nonempty_ =
+      (last_nonempty_ == split_chunk) ? new_chunk : last_nonempty_;
+  new_chunk->next_ = split_chunk->next_;
+  new_chunk->next_->previous_ = new_chunk;
+
+  last_nonempty_ = split_chunk;
+  split_chunk->next_ = nullptr;
+
+  // Compute the new size.
+  size_t new_size = 0;
+  for (Chunk* chunk = front_; chunk != split_chunk; chunk = chunk->next_) {
+    DCHECK(!chunk->empty());
+    new_size += chunk->size();
+  }
+  new_size += split_chunk->size();
+  DCHECK_LT(new_size, size());
+  result.size_ = size() - new_size;
+  size_ = new_size;
+
+#if DEBUG
+  Verify();
+  result.Verify();
+#endif
+
+  return result;
+}
+
+template <typename T>
+void ZoneChunkList<T>::Append(ZoneChunkList<T> other) {
+  DCHECK_EQ(zone_, other.zone_);
+
+  if (other.front_ == nullptr) return;
+
+  last_nonempty_->next_ = other.front_;
+  other.front_->previous_ = last_nonempty_;
+
+  last_nonempty_ = other.last_nonempty_;
+
+  size_ += other.size_;
 }
 
 template <typename T>

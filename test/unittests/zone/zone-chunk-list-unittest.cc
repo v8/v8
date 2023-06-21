@@ -346,5 +346,73 @@ TEST_F(ZoneChunkListTest, FindOverChunkBoundary) {
   }
 }
 
+TEST_F(ZoneChunkListTest, SplitAt) {
+  AccountingAllocator allocator;
+  Zone zone(&allocator, ZONE_NAME);
+
+  ZoneChunkList<size_t> zone_chunk_list(&zone);
+
+  // Make sure we get two chunks.
+  for (size_t i = 0; i < kItemCount + 1; ++i) {
+    zone_chunk_list.push_back(i);
+  }
+
+  ZoneChunkList<size_t> split_end =
+      zone_chunk_list.SplitAt(zone_chunk_list.end());
+
+  CHECK(split_end.empty());
+  size_t count = 0;
+  for (size_t item : zone_chunk_list) {
+    CHECK_EQ(item, count);
+    count++;
+  }
+  CHECK_EQ(count, kItemCount + 1);
+
+  ZoneChunkList<size_t> split_begin =
+      zone_chunk_list.SplitAt(zone_chunk_list.begin());
+
+  CHECK(zone_chunk_list.empty());
+  count = 0;
+  for (size_t item : split_begin) {
+    CHECK_EQ(item, count);
+    count++;
+  }
+  CHECK_EQ(count, kItemCount + 1);
+
+  size_t mid = kItemCount / 2 + 42;
+  ZoneChunkList<size_t> split_mid = split_begin.SplitAt(split_begin.Find(mid));
+
+  count = 0;
+  for (size_t item : split_begin) {
+    CHECK_EQ(item, count);
+    count++;
+  }
+  CHECK_EQ(count, kItemCount / 2 + 42);
+  for (size_t item : split_mid) {
+    CHECK_EQ(item, count);
+    count++;
+  }
+  CHECK_EQ(count, kItemCount + 1);
+}
+
+TEST_F(ZoneChunkListTest, Append) {
+  AccountingAllocator allocator;
+  Zone zone(&allocator, ZONE_NAME);
+
+  ZoneChunkList<size_t> zone_chunk_list(&zone);
+  zone_chunk_list.push_back(0);
+
+  ZoneChunkList<size_t> other(&zone);
+  other.push_back(1);
+
+  zone_chunk_list.Append(std::move(other));
+
+  size_t count = 0;
+  for (size_t item : zone_chunk_list) {
+    CHECK_EQ(item, count++);
+  }
+  CHECK_EQ(count, zone_chunk_list.size());
+}
+
 }  // namespace internal
 }  // namespace v8
