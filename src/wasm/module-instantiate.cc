@@ -964,9 +964,8 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   } else {
     CHECK(asmjs_memory_buffer_.is_null());
     // Actual Wasm modules can have multiple memories.
+    static_assert(kV8MaxWasmMemories <= kMaxUInt32);
     uint32_t num_memories = static_cast<uint32_t>(module_->memories.size());
-    // TODO(13918): Fix this for multi-memory.
-    CHECK_GE(1, num_memories);
     for (uint32_t memory_index = 0; memory_index < num_memories;
          ++memory_index) {
       // Actual wasm module must have either imported or created memory.

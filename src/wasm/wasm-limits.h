@@ -57,7 +57,7 @@ constexpr size_t kV8MaxWasmFunctionBrTableSize = 65'520;
 constexpr size_t kV8MaxWasmTableSize = 10'000'000;
 constexpr size_t kV8MaxWasmTableInitEntries = 10'000'000;
 constexpr size_t kV8MaxWasmTables = 100'000;
-constexpr size_t kV8MaxWasmMemories = 1;
+constexpr size_t kV8MaxWasmMemories = 100'000;
 
 // GC proposal.
 constexpr size_t kV8MaxWasmStructFields = 10'000;

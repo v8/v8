@@ -118,6 +118,7 @@ enum BoundsCheckStrategy : int8_t {
 
 // Static representation of a wasm memory.
 struct WasmMemory {
+  uint32_t index = 0;              // index into the memory table
   uint32_t initial_pages = 0;      // initial size of the memory in 64k pages
   uint32_t maximum_pages = 0;      // maximum size of the memory in 64k pages
   bool is_shared = false;          // true if memory is a SharedArrayBuffer

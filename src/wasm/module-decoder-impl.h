@@ -795,13 +795,25 @@ class ModuleDecoderImpl : public Decoder {
         }
         case kExternalMemory: {
           // ===== Imported memory =============================================
-          if (!module_->memories.empty()) {
-            // TODO(13918): Support multiple memories.
-            error("At most one memory is supported");
+          static_assert(kV8MaxWasmMemories <= kMaxUInt32);
+          if (!enabled_features_.has_multi_memory()) {
+            if (!module_->memories.empty()) {
+              error(
+                  "At most one imported memory is supported (pass "
+                  "--experimental-wasm-multi-memory to allow more "
+                  "memories)");
+              break;
+            }
+          } else if (module_->memories.size() >= kV8MaxWasmMemories - 1) {
+            errorf("At most %u imported memories are supported",
+                   kV8MaxWasmMemories);
             break;
           }
+          uint32_t mem_index = static_cast<uint32_t>(module_->memories.size());
+          import->index = mem_index;
           module_->memories.emplace_back();
           WasmMemory* external_memory = &module_->memories.back();
+          external_memory->index = mem_index;
 
           consume_memory_flags(&external_memory->is_shared,
                                &external_memory->is_memory64,
@@ -933,18 +945,30 @@ class ModuleDecoderImpl : public Decoder {
 
   void DecodeMemorySection() {
     const uint8_t* mem_count_pc = pc();
-    uint32_t memory_count = consume_count("memory count", kV8MaxWasmMemories);
+    static_assert(kV8MaxWasmMemories <= kMaxUInt32);
+    uint32_t max_memories =
+        enabled_features_.has_multi_memory() ? kV8MaxWasmMemories : 1;
+    uint32_t memory_count = consume_count("memory count", max_memories);
     size_t imported_memories = module_->memories.size();
-    if (memory_count + imported_memories > 1) {
-      // TODO(13918): Support multiple memories.
-      errorf(mem_count_pc,
-             "At most one memory is supported (declared %u, imported %zu)",
-             memory_count, imported_memories);
+    DCHECK_GE(max_memories, imported_memories);
+    if (memory_count > max_memories - imported_memories) {
+      if (enabled_features_.has_multi_memory()) {
+        errorf(mem_count_pc,
+               "Exceeding maximum number of memories (%u; declared %u, "
+               "imported %zu)",
+               max_memories, memory_count, imported_memories);
+      } else {
+        errorf(mem_count_pc,
+               "At most one memory is supported (declared %u, imported %zu); "
+               "pass --experimental-wasm-multi-memory to allow more memories",
+               memory_count, imported_memories);
+      }
     }
     module_->memories.resize(imported_memories + memory_count);
 
     for (uint32_t i = 0; ok() && i < memory_count; i++) {
       WasmMemory* memory = module_->memories.data() + imported_memories + i;
+      memory->index = static_cast<uint32_t>(imported_memories + i);
       if (tracer_) tracer_->MemoryOffset(pc_offset());
       consume_memory_flags(&memory->is_shared, &memory->is_memory64,
                            &memory->has_maximum_pages);

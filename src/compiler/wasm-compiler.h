@@ -631,7 +631,7 @@ class WasmGraphBuilder {
 
   // MemBuffer is only called with valid offsets (after bounds checking), so the
   // offset fits in a platform-dependent uintptr_t.
-  Node* MemBuffer(uintptr_t offset);
+  Node* MemBuffer(uint32_t mem_index, uintptr_t offset);
 
   // BoundsCheckMem receives a 32/64-bit index (depending on
   // {memory->is_memory64}) and returns a ptrsize index and information about

@@ -3141,7 +3141,17 @@ class LiftoffCompiler {
         pinned.set(__ GetUnusedRegister(kGpReg, pinned));
     LiftoffRegister mem_size = __ GetUnusedRegister(kGpReg, pinned);
     // TODO(13957): Clamp the loaded memory size to a safe value.
-    LOAD_INSTANCE_FIELD(mem_size.gp(), Memory0Size, kSystemPointerSize, pinned);
+    if (memory->index == 0) {
+      LOAD_INSTANCE_FIELD(mem_size.gp(), Memory0Size, kSystemPointerSize,
+                          pinned);
+    } else {
+      LOAD_TAGGED_PTR_INSTANCE_FIELD(mem_size.gp(), MemoryBasesAndSizes,
+                                     pinned);
+      int buffer_offset = wasm::ObjectAccess::ToTagged(ByteArray::kHeaderSize) +
+                          kSystemPointerSize * (memory->index * 2 + 1);
+      __ Load(mem_size, mem_size.gp(), no_reg, buffer_offset, kPointerLoadType,
+              nullptr, false, false, true);
+    }
 
     __ LoadConstant(end_offset_reg, WasmValue::ForUintPtr(end_offset));
 
@@ -3284,25 +3294,36 @@ class LiftoffCompiler {
     return true;
   }
 
-  // TODO(13918): Support multiple memories.
-  V8_INLINE Register GetMemoryStart(LiftoffRegList pinned) {
+  V8_INLINE Register GetMemoryStart(uint32_t memory_index,
+                                    LiftoffRegList pinned) {
     Register memory_start = __ cache_state()->cached_mem0_start;
-    if (V8_UNLIKELY(memory_start == no_reg)) {
-      memory_start = GetMemoryStart_Slow(pinned);
+    if (V8_LIKELY(memory_index == 0 && memory_start != no_reg)) {
+      return memory_start;
     }
-    return memory_start;
+    return GetMemoryStart_Slow(memory_index, pinned);
   }
 
   V8_NOINLINE V8_PRESERVE_MOST Register
-  GetMemoryStart_Slow(LiftoffRegList pinned) {
-    DCHECK_EQ(no_reg, __ cache_state()->cached_mem0_start);
+  GetMemoryStart_Slow(uint32_t memory_index, LiftoffRegList pinned) {
+    // This method should only be called if we cannot use the cached memory
+    // start.
+    DCHECK(memory_index != 0 || __ cache_state()->cached_mem0_start == no_reg);
     SCOPED_CODE_COMMENT("load memory start");
     Register memory_start = __ GetUnusedRegister(kGpReg, pinned).gp();
-    LOAD_INSTANCE_FIELD(memory_start, Memory0Start, kSystemPointerSize, pinned);
+    if (memory_index == 0) {
+      __ cache_state()->SetMem0StartCacheRegister(memory_start);
+      LOAD_INSTANCE_FIELD(memory_start, Memory0Start, kSystemPointerSize,
+                          pinned);
+    } else {
+      LOAD_TAGGED_PTR_INSTANCE_FIELD(memory_start, MemoryBasesAndSizes, pinned);
+      int buffer_offset = wasm::ObjectAccess::ToTagged(ByteArray::kHeaderSize) +
+                          kSystemPointerSize * memory_index * 2;
+      __ Load(LiftoffRegister{memory_start}, memory_start, no_reg,
+              buffer_offset, kPointerLoadType);
+    }
 #ifdef V8_ENABLE_SANDBOX
     __ DecodeSandboxedPointer(memory_start);
 #endif
-    __ cache_state()->SetMem0StartCacheRegister(memory_start);
     return memory_start;
   }
 
@@ -3327,7 +3348,7 @@ class LiftoffCompiler {
       __ cache_state()->stack_state.pop_back();
       SCOPED_CODE_COMMENT("load from memory (constant offset)");
       LiftoffRegList pinned;
-      Register mem = pinned.set(GetMemoryStart(pinned));
+      Register mem = pinned.set(GetMemoryStart(memory->index, pinned));
       LiftoffRegister value = pinned.set(__ GetUnusedRegister(rc, pinned));
       __ Load(value, mem, no_reg, offset, type, nullptr, true, i64_offset);
       __ PushRegister(kind, value);
@@ -3341,7 +3362,7 @@ class LiftoffCompiler {
 
       // Load the memory start address only now to reduce register pressure
       // (important on ia32).
-      Register mem = pinned.set(GetMemoryStart(pinned));
+      Register mem = pinned.set(GetMemoryStart(memory->index, pinned));
       LiftoffRegister value = pinned.set(__ GetUnusedRegister(rc, pinned));
 
       uint32_t protected_load_pc = 0;
@@ -3382,7 +3403,7 @@ class LiftoffCompiler {
     uintptr_t offset = imm.offset;
     LiftoffRegList pinned{index};
     CODE_COMMENT("load with transformation");
-    Register addr = GetMemoryStart(pinned);
+    Register addr = GetMemoryStart(imm.mem_index, pinned);
     LiftoffRegister value = __ GetUnusedRegister(reg_class_for(kS128), {});
     uint32_t protected_load_pc = 0;
     __ LoadTransform(value, addr, index, offset, type, transform,
@@ -3424,7 +3445,7 @@ class LiftoffCompiler {
     uintptr_t offset = imm.offset;
     pinned.set(index);
     CODE_COMMENT("load lane");
-    Register addr = GetMemoryStart(pinned);
+    Register addr = GetMemoryStart(imm.mem_index, pinned);
     LiftoffRegister result = __ GetUnusedRegister(reg_class_for(kS128), {});
     uint32_t protected_load_pc = 0;
 
@@ -3463,7 +3484,7 @@ class LiftoffCompiler {
     if (IndexStaticallyInBounds(memory, index_slot, type.size(), &offset)) {
       __ cache_state()->stack_state.pop_back();
       SCOPED_CODE_COMMENT("store to memory (constant offset)");
-      Register mem = pinned.set(GetMemoryStart(pinned));
+      Register mem = pinned.set(GetMemoryStart(memory->index, pinned));
       __ Store(mem, no_reg, offset, value, type, pinned, nullptr, true,
                i64_offset);
     } else {
@@ -3478,7 +3499,7 @@ class LiftoffCompiler {
       uint32_t protected_store_pc = 0;
       // Load the memory start address only now to reduce register pressure
       // (important on ia32).
-      Register mem = pinned.set(GetMemoryStart(pinned));
+      Register mem = pinned.set(GetMemoryStart(memory->index, pinned));
       LiftoffRegList outer_pinned;
       if (V8_UNLIKELY(v8_flags.trace_wasm_memory)) outer_pinned.set(index);
       __ Store(mem, index, offset, value, type, outer_pinned,
@@ -3513,7 +3534,7 @@ class LiftoffCompiler {
     uintptr_t offset = imm.offset;
     pinned.set(index);
     CODE_COMMENT("store lane to memory");
-    Register addr = pinned.set(GetMemoryStart(pinned));
+    Register addr = pinned.set(GetMemoryStart(imm.mem_index, pinned));
     uint32_t protected_store_pc = 0;
     __ StoreLane(addr, index, offset, value, type, lane, &protected_store_pc,
                  i64_offset);
@@ -4949,7 +4970,7 @@ class LiftoffCompiler {
     AlignmentCheckMem(decoder, type.size(), imm.offset, index, pinned);
     uintptr_t offset = imm.offset;
     CODE_COMMENT("atomic store to memory");
-    Register addr = pinned.set(GetMemoryStart(pinned));
+    Register addr = pinned.set(GetMemoryStart(imm.mem_index, pinned));
     LiftoffRegList outer_pinned;
     if (V8_UNLIKELY(v8_flags.trace_wasm_memory)) outer_pinned.set(index);
     __ AtomicStore(addr, index, offset, value, type, outer_pinned, i64_offset);
@@ -4973,7 +4994,7 @@ class LiftoffCompiler {
     AlignmentCheckMem(decoder, type.size(), imm.offset, index, pinned);
     uintptr_t offset = imm.offset;
     CODE_COMMENT("atomic load from memory");
-    Register addr = pinned.set(GetMemoryStart(pinned));
+    Register addr = pinned.set(GetMemoryStart(imm.mem_index, pinned));
     RegClass rc = reg_class_for(kind);
     LiftoffRegister value = pinned.set(__ GetUnusedRegister(rc, pinned));
     __ AtomicLoad(value, addr, index, offset, type, pinned, i64_offset);
@@ -5022,7 +5043,7 @@ class LiftoffCompiler {
 
     CODE_COMMENT("atomic binop");
     uintptr_t offset = imm.offset;
-    Register addr = pinned.set(GetMemoryStart(pinned));
+    Register addr = pinned.set(GetMemoryStart(imm.mem_index, pinned));
 
     (asm_.*emit_fn)(addr, index, offset, value, result, type, i64_offset);
     __ PushRegister(result_kind, result);
@@ -5083,7 +5104,7 @@ class LiftoffCompiler {
     AlignmentCheckMem(decoder, type.size(), imm.offset, index, pinned);
 
     uintptr_t offset = imm.offset;
-    Register addr = pinned.set(GetMemoryStart(pinned));
+    Register addr = pinned.set(GetMemoryStart(imm.mem_index, pinned));
     LiftoffRegister result =
         pinned.set(__ GetUnusedRegister(reg_class_for(result_kind), pinned));
 
@@ -5376,9 +5397,9 @@ class LiftoffCompiler {
 
   void AtomicFence(FullDecoder* decoder) { __ AtomicFence(); }
 
-  // Pop a memtype (i32 or i64 depending on {WasmModule::is_memory64}) to a
-  // register, updating {*high_word} to contain the ORed combination of all
-  // popped high words. Returns the ptrsized register holding the popped value.
+  // Pop a memtype (i32 or i64) to a register, updating {*high_word} to contain
+  // the ORed combination of all popped high words. Returns the ptrsized
+  // register holding the popped value.
   LiftoffRegister PopMemTypeToRegister(FullDecoder* decoder,
                                        Register* high_word,
                                        LiftoffRegList* pinned) {

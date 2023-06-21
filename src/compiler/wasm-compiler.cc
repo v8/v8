@@ -3352,11 +3352,19 @@ void WasmGraphBuilder::SetEffectControl(Node* effect, Node* control) {
   gasm_->InitializeEffectControl(effect, control);
 }
 
-Node* WasmGraphBuilder::MemBuffer(uintptr_t offset) {
-  // TODO(13918): Support multiple memories.
+Node* WasmGraphBuilder::MemBuffer(uint32_t mem_index, uintptr_t offset) {
   DCHECK_NOT_NULL(instance_cache_);
-  Node* mem_start = instance_cache_->mem0_start;
-  DCHECK_NOT_NULL(mem_start);
+  Node* mem_start;
+  if (mem_index == 0) {
+    mem_start = instance_cache_->mem0_start;
+    DCHECK_NOT_NULL(mem_start);
+  } else {
+    Node* memory_bases_and_sizes =
+        LOAD_INSTANCE_FIELD(MemoryBasesAndSizes, MachineType::TaggedPointer());
+    mem_start = gasm_->LoadByteArrayElement(
+        memory_bases_and_sizes, gasm_->IntPtrConstant(2 * mem_index),
+        kMaybeSandboxedPointer);
+  }
   if (offset == 0) return mem_start;
   return gasm_->IntAdd(mem_start, gasm_->UintPtrConstant(offset));
 }
@@ -3535,7 +3543,8 @@ WasmGraphBuilder::CheckBoundsAndAlignment(const wasm::WasmMemory* memory,
   // Unlike regular memory accesses, atomic memory accesses should trap if
   // the effective offset is misaligned.
   // TODO(wasm): this addition is redundant with one inserted by {MemBuffer}.
-  Node* effective_offset = gasm_->IntAdd(MemBuffer(offset), index);
+  Node* effective_offset =
+      gasm_->IntAdd(MemBuffer(memory->index, offset), index);
 
   Node* cond =
       gasm_->WordAnd(effective_offset, gasm_->IntPtrConstant(align_mask));
@@ -3604,7 +3613,17 @@ WasmGraphBuilder::BoundsCheckMem(const wasm::WasmMemory* memory,
     return {index, kTrapHandler};
   }
 
-  Node* mem_size = instance_cache_->mem0_size;
+  Node* mem_size;
+  if (memory->index == 0) {
+    mem_size = instance_cache_->mem0_size;
+  } else {
+    Node* memory_bases_and_sizes =
+        LOAD_INSTANCE_FIELD(MemoryBasesAndSizes, MachineType::TaggedPointer());
+    mem_size = gasm_->LoadByteArrayElement(
+        memory_bases_and_sizes, gasm_->IntPtrConstant(2 * memory->index + 1),
+        MachineType::Pointer());
+  }
+
   Node* end_offset_node = mcgraph_->UintPtrConstant(end_offset);
   if (end_offset > memory->min_memory_size) {
     // The end offset is larger than the smallest memory.
@@ -3785,7 +3804,7 @@ Node* WasmGraphBuilder::LoadLane(const wasm::WasmMemory* memory,
 
   load = SetEffect(graph()->NewNode(
       mcgraph()->machine()->LoadLane(load_kind, memtype, laneidx),
-      MemBuffer(offset), index, value, effect(), control()));
+      MemBuffer(memory->index, offset), index, value, effect(), control()));
 
   if (load_kind == MemoryAccessKind::kProtected) {
     SetSourcePosition(load, position);
@@ -3823,7 +3842,7 @@ Node* WasmGraphBuilder::LoadTransform(const wasm::WasmMemory* memory,
 
   Node* load = SetEffect(graph()->NewNode(
       mcgraph()->machine()->LoadTransform(load_kind, transformation),
-      MemBuffer(offset), index, effect(), control()));
+      MemBuffer(memory->index, offset), index, effect(), control()));
 
   if (load_kind == MemoryAccessKind::kProtected) {
     SetSourcePosition(load, position);
@@ -3841,8 +3860,6 @@ Node* WasmGraphBuilder::LoadMem(const wasm::WasmMemory* memory,
                                 Node* index, uintptr_t offset,
                                 uint32_t alignment,
                                 wasm::WasmCodePosition position) {
-  Node* load;
-
   if (memtype.representation() == MachineRepresentation::kSimd128) {
     has_simd_ = true;
   }
@@ -3853,7 +3870,8 @@ Node* WasmGraphBuilder::LoadMem(const wasm::WasmMemory* memory,
   std::tie(index, bounds_check_result) = BoundsCheckMem(
       memory, memtype.MemSize(), index, offset, position, kCanOmitBoundsCheck);
 
-  Node* mem_start = MemBuffer(offset);
+  Node* mem_start = MemBuffer(memory->index, offset);
+  Node* load;
   switch (GetMemoryAccessKind(mcgraph_, memtype.representation(),
                               bounds_check_result)) {
     case MemoryAccessKind::kUnaligned:
@@ -3905,7 +3923,7 @@ void WasmGraphBuilder::StoreLane(const wasm::WasmMemory* memory,
 
   Node* store = SetEffect(graph()->NewNode(
       mcgraph()->machine()->StoreLane(load_kind, mem_rep, laneidx),
-      MemBuffer(offset), index, val, effect(), control()));
+      MemBuffer(memory->index, offset), index, val, effect(), control()));
 
   if (load_kind == MemoryAccessKind::kProtected) {
     SetSourcePosition(store, position);
@@ -3934,7 +3952,7 @@ void WasmGraphBuilder::StoreMem(const wasm::WasmMemory* memory,
   val = BuildChangeEndiannessStore(val, mem_rep, type);
 #endif
 
-  Node* mem_start = MemBuffer(offset);
+  Node* mem_start = MemBuffer(memory->index, offset);
   switch (GetMemoryAccessKind(mcgraph_, mem_rep, bounds_check_result)) {
     case MemoryAccessKind::kUnaligned:
       gasm_->StoreUnaligned(UnalignedStoreRepresentation{mem_rep}, mem_start,
@@ -5079,7 +5097,7 @@ Node* WasmGraphBuilder::AtomicOp(const wasm::WasmMemory* memory,
                                 access_kind));
     }
 
-    Node* input_nodes[6] = {MemBuffer(offset), index};
+    Node* input_nodes[6] = {MemBuffer(memory->index, offset), index};
     int num_actual_inputs = info.type;
     std::copy_n(inputs + 1, num_actual_inputs, input_nodes + 2);
     input_nodes[num_actual_inputs + 2] = effect();

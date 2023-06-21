@@ -3100,7 +3100,11 @@ CompilationStateImpl::CompilationStateImpl(
       native_module_weak_(std::move(native_module)),
       async_counters_(std::move(async_counters)),
       compilation_unit_queues_(native_module->num_functions()),
-      dynamic_tiering_(dynamic_tiering) {}
+      dynamic_tiering_(dynamic_tiering) {
+  if (native_module->module()->memories.size() > 1) {
+    detected_features_.Add(kFeature_multi_memory);
+  }
+}
 
 void CompilationStateImpl::InitCompileJob() {
   DCHECK_NULL(baseline_compile_job_);
