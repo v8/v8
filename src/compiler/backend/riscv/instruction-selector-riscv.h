@@ -8,6 +8,7 @@
 #include "src/compiler/backend/instruction-selector-impl.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
+#include "src/compiler/turboshaft/operations.h"
 
 namespace v8 {
 namespace internal {
@@ -204,7 +205,7 @@ template <typename Adapter, typename Matcher>
 static void VisitBinop(InstructionSelectorT<Adapter>* selector, Node* node,
                        InstructionCode opcode, bool has_reverse_opcode,
                        InstructionCode reverse_opcode,
-                       FlagsContinuation* cont) {
+                       FlagsContinuationT<Adapter>* cont) {
   RiscvOperandGeneratorT<Adapter> g(selector);
   Int32BinopMatcher m(node);
   InstructionOperand inputs[2];
@@ -249,14 +250,15 @@ template <typename Adapter, typename Matcher>
 static void VisitBinop(InstructionSelectorT<Adapter>* selector, Node* node,
                        InstructionCode opcode, bool has_reverse_opcode,
                        InstructionCode reverse_opcode) {
-  FlagsContinuation cont;
+  FlagsContinuationT<Adapter> cont;
   VisitBinop<Adapter, Matcher>(selector, node, opcode, has_reverse_opcode,
                                reverse_opcode, &cont);
 }
 
 template <typename Adapter, typename Matcher>
 static void VisitBinop(InstructionSelectorT<Adapter>* selector, Node* node,
-                       InstructionCode opcode, FlagsContinuation* cont) {
+                       InstructionCode opcode,
+                       FlagsContinuationT<Adapter>* cont) {
   VisitBinop<Adapter, Matcher>(selector, node, opcode, false, kArchNop, cont);
 }
 
@@ -338,7 +340,8 @@ void InstructionSelectorT<Adapter>::VisitLoadTransform(Node* node) {
 template <typename Adapter>
 static void VisitCompare(InstructionSelectorT<Adapter>* selector,
                          InstructionCode opcode, InstructionOperand left,
-                         InstructionOperand right, FlagsContinuation* cont) {
+                         InstructionOperand right,
+                         FlagsContinuationT<Adapter>* cont) {
   selector->EmitWithContinuation(opcode, left, right, cont);
 }
 
@@ -346,44 +349,54 @@ static void VisitCompare(InstructionSelectorT<Adapter>* selector,
 template <typename Adapter>
 static void VisitWordCompareZero(InstructionSelectorT<Adapter>* selector,
                                  InstructionOperand value,
-                                 FlagsContinuation* cont) {
+                                 FlagsContinuationT<Adapter>* cont) {
   selector->EmitWithContinuation(kRiscvCmpZero, value, cont);
 }
 
 // Shared routine for multiple float32 compare operations.
 template <typename Adapter>
-void VisitFloat32Compare(InstructionSelectorT<Adapter>* selector, Node* node,
-                         FlagsContinuation* cont) {
-  RiscvOperandGeneratorT<Adapter> g(selector);
-  Float32BinopMatcher m(node);
-  InstructionOperand lhs, rhs;
+void VisitFloat32Compare(InstructionSelectorT<Adapter>* selector,
+                         typename Adapter::node_t node,
+                         FlagsContinuationT<Adapter>* cont) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    RiscvOperandGeneratorT<Adapter> g(selector);
+    Float32BinopMatcher m(node);
+    InstructionOperand lhs, rhs;
 
-  lhs = m.left().IsZero() ? g.UseImmediate(m.left().node())
-                          : g.UseRegister(m.left().node());
-  rhs = m.right().IsZero() ? g.UseImmediate(m.right().node())
-                           : g.UseRegister(m.right().node());
-  VisitCompare(selector, kRiscvCmpS, lhs, rhs, cont);
+    lhs = m.left().IsZero() ? g.UseImmediate(m.left().node())
+                            : g.UseRegister(m.left().node());
+    rhs = m.right().IsZero() ? g.UseImmediate(m.right().node())
+                             : g.UseRegister(m.right().node());
+    VisitCompare(selector, kRiscvCmpS, lhs, rhs, cont);
+  }
 }
 
 // Shared routine for multiple float64 compare operations.
 template <typename Adapter>
-void VisitFloat64Compare(InstructionSelectorT<Adapter>* selector, Node* node,
-                         FlagsContinuation* cont) {
-  RiscvOperandGeneratorT<Adapter> g(selector);
-  Float64BinopMatcher m(node);
-  InstructionOperand lhs, rhs;
+void VisitFloat64Compare(InstructionSelectorT<Adapter>* selector,
+                         typename Adapter::node_t node,
+                         FlagsContinuationT<Adapter>* cont) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    RiscvOperandGeneratorT<Adapter> g(selector);
+    Float64BinopMatcher m(node);
+    InstructionOperand lhs, rhs;
 
-  lhs = m.left().IsZero() ? g.UseImmediate(m.left().node())
-                          : g.UseRegister(m.left().node());
-  rhs = m.right().IsZero() ? g.UseImmediate(m.right().node())
-                           : g.UseRegister(m.right().node());
-  VisitCompare(selector, kRiscvCmpD, lhs, rhs, cont);
+    lhs = m.left().IsZero() ? g.UseImmediate(m.left().node())
+                            : g.UseRegister(m.left().node());
+    rhs = m.right().IsZero() ? g.UseImmediate(m.right().node())
+                             : g.UseRegister(m.right().node());
+    VisitCompare(selector, kRiscvCmpD, lhs, rhs, cont);
+  }
 }
 
 // Shared routine for multiple word compare operations.
 template <typename Adapter>
 void VisitWordCompare(InstructionSelectorT<Adapter>* selector, Node* node,
-                      InstructionCode opcode, FlagsContinuation* cont,
+                      InstructionCode opcode, FlagsContinuationT<Adapter>* cont,
                       bool commutative) {
   RiscvOperandGeneratorT<Adapter> g(selector);
   Node* left = node->InputAt(0);
@@ -463,7 +476,8 @@ void InstructionSelectorT<Adapter>::VisitSwitch(Node* node,
   InstructionOperand value_operand = g.UseRegister(node->InputAt(0));
 
   // Emit either ArchTableSwitch or ArchBinarySearchSwitch.
-  if (enable_switch_jump_table_ == kEnableSwitchJumpTable) {
+  if (enable_switch_jump_table_ ==
+      InstructionSelector::kEnableSwitchJumpTable) {
     static const size_t kMaxTableSwitchValueRange = 2 << 16;
     size_t table_space_cost = 10 + 2 * sw.value_range();
     size_t table_time_cost = 3;
@@ -491,7 +505,7 @@ void InstructionSelectorT<Adapter>::VisitSwitch(Node* node,
 
 template <typename Adapter>
 void EmitWordCompareZero(InstructionSelectorT<Adapter>* selector, Node* value,
-                         FlagsContinuation* cont) {
+                         FlagsContinuationT<Adapter>* cont) {
   RiscvOperandGeneratorT<Adapter> g(selector);
   selector->EmitWithContinuation(kRiscvCmpZero,
                                  g.UseRegisterOrImmediateZero(value), cont);
@@ -551,39 +565,41 @@ void VisitAtomicCompareExchange(InstructionSelectorT<Adapter>* selector,
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat32Equal(Node* node) {
-  FlagsContinuation cont = FlagsContinuation::ForSet(kEqual, node);
+void InstructionSelectorT<Adapter>::VisitFloat32Equal(node_t node) {
+  FlagsContinuationT<Adapter> cont = FlagsContinuation::ForSet(kEqual, node);
   VisitFloat32Compare(this, node, &cont);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat32LessThan(Node* node) {
-  FlagsContinuation cont = FlagsContinuation::ForSet(kUnsignedLessThan, node);
+void InstructionSelectorT<Adapter>::VisitFloat32LessThan(node_t node) {
+  FlagsContinuationT<Adapter> cont =
+      FlagsContinuation::ForSet(kUnsignedLessThan, node);
   VisitFloat32Compare(this, node, &cont);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat32LessThanOrEqual(Node* node) {
-  FlagsContinuation cont =
+void InstructionSelectorT<Adapter>::VisitFloat32LessThanOrEqual(node_t node) {
+  FlagsContinuationT<Adapter> cont =
       FlagsContinuation::ForSet(kUnsignedLessThanOrEqual, node);
   VisitFloat32Compare(this, node, &cont);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat64Equal(Node* node) {
-  FlagsContinuation cont = FlagsContinuation::ForSet(kEqual, node);
+void InstructionSelectorT<Adapter>::VisitFloat64Equal(node_t node) {
+  FlagsContinuationT<Adapter> cont = FlagsContinuation::ForSet(kEqual, node);
   VisitFloat64Compare(this, node, &cont);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat64LessThan(Node* node) {
-  FlagsContinuation cont = FlagsContinuation::ForSet(kUnsignedLessThan, node);
+void InstructionSelectorT<Adapter>::VisitFloat64LessThan(node_t node) {
+  FlagsContinuationT<Adapter> cont =
+      FlagsContinuation::ForSet(kUnsignedLessThan, node);
   VisitFloat64Compare(this, node, &cont);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat64LessThanOrEqual(Node* node) {
-  FlagsContinuation cont =
+void InstructionSelectorT<Adapter>::VisitFloat64LessThanOrEqual(node_t node) {
+  FlagsContinuationT<Adapter> cont =
       FlagsContinuation::ForSet(kUnsignedLessThanOrEqual, node);
   VisitFloat64Compare(this, node, &cont);
 }
@@ -635,14 +651,14 @@ bool InstructionSelectorT<Adapter>::IsTailCallAddressImmediate() {
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::EmitPrepareResults(
     ZoneVector<PushParameter>* results, const CallDescriptor* call_descriptor,
-    Node* node) {
+    node_t node) {
   RiscvOperandGeneratorT<Adapter> g(this);
 
   int reverse_slot = 1;
   for (PushParameter output : *results) {
     if (!output.location.IsCallerFrameSlot()) continue;
     // Skip any alignment holes in nodes.
-    if (output.node != nullptr) {
+    if (this->valid(output.node)) {
       DCHECK(!call_descriptor->IsCFunctionCall());
       if (output.location.GetType() == MachineType::Float32()) {
         MarkAsFloat32(output.node);
@@ -657,7 +673,8 @@ void InstructionSelectorT<Adapter>::EmitPrepareResults(
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::EmitMoveParamToFPR(Node* node, int index) {}
+void InstructionSelectorT<Adapter>::EmitMoveParamToFPR(node_t node, int index) {
+}
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::EmitMoveFPRToParam(
@@ -1430,7 +1447,7 @@ InstructionSelector::AlignmentRequirements() {
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::AddOutputToSelectContinuation(
-    OperandGenerator* g, int first_input_index, Node* node) {
+    OperandGenerator* g, int first_input_index, node_t node) {
   UNREACHABLE();
 }
 }  // namespace compiler
