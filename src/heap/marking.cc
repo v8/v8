@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/heap/marking.h"
+#include "src/heap/marking-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -134,6 +134,16 @@ bool MarkingBitmap::IsClean() const {
     }
   }
   return true;
+}
+
+// static
+MarkBit MarkBit::FromForTesting(Address address) {
+  return MarkingBitmap::MarkBitFromAddress(address);
+}
+
+// static
+MarkBit MarkBit::FromForTesting(HeapObject heap_object) {
+  return MarkingBitmap::MarkBitFromAddress(heap_object.ptr());
 }
 
 }  // namespace internal
