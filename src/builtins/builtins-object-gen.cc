@@ -955,9 +955,9 @@ TF_BUILTIN(ObjectToString, ObjectBuiltinsAssembler) {
   BIND(&checkstringtag);
   {
     Label return_default(this);
-    TNode<Object> tag = GetInterestingProperty(
-        context, receiver, &var_holder, &var_holder_map,
-        ToStringTagSymbolConstant(), &return_default, &if_proxy);
+    TNode<Object> tag =
+        GetInterestingProperty(context, receiver, &var_holder, &var_holder_map,
+                               ToStringTagSymbolConstant(), &return_default);
     GotoIf(TaggedIsSmi(tag), &return_default);
     GotoIfNot(IsString(CAST(tag)), &return_default);
     ReturnToStringFormat(context, CAST(tag));

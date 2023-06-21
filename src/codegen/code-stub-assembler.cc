@@ -10602,13 +10602,13 @@ TNode<Object> CodeStubAssembler::GetInterestingProperty(
   TVARIABLE(Map, var_holder_map, LoadMap(receiver));
 
   return GetInterestingProperty(context, receiver, &var_holder, &var_holder_map,
-                                symbol, if_not_found, nullptr);
+                                symbol, if_not_found);
 }
 
 TNode<Object> CodeStubAssembler::GetInterestingProperty(
     TNode<Context> context, TNode<Object> receiver,
     TVariable<HeapObject>* var_holder, TVariable<Map>* var_holder_map,
-    TNode<Symbol> symbol, Label* if_not_found, Label* if_proxy) {
+    TNode<Symbol> symbol, Label* if_not_found) {
   CSA_DCHECK(this, IsSetWord32<Symbol::IsInterestingSymbolBit>(
                        LoadObjectField<Uint32T>(symbol, Symbol::kFlagsOffset)));
   // The lookup starts at the var_holder and var_holder_map must contain
@@ -10641,8 +10641,9 @@ TNode<Object> CodeStubAssembler::GetInterestingProperty(
       // Check flags for dictionary objects.
       GotoIf(IsClearWord32<Map::Bits3::IsDictionaryMapBit>(holder_bit_field3),
              &lookup);
+      // JSProxy has dictionary properties but has to be handled in runtime.
       GotoIf(InstanceTypeEqual(LoadMapInstanceType(holder_map), JS_PROXY_TYPE),
-             if_proxy ? if_proxy : &lookup);
+             &lookup);
       TNode<Object> properties =
           LoadObjectField(holder, JSObject::kPropertiesOrHashOffset);
       CSA_DCHECK(this, TaggedIsNotSmi(properties));

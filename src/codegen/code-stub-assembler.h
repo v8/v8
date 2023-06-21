@@ -3357,7 +3357,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                        TVariable<HeapObject>* var_holder,
                                        TVariable<Map>* var_holder_map,
                                        TNode<Symbol> symbol,
-                                       Label* if_not_found, Label* if_proxy);
+                                       Label* if_not_found);
 
   TNode<Object> SetPropertyStrict(TNode<Context> context,
                                   TNode<Object> receiver, TNode<Object> key,
