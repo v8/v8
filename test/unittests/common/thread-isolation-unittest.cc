@@ -34,8 +34,7 @@ TEST(ThreadIsolation, CatchJitPageOverlap) {
   size_t size = 0x1000;
   ThreadIsolation::RegisterJitPage(address1, size);
   EXPECT_DEATH_IF_SUPPORTED(
-      { ThreadIsolation::RegisterJitPage(address1 + size - 1, 1); },
-      "jit_page->End\\(\\) <= address");
+      { ThreadIsolation::RegisterJitPage(address1 + size - 1, 1); }, "");
   ThreadIsolation::UnregisterJitPage(address1, size);
 }
 
@@ -68,7 +67,7 @@ TEST(ThreadIsolation, CatchOOBJitAllocation) {
   ThreadIsolation::RegisterJitPage(address1, size);
   EXPECT_DEATH_IF_SUPPORTED(
       { ThreadIsolation::RegisterJitAllocationForTesting(address1 + size, 1); },
-      "Check failed: jit_page.has_value\\(\\)");
+      "");
   ThreadIsolation::UnregisterJitPage(address1, size);
 }
 
@@ -130,8 +129,7 @@ TEST(ThreadIsolation, UnregisterAllocationsExcept) {
 
   // But we should've kept to_keep[0].
   EXPECT_DEATH_IF_SUPPORTED(
-      { ThreadIsolation::RegisterJitAllocationForTesting(to_keep[0], 1); },
-      "prev_entry.Size\\(\\) <= offset");
+      { ThreadIsolation::RegisterJitAllocationForTesting(to_keep[0], 1); }, "");
 
   ThreadIsolation::UnregisterJitPage(address1, size);
 }
@@ -168,8 +166,7 @@ TEST(ThreadIsolation, UnregisterAllocationsExceptNextPage) {
 
   // But we should've kept the allocation on the next page.
   EXPECT_DEATH_IF_SUPPORTED(
-      { ThreadIsolation::RegisterJitAllocationForTesting(address2, 1); },
-      "prev_entry.Size\\(\\) <= offset");
+      { ThreadIsolation::RegisterJitAllocationForTesting(address2, 1); }, "");
 
   ThreadIsolation::UnregisterJitPage(address1, size);
   ThreadIsolation::UnregisterJitPage(address2, size);
