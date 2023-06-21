@@ -5721,9 +5721,8 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayForEach(
     return ReduceResult::Fail();
   }
 
-  ValueNode* this_arg = args.count() > 1
-                            ? GetTaggedValue(args[1])
-                            : GetRootConstant(RootIndex::kUndefinedValue);
+  ValueNode* this_arg =
+      args.count() > 1 ? args[1] : GetRootConstant(RootIndex::kUndefinedValue);
 
   // TODO(leszeks): Load cached value if any.
   ValueNode* original_length =
