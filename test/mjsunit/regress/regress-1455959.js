@@ -4,14 +4,18 @@
 //
 // Flags: --allow-natives-syntax
 
-function callback() {}
+function callback() {
+  "use strict"
+}
 
 function foo(x) {
-  // array.forEach with an untagged `this` arg should compile successfully.
+  // array.forEach with an untagged `this` arg and no receiver conversion should
+  // compile successfully.
   x = x << 1;
   [""].forEach(callback, x);
 }
 
+%PrepareFunctionForOptimization(callback);
 %PrepareFunctionForOptimization(foo);
 foo(0);
 foo(0);
