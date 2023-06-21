@@ -2986,6 +2986,13 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                             false);
       SimpleInstallGetter(isolate_, prototype, factory->format_string(),
                           Builtin::kNumberFormatPrototypeFormatNumber, false);
+
+      SimpleInstallFunction(isolate(), prototype, "formatRange",
+                            Builtin::kNumberFormatPrototypeFormatRange, 2,
+                            false);
+      SimpleInstallFunction(isolate(), prototype, "formatRangeToParts",
+                            Builtin::kNumberFormatPrototypeFormatRangeToParts,
+                            2, false);
     }
 
     {  // -- C o l l a t o r
@@ -3074,6 +3081,10 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
       SimpleInstallFunction(isolate_, prototype, "select",
                             Builtin::kPluralRulesPrototypeSelect, 1, false);
+
+      SimpleInstallFunction(isolate(), prototype, "selectRange",
+                            Builtin::kPluralRulesPrototypeSelectRange, 2,
+                            false);
     }
 
     {  // -- R e l a t i v e T i m e F o r m a t
@@ -5680,38 +5691,6 @@ void Genesis::InitializeGlobal_harmony_temporal() {
     native_context()->set_temporal_instant_fixed_array_from_iterable(*func);
   }
 }
-
-#ifdef V8_INTL_SUPPORT
-
-void Genesis::InitializeGlobal_harmony_intl_number_format_v3() {
-  if (!v8_flags.harmony_intl_number_format_v3) return;
-
-  {
-    Handle<JSFunction> number_format_constructor =
-        isolate()->intl_number_format_function();
-
-    Handle<JSObject> prototype(
-        JSObject::cast(number_format_constructor->prototype()), isolate());
-
-    SimpleInstallFunction(isolate(), prototype, "formatRange",
-                          Builtin::kNumberFormatPrototypeFormatRange, 2, false);
-    SimpleInstallFunction(isolate(), prototype, "formatRangeToParts",
-                          Builtin::kNumberFormatPrototypeFormatRangeToParts, 2,
-                          false);
-  }
-  {
-    Handle<JSFunction> plural_rules_constructor =
-        isolate()->intl_plural_rules_function();
-
-    Handle<JSObject> prototype(
-        JSObject::cast(plural_rules_constructor->prototype()), isolate());
-
-    SimpleInstallFunction(isolate(), prototype, "selectRange",
-                          Builtin::kPluralRulesPrototypeSelectRange, 2, false);
-  }
-}
-
-#endif  // V8_INTL_SUPPORT
 
 #ifdef V8_INTL_SUPPORT
 void Genesis::InitializeGlobal_harmony_intl_locale_info_func() {

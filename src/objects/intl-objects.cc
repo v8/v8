@@ -1565,20 +1565,18 @@ Maybe<Intl::NumberFormatDigitOptions> Intl::SetNumberFormatDigitOptions(
   // 10. Set intlObj.[[MinimumIntegerDigits]] to mnid.
   digit_options.minimum_integer_digits = mnid;
 
-  if (v8_flags.harmony_intl_number_format_v3) {
-    // 11. Let roundingPriority be ? GetOption(options, "roundingPriority",
-    // "string", « "auto", "morePrecision", "lessPrecision" », "auto").
+  // 11. Let roundingPriority be ? GetOption(options, "roundingPriority",
+  // "string", « "auto", "morePrecision", "lessPrecision" », "auto").
 
-    Maybe<RoundingPriority> maybe_rounding_priority =
-        GetStringOption<RoundingPriority>(
-            isolate, options, "roundingPriority", "SetNumberFormatDigitOptions",
-            {"auto", "morePrecision", "lessPrecision"},
-            {RoundingPriority::kAuto, RoundingPriority::kMorePrecision,
-             RoundingPriority::kLessPrecision},
-            RoundingPriority::kAuto);
-    MAYBE_RETURN(maybe_rounding_priority, Nothing<NumberFormatDigitOptions>());
-    digit_options.rounding_priority = maybe_rounding_priority.FromJust();
-  }
+  Maybe<RoundingPriority> maybe_rounding_priority =
+      GetStringOption<RoundingPriority>(
+          isolate, options, "roundingPriority", "SetNumberFormatDigitOptions",
+          {"auto", "morePrecision", "lessPrecision"},
+          {RoundingPriority::kAuto, RoundingPriority::kMorePrecision,
+           RoundingPriority::kLessPrecision},
+          RoundingPriority::kAuto);
+  MAYBE_RETURN(maybe_rounding_priority, Nothing<NumberFormatDigitOptions>());
+  digit_options.rounding_priority = maybe_rounding_priority.FromJust();
 
   // 12. If mnsd is not undefined or mxsd is not undefined, then
   // a. Set hasSd to true.

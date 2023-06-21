@@ -413,11 +413,6 @@ Handle<String> CurrencyDisplayString(Isolate* isolate,
   return ReadOnlyRoots(isolate).symbol_string_handle();
 }
 
-// Return true if there are no "group-off" in the skeleton.
-bool UseGroupingFromSkeleton(const icu::UnicodeString& skeleton) {
-  return skeleton.indexOf("group-off") == -1;
-}
-
 Handle<Object> UseGroupingFromSkeleton(Isolate* isolate,
                                        const icu::UnicodeString& skeleton) {
   Factory* factory = isolate->factory();
@@ -848,31 +843,10 @@ Style StyleFromSkeleton(const icu::UnicodeString& skeleton) {
   return Style::DECIMAL;
 }
 
-icu::number::UnlocalizedNumberFormatter SetDigitOptionsToFormatterV2(
-    const icu::number::UnlocalizedNumberFormatter& settings,
-    const Intl::NumberFormatDigitOptions& digit_options) {
-  icu::number::UnlocalizedNumberFormatter result = settings;
-  if (digit_options.minimum_integer_digits > 1) {
-    result = result.integerWidth(icu::number::IntegerWidth::zeroFillTo(
-        digit_options.minimum_integer_digits));
-  }
+}  // anonymous namespace
 
-  if (digit_options.rounding_type == Intl::RoundingType::kMorePrecision) {
-    return result;
-  }
-  icu::number::Precision precision =
-      (digit_options.minimum_significant_digits > 0)
-          ? icu::number::Precision::minMaxSignificantDigits(
-                digit_options.minimum_significant_digits,
-                digit_options.maximum_significant_digits)
-          : icu::number::Precision::minMaxFraction(
-                digit_options.minimum_fraction_digits,
-                digit_options.maximum_fraction_digits);
-
-  return result.precision(precision);
-}
-
-icu::number::UnlocalizedNumberFormatter SetDigitOptionsToFormatterV3(
+icu::number::UnlocalizedNumberFormatter
+JSNumberFormat::SetDigitOptionsToFormatter(
     const icu::number::UnlocalizedNumberFormatter& settings,
     const Intl::NumberFormatDigitOptions& digit_options, int rounding_increment,
     JSNumberFormat::ShowTrailingZeros trailing_zeros) {
@@ -920,21 +894,6 @@ icu::number::UnlocalizedNumberFormatter SetDigitOptionsToFormatterV3(
   return result.precision(precision);
 }
 
-}  // anonymous namespace
-
-icu::number::UnlocalizedNumberFormatter
-JSNumberFormat::SetDigitOptionsToFormatter(
-    const icu::number::UnlocalizedNumberFormatter& settings,
-    const Intl::NumberFormatDigitOptions& digit_options, int rounding_increment,
-    JSNumberFormat::ShowTrailingZeros trailing_zeros) {
-  if (v8_flags.harmony_intl_number_format_v3) {
-    return SetDigitOptionsToFormatterV3(settings, digit_options,
-                                        rounding_increment, trailing_zeros);
-  } else {
-    return SetDigitOptionsToFormatterV2(settings, digit_options);
-  }
-}
-
 // static
 // ecma402 #sec-intl.numberformat.prototype.resolvedoptions
 Handle<JSObject> JSNumberFormat::ResolvedOptions(
@@ -973,8 +932,6 @@ Handle<JSObject> JSNumberFormat::ResolvedOptions(
   //    [[Notation]]                    "notation"
   //    [[CompactDisplay]]              "compactDisplay"
   //    [[SignDisplay]]                 "signDisplay"
-  //
-  // For v3
   //    [[RoundingMode]]                "roundingMode"
   //    [[RoundingIncrement]]           "roundingIncrement"
   //    [[TrailingZeroDisplay]]         "trailingZeroDisplay"
@@ -1049,31 +1006,21 @@ Handle<JSObject> JSNumberFormat::ResolvedOptions(
               factory->NewNumberFromInt(mxsd), Just(kDontThrow))
               .FromJust());
   }
-  if ((v8_flags.harmony_intl_number_format_v3 || !has_significant_digits)) {
-    if (FractionDigitsFromSkeleton(skeleton, &mnfd, &mxfd)) {
-      CHECK(JSReceiver::CreateDataProperty(
-                isolate, options, factory->minimumFractionDigits_string(),
-                factory->NewNumberFromInt(mnfd), Just(kDontThrow))
-                .FromJust());
-      CHECK(JSReceiver::CreateDataProperty(
-                isolate, options, factory->maximumFractionDigits_string(),
-                factory->NewNumberFromInt(mxfd), Just(kDontThrow))
-                .FromJust());
-    }
+  if (FractionDigitsFromSkeleton(skeleton, &mnfd, &mxfd)) {
+    CHECK(JSReceiver::CreateDataProperty(
+              isolate, options, factory->minimumFractionDigits_string(),
+              factory->NewNumberFromInt(mnfd), Just(kDontThrow))
+              .FromJust());
+    CHECK(JSReceiver::CreateDataProperty(
+              isolate, options, factory->maximumFractionDigits_string(),
+              factory->NewNumberFromInt(mxfd), Just(kDontThrow))
+              .FromJust());
   }
 
-  if (v8_flags.harmony_intl_number_format_v3) {
-    CHECK(JSReceiver::CreateDataProperty(
-              isolate, options, factory->useGrouping_string(),
-              UseGroupingFromSkeleton(isolate, skeleton), Just(kDontThrow))
-              .FromJust());
-  } else {
-    CHECK(JSReceiver::CreateDataProperty(
-              isolate, options, factory->useGrouping_string(),
-              factory->ToBoolean(UseGroupingFromSkeleton(skeleton)),
-              Just(kDontThrow))
-              .FromJust());
-  }
+  CHECK(JSReceiver::CreateDataProperty(
+            isolate, options, factory->useGrouping_string(),
+            UseGroupingFromSkeleton(isolate, skeleton), Just(kDontThrow))
+            .FromJust());
 
   Notation notation = NotationFromSkeleton(skeleton);
   CHECK(JSReceiver::CreateDataProperty(
@@ -1091,24 +1038,22 @@ Handle<JSObject> JSNumberFormat::ResolvedOptions(
             isolate, options, factory->signDisplay_string(),
             SignDisplayString(isolate, skeleton), Just(kDontThrow))
             .FromJust());
-  if (v8_flags.harmony_intl_number_format_v3) {
-    CHECK(JSReceiver::CreateDataProperty(
-              isolate, options, factory->roundingMode_string(),
-              RoundingModeString(isolate, skeleton), Just(kDontThrow))
-              .FromJust());
-    CHECK(JSReceiver::CreateDataProperty(
-              isolate, options, factory->roundingIncrement_string(),
-              RoundingIncrement(isolate, skeleton), Just(kDontThrow))
-              .FromJust());
-    CHECK(JSReceiver::CreateDataProperty(
-              isolate, options, factory->trailingZeroDisplay_string(),
-              TrailingZeroDisplayString(isolate, skeleton), Just(kDontThrow))
-              .FromJust());
-    CHECK(JSReceiver::CreateDataProperty(
-              isolate, options, factory->roundingPriority_string(),
-              RoundingPriorityString(isolate, skeleton), Just(kDontThrow))
-              .FromJust());
-  }
+  CHECK(JSReceiver::CreateDataProperty(
+            isolate, options, factory->roundingMode_string(),
+            RoundingModeString(isolate, skeleton), Just(kDontThrow))
+            .FromJust());
+  CHECK(JSReceiver::CreateDataProperty(
+            isolate, options, factory->roundingIncrement_string(),
+            RoundingIncrement(isolate, skeleton), Just(kDontThrow))
+            .FromJust());
+  CHECK(JSReceiver::CreateDataProperty(
+            isolate, options, factory->trailingZeroDisplay_string(),
+            TrailingZeroDisplayString(isolate, skeleton), Just(kDontThrow))
+            .FromJust());
+  CHECK(JSReceiver::CreateDataProperty(
+            isolate, options, factory->roundingPriority_string(),
+            RoundingPriorityString(isolate, skeleton), Just(kDontThrow))
+            .FromJust());
   return options;
 }
 
@@ -1443,27 +1388,25 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::New(Isolate* isolate,
   }
 
   int rounding_increment = 1;
-  if (v8_flags.harmony_intl_number_format_v3) {
-    // 18. Let roundingIncrement be ? GetNumberOption(options,
-    // "roundingIncrement,", 1, 5000, 1).
-    Maybe<int> maybe_rounding_increment = GetNumberOption(
-        isolate, options, factory->roundingIncrement_string(), 1, 5000, 1);
-    if (!maybe_rounding_increment.To(&rounding_increment)) {
-      return MaybeHandle<JSNumberFormat>();
-    }
+  // 18. Let roundingIncrement be ? GetNumberOption(options,
+  // "roundingIncrement,", 1, 5000, 1).
+  Maybe<int> maybe_rounding_increment = GetNumberOption(
+      isolate, options, factory->roundingIncrement_string(), 1, 5000, 1);
+  if (!maybe_rounding_increment.To(&rounding_increment)) {
+    return MaybeHandle<JSNumberFormat>();
+  }
 
-    // 19. If roundingIncrement is not in « 1, 2, 5, 10, 20, 25, 50, 100, 200,
-    // 250, 500, 1000, 2000, 2500, 5000 », throw a RangeError exception.
-    if (!IsValidRoundingIncrement(rounding_increment)) {
-      THROW_NEW_ERROR(isolate,
-                      NewRangeError(MessageTemplate::kPropertyValueOutOfRange,
-                                    factory->roundingIncrement_string()),
-                      JSNumberFormat);
-    }
-    // 20. If roundingIncrement is not 1, set mxfdDefault to mnfdDefault.
-    if (rounding_increment != 1) {
-      mxfd_default = mnfd_default;
-    }
+  // 19. If roundingIncrement is not in « 1, 2, 5, 10, 20, 25, 50, 100, 200,
+  // 250, 500, 1000, 2000, 2500, 5000 », throw a RangeError exception.
+  if (!IsValidRoundingIncrement(rounding_increment)) {
+    THROW_NEW_ERROR(isolate,
+                    NewRangeError(MessageTemplate::kPropertyValueOutOfRange,
+                                  factory->roundingIncrement_string()),
+                    JSNumberFormat);
+  }
+  // 20. If roundingIncrement is not 1, set mxfdDefault to mnfdDefault.
+  if (rounding_increment != 1) {
+    mxfd_default = mnfd_default;
   }
 
   Notation notation = Notation::STANDARD;
@@ -1489,52 +1432,47 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::New(Isolate* isolate,
   MAYBE_RETURN(maybe_digit_options, Handle<JSNumberFormat>());
   Intl::NumberFormatDigitOptions digit_options = maybe_digit_options.FromJust();
 
-  if (v8_flags.harmony_intl_number_format_v3) {
-    // 24. If roundingIncrement is not 1, then
-    if (rounding_increment != 1) {
-      // a. If numberFormat.[[RoundingType]] is not fractionDigits, throw a
-      // TypeError exception.
-      if (digit_options.rounding_type != Intl::RoundingType::kFractionDigits) {
-        THROW_NEW_ERROR(isolate,
-                        NewTypeError(MessageTemplate::kBadRoundingType),
-                        JSNumberFormat);
-      }
-      // b. If numberFormat.[[MaximumFractionDigits]] is not equal to
-      // numberFormat.[[MinimumFractionDigits]], throw a RangeError exception.
-      if (digit_options.maximum_fraction_digits !=
-          digit_options.minimum_fraction_digits) {
-        THROW_NEW_ERROR(
-            isolate,
-            NewRangeError(
-                MessageTemplate::
-                    kMaximumFractionDigitsNotEqualMinimumFractionDigits),
-            JSNumberFormat);
-      }
+  // 24. If roundingIncrement is not 1, then
+  if (rounding_increment != 1) {
+    // a. If numberFormat.[[RoundingType]] is not fractionDigits, throw a
+    // TypeError exception.
+    if (digit_options.rounding_type != Intl::RoundingType::kFractionDigits) {
+      THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kBadRoundingType),
+                      JSNumberFormat);
     }
-
-    // 25. Set numberFormat.[[RoundingIncrement]] to roundingIncrement.
-
-    // 26. Let trailingZeroDisplay be ? GetOption(options,
-    // "trailingZeroDisplay", "string", « "auto", "stripIfInteger" », "auto").
-    Maybe<TrailingZeroDisplay> maybe_trailing_zero_display =
-        GetStringOption<TrailingZeroDisplay>(
-            isolate, options, "trailingZeroDisplay", service,
-            {"auto", "stripIfInteger"},
-            {TrailingZeroDisplay::AUTO, TrailingZeroDisplay::STRIP_IF_INTEGER},
-            TrailingZeroDisplay::AUTO);
-    MAYBE_RETURN(maybe_trailing_zero_display, MaybeHandle<JSNumberFormat>());
-    TrailingZeroDisplay trailing_zero_display =
-        maybe_trailing_zero_display.FromJust();
-
-    // 27. Set numberFormat.[[TrailingZeroDisplay]] to trailingZeroDisplay.
-    settings = SetDigitOptionsToFormatterV3(
-        settings, digit_options, rounding_increment,
-        trailing_zero_display == TrailingZeroDisplay::STRIP_IF_INTEGER
-            ? ShowTrailingZeros::kHide
-            : ShowTrailingZeros::kShow);
-  } else {
-    settings = SetDigitOptionsToFormatterV2(settings, digit_options);
+    // b. If numberFormat.[[MaximumFractionDigits]] is not equal to
+    // numberFormat.[[MinimumFractionDigits]], throw a RangeError exception.
+    if (digit_options.maximum_fraction_digits !=
+        digit_options.minimum_fraction_digits) {
+      THROW_NEW_ERROR(
+          isolate,
+          NewRangeError(
+              MessageTemplate::
+                  kMaximumFractionDigitsNotEqualMinimumFractionDigits),
+          JSNumberFormat);
+    }
   }
+
+  // 25. Set numberFormat.[[RoundingIncrement]] to roundingIncrement.
+
+  // 26. Let trailingZeroDisplay be ? GetOption(options,
+  // "trailingZeroDisplay", "string", « "auto", "stripIfInteger" », "auto").
+  Maybe<TrailingZeroDisplay> maybe_trailing_zero_display =
+      GetStringOption<TrailingZeroDisplay>(
+          isolate, options, "trailingZeroDisplay", service,
+          {"auto", "stripIfInteger"},
+          {TrailingZeroDisplay::AUTO, TrailingZeroDisplay::STRIP_IF_INTEGER},
+          TrailingZeroDisplay::AUTO);
+  MAYBE_RETURN(maybe_trailing_zero_display, MaybeHandle<JSNumberFormat>());
+  TrailingZeroDisplay trailing_zero_display =
+      maybe_trailing_zero_display.FromJust();
+
+  // 27. Set numberFormat.[[TrailingZeroDisplay]] to trailingZeroDisplay.
+  settings = SetDigitOptionsToFormatter(
+      settings, digit_options, rounding_increment,
+      trailing_zero_display == TrailingZeroDisplay::STRIP_IF_INTEGER
+          ? ShowTrailingZeros::kHide
+          : ShowTrailingZeros::kShow);
 
   // 28. Let compactDisplay be ? GetOption(options, "compactDisplay",
   // "string", « "short", "long" »,  "short").
@@ -1550,67 +1488,41 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::New(Isolate* isolate,
     settings = settings.notation(ToICUNotation(notation, compact_display));
   }
 
-  if (!v8_flags.harmony_intl_number_format_v3) {
-    // 30. Let useGrouping be ? GetOption(options, "useGrouping", "boolean",
-    // undefined, true).
-    bool use_grouping = true;
-    Maybe<bool> found_use_grouping =
-        GetBoolOption(isolate, options, "useGrouping", service, &use_grouping);
-    MAYBE_RETURN(found_use_grouping, MaybeHandle<JSNumberFormat>());
-    // 31. Set numberFormat.[[UseGrouping]] to useGrouping.
-    if (!use_grouping) {
-      settings = settings.grouping(UNumberGroupingStrategy::UNUM_GROUPING_OFF);
-    }
-    settings = JSNumberFormat::SetDigitOptionsToFormatter(
-        settings, digit_options, 1, ShowTrailingZeros::kShow);
-  } else {
-    // 28. Let defaultUseGrouping be "auto".
-    UseGrouping default_use_grouping = UseGrouping::AUTO;
+  // 28. Let defaultUseGrouping be "auto".
+  UseGrouping default_use_grouping = UseGrouping::AUTO;
 
-    // 29. If notation is "compact", then
-    if (notation == Notation::COMPACT) {
-      // a. Set numberFormat.[[CompactDisplay]] to compactDisplay.
-      // Done in above together
-      // b. Set defaultUseGrouping to "min2".
-      default_use_grouping = UseGrouping::MIN2;
-    }
+  // 29. If notation is "compact", then
+  if (notation == Notation::COMPACT) {
+    // a. Set numberFormat.[[CompactDisplay]] to compactDisplay.
+    // Done in above together
+    // b. Set defaultUseGrouping to "min2".
+    default_use_grouping = UseGrouping::MIN2;
+  }
 
-    // 30. Let useGrouping be ? GetStringOrBooleanOption(options, "useGrouping",
-    // « "min2", "auto", "always" », "always", false, defaultUseGrouping).
-    Maybe<UseGrouping> maybe_use_grouping =
-        GetStringOrBooleanOption<UseGrouping>(
-            isolate, options, "useGrouping", service,
-            {"min2", "auto", "always"},
-            {UseGrouping::MIN2, UseGrouping::AUTO, UseGrouping::ALWAYS},
-            UseGrouping::ALWAYS,    // trueValue
-            UseGrouping::OFF,       // falseValue
-            default_use_grouping);  // fallbackValue
-    MAYBE_RETURN(maybe_use_grouping, MaybeHandle<JSNumberFormat>());
-    UseGrouping use_grouping = maybe_use_grouping.FromJust();
-    // 31. Set numberFormat.[[UseGrouping]] to useGrouping.
-    if (use_grouping != UseGrouping::AUTO) {
-      settings = settings.grouping(ToUNumberGroupingStrategy(use_grouping));
-    }
+  // 30. Let useGrouping be ? GetStringOrBooleanOption(options, "useGrouping",
+  // « "min2", "auto", "always" », "always", false, defaultUseGrouping).
+  Maybe<UseGrouping> maybe_use_grouping = GetStringOrBooleanOption<UseGrouping>(
+      isolate, options, "useGrouping", service, {"min2", "auto", "always"},
+      {UseGrouping::MIN2, UseGrouping::AUTO, UseGrouping::ALWAYS},
+      UseGrouping::ALWAYS,    // trueValue
+      UseGrouping::OFF,       // falseValue
+      default_use_grouping);  // fallbackValue
+  MAYBE_RETURN(maybe_use_grouping, MaybeHandle<JSNumberFormat>());
+  UseGrouping use_grouping = maybe_use_grouping.FromJust();
+  // 31. Set numberFormat.[[UseGrouping]] to useGrouping.
+  if (use_grouping != UseGrouping::AUTO) {
+    settings = settings.grouping(ToUNumberGroupingStrategy(use_grouping));
   }
 
   // 32. Let signDisplay be ? GetOption(options, "signDisplay", "string", «
   // "auto", "never", "always",  "exceptZero", "negative" », "auto").
   Maybe<SignDisplay> maybe_sign_display = Nothing<SignDisplay>();
-  if (v8_flags.harmony_intl_number_format_v3) {
-    maybe_sign_display = GetStringOption<SignDisplay>(
-        isolate, options, "signDisplay", service,
-        {"auto", "never", "always", "exceptZero", "negative"},
-        {SignDisplay::AUTO, SignDisplay::NEVER, SignDisplay::ALWAYS,
-         SignDisplay::EXCEPT_ZERO, SignDisplay::NEGATIVE},
-        SignDisplay::AUTO);
-  } else {
-    maybe_sign_display = GetStringOption<SignDisplay>(
-        isolate, options, "signDisplay", service,
-        {"auto", "never", "always", "exceptZero"},
-        {SignDisplay::AUTO, SignDisplay::NEVER, SignDisplay::ALWAYS,
-         SignDisplay::EXCEPT_ZERO},
-        SignDisplay::AUTO);
-  }
+  maybe_sign_display = GetStringOption<SignDisplay>(
+      isolate, options, "signDisplay", service,
+      {"auto", "never", "always", "exceptZero", "negative"},
+      {SignDisplay::AUTO, SignDisplay::NEVER, SignDisplay::ALWAYS,
+       SignDisplay::EXCEPT_ZERO, SignDisplay::NEGATIVE},
+      SignDisplay::AUTO);
   MAYBE_RETURN(maybe_sign_display, MaybeHandle<JSNumberFormat>());
   SignDisplay sign_display = maybe_sign_display.FromJust();
 
@@ -1623,27 +1535,24 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::New(Isolate* isolate,
     settings = settings.sign(ToUNumberSignDisplay(sign_display, currency_sign));
   }
 
-  if (v8_flags.harmony_intl_number_format_v3) {
-    // X. Let roundingMode be ? GetOption(options, "roundingMode", "string",
-    // « "ceil", "floor", "expand", "trunc", "halfCeil", "halfFloor",
-    // "halfExpand", "halfTrunc", "halfEven" »,
-    // "halfExpand").
-    Maybe<IntlRoundingMode> maybe_rounding_mode =
-        GetStringOption<IntlRoundingMode>(
-            isolate, options, "roundingMode", service,
-            {"ceil", "floor", "expand", "trunc", "halfCeil", "halfFloor",
-             "halfExpand", "halfTrunc", "halfEven"},
-            {IntlRoundingMode::CEIL, IntlRoundingMode::FLOOR,
-             IntlRoundingMode::EXPAND, IntlRoundingMode::TRUNC,
-             IntlRoundingMode::HALF_CEIL, IntlRoundingMode::HALF_FLOOR,
-             IntlRoundingMode::HALF_EXPAND, IntlRoundingMode::HALF_TRUNC,
-             IntlRoundingMode::HALF_EVEN},
-            IntlRoundingMode::HALF_EXPAND);
-    MAYBE_RETURN(maybe_rounding_mode, MaybeHandle<JSNumberFormat>());
-    IntlRoundingMode rounding_mode = maybe_rounding_mode.FromJust();
-    settings =
-        settings.roundingMode(ToUNumberFormatRoundingMode(rounding_mode));
-  }
+  // X. Let roundingMode be ? GetOption(options, "roundingMode", "string",
+  // « "ceil", "floor", "expand", "trunc", "halfCeil", "halfFloor",
+  // "halfExpand", "halfTrunc", "halfEven" »,
+  // "halfExpand").
+  Maybe<IntlRoundingMode> maybe_rounding_mode =
+      GetStringOption<IntlRoundingMode>(
+          isolate, options, "roundingMode", service,
+          {"ceil", "floor", "expand", "trunc", "halfCeil", "halfFloor",
+           "halfExpand", "halfTrunc", "halfEven"},
+          {IntlRoundingMode::CEIL, IntlRoundingMode::FLOOR,
+           IntlRoundingMode::EXPAND, IntlRoundingMode::TRUNC,
+           IntlRoundingMode::HALF_CEIL, IntlRoundingMode::HALF_FLOOR,
+           IntlRoundingMode::HALF_EXPAND, IntlRoundingMode::HALF_TRUNC,
+           IntlRoundingMode::HALF_EVEN},
+          IntlRoundingMode::HALF_EXPAND);
+  MAYBE_RETURN(maybe_rounding_mode, MaybeHandle<JSNumberFormat>());
+  IntlRoundingMode rounding_mode = maybe_rounding_mode.FromJust();
+  settings = settings.roundingMode(ToUNumberFormatRoundingMode(rounding_mode));
 
   // 25. Let dataLocaleData be localeData.[[<dataLocale>]].
   //
@@ -1737,7 +1646,7 @@ Maybe<icu::number::FormattedNumber> IcuFormatNumber(
         reinterpret_cast<const char*>(flat.ToOneByteVector().begin());
     formatted = number_format.formatDecimal({char_buffer, length}, status);
   } else {
-    if (v8_flags.harmony_intl_number_format_v3 && numeric_obj->IsString()) {
+    if (numeric_obj->IsString()) {
       // TODO(ftang) Correct the handling of string after the resolution of
       // https://github.com/tc39/proposal-intl-numberformat-v3/pull/82
       Handle<String> string =
@@ -2137,7 +2046,6 @@ Maybe<int> ConstructParts(Isolate* isolate,
       int32_t limit = cfpos.getLimit();
       if (category == UFIELD_CATEGORY_NUMBER_RANGE_SPAN) {
         DCHECK_LE(field, 2);
-        DCHECK(v8_flags.harmony_intl_number_format_v3);
         tracker.Add(field, start, limit);
       } else {
         regions.push_back(NumberFormatSpan(field, start, limit));
@@ -2302,8 +2210,6 @@ MaybeHandle<String> JSNumberFormat::FormatNumeric(
     Isolate* isolate,
     const icu::number::LocalizedNumberFormatter& number_format,
     Handle<Object> numeric_obj) {
-  DCHECK(numeric_obj->IsNumeric() || v8_flags.harmony_intl_number_format_v3);
-
   Maybe<icu::number::FormattedNumber> maybe_format =
       IcuFormatNumber(isolate, number_format, numeric_obj);
   MAYBE_RETURN(maybe_format, Handle<String>());
@@ -2313,25 +2219,9 @@ MaybeHandle<String> JSNumberFormat::FormatNumeric(
                         numeric_obj->IsNaN());
 }
 
-namespace {
-MaybeHandle<String> NumberFormatFunctionV2(Isolate* isolate,
-                                           Handle<JSNumberFormat> number_format,
-                                           Handle<Object> value) {
-  icu::number::LocalizedNumberFormatter* fmt =
-      number_format->icu_number_formatter().raw();
-  CHECK_NOT_NULL(fmt);
-
-  Handle<Object> x;
-  // 4. Let x be ? ToNumeric(value).
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, x, Object::ToNumeric(isolate, value),
-                             String);
-  // 5. Return FormatNumeric(nf, x).
-  return JSNumberFormat::FormatNumeric(isolate, *fmt, x);
-}
-
-MaybeHandle<String> NumberFormatFunctionV3(Isolate* isolate,
-                                           Handle<JSNumberFormat> number_format,
-                                           Handle<Object> value) {
+MaybeHandle<String> JSNumberFormat::NumberFormatFunction(
+    Isolate* isolate, Handle<JSNumberFormat> number_format,
+    Handle<Object> value) {
   icu::number::LocalizedNumberFormatter* fmt =
       number_format->icu_number_formatter().raw();
   CHECK_NOT_NULL(fmt);
@@ -2352,27 +2242,9 @@ MaybeHandle<String> NumberFormatFunctionV3(Isolate* isolate,
   return FormatToString(isolate, formatted, *fmt, x.IsNaN());
 }
 
-MaybeHandle<JSArray> FormatToPartsV2(Isolate* isolate,
-                                     Handle<JSNumberFormat> number_format,
-                                     Handle<Object> numeric_obj) {
-  icu::number::LocalizedNumberFormatter* fmt =
-      number_format->icu_number_formatter().raw();
-  CHECK_NOT_NULL(fmt);
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, numeric_obj,
-                             Object::ToNumeric(isolate, numeric_obj), JSArray);
-
-  Maybe<icu::number::FormattedNumber> maybe_formatted =
-      IcuFormatNumber(isolate, *fmt, numeric_obj);
-  MAYBE_RETURN(maybe_formatted, Handle<JSArray>());
-  icu::number::FormattedNumber formatted =
-      std::move(maybe_formatted).FromJust();
-
-  return FormatToJSArray(isolate, formatted, *fmt, numeric_obj->IsNaN(), false);
-}
-
-MaybeHandle<JSArray> FormatToPartsV3(Isolate* isolate,
-                                     Handle<JSNumberFormat> number_format,
-                                     Handle<Object> numeric_obj) {
+MaybeHandle<JSArray> JSNumberFormat::FormatToParts(
+    Isolate* isolate, Handle<JSNumberFormat> number_format,
+    Handle<Object> numeric_obj) {
   icu::number::LocalizedNumberFormatter* fmt =
       number_format->icu_number_formatter().raw();
   DCHECK_NOT_NULL(fmt);
@@ -2390,28 +2262,7 @@ MaybeHandle<JSArray> FormatToPartsV3(Isolate* isolate,
   return FormatToJSArray(isolate, formatted, *fmt, value.IsNaN(), false);
 }
 
-}  // namespace
-
 // #sec-number-format-functions
-MaybeHandle<String> JSNumberFormat::NumberFormatFunction(
-    Isolate* isolate, Handle<JSNumberFormat> number_format,
-    Handle<Object> value) {
-  if (v8_flags.harmony_intl_number_format_v3) {
-    return NumberFormatFunctionV3(isolate, number_format, value);
-  } else {
-    return NumberFormatFunctionV2(isolate, number_format, value);
-  }
-}
-
-MaybeHandle<JSArray> JSNumberFormat::FormatToParts(
-    Isolate* isolate, Handle<JSNumberFormat> number_format,
-    Handle<Object> numeric_obj) {
-  if (v8_flags.harmony_intl_number_format_v3) {
-    return FormatToPartsV3(isolate, number_format, numeric_obj);
-  } else {
-    return FormatToPartsV2(isolate, number_format, numeric_obj);
-  }
-}
 
 MaybeHandle<String> JSNumberFormat::FormatNumericRange(
     Isolate* isolate, Handle<JSNumberFormat> number_format,
