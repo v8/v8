@@ -85,10 +85,19 @@ class V8_EXPORT ThreadIsolation {
   static bool Enabled();
   static void Initialize(ThreadIsolatedAllocator* allocator);
 
+  enum class AllocationSource {
+    kJavaScript,
+    kWasm,
+  };
+
   // Register a new JIT region.
-  static void RegisterJitPage(Address address, size_t size);
+  static void RegisterJitPage(
+      Address address, size_t size,
+      AllocationSource source = AllocationSource::kJavaScript);
   // Unregister a JIT region that is about to be unmpapped.
-  static void UnregisterJitPage(Address address, size_t size);
+  static void UnregisterJitPage(
+      Address address, size_t size,
+      AllocationSource source = AllocationSource::kJavaScript);
   // Make a page executable. Needs to be registered first. Should only be called
   // if Enabled() is true.
   V8_NODISCARD static bool MakeExecutable(Address address, size_t size);
@@ -102,9 +111,11 @@ class V8_EXPORT ThreadIsolation {
 
   static base::Optional<Address> StartOfJitAllocationAt(Address inner_pointer);
 
-  // For testing.
-  static void UnregisterAllocationsInPageExcept(
+  // Public for testing. Please use the wasm/js specific functions above.
+  static void UnregisterJitAllocationsInPageExceptForTesting(
       Address page, size_t page_size, const std::vector<Address>& keep);
+  static void RegisterJitAllocationForTesting(Address obj, size_t size);
+  static void UnregisterJitAllocationForTesting(Address addr, size_t size);
 
 #if V8_HAS_PKU_JIT_WRITE_PROTECT
   static int pkey() { return trusted_data_.pkey; }

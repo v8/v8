@@ -1914,7 +1914,8 @@ VirtualMemory WasmCodeManager::TryAllocate(size_t size, void* hint) {
   TRACE_HEAP("VMem alloc: 0x%" PRIxPTR ":0x%" PRIxPTR " (%zu)\n", mem.address(),
              mem.end(), mem.size());
 
-  ThreadIsolation::RegisterJitPage(mem.address(), mem.size());
+  ThreadIsolation::RegisterJitPage(mem.address(), mem.size(),
+                                   ThreadIsolation::AllocationSource::kWasm);
 
   // TODO(v8:8462): Remove eager commit once perf supports remapping.
   if (v8_flags.perf_prof) {
@@ -2362,7 +2363,9 @@ void WasmCodeManager::FreeNativeModule(
 #endif  // V8_OS_WIN64
 
     lookup_map_.erase(code_space.address());
-    ThreadIsolation::UnregisterJitPage(code_space.address(), code_space.size());
+    ThreadIsolation::UnregisterJitPage(
+        code_space.address(), code_space.size(),
+        ThreadIsolation::AllocationSource::kWasm);
     code_space.Free();
     DCHECK(!code_space.IsReserved());
   }

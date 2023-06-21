@@ -297,7 +297,12 @@ base::Address ThreadIsolation::JitPageReference::StartOfAllocationAt(
 }
 
 // static
-void ThreadIsolation::RegisterJitPage(Address address, size_t size) {
+void ThreadIsolation::RegisterJitPage(Address address, size_t size,
+                                      AllocationSource source) {
+  if (source == AllocationSource::kWasm && !Enabled()) {
+    return;
+  }
+
   RwxMemoryWriteScope write_scope("Adding new executable memory.");
 
   {
@@ -350,7 +355,12 @@ void ThreadIsolation::RegisterJitPage(Address address, size_t size) {
   }
 }
 
-void ThreadIsolation::UnregisterJitPage(Address address, size_t size) {
+void ThreadIsolation::UnregisterJitPage(Address address, size_t size,
+                                        AllocationSource source) {
+  if (source == AllocationSource::kWasm && !Enabled()) {
+    return;
+  }
+
   RwxMemoryWriteScope write_scope("Removing executable memory.");
 
   JitPage* to_delete;
@@ -427,26 +437,45 @@ void ThreadIsolation::RegisterInstructionStreamAllocation(Address addr,
 }
 
 // static
-void ThreadIsolation::UnregisterAllocationsInPageExcept(
+void ThreadIsolation::UnregisterJitAllocationsInPageExceptForTesting(
     Address page, size_t page_size, const std::vector<Address>& keep) {
   LookupJitPage(page, page_size)
       .UnregisterAllocationsExcept(page, page_size, keep);
 }
 
+void ThreadIsolation::RegisterJitAllocationForTesting(Address obj,
+                                                      size_t size) {
+  RegisterJitAllocation(obj, size);
+}
+
+// static
+void ThreadIsolation::UnregisterJitAllocationForTesting(Address addr,
+                                                        size_t size) {
+  LookupJitPage(addr, size).UnregisterAllocation(addr);
+}
+
 // static
 void ThreadIsolation::UnregisterInstructionStreamsInPageExcept(
     MemoryChunk* chunk, const std::vector<Address>& keep) {
-  UnregisterAllocationsInPageExcept(chunk->area_start(), chunk->area_size(),
-                                    keep);
+  Address page = chunk->area_start();
+  size_t page_size = chunk->area_size();
+  LookupJitPage(page, page_size)
+      .UnregisterAllocationsExcept(page, page_size, keep);
 }
 
 // static
 void ThreadIsolation::RegisterWasmAllocation(Address addr, size_t size) {
+  if (!Enabled()) {
+    return;
+  }
   return RegisterJitAllocation(addr, size);
 }
 
 // static
 void ThreadIsolation::UnregisterWasmAllocation(Address addr, size_t size) {
+  if (!Enabled()) {
+    return;
+  }
   LookupJitPage(addr, size).UnregisterAllocation(addr);
 }
 
