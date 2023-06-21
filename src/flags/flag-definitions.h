@@ -578,6 +578,10 @@ DEFINE_BOOL_READONLY(trace_maglev_regalloc, false,
                      "trace maglev register allocation")
 #endif  // V8_ENABLE_MAGLEV_GRAPH_PRINTER
 
+DEFINE_BOOL(maglev_stats, false, "print Maglev statistics")
+DEFINE_BOOL(maglev_stats_nvp, false,
+            "print Maglev statistics in machine-readable format")
+
 // TODO(v8:7700): Remove once stable.
 DEFINE_BOOL(maglev_function_context_specialization, true,
             "enable function context specialization in maglev")

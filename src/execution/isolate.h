@@ -1579,6 +1579,9 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   }
 
   std::shared_ptr<CompilationStatistics> GetTurboStatistics();
+#ifdef V8_ENABLE_MAGLEV
+  std::shared_ptr<CompilationStatistics> GetMaglevStatistics();
+#endif
   CodeTracer* GetCodeTracer();
 
   void DumpAndResetStats();
@@ -2380,6 +2383,9 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   v8::Isolate::UseCounterCallback use_counter_callback_ = nullptr;
 
   std::shared_ptr<CompilationStatistics> turbo_statistics_;
+#ifdef V8_ENABLE_MAGLEV
+  std::shared_ptr<CompilationStatistics> maglev_statistics_;
+#endif
   std::shared_ptr<metrics::Recorder> metrics_recorder_;
   uintptr_t last_recorder_context_id_ = 0;
   std::unordered_map<uintptr_t, v8::Global<v8::Context>>

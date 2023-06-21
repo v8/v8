@@ -19,6 +19,7 @@ class OptimizedCompilationInfo;
 class CompilationStatistics;
 
 struct AsPrintableStatistics {
+  const char* compiler;
   const CompilationStatistics& s;
   const bool machine_output;
 };
@@ -55,8 +56,9 @@ class CompilationStatistics final : public Malloced {
  private:
   class TotalStats : public BasicStats {
    public:
-    TotalStats() : source_size_(0) {}
+    TotalStats() : source_size_(0), count_(0) {}
     uint64_t source_size_;
+    size_t count_;
   };
 
   class OrderedStats : public BasicStats {

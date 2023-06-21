@@ -13,6 +13,7 @@
 #include "src/maglev/maglev-compilation-info.h"
 #include "src/maglev/maglev-compiler.h"
 #include "src/maglev/maglev-graph-labeller.h"
+#include "src/maglev/maglev-pipeline-statistics.h"
 #include "src/objects/js-function-inl.h"
 #include "src/utils/identity-map.h"
 #include "src/utils/locked-queue-inl.h"
@@ -79,44 +80,71 @@ std::unique_ptr<MaglevCompilationJob> MaglevCompilationJob::New(
     Isolate* isolate, Handle<JSFunction> function, BytecodeOffset osr_offset) {
   auto info = maglev::MaglevCompilationInfo::New(isolate, function, osr_offset);
   return std::unique_ptr<MaglevCompilationJob>(
-      new MaglevCompilationJob(std::move(info)));
+      new MaglevCompilationJob(isolate, std::move(info)));
 }
 
+namespace {
+
+MaglevPipelineStatistics* CreatePipelineStatistics(
+    Isolate* isolate, MaglevCompilationInfo* compilation_info,
+    compiler::ZoneStats* zone_stats) {
+  MaglevPipelineStatistics* pipeline_stats = nullptr;
+  bool tracing_enabled;
+  TRACE_EVENT_CATEGORY_GROUP_ENABLED(TRACE_DISABLED_BY_DEFAULT("v8.maglev"),
+                                     &tracing_enabled);
+  if (tracing_enabled || v8_flags.maglev_stats || v8_flags.maglev_stats_nvp) {
+    pipeline_stats = new MaglevPipelineStatistics(
+        compilation_info, isolate->GetMaglevStatistics(), zone_stats);
+  }
+  return pipeline_stats;
+}
+
+}  // namespace
+
 MaglevCompilationJob::MaglevCompilationJob(
-    std::unique_ptr<MaglevCompilationInfo>&& info)
+    Isolate* isolate, std::unique_ptr<MaglevCompilationInfo>&& info)
     : OptimizedCompilationJob(kMaglevCompilerName, State::kReadyToPrepare),
-      info_(std::move(info)) {
+      info_(std::move(info)),
+      zone_stats_(isolate->allocator()),
+      pipeline_statistics_(
+          CreatePipelineStatistics(isolate, info_.get(), &zone_stats_)) {
   DCHECK(maglev::IsMaglevEnabled());
 }
 
 MaglevCompilationJob::~MaglevCompilationJob() = default;
 
 CompilationJob::Status MaglevCompilationJob::PrepareJobImpl(Isolate* isolate) {
+  BeginPhaseKind("V8.MaglevPrepareJob");
   if (info()->collect_source_positions()) {
     SharedFunctionInfo::EnsureSourcePositionsAvailable(
         isolate,
         info()->toplevel_compilation_unit()->shared_function_info().object());
   }
+  EndPhaseKind();
   // TODO(v8:7700): Actual return codes.
   return CompilationJob::SUCCEEDED;
 }
 
 CompilationJob::Status MaglevCompilationJob::ExecuteJobImpl(
     RuntimeCallStats* stats, LocalIsolate* local_isolate) {
+  BeginPhaseKind("V8.MaglevExecuteJob");
   LocalIsolateScope scope{info(), local_isolate};
   if (!maglev::MaglevCompiler::Compile(local_isolate, info())) {
     return CompilationJob::FAILED;
   }
+  EndPhaseKind();
   // TODO(v8:7700): Actual return codes.
   return CompilationJob::SUCCEEDED;
 }
 
 CompilationJob::Status MaglevCompilationJob::FinalizeJobImpl(Isolate* isolate) {
+  BeginPhaseKind("V8.MaglevFinalizeJob");
   Handle<Code> code;
   if (!maglev::MaglevCompiler::GenerateCode(isolate, info()).ToHandle(&code)) {
     return CompilationJob::FAILED;
   }
   info()->set_code(code);
+  EndPhaseKind();
   return CompilationJob::SUCCEEDED;
 }
 
@@ -166,6 +194,18 @@ void MaglevCompilationJob::RecordCompilationStats(Isolate* isolate) const {
     PrintF(
         "[maglev] Compiled: %d functions with %d byte source size in %fms.\n",
         compiled_functions, code_size, compilation_time);
+  }
+}
+
+void MaglevCompilationJob::BeginPhaseKind(const char* name) {
+  if (V8_UNLIKELY(pipeline_statistics_ != nullptr)) {
+    pipeline_statistics_->BeginPhaseKind(name);
+  }
+}
+
+void MaglevCompilationJob::EndPhaseKind() {
+  if (V8_UNLIKELY(pipeline_statistics_ != nullptr)) {
+    pipeline_statistics_->EndPhaseKind();
   }
 }
 

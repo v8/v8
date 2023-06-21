@@ -10,6 +10,7 @@
 #include <memory>
 
 #include "src/codegen/compiler.h"  // For OptimizedCompilationJob.
+#include "src/maglev/maglev-pipeline-statistics.h"
 #include "src/utils/locked-queue.h"
 
 namespace v8 {
@@ -69,11 +70,18 @@ class MaglevCompilationJob final : public OptimizedCompilationJob {
   void RecordCompilationStats(Isolate* isolate) const;
 
  private:
-  explicit MaglevCompilationJob(std::unique_ptr<MaglevCompilationInfo>&& info);
+  explicit MaglevCompilationJob(Isolate* isolate,
+                                std::unique_ptr<MaglevCompilationInfo>&& info);
+  void BeginPhaseKind(const char* name);
+  void EndPhaseKind();
 
   MaglevCompilationInfo* info() const { return info_.get(); }
 
   const std::unique_ptr<MaglevCompilationInfo> info_;
+  // TODO(pthier): Gather more fine grained stats for maglev compilation.
+  // Currently only totals are collected.
+  compiler::ZoneStats zone_stats_;
+  std::unique_ptr<MaglevPipelineStatistics> pipeline_statistics_;
 };
 
 // The public API for Maglev concurrent compilation.

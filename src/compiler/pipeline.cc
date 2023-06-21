@@ -176,7 +176,7 @@ class PipelineData {
   // For main entry point.
   PipelineData(ZoneStats* zone_stats, Isolate* isolate,
                OptimizedCompilationInfo* info,
-               PipelineStatistics* pipeline_statistics)
+               TurbofanPipelineStatistics* pipeline_statistics)
       : isolate_(isolate),
         allocator_(isolate->allocator()),
         info_(info),
@@ -224,7 +224,7 @@ class PipelineData {
   // For WebAssembly compile entry point.
   PipelineData(ZoneStats* zone_stats, wasm::WasmEngine* wasm_engine,
                OptimizedCompilationInfo* info, MachineGraph* mcgraph,
-               PipelineStatistics* pipeline_statistics,
+               TurbofanPipelineStatistics* pipeline_statistics,
                SourcePositionTable* source_positions,
                NodeOriginTable* node_origins,
                const AssemblerOptions& assembler_options)
@@ -350,7 +350,9 @@ class PipelineData {
   OptimizedCompilationInfo* info() const { return info_; }
   ZoneStats* zone_stats() const { return zone_stats_; }
   CompilationDependencies* dependencies() const { return dependencies_; }
-  PipelineStatistics* pipeline_statistics() { return pipeline_statistics_; }
+  TurbofanPipelineStatistics* pipeline_statistics() {
+    return pipeline_statistics_;
+  }
   OsrHelper* osr_helper() { return &(*osr_helper_); }
 
   bool verify_graph() const { return verify_graph_; }
@@ -665,7 +667,7 @@ class PipelineData {
   std::unique_ptr<char[]> debug_name_;
   bool may_have_unverifiable_graph_ = true;
   ZoneStats* const zone_stats_;
-  PipelineStatistics* pipeline_statistics_ = nullptr;
+  TurbofanPipelineStatistics* pipeline_statistics_ = nullptr;
   bool verify_graph_ = false;
   int start_source_position_ = kNoSourcePosition;
   base::Optional<OsrHelper> osr_helper_;
@@ -1055,7 +1057,8 @@ void TraceScheduleAndVerify(OptimizedCompilationInfo* info, PipelineData* data,
   RCS_SCOPE(data->runtime_call_stats(),
             RuntimeCallCounterId::kOptimizeTraceScheduleAndVerify,
             RuntimeCallStats::kThreadSpecific);
-  TRACE_EVENT0(PipelineStatistics::kTraceCategory, "V8.TraceScheduleAndVerify");
+  TRACE_EVENT0(TurbofanPipelineStatistics::kTraceCategory,
+               "V8.TraceScheduleAndVerify");
 
   TraceSchedule(info, data, schedule, phase_name);
 
@@ -1080,18 +1083,17 @@ void AddReducer(PipelineData* data, GraphReducer* graph_reducer,
   graph_reducer->AddReducer(reducer);
 }
 
-PipelineStatistics* CreatePipelineStatistics(Handle<Script> script,
-                                             OptimizedCompilationInfo* info,
-                                             Isolate* isolate,
-                                             ZoneStats* zone_stats) {
-  PipelineStatistics* pipeline_statistics = nullptr;
+TurbofanPipelineStatistics* CreatePipelineStatistics(
+    Handle<Script> script, OptimizedCompilationInfo* info, Isolate* isolate,
+    ZoneStats* zone_stats) {
+  TurbofanPipelineStatistics* pipeline_statistics = nullptr;
 
   bool tracing_enabled;
   TRACE_EVENT_CATEGORY_GROUP_ENABLED(TRACE_DISABLED_BY_DEFAULT("v8.turbofan"),
                                      &tracing_enabled);
   if (tracing_enabled || v8_flags.turbo_stats || v8_flags.turbo_stats_nvp) {
-    pipeline_statistics =
-        new PipelineStatistics(info, isolate->GetTurboStatistics(), zone_stats);
+    pipeline_statistics = new TurbofanPipelineStatistics(
+        info, isolate->GetTurboStatistics(), zone_stats);
     pipeline_statistics->BeginPhaseKind("V8.TFInitializing");
   }
 
@@ -1107,16 +1109,16 @@ PipelineStatistics* CreatePipelineStatistics(Handle<Script> script,
 }
 
 #if V8_ENABLE_WEBASSEMBLY
-PipelineStatistics* CreatePipelineStatistics(
+TurbofanPipelineStatistics* CreatePipelineStatistics(
     wasm::FunctionBody function_body, const wasm::WasmModule* wasm_module,
     OptimizedCompilationInfo* info, ZoneStats* zone_stats) {
-  PipelineStatistics* pipeline_statistics = nullptr;
+  TurbofanPipelineStatistics* pipeline_statistics = nullptr;
 
   bool tracing_enabled;
   TRACE_EVENT_CATEGORY_GROUP_ENABLED(
       TRACE_DISABLED_BY_DEFAULT("v8.wasm.turbofan"), &tracing_enabled);
   if (tracing_enabled || v8_flags.turbo_stats_wasm) {
-    pipeline_statistics = new PipelineStatistics(
+    pipeline_statistics = new TurbofanPipelineStatistics(
         info, wasm::GetWasmEngine()->GetOrCreateTurboStatistics(), zone_stats);
     pipeline_statistics->BeginPhaseKind("V8.WasmInitializing");
   }
@@ -1176,7 +1178,7 @@ class PipelineCompilationJob final : public TurbofanCompilationJob {
   Zone zone_;
   ZoneStats zone_stats_;
   OptimizedCompilationInfo compilation_info_;
-  std::unique_ptr<PipelineStatistics> pipeline_statistics_;
+  std::unique_ptr<TurbofanPipelineStatistics> pipeline_statistics_;
   PipelineData data_;
   PipelineImpl pipeline_;
   Linkage* linkage_;
@@ -2799,9 +2801,9 @@ CompilationJob::Status WasmHeapStubCompilationJob::PrepareJobImpl(
 
 CompilationJob::Status WasmHeapStubCompilationJob::ExecuteJobImpl(
     RuntimeCallStats* stats, LocalIsolate* local_isolate) {
-  std::unique_ptr<PipelineStatistics> pipeline_statistics;
+  std::unique_ptr<TurbofanPipelineStatistics> pipeline_statistics;
   if (v8_flags.turbo_stats || v8_flags.turbo_stats_nvp) {
-    pipeline_statistics.reset(new PipelineStatistics(
+    pipeline_statistics.reset(new TurbofanPipelineStatistics(
         &info_, wasm::GetWasmEngine()->GetOrCreateTurboStatistics(),
         &zone_stats_));
     pipeline_statistics->BeginPhaseKind("V8.WasmStubCodegen");
@@ -3212,9 +3214,9 @@ MaybeHandle<Code> Pipeline::GenerateCodeForCodeStub(
   PipelineJobScope scope(&data, isolate->counters()->runtime_call_stats());
   RCS_SCOPE(isolate, RuntimeCallCounterId::kOptimizeCode);
   data.set_verify_graph(v8_flags.verify_csa);
-  std::unique_ptr<PipelineStatistics> pipeline_statistics;
+  std::unique_ptr<TurbofanPipelineStatistics> pipeline_statistics;
   if (v8_flags.turbo_stats || v8_flags.turbo_stats_nvp) {
-    pipeline_statistics.reset(new PipelineStatistics(
+    pipeline_statistics.reset(new TurbofanPipelineStatistics(
         &info, isolate->GetTurboStatistics(), &zone_stats));
     pipeline_statistics->BeginPhaseKind("V8.TFStubCodegen");
   }
@@ -3364,9 +3366,9 @@ wasm::WasmCompilationResult Pipeline::GenerateCodeForWasmNativeStub(
   NodeOriginTable* node_positions = graph->zone()->New<NodeOriginTable>(graph);
   PipelineData data(&zone_stats, wasm_engine, &info, mcgraph, nullptr,
                     source_positions, node_positions, options);
-  std::unique_ptr<PipelineStatistics> pipeline_statistics;
+  std::unique_ptr<TurbofanPipelineStatistics> pipeline_statistics;
   if (v8_flags.turbo_stats || v8_flags.turbo_stats_nvp) {
-    pipeline_statistics.reset(new PipelineStatistics(
+    pipeline_statistics.reset(new TurbofanPipelineStatistics(
         &info, wasm_engine->GetOrCreateTurboStatistics(), &zone_stats));
     pipeline_statistics->BeginPhaseKind("V8.WasmStubCodegen");
   }
@@ -3509,7 +3511,7 @@ void Pipeline::GenerateCodeForWasmFunction(
     start_time = base::TimeTicks::Now();
   }
   ZoneStats zone_stats(wasm_engine->allocator());
-  std::unique_ptr<PipelineStatistics> pipeline_statistics(
+  std::unique_ptr<TurbofanPipelineStatistics> pipeline_statistics(
       CreatePipelineStatistics(compilation_data.func_body, module, info,
                                &zone_stats));
   PipelineData data(&zone_stats, wasm_engine, info, mcgraph,
@@ -3729,7 +3731,7 @@ void Pipeline::GenerateCodeForWasmFunction(
 MaybeHandle<Code> Pipeline::GenerateCodeForTesting(
     OptimizedCompilationInfo* info, Isolate* isolate) {
   ZoneStats zone_stats(isolate->allocator());
-  std::unique_ptr<PipelineStatistics> pipeline_statistics(
+  std::unique_ptr<TurbofanPipelineStatistics> pipeline_statistics(
       CreatePipelineStatistics(Handle<Script>::null(), info, isolate,
                                &zone_stats));
 
@@ -3775,9 +3777,9 @@ MaybeHandle<Code> Pipeline::GenerateCodeForTesting(
                     nullptr, schedule, nullptr, node_positions, nullptr,
                     options, nullptr);
   PipelineJobScope scope(&data, isolate->counters()->runtime_call_stats());
-  std::unique_ptr<PipelineStatistics> pipeline_statistics;
+  std::unique_ptr<TurbofanPipelineStatistics> pipeline_statistics;
   if (v8_flags.turbo_stats || v8_flags.turbo_stats_nvp) {
-    pipeline_statistics.reset(new PipelineStatistics(
+    pipeline_statistics.reset(new TurbofanPipelineStatistics(
         info, isolate->GetTurboStatistics(), &zone_stats));
     pipeline_statistics->BeginPhaseKind("V8.TFTestCodegen");
   }

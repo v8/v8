@@ -940,7 +940,9 @@ void WasmEngine::DumpAndResetTurboStatistics() {
   base::MutexGuard guard(&mutex_);
   if (compilation_stats_ != nullptr) {
     StdoutStream os;
-    os << AsPrintableStatistics{*compilation_stats_.get(), false} << std::endl;
+    os << AsPrintableStatistics{"Turbofan Wasm", *compilation_stats_.get(),
+                                false}
+       << std::endl;
   }
   compilation_stats_.reset();
 }
@@ -949,7 +951,9 @@ void WasmEngine::DumpTurboStatistics() {
   base::MutexGuard guard(&mutex_);
   if (compilation_stats_ != nullptr) {
     StdoutStream os;
-    os << AsPrintableStatistics{*compilation_stats_.get(), false} << std::endl;
+    os << AsPrintableStatistics{"Turbofan Wasm", *compilation_stats_.get(),
+                                false}
+       << std::endl;
   }
 }
 

@@ -4716,15 +4716,32 @@ void Isolate::DumpAndResetStats() {
     DCHECK(v8_flags.turbo_stats || v8_flags.turbo_stats_nvp);
     StdoutStream os;
     if (v8_flags.turbo_stats) {
-      AsPrintableStatistics ps = {*turbo_statistics_, false};
+      AsPrintableStatistics ps = {"Turbofan", *turbo_statistics_, false};
       os << ps << std::endl;
     }
     if (v8_flags.turbo_stats_nvp) {
-      AsPrintableStatistics ps = {*turbo_statistics_, true};
+      AsPrintableStatistics ps = {"Turbofan", *turbo_statistics_, true};
       os << ps << std::endl;
     }
     turbo_statistics_.reset();
   }
+
+#ifdef V8_ENABLE_MAGLEV
+  if (maglev_statistics_ != nullptr) {
+    DCHECK(v8_flags.maglev_stats || v8_flags.maglev_stats_nvp);
+    StdoutStream os;
+    if (v8_flags.maglev_stats) {
+      AsPrintableStatistics ps = {"Maglev", *maglev_statistics_, false};
+      os << ps << std::endl;
+    }
+    if (v8_flags.maglev_stats_nvp) {
+      AsPrintableStatistics ps = {"Maglev", *maglev_statistics_, true};
+      os << ps << std::endl;
+    }
+    maglev_statistics_.reset();
+  }
+#endif  // V8_ENABLE_MAGLEV
+
 #if V8_ENABLE_WEBASSEMBLY
   // TODO(7424): There is no public API for the {WasmEngine} yet. So for now we
   // just dump and reset the engines statistics together with the Isolate.
@@ -4781,6 +4798,17 @@ std::shared_ptr<CompilationStatistics> Isolate::GetTurboStatistics() {
   }
   return turbo_statistics_;
 }
+
+#ifdef V8_ENABLE_MAGLEV
+
+std::shared_ptr<CompilationStatistics> Isolate::GetMaglevStatistics() {
+  if (maglev_statistics_ == nullptr) {
+    maglev_statistics_.reset(new CompilationStatistics());
+  }
+  return maglev_statistics_;
+}
+
+#endif  // V8_ENABLE_MAGLEV
 
 CodeTracer* Isolate::GetCodeTracer() {
   if (code_tracer() == nullptr) set_code_tracer(new CodeTracer(id()));
