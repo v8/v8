@@ -215,24 +215,243 @@ void MaglevAssembler::MaybeEmitDeoptBuiltinsCall(size_t eager_deopt_count,
   CheckConstPool(true, false);
 }
 
+void MaglevAssembler::LoadSingleCharacterString(Register result,
+                                                Register char_code,
+                                                Register scratch) {
+  DCHECK_NE(char_code, scratch);
+  if (v8_flags.debug_code) {
+    cmp(char_code, Operand(String::kMaxOneByteCharCode));
+    Assert(kUnsignedLessThanEqual, AbortReason::kUnexpectedValue);
+  }
+  Register table = scratch;
+  LoadRoot(table, RootIndex::kSingleCharacterStringTable);
+  add(table, table, Operand(char_code, LSL, kTaggedSizeLog2));
+  ldr(result, FieldMemOperand(table, FixedArray::kHeaderSize));
+}
+
 void MaglevAssembler::StringFromCharCode(RegisterSnapshot register_snapshot,
                                          Label* char_code_fits_one_byte,
                                          Register result, Register char_code,
                                          Register scratch) {
-  MAGLEV_NOT_IMPLEMENTED();
-}
-
-void MaglevAssembler::LoadSingleCharacterString(Register result,
-                                                Register char_code,
-                                                Register scratch) {
-  MAGLEV_NOT_IMPLEMENTED();
+  AssertZeroExtended(char_code);
+  DCHECK_NE(char_code, scratch);
+  ZoneLabelRef done(this);
+  cmp(char_code, Operand(String::kMaxOneByteCharCode));
+  JumpToDeferredIf(
+      kUnsignedGreaterThan,
+      [](MaglevAssembler* masm, RegisterSnapshot register_snapshot,
+         ZoneLabelRef done, Register result, Register char_code,
+         Register scratch) {
+        ScratchRegisterScope temps(masm);
+        // Ensure that {result} never aliases {scratch}, otherwise the store
+        // will fail.
+        Register string = result;
+        bool reallocate_result = (scratch == result);
+        if (reallocate_result) {
+          string = temps.Acquire();
+        }
+        // Be sure to save {char_code}. If it aliases with {result}, use
+        // the scratch register.
+        if (char_code == result) {
+          __ Move(scratch, char_code);
+          char_code = scratch;
+        }
+        DCHECK_NE(char_code, string);
+        DCHECK_NE(scratch, string);
+        DCHECK(!register_snapshot.live_tagged_registers.has(char_code));
+        register_snapshot.live_registers.set(char_code);
+        __ AllocateTwoByteString(register_snapshot, string, 1);
+        __ and_(scratch, char_code, Operand(0xFFFF));
+        __ strh(scratch,
+                FieldMemOperand(string, SeqTwoByteString::kHeaderSize));
+        if (reallocate_result) {
+          __ Move(result, string);
+        }
+        __ b(*done);
+      },
+      register_snapshot, done, result, char_code, scratch);
+  if (char_code_fits_one_byte != nullptr) {
+    bind(char_code_fits_one_byte);
+  }
+  LoadSingleCharacterString(result, char_code, scratch);
+  bind(*done);
 }
 
 void MaglevAssembler::StringCharCodeOrCodePointAt(
     BuiltinStringPrototypeCharCodeOrCodePointAt::Mode mode,
     RegisterSnapshot& register_snapshot, Register result, Register string,
     Register index, Register instance_type, Label* result_fits_one_byte) {
-  MAGLEV_NOT_IMPLEMENTED();
+  ZoneLabelRef done(this);
+  Label seq_string;
+  Label cons_string;
+  Label sliced_string;
+
+  Label* deferred_runtime_call = MakeDeferredCode(
+      [](MaglevAssembler* masm,
+         BuiltinStringPrototypeCharCodeOrCodePointAt::Mode mode,
+         RegisterSnapshot register_snapshot, ZoneLabelRef done, Register result,
+         Register string, Register index) {
+        DCHECK(!register_snapshot.live_registers.has(result));
+        DCHECK(!register_snapshot.live_registers.has(string));
+        DCHECK(!register_snapshot.live_registers.has(index));
+        {
+          SaveRegisterStateForCall save_register_state(masm, register_snapshot);
+          __ SmiTag(index);
+          __ Push(string, index);
+          __ Move(kContextRegister, masm->native_context().object());
+          // This call does not throw nor can deopt.
+          if (mode ==
+              BuiltinStringPrototypeCharCodeOrCodePointAt::kCodePointAt) {
+            __ CallRuntime(Runtime::kStringCodePointAt);
+          } else {
+            DCHECK_EQ(mode,
+                      BuiltinStringPrototypeCharCodeOrCodePointAt::kCharCodeAt);
+            __ CallRuntime(Runtime::kStringCharCodeAt);
+          }
+          save_register_state.DefineSafepoint();
+          __ SmiUntag(kReturnRegister0);
+          __ Move(result, kReturnRegister0);
+        }
+        __ b(*done);
+      },
+      mode, register_snapshot, done, result, string, index);
+
+  // We might need to try more than one time for ConsString, SlicedString and
+  // ThinString.
+  Label loop;
+  bind(&loop);
+
+  if (v8_flags.debug_code) {
+    Register scratch = instance_type;
+
+    // Check if {string} is a string.
+    AssertNotSmi(string);
+    LoadMap(scratch, string);
+    CompareInstanceTypeRange(scratch, scratch, FIRST_STRING_TYPE,
+                             LAST_STRING_TYPE);
+    Check(ls, AbortReason::kUnexpectedValue);
+
+    ldr(scratch, FieldMemOperand(string, String::kLengthOffset));
+    cmp(index, scratch);
+    Check(lo, AbortReason::kUnexpectedValue);
+  }
+
+  // Get instance type.
+  LoadMap(instance_type, string);
+  ldr(instance_type, FieldMemOperand(instance_type, Map::kInstanceTypeOffset));
+
+  {
+    ScratchRegisterScope temps(this);
+    Register representation = temps.Acquire();
+
+    // TODO(victorgomes): Add fast path for external strings.
+    and_(representation, instance_type, Operand(kStringRepresentationMask));
+    cmp(representation, Operand(kSeqStringTag));
+    b(eq, &seq_string);
+    cmp(representation, Operand(kConsStringTag));
+    b(eq, &cons_string);
+    cmp(representation, Operand(kSlicedStringTag));
+    b(eq, &sliced_string);
+    cmp(representation, Operand(kThinStringTag));
+    b(ne, deferred_runtime_call);
+    // Fallthrough to thin string.
+  }
+
+  // Is a thin string.
+  {
+    ldr(string, FieldMemOperand(string, ThinString::kActualOffset));
+    b(&loop);
+  }
+
+  bind(&sliced_string);
+  {
+    ScratchRegisterScope temps(this);
+    Register offset = temps.Acquire();
+
+    ldr(offset, FieldMemOperand(string, SlicedString::kOffsetOffset));
+    SmiUntag(offset);
+    ldr(string, FieldMemOperand(string, SlicedString::kParentOffset));
+    add(index, index, offset);
+    b(&loop);
+  }
+
+  bind(&cons_string);
+  {
+    // Reuse {instance_type} register here, since CompareRoot requires a scratch
+    // register as well.
+    Register second_string = instance_type;
+    ldr(second_string, FieldMemOperand(string, ConsString::kSecondOffset));
+    CompareRoot(second_string, RootIndex::kempty_string);
+    b(ne, deferred_runtime_call);
+    ldr(string, FieldMemOperand(string, ConsString::kFirstOffset));
+    b(&loop);  // Try again with first string.
+  }
+
+  bind(&seq_string);
+  {
+    Label two_byte_string;
+    tst(instance_type, Operand(kOneByteStringTag));
+    b(eq, &two_byte_string);
+    // The result of one-byte string will be the same for both modes
+    // (CharCodeAt/CodePointAt), since it cannot be the first half of a
+    // surrogate pair.
+    add(index, index, Operand(SeqOneByteString::kHeaderSize - kHeapObjectTag));
+    ldrb(result, MemOperand(string, index));
+    b(result_fits_one_byte);
+
+    bind(&two_byte_string);
+    // {instance_type} is unused from this point, so we can use as scratch.
+    Register scratch = instance_type;
+    lsl(scratch, index, Operand(1));
+    add(scratch, scratch,
+        Operand(SeqTwoByteString::kHeaderSize - kHeapObjectTag));
+    ldrh(result, MemOperand(string, scratch));
+
+    if (mode == BuiltinStringPrototypeCharCodeOrCodePointAt::kCodePointAt) {
+      Register first_code_point = scratch;
+      and_(first_code_point, result, Operand(0xfc00));
+      cmp(first_code_point, Operand(0xd800));
+      b(ne, *done);
+
+      Register length = scratch;
+      ldr(length, FieldMemOperand(string, String::kLengthOffset));
+      add(index, index, Operand(1));
+      cmp(index, length);
+      b(ge, *done);
+
+      Register second_code_point = scratch;
+      lsl(index, index, Operand(1));
+      add(index, index,
+          Operand(SeqTwoByteString::kHeaderSize - kHeapObjectTag));
+      ldrh(second_code_point, MemOperand(string, index));
+
+      // {index} is not needed at this point.
+      Register scratch2 = index;
+      and_(scratch2, second_code_point, Operand(0xfc00));
+      cmp(scratch2, Operand(0xdc00));
+      b(ne, *done);
+
+      int surrogate_offset = 0x10000 - (0xd800 << 10) - 0xdc00;
+      add(second_code_point, second_code_point, Operand(surrogate_offset));
+      lsl(result, result, Operand(10));
+      add(result, result, second_code_point);
+    }
+
+    // Fallthrough.
+  }
+
+  bind(*done);
+
+  if (v8_flags.debug_code) {
+    // We make sure that the user of this macro is not relying in string and
+    // index to not be clobbered.
+    if (result != string) {
+      Move(string, 0xdeadbeef);
+    }
+    if (result != index) {
+      Move(index, 0xdeadbeef);
+    }
+  }
 }
 
 void MaglevAssembler::TruncateDoubleToInt32(Register dst, DoubleRegister src) {
@@ -307,10 +526,6 @@ void MaglevAssembler::TryChangeFloat64ToIndex(Register result,
   VFPCompareAndSetFlags(value, converted_back);
   JumpIf(kEqual, success);
   Jump(fail);
-}
-
-void MaglevAssembler::StringLength(Register result, Register string) {
-  MAGLEV_NOT_IMPLEMENTED();
 }
 
 }  // namespace maglev

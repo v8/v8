@@ -728,6 +728,21 @@ inline void MaglevAssembler::UncheckedSmiTagUint32(Register reg) {
   UncheckedSmiTagUint32(reg, reg);
 }
 
+inline void MaglevAssembler::StringLength(Register result, Register string) {
+  if (v8_flags.debug_code) {
+    // Check if {string} is a string.
+    ScratchRegisterScope temps(this);
+    Register scratch = temps.GetDefaultScratchRegister();
+    AssertNotSmi(string);
+    LoadMap(scratch, string);
+    CompareInstanceTypeRange(scratch, scratch, FIRST_STRING_TYPE,
+                             LAST_STRING_TYPE);
+    Check(kUnsignedLessThanEqual, AbortReason::kUnexpectedValue);
+  }
+  LoadSignedField(result, FieldMemOperand(string, String::kLengthOffset),
+                  sizeof(int32_t));
+}
+
 }  // namespace maglev
 }  // namespace internal
 }  // namespace v8

@@ -572,20 +572,6 @@ void MaglevAssembler::TryChangeFloat64ToIndex(Register result,
   Jump(fail);
 }
 
-void MaglevAssembler::StringLength(Register result, Register string) {
-  if (v8_flags.debug_code) {
-    // Check if {string} is a string.
-    MaglevAssembler::ScratchRegisterScope temps(this);
-    Register scratch = temps.Acquire();
-    AssertNotSmi(string);
-    LoadMap(scratch, string);
-    CompareInstanceTypeRange(scratch, scratch, FIRST_STRING_TYPE,
-                             LAST_STRING_TYPE);
-    Check(ls, AbortReason::kUnexpectedValue);
-  }
-  Ldr(result.W(), FieldMemOperand(string, String::kLengthOffset));
-}
-
 }  // namespace maglev
 }  // namespace internal
 }  // namespace v8

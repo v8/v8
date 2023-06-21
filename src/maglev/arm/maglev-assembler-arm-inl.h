@@ -14,12 +14,6 @@
 #include "src/maglev/maglev-basic-block.h"
 #include "src/maglev/maglev-code-gen-state.h"
 
-#define MAGLEV_NOT_IMPLEMENTED()                            \
-  do {                                                      \
-    PrintF("Maglev: Not yet implemented '%s'\n", __func__); \
-    failed_ = true;                                         \
-  } while (false)
-
 namespace v8 {
 namespace internal {
 namespace maglev {
