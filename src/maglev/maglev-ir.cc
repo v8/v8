@@ -5199,7 +5199,7 @@ void Float64Constant::PrintParams(std::ostream& os,
 
 void Constant::PrintParams(std::ostream& os,
                            MaglevGraphLabeller* graph_labeller) const {
-  os << "(" << object_ << ")";
+  os << "(" << *object_.object() << ")";
 }
 
 void DeleteProperty::PrintParams(std::ostream& os,
@@ -5214,12 +5214,12 @@ void InitialValue::PrintParams(std::ostream& os,
 
 void LoadGlobal::PrintParams(std::ostream& os,
                              MaglevGraphLabeller* graph_labeller) const {
-  os << "(" << name() << ")";
+  os << "(" << *name().object() << ")";
 }
 
 void StoreGlobal::PrintParams(std::ostream& os,
                               MaglevGraphLabeller* graph_labeller) const {
-  os << "(" << name() << ")";
+  os << "(" << *name().object() << ")";
 }
 
 void RegisterInput::PrintParams(std::ostream& os,
@@ -5288,12 +5288,14 @@ void BuiltinStringPrototypeCharCodeOrCodePointAt::PrintParams(
 void CheckMaps::PrintParams(std::ostream& os,
                             MaglevGraphLabeller* graph_labeller) const {
   os << "(";
-  size_t map_count = maps().size();
-  if (map_count > 0) {
-    for (size_t i = 0; i < map_count - 1; ++i) {
-      os << maps().at(i) << ", ";
+  bool first = true;
+  for (compiler::MapRef map : maps()) {
+    if (first) {
+      first = false;
+    } else {
+      os << ", ";
     }
-    os << maps().at(map_count - 1);
+    os << *map.object();
   }
   os << ")";
 }
@@ -5330,12 +5332,14 @@ void CheckInstanceType::PrintParams(std::ostream& os,
 void CheckMapsWithMigration::PrintParams(
     std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
   os << "(";
-  size_t map_count = maps().size();
-  if (map_count > 0) {
-    for (size_t i = 0; i < map_count - 1; ++i) {
-      os << maps().at(i) << ", ";
+  bool first = true;
+  for (compiler::MapRef map : maps()) {
+    if (first) {
+      first = false;
+    } else {
+      os << ", ";
     }
-    os << maps().at(map_count - 1);
+    os << *map.object();
   }
   os << ")";
 }
@@ -5425,27 +5429,27 @@ void StoreTaggedFieldWithWriteBarrier::PrintParams(
 
 void LoadNamedGeneric::PrintParams(std::ostream& os,
                                    MaglevGraphLabeller* graph_labeller) const {
-  os << "(" << name_ << ")";
+  os << "(" << *name_.object() << ")";
 }
 
 void LoadNamedFromSuperGeneric::PrintParams(
     std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
-  os << "(" << name_ << ")";
+  os << "(" << *name_.object() << ")";
 }
 
 void SetNamedGeneric::PrintParams(std::ostream& os,
                                   MaglevGraphLabeller* graph_labeller) const {
-  os << "(" << name_ << ")";
+  os << "(" << *name_.object() << ")";
 }
 
 void DefineNamedOwnGeneric::PrintParams(
     std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
-  os << "(" << name_ << ")";
+  os << "(" << *name_.object() << ")";
 }
 
 void HasInPrototypeChain::PrintParams(
     std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
-  os << "(" << prototype_ << ")";
+  os << "(" << *prototype_.object() << ")";
 }
 
 void GapMove::PrintParams(std::ostream& os,

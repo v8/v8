@@ -623,7 +623,7 @@ class MaglevGraphBuilder {
                       : merge_state->is_loop()            ? "loop header"
                                                           : "merge";
         std::cout << "== New block (" << detail << ") at "
-                  << compilation_unit()->shared_function_info()
+                  << compilation_unit()->shared_function_info().object()
                   << "==" << std::endl;
       }
 
@@ -1461,7 +1461,7 @@ class MaglevGraphBuilder {
     if (NumPredecessors(next_block_offset) == 1) {
       if (v8_flags.trace_maglev_graph_building) {
         std::cout << "== New block (single fallthrough) at "
-                  << compilation_unit_->shared_function_info()
+                  << *compilation_unit_->shared_function_info().object()
                   << "==" << std::endl;
       }
       StartNewBlock(next_block_offset, predecessor);
