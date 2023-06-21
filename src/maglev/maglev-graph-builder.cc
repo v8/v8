@@ -5770,6 +5770,20 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayForEach(
   sub_builder.GotoIfFalse<BranchIfInt32Compare>(
       &loop_end, {index_int32, original_length_int32}, Operation::kLessThan);
 
+  // Check if the index is still in bounds, in case the callback changed the
+  // length.
+  // TODO(leszeks): Elide this if the callback has no side effects.
+  {
+    DeoptFrameScope eager_deopt_scope(
+        this, Builtin::kArrayForEachLoopEagerDeoptContinuation, target,
+        base::VectorOf<ValueNode*>(
+            {receiver, callback, this_arg, index_tagged, original_length}));
+    ValueNode* current_length =
+        AddNewNode<LoadTaggedField>({receiver}, JSArray::kLengthOffset);
+    AddNewNode<CheckBounds>(
+        {index_int32, AddNewNode<UnsafeSmiUntag>({current_length})});
+  }
+
   // ```
   // next_index = index + 1
   // ```
