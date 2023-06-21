@@ -237,6 +237,27 @@ def taskkill_windows(process, verbose=False, force=True):
 
 class IOSCommand(BaseCommand):
 
+  def __init__(self,
+               shell,
+               args=None,
+               cmd_prefix=None,
+               timeout=120,
+               env=None,
+               verbose=False,
+               test_case=None,
+               handle_sigterm=False):
+    """Initialize the command and set a large enough timeout required for runs
+    through the iOS Simulator.
+    """
+    super(IOSCommand, self).__init__(
+        shell,
+        args=args,
+        cmd_prefix=cmd_prefix,
+        timeout=timeout,
+        env=env,
+        verbose=verbose,
+        handle_sigterm=handle_sigterm)
+
   def _result_overrides(self, process):
     # TODO(crbug.com/1445694): if iossim returns with code 65, force a
     # successful exit instead.
@@ -258,6 +279,15 @@ class IOSCommand(BaseCommand):
     except Exception as e:
       sys.stderr.write('Error executing: %s\n' % self)
       raise e
+
+  def _kill_process(self, process):
+    # Kill the whole process group (PID == GPID after setsid).
+    # First try a soft term to allow some feedback
+    os.killpg(process.pid, signal.SIGTERM)
+    # Give the process some time to cleanly terminate.
+    time.sleep(0.1)
+    # Forcefully kill processes.
+    os.killpg(process.pid, signal.SIGKILL)
 
   def _to_args_list(self):
     return self.cmd_prefix + [self.shell]
