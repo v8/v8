@@ -491,6 +491,12 @@ DEFINE_BOOL(maglev_deopt_data_on_background, false,
 DEFINE_WEAK_IMPLICATION(maglev_future, maglev_inlining)
 DEFINE_WEAK_IMPLICATION(maglev_future, maglev_loop_peeling)
 
+DEFINE_UINT(
+    concurrent_maglev_max_threads, 0,
+    "max number of threads that concurrent Maglev can use (0 for unbounded)")
+DEFINE_BOOL(concurrent_maglev_high_priority_threads, false,
+            "use high priority compiler threads for concurrent Maglev")
+
 DEFINE_INT(max_maglev_inline_depth, 1,
            "max depth of functions that Maglev will inline")
 DEFINE_INT(max_maglev_inlined_bytecode_size, 460,

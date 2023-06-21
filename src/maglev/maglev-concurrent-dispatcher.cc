@@ -199,7 +199,12 @@ class MaglevConcurrentDispatcher::JobTask final : public v8::JobTask {
   }
 
   size_t GetMaxConcurrency(size_t worker_count) const override {
-    return incoming_queue()->size() + worker_count;
+    size_t num_tasks = incoming_queue()->size() + worker_count;
+    size_t max_threads = v8_flags.concurrent_maglev_max_threads;
+    if (max_threads > 0) {
+      return std::min(max_threads, num_tasks);
+    }
+    return num_tasks;
   }
 
  private:
@@ -214,8 +219,11 @@ class MaglevConcurrentDispatcher::JobTask final : public v8::JobTask {
 MaglevConcurrentDispatcher::MaglevConcurrentDispatcher(Isolate* isolate)
     : isolate_(isolate) {
   if (v8_flags.concurrent_recompilation && maglev::IsMaglevEnabled()) {
+    TaskPriority priority = v8_flags.concurrent_maglev_high_priority_threads
+                                ? TaskPriority::kUserBlocking
+                                : TaskPriority::kUserVisible;
     job_handle_ = V8::GetCurrentPlatform()->PostJob(
-        TaskPriority::kUserVisible, std::make_unique<JobTask>(this));
+        priority, std::make_unique<JobTask>(this));
     DCHECK(is_enabled());
   } else {
     DCHECK(!is_enabled());
