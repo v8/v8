@@ -582,7 +582,6 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtin id) {
     case Builtin::kArrayPrototypeAt:
     case Builtin::kArrayPrototypeConcat:
     case Builtin::kArrayPrototypeEntries:
-    case Builtin::kArrayPrototypeFill:
     case Builtin::kArrayPrototypeFind:
     case Builtin::kArrayPrototypeFindIndex:
     case Builtin::kArrayPrototypeFindLast:
@@ -966,6 +965,7 @@ DebugInfo::SideEffectState BuiltinGetSideEffectState(Builtin id) {
     case Builtin::kSetPrototypeDelete:
     // Array builtins.
     case Builtin::kArrayIteratorPrototypeNext:
+    case Builtin::kArrayPrototypeFill:
     case Builtin::kArrayPrototypePop:
     case Builtin::kArrayPrototypePush:
     case Builtin::kArrayPrototypeReverse:

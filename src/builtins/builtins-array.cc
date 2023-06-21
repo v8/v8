@@ -264,11 +264,6 @@ V8_WARN_UNUSED_RESULT Maybe<bool> TryFastArrayFill(
 
 BUILTIN(ArrayPrototypeFill) {
   HandleScope scope(isolate);
-  if (isolate->should_check_side_effects()) {
-    if (!isolate->debug()->PerformSideEffectCheckForObject(args.receiver())) {
-      return ReadOnlyRoots(isolate).exception();
-    }
-  }
 
   // 1. Let O be ? ToObject(this value).
   Handle<JSReceiver> receiver;
