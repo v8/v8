@@ -1225,6 +1225,11 @@ MaybeHandle<Code> CompileMaglev(Isolate* isolate, Handle<JSFunction> function,
   // Prepare the job.
   auto job = maglev::MaglevCompilationJob::New(isolate, function, osr_offset);
 
+  if (IsConcurrent(mode) &&
+      !isolate->maglev_concurrent_dispatcher()->is_enabled()) {
+    mode = ConcurrencyMode::kSynchronous;
+  }
+
   {
     TRACE_EVENT_WITH_FLOW0(
         TRACE_DISABLED_BY_DEFAULT("v8.compile"),
