@@ -706,6 +706,9 @@ def BuildGraphConfigs(suite, parent, arch):
       graph.AppendChild(variant_graph)
       for subsuite in suite.get('tests', []):
         BuildGraphConfigs(subsuite, variant_graph, arch)
+      # Add variant specific tests.
+      for subsuite in variant_suite.get('tests', []):
+        BuildGraphConfigs(subsuite, variant_graph, arch)
   parent.AppendChild(graph)
   return graph
 
@@ -800,7 +803,7 @@ class CachedWarmupManager(WarmupManager):
     self.cache_handler.write_cache(self.cache)
 
   def is_warmed_up(self, timestamp):
-     return timestamp > self.last_reboot
+    return timestamp > self.last_reboot
 
   def trim_cache(self):
     """Prevent obsolete entries occupying the cache file."""
