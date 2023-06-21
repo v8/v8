@@ -1033,6 +1033,7 @@ class V8_EXPORT_PRIVATE JSGraphAssembler : public GraphAssembler {
                                               TNode<Number> new_length,
                                               TNode<Number> old_length);
   Node* StringCharCodeAt(TNode<String> string, TNode<Number> position);
+  TNode<String> StringFromSingleCharCode(TNode<Number> code);
   TNode<Object> DoubleArrayMax(TNode<JSArray> array);
   TNode<Object> DoubleArrayMin(TNode<JSArray> array);
   // Computes the byte length for a given {array_buffer_view}. If the set of

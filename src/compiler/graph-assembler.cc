@@ -482,6 +482,11 @@ Node* JSGraphAssembler::StringCharCodeAt(TNode<String> string,
                                   position, effect(), control()));
 }
 
+TNode<String> JSGraphAssembler::StringFromSingleCharCode(TNode<Number> code) {
+  return AddNode<String>(
+      graph()->NewNode(simplified()->StringFromSingleCharCode(), code));
+}
+
 class ArrayBufferViewAccessBuilder {
  public:
   explicit ArrayBufferViewAccessBuilder(JSGraphAssembler* assembler,

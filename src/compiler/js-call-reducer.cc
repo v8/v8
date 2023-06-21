@@ -82,6 +82,8 @@ class JSCallReducerAssembler : public JSGraphAssembler {
       StringRef search_element_string);
   TNode<Boolean> ReduceStringPrototypeEndsWith();
   TNode<Boolean> ReduceStringPrototypeEndsWith(StringRef search_element_string);
+  TNode<String> ReduceStringPrototypeCharAt();
+  TNode<String> ReduceStringPrototypeCharAt(StringRef s, uint32_t index);
   TNode<String> ReduceStringPrototypeSlice();
   TNode<Object> ReduceJSCallMathMinMaxWithArrayLike(Builtin builtin);
 
@@ -1122,6 +1124,33 @@ TNode<Boolean> JSCallReducerAssembler::ReduceStringPrototypeEndsWith() {
 
   Bind(&out);
   return out.PhiAt<Boolean>(0);
+}
+
+TNode<String> JSCallReducerAssembler::ReduceStringPrototypeCharAt(
+    StringRef s, uint32_t index) {
+  DCHECK(s.IsContentAccessible());
+  OptionalObjectRef elem = s.GetCharAsStringOrUndefined(broker(), index);
+  TNode<String> elem_string =
+      elem.has_value() ? TNode<String>::UncheckedCast(
+                             jsgraph()->Constant(elem.value(), broker()))
+                       : EmptyStringConstant();
+  return elem_string;
+}
+
+TNode<String> JSCallReducerAssembler::ReduceStringPrototypeCharAt() {
+  TNode<Object> receiver = ReceiverInput();
+  TNode<Object> index = ArgumentOrZero(0);
+
+  TNode<String> receiver_string = CheckString(receiver);
+  TNode<Number> index_smi = CheckSmi(index);
+  TNode<Number> length = StringLength(receiver_string);
+
+  TNode<Number> bounded_index = CheckBounds(index_smi, length);
+
+  Node* result = StringCharCodeAt(receiver_string, bounded_index);
+  TNode<String> result_string =
+      StringFromSingleCharCode(TNode<Number>::UncheckedCast(result));
+  return result_string;
 }
 
 TNode<String> JSCallReducerAssembler::ReduceStringPrototypeSlice() {
@@ -6725,28 +6754,32 @@ Reduction JSCallReducer::ReduceStringPrototypeCharAt(Node* node) {
 
   Node* receiver = n.receiver();
   Node* index = n.ArgumentOr(0, jsgraph()->ZeroConstant());
-  Effect effect = n.effect();
-  Control control = n.control();
 
-  // Ensure that the {receiver} is actually a String.
-  receiver = effect = graph()->NewNode(simplified()->CheckString(p.feedback()),
-                                       receiver, effect, control);
+  // Attempt to constant fold the operation when we know
+  // that receiver is a string and index is a number.
+  HeapObjectMatcher receiver_matcher(receiver);
+  NumberMatcher index_matcher(index);
+  if (receiver_matcher.HasResolvedValue()) {
+    HeapObjectRef receiver_ref = receiver_matcher.Ref(broker());
+    if (!receiver_ref.IsString()) return NoChange();
+    StringRef receiver_string = receiver_ref.AsString();
+    bool is_content_accessible = receiver_string.IsContentAccessible();
+    bool is_integer_in_max_range =
+        index_matcher.IsInteger() &&
+        index_matcher.IsInRange(
+            0.0, static_cast<double>(JSObject::kMaxElementIndex));
+    if (is_content_accessible && is_integer_in_max_range) {
+      const uint32_t index =
+          static_cast<uint32_t>(index_matcher.ResolvedValue());
+      JSCallReducerAssembler a(this, node);
+      Node* subgraph = a.ReduceStringPrototypeCharAt(receiver_string, index);
+      return ReplaceWithSubgraph(&a, subgraph);
+    }
+  }
 
-  // Determine the {receiver} length.
-  Node* receiver_length =
-      graph()->NewNode(simplified()->StringLength(), receiver);
-
-  // Check that the {index} is within range.
-  index = effect = graph()->NewNode(simplified()->CheckBounds(p.feedback()),
-                                    index, receiver_length, effect, control);
-
-  // Return the character from the {receiver} as single character string.
-  Node* value = effect = graph()->NewNode(simplified()->StringCharCodeAt(),
-                                          receiver, index, effect, control);
-  value = graph()->NewNode(simplified()->StringFromSingleCharCode(), value);
-
-  ReplaceWithValue(node, value, effect, control);
-  return Replace(value);
+  JSCallReducerAssembler a(this, node);
+  Node* subgraph = a.ReduceStringPrototypeCharAt();
+  return ReplaceWithSubgraph(&a, subgraph);
 }
 
 #ifdef V8_INTL_SUPPORT
