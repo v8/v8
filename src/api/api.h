@@ -213,9 +213,15 @@ class Utils {
   static inline v8::internal::Handle<v8::internal::To> OpenHandle( \
       const From* that, bool allow_empty_handle = false);
 
+#define DECLARE_OPEN_DIRECT_HANDLE(From, To)                                   \
+  static inline v8::internal::DirectHandle<v8::internal::To> OpenDirectHandle( \
+      const From* that, bool allow_empty_handle = false);
+
   OPEN_HANDLE_LIST(DECLARE_OPEN_HANDLE)
+  OPEN_HANDLE_LIST(DECLARE_OPEN_DIRECT_HANDLE)
 
 #undef DECLARE_OPEN_HANDLE
+#undef DECLARE_OPEN_DIRECT_HANDLE
 #undef DECLARE_TO_LOCAL_TYPED_ARRAY
 #undef DECLARE_TO_LOCAL
 

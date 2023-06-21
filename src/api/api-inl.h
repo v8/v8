@@ -101,6 +101,18 @@ TYPED_ARRAYS(MAKE_TO_LOCAL_TYPED_ARRAY)
             v8::internal::ValueHelper::ValueAsAddress(that)));                \
   }
 
+#define MAKE_OPEN_DIRECT_HANDLE(From, To)                                     \
+  v8::internal::DirectHandle<v8::internal::To> Utils::OpenDirectHandle(       \
+      const v8::From* that, bool allow_empty_handle) {                        \
+    DCHECK(allow_empty_handle || !v8::internal::ValueHelper::IsEmpty(that));  \
+    DCHECK(                                                                   \
+        v8::internal::ValueHelper::IsEmpty(that) ||                           \
+        v8::internal::Object(v8::internal::ValueHelper::ValueAsAddress(that)) \
+            .Is##To());                                                       \
+    return v8::internal::DirectHandle<v8::internal::To>(                      \
+        v8::internal::ValueHelper::ValueAsAddress(that));                     \
+  }
+
 #else  // !V8_ENABLE_DIRECT_LOCAL
 
 #define MAKE_OPEN_HANDLE(From, To)                                            \
@@ -116,11 +128,19 @@ TYPED_ARRAYS(MAKE_TO_LOCAL_TYPED_ARRAY)
             const_cast<v8::From*>(that)));                                    \
   }
 
+#define MAKE_OPEN_DIRECT_HANDLE(From, To)                                      \
+  v8::internal::DirectHandle<v8::internal::To> Utils::OpenDirectHandle(        \
+      const v8::From* that, bool allow_empty_handle) {                         \
+    return Utils::OpenHandle(that, allow_empty_handle); \
+  }
+
 #endif  // V8_ENABLE_DIRECT_LOCAL
 
 OPEN_HANDLE_LIST(MAKE_OPEN_HANDLE)
+OPEN_HANDLE_LIST(MAKE_OPEN_DIRECT_HANDLE)
 
 #undef MAKE_OPEN_HANDLE
+#undef MAKE_OPEN_DIRECT_HANDLE
 #undef OPEN_HANDLE_LIST
 
 template <bool do_callback>
