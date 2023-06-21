@@ -114,17 +114,16 @@ void MemoryReducer::NotifyMarkCompact(size_t committed_memory_before) {
           heap()->HasHighFragmentation(),
       false,
       false};
-  const Id old_action = state_.id();
-  int old_started_gcs = state_.started_gcs();
+  const State old_state = state_;
   state_ = Step(state_, event);
-  if (old_action != kWait && state_.id() == kWait) {
+  if (old_state.id() != kWait && state_.id() == kWait) {
     // If we are transitioning to the WAIT state, start the timer.
     ScheduleTimer(state_.next_gc_start_ms() - event.time_ms);
   }
-  if (old_action == kRun) {
+  if (old_state.id() == kRun) {
     if (v8_flags.trace_gc_verbose) {
       heap()->isolate()->PrintWithTimestamp(
-          "Memory reducer: finished GC #%d (%s)\n", old_started_gcs,
+          "Memory reducer: finished GC #%d (%s)\n", old_state.started_gcs(),
           state_.id() == kWait ? "will do more" : "done");
     }
   }
@@ -158,10 +157,8 @@ MemoryReducer::State MemoryReducer::Step(const State& state,
   DCHECK(v8_flags.incremental_marking);
 
   switch (state.id()) {
+    case kUninit:
     case kDone:
-      CHECK_IMPLIES(
-          v8_flags.memory_reducer_single_gc,
-          state.started_gcs() == 0 || state.started_gcs() == kMaxNumberOfGCs);
       if (event.type == kTimer) {
         return state;
       } else if (event.type == kMarkCompact) {

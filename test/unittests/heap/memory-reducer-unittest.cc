@@ -233,17 +233,14 @@ TEST(MemoryReducer, FromWaitToDone) {
 
   state1 = MemoryReducer::Step(state0, TimerEventLowAllocationRate(2000));
   EXPECT_EQ(MemoryReducer::kDone, state1.id());
-  EXPECT_EQ(MemoryReducer::kMaxNumberOfGCs, state1.started_gcs());
   EXPECT_EQ(state0.last_gc_time_ms(), state1.last_gc_time_ms());
 
   state1 = MemoryReducer::Step(state0, TimerEventHighAllocationRate(2000));
   EXPECT_EQ(MemoryReducer::kDone, state1.id());
-  EXPECT_EQ(MemoryReducer::kMaxNumberOfGCs, state1.started_gcs());
   EXPECT_EQ(state0.last_gc_time_ms(), state1.last_gc_time_ms());
 
   state1 = MemoryReducer::Step(state0, TimerEventPendingGC(2000));
   EXPECT_EQ(MemoryReducer::kDone, state1.id());
-  EXPECT_EQ(MemoryReducer::kMaxNumberOfGCs, state1.started_gcs());
   EXPECT_EQ(state0.last_gc_time_ms(), state1.last_gc_time_ms());
 }
 
@@ -280,14 +277,12 @@ TEST(MemoryReducer, FromRunToDone) {
   MemoryReducer::State state1 =
       MemoryReducer::Step(state0, MarkCompactEventNoGarbageLeft(2000, 0));
   EXPECT_EQ(MemoryReducer::kDone, state1.id());
-  EXPECT_EQ(MemoryReducer::kMaxNumberOfGCs, state1.started_gcs());
   EXPECT_EQ(2000, state1.last_gc_time_ms());
 
   state0 = MemoryReducer::State::CreateRun(MaxNumberMemoryReducerGCs());
 
   state1 = MemoryReducer::Step(state0, MarkCompactEventGarbageLeft(2000, 0));
   EXPECT_EQ(MemoryReducer::kDone, state1.id());
-  EXPECT_EQ(state1.started_gcs(), state1.started_gcs());
 }
 
 
