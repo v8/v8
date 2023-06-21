@@ -80,7 +80,7 @@ class ZoneChunkList : public ZoneObject {
   // `end()`. The current list is truncated to end just before `split_begin`.
   // This naturally invalidates all iterators, including `split_begin`.
   ZoneChunkList<T> SplitAt(iterator split_begin);
-  void Append(ZoneChunkList<T> other);
+  void Append(ZoneChunkList<T>& other);
 
   void CopyTo(T* ptr);
 
@@ -273,6 +273,8 @@ class ZoneChunkListIterator
     // Forward iterator:
     if (list->empty()) return Begin(list);
 
+    // NOTE: Decrementing `end()` is not supported if `last_nonempty_->next_`
+    // is nullptr (in that case `Move` will crash on dereference).
     return ZoneChunkListIterator(list->last_nonempty_->next_, 0);
   }
 
@@ -469,7 +471,9 @@ ZoneChunkList<T> ZoneChunkList<T>::SplitAt(iterator split_begin) {
   result.last_nonempty_ =
       (last_nonempty_ == split_chunk) ? new_chunk : last_nonempty_;
   new_chunk->next_ = split_chunk->next_;
-  new_chunk->next_->previous_ = new_chunk;
+  if (new_chunk->next_) {
+    new_chunk->next_->previous_ = new_chunk;
+  }
 
   last_nonempty_ = split_chunk;
   split_chunk->next_ = nullptr;
@@ -485,7 +489,7 @@ ZoneChunkList<T> ZoneChunkList<T>::SplitAt(iterator split_begin) {
   result.size_ = size() - new_size;
   size_ = new_size;
 
-#if DEBUG
+#ifdef DEBUG
   Verify();
   result.Verify();
 #endif
@@ -494,7 +498,7 @@ ZoneChunkList<T> ZoneChunkList<T>::SplitAt(iterator split_begin) {
 }
 
 template <typename T>
-void ZoneChunkList<T>::Append(ZoneChunkList<T> other) {
+void ZoneChunkList<T>::Append(ZoneChunkList<T>& other) {
   DCHECK_EQ(zone_, other.zone_);
 
   if (other.front_ == nullptr) return;
@@ -505,6 +509,14 @@ void ZoneChunkList<T>::Append(ZoneChunkList<T> other) {
   last_nonempty_ = other.last_nonempty_;
 
   size_ += other.size_;
+#ifdef DEBUG
+  Verify();
+#endif
+
+  // Leave `other` in empty, but valid state.
+  other.front_ = nullptr;
+  other.last_nonempty_ = nullptr;
+  other.size_ = 0;
 }
 
 template <typename T>

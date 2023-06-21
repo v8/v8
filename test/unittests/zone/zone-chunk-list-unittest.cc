@@ -395,6 +395,22 @@ TEST_F(ZoneChunkListTest, SplitAt) {
   CHECK_EQ(count, kItemCount + 1);
 }
 
+TEST_F(ZoneChunkListTest, SplitAtLastChunk) {
+  AccountingAllocator allocator;
+  Zone zone(&allocator, ZONE_NAME);
+
+  ZoneChunkList<size_t> zone_chunk_list(&zone);
+  zone_chunk_list.push_back(0);
+  zone_chunk_list.push_back(1);
+
+  ZoneChunkList<size_t> split_last =
+      zone_chunk_list.SplitAt(++zone_chunk_list.begin());
+  CHECK_EQ(zone_chunk_list.size(), 1);
+  CHECK_EQ(zone_chunk_list.front(), 0);
+  CHECK_EQ(split_last.size(), 1);
+  CHECK_EQ(split_last.front(), 1);
+}
+
 TEST_F(ZoneChunkListTest, Append) {
   AccountingAllocator allocator;
   Zone zone(&allocator, ZONE_NAME);
@@ -405,13 +421,14 @@ TEST_F(ZoneChunkListTest, Append) {
   ZoneChunkList<size_t> other(&zone);
   other.push_back(1);
 
-  zone_chunk_list.Append(std::move(other));
+  zone_chunk_list.Append(other);
 
   size_t count = 0;
   for (size_t item : zone_chunk_list) {
     CHECK_EQ(item, count++);
   }
   CHECK_EQ(count, zone_chunk_list.size());
+  CHECK(other.empty());
 }
 
 }  // namespace internal
