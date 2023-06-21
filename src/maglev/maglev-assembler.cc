@@ -284,6 +284,102 @@ void MaglevAssembler::MaterialiseValueNode(Register dst, ValueNode* value) {
   }
 }
 
+void MaglevAssembler::TestTypeOf(
+    Register object, interpreter::TestTypeOfFlags::LiteralFlag literal,
+    Label* is_true, Label::Distance true_distance, bool fallthrough_when_true,
+    Label* is_false, Label::Distance false_distance,
+    bool fallthrough_when_false) {
+  // If both true and false are fallthroughs, we don't have to do anything.
+  if (fallthrough_when_true && fallthrough_when_false) return;
+
+  MaglevAssembler::ScratchRegisterScope temps(this);
+  Register scratch = temps.GetDefaultScratchRegister();
+
+  // IMPORTANT: Note that `object` could be a register that aliases registers in
+  // the ScratchRegisterScope. Make sure that all reads of `object` are before
+  // any writes to scratch registers
+  using LiteralFlag = interpreter::TestTypeOfFlags::LiteralFlag;
+  switch (literal) {
+    case LiteralFlag::kNumber: {
+      JumpIfSmi(object, is_true, true_distance);
+      CompareMapWithRoot(object, RootIndex::kHeapNumberMap, scratch);
+      Branch(kEqual, is_true, true_distance, fallthrough_when_true, is_false,
+             false_distance, fallthrough_when_false);
+      return;
+    }
+    case LiteralFlag::kString: {
+      JumpIfSmi(object, is_false, false_distance);
+      CompareObjectTypeRange(object, FIRST_STRING_TYPE, LAST_STRING_TYPE);
+      Branch(kLessThanEqual, is_true, true_distance, fallthrough_when_true,
+             is_false, false_distance, fallthrough_when_false);
+      return;
+    }
+    case LiteralFlag::kSymbol: {
+      JumpIfSmi(object, is_false, false_distance);
+      IsObjectType(object, SYMBOL_TYPE);
+      Branch(kEqual, is_true, true_distance, fallthrough_when_true, is_false,
+             false_distance, fallthrough_when_false);
+      return;
+    }
+    case LiteralFlag::kBoolean:
+      JumpIfRoot(object, RootIndex::kTrueValue, is_true, true_distance);
+      CompareRoot(object, RootIndex::kFalseValue);
+      Branch(kEqual, is_true, true_distance, fallthrough_when_true, is_false,
+             false_distance, fallthrough_when_false);
+      return;
+    case LiteralFlag::kBigInt: {
+      JumpIfSmi(object, is_false, false_distance);
+      IsObjectType(object, BIGINT_TYPE);
+      Branch(kEqual, is_true, true_distance, fallthrough_when_true, is_false,
+             false_distance, fallthrough_when_false);
+      return;
+    }
+    case LiteralFlag::kUndefined: {
+      // Make sure `object` isn't a valid temp here, since we re-use it.
+      DCHECK(!temps.Available().has(object));
+      JumpIfSmi(object, is_false, false_distance);
+      // Check it has the undetectable bit set and it is not null.
+      LoadMap(scratch, object);
+      TestInt32AndJumpIfAllClear(FieldMemOperand(scratch, Map::kBitFieldOffset),
+                                 Map::Bits1::IsUndetectableBit::kMask, is_false,
+                                 false_distance);
+      CompareRoot(object, RootIndex::kNullValue);
+      Branch(kNotEqual, is_true, true_distance, fallthrough_when_true, is_false,
+             false_distance, fallthrough_when_false);
+      return;
+    }
+    case LiteralFlag::kFunction: {
+      JumpIfSmi(object, is_false, false_distance);
+      // Check if callable bit is set and not undetectable.
+      LoadMap(scratch, object);
+      Branch(IsCallableAndNotUndetectable(scratch, scratch), is_true,
+             true_distance, fallthrough_when_true, is_false, false_distance,
+             fallthrough_when_false);
+      return;
+    }
+    case LiteralFlag::kObject: {
+      JumpIfSmi(object, is_false, false_distance);
+      // If the object is null then return true.
+      JumpIfRoot(object, RootIndex::kNullValue, is_true, true_distance);
+      // Check if the object is a receiver type,
+      LoadMap(scratch, object);
+      CompareInstanceType(scratch, FIRST_JS_RECEIVER_TYPE);
+      JumpIf(kLessThan, is_false, false_distance);
+      // ... and is not undefined (undetectable) nor callable.
+      Branch(IsNotCallableNorUndetactable(scratch, scratch), is_true,
+             true_distance, fallthrough_when_true, is_false, false_distance,
+             fallthrough_when_false);
+      return;
+    }
+    case LiteralFlag::kOther:
+      if (!fallthrough_when_false) {
+        Jump(is_false, false_distance);
+      }
+      return;
+  }
+  UNREACHABLE();
+}
+
 }  // namespace maglev
 }  // namespace internal
 }  // namespace v8

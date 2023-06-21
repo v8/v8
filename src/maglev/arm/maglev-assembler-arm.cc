@@ -86,14 +86,6 @@ void MaglevAssembler::StoreTaggedFieldWithWriteBarrier(
   MAGLEV_NOT_IMPLEMENTED();
 }
 
-void MaglevAssembler::TestTypeOf(
-    Register object, interpreter::TestTypeOfFlags::LiteralFlag literal,
-    Label* is_true, Label::Distance true_distance, bool fallthrough_when_true,
-    Label* is_false, Label::Distance false_distance,
-    bool fallthrough_when_false) {
-  MAGLEV_NOT_IMPLEMENTED();
-}
-
 void MaglevAssembler::Prologue(Graph* graph) {
   ScratchRegisterScope temps(this);
   temps.Include({r4, r8});

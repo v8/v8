@@ -663,6 +663,23 @@ inline void MaglevAssembler::LoadByte(Register dst, MemOperand src) {
   Ldrb(dst, src);
 }
 
+inline Condition MaglevAssembler::IsCallableAndNotUndetectable(
+    Register map, Register scratch) {
+  Ldr(scratch.W(), FieldMemOperand(map, Map::kBitFieldOffset));
+  And(scratch.W(), scratch.W(),
+      Map::Bits1::IsUndetectableBit::kMask | Map::Bits1::IsCallableBit::kMask);
+  Cmp(scratch.W(), Map::Bits1::IsCallableBit::kMask);
+  return kEqual;
+}
+
+inline Condition MaglevAssembler::IsNotCallableNorUndetactable(
+    Register map, Register scratch) {
+  Ldr(scratch.W(), FieldMemOperand(map, Map::kBitFieldOffset));
+  Tst(scratch.W(), Immediate(Map::Bits1::IsUndetectableBit::kMask |
+                             Map::Bits1::IsCallableBit::kMask));
+  return kEqual;
+}
+
 inline void MaglevAssembler::IsObjectType(Register heap_object,
                                           InstanceType type) {
   ScratchRegisterScope temps(this);
@@ -689,7 +706,7 @@ inline void MaglevAssembler::CompareObjectType(Register heap_object,
                                                InstanceType type,
                                                Register scratch) {
   LoadMap(scratch, heap_object);
-  CompareInstanceType(scratch, scratch, type);
+  MacroAssembler::CompareInstanceType(scratch, scratch, type);
 }
 
 inline void MaglevAssembler::CompareObjectTypeRange(Register heap_object,
@@ -711,6 +728,13 @@ inline void MaglevAssembler::CompareMapWithRoot(Register object,
   }
   LoadMap(scratch, object);
   CompareRoot(scratch, index);
+}
+
+inline void MaglevAssembler::CompareInstanceType(Register map,
+                                                 InstanceType instance_type) {
+  ScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  MacroAssembler::CompareInstanceType(map, scratch, instance_type);
 }
 
 inline void MaglevAssembler::CompareInstanceTypeRange(

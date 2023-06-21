@@ -3620,12 +3620,6 @@ void TestTypeOf::SetValueLocationConstraints() {
 void TestTypeOf::GenerateCode(MaglevAssembler* masm,
                               const ProcessingState& state) {
   Register object = ToRegister(value());
-  // Use return register as temporary if needed. Be careful: {object} and
-  // {scratch} could alias (which means that {object} should be considered dead
-  // once {scratch} has been written to).
-  MaglevAssembler::ScratchRegisterScope temps(masm);
-  temps.Include(ToRegister(result()));
-
   Label is_true, is_false, done;
   __ TestTypeOf(object, literal_, &is_true, Label::Distance::kNear, true,
                 &is_false, Label::Distance::kNear, false);

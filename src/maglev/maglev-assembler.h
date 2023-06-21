@@ -323,6 +323,9 @@ class MaglevAssembler : public MacroAssembler {
   inline void DeoptIfBufferDetached(Register array, Register scratch,
                                     NodeT* node);
 
+  inline Condition IsCallableAndNotUndetectable(Register map, Register scratch);
+  inline Condition IsNotCallableNorUndetactable(Register map, Register scratch);
+
   inline void IsObjectType(Register heap_object, InstanceType type);
   inline void CompareObjectType(Register heap_object, InstanceType type);
   inline void JumpIfJSAnyIsNotPrimitive(Register heap_object, Label* target,
@@ -336,6 +339,7 @@ class MaglevAssembler : public MacroAssembler {
   inline void CompareMapWithRoot(Register object, RootIndex index,
                                  Register scratch);
 
+  inline void CompareInstanceType(Register map, InstanceType instance_type);
   inline void CompareInstanceTypeRange(Register map, InstanceType lower_limit,
                                        InstanceType higher_limit);
   inline void CompareInstanceTypeRange(Register map, Register instance_type_out,
