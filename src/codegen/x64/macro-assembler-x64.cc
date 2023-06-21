@@ -1542,8 +1542,9 @@ MACRO_ASM_X64_ISPLAT_LIST(DEFINE_ISPLAT)
 void MacroAssembler::F64x4Min(YMMRegister dst, YMMRegister lhs, YMMRegister rhs,
                               YMMRegister scratch) {
   ASM_CODE_COMMENT(this);
-  DCHECK(CpuFeatures::IsSupported(AVX2));
-  CpuFeatureScope scope(this, AVX2);
+  DCHECK(CpuFeatures::IsSupported(AVX) && CpuFeatures::IsSupported(AVX2));
+  CpuFeatureScope avx_scope(this, AVX);
+  CpuFeatureScope avx2_scope(this, AVX2);
   vminpd(scratch, lhs, rhs);
   vminpd(dst, rhs, lhs);
   vorpd(scratch, scratch, dst);
@@ -1556,8 +1557,9 @@ void MacroAssembler::F64x4Min(YMMRegister dst, YMMRegister lhs, YMMRegister rhs,
 void MacroAssembler::F64x4Max(YMMRegister dst, YMMRegister lhs, YMMRegister rhs,
                               YMMRegister scratch) {
   ASM_CODE_COMMENT(this);
-  DCHECK(CpuFeatures::IsSupported(AVX2));
-  CpuFeatureScope scope(this, AVX2);
+  DCHECK(CpuFeatures::IsSupported(AVX) && CpuFeatures::IsSupported(AVX2));
+  CpuFeatureScope avx_scope(this, AVX);
+  CpuFeatureScope avx2_scope(this, AVX2);
   vmaxpd(scratch, lhs, rhs);
   vmaxpd(dst, rhs, lhs);
   vxorpd(dst, dst, scratch);
@@ -1571,8 +1573,9 @@ void MacroAssembler::F64x4Max(YMMRegister dst, YMMRegister lhs, YMMRegister rhs,
 void MacroAssembler::F32x8Min(YMMRegister dst, YMMRegister lhs, YMMRegister rhs,
                               YMMRegister scratch) {
   ASM_CODE_COMMENT(this);
-  DCHECK(CpuFeatures::IsSupported(AVX2));
-  CpuFeatureScope scope(this, AVX2);
+  DCHECK(CpuFeatures::IsSupported(AVX) && CpuFeatures::IsSupported(AVX2));
+  CpuFeatureScope avx_scope(this, AVX);
+  CpuFeatureScope avx2_scope(this, AVX2);
   vminps(scratch, lhs, rhs);
   vminps(dst, rhs, lhs);
   vorps(scratch, scratch, dst);
@@ -1585,8 +1588,9 @@ void MacroAssembler::F32x8Min(YMMRegister dst, YMMRegister lhs, YMMRegister rhs,
 void MacroAssembler::F32x8Max(YMMRegister dst, YMMRegister lhs, YMMRegister rhs,
                               YMMRegister scratch) {
   ASM_CODE_COMMENT(this);
-  DCHECK(CpuFeatures::IsSupported(AVX2));
-  CpuFeatureScope scope(this, AVX2);
+  DCHECK(CpuFeatures::IsSupported(AVX) && CpuFeatures::IsSupported(AVX2));
+  CpuFeatureScope avx_scope(this, AVX);
+  CpuFeatureScope avx2_scope(this, AVX2);
   vmaxps(scratch, lhs, rhs);
   vmaxps(dst, rhs, lhs);
   vxorps(dst, dst, scratch);
