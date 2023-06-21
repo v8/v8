@@ -773,7 +773,7 @@ class Heap final {
   void RestoreHeapLimit(size_t heap_limit) {
     // Do not set the limit lower than the live size + some slack.
     size_t min_limit = SizeOfObjects() + SizeOfObjects() / 4;
-    set_max_old_generation_size(
+    SetOldGenAndGlobalHeapLimit(
         std::min(max_old_generation_size(), std::max(heap_limit, min_limit)));
   }
 
@@ -1969,9 +1969,9 @@ class Heap final {
     return max_old_generation_size_.load(std::memory_order_relaxed);
   }
 
-  void set_max_old_generation_size(size_t value) {
-    max_old_generation_size_.store(value, std::memory_order_relaxed);
-  }
+  // Sets max_old_generation_size_ and computes the new global heap limit from
+  // it.
+  void SetOldGenAndGlobalHeapLimit(size_t max_old_generation_size);
 
   bool always_allocate() { return always_allocate_scope_count_ != 0; }
 
