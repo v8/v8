@@ -128,30 +128,30 @@ class MaybeObjectHandle {
 #ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
 
 template <typename T>
-class DirectMaybeHandle final {
+class MaybeDirectHandle final {
  public:
-  V8_INLINE DirectMaybeHandle() = default;
+  V8_INLINE MaybeDirectHandle() = default;
 
-  V8_INLINE DirectMaybeHandle(NullMaybeHandleType) {}
+  V8_INLINE MaybeDirectHandle(NullMaybeHandleType) {}
 
   // Constructor for handling automatic up casting from DirectHandle.
-  // Ex. DirectHandle<JSArray> can be passed when DirectMaybeHandle<Object> is
+  // Ex. DirectHandle<JSArray> can be passed when MaybeDirectHandle<Object> is
   // expected.
   template <typename S, typename = typename std::enable_if<
                             std::is_convertible<S*, T*>::value>::type>
-  V8_INLINE DirectMaybeHandle(DirectHandle<S> handle)
+  V8_INLINE MaybeDirectHandle(DirectHandle<S> handle)
       : location_(handle.location_) {}
 
   // Constructor for handling automatic up casting.
-  // Ex. DirectMaybeHandle<JSArray> can be passed when DirectHandle<Object> is
+  // Ex. MaybeDirectHandle<JSArray> can be passed when DirectHandle<Object> is
   // expected.
   template <typename S, typename = typename std::enable_if<
                             std::is_convertible<S*, T*>::value>::type>
-  V8_INLINE DirectMaybeHandle(DirectMaybeHandle<S> maybe_handle)
+  V8_INLINE MaybeDirectHandle(MaybeDirectHandle<S> maybe_handle)
       : location_(maybe_handle.location_) {}
 
-  V8_INLINE DirectMaybeHandle(T object, Isolate* isolate);
-  V8_INLINE DirectMaybeHandle(T object, LocalHeap* local_heap);
+  V8_INLINE MaybeDirectHandle(T object, Isolate* isolate);
+  V8_INLINE MaybeDirectHandle(T object, LocalHeap* local_heap);
 
   V8_INLINE void Assert() const { DCHECK_NE(location_, kTaggedNullAddress); }
   V8_INLINE void Check() const { CHECK_NE(location_, kTaggedNullAddress); }
@@ -182,10 +182,10 @@ class DirectMaybeHandle final {
  protected:
   Address location_ = kTaggedNullAddress;
 
-  // DirectMaybeHandles of different classes are allowed to access each
+  // MaybeDirectHandles of different classes are allowed to access each
   // other's location_.
   template <typename>
-  friend class DirectMaybeHandle;
+  friend class MaybeDirectHandle;
 };
 
 #endif  // V8_ENABLE_CONSERVATIVE_STACK_SCANNING
