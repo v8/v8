@@ -3340,10 +3340,6 @@ class KnownMapsMerger {
   void IntersectWithKnownNodeAspects(
       ValueNode* object, const KnownNodeAspects& known_node_aspects) {
     auto it = known_node_aspects.possible_maps.find(object);
-    auto node_info = known_node_aspects.node_infos.find(object);
-    NodeType type = node_info != known_node_aspects.node_infos.end()
-                        ? node_info->second.type
-                        : NodeType::kUnknown;
     if (it != known_node_aspects.possible_maps.end()) {
       // TODO(v8:7700): Make intersection non-quadratic.
       for (compiler::MapRef possible_map : it->second.possible_maps) {
@@ -3351,15 +3347,7 @@ class KnownMapsMerger {
                       possible_map) != requested_maps_.end()) {
           // No need to add dependencies, we already have them for all known
           // possible maps.
-          // Filter maps which are impossible given this objects type. Since we
-          // want to prove that an object with map `map` is not an instance of
-          // `type`, we cannot use `StaticTypeForMap`, as it only provides an
-          // approximation. This filtering is done to avoid creating
-          // non-sensical types later (e.g. if we think only a non-string map
-          // is possible, after a string check).
-          if (IsInstanceOfNodeType(possible_map, type, broker_)) {
-            InsertMap(possible_map);
-          }
+          InsertMap(possible_map);
         } else {
           known_maps_are_subset_of_requested_maps_ = false;
         }
