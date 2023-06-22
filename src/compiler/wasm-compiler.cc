@@ -7517,24 +7517,27 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
   }
 
   Node* BuildSuspend(Node* value, Node* suspender, Node* api_function_ref) {
-    // If value is a promise, suspend to the js-to-wasm prompt, and resume later
-    // with the promise's resolved value.
-    auto resume = gasm_->MakeLabel(MachineRepresentation::kTagged);
-    // Trap if the suspender argument is not the active suspender or if there is
-    // no active suspender.
-    auto bad_suspender = gasm_->MakeDeferredLabel();
     Node* native_context = gasm_->Load(
         MachineType::TaggedPointer(), api_function_ref,
         wasm::ObjectAccess::ToTagged(WasmApiFunctionRef::kNativeContextOffset));
     Node* active_suspender =
         LOAD_MUTABLE_ROOT(ActiveSuspender, active_suspender);
+
+    // If value is a promise, suspend to the js-to-wasm prompt, and resume later
+    // with the promise's resolved value.
+    auto resume = gasm_->MakeLabel(MachineRepresentation::kTagged);
+    gasm_->GotoIf(IsSmi(value), &resume, value);
+    gasm_->GotoIfNot(gasm_->HasInstanceType(value, JS_PROMISE_TYPE), &resume,
+                     BranchHint::kTrue, value);
+
+    // Trap if the suspender argument is not the active suspender or if there is
+    // no active suspender.
+    auto bad_suspender = gasm_->MakeDeferredLabel();
     gasm_->GotoIf(gasm_->TaggedEqual(active_suspender, UndefinedValue()),
                   &bad_suspender, BranchHint::kFalse);
     gasm_->GotoIfNot(gasm_->TaggedEqual(suspender, active_suspender),
                      &bad_suspender, BranchHint::kFalse);
-    gasm_->GotoIf(IsSmi(value), &resume, value);
-    gasm_->GotoIfNot(gasm_->HasInstanceType(value, JS_PROMISE_TYPE), &resume,
-                     BranchHint::kTrue, value);
+
     auto* call_descriptor =
         GetBuiltinCallDescriptor(Builtin::kWasmSuspend, zone_, stub_mode_);
     Node* call_target = GetTargetForBuiltinCall(wasm::WasmCode::kWasmSuspend,

@@ -617,3 +617,23 @@ function TestNestedSuspenders(suspend) {
   assertThrowsAsync(wrapper(), WebAssembly.RuntimeError,
       /trying to suspend JS frames/);
 })();
+
+// Regression test for v8:14094.
+// Pass an invalid (null) suspender to the suspending wrapper, but return a
+// non-promise. The import should not trap.
+(function TestImportCheckOrder() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  import_index = builder.addImport('m', 'import', kSig_i_r);
+  builder.addFunction("test", kSig_i_r)
+      .addBody([
+          kExprLocalGet, 0,
+          kExprCallFunction, import_index, // suspend
+      ]).exportFunc();
+  let js_import = new WebAssembly.Function(
+      {parameters: ['externref'], results: ['i32']},
+      () => 42,
+      {suspending: 'first'});
+  let instance = builder.instantiate({m: {import: js_import}});
+  assertEquals(42, instance.exports.test(null));
+})();
