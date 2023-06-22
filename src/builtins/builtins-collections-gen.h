@@ -212,6 +212,10 @@ class CollectionsBuiltinsAssembler : public BaseCollectionsAssembler {
                                            CheckBounds::kDebugOnly);
   }
 
+  TNode<Smi> DeleteFromSetTable(const TNode<Object> context,
+                                TNode<OrderedHashSet> table, TNode<Object> key,
+                                Label* not_found);
+
  protected:
   template <typename IteratorType>
   TNode<HeapObject> AllocateJSCollectionIterator(

@@ -42,6 +42,12 @@ extern macro CollectionsBuiltinsAssembler::TableHasKey(
 extern macro CollectionsBuiltinsAssembler::TableHasKey(
     implicit context: Context)(OrderedHashMap, Object): bool;
 
+extern macro CollectionsBuiltinsAssembler::DeleteFromSetTable(
+    implicit context: Context)(OrderedHashSet, Object): Smi labels NotFound;
+
+extern runtime OrderedHashSetShrink(implicit context: Context)(OrderedHashSet):
+    OrderedHashSet;
+
 // Direct iteration helpers.
 @export
 struct KeyIndexPair {

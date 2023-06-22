@@ -1822,14 +1822,39 @@ TF_BUILTIN(SetPrototypeDelete, CollectionsBuiltinsAssembler) {
   const TNode<OrderedHashSet> table =
       LoadObjectField<OrderedHashSet>(CAST(receiver), JSMap::kTableOffset);
 
-  TVARIABLE(IntPtrT, entry_start_position_or_hash, IntPtrConstant(0));
-  Label entry_found(this), not_found(this);
+  Label not_found(this);
+  const TNode<Smi> number_of_elements =
+      DeleteFromSetTable(context, table, key, &not_found);
 
-  TryLookupOrderedHashTableIndex<OrderedHashSet>(
-      table, key, &entry_start_position_or_hash, &entry_found, &not_found);
+  const TNode<Smi> number_of_buckets = CAST(
+      LoadFixedArrayElement(table, OrderedHashSet::NumberOfBucketsIndex()));
+
+  // If there fewer elements than #buckets / 2, shrink the table.
+  Label shrink(this);
+  GotoIf(SmiLessThan(SmiAdd(number_of_elements, number_of_elements),
+                     number_of_buckets),
+         &shrink);
+  Return(TrueConstant());
+
+  BIND(&shrink);
+  CallRuntime(Runtime::kSetShrink, context, receiver);
+  Return(TrueConstant());
 
   BIND(&not_found);
   Return(FalseConstant());
+}
+
+TNode<Smi> CollectionsBuiltinsAssembler::DeleteFromSetTable(
+    const TNode<Object> context, TNode<OrderedHashSet> table, TNode<Object> key,
+    Label* not_found) {
+  // This check breaks a known exploitation technique. See crbug.com/1263462
+  CSA_CHECK(this, TaggedNotEqual(key, TheHoleConstant()));
+
+  TVARIABLE(IntPtrT, entry_start_position_or_hash, IntPtrConstant(0));
+  Label entry_found(this);
+
+  TryLookupOrderedHashTableIndex<OrderedHashSet>(
+      table, key, &entry_start_position_or_hash, &entry_found, not_found);
 
   BIND(&entry_found);
   // If we found the entry, mark the entry as deleted.
@@ -1850,19 +1875,7 @@ TF_BUILTIN(SetPrototypeDelete, CollectionsBuiltinsAssembler) {
       table, OrderedHashSet::NumberOfDeletedElementsOffset(),
       number_of_deleted);
 
-  const TNode<Smi> number_of_buckets = CAST(
-      LoadFixedArrayElement(table, OrderedHashSet::NumberOfBucketsIndex()));
-
-  // If there fewer elements than #buckets / 2, shrink the table.
-  Label shrink(this);
-  GotoIf(SmiLessThan(SmiAdd(number_of_elements, number_of_elements),
-                     number_of_buckets),
-         &shrink);
-  Return(TrueConstant());
-
-  BIND(&shrink);
-  CallRuntime(Runtime::kSetShrink, context, receiver);
-  Return(TrueConstant());
+  return number_of_elements;
 }
 
 TF_BUILTIN(MapPrototypeEntries, CollectionsBuiltinsAssembler) {

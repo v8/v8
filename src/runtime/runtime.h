@@ -102,6 +102,7 @@ namespace internal {
   F(OrderedHashSetGrow, 2, 1)                \
   F(SetGrow, 1, 1)                           \
   F(SetShrink, 1, 1)                         \
+  F(OrderedHashSetShrink, 1, 1)              \
   F(TheHole, 0, 1)                           \
   F(WeakCollectionDelete, 3, 1)              \
   F(WeakCollectionSet, 4, 1)                 \

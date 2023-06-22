@@ -58,6 +58,14 @@ RUNTIME_FUNCTION(Runtime_SetShrink) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
+RUNTIME_FUNCTION(Runtime_OrderedHashSetShrink) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  Handle<OrderedHashSet> table = args.at<OrderedHashSet>(0);
+  table = OrderedHashSet::Shrink(isolate, table);
+  return *table;
+}
+
 RUNTIME_FUNCTION(Runtime_MapShrink) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());

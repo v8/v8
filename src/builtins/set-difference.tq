@@ -1,0 +1,113 @@
+// Copyright 2023 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+namespace collections {
+
+// https://tc39.es/proposal-set-methods/#sec-set.prototype.difference
+transitioning javascript builtin SetPrototypeDifference(
+    js-implicit context: NativeContext, receiver: JSAny)(other: JSAny): JSSet {
+  const methodName: constexpr string = 'Set.prototype.difference';
+  const fastIteratorResultMap = GetIteratorResultMap();
+
+  // 1. Let O be the this value.
+  // 2. Perform ? RequireInternalSlot(O, [[SetData]]).
+  const o = Cast<JSSet>(receiver) otherwise
+  ThrowTypeError(
+      MessageTemplate::kIncompatibleMethodReceiver, methodName, receiver);
+
+  const table = Cast<OrderedHashSet>(o.table) otherwise unreachable;
+
+  // TODO(v8:13556): Add a fast path when `other` is a `JSSet` or a `JSMap`.
+  // 3. Let otherRec be ? GetSetRecord(other).
+  let otherRec = GetSetRecord(other, methodName);
+
+  // 4. Let resultSetData be a copy of O.[[SetData]].
+  let resultSetData = Cast<OrderedHashSet>(CloneFixedArray(
+      table, ExtractFixedArrayFlag::kFixedArrays)) otherwise unreachable;
+
+  // 5. Let thisSize be the number of elements in O.[[SetData]].
+  const thisSize =
+      LoadOrderedHashTableMetadata(table, kOrderedHashSetNumberOfElementsIndex);
+
+  let numberOfElements: Smi = 0;
+  try {
+    // 6. If thisSize ≤ otherRec.[[Size]], then
+    if (thisSize <= Convert<int32>(otherRec.size)) {
+      // a. Let index be 0.
+      let thisIter = collections::NewOrderedHashSetIterator(table);
+
+      // b. Repeat, while index < thisSize,
+      while (true) {
+        // i. Let e be O.[[SetData]][index].
+        const key = thisIter.Next() otherwise Done;
+
+        // ii. Set index to index + 1.
+        // iii. If e is not empty, then
+        //   1. Let inOther be ToBoolean(? Call(otherRec.[[Has]],
+        // otherRec.[[Set]], « e »)).
+        const inOther =
+            ToBoolean(Call(context, otherRec.has, otherRec.object, key));
+
+        //   2. If inOther is true, then
+        if (inOther) {
+          try {
+            // a. Set resultSetData[index] to empty.
+            numberOfElements = DeleteFromSetTable(resultSetData, key)
+                otherwise NotFound;
+          } label NotFound {
+            // Do nothing and go back to the while loop.
+          }
+        }
+      }
+    } else {
+      // a. Let keysIter be ? GetKeysIterator(otherRec).
+      let keysIter =
+          GetKeysIterator(otherRec.object, UnsafeCast<Callable>(otherRec.keys));
+
+      // b. Let next be true.
+      let nextRecord: JSReceiver;
+
+      // c. Repeat, while next is not false,
+      while (true) {
+        // i. Set next to ? IteratorStep(keysIter).
+        nextRecord = iterator::IteratorStep(keysIter, fastIteratorResultMap)
+            otherwise Done;
+        // ii. If next is not false, then
+        //   1. Let nextValue be ? IteratorValue(next).
+        let nextValue =
+            iterator::IteratorValue(nextRecord, fastIteratorResultMap);
+
+        //   2. If nextValue is -0𝔽, set nextValue to +0𝔽.
+        nextValue = collections::NormalizeNumberKey(nextValue);
+
+        //   3. If SetDataHas(resultSetData, nextValue) is true, then
+
+        if (TableHasKey(resultSetData, nextValue)) {
+          try {
+            //   a. Remove nextValue from resultSetData.
+            numberOfElements = DeleteFromSetTable(resultSetData, nextValue)
+                otherwise NotFound;
+          } label NotFound {
+            // Do nothing and go back to the while loop.
+          }
+        }
+      }
+    }
+  } label Done {
+    // Shrink the table if # of element is less than # buckets/2
+    const numberOfBuckets = LoadOrderedHashTableMetadata(
+        table, kOrderedHashSetNumberOfBucketsIndex);
+    if (Convert<int32>(numberOfElements) < (numberOfBuckets / 2)) {
+      resultSetData = OrderedHashSetShrink(resultSetData);
+    }
+    return new JSSet{
+      map: *NativeContextSlot(ContextSlot::JS_SET_MAP_INDEX),
+      properties_or_hash: kEmptyFixedArray,
+      elements: kEmptyFixedArray,
+      table: resultSetData
+    };
+  }
+  unreachable;
+}
+}
