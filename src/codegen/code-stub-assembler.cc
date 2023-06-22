@@ -14238,6 +14238,10 @@ void CodeStubAssembler::BranchIfStringEqual(TNode<String> lhs,
                                             TNode<IntPtrT> rhs_length,
                                             Label* if_true, Label* if_false,
                                             TVariable<Oddball>* result) {
+  // Callers must handle the case where {lhs} and {rhs} refer to the same
+  // String object.
+  CSA_DCHECK(this, TaggedNotEqual(lhs, rhs));
+
   Label length_equal(this), length_not_equal(this);
   Branch(IntPtrEqual(lhs_length, rhs_length), &length_equal, &length_not_equal);
 

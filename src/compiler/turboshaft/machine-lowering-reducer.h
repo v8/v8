@@ -1866,12 +1866,15 @@ class MachineLoweringReducer : public Next {
   }
 
   V<Boolean> REDUCE(StringEqual)(V<String> left, V<String> right) {
+    Label<Boolean> done(this);
+
+    GOTO_IF(__ TaggedEqual(left, right), done,
+            __ HeapConstant(factory_->true_value()));
+
     V<Word32> left_length =
         __ template LoadField<Word32>(left, AccessBuilder::ForStringLength());
     V<Word32> right_length =
         __ template LoadField<Word32>(right, AccessBuilder::ForStringLength());
-
-    Label<Boolean> done(this);
     IF(__ Word32Equal(left_length, right_length)) {
       GOTO(done,
            __ CallBuiltin_StringEqual(isolate_, left, right,

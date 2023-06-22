@@ -3805,6 +3805,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   void GotoIfStringEqual(TNode<String> lhs, TNode<IntPtrT> lhs_length,
                          TNode<String> rhs, Label* if_true) {
     Label if_false(this);
+    // Callers must handle the case where {lhs} and {rhs} refer to the same
+    // String object.
+    CSA_DCHECK(this, TaggedNotEqual(lhs, rhs));
     TNode<IntPtrT> rhs_length = LoadStringLengthAsWord(rhs);
     BranchIfStringEqual(lhs, lhs_length, rhs, rhs_length, if_true, &if_false,
                         nullptr);

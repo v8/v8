@@ -5761,6 +5761,7 @@ Node* EffectControlLinearizer::LowerStringEqual(Node* node) {
   auto if_length_equal = __ MakeLabel();
   auto done = __ MakeLabel(MachineRepresentation::kTagged);
 
+  __ GotoIf(__ TaggedEqual(lhs, rhs), &done, __ TrueConstant());
   __ GotoIf(__ Word32Equal(lhs_length, rhs_length), &if_length_equal);
   __ Goto(&done, __ FalseConstant());
 

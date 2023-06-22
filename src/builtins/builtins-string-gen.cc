@@ -9,6 +9,7 @@
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/builtins.h"
 #include "src/codegen/code-factory.h"
+#include "src/codegen/code-stub-assembler.h"
 #include "src/execution/protectors.h"
 #include "src/heap/factory-inl.h"
 #include "src/heap/heap-inl.h"
@@ -130,13 +131,17 @@ void StringBuiltinsAssembler::GenerateStringEqual(TNode<String> left,
   TVARIABLE(String, var_left, left);
   TVARIABLE(String, var_right, right);
   Label if_equal(this), if_notequal(this), if_indirect(this, Label::kDeferred),
-      restart(this, {&var_left, &var_right});
+      start(this, {&var_left, &var_right});
+
+  // Callers must handle the case where {lhs} and {rhs} refer to the same
+  // String object.
+  CSA_DCHECK(this, TaggedNotEqual(left, right));
 
   CSA_DCHECK(this, IntPtrEqual(LoadStringLengthAsWord(left), length));
   CSA_DCHECK(this, IntPtrEqual(LoadStringLengthAsWord(right), length));
 
-  Goto(&restart);
-  BIND(&restart);
+  Goto(&start);
+  BIND(&start);
   TNode<String> lhs = var_left.value();
   TNode<String> rhs = var_right.value();
 
@@ -148,11 +153,16 @@ void StringBuiltinsAssembler::GenerateStringEqual(TNode<String> left,
 
   BIND(&if_indirect);
   {
+    Label restart(this, {&var_left, &var_right});
     // Try to unwrap indirect strings, restart the above attempt on success.
     MaybeDerefIndirectStrings(&var_left, lhs_instance_type, &var_right,
                               rhs_instance_type, &restart);
 
     TailCallRuntime(Runtime::kStringEqual, NoContextConstant(), lhs, rhs);
+
+    BIND(&restart);
+    GotoIf(TaggedEqual(var_left.value(), var_right.value()), &if_equal);
+    Goto(&start);
   }
 
   BIND(&if_equal);
@@ -168,8 +178,10 @@ void StringBuiltinsAssembler::StringEqual_Core(
     Label* if_not_equal, Label* if_indirect) {
   CSA_DCHECK(this, WordEqual(LoadStringLengthAsWord(lhs), length));
   CSA_DCHECK(this, WordEqual(LoadStringLengthAsWord(rhs), length));
-  // Fast check to see if {lhs} and {rhs} refer to the same String object.
-  GotoIf(TaggedEqual(lhs, rhs), if_equal);
+
+  // Callers must handle the case where {lhs} and {rhs} refer to the same
+  // String object.
+  CSA_DCHECK(this, TaggedNotEqual(lhs, rhs));
 
   // Combine the instance types into a single 16-bit value, so we can check
   // both of them at once.
@@ -866,6 +878,9 @@ TF_BUILTIN(StringEqual, StringBuiltinsAssembler) {
   auto left = Parameter<String>(Descriptor::kLeft);
   auto right = Parameter<String>(Descriptor::kRight);
   auto length = UncheckedParameter<IntPtrT>(Descriptor::kLength);
+  // Callers must handle the case where {lhs} and {rhs} refer to the same
+  // String object.
+  CSA_DCHECK(this, TaggedNotEqual(left, right));
   GenerateStringEqual(left, right, length);
 }
 

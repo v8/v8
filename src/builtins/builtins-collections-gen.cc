@@ -1128,6 +1128,7 @@ void CollectionsBuiltinsAssembler::SameValueZeroString(
   GotoIf(TaggedIsSmi(candidate_key), if_not_same);
   GotoIfNot(IsString(CAST(candidate_key)), if_not_same);
 
+  GotoIf(TaggedEqual(key_string, candidate_key), if_same);
   BranchIfStringEqual(key_string, CAST(candidate_key), if_same, if_not_same);
 }
 
