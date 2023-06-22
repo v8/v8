@@ -95,3 +95,28 @@ function testTwoMemories(instance, mem0_size, mem1_size) {
   const instance = builder.instantiate({imp: {mem0: mem0, mem1: mem1}});
   testTwoMemories(instance, 2, 3);
 })();
+
+(function testTwoExportedMemories() {
+  print(arguments.callee.name);
+  const builder = new WasmModuleBuilder();
+  builder.addMemory(1, 1);
+  builder.addMemory(1, 1);
+  addLoadAndStoreFunctions(builder, 0);
+  addLoadAndStoreFunctions(builder, 1);
+  builder.exportMemoryAs('mem0', 0);
+  builder.exportMemoryAs('mem1', 1);
+
+  const instance = builder.instantiate();
+  const mem0 = new Uint8Array(instance.exports.mem0.buffer);
+  const mem1 = new Uint8Array(instance.exports.mem1.buffer);
+  assertEquals(0, mem0[11]);
+  assertEquals(0, mem1[11]);
+
+  instance.exports.store0(47, 11);
+  assertEquals(47, mem0[11]);
+  assertEquals(0, mem1[11]);
+
+  instance.exports.store1(49, 11);
+  assertEquals(47, mem0[11]);
+  assertEquals(49, mem1[11]);
+})();

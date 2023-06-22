@@ -1055,14 +1055,14 @@ class ModuleDecoderImpl : public Decoder {
           break;
         }
         case kExternalMemory: {
-          uint32_t index = consume_u32v("memory index", tracer_);
+          exp->index = consume_u32v("memory index", tracer_);
           size_t num_memories = module_->memories.size();
-          if (index >= module_->memories.size()) {
+          if (exp->index >= module_->memories.size()) {
             errorf(pos, "invalid exported memory index %u (having %zu memor%s)",
-                   index, num_memories, num_memories == 1 ? "y" : "ies");
+                   exp->index, num_memories, num_memories == 1 ? "y" : "ies");
             break;
           }
-          module_->memories[index].exported = true;
+          module_->memories[exp->index].exported = true;
           break;
         }
         case kExternalGlobal: {

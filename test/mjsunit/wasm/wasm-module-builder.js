@@ -1586,8 +1586,8 @@ class WasmModuleBuilder {
     return this.data_segments.length - 1;
   }
 
-  exportMemoryAs(name) {
-    this.exports.push({name: name, kind: kExternalMemory, index: 0});
+  exportMemoryAs(name, memory_index = 0) {
+    this.exports.push({name: name, kind: kExternalMemory, index: memory_index});
   }
 
   // {offset} is a constant expression.
