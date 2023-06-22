@@ -58,7 +58,12 @@ class OptimizingCompileDispatcher::CompileTask : public v8::JobTask {
   }
 
   size_t GetMaxConcurrency(size_t worker_count) const override {
-    return dispatcher_->InputQueueLength() + worker_count;
+    size_t num_tasks = dispatcher_->InputQueueLength() + worker_count;
+    size_t max_threads = v8_flags.concurrent_turbofan_max_threads;
+    if (max_threads > 0) {
+      return std::min(max_threads, num_tasks);
+    }
+    return num_tasks;
   }
 
  private:

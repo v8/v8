@@ -492,7 +492,7 @@ DEFINE_WEAK_IMPLICATION(maglev_future, maglev_inlining)
 DEFINE_WEAK_IMPLICATION(maglev_future, maglev_loop_peeling)
 
 DEFINE_UINT(
-    concurrent_maglev_max_threads, 0,
+    concurrent_maglev_max_threads, 1,
     "max number of threads that concurrent Maglev can use (0 for unbounded)")
 DEFINE_BOOL(concurrent_maglev_high_priority_threads, false,
             "use high priority compiler threads for concurrent Maglev")
@@ -902,6 +902,9 @@ DEFINE_INT(concurrent_recompilation_queue_length, 8,
            "the length of the concurrent compilation queue")
 DEFINE_INT(concurrent_recompilation_delay, 0,
            "artificial compilation delay in ms")
+DEFINE_UINT(
+    concurrent_turbofan_max_threads, 0,
+    "max number of threads that concurrent Turbofan can use (0 for unbounded)")
 DEFINE_BOOL(
     stress_concurrent_inlining, false,
     "create additional concurrent optimization jobs but throw away result")
