@@ -382,6 +382,12 @@ class Local : public LocalBase<T> {
     return Local<T>(LocalBase<T>::FromSlot(slot));
   }
 
+#ifdef V8_ENABLE_DIRECT_LOCAL
+  V8_INLINE static Local<T> FromAddress(internal::Address ptr) {
+    return Local<T>(LocalBase<T>(ptr));
+  }
+#endif  // V8_ENABLE_DIRECT_LOCAL
+
   V8_INLINE static Local<T> New(Isolate* isolate, internal::Address value) {
     return Local<T>(LocalBase<T>::New(isolate, value));
   }

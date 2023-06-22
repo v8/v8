@@ -59,6 +59,19 @@ inline Local<To> Utils::Convert(v8::internal::Handle<From> obj) {
   return Local<To>::FromSlot(obj.location());
 }
 
+template <class From, class To>
+inline Local<To> Utils::Convert(v8::internal::DirectHandle<From> obj,
+                                v8::internal::Isolate* isolate) {
+#if defined(V8_ENABLE_DIRECT_LOCAL)
+  DCHECK(obj.is_null() || (obj->IsSmi() || !obj->IsTheHole()));
+  return Local<To>::FromAddress(obj.address());
+#elif defined(V8_ENABLE_CONSERVATIVE_STACK_SCANNING)
+  return Utils::Convert<From, To>(v8::internal::Handle<From>(*obj, isolate));
+#else
+  return Utils::Convert<From, To>(obj);
+#endif
+}
+
 // Implementations of ToLocal
 
 #define MAKE_TO_LOCAL(Name, From, To)                                       \
@@ -66,7 +79,15 @@ inline Local<To> Utils::Convert(v8::internal::Handle<From> obj) {
     return Convert<v8::internal::From, v8::To>(obj);                        \
   }
 
+#define MAKE_TO_LOCAL_DIRECT_HANDLE(Name, From, To)           \
+  Local<v8::To> Utils::Name(                                  \
+      v8::internal::DirectHandle<v8::internal::From> obj,     \
+      i::Isolate* isolate) {                                  \
+    return Convert<v8::internal::From, v8::To>(obj, isolate); \
+  }
+
 TO_LOCAL_LIST(MAKE_TO_LOCAL)
+TO_LOCAL_LIST(MAKE_TO_LOCAL_DIRECT_HANDLE)
 
 #define MAKE_TO_LOCAL_TYPED_ARRAY(Type, typeName, TYPE, ctype)        \
   Local<v8::Type##Array> Utils::ToLocal##Type##Array(                 \
@@ -79,6 +100,7 @@ TYPED_ARRAYS(MAKE_TO_LOCAL_TYPED_ARRAY)
 
 #undef MAKE_TO_LOCAL_TYPED_ARRAY
 #undef MAKE_TO_LOCAL
+#undef MAKE_TO_LOCAL_DIRECT_HANDLE
 #undef TO_LOCAL_LIST
 
 // Implementations of OpenHandle

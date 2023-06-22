@@ -201,7 +201,13 @@ class Utils {
   static inline Local<v8::To> Name(      \
       v8::internal::Handle<v8::internal::From> obj);
 
+#define DECLARE_TO_LOCAL_DIRECT_HANDLE(Name, From, To)    \
+  static inline Local<v8::To> Name(                       \
+      v8::internal::DirectHandle<v8::internal::From> obj, \
+      i::Isolate* isolate);
+
   TO_LOCAL_LIST(DECLARE_TO_LOCAL)
+  TO_LOCAL_LIST(DECLARE_TO_LOCAL_DIRECT_HANDLE)
 
 #define DECLARE_TO_LOCAL_TYPED_ARRAY(Type, typeName, TYPE, ctype) \
   static inline Local<v8::Type##Array> ToLocal##Type##Array(      \
@@ -224,9 +230,14 @@ class Utils {
 #undef DECLARE_OPEN_DIRECT_HANDLE
 #undef DECLARE_TO_LOCAL_TYPED_ARRAY
 #undef DECLARE_TO_LOCAL
+#undef DECLARE_TO_LOCAL_DIRECT_HANDLE
 
   template <class From, class To>
   static inline Local<To> Convert(v8::internal::Handle<From> obj);
+
+  template <class From, class To>
+  static inline Local<To> Convert(v8::internal::DirectHandle<From> obj,
+                                  v8::internal::Isolate* isolate);
 
   template <class T>
   static inline v8::internal::Handle<v8::internal::Object> OpenPersistent(

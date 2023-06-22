@@ -16,7 +16,19 @@ TEST_F(DirectHandlesTest, CreateDirectHandleFromLocal) {
   i::DirectHandle<i::String> direct = Utils::OpenDirectHandle(*foo);
   i::Handle<i::String> handle = Utils::OpenHandle(*foo);
 
-  CHECK_EQ(*direct, *handle);
+  EXPECT_EQ(*direct, *handle);
+}
+
+TEST_F(DirectHandlesTest, CreateLocalFromDirectHandle) {
+  HandleScope scope(isolate());
+  i::Handle<i::String> handle =
+      i_isolate()->factory()->NewStringFromAsciiChecked("foo");
+  i::DirectHandle<i::String> direct = handle;
+
+  Local<String> l1 = Utils::ToLocal(direct, i_isolate());
+  Local<String> l2 = Utils::ToLocal(handle);
+
+  EXPECT_EQ(l1, l2);
 }
 
 }  // namespace
