@@ -502,44 +502,6 @@ inline bool NodeTypeIs(NodeType type, NodeType to_check) {
   return (static_cast<int>(type) & right) == right;
 }
 
-inline bool IsInstanceOfNodeType(compiler::MapRef map, NodeType type,
-                                 compiler::JSHeapBroker* broker) {
-  switch (type) {
-    case NodeType::kUnknown:
-      return true;
-    case NodeType::kNumberOrOddball:
-      return map.IsHeapNumberMap() || map.IsOddballMap();
-    case NodeType::kSmi:
-      return false;
-    case NodeType::kNumber:
-    case NodeType::kHeapNumber:
-      return map.IsHeapNumberMap();
-    case NodeType::kObjectWithKnownMap:
-    case NodeType::kAnyHeapObject:
-    case NodeType::kHeapObjectWithKnownMap:
-      return true;
-    case NodeType::kOddball:
-      return map.IsOddballMap();
-    case NodeType::kBoolean:
-      return map.IsOddballMap() &&
-             map.oddball_type(broker) == compiler::OddballType::kBoolean;
-    case NodeType::kName:
-      return map.IsNameMap();
-    case NodeType::kString:
-      return map.IsStringMap();
-    case NodeType::kInternalizedString:
-      return map.IsInternalizedStringMap();
-    case NodeType::kSymbol:
-      return map.IsSymbolMap();
-    case NodeType::kJSReceiver:
-    case NodeType::kJSReceiverWithKnownMap:
-      return map.IsJSReceiverMap();
-    case NodeType::kCallable:
-      return map.is_callable();
-  }
-  UNREACHABLE();
-}
-
 #define DEFINE_NODE_TYPE_CHECK(Type, _)         \
   inline bool NodeTypeIs##Type(NodeType type) { \
     return NodeTypeIs(type, NodeType::k##Type); \
