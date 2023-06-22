@@ -232,6 +232,10 @@ class Tagged<Object> : public TaggedBase {
     return Tagged<Object>(other);
   }
 
+  // Tagged<Object> doesn't provide a default constructor on purpose.
+  // It depends on the use case if default initializing with Smi::Zero() or a
+  // tagged null makes more sense.
+
   // Allow Tagged<Object> to be created from any address.
   constexpr explicit Tagged(Address o) : TaggedBase(o) {}
 
@@ -247,7 +251,7 @@ class Tagged<Object> : public TaggedBase {
   // TODO(leszeks): Tagged<Object> is not known to be a pointer, so it shouldn't
   // have an operator* or operator->. Remove once all Object member functions
   // are free/static functions.
-  constexpr Object operator*() { return ToRawPtr(); }
+  constexpr Object operator*() const { return ToRawPtr(); }
   constexpr detail::TaggedOperatorArrowRef<Object> operator->() {
     return detail::TaggedOperatorArrowRef<Object>{ToRawPtr()};
   }
@@ -327,7 +331,7 @@ class Tagged<Smi> : public TaggedBase {
   }
 
   // Access via ->, remove once Smi doesn't have its own address.
-  constexpr Smi operator*() { return Smi(ptr_); }
+  constexpr Smi operator*() const { return Smi(ptr_); }
   constexpr detail::TaggedOperatorArrowRef<Smi> operator->() {
     return detail::TaggedOperatorArrowRef<Smi>(Smi(ptr_));
   }
