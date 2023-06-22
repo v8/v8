@@ -24,6 +24,10 @@ proposal_flags = [
         'name': 'extended-const',
         'flags': ['--experimental-wasm-extended-const', '--wasm-staging']
     },
+    {
+        'name': 'multi-memory',
+        'flags': ['--experimental-wasm-multi-memory', '--wasm-staging']
+    },
 ]
 
 

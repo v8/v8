@@ -38,21 +38,15 @@
   # TODO(13918): Implement multi-memory in V8.
   'proposals/multi-memory/address0': [FAIL],
   'proposals/multi-memory/address1': [FAIL],
-  'proposals/multi-memory/align0': [FAIL],
   'proposals/multi-memory/binary0': [FAIL],
   'proposals/multi-memory/data0': [FAIL],
   'proposals/multi-memory/data1': [FAIL],
   'proposals/multi-memory/data_drop0': [FAIL],
-  'proposals/multi-memory/exports0': [FAIL],
-  'proposals/multi-memory/float_exprs0': [FAIL],
   'proposals/multi-memory/float_exprs1': [FAIL],
   'proposals/multi-memory/float_memory0': [FAIL],
-  'proposals/multi-memory/imports0': [FAIL],
   'proposals/multi-memory/imports1': [FAIL],
   'proposals/multi-memory/imports2': [FAIL],
-  'proposals/multi-memory/imports3': [FAIL],
   'proposals/multi-memory/imports4': [FAIL],
-  'proposals/multi-memory/linking0': [FAIL],
   'proposals/multi-memory/linking1': [FAIL],
   'proposals/multi-memory/linking2': [FAIL],
   'proposals/multi-memory/linking3': [FAIL],
@@ -65,18 +59,13 @@
   'proposals/multi-memory/memory_grow': [FAIL],
   'proposals/multi-memory/memory_init0': [FAIL],
   'proposals/multi-memory/memory-multi': [FAIL],
-  'proposals/multi-memory/memory_size0': [FAIL],
   'proposals/multi-memory/memory_size1': [FAIL],
   'proposals/multi-memory/memory_size2': [FAIL],
   'proposals/multi-memory/memory_size': [FAIL],
   'proposals/multi-memory/memory_trap0': [FAIL],
   'proposals/multi-memory/memory_trap1': [FAIL],
-  'proposals/multi-memory/simd_memory-multi': [FAIL],
   'proposals/multi-memory/start0': [FAIL],
-  'proposals/multi-memory/store0': [FAIL],
-  'proposals/multi-memory/store1': [FAIL],
   'proposals/multi-memory/store': [FAIL],
-  'proposals/multi-memory/traps0': [FAIL],
 
   # These tests need to be rebased to include
   # https://github.com/WebAssembly/spec/pull/1649 and
@@ -85,6 +74,8 @@
   'proposals/extended-const/binary-leb128': [FAIL],
   'proposals/js-types/binary-leb128': [FAIL],
   'proposals/js-types/binary': [FAIL],
+  'proposals/multi-memory/binary-leb128': [FAIL],
+  'proposals/multi-memory/binary': [FAIL],
   'proposals/tail-call/binary': [FAIL],
   'proposals/tail-call/binary-leb128': [FAIL],
 }],  # ALWAYS
@@ -209,8 +200,9 @@
 ['no_simd_hardware == True', {
   'linking': [SKIP],
   'simd*': [SKIP],
-  'proposals/tail-call/simd_lane': [SKIP],
   'proposals/js-types/linking': [SKIP],
+  'proposals/multi-memory/simd_memory-multi': [SKIP],
+  'proposals/tail-call/simd_lane': [SKIP],
 }],  # no_simd_hardware == True
 
 ##############################################################################
