@@ -2329,22 +2329,15 @@ void InstanceBuilder::ProcessExports(Handle<WasmInstanceObject> instance) {
         UNREACHABLE();
     }
 
-    v8::Maybe<bool> status = JSReceiver::DefineOwnProperty(
-        isolate_, export_to, name, &desc, Just(kThrowOnError));
-    if (!status.IsJust()) {
-      DisallowGarbageCollection no_gc;
-      TruncatedUserString<> trunc_name(name->GetCharVector<uint8_t>(no_gc));
-      thrower_->LinkError("export of %.*s failed.", trunc_name.length(),
-                          trunc_name.start());
-      return;
-    }
+    CHECK(JSReceiver::DefineOwnProperty(isolate_, export_to, name, &desc,
+                                        Just(kThrowOnError))
+              .FromMaybe(false));
   }
 
   if (module_->origin == kWasmOrigin) {
-    v8::Maybe<bool> success = JSReceiver::SetIntegrityLevel(
-        isolate_, exports_object, FROZEN, kDontThrow);
-    DCHECK(success.FromMaybe(false));
-    USE(success);
+    CHECK(JSReceiver::SetIntegrityLevel(isolate_, exports_object, FROZEN,
+                                        kDontThrow)
+              .FromMaybe(false));
   }
 }
 
