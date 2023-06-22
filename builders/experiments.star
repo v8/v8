@@ -202,7 +202,7 @@ in_category(
         name = "V8 iOS - sim - builder",
         triggered_by = ["v8-trigger"],
         dimensions = {"os": "Mac", "cpu": "x86-64"},
-        properties = {"$depot_tools/osx_sdk": {"sdk_version": "12d4e"}, "target_platform": "ios"},
+        properties = {"$depot_tools/osx_sdk": {"sdk_version": "14c18"}, "target_platform": "ios"},
         caches = [
             swarming.cache(
                 path = "osx_sdk",
