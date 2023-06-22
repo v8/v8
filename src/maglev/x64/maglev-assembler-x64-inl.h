@@ -603,9 +603,16 @@ inline void MaglevAssembler::CompareObjectType(Register heap_object,
 inline void MaglevAssembler::CompareObjectTypeRange(Register heap_object,
                                                     InstanceType lower_limit,
                                                     InstanceType higher_limit) {
-  LoadMap(kScratchRegister, heap_object);
-  CmpInstanceTypeRange(kScratchRegister, kScratchRegister, lower_limit,
-                       higher_limit);
+  CompareObjectTypeRange(heap_object, kScratchRegister, lower_limit,
+                         higher_limit);
+}
+
+inline void MaglevAssembler::CompareObjectTypeRange(Register heap_object,
+                                                    Register scratch,
+                                                    InstanceType lower_limit,
+                                                    InstanceType higher_limit) {
+  LoadMap(scratch, heap_object);
+  CmpInstanceTypeRange(scratch, scratch, lower_limit, higher_limit);
 }
 
 inline void MaglevAssembler::CompareMapWithRoot(Register object,

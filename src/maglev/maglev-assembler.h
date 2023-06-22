@@ -335,6 +335,9 @@ class MaglevAssembler : public MacroAssembler {
   inline void CompareObjectTypeRange(Register heap_object,
                                      InstanceType lower_limit,
                                      InstanceType higher_limit);
+  inline void CompareObjectTypeRange(Register heap_object, Register scratch,
+                                     InstanceType lower_limit,
+                                     InstanceType higher_limit);
 
   inline void CompareMapWithRoot(Register object, RootIndex index,
                                  Register scratch);

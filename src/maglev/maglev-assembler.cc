@@ -309,7 +309,8 @@ void MaglevAssembler::TestTypeOf(
     }
     case LiteralFlag::kString: {
       JumpIfSmi(object, is_false, false_distance);
-      CompareObjectTypeRange(object, FIRST_STRING_TYPE, LAST_STRING_TYPE);
+      CompareObjectTypeRange(object, scratch, FIRST_STRING_TYPE,
+                             LAST_STRING_TYPE);
       Branch(kLessThanEqual, is_true, true_distance, fallthrough_when_true,
              is_false, false_distance, fallthrough_when_false);
       return;
