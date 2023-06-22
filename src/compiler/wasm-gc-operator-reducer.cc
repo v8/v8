@@ -340,11 +340,14 @@ Reduction WasmGCOperatorReducer::ReduceCheckNull(Node* node) {
 Reduction WasmGCOperatorReducer::ReduceWasmExternInternalize(Node* node) {
   DCHECK_EQ(node->opcode(), IrOpcode::kWasmExternInternalize);
   // Remove redundant extern.internalize(extern.externalize(...)) pattern.
-  Node* object = NodeProperties::GetValueInput(node, 0);
-  if (object->opcode() == IrOpcode::kDead) return NoChange();
-  if (object->opcode() == IrOpcode::kWasmExternExternalize) {
-    Node* externalize = node->InputAt(0);
-    Node* input = externalize->InputAt(0);
+  Node* input = NodeProperties::GetValueInput(node, 0);
+  while (input->opcode() == IrOpcode::kTypeGuard) {
+    input = NodeProperties::GetValueInput(input, 0);
+  }
+  if (input->opcode() == IrOpcode::kDead) return NoChange();
+  if (input->opcode() == IrOpcode::kWasmExternExternalize) {
+    // "Skip" the extern.externalize which doesn't have an effect on the value.
+    input = NodeProperties::GetValueInput(input, 0);
     ReplaceWithValue(node, input);
     node->Kill();
     return Replace(input);

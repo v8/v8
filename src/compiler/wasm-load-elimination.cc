@@ -103,7 +103,12 @@ std::tuple<Node*, Node*> WasmLoadElimination::TruncateAndExtendOrType(
     return {value, effect};
   }
 
-  wasm::TypeInModule node_type = NodeProperties::GetType(value).AsWasm();
+  Type value_type = NodeProperties::GetType(value);
+  if (!value_type.IsWasm()) {
+    return {value, effect};
+  }
+
+  wasm::TypeInModule node_type = value_type.AsWasm();
 
   // TODO(12166): Adapt this if cross-module inlining is allowed.
   if (!wasm::IsSubtypeOf(node_type.type, field_type, node_type.module)) {

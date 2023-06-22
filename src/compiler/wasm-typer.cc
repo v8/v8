@@ -46,14 +46,17 @@ Reduction WasmTyper::Reduce(Node* node) {
   switch (node->opcode()) {
     case IrOpcode::kTypeGuard: {
       if (!AllInputsTyped(node)) return NoChange();
-      TypeInModule guarded_type = TypeGuardTypeOf(node->op()).AsWasm();
-      TypeInModule input_type =
-          NodeProperties::GetType(NodeProperties::GetValueInput(node, 0))
-              .AsWasm();
+      Type guarded_type = TypeGuardTypeOf(node->op());
+      if (!guarded_type.IsWasm()) return NoChange();
+      Type input_type =
+          NodeProperties::GetType(NodeProperties::GetValueInput(node, 0));
+      if (!input_type.IsWasm()) return NoChange();
+      TypeInModule guarded_wasm_type = guarded_type.AsWasm();
+      TypeInModule input_wasm_type = input_type.AsWasm();
       // Note: The intersection type might be bottom. In this case, we are in a
       // dead branch: Type this node as bottom and wait for the
       // WasmGCOperatorReducer to remove it.
-      computed_type = wasm::Intersection(guarded_type, input_type);
+      computed_type = wasm::Intersection(guarded_wasm_type, input_wasm_type);
       break;
     }
     case IrOpcode::kWasmTypeCast:
@@ -85,18 +88,20 @@ Reduction WasmTyper::Reduce(Node* node) {
         // For a loop phi, we can forward the non-recursive-input type. We can
         // recompute the type when the rest of the inputs' types are computed.
         Node* non_recursive_input = NodeProperties::GetValueInput(node, 0);
-        if (!NodeProperties::IsTyped(non_recursive_input)) return NoChange();
+        if (!NodeProperties::IsTyped(non_recursive_input) ||
+            !NodeProperties::GetType(non_recursive_input).IsWasm()) {
+          return NoChange();
+        }
         computed_type = NodeProperties::GetType(non_recursive_input).AsWasm();
         TRACE("function: %d, loop phi node: %d, type: %s\n", function_index_,
               node->id(), computed_type.type.name().c_str());
         break;
       }
 
-      computed_type = {
-          wasm::kWasmBottom,
-          NodeProperties::GetType(NodeProperties::GetValueInput(node, 0))
-              .AsWasm()
-              .module};
+      Type input_type =
+          NodeProperties::GetType(NodeProperties::GetValueInput(node, 0));
+      if (!input_type.IsWasm()) return NoChange();
+      computed_type = {wasm::kWasmBottom, input_type.AsWasm().module};
       for (int i = 0; i < node->op()->ValueInputCount(); i++) {
         Node* input = NodeProperties::GetValueInput(node, i);
         TypeInModule input_type = NodeProperties::GetType(input).AsWasm();
@@ -181,7 +186,7 @@ Reduction WasmTyper::Reduce(Node* node) {
       return NoChange();
   }
 
-  if (NodeProperties::IsTyped(node)) {
+  if (NodeProperties::IsTyped(node) && NodeProperties::GetType(node).IsWasm()) {
     TypeInModule current_type = NodeProperties::GetType(node).AsWasm();
     if (!(current_type.type.is_bottom() || computed_type.type.is_bottom() ||
           wasm::IsSubtypeOf(current_type.type, computed_type.type,

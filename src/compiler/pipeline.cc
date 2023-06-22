@@ -2168,10 +2168,11 @@ struct WasmTypingPhase {
   DECL_PIPELINE_PHASE_CONSTANTS(WasmTyping)
 
   void Run(PipelineData* data, Zone* temp_zone, uint32_t function_index) {
+    MachineGraph* mcgraph = data->mcgraph() ? data->mcgraph() : data->jsgraph();
     GraphReducer graph_reducer(
         temp_zone, data->graph(), &data->info()->tick_counter(), data->broker(),
         data->jsgraph()->Dead(), data->observe_node_manager());
-    WasmTyper typer(&graph_reducer, data->mcgraph(), function_index);
+    WasmTyper typer(&graph_reducer, mcgraph, function_index);
     AddReducer(data, &graph_reducer, &typer);
     graph_reducer.ReduceGraph();
   }
@@ -2981,9 +2982,8 @@ bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
     RunPrintAndVerify(JSWasmInliningPhase::phase_name(), true);
     if (v8_flags.experimental_wasm_js_inlining &&
         v8_flags.experimental_wasm_gc) {
-      // TODO(mliedtke): For even better optimizations we should run the
-      // WasmTypingPhase here. However, at its current state it expects all
-      // input nodes of a wasm operation to be wasm nodes as well.
+      Run<WasmTypingPhase>(-1);
+      RunPrintAndVerify(WasmTypingPhase::phase_name(), true);
       if (v8_flags.wasm_opt) {
         Run<WasmGCOptimizationPhase>(data->wasm_module_for_inlining(),
                                      data->jsgraph());

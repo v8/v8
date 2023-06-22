@@ -69,8 +69,16 @@ class WasmIntoJSInlinerImpl : private wasm::Decoder {
     DCHECK_GE(index, kMinParameterIndex);
     int array_index = index - kMinParameterIndex;
     if (parameters_[array_index] == nullptr) {
-      parameters_[array_index] = graph_->NewNode(
+      Node* param = graph_->NewNode(
           mcgraph_->common()->Parameter(index, debug_name), graph_->start());
+      if (index > wasm::kWasmInstanceParameterIndex) {
+        // Add a type guard to keep type information based on the inlinee's
+        // signature.
+        wasm::ValueType type = body_.sig->GetParam(index - 1);
+        Type tf_type = compiler::Type::Wasm(type, module_, graph_->zone());
+        param = gasm_.TypeGuard(tf_type, param);
+      }
+      parameters_[array_index] = param;
     }
     return parameters_[array_index];
   }
