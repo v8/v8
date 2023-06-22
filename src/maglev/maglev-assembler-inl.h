@@ -631,12 +631,20 @@ inline void MaglevAssembler::CallBuiltin(Args&&... args) {
 
 inline void MaglevAssembler::CallRuntime(Runtime::FunctionId fid) {
   DCHECK(allow_call());
+  // Temporaries have to be reset before calling CallRuntime, in case it uses
+  // temporaries that alias register parameters.
+  ScratchRegisterScope reset_temps(this);
+  reset_temps.ResetToDefault();
   MacroAssembler::CallRuntime(fid);
 }
 
 inline void MaglevAssembler::CallRuntime(Runtime::FunctionId fid,
                                          int num_args) {
   DCHECK(allow_call());
+  // Temporaries have to be reset before calling CallRuntime, in case it uses
+  // temporaries that alias register parameters.
+  ScratchRegisterScope reset_temps(this);
+  reset_temps.ResetToDefault();
   MacroAssembler::CallRuntime(fid, num_args);
 }
 
