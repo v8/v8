@@ -42,6 +42,7 @@ ASSERT_TRIVIALLY_COPYABLE(MaybeDirectHandle<Object>);
 #endif  // V8_ENABLE_CONSERVATIVE_STACK_SCANNING
 
 #ifdef DEBUG
+
 bool HandleBase::IsDereferenceAllowed() const {
   DCHECK_NOT_NULL(location_);
   Object object(*location_);

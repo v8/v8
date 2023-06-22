@@ -88,6 +88,8 @@ class HandleHelper final {
     if (rhs.IsEmpty()) return false;
     return lhs.ptr() == rhs.ptr();
   }
+
+  static V8_EXPORT void VerifyOnStack(const void* ptr);
 };
 
 }  // namespace internal

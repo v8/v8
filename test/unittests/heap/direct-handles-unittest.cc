@@ -2,10 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/heap/heap.h"
+#include "src/heap/local-heap.h"
+#include "src/heap/parked-scope-inl.h"
+#include "test/unittests/heap/heap-utils.h"
 #include "test/unittests/test-utils.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
 namespace v8 {
-namespace {
 
 using DirectHandlesTest = TestWithIsolate;
 
@@ -31,5 +35,109 @@ TEST_F(DirectHandlesTest, CreateLocalFromDirectHandle) {
   EXPECT_EQ(l1, l2);
 }
 
-}  // namespace
+// Tests to check DirectHandle usage.
+// Such usage violations are only detected in debug builds and with the
+// compile-time flag for conservative stack scanning.
+
+#if defined(DEBUG) && defined(V8_ENABLE_CONSERVATIVE_STACK_SCANNING)
+
+namespace {
+template <typename Callback>
+void CheckDirectHandleUsage(Callback callback) {
+  EXPECT_DEATH_IF_SUPPORTED(callback(), "");
+}
+}  // anonymous namespace
+
+TEST_F(DirectHandlesTest, DirectHandleOutOfStackFails) {
+  // Out-of-stack allocation of direct handles should fail.
+  CheckDirectHandleUsage([]() {
+    auto ptr = std::make_unique<i::DirectHandle<i::String>>();
+    USE(ptr);
+  });
+}
+
+namespace {
+class BackgroundThread final : public v8::base::Thread {
+ public:
+  explicit BackgroundThread(i::Heap* heap)
+      : v8::base::Thread(base::Thread::Options("BackgroundThread")),
+        heap_(heap) {}
+
+  void Run() override {
+    i::LocalHeap lh(heap_, i::ThreadKind::kBackground);
+    // Usage of direct handles in background threads should fail.
+    CheckDirectHandleUsage([]() {
+      i::DirectHandle<i::String> direct;
+      USE(direct);
+    });
+  }
+
+  i::Heap* heap_;
+};
+}  // anonymous namespace
+
+TEST_F(DirectHandlesTest, DirectHandleInBackgroundThreadFails) {
+  i::Heap* heap = i_isolate()->heap();
+  i::LocalHeap lh(heap, i::ThreadKind::kMain);
+  lh.SetUpMainThreadForTesting();
+  auto thread = std::make_unique<BackgroundThread>(heap);
+  CHECK(thread->Start());
+  thread->Join();
+}
+
+#if V8_CAN_CREATE_SHARED_HEAP_BOOL
+
+using DirectHandlesSharedTest = i::TestJSSharedMemoryWithIsolate;
+
+namespace {
+class ClientThread final : public i::ParkingThread {
+ public:
+  ClientThread() : ParkingThread(base::Thread::Options("ClientThread")) {}
+
+  void Run() override {
+    IsolateWrapper isolate_wrapper(kNoCounters);
+    // Direct handles can be used in the main thread of client isolates.
+    i::DirectHandle<i::String> direct;
+    USE(direct);
+  }
+};
+}  // anonymous namespace
+
+TEST_F(DirectHandlesSharedTest, DirectHandleInClient) {
+  auto thread = std::make_unique<ClientThread>();
+  CHECK(thread->Start());
+  thread->ParkedJoin(i_isolate()->main_thread_local_isolate());
+}
+
+namespace {
+class ClientMainThread final : public i::ParkingThread {
+ public:
+  ClientMainThread()
+      : ParkingThread(base::Thread::Options("ClientMainThread")) {}
+
+  void Run() override {
+    IsolateWrapper isolate_wrapper(kNoCounters);
+    Isolate* client_isolate = isolate_wrapper.isolate();
+    i::Isolate* i_client_isolate =
+        reinterpret_cast<i::Isolate*>(client_isolate);
+
+    i::Heap* heap = i_client_isolate->heap();
+    i::LocalHeap lh(heap, i::ThreadKind::kMain);
+    lh.SetUpMainThreadForTesting();
+    auto thread = std::make_unique<BackgroundThread>(heap);
+    CHECK(thread->Start());
+    thread->Join();
+  }
+};
+}  // anonymous namespace
+
+TEST_F(DirectHandlesSharedTest, DirectHandleInClientBackgroundThreadFails) {
+  auto thread = std::make_unique<ClientMainThread>();
+  CHECK(thread->Start());
+  thread->ParkedJoin(i_isolate()->main_thread_local_isolate());
+}
+
+#endif  // V8_CAN_CREATE_SHARED_HEAP_BOOL
+#endif  // defined(DEBUG) && defined(V8_ENABLE_CONSERVATIVE_STACK_SCANNING)
+
 }  // namespace v8

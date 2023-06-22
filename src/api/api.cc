@@ -958,6 +958,12 @@ void DisposeTracedReference(internal::Address* location) {
   TracedHandles::Destroy(location);
 }
 
+// static
+void v8::internal::HandleHelper::VerifyOnStack(const void* ptr) {
+  DCHECK_LE(v8::base::Stack::GetCurrentStackPosition(), ptr);
+  DCHECK_GE(v8::base::Stack::GetStackStart(), ptr);
+}
+
 #if V8_STATIC_ROOTS_BOOL
 
 // Initialize static root constants exposed in v8-internal.h.

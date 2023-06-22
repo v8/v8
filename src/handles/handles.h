@@ -319,7 +319,7 @@ static_assert(HandleScopeData::kSizeInBytes == sizeof(HandleScopeData));
 template <typename T>
 class DirectHandle final {
  public:
-  V8_INLINE explicit DirectHandle() : obj_(kTaggedNullAddress) {
+  V8_INLINE explicit DirectHandle() : DirectHandle(kTaggedNullAddress) {
     // Skip static type check in order to allow DirectHandle<XXX>::null() as
     // default parameter values in non-inl header files without requiring full
     // definition of type XXX.
@@ -328,6 +328,9 @@ class DirectHandle final {
   V8_INLINE bool is_null() const { return obj_ == kTaggedNullAddress; }
 
   V8_INLINE explicit DirectHandle(Address object) : obj_(object) {
+#ifdef DEBUG
+    VerifyOnStackAndMainThread();
+#endif
     // This static type check also fails for forward class declarations.
     static_assert(std::is_convertible<T*, Object*>::value,
                   "static type violation");
@@ -342,7 +345,7 @@ class DirectHandle final {
       : DirectHandle(object) {}
 
   V8_INLINE explicit DirectHandle(Address* address)
-      : obj_(address == nullptr ? kTaggedNullAddress : *address) {}
+      : DirectHandle(address == nullptr ? kTaggedNullAddress : *address) {}
 
   V8_INLINE static DirectHandle<T> New(Tagged<T> object, Isolate* isolate) {
     return DirectHandle<T>(object);
@@ -353,13 +356,13 @@ class DirectHandle final {
   // expected.
   template <typename S, typename = typename std::enable_if<
                             std::is_convertible<S*, T*>::value>::type>
-  V8_INLINE DirectHandle(DirectHandle<S> handle) : obj_(handle.obj_) {}
+  V8_INLINE DirectHandle(DirectHandle<S> handle) : DirectHandle(handle.obj_) {}
 
   template <typename S, typename = typename std::enable_if<
                             std::is_convertible<S*, T*>::value>::type>
   V8_INLINE DirectHandle(Handle<S> handle)
-      : obj_(handle.location() != nullptr ? *handle.location()
-                                          : kTaggedNullAddress) {}
+      : DirectHandle(handle.location() != nullptr ? *handle.location()
+                                                  : kTaggedNullAddress) {}
 
   V8_INLINE Tagged<T> operator->() const { return **this; }
 
@@ -398,6 +401,10 @@ class DirectHandle final {
   V8_INLINE
   bool V8_EXPORT_PRIVATE IsDereferenceAllowed() const { return true; }
 #endif  // DEBUG
+
+#ifdef DEBUG
+  V8_EXPORT_PRIVATE void VerifyOnStackAndMainThread() const;
+#endif
 
   // This is a direct pointer to either a tagged object or SMI. Design overview:
   // https://docs.google.com/document/d/1uRGYQM76vk1fc_aDqDH3pm2qhaJtnK2oyzeVng4cS6I/

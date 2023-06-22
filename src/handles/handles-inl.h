@@ -107,7 +107,7 @@ inline std::ostream& operator<<(std::ostream& os, Handle<T> handle) {
 
 template <typename T>
 V8_INLINE DirectHandle<T>::DirectHandle(Tagged<T> object)
-    : obj_(object.ptr()) {}
+    : DirectHandle(object.ptr()) {}
 
 template <typename T>
 template <typename S>
@@ -279,6 +279,14 @@ bool DirectHandle<T>::IsDereferenceAllowed() const {
   DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
 
   return true;
+}
+
+template <typename T>
+void DirectHandle<T>::VerifyOnStackAndMainThread() const {
+  internal::HandleHelper::VerifyOnStack(this);
+  // The following verifies that we are on the main thread, as
+  // LocalHeap::Current is not set in that case.
+  DCHECK_NULL(LocalHeap::Current());
 }
 
 #endif  // V8_ENABLE_CONSERVATIVE_STACK_SCANNING
