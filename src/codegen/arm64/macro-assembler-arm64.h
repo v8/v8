@@ -967,6 +967,11 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void CheckPageFlag(const Register& object, int mask, Condition cc,
                      Label* condition_met);
 
+  void CheckPageFlag(const Register& object, Register scratch, int mask,
+                     Condition cc, Label* condition_met) {
+    CheckPageFlag(object, mask, cc, condition_met);
+  }
+
   // Compare a register with an operand, and branch to label depending on the
   // condition. May corrupt the status flags.
   inline void CompareAndBranch(const Register& lhs, const Operand& rhs,

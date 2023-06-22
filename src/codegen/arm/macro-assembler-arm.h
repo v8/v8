@@ -384,6 +384,10 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   void CheckPageFlag(Register object, int mask, Condition cc,
                      Label* condition_met);
+  void CheckPageFlag(Register object, Register scratch, int mask, Condition cc,
+                     Label* condition_met) {
+    CheckPageFlag(object, mask, cc, condition_met);
+  }
 
   // Check whether d16-d31 are available on the CPU. The result is given by the
   // Z condition flag: Z==0 if d16-d31 available, Z==1 otherwise.

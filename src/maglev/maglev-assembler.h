@@ -172,8 +172,27 @@ class MaglevAssembler : public MacroAssembler {
     DecodeField<BitField>(result);
   }
 
+  enum StoreMode { kField, kElement };
   enum ValueIsCompressed { kValueIsDecompressed, kValueIsCompressed };
   enum ValueCanBeSmi { kValueCannotBeSmi, kValueCanBeSmi };
+
+  inline void SetSlotAddressForTaggedField(Register slot_reg, Register object,
+                                           int offset);
+  inline void SetSlotAddressForFixedArrayElement(Register slot_reg,
+                                                 Register object,
+                                                 Register index);
+
+  template <StoreMode store_mode>
+  using OffsetTypeFor = std::conditional_t<store_mode == kField, int, Register>;
+
+  template <StoreMode store_mode>
+  void CheckAndEmitDeferredWriteBarrier(Register object,
+                                        OffsetTypeFor<store_mode> offset,
+                                        Register value,
+                                        RegisterSnapshot register_snapshot,
+                                        ValueIsCompressed value_is_compressed,
+                                        ValueCanBeSmi value_can_be_smi);
+
   // Preserves all registers that are in the register snapshot, but is otherwise
   // allowed to clobber both input registers if they are not in the snapshot.
   //
@@ -434,8 +453,9 @@ class MaglevAssembler : public MacroAssembler {
   void StoreFixedArrayElementWithWriteBarrier(
       Register array, Register index, Register value,
       RegisterSnapshot register_snapshot);
-  void StoreFixedArrayElementNoWriteBarrier(Register array, Register index,
-                                            Register value);
+  inline void StoreFixedArrayElementNoWriteBarrier(Register array,
+                                                   Register index,
+                                                   Register value);
 
   // TODO(victorgomes): Import baseline Pop(T...) methods.
   inline void Pop(Register dst);

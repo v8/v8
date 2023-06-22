@@ -386,10 +386,28 @@ inline void MaglevAssembler::LoadUnsignedField(Register result, Operand operand,
   }
 }
 
+inline void MaglevAssembler::SetSlotAddressForTaggedField(Register slot_reg,
+                                                          Register object,
+                                                          int offset) {
+  leaq(slot_reg, FieldOperand(object, offset));
+}
+inline void MaglevAssembler::SetSlotAddressForFixedArrayElement(
+    Register slot_reg, Register object, Register index) {
+  leaq(slot_reg,
+       FieldOperand(object, index, times_tagged_size, FixedArray::kHeaderSize));
+}
+
 inline void MaglevAssembler::StoreTaggedFieldNoWriteBarrier(Register object,
                                                             int offset,
                                                             Register value) {
   MacroAssembler::StoreTaggedField(FieldOperand(object, offset), value);
+}
+
+inline void MaglevAssembler::StoreFixedArrayElementNoWriteBarrier(
+    Register array, Register index, Register value) {
+  mov_tagged(
+      FieldOperand(array, index, times_tagged_size, FixedArray::kHeaderSize),
+      value);
 }
 
 inline void MaglevAssembler::StoreTaggedSignedField(Register object, int offset,

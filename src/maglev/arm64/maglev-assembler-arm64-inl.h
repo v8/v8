@@ -492,10 +492,29 @@ inline void MaglevAssembler::LoadUnsignedField(Register result,
   }
 }
 
+inline void MaglevAssembler::SetSlotAddressForTaggedField(Register slot_reg,
+                                                          Register object,
+                                                          int offset) {
+  Add(slot_reg, object, offset - kHeapObjectTag);
+}
+inline void MaglevAssembler::SetSlotAddressForFixedArrayElement(
+    Register slot_reg, Register object, Register index) {
+  Add(slot_reg, object, FixedArray::kHeaderSize - kHeapObjectTag);
+  Add(slot_reg, slot_reg, Operand(index, LSL, kTaggedSizeLog2));
+}
+
 inline void MaglevAssembler::StoreTaggedFieldNoWriteBarrier(Register object,
                                                             int offset,
                                                             Register value) {
   MacroAssembler::StoreTaggedField(value, FieldMemOperand(object, offset));
+}
+
+inline void MaglevAssembler::StoreFixedArrayElementNoWriteBarrier(
+    Register array, Register index, Register value) {
+  ScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  Add(scratch, array, Operand(index, LSL, kTaggedSizeLog2));
+  Str(value.W(), FieldMemOperand(scratch, FixedArray::kHeaderSize));
 }
 
 inline void MaglevAssembler::StoreTaggedSignedField(Register object, int offset,

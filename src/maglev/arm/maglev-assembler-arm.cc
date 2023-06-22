@@ -79,13 +79,6 @@ void MaglevAssembler::Allocate(RegisterSnapshot register_snapshot,
   bind(*done);
 }
 
-void MaglevAssembler::StoreTaggedFieldWithWriteBarrier(
-    Register object, int offset, Register value,
-    RegisterSnapshot register_snapshot, ValueIsCompressed value_is_compressed,
-    ValueCanBeSmi value_can_be_smi) {
-  MAGLEV_NOT_IMPLEMENTED();
-}
-
 void MaglevAssembler::Prologue(Graph* graph) {
   ScratchRegisterScope temps(this);
   temps.Include({r4, r8});
@@ -317,18 +310,6 @@ void MaglevAssembler::TryChangeFloat64ToIndex(Register result,
 }
 
 void MaglevAssembler::StringLength(Register result, Register string) {
-  MAGLEV_NOT_IMPLEMENTED();
-}
-
-void MaglevAssembler::StoreFixedArrayElementWithWriteBarrier(
-    Register array, Register index, Register value,
-    RegisterSnapshot register_snapshot) {
-  MAGLEV_NOT_IMPLEMENTED();
-}
-
-void MaglevAssembler::StoreFixedArrayElementNoWriteBarrier(Register array,
-                                                           Register index,
-                                                           Register value) {
   MAGLEV_NOT_IMPLEMENTED();
 }
 
