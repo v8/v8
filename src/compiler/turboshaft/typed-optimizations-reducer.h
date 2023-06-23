@@ -57,6 +57,7 @@ class TypedOptimizationsReducer
       if (type.IsNone()) {
         // This operation is dead. Remove it.
         DCHECK(CanBeTyped(operation));
+        Asm().Unreachable();
         return OpIndex::Invalid();
       } else if (!type.IsInvalid()) {
         // See if we can replace the operation by a constant.
