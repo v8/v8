@@ -199,6 +199,15 @@ FrameState CreateGenericLazyDeoptContinuationFrameState(
     JSGraph* graph, SharedFunctionInfoRef shared, Node* target, Node* context,
     Node* receiver, Node* outer_frame_state);
 
+// Creates GenericLazyDeoptContinuationFrameState if
+// --experimental-stack-trace-frames is enabled, returns outer_frame_state
+// otherwise.
+Node* CreateInlinedApiFunctionFrameState(JSGraph* graph,
+                                         SharedFunctionInfoRef shared,
+                                         Node* target, Node* context,
+                                         Node* receiver,
+                                         Node* outer_frame_state);
+
 // Creates a FrameState otherwise identical to `frame_state` except the
 // OutputFrameStateCombine is changed.
 FrameState CloneFrameState(JSGraph* jsgraph, FrameState frame_state,
