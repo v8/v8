@@ -1407,8 +1407,6 @@ void InstanceBuilder::LoadDataSegments(Handle<WasmInstanceObject> instance) {
     // Passive segments are not copied during instantiation.
     if (!segment.active) continue;
 
-    // TODO(clemensb): Fix for multi-memory.
-    CHECK_EQ(0, segment.memory_index);
     const WasmMemory& dst_memory = module_->memories[segment.memory_index];
     size_t dest_offset;
     if (dst_memory.is_memory64) {
@@ -1429,13 +1427,18 @@ void InstanceBuilder::LoadDataSegments(Handle<WasmInstanceObject> instance) {
       dest_offset = to_value(result).to_u32();
     }
 
-    if (!base::IsInBounds<size_t>(dest_offset, size,
-                                  instance->memory0_size())) {
-      thrower_->RuntimeError("data segment is out of bounds");
+    size_t memory_size = instance->memory_size(segment.memory_index);
+    if (!base::IsInBounds<size_t>(dest_offset, size, memory_size)) {
+      size_t segment_index = &segment - module_->data_segments.data();
+      thrower_->RuntimeError(
+          "data segment %zu is out of bounds (offset %zu, "
+          "length %u, memory size %zu)",
+          segment_index, dest_offset, size, memory_size);
       return;
     }
 
-    std::memcpy(instance->memory0_start() + dest_offset,
+    uint8_t* memory_base = instance->memory_base(segment.memory_index);
+    std::memcpy(memory_base + dest_offset,
                 wire_bytes.begin() + segment.source.offset(), size);
   }
 }

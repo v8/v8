@@ -377,7 +377,7 @@ class V8_EXPORT_PRIVATE WasmInstanceObject : public JSObject {
   V8_INLINE void clear_padding();
 
   inline WasmMemoryObject memory_object(int memory_index) const;
-  inline Address memory_base(int memory_index) const;
+  inline uint8_t* memory_base(int memory_index) const;
   inline size_t memory_size(int memory_index) const;
 
   // Dispatched behavior.

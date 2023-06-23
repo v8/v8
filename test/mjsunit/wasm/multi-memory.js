@@ -4,7 +4,7 @@
 
 // Flags: --experimental-wasm-multi-memory
 
-d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
+d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 // Add a {loadN} and {storeN} method for memory N.
 function addLoadAndStoreFunctions(builder, mem_index) {
@@ -22,8 +22,8 @@ function addLoadAndStoreFunctions(builder, mem_index) {
 function testTwoMemories(instance, mem0_size, mem1_size) {
   const load0 = offset => instance.exports.load0(offset);
   const load1 = offset => instance.exports.load1(offset);
-  const store0 = (value, offset) =>  instance.exports.store0(value, offset);
-  const store1 = (value, offset) =>  instance.exports.store1(value, offset);
+  const store0 = (value, offset) => instance.exports.store0(value, offset);
+  const store1 = (value, offset) => instance.exports.store1(value, offset);
 
   assertEquals(0, load0(0));
   assertEquals(0, load1(0));
@@ -38,7 +38,7 @@ function testTwoMemories(instance, mem0_size, mem1_size) {
 
   store1(22, 1);
   assertEquals(47, load0(0));
-  assertEquals(22 , load1(1));
+  assertEquals(22, load1(1));
   // The 22 is in the second byte when loading from 0.
   assertEquals(22 * 256 + 11, load1(0));
 
@@ -119,4 +119,63 @@ function testTwoMemories(instance, mem0_size, mem1_size) {
   instance.exports.store1(49, 11);
   assertEquals(47, mem0[11]);
   assertEquals(49, mem1[11]);
+})();
+
+(function testMultiMemoryDataSegments() {
+  print(arguments.callee.name);
+  var builder = new WasmModuleBuilder();
+  builder.addMemory(1, 1);
+  builder.addMemory(1, 1);
+  addLoadAndStoreFunctions(builder, 0);
+  addLoadAndStoreFunctions(builder, 1);
+  const mem0_offset = 11;
+  const mem1_offset = 23;
+  builder.addDataSegment(mem1_offset, [7, 7], false, 1);
+  builder.addDataSegment(mem0_offset, [9, 9], false, 0);
+  builder.exportMemoryAs('mem0', 0);
+  builder.exportMemoryAs('mem1', 1);
+
+  const instance = builder.instantiate();
+  const expected_memory0 = new Uint8Array(kPageSize);
+  expected_memory0.set([9, 9], mem0_offset);
+  const expected_memory1 = new Uint8Array(kPageSize);
+  expected_memory1.set([7, 7], mem1_offset);
+
+  const mem0 = new Uint8Array(instance.exports.mem0.buffer);
+  const mem1 = new Uint8Array(instance.exports.mem1.buffer);
+  // For better output, check the first 50 bytes separately first.
+  assertEquals(expected_memory0.slice(0, 50), mem0.slice(0, 50));
+  assertEquals(expected_memory1.slice(0, 50), mem1.slice(0, 50));
+  // Now also check the full memory content.
+  assertEquals(expected_memory0, mem0);
+  assertEquals(expected_memory1, mem1);
+})();
+
+(function testMultiMemoryDataSegmentsOutOfBounds() {
+  print(arguments.callee.name);
+  // Check that we use the right memory size for the bounds check.
+  for (let [mem0_size, mem1_size] of [[1, 2], [2, 1]]) {
+    print(`memory sizes: ${mem0_size}, ${mem1_size}`);
+    for (let [mem0_offset, mem1_offset] of [[0, 0], [1, 2], [0, 2], [1, 0]]) {
+      print(`memory offsets: ${mem0_offset}, ${mem1_offset}`);
+      var builder = new WasmModuleBuilder();
+      builder.addMemory(mem0_size, mem0_size);
+      builder.addMemory(mem1_size, mem1_size);
+      builder.addDataSegment(mem0_offset * kPageSize, [0], false, 0);
+      builder.addDataSegment(mem1_offset * kPageSize, [0], false, 1);
+      if (mem0_offset < mem0_size && mem1_offset < mem1_size) {
+        builder.instantiate();  // should not throw.
+        continue;
+      }
+      const oob = mem0_offset >= mem0_size ? 0 : 1;
+      const expected_offset = [mem0_offset, mem1_offset][oob] * kPageSize;
+      const expected_mem_size = [mem0_size, mem1_size][oob] * kPageSize;
+      const expected_msg =
+          `WebAssembly.Instance(): data segment ${oob} is out of bounds ` +
+          `(offset ${expected_offset}, length 1, ` +
+          `memory size ${expected_mem_size})`;
+      assertThrows(
+          () => builder.instantiate(), WebAssembly.RuntimeError, expected_msg);
+    }
+  }
 })();

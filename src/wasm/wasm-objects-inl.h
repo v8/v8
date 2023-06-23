@@ -265,8 +265,9 @@ WasmMemoryObject WasmInstanceObject::memory_object(int memory_index) const {
   return WasmMemoryObject::cast(memory_objects().get(memory_index));
 }
 
-Address WasmInstanceObject::memory_base(int memory_index) const {
-  return memory_bases_and_sizes().get_sandboxed_pointer(2 * memory_index);
+uint8_t* WasmInstanceObject::memory_base(int memory_index) const {
+  return reinterpret_cast<uint8_t*>(
+      memory_bases_and_sizes().get_sandboxed_pointer(2 * memory_index));
 }
 
 size_t WasmInstanceObject::memory_size(int memory_index) const {
