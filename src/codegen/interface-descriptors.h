@@ -1420,7 +1420,7 @@ class CallFunctionTemplateDescriptor
  public:
   DEFINE_PARAMETERS_VARARGS(kFunctionTemplateInfo, kArgumentsCount)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),  // kFunctionTemplateInfo
-                         MachineType::IntPtr())     // kArgumentsCount
+                         MachineType::Int32())      // kArgumentsCount
   DECLARE_DESCRIPTOR(CallFunctionTemplateDescriptor)
 
   static constexpr inline auto registers();

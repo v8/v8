@@ -685,7 +685,7 @@ TNode<JSReceiver> CallOrConstructBuiltinsAssembler::GetCompatibleReceiver(
 // does appropriate access and compatible receiver checks.
 void CallOrConstructBuiltinsAssembler::CallFunctionTemplate(
     CallFunctionTemplateMode mode,
-    TNode<FunctionTemplateInfo> function_template_info, TNode<IntPtrT> argc,
+    TNode<FunctionTemplateInfo> function_template_info, TNode<Int32T> argc,
     TNode<Context> context) {
   CodeStubArguments args(this, argc);
   Label throw_illegal_invocation(this, Label::kDeferred);
@@ -771,7 +771,7 @@ TF_BUILTIN(CallFunctionTemplate_CheckAccess, CallOrConstructBuiltinsAssembler) {
   auto context = Parameter<Context>(Descriptor::kContext);
   auto function_template_info = UncheckedParameter<FunctionTemplateInfo>(
       Descriptor::kFunctionTemplateInfo);
-  auto argc = UncheckedParameter<IntPtrT>(Descriptor::kArgumentsCount);
+  auto argc = UncheckedParameter<Int32T>(Descriptor::kArgumentsCount);
   CallFunctionTemplate(CallFunctionTemplateMode::kCheckAccess,
                        function_template_info, argc, context);
 }
@@ -781,7 +781,7 @@ TF_BUILTIN(CallFunctionTemplate_CheckCompatibleReceiver,
   auto context = Parameter<Context>(Descriptor::kContext);
   auto function_template_info = UncheckedParameter<FunctionTemplateInfo>(
       Descriptor::kFunctionTemplateInfo);
-  auto argc = UncheckedParameter<IntPtrT>(Descriptor::kArgumentsCount);
+  auto argc = UncheckedParameter<Int32T>(Descriptor::kArgumentsCount);
   CallFunctionTemplate(CallFunctionTemplateMode::kCheckCompatibleReceiver,
                        function_template_info, argc, context);
 }
@@ -791,7 +791,7 @@ TF_BUILTIN(CallFunctionTemplate_CheckAccessAndCompatibleReceiver,
   auto context = Parameter<Context>(Descriptor::kContext);
   auto function_template_info = UncheckedParameter<FunctionTemplateInfo>(
       Descriptor::kFunctionTemplateInfo);
-  auto argc = UncheckedParameter<IntPtrT>(Descriptor::kArgumentsCount);
+  auto argc = UncheckedParameter<Int32T>(Descriptor::kArgumentsCount);
   CallFunctionTemplate(
       CallFunctionTemplateMode::kCheckAccessAndCompatibleReceiver,
       function_template_info, argc, context);
@@ -817,7 +817,7 @@ TF_BUILTIN(HandleApiCallOrConstruct, CallOrConstructBuiltinsAssembler) {
     // the stack.
     TailCallBuiltin(
         Builtin::kCallFunctionTemplate_CheckAccessAndCompatibleReceiver,
-        context, function_template_info, ChangeUint32ToWord(argc));
+        context, function_template_info, argc);
   }
   BIND(&if_construct);
   {

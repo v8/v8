@@ -192,7 +192,7 @@ void AccessorAssembler::TryMegaDOMCase(TNode<Object> lookup_start_object,
   // we should miss to the runtime.
   exit_point->Return(
       CallBuiltin(Builtin::kCallFunctionTemplate_CheckCompatibleReceiver,
-                  context, getter, IntPtrConstant(1), lookup_start_object));
+                  context, getter, Int32Constant(1), lookup_start_object));
 }
 
 void AccessorAssembler::HandleLoadICHandlerCase(

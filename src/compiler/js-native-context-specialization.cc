@@ -1421,7 +1421,7 @@ Reduction JSNativeContextSpecialization::ReduceMegaDOMPropertyAccess(
 
     Node* inputs[8] = {jsgraph()->HeapConstant(callable.code()),
                        jsgraph()->Constant(function_template_info, broker()),
-                       jsgraph()->Constant(stack_arg_count),
+                       jsgraph()->Int32Constant(stack_arg_count),
                        lookup_start_object,
                        jsgraph()->Constant(native_context(), broker()),
                        frame_state,

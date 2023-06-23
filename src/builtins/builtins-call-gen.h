@@ -44,7 +44,7 @@ class CallOrConstructBuiltinsAssembler : public CodeStubAssembler {
 
   void CallFunctionTemplate(CallFunctionTemplateMode mode,
                             TNode<FunctionTemplateInfo> function_template_info,
-                            TNode<IntPtrT> argc, TNode<Context> context);
+                            TNode<Int32T> argc, TNode<Context> context);
 
   void BuildConstruct(TNode<Object> target, TNode<Object> new_target,
                       TNode<Int32T> argc, const LazyNode<Context>& context,
