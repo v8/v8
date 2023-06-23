@@ -447,14 +447,16 @@ void MacroAssembler::LoadExternalPointerField(
   DCHECK(!field_operand.AddressUsesRegister(scratch));
   if (isolateRootLocation == IsolateRootLocation::kInRootRegister) {
     DCHECK(root_array_available_);
-    movq(scratch, Operand(kRootRegister,
-                          IsolateData::external_pointer_table_offset() +
-                              Internals::kExternalPointerTableBufferOffset));
+    movq(scratch,
+         Operand(kRootRegister,
+                 IsolateData::external_pointer_table_offset() +
+                     Internals::kExternalPointerTableBasePointerOffset));
   } else {
     DCHECK(isolateRootLocation == IsolateRootLocation::kInScratchRegister);
     movq(scratch,
-         Operand(scratch, IsolateData::external_pointer_table_offset() +
-                              Internals::kExternalPointerTableBufferOffset));
+         Operand(scratch,
+                 IsolateData::external_pointer_table_offset() +
+                     Internals::kExternalPointerTableBasePointerOffset));
   }
   movl(destination, field_operand);
   shrq(destination, Immediate(kExternalPointerIndexShift));

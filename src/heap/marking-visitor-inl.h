@@ -158,7 +158,10 @@ void MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitExternalPointer(
   ExternalPointerTable* table = IsSharedExternalPointerType(tag)
                                     ? shared_external_pointer_table_
                                     : external_pointer_table_;
-  table->Mark(handle, slot.address());
+  ExternalPointerTable::Space* space = IsSharedExternalPointerType(tag)
+                                           ? shared_external_pointer_space_
+                                           : heap_->external_pointer_space();
+  table->Mark(space, handle, slot.address());
 #endif  // V8_ENABLE_SANDBOX
 }
 

@@ -858,6 +858,12 @@ class Heap final {
   inline PagedSpace* paged_space(int idx) const;
   inline Space* space(int idx) const;
 
+#ifdef V8_COMPRESS_POINTERS
+  ExternalPointerTable::Space* external_pointer_space() {
+    return &external_pointer_space_;
+  }
+#endif  // V8_COMPRESS_POINTERS
+
   // ===========================================================================
   // Getters to other components. ==============================================
   // ===========================================================================
@@ -2170,6 +2176,12 @@ class Heap final {
 
   // Map from the space id to the space.
   std::unique_ptr<Space> space_[LAST_SPACE + 1];
+
+#ifdef V8_COMPRESS_POINTERS
+  // The space in the ExternalPointerTable containing entries owned by objects
+  // in this heap.
+  ExternalPointerTable::Space external_pointer_space_;
+#endif  // V8_COMPRESS_POINTERS
 
   LocalHeap* main_thread_local_heap_ = nullptr;
 

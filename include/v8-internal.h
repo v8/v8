@@ -566,8 +566,8 @@ class Internals {
       2 * kApiSystemPointerSize + 2 * kApiInt32Size;
 
   // ExternalPointerTable layout guarantees.
-  static const int kExternalPointerTableBufferOffset = 0;
-  static const int kExternalPointerTableSize = 4 * kApiSystemPointerSize;
+  static const int kExternalPointerTableBasePointerOffset = 0;
+  static const int kExternalPointerTableSize = 2 * kApiSystemPointerSize;
 
   // IsolateData layout guarantees.
   static const int kIsolateCageBaseOffset = 0;
@@ -816,7 +816,7 @@ class Internals {
   V8_INLINE static Address* GetExternalPointerTableBase(v8::Isolate* isolate) {
     Address addr = reinterpret_cast<Address>(isolate) +
                    kIsolateExternalPointerTableOffset +
-                   kExternalPointerTableBufferOffset;
+                   kExternalPointerTableBasePointerOffset;
     return *reinterpret_cast<Address**>(addr);
   }
 
@@ -825,7 +825,7 @@ class Internals {
     Address addr = reinterpret_cast<Address>(isolate) +
                    kIsolateSharedExternalPointerTableAddressOffset;
     addr = *reinterpret_cast<Address*>(addr);
-    addr += kExternalPointerTableBufferOffset;
+    addr += kExternalPointerTableBasePointerOffset;
     return *reinterpret_cast<Address**>(addr);
   }
 #endif

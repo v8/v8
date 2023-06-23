@@ -250,7 +250,7 @@ ExternalReference::shared_external_pointer_table_address_address(
 }
 
 ExternalReference ExternalReference::code_pointer_table_address() {
-  return ExternalReference(GetProcessWideCodePointerTable()->buffer_address());
+  return ExternalReference(GetProcessWideCodePointerTable()->base_address());
 }
 
 #endif  // V8_ENABLE_SANDBOX
@@ -364,7 +364,8 @@ ExternalPointerHandle AllocateAndInitializeExternalPointerTableEntry(
     Isolate* isolate, Address pointer) {
 #ifdef V8_ENABLE_SANDBOX
   return isolate->external_pointer_table().AllocateAndInitializeEntry(
-      pointer, kExternalObjectValueTag);
+      isolate->heap()->external_pointer_space(), pointer,
+      kExternalObjectValueTag);
 #else
   return 0;
 #endif  // V8_ENABLE_SANDBOX

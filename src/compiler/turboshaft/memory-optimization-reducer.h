@@ -238,7 +238,7 @@ class MemoryOptimizationReducer : public Next {
             : Asm().ExternalConstant(
                   ExternalReference::external_pointer_table_address(isolate_));
     OpIndex table = Asm().LoadOffHeap(
-        table_address, Internals::kExternalPointerTableBufferOffset,
+        table_address, Internals::kExternalPointerTableBasePointerOffset,
         MemoryRepresentation::PointerSized());
     OpIndex index = Asm().ShiftRightLogical(handle, kExternalPointerIndexShift,
                                             WordRepresentation::Word32());

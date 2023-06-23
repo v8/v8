@@ -1980,6 +1980,10 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     return *isolate_data_.shared_external_pointer_table_;
   }
 
+  ExternalPointerTable::Space* shared_external_pointer_space() {
+    return shared_external_pointer_space_;
+  }
+
   Address shared_external_pointer_table_address_address() {
     return reinterpret_cast<Address>(
         &isolate_data_.shared_external_pointer_table_);
@@ -2467,6 +2471,10 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   base::Optional<Isolate*> shared_space_isolate_;
 
 #ifdef V8_COMPRESS_POINTERS
+  // Stores the external pointer table space for the shared external pointer
+  // table.
+  ExternalPointerTable::Space* shared_external_pointer_space_ = nullptr;
+
   // The external pointer handle to the Isolate's main thread's WaiterQueueNode.
   // It is used to wait for JS-exposed mutex or condition variable.
   ExternalPointerHandle waiter_queue_node_external_pointer_handle_ =

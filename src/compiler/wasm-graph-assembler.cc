@@ -189,11 +189,11 @@ Node* WasmGraphAssembler::BuildLoadExternalPointerFromObject(
         Load(MachineType::Pointer(), isolate_root,
              IsolateData::shared_external_pointer_table_offset());
     table = Load(MachineType::Pointer(), table_address,
-                 Internals::kExternalPointerTableBufferOffset);
+                 Internals::kExternalPointerTableBasePointerOffset);
   } else {
     table = Load(MachineType::Pointer(), isolate_root,
                  IsolateData::external_pointer_table_offset() +
-                     Internals::kExternalPointerTableBufferOffset);
+                     Internals::kExternalPointerTableBasePointerOffset);
   }
   Node* decoded_ptr = Load(MachineType::Pointer(), table, offset);
   return WordAnd(decoded_ptr, IntPtrConstant(~tag));

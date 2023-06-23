@@ -6,6 +6,7 @@
 #define V8_SANDBOX_EXTERNAL_ENTITY_TABLE_INL_H_
 
 #include "src/base/atomicops.h"
+#include "src/base/emulated-virtual-address-subspace.h"
 #include "src/common/assert-scope.h"
 #include "src/sandbox/external-entity-table.h"
 #include "src/utils/allocation.h"
@@ -16,32 +17,53 @@ namespace v8 {
 namespace internal {
 
 template <typename Entry, size_t size>
+typename ExternalEntityTable<Entry, size>::Segment
+ExternalEntityTable<Entry, size>::Segment::At(uint32_t offset) {
+  DCHECK(IsAligned(offset, kSegmentSize));
+  uint32_t number = offset / kSegmentSize;
+  return Segment(number);
+}
+
+template <typename Entry, size_t size>
+typename ExternalEntityTable<Entry, size>::Segment
+ExternalEntityTable<Entry, size>::Segment::Containing(uint32_t entry_index) {
+  uint32_t number = entry_index / kEntriesPerSegment;
+  return Segment(number);
+}
+
+template <typename Entry, size_t size>
+uint32_t ExternalEntityTable<Entry, size>::Space::freelist_length() const {
+  auto freelist = freelist_head_.load(std::memory_order_relaxed);
+  return freelist.length();
+}
+
+template <typename Entry, size_t size>
+uint32_t ExternalEntityTable<Entry, size>::Space::num_segments() {
+  base::MutexGuard guard(&mutex_);
+  return static_cast<uint32_t>(segments_.size());
+}
+
+template <typename Entry, size_t size>
+bool ExternalEntityTable<Entry, size>::Space::Contains(uint32_t index) {
+  base::MutexGuard guard(&mutex_);
+  Segment segment = Segment::Containing(index);
+  return segments_.find(segment) != segments_.end();
+}
+
+template <typename Entry, size_t size>
 Entry& ExternalEntityTable<Entry, size>::at(uint32_t index) {
-  DCHECK_LT(index, capacity());
-  return buffer_[index];
+  return base_[index];
 }
 
 template <typename Entry, size_t size>
 const Entry& ExternalEntityTable<Entry, size>::at(uint32_t index) const {
-  DCHECK_LT(index, capacity());
-  return buffer_[index];
+  return base_[index];
 }
 
 template <typename Entry, size_t size>
 bool ExternalEntityTable<Entry, size>::is_initialized() const {
-  return buffer_ != nullptr;
-}
-
-template <typename Entry, size_t size>
-uint32_t ExternalEntityTable<Entry, size>::capacity() const {
-  return capacity_.load(std::memory_order_relaxed);
-}
-
-template <typename Entry, size_t size>
-uint32_t ExternalEntityTable<Entry, size>::freelist_length() const {
-  auto freelist = freelist_head_.load(std::memory_order_relaxed);
-  DCHECK_LE(freelist.length(), capacity());
-  return freelist.length();
+  DCHECK(!base_ || reinterpret_cast<Address>(base_) == vas_->base());
+  return base_ != nullptr;
 }
 
 template <typename Entry, size_t size>
@@ -51,44 +73,50 @@ void ExternalEntityTable<Entry, size>::InitializeTable() {
   VirtualAddressSpace* root_space = GetPlatformVirtualAddressSpace();
   DCHECK(IsAligned(kReservationSize, root_space->allocation_granularity()));
 
-  Address buffer_start = root_space->AllocatePages(
-      VirtualAddressSpace::kNoHint, kReservationSize,
-      root_space->allocation_granularity(), PagePermissions::kNoAccess);
-  if (!buffer_start) {
-    V8::FatalProcessOutOfMemory(nullptr,
-                                "ExternalEntityTable::InitializeTable");
+  if (root_space->CanAllocateSubspaces()) {
+    vas_ = root_space->AllocateSubspace(VirtualAddressSpace::kNoHint,
+                                        kReservationSize, kSegmentSize,
+                                        PagePermissions::kReadWrite);
+  } else {
+    // This may be required on old Windows versions that don't support
+    // VirtualAlloc2, which is required for subspaces. In that case, just use a
+    // fully-backed emulated subspace.
+    Address reservation_base = root_space->AllocatePages(
+        VirtualAddressSpace::kNoHint, kReservationSize, kSegmentSize,
+        PagePermissions::kReadWrite);
+    if (reservation_base) {
+      vas_ = std::make_unique<base::EmulatedVirtualAddressSubspace>(
+          root_space, reservation_base, kReservationSize, kReservationSize);
+    }
   }
-  buffer_ = reinterpret_cast<Entry*>(buffer_start);
-
-  mutex_ = new base::Mutex;
-  if (!mutex_) {
-    V8::FatalProcessOutOfMemory(nullptr,
-                                "ExternalEntityTable::InitializeTable");
+  if (!vas_) {
+    V8::FatalProcessOutOfMemory(
+        nullptr, "ExternalEntityTable::InitializeTable (subspace allocation)");
   }
+  base_ = reinterpret_cast<Entry*>(vas_->base());
 
-  // Allocate the initial block. Mutex must be held for that.
-  base::MutexGuard guard(mutex_);
-  Grow();
+  // Allocate the first segment of the table as read-only memory. This segment
+  // will contain the null entry, which should always contain nullptr.
+  auto first_segment = vas_->AllocatePages(
+      vas_->base(), kSegmentSize, kSegmentSize, PagePermissions::kRead);
+  if (first_segment != vas_->base()) {
+    V8::FatalProcessOutOfMemory(
+        nullptr,
+        "ExternalEntityTable::InitializeTable (first segment allocation)");
+  }
 }
 
 template <typename Entry, size_t size>
 void ExternalEntityTable<Entry, size>::TearDownTable() {
   DCHECK(is_initialized());
-
-  Address buffer_start = reinterpret_cast<Address>(buffer_);
-  GetPlatformVirtualAddressSpace()->FreePages(buffer_start, kReservationSize);
-  delete mutex_;
-
-  buffer_ = nullptr;
-  mutex_ = nullptr;
-  freelist_head_ = FreelistHead();
-  capacity_ = 0;
-  extra_ = 0;
+  base_ = nullptr;
+  vas_.reset();
 }
 
 template <typename Entry, size_t size>
-uint32_t ExternalEntityTable<Entry, size>::AllocateEntry() {
+uint32_t ExternalEntityTable<Entry, size>::AllocateEntry(Space* space) {
   DCHECK(is_initialized());
+  DCHECK(space->BelongsTo(this));
 
   // We currently don't want entry allocation to trigger garbage collection as
   // this may cause seemingly harmless pointer field assignments to trigger
@@ -105,49 +133,49 @@ uint32_t ExternalEntityTable<Entry, size>::AllocateEntry() {
     // and so requires an acquire load as well as a release store in Grow() to
     // prevent reordering of memory accesses, which could for example cause one
     // thread to read a freelist entry before it has been properly initialized.
-    freelist = freelist_head_.load(std::memory_order_acquire);
+    freelist = space->freelist_head_.load(std::memory_order_acquire);
     if (freelist.is_empty()) {
       // Freelist is empty. Need to take the lock, then attempt to grow the
       // table if no other thread has done it in the meantime.
-      base::MutexGuard guard(mutex_);
+      base::MutexGuard guard(&space->mutex_);
 
       // Reload freelist head in case another thread already grew the table.
-      freelist = freelist_head_.load(std::memory_order_relaxed);
+      freelist = space->freelist_head_.load(std::memory_order_relaxed);
 
       if (freelist.is_empty()) {
-        // Freelist is (still) empty so grow the table.
-        freelist = Grow();
-        // Grow() adds one block to the table and so to the freelist.
-        DCHECK_EQ(freelist.length(), kEntriesPerBlock);
+        // Freelist is (still) empty so extend this space by another segment.
+        freelist = Extend(space);
+        // Extend() adds one segment to the table and so to the freelist.
+        DCHECK_EQ(freelist.length(), kEntriesPerSegment);
       }
     }
 
-    success = TryAllocateEntryFromFreelist(freelist);
+    success = TryAllocateEntryFromFreelist(space, freelist);
   }
 
   uint32_t allocated_entry = freelist.next();
+  DCHECK(space->Contains(allocated_entry));
   DCHECK_NE(allocated_entry, 0);
-  DCHECK_LT(allocated_entry, capacity());
   return allocated_entry;
 }
 
 template <typename Entry, size_t size>
 uint32_t ExternalEntityTable<Entry, size>::AllocateEntryBelow(
-    uint32_t threshold_index) {
+    Space* space, uint32_t threshold_index) {
   DCHECK(is_initialized());
-  DCHECK_LE(threshold_index, capacity());
 
   FreelistHead freelist;
   bool success = false;
   while (!success) {
-    freelist = freelist_head_.load(std::memory_order_acquire);
+    freelist = space->freelist_head_.load(std::memory_order_acquire);
     // Check that the next free entry is below the threshold.
     if (freelist.is_empty() || freelist.next() >= threshold_index) return 0;
 
-    success = TryAllocateEntryFromFreelist(freelist);
+    success = TryAllocateEntryFromFreelist(space, freelist);
   }
 
   uint32_t allocated_entry = freelist.next();
+  DCHECK(space->Contains(allocated_entry));
   DCHECK_NE(allocated_entry, 0);
   DCHECK_LT(allocated_entry, threshold_index);
   return allocated_entry;
@@ -155,23 +183,20 @@ uint32_t ExternalEntityTable<Entry, size>::AllocateEntryBelow(
 
 template <typename Entry, size_t size>
 bool ExternalEntityTable<Entry, size>::TryAllocateEntryFromFreelist(
-    FreelistHead freelist) {
+    Space* space, FreelistHead freelist) {
   DCHECK(!freelist.is_empty());
-  DCHECK_LT(freelist.next(), capacity());
-  DCHECK_LT(freelist.length(), capacity());
+  DCHECK(space->Contains(freelist.next()));
 
   Entry& freelist_entry = at(freelist.next());
   uint32_t next_freelist_entry = freelist_entry.GetNextFreelistEntryIndex();
   FreelistHead new_freelist(next_freelist_entry, freelist.length() - 1);
-  bool success = freelist_head_.compare_exchange_strong(
+  bool success = space->freelist_head_.compare_exchange_strong(
       freelist, new_freelist, std::memory_order_relaxed);
 
   // When the CAS succeeded, the entry must've been a freelist entry.
   // Otherwise, this is not guaranteed as another thread may have allocated
   // and overwritten the same entry in the meantime.
   if (success) {
-    DCHECK_LT(new_freelist.next(), capacity());
-    DCHECK_LT(new_freelist.length(), capacity());
     DCHECK_IMPLIES(freelist.length() > 1, !new_freelist.is_empty());
     DCHECK_IMPLIES(freelist.length() == 1, new_freelist.is_empty());
   }
@@ -180,33 +205,21 @@ bool ExternalEntityTable<Entry, size>::TryAllocateEntryFromFreelist(
 
 template <typename Entry, size_t size>
 typename ExternalEntityTable<Entry, size>::FreelistHead
-ExternalEntityTable<Entry, size>::Grow() {
+ExternalEntityTable<Entry, size>::Extend(Space* space) {
   // Freelist should be empty when calling this method.
-  DCHECK_EQ(freelist_length(), 0);
-  // The caller must lock the mutex before calling Grow().
-  mutex_->AssertHeld();
+  DCHECK_EQ(space->freelist_length(), 0);
+  // The caller must lock the space's mutex before extending it.
+  space->mutex_.AssertHeld();
 
-  // Grow the table by one block.
-  VirtualAddressSpace* root_space = GetPlatformVirtualAddressSpace();
-  DCHECK(IsAligned(kBlockSize, root_space->page_size()));
-  uint32_t old_capacity = capacity();
-  uint32_t new_capacity = old_capacity + kEntriesPerBlock;
-  if (new_capacity > kMaxCapacity) {
-    V8::FatalProcessOutOfMemory(nullptr, "ExternalEntityTable::Grow");
-  }
-  Address buffer_start = reinterpret_cast<Address>(buffer_);
-  if (!root_space->SetPagePermissions(buffer_start + old_capacity * kEntrySize,
-                                      kBlockSize,
-                                      PagePermissions::kReadWrite)) {
-    V8::FatalProcessOutOfMemory(nullptr, "ExternalEntityTable::Grow");
-  }
+  // Allocate the new segment.
+  Segment segment = AllocateTableSegment();
+  space->segments_.insert(segment);
+  DCHECK_NE(segment.number(), 0);
 
-  capacity_.store(new_capacity, std::memory_order_relaxed);
-
-  // Build the freelist bottom to top but skip entry zero, which is reserved.
-  uint32_t start = std::max<uint32_t>(old_capacity, 1);
-  uint32_t last = new_capacity - 1;
-  for (uint32_t i = start; i < last; i++) {
+  // Refill the freelist with the entries in the newly allocated segment.
+  uint32_t first = segment.first_entry();
+  uint32_t last = segment.last_entry();
+  for (uint32_t i = first; i < last; i++) {
     uint32_t next_free_entry = i + 1;
     at(i).MakeFreelistEntry(next_free_entry);
   }
@@ -215,29 +228,32 @@ ExternalEntityTable<Entry, size>::Grow() {
   // This must be a release store to prevent reordering of the preceeding
   // stores to the freelist from being reordered past this store. See
   // AllocateEntry() for more details.
-  FreelistHead new_freelist_head(start, last - start + 1);
-  freelist_head_.store(new_freelist_head, std::memory_order_release);
+  FreelistHead new_freelist_head(first, last - first + 1);
+  space->freelist_head_.store(new_freelist_head, std::memory_order_release);
 
   return new_freelist_head;
 }
 
 template <typename Entry, size_t size>
-void ExternalEntityTable<Entry, size>::Shrink(uint32_t new_capacity) {
-  uint32_t old_capacity = capacity();
-  DCHECK(IsAligned(new_capacity, kEntriesPerBlock));
-  DCHECK_GT(new_capacity, 0);
-  DCHECK_LT(new_capacity, old_capacity);
+typename ExternalEntityTable<Entry, size>::Segment
+ExternalEntityTable<Entry, size>::AllocateTableSegment() {
+  Address start =
+      vas_->AllocatePages(VirtualAddressSpace::kNoHint, kSegmentSize,
+                          kSegmentSize, PagePermissions::kReadWrite);
+  if (!start) {
+    V8::FatalProcessOutOfMemory(nullptr,
+                                "ExternalEntityTable::AllocateSegment");
+  }
+  uint32_t offset = static_cast<uint32_t>((start - vas_->base()));
+  return Segment::At(offset);
+}
 
-  capacity_.store(new_capacity, std::memory_order_relaxed);
-
-  Address buffer_start = reinterpret_cast<Address>(buffer_);
-  Address new_table_end = buffer_start + new_capacity * kEntrySize;
-  uint32_t bytes_to_decommit = (old_capacity - new_capacity) * kEntrySize;
-  // The pages may contain stale pointers which could be abused by an
-  // attacker if they are still accessible, so use Decommit here which
-  // guarantees that the pages become inaccessible and will be zeroed out.
-  VirtualAddressSpace* root_space = GetPlatformVirtualAddressSpace();
-  CHECK(root_space->DecommitPages(new_table_end, bytes_to_decommit));
+template <typename Entry, size_t size>
+void ExternalEntityTable<Entry, size>::FreeTableSegment(Segment segment) {
+  // Segment zero is reserved.
+  DCHECK_NE(segment.number(), 0);
+  Address segment_start = vas_->base() + segment.offset();
+  vas_->FreePages(segment_start, kSegmentSize);
 }
 
 }  // namespace internal

@@ -72,7 +72,7 @@ class V8_EXPORT_PRIVATE CodePointerTable
                                  kCodePointerTableReservationSize> {
  public:
   // Size of a CodePointerTable, for layout computation in IsolateData.
-  static int constexpr kSize = 4 * kSystemPointerSize;
+  static int constexpr kSize = 2 * kSystemPointerSize;
   static_assert(kMaxCodePointers == kMaxCapacity);
 
   CodePointerTable() = default;
@@ -99,10 +99,11 @@ class V8_EXPORT_PRIVATE CodePointerTable
   // value and tag.
   //
   // This method is atomic and can be called from background threads.
-  inline CodePointerHandle AllocateAndInitializeEntry(Address initial_value);
+  inline CodePointerHandle AllocateAndInitializeEntry(Space* space,
+                                                      Address initial_value);
 
-  // The address of the backing buffer, for use in JIT compilers.
-  Address buffer_address() const { return reinterpret_cast<Address>(buffer_); }
+  // The base address of this table, for use in JIT compilers.
+  Address base_address() const { return reinterpret_cast<Address>(base_); }
 
  private:
   inline uint32_t HandleToIndex(CodePointerHandle handle) const;

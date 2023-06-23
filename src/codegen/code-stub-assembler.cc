@@ -1740,7 +1740,7 @@ TNode<RawPtrT> CodeStubAssembler::LoadExternalPointerFromObject(
       ExternalPointerTableAddress(tag);
   TNode<RawPtrT> table = UncheckedCast<RawPtrT>(
       Load(MachineType::Pointer(), external_pointer_table_address,
-           UintPtrConstant(Internals::kExternalPointerTableBufferOffset)));
+           UintPtrConstant(Internals::kExternalPointerTableBasePointerOffset)));
 
   TNode<ExternalPointerHandleT> handle =
       LoadObjectField<ExternalPointerHandleT>(object, offset);
@@ -1771,7 +1771,7 @@ void CodeStubAssembler::StoreExternalPointerToObject(TNode<HeapObject> object,
       ExternalPointerTableAddress(tag);
   TNode<RawPtrT> table = UncheckedCast<RawPtrT>(
       Load(MachineType::Pointer(), external_pointer_table_address,
-           UintPtrConstant(Internals::kExternalPointerTableBufferOffset)));
+           UintPtrConstant(Internals::kExternalPointerTableBasePointerOffset)));
   TNode<ExternalPointerHandleT> handle =
       LoadObjectField<ExternalPointerHandleT>(object, offset);
 

@@ -159,7 +159,8 @@ void ExternalPointerSlot::init(Isolate* isolate, Address value,
 #ifdef V8_ENABLE_SANDBOX
   DCHECK_NE(tag, kExternalPointerNullTag);
   ExternalPointerTable& table = GetExternalPointerTableForTag(isolate, tag);
-  ExternalPointerHandle handle = table.AllocateAndInitializeEntry(value, tag);
+  ExternalPointerHandle handle = table.AllocateAndInitializeEntry(
+      GetDefaultExternalPointerSpace(isolate, tag), value, tag);
   // Use a Release_Store to ensure that the store of the pointer into the
   // table is not reordered after the store of the handle. Otherwise, other
   // threads may access an uninitialized table entry and crash.
@@ -246,6 +247,14 @@ ExternalPointerTable& ExternalPointerSlot::GetExternalPointerTableForTag(
   return IsSharedExternalPointerType(tag)
              ? isolate->shared_external_pointer_table()
              : isolate->external_pointer_table();
+}
+
+ExternalPointerTable::Space*
+ExternalPointerSlot::GetDefaultExternalPointerSpace(Isolate* isolate,
+                                                    ExternalPointerTag tag) {
+  return IsSharedExternalPointerType(tag)
+             ? isolate->shared_external_pointer_space()
+             : isolate->heap()->external_pointer_space();
 }
 #endif  // V8_ENABLE_SANDBOX
 

@@ -50,8 +50,8 @@ void CodePointerTable::Set(CodePointerHandle handle, Address value) {
 }
 
 CodePointerHandle CodePointerTable::AllocateAndInitializeEntry(
-    Address initial_value) {
-  uint32_t index = AllocateEntry();
+    Space* space, Address initial_value) {
+  uint32_t index = AllocateEntry(space);
   at(index).MakeCodePointerEntry(initial_value);
   return IndexToHandle(index);
 }
@@ -59,7 +59,6 @@ CodePointerHandle CodePointerTable::AllocateAndInitializeEntry(
 uint32_t CodePointerTable::HandleToIndex(CodePointerHandle handle) const {
   uint32_t index = handle >> kCodePointerIndexShift;
   DCHECK_EQ(handle, index << kCodePointerIndexShift);
-  DCHECK_LT(index, capacity());
   return index;
 }
 

@@ -330,6 +330,8 @@ class ExternalPointerSlot
       const Isolate* isolate, ExternalPointerTag tag);
   inline ExternalPointerTable& GetExternalPointerTableForTag(
       Isolate* isolate, ExternalPointerTag tag);
+  inline ExternalPointerTable::Space* GetDefaultExternalPointerSpace(
+      Isolate* isolate, ExternalPointerTag tag);
 #endif  // V8_ENABLE_SANDBOX
 };
 

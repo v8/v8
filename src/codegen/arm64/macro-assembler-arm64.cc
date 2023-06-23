@@ -3438,7 +3438,7 @@ void MacroAssembler::LoadExternalPointerField(Register destination,
   Ldr(external_table,
       MemOperand(isolate_root,
                  IsolateData::external_pointer_table_offset() +
-                     Internals::kExternalPointerTableBufferOffset));
+                     Internals::kExternalPointerTableBasePointerOffset));
   Ldr(destination.W(), field_operand);
   Mov(destination, Operand(destination, LSR, kExternalPointerIndexShift));
   Ldr(destination, MemOperand(external_table, destination, LSL,

@@ -828,7 +828,7 @@ void MarkCompactCollector::Prepare() {
       CppHeap::From(heap()->cpp_heap())->StartTracing();
     }
 #ifdef V8_COMPRESS_POINTERS
-    heap_->isolate()->external_pointer_table().StartCompactingIfNeeded();
+    heap_->external_pointer_space()->StartCompactingIfNeeded();
 #endif  // V8_COMPRESS_POINTERS
   }
 
@@ -1261,8 +1261,8 @@ class ExternalStringTableCleaner : public RootVisitor {
 class MarkExternalPointerFromExternalStringTable : public RootVisitor {
  public:
   explicit MarkExternalPointerFromExternalStringTable(
-      ExternalPointerTable* shared_table)
-      : visitor(shared_table) {}
+      ExternalPointerTable* shared_table, ExternalPointerTable::Space* space)
+      : visitor(shared_table, space) {}
 
   void VisitRootPointers(Root root, const char* description,
                          FullObjectSlot start, FullObjectSlot end) override {
@@ -1285,14 +1285,15 @@ class MarkExternalPointerFromExternalStringTable : public RootVisitor {
  private:
   class MarkExternalPointerTableVisitor : public ObjectVisitor {
    public:
-    explicit MarkExternalPointerTableVisitor(ExternalPointerTable* table)
-        : table_(table) {}
+    explicit MarkExternalPointerTableVisitor(ExternalPointerTable* table,
+                                             ExternalPointerTable::Space* space)
+        : table_(table), space_(space) {}
     void VisitExternalPointer(HeapObject host, ExternalPointerSlot slot,
                               ExternalPointerTag tag) override {
       DCHECK_NE(tag, kExternalPointerNullTag);
       DCHECK(IsSharedExternalPointerType(tag));
       ExternalPointerHandle handle = slot.Relaxed_LoadHandle();
-      table_->Mark(handle, slot.address());
+      table_->Mark(space_, handle, slot.address());
     }
     void VisitPointers(HeapObject host, ObjectSlot start,
                        ObjectSlot end) override {
@@ -1316,6 +1317,7 @@ class MarkExternalPointerFromExternalStringTable : public RootVisitor {
 
    private:
     ExternalPointerTable* table_;
+    ExternalPointerTable::Space* space_;
   };
 
   MarkExternalPointerTableVisitor visitor;
@@ -2050,8 +2052,10 @@ void MarkCompactCollector::MarkObjectsFromClientHeap(Isolate* client) {
   // All ExternalString resources are stored in the shared external pointer
   // table. Mark entries from client heaps.
   ExternalPointerTable& shared_table = client->shared_external_pointer_table();
+  ExternalPointerTable::Space* shared_space =
+      client->shared_external_pointer_space();
   MarkExternalPointerFromExternalStringTable external_string_visitor(
-      &shared_table);
+      &shared_table, shared_space);
   heap->external_string_table_.IterateAll(&external_string_visitor);
 #endif  // V8_ENABLE_SANDBOX
 }
@@ -2068,7 +2072,8 @@ void MarkCompactCollector::MarkWaiterQueueNode(Isolate* isolate) {
   ExternalPointerHandle handle =
       base::AsAtomic32::Relaxed_Load(handle_location);
   if (handle) {
-    shared_table.Mark(handle, reinterpret_cast<Address>(handle_location));
+    shared_table.Mark(isolate->shared_external_pointer_space(), handle,
+                      reinterpret_cast<Address>(handle_location));
   }
 #endif  // V8_COMPRESS_POINTERS
 }
@@ -2916,9 +2921,11 @@ void MarkCompactCollector::ClearNonLiveReferences() {
     // External pointer table sweeping needs to happen before evacuating live
     // objects as it may perform table compaction, which requires objects to
     // still be at the same location as during marking.
-    isolate()->external_pointer_table().SweepAndCompact(isolate());
+    isolate()->external_pointer_table().SweepAndCompact(
+        isolate()->heap()->external_pointer_space(), isolate()->counters());
     if (isolate()->owns_shareable_data()) {
-      isolate()->shared_external_pointer_table().SweepAndCompact(isolate());
+      isolate()->shared_external_pointer_table().SweepAndCompact(
+          isolate()->shared_external_pointer_space(), isolate()->counters());
     }
   }
 #endif  // V8_ENABLE_SANDBOX

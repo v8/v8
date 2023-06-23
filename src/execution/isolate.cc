@@ -3433,8 +3433,8 @@ Isolate::Isolate(std::unique_ptr<i::IsolateAllocator> isolate_allocator)
 
 void Isolate::CheckIsolateLayout() {
 #ifdef V8_ENABLE_SANDBOX
-  CHECK_EQ(static_cast<int>(OFFSET_OF(ExternalPointerTable, buffer_)),
-           Internals::kExternalPointerTableBufferOffset);
+  CHECK_EQ(static_cast<int>(OFFSET_OF(ExternalPointerTable, base_)),
+           Internals::kExternalPointerTableBasePointerOffset);
   CHECK_EQ(static_cast<int>(sizeof(ExternalPointerTable)),
            Internals::kExternalPointerTableSize);
   CHECK_EQ(static_cast<int>(sizeof(ExternalPointerTable)),
@@ -3686,6 +3686,8 @@ void Isolate::Deinit() {
     shared_external_pointer_table().TearDown();
     delete isolate_data_.shared_external_pointer_table_;
     isolate_data_.shared_external_pointer_table_ = nullptr;
+    delete shared_external_pointer_space_;
+    shared_external_pointer_space_ = nullptr;
   }
 #endif  // V8_COMPRESS_POINTERS
 
@@ -4427,10 +4429,13 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
   if (owns_shareable_data()) {
     isolate_data_.shared_external_pointer_table_ = new ExternalPointerTable();
     shared_external_pointer_table().Init();
+    shared_external_pointer_space_ = new ExternalPointerTable::Space();
   } else {
     DCHECK(has_shared_space());
     isolate_data_.shared_external_pointer_table_ =
         shared_space_isolate()->isolate_data_.shared_external_pointer_table_;
+    shared_external_pointer_space_ =
+        shared_space_isolate()->shared_external_pointer_space_;
   }
 #endif  // V8_COMPRESS_POINTERS
 
@@ -6137,7 +6142,7 @@ ExternalPointerHandle Isolate::GetOrCreateWaiterQueueNodeExternalPointer() {
     handle = waiter_queue_node_external_pointer_handle_;
   } else {
     handle = shared_external_pointer_table().AllocateAndInitializeEntry(
-        kNullAddress, kWaiterQueueNodeTag);
+        shared_external_pointer_space(), kNullAddress, kWaiterQueueNodeTag);
     waiter_queue_node_external_pointer_handle_ = handle;
   }
   DCHECK_NE(0, handle);

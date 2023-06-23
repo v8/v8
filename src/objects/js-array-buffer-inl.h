@@ -116,6 +116,7 @@ void JSArrayBuffer::set_extension(ArrayBufferExtension* extension) {
 
     // We need Release semantics here, see above.
     ExternalPointerHandle handle = table.AllocateAndInitializeEntry(
+        isolate->heap()->external_pointer_space(),
         reinterpret_cast<Address>(extension), kArrayBufferExtensionTag);
     base::AsAtomic32::Release_Store(extension_handle_location(), handle);
   } else {

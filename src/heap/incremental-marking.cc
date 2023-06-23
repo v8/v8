@@ -290,7 +290,7 @@ void IncrementalMarking::StartMarkingMajor() {
       MarkCompactCollector::StartCompactionMode::kIncremental);
 
 #ifdef V8_COMPRESS_POINTERS
-  isolate()->external_pointer_table().StartCompactingIfNeeded();
+  heap_->external_pointer_space()->StartCompactingIfNeeded();
 #endif  // V8_COMPRESS_POINTERS
 
   if (heap_->cpp_heap()) {

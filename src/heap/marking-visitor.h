@@ -61,7 +61,9 @@ class MarkingVisitorBase : public ConcurrentHeapVisitor<int, ConcreteVisitor> {
         ,
         external_pointer_table_(&heap->isolate()->external_pointer_table()),
         shared_external_pointer_table_(
-            &heap->isolate()->shared_external_pointer_table())
+            &heap->isolate()->shared_external_pointer_table()),
+        shared_external_pointer_space_(
+            heap->isolate()->shared_external_pointer_space())
 #endif  // V8_ENABLE_SANDBOX
   {
   }
@@ -211,6 +213,7 @@ class MarkingVisitorBase : public ConcurrentHeapVisitor<int, ConcreteVisitor> {
 #ifdef V8_ENABLE_SANDBOX
   ExternalPointerTable* const external_pointer_table_;
   ExternalPointerTable* const shared_external_pointer_table_;
+  ExternalPointerTable::Space* const shared_external_pointer_space_;
 #endif  // V8_ENABLE_SANDBOX
 };
 

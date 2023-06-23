@@ -140,47 +140,52 @@ Address ExternalPointerTable::Exchange(ExternalPointerHandle handle,
 }
 
 ExternalPointerHandle ExternalPointerTable::AllocateAndInitializeEntry(
-    Address initial_value, ExternalPointerTag tag) {
-  uint32_t index = AllocateEntry();
+    Space* space, Address initial_value, ExternalPointerTag tag) {
+  DCHECK(space->BelongsTo(this));
+  uint32_t index = AllocateEntry(space);
   at(index).MakeExternalPointerEntry(initial_value, tag);
   return IndexToHandle(index);
 }
 
-void ExternalPointerTable::Mark(ExternalPointerHandle handle,
+void ExternalPointerTable::Mark(Space* space, ExternalPointerHandle handle,
                                 Address handle_location) {
+  DCHECK(space->BelongsTo(this));
+  // The null entry is immortal and immutable, so no need to mark it as alive.
+  if (handle == kNullExternalPointerHandle) return;
+
   // The handle_location must contain the given handle. The only exception to
-  // this is when the handle is zero, which means that it hasn't yet been
-  // initialized. In that case, the handle may be initialized between the
-  // caller loading it and this DCHECK loading it again, in which case the two
-  // values would not be the same. This scenario is unproblematic though as the
-  // new entry will already be marked as alive as it has just been allocated.
-  DCHECK(handle == kNullExternalPointerHandle ||
-         handle ==
-             base::AsAtomic32::Acquire_Load(
-                 reinterpret_cast<ExternalPointerHandle*>(handle_location)));
+  // this is when the handle is zero, which may mean that it hasn't yet been
+  // initialized. However, in that case we'll have already returned from this
+  // function above.
+  DCHECK(handle ==
+         base::AsAtomic32::Acquire_Load(
+             reinterpret_cast<ExternalPointerHandle*>(handle_location)));
 
   uint32_t index = HandleToIndex(handle);
+  DCHECK(space->Contains(index));
 
   // If the table is being compacted and the entry is inside the evacuation
   // area, then allocate and set up an evacuation entry for it.
-  MaybeCreateEvacuationEntry(index, handle_location);
+  MaybeCreateEvacuationEntry(space, index, handle_location);
 
   // Even if the entry is marked for evacuation, it still needs to be marked as
   // alive as it may be visited during sweeping before being evacuation.
   at(index).Mark();
 }
 
-void ExternalPointerTable::MaybeCreateEvacuationEntry(uint32_t index,
+void ExternalPointerTable::MaybeCreateEvacuationEntry(Space* space,
+                                                      uint32_t index,
                                                       Address handle_location) {
   // Check if the entry should be evacuated for table compaction.
   // The current value of the start of the evacuation area is cached in a local
   // variable here as it otherwise may be changed by another marking thread
   // while this method runs, causing non-optimal behaviour (for example, the
   // allocation of an evacuation entry _after_ the entry that is evacuated).
-  uint32_t start_of_evacuation_area = extra_.load(std::memory_order_relaxed);
+  uint32_t start_of_evacuation_area =
+      space->start_of_evacuation_area_.load(std::memory_order_relaxed);
   if (index >= start_of_evacuation_area) {
-    DCHECK(IsCompacting());
-    uint32_t new_index = AllocateEntryBelow(start_of_evacuation_area);
+    DCHECK(space->IsCompacting());
+    uint32_t new_index = AllocateEntryBelow(space, start_of_evacuation_area);
     if (new_index) {
       DCHECK_LT(new_index, start_of_evacuation_area);
       // Even though the new entry will only be accessed during sweeping, this
@@ -205,16 +210,23 @@ void ExternalPointerTable::MaybeCreateEvacuationEntry(uint32_t index,
       // abort compaction here. Entries that have already been visited will
       // still be compacted during Sweep, but there is no guarantee that any
       // blocks at the end of the table will now be completely free.
-      AbortCompacting(start_of_evacuation_area);
+      space->AbortCompacting(start_of_evacuation_area);
     }
   }
 }
 
+bool ExternalPointerTable::IsValidHandle(ExternalPointerHandle handle) const {
+#ifdef DEBUG
+  handle &= ~kVisitedHandleMarker;
+#endif  // DEBUG
+  uint32_t index = handle >> kExternalPointerIndexShift;
+  return handle == index << kExternalPointerIndexShift;
+}
+
 uint32_t ExternalPointerTable::HandleToIndex(
     ExternalPointerHandle handle) const {
+  DCHECK(IsValidHandle(handle));
   uint32_t index = handle >> kExternalPointerIndexShift;
-  DCHECK_EQ(handle & ~kVisitedHandleMarker,
-            index << kExternalPointerIndexShift);
 #if defined(LEAK_SANITIZER)
   // When LSan is active, we use "fat" entries that also store the raw pointer
   // to that LSan can find live references. However, we do this transparently:
@@ -227,41 +239,47 @@ uint32_t ExternalPointerTable::HandleToIndex(
   // that the entries are 16 bytes large when LSan is active.
   index /= 2;
 #endif  // LEAK_SANITIZER
-  DCHECK_LT(index, capacity());
+  DCHECK_LE(index, kMaxExternalPointers);
   return index;
 }
 
 ExternalPointerHandle ExternalPointerTable::IndexToHandle(
     uint32_t index) const {
+  DCHECK_LE(index, kMaxExternalPointers);
   ExternalPointerHandle handle = index << kExternalPointerIndexShift;
-  DCHECK_EQ(index, handle >> kExternalPointerIndexShift);
 #if defined(LEAK_SANITIZER)
   handle *= 2;
 #endif  // LEAK_SANITIZER
   return handle;
 }
 
-void ExternalPointerTable::StartCompacting(uint32_t start_of_evacuation_area) {
-  extra_.store(start_of_evacuation_area, std::memory_order_relaxed);
+void ExternalPointerTable::Space::StartCompacting(
+    uint32_t start_of_evacuation_area) {
+  start_of_evacuation_area_.store(start_of_evacuation_area,
+                                  std::memory_order_relaxed);
 }
 
-void ExternalPointerTable::StopCompacting() {
-  extra_.store(kNotCompactingMarker, std::memory_order_relaxed);
+void ExternalPointerTable::Space::StopCompacting() {
+  start_of_evacuation_area_.store(kNotCompactingMarker,
+                                  std::memory_order_relaxed);
 }
 
-void ExternalPointerTable::AbortCompacting(uint32_t start_of_evacuation_area) {
+void ExternalPointerTable::Space::AbortCompacting(
+    uint32_t start_of_evacuation_area) {
   uint32_t compaction_aborted_marker =
       start_of_evacuation_area | kCompactionAbortedMarker;
   DCHECK_NE(compaction_aborted_marker, kNotCompactingMarker);
-  extra_.store(compaction_aborted_marker, std::memory_order_relaxed);
+  start_of_evacuation_area_.store(compaction_aborted_marker,
+                                  std::memory_order_relaxed);
 }
 
-bool ExternalPointerTable::IsCompacting() {
-  return extra_.load(std::memory_order_relaxed) != kNotCompactingMarker;
+bool ExternalPointerTable::Space::IsCompacting() {
+  return start_of_evacuation_area_.load(std::memory_order_relaxed) !=
+         kNotCompactingMarker;
 }
 
-bool ExternalPointerTable::CompactingWasAbortedDuringMarking() {
-  auto value = extra_.load(std::memory_order_relaxed);
+bool ExternalPointerTable::Space::CompactingWasAbortedDuringMarking() {
+  auto value = start_of_evacuation_area_.load(std::memory_order_relaxed);
   return (value & kCompactionAbortedMarker) == kCompactionAbortedMarker;
 }
 
