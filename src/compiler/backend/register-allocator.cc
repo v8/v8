@@ -3731,7 +3731,8 @@ void LinearScanAllocator::AllocateRegisters() {
         // allocation if they were not live at the predecessors.
         ForwardStateTo(next_block_boundary);
 
-        RangeWithRegisterSet to_be_live(data()->allocation_zone());
+        constexpr size_t small_prime = 7;
+        RangeWithRegisterSet to_be_live(data()->allocation_zone(), small_prime);
 
         // If we end up deciding to use the state of the immediate
         // predecessor, it is better not to perform a change. It would lead to
