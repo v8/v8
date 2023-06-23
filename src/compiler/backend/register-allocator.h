@@ -148,6 +148,7 @@ class LifetimePosition final {
     return this->value_ >= that.value_;
   }
 
+  // APIs to aid debugging. For general-stream APIs, use operator<<.
   void Print() const;
 
   static inline LifetimePosition Invalid() { return LifetimePosition(); }
@@ -174,7 +175,20 @@ class LifetimePosition final {
   int value_;
 };
 
-std::ostream& operator<<(std::ostream& os, const LifetimePosition pos);
+inline std::ostream& operator<<(std::ostream& os, const LifetimePosition pos) {
+  os << '@' << pos.ToInstructionIndex();
+  if (pos.IsGapPosition()) {
+    os << 'g';
+  } else {
+    os << 'i';
+  }
+  if (pos.IsStart()) {
+    os << 's';
+  } else {
+    os << 'e';
+  }
+  return os;
+}
 
 enum class RegisterAllocationFlag : unsigned { kTraceAllocation = 1 << 0 };
 
@@ -619,12 +633,14 @@ class V8_EXPORT_PRIVATE LiveRange : public NON_EXPORTED_BASE(ZoneObject) {
 
   LifetimePosition Start() const {
     DCHECK(!IsEmpty());
-    return first_interval()->start();
+    DCHECK_EQ(start_, first_interval()->start());
+    return start_;
   }
 
   LifetimePosition End() const {
     DCHECK(!IsEmpty());
-    return last_interval_->end();
+    DCHECK_EQ(end_, last_interval_->end());
+    return end_;
   }
 
   bool ShouldBeAllocatedBefore(const LiveRange* other) const;
@@ -700,6 +716,12 @@ class V8_EXPORT_PRIVATE LiveRange : public NON_EXPORTED_BASE(ZoneObject) {
   LiveRangeBundle* bundle_ = nullptr;
   // Next interval start, relative to the current linear scan position.
   LifetimePosition next_start_;
+
+  // Just a cache for `Start()` and `End()` that improves locality
+  // (i.e., one less pointer indirection), which can reduce total compile time
+  // by up to 40%. See https://crbug.com/v8/12320 for an example.
+  LifetimePosition start_;
+  LifetimePosition end_;
 };
 
 struct LiveRangeOrdering {

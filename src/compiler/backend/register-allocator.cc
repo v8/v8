@@ -274,21 +274,6 @@ UseInterval* UseInterval::SplitAt(LifetimePosition pos, Zone* zone) {
 
 void LifetimePosition::Print() const { StdoutStream{} << *this << std::endl; }
 
-std::ostream& operator<<(std::ostream& os, const LifetimePosition pos) {
-  os << '@' << pos.ToInstructionIndex();
-  if (pos.IsGapPosition()) {
-    os << 'g';
-  } else {
-    os << 'i';
-  }
-  if (pos.IsStart()) {
-    os << 's';
-  } else {
-    os << 'e';
-  }
-  return os;
-}
-
 LiveRange::LiveRange(int relative_id, MachineRepresentation rep,
                      TopLevelLiveRange* top_level)
     : relative_id_(relative_id),
@@ -312,33 +297,34 @@ void LiveRange::VerifyPositions() const {
                      [](const UsePosition* pos1, const UsePosition* pos2) {
                        return pos1->pos() < pos2->pos();
                      });
-  CHECK(positions_are_sorted);
+  DCHECK(positions_are_sorted);
+  USE(positions_are_sorted);
 
   // Verify that each `UsePosition` is covered by a `UseInterval`.
   UseInterval* interval = first_interval_;
   for (UsePosition* pos : positions_span_) {
-    CHECK(Start() <= pos->pos());
-    CHECK(pos->pos() <= End());
-    CHECK_NOT_NULL(interval);
+    DCHECK_LE(Start(), pos->pos());
+    DCHECK_LE(pos->pos(), End());
+    DCHECK_NOT_NULL(interval);
     // NOTE: Even though `UseInterval`s are conceptually half-open (e.g., when
     // splitting), we still regard the `UsePosition` that coincides with
     // the end of an interval as covered by that interval.
     while (!interval->Contains(pos->pos()) && interval->end() != pos->pos()) {
       interval = interval->next();
-      CHECK_NOT_NULL(interval);
+      DCHECK_NOT_NULL(interval);
     }
   }
 }
 
 void LiveRange::VerifyIntervals() const {
-  DCHECK(first_interval()->start() == Start());
+  DCHECK_EQ(first_interval()->start(), Start());
   LifetimePosition last_end = first_interval()->end();
   for (UseInterval* interval = first_interval()->next(); interval != nullptr;
        interval = interval->next()) {
-    DCHECK(last_end <= interval->start());
+    DCHECK_LE(last_end, interval->start());
     last_end = interval->end();
   }
-  DCHECK(last_end == End());
+  DCHECK_EQ(last_end, End());
 }
 #endif
 
@@ -361,6 +347,9 @@ void LiveRange::AttachToNext() {
   next_->first_interval_ = nullptr;
   last_interval_ = next_->last_interval_;
   next_->last_interval_ = nullptr;
+
+  // `start_` doesn't change.
+  end_ = next_->end_;
 
   // Merge use positions.
   CHECK_EQ(positions_span_.end(), next_->positions_span_.begin());
@@ -570,6 +559,10 @@ LiveRange* LiveRange::SplitAt(LifetimePosition position, Zone* zone) {
           : last_interval_;  // Last interval of the original range.
   result->first_interval_ = after;
   last_interval_ = before;
+
+  result->start_ = result->first_interval_->start();
+  result->end_ = end_;
+  end_ = last_interval_->end();
 
   // Partition use positions.
   UsePosition** split_position_it;
@@ -930,6 +923,7 @@ void TopLevelLiveRange::ShortenTo(LifetimePosition start, bool trace_alloc) {
   DCHECK(first_interval_->start() <= start);
   DCHECK(start < first_interval_->end());
   first_interval_->set_start(start);
+  start_ = start;
 }
 
 void TopLevelLiveRange::EnsureInterval(LifetimePosition start,
@@ -951,6 +945,12 @@ void TopLevelLiveRange::EnsureInterval(LifetimePosition start,
   if (new_interval->next() == nullptr) {
     last_interval_ = new_interval;
   }
+  if (end_ < new_end) {
+    end_ = new_end;
+  }
+  if (start_ > start) {
+    start_ = start;
+  }
 }
 
 void TopLevelLiveRange::AddUseInterval(LifetimePosition start,
@@ -962,20 +962,31 @@ void TopLevelLiveRange::AddUseInterval(LifetimePosition start,
     UseInterval* interval = zone->New<UseInterval>(start, end);
     first_interval_ = interval;
     last_interval_ = interval;
+    start_ = start;
+    end_ = end;
   } else {
     if (end == first_interval_->start()) {
+      // Coalesce directly adjacent intervals.
       first_interval_->set_start(start);
+      start_ = start;
     } else if (end < first_interval_->start()) {
       UseInterval* interval = zone->New<UseInterval>(start, end);
       interval->set_next(first_interval_);
       first_interval_ = interval;
+      start_ = start;
     } else {
       // Order of instruction's processing (see ProcessInstructions) guarantees
       // that each new use interval either precedes, intersects with or touches
       // the last added interval.
-      DCHECK(start <= first_interval_->end());
+      DCHECK_LE(start, first_interval_->end());
       first_interval_->set_start(std::min(start, first_interval_->start()));
       first_interval_->set_end(std::max(end, first_interval_->end()));
+      if (start_ > start) {
+        start_ = start;
+      }
+      if (end_ < end) {
+        end_ = end;
+      }
     }
   }
 }
@@ -2974,7 +2985,7 @@ void RegisterAllocator::Spill(LiveRange* range, SpillMode spill_mode) {
 
   TRACE("Starting spill type is %d\n", static_cast<int>(first->spill_type()));
   if (first->HasNoSpillType()) {
-    TRACE("New spill range needed");
+    TRACE("New spill range needed\n");
     data()->AssignSpillRangeToLiveRange(first, spill_mode);
   }
   // Upgrade the spillmode, in case this was only spilled in deferred code so
