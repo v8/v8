@@ -23,6 +23,13 @@ namespace internal {
 class OptimizedCompilationInfo;
 class SharedFunctionInfo;
 class SourcePosition;
+struct WasmInliningPosition;
+
+namespace wasm {
+struct WasmModule;
+class WireBytesStorage;
+}  // namespace wasm
+
 namespace compiler {
 
 class Graph;
@@ -128,6 +135,13 @@ void JsonPrintBytecodeSource(std::ostream& os, int source_id,
 void JsonPrintAllSourceWithPositions(std::ostream& os,
                                      OptimizedCompilationInfo* info,
                                      Isolate* isolate);
+
+#if V8_ENABLE_WEBASSEMBLY
+void JsonPrintAllSourceWithPositionsWasm(
+    std::ostream& os, const wasm::WasmModule* module,
+    const wasm::WireBytesStorage* wire_bytes,
+    base::Vector<WasmInliningPosition> positions);
+#endif
 
 void JsonPrintFunctionSource(std::ostream& os, int source_id,
                              std::unique_ptr<char[]> function_name,

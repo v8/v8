@@ -247,6 +247,42 @@ void JsonPrintAllSourceWithPositions(std::ostream& os,
   os << "}";
 }
 
+#if V8_ENABLE_WEBASSEMBLY
+void JsonPrintAllSourceWithPositionsWasm(
+    std::ostream& os, const wasm::WasmModule* module,
+    const wasm::WireBytesStorage* wire_bytes,
+    base::Vector<WasmInliningPosition> positions) {
+  // Print inlining sources.
+  os << "\"sources\": {";
+  for (size_t i = 0; i < positions.size(); ++i) {
+    if (i != 0) os << ", ";
+    WasmInliningPosition pos = positions[i];
+    const wasm::WasmFunction& fct = module->functions[pos.inlinee_func_index];
+    os << '"' << i << "\": {\"sourceId\": " << i << ", \"functionName\": \""
+       << fct.func_index << "\", \"sourceName\": \"\", \"sourceText\": \"";
+    wasm::WireBytesRef wire_bytes_ref = fct.code;
+    base::Vector<const uint8_t> bytes = wire_bytes->GetCode(wire_bytes_ref);
+    wasm::FunctionBody func_body{fct.sig, wire_bytes_ref.offset(),
+                                 bytes.begin(), bytes.end()};
+    AccountingAllocator allocator;
+    std::ostringstream wasm_str;
+    wasm::PrintRawWasmCode(&allocator, func_body, module, wasm::kPrintLocals,
+                           wasm_str);
+    os << JSONEscaped(wasm_str) << "\"}";
+  }
+  os << "},\n";
+  // Print inlining mappings.
+  // This is just an additional indirection to get from inlining ids (as used by
+  // the SourcePosition) to a source in the sources object generated above.
+  os << "\"inlinings\": {";
+  for (size_t i = 0; i < positions.size(); ++i) {
+    if (i != 0) os << ", ";
+    os << '"' << i << "\": {\"inliningId\": " << i << ", \"sourceId\": " << i
+       << ", \"inliningPosition\": {}}";
+  }
+}
+#endif
+
 std::unique_ptr<char[]> GetVisualizerLogFileName(OptimizedCompilationInfo* info,
                                                  const char* optional_base_dir,
                                                  const char* phase,
