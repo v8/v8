@@ -4382,7 +4382,9 @@ ReduceResult MaglevGraphBuilder::TryBuildElementLoadOnJSArrayOrJSObject(
                  : AddNewNode<LoadTaggedField>({elements_array},
                                                FixedArray::kLengthOffset);
   ValueNode* length = AddNewNode<UnsafeSmiUntag>({length_as_smi});
-  AddNewNode<CheckBounds>({index, length});
+  AddNewNode<CheckInt32Condition>({index, length},
+                                  AssertCondition::kUnsignedLessThan,
+                                  DeoptimizeReason::kOutOfBounds);
 
   // TODO(v8:7700): Add non-deopting bounds check (has to support undefined
   // values).
@@ -4477,7 +4479,9 @@ ReduceResult MaglevGraphBuilder::TryBuildElementStoreOnJSArrayOrJSObject(
                     {elements_array_length,
                      GetInt32Constant(JSObject::kMaxGap)})
               : AddNewNode<Int32AddWithOverflow>({length, GetInt32Constant(1)});
-      AddNewNode<CheckBounds>({index, limit});
+      AddNewNode<CheckInt32Condition>({index, limit},
+                                      AssertCondition::kUnsignedLessThan,
+                                      DeoptimizeReason::kOutOfBounds);
 
       // Grow backing store if necessary and handle COW.
       elements_array = AddNewNode<MaybeGrowAndEnsureWritableFastElements>(
@@ -4489,7 +4493,9 @@ ReduceResult MaglevGraphBuilder::TryBuildElementStoreOnJSArrayOrJSObject(
         AddNewNode<UpdateJSArrayLength>({object, index, length});
       }
     } else {
-      AddNewNode<CheckBounds>({index, length});
+      AddNewNode<CheckInt32Condition>({index, length},
+                                      AssertCondition::kUnsignedLessThan,
+                                      DeoptimizeReason::kOutOfBounds);
 
       // Handle COW if needed.
       if (IsSmiOrObjectElementsKind(elements_kind)) {
@@ -5797,8 +5803,9 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayForEach(
             {receiver, callback, this_arg, index_tagged, original_length}));
     ValueNode* current_length =
         AddNewNode<LoadTaggedField>({receiver}, JSArray::kLengthOffset);
-    AddNewNode<CheckBounds>(
-        {index_int32, AddNewNode<UnsafeSmiUntag>({current_length})});
+    AddNewNode<CheckInt32Condition>(
+        {index_int32, AddNewNode<UnsafeSmiUntag>({current_length})},
+        AssertCondition::kUnsignedLessThan, DeoptimizeReason::kOutOfBounds);
   }
 
   // ```

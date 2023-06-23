@@ -1736,19 +1736,6 @@ void CheckedHoleyFloat64ToFloat64::GenerateCode(MaglevAssembler* masm,
                    __ GetDeoptLabel(this, DeoptimizeReason::kHole));
 }
 
-void CheckBounds::SetValueLocationConstraints() {
-  UseRegister(value_input());
-  UseRegister(bound_input());
-}
-void CheckBounds::GenerateCode(MaglevAssembler* masm,
-                               const ProcessingState& state) {
-  Register value = ToRegister(value_input());
-  Register bound = ToRegister(bound_input());
-  __ CompareInt32(value, bound);
-  __ EmitEagerDeoptIf(kUnsignedGreaterThanEqual, DeoptimizeReason::kOutOfBounds,
-                      this);
-}
-
 void LoadDoubleField::SetValueLocationConstraints() {
   UseRegister(object_input());
   DefineAsRegister(this);
@@ -2494,7 +2481,8 @@ void CheckInt32Condition::SetValueLocationConstraints() {
 void CheckInt32Condition::GenerateCode(MaglevAssembler* masm,
                                        const ProcessingState& state) {
   __ CompareInt32(ToRegister(left_input()), ToRegister(right_input()));
-  __ EmitEagerDeoptIf(NegateCondition(ToCondition(condition_)), reason_, this);
+  __ EmitEagerDeoptIf(NegateCondition(ToCondition(condition())), reason(),
+                      this);
 }
 
 void CheckString::SetValueLocationConstraints() {
@@ -5346,7 +5334,7 @@ void CheckMapsWithMigration::PrintParams(
 
 void CheckInt32Condition::PrintParams(
     std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
-  os << "(" << condition_ << ")";
+  os << "(" << condition() << ", " << reason() << ")";
 }
 
 void CheckedNumberOrOddballToFloat64::PrintParams(

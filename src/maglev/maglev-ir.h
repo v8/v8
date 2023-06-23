@@ -6,6 +6,7 @@
 #define V8_MAGLEV_MAGLEV_IR_H_
 
 #include "src/base/bit-field.h"
+#include "src/base/bits.h"
 #include "src/base/discriminated-union.h"
 #include "src/base/enum-set.h"
 #include "src/base/logging.h"
@@ -269,7 +270,6 @@ class MergePointInterpreterFrameState;
   V(CheckHeapObject)                        \
   V(CheckInt32Condition)                    \
   V(CheckFixedArrayNonEmpty)                \
-  V(CheckBounds)                            \
   V(CheckJSDataViewBounds)                  \
   V(CheckJSTypedArrayBounds)                \
   V(CheckMaps)                              \
@@ -4441,6 +4441,10 @@ enum class AssertCondition {
   ASSERT_CONDITION(D)
 #undef D
 };
+static constexpr int kNumAssertConditions =
+#define D(Name) +1
+    0 ASSERT_CONDITION(D);
+#undef D
 
 inline std::ostream& operator<<(std::ostream& os, const AssertCondition cond) {
   switch (cond) {
@@ -4832,25 +4836,6 @@ class CheckFixedArrayNonEmpty
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 };
 
-class CheckBounds : public FixedInputNodeT<2, CheckBounds> {
-  using Base = FixedInputNodeT<2, CheckBounds>;
-
- public:
-  explicit CheckBounds(uint64_t bitfield) : Base(bitfield) {}
-  static constexpr OpProperties kProperties = OpProperties::EagerDeopt();
-  static constexpr typename Base::InputTypes kInputTypes{
-      ValueRepresentation::kInt32, ValueRepresentation::kInt32};
-
-  static constexpr int kValueIndex = 0;
-  static constexpr int kBoundIndex = 1;
-  Input& value_input() { return input(kValueIndex); }
-  Input& bound_input() { return input(kBoundIndex); }
-
-  void SetValueLocationConstraints();
-  void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
-};
-
 class CheckJSDataViewBounds : public FixedInputNodeT<2, CheckJSDataViewBounds> {
   using Base = FixedInputNodeT<2, CheckJSDataViewBounds>;
 
@@ -4908,7 +4893,8 @@ class CheckInt32Condition : public FixedInputNodeT<2, CheckInt32Condition> {
  public:
   explicit CheckInt32Condition(uint64_t bitfield, AssertCondition condition,
                                DeoptimizeReason reason)
-      : Base(bitfield), condition_(condition), reason_(reason) {}
+      : Base(bitfield | ConditionField::encode(condition) |
+             ReasonField::encode(reason)) {}
 
   static constexpr OpProperties kProperties = OpProperties::EagerDeopt();
   static constexpr typename Base::InputTypes kInputTypes{
@@ -4919,13 +4905,25 @@ class CheckInt32Condition : public FixedInputNodeT<2, CheckInt32Condition> {
   Input& left_input() { return input(kLeftIndex); }
   Input& right_input() { return input(kRightIndex); }
 
+  AssertCondition condition() const {
+    return ConditionField::decode(bitfield());
+  }
+  DeoptimizeReason reason() const { return ReasonField::decode(bitfield()); }
+
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
 
  private:
-  AssertCondition condition_;
-  DeoptimizeReason reason_;
+  using ConditionField =
+      NextBitField<AssertCondition, base::bits::WhichPowerOfTwo<size_t>(
+                                        base::bits::RoundUpToPowerOfTwo32(
+                                            kNumAssertConditions))>;
+  using ReasonField =
+      ConditionField::Next<DeoptimizeReason,
+                           base::bits::WhichPowerOfTwo<size_t>(
+                               base::bits::RoundUpToPowerOfTwo32(
+                                   kDeoptimizeReasonCount))>;
 };
 
 class DebugBreak : public FixedInputNodeT<0, DebugBreak> {
