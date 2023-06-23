@@ -1459,8 +1459,9 @@ class LinearScanAllocator final : public RegisterAllocator {
     }
   };
 
-  // TODO(dlehmann): Evaluate whether a priority queue (backed by a ZoneVector)
-  // improves performance, as did a sorted vector for `InactiveLiveRangeQueue`.
+  // NOTE: We also tried a sorted ZoneVector instead of a `ZoneMultiset`
+  // (like for `InactiveLiveRangeQueue`), but it does not improve performance
+  // or max memory usage.
   using UnhandledLiveRangeQueue =
       ZoneMultiset<LiveRange*, UnhandledLiveRangeOrdering>;
   // Sorted by InactiveLiveRangeOrdering.
