@@ -1334,7 +1334,8 @@ class MaglevGraphBuilder {
     static constexpr bool is_simple_field_store =
         std::is_same_v<NodeT, StoreTaggedFieldWithWriteBarrier> ||
         std::is_same_v<NodeT, StoreTaggedFieldNoWriteBarrier> ||
-        std::is_same_v<NodeT, StoreDoubleField>;
+        std::is_same_v<NodeT, StoreDoubleField> ||
+        std::is_same_v<NodeT, UpdateJSArrayLength>;
 
     // Don't change known node aspects for:
     //
@@ -1698,6 +1699,8 @@ class MaglevGraphBuilder {
       compiler::PropertyAccessInfo access_info, ValueNode* receiver,
       ValueNode* value);
 
+  ReduceResult BuildLoadJSArrayLength(ValueNode* js_array);
+
   ReduceResult TryBuildPropertyLoad(
       ValueNode* receiver, ValueNode* lookup_start_object,
       compiler::NameRef name, compiler::PropertyAccessInfo const& access_info);
@@ -1749,8 +1752,7 @@ class MaglevGraphBuilder {
   // subsequent loads.
   void RecordKnownProperty(ValueNode* lookup_start_object,
                            compiler::NameRef name, ValueNode* value,
-                           compiler::PropertyAccessInfo const& access_info,
-                           compiler::AccessMode access_mode);
+                           bool is_const, compiler::AccessMode access_mode);
   ReduceResult TryReuseKnownPropertyLoad(ValueNode* lookup_start_object,
                                          compiler::NameRef name);
 

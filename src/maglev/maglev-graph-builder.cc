@@ -3778,6 +3778,20 @@ ValueNode* MaglevGraphBuilder::BuildLoadField(
   return value;
 }
 
+ReduceResult MaglevGraphBuilder::BuildLoadJSArrayLength(ValueNode* js_array) {
+  // TODO(leszeks): JSArray.length is known to be non-constant, don't bother
+  // searching the constant values.
+  RETURN_IF_DONE(
+      TryReuseKnownPropertyLoad(js_array, broker()->length_string()));
+
+  ValueNode* length =
+      AddNewNode<LoadTaggedField>({js_array}, JSArray::kLengthOffset);
+  known_node_aspects().node_infos[length].type = NodeType::kSmi;
+  RecordKnownProperty(js_array, broker()->length_string(), length, false,
+                      compiler::AccessMode::kLoad);
+  return length;
+}
+
 void MaglevGraphBuilder::BuildStoreReceiverMap(ValueNode* receiver,
                                                compiler::MapRef map) {
   AddNewNode<StoreMap>({receiver}, map);
@@ -3869,6 +3883,27 @@ ReduceResult MaglevGraphBuilder::TryBuildStoreField(
   return ReduceResult::Done();
 }
 
+namespace {
+bool AccessInfoGuaranteedConst(
+    compiler::PropertyAccessInfo const& access_info) {
+  if (!access_info.IsFastDataConstant() && !access_info.IsStringLength()) {
+    return false;
+  }
+
+  // Even if we have a constant load, if the map is not stable, we cannot
+  // guarantee that the load is preserved across side-effecting calls.
+  // TODO(v8:7700): It might be possible to track it as const if we know
+  // that we're still on the main transition tree; and if we add a
+  // dependency on the stable end-maps of the entire tree.
+  for (auto& map : access_info.lookup_start_object_maps()) {
+    if (!map.is_stable()) {
+      return false;
+    }
+  }
+  return true;
+}
+}  // namespace
+
 ReduceResult MaglevGraphBuilder::TryBuildPropertyLoad(
     ValueNode* receiver, ValueNode* lookup_start_object, compiler::NameRef name,
     compiler::PropertyAccessInfo const& access_info) {
@@ -3886,7 +3921,8 @@ ReduceResult MaglevGraphBuilder::TryBuildPropertyLoad(
     case compiler::PropertyAccessInfo::kDataField:
     case compiler::PropertyAccessInfo::kFastDataConstant: {
       ValueNode* result = BuildLoadField(access_info, lookup_start_object);
-      RecordKnownProperty(lookup_start_object, name, result, access_info,
+      RecordKnownProperty(lookup_start_object, name, result,
+                          AccessInfoGuaranteedConst(access_info),
                           compiler::AccessMode::kLoad);
       return result;
     }
@@ -3907,7 +3943,8 @@ ReduceResult MaglevGraphBuilder::TryBuildPropertyLoad(
     case compiler::PropertyAccessInfo::kStringLength: {
       DCHECK_EQ(receiver, lookup_start_object);
       ValueNode* result = AddNewNode<StringLength>({receiver});
-      RecordKnownProperty(lookup_start_object, name, result, access_info,
+      RecordKnownProperty(lookup_start_object, name, result,
+                          AccessInfoGuaranteedConst(access_info),
                           compiler::AccessMode::kLoad);
       return result;
     }
@@ -3932,8 +3969,8 @@ ReduceResult MaglevGraphBuilder::TryBuildPropertyStore(
     ReduceResult res = TryBuildStoreField(access_info, receiver, access_mode);
     if (res.IsDone()) {
       RecordKnownProperty(receiver, name,
-                          current_interpreter_frame_.accumulator(), access_info,
-                          access_mode);
+                          current_interpreter_frame_.accumulator(),
+                          AccessInfoGuaranteedConst(access_info), access_mode);
       return res;
     }
     return ReduceResult::Fail();
@@ -4448,8 +4485,7 @@ ReduceResult MaglevGraphBuilder::TryBuildElementStoreOnJSArrayOrJSObject(
     ValueNode* elements_array_length = nullptr;
     ValueNode* length;
     if (is_jsarray) {
-      length = AddNewNode<UnsafeSmiUntag>(
-          {AddNewNode<LoadTaggedField>({object}, JSArray::kLengthOffset)});
+      length = GetInt32(BuildLoadJSArrayLength(object).value());
     } else {
       length = elements_array_length =
           AddNewNode<UnsafeSmiUntag>({AddNewNode<LoadTaggedField>(
@@ -4491,6 +4527,8 @@ ReduceResult MaglevGraphBuilder::TryBuildElementStoreOnJSArrayOrJSObject(
       // Update length if necessary.
       if (is_jsarray) {
         AddNewNode<UpdateJSArrayLength>({object, index, length});
+        RecordKnownProperty(object, broker()->length_string(), length, false,
+                            compiler::AccessMode::kStore);
       }
     } else {
       AddNewNode<CheckInt32Condition>({index, length},
@@ -4651,28 +4689,10 @@ ReduceResult MaglevGraphBuilder::TryBuildElementAccess(
   }
 }
 
-void MaglevGraphBuilder::RecordKnownProperty(
-    ValueNode* lookup_start_object, compiler::NameRef name, ValueNode* value,
-    compiler::PropertyAccessInfo const& access_info,
-    compiler::AccessMode access_mode) {
-  bool is_const;
-  if (access_info.IsFastDataConstant() || access_info.IsStringLength()) {
-    is_const = true;
-    // Even if we have a constant load, if the map is not stable, we cannot
-    // guarantee that the load is preserved across side-effecting calls.
-    // TODO(v8:7700): It might be possible to track it as const if we know that
-    // we're still on the main transition tree; and if we add a dependency on
-    // the stable end-maps of the entire tree.
-    for (auto& map : access_info.lookup_start_object_maps()) {
-      if (!map.is_stable()) {
-        is_const = false;
-        break;
-      }
-    }
-  } else {
-    is_const = false;
-  }
-
+void MaglevGraphBuilder::RecordKnownProperty(ValueNode* lookup_start_object,
+                                             compiler::NameRef name,
+                                             ValueNode* value, bool is_const,
+                                             compiler::AccessMode access_mode) {
   KnownNodeAspects::LoadedPropertyMap& loaded_properties =
       is_const ? known_node_aspects().loaded_constant_properties
                : known_node_aspects().loaded_properties;
@@ -5730,9 +5750,7 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayForEach(
   ValueNode* this_arg =
       args.count() > 1 ? args[1] : GetRootConstant(RootIndex::kUndefinedValue);
 
-  // TODO(leszeks): Load cached value if any.
-  ValueNode* original_length =
-      AddNewNode<LoadTaggedField>({receiver}, JSArray::kLengthOffset);
+  ValueNode* original_length = BuildLoadJSArrayLength(receiver).value();
 
   // Elide the callable check if the node is known callable.
   EnsureType(callback, NodeType::kCallable, [&](NodeType old_type) {
@@ -5745,8 +5763,7 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayForEach(
     AddNewNode<ThrowIfNotCallable>({callback});
   });
 
-  ValueNode* original_length_int32 =
-      AddNewNode<UnsafeSmiUntag>({original_length});
+  ValueNode* original_length_int32 = GetInt32(original_length);
 
   // Remember the receiver map set before entering the loop the call.
   bool receiver_maps_were_unstable = receiver_maps.any_map_is_unstable;
@@ -5767,9 +5784,10 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayForEach(
   MaglevSubGraphBuilder::LoopLabel loop_header =
       sub_builder.BeginLoop({&var_index});
 
-  // Reset the known receiver maps if necessary (BeginLoop will clear out
-  // unstable ones because it doesn't know what side effects the loop will
-  // have). We'll re-check them at the end of the loop.
+  // Reset known state that is cleared by BeginLoop, but is known to be true on
+  // the first iteration, and will be re-checked at the end of the loop.
+
+  // Reset the known receiver maps if necessary.
   if (receiver_maps_were_unstable) {
     known_node_aspects().possible_maps[receiver] =
         KnownNodeAspects::PossibleMaps{receiver_maps_before_loop,
@@ -5779,6 +5797,9 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayForEach(
     DCHECK_EQ(known_node_aspects().possible_maps[receiver].possible_maps,
               receiver_maps_before_loop);
   }
+  // Reset the cached loaded array length to the original length.
+  RecordKnownProperty(receiver, broker()->length_string(), original_length,
+                      false, compiler::AccessMode::kLoad);
 
   // ```
   // if (index_int32 < length_int32)
@@ -5792,21 +5813,6 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayForEach(
 
   sub_builder.GotoIfFalse<BranchIfInt32Compare>(
       &loop_end, {index_int32, original_length_int32}, Operation::kLessThan);
-
-  // Check if the index is still in bounds, in case the callback changed the
-  // length.
-  // TODO(leszeks): Elide this if the callback has no side effects.
-  {
-    DeoptFrameScope eager_deopt_scope(
-        this, Builtin::kArrayForEachLoopEagerDeoptContinuation, target,
-        base::VectorOf<ValueNode*>(
-            {receiver, callback, this_arg, index_tagged, original_length}));
-    ValueNode* current_length =
-        AddNewNode<LoadTaggedField>({receiver}, JSArray::kLengthOffset);
-    AddNewNode<CheckInt32Condition>(
-        {index_int32, AddNewNode<UnsafeSmiUntag>({current_length})},
-        AssertCondition::kUnsignedLessThan, DeoptimizeReason::kOutOfBounds);
-  }
 
   // ```
   // next_index = index + 1
@@ -5845,13 +5851,12 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayForEach(
   // ```
   // callback(this_arg, element, array)
   // ```
-  ValueNode* next_index_tagged = GetTaggedValue(next_index_int32);
   ReduceResult result;
   {
     DeoptFrameScope lazy_deopt_scope(
         this, Builtin::kArrayForEachLoopLazyDeoptContinuation, target,
-        base::VectorOf<ValueNode*>({receiver, callback, this_arg,
-                                    next_index_tagged, original_length}));
+        base::VectorOf<ValueNode*>(
+            {receiver, callback, this_arg, next_index_int32, original_length}));
 
     CallArguments call_args =
         args.count() < 2
@@ -5899,25 +5904,43 @@ ReduceResult MaglevGraphBuilder::TryReduceArrayForEach(
       }
     }
   }
-  if (recheck_maps_after_call) {
-    // Make sure to finish the loop if we eager deopt in the map check.
+
+  {
+    // Make sure to finish the loop if we eager deopt in the map check or index
+    // check.
     DeoptFrameScope eager_deopt_scope(
         this, Builtin::kArrayForEachLoopEagerDeoptContinuation, target,
-        base::VectorOf<ValueNode*>({receiver, callback, this_arg,
-                                    next_index_tagged, original_length}));
+        base::VectorOf<ValueNode*>(
+            {receiver, callback, this_arg, next_index_int32, original_length}));
 
-    // Build the CheckMap manually, since we're doing it with already known
-    // maps rather than feedback, and we don't need to update known node
-    // aspects or types since we're at the end of the loop anyway.
-    bool emit_check_with_migration = std::any_of(
-        receiver_maps_before_loop.begin(), receiver_maps_before_loop.end(),
-        [](compiler::MapRef map) { return map.is_migration_target(); });
-    if (emit_check_with_migration) {
-      AddNewNode<CheckMapsWithMigration>({receiver}, receiver_maps_before_loop,
-                                         CheckType::kOmitHeapObjectCheck);
-    } else {
-      AddNewNode<CheckMaps>({receiver}, receiver_maps_before_loop,
-                            CheckType::kOmitHeapObjectCheck);
+    if (recheck_maps_after_call) {
+      // Build the CheckMap manually, since we're doing it with already known
+      // maps rather than feedback, and we don't need to update known node
+      // aspects or types since we're at the end of the loop anyway.
+      bool emit_check_with_migration = std::any_of(
+          receiver_maps_before_loop.begin(), receiver_maps_before_loop.end(),
+          [](compiler::MapRef map) { return map.is_migration_target(); });
+      if (emit_check_with_migration) {
+        AddNewNode<CheckMapsWithMigration>({receiver},
+                                           receiver_maps_before_loop,
+                                           CheckType::kOmitHeapObjectCheck);
+      } else {
+        AddNewNode<CheckMaps>({receiver}, receiver_maps_before_loop,
+                              CheckType::kOmitHeapObjectCheck);
+      }
+    }
+
+    // Check if the index is still in bounds, in case the callback changed the
+    // length.
+    ValueNode* current_length = BuildLoadJSArrayLength(receiver).value();
+    // Reference compare the loaded length against the original length. If this
+    // is the same value node, then we didn't have any side effects and didn't
+    // clear the cached length.
+    if (current_length != original_length) {
+      AddNewNode<CheckInt32Condition>(
+          {original_length_int32, GetInt32(current_length)},
+          AssertCondition::kUnsignedLessThanEqual,
+          DeoptimizeReason::kArrayLengthChanged);
     }
   }
 
