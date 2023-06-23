@@ -119,4 +119,12 @@
   'wasm-trace-memory64': [SKIP],
   'wasm-trace-memory64-liftoff': [SKIP],
 }],  # 'arch in (ia32, arm, riscv32)'
+
+##############################################################################
+# Behavioural differences between Maglev and Turbofan when the former is used
+# for OptimizeFunctionOnNextCall.
+['variant == stress_maglev or variant == stress_maglev_future', {
+  # Maglev doesn't support inlining of Wasm code.
+  'wasm-inlining-into-js': [FAIL],
+}],  # variant == stress_maglev or variant == stress_maglev_future
 ]
