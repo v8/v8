@@ -328,12 +328,6 @@ in_category(
         use_remoteexec = RECLIENT.NONE,
     ),
     main_multibranch_builder(
-        name = "V8 Fuzzer",
-        parent_builder = "V8 Linux64 - debug builder",
-        execution_timeout = 19800,
-        close_tree = False,
-    ),
-    main_multibranch_builder(
         name = "V8 Test Tools",
         executable = "recipe:v8/test_tools",
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
