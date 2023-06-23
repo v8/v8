@@ -305,6 +305,7 @@ LiveRange::LiveRange(int relative_id, MachineRepresentation rep,
           ControlFlowRegisterHint::encode(kUnassignedRegister);
 }
 
+#ifdef DEBUG
 void LiveRange::VerifyPositions() const {
   bool positions_are_sorted =
       std::is_sorted(positions_span_.begin(), positions_span_.end(),
@@ -339,6 +340,7 @@ void LiveRange::VerifyIntervals() const {
   }
   DCHECK(last_end == End());
 }
+#endif
 
 void LiveRange::set_assigned_register(int reg) {
   DCHECK(!HasRegisterAssigned() && !spilled());
@@ -882,15 +884,6 @@ AllocatedOperand TopLevelLiveRange::GetSpillRangeOperand() const {
   return AllocatedOperand(LocationOperand::STACK_SLOT, representation(), index);
 }
 
-void TopLevelLiveRange::VerifyChildrenInOrder() const {
-  LifetimePosition last_end = End();
-  for (const LiveRange* child = this->next(); child != nullptr;
-       child = child->next()) {
-    DCHECK(last_end <= child->Start());
-    last_end = child->End();
-  }
-}
-
 LiveRange* TopLevelLiveRange::GetChildCovers(LifetimePosition pos) {
   LiveRange* child = last_child_covers_;
   DCHECK_NE(child, nullptr);
@@ -912,12 +905,23 @@ LiveRange* TopLevelLiveRange::GetChildCovers(LifetimePosition pos) {
   return !child || !child->Covers(pos) ? nullptr : child;
 }
 
+#ifdef DEBUG
 void TopLevelLiveRange::Verify() const {
   VerifyChildrenInOrder();
   for (const LiveRange* child = this; child != nullptr; child = child->next()) {
     VerifyChildStructure();
   }
 }
+
+void TopLevelLiveRange::VerifyChildrenInOrder() const {
+  LifetimePosition last_end = End();
+  for (const LiveRange* child = this->next(); child != nullptr;
+       child = child->next()) {
+    DCHECK(last_end <= child->Start());
+    last_end = child->End();
+  }
+}
+#endif
 
 void TopLevelLiveRange::ShortenTo(LifetimePosition start, bool trace_alloc) {
   TRACE_COND(trace_alloc, "Shorten live range %d to [%d\n", vreg(),
@@ -2557,6 +2561,7 @@ void LiveRangeBuilder::ResolvePhiHint(InstructionOperand* operand,
   it->second->ResolveHint(use_pos);
 }
 
+#ifdef DEBUG
 void LiveRangeBuilder::Verify() const {
   for (auto& hint : phi_hints_) {
     CHECK(hint.second->IsResolved());
@@ -2593,6 +2598,7 @@ void LiveRangeBuilder::Verify() const {
     }
   }
 }
+#endif
 
 bool LiveRangeBuilder::IntervalStartsAtBlockBoundary(
     const UseInterval* interval) const {

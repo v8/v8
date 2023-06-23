@@ -635,10 +635,12 @@ class V8_EXPORT_PRIVATE LiveRange : public NON_EXPORTED_BASE(ZoneObject) {
   LifetimePosition FirstIntersection(LiveRange* other) const;
   LifetimePosition NextStart() const { return next_start_; }
 
+#ifdef DEBUG
   void VerifyChildStructure() const {
     VerifyIntervals();
     VerifyPositions();
   }
+#endif
 
   void ConvertUsesToOperand(const InstructionOperand& op,
                             const InstructionOperand& spill_op);
@@ -667,8 +669,10 @@ class V8_EXPORT_PRIVATE LiveRange : public NON_EXPORTED_BASE(ZoneObject) {
   void AdvanceLastProcessedMarker(UseInterval* to_start_of,
                                   LifetimePosition but_not_past) const;
 
+#ifdef DEBUG
   void VerifyPositions() const;
   void VerifyIntervals() const;
+#endif
 
   using SpilledField = base::BitField<bool, 0, 1>;
   // Bits (1,7[ are used by TopLevelLiveRange.
@@ -944,8 +948,10 @@ class V8_EXPORT_PRIVATE TopLevelLiveRange final : public LiveRange {
   void UpdateSpillRangePostMerge(TopLevelLiveRange* merged);
   int vreg() const { return vreg_; }
 
+#ifdef DEBUG
   void Verify() const;
   void VerifyChildrenInOrder() const;
+#endif
 
   // Returns the LiveRange covering the given position, or nullptr if no such
   // range exists. Uses a linear search through child ranges. The range at the
@@ -1221,8 +1227,10 @@ class LiveRangeBuilder final : public ZoneObject {
     return data()->live_in_sets();
   }
 
+#ifdef DEBUG
   // Verification.
   void Verify() const;
+#endif
   bool IntervalStartsAtBlockBoundary(const UseInterval* interval) const;
   bool IntervalPredecessorsCoveredByRange(const UseInterval* interval,
                                           const TopLevelLiveRange* range) const;
