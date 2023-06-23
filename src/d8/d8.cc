@@ -501,7 +501,6 @@ std::unordered_set<std::shared_ptr<Worker>> Shell::running_workers_;
 std::atomic<bool> Shell::script_executed_{false};
 std::atomic<bool> Shell::valid_fuzz_script_{false};
 base::LazyMutex Shell::isolate_status_lock_;
-std::map<v8::Isolate*, bool> Shell::isolate_status_;
 std::map<v8::Isolate*, int> Shell::isolate_running_streaming_tasks_;
 base::LazyMutex Shell::cached_code_mutex_;
 std::map<std::string, std::unique_ptr<ScriptCompiler::CachedData>>
@@ -961,7 +960,7 @@ bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
       delete cached_data;
     }
     if (process_message_queue) {
-      if (!EmptyMessageQueues(isolate)) success = false;
+      if (!CompleteMessageLoop(isolate)) success = false;
       if (!HandleUnhandledPromiseRejections(isolate)) success = false;
     }
     data->realm_current_ = data->realm_switch_;
@@ -3007,16 +3006,6 @@ void Shell::Quit(const v8::FunctionCallbackInfo<v8::Value>& info) {
                  const_cast<v8::FunctionCallbackInfo<v8::Value>*>(&info));
 }
 
-void Shell::WaitUntilDone(const v8::FunctionCallbackInfo<v8::Value>& info) {
-  DCHECK(i::ValidateCallbackInfo(info));
-  SetWaitUntilDone(info.GetIsolate(), true);
-}
-
-void Shell::NotifyDone(const v8::FunctionCallbackInfo<v8::Value>& info) {
-  DCHECK(i::ValidateCallbackInfo(info));
-  SetWaitUntilDone(info.GetIsolate(), false);
-}
-
 void Shell::Version(const v8::FunctionCallbackInfo<v8::Value>& info) {
   DCHECK(i::ValidateCallbackInfo(info));
   info.GetReturnValue().Set(
@@ -3472,10 +3461,6 @@ Local<ObjectTemplate> Shell::CreateAsyncHookTemplate(Isolate* isolate) {
 
 Local<ObjectTemplate> Shell::CreateTestRunnerTemplate(Isolate* isolate) {
   Local<ObjectTemplate> test_template = ObjectTemplate::New(isolate);
-  test_template->Set(isolate, "notifyDone",
-                     FunctionTemplate::New(isolate, NotifyDone));
-  test_template->Set(isolate, "waitUntilDone",
-                     FunctionTemplate::New(isolate, WaitUntilDone));
   // Reliable access to quit functionality. The "quit" method function
   // installed on the global object can be hidden with the --omit-quit flag
   // (e.g. on asan bots).
@@ -4464,7 +4449,6 @@ void SourceGroup::ExecuteInThread() {
   Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = Shell::array_buffer_allocator;
   Isolate* isolate = Isolate::New(create_params);
-  Shell::SetWaitUntilDone(isolate, false);
 
   {
     Isolate::Scope isolate_scope(isolate);
@@ -5228,7 +5212,6 @@ int Shell::RunMain(v8::Isolate* isolate, bool last_run) {
 }
 
 bool Shell::RunMainIsolate(v8::Isolate* isolate, bool keep_context_alive) {
-  Shell::SetWaitUntilDone(isolate, false);
   if (options.lcov_file) {
     debug::Coverage::SelectMode(isolate, debug::CoverageMode::kBlockCount);
   }
@@ -5267,11 +5250,6 @@ void Shell::CollectGarbage(Isolate* isolate) {
     // unreachable persistent handles.
     isolate->LowMemoryNotification();
   }
-}
-
-void Shell::SetWaitUntilDone(Isolate* isolate, bool value) {
-  base::MutexGuard guard(isolate_status_lock_.Pointer());
-  isolate_status_[isolate] = value;
 }
 
 void Shell::NotifyStartStreamingTask(Isolate* isolate) {
@@ -5350,10 +5328,8 @@ bool ProcessMessages(
 bool Shell::CompleteMessageLoop(Isolate* isolate) {
   auto get_waiting_behaviour = [isolate]() {
     base::MutexGuard guard(isolate_status_lock_.Pointer());
-    DCHECK_GT(isolate_status_.count(isolate), 0);
     bool should_wait = (options.wait_for_background_tasks &&
                         isolate->HasPendingBackgroundTasks()) ||
-                       isolate_status_[isolate] ||
                        isolate_running_streaming_tasks_[isolate] > 0;
     return should_wait ? platform::MessageLoopBehavior::kWaitForWork
                        : platform::MessageLoopBehavior::kDoNotWait;
