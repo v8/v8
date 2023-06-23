@@ -964,7 +964,12 @@ V8_INLINE bool Block::HasPhis(const Graph& graph) const {
 
 struct PrintAsBlockHeader {
   const Block& block;
-  BlockIndex block_id = block.index();
+  BlockIndex block_id;
+
+  explicit PrintAsBlockHeader(const Block& block)
+      : block(block), block_id(block.index()) {}
+  PrintAsBlockHeader(const Block& block, BlockIndex block_id)
+      : block(block), block_id(block_id) {}
 };
 std::ostream& operator<<(std::ostream& os, PrintAsBlockHeader block);
 std::ostream& operator<<(std::ostream& os, const Graph& graph);
