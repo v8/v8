@@ -4559,27 +4559,38 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
             UNREACHABLE();
         }
       } else if (vec_len == kV256) {
-        DCHECK_EQ(i.OutputSimd256Register(), i.InputSimd256Register(0));
         YMMRegister dst = i.OutputSimd256Register();
         YMMRegister src = i.InputSimd256Register(1);
         CpuFeatureScope avx2_scope(masm(), AVX2);
         switch (lane_size) {
           case kL8: {
             // I8x32GeS
+            DCHECK_EQ(i.OutputSimd256Register(), i.InputSimd256Register(0));
             __ vpminsb(dst, dst, src);
             __ vpcmpeqb(dst, dst, src);
             break;
           }
           case kL16: {
             // I16x16GeS
+            DCHECK_EQ(i.OutputSimd256Register(), i.InputSimd256Register(0));
             __ vpminsw(dst, dst, src);
             __ vpcmpeqw(dst, dst, src);
             break;
           }
           case kL32: {
             // I32x8GeS
+            DCHECK_EQ(i.OutputSimd256Register(), i.InputSimd256Register(0));
             __ vpminsd(dst, dst, src);
             __ vpcmpeqd(dst, dst, src);
+            break;
+          }
+          case kL64: {
+            // I64x4GeS
+            __ vpcmpgtq(dst, i.InputSimd256Register(1),
+                        i.InputSimd256Register(0));
+            __ vpcmpeqq(kScratchSimd256Reg, kScratchSimd256Reg,
+                        kScratchSimd256Reg);
+            __ vpxor(dst, dst, kScratchSimd256Reg);
             break;
           }
           default:

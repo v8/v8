@@ -642,12 +642,6 @@ WASM_EXEC_TEST(I64x2Ne) {
   RunI64x2BinOpTest(execution_tier, kExprI64x2Ne, NotEqual);
 }
 
-#ifdef V8_ENABLE_WASM_SIMD256_REVEC
-TEST(RunWasmTurbofan_I64x4Ne) {
-  RunI64x4BinOpRevecTest(kExprI64x2Ne, NotEqual, compiler::IrOpcode::kI64x4Ne);
-}
-#endif
-
 WASM_EXEC_TEST(I64x2LtS) {
   RunI64x2BinOpTest(execution_tier, kExprI64x2LtS, Less);
 }
@@ -663,6 +657,17 @@ WASM_EXEC_TEST(I64x2GtS) {
 WASM_EXEC_TEST(I64x2GeS) {
   RunI64x2BinOpTest(execution_tier, kExprI64x2GeS, GreaterEqual);
 }
+
+#ifdef V8_ENABLE_WASM_SIMD256_REVEC
+TEST(RunWasmTurbofan_I64x4Ne) {
+  RunI64x4BinOpRevecTest(kExprI64x2Ne, NotEqual, compiler::IrOpcode::kI64x4Ne);
+}
+
+TEST(RunWasmTurbofan_I64x4GeS) {
+  RunI64x4BinOpRevecTest(kExprI64x2GeS, GreaterEqual,
+                         compiler::IrOpcode::kI64x4GeS);
+}
+#endif
 
 namespace {
 

@@ -1146,6 +1146,7 @@
   V(F32x8Min)                      \
   V(F32x8Max)                      \
   V(I64x4Ne)                       \
+  V(I64x4GeS)                      \
   V(I32x8Ne)                       \
   V(I32x8GtU)                      \
   V(I32x8GeS)                      \

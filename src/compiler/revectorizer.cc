@@ -528,6 +528,7 @@ PackNode* SLPTree::BuildTree(const ZoneVector<Node*>& roots) {
   V(I32x4GtU, I32x8GtU)    \
   V(I16x8GtU, I16x16GtU)   \
   V(I8x16GtU, I8x32GtU)    \
+  V(I64x2GeS, I64x4GeS)    \
   V(I32x4GeS, I32x8GeS)    \
   V(I16x8GeS, I16x16GeS)   \
   V(I8x16GeS, I8x32GeS)    \
@@ -947,13 +948,12 @@ Node* Revectorizer::VectorizeTree(PackNode* pnode) {
 #undef SHIFT_CASE
 #undef SIMD_SHIFT_OP
 
-#define SIGN_EXTENSION_CONVERT_CASE(from, to)                         \
-  case IrOpcode::k##from: {                                           \
-    DCHECK_EQ(node0->InputAt(0), pnode->Nodes()[1]->InputAt(0));      \
-    DCHECK_EQ(node0->InputAt(0)->opcode(), IrOpcode::kProtectedLoad); \
-    new_op = mcgraph_->machine()->to();                               \
-    inputs[0] = node0->InputAt(0);                                    \
-    break;                                                            \
+#define SIGN_EXTENSION_CONVERT_CASE(from, to)                    \
+  case IrOpcode::k##from: {                                      \
+    DCHECK_EQ(node0->InputAt(0), pnode->Nodes()[1]->InputAt(0)); \
+    new_op = mcgraph_->machine()->to();                          \
+    inputs[0] = node0->InputAt(0);                               \
+    break;                                                       \
   }
       SIGN_EXTENSION_SIMD_UNOP(SIGN_EXTENSION_CONVERT_CASE)
 #undef SIGN_EXTENSION_CONVERT_CASE

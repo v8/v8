@@ -1053,6 +1053,7 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* I16x16MaxU();
   const Operator* I8x32MaxU();
   const Operator* I64x4Ne();
+  const Operator* I64x4GeS();
   const Operator* I32x8Ne();
   const Operator* I32x8GtU();
   const Operator* I32x8GeS();

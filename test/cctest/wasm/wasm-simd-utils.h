@@ -38,11 +38,8 @@ class SIMD256NodeObserver : public compiler::NodeObserver {
 class ObserveSIMD256Scope {
  public:
   explicit ObserveSIMD256Scope(Isolate* isolate,
-                               compiler::NodeObserver* node_observer,
-                               compiler::IrOpcode::Value expected_simd256_op)
-      : isolate_(isolate),
-        node_observer_(node_observer),
-        expected_simd256_op_(expected_simd256_op) {
+                               compiler::NodeObserver* node_observer)
+      : isolate_(isolate), node_observer_(node_observer) {
     DCHECK_NOT_NULL(isolate_);
     DCHECK_NULL(isolate_->node_observer());
     isolate_->set_node_observer(node_observer_);
@@ -55,7 +52,6 @@ class ObserveSIMD256Scope {
 
   Isolate* isolate_;
   compiler::NodeObserver* node_observer_;
-  compiler::IrOpcode::Value expected_simd256_op_;
 };
 
 // Build input wasm expressions and check if the revectorization success
@@ -70,8 +66,7 @@ class ObserveSIMD256Scope {
               return;                                                     \
             }                                                             \
           });                                                             \
-  ObserveSIMD256Scope scope(CcTest::InitIsolateOnce(), observer,          \
-                            revec_opcode);                                \
+  ObserveSIMD256Scope scope(CcTest::InitIsolateOnce(), observer);         \
   r.Build({__VA_ARGS__});                                                 \
   CHECK(find_expected_node);
 

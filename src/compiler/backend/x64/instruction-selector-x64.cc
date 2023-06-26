@@ -5171,6 +5171,16 @@ void InstructionSelectorT<Adapter>::VisitI64x2GeS(Node* node) {
 }
 
 template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitI64x4GeS(Node* node) {
+  X64OperandGeneratorT<Adapter> g(this);
+  DCHECK(CpuFeatures::IsSupported(AVX2));
+  Emit(
+      kX64IGeS | LaneSizeField::encode(kL64) | VectorLengthField::encode(kV256),
+      g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)),
+      g.UseRegister(node->InputAt(1)));
+}
+
+template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitI64x2Abs(Node* node) {
   X64OperandGeneratorT<Adapter> g(this);
   if (CpuFeatures::IsSupported(AVX)) {
