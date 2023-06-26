@@ -91,7 +91,33 @@ void BuiltinStringFromCharCode::SetValueLocationConstraints() {
 }
 void BuiltinStringFromCharCode::GenerateCode(MaglevAssembler* masm,
                                              const ProcessingState& state) {
-  MAGLEV_NODE_NOT_IMPLEMENTED(BuiltinStringFromCharCode);
+  MaglevAssembler::ScratchRegisterScope temps(masm);
+  Register scratch = temps.Acquire();
+  Register result_string = ToRegister(result());
+  if (Int32Constant* constant = code_input().node()->TryCast<Int32Constant>()) {
+    int32_t char_code = constant->value();
+    if (0 <= char_code && char_code < String::kMaxOneByteCharCode) {
+      __ LoadSingleCharacterString(result_string, char_code);
+    } else {
+      // Ensure that {result_string} never aliases {scratch}, otherwise the
+      // store will fail.
+      bool reallocate_result = (scratch == result_string);
+      if (reallocate_result) {
+        result_string = temps.Acquire();
+      }
+      DCHECK(scratch != result_string);
+      __ AllocateTwoByteString(register_snapshot(), result_string, 1);
+      __ Move(scratch, char_code & 0xFFFF);
+      __ strh(scratch,
+              FieldMemOperand(result_string, SeqTwoByteString::kHeaderSize));
+      if (reallocate_result) {
+        __ Move(ToRegister(result()), result_string);
+      }
+    }
+  } else {
+    __ StringFromCharCode(register_snapshot(), nullptr, result_string,
+                          ToRegister(code_input()), scratch);
+  }
 }
 
 int BuiltinStringPrototypeCharCodeOrCodePointAt::MaxCallStackArgs() const {
