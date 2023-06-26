@@ -496,9 +496,15 @@ RUNTIME_FUNCTION(Runtime_AddPrivateBrand) {
         handle(Context::cast(context->get(Context::PREVIOUS_INDEX)), isolate);
   }
   DCHECK_EQ(context->scope_info().scope_type(), ScopeType::CLASS_SCOPE);
-  CHECK(Object::AddDataProperty(&it, context, attributes, Just(kDontThrow),
-                                StoreOrigin::kMaybeKeyed)
-            .FromJust());
+  Maybe<bool> added_brand = Object::AddDataProperty(
+      &it, context, attributes, Just(kThrowOnError), StoreOrigin::kMaybeKeyed);
+  // Objects in shared space are fixed shape, so private symbols cannot be
+  // added.
+  if (V8_UNLIKELY(receiver->IsAlwaysSharedSpaceJSObject())) {
+    CHECK(added_brand.IsNothing());
+    return ReadOnlyRoots(isolate).exception();
+  }
+  CHECK(added_brand.IsJust());
   return *receiver;
 }
 

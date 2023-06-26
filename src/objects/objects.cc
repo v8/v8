@@ -2912,11 +2912,17 @@ Maybe<bool> Object::AddDataProperty(LookupIterator* it, Handle<Object> value,
   Isolate* isolate = it->isolate();
 
   if (it->ExtendingNonExtensible(receiver)) {
-    RETURN_FAILURE(isolate, GetShouldThrow(it->isolate(), should_throw),
-                   NewTypeError(semantics == EnforceDefineSemantics::kDefine
-                                    ? MessageTemplate::kDefineDisallowed
-                                    : MessageTemplate::kObjectNotExtensible,
-                                it->GetName()));
+    bool is_shared_object = receiver->IsAlwaysSharedSpaceJSObject();
+    RETURN_FAILURE(
+        isolate, GetShouldThrow(it->isolate(), should_throw),
+        NewTypeError(
+            semantics == EnforceDefineSemantics::kDefine
+                ? (is_shared_object
+                       ? MessageTemplate::kDefineDisallowedFixedLayout
+                       : MessageTemplate::kDefineDisallowed)
+                : (is_shared_object ? MessageTemplate::kObjectFixedLayout
+                                    : MessageTemplate::kObjectNotExtensible),
+            it->GetName()));
   }
 
   if (it->IsElement(*receiver)) {

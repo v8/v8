@@ -101,7 +101,7 @@ namespace internal {
   T(DeclarationMissingInitializer, "Missing initializer in % declaration")     \
   T(DefineDisallowed, "Cannot define property %, object is not extensible")    \
   T(DefineDisallowedFixedLayout,                                               \
-    "Cannot define property %, object is fixed layout")                        \
+    "Cannot define property %, object has fixed layout")                       \
   T(DetachedOperation, "Cannot perform % on a detached ArrayBuffer")           \
   T(DoNotUse, "Do not use %; %")                                               \
   T(DuplicateTemplateProperty, "Object template has duplicate property '%'")   \
@@ -193,6 +193,7 @@ namespace internal {
   T(NotInt32OrBigInt64TypedArray,                                              \
     "% is not an int32 or BigInt64 typed array.")                              \
   T(NotSharedTypedArray, "% is not a shared typed array.")                     \
+  T(ObjectFixedLayout, "Cannot add property %, object has fixed layout")       \
   T(ObjectGetterExpectingFunction,                                             \
     "Object.prototype.__defineGetter__: Expecting function")                   \
   T(ObjectGetterCallable, "Getter must be a function: %")                      \
