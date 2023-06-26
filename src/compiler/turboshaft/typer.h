@@ -901,6 +901,10 @@ struct FloatOperationTyper {
       return type_t::NaN();
     }
     bool maybe_nan = l.has_nan() || r.has_nan();
+    // +-1 ** +-Infinity => NaN.
+    if (r.Contains(-inf) || r.Contains(inf)) {
+      if (l.Contains(1) || l.Contains(-1)) maybe_nan = true;
+    }
 
     // a ** b produces NaN if a < 0 && b is fraction.
     if (l.min() < 0.0 && !IsIntegerSet(r)) maybe_nan = true;
