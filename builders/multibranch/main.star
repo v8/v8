@@ -152,7 +152,7 @@ in_category(
         dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
         properties = {"default_targets": ["verify_all_builtins_hashes"]},
         use_remoteexec = RECLIENT.DEFAULT,
-        first_branch_version = "11.6",
+        first_branch_version = "11.7",
     ),
     main_multibranch_builder(
         name = "V8 Linux64 - verify deterministic",
