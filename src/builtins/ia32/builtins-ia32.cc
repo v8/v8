@@ -3569,7 +3569,7 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
   //  -- ecx                 : arguments count (not including the receiver)
   //  -- edx                 : call handler info
   //  -- edi                 : holder
-  // CallApiCallbackMode::kNoSideEffects/kWithSideEffectsSideEffects modes:
+  // CallApiCallbackMode::kOptimized mode:
   //  -- eax                 : api function address
   //  -- ecx                 : arguments count (not including the receiver)
   //  -- edx                 : call data
@@ -3598,8 +3598,7 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
       holder = CallApiCallbackGenericDescriptor::HolderRegister();
       break;
 
-    case CallApiCallbackMode::kNoSideEffects:
-    case CallApiCallbackMode::kWithSideEffects:
+    case CallApiCallbackMode::kOptimized:
       api_function_address =
           CallApiCallbackOptimizedDescriptor::ApiFunctionAddressRegister();
       argc = CallApiCallbackOptimizedDescriptor::ActualArgumentsCountRegister();
@@ -3646,8 +3645,7 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
       __ push(FieldOperand(callback, CallHandlerInfo::kDataOffset));
       break;
 
-    case CallApiCallbackMode::kNoSideEffects:
-    case CallApiCallbackMode::kWithSideEffects:
+    case CallApiCallbackMode::kOptimized:
       __ Push(call_data);
       break;
   }

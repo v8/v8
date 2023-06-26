@@ -686,10 +686,8 @@ class FastApiCallReducerAssembler : public JSCallReducerAssembler {
     // holder, receiver, ... JS arguments, context, new frame state]
     CallHandlerInfoRef call_handler_info =
         *function_template_info_.call_code(broker());
-    Callable call_api_callback = Builtins::CallableFor(
-        isolate(), call_handler_info.object()->IsSideEffectCallHandlerInfo()
-                       ? Builtin::kCallApiCallbackWithSideEffects
-                       : Builtin::kCallApiCallbackNoSideEffects);
+    Callable call_api_callback =
+        Builtins::CallableFor(isolate(), Builtin::kCallApiCallbackOptimized);
     CallInterfaceDescriptor cid = call_api_callback.descriptor();
     CallDescriptor* call_descriptor =
         Linkage::GetStubCallDescriptor(graph()->zone(), cid, arity_ + kReceiver,
@@ -4011,10 +4009,8 @@ Reduction JSCallReducer::ReduceCallApiFunction(Node* node,
 
   CallHandlerInfoRef call_handler_info =
       *function_template_info.call_code(broker());
-  Callable call_api_callback = Builtins::CallableFor(
-      isolate(), call_handler_info.object()->IsSideEffectCallHandlerInfo()
-                     ? Builtin::kCallApiCallbackWithSideEffects
-                     : Builtin::kCallApiCallbackNoSideEffects);
+  Callable call_api_callback =
+      Builtins::CallableFor(isolate(), Builtin::kCallApiCallbackOptimized);
   CallInterfaceDescriptor cid = call_api_callback.descriptor();
   auto call_descriptor =
       Linkage::GetStubCallDescriptor(graph()->zone(), cid, argc + 1 /*

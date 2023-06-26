@@ -68,12 +68,8 @@ void Builtins::Generate_CallApiCallbackGeneric(MacroAssembler* masm) {
   Generate_CallApiCallbackImpl(masm, CallApiCallbackMode::kGeneric);
 }
 
-void Builtins::Generate_CallApiCallbackNoSideEffects(MacroAssembler* masm) {
-  Generate_CallApiCallbackImpl(masm, CallApiCallbackMode::kNoSideEffects);
-}
-
-void Builtins::Generate_CallApiCallbackWithSideEffects(MacroAssembler* masm) {
-  Generate_CallApiCallbackImpl(masm, CallApiCallbackMode::kWithSideEffects);
+void Builtins::Generate_CallApiCallbackOptimized(MacroAssembler* masm) {
+  Generate_CallApiCallbackImpl(masm, CallApiCallbackMode::kOptimized);
 }
 
 // TODO(cbruni): Try reusing code between builtin versions to avoid binary

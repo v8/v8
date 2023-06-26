@@ -172,10 +172,7 @@ class StatsCounter;
     "JSObject::InvalidatePrototypeChains()")                                   \
   V(invoke_accessor_getter_callback, "InvokeAccessorGetterCallback")           \
   V(invoke_function_callback_generic, "InvokeFunctionCallbackGeneric")         \
-  V(invoke_function_callback_no_side_effects,                                  \
-    "InvokeFunctionCallbackNoSideEffects")                                     \
-  V(invoke_function_callback_with_side_effects,                                \
-    "InvokeFunctionCallbackWithSideEffects")                                   \
+  V(invoke_function_callback_optimized, "InvokeFunctionCallbackOptimized")     \
   V(jsarray_array_join_concat_to_sequential_string,                            \
     "jsarray_array_join_concat_to_sequential_string")                          \
   V(jsreceiver_create_identity_hash, "jsreceiver_create_identity_hash")        \

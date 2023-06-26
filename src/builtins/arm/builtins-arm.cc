@@ -3310,7 +3310,7 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
   //  -- r2                  : arguments count (not including the receiver)
   //  -- r3                  : call handler info
   //  -- r0                  : holder
-  // CallApiCallbackMode::kNoSideEffects/kWithSideEffectsSideEffects modes:
+  // CallApiCallbackMode::kOptimized mode:
   //  -- r1                  : api function address
   //  -- r2                  : arguments count (not including the receiver)
   //  -- r3                  : call data
@@ -3341,8 +3341,7 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
       holder = CallApiCallbackGenericDescriptor::HolderRegister();
       break;
 
-    case CallApiCallbackMode::kNoSideEffects:
-    case CallApiCallbackMode::kWithSideEffects:
+    case CallApiCallbackMode::kOptimized:
       api_function_address =
           CallApiCallbackOptimizedDescriptor::ApiFunctionAddressRegister();
       argc = CallApiCallbackOptimizedDescriptor::ActualArgumentsCountRegister();
@@ -3399,8 +3398,7 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
       __ str(scratch2, MemOperand(sp, FCA::kDataIndex * kSystemPointerSize));
       break;
 
-    case CallApiCallbackMode::kNoSideEffects:
-    case CallApiCallbackMode::kWithSideEffects:
+    case CallApiCallbackMode::kOptimized:
       __ str(call_data, MemOperand(sp, FCA::kDataIndex * kSystemPointerSize));
       break;
   }

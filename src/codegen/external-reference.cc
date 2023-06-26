@@ -795,17 +795,8 @@ ExternalReference ExternalReference::invoke_function_callback_generic() {
   return ExternalReference::Create(&thunk_fun, thunk_type);
 }
 
-ExternalReference
-ExternalReference::invoke_function_callback_with_side_effects() {
-  Address thunk_address = FUNCTION_ADDR(&InvokeFunctionCallbackWithSideEffects);
-  ExternalReference::Type thunk_type = ExternalReference::DIRECT_API_CALL;
-  ApiFunction thunk_fun(thunk_address);
-  return ExternalReference::Create(&thunk_fun, thunk_type);
-}
-
-ExternalReference
-ExternalReference::invoke_function_callback_no_side_effects() {
-  Address thunk_address = FUNCTION_ADDR(&InvokeFunctionCallbackNoSideEffects);
+ExternalReference ExternalReference::invoke_function_callback_optimized() {
+  Address thunk_address = FUNCTION_ADDR(&InvokeFunctionCallbackOptimized);
   ExternalReference::Type thunk_type = ExternalReference::DIRECT_API_CALL;
   ApiFunction thunk_fun(thunk_address);
   return ExternalReference::Create(&thunk_fun, thunk_type);
@@ -817,10 +808,8 @@ ExternalReference ExternalReference::invoke_function_callback(
   switch (mode) {
     case CallApiCallbackMode::kGeneric:
       return invoke_function_callback_generic();
-    case CallApiCallbackMode::kWithSideEffects:
-      return invoke_function_callback_with_side_effects();
-    case CallApiCallbackMode::kNoSideEffects:
-      return invoke_function_callback_no_side_effects();
+    case CallApiCallbackMode::kOptimized:
+      return invoke_function_callback_optimized();
   }
 }
 

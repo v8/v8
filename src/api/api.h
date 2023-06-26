@@ -507,9 +507,7 @@ void InvokeAccessorGetterCallback(
 // IsolateData::api_callback_thunk_argument slot.
 void InvokeFunctionCallbackGeneric(
     const v8::FunctionCallbackInfo<v8::Value>& info);
-void InvokeFunctionCallbackNoSideEffects(
-    const v8::FunctionCallbackInfo<v8::Value>& info);
-void InvokeFunctionCallbackWithSideEffects(
+void InvokeFunctionCallbackOptimized(
     const v8::FunctionCallbackInfo<v8::Value>& info);
 
 void InvokeFinalizationRegistryCleanupFromTask(

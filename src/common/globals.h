@@ -691,13 +691,12 @@ enum class CallApiCallbackMode {
   // side-effects checking by debugger.
   kGeneric,
 
-  // The following two are used for generating calls from optimized code when
-  // the target CallHandlerInfo object is known and thus the expected
-  // side-effects of the callback. These versions don't get the target
-  // function because the target function can be reconstructed from the deopt
-  // info in case exception is thrown.
-  kNoSideEffects,
-  kWithSideEffects,
+  // This version is used for generating calls from optimized code. It doesn't
+  // need to support side effects checking because function will be deoptimized
+  // when side effects checking is enabled, and it doesn't get the target
+  // function because it can be reconstructed from the lazy deopt info in case
+  // exception is thrown.
+  kOptimized,
 };
 
 // This constant is used as an undefined value when passing source positions.

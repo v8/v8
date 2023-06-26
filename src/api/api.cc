@@ -11419,17 +11419,11 @@ inline void InvokeFunctionCallback(
       }
       break;
     }
-    case CallApiCallbackMode::kWithSideEffects: {
-      Handle<CallHandlerInfo> has_side_effects;
-      if (V8_UNLIKELY(i_isolate->should_check_side_effects()) &&
-          !i_isolate->debug()->PerformSideEffectCheckForCallback(
-              has_side_effects)) {
-        // Failed side effect check.
-        return;
-      }
-      break;
-    }
-    case CallApiCallbackMode::kNoSideEffects:
+    case CallApiCallbackMode::kOptimized:
+      // CallFunction builtin should deoptimize an optimized function when
+      // side effects checking is enabled, so we don't have to handle side
+      // effects checking in the optimized version of the builtin.
+      DCHECK(!i_isolate->should_check_side_effects());
       break;
   }
 
@@ -11448,14 +11442,9 @@ void InvokeFunctionCallbackGeneric(
   InvokeFunctionCallback(info, CallApiCallbackMode::kGeneric);
 }
 
-void InvokeFunctionCallbackNoSideEffects(
+void InvokeFunctionCallbackOptimized(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
-  InvokeFunctionCallback(info, CallApiCallbackMode::kNoSideEffects);
-}
-
-void InvokeFunctionCallbackWithSideEffects(
-    const v8::FunctionCallbackInfo<v8::Value>& info) {
-  InvokeFunctionCallback(info, CallApiCallbackMode::kWithSideEffects);
+  InvokeFunctionCallback(info, CallApiCallbackMode::kOptimized);
 }
 
 void InvokeFinalizationRegistryCleanupFromTask(
