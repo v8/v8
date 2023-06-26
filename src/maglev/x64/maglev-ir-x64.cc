@@ -232,28 +232,6 @@ void BuiltinStringPrototypeCharCodeOrCodePointAt::GenerateCode(
   __ bind(*done);
 }
 
-void StoreFixedDoubleArrayElement::SetValueLocationConstraints() {
-  UseRegister(elements_input());
-  UseRegister(index_input());
-  UseRegister(value_input());
-}
-void StoreFixedDoubleArrayElement::GenerateCode(MaglevAssembler* masm,
-                                                const ProcessingState& state) {
-  Register elements = ToRegister(elements_input());
-  Register index = ToRegister(index_input());
-  DoubleRegister value = ToDoubleRegister(value_input());
-  if (v8_flags.debug_code) {
-    __ AssertNotSmi(elements);
-    __ CmpObjectType(elements, FIXED_DOUBLE_ARRAY_TYPE, kScratchRegister);
-    __ Assert(equal, AbortReason::kUnexpectedValue);
-    __ cmpq(index, Immediate(0));
-    __ Assert(above_equal, AbortReason::kUnexpectedNegativeValue);
-  }
-  __ Movsd(
-      FieldOperand(elements, index, times_8, FixedDoubleArray::kHeaderSize),
-      value);
-}
-
 void LoadSignedIntDataViewElement::SetValueLocationConstraints() {
   UseRegister(object_input());
   UseRegister(index_input());
@@ -484,24 +462,6 @@ void StoreDoubleDataViewElement::GenerateCode(MaglevAssembler* masm,
     __ movq(Operand(data_pointer, index, times_1, 0), kScratchRegister);
     __ bind(&done);
   }
-}
-
-void StoreDoubleField::SetValueLocationConstraints() {
-  UseRegister(object_input());
-  UseRegister(value_input());
-  set_temporaries_needed(1);
-}
-void StoreDoubleField::GenerateCode(MaglevAssembler* masm,
-                                    const ProcessingState& state) {
-  MaglevAssembler::ScratchRegisterScope temps(masm);
-  Register tmp = temps.Acquire();
-  Register object = ToRegister(object_input());
-  DoubleRegister value = ToDoubleRegister(value_input());
-
-  __ AssertNotSmi(object);
-  __ DecompressTagged(tmp, FieldOperand(object, offset()));
-  __ AssertNotSmi(tmp);
-  __ Movsd(FieldOperand(tmp, HeapNumber::kValueOffset), value);
 }
 
 void Int32AddWithOverflow::SetValueLocationConstraints() {

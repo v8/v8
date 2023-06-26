@@ -468,6 +468,14 @@ void MaglevAssembler::LoadFixedDoubleArrayElement(DoubleRegister result,
   Ldr(result, FieldMemOperand(scratch, FixedArray::kHeaderSize));
 }
 
+inline void MaglevAssembler::StoreFixedDoubleArrayElement(
+    Register array, Register index, DoubleRegister value) {
+  ScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  Add(scratch, array, Operand(index, LSL, kDoubleSizeLog2));
+  Str(value, FieldMemOperand(scratch, FixedArray::kHeaderSize));
+}
+
 inline void MaglevAssembler::LoadSignedField(Register result,
                                              MemOperand operand, int size) {
   if (size == 1) {

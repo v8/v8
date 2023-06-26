@@ -591,26 +591,6 @@ void ReduceInterruptBudgetForReturn::GenerateCode(
                                 amount());
 }
 
-void StoreFixedDoubleArrayElement::SetValueLocationConstraints() {
-  UseRegister(elements_input());
-  UseRegister(index_input());
-  UseRegister(value_input());
-  set_temporaries_needed(1);
-}
-void StoreFixedDoubleArrayElement::GenerateCode(MaglevAssembler* masm,
-                                                const ProcessingState& state) {
-  MAGLEV_NODE_NOT_IMPLEMENTED(StoreFixedDoubleArrayElement);
-}
-
-void StoreDoubleField::SetValueLocationConstraints() {
-  UseRegister(object_input());
-  UseRegister(value_input());
-}
-void StoreDoubleField::GenerateCode(MaglevAssembler* masm,
-                                    const ProcessingState& state) {
-  MAGLEV_NODE_NOT_IMPLEMENTED(StoreDoubleField);
-}
-
 void LoadSignedIntDataViewElement::SetValueLocationConstraints() {
   UseRegister(object_input());
   UseRegister(index_input());

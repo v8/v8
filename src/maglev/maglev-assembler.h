@@ -155,6 +155,8 @@ class MaglevAssembler : public MacroAssembler {
                                                         Register index);
   inline void LoadFixedDoubleArrayElement(DoubleRegister result, Register array,
                                           Register index);
+  inline void StoreFixedDoubleArrayElement(Register array, Register index,
+                                           DoubleRegister value);
 
   inline void LoadSignedField(Register result, MemOperand operand,
                               int element_size);

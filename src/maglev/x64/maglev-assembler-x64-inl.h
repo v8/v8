@@ -362,6 +362,12 @@ void MaglevAssembler::LoadFixedDoubleArrayElement(DoubleRegister result,
         FieldOperand(array, index, times_8, FixedDoubleArray::kHeaderSize));
 }
 
+inline void MaglevAssembler::StoreFixedDoubleArrayElement(
+    Register array, Register index, DoubleRegister value) {
+  Movsd(FieldOperand(array, index, times_8, FixedDoubleArray::kHeaderSize),
+        value);
+}
+
 inline void MaglevAssembler::LoadSignedField(Register result, Operand operand,
                                              int size) {
   if (size == 1) {

@@ -1997,6 +1997,26 @@ void LoadHoleyFixedDoubleArrayElement::GenerateCode(
   __ LoadFixedDoubleArrayElement(result_reg, elements, index);
 }
 
+void StoreFixedDoubleArrayElement::SetValueLocationConstraints() {
+  UseRegister(elements_input());
+  UseRegister(index_input());
+  UseRegister(value_input());
+}
+void StoreFixedDoubleArrayElement::GenerateCode(MaglevAssembler* masm,
+                                                const ProcessingState& state) {
+  Register elements = ToRegister(elements_input());
+  Register index = ToRegister(index_input());
+  DoubleRegister value = ToDoubleRegister(value_input());
+  if (v8_flags.debug_code) {
+    __ AssertNotSmi(elements);
+    __ IsObjectType(elements, FIXED_DOUBLE_ARRAY_TYPE);
+    __ Assert(kEqual, AbortReason::kUnexpectedValue);
+    __ CompareInt32(index, 0);
+    __ Assert(kUnsignedGreaterThanEqual, AbortReason::kUnexpectedNegativeValue);
+  }
+  __ StoreFixedDoubleArrayElement(elements, index, value);
+}
+
 int StoreMap::MaxCallStackArgs() const {
   return WriteBarrierDescriptor::GetStackParameterCount();
 }
@@ -4537,6 +4557,24 @@ void SetPendingMessage::GenerateCode(MaglevAssembler* masm,
     __ Move(pending_message_operand, new_message);
     __ Move(return_value, scratch);
   }
+}
+
+void StoreDoubleField::SetValueLocationConstraints() {
+  UseRegister(object_input());
+  UseRegister(value_input());
+}
+void StoreDoubleField::GenerateCode(MaglevAssembler* masm,
+                                    const ProcessingState& state) {
+  Register object = ToRegister(object_input());
+  DoubleRegister value = ToDoubleRegister(value_input());
+
+  MaglevAssembler::ScratchRegisterScope temps(masm);
+  Register tmp = temps.GetDefaultScratchRegister();
+
+  __ AssertNotSmi(object);
+  __ DecompressTagged(tmp, FieldMemOperand(object, offset()));
+  __ AssertNotSmi(tmp);
+  __ StoreFloat64(FieldMemOperand(tmp, HeapNumber::kValueOffset), value);
 }
 
 int TransitionElementsKindOrCheckMap::MaxCallStackArgs() const {
