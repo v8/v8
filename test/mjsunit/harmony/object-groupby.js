@@ -181,3 +181,6 @@ assertThrows(
 
 // Lots of groups to hit grow path in the intermediate OrderedHashMap
 Object.groupBy('Strings are iterable, actually,', (x) => x);
+
+// Large group.
+Object.groupBy(new Int8Array(65536), function() {});

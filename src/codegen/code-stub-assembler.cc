@@ -17232,7 +17232,8 @@ TNode<FixedArray> CodeStubAssembler::ArrayListElements(TNode<ArrayList> array) {
   // TODO(v8:12499): Consider supporting other ElementsKinds.
   constexpr ElementsKind kind = ElementsKind::PACKED_ELEMENTS;
   TNode<IntPtrT> length = PositiveSmiUntag(ArrayListGetLength(array));
-  TNode<FixedArrayBase> elements = AllocateFixedArray(kind, length);
+  TNode<FixedArrayBase> elements = AllocateFixedArray(
+      kind, length, AllocationFlag::kAllowLargeObjectAllocation);
   CopyElements(kind, elements, IntPtrConstant(0), array,
                IntPtrConstant(ArrayList::kFirstIndex), length);
   return CAST(elements);
