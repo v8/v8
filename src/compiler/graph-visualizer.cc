@@ -252,12 +252,27 @@ void JsonPrintAllSourceWithPositionsWasm(
     std::ostream& os, const wasm::WasmModule* module,
     const wasm::WireBytesStorage* wire_bytes,
     base::Vector<WasmInliningPosition> positions) {
+  // Filter out duplicate sources. (A single wasm function might be inlined more
+  // than once.)
+  std::vector<int /*function id*/> sources;
+  std::unordered_map<int /*function id*/, size_t /*source index*/> source_map;
+  for (WasmInliningPosition pos : positions) {
+    auto [_, inserted] =
+        source_map.emplace(pos.inlinee_func_index, sources.size());
+    if (inserted) {
+      // The function wasn't inlined yet. Add a new entry to the sources.
+      // The hashmap stores the index to the entry in the source map.
+      sources.push_back(pos.inlinee_func_index);
+    }
+    // Don't do anything if it was already inserted.
+  }
+
   // Print inlining sources.
   os << "\"sources\": {";
-  for (size_t i = 0; i < positions.size(); ++i) {
+  for (size_t i = 0; i < sources.size(); ++i) {
     if (i != 0) os << ", ";
-    WasmInliningPosition pos = positions[i];
-    const wasm::WasmFunction& fct = module->functions[pos.inlinee_func_index];
+    int function_id = sources[i];
+    const wasm::WasmFunction& fct = module->functions[function_id];
     os << '"' << i << "\": {\"sourceId\": " << i << ", \"functionName\": \""
        << fct.func_index << "\", \"sourceName\": \"\", \"sourceText\": \"";
     wasm::WireBytesRef wire_bytes_ref = fct.code;
@@ -272,13 +287,17 @@ void JsonPrintAllSourceWithPositionsWasm(
   }
   os << "},\n";
   // Print inlining mappings.
-  // This is just an additional indirection to get from inlining ids (as used by
-  // the SourcePosition) to a source in the sources object generated above.
+  // This maps the inlining position to the deduplicated source in the sources
+  // object generated above.
   os << "\"inlinings\": {";
   for (size_t i = 0; i < positions.size(); ++i) {
     if (i != 0) os << ", ";
-    os << '"' << i << "\": {\"inliningId\": " << i << ", \"sourceId\": " << i
-       << ", \"inliningPosition\": {}}";
+    DCHECK(source_map.contains(positions[i].inlinee_func_index));
+    size_t source_id = source_map.find(positions[i].inlinee_func_index)->second;
+    SourcePosition inlining_pos = positions[i].caller_pos;
+    os << '"' << i << "\": {\"inliningId\": " << i
+       << ", \"sourceId\": " << source_id
+       << ", \"inliningPosition\": " << AsJSON(inlining_pos) << "}";
   }
 }
 #endif
