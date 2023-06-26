@@ -35,6 +35,30 @@ TEST_F(DirectHandlesTest, CreateLocalFromDirectHandle) {
   EXPECT_EQ(l1, l2);
 }
 
+TEST_F(DirectHandlesTest, CreateMaybeDirectHandle) {
+  HandleScope scope(isolate());
+  i::Handle<i::String> handle =
+      i_isolate()->factory()->NewStringFromAsciiChecked("foo");
+  i::DirectHandle<i::String> direct = handle;
+
+  i::MaybeDirectHandle<i::String> maybe_direct(direct);
+  i::MaybeHandle<i::String> maybe_handle(handle);
+
+  EXPECT_EQ(*maybe_direct.ToHandleChecked(), *maybe_handle.ToHandleChecked());
+}
+
+TEST_F(DirectHandlesTest, CreateMaybeDirectObjectHandle) {
+  HandleScope scope(isolate());
+  i::Handle<i::String> handle =
+      i_isolate()->factory()->NewStringFromAsciiChecked("foo");
+  i::DirectHandle<i::String> direct = handle;
+
+  i::MaybeObjectDirectHandle maybe_direct(direct);
+  i::MaybeObjectHandle maybe_handle(handle);
+
+  EXPECT_EQ(*maybe_direct, *maybe_handle);
+}
+
 // Tests to check DirectHandle usage.
 // Such usage violations are only detected in debug builds and with the
 // compile-time flag for conservative stack scanning.

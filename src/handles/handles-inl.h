@@ -16,6 +16,8 @@
 // For GetIsolateFromWritableHeapObject.
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/utils/ostreams.h"
+// For GetIsolateFromWritableObject.
+#include "src/execution/isolate-utils-inl.h"
 #endif
 
 namespace v8 {

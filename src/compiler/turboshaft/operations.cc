@@ -22,6 +22,11 @@
 #include "src/handles/handles-inl.h"
 #include "src/handles/maybe-handles-inl.h"
 
+#ifdef DEBUG
+// For InWritableSharedSpace
+#include "src/objects/objects-inl.h"
+#endif
+
 namespace v8::internal {
 std::ostream& operator<<(std::ostream& os, AbortReason reason) {
   return os << GetAbortReason(reason);
