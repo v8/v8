@@ -337,27 +337,4 @@ macro CheckSetRecordHasJSMapMethods(setRecord: SetRecord):
             SmiConstant(kMapPrototypeHas))))
     goto HasUserProvidedMethods;
 }
-
-macro FastIntersect<T : type extends FixedArray>(implicit context: Context)(
-    collectionToIterate: OrderedHashSet, table: T, methodName: String,
-    resultSetData: OrderedHashSet): OrderedHashSet {
-  let result = Cast<OrderedHashSet>(
-      CloneFixedArray(resultSetData, ExtractFixedArrayFlag::kFixedArrays))
-      otherwise unreachable;
-
-  let iter =
-      collections::NewUnmodifiedOrderedHashSetIterator(collectionToIterate);
-  try {
-    while (true) {
-      const nextValue = iter.Next() otherwise Done;
-
-      if (TableHasKey(table, nextValue)) {
-        result = AddToSetTable(result, nextValue, methodName);
-      }
-    }
-  } label Done {
-    return result;
-  }
-  unreachable;
-}
 }

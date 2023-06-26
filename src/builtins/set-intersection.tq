@@ -67,6 +67,8 @@ transitioning javascript builtin SetPrototypeIntersection(
           goto Done;
 
         } else {
+          // TODO(13556): Change `FastIntersect` macro to be able to handle
+          // this case as well.
           let otherIterator =
               collections::NewUnmodifiedOrderedHashMapIterator(otherTable);
 
@@ -159,6 +161,33 @@ transitioning javascript builtin SetPrototypeIntersection(
       elements: kEmptyFixedArray,
       table: resultSetData
     };
+  }
+  unreachable;
+}
+
+// This macro creates an iterator from a collection that need to be iterated
+// (collectionToIterate), lookup each value of the iterator in a table that
+// needs to be checked (tableToLookup), and adds the value to the result
+// (resultSetData) if it exists in the table.
+macro FastIntersect<T : type extends FixedArray>(implicit context: Context)(
+    collectionToIterate: OrderedHashSet, tableToLookup: T, methodName: String,
+    resultSetData: OrderedHashSet): OrderedHashSet {
+  let result = Cast<OrderedHashSet>(
+      CloneFixedArray(resultSetData, ExtractFixedArrayFlag::kFixedArrays))
+      otherwise unreachable;
+
+  let iter =
+      collections::NewUnmodifiedOrderedHashSetIterator(collectionToIterate);
+  try {
+    while (true) {
+      const nextValue = iter.Next() otherwise Done;
+
+      if (TableHasKey(tableToLookup, nextValue)) {
+        result = AddToSetTable(result, nextValue, methodName);
+      }
+    }
+  } label Done {
+    return result;
   }
   unreachable;
 }

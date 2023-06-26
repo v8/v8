@@ -18,7 +18,6 @@ transitioning javascript builtin SetPrototypeDifference(
 
   const table = Cast<OrderedHashSet>(o.table) otherwise unreachable;
 
-  // TODO(v8:13556): Add a fast path when `other` is a `JSSet` or a `JSMap`.
   // 3. Let otherRec be ? GetSetRecord(other).
   let otherRec = GetSetRecord(other, methodName);
 
@@ -32,6 +31,66 @@ transitioning javascript builtin SetPrototypeDifference(
 
   let numberOfElements: Smi = 0;
   try {
+    typeswitch (other) {
+      case (otherSet: JSSetWithNoCustomIteration): {
+        CheckSetRecordHasJSSetMethods(otherRec) otherwise SlowPath;
+
+        const otherTable =
+            Cast<OrderedHashSet>(otherSet.table) otherwise unreachable;
+
+        const otherSize = LoadOrderedHashTableMetadata(
+            otherTable, kOrderedHashSetNumberOfElementsIndex);
+
+        if (thisSize <= otherSize) {
+          numberOfElements =
+              FastDifference<OrderedHashSet>(table, otherTable, resultSetData);
+        } else {
+          numberOfElements = FastDifference<OrderedHashSet>(
+              otherTable, resultSetData, resultSetData);
+        }
+        goto Done;
+      }
+      case (otherMap: JSMapWithNoCustomIteration): {
+        CheckSetRecordHasJSMapMethods(otherRec) otherwise SlowPath;
+
+        const otherTable =
+            Cast<OrderedHashMap>(otherMap.table) otherwise unreachable;
+
+        const otherSize = LoadOrderedHashTableMetadata(
+            otherTable, kOrderedHashSetNumberOfElementsIndex);
+
+        if (thisSize <= otherSize) {
+          numberOfElements =
+              FastDifference<OrderedHashMap>(table, otherTable, resultSetData);
+          goto Done;
+        } else {
+          // TODO(13556): Change `FastDifference` macro to be able to handle
+          // this case as well.
+          let otherIterator =
+              collections::NewUnmodifiedOrderedHashMapIterator(otherTable);
+
+          // c. Repeat, while next is not false,
+          while (true) {
+            const nextValue = otherIterator.Next() otherwise Done;
+
+            if (TableHasKey(resultSetData, nextValue.key)) {
+              try {
+                //   a. Remove nextValue from resultSetData.
+                numberOfElements =
+                    DeleteFromSetTable(resultSetData, nextValue.key)
+                    otherwise NotFound;
+              } label NotFound {
+                // Do nothing and go back to the while loop.
+              }
+            }
+          }
+        }
+      }
+      case (JSAny): {
+        goto SlowPath;
+      }
+    }
+  } label SlowPath {
     // 6. If thisSize ≤ otherRec.[[Size]], then
     if (thisSize <= Convert<int32>(otherRec.size)) {
       // a. Let index be 0.
@@ -107,6 +166,36 @@ transitioning javascript builtin SetPrototypeDifference(
       elements: kEmptyFixedArray,
       table: resultSetData
     };
+  }
+  unreachable;
+}
+
+// This macro creates an iterator from a collection that need to be iterated
+// (collectionToIterate), lookup each value of the iterator in a table that
+// needs to be checked (tableToLookup), and delete the value from result
+// (resultSetData) if it exists in the table.
+macro FastDifference<T : type extends FixedArray>(implicit context: Context)(
+    collectionToIterate: OrderedHashSet, tableToLookup: T,
+    resultSetData: OrderedHashSet): Smi {
+  let iter =
+      collections::NewUnmodifiedOrderedHashSetIterator(collectionToIterate);
+
+  let numberOfElements: Smi = 0;
+  try {
+    while (true) {
+      const nextValue = iter.Next() otherwise Done;
+
+      if (TableHasKey(tableToLookup, nextValue)) {
+        try {
+          numberOfElements = DeleteFromSetTable(resultSetData, nextValue)
+              otherwise NotFound;
+        } label NotFound {
+          // Do nothing and go back to the while loop.
+        }
+      }
+    }
+  } label Done {
+    return numberOfElements;
   }
   unreachable;
 }
