@@ -1559,7 +1559,7 @@ void MaglevFrame::Iterate(RootVisitor* v) const {
   //  | pushed_double n |  <-- parameters_limit          ^
   //  |       ...       |                                |
   //  | pushed_double 0 |                                |
-  //  +- - - - - - - - -+                     num_pushed_registers
+  //  +- - - - - - - - -+                     num_extra_spill_slots
   //  |   pushed_reg n  |                                |
   //  |       ...       |                                |
   //  |   pushed_reg 0  |  <-- pushed_register_base      v
@@ -1622,7 +1622,7 @@ void MaglevFrame::Iterate(RootVisitor* v) const {
   FullObjectSlot parameters_base(&Memory<Address>(sp()));
   FullObjectSlot parameters_limit =
       frame_header_base - spill_slot_count -
-      maglev_safepoint_entry.num_pushed_registers();
+      maglev_safepoint_entry.num_extra_spill_slots();
   v->VisitRootPointers(Root::kStackRoots, nullptr, parameters_base,
                        parameters_limit);
 
@@ -1630,7 +1630,7 @@ void MaglevFrame::Iterate(RootVisitor* v) const {
   // a call. These are distinct from normal spill slots and live between the
   // normal spill slots and the pushed parameters. Some of these are tagged,
   // as indicated by the tagged register indexes, and should be visited too.
-  if (maglev_safepoint_entry.num_pushed_registers() > 0) {
+  if (maglev_safepoint_entry.num_extra_spill_slots() > 0) {
     FullObjectSlot pushed_register_base =
         frame_header_base - spill_slot_count - 1;
     uint32_t tagged_register_indexes =

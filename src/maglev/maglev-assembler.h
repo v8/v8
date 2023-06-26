@@ -567,11 +567,12 @@ class SaveRegisterStateForCall {
 #ifdef V8_TARGET_ARCH_ARM64
     pushed_reg_index = RoundUp<2>(pushed_reg_index);
 #endif
-    int num_pushed_double_reg = snapshot_.live_double_registers.Count();
+    int num_double_slots = snapshot_.live_double_registers.Count() *
+                           (kDoubleSize / kSystemPointerSize);
 #ifdef V8_TARGET_ARCH_ARM64
-    num_pushed_double_reg = RoundUp<2>(num_pushed_double_reg);
+    num_double_slots = RoundUp<2>(num_double_slots);
 #endif
-    safepoint.SetNumPushedRegisters(pushed_reg_index + num_pushed_double_reg);
+    safepoint.SetNumExtraSpillSlots(pushed_reg_index + num_double_slots);
     return safepoint;
   }
 

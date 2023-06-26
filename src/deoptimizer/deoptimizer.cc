@@ -2061,7 +2061,7 @@ unsigned Deoptimizer::ComputeInputFrameSize() const {
       Address deopt_call_pc = GetDeoptCallPCFromReturnPC(from_, compiled_code_);
       MaglevSafepointTable table(isolate_, deopt_call_pc, compiled_code_);
       MaglevSafepointEntry safepoint = table.FindEntry(deopt_call_pc);
-      unsigned extra_spills = safepoint.num_pushed_registers();
+      unsigned extra_spills = safepoint.num_extra_spill_slots();
       CHECK_EQ(fixed_size_above_fp + (stack_slots * kSystemPointerSize) -
                    CommonFrameConstants::kFixedFrameSizeAboveFp +
                    extra_spills * kSystemPointerSize,
