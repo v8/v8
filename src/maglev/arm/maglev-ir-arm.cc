@@ -236,17 +236,59 @@ void Int32SubtractWithOverflow::SetValueLocationConstraints() {
 }
 void Int32SubtractWithOverflow::GenerateCode(MaglevAssembler* masm,
                                              const ProcessingState& state) {
-  MAGLEV_NODE_NOT_IMPLEMENTED(Int32SubtractWithOverflow);
+  Register left = ToRegister(left_input());
+  Register right = ToRegister(right_input());
+  Register out = ToRegister(result());
+  __ sub(out, left, right, SetCC);
+  // The output register shouldn't be a register input into the eager deopt
+  // info.
+  DCHECK_REGLIST_EMPTY(RegList{out} &
+                       GetGeneralRegistersUsedAsInputs(eager_deopt_info()));
+  __ EmitEagerDeoptIf(vs, DeoptimizeReason::kOverflow, this);
 }
 
 void Int32MultiplyWithOverflow::SetValueLocationConstraints() {
   UseRegister(left_input());
   UseRegister(right_input());
   DefineAsRegister(this);
+  set_temporaries_needed(1);
 }
 void Int32MultiplyWithOverflow::GenerateCode(MaglevAssembler* masm,
                                              const ProcessingState& state) {
-  MAGLEV_NODE_NOT_IMPLEMENTED(Int32MultiplyWithOverflow);
+  Register left = ToRegister(left_input());
+  Register right = ToRegister(right_input());
+  Register out = ToRegister(result());
+
+  // TODO(leszeks): peephole optimise multiplication by a constant.
+
+  MaglevAssembler::ScratchRegisterScope temps(masm);
+  bool out_alias_input = out == left || out == right;
+  Register res_low = out;
+  if (out_alias_input) {
+    res_low = temps.Acquire();
+  }
+  Register res_high = temps.Acquire();
+  __ smull(res_low, res_high, left, right);
+
+  // ARM doesn't set the overflow flag for multiplication, so we need to
+  // test on kNotEqual.
+  __ cmp(res_high, Operand(res_low, ASR, 31));
+  __ EmitEagerDeoptIf(ne, DeoptimizeReason::kOverflow, this);
+
+  // If the result is zero, check if either lhs or rhs is negative.
+  Label end;
+  __ tst(res_low, res_low);
+  __ b(ne, &end);
+  Register temp = res_high;
+  __ orr(temp, left, right, SetCC);
+  // If one of them is negative, we must have a -0 result, which is non-int32,
+  // so deopt.
+  __ EmitEagerDeoptIf(mi, DeoptimizeReason::kOverflow, this);
+
+  __ bind(&end);
+  if (out_alias_input) {
+    __ Move(out, res_low);
+  }
 }
 
 void Int32DivideWithOverflow::SetValueLocationConstraints() {
