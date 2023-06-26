@@ -1594,6 +1594,10 @@ class MaglevGraphBuilder {
       compiler::OptionalFeedbackVectorRef feedback_vector, CallArguments& args,
       const compiler::FeedbackSource& feedback_source,
       SpeculationMode speculation_mode);
+  ReduceResult ReduceCallForApiFunction(
+      compiler::FunctionTemplateInfoRef api_callback,
+      compiler::OptionalSharedFunctionInfoRef maybe_shared,
+      compiler::OptionalJSObjectRef api_holder, CallArguments& args);
   ReduceResult ReduceFunctionPrototypeApplyCallWithReceiver(
       ValueNode* target_node, compiler::JSFunctionRef receiver,
       CallArguments& args, const compiler::FeedbackSource& feedback_source,

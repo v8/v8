@@ -3685,23 +3685,16 @@ ReduceResult MaglevGraphBuilder::TryBuildPropertyGetterCall(
             : ConvertReceiverMode::kAny;
     CallArguments args(receiver_mode, {receiver});
     return ReduceCallForConstant(constant.AsJSFunction(), args);
-  } else if (receiver != lookup_start_object) {
-    return ReduceResult::Fail();
   } else {
-    ValueNode* api_holder = access_info.api_holder().has_value()
-                                ? GetConstant(access_info.api_holder().value())
-                                : receiver;
+    // Disable optimizations for super ICs using API getters, so that we get
+    // the correct receiver checks.
+    if (receiver != lookup_start_object) {
+      return ReduceResult::Fail();
+    }
     compiler::FunctionTemplateInfoRef templ = constant.AsFunctionTemplateInfo();
-    if (!templ.call_code(broker()).has_value()) return ReduceResult::Fail();
+    CallArguments args(ConvertReceiverMode::kNotNullOrUndefined, {receiver});
 
-    compiler::CallHandlerInfoRef call_handler_info =
-        templ.call_code(broker()).value();
-    ApiFunction function(call_handler_info.callback());
-    ExternalReference reference = ExternalReference::Create(
-        &function, ExternalReference::DIRECT_API_CALL);
-    return BuildCallBuiltin<Builtin::kCallApiCallbackOptimized>(
-        {GetExternalConstant(reference), GetInt32Constant(0),
-         GetConstant(call_handler_info.data(broker())), api_holder, receiver});
+    return ReduceCallForApiFunction(templ, {}, access_info.api_holder(), args);
   }
 }
 
@@ -6518,6 +6511,46 @@ bool MaglevGraphBuilder::TargetIsCurrentCompilingUnit(
          compilation_unit_->info()->toplevel_function()->shared();
 }
 
+ReduceResult MaglevGraphBuilder::ReduceCallForApiFunction(
+    compiler::FunctionTemplateInfoRef api_callback,
+    compiler::OptionalSharedFunctionInfoRef maybe_shared,
+    compiler::OptionalJSObjectRef api_holder, CallArguments& args) {
+  if (args.mode() != CallArguments::kDefault) {
+    // TODO(victorgomes): Maybe inline the spread stub? Or call known function
+    // directly if arguments list is an array.
+    return ReduceResult::Fail();
+  }
+  compiler::OptionalCallHandlerInfoRef maybe_call_handler_info =
+      api_callback.call_code(broker());
+  if (!maybe_call_handler_info.has_value()) {
+    // TODO(ishell): distinguish TryMakeRef-related failure from empty function
+    // case and generate "return undefined" for the latter.
+    return ReduceResult::Fail();
+  }
+  compiler::CallHandlerInfoRef call_handler_info =
+      maybe_call_handler_info.value();
+  compiler::ObjectRef data = call_handler_info.data(broker());
+
+  size_t input_count = args.count() + CallKnownApiFunction::kFixedInputCount;
+  ValueNode* receiver;
+  if (maybe_shared.has_value()) {
+    receiver = GetConvertReceiver(maybe_shared.value(), args);
+  } else {
+    receiver = args.receiver();
+    CHECK_NOT_NULL(receiver);
+  }
+
+  return AddNewNode<CallKnownApiFunction>(
+      input_count,
+      [&](CallKnownApiFunction* call) {
+        for (int i = 0; i < static_cast<int>(args.count()); i++) {
+          call->set_arg(i, GetTaggedValue(args[i]));
+        }
+      },
+      api_callback, call_handler_info, data, api_holder, GetContext(),
+      receiver);
+}
+
 ReduceResult MaglevGraphBuilder::TryBuildCallKnownJSFunction(
     compiler::JSFunctionRef function, ValueNode* new_target,
     CallArguments& args, const compiler::FeedbackSource& feedback_source) {
@@ -6532,21 +6565,9 @@ ReduceResult MaglevGraphBuilder::TryBuildCallKnownJSFunction(
       !graph_->is_osr()) {
     return BuildCallSelf(context, closure, new_target, shared, args);
   }
-  if (v8_flags.maglev_inlining) {
-    RETURN_IF_DONE(TryBuildInlinedCall(context, closure, new_target, shared,
-                                       function.feedback_vector(broker()), args,
-                                       feedback_source));
-  }
-  ValueNode* receiver = GetConvertReceiver(shared, args);
-  size_t input_count = args.count() + CallKnownJSFunction::kFixedInputCount;
-  return AddNewNode<CallKnownJSFunction>(
-      input_count,
-      [&](CallKnownJSFunction* call) {
-        for (int i = 0; i < static_cast<int>(args.count()); i++) {
-          call->set_arg(i, GetTaggedValue(args[i]));
-        }
-      },
-      shared, closure, context, receiver, new_target);
+  return TryBuildCallKnownJSFunction(context, closure, new_target, shared,
+                                     function.feedback_vector(broker()), args,
+                                     feedback_source);
 }
 
 ReduceResult MaglevGraphBuilder::TryBuildCallKnownJSFunction(
@@ -6567,8 +6588,7 @@ ReduceResult MaglevGraphBuilder::TryBuildCallKnownJSFunction(
           call->set_arg(i, GetTaggedValue(args[i]));
         }
       },
-      shared, function, context, receiver,
-      GetRootConstant(RootIndex::kUndefinedValue));
+      shared, function, context, receiver, new_target);
 }
 
 ReduceResult MaglevGraphBuilder::BuildCheckValue(ValueNode* node,

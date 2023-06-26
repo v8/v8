@@ -145,6 +145,7 @@ class MergePointInterpreterFrameState;
   V(CallRuntime)                             \
   V(CallWithArrayLike)                       \
   V(CallWithSpread)                          \
+  V(CallKnownApiFunction)                    \
   V(CallKnownJSFunction)                     \
   V(CallSelf)                                \
   V(Construct)                               \
@@ -7101,6 +7102,74 @@ class CallKnownJSFunction : public ValueNodeT<CallKnownJSFunction> {
   // Cache the expected parameter count so that we can access it in
   // MaxCallStackArgs without needing to unpark the local isolate.
   int expected_parameter_count_;
+};
+
+class CallKnownApiFunction : public ValueNodeT<CallKnownApiFunction> {
+  using Base = ValueNodeT<CallKnownApiFunction>;
+
+ public:
+  static constexpr int kContextIndex = 0;
+  static constexpr int kReceiverIndex = 1;
+  static constexpr int kFixedInputCount = 2;
+
+  // We need enough inputs to have these fixed inputs plus the maximum arguments
+  // to a function call.
+  static_assert(kMaxInputs >= kFixedInputCount + Code::kMaxArguments);
+
+  // This ctor is used when for variable input counts.
+  // Inputs must be initialized manually.
+  CallKnownApiFunction(uint64_t bitfield,
+                       compiler::FunctionTemplateInfoRef function_template_info,
+                       compiler::CallHandlerInfoRef call_handler_info,
+                       compiler::ObjectRef data,
+                       compiler::OptionalJSObjectRef api_holder,
+                       ValueNode* context, ValueNode* receiver)
+      : Base(bitfield),
+        function_template_info_(function_template_info),
+        call_handler_info_(call_handler_info),
+        data_(data),
+        api_holder_(api_holder) {
+    set_input(kContextIndex, context);
+    set_input(kReceiverIndex, receiver);
+  }
+
+  // TODO(ishell): introduce JSApiCall() which will take C++ ABI into account
+  // when deciding which registers to splill.
+  static constexpr OpProperties kProperties = OpProperties::JSCall();
+
+  // Input& closure() { return input(kClosureIndex); }
+  // const Input& closure() const { return input(kClosureIndex); }
+  Input& context() { return input(kContextIndex); }
+  const Input& context() const { return input(kContextIndex); }
+  Input& receiver() { return input(kReceiverIndex); }
+  const Input& receiver() const { return input(kReceiverIndex); }
+  int num_args() const { return input_count() - kFixedInputCount; }
+  Input& arg(int i) { return input(i + kFixedInputCount); }
+  void set_arg(int i, ValueNode* node) {
+    set_input(i + kFixedInputCount, node);
+  }
+  auto args_begin() { return std::make_reverse_iterator(&arg(-1)); }
+  auto args_end() { return std::make_reverse_iterator(&arg(num_args() - 1)); }
+
+  compiler::FunctionTemplateInfoRef function_template_info() const {
+    return function_template_info_;
+  }
+  compiler::CallHandlerInfoRef call_handler_info() const {
+    return call_handler_info_;
+  }
+  compiler::ObjectRef data() const { return data_; }
+  void VerifyInputs(MaglevGraphLabeller* graph_labeller) const;
+  void MarkTaggedInputsAsDecompressing();
+  int MaxCallStackArgs() const;
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+
+ private:
+  const compiler::FunctionTemplateInfoRef function_template_info_;
+  const compiler::CallHandlerInfoRef call_handler_info_;
+  const compiler::ObjectRef data_;
+  const compiler::OptionalJSObjectRef api_holder_;
 };
 
 class ConstructWithSpread : public ValueNodeT<ConstructWithSpread> {

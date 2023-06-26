@@ -569,6 +569,19 @@ void CallKnownJSFunction::MarkTaggedInputsAsDecompressing() {
   }
 }
 
+void CallKnownApiFunction::VerifyInputs(
+    MaglevGraphLabeller* graph_labeller) const {
+  for (int i = 0; i < input_count(); i++) {
+    CheckValueInputIs(this, i, ValueRepresentation::kTagged, graph_labeller);
+  }
+}
+
+void CallKnownApiFunction::MarkTaggedInputsAsDecompressing() {
+  for (int i = 0; i < input_count(); i++) {
+    input(i).node()->SetTaggedResultNeedsDecompress();
+  }
+}
+
 void Construct::VerifyInputs(MaglevGraphLabeller* graph_labeller) const {
   for (int i = 0; i < input_count(); i++) {
     CheckValueInputIs(this, i, ValueRepresentation::kTagged, graph_labeller);
@@ -4289,6 +4302,78 @@ void CallKnownJSFunction::GenerateCode(MaglevAssembler* masm,
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
+int CallKnownApiFunction::MaxCallStackArgs() const {
+  int actual_parameter_count = num_args() + 1;
+  return actual_parameter_count;
+}
+
+void CallKnownApiFunction::SetValueLocationConstraints() {
+  if (api_holder_.has_value()) {
+    UseAny(receiver());
+  } else {
+    // This is an "Api holder is receiver" case, ask register allocator to put
+    // receiver value into the right register.
+    UseFixed(receiver(), CallApiCallbackOptimizedDescriptor::HolderRegister());
+  }
+  for (int i = 0; i < num_args(); i++) {
+    UseAny(arg(i));
+  }
+  UseFixed(context(), kContextRegister);
+
+  DefineAsFixed(this, kReturnRegister0);
+  set_temporaries_needed(1);
+}
+
+void CallKnownApiFunction::GenerateCode(MaglevAssembler* masm,
+                                        const ProcessingState& state) {
+  MaglevAssembler::ScratchRegisterScope temps(masm);
+  __ PushReverse(receiver(),
+                 base::make_iterator_range(args_begin(), args_end()));
+
+  // From here on, we're going to do a call, so all registers are valid temps,
+  // except for the ones we're going to write. This is needed in case one of the
+  // helper methods below wants to use a temp and one of these is in the temp
+  // list (in particular, this can happen on arm64 where cp is a temp register
+  // by default).
+  temps.SetAvailable(
+      kAllocatableGeneralRegisters -
+      RegList{
+          kContextRegister,
+          CallApiCallbackOptimizedDescriptor::HolderRegister(),
+          CallApiCallbackOptimizedDescriptor::ActualArgumentsCountRegister(),
+          CallApiCallbackOptimizedDescriptor::CallDataRegister(),
+          CallApiCallbackOptimizedDescriptor::ApiFunctionAddressRegister()});
+  DCHECK_EQ(kContextRegister, ToRegister(context()));
+
+  if (api_holder_.has_value()) {
+    __ Move(CallApiCallbackOptimizedDescriptor::HolderRegister(),
+            api_holder_.value().object());
+  } else {
+    // This is an "Api holder is receiver" case, register allocator was asked
+    // to put receiver value into the right register.
+    DCHECK_EQ(CallApiCallbackOptimizedDescriptor::HolderRegister(),
+              ToRegister(receiver()));
+  }
+  __ Move(CallApiCallbackOptimizedDescriptor::ActualArgumentsCountRegister(),
+          num_args());  // not including receiver
+
+  if (data_.IsSmi()) {
+    __ Move(CallApiCallbackOptimizedDescriptor::CallDataRegister(),
+            Smi::FromInt(data_.AsSmi()));
+  } else {
+    __ Move(CallApiCallbackOptimizedDescriptor::CallDataRegister(),
+            Handle<HeapObject>::cast(data_.object()));
+  }
+  ApiFunction function(call_handler_info_.callback());
+  ExternalReference reference =
+      ExternalReference::Create(&function, ExternalReference::DIRECT_API_CALL);
+  __ Move(CallApiCallbackOptimizedDescriptor::ApiFunctionAddressRegister(),
+          reference);
+
+  __ CallBuiltin(Builtin::kCallApiCallbackOptimized);
+  masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
+}
+
 int CallBuiltin::MaxCallStackArgs() const {
   auto descriptor = Builtins::CallInterfaceDescriptorFor(builtin());
   if (!descriptor.AllowVarArgs()) {
@@ -5540,6 +5625,17 @@ void CallSelf::PrintParams(std::ostream& os,
 void CallKnownJSFunction::PrintParams(
     std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
   os << "(" << shared_function_info_.object() << ")";
+}
+
+void CallKnownApiFunction::PrintParams(
+    std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
+  os << "(" << function_template_info_.object() << ", ";
+  if (api_holder_.has_value()) {
+    os << api_holder_.value().object();
+  } else {
+    os << "Api holder is receiver";
+  }
+  os << ")";
 }
 
 void CallBuiltin::PrintParams(std::ostream& os,
