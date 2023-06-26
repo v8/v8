@@ -4310,6 +4310,14 @@ void InstructionSelectorT<TurbofanAdapter>::VisitNode(Node* node) {
       return MarkAsSimd256(node), VisitI16x16ExtAddPairwiseI8x32S(node);
     case IrOpcode::kI16x16ExtAddPairwiseI8x32U:
       return MarkAsSimd256(node), VisitI16x16ExtAddPairwiseI8x32U(node);
+    case IrOpcode::kF32x8Pmin:
+      return MarkAsSimd256(node), VisitF32x8Pmin(node);
+    case IrOpcode::kF32x8Pmax:
+      return MarkAsSimd256(node), VisitF32x8Pmax(node);
+    case IrOpcode::kF64x4Pmin:
+      return MarkAsSimd256(node), VisitF64x4Pmin(node);
+    case IrOpcode::kF64x4Pmax:
+      return MarkAsSimd256(node), VisitF64x4Pmax(node);
 #endif  //  V8_TARGET_ARCH_X64
     default:
       FATAL("Unexpected operator #%d:%s @ node #%d", node->opcode(),

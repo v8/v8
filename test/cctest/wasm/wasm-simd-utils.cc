@@ -1127,6 +1127,86 @@ void RunF32x4BinOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
   }
 }
 
+#ifdef V8_ENABLE_WASM_SIMD256_REVEC
+void RunF32x8BinOpRevecTest(WasmOpcode opcode, FloatBinOp expected_op,
+                            compiler::IrOpcode::Value revec_opcode) {
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+  WasmRunner<int32_t, int32_t, int32_t, int32_t> r(
+      TestExecutionTier::kTurbofan);
+  float* memory = r.builder().AddMemoryElems<float>(24);
+  // Build fn perform binary operation on two 256 bit vectors a and b,
+  // store the result in c:
+  //   simd128 *a,*b,*c;
+  //   *c = *a bin_op *b;
+  //   *(c+1) = *(a+1) bin_op *(b+1);
+  uint8_t param1 = 0;
+  uint8_t param2 = 1;
+  uint8_t param3 = 2;
+  uint8_t temp1 = r.AllocateLocal(kWasmS128);
+  uint8_t temp2 = r.AllocateLocal(kWasmS128);
+  constexpr uint8_t offset = 16;
+
+  BUILD_AND_CHECK_REVEC_NODE(
+      r, revec_opcode,
+      WASM_LOCAL_SET(
+          temp1,
+          WASM_SIMD_BINOP(opcode, WASM_SIMD_LOAD_MEM(WASM_LOCAL_GET(param1)),
+                          WASM_SIMD_LOAD_MEM(WASM_LOCAL_GET(param2)))),
+      WASM_LOCAL_SET(
+          temp2,
+          WASM_SIMD_BINOP(
+              opcode, WASM_SIMD_LOAD_MEM_OFFSET(offset, WASM_LOCAL_GET(param1)),
+              WASM_SIMD_LOAD_MEM_OFFSET(offset, WASM_LOCAL_GET(param2)))),
+      WASM_SIMD_STORE_MEM(WASM_LOCAL_GET(param3), WASM_LOCAL_GET(temp1)),
+      WASM_SIMD_STORE_MEM_OFFSET(offset, WASM_LOCAL_GET(param3),
+                                 WASM_LOCAL_GET(temp2)),
+      WASM_ONE);
+
+  FOR_FLOAT32_INPUTS(x) {
+    if (!PlatformCanRepresent(x)) continue;
+    FOR_FLOAT32_INPUTS(y) {
+      if (!PlatformCanRepresent(y)) continue;
+      if (ShouldSkipTestingConstants(opcode, x, y)) continue;
+      float expected = expected_op(x, y);
+      if (!PlatformCanRepresent(expected)) continue;
+      for (int i = 0; i < 4; i++) {
+        r.builder().WriteMemory(&memory[i], x);
+        r.builder().WriteMemory(&memory[i + 4], x);
+        r.builder().WriteMemory(&memory[i + 8], y);
+        r.builder().WriteMemory(&memory[i + 12], y);
+      }
+      r.Call(0, 32, 64);
+      for (int i = 0; i < 4; i++) {
+        CheckFloatResult(x, y, expected, memory[i + 16], true /* exact */);
+        CheckFloatResult(x, y, expected, memory[i + 20], true /* exact */);
+      }
+    }
+  }
+
+  FOR_FLOAT32_NAN_INPUTS(f) {
+    float x = base::bit_cast<float>(nan_test_array[f]);
+    if (!PlatformCanRepresent(x)) continue;
+    FOR_FLOAT32_NAN_INPUTS(j) {
+      float y = base::bit_cast<float>(nan_test_array[j]);
+      if (!PlatformCanRepresent(y)) continue;
+      float expected = expected_op(x, y);
+      if (!PlatformCanRepresent(expected)) continue;
+      for (int i = 0; i < 4; i++) {
+        r.builder().WriteMemory(&memory[i], x);
+        r.builder().WriteMemory(&memory[i + 4], x);
+        r.builder().WriteMemory(&memory[i + 8], y);
+        r.builder().WriteMemory(&memory[i + 12], y);
+      }
+      r.Call(0, 32, 64);
+      for (int i = 0; i < 4; i++) {
+        CheckFloatResult(x, y, expected, memory[i + 16], true /* exact */);
+        CheckFloatResult(x, y, expected, memory[i + 20], true /* exact */);
+      }
+    }
+  }
+}
+#endif
+
 void RunF32x4CompareOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
                            FloatCompareOp expected_op) {
   WasmRunner<int32_t, float, float> r(execution_tier);
@@ -1349,6 +1429,86 @@ void RunF64x2BinOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
     }
   }
 }
+
+#ifdef V8_ENABLE_WASM_SIMD256_REVEC
+void RunF64x4BinOpRevecTest(WasmOpcode opcode, DoubleBinOp expected_op,
+                            compiler::IrOpcode::Value revec_opcode) {
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+  WasmRunner<int32_t, int32_t, int32_t, int32_t> r(
+      TestExecutionTier::kTurbofan);
+  double* memory = r.builder().AddMemoryElems<double>(12);
+  // Build fn perform binary operation on two 256 bit vectors a and b,
+  // store the result in c:
+  //   simd128 *a,*b,*c;
+  //   *c = *a bin_op *b;
+  //   *(c+1) = *(a+1) bin_op *(b+1);
+  uint8_t param1 = 0;
+  uint8_t param2 = 1;
+  uint8_t param3 = 2;
+  uint8_t temp1 = r.AllocateLocal(kWasmS128);
+  uint8_t temp2 = r.AllocateLocal(kWasmS128);
+  constexpr uint8_t offset = 16;
+
+  BUILD_AND_CHECK_REVEC_NODE(
+      r, revec_opcode,
+      WASM_LOCAL_SET(
+          temp1,
+          WASM_SIMD_BINOP(opcode, WASM_SIMD_LOAD_MEM(WASM_LOCAL_GET(param1)),
+                          WASM_SIMD_LOAD_MEM(WASM_LOCAL_GET(param2)))),
+      WASM_LOCAL_SET(
+          temp2,
+          WASM_SIMD_BINOP(
+              opcode, WASM_SIMD_LOAD_MEM_OFFSET(offset, WASM_LOCAL_GET(param1)),
+              WASM_SIMD_LOAD_MEM_OFFSET(offset, WASM_LOCAL_GET(param2)))),
+      WASM_SIMD_STORE_MEM(WASM_LOCAL_GET(param3), WASM_LOCAL_GET(temp1)),
+      WASM_SIMD_STORE_MEM_OFFSET(offset, WASM_LOCAL_GET(param3),
+                                 WASM_LOCAL_GET(temp2)),
+      WASM_ONE);
+
+  FOR_FLOAT64_INPUTS(x) {
+    if (!PlatformCanRepresent(x)) continue;
+    FOR_FLOAT64_INPUTS(y) {
+      if (!PlatformCanRepresent(y)) continue;
+      if (ShouldSkipTestingConstants(opcode, x, y)) continue;
+      double expected = expected_op(x, y);
+      if (!PlatformCanRepresent(expected)) continue;
+      for (int i = 0; i < 2; i++) {
+        r.builder().WriteMemory(&memory[i], x);
+        r.builder().WriteMemory(&memory[i + 2], x);
+        r.builder().WriteMemory(&memory[i + 4], y);
+        r.builder().WriteMemory(&memory[i + 6], y);
+      }
+      r.Call(0, 32, 64);
+      for (int i = 0; i < 2; i++) {
+        CheckDoubleResult(x, y, expected, memory[i + 8], true /* exact */);
+        CheckDoubleResult(x, y, expected, memory[i + 10], true /* exact */);
+      }
+    }
+  }
+
+  FOR_FLOAT64_NAN_INPUTS(f) {
+    double x = base::bit_cast<double>(double_nan_test_array[f]);
+    if (!PlatformCanRepresent(x)) continue;
+    FOR_FLOAT64_NAN_INPUTS(j) {
+      double y = base::bit_cast<double>(double_nan_test_array[j]);
+      if (!PlatformCanRepresent(y)) continue;
+      double expected = expected_op(x, y);
+      if (!PlatformCanRepresent(expected)) continue;
+      for (int i = 0; i < 2; i++) {
+        r.builder().WriteMemory(&memory[i], x);
+        r.builder().WriteMemory(&memory[i + 2], x);
+        r.builder().WriteMemory(&memory[i + 4], y);
+        r.builder().WriteMemory(&memory[i + 6], y);
+      }
+      r.Call(0, 32, 64);
+      for (int i = 0; i < 2; i++) {
+        CheckDoubleResult(x, y, expected, memory[i + 8], true /* exact */);
+        CheckDoubleResult(x, y, expected, memory[i + 10], true /* exact */);
+      }
+    }
+  }
+}
+#endif
 
 void RunF64x2CompareOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
                            DoubleCompareOp expected_op) {
