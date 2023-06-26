@@ -10,6 +10,7 @@
 #include "src/execution/isolate.h"
 #include "src/flags/flags.h"
 #include "src/handles/persistent-handles.h"
+#include "src/heap/parked-scope.h"
 #include "src/maglev/maglev-compilation-info.h"
 #include "src/maglev/maglev-compiler.h"
 #include "src/maglev/maglev-graph-labeller.h"
@@ -144,6 +145,10 @@ CompilationJob::Status MaglevCompilationJob::FinalizeJobImpl(Isolate* isolate) {
     return CompilationJob::FAILED;
   }
   info()->set_code(code);
+  // Drop canonical handles during finalization, to avoid (in the case of
+  // background job destruction) needing to unpark the local isolate on the
+  // background thread for unregistering the identity map's strong roots.
+  info()->DetachCanonicalHandles()->Clear();
   EndPhaseKind();
   return CompilationJob::SUCCEEDED;
 }
@@ -220,7 +225,14 @@ class MaglevConcurrentDispatcher::JobTask final : public v8::JobTask {
     LocalIsolate local_isolate(isolate(), ThreadKind::kBackground);
     DCHECK(local_isolate.heap()->IsParked());
 
-    while (!incoming_queue()->IsEmpty() && !delegate->ShouldYield()) {
+    // You can't call ShouldYield twice in a row, so cache its value.
+    bool should_yield = false;
+    bool job_was_executed = false;
+    while (!incoming_queue()->IsEmpty()) {
+      if (delegate->ShouldYield()) {
+        should_yield = true;
+        break;
+      }
       std::unique_ptr<MaglevCompilationJob> job;
       if (!incoming_queue()->Dequeue(&job)) break;
       DCHECK_NOT_NULL(job);
@@ -232,14 +244,32 @@ class MaglevConcurrentDispatcher::JobTask final : public v8::JobTask {
       CompilationJob::Status status =
           job->ExecuteJob(local_isolate.runtime_call_stats(), &local_isolate);
       if (status == CompilationJob::SUCCEEDED) {
+        job_was_executed = true;
         outgoing_queue()->Enqueue(std::move(job));
       }
     }
-    isolate()->stack_guard()->RequestInstallMaglevCode();
+    if (job_was_executed) {
+      isolate()->stack_guard()->RequestInstallMaglevCode();
+    }
+    if (should_yield) return;
+
+    // Maglev jobs aren't cheap to destruct, so destroy them here in the
+    // background thread rather than on the main thread.
+    while (!destruction_queue()->IsEmpty()) {
+      if (delegate->ShouldYield()) {
+        should_yield = true;
+        break;
+      }
+      std::unique_ptr<MaglevCompilationJob> job;
+      if (!destruction_queue()->Dequeue(&job)) break;
+      DCHECK_NOT_NULL(job);
+      job.reset();
+    }
   }
 
   size_t GetMaxConcurrency(size_t worker_count) const override {
-    size_t num_tasks = incoming_queue()->size() + worker_count;
+    size_t num_tasks =
+        incoming_queue()->size() + destruction_queue()->size() + worker_count;
     size_t max_threads = v8_flags.concurrent_maglev_max_threads;
     if (max_threads > 0) {
       return std::min(max_threads, num_tasks);
@@ -251,6 +281,7 @@ class MaglevConcurrentDispatcher::JobTask final : public v8::JobTask {
   Isolate* isolate() const { return dispatcher_->isolate_; }
   QueueT* incoming_queue() const { return &dispatcher_->incoming_queue_; }
   QueueT* outgoing_queue() const { return &dispatcher_->outgoing_queue_; }
+  QueueT* destruction_queue() const { return &dispatcher_->destruction_queue_; }
 
   MaglevConcurrentDispatcher* const dispatcher_;
   const Handle<JSFunction> function_;
@@ -309,6 +340,13 @@ void MaglevConcurrentDispatcher::FinalizeFinishedJobs() {
     RCS_SCOPE(isolate_,
               RuntimeCallCounterId::kOptimizeConcurrentFinalizeMaglev);
     Compiler::FinalizeMaglevCompilationJob(job.get(), isolate_);
+    if (v8_flags.maglev_destroy_on_background) {
+      // Maglev jobs aren't cheap to destruct, so re-enqueue them for
+      // destruction on a background thread.
+      destruction_queue_.Enqueue(std::move(job));
+    } else {
+      job.reset();
+    }
   }
 }
 
