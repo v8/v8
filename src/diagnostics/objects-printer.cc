@@ -1339,16 +1339,17 @@ void FeedbackNexus::Print(std::ostream& os) {
       os << InlineCacheState2String(ic_state());
       if (ic_state() == InlineCacheState::MONOMORPHIC) {
         HeapObject feedback = GetFeedback().GetHeapObject();
-        HeapObject feedback_extra = GetFeedbackExtra().GetHeapObject();
         if (feedback.IsName()) {
           os << " with name " << Brief(feedback);
-          WeakFixedArray array = WeakFixedArray::cast(feedback_extra);
+          WeakFixedArray array =
+              WeakFixedArray::cast(GetFeedbackExtra().GetHeapObject());
           os << "\n   " << Brief(array.Get(0)) << ": ";
           Object handler = array.Get(1).GetHeapObjectOrSmi();
           StoreHandler::PrintHandler(handler, os);
         } else {
           os << "\n   " << Brief(feedback) << ": ";
-          StoreHandler::PrintHandler(feedback_extra, os);
+          StoreHandler::PrintHandler(GetFeedbackExtra().GetHeapObjectOrSmi(),
+                                     os);
         }
       } else if (ic_state() == InlineCacheState::POLYMORPHIC) {
         HeapObject feedback = GetFeedback().GetHeapObject();
