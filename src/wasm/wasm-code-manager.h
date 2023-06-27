@@ -124,7 +124,6 @@ enum class WellKnownImport : uint8_t;
   V(WasmArrayNewSegment)                 \
   V(WasmArrayInitSegment)                \
   V(WasmAllocateStructWithRtt)           \
-  V(WasmSubtypeCheck)                    \
   V(WasmOnStackReplace)                  \
   V(WasmSuspend)                         \
   V(WasmStringNewWtf8)                   \

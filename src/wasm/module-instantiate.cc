@@ -352,6 +352,14 @@ bool IsStringRef(wasm::ValueType type) {
   return type.is_reference_to(wasm::HeapType::kString);
 }
 
+bool IsExternRef(wasm::ValueType type) {
+  return type.is_reference_to(wasm::HeapType::kExtern);
+}
+
+bool IsStringOrExternRef(wasm::ValueType type) {
+  return IsStringRef(type) || IsExternRef(type);
+}
+
 // This detects imports of the forms:
 // - `Function.prototype.call.bind(foo)`, where `foo` is something that has a
 //   Builtin id.
@@ -361,6 +369,7 @@ WellKnownImport CheckForWellKnownImport(Handle<WasmInstanceObject> instance,
                                         Handle<JSReceiver> callable,
                                         const wasm::FunctionSig* sig) {
   WellKnownImport kGeneric = WellKnownImport::kGeneric;  // "using" is C++20.
+  if (instance.is_null()) return kGeneric;
   // Check for plain JS functions.
   if (callable->IsJSFunction()) {
     SharedFunctionInfo sfi = JSFunction::cast(*callable).shared();
@@ -406,12 +415,8 @@ WellKnownImport CheckForWellKnownImport(Handle<WasmInstanceObject> instance,
       if (sig->parameter_count() == 2 && sig->return_count() == 1 &&
           IsStringRef(sig->GetParam(0)) && IsStringRef(sig->GetParam(1)) &&
           IsStringRef(sig->GetReturn(0))) {
-        // TODO(jkummerow): If we had only one call site of the {WasmImportData}
-        // constructor, we wouldn't need to make this conditional here.
-        if (!instance.is_null()) {
-          DCHECK_GE(func_index, 0);
-          instance->well_known_imports().set(func_index, bound_this);
-        }
+        DCHECK_GE(func_index, 0);
+        instance->well_known_imports().set(func_index, bound_this);
         return WellKnownImport::kStringToLocaleLowerCaseStringref;
       }
       break;
@@ -426,14 +431,12 @@ WellKnownImport CheckForWellKnownImport(Handle<WasmInstanceObject> instance,
       if (sig->parameter_count() == 2 && sig->return_count() == 1 &&
           sig->GetParam(0) == wasm::kWasmI32 &&
           sig->GetParam(1) == wasm::kWasmI32 &&
-          // We could relax the return type check to permit anyref (and even
-          // externref) as well, if we encounter a reason to do so.
-          IsStringRef(sig->GetReturn(0))) {
+          IsStringOrExternRef(sig->GetReturn(0))) {
         return WellKnownImport::kIntToString;
       }
       if (sig->parameter_count() == 1 && sig->return_count() == 1 &&
           sig->GetParam(0) == wasm::kWasmF64 &&
-          IsStringRef(sig->GetReturn(0))) {
+          IsStringOrExternRef(sig->GetReturn(0))) {
         return WellKnownImport::kDoubleToString;
       }
       break;
