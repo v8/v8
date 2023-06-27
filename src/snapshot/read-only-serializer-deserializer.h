@@ -114,8 +114,14 @@ struct EncodedTagged_t {
     return *reinterpret_cast<EncodedTagged_t*>(address);
   }
 
+#ifdef V8_TARGET_BIG_ENDIAN
+  // BE machines pack bitfields from most significant byte to least.
+  int offset : kOffsetBits;  // Shifted by kTaggedSizeLog2.
+  int page_index : kPageIndexBits;
+#else
   int page_index : kPageIndexBits;
   int offset : kOffsetBits;  // Shifted by kTaggedSizeLog2.
+#endif
 };
 static_assert(EncodedTagged_t::kSize == sizeof(EncodedTagged_t));
 
