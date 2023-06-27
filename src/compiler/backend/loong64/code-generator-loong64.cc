@@ -2181,70 +2181,7 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
       Register temp1 = right.is_reg() ? i.TempRegister(1) : no_reg;
       SignExtend(masm(), instr, &left, &right, &temp0, &temp1);
     }
-    switch (cc) {
-      case eq:
-      case ne: {
-        if (instr->InputAt(1)->IsImmediate()) {
-          if (is_int12(-right.immediate())) {
-            if (right.immediate() == 0) {
-              if (cc == eq) {
-                __ Sltu(result, left, 1);
-              } else {
-                __ Sltu(result, zero_reg, left);
-              }
-            } else {
-              __ Add_d(result, left, Operand(-right.immediate()));
-              if (cc == eq) {
-                __ Sltu(result, result, 1);
-              } else {
-                __ Sltu(result, zero_reg, result);
-              }
-            }
-          } else {
-            __ Xor(result, left, Operand(right));
-            if (cc == eq) {
-              __ Sltu(result, result, 1);
-            } else {
-              __ Sltu(result, zero_reg, result);
-            }
-          }
-        } else {
-          __ Xor(result, left, right);
-          if (cc == eq) {
-            __ Sltu(result, result, 1);
-          } else {
-            __ Sltu(result, zero_reg, result);
-          }
-        }
-        break;
-      }
-      case lt:
-        __ Slt(result, left, right);
-        break;
-      case gt:
-        __ Sgt(result, left, right);
-        break;
-      case le:
-        __ Sle(result, left, right);
-        break;
-      case ge:
-        __ Sge(result, left, right);
-        break;
-      case lo:
-        __ Sltu(result, left, right);
-        break;
-      case hs:
-        __ Sgeu(result, left, right);
-        break;
-      case hi:
-        __ Sgtu(result, left, right);
-        break;
-      case ls:
-        __ Sleu(result, left, right);
-        break;
-      default:
-        UNREACHABLE();
-    }
+    __ CompareWord(cc, result, left, right);
     return;
   } else if (instr->arch_opcode() == kLoong64Float64Cmp ||
              instr->arch_opcode() == kLoong64Float32Cmp) {

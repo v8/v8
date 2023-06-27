@@ -1144,12 +1144,11 @@ void LiftoffAssembler::emit_i32_divs(Register dst, Register lhs, Register rhs,
   MacroAssembler::Branch(trap_div_by_zero, eq, rhs, Operand(zero_reg));
 
   // Check if lhs == kMinInt and rhs == -1, since this case is unrepresentable.
-  MacroAssembler::li(kScratchReg, 1);
-  MacroAssembler::li(kScratchReg2, 1);
-  MacroAssembler::LoadZeroOnCondition(kScratchReg, lhs, Operand(kMinInt), eq);
-  MacroAssembler::LoadZeroOnCondition(kScratchReg2, rhs, Operand(-1), eq);
-  daddu(kScratchReg, kScratchReg, kScratchReg2);
-  MacroAssembler::Branch(trap_div_unrepresentable, eq, kScratchReg,
+  rotr(kScratchReg, lhs, 31);
+  sltiu(kScratchReg2, kScratchReg, 2);
+  movn(kScratchReg2, kScratchReg, kScratchReg2);
+  addu(kScratchReg2, kScratchReg2, rhs);
+  MacroAssembler::Branch(trap_div_unrepresentable, eq, kScratchReg2,
                          Operand(zero_reg));
 
   MacroAssembler::Div(dst, lhs, rhs);
@@ -1254,13 +1253,11 @@ bool LiftoffAssembler::emit_i64_divs(LiftoffRegister dst, LiftoffRegister lhs,
   MacroAssembler::Branch(trap_div_by_zero, eq, rhs.gp(), Operand(zero_reg));
 
   // Check if lhs == MinInt64 and rhs == -1, since this case is unrepresentable.
-  MacroAssembler::li(kScratchReg, 1);
-  MacroAssembler::li(kScratchReg2, 1);
-  MacroAssembler::LoadZeroOnCondition(
-      kScratchReg, lhs.gp(), Operand(std::numeric_limits<int64_t>::min()), eq);
-  MacroAssembler::LoadZeroOnCondition(kScratchReg2, rhs.gp(), Operand(-1), eq);
-  daddu(kScratchReg, kScratchReg, kScratchReg2);
-  MacroAssembler::Branch(trap_div_unrepresentable, eq, kScratchReg,
+  drotr32(kScratchReg, lhs.gp(), 31);
+  sltiu(kScratchReg2, kScratchReg, 2);
+  movn(kScratchReg2, kScratchReg, kScratchReg2);
+  daddu(kScratchReg2, kScratchReg2, rhs.gp());
+  MacroAssembler::Branch(trap_div_unrepresentable, eq, kScratchReg2,
                          Operand(zero_reg));
 
   MacroAssembler::Ddiv(dst.gp(), lhs.gp(), rhs.gp());
@@ -1866,19 +1863,7 @@ void LiftoffAssembler::emit_i32_eqz(Register dst, Register src) {
 
 void LiftoffAssembler::emit_i32_set_cond(Condition cond, Register dst,
                                          Register lhs, Register rhs) {
-  Register tmp = dst;
-  if (dst == lhs || dst == rhs) {
-    tmp = GetUnusedRegister(kGpReg, LiftoffRegList{lhs, rhs}).gp();
-  }
-  // Write 1 as result.
-  MacroAssembler::li(tmp, 1);
-
-  // If negative condition is true, write 0 as result.
-  Condition neg_cond = NegateCondition(cond);
-  MacroAssembler::LoadZeroOnCondition(tmp, lhs, Operand(rhs), neg_cond);
-
-  // If tmp != dst, result will be moved.
-  MacroAssembler::Move(dst, tmp);
+  CompareWord(cond, dst, lhs, Operand(rhs));
 }
 
 void LiftoffAssembler::emit_i64_eqz(Register dst, LiftoffRegister src) {
@@ -1888,20 +1873,7 @@ void LiftoffAssembler::emit_i64_eqz(Register dst, LiftoffRegister src) {
 void LiftoffAssembler::emit_i64_set_cond(Condition cond, Register dst,
                                          LiftoffRegister lhs,
                                          LiftoffRegister rhs) {
-  Register tmp = dst;
-  if (dst == lhs.gp() || dst == rhs.gp()) {
-    tmp = GetUnusedRegister(kGpReg, LiftoffRegList{lhs, rhs}).gp();
-  }
-  // Write 1 as result.
-  MacroAssembler::li(tmp, 1);
-
-  // If negative condition is true, write 0 as result.
-  Condition neg_cond = NegateCondition(cond);
-  MacroAssembler::LoadZeroOnCondition(tmp, lhs.gp(), Operand(rhs.gp()),
-                                      neg_cond);
-
-  // If tmp != dst, result will be moved.
-  MacroAssembler::Move(dst, tmp);
+  CompareWord(cond, dst, lhs.gp(), Operand(rhs.gp()));
 }
 
 namespace liftoff {

@@ -952,13 +952,17 @@ void MacroAssembler::Sle(Register rd, Register rs, const Operand& rt) {
   if (rt.is_reg()) {
     slt(rd, rt.rm(), rs);
   } else {
-    // li handles the relocation.
-    UseScratchRegisterScope temps(this);
-    Register scratch = temps.hasAvailable() ? temps.Acquire() : t8;
-    BlockTrampolinePoolScope block_trampoline_pool(this);
-    DCHECK(rs != scratch);
-    li(scratch, rt);
-    slt(rd, scratch, rs);
+    if (rt.immediate() == 0 && !MustUseReg(rt.rmode())) {
+      slt(rd, zero_reg, rs);
+    } else {
+      // li handles the relocation.
+      UseScratchRegisterScope temps(this);
+      Register scratch = temps.hasAvailable() ? temps.Acquire() : t8;
+      BlockTrampolinePoolScope block_trampoline_pool(this);
+      DCHECK(rs != scratch);
+      li(scratch, rt);
+      slt(rd, scratch, rs);
+    }
   }
   xori(rd, rd, 1);
 }
@@ -967,13 +971,17 @@ void MacroAssembler::Sleu(Register rd, Register rs, const Operand& rt) {
   if (rt.is_reg()) {
     sltu(rd, rt.rm(), rs);
   } else {
-    // li handles the relocation.
-    UseScratchRegisterScope temps(this);
-    Register scratch = temps.hasAvailable() ? temps.Acquire() : t8;
-    BlockTrampolinePoolScope block_trampoline_pool(this);
-    DCHECK(rs != scratch);
-    li(scratch, rt);
-    sltu(rd, scratch, rs);
+    if (rt.immediate() == 0 && !MustUseReg(rt.rmode())) {
+      sltu(rd, zero_reg, rs);
+    } else {
+      // li handles the relocation.
+      UseScratchRegisterScope temps(this);
+      Register scratch = temps.hasAvailable() ? temps.Acquire() : t8;
+      BlockTrampolinePoolScope block_trampoline_pool(this);
+      DCHECK(rs != scratch);
+      li(scratch, rt);
+      sltu(rd, scratch, rs);
+    }
   }
   xori(rd, rd, 1);
 }
@@ -992,13 +1000,17 @@ void MacroAssembler::Sgt(Register rd, Register rs, const Operand& rt) {
   if (rt.is_reg()) {
     slt(rd, rt.rm(), rs);
   } else {
-    // li handles the relocation.
-    UseScratchRegisterScope temps(this);
-    Register scratch = temps.hasAvailable() ? temps.Acquire() : t8;
-    BlockTrampolinePoolScope block_trampoline_pool(this);
-    DCHECK(rs != scratch);
-    li(scratch, rt);
-    slt(rd, scratch, rs);
+    if (rt.immediate() == 0 && !MustUseReg(rt.rmode())) {
+      slt(rd, zero_reg, rs);
+    } else {
+      // li handles the relocation.
+      UseScratchRegisterScope temps(this);
+      Register scratch = temps.hasAvailable() ? temps.Acquire() : t8;
+      BlockTrampolinePoolScope block_trampoline_pool(this);
+      DCHECK(rs != scratch);
+      li(scratch, rt);
+      slt(rd, scratch, rs);
+    }
   }
 }
 
@@ -1006,13 +1018,17 @@ void MacroAssembler::Sgtu(Register rd, Register rs, const Operand& rt) {
   if (rt.is_reg()) {
     sltu(rd, rt.rm(), rs);
   } else {
-    // li handles the relocation.
-    UseScratchRegisterScope temps(this);
-    Register scratch = temps.hasAvailable() ? temps.Acquire() : t8;
-    BlockTrampolinePoolScope block_trampoline_pool(this);
-    DCHECK(rs != scratch);
-    li(scratch, rt);
-    sltu(rd, scratch, rs);
+    if (rt.immediate() == 0 && !MustUseReg(rt.rmode())) {
+      sltu(rd, zero_reg, rs);
+    } else {
+      // li handles the relocation.
+      UseScratchRegisterScope temps(this);
+      Register scratch = temps.hasAvailable() ? temps.Acquire() : t8;
+      BlockTrampolinePoolScope block_trampoline_pool(this);
+      DCHECK(rs != scratch);
+      li(scratch, rt);
+      sltu(rd, scratch, rs);
+    }
   }
 }
 
@@ -3022,98 +3038,6 @@ void MacroAssembler::Movn(Register rd, Register rs, Register rt) {
   }
 }
 
-void MacroAssembler::LoadZeroOnCondition(Register rd, Register rs,
-                                         const Operand& rt, Condition cond) {
-  BlockTrampolinePoolScope block_trampoline_pool(this);
-  switch (cond) {
-    case cc_always:
-      mov(rd, zero_reg);
-      break;
-    case eq:
-      if (rs == zero_reg) {
-        if (rt.is_reg()) {
-          LoadZeroIfConditionZero(rd, rt.rm());
-        } else {
-          if (rt.immediate() == 0) {
-            mov(rd, zero_reg);
-          } else {
-            nop();
-          }
-        }
-      } else if (IsZero(rt)) {
-        LoadZeroIfConditionZero(rd, rs);
-      } else {
-        Dsubu(t9, rs, rt);
-        LoadZeroIfConditionZero(rd, t9);
-      }
-      break;
-    case ne:
-      if (rs == zero_reg) {
-        if (rt.is_reg()) {
-          LoadZeroIfConditionNotZero(rd, rt.rm());
-        } else {
-          if (rt.immediate() != 0) {
-            mov(rd, zero_reg);
-          } else {
-            nop();
-          }
-        }
-      } else if (IsZero(rt)) {
-        LoadZeroIfConditionNotZero(rd, rs);
-      } else {
-        Dsubu(t9, rs, rt);
-        LoadZeroIfConditionNotZero(rd, t9);
-      }
-      break;
-
-    // Signed comparison.
-    case greater:
-      Sgt(t9, rs, rt);
-      LoadZeroIfConditionNotZero(rd, t9);
-      break;
-    case greater_equal:
-      Sge(t9, rs, rt);
-      LoadZeroIfConditionNotZero(rd, t9);
-      // rs >= rt
-      break;
-    case less:
-      Slt(t9, rs, rt);
-      LoadZeroIfConditionNotZero(rd, t9);
-      // rs < rt
-      break;
-    case less_equal:
-      Sle(t9, rs, rt);
-      LoadZeroIfConditionNotZero(rd, t9);
-      // rs <= rt
-      break;
-
-    // Unsigned comparison.
-    case Ugreater:
-      Sgtu(t9, rs, rt);
-      LoadZeroIfConditionNotZero(rd, t9);
-      // rs > rt
-      break;
-
-    case Ugreater_equal:
-      Sgeu(t9, rs, rt);
-      LoadZeroIfConditionNotZero(rd, t9);
-      // rs >= rt
-      break;
-    case Uless:
-      Sltu(t9, rs, rt);
-      LoadZeroIfConditionNotZero(rd, t9);
-      // rs < rt
-      break;
-    case Uless_equal:
-      Sleu(t9, rs, rt);
-      LoadZeroIfConditionNotZero(rd, t9);
-      // rs <= rt
-      break;
-    default:
-      UNREACHABLE();
-  }
-}
-
 void MacroAssembler::LoadZeroIfConditionNotZero(Register dest,
                                                 Register condition) {
   if (kArchVariant == kMips64r6) {
@@ -3345,6 +3269,72 @@ void MacroAssembler::TruncateDoubleToI(Isolate* isolate, Zone* zone,
   pop(ra);
 
   bind(&done);
+}
+
+void MacroAssembler::CompareWord(Condition cond, Register dst, Register lhs,
+                                 const Operand& rhs) {
+  switch (cond) {
+    case eq:
+    case ne: {
+      if (rhs.IsImmediate()) {
+        if (rhs.immediate() == 0) {
+          if (cond == eq) {
+            Sltu(dst, lhs, 1);
+          } else {
+            Sltu(dst, zero_reg, lhs);
+          }
+        } else if (is_int16(-rhs.immediate())) {
+          Daddu(dst, lhs, Operand(-rhs.immediate()));
+          if (cond == eq) {
+            Sltu(dst, dst, 1);
+          } else {
+            Sltu(dst, zero_reg, dst);
+          }
+        } else {
+          Xor(dst, lhs, rhs);
+          if (cond == eq) {
+            Sltu(dst, dst, 1);
+          } else {
+            Sltu(dst, zero_reg, dst);
+          }
+        }
+      } else {
+        Xor(dst, lhs, rhs);
+        if (cond == eq) {
+          Sltu(dst, dst, 1);
+        } else {
+          Sltu(dst, zero_reg, dst);
+        }
+      }
+      break;
+    }
+    case lt:
+      Slt(dst, lhs, rhs);
+      break;
+    case gt:
+      Sgt(dst, lhs, rhs);
+      break;
+    case le:
+      Sle(dst, lhs, rhs);
+      break;
+    case ge:
+      Sge(dst, lhs, rhs);
+      break;
+    case lo:
+      Sltu(dst, lhs, rhs);
+      break;
+    case hs:
+      Sgeu(dst, lhs, rhs);
+      break;
+    case hi:
+      Sgtu(dst, lhs, rhs);
+      break;
+    case ls:
+      Sleu(dst, lhs, rhs);
+      break;
+    default:
+      UNREACHABLE();
+  }
 }
 
 // Emulated condtional branches do not emit a nop in the branch delay slot.

@@ -117,6 +117,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // Print a message to stdout and abort execution.
   void Abort(AbortReason msg);
 
+  void CompareWord(Condition cond, Register dst, Register lhs,
+                   const Operand& rhs);
   void Branch(Label* label, bool need_link = false);
   void Branch(Label* label, Condition cond, Register r1, const Operand& r2,
               bool need_link = false);
@@ -547,8 +549,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   void LoadZeroIfConditionNotZero(Register dest, Register condition);
   void LoadZeroIfConditionZero(Register dest, Register condition);
-  void LoadZeroOnCondition(Register rd, Register rj, const Operand& rk,
-                           Condition cond);
 
   void Clz_w(Register rd, Register rj);
   void Clz_d(Register rd, Register rj);
