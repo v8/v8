@@ -187,7 +187,9 @@ class V8_EXPORT_PRIVATE CallInterfaceDescriptorData {
                            StackArgumentOrder stack_order,
                            int register_parameter_count,
                            const Register* registers,
-                           const DoubleRegister* double_registers);
+                           const DoubleRegister* double_registers,
+                           const Register* return_registers,
+                           const DoubleRegister* return_double_registers);
 
   // if machine_types is null, then an array of size
   // (return_count + parameter_count) will be created with
@@ -213,6 +215,10 @@ class V8_EXPORT_PRIVATE CallInterfaceDescriptorData {
   Register register_param(int index) const { return register_params_[index]; }
   DoubleRegister double_register_param(int index) const {
     return double_register_params_[index];
+  }
+  Register register_return(int index) const { return register_returns_[index]; }
+  DoubleRegister double_register_return(int index) const {
+    return double_register_returns_[index];
   }
   MachineType return_type(int index) const {
     DCHECK_LT(index, return_count_);
@@ -271,6 +277,8 @@ class V8_EXPORT_PRIVATE CallInterfaceDescriptorData {
   // allocated dynamically by the InterfaceDescriptor and freed on destruction.
   const Register* register_params_ = nullptr;
   const DoubleRegister* double_register_params_ = nullptr;
+  const Register* register_returns_ = nullptr;
+  const DoubleRegister* double_register_returns_ = nullptr;
   MachineType* machine_types_ = nullptr;
 };
 
@@ -377,6 +385,16 @@ class V8_EXPORT_PRIVATE CallInterfaceDescriptor {
     return data()->double_register_param(index);
   }
 
+  Register GetRegisterReturn(int index) const {
+    DCHECK_LT(index, data()->return_count());
+    return data()->register_return(index);
+  }
+
+  DoubleRegister GetDoubleRegisterReturn(int index) const {
+    DCHECK_LT(index, data()->return_count());
+    return data()->double_register_return(index);
+  }
+
   MachineType GetParameterType(int index) const {
     DCHECK_LT(index, data()->param_count());
     return data()->param_type(index);
@@ -409,6 +427,8 @@ class V8_EXPORT_PRIVATE CallInterfaceDescriptor {
   // differently sized default register arrays.
   static constexpr inline auto DefaultRegisterArray();
   static constexpr inline auto DefaultDoubleRegisterArray();
+  static constexpr inline auto DefaultReturnRegisterArray();
+  static constexpr inline auto DefaultReturnDoubleRegisterArray();
   static constexpr inline std::array<Register, kJSBuiltinRegisterParams>
   DefaultJSRegisterArray();
 
@@ -456,6 +476,8 @@ class StaticCallInterfaceDescriptor : public CallInterfaceDescriptor {
   // Defaults to CallInterfaceDescriptor::DefaultRegisterArray().
   static constexpr inline auto registers();
   static constexpr inline auto double_registers();
+  static constexpr inline auto return_registers();
+  static constexpr inline auto return_double_registers();
 
   // An additional limit on the number of register parameters allowed. This is
   // here so that it can be overwritten to kMaxTFSBuiltinRegisterParams for TFS

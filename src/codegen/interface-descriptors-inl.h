@@ -59,6 +59,20 @@ StaticCallInterfaceDescriptor<DerivedDescriptor>::double_registers() {
 
 // static
 template <typename DerivedDescriptor>
+constexpr auto
+StaticCallInterfaceDescriptor<DerivedDescriptor>::return_registers() {
+  return CallInterfaceDescriptor::DefaultReturnRegisterArray();
+}
+
+// static
+template <typename DerivedDescriptor>
+constexpr auto
+StaticCallInterfaceDescriptor<DerivedDescriptor>::return_double_registers() {
+  return CallInterfaceDescriptor::DefaultReturnDoubleRegisterArray();
+}
+
+// static
+template <typename DerivedDescriptor>
 constexpr auto StaticJSCallInterfaceDescriptor<DerivedDescriptor>::registers() {
   return CallInterfaceDescriptor::DefaultJSRegisterArray();
 }
@@ -75,6 +89,9 @@ void StaticCallInterfaceDescriptor<DerivedDescriptor>::Initialize(
   // initialization
   static auto registers = DerivedDescriptor::registers();
   static auto double_registers = DerivedDescriptor::double_registers();
+  static auto return_registers = DerivedDescriptor::return_registers();
+  static auto return_double_registers =
+      DerivedDescriptor::return_double_registers();
 
   // The passed pointer should be a modifiable pointer to our own data.
   DCHECK_EQ(data, this->data());
@@ -86,12 +103,19 @@ void StaticCallInterfaceDescriptor<DerivedDescriptor>::Initialize(
     DCHECK(!DerivedDescriptor::kCalleeSaveRegisters);
   }
 
-  data->InitializeRegisters(DerivedDescriptor::flags(),
-                            DerivedDescriptor::kReturnCount,
-                            DerivedDescriptor::GetParameterCount(),
-                            DerivedDescriptor::kStackArgumentOrder,
-                            DerivedDescriptor::GetRegisterParameterCount(),
-                            registers.data(), double_registers.data());
+  // Make sure the defined arrays are big enough. The arrays can be filled up
+  // with `no_reg` and `no_dreg` to pass this DCHECK.
+  DCHECK_GE(registers.size(), GetRegisterParameterCount());
+  DCHECK_GE(double_registers.size(), GetRegisterParameterCount());
+  DCHECK_GE(return_registers.size(), DerivedDescriptor::kReturnCount);
+  DCHECK_GE(return_double_registers.size(), DerivedDescriptor::kReturnCount);
+  data->InitializeRegisters(
+      DerivedDescriptor::flags(), DerivedDescriptor::kReturnCount,
+      DerivedDescriptor::GetParameterCount(),
+      DerivedDescriptor::kStackArgumentOrder,
+      DerivedDescriptor::GetRegisterParameterCount(), registers.data(),
+      double_registers.data(), return_registers.data(),
+      return_double_registers.data());
 
   // InitializeTypes is customizable by the DerivedDescriptor subclass.
   DerivedDescriptor::InitializeTypes(data);

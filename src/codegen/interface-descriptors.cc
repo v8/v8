@@ -10,35 +10,45 @@
 namespace v8 {
 namespace internal {
 
+#ifdef DEBUG
+void CheckRegisterConfiguration(int count, const Register* registers,
+                                const DoubleRegister* double_registers) {
+  // Make sure that the registers are all valid, and don't alias each other.
+  RegList reglist;
+  DoubleRegList double_reglist;
+  for (int i = 0; i < count; ++i) {
+    Register reg = registers[i];
+    DoubleRegister dreg = double_registers[i];
+    DCHECK(reg.is_valid() || dreg.is_valid());
+    DCHECK_NE(reg, kRootRegister);
+#ifdef V8_COMPRESS_POINTERS
+    DCHECK_NE(reg, kPtrComprCageBaseRegister);
+#endif
+    if (reg.is_valid()) {
+      DCHECK(!reglist.has(reg));
+      reglist.set(reg);
+    }
+    if (dreg.is_valid()) {
+      DCHECK(!double_reglist.has(dreg));
+      double_reglist.set(dreg);
+    }
+  }
+}
+#endif
+
 void CallInterfaceDescriptorData::InitializeRegisters(
     Flags flags, int return_count, int parameter_count,
     StackArgumentOrder stack_order, int register_parameter_count,
-    const Register* registers, const DoubleRegister* double_registers) {
+    const Register* registers, const DoubleRegister* double_registers,
+    const Register* return_registers,
+    const DoubleRegister* return_double_registers) {
   DCHECK(!IsInitializedTypes());
 
 #ifdef DEBUG
-  {
-    // Make sure that the registers are all valid, and don't alias each other.
-    RegList reglist;
-    DoubleRegList double_reglist;
-    for (int i = 0; i < register_parameter_count; ++i) {
-      Register reg = registers[i];
-      DoubleRegister dreg = double_registers[i];
-      DCHECK(reg.is_valid() || dreg.is_valid());
-      DCHECK_NE(reg, kRootRegister);
-#ifdef V8_COMPRESS_POINTERS
-      DCHECK_NE(reg, kPtrComprCageBaseRegister);
-#endif
-      if (reg.is_valid()) {
-        DCHECK(!reglist.has(reg));
-        reglist.set(reg);
-      }
-      if (dreg.is_valid()) {
-        DCHECK(!double_reglist.has(dreg));
-        double_reglist.set(dreg);
-      }
-    }
-  }
+  CheckRegisterConfiguration(register_parameter_count, registers,
+                             double_registers);
+  CheckRegisterConfiguration(return_count, return_registers,
+                             return_double_registers);
 #endif
 
   flags_ = flags;
@@ -50,6 +60,8 @@ void CallInterfaceDescriptorData::InitializeRegisters(
   // The caller owns the the registers array, so we just set the pointer.
   register_params_ = registers;
   double_register_params_ = double_registers;
+  register_returns_ = return_registers;
+  double_register_returns_ = return_double_registers;
 }
 
 void CallInterfaceDescriptorData::InitializeTypes(
@@ -87,6 +99,8 @@ void CallInterfaceDescriptorData::Reset() {
   machine_types_ = nullptr;
   register_params_ = nullptr;
   double_register_params_ = nullptr;
+  register_returns_ = nullptr;
+  double_register_returns_ = nullptr;
 }
 
 // static
