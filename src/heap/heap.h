@@ -1726,6 +1726,8 @@ class Heap final {
     // strings.
     std::vector<Object> young_strings_;
     std::vector<Object> old_strings_;
+    // Used to protect access with --shared-string-table.
+    base::Mutex mutex_;
   };
 
   static const int kInitialEvalCacheSize = 64;

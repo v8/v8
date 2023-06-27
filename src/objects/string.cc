@@ -418,8 +418,10 @@ bool String::MakeExternal(v8::String::ExternalStringResource* resource) {
   if (IsReadOnlyHeapObject(*this)) return false;
   Isolate* isolate = GetIsolateFromWritableObject(*this);
   if (IsShared(isolate)) {
+    DCHECK(isolate->is_shared_space_isolate());
     return MarkForExternalizationDuringGC(isolate, resource);
   }
+  DCHECK_IMPLIES(InWritableSharedSpace(), isolate->is_shared_space_isolate());
   bool is_internalized = this->IsInternalizedString();
   bool has_pointers = StringShape(*this).IsIndirect();
 
@@ -503,8 +505,10 @@ bool String::MakeExternal(v8::String::ExternalOneByteStringResource* resource) {
   if (IsReadOnlyHeapObject(*this)) return false;
   Isolate* isolate = GetIsolateFromWritableObject(*this);
   if (IsShared(isolate)) {
+    DCHECK(isolate->is_shared_space_isolate());
     return MarkForExternalizationDuringGC(isolate, resource);
   }
+  DCHECK_IMPLIES(InWritableSharedSpace(), isolate->is_shared_space_isolate());
   bool is_internalized = this->IsInternalizedString();
   bool has_pointers = StringShape(*this).IsIndirect();
 

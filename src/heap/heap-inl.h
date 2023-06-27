@@ -456,6 +456,15 @@ bool Heap::IsPendingAllocation(Object object) {
 }
 
 void Heap::ExternalStringTable::AddString(String string) {
+  base::Optional<base::MutexGuard> guard;
+
+  // With --shared-string-table client isolates may insert into the main
+  // isolate's table concurrently.
+  if (v8_flags.shared_string_table &&
+      heap_->isolate()->is_shared_space_isolate()) {
+    guard.emplace(&mutex_);
+  }
+
   DCHECK(string.IsExternalString());
   DCHECK(!Contains(string));
 

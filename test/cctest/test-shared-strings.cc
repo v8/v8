@@ -2532,6 +2532,83 @@ UNINITIALIZED_TEST(Regress1424955) {
   thread.Join();
 }
 
+class ProtectExternalStringTableAddStringClientIsolateThread
+    : public v8::base::Thread {
+ public:
+  ProtectExternalStringTableAddStringClientIsolateThread(
+      const char* name, MultiClientIsolateTest* test, v8::Isolate* isolate,
+      std::atomic<bool>* done)
+      : v8::base::Thread(base::Thread::Options(name)),
+        test_(test),
+        isolate_(isolate),
+        i_isolate_(reinterpret_cast<Isolate*>(isolate)),
+        done_(done) {}
+
+  void Run() override {
+    const char* text = "worker_external_string";
+
+    {
+      v8::Isolate::Scope isolate_scope(isolate_);
+
+      for (int i = 0; i < 1'000; i++) {
+        HandleScope scope(i_isolate_);
+        Handle<String> string =
+            i_isolate_->factory()->NewStringFromAsciiChecked(
+                text, AllocationType::kOld);
+        CHECK(string->InWritableSharedSpace());
+        CHECK(!string->IsShared());
+        CHECK(string->MakeExternal(new StaticOneByteResource(text)));
+        CHECK(string->IsExternalOneByteString());
+      }
+    }
+
+    isolate_->Dispose();
+
+    *done_ = true;
+    V8::GetCurrentPlatform()
+        ->GetForegroundTaskRunner(test_->main_isolate())
+        ->PostTask(std::make_unique<WakeupTask>(test_->i_main_isolate()));
+  }
+
+ private:
+  MultiClientIsolateTest* test_;
+  v8::Isolate* isolate_;
+  Isolate* i_isolate_;
+  std::atomic<bool>* done_;
+};
+
+UNINITIALIZED_TEST(ProtectExternalStringTableAddString) {
+  if (!V8_CAN_CREATE_SHARED_HEAP_BOOL) return;
+  v8_flags.shared_string_table = true;
+
+  ManualGCScope manual_gc_scope;
+
+  MultiClientIsolateTest test;
+  std::atomic<bool> done = false;
+  v8::Isolate* client = test.NewClientIsolate();
+  ProtectExternalStringTableAddStringClientIsolateThread thread("worker", &test,
+                                                                client, &done);
+  CHECK(thread.Start());
+  Isolate* isolate = test.i_main_isolate();
+  HandleScope scope(isolate);
+
+  for (int i = 0; i < 1'000; i++) {
+    isolate->factory()
+        ->NewExternalStringFromOneByte(
+            new StaticOneByteResource("main_external_string"))
+        .Check();
+  }
+
+  // Wait for client isolate to finish the minor GC and dispose of its isolate.
+  while (!done) {
+    v8::platform::PumpMessageLoop(
+        i::V8::GetCurrentPlatform(), test.main_isolate(),
+        v8::platform::MessageLoopBehavior::kWaitForWork);
+  }
+
+  thread.Join();
+}
+
 }  // namespace test_shared_strings
 }  // namespace internal
 }  // namespace v8
