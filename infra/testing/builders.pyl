@@ -436,10 +436,10 @@
       {'name': 'v8testing', 'variant': 'stress_concurrent_allocation'},
       {'name': 'v8testing', 'variant': 'stress_concurrent_inlining'},
       # Maglev -- move to extra once more architectures are supported.
-      {'name': 'mjsunit', 'variant': 'maglev'},
-      {'name': 'mjsunit', 'variant': 'maglev_future'},
-      {'name': 'mjsunit', 'variant': 'stress_maglev'},
-      {'name': 'mjsunit', 'variant': 'stress_maglev_future'},
+      {'name': 'v8testing', 'variant': 'maglev'},
+      {'name': 'v8testing', 'variant': 'maglev_future'},
+      {'name': 'v8testing', 'variant': 'stress_maglev'},
+      {'name': 'v8testing', 'variant': 'stress_maglev_future'},
       # GC stress
       {
         'name': 'd8testing',
@@ -497,8 +497,8 @@
       # Experimental regexp engine.
       {'name': 'mjsunit', 'variant': 'experimental_regexp'},
       # Variants for maglev.
-      {'name': 'mjsunit', 'variant': 'maglev_no_turbofan'},
-      {'name': 'mjsunit', 'variant': 'stress_maglev_no_turbofan'},
+      {'name': 'v8testing', 'variant': 'maglev_no_turbofan'},
+      {'name': 'v8testing', 'variant': 'stress_maglev_no_turbofan'},
     ],
   },
   'v8_linux64_gc_stress_custom_snapshot_dbg': {
@@ -527,7 +527,7 @@
         'shards': 2
       },
       {
-        'name': 'mjsunit',
+        'name': 'd8testing',
         'variant': 'maglev',
         'test_args': ['--gc-stress'],
         'shards': 2
@@ -598,10 +598,10 @@
       {'name': 'v8testing', 'variant': 'no_lfa'},
       {'name': 'v8testing', 'variant': 'stress_instruction_scheduling'},
       # Maglev -- move to extra once more architectures are supported.
-      {'name': 'mjsunit', 'variant': 'maglev'},
-      {'name': 'mjsunit', 'variant': 'maglev_future'},
-      {'name': 'mjsunit', 'variant': 'stress_maglev'},
-      {'name': 'mjsunit', 'variant': 'stress_maglev_future'},
+      {'name': 'v8testing', 'variant': 'maglev'},
+      {'name': 'v8testing', 'variant': 'maglev_future'},
+      {'name': 'v8testing', 'variant': 'stress_maglev'},
+      {'name': 'v8testing', 'variant': 'stress_maglev_future'},
       {'name': 'v8testing', 'variant': 'minor_mc'},
     ],
   },
@@ -667,10 +667,10 @@
       {'name': 'v8testing', 'variant': 'slow_path'},
       {'name': 'v8testing', 'variant': 'stress_instruction_scheduling'},
       # Maglev -- move to extra once more architectures are supported.
-      {'name': 'mjsunit', 'variant': 'maglev'},
-      {'name': 'mjsunit', 'variant': 'maglev_future'},
-      {'name': 'mjsunit', 'variant': 'stress_maglev'},
-      {'name': 'mjsunit', 'variant': 'stress_maglev_future'},
+      {'name': 'v8testing', 'variant': 'maglev'},
+      {'name': 'v8testing', 'variant': 'maglev_future'},
+      {'name': 'v8testing', 'variant': 'stress_maglev'},
+      {'name': 'v8testing', 'variant': 'stress_maglev_future'},
       # GCMole.
       {'name': 'gcmole_v3', 'variant': 'x64', 'shards': 4},
       {
@@ -998,10 +998,10 @@
     'tests': [
       {'name': 'v8testing'},
       # Maglev -- move to extra once more architectures are supported.
-      {'name': 'mjsunit', 'variant': 'maglev'},
-      {'name': 'mjsunit', 'variant': 'maglev_future'},
-      {'name': 'mjsunit', 'variant': 'stress_maglev'},
-      {'name': 'mjsunit', 'variant': 'stress_maglev_future'},
+      {'name': 'v8testing', 'variant': 'maglev'},
+      {'name': 'v8testing', 'variant': 'maglev_future'},
+      {'name': 'v8testing', 'variant': 'stress_maglev'},
+      {'name': 'v8testing', 'variant': 'stress_maglev_future'},
       {'name': 'v8testing', 'variant': 'minor_mc'},
     ],
   },
@@ -1014,10 +1014,10 @@
     'tests': [
       {'name': 'v8testing'},
       # Maglev -- move to extra once more architectures are supported.
-      {'name': 'mjsunit', 'variant': 'maglev'},
-      {'name': 'mjsunit', 'variant': 'maglev_future'},
-      {'name': 'mjsunit', 'variant': 'stress_maglev'},
-      {'name': 'mjsunit', 'variant': 'stress_maglev_future'},
+      {'name': 'v8testing', 'variant': 'maglev'},
+      {'name': 'v8testing', 'variant': 'maglev_future'},
+      {'name': 'v8testing', 'variant': 'stress_maglev'},
+      {'name': 'v8testing', 'variant': 'stress_maglev_future'},
       {'name': 'v8testing', 'variant': 'minor_mc'},
     ],
   },
@@ -1030,10 +1030,10 @@
     'tests': [
       {'name': 'v8testing'},
       # Maglev -- move to extra once more architectures are supported.
-      {'name': 'mjsunit', 'variant': 'maglev'},
-      {'name': 'mjsunit', 'variant': 'maglev_future'},
-      {'name': 'mjsunit', 'variant': 'stress_maglev'},
-      {'name': 'mjsunit', 'variant': 'stress_maglev_future'},
+      {'name': 'v8testing', 'variant': 'maglev'},
+      {'name': 'v8testing', 'variant': 'maglev_future'},
+      {'name': 'v8testing', 'variant': 'stress_maglev'},
+      {'name': 'v8testing', 'variant': 'stress_maglev_future'},
       {'name': 'v8testing', 'variant': 'minor_mc'},
     ],
   },
@@ -1376,10 +1376,10 @@
       {'name': 'v8testing', 'variant': 'no_lfa'},
       {'name': 'v8testing', 'variant': 'stress_instruction_scheduling'},
       # Maglev -- move to extra once more architectures are supported.
-      {'name': 'mjsunit', 'variant': 'maglev'},
-      {'name': 'mjsunit', 'variant': 'maglev_future'},
-      {'name': 'mjsunit', 'variant': 'stress_maglev'},
-      {'name': 'mjsunit', 'variant': 'stress_maglev_future'},
+      {'name': 'v8testing', 'variant': 'maglev'},
+      {'name': 'v8testing', 'variant': 'maglev_future'},
+      {'name': 'v8testing', 'variant': 'stress_maglev'},
+      {'name': 'v8testing', 'variant': 'stress_maglev_future'},
       # Noavx.
       {
         'name': 'mozilla',
@@ -1484,10 +1484,10 @@
       {'name': 'v8testing', 'variant': 'stress_concurrent_allocation'},
       {'name': 'v8testing', 'variant': 'stress_concurrent_inlining', 'shards': 2},
       # Maglev -- move to extra once more architectures are supported.
-      {'name': 'mjsunit', 'variant': 'maglev'},
-      {'name': 'mjsunit', 'variant': 'maglev_future'},
-      {'name': 'mjsunit', 'variant': 'stress_maglev'},
-      {'name': 'mjsunit', 'variant': 'stress_maglev_future'},
+      {'name': 'v8testing', 'variant': 'maglev'},
+      {'name': 'v8testing', 'variant': 'maglev_future'},
+      {'name': 'v8testing', 'variant': 'stress_maglev'},
+      {'name': 'v8testing', 'variant': 'stress_maglev_future'},
       # Noavx.
       {
         'name': 'mozilla',
@@ -1550,8 +1550,8 @@
       # Experimental regexp engine.
       {'name': 'mjsunit', 'variant': 'experimental_regexp'},
       # Variants for maglev.
-      {'name': 'mjsunit', 'variant': 'maglev_no_turbofan'},
-      {'name': 'mjsunit', 'variant': 'stress_maglev_no_turbofan'},
+      {'name': 'v8testing', 'variant': 'maglev_no_turbofan'},
+      {'name': 'v8testing', 'variant': 'stress_maglev_no_turbofan'},
     ],
   },
   'V8 Linux64 - cppgc-non-default - debug': {
@@ -1613,8 +1613,8 @@
       # Experimental regexp engine.
       {'name': 'mjsunit', 'variant': 'experimental_regexp'},
       # Variants for maglev.
-      {'name': 'mjsunit', 'variant': 'maglev_no_turbofan'},
-      {'name': 'mjsunit', 'variant': 'stress_maglev_no_turbofan'},
+      {'name': 'v8testing', 'variant': 'maglev_no_turbofan'},
+      {'name': 'v8testing', 'variant': 'stress_maglev_no_turbofan'},
     ],
   },
   'V8 Linux64 gcc': {
@@ -1643,7 +1643,7 @@
         'shards': 2,
       },
       {
-        'name': 'mjsunit',
+        'name': 'd8testing',
         'variant': 'maglev',
         'test_args': ['--gc-stress'],
         'shards': 2
@@ -1893,10 +1893,10 @@
       {'name': 'v8testing'},
       {'name': 'v8testing', 'variant': 'extra'},
       # Maglev -- move to extra once more architectures are supported.
-      {'name': 'mjsunit', 'variant': 'maglev'},
-      {'name': 'mjsunit', 'variant': 'maglev_future'},
-      {'name': 'mjsunit', 'variant': 'stress_maglev'},
-      {'name': 'mjsunit', 'variant': 'stress_maglev_future'},
+      {'name': 'v8testing', 'variant': 'maglev'},
+      {'name': 'v8testing', 'variant': 'maglev_future'},
+      {'name': 'v8testing', 'variant': 'stress_maglev'},
+      {'name': 'v8testing', 'variant': 'stress_maglev_future'},
       {'name': 'v8testing', 'variant': 'minor_mc'},
     ],
   },
@@ -1915,10 +1915,10 @@
       {'name': 'v8testing', 'shards': 2},
       {'name': 'v8testing', 'variant': 'extra', 'shards': 2},
       # Maglev -- move to extra once more architectures are supported.
-      {'name': 'mjsunit', 'variant': 'maglev'},
-      {'name': 'mjsunit', 'variant': 'maglev_future'},
-      {'name': 'mjsunit', 'variant': 'stress_maglev'},
-      {'name': 'mjsunit', 'variant': 'stress_maglev_future'},
+      {'name': 'v8testing', 'variant': 'maglev'},
+      {'name': 'v8testing', 'variant': 'maglev_future'},
+      {'name': 'v8testing', 'variant': 'stress_maglev'},
+      {'name': 'v8testing', 'variant': 'stress_maglev_future'},
       {'name': 'v8testing', 'variant': 'minor_mc'},
     ],
   },

@@ -10,7 +10,11 @@ from testrunner.local import testsuite
 from testrunner.objects import testcase
 
 
-ADDITIONAL_VARIANTS = set(["minor_mc"])
+ADDITIONAL_VARIANTS = set([
+  "maglev",
+  "minor_mc",
+  "stress_maglev",
+])
 SHELL = "v8_unittests"
 
 
