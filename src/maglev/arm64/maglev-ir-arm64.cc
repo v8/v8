@@ -643,20 +643,20 @@ void Float64Round::GenerateCode(MaglevAssembler* masm,
   if (kind_ == Kind::kNearest) {
     MaglevAssembler::ScratchRegisterScope temps(masm);
     DoubleRegister temp = temps.AcquireDouble();
-    DoubleRegister temp2 = temps.AcquireDouble();
+    DoubleRegister half_one = temps.AcquireDouble();
     __ Move(temp, in);
     // Frintn rounds to even on tie, while JS expects it to round towards
     // +Infinity. Fix the difference by checking if we rounded down by exactly
     // 0.5, and if so, round to the other side.
     __ Frintn(out, in);
     __ Fsub(temp, temp, out);
-    __ Move(temp2, 0.5);
-    __ Fcmp(temp, temp2);
+    __ Move(half_one, 0.5);
+    __ Fcmp(temp, half_one);
     Label done;
     __ JumpIf(ne, &done, Label::kNear);
     // Fix wrong tie-to-even by adding 0.5 twice.
-    __ Fadd(out, out, temp2);
-    __ Fadd(out, out, temp2);
+    __ Fadd(out, out, half_one);
+    __ Fadd(out, out, half_one);
     __ bind(&done);
   } else if (kind_ == Kind::kCeil) {
     __ Frintp(out, in);

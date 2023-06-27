@@ -531,7 +531,32 @@ void Float64Negate::GenerateCode(MaglevAssembler* masm,
 
 void Float64Round::GenerateCode(MaglevAssembler* masm,
                                 const ProcessingState& state) {
-  MAGLEV_NODE_NOT_IMPLEMENTED(Float64Round);
+  DoubleRegister in = ToDoubleRegister(input());
+  DoubleRegister out = ToDoubleRegister(result());
+  CpuFeatureScope scope(masm, ARMv8);
+  if (kind_ == Kind::kNearest) {
+    MaglevAssembler::ScratchRegisterScope temps(masm);
+    DoubleRegister temp = temps.AcquireDouble();
+    DoubleRegister half_one = temps.AcquireDouble();
+    __ Move(temp, in);
+    // vrintn rounds to even on tie, while JS expects it to round towards
+    // +Infinity. Fix the difference by checking if we rounded down by exactly
+    // 0.5, and if so, round to the other side.
+    __ vrintn(out, in);
+    __ vsub(temp, temp, out);
+    __ Move(half_one, 0.5);
+    __ VFPCompareAndSetFlags(temp, half_one);
+    Label done;
+    __ JumpIf(ne, &done, Label::kNear);
+    // Fix wrong tie-to-even by adding 0.5 twice.
+    __ vadd(out, out, half_one);
+    __ vadd(out, out, half_one);
+    __ bind(&done);
+  } else if (kind_ == Kind::kCeil) {
+    __ vrintp(out, in);
+  } else if (kind_ == Kind::kFloor) {
+    __ vrintm(out, in);
+  }
 }
 
 int Float64Exponentiate::MaxCallStackArgs() const { return 0; }
