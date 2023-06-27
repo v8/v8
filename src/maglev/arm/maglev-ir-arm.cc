@@ -295,10 +295,89 @@ void Int32DivideWithOverflow::SetValueLocationConstraints() {
   UseRegister(left_input());
   UseRegister(right_input());
   DefineAsRegister(this);
+  if (!CpuFeatures::IsSupported(SUDIV)) {
+    // We use the standard low double register and an extra one.
+    set_double_temporaries_needed(1);
+  }
 }
 void Int32DivideWithOverflow::GenerateCode(MaglevAssembler* masm,
                                            const ProcessingState& state) {
-  MAGLEV_NODE_NOT_IMPLEMENTED(Int32DivideWithOverflow);
+  Register left = ToRegister(left_input());
+  Register right = ToRegister(right_input());
+  Register out = ToRegister(result());
+
+  // TODO(leszeks): peephole optimise division by a constant.
+
+  // Pre-check for overflow, since idiv throws a division exception on overflow
+  // rather than setting the overflow flag. Logic copied from
+  // effect-control-linearizer.cc
+
+  // Check if {right} is positive (and not zero).
+  __ cmp(right, Operand(0));
+  ZoneLabelRef done(masm);
+  __ JumpToDeferredIf(
+      le,
+      [](MaglevAssembler* masm, ZoneLabelRef done, Register left,
+         Register right, Int32DivideWithOverflow* node) {
+        // {right} is negative or zero.
+
+        // TODO(leszeks): Using kNotInt32 here, but in same places
+        // kDivisionByZerokMinusZero/kMinusZero/kOverflow would be better. Right
+        // now all eager deopts in a node have to be the same -- we should allow
+        // a node to emit multiple eager deopts with different reasons.
+        Label* deopt = __ GetDeoptLabel(node, DeoptimizeReason::kNotInt32);
+
+        // Check if {right} is zero.
+        // We've already done the compare and flags won't be cleared yet.
+        __ JumpIf(eq, deopt);
+
+        // Check if {left} is zero, as that would produce minus zero.
+        __ tst(left, left);
+        __ JumpIf(eq, deopt);
+
+        // Check if {left} is kMinInt and {right} is -1, in which case we'd have
+        // to return -kMinInt, which is not representable as Int32.
+        __ cmp(left, Operand(kMinInt));
+        __ JumpIf(ne, *done);
+        __ cmp(right, Operand(-1));
+        __ JumpIf(ne, *done);
+        __ Jump(deopt);
+      },
+      done, left, right, this);
+  __ bind(*done);
+
+  // Perform the actual integer division.
+  MaglevAssembler::ScratchRegisterScope temps(masm);
+  bool out_alias_input = out == left || out == right;
+  Register res = out;
+  if (out_alias_input) {
+    res = temps.Acquire();
+  }
+  if (CpuFeatures::IsSupported(SUDIV)) {
+    CpuFeatureScope scope(masm, SUDIV);
+    __ sdiv(res, left, right);
+  } else {
+    UseScratchRegisterScope temps(masm);
+    LowDwVfpRegister double_right = temps.AcquireLowD();
+    SwVfpRegister tmp = double_right.low();
+    DwVfpRegister double_left = temps.AcquireD();
+    DwVfpRegister double_res = double_left;
+    __ vmov(tmp, left);
+    __ vcvt_f64_s32(double_left, tmp);
+    __ vmov(tmp, right);
+    __ vcvt_f64_s32(double_right, tmp);
+    __ vdiv(double_res, double_left, double_right);
+    __ vcvt_s32_f64(tmp, double_res);
+    __ vmov(res, tmp);
+  }
+
+  // Check that the remainder is zero.
+  Register temp = temps.Acquire();
+  __ mul(temp, res, right);
+  __ tst(temp, left);
+  __ EmitEagerDeoptIf(ne, DeoptimizeReason::kNotInt32, this);
+
+  __ Move(out, res);
 }
 
 void Int32ModulusWithOverflow::SetValueLocationConstraints() {

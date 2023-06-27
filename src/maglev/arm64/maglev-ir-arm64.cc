@@ -378,18 +378,18 @@ void Int32DivideWithOverflow::GenerateCode(MaglevAssembler* masm,
          Register right, Int32DivideWithOverflow* node) {
         // {right} is negative or zero.
 
+        // TODO(leszeks): Using kNotInt32 here, but in same places
+        // kDivisionByZerokMinusZero/kMinusZero/kOverflow would be better. Right
+        // now all eager deopts in a node have to be the same -- we should allow
+        // a node to emit multiple eager deopts with different reasons.
+        Label* deopt = __ GetDeoptLabel(node, DeoptimizeReason::kNotInt32);
+
         // Check if {right} is zero.
         // We've already done the compare and flags won't be cleared yet.
-        // TODO(leszeks): Using kNotInt32 here, but kDivisionByZero would be
-        // better. Right now all eager deopts in a node have to be the same --
-        // we should allow a node to emit multiple eager deopts with different
-        // reasons.
-        __ EmitEagerDeoptIf(eq, DeoptimizeReason::kNotInt32, node);
+        __ JumpIf(eq, deopt);
 
         // Check if {left} is zero, as that would produce minus zero.
-        __ Cmp(left, Immediate(0));
-        // TODO(leszeks): Better DeoptimizeReason = kMinusZero.
-        __ EmitEagerDeoptIf(eq, DeoptimizeReason::kNotInt32, node);
+        __ CompareAndBranch(left, Immediate(0), eq, deopt);
 
         // Check if {left} is kMinInt and {right} is -1, in which case we'd have
         // to return -kMinInt, which is not representable as Int32.
@@ -397,9 +397,7 @@ void Int32DivideWithOverflow::GenerateCode(MaglevAssembler* masm,
         __ JumpIf(ne, *done);
         __ Cmp(right, Immediate(-1));
         __ JumpIf(ne, *done);
-        // TODO(leszeks): Better DeoptimizeReason = kOverflow, but
-        // eager_deopt_info is already configured as kNotInt32.
-        __ EmitEagerDeopt(node, DeoptimizeReason::kNotInt32);
+        __ Jump(deopt);
       },
       done, left, right, this);
   __ Bind(*done);
@@ -416,8 +414,8 @@ void Int32DivideWithOverflow::GenerateCode(MaglevAssembler* masm,
   // Check that the remainder is zero.
   Register temp = temps.Acquire().W();
   __ Msub(temp, res, right, left);
-  __ Cmp(temp, Immediate(0));
-  __ EmitEagerDeoptIf(ne, DeoptimizeReason::kNotInt32, this);
+  __ CompareAndBranch(temp, Immediate(0), ne,
+                      __ GetDeoptLabel(this, DeoptimizeReason::kNotInt32));
 
   __ Move(out, res);
 }

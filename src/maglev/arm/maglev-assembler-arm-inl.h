@@ -68,7 +68,9 @@ class MaglevAssembler::ScratchRegisterScope {
   void Include(const RegList list) { wrapped_scope_.Include(list); }
 
   DoubleRegister AcquireDouble() { return wrapped_scope_.AcquireD(); }
-  void IncludeDouble(const DoubleRegList list) {}
+  void IncludeDouble(const DoubleRegList list) {
+    wrapped_scope_.Include(DoubleToVpfRegList(list));
+  }
 
   RegList Available() { return wrapped_scope_.Available(); }
   void SetAvailable(RegList list) { wrapped_scope_.SetAvailable(list); }
