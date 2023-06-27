@@ -6074,8 +6074,12 @@ Node* WasmGraphBuilder::StringNewWtf8(uint32_t memory,
 }
 
 Node* WasmGraphBuilder::StringNewWtf8Array(unibrow::Utf8Variant variant,
-                                           Node* array, Node* start,
-                                           Node* end) {
+                                           Node* array, CheckForNull null_check,
+                                           Node* start, Node* end,
+                                           wasm::WasmCodePosition position) {
+  if (null_check == kWithNullCheck) {
+    array = AssertNotNull(array, wasm::kWasmArrayRef, position);
+  }
   return gasm_->CallBuiltin(
       Builtin::kWasmStringNewWtf8Array, Operator::kNoDeopt | Operator::kNoThrow,
       start, end, array, gasm_->SmiConstant(static_cast<int32_t>(variant)));
@@ -6088,8 +6092,13 @@ Node* WasmGraphBuilder::StringNewWtf16(uint32_t memory, Node* offset,
                             gasm_->Uint32Constant(memory), offset, size);
 }
 
-Node* WasmGraphBuilder::StringNewWtf16Array(Node* array, Node* start,
-                                            Node* end) {
+Node* WasmGraphBuilder::StringNewWtf16Array(Node* array,
+                                            CheckForNull null_check,
+                                            Node* start, Node* end,
+                                            wasm::WasmCodePosition position) {
+  if (null_check == kWithNullCheck) {
+    array = AssertNotNull(array, wasm::kWasmArrayRef, position);
+  }
   return gasm_->CallBuiltin(Builtin::kWasmStringNewWtf16Array,
                             Operator::kNoDeopt | Operator::kNoThrow, array,
                             start, end);

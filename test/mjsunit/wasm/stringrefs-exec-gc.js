@@ -138,6 +138,13 @@ function makeWtf8TestDataSegment() {
       ...GCInstr(kExprStringNewWtf8Array)
     ]);
 
+  builder.addFunction("null_array", kSig_w_v).exportFunc()
+    .addBody([
+      kExprRefNull, i8_array,
+      kExprI32Const, 0, kExprI32Const, 0,
+      ...GCInstr(kExprStringNewWtf8Array)
+    ])
+
   let instance = builder.instantiate();
   for (let [str, {offset, length}] of Object.entries(data.valid)) {
     let start = offset;
@@ -183,6 +190,8 @@ function makeWtf8TestDataSegment() {
   assertThrows(() => instance.exports.bounds_check("ascii".length,
                                                    "ascii".length + 1),
                WebAssembly.RuntimeError, "array element access out of bounds");
+  assertThrows(() => instance.exports.null_array(),
+               WebAssembly.RuntimeError, "dereferencing a null pointer");
 })();
 
 (function TestStringNewUtf8ArrayTryNullCheck() {
@@ -288,6 +297,14 @@ function makeWtf16TestDataSegment(strings) {
       ...GCInstr(kExprStringNewWtf16Array)
     ]);
 
+  builder.addFunction("null_array", kSig_w_v).exportFunc()
+    .addBody([
+      kExprRefNull, i16_array,
+      kExprI32Const, 0,
+      kExprI32Const, 0,
+      ...GCInstr(kExprStringNewWtf16Array)
+    ]);
+
   let instance = builder.instantiate();
   for (let [str, {offset, length}] of Object.entries(data.valid)) {
     let start = offset / 2;
@@ -305,6 +322,8 @@ function makeWtf16TestDataSegment(strings) {
   assertThrows(() => instance.exports.bounds_check("ascii".length,
                                                    "ascii".length + 1),
                WebAssembly.RuntimeError, "array element access out of bounds");
+  assertThrows(() => instance.exports.null_array(),
+               WebAssembly.RuntimeError, "dereferencing a null pointer");
 })();
 
 (function TestStringEncodeWtf8Array() {
@@ -423,7 +442,7 @@ function makeWtf16TestDataSegment(strings) {
       makeSig([kWasmStringRef, kWasmI32, kWasmI32],
               [kWasmStringRef]);
   // Allocate an array and encode into it.  Then decode it.
-  // (str, length, offset=0) -> str
+  // (str, length, offset) -> str
   builder.addFunction("encode", kSig_w_wii)
     .exportFunc()
     .addLocals(wasmRefNullType(i16_array), 1)

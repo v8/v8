@@ -515,9 +515,11 @@ class WasmGraphBuilder {
   Node* StringNewWtf8(uint32_t memory, unibrow::Utf8Variant variant,
                       Node* offset, Node* size);
   Node* StringNewWtf8Array(unibrow::Utf8Variant variant, Node* array,
-                           Node* start, Node* end);
+                           CheckForNull null_check, Node* start, Node* end,
+                           wasm::WasmCodePosition position);
   Node* StringNewWtf16(uint32_t memory, Node* offset, Node* size);
-  Node* StringNewWtf16Array(Node* array, Node* start, Node* end);
+  Node* StringNewWtf16Array(Node* array, CheckForNull null_check, Node* start,
+                            Node* end, wasm::WasmCodePosition position);
   Node* StringAsWtf16(Node* string, CheckForNull null_check,
                       wasm::WasmCodePosition position);
   Node* StringConst(uint32_t index);

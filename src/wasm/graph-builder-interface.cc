@@ -1728,8 +1728,9 @@ class WasmGraphBuildingInterface {
                           const unibrow::Utf8Variant variant,
                           const Value& array, const Value& start,
                           const Value& end, Value* result) {
-    SetAndTypeNode(result, builder_->StringNewWtf8Array(variant, array.node,
-                                                        start.node, end.node));
+    SetAndTypeNode(result, builder_->StringNewWtf8Array(
+                               variant, array.node, NullCheckFor(array.type),
+                               start.node, end.node, decoder->position()));
   }
 
   void StringNewWtf16(FullDecoder* decoder, const MemoryIndexImmediate& imm,
@@ -1741,8 +1742,9 @@ class WasmGraphBuildingInterface {
   void StringNewWtf16Array(FullDecoder* decoder, const Value& array,
                            const Value& start, const Value& end,
                            Value* result) {
-    SetAndTypeNode(result, builder_->StringNewWtf16Array(array.node, start.node,
-                                                         end.node));
+    SetAndTypeNode(result, builder_->StringNewWtf16Array(
+                               array.node, NullCheckFor(array.type), start.node,
+                               end.node, decoder->position()));
   }
 
   void StringConst(FullDecoder* decoder, const StringConstImmediate& imm,
