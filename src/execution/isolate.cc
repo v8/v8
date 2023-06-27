@@ -1998,7 +1998,7 @@ Object Isolate::UnwindAndFindHandler() {
       CHECK(!catchable_by_js);
       CHECK(frame->is_java_script());
 
-      if (frame->is_turbofan()) {
+      if (frame->is_optimized()) {
         Code code = frame->LookupCode();
         // The debugger triggers lazy deopt for the "to-be-restarted" frame
         // immediately when the CDP event arrives while paused.
@@ -2020,7 +2020,6 @@ Object Isolate::UnwindAndFindHandler() {
                             code.constant_pool(), return_sp, frame->fp(),
                             visited_frames);
       }
-      DCHECK(!frame->is_maglev());
 
       debug()->clear_restart_frame();
       Code code = *BUILTIN_CODE(this, RestartFrameTrampoline);

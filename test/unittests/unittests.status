@@ -366,4 +366,14 @@
   'Torque.Enums': [FAIL],
 }],  # 'official_build'
 
+##############################################################################
+# Behavioural differences between Maglev and Turbofan when the former is used
+# for OptimizeFunctionOnNextCall.
+['variant == stress_maglev or variant == stress_maglev_future', {
+  # Maglev doesn't support compiler::NodeObserver machinery.
+  'SloppyEqualityTest.SloppyEqualityTest': [FAIL],
+  # Maglev doesn't produce optimized enough code to trigger expected
+  # deoptimization.
+  'FeedbackVectorTest.VectorCallSpeculationModeAndFeedbackContent': [FAIL],
+}],  # variant == stress_maglev or variant == stress_maglev_future
 ]
