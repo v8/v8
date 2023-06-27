@@ -4611,7 +4611,6 @@ void Genesis::InitializeGlobal_harmony_iterator_helpers() {
                     wrap_for_valid_iterator_prototype);
   valid_iterator_wrapper_map->SetConstructor(*iterator_function);
   native_context()->set_valid_iterator_wrapper_map(*valid_iterator_wrapper_map);
-  LOG(isolate(), MapDetails(*valid_iterator_wrapper_map));
 
   // --- %IteratorHelperPrototype%
   Handle<JSObject> iterator_helper_prototype = factory()->NewJSObject(
@@ -4656,7 +4655,6 @@ void Genesis::InitializeGlobal_harmony_iterator_helpers() {
     Map::SetPrototype(isolate(), map, iterator_helper_prototype);              \
     map->SetConstructor(*iterator_function);                                   \
     native_context()->set_iterator_##lowercase_name##_helper_map(*map);        \
-    LOG(isolate(), MapDetails(*map));                                          \
     SimpleInstallFunction(isolate(), iterator_prototype, #lowercase_name,      \
                           Builtin::kIteratorPrototype##Capitalized_name, argc, \
                           true);                                               \
