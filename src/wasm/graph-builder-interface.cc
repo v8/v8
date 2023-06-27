@@ -312,12 +312,11 @@ class WasmGraphBuildingInterface {
         &can_be_innermost);
     if (decoder->failed()) return;
     int instance_cache_index = decoder->num_locals();
-    // If the module has shared memory, the stack guard might reallocate the
-    // shared memory. We have to assume the instance cache will be updated.
-    if (!decoder->module_->memories.empty() &&
-        decoder->module_->memories[0].is_shared) {
-      assigned->Add(instance_cache_index);
-    }
+    // If memory 0 is shared, the stack guard might reallocate the backing
+    // store. We have to assume the instance cache will be updated.
+    bool mem0_is_shared = !decoder->module_->memories.empty() &&
+                          decoder->module_->memories.front().is_shared;
+    if (mem0_is_shared) assigned->Add(instance_cache_index);
     DCHECK_NOT_NULL(assigned);
     decoder->control_at(0)->loop_assignments = assigned;
 
@@ -351,11 +350,8 @@ class WasmGraphBuildingInterface {
     // Now we setup a new environment for the inside of the loop.
     // TODO(choongwoo): Clear locals of the following SsaEnv after use.
     SetEnv(Split(decoder->zone(), ssa_env_));
-    bool has_shared_memory = !decoder->module_->memories.empty() &&
-                             decoder->module_->memories[0].is_shared;
-    builder_->StackCheck(
-        has_shared_memory ? &ssa_env_->instance_cache : nullptr,
-        decoder->position());
+    builder_->StackCheck(mem0_is_shared ? &ssa_env_->instance_cache : nullptr,
+                         decoder->position());
     ssa_env_->SetNotMerged();
 
     // Wrap input merge into phis.
