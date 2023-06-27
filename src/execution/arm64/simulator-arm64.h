@@ -629,6 +629,8 @@ class LogicVRegister {
     return *this;
   }
 
+  bool Is(const LogicVRegister& r) const { return &register_ == &r.register_; }
+
  private:
   SimVRegister& register_;
 
