@@ -182,10 +182,12 @@ class MemoryOptimizationReducer : public Next {
     // Check if we can do bump pointer allocation here.
     bool reachable = true;
     if (allow_large_objects == AllowLargeObjects::kTrue) {
-      reachable = Asm().GotoIfNot(
-          Asm().UintPtrLessThan(
-              size, Asm().IntPtrConstant(kMaxRegularHeapObjectSize)),
-          call_runtime, BranchHint::kTrue);
+      reachable =
+          Asm().GotoIfNot(
+              Asm().UintPtrLessThan(
+                  size, Asm().IntPtrConstant(kMaxRegularHeapObjectSize)),
+              call_runtime,
+              BranchHint::kTrue) != ConditionalGotoStatus::kGotoDestination;
     }
     if (reachable) {
       Asm().Branch(

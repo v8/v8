@@ -43,6 +43,31 @@ enum class Builtin : int32_t;
 
 namespace v8::internal::compiler::turboshaft {
 
+// GotoIf(cond, dst) and GotoIfNot(cond, dst) are not guaranteed to actually
+// generate a Branch with `dst` as one of the destination, because some reducer
+// in the stack could realize that `cond` is statically known and optimize away
+// the Branch. Thus, GotoIf and GotoIfNot return a {ConditionalGotoStatus},
+// which represents whether a GotoIf/GotoIfNot was emitted as a Branch or a Goto
+// (and if a Goto, then to what: `dst` or the fallthrough block).
+enum ConditionalGotoStatus {
+  kGotoDestination = 1,  // The conditional Goto became an unconditional Goto to
+                         // the destination.
+  kGotoEliminated = 2,   // The conditional GotoIf/GotoIfNot would never be
+                         // executed and only the fallthrough path remains.
+  kBranch = 3            // The conditional Goto became a branch.
+
+  // Some examples of this:
+  //   GotoIf(true, dst)     ===> kGotoDestination
+  //   GotoIf(false, dst)    ===> kGotoEliminated
+  //   GotoIf(var, dst)      ===> kBranch
+  //   GotoIfNot(true, dst)  ===> kGotoEliminated
+  //   GotoIfNot(false, dst) ===> kGotoDestination
+  //   GotoIfNot(var, dst)   ===> kBranch
+};
+static_assert((ConditionalGotoStatus::kGotoDestination |
+               ConditionalGotoStatus::kGotoEliminated) ==
+              ConditionalGotoStatus::kBranch);
+
 class ConditionWithHint final {
  public:
   ConditionWithHint(
@@ -117,22 +142,35 @@ class LabelBase {
 
   template <typename A>
   void Goto(A& assembler, const values_t& values) {
-    RecordValues(assembler, data_, values);
+    if (assembler.generating_unreachable_operations()) return;
+    Block* current_block = assembler.current_block();
+    DCHECK_NOT_NULL(current_block);
     assembler.Goto(data_.block);
+    RecordValues(current_block, data_, values);
   }
 
   template <typename A>
   void GotoIf(A& assembler, OpIndex condition, BranchHint hint,
               const values_t& values) {
-    RecordValues(assembler, data_, values);
-    assembler.GotoIf(condition, data_.block, hint);
+    if (assembler.generating_unreachable_operations()) return;
+    Block* current_block = assembler.current_block();
+    DCHECK_NOT_NULL(current_block);
+    if (assembler.GotoIf(condition, data_.block, hint) &
+        ConditionalGotoStatus::kGotoDestination) {
+      RecordValues(current_block, data_, values);
+    }
   }
 
   template <typename A>
   void GotoIfNot(A& assembler, OpIndex condition, BranchHint hint,
                  const values_t& values) {
-    RecordValues(assembler, data_, values);
-    assembler.GotoIfNot(condition, data_.block, hint);
+    if (assembler.generating_unreachable_operations()) return;
+    Block* current_block = assembler.current_block();
+    DCHECK_NOT_NULL(current_block);
+    if (assembler.GotoIfNot(condition, data_.block, hint) &
+        ConditionalGotoStatus::kGotoDestination) {
+      RecordValues(current_block, data_, values);
+    }
   }
 
   template <typename A>
@@ -158,10 +196,8 @@ class LabelBase {
     DCHECK_NOT_NULL(data_.block);
   }
 
-  template <typename A>
-  static void RecordValues(A& assembler, BlockData& data,
+  static void RecordValues(Block* source, BlockData& data,
                            const values_t& values) {
-    Block* source = assembler.current_block();
     DCHECK_NOT_NULL(source);
     if (data.block->IsBound()) {
       // Cannot `Goto` to a bound block. If you are trying to construct a
@@ -178,9 +214,13 @@ class LabelBase {
 #ifdef DEBUG
     std::initializer_list<size_t> sizes{
         std::get<indices>(data.recorded_values).size()...};
+    // There a -1 on the PredecessorCounts below, because we've emitted the
+    // Goto/Branch before calling RecordValues (which we do because the
+    // condition of the Goto might have been constant-folded, resulting in the
+    // destination not actually being reachable).
     DCHECK(base::all_equal(
-        sizes, static_cast<size_t>(data.block->PredecessorCount())));
-    DCHECK_EQ(data.block->PredecessorCount(), data.predecessors.size());
+        sizes, static_cast<size_t>(data.block->PredecessorCount() - 1)));
+    DCHECK_EQ(data.block->PredecessorCount() - 1, data.predecessors.size());
 #endif
     (std::get<indices>(data.recorded_values)
          .push_back(std::get<indices>(values)),
@@ -243,12 +283,15 @@ class LoopLabel : public LabelBase<true, Ts...> {
 
   template <typename A>
   void Goto(A& assembler, const values_t& values) {
+    if (assembler.generating_unreachable_operations()) return;
     if (!loop_header_data_.block->IsBound()) {
       // If the loop header is not bound yet, we have the forward edge to the
       // loop.
       DCHECK_EQ(0, loop_header_data_.block->PredecessorCount());
-      super::RecordValues(assembler, loop_header_data_, values);
+      Block* current_block = assembler.current_block();
+      DCHECK_NOT_NULL(current_block);
       assembler.Goto(loop_header_data_.block);
+      super::RecordValues(current_block, loop_header_data_, values);
     } else {
       // We have a jump back to the loop header and wire it to the single
       // backedge block.
@@ -259,12 +302,17 @@ class LoopLabel : public LabelBase<true, Ts...> {
   template <typename A>
   void GotoIf(A& assembler, OpIndex condition, BranchHint hint,
               const values_t& values) {
+    if (assembler.generating_unreachable_operations()) return;
     if (!loop_header_data_.block->IsBound()) {
       // If the loop header is not bound yet, we have the forward edge to the
       // loop.
       DCHECK_EQ(0, loop_header_data_.block->PredecessorCount());
-      super::RecordValues(assembler, loop_header_data_, values);
-      assembler.GotoIf(condition, loop_header_data_.block, hint);
+      Block* current_block = assembler.current_block();
+      DCHECK_NOT_NULL(current_block);
+      if (assembler.GotoIf(condition, loop_header_data_.block, hint) &
+          ConditionalGotoStatus::kGotoDestination) {
+        super::RecordValues(current_block, loop_header_data_, values);
+      }
     } else {
       // We have a jump back to the loop header and wire it to the single
       // backedge block.
@@ -275,12 +323,17 @@ class LoopLabel : public LabelBase<true, Ts...> {
   template <typename A>
   void GotoIfNot(A& assembler, OpIndex condition, BranchHint hint,
                  const values_t& values) {
+    if (assembler.generating_unreachable_operations()) return;
     if (!loop_header_data_.block->IsBound()) {
       // If the loop header is not bound yet, we have the forward edge to the
       // loop.
       DCHECK_EQ(0, loop_header_data_.block->PredecessorCount());
-      super::RecordValues(assembler, loop_header_data_, values);
-      assembler.GotoIfNot(condition, loop_header_data_.block, hint);
+      Block* current_block = assembler.current_block();
+      DCHECK_NOT_NULL(current_block);
+      if (assembler.GotoIf(condition, loop_header_data_.block, hint) &
+          ConditionalGotoStatus::kGotoDestination) {
+        super::RecordValues(current_block, loop_header_data_, values);
+      }
     } else {
       // We have a jump back to the loop header and wire it to the single
       // backedge block.
@@ -2191,6 +2244,10 @@ class AssemblerOpInterface {
       return;
     }
     stack().ReduceDeoptimizeIf(condition, frame_state, false, parameters);
+    if (stack().current_block() == nullptr) {
+      // The DeoptimizeIf was transformed into an inconditional deopt
+      stack().SetGeneratingUnreachableOperations();
+    }
   }
   void DeoptimizeIfNot(OpIndex condition, OpIndex frame_state,
                        const DeoptimizeParameters* parameters) {
@@ -2198,6 +2255,10 @@ class AssemblerOpInterface {
       return;
     }
     stack().ReduceDeoptimizeIf(condition, frame_state, true, parameters);
+    if (stack().current_block() == nullptr) {
+      // The DeoptimizeIfNot was transformed into an inconditional deopt
+      stack().SetGeneratingUnreachableOperations();
+    }
   }
   void DeoptimizeIf(OpIndex condition, OpIndex frame_state,
                     DeoptimizeReason reason, const FeedbackSource& feedback) {
@@ -2242,12 +2303,20 @@ class AssemblerOpInterface {
       return;
     }
     stack().ReduceTrapIf(condition, frame_state, false, trap_id);
+    if (stack().current_block() == nullptr) {
+      // The TrapIf was transformed into an inconditional trap
+      stack().SetGeneratingUnreachableOperations();
+    }
   }
   void TrapIfNot(OpIndex condition, OpIndex frame_state, TrapId trap_id) {
     if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
       return;
     }
     stack().ReduceTrapIf(condition, frame_state, true, trap_id);
+    if (stack().current_block() == nullptr) {
+      // The TrapIfNot was transformed into an inconditional trap
+      stack().SetGeneratingUnreachableOperations();
+    }
   }
 
   void StaticAssert(OpIndex condition, const char* source) {
@@ -2338,29 +2407,31 @@ class AssemblerOpInterface {
   }
 
   // Return `true` if the control flow after the conditional jump is reachable.
-  bool GotoIf(OpIndex condition, Block* if_true,
-              BranchHint hint = BranchHint::kNone) {
+  ConditionalGotoStatus GotoIf(OpIndex condition, Block* if_true,
+                               BranchHint hint = BranchHint::kNone) {
     if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
-      return false;
+      // What we return here should not matter.
+      return ConditionalGotoStatus::kBranch;
     }
     Block* if_false = stack().NewBlock();
-    stack().Branch(condition, if_true, if_false, hint);
-    return stack().Bind(if_false);
+    return BranchAndBind(condition, if_true, if_false, hint, if_false);
   }
-  bool GotoIf(ConditionWithHint condition, Block* if_true) {
+  ConditionalGotoStatus GotoIf(ConditionWithHint condition, Block* if_true) {
     return GotoIf(condition.condition(), if_true, condition.hint());
   }
   // Return `true` if the control flow after the conditional jump is reachable.
-  bool GotoIfNot(OpIndex condition, Block* if_false,
-                 BranchHint hint = BranchHint::kNone) {
+  ConditionalGotoStatus GotoIfNot(OpIndex condition, Block* if_false,
+                                  BranchHint hint = BranchHint::kNone) {
     if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
-      return false;
+      // What we return here should not matter.
+      return ConditionalGotoStatus::kBranch;
     }
     Block* if_true = stack().NewBlock();
-    stack().Branch(condition, if_true, if_false, hint);
-    return stack().Bind(if_true);
+    return BranchAndBind(condition, if_true, if_false, hint, if_true);
   }
-  bool GotoIfNot(ConditionWithHint condition, Block* if_false) {
+
+  ConditionalGotoStatus GotoIfNot(ConditionWithHint condition,
+                                  Block* if_false) {
     return GotoIfNot(condition.condition(), if_false, condition.hint());
   }
 
@@ -2931,6 +3002,28 @@ class AssemblerOpInterface {
   }
 
  private:
+  // BranchAndBind should be called from GotoIf/GotoIfNot. It will insert a
+  // Branch, bind {to_bind} (which should correspond to the implicit new block
+  // following the GotoIf/GotoIfNot) and return a ConditionalGotoStatus
+  // representing whether the destinations of the Branch are reachable or not.
+  ConditionalGotoStatus BranchAndBind(OpIndex condition, Block* if_true,
+                                      Block* if_false, BranchHint hint,
+                                      Block* to_bind) {
+    DCHECK_EQ(to_bind, any_of(if_true, if_false));
+    Block* other = to_bind == if_true ? if_false : if_true;
+    Block* to_bind_last_pred = to_bind->LastPredecessor();
+    Block* other_last_pred = other->LastPredecessor();
+    stack().Branch(condition, if_true, if_false, hint);
+    bool to_bind_reachable = to_bind_last_pred != to_bind->LastPredecessor();
+    bool other_reachable = other_last_pred != other->LastPredecessor();
+    ConditionalGotoStatus status = static_cast<ConditionalGotoStatus>(
+        static_cast<int>(other_reachable) | ((to_bind_reachable) << 1));
+    bool bind_status = stack().Bind(to_bind);
+    DCHECK_EQ(bind_status, to_bind_reachable);
+    USE(bind_status);
+    return status;
+  }
+
   Assembler& stack() { return *static_cast<Assembler*>(this); }
   struct IfScopeInfo {
     Block* else_block;
@@ -2988,6 +3081,11 @@ class Assembler : public GraphVisitor<Assembler<Reducers>>,
 
   void SetCurrentOrigin(OpIndex operation_origin) {
     current_operation_origin_ = operation_origin;
+  }
+
+  void SetGeneratingUnreachableOperations() {
+    DCHECK_NULL(current_block_);
+    generating_unreachable_operations_ = true;
   }
 
   Block* current_block() const { return current_block_; }

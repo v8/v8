@@ -89,6 +89,17 @@ class OperationMatching {
     return MatchFloat(matched, &k) && std::isnan(k);
   }
 
+  bool MatchTaggedConstant(OpIndex matched, Handle<Object>* tagged) {
+    const ConstantOp* op = TryCast<ConstantOp>(matched);
+    if (!op) return false;
+    if (!(op->kind == any_of(ConstantOp::Kind::kHeapObject,
+                             ConstantOp::Kind::kCompressedHeapObject))) {
+      return false;
+    }
+    *tagged = op->handle();
+    return true;
+  }
+
   bool MatchWordConstant(OpIndex matched, WordRepresentation rep,
                          uint64_t* unsigned_constant,
                          int64_t* signed_constant = nullptr) {

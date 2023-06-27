@@ -23,10 +23,13 @@
 #include "src/builtins/builtins.h"
 #include "src/codegen/machine-type.h"
 #include "src/compiler/backend/instruction.h"
+#include "src/compiler/compilation-dependencies.h"
+#include "src/compiler/js-heap-broker.h"
 #include "src/compiler/machine-operator-reducer.h"
 #include "src/compiler/turboshaft/assembler.h"
 #include "src/compiler/turboshaft/operations.h"
 #include "src/compiler/turboshaft/representations.h"
+#include "src/handles/handles.h"
 #include "src/numbers/conversions.h"
 
 namespace v8::internal::compiler::turboshaft {
@@ -790,6 +793,20 @@ class MachineOptimizationReducer : public Next {
             if (IsBit(left_ignore_extensions)) {
               return left;
             }
+
+            // HeapObject & 1 => 1  ("& 1" is a Smi-check)
+            // Note that we don't constant-fold the general case of
+            // "HeapObject binop cst", because it's a bit unclear when such
+            // operations would be used outside of smi-checks, and it's thus
+            // unclear whether constant-folding would be safe.
+            if (const ConstantOp* cst =
+                    Asm().template TryCast<ConstantOp>(left)) {
+              if (cst->kind ==
+                  any_of(ConstantOp::Kind::kHeapObject,
+                         ConstantOp::Kind::kCompressedHeapObject)) {
+                return Asm().WordConstant(1, rep);
+              }
+            }
           }
           break;
         case WordBinopOp::Kind::kSignedDiv:
@@ -1114,9 +1131,10 @@ class MachineOptimizationReducer : public Next {
             break;
           }
           case RegisterRepresentation::Tagged(): {
-            // TODO(nicohartmann@): We might optimize comparison of
-            // HeapConstants here, but this requires that we are allowed to
-            // dereference handles.
+            if (Handle<Object> o1, o2; Asm().MatchTaggedConstant(left, &o1) &&
+                                       Asm().MatchTaggedConstant(right, &o2)) {
+              return Asm().Word32Constant(o1.address() == o2.address());
+            }
             break;
           }
           default:
@@ -1658,7 +1676,7 @@ class MachineOptimizationReducer : public Next {
                              maybe_initializing_or_transitioning);
   }
 
-  OpIndex REDUCE(Load)(OpIndex base, OpIndex index, LoadOp::Kind kind,
+  OpIndex REDUCE(Load)(OpIndex base_idx, OpIndex index, LoadOp::Kind kind,
                        MemoryRepresentation loaded_rep,
                        RegisterRepresentation result_rep, int32_t offset,
                        uint8_t element_scale) {
@@ -1667,17 +1685,44 @@ class MachineOptimizationReducer : public Next {
       index = ReduceMemoryIndex(index, &offset, &element_scale);
       if (!kind.tagged_base && !index.valid()) {
         if (OpIndex left, right;
-            Asm().MatchWordAdd(base, &left, &right,
+            Asm().MatchWordAdd(base_idx, &left, &right,
                                WordRepresentation::PointerSized()) &&
             TryAdjustOffset(&offset, Asm().Get(right), element_scale)) {
-          base = left;
+          base_idx = left;
           continue;
         }
       }
       break;
     }
-    return Next::ReduceLoad(base, index, kind, loaded_rep, result_rep, offset,
-                            element_scale);
+    if (!index.valid() && Asm().template Is<ConstantOp>(base_idx) &&
+        !ShouldSkipOptimizationStep()) {
+      const ConstantOp& base = Asm().template Cast<ConstantOp>(base_idx);
+      if (base.kind == any_of(ConstantOp::Kind::kHeapObject,
+                              ConstantOp::Kind::kCompressedHeapObject)) {
+        if (offset == HeapObject::kMapOffset) {
+          // Only few loads should be loading the map from a ConstantOp
+          // HeapObject, so unparking the JSHeapBroker here rather than before
+          // the optimization pass itself it probably more efficient.
+          UnparkedScopeIfNeeded scope(PipelineData::Get().broker());
+          AllowHandleDereference allow_handle_dereference;
+
+          MapRef map = MakeRef(broker, base.handle()->map());
+          if (map.is_stable() && !map.is_deprecated()) {
+            broker->dependencies()->DependOnStableMap(map);
+            return Asm().HeapConstant(map.object());
+          }
+        }
+        // TODO(dmercadier): consider constant-folding other accesses, in
+        // particular for constant objects (ie, if
+        // base.handle()->InReadOnlySpace() is true). We have to be a bit
+        // careful though, because loading could be invalid (since we could
+        // be in unreachable code). (all objects have a map, so loading the map
+        // should always be safe, regardless of whether we are generating
+        // unreachable code or not)
+      }
+    }
+    return Next::ReduceLoad(base_idx, index, kind, loaded_rep, result_rep,
+                            offset, element_scale);
   }
 
   OpIndex REDUCE(Phi)(base::Vector<const OpIndex> inputs,
@@ -2095,6 +2140,8 @@ class MachineOptimizationReducer : public Next {
   uint16_t CountLeadingSignBits(int64_t c, WordRepresentation rep) {
     return base::bits::CountLeadingSignBits(c) - (64 - rep.bit_width());
   }
+
+  JSHeapBroker* broker = PipelineData::Get().broker();
 };
 
 #include "src/compiler/turboshaft/undef-assembler-macros.inc"
