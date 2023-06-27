@@ -171,45 +171,6 @@ void CheckNumber::GenerateCode(MaglevAssembler* masm,
 
 int CheckedObjectToIndex::MaxCallStackArgs() const { return 0; }
 
-void Int32ToNumber::SetValueLocationConstraints() {
-  UseRegister(input());
-  DefineAsRegister(this);
-}
-void Int32ToNumber::GenerateCode(MaglevAssembler* masm,
-                                 const ProcessingState& state) {
-  ZoneLabelRef done(masm);
-  Register object = ToRegister(result());
-  Register value = ToRegister(input());
-  MaglevAssembler::ScratchRegisterScope temps(masm);
-  Register scratch = temps.Acquire();
-  __ add(scratch, value, value, SetCC);
-  __ JumpToDeferredIf(
-      vs,
-      [](MaglevAssembler* masm, Register object, Register value,
-         Register scratch, ZoneLabelRef done, Int32ToNumber* node) {
-        MaglevAssembler::ScratchRegisterScope temps(masm);
-        // We can include {scratch} back to the temporary set, since we jump
-        // over its use to the label {done}.
-        temps.Include(scratch);
-        DoubleRegister double_value = temps.AcquireDouble();
-        __ Int32ToDouble(double_value, value);
-        __ AllocateHeapNumber(node->register_snapshot(), object, double_value);
-        __ b(*done);
-      },
-      object, value, scratch, done, this);
-  __ Move(object, scratch);
-  __ bind(*done);
-}
-
-void Uint32ToNumber::SetValueLocationConstraints() {
-  UseRegister(input());
-  DefineAsRegister(this);
-}
-void Uint32ToNumber::GenerateCode(MaglevAssembler* masm,
-                                  const ProcessingState& state) {
-  MAGLEV_NODE_NOT_IMPLEMENTED(Uint32ToNumber);
-}
-
 void Int32AddWithOverflow::SetValueLocationConstraints() {
   UseRegister(left_input());
   UseRegister(right_input());

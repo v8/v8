@@ -3374,6 +3374,72 @@ void GetKeyedGeneric::GenerateCode(MaglevAssembler* masm,
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
+void Int32ToNumber::SetValueLocationConstraints() {
+  UseRegister(input());
+  DefineAsRegister(this);
+}
+void Int32ToNumber::GenerateCode(MaglevAssembler* masm,
+                                 const ProcessingState& state) {
+  Register object = ToRegister(result());
+  Register value = ToRegister(input());
+  ZoneLabelRef done(masm);
+  MaglevAssembler::ScratchRegisterScope temps(masm);
+  bool input_output_alias = (object == value);
+  Register res = object;
+  if (input_output_alias) {
+    res = temps.GetDefaultScratchRegister();
+  }
+  __ SmiTagInt32AndJumpIfFail(
+      res, value,
+      __ MakeDeferredCode(
+          [](MaglevAssembler* masm, Register object, Register value,
+             ZoneLabelRef done, Int32ToNumber* node) {
+            MaglevAssembler::ScratchRegisterScope temps(masm);
+            DoubleRegister double_value =
+                temps.GetDefaultScratchDoubleRegister();
+            __ Int32ToDouble(double_value, value);
+            __ AllocateHeapNumber(node->register_snapshot(), object,
+                                  double_value);
+            __ Jump(*done);
+          },
+          object, value, done, this));
+  if (input_output_alias) {
+    __ Move(object, res);
+  }
+  __ bind(*done);
+}
+
+void Uint32ToNumber::SetValueLocationConstraints() {
+  UseRegister(input());
+#ifdef V8_TARGET_ARCH_X64
+  // We emit slightly more efficient code if result is the same as input.
+  DefineSameAsFirst(this);
+#else
+  DefineAsRegister(this);
+#endif
+}
+void Uint32ToNumber::GenerateCode(MaglevAssembler* masm,
+                                  const ProcessingState& state) {
+  ZoneLabelRef done(masm);
+  Register value = ToRegister(input());
+  Register object = ToRegister(result());
+  __ SmiTagUint32AndJumpIfFail(
+      object, value,
+      __ MakeDeferredCode(
+          [](MaglevAssembler* masm, Register object, Register value,
+             ZoneLabelRef done, Uint32ToNumber* node) {
+            MaglevAssembler::ScratchRegisterScope temps(masm);
+            DoubleRegister double_value =
+                temps.GetDefaultScratchDoubleRegister();
+            __ Uint32ToDouble(double_value, value);
+            __ AllocateHeapNumber(node->register_snapshot(), object,
+                                  double_value);
+            __ Jump(*done);
+          },
+          object, value, done, this));
+  __ bind(*done);
+}
+
 void Float64ToTagged::SetValueLocationConstraints() {
   UseRegister(input());
   DefineAsRegister(this);

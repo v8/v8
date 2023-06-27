@@ -213,61 +213,6 @@ void CheckNumber::GenerateCode(MaglevAssembler* masm,
 
 int CheckedObjectToIndex::MaxCallStackArgs() const { return 0; }
 
-void Int32ToNumber::SetValueLocationConstraints() {
-  UseRegister(input());
-  DefineAsRegister(this);
-}
-void Int32ToNumber::GenerateCode(MaglevAssembler* masm,
-                                 const ProcessingState& state) {
-  ZoneLabelRef done(masm);
-  Register object = ToRegister(result());
-  Register value = ToRegister(input());
-  MaglevAssembler::ScratchRegisterScope temps(masm);
-  Register scratch = temps.Acquire();
-  __ Adds(scratch.W(), value.W(), value.W());
-  __ JumpToDeferredIf(
-      vs,
-      [](MaglevAssembler* masm, Register object, Register value,
-         Register scratch, ZoneLabelRef done, Int32ToNumber* node) {
-        MaglevAssembler::ScratchRegisterScope temps(masm);
-        // We can include {scratch} back to the temporary set, since we jump
-        // over its use to the label {done}.
-        temps.Include(scratch);
-        DoubleRegister double_value = temps.AcquireDouble();
-        __ Scvtf(double_value, value.W());
-        __ AllocateHeapNumber(node->register_snapshot(), object, double_value);
-        __ B(*done);
-      },
-      object, value, scratch, done, this);
-  __ Mov(object, scratch);
-  __ Bind(*done);
-}
-
-void Uint32ToNumber::SetValueLocationConstraints() {
-  UseRegister(input());
-  DefineAsRegister(this);
-}
-void Uint32ToNumber::GenerateCode(MaglevAssembler* masm,
-                                  const ProcessingState& state) {
-  ZoneLabelRef done(masm);
-  Register value = ToRegister(input());
-  Register object = ToRegister(result());
-  __ Cmp(value.W(), Immediate(Smi::kMaxValue));
-  __ JumpToDeferredIf(
-      hi,
-      [](MaglevAssembler* masm, Register object, Register value,
-         ZoneLabelRef done, Uint32ToNumber* node) {
-        MaglevAssembler::ScratchRegisterScope temps(masm);
-        DoubleRegister double_value = temps.AcquireDouble();
-        __ Ucvtf(double_value, value.W());
-        __ AllocateHeapNumber(node->register_snapshot(), object, double_value);
-        __ B(*done);
-      },
-      object, value, done, this);
-  __ Add(object, value, value);
-  __ Bind(*done);
-}
-
 void Int32AddWithOverflow::SetValueLocationConstraints() {
   UseRegister(left_input());
   UseRegister(right_input());

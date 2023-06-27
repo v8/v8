@@ -1019,56 +1019,6 @@ void Float64Ieee754Unary::GenerateCode(MaglevAssembler* masm,
   __ CallCFunction(ieee_function_, 1);
 }
 
-void Int32ToNumber::SetValueLocationConstraints() {
-  UseRegister(input());
-  DefineAsRegister(this);
-}
-void Int32ToNumber::GenerateCode(MaglevAssembler* masm,
-                                 const ProcessingState& state) {
-  ZoneLabelRef done(masm);
-  Register value = ToRegister(input());
-  Register object = ToRegister(result());
-  __ movl(kScratchRegister, value);
-  __ addl(kScratchRegister, kScratchRegister);
-  __ JumpToDeferredIf(
-      overflow,
-      [](MaglevAssembler* masm, Register object, Register value,
-         ZoneLabelRef done, Int32ToNumber* node) {
-        DoubleRegister double_value = kScratchDoubleReg;
-        __ Cvtlsi2sd(double_value, value);
-        __ AllocateHeapNumber(node->register_snapshot(), object, double_value);
-        __ jmp(*done);
-      },
-      object, value, done, this);
-  __ Move(object, kScratchRegister);
-  __ bind(*done);
-}
-
-void Uint32ToNumber::SetValueLocationConstraints() {
-  UseRegister(input());
-  DefineSameAsFirst(this);
-}
-void Uint32ToNumber::GenerateCode(MaglevAssembler* masm,
-                                  const ProcessingState& state) {
-  ZoneLabelRef done(masm);
-  Register value = ToRegister(input());
-  Register object = ToRegister(result());
-  __ cmpl(value, Immediate(Smi::kMaxValue));
-  __ JumpToDeferredIf(
-      above,
-      [](MaglevAssembler* masm, Register object, Register value,
-         ZoneLabelRef done, Uint32ToNumber* node) {
-        DoubleRegister double_value = kScratchDoubleReg;
-        __ Cvtlui2sd(double_value, value);
-        __ AllocateHeapNumber(node->register_snapshot(), object, double_value);
-        __ jmp(*done);
-      },
-      object, value, done, this);
-  __ addl(value, value);
-  DCHECK_EQ(object, value);
-  __ bind(*done);
-}
-
 void HoleyFloat64ToMaybeNanFloat64::SetValueLocationConstraints() {
   UseRegister(input());
   DefineSameAsFirst(this);
