@@ -3060,10 +3060,11 @@ bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
       RunPrintAndVerify(WasmJSLoweringPhase::phase_name(), true);
     }
 #endif  // V8_ENABLE_WEBASSEMBLY
+
+    Run<BranchConditionDuplicationPhase>();
+    RunPrintAndVerify(BranchConditionDuplicationPhase::phase_name(), true);
   }
 
-  Run<BranchConditionDuplicationPhase>();
-  RunPrintAndVerify(BranchConditionDuplicationPhase::phase_name(), true);
   data->source_positions()->RemoveDecorator();
   if (data->info()->trace_turbo_json()) {
     data->node_origins()->RemoveDecorator();
