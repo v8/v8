@@ -109,6 +109,9 @@ class V8_EXPORT ThreadIsolation {
   static void RegisterWasmAllocation(Address addr, size_t size);
   static void UnregisterWasmAllocation(Address addr, size_t size);
 
+  // Check for a potential dead lock in case we want to lookup the jit
+  // allocation from inside a signal handler.
+  static bool CanLookupStartOfJitAllocationAt(Address inner_pointer);
   static base::Optional<Address> StartOfJitAllocationAt(Address inner_pointer);
 
   // Public for testing. Please use the wasm/js specific functions above.
@@ -215,6 +218,8 @@ class V8_EXPORT ThreadIsolation {
     size_t size_;
 
     friend class JitPageReference;
+    // Allow CanLookupStartOfJitAllocationAt to check if the mutex is locked.
+    friend bool ThreadIsolation::CanLookupStartOfJitAllocationAt(Address);
   };
 
  private:

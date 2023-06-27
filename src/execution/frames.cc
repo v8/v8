@@ -280,8 +280,8 @@ bool DebuggableStackFrameIterator::IsValidFrame(StackFrame* frame) {
 
 namespace {
 
-bool IsInterpreterFramePc(Isolate* isolate, Address pc,
-                          StackFrame::State* state) {
+base::Optional<bool> IsInterpreterFramePc(Isolate* isolate, Address pc,
+                                          StackFrame::State* state) {
   Builtin builtin = OffHeapInstructionStream::TryLookupCode(isolate, pc);
   if (builtin != Builtin::kNoBuiltinId &&
       (builtin == Builtin::kInterpreterEntryTrampoline ||
@@ -304,6 +304,9 @@ bool IsInterpreterFramePc(Isolate* isolate, Address pc,
       return false;
     } else if (!isolate->heap()->InSpaceSlow(pc, CODE_SPACE)) {
       return false;
+    }
+    if (!ThreadIsolation::CanLookupStartOfJitAllocationAt(pc)) {
+      return {};
     }
     Code interpreter_entry_trampoline =
         isolate->heap()->FindCodeForInnerPointer(pc);
@@ -414,6 +417,7 @@ StackFrameIteratorForProfiler::StackFrameIteratorForProfiler(
     // in a bytecode handler with elided frame. In that case, set the PC
     // properly and make sure we do not drop the frame.
     bool is_no_frame_bytecode_handler = false;
+    bool cant_lookup_frame_type = false;
     if (IsNoFrameBytecodeHandlerPc(isolate, pc, fp)) {
       Address* top_location = nullptr;
       if (top_link_register_) {
@@ -423,7 +427,13 @@ StackFrameIteratorForProfiler::StackFrameIteratorForProfiler(
         top_location = reinterpret_cast<Address*>(sp);
       }
 
-      if (IsInterpreterFramePc(isolate, *top_location, &state)) {
+      base::Optional<bool> is_interpreter_frame_pc =
+          IsInterpreterFramePc(isolate, *top_location, &state);
+      // Since we're in a signal handler, the pc lookup might not be possible
+      // since the required locks are taken by the same thread.
+      if (!is_interpreter_frame_pc.has_value()) {
+        cant_lookup_frame_type = true;
+      } else if (is_interpreter_frame_pc.value()) {
         state.pc_address = top_location;
         is_no_frame_bytecode_handler = true;
         advance_frame = false;
@@ -437,7 +447,9 @@ StackFrameIteratorForProfiler::StackFrameIteratorForProfiler(
     static_assert(StandardFrameConstants::kFunctionOffset <
                   StandardFrameConstants::kContextOffset);
     Address function_slot = fp + StandardFrameConstants::kFunctionOffset;
-    if (IsValidStackAddress(function_slot)) {
+    if (cant_lookup_frame_type) {
+      type = StackFrame::NO_FRAME_TYPE;
+    } else if (IsValidStackAddress(function_slot)) {
       if (is_no_frame_bytecode_handler) {
         type = StackFrame::INTERPRETED;
       } else {
@@ -839,9 +851,21 @@ StackFrame::Type StackFrameIteratorForProfiler::ComputeStackFrameType(
       Memory<Address>(state->fp + StandardFrameConstants::kFunctionOffset));
   if (maybe_function.IsSmi()) {
     return StackFrame::NATIVE;
-  } else if (IsInterpreterFramePc(isolate(), pc, state)) {
+  }
+
+  base::Optional<bool> is_interpreter_frame =
+      IsInterpreterFramePc(isolate(), pc, state);
+
+  // We might not be able to lookup the frame type since we're inside a signal
+  // handler and the required locks are taken.
+  if (!is_interpreter_frame.has_value()) {
+    return StackFrame::NO_FRAME_TYPE;
+  }
+
+  if (is_interpreter_frame.value()) {
     return StackFrame::INTERPRETED;
   }
+
   return StackFrame::TURBOFAN;
 }
 

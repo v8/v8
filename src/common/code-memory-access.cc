@@ -489,6 +489,56 @@ base::Optional<Address> ThreadIsolation::StartOfJitAllocationAt(
   return page->StartOfAllocationAt(inner_pointer);
 }
 
+namespace {
+
+class MutexUnlocker {
+ public:
+  explicit MutexUnlocker(base::Mutex& mutex) : mutex_(mutex) {
+    mutex_.AssertHeld();
+  }
+
+  ~MutexUnlocker() {
+    mutex_.AssertHeld();
+    mutex_.Unlock();
+  }
+
+ private:
+  base::Mutex& mutex_;
+};
+
+}  // namespace
+
+// static
+bool ThreadIsolation::CanLookupStartOfJitAllocationAt(Address inner_pointer) {
+  // Try to lock the pages mutex and the mutex of the page itself to prevent
+  // potential dead locks. The profiler can try to do a lookup from a signal
+  // handler. If that signal handler runs while the thread locked one of these
+  // mutexes, it would result in a dead lock.
+  bool pages_mutex_locked = trusted_data_.jit_pages_mutex_->TryLock();
+  if (!pages_mutex_locked) {
+    return false;
+  }
+  MutexUnlocker pages_mutex_unlocker(*trusted_data_.jit_pages_mutex_);
+
+  // upper_bound gives us an iterator to the position after address.
+  auto it = trusted_data_.jit_pages_->upper_bound(inner_pointer);
+
+  // The previous page should be the one we're looking for.
+  if (it == trusted_data_.jit_pages_->begin()) {
+    return {};
+  }
+  it--;
+
+  JitPage* jit_page = it->second;
+  bool jit_page_locked = jit_page->mutex_.TryLock();
+  if (!jit_page_locked) {
+    return false;
+  }
+  jit_page->mutex_.Unlock();
+
+  return true;
+}
+
 #if DEBUG
 
 // static
