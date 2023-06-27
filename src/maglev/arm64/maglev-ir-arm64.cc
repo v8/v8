@@ -420,8 +420,8 @@ void Int32ModulusWithOverflow::GenerateCode(MaglevAssembler* masm,
       [](MaglevAssembler* masm, ZoneLabelRef rhs_checked, Register rhs,
          Int32ModulusWithOverflow* node) {
         __ Negs(rhs, rhs);
-        __ EmitEagerDeoptIf(eq, deopt_reason, node);
-        __ Jump(*rhs_checked);
+        __ B(*rhs_checked, ne);
+        __ EmitEagerDeopt(node, deopt_reason);
       },
       rhs_checked, rhs, this);
   __ Bind(*rhs_checked);
@@ -436,12 +436,11 @@ void Int32ModulusWithOverflow::GenerateCode(MaglevAssembler* masm,
         __ Neg(lhs, lhs);
         __ Udiv(res, lhs, rhs);
         __ Msub(out, res, rhs, lhs);
-        __ Cmp(out, Immediate(0));
+        __ Negs(out, out);
+        __ B(*done, ne);
         // TODO(victorgomes): This ideally should be kMinusZero, but Maglev
         // only allows one deopt reason per IR.
-        __ EmitEagerDeoptIf(eq, deopt_reason, node);
-        __ Neg(out, out);
-        __ B(*done);
+        __ EmitEagerDeopt(node, deopt_reason);
       },
       done, lhs, rhs, out, this);
 

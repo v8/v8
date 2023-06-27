@@ -341,14 +341,134 @@ void Int32DivideWithOverflow::GenerateCode(MaglevAssembler* masm,
   __ Move(out, res);
 }
 
+namespace {
+void Uint32Mod(MaglevAssembler* masm, Register out, Register left,
+               Register right) {
+  MaglevAssembler::ScratchRegisterScope temps(masm);
+  Register res = temps.Acquire();
+  if (CpuFeatures::IsSupported(SUDIV)) {
+    CpuFeatureScope scope(masm, SUDIV);
+    __ udiv(res, left, right);
+  } else {
+    UseScratchRegisterScope temps(masm);
+    LowDwVfpRegister double_right = temps.AcquireLowD();
+    SwVfpRegister tmp = double_right.low();
+    DwVfpRegister double_left = temps.AcquireD();
+    DwVfpRegister double_res = double_left;
+    __ vmov(tmp, left);
+    __ vcvt_f64_s32(double_left, tmp);
+    __ vmov(tmp, right);
+    __ vcvt_f64_s32(double_right, tmp);
+    __ vdiv(double_res, double_left, double_right);
+    __ vcvt_s32_f64(tmp, double_res);
+    __ vmov(res, tmp);
+  }
+  if (CpuFeatures::IsSupported(ARMv7)) {
+    __ mls(out, res, right, left);
+  } else {
+    __ mul(res, res, right);
+    __ sub(out, left, res);
+  }
+}
+}  // namespace
+
 void Int32ModulusWithOverflow::SetValueLocationConstraints() {
   UseAndClobberRegister(left_input());
   UseAndClobberRegister(right_input());
   DefineAsRegister(this);
+  if (!CpuFeatures::IsSupported(SUDIV)) {
+    // We use the standard low double register and an extra one.
+    set_double_temporaries_needed(1);
+  }
 }
 void Int32ModulusWithOverflow::GenerateCode(MaglevAssembler* masm,
                                             const ProcessingState& state) {
-  MAGLEV_NODE_NOT_IMPLEMENTED(Int32ModulusWithOverflow);
+  // If AreAliased(lhs, rhs):
+  //   deopt if lhs < 0  // Minus zero.
+  //   0
+  //
+  // Using same algorithm as in EffectControlLinearizer:
+  //   if rhs <= 0 then
+  //     rhs = -rhs
+  //     deopt if rhs == 0
+  //   if lhs < 0 then
+  //     let lhs_abs = -lsh in
+  //     let res = lhs_abs % rhs in
+  //     deopt if res == 0
+  //     -res
+  //   else
+  //     let msk = rhs - 1 in
+  //     if rhs & msk == 0 then
+  //       lhs & msk
+  //     else
+  //       lhs % rhs
+
+  Register lhs = ToRegister(left_input());
+  Register rhs = ToRegister(right_input());
+  Register out = ToRegister(result());
+
+  static constexpr DeoptimizeReason deopt_reason =
+      DeoptimizeReason::kDivisionByZero;
+
+  if (lhs == rhs) {
+    // For the modulus algorithm described above, lhs and rhs must not alias
+    // each other.
+    __ tst(lhs, lhs);
+    // TODO(victorgomes): This ideally should be kMinusZero, but Maglev only
+    // allows one deopt reason per IR.
+    __ EmitEagerDeoptIf(mi, deopt_reason, this);
+    __ Move(ToRegister(result()), 0);
+    return;
+  }
+
+  DCHECK_NE(lhs, rhs);
+
+  ZoneLabelRef done(masm);
+  ZoneLabelRef rhs_checked(masm);
+  __ cmp(rhs, Operand(0));
+  __ JumpToDeferredIf(
+      le,
+      [](MaglevAssembler* masm, ZoneLabelRef rhs_checked, Register rhs,
+         Int32ModulusWithOverflow* node) {
+        __ rsb(rhs, rhs, Operand(0), SetCC);
+        __ b(ne, *rhs_checked);
+        __ EmitEagerDeopt(node, deopt_reason);
+      },
+      rhs_checked, rhs, this);
+  __ bind(*rhs_checked);
+
+  __ cmp(lhs, Operand(0));
+  __ JumpToDeferredIf(
+      lt,
+      [](MaglevAssembler* masm, ZoneLabelRef done, Register lhs, Register rhs,
+         Register out, Int32ModulusWithOverflow* node) {
+        __ rsb(lhs, lhs, Operand(0));
+        Uint32Mod(masm, out, lhs, rhs);
+        __ rsb(out, out, Operand(0), SetCC);
+        // TODO(victorgomes): This ideally should be kMinusZero, but Maglev
+        // only allows one deopt reason per IR.
+        __ b(ne, *done);
+        __ EmitEagerDeopt(node, deopt_reason);
+      },
+      done, lhs, rhs, out, this);
+
+  Label rhs_not_power_of_2;
+  MaglevAssembler::ScratchRegisterScope temps(masm);
+  Register mask = temps.Acquire();
+  __ add(mask, rhs, Operand(-1));
+  __ tst(mask, rhs);
+  __ JumpIf(ne, &rhs_not_power_of_2);
+  __ DebugBreak();
+
+  // {rhs} is power of 2.
+  __ and_(out, mask, lhs);
+  __ Jump(*done);
+  // {mask} can be reused from now on.
+  temps.Include(mask);
+
+  __ bind(&rhs_not_power_of_2);
+  Uint32Mod(masm, out, lhs, rhs);
+  __ bind(*done);
 }
 
 #define DEF_BITWISE_BINOP(Instruction, opcode)                   \
@@ -476,7 +596,13 @@ void Float64Modulus::SetValueLocationConstraints() {
 }
 void Float64Modulus::GenerateCode(MaglevAssembler* masm,
                                   const ProcessingState& state) {
-  MAGLEV_NODE_NOT_IMPLEMENTED(Float64Modulus);
+  FrameScope scope(masm, StackFrame::MANUAL);
+  __ PrepareCallCFunction(0, 2);
+  __ MovToFloatParameters(ToDoubleRegister(left_input()),
+                          ToDoubleRegister(right_input()));
+  __ CallCFunction(ExternalReference::mod_two_doubles_operation(), 0, 2);
+  // Move the result in the double result register.
+  __ MovFromFloatResult(ToDoubleRegister(result()));
 }
 
 void Float64Negate::SetValueLocationConstraints() {
