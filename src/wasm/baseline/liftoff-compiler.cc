@@ -3545,47 +3545,55 @@ class LiftoffCompiler {
     }
   }
 
-  void CurrentMemoryPages(FullDecoder* /* decoder */, Value* /* result */) {
-    Register mem_size = __ GetUnusedRegister(kGpReg, {}).gp();
-    LOAD_INSTANCE_FIELD(mem_size, Memory0Size, kSystemPointerSize, {});
-    __ emit_ptrsize_shri(mem_size, mem_size, kWasmPageSizeLog2);
-    LiftoffRegister result{mem_size};
-    // TODO(13918): Support multiple memories.
-    const WasmMemory* memory = env_->module->memories.data();
+  void CurrentMemoryPages(FullDecoder* /* decoder */, const WasmMemory* memory,
+                          Value* /* result */) {
+    LiftoffRegList pinned;
+    LiftoffRegister mem_size = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+    if (memory->index == 0) {
+      LOAD_INSTANCE_FIELD(mem_size.gp(), Memory0Size, kSystemPointerSize,
+                          pinned);
+    } else {
+      LOAD_TAGGED_PTR_INSTANCE_FIELD(mem_size.gp(), MemoryBasesAndSizes,
+                                     pinned);
+      int buffer_offset = wasm::ObjectAccess::ToTagged(ByteArray::kHeaderSize) +
+                          kSystemPointerSize * (memory->index * 2 + 1);
+      __ LoadFullPointer(mem_size.gp(), mem_size.gp(), buffer_offset);
+    }
+    // Convert bytes to pages.
+    __ emit_ptrsize_shri(mem_size.gp(), mem_size.gp(), kWasmPageSizeLog2);
     if (memory->is_memory64 && kNeedI64RegPair) {
       LiftoffRegister high_word =
           __ GetUnusedRegister(kGpReg, LiftoffRegList{mem_size});
       // The high word is always 0 on 32-bit systems.
       __ LoadConstant(high_word, WasmValue{uint32_t{0}});
-      result = LiftoffRegister::ForPair(mem_size, high_word.gp());
+      mem_size = LiftoffRegister::ForPair(mem_size.gp(), high_word.gp());
     }
-    __ PushRegister(memory->is_memory64 ? kI64 : kI32, result);
+    __ PushRegister(memory->is_memory64 ? kI64 : kI32, mem_size);
   }
 
-  void MemoryGrow(FullDecoder* decoder, const Value& value, Value* result_val) {
+  void MemoryGrow(FullDecoder* decoder, const WasmMemory* memory,
+                  const Value& value, Value* result_val) {
     // Pop the input, then spill all cache registers to make the runtime call.
     LiftoffRegList pinned;
-    LiftoffRegister input = pinned.set(__ PopToRegister());
+    LiftoffRegister num_pages = pinned.set(__ PopToRegister());
     __ SpillAllRegisters();
 
     LiftoffRegister result = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
 
     Label done;
 
-    // TODO(13918): Support multiple memories.
-    const WasmMemory* memory = env_->module->memories.data();
     if (memory->is_memory64) {
       // If the high word is not 0, this will always fail (would grow by
       // >=256TB). The int32_t value will be sign-extended below.
       __ LoadConstant(result, WasmValue(int32_t{-1}));
       if (kNeedI64RegPair) {
         FREEZE_STATE(all_spilled_anyway);
-        __ emit_cond_jump(kNotEqual, &done, kI32, input.high_gp(), no_reg,
+        __ emit_cond_jump(kNotEqual, &done, kI32, num_pages.high_gp(), no_reg,
                           all_spilled_anyway);
-        input = input.low();
+        num_pages = num_pages.low();
       } else {
         LiftoffRegister high_word = __ GetUnusedRegister(kGpReg, pinned);
-        __ emit_i64_shri(high_word, input, 32);
+        __ emit_i64_shri(high_word, num_pages, 32);
         FREEZE_STATE(all_spilled_anyway);
         __ emit_cond_jump(kNotEqual, &done, kI32, high_word.gp(), no_reg,
                           all_spilled_anyway);
@@ -3594,11 +3602,20 @@ class LiftoffCompiler {
 
     WasmMemoryGrowDescriptor descriptor;
     DCHECK_EQ(0, descriptor.GetStackParameterCount());
-    DCHECK_EQ(1, descriptor.GetRegisterParameterCount());
+    DCHECK_EQ(2, descriptor.GetRegisterParameterCount());
     DCHECK_EQ(machine_type(kI32), descriptor.GetParameterType(0));
+    DCHECK_EQ(machine_type(kI32), descriptor.GetParameterType(1));
 
-    Register param_reg = descriptor.GetRegisterParameter(0);
-    if (input.gp() != param_reg) __ Move(param_reg, input.gp(), kI32);
+    Register num_pages_param_reg = descriptor.GetRegisterParameter(1);
+    if (num_pages.gp() != num_pages_param_reg) {
+      __ Move(num_pages_param_reg, num_pages.gp(), kI32);
+    }
+
+    // Load the constant after potentially moving the {num_pages} register to
+    // avoid overwriting it.
+    Register mem_index_param_reg = descriptor.GetRegisterParameter(0);
+    __ LoadConstant(LiftoffRegister{mem_index_param_reg},
+                    WasmValue(memory->index));
 
     __ CallRuntimeStub(WasmCode::kWasmMemoryGrow);
     DefineSafepoint();

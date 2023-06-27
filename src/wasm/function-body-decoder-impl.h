@@ -1107,8 +1107,8 @@ struct ControlBase : public PcForErrors<ValidationTag::full_validation> {
   F(StoreLane, const WasmMemory* memory, StoreType type,                       \
     const MemoryAccessImmediate& imm, const Value& index, const Value& value,  \
     const uint8_t laneidx)                                                     \
-  F(CurrentMemoryPages, Value* result)                                         \
-  F(MemoryGrow, const Value& value, Value* result)                             \
+  F(CurrentMemoryPages, const WasmMemory* memory, Value* result)               \
+  F(MemoryGrow, const WasmMemory* memory, const Value& value, Value* result)   \
   F(CallDirect, const CallFunctionImmediate& imm, const Value args[],          \
     Value returns[])                                                           \
   F(CallIndirect, const Value& index, const CallIndirectImmediate& imm,        \
@@ -3608,25 +3608,25 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
   DECODE(StoreMem) { return DecodeStoreMem(GetStoreType(opcode)); }
 
   DECODE(MemoryGrow) {
-    MemoryIndexImmediate imm(this, this->pc_ + 1, validate);
-    if (!this->Validate(this->pc_ + 1, imm)) return 0;
     // This opcode will not be emitted by the asm translator.
     DCHECK_EQ(kWasmOrigin, this->module_->origin);
-    ValueType mem_type = MemoryIndexType(imm.index);
+    MemoryIndexImmediate imm(this, this->pc_ + 1, validate);
+    if (!this->Validate(this->pc_ + 1, imm)) return 0;
+    const WasmMemory* memory = DeclaredMemory(imm.index);
+    ValueType mem_type = MemoryIndexType(memory);
     Value value = Pop(mem_type);
     Value* result = Push(mem_type);
-    // TODO(13918): Pass memory index for multi-memory support.
-    CALL_INTERFACE_IF_OK_AND_REACHABLE(MemoryGrow, value, result);
+    CALL_INTERFACE_IF_OK_AND_REACHABLE(MemoryGrow, memory, value, result);
     return 1 + imm.length;
   }
 
   DECODE(MemorySize) {
     MemoryIndexImmediate imm(this, this->pc_ + 1, validate);
     if (!this->Validate(this->pc_ + 1, imm)) return 0;
-    ValueType result_type = MemoryIndexType(imm.index);
+    const WasmMemory* memory = DeclaredMemory(imm.index);
+    ValueType result_type = MemoryIndexType(memory);
     Value* result = Push(result_type);
-    // TODO(13918): Pass memory index for multi-memory support.
-    CALL_INTERFACE_IF_OK_AND_REACHABLE(CurrentMemoryPages, result);
+    CALL_INTERFACE_IF_OK_AND_REACHABLE(CurrentMemoryPages, memory, result);
     return 1 + imm.length;
   }
 

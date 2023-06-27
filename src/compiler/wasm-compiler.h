@@ -247,7 +247,7 @@ class WasmGraphBuilder {
   Node* Unop(wasm::WasmOpcode opcode, Node* input,
              wasm::ValueType type = wasm::kWasmBottom,
              wasm::WasmCodePosition position = wasm::kNoCodePosition);
-  Node* MemoryGrow(Node* input);
+  Node* MemoryGrow(const wasm::WasmMemory* memory, Node* input);
   Node* Throw(uint32_t tag_index, const wasm::WasmTag* tag,
               const base::Vector<Node*> values,
               wasm::WasmCodePosition position);
@@ -349,7 +349,7 @@ class WasmGraphBuilder {
   //-----------------------------------------------------------------------
   // Operations that concern the linear memory.
   //-----------------------------------------------------------------------
-  Node* CurrentMemoryPages();
+  Node* CurrentMemoryPages(const wasm::WasmMemory* memory);
   void TraceMemoryOperation(bool is_store, MachineRepresentation, Node* index,
                             uintptr_t offset, wasm::WasmCodePosition);
   Node* LoadMem(const wasm::WasmMemory* memory, wasm::ValueType type,

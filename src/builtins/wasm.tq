@@ -5,7 +5,7 @@
 #include 'src/builtins/builtins-wasm-gen.h'
 
 namespace runtime {
-extern runtime WasmMemoryGrow(Context, WasmInstanceObject, Smi): Smi;
+extern runtime WasmMemoryGrow(Context, WasmInstanceObject, Smi, Smi): Smi;
 extern runtime WasmRefFunc(Context, WasmInstanceObject, Smi): JSAny;
 extern runtime WasmInternalFunctionCreateExternal(
     Context, WasmInternalFunction): JSFunction;
@@ -134,13 +134,14 @@ builtin WasmTaggedToFloat32(implicit context: Context)(val: JSAny): float32 {
   return TruncateFloat64ToFloat32(ChangeTaggedToFloat64(val));
 }
 
-builtin WasmMemoryGrow(numPages: int32): int32 {
+builtin WasmMemoryGrow(memIndex: int32, numPages: int32): int32 {
+  dcheck(IsValidPositiveSmi(ChangeInt32ToIntPtr(memIndex)));
   if (!IsValidPositiveSmi(ChangeInt32ToIntPtr(numPages)))
     return Int32Constant(-1);
   const instance: WasmInstanceObject = LoadInstanceFromFrame();
   const context: NativeContext = LoadContextFromInstance(instance);
-  const result: Smi =
-      runtime::WasmMemoryGrow(context, instance, SmiFromInt32(numPages));
+  const result: Smi = runtime::WasmMemoryGrow(
+      context, instance, SmiFromInt32(memIndex), SmiFromInt32(numPages));
   return SmiToInt32(result);
 }
 

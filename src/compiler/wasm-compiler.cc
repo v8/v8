@@ -2170,14 +2170,14 @@ Node* WasmGraphBuilder::BuildCcallConvertFloat(Node* input,
   return tl_d.Phi(int_ty.representation(), nan_val, load);
 }
 
-Node* WasmGraphBuilder::MemoryGrow(Node* input) {
-  // TODO(13918): Support multi-memory.
-  const uint32_t memory_index = 0;
+Node* WasmGraphBuilder::MemoryGrow(const wasm::WasmMemory* memory,
+                                   Node* input) {
   needs_stack_check_ = true;
-  if (!env_->module->memories[memory_index].is_memory64) {
+  if (!memory->is_memory64) {
     // For 32-bit memories, just call the builtin.
     return gasm_->CallRuntimeStub(wasm::WasmCode::kWasmMemoryGrow,
-                                  Operator::kNoThrow, input);
+                                  Operator::kNoThrow,
+                                  gasm_->Int32Constant(memory->index), input);
   }
 
   // If the input is not a positive int32, growing will always fail
@@ -2192,7 +2192,7 @@ Node* WasmGraphBuilder::MemoryGrow(Node* input) {
 
   Node* grow_result = gasm_->ChangeInt32ToInt64(gasm_->CallRuntimeStub(
       wasm::WasmCode::kWasmMemoryGrow, Operator::kNoThrow,
-      gasm_->TruncateInt64ToInt32(input)));
+      gasm_->Int32Constant(memory->index), gasm_->TruncateInt64ToInt32(input)));
 
   Node* diamond_result = is_32_bit.Phi(MachineRepresentation::kWord64,
                                        grow_result, gasm_->Int64Constant(-1));
@@ -3372,12 +3372,20 @@ Node* WasmGraphBuilder::MemBuffer(uint32_t mem_index, uintptr_t offset) {
   return gasm_->IntAdd(mem_start, gasm_->UintPtrConstant(offset));
 }
 
-Node* WasmGraphBuilder::CurrentMemoryPages() {
-  // TODO(13918): Support multiple memories.
+Node* WasmGraphBuilder::CurrentMemoryPages(const wasm::WasmMemory* memory) {
   // CurrentMemoryPages can not be called from asm.js.
   DCHECK_EQ(wasm::kWasmOrigin, env_->module->origin);
-  DCHECK_NOT_NULL(instance_cache_);
-  Node* mem_size = instance_cache_->mem0_size;
+  Node* mem_size;
+  if (memory->index == 0) {
+    mem_size = instance_cache_->mem0_size;
+  } else {
+    Node* memory_bases_and_sizes =
+        LOAD_INSTANCE_FIELD(MemoryBasesAndSizes, MachineType::TaggedPointer());
+    mem_size = gasm_->LoadByteArrayElement(
+        memory_bases_and_sizes, gasm_->IntPtrConstant(2 * memory->index + 1),
+        MachineType::Pointer());
+  }
+
   DCHECK_NOT_NULL(mem_size);
   Node* result =
       gasm_->WordShr(mem_size, Int32Constant(wasm::kWasmPageSizeLog2));

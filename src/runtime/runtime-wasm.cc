@@ -206,13 +206,12 @@ RUNTIME_FUNCTION(Runtime_WasmJSToWasmObject) {
 RUNTIME_FUNCTION(Runtime_WasmMemoryGrow) {
   ClearThreadInWasmScope flag_scope(isolate);
   HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
+  DCHECK_EQ(3, args.length());
   WasmInstanceObject instance = WasmInstanceObject::cast(args[0]);
-  // {delta_pages} is checked to be a positive smi in the WasmMemoryGrow builtin
-  // which calls this runtime function.
-  uint32_t delta_pages = args.positive_smi_value_at(1);
-  // TODO(13918): Support multiple memories.
-  uint32_t memory_index = 0;
+  // {memory_index} and {delta_pages} are checked to be positive Smis in the
+  // WasmMemoryGrow builtin which calls this runtime function.
+  uint32_t memory_index = args.positive_smi_value_at(1);
+  uint32_t delta_pages = args.positive_smi_value_at(2);
 
   Handle<WasmMemoryObject> memory_object{instance.memory_object(memory_index),
                                          isolate};

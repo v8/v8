@@ -37,17 +37,10 @@
 
   # TODO(13918): Implement missing features.
   'proposals/multi-memory/data_drop0': [FAIL],
-  'proposals/multi-memory/imports4': [FAIL],
-  'proposals/multi-memory/load2': [FAIL],
   'proposals/multi-memory/memory_copy0': [FAIL],
   'proposals/multi-memory/memory_fill0': [FAIL],
-  'proposals/multi-memory/memory_grow': [FAIL],
   'proposals/multi-memory/memory_init0': [FAIL],
   'proposals/multi-memory/memory-multi': [FAIL],
-  'proposals/multi-memory/memory_size1': [FAIL],
-  'proposals/multi-memory/memory_size2': [FAIL],
-  'proposals/multi-memory/memory_size': [FAIL],
-  'proposals/multi-memory/memory_trap0': [FAIL],
 
   # These tests need to be rebased to include
   # https://github.com/WebAssembly/spec/pull/1649 and

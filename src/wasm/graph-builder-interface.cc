@@ -713,12 +713,14 @@ class WasmGraphBuildingInterface {
                         type.value_type());
   }
 
-  void CurrentMemoryPages(FullDecoder* decoder, Value* result) {
-    SetAndTypeNode(result, builder_->CurrentMemoryPages());
+  void CurrentMemoryPages(FullDecoder* decoder, const WasmMemory* memory,
+                          Value* result) {
+    SetAndTypeNode(result, builder_->CurrentMemoryPages(memory));
   }
 
-  void MemoryGrow(FullDecoder* decoder, const Value& value, Value* result) {
-    SetAndTypeNode(result, builder_->MemoryGrow(value.node));
+  void MemoryGrow(FullDecoder* decoder, const WasmMemory* memory,
+                  const Value& value, Value* result) {
+    SetAndTypeNode(result, builder_->MemoryGrow(memory, value.node));
     // Always reload the instance cache after growing memory.
     ReloadInstanceCacheIntoSsa(ssa_env_, decoder->module_);
   }

@@ -18,6 +18,16 @@ function addLoadAndStoreFunctions(builder, mem_index) {
       .exportFunc();
 }
 
+// Add a {growN} and {sizeN} method for memory N.
+function addGrowAndSizeFunctions(builder, mem_index) {
+  builder.addFunction('grow' + mem_index, kSig_i_i)
+      .addBody([kExprLocalGet, 0, kExprMemoryGrow, mem_index])
+      .exportFunc();
+  builder.addFunction('size' + mem_index, kSig_i_v)
+      .addBody([kExprMemorySize, mem_index])
+      .exportFunc();
+}
+
 // Helper to test that two memories can be accessed independently.
 function testTwoMemories(instance, mem0_size, mem1_size) {
   const load0 = offset => instance.exports.load0(offset);
@@ -155,9 +165,7 @@ function testTwoMemories(instance, mem0_size, mem1_size) {
   print(arguments.callee.name);
   // Check that we use the right memory size for the bounds check.
   for (let [mem0_size, mem1_size] of [[1, 2], [2, 1]]) {
-    print(`memory sizes: ${mem0_size}, ${mem1_size}`);
     for (let [mem0_offset, mem1_offset] of [[0, 0], [1, 2], [0, 2], [1, 0]]) {
-      print(`memory offsets: ${mem0_offset}, ${mem1_offset}`);
       var builder = new WasmModuleBuilder();
       builder.addMemory(mem0_size, mem0_size);
       builder.addMemory(mem1_size, mem1_size);
@@ -178,4 +186,28 @@ function testTwoMemories(instance, mem0_size, mem1_size) {
           () => builder.instantiate(), WebAssembly.RuntimeError, expected_msg);
     }
   }
+})();
+
+(function testGrowMultipleMemories() {
+  print(arguments.callee.name);
+  var builder = new WasmModuleBuilder();
+  builder.addMemory(1, 4);
+  builder.addMemory(1, 5);
+  addGrowAndSizeFunctions(builder, 0);
+  addGrowAndSizeFunctions(builder, 1);
+  builder.exportMemoryAs('mem0', 0);
+  builder.exportMemoryAs('mem1', 1);
+  const instance = builder.instantiate();
+
+  assertEquals(1, instance.exports.grow0(2));
+  assertEquals(3, instance.exports.grow0(1));
+  assertEquals(4, instance.exports.size0());
+  assertEquals(-1, instance.exports.grow0(1));
+  assertEquals(4, instance.exports.size0());
+
+  assertEquals(1, instance.exports.grow1(2));
+  assertEquals(3, instance.exports.grow1(2));
+  assertEquals(5, instance.exports.size1());
+  assertEquals(-1, instance.exports.grow1(1));
+  assertEquals(5, instance.exports.size1());
 })();
