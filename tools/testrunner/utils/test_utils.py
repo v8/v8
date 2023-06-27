@@ -15,7 +15,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from io import StringIO
 from mock import patch
-from os.path import dirname as up
+from pathlib import Path
 
 from testrunner.local.command import BaseCommand
 from testrunner.objects import output
@@ -23,11 +23,10 @@ from testrunner.local.context import DefaultOSContext
 from testrunner.local.pool import SingleThreadedExecutionPool
 from testrunner.local.variants import REQUIRED_BUILD_VARIABLES
 
-TOOLS_ROOT = up(up(up(os.path.abspath(__file__))))
-sys.path.append(TOOLS_ROOT)
+TOOLS_ROOT = Path(__file__).resolve().parent.parent.parent
 
-TEST_DATA_ROOT = os.path.join(TOOLS_ROOT, 'testrunner', 'testdata')
-BUILD_CONFIG_BASE = os.path.join(TEST_DATA_ROOT, 'v8_build_config.json')
+TEST_DATA_ROOT = TOOLS_ROOT / 'testrunner' / 'testdata'
+BUILD_CONFIG_BASE = TEST_DATA_ROOT / 'v8_build_config.json'
 
 from testrunner.local import command
 from testrunner.local import pool
@@ -37,7 +36,7 @@ def temp_dir():
   """Wrapper making a temporary directory available."""
   path = None
   try:
-    path = tempfile.mkdtemp('v8_test_')
+    path = Path(tempfile.mkdtemp('_v8_test'))
     yield path
   finally:
     if path:
@@ -53,9 +52,9 @@ def temp_base(baseroot='testroot1'):
         copied to the temporary test root, to guarantee a fresh setup with no
         dirty state.
   """
-  basedir = os.path.join(TEST_DATA_ROOT, baseroot)
+  basedir = TEST_DATA_ROOT / baseroot
   with temp_dir() as tempbase:
-    if os.path.exists(basedir):
+    if basedir.exists():
       shutil.copytree(basedir, tempbase, dirs_exist_ok=True)
     yield tempbase
 
@@ -79,13 +78,13 @@ def capture():
 def with_json_output(basedir):
   """ Function used as a placeholder where we need to resolve the value in the
   context of a temporary test configuration"""
-  return os.path.join(basedir, 'out.json')
+  return basedir / 'out.json'
 
 def clean_json_output(json_path, basedir):
   # Extract relevant properties of the json output.
   if not json_path:
     return None
-  if not os.path.exists(json_path):
+  if not json_path.exists():
     return '--file-does-not-exists--'
   with open(json_path) as f:
     json_output = json.load(f)
@@ -97,7 +96,7 @@ def clean_json_output(json_path, basedir):
     data['duration'] = 1
     data['command'] = ' '.join(
         ['/usr/bin/python'] + data['command'].split()[1:])
-    data['command'] = data['command'].replace(basedir + '/', '')
+    data['command'] = data['command'].replace(f'{basedir}/', '')
   for data in json_output['slowest_tests']:
     replace_variable_data(data)
   for data in json_output['results']:
@@ -113,8 +112,8 @@ def clean_json_output(json_path, basedir):
 
 def setup_build_config(basedir, outdir):
   """Ensure a build config file exists - default or from test root."""
-  path = os.path.join(basedir, outdir, 'build', 'v8_build_config.json')
-  if os.path.exists(path):
+  path = basedir / outdir / 'build' / 'v8_build_config.json'
+  if path.exists():
     return
 
   # Use default build-config blueprint.
@@ -125,7 +124,7 @@ def setup_build_config(basedir, outdir):
   for key in REQUIRED_BUILD_VARIABLES:
     config[key] = False
 
-  os.makedirs(os.path.dirname(path), exist_ok=True)
+  os.makedirs(path.parent, exist_ok=True)
   with open(path, 'w') as f:
     json.dump(config, f)
 
@@ -133,7 +132,7 @@ def override_build_config(basedir, **kwargs):
   """Override the build config with new values provided as kwargs."""
   if not kwargs:
     return
-  path = os.path.join(basedir, 'out', 'build', 'v8_build_config.json')
+  path = basedir / 'out' / 'build' / 'v8_build_config.json'
   with open(path) as f:
     config = json.load(f)
     config.update(kwargs)
@@ -167,7 +166,7 @@ class TestResult():
     self.current_test_case.assertNotIn(content, self.stderr, self)
 
   def json_content_equals(self, expected_results_file):
-    with open(os.path.join(TEST_DATA_ROOT, expected_results_file)) as f:
+    with open(TEST_DATA_ROOT / expected_results_file) as f:
       expected_test_results = json.load(f)
 
     pretty_json = json.dumps(self.json, indent=2, sort_keys=True)

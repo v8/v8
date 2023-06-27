@@ -3,6 +3,7 @@
 # found in the LICENSE file.
 
 from .utils import random_utils
+from testrunner.local import utils
 
 
 class TestConfig(object):
@@ -40,3 +41,9 @@ class TestConfig(object):
     self.timeout = timeout
     self.verbose = verbose
     self.regenerate_expected_files = regenerate_expected_files
+
+  def resolve_shell(self, shell):
+    shell_path = self.shell_dir.resolve() / shell
+    if utils.IsWindows():
+      return shell_path.with_suffix('.exe')
+    return shell_path

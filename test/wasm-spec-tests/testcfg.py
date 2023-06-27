@@ -38,7 +38,7 @@ class TestSuite(testsuite.TestSuite):
 
   def __init__(self, ctx, *args, **kwargs):
     super(TestSuite, self).__init__(ctx, *args, **kwargs)
-    self.test_root = os.path.join(self.root, "tests")
+    self.test_root = self.root / "tests"
     self._test_loader.test_root = self.test_root
 
   def _test_loader_class(self):
@@ -49,10 +49,10 @@ class TestSuite(testsuite.TestSuite):
 
 class TestCase(testcase.D8TestCase):
   def _get_files_params(self):
-    return [os.path.join(self.suite.test_root, self.path + self._get_suffix())]
+    return [self.suite.test_root / self.path_js]
 
   def _get_source_flags(self):
     for proposal in proposal_flags:
-      if os.sep.join(['proposals', proposal['name']]) in self.path:
+      if f"proposals/{proposal['name']}" in self.name:
         return proposal['flags']
     return []

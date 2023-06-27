@@ -28,7 +28,6 @@
 # for py2/py3 compatibility
 from __future__ import print_function
 
-import os
 import shutil
 
 from testrunner.local import command
@@ -87,4 +86,4 @@ class TestCase(testcase.TestCase):
     return SHELL
 
   def _get_files_params(self):
-    return [self.path]
+    return [self.name]

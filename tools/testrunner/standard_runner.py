@@ -5,6 +5,7 @@
 # found in the LICENSE file.
 
 from functools import reduce
+from pathlib import Path
 
 import datetime
 import json
@@ -15,10 +16,6 @@ from testrunner.testproc.rerun import RerunProc
 from testrunner.testproc.timeout import TimeoutProc
 from testrunner.testproc.progress import ResultsTracker, ProgressProc
 from testrunner.testproc.shard import ShardProc
-
-# Adds testrunner to the path hence it has to be imported at the beggining.
-TOOLS_PATH = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.append(TOOLS_PATH)
 
 import testrunner.base_runner as base_runner
 
@@ -151,12 +148,12 @@ class StandardTestRunner(base_runner.BaseTestRunner):
                       help='Path to a file for storing flakiness json.')
 
   def _predictable_wrapper(self):
-    return os.path.join(self.v8_root, 'tools', 'predictable_wrapper.py')
+    return self.v8_root / 'tools' / 'predictable_wrapper.py'
 
   def _process_options(self):
     if self.options.sancov_dir:
-      self.sancov_dir = self.options.sancov_dir
-      if not os.path.exists(self.sancov_dir):
+      self.sancov_dir = Path(self.options.sancov_dir)
+      if not self.sancov_dir.exists():
         print('sancov-dir %s doesn\'t exist' % self.sancov_dir)
         raise base_runner.TestRunnerError()
 
@@ -345,7 +342,7 @@ class StandardTestRunner(base_runner.BaseTestRunner):
         'Duration: %s' % format_duration(test['duration']),
       ]
 
-    assert os.path.exists(self.options.json_test_results)
+    assert Path(self.options.json_test_results).exists()
     with open(self.options.json_test_results, "r") as f:
       output = json.load(f)
     lines = []

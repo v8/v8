@@ -11,6 +11,7 @@ from testrunner.objects import testcase
 
 
 ADDITIONAL_VARIANTS = set(["minor_mc"])
+SHELL = "v8_unittests"
 
 
 class VariantsGenerator(testsuite.VariantsGenerator):
@@ -30,8 +31,7 @@ class VariantsGenerator(testsuite.VariantsGenerator):
 class TestLoader(testsuite.TestLoader):
   def _list_test_filenames(self):
     args = ['--gtest_list_tests'] + self.test_config.extra_flags
-    shell = self.ctx.platform_shell("v8_unittests", args,
-                                    self.test_config.shell_dir)
+    shell = self.ctx.platform_shell(SHELL, args, self.test_config.shell_dir)
     output = None
     for i in range(3): # Try 3 times in case of errors.
       cmd = self.ctx.command(
@@ -84,22 +84,22 @@ class TestSuite(testsuite.TestSuite):
 class TestCase(testcase.TestCase):
   def _get_suite_flags(self):
     return (
-        ["--gtest_filter=" + self.path] +
-        ["--gtest_random_seed=%s" % self.random_seed] +
+        [f"--gtest_filter={self.name}"] +
+        [f"--gtest_random_seed={self.random_seed}"] +
         ["--gtest_print_time=0"]
     )
 
   def get_shell(self):
-    return 'v8_' + self.suite.name
+    return SHELL
 
   def get_android_resources(self):
     # Bytecode-generator tests are the only ones requiring extra files on
     # Android.
     parts = self.name.split('.')
     if parts[0] == 'BytecodeGeneratorTest':
-      expectation_file = os.path.join(self.suite.root, 'interpreter',
-                                      'bytecode_expectations',
-                                      '%s.golden' % parts[1])
-      if os.path.exists(expectation_file):
+      expectation_file = (
+          self.suite.root / 'interpreter' / 'bytecode_expectations' /
+          f'{parts[1]}.golden')
+      if expectation_file.exists():
         return [expectation_file]
     return []

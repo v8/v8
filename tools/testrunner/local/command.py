@@ -3,6 +3,8 @@
 # found in the LICENSE file.
 
 from contextlib import contextmanager
+from pathlib import Path
+
 import logging
 import os
 import re
@@ -16,8 +18,7 @@ from ..local.android import (Driver, CommandFailedException, TimeoutException)
 from ..objects import output
 from ..local.pool import AbortException
 
-BASE_DIR = os.path.normpath(
-    os.path.join(os.path.dirname(os.path.abspath(__file__)), '..' , '..', '..'))
+BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent
 
 SEM_INVALID_VALUE = -1
 SEM_NOGPFAULTERRORBOX = 0x0002  # Microsoft Platform SDK WinBase.h
@@ -88,8 +89,8 @@ class BaseCommand(object):
     """
     assert(timeout > 0)
 
-    self.shell = shell
-    self.args = args or []
+    self.shell = Path(shell)
+    self.args = list(map(str, args or []))
     self.cmd_prefix = cmd_prefix or []
     self.timeout = timeout
     self.env = env or {}
@@ -184,7 +185,7 @@ class BaseCommand(object):
     return cmd
 
   def _to_args_list(self):
-    return self.cmd_prefix + [self.shell] + self.args
+    return list(map(str, self.cmd_prefix + [self.shell])) + self.args
 
 
 class PosixCommand(BaseCommand):
@@ -353,8 +354,8 @@ class AndroidCommand(BaseCommand):
     if self.verbose:
       print('# %s' % self)
 
-    shell_name = os.path.basename(self.shell)
-    shell_dir = os.path.dirname(self.shell)
+    shell_name = self.shell.name
+    shell_dir = self.shell.parent
 
     self.driver.push_executable(shell_dir, 'bin', shell_name)
     self.push_test_resources()
@@ -386,22 +387,22 @@ class AndroidCommand(BaseCommand):
 
   def push_test_resources(self):
     for abs_file in self.files_to_push:
-      abs_dir = os.path.dirname(abs_file)
-      file_name = os.path.basename(abs_file)
-      rel_dir = os.path.relpath(abs_dir, BASE_DIR)
+      abs_dir = abs_file.parent
+      file_name = abs_file.name
+      rel_dir = abs_dir.relative_to(BASE_DIR)
       self.driver.push_file(abs_dir, file_name, rel_dir)
 
 
 def args_with_relative_paths(args):
+  base_dir_str = re.escape(BASE_DIR.as_posix())
   rel_args = []
   files_to_push = []
-  find_path_re = re.compile(r'.*(%s/[^\'"]+).*' % re.escape(BASE_DIR))
+  find_path_re = re.compile(r'.*(%s/[^\'"]+).*' % base_dir_str)
   for arg in (args or []):
-    match = find_path_re.match(arg)
+    match = find_path_re.match(str(arg))
     if match:
-      files_to_push.append(match.group(1))
-    rel_args.append(
-        re.sub(r'(.*)%s/(.*)' % re.escape(BASE_DIR), r'\1\2', arg))
+      files_to_push.append(Path(match.group(1)).resolve())
+    rel_args.append(re.sub(r'(.*)%s/(.*)' % base_dir_str, r'\1\2', str(arg)))
   return rel_args, files_to_push
 
 

@@ -2,12 +2,12 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-from contextlib import contextmanager
 import os
 import signal
-
 import subprocess
 import sys
+
+from contextlib import contextmanager
 
 from ..local.android import Driver
 from .command import AndroidCommand, IOSCommand, PosixCommand, WindowsCommand, taskkill_windows
@@ -32,7 +32,7 @@ class DefaultOSContext:
     pass
 
   def platform_shell(self, shell, args, outdir):
-    return os.path.abspath(os.path.join(outdir, shell))
+    return outdir.resolve() / shell
 
 
 class LinuxContext(DefaultOSContext):
@@ -56,7 +56,7 @@ class WindowsContext(DefaultOSContext):
     taskkill_windows(process, verbose=True, force=False)
 
   def platform_shell(self, shell, args, outdir):
-    return os.path.abspath(os.path.join(outdir, shell)) + '.exe'
+    return outdir.resolve() / f'{shell}.exe'
 
 
 class AndroidOSContext(DefaultOSContext):

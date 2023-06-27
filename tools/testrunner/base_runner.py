@@ -4,7 +4,7 @@
 
 from collections import OrderedDict, namedtuple
 from functools import reduce
-from os.path import dirname as up
+from pathlib import Path
 
 import json
 import logging
@@ -27,7 +27,7 @@ from testrunner.testproc.sigproc import SignalProc
 from testrunner.utils.augmented_options import AugmentedOptions
 
 
-DEFAULT_OUT_GN = 'out.gn'
+DEFAULT_OUT_GN = Path('out.gn')
 
 # Map of test name synonyms to lists of test suites. Should be ordered by
 # expected runtimes (suites with slow test cases first). These groups are
@@ -123,8 +123,8 @@ class TestRunnerError(Exception):
 
 class BaseTestRunner(object):
   def __init__(self, basedir=None):
-    self.v8_root = up(up(up(__file__)))
-    self.basedir = basedir or self.v8_root
+    self.v8_root = Path(__file__).resolve().parent.parent.parent
+    self.basedir = Path(basedir or self.v8_root)
     self.outdir = None
     self.build_config = None
     self.mode_options = None
@@ -210,7 +210,7 @@ class BaseTestRunner(object):
     parser.add_option("--shell-dir", help="DEPRECATED! Executables from build "
                       "directory will be used")
     parser.add_option("--test-root", help="Root directory of the test suites",
-                      default=os.path.join(self.basedir, 'test'))
+                      default=self.basedir / 'test')
     parser.add_option("--total-timeout-sec", default=0, type="int",
                       help="How long should fuzzer run")
     parser.add_option("--swarming", default=False, action="store_true",
@@ -299,6 +299,9 @@ class BaseTestRunner(object):
   def _parse_args(self, parser, sys_args):
     options, args = parser.parse_args(sys_args)
 
+    options.test_root = Path(options.test_root)
+    options.outdir = Path(options.outdir)
+
     if options.arch and ',' in options.arch:  # pragma: no cover
       print('Multiple architectures are deprecated')
       raise TestRunnerError()
@@ -339,8 +342,8 @@ class BaseTestRunner(object):
     self.build_config.ensure_vars(REQUIRED_BUILD_VARIABLES)
 
   def _do_load_build_config(self, outdir):
-    build_config_path = os.path.join(outdir, "v8_build_config.json")
-    if not os.path.exists(build_config_path):
+    build_config_path = outdir / "v8_build_config.json"
+    if not build_config_path.exists():
       if self.options.verbose:
         print("Didn't find build config: %s" % build_config_path)
       raise TestRunnerError()
@@ -367,26 +370,25 @@ class BaseTestRunner(object):
 
       yield self.options.outdir
 
-      if os.path.basename(self.options.outdir) != 'build':
-        yield os.path.join(self.options.outdir, 'build')
+      if self.options.outdir.name != 'build':
+        yield self.options.outdir / 'build'
 
     for outdir in outdirs():
-      yield os.path.join(self.basedir, outdir)
+      yield self.basedir / outdir
 
   def _get_gn_outdir(self):
-    gn_out_dir = os.path.join(self.basedir, DEFAULT_OUT_GN)
+    gn_out_dir = self.basedir / DEFAULT_OUT_GN
     latest_timestamp = -1
     latest_config = None
-    for gn_config in os.listdir(gn_out_dir):
-      gn_config_dir = os.path.join(gn_out_dir, gn_config)
-      if not os.path.isdir(gn_config_dir):
+    for gn_config_dir in gn_out_dir.iterdir():
+      if not gn_config_dir.is_dir():
         continue
-      if os.path.getmtime(gn_config_dir) > latest_timestamp:
-        latest_timestamp = os.path.getmtime(gn_config_dir)
-        latest_config = gn_config
+      if gn_config_dir.stat().st_mtime > latest_timestamp:
+        latest_timestamp = gn_config_dir.stat().st_mtime
+        latest_config = gn_config_dir.name
     if latest_config:
       print(">>> Latest GN build found: %s" % latest_config)
-      return os.path.join(DEFAULT_OUT_GN, latest_config)
+      return DEFAULT_OUT_GN / latest_config
 
   def _custom_debug_mode(self):
     custom_debug_flags = ["--nohard-abort"]
@@ -474,11 +476,8 @@ class BaseTestRunner(object):
       os.environ['MSAN_OPTIONS'] = symbolizer_option
 
     if self.build_config.tsan:
-      suppressions_file = os.path.join(
-          self.basedir,
-          'tools',
-          'sanitizers',
-          'tsan_suppressions.txt')
+      suppressions_file = (
+          self.basedir / 'tools' / 'sanitizers' / 'tsan_suppressions.txt')
       os.environ['TSAN_OPTIONS'] = " ".join([
         symbolizer_option,
         'suppressions=%s' % suppressions_file,
@@ -489,20 +488,17 @@ class BaseTestRunner(object):
       ])
 
   def _get_external_symbolizer_option(self):
-    external_symbolizer_path = os.path.join(
-        self.basedir,
-        'third_party',
-        'llvm-build',
-        'Release+Asserts',
-        'bin',
-        'llvm-symbolizer',
-    )
+    external_symbolizer_path = (
+        self.basedir / 'third_party' / 'llvm-build' / 'Release+Asserts' /
+        'bin' / 'llvm-symbolizer')
 
     if utils.IsWindows():
-      # Quote, because sanitizers might confuse colon as option separator.
-      external_symbolizer_path = '"%s.exe"' % external_symbolizer_path
+      external_symbolizer_path = external_symbolizer_path.with_suffix('.exe')
 
-    return 'external_symbolizer_path=%s' % external_symbolizer_path
+      # Quote, because sanitizers might confuse colon as option separator.
+      external_symbolizer_path = f'"{external_symbolizer_path}"'
+
+    return f'external_symbolizer_path={external_symbolizer_path}'
 
   def _parse_test_args(self, args):
     if not args:
@@ -534,7 +530,7 @@ class BaseTestRunner(object):
       if self.options.verbose:
         print('>>> Loading test suite: %s' % name)
       suite = testsuite.TestSuite.Load(
-          ctx, os.path.join(self.options.test_root, name), test_config)
+          ctx, self.options.test_root / name, test_config)
 
       if self._is_testsuite_supported(suite):
         tests = suite.load_tests_from_disk(variables)

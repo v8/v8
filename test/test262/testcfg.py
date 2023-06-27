@@ -31,6 +31,8 @@ import os
 import re
 import sys
 
+from pathlib import Path
+
 from testrunner.local import statusfile
 from testrunner.local import testsuite
 from testrunner.local import utils
@@ -67,20 +69,18 @@ FEATURE_FLAGS = {
 
 SKIPPED_FEATURES = set([])
 
-DATA = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
-
-BASE_DIR = os.path.dirname(
-    os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+TEST262_DIR = Path(__file__).resolve().parent
+BASE_DIR = TEST262_DIR.parents[1]
 
 TEST_262_HARNESS_FILES = ["sta.js", "assert.js"]
 TEST_262_NATIVE_FILES = ["detachArrayBuffer.js"]
 
-TEST_262_SUITE_PATH = ["data", "test"]
-TEST_262_HARNESS_PATH = ["data", "harness"]
-TEST_262_TOOLS_ABS_PATH = [BASE_DIR, "third_party", "test262-harness", "src"]
-TEST_262_LOCAL_TESTS_PATH = ["local-tests", "test"]
+TEST_262_SUITE_PATH = Path("data") / "test"
+TEST_262_HARNESS_PATH = Path("data") / "harness"
+TEST_262_TOOLS_ABS_PATH = BASE_DIR / "third_party" / "test262-harness" / "src"
+TEST_262_LOCAL_TESTS_PATH = Path("local-tests") / "test"
 
-sys.path.append(os.path.join(*TEST_262_TOOLS_ABS_PATH))
+sys.path.append(str(TEST_262_TOOLS_ABS_PATH))
 
 
 class VariantsGenerator(testsuite.VariantsGenerator):
@@ -111,7 +111,7 @@ class TestLoader(testsuite.JSTestLoader):
   def test_dirs(self):
     return [
       self.test_root,
-      os.path.join(self.suite.root, *TEST_262_LOCAL_TESTS_PATH),
+      self.suite.root / TEST_262_LOCAL_TESTS_PATH,
     ]
 
   @property
@@ -131,18 +131,17 @@ class TestSuite(testsuite.TestSuite):
 
   def __init__(self, ctx, *args, **kwargs):
     super(TestSuite, self).__init__(ctx, *args, **kwargs)
-    self.test_root = os.path.join(self.root, *TEST_262_SUITE_PATH)
+    self.test_root = self.root / TEST_262_SUITE_PATH
     # TODO: this makes the TestLoader mutable, refactor it.
     self._test_loader.test_root = self.test_root
-    self.harnesspath = os.path.join(self.root, *TEST_262_HARNESS_PATH)
-    self.harness = [os.path.join(self.harnesspath, f)
-                    for f in TEST_262_HARNESS_FILES]
-    self.harness += [os.path.join(self.root, "harness-adapt.js")]
-    self.local_test_root = os.path.join(self.root, *TEST_262_LOCAL_TESTS_PATH)
+    self.harnesspath = self.root / TEST_262_HARNESS_PATH
+    self.harness = [self.harnesspath / f for f in TEST_262_HARNESS_FILES]
+    self.harness += [self.root / "harness-adapt.js"]
+    self.local_test_root = self.root / TEST_262_LOCAL_TESTS_PATH
     self.parse_test_record = self._load_parse_test_record()
 
   def _load_parse_test_record(self):
-    root = os.path.join(*TEST_262_TOOLS_ABS_PATH)
+    root = TEST_262_TOOLS_ABS_PATH
     f = None
     try:
       (f, pathname, description) = imp.find_module("parseTestRecord", [root])
@@ -199,20 +198,19 @@ class TestCase(testcase.D8TestCase):
     return 'fail-phase-reverse' in self.procid
 
   def __needs_harness_agent(self):
-    tokens = self.path.split(os.path.sep)
-    return tokens[:2] == ["built-ins", "Atomics"]
+    return self.path.parts[:2] == ("built-ins", "Atomics")
 
   def _get_files_params(self):
     harness_args = []
     if "raw" not in self.test_record.get("flags", []):
       harness_args = list(self.suite.harness)
-    return (harness_args + ([os.path.join(self.suite.root, "harness-agent.js")]
+    return (harness_args + ([self.suite.root / "harness-agent.js"]
                             if self.__needs_harness_agent() else []) +
-            ([os.path.join(self.suite.root, "harness-ishtmldda.js")]
+            ([self.suite.root / "harness-ishtmldda.js"]
              if "IsHTMLDDA" in self.test_record.get("features", []) else []) +
-            ([os.path.join(self.suite.root, "harness-adapt-donotevaluate.js")]
+            ([self.suite.root / "harness-adapt-donotevaluate.js"]
              if self.fail_phase_only and not self._fail_phase_reverse else []) +
-            ([os.path.join(self.suite.root, "harness-done.js")]
+            ([self.suite.root / "harness-done.js"]
              if "async" in self.test_record.get("flags", []) else []) +
             self._get_includes() +
             (["--module"] if "module" in self.test_record else []) +
@@ -232,7 +230,7 @@ class TestCase(testcase.D8TestCase):
            )
 
   def _get_includes(self):
-    return [os.path.join(self._base_path(filename), filename)
+    return [self._base_path(filename) / filename
             for filename in self.test_record.get("includes", [])]
 
   def _base_path(self, filename):
@@ -242,11 +240,10 @@ class TestCase(testcase.D8TestCase):
       return self.suite.harnesspath
 
   def _get_source_path(self):
-    filename = self.path + self._get_suffix()
-    path = os.path.join(self.suite.local_test_root, filename)
-    if os.path.exists(path):
+    path = self.suite.local_test_root / self.path_js
+    if path.exists():
       return path
-    return os.path.join(self.suite.test_root, filename)
+    return self.suite.test_root / self.path_js
 
   @property
   def output_proc(self):

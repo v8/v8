@@ -18,14 +18,15 @@ with different test suite extensions and build configurations.
 # TODO(majeski): Add some tests for the fuzzers.
 
 from collections import deque
-import os
+from pathlib import Path
+
 import sys
 import unittest
-from os.path import dirname as up
 from mock import patch
 
-TOOLS_ROOT = up(up(os.path.abspath(__file__)))
-sys.path.append(TOOLS_ROOT)
+TOOLS_ROOT = Path(__file__).resolve().parent.parent
+sys.path.append(str(TOOLS_ROOT))
+
 from testrunner import standard_runner
 from testrunner import num_fuzzer
 from testrunner.testproc import base
@@ -129,7 +130,7 @@ class StandardRunnerTest(TestRunnerTest):
     result = self.run_tests('--gn', baseroot="testroot5", outdir='out.gn')
     result.stdout_includes('>>> Latest GN build found: build')
     result.stdout_includes('Build found: ')
-    result.stdout_includes('v8_test_/out.gn/build')
+    result.stdout_includes('_v8_test/out.gn/build')
     result.has_returncode(2)
 
   def testMalformedJsonConfig(self):
@@ -598,7 +599,7 @@ class OtherTest(TestRunnerTest):
     with temp_base() as basedir:
       from testrunner.local import statusfile
       self.assertTrue(statusfile.PresubmitCheck(
-          os.path.join(basedir, 'test', 'sweet', 'sweet.status')))
+          basedir / 'test' / 'sweet' / 'sweet.status'))
 
 
 if __name__ == '__main__':
