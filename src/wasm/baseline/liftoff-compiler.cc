@@ -2589,8 +2589,7 @@ class LiftoffCompiler {
       int field_offset =
           wasm::ObjectAccess::ElementOffsetInTaggedFixedAddressArray(
               global->index);
-      __ Load(LiftoffRegister(addr), addr, no_reg, field_offset,
-              kPointerLoadType);
+      __ LoadFullPointer(addr, addr, field_offset);
       *offset = 0;
     } else {
       LOAD_INSTANCE_FIELD(addr, GlobalsStart, kSystemPointerSize, *pinned);
@@ -3149,8 +3148,7 @@ class LiftoffCompiler {
                                      pinned);
       int buffer_offset = wasm::ObjectAccess::ToTagged(ByteArray::kHeaderSize) +
                           kSystemPointerSize * (memory->index * 2 + 1);
-      __ Load(mem_size, mem_size.gp(), no_reg, buffer_offset, kPointerLoadType,
-              nullptr, false, false, true);
+      __ LoadFullPointer(mem_size.gp(), mem_size.gp(), buffer_offset);
     }
 
     __ LoadConstant(end_offset_reg, WasmValue::ForUintPtr(end_offset));
@@ -3318,8 +3316,7 @@ class LiftoffCompiler {
       LOAD_TAGGED_PTR_INSTANCE_FIELD(memory_start, MemoryBasesAndSizes, pinned);
       int buffer_offset = wasm::ObjectAccess::ToTagged(ByteArray::kHeaderSize) +
                           kSystemPointerSize * memory_index * 2;
-      __ Load(LiftoffRegister{memory_start}, memory_start, no_reg,
-              buffer_offset, kPointerLoadType);
+      __ LoadFullPointer(memory_start, memory_start, buffer_offset);
     }
 #ifdef V8_ENABLE_SANDBOX
     __ DecodeSandboxedPointer(memory_start);
@@ -7662,10 +7659,10 @@ class LiftoffCompiler {
       Register imported_targets = tmp;
       LOAD_TAGGED_PTR_INSTANCE_FIELD(imported_targets, ImportedFunctionTargets,
                                      pinned);
-      __ Load(
-          LiftoffRegister(target), imported_targets, no_reg,
-          wasm::ObjectAccess::ElementOffsetInTaggedFixedAddressArray(imm.index),
-          kPointerLoadType);
+      __ LoadFullPointer(
+          target, imported_targets,
+          wasm::ObjectAccess::ElementOffsetInTaggedFixedAddressArray(
+              imm.index));
 
       Register imported_function_refs = tmp;
       LOAD_TAGGED_PTR_INSTANCE_FIELD(imported_function_refs,
@@ -8021,10 +8018,9 @@ class LiftoffCompiler {
                              WasmInternalFunction::kCallTargetOffset,
                              kWasmInternalFunctionCallTargetTag, temp.gp());
 #else
-      __ Load(
-          target, func_ref.gp(), no_reg,
-          wasm::ObjectAccess::ToTagged(WasmInternalFunction::kCallTargetOffset),
-          kPointerLoadType);
+      __ LoadFullPointer(target.gp(), func_ref.gp(),
+                         wasm::ObjectAccess::ToTagged(
+                             WasmInternalFunction::kCallTargetOffset));
 #endif
 
       FREEZE_STATE(frozen);
