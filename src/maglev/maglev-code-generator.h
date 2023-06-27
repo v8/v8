@@ -39,9 +39,10 @@ class MaglevCodeGenerator final {
   void EmitExceptionHandlerTrampolines();
   void EmitMetadata();
   void RecordInlinedFunctions();
-  void GenerateDeoptimizationData(LocalIsolate* local_isolate);
 
-  MaybeHandle<Code> BuildCodeObject(Isolate* isolate);
+  Handle<DeoptimizationData> GenerateDeoptimizationData(
+      LocalIsolate* local_isolate);
+  MaybeHandle<Code> BuildCodeObject(LocalIsolate* local_isolate);
 
   int stack_slot_count() const { return code_gen_state_.stack_slots(); }
   int stack_slot_count_with_fixed_frame() const {
@@ -65,6 +66,7 @@ class MaglevCodeGenerator final {
   bool code_gen_failed_ = false;
 
   Handle<DeoptimizationData> deopt_data_;
+  MaybeHandle<Code> code_;
 };
 
 }  // namespace maglev

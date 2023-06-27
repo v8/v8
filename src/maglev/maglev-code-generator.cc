@@ -20,6 +20,7 @@
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/deoptimizer/translation-array.h"
 #include "src/execution/frame-constants.h"
+#include "src/flags/flags.h"
 #include "src/interpreter/bytecode-register.h"
 #include "src/maglev/maglev-assembler-inl.h"
 #include "src/maglev/maglev-code-gen-state.h"
@@ -31,6 +32,7 @@
 #include "src/maglev/maglev-ir.h"
 #include "src/maglev/maglev-regalloc-data.h"
 #include "src/objects/code-inl.h"
+#include "src/objects/deoptimization-data.h"
 #include "src/utils/identity-map.h"
 
 namespace v8 {
@@ -1443,13 +1445,27 @@ void MaglevCodeGenerator::Assemble() {
   }
 #endif
   EmitMetadata();
-  if (v8_flags.maglev_deopt_data_on_background) {
-    GenerateDeoptimizationData(local_isolate_);
+  if (v8_flags.maglev_build_code_on_background) {
+    code_ = local_isolate_->heap()->NewPersistentMaybeHandle(
+        BuildCodeObject(local_isolate_));
+  } else if (v8_flags.maglev_deopt_data_on_background) {
+    // Only do this if not --maglev-build-code-on-background, since that will do
+    // it itself.
+    deopt_data_ = local_isolate_->heap()->NewPersistentHandle(
+        GenerateDeoptimizationData(local_isolate_));
   }
 }
 
 MaybeHandle<Code> MaglevCodeGenerator::Generate(Isolate* isolate) {
-  return BuildCodeObject(isolate);
+  if (v8_flags.maglev_build_code_on_background) {
+    Handle<Code> code;
+    if (code_.ToHandle(&code)) {
+      return handle(*code, isolate);
+    }
+    return kNullMaybeHandle;
+  }
+
+  return BuildCodeObject(isolate->main_thread_local_isolate());
 }
 
 void MaglevCodeGenerator::EmitCode() {
@@ -1602,44 +1618,35 @@ void MaglevCodeGenerator::EmitMetadata() {
   }
 }
 
-MaybeHandle<Code> MaglevCodeGenerator::BuildCodeObject(Isolate* isolate) {
+MaybeHandle<Code> MaglevCodeGenerator::BuildCodeObject(
+    LocalIsolate* local_isolate) {
   if (code_gen_failed_) return {};
 
+  Handle<DeoptimizationData> deopt_data =
+      (v8_flags.maglev_deopt_data_on_background &&
+       !v8_flags.maglev_build_code_on_background)
+          ? deopt_data_
+          : GenerateDeoptimizationData(local_isolate);
+  CHECK(!deopt_data->is_null());
+
   CodeDesc desc;
-  masm()->GetCode(isolate->main_thread_local_isolate(), &desc,
-                  &safepoint_table_builder_, handler_table_offset_);
-  if (!v8_flags.maglev_deopt_data_on_background) {
-    GenerateDeoptimizationData(isolate->main_thread_local_isolate());
-  }
-  DCHECK(!deopt_data_->is_null());
-  return Factory::CodeBuilder{isolate, desc, CodeKind::MAGLEV}
+  masm()->GetCode(local_isolate, &desc, &safepoint_table_builder_,
+                  handler_table_offset_);
+  return Factory::CodeBuilder{local_isolate, desc, CodeKind::MAGLEV}
       .set_stack_slots(stack_slot_count_with_fixed_frame())
-      .set_deoptimization_data(deopt_data_)
+      .set_deoptimization_data(deopt_data)
       .set_osr_offset(code_gen_state_.compilation_info()->toplevel_osr_offset())
       .TryBuild();
 }
 
-namespace {
-template <typename T>
-Handle<T> NewPersistentHandleIfNeeded(LocalIsolate* local_isolate,
-                                      Handle<T> object) {
-  if (v8_flags.maglev_deopt_data_on_background) {
-    return local_isolate->heap()->NewPersistentHandle(object);
-  }
-  return object;
-}
-}  // namespace
-
-void MaglevCodeGenerator::GenerateDeoptimizationData(
+Handle<DeoptimizationData> MaglevCodeGenerator::GenerateDeoptimizationData(
     LocalIsolate* local_isolate) {
   int eager_deopt_count =
       static_cast<int>(code_gen_state_.eager_deopts().size());
   int lazy_deopt_count = static_cast<int>(code_gen_state_.lazy_deopts().size());
   int deopt_count = lazy_deopt_count + eager_deopt_count;
   if (deopt_count == 0 && !graph_->is_osr()) {
-    deopt_data_ = NewPersistentHandleIfNeeded(
-        local_isolate, DeoptimizationData::Empty(local_isolate));
-    return;
+    return DeoptimizationData::Empty(local_isolate);
   }
   Handle<DeoptimizationData> data =
       DeoptimizationData::New(local_isolate, deopt_count, AllocationType::kOld);
@@ -1731,7 +1738,7 @@ void MaglevCodeGenerator::GenerateDeoptimizationData(
     i++;
   }
 
-  deopt_data_ = NewPersistentHandleIfNeeded(local_isolate, data);
+  return data;
 }
 
 }  // namespace maglev
