@@ -52,7 +52,7 @@ vars = {
   'fuchsia_sdk_cipd_prefix': 'fuchsia/sdk/core/',
 
   # reclient CIPD package version
-  'reclient_version': 're_client_version:0.108.0.7cdbbe9-gomaip',
+  'reclient_version': 're_client_version:0.109.0.927890d-gomaip',
 
   # GN CIPD package version.
   'gn_version': 'git_revision:4bd1a77e67958fb7f6739bd4542641646f264e5d',
@@ -107,7 +107,7 @@ deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '147f65333c38ddd1ebf554e89965c243c8ce50b3',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '16a795710d2a418449324bd9ed28794cd83f150c',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'ea2f05b20a816bfa3b2ac76d259309c5ec1b2a7e',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + 'f6265e9bc3f326f5a2e22f184f749fb41e1b77ed',
   'buildtools/linux64': {
@@ -215,7 +215,7 @@ deps = {
     'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + 'ef42517ac11a3808ffe2581a2380a64286836e15',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '1a0894f20f76f23a74868611da8f2a7950b50f57',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
@@ -229,7 +229,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '90fed308660fd53ac4247b7242f280b01731b1c7',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'c5305b39f473d64ddcb313a22584e22666b1da3b',
   'third_party/fuchsia-gn-sdk': {
     'url': Var('chromium_url') + '/chromium/src/third_party/fuchsia-gn-sdk.git' + '@' + '0d6902558d92fe3d49ba9a8f638ddea829be595b',
     'condition': 'checkout_fuchsia',
