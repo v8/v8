@@ -1603,8 +1603,8 @@ MaybeHandle<Code> MaglevCodeGenerator::BuildCodeObject(Isolate* isolate) {
   if (code_gen_failed_) return {};
 
   CodeDesc desc;
-  masm()->GetCode(isolate, &desc, &safepoint_table_builder_,
-                  handler_table_offset_);
+  masm()->GetCode(isolate->main_thread_local_isolate(), &desc,
+                  &safepoint_table_builder_, handler_table_offset_);
   if (!v8_flags.maglev_deopt_data_on_background) {
     GenerateDeoptimizationData(isolate->main_thread_local_isolate());
   }

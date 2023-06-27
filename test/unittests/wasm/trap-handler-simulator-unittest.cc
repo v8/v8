@@ -121,7 +121,7 @@ TEST_F(SimulatorTrapHandlerTest, ProbeMemoryWithLandingPad) {
   masm.Ret();
 
   CodeDesc desc;
-  masm.GetCode(nullptr, &desc);
+  masm.GetCode(static_cast<LocalIsolate*>(nullptr), &desc);
 
   constexpr bool kUseDefaultHandler = true;
   CHECK(v8::V8::EnableWebAssemblyTrapHandler(kUseDefaultHandler));

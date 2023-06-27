@@ -48,7 +48,7 @@ namespace baseline {
 
 #define __ masm_->
 
-void BaselineAssembler::GetCode(Isolate* isolate, CodeDesc* desc) {
+void BaselineAssembler::GetCode(LocalIsolate* isolate, CodeDesc* desc) {
   __ GetCode(isolate, desc);
 }
 int BaselineAssembler::pc_offset() const { return __ pc_offset(); }

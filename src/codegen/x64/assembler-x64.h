@@ -495,12 +495,14 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   static constexpr int kNoHandlerTable = 0;
   static constexpr SafepointTableBuilderBase* kNoSafepointTable = nullptr;
 
-  void GetCode(Isolate* isolate, CodeDesc* desc,
+  void GetCode(LocalIsolate* isolate, CodeDesc* desc,
                SafepointTableBuilderBase* safepoint_table_builder,
                int handler_table_offset);
 
+  // Convenience wrapper for allocating with an Isolate.
+  void GetCode(Isolate* isolate, CodeDesc* desc);
   // Convenience wrapper for code without safepoint or handler tables.
-  void GetCode(Isolate* isolate, CodeDesc* desc) {
+  void GetCode(LocalIsolate* isolate, CodeDesc* desc) {
     GetCode(isolate, desc, kNoSafepointTable, kNoHandlerTable);
   }
 
@@ -2700,12 +2702,12 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   bool is_optimizable_farjmp(int idx);
 
-  void AllocateAndInstallRequestedHeapNumbers(Isolate* isolate);
+  void AllocateAndInstallRequestedHeapNumbers(LocalIsolate* isolate);
 
   int WriteCodeComments();
 
-  void GetCode(Isolate* isolate, CodeDesc* desc, int safepoint_table_offset,
-               int handler_table_offset);
+  void GetCode(LocalIsolate* isolate, CodeDesc* desc,
+               int safepoint_table_offset, int handler_table_offset);
 
   friend class EnsureSpace;
   friend class RegExpMacroAssemblerX64;

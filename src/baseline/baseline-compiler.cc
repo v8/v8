@@ -339,7 +339,7 @@ void BaselineCompiler::GenerateCode() {
 
 MaybeHandle<Code> BaselineCompiler::Build(LocalIsolate* local_isolate) {
   CodeDesc desc;
-  __ GetCode(local_isolate->GetMainThreadIsolateUnsafe(), &desc);
+  __ GetCode(local_isolate, &desc);
 
   // Allocate the bytecode offset table.
   Handle<ByteArray> bytecode_offset_table =

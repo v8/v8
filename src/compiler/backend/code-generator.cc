@@ -491,7 +491,8 @@ MaybeHandle<Code> CodeGenerator::FinalizeCode() {
 
   // Allocate and install the code.
   CodeDesc desc;
-  masm()->GetCode(isolate(), &desc, safepoints(), handler_table_offset_);
+  masm()->GetCode(isolate()->main_thread_local_isolate(), &desc, safepoints(),
+                  handler_table_offset_);
 
 #if defined(V8_OS_WIN64)
   if (Builtins::IsBuiltinId(info_->builtin())) {
