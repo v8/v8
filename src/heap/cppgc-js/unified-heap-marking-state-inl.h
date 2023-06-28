@@ -48,12 +48,20 @@ void UnifiedHeapMarkingState::MarkAndPush(
   }
   HeapObject heap_object = HeapObject::cast(object);
   if (heap_object.InReadOnlySpace()) return;
+  if (!ShouldMarkObject(heap_object)) return;
   if (marking_state_->TryMark(heap_object)) {
     local_marking_worklist_->Push(heap_object);
   }
   if (V8_UNLIKELY(track_retaining_path_)) {
     heap_->AddRetainingRoot(Root::kWrapperTracing, heap_object);
   }
+}
+
+bool UnifiedHeapMarkingState::ShouldMarkObject(HeapObject object) const {
+  // Keep up-to-date with MarkCompactCollector::ShouldMarkObject.
+  if (V8_LIKELY(!has_shared_space_)) return true;
+  if (is_shared_space_isolate_) return true;
+  return !object.InAnySharedSpace();
 }
 
 }  // namespace internal

@@ -377,6 +377,7 @@ void ConcurrentMarking::RunMajor(JobDelegate* delegate,
           break;
         }
         DCHECK(!object.InReadOnlySpace());
+        DCHECK_EQ(GetIsolateFromWritableObject(object), isolate);
         objects_processed++;
 
         Address new_space_top = kNullAddress;
