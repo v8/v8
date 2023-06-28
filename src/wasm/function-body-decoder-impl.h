@@ -4387,6 +4387,12 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     return TypeCheckAlwaysSucceeds(obj, HeapType(ref_index));
   }
 
+#define GC_DEPRECATED                                             \
+  if (v8_flags.wasm_disable_deprecated) {                         \
+    this->DecodeError("opcode %s is a deprecated gc instruction", \
+                      this->SafeOpcodeNameAt(this->pc()));        \
+  }
+
 #define NON_CONST_ONLY                                                    \
   if constexpr (decoding_mode == kConstantExpression) {                   \
     this->DecodeError("opcode %s is not allowed in constant expressions", \
@@ -4927,6 +4933,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         return opcode_length;
       }
       case kExprRefTestDeprecated: {
+        GC_DEPRECATED
         NON_CONST_ONLY
         IndexImmediate imm(this, this->pc_ + opcode_length, "type index",
                            validate);
@@ -4998,6 +5005,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         return opcode_length;
       }
       case kExprRefCastDeprecated: {
+        GC_DEPRECATED
         NON_CONST_ONLY
         IndexImmediate imm(this, this->pc_ + opcode_length, "type index",
                            validate);
@@ -5055,6 +5063,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       }
       case kExprBrOnCast:
       case kExprBrOnCastNull: {
+        GC_DEPRECATED
         NON_CONST_ONLY
         BrOnCastFlags flags;
         flags.src_is_null = Peek().type.is_nullable();
@@ -5062,6 +5071,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         return ParseBrOnCast(opcode, opcode_length, flags);
       }
       case kExprBrOnCastDeprecated: {
+        GC_DEPRECATED
         NON_CONST_ONLY
         BranchDepthImmediate branch_depth(this, this->pc_ + opcode_length,
                                           validate);
@@ -5121,6 +5131,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       }
       case kExprBrOnCastFail:
       case kExprBrOnCastFailNull: {
+        GC_DEPRECATED
         NON_CONST_ONLY
         BrOnCastFlags flags(0);
         flags.src_is_null = Peek().type.is_nullable();
@@ -5128,6 +5139,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         return ParseBrOnCastFail(opcode, opcode_length, flags);
       }
       case kExprBrOnCastFailDeprecated: {
+        GC_DEPRECATED
         NON_CONST_ONLY
         BranchDepthImmediate branch_depth(this, this->pc_ + opcode_length,
                                           validate);
@@ -5191,6 +5203,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       }
 #define ABSTRACT_TYPE_CHECK(h_type)                                            \
   case kExprRefIs##h_type: {                                                   \
+    GC_DEPRECATED                                                              \
     NON_CONST_ONLY                                                             \
     Value arg = Pop(kWasmAnyRef);                                              \
     if (!VALIDATE(this->ok())) return 0;                                       \
@@ -5223,6 +5236,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
 
 #define ABSTRACT_TYPE_CAST(h_type)                                             \
   case kExprRefAs##h_type: {                                                   \
+    GC_DEPRECATED                                                              \
     NON_CONST_ONLY                                                             \
     Value arg = Pop(kWasmAnyRef);                                              \
     ValueType non_nullable_abstract_type =                                     \
@@ -5256,6 +5270,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       case kExprBrOnStruct:
       case kExprBrOnArray:
       case kExprBrOnI31: {
+        GC_DEPRECATED
         NON_CONST_ONLY
         BranchDepthImmediate branch_depth(this, this->pc_ + opcode_length,
                                           validate);
@@ -5300,6 +5315,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       case kExprBrOnNonStruct:
       case kExprBrOnNonArray:
       case kExprBrOnNonI31: {
+        GC_DEPRECATED
         NON_CONST_ONLY
         BranchDepthImmediate branch_depth(this, this->pc_ + opcode_length,
                                           validate);
@@ -5474,6 +5490,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     } else if (current_code_reachable_and_ok_ && null_succeeds) {
       // TODO(mliedtke): This is only needed for the deprecated br_on_cast
       // instructions and can be removed with them.
+      DCHECK(!v8_flags.wasm_disable_deprecated);
       stack_value(1)->type = obj.type.AsNonNull();
       CALL_INTERFACE(Forward, obj, stack_value(1));
     }
@@ -5554,7 +5571,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     } else if (null_succeeds) {
       // TODO(mliedtke): This is only needed for the legacy br_on_cast_fail.
       // Remove it on cleanup.
-
+      DCHECK(!v8_flags.wasm_disable_deprecated);
       // If null is treated as a successful cast, then the branch type is
       // guaranteed to be non-null.
       Drop(obj);

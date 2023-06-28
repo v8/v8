@@ -1350,6 +1350,11 @@ DEFINE_BOOL(trace_wasm_inlining, false, "trace wasm inlining")
 DEFINE_BOOL(trace_wasm_typer, false, "trace wasm typer")
 DEFINE_BOOL(wasm_final_types, false,
             "enable final types as default for wasm-gc")
+// Disable GC proposal prototype instructions that are not part of the prototype
+// spec any more but are kept in V8 until the final op-code reshuffling.
+DEFINE_BOOL(wasm_disable_deprecated, false,
+            "disable deprecated gc instructions")
+
 DEFINE_WEAK_IMPLICATION(experimental_wasm_gc, experimental_wasm_inlining)
 // Stage wasm inlining in --future.
 DEFINE_WEAK_IMPLICATION(future, experimental_wasm_inlining)
