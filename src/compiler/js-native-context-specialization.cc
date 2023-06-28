@@ -3055,6 +3055,16 @@ JSNativeContextSpecialization::BuildPropertyStore(
       // with this transitioning store.
       MapRef transition_map_ref = transition_map.value();
       MapRef original_map = transition_map_ref.GetBackPointer(broker()).AsMap();
+      if (!field_index.is_inobject()) {
+        // If slack tracking ends after this compilation started but before it's
+        // finished, then we could {original_map} could be out-of-sync with
+        // {transition_map_ref}. In particular, its UnusedPropertyFields could
+        // be non-zero, which would lead us to not extend the property backing
+        // store, while the underlying Map has actually zero
+        // UnusedPropertyFields. Thus, we install a dependency on {orininal_map}
+        // now, so that if such a situation happens, we'll throw away the code.
+        dependencies()->DependOnNoSlackTrackingChange(original_map);
+      }
       if (original_map.UnusedPropertyFields() == 0) {
         DCHECK(!field_index.is_inobject());
 
@@ -3895,8 +3905,7 @@ Node* JSNativeContextSpecialization::BuildExtendPropertiesBackingStore(
   // difficult for escape analysis to get rid of the backing stores used
   // for intermediate states of chains of property additions. That makes
   // it unclear what the best approach is here.
-  DCHECK_EQ(0, map.UnusedPropertyFields());
-  // Compute the length of the old {properties} and the new properties.
+  DCHECK_EQ(map.UnusedPropertyFields(), 0);
   int length = map.NextFreePropertyIndex() - map.GetInObjectProperties();
   int new_length = length + JSObject::kFieldsAdded;
   // Collect the field values from the {properties}.
