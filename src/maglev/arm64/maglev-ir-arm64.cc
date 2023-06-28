@@ -151,33 +151,6 @@ void FoldedAllocation::GenerateCode(MaglevAssembler* masm,
   __ Add(ToRegister(result()), ToRegister(raw_allocation()), offset());
 }
 
-void CheckNumber::SetValueLocationConstraints() {
-  UseRegister(receiver_input());
-}
-void CheckNumber::GenerateCode(MaglevAssembler* masm,
-                               const ProcessingState& state) {
-  Label done;
-  MaglevAssembler::ScratchRegisterScope temps(masm);
-  Register scratch = temps.Acquire();
-  Register value = ToRegister(receiver_input());
-  // If {value} is a Smi or a HeapNumber, we're done.
-  __ JumpIfSmi(value, &done);
-  if (mode() == Object::Conversion::kToNumeric) {
-    __ LoadMap(scratch, value);
-    __ CompareRoot(scratch.W(), RootIndex::kHeapNumberMap);
-    // Jump to done if it is a HeapNumber.
-    __ B(&done, eq);
-    // Check if it is a BigInt.
-    __ Ldrh(scratch.W(), FieldMemOperand(scratch, Map::kInstanceTypeOffset));
-    __ Cmp(scratch, Immediate(BIGINT_TYPE));
-  } else {
-    __ Ldr(scratch.W(), FieldMemOperand(value, HeapObject::kMapOffset));
-    __ CompareRoot(scratch, RootIndex::kHeapNumberMap);
-  }
-  __ EmitEagerDeoptIf(ne, DeoptimizeReason::kNotANumber, this);
-  __ Bind(&done);
-}
-
 int CheckedObjectToIndex::MaxCallStackArgs() const { return 0; }
 
 void Int32AddWithOverflow::SetValueLocationConstraints() {
@@ -664,59 +637,6 @@ void CheckJSDataViewBounds::GenerateCode(MaglevAssembler* masm,
   }
   __ Cmp(index, byte_length);
   __ EmitEagerDeoptIf(hs, DeoptimizeReason::kOutOfBounds, this);
-}
-
-void CheckedInternalizedString::SetValueLocationConstraints() {
-  UseRegister(object_input());
-  DefineSameAsFirst(this);
-  set_temporaries_needed(1);
-}
-void CheckedInternalizedString::GenerateCode(MaglevAssembler* masm,
-                                             const ProcessingState& state) {
-  MaglevAssembler::ScratchRegisterScope temps(masm);
-  Register scratch = temps.Acquire();
-  Register object = ToRegister(object_input());
-
-  if (check_type() == CheckType::kOmitHeapObjectCheck) {
-    __ AssertNotSmi(object);
-  } else {
-    Condition is_smi = __ CheckSmi(object);
-    __ EmitEagerDeoptIf(is_smi, DeoptimizeReason::kWrongMap, this);
-  }
-
-  __ LoadMap(scratch, object);
-  __ RecordComment("Test IsInternalizedString");
-  // Go to the slow path if this is a non-string, or a non-internalised string.
-  __ Ldrh(scratch.W(), FieldMemOperand(scratch, Map::kInstanceTypeOffset));
-  __ Tst(scratch.W(), Immediate(kIsNotStringMask | kIsNotInternalizedMask));
-  static_assert((kStringTag | kInternalizedTag) == 0);
-  ZoneLabelRef done(masm);
-  __ JumpToDeferredIf(
-      ne,
-      [](MaglevAssembler* masm, ZoneLabelRef done, Register object,
-         CheckedInternalizedString* node, EagerDeoptInfo* deopt_info,
-         Register instance_type) {
-        __ RecordComment("Deferred Test IsThinString");
-        // Deopt if this isn't a thin string.
-        __ Cmp(instance_type.W(), Immediate(THIN_STRING_TYPE));
-        __ EmitEagerDeoptIf(ne, DeoptimizeReason::kWrongMap, node);
-        __ LoadTaggedField(object,
-                           FieldMemOperand(object, ThinString::kActualOffset));
-        if (v8_flags.debug_code) {
-          __ RecordComment("DCHECK IsInternalizedString");
-          Register scratch = instance_type;
-          __ LoadMap(scratch, object);
-          __ Ldrh(scratch.W(),
-                  FieldMemOperand(scratch, Map::kInstanceTypeOffset));
-          __ Tst(scratch.W(),
-                 Immediate(kIsNotStringMask | kIsNotInternalizedMask));
-          static_assert((kStringTag | kInternalizedTag) == 0);
-          __ Check(eq, AbortReason::kUnexpectedValue);
-        }
-        __ jmp(*done);
-      },
-      done, object, this, eager_deopt_info(), scratch);
-  __ Bind(*done);
 }
 
 void HoleyFloat64ToMaybeNanFloat64::SetValueLocationConstraints() {

@@ -152,14 +152,6 @@ void FoldedAllocation::GenerateCode(MaglevAssembler* masm,
   __ add(ToRegister(result()), ToRegister(raw_allocation()), Operand(offset()));
 }
 
-void CheckNumber::SetValueLocationConstraints() {
-  UseRegister(receiver_input());
-}
-void CheckNumber::GenerateCode(MaglevAssembler* masm,
-                               const ProcessingState& state) {
-  MAGLEV_NODE_NOT_IMPLEMENTED(CheckNumber);
-}
-
 int CheckedObjectToIndex::MaxCallStackArgs() const { return 0; }
 
 void Int32AddWithOverflow::SetValueLocationConstraints() {
@@ -694,16 +686,6 @@ void CheckJSDataViewBounds::GenerateCode(MaglevAssembler* masm,
                                          const ProcessingState& state) {
   USE(element_type_);
   MAGLEV_NODE_NOT_IMPLEMENTED(CheckJSDataViewBounds);
-}
-
-void CheckedInternalizedString::SetValueLocationConstraints() {
-  UseRegister(object_input());
-  DefineSameAsFirst(this);
-  set_temporaries_needed(1);
-}
-void CheckedInternalizedString::GenerateCode(MaglevAssembler* masm,
-                                             const ProcessingState& state) {
-  MAGLEV_NODE_NOT_IMPLEMENTED(CheckedInternalizedString);
 }
 
 void HoleyFloat64ToMaybeNanFloat64::SetValueLocationConstraints() {

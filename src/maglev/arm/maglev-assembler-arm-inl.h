@@ -608,6 +608,12 @@ inline Condition MaglevAssembler::IsNotCallableNorUndetactable(
   return kEqual;
 }
 
+inline void MaglevAssembler::LoadInstanceType(Register instance_type,
+                                              Register heap_object) {
+  LoadMap(instance_type, heap_object);
+  ldrh(instance_type, FieldMemOperand(instance_type, Map::kInstanceTypeOffset));
+}
+
 inline void MaglevAssembler::IsObjectType(Register heap_object,
                                           InstanceType type) {
   ScratchRegisterScope temps(this);

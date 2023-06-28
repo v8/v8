@@ -4158,6 +4158,80 @@ void Float64ToUint8Clamped::GenerateCode(MaglevAssembler* masm,
   __ bind(&done);
 }
 
+void CheckNumber::SetValueLocationConstraints() {
+  UseRegister(receiver_input());
+}
+void CheckNumber::GenerateCode(MaglevAssembler* masm,
+                               const ProcessingState& state) {
+  Label done;
+  MaglevAssembler::ScratchRegisterScope temps(masm);
+  Register scratch = temps.GetDefaultScratchRegister();
+  Register value = ToRegister(receiver_input());
+  // If {value} is a Smi or a HeapNumber, we're done.
+  __ JumpIfSmi(value, &done, Label::Distance::kNear);
+  if (mode() == Object::Conversion::kToNumeric) {
+    __ LoadMap(scratch, value);
+    __ CompareRoot(scratch, RootIndex::kHeapNumberMap);
+    // Jump to done if it is a HeapNumber.
+    __ JumpIf(kEqual, &done, Label::Distance::kNear);
+    // Check if it is a BigInt.
+    __ CompareRoot(scratch, RootIndex::kBigIntMap);
+  } else {
+    __ CompareMapWithRoot(value, RootIndex::kHeapNumberMap, scratch);
+  }
+  __ EmitEagerDeoptIf(kNotEqual, DeoptimizeReason::kNotANumber, this);
+  __ bind(&done);
+}
+
+void CheckedInternalizedString::SetValueLocationConstraints() {
+  UseRegister(object_input());
+  DefineSameAsFirst(this);
+}
+void CheckedInternalizedString::GenerateCode(MaglevAssembler* masm,
+                                             const ProcessingState& state) {
+  Register object = ToRegister(object_input());
+  MaglevAssembler::ScratchRegisterScope temps(masm);
+  Register instance_type = temps.GetDefaultScratchRegister();
+  if (check_type() == CheckType::kOmitHeapObjectCheck) {
+    __ AssertNotSmi(object);
+  } else {
+    Condition is_smi = __ CheckSmi(object);
+    __ EmitEagerDeoptIf(is_smi, DeoptimizeReason::kWrongMap, this);
+  }
+  __ LoadInstanceType(instance_type, object);
+  __ RecordComment("Test IsInternalizedString");
+  // Go to the slow path if this is a non-string, or a non-internalised string.
+  static_assert((kStringTag | kInternalizedTag) == 0);
+  ZoneLabelRef done(masm);
+  __ TestInt32AndJumpIfAnySet(
+      instance_type, kIsNotStringMask | kIsNotInternalizedMask,
+      __ MakeDeferredCode(
+          [](MaglevAssembler* masm, ZoneLabelRef done,
+             CheckedInternalizedString* node, Register object,
+             Register instance_type) {
+            __ RecordComment("Deferred Test IsThinString");
+            // Deopt if this isn't a thin string.
+            __ CompareInt32AndJumpIf(
+                instance_type, THIN_STRING_TYPE, kNotEqual,
+                __ GetDeoptLabel(node, DeoptimizeReason::kWrongMap));
+            // Load internalized string from thin string.
+            __ LoadTaggedField(object, object, ThinString::kActualOffset);
+            if (v8_flags.debug_code) {
+              __ RecordComment("DCHECK IsInternalizedString");
+              Label checked;
+              __ LoadInstanceType(instance_type, object);
+              __ TestInt32AndJumpIfAllClear(
+                  instance_type, kIsNotStringMask | kIsNotInternalizedMask,
+                  &checked);
+              __ Abort(AbortReason::kUnexpectedValue);
+              __ bind(&checked);
+            }
+            __ Jump(*done);
+          },
+          done, this, object, instance_type));
+  __ bind(*done);
+}
+
 void CheckedNumberToUint8Clamped::SetValueLocationConstraints() {
   UseRegister(input());
   DefineSameAsFirst(this);
