@@ -299,6 +299,144 @@ TEST_F(LiveRangeUnitTest, SplitManyIntervalUsePositionsAfter) {
   EXPECT_TRUE(RangesMatch(expected_bottom, child));
 }
 
+class DoubleEndedSplitVectorTest : public TestWithZone {};
+
+TEST_F(DoubleEndedSplitVectorTest, PushFront) {
+  DoubleEndedSplitVector<int> vec;
+
+  vec.push_front(zone(), 0);
+  vec.push_front(zone(), 1);
+  EXPECT_EQ(vec.front(), 1);
+  EXPECT_EQ(vec.back(), 0);
+
+  // Subsequent `push_front` should grow the backing allocation super-linearly.
+  vec.push_front(zone(), 2);
+  CHECK_EQ(vec.capacity(), 4);
+
+  // As long as there is remaining capacity, `push_front` should not copy or
+  // reallocate.
+  int* address_of_0 = &vec.back();
+  CHECK_EQ(*address_of_0, 0);
+  vec.push_front(zone(), 3);
+  EXPECT_EQ(address_of_0, &vec.back());
+}
+
+TEST_F(DoubleEndedSplitVectorTest, PopFront) {
+  DoubleEndedSplitVector<int> vec;
+
+  vec.push_front(zone(), 0);
+  vec.push_front(zone(), 1);
+  vec.pop_front();
+  EXPECT_EQ(vec.size(), 1u);
+  EXPECT_EQ(vec.front(), 0);
+}
+
+TEST_F(DoubleEndedSplitVectorTest, Insert) {
+  DoubleEndedSplitVector<int> vec;
+
+  // Inserts with `direction = kFrontOrBack` should not reallocate when
+  // there is space at either the front or back.
+  vec.insert(zone(), vec.end(), 0);
+  vec.insert(zone(), vec.end(), 1);
+  vec.insert(zone(), vec.end(), 2);
+  CHECK_EQ(vec.capacity(), 4);
+
+  size_t memory_before = zone()->allocation_size();
+  vec.insert(zone(), vec.end(), 3);
+  size_t used_memory = zone()->allocation_size() - memory_before;
+  EXPECT_EQ(used_memory, 0u);
+}
+
+TEST_F(DoubleEndedSplitVectorTest, InsertFront) {
+  DoubleEndedSplitVector<int> vec;
+
+  // Inserts with `direction = kFront` should only copy elements to the left
+  // of the insert position, if there is space at the front.
+  vec.insert<kFront>(zone(), vec.begin(), 0);
+  vec.insert<kFront>(zone(), vec.begin(), 1);
+  vec.insert<kFront>(zone(), vec.begin(), 2);
+
+  int* address_of_0 = &vec.back();
+  CHECK_EQ(*address_of_0, 0);
+  vec.insert<kFront>(zone(), vec.begin(), 3);
+  EXPECT_EQ(address_of_0, &vec.back());
+}
+
+TEST_F(DoubleEndedSplitVectorTest, SplitAtBegin) {
+  DoubleEndedSplitVector<int> vec;
+
+  vec.insert(zone(), vec.end(), 0);
+  vec.insert(zone(), vec.end(), 1);
+  vec.insert(zone(), vec.end(), 2);
+
+  DoubleEndedSplitVector<int> all_split_begin = vec.SplitAt(vec.begin());
+  EXPECT_EQ(all_split_begin.size(), 3u);
+  EXPECT_EQ(vec.size(), 0u);
+}
+
+TEST_F(DoubleEndedSplitVectorTest, SplitAtEnd) {
+  DoubleEndedSplitVector<int> vec;
+
+  vec.insert(zone(), vec.end(), 0);
+  vec.insert(zone(), vec.end(), 1);
+  vec.insert(zone(), vec.end(), 2);
+
+  DoubleEndedSplitVector<int> empty_split_end = vec.SplitAt(vec.end());
+  EXPECT_EQ(empty_split_end.size(), 0u);
+  EXPECT_EQ(vec.size(), 3u);
+}
+
+TEST_F(DoubleEndedSplitVectorTest, SplitAtMiddle) {
+  DoubleEndedSplitVector<int> vec;
+
+  vec.insert(zone(), vec.end(), 0);
+  vec.insert(zone(), vec.end(), 1);
+  vec.insert(zone(), vec.end(), 2);
+
+  DoubleEndedSplitVector<int> split_off = vec.SplitAt(vec.begin() + 1);
+  EXPECT_EQ(split_off.size(), 2u);
+  EXPECT_EQ(split_off[0], 1);
+  EXPECT_EQ(split_off[1], 2);
+  EXPECT_EQ(vec.size(), 1u);
+  EXPECT_EQ(vec[0], 0);
+}
+
+TEST_F(DoubleEndedSplitVectorTest, AppendCheap) {
+  DoubleEndedSplitVector<int> vec;
+
+  vec.insert(zone(), vec.end(), 0);
+  vec.insert(zone(), vec.end(), 1);
+  vec.insert(zone(), vec.end(), 2);
+
+  DoubleEndedSplitVector<int> split_off = vec.SplitAt(vec.begin() + 1);
+
+  // `Append`s of just split vectors should not allocate.
+  size_t memory_before = zone()->allocation_size();
+  vec.Append(zone(), split_off);
+  size_t used_memory = zone()->allocation_size() - memory_before;
+  EXPECT_EQ(used_memory, 0u);
+
+  EXPECT_EQ(vec[0], 0);
+  EXPECT_EQ(vec[1], 1);
+  EXPECT_EQ(vec[2], 2);
+}
+
+TEST_F(DoubleEndedSplitVectorTest, AppendGeneralCase) {
+  DoubleEndedSplitVector<int> vec;
+  vec.insert(zone(), vec.end(), 0);
+  vec.insert(zone(), vec.end(), 1);
+
+  DoubleEndedSplitVector<int> other;
+  other.insert(zone(), other.end(), 2);
+
+  // May allocate.
+  vec.Append(zone(), other);
+
+  EXPECT_EQ(vec[0], 0);
+  EXPECT_EQ(vec[1], 1);
+  EXPECT_EQ(vec[2], 2);
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8
