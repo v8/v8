@@ -1264,6 +1264,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Ror(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
     case kRiscvCmp:
+#ifdef V8_TARGET_ARCH_RISCV64
+    case kRiscvCmp32:
+#endif
       // Pseudo-instruction used for cmp/branch. No opcode emitted here.
       break;
     case kRiscvCmpZero:
@@ -2216,6 +2219,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Register result = i.OutputRegister();
       MemOperand operand = i.MemoryOperand();
       __ DecompressTagged(result, operand);
+      break;
+    }
+    case kRiscvLoadDecodeSandboxedPointer:
+      __ LoadSandboxedPointerField(i.OutputRegister(), i.MemoryOperand());
+      break;
+    case kRiscvStoreEncodeSandboxedPointer: {
+      MemOperand mem = i.MemoryOperand(1);
+      __ StoreSandboxedPointerField(i.InputOrZeroRegister(0), mem);
       break;
     }
     case kRiscvAtomicLoadDecompressTaggedSigned:
@@ -3920,9 +3931,29 @@ void AssembleBranchToLabels(CodeGenerator* gen, MacroAssembler* masm,
       default:
         UNSUPPORTED_COND(instr->arch_opcode(), condition);
     }
+#if V8_TARGET_ARCH_RISCV64
+  } else if (instr->arch_opcode() == kRiscvCmp ||
+             instr->arch_opcode() == kRiscvCmp32) {
+#elif V8_TARGET_ARCH_RISCV32
   } else if (instr->arch_opcode() == kRiscvCmp) {
+#endif
     Condition cc = FlagsConditionToConditionCmp(condition);
-    __ Branch(tlabel, cc, i.InputRegister(0), i.InputOperand(1));
+    Register left = i.InputRegister(0);
+    Operand right = i.InputOperand(1);
+    // Word32Compare has two temp registers.
+#if V8_TARGET_ARCH_RISCV64
+    if (COMPRESS_POINTERS_BOOL && (instr->arch_opcode() == kRiscvCmp32)) {
+      Register temp0 = i.TempRegister(0);
+      Register temp1 = right.is_reg() ? i.TempRegister(1) : no_reg;
+      __ slliw(temp0, left, 0);
+      left = temp0;
+      if (temp1 != no_reg) {
+        __ slliw(temp1, right.rm(), 0);
+        right = Operand(temp1);
+      }
+    }
+#endif
+    __ Branch(tlabel, cc, left, right);
   } else if (instr->arch_opcode() == kRiscvCmpZero) {
     Condition cc = FlagsConditionToConditionCmp(condition);
     if (i.InputOrZeroRegister(0) == zero_reg && IsInludeEqual(cc)) {
@@ -4085,13 +4116,30 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
 #endif
     // Overflow occurs if overflow register is not zero
     __ Sgtu(result, kScratchReg, zero_reg);
+#if V8_TARGET_ARCH_RISCV64
+  } else if (instr->arch_opcode() == kRiscvCmp ||
+             instr->arch_opcode() == kRiscvCmp32) {
+#elif V8_TARGET_ARCH_RISCV32
   } else if (instr->arch_opcode() == kRiscvCmp) {
+#endif
     Condition cc = FlagsConditionToConditionCmp(condition);
+    Register left = i.InputRegister(0);
+    Operand right = i.InputOperand(1);
+#if V8_TARGET_ARCH_RISCV64
+    if (COMPRESS_POINTERS_BOOL && (instr->arch_opcode() == kRiscvCmp32)) {
+      Register temp0 = i.TempRegister(0);
+      Register temp1 = right.is_reg() ? i.TempRegister(1) : no_reg;
+      __ slliw(temp0, left, 0);
+      left = temp0;
+      if (temp1 != no_reg) {
+        __ slliw(temp1, right.rm(), 0);
+        right = Operand(temp1);
+      }
+    }
+#endif
     switch (cc) {
       case eq:
       case ne: {
-        Register left = i.InputOrZeroRegister(0);
-        Operand right = i.InputOperand(1);
         if (instr->InputAt(1)->IsImmediate()) {
           if (is_int12(-right.immediate())) {
             if (right.immediate() == 0) {

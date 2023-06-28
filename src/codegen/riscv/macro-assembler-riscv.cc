@@ -336,41 +336,6 @@ void MacroAssembler::RecordWriteField(Register object, int offset,
   bind(&done);
 }
 
-void MacroAssembler::DecodeSandboxedPointer(Register value) {
-  ASM_CODE_COMMENT(this);
-#ifdef V8_ENABLE_SANDBOX
-  srli(value, value, kSandboxedPointerShift);
-  AddWord(value, value, kPtrComprCageBaseRegister);
-#else
-  UNREACHABLE();
-#endif
-}
-
-void MacroAssembler::LoadSandboxedPointerField(
-    Register destination, const MemOperand& field_operand) {
-#ifdef V8_ENABLE_SANDBOX
-  ASM_CODE_COMMENT(this);
-  LoadWord(destination, field_operand);
-  DecodeSandboxedPointer(destination);
-#else
-  UNREACHABLE();
-#endif
-}
-
-void MacroAssembler::StoreSandboxedPointerField(
-    Register value, const MemOperand& dst_field_operand) {
-#ifdef V8_ENABLE_SANDBOX
-  ASM_CODE_COMMENT(this);
-  UseScratchRegisterScope temps(this);
-  Register scratch = temps.Acquire();
-  SubWord(scratch, value, kPtrComprCageBaseRegister);
-  slli(scratch, scratch, kSandboxedPointerShift);
-  StoreWord(scratch, dst_field_operand);
-#else
-  UNREACHABLE();
-#endif
-}
-
 void MacroAssembler::LoadExternalPointerField(Register destination,
                                               MemOperand field_operand,
                                               ExternalPointerTag tag,
@@ -393,7 +358,8 @@ void MacroAssembler::LoadExternalPointerField(Register destination,
   lwu(destination, field_operand);
   srli(destination, destination, kExternalPointerIndexShift);
   slli(destination, destination, kExternalPointerTableEntrySizeLog2);
-  LoadWord(destination, MemOperand(external_table, destination));
+  AddWord(external_table, external_table, destination);
+  LoadWord(destination, MemOperand(external_table, 0));
   And(destination, destination, Operand(~tag));
 #else
   LoadWord(destination, field_operand);
@@ -541,6 +507,41 @@ void MacroAssembler::RecordWrite(Register object, Operand offset,
 // ---------------------------------------------------------------------------
 // Instruction macros.
 #if V8_TARGET_ARCH_RISCV64
+void MacroAssembler::DecodeSandboxedPointer(Register value) {
+  ASM_CODE_COMMENT(this);
+#ifdef V8_ENABLE_SANDBOX
+  srli(value, value, kSandboxedPointerShift);
+  AddWord(value, value, kPtrComprCageBaseRegister);
+#else
+  UNREACHABLE();
+#endif
+}
+
+void MacroAssembler::LoadSandboxedPointerField(
+    Register destination, const MemOperand& field_operand) {
+#ifdef V8_ENABLE_SANDBOX
+  ASM_CODE_COMMENT(this);
+  LoadWord(destination, field_operand);
+  DecodeSandboxedPointer(destination);
+#else
+  UNREACHABLE();
+#endif
+}
+
+void MacroAssembler::StoreSandboxedPointerField(
+    Register value, const MemOperand& dst_field_operand) {
+#ifdef V8_ENABLE_SANDBOX
+  ASM_CODE_COMMENT(this);
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  SubWord(scratch, value, kPtrComprCageBaseRegister);
+  slli(scratch, scratch, kSandboxedPointerShift);
+  StoreWord(scratch, dst_field_operand);
+#else
+  UNREACHABLE();
+#endif
+}
+
 void MacroAssembler::Add32(Register rd, Register rs, const Operand& rt) {
   if (rt.is_reg()) {
     if (v8_flags.riscv_c_extension && (rd.code() == rs.code()) &&
@@ -3990,6 +3991,11 @@ void MacroAssembler::Branch(Label* L, Condition cond, Register rs,
   Register right = temps.Acquire();
   if (COMPRESS_POINTERS_BOOL) {
     Register left = rs;
+    if (V8_STATIC_ROOTS_BOOL && RootsTable::IsReadOnly(index) &&
+        is_int12(ReadOnlyRootPtr(index))) {
+      left = temps.Acquire();
+      Sll32(left, rs, 0);
+    }
     LoadTaggedRoot(right, index);
     Branch(L, cond, left, Operand(right));
   } else {
@@ -6513,6 +6519,11 @@ void MacroAssembler::DecompressTagged(const Register& destination,
   ASM_CODE_COMMENT(this);
   And(destination, source, Operand(0xFFFFFFFF));
   AddWord(destination, kPtrComprCageBaseRegister, Operand(destination));
+}
+
+void MacroAssembler::DecompressTagged(Register dst, Tagged_t immediate) {
+  ASM_CODE_COMMENT(this);
+  AddWord(dst, kPtrComprCageBaseRegister, static_cast<int32_t>(immediate));
 }
 
 void MacroAssembler::AtomicDecompressTaggedSigned(Register dst,

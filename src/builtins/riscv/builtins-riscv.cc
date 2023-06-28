@@ -2880,7 +2880,11 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
     ExternalReference pending_exception_address = ExternalReference::Create(
         IsolateAddressId::kPendingExceptionAddress, masm->isolate());
     __ li(a2, pending_exception_address);
+#ifndef V8_ENABLE_SANDBOX
     __ LoadWord(a2, MemOperand(a2));
+#else
+    __ Lwu(a2, MemOperand(a2));
+#endif
     // Cannot use check here as it attempts to generate call into runtime.
     __ Branch(&okay, eq, a2, RootIndex::kTheHoleValue);
     __ stop();
@@ -3600,9 +3604,11 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   // property_callback_info_arg = v8::PropertyCallbackInfo&
   __ AddWord(property_callback_info_arg, sp, Operand(1 * kSystemPointerSize));
 
-  __ LoadWord(
+  __ RecordComment("Load api_function_address");
+  __ LoadExternalPointerField(
       api_function_address,
-      FieldMemOperand(callback, AccessorInfo::kMaybeRedirectedGetterOffset));
+      FieldMemOperand(callback, AccessorInfo::kMaybeRedirectedGetterOffset),
+      kAccessorInfoGetterTag);
 
   DCHECK(
       !AreAliased(api_function_address, property_callback_info_arg, name_arg));

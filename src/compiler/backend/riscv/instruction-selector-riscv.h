@@ -342,6 +342,22 @@ static void VisitCompare(InstructionSelectorT<Adapter>* selector,
                          InstructionCode opcode, InstructionOperand left,
                          InstructionOperand right,
                          FlagsContinuationT<Adapter>* cont) {
+#ifdef V8_COMPRESS_POINTERS
+  if (opcode == kRiscvCmp32) {
+    RiscvOperandGeneratorT<Adapter> g(selector);
+    InstructionOperand inputs[] = {left, right};
+    if (right.IsImmediate()) {
+      InstructionOperand temps[1] = {g.TempRegister()};
+      selector->EmitWithContinuation(opcode, 0, nullptr, arraysize(inputs),
+                                     inputs, arraysize(temps), temps, cont);
+    } else {
+      InstructionOperand temps[2] = {g.TempRegister(), g.TempRegister()};
+      selector->EmitWithContinuation(opcode, 0, nullptr, arraysize(inputs),
+                                     inputs, arraysize(temps), temps, cont);
+    }
+    return;
+  }
+#endif
   selector->EmitWithContinuation(opcode, left, right, cont);
 }
 

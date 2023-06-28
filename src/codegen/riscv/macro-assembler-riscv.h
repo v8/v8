@@ -1122,6 +1122,18 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void DecompressTagged(const Register& destination, const Register& source);
   void DecompressTagged(Register dst, Tagged_t immediate);
 
+  // ---------------------------------------------------------------------------
+  // V8 Sandbox support
+
+  // Transform a SandboxedPointer from/to its encoded form, which is used when
+  // the pointer is stored on the heap and ensures that the pointer will always
+  // point into the sandbox.
+  void DecodeSandboxedPointer(Register value);
+  void LoadSandboxedPointerField(Register destination,
+                                 const MemOperand& field_operand);
+  void StoreSandboxedPointerField(Register value,
+                                  const MemOperand& dst_field_operand);
+
   void AtomicDecompressTaggedSigned(Register dst, const MemOperand& src);
   void AtomicDecompressTagged(Register dst, const MemOperand& src);
 
@@ -1156,6 +1168,11 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
     Sw(value, dst_field_operand);
   }
 #endif
+  // Loads a field containing off-heap pointer and does necessary decoding
+  // if sandboxed external pointers are enabled.
+  void LoadExternalPointerField(Register destination, MemOperand field_operand,
+                                ExternalPointerTag tag,
+                                Register isolate_root = no_reg);
   // Control-flow integrity:
 
   // Define a function entrypoint. This doesn't emit any code for this
@@ -1480,24 +1497,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void DecodeField(Register reg) {
     DecodeField<Field>(reg, reg);
   }
-
-  // ---------------------------------------------------------------------------
-  // V8 Sandbox support
-
-  // Transform a SandboxedPointer from/to its encoded form, which is used when
-  // the pointer is stored on the heap and ensures that the pointer will always
-  // point into the sandbox.
-  void DecodeSandboxedPointer(Register value);
-  void LoadSandboxedPointerField(Register destination,
-                                 const MemOperand& field_operand);
-  void StoreSandboxedPointerField(Register value,
-                                  const MemOperand& dst_field_operand);
-
-  // Loads a field containing off-heap pointer and does necessary decoding
-  // if sandboxed external pointers are enabled.
-  void LoadExternalPointerField(Register destination, MemOperand field_operand,
-                                ExternalPointerTag tag,
-                                Register isolate_root = no_reg);
 
  protected:
   inline Register GetRtAsRegisterHelper(const Operand& rt, Register scratch);

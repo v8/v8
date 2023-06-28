@@ -334,10 +334,11 @@ void InstructionSelectorT<Adapter>::VisitLoad(node_t node) {
       opcode = kRiscvLw;
       break;
 #else
-                                                 // Fall through.
 #endif
+    case MachineRepresentation::kSandboxedPointer:
+      opcode = kRiscvLoadDecodeSandboxedPointer;
+      break;
     case MachineRepresentation::kSimd256:           // Fall through.
-    case MachineRepresentation::kSandboxedPointer:  // Fall through.
     case MachineRepresentation::kMapWord:           // Fall through.
     case MachineRepresentation::kNone:
       UNREACHABLE();
@@ -422,8 +423,10 @@ void InstructionSelectorT<Adapter>::VisitStore(Node* node) {
 #else
         UNREACHABLE();
 #endif
+      case MachineRepresentation::kSandboxedPointer:
+        opcode = kRiscvStoreEncodeSandboxedPointer;
+        break;
       case MachineRepresentation::kSimd256:           // Fall through.
-      case MachineRepresentation::kSandboxedPointer:  // Fall through.
       case MachineRepresentation::kMapWord:           // Fall through.
       case MachineRepresentation::kNone:
         UNREACHABLE();
@@ -2122,8 +2125,8 @@ void InstructionSelectorT<Adapter>::VisitWord32Equal(node_t node) {
       if (RootsTable::IsReadOnly(root_index)) {
         Tagged_t ptr =
             MacroAssemblerBase::ReadOnlyRootPtr(root_index, isolate());
-        if (g.CanBeImmediate(ptr, kRiscvCmp)) {
-            return VisitCompare(this, kRiscvCmp, g.UseRegister(left),
+        if (g.CanBeImmediate(ptr, kRiscvCmp32)) {
+            return VisitCompare(this, kRiscvCmp32, g.UseRegister(left),
                                 g.TempImmediate(ptr), &cont);
         }
       }
