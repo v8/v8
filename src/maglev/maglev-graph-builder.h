@@ -410,14 +410,19 @@ class MaglevGraphBuilder {
   void SetKnownType(ValueNode* node, NodeType type);
   void SetKnownValue(ValueNode* node, compiler::ObjectRef constant);
   bool ShouldEmitInterruptBudgetChecks() {
-    if (is_inline()) return false;
     return v8_flags.force_emit_interrupt_budget_checks || v8_flags.turbofan;
   }
   bool ShouldEmitOsrInterruptBudgetChecks() {
     if (!v8_flags.turbofan || !v8_flags.use_osr || !v8_flags.osr_from_maglev)
       return false;
     if (!graph_->is_osr() && !v8_flags.always_osr_from_maglev) return false;
-    return true;
+    // TODO(olivf) OSR'ing from inlined loops is something we might want, but
+    // can't with our current osr-from-maglev implementation. The reason is that
+    // we OSR up by first going down to the interpreter. For inlined loops this
+    // means we would deoptimize to the caller and then probably end up in the
+    // same maglev osr code again, before reaching the turbofan OSR code in the
+    // callee. Alternatively, we could disable inlining on OSR code.
+    return !is_inline();
   }
   bool MaglevIsTopTier() const { return !v8_flags.turbofan && v8_flags.maglev; }
   BasicBlock* CreateEdgeSplitBlock(BasicBlockRef& jump_targets,

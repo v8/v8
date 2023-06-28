@@ -656,7 +656,7 @@ enum class ReduceInterruptBudgetType { kLoop, kReturn };
 
 void HandleInterruptsAndTiering(MaglevAssembler* masm, ZoneLabelRef done,
                                 Node* node, ReduceInterruptBudgetType type,
-                                Register scratch0) {
+                                Input function) {
   // For loops, first check for interrupts. Don't do this for returns, as we
   // can't lazy deopt to the end of a return.
   if (type == ReduceInterruptBudgetType::kLoop) {
@@ -664,7 +664,8 @@ void HandleInterruptsAndTiering(MaglevAssembler* masm, ZoneLabelRef done,
     // Here, we only care about interrupts since we've already guarded against
     // real stack overflows on function entry.
     {
-      Register stack_limit = scratch0;
+      MaglevAssembler::ScratchRegisterScope temps(masm);
+      Register stack_limit = temps.Acquire();
       __ LoadStackLimit(stack_limit, StackLimitKind::kInterruptStackLimit);
       __ Cmp(sp, stack_limit);
       __ B(&next, hi);
@@ -676,11 +677,9 @@ void HandleInterruptsAndTiering(MaglevAssembler* masm, ZoneLabelRef done,
     {
       SaveRegisterStateForCall save_register_state(masm,
                                                    node->register_snapshot());
-      Register function = scratch0;
-      __ Ldr(function, MemOperand(fp, StandardFrameConstants::kFunctionOffset));
       __ Push(function);
-      // Move into kContextRegister after the load into scratch0, just in case
-      // scratch0 happens to be kContextRegister.
+      // Move into kContextRegister after the push, in case that one clobbers
+      // kContextRegister.
       __ Move(kContextRegister, masm->native_context().object());
       __ CallRuntime(Runtime::kBytecodeBudgetInterruptWithStackCheck_Maglev, 1);
       save_register_state.DefineSafepointWithLazyDeopt(node->lazy_deopt_info());
@@ -693,11 +692,9 @@ void HandleInterruptsAndTiering(MaglevAssembler* masm, ZoneLabelRef done,
   {
     SaveRegisterStateForCall save_register_state(masm,
                                                  node->register_snapshot());
-    Register function = scratch0;
-    __ Ldr(function, MemOperand(fp, StandardFrameConstants::kFunctionOffset));
     __ Push(function);
-    // Move into kContextRegister after the load into scratch0, just in case
-    // scratch0 happens to be kContextRegister.
+    // Move into kContextRegister after the push, in case that one clobbers
+    // kContextRegister.
     __ Move(kContextRegister, masm->native_context().object());
     // Note: must not cause a lazy deopt!
     __ CallRuntime(Runtime::kBytecodeBudgetInterrupt_Maglev, 1);
@@ -707,24 +704,27 @@ void HandleInterruptsAndTiering(MaglevAssembler* masm, ZoneLabelRef done,
 }
 
 void GenerateReduceInterruptBudget(MaglevAssembler* masm, Node* node,
-                                   ReduceInterruptBudgetType type, int amount) {
-  MaglevAssembler::ScratchRegisterScope temps(masm);
-  Register scratch = temps.Acquire();
-  Register feedback_cell = scratch;
-  Register budget = temps.Acquire().W();
-  __ Ldr(feedback_cell,
-         MemOperand(fp, StandardFrameConstants::kFunctionOffset));
-  __ LoadTaggedField(
-      feedback_cell,
-      FieldMemOperand(feedback_cell, JSFunction::kFeedbackCellOffset));
-  __ Ldr(budget,
-         FieldMemOperand(feedback_cell, FeedbackCell::kInterruptBudgetOffset));
-  __ Subs(budget, budget, Immediate(amount));
-  __ Str(budget,
-         FieldMemOperand(feedback_cell, FeedbackCell::kInterruptBudgetOffset));
+                                   ReduceInterruptBudgetType type, int amount,
+                                   Input& function) {
+  {
+    MaglevAssembler::ScratchRegisterScope temps(masm);
+    Register feedback_cell = temps.Acquire();
+    Register budget = temps.Acquire().W();
+    __ Ldr(feedback_cell,
+           MemOperand(fp, StandardFrameConstants::kFunctionOffset));
+    __ LoadTaggedField(
+        feedback_cell,
+        FieldMemOperand(feedback_cell, JSFunction::kFeedbackCellOffset));
+    __ Ldr(budget, FieldMemOperand(feedback_cell,
+                                   FeedbackCell::kInterruptBudgetOffset));
+    __ Subs(budget, budget, Immediate(amount));
+    __ Str(budget, FieldMemOperand(feedback_cell,
+                                   FeedbackCell::kInterruptBudgetOffset));
+  }
+
   ZoneLabelRef done(masm);
   __ JumpToDeferredIf(lt, HandleInterruptsAndTiering, done, node, type,
-                      scratch);
+                      function);
   __ Bind(*done);
 }
 
@@ -732,22 +732,24 @@ void GenerateReduceInterruptBudget(MaglevAssembler* masm, Node* node,
 
 int ReduceInterruptBudgetForLoop::MaxCallStackArgs() const { return 1; }
 void ReduceInterruptBudgetForLoop::SetValueLocationConstraints() {
+  UseAny(function());
   set_temporaries_needed(2);
 }
 void ReduceInterruptBudgetForLoop::GenerateCode(MaglevAssembler* masm,
                                                 const ProcessingState& state) {
   GenerateReduceInterruptBudget(masm, this, ReduceInterruptBudgetType::kLoop,
-                                amount());
+                                amount(), function());
 }
 
 int ReduceInterruptBudgetForReturn::MaxCallStackArgs() const { return 1; }
 void ReduceInterruptBudgetForReturn::SetValueLocationConstraints() {
+  UseAny(function());
   set_temporaries_needed(2);
 }
 void ReduceInterruptBudgetForReturn::GenerateCode(
     MaglevAssembler* masm, const ProcessingState& state) {
   GenerateReduceInterruptBudget(masm, this, ReduceInterruptBudgetType::kReturn,
-                                amount());
+                                amount(), function());
 }
 
 int FunctionEntryStackCheck::MaxCallStackArgs() const { return 1; }
