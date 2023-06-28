@@ -397,6 +397,7 @@ v8_source_set("v8_unittests_sources") {
     "libsampler/signals-and-mutexes-unittest.cc",
     "logging/counters-unittest.cc",
     "logging/log-unittest.cc",
+    "maglev/node-type-unittest.cc",
     "numbers/bigint-unittest.cc",
     "numbers/conversions-unittest.cc",
     "numbers/diy-fp-unittest.cc",

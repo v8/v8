@@ -1180,6 +1180,9 @@ OddballType MapRef::oddball_type(JSHeapBroker* broker) const {
   DCHECK(equals(broker->termination_exception_map()) ||
          equals(broker->arguments_marker_map()) ||
          equals(broker->optimized_out_map()) ||
+         equals(broker->exception_map()) ||
+         equals(broker->self_reference_marker_map()) ||
+         equals(broker->basic_block_counters_marker_map()) ||
          equals(broker->stale_register_map()));
   return OddballType::kOther;
 }

@@ -461,28 +461,39 @@ inline constexpr bool IsDoubleRepresentation(ValueRepresentation repr) {
          repr == ValueRepresentation::kHoleyFloat64;
 }
 
-// The intersection (using `&`) of any two NodeTypes must be a valid NodeType
-// (possibly "kUnknown").
-// All heap object types include the heap object bit, so that they can be
-// checked for AnyHeapObject with a single bit check.
-#define NODE_TYPE_LIST(V)                                         \
-  V(Unknown, 0)                                                   \
-  V(NumberOrOddball, (1 << 1))                                    \
-  V(Number, (1 << 2) | kNumberOrOddball)                          \
-  V(ObjectWithKnownMap, (1 << 3))                                 \
-  V(Smi, (1 << 4) | kObjectWithKnownMap | kNumber)                \
-  V(AnyHeapObject, (1 << 5))                                      \
-  V(Oddball, (1 << 6) | kAnyHeapObject | kNumberOrOddball)        \
-  V(Boolean, (1 << 7) | kOddball)                                 \
-  V(Name, (1 << 8) | kAnyHeapObject)                              \
-  V(String, (1 << 9) | kName)                                     \
-  V(InternalizedString, (1 << 10) | kString)                      \
-  V(Symbol, (1 << 11) | kName)                                    \
-  V(JSReceiver, (1 << 12) | kAnyHeapObject)                       \
-  V(Callable, (1 << 13) | kJSReceiver | kAnyHeapObject)           \
-  V(HeapObjectWithKnownMap, kObjectWithKnownMap | kAnyHeapObject) \
-  V(HeapNumber, kHeapObjectWithKnownMap | kNumber)                \
-  V(JSReceiverWithKnownMap, kJSReceiver | kHeapObjectWithKnownMap)
+/*
+ * The intersection (using `&`) of any two NodeTypes must be a valid NodeType
+ * (possibly "kUnknown", modulo heap object bit).
+ *
+ * All heap object types include the heap object bit, so that they can be
+ * checked for AnyHeapObject with a single bit check.
+ *
+ * Here is a diagram of the relations between the types, where (*) means that
+ * they have the kAnyHeapObject bit set.
+ *
+ *    NumberOrOddball              JsReceiver*            Name*
+ *     /         \                     |                 /    \
+ *  Oddball*     Number             Callable*        String*  Symbol*
+ *    |          /    \                                |
+ *  Boolean*    Smi   HeapNumber*              InternalizedString*
+ *
+ */
+
+#define NODE_TYPE_LIST(V)                                  \
+  V(Unknown, 0)                                            \
+  V(NumberOrOddball, (1 << 1))                             \
+  V(Number, (1 << 2) | kNumberOrOddball)                   \
+  V(Smi, (1 << 4) | kNumber)                               \
+  V(AnyHeapObject, (1 << 5))                               \
+  V(Oddball, (1 << 6) | kAnyHeapObject | kNumberOrOddball) \
+  V(Boolean, (1 << 7) | kOddball)                          \
+  V(Name, (1 << 8) | kAnyHeapObject)                       \
+  V(String, (1 << 9) | kName)                              \
+  V(InternalizedString, (1 << 10) | kString)               \
+  V(Symbol, (1 << 11) | kName)                             \
+  V(JSReceiver, (1 << 12) | kAnyHeapObject)                \
+  V(Callable, (1 << 13) | kJSReceiver | kAnyHeapObject)    \
+  V(HeapNumber, kAnyHeapObject | kNumber)
 
 enum class NodeType : uint16_t {
 #define DEFINE_NODE_TYPE(Name, Value) k##Name = Value,
@@ -501,6 +512,85 @@ inline NodeType IntersectType(NodeType left, NodeType right) {
 inline bool NodeTypeIs(NodeType type, NodeType to_check) {
   int right = static_cast<int>(to_check);
   return (static_cast<int>(type) & right) == right;
+}
+
+inline NodeType StaticTypeForMap(compiler::MapRef map) {
+  if (map.IsHeapNumberMap()) return NodeType::kHeapNumber;
+  if (map.IsInternalizedStringMap()) return NodeType::kInternalizedString;
+  if (map.IsStringMap()) return NodeType::kString;
+  if (map.IsJSReceiverMap()) return NodeType::kJSReceiver;
+  return NodeType::kAnyHeapObject;
+}
+
+inline NodeType StaticTypeForConstant(compiler::JSHeapBroker* broker,
+                                      compiler::ObjectRef ref) {
+  if (ref.IsSmi()) return NodeType::kSmi;
+  return StaticTypeForMap(ref.AsHeapObject().map(broker));
+}
+
+inline bool IsInstanceOfNodeType(compiler::MapRef map, NodeType type,
+                                 compiler::JSHeapBroker* broker) {
+  switch (type) {
+    case NodeType::kUnknown:
+      return true;
+    case NodeType::kNumberOrOddball:
+      return map.IsHeapNumberMap() || map.IsOddballMap();
+    case NodeType::kSmi:
+      return false;
+    case NodeType::kNumber:
+    case NodeType::kHeapNumber:
+      return map.IsHeapNumberMap();
+    case NodeType::kAnyHeapObject:
+      return true;
+    case NodeType::kOddball:
+      return map.IsOddballMap();
+    case NodeType::kBoolean:
+      return map.IsOddballMap() &&
+             map.oddball_type(broker) == compiler::OddballType::kBoolean;
+    case NodeType::kName:
+      return map.IsNameMap();
+    case NodeType::kString:
+      return map.IsStringMap();
+    case NodeType::kInternalizedString:
+      return map.IsInternalizedStringMap();
+    case NodeType::kSymbol:
+      return map.IsSymbolMap();
+    case NodeType::kJSReceiver:
+      return map.IsJSReceiverMap();
+    case NodeType::kCallable:
+      return map.is_callable();
+  }
+
+    // This is some composed type. We could speed this up by exploiting the tree
+    // structure of the types.
+#define CASE(Name, _)                                            \
+  if (NodeTypeIs(type, NodeType::k##Name)) {                     \
+    if (!IsInstanceOfNodeType(map, NodeType::k##Name, broker)) { \
+      return false;                                              \
+    }                                                            \
+  }
+  NODE_TYPE_LIST(CASE)
+#undef CASE
+  return true;
+}
+
+inline std::ostream& operator<<(std::ostream& out, const NodeType& type) {
+  switch (type) {
+#define CASE(Name, _)     \
+  case NodeType::k##Name: \
+    out << #Name;         \
+    break;
+    NODE_TYPE_LIST(CASE)
+#undef CASE
+    default:
+#define CASE(Name, _)                        \
+  if (NodeTypeIs(type, NodeType::k##Name)) { \
+    out << #Name ",";                        \
+  }
+      NODE_TYPE_LIST(CASE)
+#undef CASE
+  }
+  return out;
 }
 
 #define DEFINE_NODE_TYPE_CHECK(Type, _)         \

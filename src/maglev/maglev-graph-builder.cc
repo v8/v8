@@ -3071,22 +3071,6 @@ void MaglevGraphBuilder::VisitStaLookupSlot() {
   SetAccumulator(BuildCallRuntime(StaLookupSlotFunction(flags), {name, value}));
 }
 
-namespace {
-NodeType StaticTypeForMap(compiler::MapRef map) {
-  if (map.IsHeapNumberMap()) return NodeType::kHeapNumber;
-  if (map.IsInternalizedStringMap()) return NodeType::kInternalizedString;
-  if (map.IsStringMap()) return NodeType::kString;
-  if (map.IsJSReceiverMap()) return NodeType::kJSReceiverWithKnownMap;
-  return NodeType::kHeapObjectWithKnownMap;
-}
-
-NodeType StaticTypeForConstant(compiler::JSHeapBroker* broker,
-                               compiler::ObjectRef ref) {
-  if (ref.IsSmi()) return NodeType::kSmi;
-  return StaticTypeForMap(ref.AsHeapObject().map(broker));
-}
-}  // namespace
-
 NodeType StaticTypeForNode(compiler::JSHeapBroker* broker,
                            LocalIsolate* isolate, ValueNode* node) {
   switch (node->properties().value_representation()) {
@@ -3342,6 +3326,10 @@ class KnownMapsMerger {
   void IntersectWithKnownNodeAspects(
       ValueNode* object, const KnownNodeAspects& known_node_aspects) {
     auto it = known_node_aspects.possible_maps.find(object);
+    auto node_info = known_node_aspects.node_infos.find(object);
+    NodeType type = node_info != known_node_aspects.node_infos.end()
+                        ? node_info->second.type
+                        : NodeType::kUnknown;
     if (it != known_node_aspects.possible_maps.end()) {
       // TODO(v8:7700): Make intersection non-quadratic.
       for (compiler::MapRef possible_map : it->second.possible_maps) {
@@ -3349,10 +3337,21 @@ class KnownMapsMerger {
                       possible_map) != requested_maps_.end()) {
           // No need to add dependencies, we already have them for all known
           // possible maps.
-          InsertMap(possible_map);
+          // Filter maps which are impossible given this objects type. Since we
+          // want to prove that an object with map `map` is not an instance of
+          // `type`, we cannot use `StaticTypeForMap`, as it only provides an
+          // approximation. This filtering is done to avoid creating
+          // non-sensical types later (e.g. if we think only a non-string map
+          // is possible, after a string check).
+          if (IsInstanceOfNodeType(possible_map, type, broker_)) {
+            InsertMap(possible_map);
+          }
         } else {
           known_maps_are_subset_of_requested_maps_ = false;
         }
+      }
+      if (intersect_set_.is_empty()) {
+        node_type_ = NodeType::kUnknown;
       }
     } else {
       // A missing entry here means the universal set, i.e., we don't know
@@ -3530,7 +3529,7 @@ ReduceResult MaglevGraphBuilder::BuildTransitionElementsKindOrCheckMap(
       compiler::ZoneRefSet<Map>(transition_target),
       !transition_target.is_stable()};
   DCHECK(transition_target.IsJSReceiverMap());
-  known_info->type = NodeType::kJSReceiverWithKnownMap;
+  known_info->type = NodeType::kJSReceiver;
   if (!transition_target.is_stable()) {
     known_node_aspects().any_map_for_any_node_is_unstable = true;
   } else {
@@ -3752,7 +3751,7 @@ ValueNode* MaglevGraphBuilder::BuildLoadField(
     if (access_info.field_map().has_value() &&
         access_info.field_map().value().is_stable()) {
       DCHECK(access_info.field_map().value().IsJSReceiverMap());
-      known_info->type = NodeType::kJSReceiverWithKnownMap;
+      known_info->type = NodeType::kJSReceiver;
       auto map = access_info.field_map().value();
       known_node_aspects().possible_maps[value] =
           KnownNodeAspects::PossibleMaps{compiler::ZoneRefSet<Map>(map), false};
@@ -3783,7 +3782,7 @@ void MaglevGraphBuilder::BuildStoreReceiverMap(ValueNode* receiver,
   AddNewNode<StoreMap>({receiver}, map);
   NodeInfo* node_info = known_node_aspects().GetOrCreateInfoFor(receiver);
   DCHECK(map.IsJSReceiverMap());
-  node_info->type = NodeType::kJSReceiverWithKnownMap;
+  node_info->type = NodeType::kJSReceiver;
   if (map.is_stable()) {
     known_node_aspects().possible_maps[receiver] =
         KnownNodeAspects::PossibleMaps{compiler::ZoneRefSet<Map>(map), false};
