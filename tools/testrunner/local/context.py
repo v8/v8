@@ -87,16 +87,15 @@ class IOSContext(DefaultOSContext):
     # builders and testers.
     # At the moment Chromium's iossim tool is being used, which is a wrapper
     # around 'simctl' macOS command utility.
-    iossim = outdir + '/' + "iossim -d 'iPhone X' "
+    iossim = outdir.resolve() / "iossim -d 'iPhone X' "
 
     if isinstance(appargs, list):
       appargs = ' '.join(map(str, appargs))
     if appargs != "":
-      iossim = iossim + "-c "
+      iossim = f'{iossim}-c '
       appargs = '\"' + appargs + '\"'
-
-    app = outdir + '/' + shell + ".app"
-    return iossim + appargs + " " + app
+    app = outdir.resolve() / f'{shell}.app'
+    return f'{iossim}{appargs} {app}'
 
 # TODO(liviurau): Add documentation with diagrams to describe how context and
 # its components gets initialized and eventually teared down and how does it

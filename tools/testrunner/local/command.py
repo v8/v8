@@ -291,7 +291,7 @@ class IOSCommand(BaseCommand):
     os.killpg(process.pid, signal.SIGKILL)
 
   def _to_args_list(self):
-    return self.cmd_prefix + [self.shell]
+    return list(map(str, self.cmd_prefix + [self.shell]))
 
 
 class WindowsCommand(BaseCommand):
