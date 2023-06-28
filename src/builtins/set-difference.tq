@@ -74,14 +74,10 @@ transitioning javascript builtin SetPrototypeDifference(
             const nextValue = otherIterator.Next() otherwise Done;
 
             if (TableHasKey(resultSetData, nextValue.key)) {
-              try {
-                //   a. Remove nextValue from resultSetData.
-                numberOfElements =
-                    DeleteFromSetTable(resultSetData, nextValue.key)
-                    otherwise NotFound;
-              } label NotFound {
-                // Do nothing and go back to the while loop.
-              }
+              //   a. Remove nextValue from resultSetData.
+              numberOfElements =
+                  DeleteFromSetTable(resultSetData, nextValue.key)
+                  otherwise unreachable;
             }
           }
         }
@@ -143,23 +139,15 @@ transitioning javascript builtin SetPrototypeDifference(
         //   3. If SetDataHas(resultSetData, nextValue) is true, then
 
         if (TableHasKey(resultSetData, nextValue)) {
-          try {
-            //   a. Remove nextValue from resultSetData.
-            numberOfElements = DeleteFromSetTable(resultSetData, nextValue)
-                otherwise NotFound;
-          } label NotFound {
-            // Do nothing and go back to the while loop.
-          }
+          //   a. Remove nextValue from resultSetData.
+          numberOfElements = DeleteFromSetTable(resultSetData, nextValue)
+              otherwise unreachable;
         }
       }
     }
   } label Done {
-    // Shrink the table if # of element is less than # buckets/2
-    const numberOfBuckets = LoadOrderedHashTableMetadata(
-        table, kOrderedHashSetNumberOfBucketsIndex);
-    if (Convert<int32>(numberOfElements) < (numberOfBuckets / 2)) {
-      resultSetData = OrderedHashSetShrink(resultSetData);
-    }
+    resultSetData =
+        ShrinkOrderedHashSetIfNeeded(numberOfElements, resultSetData);
     return new JSSet{
       map: *NativeContextSlot(ContextSlot::JS_SET_MAP_INDEX),
       properties_or_hash: kEmptyFixedArray,

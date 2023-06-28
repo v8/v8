@@ -337,4 +337,21 @@ macro CheckSetRecordHasJSMapMethods(setRecord: SetRecord):
             SmiConstant(kMapPrototypeHas))))
     goto HasUserProvidedMethods;
 }
+
+macro ShrinkOrderedHashSetIfNeeded(implicit context: Context)(
+    numberOfElements: Smi, resultSetData: OrderedHashSet): OrderedHashSet {
+  dcheck(
+      Convert<int32>(numberOfElements) ==
+      LoadOrderedHashTableMetadata(
+          resultSetData, kOrderedHashSetNumberOfElementsIndex));
+  let result = resultSetData;
+
+  // Shrink the result table if # of element is less than # buckets/2
+  const numberOfBuckets =
+      LoadOrderedHashTableMetadata(result, kOrderedHashSetNumberOfBucketsIndex);
+  if (Convert<int32>(numberOfElements) < (numberOfBuckets / 2)) {
+    result = OrderedHashSetShrink(result);
+  }
+  return result;
+}
 }

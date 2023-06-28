@@ -172,9 +172,7 @@ transitioning javascript builtin SetPrototypeIntersection(
 macro FastIntersect<T : type extends FixedArray>(implicit context: Context)(
     collectionToIterate: OrderedHashSet, tableToLookup: T, methodName: String,
     resultSetData: OrderedHashSet): OrderedHashSet {
-  let result = Cast<OrderedHashSet>(
-      CloneFixedArray(resultSetData, ExtractFixedArrayFlag::kFixedArrays))
-      otherwise unreachable;
+  let result = resultSetData;
 
   let iter =
       collections::NewUnmodifiedOrderedHashSetIterator(collectionToIterate);
