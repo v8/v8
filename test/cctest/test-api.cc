@@ -22098,14 +22098,15 @@ void StoringEventLoggerCallback(const char* message, int status) {
 
 
 TEST(EventLogging) {
-  v8::Isolate* isolate = CcTest::isolate();
-  isolate->SetEventLogger(StoringEventLoggerCallback);
-  i::NestedTimedHistogram histogram(
-      "V8.Test", 0, 10000, i::TimedHistogramResolution::MILLISECOND, 50,
-      reinterpret_cast<i::Isolate*>(isolate)->counters());
-  event_count = 0;
-  int count = 0;
-  {
+    i::v8_flags.log_timer_events = true;
+    v8::Isolate* isolate = CcTest::isolate();
+    isolate->SetEventLogger(StoringEventLoggerCallback);
+    i::NestedTimedHistogram histogram(
+        "V8.Test", 0, 10000, i::TimedHistogramResolution::MILLISECOND, 50,
+        reinterpret_cast<i::Isolate*>(isolate)->counters());
+    event_count = 0;
+    int count = 0;
+    {
     CHECK_EQ(0, event_count);
     {
       CHECK_EQ(0, event_count);
@@ -22163,7 +22164,7 @@ TEST(EventLogging) {
     CHECK_EQ(0, strcmp("V8.Test", last_event_message));
     CHECK_EQ(v8::LogEventStatus::kEnd, last_event_status);
     CHECK_EQ(++count, event_count);
-  }
+    }
   CHECK_EQ(0, strcmp("V8.Test", last_event_message));
   CHECK_EQ(v8::LogEventStatus::kEnd, last_event_status);
   CHECK_EQ(++count, event_count);

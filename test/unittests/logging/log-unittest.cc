@@ -506,7 +506,7 @@ class LogAllTest : public LogTest {
     i::v8_flags.log_all = true;
     i::v8_flags.log_deopt = true;
     i::v8_flags.turbo_inlining = false;
-    i::v8_flags.log_internal_timer_events = true;
+    i::v8_flags.log_timer_events = true;
     i::v8_flags.allow_natives_syntax = true;
     LogTest::SetUpTestSuite();
   }
@@ -1094,7 +1094,15 @@ TEST_F(LogMapsTest, LogMapsDetailsContexts) {
   }
 }
 
-TEST_F(LogTest, ConsoleTimeEvents) {
+class LogTimerTest : public LogTest {
+ public:
+  static void SetUpTestSuite() {
+    i::v8_flags.log_timer_events = true;
+    LogTest::SetUpTestSuite();
+  }
+};
+
+TEST_F(LogTimerTest, ConsoleTimeEvents) {
   {
     ScopedLoggerInitializer logger(isolate());
     {

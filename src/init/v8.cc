@@ -144,7 +144,7 @@ void V8::Initialize() {
                                       &v8_flags.log_source_position,
                                       &v8_flags.log_feedback_vector,
                                       &v8_flags.log_function_events,
-                                      &v8_flags.log_internal_timer_events,
+                                      &v8_flags.log_timer_events,
                                       &v8_flags.log_deopt,
                                       &v8_flags.log_ic,
                                       &v8_flags.log_maps};

@@ -9876,8 +9876,6 @@ int64_t Isolate::AdjustAmountOfExternalAllocatedMemory(
 }
 
 void Isolate::SetEventLogger(LogEventCallback that) {
-  // Do not overwrite the event logger if we want to log explicitly.
-  if (i::v8_flags.log_internal_timer_events) return;
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
   i_isolate->set_event_logger(that);
 }

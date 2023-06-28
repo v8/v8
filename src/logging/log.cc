@@ -1263,13 +1263,14 @@ void V8FileLogger::SharedLibraryEnd() {
 }
 
 void V8FileLogger::CurrentTimeEvent() {
-  DCHECK(v8_flags.log_internal_timer_events);
+  DCHECK(v8_flags.log_timer_events);
   MSG_BUILDER();
   msg << "current-time" << kNext << Time();
   msg.WriteToLogFile();
 }
 
 void V8FileLogger::TimerEvent(v8::LogEventStatus se, const char* name) {
+  DCHECK(v8_flags.log_timer_events);
   MSG_BUILDER();
   switch (se) {
     case kStart:

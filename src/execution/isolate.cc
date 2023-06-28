@@ -4498,10 +4498,6 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
   // embedded blob setup).
   init_memcopy_functions();
 
-  if (v8_flags.log_internal_timer_events) {
-    set_event_logger(V8FileLogger::DefaultEventLoggerSentinel);
-  }
-
   if (v8_flags.trace_turbo || v8_flags.trace_turbo_graph ||
       v8_flags.turbo_profiling) {
     PrintF("Concurrent recompilation has been disabled for tracing.\n");
