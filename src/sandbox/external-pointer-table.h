@@ -316,7 +316,7 @@ class V8_EXPORT_PRIVATE ExternalPointerTable
     inline void StartCompacting(uint32_t start_of_evacuation_area);
     inline void StopCompacting();
     inline void AbortCompacting(uint32_t start_of_evacuation_area);
-    inline bool CompactingWasAbortedDuringMarking();
+    inline bool CompactingWasAborted();
 
     // This value indicates that this space is not currently being compacted. It
     // is set to uint32_t max so that determining whether an entry should be
@@ -440,13 +440,9 @@ class V8_EXPORT_PRIVATE ExternalPointerTable
   enum class TableCompactionOutcome {
     // Table compaction was successful.
     kSuccess = 0,
-    // Table compaction was partially successful: marking finished successfully,
-    // but not all blocks that we wanted to free could be freed because some new
-    // entries had already been allocated in them again.
-    kPartialSuccess = 1,
-    // Table compaction was aborted during marking because the freelist grew to
-    // short.
-    kAbortedDuringMarking = 2,
+    // Outcome 1, partial success, is no longer supported.
+    // Table compaction was aborted because the freelist grew to short.
+    kAborted = 2,
   };
 };
 

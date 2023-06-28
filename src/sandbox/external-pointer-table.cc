@@ -26,8 +26,6 @@ uint32_t ExternalPointerTable::SweepAndCompact(Space* space,
   // There must not be any entry allocations while the table is being swept as
   // that would not be safe. Set the freelist to this special marker value to
   // easily catch any violation of this requirement.
-  FreelistHead old_freelist =
-      space->freelist_head_.load(std::memory_order_relaxed);
   space->freelist_head_.store(kEntryAllocationIsForbiddenMarker,
                               std::memory_order_relaxed);
 
@@ -35,22 +33,22 @@ uint32_t ExternalPointerTable::SweepAndCompact(Space* space,
   // the table and skip those during sweeping.
   uint32_t start_of_evacuation_area =
       space->start_of_evacuation_area_.load(std::memory_order_relaxed);
+  bool evacuation_was_successful = false;
   if (space->IsCompacting()) {
     TableCompactionOutcome outcome;
-    if (space->CompactingWasAbortedDuringMarking()) {
+    if (space->CompactingWasAborted()) {
       // Compaction was aborted during marking because the freelist grew to
       // short. In this case, it is not guaranteed that any segments will now
-      // be completely free so that they can be deallocated.
-      outcome = TableCompactionOutcome::kAbortedDuringMarking;
+      // be completely free.
+      outcome = TableCompactionOutcome::kAborted;
       // Extract the original start_of_evacuation_area value so that the
       // DCHECKs below and in ResolveEvacuationEntryDuringSweeping work.
       start_of_evacuation_area &= ~Space::kCompactionAbortedMarker;
-    } else if (old_freelist.is_empty() ||
-               old_freelist.next() > start_of_evacuation_area) {
-      outcome = TableCompactionOutcome::kPartialSuccess;
     } else {
-      // Marking was successful so the entire evacuation area is now free.
+      // Entry evacuation was successful so all segments inside the evacuation
+      // area are now guaranteed to be free and so can be deallocated.
       outcome = TableCompactionOutcome::kSuccess;
+      evacuation_was_successful = true;
     }
     DCHECK(IsAligned(start_of_evacuation_area, kEntriesPerSegment));
 
@@ -72,10 +70,22 @@ uint32_t ExternalPointerTable::SweepAndCompact(Space* space,
   // because no other thread can currently allocate entries in this space.
   uint32_t current_freelist_head = 0;
   uint32_t current_freelist_length = 0;
-  std::vector<Segment> freed_segments;
+  std::vector<Segment> segments_to_deallocate;
   for (auto segment : base::Reversed(space->segments_)) {
+    // If we evacuated all live entries in this segment then we can skip it
+    // here and directly deallocate it after this loop.
+    if (evacuation_was_successful &&
+        segment.first_entry() >= start_of_evacuation_area) {
+      segments_to_deallocate.push_back(segment);
+      continue;
+    }
+
+    // Remember the state of the freelist before this segment in case this
+    // segment turns out to be completely empty and we deallocate it.
     uint32_t previous_freelist_head = current_freelist_head;
     uint32_t previous_freelist_length = current_freelist_length;
+
+    // Process every entry in this segment, again going top to bottom.
     for (uint32_t i = segment.last_entry(); i >= segment.first_entry(); i--) {
       auto payload = at(i).GetRawPayload();
       if (payload.ContainsEvacuationEntry()) {
@@ -108,8 +118,7 @@ uint32_t ExternalPointerTable::SweepAndCompact(Space* space,
     uint32_t free_entries = current_freelist_length - previous_freelist_length;
     bool segment_is_empty = free_entries == kEntriesPerSegment;
     if (segment_is_empty) {
-      FreeTableSegment(segment);
-      freed_segments.push_back(segment);
+      segments_to_deallocate.push_back(segment);
       // Restore the state of the freelist before this segment.
       current_freelist_head = previous_freelist_head;
       current_freelist_length = previous_freelist_length;
@@ -117,8 +126,9 @@ uint32_t ExternalPointerTable::SweepAndCompact(Space* space,
   }
 
   // We cannot remove the segments while iterating over the segments set, so
-  // only do that now.
-  for (auto segment : freed_segments) {
+  // defer that until now.
+  for (auto segment : segments_to_deallocate) {
+    FreeTableSegment(segment);
     space->segments_.erase(segment);
   }
 
