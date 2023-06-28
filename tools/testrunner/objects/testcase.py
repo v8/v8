@@ -443,7 +443,8 @@ class TestCase(object):
   def _create_cmd(self, ctx, params, env, timeout):
     return ctx.command(
         cmd_prefix=self.test_config.command_prefix,
-        shell=self.test_config.resolve_shell(self.get_shell()),
+        shell=ctx.platform_shell(self.get_shell(), params,
+                                 self.test_config.shell_dir),
         args=params,
         env=env,
         timeout=timeout,

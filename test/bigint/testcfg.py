@@ -15,10 +15,11 @@ class VariantsGenerator(testsuite.VariantsGenerator):
 
 class TestLoader(testsuite.TestLoader):
   def _list_test_filenames(self):
+    args = ['--list'] + self.test_config.extra_flags
     cmd = self.ctx.command(
         cmd_prefix=self.test_config.command_prefix,
-        shell=self.test_config.resolve_shell(SHELL),
-        args=['--list'] + self.test_config.extra_flags)
+        shell=self.ctx.platform_shell(SHELL, args, self.test_config.shell_dir),
+        args=args)
     output = cmd.execute()
 
     if output.exit_code != 0:
