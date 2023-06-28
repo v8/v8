@@ -624,7 +624,7 @@ PropertyAccessInfo AccessInfoFactory::ComputeAccessorDescriptorAccessInfo(
   Handle<DescriptorArray> descriptors = broker()->CanonicalPersistentHandle(
       holder_map.object()->instance_descriptors(kRelaxedLoad));
   SLOW_DCHECK(descriptor ==
-              descriptors->Search(*name.object(), *holder_map.object()));
+              descriptors->Search(*name.object(), *holder_map.object(), true));
 
   auto get_accessors = [&]() {
     return broker()->CanonicalPersistentHandle(
