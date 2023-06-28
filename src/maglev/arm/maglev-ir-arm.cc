@@ -673,7 +673,30 @@ void CheckJSTypedArrayBounds::SetValueLocationConstraints() {
 }
 void CheckJSTypedArrayBounds::GenerateCode(MaglevAssembler* masm,
                                            const ProcessingState& state) {
-  MAGLEV_NODE_NOT_IMPLEMENTED(CheckJSTypedArrayBounds);
+  Register object = ToRegister(receiver_input());
+  Register index = ToRegister(index_input());
+
+  if (v8_flags.debug_code) {
+    __ AssertNotSmi(object);
+    __ IsObjectType(object, JS_TYPED_ARRAY_TYPE);
+    __ Assert(eq, AbortReason::kUnexpectedValue);
+  }
+
+  MaglevAssembler::ScratchRegisterScope temps(masm);
+  Register byte_length = temps.Acquire();
+  __ LoadBoundedSizeFromObject(byte_length, object,
+                               JSTypedArray::kRawByteLengthOffset);
+  int element_size = ElementsKindSize(elements_kind_);
+  if (element_size > 1) {
+    DCHECK(element_size == 2 || element_size == 4 || element_size == 8);
+    __ cmp(byte_length,
+           Operand(index, LSL, base::bits::CountTrailingZeros(element_size)));
+  } else {
+    __ cmp(byte_length, index);
+  }
+  // We use an unsigned comparison to handle negative indices as well.
+  __ EmitEagerDeoptIf(kUnsignedLessThanEqual, DeoptimizeReason::kOutOfBounds,
+                      this);
 }
 
 int CheckJSDataViewBounds::MaxCallStackArgs() const { return 1; }
@@ -684,8 +707,27 @@ void CheckJSDataViewBounds::SetValueLocationConstraints() {
 }
 void CheckJSDataViewBounds::GenerateCode(MaglevAssembler* masm,
                                          const ProcessingState& state) {
-  USE(element_type_);
-  MAGLEV_NODE_NOT_IMPLEMENTED(CheckJSDataViewBounds);
+  MaglevAssembler::ScratchRegisterScope temps(masm);
+  Register object = ToRegister(receiver_input());
+  Register index = ToRegister(index_input());
+  if (v8_flags.debug_code) {
+    __ AssertNotSmi(object);
+    __ IsObjectType(object, JS_DATA_VIEW_TYPE);
+    __ Assert(eq, AbortReason::kUnexpectedValue);
+  }
+
+  // Normal DataView (backed by AB / SAB) or non-length tracking backed by GSAB.
+  Register byte_length = temps.Acquire();
+  __ LoadBoundedSizeFromObject(byte_length, object,
+                               JSDataView::kRawByteLengthOffset);
+
+  int element_size = ExternalArrayElementSize(element_type_);
+  if (element_size > 1) {
+    __ sub(byte_length, byte_length, Operand(element_size - 1), SetCC);
+    __ EmitEagerDeoptIf(mi, DeoptimizeReason::kOutOfBounds, this);
+  }
+  __ cmp(index, byte_length);
+  __ EmitEagerDeoptIf(hs, DeoptimizeReason::kOutOfBounds, this);
 }
 
 void HoleyFloat64ToMaybeNanFloat64::SetValueLocationConstraints() {
@@ -694,7 +736,9 @@ void HoleyFloat64ToMaybeNanFloat64::SetValueLocationConstraints() {
 }
 void HoleyFloat64ToMaybeNanFloat64::GenerateCode(MaglevAssembler* masm,
                                                  const ProcessingState& state) {
-  MAGLEV_NODE_NOT_IMPLEMENTED(HoleyFloat64ToMaybeNanFloat64);
+  // The hole value is a signalling NaN, so just silence it to get the float64
+  // value.
+  __ VFPCanonicalizeNaN(ToDoubleRegister(result()), ToDoubleRegister(input()));
 }
 
 namespace {
