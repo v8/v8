@@ -1493,6 +1493,8 @@ HEAP_ACCESSOR_B(Map, bit_field3, NumberOfOwnDescriptors,
                 Map::Bits3::NumberOfOwnDescriptorsBits)
 HEAP_ACCESSOR_B(Map, bit_field3, is_migration_target,
                 Map::Bits3::IsMigrationTargetBit)
+BIMODAL_ACCESSOR_B(Map, bit_field3, construction_counter,
+                   Map::Bits3::ConstructionCounterBits)
 HEAP_ACCESSOR_B(Map, bit_field, has_prototype_slot,
                 Map::Bits1::HasPrototypeSlotBit)
 HEAP_ACCESSOR_B(Map, bit_field, is_access_check_needed,
@@ -1682,7 +1684,7 @@ void* JSTypedArrayRef::data_ptr() const {
 }
 
 bool MapRef::IsInobjectSlackTrackingInProgress() const {
-  return object()->IsInobjectSlackTrackingInProgress();
+  return construction_counter() != Map::kNoSlackTracking;
 }
 
 int MapRef::constructor_function_index() const {

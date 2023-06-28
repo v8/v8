@@ -29,6 +29,7 @@ namespace compiler {
   V(GlobalProperty)                     \
   V(InitialMap)                         \
   V(InitialMapInstanceSizePrediction)   \
+  V(NoSlackTrackingChange)              \
   V(OwnConstantDataProperty)            \
   V(OwnConstantDictionaryProperty)      \
   V(OwnConstantElement)                 \
@@ -994,6 +995,41 @@ class OwnConstantElementDependency final : public CompilationDependency {
   const ObjectRef element_;
 };
 
+class NoSlackTrackingChangeDependency final : public CompilationDependency {
+ public:
+  explicit NoSlackTrackingChangeDependency(MapRef map)
+      : CompilationDependency(kNoSlackTrackingChange), map_(map) {}
+
+  bool IsValid(JSHeapBroker* broker) const override {
+    if (map_.construction_counter() != 0 &&
+        map_.object()->construction_counter() == 0) {
+      // Slack tracking finished during compilation.
+      return false;
+    }
+    return map_.UnusedPropertyFields() ==
+               map_.object()->UnusedPropertyFields() &&
+           map_.GetInObjectProperties() ==
+               map_.object()->GetInObjectProperties();
+  }
+
+  void PrepareInstall(JSHeapBroker*) const override {}
+  void Install(JSHeapBroker*, PendingDependencies*) const override {}
+
+ private:
+  size_t Hash() const override {
+    ObjectRef::Hash h;
+    return base::hash_combine(h(map_));
+  }
+
+  bool Equals(const CompilationDependency* that) const override {
+    const NoSlackTrackingChangeDependency* const zat =
+        that->AsNoSlackTrackingChange();
+    return map_.equals(zat->map_);
+  }
+
+  const MapRef map_;
+};
+
 class InitialMapInstanceSizePredictionDependency final
     : public CompilationDependency {
  public:
@@ -1349,6 +1385,12 @@ void CompilationDependencies::DependOnElementsKinds(AllocationSiteRef site) {
 void CompilationDependencies::DependOnConsistentJSFunctionView(
     JSFunctionRef function) {
   RecordDependency(zone_->New<ConsistentJSFunctionViewDependency>(function));
+}
+
+void CompilationDependencies::DependOnNoSlackTrackingChange(MapRef map) {
+  if (map.construction_counter() == 0) return;
+  RecordDependency(zone_->New<NoSlackTrackingChangeDependency>(map));
+  return;
 }
 
 SlackTrackingPrediction::SlackTrackingPrediction(MapRef initial_map,
