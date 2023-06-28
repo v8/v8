@@ -151,39 +151,6 @@ void FoldedAllocation::GenerateCode(MaglevAssembler* masm,
   __ Add(ToRegister(result()), ToRegister(raw_allocation()), offset());
 }
 
-void CheckedTruncateFloat64ToUint32::SetValueLocationConstraints() {
-  UseRegister(input());
-  DefineAsRegister(this);
-}
-void CheckedTruncateFloat64ToUint32::GenerateCode(
-    MaglevAssembler* masm, const ProcessingState& state) {
-  DoubleRegister input_reg = ToDoubleRegister(input());
-  Register result_reg = ToRegister(result()).W();
-
-  MaglevAssembler::ScratchRegisterScope temps(masm);
-  DoubleRegister converted_back = temps.AcquireDouble();
-
-  // Convert the input float64 value to uint32.
-  __ Fcvtzu(result_reg, input_reg);
-  // Convert that uint32 value back to float64.
-  __ Ucvtf(converted_back, result_reg);
-  // Check that the result of the float64->uint32->float64 is equal to the input
-  // (i.e. that the conversion didn't truncate.
-  __ Fcmp(input_reg, converted_back);
-  __ EmitEagerDeoptIf(ne, DeoptimizeReason::kNotUint32, this);
-
-  // Check if {input} is -0.
-  Label check_done;
-  __ Cbnz(result_reg, &check_done);
-
-  // In case of 0, we need to check for the IEEE 0 pattern (which is all zeros).
-  Register input_bits = temps.Acquire();
-  __ Fmov(input_bits, input_reg);
-  __ Cbnz(input_bits, __ GetDeoptLabel(this, DeoptimizeReason::kNotUint32));
-
-  __ Bind(&check_done);
-}
-
 void CheckNumber::SetValueLocationConstraints() {
   UseRegister(receiver_input());
 }

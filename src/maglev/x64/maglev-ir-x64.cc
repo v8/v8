@@ -1031,41 +1031,6 @@ void HoleyFloat64ToMaybeNanFloat64::GenerateCode(MaglevAssembler* masm,
   __ Subsd(value, kScratchDoubleReg);
 }
 
-void CheckedTruncateFloat64ToUint32::SetValueLocationConstraints() {
-  UseRegister(input());
-  DefineAsRegister(this);
-}
-void CheckedTruncateFloat64ToUint32::GenerateCode(
-    MaglevAssembler* masm, const ProcessingState& state) {
-  DoubleRegister input_reg = ToDoubleRegister(input());
-  Register result_reg = ToRegister(result());
-  DoubleRegister converted_back = kScratchDoubleReg;
-
-  // Convert the input float64 value to uint32.
-  Label* deopt = __ GetDeoptLabel(this, DeoptimizeReason::kNotUint32);
-  __ Cvttsd2ui(result_reg, input_reg, deopt);
-  // Convert that uint32 value back to float64.
-  __ Cvtlui2sd(converted_back, result_reg);
-  // Check that the result of the float64->uint32->float64 is equal to the input
-  // (i.e. that the conversion didn't truncate.
-  __ Ucomisd(input_reg, converted_back);
-  __ EmitEagerDeoptIf(parity_even, DeoptimizeReason::kNotUint32, this);
-  __ EmitEagerDeoptIf(not_equal, DeoptimizeReason::kNotUint32, this);
-
-  // Check if {input} is -0.
-  Label check_done;
-  __ cmpl(result_reg, Immediate(0));
-  __ j(not_equal, &check_done);
-
-  // In case of 0, we need to check the high bits for the IEEE -0 pattern.
-  Register high_word32_of_input = kScratchRegister;
-  __ Pextrd(high_word32_of_input, input_reg, 1);
-  __ cmpl(high_word32_of_input, Immediate(0));
-  __ EmitEagerDeoptIf(less, DeoptimizeReason::kNotUint32, this);
-
-  __ bind(&check_done);
-}
-
 namespace {
 
 enum class ReduceInterruptBudgetType { kLoop, kReturn };

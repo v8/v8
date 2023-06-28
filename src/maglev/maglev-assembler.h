@@ -277,6 +277,7 @@ class MaglevAssembler : public MacroAssembler {
 
   void TruncateDoubleToInt32(Register dst, DoubleRegister src);
   void TryTruncateDoubleToInt32(Register dst, DoubleRegister src, Label* fail);
+  void TryTruncateDoubleToUint32(Register dst, DoubleRegister src, Label* fail);
 
   void TryChangeFloat64ToIndex(Register result, DoubleRegister value,
                                Label* success, Label* fail);

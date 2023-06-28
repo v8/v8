@@ -556,6 +556,33 @@ void MaglevAssembler::TryTruncateDoubleToInt32(Register dst, DoubleRegister src,
   Bind(&check_done);
 }
 
+void MaglevAssembler::TryTruncateDoubleToUint32(Register dst,
+                                                DoubleRegister src,
+                                                Label* fail) {
+  ScratchRegisterScope temps(this);
+  DoubleRegister converted_back = temps.AcquireDouble();
+
+  // Convert the input float64 value to uint32.
+  Fcvtzu(dst, src);
+  // Convert that uint32 value back to float64.
+  Ucvtf(converted_back, dst);
+  // Check that the result of the float64->uint32->float64 is equal to the input
+  // (i.e. that the conversion didn't truncate.
+  Fcmp(src, converted_back);
+  JumpIf(ne, fail);
+
+  // Check if {input} is -0.
+  Label check_done;
+  Cbnz(dst, &check_done);
+
+  // In case of 0, we need to check for the IEEE 0 pattern (which is all zeros).
+  Register input_bits = temps.Acquire();
+  Fmov(input_bits, src);
+  Cbnz(input_bits, fail);
+
+  Bind(&check_done);
+}
+
 void MaglevAssembler::TryChangeFloat64ToIndex(Register result,
                                               DoubleRegister value,
                                               Label* success, Label* fail) {

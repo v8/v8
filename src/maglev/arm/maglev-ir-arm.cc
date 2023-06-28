@@ -152,15 +152,6 @@ void FoldedAllocation::GenerateCode(MaglevAssembler* masm,
   __ add(ToRegister(result()), ToRegister(raw_allocation()), Operand(offset()));
 }
 
-void CheckedTruncateFloat64ToUint32::SetValueLocationConstraints() {
-  UseRegister(input());
-  DefineAsRegister(this);
-}
-void CheckedTruncateFloat64ToUint32::GenerateCode(
-    MaglevAssembler* masm, const ProcessingState& state) {
-  MAGLEV_NODE_NOT_IMPLEMENTED(CheckedTruncateFloat64ToUint32);
-}
-
 void CheckNumber::SetValueLocationConstraints() {
   UseRegister(receiver_input());
 }
