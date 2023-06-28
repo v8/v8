@@ -223,6 +223,8 @@ class MaglevAssembler : public MacroAssembler {
                                          Register object);
   inline MemOperand TypedArrayElementOperand(Register data_pointer,
                                              Register index, int element_size);
+  inline MemOperand DataViewElementOperand(Register data_pointer,
+                                           Register index);
 
   // Warning: Input registers {string} and {index} will be scratched.
   // {result} is allowed to alias with one the other 3 input registers.
@@ -334,6 +336,17 @@ class MaglevAssembler : public MacroAssembler {
   inline void StoreFloat32(MemOperand dst, DoubleRegister src);
   inline void LoadFloat64(DoubleRegister dst, MemOperand src);
   inline void StoreFloat64(MemOperand dst, DoubleRegister src);
+
+  inline void LoadUnalignedFloat64(DoubleRegister dst, Register base,
+                                   Register index);
+  inline void LoadUnalignedFloat64AndReverseByteOrder(DoubleRegister dst,
+                                                      Register base,
+                                                      Register index);
+  inline void StoreUnalignedFloat64(Register base, Register index,
+                                    DoubleRegister src);
+  inline void ReverseByteOrderAndStoreUnalignedFloat64(Register base,
+                                                       Register index,
+                                                       DoubleRegister src);
 
   inline void SignExtend32To64Bits(Register dst, Register src);
   inline void NegateInt32(Register val);

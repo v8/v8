@@ -302,6 +302,11 @@ inline MemOperand MaglevAssembler::TypedArrayElementOperand(
   return MemOperand(data_pointer);
 }
 
+inline MemOperand MaglevAssembler::DataViewElementOperand(Register data_pointer,
+                                                          Register index) {
+  return MemOperand(data_pointer, index);
+}
+
 inline void MaglevAssembler::LoadTaggedFieldByIndex(Register result,
                                                     Register object,
                                                     Register index, int scale,
@@ -539,6 +544,59 @@ inline void MaglevAssembler::LoadFloat64(DoubleRegister dst, MemOperand src) {
 }
 inline void MaglevAssembler::StoreFloat64(MemOperand dst, DoubleRegister src) {
   vstr(src, dst);
+}
+
+inline void MaglevAssembler::LoadUnalignedFloat64(DoubleRegister dst,
+                                                  Register base,
+                                                  Register index) {
+  // vldr only works on 4 bytes aligned access.
+  ScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  ldr(scratch, MemOperand(base, index));
+  VmovLow(dst, scratch);
+  add(scratch, index, Operand(4));
+  ldr(scratch, MemOperand(base, scratch));
+  VmovHigh(dst, scratch);
+}
+inline void MaglevAssembler::LoadUnalignedFloat64AndReverseByteOrder(
+    DoubleRegister dst, Register base, Register index) {
+  // vldr only works on 4 bytes aligned access.
+  ScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  ldr(scratch, MemOperand(base, index));
+  rev(scratch, scratch);
+  VmovHigh(dst, scratch);
+  add(scratch, index, Operand(4));
+  ldr(scratch, MemOperand(base, scratch));
+  rev(scratch, scratch);
+  VmovLow(dst, scratch);
+}
+inline void MaglevAssembler::StoreUnalignedFloat64(Register base,
+                                                   Register index,
+                                                   DoubleRegister src) {
+  // vstr only works on 4 bytes aligned access.
+  ScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  Register index_scratch = temps.Acquire();
+  VmovLow(scratch, src);
+  str(scratch, MemOperand(base, index));
+  add(index_scratch, index, Operand(4));
+  VmovHigh(scratch, src);
+  str(scratch, MemOperand(base, index_scratch));
+}
+inline void MaglevAssembler::ReverseByteOrderAndStoreUnalignedFloat64(
+    Register base, Register index, DoubleRegister src) {
+  // vstr only works on 4 bytes aligned access.
+  ScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  Register index_scratch = temps.Acquire();
+  VmovHigh(scratch, src);
+  rev(scratch, scratch);
+  str(scratch, MemOperand(base, index));
+  add(index_scratch, index, Operand(4));
+  VmovLow(scratch, src);
+  rev(scratch, scratch);
+  str(scratch, MemOperand(base, index_scratch));
 }
 
 inline void MaglevAssembler::SignExtend32To64Bits(Register dst, Register src) {

@@ -18,12 +18,6 @@ namespace maglev {
 
 #define __ masm->
 
-#define MAGLEV_NODE_NOT_IMPLEMENTED(Node)                    \
-  do {                                                       \
-    PrintF("Maglev: Node not yet implemented'" #Node "'\n"); \
-    masm->set_failed(true);                                  \
-  } while (false)
-
 void Int32NegateWithOverflow::SetValueLocationConstraints() {
   UseRegister(value_input());
   DefineAsRegister(this);
@@ -839,74 +833,6 @@ void ReduceInterruptBudgetForReturn::GenerateCode(
     MaglevAssembler* masm, const ProcessingState& state) {
   GenerateReduceInterruptBudget(masm, this, ReduceInterruptBudgetType::kReturn,
                                 amount());
-}
-
-void LoadSignedIntDataViewElement::SetValueLocationConstraints() {
-  UseRegister(object_input());
-  UseRegister(index_input());
-  if (is_little_endian_constant() ||
-      type_ == ExternalArrayType::kExternalInt8Array) {
-    UseAny(is_little_endian_input());
-  } else {
-    UseRegister(is_little_endian_input());
-  }
-  DefineAsRegister(this);
-}
-void LoadSignedIntDataViewElement::GenerateCode(MaglevAssembler* masm,
-                                                const ProcessingState& state) {
-  MAGLEV_NODE_NOT_IMPLEMENTED(LoadSignedIntDataViewElement);
-}
-
-void StoreSignedIntDataViewElement::SetValueLocationConstraints() {
-  UseRegister(object_input());
-  UseRegister(index_input());
-  if (ExternalArrayElementSize(type_) > 1) {
-    UseAndClobberRegister(value_input());
-  } else {
-    UseRegister(value_input());
-  }
-  if (is_little_endian_constant() ||
-      type_ == ExternalArrayType::kExternalInt8Array) {
-    UseAny(is_little_endian_input());
-  } else {
-    UseRegister(is_little_endian_input());
-  }
-}
-void StoreSignedIntDataViewElement::GenerateCode(MaglevAssembler* masm,
-                                                 const ProcessingState& state) {
-  MAGLEV_NODE_NOT_IMPLEMENTED(StoreSignedIntDataViewElement);
-}
-
-void LoadDoubleDataViewElement::SetValueLocationConstraints() {
-  UseRegister(object_input());
-  UseRegister(index_input());
-  if (is_little_endian_constant()) {
-    UseAny(is_little_endian_input());
-  } else {
-    UseRegister(is_little_endian_input());
-  }
-  set_temporaries_needed(1);
-  DefineAsRegister(this);
-}
-void LoadDoubleDataViewElement::GenerateCode(MaglevAssembler* masm,
-                                             const ProcessingState& state) {
-  MAGLEV_NODE_NOT_IMPLEMENTED(LoadDoubleDataViewElement);
-}
-
-void StoreDoubleDataViewElement::SetValueLocationConstraints() {
-  UseRegister(object_input());
-  UseRegister(index_input());
-  UseRegister(value_input());
-  if (is_little_endian_constant()) {
-    UseAny(is_little_endian_input());
-  } else {
-    UseRegister(is_little_endian_input());
-  }
-  set_temporaries_needed(1);
-}
-void StoreDoubleDataViewElement::GenerateCode(MaglevAssembler* masm,
-                                              const ProcessingState& state) {
-  MAGLEV_NODE_NOT_IMPLEMENTED(StoreDoubleDataViewElement);
 }
 
 int FunctionEntryStackCheck::MaxCallStackArgs() const { return 1; }

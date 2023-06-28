@@ -296,6 +296,11 @@ inline MemOperand MaglevAssembler::TypedArrayElementOperand(
   return Operand(data_pointer, index, ScaleFactorFromInt(element_size), 0);
 }
 
+inline MemOperand MaglevAssembler::DataViewElementOperand(Register data_pointer,
+                                                          Register index) {
+  return Operand(data_pointer, index, times_1, 0);
+}
+
 inline void MaglevAssembler::LoadTaggedFieldByIndex(Register result,
                                                     Register object,
                                                     Register index, int scale,
@@ -536,6 +541,29 @@ inline void MaglevAssembler::LoadFloat64(DoubleRegister dst, MemOperand src) {
 }
 inline void MaglevAssembler::StoreFloat64(MemOperand dst, DoubleRegister src) {
   Movsd(dst, src);
+}
+
+inline void MaglevAssembler::LoadUnalignedFloat64(DoubleRegister dst,
+                                                  Register base,
+                                                  Register index) {
+  LoadFloat64(dst, Operand(base, index, times_1, 0));
+}
+inline void MaglevAssembler::LoadUnalignedFloat64AndReverseByteOrder(
+    DoubleRegister dst, Register base, Register index) {
+  movq(kScratchRegister, Operand(base, index, times_1, 0));
+  bswapq(kScratchRegister);
+  Movq(dst, kScratchRegister);
+}
+inline void MaglevAssembler::StoreUnalignedFloat64(Register base,
+                                                   Register index,
+                                                   DoubleRegister src) {
+  StoreFloat64(Operand(base, index, times_1, 0), src);
+}
+inline void MaglevAssembler::ReverseByteOrderAndStoreUnalignedFloat64(
+    Register base, Register index, DoubleRegister src) {
+  Movq(kScratchRegister, src);
+  bswapq(kScratchRegister);
+  movq(Operand(base, index, times_1, 0), kScratchRegister);
 }
 
 inline void MaglevAssembler::SignExtend32To64Bits(Register dst, Register src) {
