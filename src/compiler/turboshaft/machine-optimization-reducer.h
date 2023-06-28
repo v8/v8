@@ -1706,10 +1706,10 @@ class MachineOptimizationReducer : public Next {
           UnparkedScopeIfNeeded scope(PipelineData::Get().broker());
           AllowHandleDereference allow_handle_dereference;
 
-          MapRef map = MakeRef(broker, base.handle()->map());
-          if (map.is_stable() && !map.is_deprecated()) {
-            broker->dependencies()->DependOnStableMap(map);
-            return Asm().HeapConstant(map.object());
+          OptionalMapRef map = TryMakeRef(broker, base.handle()->map());
+          if (map.has_value() && map->is_stable() && !map->is_deprecated()) {
+            broker->dependencies()->DependOnStableMap(*map);
+            return Asm().HeapConstant(map->object());
           }
         }
         // TODO(dmercadier): consider constant-folding other accesses, in
