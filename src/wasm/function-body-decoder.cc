@@ -296,6 +296,12 @@ bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
         os << ": " << *imm.sig;
         break;
       }
+      case kExprCallRef: {
+        SigIndexImmediate imm(&i, i.pc() + 1, Decoder::kNoValidation);
+        CHECK(decoder.Validate(i.pc() + 1, imm));
+        os << ": " << *imm.sig;
+        break;
+      }
       case kExprCallFunction: {
         CallFunctionImmediate imm(&i, i.pc() + 1, Decoder::kNoValidation);
         os << " function #" << imm.index;
