@@ -4171,8 +4171,6 @@ void CodeStubAssembler::InitializeJSObjectBodyWithSlackTracking(
     TNode<Word32T> new_bit_field3 = Int32Sub(
         bit_field3,
         Int32Constant(1 << Map::Bits3::ConstructionCounterBits::kShift));
-    StoreObjectFieldNoWriteBarrier(map, Map::kBitField3Offset, new_bit_field3);
-    static_assert(Map::kSlackTrackingCounterEnd == 1);
 
     // The object still has in-object slack therefore the |unsed_or_unused|
     // field contain the "used" value.
@@ -4180,7 +4178,7 @@ void CodeStubAssembler::InitializeJSObjectBodyWithSlackTracking(
         Signed(TimesTaggedSize(ChangeUint32ToWord(LoadObjectField<Uint8T>(
             map, Map::kUsedOrUnusedInstanceSizeInWordsOffset))));
 
-    Comment("iInitialize filler fields");
+    Comment("Initialize filler fields");
     InitializeFieldsWithRoot(object, used_size, instance_size,
                              RootIndex::kOnePointerFillerMap);
 
@@ -4191,6 +4189,14 @@ void CodeStubAssembler::InitializeJSObjectBodyWithSlackTracking(
     static_assert(Map::kNoSlackTracking == 0);
     GotoIf(IsClearWord32<Map::Bits3::ConstructionCounterBits>(new_bit_field3),
            &complete);
+
+    // Setting ConstructionCounterBits to 0 requires taking the
+    // map_updater_access mutex, which we can't do from CSA, so we only manually
+    // update ConstructionCounterBits when its result is non-zero; otherwise we
+    // let the runtime do it (with the GotoIf right above this comment).
+    StoreObjectFieldNoWriteBarrier(map, Map::kBitField3Offset, new_bit_field3);
+    static_assert(Map::kSlackTrackingCounterEnd == 1);
+
     Goto(&end);
   }
 
