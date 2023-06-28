@@ -1845,8 +1845,8 @@ void SharedFunctionInfo::SharedFunctionInfoPrint(std::ostream& os) {
   os << "\n - expected_nof_properties: "
      << static_cast<int>(expected_nof_properties());
   os << "\n - language_mode: " << language_mode();
-  os << "\n - data: " << Brief(function_data(kAcquireLoad));
-  os << "\n - code (from data): ";
+  os << "\n - function_data: " << Brief(function_data(kAcquireLoad));
+  os << "\n - code (from function_data): ";
   Isolate* isolate;
   if (GetIsolateFromHeapObject(*this, &isolate)) {
     os << Brief(GetCode(isolate));
@@ -1875,6 +1875,9 @@ void SharedFunctionInfo::SharedFunctionInfoPrint(std::ostream& os) {
   } else {
     os << "<none>";
   }
+  os << "\n - function_literal_id: " << function_literal_id();
+  os << "\n - unique_id: " << unique_id();
+  os << "\n - age: " << age();
   os << "\n";
 }
 

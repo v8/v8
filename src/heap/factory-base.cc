@@ -1067,16 +1067,15 @@ template <typename Impl>
 Handle<SharedFunctionInfo> FactoryBase<Impl>::NewSharedFunctionInfo(
     AllocationType allocation) {
   Map map = read_only_roots().shared_function_info_map();
-
   SharedFunctionInfo shared =
       SharedFunctionInfo::cast(NewWithImmortalMap(map, allocation));
-  DisallowGarbageCollection no_gc;
-  shared.Init(read_only_roots(),
-              isolate()->GetNextUniqueSharedFunctionInfoId());
 
+  DisallowGarbageCollection no_gc;
+  shared.Init(read_only_roots(), isolate()->GetAndIncNextUniqueSfiId());
 #ifdef VERIFY_HEAP
   if (v8_flags.verify_heap) shared.SharedFunctionInfoVerify(isolate());
 #endif  // VERIFY_HEAP
+
   return handle(shared, isolate());
 }
 

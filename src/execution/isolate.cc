@@ -3372,6 +3372,7 @@ void Isolate::SetUpFromReadOnlyArtifacts(
   if (ReadOnlyHeap::IsReadOnlySpaceShared()) {
     DCHECK_NOT_NULL(artifacts);
     artifacts_ = artifacts;
+    InitializeNextUniqueSfiId(artifacts->initial_next_unique_sfi_id());
   } else {
     DCHECK_NULL(artifacts);
   }
@@ -3543,7 +3544,7 @@ void Isolate::Deinit() {
 
   FutexEmulation::IsolateDeinit(this);
 
-  debug()->TearDown();
+  debug()->Unload();
 
 #if V8_ENABLE_WEBASSEMBLY
   wasm::GetWasmEngine()->DeleteCompileJobsOnIsolate(this);
@@ -4580,6 +4581,10 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
   if (create_heap_objects && v8_flags.profile_deserialization) {
     double ms = timer.Elapsed().InMillisecondsF();
     PrintF("[Initializing isolate from scratch took %0.3f ms]\n", ms);
+  }
+
+  if (initialized_from_snapshot_) {
+    SLOW_DCHECK(SharedFunctionInfo::UniqueIdsAreUnique(this));
   }
 
 #ifdef V8_ENABLE_WEBASSEMBLY

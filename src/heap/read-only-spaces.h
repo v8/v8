@@ -106,6 +106,13 @@ class ReadOnlyArtifacts {
   void set_read_only_heap(std::unique_ptr<ReadOnlyHeap> read_only_heap);
   ReadOnlyHeap* read_only_heap() const { return read_only_heap_.get(); }
 
+  void set_initial_next_unique_sfi_id(uint32_t id) {
+    initial_next_unique_sfi_id_ = id;
+  }
+  uint32_t initial_next_unique_sfi_id() const {
+    return initial_next_unique_sfi_id_;
+  }
+
   void InitializeChecksum(SnapshotData* read_only_snapshot_data);
   void VerifyChecksum(SnapshotData* read_only_snapshot_data,
                       bool read_only_heap_created);
@@ -117,6 +124,7 @@ class ReadOnlyArtifacts {
   AllocationStats stats_;
   std::unique_ptr<SharedReadOnlySpace> shared_read_only_space_;
   std::unique_ptr<ReadOnlyHeap> read_only_heap_;
+  uint32_t initial_next_unique_sfi_id_ = 0;
 #ifdef DEBUG
   // The checksum of the blob the read-only heap was deserialized from, if
   // any.

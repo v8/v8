@@ -79,6 +79,8 @@ void ReadOnlyHeap::SetUp(Isolate* isolate,
         ro_heap = CreateInitalHeapForBootstrapping(isolate, artifacts);
         ro_heap->DeserializeIntoIsolate(isolate, read_only_snapshot_data,
                                         can_rehash);
+        artifacts->set_initial_next_unique_sfi_id(
+            isolate->next_unique_sfi_id());
         read_only_heap_created = true;
       } else {
         // With pointer compression, there is one ReadOnlyHeap per Isolate.

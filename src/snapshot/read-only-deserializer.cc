@@ -191,6 +191,10 @@ void ReadOnlyDeserializer::PostProcessNewObjects() {
       code.SetInstructionStartForOffHeapBuiltin(
           main_thread_isolate(), EmbeddedData::FromBlob(main_thread_isolate())
                                      .InstructionStartOf(code.builtin_id()));
+    } else if (InstanceTypeChecker::IsSharedFunctionInfo(instance_type)) {
+      SharedFunctionInfo sfi = SharedFunctionInfo::cast(o);
+      // Reset the id to avoid collisions - it must be unique in this isolate.
+      sfi.set_unique_id(isolate()->GetAndIncNextUniqueSfiId());
     }
   }
 }

@@ -141,8 +141,7 @@ Handle<FixedArray> GetDebuggedFunctions() {
   int i = 0;
   DebugInfoCollection::Iterator it(infos);
   for (; it.HasNext(); it.Advance()) {
-    Handle<DebugInfo> debug_info = it.Next();
-    debugged_functions->set(i++, *debug_info);
+    debugged_functions->set(i++, it.Next());
   }
 
   return debugged_functions;

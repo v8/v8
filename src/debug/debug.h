@@ -6,6 +6,7 @@
 #define V8_DEBUG_DEBUG_H_
 
 #include <memory>
+#include <unordered_map>
 #include <vector>
 
 #include "src/base/enum-set.h"
@@ -19,7 +20,6 @@
 #include "src/handles/handles.h"
 #include "src/objects/debug-objects.h"
 #include "src/objects/shared-function-info.h"
-#include "src/utils/identity-map.h"
 
 namespace v8 {
 namespace internal {
@@ -178,29 +178,24 @@ class V8_EXPORT_PRIVATE BreakIterator {
 //
 // DebugInfos are held strongly through global handles.
 //
-// TODO(jgruber): If we had a map-like data structure that supports fast
-// deletion-during-iteration, the list-like part of this data structure could
-// be removed. However, that's a no-go with IdentityMap.
+// TODO(jgruber): Now that we use an unordered_map as the map-like structure,
+// which supports deletion-during-iteration, the list-like part of this data
+// structure could be removed.
 class DebugInfoCollection final {
   using HandleLocation = Address*;
+  using SFIUniqueId = uint32_t;  // The type of SFI::unique_id.
 
  public:
-  explicit DebugInfoCollection(Isolate* isolate)
-      : isolate_(isolate), map_(isolate->heap()) {}
+  explicit DebugInfoCollection(Isolate* isolate) : isolate_(isolate) {}
 
   void Insert(SharedFunctionInfo sfi, DebugInfo debug_info);
 
   bool Contains(SharedFunctionInfo sfi) const;
-  MaybeHandle<DebugInfo> Find(SharedFunctionInfo sfi) const;
+  base::Optional<DebugInfo> Find(SharedFunctionInfo sfi) const;
 
   void DeleteSlow(SharedFunctionInfo sfi);
 
   size_t Size() const { return list_.size(); }
-
-  void TearDown() {
-    list_.clear();
-    map_.Clear();
-  }
 
   class Iterator final {
    public:
@@ -211,10 +206,10 @@ class DebugInfoCollection final {
       return index_ < static_cast<int>(collection_->list_.size());
     }
 
-    Handle<DebugInfo> Next() const {
+    DebugInfo Next() const {
       DCHECK_GE(index_, 0);
       if (!HasNext()) return {};
-      return collection_->EntryAsHandle(index_);
+      return collection_->EntryAsDebugInfo(index_);
     }
 
     void Advance() {
@@ -236,15 +231,12 @@ class DebugInfoCollection final {
   };
 
  private:
-  Handle<DebugInfo> EntryAsHandle(size_t index) const {
-    DCHECK_LT(index, list_.size());
-    return Handle<DebugInfo>(list_[index]);
-  }
+  V8_EXPORT_PRIVATE DebugInfo EntryAsDebugInfo(size_t index) const;
   void DeleteIndex(size_t index);
 
   Isolate* const isolate_;
   std::vector<HandleLocation> list_;
-  IdentityMap<HandleLocation, FreeStoreAllocationPolicy> map_;
+  std::unordered_map<SFIUniqueId, HandleLocation> map_;
 };
 
 class DebugFeatureTracker {
@@ -512,13 +504,6 @@ class V8_EXPORT_PRIVATE Debug {
   void UpdateState();
   void UpdateHookOnFunctionCall();
   void Unload();
-
-  void TearDown() {
-    Unload();
-    // Must be done explicitly prior to Heap::TearDown to avoid double-freeing
-    // the registered strong roots.
-    debug_infos_.TearDown();
-  }
 
   // Return the number of virtual frames below debugger entry.
   int CurrentFrameCount();

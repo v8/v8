@@ -97,9 +97,16 @@ class V8_EXPORT_PRIVATE IdentityMapBase {
 // Implements an identity map from object addresses to a given value type {V}.
 // The map is robust w.r.t. garbage collection by synchronization with the
 // supplied {heap}.
+//
 //  * Keys are treated as strong roots.
 //  * The value type {V} must be reinterpret_cast'able to {uintptr_t}
 //  * The value type {V} must not be a heap type.
+//
+// Note: IdentityMap methods must not be called during the mark-compact phase
+// since rehashing there may lead to incorrect results.
+// Note: When using IdentityMap in concurrent settings, be aware that reads
+// (e.g. `Find`) may trigger lazy rehashing and thus must be treated as write
+// operations wrt synchronization.
 template <typename V, class AllocationPolicy>
 class IdentityMap : public IdentityMapBase {
  public:

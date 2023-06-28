@@ -11,6 +11,7 @@
 #include "src/common/globals.h"
 #include "src/diagnostics/code-tracer.h"
 #include "src/execution/isolate-utils.h"
+#include "src/heap/combined-heap.h"
 #include "src/objects/shared-function-info-inl.h"
 #include "src/strings/string-builder-inl.h"
 
@@ -841,6 +842,21 @@ void SharedFunctionInfo::EnsureOldForTesting(SharedFunctionInfo sfi) {
     sfi.set_age(v8_flags.bytecode_old_age);
   }
 }
+
+#ifdef DEBUG
+// static
+bool SharedFunctionInfo::UniqueIdsAreUnique(Isolate* isolate) {
+  std::unordered_set<uint32_t> ids({isolate->next_unique_sfi_id()});
+  CombinedHeapObjectIterator it(isolate->heap());
+  for (HeapObject o = it.Next(); !o.is_null(); o = it.Next()) {
+    if (!o.IsSharedFunctionInfo()) continue;
+    auto result = ids.emplace(SharedFunctionInfo::cast(o).unique_id());
+    // If previously inserted...
+    if (!result.second) return false;
+  }
+  return true;
+}
+#endif  // DEBUG
 
 }  // namespace internal
 }  // namespace v8

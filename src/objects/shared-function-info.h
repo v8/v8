@@ -711,6 +711,12 @@ class SharedFunctionInfo
   static void UninstallDebugBytecode(SharedFunctionInfo shared,
                                      Isolate* isolate);
 
+#ifdef DEBUG
+  // Verifies that all SFI::unique_id values on the heap are unique, including
+  // Isolate::new_unique_sfi_id_.
+  static bool UniqueIdsAreUnique(Isolate* isolate);
+#endif  // DEBUG
+
  private:
 #ifdef VERIFY_HEAP
   void SharedFunctionInfoVerify(ReadOnlyRoots roots);

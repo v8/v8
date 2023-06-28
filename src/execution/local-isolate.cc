@@ -54,10 +54,6 @@ bool LocalIsolate::has_active_deserializer() const {
 
 int LocalIsolate::GetNextScriptId() { return isolate_->GetNextScriptId(); }
 
-uint32_t LocalIsolate::GetNextUniqueSharedFunctionInfoId() {
-  return isolate_->GetNextUniqueSharedFunctionInfoId();
-}
-
 // Used for lazy initialization, based on an assumption that most
 // LocalIsolates won't be used to parse any BigInt literals.
 void LocalIsolate::InitializeBigIntProcessor() {

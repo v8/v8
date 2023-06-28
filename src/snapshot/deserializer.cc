@@ -500,6 +500,10 @@ void Deserializer<IsolateT>::PostProcessNewObject(Handle<Map> map,
       code.UpdateInstructionStart(main_thread_isolate(),
                                   code.instruction_stream());
     }
+  } else if (InstanceTypeChecker::IsSharedFunctionInfo(instance_type)) {
+    SharedFunctionInfo sfi = SharedFunctionInfo::cast(raw_obj);
+    // Reset the id to avoid collisions - it must be unique in this isolate.
+    sfi.set_unique_id(isolate()->GetAndIncNextUniqueSfiId());
   } else if (InstanceTypeChecker::IsMap(instance_type)) {
     if (v8_flags.log_maps) {
       // Keep track of all seen Maps to log them later since they might be only

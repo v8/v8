@@ -115,7 +115,9 @@ class V8_EXPORT_PRIVATE LocalIsolate final : private HiddenLocalFactory {
   }
 
   int GetNextScriptId();
-  uint32_t GetNextUniqueSharedFunctionInfoId();
+  uint32_t GetAndIncNextUniqueSfiId() {
+    return isolate_->GetAndIncNextUniqueSfiId();
+  }
 
   // TODO(cbruni): rename this back to logger() once the V8FileLogger
   // refactoring is completed.
