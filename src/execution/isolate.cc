@@ -4406,9 +4406,11 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
     }
     code_cage_base_ = ExternalCodeCompressionScheme::PrepareCageBaseAddress(
         code_cage->base());
-#ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
+    if (COMPRESS_POINTERS_IN_ISOLATE_CAGE_BOOL) {
+      // .. now that it's available, initialize the thread-local base.
+      ExternalCodeCompressionScheme::InitBase(code_cage_base_);
+    }
     CHECK_EQ(ExternalCodeCompressionScheme::base(), code_cage_base_);
-#endif  // V8_COMPRESS_POINTERS_IN_SHARED_CAGE
 
     // Ensure that ExternalCodeCompressionScheme is applicable to all objects
     // stored in the code cage.

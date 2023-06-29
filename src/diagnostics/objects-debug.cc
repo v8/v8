@@ -559,16 +559,32 @@ void Map::MapVerify(Isolate* isolate) {
 
     if (IsJSSharedStructMap() || IsJSSharedArrayMap() || IsJSAtomicsMutex() ||
         IsJSAtomicsCondition()) {
-      CHECK(InSharedHeap());
-      CHECK(GetBackPointer().IsUndefined(isolate));
-      Object maybe_cell = prototype_validity_cell(kRelaxedLoad);
-      if (maybe_cell.IsCell()) CHECK(maybe_cell.InSharedHeap());
-      CHECK(!is_extensible());
-      CHECK(!is_prototype_map());
-      CHECK(OnlyHasSimpleProperties());
-      CHECK(instance_descriptors(isolate).InSharedHeap());
-      if (IsJSSharedArrayMap()) {
-        CHECK(has_shared_array_elements());
+      if (COMPRESS_POINTERS_IN_ISOLATE_CAGE_BOOL) {
+        // TODO(v8:14089): Verify what should be checked in this configuration
+        // and again merge with the else-branch below.
+        // CHECK(InSharedHeap());
+        CHECK(GetBackPointer().IsUndefined(isolate));
+        // Object maybe_cell = prototype_validity_cell(kRelaxedLoad);
+        // if (maybe_cell.IsCell()) CHECK(maybe_cell.InSharedHeap());
+        CHECK(!is_extensible());
+        CHECK(!is_prototype_map());
+        CHECK(OnlyHasSimpleProperties());
+        // CHECK(instance_descriptors(isolate).InSharedHeap());
+        if (IsJSSharedArrayMap()) {
+          CHECK(has_shared_array_elements());
+        }
+      } else {
+        CHECK(InSharedHeap());
+        CHECK(GetBackPointer().IsUndefined(isolate));
+        Object maybe_cell = prototype_validity_cell(kRelaxedLoad);
+        if (maybe_cell.IsCell()) CHECK(maybe_cell.InSharedHeap());
+        CHECK(!is_extensible());
+        CHECK(!is_prototype_map());
+        CHECK(OnlyHasSimpleProperties());
+        CHECK(instance_descriptors(isolate).InSharedHeap());
+        if (IsJSSharedArrayMap()) {
+          CHECK(has_shared_array_elements());
+        }
       }
     }
 
