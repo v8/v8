@@ -3929,6 +3929,9 @@ void TestInstanceOf::GenerateCode(MaglevAssembler* masm,
 void TestTypeOf::SetValueLocationConstraints() {
   UseRegister(value());
   DefineAsRegister(this);
+#ifdef V8_TARGET_ARCH_ARM
+  set_temporaries_needed(1);
+#endif
 }
 void TestTypeOf::GenerateCode(MaglevAssembler* masm,
                               const ProcessingState& state) {

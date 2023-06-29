@@ -312,7 +312,7 @@ void Int32DivideWithOverflow::GenerateCode(MaglevAssembler* masm,
   // Check that the remainder is zero.
   Register temp = temps.Acquire();
   __ mul(temp, res, right);
-  __ tst(temp, left);
+  __ cmp(temp, left);
   __ EmitEagerDeoptIf(ne, DeoptimizeReason::kNotInt32, this);
 
   __ Move(out, res);
@@ -435,7 +435,6 @@ void Int32ModulusWithOverflow::GenerateCode(MaglevAssembler* masm,
   __ add(mask, rhs, Operand(-1));
   __ tst(mask, rhs);
   __ JumpIf(ne, &rhs_not_power_of_2);
-  __ DebugBreak();
 
   // {rhs} is power of 2.
   __ and_(out, mask, lhs);
@@ -467,31 +466,38 @@ DEF_BITWISE_BINOP(Int32BitwiseOr, orr)
 DEF_BITWISE_BINOP(Int32BitwiseXor, eor)
 #undef DEF_BITWISE_BINOP
 
-#define DEF_SHIFT_BINOP(Instruction, opcode)                             \
-  void Instruction::SetValueLocationConstraints() {                      \
-    UseRegister(left_input());                                           \
-    if (right_input().node()->Is<Int32Constant>()) {                     \
-      UseAny(right_input());                                             \
-    } else {                                                             \
-      UseRegister(right_input());                                        \
-    }                                                                    \
-    DefineAsRegister(this);                                              \
-  }                                                                      \
-  void Instruction::GenerateCode(MaglevAssembler* masm,                  \
-                                 const ProcessingState& state) {         \
-    Register left = ToRegister(left_input());                            \
-    Register out = ToRegister(result());                                 \
-    if (Int32Constant* constant =                                        \
-            right_input().node()->TryCast<Int32Constant>()) {            \
-      __ opcode(out, left,                                               \
-                Operand(static_cast<uint32_t>(constant->value()) & 31)); \
-    } else {                                                             \
-      MaglevAssembler::ScratchRegisterScope temps(masm);                 \
-      Register scratch = temps.Acquire();                                \
-      Register right = ToRegister(right_input());                        \
-      __ and_(scratch, right, Operand(31));                              \
-      __ opcode(out, left, Operand(scratch));                            \
-    }                                                                    \
+#define DEF_SHIFT_BINOP(Instruction, opcode)                                   \
+  void Instruction::SetValueLocationConstraints() {                            \
+    UseRegister(left_input());                                                 \
+    if (right_input().node()->Is<Int32Constant>()) {                           \
+      UseAny(right_input());                                                   \
+    } else {                                                                   \
+      UseRegister(right_input());                                              \
+    }                                                                          \
+    DefineAsRegister(this);                                                    \
+  }                                                                            \
+  void Instruction::GenerateCode(MaglevAssembler* masm,                        \
+                                 const ProcessingState& state) {               \
+    Register left = ToRegister(left_input());                                  \
+    Register out = ToRegister(result());                                       \
+    if (Int32Constant* constant =                                              \
+            right_input().node()->TryCast<Int32Constant>()) {                  \
+      if (constant->value() == 0) {                                            \
+        /* TODO(victorgomes): Arm will do a shift of 32 if right == 0. Ideally \
+         * we should not even emit the shift in the first place. We do a move  \
+         * here for the moment. */                                             \
+        __ Move(out, left);                                                    \
+        return;                                                                \
+      }                                                                        \
+      __ opcode(out, left,                                                     \
+                Operand(static_cast<uint32_t>(constant->value()) & 31));       \
+    } else {                                                                   \
+      MaglevAssembler::ScratchRegisterScope temps(masm);                       \
+      Register scratch = temps.Acquire();                                      \
+      Register right = ToRegister(right_input());                              \
+      __ and_(scratch, right, Operand(31));                                    \
+      __ opcode(out, left, Operand(scratch));                                  \
+    }                                                                          \
   }
 DEF_SHIFT_BINOP(Int32ShiftLeft, lsl)
 DEF_SHIFT_BINOP(Int32ShiftRight, asr)
@@ -566,9 +572,10 @@ void Float64Divide::GenerateCode(MaglevAssembler* masm,
   __ vdiv(out, left, right);
 }
 
+int Float64Modulus::MaxCallStackArgs() const { return 0; }
 void Float64Modulus::SetValueLocationConstraints() {
-  UseRegister(left_input());
-  UseRegister(right_input());
+  UseFixed(left_input(), d0);
+  UseFixed(right_input(), d1);
   DefineAsRegister(this);
 }
 void Float64Modulus::GenerateCode(MaglevAssembler* masm,
@@ -625,8 +632,8 @@ void Float64Round::GenerateCode(MaglevAssembler* masm,
 
 int Float64Exponentiate::MaxCallStackArgs() const { return 0; }
 void Float64Exponentiate::SetValueLocationConstraints() {
-  UseRegister(left_input());
-  UseRegister(right_input());
+  UseFixed(left_input(), d0);
+  UseFixed(right_input(), d1);
   DefineAsRegister(this);
 }
 void Float64Exponentiate::GenerateCode(MaglevAssembler* masm,
@@ -643,7 +650,7 @@ void Float64Exponentiate::GenerateCode(MaglevAssembler* masm,
 
 int Float64Ieee754Unary::MaxCallStackArgs() const { return 0; }
 void Float64Ieee754Unary::SetValueLocationConstraints() {
-  UseRegister(input());
+  UseFixed(input(), d0);
   DefineAsRegister(this);
 }
 void Float64Ieee754Unary::GenerateCode(MaglevAssembler* masm,
@@ -804,7 +811,7 @@ void GenerateReduceInterruptBudget(MaglevAssembler* masm, Node* node,
       FieldMemOperand(feedback_cell, JSFunction::kFeedbackCellOffset));
   __ ldr(budget,
          FieldMemOperand(feedback_cell, FeedbackCell::kInterruptBudgetOffset));
-  __ sub(budget, budget, Operand(amount));
+  __ sub(budget, budget, Operand(amount), SetCC);
   __ str(budget,
          FieldMemOperand(feedback_cell, FeedbackCell::kInterruptBudgetOffset));
   ZoneLabelRef done(masm);

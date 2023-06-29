@@ -561,13 +561,22 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void PushAll(RegList registers) {
     if (registers.is_empty()) return;
     ASM_CODE_COMMENT(this);
-    stm(db_w, sp, registers);
+    // stm(db_w, sp, registers);
+    // TODO(victorgomes): {stm/ldm} pushes/pops registers in the opposite order
+    // as expected by Maglev frame. Consider massaging Maglev to accept this
+    // order instead.
+    for (Register reg : registers) {
+      push(reg);
+    }
   }
 
   void PopAll(RegList registers) {
     if (registers.is_empty()) return;
     ASM_CODE_COMMENT(this);
-    ldm(ia_w, sp, registers);
+    // ldm(ia_w, sp, registers);
+    for (Register reg : base::Reversed(registers)) {
+      pop(reg);
+    }
   }
 
   void PushAll(DoubleRegList registers, int stack_slot_size = kDoubleSize) {

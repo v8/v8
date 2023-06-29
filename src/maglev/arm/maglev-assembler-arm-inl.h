@@ -609,6 +609,7 @@ inline void MaglevAssembler::NegateInt32(Register val) {
 inline void MaglevAssembler::ToUint8Clamped(Register result,
                                             DoubleRegister value, Label* min,
                                             Label* max, Label* done) {
+  CpuFeatureScope scope(this, ARMv8);
   ScratchRegisterScope temps(this);
   DoubleRegister scratch = temps.AcquireDouble();
   Move(scratch, 0.0);

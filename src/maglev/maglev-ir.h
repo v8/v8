@@ -2651,8 +2651,8 @@ DEF_FLOAT64_BINARY_NODE(Add)
 DEF_FLOAT64_BINARY_NODE(Subtract)
 DEF_FLOAT64_BINARY_NODE(Multiply)
 DEF_FLOAT64_BINARY_NODE(Divide)
-#ifdef V8_TARGET_ARCH_ARM64
-// On Arm64, floating point modulus is implemented with a call to a C++
+#if defined(V8_TARGET_ARCH_ARM64) || defined(V8_TARGET_ARCH_ARM)
+// On Arm/Arm64, floating point modulus is implemented with a call to a C++
 // function, while on x64, it's implemented natively without call.
 DEF_FLOAT64_BINARY_NODE_WITH_CALL(Modulus)
 #else

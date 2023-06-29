@@ -2975,14 +2975,14 @@ void MacroAssembler::Switch(Register scratch, Register value,
 void MacroAssembler::JumpIfCodeIsMarkedForDeoptimization(
     Register code, Register scratch, Label* if_marked_for_deoptimization) {
   ldr(scratch, FieldMemOperand(code, Code::kFlagsOffset));
-  tst(scratch, Operand(Code::kMarkedForDeoptimizationBit));
+  tst(scratch, Operand(1 << Code::kMarkedForDeoptimizationBit));
   b(if_marked_for_deoptimization, ne);
 }
 
 void MacroAssembler::JumpIfCodeIsTurbofanned(Register code, Register scratch,
                                              Label* if_turbofanned) {
   ldr(scratch, FieldMemOperand(code, Code::kFlagsOffset));
-  tst(scratch, Operand(Code::kIsTurbofannedBit));
+  tst(scratch, Operand(1 << Code::kIsTurbofannedBit));
   b(if_turbofanned, ne);
 }
 
