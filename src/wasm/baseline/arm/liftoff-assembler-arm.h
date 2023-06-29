@@ -4375,30 +4375,11 @@ void LiftoffAssembler::CallC(const ValueKindSig* sig,
   AllocateStackSpace(stack_bytes);
 
   int arg_bytes = 0;
+  const LiftoffRegister* current_arg = args;
   for (ValueKind param_kind : sig->parameters()) {
-    switch (param_kind) {
-      case kI32:
-        str(args->gp(), MemOperand(sp, arg_bytes));
-        break;
-      case kI64:
-        str(args->low_gp(), MemOperand(sp, arg_bytes));
-        str(args->high_gp(), MemOperand(sp, arg_bytes + kSystemPointerSize));
-        break;
-      case kF32:
-        vstr(liftoff::GetFloatRegister(args->fp()), MemOperand(sp, arg_bytes));
-        break;
-      case kF64:
-        vstr(args->fp(), MemOperand(sp, arg_bytes));
-        break;
-      case kS128:
-        vstr(args->low_fp(), MemOperand(sp, arg_bytes));
-        vstr(args->high_fp(),
-             MemOperand(sp, arg_bytes + 2 * kSystemPointerSize));
-        break;
-      default:
-        UNREACHABLE();
-    }
-    args++;
+    MemOperand dst{sp, arg_bytes};
+    liftoff::Store(this, *current_arg, dst, param_kind);
+    ++current_arg;
     arg_bytes += value_kind_size(param_kind);
   }
   DCHECK_LE(arg_bytes, stack_bytes);
@@ -4424,27 +4405,7 @@ void LiftoffAssembler::CallC(const ValueKindSig* sig,
 
   // Load potential output value from the buffer on the stack.
   if (out_argument_kind != kVoid) {
-    switch (out_argument_kind) {
-      case kI32:
-        ldr(result_reg->gp(), MemOperand(sp));
-        break;
-      case kI64:
-        ldr(result_reg->low_gp(), MemOperand(sp));
-        ldr(result_reg->high_gp(), MemOperand(sp, kSystemPointerSize));
-        break;
-      case kF32:
-        vldr(liftoff::GetFloatRegister(result_reg->fp()), MemOperand(sp));
-        break;
-      case kF64:
-        vldr(result_reg->fp(), MemOperand(sp));
-        break;
-      case kS128:
-        vld1(Neon8, NeonListOperand(result_reg->low_fp(), 2),
-             NeonMemOperand(sp));
-        break;
-      default:
-        UNREACHABLE();
-    }
+    liftoff::Load(this, *result_reg, MemOperand{sp}, out_argument_kind);
   }
   add(sp, sp, Operand(stack_bytes));
 }
