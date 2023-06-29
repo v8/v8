@@ -34,6 +34,11 @@ pip_install(
     requirements = "//:bazel/requirements.txt",
 )
 
+local_repository(
+  name = "com_google_absl",
+  path = "third_party/abseil-cpp",
+)
+
 new_local_repository(
     name = "com_googlesource_chromium_icu",
     build_file = "bazel/BUILD.icu",

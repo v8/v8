@@ -2160,6 +2160,15 @@ group("v8_maybe_icu") {
   }
 }
 
+group("v8_abseil") {
+  public_deps = [ "//third_party/abseil-cpp:absl" ]
+
+  public_configs = [
+    "//third_party/abseil-cpp:absl_define_config",
+    "//third_party/abseil-cpp:absl_include_config",
+  ]
+}
+
 v8_header_set("torque_runtime_support") {
   visibility = [ ":*" ]
 
@@ -2180,6 +2189,7 @@ v8_source_set("torque_generated_initializers") {
 
   public_deps = [
     ":torque_runtime_support",
+    ":v8_abseil",
     ":v8_maybe_icu",
   ]
 
@@ -2211,7 +2221,10 @@ v8_source_set("torque_generated_definitions") {
     ":v8_tracing",
   ]
 
-  public_deps = [ ":v8_maybe_icu" ]
+  public_deps = [
+    ":v8_abseil",
+    ":v8_maybe_icu",
+  ]
 
   sources = [
     "$target_gen_dir/torque-generated/class-forward-declarations.h",
@@ -2641,7 +2654,10 @@ v8_source_set("v8_snapshot") {
 
     sources += [ "src/snapshot/snapshot-external.cc" ]
   } else {
-    public_deps += [ ":v8_maybe_icu" ]
+    public_deps += [
+      ":v8_abseil",
+      ":v8_maybe_icu",
+    ]
 
     sources += [ "$target_gen_dir/snapshot.cc" ]
   }
@@ -2824,7 +2840,10 @@ v8_source_set("v8_init") {
     "src/init/setup-isolate-full.cc",
   ]
 
-  public_deps = [ ":v8_maybe_icu" ]
+  public_deps = [
+    ":v8_abseil",
+    ":v8_maybe_icu",
+  ]
 
   configs = [ ":internal_config" ]
 }
@@ -4668,6 +4687,7 @@ v8_source_set("v8_compiler_for_mksnapshot_source_set") {
   public_deps = [
     ":generate_bytecode_builtins_list",
     ":run_torque",
+    ":v8_abseil",
     ":v8_maybe_icu",
     ":v8_tracing",
   ]
@@ -4705,6 +4725,7 @@ v8_source_set("v8_compiler") {
   public_deps = [
     ":generate_bytecode_builtins_list",
     ":run_torque",
+    ":v8_abseil",
     ":v8_internal_headers",
     ":v8_maybe_icu",
     ":v8_tracing",
@@ -5644,6 +5665,7 @@ v8_source_set("v8_base_without_compiler") {
     ":cppgc_base",
     ":generate_bytecode_builtins_list",
     ":run_torque",
+    ":v8_abseil",
     ":v8_headers",
     ":v8_internal_headers",
     ":v8_maybe_icu",
@@ -7267,7 +7289,10 @@ if (v8_enable_webassembly) {
       ":v8_tracing",
     ]
 
-    public_deps = [ ":v8_maybe_icu" ]
+    public_deps = [
+      ":v8_abseil",
+      ":v8_maybe_icu",
+    ]
 
     configs = [
       ":external_config",
@@ -7347,7 +7372,10 @@ if (v8_enable_webassembly) {
       ":wasm_test_common",
     ]
 
-    public_deps = [ ":v8_maybe_icu" ]
+    public_deps = [
+      ":v8_abseil",
+      ":v8_maybe_icu",
+    ]
 
     configs = [
       ":external_config",
