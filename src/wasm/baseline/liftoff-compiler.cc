@@ -2105,17 +2105,19 @@ class LiftoffCompiler {
         });
   }
 
+  template <typename EmitFn, typename EmitFnImm>
+  void EmitI64Shift(EmitFn fn, EmitFnImm fnImm) {
+    return EmitBinOpImm<kI64, kI64>(
+        [this, fn](LiftoffRegister dst, LiftoffRegister src,
+                   LiftoffRegister amount) {
+          CallEmitFn(fn, dst, src,
+                     amount.is_gp_pair() ? amount.low_gp() : amount.gp());
+        },
+        fnImm);
+  }
+
   void BinOp(FullDecoder* decoder, WasmOpcode opcode, const Value& lhs,
              const Value& rhs, Value* result) {
-#define CASE_I64_SHIFTOP(opcode, fn)                                         \
-  case kExpr##opcode:                                                        \
-    return EmitBinOpImm<kI64, kI64>(                                         \
-        [this](LiftoffRegister dst, LiftoffRegister src,                     \
-               LiftoffRegister amount) {                                     \
-          __ emit_##fn(dst, src,                                             \
-                       amount.is_gp_pair() ? amount.low_gp() : amount.gp()); \
-        },                                                                   \
-        &LiftoffAssembler::emit_##fn##i);
     switch (opcode) {
       case kExprI32Add:
         return EmitBinOpImm<kI32, kI32>(&LiftoffAssembler::emit_i32_add,
@@ -2248,9 +2250,15 @@ class LiftoffCompiler {
         return EmitCCallBinOp<kI32, ExternalReference::wasm_word32_rol>();
       case kExprI32Ror:
         return EmitCCallBinOp<kI32, ExternalReference::wasm_word32_ror>();
-        CASE_I64_SHIFTOP(I64Shl, i64_shl)
-        CASE_I64_SHIFTOP(I64ShrS, i64_sar)
-        CASE_I64_SHIFTOP(I64ShrU, i64_shr)
+      case kExprI64Shl:
+        return EmitI64Shift(&LiftoffAssembler::emit_i64_shl,
+                            &LiftoffAssembler::emit_i64_shli);
+      case kExprI64ShrS:
+        return EmitI64Shift(&LiftoffAssembler::emit_i64_sar,
+                            &LiftoffAssembler::emit_i64_sari);
+      case kExprI64ShrU:
+        return EmitI64Shift(&LiftoffAssembler::emit_i64_shr,
+                            &LiftoffAssembler::emit_i64_shri);
       case kExprI64Rol:
         return EmitCCallBinOp<kI64, ExternalReference::wasm_word64_rol>();
       case kExprI64Ror:
@@ -2385,7 +2393,6 @@ class LiftoffCompiler {
       default:
         UNREACHABLE();
     }
-#undef CASE_I64_SHIFTOP
   }
 
   void TraceInstruction(FullDecoder* decoder, uint32_t markid) {
