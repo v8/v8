@@ -1725,17 +1725,6 @@ class MachineOptimizationReducer : public Next {
                             offset, element_scale);
   }
 
-  OpIndex REDUCE(Phi)(base::Vector<const OpIndex> inputs,
-                      RegisterRepresentation rep) {
-    LABEL_BLOCK(no_change) { return Next::ReducePhi(inputs, rep); }
-    if (inputs.size() == 0) goto no_change;
-    OpIndex first = inputs.first();
-    for (const OpIndex& input : inputs) {
-      if (input != first) goto no_change;
-    }
-    return first;
-  }
-
  private:
   // Try to match a constant and add it to `offset`. Return `true` if
   // successful.

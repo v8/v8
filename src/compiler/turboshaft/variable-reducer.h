@@ -13,6 +13,7 @@
 #include "src/compiler/turboshaft/graph.h"
 #include "src/compiler/turboshaft/operations.h"
 #include "src/compiler/turboshaft/representations.h"
+#include "src/compiler/turboshaft/required-optimization-reducer.h"
 #include "src/compiler/turboshaft/snapshot-table.h"
 #include "src/zone/zone-containers.h"
 
@@ -56,6 +57,10 @@ class VariableReducer : public Next {
 
  public:
   TURBOSHAFT_REDUCER_BOILERPLATE()
+  // Phis with constant inputs introduced by `VariableReducer` need to be
+  // eliminated.
+  static_assert(
+      reducer_list_contains<ReducerList, RequiredOptimizationReducer>::value);
 
   void Bind(Block* new_block) {
     Next::Bind(new_block);
@@ -75,44 +80,12 @@ class VariableReducer : public Next {
 
     auto merge_variables =
         [&](Variable var, base::Vector<const OpIndex> predecessors) -> OpIndex {
-      ConstantOp* first_constant = nullptr;
-      if (predecessors[0].valid()) {
-        first_constant = Asm()
-                             .output_graph()
-                             .Get(predecessors[0])
-                             .template TryCast<ConstantOp>();
-      }
-      bool all_are_same_constant = first_constant != nullptr;
-
       for (OpIndex idx : predecessors) {
         if (!idx.valid()) {
           // If any of the predecessors' value is Invalid, then we shouldn't
           // merge {var}.
           return OpIndex::Invalid();
         }
-        if (all_are_same_constant) {
-          if (ConstantOp* other_constant =
-                  Asm()
-                      .output_graph()
-                      .Get(idx)
-                      .template TryCast<ConstantOp>()) {
-            all_are_same_constant = *first_constant == *other_constant;
-          } else {
-            all_are_same_constant = false;
-          }
-        }
-      }
-
-      if (all_are_same_constant) {
-        // If all of the predecessors are the same Constant, then we re-emit
-        // this Constant rather than emitting a Phi. This is a good idea in
-        // general, but is in particular needed for Constant that are used as
-        // call target: if they were merged into a Phi, this would result in an
-        // indirect call rather than a direct one, which:
-        //   - is probably slower than a direct call in general
-        //   - is probably not supported for builtins on 32-bit architectures.
-        return Asm().ReduceConstant(first_constant->kind,
-                                    first_constant->storage);
       }
       return MergeOpIndices(predecessors, var.data());
     };
