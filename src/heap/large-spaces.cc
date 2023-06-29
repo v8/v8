@@ -204,9 +204,7 @@ AllocationResult OldLargeObjectSpace::AllocateRawBackground(
   DCHECK_IMPLIES(heap()->incremental_marking()->black_allocation(),
                  heap()->marking_state()->IsMarked(object));
   page->InitializationMemoryFence();
-  if (identity() == CODE_LO_SPACE) {
-    heap()->isolate()->AddCodeMemoryChunk(page);
-  }
+  heap()->NotifyOldGenerationExpansionBackground(identity(), page);
   return AllocationResult::FromObject(object);
 }
 

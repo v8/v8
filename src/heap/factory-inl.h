@@ -32,11 +32,6 @@ namespace internal {
 MUTABLE_ROOT_LIST(ROOT_ACCESSOR)
 #undef ROOT_ACCESSOR
 
-bool Factory::CodeBuilder::CompiledWithConcurrentBaseline() const {
-  return v8_flags.concurrent_sparkplug && kind_ == CodeKind::BASELINE &&
-         !local_isolate_->is_main_thread();
-}
-
 Handle<String> Factory::InternalizeString(Handle<String> string) {
   if (string->IsInternalizedString()) return string;
   return isolate()->string_table()->LookupString(isolate(), string);

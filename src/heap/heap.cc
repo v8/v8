@@ -5688,14 +5688,9 @@ void Heap::NotifyBootstrapComplete() {
 
 void Heap::NotifyOldGenerationExpansion(AllocationSpace space,
                                         MemoryChunk* chunk) {
-  // Pages created during bootstrapping may contain immortal immovable objects.
-  if (!deserialization_complete()) {
-    DCHECK_NE(NEW_SPACE, chunk->owner()->identity());
-    chunk->MarkNeverEvacuate();
-  }
-  if (space == CODE_SPACE || space == CODE_LO_SPACE) {
-    isolate()->AddCodeMemoryChunk(chunk);
-  }
+  // Do the same thing we would have done for background expansion.
+  NotifyOldGenerationExpansionBackground(space, chunk);
+
   const size_t kMemoryReducerActivationThreshold = 1 * MB;
   if (memory_reducer() != nullptr && old_generation_capacity_after_bootstrap_ &&
       ms_count_ == 0 &&
@@ -5703,6 +5698,18 @@ void Heap::NotifyOldGenerationExpansion(AllocationSpace space,
                                      kMemoryReducerActivationThreshold &&
       v8_flags.memory_reducer_for_small_heaps) {
     memory_reducer()->NotifyPossibleGarbage();
+  }
+}
+
+void Heap::NotifyOldGenerationExpansionBackground(AllocationSpace space,
+                                                  MemoryChunk* chunk) {
+  // Pages created during bootstrapping may contain immortal immovable objects.
+  if (!deserialization_complete()) {
+    DCHECK_NE(NEW_SPACE, chunk->owner()->identity());
+    chunk->MarkNeverEvacuate();
+  }
+  if (space == CODE_SPACE || space == CODE_LO_SPACE) {
+    isolate()->AddCodeMemoryChunk(chunk);
   }
 }
 

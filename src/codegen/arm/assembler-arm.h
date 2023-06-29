@@ -52,7 +52,6 @@
 #include "src/codegen/constant-pool.h"
 #include "src/codegen/machine-type.h"
 #include "src/utils/boxed-float.h"
-
 namespace v8 {
 namespace internal {
 

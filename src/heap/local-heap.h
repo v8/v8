@@ -18,6 +18,7 @@
 #include "src/handles/persistent-handles.h"
 #include "src/heap/concurrent-allocator.h"
 #include "src/heap/gc-callbacks.h"
+
 namespace v8 {
 namespace internal {
 
@@ -149,6 +150,14 @@ class V8_EXPORT_PRIVATE LocalHeap {
 
   // Allocate an uninitialized object.
   V8_WARN_UNUSED_RESULT inline AllocationResult AllocateRaw(
+      int size_in_bytes, AllocationType allocation,
+      AllocationOrigin origin = AllocationOrigin::kRuntime,
+      AllocationAlignment alignment = kTaggedAligned);
+
+  // Allocate an uninitialized object.
+  enum AllocationRetryMode { kLightRetry, kRetryOrFail };
+  template <AllocationRetryMode mode>
+  HeapObject AllocateRawWith(
       int size_in_bytes, AllocationType allocation,
       AllocationOrigin origin = AllocationOrigin::kRuntime,
       AllocationAlignment alignment = kTaggedAligned);
@@ -293,10 +302,9 @@ class V8_EXPORT_PRIVATE LocalHeap {
 
   // Slow path of allocation that performs GC and then retries allocation in
   // loop.
-  Address PerformCollectionAndAllocateAgain(int object_size,
-                                            AllocationType type,
-                                            AllocationOrigin origin,
-                                            AllocationAlignment alignment);
+  AllocationResult PerformCollectionAndAllocateAgain(
+      int object_size, AllocationType type, AllocationOrigin origin,
+      AllocationAlignment alignment);
 
   bool IsMainThreadOfClientIsolate() const;
 

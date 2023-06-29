@@ -387,9 +387,7 @@ base::Optional<std::pair<Address, size_t>> PagedSpaceBase::TryExpandBackground(
   if (page == nullptr) return {};
   base::MutexGuard lock(&space_mutex_);
   AddPage(page);
-  if (identity() == CODE_SPACE || identity() == CODE_LO_SPACE) {
-    heap()->isolate()->AddCodeMemoryChunk(page);
-  }
+  heap()->NotifyOldGenerationExpansionBackground(identity(), page);
   Address object_start = page->area_start();
   CHECK_LE(size_in_bytes, page->area_size());
   Free(page->area_start() + size_in_bytes, page->area_size() - size_in_bytes,

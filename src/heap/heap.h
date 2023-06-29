@@ -392,7 +392,8 @@ class Heap final {
   // writable and reserved to contain unwind information.
   static size_t GetCodeRangeReservedAreaSize();
 
-  [[noreturn]] void FatalProcessOutOfMemory(const char* location);
+  [[noreturn]] V8_EXPORT_PRIVATE void FatalProcessOutOfMemory(
+      const char* location);
 
   // Checks whether the space is valid.
   static bool IsValidAllocationSpace(AllocationSpace space);
@@ -504,6 +505,8 @@ class Heap final {
   void NotifyBootstrapComplete();
 
   void NotifyOldGenerationExpansion(AllocationSpace space, MemoryChunk* chunk);
+  void NotifyOldGenerationExpansionBackground(AllocationSpace space,
+                                              MemoryChunk* chunk);
 
   inline Address* NewSpaceAllocationTopAddress();
   inline Address* NewSpaceAllocationLimitAddress();

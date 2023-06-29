@@ -74,16 +74,32 @@ AllocationResult LocalHeap::AllocateRaw(int size_in_bytes, AllocationType type,
   }
 }
 
-Address LocalHeap::AllocateRawOrFail(int object_size, AllocationType type,
-                                     AllocationOrigin origin,
-                                     AllocationAlignment alignment) {
+template <typename LocalHeap::AllocationRetryMode mode>
+HeapObject LocalHeap::AllocateRawWith(int object_size, AllocationType type,
+                                      AllocationOrigin origin,
+                                      AllocationAlignment alignment) {
   object_size = ALIGN_TO_ALLOCATION_ALIGNMENT(object_size);
   DCHECK(!v8_flags.enable_third_party_heap);
   AllocationResult result = AllocateRaw(object_size, type, origin, alignment);
   HeapObject object;
-  if (result.To(&object)) return object.address();
-  return PerformCollectionAndAllocateAgain(object_size, type, origin,
-                                           alignment);
+  if (result.To(&object)) return object;
+  result =
+      PerformCollectionAndAllocateAgain(object_size, type, origin, alignment);
+  if (result.To(&object)) return object;
+
+  switch (mode) {
+    case kRetryOrFail:
+      heap_->FatalProcessOutOfMemory("LocalHeap: allocation failed");
+    case kLightRetry:
+      return HeapObject();
+  }
+}
+
+Address LocalHeap::AllocateRawOrFail(int object_size, AllocationType type,
+                                     AllocationOrigin origin,
+                                     AllocationAlignment alignment) {
+  return AllocateRawWith<kRetryOrFail>(object_size, type, origin, alignment)
+      .address();
 }
 
 template <typename Callback>

@@ -1052,14 +1052,10 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
    private:
     MaybeHandle<Code> BuildInternal(bool retry_allocation_or_fail);
 
-    // Dispatches to support concurrent allocation.
-    inline bool CompiledWithConcurrentBaseline() const;
     Handle<ByteArray> NewByteArray(int length, AllocationType allocation);
     MaybeHandle<InstructionStream> NewInstructionStream(
         bool retry_allocation_or_fail);
     MaybeHandle<InstructionStream> AllocateInstructionStream(
-        bool retry_allocation_or_fail);
-    MaybeHandle<InstructionStream> AllocateConcurrentSparkplugInstructionStream(
         bool retry_allocation_or_fail);
     Handle<Code> NewCode(const NewCodeOptions& options);
 

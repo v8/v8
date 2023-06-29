@@ -427,7 +427,7 @@ void LocalHeap::UnmarkSharedLinearAllocationArea() {
   }
 }
 
-Address LocalHeap::PerformCollectionAndAllocateAgain(
+AllocationResult LocalHeap::PerformCollectionAndAllocateAgain(
     int object_size, AllocationType type, AllocationOrigin origin,
     AllocationAlignment alignment) {
   CHECK(!allocation_failed_);
@@ -450,7 +450,7 @@ Address LocalHeap::PerformCollectionAndAllocateAgain(
     } else {
       allocation_failed_ = false;
       main_thread_parked_ = false;
-      return result.ToObjectChecked().address();
+      return result;
     }
   }
 
@@ -462,7 +462,7 @@ Address LocalHeap::PerformCollectionAndAllocateAgain(
         failed_allocations, parked_allocations);
   }
 
-  heap_->FatalProcessOutOfMemory("LocalHeap: allocation failed");
+  return AllocationResult::Failure();
 }
 
 void LocalHeap::AddGCEpilogueCallback(GCEpilogueCallback* callback, void* data,

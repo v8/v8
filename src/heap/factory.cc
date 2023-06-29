@@ -109,23 +109,16 @@ Factory::CodeBuilder::CodeBuilder(LocalIsolate* local_isolate,
 
 Handle<ByteArray> Factory::CodeBuilder::NewByteArray(
     int length, AllocationType allocation) {
-  return V8_UNLIKELY(CompiledWithConcurrentBaseline())
-             ? local_isolate_->factory()->NewByteArray(length, allocation)
-             : isolate_->factory()->NewByteArray(length, allocation);
+  return local_isolate_->factory()->NewByteArray(length, allocation);
 }
 
 MaybeHandle<InstructionStream> Factory::CodeBuilder::NewInstructionStream(
     bool retry_allocation_or_fail) {
-  return V8_UNLIKELY(CompiledWithConcurrentBaseline())
-             ? AllocateConcurrentSparkplugInstructionStream(
-                   retry_allocation_or_fail)
-             : AllocateInstructionStream(retry_allocation_or_fail);
+  return AllocateInstructionStream(retry_allocation_or_fail);
 }
 
 Handle<Code> Factory::CodeBuilder::NewCode(const NewCodeOptions& options) {
-  return V8_UNLIKELY(CompiledWithConcurrentBaseline())
-             ? local_isolate_->factory()->NewCode(options)
-             : isolate_->factory()->NewCode(options);
+  return local_isolate_->factory()->NewCode(options);
 }
 
 MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
@@ -264,8 +257,8 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
     code->Disassemble(nullptr, os, isolate_);
     if (!on_heap_profiler_data.is_null()) {
       Handle<String> disassembly =
-          isolate_->factory()->NewStringFromAsciiChecked(os.str().c_str(),
-                                                         AllocationType::kOld);
+          local_isolate_->factory()->NewStringFromAsciiChecked(
+              os.str().c_str(), AllocationType::kOld);
       on_heap_profiler_data->set_code(*disassembly);
     } else {
       profiler_data_->SetCode(os);
@@ -279,47 +272,24 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
 // TODO(victorgomes): Unify the two AllocateCodes
 MaybeHandle<InstructionStream> Factory::CodeBuilder::AllocateInstructionStream(
     bool retry_allocation_or_fail) {
-  Heap* heap = isolate_->heap();
-  HeapAllocator* allocator = heap->allocator();
+  LocalHeap* heap = local_isolate_->heap();
   HeapObject result;
-  const AllocationType allocation_type = AllocationType::kCode;
   const int object_size = InstructionStream::SizeFor(code_desc_.body_size());
   if (retry_allocation_or_fail) {
-    result = allocator->AllocateRawWith<HeapAllocator::kRetryOrFail>(
-        object_size, allocation_type, AllocationOrigin::kRuntime);
+    // Only allowed to do `retry_allocation_or_fail` from the main thread.
+    // TODO(leszeks): Remove the retrying allocation, always use TryBuild in
+    // the code builder.
+    DCHECK(local_isolate_->is_main_thread());
+    result =
+        heap->heap()->allocator()->AllocateRawWith<HeapAllocator::kRetryOrFail>(
+            object_size, AllocationType::kCode, AllocationOrigin::kRuntime);
   } else {
-    result = allocator->AllocateRawWith<HeapAllocator::kLightRetry>(
-        object_size, allocation_type, AllocationOrigin::kRuntime);
-    // Return an empty handle if we cannot allocate the code object.
-    if (result.is_null()) return MaybeHandle<InstructionStream>();
-  }
-
-  // The code object has not been fully initialized yet.  We rely on the
-  // fact that no allocation will happen from this point on.
-  DisallowGarbageCollection no_gc;
-  {
-    CodePageMemoryModificationScope memory_modification_scope(
-        BasicMemoryChunk::FromHeapObject(result));
-    result.set_map_after_allocation(
-        *isolate_->factory()->instruction_stream_map(), SKIP_WRITE_BARRIER);
-  }
-  Handle<InstructionStream> istream =
-      handle(InstructionStream::cast(result), isolate_);
-  DCHECK(IsAligned(istream->instruction_start(), kCodeAlignment));
-  DCHECK_IMPLIES(
-      !V8_ENABLE_THIRD_PARTY_HEAP_BOOL && !heap->code_region().is_empty(),
-      heap->code_region().contains(istream->address()));
-  return istream;
-}
-
-MaybeHandle<InstructionStream>
-Factory::CodeBuilder::AllocateConcurrentSparkplugInstructionStream(
-    bool retry_allocation_or_fail) {
-  LocalHeap* heap = local_isolate_->heap();
-  const int object_size = InstructionStream::SizeFor(code_desc_.body_size());
-  HeapObject result;
-  if (!heap->AllocateRaw(object_size, AllocationType::kCode).To(&result)) {
-    return MaybeHandle<InstructionStream>();
+    result = heap->AllocateRawWith<LocalHeap::kLightRetry>(
+        object_size, AllocationType::kCode);
+    if (result.is_null()) {
+      // Return an empty handle if we cannot allocate the code object.
+      return MaybeHandle<InstructionStream>();
+    }
   }
   CHECK(!result.is_null());
 
@@ -330,12 +300,15 @@ Factory::CodeBuilder::AllocateConcurrentSparkplugInstructionStream(
     CodePageMemoryModificationScope memory_modification_scope(
         BasicMemoryChunk::FromHeapObject(result));
     result.set_map_after_allocation(
-        *local_isolate_->factory()->instruction_stream_map(),
+        ReadOnlyRoots(local_isolate_).instruction_stream_map(),
         SKIP_WRITE_BARRIER);
   }
   Handle<InstructionStream> istream =
       handle(InstructionStream::cast(result), local_isolate_);
   DCHECK(IsAligned(istream->instruction_start(), kCodeAlignment));
+  DCHECK_IMPLIES(!V8_ENABLE_THIRD_PARTY_HEAP_BOOL &&
+                     !heap->heap()->code_region().is_empty(),
+                 heap->heap()->code_region().contains(istream->address()));
   return istream;
 }
 
