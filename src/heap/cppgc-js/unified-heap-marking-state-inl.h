@@ -53,7 +53,7 @@ void UnifiedHeapMarkingState::MarkAndPush(
     local_marking_worklist_->Push(heap_object);
   }
   if (V8_UNLIKELY(track_retaining_path_)) {
-    heap_->AddRetainingRoot(Root::kWrapperTracing, heap_object);
+    heap_->AddRetainingRoot(Root::kTracedHandles, heap_object);
   }
 }
 

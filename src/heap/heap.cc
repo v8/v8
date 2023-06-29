@@ -18,6 +18,7 @@
 #include "src/base/logging.h"
 #include "src/base/macros.h"
 #include "src/base/once.h"
+#include "src/base/optional.h"
 #include "src/base/platform/memory.h"
 #include "src/base/platform/mutex.h"
 #include "src/base/utils/random-number-generator.h"
@@ -1025,7 +1026,7 @@ void Heap::PrintRetainingPath(HeapObject target, RetainingPathOption option) {
   PrintF("Retaining path for %p:\n", reinterpret_cast<void*>(target.ptr()));
   HeapObject object = target;
   std::vector<std::pair<HeapObject, bool>> retaining_path;
-  Root root = Root::kUnknown;
+  base::Optional<Root> root;
   bool ephemeron = false;
   while (true) {
     retaining_path.push_back(std::make_pair(object, ephemeron));
@@ -1038,7 +1039,7 @@ void Heap::PrintRetainingPath(HeapObject target, RetainingPathOption option) {
       ephemeron = false;
     } else {
       if (retaining_root_.count(object)) {
-        root = retaining_root_[object];
+        root.emplace(retaining_root_[object]);
       }
       break;
     }
@@ -1061,7 +1062,8 @@ void Heap::PrintRetainingPath(HeapObject target, RetainingPathOption option) {
   }
   PrintF("\n");
   PrintF("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n");
-  PrintF("Root: %s\n", RootVisitor::RootName(root));
+  PrintF("Root: %s\n",
+         root.has_value() ? RootVisitor::RootName(root.value()) : "Unknown");
   PrintF("-------------------------------------------------\n");
 }
 
@@ -4673,16 +4675,12 @@ void Heap::IterateRoots(RootVisitor* v, base::EnumSet<SkipRoot> options,
       // objects. The GC would crash on such stale references.
       ClearStaleLeftTrimmedHandlesVisitor left_trim_visitor(this);
       isolate_->handle_scope_implementer()->Iterate(&left_trim_visitor);
-
       isolate_->handle_scope_implementer()->Iterate(v);
     }
-
     // Iterate local handles for all local heaps.
     safepoint_->Iterate(v);
-
     // Iterates all persistent handles.
     isolate_->persistent_handles_list()->Iterate(v, isolate_);
-
     v->Synchronize(VisitorSynchronization::kHandleScope);
 
     if (options.contains(SkipRoot::kOldGeneration)) {
@@ -4702,6 +4700,7 @@ void Heap::IterateRoots(RootVisitor* v, base::EnumSet<SkipRoot> options,
         microtask_queue = microtask_queue->next();
       } while (microtask_queue != default_microtask_queue);
     }
+    v->Synchronize(VisitorSynchronization::kMicroTasks);
 
     // Iterate over other strong roots (currently only identity maps and
     // deoptimization entries).

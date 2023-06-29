@@ -51,7 +51,7 @@ void ConservativeTracedHandlesMarkingVisitor::VisitPointer(
       local_marking_worklist_.Push(heap_object);
     }
     if (V8_UNLIKELY(v8_flags.track_retaining_path)) {
-      heap_.AddRetainingRoot(Root::kWrapperTracing, heap_object);
+      heap_.AddRetainingRoot(Root::kTracedHandles, heap_object);
     }
   }
 }
