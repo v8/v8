@@ -848,6 +848,39 @@ void FunctionEntryStackCheck::GenerateCode(MaglevAssembler* masm,
   __ bind(*deferred_call_stack_guard_return);
 }
 
+void HandleNoHeapWritesInterrupt::SetValueLocationConstraints() {
+  set_temporaries_needed(1);
+}
+void HandleNoHeapWritesInterrupt::GenerateCode(MaglevAssembler* masm,
+                                               const ProcessingState& state) {
+  {
+    MaglevAssembler::ScratchRegisterScope temps(masm);
+    Register scratch = temps.Acquire();
+    MemOperand check = __ ExternalReferenceAsOperand(
+        ExternalReference::address_of_no_heap_write_interrupt_request(
+            masm->isolate()),
+        scratch);
+    __ cmpb(check, Immediate(0));
+  }
+  ZoneLabelRef done(masm);
+  __ JumpToDeferredIf(
+      not_equal,
+      [](MaglevAssembler* masm, ZoneLabelRef done, Node* node) {
+        ASM_CODE_COMMENT_STRING(masm, "HandleNoHeapWritesInterrupt");
+        {
+          SaveRegisterStateForCall save_register_state(
+              masm, node->register_snapshot());
+          __ Move(kContextRegister, masm->native_context().object());
+          __ CallRuntime(Runtime::kHandleNoHeapWritesInterrupts, 0);
+          save_register_state.DefineSafepointWithLazyDeopt(
+              node->lazy_deopt_info());
+        }
+        __ jmp(*done);
+      },
+      done, this);
+  __ bind(*done);
+}
+
 // ---
 // Control nodes
 // ---

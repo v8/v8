@@ -302,6 +302,7 @@ class MergePointInterpreterFrameState;
   V(StoreDoubleDataViewElement)             \
   V(StoreTaggedFieldNoWriteBarrier)         \
   V(StoreTaggedFieldWithWriteBarrier)       \
+  V(HandleNoHeapWritesInterrupt)            \
   V(ReduceInterruptBudgetForLoop)           \
   V(ReduceInterruptBudgetForReturn)         \
   V(ThrowReferenceErrorIfHole)              \
@@ -7383,6 +7384,22 @@ class ConvertHoleToUndefined
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
+class HandleNoHeapWritesInterrupt
+    : public FixedInputNodeT<0, HandleNoHeapWritesInterrupt> {
+  using Base = FixedInputNodeT<0, HandleNoHeapWritesInterrupt>;
+
+ public:
+  explicit HandleNoHeapWritesInterrupt(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties =
+      OpProperties::DeferredCall() | OpProperties::LazyDeopt();
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+  int MaxCallStackArgs() const { return 0; }
 };
 
 class ReduceInterruptBudgetForLoop
