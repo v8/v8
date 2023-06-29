@@ -688,11 +688,7 @@ void ConcurrentMarking::FlushMemoryChunkData(
 void ConcurrentMarking::ClearMemoryChunkData(MemoryChunk* chunk) {
   DCHECK(!job_handle_ || !job_handle_->IsValid());
   for (size_t i = 1; i < task_state_.size(); i++) {
-    auto it = task_state_[i]->memory_chunk_data.find(chunk);
-    if (it != task_state_[i]->memory_chunk_data.end()) {
-      it->second.live_bytes = 0;
-      it->second.typed_slots.reset();
-    }
+    task_state_[i]->memory_chunk_data.erase(chunk);
   }
 }
 
