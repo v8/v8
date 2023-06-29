@@ -274,10 +274,7 @@ class V8_EXPORT_PRIVATE ExternalEntityTable {
   // The virtual address space backing this table.
   // This is used to manage the underlying OS pages, in particular to allocate
   // and free the segments that make up the table.
-  std::unique_ptr<VirtualAddressSpace> vas_ = nullptr;
-  // The size and layout of this class must be deterministic.
-  static_assert(sizeof(std::unique_ptr<VirtualAddressSpace>) ==
-                kSystemPointerSize);
+  VirtualAddressSpace* vas_ = nullptr;
 };
 
 }  // namespace internal

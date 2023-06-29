@@ -69,14 +69,16 @@ bool ExternalEntityTable<Entry, size>::is_initialized() const {
 template <typename Entry, size_t size>
 void ExternalEntityTable<Entry, size>::InitializeTable() {
   DCHECK(!is_initialized());
+  DCHECK_EQ(vas_, nullptr);
 
   VirtualAddressSpace* root_space = GetPlatformVirtualAddressSpace();
   DCHECK(IsAligned(kReservationSize, root_space->allocation_granularity()));
 
   if (root_space->CanAllocateSubspaces()) {
-    vas_ = root_space->AllocateSubspace(VirtualAddressSpace::kNoHint,
-                                        kReservationSize, kSegmentSize,
-                                        PagePermissions::kReadWrite);
+    auto subspace = root_space->AllocateSubspace(VirtualAddressSpace::kNoHint,
+                                                 kReservationSize, kSegmentSize,
+                                                 PagePermissions::kReadWrite);
+    vas_ = subspace.release();
   } else {
     // This may be required on old Windows versions that don't support
     // VirtualAlloc2, which is required for subspaces. In that case, just use a
@@ -85,7 +87,7 @@ void ExternalEntityTable<Entry, size>::InitializeTable() {
         VirtualAddressSpace::kNoHint, kReservationSize, kSegmentSize,
         PagePermissions::kReadWrite);
     if (reservation_base) {
-      vas_ = std::make_unique<base::EmulatedVirtualAddressSubspace>(
+      vas_ = new base::EmulatedVirtualAddressSubspace(
           root_space, reservation_base, kReservationSize, kReservationSize);
     }
   }
@@ -110,7 +112,8 @@ template <typename Entry, size_t size>
 void ExternalEntityTable<Entry, size>::TearDownTable() {
   DCHECK(is_initialized());
   base_ = nullptr;
-  vas_.reset();
+  delete vas_;
+  vas_ = nullptr;
 }
 
 template <typename Entry, size_t size>
