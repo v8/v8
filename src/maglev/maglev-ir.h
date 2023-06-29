@@ -7386,21 +7386,18 @@ class ConvertHoleToUndefined
 };
 
 class ReduceInterruptBudgetForLoop
-    : public FixedInputNodeT<1, ReduceInterruptBudgetForLoop> {
-  using Base = FixedInputNodeT<1, ReduceInterruptBudgetForLoop>;
+    : public FixedInputNodeT<0, ReduceInterruptBudgetForLoop> {
+  using Base = FixedInputNodeT<0, ReduceInterruptBudgetForLoop>;
 
  public:
-  ReduceInterruptBudgetForLoop(uint64_t bitfield, int amount)
+  explicit ReduceInterruptBudgetForLoop(uint64_t bitfield, int amount)
       : Base(bitfield), amount_(amount) {
     DCHECK_GT(amount, 0);
   }
 
   static constexpr OpProperties kProperties =
       OpProperties::DeferredCall() | OpProperties::LazyDeopt();
-  static constexpr
-      typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
 
-  Input& function() { return Node::input(0); }
   int amount() const { return amount_; }
 
   int MaxCallStackArgs() const;
@@ -7413,8 +7410,8 @@ class ReduceInterruptBudgetForLoop
 };
 
 class ReduceInterruptBudgetForReturn
-    : public FixedInputNodeT<1, ReduceInterruptBudgetForReturn> {
-  using Base = FixedInputNodeT<1, ReduceInterruptBudgetForReturn>;
+    : public FixedInputNodeT<0, ReduceInterruptBudgetForReturn> {
+  using Base = FixedInputNodeT<0, ReduceInterruptBudgetForReturn>;
 
  public:
   explicit ReduceInterruptBudgetForReturn(uint64_t bitfield, int amount)
@@ -7423,10 +7420,7 @@ class ReduceInterruptBudgetForReturn
   }
 
   static constexpr OpProperties kProperties = OpProperties::DeferredCall();
-  static constexpr
-      typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
 
-  Input& function() { return Node::input(0); }
   int amount() const { return amount_; }
 
   int MaxCallStackArgs() const;

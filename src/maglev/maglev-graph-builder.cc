@@ -8525,9 +8525,8 @@ void MaglevGraphBuilder::VisitJumpLoop() {
   int target = iterator_.GetJumpTargetOffset();
 
   if (ShouldEmitInterruptBudgetChecks()) {
-    int amount =
-        relative_jump_bytecode_offset ? relative_jump_bytecode_offset : 1;
-    AddNewNode<ReduceInterruptBudgetForLoop>({GetClosure()}, amount);
+    AddNewNode<ReduceInterruptBudgetForLoop>(
+        {}, relative_jump_bytecode_offset ? relative_jump_bytecode_offset : 1);
   }
 
   if (in_peeled_iteration_) {
@@ -9137,7 +9136,7 @@ void MaglevGraphBuilder::VisitReturn() {
   // See also: InterpreterAssembler::UpdateInterruptBudgetOnReturn.
   const uint32_t relative_jump_bytecode_offset = iterator_.current_offset();
   if (ShouldEmitInterruptBudgetChecks() && relative_jump_bytecode_offset > 0) {
-    AddNewNode<ReduceInterruptBudgetForReturn>({GetClosure()},
+    AddNewNode<ReduceInterruptBudgetForReturn>({},
                                                relative_jump_bytecode_offset);
   }
 

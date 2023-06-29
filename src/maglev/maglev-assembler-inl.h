@@ -108,9 +108,6 @@ template <typename T>
 struct CopyForDeferredHelper<T, typename std::enable_if<std::is_base_of<
                                     compiler::ObjectRef, T>::value>::type>
     : public CopyForDeferredByValue<T> {};
-// Inputs are copied by value.
-template <>
-struct CopyForDeferredHelper<Input> : public CopyForDeferredByValue<Input> {};
 
 template <typename T>
 T CopyForDeferred(MaglevCompilationInfo* compilation_info, T&& value) {
