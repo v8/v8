@@ -42,7 +42,8 @@ void DebugInfo::ClearBreakInfo(Isolate* isolate) {
     // Otherwise, it could be flushed and cause problems on resume. See v8:9067.
     {
       RedirectActiveFunctions redirect_visitor(
-          shared(), RedirectActiveFunctions::Mode::kUseOriginalBytecode);
+          isolate, shared(),
+          RedirectActiveFunctions::Mode::kUseOriginalBytecode);
       redirect_visitor.VisitThread(isolate, isolate->thread_local_top());
       isolate->thread_manager()->IterateArchivedThreads(&redirect_visitor);
     }
@@ -377,7 +378,6 @@ void CoverageInfo::ResetBlockCount(int slot_index) {
 
 void CoverageInfo::CoverageInfoPrint(std::ostream& os,
                                      std::unique_ptr<char[]> function_name) {
-  DCHECK(v8_flags.trace_block_coverage);
   DisallowGarbageCollection no_gc;
 
   os << "Coverage info (";

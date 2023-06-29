@@ -82,25 +82,20 @@ TF_BUILTIN(DebugBreakTrampoline, CodeStubAssembler) {
   auto function = Parameter<JSFunction>(Descriptor::kJSTarget);
 
   // Check break-at-entry flag on the debug info.
+  TNode<ExternalReference> f =
+      ExternalConstant(ExternalReference::debug_break_at_entry_function());
+  TNode<ExternalReference> isolate_ptr =
+      ExternalConstant(ExternalReference::isolate_address(isolate()));
   TNode<SharedFunctionInfo> shared =
       CAST(LoadObjectField(function, JSFunction::kSharedFunctionInfoOffset));
-  TNode<Object> maybe_heap_object_or_smi =
-      LoadObjectField(shared, SharedFunctionInfo::kScriptOrDebugInfoOffset);
-  TNode<HeapObject> maybe_debug_info =
-      TaggedToHeapObject(maybe_heap_object_or_smi, &tailcall_to_shared);
-  GotoIfNot(HasInstanceType(maybe_debug_info, InstanceType::DEBUG_INFO_TYPE),
-            &tailcall_to_shared);
+  TNode<IntPtrT> result = UncheckedCast<IntPtrT>(
+      CallCFunction(f, MachineType::UintPtr(),
+                    std::make_pair(MachineType::Pointer(), isolate_ptr),
+                    std::make_pair(MachineType::TaggedPointer(), shared)));
+  GotoIf(IntPtrEqual(result, IntPtrConstant(0)), &tailcall_to_shared);
 
-  {
-    TNode<DebugInfo> debug_info = CAST(maybe_debug_info);
-    TNode<Smi> flags =
-        CAST(LoadObjectField(debug_info, DebugInfo::kFlagsOffset));
-    GotoIfNot(SmiToInt32(SmiAnd(flags, SmiConstant(DebugInfo::kBreakAtEntry))),
-              &tailcall_to_shared);
-
-    CallRuntime(Runtime::kDebugBreakAtEntry, context, function);
-    Goto(&tailcall_to_shared);
-  }
+  CallRuntime(Runtime::kDebugBreakAtEntry, context, function);
+  Goto(&tailcall_to_shared);
 
   BIND(&tailcall_to_shared);
   // Tail call into code object on the SharedFunctionInfo.

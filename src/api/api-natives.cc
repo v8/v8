@@ -78,7 +78,7 @@ MaybeHandle<Object> DefineAccessorProperty(Isolate* isolate,
   DCHECK(!setter->IsFunctionTemplateInfo() ||
          FunctionTemplateInfo::cast(*setter).should_cache());
   if (getter->IsFunctionTemplateInfo() &&
-      FunctionTemplateInfo::cast(*getter).BreakAtEntry()) {
+      FunctionTemplateInfo::cast(*getter).BreakAtEntry(isolate)) {
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, getter,
         InstantiateFunction(isolate,
@@ -88,7 +88,7 @@ MaybeHandle<Object> DefineAccessorProperty(Isolate* isolate,
     Handle<JSFunction>::cast(getter)->set_code(*trampoline);
   }
   if (setter->IsFunctionTemplateInfo() &&
-      FunctionTemplateInfo::cast(*setter).BreakAtEntry()) {
+      FunctionTemplateInfo::cast(*setter).BreakAtEntry(isolate)) {
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, setter,
         InstantiateFunction(isolate,

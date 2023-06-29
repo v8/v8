@@ -746,14 +746,14 @@ std::unique_ptr<StackFrameResult> GetStackFrame(
         if (shared_function_info_ptr.validity == d::MemoryAccessResult::kOk) {
           TqSharedFunctionInfo shared_function_info(
               shared_function_info_ptr.value);
-          auto script_or_debug_info_ptr =
-              shared_function_info.GetScriptOrDebugInfoValue(memory_accessor);
-          if (script_or_debug_info_ptr.validity == d::MemoryAccessResult::kOk) {
-            // Make sure script_or_debug_info_ptr is script.
-            auto address = script_or_debug_info_ptr.value;
+          auto script_ptr =
+              shared_function_info.GetScriptValue(memory_accessor);
+          if (script_ptr.validity == d::MemoryAccessResult::kOk) {
+            // Make sure script_ptr is script.
+            auto address = script_ptr.value;
             if (IsTypedHeapObjectInstanceTypeOf(address, memory_accessor,
                                                 i::InstanceType::SCRIPT_TYPE)) {
-              TqScript script(script_or_debug_info_ptr.value);
+              TqScript script(script_ptr.value);
               props.push_back(std::make_unique<ObjectProperty>(
                   "script_name", kObjectAsStoredInHeap, kObject,
                   script.GetNameAddress(), 1, i::kTaggedSize,
