@@ -2092,6 +2092,19 @@ class LiftoffCompiler {
                                            GetCompareCondition(opcode)));
   }
 
+  template <ValueKind kind, ExternalReference(ExtRefFn)()>
+  void EmitCCallBinOp() {
+    EmitBinOp<kind, kind>(
+        [this](LiftoffRegister dst, LiftoffRegister lhs, LiftoffRegister rhs) {
+          LiftoffRegister args[] = {lhs, rhs};
+          ValueKind sig_kinds[] = {kind, kind, kind};
+          const bool out_via_stack = kind == kI64;
+          ValueKindSig sig(out_via_stack ? 0 : 1, 2, sig_kinds);
+          ValueKind out_arg_kind = out_via_stack ? kI64 : kVoid;
+          GenerateCCall(&dst, &sig, out_arg_kind, args, ExtRefFn());
+        });
+  }
+
   void BinOp(FullDecoder* decoder, WasmOpcode opcode, const Value& lhs,
              const Value& rhs, Value* result) {
 #define CASE_I64_SHIFTOP(opcode, fn)                                         \
@@ -2103,19 +2116,6 @@ class LiftoffCompiler {
                        amount.is_gp_pair() ? amount.low_gp() : amount.gp()); \
         },                                                                   \
         &LiftoffAssembler::emit_##fn##i);
-#define CASE_CCALL_BINOP(opcode, kind, ext_ref_fn)                   \
-  case kExpr##opcode:                                                \
-    return EmitBinOp<k##kind, k##kind>([this](LiftoffRegister dst,   \
-                                              LiftoffRegister lhs,   \
-                                              LiftoffRegister rhs) { \
-      LiftoffRegister args[] = {lhs, rhs};                           \
-      auto ext_ref = ExternalReference::ext_ref_fn();                \
-      ValueKind sig_kinds[] = {k##kind, k##kind, k##kind};           \
-      const bool out_via_stack = k##kind == kI64;                    \
-      ValueKindSig sig(out_via_stack ? 0 : 1, 2, sig_kinds);         \
-      ValueKind out_arg_kind = out_via_stack ? kI64 : kVoid;         \
-      GenerateCCall(&dst, &sig, out_arg_kind, args, ext_ref);        \
-    });
     switch (opcode) {
       case kExprI32Add:
         return EmitBinOpImm<kI32, kI32>(&LiftoffAssembler::emit_i32_add,
@@ -2244,13 +2244,17 @@ class LiftoffCompiler {
       case kExprI32ShrU:
         return EmitBinOpImm<kI32, kI32>(&LiftoffAssembler::emit_i32_shr,
                                         &LiftoffAssembler::emit_i32_shri);
-        CASE_CCALL_BINOP(I32Rol, I32, wasm_word32_rol)
-        CASE_CCALL_BINOP(I32Ror, I32, wasm_word32_ror)
+      case kExprI32Rol:
+        return EmitCCallBinOp<kI32, ExternalReference::wasm_word32_rol>();
+      case kExprI32Ror:
+        return EmitCCallBinOp<kI32, ExternalReference::wasm_word32_ror>();
         CASE_I64_SHIFTOP(I64Shl, i64_shl)
         CASE_I64_SHIFTOP(I64ShrS, i64_sar)
         CASE_I64_SHIFTOP(I64ShrU, i64_shr)
-        CASE_CCALL_BINOP(I64Rol, I64, wasm_word64_rol)
-        CASE_CCALL_BINOP(I64Ror, I64, wasm_word64_ror)
+      case kExprI64Rol:
+        return EmitCCallBinOp<kI64, ExternalReference::wasm_word64_rol>();
+      case kExprI64Ror:
+        return EmitCCallBinOp<kI64, ExternalReference::wasm_word64_ror>();
       case kExprF32Add:
         return EmitBinOp<kF32, kF32>(&LiftoffAssembler::emit_f32_add);
       case kExprF32Sub:
@@ -2382,7 +2386,6 @@ class LiftoffCompiler {
         UNREACHABLE();
     }
 #undef CASE_I64_SHIFTOP
-#undef CASE_CCALL_BINOP
   }
 
   void TraceInstruction(FullDecoder* decoder, uint32_t markid) {
