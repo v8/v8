@@ -961,7 +961,7 @@ void DisposeTracedReference(internal::Address* location) {
 // static
 void v8::internal::HandleHelper::VerifyOnStack(const void* ptr) {
   DCHECK_LE(v8::base::Stack::GetCurrentStackPosition(), ptr);
-  DCHECK_GE(v8::base::Stack::GetStackStart(), ptr);
+  DCHECK_GE(v8::base::Stack::GetStackStartUnchecked(), ptr);
 }
 
 #if V8_STATIC_ROOTS_BOOL

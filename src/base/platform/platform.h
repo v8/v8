@@ -65,6 +65,10 @@ extern "C" unsigned long __readfsdword(unsigned long);  // NOLINT(runtime/int)
 
 namespace v8 {
 
+namespace internal {
+class HandleHelper;
+}
+
 namespace base {
 
 // ----------------------------------------------------------------------------
@@ -662,8 +666,11 @@ class V8_BASE_EXPORT Stack {
   }
 
  private:
-  // Returns the current thread stack start pointer.
+  // Return the current thread stack start pointer.
+  static StackSlot GetStackStartUnchecked();
   static Stack::StackSlot ObtainCurrentThreadStackStart();
+
+  friend v8::internal::HandleHelper;
 };
 
 #if V8_HAS_PTHREAD_JIT_WRITE_PROTECT
