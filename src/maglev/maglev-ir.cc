@@ -5334,6 +5334,9 @@ void AttemptOnStackReplacement(MaglevAssembler* masm,
       DCHECK(!snapshot.live_registers.has(maybe_target_code));
       SaveRegisterStateForCall save_register_state(masm, snapshot);
       if (node->unit()->is_inline()) {
+        // See comment in
+        // MaglevGraphBuilder::ShouldEmitOsrInterruptBudgetChecks.
+        CHECK(!node->unit()->is_osr());
         __ Push(Smi::FromInt(osr_offset.ToInt()), node->closure());
         __ Move(kContextRegister, masm->native_context().object());
         __ CallRuntime(Runtime::kCompileOptimizedOSRFromMaglevInlined, 2);
