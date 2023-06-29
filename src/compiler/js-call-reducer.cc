@@ -3945,6 +3945,7 @@ Reduction JSCallReducer::ReduceCallApiFunction(Node* node,
       // faster than the generic call sequence.
       Builtin builtin_name;
       if (function_template_info.accept_any_receiver()) {
+        DCHECK(!function_template_info.is_signature_undefined(broker()));
         builtin_name = Builtin::kCallFunctionTemplate_CheckCompatibleReceiver;
       } else if (function_template_info.is_signature_undefined(broker())) {
         builtin_name = Builtin::kCallFunctionTemplate_CheckAccess;
