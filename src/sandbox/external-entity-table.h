@@ -144,6 +144,7 @@ class V8_EXPORT_PRIVATE ExternalEntityTable {
     Space() = default;
     Space(const Space&) = delete;
     Space& operator=(const Space&) = delete;
+    ~Space();
 
     // Determines the number of entries currently on the freelist.
     // As entries can be allocated from other threads, the freelist size may
@@ -177,13 +178,7 @@ class V8_EXPORT_PRIVATE ExternalEntityTable {
     std::atomic<void*> owning_table_ = nullptr;
 
     // Check whether this space belongs to the given external entity table.
-    bool BelongsTo(void* table) {
-      // To simplify things, we set the owning table the first time this method
-      // is called. This way we avoid having to add space initialization
-      // routines just for this feature.
-      if (owning_table_ == nullptr) owning_table_ = table;
-      return owning_table_ == table;
-    }
+    bool BelongsTo(void* table) { return owning_table_ == table; }
 #endif  // DEBUG
 
     // The freelist used by this space.
@@ -217,6 +212,12 @@ class V8_EXPORT_PRIVATE ExternalEntityTable {
 
   // Deallocates all memory associated with this table.
   void TearDownTable();
+
+  // Initializes the given space for use with this table.
+  void InitializeSpace(Space* space);
+
+  // Deallocates all segments owned by the given space.
+  void TearDownSpace(Space* space);
 
   // Allocates a new entry in the given space and return its index.
   //

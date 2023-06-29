@@ -348,10 +348,16 @@ class V8_EXPORT_PRIVATE ExternalPointerTable
   };
 
   // Initializes this external pointer table by reserving the backing memory.
-  void Init();
+  void Initialize();
 
   // Resets this external pointer table and deletes all associated memory.
   void TearDown();
+
+  // Initializes the given space for use with this table.
+  void Initialize(Space* space);
+
+  // Tears down the given space and deallocates all segments owned by it.
+  void TearDown(Space* space);
 
   // Retrieves the entry referenced by the given handle.
   //

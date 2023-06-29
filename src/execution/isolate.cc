@@ -3682,8 +3682,10 @@ void Isolate::Deinit() {
   }
 
 #ifdef V8_COMPRESS_POINTERS
+  external_pointer_table().TearDown(heap()->external_pointer_space());
   external_pointer_table().TearDown();
   if (owns_shareable_data()) {
+    shared_external_pointer_table().TearDown(shared_external_pointer_space());
     shared_external_pointer_table().TearDown();
     delete isolate_data_.shared_external_pointer_table_;
     isolate_data_.shared_external_pointer_table_ = nullptr;
@@ -4428,11 +4430,13 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
   isolate_data_.external_reference_table()->Init(this);
 
 #ifdef V8_COMPRESS_POINTERS
-  external_pointer_table().Init();
+  external_pointer_table().Initialize();
+  external_pointer_table().Initialize(heap()->external_pointer_space());
   if (owns_shareable_data()) {
     isolate_data_.shared_external_pointer_table_ = new ExternalPointerTable();
-    shared_external_pointer_table().Init();
     shared_external_pointer_space_ = new ExternalPointerTable::Space();
+    shared_external_pointer_table().Initialize();
+    shared_external_pointer_table().Initialize(shared_external_pointer_space());
   } else {
     DCHECK(has_shared_space());
     isolate_data_.shared_external_pointer_table_ =

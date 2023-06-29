@@ -32,6 +32,13 @@ ExternalEntityTable<Entry, size>::Segment::Containing(uint32_t entry_index) {
 }
 
 template <typename Entry, size_t size>
+ExternalEntityTable<Entry, size>::Space::~Space() {
+  // The segments belonging to this space must have already been deallocated
+  // (through TearDownSpace()), otherwise we may leak memory.
+  DCHECK(segments_.empty());
+}
+
+template <typename Entry, size_t size>
 uint32_t ExternalEntityTable<Entry, size>::Space::freelist_length() const {
   auto freelist = freelist_head_.load(std::memory_order_relaxed);
   return freelist.length();
@@ -111,9 +118,31 @@ void ExternalEntityTable<Entry, size>::InitializeTable() {
 template <typename Entry, size_t size>
 void ExternalEntityTable<Entry, size>::TearDownTable() {
   DCHECK(is_initialized());
+
+  // Deallocate the (read-only) first segment.
+  vas_->FreePages(vas_->base(), kSegmentSize);
+
   base_ = nullptr;
   delete vas_;
   vas_ = nullptr;
+}
+
+template <typename Entry, size_t size>
+void ExternalEntityTable<Entry, size>::InitializeSpace(Space* space) {
+#ifdef DEBUG
+  DCHECK_EQ(space->owning_table_, nullptr);
+  space->owning_table_ = this;
+#endif
+}
+
+template <typename Entry, size_t size>
+void ExternalEntityTable<Entry, size>::TearDownSpace(Space* space) {
+  DCHECK(is_initialized());
+  DCHECK(space->BelongsTo(this));
+  for (auto segment : space->segments_) {
+    FreeTableSegment(segment);
+  }
+  space->segments_.clear();
 }
 
 template <typename Entry, size_t size>

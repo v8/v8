@@ -13,9 +13,13 @@
 namespace v8 {
 namespace internal {
 
-void ExternalPointerTable::Init() { InitializeTable(); }
+void ExternalPointerTable::Initialize() { InitializeTable(); }
 
 void ExternalPointerTable::TearDown() { TearDownTable(); }
+
+void ExternalPointerTable::Initialize(Space* space) { InitializeSpace(space); }
+
+void ExternalPointerTable::TearDown(Space* space) { TearDownSpace(space); }
 
 uint32_t ExternalPointerTable::SweepAndCompact(Space* space,
                                                Counters* counters) {
