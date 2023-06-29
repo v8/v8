@@ -710,7 +710,11 @@ class MaglevCodeGeneratingNodeProcessor {
       __ DebugBreak();
     }
 
-    __ Prologue(graph);
+    if (graph->is_osr()) {
+      __ OSRPrologue(graph);
+    } else {
+      __ Prologue(graph);
+    }
   }
 
   void PostProcessGraph(Graph* graph) {}

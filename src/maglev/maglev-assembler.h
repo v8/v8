@@ -486,6 +486,7 @@ class MaglevAssembler : public MacroAssembler {
   template <typename... T>
   inline void PushReverse(T... vals);
 
+  void OSRPrologue(Graph* graph);
   void Prologue(Graph* graph);
 
   inline void FinishCode();

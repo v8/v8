@@ -394,12 +394,50 @@ void MaglevAssembler::TryChangeFloat64ToIndex(Register result,
   Jump(fail);
 }
 
-void MaglevAssembler::Prologue(Graph* graph) {
-  if (!graph->is_osr()) {
-    BailoutIfDeoptimized(rbx);
+void MaglevAssembler::OSRPrologue(Graph* graph) {
+  DCHECK(graph->is_osr());
+  CHECK(!graph->has_recursive_calls());
+
+  uint32_t source_frame_size =
+      graph->min_maglev_stackslots_for_unoptimized_frame_size();
+
+  if (v8_flags.maglev_assert_stack_size && v8_flags.debug_code) {
+    movq(kScratchRegister, rbp);
+    subq(kScratchRegister, rsp);
+    cmpq(kScratchRegister,
+         Immediate(source_frame_size * kSystemPointerSize +
+                   StandardFrameConstants::kFixedFrameSizeFromFp));
+    Assert(equal, AbortReason::kOsrUnexpectedStackSize);
   }
 
-  CHECK_IMPLIES(graph->is_osr(), !graph->has_recursive_calls());
+  uint32_t target_frame_size =
+      graph->tagged_stack_slots() + graph->untagged_stack_slots();
+  CHECK_LE(source_frame_size, target_frame_size);
+
+  if (source_frame_size < target_frame_size) {
+    ASM_CODE_COMMENT_STRING(this, "Growing frame for OSR");
+    Move(kScratchRegister, 0);
+    uint32_t additional_tagged =
+        source_frame_size < graph->tagged_stack_slots()
+            ? graph->tagged_stack_slots() - source_frame_size
+            : 0;
+    for (size_t i = 0; i < additional_tagged; ++i) {
+      pushq(kScratchRegister);
+    }
+    uint32_t size_so_far = source_frame_size + additional_tagged;
+    CHECK_LE(size_so_far, target_frame_size);
+    if (size_so_far < target_frame_size) {
+      subq(rsp,
+           Immediate((target_frame_size - size_so_far) * kSystemPointerSize));
+    }
+  }
+}
+
+void MaglevAssembler::Prologue(Graph* graph) {
+  DCHECK(!graph->is_osr());
+
+  BailoutIfDeoptimized(rbx);
+
   if (graph->has_recursive_calls()) {
     bind(code_gen_state()->entry_label());
   }
@@ -407,7 +445,7 @@ void MaglevAssembler::Prologue(Graph* graph) {
   // Tiering support.
   // TODO(jgruber): Extract to a builtin (the tiering prologue is ~230 bytes
   // per Maglev code object on x64).
-  if (v8_flags.turbofan && !graph->is_osr()) {
+  if (v8_flags.turbofan) {
     // Scratch registers. Don't clobber regs related to the calling
     // convention (e.g. kJavaScriptCallArgCountRegister). Keep up-to-date
     // with deferred flags code.
@@ -430,43 +468,6 @@ void MaglevAssembler::Prologue(Graph* graph) {
     LoadFeedbackVectorFlagsAndJumpIfNeedsProcessing(
         flags, feedback_vector, CodeKind::MAGLEV,
         deferred_flags_need_processing);
-  }
-
-  if (graph->is_osr()) {
-    uint32_t source_frame_size =
-        graph->min_maglev_stackslots_for_unoptimized_frame_size();
-
-    if (v8_flags.maglev_assert_stack_size && v8_flags.debug_code) {
-      movq(kScratchRegister, rbp);
-      subq(kScratchRegister, rsp);
-      cmpq(kScratchRegister,
-           Immediate(source_frame_size * kSystemPointerSize +
-                     StandardFrameConstants::kFixedFrameSizeFromFp));
-      Assert(equal, AbortReason::kOsrUnexpectedStackSize);
-    }
-
-    uint32_t target_frame_size =
-        graph->tagged_stack_slots() + graph->untagged_stack_slots();
-    CHECK_LE(source_frame_size, target_frame_size);
-
-    if (source_frame_size < target_frame_size) {
-      ASM_CODE_COMMENT_STRING(this, "Growing frame for OSR");
-      Move(kScratchRegister, 0);
-      uint32_t additional_tagged =
-          source_frame_size < graph->tagged_stack_slots()
-              ? graph->tagged_stack_slots() - source_frame_size
-              : 0;
-      for (size_t i = 0; i < additional_tagged; ++i) {
-        pushq(kScratchRegister);
-      }
-      uint32_t size_so_far = source_frame_size + additional_tagged;
-      CHECK_LE(size_so_far, target_frame_size);
-      if (size_so_far < target_frame_size) {
-        subq(rsp,
-             Immediate((target_frame_size - size_so_far) * kSystemPointerSize));
-      }
-    }
-    return;
   }
 
   EnterFrame(StackFrame::MAGLEV);
