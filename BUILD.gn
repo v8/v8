@@ -1461,7 +1461,6 @@ config("toolchain") {
 
   if (is_win) {
     cflags += [
-      "/wd4172",  # Returning address of local variable.
       "/wd4245",  # Conversion with signed/unsigned mismatch.
       "/wd4267",  # Conversion with possible loss of data.
       "/wd4324",  # Padding structure due to alignment.

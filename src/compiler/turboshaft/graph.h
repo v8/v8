@@ -662,18 +662,19 @@ class Graph {
   }
 
   class OpIndexIterator
-      : public base::iterator<std::bidirectional_iterator_tag, OpIndex> {
+      : public base::iterator<std::bidirectional_iterator_tag, OpIndex,
+                              std::ptrdiff_t, OpIndex*, OpIndex> {
    public:
     using value_type = OpIndex;
 
     explicit OpIndexIterator(OpIndex index, const Graph* graph)
         : index_(index), graph_(graph) {}
-    value_type& operator*() { return index_; }
-    OpIndexIterator& operator++() {
+    value_type operator*() const { return index_; }
+    OpIndexIterator operator++() {
       index_ = graph_->operations_.Next(index_);
       return *this;
     }
-    OpIndexIterator& operator--() {
+    OpIndexIterator operator--() {
       index_ = graph_->operations_.Previous(index_);
       return *this;
     }
