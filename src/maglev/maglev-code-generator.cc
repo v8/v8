@@ -702,7 +702,6 @@ class MaglevCodeGeneratingNodeProcessor {
     if (graph->is_osr() &&
         graph->min_maglev_stackslots_for_unoptimized_frame_size() >=
             static_cast<uint32_t>(code_gen_state()->stack_slots())) {
-      code_gen_state()->set_needs_no_stack_check();
     }
     code_gen_state()->set_max_deopted_stack_size(
         graph->max_deopted_stack_size());
