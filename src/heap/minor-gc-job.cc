@@ -59,6 +59,7 @@ void MinorGCJob::Task::RunInternal() {
 
   job_->task_pending_ = false;
 
+  Heap* heap = isolate()->heap();
   if (v8_flags.minor_mc &&
       isolate()->heap()->incremental_marking()->IsMajorMarking()) {
     // Don't trigger a MinorMC cycle while major incremental marking is active.
@@ -67,7 +68,15 @@ void MinorGCJob::Task::RunInternal() {
   if (!MinorGCJob::YoungGenerationSizeTaskTriggerReached(isolate()->heap()))
     return;
 
-  isolate()->heap()->CollectGarbage(NEW_SPACE, GarbageCollectionReason::kTask);
+  if (v8_flags.minor_mc && heap->ShouldOptimizeForLoadTime()) {
+    // GC is not possible right now. Reschedule the task so that it runs again
+    // later (hopefuly after loading is done) to avoid reaching an allocation
+    // failure if possible.
+    heap->ScheduleMinorGCTaskIfNeeded();
+    return;
+  }
+
+  heap->CollectGarbage(NEW_SPACE, GarbageCollectionReason::kTask);
 }
 
 }  // namespace internal

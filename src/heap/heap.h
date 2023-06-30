@@ -2430,6 +2430,7 @@ class Heap final {
   friend class MarkingVisitorBase;
   friend class MarkCompactCollector;
   friend class MarkCompactCollectorBase;
+  friend class MinorGCJob;
   friend class MinorGCTaskObserver;
   friend class MinorMarkCompactCollector;
   friend class MinorMCIncrementalMarkingTaskObserver;
