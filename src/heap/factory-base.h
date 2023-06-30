@@ -308,7 +308,7 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
   Handle<SourceTextModuleInfo> NewSourceTextModuleInfo();
 
   Handle<DescriptorArray> NewDescriptorArray(
-      int number_of_entries, int slack = 0,
+      int number_of_descriptors, int slack = 0,
       AllocationType allocation = AllocationType::kYoung);
 
   Handle<ClassPositions> NewClassPositions(int start, int end);

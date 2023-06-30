@@ -53,7 +53,7 @@ class ArrayBufferSweeper final {
   ~ArrayBufferSweeper();
 
   void RequestSweep(SweepingType sweeping_type,
-                    TreatAllYoungAsPromoted treat_young_as_promoted);
+                    TreatAllYoungAsPromoted treat_all_young_as_promoted);
   void EnsureFinished();
 
   // Track the given ArrayBufferExtension for the given JSArrayBuffer.

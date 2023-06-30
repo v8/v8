@@ -2297,10 +2297,9 @@ class Heap final {
   std::unique_ptr<CodeRange> code_range_;
 #endif
 
-  // The embedder owns the C++ heap.
-  v8::CppHeap* cpp_heap_ = nullptr;
-
-  EmbedderRootsHandler* embedder_roots_handler_ = nullptr;
+  v8::CppHeap* cpp_heap_ = nullptr;  // Owned by the embedder.
+  EmbedderRootsHandler* embedder_roots_handler_ =
+      nullptr;  // Owned by the embedder.
 
   cppgc::EmbedderStackState embedder_stack_state_ =
       cppgc::EmbedderStackState::kMayContainHeapPointers;

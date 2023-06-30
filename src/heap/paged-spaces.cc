@@ -125,11 +125,11 @@ Page* PagedSpaceBase::InitializePage(MemoryChunk* chunk) {
 PagedSpaceBase::PagedSpaceBase(
     Heap* heap, AllocationSpace space, Executability executable,
     std::unique_ptr<FreeList> free_list, AllocationCounter& allocation_counter,
-    LinearAllocationArea& allocation_info_,
+    LinearAllocationArea& allocation_info,
     LinearAreaOriginalData& linear_area_original_data,
     CompactionSpaceKind compaction_space_kind)
     : SpaceWithLinearArea(heap, space, std::move(free_list), allocation_counter,
-                          allocation_info_, linear_area_original_data),
+                          allocation_info, linear_area_original_data),
       executable_(executable),
       compaction_space_kind_(compaction_space_kind) {
   area_size_ = MemoryChunkLayout::AllocatableMemoryInMemoryChunk(space);

@@ -562,7 +562,6 @@ void ReadOnlySpace::EnsureSpaceForAllocation(int size_in_bytes) {
 
   top_ = chunk->area_start();
   limit_ = chunk->area_end();
-  return;
 }
 
 HeapObject ReadOnlySpace::TryAllocateLinearlyAligned(

@@ -5,9 +5,8 @@
 #include "src/heap/cppgc/concurrent-marker.h"
 
 #include "include/cppgc/platform.h"
+#include "src/heap/cppgc/heap-base.h"
 #include "src/heap/cppgc/heap-object-header.h"
-#include "src/heap/cppgc/heap.h"
-#include "src/heap/cppgc/liveness-broker.h"
 #include "src/heap/cppgc/marking-state.h"
 #include "src/heap/cppgc/marking-visitor.h"
 #include "src/heap/cppgc/stats-collector.h"
@@ -84,7 +83,7 @@ void ConcurrentMarkingTask::Run(JobDelegate* job_delegate) {
       concurrent_marker_.CreateConcurrentMarkingVisitor(
           concurrent_marking_state);
   ProcessWorklists(job_delegate, concurrent_marking_state,
-                   *concurrent_marking_visitor.get());
+                   *concurrent_marking_visitor);
   concurrent_marker_.incremental_marking_schedule().AddConcurrentlyMarkedBytes(
       concurrent_marking_state.RecentlyMarkedBytes());
   concurrent_marking_state.Publish();

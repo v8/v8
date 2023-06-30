@@ -617,7 +617,7 @@ Scavenger::Scavenger(ScavengerCollector* collector, Heap* heap, bool is_logging,
       is_logging_(is_logging),
       is_incremental_marking_(heap->incremental_marking()->IsMarking()),
       is_compacting_(heap->incremental_marking()->IsCompacting()),
-      shared_string_table_(shared_old_allocator_.get() != nullptr),
+      shared_string_table_(shared_old_allocator_ != nullptr),
       mark_shared_heap_(heap->isolate()->is_shared_space_isolate()),
       shortcut_strings_(
           heap->CanShortcutStringsDuringGC(GarbageCollector::SCAVENGER)) {}
@@ -644,10 +644,10 @@ void Scavenger::IterateAndScavengePromotedObject(HeapObject target, Map map,
   }
 }
 
-void Scavenger::RememberPromotedEphemeron(EphemeronHashTable table, int entry) {
+void Scavenger::RememberPromotedEphemeron(EphemeronHashTable table, int index) {
   auto indices =
       ephemeron_remembered_set_.insert({table, std::unordered_set<int>()});
-  indices.first->second.insert(entry);
+  indices.first->second.insert(index);
 }
 
 void Scavenger::ScavengePage(MemoryChunk* page) {
@@ -789,7 +789,7 @@ void ScavengerCollector::ClearOldEphemerons() {
       }
     }
 
-    if (indices.size() == 0) {
+    if (indices.empty()) {
       it = table_map->erase(it);
     } else {
       ++it;

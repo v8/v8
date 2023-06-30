@@ -35,7 +35,7 @@ class V8_EXPORT_PRIVATE MarkingVisitorBase : public VisitorBase {
 #endif  // defined(CPPGC_POINTER_COMPRESSION)
   void VisitWeak(const void*, TraceDescriptor, WeakCallback, const void*) final;
   void VisitEphemeron(const void*, const void*, TraceDescriptor) final;
-  void VisitWeakContainer(const void* self, TraceDescriptor strong_desc,
+  void VisitWeakContainer(const void* object, TraceDescriptor strong_desc,
                           TraceDescriptor weak_desc, WeakCallback callback,
                           const void* data) final;
   void RegisterWeakCallback(WeakCallback, const void*) final;

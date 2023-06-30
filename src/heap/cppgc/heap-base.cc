@@ -118,10 +118,10 @@ HeapBase::HeapBase(
                         *prefinalizer_handler_, *oom_handler_,
                         garbage_collector),
       sweeper_(*this),
-      strong_persistent_region_(*oom_handler_.get()),
-      weak_persistent_region_(*oom_handler_.get()),
-      strong_cross_thread_persistent_region_(*oom_handler_.get()),
-      weak_cross_thread_persistent_region_(*oom_handler_.get()),
+      strong_persistent_region_(*oom_handler_),
+      weak_persistent_region_(*oom_handler_),
+      strong_cross_thread_persistent_region_(*oom_handler_),
+      weak_cross_thread_persistent_region_(*oom_handler_),
 #if defined(CPPGC_YOUNG_GENERATION)
       remembered_set_(*this),
 #endif  // defined(CPPGC_YOUNG_GENERATION)
