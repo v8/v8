@@ -1944,12 +1944,17 @@ void CodeStubAssembler::GotoIfMapHasSlowProperties(TNode<Map> map,
 }
 
 TNode<HeapObject> CodeStubAssembler::LoadFastProperties(
-    TNode<JSReceiver> object) {
+    TNode<JSReceiver> object, bool skip_empty_check) {
   CSA_SLOW_DCHECK(this, Word32BinaryNot(IsDictionaryMap(LoadMap(object))));
   TNode<Object> properties = LoadJSReceiverPropertiesOrHash(object);
-  return Select<HeapObject>(
-      TaggedIsSmi(properties), [=] { return EmptyFixedArrayConstant(); },
-      [=] { return CAST(properties); });
+  if (skip_empty_check) {
+    return CAST(properties);
+  } else {
+    // TODO(ishell): use empty_property_array instead of empty_fixed_array here.
+    return Select<HeapObject>(
+        TaggedIsSmi(properties), [=] { return EmptyFixedArrayConstant(); },
+        [=] { return CAST(properties); });
+  }
 }
 
 TNode<HeapObject> CodeStubAssembler::LoadSlowProperties(
@@ -10161,7 +10166,7 @@ void CodeStubAssembler::LoadPropertyFromFastObject(
     BIND(&if_backing_store);
     {
       Comment("if_backing_store");
-      TNode<HeapObject> properties = LoadFastProperties(CAST(object));
+      TNode<HeapObject> properties = LoadFastProperties(CAST(object), true);
       field_index = Signed(IntPtrSub(field_index, instance_size_in_words));
       TNode<Object> value =
           LoadPropertyArrayElement(CAST(properties), field_index);

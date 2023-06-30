@@ -1390,7 +1390,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   // Load the properties backing store of a JSReceiver.
   TNode<HeapObject> LoadSlowProperties(TNode<JSReceiver> object);
-  TNode<HeapObject> LoadFastProperties(TNode<JSReceiver> object);
+  TNode<HeapObject> LoadFastProperties(TNode<JSReceiver> object,
+                                       bool skip_empty_check = false);
   // Load the elements backing store of a JSObject.
   TNode<FixedArrayBase> LoadElements(TNode<JSObject> object) {
     return LoadJSObjectElements(object);

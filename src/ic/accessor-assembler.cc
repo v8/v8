@@ -312,7 +312,7 @@ void AccessorAssembler::HandleLoadField(TNode<JSObject> holder,
       IsSetWord32<LoadHandler::IsInobjectBits>(handler_word);
   TNode<HeapObject> property_storage = Select<HeapObject>(
       is_inobject, [&]() { return holder; },
-      [&]() { return LoadFastProperties(holder); });
+      [&]() { return LoadFastProperties(holder, true); });
 
   Label is_double(this);
   TNode<Object> value = LoadObjectField(property_storage, offset);
@@ -1204,7 +1204,7 @@ void AccessorAssembler::HandleStoreICSmiHandlerJSSharedStructFieldCase(
       IsSetWord32<StoreHandler::IsInobjectBits>(handler_word);
   TNode<HeapObject> property_storage = Select<HeapObject>(
       is_inobject, [&]() { return holder; },
-      [&]() { return LoadFastProperties(holder); });
+      [&]() { return LoadFastProperties(holder, true); });
 
   TNode<UintPtrT> index =
       DecodeWordFromWord32<StoreHandler::FieldIndexBits>(handler_word);
@@ -1661,7 +1661,7 @@ void AccessorAssembler::OverwriteExistingFastDataProperty(
       } else {
         Label tagged_rep(this), double_rep(this);
         TNode<PropertyArray> properties =
-            CAST(LoadFastProperties(CAST(object)));
+            CAST(LoadFastProperties(CAST(object), true));
         Branch(
             Word32Equal(representation, Int32Constant(Representation::kDouble)),
             &double_rep, &tagged_rep);
@@ -1741,7 +1741,7 @@ void AccessorAssembler::StoreJSSharedStructField(
         Word32Equal(DecodeWord32<PropertyDetails::RepresentationField>(details),
                     Int32Constant(Representation::kTagged)));
     TNode<PropertyArray> properties =
-        CAST(LoadFastProperties(CAST(shared_struct)));
+        CAST(LoadFastProperties(CAST(shared_struct), true));
     StoreJSSharedStructPropertyArrayElement(properties, backing_store_index,
                                             shared_value.value());
     Goto(&done);
@@ -2138,7 +2138,7 @@ void AccessorAssembler::HandleStoreFieldAndReturn(
       IsSetWord32<StoreHandler::IsInobjectBits>(handler_word);
   TNode<HeapObject> property_storage = Select<HeapObject>(
       is_inobject, [&]() { return holder; },
-      [&]() { return LoadFastProperties(holder); });
+      [&]() { return LoadFastProperties(holder, true); });
 
   TNode<UintPtrT> index =
       DecodeWordFromWord32<StoreHandler::FieldIndexBits>(handler_word);
