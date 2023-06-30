@@ -1888,7 +1888,7 @@ class AssemblerOpInterface {
     }
     return stack().ReduceOsrValue(index);
   }
-  void Return(OpIndex pop_count, base::Vector<OpIndex> return_values) {
+  void Return(OpIndex pop_count, base::Vector<const OpIndex> return_values) {
     if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
       return;
     }

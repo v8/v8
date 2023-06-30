@@ -12,6 +12,7 @@ include_rules = [
   "-src/compiler",
   "+src/compiler/code-assembler.h",
   "+src/compiler/turbofan.h",
+  "+src/compiler/turboshaft/wasm-turboshaft-compiler.h",
   "+src/compiler/wasm-compiler-definitions.h",
   "+src/compiler/wasm-compiler.h",
   "-src/heap",

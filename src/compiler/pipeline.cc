@@ -130,6 +130,7 @@
 #include "src/compiler/wasm-typer.h"
 #include "src/wasm/function-body-decoder.h"
 #include "src/wasm/function-compiler.h"
+#include "src/wasm/turboshaft-graph-interface.h"
 #include "src/wasm/wasm-engine.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -3725,6 +3726,136 @@ void Pipeline::GenerateCodeForWasmFunction(
 
   DCHECK(result->succeeded());
   info->SetWasmCompilationResult(std::move(result));
+}
+
+// static
+bool Pipeline::GenerateWasmCodeFromTurboshaftGraph(
+    OptimizedCompilationInfo* info, wasm::CompilationEnv* env,
+    WasmCompilationData& compilation_data, MachineGraph* mcgraph,
+    const wasm::FunctionBody& body, wasm::WasmFeatures* detected,
+    CallDescriptor* call_descriptor) {
+  auto* wasm_engine = wasm::GetWasmEngine();
+  const wasm::WasmModule* module = env->module;
+  base::TimeTicks start_time;
+  if (V8_UNLIKELY(v8_flags.trace_wasm_compilation_times)) {
+    start_time = base::TimeTicks::Now();
+  }
+  ZoneStats zone_stats(wasm_engine->allocator());
+  std::unique_ptr<TurbofanPipelineStatistics> pipeline_statistics(
+      CreatePipelineStatistics(compilation_data.func_body, module, info,
+                               &zone_stats));
+  PipelineData data(&zone_stats, wasm_engine, info, mcgraph,
+                    pipeline_statistics.get(),
+                    compilation_data.source_positions,
+                    compilation_data.node_origins, WasmAssemblerOptions());
+
+  PipelineImpl pipeline(&data);
+
+  if (data.info()->trace_turbo_json() || data.info()->trace_turbo_graph()) {
+    CodeTracer::StreamScope tracing_scope(data.GetCodeTracer());
+    tracing_scope.stream()
+        << "---------------------------------------------------\n"
+        << "Begin compiling method " << data.info()->GetDebugName().get()
+        << " using TurboFan" << std::endl;
+  }
+
+  Linkage linkage(call_descriptor);
+
+  {
+    turboshaft::PipelineData::Scope turboshaft_pipeline(
+        pipeline.CreateTurboshaftPipeline());
+
+    AccountingAllocator allocator;
+    if (!wasm::BuildTSGraph(&allocator, env->enabled_features, env->module,
+                            detected, body,
+                            turboshaft_pipeline.Value().graph())) {
+      return false;
+    }
+    CodeTracer* code_tracer = nullptr;
+    if (turboshaft::PipelineData::Get().info()->trace_turbo_graph()) {
+      // NOTE: We must not call `GetCodeTracer` if tracing is not enabled,
+      // because it may not yet be initialized then and doing so from the
+      // background thread is not threadsafe.
+      code_tracer = data.GetCodeTracer();
+    }
+    Zone printing_zone(&allocator, ZONE_NAME);
+    turboshaft::PrintTurboshaftGraph(&printing_zone, code_tracer,
+                                     "Graph generation");
+
+    // We do not really need this currently; we run to sort blocks to work
+    // around a bug in RecreateSchedulePhase.
+    pipeline.Run<turboshaft::OptimizePhase>();
+
+    auto [new_graph, new_schedule] =
+        pipeline.Run<turboshaft::RecreateSchedulePhase>(&linkage);
+    data.set_graph(new_graph);
+    data.set_schedule(new_schedule);
+    TraceSchedule(data.info(), &data, data.schedule(),
+                  turboshaft::RecreateSchedulePhase::phase_name());
+  }
+
+  CHECK(pipeline.SelectInstructions(&linkage));
+  pipeline.AssembleCode(&linkage);
+
+  auto result = std::make_unique<wasm::WasmCompilationResult>();
+  CodeGenerator* code_generator = pipeline.code_generator();
+  code_generator->masm()->GetCode(
+      nullptr, &result->code_desc, code_generator->safepoint_table_builder(),
+      static_cast<int>(code_generator->handler_table_offset()));
+
+  result->instr_buffer = code_generator->masm()->ReleaseBuffer();
+  result->frame_slot_count = code_generator->frame()->GetTotalFrameSlotCount();
+  result->tagged_parameter_slots = call_descriptor->GetTaggedParameterSlots();
+  result->source_positions = code_generator->GetSourcePositionTable();
+  result->protected_instructions_data =
+      code_generator->GetProtectedInstructionsData();
+  result->result_tier = wasm::ExecutionTier::kTurbofan;
+
+  if (data.info()->trace_turbo_json()) {
+    TurboJsonFile json_of(data.info(), std::ios_base::app);
+    json_of << "{\"name\":\"disassembly\",\"type\":\"disassembly\""
+            << BlockStartsAsJSON{&code_generator->block_starts()}
+            << "\"data\":\"";
+#ifdef ENABLE_DISASSEMBLER
+    std::stringstream disassembler_stream;
+    Disassembler::Decode(
+        nullptr, disassembler_stream, result->code_desc.buffer,
+        result->code_desc.buffer + result->code_desc.safepoint_table_offset,
+        CodeReference(&result->code_desc));
+    for (auto const c : disassembler_stream.str()) {
+      json_of << AsEscapedUC16ForJSON(c);
+    }
+#endif  // ENABLE_DISASSEMBLER
+    json_of << "\"}\n]";
+    json_of << "\n}";
+  }
+
+  if (data.info()->trace_turbo_json() || data.info()->trace_turbo_graph()) {
+    CodeTracer::StreamScope tracing_scope(data.GetCodeTracer());
+    tracing_scope.stream()
+        << "---------------------------------------------------\n"
+        << "Finished compiling method " << data.info()->GetDebugName().get()
+        << " using TurboFan" << std::endl;
+  }
+
+  if (V8_UNLIKELY(v8_flags.trace_wasm_compilation_times)) {
+    base::TimeDelta time = base::TimeTicks::Now() - start_time;
+    int codesize = result->code_desc.body_size();
+    StdoutStream{} << "Compiled function "
+                   << reinterpret_cast<const void*>(module) << "#"
+                   << compilation_data.func_index << " using TurboFan, took "
+                   << time.InMilliseconds() << " ms and "
+                   << zone_stats.GetMaxAllocatedBytes() << " / "
+                   << zone_stats.GetTotalAllocatedBytes()
+                   << " max/total bytes; bodysize "
+                   << compilation_data.body_size() << " codesize " << codesize
+                   << " name " << data.info()->GetDebugName().get()
+                   << std::endl;
+  }
+
+  DCHECK(result->succeeded());
+  info->SetWasmCompilationResult(std::move(result));
+  return true;
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 

@@ -13,10 +13,19 @@
 #include <ostream>
 
 #include "src/base/functional.h"
+#include "src/base/vector.h"
 #include "src/wasm/value-type.h"
+#include "src/zone/zone.h"
 
 namespace v8 {
 namespace internal {
+
+namespace wasm {
+struct WasmModule;
+class WireBytesStorage;
+struct ModuleWireBytes;
+}  // namespace wasm
+
 namespace compiler {
 
 // If {to} is nullable, it means that null passes the check.
@@ -49,6 +58,11 @@ enum NullCheckStrategy { kExplicitNullChecks, kTrapHandler };
 // Static knowledge about whether a wasm-gc operation, such as struct.get, needs
 // a null check.
 enum CheckForNull { kWithoutNullCheck, kWithNullCheck };
+
+base::Vector<const char> GetDebugName(Zone* zone,
+                                      const wasm::WasmModule* module,
+                                      const wasm::WireBytesStorage* wire_bytes,
+                                      int index);
 
 }  // namespace compiler
 }  // namespace internal

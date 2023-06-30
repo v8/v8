@@ -25,6 +25,7 @@ struct WasmInliningPosition;
 
 namespace wasm {
 struct CompilationEnv;
+struct FunctionBody;
 struct WasmCompilationResult;
 class WasmFeatures;
 }  // namespace wasm
@@ -71,6 +72,12 @@ class Pipeline : public AllStatic {
       CallDescriptor* call_descriptor, MachineGraph* mcgraph, CodeKind kind,
       const char* debug_name, const AssemblerOptions& assembler_options,
       SourcePositionTable* source_positions = nullptr);
+
+  static bool GenerateWasmCodeFromTurboshaftGraph(
+      OptimizedCompilationInfo* info, wasm::CompilationEnv* env,
+      WasmCompilationData& compilation_data, MachineGraph* mcgraph,
+      const wasm::FunctionBody& body, wasm::WasmFeatures* detected,
+      CallDescriptor* call_descriptor);
 
   // Returns a new compilation job for a wasm heap stub.
   static std::unique_ptr<TurbofanCompilationJob> NewWasmHeapStubCompilationJob(
