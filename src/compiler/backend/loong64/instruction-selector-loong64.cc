@@ -1619,21 +1619,36 @@ void InstructionSelectorT<Adapter>::VisitBitcastWord32ToWord64(Node* node) {
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitChangeInt32ToInt64(Node* node) {
-  // On LoongArch64, int32 values should all be sign-extended to 64-bit, so
-  // no need to sign-extend them here.
-  // But when call to a host function in simulator, if the function return an
-  // int32 value, the simulator do not sign-extend to int64, because in
-  // simulator we do not know the function whether return an int32 or int64.
-#ifdef USE_SIMULATOR
+  Loong64OperandGeneratorT<Adapter> g(this);
   Node* value = node->InputAt(0);
-  if (value->opcode() == IrOpcode::kCall) {
-    Loong64OperandGeneratorT<Adapter> g(this);
-    Emit(kLoong64Sll_w, g.DefineAsRegister(node), g.UseRegister(value),
-         g.TempImmediate(0));
+  if ((value->opcode() == IrOpcode::kLoad ||
+       value->opcode() == IrOpcode::kLoadImmutable) &&
+      CanCover(node, value)) {
+    // Generate sign-extending load.
+    LoadRepresentation load_rep = LoadRepresentationOf(value->op());
+    InstructionCode opcode = kArchNop;
+    switch (load_rep.representation()) {
+      case MachineRepresentation::kBit:  // Fall through.
+      case MachineRepresentation::kWord8:
+        opcode = load_rep.IsUnsigned() ? kLoong64Ld_bu : kLoong64Ld_b;
+        break;
+      case MachineRepresentation::kWord16:
+        opcode = load_rep.IsUnsigned() ? kLoong64Ld_hu : kLoong64Ld_h;
+        break;
+      case MachineRepresentation::kWord32:
+        opcode = kLoong64Ld_w;
+        break;
+      default:
+        UNREACHABLE();
+    }
+    EmitLoad(this, value, opcode, node);
+    return;
+  } else if (value->opcode() == IrOpcode::kTruncateInt64ToInt32) {
+    EmitIdentity(node);
     return;
   }
-#endif
-  EmitIdentity(node);
+  Emit(kLoong64Sll_w, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)),
+       g.TempImmediate(0));
 }
 
 template <typename Adapter>
