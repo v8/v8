@@ -2729,7 +2729,7 @@ class LiftoffCompiler {
     LiftoffAssembler::VarState table_index{kI32, static_cast<int>(imm.index),
                                            0};
 
-    LiftoffAssembler::VarState index = __ cache_state()->stack_state.back();
+    LiftoffAssembler::VarState index = __ PopVarState();
 
     ValueType type = env_->module->tables[imm.index].type;
     bool is_funcref = IsSubtypeOf(type, kWasmFuncRef, env_->module);
@@ -2738,9 +2738,6 @@ class LiftoffCompiler {
 
     CallRuntimeStub(stub, MakeSig::Returns(type.kind()).Params(kI32, kI32),
                     {table_index, index}, decoder->position());
-
-    // Pop parameters from the value stack.
-    __ cache_state()->stack_state.pop_back(1);
 
     RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
 
@@ -2752,8 +2749,8 @@ class LiftoffCompiler {
     LiftoffAssembler::VarState table_index{kI32, static_cast<int>(imm.index),
                                            0};
 
-    LiftoffAssembler::VarState value = __ cache_state()->stack_state.end()[-1];
-    LiftoffAssembler::VarState index = __ cache_state()->stack_state.end()[-2];
+    LiftoffAssembler::VarState value = __ PopVarState();
+    LiftoffAssembler::VarState index = __ PopVarState();
 
     ValueType type = env_->module->tables[imm.index].type;
     bool is_funcref = IsSubtypeOf(type, kWasmFuncRef, env_->module);
@@ -2762,9 +2759,6 @@ class LiftoffCompiler {
 
     CallRuntimeStub(stub, MakeSig::Params(kI32, kI32, kRefNull),
                     {table_index, index, value}, decoder->position());
-
-    // Pop parameters from the value stack.
-    __ cache_state()->stack_state.pop_back(2);
 
     RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
   }
@@ -5635,17 +5629,14 @@ class LiftoffCompiler {
     LoadSmi(segment_index_reg, imm.element_segment.index);
     LiftoffAssembler::VarState segment_index{kSmiKind, segment_index_reg, 0};
 
-    LiftoffAssembler::VarState size = __ cache_state()->stack_state.end()[-1];
-    LiftoffAssembler::VarState src = __ cache_state()->stack_state.end()[-2];
-    LiftoffAssembler::VarState dst = __ cache_state()->stack_state.end()[-3];
+    LiftoffAssembler::VarState size = __ PopVarState();
+    LiftoffAssembler::VarState src = __ PopVarState();
+    LiftoffAssembler::VarState dst = __ PopVarState();
 
     CallRuntimeStub(WasmCode::kWasmTableInit,
                     MakeSig::Params(kI32, kI32, kI32, kSmiKind, kSmiKind),
                     {dst, src, size, table_index, segment_index},
                     decoder->position());
-
-    // Pop parameters from the value stack.
-    __ cache_state()->stack_state.pop_back(3);
 
     RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
   }
@@ -5690,17 +5681,14 @@ class LiftoffCompiler {
     LiftoffAssembler::VarState table_src_index{kSmiKind, table_src_index_reg,
                                                0};
 
-    LiftoffAssembler::VarState size = __ cache_state()->stack_state.end()[-1];
-    LiftoffAssembler::VarState src = __ cache_state()->stack_state.end()[-2];
-    LiftoffAssembler::VarState dst = __ cache_state()->stack_state.end()[-3];
+    LiftoffAssembler::VarState size = __ PopVarState();
+    LiftoffAssembler::VarState src = __ PopVarState();
+    LiftoffAssembler::VarState dst = __ PopVarState();
 
     CallRuntimeStub(WasmCode::kWasmTableCopy,
                     MakeSig::Params(kI32, kI32, kI32, kSmiKind, kSmiKind),
                     {dst, src, size, table_dst_index, table_src_index},
                     decoder->position());
-
-    // Pop parameters from the value stack.
-    __ cache_state()->stack_state.pop_back(3);
 
     RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
   }
@@ -5714,15 +5702,12 @@ class LiftoffCompiler {
     LoadSmi(table_index_reg, imm.index);
     LiftoffAssembler::VarState table_index(kSmiKind, table_index_reg, 0);
 
-    LiftoffAssembler::VarState delta = __ cache_state()->stack_state.end()[-1];
-    LiftoffAssembler::VarState value = __ cache_state()->stack_state.end()[-2];
+    LiftoffAssembler::VarState delta = __ PopVarState();
+    LiftoffAssembler::VarState value = __ PopVarState();
 
     CallRuntimeStub(WasmCode::kWasmTableGrow,
                     MakeSig::Returns(kSmiKind).Params(kSmiKind, kI32, kRefNull),
                     {table_index, delta, value}, decoder->position());
-
-    // Pop parameters from the value stack.
-    __ cache_state()->stack_state.pop_back(2);
 
     RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
     __ SmiToInt32(kReturnRegister0);
@@ -5763,16 +5748,13 @@ class LiftoffCompiler {
     LoadSmi(table_index_reg, imm.index);
     LiftoffAssembler::VarState table_index(kSmiKind, table_index_reg, 0);
 
-    LiftoffAssembler::VarState count = __ cache_state()->stack_state.end()[-1];
-    LiftoffAssembler::VarState value = __ cache_state()->stack_state.end()[-2];
-    LiftoffAssembler::VarState start = __ cache_state()->stack_state.end()[-3];
+    LiftoffAssembler::VarState count = __ PopVarState();
+    LiftoffAssembler::VarState value = __ PopVarState();
+    LiftoffAssembler::VarState start = __ PopVarState();
 
     CallRuntimeStub(WasmCode::kWasmTableFill,
                     MakeSig::Params(kSmiKind, kI32, kI32, kRefNull),
                     {table_index, start, count, value}, decoder->position());
-
-    // Pop parameters from the value stack.
-    __ cache_state()->stack_state.pop_back(3);
 
     RegisterDebugSideTableEntry(decoder, DebugSideTableBuilder::kDidSpill);
   }

@@ -492,14 +492,17 @@ class LiftoffAssembler : public MacroAssembler {
     }
   }
 
-  V8_INLINE LiftoffRegister PopToRegister(LiftoffRegList pinned = {}) {
+  // Pop a VarState from the stack, updating the register use count accordingly.
+  V8_INLINE VarState PopVarState() {
     DCHECK(!cache_state_.stack_state.empty());
     VarState slot = cache_state_.stack_state.back();
     cache_state_.stack_state.pop_back();
-    if (V8_LIKELY(slot.is_reg())) {
-      cache_state_.dec_used(slot.reg());
-      return slot.reg();
-    }
+    if (V8_LIKELY(slot.is_reg())) cache_state_.dec_used(slot.reg());
+    return slot;
+  }
+
+  V8_INLINE LiftoffRegister PopToRegister(LiftoffRegList pinned = {}) {
+    VarState slot = PopVarState();
     return LoadToRegister(slot, pinned);
   }
 
