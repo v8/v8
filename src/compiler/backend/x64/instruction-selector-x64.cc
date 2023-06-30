@@ -4393,6 +4393,13 @@ void InstructionSelectorT<Adapter>::VisitF32x4UConvertI32x4(Node* node) {
        g.UseRegister(node->InputAt(0)));
 }
 
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitF32x8UConvertI32x8(Node* node) {
+  X64OperandGeneratorT<Adapter> g(this);
+  Emit(kX64F32x8UConvertI32x8, g.DefineSameAsFirst(node),
+       g.UseRegister(node->InputAt(0)));
+}
+
 #define VISIT_SIMD_QFMOP(Opcode)                                             \
   template <typename Adapter>                                                \
   void InstructionSelectorT<Adapter>::Visit##Opcode(Node* node) {            \
@@ -4472,6 +4479,15 @@ void InstructionSelectorT<Adapter>::VisitI32x4UConvertF32x4(Node* node) {
   InstructionOperand temps[] = {g.TempSimd128Register(),
                                 g.TempSimd128Register()};
   Emit(kX64I32x4UConvertF32x4, g.DefineSameAsFirst(node),
+       g.UseRegister(node->InputAt(0)), arraysize(temps), temps);
+}
+
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitI32x8UConvertF32x8(Node* node) {
+  X64OperandGeneratorT<Adapter> g(this);
+  InstructionOperand temps[] = {g.TempSimd256Register(),
+                                g.TempSimd256Register()};
+  Emit(kX64I32x8UConvertF32x8, g.DefineSameAsFirst(node),
        g.UseRegister(node->InputAt(0)), arraysize(temps), temps);
 }
 

@@ -3634,6 +3634,25 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Addps(dst, kScratchDoubleReg);  // add hi and lo, may round.
       break;
     }
+    case kX64F32x8UConvertI32x8: {
+      DCHECK_EQ(i.OutputSimd256Register(), i.InputSimd256Register(0));
+      DCHECK_NE(i.OutputSimd256Register(), kScratchSimd256Reg);
+      CpuFeatureScope avx_scope(masm(), AVX);
+      CpuFeatureScope avx2_scope(masm(), AVX2);
+      YMMRegister dst = i.OutputSimd256Register();
+      __ vpxor(kScratchSimd256Reg, kScratchSimd256Reg,
+               kScratchSimd256Reg);  // zeros
+      __ vpblendw(kScratchSimd256Reg, kScratchSimd256Reg, dst,
+                  uint8_t{0x55});               // get lo 16 bits
+      __ vpsubd(dst, dst, kScratchSimd256Reg);  // get hi 16 bits
+      __ vcvtdq2ps(kScratchSimd256Reg,
+                   kScratchSimd256Reg);  // convert lo exactly
+      __ vpsrld(dst, dst, uint8_t{1});   // divide by 2 to get in unsigned range
+      __ vcvtdq2ps(dst, dst);            // convert hi
+      __ vaddps(dst, dst, dst);          // double hi
+      __ vaddps(dst, dst, kScratchSimd256Reg);
+      break;
+    }
     case kX64F32x4Qfma: {
       __ F32x4Qfma(i.OutputSimd128Register(), i.InputSimd128Register(0),
                    i.InputSimd128Register(1), i.InputSimd128Register(2),
@@ -4869,6 +4888,36 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Cvttps2dq(dst, dst);
       // Add (src-max_signed) for overflow lanes.
       __ Paddd(dst, tmp);
+      break;
+    }
+    case kX64I32x8UConvertF32x8: {
+      DCHECK_EQ(i.OutputSimd256Register(), i.InputSimd256Register(0));
+      CpuFeatureScope avx_scope(masm(), AVX);
+      CpuFeatureScope avx2_scope(masm(), AVX2);
+      YMMRegister dst = i.OutputSimd256Register();
+      YMMRegister tmp1 = i.TempSimd256Register(0);
+      YMMRegister tmp2 = i.TempSimd256Register(1);
+      // NAN->0, negative->0
+      __ vpxor(tmp2, tmp2, tmp2);
+      __ vmaxps(dst, dst, tmp2);
+      // scratch: float representation of max_signed
+      __ vpcmpeqd(tmp2, tmp2, tmp2);
+      __ vpsrld(tmp2, tmp2, uint8_t{1});  // 0x7fffffff
+      __ vcvtdq2ps(tmp2, tmp2);           // 0x4f000000
+      // tmp1: convert (src-max_signed).
+      // Positive overflow lanes -> 0x7FFFFFFF
+      // Negative lanes -> 0
+      __ vmovaps(tmp1, dst);
+      __ vsubps(tmp1, tmp1, tmp2);
+      __ vcmpleps(tmp2, tmp2, tmp1);
+      __ vcvttps2dq(tmp1, tmp1);
+      __ vpxor(tmp1, tmp1, tmp2);
+      __ vpxor(tmp2, tmp2, tmp2);
+      __ vpmaxsd(tmp1, tmp1, tmp2);
+      // convert. Overflow lanes above max_signed will be 0x80000000
+      __ vcvttps2dq(dst, dst);
+      // Add (src-max_signed) for overflow lanes.
+      __ vpaddd(dst, dst, tmp1);
       break;
     }
     case kX64I32x4UConvertI16x8Low: {

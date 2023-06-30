@@ -219,6 +219,7 @@ namespace compiler {
   V(X64F32x4SConvertI32x4)                           \
   V(X64F32x8SConvertI32x8)                           \
   V(X64F32x4UConvertI32x4)                           \
+  V(X64F32x8UConvertI32x8)                           \
   V(X64F32x4Qfma)                                    \
   V(X64F32x4Qfms)                                    \
   V(X64Minps)                                        \
@@ -258,6 +259,7 @@ namespace compiler {
   V(X64IMinS)                                        \
   V(X64IMaxS)                                        \
   V(X64I32x4UConvertF32x4)                           \
+  V(X64I32x8UConvertF32x8)                           \
   V(X64I32x4UConvertI16x8Low)                        \
   V(X64I32x4UConvertI16x8High)                       \
   V(X64I32x8UConvertI16x8)                           \
