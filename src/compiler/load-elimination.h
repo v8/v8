@@ -137,10 +137,12 @@ class V8_EXPORT_PRIVATE LoadElimination final
       info_for_node_.insert(std::make_pair(object, info));
     }
 
-    AbstractField const* Extend(Node* object, FieldInfo info,
-                                Zone* zone) const {
+    AbstractField const* Extend(Node* object, FieldInfo info, Zone* zone,
+                                int current_field_count) const {
       AbstractField* that = zone->New<AbstractField>(*this);
-      if (that->info_for_node_.size() >= kMaxTrackedObjects) {
+      if ((current_field_count >= kMaxTrackedFields &&
+           that->info_for_node_.size() > 0) ||
+          that->info_for_node_.size() >= kMaxTrackedObjects) {
         // We are tracking too many objects, which leads to bad performance.
         // Delete one to avoid the map from becoming bigger.
         that->info_for_node_.erase(that->info_for_node_.begin());
@@ -155,7 +157,8 @@ class V8_EXPORT_PRIVATE LoadElimination final
     bool Equals(AbstractField const* that) const {
       return this == that || this->info_for_node_ == that->info_for_node_;
     }
-    AbstractField const* Merge(AbstractField const* that, Zone* zone) const {
+    AbstractField const* Merge(AbstractField const* that, Zone* zone,
+                               int* count) const {
       if (this->Equals(that)) return this;
       AbstractField* copy = zone->New<AbstractField>(zone);
       for (auto this_it : this->info_for_node_) {
@@ -166,6 +169,7 @@ class V8_EXPORT_PRIVATE LoadElimination final
         if (that_it != that->info_for_node_.end() &&
             that_it->second == this_second) {
           copy->info_for_node_.insert(this_it);
+          (*count)++;
         }
       }
       return copy;
@@ -173,12 +177,15 @@ class V8_EXPORT_PRIVATE LoadElimination final
 
     void Print() const;
 
+    int count() const { return static_cast<int>(info_for_node_.size()); }
+
    private:
     ZoneMap<Node*, FieldInfo> info_for_node_;
   };
 
-  static size_t const kMaxTrackedFields = 32;
+  static size_t const kMaxTrackedFieldsPerObject = 32;
   static size_t const kMaxTrackedObjects = 100;
+  static int const kMaxTrackedFields = 300;
 
   // Abstract state to approximate the current map of an object along the
   // effect paths through the graph.
@@ -208,7 +215,7 @@ class V8_EXPORT_PRIVATE LoadElimination final
     IndexRange(int begin, int size) : begin_(begin), end_(begin + size) {
       DCHECK_LE(0, begin);
       DCHECK_LE(1, size);
-      if (end_ > static_cast<int>(kMaxTrackedFields)) {
+      if (end_ > static_cast<int>(kMaxTrackedFieldsPerObject)) {
         *this = IndexRange::Invalid();
       }
     }
@@ -278,7 +285,8 @@ class V8_EXPORT_PRIVATE LoadElimination final
    private:
     static AbstractState const empty_state_;
 
-    using AbstractFields = std::array<AbstractField const*, kMaxTrackedFields>;
+    using AbstractFields =
+        std::array<AbstractField const*, kMaxTrackedFieldsPerObject>;
 
     bool FieldsEquals(AbstractFields const& this_fields,
                       AbstractFields const& that_fields) const;
@@ -289,6 +297,11 @@ class V8_EXPORT_PRIVATE LoadElimination final
     AbstractFields fields_{};
     AbstractFields const_fields_{};
     AbstractMaps const* maps_ = nullptr;
+    int const_fields_count_ = 0;
+    // Note that fields_count_ includes both const_fields and non-const fields.
+    // To get the number of non-const fields, use `fields_count_ -
+    // const_fields_count_`.
+    int fields_count_ = 0;
   };
 
   class AbstractStateForEffectNodes final : public ZoneObject {
