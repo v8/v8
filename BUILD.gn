@@ -6622,6 +6622,9 @@ if (v8_enable_webassembly) {
       ":v8_snapshot",
       "//build/win:default_exe_manifest",
     ]
+    if (v8_enable_vtunejit) {
+      deps += [ "src/third_party/vtune:v8_vtune" ]
+    }
 
     # TODO: v8dll-main.cc equivalent for shared library builds
 

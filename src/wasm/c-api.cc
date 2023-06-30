@@ -42,6 +42,9 @@
 #include "src/wasm/wasm-result.h"
 #include "src/wasm/wasm-serialization.h"
 #include "third_party/wasm-api/wasm.h"
+#ifdef ENABLE_VTUNE_JIT_INTERFACE
+#include "src/third_party/vtune/v8-vtune.h"
+#endif
 
 #ifdef WASM_API_DEBUG
 #error "WASM_API_DEBUG is unsupported"
@@ -469,6 +472,9 @@ auto Store::make(Engine*) -> own<Store> {
   // Create isolate.
   store->create_params_.array_buffer_allocator =
       v8::ArrayBuffer::Allocator::NewDefaultAllocator();
+#ifdef ENABLE_VTUNE_JIT_INTERFACE
+  store->create_params_.code_event_handler = vTune::GetVtuneCodeEventHandler();
+#endif
 #if DUMP_COUNTERS
   store->create_params_.counter_lookup_callback = EngineImpl::LookupCounter;
   store->create_params_.create_histogram_callback = EngineImpl::CreateHistogram;

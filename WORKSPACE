@@ -60,3 +60,17 @@ bind(
     name = "base_trace_event_common",
     actual = "@com_googlesource_chromium_base_trace_event_common//:trace_event_common",
 )
+
+http_archive(
+    name = "intel_ittapi",
+    add_prefix = "third_party/ittapi",
+    build_file = "@//:bazel/BUILD.ittapi",
+    sha256 = "36c42d3f2446ddfaa2d7dfa02dfaa79615933f1a68a72d7e4f1d70de7b56e2c9",
+    strip_prefix = "ittapi-3.24.0",
+    url = "https://github.com/intel/ittapi/archive/refs/tags/v3.24.0.tar.gz",
+)
+
+bind(
+    name = "ittapi",
+    actual = "@intel_ittapi//:lib_ittapi",
+)
