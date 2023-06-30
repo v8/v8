@@ -612,6 +612,14 @@ void TurbofanCompilationJob::RecordFunctionCompilation(
       time_taken_ms);
 }
 
+uint64_t TurbofanCompilationJob::trace_id() const {
+  // Xor together the this pointer and the optimization id, to try to make the
+  // id more unique on platforms where just the `this` pointer is likely to be
+  // reused.
+  return reinterpret_cast<uint64_t>(this) ^
+         compilation_info_->optimization_id();
+}
+
 // ----------------------------------------------------------------------------
 // Local helper methods that make up the compilation pipeline.
 
@@ -1096,7 +1104,7 @@ bool CompileTurbofan_Concurrent(Isolate* isolate,
   TimerEventScope<TimerEventRecompileSynchronous> timer(isolate);
   RCS_SCOPE(isolate, RuntimeCallCounterId::kOptimizeConcurrentPrepare);
   TRACE_EVENT_WITH_FLOW0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
-                         "V8.OptimizeConcurrentPrepare", job.get(),
+                         "V8.OptimizeConcurrentPrepare", job->trace_id(),
                          TRACE_EVENT_FLAG_FLOW_OUT);
 
   if (!PrepareJobWithHandleScope(job.get(), isolate, compilation_info,
@@ -1234,7 +1242,7 @@ MaybeHandle<Code> CompileMaglev(Isolate* isolate, Handle<JSFunction> function,
     TRACE_EVENT_WITH_FLOW0(
         TRACE_DISABLED_BY_DEFAULT("v8.compile"),
         IsSynchronous(mode) ? "V8.MaglevPrepare" : "V8.MaglevConcurrentPrepare",
-        job.get(), TRACE_EVENT_FLAG_FLOW_OUT);
+        job->trace_id(), TRACE_EVENT_FLAG_FLOW_OUT);
     CompilerTracer::TraceStartMaglevCompile(isolate, function, job->is_osr(),
                                             mode);
     CompilationJob::Status status = job->PrepareJob(isolate);
@@ -3956,7 +3964,7 @@ void Compiler::FinalizeTurbofanCompilationJob(TurbofanCompilationJob* job,
   TimerEventScope<TimerEventRecompileSynchronous> timer(isolate);
   RCS_SCOPE(isolate, RuntimeCallCounterId::kOptimizeConcurrentFinalize);
   TRACE_EVENT_WITH_FLOW0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
-                         "V8.OptimizeConcurrentFinalize", job,
+                         "V8.OptimizeConcurrentFinalize", job->trace_id(),
                          TRACE_EVENT_FLAG_FLOW_IN);
 
   Handle<JSFunction> function = compilation_info->closure();

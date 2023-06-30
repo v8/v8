@@ -45,7 +45,8 @@ class OptimizingCompileDispatcher::CompileTask : public v8::JobTask {
         if (!job) break;
         TRACE_EVENT_WITH_FLOW0(
             TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.OptimizeBackground",
-            job, TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT);
+            job->trace_id(),
+            TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT);
 
         if (dispatcher_->recompilation_delay_ != 0) {
           base::OS::Sleep(base::TimeDelta::FromMilliseconds(

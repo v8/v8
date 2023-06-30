@@ -449,6 +449,9 @@ class TurbofanCompilationJob : public OptimizedCompilationJob {
   void RecordFunctionCompilation(LogEventListener::CodeTag code_type,
                                  Isolate* isolate) const;
 
+  // Intended for use as a globally unique id in trace events.
+  uint64_t trace_id() const;
+
  private:
   OptimizedCompilationInfo* const compilation_info_;
 };

@@ -202,6 +202,15 @@ void MaglevCompilationJob::RecordCompilationStats(Isolate* isolate) const {
   }
 }
 
+uint64_t MaglevCompilationJob::trace_id() const {
+  // Xor together the this pointer, the info pointer, and the top level
+  // function's Handle address, to try to make the id more unique on platforms
+  // where just the `this` pointer is likely to be reused.
+  return reinterpret_cast<uint64_t>(this) ^
+         reinterpret_cast<uint64_t>(info_.get()) ^
+         info_->toplevel_function().address();
+}
+
 void MaglevCompilationJob::BeginPhaseKind(const char* name) {
   if (V8_UNLIKELY(pipeline_statistics_ != nullptr)) {
     pipeline_statistics_->BeginPhaseKind(name);
@@ -238,7 +247,8 @@ class MaglevConcurrentDispatcher::JobTask final : public v8::JobTask {
       DCHECK_NOT_NULL(job);
       TRACE_EVENT_WITH_FLOW0(
           TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.MaglevBackground",
-          job.get(), TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT);
+          job->trace_id(),
+          TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT);
       RCS_SCOPE(&local_isolate,
                 RuntimeCallCounterId::kOptimizeBackgroundMaglev);
       CompilationJob::Status status =
@@ -335,7 +345,7 @@ void MaglevConcurrentDispatcher::FinalizeFinishedJobs() {
     std::unique_ptr<MaglevCompilationJob> job;
     outgoing_queue_.Dequeue(&job);
     TRACE_EVENT_WITH_FLOW0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
-                           "V8.MaglevConcurrentFinalize", job.get(),
+                           "V8.MaglevConcurrentFinalize", job->trace_id(),
                            TRACE_EVENT_FLAG_FLOW_IN);
     RCS_SCOPE(isolate_,
               RuntimeCallCounterId::kOptimizeConcurrentFinalizeMaglev);
