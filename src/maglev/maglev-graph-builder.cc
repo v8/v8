@@ -7193,6 +7193,7 @@ ReduceResult MaglevGraphBuilder::ReduceConstruct(
         }
 
         ValueNode* implicit_receiver = nullptr;
+        bool implicit_receiver_is_js_receiver = false;
         if (IsDerivedConstructor(sfi.kind())) {
           implicit_receiver = GetRootConstant(RootIndex::kTheHoleValue);
         } else {
@@ -7222,6 +7223,7 @@ ReduceResult MaglevGraphBuilder::ReduceConstruct(
                 BuildCallBuiltin<Builtin::kFastNewObject>({target, new_target});
           }
           EnsureType(implicit_receiver, NodeType::kJSReceiver);
+          implicit_receiver_is_js_receiver = true;
         }
 
         args.set_receiver(implicit_receiver);
@@ -7242,7 +7244,10 @@ ReduceResult MaglevGraphBuilder::ReduceConstruct(
                 TryGetConstant(call_result, &constant_node)) {
           compiler::HeapObjectRef constant = maybe_constant.value();
           if (!constant.IsTheHole()) {
-            return constant.IsJSReceiver() ? constant_node : implicit_receiver;
+            DCHECK_EQ(CheckType(implicit_receiver, NodeType::kJSReceiver),
+                      implicit_receiver_is_js_receiver);
+            if (constant.IsJSReceiver()) return constant_node;
+            if (implicit_receiver_is_js_receiver) return implicit_receiver;
           }
         }
         return AddNewNode<CheckConstructResult>(
