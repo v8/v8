@@ -491,18 +491,16 @@ DEFINE_BOOL(maglev_inlining, true,
             "enable inlining in the maglev optimizing compiler")
 DEFINE_BOOL(maglev_loop_peeling, false,
             "enable loop peeling in the maglev optimizing compiler")
-DEFINE_BOOL(maglev_deopt_data_on_background, false,
+DEFINE_BOOL(maglev_deopt_data_on_background, true,
             "Generate deopt data on background thread")
-DEFINE_BOOL(maglev_build_code_on_background, false,
+DEFINE_BOOL(maglev_build_code_on_background, true,
             "Generate code on background thread")
 DEFINE_IMPLICATION(maglev_build_code_on_background,
                    maglev_deopt_data_on_background)
-DEFINE_BOOL(maglev_destroy_on_background, false,
+DEFINE_BOOL(maglev_destroy_on_background, true,
             "Destroy compilation jobs on background thread")
 DEFINE_WEAK_IMPLICATION(maglev_future, maglev_inlining)
 DEFINE_WEAK_IMPLICATION(maglev_future, maglev_loop_peeling)
-DEFINE_WEAK_IMPLICATION(maglev_future, maglev_build_code_on_background)
-DEFINE_WEAK_IMPLICATION(maglev_future, maglev_destroy_on_background)
 
 DEFINE_UINT(
     concurrent_maglev_max_threads, 1,
