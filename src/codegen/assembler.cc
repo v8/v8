@@ -230,12 +230,19 @@ HeapNumberRequest::HeapNumberRequest(double heap_number, int offset)
 
 void Assembler::RecordDeoptReason(DeoptimizeReason reason, uint32_t node_id,
                                   SourcePosition position, int id) {
-  EnsureSpace ensure_space(this);
-  RecordRelocInfo(RelocInfo::DEOPT_SCRIPT_OFFSET, position.ScriptOffset());
-  RecordRelocInfo(RelocInfo::DEOPT_INLINING_ID, position.InliningId());
-  RecordRelocInfo(RelocInfo::DEOPT_REASON, static_cast<int>(reason));
-  RecordRelocInfo(RelocInfo::DEOPT_ID, id);
+  static_assert(RelocInfoWriter::kMaxSize * 2 <= kGap);
+  {
+    EnsureSpace space(this);
+    RecordRelocInfo(RelocInfo::DEOPT_SCRIPT_OFFSET, position.ScriptOffset());
+    RecordRelocInfo(RelocInfo::DEOPT_INLINING_ID, position.InliningId());
+  }
+  {
+    EnsureSpace space(this);
+    RecordRelocInfo(RelocInfo::DEOPT_REASON, static_cast<int>(reason));
+    RecordRelocInfo(RelocInfo::DEOPT_ID, id);
+  }
 #ifdef DEBUG
+  EnsureSpace space(this);
   RecordRelocInfo(RelocInfo::DEOPT_NODE_ID, node_id);
 #endif  // DEBUG
 }
