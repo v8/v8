@@ -351,7 +351,7 @@ class Simulator : public SimulatorBase {
 
   void Trace(Instruction* instr);
   void SetCR0(intptr_t result, bool setSO = false);
-  void SetCR6(bool true_for_all, bool false_for_all);
+  void SetCR6(bool true_for_all);
   void ExecuteBranchConditional(Instruction* instr, BCType type);
   void ExecuteGeneric(Instruction* instr);
 

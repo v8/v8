@@ -474,15 +474,31 @@ class Assembler : public AssemblerBase {
 #undef DECLARE_PPC_XX2_VECTOR_INSTRUCTIONS
 #undef DECLARE_PPC_XX2_SCALAR_INSTRUCTIONS
 
-#define DECLARE_PPC_XX3_VECTOR_INSTRUCTIONS(name, instr_name, instr_value) \
-  inline void name(const Simd128Register rt, const Simd128Register ra,     \
-                   const Simd128Register rb) {                             \
-    xx3_form(instr_name, rt, ra, rb);                                      \
+#define DECLARE_PPC_XX3_VECTOR_INSTRUCTIONS_A_FORM(name, instr_name,     \
+                                                   instr_value)          \
+  inline void name(const Simd128Register rt, const Simd128Register ra,   \
+                   const Simd128Register rb, const RCBit rc = LeaveRC) { \
+    xx3_form(instr_name, rt, ra, rb, rc);                                \
+  }
+#define DECLARE_PPC_XX3_VECTOR_INSTRUCTIONS_B_FORM(name, instr_name,   \
+                                                   instr_value)        \
+  inline void name(const Simd128Register rt, const Simd128Register ra, \
+                   const Simd128Register rb) {                         \
+    xx3_form(instr_name, rt, ra, rb);                                  \
   }
 #define DECLARE_PPC_XX3_SCALAR_INSTRUCTIONS(name, instr_name, instr_value) \
   inline void name(const DoubleRegister rt, const DoubleRegister ra,       \
                    const DoubleRegister rb) {                              \
     xx3_form(instr_name, rt, ra, rb);                                      \
+  }
+
+  inline void xx3_form(Instr instr, Simd128Register t, Simd128Register a,
+                       Simd128Register b, int rc) {
+    // Using VR (high VSR) registers.
+    int AX = 1, BX = 1, TX = 1;
+
+    emit(instr | (t.code() & 0x1F) * B21 | (a.code() & 0x1F) * B16 |
+         (b.code() & 0x1F) * B11 | rc * B10 | AX * B2 | BX * B1 | TX);
   }
 
   template <typename T>
@@ -501,9 +517,11 @@ class Assembler : public AssemblerBase {
          (b.code() & 0x1F) * B11 | AX * B2 | BX * B1 | TX);
   }
 
-  PPC_XX3_OPCODE_VECTOR_LIST(DECLARE_PPC_XX3_VECTOR_INSTRUCTIONS)
+  PPC_XX3_OPCODE_VECTOR_A_FORM_LIST(DECLARE_PPC_XX3_VECTOR_INSTRUCTIONS_A_FORM)
+  PPC_XX3_OPCODE_VECTOR_B_FORM_LIST(DECLARE_PPC_XX3_VECTOR_INSTRUCTIONS_B_FORM)
   PPC_XX3_OPCODE_SCALAR_LIST(DECLARE_PPC_XX3_SCALAR_INSTRUCTIONS)
-#undef DECLARE_PPC_XX3_VECTOR_INSTRUCTIONS
+#undef DECLARE_PPC_XX3_VECTOR_INSTRUCTIONS_A_FORM
+#undef DECLARE_PPC_XX3_VECTOR_INSTRUCTIONS_B_FORM
 #undef DECLARE_PPC_XX3_SCALAR_INSTRUCTIONS
 
 #define DECLARE_PPC_VX_INSTRUCTIONS_A_FORM(name, instr_name, instr_value) \

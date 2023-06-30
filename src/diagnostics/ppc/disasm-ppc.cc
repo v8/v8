@@ -1535,13 +1535,13 @@ void Decoder::DecodeExt6(Instruction* instr) {
     }
   }
   switch (EXT6 | (instr->BitField(10, 3))) {
-#define DECODE_XX3_VECTOR_INSTRUCTIONS(name, opcode_name, opcode_value) \
-  case opcode_name: {                                                   \
-    Format(instr, #name " 'Xt, 'Xa, 'Xb");                              \
-    return;                                                             \
+#define DECODE_XX3_VECTOR_B_FORM_INSTRUCTIONS(name, opcode_name, opcode_value) \
+  case opcode_name: {                                                          \
+    Format(instr, #name " 'Xt, 'Xa, 'Xb");                                     \
+    return;                                                                    \
   }
-    PPC_XX3_OPCODE_VECTOR_LIST(DECODE_XX3_VECTOR_INSTRUCTIONS)
-#undef DECODE_XX3_VECTOR_INSTRUCTIONS
+    PPC_XX3_OPCODE_VECTOR_B_FORM_LIST(DECODE_XX3_VECTOR_B_FORM_INSTRUCTIONS)
+#undef DECODE_XX3_VECTOR_B_FORM_INSTRUCTIONS
 #define DECODE_XX3_SCALAR_INSTRUCTIONS(name, opcode_name, opcode_value) \
   case opcode_name: {                                                   \
     Format(instr, #name " 'Dt, 'Da, 'Db");                              \

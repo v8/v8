@@ -1348,11 +1348,11 @@ void Simulator::SetCR0(intptr_t result, bool setSO) {
   condition_reg_ = (condition_reg_ & ~0xF0000000) | bf;
 }
 
-void Simulator::SetCR6(bool true_for_all, bool false_for_all) {
+void Simulator::SetCR6(bool true_for_all) {
   int32_t clear_cr6_mask = 0xFFFFFF0F;
   if (true_for_all) {
     condition_reg_ = (condition_reg_ & clear_cr6_mask) | 0x80;
-  } else if (false_for_all) {
+  } else {
     condition_reg_ = (condition_reg_ & clear_cr6_mask) | 0x20;
   }
 }
@@ -1423,14 +1423,13 @@ template <typename A, typename T, typename Operation>
 void VectorCompareOp(Simulator* sim, Instruction* instr, bool is_fp,
                      Operation op) {
   DECODE_VX_INSTRUCTION(t, a, b, T)
-  bool true_for_all = true, false_for_all = true;
+  bool true_for_all = true;
   FOR_EACH_LANE(i, A) {
     A a_val = sim->get_simd_register_by_lane<A>(a, i);
     A b_val = sim->get_simd_register_by_lane<A>(b, i);
     T t_val = 0;
     bool is_not_nan = is_fp ? !isnan(a_val) && !isnan(b_val) : true;
     if (is_not_nan && op(a_val, b_val)) {
-      false_for_all = false;
       t_val = -1;  // Set all bits to 1 indicating true.
     } else {
       true_for_all = false;
@@ -1438,7 +1437,7 @@ void VectorCompareOp(Simulator* sim, Instruction* instr, bool is_fp,
     sim->set_simd_register_by_lane<T>(t, i, t_val);
   }
   if (instr->Bit(10)) {  // RC bit set.
-    sim->SetCR6(true_for_all, false_for_all);
+    sim->SetCR6(true_for_all);
   }
 }
 
