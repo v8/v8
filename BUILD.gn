@@ -1437,10 +1437,13 @@ config("toolchain") {
       "-Wno-shadow",
     ]
 
-    # Google3 enables this warning, so we should also enable it to find issue
-    # earlier. See https://reviews.llvm.org/D56731 for details about this
-    # warning.
-    cflags += [ "-Wctad-maybe-unsupported" ]
+    # TODO(fuchsia:127411): Re-enable once FIDL bindings are compatible.
+    if (!is_fuchsia) {
+      # Google3 enables this warning, so we should also enable it to find issue
+      # earlier. See https://reviews.llvm.org/D56731 for details about this
+      # warning.
+      cflags += [ "-Wctad-maybe-unsupported" ]
+    }
 
     if (v8_current_cpu == "x64" || v8_current_cpu == "arm64" ||
         v8_current_cpu == "mips64el" || v8_current_cpu == "riscv64") {
