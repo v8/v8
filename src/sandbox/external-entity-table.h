@@ -153,16 +153,17 @@ class V8_EXPORT_PRIVATE ExternalEntityTable {
     uint32_t freelist_length() const;
 
     // Returns the current number of segments currently associated with this
-    // space. As entries can be allocated from other threads, and as that may
-    // cause new segments to be added to this space, the returned value should
-    // generally only be treated as an approximation.
+    // space.
+    // The caller must lock the mutex.
     uint32_t num_segments();
 
     // Returns whether this space is currently empty.
+    // The caller must lock the mutex.
     bool is_empty() { return num_segments() == 0; }
 
     // Returns the current capacity of this space.
     // The capacity of a space is the total number of entries it can contain.
+    // The caller must lock the mutex.
     uint32_t capacity() { return num_segments() * kEntriesPerSegment; }
 
     // Returns true if this space contains the entry with the given index.

@@ -23,6 +23,13 @@ void ExternalPointerTable::TearDown(Space* space) { TearDownSpace(space); }
 
 uint32_t ExternalPointerTable::SweepAndCompact(Space* space,
                                                Counters* counters) {
+  DCHECK(space->BelongsTo(this));
+
+  // Lock the space. Technically this is not necessary since no other thread can
+  // allocate entries at this point, but some of the methods we call on the
+  // space assert that the lock is held.
+  base::MutexGuard guard(&space->mutex_);
+
   // There must not be any entry allocations while the table is being swept as
   // that would not be safe. Set the freelist to this special marker value to
   // easily catch any violation of this requirement.
@@ -34,6 +41,7 @@ uint32_t ExternalPointerTable::SweepAndCompact(Space* space,
   uint32_t start_of_evacuation_area =
       space->start_of_evacuation_area_.load(std::memory_order_relaxed);
   bool evacuation_was_successful = false;
+  bool was_compacting = space->IsCompacting();
   if (space->IsCompacting()) {
     TableCompactionOutcome outcome;
     if (space->CompactingWasAborted()) {
@@ -66,8 +74,6 @@ uint32_t ExternalPointerTable::SweepAndCompact(Space* space,
   // algorithm so that evacuated entries are evacuated to the start of a space.
   // This method must run either on the mutator thread or while the mutator is
   // stopped.
-  // Here we can iterate over the segments collection without taking a lock
-  // because no other thread can currently allocate entries in this space.
   uint32_t current_freelist_head = 0;
   uint32_t current_freelist_length = 0;
   std::vector<Segment> segments_to_deallocate;
@@ -89,6 +95,7 @@ uint32_t ExternalPointerTable::SweepAndCompact(Space* space,
     for (uint32_t i = segment.last_entry(); i >= segment.first_entry(); i--) {
       auto payload = at(i).GetRawPayload();
       if (payload.ContainsEvacuationEntry()) {
+        CHECK(was_compacting);
         // Resolve the evacuation entry: take the pointer to the handle from the
         // evacuation entry, copy the entry to its new location, and finally
         // update the handle to point to the new entry.
@@ -125,8 +132,7 @@ uint32_t ExternalPointerTable::SweepAndCompact(Space* space,
     }
   }
 
-  // We cannot remove the segments while iterating over the segments set, so
-  // defer that until now.
+  // We cannot deallocate the segments during the above loop, so do it now.
   for (auto segment : segments_to_deallocate) {
     FreeTableSegment(segment);
     space->segments_.erase(segment);
@@ -142,13 +148,17 @@ uint32_t ExternalPointerTable::SweepAndCompact(Space* space,
 }
 
 void ExternalPointerTable::Space::StartCompactingIfNeeded() {
+  // Take the lock so that we can be sure that no other thread modifies the
+  // segments set concurrently.
+  base::MutexGuard guard(&mutex_);
+
   // This method may be executed while other threads allocate entries from the
-  // freelist or even expand the space. In that case, this method may use
-  // incorrect data to determine if table compaction is necessary. That's fine
-  // however since in the worst case, compaction will simply be aborted right
-  // away if the freelist became too small.
+  // freelist. In that case, this method may use incorrect data to determine if
+  // table compaction is necessary. That's fine however since in the worst
+  // case, compaction will simply be aborted right away if the freelist became
+  // too small.
   uint32_t num_free_entries = freelist_length();
-  uint32_t num_total_entries = num_segments() * kEntriesPerSegment;
+  uint32_t num_total_entries = capacity();
 
   // Current (somewhat arbitrary) heuristic: need compacting if the space is
   // more than 1MB in size, is at least 10% empty, and if at least one segment
@@ -165,7 +175,6 @@ void ExternalPointerTable::Space::StartCompactingIfNeeded() {
   if (should_compact) {
     // If we're compacting, attempt to free up the last N segments so that they
     // can be decommitted afterwards.
-    base::MutexGuard guard(&mutex_);
     Segment first_segment_to_evacuate =
         *std::prev(segments_.end(), num_segments_to_evacuate);
     uint32_t start_of_evacuation_area = first_segment_to_evacuate.first_entry();

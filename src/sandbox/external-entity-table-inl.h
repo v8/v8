@@ -46,7 +46,7 @@ uint32_t ExternalEntityTable<Entry, size>::Space::freelist_length() const {
 
 template <typename Entry, size_t size>
 uint32_t ExternalEntityTable<Entry, size>::Space::num_segments() {
-  base::MutexGuard guard(&mutex_);
+  mutex_.AssertHeld();
   return static_cast<uint32_t>(segments_.size());
 }
 
@@ -167,8 +167,8 @@ uint32_t ExternalEntityTable<Entry, size>::AllocateEntry(Space* space) {
     // thread to read a freelist entry before it has been properly initialized.
     freelist = space->freelist_head_.load(std::memory_order_acquire);
     if (freelist.is_empty()) {
-      // Freelist is empty. Need to take the lock, then attempt to grow the
-      // table if no other thread has done it in the meantime.
+      // Freelist is empty. Need to take the lock, then attempt to allocate a
+      // new segment if no other thread has done it in the meantime.
       base::MutexGuard guard(&space->mutex_);
 
       // Reload freelist head in case another thread already grew the table.
@@ -177,7 +177,7 @@ uint32_t ExternalEntityTable<Entry, size>::AllocateEntry(Space* space) {
       if (freelist.is_empty()) {
         // Freelist is (still) empty so extend this space by another segment.
         freelist = Extend(space);
-        // Extend() adds one segment to the table and so to the freelist.
+        // Extend() adds one segment to the space and so to its freelist.
         DCHECK_EQ(freelist.length(), kEntriesPerSegment);
       }
     }
