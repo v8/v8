@@ -234,10 +234,7 @@ void HeapBase::Terminate() {
   constexpr size_t kMaxTerminationGCs = 20;
   size_t gc_count = 0;
   bool more_termination_gcs_needed = false;
-
   do {
-    CHECK_LT(gc_count++, kMaxTerminationGCs);
-
     // Clear root sets.
     strong_persistent_region_.ClearAllUsedNodes();
     weak_persistent_region_.ClearAllUsedNodes();
@@ -277,15 +274,20 @@ void HeapBase::Terminate() {
           return strong_cross_thread_persistent_region_.NodesInUse() ||
                  weak_cross_thread_persistent_region_.NodesInUse();
         }();
-  } while (more_termination_gcs_needed);
-
-  object_allocator().ResetLinearAllocationBuffers();
-  disallow_gc_scope_++;
+    gc_count++;
+  } while (more_termination_gcs_needed && (gc_count < kMaxTerminationGCs));
 
   CHECK_EQ(0u, strong_persistent_region_.NodesInUse());
   CHECK_EQ(0u, weak_persistent_region_.NodesInUse());
-  CHECK_EQ(0u, strong_cross_thread_persistent_region_.NodesInUse());
-  CHECK_EQ(0u, weak_cross_thread_persistent_region_.NodesInUse());
+  {
+    PersistentRegionLock guard;
+    CHECK_EQ(0u, strong_cross_thread_persistent_region_.NodesInUse());
+    CHECK_EQ(0u, weak_cross_thread_persistent_region_.NodesInUse());
+  }
+  CHECK_LE(gc_count, kMaxTerminationGCs);
+
+  object_allocator().ResetLinearAllocationBuffers();
+  disallow_gc_scope_++;
 }
 
 HeapStatistics HeapBase::CollectStatistics(
