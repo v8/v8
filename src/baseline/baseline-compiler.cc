@@ -605,12 +605,11 @@ void BaselineCompiler::UpdateInterruptBudgetAndJumpToLabel(
 
     if (weight < 0) {
       SaveAccumulatorScope accumulator_scope(&basm_);
-      CallRuntime(Runtime::kBytecodeBudgetInterruptWithStackCheck_Sparkplug,
-                  __ FunctionOperand());
-      CallRuntime(stack_check_behavior == kEnableStackCheck
-                    ? Runtime::kBytecodeBudgetInterruptWithStackCheck_Sparkplug
-                    : Runtime::kBytecodeBudgetInterrupt_Sparkplug,
-                  __ FunctionOperand());
+      CallRuntime(
+          stack_check_behavior == kEnableStackCheck
+              ? Runtime::kBytecodeBudgetInterruptWithStackCheck_Sparkplug
+              : Runtime::kBytecodeBudgetInterrupt_Sparkplug,
+          __ FunctionOperand());
     }
   }
   if (label) __ Jump(label);
@@ -619,7 +618,8 @@ void BaselineCompiler::UpdateInterruptBudgetAndJumpToLabel(
 void BaselineCompiler::UpdateInterruptBudgetAndDoInterpreterJump() {
   int weight = iterator().GetRelativeJumpTargetOffset() -
                iterator().current_bytecode_size_without_prefix();
-  UpdateInterruptBudgetAndJumpToLabel(weight, BuildForwardJumpLabel(), nullptr, kEnableStackCheck);
+  UpdateInterruptBudgetAndJumpToLabel(weight, BuildForwardJumpLabel(), nullptr,
+                                      kEnableStackCheck);
 }
 
 void BaselineCompiler::UpdateInterruptBudgetAndDoInterpreterJumpIfRoot(
