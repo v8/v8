@@ -48,6 +48,9 @@ void ArrayBuiltinsAssembler::TypedArrayMapResultGenerator() {
   Unreachable();
   BIND(&done);
 #endif  // DEBUG
+
+  // TODO(v8:11111): Make storing fast when the elements kinds only differ
+  // because of their RAB/GSABness.
   fast_typed_array_target_ =
       Word32Equal(LoadElementsKind(original_array), LoadElementsKind(a));
   a_ = a;
@@ -74,17 +77,21 @@ TNode<Object> ArrayBuiltinsAssembler::TypedArrayMapProcessor(
   // numValue be ? ToBigInt(v).
   // 3. Otherwise, let numValue be ? ToNumber(value).
   TNode<Object> num_value;
-  if (source_elements_kind_ == BIGINT64_ELEMENTS ||
-      source_elements_kind_ == BIGUINT64_ELEMENTS) {
+  if (IsBigIntTypedArrayElementsKind(source_elements_kind_)) {
     num_value = ToBigInt(context(), mapped_value);
   } else {
     num_value = ToNumber_Inline(context(), mapped_value);
   }
 
-  // The only way how this can bailout is because of a detached buffer.
+  // The only way how this can bailout is because of a detached or out of bounds
+  // buffer.
   // TODO(v8:4153): Consider checking IsDetachedBuffer() and calling
   // TypedArrayBuiltinsAssembler::StoreJSTypedArrayElementFromNumeric() here
   // instead to avoid converting k_number back to UintPtrT.
+
+  // Using source_elements_kind_ (not "target elements kind") is correct here,
+  // because the fast branch is taken only when the source and the target
+  // elements kinds match.
   EmitElementStore(CAST(a()), k_number, num_value, source_elements_kind_,
                    KeyedAccessStoreMode::STANDARD_STORE, &detached, context());
   Goto(&done);
@@ -188,25 +195,14 @@ void ArrayBuiltinsAssembler::GenerateIteratingTypedArrayBuiltinBody(
   for (auto it = labels.begin(); it != labels.end(); ++i, ++it) {
     BIND(&*it);
     source_elements_kind_ = static_cast<ElementsKind>(elements_kinds[i]);
-    // TODO(v8:11111): Only RAB-backed TAs need special handling here since the
-    // backing store can shrink mid-iteration. This implementation has an
-    // overzealous check for GSAB-backed length-tracking TAs. Then again, the
-    // non-RAB/GSAB code also has an overzealous detached check for SABs.
-    bool is_rab_gsab = IsRabGsabTypedArrayElementsKind(source_elements_kind_);
-    if (is_rab_gsab) {
-      source_elements_kind_ =
-          GetCorrespondingNonRabGsabElementsKind(source_elements_kind_);
-    }
-    VisitAllTypedArrayElements(array_buffer, processor, direction, typed_array,
-                               is_rab_gsab);
+    VisitAllTypedArrayElements(array_buffer, processor, direction, typed_array);
     ReturnFromBuiltin(a_.value());
   }
 }
 
 void ArrayBuiltinsAssembler::VisitAllTypedArrayElements(
     TNode<JSArrayBuffer> array_buffer, const CallResultProcessor& processor,
-    ForEachDirection direction, TNode<JSTypedArray> typed_array,
-    bool can_shrink) {
+    ForEachDirection direction, TNode<JSTypedArray> typed_array) {
   VariableList list({&a_, &k_}, zone());
 
   TNode<UintPtrT> start = UintPtrConstant(0);
@@ -219,13 +215,24 @@ void ArrayBuiltinsAssembler::VisitAllTypedArrayElements(
     incr = -1;
   }
   k_ = start;
+
+  // TODO(v8:11111): Only RAB-backed TAs need special handling here since the
+  // backing store can shrink mid-iteration. This implementation has an
+  // overzealous check for GSAB-backed length-tracking TAs. Then again, the
+  // non-RAB/GSAB code also has an overzealous detached check for SABs.
+  ElementsKind effective_elements_kind = source_elements_kind_;
+  bool is_rab_gsab = IsRabGsabTypedArrayElementsKind(effective_elements_kind);
+  if (is_rab_gsab) {
+    effective_elements_kind =
+        GetCorrespondingNonRabGsabElementsKind(effective_elements_kind);
+  }
   BuildFastLoop<UintPtrT>(
       list, start, end,
       [&](TNode<UintPtrT> index) {
         TVARIABLE(Object, value);
         Label detached(this, Label::kDeferred);
         Label process(this);
-        if (can_shrink) {
+        if (is_rab_gsab) {
           // If `index` is out of bounds, Get returns undefined.
           CheckJSTypedArrayIndex(typed_array, index, &detached);
         } else {
@@ -234,7 +241,7 @@ void ArrayBuiltinsAssembler::VisitAllTypedArrayElements(
         {
           TNode<RawPtrT> data_ptr = LoadJSTypedArrayDataPtr(typed_array);
           value = LoadFixedTypedArrayElementAsTagged(data_ptr, index,
-                                                     source_elements_kind_);
+                                                     effective_elements_kind);
           Goto(&process);
         }
 
