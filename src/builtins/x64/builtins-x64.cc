@@ -4269,6 +4269,12 @@ void Builtins::Generate_NewGenericJSToWasmWrapper(MacroAssembler* masm) {
   __ ret(0);
 }
 
+void Builtins::Generate_WasmToJsWrapperAsm(MacroAssembler* masm) {
+  // TODO(ahaas): For now we just tail call to the CSA builtin. Eventually
+  // parameter registers will be pushed here.
+  __ TailCallBuiltin(Builtin::kWasmToJsWrapperCSA);
+}
+
 void Builtins::Generate_WasmSuspend(MacroAssembler* masm) {
   // Set up the stackframe.
   __ EnterFrame(StackFrame::STACK_SWITCH);

@@ -1,0 +1,44 @@
+// Copyright 2023 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+namespace wasm {
+@export
+struct WasmToJSResult {
+  popCount: int32;
+  result0: intptr;
+  result1: intptr;
+  result2: float64;
+  result3: float64;
+}
+
+extern builtin CallVarargs(
+    Context,
+    JSAny,  // target rdi
+    int32,  // actual arguments count rax (number of arguments already on the
+            // stack)
+    int32,  // arguments length rcx
+    FixedArray  // arguments list rbx
+    ): JSAny;
+
+@export
+transitioning macro WasmToJSWrapper(ref: WasmApiFunctionRef): WasmToJSResult {
+  const target = ref.callable;
+  // Set the receiver to `Undefined` as the default. If the receiver would be
+  // different, e.g. the global proxy for sloppy functions, then the CallVarargs
+  // builtin takes care of it automatically
+  const receiver = Undefined;
+  const context = ref.native_context;
+  const params = WasmAllocateFixedArray(1);
+  params.objects[0] = receiver;
+  const _result = CallVarargs(context, target, 0, 1, params);
+  // TODO(ahaas): Provide actual return values here.
+  return WasmToJSResult{
+    popCount: 0,
+    result0: 0,
+    result1: 0,
+    result2: 0.0,
+    result3: 0.0
+  };
+}
+}  // namespace wasm

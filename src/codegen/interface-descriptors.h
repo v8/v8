@@ -138,6 +138,7 @@ namespace internal {
   V(WasmFloat32ToNumber)                             \
   V(WasmFloat64ToTagged)                             \
   V(WasmNewJSToWasmWrapper)                          \
+  V(WasmToJSWrapper)                                 \
   V(WasmSuspend)                                     \
   V(WriteBarrier)                                    \
   IF_TSAN(V, TSANLoad)                               \
@@ -2109,6 +2110,24 @@ class WasmNewJSToWasmWrapperDescriptor final
   // does not have to scan anything on the `WasmNewJSToWasmWrapper` frame.
   static constexpr inline auto registers();
   static constexpr inline Register WrapperBufferRegister();
+};
+
+class WasmToJSWrapperDescriptor final
+    : public StaticCallInterfaceDescriptor<WasmToJSWrapperDescriptor> {
+ public:
+  DEFINE_RESULT_AND_PARAMETERS_NO_CONTEXT(4, kWasmApiFunctionRef)
+  DEFINE_RESULT_AND_PARAMETER_TYPES(
+      MachineType::IntPtr(),     // GP return 1
+      MachineType::IntPtr(),     // GP return 2
+      MachineType::Float64(),    // FP return 1
+      MachineType::Float64(),    // FP return 2
+      MachineType::AnyTagged())  // WasmApiFunctionRef
+  DECLARE_DESCRIPTOR(WasmToJSWrapperDescriptor)
+
+  static constexpr int kMaxRegisterParams = 1;
+  static constexpr inline auto registers();
+  static constexpr inline auto return_registers();
+  static constexpr inline auto return_double_registers();
 };
 
 class WasmSuspendDescriptor final

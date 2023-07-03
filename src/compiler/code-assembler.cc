@@ -493,6 +493,12 @@ void CodeAssembler::PopAndReturn(Node* pop, Node* value) {
   return raw_assembler()->PopAndReturn(pop, value);
 }
 
+void CodeAssembler::PopAndReturn(Node* pop, Node* value1, Node* value2,
+                                 Node* value3, Node* value4) {
+  DCHECK_EQ(4, raw_assembler()->call_descriptor()->ReturnCount());
+  return raw_assembler()->PopAndReturn(pop, value1, value2, value3, value4);
+}
+
 void CodeAssembler::ReturnIf(TNode<BoolT> condition, TNode<Object> value) {
   Label if_return(this), if_continue(this);
   Branch(condition, &if_return, &if_continue);

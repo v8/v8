@@ -826,5 +826,4 @@ builtin JSToWasmHandleReturns(
 
   return resultArray;
 }
-
 }  // namespace wasm

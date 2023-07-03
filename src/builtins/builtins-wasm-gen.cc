@@ -115,6 +115,11 @@ TF_BUILTIN(JSToWasmLazyDeoptContinuation, WasmBuiltinsAssembler) {
   auto value = Parameter<Object>(Descriptor::kArgument);
   Return(value);
 }
-
+TF_BUILTIN(WasmToJsWrapperCSA, WasmBuiltinsAssembler) {
+  TorqueStructWasmToJSResult result = WasmToJSWrapper(
+      UncheckedParameter<WasmApiFunctionRef>(Descriptor::kWasmApiFunctionRef));
+  PopAndReturn(result.popCount, result.result0, result.result1, result.result2,
+               result.result3);
+}
 }  // namespace internal
 }  // namespace v8

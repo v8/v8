@@ -2036,6 +2036,7 @@ if (v8_enable_webassembly) {
   torque_files += [
     "src/builtins/js-to-wasm.tq",
     "src/builtins/wasm.tq",
+    "src/builtins/wasm-to-js.tq",
     "src/debug/debug-wasm-objects.tq",
     "src/wasm/wasm-objects.tq",
   ]

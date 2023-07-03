@@ -10,6 +10,9 @@
 #include "src/base/logging.h"
 #include "src/codegen/interface-descriptors.h"
 #include "src/codegen/register.h"
+#if V8_ENABLE_WEBASSEMBLY
+#include "src/wasm/wasm-linkage.h"
+#endif
 
 #if V8_TARGET_ARCH_X64
 #include "src/codegen/x64/interface-descriptors-x64-inl.h"
@@ -679,6 +682,34 @@ constexpr Register RunMicrotasksDescriptor::MicrotaskQueueRegister() {
 constexpr inline Register
 WasmNewJSToWasmWrapperDescriptor::WrapperBufferRegister() {
   return std::get<kWrapperBuffer>(registers());
+}
+
+constexpr auto WasmToJSWrapperDescriptor::registers() {
+#if V8_ENABLE_WEBASSEMBLY
+  return RegisterArray(wasm::kGpParamRegisters[0]);
+#else
+  return EmptyRegisterArray();
+#endif
+}
+
+constexpr auto WasmToJSWrapperDescriptor::return_registers() {
+#if V8_ENABLE_WEBASSEMBLY
+  return RegisterArray(wasm::kGpReturnRegisters[0], wasm::kGpReturnRegisters[1],
+                       no_reg, no_reg);
+#else
+  // An arbitrary register array so that the code compiles.
+  return CallInterfaceDescriptor::DefaultRegisterArray();
+#endif
+}
+
+constexpr auto WasmToJSWrapperDescriptor::return_double_registers() {
+#if V8_ENABLE_WEBASSEMBLY
+  return DoubleRegisterArray(no_dreg, no_dreg, wasm::kFpReturnRegisters[0],
+                             wasm::kFpReturnRegisters[1]);
+#else
+  // An arbitrary register array so that the code compiles.
+  return CallInterfaceDescriptor::DefaultDoubleRegisterArray();
+#endif
 }
 
 #define DEFINE_STATIC_BUILTIN_DESCRIPTOR_GETTER(Name, DescriptorName) \

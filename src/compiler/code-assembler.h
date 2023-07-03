@@ -632,6 +632,8 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   void Return(TNode<WordT> value1, TNode<WordT> value2);
   void Return(TNode<WordT> value1, TNode<Object> value2);
   void PopAndReturn(Node* pop, Node* value);
+  void PopAndReturn(Node* pop, Node* value1, Node* value2, Node* value3,
+                    Node* value4);
 
   void ReturnIf(TNode<BoolT> condition, TNode<Object> value);
 
