@@ -2171,7 +2171,8 @@ Local<Script> UnboundScript::BindToCurrentContext() {
 }
 
 int UnboundScript::GetId() const {
-  i::Handle<i::SharedFunctionInfo> function_info = Utils::OpenHandle(this);
+  i::DirectHandle<i::SharedFunctionInfo> function_info =
+      Utils::OpenDirectHandle(this);
   // TODO(jgruber): Remove this DCHECK once Function::GetUnboundScript is gone.
   DCHECK(!function_info->InReadOnlySpace());
   API_RCS_SCOPE(i::GetIsolateFromWritableObject(*function_info), UnboundScript,
@@ -2180,7 +2181,7 @@ int UnboundScript::GetId() const {
 }
 
 int UnboundScript::GetLineNumber(int code_pos) {
-  i::Handle<i::SharedFunctionInfo> obj = Utils::OpenHandle(this);
+  i::DirectHandle<i::SharedFunctionInfo> obj = Utils::OpenDirectHandle(this);
   if (obj->script().IsScript()) {
     // TODO(jgruber): Remove this DCHECK once Function::GetUnboundScript is
     // gone.
@@ -2196,7 +2197,7 @@ int UnboundScript::GetLineNumber(int code_pos) {
 }
 
 int UnboundScript::GetColumnNumber(int code_pos) {
-  i::Handle<i::SharedFunctionInfo> obj = Utils::OpenHandle(this);
+  i::DirectHandle<i::SharedFunctionInfo> obj = Utils::OpenDirectHandle(this);
   if (obj->script().IsScript()) {
     // TODO(jgruber): Remove this DCHECK once Function::GetUnboundScript is
     // gone.
@@ -2212,7 +2213,7 @@ int UnboundScript::GetColumnNumber(int code_pos) {
 }
 
 Local<Value> UnboundScript::GetScriptName() {
-  i::Handle<i::SharedFunctionInfo> obj = Utils::OpenHandle(this);
+  i::DirectHandle<i::SharedFunctionInfo> obj = Utils::OpenDirectHandle(this);
   if (obj->script().IsScript()) {
     // TODO(jgruber): Remove this DCHECK once Function::GetUnboundScript is
     // gone.
@@ -2221,14 +2222,15 @@ Local<Value> UnboundScript::GetScriptName() {
     ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
     API_RCS_SCOPE(i_isolate, UnboundScript, GetName);
     i::Object name = i::Script::cast(obj->script()).name();
-    return Utils::ToLocal(i::Handle<i::Object>(name, i_isolate));
+    return Utils::ToLocal(i::DirectHandle<i::Object>(name, i_isolate),
+                          i_isolate);
   } else {
     return Local<String>();
   }
 }
 
 Local<Value> UnboundScript::GetSourceURL() {
-  i::Handle<i::SharedFunctionInfo> obj = Utils::OpenHandle(this);
+  i::DirectHandle<i::SharedFunctionInfo> obj = Utils::OpenDirectHandle(this);
   if (obj->script().IsScript()) {
     // TODO(jgruber): Remove this DCHECK once Function::GetUnboundScript is
     // gone.
@@ -2237,14 +2239,15 @@ Local<Value> UnboundScript::GetSourceURL() {
     API_RCS_SCOPE(i_isolate, UnboundScript, GetSourceURL);
     ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
     i::Object url = i::Script::cast(obj->script()).source_url();
-    return Utils::ToLocal(i::Handle<i::Object>(url, i_isolate));
+    return Utils::ToLocal(i::DirectHandle<i::Object>(url, i_isolate),
+                          i_isolate);
   } else {
     return Local<String>();
   }
 }
 
 Local<Value> UnboundScript::GetSourceMappingURL() {
-  i::Handle<i::SharedFunctionInfo> obj = Utils::OpenHandle(this);
+  i::DirectHandle<i::SharedFunctionInfo> obj = Utils::OpenDirectHandle(this);
   if (obj->script().IsScript()) {
     // TODO(jgruber): Remove this DCHECK once Function::GetUnboundScript is
     // gone.
@@ -2253,14 +2256,15 @@ Local<Value> UnboundScript::GetSourceMappingURL() {
     API_RCS_SCOPE(i_isolate, UnboundScript, GetSourceMappingURL);
     ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
     i::Object url = i::Script::cast(obj->script()).source_mapping_url();
-    return Utils::ToLocal(i::Handle<i::Object>(url, i_isolate));
+    return Utils::ToLocal(i::DirectHandle<i::Object>(url, i_isolate),
+                          i_isolate);
   } else {
     return Local<String>();
   }
 }
 
 Local<Value> UnboundModuleScript::GetSourceURL() {
-  i::Handle<i::SharedFunctionInfo> obj = Utils::OpenHandle(this);
+  i::DirectHandle<i::SharedFunctionInfo> obj = Utils::OpenDirectHandle(this);
   if (obj->script().IsScript()) {
     // TODO(jgruber): Remove this DCHECK once Function::GetUnboundScript is
     // gone.
@@ -2269,14 +2273,15 @@ Local<Value> UnboundModuleScript::GetSourceURL() {
     API_RCS_SCOPE(i_isolate, UnboundModuleScript, GetSourceURL);
     ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
     i::Object url = i::Script::cast(obj->script()).source_url();
-    return Utils::ToLocal(i::Handle<i::Object>(url, i_isolate));
+    return Utils::ToLocal(i::DirectHandle<i::Object>(url, i_isolate),
+                          i_isolate);
   } else {
     return Local<String>();
   }
 }
 
 Local<Value> UnboundModuleScript::GetSourceMappingURL() {
-  i::Handle<i::SharedFunctionInfo> obj = Utils::OpenHandle(this);
+  i::DirectHandle<i::SharedFunctionInfo> obj = Utils::OpenDirectHandle(this);
   if (obj->script().IsScript()) {
     // TODO(jgruber): Remove this DCHECK once Function::GetUnboundScript is
     // gone.
@@ -2285,7 +2290,8 @@ Local<Value> UnboundModuleScript::GetSourceMappingURL() {
     API_RCS_SCOPE(i_isolate, UnboundModuleScript, GetSourceMappingURL);
     ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
     i::Object url = i::Script::cast(obj->script()).source_mapping_url();
-    return Utils::ToLocal(i::Handle<i::Object>(url, i_isolate));
+    return Utils::ToLocal(i::DirectHandle<i::Object>(url, i_isolate),
+                          i_isolate);
   } else {
     return Local<String>();
   }
@@ -2336,42 +2342,43 @@ MaybeLocal<Value> Script::Run(Local<Context> context,
 }
 
 Local<Value> ScriptOrModule::GetResourceName() {
-  i::Handle<i::ScriptOrModule> obj = Utils::OpenHandle(this);
+  i::DirectHandle<i::ScriptOrModule> obj = Utils::OpenDirectHandle(this);
   i::Isolate* i_isolate = i::GetIsolateFromWritableObject(*obj);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
-  i::Handle<i::Object> val(obj->resource_name(), i_isolate);
-  return ToApiHandle<Value>(val);
+  i::DirectHandle<i::Object> val(obj->resource_name(), i_isolate);
+  return ToApiHandle<Value>(val, i_isolate);
 }
 
 Local<Data> ScriptOrModule::HostDefinedOptions() {
-  i::Handle<i::ScriptOrModule> obj = Utils::OpenHandle(this);
+  i::DirectHandle<i::ScriptOrModule> obj = Utils::OpenDirectHandle(this);
   i::Isolate* i_isolate = i::GetIsolateFromWritableObject(*obj);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
-  i::Handle<i::Object> val(obj->host_defined_options(), i_isolate);
-  return ToApiHandle<Data>(val);
+  i::DirectHandle<i::Object> val(obj->host_defined_options(), i_isolate);
+  return ToApiHandle<Data>(val, i_isolate);
 }
 
 Local<UnboundScript> Script::GetUnboundScript() {
   i::DisallowGarbageCollection no_gc;
-  i::Handle<i::JSFunction> obj = Utils::OpenHandle(this);
-  i::Handle<i::SharedFunctionInfo> sfi =
+  i::DirectHandle<i::JSFunction> obj = Utils::OpenDirectHandle(this);
+  i::DirectHandle<i::SharedFunctionInfo> sfi =
       i::handle(obj->shared(), obj->GetIsolate());
   DCHECK(!sfi->InReadOnlySpace());
-  return ToApiHandle<UnboundScript>(sfi);
+  return ToApiHandle<UnboundScript>(sfi, obj->GetIsolate());
 }
 
 Local<Value> Script::GetResourceName() {
   i::DisallowGarbageCollection no_gc;
-  i::Handle<i::JSFunction> func = Utils::OpenHandle(this);
+  i::DirectHandle<i::JSFunction> func = Utils::OpenDirectHandle(this);
   i::SharedFunctionInfo sfi = func->shared();
   CHECK(sfi.script().IsScript());
-  return ToApiHandle<Value>(
-      i::handle(i::Script::cast(sfi.script()).name(), func->GetIsolate()));
+  i::DirectHandle<i::Object> name(i::Script::cast(sfi.script()).name(),
+                                  func->GetIsolate());
+  return ToApiHandle<Value>(name, func->GetIsolate());
 }
 
 std::vector<int> Script::GetProducedCompileHints() const {
   i::DisallowGarbageCollection no_gc;
-  i::Handle<i::JSFunction> func = Utils::OpenHandle(this);
+  i::DirectHandle<i::JSFunction> func = Utils::OpenDirectHandle(this);
   i::Isolate* i_isolate = func->GetIsolate();
   i::SharedFunctionInfo sfi = func->shared();
   CHECK(sfi.script().IsScript());
@@ -2405,37 +2412,37 @@ Local<PrimitiveArray> PrimitiveArray::New(Isolate* v8_isolate, int length) {
 }
 
 int PrimitiveArray::Length() const {
-  i::Handle<i::FixedArray> array = Utils::OpenHandle(this);
+  i::DirectHandle<i::FixedArray> array = Utils::OpenDirectHandle(this);
   return array->length();
 }
 
 void PrimitiveArray::Set(Isolate* v8_isolate, int index,
                          Local<Primitive> item) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
-  i::Handle<i::FixedArray> array = Utils::OpenHandle(this);
+  i::DirectHandle<i::FixedArray> array = Utils::OpenDirectHandle(this);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   Utils::ApiCheck(index >= 0 && index < array->length(),
                   "v8::PrimitiveArray::Set",
                   "index must be greater than or equal to 0 and less than the "
                   "array length");
-  i::Handle<i::Object> i_item = Utils::OpenHandle(*item);
+  i::DirectHandle<i::Object> i_item = Utils::OpenDirectHandle(*item);
   array->set(index, *i_item);
 }
 
 Local<Primitive> PrimitiveArray::Get(Isolate* v8_isolate, int index) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
-  i::Handle<i::FixedArray> array = Utils::OpenHandle(this);
+  i::DirectHandle<i::FixedArray> array = Utils::OpenDirectHandle(this);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   Utils::ApiCheck(index >= 0 && index < array->length(),
                   "v8::PrimitiveArray::Get",
                   "index must be greater than or equal to 0 and less than the "
                   "array length");
-  i::Handle<i::Object> i_item(array->get(index), i_isolate);
-  return ToApiHandle<Primitive>(i_item);
+  i::DirectHandle<i::Object> i_item(array->get(index), i_isolate);
+  return ToApiHandle<Primitive>(i_item, i_isolate);
 }
 
 void v8::PrimitiveArray::CheckCast(v8::Data* that) {
-  i::Handle<i::Object> obj = Utils::OpenHandle(that);
+  i::DirectHandle<i::Object> obj = Utils::OpenDirectHandle(that);
   Utils::ApiCheck(
       obj->IsFixedArray(), "v8::PrimitiveArray::Cast",
       "Value is not a PrimitiveArray; this is a temporary issue, v8::Data and "
@@ -2443,37 +2450,38 @@ void v8::PrimitiveArray::CheckCast(v8::Data* that) {
 }
 
 int FixedArray::Length() const {
-  i::Handle<i::FixedArray> self = Utils::OpenHandle(this);
+  i::DirectHandle<i::FixedArray> self = Utils::OpenDirectHandle(this);
   return self->length();
 }
 
 Local<Data> FixedArray::Get(Local<Context> context, int i) const {
-  i::Handle<i::FixedArray> self = Utils::OpenHandle(this);
+  i::DirectHandle<i::FixedArray> self = Utils::OpenDirectHandle(this);
   auto i_isolate = reinterpret_cast<i::Isolate*>(context->GetIsolate());
   CHECK_LT(i, self->length());
-  i::Handle<i::Object> entry(self->get(i), i_isolate);
-  return ToApiHandle<Data>(entry);
+  i::DirectHandle<i::Object> entry(self->get(i), i_isolate);
+  return ToApiHandle<Data>(entry, i_isolate);
 }
 
 Local<String> ModuleRequest::GetSpecifier() const {
-  i::Handle<i::ModuleRequest> self = Utils::OpenHandle(this);
+  i::DirectHandle<i::ModuleRequest> self = Utils::OpenDirectHandle(this);
   i::Isolate* i_isolate = self->GetIsolate();
-  return ToApiHandle<String>(i::handle(self->specifier(), i_isolate));
+  return ToApiHandle<String>(i::direct_handle(self->specifier(), i_isolate),
+                             i_isolate);
 }
 
 int ModuleRequest::GetSourceOffset() const {
-  return Utils::OpenHandle(this)->position();
+  return Utils::OpenDirectHandle(this)->position();
 }
 
 Local<FixedArray> ModuleRequest::GetImportAssertions() const {
-  i::Handle<i::ModuleRequest> self = Utils::OpenHandle(this);
+  i::DirectHandle<i::ModuleRequest> self = Utils::OpenDirectHandle(this);
   i::Isolate* i_isolate = self->GetIsolate();
   return ToApiHandle<FixedArray>(
-      i::handle(self->import_assertions(), i_isolate));
+      i::direct_handle(self->import_assertions(), i_isolate), i_isolate);
 }
 
 Module::Status Module::GetStatus() const {
-  i::Handle<i::Module> self = Utils::OpenHandle(this);
+  i::DirectHandle<i::Module> self = Utils::OpenDirectHandle(this);
   switch (self->status()) {
     case i::Module::kUnlinked:
     case i::Module::kPreLinking:
@@ -2496,14 +2504,15 @@ Module::Status Module::GetStatus() const {
 Local<Value> Module::GetException() const {
   Utils::ApiCheck(GetStatus() == kErrored, "v8::Module::GetException",
                   "Module status must be kErrored");
-  i::Handle<i::Module> self = Utils::OpenHandle(this);
+  i::DirectHandle<i::Module> self = Utils::OpenDirectHandle(this);
   i::Isolate* i_isolate = self->GetIsolate();
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
-  return ToApiHandle<Value>(i::handle(self->GetException(), i_isolate));
+  return ToApiHandle<Value>(i::direct_handle(self->GetException(), i_isolate),
+                            i_isolate);
 }
 
 Local<FixedArray> Module::GetModuleRequests() const {
-  i::Handle<i::Module> self = Utils::OpenHandle(this);
+  i::DirectHandle<i::Module> self = Utils::OpenDirectHandle(this);
   i::Isolate* i_isolate = self->GetIsolate();
   DCHECK_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   if (self->IsSyntheticModule()) {
@@ -2512,10 +2521,12 @@ Local<FixedArray> Module::GetModuleRequests() const {
     return ToApiHandle<FixedArray>(
         self->GetReadOnlyRoots().empty_fixed_array_handle());
   } else {
-    i::Handle<i::FixedArray> module_requests(
-        i::Handle<i::SourceTextModule>::cast(self)->info().module_requests(),
+    i::DirectHandle<i::FixedArray> module_requests(
+        i::DirectHandle<i::SourceTextModule>::cast(self)
+            ->info()
+            .module_requests(),
         i_isolate);
-    return ToApiHandle<FixedArray>(module_requests);
+    return ToApiHandle<FixedArray>(module_requests, i_isolate);
   }
 }
 
@@ -2547,19 +2558,20 @@ Local<Value> Module::GetModuleNamespace() {
 }
 
 Local<UnboundModuleScript> Module::GetUnboundModuleScript() {
-  i::Handle<i::Module> self = Utils::OpenHandle(this);
+  i::DirectHandle<i::Module> self = Utils::OpenDirectHandle(this);
   Utils::ApiCheck(
       self->IsSourceTextModule(), "v8::Module::GetUnboundModuleScript",
       "v8::Module::GetUnboundModuleScript must be used on an SourceTextModule");
   auto i_isolate = self->GetIsolate();
   DCHECK_NO_SCRIPT_NO_EXCEPTION(i_isolate);
-  return ToApiHandle<UnboundModuleScript>(i::handle(
-      i::Handle<i::SourceTextModule>::cast(self)->GetSharedFunctionInfo(),
-      i_isolate));
+  i::DirectHandle<i::Object> shared_info(
+      i::DirectHandle<i::SourceTextModule>::cast(self)->GetSharedFunctionInfo(),
+      i_isolate);
+  return ToApiHandle<UnboundModuleScript>(shared_info, i_isolate);
 }
 
 int Module::ScriptId() const {
-  i::Module self = *Utils::OpenHandle(this);
+  i::Module self = *Utils::OpenDirectHandle(this);
   Utils::ApiCheck(self.IsSourceTextModule(), "v8::Module::ScriptId",
                   "v8::Module::ScriptId must be used on an SourceTextModule");
   DCHECK_NO_SCRIPT_NO_EXCEPTION(self.GetIsolate());
@@ -2570,26 +2582,26 @@ bool Module::IsGraphAsync() const {
   Utils::ApiCheck(
       GetStatus() >= kInstantiated, "v8::Module::IsGraphAsync",
       "v8::Module::IsGraphAsync must be used on an instantiated module");
-  i::Module self = *Utils::OpenHandle(this);
+  i::Module self = *Utils::OpenDirectHandle(this);
   auto i_isolate = self.GetIsolate();
   DCHECK_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   return self.IsGraphAsync(i_isolate);
 }
 
 bool Module::IsSourceTextModule() const {
-  auto self = Utils::OpenHandle(this);
+  auto self = Utils::OpenDirectHandle(this);
   DCHECK_NO_SCRIPT_NO_EXCEPTION(self->GetIsolate());
   return self->IsSourceTextModule();
 }
 
 bool Module::IsSyntheticModule() const {
-  auto self = Utils::OpenHandle(this);
+  auto self = Utils::OpenDirectHandle(this);
   DCHECK_NO_SCRIPT_NO_EXCEPTION(self->GetIsolate());
   return self->IsSyntheticModule();
 }
 
 int Module::GetIdentityHash() const {
-  auto self = Utils::OpenHandle(this);
+  auto self = Utils::OpenDirectHandle(this);
   DCHECK_NO_SCRIPT_NO_EXCEPTION(self->GetIsolate());
   return self->hash();
 }

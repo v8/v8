@@ -272,6 +272,13 @@ inline v8::Local<T> ToApiHandle(
 }
 
 template <class T>
+inline v8::Local<T> ToApiHandle(
+    v8::internal::DirectHandle<v8::internal::Object> obj,
+    v8::internal::Isolate* isolate) {
+  return Utils::Convert<v8::internal::Object, T>(obj, isolate);
+}
+
+template <class T>
 inline bool ToLocal(v8::internal::MaybeHandle<v8::internal::Object> maybe,
                     Local<T>* local) {
   v8::internal::Handle<v8::internal::Object> handle;
