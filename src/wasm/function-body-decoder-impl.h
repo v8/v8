@@ -5186,9 +5186,11 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
               CALL_INTERFACE(BrOnNull, obj, branch_depth.depth, true,
                              &result_on_fallthrough);
               c->br_merge()->reached = true;
+            } else {
+              // Otherwise, the type check always succeeds. Do not branch. Also,
+              // make sure the object remains on the stack.
+              result_on_fallthrough = obj;
             }
-            // Otherwise, the type check always succeeds. Do not branch. Also,
-            // the object is already on the stack; do not manipulate the stack.
           } else {
             bool null_succeeds = false;
             CALL_INTERFACE(BrOnCastFail, imm.index, obj, &result_on_fallthrough,
@@ -5607,9 +5609,11 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
           CALL_INTERFACE(BrOnNull, obj, branch_depth.depth, true,
                          &result_on_fallthrough);
           c->br_merge()->reached = true;
+        } else {
+          // Otherwise, the type check always succeeds. Do not branch. Also,
+          // make sure the object remains on the stack.
+          result_on_fallthrough = obj;
         }
-        // Otherwise, the type check always succeeds. Do not branch. Also,
-        // the object is already on the stack; do not manipulate the stack.
       } else {
         if (imm.type.is_index()) {
           CALL_INTERFACE(BrOnCastFail, imm.type.ref_index(), obj,
