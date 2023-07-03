@@ -906,7 +906,9 @@ void IncrementalMarking::Step(double max_step_size_in_ms,
   // assumption is that large graphs are well connected and can mostly be
   // processed on their own. For small graphs, helping is not necessary.
   std::tie(v8_bytes_processed, std::ignore) =
-      major_collector_->ProcessMarkingWorklist(bytes_to_process);
+      major_collector_->ProcessMarkingWorklist(
+          bytes_to_process,
+          MarkCompactCollector::MarkingWorklistProcessingMode::kDefault);
   if (heap_->cpp_heap()) {
     embedder_deadline =
         std::min(max_step_size_in_ms,

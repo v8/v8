@@ -2015,7 +2015,7 @@ void MarkCompactCollector::MarkObjectsFromClientHeap(Isolate* client) {
 
   for (MemoryChunk* chunk = chunk_iterator.next(); chunk;
        chunk = chunk_iterator.next()) {
-    RememberedSet<OLD_TO_SHARED>::Iterate(
+    const auto slot_count = RememberedSet<OLD_TO_SHARED>::Iterate(
         chunk,
         [collector = this, cage_base](MaybeObjectSlot slot) {
           MaybeObject obj = slot.Relaxed_Load(cage_base);
@@ -2030,8 +2030,11 @@ void MarkCompactCollector::MarkObjectsFromClientHeap(Isolate* client) {
           }
         },
         SlotSet::FREE_EMPTY_BUCKETS);
+    if (slot_count == 0) {
+      chunk->ReleaseSlotSet(OLD_TO_SHARED);
+    }
 
-    RememberedSet<OLD_TO_SHARED>::IterateTyped(
+    const auto typed_slot_count = RememberedSet<OLD_TO_SHARED>::IterateTyped(
         chunk, [collector = this, heap](SlotType slot_type, Address slot) {
           HeapObject heap_object =
               UpdateTypedSlotHelper::GetTargetObject(heap, slot_type, slot);
@@ -2042,6 +2045,9 @@ void MarkCompactCollector::MarkObjectsFromClientHeap(Isolate* client) {
             return REMOVE_SLOT;
           }
         });
+    if (typed_slot_count == 0) {
+      chunk->ReleaseTypedSlotSet(OLD_TO_SHARED);
+    }
   }
 
   MarkWaiterQueueNode(client);
@@ -2134,7 +2140,8 @@ bool MarkCompactCollector::ProcessEphemerons() {
   // Drain marking worklist and push discovered ephemerons into
   // discovered_ephemerons.
   size_t objects_processed;
-  std::tie(std::ignore, objects_processed) = ProcessMarkingWorklist(0);
+  std::tie(std::ignore, objects_processed) =
+      ProcessMarkingWorklist(0, MarkingWorklistProcessingMode::kDefault);
 
   // As soon as a single object was processed and potentially marked another
   // object we need another iteration. Otherwise we might miss to apply
@@ -2255,12 +2262,6 @@ void MarkCompactCollector::PerformWrapperTracing() {
 
   TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_EMBEDDER_TRACING);
   cpp_heap->AdvanceTracing(std::numeric_limits<double>::infinity());
-}
-
-std::pair<size_t, size_t> MarkCompactCollector::ProcessMarkingWorklist(
-    size_t bytes_to_process) {
-  return ProcessMarkingWorklist(bytes_to_process,
-                                MarkingWorklistProcessingMode::kDefault);
 }
 
 std::pair<size_t, size_t> MarkCompactCollector::ProcessMarkingWorklist(
@@ -5078,16 +5079,17 @@ void MarkCompactCollector::UpdatePointersInClientHeap(Isolate* client) {
     MemoryChunk* chunk = chunk_iterator.Next();
     CodePageMemoryModificationScope unprotect_code_page(chunk);
 
-    RememberedSet<OLD_TO_SHARED>::Iterate(
+    const auto slot_count = RememberedSet<OLD_TO_SHARED>::Iterate(
         chunk,
         [cage_base](MaybeObjectSlot slot) {
           return UpdateOldToSharedSlot(cage_base, slot);
         },
         SlotSet::FREE_EMPTY_BUCKETS);
 
-    if (chunk->InYoungGeneration()) chunk->ReleaseSlotSet(OLD_TO_SHARED);
+    if (slot_count == 0 || chunk->InYoungGeneration())
+      chunk->ReleaseSlotSet(OLD_TO_SHARED);
 
-    RememberedSet<OLD_TO_SHARED>::IterateTyped(
+    const auto typed_slot_count = RememberedSet<OLD_TO_SHARED>::IterateTyped(
         chunk, [this](SlotType slot_type, Address slot) {
           // Using UpdateStrongSlot is OK here, because there are no weak
           // typed slots.
@@ -5097,7 +5099,8 @@ void MarkCompactCollector::UpdatePointersInClientHeap(Isolate* client) {
                 return UpdateStrongOldToSharedSlot(cage_base, slot);
               });
         });
-    if (chunk->InYoungGeneration()) chunk->ReleaseTypedSlotSet(OLD_TO_SHARED);
+    if (typed_slot_count == 0 || chunk->InYoungGeneration())
+      chunk->ReleaseTypedSlotSet(OLD_TO_SHARED);
   }
 }
 
@@ -5451,13 +5454,6 @@ MinorMarkCompactCollector::MinorMarkCompactCollector(Heap* heap)
     : CollectorBase(heap, GarbageCollector::MINOR_MARK_COMPACTOR),
       sweeper_(heap_->sweeper()) {}
 
-std::pair<size_t, size_t> MinorMarkCompactCollector::ProcessMarkingWorklist(
-    size_t bytes_to_process) {
-  // TODO(v8:13012): Implement this later. It should be similar to
-  // MinorMarkCompactCollector::DrainMarkingWorklist.
-  UNREACHABLE();
-}
-
 void MinorMarkCompactCollector::PerformWrapperTracing() {
   auto* cpp_heap = CppHeap::From(heap_->cpp_heap());
   if (!cpp_heap) return;
@@ -5731,8 +5727,6 @@ void MinorMarkCompactCollector::ClearNonLiveReferences() {
   }
 }
 
-class PageMarkingItem;
-
 YoungGenerationMarkingTask::YoungGenerationMarkingTask(
     Isolate* isolate, Heap* heap, MarkingWorklists* global_worklists,
     EphemeronRememberedSet::TableList* ephemeron_table_list)
@@ -5898,12 +5892,9 @@ size_t YoungGenerationMarkingJob::GetMaxConcurrency(size_t worker_count) const {
   size_t items = remaining_marking_items_.load(std::memory_order_relaxed);
   size_t num_tasks;
   if (ShouldDrainMarkingWorklist()) {
-    num_tasks = std::max(
-        (items + 1) / kPagesPerTask,
-        global_worklists_->shared()->Size() +
-            global_worklists_->on_hold()
-                ->Size());  // TODO(v8:13012): If this is used with concurrent
-                            // marking, we need to remove on_hold() here.
+    num_tasks = std::max((items + 1) / kPagesPerTask,
+                         global_worklists_->shared()->Size() +
+                             global_worklists_->on_hold()->Size());
   } else {
     num_tasks = (items + 1) / kPagesPerTask;
   }

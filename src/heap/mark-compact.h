@@ -173,12 +173,6 @@ class CollectorBase {
     return local_marking_worklists_.get();
   }
 
-  // Drains the main thread marking worklist until the specified number of
-  // bytes are processed. If the number of bytes is zero, then the worklist
-  // is drained until it is empty.
-  virtual std::pair<size_t, size_t> ProcessMarkingWorklist(
-      size_t bytes_to_process) = 0;
-
   virtual void Finish() = 0;
 
   bool IsMajorMC();
@@ -244,9 +238,6 @@ class MarkCompactCollector final : public CollectorBase {
   // heap object.
   static bool IsUnmarkedHeapObject(Heap* heap, FullObjectSlot p);
   static bool IsUnmarkedSharedHeapObject(Heap* heap, FullObjectSlot p);
-
-  std::pair<size_t, size_t> ProcessMarkingWorklist(
-      size_t bytes_to_process) final;
 
   std::pair<size_t, size_t> ProcessMarkingWorklist(
       size_t bytes_to_process, MarkingWorklistProcessingMode mode);
@@ -590,9 +581,6 @@ class MinorMarkCompactCollector final : public CollectorBase {
 
   explicit MinorMarkCompactCollector(Heap* heap);
   ~MinorMarkCompactCollector() final;
-
-  std::pair<size_t, size_t> ProcessMarkingWorklist(
-      size_t bytes_to_process) final;
 
   void SetUp() final;
   void TearDown() final;

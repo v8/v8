@@ -37,8 +37,8 @@ class RememberedSetOperations {
   }
 
   template <AccessMode access_mode = AccessMode::ATOMIC, typename Callback>
-  static int Iterate(SlotSet* slot_set, MemoryChunk* chunk, Callback callback,
-                     SlotSet::EmptyBucketMode mode) {
+  static int Iterate(SlotSet* slot_set, const MemoryChunk* chunk,
+                     Callback callback, SlotSet::EmptyBucketMode mode) {
     int slots = 0;
     if (slot_set != nullptr) {
       slots += slot_set->Iterate<access_mode>(chunk->address(), 0,
@@ -233,15 +233,10 @@ class RememberedSet : public AllStatic {
   // given callback. The callback should take (SlotType slot_type, Address addr)
   // and return SlotCallbackResult.
   template <typename Callback>
-  static void IterateTyped(MemoryChunk* chunk, Callback callback) {
+  static int IterateTyped(MemoryChunk* chunk, Callback callback) {
     TypedSlotSet* slot_set = chunk->typed_slot_set<type>();
-    if (slot_set != nullptr) {
-      int new_count =
-          slot_set->Iterate(callback, TypedSlotSet::KEEP_EMPTY_CHUNKS);
-      if (new_count == 0) {
-        chunk->ReleaseTypedSlotSet(type);
-      }
-    }
+    if (!slot_set) return 0;
+    return slot_set->Iterate(callback, TypedSlotSet::KEEP_EMPTY_CHUNKS);
   }
 
   // Clear all old to old slots from the remembered set.
