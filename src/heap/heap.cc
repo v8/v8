@@ -1731,10 +1731,17 @@ size_t GlobalMemorySizeFromV8Size(size_t v8_size) {
 
 }  // anonymous namespace
 
-void Heap::SetOldGenAndGlobalHeapLimit(size_t max_old_generation_size) {
+void Heap::SetOldGenerationAndGlobalHeapLimit(size_t max_old_generation_size) {
   max_old_generation_size_.store(max_old_generation_size,
                                  std::memory_order_relaxed);
   max_global_memory_size_ = GlobalMemorySizeFromV8Size(max_old_generation_size);
+}
+
+void Heap::ResetOldGenerationAndGlobalAllocationLimit() {
+  old_generation_size_configured_ = false;
+  set_old_generation_allocation_limit(initial_old_generation_size_);
+  global_allocation_limit_ =
+      GlobalMemorySizeFromV8Size(old_generation_allocation_limit());
 }
 
 void Heap::CollectGarbage(AllocationSpace space,
@@ -1859,7 +1866,7 @@ void Heap::CollectGarbage(AllocationSpace space,
       if (initial_max_old_generation_size_ < max_old_generation_size() &&
           OldGenerationSizeOfObjects() <
               initial_max_old_generation_size_threshold_) {
-        SetOldGenAndGlobalHeapLimit(initial_max_old_generation_size_);
+        SetOldGenerationAndGlobalHeapLimit(initial_max_old_generation_size_);
       }
     }
 
@@ -1913,12 +1920,11 @@ void Heap::CollectGarbage(AllocationSpace space,
   }
 }
 
-int Heap::NotifyContextDisposed(bool dependant_context) {
-  if (!dependant_context) {
+int Heap::NotifyContextDisposed(bool has_dependent_context) {
+  if (!has_dependent_context) {
     tracer()->ResetSurvivalEvents();
-    old_generation_size_configured_ = false;
-    set_old_generation_allocation_limit(initial_old_generation_size_);
-    if (memory_reducer_ != nullptr) {
+    ResetOldGenerationAndGlobalAllocationLimit();
+    if (memory_reducer_) {
       memory_reducer_->NotifyPossibleGarbage();
     }
   }
@@ -4186,7 +4192,7 @@ bool Heap::InvokeNearHeapLimitCallback() {
     size_t heap_limit = callback(data, max_old_generation_size(),
                                  initial_max_old_generation_size_);
     if (heap_limit > max_old_generation_size()) {
-      SetOldGenAndGlobalHeapLimit(
+      SetOldGenerationAndGlobalHeapLimit(
           std::min(heap_limit, AllocatorLimitOnMaxOldGenerationSize()));
       return true;
     }
@@ -4879,7 +4885,7 @@ void Heap::ConfigureHeap(const v8::ResourceConstraints& constraints) {
     max_old_generation_size =
         RoundDown<Page::kPageSize>(max_old_generation_size);
 
-    SetOldGenAndGlobalHeapLimit(max_old_generation_size);
+    SetOldGenerationAndGlobalHeapLimit(max_old_generation_size);
   }
 
   CHECK_IMPLIES(
@@ -4962,10 +4968,8 @@ void Heap::ConfigureHeap(const v8::ResourceConstraints& constraints) {
     v8_flags.semi_space_growth_factor = 2;
   }
 
-  set_old_generation_allocation_limit(initial_old_generation_size_);
-  global_allocation_limit_ =
-      GlobalMemorySizeFromV8Size(old_generation_allocation_limit());
   initial_max_old_generation_size_ = max_old_generation_size();
+  ResetOldGenerationAndGlobalAllocationLimit();
 
   // We rely on being able to allocate new arrays in paged spaces.
   DCHECK(kMaxRegularHeapObjectSize >=

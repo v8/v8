@@ -569,8 +569,9 @@ class Heap final {
   // Converts the given boolean condition to JavaScript boolean value.
   inline Oddball ToBoolean(bool condition);
 
-  // Notify the heap that a context has been disposed.
-  V8_EXPORT_PRIVATE int NotifyContextDisposed(bool dependant_context);
+  // Notify the heap that a context has been disposed. `has_dependent_context`
+  // implies that a top-level context (no dependent contexts) has been disposed.
+  V8_EXPORT_PRIVATE int NotifyContextDisposed(bool has_dependent_context);
 
   void set_native_contexts_list(Object object) {
     native_contexts_list_.store(object.ptr(), std::memory_order_release);
@@ -776,7 +777,7 @@ class Heap final {
   void RestoreHeapLimit(size_t heap_limit) {
     // Do not set the limit lower than the live size + some slack.
     size_t min_limit = SizeOfObjects() + SizeOfObjects() / 4;
-    SetOldGenAndGlobalHeapLimit(
+    SetOldGenerationAndGlobalHeapLimit(
         std::min(max_old_generation_size(), std::max(heap_limit, min_limit)));
   }
 
@@ -1982,7 +1983,9 @@ class Heap final {
 
   // Sets max_old_generation_size_ and computes the new global heap limit from
   // it.
-  void SetOldGenAndGlobalHeapLimit(size_t max_old_generation_size);
+  void SetOldGenerationAndGlobalHeapLimit(size_t max_old_generation_size);
+
+  void ResetOldGenerationAndGlobalAllocationLimit();
 
   bool always_allocate() { return always_allocate_scope_count_ != 0; }
 
