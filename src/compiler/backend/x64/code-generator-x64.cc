@@ -3673,6 +3673,30 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_SIMD_BINOP(maxps);
       break;
     }
+    case kX64F32x8Pmin: {
+      YMMRegister dst = i.OutputSimd256Register();
+      CpuFeatureScope avx_scope(masm(), AVX);
+      __ vminps(dst, i.InputSimd256Register(0), i.InputSimd256Register(1));
+      break;
+    }
+    case kX64F32x8Pmax: {
+      YMMRegister dst = i.OutputSimd256Register();
+      CpuFeatureScope avx_scope(masm(), AVX);
+      __ vmaxps(dst, i.InputSimd256Register(0), i.InputSimd256Register(1));
+      break;
+    }
+    case kX64F64x4Pmin: {
+      YMMRegister dst = i.OutputSimd256Register();
+      CpuFeatureScope avx_scope(masm(), AVX);
+      __ vminpd(dst, i.InputSimd256Register(0), i.InputSimd256Register(1));
+      break;
+    }
+    case kX64F64x4Pmax: {
+      YMMRegister dst = i.OutputSimd256Register();
+      CpuFeatureScope avx_scope(masm(), AVX);
+      __ vmaxpd(dst, i.InputSimd256Register(0), i.InputSimd256Register(1));
+      break;
+    }
     case kX64F32x4Round: {
       RoundingMode const mode =
           static_cast<RoundingMode>(MiscField::decode(instr->opcode()));

@@ -535,6 +535,10 @@ PackNode* SLPTree::BuildTree(const ZoneVector<Node*>& roots) {
   V(I32x4GeU, I32x8GeU)                     \
   V(I16x8GeU, I16x16GeU)                    \
   V(I8x16GeU, I8x32GeU)                     \
+  V(F32x4Pmin, F32x8Pmin)                   \
+  V(F32x4Pmax, F32x8Pmax)                   \
+  V(F64x2Pmin, F64x4Pmin)                   \
+  V(F64x2Pmax, F64x4Pmax)                   \
   V(F32x4SConvertI32x4, F32x8SConvertI32x8) \
   V(F32x4UConvertI32x4, F32x8UConvertI32x8) \
   V(I32x4UConvertF32x4, I32x8UConvertF32x8)

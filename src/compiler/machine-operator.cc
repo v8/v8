@@ -776,6 +776,8 @@ std::ostream& operator<<(std::ostream& os, TruncateKind kind) {
   V(I32x8ExtAddPairwiseI16x16U, Operator::kNoProperties, 1, 0, 1)          \
   V(I16x16ExtAddPairwiseI8x32S, Operator::kNoProperties, 1, 0, 1)          \
   V(I16x16ExtAddPairwiseI8x32U, Operator::kNoProperties, 1, 0, 1)          \
+  V(F64x4Pmin, Operator::kNoProperties, 2, 0, 1)                           \
+  V(F64x4Pmax, Operator::kNoProperties, 2, 0, 1)                           \
   V(S256Zero, Operator::kNoProperties, 0, 0, 1)                            \
   V(S256And, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)     \
   V(S256Or, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)      \

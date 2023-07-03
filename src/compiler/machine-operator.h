@@ -1113,6 +1113,8 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* I32x8Splat();
   const Operator* I16x16Splat();
   const Operator* I8x32Splat();
+  const Operator* F64x4Pmin();
+  const Operator* F64x4Pmax();
 
   const Operator* S256Zero();
   const Operator* S256And();

@@ -517,6 +517,26 @@ WASM_EXEC_TEST(F32x4Pmax) {
   RunF32x4BinOpTest(execution_tier, kExprF32x4Pmax, Maximum);
 }
 
+#ifdef V8_ENABLE_WASM_SIMD256_REVEC
+TEST(RunWasmTurbofan_F32x8Min) {
+  RunF32x8BinOpRevecTest(kExprF32x4Min, JSMin, compiler::IrOpcode::kF32x8Min);
+}
+
+TEST(RunWasmTurbofan_F32x8Max) {
+  RunF32x8BinOpRevecTest(kExprF32x4Max, JSMax, compiler::IrOpcode::kF32x8Max);
+}
+
+TEST(RunWasmTurbofan_F32x8Pmin) {
+  RunF32x8BinOpRevecTest(kExprF32x4Pmin, Minimum,
+                         compiler::IrOpcode::kF32x8Pmin);
+}
+
+TEST(RunWasmTurbofan_F32x8Pmax) {
+  RunF32x8BinOpRevecTest(kExprF32x4Pmax, Maximum,
+                         compiler::IrOpcode::kF32x8Pmax);
+}
+#endif  // V8_ENABLE_WASM_SIMD256_REVEC
+
 WASM_EXEC_TEST(F32x4Eq) {
   RunF32x4CompareOpTest(execution_tier, kExprF32x4Eq, Equal);
 }
@@ -1115,6 +1135,26 @@ WASM_EXEC_TEST(F64x2Pmin) {
 WASM_EXEC_TEST(F64x2Pmax) {
   RunF64x2BinOpTest(execution_tier, kExprF64x2Pmax, Maximum);
 }
+
+#ifdef V8_ENABLE_WASM_SIMD256_REVEC
+TEST(RunWasmTurbofan_F64x4Min) {
+  RunF64x4BinOpRevecTest(kExprF64x2Min, JSMin, compiler::IrOpcode::kF64x4Min);
+}
+
+TEST(RunWasmTurbofan_F64x4Max) {
+  RunF64x4BinOpRevecTest(kExprF64x2Max, JSMax, compiler::IrOpcode::kF64x4Max);
+}
+
+TEST(RunWasmTurbofan_F64x4Pmin) {
+  RunF64x4BinOpRevecTest(kExprF64x2Pmin, Minimum,
+                         compiler::IrOpcode::kF64x4Pmin);
+}
+
+TEST(RunWasmTurbofan_F64x4Pmax) {
+  RunF64x4BinOpRevecTest(kExprF64x2Pmax, Maximum,
+                         compiler::IrOpcode::kF64x4Pmax);
+}
+#endif  // V8_ENABLE_WASM_SIMD256_REVEC
 
 WASM_EXEC_TEST(F64x2Eq) {
   RunF64x2CompareOpTest(execution_tier, kExprF64x2Eq, Equal);

@@ -4998,6 +4998,26 @@ void InstructionSelectorT<Adapter>::VisitF64x2Pmax(Node* node) {
 }
 
 template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitF32x8Pmin(Node* node) {
+  VisitMinOrMax(this, node, kX64F32x8Pmin, true);
+}
+
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitF32x8Pmax(Node* node) {
+  VisitMinOrMax(this, node, kX64F32x8Pmax, true);
+}
+
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitF64x4Pmin(Node* node) {
+  VisitMinOrMax(this, node, kX64F64x4Pmin, true);
+}
+
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitF64x4Pmax(Node* node) {
+  VisitMinOrMax(this, node, kX64F64x4Pmax, true);
+}
+
+template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitF32x4RelaxedMin(Node* node) {
   VisitMinOrMax(this, node, kX64Minps, false);
 }
