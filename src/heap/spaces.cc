@@ -177,7 +177,7 @@ void Page::CreateBlackArea(Address start, Address end) {
   marking_state->bitmap(this)->SetRange<AccessMode::ATOMIC>(
       MarkingBitmap::AddressToIndex(start),
       MarkingBitmap::LimitAddressToIndex(end));
-  marking_state->IncrementLiveBytes(this, static_cast<intptr_t>(end - start));
+  IncrementLiveBytesAtomically(static_cast<intptr_t>(end - start));
 }
 
 void Page::CreateBlackAreaBackground(Address start, Address end) {
@@ -204,7 +204,7 @@ void Page::DestroyBlackArea(Address start, Address end) {
   marking_state->bitmap(this)->ClearRange<AccessMode::ATOMIC>(
       MarkingBitmap::AddressToIndex(start),
       MarkingBitmap::LimitAddressToIndex(end));
-  marking_state->IncrementLiveBytes(this, -static_cast<intptr_t>(end - start));
+  IncrementLiveBytesAtomically(-static_cast<intptr_t>(end - start));
 }
 
 void Page::DestroyBlackAreaBackground(Address start, Address end) {

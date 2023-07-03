@@ -88,25 +88,15 @@ class MainMarkingVisitor final
                                   MarkingState>;
 };
 
-// Marking state that keeps live bytes locally in a fixed-size hashmap. Hashmap
-// entries are evicted to the global counters on collision.
 class YoungGenerationMarkingState final
     : public MarkingStateBase<YoungGenerationMarkingState, AccessMode::ATOMIC> {
  public:
   explicit YoungGenerationMarkingState(PtrComprCageBase cage_base)
       : MarkingStateBase(cage_base) {}
-  V8_INLINE ~YoungGenerationMarkingState();
 
   const MarkingBitmap* bitmap(const MemoryChunk* chunk) const {
     return chunk->marking_bitmap();
   }
-
-  V8_INLINE void IncrementLiveBytes(MemoryChunk* chunk, intptr_t by);
-
- private:
-  static constexpr size_t kNumEntries = 128;
-  static constexpr size_t kEntriesMask = kNumEntries - 1;
-  std::array<std::pair<MemoryChunk*, size_t>, kNumEntries> live_bytes_data_;
 };
 
 class YoungGenerationMainMarkingVisitor final
@@ -128,6 +118,8 @@ class YoungGenerationMainMarkingVisitor final
   V8_INLINE void VisitPointersImpl(HeapObject host, TSlot start, TSlot end);
 
   YoungGenerationMarkingState* marking_state() { return &marking_state_; }
+
+  V8_INLINE void IncrementLiveBytesCached(MemoryChunk* chunk, intptr_t by);
 
   enum class ObjectVisitationMode {
     kVisitDirectly,
@@ -152,6 +144,12 @@ class YoungGenerationMainMarkingVisitor final
   YoungGenerationMarkingState marking_state_;
   PretenuringHandler::PretenuringFeedbackMap local_pretenuring_feedback_;
   const bool shortcut_strings_;
+
+  static constexpr size_t kNumEntries = 128;
+  static constexpr size_t kEntriesMask = kNumEntries - 1;
+  // Fixed-size hashmap that caches live bytes. Hashmap entries are evicted to
+  // the global counters on collision.
+  std::array<std::pair<MemoryChunk*, size_t>, kNumEntries> live_bytes_data_;
 
   friend class YoungGenerationMarkingVisitorBase<
       YoungGenerationMainMarkingVisitor, MarkingState>;

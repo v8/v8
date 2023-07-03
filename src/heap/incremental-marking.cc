@@ -487,8 +487,7 @@ void IncrementalMarking::UpdateMarkingWorklistAfterScavenge() {
       // processed from to-be-processed. Decrement the counter for such objects
       // here.
       if (!dest.IsDescriptorArray()) {
-        atomic_marking_state()->IncrementLiveBytes(
-            MemoryChunk::cast(BasicMemoryChunk::FromHeapObject(dest)),
+        MemoryChunk::FromHeapObject(dest)->IncrementLiveBytesAtomically(
             -ALIGN_TO_ALLOCATION_ALIGNMENT(dest.Size()));
       }
       *out = dest;
@@ -587,7 +586,7 @@ bool IncrementalMarking::Stop() {
     MemoryChunk* memory_chunk = pair.first;
     intptr_t live_bytes = pair.second;
     if (live_bytes) {
-      marking_state()->IncrementLiveBytes(memory_chunk, live_bytes);
+      memory_chunk->IncrementLiveBytesAtomically(live_bytes);
     }
   }
   background_live_bytes_.clear();

@@ -175,7 +175,7 @@ V8_INLINE bool YoungGenerationMainMarkingVisitor::VisitObjectViaSlot(
     return false;
   }
 
-  if (!concrete_visitor()->marking_state()->TryMark(heap_object)) return true;
+  if (!marking_state()->TryMark(heap_object)) return true;
 
   // Maps won't change in the atomic pause, so the map can be read without
   // atomics.
@@ -185,7 +185,7 @@ V8_INLINE bool YoungGenerationMainMarkingVisitor::VisitObjectViaSlot(
   // are always visited directly.
   if (Map::ObjectFieldsFrom(visitor_id) == ObjectFields::kDataOnly) {
     const int visited_size = heap_object.SizeFromMap(map);
-    concrete_visitor()->marking_state()->IncrementLiveBytes(
+    IncrementLiveBytesCached(
         MemoryChunk::cast(BasicMemoryChunk::FromHeapObject(heap_object)),
         ALIGN_TO_ALLOCATION_ALIGNMENT(visited_size));
     return true;
@@ -193,7 +193,7 @@ V8_INLINE bool YoungGenerationMainMarkingVisitor::VisitObjectViaSlot(
   if constexpr (visitation_mode == ObjectVisitationMode::kVisitDirectly) {
     const int visited_size = Visit(map, heap_object);
     if (visited_size) {
-      concrete_visitor()->marking_state()->IncrementLiveBytes(
+      IncrementLiveBytesCached(
           MemoryChunk::cast(BasicMemoryChunk::FromHeapObject(heap_object)),
           ALIGN_TO_ALLOCATION_ALIGNMENT(visited_size));
     }
@@ -205,7 +205,7 @@ V8_INLINE bool YoungGenerationMainMarkingVisitor::VisitObjectViaSlot(
   return true;
 }
 
-V8_INLINE void YoungGenerationMarkingState::IncrementLiveBytes(
+V8_INLINE void YoungGenerationMainMarkingVisitor::IncrementLiveBytesCached(
     MemoryChunk* chunk, intptr_t by) {
   DCHECK_IMPLIES(V8_COMPRESS_POINTERS_8GB_BOOL,
                  IsAligned(by, kObjectAlignment8GbHeap));
@@ -213,23 +213,13 @@ V8_INLINE void YoungGenerationMarkingState::IncrementLiveBytes(
       (reinterpret_cast<size_t>(chunk) >> kPageSizeBits) & kEntriesMask;
   auto& entry = live_bytes_data_[hash];
   if (entry.first && entry.first != chunk) {
-    entry.first->live_byte_count_.fetch_add(entry.second,
-                                            std::memory_order_relaxed);
+    entry.first->IncrementLiveBytesAtomically(entry.second);
     entry.first = chunk;
     entry.second = 0;
   } else {
     entry.first = chunk;
   }
   entry.second += by;
-}
-
-YoungGenerationMarkingState::~YoungGenerationMarkingState() {
-  for (auto& pair : live_bytes_data_) {
-    if (pair.first) {
-      pair.first->live_byte_count_.fetch_add(pair.second,
-                                             std::memory_order_relaxed);
-    }
-  }
 }
 
 }  // namespace internal

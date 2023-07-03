@@ -77,10 +77,6 @@ class MarkingState final
 
   V8_INLINE MarkingBitmap* bitmap(MemoryChunk* chunk) const;
 
-  // Concurrent marking uses local live bytes so we may do these accesses
-  // non-atomically.
-  V8_INLINE void IncrementLiveBytes(MemoryChunk* chunk, intptr_t by);
-
   V8_INLINE intptr_t live_bytes(const MemoryChunk* chunk) const;
 
   V8_INLINE void SetLiveBytes(MemoryChunk* chunk, intptr_t value);
@@ -93,8 +89,6 @@ class NonAtomicMarkingState final
       : MarkingStateBase(cage_base) {}
 
   V8_INLINE MarkingBitmap* bitmap(MemoryChunk* chunk) const;
-
-  V8_INLINE void IncrementLiveBytes(MemoryChunk* chunk, intptr_t by);
 
   V8_INLINE intptr_t live_bytes(const MemoryChunk* chunk) const;
 
@@ -110,8 +104,6 @@ class AtomicMarkingState final
       : MarkingStateBase(cage_base) {}
 
   V8_INLINE MarkingBitmap* bitmap(MemoryChunk* chunk) const;
-
-  V8_INLINE void IncrementLiveBytes(MemoryChunk* chunk, intptr_t by);
 };
 
 }  // namespace internal

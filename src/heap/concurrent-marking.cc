@@ -48,25 +48,15 @@ namespace internal {
 class ConcurrentMarkingState final
     : public MarkingStateBase<ConcurrentMarkingState, AccessMode::ATOMIC> {
  public:
-  ConcurrentMarkingState(PtrComprCageBase cage_base,
-                         MemoryChunkDataMap* memory_chunk_data)
-      : MarkingStateBase(cage_base), memory_chunk_data_(memory_chunk_data) {}
+  explicit ConcurrentMarkingState(PtrComprCageBase cage_base)
+      : MarkingStateBase(cage_base) {}
 
   MarkingBitmap* bitmap(MemoryChunk* chunk) const {
     return chunk->marking_bitmap();
   }
 
-  void IncrementLiveBytes(MemoryChunk* chunk, intptr_t by) {
-    DCHECK_IMPLIES(V8_COMPRESS_POINTERS_8GB_BOOL,
-                   IsAligned(by, kObjectAlignment8GbHeap));
-    (*memory_chunk_data_)[chunk].live_bytes += by;
-  }
-
   // The live_bytes and SetLiveBytes methods of the marking state are
   // not used by the concurrent marker.
-
- private:
-  MemoryChunkDataMap* memory_chunk_data_;
 };
 
 class YoungGenerationConcurrentMarkingVisitor final
@@ -81,7 +71,8 @@ class YoungGenerationConcurrentMarkingVisitor final
             YoungGenerationConcurrentMarkingVisitor, ConcurrentMarkingState>(
             heap->isolate(), &local_marking_worklists_,
             &local_ephemeron_table_list_, local_pretenuring_feedback),
-        marking_state_(heap->isolate(), memory_chunk_data),
+        marking_state_(heap->isolate()),
+        memory_chunk_data_(memory_chunk_data),
         local_ephemeron_table_list_(
             *heap->minor_mark_compact_collector()->ephemeron_table_list()),
         local_marking_worklists_(marking_worklists,
@@ -118,6 +109,12 @@ class YoungGenerationConcurrentMarkingVisitor final
     local_marking_worklists_.Publish();
   }
 
+  void IncrementLiveBytesCached(MemoryChunk* chunk, intptr_t by) {
+    DCHECK_IMPLIES(V8_COMPRESS_POINTERS_8GB_BOOL,
+                   IsAligned(by, kObjectAlignment8GbHeap));
+    (*memory_chunk_data_)[chunk].live_bytes += by;
+  }
+
  private:
   template <typename TObject>
   void VisitObjectImpl(TObject object) {
@@ -132,7 +129,7 @@ class YoungGenerationConcurrentMarkingVisitor final
     Map map = heap_object.map(ObjectVisitorWithCageBases::cage_base());
     if (Map::ObjectFieldsFrom(map.visitor_id()) == ObjectFields::kDataOnly) {
       const int visited_size = heap_object.SizeFromMap(map);
-      concrete_visitor()->marking_state()->IncrementLiveBytes(
+      IncrementLiveBytesCached(
           MemoryChunk::cast(BasicMemoryChunk::FromHeapObject(heap_object)),
           ALIGN_TO_ALLOCATION_ALIGNMENT(visited_size));
     } else {
@@ -141,6 +138,7 @@ class YoungGenerationConcurrentMarkingVisitor final
   }
 
   ConcurrentMarkingState marking_state_;
+  MemoryChunkDataMap* memory_chunk_data_;
   EphemeronRememberedSet::TableList::Local local_ephemeron_table_list_;
   MarkingWorklists::Local local_marking_worklists_;
 };
@@ -161,7 +159,7 @@ class ConcurrentMarkingVisitor final
                            mark_compact_epoch, code_flush_mode,
                            embedder_tracing_enabled, should_keep_ages_unchanged,
                            code_flushing_increase),
-        marking_state_(heap->isolate(), memory_chunk_data),
+        marking_state_(heap->isolate()),
         memory_chunk_data_(memory_chunk_data) {}
 
   using MarkingVisitorBase<ConcurrentMarkingVisitor,
@@ -190,6 +188,12 @@ class ConcurrentMarkingVisitor final
   }
 
   ConcurrentMarkingState* marking_state() { return &marking_state_; }
+
+  void IncrementLiveBytesCached(MemoryChunk* chunk, intptr_t by) {
+    DCHECK_IMPLIES(V8_COMPRESS_POINTERS_8GB_BOOL,
+                   IsAligned(by, kObjectAlignment8GbHeap));
+    (*memory_chunk_data_)[chunk].live_bytes += by;
+  }
 
  private:
   void RecordRelocSlot(InstructionStream host, RelocInfo* rinfo,
@@ -408,7 +412,7 @@ void ConcurrentMarking::RunMajor(JobDelegate* delegate,
             }
           }
           const auto visited_size = visitor.Visit(map, object);
-          visitor.marking_state()->IncrementLiveBytes(
+          visitor.IncrementLiveBytesCached(
               MemoryChunk::cast(BasicMemoryChunk::FromHeapObject(object)),
               ALIGN_TO_ALLOCATION_ALIGNMENT(visited_size));
           if (is_per_context_mode) {
@@ -508,7 +512,7 @@ void ConcurrentMarking::RunMinor(JobDelegate* delegate) {
           const auto visited_size = visitor.Visit(map, object);
           current_marked_bytes += visited_size;
           if (visited_size) {
-            visitor.marking_state()->IncrementLiveBytes(
+            visitor.IncrementLiveBytesCached(
                 MemoryChunk::cast(BasicMemoryChunk::FromHeapObject(object)),
                 ALIGN_TO_ALLOCATION_ALIGNMENT(visited_size));
           }
@@ -672,7 +676,7 @@ void ConcurrentMarking::FlushMemoryChunkData(
       MemoryChunk* memory_chunk = pair.first;
       MemoryChunkData& data = pair.second;
       if (data.live_bytes) {
-        marking_state->IncrementLiveBytes(memory_chunk, data.live_bytes);
+        memory_chunk->IncrementLiveBytesAtomically(data.live_bytes);
       }
       if (data.typed_slots) {
         RememberedSet<OLD_TO_OLD>::MergeTyped(memory_chunk,

@@ -45,8 +45,7 @@ template <typename ConcreteState, AccessMode access_mode>
 bool MarkingStateBase<ConcreteState, access_mode>::TryMarkAndAccountLiveBytes(
     HeapObject obj) {
   if (TryMark(obj)) {
-    static_cast<ConcreteState*>(this)->IncrementLiveBytes(
-        MemoryChunk::cast(BasicMemoryChunk::FromHeapObject(obj)),
+    MemoryChunk::FromHeapObject(obj)->IncrementLiveBytesAtomically(
         ALIGN_TO_ALLOCATION_ALIGNMENT(obj.Size(cage_base())));
     return true;
   }
@@ -66,12 +65,6 @@ MarkingBitmap* MarkingState::bitmap(MemoryChunk* chunk) const {
   return chunk->marking_bitmap();
 }
 
-void MarkingState::IncrementLiveBytes(MemoryChunk* chunk, intptr_t by) {
-  DCHECK_IMPLIES(V8_COMPRESS_POINTERS_8GB_BOOL,
-                 IsAligned(by, kObjectAlignment8GbHeap));
-  chunk->live_byte_count_.fetch_add(by, std::memory_order_relaxed);
-}
-
 intptr_t MarkingState::live_bytes(const MemoryChunk* chunk) const {
   return chunk->live_byte_count_.load(std::memory_order_relaxed);
 }
@@ -86,13 +79,6 @@ MarkingBitmap* NonAtomicMarkingState::bitmap(MemoryChunk* chunk) const {
   return chunk->marking_bitmap();
 }
 
-void NonAtomicMarkingState::IncrementLiveBytes(MemoryChunk* chunk,
-                                               intptr_t by) {
-  DCHECK_IMPLIES(V8_COMPRESS_POINTERS_8GB_BOOL,
-                 IsAligned(by, kObjectAlignment8GbHeap));
-  chunk->live_byte_count_.fetch_add(by, std::memory_order_relaxed);
-}
-
 intptr_t NonAtomicMarkingState::live_bytes(const MemoryChunk* chunk) const {
   return chunk->live_byte_count_.load(std::memory_order_relaxed);
 }
@@ -105,12 +91,6 @@ void NonAtomicMarkingState::SetLiveBytes(MemoryChunk* chunk, intptr_t value) {
 
 MarkingBitmap* AtomicMarkingState::bitmap(MemoryChunk* chunk) const {
   return chunk->marking_bitmap();
-}
-
-void AtomicMarkingState::IncrementLiveBytes(MemoryChunk* chunk, intptr_t by) {
-  DCHECK_IMPLIES(V8_COMPRESS_POINTERS_8GB_BOOL,
-                 IsAligned(by, kObjectAlignment8GbHeap));
-  chunk->live_byte_count_.fetch_add(by);
 }
 
 }  // namespace internal
