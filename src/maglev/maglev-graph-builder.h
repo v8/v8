@@ -14,6 +14,7 @@
 #include "src/base/optional.h"
 #include "src/codegen/source-position-table.h"
 #include "src/common/globals.h"
+#include "src/compiler-dispatcher/optimizing-compile-dispatcher.h"
 #include "src/compiler/bytecode-analysis.h"
 #include "src/compiler/bytecode-liveness-map.h"
 #include "src/compiler/feedback-source.h"
@@ -417,6 +418,12 @@ class MaglevGraphBuilder {
     if (!v8_flags.turbofan || !v8_flags.use_osr || !v8_flags.osr_from_maglev)
       return false;
     if (!graph_->is_osr() && !v8_flags.always_osr_from_maglev) return false;
+    // TODO(olivf) OSR from maglev requires lazy recompilation (see
+    // CompileOptimizedOSRFromMaglev for details). Without this we end up in
+    // deopt loops, e.g., in chromium content_unittests.
+    if (!OptimizingCompileDispatcher::Enabled()) {
+      return false;
+    }
     // TODO(olivf) OSR'ing from inlined loops is something we might want, but
     // can't with our current osr-from-maglev implementation. The reason is that
     // we OSR up by first going down to the interpreter. For inlined loops this

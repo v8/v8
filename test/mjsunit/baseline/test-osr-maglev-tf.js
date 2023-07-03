@@ -5,6 +5,7 @@
 // Flags: --allow-natives-syntax --sparkplug --no-always-sparkplug --use-osr
 // Flags: --turbofan --no-always-turbofan --deopt-every-n-times=0
 // Flags: --maglev --maglev-osr --osr-from-maglev
+// Flags: --concurrent-recompilation
 
 function isExecutingBaseline(func) {
   let opt_status = %GetOptimizationStatus(func);
