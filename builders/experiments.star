@@ -34,7 +34,7 @@ in_category(
     experiment_builder_pair(
         name = "V8 Linux64 - cppgc-non-default - debug",
         triggered_by = ["v8-trigger"],
-        dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
+        dimensions = {"os": "Ubuntu-18.04|Ubuntu-22.04", "cpu": "x86-64"},
         use_remoteexec = RECLIENT.DEFAULT,
         notify_owners = ["mlippautz@chromium.org"],
         notifies = ["blamelist"],
@@ -42,7 +42,7 @@ in_category(
     experiment_builder_pair(
         name = "V8 Linux64 - debug - perfetto",
         triggered_by = ["v8-trigger"],
-        dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
+        dimensions = {"os": "Ubuntu-18.04|Ubuntu-22.04", "cpu": "x86-64"},
         use_remoteexec = RECLIENT.DEFAULT,
         notify_owners = ["skyostil@google.com"],
         notifies = ["blamelist"],
@@ -50,7 +50,7 @@ in_category(
     experiment_builder_pair(
         name = "V8 Linux64 - disable runtime call stats",
         triggered_by = ["v8-trigger"],
-        dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
+        dimensions = {"os": "Ubuntu-18.04|Ubuntu-22.04", "cpu": "x86-64"},
         use_remoteexec = RECLIENT.DEFAULT,
         notify_owners = ["cbruni@chromium.org"],
         notifies = ["blamelist"],
@@ -58,7 +58,7 @@ in_category(
     experiment_builder_pair(
         name = "V8 Linux64 - external code space - debug",
         triggered_by = ["v8-trigger"],
-        dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
+        dimensions = {"os": "Ubuntu-18.04|Ubuntu-22.04", "cpu": "x86-64"},
         use_remoteexec = RECLIENT.DEFAULT,
         notify_owners = ["ishell@chromium.org"],
         notifies = ["blamelist"],
@@ -66,7 +66,7 @@ in_category(
     experiment_builder(
         name = "V8 Linux64 - Fuzzilli - builder",
         triggered_by = ["v8-trigger"],
-        dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
+        dimensions = {"os": "Ubuntu-18.04|Ubuntu-22.04", "cpu": "x86-64"},
         use_remoteexec = RECLIENT.DEFAULT,
         notify_owners = ["saelo@google.com", "msarm@google.com"],
         notifies = ["blamelist"],
@@ -90,7 +90,7 @@ in_category(
     experiment_builder(
         name = "V8 Linux64 - coverage",
         triggered_by = ["v8-trigger"],
-        dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
+        dimensions = {"os": "Ubuntu-18.04|Ubuntu-22.04", "cpu": "x86-64"},
         properties = {
             "enable_swarming": False,
             "gclient_vars": {"checkout_clang_coverage_tools": "True"},
@@ -102,7 +102,7 @@ in_category(
     experiment_builder(
         name = "V8 Linux64 - coverage - debug",
         triggered_by = ["v8-trigger"],
-        dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
+        dimensions = {"os": "Ubuntu-18.04|Ubuntu-22.04", "cpu": "x86-64"},
         properties = {
             "enable_swarming": False,
             "gclient_vars": {"checkout_clang_coverage_tools": "True"},
@@ -118,7 +118,7 @@ in_category(
     "FYI",
     experiment_builder_pair(
         name = "V8 Linux64 - arm64",
-        dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
+        dimensions = {"os": "Ubuntu-18.04|Ubuntu-22.04", "cpu": "x86-64"},
         properties = {"target_arch": "arm", "target_bits": 64},
         triggered_by = ["v8-trigger"],
         use_remoteexec = RECLIENT.DEFAULT,
@@ -126,7 +126,7 @@ in_category(
     ),
     experiment_builder_pair(
         name = "V8 Linux64 - arm64 - debug",
-        dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
+        dimensions = {"os": "Ubuntu-18.04|Ubuntu-22.04", "cpu": "x86-64"},
         properties = {"target_arch": "arm", "target_bits": 64},
         triggered_by = ["v8-trigger"],
         use_remoteexec = RECLIENT.DEFAULT,
@@ -149,14 +149,14 @@ in_category(
     experiment_builder_pair(
         name = "V8 Linux64 gcc",
         triggered_by = ["v8-trigger"],
-        dimensions = {"os": "Ubuntu-20.04", "cpu": "x86-64"},
+        dimensions = {"host_class": "strong", "os": "Ubuntu-20.04", "cpu": "x86-64"},
         use_remoteexec = RECLIENT.NO,
         notifies = ["sheriffs on new failure", "blamelist"],
     ),
     experiment_builder(
         name = "V8 Linux64 gcc - debug builder",
         triggered_by = ["v8-trigger"],
-        dimensions = {"os": "Ubuntu-20.04", "cpu": "x86-64"},
+        dimensions = {"host_class": "strong", "os": "Ubuntu-20.04", "cpu": "x86-64"},
         use_remoteexec = RECLIENT.NO,
         notifies = ["sheriffs on new failure", "blamelist"],
     ),
@@ -164,7 +164,7 @@ in_category(
         name = "V8 Linux64 - predictable",
         bucket = "ci",
         triggered_by = ["v8-trigger"],
-        dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
+        dimensions = {"os": "Ubuntu-18.04|Ubuntu-22.04", "cpu": "x86-64"},
         properties = {"builder_group": "client.v8"},
         use_remoteexec = RECLIENT.DEFAULT,
         notifies = ["sheriffs on new failure", "blamelist"],
@@ -172,7 +172,7 @@ in_category(
     experiment_builder_pair(
         name = "V8 Linux64 - official",
         triggered_by = ["v8-trigger"],
-        dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
+        dimensions = {"os": "Ubuntu-18.04|Ubuntu-22.04", "cpu": "x86-64"},
         use_remoteexec = RECLIENT.DEFAULT,
         notifies = ["sheriffs on new failure", "blamelist"],
     ),
@@ -182,14 +182,14 @@ in_category(
     "Linux64 no sandbox",
     experiment_builder_pair(
         name = "V8 Linux64 - no sandbox",
-        dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
+        dimensions = {"os": "Ubuntu-18.04|Ubuntu-22.04", "cpu": "x86-64"},
         use_remoteexec = RECLIENT.DEFAULT,
         close_tree = False,
         triggered_by = ["v8-trigger"],
     ),
     experiment_builder_pair(
         name = "V8 Linux64 - no sandbox - debug",
-        dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
+        dimensions = {"os": "Ubuntu-18.04|Ubuntu-22.04", "cpu": "x86-64"},
         use_remoteexec = RECLIENT.DEFAULT,
         close_tree = False,
         triggered_by = ["v8-trigger"],

@@ -11,7 +11,7 @@ in_category(
     "ASAN",
     main_multibranch_builder_pair(
         name = "V8 Linux64 ASAN",
-        dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
+        dimensions = {"os": "Ubuntu-18.04|Ubuntu-22.04", "cpu": "x86-64"},
         use_remoteexec = RECLIENT.DEFAULT,
     ),
     main_multibranch_builder_pair(
@@ -31,7 +31,7 @@ in_category(
     "MSAN",
     main_multibranch_builder_pair(
         name = "V8 Linux - arm64 - sim - MSAN",
-        dimensions = {"os": "Ubuntu-20.04", "cpu": "x86-64"},
+        dimensions = {"os": "Ubuntu-20.04|Ubuntu-22.04", "cpu": "x86-64"},
         gclient_vars = [GCLIENT_VARS.INSTRUMENTED_LIBRARIES],
         use_remoteexec = RECLIENT.DEFAULT,
     ),
@@ -41,7 +41,7 @@ in_category(
     "TSAN",
     main_multibranch_builder(
         name = "V8 Linux64 TSAN - builder",
-        dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
+        dimensions = {"os": "Ubuntu-18.04|Ubuntu-22.04", "cpu": "x86-64"},
         use_remoteexec = RECLIENT.DEFAULT,
     ),
     main_multibranch_builder(
@@ -50,7 +50,7 @@ in_category(
     ),
     main_multibranch_builder_pair(
         name = "V8 Linux64 TSAN - debug",
-        dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
+        dimensions = {"os": "Ubuntu-18.04|Ubuntu-22.04", "cpu": "x86-64"},
         use_remoteexec = RECLIENT.DEFAULT,
         notifies = ["TSAN debug failures"],
         first_branch_version = "11.2",
@@ -61,7 +61,7 @@ in_category(
     ),
     main_multibranch_builder_pair(
         name = "V8 Linux64 TSAN - no-concurrent-marking",
-        dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
+        dimensions = {"os": "Ubuntu-18.04|Ubuntu-22.04", "cpu": "x86-64"},
     ),
     multibranch_builder(
         name = "V8 Linux64 TSAN - stress-incremental-marking",
@@ -75,7 +75,7 @@ in_category(
     "UBSAN",
     main_multibranch_builder_pair(
         name = "V8 Linux64 UBSan",
-        dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
+        dimensions = {"os": "Ubuntu-18.04|Ubuntu-22.04", "cpu": "x86-64"},
         use_remoteexec = RECLIENT.DEFAULT,
     ),
 )
@@ -84,12 +84,12 @@ in_category(
     "CFI",
     main_multibranch_builder_pair(
         name = "V8 Linux - arm64 - sim - CFI",
-        dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
+        dimensions = {"os": "Ubuntu-18.04|Ubuntu-22.04", "cpu": "x86-64"},
         use_remoteexec = RECLIENT.DEFAULT,
     ),
     main_multibranch_builder_pair(
         name = "V8 Linux64 - cfi",
-        dimensions = {"os": "Ubuntu-18.04", "cpu": "x86-64"},
+        dimensions = {"os": "Ubuntu-18.04|Ubuntu-22.04", "cpu": "x86-64"},
         use_remoteexec = RECLIENT.DEFAULT,
     ),
 )

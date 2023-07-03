@@ -33,7 +33,7 @@ def pgo_compilator(name, os):
 
 # GN variables depend on the builder name and are defined in
 # https://chromium.googlesource.com/v8/v8/+/refs/heads/main/infra/mb/mb_config.pyl
-pgo_compilator("V8 Linux PGO instrumentation - builder", os = "Ubuntu-18.04")
-pgo_compilator("V8 Linux64 PGO instrumentation - builder", os = "Ubuntu-18.04")
+pgo_compilator("V8 Linux PGO instrumentation - builder", os = "Ubuntu-18.04|Ubuntu-22.04")
+pgo_compilator("V8 Linux64 PGO instrumentation - builder", os = "Ubuntu-18.04|Ubuntu-22.04")
 pgo_compilator("V8 Win32 PGO instrumentation - builder", os = "Windows-10")
 pgo_compilator("V8 Win64 PGO instrumentation - builder", os = "Windows-10")
