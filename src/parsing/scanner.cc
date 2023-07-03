@@ -245,9 +245,8 @@ void Scanner::TryToParseMagicComment() {
     value = &source_url_;
   } else if (name_literal == base::StaticOneByteVector("sourceMappingURL")) {
     value = &source_mapping_url_;
-  } else if (v8_flags.compile_hints_magic &&
-             name_literal == base::StaticOneByteVector(
-                                 "experimentalChromiumCompileHints")) {
+  } else if (name_literal ==
+             base::StaticOneByteVector("experimentalChromiumCompileHints")) {
     value = &compile_hints_value;
   } else {
     return;

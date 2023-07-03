@@ -1521,6 +1521,13 @@ class V8_EXPORT Isolate {
       SharedArrayBufferConstructorEnabledCallback callback);
 
   /**
+   * Register callback to control whether compile hints magic comments are
+   * enabled.
+   */
+  void SetJavaScriptCompileHintsMagicEnabledCallback(
+      JavaScriptCompileHintsMagicEnabledCallback callback);
+
+  /**
    * This function can be called by the embedder to signal V8 that the dynamic
    * enabling of features has finished. V8 can now set up dynamically added
    * features.
