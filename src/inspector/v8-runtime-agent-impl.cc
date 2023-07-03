@@ -296,7 +296,7 @@ Response getWrapOptions(
       *result = std::make_unique<WrapOptions>(
           WrapOptions{WrapMode::kDeep,
                       {serializationOptions->getMaxDepth(v8::internal::kMaxInt),
-                       additionalParameters}});
+                       v8::Global<v8::Object>(isolate, additionalParameters)}});
       return Response::Success();
     }
     if (serializationModeStr ==

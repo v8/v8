@@ -670,8 +670,9 @@ Response InjectedScript::wrapObjectMirror(
     std::unique_ptr<protocol::DictionaryValue> deepSerializedValueDict;
     response = mirror.buildDeepSerializedValue(
         context, wrapOptions.serializationOptions.maxDepth,
-        wrapOptions.serializationOptions.additionalParameters, duplicateTracker,
-        &deepSerializedValueDict);
+        wrapOptions.serializationOptions.additionalParameters.Get(
+            m_context->isolate()),
+        duplicateTracker, &deepSerializedValueDict);
     if (!response.IsSuccess()) return response;
 
     String16 type;
