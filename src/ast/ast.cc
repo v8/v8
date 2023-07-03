@@ -948,6 +948,26 @@ bool CompareOperation::IsLiteralCompareNull(Expression** expr) {
          MatchLiteralCompareNull(right_, op(), left_, expr);
 }
 
+static bool MatchLiteralCompareEqualVariable(Expression* left, Token::Value op,
+                                             Expression* right,
+                                             Expression** expr,
+                                             Literal** literal) {
+  if (Token::IsEqualityOp(op) && left->AsVariableProxy() &&
+      right->IsStringLiteral()) {
+    *expr = left->AsVariableProxy();
+    *literal = right->AsLiteral();
+    return true;
+  }
+  return false;
+}
+
+bool CompareOperation::IsLiteralCompareEqualVariable(Expression** expr,
+                                                     Literal** literal) {
+  return (
+      MatchLiteralCompareEqualVariable(left_, op(), right_, expr, literal) ||
+      MatchLiteralCompareEqualVariable(right_, op(), left_, expr, literal));
+}
+
 void CallBase::ComputeSpreadPosition() {
   int arguments_length = arguments_.length();
   int first_spread_index = 0;
