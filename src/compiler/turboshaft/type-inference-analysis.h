@@ -202,9 +202,17 @@ class TypeInferenceAnalysis {
         case Opcode::kGoto: {
           const GotoOp& gto = op.Cast<GotoOp>();
           // Check if this is a backedge.
-          if (gto.destination->IsLoop() &&
-              gto.destination->index() < current_block_->index()) {
-            ProcessBlock<true>(*gto.destination, unprocessed_index);
+          if (gto.destination->IsLoop()) {
+            if (gto.destination->index() < current_block_->index()) {
+              ProcessBlock<true>(*gto.destination, unprocessed_index);
+            } else if (gto.destination->index() == current_block_->index()) {
+              // This is a single block loop. We must only revisit the current
+              // header block if we actually need to, in order to prevent
+              // infinite recursion.
+              if (!revisit_loop_header || loop_needs_revisit) {
+                ProcessBlock<true>(*gto.destination, unprocessed_index);
+              }
+            }
           }
           break;
         }
