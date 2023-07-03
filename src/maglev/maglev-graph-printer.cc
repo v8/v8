@@ -578,11 +578,11 @@ void PrintExceptionHandlerPoint(std::ostream& os,
   BasicBlock* block = info->catch_block.block_ptr();
   DCHECK(block->is_exception_handler_block());
 
-  Phi* first_phi = block->phis()->first();
-  if (first_phi == nullptr) {
-    // No phis in the block.
+  if (!block->has_phi()) {
     return;
   }
+  Phi* first_phi = block->phis()->first();
+  CHECK_NOT_NULL(first_phi);
   int handler_offset = first_phi->merge_state()->merge_offset();
 
   // The exception handler liveness should be a subset of lazy_deopt_info one.
