@@ -240,49 +240,34 @@ class MaglevConcurrentDispatcher::JobTask final : public v8::JobTask {
     LocalIsolate local_isolate(isolate(), ThreadKind::kBackground);
     DCHECK(local_isolate.heap()->IsParked());
 
-    // You can't call ShouldYield twice in a row, so cache its value.
-    bool should_yield = false;
-    bool job_was_executed = false;
-    while (!incoming_queue()->IsEmpty()) {
-      if (delegate->ShouldYield()) {
-        should_yield = true;
+    std::unique_ptr<MaglevCompilationJob> job_to_destruct;
+    while (!delegate->ShouldYield()) {
+      std::unique_ptr<MaglevCompilationJob> job;
+      if (incoming_queue()->Dequeue(&job)) {
+        DCHECK_NOT_NULL(job);
+        TRACE_EVENT_WITH_FLOW0(
+            TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.MaglevBackground",
+            job->trace_id(),
+            TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT);
+        RCS_SCOPE(&local_isolate,
+                  RuntimeCallCounterId::kOptimizeBackgroundMaglev);
+        CompilationJob::Status status =
+            job->ExecuteJob(local_isolate.runtime_call_stats(), &local_isolate);
+        if (status == CompilationJob::SUCCEEDED) {
+          outgoing_queue()->Enqueue(std::move(job));
+          isolate()->stack_guard()->RequestInstallMaglevCode();
+        }
+      } else if (destruction_queue()->Dequeue(&job)) {
+        // Maglev jobs aren't cheap to destruct, so destroy them here in the
+        // background thread rather than on the main thread.
+        DCHECK_NOT_NULL(job);
+        TRACE_EVENT_WITH_FLOW0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
+                               "V8.MaglevDestructBackground", job->trace_id(),
+                               TRACE_EVENT_FLAG_FLOW_IN);
+        job.reset();
+      } else {
         break;
       }
-      std::unique_ptr<MaglevCompilationJob> job;
-      if (!incoming_queue()->Dequeue(&job)) break;
-      DCHECK_NOT_NULL(job);
-      TRACE_EVENT_WITH_FLOW0(
-          TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.MaglevBackground",
-          job->trace_id(),
-          TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT);
-      RCS_SCOPE(&local_isolate,
-                RuntimeCallCounterId::kOptimizeBackgroundMaglev);
-      CompilationJob::Status status =
-          job->ExecuteJob(local_isolate.runtime_call_stats(), &local_isolate);
-      if (status == CompilationJob::SUCCEEDED) {
-        job_was_executed = true;
-        outgoing_queue()->Enqueue(std::move(job));
-      }
-    }
-    if (job_was_executed) {
-      isolate()->stack_guard()->RequestInstallMaglevCode();
-    }
-    if (should_yield) return;
-
-    // Maglev jobs aren't cheap to destruct, so destroy them here in the
-    // background thread rather than on the main thread.
-    while (!destruction_queue()->IsEmpty()) {
-      if (delegate->ShouldYield()) {
-        should_yield = true;
-        break;
-      }
-      std::unique_ptr<MaglevCompilationJob> job;
-      if (!destruction_queue()->Dequeue(&job)) break;
-      DCHECK_NOT_NULL(job);
-      TRACE_EVENT_WITH_FLOW0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
-                             "V8.MaglevDestructBackground", job->trace_id(),
-                             TRACE_EVENT_FLAG_FLOW_IN);
-      job.reset();
     }
   }
 
@@ -364,6 +349,7 @@ void MaglevConcurrentDispatcher::FinalizeFinishedJobs() {
       // Maglev jobs aren't cheap to destruct, so re-enqueue them for
       // destruction on a background thread.
       destruction_queue_.Enqueue(std::move(job));
+      job_handle_->NotifyConcurrencyIncrease();
     } else {
       TRACE_EVENT_WITH_FLOW0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                              "V8.MaglevDestruct", job->trace_id(),
