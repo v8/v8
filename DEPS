@@ -312,7 +312,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'third_party/abseil-cpp': {
-    'url': Var('chromium_url') + '/chromium/src/third_party/abseil-cpp.git' + '@' + '8f82e0563e3a844ab1488979845d80c78ea8991c',
+    'url': Var('chromium_url') + '/chromium/src/third_party/abseil-cpp.git' + '@' + '7d4c4bf47358e1d56cc0a462aa1b06b12e2ce8d9',
     'condition': 'not build_with_chromium',
   }
 }
