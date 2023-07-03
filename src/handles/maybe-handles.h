@@ -201,7 +201,6 @@ class MaybeObjectDirectHandle {
   inline MaybeObject operator->() const;
   inline DirectHandle<Object> object() const;
 
-  inline bool is_identical_to(const MaybeObjectDirectHandle& other) const;
   bool is_null() const { return handle_.is_null(); }
 
  private:

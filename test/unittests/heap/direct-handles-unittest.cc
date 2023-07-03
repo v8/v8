@@ -59,44 +59,6 @@ TEST_F(DirectHandlesTest, CreateMaybeDirectObjectHandle) {
   EXPECT_EQ(*maybe_direct, *maybe_handle);
 }
 
-TEST_F(DirectHandlesTest, IsIdenticalTo) {
-  i::DirectHandle<i::String> d1 =
-      i_isolate()->factory()->NewStringFromAsciiChecked("foo");
-  i::DirectHandle<i::String> d2(d1);
-
-  i::DirectHandle<i::String> d3 =
-      i_isolate()->factory()->NewStringFromAsciiChecked("bar");
-  i::DirectHandle<i::String> d4;
-  i::DirectHandle<i::String> d5;
-
-  EXPECT_TRUE(d1.is_identical_to(d2));
-  EXPECT_TRUE(d2.is_identical_to(d1));
-  EXPECT_FALSE(d1.is_identical_to(d3));
-  EXPECT_FALSE(d1.is_identical_to(d4));
-  EXPECT_FALSE(d4.is_identical_to(d1));
-  EXPECT_TRUE(d4.is_identical_to(d5));
-}
-
-TEST_F(DirectHandlesTest, MaybeObjectDirectHandleIsIdenticalTo) {
-  i::DirectHandle<i::String> foo =
-      i_isolate()->factory()->NewStringFromAsciiChecked("foo");
-  i::DirectHandle<i::String> bar =
-      i_isolate()->factory()->NewStringFromAsciiChecked("bar");
-
-  i::MaybeObjectDirectHandle d1(foo);
-  i::MaybeObjectDirectHandle d2(foo);
-  i::MaybeObjectDirectHandle d3(bar);
-  i::MaybeObjectDirectHandle d4;
-  i::MaybeObjectDirectHandle d5;
-
-  EXPECT_TRUE(d1.is_identical_to(d2));
-  EXPECT_TRUE(d2.is_identical_to(d1));
-  EXPECT_FALSE(d1.is_identical_to(d3));
-  EXPECT_FALSE(d1.is_identical_to(d4));
-  EXPECT_FALSE(d4.is_identical_to(d1));
-  EXPECT_TRUE(d4.is_identical_to(d5));
-}
-
 // Tests to check DirectHandle usage.
 // Such usage violations are only detected in debug builds and with the
 // compile-time flag for conservative stack scanning.
