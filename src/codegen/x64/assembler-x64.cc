@@ -3589,6 +3589,14 @@ BROADCASTSS(XMMRegister, L128)
 BROADCASTSS(YMMRegister, L256)
 #undef BROADCASTSS
 
+void Assembler::vbroadcastsd(YMMRegister dst, XMMRegister src) {
+  DCHECK(IsEnabled(AVX2));
+  EnsureSpace ensure_space(this);
+  emit_vex_prefix(dst, xmm0, src, kL256, k66, k0F38, kW0);
+  emit(0x19);
+  emit_sse_operand(dst, src);
+}
+
 void Assembler::fma_instr(uint8_t op, XMMRegister dst, XMMRegister src1,
                           XMMRegister src2, VectorLength l, SIMDPrefix pp,
                           LeadingOpcode m, VexW w) {

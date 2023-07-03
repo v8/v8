@@ -3052,6 +3052,21 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
             UNREACHABLE();
         }
 
+      } else if (vec_len == kV256) {
+        switch (lane_size) {
+          case kL32: {
+            // F32x8Splat
+            __ F32x8Splat(i.OutputSimd256Register(), i.InputSimd128Register(0));
+            break;
+          }
+          case kL64: {
+            // F64X4Splat
+            __ F64x4Splat(i.OutputSimd256Register(), i.InputSimd128Register(0));
+            break;
+          }
+          default:
+            UNREACHABLE();
+        }
       } else {
         UNREACHABLE();
       }

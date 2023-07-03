@@ -4091,7 +4091,7 @@ void InstructionSelectorT<Adapter>::VisitS256Zero(Node* node) {
     X64OperandGeneratorT<Adapter> g(this);                                   \
     Node* input = node->InputAt(0);                                          \
     if (g.CanBeImmediate(input) && g.GetImmediateIntegerValue(input) == 0) { \
-      Emit(kX64SZero | VectorLengthField::encode(kV128),                     \
+      Emit(kX64SZero | VectorLengthField::encode(VectorLength),              \
            g.DefineAsRegister(node));                                        \
     } else {                                                                 \
       Emit(kX64ISplat | LaneSizeField::encode(LaneSize) |                    \
@@ -4116,6 +4116,22 @@ void InstructionSelectorT<Adapter>::VisitF32x4Splat(Node* node) {
   X64OperandGeneratorT<Adapter> g(this);
   Emit(kX64FSplat | LaneSizeField::encode(kL32) |
            VectorLengthField::encode(kV128),
+       g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)));
+}
+
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitF64x4Splat(Node* node) {
+  X64OperandGeneratorT<Adapter> g(this);
+  Emit(kX64FSplat | LaneSizeField::encode(kL64) |
+           VectorLengthField::encode(kV256),
+       g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)));
+}
+
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitF32x8Splat(Node* node) {
+  X64OperandGeneratorT<Adapter> g(this);
+  Emit(kX64FSplat | LaneSizeField::encode(kL32) |
+           VectorLengthField::encode(kV256),
        g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)));
 }
 

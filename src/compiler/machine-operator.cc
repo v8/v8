@@ -602,6 +602,8 @@ std::ostream& operator<<(std::ostream& os, TruncateKind kind) {
   V(I16x8ExtAddPairwiseI8x16U, Operator::kNoProperties, 1, 0, 1)           \
   V(I8x32Splat, Operator::kNoProperties, 1, 0, 1)                          \
   V(I8x16Splat, Operator::kNoProperties, 1, 0, 1)                          \
+  V(F64x4Splat, Operator::kNoProperties, 1, 0, 1)                          \
+  V(F32x8Splat, Operator::kNoProperties, 1, 0, 1)                          \
   V(I8x16Neg, Operator::kNoProperties, 1, 0, 1)                            \
   V(I8x16Shl, Operator::kNoProperties, 2, 0, 1)                            \
   V(I8x16ShrS, Operator::kNoProperties, 2, 0, 1)                           \

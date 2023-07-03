@@ -28,6 +28,7 @@
 #include <stdlib.h>
 
 #include <cstdint>
+#include <cstring>
 
 #include "src/codegen/macro-assembler.h"
 #include "src/codegen/x64/assembler-x64-inl.h"
@@ -1382,16 +1383,18 @@ TEST_F(MacroAssemblerX64Test, I64x4Mul) {
     buffer->MakeExecutable();                                                 \
     /* Call the function from C++. */                                         \
     auto f = GeneratedCode<Fn>::FromBuffer(i_isolate(), buffer->start());     \
-    int##lane_size##_t input = 123;                                           \
-    int##lane_size##_t* input_addr = &input;                                  \
-    int##lane_size##_t output1[lane_num];                                     \
-    int##lane_size##_t output2[lane_num];                                     \
                                                                               \
-    f.Call(input, input_addr, output1, output2);                              \
+    FOR_INT##lane_size##_INPUTS(input) {                                      \
+      int##lane_size##_t* input_addr = &input;                                \
+      int##lane_size##_t output1[lane_num];                                   \
+      int##lane_size##_t output2[lane_num];                                   \
                                                                               \
-    for (int i = 0; i < lane_num; ++i) {                                      \
-      CHECK_EQ(input, output1[i]);                                            \
-      CHECK_EQ(input, output2[i]);                                            \
+      f.Call(input, input_addr, output1, output2);                            \
+                                                                              \
+      for (int i = 0; i < lane_num; ++i) {                                    \
+        CHECK_EQ(input, output1[i]);                                          \
+        CHECK_EQ(input, output2[i]);                                          \
+      }                                                                       \
     }                                                                         \
   }
 
@@ -2024,6 +2027,74 @@ TEST_F(MacroAssemblerX64Test, I16x16ExtAddPairwiseI8x32U) {
     f.Call(input, output);
     for (int i = 0; i < 16; i++) {
       CHECK_EQ(output[i], (uint16_t)(input[2 * i] + input[2 * i + 1]));
+    }
+  }
+}
+
+TEST_F(MacroAssemblerX64Test, F64x4Splat) {
+  if (!CpuFeatures::IsSupported(AVX) || !CpuFeatures::IsSupported(AVX2)) return;
+  Isolate* isolate = i_isolate();
+  HandleScope handles(isolate);
+  auto buffer = AllocateAssemblerBuffer();
+  MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired::kYes,
+                           buffer->CreateView());
+  MacroAssembler* masm = &assembler;
+  CpuFeatureScope avx_scope(masm, AVX);
+  CpuFeatureScope avx2_scope(masm, AVX2);
+
+  __ vmovsd(xmm1, Operand(arg_reg_1, 0));
+  __ F64x4Splat(ymm2, xmm1);
+  __ vmovdqu(Operand(arg_reg_2, 0), ymm2);
+  __ ret(0);
+
+  CodeDesc desc;
+  __ GetCode(i_isolate(), &desc);
+
+  PrintCode(isolate, desc);
+  buffer->MakeExecutable();
+  /* Call the function from C++. */
+  using F = int(double*, double*);
+  auto f = GeneratedCode<F>::FromBuffer(i_isolate(), buffer->start());
+  constexpr int kLaneNum = 4;
+  double output[kLaneNum];
+  FOR_FLOAT64_INPUTS(input) {
+    f.Call(&input, output);
+    for (int i = 0; i < kLaneNum; ++i) {
+      CHECK_EQ(0, std::memcmp(&input, &output[i], sizeof(double)));
+    }
+  }
+}
+
+TEST_F(MacroAssemblerX64Test, F32x8Splat) {
+  if (!CpuFeatures::IsSupported(AVX) || !CpuFeatures::IsSupported(AVX2)) return;
+  Isolate* isolate = i_isolate();
+  HandleScope handles(isolate);
+  auto buffer = AllocateAssemblerBuffer();
+  MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired::kYes,
+                           buffer->CreateView());
+  MacroAssembler* masm = &assembler;
+  CpuFeatureScope avx_scope(masm, AVX);
+  CpuFeatureScope avx2_scope(masm, AVX2);
+
+  __ vmovss(xmm1, Operand(arg_reg_1, 0));
+  __ F32x8Splat(ymm2, xmm1);
+  __ vmovdqu(Operand(arg_reg_2, 0), ymm2);
+  __ ret(0);
+
+  CodeDesc desc;
+  __ GetCode(i_isolate(), &desc);
+
+  PrintCode(isolate, desc);
+  buffer->MakeExecutable();
+  /* Call the function from C++. */
+  using F = int(float*, float*);
+  auto f = GeneratedCode<F>::FromBuffer(i_isolate(), buffer->start());
+  constexpr int kLaneNum = 8;
+  float output[kLaneNum];
+  FOR_FLOAT32_INPUTS(input) {
+    f.Call(&input, output);
+    for (int i = 0; i < kLaneNum; ++i) {
+      CHECK_EQ(0, std::memcmp(&input, &output[i], sizeof(float)));
     }
   }
 }

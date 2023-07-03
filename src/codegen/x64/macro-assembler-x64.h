@@ -252,18 +252,21 @@ class V8_EXPORT_PRIVATE MacroAssembler
 
 // Splat
 #define MACRO_ASM_X64_ISPLAT_LIST(V) \
-  V(I8x32Splat, b)                   \
-  V(I16x16Splat, w)                  \
-  V(I32x8Splat, d)                   \
-  V(I64x4Splat, q)
+  V(I8x32Splat, b, vmovd)            \
+  V(I16x16Splat, w, vmovd)           \
+  V(I32x8Splat, d, vmovd)            \
+  V(I64x4Splat, q, vmovq)
 
-#define DECLARE_ISPLAT(name, suffix)        \
-  void name(YMMRegister dst, Register src); \
+#define DECLARE_ISPLAT(name, suffix, instr_mov) \
+  void name(YMMRegister dst, Register src);     \
   void name(YMMRegister dst, Operand src);
 
   MACRO_ASM_X64_ISPLAT_LIST(DECLARE_ISPLAT)
 
 #undef DECLARE_ISPLAT
+
+  void F64x4Splat(YMMRegister dst, XMMRegister src);
+  void F32x8Splat(YMMRegister dst, XMMRegister src);
 
   // ---------------------------------------------------------------------------
   // Conversions between tagged smi values and non-tagged integer values.

@@ -1217,7 +1217,9 @@
   V(I16x16Splat)                   \
   V(I8x32Splat)                    \
   V(F64x4Pmin)                     \
-  V(F64x4Pmax)
+  V(F64x4Pmax)                     \
+  V(F64x4Splat)                    \
+  V(F32x8Splat)
 
 #define VALUE_OP_LIST(V)     \
   COMMON_OP_LIST(V)          \
