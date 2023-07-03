@@ -208,7 +208,8 @@ uint64_t MaglevCompilationJob::trace_id() const {
   // where just the `this` pointer is likely to be reused.
   return reinterpret_cast<uint64_t>(this) ^
          reinterpret_cast<uint64_t>(info_.get()) ^
-         info_->toplevel_function().address();
+         info_->toplevel_function().address() ^
+         info_->toplevel_function()->shared().function_literal_id();
 }
 
 void MaglevCompilationJob::BeginPhaseKind(const char* name) {
@@ -231,6 +232,7 @@ class MaglevConcurrentDispatcher::JobTask final : public v8::JobTask {
       : dispatcher_(dispatcher) {}
 
   void Run(JobDelegate* delegate) override {
+    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.MaglevTask");
     LocalIsolate local_isolate(isolate(), ThreadKind::kBackground);
     DCHECK(local_isolate.heap()->IsParked());
 
@@ -273,6 +275,9 @@ class MaglevConcurrentDispatcher::JobTask final : public v8::JobTask {
       std::unique_ptr<MaglevCompilationJob> job;
       if (!destruction_queue()->Dequeue(&job)) break;
       DCHECK_NOT_NULL(job);
+      TRACE_EVENT_WITH_FLOW0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
+                             "V8.MaglevDestructBackground", job->trace_id(),
+                             TRACE_EVENT_FLAG_FLOW_IN);
       job.reset();
     }
   }
@@ -344,9 +349,9 @@ void MaglevConcurrentDispatcher::FinalizeFinishedJobs() {
   while (!outgoing_queue_.IsEmpty()) {
     std::unique_ptr<MaglevCompilationJob> job;
     outgoing_queue_.Dequeue(&job);
-    TRACE_EVENT_WITH_FLOW0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
-                           "V8.MaglevConcurrentFinalize", job->trace_id(),
-                           TRACE_EVENT_FLAG_FLOW_IN);
+    TRACE_EVENT_WITH_FLOW0(
+        TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.MaglevConcurrentFinalize",
+        job->trace_id(), TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT);
     RCS_SCOPE(isolate_,
               RuntimeCallCounterId::kOptimizeConcurrentFinalizeMaglev);
     Compiler::FinalizeMaglevCompilationJob(job.get(), isolate_);
@@ -355,6 +360,9 @@ void MaglevConcurrentDispatcher::FinalizeFinishedJobs() {
       // destruction on a background thread.
       destruction_queue_.Enqueue(std::move(job));
     } else {
+      TRACE_EVENT_WITH_FLOW0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
+                             "V8.MaglevDestruct", job->trace_id(),
+                             TRACE_EVENT_FLAG_FLOW_IN);
       job.reset();
     }
   }
