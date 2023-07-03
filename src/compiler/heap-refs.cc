@@ -1298,6 +1298,10 @@ bool StringRef::IsContentAccessible() const {
   return data_->kind() != kNeverSerializedHeapObject || SupportedStringKind();
 }
 
+bool StringRef::IsOneByteRepresentation() const {
+  return object()->IsOneByteRepresentation();
+}
+
 // TODO(leszeks): The broker is only needed here for tracing, maybe we could get
 // it from a thread local instead.
 base::Optional<Handle<String>> StringRef::ObjectIfContentAccessible(

@@ -1129,12 +1129,27 @@ TNode<Boolean> JSCallReducerAssembler::ReduceStringPrototypeEndsWith() {
 TNode<String> JSCallReducerAssembler::ReduceStringPrototypeCharAt(
     StringRef s, uint32_t index) {
   DCHECK(s.IsContentAccessible());
-  OptionalObjectRef elem = s.GetCharAsStringOrUndefined(broker(), index);
-  TNode<String> elem_string =
-      elem.has_value() ? TNode<String>::UncheckedCast(
-                             jsgraph()->Constant(elem.value(), broker()))
-                       : EmptyStringConstant();
-  return elem_string;
+  if (s.IsOneByteRepresentation()) {
+    OptionalObjectRef elem = s.GetCharAsStringOrUndefined(broker(), index);
+    TNode<String> elem_string =
+        elem.has_value() ? TNode<String>::UncheckedCast(
+                               jsgraph()->Constant(elem.value(), broker()))
+                         : EmptyStringConstant();
+    return elem_string;
+  } else {
+    const uint32_t length = static_cast<uint32_t>(s.length());
+    if (index >= length) return EmptyStringConstant();
+    Handle<SeqTwoByteString> flat = broker()->CanonicalPersistentHandle(
+        broker()
+            ->local_isolate_or_isolate()
+            ->factory()
+            ->NewRawTwoByteString(1, AllocationType::kOld)
+            .ToHandleChecked());
+    flat->SeqTwoByteStringSet(0, s.GetChar(broker(), index).value());
+    TNode<String> two_byte_elem =
+        TNode<String>::UncheckedCast(jsgraph()->HeapConstant(flat));
+    return two_byte_elem;
+  }
 }
 
 TNode<String> JSCallReducerAssembler::ReduceStringPrototypeCharAt() {

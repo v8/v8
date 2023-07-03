@@ -1068,6 +1068,7 @@ class StringRef : public NameRef {
   bool IsExternalString() const;
 
   bool IsContentAccessible() const;
+  bool IsOneByteRepresentation() const;
 
  private:
   // With concurrent inlining on, we currently support reading directly
