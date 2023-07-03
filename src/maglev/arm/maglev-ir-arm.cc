@@ -482,15 +482,15 @@ DEF_BITWISE_BINOP(Int32BitwiseXor, eor)
     Register out = ToRegister(result());                                       \
     if (Int32Constant* constant =                                              \
             right_input().node()->TryCast<Int32Constant>()) {                  \
-      if (constant->value() == 0) {                                            \
+      uint32_t shift = constant->value() & 31;                                 \
+      if (shift == 0) {                                                        \
         /* TODO(victorgomes): Arm will do a shift of 32 if right == 0. Ideally \
          * we should not even emit the shift in the first place. We do a move  \
          * here for the moment. */                                             \
         __ Move(out, left);                                                    \
         return;                                                                \
       }                                                                        \
-      __ opcode(out, left,                                                     \
-                Operand(static_cast<uint32_t>(constant->value()) & 31));       \
+      __ opcode(out, left, Operand(shift));                                    \
     } else {                                                                   \
       MaglevAssembler::ScratchRegisterScope temps(masm);                       \
       Register scratch = temps.Acquire();                                      \
