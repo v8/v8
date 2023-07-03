@@ -2653,7 +2653,8 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   FunctionLiteral::EagerCompileHint eager_compile_hint =
       function_state_->next_function_is_likely_called() || is_wrapped ||
               params_need_validation ||
-              scanner()->SawMagicCommentCompileHintsAll()
+              (info()->flags().compile_hints_magic_enabled() &&
+               scanner()->SawMagicCommentCompileHintsAll())
           ? FunctionLiteral::kShouldEagerCompile
           : default_eager_compile_hint();
 

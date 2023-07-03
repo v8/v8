@@ -539,5 +539,78 @@ TEST_F(ScriptTest, CompileHintsMagicCommentInvalid) {
   }
 }
 
+namespace {
+
+bool CompileHintsMagicEnabledCallback(v8::Local<v8::Context> context) {
+  return true;
+}
+}  // namespace
+
+// Like CompileHintsMagicCommentBasic but enable compile hints via an API
+// callback.
+TEST_F(ScriptTest, CompileHintsMagicCommentBasicWithCallback) {
+  i::FlagScope<bool> flag_scope(&i::v8_flags.compile_hints_magic, false);
+
+  isolate()->SetJavaScriptCompileHintsMagicEnabledCallback(
+      CompileHintsMagicEnabledCallback);
+
+  v8::Local<v8::Context> context = v8::Context::New(isolate());
+  isolate()->InstallConditionalFeatures(context);
+
+  const char* url = "http://www.foo.com/foo.js";
+  v8::ScriptOrigin origin(isolate(), NewString(url), 13, 0);
+
+  // Run the top level code.
+  const char* code =
+      "//# experimentalChromiumCompileHints=all\n"
+      "function f1() {}\n"
+      "let f2 = function() { }";
+  v8::ScriptCompiler::Source script_source(NewString(code), origin);
+  Local<Script> script =
+      v8::ScriptCompiler::Compile(
+          v8_context(), &script_source,
+          v8::ScriptCompiler::CompileOptions::kProduceCompileHints)
+          .ToLocalChecked();
+
+  v8::MaybeLocal<v8::Value> result = script->Run(context);
+  EXPECT_FALSE(result.IsEmpty());
+
+  // Retrieve the function object for f1.
+  {
+    const char* code2 = "f1";
+    v8::ScriptCompiler::Source script_source2(NewString(code2), origin);
+
+    Local<Script> script2 =
+        v8::ScriptCompiler::Compile(v8_context(), &script_source2)
+            .ToLocalChecked();
+    v8::MaybeLocal<v8::Value> result2 = script2->Run(context);
+
+    auto function = i::Handle<i::JSFunction>::cast(
+        Utils::OpenHandle(*result2.ToLocalChecked()));
+    i::Builtin builtin = function->code().builtin_id();
+
+    // f1 was not compiled lazily.
+    EXPECT_NE(i::Builtin::kCompileLazy, builtin);
+  }
+
+  // Retrieve the function object for f2.
+  {
+    const char* code2 = "f2";
+    v8::ScriptCompiler::Source script_source2(NewString(code2), origin);
+
+    Local<Script> script2 =
+        v8::ScriptCompiler::Compile(v8_context(), &script_source2)
+            .ToLocalChecked();
+    v8::MaybeLocal<v8::Value> result2 = script2->Run(context);
+
+    auto function = i::Handle<i::JSFunction>::cast(
+        Utils::OpenHandle(*result2.ToLocalChecked()));
+    i::Builtin builtin = function->code().builtin_id();
+
+    // f2 was not compiled lazily.
+    EXPECT_NE(i::Builtin::kCompileLazy, builtin);
+  }
+}
+
 }  // namespace
 }  // namespace v8
