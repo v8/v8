@@ -653,7 +653,7 @@ size_t SnapshotCreator::AddData(i::Address object) {
 size_t SnapshotCreator::AddData(Local<Context> context, i::Address object) {
   DCHECK_NE(object, i::kNullAddress);
   DCHECK(!SnapshotCreatorData::cast(data_)->created_);
-  i::Handle<i::NativeContext> ctx = Utils::OpenHandle(*context);
+  i::DirectHandle<i::NativeContext> ctx = Utils::OpenDirectHandle(*context);
   i::Isolate* i_isolate = ctx->GetIsolate();
   i::HandleScope scope(i_isolate);
   i::Handle<i::Object> obj(i::Object(object), i_isolate);
@@ -672,7 +672,7 @@ size_t SnapshotCreator::AddData(Local<Context> context, i::Address object) {
 
 namespace {
 void ConvertSerializedObjectsToFixedArray(Local<Context> context) {
-  i::Handle<i::NativeContext> ctx = Utils::OpenHandle(*context);
+  i::DirectHandle<i::NativeContext> ctx = Utils::OpenDirectHandle(*context);
   i::Isolate* i_isolate = ctx->GetIsolate();
   if (!ctx->serialized_objects().IsArrayList()) {
     ctx->set_serialized_objects(
@@ -1047,7 +1047,7 @@ void DisposeGlobal(i::Address* location) {
 
 i::Address* Eternalize(Isolate* v8_isolate, Value* value) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
-  i::Object object = *Utils::OpenHandle(value);
+  i::Object object = *Utils::OpenDirectHandle(value);
   int index = -1;
   i_isolate->eternal_handles()->Create(i_isolate, object, &index);
   return i_isolate->eternal_handles()->Get(index).location();
@@ -1167,14 +1167,16 @@ void* SealHandleScope::operator new[](size_t) { base::OS::Abort(); }
 void SealHandleScope::operator delete(void*, size_t) { base::OS::Abort(); }
 void SealHandleScope::operator delete[](void*, size_t) { base::OS::Abort(); }
 
-bool Data::IsModule() const { return Utils::OpenHandle(this)->IsModule(); }
+bool Data::IsModule() const {
+  return Utils::OpenDirectHandle(this)->IsModule();
+}
 bool Data::IsFixedArray() const {
-  return Utils::OpenHandle(this)->IsFixedArray();
+  return Utils::OpenDirectHandle(this)->IsFixedArray();
 }
 
 bool Data::IsValue() const {
   i::DisallowGarbageCollection no_gc;
-  i::Object self = *Utils::OpenHandle(this);
+  i::Object self = *Utils::OpenDirectHandle(this);
   if (self.IsSmi()) return true;
   i::HeapObject heap_object = i::HeapObject::cast(self);
   DCHECK(!heap_object.IsTheHole());
@@ -1185,22 +1187,24 @@ bool Data::IsValue() const {
 }
 
 bool Data::IsPrivate() const {
-  return Utils::OpenHandle(this)->IsPrivateSymbol();
+  return Utils::OpenDirectHandle(this)->IsPrivateSymbol();
 }
 
 bool Data::IsObjectTemplate() const {
-  return Utils::OpenHandle(this)->IsObjectTemplateInfo();
+  return Utils::OpenDirectHandle(this)->IsObjectTemplateInfo();
 }
 
 bool Data::IsFunctionTemplate() const {
-  return Utils::OpenHandle(this)->IsFunctionTemplateInfo();
+  return Utils::OpenDirectHandle(this)->IsFunctionTemplateInfo();
 }
 
-bool Data::IsContext() const { return Utils::OpenHandle(this)->IsContext(); }
+bool Data::IsContext() const {
+  return Utils::OpenDirectHandle(this)->IsContext();
+}
 
 void Context::Enter() {
   i::DisallowGarbageCollection no_gc;
-  i::NativeContext env = *Utils::OpenHandle(this);
+  i::NativeContext env = *Utils::OpenDirectHandle(this);
   i::Isolate* i_isolate = env.GetIsolate();
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   i::HandleScopeImplementer* impl = i_isolate->handle_scope_implementer();
@@ -1210,7 +1214,7 @@ void Context::Enter() {
 }
 
 void Context::Exit() {
-  i::Handle<i::NativeContext> env = Utils::OpenHandle(this);
+  i::DirectHandle<i::NativeContext> env = Utils::OpenDirectHandle(this);
   i::Isolate* i_isolate = env->GetIsolate();
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   i::HandleScopeImplementer* impl = i_isolate->handle_scope_implementer();
@@ -1227,8 +1231,8 @@ Context::BackupIncumbentScope::BackupIncumbentScope(
     : backup_incumbent_context_(backup_incumbent_context) {
   DCHECK(!backup_incumbent_context_.IsEmpty());
 
-  i::Handle<i::NativeContext> env =
-      Utils::OpenHandle(*backup_incumbent_context_);
+  i::DirectHandle<i::NativeContext> env =
+      Utils::OpenDirectHandle(*backup_incumbent_context_);
   i::Isolate* i_isolate = env->GetIsolate();
 
   js_stack_comparable_address_ =
@@ -1239,8 +1243,8 @@ Context::BackupIncumbentScope::BackupIncumbentScope(
 }
 
 Context::BackupIncumbentScope::~BackupIncumbentScope() {
-  i::Handle<i::NativeContext> env =
-      Utils::OpenHandle(*backup_incumbent_context_);
+  i::DirectHandle<i::NativeContext> env =
+      Utils::OpenDirectHandle(*backup_incumbent_context_);
   i::Isolate* i_isolate = env->GetIsolate();
 
   i::SimulatorStack::UnregisterJSStackComparableAddress(i_isolate);
@@ -1255,7 +1259,7 @@ static_assert(i::Internals::kEmbedderDataSlotExternalPointerOffset ==
 static i::Handle<i::EmbedderDataArray> EmbedderDataFor(Context* context,
                                                        int index, bool can_grow,
                                                        const char* location) {
-  i::Handle<i::NativeContext> env = Utils::OpenHandle(context);
+  i::DirectHandle<i::NativeContext> env = Utils::OpenDirectHandle(context);
   i::Isolate* i_isolate = env->GetIsolate();
   DCHECK_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   bool ok = Utils::ApiCheck(env->IsNativeContext(), location,
@@ -1276,7 +1280,7 @@ static i::Handle<i::EmbedderDataArray> EmbedderDataFor(Context* context,
 }
 
 uint32_t Context::GetNumberOfEmbedderDataFields() {
-  i::Handle<i::NativeContext> context = Utils::OpenHandle(this);
+  i::DirectHandle<i::NativeContext> context = Utils::OpenDirectHandle(this);
   DCHECK_NO_SCRIPT_NO_EXCEPTION(context->GetIsolate());
   Utils::ApiCheck(context->IsNativeContext(),
                   "Context::GetNumberOfEmbedderDataFields",
@@ -1291,7 +1295,7 @@ v8::Local<v8::Value> Context::SlowGetEmbedderData(int index) {
   i::Handle<i::EmbedderDataArray> data =
       EmbedderDataFor(this, index, false, location);
   if (data.is_null()) return Local<Value>();
-  i::Isolate* i_isolate = Utils::OpenHandle(this)->GetIsolate();
+  i::Isolate* i_isolate = Utils::OpenDirectHandle(this)->GetIsolate();
   i::Handle<i::Object> result(i::EmbedderDataSlot(*data, index).load_tagged(),
                               i_isolate);
   return Utils::ToLocal(result);
@@ -1302,15 +1306,15 @@ void Context::SetEmbedderData(int index, v8::Local<Value> value) {
   i::Handle<i::EmbedderDataArray> data =
       EmbedderDataFor(this, index, true, location);
   if (data.is_null()) return;
-  i::Handle<i::Object> val = Utils::OpenHandle(*value);
+  i::DirectHandle<i::Object> val = Utils::OpenDirectHandle(*value);
   i::EmbedderDataSlot::store_tagged(*data, index, *val);
-  DCHECK_EQ(*Utils::OpenHandle(*value),
-            *Utils::OpenHandle(*GetEmbedderData(index)));
+  DCHECK_EQ(*Utils::OpenDirectHandle(*value),
+            *Utils::OpenDirectHandle(*GetEmbedderData(index)));
 }
 
 void* Context::SlowGetAlignedPointerFromEmbedderData(int index) {
   const char* location = "v8::Context::GetAlignedPointerFromEmbedderData()";
-  i::Isolate* i_isolate = Utils::OpenHandle(this)->GetIsolate();
+  i::Isolate* i_isolate = Utils::OpenDirectHandle(this)->GetIsolate();
   i::HandleScope handle_scope(i_isolate);
   i::Handle<i::EmbedderDataArray> data =
       EmbedderDataFor(this, index, false, location);
@@ -1324,7 +1328,7 @@ void* Context::SlowGetAlignedPointerFromEmbedderData(int index) {
 
 void Context::SetAlignedPointerInEmbedderData(int index, void* value) {
   const char* location = "v8::Context::SetAlignedPointerInEmbedderData()";
-  i::Isolate* i_isolate = Utils::OpenHandle(this)->GetIsolate();
+  i::Isolate* i_isolate = Utils::OpenDirectHandle(this)->GetIsolate();
   i::Handle<i::EmbedderDataArray> data =
       EmbedderDataFor(this, index, true, location);
   bool ok =
@@ -1379,14 +1383,16 @@ void Template::SetAccessorProperty(v8::Local<v8::Name> name,
                                    v8::Local<FunctionTemplate> setter,
                                    v8::PropertyAttribute attribute,
                                    v8::AccessControl access_control) {
-  Utils::ApiCheck(
-      getter.IsEmpty() ||
-          !Utils::OpenHandle(*getter)->call_code(kAcquireLoad).IsUndefined(),
-      "v8::Template::SetAccessorProperty", "Getter must have a call handler");
-  Utils::ApiCheck(
-      setter.IsEmpty() ||
-          !Utils::OpenHandle(*setter)->call_code(kAcquireLoad).IsUndefined(),
-      "v8::Template::SetAccessorProperty", "Setter must have a call handler");
+  Utils::ApiCheck(getter.IsEmpty() || !Utils::OpenDirectHandle(*getter)
+                                           ->call_code(kAcquireLoad)
+                                           .IsUndefined(),
+                  "v8::Template::SetAccessorProperty",
+                  "Getter must have a call handler");
+  Utils::ApiCheck(setter.IsEmpty() || !Utils::OpenDirectHandle(*setter)
+                                           ->call_code(kAcquireLoad)
+                                           .IsUndefined(),
+                  "v8::Template::SetAccessorProperty",
+                  "Setter must have a call handler");
 
   // TODO(verwaest): Remove |access_control|.
   DCHECK_EQ(v8::DEFAULT, access_control);
@@ -1426,7 +1432,7 @@ Local<ObjectTemplate> ObjectTemplateNew(i::Isolate* i_isolate,
     InitializeTemplate(raw, Consts::OBJECT_TEMPLATE, do_not_cache);
     raw.set_data(0);
     if (!constructor.IsEmpty()) {
-      raw.set_constructor(*Utils::OpenHandle(*constructor));
+      raw.set_constructor(*Utils::OpenDirectHandle(*constructor));
     }
   }
   return Utils::ToLocal(obj);
@@ -1465,7 +1471,7 @@ void FunctionTemplate::SetPrototypeProviderTemplate(
 }
 
 namespace {
-static void EnsureNotPublished(i::Handle<i::FunctionTemplateInfo> info,
+static void EnsureNotPublished(i::DirectHandle<i::FunctionTemplateInfo> info,
                                const char* func) {
   DCHECK_IMPLIES(info->instantiated(), info->published());
   Utils::ApiCheck(!info->published(), func,
@@ -1496,12 +1502,12 @@ Local<FunctionTemplate> FunctionTemplateNew(
     raw.set_needs_access_check(false);
     raw.set_accept_any_receiver(true);
     if (!signature.IsEmpty()) {
-      raw.set_signature(*Utils::OpenHandle(*signature));
+      raw.set_signature(*Utils::OpenDirectHandle(*signature));
     }
     raw.set_cached_property_name(
         cached_property_name.IsEmpty()
             ? i::ReadOnlyRoots(i_isolate).the_hole_value()
-            : *Utils::OpenHandle(*cached_property_name));
+            : *Utils::OpenDirectHandle(*cached_property_name));
     if (behavior == ConstructorBehavior::kThrow) raw.set_remove_prototype(true);
     raw.SetInstanceType(instance_type);
     raw.set_allowed_receiver_instance_type_range_start(
@@ -1603,7 +1609,7 @@ Local<FunctionTemplate> FunctionTemplate::NewWithCache(
 
 Local<Signature> Signature::New(Isolate* v8_isolate,
                                 Local<FunctionTemplate> receiver) {
-  return Utils::SignatureToLocal(Utils::OpenHandle(*receiver));
+  return Local<Signature>::Cast(receiver);
 }
 
 #define SET_FIELD_WRAPPED(i_isolate, obj, setter, cdata)        \
@@ -1715,7 +1721,7 @@ Local<ObjectTemplate> FunctionTemplate::InstanceTemplate() {
 }
 
 void FunctionTemplate::SetLength(int length) {
-  auto info = Utils::OpenHandle(this);
+  auto info = Utils::OpenDirectHandle(this);
   EnsureNotPublished(info, "v8::FunctionTemplate::SetLength");
   auto i_isolate = info->GetIsolate();
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
@@ -1723,7 +1729,7 @@ void FunctionTemplate::SetLength(int length) {
 }
 
 void FunctionTemplate::SetClassName(Local<String> name) {
-  auto info = Utils::OpenHandle(this);
+  auto info = Utils::OpenDirectHandle(this);
   EnsureNotPublished(info, "v8::FunctionTemplate::SetClassName");
   auto i_isolate = info->GetIsolate();
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
@@ -1731,7 +1737,7 @@ void FunctionTemplate::SetClassName(Local<String> name) {
 }
 
 void FunctionTemplate::SetAcceptAnyReceiver(bool value) {
-  auto info = Utils::OpenHandle(this);
+  auto info = Utils::OpenDirectHandle(this);
   EnsureNotPublished(info, "v8::FunctionTemplate::SetAcceptAnyReceiver");
   auto i_isolate = info->GetIsolate();
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
@@ -1739,7 +1745,7 @@ void FunctionTemplate::SetAcceptAnyReceiver(bool value) {
 }
 
 void FunctionTemplate::ReadOnlyPrototype() {
-  auto info = Utils::OpenHandle(this);
+  auto info = Utils::OpenDirectHandle(this);
   EnsureNotPublished(info, "v8::FunctionTemplate::ReadOnlyPrototype");
   auto i_isolate = info->GetIsolate();
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
@@ -1747,7 +1753,7 @@ void FunctionTemplate::ReadOnlyPrototype() {
 }
 
 void FunctionTemplate::RemovePrototype() {
-  auto info = Utils::OpenHandle(this);
+  auto info = Utils::OpenDirectHandle(this);
   EnsureNotPublished(info, "v8::FunctionTemplate::RemovePrototype");
   auto i_isolate = info->GetIsolate();
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
@@ -1771,7 +1777,7 @@ namespace {
 // constructor is available we create one.
 i::Handle<i::FunctionTemplateInfo> EnsureConstructor(
     i::Isolate* i_isolate, ObjectTemplate* object_template) {
-  i::Object obj = Utils::OpenHandle(object_template)->constructor();
+  i::Object obj = Utils::OpenDirectHandle(object_template)->constructor();
   if (!obj.IsUndefined(i_isolate)) {
     i::FunctionTemplateInfo info = i::FunctionTemplateInfo::cast(obj);
     return i::Handle<i::FunctionTemplateInfo>(info, i_isolate);
@@ -1781,7 +1787,7 @@ i::Handle<i::FunctionTemplateInfo> EnsureConstructor(
   i::Handle<i::FunctionTemplateInfo> constructor = Utils::OpenHandle(*templ);
   i::FunctionTemplateInfo::SetInstanceTemplate(
       i_isolate, constructor, Utils::OpenHandle(object_template));
-  Utils::OpenHandle(object_template)->set_constructor(*constructor);
+  Utils::OpenDirectHandle(object_template)->set_constructor(*constructor);
   return constructor;
 }
 
@@ -1921,7 +1927,7 @@ i::Handle<i::InterceptorInfo> CreateInterceptorInfo(
   if (data.IsEmpty()) {
     data = v8::Undefined(reinterpret_cast<v8::Isolate*>(i_isolate));
   }
-  obj->set_data(*Utils::OpenHandle(*data));
+  obj->set_data(*Utils::OpenDirectHandle(*data));
   return obj;
 }
 
@@ -1978,7 +1984,7 @@ void ObjectTemplate::SetHandler(
 }
 
 void ObjectTemplate::MarkAsUndetectable() {
-  i::Isolate* i_isolate = Utils::OpenHandle(this)->GetIsolate();
+  i::Isolate* i_isolate = Utils::OpenDirectHandle(this)->GetIsolate();
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   i::HandleScope scope(i_isolate);
   auto cons = EnsureConstructor(i_isolate, this);
@@ -1988,7 +1994,7 @@ void ObjectTemplate::MarkAsUndetectable() {
 
 void ObjectTemplate::SetAccessCheckCallback(AccessCheckCallback callback,
                                             Local<Value> data) {
-  i::Isolate* i_isolate = Utils::OpenHandle(this)->GetIsolate();
+  i::Isolate* i_isolate = Utils::OpenDirectHandle(this)->GetIsolate();
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   i::HandleScope scope(i_isolate);
   auto cons = EnsureConstructor(i_isolate, this);
@@ -2006,7 +2012,7 @@ void ObjectTemplate::SetAccessCheckCallback(AccessCheckCallback callback,
   if (data.IsEmpty()) {
     data = v8::Undefined(reinterpret_cast<v8::Isolate*>(i_isolate));
   }
-  info->set_data(*Utils::OpenHandle(*data));
+  info->set_data(*Utils::OpenDirectHandle(*data));
 
   i::FunctionTemplateInfo::SetAccessCheckInfo(i_isolate, cons, info);
   cons->set_needs_access_check(true);
@@ -2017,7 +2023,7 @@ void ObjectTemplate::SetAccessCheckCallbackAndHandler(
     const NamedPropertyHandlerConfiguration& named_handler,
     const IndexedPropertyHandlerConfiguration& indexed_handler,
     Local<Value> data) {
-  i::Isolate* i_isolate = Utils::OpenHandle(this)->GetIsolate();
+  i::Isolate* i_isolate = Utils::OpenDirectHandle(this)->GetIsolate();
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   i::HandleScope scope(i_isolate);
   auto cons = EnsureConstructor(i_isolate, this);
@@ -2046,7 +2052,7 @@ void ObjectTemplate::SetAccessCheckCallbackAndHandler(
   if (data.IsEmpty()) {
     data = v8::Undefined(reinterpret_cast<v8::Isolate*>(i_isolate));
   }
-  info->set_data(*Utils::OpenHandle(*data));
+  info->set_data(*Utils::OpenDirectHandle(*data));
 
   i::FunctionTemplateInfo::SetAccessCheckInfo(i_isolate, cons, info);
   cons->set_needs_access_check(true);
@@ -2054,7 +2060,7 @@ void ObjectTemplate::SetAccessCheckCallbackAndHandler(
 
 void ObjectTemplate::SetHandler(
     const IndexedPropertyHandlerConfiguration& config) {
-  i::Isolate* i_isolate = Utils::OpenHandle(this)->GetIsolate();
+  i::Isolate* i_isolate = Utils::OpenDirectHandle(this)->GetIsolate();
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   i::HandleScope scope(i_isolate);
   auto cons = EnsureConstructor(i_isolate, this);
@@ -2068,28 +2074,28 @@ void ObjectTemplate::SetHandler(
 
 void ObjectTemplate::SetCallAsFunctionHandler(FunctionCallback callback,
                                               Local<Value> data) {
-  i::Isolate* i_isolate = Utils::OpenHandle(this)->GetIsolate();
+  i::Isolate* i_isolate = Utils::OpenDirectHandle(this)->GetIsolate();
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   i::HandleScope scope(i_isolate);
   auto cons = EnsureConstructor(i_isolate, this);
   EnsureNotPublished(cons, "v8::ObjectTemplate::SetCallAsFunctionHandler");
   i::Handle<i::CallHandlerInfo> obj =
       i_isolate->factory()->NewCallHandlerInfo();
-  obj->set_owner_template(*Utils::OpenHandle(this));
+  obj->set_owner_template(*Utils::OpenDirectHandle(this));
   obj->set_callback(i_isolate, reinterpret_cast<i::Address>(callback));
   if (data.IsEmpty()) {
     data = v8::Undefined(reinterpret_cast<v8::Isolate*>(i_isolate));
   }
-  obj->set_data(*Utils::OpenHandle(*data));
+  obj->set_data(*Utils::OpenDirectHandle(*data));
   i::FunctionTemplateInfo::SetInstanceCallHandler(i_isolate, cons, obj);
 }
 
 int ObjectTemplate::InternalFieldCount() const {
-  return Utils::OpenHandle(this)->embedder_field_count();
+  return Utils::OpenDirectHandle(this)->embedder_field_count();
 }
 
 void ObjectTemplate::SetInternalFieldCount(int value) {
-  i::Isolate* i_isolate = Utils::OpenHandle(this)->GetIsolate();
+  i::Isolate* i_isolate = Utils::OpenDirectHandle(this)->GetIsolate();
   if (!Utils::ApiCheck(i::Smi::IsValid(value),
                        "v8::ObjectTemplate::SetInternalFieldCount()",
                        "Invalid embedder field count")) {
@@ -2102,26 +2108,26 @@ void ObjectTemplate::SetInternalFieldCount(int value) {
     // function to do the setting.
     EnsureConstructor(i_isolate, this);
   }
-  Utils::OpenHandle(this)->set_embedder_field_count(value);
+  Utils::OpenDirectHandle(this)->set_embedder_field_count(value);
 }
 
 bool ObjectTemplate::IsImmutableProto() const {
-  return Utils::OpenHandle(this)->immutable_proto();
+  return Utils::OpenDirectHandle(this)->immutable_proto();
 }
 
 void ObjectTemplate::SetImmutableProto() {
-  auto self = Utils::OpenHandle(this);
+  auto self = Utils::OpenDirectHandle(this);
   i::Isolate* i_isolate = self->GetIsolate();
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   self->set_immutable_proto(true);
 }
 
 bool ObjectTemplate::IsCodeLike() const {
-  return Utils::OpenHandle(this)->code_like();
+  return Utils::OpenDirectHandle(this)->code_like();
 }
 
 void ObjectTemplate::SetCodeLike() {
-  auto self = Utils::OpenHandle(this);
+  auto self = Utils::OpenDirectHandle(this);
   i::Isolate* i_isolate = self->GetIsolate();
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   self->set_code_like(true);
