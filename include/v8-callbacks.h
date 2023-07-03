@@ -331,6 +331,10 @@ using WasmGCEnabledCallback = bool (*)(Local<Context> context);
 using SharedArrayBufferConstructorEnabledCallback =
     bool (*)(Local<Context> context);
 
+// --- Callback for checking if the compile hints magic comments are enabled ---
+using JavaScriptCompileHintsMagicEnabledCallback =
+    bool (*)(Local<Context> context);
+
 /**
  * HostImportModuleDynamicallyCallback is called when we
  * require the embedder to load a module. This is used as part of the dynamic

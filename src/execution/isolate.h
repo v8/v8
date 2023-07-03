@@ -512,6 +512,8 @@ using DebugObjectCache = std::vector<Handle<HeapObject>>;
     DefaultWasmAsyncResolvePromiseCallback)                                   \
   V(WasmLoadSourceMapCallback, wasm_load_source_map_callback, nullptr)        \
   V(WasmGCEnabledCallback, wasm_gc_enabled_callback, nullptr)                 \
+  V(JavaScriptCompileHintsMagicEnabledCallback,                               \
+    compile_hints_magic_enabled_callback, nullptr)                            \
   /* State for Relocatable. */                                                \
   V(Relocatable*, relocatable_top, nullptr)                                   \
   V(DebugObjectCache*, string_stream_debug_object_cache, nullptr)             \
@@ -769,6 +771,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   bool IsWasmGCEnabled(Handle<NativeContext> context);
   bool IsWasmStringRefEnabled(Handle<NativeContext> context);
   bool IsWasmInliningEnabled(Handle<NativeContext> context);
+
+  bool IsCompileHintsMagicEnabled(Handle<NativeContext> context);
 
   THREAD_LOCAL_TOP_ADDRESS(Context, pending_handler_context)
   THREAD_LOCAL_TOP_ADDRESS(Address, pending_handler_entrypoint)
@@ -2057,6 +2061,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   void VerifyStaticRoots();
 
+  bool allow_compile_hints_magic() const { return allow_compile_hints_magic_; }
+
  private:
   explicit Isolate(std::unique_ptr<IsolateAllocator> isolate_allocator);
   ~Isolate();
@@ -2452,6 +2458,10 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
       abort_on_uncaught_exception_callback_ = nullptr;
 
   bool allow_atomics_wait_ = true;
+
+  // Cache for the JavaScriptCompileHintsMagic origin trial.
+  // TODO(v8:13917): Remove when the origin trial is removed.
+  bool allow_compile_hints_magic_ = false;
 
   base::Mutex managed_ptr_destructors_mutex_;
   ManagedPtrDestructor* managed_ptr_destructors_head_ = nullptr;
