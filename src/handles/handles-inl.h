@@ -254,6 +254,14 @@ inline SealHandleScope::~SealHandleScope() {
 #ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
 
 template <typename T>
+bool DirectHandle<T>::is_identical_to(const DirectHandle<T> that) const {
+  SLOW_DCHECK(
+      (this->address() == kTaggedNullAddress || this->IsDereferenceAllowed()) &&
+      (that.address() == kTaggedNullAddress || that.IsDereferenceAllowed()));
+  return Object(this->address()) == Object(that.address());
+}
+
+template <typename T>
 bool DirectHandle<T>::IsDereferenceAllowed() const {
   DCHECK_NE(obj_, kTaggedNullAddress);
   Object object(obj_);

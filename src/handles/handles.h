@@ -364,6 +364,9 @@ class DirectHandle final {
       : DirectHandle(handle.location() != nullptr ? *handle.location()
                                                   : kTaggedNullAddress) {}
 
+  // Check if this handle refers to the exact same object as the other handle.
+  V8_INLINE bool is_identical_to(const DirectHandle<T> that) const;
+
   V8_INLINE Tagged<T> operator->() const { return **this; }
 
   V8_INLINE Tagged<T> operator*() const {
