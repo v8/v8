@@ -35,10 +35,17 @@
     assertTrue(map.has(innerKey));
     assertSame(innerValue, map.get(innerKey));
   })();
-  gc();
-  assertTrue(map.has(outerKey));
-  assertSame(outerValue, map.get(outerKey));
-  assertEquals(1, %GetWeakCollectionSize(map));
+
+  // We need to invoke GC asynchronously and wait for it to finish, so that
+  // it doesn't need to scan the stack. Otherwise, some objects may not be
+  // reclaimed because of conservative stack scanning and the test may not
+  // work as intended.
+  (async function () {
+    await gc({ type: 'major', execution: 'async' });
+    assertTrue(map.has(outerKey));
+    assertSame(outerValue, map.get(outerKey));
+    assertEquals(1, %GetWeakCollectionSize(map));
+  })();
 })();
 
 (function TestWeakMapWithRegisteredSymbolKey() {
@@ -81,8 +88,15 @@
     assertTrue(set.has(innerKey));
   })();
   assertTrue(set.has(outerKey));
-  gc();
-  assertEquals(1, %GetWeakCollectionSize(set));
+  // We need to invoke GC asynchronously and wait for it to finish, so that
+  // it doesn't need to scan the stack. Otherwise, some objects may not be
+  // reclaimed because of conservative stack scanning and the test may not
+  // work as intended.
+  (async function () {
+    await gc({ type: 'major', execution: 'async' });
+    assertTrue(set.has(outerKey));
+    assertEquals(1, %GetWeakCollectionSize(set));
+  })();
 })();
 
 (function TestWeakSetWithRegisteredSymbolKey() {
