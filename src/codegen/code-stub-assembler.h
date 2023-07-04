@@ -496,17 +496,15 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   PARAMETER_BINOP(IntPtrOrSmiSub, IntPtrSub, SmiSub)
 #undef PARAMETER_BINOP
 
-#define PARAMETER_BINOP(OpName, IntPtrOpName, SmiOpName)                      \
-  TNode<BoolT> OpName(TNode<Smi> a, TNode<Smi> b) { return SmiOpName(a, b); } \
-  TNode<BoolT> OpName(TNode<IntPtrT> a, TNode<IntPtrT> b) {                   \
-    return IntPtrOpName(a, b);                                                \
-  }                                                                           \
-  TNode<BoolT> OpName(TNode<UintPtrT> a, TNode<UintPtrT> b) {                 \
-    return IntPtrOpName(Signed(a), Signed(b));                                \
-  }                                                                           \
-  TNode<BoolT> OpName(TNode<RawPtrT> a, TNode<RawPtrT> b) {                   \
-    return IntPtrOpName(a, b);                                                \
-  }
+#define PARAMETER_BINOP(OpName, IntPtrOpName, SmiOpName)                       \
+  TNode<BoolT> OpName(TNode<Smi> a, TNode<Smi> b) { return SmiOpName(a, b); }  \
+  TNode<BoolT> OpName(TNode<IntPtrT> a, TNode<IntPtrT> b) {                    \
+    return IntPtrOpName(a, b);                                                 \
+  }                                                                            \
+  /* IntPtrXXX comparisons shouldn't be used with unsigned types, use          \
+   * UintPtrXXX operations explicitly instead. */                              \
+  TNode<BoolT> OpName(TNode<UintPtrT> a, TNode<UintPtrT> b) { UNREACHABLE(); } \
+  TNode<BoolT> OpName(TNode<RawPtrT> a, TNode<RawPtrT> b) { UNREACHABLE(); }
   // TODO(v8:9708): Define BInt operations once all uses are ported.
   PARAMETER_BINOP(IntPtrOrSmiEqual, WordEqual, SmiEqual)
   PARAMETER_BINOP(IntPtrOrSmiNotEqual, WordNotEqual, SmiNotEqual)
@@ -514,7 +512,26 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   PARAMETER_BINOP(IntPtrOrSmiLessThanOrEqual, IntPtrLessThanOrEqual,
                   SmiLessThanOrEqual)
   PARAMETER_BINOP(IntPtrOrSmiGreaterThan, IntPtrGreaterThan, SmiGreaterThan)
+#undef PARAMETER_BINOP
+
+#define PARAMETER_BINOP(OpName, UintPtrOpName, SmiOpName)                     \
+  TNode<BoolT> OpName(TNode<Smi> a, TNode<Smi> b) { return SmiOpName(a, b); } \
+  TNode<BoolT> OpName(TNode<IntPtrT> a, TNode<IntPtrT> b) {                   \
+    return UintPtrOpName(Unsigned(a), Unsigned(b));                           \
+  }                                                                           \
+  TNode<BoolT> OpName(TNode<UintPtrT> a, TNode<UintPtrT> b) {                 \
+    return UintPtrOpName(a, b);                                               \
+  }                                                                           \
+  TNode<BoolT> OpName(TNode<RawPtrT> a, TNode<RawPtrT> b) {                   \
+    return UintPtrOpName(a, b);                                               \
+  }
+  // TODO(v8:9708): Define BInt operations once all uses are ported.
+  PARAMETER_BINOP(UintPtrOrSmiEqual, WordEqual, SmiEqual)
+  PARAMETER_BINOP(UintPtrOrSmiNotEqual, WordNotEqual, SmiNotEqual)
   PARAMETER_BINOP(UintPtrOrSmiLessThan, UintPtrLessThan, SmiBelow)
+  PARAMETER_BINOP(UintPtrOrSmiLessThanOrEqual, UintPtrLessThanOrEqual,
+                  SmiBelowOrEqual)
+  PARAMETER_BINOP(UintPtrOrSmiGreaterThan, UintPtrGreaterThan, SmiAbove)
   PARAMETER_BINOP(UintPtrOrSmiGreaterThanOrEqual, UintPtrGreaterThanOrEqual,
                   SmiAboveOrEqual)
 #undef PARAMETER_BINOP
@@ -732,6 +749,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   SMI_COMPARISON_OP(SmiAboveOrEqual, UintPtrGreaterThanOrEqual,
                     Uint32GreaterThanOrEqual)
   SMI_COMPARISON_OP(SmiBelow, UintPtrLessThan, Uint32LessThan)
+  SMI_COMPARISON_OP(SmiBelowOrEqual, UintPtrLessThanOrEqual,
+                    Uint32LessThanOrEqual)
   SMI_COMPARISON_OP(SmiLessThan, IntPtrLessThan, Int32LessThan)
   SMI_COMPARISON_OP(SmiLessThanOrEqual, IntPtrLessThanOrEqual,
                     Int32LessThanOrEqual)
