@@ -135,6 +135,28 @@ class MemoryChunk : public BasicMemoryChunk {
   // Not safe to be called concurrently.
   void ReleaseTypedSlotSet(RememberedSetType type);
 
+  template <RememberedSetType type>
+  SlotSet* ExtractSlotSet() {
+    SlotSet* slot_set = slot_set_[type];
+    // Conditionally reset to nullptr (instead of e.g. using std::exchange) to
+    // avoid data races when transitioning from nullptr to nullptr.
+    if (slot_set) {
+      slot_set_[type] = nullptr;
+    }
+    return slot_set;
+  }
+
+  template <RememberedSetType type>
+  TypedSlotSet* ExtractTypedSlotSet() {
+    TypedSlotSet* typed_slot_set = typed_slot_set_[type];
+    // Conditionally reset to nullptr (instead of e.g. using std::exchange) to
+    // avoid data races when transitioning from nullptr to nullptr.
+    if (typed_slot_set) {
+      typed_slot_set_[type] = nullptr;
+    }
+    return typed_slot_set;
+  }
+
   int FreeListsLength();
 
   // Approximate amount of physical memory committed for this chunk.
@@ -261,6 +283,16 @@ class MemoryChunk : public BasicMemoryChunk {
       return;
     }
     slot_set_[type] = slot_set;
+  }
+
+  template <RememberedSetType type, AccessMode access_mode = AccessMode::ATOMIC>
+  void set_typed_slot_set(TypedSlotSet* typed_slot_set) {
+    if (access_mode == AccessMode::ATOMIC) {
+      base::AsAtomicPointer::Release_Store(&typed_slot_set_[type],
+                                           typed_slot_set);
+      return;
+    }
+    typed_slot_set_[type] = typed_slot_set;
   }
 
   // A single slot set for small pages (of size kPageSize) or an array of slot

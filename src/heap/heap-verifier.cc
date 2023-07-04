@@ -377,7 +377,10 @@ void HeapVerification::VerifyObject(HeapObject object) {
   VerifyOutgoingPointers(object);
 
   // Verify remembered set.
-  VerifyRememberedSetFor(object);
+  if (!heap_->incremental_marking()->IsMinorMarking()) {
+    // Minor incremental marking "steals" the remembered sets from pages.
+    VerifyRememberedSetFor(object);
+  }
 }
 
 void HeapVerification::VerifyOutgoingPointers(HeapObject object) {

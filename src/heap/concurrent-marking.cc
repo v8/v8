@@ -9,6 +9,7 @@
 #include <unordered_map>
 
 #include "include/v8config.h"
+#include "src/base/logging.h"
 #include "src/common/globals.h"
 #include "src/execution/isolate.h"
 #include "src/flags/flags.h"
@@ -21,6 +22,7 @@
 #include "src/heap/mark-compact.h"
 #include "src/heap/marking-state-inl.h"
 #include "src/heap/marking-visitor-inl.h"
+#include "src/heap/marking-visitor-utility-inl.h"
 #include "src/heap/marking-visitor.h"
 #include "src/heap/marking.h"
 #include "src/heap/memory-chunk.h"
@@ -85,7 +87,9 @@ class YoungGenerationConcurrentMarkingVisitor final
   static constexpr bool EnableConcurrentVisitation() { return true; }
 
   template <typename TSlot>
-  void RecordSlot(HeapObject object, TSlot slot, HeapObject target) {}
+  void RecordSlot(HeapObject object, TSlot slot, HeapObject target) {
+    UNREACHABLE();
+  }
 
   ConcurrentMarkingState* marking_state() { return &marking_state_; }
 
@@ -113,6 +117,17 @@ class YoungGenerationConcurrentMarkingVisitor final
     DCHECK_IMPLIES(V8_COMPRESS_POINTERS_8GB_BOOL,
                    IsAligned(by, kObjectAlignment8GbHeap));
     (*memory_chunk_data_)[chunk].live_bytes += by;
+  }
+
+  V8_INLINE bool ShortCutStrings(HeapObjectSlot slot, HeapObject* heap_object) {
+    // TODO(v8:13012): Implement string shortcutting.
+    UNREACHABLE();
+  }
+
+  template <typename TSlot>
+  bool VisitObjectViaSlotInRemeberedSet(TSlot slot) {
+    return VisitYoungObjectViaSlot<ObjectVisitationMode::kPushToWorklist,
+                                   SlotTreatmentMode::kReadOnly>(this, slot);
   }
 
  private:
@@ -471,6 +486,8 @@ void ConcurrentMarking::RunMinor(JobDelegate* delegate) {
       &task_state->local_pretenuring_feedback);
   MarkingWorklists::Local& local_marking_worklists =
       visitor.local_marking_worklists();
+  YoungGenerationRememberedSetsMarkingWorklist::Local remembered_sets(
+      heap_->minor_mark_compact_collector()->remembered_sets_marking_handler());
   double time_ms;
   size_t marked_bytes = 0;
   Isolate* isolate = heap_->isolate();
@@ -481,50 +498,52 @@ void ConcurrentMarking::RunMinor(JobDelegate* delegate) {
 
   {
     TimedScope scope(&time_ms);
-    bool done = false;
     CodePageHeaderModificationScope rwx_write_scope(
         "Marking a InstructionStream object requires write access to the "
         "Code page header");
-    while (!done) {
-      size_t current_marked_bytes = 0;
-      int objects_processed = 0;
-      while (current_marked_bytes < kBytesUntilInterruptCheck &&
-             objects_processed < kObjectsUntilInterruptCheck) {
-        HeapObject object;
-        if (!local_marking_worklists.Pop(&object)) {
-          done = true;
+    size_t current_marked_bytes = 0;
+    int objects_processed = 0;
+    while (true) {
+      HeapObject object;
+      if (!local_marking_worklists.Pop(&object)) {
+        if (!remembered_sets.ProcessNextItem(&visitor) ||
+            !local_marking_worklists.Pop(&object)) {
           break;
         }
-        objects_processed++;
+      }
+      objects_processed++;
 
-        // The order of the two loads is important.
-        Address new_space_top = heap_->new_space()->original_top_acquire();
-        Address new_space_limit = heap_->new_space()->original_limit_relaxed();
-        Address new_large_object = heap_->new_lo_space()->pending_object();
+      // The order of the two loads is important.
+      Address new_space_top = heap_->new_space()->original_top_acquire();
+      Address new_space_limit = heap_->new_space()->original_limit_relaxed();
+      Address new_large_object = heap_->new_lo_space()->pending_object();
 
-        Address addr = object.address();
+      Address addr = object.address();
 
-        if ((new_space_top <= addr && addr < new_space_limit) ||
-            addr == new_large_object) {
-          local_marking_worklists.PushOnHold(object);
-        } else {
-          Map map = object.map(isolate, kAcquireLoad);
-          const auto visited_size = visitor.Visit(map, object);
-          current_marked_bytes += visited_size;
-          if (visited_size) {
-            visitor.IncrementLiveBytesCached(
-                MemoryChunk::cast(BasicMemoryChunk::FromHeapObject(object)),
-                ALIGN_TO_ALLOCATION_ALIGNMENT(visited_size));
-          }
+      if ((new_space_top <= addr && addr < new_space_limit) ||
+          addr == new_large_object) {
+        local_marking_worklists.PushOnHold(object);
+      } else {
+        Map map = object.map(isolate);
+        const auto visited_size = visitor.Visit(map, object);
+        current_marked_bytes += visited_size;
+        if (visited_size) {
+          visitor.IncrementLiveBytesCached(
+              MemoryChunk::cast(BasicMemoryChunk::FromHeapObject(object)),
+              ALIGN_TO_ALLOCATION_ALIGNMENT(visited_size));
         }
       }
-      marked_bytes += current_marked_bytes;
-      base::AsAtomicWord::Relaxed_Store<size_t>(&task_state->marked_bytes,
-                                                marked_bytes);
-      if (delegate->ShouldYield()) {
-        TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
-                     "ConcurrentMarking::RunMinor Preempted");
-        break;
+
+      if (current_marked_bytes >= kBytesUntilInterruptCheck ||
+          objects_processed >= kObjectsUntilInterruptCheck) {
+        marked_bytes += current_marked_bytes;
+        base::AsAtomicWord::Relaxed_Store<size_t>(&task_state->marked_bytes,
+                                                  marked_bytes);
+        if (delegate->ShouldYield()) {
+          TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+                       "ConcurrentMarking::RunMinor Preempted");
+          break;
+        }
       }
     }
 

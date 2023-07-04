@@ -228,41 +228,6 @@ void IncrementalMarking::MarkRoots() {
 
     isolate()->global_handles()->IterateYoungStrongAndDependentRoots(&visitor);
     isolate()->traced_handles()->IterateYoungRoots(&visitor);
-
-    std::vector<PageMarkingItem> marking_items;
-
-    OldGenerationMemoryChunkIterator::ForAll(heap(), [&marking_items](
-                                                         MemoryChunk* chunk) {
-      if (chunk->slot_set<OLD_TO_NEW, AccessMode::NON_ATOMIC>() ||
-          chunk->slot_set<OLD_TO_NEW_BACKGROUND, AccessMode::NON_ATOMIC>()) {
-        marking_items.emplace_back(chunk,
-                                   PageMarkingItem::SlotsType::kRegularSlots);
-      }
-      if (chunk->typed_slot_set<OLD_TO_NEW, AccessMode::NON_ATOMIC>()) {
-        marking_items.emplace_back(chunk,
-                                   PageMarkingItem::SlotsType::kTypedSlots);
-      }
-    });
-
-    std::vector<std::unique_ptr<YoungGenerationMarkingTask>> tasks;
-    for (size_t i = 0; i < (v8_flags.parallel_marking
-                                ? MinorMarkCompactCollector::kMaxParallelTasks
-                                : 1);
-         ++i) {
-      tasks.emplace_back(std::make_unique<YoungGenerationMarkingTask>(
-          isolate(), heap(), minor_collector_->marking_worklists(),
-          minor_collector_->ephemeron_table_list()));
-    }
-    V8::GetCurrentPlatform()
-        ->CreateJob(v8::TaskPriority::kUserBlocking,
-                    std::make_unique<YoungGenerationMarkingJob>(
-                        isolate(), heap_, minor_collector_->marking_worklists(),
-                        std::move(marking_items),
-                        YoungMarkingJobType::kIncremental, tasks))
-        ->Join();
-    for (auto& task : tasks) {
-      task->Finalize();
-    }
   }
 }
 
@@ -364,7 +329,7 @@ void IncrementalMarking::StartMarkingMinor() {
     MarkRoots();
   }
 
-  if (v8_flags.concurrent_marking && !heap_->IsTearingDown()) {
+  if (v8_flags.concurrent_minor_mc_marking && !heap_->IsTearingDown()) {
     heap_->concurrent_marking()->ScheduleJob(
         GarbageCollector::MINOR_MARK_COMPACTOR);
   }

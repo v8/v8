@@ -14,6 +14,8 @@
 #include "src/heap/index-generator.h"
 #include "src/heap/mark-compact.h"
 #include "src/heap/marking-state-inl.h"
+#include "src/heap/marking-visitor-inl.h"
+#include "src/heap/marking-visitor-utility-inl.h"
 #include "src/heap/marking-worklist-inl.h"
 #include "src/heap/marking-worklist.h"
 #include "src/heap/objects-visiting-inl.h"
@@ -150,59 +152,16 @@ void YoungGenerationMainMarkingVisitor::VisitPointersImpl(HeapObject host,
                                                           TSlot start,
                                                           TSlot end) {
   for (TSlot slot = start; slot < end; ++slot) {
-    VisitObjectViaSlot<
-        ObjectVisitationMode::kPushToWorklist,
-        YoungGenerationMainMarkingVisitor::SlotTreatmentMode::kReadWrite>(slot);
+    VisitYoungObjectViaSlot<ObjectVisitationMode::kPushToWorklist,
+                            SlotTreatmentMode::kReadWrite>(this, slot);
   }
 }
 
-template <
-    YoungGenerationMainMarkingVisitor::ObjectVisitationMode visitation_mode,
-    YoungGenerationMainMarkingVisitor::SlotTreatmentMode slot_treatment_mode,
-    typename TSlot>
-V8_INLINE bool YoungGenerationMainMarkingVisitor::VisitObjectViaSlot(
+template <typename TSlot>
+bool YoungGenerationMainMarkingVisitor::VisitObjectViaSlotInRemeberedSet(
     TSlot slot) {
-  typename TSlot::TObject target = *slot;
-  HeapObject heap_object;
-  // Treat weak references as strong.
-  if (!target.GetHeapObject(&heap_object) ||
-      !Heap::InYoungGeneration(heap_object)) {
-    return false;
-  }
-
-  if (slot_treatment_mode == SlotTreatmentMode::kReadWrite &&
-      !ShortCutStrings(reinterpret_cast<HeapObjectSlot&>(slot), &heap_object)) {
-    return false;
-  }
-
-  if (!marking_state()->TryMark(heap_object)) return true;
-
-  // Maps won't change in the atomic pause, so the map can be read without
-  // atomics.
-  Map map = Map::cast(*heap_object.map_slot());
-  const VisitorId visitor_id = map.visitor_id();
-  // Data-only objects don't require any body descriptor visitation at all and
-  // are always visited directly.
-  if (Map::ObjectFieldsFrom(visitor_id) == ObjectFields::kDataOnly) {
-    const int visited_size = heap_object.SizeFromMap(map);
-    IncrementLiveBytesCached(
-        MemoryChunk::cast(BasicMemoryChunk::FromHeapObject(heap_object)),
-        ALIGN_TO_ALLOCATION_ALIGNMENT(visited_size));
-    return true;
-  }
-  if constexpr (visitation_mode == ObjectVisitationMode::kVisitDirectly) {
-    const int visited_size = Visit(map, heap_object);
-    if (visited_size) {
-      IncrementLiveBytesCached(
-          MemoryChunk::cast(BasicMemoryChunk::FromHeapObject(heap_object)),
-          ALIGN_TO_ALLOCATION_ALIGNMENT(visited_size));
-    }
-    return true;
-  }
-  // Default case: Visit via worklist.
-  worklists_local()->Push(heap_object);
-
-  return true;
+  return VisitYoungObjectViaSlot<ObjectVisitationMode::kVisitDirectly,
+                                 SlotTreatmentMode::kReadWrite>(this, slot);
 }
 
 V8_INLINE void YoungGenerationMainMarkingVisitor::IncrementLiveBytesCached(
@@ -220,6 +179,141 @@ V8_INLINE void YoungGenerationMainMarkingVisitor::IncrementLiveBytesCached(
     entry.first = chunk;
   }
   entry.second += by;
+}
+
+template <typename Visitor>
+bool YoungGenerationRememberedSetsMarkingWorklist::ProcessNextItem(
+    Visitor* visitor, base::Optional<size_t>& index) {
+  if (remaining_remembered_sets_marking_items_.load(
+          std::memory_order_relaxed) == 0) {
+    return false;
+  }
+  while (true) {
+    if (index && (index < remembered_sets_marking_items_.size())) {
+      auto& work_item = remembered_sets_marking_items_[*index];
+      if (work_item.TryAcquire()) {
+        remaining_remembered_sets_marking_items_.fetch_sub(
+            1, std::memory_order_relaxed);
+        work_item.Process(visitor);
+        (*index)++;
+        return true;
+      }
+    }
+    index = remembered_sets_marking_index_generator_.GetNext();
+    if (!index) return false;
+  }
+}
+
+template <typename Visitor>
+void RememberedSetsMarkingItem::Process(Visitor* visitor) {
+  CodePageHeaderModificationScope header_modification_scope(
+      "Marking modifies the remembered sets in the page header");
+  if (slots_type_ == SlotsType::kRegularSlots) {
+    MarkUntypedPointers(visitor);
+  } else {
+    MarkTypedPointers(visitor);
+  }
+}
+
+template <typename TSlot>
+void RememberedSetsMarkingItem::CheckOldToNewSlotForSharedUntyped(
+    MemoryChunk* chunk, TSlot slot) {
+  MaybeObject object = *slot;
+  HeapObject heap_object;
+  if (object.GetHeapObject(&heap_object) &&
+      heap_object.InWritableSharedSpace()) {
+    RememberedSet<OLD_TO_SHARED>::Insert<AccessMode::ATOMIC>(chunk,
+                                                             slot.address());
+  }
+}
+
+void RememberedSetsMarkingItem::CheckOldToNewSlotForSharedTyped(
+    MemoryChunk* chunk, SlotType slot_type, Address slot_address,
+    MaybeObject new_target) {
+  HeapObject heap_object;
+
+  if (new_target.GetHeapObject(&heap_object) &&
+      heap_object.InWritableSharedSpace()) {
+    const uintptr_t offset = slot_address - chunk->address();
+    DCHECK_LT(offset, static_cast<uintptr_t>(TypedSlotSet::kMaxOffset));
+    RememberedSet<OLD_TO_SHARED>::InsertTyped(chunk, slot_type,
+                                              static_cast<uint32_t>(offset));
+  }
+}
+
+template <typename Visitor>
+void RememberedSetsMarkingItem::MarkUntypedPointers(Visitor* visitor) {
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+               "RememberedSetsMarkingItem::MarkUntypedPointers");
+  const bool record_old_to_shared_slots =
+      chunk_->heap()->isolate()->has_shared_space();
+  auto callback = [this, visitor,
+                   record_old_to_shared_slots](MaybeObjectSlot slot) {
+    SlotCallbackResult result = CheckAndMarkObject(visitor, slot);
+    if (result == REMOVE_SLOT && record_old_to_shared_slots) {
+      CheckOldToNewSlotForSharedUntyped(chunk_, slot);
+    }
+    return result;
+  };
+  if (slot_set_) {
+    const auto slot_count =
+        RememberedSet<OLD_TO_NEW>::template Iterate<AccessMode::NON_ATOMIC>(
+            slot_set_, chunk_, callback, SlotSet::FREE_EMPTY_BUCKETS);
+    if (slot_count == 0) {
+      slot_set_ = nullptr;
+      SlotSet::Delete(slot_set_, chunk_->buckets());
+    }
+  }
+  if (background_slot_set_) {
+    const auto slot_count =
+        RememberedSet<OLD_TO_NEW_BACKGROUND>::template Iterate<
+            AccessMode::NON_ATOMIC>(background_slot_set_, chunk_, callback,
+                                    SlotSet::FREE_EMPTY_BUCKETS);
+    if (slot_count == 0) {
+      background_slot_set_ = nullptr;
+      SlotSet::Delete(background_slot_set_, chunk_->buckets());
+    }
+  }
+}
+
+template <typename Visitor>
+void RememberedSetsMarkingItem::MarkTypedPointers(Visitor* visitor) {
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+               "RememberedSetsMarkingItem::MarkTypedPointers");
+  const bool record_old_to_shared_slots =
+      chunk_->heap()->isolate()->has_shared_space();
+  DCHECK_NULL(background_slot_set_);
+  DCHECK_NOT_NULL(typed_slot_set_);
+  const auto slot_count = RememberedSet<OLD_TO_NEW>::IterateTyped(
+      typed_slot_set_, [this, visitor, record_old_to_shared_slots](
+                           SlotType slot_type, Address slot_address) {
+        return UpdateTypedSlotHelper::UpdateTypedSlot(
+            heap(), slot_type, slot_address,
+            [this, visitor, record_old_to_shared_slots, slot_address,
+             slot_type](FullMaybeObjectSlot slot) {
+              SlotCallbackResult result = CheckAndMarkObject(visitor, slot);
+              if (result == REMOVE_SLOT && record_old_to_shared_slots) {
+                CheckOldToNewSlotForSharedTyped(chunk_, slot_type, slot_address,
+                                                *slot);
+              }
+              return result;
+            });
+      });
+  if (slot_count == 0) {
+    slot_set_ = nullptr;
+    delete typed_slot_set_;
+  }
+}
+
+template <typename Visitor, typename TSlot>
+V8_INLINE SlotCallbackResult
+RememberedSetsMarkingItem::CheckAndMarkObject(Visitor* visitor, TSlot slot) {
+  static_assert(
+      std::is_same<TSlot, FullMaybeObjectSlot>::value ||
+          std::is_same<TSlot, MaybeObjectSlot>::value,
+      "Only FullMaybeObjectSlot and MaybeObjectSlot are expected here");
+  return visitor->VisitObjectViaSlotInRemeberedSet(slot) ? KEEP_SLOT
+                                                         : REMOVE_SLOT;
 }
 
 }  // namespace internal

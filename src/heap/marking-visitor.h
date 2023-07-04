@@ -259,10 +259,10 @@ class YoungGenerationMarkingVisitorBase
   V8_INLINE int VisitJSObjectSubclass(Map map, T object);
   V8_INLINE int VisitJSTypedArray(Map map, JSTypedArray object);
 
+  MarkingWorklists::Local* worklists_local() const { return worklists_local_; }
+
  protected:
   using NewSpaceVisitor<ConcreteVisitor>::concrete_visitor;
-
-  MarkingWorklists::Local* worklists_local() const { return worklists_local_; }
 
   PretenuringHandler* pretenuring_handler() { return pretenuring_handler_; }
 

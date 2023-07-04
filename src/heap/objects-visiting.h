@@ -182,9 +182,9 @@ class ConcurrentHeapVisitor : public HeapVisitor<ResultType, ConcreteVisitor> {
  public:
   V8_INLINE explicit ConcurrentHeapVisitor(Isolate* isolate);
 
- protected:
   V8_INLINE static constexpr bool EnableConcurrentVisitation() { return false; }
 
+ protected:
 #define VISIT_AS_LOCKED_STRING(VisitorId, TypeName) \
   V8_INLINE ResultType Visit##TypeName(Map map, TypeName object);
 

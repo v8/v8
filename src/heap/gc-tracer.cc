@@ -535,7 +535,8 @@ void GCTracer::StopFullCycleIfNeeded() {
 void GCTracer::StopYoungCycleIfNeeded() {
   DCHECK(Event::IsYoungGenerationEvent(current_.type));
   if (current_.state != Event::State::SWEEPING) return;
-  if (current_.type == Event::MINOR_MARK_COMPACTOR &&
+  if ((current_.type == Event::MINOR_MARK_COMPACTOR ||
+       current_.type == Event::INCREMENTAL_MINOR_MARK_COMPACTOR) &&
       !notified_young_sweeping_completed_)
     return;
   // Check if young cppgc was scheduled but hasn't completed yet.

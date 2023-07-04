@@ -1566,6 +1566,7 @@ filegroup(
         "src/heap/marking-state-inl.h",
         "src/heap/marking-visitor.h",
         "src/heap/marking-visitor-inl.h",
+        "src/heap/marking-visitor-utility-inl.h",
         "src/heap/marking-worklist.cc",
         "src/heap/marking-worklist.h",
         "src/heap/marking-worklist-inl.h",
