@@ -10,6 +10,7 @@
 
 #include "include/libplatform/libplatform-export.h"
 #include "include/v8-platform.h"
+#include "src/base/platform/condition-variable.h"
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/platform.h"
 #include "src/libplatform/delayed-task-queue.h"
@@ -63,10 +64,12 @@ class V8_PLATFORM_EXPORT DefaultWorkerThreadsTaskRunner
 
   bool terminated_ = false;
   base::Mutex lock_;
+  base::ConditionVariable condition_var_;
   std::vector<std::unique_ptr<WorkerThread>> thread_pool_;
   // Worker threads access this queue, so we can only destroy it after all
   // workers stopped.
   DelayedTaskQueue queue_;
+  std::queue<std::unique_ptr<Task>> task_queue_;
   TimeFunction time_function_;
 };
 
