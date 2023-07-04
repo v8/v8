@@ -403,7 +403,6 @@ class JsonParser final {
   // in which we cache chars has to be guarded by a DisallowGarbageCollection
   // scope.
   const Char* cursor_;
-  const Char* start_;
   const Char* end_;
   const Char* chars_;
 };

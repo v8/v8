@@ -338,7 +338,7 @@ JsonParser<Char>::JsonParser(Isolate* isolate, Handle<String> source)
     chars_ = SeqString::cast(*source_).GetChars(no_gc);
     chars_may_relocate_ = true;
   }
-  start_ = cursor_ = chars_ + start;
+  cursor_ = chars_ + start;
   end_ = cursor_ + length;
 }
 
@@ -441,8 +441,12 @@ void JsonParser<Char>::CalculateFileLocation(Handle<Object>& line,
   // JSON allows only \r and \n as line terminators.
   // (See https://www.json.org/json-en.html - "whitespace")
   int line_number = 1;
-  const Char* last_line_break = start_;
-  const Char* cursor = start_;
+  const Char* start =
+      chars_ + (original_source_->IsSlicedString()
+                    ? SlicedString::cast(*original_source_).offset()
+                    : 0);
+  const Char* last_line_break = start;
+  const Char* cursor = start;
   const Char* end = cursor_;  // cursor_ points to the position of the error.
   for (; cursor < end; ++cursor) {
     if (*cursor == '\r' && cursor < end - 1 && cursor[1] == '\n') {
