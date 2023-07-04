@@ -7396,7 +7396,7 @@ class HandleNoHeapWritesInterrupt
   static constexpr OpProperties kProperties =
       OpProperties::DeferredCall() | OpProperties::LazyDeopt();
 
-  void SetValueLocationConstraints();
+  void SetValueLocationConstraints() {}
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
   int MaxCallStackArgs() const { return 0; }

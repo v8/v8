@@ -885,6 +885,16 @@ inline void MaglevAssembler::CompareSmiAndJumpIf(Register r1, Smi value,
   b(cond, target);
 }
 
+inline void MaglevAssembler::CompareByteAndJumpIf(MemOperand left, int8_t right,
+                                                  Condition cond,
+                                                  Register scratch,
+                                                  Label* target,
+                                                  Label::Distance distance) {
+  LoadByte(scratch, left);
+  Cmp(scratch, right);
+  JumpIf(cond, target, distance);
+}
+
 inline void MaglevAssembler::CompareTaggedAndJumpIf(Register r1, Smi value,
                                                     Condition cond,
                                                     Label* target,

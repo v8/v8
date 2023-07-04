@@ -940,6 +940,16 @@ inline void MaglevAssembler::CompareSmiAndJumpIf(Register r1, Smi value,
   CompareTaggedAndBranch(r1, Immediate(value), cond, target);
 }
 
+inline void MaglevAssembler::CompareByteAndJumpIf(MemOperand left, int8_t right,
+                                                  Condition cond,
+                                                  Register scratch,
+                                                  Label* target,
+                                                  Label::Distance distance) {
+  LoadByte(scratch.W(), left);
+  Cmp(scratch.W(), right);
+  JumpIf(cond, target, distance);
+}
+
 inline void MaglevAssembler::CompareTaggedAndJumpIf(Register r1, Smi value,
                                                     Condition cond,
                                                     Label* target,
