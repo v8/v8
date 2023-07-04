@@ -1682,7 +1682,7 @@ class LiftoffCompiler {
 
   void GenerateCCall(const LiftoffRegister* result_regs,
                      const ValueKindSig* sig, ValueKind out_argument_kind,
-                     const LiftoffRegister* arg_regs,
+                     const LiftoffAssembler::VarState* args,
                      ExternalReference ext_ref) {
     // Before making a call, spill all cache registers.
     __ SpillAllRegisters();
@@ -1692,11 +1692,15 @@ class LiftoffCompiler {
     for (ValueKind param_kind : sig->parameters()) {
       param_bytes += value_kind_size(param_kind);
     }
+    // Check parameter types for consistency.
+    // TODO(clemensb): We currently pass the parameter kinds twice; avoid that.
+    for (size_t i = 0; i < sig->parameter_count(); ++i) {
+      DCHECK_EQ(sig->GetParam(i), args[i].kind());
+    }
     int out_arg_bytes =
         out_argument_kind == kVoid ? 0 : value_kind_size(out_argument_kind);
     int stack_bytes = std::max(param_bytes, out_arg_bytes);
-    __ CallC(sig, arg_regs, result_regs, out_argument_kind, stack_bytes,
-             ext_ref);
+    __ CallC(sig, args, result_regs, out_argument_kind, stack_bytes, ext_ref);
   }
 
   template <typename EmitFn, typename... Args>
@@ -1776,7 +1780,8 @@ class LiftoffCompiler {
       if ((asm_.*emit_fn)(dst.fp(), src.fp())) return;
       ExternalReference ext_ref = fallback_fn();
       auto sig = MakeSig::Params(kind);
-      GenerateCCall(&dst, &sig, kind, &src, ext_ref);
+      LiftoffAssembler::VarState arg{kind, src, 0};
+      GenerateCCall(&dst, &sig, kind, &arg, ext_ref);
     };
     EmitUnOp<kind, kind>(emit_with_c_fallback);
   }
@@ -1805,14 +1810,16 @@ class LiftoffCompiler {
         LiftoffRegister ret_reg =
             __ GetUnusedRegister(kGpReg, LiftoffRegList{dst});
         LiftoffRegister dst_regs[] = {ret_reg, dst};
-        GenerateCCall(dst_regs, &sig, dst_kind, &src, ext_ref);
+        LiftoffAssembler::VarState arg{src_kind, src, 0};
+        GenerateCCall(dst_regs, &sig, dst_kind, &arg, ext_ref);
         // It's okay that this is short-lived: we're trapping anyway.
         FREEZE_STATE(trapping);
         __ emit_cond_jump(kEqual, trap, kI32, ret_reg.gp(), no_reg, trapping);
       } else {
         ValueKind sig_kinds[] = {src_kind};
         ValueKindSig sig(0, 1, sig_kinds);
-        GenerateCCall(&dst, &sig, dst_kind, &src, ext_ref);
+        LiftoffAssembler::VarState arg{src_kind, src, 0};
+        GenerateCCall(&dst, &sig, dst_kind, &arg, ext_ref);
       }
     }
     __ PushRegister(dst_kind, dst);
@@ -1947,7 +1954,8 @@ class LiftoffCompiler {
             [this](LiftoffRegister dst, LiftoffRegister src) {
               if (__ emit_i32_popcnt(dst.gp(), src.gp())) return;
               auto sig = MakeSig::Returns(kI32).Params(kI32);
-              GenerateCCall(&dst, &sig, kVoid, &src,
+              LiftoffAssembler::VarState arg{kI32, src, 0};
+              GenerateCCall(&dst, &sig, kVoid, &arg,
                             ExternalReference::wasm_word32_popcnt());
             });
       case kExprI64Popcnt:
@@ -1957,7 +1965,8 @@ class LiftoffCompiler {
               // The c function returns i32. We will zero-extend later.
               auto sig = MakeSig::Returns(kI32).Params(kI64);
               LiftoffRegister c_call_dst = kNeedI64RegPair ? dst.low() : dst;
-              GenerateCCall(&c_call_dst, &sig, kVoid, &src,
+              LiftoffAssembler::VarState arg{kI64, src, 0};
+              GenerateCCall(&c_call_dst, &sig, kVoid, &arg,
                             ExternalReference::wasm_word64_popcnt());
               // Now zero-extend the result to i64.
               __ emit_type_conversion(kExprI64UConvertI32, dst, c_call_dst,
@@ -2067,10 +2076,10 @@ class LiftoffCompiler {
                            Label* trap_unrepresentable = nullptr) {
     // Cannot emit native instructions, build C call.
     LiftoffRegister ret = __ GetUnusedRegister(kGpReg, LiftoffRegList{dst});
-    LiftoffRegister arg_regs[] = {lhs, rhs};
+    LiftoffAssembler::VarState args[] = {{kI64, lhs, 0}, {kI64, rhs, 0}};
     LiftoffRegister result_regs[] = {ret, dst};
     auto sig = MakeSig::Returns(kI32).Params(kI64, kI64);
-    GenerateCCall(result_regs, &sig, kI64, arg_regs, ext_ref);
+    GenerateCCall(result_regs, &sig, kI64, args, ext_ref);
     FREEZE_STATE(trapping);
     __ emit_i32_cond_jumpi(kEqual, trap_by_zero, ret.gp(), 0, trapping);
     if (trap_unrepresentable) {
@@ -2096,7 +2105,7 @@ class LiftoffCompiler {
   void EmitCCallBinOp() {
     EmitBinOp<kind, kind>(
         [this](LiftoffRegister dst, LiftoffRegister lhs, LiftoffRegister rhs) {
-          LiftoffRegister args[] = {lhs, rhs};
+          LiftoffAssembler::VarState args[] = {{kind, lhs, 0}, {kind, rhs, 0}};
           ValueKind sig_kinds[] = {kind, kind, kind};
           const bool out_via_stack = kind == kI64;
           ValueKindSig sig(out_via_stack ? 0 : 1, 2, sig_kinds);
@@ -3944,7 +3953,8 @@ class LiftoffCompiler {
     if (!(asm_.*emit_fn)(dst, src)) {
       // Return v128 via stack for ARM.
       auto sig_v_s = MakeSig::Params(kS128);
-      GenerateCCall(&dst, &sig_v_s, kS128, &src, ext_ref());
+      LiftoffAssembler::VarState arg{kS128, src, 0};
+      GenerateCCall(&dst, &sig_v_s, kS128, &arg, ext_ref());
     }
     if (V8_UNLIKELY(nondeterminism_)) {
       LiftoffRegList pinned{dst};
@@ -5415,33 +5425,40 @@ class LiftoffCompiler {
 
   void AtomicFence(FullDecoder* decoder) { __ AtomicFence(); }
 
-  // Pop a memtype (i32 or i64) to a register, updating {*high_word} to contain
-  // the ORed combination of all popped high words. Returns the ptrsized
-  // register holding the popped value.
-  LiftoffRegister PopMemTypeToRegister(FullDecoder* decoder,
-                                       Register* high_word,
-                                       LiftoffRegList* pinned) {
-    LiftoffRegister reg = __ PopToRegister(*pinned);
-    LiftoffRegister intptr_reg = reg;
+  // Pop a VarState and if needed transform it to an intptr.
+  // When truncating from u64 to u32, the {*high_word} is updated to contain
+  // the ORed combination of all high words.
+  LiftoffAssembler::VarState PopMemTypeToVarState(Register* high_word,
+                                                  LiftoffRegList* pinned) {
     // TODO(13918): Support multiple memories.
     const WasmMemory* memory = env_->module->memories.data();
-    // For memory32 on 64-bit hosts, zero-extend.
-    if (kSystemPointerSize == kInt64Size && !memory->is_memory64) {
-      // Only overwrite {reg} if it's not used otherwise.
-      if (pinned->has(reg) || __ cache_state()->is_used(reg)) {
-        intptr_reg = __ GetUnusedRegister(kGpReg, *pinned);
-      }
-      __ emit_u32_to_uintptr(intptr_reg.gp(), reg.gp());
+
+    LiftoffAssembler::VarState slot = __ PopVarState();
+    // For memory32 on a 32-bit system or memory64 on a 64-bit system, there is
+    // nothing to do.
+    if ((kSystemPointerSize == kInt64Size) == memory->is_memory64) {
+      if (slot.is_reg()) pinned->set(slot.reg());
+      return slot;
     }
-    // For memory32 or memory64 on 64-bit, we are done here.
-    if (kSystemPointerSize == kInt64Size || !memory->is_memory64) {
+
+    // Otherwise we have to either zero-extend or truncate; pop to a register
+    // first.
+    LiftoffRegister reg = __ LoadToRegister(slot, *pinned);
+    // For memory32 on 64-bit hosts, zero-extend.
+    if (kSystemPointerSize == kInt64Size) {
+      DCHECK(!memory->is_memory64);
+      // Get a register that we can overwrite, preferably {reg}.
+      LiftoffRegister intptr_reg = __ GetUnusedRegister(kGpReg, {reg}, *pinned);
+      __ emit_u32_to_uintptr(intptr_reg.gp(), reg.gp());
       pinned->set(intptr_reg);
-      return intptr_reg;
+      return {kIntPtrKind, intptr_reg, 0};
     }
 
     // For memory64 on 32-bit systems, combine all high words for a zero-check
     // and only use the low words afterwards. This keeps the register pressure
     // managable.
+    DCHECK(memory->is_memory64);
+    DCHECK(kSystemPointerSize == kInt32Size);
     DCHECK_GE(kMaxUInt32, memory->max_memory_size);
     pinned->set(reg.low());
     if (*high_word == no_reg) {
@@ -5449,9 +5466,9 @@ class LiftoffCompiler {
       // be one of the pinned registers, and it cannot be used in the value
       // stack.
       *high_word =
-          pinned->has(reg.high())
-              ? __ GetUnusedRegister(kGpReg, *pinned).gp()
-              : __ GetUnusedRegister(kGpReg, {reg.high()}, *pinned).gp();
+          !pinned->has(reg.high()) && __ cache_state()->is_free(reg.high())
+              ? reg.high().gp()
+              : __ GetUnusedRegister(kGpReg, *pinned).gp();
       pinned->set(*high_word);
       if (*high_word != reg.high_gp()) {
         __ Move(*high_word, reg.high_gp(), kI32);
@@ -5460,17 +5477,19 @@ class LiftoffCompiler {
       // Combine the new high word into existing high words.
       __ emit_i32_or(*high_word, *high_word, reg.high_gp());
     }
-    return reg.low();
+    return {kIntPtrKind, reg.low(), 0};
   }
 
   void MemoryInit(FullDecoder* decoder, const MemoryInitImmediate& imm,
                   const Value&, const Value&, const Value&) {
     Register mem_offsets_high_word = no_reg;
     LiftoffRegList pinned;
-    LiftoffRegister size = pinned.set(__ PopToRegister(pinned));
-    LiftoffRegister src = pinned.set(__ PopToRegister(pinned));
-    LiftoffRegister dst =
-        PopMemTypeToRegister(decoder, &mem_offsets_high_word, &pinned);
+    LiftoffAssembler::VarState size = __ PopVarState();
+    if (size.is_reg()) pinned.set(size.reg());
+    LiftoffAssembler::VarState src = __ PopVarState();
+    if (src.is_reg()) pinned.set(src.reg());
+    LiftoffAssembler::VarState dst =
+        PopMemTypeToVarState(&mem_offsets_high_word, &pinned);
 
     Register instance = __ cache_state()->cached_instance;
     if (instance == no_reg) {
@@ -5491,17 +5510,17 @@ class LiftoffCompiler {
       pinned.clear(mem_offsets_high_word);
     }
 
-    LiftoffRegister segment_index =
-        pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-    __ LoadConstant(segment_index, WasmValue(imm.data_segment.index));
-
     auto sig = MakeSig::Returns(kI32).Params(kIntPtrKind, kIntPtrKind, kI32,
                                              kI32, kI32);
-    LiftoffRegister args[] = {LiftoffRegister(instance), dst, src,
-                              segment_index, size};
+    LiftoffAssembler::VarState args[] = {
+        {kIntPtrKind, LiftoffRegister{instance}, 0},
+        dst,
+        src,
+        {kI32, static_cast<int32_t>(imm.data_segment.index), 0},
+        size};
     // We don't need the instance anymore after the call. We can use the
     // register for the result.
-    LiftoffRegister result(instance);
+    LiftoffRegister result{instance};
     GenerateCCall(&result, &sig, kVoid, args,
                   ExternalReference::wasm_memory_init());
     FREEZE_STATE(trapping);
@@ -5534,12 +5553,12 @@ class LiftoffCompiler {
                   const Value&, const Value&, const Value&) {
     Register mem_offsets_high_word = no_reg;
     LiftoffRegList pinned;
-    LiftoffRegister size = pinned.set(
-        PopMemTypeToRegister(decoder, &mem_offsets_high_word, &pinned));
-    LiftoffRegister src = pinned.set(
-        PopMemTypeToRegister(decoder, &mem_offsets_high_word, &pinned));
-    LiftoffRegister dst = pinned.set(
-        PopMemTypeToRegister(decoder, &mem_offsets_high_word, &pinned));
+    LiftoffAssembler::VarState size =
+        PopMemTypeToVarState(&mem_offsets_high_word, &pinned);
+    LiftoffAssembler::VarState src =
+        PopMemTypeToVarState(&mem_offsets_high_word, &pinned);
+    LiftoffAssembler::VarState dst =
+        PopMemTypeToVarState(&mem_offsets_high_word, &pinned);
 
     Register instance = __ cache_state()->cached_instance;
     if (instance == no_reg) {
@@ -5560,7 +5579,8 @@ class LiftoffCompiler {
 
     auto sig = MakeSig::Returns(kI32).Params(kIntPtrKind, kIntPtrKind,
                                              kIntPtrKind, kIntPtrKind);
-    LiftoffRegister args[] = {LiftoffRegister(instance), dst, src, size};
+    LiftoffAssembler::VarState args[] = {
+        {kIntPtrKind, LiftoffRegister{instance}, 0}, dst, src, size};
     // We don't need the instance anymore after the call. We can use the
     // register for the result.
     LiftoffRegister result(instance);
@@ -5574,11 +5594,12 @@ class LiftoffCompiler {
                   const Value&, const Value&, const Value&) {
     Register mem_offsets_high_word = no_reg;
     LiftoffRegList pinned;
-    LiftoffRegister size = pinned.set(
-        PopMemTypeToRegister(decoder, &mem_offsets_high_word, &pinned));
-    LiftoffRegister value = pinned.set(__ PopToRegister(pinned));
-    LiftoffRegister dst = pinned.set(
-        PopMemTypeToRegister(decoder, &mem_offsets_high_word, &pinned));
+    LiftoffAssembler::VarState size =
+        PopMemTypeToVarState(&mem_offsets_high_word, &pinned);
+    LiftoffAssembler::VarState value = __ PopVarState();
+    if (value.is_reg()) pinned.set(value.reg());
+    LiftoffAssembler::VarState dst =
+        PopMemTypeToVarState(&mem_offsets_high_word, &pinned);
 
     Register instance = __ cache_state()->cached_instance;
     if (instance == no_reg) {
@@ -5599,7 +5620,8 @@ class LiftoffCompiler {
 
     auto sig = MakeSig::Returns(kI32).Params(kIntPtrKind, kIntPtrKind, kI32,
                                              kIntPtrKind);
-    LiftoffRegister args[] = {LiftoffRegister(instance), dst, value, size};
+    LiftoffAssembler::VarState args[] = {
+        {kIntPtrKind, LiftoffRegister{instance}, 0}, dst, value, size};
     // We don't need the instance anymore after the call. We can use the
     // register for the result.
     LiftoffRegister result(instance);

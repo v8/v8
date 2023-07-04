@@ -4224,19 +4224,33 @@ void LiftoffAssembler::DropStackSlotsAndRet(uint32_t num_stack_slots) {
   ret(static_cast<int>(num_stack_slots * kSystemPointerSize));
 }
 
-void LiftoffAssembler::CallC(const ValueKindSig* sig,
-                             const LiftoffRegister* args,
+void LiftoffAssembler::CallC(const ValueKindSig* sig, const VarState* args,
                              const LiftoffRegister* rets,
                              ValueKind out_argument_kind, int stack_bytes,
                              ExternalReference ext_ref) {
   AllocateStackSpace(stack_bytes);
 
-  int arg_bytes = 0;
+  int arg_offset = 0;
+  const VarState* current_arg = args;
   for (ValueKind param_kind : sig->parameters()) {
-    liftoff::StoreToStack(this, Operand(rsp, arg_bytes), *args++, param_kind);
-    arg_bytes += value_kind_size(param_kind);
+    Operand dst{rsp, arg_offset};
+    if (current_arg->is_reg()) {
+      liftoff::StoreToStack(this, dst, current_arg->reg(), param_kind);
+    } else if (current_arg->is_const()) {
+      DCHECK_EQ(kI32, param_kind);
+      movl(dst, Immediate(current_arg->i32_const()));
+    } else if (value_kind_size(current_arg->kind()) == 4) {
+      movl(kScratchRegister, liftoff::GetStackSlot(current_arg->offset()));
+      movl(dst, kScratchRegister);
+    } else {
+      DCHECK_EQ(8, value_kind_size(current_arg->kind()));
+      movq(kScratchRegister, liftoff::GetStackSlot(current_arg->offset()));
+      movq(dst, kScratchRegister);
+    }
+    arg_offset += value_kind_size(param_kind);
+    ++current_arg;
   }
-  DCHECK_LE(arg_bytes, stack_bytes);
+  DCHECK_LE(arg_offset, stack_bytes);
 
   // Pass a pointer to the buffer with the arguments to the C function.
   movq(arg_reg_1, rsp);

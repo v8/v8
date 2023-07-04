@@ -113,16 +113,16 @@ class LiftoffAssembler : public MacroAssembler {
    public:
     enum Location : uint8_t { kStack, kRegister, kIntConst };
 
-    explicit VarState(ValueKind kind, int offset)
+    VarState(ValueKind kind, int offset)
         : loc_(kStack), kind_(kind), spill_offset_(offset) {
       DCHECK_LE(0, offset);
     }
-    explicit VarState(ValueKind kind, LiftoffRegister r, int offset)
+    VarState(ValueKind kind, LiftoffRegister r, int offset)
         : loc_(kRegister), kind_(kind), reg_(r), spill_offset_(offset) {
       DCHECK_EQ(r.reg_class(), reg_class_for(kind));
       DCHECK_LE(0, offset);
     }
-    explicit VarState(ValueKind kind, int32_t i32_const, int offset)
+    VarState(ValueKind kind, int32_t i32_const, int offset)
         : loc_(kIntConst),
           kind_(kind),
           i32_const_(i32_const),
@@ -1602,7 +1602,7 @@ class LiftoffAssembler : public MacroAssembler {
   // this is the return value of the C function, stored in {rets[0]}. Further
   // outputs (specified in {sig->returns()}) are read from the buffer and stored
   // in the remaining {rets} registers.
-  inline void CallC(const ValueKindSig* sig, const LiftoffRegister* args,
+  inline void CallC(const ValueKindSig* sig, const VarState* args,
                     const LiftoffRegister* rets, ValueKind out_argument_kind,
                     int stack_bytes, ExternalReference ext_ref);
 

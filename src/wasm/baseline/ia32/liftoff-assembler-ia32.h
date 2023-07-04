@@ -4668,19 +4668,37 @@ void LiftoffAssembler::DropStackSlotsAndRet(uint32_t num_stack_slots) {
   ret(static_cast<int>(num_stack_slots * kSystemPointerSize));
 }
 
-void LiftoffAssembler::CallC(const ValueKindSig* sig,
-                             const LiftoffRegister* args,
+void LiftoffAssembler::CallC(const ValueKindSig* sig, const VarState* args,
                              const LiftoffRegister* rets,
                              ValueKind out_argument_kind, int stack_bytes,
                              ExternalReference ext_ref) {
   AllocateStackSpace(stack_bytes);
 
-  int arg_bytes = 0;
+  int arg_offset = 0;
+  const VarState* current_arg = args;
   for (ValueKind param_kind : sig->parameters()) {
-    liftoff::Store(this, esp, arg_bytes, *args++, param_kind);
-    arg_bytes += value_kind_size(param_kind);
+    if (current_arg->is_reg()) {
+      liftoff::Store(this, esp, arg_offset, current_arg->reg(), param_kind);
+    } else if (current_arg->is_const()) {
+      DCHECK_EQ(kI32, param_kind);
+      mov(Operand(esp, arg_offset), Immediate(current_arg->i32_const()));
+    } else if (value_kind_size(current_arg->kind()) == 4) {
+      // We do not have a scratch register, so move via the stack. Note that
+      // {push} decrements {esp} by 4 and {pop} increments it again, but the
+      // destionation operand uses the {esp} value after increasing.
+      push(liftoff::GetStackSlot(current_arg->offset()));
+      pop(Operand(esp, arg_offset));
+    } else {
+      DCHECK_EQ(8, value_kind_size(current_arg->kind()));
+      push(liftoff::GetStackSlot(current_arg->offset()));
+      pop(Operand(esp, arg_offset + 4));
+      push(liftoff::GetStackSlot(current_arg->offset() + 4));
+      pop(Operand(esp, arg_offset));
+    }
+    ++current_arg;
+    arg_offset += value_kind_size(param_kind);
   }
-  DCHECK_LE(arg_bytes, stack_bytes);
+  DCHECK_LE(arg_offset, stack_bytes);
 
   constexpr Register kScratch = eax;
   constexpr Register kArgumentBuffer = ecx;

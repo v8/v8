@@ -3470,8 +3470,7 @@ void LiftoffAssembler::DropStackSlotsAndRet(uint32_t num_stack_slots) {
   Ret();
 }
 
-void LiftoffAssembler::CallC(const ValueKindSig* sig,
-                             const LiftoffRegister* args,
+void LiftoffAssembler::CallC(const ValueKindSig* sig, const VarState* args,
                              const LiftoffRegister* rets,
                              ValueKind out_argument_kind, int stack_bytes,
                              ExternalReference ext_ref) {
@@ -3480,12 +3479,30 @@ void LiftoffAssembler::CallC(const ValueKindSig* sig,
   // Reserve space in the stack.
   Claim(total_size, 1);
 
-  int arg_bytes = 0;
+  int arg_offset = 0;
+  const VarState* current_arg = args;
   for (ValueKind param_kind : sig->parameters()) {
-    Poke(liftoff::GetRegFromType(*args++, param_kind), arg_bytes);
-    arg_bytes += value_kind_size(param_kind);
+    UseScratchRegisterScope temps(this);
+    CPURegister src = no_reg;
+    if (current_arg->is_reg()) {
+      src = liftoff::GetRegFromType(current_arg->reg(), param_kind);
+    } else if (current_arg->is_const()) {
+      DCHECK_EQ(kI32, param_kind);
+      if (current_arg->i32_const() == 0) {
+        src = wzr;
+      } else {
+        src = temps.AcquireW();
+        Mov(src.W(), current_arg->i32_const());
+      }
+    } else {
+      src = liftoff::AcquireByType(&temps, param_kind);
+      Ldr(src, liftoff::GetStackSlot(current_arg->offset()));
+    }
+    Poke(src, arg_offset);
+    ++current_arg;
+    arg_offset += value_kind_size(param_kind);
   }
-  DCHECK_LE(arg_bytes, stack_bytes);
+  DCHECK_LE(arg_offset, stack_bytes);
 
   // Pass a pointer to the buffer with the arguments to the C function.
   Mov(x0, sp);
