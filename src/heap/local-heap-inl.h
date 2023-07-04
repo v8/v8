@@ -13,6 +13,7 @@
 #include "src/heap/heap.h"
 #include "src/heap/local-heap.h"
 #include "src/heap/parked-scope.h"
+#include "src/heap/zapping.h"
 
 namespace v8 {
 namespace internal {
@@ -50,8 +51,9 @@ AllocationResult LocalHeap::AllocateRaw(int size_in_bytes, AllocationType type,
           code_space_allocator()->AllocateRaw(size_in_bytes, alignment, origin);
     }
     HeapObject object;
-    if (alloc.To(&object) && !V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
-      heap()->ZapCodeObject(object.address(), size_in_bytes);
+    if (heap::ShouldZapGarbage() && alloc.To(&object) &&
+        !V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
+      heap::ZapCodeBlock(object.address(), size_in_bytes);
     }
     return alloc;
   }

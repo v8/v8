@@ -90,6 +90,7 @@
 #include "src/heap/scavenger-inl.h"
 #include "src/heap/stress-scavenge-observer.h"
 #include "src/heap/sweeper.h"
+#include "src/heap/zapping.h"
 #include "src/init/bootstrapper.h"
 #include "src/init/v8.h"
 #include "src/interpreter/interpreter.h"
@@ -1390,7 +1391,7 @@ void Heap::GarbageCollectionEpilogueInSafepoint(GarbageCollector collector) {
   if (new_space() && !v8_flags.minor_mc) {
     SemiSpaceNewSpace* semi_space_new_space =
         SemiSpaceNewSpace::From(new_space());
-    if (Heap::ShouldZapGarbage() || v8_flags.clear_free_memory) {
+    if (heap::ShouldZapGarbage() || v8_flags.clear_free_memory) {
       semi_space_new_space->ZapUnusedMemory();
     }
 
@@ -4483,17 +4484,6 @@ void Heap::VerifyCommittedPhysicalMemory() {
 }
 #endif  // DEBUG
 
-void Heap::ZapCodeObject(Address start_address, int size_in_bytes) {
-#ifdef DEBUG
-  CodePageMemoryModificationScopeForDebugging code_modification_scope(
-      BasicMemoryChunk::FromAddress(start_address));
-  DCHECK(IsAligned(start_address, kIntSize));
-  for (int i = 0; i < size_in_bytes / kIntSize; i++) {
-    Memory<int>(start_address + i * kIntSize) = kCodeZapValue;
-  }
-#endif
-}
-
 void Heap::IterateWeakRoots(RootVisitor* v, base::EnumSet<SkipRoot> options) {
   DCHECK(!options.contains(SkipRoot::kWeak));
 
@@ -4816,6 +4806,53 @@ void Heap::IterateConservativeStackRoots(RootVisitor* v,
     stack().IteratePointersUntilMarker(&stack_visitor);
   }
 #endif  // V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+}
+
+// static
+size_t Heap::DefaultMinSemiSpaceSize() {
+#if ENABLE_HUGEPAGE
+  static constexpr size_t kMinSemiSpaceSize =
+      kHugePageSize * kPointerMultiplier;
+#else
+  static constexpr size_t kMinSemiSpaceSize = 512 * KB * kPointerMultiplier;
+#endif
+  static_assert(kMinSemiSpaceSize % (1 << kPageSizeBits) == 0);
+
+  return kMinSemiSpaceSize;
+}
+
+// static
+size_t Heap::DefaultMaxSemiSpaceSize() {
+#if ENABLE_HUGEPAGE
+  static constexpr size_t kMaxSemiSpaceCapacityBaseUnit =
+      kHugePageSize * 2 * kPointerMultiplier;
+#else
+  static constexpr size_t kMaxSemiSpaceCapacityBaseUnit =
+      MB * kPointerMultiplier;
+#endif
+  static_assert(kMaxSemiSpaceCapacityBaseUnit % (1 << kPageSizeBits) == 0);
+
+  size_t max_semi_space_size =
+      (v8_flags.minor_mc ? v8_flags.minor_mc_max_new_space_capacity_mb
+                         : v8_flags.scavenger_max_new_space_capacity_mb) *
+      kMaxSemiSpaceCapacityBaseUnit;
+  DCHECK_EQ(0, max_semi_space_size % (1 << kPageSizeBits));
+  return max_semi_space_size;
+}
+
+// static
+size_t Heap::OldGenerationToSemiSpaceRatio() {
+  DCHECK(!v8_flags.minor_mc);
+  static constexpr size_t kOldGenerationToSemiSpaceRatio =
+      128 * kHeapLimitMultiplier / kPointerMultiplier;
+  return kOldGenerationToSemiSpaceRatio;
+}
+
+// static
+size_t Heap::OldGenerationToSemiSpaceRatioLowMemory() {
+  static constexpr size_t kOldGenerationToSemiSpaceRatioLowMemory =
+      256 * kHeapLimitMultiplier / kPointerMultiplier;
+  return kOldGenerationToSemiSpaceRatioLowMemory / (v8_flags.minor_mc ? 2 : 1);
 }
 
 void Heap::ConfigureHeap(const v8::ResourceConstraints& constraints) {
@@ -5470,6 +5507,12 @@ class StressConcurrentAllocationObserver : public AllocationObserver {
   Heap* heap_;
 };
 
+namespace {
+
+size_t ReturnNull() { return 0; }
+
+}  // namespace
+
 void Heap::SetUpSpaces(LinearAllocationArea& new_allocation_info,
                        LinearAllocationArea& old_allocation_info) {
   // Ensure SetUpFromReadOnlySpace has been ran.
@@ -5559,8 +5602,7 @@ void Heap::SetUpSpaces(LinearAllocationArea& new_allocation_info,
     }
   }
 
-  SetGetExternallyAllocatedMemoryInBytesCallback(
-      DefaultGetExternallyAllocatedMemoryInBytesCallback);
+  SetGetExternallyAllocatedMemoryInBytesCallback(ReturnNull);
 
   if (v8_flags.stress_marking > 0) {
     stress_marking_percentage_ = NextStressMarkingLimit();

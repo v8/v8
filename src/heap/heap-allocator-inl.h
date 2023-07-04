@@ -14,6 +14,7 @@
 #include "src/heap/paged-spaces.h"
 #include "src/heap/read-only-spaces.h"
 #include "src/heap/third-party/heap-api.h"
+#include "src/heap/zapping.h"
 
 namespace v8 {
 namespace internal {
@@ -129,8 +130,9 @@ V8_WARN_UNUSED_RESULT V8_INLINE AllocationResult HeapAllocator::AllocateRaw(
   }
 
   if (allocation.To(&object)) {
-    if (AllocationType::kCode == type && !V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
-      heap_->ZapCodeObject(object.address(), size_in_bytes);
+    if (heap::ShouldZapGarbage() && AllocationType::kCode == type &&
+        !V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
+      heap::ZapCodeBlock(object.address(), size_in_bytes);
     }
 
     for (auto& tracker : heap_->allocation_trackers_) {

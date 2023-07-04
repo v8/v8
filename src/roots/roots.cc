@@ -13,6 +13,19 @@
 namespace v8 {
 namespace internal {
 
+static_assert(static_cast<int>(RootIndex::kUndefinedValue) ==
+              Internals::kUndefinedValueRootIndex);
+static_assert(static_cast<int>(RootIndex::kTheHoleValue) ==
+              Internals::kTheHoleValueRootIndex);
+static_assert(static_cast<int>(RootIndex::kNullValue) ==
+              Internals::kNullValueRootIndex);
+static_assert(static_cast<int>(RootIndex::kTrueValue) ==
+              Internals::kTrueValueRootIndex);
+static_assert(static_cast<int>(RootIndex::kFalseValue) ==
+              Internals::kFalseValueRootIndex);
+static_assert(static_cast<int>(RootIndex::kempty_string) ==
+              Internals::kEmptyStringRootIndex);
+
 const char* RootsTable::root_names_[RootsTable::kEntriesCount] = {
 #define ROOT_NAME(type, name, CamelName) #name,
     ROOT_LIST(ROOT_NAME)

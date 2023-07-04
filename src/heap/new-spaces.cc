@@ -20,6 +20,7 @@
 #include "src/heap/safepoint.h"
 #include "src/heap/spaces-inl.h"
 #include "src/heap/spaces.h"
+#include "src/heap/zapping.h"
 
 namespace v8 {
 namespace internal {
@@ -844,9 +845,9 @@ void SemiSpaceNewSpace::GarbageCollectionEpilogue() { set_age_mark(top()); }
 void SemiSpaceNewSpace::ZapUnusedMemory() {
   if (!IsFromSpaceCommitted()) return;
   for (Page* page : PageRange(from_space().first_page(), nullptr)) {
-    heap_->memory_allocator()->ZapBlock(
-        page->area_start(), page->HighWaterMark() - page->area_start(),
-        heap_->ZapValue());
+    heap::ZapBlock(page->area_start(),
+                   page->HighWaterMark() - page->area_start(),
+                   heap::ZapValue());
   }
 }
 

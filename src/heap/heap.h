@@ -313,71 +313,14 @@ class Heap final {
   static const int kTraceRingBufferSize = 512;
   static const int kStacktraceBufferSize = 512;
 
-  static const int kNoGCFlags = 0;
-  static const int kReduceMemoryFootprintMask = 1;
-  // GCs that are forced, either through testing configurations (requiring
-  // --expose-gc) or through DevTools (using LowMemoryNotification).
-  static const int kForcedGC = 2;
-
   // The minimum size of a HeapObject on the heap.
   static const int kMinObjectSizeInTaggedWords = 2;
 
-  static_assert(static_cast<int>(RootIndex::kUndefinedValue) ==
-                Internals::kUndefinedValueRootIndex);
-  static_assert(static_cast<int>(RootIndex::kTheHoleValue) ==
-                Internals::kTheHoleValueRootIndex);
-  static_assert(static_cast<int>(RootIndex::kNullValue) ==
-                Internals::kNullValueRootIndex);
-  static_assert(static_cast<int>(RootIndex::kTrueValue) ==
-                Internals::kTrueValueRootIndex);
-  static_assert(static_cast<int>(RootIndex::kFalseValue) ==
-                Internals::kFalseValueRootIndex);
-  static_assert(static_cast<int>(RootIndex::kempty_string) ==
-                Internals::kEmptyStringRootIndex);
-
-  static size_t DefaultMinSemiSpaceSize() {
-#if ENABLE_HUGEPAGE
-    static constexpr size_t kMinSemiSpaceSize =
-        kHugePageSize * kPointerMultiplier;
-#else
-    static constexpr size_t kMinSemiSpaceSize = 512 * KB * kPointerMultiplier;
-#endif
-    static_assert(kMinSemiSpaceSize % (1 << kPageSizeBits) == 0);
-
-    return kMinSemiSpaceSize;
-  }
-
-  static size_t DefaultMaxSemiSpaceSize() {
-#if ENABLE_HUGEPAGE
-    static constexpr size_t kMaxSemiSpaceCapacityBaseUnit =
-        kHugePageSize * 2 * kPointerMultiplier;
-#else
-    static constexpr size_t kMaxSemiSpaceCapacityBaseUnit =
-        MB * kPointerMultiplier;
-#endif
-    static_assert(kMaxSemiSpaceCapacityBaseUnit % (1 << kPageSizeBits) == 0);
-
-    size_t max_semi_space_size =
-        (v8_flags.minor_mc ? v8_flags.minor_mc_max_new_space_capacity_mb
-                           : v8_flags.scavenger_max_new_space_capacity_mb) *
-        kMaxSemiSpaceCapacityBaseUnit;
-    DCHECK_EQ(0, max_semi_space_size % (1 << kPageSizeBits));
-    return max_semi_space_size;
-  }
-
+  static size_t DefaultMinSemiSpaceSize();
+  V8_EXPORT_PRIVATE static size_t DefaultMaxSemiSpaceSize();
   // Young generation size is the same for compressed heaps and 32-bit heaps.
-  static size_t OldGenerationToSemiSpaceRatio() {
-    DCHECK(!v8_flags.minor_mc);
-    static constexpr size_t kOldGenerationToSemiSpaceRatio =
-        128 * kHeapLimitMultiplier / kPointerMultiplier;
-    return kOldGenerationToSemiSpaceRatio;
-  }
-  static size_t OldGenerationToSemiSpaceRatioLowMemory() {
-    static constexpr size_t kOldGenerationToSemiSpaceRatioLowMemory =
-        256 * kHeapLimitMultiplier / kPointerMultiplier;
-    return kOldGenerationToSemiSpaceRatioLowMemory /
-           (v8_flags.minor_mc ? 2 : 1);
-  }
+  static size_t OldGenerationToSemiSpaceRatio();
+  static size_t OldGenerationToSemiSpaceRatioLowMemory();
 
   // Calculates the maximum amount of filler that could be required by the
   // given alignment.
@@ -398,26 +341,9 @@ class Heap final {
   // Checks whether the space is valid.
   static bool IsValidAllocationSpace(AllocationSpace space);
 
-  // Zapping is needed for verify heap, and always done in debug builds.
-  static inline bool ShouldZapGarbage() {
-#ifdef DEBUG
-    return true;
-#else
-#ifdef VERIFY_HEAP
-    return v8_flags.verify_heap;
-#else
-    return false;
-#endif
-#endif
-  }
-
   // Helper function to get the bytecode flushing mode based on the flags. This
   // is required because it is not safe to access flags in concurrent marker.
   static inline base::EnumSet<CodeFlushMode> GetCodeFlushMode(Isolate* isolate);
-
-  static uintptr_t ZapValue() {
-    return v8_flags.clear_free_memory ? kClearedFreeMemoryValue : kZapValue;
-  }
 
   static inline bool IsYoungGenerationCollector(GarbageCollector collector) {
     return collector == GarbageCollector::SCAVENGER ||
@@ -1756,10 +1682,6 @@ class Heap final {
            AllocationType::kOld == allocation;
   }
 
-  static size_t DefaultGetExternallyAllocatedMemoryInBytesCallback() {
-    return 0;
-  }
-
 #define ROOT_ACCESSOR(type, name, CamelName) inline void set_##name(type value);
   ROOT_LIST(ROOT_ACCESSOR)
 #undef ROOT_ACCESSOR
@@ -1807,10 +1729,6 @@ class Heap final {
 
   void CreateInternalAccessorInfoObjects();
   void CreateInitialMutableObjects();
-
-  // Zaps the memory of a code object.
-  V8_EXPORT_PRIVATE void ZapCodeObject(Address start_address,
-                                       int size_in_bytes);
 
   enum class VerifyNoSlotsRecorded { kYes, kNo };
 

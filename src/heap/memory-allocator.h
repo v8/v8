@@ -243,10 +243,6 @@ class MemoryAllocator {
   }
 #endif  // DEBUG
 
-  // Zaps a contiguous block of memory [start..(start+size)[ with
-  // a given zap value.
-  void ZapBlock(Address start, size_t size, uintptr_t zap_value);
-
   // Page allocator instance for allocating non-executable pages.
   // Guaranteed to be a valid pointer.
   v8::PageAllocator* data_page_allocator() { return data_page_allocator_; }

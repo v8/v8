@@ -1631,6 +1631,8 @@ filegroup(
         "src/heap/traced-handles-marking-visitor.h",
         "src/heap/weak-object-worklists.cc",
         "src/heap/weak-object-worklists.h",
+        "src/heap/zapping.cc",
+        "src/heap/zapping.h",
         "src/ic/call-optimization.cc",
         "src/ic/call-optimization.h",
         "src/ic/handler-configuration.cc",

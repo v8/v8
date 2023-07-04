@@ -17,6 +17,7 @@
 #include "src/heap/heap.h"
 #include "src/heap/memory-chunk.h"
 #include "src/heap/read-only-spaces.h"
+#include "src/heap/zapping.h"
 #include "src/logging/log.h"
 #include "src/utils/allocation.h"
 
@@ -379,11 +380,12 @@ MemoryAllocator::AllocateUninitializedChunkAt(BaseSpace* space,
     size_executable_ += reservation.size();
   }
 
-  if (Heap::ShouldZapGarbage()) {
+  if (heap::ShouldZapGarbage()) {
     if (executable == EXECUTABLE) {
       // Page header and object area is split by guard page. Zap page header
       // first.
-      ZapBlock(base, MemoryChunkLayout::CodePageGuardStartOffset(), kZapValue);
+      heap::ZapBlock(base, MemoryChunkLayout::CodePageGuardStartOffset(),
+                     kZapValue);
       // Now zap object area.
       Address code_start =
           base + MemoryChunkLayout::ObjectPageOffsetInCodePage();
@@ -391,12 +393,12 @@ MemoryAllocator::AllocateUninitializedChunkAt(BaseSpace* space,
           isolate_->heap(), &reservation,
           base::AddressRegion(code_start,
                               RoundUp(area_size, GetCommitPageSize())));
-      ZapBlock(base + MemoryChunkLayout::ObjectPageOffsetInCodePage(),
-               area_size, kZapValue);
+      heap::ZapBlock(base + MemoryChunkLayout::ObjectPageOffsetInCodePage(),
+                     area_size, kZapValue);
     } else {
       DCHECK_EQ(executable, NOT_EXECUTABLE);
       // Zap both page header and object area at once. No guard page in-between.
-      ZapBlock(
+      heap::ZapBlock(
           base,
           MemoryChunkLayout::ObjectStartOffsetInMemoryChunk(space->identity()) +
               area_size,
@@ -660,22 +662,14 @@ MemoryAllocator::AllocateUninitializedPageFromPool(Space* space) {
   DCHECK_NE(CODE_SPACE, space->identity());
   VirtualMemory reservation(data_page_allocator(), start, size);
   if (!CommitMemory(&reservation)) return {};
-  if (Heap::ShouldZapGarbage()) {
-    ZapBlock(start, size, kZapValue);
+  if (heap::ShouldZapGarbage()) {
+    heap::ZapBlock(start, size, kZapValue);
   }
 
   size_ += size;
   return MemoryChunkAllocationResult{
       chunk, size, area_start, area_end, std::move(reservation),
   };
-}
-
-void MemoryAllocator::ZapBlock(Address start, size_t size,
-                               uintptr_t zap_value) {
-  DCHECK(IsAligned(start, kTaggedSize));
-  DCHECK(IsAligned(size, kTaggedSize));
-  MemsetTagged(ObjectSlot(start), Object(static_cast<Address>(zap_value)),
-               size >> kTaggedSizeLog2);
 }
 
 void MemoryAllocator::InitializeOncePerProcess() {

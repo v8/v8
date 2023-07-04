@@ -34,6 +34,7 @@
 #include "src/heap/pretenuring-handler.h"
 #include "src/heap/remembered-set.h"
 #include "src/heap/slot-set.h"
+#include "src/heap/zapping.h"
 #include "src/objects/hash-table.h"
 #include "src/objects/instance-type.h"
 #include "src/objects/js-array-buffer-inl.h"
@@ -336,7 +337,7 @@ int Sweeper::LocalSweeper::ParallelSweepPage(Page* page,
     page->set_concurrent_sweeping_state(
         Page::ConcurrentSweepingState::kInProgress);
     const FreeSpaceTreatmentMode free_space_treatment_mode =
-        Heap::ShouldZapGarbage() ? FreeSpaceTreatmentMode::kZapFreeSpace
+        heap::ShouldZapGarbage() ? FreeSpaceTreatmentMode::kZapFreeSpace
                                  : FreeSpaceTreatmentMode::kIgnoreFreeSpace;
     max_freed = sweeper_->RawSweep(
         page, free_space_treatment_mode, sweeping_mode,
@@ -362,7 +363,7 @@ namespace {
 class PromotedPageRecordMigratedSlotVisitor final
     : public NewSpaceVisitor<PromotedPageRecordMigratedSlotVisitor> {
  public:
-  PromotedPageRecordMigratedSlotVisitor(MemoryChunk* host_chunk)
+  explicit PromotedPageRecordMigratedSlotVisitor(MemoryChunk* host_chunk)
       : NewSpaceVisitor<PromotedPageRecordMigratedSlotVisitor>(
             host_chunk->heap()->isolate()),
         host_chunk_(host_chunk),
@@ -511,7 +512,7 @@ void Sweeper::LocalSweeper::ParallelIterateAndSweepPromotedPage(
       sweeper_->marking_state()->ClearLiveness(chunk);
     } else {
       const FreeSpaceTreatmentMode free_space_treatment_mode =
-          Heap::ShouldZapGarbage() ? FreeSpaceTreatmentMode::kZapFreeSpace
+          heap::ShouldZapGarbage() ? FreeSpaceTreatmentMode::kZapFreeSpace
                                    : FreeSpaceTreatmentMode::kIgnoreFreeSpace;
       sweeper_->RawSweep(static_cast<Page*>(chunk), free_space_treatment_mode,
                          SweepingMode::kLazyOrConcurrent,
@@ -578,7 +579,7 @@ bool ShouldUpdateRememberedSets(Heap* heap) {
     // Keep track of OLD_TO_SHARED slots
     return true;
   }
-  if (heap->ShouldZapGarbage()) {
+  if (heap::ShouldZapGarbage()) {
     return true;
   }
   return false;
@@ -1193,7 +1194,7 @@ void Sweeper::SweepEmptyNewSpacePage(Page* page) {
   Address start = page->area_start();
   size_t size = page->area_size();
 
-  if (Heap::ShouldZapGarbage()) {
+  if (heap::ShouldZapGarbage()) {
     static constexpr Tagged_t kZapTagged = static_cast<Tagged_t>(kZapValue);
     const size_t size_in_tagged = size / kTaggedSize;
     Tagged_t* current_addr = reinterpret_cast<Tagged_t*>(start);

@@ -61,6 +61,7 @@
 #include "src/heap/sweeper.h"
 #include "src/heap/traced-handles-marking-visitor.h"
 #include "src/heap/weak-object-worklists.h"
+#include "src/heap/zapping.h"
 #include "src/init/v8.h"
 #include "src/logging/tracing-flags.h"
 #include "src/objects/embedder-data-array-inl.h"
@@ -3357,7 +3358,7 @@ void MarkCompactCollector::RightTrimDescriptorArray(DescriptorArray array,
       heap()->CreateFillerObjectAt(
           aligned_start, static_cast<int>(aligned_end - aligned_start));
     }
-    if (Heap::ShouldZapGarbage()) {
+    if (heap::ShouldZapGarbage()) {
       Address zap_end = std::min(aligned_start, end);
       MemsetTagged(ObjectSlot(start), Object(static_cast<Address>(kZapValue)),
                    (zap_end - start) >> kTaggedSizeLog2);
