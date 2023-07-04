@@ -13,21 +13,9 @@ namespace v8 {
 namespace internal {
 
 template <typename ConcreteState, AccessMode access_mode>
-MarkBit MarkingStateBase<ConcreteState, access_mode>::MarkBitFrom(
-    const HeapObject obj) const {
-  return MarkBitFrom(BasicMemoryChunk::FromHeapObject(obj), obj.ptr());
-}
-
-template <typename ConcreteState, AccessMode access_mode>
-MarkBit MarkingStateBase<ConcreteState, access_mode>::MarkBitFrom(
-    const BasicMemoryChunk* p, Address addr) const {
-  return MarkBit::From(addr);
-}
-
-template <typename ConcreteState, AccessMode access_mode>
 bool MarkingStateBase<ConcreteState, access_mode>::IsMarked(
     const HeapObject obj) const {
-  return MarkBitFrom(obj).template Get<access_mode>();
+  return MarkBit::From(obj).template Get<access_mode>();
 }
 
 template <typename ConcreteState, AccessMode access_mode>
@@ -38,7 +26,7 @@ bool MarkingStateBase<ConcreteState, access_mode>::IsUnmarked(
 
 template <typename ConcreteState, AccessMode access_mode>
 bool MarkingStateBase<ConcreteState, access_mode>::TryMark(HeapObject obj) {
-  return MarkBitFrom(obj).template Set<access_mode>();
+  return MarkBit::From(obj).template Set<access_mode>();
 }
 
 template <typename ConcreteState, AccessMode access_mode>

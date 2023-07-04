@@ -85,10 +85,6 @@
 namespace v8 {
 namespace internal {
 
-// The following has to hold in order for {MarkingState::MarkBitFrom} to not
-// produce invalid {kImpossibleBitPattern} in the marking bitmap by overlapping.
-static_assert(Heap::kMinObjectSizeInTaggedWords >= 2);
-
 // =============================================================================
 // Verifiers
 // =============================================================================
@@ -4597,7 +4593,7 @@ void MarkCompactCollector::Evacuate() {
       DCHECK(p->IsFlagSet(Page::PAGE_NEW_OLD_PROMOTION));
       p->ClearFlag(Page::PAGE_NEW_OLD_PROMOTION);
       HeapObject object = p->GetObject();
-      non_atomic_marking_state()->MarkBitFrom(object).Clear();
+      MarkBit::From(object).Clear();
       p->ProgressBar().ResetIfEnabled();
       p->SetLiveBytes(0);
     }
@@ -5252,7 +5248,7 @@ void MarkCompactCollector::SweepLargeSpace(LargeObjectSpace* space) {
 
       continue;
     }
-    non_atomic_marking_state()->MarkBitFrom(object).Clear();
+    MarkBit::From(object).Clear();
     current->ProgressBar().ResetIfEnabled();
     current->SetLiveBytes(0);
     surviving_object_size += static_cast<size_t>(object.Size(cage_base));

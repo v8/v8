@@ -40,10 +40,6 @@ class MarkingStateBase {
 #endif  // V8_COMPRESS_POINTERS
   }
 
-  V8_INLINE MarkBit MarkBitFrom(const HeapObject obj) const;
-  // {addr} may be tagged or aligned.
-  V8_INLINE MarkBit MarkBitFrom(const BasicMemoryChunk* p, Address addr) const;
-
   V8_INLINE bool TryMark(HeapObject obj);
   // Helper method for fully marking an object and accounting its live bytes.
   // Should be used to mark individual objects in one-off cases.
