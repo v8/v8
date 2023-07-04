@@ -250,6 +250,7 @@ inline SealHandleScope::~SealHandleScope() {
   DCHECK_EQ(current->level, current->sealed_level);
   current->sealed_level = prev_sealed_level_;
 }
+#endif  // DEBUG
 
 #ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
 
@@ -266,6 +267,8 @@ bool DirectHandle<T>::is_identical_to(const DirectHandle<T> that) const {
     return false;
   return Object(this->address()) == Object(that.address());
 }
+
+#ifdef DEBUG
 
 template <typename T>
 bool DirectHandle<T>::IsDereferenceAllowed() const {
@@ -305,9 +308,9 @@ void DirectHandle<T>::VerifyOnStackAndMainThread() const {
   DCHECK_NULL(LocalHeap::Current());
 }
 
-#endif  // V8_ENABLE_CONSERVATIVE_STACK_SCANNING
-
 #endif  // DEBUG
+
+#endif  // V8_ENABLE_CONSERVATIVE_STACK_SCANNING
 
 }  // namespace internal
 }  // namespace v8
