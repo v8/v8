@@ -51,6 +51,7 @@ class SnapshotByteSource final {
   void Advance(int by) { position_ += by; }
 
   void CopyRaw(void* to, int number_of_bytes) {
+    DCHECK_LE(position_ + number_of_bytes, length_);
     memcpy(to, data_ + position_, number_of_bytes);
     position_ += number_of_bytes;
   }
@@ -79,10 +80,12 @@ class SnapshotByteSource final {
   }
 #endif
 
-  inline int GetInt() {
+  // Decode a uint30 with run-length encoding. Must have been encoded with
+  // PutUint30.
+  inline uint32_t GetUint30() {
     // This way of decoding variable-length encoded integers does not
     // suffer from branch mispredictions.
-    DCHECK(position_ + 3 < length_);
+    DCHECK_LT(position_ + 3, length_);
     uint32_t answer = data_[position_];
     answer |= data_[position_ + 1] << 8;
     answer |= data_[position_ + 2] << 16;
@@ -94,6 +97,12 @@ class SnapshotByteSource final {
     answer &= mask;
     answer >>= 2;
     return answer;
+  }
+
+  uint32_t GetUint32() {
+    uint32_t integer;
+    CopyRaw(reinterpret_cast<uint8_t*>(&integer), sizeof(integer));
+    return integer;
   }
 
   // Returns length.
@@ -125,7 +134,11 @@ class SnapshotByteSink {
   void Put(uint8_t b, const char* description) { data_.push_back(b); }
 
   void PutN(int number_of_bytes, const uint8_t v, const char* description);
-  void PutInt(uintptr_t integer, const char* description);
+  // Append a uint30 with run-length encoding. Must be decoded with GetUint30.
+  void PutUint30(uint32_t integer, const char* description);
+  void PutUint32(uint32_t integer, const char* description) {
+    PutRaw(reinterpret_cast<uint8_t*>(&integer), sizeof(integer), description);
+  }
   void PutRaw(const uint8_t* data, int number_of_bytes,
               const char* description);
 

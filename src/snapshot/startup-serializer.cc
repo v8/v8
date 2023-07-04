@@ -185,7 +185,7 @@ void StartupSerializer::SerializeUsingStartupObjectCache(
     SnapshotByteSink* sink, Handle<HeapObject> obj) {
   int cache_index = SerializeInObjectCache(obj);
   sink->Put(kStartupObjectCache, "StartupObjectCache");
-  sink->PutInt(cache_index, "startup_object_cache_index");
+  sink->PutUint30(cache_index, "startup_object_cache_index");
 }
 
 void StartupSerializer::CheckNoDirtyFinalizationRegistries() {

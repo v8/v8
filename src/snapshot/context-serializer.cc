@@ -287,9 +287,10 @@ bool ContextSerializer::SerializeJSObjectWithEmbedderFields(
     EmbedderDataSlot(js_obj, i).store_raw(isolate(),
                                           original_embedder_values[i], no_gc);
     embedder_fields_sink_.Put(kNewObject, "embedder field holder");
-    embedder_fields_sink_.PutInt(reference->back_ref_index(), "BackRefIndex");
-    embedder_fields_sink_.PutInt(i, "embedder field index");
-    embedder_fields_sink_.PutInt(data.raw_size, "embedder fields data size");
+    embedder_fields_sink_.PutUint30(reference->back_ref_index(),
+                                    "BackRefIndex");
+    embedder_fields_sink_.PutUint30(i, "embedder field index");
+    embedder_fields_sink_.PutUint30(data.raw_size, "embedder fields data size");
     embedder_fields_sink_.PutRaw(reinterpret_cast<const uint8_t*>(data.data),
                                  data.raw_size, "embedder fields data");
     delete[] data.data;

@@ -66,8 +66,8 @@ void ContextDeserializer::DeserializeEmbedderFields(
        code = source()->Get()) {
     HandleScope scope(isolate());
     Handle<JSObject> obj = Handle<JSObject>::cast(GetBackReferencedObject());
-    int index = source()->GetInt();
-    int size = source()->GetInt();
+    int index = source()->GetUint30();
+    int size = source()->GetUint30();
     // TODO(yangguo,jgruber): Turn this into a reusable shared buffer.
     uint8_t* data = new uint8_t[size];
     source()->CopyRaw(data, size);

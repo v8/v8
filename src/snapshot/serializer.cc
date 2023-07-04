@@ -285,7 +285,7 @@ void Serializer::PutRoot(RootIndex root) {
     sink_.Put(RootArrayConstant::Encode(root), "RootConstant");
   } else {
     sink_.Put(kRootArray, "RootSerialization");
-    sink_.PutInt(root_index, "root_index");
+    sink_.PutUint30(root_index, "root_index");
     hot_objects_.Add(object);
   }
 }
@@ -309,14 +309,14 @@ void Serializer::PutSmiRoot(FullObjectSlot slot) {
 void Serializer::PutBackReference(HeapObject object,
                                   SerializerReference reference) {
   DCHECK_EQ(object, *back_refs_[reference.back_ref_index()]);
-  sink_.PutInt(reference.back_ref_index(), "BackRefIndex");
+  sink_.PutUint30(reference.back_ref_index(), "BackRefIndex");
   hot_objects_.Add(object);
 }
 
 void Serializer::PutAttachedReference(SerializerReference reference) {
   DCHECK(reference.is_attached_reference());
   sink_.Put(kAttachedReference, "AttachedRef");
-  sink_.PutInt(reference.attached_reference_index(), "AttachedRefIndex");
+  sink_.PutUint30(reference.attached_reference_index(), "AttachedRefIndex");
 }
 
 void Serializer::PutRepeat(int repeat_count) {
@@ -324,7 +324,7 @@ void Serializer::PutRepeat(int repeat_count) {
     sink_.Put(FixedRepeatWithCount::Encode(repeat_count), "FixedRepeat");
   } else {
     sink_.Put(kVariableRepeat, "VariableRepeat");
-    sink_.PutInt(VariableRepeatCount::Encode(repeat_count), "repeat count");
+    sink_.PutUint30(VariableRepeatCount::Encode(repeat_count), "repeat count");
   }
 }
 
@@ -345,7 +345,7 @@ void Serializer::PutPendingForwardReference(PendingObjectReferences& refs) {
 
 void Serializer::ResolvePendingForwardReference(int forward_reference_id) {
   sink_.Put(kResolvePendingForwardRef, "ResolvePendingForwardRef");
-  sink_.PutInt(forward_reference_id, "with this index");
+  sink_.PutUint30(forward_reference_id, "with this index");
   unresolved_forward_refs_--;
 
   // If there are no more unresolved forward refs, reset the forward ref id to
@@ -458,7 +458,7 @@ void Serializer::ObjectSerializer::SerializePrologue(SnapshotSpace space,
     sink_->Put(NewObject::Encode(space), "NewObject");
 
     // TODO(leszeks): Skip this when the map has a fixed size.
-    sink_->PutInt(size >> kObjectAlignmentBits, "ObjectSizeInWords");
+    sink_->PutUint30(size >> kObjectAlignmentBits, "ObjectSizeInWords");
 
     // Until the space for the object is allocated, it is considered "pending".
     serializer_->RegisterObjectIsPending(*object_);
@@ -516,7 +516,8 @@ void Serializer::ObjectSerializer::SerializePrologue(SnapshotSpace space,
 }
 
 uint32_t Serializer::ObjectSerializer::SerializeBackingStore(
-    void* backing_store, int32_t byte_length, Maybe<int32_t> max_byte_length) {
+    void* backing_store, uint32_t byte_length,
+    Maybe<uint32_t> max_byte_length) {
   DisallowGarbageCollection no_gc;
   const SerializerReference* reference_ptr =
       serializer_->reference_map()->LookupBackingStore(backing_store);
@@ -531,9 +532,9 @@ uint32_t Serializer::ObjectSerializer::SerializeBackingStore(
   } else {
     sink_->Put(kOffHeapBackingStore, "Off-heap backing store");
   }
-  sink_->PutInt(byte_length, "length");
+  sink_->PutUint32(byte_length, "length");
   if (max_byte_length.IsJust()) {
-    sink_->PutInt(max_byte_length.FromJust(), "max length");
+    sink_->PutUint32(max_byte_length.FromJust(), "max length");
   }
   sink_->PutRaw(static_cast<uint8_t*>(backing_store), byte_length,
                 "BackingStore");
@@ -556,17 +557,18 @@ void Serializer::ObjectSerializer::SerializeJSTypedArray() {
       if (!typed_array.IsDetachedOrOutOfBounds()) {
         // Explicitly serialize the backing store now.
         JSArrayBuffer buffer = JSArrayBuffer::cast(typed_array.buffer());
-        // We cannot store byte_length or max_byte_length larger than int32
+        // We cannot store byte_length or max_byte_length larger than uint32
         // range in the snapshot.
         size_t byte_length_size = buffer.GetByteLength();
-        CHECK_LE(byte_length_size, size_t{std::numeric_limits<int32_t>::max()});
-        int32_t byte_length = static_cast<int32_t>(byte_length_size);
-        Maybe<int32_t> max_byte_length = Nothing<int32_t>();
+        CHECK_LE(byte_length_size,
+                 size_t{std::numeric_limits<uint32_t>::max()});
+        uint32_t byte_length = static_cast<uint32_t>(byte_length_size);
+        Maybe<uint32_t> max_byte_length = Nothing<uint32_t>();
         if (buffer.is_resizable_by_js()) {
           CHECK_LE(buffer.max_byte_length(),
-                   std::numeric_limits<int32_t>::max());
+                   std::numeric_limits<uint32_t>::max());
           max_byte_length =
-              Just(static_cast<int32_t>(buffer.max_byte_length()));
+              Just(static_cast<uint32_t>(buffer.max_byte_length()));
         }
         size_t byte_offset = typed_array.byte_offset();
 
@@ -593,14 +595,14 @@ void Serializer::ObjectSerializer::SerializeJSArrayBuffer() {
     DisallowGarbageCollection no_gc;
     JSArrayBuffer buffer = JSArrayBuffer::cast(*object_);
     backing_store = buffer.backing_store();
-    // We cannot store byte_length or max_byte_length larger than int32 range in
-    // the snapshot.
-    CHECK_LE(buffer.byte_length(), std::numeric_limits<int32_t>::max());
-    int32_t byte_length = static_cast<int32_t>(buffer.byte_length());
-    Maybe<int32_t> max_byte_length = Nothing<int32_t>();
+    // We cannot store byte_length or max_byte_length larger than uint32 range
+    // in the snapshot.
+    CHECK_LE(buffer.byte_length(), std::numeric_limits<uint32_t>::max());
+    uint32_t byte_length = static_cast<uint32_t>(buffer.byte_length());
+    Maybe<uint32_t> max_byte_length = Nothing<uint32_t>();
     if (buffer.is_resizable_by_js()) {
-      CHECK_LE(buffer.max_byte_length(), std::numeric_limits<int32_t>::max());
-      max_byte_length = Just(static_cast<int32_t>(buffer.max_byte_length()));
+      CHECK_LE(buffer.max_byte_length(), std::numeric_limits<uint32_t>::max());
+      max_byte_length = Just(static_cast<uint32_t>(buffer.max_byte_length()));
     }
     extension = buffer.extension();
 
@@ -690,7 +692,7 @@ void Serializer::ObjectSerializer::SerializeExternalStringAsSequentialString() {
 
   // Output raw data header. Do not bother with common raw length cases here.
   sink_->Put(kVariableRawData, "RawDataForString");
-  sink_->PutInt(slots_to_output, "length");
+  sink_->PutUint30(slots_to_output, "length");
 
   // Serialize string header (except for map).
   uint8_t* string_start = reinterpret_cast<uint8_t*>(string->address());
@@ -1054,18 +1056,18 @@ void Serializer::ObjectSerializer::OutputExternalReference(
     } else {
       sink_->Put(kApiReference, "ApiRef");
     }
-    sink_->PutInt(encoded_reference.index(), "reference index");
+    sink_->PutUint30(encoded_reference.index(), "reference index");
   } else {
     if (sandboxify) {
       sink_->Put(kSandboxedExternalReference, "SandboxedExternalRef");
     } else {
       sink_->Put(kExternalReference, "ExternalRef");
     }
-    sink_->PutInt(encoded_reference.index(), "reference index");
+    sink_->PutUint30(encoded_reference.index(), "reference index");
   }
   if (sandboxify) {
-    sink_->PutInt(static_cast<uint32_t>(tag >> kExternalPointerTagShift),
-                  "external pointer tag");
+    sink_->PutUint30(static_cast<uint32_t>(tag >> kExternalPointerTagShift),
+                     "external pointer tag");
   }
 }
 
@@ -1148,7 +1150,7 @@ void Serializer::ObjectSerializer::OutputRawData(Address up_to) {
                  "FixedRawData");
     } else {
       sink_->Put(kVariableRawData, "VariableRawData");
-      sink_->PutInt(tagged_to_output, "length");
+      sink_->PutUint30(tagged_to_output, "length");
     }
 #ifdef MEMORY_SANITIZER
     // Check that we do not serialize uninitialized memory.
@@ -1241,8 +1243,8 @@ bool Serializer::SerializeReadOnlyObjectReference(HeapObject obj,
   }
   uint32_t chunk_offset = static_cast<uint32_t>(chunk->Offset(address));
   sink->Put(kReadOnlyHeapRef, "ReadOnlyHeapRef");
-  sink->PutInt(chunk_index, "ReadOnlyHeapRefChunkIndex");
-  sink->PutInt(chunk_offset, "ReadOnlyHeapRefChunkOffset");
+  sink->PutUint30(chunk_index, "ReadOnlyHeapRefChunkIndex");
+  sink->PutUint30(chunk_offset, "ReadOnlyHeapRefChunkOffset");
   return true;
 }
 

@@ -225,8 +225,8 @@ class ReadOnlyHeapImageSerializer {
     sink_->Put(Bytecode::kPage, "page begin");
     if (V8_STATIC_ROOTS_BOOL) {
       auto page_addr = reinterpret_cast<Address>(page);
-      sink_->PutInt(V8HeapCompressionScheme::CompressAny(page_addr),
-                    "page start offset");
+      sink_->PutUint32(V8HeapCompressionScheme::CompressAny(page_addr),
+                       "page start offset");
     }
 
     Address pos = page->area_start();
@@ -258,8 +258,10 @@ class ReadOnlyHeapImageSerializer {
 
   void WriteSegment(const ReadOnlySegmentForSerialization* segment) {
     sink_->Put(Bytecode::kSegment, "segment begin");
-    sink_->PutInt(segment->segment_offset, "segment start offset");
-    sink_->PutInt(segment->segment_size, "segment byte size");
+    sink_->PutUint30(static_cast<uint32_t>(segment->segment_offset),
+                     "segment start offset");
+    sink_->PutUint30(static_cast<uint32_t>(segment->segment_size),
+                     "segment byte size");
     sink_->PutRaw(segment->contents.get(),
                   static_cast<int>(segment->segment_size), "page");
     if (!V8_STATIC_ROOTS_BOOL) {
@@ -278,7 +280,7 @@ class ReadOnlyHeapImageSerializer {
         RootIndex rudi = static_cast<RootIndex>(i);
         HeapObject rudolf = HeapObject::cast(roots.object_at(rudi));
         ro::EncodedTagged_t encoded = Encode(isolate_, rudolf);
-        sink_->PutInt(encoded.ToUint32(), "read only roots entry");
+        sink_->PutUint32(encoded.ToUint32(), "read only roots entry");
       }
     }
   }

@@ -102,7 +102,7 @@ bool SharedHeapSerializer::SerializeUsingSharedHeapObjectCache(
   }
 
   sink->Put(kSharedHeapObjectCache, "SharedHeapObjectCache");
-  sink->PutInt(cache_index, "shared_heap_object_cache_index");
+  sink->PutUint30(cache_index, "shared_heap_object_cache_index");
   return true;
 }
 
@@ -118,8 +118,8 @@ void SharedHeapSerializer::SerializeStringTable(StringTable* string_table) {
   // Notably, the hashmap structure, including empty and deleted elements, is
   // not serialized.
 
-  sink_.PutInt(string_table->NumberOfElements(),
-               "String table number of elements");
+  sink_.PutUint30(string_table->NumberOfElements(),
+                  "String table number of elements");
 
   // Custom RootVisitor which walks the string table, but only serializes the
   // string entries. This is an inline class to be able to access the non-public

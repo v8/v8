@@ -549,7 +549,7 @@ HeapObjectReferenceType Deserializer<IsolateT>::GetAndResetNextReferenceType() {
 
 template <typename IsolateT>
 Handle<HeapObject> Deserializer<IsolateT>::GetBackReferencedObject() {
-  Handle<HeapObject> obj = back_refs_[source_.GetInt()];
+  Handle<HeapObject> obj = back_refs_[source_.GetUint30()];
 
   // We don't allow ThinStrings in backreferences -- if internalization produces
   // a thin string, then it should also update the backref handle.
@@ -584,7 +584,7 @@ AllocationType SpaceToAllocation(SnapshotSpace space) {
 
 template <typename IsolateT>
 Handle<HeapObject> Deserializer<IsolateT>::ReadObject(SnapshotSpace space) {
-  const int size_in_tagged = source_.GetInt();
+  const int size_in_tagged = source_.GetUint30();
   const int size_in_bytes = size_in_tagged * kTaggedSize;
 
   // The map can't be a forward ref. If you want the map to be a forward ref,
@@ -892,8 +892,8 @@ template <typename IsolateT>
 template <typename SlotAccessor>
 int Deserializer<IsolateT>::ReadReadOnlyHeapRef(uint8_t data,
                                                 SlotAccessor slot_accessor) {
-  uint32_t chunk_index = source_.GetInt();
-  uint32_t chunk_offset = source_.GetInt();
+  uint32_t chunk_index = source_.GetUint30();
+  uint32_t chunk_offset = source_.GetUint30();
 
   ReadOnlySpace* read_only_space = isolate()->heap()->read_only_space();
   ReadOnlyPage* page = read_only_space->pages()[chunk_index];
@@ -909,7 +909,7 @@ template <typename IsolateT>
 template <typename SlotAccessor>
 int Deserializer<IsolateT>::ReadRootArray(uint8_t data,
                                           SlotAccessor slot_accessor) {
-  int id = source_.GetInt();
+  int id = source_.GetUint30();
   RootIndex root_index = static_cast<RootIndex>(id);
   Handle<HeapObject> heap_object =
       Handle<HeapObject>::cast(isolate()->root_handle(root_index));
@@ -923,7 +923,7 @@ template <typename IsolateT>
 template <typename SlotAccessor>
 int Deserializer<IsolateT>::ReadStartupObjectCache(uint8_t data,
                                                    SlotAccessor slot_accessor) {
-  int cache_index = source_.GetInt();
+  int cache_index = source_.GetUint30();
   // TODO(leszeks): Could we use the address of the startup_object_cache
   // entry as a Handle backing?
   HeapObject heap_object = HeapObject::cast(
@@ -937,7 +937,7 @@ template <typename IsolateT>
 template <typename SlotAccessor>
 int Deserializer<IsolateT>::ReadSharedHeapObjectCache(
     uint8_t data, SlotAccessor slot_accessor) {
-  int cache_index = source_.GetInt();
+  int cache_index = source_.GetUint30();
   // TODO(leszeks): Could we use the address of the
   // shared_heap_object_cache entry as a Handle backing?
   HeapObject heap_object = HeapObject::cast(
@@ -993,7 +993,7 @@ template <typename IsolateT>
 template <typename SlotAccessor>
 int Deserializer<IsolateT>::ReadAttachedReference(uint8_t data,
                                                   SlotAccessor slot_accessor) {
-  int index = source_.GetInt();
+  int index = source_.GetUint30();
   Handle<HeapObject> heap_object = attached_objects_[index];
   return slot_accessor.Write(heap_object, GetAndResetNextReferenceType());
 }
@@ -1018,7 +1018,7 @@ int Deserializer<IsolateT>::ReadResolvePendingForwardRef(
   // the map field.
   DCHECK_EQ(slot_accessor.offset(), HeapObject::kHeaderSize);
   Handle<HeapObject> obj = slot_accessor.object();
-  int index = source_.GetInt();
+  int index = source_.GetUint30();
   auto& forward_ref = unresolved_forward_refs_[index];
   SlotAccessorForHeapObject::ForSlotOffset(forward_ref.object,
                                            forward_ref.offset)
@@ -1043,7 +1043,7 @@ int Deserializer<IsolateT>::ReadVariableRawData(uint8_t data,
   // This operation is only supported for tagged-size slots, else we might
   // become misaligned.
   DCHECK_EQ(decltype(slot_accessor.slot())::kSlotDataSize, kTaggedSize);
-  int size_in_tagged = source_.GetInt();
+  int size_in_tagged = source_.GetUint30();
   // TODO(leszeks): Only copy slots when there are Smis in the serialized
   // data.
   source_.CopySlots(slot_accessor.slot().location(), size_in_tagged);
@@ -1054,7 +1054,7 @@ template <typename IsolateT>
 template <typename SlotAccessor>
 int Deserializer<IsolateT>::ReadVariableRepeat(uint8_t data,
                                                SlotAccessor slot_accessor) {
-  int repeats = VariableRepeatCount::Decode(source_.GetInt());
+  int repeats = VariableRepeatCount::Decode(source_.GetUint30());
   return ReadRepeatedObject(slot_accessor, repeats);
 }
 
@@ -1062,14 +1062,14 @@ template <typename IsolateT>
 template <typename SlotAccessor>
 int Deserializer<IsolateT>::ReadOffHeapBackingStore(
     uint8_t data, SlotAccessor slot_accessor) {
-  int byte_length = source_.GetInt();
+  int byte_length = source_.GetUint32();
   std::unique_ptr<BackingStore> backing_store;
   if (data == kOffHeapBackingStore) {
     backing_store = BackingStore::Allocate(main_thread_isolate(), byte_length,
                                            SharedFlag::kNotShared,
                                            InitializedFlag::kUninitialized);
   } else {
-    int max_byte_length = source_.GetInt();
+    int max_byte_length = source_.GetUint32();
     size_t page_size, initial_pages, max_pages;
     Maybe<bool> result =
         JSArrayBuffer::GetResizableBackingStorePageConfiguration(
@@ -1093,7 +1093,7 @@ template <typename SlotAccessor>
 int Deserializer<IsolateT>::ReadApiReference(uint8_t data,
                                              SlotAccessor slot_accessor) {
   DCHECK_IMPLIES(data == kSandboxedApiReference, V8_ENABLE_SANDBOX_BOOL);
-  uint32_t reference_id = static_cast<uint32_t>(source_.GetInt());
+  uint32_t reference_id = static_cast<uint32_t>(source_.GetUint30());
   Address address;
   if (main_thread_isolate()->api_external_references()) {
     DCHECK_WITH_MSG(reference_id < num_api_references_,
@@ -1196,14 +1196,14 @@ int Deserializer<IsolateT>::ReadFixedRepeat(uint8_t data,
 
 template <typename IsolateT>
 Address Deserializer<IsolateT>::ReadExternalReferenceCase() {
-  uint32_t reference_id = static_cast<uint32_t>(source_.GetInt());
+  uint32_t reference_id = static_cast<uint32_t>(source_.GetUint30());
   return main_thread_isolate()->external_reference_table()->address(
       reference_id);
 }
 
 template <typename IsolateT>
 ExternalPointerTag Deserializer<IsolateT>::ReadExternalPointerTag() {
-  uint64_t shifted_tag = static_cast<uint64_t>(source_.GetInt());
+  uint64_t shifted_tag = static_cast<uint64_t>(source_.GetUint30());
   return static_cast<ExternalPointerTag>(shifted_tag
                                          << kExternalPointerTagShift);
 }
