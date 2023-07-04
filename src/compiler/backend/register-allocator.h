@@ -515,6 +515,12 @@ class V8_EXPORT_PRIVATE UsePosition final
   }
   static UsePositionHintType HintTypeForOperand(const InstructionOperand& op);
 
+  struct Ordering {
+    bool operator()(const UsePosition* left, const UsePosition* right) const {
+      return left->pos() < right->pos();
+    }
+  };
+
  private:
   using TypeField = base::BitField<UsePositionType, 0, 2>;
   using HintTypeField = base::BitField<UsePositionHintType, 2, 3>;
@@ -777,6 +783,8 @@ class DoubleEndedSplitVector {
   T* storage_end_ = nullptr;
 };
 
+using UsePositionVector = DoubleEndedSplitVector<UsePosition*>;
+
 // Representation of SSA values' live ranges as a collection of (continuous)
 // intervals over the instruction ordering.
 class V8_EXPORT_PRIVATE LiveRange : public NON_EXPORTED_BASE(ZoneObject) {
@@ -945,19 +953,24 @@ class V8_EXPORT_PRIVATE LiveRange : public NON_EXPORTED_BASE(ZoneObject) {
   // Unique among children of the same virtual register.
   int relative_id_;
   uint32_t bits_;
+
   UseInterval* last_interval_;
   UseInterval* first_interval_;
   // This is a view into the `positions_` owned by the `TopLevelLiveRange`.
   // This allows cheap splitting and merging of `LiveRange`s.
   base::Vector<UsePosition*> positions_span_;
+
   TopLevelLiveRange* top_level_;
   LiveRange* next_;
+
   // This is used as a cache, it doesn't affect correctness.
   mutable UseInterval* current_interval_;
   // This is used as a cache in `BuildLiveRanges` and during register
   // allocation.
   size_t current_hint_position_index_ = 0;
+
   LiveRangeBundle* bundle_ = nullptr;
+
   // Next interval start, relative to the current linear scan position.
   LifetimePosition next_start_;
 
@@ -1105,7 +1118,7 @@ class V8_EXPORT_PRIVATE TopLevelLiveRange final : public LiveRange {
                       bool trace_alloc);
   void AddUseInterval(LifetimePosition start, LifetimePosition end, Zone* zone,
                       bool trace_alloc);
-  void AddUsePosition(UsePosition* pos, bool trace_alloc);
+  void AddUsePosition(UsePosition* pos, Zone* zone, bool trace_alloc);
 
   // Shorten the most recently added interval by setting a new start.
   void ShortenTo(LifetimePosition start, bool trace_alloc);
@@ -1309,6 +1322,8 @@ class V8_EXPORT_PRIVATE TopLevelLiveRange final : public LiveRange {
     SparseBitVector* list_of_blocks_requiring_spill_operands_;
   };
 
+  UsePositionVector positions_;
+
   // TODO(mtrofin): generalize spilling after definition, currently specialized
   // just for spill in a single deferred block.
   bool spilled_in_deferred_blocks_;
@@ -1316,8 +1331,6 @@ class V8_EXPORT_PRIVATE TopLevelLiveRange final : public LiveRange {
 
   int spill_start_index_;
   LiveRange* last_child_covers_;
-
-  ZoneVector<UsePosition*> positions_;
 };
 
 struct PrintableLiveRange {

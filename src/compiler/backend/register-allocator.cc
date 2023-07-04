@@ -292,13 +292,8 @@ LiveRange::LiveRange(int relative_id, MachineRepresentation rep,
 
 #ifdef DEBUG
 void LiveRange::VerifyPositions() const {
-  bool positions_are_sorted =
-      std::is_sorted(positions_span_.begin(), positions_span_.end(),
-                     [](const UsePosition* pos1, const UsePosition* pos2) {
-                       return pos1->pos() < pos2->pos();
-                     });
-  DCHECK(positions_are_sorted);
-  USE(positions_are_sorted);
+  SLOW_DCHECK(std::is_sorted(positions().begin(), positions().end(),
+                             UsePosition::Ordering()));
 
   // Verify that each `UsePosition` is covered by a `UseInterval`.
   UseInterval* interval = first_interval_;
@@ -784,8 +779,7 @@ TopLevelLiveRange::TopLevelLiveRange(int vreg, MachineRepresentation rep,
       spilled_in_deferred_blocks_(false),
       has_preassigned_slot_(false),
       spill_start_index_(kMaxInt),
-      last_child_covers_(this),
-      positions_(zone) {
+      last_child_covers_(this) {
   bits_ |= SpillTypeField::encode(SpillType::kNoSpillType);
 }
 
@@ -991,30 +985,20 @@ void TopLevelLiveRange::AddUseInterval(LifetimePosition start,
   }
 }
 
-void TopLevelLiveRange::AddUsePosition(UsePosition* use_pos, bool trace_alloc) {
+void TopLevelLiveRange::AddUsePosition(UsePosition* use_pos, Zone* zone,
+                                       bool trace_alloc) {
   TRACE_COND(trace_alloc, "Add to live range %d use position %d\n", vreg(),
              use_pos->pos().value());
-
-  // Insert into sorted vector of positions.
-  UsePosition** insert_it =
-      std::upper_bound(positions_.begin(), positions_.end(), use_pos,
-                       [](const UsePosition* pos1, const UsePosition* pos2) {
-                         return pos1->pos() < pos2->pos();
-                       });
-  insert_it = positions_.insert(insert_it, 1, use_pos);
+  UsePositionVector::const_iterator insert_it = std::upper_bound(
+      positions_.begin(), positions_.end(), use_pos, UsePosition::Ordering());
+  // Since we `ProcessInstructions` in reverse, `positions_` are mostly
+  // inserted at the front, hence grow towards that direction exclusively.
+  positions_.insert<kFront>(zone, insert_it, use_pos);
 
   positions_span_ = base::VectorOf(positions_);
   // We must not have child `LiveRange`s yet (e.g. from splitting), otherwise we
   // would have to adjust their `positions_span_` as well.
   DCHECK_NULL(next_);
-
-  // Update the hint position cache.
-  current_hint_position_index_ = std::distance(positions_.begin(), insert_it);
-  while (current_hint_position_index_ > 0 &&
-         !positions_[current_hint_position_index_]->HasHint()) {
-    --current_hint_position_index_;
-  }
-  DCHECK_LT(current_hint_position_index_, positions_.size());
 }
 
 static bool AreUseIntervalsIntersecting(UseInterval* interval1,
@@ -2077,7 +2061,7 @@ UsePosition* LiveRangeBuilder::Define(LifetimePosition position,
     range->AddUseInterval(position, position.NextStart(), allocation_zone(),
                           data()->is_trace_alloc());
     range->AddUsePosition(NewUsePosition(position.NextStart()),
-                          data()->is_trace_alloc());
+                          allocation_zone(), data()->is_trace_alloc());
   } else {
     range->ShortenTo(position, data()->is_trace_alloc());
   }
@@ -2085,7 +2069,7 @@ UsePosition* LiveRangeBuilder::Define(LifetimePosition position,
   UnallocatedOperand* unalloc_operand = UnallocatedOperand::cast(operand);
   UsePosition* use_pos =
       NewUsePosition(position, unalloc_operand, hint, hint_type);
-  range->AddUsePosition(use_pos, data()->is_trace_alloc());
+  range->AddUsePosition(use_pos, allocation_zone(), data()->is_trace_alloc());
   return use_pos;
 }
 
@@ -2100,7 +2084,7 @@ UsePosition* LiveRangeBuilder::Use(LifetimePosition block_start,
   if (operand->IsUnallocated()) {
     UnallocatedOperand* unalloc_operand = UnallocatedOperand::cast(operand);
     use_pos = NewUsePosition(position, unalloc_operand, hint, hint_type);
-    range->AddUsePosition(use_pos, data()->is_trace_alloc());
+    range->AddUsePosition(use_pos, allocation_zone(), data()->is_trace_alloc());
   }
   range->AddUseInterval(block_start, position, allocation_zone(),
                         data()->is_trace_alloc());

@@ -62,7 +62,7 @@ class TestRangeBuilder {
       UsePosition* use_position =
           zone_->New<UsePosition>(LifetimePosition::FromInt(pos), nullptr,
                                   nullptr, UsePositionHintType::kNone);
-      range->AddUsePosition(use_position, v8_flags.trace_turbo_alloc);
+      range->AddUsePosition(use_position, zone_, v8_flags.trace_turbo_alloc);
     }
 
     pairs_.clear();
