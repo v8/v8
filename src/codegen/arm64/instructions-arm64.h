@@ -508,6 +508,10 @@ const Instr kImmExceptionIsRedirectedCall = 0xca11;
 // should not be reachable, such as in data encoded inline in the instructions.
 const Instr kImmExceptionIsUnreachable = 0xdebf;
 
+// Indicate that the stack is being switched, so the simulator must update its
+// stack limit. The new stack limit is passed in x16.
+const Instr kImmExceptionIsSwitchStackLimit = 0x5915;
+
 // A pseudo 'printf' instruction. The arguments will be passed to the platform
 // printf method.
 const Instr kImmExceptionIsPrintf = 0xdeb1;

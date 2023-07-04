@@ -993,10 +993,10 @@ namespace {
 // Synchronize the stack limit with the active continuation for stack-switching.
 // This can be done before or after changing the stack pointer itself, as long
 // as we update both before the next stack check.
-// {StackGuard::SetStackLimit} doesn't update the value of the jslimit if it
-// contains a sentinel value, and it is also thread-safe. So if an interrupt is
-// requested before, during or after this call, it will be preserved and handled
-// at the next stack check.
+// {StackGuard::SetStackLimitForStackSwitching} doesn't update the value of the
+// jslimit if it contains a sentinel value, and it is also thread-safe. So if
+// an interrupt is requested before, during or after this call, it will be
+// preserved and handled at the next stack check.
 void SyncStackLimit(Isolate* isolate) {
   DisallowGarbageCollection no_gc;
   auto continuation = WasmContinuationObject::cast(
@@ -1007,7 +1007,7 @@ void SyncStackLimit(Isolate* isolate) {
     PrintF("Switch to stack #%d\n", stack->id());
   }
   uintptr_t limit = reinterpret_cast<uintptr_t>(stack->jmpbuf()->stack_limit);
-  isolate->stack_guard()->SetStackLimit(limit);
+  isolate->stack_guard()->SetStackLimitForStackSwitching(limit);
   isolate->RecordStackSwitchForScanning();
 }
 }  // namespace

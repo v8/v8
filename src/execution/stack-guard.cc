@@ -46,9 +46,19 @@ void StackGuard::update_interrupt_requests_and_stack_limits(
 
 void StackGuard::SetStackLimit(uintptr_t limit) {
   ExecutionAccess access(isolate_);
+  SetStackLimitInternal(access, limit,
+                        SimulatorStack::JsLimitFromCLimit(isolate_, limit));
+}
+
+void StackGuard::SetStackLimitForStackSwitching(uintptr_t limit) {
+  ExecutionAccess access(isolate_);
+  SetStackLimitInternal(access, limit, limit);
+}
+
+void StackGuard::SetStackLimitInternal(const ExecutionAccess& lock,
+                                       uintptr_t limit, uintptr_t jslimit) {
   // If the current limits are special (e.g. due to a pending interrupt) then
   // leave them alone.
-  uintptr_t jslimit = SimulatorStack::JsLimitFromCLimit(isolate_, limit);
   if (thread_local_.jslimit() == thread_local_.real_jslimit_) {
     thread_local_.set_jslimit(jslimit);
   }

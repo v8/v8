@@ -3187,6 +3187,19 @@ void SwitchStackState(MacroAssembler* masm, Register jmpbuf,
   __ Str(tmp.W(), MemOperand(jmpbuf, wasm::kJmpBufStateOffset));
 }
 
+// Switch the simulator's stack limit, when running on the simulator. This
+// needs to be done as close as possible to changing the stack pointer, as
+// a mismatch between the stack pointer and the simulator's stack limit
+// can cause stack access check failures.
+void SwitchSimulatorStackLimit(MacroAssembler* masm, Register jmpbuf) {
+  if (masm->options().enable_simulator_code) {
+    UseScratchRegisterScope temps(masm);
+    temps.Exclude(x16);
+    __ Ldr(x16, MemOperand(jmpbuf, wasm::kJmpBufStackLimitOffset));
+    __ hlt(kImmExceptionIsSwitchStackLimit);
+  }
+}
+
 void FillJumpBuffer(MacroAssembler* masm, Register jmpbuf, Label* pc,
                     Register tmp) {
   __ Mov(tmp, sp);
@@ -3203,13 +3216,15 @@ void LoadJumpBuffer(MacroAssembler* masm, Register jmpbuf, bool load_pc,
   __ Ldr(tmp, MemOperand(jmpbuf, wasm::kJmpBufSpOffset));
   __ Mov(sp, tmp);
   __ Ldr(fp, MemOperand(jmpbuf, wasm::kJmpBufFpOffset));
+  SwitchSimulatorStackLimit(masm, jmpbuf);
   SwitchStackState(masm, jmpbuf, tmp, wasm::JumpBuffer::Inactive,
                    wasm::JumpBuffer::Active);
   if (load_pc) {
     __ Ldr(tmp, MemOperand(jmpbuf, wasm::kJmpBufPcOffset));
     __ Br(tmp);
   }
-  // The stack limit is set separately under the ExecutionAccess lock.
+  // The stack limit in StackGuard is set separately under the ExecutionAccess
+  // lock.
 }
 
 void SaveState(MacroAssembler* masm, Register active_continuation,
@@ -3983,6 +3998,7 @@ void GenericJSToWasmWrapperHelper(MacroAssembler* masm, bool stack_switch) {
     __ Str(param,
         MemOperand(current_int_param_slot, -kSystemPointerSize, PostIndex));
     __ Add(valuetypes_array_ptr, valuetypes_array_ptr, kValueTypeSize);
+    __ Sub(param_limit, param_limit, kSystemPointerSize);
     __ Add(ref_param_count, ref_param_count, Immediate(1));
     __ cmp(param_ptr, param_limit);
     __ B(&ref_params_done, eq);
@@ -4343,6 +4359,7 @@ void GenericJSToWasmWrapperHelper(MacroAssembler* masm, bool stack_switch) {
     FREE_REG(return_value);
   }
   __ bind(&suspend);
+  __ JumpTarget();
   // No need to process the return value if the stack is suspended, there is
   // a single 'externref' value (the promise) which doesn't require conversion.
 
@@ -4508,6 +4525,7 @@ void GenericJSToWasmWrapperHelper(MacroAssembler* masm, bool stack_switch) {
   // thrown exception.
   if (stack_switch) {
     int catch_handler = __ pc_offset();
+    __ JumpTarget();
     // Restore sp to free the reserved stack slots for the sections.
     __ Add(sp, fp, kLastSpillOffset - kSystemPointerSize);
 
@@ -4671,7 +4689,7 @@ void Builtins::Generate_WasmSuspend(MacroAssembler* masm) {
   __ Str(xzr, GCScanSlotPlace);
   LoadJumpBuffer(masm, jmpbuf, true, scratch);
   __ Trap();
-  __ bind(&resume);
+  __ Bind(&resume, BranchTargetIdentifier::kBtiJump);
   __ LeaveFrame(StackFrame::STACK_SWITCH);
   __ Ret(lr);
 }
@@ -4846,7 +4864,7 @@ void Generate_WasmResumeHelper(MacroAssembler* masm, wasm::OnResume on_resume) {
     LoadJumpBuffer(masm, target_jmpbuf, true, scratch);
   }
   __ Trap();
-  __ bind(&suspend);
+  __ Bind(&suspend, BranchTargetIdentifier::kBtiJump);
   __ LeaveFrame(StackFrame::STACK_SWITCH);
   // Pop receiver + parameter.
   __ DropArguments(2, MacroAssembler::kCountIncludesReceiver);

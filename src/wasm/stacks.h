@@ -34,7 +34,8 @@ class StackMemory {
  public:
   static StackMemory* New(Isolate* isolate) { return new StackMemory(isolate); }
 
-  // Returns a non-owning view of the current stack.
+  // Returns a non-owning view of the current (main) stack. This may be
+  // the simulator's stack when running on the simulator.
   static StackMemory* GetCurrentStackView(Isolate* isolate);
 
   ~StackMemory();

@@ -314,9 +314,17 @@ uintptr_t Simulator::StackLimit(uintptr_t c_limit) const {
     return get_sp();
   }
 
-  // Otherwise the limit is the JS stack. Leave a safety margin of 4 KiB
-  // to prevent overrunning the stack when pushing values.
-  return stack_limit_ + 4 * KB;
+  // Otherwise the limit is the JS stack. Leave a safety margin to prevent
+  // overrunning the stack when pushing values.
+  return stack_limit_ + kAdditionalStackMargin;
+}
+
+base::Vector<uint8_t> Simulator::GetCurrentStackView() const {
+  // We do not add an additional safety margin as above in
+  // Simulator::StackLimit, as users of this method are expected to add their
+  // own margin.
+  return base::VectorOf(reinterpret_cast<uint8_t*>(stack_limit_),
+                        UsableStackSize());
 }
 
 void Simulator::SetRedirectInstruction(Instruction* instruction) {
@@ -357,10 +365,11 @@ void Simulator::Init(FILE* stream) {
   ResetState();
 
   // Allocate and setup the simulator stack.
-  stack_size_ = (v8_flags.sim_stack_size * KB) + (2 * stack_protection_size_);
-  stack_ = reinterpret_cast<uintptr_t>(new uint8_t[stack_size_]);
-  stack_limit_ = stack_ + stack_protection_size_;
-  uintptr_t tos = stack_ + stack_size_ - stack_protection_size_;
+  size_t stack_size = AllocatedStackSize();
+
+  stack_ = reinterpret_cast<uintptr_t>(new uint8_t[stack_size]);
+  stack_limit_ = stack_ + kStackProtectionSize;
+  uintptr_t tos = stack_ + stack_size - kStackProtectionSize;
   // The stack pointer must be 16-byte aligned.
   set_sp(tos & ~0xFULL);
 
@@ -4218,7 +4227,8 @@ void Simulator::VisitException(Instruction* instr) {
         DoRuntimeCall(instr);
       } else if (instr->ImmException() == kImmExceptionIsPrintf) {
         DoPrintf(instr);
-
+      } else if (instr->ImmException() == kImmExceptionIsSwitchStackLimit) {
+        DoSwitchStackLimit(instr);
       } else if (instr->ImmException() == kImmExceptionIsUnreachable) {
         fprintf(stream_, "Hit UNREACHABLE marker at PC=%p.\n",
                 reinterpret_cast<void*>(pc_));
@@ -6369,6 +6379,11 @@ void Simulator::VisitNEONPerm(Instruction* instr) {
     default:
       UNIMPLEMENTED();
   }
+}
+
+void Simulator::DoSwitchStackLimit(Instruction* instr) {
+  const int64_t stack_limit = xreg(16);
+  stack_limit_ = static_cast<uintptr_t>(stack_limit);
 }
 
 void Simulator::DoPrintf(Instruction* instr) {

@@ -9,6 +9,8 @@
 #include "src/objects/code.h"
 
 #if !defined(USE_SIMULATOR)
+#include "src/base/platform/platform.h"
+#include "src/execution/isolate.h"
 #include "src/utils/utils.h"
 #endif
 
@@ -49,6 +51,11 @@ class SimulatorStack : public v8::internal::AllStatic {
     return Simulator::current(isolate)->StackLimit(c_limit);
   }
 
+  static inline base::Vector<uint8_t> GetCurrentStackView(
+      v8::internal::Isolate* isolate) {
+    return Simulator::current(isolate)->GetCurrentStackView();
+  }
+
   // Returns the current stack address on the simulator stack frame.
   // The returned address is comparable with JS stack address.
   static inline uintptr_t RegisterJSStackComparableAddress(
@@ -77,6 +84,15 @@ class SimulatorStack : public v8::internal::AllStatic {
                                             uintptr_t c_limit) {
     USE(isolate);
     return c_limit;
+  }
+
+  static inline base::Vector<uint8_t> GetCurrentStackView(
+      v8::internal::Isolate* isolate) {
+    uintptr_t limit = isolate->stack_guard()->real_jslimit();
+    uintptr_t stack_start = base::Stack::GetStackStart();
+    DCHECK_LE(limit, stack_start);
+    size_t size = stack_start - limit;
+    return base::VectorOf(reinterpret_cast<uint8_t*>(limit), size);
   }
 
   // Returns the current stack address on the native stack frame.

@@ -5,16 +5,14 @@
 #include "src/wasm/stacks.h"
 
 #include "src/base/platform/platform.h"
+#include "src/execution/simulator.h"
 
 namespace v8::internal::wasm {
 
 // static
 StackMemory* StackMemory::GetCurrentStackView(Isolate* isolate) {
-  uintptr_t limit = isolate->stack_guard()->real_jslimit();
-  uintptr_t stack_start = base::Stack::GetStackStart();
-  DCHECK_LE(limit, stack_start);
-  size_t size = stack_start - limit;
-  return new StackMemory(isolate, reinterpret_cast<uint8_t*>(limit), size);
+  base::Vector<uint8_t> view = SimulatorStack::GetCurrentStackView(isolate);
+  return new StackMemory(isolate, view.begin(), view.size());
 }
 
 StackMemory::~StackMemory() {
