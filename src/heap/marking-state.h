@@ -76,10 +76,6 @@ class MarkingState final
       : MarkingStateBase(cage_base) {}
 
   V8_INLINE MarkingBitmap* bitmap(MemoryChunk* chunk) const;
-
-  V8_INLINE intptr_t live_bytes(const MemoryChunk* chunk) const;
-
-  V8_INLINE void SetLiveBytes(MemoryChunk* chunk, intptr_t value);
 };
 
 class NonAtomicMarkingState final
@@ -89,10 +85,6 @@ class NonAtomicMarkingState final
       : MarkingStateBase(cage_base) {}
 
   V8_INLINE MarkingBitmap* bitmap(MemoryChunk* chunk) const;
-
-  V8_INLINE intptr_t live_bytes(const MemoryChunk* chunk) const;
-
-  V8_INLINE void SetLiveBytes(MemoryChunk* chunk, intptr_t value);
 };
 
 // This is used by Scavenger and Evacuator in TransferColor.

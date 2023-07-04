@@ -933,7 +933,7 @@ void PagedSpaceForNewSpace::FinishShrinking() {
     // space could not be shrunk all the way down to `target_capacity_`, it
     // must mean that all pages contain live objects.
     for (Page* page : *this) {
-      DCHECK_NE(0, heap()->non_atomic_marking_state()->live_bytes(page));
+      DCHECK_NE(0, page->live_bytes());
     }
 #endif  // DEBUG
     target_capacity_ = current_capacity_;

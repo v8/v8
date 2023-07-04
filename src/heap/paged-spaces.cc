@@ -247,11 +247,10 @@ bool PagedSpaceBase::ContainsSlow(Address addr) const {
 
 void PagedSpaceBase::RefineAllocatedBytesAfterSweeping(Page* page) {
   CHECK(page->SweepingDone());
-  auto marking_state = heap()->non_atomic_marking_state();
   // The live_byte on the page was accounted in the space allocated
   // bytes counter. After sweeping allocated_bytes() contains the
   // accurate live byte count on the page.
-  size_t old_counter = marking_state->live_bytes(page);
+  size_t old_counter = page->live_bytes();
   size_t new_counter = page->allocated_bytes();
   DCHECK_GE(old_counter, new_counter);
   if (old_counter > new_counter) {
@@ -259,7 +258,7 @@ void PagedSpaceBase::RefineAllocatedBytesAfterSweeping(Page* page) {
     if (identity() == NEW_SPACE) size_at_last_gc_ -= counter_diff;
     DecreaseAllocatedBytes(counter_diff, page);
   }
-  marking_state->SetLiveBytes(page, 0);
+  page->SetLiveBytes(0);
 }
 
 Page* PagedSpaceBase::RemovePageSafe(int size_in_bytes) {
@@ -523,7 +522,7 @@ void PagedSpaceBase::ReleasePage(Page* page) {
 void PagedSpaceBase::ReleasePageImpl(Page* page,
                                      MemoryAllocator::FreeMode free_mode) {
   DCHECK(page->SweepingDone());
-  DCHECK_EQ(0, heap()->non_atomic_marking_state()->live_bytes(page));
+  DCHECK_EQ(0, page->live_bytes());
   DCHECK_EQ(page->owner(), this);
 
   DCHECK_IMPLIES(identity() == NEW_SPACE, page->IsFlagSet(Page::TO_PAGE));
@@ -762,7 +761,7 @@ void PagedSpaceBase::VerifyLiveBytes() const {
         black_size += object.Size(cage_base);
       }
     }
-    CHECK_LE(black_size, marking_state->live_bytes(page));
+    CHECK_LE(black_size, page->live_bytes());
   }
 }
 #endif  // VERIFY_HEAP
@@ -795,12 +794,9 @@ void PagedSpaceBase::VerifyCountersAfterSweeping(Heap* heap) const {
 void PagedSpaceBase::VerifyCountersBeforeConcurrentSweeping() const {
   size_t total_capacity = 0;
   size_t total_allocated = 0;
-  auto marking_state = heap()->non_atomic_marking_state();
   for (const Page* page : *this) {
     size_t page_allocated =
-        page->SweepingDone()
-            ? page->allocated_bytes()
-            : static_cast<size_t>(marking_state->live_bytes(page));
+        page->SweepingDone() ? page->allocated_bytes() : page->live_bytes();
     total_capacity += page->area_size();
     total_allocated += page_allocated;
     DCHECK_EQ(page_allocated, accounting_stats_.AllocatedOnPage(page));

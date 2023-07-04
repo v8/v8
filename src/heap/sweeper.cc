@@ -553,9 +553,7 @@ void Sweeper::StartMajorSweeping() {
     DCHECK_IMPLIES(space == NEW_SPACE, sweeping_list_[space_index].empty());
     std::sort(
         sweeping_list_[space_index].begin(), sweeping_list_[space_index].end(),
-        [marking_state = marking_state_](Page* a, Page* b) {
-          return marking_state->live_bytes(a) > marking_state->live_bytes(b);
-        });
+        [](Page* a, Page* b) { return a->live_bytes() > b->live_bytes(); });
   });
 }
 
@@ -566,10 +564,7 @@ void Sweeper::StartMinorSweeping() {
   int new_space_index = GetSweepSpaceIndex(NEW_SPACE);
   std::sort(sweeping_list_[new_space_index].begin(),
             sweeping_list_[new_space_index].end(),
-            [marking_state = marking_state_](Page* a, Page* b) {
-              return marking_state->live_bytes(a) >
-                     marking_state->live_bytes(b);
-            });
+            [](Page* a, Page* b) { return a->live_bytes() > b->live_bytes(); });
 }
 
 namespace {
@@ -1042,7 +1037,7 @@ void Sweeper::AddPage(AllocationSpace space, Page* page) {
 void Sweeper::AddNewSpacePage(Page* page) {
   DCHECK_EQ(NEW_SPACE, page->owner_identity());
   DCHECK_LE(page->AgeInNewSpace(), v8_flags.minor_mc_max_page_age);
-  size_t live_bytes = marking_state_->live_bytes(page);
+  size_t live_bytes = page->live_bytes();
   heap_->IncrementNewSpaceSurvivingObjectSize(live_bytes);
   heap_->IncrementYoungSurvivorsCounter(live_bytes);
   AddPageImpl(NEW_SPACE, page);
@@ -1070,7 +1065,7 @@ void Sweeper::AddPromotedPage(MemoryChunk* chunk) {
          chunk->owner_identity() == LO_SPACE);
   DCHECK_IMPLIES(v8_flags.concurrent_sweeping,
                  !minor_sweeping_state_.HasValidJob());
-  size_t live_bytes = marking_state_->live_bytes(chunk);
+  size_t live_bytes = chunk->live_bytes();
   DCHECK_GE(chunk->area_size(), live_bytes);
   heap_->IncrementPromotedObjectsSize(live_bytes);
   heap_->IncrementYoungSurvivorsCounter(live_bytes);
@@ -1092,8 +1087,7 @@ void Sweeper::AddPromotedPage(MemoryChunk* chunk) {
 
 void Sweeper::PrepareToBeSweptPage(AllocationSpace space, Page* page) {
 #ifdef DEBUG
-  DCHECK_GE(page->area_size(),
-            static_cast<size_t>(marking_state_->live_bytes(page)));
+  DCHECK_GE(page->area_size(), static_cast<size_t>(page->live_bytes()));
   DCHECK_EQ(Page::ConcurrentSweepingState::kDone,
             page->concurrent_sweeping_state());
   page->ForAllFreeListCategories([page](FreeListCategory* category) {
@@ -1108,7 +1102,7 @@ void Sweeper::PrepareToBeSweptPage(AllocationSpace space, Page* page) {
   } else {
     paged_space = heap_->paged_space(space);
   }
-  paged_space->IncreaseAllocatedBytes(marking_state_->live_bytes(page), page);
+  paged_space->IncreaseAllocatedBytes(page->live_bytes(), page);
 
   // Set the allocated_bytes_ counter to area_size and clear the wasted_memory_
   // counter. The free operations during sweeping will decrease allocated_bytes_
@@ -1184,7 +1178,7 @@ bool Sweeper::ShouldRefillFreelistForSpace(AllocationSpace space) const {
 void Sweeper::SweepEmptyNewSpacePage(Page* page) {
   DCHECK(v8_flags.minor_mc);
   DCHECK_EQ(NEW_SPACE, page->owner_identity());
-  DCHECK_EQ(0, marking_state_->live_bytes(page));
+  DCHECK_EQ(0, page->live_bytes());
   DCHECK(marking_state_->bitmap(page)->IsClean());
   DCHECK(heap_->IsMainThread() ||
          (heap_->IsSharedMainThread() &&

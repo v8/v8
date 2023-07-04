@@ -242,18 +242,17 @@ void ShrinkNewSpace(NewSpace* new_space) {
     } else {
       // The number of live bytes should be zero, because at this point we're
       // after a GC.
-      DCHECK_EQ(0, heap->non_atomic_marking_state()->live_bytes(page));
+      DCHECK_EQ(0, page->live_bytes());
       // We set it to the number of allocated bytes, because FinishShrinking
       // below expects that all pages have been swept and those that remain
       // contain live bytes.
-      heap->non_atomic_marking_state()->SetLiveBytes(page,
-                                                     page->allocated_bytes());
+      page->SetLiveBytes(page->allocated_bytes());
     }
   }
   paged_new_space->FinishShrinking();
   for (Page* page : *paged_new_space) {
     // We reset the number of live bytes to zero, as is expected after a GC.
-    heap->non_atomic_marking_state()->SetLiveBytes(page, 0);
+    page->SetLiveBytes(0);
   }
   tracer->StopAtomicPause();
   tracer->StopObservablePause();

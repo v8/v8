@@ -373,7 +373,7 @@ void CollectorBase::StartSweepSpace(PagedSpace* space) {
     }
 
     // One unused page is kept, all further are released before sweeping them.
-    if (non_atomic_marking_state()->live_bytes(p) == 0) {
+    if (p->live_bytes() == 0) {
       if (unused_page_present) {
         if (v8_flags.gc_verbose) {
           PrintIsolate(isolate(), "sweeping: released page: %p",
@@ -553,7 +553,7 @@ void MarkCompactCollector::CollectGarbage() {
 void MarkCompactCollector::VerifyMarkbitsAreClean(PagedSpaceBase* space) {
   for (Page* p : *space) {
     CHECK(non_atomic_marking_state()->bitmap(p)->IsClean());
-    CHECK_EQ(0, non_atomic_marking_state()->live_bytes(p));
+    CHECK_EQ(0, p->live_bytes());
   }
 }
 
@@ -565,7 +565,7 @@ void MarkCompactCollector::VerifyMarkbitsAreClean(NewSpace* space) {
   }
   for (Page* p : PageRange(space->first_allocatable_address(), space->top())) {
     CHECK(non_atomic_marking_state()->bitmap(p)->IsClean());
-    CHECK_EQ(0, non_atomic_marking_state()->live_bytes(p));
+    CHECK_EQ(0, p->live_bytes());
   }
 }
 
@@ -574,8 +574,7 @@ void MarkCompactCollector::VerifyMarkbitsAreClean(LargeObjectSpace* space) {
   LargeObjectSpaceObjectIterator it(space);
   for (HeapObject obj = it.Next(); !obj.is_null(); obj = it.Next()) {
     CHECK(non_atomic_marking_state()->IsUnmarked(obj));
-    CHECK_EQ(0, non_atomic_marking_state()->live_bytes(
-                    MemoryChunk::FromHeapObject(obj)));
+    CHECK_EQ(0, MemoryChunk::FromHeapObject(obj)->live_bytes());
   }
 }
 
@@ -3930,7 +3929,7 @@ void MarkCompactCollector::EvacuatePrologue() {
   if (new_space) {
     // Append the list of new space pages to be processed.
     for (Page* p : *new_space) {
-      if (non_atomic_marking_state()->live_bytes(p) > 0) {
+      if (p->live_bytes() > 0) {
         new_space_evacuation_pages_.push_back(p);
       }
     }
@@ -4218,7 +4217,7 @@ void LiveObjectVisitor::VisitMarkedObjectsNoFail(Page* page, Visitor* visitor) {
 bool Evacuator::RawEvacuatePage(MemoryChunk* chunk, intptr_t* live_bytes) {
   const EvacuationMode evacuation_mode = ComputeEvacuationMode(chunk);
   NonAtomicMarkingState* marking_state = heap_->non_atomic_marking_state();
-  *live_bytes = marking_state->live_bytes(chunk);
+  *live_bytes = chunk->live_bytes();
   TRACE_EVENT2(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
                "FullEvacuator::RawEvacuatePage", "evacuation_mode",
                EvacuationModeName(evacuation_mode), "live_bytes", *live_bytes);
@@ -4241,8 +4240,7 @@ bool Evacuator::RawEvacuatePage(MemoryChunk* chunk, intptr_t* live_bytes) {
         LiveObjectVisitor::VisitMarkedObjectsNoFail(Page::cast(chunk),
                                                     &new_to_old_page_visitor_);
       }
-      new_to_old_page_visitor_.account_moved_bytes(
-          marking_state->live_bytes(chunk));
+      new_to_old_page_visitor_.account_moved_bytes(chunk->live_bytes());
       break;
     case kObjectsOldToOld: {
       CodePageHeaderModificationScope rwx_write_scope(
@@ -4454,7 +4452,7 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
   bool force_page_promotion =
       heap()->IsGCWithStack() && !v8_flags.compact_with_stack;
   for (Page* page : new_space_evacuation_pages_) {
-    intptr_t live_bytes_on_page = non_atomic_marking_state()->live_bytes(page);
+    intptr_t live_bytes_on_page = page->live_bytes();
     DCHECK_LT(0, live_bytes_on_page);
     live_bytes += live_bytes_on_page;
     MemoryReductionMode memory_reduction_mode =
@@ -4503,7 +4501,7 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
   for (Page* page : old_space_evacuation_pages_) {
     if (page->IsFlagSet(Page::COMPACTION_WAS_ABORTED)) continue;
 
-    live_bytes += non_atomic_marking_state()->live_bytes(page);
+    live_bytes += page->live_bytes();
     evacuation_items.emplace_back(ParallelWorkItem{}, page);
   }
 
@@ -4583,7 +4581,7 @@ void MarkCompactCollector::Evacuate() {
       } else if (v8_flags.minor_mc) {
         // Sweep non-promoted pages to add them back to the free list.
         DCHECK_EQ(NEW_SPACE, p->owner_identity());
-        DCHECK_EQ(0, non_atomic_marking_state()->live_bytes(p));
+        DCHECK_EQ(0, p->live_bytes());
         DCHECK(p->SweepingDone());
         PagedNewSpace* space = heap()->paged_new_space();
         if (space->ShouldReleaseEmptyPage()) {
@@ -4601,7 +4599,7 @@ void MarkCompactCollector::Evacuate() {
       HeapObject object = p->GetObject();
       non_atomic_marking_state()->MarkBitFrom(object).Clear();
       p->ProgressBar().ResetIfEnabled();
-      non_atomic_marking_state()->SetLiveBytes(p, 0);
+      p->SetLiveBytes(0);
     }
     promoted_large_pages_.clear();
 
@@ -5151,7 +5149,7 @@ void ReRecordPage(Heap* heap, Address failed_start, Page* page) {
   // Re-record slots and recompute live bytes.
   EvacuateRecordOnlyVisitor visitor(heap);
   LiveObjectVisitor::VisitMarkedObjectsNoFail(page, &visitor);
-  marking_state->SetLiveBytes(page, visitor.live_object_size());
+  page->SetLiveBytes(visitor.live_object_size());
   // Array buffers will be processed during pointer updating.
 }
 
@@ -5195,7 +5193,7 @@ void MarkCompactCollector::ReleaseEvacuationCandidates() {
   for (Page* p : old_space_evacuation_pages_) {
     if (!p->IsEvacuationCandidate()) continue;
     PagedSpace* space = static_cast<PagedSpace*>(p->owner());
-    non_atomic_marking_state()->SetLiveBytes(p, 0);
+    p->SetLiveBytes(0);
     CHECK(p->SweepingDone());
     space->ReleasePage(p);
   }
@@ -5220,7 +5218,7 @@ void MarkCompactCollector::StartSweepNewSpace() {
     Page* p = *(it++);
     DCHECK(p->SweepingDone());
 
-    if (non_atomic_marking_state()->live_bytes(p) > 0) {
+    if (p->live_bytes() > 0) {
       // Non-empty pages will be evacuated/promoted.
       continue;
     }
@@ -5256,7 +5254,7 @@ void MarkCompactCollector::SweepLargeSpace(LargeObjectSpace* space) {
     }
     non_atomic_marking_state()->MarkBitFrom(object).Clear();
     current->ProgressBar().ResetIfEnabled();
-    non_atomic_marking_state()->SetLiveBytes(current, 0);
+    current->SetLiveBytes(0);
     surviving_object_size += static_cast<size_t>(object.Size(cage_base));
   }
   space->set_objects_size(surviving_object_size);
@@ -6194,7 +6192,7 @@ bool MinorMarkCompactCollector::StartSweepNewSpace() {
     Page* p = *(it++);
     DCHECK(p->SweepingDone());
 
-    intptr_t live_bytes_on_page = non_atomic_marking_state()->live_bytes(p);
+    intptr_t live_bytes_on_page = p->live_bytes();
     if (live_bytes_on_page == 0) {
       if (paged_space->ShouldReleaseEmptyPage()) {
         paged_space->ReleasePage(p);

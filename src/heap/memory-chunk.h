@@ -224,6 +224,16 @@ class MemoryChunk : public BasicMemoryChunk {
     return &marking_bitmap_;
   }
 
+  size_t live_bytes() const {
+    return live_byte_count_.load(std::memory_order_relaxed);
+  }
+
+  void SetLiveBytes(size_t value) {
+    DCHECK_IMPLIES(V8_COMPRESS_POINTERS_8GB_BOOL,
+                   IsAligned(value, kObjectAlignment8GbHeap));
+    live_byte_count_.store(value, std::memory_order_relaxed);
+  }
+
   void IncrementLiveBytesAtomically(intptr_t diff) {
     DCHECK_IMPLIES(V8_COMPRESS_POINTERS_8GB_BOOL,
                    IsAligned(diff, kObjectAlignment8GbHeap));

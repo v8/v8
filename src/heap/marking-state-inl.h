@@ -58,35 +58,15 @@ void MarkingStateBase<ConcreteState, access_mode>::ClearLiveness(
   static_cast<ConcreteState*>(this)
       ->bitmap(chunk)
       ->template Clear<access_mode>();
-  static_cast<ConcreteState*>(this)->SetLiveBytes(chunk, 0);
+  chunk->SetLiveBytes(0);
 }
 
 MarkingBitmap* MarkingState::bitmap(MemoryChunk* chunk) const {
   return chunk->marking_bitmap();
 }
 
-intptr_t MarkingState::live_bytes(const MemoryChunk* chunk) const {
-  return chunk->live_byte_count_.load(std::memory_order_relaxed);
-}
-
-void MarkingState::SetLiveBytes(MemoryChunk* chunk, intptr_t value) {
-  DCHECK_IMPLIES(V8_COMPRESS_POINTERS_8GB_BOOL,
-                 IsAligned(value, kObjectAlignment8GbHeap));
-  chunk->live_byte_count_.store(value, std::memory_order_relaxed);
-}
-
 MarkingBitmap* NonAtomicMarkingState::bitmap(MemoryChunk* chunk) const {
   return chunk->marking_bitmap();
-}
-
-intptr_t NonAtomicMarkingState::live_bytes(const MemoryChunk* chunk) const {
-  return chunk->live_byte_count_.load(std::memory_order_relaxed);
-}
-
-void NonAtomicMarkingState::SetLiveBytes(MemoryChunk* chunk, intptr_t value) {
-  DCHECK_IMPLIES(V8_COMPRESS_POINTERS_8GB_BOOL,
-                 IsAligned(value, kObjectAlignment8GbHeap));
-  chunk->live_byte_count_.store(value, std::memory_order_relaxed);
 }
 
 MarkingBitmap* AtomicMarkingState::bitmap(MemoryChunk* chunk) const {
