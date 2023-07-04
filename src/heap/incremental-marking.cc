@@ -665,26 +665,6 @@ bool IncrementalMarking::TryInitializeTaskTimeout() {
   }
 }
 
-void IncrementalMarking::FastForwardSchedule() {
-  DCHECK(v8_flags.fast_forward_schedule);
-
-  if (scheduled_bytes_to_mark_ < bytes_marked_) {
-    scheduled_bytes_to_mark_ = bytes_marked_;
-    if (v8_flags.trace_incremental_marking) {
-      isolate()->PrintWithTimestamp(
-          "[IncrementalMarking] Fast-forwarded schedule\n");
-    }
-  }
-}
-
-void IncrementalMarking::FastForwardScheduleIfCloseToFinalization() {
-  // Consider marking close to finalization if 75% of the initial old
-  // generation was marked.
-  if (bytes_marked_ > 3 * (initial_old_generation_size_ / 4)) {
-    FastForwardSchedule();
-  }
-}
-
 void IncrementalMarking::ScheduleBytesToMarkBasedOnTime(double time_ms) {
   // Time interval that should be sufficient to complete incremental marking.
   constexpr double kTargetMarkingWallTimeInMs = 500;
@@ -708,9 +688,6 @@ void IncrementalMarking::ScheduleBytesToMarkBasedOnTime(double time_ms) {
 
 void IncrementalMarking::AdvanceAndFinalizeIfComplete() {
   ScheduleBytesToMarkBasedOnTime(heap()->MonotonicallyIncreasingTimeInMs());
-  if (v8_flags.fast_forward_schedule) {
-    FastForwardScheduleIfCloseToFinalization();
-  }
   Step(kStepSizeInMs, StepOrigin::kTask);
   heap()->FinalizeIncrementalMarkingIfComplete(
       GarbageCollectionReason::kFinalizeMarkingViaTask);

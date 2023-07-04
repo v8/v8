@@ -196,11 +196,6 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
   size_t StepSizeToMakeProgress();
   void AddScheduledBytesToMark(size_t bytes_to_mark);
 
-  // Schedules more bytes to mark so that the marker is no longer ahead
-  // of schedule.
-  void FastForwardSchedule();
-  void FastForwardScheduleIfCloseToFinalization();
-
   // Fetches marked byte counters from the concurrent marker.
   void FetchBytesMarkedConcurrently();
 
