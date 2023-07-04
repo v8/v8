@@ -65,9 +65,9 @@ class InspectorIsolateData : public v8_inspector::V8InspectorClient {
                       v8::ScriptCompiler::Source* source);
 
   // Working with V8Inspector api.
-  int ConnectSession(int context_group_id,
-                     const v8_inspector::StringView& state,
-                     std::unique_ptr<FrontendChannelImpl> channel);
+  base::Optional<int> ConnectSession(
+      int context_group_id, const v8_inspector::StringView& state,
+      std::unique_ptr<FrontendChannelImpl> channel);
   std::vector<uint8_t> DisconnectSession(int session_id,
                                          TaskRunner* context_task_runner);
   void SendMessage(int session_id, const v8_inspector::StringView& message);

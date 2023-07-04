@@ -184,9 +184,11 @@ v8::MaybeLocal<v8::Module> InspectorIsolateData::ModuleResolveCallback(
   return maybe_module;
 }
 
-int InspectorIsolateData::ConnectSession(
+base::Optional<int> InspectorIsolateData::ConnectSession(
     int context_group_id, const v8_inspector::StringView& state,
     std::unique_ptr<FrontendChannelImpl> channel) {
+  if (contexts_.find(context_group_id) == contexts_.end()) return base::nullopt;
+
   v8::SealHandleScope seal_handle_scope(isolate());
   int session_id = ++last_session_id_;
   // It's important that we register the channel before the `connect` as the

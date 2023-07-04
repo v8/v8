@@ -376,7 +376,7 @@ class UtilsExtension : public InspectorIsolateData::SetupGlobalTask {
     std::vector<uint8_t> state =
         ToBytes(info.GetIsolate(), info[1].As<v8::String>());
     int context_group_id = info[0].As<v8::Int32>()->Value();
-    int session_id = 0;
+    base::Optional<int> session_id;
     RunSyncTask(backend_runner_, [&context_group_id, &session_id, &channel,
                                   &state](InspectorIsolateData* data) {
       session_id = data->ConnectSession(
@@ -385,7 +385,8 @@ class UtilsExtension : public InspectorIsolateData::SetupGlobalTask {
           std::move(channel));
     });
 
-    info.GetReturnValue().Set(v8::Int32::New(info.GetIsolate(), session_id));
+    CHECK(session_id.has_value());
+    info.GetReturnValue().Set(v8::Int32::New(info.GetIsolate(), *session_id));
   }
 
   static void DisconnectSession(
