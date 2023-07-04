@@ -2523,8 +2523,7 @@ void LiftoffAssembler::DropStackSlotsAndRet(uint32_t num_stack_slots) {
   Ret();
 }
 
-void LiftoffAssembler::CallC(const ValueKindSig* sig,
-                             const LiftoffRegister* args,
+void LiftoffAssembler::CallC(const ValueKindSig* sig, const VarState* args,
                              const LiftoffRegister* rets,
                              ValueKind out_argument_kind, int stack_bytes,
                              ExternalReference ext_ref) {
@@ -2542,32 +2541,49 @@ void LiftoffAssembler::CallC(const ValueKindSig* sig,
 
   SubS64(sp, sp, Operand(size), r0);
 
-  int arg_bytes = 0;
+  int arg_offset = 0;
+  const VarState* current_arg = args;
   for (ValueKind param_kind : sig->parameters()) {
-    switch (param_kind) {
-      case kI32:
-        StoreU32(args->gp(), MemOperand(sp, arg_bytes), r0);
-        break;
-      case kI64:
-        StoreU64(args->gp(), MemOperand(sp, arg_bytes), r0);
-        break;
-      case kF32:
-        StoreF32(args->fp(), MemOperand(sp, arg_bytes), r0);
-        break;
-      case kF64:
-        StoreF64(args->fp(), MemOperand(sp, arg_bytes), r0);
-        break;
-      case kS128:
-        StoreSimd128(args->fp().toSimd(), MemOperand(sp, arg_bytes), r0);
-        break;
-      default:
-        UNREACHABLE();
+    MemOperand dst{sp, arg_offset};
+    if (current_arg->is_reg()) {
+      switch (param_kind) {
+        case kI32:
+          StoreU32(current_arg->reg().gp(), MemOperand(sp, arg_offset), r0);
+          break;
+        case kI64:
+          StoreU64(current_arg->reg().gp(), MemOperand(sp, arg_offset), r0);
+          break;
+        case kF32:
+          StoreF32(current_arg->reg().fp(), MemOperand(sp, arg_offset), r0);
+          break;
+        case kF64:
+          StoreF64(current_arg->reg().fp(), MemOperand(sp, arg_offset), r0);
+          break;
+        case kS128:
+          StoreSimd128(current_arg->reg().fp().toSimd(),
+                       MemOperand(sp, arg_offset), r0);
+          break;
+        default:
+          UNREACHABLE();
+      }
+    } else if (current_arg->is_const()) {
+      DCHECK_EQ(kI32, param_kind);
+      mov(ip, Operand(current_arg->i32_const()));
+      StoreU32(ip, dst, r0);
+    } else if (value_kind_size(current_arg->kind()) == 4) {
+      MemOperand src = liftoff::GetStackSlot(current_arg->offset());
+      LoadU32(ip, src, r0);
+      StoreU32(ip, dst, r0);
+    } else {
+      DCHECK_EQ(8, value_kind_size(current_arg->kind()));
+      MemOperand src = liftoff::GetStackSlot(current_arg->offset());
+      LoadU64(ip, src, r0);
+      StoreU64(ip, dst, r0);
     }
-    args++;
-    arg_bytes += value_kind_size(param_kind);
+    arg_offset += value_kind_size(param_kind);
+    ++current_arg;
   }
-
-  DCHECK_LE(arg_bytes, stack_bytes);
+  DCHECK_LE(arg_offset, stack_bytes);
 
   // Pass a pointer to the buffer with the arguments to the C function.
   mr(r3, sp);
