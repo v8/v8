@@ -234,6 +234,7 @@ class InjectedScript final {
 
  private:
   friend class EvaluateCallback;
+  friend class PromiseHandlerTracker;
 
   v8::Local<v8::Object> commandLineAPI();
   void unbindObject(int id);
@@ -260,6 +261,55 @@ class InjectedScript final {
   std::unordered_map<String16, std::vector<int>> m_nameToObjectGroup;
   std::unordered_set<std::shared_ptr<EvaluateCallback>> m_evaluateCallbacks;
   bool m_customPreviewEnabled = false;
+};
+
+// Owns and tracks the life-time of {ProtocolPromiseHandler} instances.
+// Each Runtime#evaluate, Runtime#awaitPromise or Runtime#callFunctionOn
+// can create a {ProtocolPromiseHandler} to send the CDP response once it's
+// ready.
+//
+// A {ProtocolPromiseHandler} can be destroyed by various events:
+//
+//   1) The evaluation promise fulfills (and we send the CDP response).
+//   2) The evaluation promise gets GC'ed
+//   3) The {PromiseHandlerTracker} owning the {ProtocolPromiseHandler} dies.
+//
+// We keep the logic of {PromiseHandlerTracker} separate so it's
+// easier to move it. E.g. we could keep it on the inspector, session or
+// inspected context level.
+class PromiseHandlerTracker {
+ public:
+  PromiseHandlerTracker();
+  PromiseHandlerTracker(const PromiseHandlerTracker&) = delete;
+  void operator=(const PromiseHandlerTracker&) = delete;
+  ~PromiseHandlerTracker();
+
+  // Any reason other then kFulfilled will send a CDP error response as to
+  // not keep the request pending forever. Depending on when the
+  // {PromiseHandlerTracker} is destructed, the {EvaluateCallback} might
+  // already be dead and we can't send the error response (but that's fine).
+  enum class DiscardReason {
+    kFulfilled,
+    kPromiseCollected,
+    kTearDown,
+  };
+
+  template <typename... Args>
+  InjectedScript::ProtocolPromiseHandler* create(Args&&... args);
+  void discard(InjectedScript::ProtocolPromiseHandler* handler,
+               DiscardReason reason);
+
+  // Only used in a CHECK as comparing dangling pointers is undefined behavior.
+  bool isValid(InjectedScript::ProtocolPromiseHandler* handler) const;
+
+ private:
+  void sendFailure(InjectedScript::ProtocolPromiseHandler* handler,
+                   const protocol::DispatchResponse& response) const;
+  void discardAll();
+
+  // We store raw pointers instead of std::unique_ptrs: We need the fast
+  // lookup for {discard} and {isValid}.
+  std::unordered_set<InjectedScript::ProtocolPromiseHandler*> m_promiseHandlers;
 };
 
 }  // namespace v8_inspector

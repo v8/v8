@@ -110,7 +110,7 @@ class InjectedScript::ProtocolPromiseHandler {
         value->IsPromise() ? value.As<v8::Promise>()
                            : v8::MaybeLocal<v8::Promise>();
     V8InspectorImpl* inspector = session->inspector();
-    ProtocolPromiseHandler* handler = new ProtocolPromiseHandler(
+    ProtocolPromiseHandler* handler = inspector->promiseHandlerTracker().create(
         session, executionContextId, objectGroup, std::move(wrapOptions),
         replMode, throwOnSideEffect, callback, originalPromise);
     v8::Local<v8::Value> wrapper = handler->m_wrapper.Get(inspector->isolate());
@@ -155,6 +155,8 @@ class InjectedScript::ProtocolPromiseHandler {
   }
 
  private:
+  friend class PromiseHandlerTracker;
+
   static v8::Local<v8::String> GetDotReplResultString(v8::Isolate* isolate) {
     // TODO(szuend): Cache the string in a v8::Persistent handle.
     return v8::String::NewFromOneByte(
@@ -166,22 +168,38 @@ class InjectedScript::ProtocolPromiseHandler {
     ProtocolPromiseHandler* handler = static_cast<ProtocolPromiseHandler*>(
         info.Data().As<v8::External>()->Value());
     DCHECK(handler);
+    PromiseHandlerTracker& handlerTracker =
+        static_cast<V8InspectorImpl*>(
+            v8::debug::GetInspector(info.GetIsolate()))
+            ->promiseHandlerTracker();
+    // We currently store the handlers with the inspector so the micro task
+    // queue should never run after the inspector dies.
+    CHECK(handlerTracker.isValid(handler));
     v8::Local<v8::Value> value =
         info.Length() > 0 ? info[0]
                           : v8::Undefined(info.GetIsolate()).As<v8::Value>();
     handler->thenCallback(value);
-    delete handler;
+    handlerTracker.discard(handler,
+                           PromiseHandlerTracker::DiscardReason::kFulfilled);
   }
 
   static void catchCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
     ProtocolPromiseHandler* handler = static_cast<ProtocolPromiseHandler*>(
         info.Data().As<v8::External>()->Value());
     DCHECK(handler);
+    PromiseHandlerTracker& handlerTracker =
+        static_cast<V8InspectorImpl*>(
+            v8::debug::GetInspector(info.GetIsolate()))
+            ->promiseHandlerTracker();
+    // We currently store the handlers with the inspector so the micro task
+    // queue should never run after the inspector dies.
+    CHECK(handlerTracker.isValid(handler));
     v8::Local<v8::Value> value =
         info.Length() > 0 ? info[0]
                           : v8::Undefined(info.GetIsolate()).As<v8::Value>();
     handler->catchCallback(value);
-    delete handler;
+    handlerTracker.discard(handler,
+                           PromiseHandlerTracker::DiscardReason::kFulfilled);
   }
 
   ProtocolPromiseHandler(V8InspectorSessionImpl* session,
@@ -216,8 +234,13 @@ class InjectedScript::ProtocolPromiseHandler {
       data.GetParameter()->m_evaluationResult.Reset();
       data.SetSecondPassCallback(cleanup);
     } else {
-      data.GetParameter()->sendPromiseCollected();
-      delete data.GetParameter();
+      PromiseHandlerTracker& handlerTracker =
+          static_cast<V8InspectorImpl*>(
+              v8::debug::GetInspector(data.GetIsolate()))
+              ->promiseHandlerTracker();
+      handlerTracker.discard(
+          data.GetParameter(),
+          PromiseHandlerTracker::DiscardReason::kPromiseCollected);
     }
   }
 
@@ -362,18 +385,6 @@ class InjectedScript::ProtocolPromiseHandler {
     EvaluateCallback::sendSuccess(m_callback, scope.injectedScript(),
                                   std::move(wrappedValue),
                                   std::move(exceptionDetails));
-  }
-
-  void sendPromiseCollected() {
-    V8InspectorSessionImpl* session =
-        m_inspector->sessionById(m_contextGroupId, m_sessionId);
-    if (!session) return;
-    InjectedScript::ContextScope scope(session, m_executionContextId);
-    Response response = scope.initialize();
-    if (!response.IsSuccess()) return;
-    EvaluateCallback::sendFailure(
-        m_callback, scope.injectedScript(),
-        Response::ServerError("Promise was collected"));
   }
 
   V8InspectorImpl* m_inspector;
@@ -1194,6 +1205,68 @@ Response InjectedScript::bindRemoteObjectIfNeeded(
 void InjectedScript::unbindObject(int id) {
   m_idToWrappedObject.erase(id);
   m_idToObjectGroupName.erase(id);
+}
+
+PromiseHandlerTracker::PromiseHandlerTracker() = default;
+
+PromiseHandlerTracker::~PromiseHandlerTracker() { discardAll(); }
+
+template <typename... Args>
+InjectedScript::ProtocolPromiseHandler* PromiseHandlerTracker::create(
+    Args&&... args) {
+  InjectedScript::ProtocolPromiseHandler* handler =
+      new InjectedScript::ProtocolPromiseHandler(std::forward<Args>(args)...);
+  m_promiseHandlers.insert(handler);
+  return handler;
+}
+
+void PromiseHandlerTracker::discard(
+    InjectedScript::ProtocolPromiseHandler* handler, DiscardReason reason) {
+  CHECK(handler);
+  CHECK_NE(m_promiseHandlers.find(handler), m_promiseHandlers.end());
+
+  switch (reason) {
+    case DiscardReason::kPromiseCollected:
+      sendFailure(handler, Response::ServerError("Promise was collected"));
+      break;
+    case DiscardReason::kTearDown:
+      sendFailure(handler, Response::ServerError(
+                               "Tearing down inspector/session/context"));
+      break;
+    case DiscardReason::kFulfilled:
+      // Do nothing.
+      break;
+  }
+
+  m_promiseHandlers.erase(handler);
+  delete handler;
+}
+
+bool PromiseHandlerTracker::isValid(
+    InjectedScript::ProtocolPromiseHandler* handler) const {
+  CHECK(handler);
+  return m_promiseHandlers.find(handler) != m_promiseHandlers.end();
+}
+
+void PromiseHandlerTracker::sendFailure(
+    InjectedScript::ProtocolPromiseHandler* handler,
+    const protocol::DispatchResponse& response) const {
+  V8InspectorImpl* inspector = handler->m_inspector;
+  V8InspectorSessionImpl* session =
+      inspector->sessionById(handler->m_contextGroupId, handler->m_sessionId);
+  if (!session) return;
+  InjectedScript::ContextScope scope(session, handler->m_executionContextId);
+  Response res = scope.initialize();
+  if (!res.IsSuccess()) return;
+  EvaluateCallback::sendFailure(handler->m_callback, scope.injectedScript(),
+                                response);
+}
+
+void PromiseHandlerTracker::discardAll() {
+  while (!m_promiseHandlers.empty()) {
+    discard(*m_promiseHandlers.begin(), DiscardReason::kTearDown);
+  }
+  CHECK(m_promiseHandlers.empty());
 }
 
 }  // namespace v8_inspector
