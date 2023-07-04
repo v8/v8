@@ -1685,13 +1685,18 @@ Handle<DeoptimizationData> MaglevCodeGenerator::GenerateDeoptimizationData(
 
   Tagged<DeoptimizationLiteralArray> raw_literals = *literals;
   Tagged<DeoptimizationData> raw_data = *data;
-  IdentityMap<int, base::DefaultAllocationPolicy>::IteratableScope iterate(
-      &deopt_literals_);
-  for (auto it = iterate.begin(); it != iterate.end(); ++it) {
-    raw_literals->set(*it.entry(), it.key());
+  {
+    IdentityMap<int, base::DefaultAllocationPolicy>::IteratableScope iterate(
+        &deopt_literals_);
+    for (auto it = iterate.begin(); it != iterate.end(); ++it) {
+      raw_literals->set(*it.entry(), it.key());
+    }
   }
   // Add the bytecode to the deopt literals to make sure it's held strongly.
-  auto literal_offsets = deopt_literals_.size();
+  int literal_offsets = deopt_literals_.size();
+  // Clear the deopt literals while the local isolate is still active.
+  deopt_literals_.Clear();
+
   for (int i = 0; i < inlined_functions_size; i++) {
     auto inlined_function_info = graph_->inlined_functions()[i];
     inlining_positions->set(i, inlined_function_info.position);

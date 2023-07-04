@@ -145,12 +145,16 @@ CompilationJob::Status MaglevCompilationJob::FinalizeJobImpl(Isolate* isolate) {
     return CompilationJob::FAILED;
   }
   info()->set_code(code);
-  // Drop canonical handles during finalization, to avoid (in the case of
-  // background job destruction) needing to unpark the local isolate on the
-  // background thread for unregistering the identity map's strong roots.
-  info()->DetachCanonicalHandles()->Clear();
   EndPhaseKind();
   return CompilationJob::SUCCEEDED;
+}
+
+void MaglevCompilationJob::DisposeOnMainThread(Isolate* isolate) {
+  // Drop canonical handles on the main thread, to avoid (in the case of
+  // background job destruction) needing to unpark the local isolate on the
+  // background thread for unregistering the identity map's strong roots.
+  DCHECK(isolate->IsCurrent());
+  info()->DetachCanonicalHandles()->Clear();
 }
 
 MaybeHandle<Code> MaglevCompilationJob::code() const {
@@ -355,6 +359,7 @@ void MaglevConcurrentDispatcher::FinalizeFinishedJobs() {
     RCS_SCOPE(isolate_,
               RuntimeCallCounterId::kOptimizeConcurrentFinalizeMaglev);
     Compiler::FinalizeMaglevCompilationJob(job.get(), isolate_);
+    job->DisposeOnMainThread(isolate_);
     if (v8_flags.maglev_destroy_on_background) {
       // Maglev jobs aren't cheap to destruct, so re-enqueue them for
       // destruction on a background thread.

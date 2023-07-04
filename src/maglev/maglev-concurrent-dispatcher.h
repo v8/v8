@@ -69,6 +69,8 @@ class MaglevCompilationJob final : public OptimizedCompilationJob {
 
   void RecordCompilationStats(Isolate* isolate) const;
 
+  void DisposeOnMainThread(Isolate* isolate);
+
   // Intended for use as a globally unique id in trace events.
   uint64_t trace_id() const;
 
