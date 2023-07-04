@@ -4981,7 +4981,6 @@ v8_source_set("v8_base_without_compiler") {
     "src/handles/traced-handles.cc",
     "src/heap/allocation-observer.cc",
     "src/heap/array-buffer-sweeper.cc",
-    "src/heap/base-space.cc",
     "src/heap/basic-memory-chunk.cc",
     "src/heap/code-range.cc",
     "src/heap/code-stats.cc",

@@ -1461,7 +1461,6 @@ filegroup(
         "src/heap/allocation-stats.h",
         "src/heap/array-buffer-sweeper.cc",
         "src/heap/array-buffer-sweeper.h",
-        "src/heap/base-space.cc",
         "src/heap/base-space.h",
         "src/heap/base/active-system-pages.cc",
         "src/heap/base/active-system-pages.h",

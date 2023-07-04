@@ -810,8 +810,7 @@ void GCTracer::Print() const {
       static_cast<double>(current_.end_memory_size) / MB, duration,
       total_external_time, incremental_buffer,
       AverageMarkCompactMutatorUtilization(),
-      CurrentMarkCompactMutatorUtilization(),
-      Heap::GarbageCollectionReasonToString(current_.gc_reason),
+      CurrentMarkCompactMutatorUtilization(), ToString(current_.gc_reason),
       current_.collector_reason != nullptr ? current_.collector_reason : "");
 }
 

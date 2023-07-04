@@ -355,32 +355,6 @@ class Heap final {
                                : GarbageCollector::SCAVENGER;
   }
 
-  static inline const char* CollectorName(GarbageCollector collector) {
-    switch (collector) {
-      case GarbageCollector::SCAVENGER:
-        return "Scavenger";
-      case GarbageCollector::MARK_COMPACTOR:
-        return "Mark-Compact";
-      case GarbageCollector::MINOR_MARK_COMPACTOR:
-        return "Minor Mark-Compact";
-    }
-    return "Unknown collector";
-  }
-
-  static inline const char* CollectorName(v8::GCType gc_type) {
-    switch (gc_type) {
-      case kGCTypeScavenge:
-        return "Scavenger";
-      case kGCTypeMarkSweepCompact:
-        return "Mark-Compact";
-      case kGCTypeMinorMarkCompact:
-        return "Minor Mark-Compact";
-      default:
-        break;
-    }
-    return "Unknown collector";
-  }
-
   // Copy block of memory from src to dst. Size of block should be aligned
   // by pointer size.
   static inline void CopyBlock(Address dst, Address src, int byte_size);
@@ -1572,9 +1546,6 @@ class Heap final {
 #endif  // V8_TARGET_ARCH_X64
     return result;
   }
-
-  static const char* GarbageCollectionReasonToString(
-      GarbageCollectionReason gc_reason);
 
   // Calculates the nof entries for the full sized number to string cache.
   inline int MaxNumberToStringCacheSize() const;

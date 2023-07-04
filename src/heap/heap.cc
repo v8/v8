@@ -816,7 +816,7 @@ void Heap::DumpJSONHeapStatistics(std::stringstream& stream) {
     std::stringstream stream;
     stream << DICT(
       MEMBER("name")
-        << QUOTE(BaseSpace::GetSpaceName(
+        << QUOTE(ToString(
               static_cast<AllocationSpace>(space_index)))
         << ","
       MEMBER("size") << space_stats.space_size() << ","
@@ -1817,7 +1817,7 @@ void Heap::CollectGarbage(AllocationSpace space,
     VMState<GC> state(isolate());
     DevToolsTraceEventScope devtools_trace_event_scope(
         this, IsYoungGenerationCollector(collector) ? "MinorGC" : "MajorGC",
-        GarbageCollectionReasonToString(gc_reason));
+        ToString(gc_reason));
 
     // We need a stack marker at the top of all entry points to allow
     // deterministic passes over the stack. E.g., a verifier that should only
@@ -4264,68 +4264,6 @@ void Heap::ReportCodeStatistics(const char* title) {
 }
 
 #endif  // DEBUG
-
-const char* Heap::GarbageCollectionReasonToString(
-    GarbageCollectionReason gc_reason) {
-  switch (gc_reason) {
-    case GarbageCollectionReason::kAllocationFailure:
-      return "allocation failure";
-    case GarbageCollectionReason::kAllocationLimit:
-      return "allocation limit";
-    case GarbageCollectionReason::kContextDisposal:
-      return "context disposal";
-    case GarbageCollectionReason::kCountersExtension:
-      return "counters extension";
-    case GarbageCollectionReason::kDebugger:
-      return "debugger";
-    case GarbageCollectionReason::kDeserializer:
-      return "deserialize";
-    case GarbageCollectionReason::kExternalMemoryPressure:
-      return "external memory pressure";
-    case GarbageCollectionReason::kFinalizeMarkingViaStackGuard:
-      return "finalize incremental marking via stack guard";
-    case GarbageCollectionReason::kFinalizeMarkingViaTask:
-      return "finalize incremental marking via task";
-    case GarbageCollectionReason::kFullHashtable:
-      return "full hash-table";
-    case GarbageCollectionReason::kHeapProfiler:
-      return "heap profiler";
-    case GarbageCollectionReason::kTask:
-      return "task";
-    case GarbageCollectionReason::kLastResort:
-      return "last resort";
-    case GarbageCollectionReason::kLowMemoryNotification:
-      return "low memory notification";
-    case GarbageCollectionReason::kMakeHeapIterable:
-      return "make heap iterable";
-    case GarbageCollectionReason::kMemoryPressure:
-      return "memory pressure";
-    case GarbageCollectionReason::kMemoryReducer:
-      return "memory reducer";
-    case GarbageCollectionReason::kRuntime:
-      return "runtime";
-    case GarbageCollectionReason::kSamplingProfiler:
-      return "sampling profiler";
-    case GarbageCollectionReason::kSnapshotCreator:
-      return "snapshot creator";
-    case GarbageCollectionReason::kTesting:
-      return "testing";
-    case GarbageCollectionReason::kExternalFinalize:
-      return "external finalize";
-    case GarbageCollectionReason::kGlobalAllocationLimit:
-      return "global allocation limit";
-    case GarbageCollectionReason::kMeasureMemory:
-      return "measure memory";
-    case GarbageCollectionReason::kUnknown:
-      return "unknown";
-    case GarbageCollectionReason::kBackgroundAllocationFailure:
-      return "background allocation failure";
-    case GarbageCollectionReason::kFinalizeMinorMC:
-      return "finalize MinorMC";
-    case GarbageCollectionReason::kCppHeapAllocationFailure:
-      return "CppHeap allocation failure";
-  }
-}
 
 bool Heap::Contains(HeapObject value) const {
   if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {

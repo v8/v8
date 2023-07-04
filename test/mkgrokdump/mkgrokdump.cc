@@ -101,7 +101,7 @@ static void DumpKnownObject(FILE* out, i::Heap* heap, const char* space_name,
 
 static void DumpSpaceFirstPageAddress(FILE* out, i::BaseSpace* space,
                                       i::Address first_page) {
-  const char* name = space->name();
+  const char* name = i::ToString(space->identity());
   i::Tagged_t compressed =
       i::V8HeapCompressionScheme::CompressObject(first_page);
   uintptr_t unsigned_compressed = static_cast<uint32_t>(compressed);
@@ -145,15 +145,15 @@ static int DumpHeapConstants(FILE* out, const char* argv0) {
       for (i::HeapObject object = ro_iterator.Next(); !object.is_null();
            object = ro_iterator.Next()) {
         if (!object.IsMap()) continue;
-        DumpKnownMap(out, heap, i::BaseSpace::GetSpaceName(i::RO_SPACE),
-                     object);
+        DumpKnownMap(out, heap, i::ToString(i::RO_SPACE), object);
       }
 
       i::PagedSpaceObjectIterator iterator(heap, heap->old_space());
       for (i::HeapObject object = iterator.Next(); !object.is_null();
            object = iterator.Next()) {
         if (!object.IsMap()) continue;
-        DumpKnownMap(out, heap, heap->old_space()->name(), object);
+        DumpKnownMap(out, heap, i::ToString(heap->old_space()->identity()),
+                     object);
       }
       i::PrintF(out, "}\n");
     }
@@ -167,8 +167,7 @@ static int DumpHeapConstants(FILE* out, const char* argv0) {
            object = ro_iterator.Next()) {
         // Skip read-only heap maps, they will be reported elsewhere.
         if (object.IsMap()) continue;
-        DumpKnownObject(out, heap, i::BaseSpace::GetSpaceName(i::RO_SPACE),
-                        object);
+        DumpKnownObject(out, heap, i::ToString(i::RO_SPACE), object);
       }
 
       i::PagedSpaceIterator spit(heap);
@@ -176,7 +175,7 @@ static int DumpHeapConstants(FILE* out, const char* argv0) {
         i::PagedSpaceObjectIterator it(heap, s);
         // Code objects are generally platform-dependent.
         if (s->identity() == i::CODE_SPACE) continue;
-        const char* sname = s->name();
+        const char* sname = i::ToString(s->identity());
         for (i::HeapObject o = it.Next(); !o.is_null(); o = it.Next()) {
           DumpKnownObject(out, heap, sname, o);
         }

@@ -31,10 +31,6 @@ class V8_EXPORT_PRIVATE BaseSpace : public Malloced {
 
   AllocationSpace identity() const { return id_; }
 
-  static const char* GetSpaceName(AllocationSpace space);
-
-  const char* name() const { return GetSpaceName(id_); }
-
   // Return the total amount committed memory for this space, i.e., allocatable
   // memory and page headers.
   virtual size_t CommittedMemory() const { return committed_; }

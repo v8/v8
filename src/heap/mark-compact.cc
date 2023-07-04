@@ -388,7 +388,7 @@ void CollectorBase::StartSweepSpace(PagedSpace* space) {
 
   if (v8_flags.gc_verbose) {
     PrintIsolate(isolate(), "sweeping: space=%s initialized_for_sweeping=%d",
-                 space->name(), will_be_swept);
+                 ToString(space->identity()), will_be_swept);
   }
 }
 
@@ -443,8 +443,9 @@ static void TraceFragmentation(PagedSpace* space) {
   int number_of_pages = space->CountTotalPages();
   intptr_t reserved = (number_of_pages * space->AreaSize());
   intptr_t free = reserved - space->SizeOfObjects();
-  PrintF("[%s]: %d pages, %d (%.1f%%) free\n", space->name(), number_of_pages,
-         static_cast<int>(free), static_cast<double>(free) * 100 / reserved);
+  PrintF("[%s]: %d pages, %d (%.1f%%) free\n", ToString(space->identity()),
+         number_of_pages, static_cast<int>(free),
+         static_cast<double>(free) * 100 / reserved);
 }
 
 bool MarkCompactCollector::StartCompaction(StartCompactionMode mode) {
@@ -766,7 +767,7 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
                      "fragmentation_limit_kb=%zu "
                      "fragmentation_limit_percent=%d sum_compaction_kb=%zu "
                      "compaction_limit_kb=%zu\n",
-                     space->name(), (area_size - live_bytes) / KB,
+                     ToString(space->identity()), (area_size - live_bytes) / KB,
                      free_bytes_threshold / KB, target_fragmentation_percent,
                      total_live_bytes / KB, max_evacuated_bytes / KB);
       }
@@ -790,7 +791,7 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
     PrintIsolate(isolate(),
                  "compaction-selection: space=%s reduce_memory=%d pages=%d "
                  "total_live_bytes=%zu\n",
-                 space->name(), reduce_memory, candidate_count,
+                 ToString(space->identity()), reduce_memory, candidate_count,
                  total_live_bytes / KB);
   }
 }
@@ -5230,7 +5231,7 @@ void MarkCompactCollector::StartSweepNewSpace() {
 
   if (v8_flags.gc_verbose) {
     PrintIsolate(isolate(), "sweeping: space=%s initialized_for_sweeping=%d",
-                 paged_space->name(), will_be_swept);
+                 ToString(paged_space->identity()), will_be_swept);
   }
 }
 
@@ -6212,7 +6213,7 @@ bool MinorMarkCompactCollector::StartSweepNewSpace() {
 
   if (v8_flags.gc_verbose) {
     PrintIsolate(isolate(), "sweeping: space=%s initialized_for_sweeping=%d",
-                 paged_space->name(), will_be_swept);
+                 ToString(paged_space->identity()), will_be_swept);
   }
 
   return has_promoted_pages;

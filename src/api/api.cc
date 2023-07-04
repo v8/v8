@@ -9761,7 +9761,7 @@ bool Isolate::GetHeapSpaceStatistics(HeapSpaceStatistics* space_statistics,
   i::Heap* heap = i_isolate->heap();
 
   i::AllocationSpace allocation_space = static_cast<i::AllocationSpace>(index);
-  space_statistics->space_name_ = i::BaseSpace::GetSpaceName(allocation_space);
+  space_statistics->space_name_ = i::ToString(allocation_space);
 
   if (allocation_space == i::RO_SPACE) {
     if (i::ReadOnlyHeap::IsReadOnlySpaceShared()) {

@@ -278,7 +278,7 @@ void SpaceWithLinearArea::PrintAllocationsOrigins() const {
   PrintIsolate(
       heap()->isolate(),
       "Allocations Origins for %s: GeneratedCode:%zu - Runtime:%zu - GC:%zu\n",
-      name(), allocations_origins_[0], allocations_origins_[1],
+      ToString(identity()), allocations_origins_[0], allocations_origins_[1],
       allocations_origins_[2]);
 }
 

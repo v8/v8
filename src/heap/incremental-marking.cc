@@ -97,8 +97,7 @@ void IncrementalMarking::Start(GarbageCollector garbage_collector,
     isolate()->PrintWithTimestamp(
         "[IncrementalMarking] Start (%s): (size/limit/slack) v8: %zuMB / %zuMB "
         "/ %zuMB global: %zuMB / %zuMB / %zuMB\n",
-        Heap::GarbageCollectionReasonToString(gc_reason),
-        old_generation_size_mb, old_generation_limit_mb,
+        ToString(gc_reason), old_generation_size_mb, old_generation_limit_mb,
         old_generation_size_mb > old_generation_limit_mb
             ? 0
             : old_generation_limit_mb - old_generation_size_mb,
@@ -128,7 +127,7 @@ void IncrementalMarking::Start(GarbageCollector garbage_collector,
                is_major ? "V8.GCIncrementalMarkingStart"
                         : "V8.GCMinorIncrementalMarkingStart",
                "epoch", heap_->tracer()->CurrentEpoch(scope_id), "reason",
-               Heap::GarbageCollectionReasonToString(gc_reason));
+               ToString(gc_reason));
   TRACE_GC_EPOCH(heap()->tracer(), scope_id, ThreadKind::kMain);
   heap_->tracer()->NotifyIncrementalMarkingStart();
 

@@ -1057,16 +1057,68 @@ enum AllocationSpace {
 constexpr int kSpaceTagSize = 4;
 static_assert(FIRST_SPACE == 0);
 
+constexpr const char* ToString(AllocationSpace space) {
+  switch (space) {
+    case AllocationSpace::RO_SPACE:
+      return "read_only_space";
+    case AllocationSpace::NEW_SPACE:
+      return "new_space";
+    case AllocationSpace::OLD_SPACE:
+      return "old_space";
+    case AllocationSpace::CODE_SPACE:
+      return "code_space";
+    case AllocationSpace::SHARED_SPACE:
+      return "shared_space";
+    case AllocationSpace::NEW_LO_SPACE:
+      return "new_large_object_space";
+    case AllocationSpace::LO_SPACE:
+      return "large_object_space";
+    case AllocationSpace::CODE_LO_SPACE:
+      return "code_large_object_space";
+    case AllocationSpace::SHARED_LO_SPACE:
+      return "shared_large_object_space";
+  }
+}
+
+inline std::ostream& operator<<(std::ostream& os, AllocationSpace space) {
+  return os << ToString(space);
+}
+
 enum class AllocationType : uint8_t {
-  kYoung,  // Regular object allocated in NEW_SPACE or NEW_LO_SPACE
-  kOld,    // Regular object allocated in OLD_SPACE or LO_SPACE
-  kCode,   // InstructionStream object allocated in CODE_SPACE or CODE_LO_SPACE
-  kMap,    // Map object allocated in OLD_SPACE
-  kReadOnly,   // Object allocated in RO_SPACE
-  kSharedOld,  // Regular object allocated in OLD_SPACE in the shared heap
-  kSharedMap,  // Map object in OLD_SPACE in the shared heap
+  kYoung,  // Regular object allocated in NEW_SPACE or NEW_LO_SPACE.
+  kOld,    // Regular object allocated in OLD_SPACE or LO_SPACE.
+  kCode,   // InstructionStream object allocated in CODE_SPACE or CODE_LO_SPACE.
+  kMap,    // Map object allocated in OLD_SPACE.
+  kReadOnly,   // Object allocated in RO_SPACE.
+  kSharedOld,  // Regular object allocated in OLD_SPACE in the shared heap.
+  kSharedMap,  // Map object in OLD_SPACE in the shared heap.
 };
 
+constexpr const char* ToString(AllocationType kind) {
+  switch (kind) {
+    case AllocationType::kYoung:
+      return "Young";
+    case AllocationType::kOld:
+      return "Old";
+    case AllocationType::kCode:
+      return "Code";
+    case AllocationType::kMap:
+      return "Map";
+    case AllocationType::kReadOnly:
+      return "ReadOnly";
+    case AllocationType::kSharedOld:
+      return "SharedOld";
+    case AllocationType::kSharedMap:
+      return "SharedMap";
+  }
+}
+
+inline std::ostream& operator<<(std::ostream& os, AllocationType type) {
+  return os << ToString(type);
+}
+
+// Reason for a garbage collection.
+//
 // These values are persisted to logs. Entries should not be renumbered and
 // numeric values should never be reused. If you add new items here, update
 // src/tools/metrics/histograms/enums.xml in chromium.
@@ -1100,35 +1152,83 @@ enum class GarbageCollectionReason : int {
   kFinalizeMinorMC = 26,
   kCppHeapAllocationFailure = 27,
 
-  kLastReason = kCppHeapAllocationFailure,
+  NUM_REASONS,
 };
 
 static_assert(kGarbageCollectionReasonMaxValue ==
-                  static_cast<int>(GarbageCollectionReason::kLastReason),
+                  static_cast<int>(GarbageCollectionReason::NUM_REASONS) - 1,
               "The value of kGarbageCollectionReasonMaxValue is inconsistent.");
+
+constexpr const char* ToString(GarbageCollectionReason reason) {
+  switch (reason) {
+    case GarbageCollectionReason::kAllocationFailure:
+      return "allocation failure";
+    case GarbageCollectionReason::kAllocationLimit:
+      return "allocation limit";
+    case GarbageCollectionReason::kContextDisposal:
+      return "context disposal";
+    case GarbageCollectionReason::kCountersExtension:
+      return "counters extension";
+    case GarbageCollectionReason::kDebugger:
+      return "debugger";
+    case GarbageCollectionReason::kDeserializer:
+      return "deserialize";
+    case GarbageCollectionReason::kExternalMemoryPressure:
+      return "external memory pressure";
+    case GarbageCollectionReason::kFinalizeMarkingViaStackGuard:
+      return "finalize incremental marking via stack guard";
+    case GarbageCollectionReason::kFinalizeMarkingViaTask:
+      return "finalize incremental marking via task";
+    case GarbageCollectionReason::kFullHashtable:
+      return "full hash-table";
+    case GarbageCollectionReason::kHeapProfiler:
+      return "heap profiler";
+    case GarbageCollectionReason::kTask:
+      return "task";
+    case GarbageCollectionReason::kLastResort:
+      return "last resort";
+    case GarbageCollectionReason::kLowMemoryNotification:
+      return "low memory notification";
+    case GarbageCollectionReason::kMakeHeapIterable:
+      return "make heap iterable";
+    case GarbageCollectionReason::kMemoryPressure:
+      return "memory pressure";
+    case GarbageCollectionReason::kMemoryReducer:
+      return "memory reducer";
+    case GarbageCollectionReason::kRuntime:
+      return "runtime";
+    case GarbageCollectionReason::kSamplingProfiler:
+      return "sampling profiler";
+    case GarbageCollectionReason::kSnapshotCreator:
+      return "snapshot creator";
+    case GarbageCollectionReason::kTesting:
+      return "testing";
+    case GarbageCollectionReason::kExternalFinalize:
+      return "external finalize";
+    case GarbageCollectionReason::kGlobalAllocationLimit:
+      return "global allocation limit";
+    case GarbageCollectionReason::kMeasureMemory:
+      return "measure memory";
+    case GarbageCollectionReason::kUnknown:
+      return "unknown";
+    case GarbageCollectionReason::kBackgroundAllocationFailure:
+      return "background allocation failure";
+    case GarbageCollectionReason::kFinalizeMinorMC:
+      return "finalize MinorMC";
+    case GarbageCollectionReason::kCppHeapAllocationFailure:
+      return "CppHeap allocation failure";
+    case GarbageCollectionReason::NUM_REASONS:
+      UNREACHABLE();
+  }
+}
+
+inline std::ostream& operator<<(std::ostream& os,
+                                GarbageCollectionReason reason) {
+  return os << ToString(reason);
+}
 
 inline size_t hash_value(AllocationType kind) {
   return static_cast<uint8_t>(kind);
-}
-
-inline std::ostream& operator<<(std::ostream& os, AllocationType kind) {
-  switch (kind) {
-    case AllocationType::kYoung:
-      return os << "Young";
-    case AllocationType::kOld:
-      return os << "Old";
-    case AllocationType::kCode:
-      return os << "Code";
-    case AllocationType::kMap:
-      return os << "Map";
-    case AllocationType::kReadOnly:
-      return os << "ReadOnly";
-    case AllocationType::kSharedOld:
-      return os << "SharedOld";
-    case AllocationType::kSharedMap:
-      return os << "SharedMap";
-  }
-  UNREACHABLE();
 }
 
 inline constexpr bool IsSharedAllocationType(AllocationType kind) {
@@ -1162,6 +1262,21 @@ enum MinimumCapacity {
 };
 
 enum class GarbageCollector { SCAVENGER, MARK_COMPACTOR, MINOR_MARK_COMPACTOR };
+
+constexpr const char* ToString(GarbageCollector collector) {
+  switch (collector) {
+    case GarbageCollector::SCAVENGER:
+      return "Scavenger";
+    case GarbageCollector::MARK_COMPACTOR:
+      return "Mark-Sweep-Compact";
+    case GarbageCollector::MINOR_MARK_COMPACTOR:
+      return "Minor Mark-Sweep";
+  }
+}
+
+inline std::ostream& operator<<(std::ostream& os, GarbageCollector collector) {
+  return os << ToString(collector);
+}
 
 enum class CompactionSpaceKind {
   kNone,
