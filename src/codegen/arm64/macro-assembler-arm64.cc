@@ -4066,15 +4066,58 @@ void MacroAssembler::PopcntHelper(Register dst, Register src) {
   Fmov(dst, tmp);
 }
 
+void MacroAssembler::I8x16BitMask(Register dst, VRegister src) {
+  ASM_CODE_COMMENT(this);
+  UseScratchRegisterScope temps(this);
+  VRegister tmp = temps.AcquireQ();
+  VRegister mask = temps.AcquireQ();
+  // Set i-th bit of each lane i. When AND with tmp, the lanes that
+  // are signed will have i-th bit set, unsigned will be 0.
+  Sshr(tmp.V16B(), src.V16B(), 7);
+  Movi(mask.V2D(), 0x8040'2010'0804'0201);
+  And(tmp.V16B(), mask.V16B(), tmp.V16B());
+  Ext(mask.V16B(), tmp.V16B(), tmp.V16B(), 8);
+  Zip1(tmp.V16B(), tmp.V16B(), mask.V16B());
+  Addv(tmp.H(), tmp.V8H());
+  Mov(dst.W(), tmp.V8H(), 0);
+}
+
+void MacroAssembler::I16x8BitMask(Register dst, VRegister src) {
+  ASM_CODE_COMMENT(this);
+  UseScratchRegisterScope temps(this);
+  VRegister tmp = temps.AcquireQ();
+  VRegister mask = temps.AcquireQ();
+  Sshr(tmp.V8H(), src.V8H(), 15);
+  // Set i-th bit of each lane i. When AND with tmp, the lanes that
+  // are signed will have i-th bit set, unsigned will be 0.
+  Movi(mask.V2D(), 0x0080'0040'0020'0010, 0x0008'0004'0002'0001);
+  And(tmp.V16B(), mask.V16B(), tmp.V16B());
+  Addv(tmp.H(), tmp.V8H());
+  Mov(dst.W(), tmp.V8H(), 0);
+}
+
+void MacroAssembler::I32x4BitMask(Register dst, VRegister src) {
+  ASM_CODE_COMMENT(this);
+  UseScratchRegisterScope temps(this);
+  Register tmp = temps.AcquireX();
+  Mov(dst.X(), src.D(), 1);
+  Fmov(tmp.X(), src.D());
+  And(dst.X(), dst.X(), 0x80000000'80000000);
+  And(tmp.X(), tmp.X(), 0x80000000'80000000);
+  Orr(dst.X(), dst.X(), Operand(dst.X(), LSL, 31));
+  Orr(tmp.X(), tmp.X(), Operand(tmp.X(), LSL, 31));
+  Lsr(dst.X(), dst.X(), 60);
+  Bfxil(dst.X(), tmp.X(), 62, 2);
+}
+
 void MacroAssembler::I64x2BitMask(Register dst, VRegister src) {
   ASM_CODE_COMMENT(this);
   UseScratchRegisterScope scope(this);
-  VRegister tmp1 = scope.AcquireV(kFormat2D);
-  Register tmp2 = scope.AcquireX();
-  Ushr(tmp1.V2D(), src.V2D(), 63);
-  Mov(dst.X(), tmp1.D(), 0);
-  Mov(tmp2.X(), tmp1.D(), 1);
-  Add(dst.W(), dst.W(), Operand(tmp2.W(), LSL, 1));
+  Register tmp = scope.AcquireX();
+  Mov(dst.X(), src.D(), 1);
+  Fmov(tmp.X(), src.D());
+  Lsr(dst.X(), dst.X(), 62);
+  Bfxil(dst.X(), tmp.X(), 63, 1);
 }
 
 void MacroAssembler::I64x2AllTrue(Register dst, VRegister src) {

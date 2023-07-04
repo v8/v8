@@ -2597,19 +2597,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       SIMD_BINOP_LANE_SIZE_CASE(kArm64IGtU, Cmhi);
       SIMD_BINOP_LANE_SIZE_CASE(kArm64IGeU, Cmhs);
     case kArm64I32x4BitMask: {
-      UseScratchRegisterScope scope(masm());
-      Register dst = i.OutputRegister32();
-      VRegister src = i.InputSimd128Register(0);
-      VRegister tmp = scope.AcquireQ();
-      VRegister mask = scope.AcquireQ();
-
-      __ Sshr(tmp.V4S(), src.V4S(), 31);
-      // Set i-th bit of each lane i. When AND with tmp, the lanes that
-      // are signed will have i-th bit set, unsigned will be 0.
-      __ Movi(mask.V2D(), 0x0000'0008'0000'0004, 0x0000'0002'0000'0001);
-      __ And(tmp.V16B(), mask.V16B(), tmp.V16B());
-      __ Addv(tmp.S(), tmp.V4S());
-      __ Mov(dst.W(), tmp.V4S(), 0);
+      __ I32x4BitMask(i.OutputRegister32(), i.InputSimd128Register(0));
       break;
     }
     case kArm64I32x4DotI16x8S: {
@@ -2715,19 +2703,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       SIMD_BINOP_LANE_SIZE_CASE(kArm64ISubSatU, Uqsub);
       SIMD_BINOP_CASE(kArm64I16x8Q15MulRSatS, Sqrdmulh, 8H);
     case kArm64I16x8BitMask: {
-      UseScratchRegisterScope scope(masm());
-      Register dst = i.OutputRegister32();
-      VRegister src = i.InputSimd128Register(0);
-      VRegister tmp = scope.AcquireQ();
-      VRegister mask = scope.AcquireQ();
-
-      __ Sshr(tmp.V8H(), src.V8H(), 15);
-      // Set i-th bit of each lane i. When AND with tmp, the lanes that
-      // are signed will have i-th bit set, unsigned will be 0.
-      __ Movi(mask.V2D(), 0x0080'0040'0020'0010, 0x0008'0004'0002'0001);
-      __ And(tmp.V16B(), mask.V16B(), tmp.V16B());
-      __ Addv(tmp.H(), tmp.V8H());
-      __ Mov(dst.W(), tmp.V8H(), 0);
+      __ I16x8BitMask(i.OutputRegister32(), i.InputSimd128Register(0));
       break;
     }
     case kArm64I8x16Shl: {
@@ -2771,21 +2747,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kArm64I8x16BitMask: {
-      UseScratchRegisterScope scope(masm());
-      Register dst = i.OutputRegister32();
-      VRegister src = i.InputSimd128Register(0);
-      VRegister tmp = scope.AcquireQ();
-      VRegister mask = scope.AcquireQ();
-
-      // Set i-th bit of each lane i. When AND with tmp, the lanes that
-      // are signed will have i-th bit set, unsigned will be 0.
-      __ Sshr(tmp.V16B(), src.V16B(), 7);
-      __ Movi(mask.V2D(), 0x8040'2010'0804'0201);
-      __ And(tmp.V16B(), mask.V16B(), tmp.V16B());
-      __ Ext(mask.V16B(), tmp.V16B(), tmp.V16B(), 8);
-      __ Zip1(tmp.V16B(), tmp.V16B(), mask.V16B());
-      __ Addv(tmp.H(), tmp.V8H());
-      __ Mov(dst.W(), tmp.V8H(), 0);
+      __ I8x16BitMask(i.OutputRegister32(), i.InputSimd128Register(0));
       break;
     }
     case kArm64S128Const: {
