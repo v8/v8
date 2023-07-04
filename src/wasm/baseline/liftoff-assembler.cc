@@ -126,8 +126,7 @@ class StackTransferRecipe {
     }
   }
 
-  V8_INLINE void LoadIntoRegister(LiftoffRegister dst,
-                                  const LiftoffAssembler::VarState& src) {
+  V8_INLINE void LoadIntoRegister(LiftoffRegister dst, const VarState& src) {
     if (src.is_reg()) {
       DCHECK_EQ(dst.reg_class(), src.reg_class());
       if (dst != src.reg()) MoveRegister(dst, src.reg(), src.kind());
@@ -139,8 +138,7 @@ class StackTransferRecipe {
     }
   }
 
-  void LoadI64HalfIntoRegister(LiftoffRegister dst,
-                               const LiftoffAssembler::VarState& src,
+  void LoadI64HalfIntoRegister(LiftoffRegister dst, const VarState& src,
                                RegPairHalf half) {
     // Use CHECK such that the remaining code is statically dead if
     // {kNeedI64RegPair} is false.
