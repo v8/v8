@@ -46,7 +46,16 @@ Node* JSGraph::CEntryStubConstant(int result_size, ArgvMode argv_mode,
 
 Node* JSGraph::Constant(ObjectRef ref, JSHeapBroker* broker) {
   if (ref.IsSmi()) return Constant(ref.AsSmi());
-  if (ref.IsTheHole()) return TheHoleConstant();
+  if (ref.IsTheHole()) {
+    HoleType hole_type =
+        ref.AsHeapObject().GetHeapObjectType(broker).hole_type();
+    switch (hole_type) {
+      case HoleType::kNone:
+        UNREACHABLE();
+      case HoleType::kGeneric:
+        return TheHoleConstant();
+    }
+  }
   if (ref.IsHeapNumber()) {
     return Constant(ref.AsHeapNumber().value());
   }

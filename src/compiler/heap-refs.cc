@@ -1187,6 +1187,16 @@ OddballType MapRef::oddball_type(JSHeapBroker* broker) const {
   return OddballType::kOther;
 }
 
+HoleType MapRef::hole_type(JSHeapBroker* broker) const {
+  if (instance_type() != HOLE_TYPE) {
+    return HoleType::kNone;
+  }
+  if (equals(broker->the_hole_map())) {
+    return HoleType::kGeneric;
+  }
+  UNREACHABLE();
+}
+
 FeedbackCellRef FeedbackVectorRef::GetClosureFeedbackCell(JSHeapBroker* broker,
                                                           int index) const {
   return MakeRefAssumeMemoryFence(broker,
@@ -2032,6 +2042,17 @@ OddballType GetOddballType(Isolate* isolate, Map map) {
   return OddballType::kOther;
 }
 
+HoleType GetHoleType(Isolate* isolate, Map map) {
+  if (map.instance_type() != HOLE_TYPE) {
+    return HoleType::kNone;
+  }
+  ReadOnlyRoots roots(isolate);
+  if (map == roots.the_hole_map()) {
+    return HoleType::kGeneric;
+  }
+  UNREACHABLE();
+}
+
 }  // namespace
 
 HeapObjectType HeapObjectRef::GetHeapObjectType(JSHeapBroker* broker) const {
@@ -2041,13 +2062,15 @@ HeapObjectType HeapObjectRef::GetHeapObjectType(JSHeapBroker* broker) const {
     if (map.is_undetectable()) flags |= HeapObjectType::kUndetectable;
     if (map.is_callable()) flags |= HeapObjectType::kCallable;
     return HeapObjectType(map.instance_type(), flags,
-                          GetOddballType(broker->isolate(), map));
+                          GetOddballType(broker->isolate(), map),
+                          GetHoleType(broker->isolate(), map));
   }
   HeapObjectType::Flags flags(0);
   if (map(broker).is_undetectable()) flags |= HeapObjectType::kUndetectable;
   if (map(broker).is_callable()) flags |= HeapObjectType::kCallable;
   return HeapObjectType(map(broker).instance_type(), flags,
-                        map(broker).oddball_type(broker));
+                        map(broker).oddball_type(broker),
+                        map(broker).hole_type(broker));
 }
 
 OptionalJSObjectRef AllocationSiteRef::boilerplate(JSHeapBroker* broker) const {

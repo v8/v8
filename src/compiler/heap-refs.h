@@ -76,6 +76,11 @@ enum class OddballType : uint8_t {
   kOther  // Oddball, but none of the above.
 };
 
+enum class HoleType : uint8_t {
+  kNone,  // Not a Hole.
+  kGeneric,
+};
+
 enum class RefSerializationKind {
   // Skips serialization.
   kNeverSerialized,
@@ -415,17 +420,20 @@ class HeapObjectType {
   using Flags = base::Flags<Flag>;
 
   HeapObjectType(InstanceType instance_type, Flags flags,
-                 OddballType oddball_type)
+                 OddballType oddball_type, HoleType hole_type)
       : instance_type_(instance_type),
         oddball_type_(oddball_type),
+        hole_type_(hole_type),
         flags_(flags) {
     DCHECK_EQ(instance_type == ODDBALL_TYPE,
               oddball_type != OddballType::kNone);
   }
 
   OddballType oddball_type() const { return oddball_type_; }
+  HoleType hole_type() const { return hole_type_; }
   // For compatibility with MapRef.
   OddballType oddball_type(JSHeapBroker* broker) const { return oddball_type_; }
+  HoleType hole_type(JSHeapBroker* broker) const { return hole_type_; }
   InstanceType instance_type() const { return instance_type_; }
   Flags flags() const { return flags_; }
 
@@ -435,6 +443,7 @@ class HeapObjectType {
  private:
   InstanceType const instance_type_;
   OddballType const oddball_type_;
+  HoleType const hole_type_;
   Flags const flags_;
 };
 
@@ -820,6 +829,7 @@ class V8_EXPORT_PRIVATE MapRef : public HeapObjectRef {
   bool is_abandoned_prototype_map() const;
 
   OddballType oddball_type(JSHeapBroker* broker) const;
+  HoleType hole_type(JSHeapBroker* broker) const;
 
   bool CanInlineElementAccess() const;
 
