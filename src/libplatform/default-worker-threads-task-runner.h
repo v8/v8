@@ -54,8 +54,11 @@ class V8_PLATFORM_EXPORT DefaultWorkerThreadsTaskRunner
     // This thread attempts to get tasks in a loop from |runner_| and run them.
     void Run() override;
 
+    void Notify();
+
    private:
     DefaultWorkerThreadsTaskRunner* runner_;
+    base::ConditionVariable condition_var_;
   };
 
   // Called by the WorkerThread. Gets the next take (delayed or immediate) to be
@@ -64,7 +67,9 @@ class V8_PLATFORM_EXPORT DefaultWorkerThreadsTaskRunner
 
   bool terminated_ = false;
   base::Mutex lock_;
-  base::ConditionVariable condition_var_;
+  // Vector of idle threads -- these are pushed in LIFO order, so that the most
+  // recently active thread is the first to be reactivated.
+  std::vector<WorkerThread*> idle_threads_;
   std::vector<std::unique_ptr<WorkerThread>> thread_pool_;
   // Worker threads access this queue, so we can only destroy it after all
   // workers stopped.
