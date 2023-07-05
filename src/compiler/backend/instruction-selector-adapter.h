@@ -5,11 +5,16 @@
 #ifndef V8_COMPILER_BACKEND_INSTRUCTION_SELECTOR_ADAPTER_H_
 #define V8_COMPILER_BACKEND_INSTRUCTION_SELECTOR_ADAPTER_H_
 
+#include "src/codegen/machine-type.h"
 #include "src/compiler/backend/instruction.h"
 #include "src/compiler/common-operator.h"
+#include "src/compiler/machine-operator.h"
 #include "src/compiler/node-matchers.h"
+#include "src/compiler/opcodes.h"
+#include "src/compiler/operator.h"
 #include "src/compiler/schedule.h"
 #include "src/compiler/turboshaft/graph.h"
+#include "src/compiler/turboshaft/operation-matching.h"
 #include "src/compiler/turboshaft/operations.h"
 
 // TODO(nicohartmann@):
@@ -47,6 +52,7 @@ struct AnyTurbofanNodeOrBlock<> {
 struct TurbofanAdapter {
   static constexpr bool IsTurbofan = true;
   static constexpr bool IsTurboshaft = false;
+  static constexpr bool AllowsImplicitWord64ToWord32Truncation = false;
   using schedule_t = Schedule*;
   using block_t = BasicBlock*;
   using block_range_t = ZoneVector<block_t>;
@@ -54,6 +60,62 @@ struct TurbofanAdapter {
   using inputs_t = Node::Inputs;
   using opcode_t = IrOpcode::Value;
   using id_t = uint32_t;
+
+  class ConstantView {
+   public:
+    explicit ConstantView(node_t node) : node_(node) {
+      DCHECK(node_->opcode() == IrOpcode::kInt32Constant ||
+             node_->opcode() == IrOpcode::kInt64Constant ||
+             node_->opcode() == IrOpcode::kRelocatableInt32Constant ||
+             node_->opcode() == IrOpcode::kRelocatableInt64Constant ||
+             node_->opcode() == IrOpcode::kHeapConstant ||
+             node_->opcode() == IrOpcode::kCompressedHeapConstant ||
+             node_->opcode() == IrOpcode::kNumberConstant);
+    }
+
+    bool is_int32() const {
+      return node_->opcode() == IrOpcode::kInt32Constant;
+    }
+    bool is_relocatable_int32() const {
+      return node_->opcode() == IrOpcode::kRelocatableInt32Constant;
+    }
+    int32_t int32_value() const {
+      DCHECK(is_int32() || is_relocatable_int32());
+      return OpParameter<int32_t>(node_->op());
+    }
+    bool is_int64() const {
+      return node_->opcode() == IrOpcode::kInt64Constant;
+    }
+    bool is_relocatable_int64() const {
+      return node_->opcode() == IrOpcode::kRelocatableInt64Constant;
+    }
+    int64_t int64_value() const {
+      DCHECK(is_int64() || is_relocatable_int64());
+      return OpParameter<int64_t>(node_->op());
+    }
+    bool is_heap_object() const {
+      return node_->opcode() == IrOpcode::kHeapConstant;
+    }
+    bool is_compressed_heap_object() const {
+      return node_->opcode() == IrOpcode::kCompressedHeapConstant;
+    }
+    Handle<HeapObject> heap_object_value() const {
+      DCHECK(is_heap_object() || is_compressed_heap_object());
+      return OpParameter<Handle<HeapObject>>(node_->op());
+    }
+    bool is_number() const {
+      return node_->opcode() == IrOpcode::kNumberConstant;
+    }
+    double number_value() const {
+      DCHECK(is_number());
+      return OpParameter<double>(node_->op());
+    }
+
+    operator node_t() const { return node_; }
+
+   private:
+    node_t node_;
+  };
 
   class CallView {
    public:
@@ -135,10 +197,146 @@ struct TurbofanAdapter {
     node_t node_;
   };
 
+  class StoreView {
+   public:
+    explicit StoreView(node_t node) : node_(node) {
+      DCHECK(node->opcode() == IrOpcode::kStore ||
+             node->opcode() == IrOpcode::kProtectedStore ||
+             node->opcode() == IrOpcode::kStoreTrapOnNull ||
+             node->opcode() == IrOpcode::kWord32AtomicStore ||
+             node->opcode() == IrOpcode::kWord64AtomicStore);
+    }
+
+    StoreRepresentation stored_rep() const {
+      switch (node_->opcode()) {
+        case IrOpcode::kStore:
+        case IrOpcode::kProtectedStore:
+        case IrOpcode::kStoreTrapOnNull:
+          return StoreRepresentationOf(node_->op());
+        case IrOpcode::kWord32AtomicStore:
+        case IrOpcode::kWord64AtomicStore:
+          return AtomicStoreParametersOf(node_->op()).store_representation();
+        default:
+          UNREACHABLE();
+      }
+    }
+    base::Optional<AtomicMemoryOrder> memory_order() const {
+      switch (node_->opcode()) {
+        case IrOpcode::kStore:
+        case IrOpcode::kProtectedStore:
+        case IrOpcode::kStoreTrapOnNull:
+          return base::nullopt;
+        case IrOpcode::kWord32AtomicStore:
+        case IrOpcode::kWord64AtomicStore:
+          return AtomicStoreParametersOf(node_->op()).order();
+        default:
+          UNREACHABLE();
+      }
+    }
+    MemoryAccessKind access_kind() const {
+      switch (node_->opcode()) {
+        case IrOpcode::kStore:
+          return MemoryAccessKind::kNormal;
+        case IrOpcode::kProtectedStore:
+        case IrOpcode::kStoreTrapOnNull:
+          return MemoryAccessKind::kProtected;
+        case IrOpcode::kWord32AtomicStore:
+        case IrOpcode::kWord64AtomicStore:
+          return AtomicStoreParametersOf(node_->op()).kind();
+        default:
+          UNREACHABLE();
+      }
+    }
+
+    node_t base() const { return node_->InputAt(0); }
+    node_t index() const { return node_->InputAt(1); }
+    node_t value() const { return node_->InputAt(2); }
+    int32_t displacement() const { return 0; }
+    uint8_t element_size_log2() const { return 0; }
+
+    bool is_store_trap_on_null() const {
+      return node_->opcode() == IrOpcode::kStoreTrapOnNull;
+    }
+
+    operator node_t() const { return node_; }
+
+   private:
+    node_t node_;
+  };
+
+  class DeoptimizeView {
+   public:
+    explicit DeoptimizeView(node_t node) : node_(node) {
+      DCHECK(node_->opcode() == IrOpcode::kDeoptimize ||
+             node_->opcode() == IrOpcode::kDeoptimizeIf ||
+             node_->opcode() == IrOpcode::kDeoptimizeUnless);
+    }
+
+    DeoptimizeReason reason() const {
+      return DeoptimizeParametersOf(node_->op()).reason();
+    }
+    FeedbackSource feedback() const {
+      return DeoptimizeParametersOf(node_->op()).feedback();
+    }
+    node_t frame_state() const {
+      if (is_deoptimize_if()) return node_->InputAt(1);
+      // TODO(nicohartmann@): Get right input for Deoptimize.
+      UNIMPLEMENTED();
+    }
+
+    bool is_deoptimize() const {
+      return node_->opcode() == IrOpcode::kDeoptimize;
+    }
+    bool is_deoptimize_if() const {
+      return node_->opcode() == IrOpcode::kDeoptimizeIf;
+    }
+    bool is_deoptimize_unless() const {
+      return node_->opcode() == IrOpcode::kDeoptimizeUnless;
+    }
+
+    node_t condition() const {
+      DCHECK(is_deoptimize_if() || is_deoptimize_unless());
+      return node_->InputAt(0);
+    }
+
+    operator node_t() const { return node_; }
+
+   private:
+    node_t node_;
+  };
+
+  bool is_constant(node_t node) const {
+    switch (node->opcode()) {
+      case IrOpcode::kInt32Constant:
+      case IrOpcode::kInt64Constant:
+      case IrOpcode::kRelocatableInt32Constant:
+      case IrOpcode::kRelocatableInt64Constant:
+      case IrOpcode::kHeapConstant:
+      case IrOpcode::kCompressedHeapConstant:
+      case IrOpcode::kNumberConstant:
+        // For those, a view must be constructible.
+        DCHECK_EQ(constant_view(node), node);
+        return true;
+      default:
+        return false;
+    }
+  }
+  bool is_load(node_t node) const {
+    return node->opcode() == IrOpcode::kLoad ||
+           node->opcode() == IrOpcode::kLoadImmutable ||
+           node->opcode() == IrOpcode::kProtectedLoad ||
+           node->opcode() == IrOpcode::kLoadTrapOnNull;
+  }
+  ConstantView constant_view(node_t node) const { return ConstantView{node}; }
   CallView call_view(node_t node) { return CallView{node}; }
   BranchView branch_view(node_t node) { return BranchView(node); }
   WordBinopView word_binop_view(node_t node) { return WordBinopView(node); }
-  LoadView load_view(node_t node) { return LoadView(node); }
+  LoadView load_view(node_t node) {
+    DCHECK(is_load(node));
+    return LoadView(node);
+  }
+  StoreView store_view(node_t node) { return StoreView(node); }
+  DeoptimizeView deoptimize_view(node_t node) { return DeoptimizeView(node); }
 
   void InitializeAdapter(schedule_t) {}
 
@@ -168,6 +366,10 @@ struct TurbofanAdapter {
   }
 
   bool IsPhi(node_t node) const { return node->opcode() == IrOpcode::kPhi; }
+  MachineRepresentation phi_representation_of(node_t node) const {
+    DCHECK(IsPhi(node));
+    return PhiRepresentationOf(node->op());
+  }
   bool IsRetain(node_t node) const {
     return node->opcode() == IrOpcode::kRetain;
   }
@@ -216,8 +418,23 @@ struct TurbofanAdapter {
     return NodeProperties::GetFrameStateInput(node);
   }
   int parameter_index_of(node_t node) const {
-    DCHECK(node->opcode() == IrOpcode::kParameter);
+    DCHECK_EQ(node->opcode(), IrOpcode::kParameter);
     return ParameterIndexOf(node->op());
+  }
+  size_t projection_index_of(node_t node) const {
+    DCHECK_EQ(node->opcode(), IrOpcode::kProjection);
+    return ProjectionIndexOf(node->op());
+  }
+  bool is_integer_constant(node_t node) const {
+    return node->opcode() == IrOpcode::kInt32Constant ||
+           node->opcode() == IrOpcode::kInt64Constant;
+  }
+  int64_t integer_constant(node_t node) const {
+    if (node->opcode() == IrOpcode::kInt32Constant) {
+      return OpParameter<int32_t>(node->op());
+    }
+    DCHECK_EQ(node->opcode(), IrOpcode::kInt64Constant);
+    return OpParameter<int64_t>(node->op());
   }
 
   bool IsRequiredWhenUnused(node_t node) const {
@@ -228,9 +445,11 @@ struct TurbofanAdapter {
   }
 };
 
-struct TurboshaftAdapter {
+struct TurboshaftAdapter
+    : public turboshaft::OperationMatching<TurboshaftAdapter> {
   static constexpr bool IsTurbofan = false;
   static constexpr bool IsTurboshaft = true;
+  static constexpr bool AllowsImplicitWord64ToWord32Truncation = true;
   // TODO(nicohartmann@): Rename schedule_t once Turbofan is gone.
   using schedule_t = turboshaft::Graph*;
   using block_t = turboshaft::Block*;
@@ -239,6 +458,54 @@ struct TurboshaftAdapter {
   using inputs_t = base::Vector<const node_t>;
   using opcode_t = turboshaft::Opcode;
   using id_t = uint32_t;
+
+  class ConstantView {
+    using Kind = turboshaft::ConstantOp::Kind;
+
+   public:
+    ConstantView(turboshaft::Graph* graph, node_t node) : node_(node) {
+      op_ = &graph->Get(node_).Cast<turboshaft::ConstantOp>();
+    }
+
+    bool is_int32() const { return op_->kind == Kind::kWord32; }
+    bool is_relocatable_int32() const {
+      // We don't have this in turboshaft currently.
+      return false;
+    }
+    int32_t int32_value() const {
+      DCHECK(is_int32() || is_relocatable_int32());
+      return op_->word32();
+    }
+    bool is_int64() const { return op_->kind == Kind::kWord64; }
+    bool is_relocatable_int64() const {
+      return op_->kind == Kind::kRelocatableWasmCall ||
+             op_->kind == Kind::kRelocatableWasmStubCall;
+    }
+    int64_t int64_value() const {
+      if (is_int64()) return op_->word64();
+      DCHECK(is_relocatable_int64());
+      return static_cast<int64_t>(op_->integral());
+    }
+    bool is_heap_object() const { return op_->kind == Kind::kHeapObject; }
+    bool is_compressed_heap_object() const {
+      return op_->kind == Kind::kCompressedHeapObject;
+    }
+    Handle<HeapObject> heap_object_value() const {
+      DCHECK(is_heap_object() || is_compressed_heap_object());
+      return op_->handle();
+    }
+    bool is_number() const { return op_->kind == Kind::kNumber; }
+    double number_value() const {
+      DCHECK(is_number());
+      return op_->number();
+    }
+
+    operator node_t() const { return node_; }
+
+   private:
+    node_t node_;
+    const turboshaft::ConstantOp* op_;
+  };
 
   class CallView {
    public:
@@ -316,7 +583,7 @@ struct TurboshaftAdapter {
 
   class LoadView {
    public:
-    explicit LoadView(turboshaft::Graph* graph, node_t node) : node_(node) {
+    LoadView(turboshaft::Graph* graph, node_t node) : node_(node) {
       op_ = &graph->Get(node_).Cast<turboshaft::LoadOp>();
     }
 
@@ -334,12 +601,113 @@ struct TurboshaftAdapter {
     const turboshaft::LoadOp* op_;
   };
 
+  class StoreView {
+   public:
+    StoreView(turboshaft::Graph* graph, node_t node) : node_(node) {
+      op_ = &graph->Get(node_).Cast<turboshaft::StoreOp>();
+    }
+
+    StoreRepresentation stored_rep() const {
+      return {op_->stored_rep.ToMachineType().representation(),
+              op_->write_barrier};
+    }
+    base::Optional<AtomicMemoryOrder> memory_order() const {
+      // TODO(nicohartmann@): Currently we only have non-atomic stores.
+      return base::nullopt;
+    }
+    MemoryAccessKind access_kind() const {
+      // TODO(nicohartmann@): Currently we only have non-atomic stores.
+      return MemoryAccessKind::kNormal;
+    }
+
+    node_t base() const { return op_->base(); }
+    node_t index() const { return op_->index(); }
+    node_t value() const { return op_->value(); }
+    int32_t displacement() const {
+      static_assert(
+          std::is_same_v<decltype(turboshaft::StoreOp::offset), int32_t>);
+      return op_->offset;
+    }
+    uint8_t element_size_log2() const {
+      static_assert(
+          std::is_same_v<decltype(turboshaft::StoreOp::element_size_log2),
+                         uint8_t>);
+      return op_->element_size_log2;
+    }
+
+    bool is_store_trap_on_null() const { return false; }
+
+    operator node_t() const { return node_; }
+
+   private:
+    node_t node_;
+    const turboshaft::StoreOp* op_;
+  };
+
+  class DeoptimizeView {
+   public:
+    explicit DeoptimizeView(const turboshaft::Graph* graph, node_t node)
+        : node_(node) {
+      const auto& op = graph->Get(node);
+      if (op.Is<turboshaft::DeoptimizeOp>()) {
+        deoptimize_op_ = &op.Cast<turboshaft::DeoptimizeOp>();
+        parameters_ = deoptimize_op_->parameters;
+      } else {
+        DCHECK(op.Is<turboshaft::DeoptimizeIfOp>());
+        deoptimize_if_op_ = &op.Cast<turboshaft::DeoptimizeIfOp>();
+        parameters_ = deoptimize_if_op_->parameters;
+      }
+    }
+
+    DeoptimizeReason reason() const { return parameters_->reason(); }
+    FeedbackSource feedback() const { return parameters_->feedback(); }
+    node_t frame_state() const {
+      return deoptimize_op_ ? deoptimize_op_->frame_state()
+                            : deoptimize_if_op_->frame_state();
+    }
+
+    bool is_deoptimize() const { return deoptimize_op_ != nullptr; }
+    bool is_deoptimize_if() const {
+      return deoptimize_if_op_ != nullptr && !deoptimize_if_op_->negated;
+    }
+    bool is_deoptimize_unless() const {
+      return deoptimize_if_op_ != nullptr && deoptimize_if_op_->negated;
+    }
+
+    node_t condition() const {
+      DCHECK(is_deoptimize_if());
+      return deoptimize_if_op_->condition();
+    }
+
+    operator node_t() const { return node_; }
+
+   private:
+    node_t node_;
+    const turboshaft::DeoptimizeOp* deoptimize_op_ = nullptr;
+    const turboshaft::DeoptimizeIfOp* deoptimize_if_op_ = nullptr;
+    const DeoptimizeParameters* parameters_;
+  };
+
+  bool is_constant(node_t node) const {
+    return graph_->Get(node).Is<turboshaft::ConstantOp>();
+  }
+  bool is_load(node_t node) const {
+    return graph_->Get(node).Is<turboshaft::LoadOp>();
+  }
+  ConstantView constant_view(node_t node) { return ConstantView{graph_, node}; }
   CallView call_view(node_t node) { return CallView{graph_, node}; }
   BranchView branch_view(node_t node) { return BranchView(graph_, node); }
   WordBinopView word_binop_view(node_t node) {
     return WordBinopView(graph_, node);
   }
-  LoadView load_view(node_t node) { return LoadView(graph_, node); }
+  LoadView load_view(node_t node) {
+    DCHECK(is_load(node));
+    return LoadView(graph_, node);
+  }
+  StoreView store_view(node_t node) { return StoreView(graph_, node); }
+  DeoptimizeView deoptimize_view(node_t node) {
+    return DeoptimizeView(graph_, node);
+  }
 
   void InitializeAdapter(schedule_t schedule) { graph_ = schedule; }
   turboshaft::Graph* turboshaft_graph() const { return graph_; }
@@ -374,6 +742,11 @@ struct TurboshaftAdapter {
 
   bool IsPhi(node_t node) const {
     return graph_->Get(node).Is<turboshaft::PhiOp>();
+  }
+  MachineRepresentation phi_representation_of(node_t node) const {
+    DCHECK(IsPhi(node));
+    const turboshaft::PhiOp& phi = graph_->Get(node).Cast<turboshaft::PhiOp>();
+    return phi.rep.machine_representation();
   }
   bool IsRetain(node_t node) const {
     return graph_->Get(node).Is<turboshaft::RetainOp>();
@@ -440,6 +813,24 @@ struct TurboshaftAdapter {
         graph_->Get(node).Cast<turboshaft::ParameterOp>();
     return parameter.parameter_index;
   }
+  size_t projection_index_of(node_t node) const {
+    const turboshaft::ProjectionOp& projection =
+        graph_->Get(node).Cast<turboshaft::ProjectionOp>();
+    return projection.index;
+  }
+  bool is_integer_constant(node_t node) const {
+    if (auto constant = graph_->Get(node).TryCast<turboshaft::ConstantOp>()) {
+      return constant->kind == turboshaft::ConstantOp::Kind::kWord32 ||
+             constant->kind == turboshaft::ConstantOp::Kind::kWord64;
+    }
+    return false;
+  }
+  int64_t integer_constant(node_t node) const {
+    const turboshaft::ConstantOp* constant =
+        graph_->Get(node).TryCast<turboshaft::ConstantOp>();
+    DCHECK_NOT_NULL(constant);
+    return constant->signed_integral();
+  }
 
   bool IsRequiredWhenUnused(node_t node) const {
     return graph_->Get(node).IsRequiredWhenUnused();
@@ -460,6 +851,10 @@ struct TurboshaftAdapter {
   }
 
  private:
+  friend class turboshaft::OperationMatching<TurboshaftAdapter>;
+  // Provide access to the graph for the OpMatcher.
+  const turboshaft::Graph& output_graph() const { return *graph_; }
+
   turboshaft::Graph* graph_;
 };
 

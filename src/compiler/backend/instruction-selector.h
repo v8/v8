@@ -19,6 +19,7 @@
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node.h"
 #include "src/compiler/turboshaft/operations.h"
+#include "src/compiler/turboshaft/representations.h"
 #include "src/compiler/turboshaft/utils.h"
 #include "src/utils/bit-vector.h"
 #include "src/zone/zone-containers.h"
@@ -465,7 +466,8 @@ class InstructionSelectorT final : public Adapter {
       size_t input_count, InstructionOperand* inputs, size_t temp_count,
       InstructionOperand* temps, FlagsContinuation* cont);
 
-  void EmitIdentity(Node* node);
+  DECLARE_UNREACHABLE_TURBOSHAFT_FALLBACK(void, EmitIdentity)
+  void EmitIdentity(node_t node);
 
   // ===========================================================================
   // ============== Architecture-independent CPU feature methods. ==============
@@ -602,6 +604,10 @@ class InstructionSelectorT final : public Adapter {
   // by {node}.
   DECLARE_UNREACHABLE_TURBOSHAFT_FALLBACK(void, MarkAsRepresentation)
   void MarkAsRepresentation(MachineRepresentation rep, node_t node);
+  void MarkAsRepresentation(turboshaft::RegisterRepresentation rep,
+                            node_t node) {
+    MarkAsRepresentation(rep.machine_representation(), node);
+  }
   DECLARE_UNREACHABLE_TURBOSHAFT_FALLBACK(void, MarkAsWord32)
   void MarkAsWord32(node_t node) {
     MarkAsRepresentation(MachineRepresentation::kWord32, node);
@@ -696,12 +702,27 @@ class InstructionSelectorT final : public Adapter {
   void VisitFloat64Ieee754Binop(Node*, InstructionCode code);
   void VisitFloat64Ieee754Unop(Node*, InstructionCode code);
 
+  node_t FindProjection(node_t node, size_t projection_index);
+
 #define DECLARE_GENERATOR_T(x) void Visit##x(node_t node);
+  DECLARE_GENERATOR_T(Word32And)
+  DECLARE_GENERATOR_T(Word32Or)
+  DECLARE_GENERATOR_T(Word32Sar)
+  DECLARE_GENERATOR_T(Word64Shl)
+  DECLARE_GENERATOR_T(Word64Sar)
+  DECLARE_GENERATOR_T(Int32AddWithOverflow)
+  DECLARE_GENERATOR_T(Int32MulWithOverflow)
+  DECLARE_GENERATOR_T(Int64Add)
+  DECLARE_GENERATOR_T(Word32AtomicStore)
+  DECLARE_GENERATOR_T(Word64AtomicStore)
   DECLARE_GENERATOR_T(Word32Equal)
   DECLARE_GENERATOR_T(Int32LessThan)
   DECLARE_GENERATOR_T(Int32LessThanOrEqual)
   DECLARE_GENERATOR_T(Uint32LessThan)
   DECLARE_GENERATOR_T(Uint32LessThanOrEqual)
+  DECLARE_GENERATOR_T(Uint64LessThan)
+  DECLARE_GENERATOR_T(Float64Sub)
+  DECLARE_GENERATOR_T(Float64Div)
   DECLARE_GENERATOR_T(Float32Equal)
   DECLARE_GENERATOR_T(Float32LessThan)
   DECLARE_GENERATOR_T(Float32LessThanOrEqual)
@@ -710,30 +731,105 @@ class InstructionSelectorT final : public Adapter {
   DECLARE_GENERATOR_T(Float64LessThanOrEqual)
   DECLARE_GENERATOR_T(Load)
   DECLARE_GENERATOR_T(StackPointerGreaterThan)
+  DECLARE_GENERATOR_T(Store)
+  DECLARE_GENERATOR_T(ProtectedStore)
+  DECLARE_GENERATOR_T(BitcastTaggedToWord)
+  DECLARE_GENERATOR_T(BitcastWordToTagged)
+  DECLARE_GENERATOR_T(ChangeInt32ToInt64)
+  DECLARE_GENERATOR_T(ChangeInt32ToFloat64)
+  DECLARE_GENERATOR_T(RoundFloat64ToInt32)
 #undef DECLARE_GENERATOR_T
 
 #define DECLARE_GENERATOR(x) void Visit##x(Node* node);
   // MACHINE_OP_LIST
   MACHINE_UNOP_32_LIST(DECLARE_GENERATOR)
-  MACHINE_BINOP_32_LIST(DECLARE_GENERATOR)
-  MACHINE_BINOP_64_LIST(DECLARE_GENERATOR)
+  // MACHINE_BINOP_32_LIST
+  DECLARE_GENERATOR(Word32Xor)
+  DECLARE_GENERATOR(Word32Shl)
+  DECLARE_GENERATOR(Word32Shr)
+  DECLARE_GENERATOR(Word32Rol)
+  DECLARE_GENERATOR(Word32Ror)
+  DECLARE_GENERATOR(Int32Add)
+  DECLARE_GENERATOR(Int32Sub)
+  DECLARE_GENERATOR(Int32SubWithOverflow)
+  DECLARE_GENERATOR(Int32Mul)
+  DECLARE_GENERATOR(Int32MulHigh)
+  DECLARE_GENERATOR(Int32Div)
+  DECLARE_GENERATOR(Int32Mod)
+  DECLARE_GENERATOR(Uint32Div)
+  DECLARE_GENERATOR(Uint32Mod)
+  DECLARE_GENERATOR(Uint32MulHigh)
+  // END MACHINE_BINOP_32_LIST
+  // MACHINE_BINOP_64_LIST
+  DECLARE_GENERATOR(Word64And)
+  DECLARE_GENERATOR(Word64Or)
+  DECLARE_GENERATOR(Word64Xor)
+  DECLARE_GENERATOR(Word64Shr)
+  DECLARE_GENERATOR(Word64Rol)
+  DECLARE_GENERATOR(Word64Ror)
+  DECLARE_GENERATOR(Word64RolLowerable)
+  DECLARE_GENERATOR(Word64RorLowerable)
+  DECLARE_GENERATOR(Int64AddWithOverflow)
+  DECLARE_GENERATOR(Int64Sub)
+  DECLARE_GENERATOR(Int64SubWithOverflow)
+  DECLARE_GENERATOR(Int64Mul)
+  DECLARE_GENERATOR(Int64MulHigh)
+  DECLARE_GENERATOR(Int64MulWithOverflow)
+  DECLARE_GENERATOR(Int64Div)
+  DECLARE_GENERATOR(Int64Mod)
+  DECLARE_GENERATOR(Uint64Div)
+  DECLARE_GENERATOR(Uint64Mod)
+  DECLARE_GENERATOR(Uint64MulHigh)
+  // END MACHINE_BINOP_64_LIST
   // MACHINE_COMPARE_BINOP_LIST
   DECLARE_GENERATOR(Word64Equal)
   DECLARE_GENERATOR(Int64LessThan)
   DECLARE_GENERATOR(Int64LessThanOrEqual)
-  DECLARE_GENERATOR(Uint64LessThan)
   DECLARE_GENERATOR(Uint64LessThanOrEqual)
   // END MACHINE_COMPARE_BINOP_LIST
   MACHINE_FLOAT32_BINOP_LIST(DECLARE_GENERATOR)
   MACHINE_FLOAT32_UNOP_LIST(DECLARE_GENERATOR)
-  MACHINE_FLOAT64_BINOP_LIST(DECLARE_GENERATOR)
+  // MACHINE_FLOAT64_BINOP_LIST
+  DECLARE_GENERATOR(Float64Atan2)
+  DECLARE_GENERATOR(Float64Max)
+  DECLARE_GENERATOR(Float64Min)
+  DECLARE_GENERATOR(Float64Add)
+  DECLARE_GENERATOR(Float64Mul)
+  DECLARE_GENERATOR(Float64Mod)
+  DECLARE_GENERATOR(Float64Pow)
+  // END MACHINE_FLOAT64_BINOP_LIST
   MACHINE_FLOAT64_UNOP_LIST(DECLARE_GENERATOR)
-  MACHINE_ATOMIC_OP_LIST(DECLARE_GENERATOR)
+  // MACHINE_ATOMIC_OP_LIST
+  DECLARE_GENERATOR(Word32AtomicLoad)
+  DECLARE_GENERATOR(Word32AtomicExchange)
+  DECLARE_GENERATOR(Word32AtomicCompareExchange)
+  DECLARE_GENERATOR(Word32AtomicAdd)
+  DECLARE_GENERATOR(Word32AtomicSub)
+  DECLARE_GENERATOR(Word32AtomicAnd)
+  DECLARE_GENERATOR(Word32AtomicOr)
+  DECLARE_GENERATOR(Word32AtomicXor)
+  DECLARE_GENERATOR(Word32AtomicPairLoad)
+  DECLARE_GENERATOR(Word32AtomicPairStore)
+  DECLARE_GENERATOR(Word32AtomicPairAdd)
+  DECLARE_GENERATOR(Word32AtomicPairSub)
+  DECLARE_GENERATOR(Word32AtomicPairAnd)
+  DECLARE_GENERATOR(Word32AtomicPairOr)
+  DECLARE_GENERATOR(Word32AtomicPairXor)
+  DECLARE_GENERATOR(Word32AtomicPairExchange)
+  DECLARE_GENERATOR(Word32AtomicPairCompareExchange)
+  DECLARE_GENERATOR(Word64AtomicLoad)
+  DECLARE_GENERATOR(Word64AtomicAdd)
+  DECLARE_GENERATOR(Word64AtomicSub)
+  DECLARE_GENERATOR(Word64AtomicAnd)
+  DECLARE_GENERATOR(Word64AtomicOr)
+  DECLARE_GENERATOR(Word64AtomicXor)
+  DECLARE_GENERATOR(Word64AtomicExchange)
+  DECLARE_GENERATOR(Word64AtomicCompareExchange)
+  // END MACHINE_ATOMIC_OP_LIST
   DECLARE_GENERATOR(AbortCSADcheck)
   DECLARE_GENERATOR(DebugBreak)
   DECLARE_GENERATOR(Comment)
   DECLARE_GENERATOR(LoadImmutable)
-  DECLARE_GENERATOR(Store)
   DECLARE_GENERATOR(StorePair)
   DECLARE_GENERATOR(StackSlot)
   DECLARE_GENERATOR(Word32Popcnt)
@@ -746,9 +842,7 @@ class InstructionSelectorT final : public Adapter {
   DECLARE_GENERATOR(Word64ReverseBytes)
   DECLARE_GENERATOR(Simd128ReverseBytes)
   DECLARE_GENERATOR(Int64AbsWithOverflow)
-  DECLARE_GENERATOR(BitcastTaggedToWord)
   DECLARE_GENERATOR(BitcastTaggedToWordForTagAndSmiBits)
-  DECLARE_GENERATOR(BitcastWordToTagged)
   DECLARE_GENERATOR(BitcastWordToTaggedSigned)
   DECLARE_GENERATOR(TruncateFloat64ToWord32)
   DECLARE_GENERATOR(ChangeFloat32ToFloat64)
@@ -767,15 +861,12 @@ class InstructionSelectorT final : public Adapter {
   DECLARE_GENERATOR(TryTruncateFloat64ToUint64)
   DECLARE_GENERATOR(TryTruncateFloat64ToInt32)
   DECLARE_GENERATOR(TryTruncateFloat64ToUint32)
-  DECLARE_GENERATOR(ChangeInt32ToFloat64)
   DECLARE_GENERATOR(BitcastWord32ToWord64)
-  DECLARE_GENERATOR(ChangeInt32ToInt64)
   DECLARE_GENERATOR(ChangeInt64ToFloat64)
   DECLARE_GENERATOR(ChangeUint32ToFloat64)
   DECLARE_GENERATOR(ChangeUint32ToUint64)
   DECLARE_GENERATOR(TruncateFloat64ToFloat32)
   DECLARE_GENERATOR(TruncateInt64ToInt32)
-  DECLARE_GENERATOR(RoundFloat64ToInt32)
   DECLARE_GENERATOR(RoundInt32ToFloat32)
   DECLARE_GENERATOR(RoundInt64ToFloat32)
   DECLARE_GENERATOR(RoundInt64ToFloat64)
@@ -807,7 +898,6 @@ class InstructionSelectorT final : public Adapter {
   DECLARE_GENERATOR(Word32PairShr)
   DECLARE_GENERATOR(Word32PairSar)
   DECLARE_GENERATOR(ProtectedLoad)
-  DECLARE_GENERATOR(ProtectedStore)
   DECLARE_GENERATOR(LoadTrapOnNull)
   DECLARE_GENERATOR(StoreTrapOnNull)
   DECLARE_GENERATOR(MemoryBarrier)
@@ -830,11 +920,11 @@ class InstructionSelectorT final : public Adapter {
   void VisitParameter(node_t node);
   void VisitIfException(Node* node);
   void VisitOsrValue(Node* node);
-  void VisitPhi(Node* node);
-  void VisitProjection(Node* node);
+  void VisitPhi(node_t node);
+  void VisitProjection(node_t node);
   void VisitConstant(node_t node);
   void VisitCall(node_t call, block_t handler = {});
-  void VisitDeoptimizeIf(Node* node);
+  void VisitDeoptimizeIf(node_t node);
   void VisitDeoptimizeUnless(Node* node);
   void VisitDynamicCheckMapsWithDeoptUnless(Node* node);
   void VisitTrapIf(node_t node, TrapId trap_id);
@@ -908,12 +998,16 @@ class InstructionSelectorT final : public Adapter {
 
   void MarkPairProjectionsAsWord32(Node* node);
   bool IsSourcePositionUsed(Node* node);
-  void VisitWord32AtomicBinaryOperation(Node* node, ArchOpcode int8_op,
+  DECLARE_UNREACHABLE_TURBOSHAFT_FALLBACK(void,
+                                          VisitWord32AtomicBinaryOperation)
+  void VisitWord32AtomicBinaryOperation(node_t node, ArchOpcode int8_op,
                                         ArchOpcode uint8_op,
                                         ArchOpcode int16_op,
                                         ArchOpcode uint16_op,
                                         ArchOpcode word32_op);
-  void VisitWord64AtomicBinaryOperation(Node* node, ArchOpcode uint8_op,
+  DECLARE_UNREACHABLE_TURBOSHAFT_FALLBACK(void,
+                                          VisitWord64AtomicBinaryOperation)
+  void VisitWord64AtomicBinaryOperation(node_t node, ArchOpcode uint8_op,
                                         ArchOpcode uint16_op,
                                         ArchOpcode uint32_op,
                                         ArchOpcode uint64_op);

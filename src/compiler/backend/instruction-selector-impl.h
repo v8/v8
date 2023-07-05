@@ -78,6 +78,7 @@ class SwitchInfo {
   using super::TempImmediate;                              \
   using super::UseFixed;                                   \
   using super::UseImmediate;                               \
+  using super::UseImmediate64;                             \
   using super::UseNegatedImmediate;                        \
   using super::UseRegister;                                \
   using super::UseRegisterWithMode;                        \
@@ -473,29 +474,10 @@ class OperandGeneratorT : public Adapter {
   }
 
   Constant ToNegatedConstant(node_t node) {
-    if constexpr (Adapter::IsTurboshaft) {
-      if (const turboshaft::ConstantOp* constant =
-              this->schedule()
-                  ->Get(node)
-                  .template TryCast<turboshaft::ConstantOp>();
-          constant != nullptr) {
-        if (constant->kind == turboshaft::ConstantOp::Kind::kWord32) {
-          return Constant(-static_cast<int32_t>(constant->word32()));
-        } else if (constant->kind == turboshaft::ConstantOp::Kind::kWord64) {
-          return Constant(-static_cast<int64_t>(constant->word64()));
-        }
-      }
-    } else {
-      switch (node->opcode()) {
-        case IrOpcode::kInt32Constant:
-          return Constant(-OpParameter<int32_t>(node->op()));
-        case IrOpcode::kInt64Constant:
-          return Constant(-OpParameter<int64_t>(node->op()));
-        default:
-          break;
-      }
-    }
-    UNREACHABLE();
+    auto constant = this->constant_view(node);
+    if (constant.is_int32()) return Constant(-constant.int32_value());
+    DCHECK(constant.is_int64());
+    return Constant(-constant.int64_value());
   }
 
   UnallocatedOperand Define(node_t node, UnallocatedOperand operand) {

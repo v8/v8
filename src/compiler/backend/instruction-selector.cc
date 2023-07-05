@@ -7,8 +7,6 @@
 #include <limits>
 
 #include "src/base/iterator.h"
-#include "src/codegen/assembler-inl.h"
-#include "src/codegen/interface-descriptors-inl.h"
 #include "src/codegen/machine-type.h"
 #include "src/codegen/tick-counter.h"
 #include "src/common/globals.h"
@@ -21,6 +19,8 @@
 #include "src/compiler/schedule.h"
 #include "src/compiler/state-values-utils.h"
 #include "src/compiler/turboshaft/operations.h"
+#include "src/compiler/turboshaft/representations.h"
+#include "src/numbers/conversions-inl.h"
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/simd-shuffle.h"
@@ -29,6 +29,12 @@
 namespace v8 {
 namespace internal {
 namespace compiler {
+
+#define VISIT_UNSUPPORTED_OP(op)                          \
+  template <typename Adapter>                             \
+  void InstructionSelectorT<Adapter>::Visit##op(node_t) { \
+    UNIMPLEMENTED();                                      \
+  }
 
 Smi NumberConstantToSmi(Node* node) {
   DCHECK_EQ(node->opcode(), IrOpcode::kNumberConstant);
@@ -1143,21 +1149,15 @@ template <typename Adapter>
 void InstructionSelectorT<Adapter>::AppendDeoptimizeArguments(
     InstructionOperandVector* args, DeoptimizeReason reason, id_t node_id,
     FeedbackSource const& feedback, node_t frame_state, DeoptimizeKind kind) {
-  if constexpr (Adapter::IsTurboshaft) {
-    // TODO(nicohartmann@): Implement this for turboshaft.
-    UNIMPLEMENTED();
-  } else {
-    OperandGenerator g(this);
-    FrameStateDescriptor* const descriptor =
-        GetFrameStateDescriptor(static_cast<Node*>(frame_state));
-    int const state_id = sequence()->AddDeoptimizationEntry(
-        descriptor, kind, reason, node_id, feedback);
-    args->push_back(g.TempImmediate(state_id));
-    StateObjectDeduplicator deduplicator(instruction_zone());
-    AddInputsToFrameStateDescriptor(descriptor, frame_state, &g, &deduplicator,
-                                    args, FrameStateInputKind::kAny,
-                                    instruction_zone());
-  }
+  OperandGenerator g(this);
+  FrameStateDescriptor* const descriptor = GetFrameStateDescriptor(frame_state);
+  int const state_id = sequence()->AddDeoptimizationEntry(
+      descriptor, kind, reason, node_id, feedback);
+  args->push_back(g.TempImmediate(state_id));
+  StateObjectDeduplicator deduplicator(instruction_zone());
+  AddInputsToFrameStateDescriptor(descriptor, frame_state, &g, &deduplicator,
+                                  args, FrameStateInputKind::kAny,
+                                  instruction_zone());
 }
 
 // An internal helper class for generating the operands to calls.
@@ -1552,97 +1552,6 @@ void InstructionSelectorT<Adapter>::MarkPairProjectionsAsWord32(Node* node) {
   }
 }
 
-template <>
-void InstructionSelectorT<TurboshaftAdapter>::VisitNode(
-    turboshaft::OpIndex node) {
-  tick_counter_->TickAndMaybeEnterSafepoint();
-  const turboshaft::Operation& op = schedule()->Get(node);
-  using Opcode = turboshaft::Opcode;
-  switch (op.opcode) {
-    case Opcode::kBranch:
-    case Opcode::kGoto:
-    case Opcode::kReturn:
-      // Those are already handled in VisitControl.
-      break;
-    case Opcode::kParameter: {
-      // Parameters should always be scheduled to the first block.
-      DCHECK_EQ(this->rpo_number(this->block(schedule(), node)).ToInt(), 0);
-      MachineType type = linkage()->GetParameterType(
-          op.Cast<turboshaft::ParameterOp>().parameter_index);
-      MarkAsRepresentation(type.representation(), node);
-      return VisitParameter(node);
-    }
-    case Opcode::kConstant: {
-      const turboshaft::ConstantOp& constant =
-          op.Cast<turboshaft::ConstantOp>();
-      using Kind = turboshaft::ConstantOp::Kind;
-      switch (constant.kind) {
-        case Kind::kWord32:
-        case Kind::kWord64:
-        case Kind::kTaggedIndex:
-        case Kind::kExternal:
-          break;
-        case Kind::kFloat32:
-          MarkAsFloat32(node);
-          break;
-        case Kind::kFloat64:
-          MarkAsFloat64(node);
-          break;
-        case Kind::kHeapObject:
-          MarkAsTagged(node);
-          break;
-        case Kind::kCompressedHeapObject:
-          MarkAsCompressed(node);
-          break;
-        case Kind::kNumber:
-          if (!IsSmiDouble(constant.number())) MarkAsTagged(node);
-          break;
-        case Kind::kRelocatableWasmCall:
-        case Kind::kRelocatableWasmStubCall:
-          UNIMPLEMENTED();
-      }
-      VisitConstant(node);
-      break;
-    }
-    case Opcode::kCall:
-      VisitCall(node);
-      break;
-    case Opcode::kFrameConstant: {
-      const turboshaft::FrameConstantOp& constant =
-          op.Cast<turboshaft::FrameConstantOp>();
-      using Kind = turboshaft::FrameConstantOp::Kind;
-      OperandGenerator g(this);
-      switch (constant.kind) {
-        case Kind::kStackCheckOffset:
-          Emit(kArchStackCheckOffset, g.DefineAsRegister(node));
-          break;
-        case Kind::kFramePointer:
-          Emit(kArchFramePointer, g.DefineAsRegister(node));
-          break;
-        case Kind::kParentFramePointer:
-          Emit(kArchParentFramePointer, g.DefineAsRegister(node));
-          break;
-      }
-      break;
-    }
-    case Opcode::kStackPointerGreaterThan:
-      VisitStackPointerGreaterThan(node);
-      break;
-    case Opcode::kLoad: {
-      MachineRepresentation rep = op.Cast<turboshaft::LoadOp>()
-                                      .loaded_rep.ToMachineType()
-                                      .representation();
-      MarkAsRepresentation(rep, node);
-      return VisitLoad(node);
-    }
-    default: {
-      const std::string op_string = op.ToString();
-      PrintF("\033[31mNo ISEL support for: %s\033[m\n", op_string.c_str());
-      FATAL("Unexpected operation #%d:%s", node.id(), op_string.c_str());
-    }
-  }
-}
-
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitStackPointerGreaterThan(node_t node) {
   FlagsContinuation cont =
@@ -1818,14 +1727,23 @@ void InstructionSelectorT<Adapter>::EmitBinarySearchSwitch(
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitBitcastTaggedToWord(Node* node) {
+void InstructionSelectorT<Adapter>::VisitBitcastTaggedToWord(node_t node) {
   EmitIdentity(node);
 }
 
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitBitcastWordToTagged(Node* node) {
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitBitcastWordToTagged(
+    node_t node) {
   OperandGenerator g(this);
   Emit(kArchNop, g.DefineSameAsFirst(node), g.Use(node->InputAt(0)));
+}
+
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitBitcastWordToTagged(
+    node_t node) {
+  OperandGenerator g(this);
+  Emit(kArchNop, g.DefineSameAsFirst(node),
+       g.Use(this->Get(node).Cast<turboshaft::TaggedBitcastOp>().input()));
 }
 
 // 32 bit targets do not implement the following instructions.
@@ -1846,20 +1764,14 @@ void InstructionSelectorT<Adapter>::VisitWord64Xor(Node* node) {
   UNIMPLEMENTED();
 }
 
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord64Shl(Node* node) {
-  UNIMPLEMENTED();
-}
+VISIT_UNSUPPORTED_OP(Word64Shl)
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord64Shr(Node* node) {
   UNIMPLEMENTED();
 }
 
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord64Sar(Node* node) {
-  UNIMPLEMENTED();
-}
+VISIT_UNSUPPORTED_OP(Word64Sar)
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord64Rol(Node* node) {
@@ -1896,10 +1808,7 @@ void InstructionSelectorT<Adapter>::VisitWord64Equal(Node* node) {
   UNIMPLEMENTED();
 }
 
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitInt64Add(Node* node) {
-  UNIMPLEMENTED();
-}
+VISIT_UNSUPPORTED_OP(Int64Add)
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitInt64AddWithOverflow(Node* node) {
@@ -1961,10 +1870,7 @@ void InstructionSelectorT<Adapter>::VisitInt64Mod(Node* node) {
   UNIMPLEMENTED();
 }
 
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitUint64LessThan(Node* node) {
-  UNIMPLEMENTED();
-}
+VISIT_UNSUPPORTED_OP(Uint64LessThan)
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitUint64LessThanOrEqual(Node* node) {
@@ -1981,10 +1887,7 @@ void InstructionSelectorT<Adapter>::VisitBitcastWord32ToWord64(Node* node) {
   UNIMPLEMENTED();
 }
 
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitChangeInt32ToInt64(Node* node) {
-  UNIMPLEMENTED();
-}
+VISIT_UNSUPPORTED_OP(ChangeInt32ToInt64)
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitChangeInt64ToFloat64(Node* node) {
@@ -2185,10 +2088,7 @@ void InstructionSelectorT<Adapter>::VisitWord64AtomicLoad(Node* node) {
   UNIMPLEMENTED();
 }
 
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord64AtomicStore(Node* node) {
-  UNIMPLEMENTED();
-}
+VISIT_UNSUPPORTED_OP(Word64AtomicStore)
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord64AtomicAdd(Node* node) {
@@ -2320,22 +2220,40 @@ void InstructionSelectorT<Adapter>::VisitOsrValue(Node* node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitPhi(Node* node) {
-  const int input_count = node->op()->ValueInputCount();
-  DCHECK_EQ(input_count, current_block_->PredecessorCount());
+void InstructionSelectorT<Adapter>::VisitPhi(node_t node) {
+  const int input_count = this->value_input_count(node);
+  DCHECK_EQ(input_count, this->PredecessorCount(current_block_));
   PhiInstruction* phi = instruction_zone()->template New<PhiInstruction>(
       instruction_zone(), GetVirtualRegister(node),
       static_cast<size_t>(input_count));
   sequence()->InstructionBlockAt(this->rpo_number(current_block_))->AddPhi(phi);
   for (int i = 0; i < input_count; ++i) {
-    Node* const input = node->InputAt(i);
+    node_t input = this->input_at(node, i);
     MarkAsUsed(input);
     phi->SetInput(static_cast<size_t>(i), GetVirtualRegister(input));
   }
 }
 
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitProjection(Node* node) {
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitProjection(
+    turboshaft::OpIndex node) {
+  const turboshaft::ProjectionOp& projection =
+      this->Get(node).Cast<turboshaft::ProjectionOp>();
+  const turboshaft::Operation& value_op = this->Get(projection.input());
+  if (value_op.Is<turboshaft::OverflowCheckedBinopOp>()) {
+    if (projection.index == 0u) {
+      EmitIdentity(node);
+    } else {
+      DCHECK_EQ(1u, projection.index);
+      MarkAsUsed(projection.input());
+    }
+  } else {
+    UNIMPLEMENTED();
+  }
+}
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitProjection(Node* node) {
   OperandGenerator g(this);
   Node* value = node->InputAt(0);
   switch (value->opcode()) {
@@ -2727,15 +2645,17 @@ void InstructionSelectorT<Adapter>::TryPrepareScheduleFirstProjection(
   }
 }
 
-template <>
-void InstructionSelectorT<TurbofanAdapter>::VisitDeoptimizeIf(Node* node) {
-  TryPrepareScheduleFirstProjection(node->InputAt(0));
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitDeoptimizeIf(node_t node) {
+  auto deopt = this->deoptimize_view(node);
+  DCHECK(deopt.is_deoptimize_if());
 
-  DeoptimizeParameters p = DeoptimizeParametersOf(node->op());
+  TryPrepareScheduleFirstProjection(deopt.condition());
+
   FlagsContinuation cont = FlagsContinuation::ForDeoptimize(
-      kNotEqual, p.reason(), node->id(), p.feedback(),
-      FrameState{node->InputAt(1)});
-  VisitWordCompareZero(node, node->InputAt(0), &cont);
+      kNotEqual, deopt.reason(), this->id(node), deopt.feedback(),
+      deopt.frame_state());
+  VisitWordCompareZero(node, deopt.condition(), &cont);
 }
 
 template <typename Adapter>
@@ -2788,10 +2708,13 @@ void InstructionSelectorT<Adapter>::VisitTrapUnless(node_t node,
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::EmitIdentity(Node* node) {
-  MarkAsUsed(node->InputAt(0));
+void InstructionSelectorT<Adapter>::EmitIdentity(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    DCHECK_EQ(this->value_input_count(node), 1);
+  }
+  MarkAsUsed(this->input_at(node, 0));
   MarkAsDefined(node);
-  SetRename(node, node->InputAt(0));
+  SetRename(node, this->input_at(node, 0));
 }
 
 template <typename Adapter>
@@ -4329,6 +4252,282 @@ void InstructionSelectorT<TurbofanAdapter>::VisitNode(Node* node) {
   }
 }
 
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitNode(
+    turboshaft::OpIndex node) {
+  tick_counter_->TickAndMaybeEnterSafepoint();
+  const turboshaft::Operation& op = schedule()->Get(node);
+  using Opcode = turboshaft::Opcode;
+  using Rep = turboshaft::RegisterRepresentation;
+  switch (op.opcode) {
+    case Opcode::kBranch:
+    case Opcode::kGoto:
+    case Opcode::kReturn:
+      // Those are already handled in VisitControl.
+      break;
+    case Opcode::kParameter: {
+      // Parameters should always be scheduled to the first block.
+      DCHECK_EQ(this->rpo_number(this->block(schedule(), node)).ToInt(), 0);
+      MachineType type = linkage()->GetParameterType(
+          op.Cast<turboshaft::ParameterOp>().parameter_index);
+      MarkAsRepresentation(type.representation(), node);
+      return VisitParameter(node);
+    }
+    case Opcode::kChange: {
+      using Kind = turboshaft::ChangeOp::Kind;
+      using Assumption = turboshaft::ChangeOp::Assumption;
+      const turboshaft::ChangeOp& change = op.Cast<turboshaft::ChangeOp>();
+      switch (change.kind) {
+        case Kind::kSignExtend:
+          DCHECK_EQ(change.assumption, Assumption::kNoAssumption);
+          DCHECK_EQ(change.from, Rep::Word32());
+          DCHECK_EQ(change.to, Rep::Word64());
+          // ChangeInt32ToInt64
+          MarkAsWord64(node);
+          return VisitChangeInt32ToInt64(node);
+        case Kind::kSignedFloatTruncateOverflowToMin:
+          if (change.assumption == Assumption::kNoOverflow) {
+            if (change.from == Rep::Float64()) {
+              if (change.to == Rep::Word32()) {
+                // RoundFloat64ToInt32
+                MarkAsWord32(node);
+                return VisitRoundFloat64ToInt32(node);
+              }
+            }
+          }
+          UNIMPLEMENTED();
+        case Kind::kSignedToFloat:
+          if (change.from == Rep::Word32()) {
+            if (change.to == Rep::Float64()) {
+              DCHECK_EQ(change.assumption, Assumption::kNoAssumption);
+              // ChangeInt32ToFloat64
+              MarkAsFloat64(node);
+              return VisitChangeInt32ToFloat64(node);
+            }
+          }
+          UNIMPLEMENTED();
+        default:
+          UNIMPLEMENTED();
+      }
+      UNREACHABLE();
+    }
+    case Opcode::kConstant: {
+      const turboshaft::ConstantOp& constant =
+          op.Cast<turboshaft::ConstantOp>();
+      using Kind = turboshaft::ConstantOp::Kind;
+      switch (constant.kind) {
+        case Kind::kWord32:
+        case Kind::kWord64:
+        case Kind::kTaggedIndex:
+        case Kind::kExternal:
+          break;
+        case Kind::kFloat32:
+          MarkAsFloat32(node);
+          break;
+        case Kind::kFloat64:
+          MarkAsFloat64(node);
+          break;
+        case Kind::kHeapObject:
+          MarkAsTagged(node);
+          break;
+        case Kind::kCompressedHeapObject:
+          MarkAsCompressed(node);
+          break;
+        case Kind::kNumber:
+          if (!IsSmiDouble(constant.number())) MarkAsTagged(node);
+          break;
+        case Kind::kRelocatableWasmCall:
+        case Kind::kRelocatableWasmStubCall:
+          UNIMPLEMENTED();
+      }
+      VisitConstant(node);
+      break;
+    }
+    case Opcode::kWordBinop: {
+      const turboshaft::WordBinopOp& binop = op.Cast<turboshaft::WordBinopOp>();
+      using Kind = turboshaft::WordBinopOp::Kind;
+      if (binop.rep == turboshaft::WordRepresentation::Word32()) {
+        MarkAsWord32(node);
+        switch (binop.kind) {
+          case Kind::kBitwiseAnd:
+            return VisitWord32And(node);
+          case Kind::kBitwiseOr:
+            return VisitWord32Or(node);
+          default:
+            UNIMPLEMENTED();
+        }
+      } else {
+        DCHECK_EQ(binop.rep, turboshaft::WordRepresentation::Word64());
+        MarkAsWord64(node);
+        switch (binop.kind) {
+          case Kind::kAdd:
+            return VisitInt64Add(node);
+          default:
+            UNIMPLEMENTED();
+        }
+      }
+      UNREACHABLE();
+    }
+    case Opcode::kFloatBinop: {
+      using Kind = turboshaft::FloatBinopOp::Kind;
+      const auto& binop = op.Cast<turboshaft::FloatBinopOp>();
+      if (binop.rep == turboshaft::FloatRepresentation::Float32()) {
+        UNIMPLEMENTED();
+      } else {
+        DCHECK_EQ(binop.rep, turboshaft::FloatRepresentation::Float64());
+        MarkAsFloat64(node);
+        switch (binop.kind) {
+          case Kind::kSub:
+            return VisitFloat64Sub(node);
+          case Kind::kDiv:
+            return VisitFloat64Div(node);
+          default:
+            UNIMPLEMENTED();
+        }
+      }
+      UNREACHABLE();
+    }
+    case Opcode::kOverflowCheckedBinop: {
+      const auto& binop = op.Cast<turboshaft::OverflowCheckedBinopOp>();
+      using Kind = turboshaft::OverflowCheckedBinopOp::Kind;
+      if (binop.rep == turboshaft::WordRepresentation::Word32()) {
+        MarkAsWord32(node);
+        switch (binop.kind) {
+          case Kind::kSignedAdd:
+            return VisitInt32AddWithOverflow(node);
+          case Kind::kSignedMul:
+            return VisitInt32MulWithOverflow(node);
+          default:
+            UNIMPLEMENTED();
+        }
+      } else {
+        DCHECK_EQ(binop.rep, turboshaft::WordRepresentation::Word64());
+        UNIMPLEMENTED();
+      }
+      UNREACHABLE();
+    }
+    case Opcode::kShift: {
+      using Kind = turboshaft::ShiftOp::Kind;
+      const auto& shift = op.Cast<turboshaft::ShiftOp>();
+      if (shift.rep == turboshaft::RegisterRepresentation::Word32()) {
+        MarkAsWord32(node);
+        switch (shift.kind) {
+          case Kind::kShiftRightArithmeticShiftOutZeros:
+            return VisitWord32Sar(node);
+          default:
+            UNIMPLEMENTED();
+        }
+      } else {
+        DCHECK_EQ(shift.rep, turboshaft::RegisterRepresentation::Word64());
+        MarkAsWord64(node);
+        switch (shift.kind) {
+          case Kind::kShiftLeft:
+            return VisitWord64Shl(node);
+          case Kind::kShiftRightArithmeticShiftOutZeros:
+            return VisitWord64Sar(node);
+          default:
+            UNIMPLEMENTED();
+        }
+      }
+      UNREACHABLE();
+    }
+    case Opcode::kCall:
+      VisitCall(node);
+      break;
+    case Opcode::kFrameConstant: {
+      const auto& constant = op.Cast<turboshaft::FrameConstantOp>();
+      using Kind = turboshaft::FrameConstantOp::Kind;
+      OperandGenerator g(this);
+      switch (constant.kind) {
+        case Kind::kStackCheckOffset:
+          Emit(kArchStackCheckOffset, g.DefineAsRegister(node));
+          break;
+        case Kind::kFramePointer:
+          Emit(kArchFramePointer, g.DefineAsRegister(node));
+          break;
+        case Kind::kParentFramePointer:
+          Emit(kArchParentFramePointer, g.DefineAsRegister(node));
+          break;
+      }
+      break;
+    }
+    case Opcode::kStackPointerGreaterThan:
+      return VisitStackPointerGreaterThan(node);
+    case Opcode::kEqual: {
+      const turboshaft::EqualOp& equal = op.Cast<turboshaft::EqualOp>();
+      switch (equal.rep) {
+        case turboshaft::RegisterRepresentation::Float64():
+          return VisitFloat64Equal(node);
+        default:
+          UNIMPLEMENTED();
+      }
+      UNREACHABLE();
+    }
+    case Opcode::kComparison: {
+      const turboshaft::ComparisonOp& comparison =
+          op.Cast<turboshaft::ComparisonOp>();
+      switch (comparison.kind) {
+        case turboshaft::ComparisonOp::Kind::kUnsignedLessThan:
+          if (comparison.rep == Rep::Word64()) {
+            return VisitUint64LessThan(node);
+          } else {
+            UNIMPLEMENTED();
+          }
+        case turboshaft::ComparisonOp::Kind::kSignedLessThan:
+          if (comparison.rep == Rep::Word32()) {
+            return VisitInt32LessThan(node);
+          } else {
+            UNIMPLEMENTED();
+          }
+        default:
+          UNIMPLEMENTED();
+      }
+      UNREACHABLE();
+    }
+    case Opcode::kLoad: {
+      MachineRepresentation rep = op.Cast<turboshaft::LoadOp>()
+                                      .loaded_rep.ToMachineType()
+                                      .representation();
+      MarkAsRepresentation(rep, node);
+      return VisitLoad(node);
+    }
+    case Opcode::kStore:
+      return VisitStore(node);
+    case Opcode::kTaggedBitcast: {
+      const turboshaft::TaggedBitcastOp& cast =
+          op.Cast<turboshaft::TaggedBitcastOp>();
+      if (cast.from == turboshaft::RegisterRepresentation::Tagged() &&
+          cast.to == turboshaft::RegisterRepresentation::PointerSized()) {
+        MarkAsRepresentation(MachineType::PointerRepresentation(), node);
+        return VisitBitcastTaggedToWord(node);
+      } else if (cast.from.IsWord() &&
+                 cast.to == turboshaft::RegisterRepresentation::Tagged()) {
+        MarkAsTagged(node);
+        return VisitBitcastWordToTagged(node);
+      } else if (cast.from ==
+                     turboshaft::RegisterRepresentation::Compressed() &&
+                 cast.to == turboshaft::RegisterRepresentation::Word32()) {
+        MarkAsRepresentation(MachineType::PointerRepresentation(), node);
+        return VisitBitcastTaggedToWord(node);
+      } else {
+        UNIMPLEMENTED();
+      }
+    }
+    case Opcode::kPhi:
+      MarkAsRepresentation(op.Cast<turboshaft::PhiOp>().rep, node);
+      return VisitPhi(node);
+    case Opcode::kProjection:
+      return VisitProjection(node);
+    case Opcode::kDeoptimizeIf:
+      return VisitDeoptimizeIf(node);
+    default: {
+      const std::string op_string = op.ToString();
+      PrintF("\033[31mNo ISEL support for: %s\033[m\n", op_string.c_str());
+      FATAL("Unexpected operation #%d:%s", node.id(), op_string.c_str());
+    }
+  }
+}
+
 template <typename Adapter>
 bool InstructionSelectorT<Adapter>::CanProduceSignalingNaN(Node* node) {
   // TODO(jarin) Improve the heuristic here.
@@ -4600,6 +4799,7 @@ const std::map<NodeId, int> InstructionSelector::GetVirtualRegistersForTesting()
 }
 
 #undef DISPATCH_TO_IMPL
+#undef VISIT_UNSUPPORTED_OP
 
 }  // namespace compiler
 }  // namespace internal

@@ -4313,7 +4313,11 @@ MaybeHandle<Code> PipelineImpl::FinalizeCode(bool retire_broker) {
 #endif  // ENABLE_DISASSEMBLER
     json_of << "\"}\n],\n";
     json_of << "\"nodePositions\":";
-    json_of << data->source_position_output() << ",\n";
+    // TODO(nicohartmann@): We should try to always provide source positions.
+    json_of << (data->source_position_output().empty()
+                    ? "{}"
+                    : data->source_position_output())
+            << ",\n";
     JsonPrintAllSourceWithPositions(json_of, data->info(), isolate());
     if (info()->has_bytecode_array()) {
       json_of << ",\n";

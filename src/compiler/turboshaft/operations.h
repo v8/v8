@@ -1758,6 +1758,12 @@ struct ConstantOp : FixedArityOperationT<0, ConstantOp> {
     Storage(float constant) : float32(constant) {}
     Storage(ExternalReference constant) : external(constant) {}
     Storage(Handle<HeapObject> constant) : handle(constant) {}
+
+    inline bool operator==(const ConstantOp::Storage&) const {
+      // It is tricky to implement this properly. We currently need to define
+      // this for the matchers, but this should never be called.
+      UNREACHABLE();
+    }
   } storage;
 
   static constexpr OpEffects effects = OpEffects();

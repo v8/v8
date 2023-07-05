@@ -308,10 +308,14 @@ ArchOpcode GetLoadOpcode(LoadRepresentation load_rep) {
   return opcode;
 }
 
-template <typename Adapter>
-void VisitRO(InstructionSelectorT<Adapter>* selector, Node* node,
+template <typename T>
+void VisitRO(InstructionSelectorT<TurboshaftAdapter>* selector, T, ArchOpcode) {
+  UNIMPLEMENTED();
+}
+
+void VisitRO(InstructionSelectorT<TurbofanAdapter>* selector, Node* node,
              ArchOpcode opcode) {
-  IA32OperandGeneratorT<Adapter> g(selector);
+  IA32OperandGeneratorT<TurbofanAdapter> g(selector);
   Node* input = node->InputAt(0);
   // We have to use a byte register as input to movsxb.
   InstructionOperand input_op =
@@ -346,10 +350,15 @@ void VisitRR(InstructionSelectorT<Adapter>* selector, Node* node,
                  g.UseRegister(node->InputAt(0)));
 }
 
-template <typename Adapter>
-void VisitRROFloat(InstructionSelectorT<Adapter>* selector, Node* node,
+template <typename T>
+void VisitRROFloat(InstructionSelectorT<TurboshaftAdapter>* selector, T,
+                   ArchOpcode) {
+  UNIMPLEMENTED();
+}
+
+void VisitRROFloat(InstructionSelectorT<TurbofanAdapter>* selector, Node* node,
                    ArchOpcode opcode) {
-  IA32OperandGeneratorT<Adapter> g(selector);
+  IA32OperandGeneratorT<TurbofanAdapter> g(selector);
   InstructionOperand operand0 = g.UseRegister(node->InputAt(0));
   InstructionOperand operand1 = g.Use(node->InputAt(1));
   if (selector->IsSupported(AVX)) {
@@ -801,13 +810,17 @@ void InstructionSelectorT<Adapter>::VisitStorePair(Node* node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitStore(Node* node) {
-  VisitStoreCommon(this, node, StoreRepresentationOf(node->op()),
-                   base::nullopt);
+void InstructionSelectorT<Adapter>::VisitStore(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    VisitStoreCommon(this, node, StoreRepresentationOf(node->op()),
+                     base::nullopt);
+  }
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitProtectedStore(Node* node) {
+void InstructionSelectorT<Adapter>::VisitProtectedStore(node_t node) {
   // TODO(eholk)
   UNIMPLEMENTED();
 }
@@ -921,22 +934,26 @@ void VisitBinop(InstructionSelectorT<Adapter>* selector, Node* node,
 }
 
 // Shared routine for multiple binary operations.
-template <typename Adapter>
-void VisitBinop(InstructionSelectorT<Adapter>* selector, Node* node,
+template <typename T>
+void VisitBinop(InstructionSelectorT<TurboshaftAdapter>*, T, InstructionCode) {
+  UNIMPLEMENTED();
+}
+
+void VisitBinop(InstructionSelectorT<TurbofanAdapter>* selector, Node* node,
                 InstructionCode opcode) {
-  FlagsContinuationT<Adapter> cont;
+  FlagsContinuationT<TurbofanAdapter> cont;
   VisitBinop(selector, node, opcode, &cont);
 }
 
 }  // namespace
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord32And(Node* node) {
+void InstructionSelectorT<Adapter>::VisitWord32And(node_t node) {
   VisitBinop(this, node, kIA32And);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord32Or(Node* node) {
+void InstructionSelectorT<Adapter>::VisitWord32Or(node_t node) {
   VisitBinop(this, node, kIA32Or);
 }
 
@@ -1006,10 +1023,15 @@ void InstructionSelectorT<Adapter>::VisitStackPointerGreaterThan(
 }
 
 // Shared routine for multiple shift operations.
-template <typename Adapter>
-static inline void VisitShift(InstructionSelectorT<Adapter>* selector,
+template <typename T>
+static inline void VisitShift(InstructionSelectorT<TurboshaftAdapter>*, T,
+                              ArchOpcode) {
+  UNIMPLEMENTED();
+}
+
+static inline void VisitShift(InstructionSelectorT<TurbofanAdapter>* selector,
                               Node* node, ArchOpcode opcode) {
-  IA32OperandGeneratorT<Adapter> g(selector);
+  IA32OperandGeneratorT<TurbofanAdapter> g(selector);
   Node* left = node->InputAt(0);
   Node* right = node->InputAt(1);
 
@@ -1096,7 +1118,7 @@ void InstructionSelectorT<Adapter>::VisitWord32Shr(Node* node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord32Sar(Node* node) {
+void InstructionSelectorT<Adapter>::VisitWord32Sar(node_t node) {
   VisitShift(this, node, kIA32Sar);
 }
 
@@ -1239,17 +1261,19 @@ void InstructionSelectorT<Adapter>::VisitWord32Ror(Node* node) {
   VisitShift(this, node, kIA32Ror);
 }
 
+#define RO_OP_T_LIST(V)                       \
+  V(ChangeInt32ToFloat64, kSSEInt32ToFloat64) \
+  V(RoundFloat64ToInt32, kIA32Float64ToInt32)
+
 #define RO_OP_LIST(V)                                        \
   V(Word32Clz, kIA32Lzcnt)                                   \
   V(Word32Ctz, kIA32Tzcnt)                                   \
   V(Word32Popcnt, kIA32Popcnt)                               \
   V(ChangeFloat32ToFloat64, kIA32Float32ToFloat64)           \
   V(RoundInt32ToFloat32, kSSEInt32ToFloat32)                 \
-  V(ChangeInt32ToFloat64, kSSEInt32ToFloat64)                \
   V(TruncateFloat32ToInt32, kIA32Float32ToInt32)             \
   V(ChangeFloat64ToInt32, kIA32Float64ToInt32)               \
   V(TruncateFloat64ToFloat32, kIA32Float64ToFloat32)         \
-  V(RoundFloat64ToInt32, kIA32Float64ToInt32)                \
   V(BitcastFloat32ToInt32, kIA32BitcastFI)                   \
   V(BitcastInt32ToFloat32, kIA32BitcastIF)                   \
   V(Float32Sqrt, kIA32Float32Sqrt)                           \
@@ -1288,15 +1312,17 @@ void InstructionSelectorT<Adapter>::VisitWord32Ror(Node* node) {
   V(F64x2Trunc, kIA32F64x2Round | MiscField::encode(kRoundToZero))             \
   V(F64x2NearestInt, kIA32F64x2Round | MiscField::encode(kRoundToNearest))
 
+#define RRO_FLOAT_OP_T_LIST(V) \
+  V(Float64Sub, kFloat64Sub)   \
+  V(Float64Div, kFloat64Div)
+
 #define RRO_FLOAT_OP_LIST(V) \
   V(Float32Add, kFloat32Add) \
   V(Float64Add, kFloat64Add) \
   V(Float32Sub, kFloat32Sub) \
-  V(Float64Sub, kFloat64Sub) \
   V(Float32Mul, kFloat32Mul) \
   V(Float64Mul, kFloat64Mul) \
   V(Float32Div, kFloat32Div) \
-  V(Float64Div, kFloat64Div) \
   V(F64x2Add, kIA32F64x2Add) \
   V(F64x2Sub, kIA32F64x2Sub) \
   V(F64x2Mul, kIA32F64x2Mul) \
@@ -1324,6 +1350,15 @@ void InstructionSelectorT<Adapter>::VisitWord32Ror(Node* node) {
 RO_OP_LIST(RO_VISITOR)
 #undef RO_VISITOR
 #undef RO_OP_LIST
+
+#define RO_VISITOR(Name, opcode)                                 \
+  template <typename Adapter>                                    \
+  void InstructionSelectorT<Adapter>::Visit##Name(node_t node) { \
+    VisitRO(this, node, opcode);                                 \
+  }
+RO_OP_T_LIST(RO_VISITOR)
+#undef RO_VISITOR
+#undef RO_OP_T_LIST
 
 #define RO_WITH_TEMP_VISITOR(Name, opcode)                      \
   template <typename Adapter>                                   \
@@ -1360,6 +1395,15 @@ RR_OP_LIST(RR_VISITOR)
 RRO_FLOAT_OP_LIST(RRO_FLOAT_VISITOR)
 #undef RRO_FLOAT_VISITOR
 #undef RRO_FLOAT_OP_LIST
+
+#define RRO_FLOAT_VISITOR(Name, opcode)                          \
+  template <typename Adapter>                                    \
+  void InstructionSelectorT<Adapter>::Visit##Name(node_t node) { \
+    VisitRROFloat(this, node, opcode);                           \
+  }
+RRO_FLOAT_OP_T_LIST(RRO_FLOAT_VISITOR)
+#undef RRO_FLOAT_VISITOR
+#undef RRO_FLOAT_OP_T_LIST
 
 #define FLOAT_UNOP_VISITOR(Name, opcode)                        \
   template <typename Adapter>                                   \
@@ -2108,7 +2152,7 @@ void InstructionSelectorT<Adapter>::VisitUint32LessThanOrEqual(node_t node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitInt32AddWithOverflow(Node* node) {
+void InstructionSelectorT<Adapter>::VisitInt32AddWithOverflow(node_t node) {
   if constexpr (Adapter::IsTurboshaft) {
     UNIMPLEMENTED();
   } else {
@@ -2136,7 +2180,7 @@ void InstructionSelectorT<Adapter>::VisitInt32SubWithOverflow(Node* node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitInt32MulWithOverflow(Node* node) {
+void InstructionSelectorT<Adapter>::VisitInt32MulWithOverflow(node_t node) {
   if constexpr (Adapter::IsTurboshaft) {
     UNIMPLEMENTED();
   } else {
@@ -2263,10 +2307,14 @@ void InstructionSelectorT<Adapter>::VisitWord32AtomicLoad(Node* node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord32AtomicStore(Node* node) {
-  AtomicStoreParameters store_params = AtomicStoreParametersOf(node->op());
-  VisitStoreCommon(this, node, store_params.store_representation(),
-                   store_params.order());
+void InstructionSelectorT<Adapter>::VisitWord32AtomicStore(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    AtomicStoreParameters store_params = AtomicStoreParametersOf(node->op());
+    VisitStoreCommon(this, node, store_params.store_representation(),
+                     store_params.order());
+  }
 }
 
 template <typename Adapter>
@@ -2329,24 +2377,28 @@ void InstructionSelectorT<Adapter>::VisitWord32AtomicCompareExchange(
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord32AtomicBinaryOperation(
-    Node* node, ArchOpcode int8_op, ArchOpcode uint8_op, ArchOpcode int16_op,
+    node_t node, ArchOpcode int8_op, ArchOpcode uint8_op, ArchOpcode int16_op,
     ArchOpcode uint16_op, ArchOpcode word32_op) {
-  MachineType type = AtomicOpType(node->op());
-  ArchOpcode opcode;
-  if (type == MachineType::Int8()) {
-    opcode = int8_op;
-  } else if (type == MachineType::Uint8()) {
-    opcode = uint8_op;
-  } else if (type == MachineType::Int16()) {
-    opcode = int16_op;
-  } else if (type == MachineType::Uint16()) {
-    opcode = uint16_op;
-  } else if (type == MachineType::Int32() || type == MachineType::Uint32()) {
-    opcode = word32_op;
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
   } else {
-    UNREACHABLE();
+    MachineType type = AtomicOpType(node->op());
+    ArchOpcode opcode;
+    if (type == MachineType::Int8()) {
+      opcode = int8_op;
+    } else if (type == MachineType::Uint8()) {
+      opcode = uint8_op;
+    } else if (type == MachineType::Int16()) {
+      opcode = int16_op;
+    } else if (type == MachineType::Uint16()) {
+      opcode = uint16_op;
+    } else if (type == MachineType::Int32() || type == MachineType::Uint32()) {
+      opcode = word32_op;
+    } else {
+      UNREACHABLE();
+    }
+    VisitAtomicBinOp(this, node, opcode, type.representation());
   }
-  VisitAtomicBinOp(this, node, opcode, type.representation());
 }
 
 #define VISIT_ATOMIC_BINOP(op)                                            \

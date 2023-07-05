@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/base/bits.h"
+#include "src/base/logging.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/machine-type.h"
 #include "src/common/globals.h"
@@ -174,10 +175,14 @@ void VisitRR(InstructionSelectorT<Adapter>* selector, ArchOpcode opcode,
                  g.UseRegister(node->InputAt(0)));
 }
 
-template <typename Adapter>
-void VisitRR(InstructionSelectorT<Adapter>* selector, InstructionCode opcode,
-             Node* node) {
-  Arm64OperandGeneratorT<Adapter> g(selector);
+template <typename T>
+void VisitRR(InstructionSelectorT<TurboshaftAdapter>*, InstructionCode, T) {
+  UNIMPLEMENTED();
+}
+
+void VisitRR(InstructionSelectorT<TurbofanAdapter>* selector,
+             InstructionCode opcode, Node* node) {
+  Arm64OperandGeneratorT<TurbofanAdapter> g(selector);
   selector->Emit(opcode, g.DefineAsRegister(node),
                  g.UseRegister(node->InputAt(0)));
 }
@@ -191,10 +196,14 @@ void VisitRRR(InstructionSelectorT<Adapter>* selector, ArchOpcode opcode,
                  g.UseRegister(node->InputAt(1)));
 }
 
-template <typename Adapter>
-void VisitRRR(InstructionSelectorT<Adapter>* selector, InstructionCode opcode,
-              Node* node) {
-  Arm64OperandGeneratorT<Adapter> g(selector);
+template <typename T>
+void VisitRRR(InstructionSelectorT<TurboshaftAdapter>*, InstructionCode, T) {
+  UNIMPLEMENTED();
+}
+
+void VisitRRR(InstructionSelectorT<TurbofanAdapter>* selector,
+              InstructionCode opcode, Node* node) {
+  Arm64OperandGeneratorT<TurbofanAdapter> g(selector);
   selector->Emit(opcode, g.DefineAsRegister(node),
                  g.UseRegister(node->InputAt(0)),
                  g.UseRegister(node->InputAt(1)));
@@ -943,14 +952,23 @@ void InstructionSelectorT<Adapter>::VisitProtectedLoad(Node* node) {
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitStorePair(Node* node) {
+  if constexpr (Adapter::IsTurboshaft) {
+  UNIMPLEMENTED();
+  } else {
   VisitStore(node);
+  }
 }
 
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitStore(Node* node) {
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitStore(turboshaft::OpIndex) {
+  UNREACHABLE();
+}
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitStore(Node* node) {
   const bool kStorePair = node->opcode() == IrOpcode::kStorePair;
 
-  Arm64OperandGeneratorT<Adapter> g(this);
+  Arm64OperandGeneratorT<TurbofanAdapter> g(this);
   Node* base = node->InputAt(0);
   Node* index = node->InputAt(1);
   Node* value = node->InputAt(2);
@@ -1182,7 +1200,7 @@ void InstructionSelectorT<Adapter>::VisitStore(Node* node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitProtectedStore(Node* node) {
+void InstructionSelectorT<Adapter>::VisitProtectedStore(node_t node) {
   VisitStore(node);
 }
 
@@ -1270,9 +1288,15 @@ static void VisitLogical(InstructionSelectorT<Adapter>* selector, Node* node,
   }
 }
 
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord32And(Node* node) {
-  Arm64OperandGeneratorT<Adapter> g(this);
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitWord32And(
+    turboshaft::OpIndex) {
+  UNIMPLEMENTED();
+}
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitWord32And(Node* node) {
+  Arm64OperandGeneratorT<TurbofanAdapter> g(this);
   Int32BinopMatcher m(node);
   if (m.left().IsWord32Shr() && CanCover(node, m.left().node()) &&
       m.right().HasResolvedValue()) {
@@ -1306,7 +1330,7 @@ void InstructionSelectorT<Adapter>::VisitWord32And(Node* node) {
       // Other cases fall through to the normal And operation.
     }
   }
-  VisitLogical<Adapter, Int32BinopMatcher>(
+  VisitLogical<TurbofanAdapter, Int32BinopMatcher>(
       this, node, &m, kArm64And32, CanCover(node, m.left().node()),
       CanCover(node, m.right().node()), kLogical32Imm);
 }
@@ -1354,11 +1378,15 @@ void InstructionSelectorT<Adapter>::VisitWord64And(Node* node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord32Or(Node* node) {
-  Int32BinopMatcher m(node);
-  VisitLogical<Adapter, Int32BinopMatcher>(
-      this, node, &m, kArm64Or32, CanCover(node, m.left().node()),
-      CanCover(node, m.right().node()), kLogical32Imm);
+void InstructionSelectorT<Adapter>::VisitWord32Or(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    Int32BinopMatcher m(node);
+    VisitLogical<Adapter, Int32BinopMatcher>(
+        this, node, &m, kArm64Or32, CanCover(node, m.left().node()),
+        CanCover(node, m.right().node()), kLogical32Imm);
+  }
 }
 
 template <typename Adapter>
@@ -1423,19 +1451,24 @@ void InstructionSelectorT<Adapter>::VisitWord32Shl(Node* node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord64Shl(Node* node) {
-  Arm64OperandGeneratorT<Adapter> g(this);
-  Int64BinopMatcher m(node);
-  if ((m.left().IsChangeInt32ToInt64() || m.left().IsChangeUint32ToUint64()) &&
-      m.right().IsInRange(32, 63) && CanCover(node, m.left().node())) {
-    // There's no need to sign/zero-extend to 64-bit if we shift out the upper
-    // 32 bits anyway.
-    Emit(kArm64Lsl, g.DefineAsRegister(node),
-         g.UseRegister(m.left().node()->InputAt(0)),
-         g.UseImmediate(m.right().node()));
-    return;
+void InstructionSelectorT<Adapter>::VisitWord64Shl(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    Arm64OperandGeneratorT<Adapter> g(this);
+    Int64BinopMatcher m(node);
+    if ((m.left().IsChangeInt32ToInt64() ||
+         m.left().IsChangeUint32ToUint64()) &&
+        m.right().IsInRange(32, 63) && CanCover(node, m.left().node())) {
+      // There's no need to sign/zero-extend to 64-bit if we shift out the upper
+      // 32 bits anyway.
+      Emit(kArm64Lsl, g.DefineAsRegister(node),
+           g.UseRegister(m.left().node()->InputAt(0)),
+           g.UseImmediate(m.right().node()));
+      return;
+    }
+    VisitRRO(this, kArm64Lsl, node, kShift64Imm);
   }
-  VisitRRO(this, kArm64Lsl, node, kShift64Imm);
 }
 
 template <typename Adapter>
@@ -1585,8 +1618,14 @@ void InstructionSelectorT<Adapter>::VisitWord64Shr(Node* node) {
   VisitRRO(this, kArm64Lsr, node, kShift64Imm);
 }
 
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord32Sar(Node* node) {
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitWord32Sar(
+    turboshaft::OpIndex) {
+  UNIMPLEMENTED();
+}
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitWord32Sar(Node* node) {
   if (TryEmitBitfieldExtract32(this, node)) {
     return;
   }
@@ -1596,7 +1635,7 @@ void InstructionSelectorT<Adapter>::VisitWord32Sar(Node* node) {
       CanCover(node, node->InputAt(0))) {
     // Combine this shift with the multiply and shift that would be generated
     // by Int32MulHigh.
-    Arm64OperandGeneratorT<Adapter> g(this);
+    Arm64OperandGeneratorT<TurbofanAdapter> g(this);
     Node* left = m.left().node();
     int shift = m.right().ResolvedValue() & 0x1F;
     InstructionOperand const smull_operand = g.TempRegister();
@@ -1617,7 +1656,7 @@ void InstructionSelectorT<Adapter>::VisitWord32Sar(Node* node) {
       // on the left of this Sar operation. We do it here, as the result of the
       // add potentially has 33 bits, so we have to ensure the result is
       // truncated by being the input to this 32-bit Sar operation.
-      Arm64OperandGeneratorT<Adapter> g(this);
+      Arm64OperandGeneratorT<TurbofanAdapter> g(this);
       Node* mul_node = madd_node.left().node();
 
       InstructionOperand const smull_operand = g.TempRegister();
@@ -1639,29 +1678,34 @@ void InstructionSelectorT<Adapter>::VisitWord32Sar(Node* node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord64Sar(Node* node) {
-  if (TryEmitExtendingLoad(this, node)) return;
+void InstructionSelectorT<Adapter>::VisitWord64Sar(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    if (TryEmitExtendingLoad(this, node)) return;
 
-  // Select Sbfx(x, imm, 32-imm) for Word64Sar(ChangeInt32ToInt64(x), imm)
-  // where possible
-  Int64BinopMatcher m(node);
-  if (m.left().IsChangeInt32ToInt64() && m.right().HasResolvedValue() &&
-      is_uint5(m.right().ResolvedValue()) && CanCover(node, m.left().node())) {
-    // Don't select Sbfx here if Asr(Ldrsw(x), imm) can be selected for
-    // Word64Sar(ChangeInt32ToInt64(Load(x)), imm)
-    if ((m.left().InputAt(0)->opcode() != IrOpcode::kLoad &&
-         m.left().InputAt(0)->opcode() != IrOpcode::kLoadImmutable) ||
-        !CanCover(m.left().node(), m.left().InputAt(0))) {
-      Arm64OperandGeneratorT<Adapter> g(this);
-      int right = static_cast<int>(m.right().ResolvedValue());
-      Emit(kArm64Sbfx, g.DefineAsRegister(node),
-           g.UseRegister(m.left().node()->InputAt(0)),
-           g.UseImmediate(m.right().node()), g.UseImmediate(32 - right));
-      return;
+    // Select Sbfx(x, imm, 32-imm) for Word64Sar(ChangeInt32ToInt64(x), imm)
+    // where possible
+    Int64BinopMatcher m(node);
+    if (m.left().IsChangeInt32ToInt64() && m.right().HasResolvedValue() &&
+        is_uint5(m.right().ResolvedValue()) &&
+        CanCover(node, m.left().node())) {
+      // Don't select Sbfx here if Asr(Ldrsw(x), imm) can be selected for
+      // Word64Sar(ChangeInt32ToInt64(Load(x)), imm)
+      if ((m.left().InputAt(0)->opcode() != IrOpcode::kLoad &&
+           m.left().InputAt(0)->opcode() != IrOpcode::kLoadImmutable) ||
+          !CanCover(m.left().node(), m.left().InputAt(0))) {
+        Arm64OperandGeneratorT<Adapter> g(this);
+        int right = static_cast<int>(m.right().ResolvedValue());
+        Emit(kArm64Sbfx, g.DefineAsRegister(node),
+             g.UseRegister(m.left().node()->InputAt(0)),
+             g.UseImmediate(m.right().node()), g.UseImmediate(32 - right));
+        return;
+      }
     }
-  }
 
-  VisitRRO(this, kArm64Asr, node, kShift64Imm);
+    VisitRRO(this, kArm64Asr, node, kShift64Imm);
+  }
 }
 
 template <typename Adapter>
@@ -1684,6 +1728,10 @@ void InstructionSelectorT<Adapter>::VisitWord64Ror(Node* node) {
   VisitRRO(this, kArm64Ror, node, kShift64Imm);
 }
 
+#define RR_OP_T_LIST(V)                         \
+  V(ChangeInt32ToFloat64, kArm64Int32ToFloat64) \
+  V(RoundFloat64ToInt32, kArm64Float64ToInt32)
+
 #define RR_OP_LIST(V)                                         \
   V(Word64Clz, kArm64Clz)                                     \
   V(Word32Clz, kArm64Clz32)                                   \
@@ -1696,7 +1744,6 @@ void InstructionSelectorT<Adapter>::VisitWord64Ror(Node* node) {
   V(ChangeFloat32ToFloat64, kArm64Float32ToFloat64)           \
   V(RoundInt32ToFloat32, kArm64Int32ToFloat32)                \
   V(RoundUint32ToFloat32, kArm64Uint32ToFloat32)              \
-  V(ChangeInt32ToFloat64, kArm64Int32ToFloat64)               \
   V(ChangeInt64ToFloat64, kArm64Int64ToFloat64)               \
   V(ChangeUint32ToFloat64, kArm64Uint32ToFloat64)             \
   V(ChangeFloat64ToInt32, kArm64Float64ToInt32)               \
@@ -1706,7 +1753,6 @@ void InstructionSelectorT<Adapter>::VisitWord64Ror(Node* node) {
   V(TruncateFloat64ToUint32, kArm64Float64ToUint32)           \
   V(TruncateFloat64ToFloat32, kArm64Float64ToFloat32)         \
   V(TruncateFloat64ToWord32, kArchTruncateDoubleToI)          \
-  V(RoundFloat64ToInt32, kArm64Float64ToInt32)                \
   V(RoundInt64ToFloat32, kArm64Int64ToFloat32)                \
   V(RoundInt64ToFloat64, kArm64Int64ToFloat64)                \
   V(RoundUint64ToFloat32, kArm64Uint64ToFloat32)              \
@@ -1738,6 +1784,10 @@ void InstructionSelectorT<Adapter>::VisitWord64Ror(Node* node) {
   V(F64x2Trunc, kArm64Float64RoundTruncate)                   \
   V(F64x2NearestInt, kArm64Float64RoundTiesEven)
 
+#define RRR_OP_T_LIST(V)          \
+  V(Float64Sub, kArm64Float64Sub) \
+  V(Float64Div, kArm64Float64Div)
+
 #define RRR_OP_LIST(V)            \
   V(Int32Div, kArm64Idiv32)       \
   V(Int64Div, kArm64Idiv)         \
@@ -1750,9 +1800,7 @@ void InstructionSelectorT<Adapter>::VisitWord64Ror(Node* node) {
   V(Float32Add, kArm64Float32Add) \
   V(Float64Add, kArm64Float64Add) \
   V(Float32Sub, kArm64Float32Sub) \
-  V(Float64Sub, kArm64Float64Sub) \
   V(Float32Div, kArm64Float32Div) \
-  V(Float64Div, kArm64Float64Div) \
   V(Float32Max, kArm64Float32Max) \
   V(Float64Max, kArm64Float64Max) \
   V(Float32Min, kArm64Float32Min) \
@@ -1768,6 +1816,15 @@ RR_OP_LIST(RR_VISITOR)
 #undef RR_VISITOR
 #undef RR_OP_LIST
 
+#define RR_VISITOR(Name, opcode)                                 \
+  template <typename Adapter>                                    \
+  void InstructionSelectorT<Adapter>::Visit##Name(node_t node) { \
+    VisitRR(this, opcode, node);                                 \
+  }
+RR_OP_T_LIST(RR_VISITOR)
+#undef RR_VISITOR
+#undef RR_OP_T_LIST
+
 #define RRR_VISITOR(Name, opcode)                               \
   template <typename Adapter>                                   \
   void InstructionSelectorT<Adapter>::Visit##Name(Node* node) { \
@@ -1776,6 +1833,15 @@ RR_OP_LIST(RR_VISITOR)
 RRR_OP_LIST(RRR_VISITOR)
 #undef RRR_VISITOR
 #undef RRR_OP_LIST
+
+#define RRR_VISITOR(Name, opcode)                                \
+  template <typename Adapter>                                    \
+  void InstructionSelectorT<Adapter>::Visit##Name(node_t node) { \
+    VisitRRR(this, opcode, node);                                \
+  }
+RRR_OP_T_LIST(RRR_VISITOR)
+#undef RRR_VISITOR
+#undef RRR_OP_T_LIST
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord32Ctz(Node* node) {
@@ -1819,34 +1885,38 @@ void InstructionSelectorT<Adapter>::VisitInt32Add(Node* node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitInt64Add(Node* node) {
-  Arm64OperandGeneratorT<Adapter> g(this);
-  Int64BinopMatcher m(node);
-  // Select Madd(x, y, z) for Add(Mul(x, y), z).
-  if (m.left().IsInt64Mul() && CanCover(node, m.left().node())) {
-    Int64BinopMatcher mleft(m.left().node());
-    // Check multiply can't be later reduced to addition with shift.
-    if (LeftShiftForReducedMultiply(&mleft) == 0) {
-      Emit(kArm64Madd, g.DefineAsRegister(node),
-           g.UseRegister(mleft.left().node()),
-           g.UseRegister(mleft.right().node()),
-           g.UseRegister(m.right().node()));
-      return;
+void InstructionSelectorT<Adapter>::VisitInt64Add(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    Arm64OperandGeneratorT<Adapter> g(this);
+    Int64BinopMatcher m(node);
+    // Select Madd(x, y, z) for Add(Mul(x, y), z).
+    if (m.left().IsInt64Mul() && CanCover(node, m.left().node())) {
+      Int64BinopMatcher mleft(m.left().node());
+      // Check multiply can't be later reduced to addition with shift.
+      if (LeftShiftForReducedMultiply(&mleft) == 0) {
+        Emit(kArm64Madd, g.DefineAsRegister(node),
+             g.UseRegister(mleft.left().node()),
+             g.UseRegister(mleft.right().node()),
+             g.UseRegister(m.right().node()));
+        return;
+      }
     }
-  }
-  // Select Madd(x, y, z) for Add(z, Mul(x, y)).
-  if (m.right().IsInt64Mul() && CanCover(node, m.right().node())) {
-    Int64BinopMatcher mright(m.right().node());
-    // Check multiply can't be later reduced to addition with shift.
-    if (LeftShiftForReducedMultiply(&mright) == 0) {
-      Emit(kArm64Madd, g.DefineAsRegister(node),
-           g.UseRegister(mright.left().node()),
-           g.UseRegister(mright.right().node()),
-           g.UseRegister(m.left().node()));
-      return;
+    // Select Madd(x, y, z) for Add(z, Mul(x, y)).
+    if (m.right().IsInt64Mul() && CanCover(node, m.right().node())) {
+      Int64BinopMatcher mright(m.right().node());
+      // Check multiply can't be later reduced to addition with shift.
+      if (LeftShiftForReducedMultiply(&mright) == 0) {
+        Emit(kArm64Madd, g.DefineAsRegister(node),
+             g.UseRegister(mright.left().node()),
+             g.UseRegister(mright.right().node()),
+             g.UseRegister(m.left().node()));
+        return;
+      }
     }
+    VisitAddSub<Adapter, Int64BinopMatcher>(this, node, kArm64Add, kArm64Sub);
   }
-  VisitAddSub<Adapter, Int64BinopMatcher>(this, node, kArm64Add, kArm64Sub);
 }
 
 template <typename Adapter>
@@ -2298,56 +2368,61 @@ void InstructionSelectorT<Adapter>::VisitBitcastWord32ToWord64(Node* node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitChangeInt32ToInt64(Node* node) {
-  Node* value = node->InputAt(0);
-  if ((value->opcode() == IrOpcode::kLoad ||
-       value->opcode() == IrOpcode::kLoadImmutable) &&
-      CanCover(node, value)) {
-    // Generate sign-extending load.
-    LoadRepresentation load_rep = LoadRepresentationOf(value->op());
-    MachineRepresentation rep = load_rep.representation();
-    InstructionCode opcode = kArchNop;
-    ImmediateMode immediate_mode = kNoImmediate;
-    switch (rep) {
-      case MachineRepresentation::kBit:  // Fall through.
-      case MachineRepresentation::kWord8:
-        opcode = load_rep.IsSigned() ? kArm64Ldrsb : kArm64Ldrb;
-        immediate_mode = kLoadStoreImm8;
-        break;
-      case MachineRepresentation::kWord16:
-        opcode = load_rep.IsSigned() ? kArm64Ldrsh : kArm64Ldrh;
-        immediate_mode = kLoadStoreImm16;
-        break;
-      case MachineRepresentation::kWord32:
-      case MachineRepresentation::kWord64:
-        // Since BitcastElider may remove nodes of
-        // IrOpcode::kTruncateInt64ToInt32 and directly use the inputs, values
-        // with kWord64 can also reach this line.
-      case MachineRepresentation::kTaggedSigned:
-      case MachineRepresentation::kTagged:
-        opcode = kArm64Ldrsw;
-        immediate_mode = kLoadStoreImm32;
-        break;
-      default:
-        UNREACHABLE();
-    }
-    EmitLoad(this, value, opcode, immediate_mode, rep, node);
-    return;
-  }
-
-  if (value->opcode() == IrOpcode::kWord32Sar && CanCover(node, value)) {
-    Int32BinopMatcher m(value);
-    if (m.right().HasResolvedValue()) {
-      Arm64OperandGeneratorT<Adapter> g(this);
-      // Mask the shift amount, to keep the same semantics as Word32Sar.
-      int right = m.right().ResolvedValue() & 0x1F;
-      Emit(kArm64Sbfx, g.DefineAsRegister(node), g.UseRegister(m.left().node()),
-           g.TempImmediate(right), g.TempImmediate(32 - right));
+void InstructionSelectorT<Adapter>::VisitChangeInt32ToInt64(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    Node* value = node->InputAt(0);
+    if ((value->opcode() == IrOpcode::kLoad ||
+         value->opcode() == IrOpcode::kLoadImmutable) &&
+        CanCover(node, value)) {
+      // Generate sign-extending load.
+      LoadRepresentation load_rep = LoadRepresentationOf(value->op());
+      MachineRepresentation rep = load_rep.representation();
+      InstructionCode opcode = kArchNop;
+      ImmediateMode immediate_mode = kNoImmediate;
+      switch (rep) {
+        case MachineRepresentation::kBit:  // Fall through.
+        case MachineRepresentation::kWord8:
+          opcode = load_rep.IsSigned() ? kArm64Ldrsb : kArm64Ldrb;
+          immediate_mode = kLoadStoreImm8;
+          break;
+        case MachineRepresentation::kWord16:
+          opcode = load_rep.IsSigned() ? kArm64Ldrsh : kArm64Ldrh;
+          immediate_mode = kLoadStoreImm16;
+          break;
+        case MachineRepresentation::kWord32:
+        case MachineRepresentation::kWord64:
+          // Since BitcastElider may remove nodes of
+          // IrOpcode::kTruncateInt64ToInt32 and directly use the inputs, values
+          // with kWord64 can also reach this line.
+        case MachineRepresentation::kTaggedSigned:
+        case MachineRepresentation::kTagged:
+          opcode = kArm64Ldrsw;
+          immediate_mode = kLoadStoreImm32;
+          break;
+        default:
+          UNREACHABLE();
+      }
+      EmitLoad(this, value, opcode, immediate_mode, rep, node);
       return;
     }
-  }
 
-  VisitRR(this, kArm64Sxtw, node);
+    if (value->opcode() == IrOpcode::kWord32Sar && CanCover(node, value)) {
+      Int32BinopMatcher m(value);
+      if (m.right().HasResolvedValue()) {
+        Arm64OperandGeneratorT<Adapter> g(this);
+        // Mask the shift amount, to keep the same semantics as Word32Sar.
+        int right = m.right().ResolvedValue() & 0x1F;
+        Emit(kArm64Sbfx, g.DefineAsRegister(node),
+             g.UseRegister(m.left().node()), g.TempImmediate(right),
+             g.TempImmediate(32 - right));
+        return;
+      }
+    }
+
+    VisitRR(this, kArm64Sxtw, node);
+  }
 }
 
 template <typename Adapter>
@@ -3128,10 +3203,15 @@ void VisitAtomicLoad(InstructionSelectorT<Adapter>* selector, Node* node,
                  arraysize(temps), temps);
 }
 
-template <typename Adapter>
-void VisitAtomicStore(InstructionSelectorT<Adapter>* selector, Node* node,
-                      AtomicWidth width) {
-  Arm64OperandGeneratorT<Adapter> g(selector);
+template <typename T>
+void VisitAtomicStore(InstructionSelectorT<TurboshaftAdapter>*, T,
+                      AtomicWidth) {
+  UNIMPLEMENTED();
+}
+
+void VisitAtomicStore(InstructionSelectorT<TurbofanAdapter>* selector,
+                      Node* node, AtomicWidth width) {
+  Arm64OperandGeneratorT<TurbofanAdapter> g(selector);
   Node* base = node->InputAt(0);
   Node* index = node->InputAt(1);
   Node* value = node->InputAt(2);
@@ -3614,7 +3694,7 @@ void InstructionSelectorT<Adapter>::VisitWord64Equal(Node* const node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitInt32AddWithOverflow(Node* node) {
+void InstructionSelectorT<Adapter>::VisitInt32AddWithOverflow(node_t node) {
   if constexpr (Adapter::IsTurboshaft) {
     UNIMPLEMENTED();
   } else {
@@ -3646,7 +3726,7 @@ void InstructionSelectorT<Adapter>::VisitInt32SubWithOverflow(Node* node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitInt32MulWithOverflow(Node* node) {
+void InstructionSelectorT<Adapter>::VisitInt32MulWithOverflow(node_t node) {
   if constexpr (Adapter::IsTurboshaft) {
     UNIMPLEMENTED();
   } else {
@@ -3736,7 +3816,7 @@ void InstructionSelectorT<Adapter>::VisitInt64LessThanOrEqual(Node* node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitUint64LessThan(Node* node) {
+void InstructionSelectorT<Adapter>::VisitUint64LessThan(node_t node) {
   if constexpr (Adapter::IsTurboshaft) {
     UNIMPLEMENTED();
   } else {
@@ -3941,12 +4021,12 @@ void InstructionSelectorT<Adapter>::VisitWord64AtomicLoad(Node* node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord32AtomicStore(Node* node) {
+void InstructionSelectorT<Adapter>::VisitWord32AtomicStore(node_t node) {
   VisitAtomicStore(this, node, AtomicWidth::kWord32);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord64AtomicStore(Node* node) {
+void InstructionSelectorT<Adapter>::VisitWord64AtomicStore(node_t node) {
   VisitAtomicStore(this, node, AtomicWidth::kWord64);
 }
 
@@ -4034,25 +4114,29 @@ void InstructionSelectorT<Adapter>::VisitWord64AtomicCompareExchange(
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord32AtomicBinaryOperation(
-    Node* node, ArchOpcode int8_op, ArchOpcode uint8_op, ArchOpcode int16_op,
+    node_t node, ArchOpcode int8_op, ArchOpcode uint8_op, ArchOpcode int16_op,
     ArchOpcode uint16_op, ArchOpcode word32_op) {
-  ArchOpcode opcode;
-  AtomicOpParameters params = AtomicOpParametersOf(node->op());
-  if (params.type() == MachineType::Int8()) {
-    opcode = int8_op;
-  } else if (params.type() == MachineType::Uint8()) {
-    opcode = uint8_op;
-  } else if (params.type() == MachineType::Int16()) {
-    opcode = int16_op;
-  } else if (params.type() == MachineType::Uint16()) {
-    opcode = uint16_op;
-  } else if (params.type() == MachineType::Int32()
-    || params.type() == MachineType::Uint32()) {
-    opcode = word32_op;
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
   } else {
-    UNREACHABLE();
+    ArchOpcode opcode;
+    AtomicOpParameters params = AtomicOpParametersOf(node->op());
+    if (params.type() == MachineType::Int8()) {
+      opcode = int8_op;
+    } else if (params.type() == MachineType::Uint8()) {
+      opcode = uint8_op;
+    } else if (params.type() == MachineType::Int16()) {
+      opcode = int16_op;
+    } else if (params.type() == MachineType::Uint16()) {
+      opcode = uint16_op;
+    } else if (params.type() == MachineType::Int32() ||
+               params.type() == MachineType::Uint32()) {
+      opcode = word32_op;
+    } else {
+      UNREACHABLE();
+    }
+    VisitAtomicBinop(this, node, opcode, AtomicWidth::kWord32, params.kind());
   }
-  VisitAtomicBinop(this, node, opcode, AtomicWidth::kWord32, params.kind());
 }
 
 #define VISIT_ATOMIC_BINOP(op)                                            \
@@ -4071,22 +4155,26 @@ VISIT_ATOMIC_BINOP(Xor)
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord64AtomicBinaryOperation(
-    Node* node, ArchOpcode uint8_op, ArchOpcode uint16_op, ArchOpcode uint32_op,
-    ArchOpcode uint64_op) {
-  ArchOpcode opcode;
-  AtomicOpParameters params = AtomicOpParametersOf(node->op());
-  if (params.type() == MachineType::Uint8()) {
-    opcode = uint8_op;
-  } else if (params.type() == MachineType::Uint16()) {
-    opcode = uint16_op;
-  } else if (params.type() == MachineType::Uint32()) {
-    opcode = uint32_op;
-  } else if (params.type() == MachineType::Uint64()) {
-    opcode = uint64_op;
+    node_t node, ArchOpcode uint8_op, ArchOpcode uint16_op,
+    ArchOpcode uint32_op, ArchOpcode uint64_op) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
   } else {
-    UNREACHABLE();
+    ArchOpcode opcode;
+    AtomicOpParameters params = AtomicOpParametersOf(node->op());
+    if (params.type() == MachineType::Uint8()) {
+      opcode = uint8_op;
+    } else if (params.type() == MachineType::Uint16()) {
+      opcode = uint16_op;
+    } else if (params.type() == MachineType::Uint32()) {
+      opcode = uint32_op;
+    } else if (params.type() == MachineType::Uint64()) {
+      opcode = uint64_op;
+    } else {
+      UNREACHABLE();
+    }
+    VisitAtomicBinop(this, node, opcode, AtomicWidth::kWord64, params.kind());
   }
-  VisitAtomicBinop(this, node, opcode, AtomicWidth::kWord64, params.kind());
 }
 
 #define VISIT_ATOMIC_BINOP(op)                                                 \

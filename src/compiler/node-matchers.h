@@ -699,23 +699,16 @@ struct BaseWithIndexAndDisplacementMatcher {
         }
       }
     }
-    int64_t value = 0;
     if (displacement != nullptr) {
-      switch (displacement->opcode()) {
-        case IrOpcode::kInt32Constant: {
-          value = OpParameter<int32_t>(displacement->op());
-          break;
+      if (displacement->opcode() == IrOpcode::kInt32Constant) {
+        if (OpParameter<int32_t>(displacement->op()) == 0) {
+          displacement = nullptr;
         }
-        case IrOpcode::kInt64Constant: {
-          value = OpParameter<int64_t>(displacement->op());
-          break;
+      } else {
+        DCHECK_EQ(displacement->opcode(), IrOpcode::kInt64Constant);
+        if (OpParameter<int64_t>(displacement->op()) == 0) {
+          displacement = nullptr;
         }
-        default:
-          UNREACHABLE();
-          break;
-      }
-      if (value == 0) {
-        displacement = nullptr;
       }
     }
     if (power_of_two_plus_one) {
