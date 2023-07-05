@@ -738,13 +738,7 @@ void Simulator::CheckICache(base::CustomMatcherHashMap* i_cache,
 Simulator::Simulator(Isolate* isolate) : isolate_(isolate) {
 // Set up simulator support first. Some of this information is needed to
 // setup the architecture state.
-#if V8_TARGET_ARCH_PPC64
-  size_t stack_size = v8_flags.sim_stack_size * KB;
-#else
-  size_t stack_size = MB;  // allocate 1MB for stack
-#endif
-  stack_size += 2 * stack_protection_size_;
-  stack_ = reinterpret_cast<char*>(base::Malloc(stack_size));
+  stack_ = reinterpret_cast<uint8_t*>(base::Malloc(AllocatedStackSize()));
   pc_modified_ = false;
   icount_ = 0;
   break_pc_ = nullptr;
@@ -769,8 +763,7 @@ Simulator::Simulator(Isolate* isolate) : isolate_(isolate) {
   // The sp is initialized to point to the bottom (high address) of the
   // allocated stack area. To be safe in potential stack underflows we leave
   // some buffer below.
-  registers_[sp] =
-      reinterpret_cast<intptr_t>(stack_) + stack_size - stack_protection_size_;
+  registers_[sp] = reinterpret_cast<intptr_t>(stack_) + UsableStackSize();
 
   last_debugger_input_ = nullptr;
 }
@@ -893,7 +886,14 @@ uintptr_t Simulator::StackLimit(uintptr_t c_limit) const {
 
   // Otherwise the limit is the JS stack. Leave a safety margin to prevent
   // overrunning the stack when pushing values.
-  return reinterpret_cast<uintptr_t>(stack_) + stack_protection_size_;
+  return reinterpret_cast<uintptr_t>(stack_) + kStackProtectionSize;
+}
+
+base::Vector<uint8_t> Simulator::GetCurrentStackView() const {
+  // We do not add an additional safety margin as above in
+  // Simulator::StackLimit, as this is currently only used in wasm::StackMemory,
+  // which adds its own margin.
+  return base::VectorOf(stack_, UsableStackSize());
 }
 
 // Unsupported instructions use Format to print an error and stop execution.
