@@ -94,7 +94,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_platform-tools_version
   # and whatever else without interference from each other.
-  'android_sdk_platform-tools_version': 'RSI3iwryh7URLGRgJHsCvUxj092woTPnKt4pwFcJ6L8C',
+  'android_sdk_platform-tools_version': 'HWVsGs2HCKgSVv41FsOcsfJbNcB0UFiNrF6Tc4yRArYC',
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_platforms_version
   # and whatever else without interference from each other.
@@ -113,7 +113,7 @@ deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '147f65333c38ddd1ebf554e89965c243c8ce50b3',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '15a57e72e43f957357700b72728fd48bd0a7432a',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'f87ccdf42a002ec297c5906791302eb3999353c5',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '6d00f8d8c5e004b906fb8d6fbf7421da28935798',
   'buildtools/linux64': {
@@ -268,7 +268,7 @@ deps = {
     'condition': "checkout_ittapi or check_v8_header_includes",
   },
   'third_party/jinja2':
-    Var('chromium_url') + '/chromium/src/third_party/jinja2.git' + '@' + '264c07d7e64f2874434a3b8039e101ddf1b01e7e',
+    Var('chromium_url') + '/chromium/src/third_party/jinja2.git' + '@' + '515dd10de9bf63040045902a4a310d2ba25213a0',
   'third_party/jsoncpp/source':
     Var('chromium_url') + '/external/github.com/open-source-parsers/jsoncpp.git'+ '@' + '42e892d96e47b1f6e29844cc705e148ec4856448',
   'third_party/logdog/logdog':
@@ -296,7 +296,7 @@ deps = {
   'third_party/zlib':
     Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + 'f999826d2db966ed3288192360f2d8f1b7f502b3',
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '36a80749cf5cad77085dad4da6ed71046fd73534',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '75c7faf55603c3ced48829d6f122e9719ff168e0',
   'tools/luci-go': {
       'packages': [
         {
@@ -312,7 +312,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'third_party/abseil-cpp': {
-    'url': Var('chromium_url') + '/chromium/src/third_party/abseil-cpp.git' + '@' + '7d4c4bf47358e1d56cc0a462aa1b06b12e2ce8d9',
+    'url': Var('chromium_url') + '/chromium/src/third_party/abseil-cpp.git' + '@' + '2ea3b342f7af0201fc68d8d45afe992bb5bac232',
     'condition': 'not build_with_chromium',
   }
 }
