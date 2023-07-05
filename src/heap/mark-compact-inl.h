@@ -6,8 +6,6 @@
 #define V8_HEAP_MARK_COMPACT_INL_H_
 
 #include "src/common/globals.h"
-#include "src/heap/incremental-marking.h"
-#include "src/heap/mark-compact-base-inl.h"
 #include "src/heap/mark-compact.h"
 #include "src/heap/marking-state-inl.h"
 #include "src/heap/marking-visitor-inl.h"
@@ -23,9 +21,9 @@ namespace v8 {
 namespace internal {
 
 void MarkCompactCollector::MarkObject(HeapObject host, HeapObject obj) {
-  DCHECK(ReadOnlyHeap::Contains(obj) || heap()->Contains(obj));
-  if (marking_state()->TryMark(obj)) {
-    local_marking_worklists()->Push(obj);
+  DCHECK(ReadOnlyHeap::Contains(obj) || heap_->Contains(obj));
+  if (marking_state_->TryMark(obj)) {
+    local_marking_worklists_->Push(obj);
     if (V8_UNLIKELY(v8_flags.track_retaining_path)) {
       heap_->AddRetainer(host, obj);
     }

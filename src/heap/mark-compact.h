@@ -9,8 +9,6 @@
 
 #include "include/v8-internal.h"
 #include "src/common/globals.h"
-#include "src/heap/concurrent-marking.h"
-#include "src/heap/mark-compact-base.h"
 #include "src/heap/marking-state.h"
 #include "src/heap/marking-visitor.h"
 #include "src/heap/marking-worklist.h"
@@ -73,7 +71,7 @@ class MainMarkingVisitor final
 };
 
 // Collector for young and old generation.
-class MarkCompactCollector final : public MarkCompactCollectorBase {
+class MarkCompactCollector final {
  public:
   using MarkingVisitor = MainMarkingVisitor<MarkingState>;
 
@@ -91,10 +89,6 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
     kTrackNewlyDiscoveredObjects
   };
 
-  static MarkCompactCollector* From(MarkCompactCollectorBase* collector) {
-    return static_cast<MarkCompactCollector*>(collector);
-  }
-
   // Callback function for telling whether the object *p is an unmarked
   // heap object.
   static bool IsUnmarkedHeapObject(Heap* heap, FullObjectSlot p);
@@ -103,10 +97,10 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   std::pair<size_t, size_t> ProcessMarkingWorklist(
       size_t bytes_to_process, MarkingWorklistProcessingMode mode);
 
-  void TearDown() final;
+  void TearDown();
 
   // Performs a global garbage collection.
-  void CollectGarbage() final;
+  void CollectGarbage();
 
   void CollectEvacuationCandidates(PagedSpace* space);
 
@@ -123,7 +117,7 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   // Returns whether compaction is running.
   bool StartCompaction(StartCompactionMode mode);
 
-  void StartMarking() final;
+  void StartMarking();
 
   static inline bool IsOnEvacuationCandidate(Object obj) {
     return Page::FromAddress(obj.ptr())->IsEvacuationCandidate();
@@ -179,6 +173,12 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
     return code_flush_mode_;
   }
 
+  MarkingWorklists* marking_worklists() { return &marking_worklists_; }
+
+  MarkingWorklists::Local* local_marking_worklists() const {
+    return local_marking_worklists_.get();
+  }
+
   WeakObjects* weak_objects() { return &weak_objects_; }
   WeakObjects::Local* local_weak_objects() { return local_weak_objects_.get(); }
 
@@ -199,10 +199,10 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   }
 
   explicit MarkCompactCollector(Heap* heap);
-  ~MarkCompactCollector() final;
+  ~MarkCompactCollector();
 
  private:
-  Sweeper* sweeper() { return sweeper_; }
+  using ResizeNewSpaceMode = Heap::ResizeNewSpaceMode;
 
   void ComputeEvacuationHeuristics(size_t area_size,
                                    int* target_fragmentation_percent,
@@ -211,7 +211,7 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   void RecordObjectStats();
 
   // Finishes GC, performs heap verification if enabled.
-  void Finish() final;
+  void Finish();
 
   // Free unmarked ArrayBufferExtensions.
   void SweepArrayBufferExtensions();
@@ -362,6 +362,8 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   void StartSweepNewSpace();
   void SweepLargeSpace(LargeObjectSpace* space);
 
+  Heap* const heap_;
+
   base::Mutex mutex_;
   base::Semaphore page_parallel_job_semaphore_{0};
 
@@ -388,6 +390,9 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   bool have_code_to_deoptimize_ = false;
   bool parallel_marking_ = false;
 
+  MarkingWorklists marking_worklists_;
+  std::unique_ptr<MarkingWorklists::Local> local_marking_worklists_;
+
   WeakObjects weak_objects_;
   EphemeronMarking ephemeron_marking_;
 
@@ -410,6 +415,8 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
       aborted_evacuation_candidates_due_to_flags_;
   std::vector<LargePage*> promoted_large_pages_;
 
+  MarkingState* const marking_state_;
+  NonAtomicMarkingState* const non_atomic_marking_state_;
   Sweeper* const sweeper_;
 
   // Counts the number of major mark-compact collections. The counter is
@@ -418,6 +425,8 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   //   two bits are used, so it is okay if this counter overflows and wraps
   //   around.
   unsigned epoch_ = 0;
+
+  ResizeNewSpaceMode resize_new_space_ = ResizeNewSpaceMode::kNone;
 
   // Bytecode flushing is disabled when the code coverage mode is changed. Since
   // that can happen while a GC is happening and we need the
