@@ -106,23 +106,6 @@ class InjectedScript::ProtocolPromiseHandler {
     Response response = scope.initialize();
     if (!response.IsSuccess()) return;
 
-    v8::MaybeLocal<v8::Promise> originalPromise =
-        value->IsPromise() ? value.As<v8::Promise>()
-                           : v8::MaybeLocal<v8::Promise>();
-    V8InspectorImpl* inspector = session->inspector();
-    ProtocolPromiseHandler* handler = inspector->promiseHandlerTracker().create(
-        session, executionContextId, objectGroup, std::move(wrapOptions),
-        replMode, throwOnSideEffect, callback, originalPromise);
-    v8::Local<v8::Value> wrapper = handler->m_wrapper.Get(inspector->isolate());
-    v8::Local<v8::Function> thenCallbackFunction =
-        v8::Function::New(context, thenCallback, wrapper, 0,
-                          v8::ConstructorBehavior::kThrow)
-            .ToLocalChecked();
-    v8::Local<v8::Function> catchCallbackFunction =
-        v8::Function::New(context, catchCallback, wrapper, 0,
-                          v8::ConstructorBehavior::kThrow)
-            .ToLocalChecked();
-
     v8::Local<v8::Promise> promise;
     v8::Local<v8::Promise::Resolver> resolver;
     if (value->IsPromise()) {
@@ -143,6 +126,20 @@ class InjectedScript::ProtocolPromiseHandler {
       }
       promise = resolver->GetPromise();
     }
+
+    V8InspectorImpl* inspector = session->inspector();
+    ProtocolPromiseHandler* handler = inspector->promiseHandlerTracker().create(
+        session, executionContextId, objectGroup, std::move(wrapOptions),
+        replMode, throwOnSideEffect, callback, promise);
+    v8::Local<v8::Value> wrapper = handler->m_wrapper.Get(inspector->isolate());
+    v8::Local<v8::Function> thenCallbackFunction =
+        v8::Function::New(context, thenCallback, wrapper, 0,
+                          v8::ConstructorBehavior::kThrow)
+            .ToLocalChecked();
+    v8::Local<v8::Function> catchCallbackFunction =
+        v8::Function::New(context, catchCallback, wrapper, 0,
+                          v8::ConstructorBehavior::kThrow)
+            .ToLocalChecked();
 
     if (promise->Then(context, thenCallbackFunction, catchCallbackFunction)
             .IsEmpty()) {
@@ -207,7 +204,7 @@ class InjectedScript::ProtocolPromiseHandler {
                          std::unique_ptr<WrapOptions> wrapOptions,
                          bool replMode, bool throwOnSideEffect,
                          std::weak_ptr<EvaluateCallback> callback,
-                         v8::MaybeLocal<v8::Promise> maybeEvaluationResult)
+                         v8::Local<v8::Promise> evaluationResult)
       : m_inspector(session->inspector()),
         m_sessionId(session->sessionId()),
         m_contextGroupId(session->contextGroupId()),
@@ -218,13 +215,10 @@ class InjectedScript::ProtocolPromiseHandler {
         m_throwOnSideEffect(throwOnSideEffect),
         m_callback(std::move(callback)),
         m_wrapper(m_inspector->isolate(),
-                  v8::External::New(m_inspector->isolate(), this)) {
+                  v8::External::New(m_inspector->isolate(), this)),
+        m_evaluationResult(m_inspector->isolate(), evaluationResult) {
     m_wrapper.SetWeak(this, cleanup, v8::WeakCallbackType::kParameter);
-    v8::Local<v8::Promise> promise;
-    if (maybeEvaluationResult.ToLocal(&promise)) {
-      m_evaluationResult =
-          v8::Global<v8::Promise>(m_inspector->isolate(), promise);
-    }
+    m_evaluationResult.SetWeak();
   }
 
   static void cleanup(
