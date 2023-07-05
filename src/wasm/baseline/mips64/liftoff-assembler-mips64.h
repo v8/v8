@@ -3624,19 +3624,45 @@ void LiftoffAssembler::DropStackSlotsAndRet(uint32_t num_stack_slots) {
   MacroAssembler::DropAndRet(static_cast<int>(num_stack_slots));
 }
 
-void LiftoffAssembler::CallC(const ValueKindSig* sig,
-                             const LiftoffRegister* args,
+void LiftoffAssembler::CallC(const ValueKindSig* sig, const VarState* args,
                              const LiftoffRegister* rets,
                              ValueKind out_argument_kind, int stack_bytes,
                              ExternalReference ext_ref) {
   Daddu(sp, sp, -stack_bytes);
 
-  int arg_bytes = 0;
+  int arg_offset = 0;
+  const VarState* current_arg = args;
   for (ValueKind param_kind : sig->parameters()) {
-    liftoff::Store(this, sp, arg_bytes, *args++, param_kind);
-    arg_bytes += value_kind_size(param_kind);
+    if (current_arg->is_reg()) {
+      liftoff::Store(this, sp, arg_offset, current_arg->reg(), param_kind);
+    } else if (current_arg->is_const()) {
+      DCHECK_EQ(kI32, param_kind);
+      if (current_arg->i32_const() == 0) {
+        Sw(zero_reg, MemOperand(sp, arg_offset));
+      } else {
+        UseScratchRegisterScope temps(this);
+        Register src = temps.Acquire();
+        li(src, current_arg->i32_const());
+        Sw(src, MemOperand(sp, arg_offset));
+      }
+    } else if (value_kind_size(current_arg->kind()) == 4) {
+      // Stack to stack move.
+      UseScratchRegisterScope temps(this);
+      Register src = temps.Acquire();
+      Lw(src, liftoff::GetStackSlot(current_arg->offset()));
+      Sw(src, MemOperand(sp, arg_offset));
+    } else {
+      // Stack to stack move.
+      DCHECK_EQ(8, value_kind_size(current_arg->kind()));
+      UseScratchRegisterScope temps(this);
+      Register src = temps.Acquire();
+      Ld(src, liftoff::GetStackSlot(current_arg->offset()));
+      Sd(src, MemOperand(sp, arg_offset));
+    }
+    arg_offset += value_kind_size(param_kind);
+    ++current_arg;
   }
-  DCHECK_LE(arg_bytes, stack_bytes);
+  DCHECK_LE(arg_offset, stack_bytes);
 
   // Pass a pointer to the buffer with the arguments to the C function.
   // On mips, the first argument is passed in {a0}.
