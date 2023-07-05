@@ -148,6 +148,10 @@ class SetIsRunningMicrotasks {
 }  // namespace
 
 int MicrotaskQueue::RunMicrotasks(Isolate* isolate) {
+  SetIsRunningMicrotasks scope(&is_running_microtasks_);
+  v8::Isolate::SuppressMicrotaskExecutionScope suppress(
+      reinterpret_cast<v8::Isolate*>(isolate), this);
+
   if (!size()) {
     OnCompleted(isolate);
     return 0;
@@ -163,9 +167,6 @@ int MicrotaskQueue::RunMicrotasks(Isolate* isolate) {
 
   int processed_microtask_count;
   {
-    SetIsRunningMicrotasks scope(&is_running_microtasks_);
-    v8::Isolate::SuppressMicrotaskExecutionScope suppress(
-        reinterpret_cast<v8::Isolate*>(isolate), this);
     HandleScopeImplementer::EnteredContextRewindScope rewind_scope(
         isolate->handle_scope_implementer());
     TRACE_EVENT_BEGIN0("v8.execute", "RunMicrotasks");

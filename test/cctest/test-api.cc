@@ -20092,6 +20092,10 @@ static void MicrotasksCompletedCallback(v8::Isolate* isolate, void*) {
   ++microtasks_completed_callback_count;
 }
 
+static void MicrotasksCompletedCallbackCallScript(v8::Isolate* isolate, void*) {
+  CompileRun("1+1;");
+}
+
 TEST(SetAutorunMicrotasks) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
@@ -20166,6 +20170,17 @@ TEST(SetAutorunMicrotasks) {
   CHECK_EQ(4, CompileRun("ext2Calls")->Int32Value(env.local()).FromJust());
   CHECK_EQ(15u, microtasks_completed_callback_count);
 
+  // A callback which calls script should not cause nested microtask execution
+  // and a nested invocation of the microtasks completed callback.
+  env->GetIsolate()->AddMicrotasksCompletedCallback(
+      &MicrotasksCompletedCallbackCallScript);
+  CompileRun("1+1;");
+  CHECK_EQ(2, CompileRun("ext1Calls")->Int32Value(env.local()).FromJust());
+  CHECK_EQ(4, CompileRun("ext2Calls")->Int32Value(env.local()).FromJust());
+  CHECK_EQ(18u, microtasks_completed_callback_count);
+  env->GetIsolate()->RemoveMicrotasksCompletedCallback(
+      &MicrotasksCompletedCallbackCallScript);
+
   env->GetIsolate()->RemoveMicrotasksCompletedCallback(
       &MicrotasksCompletedCallback);
   env->GetIsolate()->EnqueueMicrotask(
@@ -20173,7 +20188,7 @@ TEST(SetAutorunMicrotasks) {
   CompileRun("1+1;");
   CHECK_EQ(3, CompileRun("ext1Calls")->Int32Value(env.local()).FromJust());
   CHECK_EQ(4, CompileRun("ext2Calls")->Int32Value(env.local()).FromJust());
-  CHECK_EQ(15u, microtasks_completed_callback_count);
+  CHECK_EQ(18u, microtasks_completed_callback_count);
 }
 
 
