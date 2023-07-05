@@ -946,18 +946,22 @@ class ModuleDecoderImpl : public Decoder {
   void DecodeMemorySection() {
     const uint8_t* mem_count_pc = pc();
     static_assert(kV8MaxWasmMemories <= kMaxUInt32);
-    uint32_t max_memories =
-        enabled_features_.has_multi_memory() ? kV8MaxWasmMemories : 1;
-    uint32_t memory_count = consume_count("memory count", max_memories);
+    // Use {kV8MaxWasmMemories} here, but only allow for >1 memory if
+    // multi-memory is enabled (checked below). This allows for better error
+    // messages.
+    uint32_t memory_count = consume_count("memory count", kV8MaxWasmMemories);
     size_t imported_memories = module_->memories.size();
-    DCHECK_GE(max_memories, imported_memories);
-    if (memory_count > max_memories - imported_memories) {
-      if (enabled_features_.has_multi_memory()) {
+    if (enabled_features_.has_multi_memory()) {
+      DCHECK_GE(kV8MaxWasmMemories, imported_memories);
+      if (memory_count > kV8MaxWasmMemories - imported_memories) {
         errorf(mem_count_pc,
                "Exceeding maximum number of memories (%u; declared %u, "
                "imported %zu)",
-               max_memories, memory_count, imported_memories);
-      } else {
+               kV8MaxWasmMemories, memory_count, imported_memories);
+      }
+    } else {
+      DCHECK_GE(1, imported_memories);
+      if (imported_memories + memory_count > 1) {
         errorf(mem_count_pc,
                "At most one memory is supported (declared %u, imported %zu); "
                "pass --experimental-wasm-multi-memory to allow more memories",
