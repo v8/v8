@@ -263,6 +263,10 @@ void UsePosition::set_type(UsePositionType type, bool register_beneficial) {
            AssignedRegisterField::encode(kUnassignedRegister);
 }
 
+std::ostream& operator<<(std::ostream& os, const UseInterval& interval) {
+  return os << '[' << interval.start() << ", " << interval.end() << ')';
+}
+
 UseInterval* UseInterval::SplitAt(LifetimePosition pos, Zone* zone) {
   DCHECK(Contains(pos) && pos != start());
   UseInterval* after = zone->New<UseInterval>(pos, end_);
@@ -1014,7 +1018,6 @@ std::ostream& operator<<(std::ostream& os,
   if (range->TopLevel()->is_non_loop_phi()) os << "nlphi ";
 
   os << "{" << std::endl;
-  UseInterval* interval = range->first_interval();
   for (UsePosition* use_pos : range->positions()) {
     if (use_pos->HasOperand()) {
       os << *use_pos->operand() << use_pos->pos() << " ";
@@ -1022,10 +1025,9 @@ std::ostream& operator<<(std::ostream& os,
   }
   os << std::endl;
 
-  while (interval != nullptr) {
-    os << '[' << interval->start() << ", " << interval->end() << ')'
-       << std::endl;
-    interval = interval->next();
+  for (const UseInterval* interval = range->first_interval();
+       interval != nullptr; interval = interval->next()) {
+    os << interval << std::endl;
   }
   os << "}";
   return os;
@@ -1079,8 +1081,8 @@ void LinearScanAllocator::PrintRangeRow(std::ostream& os,
 
   for (const LiveRange* range = toplevel; range != nullptr;
        range = range->next()) {
-    for (UseInterval* interval = range->first_interval(); interval != nullptr;
-         interval = interval->next()) {
+    for (const UseInterval* interval = range->first_interval();
+         interval != nullptr; interval = interval->next()) {
       LifetimePosition start = interval->start();
       LifetimePosition end = interval->end();
       CHECK_GE(start.value(), position);
@@ -1127,7 +1129,7 @@ void LinearScanAllocator::PrintRangeOverview() {
 }
 
 SpillRange::SpillRange(TopLevelLiveRange* parent, Zone* zone)
-    : live_ranges_(zone),
+    : ranges_(zone),
       assigned_slot_(kUnassignedSlot),
       byte_width_(ByteWidthForStackSlot(parent->representation())) {
   // Spill ranges are created for top level. This is so that, when merging
@@ -1150,7 +1152,7 @@ SpillRange::SpillRange(TopLevelLiveRange* parent, Zone* zone)
     }
   }
   use_interval_ = result;
-  live_ranges().push_back(parent);
+  ranges_.push_back(parent);
   end_position_ = node->end();
   parent->SetSpillRange(this);
 }
@@ -1178,14 +1180,13 @@ bool SpillRange::TryMerge(SpillRange* other) {
   MergeDisjointIntervals(other->use_interval_);
   other->use_interval_ = nullptr;
 
-  for (TopLevelLiveRange* range : other->live_ranges()) {
+  // Merge vectors of `TopLevelLiveRange`s.
+  for (TopLevelLiveRange* range : other->ranges_) {
     DCHECK(range->GetSpillRange() == other);
     range->SetSpillRange(this);
   }
-
-  live_ranges().insert(live_ranges().end(), other->live_ranges().begin(),
-                       other->live_ranges().end());
-  other->live_ranges().clear();
+  ranges_.insert(ranges_.end(), other->ranges_.begin(), other->ranges_.end());
+  other->ranges_.clear();
 
   return true;
 }
@@ -1215,13 +1216,13 @@ void SpillRange::MergeDisjointIntervals(UseInterval* other) {
 void SpillRange::Print() const {
   StdoutStream os;
   os << "{" << std::endl;
-  for (TopLevelLiveRange* range : live_ranges()) {
+  for (const TopLevelLiveRange* range : ranges_) {
     os << range->vreg() << " ";
   }
   os << std::endl;
 
-  for (UseInterval* i = interval(); i != nullptr; i = i->next()) {
-    os << '[' << i->start() << ", " << i->end() << ')' << std::endl;
+  for (const UseInterval* i = interval(); i != nullptr; i = i->next()) {
+    os << i << std::endl;
   }
   os << "}" << std::endl;
 }
@@ -1411,10 +1412,10 @@ bool TopTierRegisterAllocationData::RangesDefinedInDeferredStayInDeferred() {
              ->IsDeferred()) {
       continue;
     }
-    for (const UseInterval* i = range->first_interval(); i != nullptr;
-         i = i->next()) {
-      int first = i->FirstGapIndex();
-      int last = i->LastGapIndex();
+    for (const UseInterval* interval = range->first_interval();
+         interval != nullptr; interval = interval->next()) {
+      int first = interval->FirstGapIndex();
+      int last = interval->LastGapIndex();
       for (int instr = first; instr <= last;) {
         const InstructionBlock* block = code()->GetInstructionBlock(instr);
         if (!block->IsDeferred()) return false;
@@ -2545,12 +2546,12 @@ void LiveRangeBuilder::ResolvePhiHint(InstructionOperand* operand,
 #ifdef DEBUG
 void LiveRangeBuilder::Verify() const {
   for (auto& hint : phi_hints_) {
-    CHECK(hint.second->IsResolved());
+    DCHECK(hint.second->IsResolved());
   }
   for (const TopLevelLiveRange* current : data()->live_ranges()) {
     if (current != nullptr && !current->IsEmpty()) {
       // New LiveRanges should not be split.
-      CHECK_NULL(current->next());
+      DCHECK_NULL(current->next());
       // General integrity check.
       current->Verify();
       const UseInterval* first = current->first_interval();
@@ -2559,27 +2560,26 @@ void LiveRangeBuilder::Verify() const {
       // Consecutive intervals should not end and start in the same block,
       // otherwise the intervals should have been joined, because the
       // variable is live throughout that block.
-      CHECK(NextIntervalStartsInDifferentBlocks(first));
+      DCHECK(NextIntervalStartsInDifferentBlocks(first));
 
       for (const UseInterval* i = first->next(); i != nullptr; i = i->next()) {
         // Except for the first interval, the other intevals must start at
         // a block boundary, otherwise data wouldn't flow to them.
         // You might trigger this CHECK if your SSA is not valid. For instance,
         // if the inputs of a Phi node are in the wrong order.
-        CHECK(IntervalStartsAtBlockBoundary(i));
+        DCHECK(IntervalStartsAtBlockBoundary(i));
         // The last instruction of the predecessors of the block the interval
         // starts must be covered by the range.
-        CHECK(IntervalPredecessorsCoveredByRange(i, current));
+        DCHECK(IntervalPredecessorsCoveredByRange(i, current));
         if (i->next() != nullptr) {
           // Check the consecutive intervals property, except for the last
           // interval, where it doesn't apply.
-          CHECK(NextIntervalStartsInDifferentBlocks(i));
+          DCHECK(NextIntervalStartsInDifferentBlocks(i));
         }
       }
     }
   }
 }
-#endif
 
 bool LiveRangeBuilder::IntervalStartsAtBlockBoundary(
     const UseInterval* interval) const {
@@ -2623,6 +2623,7 @@ bool LiveRangeBuilder::NextIntervalStartsInDifferentBlocks(
       data()->code()->GetInstructionBlock(next_start.ToInstructionIndex());
   return block->rpo_number() < next_block->rpo_number();
 }
+#endif
 
 void BundleBuilder::BuildBundles() {
   TRACE("Build bundles\n");
@@ -2633,7 +2634,7 @@ void BundleBuilder::BuildBundles() {
         code()->InstructionBlockAt(RpoNumber::FromInt(block_id));
     TRACE("Block B%d\n", block_id);
     for (auto phi : block->phis()) {
-      LiveRange* out_range =
+      TopLevelLiveRange* out_range =
           data()->GetOrCreateLiveRangeFor(phi->virtual_register());
       LiveRangeBundle* out = out_range->get_bundle();
       if (out == nullptr) {
@@ -2645,7 +2646,7 @@ void BundleBuilder::BuildBundles() {
             out_range->TopLevel()->vreg(), out_range->relative_id());
       bool phi_interferes_with_backedge_input = false;
       for (auto input : phi->operands()) {
-        LiveRange* input_range = data()->GetOrCreateLiveRangeFor(input);
+        TopLevelLiveRange* input_range = data()->GetOrCreateLiveRangeFor(input);
         TRACE("Input value v%d with range %d:%d\n", input,
               input_range->TopLevel()->vreg(), input_range->relative_id());
         LiveRangeBundle* input_bundle = input_range->get_bundle();
@@ -2703,10 +2704,10 @@ LiveRangeBundle* LiveRangeBundle::TryMerge(LiveRangeBundle* lhs,
                                            bool trace_alloc) {
   if (rhs == lhs) return lhs;
 
-  auto iter1 = lhs->uses_.begin();
-  auto iter2 = rhs->uses_.begin();
+  auto iter1 = lhs->intervals_.begin();
+  auto iter2 = rhs->intervals_.begin();
 
-  while (iter1 != lhs->uses_.end() && iter2 != rhs->uses_.end()) {
+  while (iter1 != lhs->intervals_.end() && iter2 != rhs->intervals_.end()) {
     if (iter1->start >= iter2->end) {
       ++iter2;
     } else if (iter2->start >= iter1->end) {
@@ -2718,7 +2719,7 @@ LiveRangeBundle* LiveRangeBundle::TryMerge(LiveRangeBundle* lhs,
     }
   }
   // Uses are disjoint, merging is possible.
-  if (lhs->uses_.size() < rhs->uses_.size()) {
+  if (lhs->intervals_.size() < rhs->intervals_.size()) {
     // Merge the smallest bundle into the biggest.
     std::swap(lhs, rhs);
   }
@@ -2729,13 +2730,14 @@ LiveRangeBundle* LiveRangeBundle::TryMerge(LiveRangeBundle* lhs,
     // than the (apparently seldom) copies due to insertion in the middle.
     lhs->InsertUses((*it)->first_interval());
   }
+
   lhs->ranges_.insert(rhs->ranges_.begin(), rhs->ranges_.end());
   rhs->ranges_.clear();
   return lhs;
 }
 
 void LiveRangeBundle::MergeSpillRangesAndClear() {
-  DCHECK_IMPLIES(ranges_.empty(), uses_.empty());
+  DCHECK_IMPLIES(ranges_.empty(), intervals_.empty());
   SpillRange* target = nullptr;
   for (auto range : ranges_) {
     if (range->TopLevel()->HasSpillRange()) {
@@ -2751,7 +2753,7 @@ void LiveRangeBundle::MergeSpillRangesAndClear() {
   // we hit the same bundle from a different LiveRange in AssignSpillSlots.
   // LiveRangeBundles are not used after this.
   ranges_.clear();
-  uses_.clear();
+  intervals_.clear();
 }
 
 RegisterAllocator::RegisterAllocator(TopTierRegisterAllocationData* data,
@@ -2921,7 +2923,7 @@ LifetimePosition RegisterAllocator::FindOptimalSpillingPos(
     LiveRange* live_at_header = range->TopLevel()->GetChildCovers(loop_start);
 
     if (live_at_header != nullptr && !live_at_header->spilled()) {
-      for (LiveRange* check_use = live_at_header;
+      for (const LiveRange* check_use = live_at_header;
            check_use != nullptr && check_use->Start() < pos;
            check_use = check_use->next()) {
         // If we find a use for which spilling is detrimental, don't spill

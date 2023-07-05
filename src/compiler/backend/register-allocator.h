@@ -456,6 +456,8 @@ class UseInterval final : public ZoneObject {
   UseInterval* next_;
 };
 
+std::ostream& operator<<(std::ostream& os, const UseInterval& interval);
+
 enum class UsePositionType : uint8_t {
   kRegisterOrSlot,
   kRegisterOrSlotOrConstant,
@@ -794,6 +796,7 @@ class V8_EXPORT_PRIVATE LiveRange : public NON_EXPORTED_BASE(ZoneObject) {
 
   UseInterval* first_interval() const { return first_interval_; }
   base::Vector<UsePosition*> positions() const { return positions_span_; }
+
   TopLevelLiveRange* TopLevel() { return top_level_; }
   const TopLevelLiveRange* TopLevel() const { return top_level_; }
 
@@ -959,6 +962,9 @@ class V8_EXPORT_PRIVATE LiveRange : public NON_EXPORTED_BASE(ZoneObject) {
   base::Vector<UsePosition*> positions_span_;
 
   TopLevelLiveRange* top_level_;
+  // TODO(dlehmann): Remove linked list fully and instead use only the
+  // `TopLevelLiveRange::children_` vector. This requires API changes to
+  // `SplitAt` and `AttachToNext`, as they need access to a vector iterator.
   LiveRange* next_;
 
   // This is used as a cache, it doesn't affect correctness.
@@ -983,21 +989,25 @@ struct LiveRangeOrdering {
 // same spill slot or reuse the same register for connected live ranges.
 class LiveRangeBundle : public ZoneObject {
  public:
-  void MergeSpillRangesAndClear();
+  explicit LiveRangeBundle(Zone* zone, int id)
+      : ranges_(zone), intervals_(zone), id_(id) {}
 
-  int id() { return id_; }
+  int id() const { return id_; }
 
-  int reg() { return reg_; }
-
+  int reg() const { return reg_; }
   void set_reg(int reg) {
     DCHECK_EQ(reg_, kUnassignedRegister);
     reg_ = reg;
   }
 
- private:
-  friend class BundleBuilder;
-  friend Zone;
+  void MergeSpillRangesAndClear();
+  bool TryAddRange(LiveRange* range);
+  // If merging is possible, merge either {lhs} into {rhs} or {rhs} into
+  // {lhs}, clear the source and return the result. Otherwise return nullptr.
+  static LiveRangeBundle* TryMerge(LiveRangeBundle* lhs, LiveRangeBundle* rhs,
+                                   bool trace_alloc);
 
+ private:
   // Representation of the non-empty interval [start,end[.
   class Range {
    public:
@@ -1018,8 +1028,8 @@ class LiveRangeBundle : public ZoneObject {
     }
   };
   bool UsesOverlap(UseInterval* interval) {
-    auto use = uses_.begin();
-    while (interval != nullptr && use != uses_.end()) {
+    auto use = intervals_.begin();
+    while (interval != nullptr && use != intervals_.end()) {
       if (use->end <= interval->start().value()) {
         ++use;
       } else if (interval->end().value() <= use->start) {
@@ -1033,25 +1043,18 @@ class LiveRangeBundle : public ZoneObject {
   void InsertUses(UseInterval* interval) {
     while (interval != nullptr) {
       Range range = {interval->start(), interval->end()};
-      Range* pos =
-          std::lower_bound(uses_.begin(), uses_.end(), range, RangeOrdering());
-      DCHECK_IMPLIES(pos != uses_.end(), *pos != range);
-      uses_.insert(pos, 1, range);
+      Range* pos = std::lower_bound(intervals_.begin(), intervals_.end(), range,
+                                    RangeOrdering());
+      DCHECK_IMPLIES(pos != intervals_.end(), *pos != range);
+      intervals_.insert(pos, 1, range);
       interval = interval->next();
     }
   }
-  explicit LiveRangeBundle(Zone* zone, int id)
-      : ranges_(zone), uses_(zone), id_(id) {}
-
-  bool TryAddRange(LiveRange* range);
-
-  // If merging is possible, merge either {lhs} into {rhs} or {rhs} into
-  // {lhs}, clear the source and return the result. Otherwise return nullptr.
-  static LiveRangeBundle* TryMerge(LiveRangeBundle* lhs, LiveRangeBundle* rhs,
-                                   bool trace_alloc);
 
   ZoneSet<LiveRange*, LiveRangeOrdering> ranges_;
-  ZoneVector<Range> uses_;  // Sorted by `RangeOrdering`, essentially a set.
+  // A flat set, sorted by their `start()` position.
+  ZoneVector<Range> intervals_;
+
   int id_;
   int reg_ = kUnassignedRegister;
 };
@@ -1348,7 +1351,7 @@ class SpillRange final : public ZoneObject {
 
   UseInterval* interval() const { return use_interval_; }
 
-  bool IsEmpty() const { return live_ranges_.empty(); }
+  bool IsEmpty() const { return ranges_.empty(); }
   bool TryMerge(SpillRange* other);
   bool HasSlot() const { return assigned_slot_ != kUnassignedSlot; }
 
@@ -1356,16 +1359,14 @@ class SpillRange final : public ZoneObject {
     DCHECK_EQ(kUnassignedSlot, assigned_slot_);
     assigned_slot_ = index;
   }
-  int assigned_slot() {
+  int assigned_slot() const {
     DCHECK_NE(kUnassignedSlot, assigned_slot_);
     return assigned_slot_;
   }
-  const ZoneVector<TopLevelLiveRange*>& live_ranges() const {
-    return live_ranges_;
-  }
-  ZoneVector<TopLevelLiveRange*>& live_ranges() { return live_ranges_; }
+
   // Spill slots can be 4, 8, or 16 bytes wide.
   int byte_width() const { return byte_width_; }
+
   void Print() const;
 
  private:
@@ -1374,7 +1375,7 @@ class SpillRange final : public ZoneObject {
   // Merge intervals, making sure the use intervals are sorted
   void MergeDisjointIntervals(UseInterval* other);
 
-  ZoneVector<TopLevelLiveRange*> live_ranges_;
+  ZoneVector<TopLevelLiveRange*> ranges_;
   UseInterval* use_interval_;
   LifetimePosition end_position_;
   int assigned_slot_;
@@ -1504,11 +1505,11 @@ class LiveRangeBuilder final : public ZoneObject {
 #ifdef DEBUG
   // Verification.
   void Verify() const;
-#endif
   bool IntervalStartsAtBlockBoundary(const UseInterval* interval) const;
   bool IntervalPredecessorsCoveredByRange(const UseInterval* interval,
                                           const TopLevelLiveRange* range) const;
   bool NextIntervalStartsInDifferentBlocks(const UseInterval* interval) const;
+#endif
 
   // Liveness analysis support.
   void AddInitialIntervals(const InstructionBlock* block,
@@ -1680,6 +1681,8 @@ class LinearScanAllocator final : public RegisterAllocator {
         : range(toplevel), expected_register(reg) {}
   };
 
+  // TODO(dlehmann): Try replacing with a
+  // `ZoneVector<std::pair<TLLR, /* expected_register */int>>` or similar.
   using RangeWithRegisterSet =
       ZoneUnorderedSet<RangeWithRegister, RangeWithRegister::Hash,
                        RangeWithRegister::Equals>;
@@ -1714,9 +1717,11 @@ class LinearScanAllocator final : public RegisterAllocator {
   // NOTE: We also tried a sorted ZoneVector instead of a `ZoneMultiset`
   // (like for `InactiveLiveRangeQueue`), but it does not improve performance
   // or max memory usage.
+  // TODO(dlehmann): Try `std::priority_queue`/`std::make_heap` instead.
   using UnhandledLiveRangeQueue =
       ZoneMultiset<LiveRange*, UnhandledLiveRangeOrdering>;
-  // Sorted by InactiveLiveRangeOrdering.
+  // Sorted by `InactiveLiveRangeOrdering`.
+  // TODO(dlehmann): Try `std::priority_queue`/`std::make_heap` instead.
   using InactiveLiveRangeQueue = ZoneVector<LiveRange*>;
   UnhandledLiveRangeQueue& unhandled_live_ranges() {
     return unhandled_live_ranges_;
