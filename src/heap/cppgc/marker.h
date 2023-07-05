@@ -12,11 +12,11 @@
 #include "include/cppgc/visitor.h"
 #include "src/base/macros.h"
 #include "src/base/platform/time.h"
+#include "src/heap/base/incremental-marking-schedule.h"
 #include "src/heap/base/worklist.h"
 #include "src/heap/cppgc/concurrent-marker.h"
 #include "src/heap/cppgc/globals.h"
 #include "src/heap/cppgc/heap-config.h"
-#include "src/heap/cppgc/incremental-marking-schedule.h"
 #include "src/heap/cppgc/marking-state.h"
 #include "src/heap/cppgc/marking-visitor.h"
 #include "src/heap/cppgc/marking-worklists.h"
@@ -165,7 +165,7 @@ class V8_EXPORT_PRIVATE MarkerBase {
   MutatorMarkingState mutator_marking_state_;
   bool is_marking_{false};
 
-  IncrementalMarkingSchedule schedule_;
+  heap::base::IncrementalMarkingSchedule schedule_;
 
   std::unique_ptr<ConcurrentMarkerBase> concurrent_marker_{nullptr};
 

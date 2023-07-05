@@ -71,6 +71,7 @@ v8_source_set("v8_heap_base_unittests_sources") {
   sources = [
     "heap/base/active-system-pages-unittest.cc",
     "heap/base/basic-slot-set-unittest.cc",
+    "heap/base/incremental-marking-schedule-unittest.cc",
     "heap/base/worklist-unittest.cc",
   ]
 
@@ -139,7 +140,6 @@ v8_source_set("cppgc_unittests_sources") {
     "heap/cppgc/heap-registry-unittest.cc",
     "heap/cppgc/heap-statistics-collector-unittest.cc",
     "heap/cppgc/heap-unittest.cc",
-    "heap/cppgc/incremental-marking-schedule-unittest.cc",
     "heap/cppgc/liveness-broker-unittest.cc",
     "heap/cppgc/logging-unittest.cc",
     "heap/cppgc/marker-unittest.cc",

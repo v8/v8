@@ -206,7 +206,7 @@ class UnifiedHeapConcurrentMarker
   UnifiedHeapConcurrentMarker(
       cppgc::internal::HeapBase& heap, Heap* v8_heap,
       cppgc::internal::MarkingWorklists& marking_worklists,
-      cppgc::internal::IncrementalMarkingSchedule& incremental_marking_schedule,
+      ::heap::base::IncrementalMarkingSchedule& incremental_marking_schedule,
       cppgc::Platform* platform,
       UnifiedHeapMarkingState& unified_heap_marking_state,
       CppHeap::CollectionType collection_type)

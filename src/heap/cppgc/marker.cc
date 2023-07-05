@@ -71,8 +71,8 @@ bool DrainWorklistWithBytesAndTimeDeadline(BasicMarkingState& marking_state,
       worklist_local, callback);
 }
 
-size_t GetNextIncrementalStepDuration(IncrementalMarkingSchedule& schedule,
-                                      HeapBase& heap) {
+size_t GetNextIncrementalStepDuration(
+    heap::base::IncrementalMarkingSchedule& schedule, HeapBase& heap) {
   return schedule.GetNextIncrementalStepDuration(
       heap.stats_collector()->allocated_object_size());
 }

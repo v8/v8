@@ -2,21 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/heap/cppgc/incremental-marking-schedule.h"
+#include "src/heap/base/incremental-marking-schedule.h"
 
 #include <cmath>
 
-#include "src/heap/cppgc/globals.h"
-
-namespace cppgc {
-namespace internal {
-
-// static
-constexpr size_t IncrementalMarkingSchedule::kInvalidLastEstimatedLiveBytes;
-
-const double IncrementalMarkingSchedule::kEstimatedMarkingTimeMs = 500.0;
-const size_t IncrementalMarkingSchedule::kMinimumMarkedBytesPerIncrementalStep =
-    64 * kKB;
+namespace heap::base {
 
 void IncrementalMarkingSchedule::NotifyIncrementalMarkingStart() {
   DCHECK(incremental_marking_start_time_.IsNull());
@@ -41,25 +31,24 @@ size_t IncrementalMarkingSchedule::GetConcurrentlyMarkedBytes() const {
   return concurrently_marked_bytes_.load(std::memory_order_relaxed);
 }
 
-double IncrementalMarkingSchedule::GetElapsedTimeInMs(
-    v8::base::TimeTicks start_time) {
-  if (elapsed_time_for_testing_ != kNoSetElapsedTimeForTesting) {
-    double elapsed_time = elapsed_time_for_testing_;
-    elapsed_time_for_testing_ = kNoSetElapsedTimeForTesting;
+v8::base::TimeDelta IncrementalMarkingSchedule::GetElapsedTime() {
+  if (elapsed_time_for_testing_.has_value()) {
+    const v8::base::TimeDelta elapsed_time = *elapsed_time_for_testing_;
+    elapsed_time_for_testing_.reset();
     return elapsed_time;
   }
-  return (v8::base::TimeTicks::Now() - start_time).InMillisecondsF();
+  return v8::base::TimeTicks::Now() - incremental_marking_start_time_;
 }
 
 size_t IncrementalMarkingSchedule::GetNextIncrementalStepDuration(
     size_t estimated_live_bytes) {
   last_estimated_live_bytes_ = estimated_live_bytes;
   DCHECK(!incremental_marking_start_time_.IsNull());
-  double elapsed_time_in_ms =
-      GetElapsedTimeInMs(incremental_marking_start_time_);
-  size_t actual_marked_bytes = GetOverallMarkedBytes();
-  size_t expected_marked_bytes = std::ceil(
-      estimated_live_bytes * elapsed_time_in_ms / kEstimatedMarkingTimeMs);
+  const auto elapsed_time = GetElapsedTime();
+  const size_t actual_marked_bytes = GetOverallMarkedBytes();
+  const size_t expected_marked_bytes =
+      std::ceil(estimated_live_bytes * elapsed_time.InMillisecondsF() /
+                kEstimatedMarkingTime.InMillisecondsF());
   if (expected_marked_bytes < actual_marked_bytes) {
     // Marking is ahead of schedule, incremental marking should do the minimum.
     return kMinimumMarkedBytesPerIncrementalStep;
@@ -78,14 +67,17 @@ size_t IncrementalMarkingSchedule::GetNextIncrementalStepDuration(
 constexpr double
     IncrementalMarkingSchedule::kEphemeronPairsFlushingRatioIncrements;
 bool IncrementalMarkingSchedule::ShouldFlushEphemeronPairs() {
-  DCHECK_NE(kInvalidLastEstimatedLiveBytes, last_estimated_live_bytes_);
   if (GetOverallMarkedBytes() <
-      (ephemeron_pairs_flushing_ratio_target * last_estimated_live_bytes_))
+      (ephemeron_pairs_flushing_ratio_target_ * last_estimated_live_bytes_))
     return false;
-  ephemeron_pairs_flushing_ratio_target +=
+  ephemeron_pairs_flushing_ratio_target_ +=
       kEphemeronPairsFlushingRatioIncrements;
   return true;
 }
 
-}  // namespace internal
-}  // namespace cppgc
+void IncrementalMarkingSchedule::SetElapsedTimeForTesting(
+    v8::base::TimeDelta elapsed_time) {
+  elapsed_time_for_testing_.emplace(elapsed_time);
+}
+
+}  // namespace heap::base

@@ -25,7 +25,7 @@ template <size_t kDeadlineCheckInterval = kDefaultDeadlineCheckInterval,
           typename WorklistLocal, typename Callback>
 bool DrainWorklistWithYielding(
     JobDelegate* job_delegate, ConcurrentMarkingState& marking_state,
-    IncrementalMarkingSchedule& incremental_marking_schedule,
+    heap::base::IncrementalMarkingSchedule& incremental_marking_schedule,
     WorklistLocal& worklist_local, Callback callback) {
   return DrainWorklistWithPredicate<kDeadlineCheckInterval>(
       [&incremental_marking_schedule, &marking_state, job_delegate]() {
@@ -173,7 +173,7 @@ void ConcurrentMarkingTask::ProcessWorklists(
 
 ConcurrentMarkerBase::ConcurrentMarkerBase(
     HeapBase& heap, MarkingWorklists& marking_worklists,
-    IncrementalMarkingSchedule& incremental_marking_schedule,
+    heap::base::IncrementalMarkingSchedule& incremental_marking_schedule,
     cppgc::Platform* platform)
     : heap_(heap),
       marking_worklists_(marking_worklists),
@@ -251,7 +251,8 @@ void ConcurrentMarkerBase::IncreaseMarkingPriorityIfNeeded() {
               last_concurrently_marked_bytes_update_)
                  .InMilliseconds() >
              kMarkingScheduleRatioBeforeConcurrentPriorityIncrease *
-                 IncrementalMarkingSchedule::kEstimatedMarkingTimeMs) {
+                 heap::base::IncrementalMarkingSchedule::kEstimatedMarkingTime
+                     .InMillisecondsF()) {
     concurrent_marking_handle_->UpdatePriority(
         cppgc::TaskPriority::kUserBlocking);
     concurrent_marking_priority_increased_ = true;
