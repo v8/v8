@@ -5,7 +5,7 @@
 namespace wasm {
 @export
 struct WasmToJSResult {
-  popCount: int32;
+  popCount: intptr;
   result0: intptr;
   result1: intptr;
   result2: float64;
@@ -34,7 +34,7 @@ transitioning macro WasmToJSWrapper(ref: WasmApiFunctionRef): WasmToJSResult {
   const _result = CallVarargs(context, target, 0, 1, params);
   // TODO(ahaas): Provide actual return values here.
   return WasmToJSResult{
-    popCount: 0,
+    popCount: kNumGPRegisterParameters + kNumFPRegisterParameters,
     result0: 0,
     result1: 0,
     result2: 0.0,
