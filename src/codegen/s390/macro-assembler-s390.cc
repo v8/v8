@@ -921,7 +921,7 @@ void MacroAssembler::DecompressTaggedSigned(Register destination,
 void MacroAssembler::DecompressTagged(Register destination, Register source) {
   RecordComment("[ DecompressTagged");
   llgfr(destination, source);
-  agr(destination, kRootRegister);
+  agr(destination, kPtrComprCageBaseRegister);
   RecordComment("]");
 }
 
@@ -929,7 +929,7 @@ void MacroAssembler::DecompressTagged(Register destination,
                                       MemOperand field_operand) {
   RecordComment("[ DecompressTagged");
   llgf(destination, field_operand);
-  agr(destination, kRootRegister);
+  agr(destination, kPtrComprCageBaseRegister);
   RecordComment("]");
 }
 
@@ -2131,7 +2131,7 @@ void MacroAssembler::OptimizeCodeOrTailCallOptimizedCodeSlot(
   LoadTaggedField(optimized_code_entry,
                   FieldMemOperand(feedback_vector,
                                   FeedbackVector::kMaybeOptimizedCodeOffset));
-  TailCallOptimizedCodeSlot(this, optimized_code_entry, r8);
+  TailCallOptimizedCodeSlot(this, optimized_code_entry, r1);
 }
 
 void MacroAssembler::CallRuntime(const Runtime::Function* f,

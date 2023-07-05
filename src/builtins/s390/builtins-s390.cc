@@ -850,7 +850,7 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
     __ mov(kRootRegister, r2);
   }
 
-  // save r6 to r1
+  // save r6 to r0
   __ mov(r0, r6);
 
   // Push a frame with special values setup to mark it as an entry frame.
@@ -879,6 +879,12 @@ void Generate_JSEntryVariant(MacroAssembler* masm, StackFrame::Type type,
   // JS frames on top.
   __ mov(r6, Operand::Zero());
   __ StoreU64(r6, MemOperand(r1));
+
+#ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
+  // Initialize the pointer cage base register.
+  __ LoadRootRelative(kPtrComprCageBaseRegister,
+                      IsolateData::cage_base_offset());
+#endif
 
   Register scrach = r8;
 
@@ -1027,7 +1033,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
   // r5: receiver
   // r6: argc
   // [fp + kPushedStackSpace + 20 * kSystemPointerSize]: argv
-  // r0,r2,r7-r9, cp may be clobbered
+  // r0,r2,r7-r8, cp may be clobbered
 
   __ mov(r2, r6);
   // Load argv from the stack.
@@ -1075,7 +1081,6 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     // r6: argv, i.e. points to first arg
     // r7: scratch reg to hold scaled argc
     // r8: scratch reg to hold arg handle
-    // r9: scratch reg to hold index into argv
     Generate_PushArguments(masm, r6, r2, r1, ArgumentsElementType::kHandle);
 
     // Push the receiver.
@@ -1094,7 +1099,6 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     __ mov(r6, r4);
     __ mov(r7, r6);
     __ mov(r8, r6);
-    __ mov(r9, r6);
 
     // Invoke the code.
     Handle<Code> builtin = is_construct
@@ -1260,7 +1264,7 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
 
   // Check for an tiering state.
   Label flags_need_processing;
-  Register flags = r9;
+  Register flags = r8;
   {
     __ LoadFeedbackVectorFlagsAndJumpIfNeedsProcessing(
         flags, feedback_vector, CodeKind::BASELINE, &flags_need_processing);
@@ -2517,8 +2521,8 @@ void Generate_PushBoundArguments(MacroAssembler* masm) {
     // Reserve stack space for the [[BoundArguments]].
     {
       Label done;
-      __ ShiftLeftU64(r9, r6, Operand(kSystemPointerSizeLog2));
-      __ SubS64(r1, sp, r9);
+      __ ShiftLeftU64(scratch, r6, Operand(kSystemPointerSizeLog2));
+      __ SubS64(r1, sp, scratch);
       // Check the stack for overflow. We are not trying to catch interruptions
       // (i.e. debug break and preemption) here, so check the "real stack
       // limit".
