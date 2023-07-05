@@ -2478,6 +2478,7 @@ TEST_F(AssemblerX64Test, AssemblerX64Regmove256bit) {
   __ vmovapd(ymm0, ymm5);
   __ vmovupd(ymm6, Operand(r8, r9, times_4, 10000));
   __ vbroadcastss(ymm7, Operand(rbx, rcx, times_4, 10000));
+  __ vbroadcastsd(ymm6, Operand(rbx, rcx, times_4, 10000));
   __ vmovddup(ymm3, ymm2);
   __ vmovddup(ymm4, Operand(rbx, rcx, times_4, 10000));
   __ vmovshdup(ymm1, ymm2);
@@ -2517,6 +2518,8 @@ TEST_F(AssemblerX64Test, AssemblerX64Regmove256bit) {
 
       // vbroadcastss ymm7, DWORD PTR [rbx+rcx*4+0x2710]
       0xc4, 0xe2, 0x7d, 0x18, 0xbc, 0x8b, 0x10, 0x27, 0x00, 0x00,
+      // vbroadcastsd ymm6, QWORD PTR [rbx+rcx*4+0x2710]
+      0xc4, 0xe2, 0x7d, 0x19, 0xb4, 0x8b, 0x10, 0x27, 0x00, 0x00,
 
       // vmovddup ymm3, ymm2
       0xc5, 0xff, 0x12, 0xda,
@@ -2548,6 +2551,7 @@ TEST_F(AssemblerX64Test, AssemblerX64AVX2Op256bit) {
   __ vpalignr(ymm10, ymm11, ymm12, 4);
   __ vpalignr(ymm10, ymm11, Operand(rbx, rcx, times_4, 10000), 4);
   __ vbroadcastss(ymm7, xmm0);
+  __ vbroadcastsd(ymm6, xmm5);
   __ vpbroadcastb(ymm2, xmm1);
   __ vpbroadcastb(ymm3, Operand(rbx, rcx, times_4, 10000));
   __ vpbroadcastw(ymm15, xmm4);
@@ -2594,6 +2598,8 @@ TEST_F(AssemblerX64Test, AssemblerX64AVX2Op256bit) {
       0xC4, 0x63, 0x25, 0x0F, 0x94, 0x8B, 0x10, 0x27, 0x00, 0x00, 0x04,
       // vbroadcastss ymm7, xmm0
       0xc4, 0xe2, 0x7d, 0x18, 0xf8,
+      // vbroadcastsd ymm7, xmm0
+      0xc4, 0xe2, 0x7d, 0x19, 0xf5,
       // vpbroadcastb ymm2, xmm1
       0xc4, 0xe2, 0x7d, 0x78, 0xd1,
       // vpbroadcastb ymm3, BYTE PTR [rbx+rcx*4+0x2710]

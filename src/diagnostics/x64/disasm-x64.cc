@@ -903,6 +903,10 @@ int DisassemblerX64::AVXInstruction(uint8_t* data) {
         AppendToBuffer("vbroadcastss %s,", NameOfAVXRegister(regop));
         current += PrintRightXMMOperand(current);
         break;
+      case 0x19:
+        AppendToBuffer("vbroadcastsd %s,", NameOfAVXRegister(regop));
+        current += PrintRightXMMOperand(current);
+        break;
       case 0xF7:
         AppendToBuffer("shlx%c %s,", operand_size_code(),
                        NameOfCPURegister(regop));

@@ -1450,6 +1450,8 @@ TEST_F(DisasmX64Test, DisasmX64YMMRegister) {
             vhaddps(ymm0, ymm1, Operand(rbx, rcx, times_4, 10000)));
     COMPARE("c4e27d18bc8b10270000 vbroadcastss ymm7,[rbx+rcx*4+0x2710]",
             vbroadcastss(ymm7, Operand(rbx, rcx, times_4, 10000)));
+    COMPARE("c4e27d19b48b10270000 vbroadcastsd ymm6,[rbx+rcx*4+0x2710]",
+            vbroadcastsd(ymm6, Operand(rbx, rcx, times_4, 10000)));
     COMPARE("c5ff12da             vmovddup ymm3,ymm2", vmovddup(ymm3, ymm2));
     COMPARE("c5ff12a48b10270000   vmovddup ymm4,[rbx+rcx*4+0x2710]",
             vmovddup(ymm4, Operand(rbx, rcx, times_4, 10000)));
@@ -1508,6 +1510,8 @@ TEST_F(DisasmX64Test, DisasmX64YMMRegister) {
     // Short immediate instructions
     COMPARE("c4e27d18d1           vbroadcastss ymm2,xmm1",
             vbroadcastss(ymm2, xmm1));
+    COMPARE("c4e27d19f1           vbroadcastsd ymm6,xmm1",
+            vbroadcastsd(ymm6, xmm1));
     COMPARE("c4e27d789c8b10270000 vpbroadcastb ymm3,[rbx+rcx*4+0x2710]",
             vpbroadcastb(ymm3, Operand(rbx, rcx, times_4, 10000)));
     COMPARE("c4e27d79d3           vpbroadcastw ymm2,xmm3",

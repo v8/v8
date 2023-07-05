@@ -3570,32 +3570,25 @@ VMOV_DUP(XMMRegister, L128)
 VMOV_DUP(YMMRegister, L256)
 #undef VMOV_DUP
 
-#define BROADCASTSS(SIMDRegister, length)                           \
-  void Assembler::vbroadcastss(SIMDRegister dst, Operand src) {     \
-    DCHECK(IsEnabled(AVX));                                         \
-    EnsureSpace ensure_space(this);                                 \
-    emit_vex_prefix(dst, xmm0, src, k##length, k66, k0F38, kW0);    \
-    emit(0x18);                                                     \
-    emit_sse_operand(dst, src);                                     \
-  }                                                                 \
-  void Assembler::vbroadcastss(SIMDRegister dst, XMMRegister src) { \
-    DCHECK(IsEnabled(AVX2));                                        \
-    EnsureSpace ensure_space(this);                                 \
-    emit_vex_prefix(dst, xmm0, src, k##length, k66, k0F38, kW0);    \
-    emit(0x18);                                                     \
-    emit_sse_operand(dst, src);                                     \
+#define BROADCAST(suffix, SIMDRegister, length, opcode)                   \
+  void Assembler::vbroadcast##suffix(SIMDRegister dst, Operand src) {     \
+    DCHECK(IsEnabled(AVX));                                               \
+    EnsureSpace ensure_space(this);                                       \
+    emit_vex_prefix(dst, xmm0, src, k##length, k66, k0F38, kW0);          \
+    emit(0x##opcode);                                                     \
+    emit_sse_operand(dst, src);                                           \
+  }                                                                       \
+  void Assembler::vbroadcast##suffix(SIMDRegister dst, XMMRegister src) { \
+    DCHECK(IsEnabled(AVX2));                                              \
+    EnsureSpace ensure_space(this);                                       \
+    emit_vex_prefix(dst, xmm0, src, k##length, k66, k0F38, kW0);          \
+    emit(0x##opcode);                                                     \
+    emit_sse_operand(dst, src);                                           \
   }
-BROADCASTSS(XMMRegister, L128)
-BROADCASTSS(YMMRegister, L256)
-#undef BROADCASTSS
-
-void Assembler::vbroadcastsd(YMMRegister dst, XMMRegister src) {
-  DCHECK(IsEnabled(AVX2));
-  EnsureSpace ensure_space(this);
-  emit_vex_prefix(dst, xmm0, src, kL256, k66, k0F38, kW0);
-  emit(0x19);
-  emit_sse_operand(dst, src);
-}
+BROADCAST(ss, XMMRegister, L128, 18)
+BROADCAST(ss, YMMRegister, L256, 18)
+BROADCAST(sd, YMMRegister, L256, 19)
+#undef BROADCAST
 
 void Assembler::fma_instr(uint8_t op, XMMRegister dst, XMMRegister src1,
                           XMMRegister src2, VectorLength l, SIMDPrefix pp,
