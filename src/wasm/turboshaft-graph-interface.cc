@@ -301,44 +301,43 @@ class TurboshaftGraphBuildingInterface {
     Bailout(decoder);
   }
 
-  void LoadMem(FullDecoder* decoder, const WasmMemory* memory, LoadType type,
+  void LoadMem(FullDecoder* decoder, LoadType type,
                const MemoryAccessImmediate& imm, const Value& index,
                Value* result) {
     Bailout(decoder);
   }
 
-  void LoadTransform(FullDecoder* decoder, const WasmMemory* memory,
-                     LoadType type, LoadTransformationKind transform,
+  void LoadTransform(FullDecoder* decoder, LoadType type,
+                     LoadTransformationKind transform,
                      const MemoryAccessImmediate& imm, const Value& index,
                      Value* result) {
     Bailout(decoder);
   }
 
-  void LoadLane(FullDecoder* decoder, const WasmMemory* memory, LoadType type,
-                const Value& value, const Value& index,
-                const MemoryAccessImmediate& imm, const uint8_t laneidx,
-                Value* result) {
+  void LoadLane(FullDecoder* decoder, LoadType type, const Value& value,
+                const Value& index, const MemoryAccessImmediate& imm,
+                const uint8_t laneidx, Value* result) {
     Bailout(decoder);
   }
 
-  void StoreMem(FullDecoder* decoder, const WasmMemory* memory, StoreType type,
+  void StoreMem(FullDecoder* decoder, StoreType type,
                 const MemoryAccessImmediate& imm, const Value& index,
                 const Value& value) {
     Bailout(decoder);
   }
 
-  void StoreLane(FullDecoder* decoder, const WasmMemory* memory, StoreType type,
+  void StoreLane(FullDecoder* decoder, StoreType type,
                  const MemoryAccessImmediate& imm, const Value& index,
                  const Value& value, const uint8_t laneidx) {
     Bailout(decoder);
   }
 
-  void CurrentMemoryPages(FullDecoder* decoder, const WasmMemory* memory,
+  void CurrentMemoryPages(FullDecoder* decoder, const MemoryIndexImmediate& imm,
                           Value* result) {
     Bailout(decoder);
   }
 
-  void MemoryGrow(FullDecoder* decoder, const WasmMemory* memory,
+  void MemoryGrow(FullDecoder* decoder, const MemoryIndexImmediate& imm,
                   const Value& value, Value* result) {
     Bailout(decoder);
   }
@@ -422,9 +421,9 @@ class TurboshaftGraphBuildingInterface {
 
   void CatchAll(FullDecoder* decoder, Control* block) { Bailout(decoder); }
 
-  void AtomicOp(FullDecoder* decoder, const WasmMemory* memory,
-                WasmOpcode opcode, const Value args[], const size_t argc,
-                const MemoryAccessImmediate& imm, Value* result) {
+  void AtomicOp(FullDecoder* decoder, WasmOpcode opcode, const Value args[],
+                const size_t argc, const MemoryAccessImmediate& imm,
+                Value* result) {
     Bailout(decoder);
   }
 

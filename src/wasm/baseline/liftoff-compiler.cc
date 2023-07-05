@@ -3331,7 +3331,7 @@ class LiftoffCompiler {
     return memory_start;
   }
 
-  void LoadMem(FullDecoder* decoder, const WasmMemory* memory, LoadType type,
+  void LoadMem(FullDecoder* decoder, LoadType type,
                const MemoryAccessImmediate& imm, const Value& index_val,
                Value* result) {
     ValueKind kind = type.value_type().kind();
@@ -3346,33 +3346,33 @@ class LiftoffCompiler {
     // below, if this is not a statically-in-bounds index).
     auto& index_slot = __ cache_state()->stack_state.back();
     DCHECK_EQ(index_val.type.kind(), index_slot.kind());
-    bool i64_offset = memory->is_memory64;
+    bool i64_offset = imm.memory->is_memory64;
     DCHECK_EQ(i64_offset ? kI64 : kI32, index_slot.kind());
-    if (IndexStaticallyInBounds(memory, index_slot, type.size(), &offset)) {
+    if (IndexStaticallyInBounds(imm.memory, index_slot, type.size(), &offset)) {
       __ cache_state()->stack_state.pop_back();
       SCOPED_CODE_COMMENT("load from memory (constant offset)");
       LiftoffRegList pinned;
-      Register mem = pinned.set(GetMemoryStart(memory->index, pinned));
+      Register mem = pinned.set(GetMemoryStart(imm.memory->index, pinned));
       LiftoffRegister value = pinned.set(__ GetUnusedRegister(rc, pinned));
       __ Load(value, mem, no_reg, offset, type, nullptr, true, i64_offset);
       __ PushRegister(kind, value);
     } else {
       LiftoffRegister full_index = __ PopToRegister();
-      index = BoundsCheckMem(decoder, memory, type.size(), offset, full_index,
-                             {}, kDontForceCheck);
+      index = BoundsCheckMem(decoder, imm.memory, type.size(), offset,
+                             full_index, {}, kDontForceCheck);
 
       SCOPED_CODE_COMMENT("load from memory");
       LiftoffRegList pinned{index};
 
       // Load the memory start address only now to reduce register pressure
       // (important on ia32).
-      Register mem = pinned.set(GetMemoryStart(memory->index, pinned));
+      Register mem = pinned.set(GetMemoryStart(imm.memory->index, pinned));
       LiftoffRegister value = pinned.set(__ GetUnusedRegister(rc, pinned));
 
       uint32_t protected_load_pc = 0;
       __ Load(value, mem, index, offset, type, &protected_load_pc, true,
               i64_offset);
-      if (memory->bounds_checks == kTrapHandler) {
+      if (imm.memory->bounds_checks == kTrapHandler) {
         AddOutOfLineTrap(decoder, WasmCode::kThrowWasmTrapMemOutOfBounds,
                          protected_load_pc);
       }
@@ -3385,8 +3385,8 @@ class LiftoffCompiler {
     }
   }
 
-  void LoadTransform(FullDecoder* decoder, const WasmMemory* memory,
-                     LoadType type, LoadTransformationKind transform,
+  void LoadTransform(FullDecoder* decoder, LoadType type,
+                     LoadTransformationKind transform,
                      const MemoryAccessImmediate& imm, const Value& index_val,
                      Value* result) {
     // LoadTransform requires SIMD support, so check for it here. If
@@ -3401,8 +3401,9 @@ class LiftoffCompiler {
     // bytes.
     uint32_t access_size =
         transform == LoadTransformationKind::kExtend ? 8 : type.size();
-    Register index = BoundsCheckMem(decoder, memory, access_size, imm.offset,
-                                    full_index, {}, kDontForceCheck);
+    Register index =
+        BoundsCheckMem(decoder, imm.memory, access_size, imm.offset, full_index,
+                       {}, kDontForceCheck);
 
     uintptr_t offset = imm.offset;
     LiftoffRegList pinned{index};
@@ -3413,7 +3414,7 @@ class LiftoffCompiler {
     __ LoadTransform(value, addr, index, offset, type, transform,
                      &protected_load_pc);
 
-    if (memory->bounds_checks == kTrapHandler) {
+    if (imm.memory->bounds_checks == kTrapHandler) {
       AddOutOfLineTrap(decoder, WasmCode::kThrowWasmTrapMemOutOfBounds,
                        protected_load_pc);
     }
@@ -3429,10 +3430,9 @@ class LiftoffCompiler {
     }
   }
 
-  void LoadLane(FullDecoder* decoder, const WasmMemory* memory, LoadType type,
-                const Value& _value, const Value& _index,
-                const MemoryAccessImmediate& imm, const uint8_t laneidx,
-                Value* _result) {
+  void LoadLane(FullDecoder* decoder, LoadType type, const Value& _value,
+                const Value& _index, const MemoryAccessImmediate& imm,
+                const uint8_t laneidx, Value* _result) {
     if (!CheckSupportedType(decoder, kS128, "LoadLane")) {
       return;
     }
@@ -3440,10 +3440,11 @@ class LiftoffCompiler {
     LiftoffRegList pinned;
     LiftoffRegister value = pinned.set(__ PopToRegister());
     LiftoffRegister full_index = __ PopToRegister();
-    Register index = BoundsCheckMem(decoder, memory, type.size(), imm.offset,
-                                    full_index, pinned, kDontForceCheck);
+    Register index =
+        BoundsCheckMem(decoder, imm.memory, type.size(), imm.offset, full_index,
+                       pinned, kDontForceCheck);
 
-    bool i64_offset = memory->is_memory64;
+    bool i64_offset = imm.memory->is_memory64;
     DCHECK_EQ(i64_offset ? kI64 : kI32, _index.type.kind());
 
     uintptr_t offset = imm.offset;
@@ -3455,7 +3456,7 @@ class LiftoffCompiler {
 
     __ LoadLane(result, value, addr, index, offset, type, laneidx,
                 &protected_load_pc, i64_offset);
-    if (memory->bounds_checks == kTrapHandler) {
+    if (imm.memory->bounds_checks == kTrapHandler) {
       AddOutOfLineTrap(decoder, WasmCode::kThrowWasmTrapMemOutOfBounds,
                        protected_load_pc);
     }
@@ -3468,7 +3469,7 @@ class LiftoffCompiler {
     }
   }
 
-  void StoreMem(FullDecoder* decoder, const WasmMemory* memory, StoreType type,
+  void StoreMem(FullDecoder* decoder, StoreType type,
                 const MemoryAccessImmediate& imm, const Value& index_val,
                 const Value& value_val) {
     ValueKind kind = type.value_type().kind();
@@ -3483,19 +3484,19 @@ class LiftoffCompiler {
 
     auto& index_slot = __ cache_state()->stack_state.back();
     DCHECK_EQ(index_val.type.kind(), index_slot.kind());
-    bool i64_offset = memory->is_memory64;
+    bool i64_offset = imm.memory->is_memory64;
     DCHECK_EQ(i64_offset ? kI64 : kI32, index_val.type.kind());
-    if (IndexStaticallyInBounds(memory, index_slot, type.size(), &offset)) {
+    if (IndexStaticallyInBounds(imm.memory, index_slot, type.size(), &offset)) {
       __ cache_state()->stack_state.pop_back();
       SCOPED_CODE_COMMENT("store to memory (constant offset)");
-      Register mem = pinned.set(GetMemoryStart(memory->index, pinned));
+      Register mem = pinned.set(GetMemoryStart(imm.memory->index, pinned));
       __ Store(mem, no_reg, offset, value, type, pinned, nullptr, true,
                i64_offset);
     } else {
       LiftoffRegister full_index = __ PopToRegister(pinned);
       ForceCheck force_check =
           kPartialOOBWritesAreNoops ? kDontForceCheck : kDoForceCheck;
-      index = BoundsCheckMem(decoder, memory, type.size(), imm.offset,
+      index = BoundsCheckMem(decoder, imm.memory, type.size(), imm.offset,
                              full_index, pinned, force_check);
 
       pinned.set(index);
@@ -3503,12 +3504,12 @@ class LiftoffCompiler {
       uint32_t protected_store_pc = 0;
       // Load the memory start address only now to reduce register pressure
       // (important on ia32).
-      Register mem = pinned.set(GetMemoryStart(memory->index, pinned));
+      Register mem = pinned.set(GetMemoryStart(imm.memory->index, pinned));
       LiftoffRegList outer_pinned;
       if (V8_UNLIKELY(v8_flags.trace_wasm_memory)) outer_pinned.set(index);
       __ Store(mem, index, offset, value, type, outer_pinned,
                &protected_store_pc, true, i64_offset);
-      if (memory->bounds_checks == kTrapHandler) {
+      if (imm.memory->bounds_checks == kTrapHandler) {
         AddOutOfLineTrap(decoder, WasmCode::kThrowWasmTrapMemOutOfBounds,
                          protected_store_pc);
       }
@@ -3520,7 +3521,7 @@ class LiftoffCompiler {
     }
   }
 
-  void StoreLane(FullDecoder* decoder, const WasmMemory* memory, StoreType type,
+  void StoreLane(FullDecoder* decoder, StoreType type,
                  const MemoryAccessImmediate& imm, const Value& _index,
                  const Value& _value, const uint8_t lane) {
     if (!CheckSupportedType(decoder, kS128, "StoreLane")) return;
@@ -3529,10 +3530,11 @@ class LiftoffCompiler {
     LiftoffRegister full_index = __ PopToRegister(pinned);
     ForceCheck force_check =
         kPartialOOBWritesAreNoops ? kDontForceCheck : kDoForceCheck;
-    Register index = BoundsCheckMem(decoder, memory, type.size(), imm.offset,
-                                    full_index, pinned, force_check);
+    Register index =
+        BoundsCheckMem(decoder, imm.memory, type.size(), imm.offset, full_index,
+                       pinned, force_check);
 
-    bool i64_offset = memory->is_memory64;
+    bool i64_offset = imm.memory->is_memory64;
     DCHECK_EQ(i64_offset ? kI64 : kI32, _index.type.kind());
 
     uintptr_t offset = imm.offset;
@@ -3542,7 +3544,7 @@ class LiftoffCompiler {
     uint32_t protected_store_pc = 0;
     __ StoreLane(addr, index, offset, value, type, lane, &protected_store_pc,
                  i64_offset);
-    if (memory->bounds_checks == kTrapHandler) {
+    if (imm.memory->bounds_checks == kTrapHandler) {
       AddOutOfLineTrap(decoder, WasmCode::kThrowWasmTrapMemOutOfBounds,
                        protected_store_pc);
     }
@@ -3552,33 +3554,34 @@ class LiftoffCompiler {
     }
   }
 
-  void CurrentMemoryPages(FullDecoder* /* decoder */, const WasmMemory* memory,
+  void CurrentMemoryPages(FullDecoder* /* decoder */,
+                          const MemoryIndexImmediate& imm,
                           Value* /* result */) {
     LiftoffRegList pinned;
     LiftoffRegister mem_size = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
-    if (memory->index == 0) {
+    if (imm.memory->index == 0) {
       LOAD_INSTANCE_FIELD(mem_size.gp(), Memory0Size, kSystemPointerSize,
                           pinned);
     } else {
       LOAD_TAGGED_PTR_INSTANCE_FIELD(mem_size.gp(), MemoryBasesAndSizes,
                                      pinned);
       int buffer_offset = wasm::ObjectAccess::ToTagged(ByteArray::kHeaderSize) +
-                          kSystemPointerSize * (memory->index * 2 + 1);
+                          kSystemPointerSize * (imm.memory->index * 2 + 1);
       __ LoadFullPointer(mem_size.gp(), mem_size.gp(), buffer_offset);
     }
     // Convert bytes to pages.
     __ emit_ptrsize_shri(mem_size.gp(), mem_size.gp(), kWasmPageSizeLog2);
-    if (memory->is_memory64 && kNeedI64RegPair) {
+    if (imm.memory->is_memory64 && kNeedI64RegPair) {
       LiftoffRegister high_word =
           __ GetUnusedRegister(kGpReg, LiftoffRegList{mem_size});
       // The high word is always 0 on 32-bit systems.
       __ LoadConstant(high_word, WasmValue{uint32_t{0}});
       mem_size = LiftoffRegister::ForPair(mem_size.gp(), high_word.gp());
     }
-    __ PushRegister(memory->is_memory64 ? kI64 : kI32, mem_size);
+    __ PushRegister(imm.memory->is_memory64 ? kI64 : kI32, mem_size);
   }
 
-  void MemoryGrow(FullDecoder* decoder, const WasmMemory* memory,
+  void MemoryGrow(FullDecoder* decoder, const MemoryIndexImmediate& imm,
                   const Value& value, Value* result_val) {
     // Pop the input, then spill all cache registers to make the runtime call.
     LiftoffRegList pinned;
@@ -3589,7 +3592,7 @@ class LiftoffCompiler {
 
     Label done;
 
-    if (memory->is_memory64) {
+    if (imm.memory->is_memory64) {
       // If the high word is not 0, this will always fail (would grow by
       // >=256TB). The int32_t value will be sign-extended below.
       __ LoadConstant(result, WasmValue(int32_t{-1}));
@@ -3622,7 +3625,7 @@ class LiftoffCompiler {
     // avoid overwriting it.
     Register mem_index_param_reg = descriptor.GetRegisterParameter(0);
     __ LoadConstant(LiftoffRegister{mem_index_param_reg},
-                    WasmValue(memory->index));
+                    WasmValue(imm.memory->index));
 
     __ CallRuntimeStub(WasmCode::kWasmMemoryGrow);
     DefineSafepoint();
@@ -3634,7 +3637,7 @@ class LiftoffCompiler {
 
     __ bind(&done);
 
-    if (memory->is_memory64) {
+    if (imm.memory->is_memory64) {
       LiftoffRegister result64 = result;
       if (kNeedI64RegPair) result64 = __ GetUnusedRegister(kGpRegPair, pinned);
       __ emit_type_conversion(kExprI64SConvertI32, result64, result, nullptr);
@@ -4976,16 +4979,17 @@ class LiftoffCompiler {
     EmitLandingPad(decoder, pc_offset);
   }
 
-  void AtomicStoreMem(FullDecoder* decoder, const WasmMemory* memory,
-                      StoreType type, const MemoryAccessImmediate& imm) {
+  void AtomicStoreMem(FullDecoder* decoder, StoreType type,
+                      const MemoryAccessImmediate& imm) {
     LiftoffRegList pinned;
     LiftoffRegister value = pinned.set(__ PopToRegister());
-    bool i64_offset = memory->is_memory64;
+    bool i64_offset = imm.memory->is_memory64;
     DCHECK_EQ(i64_offset ? kI64 : kI32,
               __ cache_state()->stack_state.back().kind());
     LiftoffRegister full_index = __ PopToRegister(pinned);
-    Register index = BoundsCheckMem(decoder, memory, type.size(), imm.offset,
-                                    full_index, pinned, kDoForceCheck);
+    Register index =
+        BoundsCheckMem(decoder, imm.memory, type.size(), imm.offset, full_index,
+                       pinned, kDoForceCheck);
 
     pinned.set(index);
     AlignmentCheckMem(decoder, type.size(), imm.offset, index, pinned);
@@ -5001,15 +5005,15 @@ class LiftoffCompiler {
     }
   }
 
-  void AtomicLoadMem(FullDecoder* decoder, const WasmMemory* memory,
-                     LoadType type, const MemoryAccessImmediate& imm) {
+  void AtomicLoadMem(FullDecoder* decoder, LoadType type,
+                     const MemoryAccessImmediate& imm) {
     ValueKind kind = type.value_type().kind();
-    bool i64_offset = memory->is_memory64;
+    bool i64_offset = imm.memory->is_memory64;
     DCHECK_EQ(i64_offset ? kI64 : kI32,
               __ cache_state()->stack_state.back().kind());
     LiftoffRegister full_index = __ PopToRegister();
-    Register index = BoundsCheckMem(decoder, memory, type.size(), imm.offset,
-                                    full_index, {}, kDoForceCheck);
+    Register index = BoundsCheckMem(decoder, imm.memory, type.size(),
+                                    imm.offset, full_index, {}, kDoForceCheck);
 
     LiftoffRegList pinned{index};
     AlignmentCheckMem(decoder, type.size(), imm.offset, index, pinned);
@@ -5027,8 +5031,8 @@ class LiftoffCompiler {
     }
   }
 
-  void AtomicBinop(FullDecoder* decoder, const WasmMemory* memory,
-                   StoreType type, const MemoryAccessImmediate& imm,
+  void AtomicBinop(FullDecoder* decoder, StoreType type,
+                   const MemoryAccessImmediate& imm,
                    void (LiftoffAssembler::*emit_fn)(Register, Register,
                                                      uintptr_t, LiftoffRegister,
                                                      LiftoffRegister, StoreType,
@@ -5052,12 +5056,13 @@ class LiftoffCompiler {
     LiftoffRegister result =
         pinned.set(__ GetUnusedRegister(value.reg_class(), pinned));
 #endif
-    bool i64_offset = memory->is_memory64;
+    bool i64_offset = imm.memory->is_memory64;
     DCHECK_EQ(i64_offset ? kI64 : kI32,
               __ cache_state()->stack_state.back().kind());
     LiftoffRegister full_index = __ PopToRegister(pinned);
-    Register index = BoundsCheckMem(decoder, memory, type.size(), imm.offset,
-                                    full_index, pinned, kDoForceCheck);
+    Register index =
+        BoundsCheckMem(decoder, imm.memory, type.size(), imm.offset, full_index,
+                       pinned, kDoForceCheck);
 
     pinned.set(index);
     AlignmentCheckMem(decoder, type.size(), imm.offset, index, pinned);
@@ -5070,8 +5075,8 @@ class LiftoffCompiler {
     __ PushRegister(result_kind, result);
   }
 
-  void AtomicCompareExchange(FullDecoder* decoder, const WasmMemory* memory,
-                             StoreType type, const MemoryAccessImmediate& imm) {
+  void AtomicCompareExchange(FullDecoder* decoder, StoreType type,
+                             const MemoryAccessImmediate& imm) {
 #ifdef V8_TARGET_ARCH_IA32
     // On ia32 we don't have enough registers to first pop all the values off
     // the stack and then start with the code generation. Instead we do the
@@ -5079,8 +5084,8 @@ class LiftoffCompiler {
     // single register. Afterwards we load all remaining values into the
     // other registers.
     LiftoffRegister full_index = __ PeekToRegister(2, {});
-    Register index = BoundsCheckMem(decoder, memory, type.size(), imm.offset,
-                                    full_index, {}, kDoForceCheck);
+    Register index = BoundsCheckMem(decoder, imm.memory, type.size(),
+                                    imm.offset, full_index, {}, kDoForceCheck);
     LiftoffRegList pinned{index};
     AlignmentCheckMem(decoder, type.size(), imm.offset, index, pinned);
 
@@ -5096,7 +5101,7 @@ class LiftoffCompiler {
     LiftoffRegister expected = pinned.set(__ PopToRegister(pinned));
 
     // Pop the index from the stack.
-    bool i64_offset = memory->is_memory64;
+    bool i64_offset = imm.memory->is_memory64;
     DCHECK_EQ(i64_offset ? kI64 : kI32,
               __ cache_state()->stack_state.back().kind());
     __ DropValues(1);
@@ -5115,12 +5120,13 @@ class LiftoffCompiler {
     LiftoffRegList pinned;
     LiftoffRegister new_value = pinned.set(__ PopToRegister(pinned));
     LiftoffRegister expected = pinned.set(__ PopToRegister(pinned));
-    bool i64_offset = memory->is_memory64;
+    bool i64_offset = imm.memory->is_memory64;
     DCHECK_EQ(i64_offset ? kI64 : kI32,
               __ cache_state()->stack_state.back().kind());
     LiftoffRegister full_index = __ PopToRegister(pinned);
-    Register index = BoundsCheckMem(decoder, memory, type.size(), imm.offset,
-                                    full_index, pinned, kDoForceCheck);
+    Register index =
+        BoundsCheckMem(decoder, imm.memory, type.size(), imm.offset, full_index,
+                       pinned, kDoForceCheck);
     pinned.set(index);
     AlignmentCheckMem(decoder, type.size(), imm.offset, index, pinned);
 
@@ -5158,14 +5164,14 @@ class LiftoffCompiler {
     DefineSafepoint();
   }
 
-  void AtomicWait(FullDecoder* decoder, const WasmMemory* memory,
-                  ValueKind kind, const MemoryAccessImmediate& imm) {
+  void AtomicWait(FullDecoder* decoder, ValueKind kind,
+                  const MemoryAccessImmediate& imm) {
     ValueKind index_kind;
     {
       LiftoffRegList pinned;
       LiftoffRegister full_index = __ PeekToRegister(2, pinned);
       Register index_reg =
-          BoundsCheckMem(decoder, memory, value_kind_size(kind), imm.offset,
+          BoundsCheckMem(decoder, imm.memory, value_kind_size(kind), imm.offset,
                          full_index, pinned, kDoForceCheck);
       pinned.set(index_reg);
       AlignmentCheckMem(decoder, value_kind_size(kind), imm.offset, index_reg,
@@ -5250,11 +5256,11 @@ class LiftoffCompiler {
     __ PushRegister(kI32, LiftoffRegister(kReturnRegister0));
   }
 
-  void AtomicNotify(FullDecoder* decoder, const WasmMemory* memory,
-                    const MemoryAccessImmediate& imm) {
+  void AtomicNotify(FullDecoder* decoder, const MemoryAccessImmediate& imm) {
     LiftoffRegister full_index = __ PeekToRegister(1, {});
-    Register index_reg = BoundsCheckMem(decoder, memory, kInt32Size, imm.offset,
-                                        full_index, {}, kDoForceCheck);
+    Register index_reg =
+        BoundsCheckMem(decoder, imm.memory, kInt32Size, imm.offset, full_index,
+                       {}, kDoForceCheck);
     LiftoffRegList pinned{index_reg};
     AlignmentCheckMem(decoder, kInt32Size, imm.offset, index_reg, pinned);
 
@@ -5354,51 +5360,50 @@ class LiftoffCompiler {
   V(I64AtomicCompareExchange16U, kI64Store16) \
   V(I64AtomicCompareExchange32U, kI64Store32)
 
-  void AtomicOp(FullDecoder* decoder, const WasmMemory* memory,
-                WasmOpcode opcode, const Value args[], const size_t argc,
-                const MemoryAccessImmediate& imm, Value* result) {
+  void AtomicOp(FullDecoder* decoder, WasmOpcode opcode, const Value args[],
+                const size_t argc, const MemoryAccessImmediate& imm,
+                Value* result) {
     switch (opcode) {
-#define ATOMIC_STORE_OP(name, type)                        \
-  case wasm::kExpr##name:                                  \
-    AtomicStoreMem(decoder, memory, StoreType::type, imm); \
+#define ATOMIC_STORE_OP(name, type)                \
+  case wasm::kExpr##name:                          \
+    AtomicStoreMem(decoder, StoreType::type, imm); \
     break;
 
       ATOMIC_STORE_LIST(ATOMIC_STORE_OP)
 #undef ATOMIC_STORE_OP
 
-#define ATOMIC_LOAD_OP(name, type)                       \
-  case wasm::kExpr##name:                                \
-    AtomicLoadMem(decoder, memory, LoadType::type, imm); \
+#define ATOMIC_LOAD_OP(name, type)               \
+  case wasm::kExpr##name:                        \
+    AtomicLoadMem(decoder, LoadType::type, imm); \
     break;
 
       ATOMIC_LOAD_LIST(ATOMIC_LOAD_OP)
 #undef ATOMIC_LOAD_OP
 
-#define ATOMIC_BINOP_OP(op, name, type)                \
-  case wasm::kExpr##name:                              \
-    AtomicBinop(decoder, memory, StoreType::type, imm, \
-                &LiftoffAssembler::Atomic##op);        \
+#define ATOMIC_BINOP_OP(op, name, type)                                        \
+  case wasm::kExpr##name:                                                      \
+    AtomicBinop(decoder, StoreType::type, imm, &LiftoffAssembler::Atomic##op); \
     break;
 
       ATOMIC_BINOP_INSTRUCTION_LIST(ATOMIC_BINOP_OP)
 #undef ATOMIC_BINOP_OP
 
-#define ATOMIC_COMPARE_EXCHANGE_OP(name, type)                    \
-  case wasm::kExpr##name:                                         \
-    AtomicCompareExchange(decoder, memory, StoreType::type, imm); \
+#define ATOMIC_COMPARE_EXCHANGE_OP(name, type)            \
+  case wasm::kExpr##name:                                 \
+    AtomicCompareExchange(decoder, StoreType::type, imm); \
     break;
 
       ATOMIC_COMPARE_EXCHANGE_LIST(ATOMIC_COMPARE_EXCHANGE_OP)
 #undef ATOMIC_COMPARE_EXCHANGE_OP
 
       case kExprI32AtomicWait:
-        AtomicWait(decoder, memory, kI32, imm);
+        AtomicWait(decoder, kI32, imm);
         break;
       case kExprI64AtomicWait:
-        AtomicWait(decoder, memory, kI64, imm);
+        AtomicWait(decoder, kI64, imm);
         break;
       case kExprAtomicNotify:
-        AtomicNotify(decoder, memory, imm);
+        AtomicNotify(decoder, imm);
         break;
       default:
         UNREACHABLE();
