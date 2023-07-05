@@ -234,7 +234,9 @@ class PipelineData {
         allocator_(wasm_engine->allocator()),
         info_(info),
         debug_name_(info_->GetDebugName()),
-        may_have_unverifiable_graph_(false),
+        may_have_unverifiable_graph_(
+            v8_flags.turboshaft_wasm_graph_generation ||
+            v8_flags.turboshaft_wasm),
         zone_stats_(zone_stats),
         pipeline_statistics_(pipeline_statistics),
         graph_zone_scope_(zone_stats_, kGraphZoneName, kCompressGraphZone),
