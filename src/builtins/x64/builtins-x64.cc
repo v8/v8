@@ -1239,7 +1239,8 @@ void Builtins::Generate_InterpreterEntryTrampoline(
 
 #ifndef V8_JITLESS
   __ bind(&flags_need_processing);
-  __ OptimizeCodeOrTailCallOptimizedCodeSlot(feedback_vector, closure);
+  __ OptimizeCodeOrTailCallOptimizedCodeSlot(feedback_vector, closure,
+                                             JumpMode::kJump);
 
   __ bind(&is_baseline);
   {

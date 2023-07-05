@@ -460,6 +460,16 @@ constexpr auto OnStackReplacementDescriptor::registers() {
 }
 
 // static
+constexpr auto
+MaglevOptimizeCodeOrTailCallOptimizedCodeSlotDescriptor::registers() {
+#ifdef V8_ENABLE_MAGLEV
+  return RegisterArray(FlagsRegister(), FeedbackVectorRegister());
+#else
+  return DefaultRegisterArray();
+#endif
+}
+
+// static
 constexpr Register OnStackReplacementDescriptor::MaybeTargetCodeRegister() {
   // Picking the first register on purpose because it's convenient that this
   // register is the same as the platform's return-value register.

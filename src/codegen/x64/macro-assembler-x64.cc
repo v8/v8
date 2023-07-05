@@ -909,9 +909,8 @@ void MacroAssembler::ReplaceClosureCodeWithOptimizedCode(
 
 // Read off the flags in the feedback vector and check if there
 // is optimized code or a tiering state that needs to be processed.
-void MacroAssembler::CheckFeedbackVectorFlagsAndJumpIfNeedsProcessing(
-    Register feedback_vector, CodeKind current_code_kind,
-    Label* flags_need_processing) {
+Condition MacroAssembler::CheckFeedbackVectorFlagsNeedsProcessing(
+    Register feedback_vector, CodeKind current_code_kind) {
   ASM_CODE_COMMENT(this);
   DCHECK(CodeKindCanTierUp(current_code_kind));
   uint32_t kFlagsMask = FeedbackVector::kFlagsTieringStateIsAnyRequested |
@@ -922,7 +921,15 @@ void MacroAssembler::CheckFeedbackVectorFlagsAndJumpIfNeedsProcessing(
   }
   testw(FieldOperand(feedback_vector, FeedbackVector::kFlagsOffset),
         Immediate(kFlagsMask));
-  j(not_zero, flags_need_processing);
+  return not_zero;
+}
+
+void MacroAssembler::CheckFeedbackVectorFlagsAndJumpIfNeedsProcessing(
+    Register feedback_vector, CodeKind current_code_kind,
+    Label* flags_need_processing) {
+  ASM_CODE_COMMENT(this);
+  j(CheckFeedbackVectorFlagsNeedsProcessing(feedback_vector, current_code_kind),
+    flags_need_processing);
 }
 
 void MacroAssembler::OptimizeCodeOrTailCallOptimizedCodeSlot(

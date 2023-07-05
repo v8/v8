@@ -1993,9 +1993,8 @@ void MacroAssembler::GenerateTailCallToReturnedCode(
 
 // Read off the flags in the feedback vector and check if there
 // is optimized code or a tiering state that needs to be processed.
-void MacroAssembler::LoadFeedbackVectorFlagsAndJumpIfNeedsProcessing(
-    Register flags, Register feedback_vector, CodeKind current_code_kind,
-    Label* flags_need_processing) {
+Condition MacroAssembler::LoadFeedbackVectorFlagsAndCheckIfNeedsProcessing(
+    Register flags, Register feedback_vector, CodeKind current_code_kind) {
   ASM_CODE_COMMENT(this);
   DCHECK(!AreAliased(flags, feedback_vector));
   DCHECK(CodeKindCanTierUp(current_code_kind));
@@ -2007,7 +2006,16 @@ void MacroAssembler::LoadFeedbackVectorFlagsAndJumpIfNeedsProcessing(
     kFlagsMask |= FeedbackVector::kFlagsMaybeHasMaglevCode;
   }
   tst(flags, Operand(kFlagsMask));
-  b(ne, flags_need_processing);
+  return ne;
+}
+
+void MacroAssembler::LoadFeedbackVectorFlagsAndJumpIfNeedsProcessing(
+    Register flags, Register feedback_vector, CodeKind current_code_kind,
+    Label* flags_need_processing) {
+  ASM_CODE_COMMENT(this);
+  b(LoadFeedbackVectorFlagsAndCheckIfNeedsProcessing(flags, feedback_vector,
+                                                     current_code_kind),
+    flags_need_processing);
 }
 
 void MacroAssembler::OptimizeCodeOrTailCallOptimizedCodeSlot(

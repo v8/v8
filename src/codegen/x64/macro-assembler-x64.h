@@ -871,12 +871,20 @@ class V8_EXPORT_PRIVATE MacroAssembler
                                            Register slot_address);
   void GenerateTailCallToReturnedCode(Runtime::FunctionId function_id,
                                       JumpMode jump_mode = JumpMode::kJump);
+  Condition CheckFeedbackVectorFlagsNeedsProcessing(Register feedback_vector,
+                                                    CodeKind current_code_kind);
   void CheckFeedbackVectorFlagsAndJumpIfNeedsProcessing(
       Register feedback_vector, CodeKind current_code_kind,
       Label* flags_need_processing);
-  void OptimizeCodeOrTailCallOptimizedCodeSlot(
-      Register feedback_vector, Register closure,
-      JumpMode jump_mode = JumpMode::kJump);
+  void OptimizeCodeOrTailCallOptimizedCodeSlot(Register feedback_vector,
+                                               Register closure,
+                                               JumpMode jump_mode);
+  // For compatibility with other archs.
+  void OptimizeCodeOrTailCallOptimizedCodeSlot(Register flags,
+                                               Register feedback_vector) {
+    OptimizeCodeOrTailCallOptimizedCodeSlot(
+        feedback_vector, kJSFunctionRegister, JumpMode::kJump);
+  }
 
   // Abort execution if argument is not a Constructor, enabled via --debug-code.
   void AssertConstructor(Register object) NOOP_UNLESS_DEBUG_CODE;

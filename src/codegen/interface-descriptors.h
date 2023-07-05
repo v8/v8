@@ -109,6 +109,7 @@ namespace internal {
   V(LookupWithVector)                                \
   V(LookupTrampoline)                                \
   V(LookupBaseline)                                  \
+  V(MaglevOptimizeCodeOrTailCallOptimizedCodeSlot)   \
   V(NewHeapNumber)                                   \
   V(NoContext)                                       \
   V(OnStackReplacement)                              \
@@ -940,6 +941,21 @@ class LookupBaselineDescriptor
                          MachineType::AnyTagged(),  // kDepth
                          MachineType::AnyTagged())  // kSlot
   DECLARE_DESCRIPTOR(LookupBaselineDescriptor)
+};
+
+class MaglevOptimizeCodeOrTailCallOptimizedCodeSlotDescriptor
+    : public StaticCallInterfaceDescriptor<
+          MaglevOptimizeCodeOrTailCallOptimizedCodeSlotDescriptor> {
+ public:
+  DEFINE_PARAMETERS_NO_CONTEXT(kFlags, kFeedbackVector)
+  DEFINE_PARAMETER_TYPES(MachineType::Int32(),          // kFlags
+                         MachineType::TaggedPointer())  // kFeedbackVector
+  DECLARE_DESCRIPTOR(MaglevOptimizeCodeOrTailCallOptimizedCodeSlotDescriptor)
+
+  static constexpr inline Register FlagsRegister();
+  static constexpr inline Register FeedbackVectorRegister();
+
+  static constexpr inline auto registers();
 };
 
 class StoreDescriptor : public StaticCallInterfaceDescriptor<StoreDescriptor> {

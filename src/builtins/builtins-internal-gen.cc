@@ -8,7 +8,7 @@
 #include "src/builtins/builtins.h"
 #include "src/codegen/code-stub-assembler.h"
 #include "src/codegen/interface-descriptors-inl.h"
-#include "src/codegen/macro-assembler.h"
+#include "src/codegen/macro-assembler-inl.h"
 #include "src/common/globals.h"
 #include "src/execution/frame-constants.h"
 #include "src/heap/memory-chunk.h"
@@ -1368,10 +1368,24 @@ void Builtins::Generate_MaglevOnStackReplacement(MacroAssembler* masm) {
 }
 #endif  // V8_TARGET_ARCH_X64
 
-#ifndef V8_ENABLE_MAGLEV
+#ifdef V8_ENABLE_MAGLEV
+void Builtins::Generate_MaglevOptimizeCodeOrTailCallOptimizedCodeSlot(
+    MacroAssembler* masm) {
+  using D = MaglevOptimizeCodeOrTailCallOptimizedCodeSlotDescriptor;
+  Register flags = D::GetRegisterParameter(D::kFlags);
+  Register feedback_vector = D::GetRegisterParameter(D::kFeedbackVector);
+  masm->AssertFeedbackVector(feedback_vector);
+  masm->OptimizeCodeOrTailCallOptimizedCodeSlot(flags, feedback_vector);
+  masm->Trap();
+}
+#else
 // static
 void Builtins::Generate_MaglevFunctionEntryStackCheck(MacroAssembler* masm,
                                                       bool save_new_target) {
+  masm->Trap();
+}
+void Builtins::Generate_MaglevOptimizeCodeOrTailCallOptimizedCodeSlot(
+    MacroAssembler* masm) {
   masm->Trap();
 }
 #endif  // V8_ENABLE_MAGLEV

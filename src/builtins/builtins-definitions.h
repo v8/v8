@@ -202,6 +202,8 @@ namespace internal {
   ASM(MaglevOnStackReplacement, OnStackReplacement)                            \
   ASM(MaglevFunctionEntryStackCheck_WithoutNewTarget, Void)                    \
   ASM(MaglevFunctionEntryStackCheck_WithNewTarget, Void)                       \
+  ASM(MaglevOptimizeCodeOrTailCallOptimizedCodeSlot,                           \
+      MaglevOptimizeCodeOrTailCallOptimizedCodeSlot)                           \
                                                                                \
   /* Code life-cycle */                                                        \
   TFC(CompileLazy, JSTrampoline)                                               \

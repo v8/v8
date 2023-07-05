@@ -155,6 +155,17 @@ constexpr Register BaselineLeaveFrameDescriptor::WeightRegister() {
 }
 
 // static
+constexpr Register
+MaglevOptimizeCodeOrTailCallOptimizedCodeSlotDescriptor::FlagsRegister() {
+  return r8;
+}
+// static
+constexpr Register MaglevOptimizeCodeOrTailCallOptimizedCodeSlotDescriptor::
+    FeedbackVectorRegister() {
+  return r9;
+}
+
+// static
 constexpr Register TypeConversionDescriptor::ArgumentRegister() { return rax; }
 
 // static

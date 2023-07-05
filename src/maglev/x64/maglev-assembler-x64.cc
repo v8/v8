@@ -443,29 +443,17 @@ void MaglevAssembler::Prologue(Graph* graph) {
   }
 
   // Tiering support.
-  // TODO(jgruber): Extract to a builtin (the tiering prologue is ~230 bytes
-  // per Maglev code object on x64).
   if (v8_flags.turbofan) {
-    // Scratch registers. Don't clobber regs related to the calling
-    // convention (e.g. kJavaScriptCallArgCountRegister). Keep up-to-date
-    // with deferred flags code.
-    Register feedback_vector = r9;
-
-    Label* deferred_flags_need_processing = MakeDeferredCode(
-        [](MaglevAssembler* masm, Register feedback_vector) {
-          ASM_CODE_COMMENT_STRING(masm, "Optimized marker check");
-          // TODO(leszeks): This could definitely be a builtin that we
-          // tail-call.
-          __ OptimizeCodeOrTailCallOptimizedCodeSlot(
-              feedback_vector, kJSFunctionRegister, JumpMode::kJump);
-          __ Trap();
-        },
-        feedback_vector);
-
+    using D = MaglevOptimizeCodeOrTailCallOptimizedCodeSlotDescriptor;
+    Register feedback_vector = D::GetRegisterParameter(D::kFeedbackVector);
+    DCHECK(!AreAliased(feedback_vector, kJavaScriptCallArgCountRegister,
+                       kJSFunctionRegister, kContextRegister,
+                       kJavaScriptCallNewTargetRegister));
     Move(feedback_vector,
          compilation_info()->toplevel_compilation_unit()->feedback().object());
-    CheckFeedbackVectorFlagsAndJumpIfNeedsProcessing(
-        feedback_vector, CodeKind::MAGLEV, deferred_flags_need_processing);
+    TailCallBuiltin(Builtin::kMaglevOptimizeCodeOrTailCallOptimizedCodeSlot,
+                    CheckFeedbackVectorFlagsNeedsProcessing(feedback_vector,
+                                                            CodeKind::MAGLEV));
   }
 
   EnterFrame(StackFrame::MAGLEV);
