@@ -455,13 +455,14 @@ struct ImmF64Immediate {
 };
 
 struct MemoryIndexImmediate {
-  uint8_t index = 0;
-  uint32_t length = 1;
+  uint32_t index = 0;
+  uint32_t length;
 
   template <typename ValidationTag>
   MemoryIndexImmediate(Decoder* decoder, const uint8_t* pc,
                        ValidationTag = {}) {
-    index = decoder->read_u8<ValidationTag>(pc, "memory index");
+    std::tie(index, length) =
+        decoder->read_u32v<ValidationTag>(pc, "memory index");
   }
 };
 
@@ -1792,6 +1793,16 @@ class WasmDecoder : public Decoder {
 
   bool Validate(const uint8_t* pc, MemoryIndexImmediate& imm) {
     size_t num_memories = module_->memories.size();
+    if (!VALIDATE(this->enabled_.has_multi_memory() ||
+                  (imm.index == 0 && imm.length == 1))) {
+      DecodeError(pc,
+                  "expected a single 0 byte for the memory index, found %u "
+                  "encoded in %u bytes; pass --experimental-wasm-multi-memory "
+                  "to enable multi-memory support",
+                  imm.index, imm.length);
+      return false;
+    }
+
     if (!VALIDATE(imm.index < num_memories)) {
       DecodeError(pc,
                   "memory index %u exceeds number of declared memories (%zu)",

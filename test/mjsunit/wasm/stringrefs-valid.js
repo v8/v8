@@ -364,7 +364,7 @@ assertInvalid(
         ...GCInstr(kExprStringNewWtf8), 1
       ]);
   },
-  /memory index 1 exceeds number of declared memories \(1\)/);
+  /expected a single 0 byte for the memory index, found 1 encoded in 1 bytes/);
 
 assertInvalid(
   builder => {
@@ -385,7 +385,7 @@ assertInvalid(
         ...GCInstr(kExprStringEncodeWtf8), 1
       ]);
   },
-  /memory index 1 exceeds number of declared memories \(1\)/);
+  /expected a single 0 byte for the memory index, found 1 encoded in 1 bytes/);
 
 assertInvalid(
   builder => {

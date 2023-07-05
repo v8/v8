@@ -67,6 +67,16 @@ function testTwoMemories(instance, mem0_size, mem1_size) {
   }
 }
 
+function assertMemoryEquals(expected, memory) {
+  assertInstanceof(memory, WebAssembly.Memory);
+  assertInstanceof(expected, Uint8Array);
+  const buf = new Uint8Array(memory.buffer);
+  // For better output, check the first 50 bytes separately first.
+  assertEquals(expected.slice(0, 50), buf.slice(0, 50));
+  // Now also check the full memory content.
+  assertEquals(expected, buf);
+}
+
 (function testBasicMultiMemory() {
   print(arguments.callee.name);
   const builder = new WasmModuleBuilder();
@@ -77,6 +87,42 @@ function testTwoMemories(instance, mem0_size, mem1_size) {
 
   const instance = builder.instantiate();
   testTwoMemories(instance, 1, 1);
+})();
+
+(function testMemoryIndexDecodedAsU32() {
+  print(arguments.callee.name);
+  for (let leb_length = 1; leb_length <= 6; ++leb_length) {
+    // Create the array [0x80, 0x80, ..., 0x0] of length `leb_length`. This
+    // encodes `0` using `leb_length` bytes.
+    const leb = new Array(leb_length).fill(0x80).with(leb_length - 1, 0);
+    const builder = new WasmModuleBuilder();
+    builder.addMemory(1, 1);
+    builder.addFunction('load', kSig_i_i)
+        .addBody([kExprLocalGet, 0, kExprI32LoadMem, 0x40, ...leb, 0])
+        .exportFunc();
+    builder.addFunction('store', kSig_v_ii)
+        .addBody([
+          kExprLocalGet, 0, kExprLocalGet, 1, kExprI32StoreMem, 0x40, ...leb, 0
+        ])
+        .exportFunc();
+    builder.exportMemoryAs('mem');
+
+    if (leb_length == 6) {
+      assertThrows(
+          () => builder.instantiate(), WebAssembly.CompileError,
+          /length overflow while decoding memory index/);
+      continue;
+    }
+    const instance = builder.instantiate();
+    assertEquals(0, instance.exports.load(7));
+    instance.exports.store(7, 11);
+    assertEquals(11, instance.exports.load(7));
+    assertEquals(0, instance.exports.load(11));
+
+    const expected_memory = new Uint8Array(kPageSize);
+    expected_memory[7] = 11;
+    assertMemoryEquals(expected_memory, instance.exports.mem);
+  }
 })();
 
 (function testImportedAndDeclaredMemories() {
@@ -151,14 +197,8 @@ function testTwoMemories(instance, mem0_size, mem1_size) {
   const expected_memory1 = new Uint8Array(kPageSize);
   expected_memory1.set([7, 7], mem1_offset);
 
-  const mem0 = new Uint8Array(instance.exports.mem0.buffer);
-  const mem1 = new Uint8Array(instance.exports.mem1.buffer);
-  // For better output, check the first 50 bytes separately first.
-  assertEquals(expected_memory0.slice(0, 50), mem0.slice(0, 50));
-  assertEquals(expected_memory1.slice(0, 50), mem1.slice(0, 50));
-  // Now also check the full memory content.
-  assertEquals(expected_memory0, mem0);
-  assertEquals(expected_memory1, mem1);
+  assertMemoryEquals(expected_memory0, instance.exports.mem0);
+  assertMemoryEquals(expected_memory1, instance.exports.mem1);
 })();
 
 (function testMultiMemoryDataSegmentsOutOfBounds() {
@@ -210,4 +250,31 @@ function testTwoMemories(instance, mem0_size, mem1_size) {
   assertEquals(5, instance.exports.size1());
   assertEquals(-1, instance.exports.grow1(1));
   assertEquals(5, instance.exports.size1());
+})();
+
+(function testGrowDecodesMemoryIndexAsU32() {
+  print(arguments.callee.name);
+  for (let leb_length = 1; leb_length <= 6; ++leb_length) {
+    // Create the array [0x80, 0x80, ..., 0x0] of length `leb_length`. This
+    // encodes `0` using `leb_length` bytes.
+    const leb = new Array(leb_length).fill(0x80).with(leb_length - 1, 0);
+    var builder = new WasmModuleBuilder();
+    builder.addMemory(1, 4);
+    builder.addFunction('grow', kSig_i_i)
+        .addBody([kExprLocalGet, 0, kExprMemoryGrow, ...leb])
+        .exportFunc();
+    builder.exportMemoryAs('mem', 0);
+
+    if (leb_length == 6) {
+      assertThrows(
+          () => builder.instantiate(), WebAssembly.CompileError,
+          /length overflow while decoding memory index/);
+      continue;
+    }
+    const instance = builder.instantiate();
+
+    assertEquals(1, instance.exports.grow(2));
+    assertEquals(-1, instance.exports.grow(2));
+    assertEquals(3, instance.exports.grow(1));
+  }
 })();
