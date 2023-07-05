@@ -1621,17 +1621,6 @@ BytecodeArrayRef SharedFunctionInfoRef::GetBytecodeArray(
 BROKER_SFI_FIELDS(DEF_SFI_ACCESSOR)
 #undef DEF_SFI_ACCESSOR
 
-bool SharedFunctionInfoRef::HasBreakInfo(JSHeapBroker* broker) const {
-  if (broker->IsMainThread()) {
-    return object()->HasBreakInfo(broker->isolate());
-  } else {
-    LocalIsolate* local_isolate = broker->local_isolate();
-    SharedMutexGuardIfOffThread<LocalIsolate, base::kShared> mutex_guard(
-        local_isolate->shared_function_info_access(), local_isolate);
-    return object()->HasBreakInfo(local_isolate->GetMainThreadIsolateUnsafe());
-  }
-}
-
 SharedFunctionInfo::Inlineability SharedFunctionInfoRef::GetInlineability(
     JSHeapBroker* broker) const {
   return broker->IsMainThread()

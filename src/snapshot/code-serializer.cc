@@ -166,21 +166,27 @@ void CodeSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
       DCHECK(!sfi.HasAsmWasmData());
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-      if (auto maybe_debug_info = sfi.TryGetDebugInfo(isolate())) {
-        debug_info = handle(maybe_debug_info.value(), isolate());
+      if (sfi.HasDebugInfo()) {
         // Clear debug info.
-        if (debug_info->HasInstrumentedBytecodeArray()) {
+        DebugInfo raw_debug_info = sfi.GetDebugInfo();
+        if (raw_debug_info.HasInstrumentedBytecodeArray()) {
           restore_bytecode = true;
-          sfi.SetActiveBytecodeArray(debug_info->OriginalBytecodeArray());
+          sfi.SetActiveBytecodeArray(raw_debug_info.OriginalBytecodeArray());
         }
+        sfi.set_script_or_debug_info(raw_debug_info.script(), kReleaseStore);
+        debug_info = handle(raw_debug_info, isolate());
       }
-      DCHECK(!sfi.HasDebugInfo(isolate()));
+      DCHECK(!sfi.HasDebugInfo());
     }
     SerializeGeneric(obj, slot_type);
-    if (restore_bytecode) {
+    // Restore debug info
+    if (!debug_info.is_null()) {
       DisallowGarbageCollection no_gc;
       SharedFunctionInfo sfi = SharedFunctionInfo::cast(*obj);
-      sfi.SetActiveBytecodeArray(debug_info->DebugBytecodeArray());
+      sfi.set_script_or_debug_info(*debug_info, kReleaseStore);
+      if (restore_bytecode) {
+        sfi.SetActiveBytecodeArray(debug_info->DebugBytecodeArray());
+      }
     }
     return;
   } else if (InstanceTypeChecker::IsUncompiledDataWithoutPreparseDataWithJob(
@@ -408,9 +414,8 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
   }
 
   base::ElapsedTimer timer;
-  if (v8_flags.profile_deserialization || v8_flags.log_function_events) {
+  if (v8_flags.profile_deserialization || v8_flags.log_function_events)
     timer.Start();
-  }
 
   HandleScope scope(isolate);
 
@@ -420,9 +425,8 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
       cached_data, SerializedCodeData::SourceHash(source, origin_options),
       &sanity_check_result);
   if (sanity_check_result != SerializedCodeSanityCheckResult::kSuccess) {
-    if (v8_flags.profile_deserialization) {
+    if (v8_flags.profile_deserialization)
       PrintF("[Cached code failed check]\n");
-    }
     DCHECK(cached_data->rejected());
     isolate->counters()->code_cache_reject_reason()->AddSample(
         static_cast<int>(sanity_check_result));
@@ -521,9 +525,8 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::FinishOffThreadDeserialize(
     ScriptOriginOptions origin_options,
     BackgroundMergeTask* background_merge_task) {
   base::ElapsedTimer timer;
-  if (v8_flags.profile_deserialization || v8_flags.log_function_events) {
+  if (v8_flags.profile_deserialization || v8_flags.log_function_events)
     timer.Start();
-  }
 
   HandleScope scope(isolate);
 
@@ -548,9 +551,8 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::FinishOffThreadDeserialize(
     DCHECK_IMPLIES(sanity_check_result != data.sanity_check_result,
                    sanity_check_result ==
                        SerializedCodeSanityCheckResult::kSourceMismatch);
-    if (v8_flags.profile_deserialization) {
+    if (v8_flags.profile_deserialization)
       PrintF("[Cached code failed check]\n");
-    }
     DCHECK(cached_data->rejected());
     isolate->counters()->code_cache_reject_reason()->AddSample(
         static_cast<int>(sanity_check_result));

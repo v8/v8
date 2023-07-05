@@ -1032,8 +1032,9 @@ void SharedFunctionInfo::SharedFunctionInfoVerify(ReadOnlyRoots roots) {
         HasUncompiledDataWithoutPreparseData());
 
   {
-    HeapObject script = this->script(kAcquireLoad);
-    CHECK(script.IsUndefined(roots) || script.IsScript());
+    auto script = script_or_debug_info(kAcquireLoad);
+    CHECK(script.IsUndefined(roots) || script.IsScript() ||
+          script.IsDebugInfo());
   }
 
   if (!is_compiled()) {

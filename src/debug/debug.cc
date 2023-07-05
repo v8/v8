@@ -522,6 +522,9 @@ void DebugInfoCollection::DeleteIndex(size_t index) {
   SharedFunctionInfo sfi = debug_info.shared();
   DCHECK(Contains(sfi));
 
+  // Pack the script back into the SFI.
+  sfi.set_script_or_debug_info(debug_info.script(), kReleaseStore);
+
   auto it = map_.find(sfi.unique_id());
   HandleLocation location = it->second;
   DCHECK_EQ(location, list_[index]);
@@ -573,7 +576,7 @@ void Debug::Break(JavaScriptFrame* frame, Handle<JSFunction> break_target) {
   if (!EnsureBreakInfo(shared)) return;
   PrepareFunctionForDebugExecution(shared);
 
-  Handle<DebugInfo> debug_info(TryGetDebugInfo(*shared).value(), isolate_);
+  Handle<DebugInfo> debug_info(shared->GetDebugInfo(), isolate_);
 
   // Find the break location where execution has stopped.
   BreakLocation location = BreakLocation::FromFrame(debug_info, frame);
@@ -767,29 +770,16 @@ bool Debug::IsMutedAtCurrentLocation(JavaScriptFrame* frame) {
   return has_break_points && checked.is_null();
 }
 
-namespace {
-
-// Convenience helper for easier base::Optional translation.
-bool ToHandle(Isolate* isolate, base::Optional<DebugInfo> debug_info,
-              Handle<DebugInfo>* out) {
-  if (!debug_info.has_value()) return false;
-  *out = handle(debug_info.value(), isolate);
-  return true;
-}
-
-}  // namespace
-
 MaybeHandle<FixedArray> Debug::GetHitBreakpointsAtCurrentStatement(
     JavaScriptFrame* frame, bool* has_break_points) {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
   FrameSummary summary = FrameSummary::GetTop(frame);
   Handle<JSFunction> function = summary.AsJavaScript().function();
-  Handle<DebugInfo> debug_info;
-  if (!ToHandle(isolate_, TryGetDebugInfo(function->shared()), &debug_info) ||
-      !debug_info->HasBreakInfo()) {
+  if (!function->shared().HasBreakInfo()) {
     *has_break_points = false;
     return {};
   }
+  Handle<DebugInfo> debug_info(function->shared().GetDebugInfo(), isolate_);
   // Enter the debugger.
   DebugScope debug_scope(this);
   std::vector<BreakLocation> break_locations;
@@ -858,7 +848,7 @@ bool Debug::SetBreakpoint(Handle<SharedFunctionInfo> shared,
   if (!EnsureBreakInfo(shared)) return false;
   PrepareFunctionForDebugExecution(shared);
 
-  Handle<DebugInfo> debug_info(TryGetDebugInfo(*shared).value(), isolate_);
+  Handle<DebugInfo> debug_info(shared->GetDebugInfo(), isolate_);
   // Source positions starts with zero.
   DCHECK_LE(0, *source_position);
 
@@ -1120,7 +1110,7 @@ void Debug::FloodWithOneShot(Handle<SharedFunctionInfo> shared,
   if (!EnsureBreakInfo(shared)) return;
   PrepareFunctionForDebugExecution(shared);
 
-  Handle<DebugInfo> debug_info(TryGetDebugInfo(*shared).value(), isolate_);
+  Handle<DebugInfo> debug_info(shared->GetDebugInfo(), isolate_);
   // Flood the function with break points.
   DCHECK(debug_info->HasInstrumentedBytecodeArray());
   for (BreakIterator it(debug_info); !it.Done(); it.Next()) {
@@ -1339,7 +1329,7 @@ void Debug::PrepareStep(StepAction step_action) {
     // PrepareFunctionForDebugExecution can invalidate Baseline frames
     js_frame = JavaScriptFrame::cast(frames_it.Reframe());
 
-    Handle<DebugInfo> debug_info(TryGetDebugInfo(*shared).value(), isolate_);
+    Handle<DebugInfo> debug_info(shared->GetDebugInfo(), isolate_);
     location = BreakLocation::FromFrame(debug_info, js_frame);
 
     // Any step at a return is a step-out, and a step-out at a suspend behaves
@@ -1483,12 +1473,11 @@ void Debug::PrepareStep(StepAction step_action) {
 Handle<Object> Debug::GetSourceBreakLocations(
     Isolate* isolate, Handle<SharedFunctionInfo> shared) {
   RCS_SCOPE(isolate, RuntimeCallCounterId::kDebugger);
-  if (!shared->HasBreakInfo(isolate)) {
+  if (!shared->HasBreakInfo()) {
     return isolate->factory()->undefined_value();
   }
 
-  Handle<DebugInfo> debug_info(
-      isolate->debug()->TryGetDebugInfo(*shared).value(), isolate);
+  Handle<DebugInfo> debug_info(shared->GetDebugInfo(), isolate);
   if (debug_info->GetBreakPointCount(isolate) == 0) {
     return isolate->factory()->undefined_value();
   }
@@ -1662,7 +1651,8 @@ void Debug::PrepareFunctionForDebugExecution(
   // info (containing the debug copy) upfront, but since we do not recompile,
   // preparing for break points cannot fail.
   DCHECK(shared->is_compiled());
-  Handle<DebugInfo> debug_info(TryGetDebugInfo(*shared).value(), isolate_);
+  DCHECK(shared->HasDebugInfo());
+  Handle<DebugInfo> debug_info = GetOrCreateDebugInfo(shared);
   if (debug_info->flags(kRelaxedLoad) & DebugInfo::kPreparedForDebugExecution) {
     return;
   }
@@ -1687,7 +1677,7 @@ void Debug::PrepareFunctionForDebugExecution(
   } else {
     // Update PCs on the stack to point to recompiled code.
     RedirectActiveFunctions redirect_visitor(
-        isolate_, *shared, RedirectActiveFunctions::Mode::kUseDebugBytecode);
+        *shared, RedirectActiveFunctions::Mode::kUseDebugBytecode);
     redirect_visitor.VisitThread(isolate_, isolate_->thread_local_top());
     isolate_->thread_manager()->IterateArchivedThreads(&redirect_visitor);
   }
@@ -1699,11 +1689,11 @@ void Debug::PrepareFunctionForDebugExecution(
 
 namespace {
 
-bool IsJSFunctionAndNeedsTrampoline(Isolate* isolate, Object maybe_function) {
+bool IsJSFunctionAndNeedsTrampoline(Object maybe_function) {
   if (!maybe_function.IsJSFunction()) return false;
-  base::Optional<DebugInfo> debug_info = isolate->debug()->TryGetDebugInfo(
-      JSFunction::cast(maybe_function).shared());
-  return debug_info.has_value() && debug_info->CanBreakAtEntry();
+
+  SharedFunctionInfo shared = JSFunction::cast(maybe_function).shared();
+  return shared.HasDebugInfo() && shared.GetDebugInfo().CanBreakAtEntry();
 }
 
 }  // namespace
@@ -1748,7 +1738,7 @@ void Debug::InstallDebugBreakTrampoline() {
       if (needs_to_clear_ic && obj.IsFeedbackVector()) {
         FeedbackVector::cast(obj).ClearSlots(isolate_);
         continue;
-      } else if (IsJSFunctionAndNeedsTrampoline(isolate_, obj)) {
+      } else if (IsJSFunctionAndNeedsTrampoline(obj)) {
         JSFunction fun = JSFunction::cast(obj);
         if (!fun.is_compiled()) {
           needs_compile.push_back(handle(fun, isolate_));
@@ -1789,13 +1779,13 @@ void Debug::InstallDebugBreakTrampoline() {
     Handle<NativeContext> native_context = tuple.second;
     Handle<Object> getter = AccessorPair::GetComponent(
         isolate_, native_context, accessor_pair, ACCESSOR_GETTER);
-    if (IsJSFunctionAndNeedsTrampoline(isolate_, *getter)) {
+    if (IsJSFunctionAndNeedsTrampoline(*getter)) {
       Handle<JSFunction>::cast(getter)->set_code(*trampoline);
     }
 
     Handle<Object> setter = AccessorPair::GetComponent(
         isolate_, native_context, accessor_pair, ACCESSOR_SETTER);
-    if (IsJSFunctionAndNeedsTrampoline(isolate_, *setter)) {
+    if (IsJSFunctionAndNeedsTrampoline(*setter)) {
       Handle<JSFunction>::cast(setter)->set_code(*trampoline);
     }
   }
@@ -1862,7 +1852,7 @@ bool Debug::GetPossibleBreakpoints(Handle<Script> script, int start_position,
     if (!EnsureBreakInfo(shared)) return false;
     PrepareFunctionForDebugExecution(shared);
 
-    Handle<DebugInfo> debug_info(TryGetDebugInfo(*shared).value(), isolate_);
+    Handle<DebugInfo> debug_info(shared->GetDebugInfo(), isolate_);
     FindBreakablePositions(debug_info, start_position, end_position, locations);
     return true;
   }
@@ -1874,8 +1864,8 @@ bool Debug::GetPossibleBreakpoints(Handle<Script> script, int start_position,
     return false;
   }
   for (const auto& candidate : candidates) {
-    CHECK(candidate->HasBreakInfo(isolate_));
-    Handle<DebugInfo> debug_info(TryGetDebugInfo(*candidate).value(), isolate_);
+    CHECK(candidate->HasBreakInfo());
+    Handle<DebugInfo> debug_info(candidate->GetDebugInfo(), isolate_);
     FindBreakablePositions(debug_info, start_position, end_position, locations);
   }
   return true;
@@ -1957,10 +1947,9 @@ Handle<SharedFunctionInfo> Debug::FindClosestSharedFunctionInfoFromPosition(
     int position, Handle<Script> script,
     Handle<SharedFunctionInfo> outer_shared) {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
-  Handle<DebugInfo> outer_debug_info(TryGetDebugInfo(*outer_shared).value(),
-                                     isolate_);
-  CHECK(outer_debug_info->HasBreakInfo());
-  int closest_position = FindBreakablePosition(outer_debug_info, position);
+  CHECK(outer_shared->HasBreakInfo());
+  int closest_position = FindBreakablePosition(
+      Handle<DebugInfo>(outer_shared->GetDebugInfo(), isolate_), position);
   Handle<SharedFunctionInfo> closest_candidate = outer_shared;
   if (closest_position == position) return outer_shared;
 
@@ -1978,8 +1967,8 @@ Handle<SharedFunctionInfo> Debug::FindClosestSharedFunctionInfoFromPosition(
   }
 
   for (auto candidate : candidates) {
-    Handle<DebugInfo> debug_info(TryGetDebugInfo(*candidate).value(), isolate_);
-    CHECK(debug_info->HasBreakInfo());
+    CHECK(candidate->HasBreakInfo());
+    Handle<DebugInfo> debug_info(candidate->GetDebugInfo(), isolate_);
     const int candidate_position = FindBreakablePosition(debug_info, position);
     if (candidate_position >= position &&
         candidate_position < closest_position) {
@@ -2119,7 +2108,7 @@ Handle<Object> Debug::FindInnermostContainingFunctionInfo(Handle<Script> script,
 bool Debug::EnsureBreakInfo(Handle<SharedFunctionInfo> shared) {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
   // Return if we already have the break info for shared.
-  if (shared->HasBreakInfo(isolate_)) {
+  if (shared->HasBreakInfo()) {
     DCHECK(shared->is_compiled());
     return true;
   }
@@ -2224,13 +2213,10 @@ bool Debug::IsBreakAtReturn(JavaScriptFrame* frame) {
   Handle<SharedFunctionInfo> shared(frame->function().shared(), isolate_);
 
   // With no debug info there are no break points, so we can't be at a return.
-  Handle<DebugInfo> debug_info;
-  if (!ToHandle(isolate_, TryGetDebugInfo(*shared), &debug_info) ||
-      !debug_info->HasBreakInfo()) {
-    return false;
-  }
+  if (!shared->HasBreakInfo()) return false;
 
   DCHECK(!frame->is_optimized());
+  Handle<DebugInfo> debug_info(shared->GetDebugInfo(), isolate_);
   BreakLocation location = BreakLocation::FromFrame(debug_info, frame);
   return location.IsReturn();
 }
@@ -2255,35 +2241,6 @@ Handle<FixedArray> Debug::GetLoadedScripts() {
     }
   }
   return FixedArray::ShrinkOrEmpty(isolate_, results, length);
-}
-
-base::Optional<DebugInfo> Debug::TryGetDebugInfo(SharedFunctionInfo sfi) {
-  return debug_infos_.Find(sfi);
-}
-
-bool Debug::HasDebugInfo(SharedFunctionInfo sfi) {
-  return TryGetDebugInfo(sfi).has_value();
-}
-
-bool Debug::HasCoverageInfo(SharedFunctionInfo sfi) {
-  if (base::Optional<DebugInfo> debug_info = TryGetDebugInfo(sfi)) {
-    return debug_info->HasCoverageInfo();
-  }
-  return false;
-}
-
-bool Debug::HasBreakInfo(SharedFunctionInfo sfi) {
-  if (base::Optional<DebugInfo> debug_info = TryGetDebugInfo(sfi)) {
-    return debug_info->HasBreakInfo();
-  }
-  return false;
-}
-
-bool Debug::BreakAtEntry(SharedFunctionInfo sfi) {
-  if (base::Optional<DebugInfo> debug_info = TryGetDebugInfo(sfi)) {
-    return debug_info->BreakAtEntry();
-  }
-  return false;
 }
 
 base::Optional<Object> Debug::OnThrow(Handle<Object> exception) {
@@ -2687,9 +2644,9 @@ void Debug::HandleDebugBreak(IgnoreBreakMode ignore_break_mode,
                               ? IsBlackboxed(shared)
                               : AllFramesOnStackAreBlackboxed();
       if (ignore_break) return;
-      Handle<DebugInfo> debug_info;
-      if (ToHandle(isolate_, TryGetDebugInfo(*shared), &debug_info) &&
-          debug_info->HasBreakInfo()) {
+      if (function->shared().HasBreakInfo()) {
+        Handle<DebugInfo> debug_info(function->shared().GetDebugInfo(),
+                                     isolate_);
         // Enter the debugger.
         DebugScope debug_scope(this);
 
