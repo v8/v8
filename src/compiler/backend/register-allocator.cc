@@ -518,7 +518,6 @@ LiveRange* LiveRange::SplitAt(LifetimePosition position, Zone* zone) {
   int new_id = TopLevel()->GetNextChildId();
   LiveRange* result =
       zone->New<LiveRange>(new_id, representation(), TopLevel());
-  result->set_bundle(bundle_);
 
   // Find the last interval that ends before the position. If the
   // position is contained in one of the intervals in the chain, we
@@ -757,14 +756,16 @@ void LiveRange::Print(bool with_children) const {
 }
 
 bool LiveRange::RegisterFromBundle(int* hint) const {
-  if (bundle_ == nullptr || bundle_->reg() == kUnassignedRegister) return false;
-  *hint = bundle_->reg();
+  LiveRangeBundle* bundle = TopLevel()->get_bundle();
+  if (bundle == nullptr || bundle->reg() == kUnassignedRegister) return false;
+  *hint = bundle->reg();
   return true;
 }
 
 void LiveRange::UpdateBundleRegister(int reg) const {
-  if (bundle_ == nullptr || bundle_->reg() != kUnassignedRegister) return;
-  bundle_->set_reg(reg);
+  LiveRangeBundle* bundle = TopLevel()->get_bundle();
+  if (bundle == nullptr || bundle->reg() != kUnassignedRegister) return;
+  bundle->set_reg(reg);
 }
 
 struct TopLevelLiveRange::SpillMoveInsertionList : ZoneObject {
@@ -2688,7 +2689,7 @@ void BundleBuilder::BuildBundles() {
   }
 }
 
-bool LiveRangeBundle::TryAddRange(LiveRange* range) {
+bool LiveRangeBundle::TryAddRange(TopLevelLiveRange* range) {
   DCHECK_NULL(range->get_bundle());
   // We may only add a new live range if its use intervals do not
   // overlap with existing intervals in the bundle.

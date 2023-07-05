@@ -881,8 +881,8 @@ void GraphC1Visualizer::PrintLiveRange(const LiveRange* range, const char* type,
     os_ << " " << parent->vreg() << ":" << parent->relative_id();
 
     // TODO(herhut) Find something useful to print for the hint field
-    if (range->get_bundle() != nullptr) {
-      os_ << " B" << range->get_bundle()->id();
+    if (parent->get_bundle() != nullptr) {
+      os_ << " B" << parent->get_bundle()->id();
     } else {
       os_ << " unknown";
     }

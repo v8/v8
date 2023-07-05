@@ -920,8 +920,6 @@ class V8_EXPORT_PRIVATE LiveRange : public NON_EXPORTED_BASE(ZoneObject) {
   void Print(const RegisterConfiguration* config, bool with_children) const;
   void Print(bool with_children) const;
 
-  void set_bundle(LiveRangeBundle* bundle) { bundle_ = bundle; }
-  LiveRangeBundle* get_bundle() const { return bundle_; }
   bool RegisterFromBundle(int* hint) const;
   void UpdateBundleRegister(int reg) const;
 
@@ -973,8 +971,6 @@ class V8_EXPORT_PRIVATE LiveRange : public NON_EXPORTED_BASE(ZoneObject) {
   // allocation.
   size_t current_hint_position_index_ = 0;
 
-  LiveRangeBundle* bundle_ = nullptr;
-
   // Next interval start, relative to the current linear scan position.
   LifetimePosition next_start_;
 };
@@ -1001,7 +997,7 @@ class LiveRangeBundle : public ZoneObject {
   }
 
   void MergeSpillRangesAndClear();
-  bool TryAddRange(LiveRange* range);
+  bool TryAddRange(TopLevelLiveRange* range);
   // If merging is possible, merge either {lhs} into {rhs} or {rhs} into
   // {lhs}, clear the source and return the result. Otherwise return nullptr.
   static LiveRangeBundle* TryMerge(LiveRangeBundle* lhs, LiveRangeBundle* rhs,
@@ -1051,7 +1047,7 @@ class LiveRangeBundle : public ZoneObject {
     }
   }
 
-  ZoneSet<LiveRange*, LiveRangeOrdering> ranges_;
+  ZoneSet<TopLevelLiveRange*, LiveRangeOrdering> ranges_;
   // A flat set, sorted by their `start()` position.
   ZoneVector<Range> intervals_;
 
@@ -1285,6 +1281,9 @@ class V8_EXPORT_PRIVATE TopLevelLiveRange final : public LiveRange {
     return list_of_blocks_requiring_spill_operands_;
   }
 
+  LiveRangeBundle* get_bundle() const { return bundle_; }
+  void set_bundle(LiveRangeBundle* bundle) { bundle_ = bundle; }
+
  private:
   friend class LiveRange;
 
@@ -1316,6 +1315,8 @@ class V8_EXPORT_PRIVATE TopLevelLiveRange final : public LiveRange {
     SpillMoveInsertionList* spill_move_insertion_locations_;
     SparseBitVector* list_of_blocks_requiring_spill_operands_;
   };
+
+  LiveRangeBundle* bundle_ = nullptr;
 
   UsePositionVector positions_;
 
