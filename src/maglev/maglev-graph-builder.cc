@@ -3614,7 +3614,7 @@ bool MaglevGraphBuilder::CanTreatHoleAsUndefined(
 
 compiler::OptionalObjectRef
 MaglevGraphBuilder::TryFoldLoadDictPrototypeConstant(
-    compiler::PropertyAccessInfo access_info) {
+    compiler::PropertyAccessInfo const& access_info) {
   DCHECK(V8_DICT_PROPERTY_CONST_TRACKING_BOOL);
   DCHECK(access_info.IsDictionaryProtoDataConstant());
   DCHECK(access_info.holder().has_value());
@@ -3648,7 +3648,8 @@ MaglevGraphBuilder::TryFoldLoadDictPrototypeConstant(
 }
 
 compiler::OptionalObjectRef MaglevGraphBuilder::TryFoldLoadConstantDataField(
-    compiler::PropertyAccessInfo access_info, ValueNode* lookup_start_object) {
+    compiler::PropertyAccessInfo const& access_info,
+    ValueNode* lookup_start_object) {
   if (!access_info.IsFastDataConstant()) return {};
   compiler::OptionalJSObjectRef source;
   if (access_info.holder().has_value()) {
@@ -3666,7 +3667,7 @@ compiler::OptionalObjectRef MaglevGraphBuilder::TryFoldLoadConstantDataField(
 }
 
 ReduceResult MaglevGraphBuilder::TryBuildPropertyGetterCall(
-    compiler::PropertyAccessInfo access_info, ValueNode* receiver,
+    compiler::PropertyAccessInfo const& access_info, ValueNode* receiver,
     ValueNode* lookup_start_object) {
   compiler::ObjectRef constant = access_info.constant().value();
 
@@ -3700,7 +3701,7 @@ ReduceResult MaglevGraphBuilder::TryBuildPropertyGetterCall(
 }
 
 ReduceResult MaglevGraphBuilder::TryBuildPropertySetterCall(
-    compiler::PropertyAccessInfo access_info, ValueNode* receiver,
+    compiler::PropertyAccessInfo const& access_info, ValueNode* receiver,
     ValueNode* value) {
   compiler::ObjectRef constant = access_info.constant().value();
   if (constant.IsJSFunction()) {
@@ -3714,7 +3715,8 @@ ReduceResult MaglevGraphBuilder::TryBuildPropertySetterCall(
 }
 
 ValueNode* MaglevGraphBuilder::BuildLoadField(
-    compiler::PropertyAccessInfo access_info, ValueNode* lookup_start_object) {
+    compiler::PropertyAccessInfo const& access_info,
+    ValueNode* lookup_start_object) {
   compiler::OptionalObjectRef constant =
       TryFoldLoadConstantDataField(access_info, lookup_start_object);
   if (constant.has_value()) {
@@ -3795,7 +3797,7 @@ void MaglevGraphBuilder::BuildStoreReceiverMap(ValueNode* receiver,
 }
 
 ReduceResult MaglevGraphBuilder::TryBuildStoreField(
-    compiler::PropertyAccessInfo access_info, ValueNode* receiver,
+    compiler::PropertyAccessInfo const& access_info, ValueNode* receiver,
     compiler::AccessMode access_mode) {
   FieldIndex field_index = access_info.field_index();
   Representation field_representation = access_info.field_representation();
@@ -4086,7 +4088,7 @@ ReduceResult MaglevGraphBuilder::TryBuildNamedAccess(
     }
 
     // Check if we support the polymorphic load.
-    for (compiler::PropertyAccessInfo access_info : access_infos) {
+    for (compiler::PropertyAccessInfo const& access_info : access_infos) {
       DCHECK(!access_info.IsInvalid());
       if (access_info.IsDictionaryProtoDataConstant()) {
         compiler::OptionalObjectRef constant =
@@ -4115,7 +4117,7 @@ ReduceResult MaglevGraphBuilder::TryBuildNamedAccess(
     ZoneVector<PolymorphicAccessInfo> poly_access_infos(zone());
     poly_access_infos.reserve(access_infos.size());
 
-    for (compiler::PropertyAccessInfo access_info : access_infos) {
+    for (compiler::PropertyAccessInfo const& access_info : access_infos) {
       if (access_info.holder().has_value() &&
           !access_info.HasDictionaryHolder()) {
         broker()->dependencies()->DependOnStablePrototypeChains(

@@ -1702,21 +1702,22 @@ class MaglevGraphBuilder {
       base::Vector<const compiler::MapRef> const& receiver_maps);
 
   compiler::OptionalObjectRef TryFoldLoadDictPrototypeConstant(
-      compiler::PropertyAccessInfo access_info);
+      compiler::PropertyAccessInfo const& access_info);
   compiler::OptionalObjectRef TryFoldLoadConstantDataField(
-      compiler::PropertyAccessInfo access_info, ValueNode* lookup_start_object);
+      compiler::PropertyAccessInfo const& access_info,
+      ValueNode* lookup_start_object);
 
   // Returns the loaded value node but doesn't update the accumulator yet.
-  ValueNode* BuildLoadField(compiler::PropertyAccessInfo access_info,
+  ValueNode* BuildLoadField(compiler::PropertyAccessInfo const& access_info,
                             ValueNode* lookup_start_object);
-  ReduceResult TryBuildStoreField(compiler::PropertyAccessInfo access_info,
-                                  ValueNode* receiver,
-                                  compiler::AccessMode access_mode);
+  ReduceResult TryBuildStoreField(
+      compiler::PropertyAccessInfo const& access_info, ValueNode* receiver,
+      compiler::AccessMode access_mode);
   ReduceResult TryBuildPropertyGetterCall(
-      compiler::PropertyAccessInfo access_info, ValueNode* receiver,
+      compiler::PropertyAccessInfo const& access_info, ValueNode* receiver,
       ValueNode* lookup_start_object);
   ReduceResult TryBuildPropertySetterCall(
-      compiler::PropertyAccessInfo access_info, ValueNode* receiver,
+      compiler::PropertyAccessInfo const& access_info, ValueNode* receiver,
       ValueNode* value);
 
   ReduceResult BuildLoadJSArrayLength(ValueNode* js_array);
