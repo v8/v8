@@ -56,10 +56,9 @@ void SpillPlacer::Add(TopLevelLiveRange* range) {
        child = child->next()) {
     if (child->spilled()) {
       // Add every block that contains part of this live range.
-      for (UseInterval* interval = child->first_interval(); interval != nullptr;
-           interval = interval->next()) {
+      for (const UseInterval& interval : child->intervals()) {
         RpoNumber start_block =
-            code->GetInstructionBlock(interval->start().ToInstructionIndex())
+            code->GetInstructionBlock(interval.start().ToInstructionIndex())
                 ->rpo_number();
         if (start_block == top_start_block_number) {
           // Can't do late spilling if the first spill is within the
@@ -69,7 +68,7 @@ void SpillPlacer::Add(TopLevelLiveRange* range) {
           DCHECK(!IsLatestVreg(range->vreg()));
           return;
         }
-        LifetimePosition end = interval->end();
+        LifetimePosition end = interval.end();
         int end_instruction = end.ToInstructionIndex();
         // The end position is exclusive, so an end position exactly on a block
         // boundary indicates that the range applies only to the prior block.

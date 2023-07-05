@@ -887,8 +887,7 @@ void GraphC1Visualizer::PrintLiveRange(const LiveRange* range, const char* type,
       os_ << " unknown";
     }
 
-    for (const UseInterval* interval = range->first_interval();
-         interval != nullptr; interval = interval->next()) {
+    for (const UseInterval& interval : range->intervals()) {
       os_ << interval;
     }
 
@@ -1096,8 +1095,7 @@ std::ostream& operator<<(std::ostream& os,
 
   os << ",\"intervals\":[";
   bool first = true;
-  for (const UseInterval* interval = range.first_interval();
-       interval != nullptr; interval = interval->next()) {
+  for (const UseInterval& interval : range.intervals()) {
     if (first) {
       first = false;
     } else {
@@ -1139,12 +1137,11 @@ std::ostream& operator<<(
       os << LiveRangeAsJSON{*child, top_level_live_range_json.code_};
       // Record the minimum and maximum positions observed within this
       // TopLevelLiveRange
-      for (const UseInterval* interval = child->first_interval();
-           interval != nullptr; interval = interval->next()) {
-        if (interval->start().value() < instruction_range[0])
-          instruction_range[0] = interval->start().value();
-        if (interval->end().value() > instruction_range[1])
-          instruction_range[1] = interval->end().value();
+      for (const UseInterval& interval : child->intervals()) {
+        if (interval.start().value() < instruction_range[0])
+          instruction_range[0] = interval.start().value();
+        if (interval.end().value() > instruction_range[1])
+          instruction_range[1] = interval.end().value();
       }
     }
   }

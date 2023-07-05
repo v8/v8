@@ -400,31 +400,40 @@ class TopTierRegisterAllocationData final : public RegisterAllocationData {
 };
 
 // Representation of the non-empty interval [start,end[.
-class UseInterval final : public ZoneObject {
+// This is a value class given that it only contains two (32-bit) positions.
+class UseInterval final {
  public:
   UseInterval(LifetimePosition start, LifetimePosition end)
-      : start_(start), end_(end), next_(nullptr) {
-    DCHECK(start < end);
+      : start_(start), end_(end) {
+    DCHECK_LT(start, end);
   }
-  UseInterval(const UseInterval&) = delete;
-  UseInterval& operator=(const UseInterval&) = delete;
 
   LifetimePosition start() const { return start_; }
-  void set_start(LifetimePosition start) { start_ = start; }
+  void set_start(LifetimePosition start) {
+    DCHECK_LT(start, end_);
+    start_ = start;
+  }
   LifetimePosition end() const { return end_; }
-  void set_end(LifetimePosition end) { end_ = end; }
-  UseInterval* next() const { return next_; }
-  void set_next(UseInterval* next) { next_ = next; }
+  void set_end(LifetimePosition end) {
+    DCHECK_LT(start_, end);
+    end_ = end;
+  }
 
   // Split this interval at the given position without effecting the
   // live range that owns it. The interval must contain the position.
-  UseInterval* SplitAt(LifetimePosition pos, Zone* zone);
+  UseInterval SplitAt(LifetimePosition pos) {
+    DCHECK(Contains(pos) && pos != start());
+    UseInterval after(pos, end_);
+    end_ = pos;
+    return after;
+  }
 
   // If this interval intersects with other return smallest position
   // that belongs to both of them.
-  LifetimePosition Intersect(const UseInterval* other) const {
-    if (other->start() < start_) return other->Intersect(this);
-    if (other->start() < end_) return other->start();
+  LifetimePosition Intersect(const UseInterval& other) const {
+    LifetimePosition intersection_start = std::max(start_, other.start_);
+    LifetimePosition intersection_end = std::min(end_, other.end_);
+    if (intersection_start < intersection_end) return intersection_start;
     return LifetimePosition::Invalid();
   }
 
@@ -450,10 +459,18 @@ class UseInterval final : public ZoneObject {
     return ret;
   }
 
+  bool operator==(const UseInterval& other) const {
+    return std::tie(start_, end_) == std::tie(other.start_, other.end_);
+  }
+  bool operator!=(const UseInterval& other) const { return !(*this == other); }
+
+  bool operator<(const UseInterval& other) const {
+    return start_ < other.start_;
+  }
+
  private:
   LifetimePosition start_;
   LifetimePosition end_;
-  UseInterval* next_;
 };
 
 std::ostream& operator<<(std::ostream& os, const UseInterval& interval);
@@ -785,6 +802,7 @@ class DoubleEndedSplitVector {
   T* storage_end_ = nullptr;
 };
 
+using UseIntervalVector = DoubleEndedSplitVector<UseInterval>;
 using UsePositionVector = DoubleEndedSplitVector<UsePosition*>;
 
 // Representation of SSA values' live ranges as a collection of (continuous)
@@ -794,7 +812,7 @@ class V8_EXPORT_PRIVATE LiveRange : public NON_EXPORTED_BASE(ZoneObject) {
   LiveRange(const LiveRange&) = delete;
   LiveRange& operator=(const LiveRange&) = delete;
 
-  UseInterval* first_interval() const { return first_interval_; }
+  const UseIntervalVector& intervals() const { return intervals_; }
   base::Vector<UsePosition*> positions() const { return positions_span_; }
 
   TopLevelLiveRange* TopLevel() { return top_level_; }
@@ -806,7 +824,7 @@ class V8_EXPORT_PRIVATE LiveRange : public NON_EXPORTED_BASE(ZoneObject) {
 
   int relative_id() const { return relative_id_; }
 
-  bool IsEmpty() const { return first_interval() == nullptr; }
+  bool IsEmpty() const { return intervals_.empty(); }
 
   InstructionOperand GetAssignedOperand() const;
 
@@ -839,7 +857,7 @@ class V8_EXPORT_PRIVATE LiveRange : public NON_EXPORTED_BASE(ZoneObject) {
     return false;
   }
   bool spilled() const { return SpilledField::decode(bits_); }
-  void AttachToNext();
+  void AttachToNext(Zone* zone);
   void Unspill();
   void Spill();
 
@@ -888,20 +906,20 @@ class V8_EXPORT_PRIVATE LiveRange : public NON_EXPORTED_BASE(ZoneObject) {
 
   LifetimePosition Start() const {
     DCHECK(!IsEmpty());
-    return first_interval()->start();
+    return intervals_.front().start();
   }
 
   LifetimePosition End() const {
     DCHECK(!IsEmpty());
-    return last_interval_->end();
+    return intervals_.back().end();
   }
 
   bool ShouldBeAllocatedBefore(const LiveRange* other) const;
   bool CanCover(LifetimePosition position) const;
-  bool Covers(LifetimePosition position) const;
+  bool Covers(LifetimePosition position);
   LifetimePosition NextStartAfter(LifetimePosition position);
-  LifetimePosition NextEndAfter(LifetimePosition position) const;
-  LifetimePosition FirstIntersection(LiveRange* other) const;
+  LifetimePosition NextEndAfter(LifetimePosition position);
+  LifetimePosition FirstIntersection(LiveRange* other);
   LifetimePosition NextStart() const { return next_start_; }
 
 #ifdef DEBUG
@@ -932,9 +950,10 @@ class V8_EXPORT_PRIVATE LiveRange : public NON_EXPORTED_BASE(ZoneObject) {
 
   void set_spilled(bool value) { bits_ = SpilledField::update(bits_, value); }
 
-  UseInterval* FirstSearchIntervalForPosition(LifetimePosition position) const;
-  void AdvanceLastProcessedMarker(UseInterval* to_start_of,
-                                  LifetimePosition but_not_past) const;
+  UseIntervalVector::iterator FirstSearchIntervalForPosition(
+      LifetimePosition position);
+  void AdvanceLastProcessedMarker(UseIntervalVector::iterator to_start_of,
+                                  LifetimePosition but_not_past);
 
 #ifdef DEBUG
   void VerifyPositions() const;
@@ -953,8 +972,7 @@ class V8_EXPORT_PRIVATE LiveRange : public NON_EXPORTED_BASE(ZoneObject) {
   int relative_id_;
   uint32_t bits_;
 
-  UseInterval* last_interval_;
-  UseInterval* first_interval_;
+  UseIntervalVector intervals_;
   // This is a view into the `positions_` owned by the `TopLevelLiveRange`.
   // This allows cheap splitting and merging of `LiveRange`s.
   base::Vector<UsePosition*> positions_span_;
@@ -965,8 +983,8 @@ class V8_EXPORT_PRIVATE LiveRange : public NON_EXPORTED_BASE(ZoneObject) {
   // `SplitAt` and `AttachToNext`, as they need access to a vector iterator.
   LiveRange* next_;
 
-  // This is used as a cache, it doesn't affect correctness.
-  mutable UseInterval* current_interval_;
+  // This is used as a cache in `FirstSearchIntervalForPosition`.
+  UseIntervalVector::iterator current_interval_;
   // This is used as a cache in `BuildLiveRanges` and during register
   // allocation.
   size_t current_hint_position_index_ = 0;
@@ -1004,52 +1022,12 @@ class LiveRangeBundle : public ZoneObject {
                                    bool trace_alloc);
 
  private:
-  // Representation of the non-empty interval [start,end[.
-  class Range {
-   public:
-    Range(int s, int e) : start(s), end(e) {}
-    Range(LifetimePosition s, LifetimePosition e)
-        : start(s.value()), end(e.value()) {}
-    int start;
-    int end;
-    bool operator==(const Range& rhs) const {
-      return this->start == rhs.start && this->end == rhs.end;
-    }
-    bool operator!=(const Range& rhs) const { return !(*this == rhs); }
-  };
+  void AddRange(TopLevelLiveRange* range);
 
-  struct RangeOrdering {
-    bool operator()(const Range left, const Range right) const {
-      return left.start < right.start;
-    }
-  };
-  bool UsesOverlap(UseInterval* interval) {
-    auto use = intervals_.begin();
-    while (interval != nullptr && use != intervals_.end()) {
-      if (use->end <= interval->start().value()) {
-        ++use;
-      } else if (interval->end().value() <= use->start) {
-        interval = interval->next();
-      } else {
-        return true;
-      }
-    }
-    return false;
-  }
-  void InsertUses(UseInterval* interval) {
-    while (interval != nullptr) {
-      Range range = {interval->start(), interval->end()};
-      Range* pos = std::lower_bound(intervals_.begin(), intervals_.end(), range,
-                                    RangeOrdering());
-      DCHECK_IMPLIES(pos != intervals_.end(), *pos != range);
-      intervals_.insert(pos, 1, range);
-      interval = interval->next();
-    }
-  }
-
-  ZoneSet<TopLevelLiveRange*, LiveRangeOrdering> ranges_;
+  // A flat set, sorted by `LiveRangeOrdering`.
+  ZoneVector<TopLevelLiveRange*> ranges_;
   // A flat set, sorted by their `start()` position.
-  ZoneVector<Range> intervals_;
+  ZoneVector<UseInterval> intervals_;
 
   int id_;
   int reg_ = kUnassignedRegister;
@@ -1343,14 +1321,18 @@ std::ostream& operator<<(std::ostream& os,
 // Represent the spill operand of a LiveRange and its use intervals. After
 // register allocation, disjoint spill ranges are merged and they get assigned
 // the same spill slot by OperandAssigner::AssignSpillSlots().
+// TODO(dlehmann): `SpillRange`s seem awefully similar to `LiveRangeBundle`s,
+// especially since both store `ranges_` and `intervals_` and check for
+// intersection in exactly the same way. I wonder if we can merge those two
+// concepts and save a bunch of memory by not storing ranges and intervals
+// twice.
 class SpillRange final : public ZoneObject {
  public:
   static const int kUnassignedSlot = -1;
+
   SpillRange(TopLevelLiveRange* range, Zone* zone);
   SpillRange(const SpillRange&) = delete;
   SpillRange& operator=(const SpillRange&) = delete;
-
-  UseInterval* interval() const { return use_interval_; }
 
   bool IsEmpty() const { return ranges_.empty(); }
   bool TryMerge(SpillRange* other);
@@ -1371,14 +1353,10 @@ class SpillRange final : public ZoneObject {
   void Print() const;
 
  private:
-  LifetimePosition End() const { return end_position_; }
-  bool IsIntersectingWith(SpillRange* other) const;
-  // Merge intervals, making sure the use intervals are sorted
-  void MergeDisjointIntervals(UseInterval* other);
-
   ZoneVector<TopLevelLiveRange*> ranges_;
-  UseInterval* use_interval_;
-  LifetimePosition end_position_;
+  // A flat set, sorted by their `start()` position.
+  ZoneVector<UseInterval> intervals_;
+
   int assigned_slot_;
   int byte_width_;
 };
@@ -1506,10 +1484,11 @@ class LiveRangeBuilder final : public ZoneObject {
 #ifdef DEBUG
   // Verification.
   void Verify() const;
-  bool IntervalStartsAtBlockBoundary(const UseInterval* interval) const;
-  bool IntervalPredecessorsCoveredByRange(const UseInterval* interval,
-                                          const TopLevelLiveRange* range) const;
-  bool NextIntervalStartsInDifferentBlocks(const UseInterval* interval) const;
+  bool IntervalStartsAtBlockBoundary(UseInterval interval) const;
+  bool IntervalPredecessorsCoveredByRange(UseInterval interval,
+                                          TopLevelLiveRange* range) const;
+  bool NextIntervalStartsInDifferentBlocks(UseInterval interval,
+                                           UseInterval next) const;
 #endif
 
   // Liveness analysis support.
@@ -1691,7 +1670,7 @@ class LinearScanAllocator final : public RegisterAllocator {
   void MaybeSpillPreviousRanges(LiveRange* begin_range,
                                 LifetimePosition begin_pos,
                                 LiveRange* end_range);
-  void MaybeUndoPreviousSplit(LiveRange* range);
+  void MaybeUndoPreviousSplit(LiveRange* range, Zone* zone);
   void SpillNotLiveRanges(RangeWithRegisterSet* to_be_live,
                           LifetimePosition position, SpillMode spill_mode);
   LiveRange* AssignRegisterOnReload(LiveRange* range, int reg);

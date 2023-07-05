@@ -86,19 +86,21 @@ class LiveRangeUnitTest : public TestWithZone {
   }
 
   // Ranges first and second match structurally.
-  bool RangesMatch(LiveRange* first, LiveRange* second) {
+  bool RangesMatch(const LiveRange* first, const LiveRange* second) {
     if (first->Start() != second->Start() || first->End() != second->End()) {
       return false;
     }
-    UseInterval* i1 = first->first_interval();
-    UseInterval* i2 = second->first_interval();
+    auto i1 = first->intervals().begin();
+    auto i2 = second->intervals().begin();
 
-    while (i1 != nullptr && i2 != nullptr) {
-      if (i1->start() != i2->start() || i1->end() != i2->end()) return false;
-      i1 = i1->next();
-      i2 = i2->next();
+    while (i1 != first->intervals().end() && i2 != second->intervals().end()) {
+      if (*i1 != *i2) return false;
+      ++i1;
+      ++i2;
     }
-    if (i1 != nullptr || i2 != nullptr) return false;
+    if (i1 != first->intervals().end() || i2 != second->intervals().end()) {
+      return false;
+    }
 
     UsePosition* const* p1 = first->positions().begin();
     UsePosition* const* p2 = second->positions().begin();
