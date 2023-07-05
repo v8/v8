@@ -885,6 +885,12 @@ void WasmScript::Disassemble(DisassemblyCollector* collector,
                        collector, function_body_offsets);
 }
 
+void Disassemble(base::Vector<const uint8_t> wire_bytes,
+                 DisassemblyCollector* collector,
+                 std::vector<int>* function_body_offsets) {
+  i::wasm::Disassemble(wire_bytes, collector, function_body_offsets);
+}
+
 uint32_t WasmScript::GetFunctionHash(int function_index) {
   i::DisallowGarbageCollection no_gc;
   i::Handle<i::Script> script = Utils::OpenHandle(this);

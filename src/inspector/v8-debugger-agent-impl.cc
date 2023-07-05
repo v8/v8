@@ -1301,18 +1301,28 @@ Response V8DebuggerAgentImpl::disassembleWasmModule(
 #if V8_ENABLE_WEBASSEMBLY
   if (!enabled()) return Response::ServerError(kDebuggerNotEnabled);
   ScriptsMap::iterator it = m_scripts.find(in_scriptId);
-  if (it == m_scripts.end()) {
-    return Response::InvalidParams("No script for id: " + in_scriptId.utf8());
-  }
-  V8DebuggerScript* script = it->second.get();
-  if (script->getLanguage() != V8DebuggerScript::Language::WebAssembly) {
-    return Response::InvalidParams("Script with id " + in_scriptId.utf8() +
-                                   " is not WebAssembly");
-  }
   std::unique_ptr<DisassemblyCollectorImpl> collector =
       std::make_unique<DisassemblyCollectorImpl>();
   std::vector<int> functionBodyOffsets;
-  script->Disassemble(collector.get(), &functionBodyOffsets);
+  if (it != m_scripts.end()) {
+    V8DebuggerScript* script = it->second.get();
+    if (script->getLanguage() != V8DebuggerScript::Language::WebAssembly) {
+      return Response::InvalidParams("Script with id " + in_scriptId.utf8() +
+                                     " is not WebAssembly");
+    }
+    script->Disassemble(collector.get(), &functionBodyOffsets);
+  } else {
+    auto cachedScriptIt =
+        std::find_if(m_cachedScripts.begin(), m_cachedScripts.end(),
+                     [&in_scriptId](const CachedScript& cachedScript) {
+                       return cachedScript.scriptId == in_scriptId;
+                     });
+    if (cachedScriptIt == m_cachedScripts.end()) {
+      return Response::InvalidParams("No script for id: " + in_scriptId.utf8());
+    }
+    v8::debug::Disassemble(v8::base::VectorOf(cachedScriptIt->bytecode),
+                           collector.get(), &functionBodyOffsets);
+  }
   *out_totalNumberOfLines =
       static_cast<int>(collector->total_number_of_lines());
   *out_functionBodyOffsets =
@@ -1336,6 +1346,7 @@ Response V8DebuggerAgentImpl::disassembleWasmModule(
   return Response::ServerError("WebAssembly is disabled");
 #endif  // V8_ENABLE_WEBASSEMBLY
 }
+
 Response V8DebuggerAgentImpl::nextWasmDisassemblyChunk(
     const String16& in_streamId,
     std::unique_ptr<protocol::Debugger::WasmDisassemblyChunk>* out_chunk) {

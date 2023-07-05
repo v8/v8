@@ -731,9 +731,7 @@ class FormatConverter {
       : output_(output), out_(output_.get()), print_offsets_(print_offsets) {
     if (!output_.ok()) return;
     if (!LoadFile(input)) return;
-    base::Vector<const uint8_t> wire_bytes(raw_bytes_.data(),
-                                           raw_bytes_.size());
-    wire_bytes_ = ModuleWireBytes({raw_bytes_.data(), raw_bytes_.size()});
+    wire_bytes_ = ModuleWireBytes(raw_bytes());
     status_ = kIoInitialized;
     ModuleResult result = DecodeWasmModuleForDisassembler(raw_bytes());
     if (result.failed()) {
@@ -745,7 +743,7 @@ class FormatConverter {
     status_ = kModuleReady;
     module_ = result.value();
     names_provider_ =
-        std::make_unique<NamesProvider>(module_.get(), wire_bytes);
+        std::make_unique<NamesProvider>(module_.get(), raw_bytes());
   }
 
   Status status() const { return status_; }

@@ -31,6 +31,29 @@ void Disassemble(const WasmModule* module, ModuleWireBytes wire_bytes,
   out.ToDisassemblyCollector(collector);
 }
 
+void Disassemble(base::Vector<const uint8_t> wire_bytes,
+                 v8::debug::DisassemblyCollector* collector,
+                 std::vector<int>* function_body_offsets) {
+  ModuleResult result = DecodeWasmModuleForDisassembler(wire_bytes);
+  MultiLineStringBuilder out;
+  AccountingAllocator allocator;
+  constexpr bool kCollectOffsets = true;
+  if (result.failed()) {
+    WasmError error = result.error();
+    out << "Decoding error: " << error.message() << " at offset "
+        << error.offset();
+    out.ToDisassemblyCollector(collector);
+    return;
+  }
+  const WasmModule* module = result.value().get();
+  NamesProvider names(module, wire_bytes);
+  ModuleWireBytes module_bytes(wire_bytes);
+  ModuleDisassembler md(out, module, &names, module_bytes, &allocator,
+                        kCollectOffsets, function_body_offsets);
+  md.PrintModule({0, 2}, v8_flags.wasm_disassembly_max_mb);
+  out.ToDisassemblyCollector(collector);
+}
+
 void MultiLineStringBuilder::ToDisassemblyCollector(
     v8::debug::DisassemblyCollector* collector) {
   if (length() != 0) NextLine(0);  // Finalize last line.
