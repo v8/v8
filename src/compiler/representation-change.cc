@@ -786,7 +786,7 @@ Node* RepresentationChanger::GetFloat64RepresentationFor(
       op = simplified()->ChangeTaggedToFloat64();
     } else if ((output_type.Is(Type::NumberOrOddball()) &&
                 use_info.truncation().TruncatesOddballAndBigIntToNumber()) ||
-               output_type.Is(Type::NumberOrHole())) {
+               output_type.Is(Type::NumberOrTheHole())) {
       // JavaScript 'null' is an Oddball that results in +0 when truncated to
       // Number. In a context like -0 == null, which must evaluate to false,
       // this truncation must not happen. For this reason we restrict this

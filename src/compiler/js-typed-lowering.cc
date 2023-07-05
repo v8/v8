@@ -479,7 +479,7 @@ JSTypedLowering::JSTypedLowering(Editor* editor, JSGraph* jsgraph,
       empty_string_type_(
           Type::Constant(broker, broker->empty_string(), graph()->zone())),
       pointer_comparable_type_(
-          Type::Union(Type::Oddball(),
+          Type::Union(Type::BooleanOrNullOrUndefined(),
                       Type::Union(Type::SymbolOrReceiver(), empty_string_type_,
                                   graph()->zone()),
                       graph()->zone())),

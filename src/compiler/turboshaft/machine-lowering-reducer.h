@@ -1441,7 +1441,7 @@ class MachineLoweringReducer : public Next {
         size_log2 = kDoubleSizeLog2;
         array_map = factory_->fixed_double_array_map();
         access = {kTaggedBase, FixedDoubleArray::kHeaderSize,
-                  compiler::Type::NumberOrHole(), MachineType::Float64(),
+                  compiler::Type::NumberOrTheHole(), MachineType::Float64(),
                   kNoWriteBarrier};
         STATIC_ASSERT_FIELD_OFFSETS_EQUAL(HeapNumber::kValueOffset,
                                           Oddball::kToNumberRawOffset);

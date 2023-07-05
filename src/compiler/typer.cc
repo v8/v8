@@ -858,7 +858,7 @@ Type Typer::Visitor::TypeParameter(Node* node) {
       return Type::Receiver();
     } else {
       // Parameter[this] can be the_hole for derived class constructors.
-      return Type::Union(Type::Hole(), Type::NonInternal(), typer_->zone());
+      return Type::Union(Type::TheHole(), Type::NonInternal(), typer_->zone());
     }
   } else if (index == start.NewTargetParameterIndex()) {
     if (typer_->flags() & Typer::kNewTargetIsReceiver) {

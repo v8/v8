@@ -196,7 +196,7 @@ Type::bitset BitsetType::Lub(MapRefLike map, JSHeapBroker* broker) {
         case HoleType::kNone:
           UNREACHABLE();
         case HoleType::kGeneric:
-          return kHole;
+          return kTheHole;
       }
     case HEAP_NUMBER_TYPE:
       return kNumber;

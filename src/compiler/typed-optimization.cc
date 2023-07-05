@@ -212,7 +212,7 @@ Reduction TypedOptimization::ReduceCheckBounds(Node* node) {
 Reduction TypedOptimization::ReduceCheckNotTaggedHole(Node* node) {
   Node* const input = NodeProperties::GetValueInput(node, 0);
   Type const input_type = NodeProperties::GetType(input);
-  if (!input_type.Maybe(Type::Hole())) {
+  if (!input_type.Maybe(Type::TheHole())) {
     ReplaceWithValue(node, input);
     return Replace(input);
   }
@@ -877,7 +877,7 @@ Reduction TypedOptimization::ReduceSpeculativeNumberBinop(Node* node) {
   NumberOperationHint hint = NumberOperationHintOf(node->op());
   if ((hint == NumberOperationHint::kNumber ||
        hint == NumberOperationHint::kNumberOrOddball) &&
-      BothAre(lhs_type, rhs_type, Type::NumberOrUndefinedOrNullOrBoolean())) {
+      BothAre(lhs_type, rhs_type, Type::NumberOrOddball())) {
     // We intentionally do this only in the Number and NumberOrOddball hint case
     // because simplified lowering of these speculative ops may do some clever
     // reductions in the other cases.

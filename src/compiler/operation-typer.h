@@ -103,7 +103,6 @@ class V8_EXPORT_PRIVATE OperationTyper {
 
   Type singleton_false() const { return singleton_false_; }
   Type singleton_true() const { return singleton_true_; }
-  Type singleton_the_hole() const { return singleton_the_hole_; }
 
  private:
   using ComparisonOutcome = base::Flags<ComparisonOutcomeFlags>;
@@ -131,7 +130,6 @@ class V8_EXPORT_PRIVATE OperationTyper {
   Type singleton_zero_string_;
   Type singleton_false_;
   Type singleton_true_;
-  Type singleton_the_hole_;
   Type signed32ish_;
   Type unsigned32ish_;
   Type singleton_empty_string_;

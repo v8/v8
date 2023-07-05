@@ -26,7 +26,7 @@ Node* TryGetConstant(JSGraph* jsgraph, Node* node, JSHeapBroker* broker) {
     result = jsgraph->MinusZeroConstant();
   } else if (type.Is(Type::NaN())) {
     result = jsgraph->NaNConstant();
-  } else if (type.Is(Type::Hole())) {
+  } else if (type.Is(Type::TheHole())) {
     result = jsgraph->TheHoleConstant();
   } else if (type.IsHeapConstant()) {
     result = jsgraph->Constant(type.AsHeapConstant()->Ref(), broker);

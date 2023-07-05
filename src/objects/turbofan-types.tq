@@ -41,7 +41,6 @@ bitfield struct TurbofanTypeLowBits extends uint32 {
   callable_function: bool: 1 bit;
   class_constructor: bool: 1 bit;
   bound_function: bool: 1 bit;
-  hole: bool: 1 bit;
   other_internal: bool: 1 bit;
   external_pointer: bool: 1 bit;
   array: bool: 1 bit;
@@ -50,11 +49,13 @@ bitfield struct TurbofanTypeLowBits extends uint32 {
   negative_big_int_63: bool: 1 bit;
   other_big_int: bool: 1 bit;
   wasm_object: bool: 1 bit;
+  sandboxed_pointer: bool: 1 bit;
 }
 
 bitfield struct TurbofanTypeHighBits extends uint32 {
-  sandboxed_pointer: bool: 1 bit;
   machine: bool: 1 bit;
+  the_hole: bool: 1 bit;
+  hole_placeholder: bool: 1 bit;
 }
 
 @export
@@ -155,7 +156,7 @@ macro TestTurbofanBitsetType(
       return bitsetLow.bound_function;
     }
     case (TheHole): {
-      return bitsetLow.hole;
+      return bitsetHigh.the_hole;
     }
     case (JSArray): {
       return bitsetLow.array;
