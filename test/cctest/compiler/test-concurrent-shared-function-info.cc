@@ -29,33 +29,35 @@ enum class SfiState {
   PreparedForDebugExecution,
 };
 
-void ExpectSharedFunctionInfoState(Isolate* isolate, SharedFunctionInfo sfi,
+void ExpectSharedFunctionInfoState(SharedFunctionInfo sfi,
                                    SfiState expectedState) {
   Object function_data = sfi.function_data(kAcquireLoad);
-  HeapObject script = sfi.script(kAcquireLoad);
+  HeapObject script_or_debug_info = sfi.script_or_debug_info(kAcquireLoad);
   switch (expectedState) {
     case SfiState::Compiled:
       CHECK(function_data.IsBytecodeArray() ||
             (function_data.IsCode() &&
              Code::cast(function_data).kind() == CodeKind::BASELINE));
-      CHECK(script.IsScript());
+      CHECK(script_or_debug_info.IsScript());
       break;
-    case SfiState::DebugInfo: {
+    case SfiState::DebugInfo:
       CHECK(function_data.IsBytecodeArray() ||
             (function_data.IsCode() &&
              Code::cast(function_data).kind() == CodeKind::BASELINE));
-      CHECK(script.IsScript());
-      DebugInfo debug_info = sfi.GetDebugInfo(isolate);
-      CHECK(!debug_info.HasInstrumentedBytecodeArray());
+      CHECK(script_or_debug_info.IsDebugInfo());
+      {
+        DebugInfo debug_info = DebugInfo::cast(script_or_debug_info);
+        CHECK(!debug_info.HasInstrumentedBytecodeArray());
+      }
       break;
-    }
-    case SfiState::PreparedForDebugExecution: {
+    case SfiState::PreparedForDebugExecution:
       CHECK(function_data.IsBytecodeArray());
-      CHECK(script.IsScript());
-      DebugInfo debug_info = sfi.GetDebugInfo(isolate);
-      CHECK(debug_info.HasInstrumentedBytecodeArray());
+      CHECK(script_or_debug_info.IsDebugInfo());
+      {
+        DebugInfo debug_info = DebugInfo::cast(script_or_debug_info);
+        CHECK(debug_info.HasInstrumentedBytecodeArray());
+      }
       break;
-    }
   }
 }
 
@@ -135,7 +137,7 @@ TEST(TestConcurrentSharedFunctionInfo) {
   IsCompiledScope compiled_scope_f(*f_sfi, isolate);
   JSFunction::EnsureFeedbackVector(isolate, f, &compiled_scope_f);
 
-  ExpectSharedFunctionInfoState(isolate, *test_sfi, SfiState::Compiled);
+  ExpectSharedFunctionInfoState(*test_sfi, SfiState::Compiled);
 
   auto job =
       Pipeline::NewCompilationJob(isolate, test, CodeKind::TURBOFAN, true);
@@ -157,12 +159,12 @@ TEST(TestConcurrentSharedFunctionInfo) {
 
   sema_execute_start.Signal();
   // Background thread is running, now mess with test's SFI.
-  ExpectSharedFunctionInfoState(isolate, *test_sfi, SfiState::Compiled);
+  ExpectSharedFunctionInfoState(*test_sfi, SfiState::Compiled);
 
   // Compiled ==> DebugInfo
   {
     isolate->debug()->GetOrCreateDebugInfo(test_sfi);
-    ExpectSharedFunctionInfoState(isolate, *test_sfi, SfiState::DebugInfo);
+    ExpectSharedFunctionInfoState(*test_sfi, SfiState::DebugInfo);
   }
 
   for (int i = 0; i < 100; ++i) {
@@ -171,15 +173,15 @@ TEST(TestConcurrentSharedFunctionInfo) {
       int breakpoint_id;
       CHECK(isolate->debug()->SetBreakpointForFunction(
           test_sfi, isolate->factory()->empty_string(), &breakpoint_id));
-      ExpectSharedFunctionInfoState(isolate, *test_sfi,
+      ExpectSharedFunctionInfoState(*test_sfi,
                                     SfiState::PreparedForDebugExecution);
     }
 
     // PreparedForDebugExecution ==> DebugInfo
     {
-      DebugInfo debug_info = test_sfi->GetDebugInfo(isolate);
+      DebugInfo debug_info = test_sfi->GetDebugInfo();
       debug_info.ClearBreakInfo(isolate);
-      ExpectSharedFunctionInfoState(isolate, *test_sfi, SfiState::DebugInfo);
+      ExpectSharedFunctionInfoState(*test_sfi, SfiState::DebugInfo);
     }
   }
 

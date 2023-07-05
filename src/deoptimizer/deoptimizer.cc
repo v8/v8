@@ -1003,13 +1003,9 @@ void Deoptimizer::DoComputeUnoptimizedFrame(TranslatedFrame* translated_frame,
 
   TranslatedFrame::iterator function_iterator = value_iterator++;
 
-  BytecodeArray bytecode_array;
-  base::Optional<DebugInfo> debug_info = shared.TryGetDebugInfo(isolate());
-  if (debug_info.has_value() && debug_info->HasBreakInfo()) {
-    bytecode_array = debug_info->DebugBytecodeArray();
-  } else {
-    bytecode_array = shared.GetBytecodeArray(isolate());
-  }
+  BytecodeArray bytecode_array =
+      shared.HasBreakInfo() ? shared.GetDebugInfo().DebugBytecodeArray()
+                            : shared.GetBytecodeArray(isolate());
 
   // Allocate and store the output frame description.
   FrameDescription* output_frame = new (output_frame_size)

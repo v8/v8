@@ -293,13 +293,6 @@ class V8_EXPORT_PRIVATE Debug {
   // Scripts handling.
   Handle<FixedArray> GetLoadedScripts();
 
-  // DebugInfo accessors.
-  base::Optional<DebugInfo> TryGetDebugInfo(SharedFunctionInfo sfi);
-  bool HasDebugInfo(SharedFunctionInfo sfi);
-  bool HasCoverageInfo(SharedFunctionInfo sfi);
-  bool HasBreakInfo(SharedFunctionInfo sfi);
-  bool BreakAtEntry(SharedFunctionInfo sfi);
-
   // Break point handling.
   enum BreakPointKind { kRegular, kInstrumentation };
   bool SetBreakpoint(Handle<SharedFunctionInfo> shared,
