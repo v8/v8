@@ -954,8 +954,9 @@ void PagedSpaceForNewSpace::UpdateInlineAllocationLimit() {
 
 size_t PagedSpaceForNewSpace::AddPage(Page* page) {
   current_capacity_ += Page::kPageSize;
-  DCHECK_IMPLIES(!force_allocation_success_,
-                 UsableCapacity() <= TotalCapacity());
+  DCHECK_IMPLIES(
+      !force_allocation_success_ && !heap_->ShouldOptimizeForLoadTime(),
+      UsableCapacity() <= TotalCapacity());
   return PagedSpaceBase::AddPage(page);
 }
 
