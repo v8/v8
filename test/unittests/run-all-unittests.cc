@@ -15,6 +15,10 @@
 #include "src/tracing/trace-event.h"
 #endif  // V8_USE_PERFETTO
 
+#if defined(V8_OS_IOS)
+#include "test/common/test_support_ios.h"
+#endif
+
 namespace {
 
 class CppGCEnvironment final : public ::testing::Environment {
@@ -52,5 +56,9 @@ int main(int argc, char** argv) {
   v8::V8::SetFlagsFromCommandLine(&argc, argv, true);
   v8::V8::InitializeExternalStartupData(argv[0]);
   v8::V8::InitializeICUDefaultLocation(argv[0]);
+#if defined(V8_OS_IOS)
+  v8::internal::InitIOSArgs(RUN_ALL_TESTS, argc, argv);
+  v8::internal::RunTestsFromIOSApp();
+#endif
   return RUN_ALL_TESTS();
 }

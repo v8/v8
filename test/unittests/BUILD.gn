@@ -39,6 +39,32 @@ if (is_fuchsia) {
   }
 }
 
+if (is_ios) {
+  v8_static_library("test_support_ios") {
+    testonly = true
+    visibility = [
+      ":google_test_runner_ios",
+      ":v8_unittests_sources",
+    ]
+    sources = [
+      "../common/google_test_runner_delegate.h",
+      "../common/test_support_ios.h",
+      "../common/test_support_ios.mm",
+    ]
+    deps = [ "../..:v8_libbase" ]
+    configs = [ "../..:internal_config_base" ]
+  }
+
+  v8_static_library("google_test_runner_ios") {
+    testonly = true
+    visibility = [ "*" ]
+    sources = [ "../common/google_test_runner.mm" ]
+    deps = [ ":test_support_ios" ]
+    configs = [ "//build/config/ios:xctest_config" ]
+    frameworks = [ "UIKit.framework" ]
+  }
+}
+
 config("gcc_warnings_not_errors") {
   if (!is_clang && !is_win) {
     cflags = [
@@ -770,6 +796,10 @@ v8_source_set("v8_unittests_sources") {
       # TODO(skyostil): Migrate to protozero.
       "//third_party/perfetto/protos/perfetto/trace:lite",
     ]
+  }
+
+  if (is_ios) {
+    deps += [ ":test_support_ios" ]
   }
 
   if (is_win) {
