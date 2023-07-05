@@ -184,3 +184,9 @@ Object.groupBy('Strings are iterable, actually,', (x) => x);
 
 // Large group.
 Object.groupBy(new Int8Array(65536), function() {});
+
+// Large object.
+{
+  let groupKey = 0;
+  Object.groupBy(new Uint8Array(18000), () => groupKey++);
+}

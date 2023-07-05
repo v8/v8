@@ -781,7 +781,8 @@ extern macro SpeciesConstructor(implicit context: Context)(
 extern macro ConstructorBuiltinsAssembler::IsDictionaryMap(Map): bool;
 extern macro CodeStubAssembler::AllocateNameDictionary(constexpr int32):
     NameDictionary;
-extern macro CodeStubAssembler::AllocateNameDictionary(intptr): NameDictionary;
+extern macro CodeStubAssembler::AllocateNameDictionary(
+    intptr, constexpr AllocationFlag): NameDictionary;
 extern macro CodeStubAssembler::AllocateOrderedNameDictionary(constexpr int32):
     OrderedNameDictionary;
 extern macro CodeStubAssembler::AllocateSwissNameDictionary(constexpr int32):

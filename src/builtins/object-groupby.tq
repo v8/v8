@@ -182,7 +182,9 @@ ObjectGroupBy(js-implicit context: NativeContext, receiver: JSAny)(
         AllocateSwissNameDictionary(Convert<intptr>(iter.usedCapacity));
   }
   @ifnot(V8_ENABLE_SWISS_NAME_DICTIONARY) {
-    properties = AllocateNameDictionary(Convert<intptr>(iter.usedCapacity));
+    properties = AllocateNameDictionary(
+        Convert<intptr>(iter.usedCapacity),
+        AllocationFlag::kAllowLargeObjectAllocation);
   }
   const nullProtoMap = LoadSlowObjectWithNullPrototypeMap(context);
   const obj = AllocateJSObjectFromMap(nullProtoMap, properties);
