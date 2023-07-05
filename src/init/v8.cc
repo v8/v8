@@ -137,17 +137,21 @@ void V8::Initialize() {
   CHECK(platform_);
 
   // Update logging information before enforcing flag implications.
-  FlagValue<bool>* log_all_flags[] = {&v8_flags.log_all,
-                                      &v8_flags.log_code,
-                                      &v8_flags.log_code_disassemble,
-                                      &v8_flags.log_source_code,
-                                      &v8_flags.log_source_position,
-                                      &v8_flags.log_feedback_vector,
-                                      &v8_flags.log_function_events,
-                                      &v8_flags.log_timer_events,
-                                      &v8_flags.log_deopt,
-                                      &v8_flags.log_ic,
-                                      &v8_flags.log_maps};
+  FlagValue<bool>* log_all_flags[] = {
+      &v8_flags.log_all,
+      &v8_flags.log_code,
+      &v8_flags.log_code_disassemble,
+      &v8_flags.log_deopt,
+      &v8_flags.log_feedback_vector,
+      &v8_flags.log_function_events,
+      &v8_flags.log_ic,
+      &v8_flags.log_maps,
+      &v8_flags.log_source_code,
+      &v8_flags.log_source_position,
+      &v8_flags.log_timer_events,
+      &v8_flags.prof,
+      &v8_flags.prof_cpp,
+  };
   if (v8_flags.log_all) {
     // Enable all logging flags
     for (auto* flag : log_all_flags) {
