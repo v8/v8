@@ -117,7 +117,7 @@ inline std::ostream& operator<<(std::ostream& os, MaybeHandle<T> handle) {
   return os << handle.ToHandleChecked();
 }
 
-#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+#ifdef V8_ENABLE_DIRECT_HANDLE
 
 template <typename T>
 MaybeDirectHandle<T>::MaybeDirectHandle(T object, Isolate* isolate)
@@ -199,7 +199,7 @@ DirectHandle<Object> MaybeObjectDirectHandle::object() const {
   return handle_.ToHandleChecked();
 }
 
-#endif  // V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+#endif  // V8_ENABLE_DIRECT_HANDLE
 
 }  // namespace internal
 }  // namespace v8

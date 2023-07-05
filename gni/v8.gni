@@ -92,6 +92,9 @@ declare_args() {
   # Scan the call stack conservatively during garbage collection.
   v8_enable_conservative_stack_scanning = false
 
+  # Use direct pointers in internal (direct) handles.
+  v8_enable_direct_handle = ""
+
   # Use direct pointers in local handles.
   v8_enable_direct_local = false
 
@@ -185,6 +188,12 @@ if (v8_enable_turbofan == "") {
 }
 assert(v8_enable_turbofan || !v8_enable_webassembly,
        "Webassembly is not available when Turbofan is disabled.")
+
+# Direct internal handles are enabled by default if conservative stack scanning
+# is enabled.
+if (v8_enable_direct_handle == "") {
+  v8_enable_direct_handle = v8_enable_conservative_stack_scanning
+}
 
 # Points to // in v8 stand-alone or to //v8/ in chromium. We need absolute
 # paths for all configs in templates as they are shared in different

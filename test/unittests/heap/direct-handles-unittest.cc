@@ -98,10 +98,10 @@ TEST_F(DirectHandlesTest, MaybeObjectDirectHandleIsIdenticalTo) {
 }
 
 // Tests to check DirectHandle usage.
-// Such usage violations are only detected in debug builds and with the
-// compile-time flag for conservative stack scanning.
+// Such usage violations are only detected in debug builds, with the
+// compile-time flag for enabling direct handles.
 
-#if defined(DEBUG) && defined(V8_ENABLE_CONSERVATIVE_STACK_SCANNING)
+#if defined(DEBUG) && defined(V8_ENABLE_DIRECT_HANDLE)
 
 namespace {
 template <typename Callback>
@@ -200,6 +200,6 @@ TEST_F(DirectHandlesSharedTest, DirectHandleInClientBackgroundThreadFails) {
 }
 
 #endif  // V8_CAN_CREATE_SHARED_HEAP_BOOL
-#endif  // defined(DEBUG) && defined(V8_ENABLE_CONSERVATIVE_STACK_SCANNING)
+#endif  // DEBUG && V8_ENABLE_DIRECT_HANDLE
 
 }  // namespace v8

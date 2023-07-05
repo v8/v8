@@ -125,7 +125,7 @@ class MaybeObjectHandle {
   MaybeHandle<Object> handle_;
 };
 
-#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+#ifdef V8_ENABLE_DIRECT_HANDLE
 
 template <typename T>
 class MaybeDirectHandle final {
@@ -215,13 +215,13 @@ class MaybeObjectDirectHandle {
   MaybeDirectHandle<Object> handle_;
 };
 
-#else  // !V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+#else  // !V8_ENABLE_DIRECT_HANDLE
 
 template <typename T>
 using MaybeDirectHandle = MaybeHandle<T>;
 using MaybeObjectDirectHandle = MaybeObjectHandle;
 
-#endif  // V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+#endif  // V8_ENABLE_DIRECT_HANDLE
 
 }  // namespace internal
 }  // namespace v8

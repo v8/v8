@@ -447,6 +447,17 @@ DEFINE_BOOL_READONLY(conservative_stack_scanning,
 DEFINE_IMPLICATION(conservative_stack_scanning, minor_mc)
 DEFINE_NEG_IMPLICATION(conservative_stack_scanning, compact_with_stack)
 
+#ifdef V8_ENABLE_DIRECT_HANDLE
+#define V8_ENABLE_DIRECT_HANDLE_BOOL true
+#else
+#define V8_ENABLE_DIRECT_HANDLE_BOOL false
+#endif
+DEFINE_BOOL_READONLY(direct_handle, V8_ENABLE_DIRECT_HANDLE_BOOL,
+                     "use direct handles with conservative stack scanning")
+// Do not use direct handles without conservative stack scanning, as this would
+// break the correctness of the GC.
+DEFINE_NEG_NEG_IMPLICATION(conservative_stack_scanning, direct_handle)
+
 #ifdef V8_ENABLE_DIRECT_LOCAL
 #define V8_ENABLE_DIRECT_LOCAL_BOOL true
 #else

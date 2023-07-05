@@ -65,7 +65,7 @@ inline Local<To> Utils::Convert(v8::internal::DirectHandle<From> obj,
 #if defined(V8_ENABLE_DIRECT_LOCAL)
   DCHECK(obj.is_null() || (obj->IsSmi() || !obj->IsTheHole()));
   return Local<To>::FromAddress(obj.address());
-#elif defined(V8_ENABLE_CONSERVATIVE_STACK_SCANNING)
+#elif defined(V8_ENABLE_DIRECT_HANDLE)
   return Utils::Convert<From, To>(v8::internal::Handle<From>(*obj, isolate));
 #else
   return Utils::Convert<From, To>(obj);

@@ -105,7 +105,7 @@ inline std::ostream& operator<<(std::ostream& os, Handle<T> handle) {
   return os << Brief(*handle);
 }
 
-#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+#ifdef V8_ENABLE_DIRECT_HANDLE
 
 template <typename T>
 V8_INLINE DirectHandle<T>::DirectHandle(Tagged<T> object)
@@ -126,7 +126,7 @@ V8_INLINE const DirectHandle<T> DirectHandle<T>::cast(Handle<S> that) {
   return DirectHandle<T>(*that.location());
 }
 
-#endif  // V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+#endif  // V8_ENABLE_DIRECT_HANDLE
 
 template <typename T>
 V8_INLINE DirectHandle<T> direct_handle(Tagged<T> object, Isolate* isolate) {
@@ -263,7 +263,7 @@ inline SealHandleScope::~SealHandleScope() {
 }
 #endif  // DEBUG
 
-#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+#ifdef V8_ENABLE_DIRECT_HANDLE
 
 template <typename T>
 bool DirectHandle<T>::is_identical_to(const DirectHandle<T> that) const {
@@ -321,7 +321,7 @@ void DirectHandle<T>::VerifyOnStackAndMainThread() const {
 
 #endif  // DEBUG
 
-#endif  // V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+#endif  // V8_ENABLE_DIRECT_HANDLE
 
 }  // namespace internal
 }  // namespace v8

@@ -894,7 +894,7 @@ class InstructionStream;
 class Code;
 class CodeSpace;
 class Context;
-#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+#ifdef V8_ENABLE_DIRECT_HANDLE
 template <typename T>
 class DirectHandle;
 #endif

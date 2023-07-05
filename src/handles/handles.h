@@ -300,7 +300,10 @@ struct HandleScopeData final {
 
 static_assert(HandleScopeData::kSizeInBytes == sizeof(HandleScopeData));
 
-#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+#ifdef V8_ENABLE_DIRECT_HANDLE
+// Direct handles should not be used without conservative stack scanning,
+// as this would break the correctness of the GC.
+static_assert(V8_ENABLE_CONSERVATIVE_STACK_SCANNING_BOOL);
 
 // ----------------------------------------------------------------------------
 // A DirectHandle provides a reference to an object without an intermediate
@@ -417,12 +420,12 @@ class DirectHandle final {
 template <typename T>
 std::ostream& operator<<(std::ostream& os, DirectHandle<T> handle);
 
-#else  // !V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+#else  // !V8_ENABLE_DIRECT_HANDLE
 
 template <typename T>
 using DirectHandle = Handle<T>;
 
-#endif  // V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+#endif  // V8_ENABLE_DIRECT_HANDLE
 
 }  // namespace internal
 }  // namespace v8
