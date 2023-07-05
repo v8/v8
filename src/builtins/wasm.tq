@@ -886,6 +886,14 @@ builtin WasmStringNewWtf16Array(
     if (end < start) goto OffsetOutOfRange;
     const length: uint32 = end - start;
     if (length == 0) return kEmptyString;
+    if (length == 1) {
+      const offset = kWasmArrayHeaderSize +
+          torque_internal::TimesSizeOf<char16>(Convert<intptr>(start));
+      const code: char16 = *torque_internal::unsafe::NewReference<char16>(
+          array, offset);
+      // This makes sure we check the SingleCharacterStringTable.
+      return StringFromSingleCharCode(code);
+    }
     // Calling into the runtime has overhead, but once we're there it's faster,
     // so it pays off for long strings. The threshold has been determined
     // experimentally.
