@@ -2000,19 +2000,40 @@ void LiftoffAssembler::emit_i16x8_extadd_pairwise_i8x16_u(LiftoffRegister dst,
   vwaddu_vv(dst.fp().toV(), kSimd128ScratchReg, kSimd128ScratchReg2);
 }
 
-void LiftoffAssembler::CallC(const ValueKindSig* sig,
-                             const LiftoffRegister* args,
+void LiftoffAssembler::CallC(const ValueKindSig* sig, const VarState* args,
                              const LiftoffRegister* rets,
                              ValueKind out_argument_kind, int stack_bytes,
                              ExternalReference ext_ref) {
   AddWord(sp, sp, Operand(-stack_bytes));
 
-  int arg_bytes = 0;
+  int arg_offset = 0;
+  const VarState* current_arg = args;
   for (ValueKind param_kind : sig->parameters()) {
-    liftoff::Store(this, sp, arg_bytes, *args++, param_kind);
-    arg_bytes += value_kind_size(param_kind);
+    UseScratchRegisterScope temps(this);
+    Register src = no_reg;
+    MemOperand dst{sp, arg_offset};
+    if (current_arg->is_reg()) {
+      liftoff::Store(this, sp, arg_offset, current_arg->reg(), param_kind);
+    } else if (current_arg->is_const()) {
+      DCHECK_EQ(kI32, param_kind);
+      if (current_arg->i32_const() == 0) {
+        src = zero_reg;
+      } else {
+        src = temps.Acquire();
+        li(src, current_arg->i32_const());
+      }
+      StoreWord(src, dst);
+    } else {
+      DCHECK(value_kind_size(current_arg->kind()) == 4);
+      MemOperand src = liftoff::GetStackSlot(current_arg->offset());
+      auto scratch = temps.Acquire();
+      Lw(scratch, src);
+      Sw(scratch, dst);
+    }
+    ++current_arg;
+    arg_offset += value_kind_size(param_kind);
   }
-  DCHECK_LE(arg_bytes, stack_bytes);
+  DCHECK_LE(arg_offset, stack_bytes);
 
   // Pass a pointer to the buffer with the arguments to the C function.
   // On RISC-V, the first argument is passed in {a0}.
