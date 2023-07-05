@@ -216,7 +216,7 @@ TEST_F(WeakMapsTest, WeakMapScavenge) {
   CHECK(EphemeronHashTableContainsKey(
       EphemeronHashTable::cast(weakmap->table()), *object));
 
-  if (!v8_flags.minor_mc) {
+  if (!v8_flags.minor_ms) {
     InvokeAtomicMinorGC();
     CHECK(ObjectInYoungGeneration(*object));
     CHECK(!ObjectInYoungGeneration(weakmap->table()));

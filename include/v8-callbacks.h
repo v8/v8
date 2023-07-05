@@ -147,14 +147,16 @@ using JitCodeEventHandler = void (*)(const JitCodeEvent* event);
  * the callback functions, you therefore cannot manipulate objects (set or
  * delete properties for example) since it is possible such operations will
  * result in the allocation of objects.
+ * TODO(v8:12612): Deprecate kGCTypeMinorMarkSweep after updating blink.
  */
 enum GCType {
   kGCTypeScavenge = 1 << 0,
-  kGCTypeMinorMarkCompact = 1 << 1,
+  kGCTypeMinorMarkSweep = 1 << 1,
+  kGCTypeMinorMarkCompact = kGCTypeMinorMarkSweep,
   kGCTypeMarkSweepCompact = 1 << 2,
   kGCTypeIncrementalMarking = 1 << 3,
   kGCTypeProcessWeakCallbacks = 1 << 4,
-  kGCTypeAll = kGCTypeScavenge | kGCTypeMinorMarkCompact |
+  kGCTypeAll = kGCTypeScavenge | kGCTypeMinorMarkSweep |
                kGCTypeMarkSweepCompact | kGCTypeIncrementalMarking |
                kGCTypeProcessWeakCallbacks
 };

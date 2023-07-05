@@ -1036,7 +1036,7 @@ using WeakSlotCallbackWithHeap = bool (*)(Heap* heap, FullObjectSlot pointer);
 enum AllocationSpace {
   RO_SPACE,         // Immortal, immovable and immutable objects,
   NEW_SPACE,        // Young generation space for regular objects collected
-                    // with Scavenger/MinorMC.
+                    // with Scavenger/MinorMS.
   OLD_SPACE,        // Old generation regular object space.
   CODE_SPACE,       // Old generation code object space, marked executable.
   SHARED_SPACE,     // Space shared between multiple isolates. Optional.
@@ -1149,7 +1149,7 @@ enum class GarbageCollectionReason : int {
   kGlobalAllocationLimit = 23,
   kMeasureMemory = 24,
   kBackgroundAllocationFailure = 25,
-  kFinalizeMinorMC = 26,
+  kFinalizeMinorMS = 26,
   kCppHeapAllocationFailure = 27,
 
   NUM_REASONS,
@@ -1213,8 +1213,8 @@ constexpr const char* ToString(GarbageCollectionReason reason) {
       return "unknown";
     case GarbageCollectionReason::kBackgroundAllocationFailure:
       return "background allocation failure";
-    case GarbageCollectionReason::kFinalizeMinorMC:
-      return "finalize MinorMC";
+    case GarbageCollectionReason::kFinalizeMinorMS:
+      return "finalize MinorMS";
     case GarbageCollectionReason::kCppHeapAllocationFailure:
       return "CppHeap allocation failure";
     case GarbageCollectionReason::NUM_REASONS:
@@ -1261,7 +1261,7 @@ enum MinimumCapacity {
   USE_CUSTOM_MINIMUM_CAPACITY
 };
 
-enum class GarbageCollector { SCAVENGER, MARK_COMPACTOR, MINOR_MARK_COMPACTOR };
+enum class GarbageCollector { SCAVENGER, MARK_COMPACTOR, MINOR_MARK_SWEEPER };
 
 constexpr const char* ToString(GarbageCollector collector) {
   switch (collector) {
@@ -1269,7 +1269,7 @@ constexpr const char* ToString(GarbageCollector collector) {
       return "Scavenger";
     case GarbageCollector::MARK_COMPACTOR:
       return "Mark-Sweep-Compact";
-    case GarbageCollector::MINOR_MARK_COMPACTOR:
+    case GarbageCollector::MINOR_MARK_SWEEPER:
       return "Minor Mark-Sweep";
   }
 }
@@ -1282,7 +1282,7 @@ enum class CompactionSpaceKind {
   kNone,
   kCompactionSpaceForScavenge,
   kCompactionSpaceForMarkCompact,
-  kCompactionSpaceForMinorMarkCompact,
+  kCompactionSpaceForMinorMarkSweep,
 };
 
 enum Executability { NOT_EXECUTABLE, EXECUTABLE };

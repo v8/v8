@@ -76,6 +76,7 @@
 #include "src/heap/memory-measurement.h"
 #include "src/heap/memory-reducer.h"
 #include "src/heap/minor-gc-job.h"
+#include "src/heap/minor-mark-sweep.h"
 #include "src/heap/new-spaces.h"
 #include "src/heap/object-lock.h"
 #include "src/heap/object-stats.h"
@@ -196,7 +197,7 @@ class ScheduleMinorGCTaskObserver : public AllocationObserver {
     heap_->main_thread_local_heap()->AddGCEpilogueCallback(
         &GCEpilogueCallback, this,
         static_cast<GCType>(GCType::kGCTypeScavenge |
-                            GCType::kGCTypeMinorMarkCompact |
+                            GCType::kGCTypeMinorMarkSweep |
                             GCType::kGCTypeMarkSweepCompact));
     AddToNewSpace();
   }
@@ -250,22 +251,22 @@ class ScheduleMinorGCTaskObserver : public AllocationObserver {
   bool was_added_to_space_ = false;
 };
 
-class MinorMCIncrementalMarkingTaskObserver final
+class MinorMSIncrementalMarkingTaskObserver final
     : public ScheduleMinorGCTaskObserver {
  public:
-  explicit MinorMCIncrementalMarkingTaskObserver(Heap* heap)
+  explicit MinorMSIncrementalMarkingTaskObserver(Heap* heap)
       : ScheduleMinorGCTaskObserver(heap) {}
 
  protected:
   void StepImpl() final {
-    if (v8_flags.concurrent_minor_mc_marking) {
+    if (v8_flags.concurrent_minor_ms_marking) {
       if (heap_->incremental_marking()->IsMinorMarking()) {
         heap_->concurrent_marking()->RescheduleJobIfNeeded(
-            GarbageCollector::MINOR_MARK_COMPACTOR);
+            GarbageCollector::MINOR_MARK_SWEEPER);
       }
     }
 
-    heap_->StartMinorMCIncrementalMarkingIfNeeded();
+    heap_->StartMinorMSIncrementalMarkingIfNeeded();
 
     ScheduleMinorGCTaskObserver::StepImpl();
   }
@@ -304,7 +305,7 @@ Heap::~Heap() = default;
 size_t Heap::MaxReserved() const {
   const size_t kMaxNewLargeObjectSpaceSize = max_semi_space_size_;
   return static_cast<size_t>(
-      (v8_flags.minor_mc ? 1 : 2) * max_semi_space_size_ +
+      (v8_flags.minor_ms ? 1 : 2) * max_semi_space_size_ +
       kMaxNewLargeObjectSpaceSize + max_old_generation_size());
 }
 
@@ -312,7 +313,7 @@ size_t Heap::YoungGenerationSizeFromOldGenerationSize(size_t old_generation) {
   // Compute the semi space size and cap it.
   bool is_low_memory = old_generation <= kOldGenerationLowMemory;
   size_t semi_space;
-  if (v8_flags.minor_mc && !is_low_memory) {
+  if (v8_flags.minor_ms && !is_low_memory) {
     semi_space = DefaultMaxSemiSpaceSize();
   } else {
     size_t ratio = is_low_memory ? OldGenerationToSemiSpaceRatioLowMemory()
@@ -402,7 +403,7 @@ size_t Heap::MaxOldGenerationSize(uint64_t physical_memory) {
 }
 
 namespace {
-int NumberOfSemiSpaces() { return v8_flags.minor_mc ? 1 : 2; }
+int NumberOfSemiSpaces() { return v8_flags.minor_ms ? 1 : 2; }
 }  // namespace
 
 size_t Heap::YoungGenerationSizeFromSemiSpaceSize(size_t semi_space_size) {
@@ -551,10 +552,10 @@ bool Heap::HasBeenSetUp() const {
 GarbageCollector Heap::SelectGarbageCollector(AllocationSpace space,
                                               GarbageCollectionReason gc_reason,
                                               const char** reason) const {
-  if (gc_reason == GarbageCollectionReason::kFinalizeMinorMC) {
+  if (gc_reason == GarbageCollectionReason::kFinalizeMinorMS) {
     DCHECK(new_space());
-    *reason = "finalize MinorMC";
-    return GarbageCollector::MINOR_MARK_COMPACTOR;
+    *reason = "finalize MinorMS";
+    return GarbageCollector::MINOR_MARK_SWEEPER;
   }
 
   // Is global GC requested?
@@ -610,8 +611,8 @@ bool Heap::CanShortcutStringsDuringGC(GarbageCollector collector) const {
   if (!v8_flags.shortcut_strings_with_stack && IsGCWithStack()) return false;
 
   switch (collector) {
-    case GarbageCollector::MINOR_MARK_COMPACTOR:
-      if (!v8_flags.minor_mc_shortcut_strings) return false;
+    case GarbageCollector::MINOR_MARK_SWEEPER:
+      if (!v8_flags.minor_ms_shortcut_strings) return false;
 
       DCHECK(!incremental_marking()->IsMajorMarking());
 
@@ -661,7 +662,7 @@ void Heap::PrintShortHeapStatistics() {
                ", available: %6zu KB%s"
                ", committed: %6zu KB\n",
                NewSpaceSize() / KB, new_space_->Available() / KB,
-               (v8_flags.minor_mc && minor_sweeping_in_progress()) ? "*" : "",
+               (v8_flags.minor_ms && minor_sweeping_in_progress()) ? "*" : "",
                new_space_->CommittedMemory() / KB);
   PrintIsolate(isolate_,
                "New large object space, used: %6zu KB"
@@ -1070,7 +1071,7 @@ void Heap::PrintRetainingPath(HeapObject target, RetainingPathOption option) {
 
 void UpdateRetainersMapAfterScavenge(UnorderedHeapObjectMap<HeapObject>* map) {
   // This is only used for Scavenger.
-  DCHECK(!v8_flags.minor_mc);
+  DCHECK(!v8_flags.minor_ms);
 
   UnorderedHeapObjectMap<HeapObject> updated_map;
 
@@ -1100,7 +1101,7 @@ void Heap::UpdateRetainersAfterScavenge() {
   if (!incremental_marking()->IsMarking()) return;
 
   // This is only used for Scavenger.
-  DCHECK(!v8_flags.minor_mc);
+  DCHECK(!v8_flags.minor_ms);
 
   UpdateRetainersMapAfterScavenge(&retainer_);
   UpdateRetainersMapAfterScavenge(&ephemeron_retainer_);
@@ -1211,7 +1212,7 @@ void Heap::GarbageCollectionPrologueInSafepoint() {
   DCHECK_EQ(ResizeNewSpaceMode::kNone, resize_new_space_mode_);
   if (new_space_) {
     UpdateNewSpaceAllocationCounter();
-    if (!v8_flags.minor_mc) {
+    if (!v8_flags.minor_ms) {
       resize_new_space_mode_ = ShouldResizeNewSpace();
       // Pretenuring heuristics require that new space grows before pretenuring
       // feedback is processed.
@@ -1313,8 +1314,8 @@ static GCType GetGCTypeFromGarbageCollector(GarbageCollector collector) {
       return kGCTypeMarkSweepCompact;
     case GarbageCollector::SCAVENGER:
       return kGCTypeScavenge;
-    case GarbageCollector::MINOR_MARK_COMPACTOR:
-      return kGCTypeMinorMarkCompact;
+    case GarbageCollector::MINOR_MARK_SWEEPER:
+      return kGCTypeMinorMarkSweep;
     default:
       UNREACHABLE();
   }
@@ -1388,7 +1389,7 @@ void Heap::GarbageCollectionEpilogueInSafepoint(GarbageCollector collector) {
   if (v8_flags.check_handle_count) CheckHandleCount();
 #endif
 
-  if (new_space() && !v8_flags.minor_mc) {
+  if (new_space() && !v8_flags.minor_ms) {
     SemiSpaceNewSpace* semi_space_new_space =
         SemiSpaceNewSpace::From(new_space());
     if (heap::ShouldZapGarbage() || v8_flags.clear_free_memory) {
@@ -1495,15 +1496,15 @@ void Heap::ScheduleMinorGCTaskIfNeeded() {
   minor_gc_job_->ScheduleTaskIfNeeded(this);
 }
 
-void Heap::StartMinorMCIncrementalMarkingIfNeeded() {
-  if (v8_flags.concurrent_minor_mc_marking && !IsTearingDown() &&
+void Heap::StartMinorMSIncrementalMarkingIfNeeded() {
+  if (v8_flags.concurrent_minor_ms_marking && !IsTearingDown() &&
       !incremental_marking()->IsMarking() &&
       incremental_marking()->CanBeStarted() && V8_LIKELY(!v8_flags.gc_global) &&
       (new_space()->Size() >=
        MinorGCJob::YoungGenerationTaskTriggerSize(this))) {
     StartIncrementalMarking(GCFlag::kNoFlags, GarbageCollectionReason::kTask,
                             kNoGCCallbackFlags,
-                            GarbageCollector::MINOR_MARK_COMPACTOR);
+                            GarbageCollector::MINOR_MARK_SWEEPER);
   }
 }
 
@@ -1788,7 +1789,7 @@ void Heap::CollectGarbage(AllocationSpace space,
 
   if (collector == GarbageCollector::MARK_COMPACTOR &&
       incremental_marking()->IsMinorMarking()) {
-    CollectGarbage(NEW_SPACE, GarbageCollectionReason::kFinalizeMinorMC);
+    CollectGarbage(NEW_SPACE, GarbageCollectionReason::kFinalizeMinorMS);
   }
 
   const GCType gc_type = GetGCTypeFromGarbageCollector(collector);
@@ -1918,7 +1919,7 @@ void Heap::CollectGarbage(AllocationSpace space,
   // Start incremental marking for the next cycle. We do this only for scavenger
   // to avoid a loop where mark-compact causes another mark-compact.
   if (collector == GarbageCollector::SCAVENGER) {
-    DCHECK(!v8_flags.minor_mc);
+    DCHECK(!v8_flags.minor_ms);
     StartIncrementalMarkingIfAllocationLimitIsReached(
         GCFlagsForIncrementalMarking(),
         kGCCallbackScheduleIdleGarbageCollection);
@@ -2022,8 +2023,8 @@ void CompleteArrayBufferSweeping(Heap* heap) {
     GCTracer::Scope::ScopeId scope_id;
 
     switch (tracer->GetCurrentCollector()) {
-      case GarbageCollector::MINOR_MARK_COMPACTOR:
-        scope_id = GCTracer::Scope::MINOR_MC_COMPLETE_SWEEP_ARRAY_BUFFERS;
+      case GarbageCollector::MINOR_MARK_SWEEPER:
+        scope_id = GCTracer::Scope::MINOR_MS_COMPLETE_SWEEP_ARRAY_BUFFERS;
         break;
       case GarbageCollector::SCAVENGER:
         scope_id = GCTracer::Scope::SCAVENGER_COMPLETE_SWEEP_ARRAY_BUFFERS;
@@ -2106,7 +2107,7 @@ void Heap::MoveRange(HeapObject dst_object, const ObjectSlot dst_slot,
   DCHECK(src_slot < src_slot + len);
 
   if ((v8_flags.concurrent_marking && incremental_marking()->IsMarking()) ||
-      (v8_flags.minor_mc && sweeper()->IsIteratingPromotedPages())) {
+      (v8_flags.minor_ms && sweeper()->IsIteratingPromotedPages())) {
     if (dst_slot < src_slot) {
       // Copy tagged values forward using relaxed load/stores that do not
       // involve value decompression.
@@ -2158,7 +2159,7 @@ void Heap::CopyRange(HeapObject dst_object, const TSlot dst_slot,
   DCHECK(dst_end <= src_slot || (src_slot + len) <= dst_slot);
 
   if ((v8_flags.concurrent_marking && incremental_marking()->IsMarking()) ||
-      (v8_flags.minor_mc && sweeper()->IsIteratingPromotedPages())) {
+      (v8_flags.minor_ms && sweeper()->IsIteratingPromotedPages())) {
     // Copy tagged values using relaxed load/stores that do not involve value
     // decompression.
     const AtomicSlot atomic_dst_end(dst_end);
@@ -2248,8 +2249,8 @@ GCTracer::Scope::ScopeId CollectorScopeId(GarbageCollector collector) {
   switch (collector) {
     case GarbageCollector::MARK_COMPACTOR:
       return GCTracer::Scope::ScopeId::MARK_COMPACTOR;
-    case GarbageCollector::MINOR_MARK_COMPACTOR:
-      return GCTracer::Scope::ScopeId::MINOR_MARK_COMPACTOR;
+    case GarbageCollector::MINOR_MARK_SWEEPER:
+      return GCTracer::Scope::ScopeId::MINOR_MARK_SWEEPER;
     case GarbageCollector::SCAVENGER:
       return GCTracer::Scope::ScopeId::SCAVENGER;
   }
@@ -2309,7 +2310,7 @@ void Heap::PerformGarbageCollection(GarbageCollector collector,
   }
 
   tracer()->StartAtomicPause();
-  if ((!Heap::IsYoungGenerationCollector(collector) || v8_flags.minor_mc) &&
+  if ((!Heap::IsYoungGenerationCollector(collector) || v8_flags.minor_ms) &&
       incremental_marking_->IsMarking()) {
     DCHECK_IMPLIES(Heap::IsYoungGenerationCollector(collector),
                    incremental_marking_->IsMinorMarking());
@@ -2357,8 +2358,8 @@ void Heap::PerformGarbageCollection(GarbageCollector collector,
 
   if (collector == GarbageCollector::MARK_COMPACTOR) {
     MarkCompact();
-  } else if (collector == GarbageCollector::MINOR_MARK_COMPACTOR) {
-    MinorMarkCompact();
+  } else if (collector == GarbageCollector::MINOR_MARK_SWEEPER) {
+    MinorMarkSweep();
   } else {
     DCHECK_EQ(GarbageCollector::SCAVENGER, collector);
     Scavenge();
@@ -2396,7 +2397,7 @@ void Heap::PerformGarbageCollection(GarbageCollector collector,
   isolate_->global_handles()->InvokeFirstPassWeakCallbacks();
 
   if (cpp_heap() && (collector == GarbageCollector::MARK_COMPACTOR ||
-                     collector == GarbageCollector::MINOR_MARK_COMPACTOR)) {
+                     collector == GarbageCollector::MINOR_MARK_SWEEPER)) {
     // TraceEpilogue may trigger operations that invalidate global handles. It
     // has to be called *after* all other operations that potentially touch
     // and reset global handles. It is also still part of the main garbage
@@ -2477,7 +2478,7 @@ void Heap::CompleteSweepingYoung() {
   // generation GC.
   FinishSweepingIfOutOfWork();
 
-  if (v8_flags.minor_mc) {
+  if (v8_flags.minor_ms) {
     EnsureYoungSweepingCompleted();
   }
 
@@ -2645,18 +2646,18 @@ void Heap::MarkCompact() {
   global_memory_at_last_gc_ = GlobalSizeOfObjects();
 }
 
-void Heap::MinorMarkCompact() {
-  DCHECK(v8_flags.minor_mc);
+void Heap::MinorMarkSweep() {
+  DCHECK(v8_flags.minor_ms);
   CHECK_EQ(NOT_IN_GC, gc_state());
   DCHECK(new_space());
   DCHECK(!incremental_marking()->IsMajorMarking());
 
-  TRACE_GC(tracer(), GCTracer::Scope::MINOR_MC);
+  TRACE_GC(tracer(), GCTracer::Scope::MINOR_MS);
 
   AlwaysAllocateScope always_allocate(this);
 
-  SetGCState(MINOR_MARK_COMPACT);
-  minor_mark_compact_collector_->CollectGarbage();
+  SetGCState(MINOR_MARK_SWEEP);
+  minor_mark_sweep_collector_->CollectGarbage();
   SetGCState(NOT_IN_GC);
 }
 
@@ -2751,7 +2752,7 @@ void Heap::UpdateExternalString(String string, size_t old_payload,
 String Heap::UpdateYoungReferenceInExternalStringTableEntry(Heap* heap,
                                                             FullObjectSlot p) {
   // This is only used for Scavenger.
-  DCHECK(!v8_flags.minor_mc);
+  DCHECK(!v8_flags.minor_ms);
 
   PtrComprCageBase cage_base(heap->isolate());
   HeapObject obj = HeapObject::cast(*p);
@@ -3830,8 +3831,8 @@ void Heap::ExpandNewSpaceSize() {
 }
 
 void Heap::ReduceNewSpaceSize() {
-  // MinorMC shrinks new space as part of sweeping.
-  if (!v8_flags.minor_mc) {
+  // MinorMS shrinks new space as part of sweeping.
+  if (!v8_flags.minor_ms) {
     SemiSpaceNewSpace::From(new_space())->Shrink();
   } else {
     paged_new_space()->FinishShrinking();
@@ -4411,7 +4412,7 @@ void Heap::VerifyCountersAfterSweeping() {
 }
 
 void Heap::VerifyCountersBeforeConcurrentSweeping(GarbageCollector collector) {
-  if (v8_flags.minor_mc && new_space()) {
+  if (v8_flags.minor_ms && new_space()) {
     PagedSpaceBase* space = paged_new_space()->paged_space();
     space->RefillFreeList();
     space->VerifyCountersBeforeConcurrentSweeping();
@@ -4434,7 +4435,7 @@ void Heap::VerifyCommittedPhysicalMemory() {
        space = spaces.Next()) {
     space->VerifyCommittedPhysicalMemory();
   }
-  if (v8_flags.minor_mc && new_space()) {
+  if (v8_flags.minor_ms && new_space()) {
     paged_new_space()->paged_space()->VerifyCommittedPhysicalMemory();
   }
 }
@@ -4789,7 +4790,7 @@ size_t Heap::DefaultMaxSemiSpaceSize() {
   static_assert(kMaxSemiSpaceCapacityBaseUnit % (1 << kPageSizeBits) == 0);
 
   size_t max_semi_space_size =
-      (v8_flags.minor_mc ? v8_flags.minor_mc_max_new_space_capacity_mb
+      (v8_flags.minor_ms ? v8_flags.minor_ms_max_new_space_capacity_mb
                          : v8_flags.scavenger_max_new_space_capacity_mb) *
       kMaxSemiSpaceCapacityBaseUnit;
   DCHECK_EQ(0, max_semi_space_size % (1 << kPageSizeBits));
@@ -4798,7 +4799,7 @@ size_t Heap::DefaultMaxSemiSpaceSize() {
 
 // static
 size_t Heap::OldGenerationToSemiSpaceRatio() {
-  DCHECK(!v8_flags.minor_mc);
+  DCHECK(!v8_flags.minor_ms);
   static constexpr size_t kOldGenerationToSemiSpaceRatio =
       128 * kHeapLimitMultiplier / kPointerMultiplier;
   return kOldGenerationToSemiSpaceRatio;
@@ -4808,7 +4809,7 @@ size_t Heap::OldGenerationToSemiSpaceRatio() {
 size_t Heap::OldGenerationToSemiSpaceRatioLowMemory() {
   static constexpr size_t kOldGenerationToSemiSpaceRatioLowMemory =
       256 * kHeapLimitMultiplier / kPointerMultiplier;
-  return kOldGenerationToSemiSpaceRatioLowMemory / (v8_flags.minor_mc ? 2 : 1);
+  return kOldGenerationToSemiSpaceRatioLowMemory / (v8_flags.minor_ms ? 2 : 1);
 }
 
 void Heap::ConfigureHeap(const v8::ResourceConstraints& constraints) {
@@ -4842,7 +4843,7 @@ void Heap::ConfigureHeap(const v8::ResourceConstraints& constraints) {
       // This will cause more frequent GCs when stressing.
       max_semi_space_size_ = MB;
     }
-    if (!v8_flags.minor_mc) {
+    if (!v8_flags.minor_ms) {
       // TODO(dinfuehr): Rounding to a power of 2 is technically no longer
       // needed but yields best performance on Pixel2.
       max_semi_space_size_ =
@@ -5394,7 +5395,7 @@ void Heap::SetUp(LocalHeap* main_thread_local_heap) {
   mark_compact_collector_.reset(new MarkCompactCollector(this));
 
   scavenger_collector_.reset(new ScavengerCollector(this));
-  minor_mark_compact_collector_.reset(new MinorMarkCompactCollector(this));
+  minor_mark_sweep_collector_.reset(new MinorMarkSweepCollector(this));
   ephemeron_remembered_set_.reset(new EphemeronRememberedSet());
 
   incremental_marking_.reset(
@@ -5412,7 +5413,7 @@ void Heap::SetUp(LocalHeap* main_thread_local_heap) {
     v8::GCType gc_type = kGCTypeMarkSweepCompact;
     if (V8_UNLIKELY(!v8_flags.trace_gc_heap_layout_ignore_minor_gc)) {
       gc_type = static_cast<v8::GCType>(gc_type | kGCTypeScavenge |
-                                        kGCTypeMinorMarkCompact);
+                                        kGCTypeMinorMarkSweep);
     }
     AddGCPrologueCallback(HeapLayoutTracer::GCProloguePrintHeapLayout, gc_type,
                           nullptr);
@@ -5475,7 +5476,7 @@ void Heap::SetUpSpaces(LinearAllocationArea& new_allocation_info,
   // Ensure SetUpFromReadOnlySpace has been ran.
   DCHECK_NOT_NULL(read_only_space_);
   if (!v8_flags.single_generation) {
-    if (v8_flags.minor_mc) {
+    if (v8_flags.minor_ms) {
       space_[NEW_SPACE] = std::make_unique<PagedNewSpace>(
           this, initial_semispace_size_, max_semi_space_size_,
           new_allocation_info);
@@ -5538,23 +5539,18 @@ void Heap::SetUpSpaces(LinearAllocationArea& new_allocation_info,
   LOG(isolate_, IntPtrTEvent("heap-capacity", Capacity()));
   LOG(isolate_, IntPtrTEvent("heap-available", Available()));
 
-  mark_compact_collector()->SetUp();
-  if (minor_mark_compact_collector_) {
-    minor_mark_compact_collector_->SetUp();
-  }
-
   if (new_space()) {
     minor_gc_job_.reset(new MinorGCJob());
-    if (v8_flags.minor_mc && v8_flags.concurrent_minor_mc_marking) {
-      // TODO(v8:13012): Atomic MinorMC should not use ScavengeJob. Instead, we
-      // should schedule MinorMC tasks at a soft limit, which are used by atomic
-      // MinorMC, and to finalize concurrent MinorMC. The condition
-      // v8_flags.concurrent_minor_mc_marking can then be changed to
-      // v8_flags.minor_mc (here and at the RemoveAllocationObserver call site).
+    if (v8_flags.minor_ms && v8_flags.concurrent_minor_ms_marking) {
+      // TODO(v8:13012): Atomic MinorMS should not use ScavengeJob. Instead, we
+      // should schedule MinorMS tasks at a soft limit, which are used by atomic
+      // MinorMS, and to finalize concurrent MinorMS. The condition
+      // v8_flags.concurrent_minor_ms_marking can then be changed to
+      // v8_flags.minor_ms (here and at the RemoveAllocationObserver call site).
       minor_gc_task_observer_.reset(
-          new MinorMCIncrementalMarkingTaskObserver(this));
+          new MinorMSIncrementalMarkingTaskObserver(this));
     } else {
-      // ScavengeJob is used by atomic MinorMC and Scavenger.
+      // ScavengeJob is used by atomic MinorMS and Scavenger.
       minor_gc_task_observer_.reset(new ScheduleMinorGCTaskObserver(this));
     }
   }
@@ -5840,9 +5836,9 @@ void Heap::TearDown() {
     mark_compact_collector_.reset();
   }
 
-  if (minor_mark_compact_collector_) {
-    minor_mark_compact_collector_->TearDown();
-    minor_mark_compact_collector_.reset();
+  if (minor_mark_sweep_collector_) {
+    minor_mark_sweep_collector_->TearDown();
+    minor_mark_sweep_collector_.reset();
   }
 
   sweeper_->TearDown();
@@ -7136,8 +7132,8 @@ void Heap::EnsureSweepingCompleted(SweepingForcedFinalizationMode mode) {
   if (sweeper()->sweeping_in_progress()) {
     sweeper()->EnsureMajorCompleted();
 
-    if (v8_flags.minor_mc && new_space()) {
-      TRACE_GC_EPOCH(tracer(), GCTracer::Scope::MINOR_MC_COMPLETE_SWEEPING,
+    if (v8_flags.minor_ms && new_space()) {
+      TRACE_GC_EPOCH(tracer(), GCTracer::Scope::MINOR_MS_COMPLETE_SWEEPING,
                      ThreadKind::kMain);
       paged_new_space()->paged_space()->RefillFreeList();
     }
@@ -7180,7 +7176,7 @@ void Heap::EnsureSweepingCompleted(SweepingForcedFinalizationMode mode) {
 void Heap::EnsureYoungSweepingCompleted() {
   if (!sweeper()->minor_sweeping_in_progress()) return;
 
-  TRACE_GC_EPOCH(tracer(), GCTracer::Scope::MINOR_MC_COMPLETE_SWEEPING,
+  TRACE_GC_EPOCH(tracer(), GCTracer::Scope::MINOR_MS_COMPLETE_SWEEPING,
                  ThreadKind::kMain);
 
   sweeper()->EnsureMinorCompleted();

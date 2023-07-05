@@ -36,8 +36,8 @@ ALL_VARIANT_FLAGS = {
     "turboshaft": [["--turboshaft"]],
     "concurrent_sparkplug": [["--concurrent-sparkplug", "--sparkplug"]],
     "always_sparkplug": [["--always-sparkplug", "--sparkplug"]],
-    "minor_mc": [["--minor-mc"]],
-    "concurrent_minor_mc": [["--minor-mc", "--concurrent-minor-mc-marking"]],
+    "minor_ms": [["--minor-ms"]],
+    "concurrent_minor_ms": [["--minor-ms", "--concurrent-minor-ms-marking"]],
     "no_lfa": [["--no-lazy-feedback-allocation"]],
     # No optimization means disable all optimizations. OptimizeFunctionOnNextCall
     # would not force optimization too. It turns into a Nop. Please see
@@ -145,7 +145,7 @@ INCOMPATIBLE_FLAGS_PER_VARIANT = {
         "--concurrent-recompilation", "--stress_concurrent_inlining",
         "--no-assert-types"
     ],
-    "concurrent_minor_mc": [
+    "concurrent_minor_ms": [
         "--predictable", "--single_threaded_gc", "--single_threaded",
         "--stress_snapshot", "--trace_gc_object_stats",
         "--no-incremental-marking", "--no-concurrent-marking"

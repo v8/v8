@@ -10,6 +10,7 @@
 #include "src/heap/cppgc/visitor.h"
 #include "src/heap/heap.h"
 #include "src/heap/mark-compact.h"
+#include "src/heap/minor-mark-sweep.h"
 
 namespace v8 {
 namespace internal {
@@ -23,7 +24,7 @@ std::unique_ptr<MarkingWorklists::Local> GetV8MarkingWorklists(
   auto* worklist =
       (collection_type == cppgc::internal::CollectionType::kMajor)
           ? heap->mark_compact_collector()->marking_worklists()
-          : heap->minor_mark_compact_collector()->marking_worklists();
+          : heap->minor_mark_sweep_collector()->marking_worklists();
   return std::make_unique<MarkingWorklists::Local>(worklist);
 }
 }  // namespace

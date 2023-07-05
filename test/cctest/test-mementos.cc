@@ -78,10 +78,10 @@ TEST(Regress340063) {
 
 TEST(Regress470390) {
 #ifdef VERIFY_HEAP
-  // With MinorMC, we may have object allocated after `new_space->top()`. If the
+  // With MinorMS, we may have object allocated after `new_space->top()`. If the
   // next object after `new_space->top()` is an invalid memento, heap
   // verification should fail.
-  if (v8_flags.minor_mc) return;
+  if (v8_flags.minor_ms) return;
 #endif  // VERIFY_HEAP
 
   CcTest::InitializeVM();

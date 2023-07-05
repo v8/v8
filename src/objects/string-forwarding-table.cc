@@ -349,7 +349,7 @@ void StringForwardingTable::Reset() {
 
 void StringForwardingTable::UpdateAfterYoungEvacuation() {
   // This is only used for the Scavenger.
-  DCHECK(!v8_flags.minor_mc);
+  DCHECK(!v8_flags.minor_ms);
   DCHECK(v8_flags.always_use_string_forwarding_table);
 
   if (empty()) return;

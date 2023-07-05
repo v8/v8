@@ -11,9 +11,9 @@ from testrunner.objects import testcase
 
 
 ADDITIONAL_VARIANTS = set([
-  "maglev",
-  "minor_mc",
-  "stress_maglev",
+    "maglev",
+    "minor_ms",
+    "stress_maglev",
 ])
 SHELL = "v8_unittests"
 

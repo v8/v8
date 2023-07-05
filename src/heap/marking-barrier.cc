@@ -15,6 +15,7 @@
 #include "src/heap/marking-barrier-inl.h"
 #include "src/heap/marking-worklist-inl.h"
 #include "src/heap/marking-worklist.h"
+#include "src/heap/minor-mark-sweep.h"
 #include "src/heap/safepoint.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/js-array-buffer.h"
@@ -26,7 +27,7 @@ namespace internal {
 MarkingBarrier::MarkingBarrier(LocalHeap* local_heap)
     : heap_(local_heap->heap()),
       major_collector_(heap_->mark_compact_collector()),
-      minor_collector_(heap_->minor_mark_compact_collector()),
+      minor_collector_(heap_->minor_mark_sweep_collector()),
       incremental_marking_(heap_->incremental_marking()),
       major_worklist_(*major_collector_->marking_worklists()->shared()),
       minor_worklist_(*minor_collector_->marking_worklists()->shared()),

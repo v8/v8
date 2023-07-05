@@ -47,7 +47,7 @@
 #include "src/heap/gc-tracer.h"
 #include "src/heap/heap.h"
 #include "src/heap/marking-worklist.h"
-#include "src/heap/sweeper.h"
+#include "src/heap/minor-mark-sweep.h"
 #include "src/heap/traced-handles-marking-visitor.h"
 #include "src/init/v8.h"
 #include "src/profiler/heap-profiler.h"
@@ -740,7 +740,7 @@ MarkingWorklists::Local* GetV8MarkingWorklists(
   if (collection_type == cppgc::internal::CollectionType::kMajor) {
     return heap->mark_compact_collector()->local_marking_worklists();
   } else {
-    return heap->minor_mark_compact_collector()->local_marking_worklists();
+    return heap->minor_mark_sweep_collector()->local_marking_worklists();
   }
 }
 }  // namespace

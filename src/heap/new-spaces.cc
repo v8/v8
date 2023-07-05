@@ -31,7 +31,7 @@ Page* SemiSpace::InitializePage(MemoryChunk* chunk) {
   Page* page = static_cast<Page*>(chunk);
   page->SetYoungGenerationPageFlags(heap()->incremental_marking()->IsMarking());
   page->list_node().Initialize();
-  if (v8_flags.minor_mc) {
+  if (v8_flags.minor_ms) {
     heap()->non_atomic_marking_state()->ClearLiveness(page);
   }
   page->InitializationMemoryFence();
@@ -1064,7 +1064,7 @@ bool PagedSpaceForNewSpace::IsPromotionCandidate(
   return page->AllocatedLabSize() <=
          static_cast<size_t>(
              Page::kPageSize *
-             v8_flags.minor_mc_page_promotion_max_lab_threshold / 100);
+             v8_flags.minor_ms_page_promotion_max_lab_threshold / 100);
 }
 
 #ifdef VERIFY_HEAP

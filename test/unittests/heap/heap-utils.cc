@@ -63,7 +63,7 @@ void FillPageInPagedSpace(Page* page,
   CollectionEpoch full_epoch =
       heap->tracer()->CurrentEpoch(GCTracer::Scope::ScopeId::MARK_COMPACTOR);
   CollectionEpoch young_epoch = heap->tracer()->CurrentEpoch(
-      GCTracer::Scope::ScopeId::MINOR_MARK_COMPACTOR);
+      GCTracer::Scope::ScopeId::MINOR_MARK_SWEEPER);
 
   for (Page* p : *paged_space) {
     if (p != page) paged_space->UnlinkFreeListCategories(p);
@@ -141,7 +141,7 @@ void FillPageInPagedSpace(Page* page,
   CHECK_EQ(full_epoch, heap->tracer()->CurrentEpoch(
                            GCTracer::Scope::ScopeId::MARK_COMPACTOR));
   CHECK_EQ(young_epoch, heap->tracer()->CurrentEpoch(
-                            GCTracer::Scope::ScopeId::MINOR_MARK_COMPACTOR));
+                            GCTracer::Scope::ScopeId::MINOR_MARK_SWEEPER));
 }
 
 }  // namespace
@@ -156,7 +156,7 @@ void HeapInternalsBase::SimulateFullSpace(
   space->heap()->EnsureSweepingCompleted(
       Heap::SweepingForcedFinalizationMode::kV8Only);
   space->FreeLinearAllocationArea();
-  if (v8_flags.minor_mc) {
+  if (v8_flags.minor_ms) {
     while (space->AddFreshPage()) {}
     for (Page* page : *space) {
       FillPageInPagedSpace(page, out_handles);
@@ -271,7 +271,7 @@ void HeapInternalsBase::FillCurrentPage(
     v8::internal::NewSpace* space,
     std::vector<Handle<FixedArray>>* out_handles) {
   PauseAllocationObserversScope pause_observers(space->heap());
-  if (v8_flags.minor_mc)
+  if (v8_flags.minor_ms)
     FillCurrenPagedSpacePage(space, out_handles);
   else
     FillCurrentSemiSpacePage(space, out_handles);
@@ -286,7 +286,7 @@ ManualGCScope::ManualGCScope(Isolate* isolate)
     : isolate_(isolate),
       flag_concurrent_marking_(v8_flags.concurrent_marking),
       flag_concurrent_sweeping_(v8_flags.concurrent_sweeping),
-      flag_concurrent_minor_mc_marking_(v8_flags.concurrent_minor_mc_marking),
+      flag_concurrent_minor_ms_marking_(v8_flags.concurrent_minor_ms_marking),
       flag_stress_concurrent_allocation_(v8_flags.stress_concurrent_allocation),
       flag_stress_incremental_marking_(v8_flags.stress_incremental_marking),
       flag_parallel_marking_(v8_flags.parallel_marking),
@@ -305,7 +305,7 @@ ManualGCScope::ManualGCScope(Isolate* isolate)
 
   v8_flags.concurrent_marking = false;
   v8_flags.concurrent_sweeping = false;
-  v8_flags.concurrent_minor_mc_marking = false;
+  v8_flags.concurrent_minor_ms_marking = false;
   v8_flags.stress_incremental_marking = false;
   v8_flags.stress_concurrent_allocation = false;
   // Parallel marking has a dependency on concurrent marking.
@@ -323,7 +323,7 @@ ManualGCScope::ManualGCScope(Isolate* isolate)
 ManualGCScope::~ManualGCScope() {
   v8_flags.concurrent_marking = flag_concurrent_marking_;
   v8_flags.concurrent_sweeping = flag_concurrent_sweeping_;
-  v8_flags.concurrent_minor_mc_marking = flag_concurrent_minor_mc_marking_;
+  v8_flags.concurrent_minor_ms_marking = flag_concurrent_minor_ms_marking_;
   v8_flags.stress_concurrent_allocation = flag_stress_concurrent_allocation_;
   v8_flags.stress_incremental_marking = flag_stress_incremental_marking_;
   v8_flags.parallel_marking = flag_parallel_marking_;

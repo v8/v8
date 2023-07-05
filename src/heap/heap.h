@@ -104,7 +104,7 @@ class MemoryChunk;
 class MemoryMeasurement;
 class MemoryReducer;
 class MinorGCJob;
-class MinorMarkCompactCollector;
+class MinorMarkSweepCollector;
 class NativeContext;
 class NopRwxMemoryWriteScope;
 class ObjectIterator;
@@ -203,7 +203,7 @@ class Heap final {
     NOT_IN_GC,
     SCAVENGE,
     MARK_COMPACT,
-    MINOR_MARK_COMPACT,
+    MINOR_MARK_SWEEP,
     TEAR_DOWN
   };
 
@@ -347,11 +347,11 @@ class Heap final {
 
   static inline bool IsYoungGenerationCollector(GarbageCollector collector) {
     return collector == GarbageCollector::SCAVENGER ||
-           collector == GarbageCollector::MINOR_MARK_COMPACTOR;
+           collector == GarbageCollector::MINOR_MARK_SWEEPER;
   }
 
   static inline GarbageCollector YoungGenerationCollector() {
-    return (v8_flags.minor_mc) ? GarbageCollector::MINOR_MARK_COMPACTOR
+    return (v8_flags.minor_ms) ? GarbageCollector::MINOR_MARK_SWEEPER
                                : GarbageCollector::SCAVENGER;
   }
 
@@ -791,8 +791,8 @@ class Heap final {
     return mark_compact_collector_.get();
   }
 
-  MinorMarkCompactCollector* minor_mark_compact_collector() {
-    return minor_mark_compact_collector_.get();
+  MinorMarkSweepCollector* minor_mark_sweep_collector() {
+    return minor_mark_sweep_collector_.get();
   }
 
   Sweeper* sweeper() { return sweeper_.get(); }
@@ -1796,7 +1796,7 @@ class Heap final {
   // Performs a major collection in the whole heap.
   void MarkCompact();
   // Performs a minor collection of just the young generation.
-  void MinorMarkCompact();
+  void MinorMarkSweep();
 
   // Code to be run before and after mark-compact.
   void MarkCompactPrologue();
@@ -1911,8 +1911,8 @@ class Heap final {
   // ===========================================================================
 
   void ScheduleMinorGCTaskIfNeeded();
-  void StartMinorMCIncrementalMarkingIfNeeded();
-  bool MinorMCSizeTaskTriggerReached() const;
+  void StartMinorMSIncrementalMarkingIfNeeded();
+  bool MinorMSSizeTaskTriggerReached() const;
 
   // ===========================================================================
   // Allocation methods. =======================================================
@@ -2170,7 +2170,7 @@ class Heap final {
   std::unique_ptr<GCTracer> tracer_;
   std::unique_ptr<Sweeper> sweeper_;
   std::unique_ptr<MarkCompactCollector> mark_compact_collector_;
-  std::unique_ptr<MinorMarkCompactCollector> minor_mark_compact_collector_;
+  std::unique_ptr<MinorMarkSweepCollector> minor_mark_sweep_collector_;
   std::unique_ptr<ScavengerCollector> scavenger_collector_;
   std::unique_ptr<ArrayBufferSweeper> array_buffer_sweeper_;
 
@@ -2300,7 +2300,7 @@ class Heap final {
 
   PretenuringHandler pretenuring_handler_;
 
-  // This field is used only when not running with MinorMC.
+  // This field is used only when not running with MinorMS.
   ResizeNewSpaceMode resize_new_space_mode_ = ResizeNewSpaceMode::kNone;
 
   std::unique_ptr<MemoryBalancer> mb_;
@@ -2309,7 +2309,6 @@ class Heap final {
   friend class AlwaysAllocateScope;
   friend class ArrayBufferCollector;
   friend class ArrayBufferSweeper;
-  friend class CollectorBase;
   friend class ConcurrentAllocator;
   friend class ConcurrentMarking;
   friend class ConservativeTracedHandlesMarkingVisitor;
@@ -2334,8 +2333,8 @@ class Heap final {
   friend class MarkCompactCollectorBase;
   friend class MinorGCJob;
   friend class MinorGCTaskObserver;
-  friend class MinorMarkCompactCollector;
-  friend class MinorMCIncrementalMarkingTaskObserver;
+  friend class MinorMarkSweepCollector;
+  friend class MinorMSIncrementalMarkingTaskObserver;
   friend class NewLargeObjectSpace;
   friend class NewSpace;
   friend class ObjectStatsCollector;

@@ -23,6 +23,7 @@
 #include "src/heap/marking-visitor.h"
 #include "src/heap/memory-chunk-layout.h"
 #include "src/heap/memory-chunk.h"
+#include "src/heap/minor-mark-sweep.h"
 #include "src/heap/object-stats.h"
 #include "src/heap/objects-visiting-inl.h"
 #include "src/heap/objects-visiting.h"
@@ -54,7 +55,7 @@ void IncrementalMarking::Observer::Step(int bytes_allocated, Address addr,
 IncrementalMarking::IncrementalMarking(Heap* heap, WeakObjects* weak_objects)
     : heap_(heap),
       major_collector_(heap->mark_compact_collector()),
-      minor_collector_(heap->minor_mark_compact_collector()),
+      minor_collector_(heap->minor_mark_sweep_collector()),
       weak_objects_(weak_objects),
       incremental_marking_job_(heap),
       new_generation_observer_(this, kYoungGenerationAllocatedThreshold),
@@ -122,7 +123,7 @@ void IncrementalMarking::Start(GarbageCollector garbage_collector,
       is_major ? counters->gc_incremental_marking_start()
                : counters->gc_minor_incremental_marking_start());
   const auto scope_id = is_major ? GCTracer::Scope::MC_INCREMENTAL_START
-                                 : GCTracer::Scope::MINOR_MC_INCREMENTAL_START;
+                                 : GCTracer::Scope::MINOR_MS_INCREMENTAL_START;
   TRACE_EVENT2("v8",
                is_major ? "V8.GCIncrementalMarkingStart"
                         : "V8.GCMinorIncrementalMarkingStart",
@@ -148,8 +149,8 @@ void IncrementalMarking::Start(GarbageCollector garbage_collector,
                                              &new_generation_observer_);
     incremental_marking_job()->ScheduleTask();
   } else {
-    current_collector_ = CurrentCollector::kMinorMC;
-    // Allocation observers are not currently used by MinorMC because we don't
+    current_collector_ = CurrentCollector::kMinorMS;
+    // Allocation observers are not currently used by MinorMS because we don't
     // do incremental marking.
     StartMarkingMinor();
   }
@@ -302,7 +303,7 @@ void IncrementalMarking::StartMarkingMajor() {
 
   heap_->InvokeIncrementalMarkingEpilogueCallbacks();
 
-  if (v8_flags.minor_mc && heap_->new_space()) {
+  if (v8_flags.minor_ms && heap_->new_space()) {
     heap_->paged_new_space()->ForceAllocationSuccessUntilNextGC();
   }
 }
@@ -312,7 +313,7 @@ void IncrementalMarking::StartMarkingMinor() {
 
   if (v8_flags.trace_incremental_marking) {
     isolate()->PrintWithTimestamp(
-        "[IncrementalMarking] (MinorMC) Start marking\n");
+        "[IncrementalMarking] (MinorMS) Start marking\n");
   }
 
   minor_collector_->StartMarking();
@@ -325,17 +326,17 @@ void IncrementalMarking::StartMarkingMinor() {
   MarkingBarrier::ActivateAll(heap(), false, MarkingBarrierType::kMinor);
 
   {
-    TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_MARK_ROOTS);
+    TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MS_MARK_ROOTS);
     MarkRoots();
   }
 
-  if (v8_flags.concurrent_minor_mc_marking && !heap_->IsTearingDown()) {
+  if (v8_flags.concurrent_minor_ms_marking && !heap_->IsTearingDown()) {
     heap_->concurrent_marking()->ScheduleJob(
-        GarbageCollector::MINOR_MARK_COMPACTOR);
+        GarbageCollector::MINOR_MARK_SWEEPER);
   }
 
   if (v8_flags.trace_incremental_marking) {
-    isolate()->PrintWithTimestamp("[IncrementalMarking] (MinorMC) Running\n");
+    isolate()->PrintWithTimestamp("[IncrementalMarking] (MinorMS) Running\n");
   }
 
   DCHECK(!is_compacting_);
@@ -406,7 +407,7 @@ void IncrementalMarking::UpdateMarkingWorklistAfterScavenge() {
   DCHECK(!v8_flags.separate_gc_phases);
   DCHECK(IsMajorMarking());
   // Minor MC never runs during incremental marking.
-  DCHECK(!v8_flags.minor_mc);
+  DCHECK(!v8_flags.minor_ms);
 
   Map filler_map = ReadOnlyRoots(heap_).one_pointer_filler_map();
 

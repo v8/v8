@@ -85,7 +85,7 @@ void EvacuationVerifier::VerifyEvacuationOnPage(Address start, Address end) {
 
 void EvacuationVerifier::VerifyEvacuation(NewSpace* space) {
   if (!space) return;
-  if (v8_flags.minor_mc) {
+  if (v8_flags.minor_ms) {
     VerifyEvacuation(PagedNewSpace::From(space)->paged_space());
     return;
   }

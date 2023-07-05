@@ -450,7 +450,7 @@ AllocationResult NewLargeObjectSpace::AllocateRaw(int object_size) {
   page->SetYoungGenerationPageFlags(heap()->incremental_marking()->IsMarking());
   page->SetFlag(MemoryChunk::TO_PAGE);
   UpdatePendingObject(result);
-  if (v8_flags.minor_mc) {
+  if (v8_flags.minor_ms) {
     heap()->non_atomic_marking_state()->ClearLiveness(page);
   }
   page->InitializationMemoryFence();

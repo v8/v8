@@ -30,20 +30,20 @@ TEST(ResourceConstraints, ConfigureDefaultsFromHeapSizeLarge) {
   constraints.ConfigureDefaultsFromHeapSize(50u * MB, 3u * GB);
   // Check that for large heap sizes max semi space size is set to the maximum
   // supported capacity (i.e. 8MB with pointer compression and 16MB without;
-  // MinorMC supports double capacity).
-  ASSERT_EQ(internal::v8_flags.minor_mc ? 2 * i::Heap::DefaultMaxSemiSpaceSize()
+  // MinorMS supports double capacity).
+  ASSERT_EQ(internal::v8_flags.minor_ms ? 2 * i::Heap::DefaultMaxSemiSpaceSize()
                                         : 3 * 8 * pm * MB,
             constraints.max_young_generation_size_in_bytes());
-  ASSERT_EQ(3u * GB - (internal::v8_flags.minor_mc
+  ASSERT_EQ(3u * GB - (internal::v8_flags.minor_ms
                            ? 2 * i::Heap::DefaultMaxSemiSpaceSize()
                            : 3 * 8 * pm * MB),
             constraints.max_old_generation_size_in_bytes());
   // Check that for small initial heap sizes initial semi space size is set to
   // the minimum supported capacity (i.e. 1MB with pointer compression and 512KB
   // without).
-  ASSERT_EQ((internal::v8_flags.minor_mc ? 2 : 3) * 512 * pm * KB,
+  ASSERT_EQ((internal::v8_flags.minor_ms ? 2 : 3) * 512 * pm * KB,
             constraints.initial_young_generation_size_in_bytes());
-  ASSERT_EQ(50u * MB - (internal::v8_flags.minor_mc ? 2 : 3) * 512 * pm * KB,
+  ASSERT_EQ(50u * MB - (internal::v8_flags.minor_ms ? 2 : 3) * 512 * pm * KB,
             constraints.initial_old_generation_size_in_bytes());
 }
 
@@ -56,7 +56,7 @@ TEST(ResourceConstraints, ConfigureDefaults) {
   constraints.ConfigureDefaults(2u * GB, 0u);
   ASSERT_EQ(512u * hlm * MB, constraints.max_old_generation_size_in_bytes());
   ASSERT_EQ(0u, constraints.initial_old_generation_size_in_bytes());
-  ASSERT_EQ(internal::v8_flags.minor_mc ? 2 * i::Heap::DefaultMaxSemiSpaceSize()
+  ASSERT_EQ(internal::v8_flags.minor_ms ? 2 * i::Heap::DefaultMaxSemiSpaceSize()
                                         : 3 * 4 * pm * MB,
             constraints.max_young_generation_size_in_bytes());
   ASSERT_EQ(0u, constraints.initial_young_generation_size_in_bytes());

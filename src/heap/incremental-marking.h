@@ -36,7 +36,7 @@ enum class StepOrigin {
   kTask
 };
 
-enum class CurrentCollector { kNone, kMinorMC, kMajorMC };
+enum class CurrentCollector { kNone, kMinorMS, kMajorMC };
 
 class V8_EXPORT_PRIVATE IncrementalMarking final {
  public:
@@ -150,7 +150,7 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
   void AdvanceForTesting(double max_step_size_in_ms);
 
   bool IsMinorMarking() const {
-    return IsMarking() && current_collector_ == CurrentCollector::kMinorMC;
+    return IsMarking() && current_collector_ == CurrentCollector::kMinorMS;
   }
   bool IsMajorMarking() const {
     return IsMarking() && current_collector_ == CurrentCollector::kMajorMC;
@@ -226,7 +226,7 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
   CurrentCollector current_collector_{CurrentCollector::kNone};
 
   MarkCompactCollector* const major_collector_;
-  MinorMarkCompactCollector* const minor_collector_;
+  MinorMarkSweepCollector* const minor_collector_;
 
   WeakObjects* weak_objects_;
 

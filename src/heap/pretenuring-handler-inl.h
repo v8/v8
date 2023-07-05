@@ -21,8 +21,8 @@ void PretenuringHandler::UpdateAllocationSite(
   DCHECK_NE(pretenuring_feedback, &global_pretenuring_feedback_);
 #ifdef DEBUG
   BasicMemoryChunk* chunk = BasicMemoryChunk::FromHeapObject(object);
-  DCHECK_IMPLIES(chunk->IsToPage(), v8_flags.minor_mc);
-  DCHECK_IMPLIES(!v8_flags.minor_mc && !chunk->InYoungGeneration(),
+  DCHECK_IMPLIES(chunk->IsToPage(), v8_flags.minor_ms);
+  DCHECK_IMPLIES(!v8_flags.minor_ms && !chunk->InYoungGeneration(),
                  chunk->IsFlagSet(MemoryChunk::PAGE_NEW_OLD_PROMOTION));
 #endif
   if (!v8_flags.allocation_site_pretenuring ||

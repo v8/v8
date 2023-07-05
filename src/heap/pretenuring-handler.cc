@@ -26,15 +26,15 @@ static constexpr int kMinMementoCount = 100;
 
 double GetPretenuringRatioThreshold(size_t new_space_capacity) {
   static constexpr double kScavengerPretenureRatio = 0.85;
-  // MinorMC allows for a much larger new space, thus we require a lower
+  // MinorMS allows for a much larger new space, thus we require a lower
   // survival rate for pretenuring.
-  static constexpr double kMinorMCPretenureMaxRatio = 0.8;
-  static constexpr double kMinorMCMinCapacity = 16 * MB;
-  if (!v8_flags.minor_mc) return kScavengerPretenureRatio;
-  if (new_space_capacity <= kMinorMCMinCapacity)
-    return kMinorMCPretenureMaxRatio;
+  static constexpr double kMinorMSPretenureMaxRatio = 0.8;
+  static constexpr double kMinorMSMinCapacity = 16 * MB;
+  if (!v8_flags.minor_ms) return kScavengerPretenureRatio;
+  if (new_space_capacity <= kMinorMSMinCapacity)
+    return kMinorMSPretenureMaxRatio;
   // When capacity is 64MB, the pretenuring ratio would be 0.2.
-  return kMinorMCPretenureMaxRatio * kMinorMCMinCapacity / new_space_capacity;
+  return kMinorMSPretenureMaxRatio * kMinorMSMinCapacity / new_space_capacity;
 }
 
 inline bool MakePretenureDecision(

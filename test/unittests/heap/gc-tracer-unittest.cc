@@ -107,7 +107,7 @@ void StopTracing(GCTracer* tracer, GarbageCollector collector) {
     case GarbageCollector::SCAVENGER:
       tracer->StopYoungCycleIfNeeded();
       break;
-    case GarbageCollector::MINOR_MARK_COMPACTOR:
+    case GarbageCollector::MINOR_MARK_SWEEPER:
       tracer->NotifyYoungSweepingCompleted();
       break;
     case GarbageCollector::MARK_COMPACTOR:
@@ -415,18 +415,18 @@ TEST_F(GCTracerTest, BackgroundScavengerScope) {
               .scopes[GCTracer::Scope::SCAVENGER_BACKGROUND_SCAVENGE_PARALLEL]);
 }
 
-TEST_F(GCTracerTest, BackgroundMinorMCScope) {
+TEST_F(GCTracerTest, BackgroundMinorMSScope) {
   if (v8_flags.stress_incremental_marking) return;
   GCTracer* tracer = i_isolate()->heap()->tracer();
   tracer->ResetForTesting();
-  StartTracing(tracer, GarbageCollector::MINOR_MARK_COMPACTOR,
+  StartTracing(tracer, GarbageCollector::MINOR_MARK_SWEEPER,
                StartTracingMode::kAtomic);
-  tracer->AddScopeSample(GCTracer::Scope::MINOR_MC_BACKGROUND_MARKING, 10);
-  tracer->AddScopeSample(GCTracer::Scope::MINOR_MC_BACKGROUND_MARKING, 1);
-  StopTracing(tracer, GarbageCollector::MINOR_MARK_COMPACTOR);
+  tracer->AddScopeSample(GCTracer::Scope::MINOR_MS_BACKGROUND_MARKING, 10);
+  tracer->AddScopeSample(GCTracer::Scope::MINOR_MS_BACKGROUND_MARKING, 1);
+  StopTracing(tracer, GarbageCollector::MINOR_MARK_SWEEPER);
   EXPECT_DOUBLE_EQ(
       11,
-      tracer->current_.scopes[GCTracer::Scope::MINOR_MC_BACKGROUND_MARKING]);
+      tracer->current_.scopes[GCTracer::Scope::MINOR_MS_BACKGROUND_MARKING]);
 }
 
 TEST_F(GCTracerTest, BackgroundMajorMCScope) {

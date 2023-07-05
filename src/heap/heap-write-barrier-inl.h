@@ -345,7 +345,7 @@ void WriteBarrier::CombinedBarrierFromInternalFields(JSObject host, size_t argc,
   }
   MarkingBarrier* marking_barrier = CurrentMarkingBarrier(host);
   if (marking_barrier->is_minor()) {
-    // TODO(v8:13012): We do not currently mark Oilpan objects while MinorMC is
+    // TODO(v8:13012): We do not currently mark Oilpan objects while MinorMS is
     // active. Once Oilpan uses a generational GC with incremental marking and
     // unified heap, this barrier will be needed again.
     return;

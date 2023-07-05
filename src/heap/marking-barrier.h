@@ -84,7 +84,7 @@ class MarkingBarrier {
 
   Heap* heap_;
   MarkCompactCollector* major_collector_;
-  MinorMarkCompactCollector* minor_collector_;
+  MinorMarkSweepCollector* minor_collector_;
   IncrementalMarking* incremental_marking_;
   MarkingWorklist::Local major_worklist_;
   MarkingWorklist::Local minor_worklist_;

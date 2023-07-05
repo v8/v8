@@ -410,7 +410,7 @@ class V8_EXPORT_PRIVATE EphemeronHashTable
 
  protected:
   friend class MarkCompactCollector;
-  friend class MinorMarkCompactCollector;
+  friend class MinorMarkSweepCollector;
   friend class ScavengerCollector;
   friend class third_party_heap::Impl;
   friend class HashTable<EphemeronHashTable, ObjectHashTableShape>;

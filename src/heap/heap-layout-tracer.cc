@@ -22,7 +22,7 @@ constexpr const char* TypeToCollectorName(v8::GCType gc_type) {
       return "Scavenger";
     case kGCTypeMarkSweepCompact:
       return "Mark-Compact";
-    case kGCTypeMinorMarkCompact:
+    case kGCTypeMinorMarkSweep:
       return "Minor Mark-Compact";
     default:
       break;
@@ -68,7 +68,7 @@ void HeapLayoutTracer::PrintBasicMemoryChunk(std::ostream& os,
 
 // static
 void HeapLayoutTracer::PrintHeapLayout(std::ostream& os, Heap* heap) {
-  if (v8_flags.minor_mc) {
+  if (v8_flags.minor_ms) {
     for (const Page* page : *heap->paged_new_space()) {
       PrintBasicMemoryChunk(os, *page, "new_space");
     }

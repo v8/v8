@@ -183,11 +183,11 @@ class V8_EXPORT_PRIVATE LocalHeap {
   // The callback is invoked on the main thread before any background thread
   // resumes. The callback must not allocate or make any other calls that
   // can trigger GC.
-  void AddGCEpilogueCallback(GCEpilogueCallback* callback, void* data,
-                             GCType gc_type = static_cast<v8::GCType>(
-                                 GCType::kGCTypeMarkSweepCompact |
-                                 GCType::kGCTypeScavenge |
-                                 GCType::kGCTypeMinorMarkCompact));
+  void AddGCEpilogueCallback(
+      GCEpilogueCallback* callback, void* data,
+      GCType gc_type = static_cast<v8::GCType>(GCType::kGCTypeMarkSweepCompact |
+                                               GCType::kGCTypeScavenge |
+                                               GCType::kGCTypeMinorMarkSweep));
   void RemoveGCEpilogueCallback(GCEpilogueCallback* callback, void* data);
 
   // Weakens StrongDescriptorArray objects into regular DescriptorArray objects.

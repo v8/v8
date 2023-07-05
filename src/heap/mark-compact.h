@@ -5,23 +5,17 @@
 #ifndef V8_HEAP_MARK_COMPACT_H_
 #define V8_HEAP_MARK_COMPACT_H_
 
-#include <atomic>
 #include <vector>
 
 #include "include/v8-internal.h"
 #include "src/common/globals.h"
-#include "src/heap/base/worklist.h"
 #include "src/heap/concurrent-marking.h"
-#include "src/heap/ephemeron-remembered-set.h"
-#include "src/heap/index-generator.h"
+#include "src/heap/mark-compact-base.h"
 #include "src/heap/marking-state.h"
 #include "src/heap/marking-visitor.h"
 #include "src/heap/marking-worklist.h"
 #include "src/heap/marking.h"
 #include "src/heap/memory-measurement.h"
-#include "src/heap/parallel-work-item.h"
-#include "src/heap/pretenuring-handler.h"
-#include "src/heap/slot-set.h"
 #include "src/heap/spaces.h"
 #include "src/heap/sweeper.h"
 
@@ -29,21 +23,10 @@ namespace v8 {
 namespace internal {
 
 // Forward declarations.
-class EvacuationJobTraits;
 class HeapObjectVisitor;
 class LargeObjectSpace;
 class LargePage;
-class MigrationObserver;
-class PagedNewSpace;
-class ReadOnlySpace;
 class RecordMigratedSlotVisitor;
-class YoungGenerationRememberedSetsMarkingWorklist;
-class UpdatingItem;
-class YoungGenerationMarkingTask;
-
-enum class MemoryReductionMode { kNone, kShouldReduceMemory };
-enum PageEvacuationMode { NEW_TO_NEW, NEW_TO_OLD };
-enum class RememberedSetUpdatingMode { ALL, OLD_TO_NEW_ONLY };
 
 // This visitor is used for marking on the main thread. It is cheaper than
 // the concurrent marking visitor because it does not snapshot JSObjects.
@@ -89,117 +72,8 @@ class MainMarkingVisitor final
                                   MarkingState>;
 };
 
-class YoungGenerationMarkingState final
-    : public MarkingStateBase<YoungGenerationMarkingState, AccessMode::ATOMIC> {
- public:
-  explicit YoungGenerationMarkingState(PtrComprCageBase cage_base)
-      : MarkingStateBase(cage_base) {}
-
-  const MarkingBitmap* bitmap(const MemoryChunk* chunk) const {
-    return chunk->marking_bitmap();
-  }
-};
-
-class YoungGenerationMainMarkingVisitor final
-    : public YoungGenerationMarkingVisitorBase<
-          YoungGenerationMainMarkingVisitor, MarkingState> {
- public:
-  YoungGenerationMainMarkingVisitor(
-      Isolate* isolate, MarkingWorklists::Local* worklists_local,
-      EphemeronRememberedSet::TableList::Local* ephemeron_table_list_local);
-
-  ~YoungGenerationMainMarkingVisitor() override;
-
-  YoungGenerationMainMarkingVisitor(const YoungGenerationMainMarkingVisitor&) =
-      delete;
-  YoungGenerationMainMarkingVisitor& operator=(
-      const YoungGenerationMainMarkingVisitor&) = delete;
-
-  template <typename TSlot>
-  V8_INLINE void VisitPointersImpl(HeapObject host, TSlot start, TSlot end);
-
-  YoungGenerationMarkingState* marking_state() { return &marking_state_; }
-
-  V8_INLINE void IncrementLiveBytesCached(MemoryChunk* chunk, intptr_t by);
-
-  template <typename TSlot>
-  bool VisitObjectViaSlotInRemeberedSet(TSlot slot);
-
-  V8_INLINE void Finalize();
-
-  V8_INLINE bool ShortCutStrings(HeapObjectSlot slot, HeapObject* heap_object);
-
- private:
-  YoungGenerationMarkingState marking_state_;
-  PretenuringHandler::PretenuringFeedbackMap local_pretenuring_feedback_;
-  const bool shortcut_strings_;
-
-  static constexpr size_t kNumEntries = 128;
-  static constexpr size_t kEntriesMask = kNumEntries - 1;
-  // Fixed-size hashmap that caches live bytes. Hashmap entries are evicted to
-  // the global counters on collision.
-  std::array<std::pair<MemoryChunk*, size_t>, kNumEntries> live_bytes_data_;
-
-  friend class YoungGenerationMarkingVisitorBase<
-      YoungGenerationMainMarkingVisitor, MarkingState>;
-};
-
-class CollectorBase {
- public:
-  GarbageCollector garbage_collector() { return garbage_collector_; }
-
-  virtual void SetUp() {}
-  virtual void TearDown() {}
-  virtual void CollectGarbage() = 0;
-  virtual void Prepare() = 0;
-  virtual void StartMarking() = 0;
-
-  MarkingWorklists* marking_worklists() { return &marking_worklists_; }
-
-  MarkingWorklists::Local* local_marking_worklists() const {
-    return local_marking_worklists_.get();
-  }
-
-  virtual void Finish() = 0;
-
-  bool IsMajorMC();
-
- private:
-  std::vector<Page*> new_space_evacuation_pages_;
-
- protected:
-  using ResizeNewSpaceMode = Heap::ResizeNewSpaceMode;
-
-  inline Heap* heap() const { return heap_; }
-  inline Isolate* isolate();
-
-  MarkingState* marking_state() { return marking_state_; }
-
-  NonAtomicMarkingState* non_atomic_marking_state() {
-    return non_atomic_marking_state_;
-  }
-
-  void StartSweepSpace(PagedSpace* space);
-
-  bool IsCppHeapMarkingFinished() const;
-
-  Heap* heap_;
-  GarbageCollector garbage_collector_;
-  MarkingWorklists marking_worklists_;
-
-  std::unique_ptr<MarkingWorklists::Local> local_marking_worklists_;
-
-  MarkingState* const marking_state_;
-  NonAtomicMarkingState* const non_atomic_marking_state_;
-
-  ResizeNewSpaceMode resize_new_space_ = ResizeNewSpaceMode::kNone;
-
-  explicit CollectorBase(Heap* heap, GarbageCollector collector);
-  virtual ~CollectorBase() = default;
-};
-
 // Collector for young and old generation.
-class MarkCompactCollector final : public CollectorBase {
+class MarkCompactCollector final : public MarkCompactCollectorBase {
  public:
   using MarkingVisitor = MainMarkingVisitor<MarkingState>;
 
@@ -217,7 +91,7 @@ class MarkCompactCollector final : public CollectorBase {
     kTrackNewlyDiscoveredObjects
   };
 
-  static MarkCompactCollector* From(CollectorBase* collector) {
+  static MarkCompactCollector* From(MarkCompactCollectorBase* collector) {
     return static_cast<MarkCompactCollector*>(collector);
   }
 
@@ -229,7 +103,6 @@ class MarkCompactCollector final : public CollectorBase {
   std::pair<size_t, size_t> ProcessMarkingWorklist(
       size_t bytes_to_process, MarkingWorklistProcessingMode mode);
 
-  void SetUp() final;
   void TearDown() final;
 
   // Performs a global garbage collection.
@@ -241,7 +114,7 @@ class MarkCompactCollector final : public CollectorBase {
 
   // Prepares for GC by resetting relocation info in old and map spaces and
   // choosing spaces to compact.
-  void Prepare() final;
+  void Prepare();
 
   // Stop concurrent marking (either by preempting it right away or waiting for
   // it to complete as requested by |stop_request|).
@@ -281,7 +154,7 @@ class MarkCompactCollector final : public CollectorBase {
 
   bool is_compacting() const { return compacting_; }
 
-  inline void AddTransitionArray(TransitionArray array);
+  V8_INLINE void AddTransitionArray(TransitionArray array);
 
   void RecordStrongDescriptorArraysForWeakening(
       GlobalHandleVector<DescriptorArray> strong_descriptor_arrays);
@@ -462,6 +335,7 @@ class MarkCompactCollector final : public CollectorBase {
   // Starts sweeping of spaces by contributing on the main thread and setting
   // up other pages for sweeping. Does not start sweeper tasks.
   void Sweep();
+  void StartSweepSpace(PagedSpace* space);
 
   void EvacuatePrologue();
   void EvacuateEpilogue();
@@ -555,208 +429,6 @@ class MarkCompactCollector final : public CollectorBase {
 
   friend class Evacuator;
   friend class RecordMigratedSlotVisitor;
-};
-
-// Collector for young-generation only.
-class MinorMarkCompactCollector final : public CollectorBase {
- public:
-  static constexpr size_t kMaxParallelTasks = 8;
-
-  static MinorMarkCompactCollector* From(CollectorBase* collector) {
-    return static_cast<MinorMarkCompactCollector*>(collector);
-  }
-
-  explicit MinorMarkCompactCollector(Heap* heap);
-  ~MinorMarkCompactCollector() final;
-
-  void SetUp() final;
-  void TearDown() final;
-  void CollectGarbage() final;
-  void Prepare() final {}
-  void StartMarking() final;
-
-  void MakeIterable(Page* page, FreeSpaceTreatmentMode free_space_mode);
-
-  void Finish() final;
-
-  // Perform Wrapper Tracing if in use.
-  void PerformWrapperTracing();
-
-  EphemeronRememberedSet::TableList* ephemeron_table_list() const {
-    return ephemeron_table_list_.get();
-  }
-
-  YoungGenerationRememberedSetsMarkingWorklist*
-  remembered_sets_marking_handler() {
-    DCHECK_NOT_NULL(remembered_sets_marking_handler_);
-    return remembered_sets_marking_handler_.get();
-  }
-
- private:
-  class RootMarkingVisitor;
-
-  static const int kNumMarkers = 8;
-  static const int kMainMarker = 0;
-
-  Sweeper* sweeper() { return sweeper_; }
-
-  void MarkLiveObjects();
-  void MarkLiveObjectsInParallel(RootMarkingVisitor* root_visitor,
-                                 bool was_marked_incrementally);
-  void DrainMarkingWorklist(YoungGenerationMainMarkingVisitor& visitor);
-  void TraceFragmentation();
-  void ClearNonLiveReferences();
-
-  void Sweep();
-
-  void FinishConcurrentMarking();
-
-  // 'StartSweepNewSpace' and 'SweepNewLargeSpace' return true if any pages were
-  // promoted.
-  bool StartSweepNewSpace();
-  bool SweepNewLargeSpace();
-
-  std::unique_ptr<EphemeronRememberedSet::TableList> ephemeron_table_list_;
-  std::unique_ptr<EphemeronRememberedSet::TableList::Local>
-      local_ephemeron_table_list_;
-
-  Sweeper* const sweeper_;
-  std::unique_ptr<YoungGenerationRememberedSetsMarkingWorklist>
-      remembered_sets_marking_handler_;
-};
-
-class RememberedSetsMarkingItem : public ParallelWorkItem {
- public:
-  enum class SlotsType { kRegularSlots, kTypedSlots };
-
-  static std::vector<RememberedSetsMarkingItem> CollectItems(Heap* heap);
-
-  RememberedSetsMarkingItem(MemoryChunk* chunk, SlotsType slots_type,
-                            SlotSet* slot_set, SlotSet* background_slot_set)
-      : chunk_(chunk),
-        slots_type_(slots_type),
-        slot_set_(slot_set),
-        background_slot_set_(background_slot_set) {}
-  RememberedSetsMarkingItem(MemoryChunk* chunk, SlotsType slots_type,
-                            TypedSlotSet* typed_slot_set)
-      : chunk_(chunk),
-        slots_type_(slots_type),
-        typed_slot_set_(typed_slot_set) {}
-  ~RememberedSetsMarkingItem() = default;
-
-  template <typename Visitor>
-  void Process(Visitor* visitor);
-  void MergeBackAndDeleteRememberedSets();
-
- private:
-  inline Heap* heap() { return chunk_->heap(); }
-
-  template <typename Visitor>
-  void MarkUntypedPointers(Visitor* visitor);
-  template <typename Visitor>
-  void MarkTypedPointers(Visitor* visitor);
-  template <typename Visitor, typename TSlot>
-  V8_INLINE SlotCallbackResult CheckAndMarkObject(Visitor* visitor, TSlot slot);
-
-  template <typename TSlot>
-  V8_INLINE void CheckOldToNewSlotForSharedUntyped(MemoryChunk* chunk,
-                                                   TSlot slot);
-  V8_INLINE void CheckOldToNewSlotForSharedTyped(MemoryChunk* chunk,
-                                                 SlotType slot_type,
-                                                 Address slot_address,
-                                                 MaybeObject new_target);
-
-  MemoryChunk* const chunk_;
-  const SlotsType slots_type_;
-  union {
-    SlotSet* slot_set_;
-    TypedSlotSet* typed_slot_set_;
-  };
-  SlotSet* background_slot_set_ = nullptr;
-};
-
-class YoungGenerationRememberedSetsMarkingWorklist {
- public:
-  class Local {
-   public:
-    explicit Local(YoungGenerationRememberedSetsMarkingWorklist* handler)
-        : handler_(handler) {}
-
-    template <typename Visitor>
-    bool ProcessNextItem(Visitor* visitor) {
-      return handler_->ProcessNextItem(visitor, index_);
-    }
-
-   private:
-    YoungGenerationRememberedSetsMarkingWorklist* const handler_;
-    base::Optional<size_t> index_;
-  };
-
-  explicit YoungGenerationRememberedSetsMarkingWorklist(Heap* heap);
-  ~YoungGenerationRememberedSetsMarkingWorklist();
-
-  size_t RemainingRememberedSetsMarkingIteams() const {
-    return remaining_remembered_sets_marking_items_.load(
-        std::memory_order_relaxed);
-  }
-
- private:
-  template <typename Visitor>
-  bool ProcessNextItem(Visitor* visitor, base::Optional<size_t>& index);
-
-  std::vector<RememberedSetsMarkingItem> remembered_sets_marking_items_;
-  std::atomic_size_t remaining_remembered_sets_marking_items_;
-  IndexGenerator remembered_sets_marking_index_generator_;
-};
-
-class YoungGenerationMarkingJob : public v8::JobTask {
- public:
-  YoungGenerationMarkingJob(
-      Isolate* isolate, Heap* heap, MarkingWorklists* global_worklists,
-      const std::vector<std::unique_ptr<YoungGenerationMarkingTask>>& tasks)
-      : isolate_(isolate),
-        heap_(heap),
-        global_worklists_(global_worklists),
-        tasks_(tasks),
-        remembered_sets_marking_handler_(
-            heap_->minor_mark_compact_collector()
-                ->remembered_sets_marking_handler()) {}
-
-  void Run(JobDelegate* delegate) override;
-  size_t GetMaxConcurrency(size_t worker_count) const override;
-
- private:
-  void ProcessItems(JobDelegate* delegate);
-
-  Isolate* isolate_;
-  Heap* heap_;
-  MarkingWorklists* global_worklists_;
-  const std::vector<std::unique_ptr<YoungGenerationMarkingTask>>& tasks_;
-  YoungGenerationRememberedSetsMarkingWorklist* const
-      remembered_sets_marking_handler_;
-};
-
-class YoungGenerationMarkingTask final {
- public:
-  YoungGenerationMarkingTask(
-      Isolate* isolate, Heap* heap, MarkingWorklists* global_worklists,
-      EphemeronRememberedSet::TableList* ephemeron_table_list);
-  ~YoungGenerationMarkingTask();
-
-  YoungGenerationMarkingTask(const YoungGenerationMarkingTask&) = delete;
-  YoungGenerationMarkingTask& operator=(const YoungGenerationMarkingTask&) =
-      delete;
-
-  void DrainMarkingWorklist();
-
-  void Finalize();
-
-  YoungGenerationMainMarkingVisitor* visitor() { return &visitor_; }
-
- private:
-  MarkingWorklists::Local marking_worklists_local_;
-  EphemeronRememberedSet::TableList::Local ephemeron_table_list_local_;
-  YoungGenerationMainMarkingVisitor visitor_;
 };
 
 }  // namespace internal

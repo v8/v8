@@ -79,8 +79,8 @@ const char* GCTracer::Event::TypeName(bool short_name) const {
     case MARK_COMPACTOR:
     case INCREMENTAL_MARK_COMPACTOR:
       return (short_name) ? "mc" : "Mark-Compact";
-    case MINOR_MARK_COMPACTOR:
-    case INCREMENTAL_MINOR_MARK_COMPACTOR:
+    case MINOR_MARK_SWEEPER:
+    case INCREMENTAL_MINOR_MARK_SWEEPER:
       return (short_name) ? "mmc" : "Minor Mark-Compact";
     case START:
       return (short_name) ? "st" : "Start";
@@ -93,12 +93,12 @@ GCTracer::RecordGCPhasesInfo::RecordGCPhasesInfo(
   if (Heap::IsYoungGenerationCollector(collector)) {
     type_timer_ = nullptr;
     type_priority_timer_ = nullptr;
-    if (!v8_flags.minor_mc) {
+    if (!v8_flags.minor_ms) {
       mode_ = Mode::Scavenger;
       trace_event_name_ = "V8.GCScavenger";
     } else {
       mode_ = Mode::None;
-      trace_event_name_ = "V8.GCMinorMC";
+      trace_event_name_ = "V8.GCMinorMS";
     }
   } else {
     DCHECK_EQ(GarbageCollector::MARK_COMPACTOR, collector);
@@ -254,7 +254,7 @@ void GCTracer::UpdateCurrentEvent(GarbageCollectionReason gc_reason,
   // For incremental marking, the event has already been created and we just
   // need to update a few fields.
   DCHECK(current_.type == Event::INCREMENTAL_MARK_COMPACTOR ||
-         current_.type == Event::INCREMENTAL_MINOR_MARK_COMPACTOR);
+         current_.type == Event::INCREMENTAL_MINOR_MARK_SWEEPER);
   DCHECK_EQ(Event::State::ATOMIC, current_.state);
   DCHECK(IsInObservablePause());
   current_.gc_reason = gc_reason;
@@ -286,10 +286,10 @@ void GCTracer::StartCycle(GarbageCollector collector,
     case GarbageCollector::SCAVENGER:
       type = Event::SCAVENGER;
       break;
-    case GarbageCollector::MINOR_MARK_COMPACTOR:
+    case GarbageCollector::MINOR_MARK_SWEEPER:
       type = marking == MarkingType::kIncremental
-                 ? Event::INCREMENTAL_MINOR_MARK_COMPACTOR
-                 : Event::MINOR_MARK_COMPACTOR;
+                 ? Event::INCREMENTAL_MINOR_MARK_SWEEPER
+                 : Event::MINOR_MARK_SWEEPER;
       break;
     case GarbageCollector::MARK_COMPACTOR:
       type = marking == MarkingType::kIncremental
@@ -317,8 +317,8 @@ void GCTracer::StartCycle(GarbageCollector collector,
     case MarkingType::kIncremental:
       // The current event will be updated later.
       DCHECK_IMPLIES(Heap::IsYoungGenerationCollector(collector),
-                     (v8_flags.minor_mc &&
-                      collector == GarbageCollector::MINOR_MARK_COMPACTOR));
+                     (v8_flags.minor_ms &&
+                      collector == GarbageCollector::MINOR_MARK_SWEEPER));
       DCHECK(!IsInObservablePause());
       break;
   }
@@ -535,8 +535,8 @@ void GCTracer::StopFullCycleIfNeeded() {
 void GCTracer::StopYoungCycleIfNeeded() {
   DCHECK(Event::IsYoungGenerationEvent(current_.type));
   if (current_.state != Event::State::SWEEPING) return;
-  if ((current_.type == Event::MINOR_MARK_COMPACTOR ||
-       current_.type == Event::INCREMENTAL_MINOR_MARK_COMPACTOR) &&
+  if ((current_.type == Event::MINOR_MARK_SWEEPER ||
+       current_.type == Event::INCREMENTAL_MINOR_MARK_SWEEPER) &&
       !notified_young_sweeping_completed_)
     return;
   // Check if young cppgc was scheduled but hasn't completed yet.
@@ -546,7 +546,7 @@ void GCTracer::StopYoungCycleIfNeeded() {
   bool was_young_gc_while_full_gc_ = young_gc_while_full_gc_;
   StopCycle(current_.type == Event::SCAVENGER
                 ? GarbageCollector::SCAVENGER
-                : GarbageCollector::MINOR_MARK_COMPACTOR);
+                : GarbageCollector::MINOR_MARK_SWEEPER);
   notified_young_sweeping_completed_ = false;
   notified_young_cppgc_running_ = false;
   notified_young_cppgc_completed_ = false;
@@ -599,8 +599,8 @@ void GCTracer::NotifyYoungSweepingCompleted() {
   if (v8_flags.verify_heap) {
     // If heap verification is enabled, sweeping finalization can also be
     // triggered from inside a full GC cycle's atomic pause.
-    DCHECK(current_.type == Event::MINOR_MARK_COMPACTOR ||
-           current_.type == Event::INCREMENTAL_MINOR_MARK_COMPACTOR);
+    DCHECK(current_.type == Event::MINOR_MARK_SWEEPER ||
+           current_.type == Event::INCREMENTAL_MINOR_MARK_SWEEPER);
     DCHECK(current_.state == Event::State::SWEEPING ||
            current_.state == Event::State::ATOMIC);
   } else {
@@ -622,8 +622,8 @@ void GCTracer::NotifyFullCppGCCompleted() {
   DCHECK(metric_recorder->FullGCMetricsReportPending());
   DCHECK(!notified_full_cppgc_completed_);
   notified_full_cppgc_completed_ = true;
-  // Cppgc sweeping may finalize during MinorMC sweeping. In that case, delay
-  // stopping the cycle until the nested MinorMC cycle is stopped.
+  // Cppgc sweeping may finalize during MinorMS sweeping. In that case, delay
+  // stopping the cycle until the nested MinorMS cycle is stopped.
   if (Event::IsYoungGenerationEvent(current_.type)) {
     DCHECK(young_gc_while_full_gc_);
     return;
@@ -914,13 +914,13 @@ void GCTracer::PrintNVP() const {
           NewSpaceAllocationThroughputInBytesPerMillisecond(),
           heap_->memory_allocator()->unmapper()->NumberOfChunks());
       break;
-    case Event::MINOR_MARK_COMPACTOR:
+    case Event::MINOR_MARK_SWEEPER:
       heap_->isolate()->PrintWithTimestamp(
           "pause=%.1f "
           "mutator=%.1f "
           "gc=%s "
           "reduce_memory=%d "
-          "minor_mc=%.2f "
+          "minor_ms=%.2f "
           "time_to_safepoint=%.2f "
           "mark=%.2f "
           "mark.incremental_roots=%.2f "
@@ -963,30 +963,30 @@ void GCTracer::PrintNVP() const {
           "new_space_survive_rate_=%.1f%% "
           "new_space_allocation_throughput=%.1f\n",
           duration, spent_in_mutator, "mmc", current_.reduce_memory,
-          current_scope(Scope::MINOR_MC),
+          current_scope(Scope::MINOR_MS),
           current_scope(Scope::TIME_TO_SAFEPOINT),
-          current_scope(Scope::MINOR_MC_MARK),
-          current_scope(Scope::MINOR_MC_MARK_ROOTS),
-          current_scope(Scope::MINOR_MC_MARK_FINISH_INCREMENTAL),
-          current_scope(Scope::MINOR_MC_MARK_SEED),
-          current_scope(Scope::MINOR_MC_MARK_CLOSURE_PARALLEL),
-          current_scope(Scope::MINOR_MC_MARK_CLOSURE),
-          current_scope(Scope::MINOR_MC_CLEAR),
-          current_scope(Scope::MINOR_MC_CLEAR_STRING_FORWARDING_TABLE),
-          current_scope(Scope::MINOR_MC_CLEAR_STRING_TABLE),
-          current_scope(Scope::MINOR_MC_CLEAR_WEAK_GLOBAL_HANDLES),
-          current_scope(Scope::MINOR_MC_COMPLETE_SWEEP_ARRAY_BUFFERS),
-          current_scope(Scope::MINOR_MC_COMPLETE_SWEEPING),
-          current_scope(Scope::MINOR_MC_SWEEP),
-          current_scope(Scope::MINOR_MC_SWEEP_NEW),
-          current_scope(Scope::MINOR_MC_SWEEP_NEW_LO),
-          current_scope(Scope::MINOR_MC_SWEEP_UPDATE_STRING_TABLE),
-          current_scope(Scope::MINOR_MC_SWEEP_START_JOBS),
+          current_scope(Scope::MINOR_MS_MARK),
+          current_scope(Scope::MINOR_MS_MARK_ROOTS),
+          current_scope(Scope::MINOR_MS_MARK_FINISH_INCREMENTAL),
+          current_scope(Scope::MINOR_MS_MARK_SEED),
+          current_scope(Scope::MINOR_MS_MARK_CLOSURE_PARALLEL),
+          current_scope(Scope::MINOR_MS_MARK_CLOSURE),
+          current_scope(Scope::MINOR_MS_CLEAR),
+          current_scope(Scope::MINOR_MS_CLEAR_STRING_FORWARDING_TABLE),
+          current_scope(Scope::MINOR_MS_CLEAR_STRING_TABLE),
+          current_scope(Scope::MINOR_MS_CLEAR_WEAK_GLOBAL_HANDLES),
+          current_scope(Scope::MINOR_MS_COMPLETE_SWEEP_ARRAY_BUFFERS),
+          current_scope(Scope::MINOR_MS_COMPLETE_SWEEPING),
+          current_scope(Scope::MINOR_MS_SWEEP),
+          current_scope(Scope::MINOR_MS_SWEEP_NEW),
+          current_scope(Scope::MINOR_MS_SWEEP_NEW_LO),
+          current_scope(Scope::MINOR_MS_SWEEP_UPDATE_STRING_TABLE),
+          current_scope(Scope::MINOR_MS_SWEEP_START_JOBS),
           current_scope(Scope::YOUNG_ARRAY_BUFFER_SWEEP),
-          current_scope(Scope::MINOR_MC_FINISH),
-          current_scope(Scope::MINOR_MC_FINISH_ENSURE_CAPACITY),
-          current_scope(Scope::MINOR_MC_BACKGROUND_MARKING),
-          current_scope(Scope::MINOR_MC_BACKGROUND_SWEEPING),
+          current_scope(Scope::MINOR_MS_FINISH),
+          current_scope(Scope::MINOR_MS_FINISH_ENSURE_CAPACITY),
+          current_scope(Scope::MINOR_MS_BACKGROUND_MARKING),
+          current_scope(Scope::MINOR_MS_BACKGROUND_SWEEPING),
           current_scope(Scope::BACKGROUND_YOUNG_ARRAY_BUFFER_SWEEP),
           current_scope(Scope::BACKGROUND_UNMAPPER),
           current_scope(Scope::UNMAPPER), current_.start_object_size,
@@ -1821,9 +1821,9 @@ void GCTracer::ReportYoungCycleToRecorder() {
   // Total:
   const double total_wall_clock_duration_in_us =
       (current_.scopes[Scope::SCAVENGER] +
-       current_.scopes[Scope::MINOR_MARK_COMPACTOR] +
+       current_.scopes[Scope::MINOR_MARK_SWEEPER] +
        current_.scopes[Scope::SCAVENGER_BACKGROUND_SCAVENGE_PARALLEL] +
-       current_.scopes[Scope::MINOR_MC_BACKGROUND_MARKING]) *
+       current_.scopes[Scope::MINOR_MS_BACKGROUND_MARKING]) *
       base::Time::kMicrosecondsPerMillisecond;
   // TODO(chromium:1154636): Consider adding BACKGROUND_YOUNG_ARRAY_BUFFER_SWEEP
   // (both for the case of the scavenger and the minor mark-compactor), and
@@ -1833,7 +1833,7 @@ void GCTracer::ReportYoungCycleToRecorder() {
   // MainThread:
   const double main_thread_wall_clock_duration_in_us =
       (current_.scopes[Scope::SCAVENGER] +
-       current_.scopes[Scope::MINOR_MARK_COMPACTOR]) *
+       current_.scopes[Scope::MINOR_MARK_SWEEPER]) *
       base::Time::kMicrosecondsPerMillisecond;
   event.main_thread_wall_clock_duration_in_us =
       static_cast<int64_t>(main_thread_wall_clock_duration_in_us);
@@ -1875,9 +1875,9 @@ GarbageCollector GCTracer::GetCurrentCollector() const {
     case Event::Type::MARK_COMPACTOR:
     case Event::Type::INCREMENTAL_MARK_COMPACTOR:
       return GarbageCollector::MARK_COMPACTOR;
-    case Event::Type::MINOR_MARK_COMPACTOR:
-    case Event::Type::INCREMENTAL_MINOR_MARK_COMPACTOR:
-      return GarbageCollector::MINOR_MARK_COMPACTOR;
+    case Event::Type::MINOR_MARK_SWEEPER:
+    case Event::Type::INCREMENTAL_MINOR_MARK_SWEEPER:
+      return GarbageCollector::MINOR_MARK_SWEEPER;
     case Event::Type::START:
       UNREACHABLE();
   }

@@ -830,7 +830,7 @@ UNINITIALIZED_TEST(PromotionMarkCompact) {
 }
 
 UNINITIALIZED_TEST(PromotionScavenge) {
-  if (v8_flags.minor_mc) return;
+  if (v8_flags.minor_ms) return;
   if (v8_flags.single_generation) return;
   if (!V8_CAN_CREATE_SHARED_HEAP_BOOL) return;
 
@@ -868,9 +868,9 @@ UNINITIALIZED_TEST(PromotionScavenge) {
 }
 
 UNINITIALIZED_TEST(PromotionScavengeOldToShared) {
-  if (v8_flags.minor_mc) {
+  if (v8_flags.minor_ms) {
     // Promoting from new space directly to shared heap is not implemented in
-    // MinorMC.
+    // MinorMS.
     return;
   }
   if (v8_flags.single_generation) return;
@@ -2081,7 +2081,7 @@ class ClientIsolateThreadForPagePromotions : public v8::base::Thread {
         shared_string_(shared_string) {}
 
   void Run() override {
-    CHECK(v8_flags.minor_mc);
+    CHECK(v8_flags.minor_ms);
     v8::Isolate* client = test_->NewClientIsolate();
     Isolate* i_client = reinterpret_cast<Isolate*>(client);
     Factory* factory = i_client->factory();
@@ -2139,7 +2139,7 @@ class ClientIsolateThreadForPagePromotions : public v8::base::Thread {
 
 UNINITIALIZED_TEST(RegisterOldToSharedForPromotedPageFromClient) {
   if (v8_flags.single_generation) return;
-  if (!v8_flags.minor_mc) return;
+  if (!v8_flags.minor_ms) return;
   if (!V8_CAN_CREATE_SHARED_HEAP_BOOL) return;
 
   v8_flags.stress_concurrent_allocation = false;  // For SealCurrentObjects.
@@ -2179,7 +2179,7 @@ UNINITIALIZED_TEST(RegisterOldToSharedForPromotedPageFromClient) {
 UNINITIALIZED_TEST(
     RegisterOldToSharedForPromotedPageFromClientDuringIncrementalMarking) {
   if (v8_flags.single_generation) return;
-  if (!v8_flags.minor_mc) return;
+  if (!v8_flags.minor_ms) return;
   if (!V8_CAN_CREATE_SHARED_HEAP_BOOL) return;
 
   v8_flags.stress_concurrent_allocation = false;  // For SealCurrentObjects.
@@ -2244,7 +2244,7 @@ class ClientIsolateThreadForRetainingByRememberedSet : public v8::base::Thread {
         weak_ref_(weak_ref) {}
 
   void Run() override {
-    CHECK(v8_flags.minor_mc);
+    CHECK(v8_flags.minor_ms);
     client_isolate_ = test_->NewClientIsolate();
     Isolate* i_client = reinterpret_cast<Isolate*>(client_isolate_);
     Factory* factory = i_client->factory();
@@ -2336,7 +2336,7 @@ class ClientIsolateThreadForRetainingByRememberedSet : public v8::base::Thread {
 
 UNINITIALIZED_TEST(SharedObjectRetainedByClientRememberedSet) {
   if (v8_flags.single_generation) return;
-  if (!v8_flags.minor_mc) return;
+  if (!v8_flags.minor_ms) return;
   if (!V8_CAN_CREATE_SHARED_HEAP_BOOL) return;
 
   v8_flags.stress_concurrent_allocation = false;  // For SealCurrentObjects.

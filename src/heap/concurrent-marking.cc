@@ -28,6 +28,8 @@
 #include "src/heap/memory-chunk.h"
 #include "src/heap/memory-measurement-inl.h"
 #include "src/heap/memory-measurement.h"
+#include "src/heap/minor-mark-sweep-inl.h"
+#include "src/heap/minor-mark-sweep.h"
 #include "src/heap/object-lock.h"
 #include "src/heap/objects-visiting-inl.h"
 #include "src/heap/objects-visiting.h"
@@ -76,7 +78,7 @@ class YoungGenerationConcurrentMarkingVisitor final
         marking_state_(heap->isolate()),
         memory_chunk_data_(memory_chunk_data),
         local_ephemeron_table_list_(
-            *heap->minor_mark_compact_collector()->ephemeron_table_list()),
+            *heap->minor_mark_sweep_collector()->ephemeron_table_list()),
         local_marking_worklists_(marking_worklists,
                                  MarkingWorklists::Local::kNoCppMarkingState) {}
 
@@ -305,7 +307,7 @@ class ConcurrentMarking::JobTaskMinor : public v8::JobTask {
       concurrent_marking_->RunMinor(delegate);
     } else {
       TRACE_GC_EPOCH(concurrent_marking_->heap_->tracer(),
-                     GCTracer::Scope::MINOR_MC_BACKGROUND_MARKING,
+                     GCTracer::Scope::MINOR_MS_BACKGROUND_MARKING,
                      ThreadKind::kBackground);
       concurrent_marking_->RunMinor(delegate);
     }
@@ -487,7 +489,7 @@ void ConcurrentMarking::RunMinor(JobDelegate* delegate) {
   MarkingWorklists::Local& local_marking_worklists =
       visitor.local_marking_worklists();
   YoungGenerationRememberedSetsMarkingWorklist::Local remembered_sets(
-      heap_->minor_mark_compact_collector()->remembered_sets_marking_handler());
+      heap_->minor_mark_sweep_collector()->remembered_sets_marking_handler());
   double time_ms;
   size_t marked_bytes = 0;
   Isolate* isolate = heap_->isolate();
@@ -594,9 +596,9 @@ void ConcurrentMarking::ScheduleJob(GarbageCollector garbage_collector,
                       heap_->mark_compact_collector()->code_flush_mode(),
                       heap_->ShouldCurrentGCKeepAgesUnchanged()));
   } else {
-    DCHECK(garbage_collector == GarbageCollector::MINOR_MARK_COMPACTOR);
+    DCHECK(garbage_collector == GarbageCollector::MINOR_MARK_SWEEPER);
     marking_worklists_ =
-        heap_->minor_mark_compact_collector()->marking_worklists();
+        heap_->minor_mark_sweep_collector()->marking_worklists();
     job_handle_ = V8::GetCurrentPlatform()->PostJob(
         priority, std::make_unique<JobTaskMinor>(this));
   }
@@ -630,7 +632,7 @@ void ConcurrentMarking::RescheduleJobIfNeeded(
 
 void ConcurrentMarking::FlushPretenuringFeedback() {
   PretenuringHandler* pretenuring_handler = heap_->pretenuring_handler();
-  if (garbage_collector_ == GarbageCollector::MINOR_MARK_COMPACTOR) {
+  if (garbage_collector_ == GarbageCollector::MINOR_MARK_SWEEPER) {
     for (auto& task_state : task_state_) {
       pretenuring_handler->MergeAllocationSitePretenuringFeedback(
           task_state->local_pretenuring_feedback);
@@ -729,7 +731,7 @@ ConcurrentMarking::PauseScope::PauseScope(ConcurrentMarking* concurrent_marking)
     : concurrent_marking_(concurrent_marking),
       resume_on_exit_(v8_flags.concurrent_marking &&
                       concurrent_marking_->Pause()) {
-  DCHECK(!v8_flags.minor_mc);
+  DCHECK(!v8_flags.minor_ms);
   DCHECK_IMPLIES(resume_on_exit_, v8_flags.concurrent_marking);
 }
 

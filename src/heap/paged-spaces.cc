@@ -736,7 +736,7 @@ void PagedSpaceBase::Verify(Isolate* isolate,
       CHECK_EQ(bytes, ExternalBackingStoreBytes(
                           ExternalBackingStoreType::kArrayBuffer));
     } else if (identity() == NEW_SPACE) {
-      DCHECK(v8_flags.minor_mc);
+      DCHECK(v8_flags.minor_ms);
       size_t bytes = heap()->array_buffer_sweeper()->young().BytesSlow();
       CHECK_EQ(bytes, ExternalBackingStoreBytes(
                           ExternalBackingStoreType::kArrayBuffer));
@@ -1091,14 +1091,14 @@ bool CompactionSpace::RefillLabMain(int size_in_bytes,
 // OldSpace implementation
 
 void OldSpace::AddPromotedPage(Page* page) {
-  if (v8_flags.minor_mc) {
+  if (v8_flags.minor_ms) {
     // Reset the page's allocated bytes. The page will be swept and the
     // allocated bytes will be updated to match the live bytes.
     DCHECK_EQ(page->area_size(), page->allocated_bytes());
     page->DecreaseAllocatedBytes(page->area_size());
   }
   AddPageImpl(page);
-  if (!v8_flags.minor_mc) {
+  if (!v8_flags.minor_ms) {
     RelinkFreeListCategories(page);
   }
 }

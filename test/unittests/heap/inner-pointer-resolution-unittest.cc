@@ -641,10 +641,10 @@ TEST_F(InnerPointerResolutionHeapTest, UnusedRegularYoungPages) {
     auto obj2 = h2->GetHeapObject();
     page1 = Page::FromHeapObject(obj1);
     EXPECT_TRUE(!page1->IsLargePage());
-    EXPECT_TRUE(v8_flags.minor_mc || page1->IsToPage());
+    EXPECT_TRUE(v8_flags.minor_ms || page1->IsToPage());
     page2 = Page::FromHeapObject(obj2);
     EXPECT_TRUE(!page2->IsLargePage());
-    EXPECT_TRUE(v8_flags.minor_mc || page2->IsToPage());
+    EXPECT_TRUE(v8_flags.minor_ms || page2->IsToPage());
     EXPECT_NE(page1, page2);
 
     // Allocate one more object, small enough that it fits in either page1 or
@@ -712,8 +712,8 @@ TEST_F(InnerPointerResolutionHeapTest, UnusedRegularYoungPages) {
   EXPECT_EQ(page2, allocator->LookupChunkContainingAddress(inner_ptr2));
   EXPECT_EQ(AllocationSpace::NEW_SPACE, page1->owner_identity());
   EXPECT_EQ(AllocationSpace::NEW_SPACE, page2->owner_identity());
-  EXPECT_TRUE(v8_flags.minor_mc || page1->IsFromPage());
-  EXPECT_TRUE(v8_flags.minor_mc || page2->IsFromPage());
+  EXPECT_TRUE(v8_flags.minor_ms || page1->IsFromPage());
+  EXPECT_TRUE(v8_flags.minor_ms || page2->IsFromPage());
 
   // Inner pointer resolution should work with pointers to unused young
   // generation pages (in case of the scavenger, the two pages are now in the
@@ -731,8 +731,8 @@ TEST_F(InnerPointerResolutionHeapTest, UnusedRegularYoungPages) {
   // The two pages should still be around, in the new space.
   EXPECT_EQ(page1, allocator->LookupChunkContainingAddress(inner_ptr1));
   EXPECT_EQ(page2, allocator->LookupChunkContainingAddress(inner_ptr2));
-  EXPECT_TRUE(v8_flags.minor_mc || page1->IsToPage());
-  EXPECT_TRUE(v8_flags.minor_mc || page2->IsToPage());
+  EXPECT_TRUE(v8_flags.minor_ms || page1->IsToPage());
+  EXPECT_TRUE(v8_flags.minor_ms || page2->IsToPage());
 
   // Inner pointer resolution should work with pointers to unused young
   // generation pages (in case of the scavenger, the two pages are now in the
@@ -767,7 +767,7 @@ TEST_F(InnerPointerResolutionHeapTest, UnusedLargeYoungPage) {
     auto page = Page::FromHeapObject(obj);
     EXPECT_TRUE(page->IsLargePage());
     EXPECT_EQ(AllocationSpace::NEW_LO_SPACE, page->owner_identity());
-    EXPECT_TRUE(v8_flags.minor_mc || page->IsToPage());
+    EXPECT_TRUE(v8_flags.minor_ms || page->IsToPage());
 
     // Keep inner pointer.
     inner_ptr = obj.address() + 17 * kTaggedSize;

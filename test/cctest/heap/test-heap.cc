@@ -2119,7 +2119,7 @@ TEST(TestAlignedAllocation) {
   HeapObject obj;
   HeapObject filler;
   if (double_misalignment) {
-    if (v8_flags.minor_mc) {
+    if (v8_flags.minor_ms) {
       // Make one allocation to force allocating an allocation area. Using
       // kDoubleSize to not change space alignment
       USE(CcTest::heap()->new_space()->AllocateRawUnaligned(kDoubleSize));
@@ -3852,7 +3852,7 @@ TEST(Regress169928) {
   // and hence are incompatible with this test case.
   if (v8_flags.gc_global || v8_flags.stress_compaction ||
       v8_flags.stress_incremental_marking || v8_flags.single_generation ||
-      v8_flags.minor_mc)
+      v8_flags.minor_ms)
     return;
 
   // Prepare the environment
@@ -6032,7 +6032,7 @@ TEST(Regress618958) {
 }
 
 TEST(YoungGenerationLargeObjectAllocationScavenge) {
-  if (v8_flags.minor_mc) return;
+  if (v8_flags.minor_ms) return;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
   Heap* heap = CcTest::heap();
@@ -6061,7 +6061,7 @@ TEST(YoungGenerationLargeObjectAllocationScavenge) {
 }
 
 TEST(YoungGenerationLargeObjectAllocationMarkCompact) {
-  if (v8_flags.minor_mc) return;
+  if (v8_flags.minor_ms) return;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
   Heap* heap = CcTest::heap();
@@ -6090,7 +6090,7 @@ TEST(YoungGenerationLargeObjectAllocationMarkCompact) {
 }
 
 TEST(YoungGenerationLargeObjectAllocationReleaseScavenger) {
-  if (v8_flags.minor_mc) return;
+  if (v8_flags.minor_ms) return;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
   Heap* heap = CcTest::heap();
@@ -6786,7 +6786,7 @@ UNINITIALIZED_TEST(RestoreHeapLimit) {
 }
 
 void HeapTester::UncommitUnusedMemory(Heap* heap) {
-  if (!v8_flags.minor_mc) SemiSpaceNewSpace::From(heap->new_space())->Shrink();
+  if (!v8_flags.minor_ms) SemiSpaceNewSpace::From(heap->new_space())->Shrink();
   heap->memory_allocator()->unmapper()->EnsureUnmappingCompleted();
 }
 

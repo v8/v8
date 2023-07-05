@@ -444,7 +444,7 @@ DEFINE_BOOL_READONLY(
 DEFINE_BOOL_READONLY(conservative_stack_scanning,
                      V8_ENABLE_CONSERVATIVE_STACK_SCANNING_BOOL,
                      "use conservative stack scanning")
-DEFINE_IMPLICATION(conservative_stack_scanning, minor_mc)
+DEFINE_IMPLICATION(conservative_stack_scanning, minor_ms)
 DEFINE_NEG_IMPLICATION(conservative_stack_scanning, compact_with_stack)
 
 #ifdef V8_ENABLE_DIRECT_HANDLE
@@ -689,18 +689,18 @@ DEFINE_BOOL(page_promotion, true, "promote pages based on utilization")
 DEFINE_INT(page_promotion_threshold, 70,
            "min percentage of live bytes on a page to enable fast evacuation "
            "in full GCs")
-DEFINE_INT(minor_mc_page_promotion_threshold, 50,
+DEFINE_INT(minor_ms_page_promotion_threshold, 50,
            "min percentage of live bytes on a page to enable fast evacuation "
-           "in MinorMC")
-DEFINE_INT(minor_mc_page_promotion_max_lab_threshold, 30,
+           "in MinorMS")
+DEFINE_INT(minor_ms_page_promotion_max_lab_threshold, 30,
            "max percentage of labs out of a page to still be considered for "
            "page promotion")
-DEFINE_BOOL(minor_mc_shortcut_strings, false,
+DEFINE_BOOL(minor_ms_shortcut_strings, false,
             "short cut strings during marking")
-DEFINE_UINT(minor_mc_max_page_age, 4,
+DEFINE_UINT(minor_ms_max_page_age, 4,
             "max age for a page after which it is force promoted to old space")
-DEFINE_UINT(minor_mc_max_new_space_capacity_mb, 72,
-            "max new space capacity in MBs when using MinorMC. When pointer "
+DEFINE_UINT(minor_ms_max_new_space_capacity_mb, 72,
+            "max new space capacity in MBs when using MinorMS. When pointer "
             "compression is disabled, twice the capacity is used.")
 DEFINE_UINT(scavenger_max_new_space_capacity_mb, 8,
             "max new space capacity in MBs when using Scavenger. When pointer "
@@ -1524,7 +1524,7 @@ DEFINE_INT(trace_duplicate_threshold_kb, 0,
 DEFINE_BOOL(trace_fragmentation, false, "report fragmentation for old space")
 DEFINE_BOOL(trace_fragmentation_verbose, false,
             "report fragmentation for old space (detailed)")
-DEFINE_BOOL(minor_mc_trace_fragmentation, false,
+DEFINE_BOOL(minor_ms_trace_fragmentation, false,
             "trace fragmentation after marking")
 DEFINE_BOOL(trace_evacuation, false, "report evacuation statistics")
 DEFINE_BOOL(trace_mutator_utilization, false,
@@ -1551,7 +1551,7 @@ DEFINE_EXPERIMENTAL_FEATURE(
     cppgc_young_generation,
     "run young generation garbage collections in Oilpan")
 // CppGC young generation (enables unified young heap) is based on Minor MC.
-DEFINE_IMPLICATION(cppgc_young_generation, minor_mc)
+DEFINE_IMPLICATION(cppgc_young_generation, minor_ms)
 // Unified young generation disables the unmodified wrapper reclamation
 // optimization.
 DEFINE_NEG_IMPLICATION(cppgc_young_generation, reclaim_unmodified_wrappers)
@@ -2282,17 +2282,22 @@ DEFINE_BOOL(text_is_readable, true,
 DEFINE_NEG_NEG_IMPLICATION(text_is_readable, partial_constant_pool)
 
 //
-// Minor mark compact collector flags.
+// Minor mark sweep collector flags.
 //
-DEFINE_BOOL(trace_minor_mc_parallel_marking, false,
+DEFINE_BOOL(trace_minor_ms_parallel_marking, false,
             "trace parallel marking for the young generation")
-DEFINE_BOOL(minor_mc, false, "perform young generation mark compact GCs")
-DEFINE_IMPLICATION(minor_mc, separate_gc_phases)
-DEFINE_IMPLICATION(minor_mc, page_promotion)
+DEFINE_BOOL(minor_ms, false, "perform young generation mark sweep GCs")
+DEFINE_IMPLICATION(minor_ms, separate_gc_phases)
+DEFINE_IMPLICATION(minor_ms, page_promotion)
 
-DEFINE_EXPERIMENTAL_FEATURE(concurrent_minor_mc_marking,
+DEFINE_EXPERIMENTAL_FEATURE(concurrent_minor_ms_marking,
                             "perform young generation marking concurrently")
-DEFINE_NEG_NEG_IMPLICATION(concurrent_marking, concurrent_minor_mc_marking)
+DEFINE_NEG_NEG_IMPLICATION(concurrent_marking, concurrent_minor_ms_marking)
+
+// Maintain minor_mc flag for expsting benchmarks and finch.
+// TODO(v8:12612): Remove minor_mc flag when possible.
+DEFINE_BOOL(minor_mc, false, "perform young generation mark sweep GCs")
+DEFINE_IMPLICATION(minor_mc, minor_ms)
 
 //
 // Dev shell flags
