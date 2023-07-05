@@ -842,50 +842,6 @@ void ReduceInterruptBudgetForReturn::GenerateCode(
                                 amount());
 }
 
-int FunctionEntryStackCheck::MaxCallStackArgs() const { return 1; }
-void FunctionEntryStackCheck::SetValueLocationConstraints() {
-  set_temporaries_needed(2);
-}
-void FunctionEntryStackCheck::GenerateCode(MaglevAssembler* masm,
-                                           const ProcessingState& state) {
-  // Stack check. This folds the checks for both the interrupt stack limit
-  // check and the real stack limit into one by just checking for the
-  // interrupt limit. The interrupt limit is either equal to the real
-  // stack limit or tighter. By ensuring we have space until that limit
-  // after building the frame we can quickly precheck both at once.
-  MaglevAssembler::ScratchRegisterScope temps(masm);
-  const int stack_check_offset = masm->code_gen_state()->stack_check_offset();
-  Register stack_cmp_reg = sp;
-  if (stack_check_offset > kStackLimitSlackForDeoptimizationInBytes) {
-    stack_cmp_reg = temps.Acquire();
-    __ sub(stack_cmp_reg, sp, Operand(stack_check_offset));
-  }
-  Register interrupt_stack_limit = temps.Acquire();
-  __ LoadStackLimit(interrupt_stack_limit,
-                    StackLimitKind::kInterruptStackLimit);
-  __ cmp(stack_cmp_reg, interrupt_stack_limit);
-
-  ZoneLabelRef deferred_call_stack_guard_return(masm);
-  __ JumpToDeferredIf(
-      lo,
-      [](MaglevAssembler* masm, FunctionEntryStackCheck* node,
-         ZoneLabelRef done, int stack_check_offset) {
-        ASM_CODE_COMMENT_STRING(masm, "Stack/interrupt call");
-        {
-          SaveRegisterStateForCall save_register_state(
-              masm, node->register_snapshot());
-          // Push the frame size
-          __ Push(Smi::FromInt(stack_check_offset));
-          __ CallRuntime(Runtime::kStackGuardWithGap, 1);
-          save_register_state.DefineSafepointWithLazyDeopt(
-              node->lazy_deopt_info());
-        }
-        __ b(*done);
-      },
-      this, deferred_call_stack_guard_return, stack_check_offset);
-  __ bind(*deferred_call_stack_guard_return);
-}
-
 // ---
 // Control nodes
 // ---

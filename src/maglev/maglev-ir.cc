@@ -855,6 +855,46 @@ uint32_t InitialValue::stack_slot() const {
   return stack_slot(source_.index());
 }
 
+void FunctionEntryStackCheck::SetValueLocationConstraints() {
+  set_temporaries_needed(2);
+  // kReturnRegister0 should not be one of the available temporary registers.
+  RequireSpecificTemporary(kReturnRegister0);
+}
+void FunctionEntryStackCheck::GenerateCode(MaglevAssembler* masm,
+                                           const ProcessingState& state) {
+  // Stack check. This folds the checks for both the interrupt stack limit
+  // check and the real stack limit into one by just checking for the
+  // interrupt limit. The interrupt limit is either equal to the real
+  // stack limit or tighter. By ensuring we have space until that limit
+  // after building the frame we can quickly precheck both at once.
+  const int stack_check_offset = masm->code_gen_state()->stack_check_offset();
+  Builtin builtin =
+      new_target_or_generator_register_is_valid()
+          ? Builtin::kMaglevFunctionEntryStackCheck_WithNewTarget
+          : Builtin::kMaglevFunctionEntryStackCheck_WithoutNewTarget;
+  ZoneLabelRef done(masm);
+  Condition cond = __ FunctionEntryStackCheck(stack_check_offset);
+  if (masm->isolate()->is_short_builtin_calls_enabled()) {
+    __ JumpIf(cond, *done, Label::kNear);
+    __ Move(kReturnRegister0, Smi::FromInt(stack_check_offset));
+    __ MacroAssembler::CallBuiltin(builtin);
+    masm->DefineLazyDeoptPoint(lazy_deopt_info());
+  } else {
+    __ JumpToDeferredIf(
+        NegateCondition(cond),
+        [](MaglevAssembler* masm, ZoneLabelRef done,
+           FunctionEntryStackCheck* node, Builtin builtin,
+           int stack_check_offset) {
+          __ Move(kReturnRegister0, Smi::FromInt(stack_check_offset));
+          __ MacroAssembler::CallBuiltin(builtin);
+          masm->DefineLazyDeoptPoint(node->lazy_deopt_info());
+          __ Jump(*done);
+        },
+        done, this, builtin, stack_check_offset);
+  }
+  __ bind(*done);
+}
+
 void RegisterInput::SetValueLocationConstraints() {
   DefineAsFixed(this, input());
 }

@@ -2055,6 +2055,34 @@ void Builtins::Generate_BaselineOnStackReplacement(MacroAssembler* masm) {
                      D::MaybeTargetCodeRegister());
 }
 
+#ifdef V8_ENABLE_MAGLEV
+
+// static
+void Builtins::Generate_MaglevFunctionEntryStackCheck(MacroAssembler* masm,
+                                                      bool save_new_target) {
+  // Input (x0): Stack size (Smi).
+  // This builtin can be invoked just after Maglev's prologue.
+  // All registers are available, except (possibly) new.target.
+  ASM_CODE_COMMENT(masm);
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
+    __ AssertSmi(x0);
+    if (save_new_target) {
+      __ AssertSmiOrHeapObjectInCompressionCage(
+          kJavaScriptCallNewTargetRegister);
+      __ Push(kJavaScriptCallNewTargetRegister, padreg);
+    }
+    __ PushArgument(x0);
+    __ CallRuntime(Runtime::kStackGuardWithGap, 1);
+    if (save_new_target) {
+      __ Pop(padreg, kJavaScriptCallNewTargetRegister);
+    }
+  }
+  __ Ret();
+}
+
+#endif  // V8_ENABLE_MAGLEV
+
 // static
 void Builtins::Generate_FunctionPrototypeApply(MacroAssembler* masm) {
   // ----------- S t a t e -------------

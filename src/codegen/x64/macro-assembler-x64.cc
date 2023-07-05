@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <climits>
 #include <cstdint>
 
 #if V8_TARGET_ARCH_X64
@@ -2943,6 +2944,18 @@ void MacroAssembler::AssertCode(Register object) {
   CmpInstanceType(object, CODE_TYPE);
   popq(object);
   Check(equal, AbortReason::kOperandIsNotACode);
+}
+
+void MacroAssembler::AssertSmiOrHeapObjectInCompressionCage(Register object) {
+  if (!v8_flags.debug_code) return;
+  ASM_CODE_COMMENT(this);
+  Label is_smi;
+  j(CheckSmi(object), &is_smi, Label::kNear);
+  movq(kScratchRegister, object);
+  subq(kScratchRegister, kPtrComprCageBaseRegister);
+  cmpq(kScratchRegister, Immediate(UINT32_MAX));
+  Check(below, AbortReason::kObjectNotTagged);
+  bind(&is_smi);
 }
 
 void MacroAssembler::AssertConstructor(Register object) {

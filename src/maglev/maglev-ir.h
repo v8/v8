@@ -5034,15 +5034,28 @@ class FunctionEntryStackCheck
   using Base = FixedInputNodeT<0, FunctionEntryStackCheck>;
 
  public:
-  explicit FunctionEntryStackCheck(uint64_t bitfield) : Base(bitfield) {}
+  explicit FunctionEntryStackCheck(
+      uint64_t bitfield, bool new_target_or_generator_register_is_valid)
+      : Base(bitfield),
+        new_target_or_generator_register_is_valid_(
+            new_target_or_generator_register_is_valid) {}
 
-  static constexpr OpProperties kProperties =
-      OpProperties::DeferredCall() | OpProperties::LazyDeopt();
+  // Although FunctionEntryStackCheck calls a builtin, we don't mark it as Call
+  // here. The register allocator should not spill any live registers, since the
+  // builtin already handles it. The only possible live register is
+  // kJavaScriptCallNewTargetRegister.
+  static constexpr OpProperties kProperties = OpProperties::LazyDeopt();
 
-  int MaxCallStackArgs() const;
   void SetValueLocationConstraints();
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+
+  bool new_target_or_generator_register_is_valid() const {
+    return new_target_or_generator_register_is_valid_;
+  }
+
+ private:
+  bool new_target_or_generator_register_is_valid_ = false;
 };
 
 class CheckedInternalizedString

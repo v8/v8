@@ -1368,6 +1368,24 @@ void Builtins::Generate_MaglevOnStackReplacement(MacroAssembler* masm) {
 }
 #endif  // V8_TARGET_ARCH_X64
 
+#ifndef V8_ENABLE_MAGLEV
+// static
+void Builtins::Generate_MaglevFunctionEntryStackCheck(MacroAssembler* masm,
+                                                      bool save_new_target) {
+  masm->Trap();
+}
+#endif  // V8_ENABLE_MAGLEV
+
+void Builtins::Generate_MaglevFunctionEntryStackCheck_WithoutNewTarget(
+    MacroAssembler* masm) {
+  Generate_MaglevFunctionEntryStackCheck(masm, false);
+}
+
+void Builtins::Generate_MaglevFunctionEntryStackCheck_WithNewTarget(
+    MacroAssembler* masm) {
+  Generate_MaglevFunctionEntryStackCheck(masm, true);
+}
+
 // ES6 [[Get]] operation.
 TF_BUILTIN(GetProperty, CodeStubAssembler) {
   auto object = Parameter<Object>(Descriptor::kObject);

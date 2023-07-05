@@ -2740,6 +2740,34 @@ void Builtins::Generate_MaglevOnStackReplacement(MacroAssembler* masm) {
                      D::MaybeTargetCodeRegister());
 }
 
+#ifdef V8_ENABLE_MAGLEV
+
+// static
+void Builtins::Generate_MaglevFunctionEntryStackCheck(MacroAssembler* masm,
+                                                      bool save_new_target) {
+  // Input (rax): Stack size (Smi).
+  // This builtin can be invoked just after Maglev's prologue.
+  // All registers are available, except (possibly) new.target.
+  ASM_CODE_COMMENT(masm);
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
+    __ AssertSmi(rax);
+    if (save_new_target) {
+      __ AssertSmiOrHeapObjectInCompressionCage(
+          kJavaScriptCallNewTargetRegister);
+      __ Push(kJavaScriptCallNewTargetRegister);
+    }
+    __ Push(rax);
+    __ CallRuntime(Runtime::kStackGuardWithGap, 1);
+    if (save_new_target) {
+      __ Pop(kJavaScriptCallNewTargetRegister);
+    }
+  }
+  __ Ret();
+}
+
+#endif  // V8_ENABLE_MAGLEV
+
 #if V8_ENABLE_WEBASSEMBLY
 
 // Returns the offset beyond the last saved FP register.

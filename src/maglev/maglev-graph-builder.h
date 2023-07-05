@@ -269,7 +269,9 @@ class MaglevGraphBuilder {
     // Don't use the AddNewNode helper for the function entry stack check, so
     // that we can set a custom deopt frame on it.
     FunctionEntryStackCheck* function_entry_stack_check =
-        FunctionEntryStackCheck::New(zone(), {});
+        NodeBase::New<FunctionEntryStackCheck>(
+            zone(), {},
+            bytecode().incoming_new_target_or_generator_register().is_valid());
     new (function_entry_stack_check->lazy_deopt_info()) LazyDeoptInfo(
         zone(), GetDeoptFrameForEntryStackCheck(),
         interpreter::Register::invalid_value(), 0, compiler::FeedbackSource());

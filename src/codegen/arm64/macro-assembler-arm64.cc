@@ -1685,6 +1685,19 @@ void MacroAssembler::AssertBoundFunction(Register object) {
   Check(eq, AbortReason::kOperandIsNotABoundFunction);
 }
 
+void MacroAssembler::AssertSmiOrHeapObjectInCompressionCage(Register object) {
+  if (!v8_flags.debug_code) return;
+  ASM_CODE_COMMENT(this);
+  Label is_smi;
+  B(&is_smi, CheckSmi(object));
+  UseScratchRegisterScope temps(this);
+  Register temp = temps.AcquireX();
+  sub(temp, object, kPtrComprCageBaseRegister);
+  Cmp(temp, Immediate(UINT32_MAX));
+  Check(lo, AbortReason::kObjectNotTagged);
+  bind(&is_smi);
+}
+
 void MacroAssembler::AssertGeneratorObject(Register object) {
   if (!v8_flags.debug_code) return;
   ASM_CODE_COMMENT(this);

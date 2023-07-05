@@ -991,6 +991,20 @@ inline void MaglevAssembler::AssertStackSizeCorrect() {
   }
 }
 
+inline Condition MaglevAssembler::FunctionEntryStackCheck(
+    int stack_check_offset) {
+  ScratchRegisterScope temps(this);
+  Register stack_cmp_reg = sp;
+  if (stack_check_offset > kStackLimitSlackForDeoptimizationInBytes) {
+    stack_cmp_reg = temps.Acquire();
+    sub(stack_cmp_reg, sp, Operand(stack_check_offset));
+  }
+  Register interrupt_stack_limit = temps.Acquire();
+  LoadStackLimit(interrupt_stack_limit, StackLimitKind::kInterruptStackLimit);
+  cmp(stack_cmp_reg, interrupt_stack_limit);
+  return kUnsignedGreaterThanEqual;
+}
+
 inline void MaglevAssembler::FinishCode() { CheckConstPool(true, false); }
 
 template <typename NodeT>

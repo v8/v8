@@ -496,6 +496,7 @@ class MaglevAssembler : public MacroAssembler {
   inline void FinishCode();
 
   inline void AssertStackSizeCorrect();
+  inline Condition FunctionEntryStackCheck(int stack_check_offset);
 
   inline void SetMapAsRoot(Register object, RootIndex map);
 

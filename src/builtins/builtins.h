@@ -290,6 +290,9 @@ class Builtins {
                                                      CallOrConstructMode mode,
                                                      Handle<Code> code);
 
+  static void Generate_MaglevFunctionEntryStackCheck(MacroAssembler* masm,
+                                                     bool save_new_target);
+
   enum class InterpreterEntryTrampolineMode {
     // The version of InterpreterEntryTrampoline used by default.
     kDefault,

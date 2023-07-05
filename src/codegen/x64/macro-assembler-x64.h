@@ -534,6 +534,11 @@ class V8_EXPORT_PRIVATE MacroAssembler
   // --debug-code.
   void AssertCode(Register object) NOOP_UNLESS_DEBUG_CODE;
 
+  // Abort execution if argument is not smi nor in the pointer compresssion
+  // cage, enabled via --debug-code.
+  void AssertSmiOrHeapObjectInCompressionCage(Register object)
+      NOOP_UNLESS_DEBUG_CODE;
+
   // Print a message to stdout and abort execution.
   void Abort(AbortReason msg);
 
