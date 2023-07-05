@@ -253,6 +253,15 @@ void Snapshot::ClearReconstructableDataForSerialization(
       }
     }
 
+#if V8_ENABLE_WEBASSEMBLY
+    // Clear the cached js-to-wasm wrappers.
+    Handle<WeakArrayList> wrappers =
+        handle(isolate->heap()->js_to_wasm_wrappers(), isolate);
+    for (int i = 0; i < wrappers->length(); ++i) {
+      wrappers->Set(i, MaybeObject{});
+    }
+#endif  // V8_ENABLE_WEBASSEMBLY
+
     // Must happen after heap iteration since SFI::DiscardCompiled may allocate.
     for (i::Handle<i::SharedFunctionInfo> shared : sfis_to_clear) {
       if (shared->CanDiscardCompiled()) {
