@@ -885,14 +885,12 @@ class V8_EXPORT_PRIVATE LiveRange : public NON_EXPORTED_BASE(ZoneObject) {
 
   LifetimePosition Start() const {
     DCHECK(!IsEmpty());
-    DCHECK_EQ(start_, first_interval()->start());
-    return start_;
+    return first_interval()->start();
   }
 
   LifetimePosition End() const {
     DCHECK(!IsEmpty());
-    DCHECK_EQ(end_, last_interval_->end());
-    return end_;
+    return last_interval_->end();
   }
 
   bool ShouldBeAllocatedBefore(const LiveRange* other) const;
@@ -973,12 +971,6 @@ class V8_EXPORT_PRIVATE LiveRange : public NON_EXPORTED_BASE(ZoneObject) {
 
   // Next interval start, relative to the current linear scan position.
   LifetimePosition next_start_;
-
-  // Just a cache for `Start()` and `End()` that improves locality
-  // (i.e., one less pointer indirection), which can reduce total compile time
-  // by up to 40%. See https://crbug.com/v8/12320 for an example.
-  LifetimePosition start_;
-  LifetimePosition end_;
 };
 
 struct LiveRangeOrdering {
@@ -1324,13 +1316,16 @@ class V8_EXPORT_PRIVATE TopLevelLiveRange final : public LiveRange {
 
   UsePositionVector positions_;
 
+  // This is a cache for the binary search in `GetChildCovers`.
+  // The `LiveRange`s are sorted by their `Start()` position.
+  ZoneVector<LiveRange*> children_;
+
   // TODO(mtrofin): generalize spilling after definition, currently specialized
   // just for spill in a single deferred block.
   bool spilled_in_deferred_blocks_;
   bool has_preassigned_slot_;
 
   int spill_start_index_;
-  LiveRange* last_child_covers_;
 };
 
 struct PrintableLiveRange {

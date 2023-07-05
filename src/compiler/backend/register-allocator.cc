@@ -335,16 +335,17 @@ void LiveRange::UnsetAssignedRegister() {
 
 void LiveRange::AttachToNext() {
   DCHECK_NOT_NULL(next_);
-  DCHECK_NE(TopLevel()->last_child_covers_, next_);
+
+  // Update cache for `TopLevelLiveRange::GetChildCovers()`.
+  auto& children = TopLevel()->children_;
+  children.erase(std::lower_bound(children.begin(), children.end(), next_,
+                                  LiveRangeOrdering()));
 
   // Join linked lists of use intervals.
   last_interval_->set_next(next_->first_interval());
   next_->first_interval_ = nullptr;
   last_interval_ = next_->last_interval_;
   next_->last_interval_ = nullptr;
-
-  // `start_` doesn't change.
-  end_ = next_->end_;
 
   // Merge use positions.
   CHECK_EQ(positions_span_.end(), next_->positions_span_.begin());
@@ -555,10 +556,6 @@ LiveRange* LiveRange::SplitAt(LifetimePosition position, Zone* zone) {
   result->first_interval_ = after;
   last_interval_ = before;
 
-  result->start_ = result->first_interval_->start();
-  result->end_ = end_;
-  end_ = last_interval_->end();
-
   // Partition use positions.
   UsePosition** split_position_it;
   if (split_at_start) {
@@ -599,6 +596,12 @@ LiveRange* LiveRange::SplitAt(LifetimePosition position, Zone* zone) {
   result->top_level_ = TopLevel();
   result->next_ = next_;
   next_ = result;
+
+  // Update cache for `TopLevelLiveRange::GetChildCovers()`.
+  auto& children = TopLevel()->children_;
+  children.insert(std::upper_bound(children.begin(), children.end(), result,
+                                   LiveRangeOrdering()),
+                  1, result);
   return result;
 }
 
@@ -776,11 +779,12 @@ TopLevelLiveRange::TopLevelLiveRange(int vreg, MachineRepresentation rep,
       last_child_id_(0),
       spill_operand_(nullptr),
       spill_move_insertion_locations_(nullptr),
+      children_(zone),
       spilled_in_deferred_blocks_(false),
       has_preassigned_slot_(false),
-      spill_start_index_(kMaxInt),
-      last_child_covers_(this) {
+      spill_start_index_(kMaxInt) {
   bits_ |= SpillTypeField::encode(SpillType::kNoSpillType);
+  children_.push_back(this);
 }
 
 void TopLevelLiveRange::RecordSpillLocation(Zone* zone, int gap_index,
@@ -872,24 +876,23 @@ AllocatedOperand TopLevelLiveRange::GetSpillRangeOperand() const {
 }
 
 LiveRange* TopLevelLiveRange::GetChildCovers(LifetimePosition pos) {
-  LiveRange* child = last_child_covers_;
-  DCHECK_NE(child, nullptr);
-  if (pos < child->Start()) {
-    // Cached value has advanced too far; start from the top.
-    child = this;
-  }
-  LiveRange* previous_child = nullptr;
-  while (child != nullptr && child->End() <= pos) {
-    previous_child = child;
+#ifdef DEBUG
+  // Make sure the cache contains the correct, actual children.
+  LiveRange* child = this;
+  for (LiveRange* cached_child : children_) {
+    DCHECK_EQ(cached_child, child);
     child = child->next();
   }
+  DCHECK_NULL(child);
+#endif
 
-  // If we've walked past the end, cache the last child instead. This allows
-  // future calls that are also past the end to be fast, since they will know
-  // that there is no need to reset the search to the beginning.
-  last_child_covers_ = child == nullptr ? previous_child : child;
-
-  return !child || !child->Covers(pos) ? nullptr : child;
+  auto child_it =
+      std::lower_bound(children_.begin(), children_.end(), pos,
+                       [](const LiveRange* range, LifetimePosition pos) {
+                         return range->End() <= pos;
+                       });
+  return child_it == children_.end() || !(*child_it)->Covers(pos) ? nullptr
+                                                                  : *child_it;
 }
 
 #ifdef DEBUG
@@ -917,7 +920,6 @@ void TopLevelLiveRange::ShortenTo(LifetimePosition start, bool trace_alloc) {
   DCHECK(first_interval_->start() <= start);
   DCHECK(start < first_interval_->end());
   first_interval_->set_start(start);
-  start_ = start;
 }
 
 void TopLevelLiveRange::EnsureInterval(LifetimePosition start,
@@ -939,12 +941,6 @@ void TopLevelLiveRange::EnsureInterval(LifetimePosition start,
   if (new_interval->next() == nullptr) {
     last_interval_ = new_interval;
   }
-  if (end_ < new_end) {
-    end_ = new_end;
-  }
-  if (start_ > start) {
-    start_ = start;
-  }
 }
 
 void TopLevelLiveRange::AddUseInterval(LifetimePosition start,
@@ -956,18 +952,14 @@ void TopLevelLiveRange::AddUseInterval(LifetimePosition start,
     UseInterval* interval = zone->New<UseInterval>(start, end);
     first_interval_ = interval;
     last_interval_ = interval;
-    start_ = start;
-    end_ = end;
   } else {
     if (end == first_interval_->start()) {
       // Coalesce directly adjacent intervals.
       first_interval_->set_start(start);
-      start_ = start;
     } else if (end < first_interval_->start()) {
       UseInterval* interval = zone->New<UseInterval>(start, end);
       interval->set_next(first_interval_);
       first_interval_ = interval;
-      start_ = start;
     } else {
       // Order of instruction's processing (see ProcessInstructions) guarantees
       // that each new use interval either precedes, intersects with or touches
@@ -975,12 +967,6 @@ void TopLevelLiveRange::AddUseInterval(LifetimePosition start,
       DCHECK_LE(start, first_interval_->end());
       first_interval_->set_start(std::min(start, first_interval_->start()));
       first_interval_->set_end(std::max(end, first_interval_->end()));
-      if (start_ > start) {
-        start_ = start;
-      }
-      if (end_ < end) {
-        end_ = end;
-      }
     }
   }
 }
@@ -4512,18 +4498,16 @@ bool LinearScanAllocator::TryReuseSpillForPhi(TopLevelLiveRange* range) {
   size_t spilled_count = 0;
   for (size_t i = 0; i < phi->operands().size(); i++) {
     int op = phi->operands()[i];
-    LiveRange* op_range = data()->GetOrCreateLiveRangeFor(op);
-    if (!op_range->TopLevel()->HasSpillRange()) continue;
+    TopLevelLiveRange* op_range = data()->GetOrCreateLiveRangeFor(op);
+    if (!op_range->HasSpillRange() || op_range->get_bundle() != out_bundle)
+      continue;
     const InstructionBlock* pred =
         code()->InstructionBlockAt(block->predecessors()[i]);
     LifetimePosition pred_end =
         LifetimePosition::InstructionFromInstructionIndex(
             pred->last_instruction_index());
-    while (op_range != nullptr && !op_range->CanCover(pred_end)) {
-      op_range = op_range->next();
-    }
-    if (op_range != nullptr && op_range->spilled() &&
-        op_range->get_bundle() == out_bundle) {
+    LiveRange* op_range_child = op_range->GetChildCovers(pred_end);
+    if (op_range_child != nullptr && op_range_child->spilled()) {
       spilled_count++;
     }
   }
