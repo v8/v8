@@ -170,6 +170,10 @@ inline FullObjectSlot ApiCallbackExitFrame::argc_slot() const {
   return FullObjectSlot(fp() + ApiCallbackExitFrameConstants::kArgcOffset);
 }
 
+inline FullObjectSlot ApiCallbackExitFrame::context_slot() const {
+  return FullObjectSlot(fp() + ApiCallbackExitFrameConstants::kContextOffset);
+}
+
 inline FullObjectSlot ApiCallbackExitFrame::target_slot() const {
   return FullObjectSlot(fp() + ApiCallbackExitFrameConstants::kTargetOffset);
 }

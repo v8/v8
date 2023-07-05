@@ -5641,13 +5641,24 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
   static_assert(FCI::kImplicitArgsOffset == 0);
   static_assert(FCI::kValuesOffset == 1 * kSystemPointerSize);
   static_assert(FCI::kLengthOffset == 2 * kSystemPointerSize);
-  const int exit_frame_params_size =
-      mode == CallApiCallbackMode::kGeneric ? 2 : 0;
+  const int exit_frame_params_count =
+      mode == CallApiCallbackMode::kGeneric
+          ? ApiCallbackExitFrameConstants::kAdditionalParametersCount
+          : 0;
 
   FrameScope frame_scope(masm, StackFrame::MANUAL);
   if (mode == CallApiCallbackMode::kGeneric) {
     ASM_CODE_COMMENT_STRING(masm, "Push API_CALLBACK_EXIT frame arguments");
-    __ Claim(exit_frame_params_size, kSystemPointerSize);
+    __ Claim(exit_frame_params_count, kSystemPointerSize);
+
+    // Context parameter and padding.
+    static_assert(ApiCallbackExitFrameConstants::kOptionalPaddingSize ==
+                  kSystemPointerSize);
+    static_assert(ApiCallbackExitFrameConstants::kOptionalPaddingOffset ==
+                  5 * kSystemPointerSize);
+    static_assert(ApiCallbackExitFrameConstants::kContextOffset ==
+                  4 * kSystemPointerSize);
+    __ Stp(kContextRegister, xzr, MemOperand(sp, 2 * kSystemPointerSize));
 
     // Argc parameter as a Smi.
     static_assert(ApiCallbackExitFrameConstants::kArgcOffset ==
@@ -5699,7 +5710,7 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
   MemOperand stack_space_operand =
       ExitFrameStackSlotOperand(FCI::kLengthOffset + kSlotsToDropOnStackSize);
   __ Add(scratch, argc,
-         Operand(FCA::kArgsLengthWithReceiver + exit_frame_params_size));
+         Operand(FCA::kArgsLengthWithReceiver + exit_frame_params_count));
   __ Str(scratch, stack_space_operand);
 
   __ RecordComment("v8::FunctionCallback's argument.");
@@ -5718,7 +5729,7 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
   DCHECK_EQ(FCA::kArgsLength % 2, 0);
 
   MemOperand return_value_operand = ExitFrameCallerStackSlotOperand(
-      FCA::kReturnValueIndex + exit_frame_params_size);
+      FCA::kReturnValueIndex + exit_frame_params_count);
   static constexpr int kUseStackSpaceOperand = 0;
 
   CallApiFunctionAndReturn(masm, api_function_address, thunk_ref, thunk_arg,

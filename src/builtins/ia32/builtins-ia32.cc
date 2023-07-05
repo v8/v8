@@ -3666,13 +3666,23 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
   // from the stack after the callback in non-GCed space of the exit frame.
   static constexpr int kApiStackSpace = 4;
   static_assert((kApiStackSpace - 1) * kSystemPointerSize == sizeof(FCI));
-  const int exit_frame_params_size =
-      mode == CallApiCallbackMode::kGeneric ? 2 : 0;
+  const int exit_frame_params_count =
+      mode == CallApiCallbackMode::kGeneric
+          ? ApiCallbackExitFrameConstants::kAdditionalParametersCount
+          : 0;
 
   if (mode == CallApiCallbackMode::kGeneric) {
     ASM_CODE_COMMENT_STRING(masm, "Push API_CALLBACK_EXIT frame arguments");
     // Reload argc from xmm0.
     __ movd(api_function_address, xmm0);
+
+    // No padding is required.
+    static_assert(ApiCallbackExitFrameConstants::kOptionalPaddingSize == 0);
+
+    // Context parameter.
+    static_assert(ApiCallbackExitFrameConstants::kContextOffset ==
+                  4 * kSystemPointerSize);
+    __ Push(kContextRegister);
 
     // Argc parameter as a Smi.
     static_assert(ApiCallbackExitFrameConstants::kArgcOffset ==
@@ -3726,7 +3736,7 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
   // from the API function here.
   __ lea(scratch, Operand(argc, times_system_pointer_size,
                           (FCA::kArgsLength + 1 /* receiver */ +
-                           exit_frame_params_size) *
+                           exit_frame_params_count) *
                               kSystemPointerSize));
   __ mov(ApiParameterOperand(kApiArgc + 3), scratch);
 
@@ -3741,7 +3751,7 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
   Register thunk_arg = api_function_address;
 
   Operand return_value_operand = ExitFrameCallerStackSlotOperand(
-      FCA::kReturnValueIndex + exit_frame_params_size);
+      FCA::kReturnValueIndex + exit_frame_params_count);
   static constexpr int kUseStackSpaceOperand = 0;
   Operand stack_space_operand = ApiParameterOperand(kApiArgc + 3);
 

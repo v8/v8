@@ -905,6 +905,7 @@ class ApiCallbackExitFrame : public ExitFrame {
 
   inline FullObjectSlot receiver_slot() const;
   inline FullObjectSlot argc_slot() const;
+  inline FullObjectSlot context_slot() const;
   inline FullObjectSlot target_slot() const;
   inline FullObjectSlot new_target_slot() const;
 

@@ -5084,11 +5084,21 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
   // from the stack after the callback in non-GCed space of the exit frame.
   static constexpr int kApiStackSpace = 4;
   static_assert((kApiStackSpace - 1) * kSystemPointerSize == sizeof(FCI));
-  const int exit_frame_params_size =
-      mode == CallApiCallbackMode::kGeneric ? 2 : 0;
+  const int exit_frame_params_count =
+      mode == CallApiCallbackMode::kGeneric
+          ? ApiCallbackExitFrameConstants::kAdditionalParametersCount
+          : 0;
 
   if (mode == CallApiCallbackMode::kGeneric) {
     ASM_CODE_COMMENT_STRING(masm, "Push API_CALLBACK_EXIT frame arguments");
+
+    // No padding is required.
+    static_assert(ApiCallbackExitFrameConstants::kOptionalPaddingSize == 0);
+
+    // Context parameter.
+    static_assert(ApiCallbackExitFrameConstants::kContextOffset ==
+                  4 * kSystemPointerSize);
+    __ Push(kContextRegister);
 
     // Argc parameter as a Smi.
     static_assert(ApiCallbackExitFrameConstants::kArgcOffset ==
@@ -5143,11 +5153,11 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
   // from the API function here.
   constexpr int kBytesToDropOffset = kLengthOffset + 1;
   static_assert(kBytesToDropOffset == kApiStackSpace - 1);
-  __ leaq(
-      kScratchRegister,
-      Operand(argc, times_system_pointer_size,
-              (FCA::kArgsLength + exit_frame_params_size) * kSystemPointerSize +
-                  kReceiverOnStackSize));
+  __ leaq(kScratchRegister,
+          Operand(argc, times_system_pointer_size,
+                  (FCA::kArgsLength + exit_frame_params_count) *
+                          kSystemPointerSize +
+                      kReceiverOnStackSize));
   __ movq(ExitFrameStackSlotOperand(kBytesToDropOffset), kScratchRegister);
 
   __ RecordComment("v8::FunctionCallback's argument.");
@@ -5163,7 +5173,7 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
   Register thunk_arg = api_function_address;
 
   Operand return_value_operand = ExitFrameCallerStackSlotOperand(
-      FCA::kReturnValueIndex + exit_frame_params_size);
+      FCA::kReturnValueIndex + exit_frame_params_count);
   static constexpr int kUseExitFrameStackSlotOperand = 0;
   Operand stack_space_operand = ExitFrameStackSlotOperand(kBytesToDropOffset);
 

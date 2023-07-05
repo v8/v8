@@ -1075,14 +1075,19 @@ void ApiCallbackExitFrame::set_target(HeapObject function) const {
 Handle<JSFunction> ApiCallbackExitFrame::GetFunction() const {
   HeapObject maybe_function = target();
   if (maybe_function.IsJSFunction()) {
-    return Handle<JSFunction>(
-        reinterpret_cast<Address*>(target_slot().address()));
+    return Handle<JSFunction>(target_slot().location());
   }
   DCHECK(maybe_function.IsFunctionTemplateInfo());
   Handle<FunctionTemplateInfo> function_template_info(
       FunctionTemplateInfo::cast(maybe_function), isolate());
+
+  // Instantiate function for the correct context.
+  DCHECK((*context_slot()).IsContext());
+  Handle<NativeContext> native_context(
+      Context::cast(*context_slot()).native_context(), isolate());
+
   Handle<JSFunction> function =
-      ApiNatives::InstantiateFunction(isolate(), isolate()->native_context(),
+      ApiNatives::InstantiateFunction(isolate(), native_context,
                                       function_template_info)
           .ToHandleChecked();
 

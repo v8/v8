@@ -346,12 +346,25 @@ class ApiCallbackExitFrameConstants : public ExitFrameConstants {
   static constexpr int kFunctionCallbackInfoNewTargetIndex = 5;
   static constexpr int kFunctionCallbackInfoArgsLength = 6;
 
-  // Target and argc.
+  // Target, argc, context and optional padding (for arm64).
   static constexpr int kTargetOffset = kCallerPCOffset + 1 * kSystemPointerSize;
   static constexpr int kArgcOffset = kTargetOffset + 1 * kSystemPointerSize;
+  static constexpr int kContextOffset = kArgcOffset + 1 * kSystemPointerSize;
+  static constexpr int kOptionalPaddingOffset =
+      kContextOffset + 1 * kSystemPointerSize;
+
+#if V8_TARGET_ARCH_ARM64
+  // Padding is required to keep the stack 16-byte aligned.
+  static constexpr int kOptionalPaddingSize = kSystemPointerSize;
+  static constexpr int kAdditionalParametersCount = 4;
+#else
+  static constexpr int kOptionalPaddingSize = 0;
+  static constexpr int kAdditionalParametersCount = 3;
+#endif  // V8_TARGET_ARCH_ARM64
+
   // FunctionCallbackInfo.
   static constexpr int kFunctionCallbackInfoOffset =
-      kArgcOffset + 1 * kSystemPointerSize;
+      kOptionalPaddingOffset + kOptionalPaddingSize;
   static constexpr int kNewTargetOffset =
       kFunctionCallbackInfoOffset +
       kFunctionCallbackInfoNewTargetIndex * kSystemPointerSize;
