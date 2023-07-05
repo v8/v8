@@ -361,8 +361,6 @@ class MaglevAssembler : public MacroAssembler {
   inline Condition IsCallableAndNotUndetectable(Register map, Register scratch);
   inline Condition IsNotCallableNorUndetactable(Register map, Register scratch);
 
-  inline void CheckHeapObjectIsNumeric(Register heap_object, Label* fail);
-
   inline void LoadInstanceType(Register instance_type, Register heap_object);
   inline void IsObjectType(Register heap_object, InstanceType type);
   inline void CompareObjectType(Register heap_object, InstanceType type);

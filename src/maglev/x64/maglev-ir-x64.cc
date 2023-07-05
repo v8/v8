@@ -100,49 +100,6 @@ int CheckedObjectToIndex::MaxCallStackArgs() const {
   return MaglevAssembler::ArgumentStackSlotsForCFunctionCall(1);
 }
 
-void CheckedInternalizedString::GenerateCode(MaglevAssembler* masm,
-                                             const ProcessingState& state) {
-  Register object = ToRegister(object_input());
-
-  if (check_type() == CheckType::kOmitHeapObjectCheck) {
-    __ AssertNotSmi(object);
-  } else {
-    Condition is_smi = __ CheckSmi(object);
-    __ EmitEagerDeoptIf(is_smi, DeoptimizeReason::kWrongMap, this);
-  }
-
-  __ LoadMap(kScratchRegister, object);
-  __ RecordComment("Test IsInternalizedString");
-  // Go to the slow path if this is a non-string, or a non-internalised string.
-  __ testw(FieldOperand(kScratchRegister, Map::kInstanceTypeOffset),
-           Immediate(kIsNotStringMask | kIsNotInternalizedMask));
-  static_assert((kStringTag | kInternalizedTag) == 0);
-  ZoneLabelRef done(masm);
-  __ JumpToDeferredIf(
-      not_zero,
-      [](MaglevAssembler* masm, ZoneLabelRef done, Register object,
-         CheckedInternalizedString* node, EagerDeoptInfo* deopt_info) {
-        __ RecordComment("Deferred Test IsThinString");
-        __ cmpw(FieldOperand(kScratchRegister, Map::kInstanceTypeOffset),
-                Immediate(THIN_STRING_TYPE));
-        // Deopt if this isn't a thin string.
-        __ EmitEagerDeoptIf(not_equal, DeoptimizeReason::kWrongMap, node);
-        __ LoadTaggedField(object,
-                           FieldOperand(object, ThinString::kActualOffset));
-        if (v8_flags.debug_code) {
-          __ RecordComment("DCHECK IsInternalizedString");
-          __ LoadMap(kScratchRegister, object);
-          __ testw(FieldOperand(kScratchRegister, Map::kInstanceTypeOffset),
-                   Immediate(kIsNotStringMask | kIsNotInternalizedMask));
-          static_assert((kStringTag | kInternalizedTag) == 0);
-          __ Check(zero, AbortReason::kUnexpectedValue);
-        }
-        __ jmp(*done);
-      },
-      done, object, this, eager_deopt_info());
-  __ bind(*done);
-}
-
 int BuiltinStringFromCharCode::MaxCallStackArgs() const {
   return AllocateDescriptor::GetStackParameterCount();
 }

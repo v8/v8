@@ -629,16 +629,6 @@ inline Condition MaglevAssembler::IsNotCallableNorUndetactable(
   return kEqual;
 }
 
-inline void MaglevAssembler::CheckHeapObjectIsNumeric(Register heap_object,
-                                                      Label* fail) {
-  Label done;
-  CompareMapWithRoot(heap_object, RootIndex::kHeapNumberMap, kScratchRegister);
-  JumpIf(kEqual, &done, Label::Distance::kNear);
-  CompareMapWithRoot(heap_object, RootIndex::kBigIntMap, kScratchRegister);
-  JumpIf(kNotEqual, fail);
-  bind(&done);
-}
-
 inline void MaglevAssembler::LoadInstanceType(Register instance_type,
                                               Register heap_object) {
   LoadMap(instance_type, heap_object);

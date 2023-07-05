@@ -4392,15 +4392,23 @@ void CheckNumber::SetValueLocationConstraints() {
 }
 void CheckNumber::GenerateCode(MaglevAssembler* masm,
                                const ProcessingState& state) {
-  Register value = ToRegister(receiver_input());
-  Label* deopt = __ GetDeoptLabel(this, DeoptimizeReason::kNotANumber);
   Label done;
+  MaglevAssembler::ScratchRegisterScope temps(masm);
+  Register scratch = temps.GetDefaultScratchRegister();
+  Register value = ToRegister(receiver_input());
+  // If {value} is a Smi or a HeapNumber, we're done.
   __ JumpIfSmi(value, &done, Label::Distance::kNear);
   if (mode() == Object::Conversion::kToNumeric) {
-    __ CheckHeapObjectIsNumeric(value, deopt);
+    __ LoadMap(scratch, value);
+    __ CompareRoot(scratch, RootIndex::kHeapNumberMap);
+    // Jump to done if it is a HeapNumber.
+    __ JumpIf(kEqual, &done, Label::Distance::kNear);
+    // Check if it is a BigInt.
+    __ CompareRoot(scratch, RootIndex::kBigIntMap);
   } else {
-    __ JumpIfNotRoot(value, RootIndex::kHeapNumberMap, deopt);
+    __ CompareMapWithRoot(value, RootIndex::kHeapNumberMap, scratch);
   }
+  __ EmitEagerDeoptIf(kNotEqual, DeoptimizeReason::kNotANumber, this);
   __ bind(&done);
 }
 
@@ -4408,10 +4416,6 @@ void CheckedInternalizedString::SetValueLocationConstraints() {
   UseRegister(object_input());
   DefineSameAsFirst(this);
 }
-
-#ifndef V8_TARGET_ARCH_X64
-// We specialize CheckedInternalizedString for x64. Since x64 can compare a map
-// to a root (or an instance type to a mask) without loading to a register.
 void CheckedInternalizedString::GenerateCode(MaglevAssembler* masm,
                                              const ProcessingState& state) {
   Register object = ToRegister(object_input());
@@ -4456,7 +4460,6 @@ void CheckedInternalizedString::GenerateCode(MaglevAssembler* masm,
           done, this, object, instance_type));
   __ bind(*done);
 }
-#endif  // V8_TARGET_ARCH_X64
 
 void CheckedNumberToUint8Clamped::SetValueLocationConstraints() {
   UseRegister(input());
