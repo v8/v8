@@ -805,6 +805,21 @@ void IncrementalMarking::Step(double max_step_size_in_ms,
   DCHECK(IsMajorMarking());
   double start = heap_->MonotonicallyIncreasingTimeInMs();
 
+  base::Optional<SafepointScope> safepoint_scope;
+
+  // Conceptually an incremental marking step (even though it always runs on the
+  // main thread) may introduce a form of concurrent marking when background
+  // threads access the heap concurrently (e.g. concurrent compilation). On
+  // builds that verify concurrent heap accesses this may lead to false positive
+  // reports. We can avoid this by stopping background threads just in this
+  // configuration. This should not hide potential issues because the concurrent
+  // marker doesn't rely on correct synchronizaton but e.g. on black allocation
+  // and the on_hold worklist.
+#ifndef V8_ATOMIC_OBJECT_FIELD_WRITES
+  DCHECK(!v8_flags.concurrent_marking);
+  safepoint_scope.emplace(isolate(), SafepointKind::kIsolate);
+#endif
+
   size_t bytes_to_process = 0;
   size_t v8_bytes_processed = 0;
   double embedder_duration = 0.0;
