@@ -909,41 +909,42 @@ void MacroAssembler::ReplaceClosureCodeWithOptimizedCode(
 
 // Read off the flags in the feedback vector and check if there
 // is optimized code or a tiering state that needs to be processed.
-void MacroAssembler::LoadFeedbackVectorFlagsAndJumpIfNeedsProcessing(
-    Register flags, Register feedback_vector, CodeKind current_code_kind,
+void MacroAssembler::CheckFeedbackVectorFlagsAndJumpIfNeedsProcessing(
+    Register feedback_vector, CodeKind current_code_kind,
     Label* flags_need_processing) {
   ASM_CODE_COMMENT(this);
   DCHECK(CodeKindCanTierUp(current_code_kind));
-  movzxwl(flags, FieldOperand(feedback_vector, FeedbackVector::kFlagsOffset));
   uint32_t kFlagsMask = FeedbackVector::kFlagsTieringStateIsAnyRequested |
                         FeedbackVector::kFlagsMaybeHasTurbofanCode |
                         FeedbackVector::kFlagsLogNextExecution;
   if (current_code_kind != CodeKind::MAGLEV) {
     kFlagsMask |= FeedbackVector::kFlagsMaybeHasMaglevCode;
   }
-  testw(flags, Immediate(kFlagsMask));
+  testw(FieldOperand(feedback_vector, FeedbackVector::kFlagsOffset),
+        Immediate(kFlagsMask));
   j(not_zero, flags_need_processing);
 }
 
 void MacroAssembler::OptimizeCodeOrTailCallOptimizedCodeSlot(
-    Register flags, Register feedback_vector, Register closure,
-    JumpMode jump_mode) {
+    Register feedback_vector, Register closure, JumpMode jump_mode) {
   ASM_CODE_COMMENT(this);
-  DCHECK(!AreAliased(flags, feedback_vector, closure));
+  DCHECK(!AreAliased(feedback_vector, closure));
   Label maybe_has_optimized_code, maybe_needs_logging;
   // Check if optimized code is available.
-  testl(flags, Immediate(FeedbackVector::kFlagsTieringStateIsAnyRequested));
+  testw(FieldOperand(feedback_vector, FeedbackVector::kFlagsOffset),
+        Immediate(FeedbackVector::kFlagsTieringStateIsAnyRequested));
   j(zero, &maybe_needs_logging);
 
   GenerateTailCallToReturnedCode(Runtime::kCompileOptimized, jump_mode);
 
   bind(&maybe_needs_logging);
-  testl(flags, Immediate(FeedbackVector::LogNextExecutionBit::kMask));
+  testw(FieldOperand(feedback_vector, FeedbackVector::kFlagsOffset),
+        Immediate(FeedbackVector::LogNextExecutionBit::kMask));
   j(zero, &maybe_has_optimized_code);
   GenerateTailCallToReturnedCode(Runtime::kFunctionLogNextExecution, jump_mode);
 
   bind(&maybe_has_optimized_code);
-  Register optimized_code_entry = flags;
+  Register optimized_code_entry = kJavaScriptCallCodeStartRegister;
   LoadTaggedField(
       optimized_code_entry,
       FieldOperand(feedback_vector, FeedbackVector::kMaybeOptimizedCodeOffset));

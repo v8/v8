@@ -1076,10 +1076,8 @@ void Builtins::Generate_InterpreterEntryTrampoline(
 
   // Check the tiering state.
   Label flags_need_processing;
-  Register flags = rcx;
-  __ LoadFeedbackVectorFlagsAndJumpIfNeedsProcessing(
-      flags, feedback_vector, CodeKind::INTERPRETED_FUNCTION,
-      &flags_need_processing);
+  __ CheckFeedbackVectorFlagsAndJumpIfNeedsProcessing(
+      feedback_vector, CodeKind::INTERPRETED_FUNCTION, &flags_need_processing);
 
   ResetFeedbackVectorOsrUrgency(masm, feedback_vector, kScratchRegister);
 
@@ -1241,7 +1239,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(
 
 #ifndef V8_JITLESS
   __ bind(&flags_need_processing);
-  __ OptimizeCodeOrTailCallOptimizedCodeSlot(flags, feedback_vector, closure);
+  __ OptimizeCodeOrTailCallOptimizedCodeSlot(feedback_vector, closure);
 
   __ bind(&is_baseline);
   {
@@ -1259,8 +1257,8 @@ void Builtins::Generate_InterpreterEntryTrampoline(
     __ j(not_equal, &install_baseline_code);
 
     // Check the tiering state.
-    __ LoadFeedbackVectorFlagsAndJumpIfNeedsProcessing(
-        flags, feedback_vector, CodeKind::BASELINE, &flags_need_processing);
+    __ CheckFeedbackVectorFlagsAndJumpIfNeedsProcessing(
+        feedback_vector, CodeKind::BASELINE, &flags_need_processing);
 
     // Load the baseline code into the closure.
     __ Move(rcx, kInterpreterBytecodeArrayRegister);
@@ -1566,12 +1564,11 @@ void Builtins::Generate_InterpreterEnterAtBytecode(MacroAssembler* masm) {
 // static
 void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
   Register feedback_vector = r8;
-  Register flags = rcx;
   Register return_address = r15;
 
 #ifdef DEBUG
   for (auto reg : BaselineOutOfLinePrologueDescriptor::registers()) {
-    DCHECK(!AreAliased(feedback_vector, flags, return_address, reg));
+    DCHECK(!AreAliased(feedback_vector, return_address, reg));
   }
 #endif
 
@@ -1589,8 +1586,8 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
 
   // Check the tiering state.
   Label flags_need_processing;
-  __ LoadFeedbackVectorFlagsAndJumpIfNeedsProcessing(
-      flags, feedback_vector, CodeKind::BASELINE, &flags_need_processing);
+  __ CheckFeedbackVectorFlagsAndJumpIfNeedsProcessing(
+      feedback_vector, CodeKind::BASELINE, &flags_need_processing);
 
   ResetFeedbackVectorOsrUrgency(masm, feedback_vector, kScratchRegister);
 
@@ -1669,7 +1666,7 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
     // return since we may do a runtime call along the way that requires the
     // stack to only contain valid frames.
     __ Drop(1);
-    __ OptimizeCodeOrTailCallOptimizedCodeSlot(flags, feedback_vector, closure,
+    __ OptimizeCodeOrTailCallOptimizedCodeSlot(feedback_vector, closure,
                                                JumpMode::kPushAndReturn);
     __ Trap();
   }

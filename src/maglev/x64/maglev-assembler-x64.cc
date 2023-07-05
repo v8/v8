@@ -449,25 +449,23 @@ void MaglevAssembler::Prologue(Graph* graph) {
     // Scratch registers. Don't clobber regs related to the calling
     // convention (e.g. kJavaScriptCallArgCountRegister). Keep up-to-date
     // with deferred flags code.
-    Register flags = rcx;
     Register feedback_vector = r9;
 
     Label* deferred_flags_need_processing = MakeDeferredCode(
-        [](MaglevAssembler* masm, Register flags, Register feedback_vector) {
+        [](MaglevAssembler* masm, Register feedback_vector) {
           ASM_CODE_COMMENT_STRING(masm, "Optimized marker check");
           // TODO(leszeks): This could definitely be a builtin that we
           // tail-call.
           __ OptimizeCodeOrTailCallOptimizedCodeSlot(
-              flags, feedback_vector, kJSFunctionRegister, JumpMode::kJump);
+              feedback_vector, kJSFunctionRegister, JumpMode::kJump);
           __ Trap();
         },
-        flags, feedback_vector);
+        feedback_vector);
 
     Move(feedback_vector,
          compilation_info()->toplevel_compilation_unit()->feedback().object());
-    LoadFeedbackVectorFlagsAndJumpIfNeedsProcessing(
-        flags, feedback_vector, CodeKind::MAGLEV,
-        deferred_flags_need_processing);
+    CheckFeedbackVectorFlagsAndJumpIfNeedsProcessing(
+        feedback_vector, CodeKind::MAGLEV, deferred_flags_need_processing);
   }
 
   EnterFrame(StackFrame::MAGLEV);
