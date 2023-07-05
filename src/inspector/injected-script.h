@@ -293,23 +293,21 @@ class PromiseHandlerTracker {
     kPromiseCollected,
     kTearDown,
   };
+  using Id = int64_t;
 
   template <typename... Args>
-  InjectedScript::ProtocolPromiseHandler* create(Args&&... args);
-  void discard(InjectedScript::ProtocolPromiseHandler* handler,
-               DiscardReason reason);
-
-  // Only used in a CHECK as comparing dangling pointers is undefined behavior.
-  bool isValid(InjectedScript::ProtocolPromiseHandler* handler) const;
+  Id create(Args&&... args);
+  void discard(Id id, DiscardReason reason);
+  InjectedScript::ProtocolPromiseHandler* get(Id id) const;
 
  private:
   void sendFailure(InjectedScript::ProtocolPromiseHandler* handler,
                    const protocol::DispatchResponse& response) const;
   void discardAll();
 
-  // We store raw pointers instead of std::unique_ptrs: We need the fast
-  // lookup for {discard} and {isValid}.
-  std::unordered_set<InjectedScript::ProtocolPromiseHandler*> m_promiseHandlers;
+  std::map<Id, std::unique_ptr<InjectedScript::ProtocolPromiseHandler>>
+      m_promiseHandlers;
+  Id m_lastUsedId = 1;
 };
 
 }  // namespace v8_inspector

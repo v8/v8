@@ -128,16 +128,18 @@ class InjectedScript::ProtocolPromiseHandler {
     }
 
     V8InspectorImpl* inspector = session->inspector();
-    ProtocolPromiseHandler* handler = inspector->promiseHandlerTracker().create(
-        session, executionContextId, objectGroup, std::move(wrapOptions),
-        replMode, throwOnSideEffect, callback, promise);
-    v8::Local<v8::Value> wrapper = handler->m_wrapper.Get(inspector->isolate());
+    PromiseHandlerTracker::Id handlerId =
+        inspector->promiseHandlerTracker().create(
+            session, executionContextId, objectGroup, std::move(wrapOptions),
+            replMode, throwOnSideEffect, callback, promise);
+    v8::Local<v8::Number> data =
+        v8::Number::New(inspector->isolate(), handlerId);
     v8::Local<v8::Function> thenCallbackFunction =
-        v8::Function::New(context, thenCallback, wrapper, 0,
+        v8::Function::New(context, thenCallback, data, 0,
                           v8::ConstructorBehavior::kThrow)
             .ToLocalChecked();
     v8::Local<v8::Function> catchCallbackFunction =
-        v8::Function::New(context, catchCallback, wrapper, 0,
+        v8::Function::New(context, catchCallback, data, 0,
                           v8::ConstructorBehavior::kThrow)
             .ToLocalChecked();
 
@@ -162,44 +164,47 @@ class InjectedScript::ProtocolPromiseHandler {
   }
 
   static void thenCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
-    ProtocolPromiseHandler* handler = static_cast<ProtocolPromiseHandler*>(
-        info.Data().As<v8::External>()->Value());
-    DCHECK(handler);
+    PromiseHandlerTracker::Id handlerId =
+        static_cast<PromiseHandlerTracker::Id>(
+            info.Data().As<v8::Number>()->Value());
     PromiseHandlerTracker& handlerTracker =
         static_cast<V8InspectorImpl*>(
             v8::debug::GetInspector(info.GetIsolate()))
             ->promiseHandlerTracker();
     // We currently store the handlers with the inspector so the micro task
     // queue should never run after the inspector dies.
-    CHECK(handlerTracker.isValid(handler));
+    ProtocolPromiseHandler* handler = handlerTracker.get(handlerId);
+    CHECK(handler);
     v8::Local<v8::Value> value =
         info.Length() > 0 ? info[0]
                           : v8::Undefined(info.GetIsolate()).As<v8::Value>();
     handler->thenCallback(value);
-    handlerTracker.discard(handler,
+    handlerTracker.discard(handlerId,
                            PromiseHandlerTracker::DiscardReason::kFulfilled);
   }
 
   static void catchCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
-    ProtocolPromiseHandler* handler = static_cast<ProtocolPromiseHandler*>(
-        info.Data().As<v8::External>()->Value());
-    DCHECK(handler);
+    PromiseHandlerTracker::Id handlerId =
+        static_cast<PromiseHandlerTracker::Id>(
+            info.Data().As<v8::Number>()->Value());
     PromiseHandlerTracker& handlerTracker =
         static_cast<V8InspectorImpl*>(
             v8::debug::GetInspector(info.GetIsolate()))
             ->promiseHandlerTracker();
     // We currently store the handlers with the inspector so the micro task
     // queue should never run after the inspector dies.
-    CHECK(handlerTracker.isValid(handler));
+    ProtocolPromiseHandler* handler = handlerTracker.get(handlerId);
+    CHECK(handler);
     v8::Local<v8::Value> value =
         info.Length() > 0 ? info[0]
                           : v8::Undefined(info.GetIsolate()).As<v8::Value>();
     handler->catchCallback(value);
-    handlerTracker.discard(handler,
+    handlerTracker.discard(handlerId,
                            PromiseHandlerTracker::DiscardReason::kFulfilled);
   }
 
-  ProtocolPromiseHandler(V8InspectorSessionImpl* session,
+  ProtocolPromiseHandler(PromiseHandlerTracker::Id id,
+                         V8InspectorSessionImpl* session,
                          int executionContextId, const String16& objectGroup,
                          std::unique_ptr<WrapOptions> wrapOptions,
                          bool replMode, bool throwOnSideEffect,
@@ -214,28 +219,21 @@ class InjectedScript::ProtocolPromiseHandler {
         m_replMode(replMode),
         m_throwOnSideEffect(throwOnSideEffect),
         m_callback(std::move(callback)),
-        m_wrapper(m_inspector->isolate(),
-                  v8::External::New(m_inspector->isolate(), this)),
         m_evaluationResult(m_inspector->isolate(), evaluationResult) {
-    m_wrapper.SetWeak(this, cleanup, v8::WeakCallbackType::kParameter);
-    m_evaluationResult.SetWeak();
+    m_evaluationResult.SetWeak(reinterpret_cast<PromiseHandlerTracker::Id*>(id),
+                               cleanup, v8::WeakCallbackType::kParameter);
   }
 
   static void cleanup(
-      const v8::WeakCallbackInfo<ProtocolPromiseHandler>& data) {
-    if (!data.GetParameter()->m_wrapper.IsEmpty()) {
-      data.GetParameter()->m_wrapper.Reset();
-      data.GetParameter()->m_evaluationResult.Reset();
-      data.SetSecondPassCallback(cleanup);
-    } else {
-      PromiseHandlerTracker& handlerTracker =
-          static_cast<V8InspectorImpl*>(
-              v8::debug::GetInspector(data.GetIsolate()))
-              ->promiseHandlerTracker();
-      handlerTracker.discard(
-          data.GetParameter(),
-          PromiseHandlerTracker::DiscardReason::kPromiseCollected);
-    }
+      const v8::WeakCallbackInfo<PromiseHandlerTracker::Id>& data) {
+    auto id = reinterpret_cast<PromiseHandlerTracker::Id>(data.GetParameter());
+    PromiseHandlerTracker& handlerTracker =
+        static_cast<V8InspectorImpl*>(
+            v8::debug::GetInspector(data.GetIsolate()))
+            ->promiseHandlerTracker();
+    // {discard} deletes the {ProtocolPromiseHandler} which resets the handle.
+    handlerTracker.discard(
+        id, PromiseHandlerTracker::DiscardReason::kPromiseCollected);
   }
 
   void thenCallback(v8::Local<v8::Value> value) {
@@ -390,7 +388,6 @@ class InjectedScript::ProtocolPromiseHandler {
   bool m_replMode;
   bool m_throwOnSideEffect;
   std::weak_ptr<EvaluateCallback> m_callback;
-  v8::Global<v8::External> m_wrapper;
   v8::Global<v8::Promise> m_evaluationResult;
 };
 
@@ -1206,18 +1203,19 @@ PromiseHandlerTracker::PromiseHandlerTracker() = default;
 PromiseHandlerTracker::~PromiseHandlerTracker() { discardAll(); }
 
 template <typename... Args>
-InjectedScript::ProtocolPromiseHandler* PromiseHandlerTracker::create(
-    Args&&... args) {
+PromiseHandlerTracker::Id PromiseHandlerTracker::create(Args&&... args) {
+  Id id = m_lastUsedId++;
   InjectedScript::ProtocolPromiseHandler* handler =
-      new InjectedScript::ProtocolPromiseHandler(std::forward<Args>(args)...);
-  m_promiseHandlers.insert(handler);
-  return handler;
+      new InjectedScript::ProtocolPromiseHandler(id,
+                                                 std::forward<Args>(args)...);
+  m_promiseHandlers.emplace(id, handler);
+  return id;
 }
 
-void PromiseHandlerTracker::discard(
-    InjectedScript::ProtocolPromiseHandler* handler, DiscardReason reason) {
-  CHECK(handler);
-  CHECK_NE(m_promiseHandlers.find(handler), m_promiseHandlers.end());
+void PromiseHandlerTracker::discard(Id id, DiscardReason reason) {
+  auto iter = m_promiseHandlers.find(id);
+  CHECK_NE(iter, m_promiseHandlers.end());
+  InjectedScript::ProtocolPromiseHandler* handler = iter->second.get();
 
   switch (reason) {
     case DiscardReason::kPromiseCollected:
@@ -1232,14 +1230,15 @@ void PromiseHandlerTracker::discard(
       break;
   }
 
-  m_promiseHandlers.erase(handler);
-  delete handler;
+  m_promiseHandlers.erase(id);
 }
 
-bool PromiseHandlerTracker::isValid(
-    InjectedScript::ProtocolPromiseHandler* handler) const {
-  CHECK(handler);
-  return m_promiseHandlers.find(handler) != m_promiseHandlers.end();
+InjectedScript::ProtocolPromiseHandler* PromiseHandlerTracker::get(
+    Id id) const {
+  auto iter = m_promiseHandlers.find(id);
+  if (iter == m_promiseHandlers.end()) return nullptr;
+
+  return iter->second.get();
 }
 
 void PromiseHandlerTracker::sendFailure(
@@ -1258,7 +1257,7 @@ void PromiseHandlerTracker::sendFailure(
 
 void PromiseHandlerTracker::discardAll() {
   while (!m_promiseHandlers.empty()) {
-    discard(*m_promiseHandlers.begin(), DiscardReason::kTearDown);
+    discard(m_promiseHandlers.begin()->first, DiscardReason::kTearDown);
   }
   CHECK(m_promiseHandlers.empty());
 }
