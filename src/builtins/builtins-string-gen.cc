@@ -741,27 +741,46 @@ void StringBuiltinsAssembler::GenerateStringRelationalComparison(
 
     // Unrolled first iteration.
     GotoIf(IntPtrEqual(length, IntPtrConstant(0)), &if_done);
-    TNode<Uint32T> lhs_chunk = Load<Uint32T>(lhs, IntPtrConstant(kBeginOffset));
-    TNode<Uint32T> rhs_chunk = Load<Uint32T>(rhs, IntPtrConstant(kBeginOffset));
-    GotoIf(Word32NotEqual(lhs_chunk, rhs_chunk), &char_loop);
-    // We could make the chunk size depend on kTaggedSize, but kTaggedSize > 4
-    // is rare at the time of this writing.
-    constexpr int kChunkSize = sizeof(uint32_t);
+
+    constexpr int kChunkSize = kTaggedSize;
+    static_assert(
+        kChunkSize == ElementSizeInBytes(MachineRepresentation::kWord64) ||
+        kChunkSize == ElementSizeInBytes(MachineRepresentation::kWord32));
+    if (kChunkSize == ElementSizeInBytes(MachineRepresentation::kWord32)) {
+      TNode<Uint32T> lhs_chunk =
+          Load<Uint32T>(lhs, IntPtrConstant(kBeginOffset));
+      TNode<Uint32T> rhs_chunk =
+          Load<Uint32T>(rhs, IntPtrConstant(kBeginOffset));
+      GotoIf(Word32NotEqual(lhs_chunk, rhs_chunk), &char_loop);
+    } else {
+      TNode<Uint64T> lhs_chunk =
+          Load<Uint64T>(lhs, IntPtrConstant(kBeginOffset));
+      TNode<Uint64T> rhs_chunk =
+          Load<Uint64T>(rhs, IntPtrConstant(kBeginOffset));
+      GotoIf(Word64NotEqual(lhs_chunk, rhs_chunk), &char_loop);
+    }
+
     var_offset = IntPtrConstant(SeqOneByteString::kHeaderSize - kHeapObjectTag +
                                 kChunkSize);
 
     Goto(&chunk_loop);
 
-    // Try skipping over chunks of 4 identical characters.
+    // Try skipping over chunks of kChunkSize identical characters.
     // This depends on padding (between strings' lengths and the actual end
     // of the heap object) being zeroed out.
     BIND(&chunk_loop);
     {
       GotoIf(IntPtrGreaterThanOrEqual(var_offset.value(), end), &if_done);
 
-      TNode<Uint32T> lhs_chunk = Load<Uint32T>(lhs, var_offset.value());
-      TNode<Uint32T> rhs_chunk = Load<Uint32T>(rhs, var_offset.value());
-      GotoIf(Word32NotEqual(lhs_chunk, rhs_chunk), &char_loop);
+      if (kChunkSize == ElementSizeInBytes(MachineRepresentation::kWord32)) {
+        TNode<Uint32T> lhs_chunk = Load<Uint32T>(lhs, var_offset.value());
+        TNode<Uint32T> rhs_chunk = Load<Uint32T>(rhs, var_offset.value());
+        GotoIf(Word32NotEqual(lhs_chunk, rhs_chunk), &char_loop);
+      } else {
+        TNode<Uint64T> lhs_chunk = Load<Uint64T>(lhs, var_offset.value());
+        TNode<Uint64T> rhs_chunk = Load<Uint64T>(rhs, var_offset.value());
+        GotoIf(Word64NotEqual(lhs_chunk, rhs_chunk), &char_loop);
+      }
 
       var_offset = IntPtrAdd(var_offset.value(), IntPtrConstant(kChunkSize));
       Goto(&chunk_loop);
