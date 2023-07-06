@@ -888,7 +888,8 @@ void GraphC1Visualizer::PrintLiveRange(const LiveRange* range, const char* type,
     }
 
     for (const UseInterval& interval : range->intervals()) {
-      os_ << interval;
+      os_ << " [" << interval.start().value() << ", " << interval.end().value()
+          << "[";
     }
 
     for (const UsePosition* pos : range->positions()) {
@@ -1101,7 +1102,8 @@ std::ostream& operator<<(std::ostream& os,
     } else {
       os << ",";
     }
-    os << interval;
+    os << "[" << interval.start().value() << "," << interval.end().value()
+       << "]";
   }
 
   os << "],\"uses\":[";

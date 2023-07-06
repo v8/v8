@@ -468,12 +468,14 @@ class UseInterval final {
     return start_ < other.start_;
   }
 
+  void PrettyPrint(std::ostream& os) const {
+    os << '[' << start() << ", " << end() << ')';
+  }
+
  private:
   LifetimePosition start_;
   LifetimePosition end_;
 };
-
-std::ostream& operator<<(std::ostream& os, const UseInterval& interval);
 
 enum class UsePositionType : uint8_t {
   kRegisterOrSlot,

@@ -263,10 +263,6 @@ void UsePosition::set_type(UsePositionType type, bool register_beneficial) {
            AssignedRegisterField::encode(kUnassignedRegister);
 }
 
-std::ostream& operator<<(std::ostream& os, const UseInterval& interval) {
-  return os << '[' << interval.start() << ", " << interval.end() << ')';
-}
-
 void LifetimePosition::Print() const { StdoutStream{} << *this << std::endl; }
 
 LiveRange::LiveRange(int relative_id, MachineRepresentation rep,
@@ -988,7 +984,8 @@ std::ostream& operator<<(std::ostream& os,
   os << std::endl;
 
   for (const UseInterval& interval : range->intervals()) {
-    os << interval << std::endl;
+    interval.PrettyPrint(os);
+    os << std::endl;
   }
   os << "}";
   return os;
@@ -1193,7 +1190,8 @@ void SpillRange::Print() const {
   os << std::endl;
 
   for (const UseInterval& interval : intervals_) {
-    os << interval << std::endl;
+    interval.PrettyPrint(os);
+    os << std::endl;
   }
   os << "}" << std::endl;
 }
