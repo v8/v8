@@ -3385,9 +3385,11 @@ void InstructionSelectorT<Adapter>::VisitI8x16Swizzle(Node* node) {
        arraysize(temps), temps);
 }
 #else
+template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitI8x16Shuffle(Node* node) {
   UNREACHABLE();
 }
+template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitI8x16Swizzle(Node* node) {
   UNREACHABLE();
 }
