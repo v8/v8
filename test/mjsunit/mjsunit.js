@@ -425,28 +425,40 @@ var prettyPrinted;
     // Neither a nor b is primitive.
     var objectClass = classOf(a);
     if (objectClass !== classOf(b)) return false;
-    if (objectClass === "RegExp") {
-      // For RegExp, just compare pattern and flags using its toString.
-      return RegExpPrototypeToString.call(a) ===
-             RegExpPrototypeToString.call(b);
-    }
-    // Functions are only identical to themselves.
-    if (objectClass === "Function") return false;
-    if (objectClass === "Array") {
-      var elementCount = 0;
-      if (a.length !== b.length) {
+    switch (objectClass) {
+      case "RegExp":
+        // For RegExp, just compare pattern and flags using its toString.
+        return RegExpPrototypeToString.call(a) ===
+            RegExpPrototypeToString.call(b);
+      case 'Function':
+        // Functions are only identical to themselves.
         return false;
-      }
-      for (var i = 0; i < a.length; i++) {
-        if ((i in a) !== (i in b)) return false;
-        if (!deepEquals(a[i], b[i])) return false;
-      }
-      return true;
-    }
-    if (objectClass === "String" || objectClass === "Number" ||
-      objectClass === "BigInt" || objectClass === "Boolean" ||
-      objectClass === "Date") {
-      if (ValueOf(a) !== ValueOf(b)) return false;
+      case 'Array':
+        if (a.length !== b.length) return false;
+        for (var i = 0; i < a.length; i++) {
+          if ((i in a) !== (i in b)) return false;
+          if (!deepEquals(a[i], b[i])) return false;
+        }
+        return true;
+      case 'Uint8Array':
+      case 'Int8Array':
+      case 'Int16Array':
+      case 'Uint16Array':
+      case 'Uint32Array':
+      case 'Int32Array':
+      case 'Float32Array':
+      case 'Float64Array':
+        if (a.length !== b.length) return false;
+        for (let i = 0; i < a.length; i++) {
+          if (a[i] !== b[i] && !(isNaN(a[i]) && isNaN(b[i]))) return false;
+        }
+        return true;
+      case 'String':
+      case 'Number':
+      case 'BigInt':
+      case 'Boolean':
+      case 'Date':
+        return ValueOf(a) === ValueOf(b);
     }
     return deepObjectEquals(a, b);
   }
