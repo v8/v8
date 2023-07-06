@@ -532,7 +532,7 @@ void ScavengerCollector::SweepArrayBufferExtensions() {
 
 void ScavengerCollector::HandleSurvivingNewLargeObjects() {
   const bool is_compacting = heap_->incremental_marking()->IsCompacting();
-  AtomicMarkingState* marking_state = heap_->atomic_marking_state();
+  MarkingState* marking_state = heap_->marking_state();
 
   for (SurvivingNewLargeObjectMapEntry update_info :
        surviving_new_large_objects_) {
@@ -632,7 +632,7 @@ void Scavenger::IterateAndScavengePromotedObject(HeapObject target, Map map,
   // the end of collection it would be a violation of the invariant to record
   // its slots.
   const bool record_slots =
-      is_compacting_ && heap()->atomic_marking_state()->IsMarked(target);
+      is_compacting_ && heap()->marking_state()->IsMarked(target);
 
   IterateAndScavengePromotedObjectsVisitor visitor(this, record_slots);
 

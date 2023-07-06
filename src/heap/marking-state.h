@@ -79,15 +79,6 @@ class NonAtomicMarkingState final
       : MarkingStateBase(cage_base) {}
 };
 
-// This is used by Scavenger and Evacuator in TransferColor.
-// Live byte increments have to be atomic.
-class AtomicMarkingState final
-    : public MarkingStateBase<AtomicMarkingState, AccessMode::ATOMIC> {
- public:
-  explicit AtomicMarkingState(PtrComprCageBase cage_base)
-      : MarkingStateBase(cage_base) {}
-};
-
 }  // namespace internal
 }  // namespace v8
 

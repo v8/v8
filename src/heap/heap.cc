@@ -283,7 +283,6 @@ Heap::Heap()
                                         : AllocationType::kSharedOld),
       marking_state_(isolate_),
       non_atomic_marking_state_(isolate_),
-      atomic_marking_state_(isolate_),
       pretenuring_handler_(this) {
   // Ensure old_generation_size_ is a multiple of kPageSize.
   DCHECK_EQ(0, max_old_generation_size() & (Page::kPageSize - 1));

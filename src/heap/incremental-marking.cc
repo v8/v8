@@ -60,11 +60,10 @@ IncrementalMarking::IncrementalMarking(Heap* heap, WeakObjects* weak_objects)
       incremental_marking_job_(heap),
       new_generation_observer_(this, kYoungGenerationAllocatedThreshold),
       old_generation_observer_(this, kOldGenerationAllocatedThreshold),
-      marking_state_(heap->marking_state()),
-      atomic_marking_state_(heap->atomic_marking_state()) {}
+      marking_state_(heap->marking_state()) {}
 
 void IncrementalMarking::MarkBlackBackground(HeapObject obj, int object_size) {
-  CHECK(atomic_marking_state()->TryMark(obj));
+  CHECK(marking_state()->TryMark(obj));
   IncrementLiveBytesBackground(MemoryChunk::FromHeapObject(obj),
                                static_cast<intptr_t>(object_size));
 }

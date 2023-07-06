@@ -1570,8 +1570,6 @@ class Heap final {
     return &non_atomic_marking_state_;
   }
 
-  AtomicMarkingState* atomic_marking_state() { return &atomic_marking_state_; }
-
   PretenuringHandler* pretenuring_handler() { return &pretenuring_handler_; }
 
   bool IsInlineAllocationEnabled() const { return inline_allocation_enabled_; }
@@ -2296,7 +2294,6 @@ class Heap final {
 
   MarkingState marking_state_;
   NonAtomicMarkingState non_atomic_marking_state_;
-  AtomicMarkingState atomic_marking_state_;
 
   PretenuringHandler pretenuring_handler_;
 

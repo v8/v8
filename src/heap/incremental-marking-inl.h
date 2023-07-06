@@ -16,13 +16,13 @@ namespace v8 {
 namespace internal {
 
 void IncrementalMarking::TransferColor(HeapObject from, HeapObject to) {
-  if (atomic_marking_state()->IsMarked(to)) {
+  if (marking_state()->IsMarked(to)) {
     DCHECK(black_allocation());
     return;
   }
-  DCHECK(atomic_marking_state()->IsUnmarked(to));
-  if (atomic_marking_state()->IsMarked(from)) {
-    bool success = atomic_marking_state()->TryMark(to);
+  DCHECK(marking_state()->IsUnmarked(to));
+  if (marking_state()->IsMarked(from)) {
+    bool success = marking_state()->TryMark(to);
     DCHECK(success);
     USE(success);
     if (!to.IsDescriptorArray() ||
