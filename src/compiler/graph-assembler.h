@@ -15,6 +15,7 @@
 #include "src/compiler/js-graph.h"
 #include "src/compiler/node.h"
 #include "src/compiler/simplified-operator.h"
+#include "src/objects/hole.h"
 #include "src/objects/oddball.h"
 
 namespace v8 {
@@ -153,7 +154,7 @@ class Reducer;
   V(NoContext, Object)                                       \
   V(Null, Oddball)                                           \
   V(One, Number)                                             \
-  V(TheHole, Oddball)                                        \
+  V(TheHole, Hole)                                           \
   V(ToNumberBuiltin, InstructionStream)                      \
   V(PlainPrimitiveToNumberBuiltin, InstructionStream)        \
   V(True, Boolean)                                           \

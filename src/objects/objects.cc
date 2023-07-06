@@ -2072,6 +2072,14 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {
       os << ">";
       break;
     }
+    case HOLE_TYPE: {
+      if (IsTheHole()) {
+        os << "<the_hole>";
+      } else {
+        UNREACHABLE();
+      }
+      break;
+    }
     case INSTRUCTION_STREAM_TYPE: {
       InstructionStream istream = InstructionStream::cast(*this);
       Code code = istream.code(kAcquireLoad);
@@ -2085,8 +2093,6 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {
     case ODDBALL_TYPE: {
       if (IsUndefined()) {
         os << "<undefined>";
-      } else if (IsTheHole()) {
-        os << "<the_hole>";
       } else if (IsNull()) {
         os << "<null>";
       } else if (IsTrue()) {
