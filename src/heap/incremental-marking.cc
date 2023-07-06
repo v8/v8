@@ -705,8 +705,8 @@ size_t IncrementalMarking::EstimateMarkingStepSize(double time,
   if (marking_speed == 0) {
     marking_speed = kInitialConservativeMarkingSpeed;
   }
-  const size_t marking_step_size = std::min(
-      static_cast<size_t>(marking_speed * time), kMaximumMarkingStepSize);
+
+  const double marking_step_size = marking_speed * time;
   if (marking_step_size >= kMaximumMarkingStepSize) {
     return kMaximumMarkingStepSize;
   }
