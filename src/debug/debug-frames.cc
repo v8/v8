@@ -97,13 +97,12 @@ bool FrameInspector::ParameterIsShadowedByContextLocal(
   return info->ContextSlotIndex(parameter_name) != -1;
 }
 
-RedirectActiveFunctions::RedirectActiveFunctions(SharedFunctionInfo shared,
+RedirectActiveFunctions::RedirectActiveFunctions(Isolate* isolate,
+                                                 SharedFunctionInfo shared,
                                                  Mode mode)
     : shared_(shared), mode_(mode) {
   DCHECK(shared.HasBytecodeArray());
-  if (mode == Mode::kUseDebugBytecode) {
-    DCHECK(shared.HasDebugInfo());
-  }
+  DCHECK_IMPLIES(mode == Mode::kUseDebugBytecode, shared.HasDebugInfo(isolate));
 }
 
 void RedirectActiveFunctions::VisitThread(Isolate* isolate,
@@ -116,9 +115,10 @@ void RedirectActiveFunctions::VisitThread(Isolate* isolate,
     if (function.shared() != shared_) continue;
     InterpretedFrame* interpreted_frame =
         reinterpret_cast<InterpretedFrame*>(frame);
-    BytecodeArray bytecode = mode_ == Mode::kUseDebugBytecode
-                                 ? shared_.GetDebugInfo().DebugBytecodeArray()
-                                 : shared_.GetBytecodeArray(isolate);
+    BytecodeArray bytecode =
+        mode_ == Mode::kUseDebugBytecode
+            ? shared_.GetDebugInfo(isolate).DebugBytecodeArray()
+            : shared_.GetBytecodeArray(isolate);
     interpreted_frame->PatchBytecodeArray(bytecode);
   }
 }

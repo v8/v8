@@ -36,6 +36,7 @@
 #include "src/codegen/compiler.h"
 #include "src/codegen/script-details.h"
 #include "src/common/assert-scope.h"
+#include "src/debug/debug-coverage.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/parked-scope-inl.h"
 #include "src/heap/read-only-heap.h"
@@ -1781,6 +1782,14 @@ TEST(CodeSerializerOnePlusOneWithDebugger) {
   v8::HandleScope scope(CcTest::isolate());
   static v8::debug::DebugDelegate dummy_delegate;
   v8::debug::SetDebugDelegate(CcTest::isolate(), &dummy_delegate);
+  TestCodeSerializerOnePlusOneImpl();
+}
+
+TEST(CodeSerializerOnePlusOneWithBlockCoverage) {
+  v8::HandleScope scope(CcTest::isolate());
+  static v8::debug::DebugDelegate dummy_delegate;
+  v8::debug::SetDebugDelegate(CcTest::isolate(), &dummy_delegate);
+  Coverage::SelectMode(CcTest::i_isolate(), debug::CoverageMode::kBlockCount);
   TestCodeSerializerOnePlusOneImpl();
 }
 

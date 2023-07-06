@@ -307,7 +307,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> Invoke(Isolate* isolate,
     Handle<JSFunction> function = Handle<JSFunction>::cast(params.target);
     if ((!params.is_construct || function->IsConstructor()) &&
         function->shared().IsApiFunction() &&
-        !function->shared().BreakAtEntry()) {
+        !function->shared().BreakAtEntry(isolate)) {
       SaveAndSwitchContext save(isolate, function->context());
       DCHECK(function->context().global_object().IsJSGlobalObject());
 

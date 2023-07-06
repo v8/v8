@@ -395,15 +395,16 @@ class SharedFunctionInfo
   inline bool HasInferredName();
   inline String inferred_name() const;
 
-  // Break infos are contained in DebugInfo, this is a convenience method
-  // to simplify access.
-  V8_EXPORT_PRIVATE bool HasBreakInfo() const;
-  bool BreakAtEntry() const;
-
-  // Coverage infos are contained in DebugInfo, this is a convenience method
-  // to simplify access.
-  bool HasCoverageInfo() const;
-  CoverageInfo GetCoverageInfo() const;
+  // All DebugInfo accessors forward to the Debug object which stores DebugInfo
+  // objects in a sidetable.
+  bool HasDebugInfo(Isolate* isolate) const;
+  V8_EXPORT_PRIVATE DebugInfo GetDebugInfo(Isolate* isolate) const;
+  V8_EXPORT_PRIVATE base::Optional<DebugInfo> TryGetDebugInfo(
+      Isolate* isolate) const;
+  V8_EXPORT_PRIVATE bool HasBreakInfo(Isolate* isolate) const;
+  bool BreakAtEntry(Isolate* isolate) const;
+  bool HasCoverageInfo(Isolate* isolate) const;
+  CoverageInfo GetCoverageInfo(Isolate* isolate) const;
 
   // The function's name if it is non-empty, otherwise the inferred name.
   std::unique_ptr<char[]> DebugNameCStr() const;
@@ -413,21 +414,19 @@ class SharedFunctionInfo
   // Used for flags such as --turbo-filter.
   bool PassesFilter(const char* raw_filter);
 
-  // [script_or_debug_info]: One of:
-  //  - Script from which the function originates.
-  //  - a DebugInfo which holds the actual script [HasDebugInfo()].
-  DECL_RELEASE_ACQUIRE_ACCESSORS(script_or_debug_info, HeapObject)
-
-  DECL_GETTER(script, HeapObject)
-  inline void set_script(HeapObject script);
+  // [script]: the Script from which the function originates, or undefined.
+  DECL_RELEASE_ACQUIRE_ACCESSORS(script, HeapObject)
+  // Use `raw_script` if deserialization of this SharedFunctionInfo may still
+  // be in progress and thus the `script` field still equal to
+  // Smi::uninitialized_deserialization_value.
+  DECL_RELEASE_ACQUIRE_ACCESSORS(raw_script, Object)
+  // TODO(jgruber): Remove these overloads and pass the kAcquireLoad tag
+  // explicitly.
+  inline HeapObject script() const;
+  inline HeapObject script(PtrComprCageBase cage_base) const;
 
   // True if the underlying script was parsed and compiled in REPL mode.
   inline bool is_repl_mode() const;
-
-  // The function is subject to debugging if a debug info is attached.
-  DECL_GETTER(HasDebugInfo, bool)
-  DECL_GETTER(GetDebugInfo, DebugInfo)
-  inline void SetDebugInfo(DebugInfo debug_info);
 
   // The offset of the 'function' token in the script source relative to the
   // start position. Can return kFunctionTokenOutOfRange if offset doesn't
