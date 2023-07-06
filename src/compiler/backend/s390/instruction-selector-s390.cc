@@ -856,21 +856,25 @@ void InstructionSelectorT<Adapter>::VisitStorePair(Node* node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitStore(Node* node) {
-  StoreRepresentation store_rep = StoreRepresentationOf(node->op());
-  WriteBarrierKind write_barrier_kind = store_rep.write_barrier_kind();
-  MachineRepresentation rep = store_rep.representation();
+void InstructionSelectorT<Adapter>::VisitStore(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    StoreRepresentation store_rep = StoreRepresentationOf(node->op());
+    WriteBarrierKind write_barrier_kind = store_rep.write_barrier_kind();
+    MachineRepresentation rep = store_rep.representation();
 
-  if (v8_flags.enable_unconditional_write_barriers &&
-      CanBeTaggedOrCompressedPointer(rep)) {
-    write_barrier_kind = kFullWriteBarrier;
+    if (v8_flags.enable_unconditional_write_barriers &&
+        CanBeTaggedOrCompressedPointer(rep)) {
+      write_barrier_kind = kFullWriteBarrier;
+    }
+
+    VisitGeneralStore(this, node, rep, write_barrier_kind);
   }
-
-  VisitGeneralStore(this, node, rep, write_barrier_kind);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitProtectedStore(Node* node) {
+void InstructionSelectorT<Adapter>::VisitProtectedStore(node_t node) {
   // TODO(eholk)
   UNIMPLEMENTED();
 }
@@ -1009,46 +1013,50 @@ void InstructionSelectorT<Adapter>::VisitWord64And(Node* node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord64Shl(Node* node) {
-  S390OperandGeneratorT<Adapter> g(this);
-  Int64BinopMatcher m(node);
-  // TODO(mbrandy): eliminate left sign extension if right >= 32
-  if (m.left().IsWord64And() && m.right().IsInRange(0, 63)) {
-    Int64BinopMatcher mleft(m.left().node());
-    int sh = m.right().ResolvedValue();
-    int mb;
-    int me;
-    if (mleft.right().HasResolvedValue() &&
-        IsContiguousMask64(mleft.right().ResolvedValue() << sh, &mb, &me)) {
-      // Adjust the mask such that it doesn't include any rotated bits.
-      if (me < sh) me = sh;
-      if (mb >= me) {
-        bool match = false;
-        ArchOpcode opcode;
-        int mask;
-        if (me == 0) {
-          match = true;
-          opcode = kS390_RotLeftAndClearLeft64;
-          mask = mb;
-        } else if (mb == 63) {
-          match = true;
-          opcode = kS390_RotLeftAndClearRight64;
-          mask = me;
-        } else if (sh && me <= sh) {
-          match = true;
-          opcode = kS390_RotLeftAndClear64;
-          mask = mb;
-        }
-        if (match && CpuFeatures::IsSupported(GENERAL_INSTR_EXT)) {
-          Emit(opcode, g.DefineAsRegister(node),
-               g.UseRegister(mleft.left().node()), g.TempImmediate(sh),
-               g.TempImmediate(mask));
-          return;
+void InstructionSelectorT<Adapter>::VisitWord64Shl(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    S390OperandGeneratorT<Adapter> g(this);
+    Int64BinopMatcher m(node);
+    // TODO(mbrandy): eliminate left sign extension if right >= 32
+    if (m.left().IsWord64And() && m.right().IsInRange(0, 63)) {
+      Int64BinopMatcher mleft(m.left().node());
+      int sh = m.right().ResolvedValue();
+      int mb;
+      int me;
+      if (mleft.right().HasResolvedValue() &&
+          IsContiguousMask64(mleft.right().ResolvedValue() << sh, &mb, &me)) {
+        // Adjust the mask such that it doesn't include any rotated bits.
+        if (me < sh) me = sh;
+        if (mb >= me) {
+          bool match = false;
+          ArchOpcode opcode;
+          int mask;
+          if (me == 0) {
+            match = true;
+            opcode = kS390_RotLeftAndClearLeft64;
+            mask = mb;
+          } else if (mb == 63) {
+            match = true;
+            opcode = kS390_RotLeftAndClearRight64;
+            mask = me;
+          } else if (sh && me <= sh) {
+            match = true;
+            opcode = kS390_RotLeftAndClear64;
+            mask = mb;
+          }
+          if (match && CpuFeatures::IsSupported(GENERAL_INSTR_EXT)) {
+            Emit(opcode, g.DefineAsRegister(node),
+                 g.UseRegister(mleft.left().node()), g.TempImmediate(sh),
+                 g.TempImmediate(mask));
+            return;
+          }
         }
       }
     }
+    VisitWord64BinOp(this, node, kS390_ShiftLeft64, Shift64OperandMode);
   }
-  VisitWord64BinOp(this, node, kS390_ShiftLeft64, Shift64OperandMode);
 }
 
 template <typename Adapter>
@@ -1424,8 +1432,6 @@ static inline bool TryMatchDoubleConstructFromInsert(
     OperandMode::kNone, null)                                                  \
   V(Float64, TruncateFloat64ToWord32, kArchTruncateDoubleToI,                  \
     OperandMode::kNone, null)                                                  \
-  V(Float64, RoundFloat64ToInt32, kS390_DoubleToInt32, OperandMode::kNone,     \
-    null)                                                                      \
   V(Float64, TruncateFloat64ToUint32, kS390_DoubleToUint32,                    \
     OperandMode::kNone, null)                                                  \
   V(Float64, ChangeFloat64ToInt32, kS390_DoubleToInt32, OperandMode::kNone,    \
@@ -1464,11 +1470,9 @@ static inline bool TryMatchDoubleConstructFromInsert(
   V(Float32, Float32Add, kS390_AddFloat, OperandMode::kAllowRM, null)  \
   V(Float64, Float64Add, kS390_AddDouble, OperandMode::kAllowRM, null) \
   V(Float32, Float32Sub, kS390_SubFloat, OperandMode::kAllowRM, null)  \
-  V(Float64, Float64Sub, kS390_SubDouble, OperandMode::kAllowRM, null) \
   V(Float32, Float32Mul, kS390_MulFloat, OperandMode::kAllowRM, null)  \
   V(Float64, Float64Mul, kS390_MulDouble, OperandMode::kAllowRM, null) \
   V(Float32, Float32Div, kS390_DivFloat, OperandMode::kAllowRM, null)  \
-  V(Float64, Float64Div, kS390_DivDouble, OperandMode::kAllowRM, null) \
   V(Float32, Float32Max, kS390_MaxFloat, OperandMode::kNone, null)     \
   V(Float64, Float64Max, kS390_MaxDouble, OperandMode::kNone, null)    \
   V(Float32, Float32Min, kS390_MinFloat, OperandMode::kNone, null)     \
@@ -1480,8 +1484,6 @@ static inline bool TryMatchDoubleConstructFromInsert(
   V(Word32, RoundInt32ToFloat32, kS390_Int32ToFloat32, OperandMode::kNone,   \
     null)                                                                    \
   V(Word32, RoundUint32ToFloat32, kS390_Uint32ToFloat32, OperandMode::kNone, \
-    null)                                                                    \
-  V(Word32, ChangeInt32ToFloat64, kS390_Int32ToDouble, OperandMode::kNone,   \
     null)                                                                    \
   V(Word32, ChangeUint32ToFloat64, kS390_Uint32ToDouble, OperandMode::kNone, \
     null)                                                                    \
@@ -1506,8 +1508,6 @@ static inline bool TryMatchDoubleConstructFromInsert(
 
 #define WORD32_UNARY_OP_LIST(V)                                             \
   WORD32_UNARY_OP_LIST_32(V)                                                \
-  V(Word32, ChangeInt32ToInt64, kS390_SignExtendWord32ToInt64,              \
-    OperandMode::kNone, null)                                               \
   V(Word32, SignExtendWord8ToInt64, kS390_SignExtendWord8ToInt64,           \
     OperandMode::kNone, null)                                               \
   V(Word32, SignExtendWord16ToInt64, kS390_SignExtendWord16ToInt64,         \
@@ -1538,12 +1538,8 @@ static inline bool TryMatchDoubleConstructFromInsert(
       return TryMatchShiftFromMul<Adapter, Int32BinopMatcher,                 \
                                   kS390_ShiftLeft32>(this, node);             \
     }))                                                                       \
-  V(Word32, Int32AddWithOverflow, kS390_Add32, AddOperandMode,                \
-    ([&]() { return TryMatchInt32AddWithOverflow(this, node); }))             \
   V(Word32, Int32SubWithOverflow, kS390_Sub32, SubOperandMode,                \
     ([&]() { return TryMatchInt32SubWithOverflow(this, node); }))             \
-  V(Word32, Int32MulWithOverflow, kS390_Mul32, MulOperandMode,                \
-    ([&]() { return TryMatchInt32MulWithOverflow(this, node); }))             \
   V(Word32, Int32MulHigh, kS390_MulHigh32,                                    \
     OperandMode::kInt32Imm | OperandMode::kAllowDistinctOps, null)            \
   V(Word32, Uint32MulHigh, kS390_MulHighU32,                                  \
@@ -1560,13 +1556,9 @@ static inline bool TryMatchDoubleConstructFromInsert(
     OperandMode::kAllowRI | OperandMode::kAllowRRR | OperandMode::kAllowRRI | \
         OperandMode::kShift32Imm,                                             \
     null)                                                                     \
-  V(Word32, Word32And, kS390_And32, And32OperandMode, null)                   \
-  V(Word32, Word32Or, kS390_Or32, Or32OperandMode, null)                      \
   V(Word32, Word32Xor, kS390_Xor32, Xor32OperandMode, null)                   \
   V(Word32, Word32Shl, kS390_ShiftLeft32, Shift32OperandMode, null)           \
   V(Word32, Word32Shr, kS390_ShiftRight32, Shift32OperandMode, null)          \
-  V(Word32, Word32Sar, kS390_ShiftRightArith32, Shift32OperandMode,           \
-    [&]() { return TryMatchSignExtInt16OrInt8FromWord32Sar(this, node); })    \
   V(Word32, Float64InsertLowWord32, kS390_DoubleInsertLowWord32,              \
     OperandMode::kAllowRRR,                                                   \
     [&]() -> bool { return TryMatchDoubleConstructFromInsert(this, node); })  \
@@ -1593,7 +1585,6 @@ static inline bool TryMatchDoubleConstructFromInsert(
     OperandMode::kNone, null)
 
 #define WORD64_BIN_OP_LIST(V)                                              \
-  V(Word64, Int64Add, kS390_Add64, AddOperandMode, null)                   \
   V(Word64, Int64MulHigh, kS390_MulHighS64, OperandMode::kAllowRRR, null)  \
   V(Word64, Uint64MulHigh, kS390_MulHighU64, OperandMode::kAllowRRR, null) \
   V(Word64, Int64Sub, kS390_Sub64, SubOperandMode, ([&]() {                \
@@ -1616,7 +1607,6 @@ static inline bool TryMatchDoubleConstructFromInsert(
     OperandMode::kAllowRRM | OperandMode::kAllowRRR, null)                 \
   V(Word64, Uint64Mod, kS390_ModU64,                                       \
     OperandMode::kAllowRRM | OperandMode::kAllowRRR, null)                 \
-  V(Word64, Word64Sar, kS390_ShiftRightArith64, Shift64OperandMode, null)  \
   V(Word64, Word64Ror, kS390_RotRight64, Shift64OperandMode, null)         \
   V(Word64, Word64Or, kS390_Or64, Or64OperandMode, null)                   \
   V(Word64, Word64Xor, kS390_Xor64, Xor64OperandMode, null)
@@ -1655,6 +1645,69 @@ WORD64_BIN_OP_LIST(DECLARE_BIN_OP)
 #undef WORD32_UNARY_OP_LIST_32
 #undef FLOAT_BIN_OP_LIST
 #undef FLOAT_BIN_OP_LIST_32
+
+#define FLOAT_UNARY_OP_LIST(V) \
+  V(Float64, RoundFloat64ToInt32, kS390_DoubleToInt32, OperandMode::kNone, null)
+
+#define FLOAT_BIN_OP_LIST(V)                                           \
+  V(Float64, Float64Sub, kS390_SubDouble, OperandMode::kAllowRM, null) \
+  V(Float64, Float64Div, kS390_DivDouble, OperandMode::kAllowRM, null)
+
+#define WORD32_UNARY_OP_LIST(V)                                            \
+  V(Word32, ChangeInt32ToFloat64, kS390_Int32ToDouble, OperandMode::kNone, \
+    null)                                                                  \
+  V(Word32, ChangeInt32ToInt64, kS390_SignExtendWord32ToInt64,             \
+    OperandMode::kNone, null)
+
+#define WORD32_BIN_OP_LIST(V)                                       \
+  V(Word32, Int32AddWithOverflow, kS390_Add32, AddOperandMode,      \
+    ([&]() { return TryMatchInt32AddWithOverflow(this, node); }))   \
+  V(Word32, Int32MulWithOverflow, kS390_Mul32, MulOperandMode,      \
+    ([&]() { return TryMatchInt32MulWithOverflow(this, node); }))   \
+  V(Word32, Word32And, kS390_And32, And32OperandMode, null)         \
+  V(Word32, Word32Or, kS390_Or32, Or32OperandMode, null)            \
+  V(Word32, Word32Sar, kS390_ShiftRightArith32, Shift32OperandMode, \
+    [&]() { return TryMatchSignExtInt16OrInt8FromWord32Sar(this, node); })
+
+#define WORD64_BIN_OP_LIST(V)                            \
+  V(Word64, Int64Add, kS390_Add64, AddOperandMode, null) \
+  V(Word64, Word64Sar, kS390_ShiftRightArith64, Shift64OperandMode, null)
+
+#define DECLARE_UNARY_OP(type, name, op, mode, try_extra)        \
+  template <typename Adapter>                                    \
+  void InstructionSelectorT<Adapter>::Visit##name(node_t node) { \
+    if constexpr (Adapter::IsTurboshaft) {                       \
+      UNIMPLEMENTED();                                           \
+    } else {                                                     \
+      if (std::function<bool()>(try_extra)()) return;            \
+      Visit##type##UnaryOp(this, node, op, mode);                \
+    }                                                            \
+  }
+
+#define DECLARE_BIN_OP(type, name, op, mode, try_extra)          \
+  template <typename Adapter>                                    \
+  void InstructionSelectorT<Adapter>::Visit##name(node_t node) { \
+    if constexpr (Adapter::IsTurboshaft) {                       \
+      UNIMPLEMENTED();                                           \
+    } else {                                                     \
+      if (std::function<bool()>(try_extra)()) return;            \
+      Visit##type##BinOp(this, node, op, mode);                  \
+    }                                                            \
+  }
+
+FLOAT_UNARY_OP_LIST(DECLARE_UNARY_OP)
+FLOAT_BIN_OP_LIST(DECLARE_BIN_OP)
+WORD32_UNARY_OP_LIST(DECLARE_UNARY_OP)
+WORD32_BIN_OP_LIST(DECLARE_BIN_OP)
+WORD64_BIN_OP_LIST(DECLARE_BIN_OP)
+
+#undef FLOAT_UNARY_OP_LIST
+#undef FLOAT_BIN_OP_LIST
+#undef WORD32_UNARY_OP_LIST
+#undef WORD32_BIN_OP_LIST
+#undef WORD64_BIN_OP_LIST
+#undef DECLARE_UNARY_OP
+#undef DECLARE_BIN_OP
 #undef null
 
 #if V8_TARGET_ARCH_S390X
@@ -2300,7 +2353,7 @@ void InstructionSelectorT<Adapter>::VisitInt64LessThanOrEqual(Node* node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitUint64LessThan(Node* node) {
+void InstructionSelectorT<Adapter>::VisitUint64LessThan(node_t node) {
   if constexpr (Adapter::IsTurboshaft) {
   UNIMPLEMENTED();
   } else {
@@ -2430,9 +2483,13 @@ void InstructionSelectorT<Adapter>::VisitWord32AtomicLoad(Node* node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord32AtomicStore(Node* node) {
+void InstructionSelectorT<Adapter>::VisitWord32AtomicStore(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+  UNIMPLEMENTED();
+  } else {
   AtomicStoreParameters store_params = AtomicStoreParametersOf(node->op());
   VisitGeneralStore(this, node, store_params.representation());
+  }
 }
 
 template <typename Adapter>
@@ -2607,25 +2664,28 @@ void VisitAtomicBinop(InstructionSelectorT<Adapter>* selector, Node* node,
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord32AtomicBinaryOperation(
-    Node* node, ArchOpcode int8_op, ArchOpcode uint8_op, ArchOpcode int16_op,
+    node_t node, ArchOpcode int8_op, ArchOpcode uint8_op, ArchOpcode int16_op,
     ArchOpcode uint16_op, ArchOpcode word32_op) {
-  MachineType type = AtomicOpType(node->op());
-  ArchOpcode opcode;
-
-  if (type == MachineType::Int8()) {
-    opcode = int8_op;
-  } else if (type == MachineType::Uint8()) {
-    opcode = uint8_op;
-  } else if (type == MachineType::Int16()) {
-    opcode = int16_op;
-  } else if (type == MachineType::Uint16()) {
-    opcode = uint16_op;
-  } else if (type == MachineType::Int32() || type == MachineType::Uint32()) {
-    opcode = word32_op;
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
   } else {
-    UNREACHABLE();
+    MachineType type = AtomicOpType(node->op());
+    ArchOpcode opcode;
+    if (type == MachineType::Int8()) {
+      opcode = int8_op;
+    } else if (type == MachineType::Uint8()) {
+      opcode = uint8_op;
+    } else if (type == MachineType::Int16()) {
+      opcode = int16_op;
+    } else if (type == MachineType::Uint16()) {
+      opcode = uint16_op;
+    } else if (type == MachineType::Int32() || type == MachineType::Uint32()) {
+      opcode = word32_op;
+    } else {
+      UNREACHABLE();
+    }
+    VisitAtomicBinop(this, node, opcode, AtomicWidth::kWord32);
   }
-  VisitAtomicBinop(this, node, opcode, AtomicWidth::kWord32);
 }
 
 #define VISIT_ATOMIC_BINOP(op)                                            \
@@ -2644,23 +2704,27 @@ VISIT_ATOMIC_BINOP(Xor)
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord64AtomicBinaryOperation(
-    Node* node, ArchOpcode uint8_op, ArchOpcode uint16_op, ArchOpcode word32_op,
-    ArchOpcode word64_op) {
-  MachineType type = AtomicOpType(node->op());
-  ArchOpcode opcode;
-
-  if (type == MachineType::Uint8()) {
-    opcode = uint8_op;
-  } else if (type == MachineType::Uint16()) {
-    opcode = uint16_op;
-  } else if (type == MachineType::Uint32()) {
-    opcode = word32_op;
-  } else if (type == MachineType::Uint64()) {
-    opcode = word64_op;
+    node_t node, ArchOpcode uint8_op, ArchOpcode uint16_op,
+    ArchOpcode word32_op, ArchOpcode word64_op) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
   } else {
-    UNREACHABLE();
+    MachineType type = AtomicOpType(node->op());
+    ArchOpcode opcode;
+
+    if (type == MachineType::Uint8()) {
+      opcode = uint8_op;
+    } else if (type == MachineType::Uint16()) {
+      opcode = uint16_op;
+    } else if (type == MachineType::Uint32()) {
+      opcode = word32_op;
+    } else if (type == MachineType::Uint64()) {
+      opcode = word64_op;
+    } else {
+      UNREACHABLE();
+    }
+    VisitAtomicBinop(this, node, opcode, AtomicWidth::kWord64);
   }
-  VisitAtomicBinop(this, node, opcode, AtomicWidth::kWord64);
 }
 
 #define VISIT_ATOMIC64_BINOP(op)                                               \
@@ -2685,9 +2749,13 @@ void InstructionSelectorT<Adapter>::VisitWord64AtomicLoad(Node* node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord64AtomicStore(Node* node) {
-  AtomicStoreParameters store_params = AtomicStoreParametersOf(node->op());
-  VisitGeneralStore(this, node, store_params.representation());
+void InstructionSelectorT<Adapter>::VisitWord64AtomicStore(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    AtomicStoreParameters store_params = AtomicStoreParametersOf(node->op());
+    VisitGeneralStore(this, node, store_params.representation());
+  }
 }
 
 #define SIMD_TYPES(V) \
