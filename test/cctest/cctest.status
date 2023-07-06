@@ -252,6 +252,9 @@
   # the --stress-concurrent-allocation variant.
   'test-heap/OutOfMemorySmallObjects': [PASS, NO_VARIANTS],
   'test-heap/OutOfMemory': [PASS, NO_VARIANTS],
+
+  # Too slow for tsan in debug mode:
+  'test-serialize/StaticRootsPredictableSnapshot': [PASS, ['mode == debug', SKIP]],
 }],  # 'tsan == True'
 
 ##############################################################################

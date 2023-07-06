@@ -92,6 +92,7 @@
 
 ['variant == nooptimization and mode == debug', {
   # Too slow for nooptimization mode and debug.
+  'kraken/imaging-desaturate': [SKIP],
   'kraken/imaging-gaussian-blur': [SKIP],
 }],
 

@@ -1385,7 +1385,10 @@
 ['variant in (nooptimization, jitless) and arch in (arm, arm64) and simulator_run', {
   # Slow tests: https://crbug.com/v8/7783
   'regress/regress-crbug-319860': [SKIP],
-}],  # variant == nooptimization and (arch == arm or arch == arm64) and simulator_run
+
+  # Other slow tests:
+  'regress/regress-1449567': [SKIP],
+}],  # variant in (nooptimization, jitless) and (arch == arm or arch == arm64) and simulator_run
 
 ##############################################################################
 ['variant == nooptimization', {
