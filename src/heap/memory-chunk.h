@@ -262,6 +262,8 @@ class MemoryChunk : public BasicMemoryChunk {
     live_byte_count_.fetch_add(diff, std::memory_order_relaxed);
   }
 
+  void ClearLiveness();
+
  protected:
   // Release all memory allocated by the chunk. Should be called when memory
   // chunk is about to be freed.

@@ -47,8 +47,6 @@ class MarkingStateBase {
   V8_INLINE bool IsMarked(const HeapObject obj) const;
   V8_INLINE bool IsUnmarked(const HeapObject obj) const;
 
-  V8_INLINE void ClearLiveness(MemoryChunk* chunk);
-
   void AddStrongReferenceForReferenceSummarizer(HeapObject host,
                                                 HeapObject obj) {
     // This is not a reference summarizer, so there is nothing to do here.

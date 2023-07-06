@@ -3944,7 +3944,6 @@ void LiveObjectVisitor::VisitMarkedObjectsNoFail(Page* page, Visitor* visitor) {
 
 bool Evacuator::RawEvacuatePage(MemoryChunk* chunk, intptr_t* live_bytes) {
   const EvacuationMode evacuation_mode = ComputeEvacuationMode(chunk);
-  NonAtomicMarkingState* marking_state = heap_->non_atomic_marking_state();
   *live_bytes = chunk->live_bytes();
   TRACE_EVENT2(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
                "FullEvacuator::RawEvacuatePage", "evacuation_mode",
@@ -3956,7 +3955,7 @@ bool Evacuator::RawEvacuatePage(MemoryChunk* chunk, intptr_t* live_bytes) {
 #endif  // DEBUG
       LiveObjectVisitor::VisitMarkedObjectsNoFail(Page::cast(chunk),
                                                   &new_space_visitor_);
-      marking_state->ClearLiveness(chunk);
+      chunk->ClearLiveness();
       break;
     case kPageNewToOld:
       if (chunk->IsLargePage()) {
@@ -3980,7 +3979,7 @@ bool Evacuator::RawEvacuatePage(MemoryChunk* chunk, intptr_t* live_bytes) {
       HeapObject failed_object;
       if (LiveObjectVisitor::VisitMarkedObjects(
               Page::cast(chunk), &old_space_visitor_, &failed_object)) {
-        marking_state->ClearLiveness(chunk);
+        chunk->ClearLiveness();
       } else {
         // Aborted compaction page. Actual processing happens on the main
         // thread for simplicity reasons.

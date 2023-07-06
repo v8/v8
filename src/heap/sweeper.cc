@@ -509,7 +509,7 @@ void Sweeper::LocalSweeper::ParallelIterateAndSweepPromotedPage(
       // the given live object.
       PromotedPageRecordMigratedSlotVisitor record_visitor(chunk);
       record_visitor.Process(LargePage::cast(chunk)->GetObject());
-      sweeper_->marking_state()->ClearLiveness(chunk);
+      chunk->ClearLiveness();
     } else {
       const FreeSpaceTreatmentMode free_space_treatment_mode =
           heap::ShouldZapGarbage() ? FreeSpaceTreatmentMode::kZapFreeSpace

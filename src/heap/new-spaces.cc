@@ -33,7 +33,7 @@ Page* SemiSpace::InitializePage(MemoryChunk* chunk) {
   page->SetYoungGenerationPageFlags(heap()->incremental_marking()->IsMarking());
   page->list_node().Initialize();
   if (v8_flags.minor_ms) {
-    heap()->non_atomic_marking_state()->ClearLiveness(page);
+    page->ClearLiveness();
   }
   page->InitializationMemoryFence();
   return page;
@@ -78,7 +78,6 @@ bool SemiSpace::EnsureCurrentCapacity() {
     }
 
     // Add more pages if we have less than expected_pages.
-    NonAtomicMarkingState* marking_state = heap()->non_atomic_marking_state();
     while (actual_pages < expected_pages) {
       actual_pages++;
       current_page = heap()->memory_allocator()->AllocatePage(
@@ -88,7 +87,7 @@ bool SemiSpace::EnsureCurrentCapacity() {
       AccountCommitted(Page::kPageSize);
       IncrementCommittedPhysicalMemory(current_page->CommittedPhysicalMemory());
       memory_chunk_list_.PushBack(current_page);
-      marking_state->ClearLiveness(current_page);
+      current_page->ClearLiveness();
       current_page->SetFlags(first_page()->GetFlags());
       heap()->CreateFillerObjectAt(current_page->area_start(),
                                    static_cast<int>(current_page->area_size()));
@@ -184,7 +183,6 @@ bool SemiSpace::GrowTo(size_t new_capacity) {
   DCHECK(IsAligned(delta, AllocatePageSize()));
   const int delta_pages = static_cast<int>(delta / Page::kPageSize);
   DCHECK(last_page());
-  NonAtomicMarkingState* marking_state = heap()->non_atomic_marking_state();
   for (int pages_added = 0; pages_added < delta_pages; pages_added++) {
     Page* new_page = heap()->memory_allocator()->AllocatePage(
         MemoryAllocator::AllocationMode::kUsePool, this, NOT_EXECUTABLE);
@@ -193,7 +191,7 @@ bool SemiSpace::GrowTo(size_t new_capacity) {
       return false;
     }
     memory_chunk_list_.PushBack(new_page);
-    marking_state->ClearLiveness(new_page);
+    new_page->ClearLiveness();
     IncrementCommittedPhysicalMemory(new_page->CommittedPhysicalMemory());
     // Duplicate the flags that was set on the old page.
     new_page->SetFlags(last_page()->GetFlags(), Page::kCopyOnFlipFlagsMask);
@@ -577,9 +575,8 @@ void SemiSpaceNewSpace::ResetLinearAllocationArea() {
   to_space_.Reset();
   UpdateLinearAllocationArea();
   // Clear all mark-bits in the to-space.
-  NonAtomicMarkingState* marking_state = heap()->non_atomic_marking_state();
   for (Page* p : to_space_) {
-    marking_state->ClearLiveness(p);
+    p->ClearLiveness();
     // Concurrent marking may have local live bytes for this page.
     heap()->concurrent_marking()->ClearMemoryChunkData(p);
   }
@@ -899,7 +896,7 @@ Page* PagedSpaceForNewSpace::InitializePage(MemoryChunk* chunk) {
   page->ResetAllocationStatistics();
   page->SetFlags(Page::TO_PAGE);
   page->SetYoungGenerationPageFlags(heap()->incremental_marking()->IsMarking());
-  heap()->non_atomic_marking_state()->ClearLiveness(page);
+  page->ClearLiveness();
   page->AllocateFreeListCategories();
   page->InitializeFreeListCategories();
   page->list_node().Initialize();

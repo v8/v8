@@ -263,6 +263,11 @@ bool MemoryChunk::ContainsAnySlots() const {
   return false;
 }
 
+void MemoryChunk::ClearLiveness() {
+  marking_bitmap()->Clear<AccessMode::NON_ATOMIC>();
+  SetLiveBytes(0);
+}
+
 #ifdef DEBUG
 void MemoryChunk::ValidateOffsets(MemoryChunk* chunk) {
   // Note that we cannot use offsetof because MemoryChunk is not a POD.

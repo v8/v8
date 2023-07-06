@@ -452,7 +452,7 @@ AllocationResult NewLargeObjectSpace::AllocateRaw(int object_size) {
   page->SetFlag(MemoryChunk::TO_PAGE);
   UpdatePendingObject(result);
   if (v8_flags.minor_ms) {
-    heap()->non_atomic_marking_state()->ClearLiveness(page);
+    page->ClearLiveness();
   }
   page->InitializationMemoryFence();
   DCHECK(page->IsLargePage());

@@ -40,13 +40,6 @@ bool MarkingStateBase<ConcreteState, access_mode>::TryMarkAndAccountLiveBytes(
   return false;
 }
 
-template <typename ConcreteState, AccessMode access_mode>
-void MarkingStateBase<ConcreteState, access_mode>::ClearLiveness(
-    MemoryChunk* chunk) {
-  chunk->marking_bitmap()->template Clear<access_mode>();
-  chunk->SetLiveBytes(0);
-}
-
 }  // namespace internal
 }  // namespace v8
 
