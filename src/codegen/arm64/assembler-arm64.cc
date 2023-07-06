@@ -4112,11 +4112,6 @@ void Assembler::DataProcExtendedRegister(const Register& rd, const Register& rn,
        dest_reg | RnSP(rn));
 }
 
-bool Assembler::IsImmAddSub(int64_t immediate) {
-  return is_uint12(immediate) ||
-         (is_uint12(immediate >> 12) && ((immediate & 0xFFF) == 0));
-}
-
 void Assembler::LoadStore(const CPURegister& rt, const MemOperand& addr,
                           LoadStoreOp op) {
   Instr memop = op | Rt(rt) | RnSP(addr.base());

@@ -840,6 +840,28 @@ inline void Assembler::LoadStoreWRegOffset(Instr memop,
   Emit(LoadStoreRegisterOffsetFixed | memop | Rm(regoffset) | ExtendMode(UXTW));
 }
 
+inline void Assembler::DataProcPlainRegister(const Register& rd,
+                                             const Register& rn,
+                                             const Register& rm, Instr op) {
+  DCHECK(AreSameSizeAndType(rd, rn, rm));
+  Emit(SF(rd) | AddSubShiftedFixed | op | Rm(rm) | Rn(rn) | Rd(rd));
+}
+
+inline void Assembler::CmpPlainRegister(const Register& rn,
+                                        const Register& rm) {
+  DCHECK(AreSameSizeAndType(rn, rm));
+  Emit(SF(rn) | AddSubShiftedFixed | SUB | Flags(SetFlags) | Rm(rm) | Rn(rn) |
+       Rd(xzr));
+}
+
+inline void Assembler::DataProcImmediate(const Register& rd, const Register& rn,
+                                         int immediate, Instr op) {
+  DCHECK(AreSameSizeAndType(rd, rn));
+  DCHECK(IsImmAddSub(immediate));
+  Emit(SF(rd) | AddSubImmediateFixed | op | ImmAddSub(immediate) | RdSP(rd) |
+       RnSP(rn));
+}
+
 int Assembler::LinkAndGetInstructionOffsetTo(Label* label) {
   DCHECK_EQ(kStartOfLabelLinkChain, 0);
   int offset = LinkAndGetByteOffsetTo(label);

@@ -2802,7 +2802,11 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   inline static Instr ImmCondCmp(unsigned imm);
   inline static Instr Nzcv(StatusFlags nzcv);
 
-  static bool IsImmAddSub(int64_t immediate);
+  static constexpr bool IsImmAddSub(int64_t immediate) {
+    return is_uint12(immediate) ||
+           (is_uint12(immediate >> 12) && ((immediate & 0xFFF) == 0));
+  }
+
   static bool IsImmLogical(uint64_t value, unsigned width, unsigned* n,
                            unsigned* imm_s, unsigned* imm_r);
 
@@ -3123,6 +3127,12 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   void AddSub(const Register& rd, const Register& rn, const Operand& operand,
               FlagsUpdate S, AddSubOp op);
+
+  inline void DataProcPlainRegister(const Register& rd, const Register& rn,
+                                    const Register& rm, Instr op);
+  inline void CmpPlainRegister(const Register& rn, const Register& rm);
+  inline void DataProcImmediate(const Register& rd, const Register& rn,
+                                int immediate, Instr op);
 
   static bool IsImmFP32(uint32_t bits);
   static bool IsImmFP64(uint64_t bits);

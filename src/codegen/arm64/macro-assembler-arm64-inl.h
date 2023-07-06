@@ -114,12 +114,23 @@ void MacroAssembler::Ccmn(const Register& rn, const Operand& operand,
 void MacroAssembler::Add(const Register& rd, const Register& rn,
                          const Operand& operand) {
   DCHECK(allow_macro_instructions());
-  if (operand.IsImmediate() && (operand.ImmediateValue() < 0) &&
-      IsImmAddSub(-operand.ImmediateValue())) {
-    AddSubMacro(rd, rn, -operand.ImmediateValue(), LeaveFlags, SUB);
-  } else {
-    AddSubMacro(rd, rn, operand, LeaveFlags, ADD);
+  if (operand.IsImmediate()) {
+    int64_t imm = operand.ImmediateValue();
+    if ((imm > 0) && IsImmAddSub(imm)) {
+      DataProcImmediate(rd, rn, static_cast<int>(imm), ADD);
+      return;
+    } else if ((imm < 0) && IsImmAddSub(-imm)) {
+      DataProcImmediate(rd, rn, static_cast<int>(-imm), SUB);
+      return;
+    }
+  } else if (operand.IsShiftedRegister() && (operand.shift_amount() == 0)) {
+    if (!rd.IsSP() && !rn.IsSP() && !operand.reg().IsSP() &&
+        !operand.reg().IsZero()) {
+      DataProcPlainRegister(rd, rn, operand.reg(), ADD);
+      return;
+    }
   }
+  AddSubMacro(rd, rn, operand, LeaveFlags, ADD);
 }
 
 void MacroAssembler::Adds(const Register& rd, const Register& rn,
@@ -136,12 +147,23 @@ void MacroAssembler::Adds(const Register& rd, const Register& rn,
 void MacroAssembler::Sub(const Register& rd, const Register& rn,
                          const Operand& operand) {
   DCHECK(allow_macro_instructions());
-  if (operand.IsImmediate() && (operand.ImmediateValue() < 0) &&
-      IsImmAddSub(-operand.ImmediateValue())) {
-    AddSubMacro(rd, rn, -operand.ImmediateValue(), LeaveFlags, ADD);
-  } else {
-    AddSubMacro(rd, rn, operand, LeaveFlags, SUB);
+  if (operand.IsImmediate()) {
+    int64_t imm = operand.ImmediateValue();
+    if ((imm > 0) && IsImmAddSub(imm)) {
+      DataProcImmediate(rd, rn, static_cast<int>(imm), SUB);
+      return;
+    } else if ((imm < 0) && IsImmAddSub(-imm)) {
+      DataProcImmediate(rd, rn, static_cast<int>(-imm), ADD);
+      return;
+    }
+  } else if (operand.IsShiftedRegister() && (operand.shift_amount() == 0)) {
+    if (!rd.IsSP() && !rn.IsSP() && !operand.reg().IsSP() &&
+        !operand.reg().IsZero()) {
+      DataProcPlainRegister(rd, rn, operand.reg(), SUB);
+      return;
+    }
   }
+  AddSubMacro(rd, rn, operand, LeaveFlags, SUB);
 }
 
 void MacroAssembler::Subs(const Register& rd, const Register& rn,
@@ -162,6 +184,12 @@ void MacroAssembler::Cmn(const Register& rn, const Operand& operand) {
 
 void MacroAssembler::Cmp(const Register& rn, const Operand& operand) {
   DCHECK(allow_macro_instructions());
+  if (operand.IsShiftedRegister() && operand.shift_amount() == 0) {
+    if (!rn.IsSP() && !operand.reg().IsSP()) {
+      CmpPlainRegister(rn, operand.reg());
+      return;
+    }
+  }
   Subs(AppropriateZeroRegFor(rn), rn, operand);
 }
 
