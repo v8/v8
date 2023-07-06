@@ -85,6 +85,7 @@ struct MaybeRedundantStoresKeyData {
   OpIndex base;
   int32_t offset;
   uint8_t size;
+  IntrusiveSetIndex active_keys_index = {};
 };
 
 class MaybeRedundantStoresTable
@@ -102,23 +103,21 @@ class MaybeRedundantStoresTable
         block_to_snapshot_mapping_(zone),
         key_mapping_(zone),
         active_keys_(zone),
-        successor_snapshots_(zone),
-        temp_key_vector_(zone) {}
+        successor_snapshots_(zone) {}
 
   void OnNewKey(Key key, StoreObservability value) {
     DCHECK_EQ(value, StoreObservability::kObservable);
-    DCHECK_EQ(active_keys_.find(key), active_keys_.end());
+    DCHECK(!active_keys_.Contains(key));
   }
 
   void OnValueChange(Key key, StoreObservability old_value,
                      StoreObservability new_value) {
     DCHECK_NE(old_value, new_value);
     if (new_value == StoreObservability::kObservable) {
-      active_keys_.erase(key);
-    } else {
-      active_keys_.insert(key);
+      active_keys_.Remove(key);
+    } else if (old_value == StoreObservability::kObservable) {
+      active_keys_.Add(key);
     }
-    // Otherwise the key has already been erased by the caller.
   }
 
   void BeginBlock(const Block* block) {
@@ -180,27 +179,19 @@ class MaybeRedundantStoresTable
     // For now, we consider all stores to the same offset as potentially
     // aliasing. We might improve this to eliminate more precisely, if we have
     // some sort of aliasing information.
-    temp_key_vector_.clear();
-    std::copy_if(active_keys_.begin(), active_keys_.end(),
-                 std::back_inserter(temp_key_vector_),
-                 [offset](const Key& k) { return k.data().offset == offset; });
-    for (Key key : temp_key_vector_) {
+    for (Key key : active_keys_) {
       Set(key, StoreObservability::kObservable);
     }
   }
 
   void MarkAllStoresAsObservable() {
-    auto active_keys = std::move(active_keys_);
-    for (Key key : active_keys) {
+    for (Key key : active_keys_) {
       Set(key, StoreObservability::kObservable);
     }
   }
 
   void MarkAllStoresAsGCObservable() {
-    temp_key_vector_.clear();
-    temp_key_vector_.insert(temp_key_vector_.end(), active_keys_.begin(),
-                            active_keys_.end());
-    for (Key key : temp_key_vector_) {
+    for (Key key : active_keys_) {
       auto current = Get(key);
       DCHECK_NE(current, StoreObservability::kObservable);
       if (current == StoreObservability::kUnobservable) {
@@ -254,6 +245,11 @@ class MaybeRedundantStoresTable
     key_mapping_.emplace(p, new_key);
     return new_key;
   }
+  struct GetActiveKeysIndex {
+    IntrusiveSetIndex& operator()(Key key) const {
+      return key.data().active_keys_index;
+    }
+  };
 
   const Graph& graph_;
   GrowingBlockSidetable<base::Optional<Snapshot>> block_to_snapshot_mapping_;
@@ -261,12 +257,11 @@ class MaybeRedundantStoresTable
   // In `active_keys_`, we track the keys of all stores that arge gc-observable
   // or unobservable. Keys that are mapped to the default value (observable) are
   // removed from the `active_keys_`.
-  ZoneUnorderedSet<Key> active_keys_;
+  ZoneIntrusiveSet<Key, GetActiveKeysIndex> active_keys_;
   const Block* current_block_ = nullptr;
   // {successor_snapshots_} and {temp_key_vector_} are used as temporary vectors
   // inside functions. We store them as members to avoid reallocation.
   ZoneVector<Snapshot> successor_snapshots_;
-  ZoneVector<Key> temp_key_vector_;
 };
 
 class RedundantStoreAnalysis {

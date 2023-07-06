@@ -125,7 +125,6 @@ class SnapshotTable {
 
    private:
     friend SnapshotTable;
-    friend size_t hash_value(Key key) { return fast_hash_combine(key.entry_); }
     TableEntry* entry_;
     explicit Key(TableEntry& entry) : entry_(&entry) {}
   };

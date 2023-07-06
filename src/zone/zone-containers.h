@@ -18,6 +18,7 @@
 #include <unordered_set>
 
 #include "src/base/functional.h"
+#include "src/base/intrusive-set.h"
 #include "src/base/small-vector.h"
 #include "src/zone/zone-allocator.h"
 
@@ -588,6 +589,16 @@ bool operator<(const ZoneVector<T>& lhs, const ZoneVector<T>& rhs) {
   return std::lexicographical_compare(lhs.begin(), lhs.end(), rhs.begin(),
                                       rhs.end());
 }
+
+template <class T, class GetIntrusiveSetIndex>
+class ZoneIntrusiveSet
+    : public base::IntrusiveSet<T, GetIntrusiveSetIndex, ZoneVector<T>> {
+ public:
+  explicit ZoneIntrusiveSet(Zone* zone, GetIntrusiveSetIndex index_functor = {})
+      : base::IntrusiveSet<T, GetIntrusiveSetIndex, ZoneVector<T>>(
+            ZoneVector<T>(zone), std::move(index_functor)) {}
+};
+using base::IntrusiveSetIndex;
 
 // A wrapper subclass for std::deque to make it easy to construct one
 // that uses a zone allocator.

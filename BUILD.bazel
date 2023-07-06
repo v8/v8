@@ -649,6 +649,7 @@ filegroup(
         "src/base/ieee754.cc",
         "src/base/ieee754.h",
         "src/base/immediate-crash.h",
+        "src/base/intrusive-set.h",
         "src/base/iterator.h",
         "src/base/lazy-instance.h",
         "src/base/logging.cc",
