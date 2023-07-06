@@ -325,7 +325,7 @@ void IncrementalMarking::StartMarkingMinor() {
   MarkingBarrier::ActivateAll(heap(), false, MarkingBarrierType::kMinor);
 
   {
-    TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MS_MARK_ROOTS);
+    TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MS_MARK_INCREMENTAL_SEED);
     MarkRoots();
   }
 

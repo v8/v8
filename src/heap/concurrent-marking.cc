@@ -79,19 +79,17 @@ class YoungGenerationConcurrentMarkingVisitor final
         memory_chunk_data_(memory_chunk_data),
         local_ephemeron_table_list_(
             *heap->minor_mark_sweep_collector()->ephemeron_table_list()),
-        local_marking_worklists_(marking_worklists,
-                                 MarkingWorklists::Local::kNoCppMarkingState) {}
+        local_marking_worklists_(
+            marking_worklists,
+            heap->cpp_heap()
+                ? CppHeap::From(heap->cpp_heap())->CreateCppMarkingState()
+                : MarkingWorklists::Local::kNoCppMarkingState) {}
 
   using YoungGenerationMarkingVisitorBase<
       YoungGenerationConcurrentMarkingVisitor,
       ConcurrentMarkingState>::VisitMapPointerIfNeeded;
 
   static constexpr bool EnableConcurrentVisitation() { return true; }
-
-  template <typename TSlot>
-  void RecordSlot(HeapObject object, TSlot slot, HeapObject target) {
-    UNREACHABLE();
-  }
 
   ConcurrentMarkingState* marking_state() { return &marking_state_; }
 
@@ -139,7 +137,7 @@ class YoungGenerationConcurrentMarkingVisitor final
     // Treat weak references as strong.
     if (!object.GetHeapObject(&heap_object) ||
         !Heap::InYoungGeneration(heap_object) ||
-        !concrete_visitor()->marking_state()->TryMark(heap_object)) {
+        !marking_state_.TryMark(heap_object)) {
       return;
     }
 
@@ -524,6 +522,9 @@ void ConcurrentMarking::RunMinor(JobDelegate* delegate) {
 
       if ((new_space_top <= addr && addr < new_space_limit) ||
           addr == new_large_object) {
+        // We should not find objects in LABs when joining the tasks in the
+        // atomic pause.
+        DCHECK(!delegate->IsJoiningThread());
         local_marking_worklists.PushOnHold(object);
       } else {
         Map map = object.map(isolate);
