@@ -219,8 +219,8 @@ class StackTransferRecipe {
     }
   }
 
-  void LoadStackSlot(LiftoffRegister dst, uint32_t stack_offset,
-                     ValueKind kind) {
+  void LoadStackSlot(LiftoffRegister dst, int stack_offset, ValueKind kind) {
+    V8_ASSUME(stack_offset > 0);
     if (load_dst_regs_.has(dst)) {
       // It can happen that we spilled the same register to different stack
       // slots, and then we reload them later into the same dst register.
@@ -228,6 +228,11 @@ class StackTransferRecipe {
       return;
     }
     load_dst_regs_.set(dst);
+    // Make sure that we only spill to positions after this stack offset to
+    // avoid overwriting the content.
+    if (stack_offset > last_spill_offset_) {
+      last_spill_offset_ = stack_offset;
+    }
     if (dst.is_gp_pair()) {
       DCHECK_EQ(kI64, kind);
       *register_load(dst.low()) =
