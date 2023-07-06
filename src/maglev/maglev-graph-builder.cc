@@ -6554,6 +6554,113 @@ ReduceResult MaglevGraphBuilder::ReduceCallForApiFunction(
       receiver);
 }
 
+ReduceResult MaglevGraphBuilder::TryBuildCallKnownApiFunction(
+    compiler::JSFunctionRef function, compiler::SharedFunctionInfoRef shared,
+    CallArguments& args) {
+  compiler::OptionalFunctionTemplateInfoRef maybe_function_template_info =
+      shared.function_template_info(broker());
+  if (!maybe_function_template_info.has_value()) {
+    // Not an Api function.
+    return ReduceResult::Fail();
+  }
+
+  // See if we can optimize this API call.
+  compiler::FunctionTemplateInfoRef function_template_info =
+      maybe_function_template_info.value();
+
+  compiler::HolderLookupResult api_holder;
+  if (function_template_info.accept_any_receiver() &&
+      function_template_info.is_signature_undefined(broker())) {
+    // We might be able to optimize the API call depending on the
+    // {function_template_info}.
+    // If the API function accepts any kind of {receiver}, we only need to
+    // ensure that the {receiver} is actually a JSReceiver at this point,
+    // and also pass that as the {holder}. There are two independent bits
+    // here:
+    //
+    //  a. When the "accept any receiver" bit is set, it means we don't
+    //     need to perform access checks, even if the {receiver}'s map
+    //     has the "needs access check" bit set.
+    //  b. When the {function_template_info} has no signature, we don't
+    //     need to do the compatible receiver check, since all receivers
+    //     are considered compatible at that point, and the {receiver}
+    //     will be pass as the {holder}.
+
+    api_holder =
+        compiler::HolderLookupResult{CallOptimization::kHolderIsReceiver};
+  } else {
+    // Try to infer API holder from the known aspects of the {receiver}.
+    api_holder =
+        TryInferApiHolderValue(function_template_info, args.receiver());
+  }
+
+  switch (api_holder.lookup) {
+    case CallOptimization::kHolderIsReceiver:
+    case CallOptimization::kHolderFound: {
+      // Add lazy deopt point to make the API function appear in exception
+      // stack trace.
+      base::Optional<DeoptFrameScope> lazy_deopt_scope;
+      if (v8_flags.experimental_stack_trace_frames) {
+        // The receiver is only necessary for displaying "class.method" name
+        // if applicable, so full GetConvertReceiver() is not needed here.
+        // Another reason to not use GetConvertReceiver() here because
+        // ReduceCallForApiFunction might bailout and we'll end up with
+        // unused ConvertReceiver node.
+        ValueNode* receiver =
+            args.receiver_mode() == ConvertReceiverMode::kNullOrUndefined
+                ? GetRootConstant(RootIndex::kUndefinedValue)
+                : args.receiver();
+
+        lazy_deopt_scope.emplace(this, Builtin::kGenericLazyDeoptContinuation,
+                                 function,
+                                 base::VectorOf<ValueNode*>({receiver}));
+      }
+      return ReduceCallForApiFunction(function_template_info, shared,
+                                      api_holder.holder, args);
+    }
+    case CallOptimization::kHolderNotFound:
+      break;
+  }
+
+  // We don't have enough information to eliminate the access check
+  // and/or the compatible receiver check, so use the generic builtin
+  // that does those checks dynamically. This is still significantly
+  // faster than the generic call sequence.
+  Builtin builtin_name;
+  if (function_template_info.accept_any_receiver()) {
+    DCHECK(!function_template_info.is_signature_undefined(broker()));
+    builtin_name = Builtin::kCallFunctionTemplate_CheckCompatibleReceiver;
+  } else if (function_template_info.is_signature_undefined(broker())) {
+    builtin_name = Builtin::kCallFunctionTemplate_CheckAccess;
+  } else {
+    builtin_name =
+        Builtin::kCallFunctionTemplate_CheckAccessAndCompatibleReceiver;
+  }
+
+  // The CallFunctionTemplate builtin requires the {receiver} to be
+  // an actual JSReceiver, so make sure we do the proper conversion
+  // first if necessary.
+  ValueNode* receiver = GetConvertReceiver(shared, args);
+  int kContext = 1;
+  int kFunctionTemplateInfo = 1;
+  int kArgc = 1;
+  return AddNewNode<CallBuiltin>(
+      kFunctionTemplateInfo + kArgc + kContext + args.count_with_receiver(),
+      [&](CallBuiltin* call_builtin) {
+        int arg_index = 0;
+        call_builtin->set_arg(arg_index++, GetConstant(function_template_info));
+        call_builtin->set_arg(
+            arg_index++,
+            GetInt32Constant(JSParameterCount(static_cast<int>(args.count()))));
+
+        call_builtin->set_arg(arg_index++, receiver);
+        for (int i = 0; i < static_cast<int>(args.count()); i++) {
+          call_builtin->set_arg(arg_index++, GetTaggedValue(args[i]));
+        }
+      },
+      builtin_name, GetContext());
+}
+
 ReduceResult MaglevGraphBuilder::TryBuildCallKnownJSFunction(
     compiler::JSFunctionRef function, ValueNode* new_target,
     CallArguments& args, const compiler::FeedbackSource& feedback_source) {
@@ -6561,9 +6668,11 @@ ReduceResult MaglevGraphBuilder::TryBuildCallKnownJSFunction(
   if (function.native_context(broker()) != broker()->target_native_context()) {
     return ReduceResult::Fail();
   }
+  compiler::SharedFunctionInfoRef shared = function.shared(broker());
+  RETURN_IF_DONE(TryBuildCallKnownApiFunction(function, shared, args));
+
   ValueNode* closure = GetConstant(function);
   ValueNode* context = GetConstant(function.context(broker()));
-  compiler::SharedFunctionInfoRef shared = function.shared(broker());
   if (MaglevIsTopTier() && TargetIsCurrentCompilingUnit(function) &&
       !graph_->is_osr()) {
     return BuildCallSelf(context, closure, new_target, shared, args);
@@ -6684,6 +6793,68 @@ ReduceResult MaglevGraphBuilder::ReduceCallForConstant(
         feedback_source));
   }
   return BuildGenericCall(target_node, Call::TargetType::kJSFunction, args);
+}
+
+compiler::HolderLookupResult MaglevGraphBuilder::TryInferApiHolderValue(
+    compiler::FunctionTemplateInfoRef function_template_info,
+    ValueNode* receiver) {
+  const compiler::HolderLookupResult not_found;
+
+  auto receiver_maps_it = known_node_aspects().possible_maps.find(receiver);
+  if (receiver_maps_it == known_node_aspects().possible_maps.end()) {
+    // No info about receiver, can't infer API holder.
+    return not_found;
+  }
+  const KnownNodeAspects::PossibleMaps& inference = receiver_maps_it->second;
+
+  compiler::ZoneRefSet<Map> const& receiver_maps = inference.possible_maps;
+  compiler::MapRef first_receiver_map = receiver_maps[0];
+
+  // See if we can constant-fold the compatible receiver checks.
+  compiler::HolderLookupResult api_holder =
+      function_template_info.LookupHolderOfExpectedType(broker(),
+                                                        first_receiver_map);
+  if (api_holder.lookup == CallOptimization::kHolderNotFound) {
+    // Can't infer API holder.
+    return not_found;
+  }
+
+  // Check that all {receiver_maps} are actually JSReceiver maps and
+  // that the {function_template_info} accepts them without access
+  // checks (even if "access check needed" is set for {receiver}).
+  //
+  // API holder might be a receivers's hidden prototype (i.e. the receiver is
+  // a global proxy), so in this case the map check or stability dependency on
+  // the receiver guard us from detaching a global object from global proxy.
+  CHECK(first_receiver_map.IsJSReceiverMap());
+  CHECK(!first_receiver_map.is_access_check_needed() ||
+        function_template_info.accept_any_receiver());
+
+  for (size_t i = 1; i < receiver_maps.size(); ++i) {
+    compiler::MapRef receiver_map = receiver_maps[i];
+    compiler::HolderLookupResult holder_i =
+        function_template_info.LookupHolderOfExpectedType(broker(),
+                                                          receiver_map);
+
+    if (api_holder.lookup != holder_i.lookup) {
+      // Different API holders, dynamic lookup is required.
+      return not_found;
+    }
+    DCHECK(holder_i.lookup == CallOptimization::kHolderFound ||
+           holder_i.lookup == CallOptimization::kHolderIsReceiver);
+    if (holder_i.lookup == CallOptimization::kHolderFound) {
+      DCHECK(api_holder.holder.has_value() && holder_i.holder.has_value());
+      if (!api_holder.holder->equals(*holder_i.holder)) {
+        // Different API holders, dynamic lookup is required.
+        return not_found;
+      }
+    }
+
+    CHECK(receiver_map.IsJSReceiverMap());
+    CHECK(!receiver_map.is_access_check_needed() ||
+          function_template_info.accept_any_receiver());
+  }
+  return api_holder;
 }
 
 ReduceResult MaglevGraphBuilder::ReduceCallForTarget(

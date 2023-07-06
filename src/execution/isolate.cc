@@ -5759,8 +5759,8 @@ void Isolate::DetachGlobal(Handle<Context> env) {
   ReadOnlyRoots roots(this);
   Handle<JSGlobalProxy> global_proxy(env->global_proxy(), this);
   global_proxy->set_native_context(roots.null_value());
-  // NOTE: Turbofan's JSNativeContextSpecialization depends on DetachGlobal
-  // causing a map change.
+  // NOTE: Turbofan's JSNativeContextSpecialization and Maglev depend on
+  // DetachGlobal causing a map change.
   JSObject::ForceSetPrototype(this, global_proxy, factory()->null_value());
   global_proxy->map().set_constructor_or_back_pointer(roots.null_value(),
                                                       kRelaxedStore);

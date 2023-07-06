@@ -1378,15 +1378,11 @@ class LazyDeoptInfo : public DeoptInfo {
             ResultSizeField::encode(result_size)) {}
 
   interpreter::Register result_location() const {
-    // We should only be checking this for interpreted frames, other kinds of
-    // frames shouldn't be considered for result locations.
-    DCHECK_EQ(top_frame().type(), DeoptFrame::FrameType::kInterpretedFrame);
+    DCHECK(IsConsideredForResultLocation());
     return result_location_;
   }
   int result_size() const {
-    // We should only be checking this for interpreted frames, other kinds of
-    // frames shouldn't be considered for result locations.
-    DCHECK_EQ(top_frame().type(), DeoptFrame::FrameType::kInterpretedFrame);
+    DCHECK(IsConsideredForResultLocation());
     return ResultSizeField::decode(bitfield_);
   }
 
@@ -1401,9 +1397,7 @@ class LazyDeoptInfo : public DeoptInfo {
     bitfield_ = ResultSizeField::update(bitfield_, result_size);
   }
   bool HasResultLocation() const {
-    // We should only be checking this for interpreted frames, other kinds of
-    // frames shouldn't be considered for result locations.
-    DCHECK_EQ(top_frame().type(), DeoptFrame::FrameType::kInterpretedFrame);
+    DCHECK(IsConsideredForResultLocation());
     return result_location_.is_valid();
   }
 
@@ -1419,6 +1413,27 @@ class LazyDeoptInfo : public DeoptInfo {
   }
 
  private:
+#ifdef DEBUG
+  bool IsConsideredForResultLocation() const {
+    switch (top_frame().type()) {
+      case DeoptFrame::FrameType::kInterpretedFrame:
+        // Interpreted frames obviously need a result location.
+        return true;
+      case DeoptFrame::FrameType::kInlinedArgumentsFrame:
+      case DeoptFrame::FrameType::kConstructStubFrame:
+        return false;
+      case DeoptFrame::FrameType::kBuiltinContinuationFrame:
+        // Normally if the function is going to be deoptimized then the top
+        // frame should be an interpreted one. The only exception is the case
+        // when the lazy deopt point was added only for the sake of recoring
+        // an inlined Api function instance in the deopt info for exception
+        // stack trace reconstruction.
+        return top_frame().as_builtin_continuation().builtin_id() ==
+               Builtin::kGenericLazyDeoptContinuation;
+    }
+  }
+#endif  // DEBUG
+
   using DeoptingCallReturnPcField = base::BitField<unsigned int, 0, 30>;
   using ResultSizeField = DeoptingCallReturnPcField::Next<unsigned int, 2>;
 

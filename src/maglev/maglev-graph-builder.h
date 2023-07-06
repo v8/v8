@@ -1610,6 +1610,12 @@ class MaglevGraphBuilder {
       compiler::OptionalFeedbackVectorRef feedback_vector, CallArguments& args,
       const compiler::FeedbackSource& feedback_source,
       SpeculationMode speculation_mode);
+  ReduceResult TryBuildCallKnownApiFunction(
+      compiler::JSFunctionRef function, compiler::SharedFunctionInfoRef shared,
+      CallArguments& args);
+  compiler::HolderLookupResult TryInferApiHolderValue(
+      compiler::FunctionTemplateInfoRef function_template_info,
+      ValueNode* receiver);
   ReduceResult ReduceCallForApiFunction(
       compiler::FunctionTemplateInfoRef api_callback,
       compiler::OptionalSharedFunctionInfoRef maybe_shared,
