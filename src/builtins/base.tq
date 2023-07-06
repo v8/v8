@@ -354,7 +354,8 @@ constexpr 'CodeStubAssembler::AllocationFlag' {
 extern enum SlackTrackingMode
 constexpr 'CodeStubAssembler::SlackTrackingMode' {
   kWithSlackTracking,
-  kNoSlackTracking
+  kNoSlackTracking,
+  kSkipSlackTracking
 }
 
 extern enum ExtractFixedArrayFlag
