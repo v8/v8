@@ -459,9 +459,9 @@ class V8_NODISCARD ThreadNotInWasmScope {
 #endif
 };
 
-inline uint8_t* EffectiveAddress(WasmInstanceObject instance, uintptr_t index) {
-  // TODO(13918): Support multiple memories.
-  return instance.memory0_start() + index;
+inline uint8_t* EffectiveAddress(WasmInstanceObject instance,
+                                 uint32_t mem_index, uintptr_t index) {
+  return instance.memory_base(mem_index) + index;
 }
 
 template <typename V>
@@ -479,15 +479,15 @@ int32_t memory_init_wrapper(Address data) {
   ThreadNotInWasmScope thread_not_in_wasm_scope;
   DisallowGarbageCollection no_gc;
   size_t offset = 0;
-  Object raw_instance = ReadAndIncrementOffset<Object>(data, &offset);
-  WasmInstanceObject instance = WasmInstanceObject::cast(raw_instance);
+  WasmInstanceObject instance =
+      WasmInstanceObject::cast(ReadAndIncrementOffset<Object>(data, &offset));
+  uint32_t mem_index = ReadAndIncrementOffset<uint32_t>(data, &offset);
   uintptr_t dst = ReadAndIncrementOffset<uintptr_t>(data, &offset);
   uint32_t src = ReadAndIncrementOffset<uint32_t>(data, &offset);
   uint32_t seg_index = ReadAndIncrementOffset<uint32_t>(data, &offset);
   uint32_t size = ReadAndIncrementOffset<uint32_t>(data, &offset);
 
-  // TODO(13918): Support multiple memories.
-  uint64_t mem_size = instance.memory0_size();
+  uint64_t mem_size = instance.memory_size(mem_index);
   if (!base::IsInBounds<uint64_t>(dst, size, mem_size)) return kOutOfBounds;
 
   uint32_t seg_size = instance.data_segment_sizes().get(seg_index);
@@ -495,7 +495,8 @@ int32_t memory_init_wrapper(Address data) {
 
   uint8_t* seg_start =
       reinterpret_cast<uint8_t*>(instance.data_segment_starts().get(seg_index));
-  std::memcpy(EffectiveAddress(instance, dst), seg_start + src, size);
+  std::memcpy(EffectiveAddress(instance, mem_index, dst), seg_start + src,
+              size);
   return kSuccess;
 }
 
@@ -510,13 +511,14 @@ int32_t memory_copy_wrapper(Address data) {
   uintptr_t size = ReadAndIncrementOffset<uintptr_t>(data, &offset);
 
   // TODO(13918): Support multiple memories.
+  uint32_t mem_index = 0;
   uint64_t mem_size = instance.memory0_size();
   if (!base::IsInBounds<uint64_t>(dst, size, mem_size)) return kOutOfBounds;
   if (!base::IsInBounds<uint64_t>(src, size, mem_size)) return kOutOfBounds;
 
   // Use std::memmove, because the ranges can overlap.
-  std::memmove(EffectiveAddress(instance, dst), EffectiveAddress(instance, src),
-               size);
+  std::memmove(EffectiveAddress(instance, mem_index, dst),
+               EffectiveAddress(instance, mem_index, src), size);
   return kSuccess;
 }
 
@@ -533,10 +535,11 @@ int32_t memory_fill_wrapper(Address data) {
   uintptr_t size = ReadAndIncrementOffset<uintptr_t>(data, &offset);
 
   // TODO(13918): Support multiple memories.
+  uint32_t mem_index = 0;
   uint64_t mem_size = instance.memory0_size();
   if (!base::IsInBounds<uint64_t>(dst, size, mem_size)) return kOutOfBounds;
 
-  std::memset(EffectiveAddress(instance, dst), value, size);
+  std::memset(EffectiveAddress(instance, mem_index, dst), value, size);
   return kSuccess;
 }
 

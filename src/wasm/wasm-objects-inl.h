@@ -266,11 +266,15 @@ WasmMemoryObject WasmInstanceObject::memory_object(int memory_index) const {
 }
 
 uint8_t* WasmInstanceObject::memory_base(int memory_index) const {
+  DCHECK_EQ(memory0_start(),
+            reinterpret_cast<uint8_t*>(
+                memory_bases_and_sizes().get_sandboxed_pointer(0)));
   return reinterpret_cast<uint8_t*>(
       memory_bases_and_sizes().get_sandboxed_pointer(2 * memory_index));
 }
 
 size_t WasmInstanceObject::memory_size(int memory_index) const {
+  DCHECK_EQ(memory0_size(), memory_bases_and_sizes().get(1));
   return memory_bases_and_sizes().get(2 * memory_index + 1);
 }
 

@@ -432,7 +432,8 @@ class WasmGraphBuilder {
                  wasm::WasmCodePosition position);
   void AtomicFence();
 
-  void MemoryInit(uint32_t data_segment_index, Node* dst, Node* src, Node* size,
+  void MemoryInit(const wasm::WasmMemory* memory, uint32_t data_segment_index,
+                  Node* dst, Node* src, Node* size,
                   wasm::WasmCodePosition position);
   void MemoryCopy(Node* dst, Node* src, Node* size,
                   wasm::WasmCodePosition position);
@@ -746,7 +747,8 @@ class WasmGraphBuilder {
                        MachineType result_type, wasm::TrapReason trap_zero,
                        wasm::WasmCodePosition position);
 
-  void MemTypeToUintPtrOrOOBTrap(std::initializer_list<Node**> nodes,
+  void MemTypeToUintPtrOrOOBTrap(const wasm::WasmMemory* memory,
+                                 std::initializer_list<Node**> nodes,
                                  wasm::WasmCodePosition position);
 
   void GetGlobalBaseAndOffset(const wasm::WasmGlobal&, Node** base_node,

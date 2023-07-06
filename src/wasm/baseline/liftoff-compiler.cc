@@ -5500,9 +5500,10 @@ class LiftoffCompiler {
       pinned.clear(mem_offsets_high_word);
     }
 
-    auto sig = MakeSig::Returns(kI32).Params(kIntPtrKind, kIntPtrKind, kI32,
-                                             kI32, kI32);
+    auto sig = MakeSig::Returns(kI32).Params(kIntPtrKind, kI32, kIntPtrKind,
+                                             kI32, kI32, kI32);
     VarState args[] = {{kIntPtrKind, LiftoffRegister{instance}, 0},
+                       {kI32, static_cast<int32_t>(imm.memory.index), 0},
                        dst,
                        src,
                        {kI32, static_cast<int32_t>(imm.data_segment.index), 0},

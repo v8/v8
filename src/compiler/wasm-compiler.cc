@@ -5189,7 +5189,8 @@ void WasmGraphBuilder::AtomicFence() {
       control()));
 }
 
-void WasmGraphBuilder::MemoryInit(uint32_t data_segment_index, Node* dst,
+void WasmGraphBuilder::MemoryInit(const wasm::WasmMemory* memory,
+                                  uint32_t data_segment_index, Node* dst,
                                   Node* src, Node* size,
                                   wasm::WasmCodePosition position) {
   // The data segment index must be in bounds since it is required by
@@ -5199,10 +5200,11 @@ void WasmGraphBuilder::MemoryInit(uint32_t data_segment_index, Node* dst,
   Node* function =
       gasm_->ExternalConstant(ExternalReference::wasm_memory_init());
 
-  MemTypeToUintPtrOrOOBTrap({&dst}, position);
+  MemTypeToUintPtrOrOOBTrap(memory, {&dst}, position);
 
   Node* stack_slot = StoreArgsInStackSlot(
       {{MachineType::PointerRepresentation(), GetInstance()},
+       {MachineRepresentation::kWord32, gasm_->Int32Constant(memory->index)},
        {MachineType::PointerRepresentation(), dst},
        {MachineRepresentation::kWord32, src},
        {MachineRepresentation::kWord32,
@@ -5252,10 +5254,8 @@ Node* WasmGraphBuilder::StoreArgsInStackSlot(
 }
 
 void WasmGraphBuilder::MemTypeToUintPtrOrOOBTrap(
-    std::initializer_list<Node**> nodes, wasm::WasmCodePosition position) {
-  // TODO(13918): Support bulk memory on multi-memory.
-  CHECK_EQ(1, env_->module->memories.size());
-  const wasm::WasmMemory* memory = &env_->module->memories[0];
+    const wasm::WasmMemory* memory, std::initializer_list<Node**> nodes,
+    wasm::WasmCodePosition position) {
   if (!memory->is_memory64) {
     for (Node** node : nodes) {
       *node = gasm_->BuildChangeUint32ToUintPtr(*node);
@@ -5280,7 +5280,9 @@ void WasmGraphBuilder::MemoryCopy(Node* dst, Node* src, Node* size,
   Node* function =
       gasm_->ExternalConstant(ExternalReference::wasm_memory_copy());
 
-  MemTypeToUintPtrOrOOBTrap({&dst, &src, &size}, position);
+  // TODO(13918): Support multiple memories.
+  const wasm::WasmMemory* memory = env_->module->memories.data();
+  MemTypeToUintPtrOrOOBTrap(memory, {&dst, &src, &size}, position);
 
   Node* stack_slot = StoreArgsInStackSlot(
       {{MachineType::PointerRepresentation(), GetInstance()},
@@ -5299,7 +5301,9 @@ void WasmGraphBuilder::MemoryFill(Node* dst, Node* value, Node* size,
   Node* function =
       gasm_->ExternalConstant(ExternalReference::wasm_memory_fill());
 
-  MemTypeToUintPtrOrOOBTrap({&dst, &size}, position);
+  // TODO(13918): Support multiple memories.
+  const wasm::WasmMemory* memory = env_->module->memories.data();
+  MemTypeToUintPtrOrOOBTrap(memory, {&dst, &size}, position);
 
   Node* stack_slot = StoreArgsInStackSlot(
       {{MachineType::PointerRepresentation(), GetInstance()},

@@ -36,10 +36,8 @@
   'f64*': [PASS, HEAVY],
 
   # TODO(13918): Implement missing features.
-  'proposals/multi-memory/data_drop0': [FAIL],
   'proposals/multi-memory/memory_copy0': [FAIL],
   'proposals/multi-memory/memory_fill0': [FAIL],
-  'proposals/multi-memory/memory_init0': [FAIL],
   'proposals/multi-memory/memory-multi': [FAIL],
 
   # These tests need to be rebased to include

@@ -1193,8 +1193,8 @@ class WasmGraphBuildingInterface {
 
   void MemoryInit(FullDecoder* decoder, const MemoryInitImmediate& imm,
                   const Value& dst, const Value& src, const Value& size) {
-    builder_->MemoryInit(imm.data_segment.index, dst.node, src.node, size.node,
-                         decoder->position());
+    builder_->MemoryInit(imm.memory.memory, imm.data_segment.index, dst.node,
+                         src.node, size.node, decoder->position());
   }
 
   void DataDrop(FullDecoder* decoder, const IndexImmediate& imm) {

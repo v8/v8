@@ -6,7 +6,7 @@
 
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
-// Add a {loadN} and {storeN} method for memory N.
+// Add a {loadN} and {storeN} function for memory N.
 function addLoadAndStoreFunctions(builder, mem_index) {
   builder.addFunction('load' + mem_index, kSig_i_i)
       .addBody([kExprLocalGet, 0, kExprI32LoadMem, 0x40, mem_index, 0])
@@ -18,13 +18,25 @@ function addLoadAndStoreFunctions(builder, mem_index) {
       .exportFunc();
 }
 
-// Add a {growN} and {sizeN} method for memory N.
+// Add a {growN} and {sizeN} function for memory N.
 function addGrowAndSizeFunctions(builder, mem_index) {
   builder.addFunction('grow' + mem_index, kSig_i_i)
       .addBody([kExprLocalGet, 0, kExprMemoryGrow, mem_index])
       .exportFunc();
   builder.addFunction('size' + mem_index, kSig_i_v)
       .addBody([kExprMemorySize, mem_index])
+      .exportFunc();
+}
+
+// Add a {initN_M} function for memory N and data segment M.
+function addMemoryInitFunction(builder, data_segment, mem_index) {
+  builder.addFunction('init' + mem_index + '_' + data_segment, kSig_v_iii)
+      .addBody([
+        kExprLocalGet, 0,  // dst
+        kExprLocalGet, 1,  // offset
+        kExprLocalGet, 2,  // size
+        kNumericPrefix, kExprMemoryInit, data_segment, mem_index
+      ])
       .exportFunc();
 }
 
@@ -226,6 +238,50 @@ function assertMemoryEquals(expected, memory) {
           () => builder.instantiate(), WebAssembly.RuntimeError, expected_msg);
     }
   }
+})();
+
+(function testMultiMemoryInit() {
+  print(arguments.callee.name);
+  var builder = new WasmModuleBuilder();
+  const mem0_id = 0;
+  builder.addMemory(1, 1);
+  const mem1_id = 1;
+  builder.addMemory(1, 1);
+  const mem0_offset = 11;
+  const mem1_offset = 23;
+  const seg0_init = [5, 4, 3];
+  const seg0_id = builder.addPassiveDataSegment(seg0_init);
+  const seg1_init = [11, 10, 9, 8, 7];
+  const seg1_id = builder.addPassiveDataSegment(seg1_init);
+  builder.exportMemoryAs('mem0', mem0_id);
+  builder.exportMemoryAs('mem1', mem1_id);
+  // Initialize memory 1 from data segment 0 and vice versa.
+  addMemoryInitFunction(builder, mem0_id, seg1_id);
+  addMemoryInitFunction(builder, mem1_id, seg0_id);
+
+  const instance = builder.instantiate();
+  const expected_memory0 = new Uint8Array(kPageSize);
+  const expected_memory1 = new Uint8Array(kPageSize);
+
+  assertMemoryEquals(expected_memory0, instance.exports.mem0);
+  assertMemoryEquals(expected_memory1, instance.exports.mem1);
+
+  instance.exports.init0_1(3, 1, 3);
+  expected_memory0.set(seg1_init.slice(1, 4), 3);
+  assertMemoryEquals(expected_memory0, instance.exports.mem0);
+  assertMemoryEquals(expected_memory1, instance.exports.mem1);
+
+  instance.exports.init1_0(17, 0, 2);
+  expected_memory1.set(seg0_init.slice(0, 2), 17);
+  assertMemoryEquals(expected_memory0, instance.exports.mem0);
+  assertMemoryEquals(expected_memory1, instance.exports.mem1);
+
+  assertThrows(
+      () => instance.exports.init0_1(0, 5, 1), WebAssembly.RuntimeError,
+      'memory access out of bounds');
+  assertThrows(
+      () => instance.exports.init1_0(0, 3, 1), WebAssembly.RuntimeError,
+      'memory access out of bounds');
 })();
 
 (function testGrowMultipleMemories() {
