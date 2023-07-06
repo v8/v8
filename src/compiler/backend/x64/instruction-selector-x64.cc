@@ -333,7 +333,6 @@ class X64OperandGeneratorT final : public OperandGeneratorT<Adapter> {
       if (fold_base_into_displacement) {
         DCHECK(!this->valid(base));
         DCHECK(this->valid(index));
-        DCHECK_NE(displacement, 0);
         inputs[(*input_count)++] = UseRegister(index, reg_kind);
         inputs[(*input_count)++] = UseImmediate(static_cast<int>(fold_value));
         static const AddressingMode kMnI_modes[] = {kMode_MRI, kMode_M2I,
