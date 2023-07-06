@@ -13,6 +13,10 @@
 #include "src/common/globals.h"
 #include "src/zone/zone.h"
 
+#ifdef V8_ENABLE_DIRECT_HANDLE
+#include "src/flags/flags.h"
+#endif
+
 namespace v8 {
 
 class HandleScope;
