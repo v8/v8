@@ -10,6 +10,7 @@
 #include <unordered_map>
 #include <unordered_set>
 
+#include "src/base/bits.h"
 #include "src/base/logging.h"
 #include "src/base/optional.h"
 #include "src/base/platform/mutex.h"
@@ -1931,7 +1932,8 @@ bool MarkCompactCollector::ProcessEphemerons() {
   // discovered_ephemerons.
   size_t objects_processed;
   std::tie(std::ignore, objects_processed) =
-      ProcessMarkingWorklist(0, MarkingWorklistProcessingMode::kDefault);
+      ProcessMarkingWorklist(v8::base::TimeDelta::Max(), SIZE_MAX,
+                             MarkingWorklistProcessingMode::kDefault);
 
   // As soon as a single object was processed and potentially marked another
   // object we need another iteration. Otherwise we might miss to apply
@@ -1988,7 +1990,8 @@ void MarkCompactCollector::MarkTransitiveClosureLinear() {
       // Drain marking worklist and push all discovered objects into
       // newly_discovered.
       ProcessMarkingWorklist(
-          0, MarkingWorklistProcessingMode::kTrackNewlyDiscoveredObjects);
+          v8::base::TimeDelta::Max(), SIZE_MAX,
+          MarkingWorklistProcessingMode::kTrackNewlyDiscoveredObjects);
     }
 
     while (local_weak_objects()->discovered_ephemerons_local.Pop(&ephemeron)) {
@@ -2055,13 +2058,21 @@ void MarkCompactCollector::PerformWrapperTracing() {
   cpp_heap->AdvanceTracing(std::numeric_limits<double>::infinity());
 }
 
+namespace {
+
+constexpr size_t kDeadlineCheckInterval = 128u;
+
+}  // namespace
+
 std::pair<size_t, size_t> MarkCompactCollector::ProcessMarkingWorklist(
-    size_t bytes_to_process, MarkingWorklistProcessingMode mode) {
+    v8::base::TimeDelta max_duration, size_t max_bytes_to_process,
+    MarkingWorklistProcessingMode mode) {
   HeapObject object;
   size_t bytes_processed = 0;
   size_t objects_processed = 0;
   bool is_per_context_mode = local_marking_worklists_->IsPerContextMode();
   Isolate* const isolate = heap_->isolate();
+  const auto start = v8::base::TimeTicks::Now();
   PtrComprCageBase cage_base(isolate);
   CodePageHeaderModificationScope rwx_write_scope(
       "Marking of InstructionStream objects require write access to "
@@ -2114,7 +2125,13 @@ std::pair<size_t, size_t> MarkCompactCollector::ProcessMarkingWorklist(
     }
     bytes_processed += visited_size;
     objects_processed++;
-    if (bytes_to_process && bytes_processed >= bytes_to_process) {
+    static_assert(base::bits::IsPowerOfTwo(kDeadlineCheckInterval),
+                  "kDeadlineCheckInterval must be power of 2");
+    if ((objects_processed & kDeadlineCheckInterval) == 0 &&
+        ((v8::base::TimeTicks::Now() - start) > max_duration)) {
+      break;
+    }
+    if (bytes_processed >= max_bytes_to_process) {
       break;
     }
   }

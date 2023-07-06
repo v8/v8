@@ -95,7 +95,8 @@ class MarkCompactCollector final {
   static bool IsUnmarkedSharedHeapObject(Heap* heap, FullObjectSlot p);
 
   std::pair<size_t, size_t> ProcessMarkingWorklist(
-      size_t bytes_to_process, MarkingWorklistProcessingMode mode);
+      v8::base::TimeDelta max_duration, size_t max_bytes_to_process,
+      MarkingWorklistProcessingMode mode);
 
   void TearDown();
 

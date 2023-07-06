@@ -552,8 +552,7 @@ UNINITIALIZED_TEST(ConcurrentRecordRelocSlot) {
     CHECK(heap->marking_state()->IsUnmarked(value));
 
     // Advance marking to make sure |code| is marked.
-    heap->incremental_marking()->AdvanceForTesting(
-        std::numeric_limits<double>::infinity());
+    heap->incremental_marking()->AdvanceForTesting(v8::base::TimeDelta::Max());
 
     CHECK(heap->marking_state()->IsMarked(code));
     CHECK(heap->marking_state()->IsUnmarked(value));

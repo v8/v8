@@ -653,7 +653,7 @@ void IncrementalMarking::ScheduleBytesToMarkBasedOnTime(double time_ms) {
 
 void IncrementalMarking::AdvanceAndFinalizeIfComplete() {
   ScheduleBytesToMarkBasedOnTime(heap()->MonotonicallyIncreasingTimeInMs());
-  Step(kStepSizeInMs, StepOrigin::kTask);
+  Step(kMaxStepSizeOnTask, StepOrigin::kTask);
   heap()->FinalizeIncrementalMarkingIfComplete(
       GarbageCollectionReason::kFinalizeMarkingViaTask);
 }
@@ -669,8 +669,8 @@ void IncrementalMarking::AdvanceAndFinalizeIfNecessary() {
   }
 }
 
-void IncrementalMarking::AdvanceForTesting(double max_step_size_in_ms) {
-  Step(max_step_size_in_ms, StepOrigin::kV8);
+void IncrementalMarking::AdvanceForTesting(v8::base::TimeDelta max_duration) {
+  Step(max_duration, StepOrigin::kV8);
 }
 
 void IncrementalMarking::AdvanceOnAllocation() {
@@ -685,7 +685,7 @@ void IncrementalMarking::AdvanceOnAllocation() {
   }
 
   ScheduleBytesToMarkBasedOnAllocation();
-  Step(kMaxStepSizeInMs, StepOrigin::kV8);
+  Step(kMaxStepSizeOnAllocation, StepOrigin::kV8);
 
   if (IsMajorMarkingComplete()) {
     // Marking cannot be finalized here. Schedule a completion task instead.
@@ -696,21 +696,6 @@ void IncrementalMarking::AdvanceOnAllocation() {
       isolate()->stack_guard()->RequestGC();
     }
   }
-}
-
-// static
-size_t IncrementalMarking::EstimateMarkingStepSize(double time,
-                                                   double marking_speed) {
-  DCHECK_LT(0, time);
-  if (marking_speed == 0) {
-    marking_speed = kInitialConservativeMarkingSpeed;
-  }
-
-  const double marking_step_size = marking_speed * time;
-  if (marking_step_size >= kMaximumMarkingStepSize) {
-    return kMaximumMarkingStepSize;
-  }
-  return static_cast<size_t>(marking_step_size * kConservativeTimeRatio);
 }
 
 bool IncrementalMarking::ShouldFinalize() const {
@@ -810,7 +795,7 @@ size_t IncrementalMarking::ComputeStepSizeInBytes(StepOrigin step_origin) {
   return scheduled_bytes_to_mark_ - bytes_marked_ - kScheduleMarginInBytes;
 }
 
-void IncrementalMarking::Step(double max_step_size_in_ms,
+void IncrementalMarking::Step(v8::base::TimeDelta max_duration,
                               StepOrigin step_origin) {
   NestedTimedHistogramScope incremental_marking_scope(
       isolate()->counters()->gc_incremental_marking());
@@ -852,10 +837,7 @@ void IncrementalMarking::Step(double max_step_size_in_ms,
   // Cap the step size to distribute the marking work more uniformly.
   const double marking_speed =
       heap()->tracer()->IncrementalMarkingSpeedInBytesPerMillisecond();
-  size_t max_step_size =
-      EstimateMarkingStepSize(max_step_size_in_ms, marking_speed);
-  bytes_to_process =
-      std::min(ComputeStepSizeInBytes(step_origin), max_step_size);
+  bytes_to_process = ComputeStepSizeInBytes(step_origin);
   bytes_to_process = std::max({bytes_to_process, kMinStepSizeInBytes});
 
   // Perform a single V8 and a single embedder step. In case both have been
@@ -866,11 +848,11 @@ void IncrementalMarking::Step(double max_step_size_in_ms,
   // processed on their own. For small graphs, helping is not necessary.
   std::tie(v8_bytes_processed, std::ignore) =
       major_collector_->ProcessMarkingWorklist(
-          bytes_to_process,
+          max_duration, bytes_to_process,
           MarkCompactCollector::MarkingWorklistProcessingMode::kDefault);
   if (heap_->cpp_heap()) {
     embedder_deadline =
-        std::min(max_step_size_in_ms,
+        std::min(max_duration.InMillisecondsF(),
                  static_cast<double>(bytes_to_process) / marking_speed);
     // TODO(chromium:1056170): Replace embedder_deadline with bytes_to_process
     // after migrating blink to the cppgc library and after v8 can directly
@@ -896,10 +878,11 @@ void IncrementalMarking::Step(double max_step_size_in_ms,
     isolate()->PrintWithTimestamp(
         "[IncrementalMarking] Step %s V8: %zuKB (%zuKB), embedder: %fms "
         "(%fms) "
-        "in %.1f\n",
+        "in %.1f (%.1f)\n",
         step_origin == StepOrigin::kV8 ? "in v8" : "in task",
         v8_bytes_processed / KB, bytes_to_process / KB, embedder_duration,
-        embedder_deadline, current_time - start);
+        embedder_deadline, current_time - start,
+        max_duration.InMillisecondsF());
   }
 }
 
