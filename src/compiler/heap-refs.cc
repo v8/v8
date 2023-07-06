@@ -331,6 +331,17 @@ OptionalObjectRef GetOwnFastDataPropertyFromHeap(JSHeapBroker* broker,
         return {};
       }
     }
+    // We might read the uninitialized sentinel, if we race with the main
+    // thread adding a new property to the object (having set the map, but not
+    // yet initialised the property value). Since this is a tight race, it won't
+    // happen very often, so we can just abort the load.
+    // TODO(leszeks): We could instead sleep/yield and spin the load, since the
+    // timing on this is tight enough that we wouldn't delay the compiler thread
+    // by much.
+    if (constant.value().IsUninitialized()) {
+      TRACE_BROKER_MISSING(broker, "Read uninitialized property.");
+      return {};
+    }
 
     // {constant} needs to pass the gc predicate before we can introspect on it.
     if (broker->ObjectMayBeUninitialized(constant.value())) return {};
