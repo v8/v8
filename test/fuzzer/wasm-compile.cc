@@ -643,7 +643,11 @@ class WasmGenerator {
   void memop(DataRange* data) {
     const uint8_t align =
         data->getPseudoRandom<uint8_t>() % (max_alignment(memory_op) + 1);
-    const uint32_t offset = data->getPseudoRandom<uint32_t>();
+    uint32_t offset = data->get<uint16_t>();
+    // With a 1/256 chance generate potentially very large offsets.
+    if ((offset & 0xff) == 0xff) {
+      offset = data->getPseudoRandom<uint32_t>();
+    }
 
     // Generate the index and the arguments, if any.
     Generate<kI32, arg_kinds...>(data);
@@ -662,7 +666,11 @@ class WasmGenerator {
   void atomic_op(DataRange* data) {
     const uint8_t align =
         data->getPseudoRandom<uint8_t>() % (max_alignment(Op) + 1);
-    const uint32_t offset = data->getPseudoRandom<uint32_t>();
+    uint32_t offset = data->get<uint16_t>();
+    // With a 1/256 chance generate potentially very large offsets.
+    if ((offset & 0xff) == 0xff) {
+      offset = data->getPseudoRandom<uint32_t>();
+    }
 
     Generate<Args...>(data);
     builder_->EmitWithPrefix(Op);
@@ -2310,7 +2318,7 @@ void WasmGenerator::Generate<kS128>(DataRange* data) {
   if (recursion_limit_reached() || data->size() <= sizeof(int32_t)) {
     // TODO(v8:8460): v128.const is not implemented yet, and we need a way to
     // "bottom-out", so use a splat to generate this.
-    builder_->EmitI32Const(data->getPseudoRandom<int32_t>());
+    builder_->EmitI32Const(0);
     builder_->EmitWithPrefix(kExprI8x16Splat);
     return;
   }
