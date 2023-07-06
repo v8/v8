@@ -3548,7 +3548,7 @@ void Heap::CreateFillerForArray(T object, int elements_to_trim,
     if (incremental_marking()->black_allocation() &&
         marking_state()->IsMarked(filler)) {
       Page* page = Page::FromAddress(new_end);
-      marking_state()->bitmap(page)->ClearRange<AccessMode::ATOMIC>(
+      page->marking_bitmap()->ClearRange<AccessMode::ATOMIC>(
           MarkingBitmap::AddressToIndex(new_end),
           MarkingBitmap::LimitAddressToIndex(new_end + bytes_to_trim));
     }

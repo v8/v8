@@ -360,7 +360,7 @@ void MarkCompactCollector::CollectGarbage() {
 
 void MarkCompactCollector::VerifyMarkbitsAreClean(PagedSpaceBase* space) {
   for (Page* p : *space) {
-    CHECK(non_atomic_marking_state_->bitmap(p)->IsClean());
+    CHECK(p->marking_bitmap()->IsClean());
     CHECK_EQ(0, p->live_bytes());
   }
 }
@@ -372,7 +372,7 @@ void MarkCompactCollector::VerifyMarkbitsAreClean(NewSpace* space) {
     return;
   }
   for (Page* p : PageRange(space->first_allocatable_address(), space->top())) {
-    CHECK(non_atomic_marking_state_->bitmap(p)->IsClean());
+    CHECK(p->marking_bitmap()->IsClean());
     CHECK_EQ(0, p->live_bytes());
   }
 }
@@ -4792,12 +4792,11 @@ namespace {
 void ReRecordPage(Heap* heap, Address failed_start, Page* page) {
   DCHECK(page->IsFlagSet(Page::COMPACTION_WAS_ABORTED));
 
-  NonAtomicMarkingState* marking_state = heap->non_atomic_marking_state();
   // Aborted compaction page. We have to record slots here, since we
   // might not have recorded them in first place.
 
   // Remove mark bits in evacuated area.
-  marking_state->bitmap(page)->ClearRange<AccessMode::NON_ATOMIC>(
+  page->marking_bitmap()->ClearRange<AccessMode::NON_ATOMIC>(
       MarkingBitmap::AddressToIndex(page->area_start()),
       MarkingBitmap::LimitAddressToIndex(failed_start));
 

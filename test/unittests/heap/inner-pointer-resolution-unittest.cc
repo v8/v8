@@ -222,7 +222,7 @@ class InnerPointerResolutionTest
         break;
       case ObjectRequest::MARKED_AREA: {
         MemoryChunk* page = LookupPage(object.page_id);
-        heap()->marking_state()->bitmap(page)->SetRange<AccessMode::NON_ATOMIC>(
+        page->marking_bitmap()->SetRange<AccessMode::NON_ATOMIC>(
             MarkingBitmap::AddressToIndex(object.address),
             MarkingBitmap::LimitAddressToIndex(object.address + object.size));
         break;

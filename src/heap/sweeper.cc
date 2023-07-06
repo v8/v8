@@ -793,7 +793,7 @@ void Sweeper::CleanupTypedSlotsInFreeMemory(
 
 void Sweeper::ClearMarkBitsAndHandleLivenessStatistics(Page* page,
                                                        size_t live_bytes) {
-  marking_state_->bitmap(page)->Clear<AccessMode::NON_ATOMIC>();
+  page->marking_bitmap()->Clear<AccessMode::NON_ATOMIC>();
   // Keep the old live bytes counter of the page until RefillFreeList, where
   // the space size is refined.
   // The allocated_bytes() counter is precisely the total size of objects.
@@ -1180,7 +1180,7 @@ void Sweeper::SweepEmptyNewSpacePage(Page* page) {
   DCHECK(v8_flags.minor_ms);
   DCHECK_EQ(NEW_SPACE, page->owner_identity());
   DCHECK_EQ(0, page->live_bytes());
-  DCHECK(marking_state_->bitmap(page)->IsClean());
+  DCHECK(page->marking_bitmap()->IsClean());
   DCHECK(heap_->IsMainThread() ||
          (heap_->IsSharedMainThread() &&
           !heap_->isolate()->is_shared_space_isolate()));

@@ -43,22 +43,8 @@ bool MarkingStateBase<ConcreteState, access_mode>::TryMarkAndAccountLiveBytes(
 template <typename ConcreteState, AccessMode access_mode>
 void MarkingStateBase<ConcreteState, access_mode>::ClearLiveness(
     MemoryChunk* chunk) {
-  static_cast<ConcreteState*>(this)
-      ->bitmap(chunk)
-      ->template Clear<access_mode>();
+  chunk->marking_bitmap()->template Clear<access_mode>();
   chunk->SetLiveBytes(0);
-}
-
-MarkingBitmap* MarkingState::bitmap(MemoryChunk* chunk) const {
-  return chunk->marking_bitmap();
-}
-
-MarkingBitmap* NonAtomicMarkingState::bitmap(MemoryChunk* chunk) const {
-  return chunk->marking_bitmap();
-}
-
-MarkingBitmap* AtomicMarkingState::bitmap(MemoryChunk* chunk) const {
-  return chunk->marking_bitmap();
 }
 
 }  // namespace internal

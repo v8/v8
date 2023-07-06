@@ -70,8 +70,6 @@ class MarkingState final
  public:
   explicit MarkingState(PtrComprCageBase cage_base)
       : MarkingStateBase(cage_base) {}
-
-  V8_INLINE MarkingBitmap* bitmap(MemoryChunk* chunk) const;
 };
 
 class NonAtomicMarkingState final
@@ -79,8 +77,6 @@ class NonAtomicMarkingState final
  public:
   explicit NonAtomicMarkingState(PtrComprCageBase cage_base)
       : MarkingStateBase(cage_base) {}
-
-  V8_INLINE MarkingBitmap* bitmap(MemoryChunk* chunk) const;
 };
 
 // This is used by Scavenger and Evacuator in TransferColor.
@@ -90,8 +86,6 @@ class AtomicMarkingState final
  public:
   explicit AtomicMarkingState(PtrComprCageBase cage_base)
       : MarkingStateBase(cage_base) {}
-
-  V8_INLINE MarkingBitmap* bitmap(MemoryChunk* chunk) const;
 };
 
 }  // namespace internal

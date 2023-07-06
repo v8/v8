@@ -5956,7 +5956,7 @@ TEST(ContinuousRightTrimFixedArrayInBlackArea) {
   Page* page = Page::FromAddress(start_address);
   NonAtomicMarkingState* marking_state = heap->non_atomic_marking_state();
   CHECK(marking_state->IsMarked(*array));
-  CHECK(marking_state->bitmap(page)->AllBitsSetInRange(
+  CHECK(page->marking_bitmap()->AllBitsSetInRange(
       MarkingBitmap::AddressToIndex(start_address),
       MarkingBitmap::LimitAddressToIndex(end_address)));
   CHECK(heap->old_space()->Contains(*array));
