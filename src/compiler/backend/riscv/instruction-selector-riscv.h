@@ -97,7 +97,7 @@ class RiscvOperandGeneratorT final : public OperandGeneratorT<Adapter> {
 };
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitProtectedStore(Node* node) {
+void InstructionSelectorT<Adapter>::VisitProtectedStore(node_t node) {
   // TODO(eholk)
   UNIMPLEMENTED();
 }
@@ -108,10 +108,14 @@ void InstructionSelectorT<Adapter>::VisitProtectedLoad(Node* node) {
   UNIMPLEMENTED();
 }
 
-template <typename Adapter>
-void VisitRR(InstructionSelectorT<Adapter>* selector, InstructionCode opcode,
-             Node* node) {
-  RiscvOperandGeneratorT<Adapter> g(selector);
+template <typename T>
+void VisitRR(InstructionSelectorT<TurboshaftAdapter>*, InstructionCode, T) {
+  UNIMPLEMENTED();
+}
+
+void VisitRR(InstructionSelectorT<TurbofanAdapter>* selector,
+             InstructionCode opcode, Node* node) {
+  RiscvOperandGeneratorT<TurbofanAdapter> g(selector);
   selector->Emit(opcode, g.DefineAsRegister(node),
                  g.UseRegister(node->InputAt(0)));
 }
@@ -150,10 +154,14 @@ static void VisitRRIR(InstructionSelectorT<Adapter>* selector,
                  g.UseRegister(node->InputAt(1)));
 }
 
-template <typename Adapter>
-static void VisitRRR(InstructionSelectorT<Adapter>* selector, ArchOpcode opcode,
-                     Node* node) {
-  RiscvOperandGeneratorT<Adapter> g(selector);
+template <typename T>
+void VisitRRR(InstructionSelectorT<TurboshaftAdapter>*, InstructionCode, T) {
+  UNIMPLEMENTED();
+}
+
+void VisitRRR(InstructionSelectorT<TurbofanAdapter>* selector,
+              InstructionCode opcode, Node* node) {
+  RiscvOperandGeneratorT<TurbofanAdapter> g(selector);
   selector->Emit(opcode, g.DefineAsRegister(node),
                  g.UseRegister(node->InputAt(0)),
                  g.UseRegister(node->InputAt(1)));
@@ -737,7 +745,7 @@ void InstructionSelectorT<Adapter>::VisitFloat32Sub(Node* node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat64Sub(Node* node) {
+void InstructionSelectorT<Adapter>::VisitFloat64Sub(node_t node) {
   VisitRRR(this, kRiscvSubD, node);
 }
 
@@ -757,7 +765,7 @@ void InstructionSelectorT<Adapter>::VisitFloat32Div(Node* node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat64Div(Node* node) {
+void InstructionSelectorT<Adapter>::VisitFloat64Div(node_t node) {
   VisitRRR(this, kRiscvDivD, node);
 }
 
@@ -803,7 +811,7 @@ void InstructionSelectorT<Adapter>::VisitTruncateFloat64ToWord32(Node* node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitRoundFloat64ToInt32(Node* node) {
+void InstructionSelectorT<Adapter>::VisitRoundFloat64ToInt32(node_t node) {
   VisitRR(this, kRiscvTruncWD, node);
 }
 
@@ -858,11 +866,17 @@ void InstructionSelectorT<Adapter>::VisitWord32Shr(Node* node) {
   VisitRRO(this, kRiscvShr32, node);
 }
 
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord32Sar(Node* node) {
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitWord32Sar(
+    turboshaft::OpIndex) {
+  UNIMPLEMENTED();
+}
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitWord32Sar(Node* node) {
   Int32BinopMatcher m(node);
   if (CanCover(node, m.left().node())) {
-    RiscvOperandGeneratorT<Adapter> g(this);
+    RiscvOperandGeneratorT<TurbofanAdapter> g(this);
     if (m.left().IsWord32Shl()) {
       Int32BinopMatcher mleft(m.left().node());
       if (m.right().HasResolvedValue() && mleft.right().HasResolvedValue()) {

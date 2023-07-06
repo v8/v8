@@ -218,9 +218,14 @@ void InstructionSelectorT<Adapter>::VisitStorePair(Node* node) {
   UNREACHABLE();
 }
 
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitStore(Node* node) {
-  RiscvOperandGeneratorT<Adapter> g(this);
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitStore(turboshaft::OpIndex) {
+  UNREACHABLE();
+}
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitStore(Node* node) {
+  RiscvOperandGeneratorT<TurbofanAdapter> g(this);
   Node* base = node->InputAt(0);
   Node* index = node->InputAt(1);
   Node* value = node->InputAt(2);
@@ -302,15 +307,26 @@ void InstructionSelectorT<Adapter>::VisitStore(Node* node) {
   }
 }
 
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord32And(Node* node) {
-  VisitBinop<Adapter, Int32BinopMatcher>(this, node, kRiscvAnd, true,
-                                         kRiscvAnd);
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitWord32And(
+    turboshaft::OpIndex) {
+  UNIMPLEMENTED();
+}
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitWord32And(Node* node) {
+  VisitBinop<TurbofanAdapter, Int32BinopMatcher>(this, node, kRiscvAnd, true,
+                                                 kRiscvAnd);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord32Or(Node* node) {
-  VisitBinop<Adapter, Int32BinopMatcher>(this, node, kRiscvOr, true, kRiscvOr);
+void InstructionSelectorT<Adapter>::VisitWord32Or(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    VisitBinop<Adapter, Int32BinopMatcher>(this, node, kRiscvOr, true,
+                                           kRiscvOr);
+  }
 }
 
 template <typename Adapter>
@@ -483,7 +499,7 @@ void InstructionSelectorT<Adapter>::VisitRoundUint32ToFloat32(Node* node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitChangeInt32ToFloat64(Node* node) {
+void InstructionSelectorT<Adapter>::VisitChangeInt32ToFloat64(node_t node) {
   VisitRR(this, kRiscvCvtDW, node);
 }
 
@@ -1047,7 +1063,7 @@ void InstructionSelectorT<Adapter>::VisitUint32LessThanOrEqual(node_t node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitInt32AddWithOverflow(Node* node) {
+void InstructionSelectorT<Adapter>::VisitInt32AddWithOverflow(node_t node) {
   if constexpr (Adapter::IsTurboshaft) {
     UNIMPLEMENTED();
   } else {
@@ -1077,7 +1093,7 @@ void InstructionSelectorT<Adapter>::VisitInt32SubWithOverflow(Node* node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitInt32MulWithOverflow(Node* node) {
+void InstructionSelectorT<Adapter>::VisitInt32MulWithOverflow(node_t node) {
   if constexpr (Adapter::IsTurboshaft) {
     UNIMPLEMENTED();
   } else {
@@ -1121,7 +1137,7 @@ void InstructionSelectorT<Adapter>::VisitWord32AtomicLoad(Node* node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord32AtomicStore(Node* node) {
+void InstructionSelectorT<Adapter>::VisitWord32AtomicStore(node_t node) {
   if constexpr (Adapter::IsTurboshaft) {
     UNIMPLEMENTED();
   } else {
@@ -1202,7 +1218,7 @@ void InstructionSelectorT<Adapter>::VisitWord32AtomicCompareExchange(
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord32AtomicBinaryOperation(
-    Node* node, ArchOpcode int8_op, ArchOpcode uint8_op, ArchOpcode int16_op,
+    node_t node, ArchOpcode int8_op, ArchOpcode uint8_op, ArchOpcode int16_op,
     ArchOpcode uint16_op, ArchOpcode word32_op) {
   if constexpr (Adapter::IsTurboshaft) {
     UNIMPLEMENTED();

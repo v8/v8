@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/base/bits.h"
+#include "src/base/logging.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/machine-type.h"
 #include "src/compiler/backend/instruction-selector-impl.h"
@@ -353,12 +354,14 @@ void InstructionSelectorT<Adapter>::VisitStorePair(Node* node) {
   UNREACHABLE();
 }
 
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitStore(Node* node) {
-  if constexpr (Adapter::IsTurboshaft) {
-  UNIMPLEMENTED();
-  } else {
-  RiscvOperandGeneratorT<Adapter> g(this);
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitStore(turboshaft::OpIndex) {
+  UNREACHABLE();
+}
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitStore(Node* node) {
+  RiscvOperandGeneratorT<TurbofanAdapter> g(this);
   Node* base = node->InputAt(0);
   Node* index = node->InputAt(1);
   Node* value = node->InputAt(2);
@@ -451,17 +454,18 @@ void InstructionSelectorT<Adapter>::VisitStore(Node* node) {
            g.UseRegisterOrImmediateZero(value), addr_reg, g.TempImmediate(0));
     }
   }
-  }
 }
 
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord32And(Node* node) {
-  if constexpr (Adapter::IsTurboshaft) {
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitWord32And(
+    turboshaft::OpIndex) {
   UNIMPLEMENTED();
-  } else {
-  VisitBinop<Adapter, Int32BinopMatcher>(this, node, kRiscvAnd32, true,
-                                         kRiscvAnd32);
-  }
+}
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitWord32And(Node* node) {
+  VisitBinop<TurbofanAdapter, Int32BinopMatcher>(this, node, kRiscvAnd32, true,
+                                                 kRiscvAnd32);
 }
 
 template <typename Adapter>
@@ -508,7 +512,7 @@ void InstructionSelectorT<Adapter>::VisitWord64And(Node* node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord32Or(Node* node) {
+void InstructionSelectorT<Adapter>::VisitWord32Or(node_t node) {
   if constexpr (Adapter::IsTurboshaft) {
   UNIMPLEMENTED();
   } else {
@@ -585,7 +589,7 @@ void InstructionSelectorT<Adapter>::VisitWord64Xor(Node* node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord64Shl(Node* node) {
+void InstructionSelectorT<Adapter>::VisitWord64Shl(node_t node) {
   if constexpr (Adapter::IsTurboshaft) {
   UNIMPLEMENTED();
   } else {
@@ -639,7 +643,7 @@ void InstructionSelectorT<Adapter>::VisitWord64Shr(Node* node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord64Sar(Node* node) {
+void InstructionSelectorT<Adapter>::VisitWord64Sar(node_t node) {
   if constexpr (Adapter::IsTurboshaft) {
   UNIMPLEMENTED();
   } else {
@@ -777,9 +781,13 @@ void InstructionSelectorT<Adapter>::VisitInt32Add(Node* node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitInt64Add(Node* node) {
+void InstructionSelectorT<Adapter>::VisitInt64Add(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+  UNIMPLEMENTED();
+  } else {
   VisitBinop<Adapter, Int64BinopMatcher>(this, node, kRiscvAdd64, true,
                                          kRiscvAdd64);
+  }
 }
 
 template <typename Adapter>
@@ -989,7 +997,7 @@ void InstructionSelectorT<Adapter>::VisitRoundUint32ToFloat32(Node* node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitChangeInt32ToFloat64(Node* node) {
+void InstructionSelectorT<Adapter>::VisitChangeInt32ToFloat64(node_t node) {
   VisitRR(this, kRiscvCvtDW, node);
 }
 
@@ -1238,40 +1246,44 @@ void EmitSignExtendWord(InstructionSelectorT<Adapter>* selector, Node* node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitChangeInt32ToInt64(Node* node) {
-  Node* value = node->InputAt(0);
-  if ((value->opcode() == IrOpcode::kLoad ||
-       value->opcode() == IrOpcode::kLoadImmutable) &&
-      CanCover(node, value)) {
-    // Generate sign-extending load.
-    LoadRepresentation load_rep = LoadRepresentationOf(value->op());
-    InstructionCode opcode = kArchNop;
-    switch (load_rep.representation()) {
-      case MachineRepresentation::kBit:  // Fall through.
-      case MachineRepresentation::kWord8:
-        opcode = load_rep.IsUnsigned() ? kRiscvLbu : kRiscvLb;
-        break;
-      case MachineRepresentation::kWord16:
-        opcode = load_rep.IsUnsigned() ? kRiscvLhu : kRiscvLh;
-        break;
-      case MachineRepresentation::kWord32:
-      case MachineRepresentation::kWord64:
-        // Since BitcastElider may remove nodes of
-        // IrOpcode::kTruncateInt64ToInt32 and directly use the inputs, values
-        // with kWord64 can also reach this line.
-        // For RV64, the lw loads a 32 bit value from memory and sign-extend it
-        // to 64 bits before storing it in rd register
-      case MachineRepresentation::kTaggedSigned:
-      case MachineRepresentation::kTagged:
-        opcode = kRiscvLw;
-        break;
-      default:
-        UNREACHABLE();
-    }
-    EmitLoad(this, value, opcode, node);
+void InstructionSelectorT<Adapter>::VisitChangeInt32ToInt64(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
   } else {
-    EmitSignExtendWord(this, node);
-    return;
+    Node* value = node->InputAt(0);
+    if ((value->opcode() == IrOpcode::kLoad ||
+         value->opcode() == IrOpcode::kLoadImmutable) &&
+        CanCover(node, value)) {
+      // Generate sign-extending load.
+      LoadRepresentation load_rep = LoadRepresentationOf(value->op());
+      InstructionCode opcode = kArchNop;
+      switch (load_rep.representation()) {
+        case MachineRepresentation::kBit:  // Fall through.
+        case MachineRepresentation::kWord8:
+          opcode = load_rep.IsUnsigned() ? kRiscvLbu : kRiscvLb;
+          break;
+        case MachineRepresentation::kWord16:
+          opcode = load_rep.IsUnsigned() ? kRiscvLhu : kRiscvLh;
+          break;
+        case MachineRepresentation::kWord32:
+        case MachineRepresentation::kWord64:
+          // Since BitcastElider may remove nodes of
+          // IrOpcode::kTruncateInt64ToInt32 and directly use the inputs, values
+          // with kWord64 can also reach this line.
+          // For RV64, the lw loads a 32 bit value from memory and sign-extend
+          // it to 64 bits before storing it in rd register
+        case MachineRepresentation::kTaggedSigned:
+        case MachineRepresentation::kTagged:
+          opcode = kRiscvLw;
+          break;
+        default:
+          UNREACHABLE();
+      }
+      EmitLoad(this, value, opcode, node);
+    } else {
+      EmitSignExtendWord(this, node);
+      return;
+    }
   }
 }
 
@@ -2163,7 +2175,7 @@ void InstructionSelectorT<Adapter>::VisitUint32LessThanOrEqual(node_t node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitInt32AddWithOverflow(Node* node) {
+void InstructionSelectorT<Adapter>::VisitInt32AddWithOverflow(node_t node) {
   if constexpr (Adapter::IsTurboshaft) {
   UNIMPLEMENTED();
   } else {
@@ -2193,7 +2205,7 @@ void InstructionSelectorT<Adapter>::VisitInt32SubWithOverflow(Node* node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitInt32MulWithOverflow(Node* node) {
+void InstructionSelectorT<Adapter>::VisitInt32MulWithOverflow(node_t node) {
   if constexpr (Adapter::IsTurboshaft) {
   UNIMPLEMENTED();
   } else {
@@ -2299,7 +2311,7 @@ void InstructionSelectorT<Adapter>::VisitInt64LessThanOrEqual(Node* node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitUint64LessThan(Node* node) {
+void InstructionSelectorT<Adapter>::VisitUint64LessThan(node_t node) {
   if constexpr (Adapter::IsTurboshaft) {
   UNIMPLEMENTED();
   } else {
@@ -2329,7 +2341,7 @@ void InstructionSelectorT<Adapter>::VisitWord32AtomicLoad(Node* node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord32AtomicStore(Node* node) {
+void InstructionSelectorT<Adapter>::VisitWord32AtomicStore(node_t node) {
   if constexpr (Adapter::IsTurboshaft) {
   UNIMPLEMENTED();
   } else {
@@ -2347,7 +2359,7 @@ void InstructionSelectorT<Adapter>::VisitWord64AtomicLoad(Node* node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord64AtomicStore(Node* node) {
+void InstructionSelectorT<Adapter>::VisitWord64AtomicStore(node_t node) {
   if constexpr (Adapter::IsTurboshaft) {
   UNIMPLEMENTED();
   } else {
@@ -2452,7 +2464,7 @@ void InstructionSelectorT<Adapter>::VisitWord64AtomicCompareExchange(
 }
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord32AtomicBinaryOperation(
-    Node* node, ArchOpcode int8_op, ArchOpcode uint8_op, ArchOpcode int16_op,
+    node_t node, ArchOpcode int8_op, ArchOpcode uint8_op, ArchOpcode int16_op,
     ArchOpcode uint16_op, ArchOpcode word32_op) {
   if constexpr (Adapter::IsTurboshaft) {
   UNIMPLEMENTED();
@@ -2498,8 +2510,8 @@ VISIT_ATOMIC_BINOP(Xor)
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord64AtomicBinaryOperation(
-    Node* node, ArchOpcode uint8_op, ArchOpcode uint16_op, ArchOpcode uint32_op,
-    ArchOpcode uint64_op) {
+    node_t node, ArchOpcode uint8_op, ArchOpcode uint16_op,
+    ArchOpcode uint32_op, ArchOpcode uint64_op) {
   if constexpr (Adapter::IsTurboshaft) {
   UNIMPLEMENTED();
   } else {
