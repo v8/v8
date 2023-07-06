@@ -158,3 +158,91 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals((10 + 20) + (10 * 20), wasm.block_and_br(10, 20, 0));
   assertEquals((10 + 20) + 10, wasm.block_and_br(10, 20, 1));
 })();
+
+(function Loop() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+
+  let loop_sig = builder.addType(kSig_i_i);
+
+  // Works for positive numbers only.
+  builder.addFunction("factorial", kSig_i_i)
+    .addBody([
+      kExprI32Const, 1,
+      kExprLoop, loop_sig,
+        kExprLocalGet, 0,
+        kExprI32Mul,
+        kExprLocalGet, 0, kExprI32Const, 1, kExprI32Sub, kExprLocalSet, 0,
+        kExprLocalGet, 0,
+        kExprI32Const, 1,
+        kExprI32GtS,
+        kExprBrIf, 0,
+      kExprEnd])
+    .exportFunc();
+
+  builder.addFunction("factorial_with_br_if_return", kSig_i_i)
+    .addLocals(kWasmI32, 1)
+    .addBody([
+      kExprI32Const, 1, kExprLocalSet, 1,
+      kExprLoop, kWasmVoid,
+        kExprLocalGet, 1,
+        kExprLocalGet, 0, kExprI32Const, 1, kExprI32LtS,
+        kExprBrIf, 1,
+        kExprLocalGet, 0, kExprI32Mul, kExprLocalSet, 1,
+        kExprLocalGet, 0, kExprI32Const, 1, kExprI32Sub, kExprLocalSet, 0,
+        kExprBr, 0,
+      kExprEnd,
+      kExprUnreachable])
+    .exportFunc();
+
+  let wasm = builder.instantiate().exports;
+
+  assertEquals(1, wasm.factorial(1));
+  assertEquals(24, wasm.factorial(4));
+  assertEquals(720, wasm.factorial(6));
+
+  assertEquals(1, wasm.factorial_with_br_if_return(0));
+  assertEquals(1, wasm.factorial_with_br_if_return(1));
+  assertEquals(24, wasm.factorial_with_br_if_return(4));
+  assertEquals(720, wasm.factorial_with_br_if_return(6));
+})();
+
+(function Multireturn() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+
+  builder.addFunction("swap", kSig_ii_ii)
+    .addBody([kExprI32Const, 42, // garbage
+              kExprLocalGet, 1, kExprLocalGet, 0, kExprReturn])
+    .exportFunc();
+
+  let wasm = builder.instantiate().exports;
+
+  assertEquals([1, 0], wasm.swap(0, 1));
+})();
+
+(function BrTable() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+
+  let block_sig = builder.addType(kSig_i_i);
+
+  builder.addFunction("br_table", kSig_i_i)
+    .addBody([
+      kExprLocalGet, 0,
+      kExprBlock, block_sig,
+        kExprBlock, block_sig,
+          kExprLocalGet, 0,
+          kExprBrTable, 2, 2, 1, 0,
+        kExprEnd,
+        kExprI32Const, 1, kExprI32Add, kExprReturn,
+      kExprEnd,
+      kExprI32Const, 2, kExprI32Sub])
+    .exportFunc();
+
+  let wasm = builder.instantiate().exports;
+
+  assertEquals(0, wasm.br_table(0));
+  assertEquals(-1, wasm.br_table(1));
+  assertEquals(23, wasm.br_table(22));
+})();

@@ -15,12 +15,13 @@
 
 namespace v8::internal::wasm {
 
-using Graph = compiler::turboshaft::Graph;
-using OpIndex = compiler::turboshaft::OpIndex;
-using TSBlock = compiler::turboshaft::Block;
 using Assembler =
     compiler::turboshaft::Assembler<compiler::turboshaft::reducer_list<>>;
-using RegisterRepresentation = compiler::turboshaft::RegisterRepresentation;
+using compiler::turboshaft::Graph;
+using compiler::turboshaft::OpIndex;
+using compiler::turboshaft::PendingLoopPhiOp;
+using compiler::turboshaft::RegisterRepresentation;
+using TSBlock = compiler::turboshaft::Block;
 
 class TurboshaftGraphBuildingInterface {
  public:
@@ -39,6 +40,7 @@ class TurboshaftGraphBuildingInterface {
   struct Control : public ControlBase<Value, ValidationTag> {
     TSBlock* false_block = nullptr;  // Only for 'if'.
     TSBlock* merge_block = nullptr;
+    TSBlock* loop_block = nullptr;  // Only for loops.
 
     template <typename... Args>
     explicit Control(Args&&... args) V8_NOEXCEPT
@@ -90,15 +92,44 @@ class TurboshaftGraphBuildingInterface {
   // - When we encounter an jump to a block, we invoke {SetupControlFlowEdge}.
   // - Finally, when we bind a block, we setup its phis, the SSA environment,
   //   and its merge values, with {EnterBlock}.
-  // - Loops are pending.
+  // - When we create a loop, we generate PendingLoopPhis for the SSA state and
+  //   the incoming stack values. We also create a block which will act as a
+  //   merge block for all loop backedges (since a loop in Turboshaft can only
+  //   have one backedge). When we PopControl a loop, we enter the merge block
+  //   to create its Phis for all backedges as necessary, and use those values
+  //   to patch the backedge of the PendingLoopPhis of the loop.
 
   void Block(FullDecoder* decoder, Control* block) {
     block->merge_block = NewBlock(decoder, block->br_merge());
   }
 
-  void Loop(FullDecoder* decoder, Control* block) { Bailout(decoder); }
+  void Loop(FullDecoder* decoder, Control* block) {
+    TSBlock* loop = asm_.NewLoopHeader();
+    asm_.Goto(loop);
+    asm_.Bind(loop);
+    for (uint32_t i = 0; i < decoder->num_locals(); i++) {
+      OpIndex phi = asm_.PendingLoopPhi(
+          ssa_env_[i], PendingLoopPhiOp::Kind::kFromSeaOfNodes,
+          RepresentationFor(decoder, decoder->local_type(i)),
+          PendingLoopPhiOp::Data{
+              PendingLoopPhiOp::PhiIndex{static_cast<int>(i)}});
+      ssa_env_[i] = phi;
+    }
+    uint32_t arity = block->start_merge.arity;
+    Value* stack_base = arity > 0 ? decoder->stack_value(arity) : nullptr;
+    for (uint32_t i = 0; i < arity; i++) {
+      OpIndex phi = asm_.PendingLoopPhi(
+          stack_base[i].op, PendingLoopPhiOp::Kind::kFromSeaOfNodes,
+          RepresentationFor(decoder, stack_base[i].type),
+          PendingLoopPhiOp::Data{PendingLoopPhiOp::PhiIndex{
+              static_cast<int>(decoder->num_locals() + i)}});
+      block->start_merge[i].op = phi;
+    }
 
-  void Try(FullDecoder* decoder, Control* block) { Bailout(decoder); }
+    TSBlock* loop_merge = NewBlock(decoder, &block->start_merge);
+    block->merge_block = loop_merge;
+    block->loop_block = loop;
+  }
 
   void If(FullDecoder* decoder, const Value& cond, Control* if_block) {
     TSBlock* true_block = NewBlock(decoder, nullptr);
@@ -106,6 +137,7 @@ class TurboshaftGraphBuildingInterface {
     TSBlock* merge_block = NewBlock(decoder, &if_block->end_merge);
     if_block->false_block = false_block;
     if_block->merge_block = merge_block;
+    // TODO(14108): Branch hints.
     asm_.Branch(compiler::turboshaft::ConditionWithHint(cond.op), true_block,
                 false_block);
     SetupControlFlowEdge(decoder, true_block);
@@ -133,7 +165,15 @@ class TurboshaftGraphBuildingInterface {
 
   void BrIf(FullDecoder* decoder, const Value& cond, uint32_t depth) {
     if (depth == decoder->control_depth() - 1) {
-      Bailout(decoder);
+      TSBlock* return_block = NewBlock(decoder, nullptr);
+      SetupControlFlowEdge(decoder, return_block);
+      TSBlock* non_branching = NewBlock(decoder, nullptr);
+      SetupControlFlowEdge(decoder, non_branching);
+      asm_.Branch(compiler::turboshaft::ConditionWithHint(cond.op),
+                  return_block, non_branching);
+      EnterBlock(decoder, return_block, nullptr);
+      DoReturn(decoder, 0);
+      EnterBlock(decoder, non_branching, nullptr);
     } else {
       Control* target = decoder->control_at(depth);
       SetupControlFlowEdge(decoder, target->merge_block);
@@ -147,7 +187,36 @@ class TurboshaftGraphBuildingInterface {
 
   void BrTable(FullDecoder* decoder, const BranchTableImmediate& imm,
                const Value& key) {
-    Bailout(decoder);
+    compiler::turboshaft::SwitchOp::Case* cases =
+        asm_.output_graph()
+            .graph_zone()
+            ->NewArray<compiler::turboshaft::SwitchOp::Case>(imm.table_count);
+    BranchTableIterator<ValidationTag> new_block_iterator(decoder, imm);
+    std::vector<TSBlock*> intermediate_blocks;
+    TSBlock* default_case = nullptr;
+    while (new_block_iterator.has_next()) {
+      TSBlock* intermediate = NewBlock(decoder, nullptr);
+      SetupControlFlowEdge(decoder, intermediate);
+      intermediate_blocks.emplace_back(intermediate);
+      uint32_t i = new_block_iterator.cur_index();
+      if (i == imm.table_count) {
+        default_case = intermediate;
+      } else {
+        cases[i] = {static_cast<int>(i), intermediate, BranchHint::kNone};
+      }
+      new_block_iterator.next();
+    }
+    DCHECK_NOT_NULL(default_case);
+    asm_.Switch(key.op, base::VectorOf(cases, imm.table_count), default_case);
+
+    int i = 0;
+    BranchTableIterator<ValidationTag> branch_iterator(decoder, imm);
+    while (branch_iterator.has_next()) {
+      TSBlock* intermediate = intermediate_blocks[i];
+      i++;
+      EnterBlock(decoder, intermediate, nullptr);
+      BrOrRet(decoder, branch_iterator.next(), 0);
+    }
   }
 
   void FallThruTo(FullDecoder* decoder, Control* block) { Bailout(decoder); }
@@ -175,7 +244,54 @@ class TurboshaftGraphBuildingInterface {
         }
         EnterBlock(decoder, block->merge_block, block->br_merge());
         break;
-      case kControlLoop:
+      case kControlLoop: {
+        TSBlock* post_loop = NewBlock(decoder, nullptr);
+        if (block->reachable()) {
+          SetupControlFlowEdge(decoder, post_loop);
+          asm_.Goto(post_loop);
+        }
+        if (block->merge_block->PredecessorCount() == 0) {
+          // Turns out, the loop has no backedges, i.e. it is not quite a loop
+          // at all. Replace it with a merge, and its PendingPhis with one-input
+          // phis.
+          block->loop_block->SetKind(compiler::turboshaft::Block::Kind::kMerge);
+          auto to = asm_.output_graph().operations(*block->loop_block).begin();
+          for (uint32_t i = 0; i < ssa_env_.size() + block->br_merge()->arity;
+               ++i, ++to) {
+            // TODO(manoskouk): Add `->` operator to the iterator.
+            PendingLoopPhiOp& pending_phi = (*to).Cast<PendingLoopPhiOp>();
+            OpIndex replaced = asm_.output_graph().Index(*to);
+            asm_.output_graph().Replace<compiler::turboshaft::PhiOp>(
+                replaced, base::VectorOf({pending_phi.first()}),
+                pending_phi.rep);
+          }
+        } else {
+          // We abuse the start merge of the loop, which is not used otherwise
+          // anymore, to store backedge inputs for the pending phi stack values
+          // of the loop.
+          EnterBlock(decoder, block->merge_block, block->br_merge());
+          asm_.Goto(block->loop_block);
+          auto to = asm_.output_graph().operations(*block->loop_block).begin();
+          for (uint32_t i = 0; i < ssa_env_.size(); ++i, ++to) {
+            PendingLoopPhiOp& pending_phi = (*to).Cast<PendingLoopPhiOp>();
+            OpIndex replaced = asm_.output_graph().Index(*to);
+            asm_.output_graph().Replace<compiler::turboshaft::PhiOp>(
+                replaced, base::VectorOf({pending_phi.first(), ssa_env_[i]}),
+                pending_phi.rep);
+          }
+          for (uint32_t i = 0; i < block->br_merge()->arity; ++i, ++to) {
+            PendingLoopPhiOp& pending_phi = (*to).Cast<PendingLoopPhiOp>();
+            OpIndex replaced = asm_.output_graph().Index(*to);
+            asm_.output_graph().Replace<compiler::turboshaft::PhiOp>(
+                replaced,
+                base::VectorOf(
+                    {pending_phi.first(), (*block->br_merge())[i].op}),
+                pending_phi.rep);
+          }
+        }
+        EnterBlock(decoder, post_loop, nullptr);
+        break;
+      }
       case kControlTry:
       case kControlTryCatch:
       case kControlTryCatchAll:
@@ -185,12 +301,19 @@ class TurboshaftGraphBuildingInterface {
   }
 
   void DoReturn(FullDecoder* decoder, uint32_t drop_values) {
-    DCHECK_EQ(drop_values, 0);
-    if (decoder->sig_->return_count() > 1) Bailout(decoder);
-    if (decoder->sig_->return_count() == 1) {
-      asm_.Return(decoder->stack_value(1)->op);
-    } else {
+    size_t return_count = decoder->sig_->return_count();
+    if (return_count == 0) {
       asm_.Return(asm_.Word32Constant(0), {});
+    } else if (return_count == 1) {
+      asm_.Return(decoder->stack_value(1 + drop_values)->op);
+    } else {
+      base::SmallVector<OpIndex, 8> return_values(return_count);
+      Value* stack_base = decoder->stack_value(
+          static_cast<uint32_t>(return_count + drop_values));
+      for (size_t i = 0; i < return_count; i++) {
+        return_values[i] = stack_base[i].op;
+      }
+      asm_.Return(asm_.Word32Constant(0), base::VectorOf(return_values));
     }
   }
 
@@ -402,6 +525,8 @@ class TurboshaftGraphBuildingInterface {
                          Value* result) {
     Bailout(decoder);
   }
+
+  void Try(FullDecoder* decoder, Control* block) { Bailout(decoder); }
 
   void Throw(FullDecoder* decoder, const TagIndexImmediate& imm,
              const Value arg_values[]) {
