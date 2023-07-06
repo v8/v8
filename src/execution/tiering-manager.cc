@@ -145,6 +145,20 @@ void TieringManager::MarkForTurboFanOptimization(JSFunction function) {
 
 namespace {
 
+// Returns true when |function| should be enqueued for sparkplug compilation for
+// the first time.
+bool FirstTimeTierUpToSparkplug(Isolate* isolate, JSFunction function) {
+  return !function.has_feedback_vector() ||
+         // We request sparkplug even in the presence of a fbv, if we are
+         // running ignition and haven't enqueued the function for sparkplug
+         // batch compilation yet. This ensures we tier-up to sparkplug when the
+         // feedback vector is allocated eagerly (e.g. for logging function
+         // events; see JSFunction::InitializeFeedbackCell()).
+         (function.ActiveTierIsIgnition() &&
+          CanCompileWithBaseline(isolate, function.shared()) &&
+          !function.shared().sparkplug_compiled());
+}
+
 bool TiersUpToMaglev(CodeKind code_kind) {
   // TODO(v8:7700): Flip the UNLIKELY when appropriate.
   return V8_UNLIKELY(maglev::IsMaglevEnabled()) &&
@@ -181,20 +195,21 @@ int TieringManager::InterruptBudgetFor(
   DCHECK(function.shared().is_compiled());
   const int bytecode_length =
       function.shared().GetBytecodeArray(isolate).length();
-  if (function.has_feedback_vector()) {
-    if (bytecode_length > v8_flags.max_optimized_bytecode_size) {
-      // Decrease times of interrupt budget underflow, the reason of not setting
-      // to INT_MAX is the interrupt budget may overflow when doing add
-      // operation for forward jump.
-      return INT_MAX / 2;
-    }
-    return ::i::InterruptBudgetFor(
-        override_active_tier ? override_active_tier : function.GetActiveTier(),
-        function.tiering_state(), bytecode_length);
+
+  if (FirstTimeTierUpToSparkplug(isolate, function)) {
+    return bytecode_length * v8_flags.invocation_count_for_feedback_allocation;
   }
 
-  DCHECK(!function.has_feedback_vector());
-  return bytecode_length * v8_flags.invocation_count_for_feedback_allocation;
+  DCHECK(function.has_feedback_vector());
+  if (bytecode_length > v8_flags.max_optimized_bytecode_size) {
+    // Decrease times of interrupt budget underflow, the reason of not setting
+    // to INT_MAX is the interrupt budget may overflow when doing add
+    // operation for forward jump.
+    return INT_MAX / 2;
+  }
+  return ::i::InterruptBudgetFor(
+      override_active_tier ? override_active_tier : function.GetActiveTier(),
+      function.tiering_state(), bytecode_length);
 }
 
 namespace {
@@ -371,9 +386,19 @@ void TieringManager::OnInterruptTick(Handle<JSFunction> function,
   // considered a tier on its own. We begin tiering up to tiers higher than
   // Sparkplug only when reaching this point *with* a feedback vector.
   const bool had_feedback_vector = function->has_feedback_vector();
+  const bool first_time_tiered_up_to_sparkplug =
+      FirstTimeTierUpToSparkplug(isolate_, *function);
+  const bool compile_sparkplug =
+      CanCompileWithBaseline(isolate_, function->shared()) &&
+      function->ActiveTierIsIgnition();
 
   // Ensure that the feedback vector has been allocated.
   if (!had_feedback_vector) {
+    if (compile_sparkplug) {
+      // Mark the function as compiled with sparkplug before the feedback vector
+      // is created to initialize the interrupt budget for the next tier.
+      function->shared().set_sparkplug_compiled(true);
+    }
     JSFunction::CreateAndAttachFeedbackVector(isolate_, function,
                                               &is_compiled_scope);
     DCHECK(is_compiled_scope.is_compiled());
@@ -395,8 +420,7 @@ void TieringManager::OnInterruptTick(Handle<JSFunction> function,
   // batching compilation can introduce arbitrary latency between the SP
   // compile request and fulfillment, which doesn't work with strictly linear
   // tiering.
-  if (CanCompileWithBaseline(isolate_, function->shared()) &&
-      function->ActiveTierIsIgnition()) {
+  if (compile_sparkplug) {
     if (v8_flags.baseline_batch_compilation) {
       isolate_->baseline_batch_compiler()->EnqueueFunction(function);
     } else {
@@ -405,13 +429,17 @@ void TieringManager::OnInterruptTick(Handle<JSFunction> function,
       Compiler::CompileBaseline(isolate_, function, Compiler::CLEAR_EXCEPTION,
                                 &is_compiled_scope);
     }
-    function->shared().set_sparkplug_compiled(true);
   }
 
   // We only tier up beyond sparkplug if we already had a feedback vector.
-  if (!had_feedback_vector) {
-    // The interrupt budget has already been set by
-    // JSFunction::CreateAndAttachFeedbackVector.
+  if (first_time_tiered_up_to_sparkplug) {
+    // If we didn't have a feedback vector, the interrupt budget has already
+    // been set by JSFunction::CreateAndAttachFeedbackVector, so no need to
+    // set it again.
+    if (had_feedback_vector) {
+      function->shared().set_sparkplug_compiled(true);
+      function->SetInterruptBudget(isolate_);
+    }
     return;
   }
 
