@@ -375,6 +375,7 @@ class LoopLabel : public LabelBase<true, Ts...> {
       // Finalize Phis in the loop header.
       FixLoopPhis(assembler, loop_header_data_, values);
     }
+    assembler.FinalizeLoop(loop_header_data_.block);
   }
 
  private:
@@ -426,9 +427,12 @@ class LoopLabel : public LabelBase<true, Ts...> {
       // Find the next PendingLoopPhi.
       for (; next != end; ++next) {
         if (auto* pending_phi = (*next).TryCast<PendingLoopPhiOp>()) {
+          if (pending_phi->kind != PendingLoopPhiOp::Kind::kLabelParameter) {
+            continue;
+          }
           OpIndex phi_index = assembler.output_graph().Index(*pending_phi);
           DCHECK_EQ(pending_phi->first(), std::get<I>(data.recorded_values)[0]);
-          DCHECK_EQ(I, pending_phi->data.phi_index.index);
+          DCHECK_EQ(I, pending_phi->phi_index().index);
           assembler.output_graph().template Replace<PhiOp>(
               phi_index,
               base::VectorOf<OpIndex>(
@@ -481,8 +485,6 @@ class Uninitialized {
 // Forward declarations
 template <class Assembler>
 class GraphVisitor;
-using Variable =
-    SnapshotTable<OpIndex, base::Optional<RegisterRepresentation>>::Key;
 
 template <class Assembler, template <class> class... Reducers>
 class ReducerStack {};
@@ -520,7 +522,35 @@ class ReducerBase;
   using ReducerList = typename Next::ReducerList;       \
   Assembler<ReducerList>& Asm() {                       \
     return *static_cast<Assembler<ReducerList>*>(this); \
+  }                                                     \
+  template <class T>                                    \
+  using ScopedVar = turboshaft::ScopedVariable<T, Assembler<ReducerList>>;
+
+template <class T, class Assembler>
+class ScopedVariable : Variable {
+ public:
+  explicit ScopedVariable(Assembler& assembler)
+      : Variable(assembler.NewVariable(V<T>::rep)), assembler_(assembler) {}
+  ScopedVariable(Assembler& assembler, V<T> initial_value)
+      : ScopedVariable(assembler) {
+    assembler.SetVariable(*this, initial_value);
   }
+
+  void operator=(V<T> new_value) { assembler_.SetVariable(*this, new_value); }
+  V<T> operator*() const { return assembler_.GetVariable(*this); }
+  ScopedVariable(const ScopedVariable&) = delete;
+  ScopedVariable(ScopedVariable&&) = delete;
+  ScopedVariable& operator=(const ScopedVariable) = delete;
+  ScopedVariable& operator=(ScopedVariable&&) = delete;
+  ~ScopedVariable() {
+    // Explicitly mark the variable as invalid to avoid the creation of
+    // unnecessary loop phis.
+    assembler_.SetVariable(*this, OpIndex::Invalid());
+  }
+
+ private:
+  Assembler& assembler_;
+};
 
 // LABEL_BLOCK is used in Reducers to have a single call forwarding to the next
 // reducer without change. A typical use would be:
@@ -575,16 +605,6 @@ class ReducerBase : public ReducerBaseForwarder<Next> {
 
   void RemoveLast(OpIndex index_of_last_operation) {
     Asm().output_graph().RemoveLast();
-  }
-
-  // Get, GetPredecessorValue, Set and NewFreshVariable should be overwritten by
-  // the VariableReducer. If the reducer stack has no VariableReducer, then
-  // those methods should not be called.
-  OpIndex Get(Variable) { UNREACHABLE(); }
-  OpIndex GetPredecessorValue(Variable, int) { UNREACHABLE(); }
-  void Set(Variable, OpIndex) { UNREACHABLE(); }
-  Variable NewFreshVariable(base::Optional<RegisterRepresentation>) {
-    UNREACHABLE();
   }
 
   OpIndex ReducePhi(base::Vector<const OpIndex> inputs,
@@ -2345,26 +2365,32 @@ class AssemblerOpInterface {
     for (std::size_t i = 0; i < inputs.size(); ++i) temp[i] = inputs[i];
     return Phi(base::VectorOf(temp), V<T>::rep);
   }
-  OpIndex PendingLoopPhi(OpIndex first, RegisterRepresentation rep,
+  OpIndex PendingLoopPhi(OpIndex first, PendingLoopPhiOp::Kind kind,
+                         RegisterRepresentation rep,
                          PendingLoopPhiOp::Data data) {
     if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
       return OpIndex::Invalid();
     }
-    return stack().ReducePendingLoopPhi(first, rep, data);
+    return stack().ReducePendingLoopPhi(first, kind, rep, data);
   }
   OpIndex PendingLoopPhi(OpIndex first, RegisterRepresentation rep,
                          OpIndex old_backedge_index) {
-    return PendingLoopPhi(first, rep,
+    return PendingLoopPhi(first, PendingLoopPhiOp::Kind::kOldGraphIndex, rep,
                           PendingLoopPhiOp::Data{old_backedge_index});
   }
   OpIndex PendingLoopPhi(OpIndex first, RegisterRepresentation rep,
                          Node* old_backedge_index) {
-    return PendingLoopPhi(first, rep,
+    return PendingLoopPhi(first, PendingLoopPhiOp::Kind::kFromSeaOfNodes, rep,
                           PendingLoopPhiOp::Data{old_backedge_index});
+  }
+  OpIndex PendingLoopPhi(OpIndex first, Variable var) {
+    return PendingLoopPhi(first, PendingLoopPhiOp::Kind::kVariable,
+                          *var.data().rep, PendingLoopPhiOp::Data{var});
   }
   template <typename T>
   V<T> PendingLoopPhi(V<T> first, PendingLoopPhiOp::PhiIndex phi_index) {
-    return PendingLoopPhi(first, V<T>::rep, PendingLoopPhiOp::Data{phi_index});
+    return PendingLoopPhi(first, PendingLoopPhiOp::Kind::kLabelParameter,
+                          V<T>::rep, PendingLoopPhiOp::Data{phi_index});
   }
 
   OpIndex Tuple(base::Vector<OpIndex> indices) {
@@ -3056,9 +3082,6 @@ class Assembler : public GraphVisitor<Assembler<Reducers>>,
   Block* NewLoopHeader() { return this->output_graph().NewLoopHeader(); }
   Block* NewBlock() { return this->output_graph().NewBlock(); }
 
-  using OperationMatching<Assembler<Reducers>>::Get;
-  using Stack::Get;
-
   V8_INLINE bool Bind(Block* block) {
     if (!this->output_graph().Add(block)) {
       generating_unreachable_operations_ = true;
@@ -3077,6 +3100,15 @@ class Assembler : public GraphVisitor<Assembler<Reducers>>,
     bool bound = Bind(block);
     DCHECK(bound);
     USE(bound);
+  }
+
+  // Every loop should be finalized once, after it is certain that no backedge
+  // can be added anymore.
+  void FinalizeLoop(Block* loop_header) {
+    DCHECK(loop_header->IsLoop());
+    if (loop_header->HasExactlyNPredecessors(1)) {
+      this->output_graph().TurnLoopIntoMerge(loop_header);
+    }
   }
 
   void SetCurrentOrigin(OpIndex operation_origin) {

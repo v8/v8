@@ -19,6 +19,8 @@
 
 namespace v8::internal::compiler::turboshaft {
 
+#include "src/compiler/turboshaft/define-assembler-macros.inc"
+
 // When cloning a Block or duplicating an Operation, we end up with some
 // Operations of the old graph mapping to multiple Operations in the new graph.
 // When using those Operations in subsequent Operations, we need to know which
@@ -28,8 +30,10 @@ namespace v8::internal::compiler::turboshaft {
 //
 // The typical workflow when working with the VariableAssembler would be:
 //    - At some point, you need to introduce a Variable (for instance
-//      because you cloned a block or an Operation) and call NewFreshVariable to
-//      get a fresh Variable.
+//      because you cloned a block or an Operation) and call NewVariable or
+//      NewLoopInvariantVariable to get a fresh Variable. A loop invariant
+//      variable must not need loop phis, that is, not change its value
+//      depending on loop iteration while being visible across loop iterations.
 //    - You can then Set the new-OpIndex associated with this Variable in the
 //      current Block with the Set method.
 //    - If you later need to set an OpIndex for this Variable in another Block,
@@ -47,13 +51,38 @@ namespace v8::internal::compiler::turboshaft {
 // book-keeping: the users of the Variable should do that themselves (which
 // is what OptimizationPhase does for instance).
 
-using Variable =
-    SnapshotTable<OpIndex, base::Optional<RegisterRepresentation>>::Key;
-
 template <class Next>
 class VariableReducer : public Next {
-  using Snapshot =
-      SnapshotTable<OpIndex, base::Optional<RegisterRepresentation>>::Snapshot;
+  using Snapshot = SnapshotTable<OpIndex, VariableData>::Snapshot;
+
+  struct GetActiveLoopVariablesIndex {
+    IntrusiveSetIndex& operator()(Variable var) const {
+      return var.data().active_loop_variables_index;
+    }
+  };
+
+  struct VariableTable
+      : ChangeTrackingSnapshotTable<VariableTable, OpIndex, VariableData> {
+    explicit VariableTable(Zone* zone)
+        : ChangeTrackingSnapshotTable<VariableTable, OpIndex, VariableData>(
+              zone),
+          active_loop_variables(zone) {}
+
+    ZoneIntrusiveSet<Variable, GetActiveLoopVariablesIndex>
+        active_loop_variables;
+
+    void OnNewKey(Variable var, OpIndex value) { DCHECK(!value.valid()); }
+    void OnValueChange(Variable var, OpIndex old_value, OpIndex new_value) {
+      if (var.data().loop_invariant) {
+        return;
+      }
+      if (old_value.valid() && !new_value.valid()) {
+        active_loop_variables.Remove(var);
+      } else if (!old_value.valid() && new_value.valid()) {
+        active_loop_variables.Add(var);
+      }
+    }
+  };
 
  public:
   TURBOSHAFT_REDUCER_BOILERPLATE()
@@ -70,9 +99,8 @@ class VariableReducer : public Next {
     predecessors_.clear();
     for (const Block* pred = new_block->LastPredecessor(); pred != nullptr;
          pred = pred->NeighboringPredecessor()) {
-      DCHECK_LT(pred->index().id(), block_to_snapshot_mapping_.size());
       base::Optional<Snapshot> pred_snapshot =
-          block_to_snapshot_mapping_[pred->index().id()];
+          block_to_snapshot_mapping_[pred->index()];
       DCHECK(pred_snapshot.has_value());
       predecessors_.push_back(pred_snapshot.value());
     }
@@ -87,32 +115,86 @@ class VariableReducer : public Next {
           return OpIndex::Invalid();
         }
       }
-      return MergeOpIndices(predecessors, var.data());
+      return MergeOpIndices(predecessors, var.data().rep);
     };
 
     table_.StartNewSnapshot(base::VectorOf(predecessors_), merge_variables);
     current_block_ = new_block;
+    if (new_block->IsLoop()) {
+      for (Variable var : table_.active_loop_variables) {
+        table_.Set(var, __ PendingLoopPhi(table_.Get(var), var));
+      }
+      Snapshot loop_header_snapshot = table_.Seal();
+      block_to_snapshot_mapping_[new_block->LastPredecessor()->index()] =
+          loop_header_snapshot;
+      table_.StartNewSnapshot(loop_header_snapshot);
+    }
   }
 
-  OpIndex Get(Variable var) { return table_.Get(var); }
+  OpIndex REDUCE(Goto)(Block* destination) {
+    OpIndex result = Next::ReduceGoto(destination);
+    if (!destination->IsBound()) {
+      return result;
+    }
+    DCHECK(destination->IsLoop());
+    DCHECK(destination->HasExactlyNPredecessors(2));
+    Snapshot loop_header_snapshot =
+        *block_to_snapshot_mapping_
+            [destination->LastPredecessor()->NeighboringPredecessor()->index()];
+    Snapshot backedge_snapshot = table_.Seal();
+    block_to_snapshot_mapping_[current_block_->index()] = backedge_snapshot;
+    auto fix_loop_phis =
+        [&](Variable var, base::Vector<const OpIndex> predecessors) -> OpIndex {
+      if (var.data().loop_invariant) {
+        return predecessors[0];
+      }
+      const OpIndex backedge_value = predecessors[1];
+      if (!backedge_value.valid()) {
+        return OpIndex::Invalid();
+      }
+      const PendingLoopPhiOp& pending_phi =
+          __ Get(predecessors[0]).template Cast<PendingLoopPhiOp>();
+      DCHECK_EQ(pending_phi.kind, PendingLoopPhiOp::Kind::kVariable);
+      __ output_graph().template Replace<PhiOp>(
+          predecessors[0],
+          base::VectorOf({pending_phi.first(), backedge_value}),
+          pending_phi.rep);
+      return predecessors[0];
+    };
+
+    table_.StartNewSnapshot(
+        base::VectorOf({loop_header_snapshot, backedge_snapshot}),
+        fix_loop_phis);
+    // We throw away this snapshot.
+    table_.Seal();
+    current_block_ = nullptr;
+
+    return result;
+  }
+
+  OpIndex GetVariable(Variable var) { return table_.Get(var); }
 
   OpIndex GetPredecessorValue(Variable var, int predecessor_index) {
     return table_.GetPredecessorValue(var, predecessor_index);
   }
 
-  void Set(Variable var, OpIndex new_index) {
-    if (V8_UNLIKELY(Asm().generating_unreachable_operations())) return;
+  void SetVariable(Variable var, OpIndex new_index) {
+    if (V8_UNLIKELY(__ generating_unreachable_operations())) return;
     table_.Set(var, new_index);
   }
   template <typename Rep>
   void Set(Variable var, V<Rep> value) {
-    if (V8_UNLIKELY(Asm().generating_unreachable_operations())) return;
-    DCHECK(Rep::allows_representation(*var.data()));
+    if (V8_UNLIKELY(__ generating_unreachable_operations())) return;
+    DCHECK(Rep::allows_representation(*var.data().rep));
     table_.Set(var, value);
   }
 
-  Variable NewFreshVariable(base::Optional<RegisterRepresentation> rep) {
-    return table_.NewKey(rep, OpIndex::Invalid());
+  Variable NewLoopInvariantVariable(
+      base::Optional<RegisterRepresentation> rep) {
+    return table_.NewKey(VariableData{rep, true}, OpIndex::Invalid());
+  }
+  Variable NewVariable(base::Optional<RegisterRepresentation> rep) {
+    return table_.NewKey(VariableData{rep, false}, OpIndex::Invalid());
   }
 
  private:
@@ -125,22 +207,7 @@ class VariableReducer : public Next {
     }
 
     DCHECK_NOT_NULL(current_block_);
-    Snapshot snapshot = table_.Seal();
-
-    DCHECK(current_block_->index().valid());
-    size_t id = current_block_->index().id();
-    if (id >= block_to_snapshot_mapping_.size()) {
-      // The table initially contains as many entries as blocks in the input
-      // graphs. In most cases, the number of blocks between input and ouput
-      // graphs shouldn't grow too much, so a growth factor of 1.5 should be
-      // reasonable.
-      static constexpr double kGrowthFactor = 1.5;
-      size_t new_size = std::max<size_t>(
-          id, kGrowthFactor * block_to_snapshot_mapping_.size());
-      block_to_snapshot_mapping_.resize(new_size);
-    }
-
-    block_to_snapshot_mapping_[id] = snapshot;
+    block_to_snapshot_mapping_[current_block_->index()] = table_.Seal();
     current_block_ = nullptr;
   }
 
@@ -149,15 +216,15 @@ class VariableReducer : public Next {
     if (maybe_rep.has_value()) {
       // Every Operation that has a RegisterRepresentation can be merged with a
       // simple Phi.
-      return Asm().Phi(base::VectorOf(inputs), maybe_rep.value());
+      return __ Phi(base::VectorOf(inputs), maybe_rep.value());
     } else {
-      switch (Asm().output_graph().Get(inputs[0]).opcode) {
+      switch (__ output_graph().Get(inputs[0]).opcode) {
         case Opcode::kStackPointerGreaterThan:
-          return Asm().Phi(base::VectorOf(inputs),
-                           RegisterRepresentation::Word32());
+          return __ Phi(base::VectorOf(inputs),
+                        RegisterRepresentation::Word32());
         case Opcode::kFrameConstant:
-          return Asm().Phi(base::VectorOf(inputs),
-                           RegisterRepresentation::PointerSized());
+          return __ Phi(base::VectorOf(inputs),
+                        RegisterRepresentation::PointerSized());
 
         case Opcode::kFrameState:
           // Merging inputs of the n kFrameState one by one.
@@ -196,7 +263,7 @@ class VariableReducer : public Next {
     base::SmallVector<const FrameStateOp*, 32> frame_states;
     for (OpIndex idx : frame_states_indices) {
       frame_states.push_back(
-          &Asm().output_graph().Get(idx).template Cast<FrameStateOp>());
+          &__ output_graph().Get(idx).template Cast<FrameStateOp>());
     }
     const FrameStateOp* first_frame = frame_states[0];
 
@@ -214,7 +281,7 @@ class VariableReducer : public Next {
 
     // Merging the parent frame states.
     if (first_frame->inlined) {
-      ZoneVector<OpIndex> indices_to_merge(Asm().phase_zone());
+      ZoneVector<OpIndex> indices_to_merge(__ phase_zone());
       bool all_parent_frame_states_are_the_same = true;
       for (auto frame_state : frame_states) {
         indices_to_merge.push_back(frame_state->parent_frame_state());
@@ -234,7 +301,7 @@ class VariableReducer : public Next {
 
     // Merging the state values.
     for (int i = 0; i < first_frame->state_values_count(); i++) {
-      ZoneVector<OpIndex> indices_to_merge(Asm().phase_zone());
+      ZoneVector<OpIndex> indices_to_merge(__ phase_zone());
       bool all_inputs_are_the_same = true;
       for (auto frame_state : frame_states) {
         indices_to_merge.push_back(frame_state->state_value(i));
@@ -254,20 +321,21 @@ class VariableReducer : public Next {
       }
     }
 
-    return Asm().FrameState(base::VectorOf(new_inputs), first_frame->inlined,
-                            first_frame->data);
+    return __ FrameState(base::VectorOf(new_inputs), first_frame->inlined,
+                         first_frame->data);
   }
 
-  SnapshotTable<OpIndex, base::Optional<RegisterRepresentation>> table_{
-      Asm().phase_zone()};
+  VariableTable table_{__ phase_zone()};
   const Block* current_block_ = nullptr;
-  ZoneVector<base::Optional<Snapshot>> block_to_snapshot_mapping_{
-      Asm().input_graph().block_count(), base::nullopt, Asm().phase_zone()};
+  GrowingBlockSidetable<base::Optional<Snapshot>> block_to_snapshot_mapping_{
+      __ input_graph().block_count(), base::nullopt, __ phase_zone()};
 
   // {predecessors_} is used during merging, but we use an instance variable for
   // it, in order to save memory and not reallocate it for each merge.
-  ZoneVector<Snapshot> predecessors_{Asm().phase_zone()};
+  ZoneVector<Snapshot> predecessors_{__ phase_zone()};
 };
+
+#include "src/compiler/turboshaft/undef-assembler-macros.inc"
 
 }  // namespace v8::internal::compiler::turboshaft
 

@@ -92,7 +92,7 @@ struct GraphBuilder {
       __ output_graph().Replace<PhiOp>(
           __ output_graph().Index(pending_phi),
           base::VectorOf(
-              {pending_phi.first(), Map(pending_phi.data.old_backedge_node)}),
+              {pending_phi.first(), Map(pending_phi.old_backedge_node())}),
           pending_phi.rep);
     }
   }

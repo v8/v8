@@ -30,6 +30,7 @@
 #include "src/compiler/turboshaft/fast-hash.h"
 #include "src/compiler/turboshaft/index.h"
 #include "src/compiler/turboshaft/representations.h"
+#include "src/compiler/turboshaft/snapshot-table.h"
 #include "src/compiler/turboshaft/types.h"
 #include "src/compiler/turboshaft/utils.h"
 #include "src/compiler/write-barrier-kind.h"
@@ -50,6 +51,15 @@ class Block;
 struct FrameStateData;
 class Graph;
 struct FrameStateOp;
+
+// This belongs to `VariableReducer` in `variable-reducer.h`. It is defined here
+// because of cyclic header dependencies.
+struct VariableData {
+  base::Optional<RegisterRepresentation> rep;
+  bool loop_invariant;
+  IntrusiveSetIndex active_loop_variables_index = {};
+};
+using Variable = SnapshotTable<OpIndex, VariableData>::Key;
 
 // DEFINING NEW OPERATIONS
 // =======================
@@ -1693,6 +1703,16 @@ struct PendingLoopPhiOp : FixedArityOperationT<1, PendingLoopPhiOp> {
   struct PhiIndex {
     int index;
   };
+  enum class Kind {
+    // Created from the input graph of an optimization phase.
+    kOldGraphIndex,
+    // Created from a Turbofan sea-of-nodes phi during graph building.
+    kFromSeaOfNodes,
+    // Created for a Turboshaft assembler label with parameters.
+    kLabelParameter,
+    // Created by `VariableReducer` for the given variable.
+    kVariable
+  };
   struct Data {
     union {
       // Used when transforming a Turboshaft graph.
@@ -1702,13 +1722,17 @@ struct PendingLoopPhiOp : FixedArityOperationT<1, PendingLoopPhiOp> {
       Node* old_backedge_node;
       // Used when building loops with the assembler macros.
       PhiIndex phi_index;
+      // The variable for which the phi was created.
+      Variable variable;
     };
     explicit Data(OpIndex old_backedge_index)
         : old_backedge_index(old_backedge_index) {}
     explicit Data(Node* old_backedge_node)
         : old_backedge_node(old_backedge_node) {}
     explicit Data(PhiIndex phi_index) : phi_index(phi_index) {}
+    explicit Data(Variable variable) : variable(variable) {}
   };
+  Kind kind;
   RegisterRepresentation rep;
   Data data;
 
@@ -1718,9 +1742,26 @@ struct PendingLoopPhiOp : FixedArityOperationT<1, PendingLoopPhiOp> {
   }
 
   OpIndex first() const { return input(0); }
+  OpIndex old_backedge_index() const {
+    DCHECK_EQ(kind, Kind::kOldGraphIndex);
+    return data.old_backedge_index;
+  }
+  Node* old_backedge_node() const {
+    DCHECK_EQ(kind, Kind::kFromSeaOfNodes);
+    return data.old_backedge_node;
+  }
+  PhiIndex phi_index() const {
+    DCHECK_EQ(kind, Kind::kLabelParameter);
+    return data.phi_index;
+  }
+  Variable variable() const {
+    DCHECK_EQ(kind, Kind::kVariable);
+    return data.variable;
+  }
 
-  PendingLoopPhiOp(OpIndex first, RegisterRepresentation rep, Data data)
-      : Base(first), rep(rep), data(data) {}
+  PendingLoopPhiOp(OpIndex first, Kind kind, RegisterRepresentation rep,
+                   Data data)
+      : Base(first), kind(kind), rep(rep), data(data) {}
 
   void Validate(const Graph& graph) const {
     DCHECK(ValidOpInputRep(graph, first(), rep));

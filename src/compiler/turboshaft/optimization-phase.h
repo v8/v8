@@ -26,8 +26,6 @@
 
 namespace v8::internal::compiler::turboshaft {
 
-using Variable =
-    SnapshotTable<OpIndex, base::Optional<RegisterRepresentation>>::Key;
 using MaybeVariable = base::Optional<Variable>;
 
 int CountDecimalDigits(uint32_t value);
@@ -72,6 +70,8 @@ class OptimizationPhase {
 
 template <typename Next>
 class ReducerBaseForwarder;
+template <typename Next>
+class VariableReducer;
 
 template <class Assembler>
 class GraphVisitor {
@@ -182,21 +182,25 @@ class GraphVisitor {
   OpIndex MapToNewGraph(OpIndex old_index, int predecessor_index = -1) {
     DCHECK(old_index.valid());
     OpIndex result = op_mapping_[old_index.id()];
-    if (!result.valid()) {
-      // {op_mapping} doesn't have a mapping for {old_index}. The assembler
-      // should provide the mapping.
-      MaybeVariable var = GetVariableFor(old_index);
-      if constexpr (can_be_invalid) {
-        if (!var.has_value()) {
-          return OpIndex::Invalid();
+
+    if constexpr (reducer_list_contains<typename Assembler::ReducerList,
+                                        VariableReducer>::value) {
+      if (!result.valid()) {
+        // {op_mapping} doesn't have a mapping for {old_index}. The assembler
+        // should provide the mapping.
+        MaybeVariable var = GetVariableFor(old_index);
+        if constexpr (can_be_invalid) {
+          if (!var.has_value()) {
+            return OpIndex::Invalid();
+          }
         }
-      }
-      DCHECK(var.has_value());
-      if (predecessor_index == -1) {
-        result = assembler().Get(var.value());
-      } else {
-        result =
-            assembler().GetPredecessorValue(var.value(), predecessor_index);
+        DCHECK(var.has_value());
+        if (predecessor_index == -1) {
+          result = assembler().GetVariable(var.value());
+        } else {
+          result =
+              assembler().GetPredecessorValue(var.value(), predecessor_index);
+        }
       }
     }
     DCHECK_IMPLIES(!can_be_invalid, result.valid());
@@ -252,11 +256,7 @@ class GraphVisitor {
     if (auto* final_goto = last_op.TryCast<GotoOp>()) {
       if (final_goto->destination->IsLoop()) {
         if (input_block->index() > final_goto->destination->index()) {
-          Block* new_loop = final_goto->destination->MapToNextGraph();
-          DCHECK(new_loop->IsLoop());
-          if (new_loop->IsLoop() && new_loop->PredecessorCount() == 1) {
-            output_graph_.TurnLoopIntoMerge(new_loop);
-          }
+          assembler().FinalizeLoop(final_goto->destination->MapToNextGraph());
         } else {
           // We have a forward jump to a loop, rather than a backedge. We
           // don't need to do anything.
@@ -354,11 +354,15 @@ class GraphVisitor {
   // blocks accordingly.
   V8_INLINE OpIndex AssembleOutputGraphGoto(const GotoOp& op) {
     Block* destination = op.destination->MapToNextGraph();
-    assembler().ReduceGoto(destination);
     if (destination->IsBound()) {
       DCHECK(destination->IsLoop());
       FixLoopPhis(destination);
     }
+    // It is important that we first fix loop phis and then reduce the `Goto`,
+    // because reducing the `Goto` can have side effects, in particular, it can
+    // modify affect the SnapshotTable of `VariableReducer`, which is also used
+    // by `FixLoopPhis()`.
+    assembler().ReduceGoto(destination);
     return OpIndex::Invalid();
   }
   V8_INLINE OpIndex AssembleOutputGraphBranch(const BranchOp& op) {
@@ -913,20 +917,26 @@ class GraphVisitor {
   }
 
   void CreateOldToNewMapping(OpIndex old_index, OpIndex new_index) {
-    if (current_block_needs_variables_) {
-      MaybeVariable var = GetVariableFor(old_index);
-      if (!var.has_value()) {
-        base::Optional<RegisterRepresentation> rep =
-            input_graph().Get(old_index).outputs_rep().size() == 1
-                ? base::Optional<RegisterRepresentation>{input_graph()
-                                                             .Get(old_index)
-                                                             .outputs_rep()[0]}
-                : base::nullopt;
-        var = assembler().NewFreshVariable(rep);
-        SetVariableFor(old_index, *var);
+    if constexpr (reducer_list_contains<typename Assembler::ReducerList,
+                                        VariableReducer>::value) {
+      if (current_block_needs_variables_) {
+        MaybeVariable var = GetVariableFor(old_index);
+        if (!var.has_value()) {
+          base::Optional<RegisterRepresentation> rep =
+              input_graph().Get(old_index).outputs_rep().size() == 1
+                  ? base::Optional<
+                        RegisterRepresentation>{input_graph()
+                                                    .Get(old_index)
+                                                    .outputs_rep()[0]}
+                  : base::nullopt;
+          var = assembler().NewLoopInvariantVariable(rep);
+          SetVariableFor(old_index, *var);
+        }
+        assembler().SetVariable(*var, new_index);
+        return;
       }
-      assembler().Set(*var, new_index);
-      return;
+    } else {
+      DCHECK(!current_block_needs_variables_);
     }
     DCHECK(!op_mapping_[old_index.id()].valid());
     op_mapping_[old_index.id()] = new_index;
@@ -962,11 +972,13 @@ class GraphVisitor {
     DCHECK(loop->IsLoop());
     for (Operation& op : assembler().output_graph().operations(*loop)) {
       if (auto* pending_phi = op.TryCast<PendingLoopPhiOp>()) {
+        if (pending_phi->kind != PendingLoopPhiOp::Kind::kOldGraphIndex) {
+          continue;
+        }
         assembler().output_graph().template Replace<PhiOp>(
             assembler().output_graph().Index(*pending_phi),
-            base::VectorOf(
-                {pending_phi->first(),
-                 MapToNewGraph(pending_phi->data.old_backedge_index)}),
+            base::VectorOf({pending_phi->first(),
+                            MapToNewGraph(pending_phi->old_backedge_index())}),
             pending_phi->rep);
       }
     }
