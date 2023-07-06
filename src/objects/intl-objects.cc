@@ -1511,13 +1511,42 @@ MaybeHandle<String> Intl::NumberToLocaleString(Isolate* isolate,
                                        numeric_obj);
 }
 
+namespace {
+
+// 22. is in « 1, 2, 5, 10, 20, 25, 50, 100, 200, 250, 500, 1000, 2000, 2500,
+// 5000 »
+bool IsValidRoundingIncrement(int value) {
+  switch (value) {
+    case 1:
+    case 2:
+    case 5:
+    case 10:
+    case 20:
+    case 25:
+    case 50:
+    case 100:
+    case 200:
+    case 250:
+    case 500:
+    case 1000:
+    case 2000:
+    case 2500:
+    case 5000:
+      return true;
+    default:
+      return false;
+  }
+}
+
+}  // namespace
+
 Maybe<Intl::NumberFormatDigitOptions> Intl::SetNumberFormatDigitOptions(
     Isolate* isolate, Handle<JSReceiver> options, int mnfd_default,
-    int mxfd_default, bool notation_is_compact) {
+    int mxfd_default, bool notation_is_compact, const char* service) {
   Factory* factory = isolate->factory();
   Intl::NumberFormatDigitOptions digit_options;
 
-  // 5. Let mnid be ? GetNumberOption(options, "minimumIntegerDigits,", 1, 21,
+  // 1. Let mnid be ? GetNumberOption(options, "minimumIntegerDigits,", 1, 21,
   // 1).
   int mnid = 1;
   if (!GetNumberOption(isolate, options, factory->minimumIntegerDigits_string(),
@@ -1526,7 +1555,7 @@ Maybe<Intl::NumberFormatDigitOptions> Intl::SetNumberFormatDigitOptions(
     return Nothing<NumberFormatDigitOptions>();
   }
 
-  // 6. Let mnfd be ? Get(options, "minimumFractionDigits").
+  // 2. Let mnfd be ? Get(options, "minimumFractionDigits").
   Handle<Object> mnfd_obj;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, mnfd_obj,
@@ -1534,7 +1563,7 @@ Maybe<Intl::NumberFormatDigitOptions> Intl::SetNumberFormatDigitOptions(
                               factory->minimumFractionDigits_string()),
       Nothing<NumberFormatDigitOptions>());
 
-  // 7. Let mxfd be ? Get(options, "maximumFractionDigits").
+  // 3. Let mxfd be ? Get(options, "maximumFractionDigits").
   Handle<Object> mxfd_obj;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, mxfd_obj,
@@ -1542,7 +1571,7 @@ Maybe<Intl::NumberFormatDigitOptions> Intl::SetNumberFormatDigitOptions(
                               factory->maximumFractionDigits_string()),
       Nothing<NumberFormatDigitOptions>());
 
-  // 8.  Let mnsd be ? Get(options, "minimumSignificantDigits").
+  // 4.  Let mnsd be ? Get(options, "minimumSignificantDigits").
   Handle<Object> mnsd_obj;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, mnsd_obj,
@@ -1550,7 +1579,7 @@ Maybe<Intl::NumberFormatDigitOptions> Intl::SetNumberFormatDigitOptions(
                               factory->minimumSignificantDigits_string()),
       Nothing<NumberFormatDigitOptions>());
 
-  // 9. Let mxsd be ? Get(options, "maximumSignificantDigits").
+  // 5. Let mxsd be ? Get(options, "maximumSignificantDigits").
   Handle<Object> mxsd_obj;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, mxsd_obj,
@@ -1562,15 +1591,15 @@ Maybe<Intl::NumberFormatDigitOptions> Intl::SetNumberFormatDigitOptions(
   digit_options.minimum_significant_digits = 0;
   digit_options.maximum_significant_digits = 0;
 
-  // 10. Set intlObj.[[MinimumIntegerDigits]] to mnid.
+  // 6. Set intlObj.[[MinimumIntegerDigits]] to mnid.
   digit_options.minimum_integer_digits = mnid;
 
-  // 11. Let roundingPriority be ? GetOption(options, "roundingPriority",
+  // 7. Let roundingPriority be ? GetOption(options, "roundingPriority",
   // "string", « "auto", "morePrecision", "lessPrecision" », "auto").
 
   Maybe<RoundingPriority> maybe_rounding_priority =
       GetStringOption<RoundingPriority>(
-          isolate, options, "roundingPriority", "SetNumberFormatDigitOptions",
+          isolate, options, "roundingPriority", service,
           {"auto", "morePrecision", "lessPrecision"},
           {RoundingPriority::kAuto, RoundingPriority::kMorePrecision,
            RoundingPriority::kLessPrecision},
@@ -1578,140 +1607,208 @@ Maybe<Intl::NumberFormatDigitOptions> Intl::SetNumberFormatDigitOptions(
   MAYBE_RETURN(maybe_rounding_priority, Nothing<NumberFormatDigitOptions>());
   digit_options.rounding_priority = maybe_rounding_priority.FromJust();
 
-  // 12. If mnsd is not undefined or mxsd is not undefined, then
+  // 8. Let roundingIncrement be ? GetNumberOption(options, "roundingIncrement",
+  // 1, 5000, 1).
+  Maybe<int> maybe_rounding_increment = GetNumberOption(
+      isolate, options, factory->roundingIncrement_string(), 1, 5000, 1);
+  if (!maybe_rounding_increment.To(&digit_options.rounding_increment)) {
+    return Nothing<NumberFormatDigitOptions>();
+  }
+  // 9. If roundingIncrement is not in « 1, 2, 5, 10, 20, 25, 50, 100, 200, 250,
+  // 500, 1000, 2000, 2500, 5000 », throw a RangeError exception.
+  if (!IsValidRoundingIncrement(digit_options.rounding_increment)) {
+    THROW_NEW_ERROR_RETURN_VALUE(
+        isolate,
+        NewRangeError(MessageTemplate::kPropertyValueOutOfRange,
+                      factory->roundingIncrement_string()),
+        Nothing<NumberFormatDigitOptions>());
+  }
+
+  // 10. Let roundingMode be ? GetOption(options, "roundingMode", string, «
+  // "ceil", "floor", "expand", "trunc", "halfCeil", "halfFloor", "halfExpand",
+  // "halfTrunc", "halfEven" », "halfExpand").
+  Maybe<RoundingMode> maybe_rounding_mode = GetStringOption<RoundingMode>(
+      isolate, options, "roundingMode", service,
+      {"ceil", "floor", "expand", "trunc", "halfCeil", "halfFloor",
+       "halfExpand", "halfTrunc", "halfEven"},
+      {RoundingMode::kCeil, RoundingMode::kFloor, RoundingMode::kExpand,
+       RoundingMode::kTrunc, RoundingMode::kHalfCeil, RoundingMode::kHalfFloor,
+       RoundingMode::kHalfExpand, RoundingMode::kHalfTrunc,
+       RoundingMode::kHalfEven},
+      RoundingMode::kHalfExpand);
+  MAYBE_RETURN(maybe_rounding_mode, Nothing<NumberFormatDigitOptions>());
+  digit_options.rounding_mode = maybe_rounding_mode.FromJust();
+
+  // 11. Let trailingZeroDisplay be ? GetOption(options, "trailingZeroDisplay",
+  // string, « "auto", "stripIfInteger" », "auto").
+  Maybe<TrailingZeroDisplay> maybe_trailing_zero_display =
+      GetStringOption<TrailingZeroDisplay>(
+          isolate, options, "trailingZeroDisplay", service,
+          {"auto", "stripIfInteger"},
+          {TrailingZeroDisplay::kAuto, TrailingZeroDisplay::kStripIfInteger},
+          TrailingZeroDisplay::kAuto);
+  MAYBE_RETURN(maybe_trailing_zero_display,
+               Nothing<NumberFormatDigitOptions>());
+  digit_options.trailing_zero_display = maybe_trailing_zero_display.FromJust();
+
+  // 12. NOTE: All fields required by SetNumberFormatDigitOptions have now been
+  // read from options. The remainder of this AO interprets the options and may
+  // throw exceptions.
+
+  // 17. If mnsd is not undefined or mxsd is not undefined, then
   // a. Set hasSd to true.
-  // 13. Else,
+  // 18. Else,
   // a. Set hasSd to false.
   bool has_sd =
       (!mnsd_obj->IsUndefined(isolate)) || (!mxsd_obj->IsUndefined(isolate));
 
-  // 14. If mnfd is not undefined or mxfd is not undefined, then
+  // 19. If mnfd is not undefined or mxfd is not undefined, then
   // a. Set hasFd to true.
-  // 15. Else,
+  // 22. Else,
   // a. Set hasFd to false.
   bool has_fd =
       (!mnfd_obj->IsUndefined(isolate)) || (!mxfd_obj->IsUndefined(isolate));
 
-  // 17. If hasSd or roundingPriority is not "auto", set needSd to true; else,
-  // set needSd to false.
-  bool need_sd =
-      has_sd || (RoundingPriority::kAuto != digit_options.rounding_priority);
-
-  // 18. If ( not hasSd and (hasFd or notation is not "compact") ) or
-  // roundingPriority is not "auto", then a. Set needFd to true.
-  // 19. Else,
-  // a. Set needFd to false.
-  bool need_fd = ((!has_sd) && (has_fd || !notation_is_compact)) ||
-                 (RoundingPriority::kAuto != digit_options.rounding_priority);
-
-  // 20. If needSd, then
+  // 21. Let needSd be true.
+  bool need_sd = true;
+  // 22. Let needFd be true.
+  bool need_fd = true;
+  // 23. If roundingPriority is "auto", then
+  if (RoundingPriority::kAuto == digit_options.rounding_priority) {
+    // a. Set needSd to hasSd.
+    need_sd = has_sd;
+    // b. If needSd is true, or hasFd is false and notation is "compact", then
+    if (need_sd || ((!has_fd) && notation_is_compact)) {
+      // i. Set needFd to false.
+      need_fd = false;
+    }
+  }
+  // 24. If needSd is true, then
   if (need_sd) {
-    // 20.b If hasSd, then
+    // 24.a If hasSd is true, then
     if (has_sd) {
-      // 20.b.i Let mnsd be ? DefaultNumberOption(mnsd, 1, 21, 1).
+      // i. Set intlObj.[[MinimumSignificantDigits]] to ?
+      // DefaultNumberOption(mnsd, 1, 21, 1).
       int mnsd;
       if (!DefaultNumberOption(isolate, mnsd_obj, 1, 21, 1,
                                factory->minimumSignificantDigits_string())
                .To(&mnsd)) {
         return Nothing<NumberFormatDigitOptions>();
       }
-      // 20.b.ii Let mxsd be ? DefaultNumberOption(mxsd, mnsd, 21, 21).
+      digit_options.minimum_significant_digits = mnsd;
+      // ii. Set intlObj.[[MaximumSignificantDigits]] to ?
+      // DefaultNumberOption(mxsd, intlObj.[[MinimumSignificantDigits]], 21,
+      // 21).
       int mxsd;
       if (!DefaultNumberOption(isolate, mxsd_obj, mnsd, 21, 21,
                                factory->maximumSignificantDigits_string())
                .To(&mxsd)) {
         return Nothing<NumberFormatDigitOptions>();
       }
-      // 20.b.iii Set intlObj.[[MinimumSignificantDigits]] to mnsd.
-      digit_options.minimum_significant_digits = mnsd;
-      // 20.b.iv Set intlObj.[[MaximumSignificantDigits]] to mxsd.
       digit_options.maximum_significant_digits = mxsd;
     } else {
-      // 20.c Else
-      // 20.c.i Set intlObj.[[MinimumSignificantDigits]] to 1.
+      // 24.b Else
+      // 24.b.i Set intlObj.[[MinimumSignificantDigits]] to 1.
       digit_options.minimum_significant_digits = 1;
-      // 20.c.ii Set intlObj.[[MaximumSignificantDigits]] to 21.
+      // 24.b.ii Set intlObj.[[MaximumSignificantDigits]] to 21.
       digit_options.maximum_significant_digits = 21;
     }
   }
 
-  // 21. If needFd, then
+  Handle<String> mxfd_str = factory->maximumFractionDigits_string();
+  // 25. If needFd is true, then
   if (need_fd) {
-    // 21.a If hasFd, then
+    // a. If hasFd is true, then
     if (has_fd) {
       Handle<String> mnfd_str = factory->minimumFractionDigits_string();
-      Handle<String> mxfd_str = factory->maximumFractionDigits_string();
-      // 21.a.i Let mnfd be ? DefaultNumberOption(mnfd, 0, 20, undefined).
+      // i. Let mnfd be ? DefaultNumberOption(mnfd, 0, 20, undefined).
       int mnfd;
       if (!DefaultNumberOption(isolate, mnfd_obj, 0, 20, -1, mnfd_str)
                .To(&mnfd)) {
         return Nothing<NumberFormatDigitOptions>();
       }
-      // 21.a.ii Let mxfd be ? DefaultNumberOption(mxfd, 0, 20, undefined).
+      // ii. Let mxfd be ? DefaultNumberOption(mxfd, 0, 20, undefined).
       int mxfd;
       if (!DefaultNumberOption(isolate, mxfd_obj, 0, 20, -1, mxfd_str)
                .To(&mxfd)) {
         return Nothing<NumberFormatDigitOptions>();
       }
-      // 21.a.iii If mnfd is undefined, set mnfd to min(mnfdDefault, mxfd).
+      // iii. If mnfd is undefined, set mnfd to min(mnfdDefault, mxfd).
       if (mnfd_obj->IsUndefined(isolate)) {
         mnfd = std::min(mnfd_default, mxfd);
       } else if (mxfd_obj->IsUndefined(isolate)) {
-        // 21.a.iv Else if mxfd is undefined, set mxfd to max(mxfdDefault,
+        // iv. Else if mxfd is undefined, set mxfd to max(mxfdDefault,
         // mnfd).
         mxfd = std::max(mxfd_default, mnfd);
       } else if (mnfd > mxfd) {
-        // 21.a.v Else if mnfd is greater than mxfd, throw a RangeError
+        // v. Else if mnfd is greater than mxfd, throw a RangeError
         // exception.
         THROW_NEW_ERROR_RETURN_VALUE(
             isolate,
             NewRangeError(MessageTemplate::kPropertyValueOutOfRange, mxfd_str),
             Nothing<NumberFormatDigitOptions>());
       }
-      // 21.a.vi Set intlObj.[[MinimumFractionDigits]] to mnfd.
+      // vi. Set intlObj.[[MinimumFractionDigits]] to mnfd.
       digit_options.minimum_fraction_digits = mnfd;
-      // 21.a.vii Set intlObj.[[MaximumFractionDigits]] to mxfd.
+      // vii. Set intlObj.[[MaximumFractionDigits]] to mxfd.
       digit_options.maximum_fraction_digits = mxfd;
-    } else {  // 17.b Else
-      // 21.b.i Set intlObj.[[MinimumFractionDigits]] to mnfdDefault.
+    } else {  // b. Else
+      // i. Set intlObj.[[MinimumFractionDigits]] to mnfdDefault.
       digit_options.minimum_fraction_digits = mnfd_default;
-      // 21.b.ii Set intlObj.[[MaximumFractionDigits]] to mxfdDefault.
+      // ii. Set intlObj.[[MaximumFractionDigits]] to mxfdDefault.
       digit_options.maximum_fraction_digits = mxfd_default;
     }
   }
 
-  // 22. If needSd or needFd, then
-  if (need_sd || need_fd) {
-    // a. If roundingPriority is "morePrecision", then
-    if (digit_options.rounding_priority == RoundingPriority::kMorePrecision) {
-      // i. Set intlObj.[[RoundingType]] to morePrecision.
-      digit_options.rounding_type = RoundingType::kMorePrecision;
-      // b. Else if roundingPriority is "lessPrecision", then
-    } else if (digit_options.rounding_priority ==
-               RoundingPriority::kLessPrecision) {
-      // i. Set intlObj.[[RoundingType]] to lessPrecision.
-      digit_options.rounding_type = RoundingType::kLessPrecision;
-      // c. Else if hasSd, then
-    } else if (has_sd) {
-      // i. Set intlObj.[[RoundingType]] to significantDigits.
-      digit_options.rounding_type = RoundingType::kSignificantDigits;
-      // d. Else,
-    } else {
-      // i.Set intlObj.[[RoundingType]] to fractionDigits.
-      digit_options.rounding_type = RoundingType::kFractionDigits;
-    }
-    // 23. Else
-  } else {
-    // a. Set intlObj.[[RoundingType]] to morePrecision.
-    digit_options.rounding_type = RoundingType::kMorePrecision;
-    // b. Set intlObj.[[MinimumFractionDigits]] to 0.
+  // 26. If needSd is false and needFd is false, then
+  if ((!need_sd) && (!need_fd)) {
+    // a. Set intlObj.[[MinimumFractionDigits]] to 0.
     digit_options.minimum_fraction_digits = 0;
-    // c. Set intlObj.[[MaximumFractionDigits]] to 0.
+    // b. Set intlObj.[[MaximumFractionDigits]] to 0.
     digit_options.maximum_fraction_digits = 0;
-    // d. Set intlObj.[[MinimumSignificantDigits]] to 1.
+    // c. Set intlObj.[[MinimumSignificantDigits]] to 1.
     digit_options.minimum_significant_digits = 1;
-    // e. Set intlObj.[[MaximumSignificantDigits]] to 2.
+    // d. Set intlObj.[[MaximumSignificantDigits]] to 2.
     digit_options.maximum_significant_digits = 2;
+    // e. Set intlObj.[[RoundingType]] to morePrecision.
+    digit_options.rounding_type = RoundingType::kMorePrecision;
+    // 27. Else if roundingPriority is "morePrecision", then
+  } else if (digit_options.rounding_priority ==
+             RoundingPriority::kMorePrecision) {
+    // i. Set intlObj.[[RoundingType]] to morePrecision.
+    digit_options.rounding_type = RoundingType::kMorePrecision;
+    // 28. Else if roundingPriority is "lessPrecision", then
+  } else if (digit_options.rounding_priority ==
+             RoundingPriority::kLessPrecision) {
+    // i. Set intlObj.[[RoundingType]] to lessPrecision.
+    digit_options.rounding_type = RoundingType::kLessPrecision;
+    // 29. Else if hasSd, then
+  } else if (has_sd) {
+    // i. Set intlObj.[[RoundingType]] to significantDigits.
+    digit_options.rounding_type = RoundingType::kSignificantDigits;
+    // 30. Else,
+  } else {
+    // i.Set intlObj.[[RoundingType]] to fractionDigits.
+    digit_options.rounding_type = RoundingType::kFractionDigits;
+  }
+  // 31. If roundingIncrement is not 1, then
+  if (digit_options.rounding_increment != 1) {
+    // a. If intlObj.[[RoundingType]] is not fractionDigits, throw a TypeError
+    // exception.
+    if (digit_options.rounding_type != RoundingType::kFractionDigits) {
+      THROW_NEW_ERROR_RETURN_VALUE(
+          isolate, NewTypeError(MessageTemplate::kBadRoundingType),
+          Nothing<NumberFormatDigitOptions>());
+    }
+    // b. If intlObj.[[MaximumFractionDigits]] is not equal to
+    // intlObj.[[MinimumFractionDigits]], throw a RangeError exception.
+    if (digit_options.maximum_fraction_digits !=
+        digit_options.minimum_fraction_digits) {
+      THROW_NEW_ERROR_RETURN_VALUE(
+          isolate,
+          NewRangeError(MessageTemplate::kPropertyValueOutOfRange, mxfd_str),
+          Nothing<NumberFormatDigitOptions>());
+    }
   }
   return Just(digit_options);
 }

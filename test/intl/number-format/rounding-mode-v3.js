@@ -55,4 +55,4 @@ let options = {
 };
 
 assertDoesNotThrow(() => new Intl.NumberFormat(undefined, options));
-assertEquals("signDisplay,roundingMode", read.join(","));
+assertEquals("roundingMode,signDisplay", read.join(","));

@@ -106,31 +106,6 @@ enum class SignDisplay {
   NEGATIVE,
 };
 
-// [[RoundingMode]] is one of the String values "ceil", "floor", "expand",
-// "trunc", "halfCeil", "halfFloor", "halfExpand", "halfTrunc", or "halfEven",
-// specifying the rounding strategy for the number.
-// Note: To avoid name conflict with RoundingMode defined in other places,
-// prefix with Intl as IntlRoundingMode
-enum class IntlRoundingMode {
-  CEIL,
-  FLOOR,
-  EXPAND,
-  TRUNC,
-  HALF_CEIL,
-  HALF_FLOOR,
-  HALF_EXPAND,
-  HALF_TRUNC,
-  HALF_EVEN,
-};
-
-// [[TrailingZeroDisplay]] is one of the String values "auto" or
-// "stripIfInteger", specifying the strategy for displaying trailing zeros on
-// whole number.
-enum class TrailingZeroDisplay {
-  AUTO,
-  STRIP_IF_INTEGER,
-};
-
 // [[UseGrouping]] is ....
 enum class UseGrouping {
   OFF,
@@ -216,25 +191,25 @@ icu::number::Notation ToICUNotation(Notation notation,
 }
 
 UNumberFormatRoundingMode ToUNumberFormatRoundingMode(
-    IntlRoundingMode rounding_mode) {
+    Intl::RoundingMode rounding_mode) {
   switch (rounding_mode) {
-    case IntlRoundingMode::CEIL:
+    case Intl::RoundingMode::kCeil:
       return UNumberFormatRoundingMode::UNUM_ROUND_CEILING;
-    case IntlRoundingMode::FLOOR:
+    case Intl::RoundingMode::kFloor:
       return UNumberFormatRoundingMode::UNUM_ROUND_FLOOR;
-    case IntlRoundingMode::EXPAND:
+    case Intl::RoundingMode::kExpand:
       return UNumberFormatRoundingMode::UNUM_ROUND_UP;
-    case IntlRoundingMode::TRUNC:
+    case Intl::RoundingMode::kTrunc:
       return UNumberFormatRoundingMode::UNUM_ROUND_DOWN;
-    case IntlRoundingMode::HALF_CEIL:
+    case Intl::RoundingMode::kHalfCeil:
       return UNumberFormatRoundingMode::UNUM_ROUND_HALF_CEILING;
-    case IntlRoundingMode::HALF_FLOOR:
+    case Intl::RoundingMode::kHalfFloor:
       return UNumberFormatRoundingMode::UNUM_ROUND_HALF_FLOOR;
-    case IntlRoundingMode::HALF_EXPAND:
+    case Intl::RoundingMode::kHalfExpand:
       return UNumberFormatRoundingMode::UNUM_ROUND_HALFUP;
-    case IntlRoundingMode::HALF_TRUNC:
+    case Intl::RoundingMode::kHalfTrunc:
       return UNumberFormatRoundingMode::UNUM_ROUND_HALFDOWN;
-    case IntlRoundingMode::HALF_EVEN:
+    case Intl::RoundingMode::kHalfEven:
       return UNumberFormatRoundingMode::UNUM_ROUND_HALFEVEN;
   }
 }
@@ -848,9 +823,10 @@ Style StyleFromSkeleton(const icu::UnicodeString& skeleton) {
 icu::number::UnlocalizedNumberFormatter
 JSNumberFormat::SetDigitOptionsToFormatter(
     const icu::number::UnlocalizedNumberFormatter& settings,
-    const Intl::NumberFormatDigitOptions& digit_options, int rounding_increment,
-    JSNumberFormat::ShowTrailingZeros trailing_zeros) {
-  icu::number::UnlocalizedNumberFormatter result = settings;
+    const Intl::NumberFormatDigitOptions& digit_options) {
+  icu::number::UnlocalizedNumberFormatter result = settings.roundingMode(
+      ToUNumberFormatRoundingMode(digit_options.rounding_mode));
+
   if (digit_options.minimum_integer_digits > 1) {
     result = result.integerWidth(icu::number::IntegerWidth::zeroFillTo(
         digit_options.minimum_integer_digits));
@@ -883,12 +859,14 @@ JSNumberFormat::SetDigitOptionsToFormatter(
                                              : UNUM_ROUNDING_PRIORITY_STRICT);
       break;
   }
-  if (rounding_increment != 1) {
+  if (digit_options.rounding_increment != 1) {
     precision = ::icu::number::Precision::incrementExact(
-                    rounding_increment, -digit_options.maximum_fraction_digits)
+                    digit_options.rounding_increment,
+                    -digit_options.maximum_fraction_digits)
                     .withMinFraction(digit_options.minimum_fraction_digits);
   }
-  if (trailing_zeros == JSNumberFormat::ShowTrailingZeros::kHide) {
+  if (digit_options.trailing_zero_display ==
+      Intl::TrailingZeroDisplay::kStripIfInteger) {
     precision = precision.trailingZeroDisplay(UNUM_TRAILING_ZERO_HIDE_IF_WHOLE);
   }
   return result.precision(precision);
@@ -1387,28 +1365,6 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::New(Isolate* isolate,
     }
   }
 
-  int rounding_increment = 1;
-  // 18. Let roundingIncrement be ? GetNumberOption(options,
-  // "roundingIncrement,", 1, 5000, 1).
-  Maybe<int> maybe_rounding_increment = GetNumberOption(
-      isolate, options, factory->roundingIncrement_string(), 1, 5000, 1);
-  if (!maybe_rounding_increment.To(&rounding_increment)) {
-    return MaybeHandle<JSNumberFormat>();
-  }
-
-  // 19. If roundingIncrement is not in « 1, 2, 5, 10, 20, 25, 50, 100, 200,
-  // 250, 500, 1000, 2000, 2500, 5000 », throw a RangeError exception.
-  if (!IsValidRoundingIncrement(rounding_increment)) {
-    THROW_NEW_ERROR(isolate,
-                    NewRangeError(MessageTemplate::kPropertyValueOutOfRange,
-                                  factory->roundingIncrement_string()),
-                    JSNumberFormat);
-  }
-  // 20. If roundingIncrement is not 1, set mxfdDefault to mnfdDefault.
-  if (rounding_increment != 1) {
-    mxfd_default = mnfd_default;
-  }
-
   Notation notation = Notation::STANDARD;
   // 21. Let notation be ? GetOption(options, "notation", "string", «
   // "standard", "scientific",  "engineering", "compact" », "standard").
@@ -1428,51 +1384,20 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::New(Isolate* isolate,
   Maybe<Intl::NumberFormatDigitOptions> maybe_digit_options =
       Intl::SetNumberFormatDigitOptions(isolate, options, mnfd_default,
                                         mxfd_default,
-                                        notation == Notation::COMPACT);
+                                        notation == Notation::COMPACT, service);
   MAYBE_RETURN(maybe_digit_options, Handle<JSNumberFormat>());
   Intl::NumberFormatDigitOptions digit_options = maybe_digit_options.FromJust();
 
-  // 24. If roundingIncrement is not 1, then
-  if (rounding_increment != 1) {
-    // a. If numberFormat.[[RoundingType]] is not fractionDigits, throw a
-    // TypeError exception.
-    if (digit_options.rounding_type != Intl::RoundingType::kFractionDigits) {
-      THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kBadRoundingType),
-                      JSNumberFormat);
-    }
-    // b. If numberFormat.[[MaximumFractionDigits]] is not equal to
-    // numberFormat.[[MinimumFractionDigits]], throw a RangeError exception.
-    if (digit_options.maximum_fraction_digits !=
-        digit_options.minimum_fraction_digits) {
-      THROW_NEW_ERROR(
-          isolate,
-          NewRangeError(
-              MessageTemplate::
-                  kMaximumFractionDigitsNotEqualMinimumFractionDigits),
-          JSNumberFormat);
-    }
+  // 13. If roundingIncrement is not 1, set mxfdDefault to mnfdDefault.
+  if (digit_options.rounding_increment != 1) {
+    mxfd_default = mnfd_default;
   }
+  // 14. Set intlObj.[[RoundingIncrement]] to roundingIncrement.
 
-  // 25. Set numberFormat.[[RoundingIncrement]] to roundingIncrement.
+  // 15. Set intlObj.[[RoundingMode]] to roundingMode.
 
-  // 26. Let trailingZeroDisplay be ? GetOption(options,
-  // "trailingZeroDisplay", "string", « "auto", "stripIfInteger" », "auto").
-  Maybe<TrailingZeroDisplay> maybe_trailing_zero_display =
-      GetStringOption<TrailingZeroDisplay>(
-          isolate, options, "trailingZeroDisplay", service,
-          {"auto", "stripIfInteger"},
-          {TrailingZeroDisplay::AUTO, TrailingZeroDisplay::STRIP_IF_INTEGER},
-          TrailingZeroDisplay::AUTO);
-  MAYBE_RETURN(maybe_trailing_zero_display, MaybeHandle<JSNumberFormat>());
-  TrailingZeroDisplay trailing_zero_display =
-      maybe_trailing_zero_display.FromJust();
-
-  // 27. Set numberFormat.[[TrailingZeroDisplay]] to trailingZeroDisplay.
-  settings = SetDigitOptionsToFormatter(
-      settings, digit_options, rounding_increment,
-      trailing_zero_display == TrailingZeroDisplay::STRIP_IF_INTEGER
-          ? ShowTrailingZeros::kHide
-          : ShowTrailingZeros::kShow);
+  // 16. Set intlObj.[[TrailingZeroDisplay]] to trailingZeroDisplay.
+  settings = SetDigitOptionsToFormatter(settings, digit_options);
 
   // 28. Let compactDisplay be ? GetOption(options, "compactDisplay",
   // "string", « "short", "long" »,  "short").
@@ -1534,25 +1459,6 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::New(Isolate* isolate,
       currency_sign != CurrencySign::STANDARD) {
     settings = settings.sign(ToUNumberSignDisplay(sign_display, currency_sign));
   }
-
-  // X. Let roundingMode be ? GetOption(options, "roundingMode", "string",
-  // « "ceil", "floor", "expand", "trunc", "halfCeil", "halfFloor",
-  // "halfExpand", "halfTrunc", "halfEven" »,
-  // "halfExpand").
-  Maybe<IntlRoundingMode> maybe_rounding_mode =
-      GetStringOption<IntlRoundingMode>(
-          isolate, options, "roundingMode", service,
-          {"ceil", "floor", "expand", "trunc", "halfCeil", "halfFloor",
-           "halfExpand", "halfTrunc", "halfEven"},
-          {IntlRoundingMode::CEIL, IntlRoundingMode::FLOOR,
-           IntlRoundingMode::EXPAND, IntlRoundingMode::TRUNC,
-           IntlRoundingMode::HALF_CEIL, IntlRoundingMode::HALF_FLOOR,
-           IntlRoundingMode::HALF_EXPAND, IntlRoundingMode::HALF_TRUNC,
-           IntlRoundingMode::HALF_EVEN},
-          IntlRoundingMode::HALF_EXPAND);
-  MAYBE_RETURN(maybe_rounding_mode, MaybeHandle<JSNumberFormat>());
-  IntlRoundingMode rounding_mode = maybe_rounding_mode.FromJust();
-  settings = settings.roundingMode(ToUNumberFormatRoundingMode(rounding_mode));
 
   // 25. Let dataLocaleData be localeData.[[<dataLocale>]].
   //

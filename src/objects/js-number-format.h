@@ -93,8 +93,7 @@ class JSNumberFormat
 
   static icu::number::UnlocalizedNumberFormatter SetDigitOptionsToFormatter(
       const icu::number::UnlocalizedNumberFormatter& settings,
-      const Intl::NumberFormatDigitOptions& digit_options,
-      int rounding_increment, ShowTrailingZeros show);
+      const Intl::NumberFormatDigitOptions& digit_options);
 
   static const icu::UnicodeString NumberingSystemFromSkeleton(
       const icu::UnicodeString& skeleton);
