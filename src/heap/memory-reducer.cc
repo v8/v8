@@ -17,7 +17,6 @@ namespace internal {
 const int MemoryReducer::kLongDelayMs = 8000;
 const int MemoryReducer::kShortDelayMs = 500;
 const int MemoryReducer::kWatchdogDelayMs = 100000;
-const int MemoryReducer::kMaxNumberOfGCs = 3;
 const double MemoryReducer::kCommittedMemoryFactor = 1.1;
 const size_t MemoryReducer::kCommittedMemoryDelta = 10 * MB;
 
@@ -45,7 +44,7 @@ void MemoryReducer::TimerTask::RunInternal() {
                                    heap->EmbedderAllocationCounter());
   const bool low_allocation_rate = heap->HasLowAllocationRate();
   const bool optimize_for_memory = heap->ShouldOptimizeForMemoryUsage();
-  if (v8_flags.trace_gc_verbose) {
+  if (v8_flags.trace_memory_reducer) {
     heap->isolate()->PrintWithTimestamp(
         "Memory reducer: %s, %s\n",
         low_allocation_rate ? "low alloc" : "high alloc",
@@ -74,7 +73,7 @@ void MemoryReducer::NotifyTimer(const Event& event) {
   if (state_.id() == kRun) {
     DCHECK(heap()->incremental_marking()->IsStopped());
     DCHECK(v8_flags.incremental_marking);
-    if (v8_flags.trace_gc_verbose) {
+    if (v8_flags.trace_memory_reducer) {
       heap()->isolate()->PrintWithTimestamp("Memory reducer: started GC #%d\n",
                                             state_.started_gcs());
     }
@@ -91,7 +90,7 @@ void MemoryReducer::NotifyTimer(const Event& event) {
     }
     // Re-schedule the timer.
     ScheduleTimer(state_.next_gc_start_ms() - event.time_ms);
-    if (v8_flags.trace_gc_verbose) {
+    if (v8_flags.trace_memory_reducer) {
       heap()->isolate()->PrintWithTimestamp(
           "Memory reducer: waiting for %.f ms\n",
           state_.next_gc_start_ms() - event.time_ms);
@@ -120,12 +119,10 @@ void MemoryReducer::NotifyMarkCompact(size_t committed_memory_before) {
     // If we are transitioning to the WAIT state, start the timer.
     ScheduleTimer(state_.next_gc_start_ms() - event.time_ms);
   }
-  if (old_state.id() == kRun) {
-    if (v8_flags.trace_gc_verbose) {
-      heap()->isolate()->PrintWithTimestamp(
-          "Memory reducer: finished GC #%d (%s)\n", old_state.started_gcs(),
-          state_.id() == kWait ? "will do more" : "done");
-    }
+  if (old_state.id() == kRun && v8_flags.trace_memory_reducer) {
+    heap()->isolate()->PrintWithTimestamp(
+        "Memory reducer: finished GC #%d (%s)\n", old_state.started_gcs(),
+        state_.id() == kWait ? "will do more" : "done");
   }
 }
 
@@ -179,13 +176,12 @@ MemoryReducer::State MemoryReducer::Step(const State& state,
             state.last_gc_time_ms());
       }
     case kWait:
-      CHECK_IMPLIES(v8_flags.memory_reducer_single_gc,
-                    state.started_gcs() == 0);
+      CHECK_LE(state.started_gcs(), MaxNumberOfGCs());
       switch (event.type) {
         case kPossibleGarbage:
           return state;
         case kTimer:
-          if (state.started_gcs() >= kMaxNumberOfGCs) {
+          if (state.started_gcs() >= MaxNumberOfGCs()) {
             return State::CreateDone(state.last_gc_time_ms(),
                                      event.committed_memory);
           } else if (event.can_start_incremental_gc &&
@@ -206,11 +202,9 @@ MemoryReducer::State MemoryReducer::Step(const State& state,
                                    event.time_ms + kLongDelayMs, event.time_ms);
       }
     case kRun:
-      CHECK_IMPLIES(v8_flags.memory_reducer_single_gc,
-                    state.started_gcs() == 1);
+      CHECK_LE(state.started_gcs(), MaxNumberOfGCs());
       if (event.type == kMarkCompact) {
-        if (!v8_flags.memory_reducer_single_gc &&
-            state.started_gcs() < kMaxNumberOfGCs &&
+        if (state.started_gcs() < MaxNumberOfGCs() &&
             (event.next_gc_likely_to_collect_more ||
              state.started_gcs() == 1)) {
           return State::CreateWait(state.started_gcs(),
@@ -236,6 +230,13 @@ void MemoryReducer::ScheduleTimer(double delay_ms) {
 }
 
 void MemoryReducer::TearDown() { state_ = State::CreateUninitialized(); }
+
+// static
+int MemoryReducer::MaxNumberOfGCs() {
+  if (v8_flags.memory_reducer_single_gc) return 1;
+  DCHECK_GT(v8_flags.memory_reducer_gc_count, 0);
+  return v8_flags.memory_reducer_gc_count;
+}
 
 }  // namespace internal
 }  // namespace v8

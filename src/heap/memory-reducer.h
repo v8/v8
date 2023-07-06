@@ -169,7 +169,6 @@ class V8_EXPORT_PRIVATE MemoryReducer {
   static const int kLongDelayMs;
   static const int kShortDelayMs;
   static const int kWatchdogDelayMs;
-  static const int kMaxNumberOfGCs;
   // The committed memory has to increase by at least this factor since the
   // last run in order to trigger a new run after mark-compact.
   static const double kCommittedMemoryFactor;
@@ -180,6 +179,8 @@ class V8_EXPORT_PRIVATE MemoryReducer {
   Heap* heap() { return heap_; }
 
   bool ShouldGrowHeapSlowly() { return state_.id() == kDone; }
+
+  static int MaxNumberOfGCs();
 
  private:
   class TimerTask : public v8::internal::CancelableTask {

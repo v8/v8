@@ -44,10 +44,6 @@ MemoryReducer::Event TimerEvent(double time_ms,
   return event;
 }
 
-int MaxNumberMemoryReducerGCs() {
-  return v8_flags.memory_reducer_single_gc ? 1 : MemoryReducer::kMaxNumberOfGCs;
-}
-
 MemoryReducer::Event TimerEventLowAllocationRate(double time_ms) {
   return TimerEvent(time_ms, true, true);
 }
@@ -146,7 +142,7 @@ TEST(MemoryReducer, FromWaitToWait) {
   if (!v8_flags.incremental_marking) return;
 
   MemoryReducer::State state0(MemoryReducer::State::CreateWait(
-      MaxNumberMemoryReducerGCs() - 1, 1000.0, 1)),
+      MemoryReducer::MaxNumberOfGCs() - 1, 1000.0, 1)),
       state1(MemoryReducer::State::CreateDone(1.0, 0));
 
   state1 = MemoryReducer::Step(state0, PossibleGarbageEvent(2000));
@@ -182,7 +178,7 @@ TEST(MemoryReducer, FromWaitToWait) {
   EXPECT_EQ(state0.started_gcs(), state1.started_gcs());
   EXPECT_EQ(2000, state1.last_gc_time_ms());
 
-  state0 = MemoryReducer::State::CreateWait(MaxNumberMemoryReducerGCs() - 1,
+  state0 = MemoryReducer::State::CreateWait(MemoryReducer::MaxNumberOfGCs() - 1,
                                             1000.0, 0);
 
   state1 = MemoryReducer::Step(
@@ -194,7 +190,7 @@ TEST(MemoryReducer, FromWaitToWait) {
   EXPECT_EQ(state0.started_gcs(), state1.started_gcs());
   EXPECT_EQ(state0.last_gc_time_ms(), state1.last_gc_time_ms());
 
-  state0 = MemoryReducer::State::CreateWait(MaxNumberMemoryReducerGCs() - 1,
+  state0 = MemoryReducer::State::CreateWait(MemoryReducer::MaxNumberOfGCs() - 1,
                                             1000.0, 1);
   state1 = MemoryReducer::Step(state0, TimerEventHighAllocationRate(2000));
   EXPECT_EQ(MemoryReducer::kWait, state1.id());
@@ -225,10 +221,10 @@ TEST(MemoryReducer, FromWaitToRun) {
 
 TEST(MemoryReducer, FromWaitToDone) {
   if (!v8_flags.incremental_marking) return;
-  if (v8_flags.memory_reducer_single_gc) return;
+  if (MemoryReducer::MaxNumberOfGCs() <= 1) return;
 
-  MemoryReducer::State state0(
-      MemoryReducer::State::CreateWait(MemoryReducer::kMaxNumberOfGCs, 0.0, 1)),
+  MemoryReducer::State state0(MemoryReducer::State::CreateWait(
+      MemoryReducer::MaxNumberOfGCs(), 0.0, 1)),
       state1(MemoryReducer::State::CreateDone(1.0, 0));
 
   state1 = MemoryReducer::Step(state0, TimerEventLowAllocationRate(2000));
@@ -272,14 +268,14 @@ TEST(MemoryReducer, FromRunToRun) {
 TEST(MemoryReducer, FromRunToDone) {
   if (!v8_flags.incremental_marking) return;
 
-  const int started_gcs = v8_flags.memory_reducer_single_gc ? 1 : 2;
+  const int started_gcs = MemoryReducer::MaxNumberOfGCs() > 1 ? 2 : 1;
   MemoryReducer::State state0(MemoryReducer::State::CreateRun(started_gcs));
   MemoryReducer::State state1 =
       MemoryReducer::Step(state0, MarkCompactEventNoGarbageLeft(2000, 0));
   EXPECT_EQ(MemoryReducer::kDone, state1.id());
   EXPECT_EQ(2000, state1.last_gc_time_ms());
 
-  state0 = MemoryReducer::State::CreateRun(MaxNumberMemoryReducerGCs());
+  state0 = MemoryReducer::State::CreateRun(MemoryReducer::MaxNumberOfGCs());
 
   state1 = MemoryReducer::Step(state0, MarkCompactEventGarbageLeft(2000, 0));
   EXPECT_EQ(MemoryReducer::kDone, state1.id());
@@ -288,16 +284,18 @@ TEST(MemoryReducer, FromRunToDone) {
 
 TEST(MemoryReducer, FromRunToWait) {
   if (!v8_flags.incremental_marking) return;
-  if (v8_flags.memory_reducer_single_gc) return;
+  if (MemoryReducer::MaxNumberOfGCs() <= 1) return;
 
   MemoryReducer::State state0(MemoryReducer::State::CreateRun(2)),
       state1(MemoryReducer::State::CreateDone(1.0, 0));
 
-  state1 = MemoryReducer::Step(state0, MarkCompactEventGarbageLeft(2000, 0));
-  EXPECT_EQ(MemoryReducer::kWait, state1.id());
-  EXPECT_EQ(2000 + MemoryReducer::kShortDelayMs, state1.next_gc_start_ms());
-  EXPECT_EQ(state0.started_gcs(), state1.started_gcs());
-  EXPECT_EQ(2000, state1.last_gc_time_ms());
+  if (MemoryReducer::MaxNumberOfGCs() > 2) {
+    state1 = MemoryReducer::Step(state0, MarkCompactEventGarbageLeft(2000, 0));
+    EXPECT_EQ(MemoryReducer::kWait, state1.id());
+    EXPECT_EQ(2000 + MemoryReducer::kShortDelayMs, state1.next_gc_start_ms());
+    EXPECT_EQ(state0.started_gcs(), state1.started_gcs());
+    EXPECT_EQ(2000, state1.last_gc_time_ms());
+  }
 
   state0 = MemoryReducer::State::CreateRun(1);
 

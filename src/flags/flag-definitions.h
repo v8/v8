@@ -1487,6 +1487,7 @@ DEFINE_BOOL(trace_gc_nvp, false,
             "after each garbage collection")
 DEFINE_BOOL(trace_gc_ignore_scavenger, false,
             "do not print trace line after scavenger collection")
+DEFINE_BOOL(trace_memory_reducer, false, "print memory reducer behavior")
 DEFINE_BOOL(trace_idle_notification, false,
             "print one trace line following each idle notification")
 DEFINE_BOOL(trace_idle_notification_verbose, false,
@@ -1642,6 +1643,8 @@ DEFINE_BOOL(memory_reducer_for_small_heaps, true,
 DEFINE_BOOL(memory_reducer_single_gc, false,
             "only schedule a single GC from memory reducer")
 DEFINE_WEAK_IMPLICATION(future, memory_reducer_single_gc)
+DEFINE_INT(memory_reducer_gc_count, 3,
+           "Maximum number of memory reducer GCs scheduled")
 DEFINE_INT(heap_growing_percent, 0,
            "specifies heap growing factor as (1 + heap_growing_percent/100)")
 DEFINE_INT(v8_os_page_size, 0, "override OS page size (in KBytes)")
