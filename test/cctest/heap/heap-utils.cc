@@ -273,7 +273,7 @@ void FillCurrentPageButNBytes(v8::internal::NewSpace* space, int extra_bytes,
 }
 
 void SimulateIncrementalMarking(i::Heap* heap, bool force_completion) {
-  static constexpr auto kStepSize = v8::base::TimeDelta::FromMilliseconds(100);
+  const double kStepSizeInMs = 100;
   CHECK(v8_flags.incremental_marking);
   i::IncrementalMarking* marking = heap->incremental_marking();
 
@@ -302,7 +302,7 @@ void SimulateIncrementalMarking(i::Heap* heap, bool force_completion) {
   marking->MarkRootsForTesting();
 
   while (!marking->IsMajorMarkingComplete()) {
-    marking->AdvanceForTesting(kStepSize);
+    marking->AdvanceForTesting(kStepSizeInMs);
   }
 }
 

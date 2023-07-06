@@ -7,7 +7,6 @@
 
 #include "src/base/logging.h"
 #include "src/base/platform/mutex.h"
-#include "src/base/platform/time.h"
 #include "src/common/globals.h"
 #include "src/heap/heap.h"
 #include "src/heap/incremental-marking-job.h"
@@ -72,10 +71,8 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
   static const size_t kOldGenerationAllocatedThreshold = 256 * KB;
   static const size_t kMinStepSizeInBytes = 64 * KB;
 
-  static constexpr v8::base::TimeDelta kMaxStepSizeOnTask =
-      v8::base::TimeDelta::FromMilliseconds(1);
-  static constexpr v8::base::TimeDelta kMaxStepSizeOnAllocation =
-      v8::base::TimeDelta::FromMilliseconds(5);
+  static constexpr double kStepSizeInMs = 1;
+  static constexpr double kMaxStepSizeInMs = 5;
 
 #ifndef DEBUG
   static constexpr size_t kV8ActivationThreshold = 8 * MB;
@@ -84,6 +81,22 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
   static constexpr size_t kV8ActivationThreshold = 0;
   static constexpr size_t kEmbedderActivationThreshold = 0;
 #endif
+
+  // `EstimateMarkingStepSize()` will bound its step size by this ratio to give
+  // slack time for overhead.
+  static constexpr double kConservativeTimeRatio = 0.9;
+
+  // Maximum marking step size returned by `EstimateMarkingStepSize()`.
+  static constexpr size_t kMaximumMarkingStepSize = 700 * MB;
+
+  // If we haven't recorded any incremental marking events yet, we carefully
+  // mark with a conservative lower bound for the marking speed.
+  static constexpr size_t kInitialConservativeMarkingSpeed = 100 * KB;
+
+  // Computes an estimated marking step size based on available `time` and
+  // `marking_speed` in bytes/ms. Marking step size returned will always be
+  // smaller than kMaximumMarkingStepSize.
+  static size_t EstimateMarkingStepSize(double time, double marking_speed);
 
   V8_INLINE void TransferColor(HeapObject from, HeapObject to);
 
@@ -147,17 +160,17 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
     background_live_bytes_[chunk] += by;
   }
 
+  void MarkRootsForTesting();
+
+  // Performs incremental marking step for unit tests.
+  void AdvanceForTesting(double max_step_size_in_ms);
+
   bool IsMinorMarking() const {
     return IsMarking() && current_collector_ == CurrentCollector::kMinorMS;
   }
   bool IsMajorMarking() const {
     return IsMarking() && current_collector_ == CurrentCollector::kMajorMC;
   }
-
-  void MarkRootsForTesting();
-
-  // Performs incremental marking step for unit tests.
-  void AdvanceForTesting(v8::base::TimeDelta max_duration);
 
  private:
   MarkingState* marking_state() { return marking_state_; }
@@ -215,7 +228,7 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
   // marking schedule, which is indicated with StepResult::kDone.
   void AdvanceWithDeadline(StepOrigin step_origin);
 
-  void Step(v8::base::TimeDelta max_duration, StepOrigin step_origin);
+  void Step(double max_step_size_in_ms, StepOrigin step_origin);
 
   // Returns true if the function succeeds in transitioning the object
   // from white to grey.
