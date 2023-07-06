@@ -1081,22 +1081,14 @@ class WasmGenerator {
           builder_->EmitU32V(index);
           break;
         case kExprArrayNewFixed: {
-          uint32_t element_count;
-          uint8_t diceroll = data->get<uint8_t>();
-          if (diceroll < 250 || element_type.is_non_nullable()) {
-            // Most generated arrays will be small and fast...
-            element_count = diceroll % 25;
-          } else {
-            // ...but we also want to test some huge arrays.
-            element_count =
-                data->get<uint16_t>() % kV8MaxWasmArrayNewFixedLength;
-          }
-          for (uint32_t i = 0; i < element_count; ++i) {
+          size_t element_count =
+              std::min(static_cast<size_t>(data->get<uint8_t>()), data->size());
+          for (size_t i = 0; i < element_count; ++i) {
             Generate(element_type.Unpacked(), data);
           }
           builder_->EmitWithPrefix(kExprArrayNewFixed);
           builder_->EmitU32V(index);
-          builder_->EmitU32V(element_count);
+          builder_->EmitU32V(static_cast<uint32_t>(element_count));
           break;
         }
         case kExprArrayNewDefault:
