@@ -698,6 +698,21 @@ void IncrementalMarking::AdvanceOnAllocation() {
   }
 }
 
+// static
+size_t IncrementalMarking::EstimateMarkingStepSize(double time,
+                                                   double marking_speed) {
+  DCHECK_LT(0, time);
+  if (marking_speed == 0) {
+    marking_speed = kInitialConservativeMarkingSpeed;
+  }
+  const size_t marking_step_size = std::min(
+      static_cast<size_t>(marking_speed * time), kMaximumMarkingStepSize);
+  if (marking_step_size >= kMaximumMarkingStepSize) {
+    return kMaximumMarkingStepSize;
+  }
+  return static_cast<size_t>(marking_step_size * kConservativeTimeRatio);
+}
+
 bool IncrementalMarking::ShouldFinalize() const {
   DCHECK(IsMarking());
 
@@ -833,24 +848,12 @@ void IncrementalMarking::Step(double max_step_size_in_ms,
     local_marking_worklists()->MergeOnHold();
   }
 
-// Only print marking worklist in debug mode to save ~40KB of code size.
-#ifdef DEBUG
-  if (v8_flags.trace_incremental_marking && v8_flags.trace_concurrent_marking &&
-      v8_flags.trace_gc_verbose) {
-    major_collector_->marking_worklists()->Print();
-  }
-#endif
-  if (v8_flags.trace_incremental_marking) {
-    isolate()->PrintWithTimestamp(
-        "[IncrementalMarking] Marking speed %.fKB/ms\n",
-        heap()->tracer()->IncrementalMarkingSpeedInBytesPerMillisecond());
-  }
   // The first step after Scavenge will see many allocated bytes.
   // Cap the step size to distribute the marking work more uniformly.
   const double marking_speed =
       heap()->tracer()->IncrementalMarkingSpeedInBytesPerMillisecond();
-  size_t max_step_size = GCIdleTimeHandler::EstimateMarkingStepSize(
-      max_step_size_in_ms, marking_speed);
+  size_t max_step_size =
+      EstimateMarkingStepSize(max_step_size_in_ms, marking_speed);
   bytes_to_process =
       std::min(ComputeStepSizeInBytes(step_origin), max_step_size);
   bytes_to_process = std::max({bytes_to_process, kMinStepSizeInBytes});
@@ -886,7 +889,10 @@ void IncrementalMarking::Step(double max_step_size_in_ms,
   const double v8_duration = current_time - start - embedder_duration;
   heap_->tracer()->AddIncrementalMarkingStep(v8_duration, v8_bytes_processed);
 
-  if (v8_flags.trace_incremental_marking) {
+  if (V8_UNLIKELY(v8_flags.trace_incremental_marking)) {
+    isolate()->PrintWithTimestamp(
+        "[IncrementalMarking] Marking speed %.fKB/ms\n",
+        heap()->tracer()->IncrementalMarkingSpeedInBytesPerMillisecond());
     isolate()->PrintWithTimestamp(
         "[IncrementalMarking] Step %s V8: %zuKB (%zuKB), embedder: %fms "
         "(%fms) "

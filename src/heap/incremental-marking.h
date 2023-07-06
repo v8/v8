@@ -82,6 +82,22 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
   static constexpr size_t kEmbedderActivationThreshold = 0;
 #endif
 
+  // `EstimateMarkingStepSize()` will bound its step size by this ratio to give
+  // slack time for overhead.
+  static constexpr double kConservativeTimeRatio = 0.9;
+
+  // Maximum marking step size returned by `EstimateMarkingStepSize()`.
+  static constexpr size_t kMaximumMarkingStepSize = 700 * MB;
+
+  // If we haven't recorded any incremental marking events yet, we carefully
+  // mark with a conservative lower bound for the marking speed.
+  static constexpr size_t kInitialConservativeMarkingSpeed = 100 * KB;
+
+  // Computes an estimated marking step size based on available `time` and
+  // `marking_speed` in bytes/ms. Marking step size returned will always be
+  // smaller than kMaximumMarkingStepSize.
+  static size_t EstimateMarkingStepSize(double time, double marking_speed);
+
   V8_INLINE void TransferColor(HeapObject from, HeapObject to);
 
   IncrementalMarking(Heap* heap, WeakObjects* weak_objects);
