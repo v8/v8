@@ -713,11 +713,29 @@ void VisitObjectWithEmbedderFields(JSObject object,
 }
 }  // namespace
 
-void MinorMarkSweepCollector::MarkRoots(
+void MinorMarkSweepCollector::MarkRootsFromTracedHandles(
     YoungGenerationRootMarkingVisitor& root_visitor) {
+  if (auto* cpp_heap = CppHeap::From(heap_->cpp_heap_);
+      cpp_heap && cpp_heap->generational_gc_supported()) {
+    // Visit the Oilpan-to-V8 remembered set.
+    heap_->isolate()->traced_handles()->IterateAndMarkYoungRootsWithOldHosts(
+        &root_visitor);
+    // Visit the V8-to-Oilpan remembered set.
+    cpp_heap->VisitCrossHeapRememberedSetIfNeeded([this](JSObject obj) {
+      VisitObjectWithEmbedderFields(obj, *local_marking_worklists_);
+    });
+  } else {
+    // Otherwise, visit all young roots.
+    heap_->isolate()->traced_handles()->IterateYoungRoots(&root_visitor);
+  }
+}
+
+void MinorMarkSweepCollector::MarkRoots(
+    YoungGenerationRootMarkingVisitor& root_visitor,
+    bool was_marked_incrementally) {
   Isolate* isolate = heap_->isolate();
 
-  // Seed the root set (roots + old->new set).
+  // Seed the root set.
   {
     TRACE_GC(heap_->tracer(), GCTracer::Scope::MINOR_MS_MARK_SEED);
     isolate->traced_handles()->ComputeWeaknessForYoungObjects(
@@ -733,18 +751,8 @@ void MinorMarkSweepCollector::MarkRoots(
             SkipRoot::kReadOnlyBuiltins, SkipRoot::kConservativeStack});
     isolate->global_handles()->IterateYoungStrongAndDependentRoots(
         &root_visitor);
-    if (auto* cpp_heap = CppHeap::From(heap_->cpp_heap_);
-        cpp_heap && cpp_heap->generational_gc_supported()) {
-      // Visit the Oilpan-to-V8 remembered set.
-      isolate->traced_handles()->IterateAndMarkYoungRootsWithOldHosts(
-          &root_visitor);
-      // Visit the V8-to-Oilpan remembered set.
-      cpp_heap->VisitCrossHeapRememberedSetIfNeeded([this](JSObject obj) {
-        VisitObjectWithEmbedderFields(obj, *local_marking_worklists_);
-      });
-    } else {
-      // Otherwise, visit all young roots.
-      isolate->traced_handles()->IterateYoungRoots(&root_visitor);
+    if (!was_marked_incrementally) {
+      MarkRootsFromTracedHandles(root_visitor);
     }
   }
 }
@@ -802,7 +810,7 @@ void MinorMarkSweepCollector::MarkLiveObjects() {
 
   YoungGenerationRootMarkingVisitor root_visitor(main_marking_visitor_.get());
 
-  MarkRoots(root_visitor);
+  MarkRoots(root_visitor, was_marked_incrementally);
 
   // CppGC starts parallel marking tasks that will trace TracedReferences.
   if (heap_->cpp_heap_) {

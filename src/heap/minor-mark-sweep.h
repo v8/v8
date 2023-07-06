@@ -11,6 +11,7 @@
 
 #include "src/common/globals.h"
 #include "src/heap/ephemeron-remembered-set.h"
+#include "src/heap/heap.h"
 #include "src/heap/index-generator.h"
 #include "src/heap/marking-state.h"
 #include "src/heap/marking-visitor.h"
@@ -236,9 +237,12 @@ class MinorMarkSweepCollector final {
   Sweeper* sweeper() { return sweeper_; }
 
   void MarkLiveObjects();
-  void MarkRoots(YoungGenerationRootMarkingVisitor& root_visitor);
+  void MarkRoots(YoungGenerationRootMarkingVisitor& root_visitor,
+                 bool was_marked_incrementally);
   void DoParallelMarking();
   void DrainMarkingWorklist();
+  void MarkRootsFromTracedHandles(
+      YoungGenerationRootMarkingVisitor& root_visitor);
   void MarkRootsFromConservativeStack(
       YoungGenerationRootMarkingVisitor& root_visitor);
 
@@ -274,6 +278,8 @@ class MinorMarkSweepCollector final {
       remembered_sets_marking_handler_;
 
   ResizeNewSpaceMode resize_new_space_ = ResizeNewSpaceMode::kNone;
+
+  friend class IncrementalMarking;
 };
 
 }  // namespace internal
