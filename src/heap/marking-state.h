@@ -18,11 +18,6 @@ class MemoryChunk;
 template <typename ConcreteState, AccessMode access_mode>
 class MarkingStateBase {
  public:
-  // Declares that this marking state is not collecting retainers, so the
-  // marking visitor may update the heap state to store information about
-  // progress, and may avoid fully visiting an object if it is safe to do so.
-  static constexpr bool kCollectRetainers = false;
-
   explicit MarkingStateBase(PtrComprCageBase cage_base)
 #if V8_COMPRESS_POINTERS
       : cage_base_(cage_base)
@@ -46,15 +41,6 @@ class MarkingStateBase {
   V8_INLINE bool TryMarkAndAccountLiveBytes(HeapObject obj);
   V8_INLINE bool IsMarked(const HeapObject obj) const;
   V8_INLINE bool IsUnmarked(const HeapObject obj) const;
-
-  void AddStrongReferenceForReferenceSummarizer(HeapObject host,
-                                                HeapObject obj) {
-    // This is not a reference summarizer, so there is nothing to do here.
-  }
-
-  void AddWeakReferenceForReferenceSummarizer(HeapObject host, HeapObject obj) {
-    // This is not a reference summarizer, so there is nothing to do here.
-  }
 
  private:
 #if V8_COMPRESS_POINTERS

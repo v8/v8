@@ -25,17 +25,24 @@ struct EphemeronMarking {
   size_t newly_discovered_limit;
 };
 
-// The base class for all marking visitors. It implements marking logic with
-// support of bytecode flushing, embedder tracing, weak and references.
+// The base class for all marking visitors (main and concurrent marking) but
+// also for e.g. the reference summarizer. It implements marking logic with
+// support for bytecode flushing, embedder tracing and weak references.
 //
-// Derived classes are expected to provide the following:
-// - ConcreteVisitor::marking_state method,
-// - ConcreteVisitor::retaining_path_mode method,
-// - ConcreteVisitor::RecordSlot method,
-// - ConcreteVisitor::RecordRelocSlot method,
-// These methods capture the difference between the concurrent and main thread
-// marking visitors. For example, the concurrent visitor has to use the
-// snapshotting protocol to visit JSObject and left-trimmable FixedArrays.
+// Derived classes are expected to provide the following methods:
+// - marking_state,
+// - CanUpdateValuesInHeap,
+// - AddStrongReferenceForReferenceSummarizer,
+// - AddWeakReferenceForReferenceSummarizer,
+// - retaining_path_mode,
+// - RecordSlot,
+// - RecordRelocSlot,
+//
+// These methods capture the difference between the different visitor
+// implementations. For example, the concurrent visitor has to use the locking
+// for string types that can be transitioned to other types on the main thread
+// concurrently. On the other hand, the reference summarizer is not supposed to
+// write into heap objects.
 template <typename ConcreteVisitor, typename MarkingState>
 class MarkingVisitorBase : public ConcurrentHeapVisitor<int, ConcreteVisitor> {
  public:
@@ -175,23 +182,6 @@ class MarkingVisitorBase : public ConcurrentHeapVisitor<int, ConcreteVisitor> {
                                                ProgressBar& progress_bar);
   V8_INLINE int VisitFixedArrayRegularly(Map map, FixedArray object);
 
-  V8_INLINE void AddStrongReferenceForReferenceSummarizer(HeapObject host,
-                                                          HeapObject obj) {
-    concrete_visitor()
-        ->marking_state()
-        ->AddStrongReferenceForReferenceSummarizer(host, obj);
-  }
-
-  V8_INLINE void AddWeakReferenceForReferenceSummarizer(HeapObject host,
-                                                        HeapObject obj) {
-    concrete_visitor()->marking_state()->AddWeakReferenceForReferenceSummarizer(
-        host, obj);
-  }
-
-  constexpr bool CanUpdateValuesInHeap() {
-    return !MarkingState::kCollectRetainers;
-  }
-
   // Methods needed for supporting code flushing.
   bool ShouldFlushCode(SharedFunctionInfo sfi) const;
   bool ShouldFlushBaselineCode(JSFunction js_function) const;
@@ -215,6 +205,34 @@ class MarkingVisitorBase : public ConcurrentHeapVisitor<int, ConcreteVisitor> {
   ExternalPointerTable* const shared_external_pointer_table_;
   ExternalPointerTable::Space* const shared_external_pointer_space_;
 #endif  // V8_ENABLE_SANDBOX
+};
+
+// This is the common base class for main and concurrent full marking visitors.
+// Derived class are expected to provide the same methods as for
+// MarkingVisitorBase except for those defined in this class.
+template <typename ConcreteVisitor, typename MarkingState>
+class FullMarkingVisitorBase
+    : public MarkingVisitorBase<ConcreteVisitor, MarkingState> {
+ public:
+  FullMarkingVisitorBase(MarkingWorklists::Local* local_marking_worklists,
+                         WeakObjects::Local* local_weak_objects, Heap* heap,
+                         unsigned mark_compact_epoch,
+                         base::EnumSet<CodeFlushMode> code_flush_mode,
+                         bool trace_embedder_fields,
+                         bool should_keep_ages_unchanged,
+                         uint16_t code_flushing_increase)
+      : MarkingVisitorBase<ConcreteVisitor, MarkingState>(
+            local_marking_worklists, local_weak_objects, heap,
+            mark_compact_epoch, code_flush_mode, trace_embedder_fields,
+            should_keep_ages_unchanged, code_flushing_increase) {}
+
+  V8_INLINE void AddStrongReferenceForReferenceSummarizer(HeapObject host,
+                                                          HeapObject obj) {}
+
+  V8_INLINE void AddWeakReferenceForReferenceSummarizer(HeapObject host,
+                                                        HeapObject obj) {}
+
+  constexpr bool CanUpdateValuesInHeap() { return true; }
 };
 
 template <typename ConcreteVisitor, typename MarkingState>

@@ -159,8 +159,8 @@ class YoungGenerationConcurrentMarkingVisitor final
 };
 
 class ConcurrentMarkingVisitor final
-    : public MarkingVisitorBase<ConcurrentMarkingVisitor,
-                                ConcurrentMarkingState> {
+    : public FullMarkingVisitorBase<ConcurrentMarkingVisitor,
+                                    ConcurrentMarkingState> {
  public:
   ConcurrentMarkingVisitor(MarkingWorklists::Local* local_marking_worklists,
                            WeakObjects::Local* local_weak_objects, Heap* heap,
@@ -170,15 +170,15 @@ class ConcurrentMarkingVisitor final
                            bool should_keep_ages_unchanged,
                            uint16_t code_flushing_increase,
                            MemoryChunkDataMap* memory_chunk_data)
-      : MarkingVisitorBase(local_marking_worklists, local_weak_objects, heap,
-                           mark_compact_epoch, code_flush_mode,
-                           embedder_tracing_enabled, should_keep_ages_unchanged,
-                           code_flushing_increase),
+      : FullMarkingVisitorBase(
+            local_marking_worklists, local_weak_objects, heap,
+            mark_compact_epoch, code_flush_mode, embedder_tracing_enabled,
+            should_keep_ages_unchanged, code_flushing_increase),
         marking_state_(heap->isolate()),
         memory_chunk_data_(memory_chunk_data) {}
 
-  using MarkingVisitorBase<ConcurrentMarkingVisitor,
-                           ConcurrentMarkingState>::VisitMapPointerIfNeeded;
+  using FullMarkingVisitorBase<ConcurrentMarkingVisitor,
+                               ConcurrentMarkingState>::VisitMapPointerIfNeeded;
 
   static constexpr bool EnableConcurrentVisitation() { return true; }
 

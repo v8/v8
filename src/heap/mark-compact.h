@@ -30,8 +30,8 @@ class RecordMigratedSlotVisitor;
 // the concurrent marking visitor because it does not snapshot JSObjects.
 template <typename MarkingState>
 class MainMarkingVisitor final
-    : public MarkingVisitorBase<MainMarkingVisitor<MarkingState>,
-                                MarkingState> {
+    : public FullMarkingVisitorBase<MainMarkingVisitor<MarkingState>,
+                                    MarkingState> {
  public:
   MainMarkingVisitor(MarkingState* marking_state,
                      MarkingWorklists::Local* local_marking_worklists,
@@ -41,7 +41,7 @@ class MainMarkingVisitor final
                      bool trace_embedder_fields,
                      bool should_keep_ages_unchanged,
                      uint16_t code_flushing_increase)
-      : MarkingVisitorBase<MainMarkingVisitor<MarkingState>, MarkingState>(
+      : FullMarkingVisitorBase<MainMarkingVisitor<MarkingState>, MarkingState>(
             local_marking_worklists, local_weak_objects, heap,
             mark_compact_epoch, code_flush_mode, trace_embedder_fields,
             should_keep_ages_unchanged, code_flushing_increase),

@@ -20,10 +20,6 @@ namespace {
 // marking visitor.
 class ReferenceSummarizerMarkingState final {
  public:
-  // Declares that this marking state is collecting retainers, so the marking
-  // visitor must fully visit each object and can't update on-heap state.
-  static constexpr bool kCollectRetainers = true;
-
   explicit ReferenceSummarizerMarkingState(HeapObject object)
       : primary_object_(object),
         local_marking_worklists_(&marking_worklists_),
@@ -111,9 +107,21 @@ class ReferenceSummarizerMarkingVisitor
 
   ReferenceSummarizerMarkingState* marking_state() { return marking_state_; }
 
+  V8_INLINE void AddStrongReferenceForReferenceSummarizer(HeapObject host,
+                                                          HeapObject obj) {
+    marking_state()->AddStrongReferenceForReferenceSummarizer(host, obj);
+  }
+
+  V8_INLINE void AddWeakReferenceForReferenceSummarizer(HeapObject host,
+                                                        HeapObject obj) {
+    marking_state()->AddWeakReferenceForReferenceSummarizer(host, obj);
+  }
+
   TraceRetainingPathMode retaining_path_mode() {
     return TraceRetainingPathMode::kDisabled;
   }
+
+  constexpr bool CanUpdateValuesInHeap() { return false; }
 
  private:
   ReferenceSummarizerMarkingState* marking_state_;
