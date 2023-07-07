@@ -47,7 +47,6 @@
 #include "src/heap/marking-state-inl.h"
 #include "src/heap/marking-visitor-inl.h"
 #include "src/heap/marking-visitor-utility-inl.h"
-#include "src/heap/marking-visitor.h"
 #include "src/heap/memory-chunk-layout.h"
 #include "src/heap/memory-chunk.h"
 #include "src/heap/memory-measurement-inl.h"
@@ -225,6 +224,45 @@ int NumberOfParallelCompactionTasks(Heap* heap) {
 
 }  // namespace
 
+// This visitor is used for marking on the main thread. It is cheaper than
+// the concurrent marking visitor because it does not snapshot JSObjects.
+class MainMarkingVisitor final
+    : public FullMarkingVisitorBase<MainMarkingVisitor> {
+ public:
+  MainMarkingVisitor(MarkingWorklists::Local* local_marking_worklists,
+                     WeakObjects::Local* local_weak_objects, Heap* heap,
+                     unsigned mark_compact_epoch,
+                     base::EnumSet<CodeFlushMode> code_flush_mode,
+                     bool trace_embedder_fields,
+                     bool should_keep_ages_unchanged,
+                     uint16_t code_flushing_increase)
+      : FullMarkingVisitorBase<MainMarkingVisitor>(
+            local_marking_worklists, local_weak_objects, heap,
+            mark_compact_epoch, code_flush_mode, trace_embedder_fields,
+            should_keep_ages_unchanged, code_flushing_increase) {}
+
+ private:
+  // Functions required by MarkingVisitorBase.
+
+  template <typename TSlot>
+  void RecordSlot(HeapObject object, TSlot slot, HeapObject target) {
+    MarkCompactCollector::RecordSlot(object, slot, target);
+  }
+
+  void RecordRelocSlot(InstructionStream host, RelocInfo* rinfo,
+                       HeapObject target) {
+    MarkCompactCollector::RecordRelocSlot(host, rinfo, target);
+  }
+
+  TraceRetainingPathMode retaining_path_mode() {
+    return (V8_UNLIKELY(v8_flags.track_retaining_path))
+               ? TraceRetainingPathMode::kEnabled
+               : TraceRetainingPathMode::kDisabled;
+  }
+
+  friend class MarkingVisitorBase<MainMarkingVisitor>;
+};
+
 MarkCompactCollector::MarkCompactCollector(Heap* heap)
     : heap_(heap),
 #ifdef DEBUG
@@ -322,9 +360,9 @@ void MarkCompactCollector::StartMarking() {
       cpp_heap ? cpp_heap->CreateCppMarkingStateForMutatorThread()
                : MarkingWorklists::Local::kNoCppMarkingState);
   local_weak_objects_ = std::make_unique<WeakObjects::Local>(weak_objects());
-  marking_visitor_ = std::make_unique<MarkingVisitor>(
-      marking_state_, local_marking_worklists_.get(), local_weak_objects_.get(),
-      heap_, epoch(), code_flush_mode(), heap_->cpp_heap_,
+  marking_visitor_ = std::make_unique<MainMarkingVisitor>(
+      local_marking_worklists_.get(), local_weak_objects_.get(), heap_, epoch(),
+      code_flush_mode(), heap_->cpp_heap_,
       heap_->ShouldCurrentGCKeepAgesUnchanged(),
       heap_->tracer()->CodeFlushingIncrease());
   // This method evicts SFIs with flushed bytecode from the cache before

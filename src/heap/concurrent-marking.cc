@@ -159,8 +159,7 @@ class YoungGenerationConcurrentMarkingVisitor final
 };
 
 class ConcurrentMarkingVisitor final
-    : public FullMarkingVisitorBase<ConcurrentMarkingVisitor,
-                                    ConcurrentMarkingState> {
+    : public FullMarkingVisitorBase<ConcurrentMarkingVisitor> {
  public:
   ConcurrentMarkingVisitor(MarkingWorklists::Local* local_marking_worklists,
                            WeakObjects::Local* local_weak_objects, Heap* heap,
@@ -174,24 +173,23 @@ class ConcurrentMarkingVisitor final
             local_marking_worklists, local_weak_objects, heap,
             mark_compact_epoch, code_flush_mode, embedder_tracing_enabled,
             should_keep_ages_unchanged, code_flushing_increase),
-        marking_state_(heap->isolate()),
         memory_chunk_data_(memory_chunk_data) {}
 
-  using FullMarkingVisitorBase<ConcurrentMarkingVisitor,
-                               ConcurrentMarkingState>::VisitMapPointerIfNeeded;
+  using FullMarkingVisitorBase<
+      ConcurrentMarkingVisitor>::VisitMapPointerIfNeeded;
 
   static constexpr bool EnableConcurrentVisitation() { return true; }
 
   // Implements ephemeron semantics: Marks value if key is already reachable.
   // Returns true if value was actually marked.
   bool ProcessEphemeron(HeapObject key, HeapObject value) {
-    if (marking_state_.IsMarked(key)) {
-      if (marking_state_.TryMark(value)) {
+    if (IsMarked(key)) {
+      if (TryMark(value)) {
         local_marking_worklists_->Push(value);
         return true;
       }
 
-    } else if (marking_state_.IsUnmarked(value)) {
+    } else if (IsUnmarked(value)) {
       local_weak_objects_->next_ephemerons_local.Push(Ephemeron{key, value});
     }
     return false;
@@ -201,8 +199,6 @@ class ConcurrentMarkingVisitor final
   void RecordSlot(HeapObject object, TSlot slot, HeapObject target) {
     MarkCompactCollector::RecordSlot(object, slot, target);
   }
-
-  ConcurrentMarkingState* marking_state() { return &marking_state_; }
 
   void IncrementLiveBytesCached(MemoryChunk* chunk, intptr_t by) {
     DCHECK_IMPLIES(V8_COMPRESS_POINTERS_8GB_BOOL,
@@ -231,11 +227,9 @@ class ConcurrentMarkingVisitor final
     return TraceRetainingPathMode::kDisabled;
   }
 
-  ConcurrentMarkingState marking_state_;
   MemoryChunkDataMap* memory_chunk_data_;
 
-  friend class MarkingVisitorBase<ConcurrentMarkingVisitor,
-                                  ConcurrentMarkingState>;
+  friend class MarkingVisitorBase<ConcurrentMarkingVisitor>;
 };
 
 struct ConcurrentMarking::TaskState {

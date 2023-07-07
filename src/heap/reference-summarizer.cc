@@ -87,8 +87,7 @@ class ReferenceSummarizerMarkingState final {
 };
 
 class ReferenceSummarizerMarkingVisitor
-    : public MarkingVisitorBase<ReferenceSummarizerMarkingVisitor,
-                                ReferenceSummarizerMarkingState> {
+    : public MarkingVisitorBase<ReferenceSummarizerMarkingVisitor> {
  public:
   ReferenceSummarizerMarkingVisitor(
       Heap* heap, ReferenceSummarizerMarkingState* marking_state)
@@ -105,16 +104,14 @@ class ReferenceSummarizerMarkingVisitor
   void RecordRelocSlot(InstructionStream host, RelocInfo* rinfo,
                        HeapObject target) {}
 
-  ReferenceSummarizerMarkingState* marking_state() { return marking_state_; }
-
   V8_INLINE void AddStrongReferenceForReferenceSummarizer(HeapObject host,
                                                           HeapObject obj) {
-    marking_state()->AddStrongReferenceForReferenceSummarizer(host, obj);
+    marking_state_->AddStrongReferenceForReferenceSummarizer(host, obj);
   }
 
   V8_INLINE void AddWeakReferenceForReferenceSummarizer(HeapObject host,
                                                         HeapObject obj) {
-    marking_state()->AddWeakReferenceForReferenceSummarizer(host, obj);
+    marking_state_->AddWeakReferenceForReferenceSummarizer(host, obj);
   }
 
   TraceRetainingPathMode retaining_path_mode() {

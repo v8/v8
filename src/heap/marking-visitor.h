@@ -44,7 +44,7 @@ struct EphemeronMarking {
 // for string types that can be transitioned to other types on the main thread
 // concurrently. On the other hand, the reference summarizer is not supposed to
 // write into heap objects.
-template <typename ConcreteVisitor, typename MarkingState>
+template <typename ConcreteVisitor>
 class MarkingVisitorBase : public ConcurrentHeapVisitor<int, ConcreteVisitor> {
  public:
   MarkingVisitorBase(MarkingWorklists::Local* local_marking_worklists,
@@ -216,9 +216,8 @@ class MarkingVisitorBase : public ConcurrentHeapVisitor<int, ConcreteVisitor> {
 // This is the common base class for main and concurrent full marking visitors.
 // Derived class are expected to provide the same methods as for
 // MarkingVisitorBase except for those defined in this class.
-template <typename ConcreteVisitor, typename MarkingState>
-class FullMarkingVisitorBase
-    : public MarkingVisitorBase<ConcreteVisitor, MarkingState> {
+template <typename ConcreteVisitor>
+class FullMarkingVisitorBase : public MarkingVisitorBase<ConcreteVisitor> {
  public:
   FullMarkingVisitorBase(MarkingWorklists::Local* local_marking_worklists,
                          WeakObjects::Local* local_weak_objects, Heap* heap,
@@ -227,7 +226,7 @@ class FullMarkingVisitorBase
                          bool trace_embedder_fields,
                          bool should_keep_ages_unchanged,
                          uint16_t code_flushing_increase)
-      : MarkingVisitorBase<ConcreteVisitor, MarkingState>(
+      : MarkingVisitorBase<ConcreteVisitor>(
             local_marking_worklists, local_weak_objects, heap,
             mark_compact_epoch, code_flush_mode, trace_embedder_fields,
             should_keep_ages_unchanged, code_flushing_increase) {}
