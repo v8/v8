@@ -102,6 +102,7 @@ class V8_EXPORT_PRIVATE MarkingWorklists final {
   // This should be invoked at the end of marking. All worklists must be
   // empty at that point.
   void ReleaseContextWorklists();
+  bool IsUsingContextWorklists() const { return !context_worklists_.empty(); }
 
   void Clear();
   void Print();

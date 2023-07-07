@@ -165,7 +165,8 @@ class V8_EXPORT_PRIVATE ConcurrentMarking {
   void RunMajor(JobDelegate* delegate,
                 base::EnumSet<CodeFlushMode> code_flush_mode,
                 unsigned mark_compact_epoch, bool should_keep_ages_unchanged);
-  size_t GetMaxConcurrency(size_t worker_count);
+  size_t GetMajorMaxConcurrency(size_t worker_count);
+  size_t GetMinorMaxConcurrency(size_t worker_count);
   bool IsWorkLeft();
   void Resume();
   void FlushPretenuringFeedback();

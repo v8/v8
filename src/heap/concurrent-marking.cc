@@ -279,7 +279,7 @@ class ConcurrentMarking::JobTaskMajor : public v8::JobTask {
   }
 
   size_t GetMaxConcurrency(size_t worker_count) const override {
-    return concurrent_marking_->GetMaxConcurrency(worker_count);
+    return concurrent_marking_->GetMajorMaxConcurrency(worker_count);
   }
 
  private:
@@ -312,7 +312,7 @@ class ConcurrentMarking::JobTaskMinor : public v8::JobTask {
   }
 
   size_t GetMaxConcurrency(size_t worker_count) const override {
-    return concurrent_marking_->GetMaxConcurrency(worker_count);
+    return concurrent_marking_->GetMinorMaxConcurrency(worker_count);
   }
 
  private:
@@ -566,7 +566,7 @@ void ConcurrentMarking::RunMinor(JobDelegate* delegate) {
   }
 }
 
-size_t ConcurrentMarking::GetMaxConcurrency(size_t worker_count) {
+size_t ConcurrentMarking::GetMajorMaxConcurrency(size_t worker_count) {
   size_t marking_items = marking_worklists_->shared()->Size();
   marking_items += marking_worklists_->other()->Size();
   for (auto& worklist : marking_worklists_->context_worklists())
@@ -577,6 +577,16 @@ size_t ConcurrentMarking::GetMaxConcurrency(size_t worker_count) {
           std::max<size_t>({marking_items,
                             weak_objects_->discovered_ephemerons.Size(),
                             weak_objects_->current_ephemerons.Size()}));
+}
+
+size_t ConcurrentMarking::GetMinorMaxConcurrency(size_t worker_count) {
+  size_t marking_items = marking_worklists_->shared()->Size();
+  marking_items += marking_worklists_->other()->Size();
+  marking_items += heap_->minor_mark_sweep_collector()
+                       ->remembered_sets_marking_handler()
+                       ->RemainingRememberedSetsMarkingIteams();
+  DCHECK(!marking_worklists_->IsUsingContextWorklists());
+  return std::min<size_t>(task_state_.size() - 1, worker_count + marking_items);
 }
 
 void ConcurrentMarking::ScheduleJob(GarbageCollector garbage_collector,
@@ -612,9 +622,17 @@ void ConcurrentMarking::ScheduleJob(GarbageCollector garbage_collector,
 }
 
 bool ConcurrentMarking::IsWorkLeft() {
+  DCHECK(garbage_collector_.has_value());
+  if (garbage_collector_ == GarbageCollector::MARK_COMPACTOR) {
+    return !marking_worklists_->shared()->IsEmpty() ||
+           !weak_objects_->current_ephemerons.IsEmpty() ||
+           !weak_objects_->discovered_ephemerons.IsEmpty();
+  }
+  DCHECK_EQ(GarbageCollector::MINOR_MARK_SWEEPER, garbage_collector_);
   return !marking_worklists_->shared()->IsEmpty() ||
-         !weak_objects_->current_ephemerons.IsEmpty() ||
-         !weak_objects_->discovered_ephemerons.IsEmpty();
+         (heap_->minor_mark_sweep_collector()
+              ->remembered_sets_marking_handler()
+              ->RemainingRememberedSetsMarkingIteams() > 0);
 }
 
 void ConcurrentMarking::RescheduleJobIfNeeded(
