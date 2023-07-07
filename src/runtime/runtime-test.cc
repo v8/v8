@@ -1110,6 +1110,11 @@ void FillUpOneNewSpacePage(Isolate* isolate, Heap* heap) {
   DCHECK(!v8_flags.single_generation);
   PauseAllocationObserversScope pause_observers(heap);
   NewSpace* space = heap->new_space();
+  // We cannot rely on `space->limit()` to point to the end of the current page
+  // in the case where inline allocations are disabled, it actually points to
+  // the current allocation pointer.
+  DCHECK_IMPLIES(!heap->IsInlineAllocationEnabled(),
+                 space->limit() == space->top());
   int space_remaining = GetSpaceRemainingOnCurrentPage(space);
   while (space_remaining > 0) {
     int length = FixedArrayLenFromSize(space_remaining);
