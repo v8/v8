@@ -17,11 +17,19 @@ namespace v8::internal::wasm {
 
 using Assembler =
     compiler::turboshaft::Assembler<compiler::turboshaft::reducer_list<>>;
+using compiler::turboshaft::ConditionWithHint;
+using compiler::turboshaft::Float32;
+using compiler::turboshaft::Float64;
 using compiler::turboshaft::Graph;
 using compiler::turboshaft::OpIndex;
 using compiler::turboshaft::PendingLoopPhiOp;
 using compiler::turboshaft::RegisterRepresentation;
+using compiler::turboshaft::SupportedOperations;
 using TSBlock = compiler::turboshaft::Block;
+using compiler::turboshaft::V;
+using compiler::turboshaft::Word32;
+using compiler::turboshaft::Word64;
+using compiler::turboshaft::WordPtr;
 
 class TurboshaftGraphBuildingInterface {
  public:
@@ -138,8 +146,7 @@ class TurboshaftGraphBuildingInterface {
     if_block->false_block = false_block;
     if_block->merge_block = merge_block;
     // TODO(14108): Branch hints.
-    asm_.Branch(compiler::turboshaft::ConditionWithHint(cond.op), true_block,
-                false_block);
+    asm_.Branch(ConditionWithHint(cond.op), true_block, false_block);
     SetupControlFlowEdge(decoder, true_block);
     SetupControlFlowEdge(decoder, false_block);
     EnterBlock(decoder, true_block, nullptr);
@@ -169,8 +176,7 @@ class TurboshaftGraphBuildingInterface {
       SetupControlFlowEdge(decoder, return_block);
       TSBlock* non_branching = NewBlock(decoder, nullptr);
       SetupControlFlowEdge(decoder, non_branching);
-      asm_.Branch(compiler::turboshaft::ConditionWithHint(cond.op),
-                  return_block, non_branching);
+      asm_.Branch(ConditionWithHint(cond.op), return_block, non_branching);
       EnterBlock(decoder, return_block, nullptr);
       DoReturn(decoder, 0);
       EnterBlock(decoder, non_branching, nullptr);
@@ -179,8 +185,8 @@ class TurboshaftGraphBuildingInterface {
       SetupControlFlowEdge(decoder, target->merge_block);
       TSBlock* non_branching = NewBlock(decoder, nullptr);
       SetupControlFlowEdge(decoder, non_branching);
-      asm_.Branch(compiler::turboshaft::ConditionWithHint(cond.op),
-                  target->merge_block, non_branching);
+      asm_.Branch(ConditionWithHint(cond.op), target->merge_block,
+                  non_branching);
       EnterBlock(decoder, non_branching, nullptr);
     }
   }
@@ -319,7 +325,7 @@ class TurboshaftGraphBuildingInterface {
 
   void UnOp(FullDecoder* decoder, WasmOpcode opcode, const Value& value,
             Value* result) {
-    Bailout(decoder);
+    result->op = UnOpImpl(decoder, opcode, value.op);
   }
 
   void BinOp(FullDecoder* decoder, WasmOpcode opcode, const Value& lhs,
@@ -421,7 +427,53 @@ class TurboshaftGraphBuildingInterface {
 
   void Select(FullDecoder* decoder, const Value& cond, const Value& fval,
               const Value& tval, Value* result) {
-    Bailout(decoder);
+    using Implementation = compiler::turboshaft::SelectOp::Implementation;
+    bool use_select = false;
+    switch (tval.type.kind()) {
+      case kI32:
+        if (SupportedOperations::word32_select()) use_select = true;
+        break;
+      case kI64:
+        if (SupportedOperations::word64_select()) use_select = true;
+        break;
+      case kF32:
+        if (SupportedOperations::float32_select()) use_select = true;
+        break;
+      case kF64:
+        if (SupportedOperations::float64_select()) use_select = true;
+        break;
+      case kRef:
+      case kRefNull:
+        break;
+      case kS128:
+        Bailout(decoder);
+        return;
+      case kI8:
+      case kI16:
+      case kRtt:
+      case kVoid:
+      case kBottom:
+        UNREACHABLE();
+    }
+
+    if (use_select) {
+      result->op = asm_.Select(cond.op, tval.op, fval.op,
+                               RepresentationFor(decoder, tval.type),
+                               BranchHint::kNone, Implementation::kCMove);
+      return;
+    } else {
+      TSBlock* true_block = asm_.NewBlock();
+      TSBlock* false_block = asm_.NewBlock();
+      TSBlock* merge_block = asm_.NewBlock();
+      asm_.Branch(ConditionWithHint(cond.op), true_block, false_block);
+      asm_.Bind(true_block);
+      asm_.Goto(merge_block);
+      asm_.Bind(false_block);
+      asm_.Goto(merge_block);
+      asm_.Bind(merge_block);
+      result->op =
+          asm_.Phi({tval.op, fval.op}, RepresentationFor(decoder, tval.type));
+    }
   }
 
   void LoadMem(FullDecoder* decoder, LoadType type,
@@ -698,8 +750,8 @@ class TurboshaftGraphBuildingInterface {
     Bailout(decoder);
   }
 
-  void RefTestAbstract(FullDecoder* decoder, const Value& object,
-                       wasm::HeapType type, Value* result, bool null_succeeds) {
+  void RefTestAbstract(FullDecoder* decoder, const Value& object, HeapType type,
+                       Value* result, bool null_succeeds) {
     Bailout(decoder);
   }
 
@@ -709,8 +761,8 @@ class TurboshaftGraphBuildingInterface {
   }
 
   // TODO(jkummerow): {type} is redundant.
-  void RefCastAbstract(FullDecoder* decoder, const Value& object,
-                       wasm::HeapType type, Value* result, bool null_succeeds) {
+  void RefCastAbstract(FullDecoder* decoder, const Value& object, HeapType type,
+                       Value* result, bool null_succeeds) {
     Bailout(decoder);
   }
 
@@ -1127,6 +1179,140 @@ class TurboshaftGraphBuildingInterface {
     }
   }
 
+  // TODO(14108): Remove the decoder argument once we have no bailouts.
+  OpIndex UnOpImpl(FullDecoder* decoder, WasmOpcode opcode, OpIndex arg) {
+    switch (opcode) {
+      case kExprI32Eqz:
+        return asm_.Word32Equal(arg, 0);
+      case kExprF32Abs:
+        return asm_.Float32Abs(arg);
+      case kExprF32Neg:
+        return asm_.Float32Negate(arg);
+      case kExprF32Sqrt:
+        return asm_.Float32Sqrt(arg);
+      case kExprF64Abs:
+        return asm_.Float64Abs(arg);
+      case kExprF64Neg:
+        return asm_.Float64Negate(arg);
+      case kExprF64Sqrt:
+        return asm_.Float64Sqrt(arg);
+      case kExprI32SConvertF32:
+      case kExprI32UConvertF32:
+      case kExprI32SConvertF64:
+      case kExprI32UConvertF64:
+      case kExprI32SConvertSatF64:
+      case kExprI32UConvertSatF64:
+      case kExprI32SConvertSatF32:
+      case kExprI32UConvertSatF32:
+      case kExprF32ConvertF64:
+      case kExprF64SConvertI32:
+      case kExprF64UConvertI32:
+      case kExprF32SConvertI32:
+      case kExprF32UConvertI32:
+      case kExprI32AsmjsSConvertF32:
+      case kExprI32AsmjsUConvertF32:
+        Bailout(decoder);
+        return OpIndex::Invalid();
+      case kExprF64ConvertF32:
+        return asm_.ChangeFloat32ToFloat64(arg);
+      case kExprF32ReinterpretI32:
+        return asm_.BitcastWord32ToFloat32(arg);
+      case kExprI32ReinterpretF32:
+        return asm_.BitcastFloat32ToWord32(arg);
+      case kExprI32Clz:
+        return asm_.Word32CountLeadingZeros(arg);
+      case kExprI32Ctz:
+      case kExprI32Popcnt:
+        Bailout(decoder);
+        return OpIndex::Invalid();
+      case kExprF32Floor:
+      case kExprF32Ceil:
+      case kExprF32Trunc:
+      case kExprF32NearestInt:
+      case kExprF64Floor:
+      case kExprF64Ceil:
+      case kExprF64Trunc:
+      case kExprF64NearestInt:
+      case kExprF64Acos:
+      case kExprF64Asin:
+        Bailout(decoder);
+        return OpIndex::Invalid();
+      case kExprF64Atan:
+        return asm_.Float64Atan(arg);
+      case kExprF64Cos:
+        return asm_.Float64Cos(arg);
+      case kExprF64Sin:
+        return asm_.Float64Sin(arg);
+      case kExprF64Tan:
+        return asm_.Float64Tan(arg);
+      case kExprF64Exp:
+        return asm_.Float64Exp(arg);
+      case kExprF64Log:
+        return asm_.Float64Log(arg);
+      case kExprI32ConvertI64:
+        // Implicit in Turboshaft.
+        return arg;
+      case kExprI64SConvertI32:
+        return asm_.ChangeInt32ToInt64(arg);
+      case kExprI64UConvertI32:
+        return asm_.ChangeUint32ToUint64(arg);
+      case kExprF64ReinterpretI64:
+        return asm_.BitcastWord64ToFloat64(arg);
+      case kExprI64ReinterpretF64:
+        return asm_.BitcastFloat64ToWord64(arg);
+      case kExprI64Clz:
+        return asm_.Word64CountLeadingZeros(arg);
+      case kExprI64Ctz:
+      case kExprI64Popcnt:
+        Bailout(decoder);
+        return OpIndex::Invalid();
+      case kExprI64Eqz:
+        return asm_.Word64Equal(arg, 0);
+      case kExprF32SConvertI64:
+      case kExprF32UConvertI64:
+      case kExprF64SConvertI64:
+      case kExprF64UConvertI64:
+      case kExprI64SConvertF32:
+      case kExprI64UConvertF32:
+      case kExprI64SConvertF64:
+      case kExprI64UConvertF64:
+      case kExprI64SConvertSatF32:
+      case kExprI64UConvertSatF32:
+      case kExprI64SConvertSatF64:
+      case kExprI64UConvertSatF64:
+        Bailout(decoder);
+        return OpIndex::Invalid();
+      case kExprI32SExtendI8:
+        return asm_.Word32SignExtend8(arg);
+      case kExprI32SExtendI16:
+        return asm_.Word32SignExtend16(arg);
+      case kExprI64SExtendI8:
+        return asm_.Word64SignExtend8(arg);
+      case kExprI64SExtendI16:
+        return asm_.Word64SignExtend16(arg);
+      case kExprI64SExtendI32:
+        // TODO(14108): Is this correct?
+        return asm_.ChangeInt32ToInt64(arg);
+      case kExprI32AsmjsLoadMem8S:
+      case kExprI32AsmjsLoadMem8U:
+      case kExprI32AsmjsLoadMem16S:
+      case kExprI32AsmjsLoadMem16U:
+      case kExprI32AsmjsLoadMem:
+      case kExprF32AsmjsLoadMem:
+      case kExprF64AsmjsLoadMem:
+      case kExprI32AsmjsSConvertF64:
+      case kExprI32AsmjsUConvertF64:
+      case kExprRefIsNull:
+      case kExprRefAsNonNull:
+      case kExprExternInternalize:
+      case kExprExternExternalize:
+        Bailout(decoder);
+        return OpIndex::Invalid();
+      default:
+        UNREACHABLE();
+    }
+  }
+
   OpIndex BinOpImpl(FullDecoder* decoder, WasmOpcode opcode, OpIndex lhs,
                     OpIndex rhs) {
     switch (opcode) {
@@ -1136,159 +1322,253 @@ class TurboshaftGraphBuildingInterface {
         return asm_.Word32Sub(lhs, rhs);
       case kExprI32Mul:
         return asm_.Word32Mul(lhs, rhs);
-      case kExprI32DivS:
+      case kExprI32DivS: {
+        asm_.TrapIf(asm_.Word32Equal(rhs, 0), OpIndex::Invalid(),
+                    compiler::TrapId::kTrapDivByZero);
+        V<Word32> unrepresentable_condition = asm_.Word32BitwiseAnd(
+            asm_.Word32Equal(rhs, -1), asm_.Word32Equal(lhs, kMinInt));
+        asm_.TrapIf(unrepresentable_condition, OpIndex::Invalid(),
+                    compiler::TrapId::kTrapDivUnrepresentable);
+        return asm_.Int32Div(lhs, rhs);
+      }
       case kExprI32DivU:
-      case kExprI32RemS:
+        asm_.TrapIf(asm_.Word32Equal(rhs, 0), OpIndex::Invalid(),
+                    compiler::TrapId::kTrapDivByZero);
+        return asm_.Uint32Div(lhs, rhs);
+      case kExprI32RemS: {
+        asm_.TrapIf(asm_.Word32Equal(rhs, 0), OpIndex::Invalid(),
+                    compiler::TrapId::kTrapRemByZero);
+        TSBlock* denom_minus_one = asm_.NewBlock();
+        TSBlock* otherwise = asm_.NewBlock();
+        TSBlock* merge = asm_.NewBlock();
+        ConditionWithHint condition(asm_.Word32Equal(rhs, -1),
+                                    BranchHint::kFalse);
+        asm_.Branch(condition, denom_minus_one, otherwise);
+        asm_.Bind(denom_minus_one);
+        OpIndex zero = asm_.Word32Constant(0);
+        asm_.Goto(merge);
+        asm_.Bind(otherwise);
+        OpIndex mod = asm_.Int32Mod(lhs, rhs);
+        asm_.Goto(merge);
+        asm_.Bind(merge);
+        return asm_.Phi({zero, mod}, RepresentationFor(decoder, kWasmI32));
+      }
       case kExprI32RemU:
-        Bailout(decoder);
-        return OpIndex::Invalid();
+        asm_.TrapIf(asm_.Word32Equal(rhs, 0), OpIndex::Invalid(),
+                    compiler::TrapId::kTrapRemByZero);
+        return asm_.Uint32Mod(lhs, rhs);
       case kExprI32And:
         return asm_.Word32BitwiseAnd(lhs, rhs);
       case kExprI32Ior:
         return asm_.Word32BitwiseOr(lhs, rhs);
       case kExprI32Xor:
         return asm_.Word32BitwiseXor(lhs, rhs);
-      case wasm::kExprI32Shl:
-      case wasm::kExprI32ShrU:
-      case wasm::kExprI32ShrS:
-      case wasm::kExprI32Ror:
-      case wasm::kExprI32Rol:
-        Bailout(decoder);
-        return OpIndex::Invalid();
-      case wasm::kExprI32Eq:
+      case kExprI32Shl:
+        // If possible, the bitwise-and gets optimized away later.
+        return asm_.Word32ShiftLeft(lhs, asm_.Word32BitwiseAnd(rhs, 0x1f));
+      case kExprI32ShrS:
+        return asm_.Word32ShiftRightArithmetic(
+            lhs, asm_.Word32BitwiseAnd(rhs, 0x1f));
+      case kExprI32ShrU:
+        return asm_.Word32ShiftRightLogical(lhs,
+                                            asm_.Word32BitwiseAnd(rhs, 0x1f));
+      case kExprI32Ror:
+        return asm_.Word32RotateRight(lhs, asm_.Word32BitwiseAnd(rhs, 0x1f));
+      case kExprI32Rol:
+        if (SupportedOperations::word32_rol()) {
+          return asm_.Word32RotateLeft(lhs, asm_.Word32BitwiseAnd(rhs, 0x1f));
+        } else {
+          return asm_.Word32RotateRight(
+              lhs, asm_.Word32Sub(32, asm_.Word32BitwiseAnd(rhs, 0x1f)));
+        }
+      case kExprI32Eq:
         return asm_.Word32Equal(lhs, rhs);
-      case wasm::kExprI32Ne:
+      case kExprI32Ne:
         return asm_.Word32Equal(asm_.Word32Equal(lhs, rhs), 0);
-      case wasm::kExprI32LtS:
+      case kExprI32LtS:
         return asm_.Int32LessThan(lhs, rhs);
-      case wasm::kExprI32LeS:
+      case kExprI32LeS:
         return asm_.Int32LessThanOrEqual(lhs, rhs);
-      case wasm::kExprI32LtU:
+      case kExprI32LtU:
         return asm_.Uint32LessThan(lhs, rhs);
-      case wasm::kExprI32LeU:
+      case kExprI32LeU:
         return asm_.Uint32LessThanOrEqual(lhs, rhs);
-      case wasm::kExprI32GtS:
+      case kExprI32GtS:
         return asm_.Int32LessThan(rhs, lhs);
-      case wasm::kExprI32GeS:
+      case kExprI32GeS:
         return asm_.Int32LessThanOrEqual(rhs, lhs);
-      case wasm::kExprI32GtU:
+      case kExprI32GtU:
         return asm_.Uint32LessThan(rhs, lhs);
-      case wasm::kExprI32GeU:
+      case kExprI32GeU:
         return asm_.Uint32LessThanOrEqual(rhs, lhs);
-      case wasm::kExprI64Add:
+      case kExprI64Add:
         return asm_.Word64Add(lhs, rhs);
-      case wasm::kExprI64Sub:
+      case kExprI64Sub:
         return asm_.Word64Sub(lhs, rhs);
-      case wasm::kExprI64Mul:
+      case kExprI64Mul:
         return asm_.Word64Mul(lhs, rhs);
-      case wasm::kExprI64DivS:
-      case wasm::kExprI64DivU:
-      case wasm::kExprI64RemS:
-      case wasm::kExprI64RemU:
-        Bailout(decoder);
-        return OpIndex::Invalid();
-      case wasm::kExprI64And:
+      case kExprI64DivS: {
+        asm_.TrapIf(asm_.Word64Equal(rhs, 0), OpIndex::Invalid(),
+                    compiler::TrapId::kTrapDivByZero);
+        OpIndex unrepresentable_condition = asm_.Word32BitwiseAnd(
+            asm_.Word64Equal(rhs, -1),
+            asm_.Word64Equal(lhs, std::numeric_limits<int64_t>::min()));
+        asm_.TrapIf(unrepresentable_condition, OpIndex::Invalid(),
+                    compiler::TrapId::kTrapDivUnrepresentable);
+        return asm_.Int64Div(lhs, rhs);
+      }
+      case kExprI64DivU:
+        asm_.TrapIf(asm_.Word64Equal(rhs, 0), OpIndex::Invalid(),
+                    compiler::TrapId::kTrapDivByZero);
+        return asm_.Uint64Div(lhs, rhs);
+      case kExprI64RemS: {
+        asm_.TrapIf(asm_.Word64Equal(rhs, 0), OpIndex::Invalid(),
+                    compiler::TrapId::kTrapRemByZero);
+        TSBlock* denom_minus_one = asm_.NewBlock();
+        TSBlock* otherwise = asm_.NewBlock();
+        TSBlock* merge = asm_.NewBlock();
+        ConditionWithHint condition(asm_.Word64Equal(rhs, -1),
+                                    BranchHint::kFalse);
+        asm_.Branch(condition, denom_minus_one, otherwise);
+        asm_.Bind(denom_minus_one);
+        OpIndex zero = asm_.Word64Constant(int64_t{0});
+        asm_.Goto(merge);
+        asm_.Bind(otherwise);
+        OpIndex mod = asm_.Int64Mod(lhs, rhs);
+        asm_.Goto(merge);
+        asm_.Bind(merge);
+        return asm_.Phi({zero, mod}, RepresentationFor(decoder, kWasmI64));
+      }
+      case kExprI64RemU:
+        asm_.TrapIf(asm_.Word64Equal(rhs, 0), OpIndex::Invalid(),
+                    compiler::TrapId::kTrapRemByZero);
+        return asm_.Uint64Mod(lhs, rhs);
+      case kExprI64And:
         return asm_.Word64BitwiseAnd(lhs, rhs);
-      case wasm::kExprI64Ior:
+      case kExprI64Ior:
         return asm_.Word64BitwiseOr(lhs, rhs);
-      case wasm::kExprI64Xor:
+      case kExprI64Xor:
         return asm_.Word64BitwiseXor(lhs, rhs);
-      case wasm::kExprI64Shl:
-      case wasm::kExprI64ShrU:
-      case wasm::kExprI64ShrS:
-        Bailout(decoder);
-        return OpIndex::Invalid();
-      case wasm::kExprI64Eq:
+      case kExprI64Shl:
+        // If possible, the bitwise-and gets optimized away later.
+        return asm_.Word64ShiftLeft(lhs, asm_.Word64BitwiseAnd(rhs, 0x3f));
+      case kExprI64ShrS:
+        return asm_.Word64ShiftRightArithmetic(
+            lhs, asm_.Word64BitwiseAnd(rhs, 0x3f));
+      case kExprI64ShrU:
+        return asm_.Word64ShiftRightLogical(lhs,
+                                            asm_.Word64BitwiseAnd(rhs, 0x3f));
+      case kExprI64Ror:
+        return asm_.Word64RotateRight(lhs, asm_.Word64BitwiseAnd(rhs, 0x3f));
+      case kExprI64Rol:
+        if (SupportedOperations::word64_rol()) {
+          return asm_.Word64RotateLeft(lhs, asm_.Word64BitwiseAnd(rhs, 0x3f));
+        } else {
+          return asm_.Word64RotateRight(
+              lhs, asm_.Word64Sub(64, asm_.Word64BitwiseAnd(rhs, 0x3f)));
+        }
+      case kExprI64Eq:
         return asm_.Word64Equal(lhs, rhs);
-      case wasm::kExprI64Ne:
+      case kExprI64Ne:
         return asm_.Word32Equal(asm_.Word64Equal(lhs, rhs), 0);
-      case wasm::kExprI64LtS:
+      case kExprI64LtS:
         return asm_.Int64LessThan(lhs, rhs);
-      case wasm::kExprI64LeS:
+      case kExprI64LeS:
         return asm_.Int64LessThanOrEqual(lhs, rhs);
-      case wasm::kExprI64LtU:
+      case kExprI64LtU:
         return asm_.Uint64LessThan(lhs, rhs);
-      case wasm::kExprI64LeU:
+      case kExprI64LeU:
         return asm_.Uint64LessThanOrEqual(lhs, rhs);
-      case wasm::kExprI64GtS:
+      case kExprI64GtS:
         return asm_.Int64LessThan(rhs, lhs);
-      case wasm::kExprI64GeS:
+      case kExprI64GeS:
         return asm_.Int64LessThanOrEqual(rhs, lhs);
-      case wasm::kExprI64GtU:
+      case kExprI64GtU:
         return asm_.Uint64LessThan(rhs, lhs);
-      case wasm::kExprI64GeU:
+      case kExprI64GeU:
         return asm_.Uint64LessThanOrEqual(rhs, lhs);
-      case wasm::kExprI64Ror:
-      case wasm::kExprI64Rol:
-      case wasm::kExprF32CopySign:
-        Bailout(decoder);
-        return OpIndex::Invalid();
-      case wasm::kExprF32Add:
+      case kExprF32CopySign: {
+        V<Word32> lhs_without_sign =
+            asm_.Word32BitwiseAnd(asm_.BitcastFloat32ToWord32(lhs), 0x7fffffff);
+        V<Word32> rhs_sign =
+            asm_.Word32BitwiseAnd(asm_.BitcastFloat32ToWord32(rhs), 0x80000000);
+        return asm_.BitcastWord32ToFloat32(
+            asm_.Word32BitwiseOr(lhs_without_sign, rhs_sign));
+      }
+      case kExprF32Add:
         return asm_.Float32Add(lhs, rhs);
-      case wasm::kExprF32Sub:
+      case kExprF32Sub:
         return asm_.Float32Sub(lhs, rhs);
-      case wasm::kExprF32Mul:
+      case kExprF32Mul:
         return asm_.Float32Mul(lhs, rhs);
-      case wasm::kExprF32Div:
+      case kExprF32Div:
         return asm_.Float32Div(lhs, rhs);
-      case wasm::kExprF32Eq:
+      case kExprF32Eq:
         return asm_.Float32Equal(lhs, rhs);
-      case wasm::kExprF32Ne:
+      case kExprF32Ne:
         return asm_.Word32Equal(asm_.Float32Equal(lhs, rhs), 0);
-      case wasm::kExprF32Lt:
+      case kExprF32Lt:
         return asm_.Float32LessThan(lhs, rhs);
-      case wasm::kExprF32Le:
+      case kExprF32Le:
         return asm_.Float32LessThanOrEqual(lhs, rhs);
-      case wasm::kExprF32Gt:
+      case kExprF32Gt:
         return asm_.Float32LessThan(rhs, lhs);
-      case wasm::kExprF32Ge:
+      case kExprF32Ge:
         return asm_.Float32LessThanOrEqual(rhs, lhs);
-      case wasm::kExprF32Min:
+      case kExprF32Min:
         return asm_.Float32Min(rhs, lhs);
-      case wasm::kExprF32Max:
+      case kExprF32Max:
         return asm_.Float32Max(rhs, lhs);
-      case wasm::kExprF64CopySign:
+      case kExprF64CopySign: {
+        V<Word64> lhs_without_sign = asm_.Word64BitwiseAnd(
+            asm_.BitcastFloat64ToWord64(lhs), 0x7fffffffffffffff);
+        V<Word64> rhs_sign = asm_.Word64BitwiseAnd(
+            asm_.BitcastFloat64ToWord64(rhs), 0x8000000000000000);
+        return asm_.BitcastWord64ToFloat64(
+            asm_.Word64BitwiseOr(lhs_without_sign, rhs_sign));
+      }
+      case kExprF64Add:
+        return asm_.Float64Add(lhs, rhs);
+      case kExprF64Sub:
+        return asm_.Float64Sub(lhs, rhs);
+      case kExprF64Mul:
+        return asm_.Float64Mul(lhs, rhs);
+      case kExprF64Div:
+        return asm_.Float64Div(lhs, rhs);
+      case kExprF64Eq:
+        return asm_.Float64Equal(lhs, rhs);
+      case kExprF64Ne:
+        return asm_.Word32Equal(asm_.Float64Equal(lhs, rhs), 0);
+      case kExprF64Lt:
+        return asm_.Float64LessThan(lhs, rhs);
+      case kExprF64Le:
+        return asm_.Float64LessThanOrEqual(lhs, rhs);
+      case kExprF64Gt:
+        return asm_.Float64LessThan(rhs, lhs);
+      case kExprF64Ge:
+        return asm_.Float64LessThanOrEqual(rhs, lhs);
+      case kExprF64Min:
+        return asm_.Float64Min(lhs, rhs);
+      case kExprF64Max:
+        return asm_.Float64Max(lhs, rhs);
+      case kExprF64Pow:
+        return asm_.Float64Power(lhs, rhs);
+      case kExprF64Atan2:
+        return asm_.Float64Atan2(lhs, rhs);
+      case kExprF64Mod:
         Bailout(decoder);
         return OpIndex::Invalid();
-      case wasm::kExprF64Add:
-        return asm_.Float64Add(lhs, rhs);
-      case wasm::kExprF64Sub:
-        return asm_.Float64Sub(lhs, rhs);
-      case wasm::kExprF64Mul:
-        return asm_.Float64Mul(lhs, rhs);
-      case wasm::kExprF64Div:
-        return asm_.Float64Div(lhs, rhs);
-      case wasm::kExprF64Eq:
-        return asm_.Float64Equal(lhs, rhs);
-      case wasm::kExprF64Ne:
-        return asm_.Word32Equal(asm_.Float64Equal(lhs, rhs), 0);
-      case wasm::kExprF64Lt:
-        return asm_.Float64LessThan(lhs, rhs);
-      case wasm::kExprF64Le:
-        return asm_.Float64LessThanOrEqual(lhs, rhs);
-      case wasm::kExprF64Gt:
-        return asm_.Float64LessThan(rhs, lhs);
-      case wasm::kExprF64Ge:
-        return asm_.Float64LessThanOrEqual(rhs, lhs);
-      case wasm::kExprF64Min:
-        return asm_.Float64Min(lhs, rhs);
-      case wasm::kExprF64Max:
-        return asm_.Float64Max(lhs, rhs);
-      case wasm::kExprF64Pow:
-        return asm_.Float64Power(lhs, rhs);
-      case wasm::kExprF64Atan2:
-        return asm_.Float64Atan2(lhs, rhs);
-      case wasm::kExprF64Mod:
-      case wasm::kExprRefEq:
-      case wasm::kExprI32AsmjsDivS:
-      case wasm::kExprI32AsmjsDivU:
-      case wasm::kExprI32AsmjsRemS:
-      case wasm::kExprI32AsmjsRemU:
-      case wasm::kExprI32AsmjsStoreMem8:
-      case wasm::kExprI32AsmjsStoreMem16:
-      case wasm::kExprI32AsmjsStoreMem:
-      case wasm::kExprF32AsmjsStoreMem:
-      case wasm::kExprF64AsmjsStoreMem:
+      case kExprRefEq:
+        return asm_.TaggedEqual(lhs, rhs);
+      case kExprI32AsmjsDivS:
+      case kExprI32AsmjsDivU:
+      case kExprI32AsmjsRemS:
+      case kExprI32AsmjsRemU:
+      case kExprI32AsmjsStoreMem8:
+      case kExprI32AsmjsStoreMem16:
+      case kExprI32AsmjsStoreMem:
+      case kExprF32AsmjsStoreMem:
+      case kExprF64AsmjsStoreMem:
         Bailout(decoder);
         return OpIndex::Invalid();
       default:

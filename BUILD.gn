@@ -3999,6 +3999,7 @@ v8_header_set("v8_internal_headers") {
       "src/asmjs/asm-types.h",
       "src/compiler/int64-lowering.h",
       "src/compiler/turboshaft/wasm-js-lowering-reducer.h",
+      "src/compiler/turboshaft/wasm-optimize-phase.h",
       "src/compiler/turboshaft/wasm-turboshaft-compiler.h",
       "src/compiler/wasm-address-reassociation.h",
       "src/compiler/wasm-call-descriptors.h",
@@ -4660,6 +4661,7 @@ if (v8_current_cpu == "x86") {
 if (v8_enable_webassembly) {
   v8_compiler_sources += [
     "src/compiler/int64-lowering.cc",
+    "src/compiler/turboshaft/wasm-optimize-phase.cc",
     "src/compiler/turboshaft/wasm-turboshaft-compiler.cc",
     "src/compiler/wasm-address-reassociation.cc",
     "src/compiler/wasm-call-descriptors.cc",

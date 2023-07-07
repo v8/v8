@@ -1657,7 +1657,11 @@ struct SelectOp : FixedArityOperationT<3, SelectOp> {
                    (rep == RegisterRepresentation::Word32() &&
                     SupportedOperations::word32_select()) ||
                        (rep == RegisterRepresentation::Word64() &&
-                        SupportedOperations::word64_select()));
+                        SupportedOperations::word64_select()) ||
+                       (rep == RegisterRepresentation::Float32() &&
+                        SupportedOperations::float32_select()) ||
+                       (rep == RegisterRepresentation::Float64() &&
+                        SupportedOperations::float64_select()));
     DCHECK(ValidOpInputRep(graph, cond(), RegisterRepresentation::Word32()));
     DCHECK(ValidOpInputRep(graph, vtrue(), rep));
     DCHECK(ValidOpInputRep(graph, vfalse(), rep));

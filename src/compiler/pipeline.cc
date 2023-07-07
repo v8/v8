@@ -119,6 +119,7 @@
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/compiler/int64-lowering.h"
+#include "src/compiler/turboshaft/wasm-optimize-phase.h"
 #include "src/compiler/wasm-compiler.h"
 #include "src/compiler/wasm-escape-analysis.h"
 #include "src/compiler/wasm-gc-lowering.h"
@@ -3784,9 +3785,9 @@ bool Pipeline::GenerateWasmCodeFromTurboshaftGraph(
     turboshaft::PrintTurboshaftGraph(&printing_zone, code_tracer,
                                      "Graph generation");
 
-    // We do not really need this currently; we run to sort blocks to work
-    // around a bug in RecreateSchedulePhase.
-    pipeline.Run<turboshaft::OptimizePhase>();
+    // This is more than an optimization currently: We need it to sort blocks to
+    // work around a bug in RecreateSchedulePhase.
+    pipeline.Run<turboshaft::WasmOptimizePhase>();
 
     auto [new_graph, new_schedule] =
         pipeline.Run<turboshaft::RecreateSchedulePhase>(&linkage);

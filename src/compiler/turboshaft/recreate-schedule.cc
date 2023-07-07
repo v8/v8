@@ -915,11 +915,29 @@ Node* ScheduleBuilder::ProcessOperation(const SelectOp& op) {
   DCHECK((op.rep == RegisterRepresentation::Word32() &&
           SupportedOperations::word32_select()) ||
          (op.rep == RegisterRepresentation::Word64() &&
-          SupportedOperations::word64_select()));
-
-  const Operator* o = op.rep == RegisterRepresentation::Word32()
-                          ? machine.Word32Select().op()
-                          : machine.Word64Select().op();
+          SupportedOperations::word64_select()) ||
+         (op.rep == RegisterRepresentation::Float32() &&
+          SupportedOperations::float32_select()) ||
+         (op.rep == RegisterRepresentation::Float64() &&
+          SupportedOperations::float64_select()));
+  const Operator* o = nullptr;
+  switch (op.rep) {
+    case RegisterRepresentation::Enum::kWord32:
+      o = machine.Word32Select().op();
+      break;
+    case RegisterRepresentation::Enum::kWord64:
+      o = machine.Word64Select().op();
+      break;
+    case RegisterRepresentation::Enum::kFloat32:
+      o = machine.Float32Select().op();
+      break;
+    case RegisterRepresentation::Enum::kFloat64:
+      o = machine.Float64Select().op();
+      break;
+    case RegisterRepresentation::Enum::kTagged:
+    case RegisterRepresentation::Enum::kCompressed:
+      UNREACHABLE();
+  }
 
   return AddNode(
       o, {GetNode(op.cond()), GetNode(op.vtrue()), GetNode(op.vfalse())});

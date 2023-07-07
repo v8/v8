@@ -225,7 +225,7 @@ class MachineOptimizationReducer : public Next {
     }
     if (float k; rep == FloatRepresentation::Float32() &&
                  Asm().MatchFloat32Constant(input, &k)) {
-      if (std::isnan(k)) {
+      if (std::isnan(k) && !signalling_nan_possible) {
         return Asm().Float32Constant(std::numeric_limits<float>::quiet_NaN());
       }
       switch (kind) {
@@ -484,7 +484,7 @@ class MachineOptimizationReducer : public Next {
           return Asm().FloatAdd(lhs, lhs, rep);
         }
         // lhs * -1  =>  -lhs
-        if (Asm().MatchFloat(rhs, -1.0)) {
+        if (!signalling_nan_possible && Asm().MatchFloat(rhs, -1.0)) {
           return Asm().FloatNegate(lhs, rep);
         }
       }
@@ -495,7 +495,7 @@ class MachineOptimizationReducer : public Next {
           return lhs;
         }
         // lhs / -1  =>  -lhs
-        if (Asm().MatchFloat(rhs, -1.0)) {
+        if (!signalling_nan_possible && Asm().MatchFloat(rhs, -1.0)) {
           return Asm().FloatNegate(lhs, rep);
         }
         // All reciprocals of non-denormal powers of two can be represented
