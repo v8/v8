@@ -3949,6 +3949,59 @@ Handle<DescriptorArray> DescriptorArray::CopyUpToAddAttributes(
   return copy_handle;
 }
 
+// Create a new descriptor array with only enumerable, configurable, writeable
+// data properties, but identical field locations.
+Handle<DescriptorArray> DescriptorArray::CopyForFastObjectClone(
+    Isolate* isolate, Handle<DescriptorArray> src_handle, int enumeration_index,
+    int slack) {
+  if (enumeration_index + slack == 0) {
+    return isolate->factory()->empty_descriptor_array();
+  }
+
+  int size = enumeration_index;
+  Handle<DescriptorArray> descriptors_handle =
+      DescriptorArray::Allocate(isolate, size, slack);
+
+  DisallowGarbageCollection no_gc;
+  Tagged<DescriptorArray> src = *src_handle;
+  Tagged<DescriptorArray> descriptors = *descriptors_handle;
+
+  for (InternalIndex i : InternalIndex::Range(size)) {
+    Name key = src->GetKey(i);
+    PropertyDetails details = src->GetDetails(i);
+    Representation new_representation = details.representation();
+
+    DCHECK(!key.IsPrivateName());
+    DCHECK(details.IsEnumerable());
+    DCHECK_EQ(details.kind(), PropertyKind::kData);
+    // If the new representation is an in-place changeable field, make it
+    // generic as possible (under in-place changes) to avoid type confusion if
+    // the source representation changes after this feedback has been collected.
+    MaybeObject type = src->GetValue(i);
+    if (details.location() == PropertyLocation::kField) {
+      type = MaybeObject::FromObject(FieldType::Any());
+      // TODO(bmeurer,ishell): Igor suggested to use some kind of dynamic
+      // checks in the fast-path for CloneObjectIC instead to avoid the
+      // need to generalize the descriptors here. That will also enable
+      // us to skip the defensive copying of the target map whenever a
+      // CloneObjectIC misses.
+      new_representation = new_representation.MostGenericInPlaceChange();
+    }
+
+    // Ensure the ObjectClone property details are NONE, and that all source
+    // details did not contain DONT_ENUM.
+    PropertyDetails new_details(PropertyKind::kData, NONE, details.location(),
+                                details.constness(), new_representation,
+                                details.field_index());
+
+    descriptors->Set(i, key, type, new_details);
+  }
+
+  descriptors->Sort();
+
+  return descriptors_handle;
+}
+
 bool DescriptorArray::IsEqualUpTo(DescriptorArray desc, int nof_descriptors) {
   for (InternalIndex i : InternalIndex::Range(nof_descriptors)) {
     if (GetKey(i) != desc.GetKey(i) || GetValue(i) != desc.GetValue(i)) {

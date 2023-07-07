@@ -2112,22 +2112,6 @@ TNode<IntPtrT> CodeStubAssembler::LoadMapInobjectPropertiesStartInWords(
       map, Map::kInobjectPropertiesStartOrConstructorFunctionIndexOffset));
 }
 
-TNode<IntPtrT> CodeStubAssembler::MapUsedInstanceSizeInWords(TNode<Map> map) {
-  TNode<IntPtrT> used_or_unused =
-      ChangeInt32ToIntPtr(LoadMapUsedOrUnusedInstanceSizeInWords(map));
-
-  return Select<IntPtrT>(
-      UintPtrGreaterThanOrEqual(used_or_unused,
-                                IntPtrConstant(JSObject::kFieldsAdded)),
-      [=] { return used_or_unused; },
-      [=] { return LoadMapInstanceSizeInWords(map); });
-}
-
-TNode<IntPtrT> CodeStubAssembler::MapUsedInObjectProperties(TNode<Map> map) {
-  return IntPtrSub(MapUsedInstanceSizeInWords(map),
-                   LoadMapInobjectPropertiesStartInWords(map));
-}
-
 TNode<IntPtrT> CodeStubAssembler::LoadMapConstructorFunctionIndex(
     TNode<Map> map) {
   // See Map::GetConstructorFunctionIndex() for details.
@@ -3129,19 +3113,6 @@ TNode<Map> CodeStubAssembler::LoadObjectFunctionInitialMap(
   TNode<JSFunction> object_function =
       CAST(LoadContextElement(native_context, Context::OBJECT_FUNCTION_INDEX));
   return CAST(LoadJSFunctionPrototypeOrInitialMap(object_function));
-}
-
-TNode<Map> CodeStubAssembler::LoadCachedMap(TNode<NativeContext> native_context,
-                                            TNode<IntPtrT> number_of_properties,
-                                            Label* runtime) {
-  CSA_DCHECK(this, UintPtrLessThan(number_of_properties,
-                                   IntPtrConstant(JSObject::kMapCacheSize)));
-  TNode<WeakFixedArray> cache =
-      CAST(LoadContextElement(native_context, Context::MAP_CACHE_INDEX));
-  TNode<MaybeObject> value =
-      LoadWeakFixedArrayElement(cache, number_of_properties, 0);
-  TNode<Map> result = CAST(GetHeapObjectAssumeWeak(value, runtime));
-  return result;
 }
 
 TNode<Map> CodeStubAssembler::LoadSlowObjectWithNullPrototypeMap(
@@ -4177,10 +4148,8 @@ void CodeStubAssembler::InitializeJSObjectFromMap(
   if (slack_tracking_mode == kNoSlackTracking) {
     InitializeJSObjectBodyNoSlackTracking(object, map, instance_size);
   } else {
-    DCHECK(slack_tracking_mode == kWithSlackTracking ||
-           slack_tracking_mode == kSkipSlackTracking);
-    InitializeJSObjectBodyWithSlackTracking(object, map, instance_size,
-                                            slack_tracking_mode);
+    DCHECK_EQ(slack_tracking_mode, kWithSlackTracking);
+    InitializeJSObjectBodyWithSlackTracking(object, map, instance_size);
   }
 }
 
@@ -4195,9 +4164,7 @@ void CodeStubAssembler::InitializeJSObjectBodyNoSlackTracking(
 }
 
 void CodeStubAssembler::InitializeJSObjectBodyWithSlackTracking(
-    TNode<HeapObject> object, TNode<Map> map, TNode<IntPtrT> instance_size,
-    SlackTrackingMode slack_tracking_mode) {
-  DCHECK(slack_tracking_mode != kNoSlackTracking);
+    TNode<HeapObject> object, TNode<Map> map, TNode<IntPtrT> instance_size) {
   Comment("InitializeJSObjectBodyNoSlackTracking");
 
   // Perform in-object slack tracking if requested.
@@ -4213,6 +4180,14 @@ void CodeStubAssembler::InitializeJSObjectBodyWithSlackTracking(
 
   BIND(&slack_tracking);
   {
+    Comment("Decrease construction counter");
+    // Slack tracking is only done on initial maps.
+    CSA_DCHECK(this, IsUndefined(LoadMapBackPointer(map)));
+    static_assert(Map::Bits3::ConstructionCounterBits::kLastUsedBit == 31);
+    TNode<Word32T> new_bit_field3 = Int32Sub(
+        bit_field3,
+        Int32Constant(1 << Map::Bits3::ConstructionCounterBits::kShift));
+
     // The object still has in-object slack therefore the |unsed_or_unused|
     // field contain the "used" value.
     TNode<IntPtrT> used_size =
@@ -4227,45 +4202,28 @@ void CodeStubAssembler::InitializeJSObjectBodyWithSlackTracking(
     InitializeFieldsWithRoot(object, IntPtrConstant(start_offset), used_size,
                              RootIndex::kUndefinedValue);
 
-    // When cloning objects the target map might not be a root map and since we
-    // don't have access to it here (or rather accessing it would be
-    // prohibitively slow) we skip the counting and rely on the allocation site
-    // of the cloned objects to finish tracking.
-    if (slack_tracking_mode != kSkipSlackTracking) {
-      Comment("Decrease construction counter");
-      // Slack tracking is only done on initial maps.
-      CSA_DCHECK(this, IsUndefined(LoadMapBackPointer(map)));
-      static_assert(Map::Bits3::ConstructionCounterBits::kLastUsedBit == 31);
-      TNode<Word32T> new_bit_field3 = Int32Sub(
-          bit_field3,
-          Int32Constant(1 << Map::Bits3::ConstructionCounterBits::kShift));
+    static_assert(Map::kNoSlackTracking == 0);
+    GotoIf(IsClearWord32<Map::Bits3::ConstructionCounterBits>(new_bit_field3),
+           &complete);
 
-      static_assert(Map::kNoSlackTracking == 0);
-      GotoIf(IsClearWord32<Map::Bits3::ConstructionCounterBits>(new_bit_field3),
-             &complete);
+    // Setting ConstructionCounterBits to 0 requires taking the
+    // map_updater_access mutex, which we can't do from CSA, so we only manually
+    // update ConstructionCounterBits when its result is non-zero; otherwise we
+    // let the runtime do it (with the GotoIf right above this comment).
+    StoreObjectFieldNoWriteBarrier(map, Map::kBitField3Offset, new_bit_field3);
+    static_assert(Map::kSlackTrackingCounterEnd == 1);
 
-      // Setting ConstructionCounterBits to 0 requires taking the
-      // map_updater_access mutex, which we can't do from CSA, so we only
-      // manually update ConstructionCounterBits when its result is non-zero;
-      // otherwise we let the runtime do it (with the GotoIf right above this
-      // comment).
-      StoreObjectFieldNoWriteBarrier(map, Map::kBitField3Offset,
-                                     new_bit_field3);
-      static_assert(Map::kSlackTrackingCounterEnd == 1);
-    }
     Goto(&end);
   }
 
-  if (slack_tracking_mode != kSkipSlackTracking) {
-    // Finalize the instance size.
-    BIND(&complete);
-    {
-      // ComplextInobjectSlackTracking doesn't allocate and thus doesn't need a
-      // context.
-      CallRuntime(Runtime::kCompleteInobjectSlackTrackingForMap,
-                  NoContextConstant(), map);
-      Goto(&end);
-    }
+  // Finalize the instance size.
+  BIND(&complete);
+  {
+    // ComplextInobjectSlackTracking doesn't allocate and thus doesn't need a
+    // context.
+    CallRuntime(Runtime::kCompleteInobjectSlackTrackingForMap,
+                NoContextConstant(), map);
+    Goto(&end);
   }
 
   BIND(&end);

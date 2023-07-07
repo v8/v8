@@ -350,11 +350,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     kAllowLargeObjectAllocation = 1 << 2,
   };
 
-  enum SlackTrackingMode {
-    kWithSlackTracking,
-    kNoSlackTracking,
-    kSkipSlackTracking
-  };
+  enum SlackTrackingMode { kWithSlackTracking, kNoSlackTracking };
 
   using AllocationFlags = base::Flags<AllocationFlag>;
 
@@ -1467,10 +1463,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<WordT> LoadMapEnumLength(TNode<Map> map);
   // Load the back-pointer of a Map.
   TNode<Object> LoadMapBackPointer(TNode<Map> map);
-  // Compute the used instance size in words of a map.
-  TNode<IntPtrT> MapUsedInstanceSizeInWords(TNode<Map> map);
-  // Compute the number of used inobject properties on a map.
-  TNode<IntPtrT> MapUsedInObjectProperties(TNode<Map> map);
   // Checks that |map| has only simple properties, returns bitfield3.
   TNode<Uint32T> EnsureOnlyHasSimpleProperties(TNode<Map> map,
                                                TNode<Int32T> instance_type,
@@ -1703,8 +1695,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<Map> LoadObjectFunctionInitialMap(TNode<NativeContext> native_context);
   TNode<Map> LoadSlowObjectWithNullPrototypeMap(
       TNode<NativeContext> native_context);
-  TNode<Map> LoadCachedMap(TNode<NativeContext> native_context,
-                           TNode<IntPtrT> number_of_properties, Label* runtime);
 
   TNode<Map> LoadJSArrayElementsMap(ElementsKind kind,
                                     TNode<NativeContext> native_context);
@@ -2003,14 +1993,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       base::Optional<TNode<FixedArray>> elements = base::nullopt,
       SlackTrackingMode slack_tracking_mode = kNoSlackTracking);
 
-  void InitializeJSObjectBodyWithSlackTracking(
-      TNode<HeapObject> object, TNode<Map> map, TNode<IntPtrT> instance_size,
-      SlackTrackingMode slack_tracking_mode =
-          SlackTrackingMode::kWithSlackTracking);
+  void InitializeJSObjectBodyWithSlackTracking(TNode<HeapObject> object,
+                                               TNode<Map> map,
+                                               TNode<IntPtrT> instance_size);
   void InitializeJSObjectBodyNoSlackTracking(
-      TNode<HeapObject> object, TNode<Map> map, TNode<IntPtrT> instance_size,
-      int start_offset = JSObject::kHeaderSize);
-  void InitializeJSObjectBodyIgnoreSlackTracking(
       TNode<HeapObject> object, TNode<Map> map, TNode<IntPtrT> instance_size,
       int start_offset = JSObject::kHeaderSize);
 
