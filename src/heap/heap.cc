@@ -1746,14 +1746,14 @@ void Heap::SetOldGenerationAndGlobalAllocationLimit(
   old_generation_allocation_limit_.store(new_old_generation_allocation_limit,
                                          std::memory_order_relaxed);
   global_allocation_limit_ = new_global_allocation_limit;
-  old_generation_allocation_limit_configured_ = true;
+  old_generation_size_configured_ = true;
 }
 
 void Heap::ResetOldGenerationAndGlobalAllocationLimit() {
   SetOldGenerationAndGlobalAllocationLimit(
       initial_old_generation_size_,
       GlobalMemorySizeFromV8Size(initial_old_generation_size_));
-  old_generation_allocation_limit_configured_ = false;
+  old_generation_size_configured_ = false;
 }
 
 void Heap::CollectGarbage(AllocationSpace space,
@@ -2367,7 +2367,7 @@ void Heap::PerformGarbageCollection(GarbageCollector collector,
   pretenuring_handler_.ProcessPretenuringFeedback(new_space_capacity_before_gc);
 
   UpdateSurvivalStatistics(static_cast<int>(start_young_generation_size));
-  ShrinkOldGenerationAllocationLimitIfNotConfigured();
+  ConfigureInitialOldGenerationSize();
 
   if (collector == GarbageCollector::SCAVENGER) {
     // Objects that died in the new space might have been accounted
@@ -2409,10 +2409,6 @@ void Heap::PerformGarbageCollection(GarbageCollector collector,
   RecomputeLimits(collector);
 
   if (collector == GarbageCollector::MARK_COMPACTOR) {
-    // After every full GC the old generation allocation limit should be
-    // configured.
-    DCHECK(old_generation_allocation_limit_configured_);
-
     ClearStubCaches(isolate());
   }
 
@@ -2510,7 +2506,7 @@ void Heap::EnsureSweepingCompletedForObject(HeapObject object) {
 void Heap::RecomputeLimits(GarbageCollector collector) {
   if (!((collector == GarbageCollector::MARK_COMPACTOR) ||
         (HasLowYoungGenerationAllocationRate() &&
-         old_generation_allocation_limit_configured_))) {
+         old_generation_size_configured_))) {
     return;
   }
 
@@ -2555,7 +2551,7 @@ void Heap::RecomputeLimits(GarbageCollector collector) {
     CheckIneffectiveMarkCompact(
         old_gen_size, tracer()->AverageMarkCompactMutatorUtilization());
   } else if (HasLowYoungGenerationAllocationRate() &&
-             old_generation_allocation_limit_configured_) {
+             old_generation_size_configured_) {
     size_t new_old_generation_allocation_limit =
         MemoryController<V8HeapTrait>::CalculateAllocationLimit(
             this, old_gen_size, min_old_generation_size_,
@@ -2636,6 +2632,7 @@ void Heap::MarkCompact() {
   if (v8_flags.allocation_site_pretenuring) {
     EvaluateOldSpaceLocalPretenuring(size_of_objects_before_gc);
   }
+  old_generation_size_configured_ = true;
   // This should be updated before PostGarbageCollectionProcessing, which
   // can cause another GC. Take into account the objects promoted during
   // GC.
@@ -3139,12 +3136,8 @@ void* Heap::AllocateExternalBackingStore(
   return allocate(byte_length);
 }
 
-// When old generation allocation limit is not configured (before the first full
-// GC), this method shrinks the initial very large old generation size. This
-// method can only shrink allocation limits but not increase it again.
-void Heap::ShrinkOldGenerationAllocationLimitIfNotConfigured() {
-  if (!old_generation_allocation_limit_configured_ &&
-      tracer()->SurvivalEventsRecorded()) {
+void Heap::ConfigureInitialOldGenerationSize() {
+  if (!old_generation_size_configured_ && tracer()->SurvivalEventsRecorded()) {
     const size_t minimum_growing_step =
         MemoryController<V8HeapTrait>::MinimumAllocationLimitGrowingStep(
             CurrentHeapGrowingMode());
@@ -4925,7 +4918,7 @@ void Heap::ConfigureHeap(const v8::ResourceConstraints& constraints) {
     if (constraints.initial_old_generation_size_in_bytes() > 0) {
       initial_old_generation_size_ =
           constraints.initial_old_generation_size_in_bytes();
-      old_generation_allocation_limit_configured_ = true;
+      old_generation_size_configured_ = true;
     }
     if (v8_flags.initial_heap_size > 0) {
       size_t initial_heap_size =
@@ -4936,12 +4929,12 @@ void Heap::ConfigureHeap(const v8::ResourceConstraints& constraints) {
           initial_heap_size > young_generation_size
               ? initial_heap_size - young_generation_size
               : 0;
-      old_generation_allocation_limit_configured_ = true;
+      old_generation_size_configured_ = true;
     }
     if (v8_flags.initial_old_space_size > 0) {
       initial_old_generation_size_ =
           static_cast<size_t>(v8_flags.initial_old_space_size) * MB;
-      old_generation_allocation_limit_configured_ = true;
+      old_generation_size_configured_ = true;
     }
     initial_old_generation_size_ =
         std::min(initial_old_generation_size_, max_old_generation_size() / 2);
@@ -4949,7 +4942,7 @@ void Heap::ConfigureHeap(const v8::ResourceConstraints& constraints) {
         RoundDown<Page::kPageSize>(initial_old_generation_size_);
   }
 
-  if (old_generation_allocation_limit_configured_) {
+  if (old_generation_size_configured_) {
     // If the embedder pre-configures the initial old generation size,
     // then allow V8 to skip full GCs below that threshold.
     min_old_generation_size_ = initial_old_generation_size_;
@@ -5288,8 +5281,7 @@ Heap::IncrementalMarkingLimit Heap::IncrementalMarkingLimitReached() {
   if (old_generation_space_available > NewSpaceTargetCapacity() &&
       (!global_memory_available ||
        global_memory_available > NewSpaceTargetCapacity())) {
-    if (cpp_heap() && !old_generation_allocation_limit_configured_ &&
-        gc_count_ == 0) {
+    if (cpp_heap() && !old_generation_size_configured_ && gc_count_ == 0) {
       // At this point the embedder memory is above the activation
       // threshold. No GC happened so far and it's thus unlikely to get a
       // configured heap any time soon. Start a memory reducer in this case
