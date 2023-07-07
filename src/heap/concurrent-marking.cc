@@ -528,6 +528,11 @@ void ConcurrentMarking::RunMinor(JobDelegate* delegate) {
         local_marking_worklists.PushOnHold(object);
       } else {
         Map map = object.map(isolate);
+        // This DCHECK holds because the OnHold worklist, which may contain
+        // kDataOnly objects, is not merged until the atomic pause.
+        DCHECK_EQ(!heap_->tracer()->IsInAtomicPause(),
+                  Map::ObjectFieldsFrom(map.visitor_id()) ==
+                      ObjectFields::kMaybePointers);
         const auto visited_size = visitor.Visit(map, object);
         current_marked_bytes += visited_size;
         if (visited_size) {
