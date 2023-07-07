@@ -6,6 +6,7 @@
 #define V8_HEAP_MARKING_VISITOR_UTILITY_INL_H_
 
 #include "src/heap/heap.h"
+#include "src/heap/marking-worklist-inl.h"
 #include "src/objects/objects.h"
 
 namespace v8 {

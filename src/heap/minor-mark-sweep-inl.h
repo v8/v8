@@ -94,6 +94,36 @@ V8_INLINE void YoungGenerationMainMarkingVisitor::IncrementLiveBytesCached(
   entry.second += by;
 }
 
+void YoungGenerationRootMarkingVisitor::VisitRootPointer(
+    Root root, const char* description, FullObjectSlot p) {
+  VisitPointersImpl(root, p, p + 1);
+}
+
+void YoungGenerationRootMarkingVisitor::VisitRootPointers(
+    Root root, const char* description, FullObjectSlot start,
+    FullObjectSlot end) {
+  VisitPointersImpl(root, start, end);
+}
+
+template <typename TSlot>
+void YoungGenerationRootMarkingVisitor::VisitPointersImpl(Root root,
+                                                          TSlot start,
+                                                          TSlot end) {
+  if (root == Root::kStackRoots) {
+    for (TSlot slot = start; slot < end; ++slot) {
+      VisitYoungObjectViaSlot<ObjectVisitationMode::kPushToWorklist,
+                              SlotTreatmentMode::kReadOnly>(
+          main_marking_visitor_, slot);
+    }
+  } else {
+    for (TSlot slot = start; slot < end; ++slot) {
+      VisitYoungObjectViaSlot<ObjectVisitationMode::kPushToWorklist,
+                              SlotTreatmentMode::kReadWrite>(
+          main_marking_visitor_, slot);
+    }
+  }
+}
+
 template <typename Visitor>
 bool YoungGenerationRememberedSetsMarkingWorklist::ProcessNextItem(
     Visitor* visitor, base::Optional<size_t>& index) {

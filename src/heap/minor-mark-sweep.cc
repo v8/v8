@@ -214,16 +214,13 @@ YoungGenerationMarkingTask::~YoungGenerationMarkingTask() {
 
 void YoungGenerationMarkingTask::DrainMarkingWorklist() {
   HeapObject heap_object;
-  while (marking_worklists_local_.Pop(&heap_object) ||
-         marking_worklists_local_.PopOnHold(&heap_object)) {
+  while (marking_worklists_local_.Pop(&heap_object)) {
     // Maps won't change in the atomic pause, so the map can be read without
     // atomics.
     Map map = Map::cast(*heap_object.map_slot());
     // kDataOnly objects are filtered on push.
-    // TODO(v8:13012): Re-enable this DCHECK once the this optimization is
-    // implemented for MinorMS concurrent marking.
-    // DCHECK_EQ(Map::ObjectFieldsFrom(map.visitor_id()),
-    //           ObjectFields::kMaybePointers);
+    DCHECK_EQ(Map::ObjectFieldsFrom(map.visitor_id()),
+              ObjectFields::kMaybePointers);
     const auto visited_size = visitor_.Visit(map, heap_object);
     if (visited_size) {
       MemoryChunk::FromHeapObject(heap_object)
@@ -391,6 +388,13 @@ YoungGenerationRememberedSetsMarkingWorklist::
   }
 }
 
+YoungGenerationRootMarkingVisitor::YoungGenerationRootMarkingVisitor(
+    YoungGenerationMainMarkingVisitor* main_marking_visitor)
+    : main_marking_visitor_(main_marking_visitor) {}
+
+YoungGenerationRootMarkingVisitor::~YoungGenerationRootMarkingVisitor() =
+    default;
+
 // static
 constexpr size_t MinorMarkSweepCollector::kMaxParallelTasks;
 
@@ -435,47 +439,6 @@ void MinorMarkSweepCollector::FinishConcurrentMarking() {
   }
 }
 
-class MinorMarkSweepCollector::RootMarkingVisitor final : public RootVisitor {
- public:
-  explicit RootMarkingVisitor(
-      YoungGenerationMainMarkingVisitor& main_marking_visitor)
-      : main_marking_visitor_(main_marking_visitor) {}
-
-  void VisitRootPointer(Root root, const char* description,
-                        FullObjectSlot p) final {
-    VisitPointersImpl(root, p, p + 1);
-  }
-
-  void VisitRootPointers(Root root, const char* description,
-                         FullObjectSlot start, FullObjectSlot end) final {
-    VisitPointersImpl(root, start, end);
-  }
-
-  GarbageCollector collector() const override {
-    return GarbageCollector::MINOR_MARK_SWEEPER;
-  }
-
- private:
-  template <typename TSlot>
-  void VisitPointersImpl(Root root, TSlot start, TSlot end) {
-    if (root == Root::kStackRoots) {
-      for (TSlot slot = start; slot < end; ++slot) {
-        VisitYoungObjectViaSlot<ObjectVisitationMode::kPushToWorklist,
-                                SlotTreatmentMode::kReadOnly>(
-            &main_marking_visitor_, slot);
-      }
-    } else {
-      for (TSlot slot = start; slot < end; ++slot) {
-        VisitYoungObjectViaSlot<ObjectVisitationMode::kPushToWorklist,
-                                SlotTreatmentMode::kReadWrite>(
-            &main_marking_visitor_, slot);
-      }
-    }
-  }
-
-  YoungGenerationMainMarkingVisitor& main_marking_visitor_;
-};
-
 void MinorMarkSweepCollector::StartMarking() {
 #ifdef VERIFY_HEAP
   if (v8_flags.verify_heap) {
@@ -492,14 +455,20 @@ void MinorMarkSweepCollector::StartMarking() {
     // StartMarking.
     cpp_heap->InitializeTracing(CppHeap::CollectionType::kMinor);
   }
+  DCHECK_NULL(ephemeron_table_list_);
   ephemeron_table_list_ = std::make_unique<EphemeronRememberedSet::TableList>();
   local_ephemeron_table_list_ =
       std::make_unique<EphemeronRememberedSet::TableList::Local>(
           *ephemeron_table_list_.get());
+  DCHECK_NULL(local_marking_worklists_);
   local_marking_worklists_ = std::make_unique<MarkingWorklists::Local>(
       &marking_worklists_,
       cpp_heap ? cpp_heap->CreateCppMarkingStateForMutatorThread()
                : MarkingWorklists::Local::kNoCppMarkingState);
+  DCHECK_NULL(main_marking_visitor_);
+  main_marking_visitor_ = std::make_unique<YoungGenerationMainMarkingVisitor>(
+      heap_->isolate(), local_marking_worklists_.get(),
+      local_ephemeron_table_list_.get());
   DCHECK_NULL(remembered_sets_marking_handler_);
   remembered_sets_marking_handler_ =
       std::make_unique<YoungGenerationRememberedSetsMarkingWorklist>(heap_);
@@ -721,7 +690,8 @@ void VisitObjectWithEmbedderFields(JSObject object,
 }
 }  // namespace
 
-void MinorMarkSweepCollector::MarkRoots(RootMarkingVisitor* root_visitor) {
+void MinorMarkSweepCollector::MarkRoots(
+    YoungGenerationRootMarkingVisitor& root_visitor) {
   Isolate* isolate = heap_->isolate();
 
   // Seed the root set (roots + old->new set).
@@ -733,25 +703,25 @@ void MinorMarkSweepCollector::MarkRoots(RootMarkingVisitor* root_visitor) {
     // That is why we don't set skip_weak = true here and instead visit
     // global handles separately.
     heap_->IterateRoots(
-        root_visitor,
+        &root_visitor,
         base::EnumSet<SkipRoot>{
             SkipRoot::kExternalStringTable, SkipRoot::kGlobalHandles,
             SkipRoot::kTracedHandles, SkipRoot::kOldGeneration,
             SkipRoot::kReadOnlyBuiltins, SkipRoot::kConservativeStack});
     isolate->global_handles()->IterateYoungStrongAndDependentRoots(
-        root_visitor);
+        &root_visitor);
     if (auto* cpp_heap = CppHeap::From(heap_->cpp_heap_);
         cpp_heap && cpp_heap->generational_gc_supported()) {
       // Visit the Oilpan-to-V8 remembered set.
       isolate->traced_handles()->IterateAndMarkYoungRootsWithOldHosts(
-          root_visitor);
+          &root_visitor);
       // Visit the V8-to-Oilpan remembered set.
       cpp_heap->VisitCrossHeapRememberedSetIfNeeded([this](JSObject obj) {
         VisitObjectWithEmbedderFields(obj, *local_marking_worklists_);
       });
     } else {
       // Otherwise, visit all young roots.
-      isolate->traced_handles()->IterateYoungRoots(root_visitor);
+      isolate->traced_handles()->IterateYoungRoots(&root_visitor);
     }
   }
 }
@@ -782,8 +752,8 @@ void MinorMarkSweepCollector::DoParallelMarking() {
 }
 
 void MinorMarkSweepCollector::MarkRootsFromConservativeStack(
-    RootVisitor* root_visitor) {
-  heap_->IterateConservativeStackRoots(root_visitor,
+    YoungGenerationRootMarkingVisitor& root_visitor) {
+  heap_->IterateConservativeStackRoots(&root_visitor,
                                        Heap::ScanStackMode::kComplete,
                                        Heap::IterateRootsMode::kMainIsolate);
 }
@@ -807,13 +777,9 @@ void MinorMarkSweepCollector::MarkLiveObjects() {
 
   DCHECK_NOT_NULL(local_marking_worklists_);
 
-  YoungGenerationMainMarkingVisitor main_marking_visitor(
-      heap_->isolate(), local_marking_worklists_.get(),
-      local_ephemeron_table_list_.get());
+  YoungGenerationRootMarkingVisitor root_visitor(main_marking_visitor_.get());
 
-  RootMarkingVisitor root_visitor(main_marking_visitor);
-
-  MarkRoots(&root_visitor);
+  MarkRoots(root_visitor);
 
   // CppGC starts parallel marking tasks that will trace TracedReferences.
   if (heap_->cpp_heap_) {
@@ -843,14 +809,14 @@ void MinorMarkSweepCollector::MarkLiveObjects() {
     if (!v8_flags.parallel_marking && !v8_flags.concurrent_marking) {
       // Drain the worklist to populate the markbits before conservatively
       // scanning the stack.
-      DrainMarkingWorklist(main_marking_visitor);
+      DrainMarkingWorklist();
     }
-    MarkRootsFromConservativeStack(&root_visitor);
+    MarkRootsFromConservativeStack(root_visitor);
   }
 
   {
     TRACE_GC(heap_->tracer(), GCTracer::Scope::MINOR_MS_MARK_CLOSURE);
-    DrainMarkingWorklist(main_marking_visitor);
+    DrainMarkingWorklist();
   }
 
   if (was_marked_incrementally) {
@@ -859,7 +825,8 @@ void MinorMarkSweepCollector::MarkLiveObjects() {
     MarkingBarrier::DeactivateAll(heap_);
   }
 
-  main_marking_visitor.Finalize();
+  main_marking_visitor_->Finalize();
+  main_marking_visitor_.reset();
   local_marking_worklists_.reset();
   remembered_sets_marking_handler_.reset();
 
@@ -868,8 +835,7 @@ void MinorMarkSweepCollector::MarkLiveObjects() {
   }
 }
 
-void MinorMarkSweepCollector::DrainMarkingWorklist(
-    YoungGenerationMainMarkingVisitor& visitor) {
+void MinorMarkSweepCollector::DrainMarkingWorklist() {
   PtrComprCageBase cage_base(heap_->isolate());
   YoungGenerationRememberedSetsMarkingWorklist::Local remembered_sets(
       remembered_sets_marking_handler_.get());
@@ -885,18 +851,17 @@ void MinorMarkSweepCollector::DrainMarkingWorklist(
       // Maps won't change in the atomic pause, so the map can be read without
       // atomics.
       Map map = Map::cast(*heap_object.map_slot());
-      // TODO(v8:13012): Re-enable this DCHECK once the this optimization is
-      // implemented for MinorMS concurrent marking.
-      // DCHECK_EQ(Map::ObjectFieldsFrom(map.visitor_id()),
-      //           ObjectFields::kMaybePointers);
-      const auto visited_size = visitor.Visit(map, heap_object);
+      const auto visited_size = main_marking_visitor_->Visit(map, heap_object);
+      // kDataOnly objects are filtered on push.
+      DCHECK_EQ(Map::ObjectFieldsFrom(map.visitor_id()),
+                ObjectFields::kMaybePointers);
       if (visited_size) {
         MemoryChunk::FromHeapObject(heap_object)
             ->IncrementLiveBytesAtomically(
                 ALIGN_TO_ALLOCATION_ALIGNMENT(visited_size));
       }
     }
-  } while (remembered_sets.ProcessNextItem(&visitor) ||
+  } while (remembered_sets.ProcessNextItem(main_marking_visitor_.get()) ||
            !IsCppHeapMarkingFinished(heap_, local_marking_worklists_.get()));
   DCHECK(local_marking_worklists_->IsEmpty());
 }

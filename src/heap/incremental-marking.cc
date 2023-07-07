@@ -208,17 +208,19 @@ class IncrementalMarking::IncrementalMarkingRootMarkingVisitor final
 };
 
 void IncrementalMarking::MarkRoots() {
-  IncrementalMarkingRootMarkingVisitor visitor(heap_);
   CodePageHeaderModificationScope rwx_write_scope(
       "Marking of builtins table entries require write access to Code page "
       "header");
   if (IsMajorMarking()) {
+    IncrementalMarkingRootMarkingVisitor visitor(heap_);
     heap_->IterateRoots(
         &visitor,
         base::EnumSet<SkipRoot>{SkipRoot::kStack, SkipRoot::kMainThreadHandles,
                                 SkipRoot::kTracedHandles, SkipRoot::kWeak,
                                 SkipRoot::kReadOnlyBuiltins});
   } else {
+    YoungGenerationRootMarkingVisitor visitor(
+        heap_->minor_mark_sweep_collector()->main_marking_visitor());
     heap_->IterateRoots(
         &visitor, base::EnumSet<SkipRoot>{
                       SkipRoot::kStack, SkipRoot::kMainThreadHandles,

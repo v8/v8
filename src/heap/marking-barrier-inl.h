@@ -65,7 +65,8 @@ void MarkingBarrier::MarkValueLocal(HeapObject value) {
     // We do not need to insert into RememberedSet<OLD_TO_NEW> here because the
     // C++ marking barrier already does this for us.
     if (Heap::InYoungGeneration(value)) {
-      WhiteToGreyAndPush(value);  // NEW->NEW
+      WhiteToGreyAndPush<DataOnlyObjectHandlingMode::kSkipWorklist>(
+          value);  // NEW->NEW
     }
   } else {
     if (WhiteToGreyAndPush(value)) {
@@ -104,8 +105,20 @@ bool MarkingBarrier::IsCompacting(HeapObject object) const {
   return shared_heap_worklist_.has_value() && object.InWritableSharedSpace();
 }
 
+template <MarkingBarrier::DataOnlyObjectHandlingMode mode>
 bool MarkingBarrier::WhiteToGreyAndPush(HeapObject obj) {
   if (marking_state_.TryMark(obj)) {
+    if (mode == DataOnlyObjectHandlingMode::kSkipWorklist) {
+      Map map = Map::cast(*obj.map_slot());
+      const VisitorId visitor_id = map.visitor_id();
+      // Data-only objects don't require any body descriptor visitation at all.
+      if (Map::ObjectFieldsFrom(visitor_id) == ObjectFields::kDataOnly) {
+        const int visited_size = obj.SizeFromMap(map);
+        MemoryChunk::FromHeapObject(obj)->IncrementLiveBytesAtomically(
+            ALIGN_TO_ALLOCATION_ALIGNMENT(visited_size));
+        return true;
+      }
+    }
     current_worklist_->Push(obj);
     return true;
   }

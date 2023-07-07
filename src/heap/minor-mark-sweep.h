@@ -6,6 +6,7 @@
 #define V8_HEAP_MINOR_MARK_SWEEP_H_
 
 #include <atomic>
+#include <memory>
 #include <vector>
 
 #include "src/common/globals.h"
@@ -173,6 +174,30 @@ class YoungGenerationRememberedSetsMarkingWorklist {
   IndexGenerator remembered_sets_marking_index_generator_;
 };
 
+class YoungGenerationRootMarkingVisitor final : public RootVisitor {
+ public:
+  explicit YoungGenerationRootMarkingVisitor(
+      YoungGenerationMainMarkingVisitor* main_marking_visitor);
+  ~YoungGenerationRootMarkingVisitor();
+
+  V8_INLINE void VisitRootPointer(Root root, const char* description,
+                                  FullObjectSlot p) final;
+
+  V8_INLINE void VisitRootPointers(Root root, const char* description,
+                                   FullObjectSlot start,
+                                   FullObjectSlot end) final;
+
+  GarbageCollector collector() const override {
+    return GarbageCollector::MINOR_MARK_SWEEPER;
+  }
+
+ private:
+  template <typename TSlot>
+  void VisitPointersImpl(Root root, TSlot start, TSlot end);
+
+  YoungGenerationMainMarkingVisitor* const main_marking_visitor_;
+};
+
 // Collector for young-generation only.
 class MinorMarkSweepCollector final {
  public:
@@ -201,6 +226,10 @@ class MinorMarkSweepCollector final {
     return remembered_sets_marking_handler_.get();
   }
 
+  YoungGenerationMainMarkingVisitor* main_marking_visitor() {
+    return main_marking_visitor_.get();
+  }
+
  private:
   using ResizeNewSpaceMode = Heap::ResizeNewSpaceMode;
 
@@ -209,10 +238,11 @@ class MinorMarkSweepCollector final {
   Sweeper* sweeper() { return sweeper_; }
 
   void MarkLiveObjects();
-  void MarkRoots(RootMarkingVisitor* root_visitor);
+  void MarkRoots(YoungGenerationRootMarkingVisitor& root_visitor);
   void DoParallelMarking();
-  void DrainMarkingWorklist(YoungGenerationMainMarkingVisitor& visitor);
-  void MarkRootsFromConservativeStack(RootVisitor* root_visitor);
+  void DrainMarkingWorklist();
+  void MarkRootsFromConservativeStack(
+      YoungGenerationRootMarkingVisitor& root_visitor);
 
   void TraceFragmentation();
   void ClearNonLiveReferences();
@@ -236,6 +266,7 @@ class MinorMarkSweepCollector final {
   std::unique_ptr<EphemeronRememberedSet::TableList> ephemeron_table_list_;
   std::unique_ptr<EphemeronRememberedSet::TableList::Local>
       local_ephemeron_table_list_;
+  std::unique_ptr<YoungGenerationMainMarkingVisitor> main_marking_visitor_;
 
   MarkingState* const marking_state_;
   NonAtomicMarkingState* const non_atomic_marking_state_;
