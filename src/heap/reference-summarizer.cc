@@ -90,17 +90,42 @@ class ReferenceSummarizerMarkingState final {
   WeakObjects::Local local_weak_objects_;
 };
 
+class ReferenceSummarizerMarkingVisitor
+    : public MarkingVisitorBase<ReferenceSummarizerMarkingVisitor,
+                                ReferenceSummarizerMarkingState> {
+ public:
+  ReferenceSummarizerMarkingVisitor(
+      Heap* heap, ReferenceSummarizerMarkingState* marking_state)
+      : MarkingVisitorBase(
+            marking_state->local_marking_worklists(),
+            marking_state->local_weak_objects(), heap, 0 /*mark_compact_epoch*/,
+            {} /*code_flush_mode*/, false /*embedder_tracing_enabled*/,
+            true /*should_keep_ages_unchanged*/, 0 /*code_flushing_increase*/),
+        marking_state_(marking_state) {}
+
+  template <typename TSlot>
+  void RecordSlot(HeapObject object, TSlot slot, HeapObject target) {}
+
+  void RecordRelocSlot(InstructionStream host, RelocInfo* rinfo,
+                       HeapObject target) {}
+
+  ReferenceSummarizerMarkingState* marking_state() { return marking_state_; }
+
+  TraceRetainingPathMode retaining_path_mode() {
+    return TraceRetainingPathMode::kDisabled;
+  }
+
+ private:
+  ReferenceSummarizerMarkingState* marking_state_;
+};
+
 }  // namespace
 
 ReferenceSummary ReferenceSummary::SummarizeReferencesFrom(Heap* heap,
                                                            HeapObject obj) {
   ReferenceSummarizerMarkingState marking_state(obj);
 
-  MainMarkingVisitor<ReferenceSummarizerMarkingState> visitor(
-      &marking_state, marking_state.local_marking_worklists(),
-      marking_state.local_weak_objects(), heap, 0 /*mark_compact_epoch*/,
-      {} /*code_flush_mode*/, false /*embedder_tracing_enabled*/,
-      true /*should_keep_ages_unchanged*/, 0 /*code_flushing_increase*/);
+  ReferenceSummarizerMarkingVisitor visitor(heap, &marking_state);
   visitor.Visit(obj.map(heap->isolate()), obj);
 
   return marking_state.DestructivelyRetrieveReferences();
