@@ -134,8 +134,8 @@ void CSATestRunner::Add(Handle<Name> key, Handle<Object> value,
       SwissNameDictionary::Add(isolate_, reference_, key, value, details);
 
   Handle<Smi> details_smi = handle(details.AsSmi(), isolate_);
-  Handle<Oddball> success =
-      add_ft_.CallChecked<Oddball>(table, key, value, details_smi);
+  Handle<Boolean> success =
+      add_ft_.CallChecked<Boolean>(table, key, value, details_smi);
 
   if (*success == roots.false_value()) {
     // |add_ft_| does not resize and indicates the need to do so by returning

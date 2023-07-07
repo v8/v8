@@ -23,12 +23,6 @@ namespace internal {
 
 class JSGraph;
 class Graph;
-class Oddball;
-
-// TODO(jgruber): Currently this is too permissive, but at least it lets us
-// document which functions expect JS booleans. If a real Boolean type becomes
-// possible in the future, use that instead.
-using Boolean = Oddball;
 
 namespace compiler {
 
@@ -152,13 +146,13 @@ class Reducer;
   V(MinusOne, Number)                                        \
   V(NaN, Number)                                             \
   V(NoContext, Object)                                       \
-  V(Null, Oddball)                                           \
+  V(Null, Null)                                              \
   V(One, Number)                                             \
   V(TheHole, Hole)                                           \
   V(ToNumberBuiltin, InstructionStream)                      \
   V(PlainPrimitiveToNumberBuiltin, InstructionStream)        \
   V(True, Boolean)                                           \
-  V(Undefined, Oddball)                                      \
+  V(Undefined, Undefined)                                    \
   V(Zero, Number)
 
 class GraphAssembler;

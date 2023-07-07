@@ -413,7 +413,7 @@ bool Heap::CreateEarlyReadOnlyMaps() {
         Allocate(roots.null_map_handle(), AllocationType::kReadOnly);
     if (!allocation.To(&obj)) return false;
   }
-  set_null_value(Oddball::cast(obj));
+  set_null_value(Null::unchecked_cast(obj));
   Oddball::cast(obj).set_kind(Oddball::kNull);
 
   {
@@ -421,7 +421,7 @@ bool Heap::CreateEarlyReadOnlyMaps() {
         Allocate(roots.undefined_map_handle(), AllocationType::kReadOnly);
     if (!allocation.To(&obj)) return false;
   }
-  set_undefined_value(Oddball::cast(obj));
+  set_undefined_value(Undefined::unchecked_cast(obj));
   Oddball::cast(obj).set_kind(Oddball::kUndefined);
   DCHECK(!InYoungGeneration(roots.undefined_value()));
   {
@@ -913,7 +913,7 @@ bool Heap::CreateImportantReadOnlyObjects() {
         Allocate(roots.boolean_map_handle(), AllocationType::kReadOnly);
     if (!allocation.To(&obj)) return false;
   }
-  set_true_value(Oddball::cast(obj));
+  set_true_value(True::unchecked_cast(obj));
   Oddball::cast(obj).set_kind(Oddball::kTrue);
 
   {
@@ -921,7 +921,7 @@ bool Heap::CreateImportantReadOnlyObjects() {
         Allocate(roots.boolean_map_handle(), AllocationType::kReadOnly);
     if (!allocation.To(&obj)) return false;
   }
-  set_false_value(Oddball::cast(obj));
+  set_false_value(False::unchecked_cast(obj));
   Oddball::cast(obj).set_kind(Oddball::kFalse);
 
   // Hash seed for strings

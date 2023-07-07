@@ -52,10 +52,30 @@ DEF_GETTER(HeapObject, IsBoolean, bool) {
          ((Oddball::cast(*this).kind() & Oddball::kNotBooleanMask) == 0);
 }
 
-bool Oddball::ToBool(Isolate* isolate) const {
+TQ_CPP_OBJECT_DEFINITION_ASSERTS(Null, Oddball)
+OBJECT_CONSTRUCTORS_IMPL(Null, Oddball)
+CAST_ACCESSOR(Null)
+
+TQ_CPP_OBJECT_DEFINITION_ASSERTS(Undefined, Oddball)
+OBJECT_CONSTRUCTORS_IMPL(Undefined, Oddball)
+CAST_ACCESSOR(Undefined)
+
+TQ_CPP_OBJECT_DEFINITION_ASSERTS(Boolean, Oddball)
+OBJECT_CONSTRUCTORS_IMPL(Boolean, Oddball)
+CAST_ACCESSOR(Boolean)
+
+bool Boolean::ToBool(Isolate* isolate) const {
   DCHECK(IsBoolean(isolate));
   return IsTrue(isolate);
 }
+
+TQ_CPP_OBJECT_DEFINITION_ASSERTS(True, Boolean)
+OBJECT_CONSTRUCTORS_IMPL(True, Boolean)
+CAST_ACCESSOR(True)
+
+TQ_CPP_OBJECT_DEFINITION_ASSERTS(False, Boolean)
+OBJECT_CONSTRUCTORS_IMPL(False, Boolean)
+CAST_ACCESSOR(False)
 
 }  // namespace internal
 }  // namespace v8

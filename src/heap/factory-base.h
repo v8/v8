@@ -90,7 +90,7 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
   Handle<Code> NewCode(const NewCodeOptions& options);
 
   // Converts the given boolean condition to JavaScript boolean value.
-  inline Handle<Oddball> ToBoolean(bool value);
+  inline Handle<Boolean> ToBoolean(bool value);
 
 #define ROOT_ACCESSOR(Type, name, CamelName) inline Handle<Type> name();
   READ_ONLY_ROOT_LIST(ROOT_ACCESSOR)

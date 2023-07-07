@@ -959,7 +959,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                     int false_value);
   TNode<IntPtrT> SelectIntPtrConstant(TNode<BoolT> condition, int true_value,
                                       int false_value);
-  TNode<Oddball> SelectBooleanConstant(TNode<BoolT> condition);
+  TNode<Boolean> SelectBooleanConstant(TNode<BoolT> condition);
   TNode<Smi> SelectSmiConstant(TNode<BoolT> condition, Smi true_value,
                                Smi false_value);
   TNode<Smi> SelectSmiConstant(TNode<BoolT> condition, int true_value,
@@ -2131,7 +2131,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // TODO(v8:9722): Return type should be JSIteratorResult
   TNode<JSObject> AllocateJSIteratorResult(TNode<Context> context,
                                            TNode<Object> value,
-                                           TNode<Oddball> done);
+                                           TNode<Boolean> done);
 
   // TODO(v8:9722): Return type should be JSIteratorResult
   TNode<JSObject> AllocateJSIteratorResultForEntry(TNode<Context> context,
@@ -3522,11 +3522,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Returns true if {object} has {prototype} somewhere in it's prototype
   // chain, otherwise false is returned. Might cause arbitrary side effects
   // due to [[GetPrototypeOf]] invocations.
-  TNode<Oddball> HasInPrototypeChain(TNode<Context> context,
+  TNode<Boolean> HasInPrototypeChain(TNode<Context> context,
                                      TNode<HeapObject> object,
                                      TNode<Object> prototype);
   // ES6 section 7.3.19 OrdinaryHasInstance (C, O)
-  TNode<Oddball> OrdinaryHasInstance(TNode<Context> context,
+  TNode<Boolean> OrdinaryHasInstance(TNode<Context> context,
                                      TNode<Object> callable,
                                      TNode<Object> object);
 
@@ -3752,14 +3752,14 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                                     TNode<Uint32T> depth,
                                                     Label* target);
 
-  TNode<Oddball> RelationalComparison(
+  TNode<Boolean> RelationalComparison(
       Operation op, TNode<Object> left, TNode<Object> right,
       TNode<Context> context, TVariable<Smi>* var_type_feedback = nullptr) {
     return RelationalComparison(
         op, left, right, [=]() { return context; }, var_type_feedback);
   }
 
-  TNode<Oddball> RelationalComparison(
+  TNode<Boolean> RelationalComparison(
       Operation op, TNode<Object> left, TNode<Object> right,
       const LazyNode<Context>& context,
       TVariable<Smi>* var_type_feedback = nullptr);
@@ -3812,17 +3812,17 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   void GotoIfNumberGreaterThanOrEqual(TNode<Number> left, TNode<Number> right,
                                       Label* if_false);
 
-  TNode<Oddball> Equal(TNode<Object> lhs, TNode<Object> rhs,
+  TNode<Boolean> Equal(TNode<Object> lhs, TNode<Object> rhs,
                        TNode<Context> context,
                        TVariable<Smi>* var_type_feedback = nullptr) {
     return Equal(
         lhs, rhs, [=]() { return context; }, var_type_feedback);
   }
-  TNode<Oddball> Equal(TNode<Object> lhs, TNode<Object> rhs,
+  TNode<Boolean> Equal(TNode<Object> lhs, TNode<Object> rhs,
                        const LazyNode<Context>& context,
                        TVariable<Smi>* var_type_feedback = nullptr);
 
-  TNode<Oddball> StrictEqual(TNode<Object> lhs, TNode<Object> rhs,
+  TNode<Boolean> StrictEqual(TNode<Object> lhs, TNode<Object> rhs,
                              TVariable<Smi>* var_type_feedback = nullptr);
 
   void GotoIfStringEqual(TNode<String> lhs, TNode<IntPtrT> lhs_length,
@@ -3840,7 +3840,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   void BranchIfStringEqual(TNode<String> lhs, TNode<String> rhs, Label* if_true,
                            Label* if_false,
-                           TVariable<Oddball>* result = nullptr) {
+                           TVariable<Boolean>* result = nullptr) {
     return BranchIfStringEqual(lhs, LoadStringLengthAsWord(lhs), rhs,
                                LoadStringLengthAsWord(rhs), if_true, if_false,
                                result);
@@ -3849,7 +3849,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   void BranchIfStringEqual(TNode<String> lhs, TNode<IntPtrT> lhs_length,
                            TNode<String> rhs, TNode<IntPtrT> rhs_length,
                            Label* if_true, Label* if_false,
-                           TVariable<Oddball>* result = nullptr);
+                           TVariable<Boolean>* result = nullptr);
 
   // ECMA#sec-samevalue
   // Similar to StrictEqual except that NaNs are treated as equal and minus zero
@@ -3866,11 +3866,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   enum HasPropertyLookupMode { kHasProperty, kForInHasProperty };
 
-  TNode<Oddball> HasProperty(TNode<Context> context, TNode<Object> object,
+  TNode<Boolean> HasProperty(TNode<Context> context, TNode<Object> object,
                              TNode<Object> key, HasPropertyLookupMode mode);
 
   // Due to naming conflict with the builtin function namespace.
-  TNode<Oddball> HasProperty_Inline(TNode<Context> context,
+  TNode<Boolean> HasProperty_Inline(TNode<Context> context,
                                     TNode<JSReceiver> object,
                                     TNode<Object> key) {
     return HasProperty(context, object, key,
@@ -3891,7 +3891,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                        TNode<Object> object,
                                        TNode<JSReceiver> default_constructor);
 
-  TNode<Oddball> InstanceOf(TNode<Object> object, TNode<Object> callable,
+  TNode<Boolean> InstanceOf(TNode<Object> object, TNode<Object> callable,
                             TNode<Context> context);
 
   // Debug helpers

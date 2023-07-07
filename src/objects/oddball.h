@@ -38,8 +38,6 @@ class Oddball : public PrimitiveHeapObject {
   V8_WARN_UNUSED_RESULT static inline Handle<Object> ToNumber(
       Isolate* isolate, Handle<Oddball> input);
 
-  V8_INLINE bool ToBool(Isolate* isolate) const;
-
   DECL_CAST(Oddball)
 
   // Dispatched behavior.
@@ -57,6 +55,7 @@ class Oddball : public PrimitiveHeapObject {
   DECL_FIELD_OFFSET_TQ(TypeOf, kToNumberOffset + kTaggedSize, "String")
   DECL_FIELD_OFFSET_TQ(Kind, kTypeOfOffset + kTaggedSize, "Smi")
   static const int kSize = kKindOffset + kTaggedSize;
+  static const int kHeaderSize = kSize;
 
   static const uint8_t kFalse = 0;
   static const uint8_t kTrue = 1;
@@ -82,6 +81,39 @@ class Oddball : public PrimitiveHeapObject {
   DECL_PRINTER(Oddball)
 
   OBJECT_CONSTRUCTORS(Oddball, PrimitiveHeapObject);
+};
+
+class Null : public Oddball {
+ public:
+  DECL_CAST(Null)
+  OBJECT_CONSTRUCTORS(Null, Oddball);
+};
+
+class Undefined : public Oddball {
+ public:
+  DECL_CAST(Undefined)
+  OBJECT_CONSTRUCTORS(Undefined, Oddball);
+};
+
+class Boolean : public Oddball {
+ public:
+  DECL_CAST(Boolean)
+
+  V8_INLINE bool ToBool(Isolate* isolate) const;
+
+  OBJECT_CONSTRUCTORS(Boolean, Oddball);
+};
+
+class True : public Boolean {
+ public:
+  DECL_CAST(True)
+  OBJECT_CONSTRUCTORS(True, Boolean);
+};
+
+class False : public Boolean {
+ public:
+  DECL_CAST(False)
+  OBJECT_CONSTRUCTORS(False, Boolean);
 };
 
 }  // namespace internal

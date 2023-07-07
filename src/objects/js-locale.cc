@@ -812,7 +812,7 @@ Handle<Object> JSLocale::Numeric(Isolate* isolate, Handle<JSLocale> locale) {
   UErrorCode status = U_ZERO_ERROR;
   std::string numeric =
       icu_locale->getUnicodeKeywordValue<std::string>("kn", status);
-  return (numeric == "true") ? factory->true_value() : factory->false_value();
+  return factory->ToBoolean(numeric == "true");
 }
 
 Handle<Object> JSLocale::NumberingSystem(Isolate* isolate,

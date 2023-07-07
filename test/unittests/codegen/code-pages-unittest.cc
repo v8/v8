@@ -252,7 +252,7 @@ TEST_F(CodePagesTest, OptimizedCodeWithCodePages) {
       snprintf(foo_name, sizeof(foo_name), "foo%d", n);
       context()
           ->Global()
-          ->Set(context(), NewString(foo_name), Undefined(isolate()))
+          ->Set(context(), NewString(foo_name), v8::Undefined(isolate()))
           .Check();
     }
   }

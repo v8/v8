@@ -70,8 +70,6 @@ struct BuiltinCallDescriptor {
 #endif  // DEBUG
   };
 
-  using Boolean = Oddball;
-
  public:
   struct CheckTurbofanType : public Descriptor<CheckTurbofanType> {
     static constexpr auto Function = Builtin::kCheckTurbofanType;

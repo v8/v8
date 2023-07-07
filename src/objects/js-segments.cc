@@ -158,9 +158,7 @@ MaybeHandle<Object> JSSegments::CreateSegmentDataObject(
     // a. Let isWordLike be a Boolean value indicating whether the word segment
     //    segment in string is "word-like" according to locale
     //    segmenter.[[Locale]].
-    is_word_like = CurrentSegmentIsWordLike(break_iterator)
-                       ? factory->true_value()
-                       : factory->false_value();
+    is_word_like = factory->ToBoolean(CurrentSegmentIsWordLike(break_iterator));
     // b. Perform ! CreateDataPropertyOrThrow(result, "isWordLike", isWordLike).
     Maybe<bool> maybe_create_is_word_like = JSReceiver::CreateDataProperty(
         isolate, result, factory->isWordLike_string(), is_word_like,

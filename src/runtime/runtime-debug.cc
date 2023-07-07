@@ -809,7 +809,7 @@ RUNTIME_FUNCTION(Runtime_DebugCollectCoverage) {
 
 RUNTIME_FUNCTION(Runtime_DebugTogglePreciseCoverage) {
   SealHandleScope shs(isolate);
-  bool enable = Oddball::cast(args[0]).ToBool(isolate);
+  bool enable = Boolean::cast(args[0]).ToBool(isolate);
   Coverage::SelectMode(isolate, enable ? debug::CoverageMode::kPreciseCount
                                        : debug::CoverageMode::kBestEffort);
   return ReadOnlyRoots(isolate).undefined_value();
@@ -817,7 +817,7 @@ RUNTIME_FUNCTION(Runtime_DebugTogglePreciseCoverage) {
 
 RUNTIME_FUNCTION(Runtime_DebugToggleBlockCoverage) {
   SealHandleScope shs(isolate);
-  bool enable = Oddball::cast(args[0]).ToBool(isolate);
+  bool enable = Boolean::cast(args[0]).ToBool(isolate);
   Coverage::SelectMode(isolate, enable ? debug::CoverageMode::kBlockCount
                                        : debug::CoverageMode::kBestEffort);
   return ReadOnlyRoots(isolate).undefined_value();
@@ -834,7 +834,7 @@ RUNTIME_FUNCTION(Runtime_DebugAsyncFunctionSuspended) {
   Handle<JSPromise> outer_promise = args.at<JSPromise>(1);
   Handle<JSFunction> reject_handler = args.at<JSFunction>(2);
   Handle<JSGeneratorObject> generator = args.at<JSGeneratorObject>(3);
-  bool is_predicted_as_caught = Oddball::cast(args[4]).ToBool(isolate);
+  bool is_predicted_as_caught = Boolean::cast(args[4]).ToBool(isolate);
 
   // Allocate the throwaway promise and fire the appropriate init
   // hook for the throwaway promise (passing the {promise} as its

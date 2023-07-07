@@ -207,6 +207,14 @@ struct ref_traits<Object> {
 template <>
 struct ref_traits<Oddball> : public ref_traits<HeapObject> {};
 template <>
+struct ref_traits<Null> : public ref_traits<HeapObject> {};
+template <>
+struct ref_traits<Undefined> : public ref_traits<HeapObject> {};
+template <>
+struct ref_traits<True> : public ref_traits<HeapObject> {};
+template <>
+struct ref_traits<False> : public ref_traits<HeapObject> {};
+template <>
 struct ref_traits<Hole> : public ref_traits<HeapObject> {};
 template <>
 struct ref_traits<EnumCache> : public ref_traits<HeapObject> {};

@@ -145,6 +145,11 @@ struct ObjectTypeOf {};
   struct ObjectTypeOf<Name<Args...>> {                   \
     static const ObjectType value = ObjectType::k##Name; \
   };
+#define OBJECT_TYPE_ODDBALL_CASE(Name)                    \
+  template <>                                             \
+  struct ObjectTypeOf<Name> {                             \
+    static const ObjectType value = ObjectType::kOddball; \
+  };
 OBJECT_TYPE_CASE(Object)
 OBJECT_TYPE_CASE(Smi)
 OBJECT_TYPE_CASE(TaggedIndex)
@@ -154,6 +159,10 @@ OBJECT_TYPE_LIST(OBJECT_TYPE_CASE)
 HEAP_OBJECT_ORDINARY_TYPE_LIST(OBJECT_TYPE_CASE)
 STRUCT_LIST(OBJECT_TYPE_STRUCT_CASE)
 HEAP_OBJECT_TEMPLATE_TYPE_LIST(OBJECT_TYPE_TEMPLATE_CASE)
+OBJECT_TYPE_ODDBALL_CASE(Null)
+OBJECT_TYPE_ODDBALL_CASE(Undefined)
+OBJECT_TYPE_ODDBALL_CASE(True)
+OBJECT_TYPE_ODDBALL_CASE(False)
 #undef OBJECT_TYPE_CASE
 #undef OBJECT_TYPE_STRUCT_CASE
 #undef OBJECT_TYPE_TEMPLATE_CASE
@@ -550,7 +559,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
     return UncheckedCast<Type>(UntypedHeapConstant(object));
   }
   TNode<String> StringConstant(const char* str);
-  TNode<Oddball> BooleanConstant(bool value);
+  TNode<Boolean> BooleanConstant(bool value);
   TNode<ExternalReference> ExternalConstant(ExternalReference address);
   TNode<Float32T> Float32Constant(double value);
   TNode<Float64T> Float64Constant(double value);

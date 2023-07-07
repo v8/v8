@@ -7956,8 +7956,7 @@ MaybeHandle<Oddball> JSTemporalDuration::Blank(
         duration->minutes().Number(), duration->seconds().Number(),
         duration->milliseconds().Number(), duration->microseconds().Number(),
         duration->nanoseconds().Number()}});
-  return sign == 0 ? isolate->factory()->true_value()
-                   : isolate->factory()->false_value();
+  return isolate->factory()->ToBoolean(sign == 0);
 }
 
 namespace {

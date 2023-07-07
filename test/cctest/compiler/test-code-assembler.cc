@@ -86,7 +86,7 @@ TEST(SimpleCallRuntime1Arg) {
   TNode<Smi> b = SmiTag(&m, m.IntPtrConstant(0));
   m.Return(m.CallRuntime(Runtime::kIsSmi, context, b));
   FunctionTester ft(asm_tester.GenerateCode());
-  CHECK(ft.CallChecked<Oddball>().is_identical_to(
+  CHECK(ft.CallChecked<Boolean>().is_identical_to(
       isolate->factory()->true_value()));
 }
 
@@ -99,7 +99,7 @@ TEST(SimpleTailCallRuntime1Arg) {
   TNode<Smi> b = SmiTag(&m, m.IntPtrConstant(0));
   m.TailCallRuntime(Runtime::kIsSmi, context, b);
   FunctionTester ft(asm_tester.GenerateCode());
-  CHECK(ft.CallChecked<Oddball>().is_identical_to(
+  CHECK(ft.CallChecked<Boolean>().is_identical_to(
       isolate->factory()->true_value()));
 }
 

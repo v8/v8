@@ -293,9 +293,9 @@ TNode<String> CodeAssembler::StringConstant(const char* str) {
   return UncheckedCast<String>(HeapConstant(internalized_string));
 }
 
-TNode<Oddball> CodeAssembler::BooleanConstant(bool value) {
-  Handle<Object> object = isolate()->factory()->ToBoolean(value);
-  return UncheckedCast<Oddball>(
+TNode<Boolean> CodeAssembler::BooleanConstant(bool value) {
+  Handle<Boolean> object = isolate()->factory()->ToBoolean(value);
+  return UncheckedCast<Boolean>(
       jsgraph()->HeapConstant(Handle<HeapObject>::cast(object)));
 }
 

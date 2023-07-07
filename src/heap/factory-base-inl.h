@@ -25,8 +25,9 @@ READ_ONLY_ROOT_LIST(ROOT_ACCESSOR)
 #undef ROOT_ACCESSOR
 
 template <typename Impl>
-Handle<Oddball> FactoryBase<Impl>::ToBoolean(bool value) {
-  return value ? impl()->true_value() : impl()->false_value();
+Handle<Boolean> FactoryBase<Impl>::ToBoolean(bool value) {
+  return value ? Handle<Boolean>::cast(impl()->true_value())
+               : Handle<Boolean>::cast(impl()->false_value());
 }
 
 template <typename Impl>

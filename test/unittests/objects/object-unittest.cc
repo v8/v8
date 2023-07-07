@@ -240,10 +240,7 @@ static void CheckNumber(Isolate* isolate, double value, const char* string) {
 }
 
 static void CheckBoolean(Isolate* isolate, bool value, const char* string) {
-  CheckObject(isolate,
-              value ? isolate->factory()->true_value()
-                    : isolate->factory()->false_value(),
-              string);
+  CheckObject(isolate, isolate->factory()->ToBoolean(value), string);
 }
 
 TEST_F(ObjectTest, NoSideEffectsToString) {

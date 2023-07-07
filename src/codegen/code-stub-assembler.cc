@@ -235,9 +235,9 @@ TNode<IntPtrT> CodeStubAssembler::SelectIntPtrConstant(TNode<BoolT> condition,
                                  IntPtrConstant(false_value));
 }
 
-TNode<Oddball> CodeStubAssembler::SelectBooleanConstant(
+TNode<Boolean> CodeStubAssembler::SelectBooleanConstant(
     TNode<BoolT> condition) {
-  return SelectConstant<Oddball>(condition, TrueConstant(), FalseConstant());
+  return SelectConstant<Boolean>(condition, TrueConstant(), FalseConstant());
 }
 
 TNode<Smi> CodeStubAssembler::SelectSmiConstant(TNode<BoolT> condition,
@@ -3933,7 +3933,7 @@ TNode<NameDictionary> CodeStubAssembler::AllocateNameDictionaryWithCapacity(
     TNode<IntPtrT> end_address = IntPtrAdd(
         result_word, IntPtrSub(store_size, IntPtrConstant(kHeapObjectTag)));
 
-    TNode<Oddball> filler = UndefinedConstant();
+    TNode<Undefined> filler = UndefinedConstant();
     DCHECK(RootsTable::IsImmortalImmovable(RootIndex::kUndefinedValue));
 
     StoreFieldsNoWriteBarrier(start_address, end_address, filler);
@@ -4979,7 +4979,7 @@ void CodeStubAssembler::FillPropertyArrayWithUndefined(
     TNode<PropertyArray> array, TNode<IntPtrT> from_index,
     TNode<IntPtrT> to_index) {
   ElementsKind kind = PACKED_ELEMENTS;
-  TNode<Oddball> value = UndefinedConstant();
+  TNode<Undefined> value = UndefinedConstant();
   BuildFastArrayForEach(
       array, kind, from_index, to_index,
       [this, value](TNode<HeapObject> array, TNode<IntPtrT> offset) {
@@ -9016,7 +9016,7 @@ void CodeStubAssembler::NameDictionaryLookup(
   // See Dictionary::FirstProbe().
   TNode<IntPtrT> count = IntPtrConstant(0);
   TNode<IntPtrT> initial_entry = Signed(WordAnd(hash, mask));
-  TNode<Oddball> undefined = UndefinedConstant();
+  TNode<Undefined> undefined = UndefinedConstant();
 
   // Appease the variable merging algorithm for "Goto(&loop)" below.
   if (var_name_index) *var_name_index = IntPtrConstant(0);
@@ -9155,7 +9155,7 @@ void CodeStubAssembler::NumberDictionaryLookup(
   TNode<IntPtrT> count = IntPtrConstant(0);
   TNode<IntPtrT> initial_entry = Signed(WordAnd(hash, mask));
 
-  TNode<Oddball> undefined = UndefinedConstant();
+  TNode<Undefined> undefined = UndefinedConstant();
   TNode<Hole> the_hole = TheHoleConstant();
 
   TVARIABLE(IntPtrT, var_count, count);
@@ -10999,10 +10999,10 @@ void CodeStubAssembler::TryPrototypeChainLookup(
   }
 }
 
-TNode<Oddball> CodeStubAssembler::HasInPrototypeChain(TNode<Context> context,
+TNode<Boolean> CodeStubAssembler::HasInPrototypeChain(TNode<Context> context,
                                                       TNode<HeapObject> object,
                                                       TNode<Object> prototype) {
-  TVARIABLE(Oddball, var_result);
+  TVARIABLE(Boolean, var_result);
   Label return_false(this), return_true(this),
       return_runtime(this, Label::kDeferred), return_result(this);
 
@@ -11063,10 +11063,10 @@ TNode<Oddball> CodeStubAssembler::HasInPrototypeChain(TNode<Context> context,
   return var_result.value();
 }
 
-TNode<Oddball> CodeStubAssembler::OrdinaryHasInstance(
+TNode<Boolean> CodeStubAssembler::OrdinaryHasInstance(
     TNode<Context> context, TNode<Object> callable_maybe_smi,
     TNode<Object> object_maybe_smi) {
-  TVARIABLE(Oddball, var_result);
+  TVARIABLE(Boolean, var_result);
   Label return_runtime(this, Label::kDeferred), return_result(this);
 
   GotoIfForceSlowPath(&return_runtime);
@@ -12874,12 +12874,12 @@ void CodeStubAssembler::BigInt64Comparison(Operation op, TNode<Object>& left,
   Branch(condition, return_true, return_false);
 }
 
-TNode<Oddball> CodeStubAssembler::RelationalComparison(
+TNode<Boolean> CodeStubAssembler::RelationalComparison(
     Operation op, TNode<Object> left, TNode<Object> right,
     const LazyNode<Context>& context, TVariable<Smi>* var_type_feedback) {
   Label return_true(this), return_false(this), do_float_comparison(this),
       end(this);
-  TVARIABLE(Oddball, var_result);  // Actually only "true" or "false".
+  TVARIABLE(Boolean, var_result);
   TVARIABLE(Float64T, var_left_float);
   TVARIABLE(Float64T, var_right_float);
 
@@ -13420,7 +13420,7 @@ void CodeStubAssembler::GenerateEqual_Same(TNode<Object> value, Label* if_equal,
 }
 
 // ES6 section 7.2.12 Abstract Equality Comparison
-TNode<Oddball> CodeStubAssembler::Equal(TNode<Object> left, TNode<Object> right,
+TNode<Boolean> CodeStubAssembler::Equal(TNode<Object> left, TNode<Object> right,
                                         const LazyNode<Context>& context,
                                         TVariable<Smi>* var_type_feedback) {
   // This is a slightly optimized version of Object::Equals. Whenever you
@@ -13429,7 +13429,7 @@ TNode<Oddball> CodeStubAssembler::Equal(TNode<Object> left, TNode<Object> right,
 
   Label if_equal(this), if_notequal(this), do_float_comparison(this),
       do_right_stringtonumber(this, Label::kDeferred), end(this);
-  TVARIABLE(Oddball, result);
+  TVARIABLE(Boolean, result);
   TVARIABLE(Float64T, var_left_float);
   TVARIABLE(Float64T, var_right_float);
 
@@ -13877,7 +13877,7 @@ TNode<Oddball> CodeStubAssembler::Equal(TNode<Object> left, TNode<Object> right,
   return result.value();
 }
 
-TNode<Oddball> CodeStubAssembler::StrictEqual(
+TNode<Boolean> CodeStubAssembler::StrictEqual(
     TNode<Object> lhs, TNode<Object> rhs, TVariable<Smi>* var_type_feedback) {
   // Pseudo-code for the algorithm below:
   //
@@ -13930,7 +13930,7 @@ TNode<Oddball> CodeStubAssembler::StrictEqual(
 
   Label if_equal(this), if_notequal(this), if_not_equivalent_types(this),
       end(this);
-  TVARIABLE(Oddball, result);
+  TVARIABLE(Boolean, result);
 
   OverwriteFeedback(var_type_feedback, CompareOperationFeedback::kNone);
 
@@ -14265,7 +14265,7 @@ void CodeStubAssembler::BranchIfStringEqual(TNode<String> lhs,
                                             TNode<String> rhs,
                                             TNode<IntPtrT> rhs_length,
                                             Label* if_true, Label* if_false,
-                                            TVariable<Oddball>* result) {
+                                            TVariable<Boolean>* result) {
   // Callers must handle the case where {lhs} and {rhs} refer to the same
   // String object.
   CSA_DCHECK(this, TaggedNotEqual(lhs, rhs));
@@ -14281,7 +14281,7 @@ void CodeStubAssembler::BranchIfStringEqual(TNode<String> lhs,
 
   BIND(&length_equal);
   {
-    TNode<Oddball> value = CAST(CallBuiltin(
+    TNode<Boolean> value = CAST(CallBuiltin(
         Builtin::kStringEqual, NoContextConstant(), lhs, rhs, lhs_length));
     if (result != nullptr) {
       *result = value;
@@ -14418,7 +14418,7 @@ void CodeStubAssembler::BranchIfSameNumberValue(TNode<Float64T> lhs_value,
   }
 }
 
-TNode<Oddball> CodeStubAssembler::HasProperty(TNode<Context> context,
+TNode<Boolean> CodeStubAssembler::HasProperty(TNode<Context> context,
                                               TNode<Object> object,
                                               TNode<Object> key,
                                               HasPropertyLookupMode mode) {
@@ -14448,7 +14448,7 @@ TNode<Oddball> CodeStubAssembler::HasProperty(TNode<Context> context,
                           lookup_element_in_holder, &return_false,
                           &call_runtime, &if_proxy, kHandlePrivateNames);
 
-  TVARIABLE(Oddball, result);
+  TVARIABLE(Boolean, result);
 
   BIND(&if_proxy);
   {
@@ -14766,10 +14766,10 @@ TNode<JSReceiver> CodeStubAssembler::SpeciesConstructor(
   return var_result.value();
 }
 
-TNode<Oddball> CodeStubAssembler::InstanceOf(TNode<Object> object,
+TNode<Boolean> CodeStubAssembler::InstanceOf(TNode<Object> object,
                                              TNode<Object> callable,
                                              TNode<Context> context) {
-  TVARIABLE(Oddball, var_result);
+  TVARIABLE(Boolean, var_result);
   Label if_notcallable(this, Label::kDeferred),
       if_notreceiver(this, Label::kDeferred), if_otherhandler(this),
       if_nohandler(this, Label::kDeferred), return_true(this),
@@ -15053,7 +15053,7 @@ TNode<Number> CodeStubAssembler::BitwiseSmiOp(TNode<Smi> left, TNode<Smi> right,
 }
 
 TNode<JSObject> CodeStubAssembler::AllocateJSIteratorResult(
-    TNode<Context> context, TNode<Object> value, TNode<Oddball> done) {
+    TNode<Context> context, TNode<Object> value, TNode<Boolean> done) {
   CSA_DCHECK(this, IsBoolean(done));
   TNode<NativeContext> native_context = LoadNativeContext(context);
   TNode<Map> map = CAST(

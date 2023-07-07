@@ -19,6 +19,7 @@ namespace v8 {
 namespace internal {
 
 // Forward declarations.
+class Boolean;
 enum ElementsKind : uint8_t;
 template <typename T>
 class Handle;
@@ -65,11 +66,11 @@ class Symbol;
   V(Map, one_pointer_filler_map, OnePointerFillerMap)                          \
   V(Map, two_pointer_filler_map, TwoPointerFillerMap)                          \
   V(Oddball, uninitialized_value, UninitializedValue)                          \
-  V(Oddball, undefined_value, UndefinedValue)                                  \
+  V(Undefined, undefined_value, UndefinedValue)                                \
   V(Hole, the_hole_value, TheHoleValue)                                        \
-  V(Oddball, null_value, NullValue)                                            \
-  V(Oddball, true_value, TrueValue)                                            \
-  V(Oddball, false_value, FalseValue)                                          \
+  V(Null, null_value, NullValue)                                               \
+  V(True, true_value, TrueValue)                                               \
+  V(False, false_value, FalseValue)                                            \
   EXTRA_IMPORTANT_INTERNALIZED_STRING_ROOT_LIST(V)                             \
   V(Map, meta_map, MetaMap)                                                    \
   V(Map, byte_array_map, ByteArrayMap)                                         \
@@ -649,6 +650,9 @@ class ReadOnlyRoots {
 #ifdef DEBUG
   void VerifyNameForProtectors();
 #endif
+
+  V8_INLINE Tagged<Boolean> boolean_value(bool value) const;
+  V8_INLINE Handle<Boolean> boolean_value_handle(bool value) const;
 
   // Returns heap number with identical value if it already exists or the empty
   // handle otherwise.

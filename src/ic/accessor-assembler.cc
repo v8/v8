@@ -561,8 +561,8 @@ void AccessorAssembler::HandleLoadICSmiHandlerCase(
 
       BIND(&return_undefined);
       exit_point->Return(access_mode == LoadAccessMode::kHas
-                             ? FalseConstant()
-                             : UndefinedConstant());
+                             ? TNode<Object>(FalseConstant())
+                             : TNode<Object>(UndefinedConstant()));
     }
 
     BIND(&if_hole);
@@ -572,8 +572,8 @@ void AccessorAssembler::HandleLoadICSmiHandlerCase(
       GotoIfNot(IsSetWord32<LoadHandler::ConvertHoleBits>(handler_word), miss);
       GotoIf(IsNoElementsProtectorCellInvalid(), miss);
       exit_point->Return(access_mode == LoadAccessMode::kHas
-                             ? FalseConstant()
-                             : UndefinedConstant());
+                             ? TNode<Object>(FalseConstant())
+                             : TNode<Object>(UndefinedConstant()));
     }
 
     if (access_mode != LoadAccessMode::kHas) {

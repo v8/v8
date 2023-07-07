@@ -244,10 +244,7 @@ struct v_traits<UnionT<T1, T2>> {
             v_traits<T2>::template implicitly_convertible_to<U>::value)> {};
 };
 
-// We do not have distinct types for Boolean, Null and Undefined, so we use
-// Oddball as the best approximation for now to be usable in V<>.
-using Boolean = Oddball;
-using BooleanOrNullOrUndefined = Oddball;
+using BooleanOrNullOrUndefined = UnionT<UnionT<Boolean, Null>, Undefined>;
 using NumberOrString = UnionT<Number, String>;
 using PlainPrimitive = UnionT<NumberOrString, BooleanOrNullOrUndefined>;
 

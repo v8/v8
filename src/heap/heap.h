@@ -77,6 +77,7 @@ class ArrayBufferCollector;
 class ArrayBufferSweeper;
 class BackingStore;
 class BasicMemoryChunk;
+class Boolean;
 class CodeLargeObjectSpace;
 class CodeRange;
 class CollectionBarrier;
@@ -467,7 +468,7 @@ class Heap final {
   void RightTrimWeakFixedArray(WeakFixedArray obj, int elements_to_trim);
 
   // Converts the given boolean condition to JavaScript boolean value.
-  inline Oddball ToBoolean(bool condition);
+  inline Tagged<Boolean> ToBoolean(bool condition);
 
   // Notify the heap that a context has been disposed. `has_dependent_context`
   // implies that a top-level context (no dependent contexts) has been disposed.

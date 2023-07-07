@@ -151,6 +151,11 @@
 //               - ExternalTwoByteInternalizedString
 //         - Symbol
 //       - Oddball
+//         - Null
+//         - Undefined
+//         - Boolean
+//           - True
+//           - False
 //     - Context
 //       - NativeContext
 //     - Cell

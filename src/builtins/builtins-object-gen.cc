@@ -1133,7 +1133,7 @@ TF_BUILTIN(ObjectIs, ObjectBuiltinsAssembler) {
 
 TF_BUILTIN(CreateIterResultObject, ObjectBuiltinsAssembler) {
   const auto value = Parameter<Object>(Descriptor::kValue);
-  const auto done = Parameter<Oddball>(Descriptor::kDone);
+  const auto done = Parameter<Boolean>(Descriptor::kDone);
   const auto context = Parameter<Context>(Descriptor::kContext);
 
   const TNode<NativeContext> native_context = LoadNativeContext(context);

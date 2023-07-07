@@ -66,8 +66,6 @@ struct RuntimeCallDescriptor {
 #endif  // DEBUG
   };
 
-  using Boolean = Oddball;
-
  public:
   struct Abort : public Descriptor<Abort> {
     static constexpr auto Function = Runtime::kAbort;

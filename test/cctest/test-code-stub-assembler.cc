@@ -3064,7 +3064,7 @@ TEST(NewPromiseCapability) {
     const TNode<Object> promise_constructor =
         m.LoadContextElement(native_context, Context::PROMISE_FUNCTION_INDEX);
 
-    const TNode<Oddball> debug_event = m.TrueConstant();
+    const TNode<True> debug_event = m.TrueConstant();
     const TNode<Object> capability =
         m.CallBuiltin(Builtin::kNewPromiseCapability, context,
                       promise_constructor, debug_event);
@@ -3112,7 +3112,7 @@ TEST(NewPromiseCapability) {
     auto context = m.GetJSContextParameter();
 
     auto constructor = m.Parameter<Object>(1);
-    const TNode<Oddball> debug_event = m.TrueConstant();
+    const TNode<True> debug_event = m.TrueConstant();
     const TNode<Object> capability = m.CallBuiltin(
         Builtin::kNewPromiseCapability, context, constructor, debug_event);
     m.Return(capability);

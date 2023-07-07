@@ -1590,7 +1590,7 @@ RUNTIME_FUNCTION(Runtime_DisallowCodegenFromStrings) {
   if (args.length() != 1) {
     return CrashUnlessFuzzing(isolate);
   }
-  bool flag = Oddball::cast(args[0]).ToBool(isolate);
+  bool flag = Boolean::cast(args[0]).ToBool(isolate);
   v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
   v8_isolate->SetModifyCodeGenerationFromStringsCallback(
       flag ? DisallowCodegenFromStringsCallback : nullptr);
@@ -1603,7 +1603,7 @@ RUNTIME_FUNCTION(Runtime_RegexpHasBytecode) {
     return CrashUnlessFuzzing(isolate);
   }
   auto regexp = JSRegExp::cast(args[0]);
-  bool is_latin1 = Oddball::cast(args[1]).ToBool(isolate);
+  bool is_latin1 = Boolean::cast(args[1]).ToBool(isolate);
   bool result;
   if (regexp.type_tag() == JSRegExp::IRREGEXP) {
     result = regexp.bytecode(is_latin1).IsByteArray();
@@ -1619,7 +1619,7 @@ RUNTIME_FUNCTION(Runtime_RegexpHasNativeCode) {
     return CrashUnlessFuzzing(isolate);
   }
   auto regexp = JSRegExp::cast(args[0]);
-  bool is_latin1 = Oddball::cast(args[1]).ToBool(isolate);
+  bool is_latin1 = Boolean::cast(args[1]).ToBool(isolate);
   bool result;
   if (regexp.type_tag() == JSRegExp::IRREGEXP) {
     result = regexp.code(is_latin1).IsCode();

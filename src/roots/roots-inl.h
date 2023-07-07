@@ -98,6 +98,14 @@ ReadOnlyRoots::ReadOnlyRoots(LocalIsolate* isolate)
 READ_ONLY_ROOT_LIST(ROOT_ACCESSOR)
 #undef ROOT_ACCESSOR
 
+Tagged<Boolean> ReadOnlyRoots::boolean_value(bool value) const {
+  return value ? Tagged<Boolean>(true_value()) : Tagged<Boolean>(false_value());
+}
+Handle<Boolean> ReadOnlyRoots::boolean_value_handle(bool value) const {
+  return value ? Handle<Boolean>(true_value_handle())
+               : Handle<Boolean>(false_value_handle());
+}
+
 Address* ReadOnlyRoots::GetLocation(RootIndex root_index) const {
   size_t index = static_cast<size_t>(root_index);
   DCHECK_LT(index, kEntriesCount);

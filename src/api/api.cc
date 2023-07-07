@@ -7258,8 +7258,7 @@ void Context::AllowCodeGenerationFromStrings(bool allow) {
   i::Isolate* i_isolate = context->GetIsolate();
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   context->set_allow_code_gen_from_strings(
-      allow ? i::ReadOnlyRoots(i_isolate).true_value()
-            : i::ReadOnlyRoots(i_isolate).false_value());
+      i::ReadOnlyRoots(i_isolate).boolean_value(allow));
 }
 
 bool Context::IsCodeGenerationFromStringsAllowed() const {
@@ -7923,10 +7922,8 @@ Local<v8::Value> v8::BooleanObject::New(Isolate* v8_isolate, bool value) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   API_RCS_SCOPE(i_isolate, BooleanObject, New);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
-  i::Handle<i::Object> boolean(value
-                                   ? i::ReadOnlyRoots(i_isolate).true_value()
-                                   : i::ReadOnlyRoots(i_isolate).false_value(),
-                               i_isolate);
+  i::Handle<i::Object> boolean =
+      i::ReadOnlyRoots(i_isolate).boolean_value_handle(value);
   i::Handle<i::Object> obj =
       i::Object::ToObject(i_isolate, boolean).ToHandleChecked();
   return Utils::ToLocal(obj);

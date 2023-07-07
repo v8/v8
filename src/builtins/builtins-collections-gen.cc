@@ -1998,7 +1998,7 @@ TF_BUILTIN(MapIteratorPrototypeNext, CollectionsBuiltinsAssembler) {
   TNode<JSMapIterator> receiver = CAST(maybe_receiver);
 
   // Check if the {receiver} is exhausted.
-  TVARIABLE(Oddball, var_done, TrueConstant());
+  TVARIABLE(Boolean, var_done, TrueConstant());
   TVARIABLE(Object, var_value, UndefinedConstant());
   Label return_value(this, {&var_done, &var_value}), return_entry(this),
       return_end(this, Label::kDeferred);
@@ -2183,7 +2183,7 @@ TF_BUILTIN(SetIteratorPrototypeNext, CollectionsBuiltinsAssembler) {
   TNode<JSSetIterator> receiver = CAST(maybe_receiver);
 
   // Check if the {receiver} is exhausted.
-  TVARIABLE(Oddball, var_done, TrueConstant());
+  TVARIABLE(Boolean, var_done, TrueConstant());
   TVARIABLE(Object, var_value, UndefinedConstant());
   Label return_value(this, {&var_done, &var_value}), return_entry(this),
       return_end(this, Label::kDeferred);

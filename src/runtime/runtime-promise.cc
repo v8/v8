@@ -140,7 +140,7 @@ RUNTIME_FUNCTION(Runtime_RejectPromise) {
   DCHECK_EQ(3, args.length());
   Handle<JSPromise> promise = args.at<JSPromise>(0);
   Handle<Object> reason = args.at(1);
-  Handle<Oddball> debug_event = args.at<Oddball>(2);
+  Handle<Boolean> debug_event = args.at<Boolean>(2);
   return *JSPromise::Reject(promise, reason,
                             debug_event->BooleanValue(isolate));
 }

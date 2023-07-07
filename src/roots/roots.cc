@@ -4,6 +4,8 @@
 
 #include "src/roots/roots.h"
 
+#include <type_traits>
+
 #include "src/common/globals.h"
 #include "src/objects/elements-kind.h"
 #include "src/objects/objects-inl.h"
@@ -62,9 +64,28 @@ void ReadOnlyRoots::VerifyNameForProtectors() {
   }
 }
 
-#define ROOT_TYPE_CHECK(Type, name, CamelName)   \
-  bool ReadOnlyRoots::CheckType_##name() const { \
-    return unchecked_##name()->Is##Type();       \
+#define ROOT_TYPE_CHECK(Type, name, CamelName)                                \
+  bool ReadOnlyRoots::CheckType_##name() const {                              \
+    Tagged<Type> value = unchecked_##name();                                  \
+    /* For the oddball subtypes, the "IsFoo" checks only check for address in \
+     * the RORoots, which is trivially true here. So, do a slow check of the  \
+     * oddball kind instead. Do the casts via Tagged<Object> to satisfy cast  \
+     * compatibility static_asserts in the Tagged class. */                   \
+    if (std::is_same_v<Type, Undefined>) {                                    \
+      return Tagged<Oddball>::cast(Tagged<Object>(value))->kind() ==          \
+             Oddball::kUndefined;                                             \
+    } else if (std::is_same_v<Type, Null>) {                                  \
+      return Tagged<Oddball>::cast(Tagged<Object>(value))->kind() ==          \
+             Oddball::kNull;                                                  \
+    } else if (std::is_same_v<Type, True>) {                                  \
+      return Tagged<Oddball>::cast(Tagged<Object>(value))->kind() ==          \
+             Oddball::kTrue;                                                  \
+    } else if (std::is_same_v<Type, False>) {                                 \
+      return Tagged<Oddball>::cast(Tagged<Object>(value))->kind() ==          \
+             Oddball::kFalse;                                                 \
+    } else {                                                                  \
+      return value->Is##Type();                                               \
+    }                                                                         \
   }
 
 READ_ONLY_ROOT_LIST(ROOT_TYPE_CHECK)

@@ -1374,7 +1374,7 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
   auto context = Parameter<Context>(Descriptor::kContext);
   auto maybe_iterator = Parameter<Object>(Descriptor::kReceiver);
 
-  TVARIABLE(Oddball, var_done, TrueConstant());
+  TVARIABLE(Boolean, var_done, TrueConstant());
   TVARIABLE(Object, var_value, UndefinedConstant());
 
   Label allocate_entry_if_needed(this);

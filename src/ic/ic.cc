@@ -463,8 +463,7 @@ MaybeHandle<Object> LoadIC::Load(Handle<Object> object, Handle<Name> name,
       // Named lookup in the object.
       Maybe<bool> maybe = JSReceiver::HasProperty(&it);
       if (maybe.IsNothing()) return MaybeHandle<Object>();
-      return maybe.FromJust() ? ReadOnlyRoots(isolate()).true_value_handle()
-                              : ReadOnlyRoots(isolate()).false_value_handle();
+      return isolate()->factory()->ToBoolean(maybe.FromJust());
     }
 
     // Get the property.
@@ -3460,8 +3459,7 @@ RUNTIME_FUNCTION(Runtime_HasElementWithInterceptor) {
   it.Next();
   Maybe<bool> maybe = JSReceiver::HasProperty(&it);
   if (maybe.IsNothing()) return ReadOnlyRoots(isolate).exception();
-  return maybe.FromJust() ? ReadOnlyRoots(isolate).true_value()
-                          : ReadOnlyRoots(isolate).false_value();
+  return ReadOnlyRoots(isolate).boolean_value(maybe.FromJust());
 }
 
 }  // namespace internal
