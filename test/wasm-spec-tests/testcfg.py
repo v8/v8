@@ -10,23 +10,36 @@ from testrunner.objects import testcase
 proposal_flags = [
     {
         'name': 'js-types',
-        'flags': ['--experimental-wasm-type-reflection', '--wasm-staging']
+        'flags': ['--experimental-wasm-type-reflection']
     },
     {
         'name': 'tail-call',
-        'flags': ['--experimental-wasm-return-call', '--wasm-staging']
+        'flags': ['--experimental-wasm-return-call']
     },
     {
         'name': 'memory64',
-        'flags': ['--experimental-wasm-memory64', '--wasm-staging']
+        'flags': ['--experimental-wasm-memory64']
     },
     {
         'name': 'extended-const',
-        'flags': ['--experimental-wasm-extended-const', '--wasm-staging']
+        'flags': ['--experimental-wasm-extended-const']
+    },
+    {
+        'name': 'function-references',
+        # Some of these tests need `global.get` to be a constant instruction,
+        # which is part of the GC proposal. We'll ship both proposals at once
+        # anyway, so we might as well enable both for these tests.
+        'flags': [
+            '--experimental-wasm-typed-funcref', '--experimental-wasm-gc'
+        ]
+    },
+    {
+        'name': 'gc',
+        'flags': ['--experimental-wasm-gc', '--wasm-final-types']
     },
     {
         'name': 'multi-memory',
-        'flags': ['--experimental-wasm-multi-memory', '--wasm-staging']
+        'flags': ['--experimental-wasm-multi-memory']
     },
 ]
 

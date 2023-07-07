@@ -23,12 +23,6 @@
   /* V8 side owner: jabraham */                                                \
   V(instruction_tracing, "instruction tracing section", false)                 \
                                                                                \
-  /* GC proposal (early prototype, might change dramatically) */               \
-  /* Official proposal: https://github.com/WebAssembly/gc */                   \
-  /* Prototype engineering spec: https://bit.ly/3cWcm6Q */                     \
-  /* V8 side owner: jkummerow */                                               \
-  V(gc, "garbage collection", false)                                           \
-                                                                               \
   /* Inlining of small wasm GC functions into JavaScript */                    \
   /* V8 side owner: mliedtke */                                                \
   V(js_inlining, "inline small wasm functions into JS", false)                 \
@@ -45,11 +39,6 @@
     false)                                                                     \
   V(skip_bounds_checks, "skip array bounds checks (unsafe)", false)            \
                                                                                \
-  /* Typed function references proposal. */                                    \
-  /* Official proposal: https://github.com/WebAssembly/function-references */  \
-  /* V8 side owner: manoskouk */                                               \
-  V(typed_funcref, "typed function references", false)                         \
-                                                                               \
   /* Branch Hinting proposal. */                                               \
   /* https://github.com/WebAssembly/branch-hinting */                          \
   /* V8 side owner: jkummerow */                                               \
@@ -59,11 +48,6 @@
   /* https://github.com/WebAssembly/stack-switching */                         \
   /* V8 side owner: thibaudm, fgm */                                           \
   V(stack_switching, "stack switching", false)                                 \
-                                                                               \
-  /* Reference-Typed Strings Proposal. */                                      \
-  /* https://github.com/WebAssembly/stringref */                               \
-  /* V8 side owner: jkummerow */                                               \
-  V(stringref, "reference-typed strings", false)                               \
                                                                                \
   /* Multi-memory Proposal. */                                                 \
   /* https://github.com/WebAssembly/multi-memory */                            \
@@ -89,6 +73,21 @@
   /* https://github.com/WebAssembly/memory64 */                                \
   /* V8 side owner: clemensb */                                                \
   V(memory64, "memory64", false)                                               \
+                                                                               \
+  /* Typed function references proposal. */                                    \
+  /* Official proposal: https://github.com/WebAssembly/function-references */  \
+  /* V8 side owner: manoskouk */                                               \
+  V(typed_funcref, "typed function references", false)                         \
+                                                                               \
+  /* GC proposal. https://github.com/WebAssembly/gc */                         \
+  /* Prototype engineering spec: https://bit.ly/3cWcm6Q */                     \
+  /* V8 side owner: jkummerow */                                               \
+  V(gc, "garbage collection", false)                                           \
+                                                                               \
+  /* Reference-Typed Strings Proposal. */                                      \
+  /* https://github.com/WebAssembly/stringref */                               \
+  /* V8 side owner: jkummerow */                                               \
+  V(stringref, "reference-typed strings", false)                               \
                                                                                \
   /* Not user-visible, defined here so an Origin Trial can control it. */      \
   /* V8 side owner: manoskouk, clemensb */                                     \

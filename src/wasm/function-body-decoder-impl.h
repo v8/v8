@@ -3182,7 +3182,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
   }
 
   DECODE(BrOnNonNull) {
-    CHECK_PROTOTYPE_OPCODE(gc);
+    CHECK_PROTOTYPE_OPCODE(typed_funcref);
     BranchDepthImmediate imm(this, this->pc_ + 1, validate);
     if (!this->Validate(this->pc_ + 1, imm, control_.size())) return 0;
     Value ref_object = Pop();
@@ -3662,6 +3662,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     CHECK_PROTOTYPE_OPCODE(return_call);
     CallFunctionImmediate imm(this, this->pc_ + 1, validate);
     if (!this->Validate(this->pc_ + 1, imm)) return 0;
+    // TODO(jkummerow): Should probably allow sig mismatch in unreachable code.
     if (!VALIDATE(this->CanReturnCall(imm.sig))) {
       this->DecodeError("%s: %s", WasmOpcodes::OpcodeName(kExprReturnCall),
                         "tail call type error");
@@ -3677,6 +3678,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     CHECK_PROTOTYPE_OPCODE(return_call);
     CallIndirectImmediate imm(this, this->pc_ + 1, validate);
     if (!this->Validate(this->pc_ + 1, imm)) return 0;
+    // TODO(jkummerow): Should probably allow sig mismatch in unreachable code.
     if (!VALIDATE(this->CanReturnCall(imm.sig))) {
       this->DecodeError("%s: %s",
                         WasmOpcodes::OpcodeName(kExprReturnCallIndirect),
@@ -3713,6 +3715,12 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     CHECK_PROTOTYPE_OPCODE(return_call);
     SigIndexImmediate imm(this, this->pc_ + 1, validate);
     if (!this->Validate(this->pc_ + 1, imm)) return 0;
+    if (!VALIDATE(this->control_.back().unreachable() ||
+                  this->CanReturnCall(imm.sig))) {
+      this->DecodeError("%s: %s", WasmOpcodes::OpcodeName(kExprReturnCallRef),
+                        "tail call return types mismatch");
+      return 0;
+    }
     Value func_ref = Pop(ValueType::RefNull(imm.index));
     PoppedArgVector args = PopArgs(imm.sig);
     CALL_INTERFACE_IF_OK_AND_REACHABLE(ReturnCallRef, func_ref, imm.sig,
@@ -4651,6 +4659,15 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         IndexImmediate elem_segment(this, elem_index_pc, "element segment",
                                     validate);
         if (!this->ValidateElementSegment(elem_index_pc, elem_segment)) {
+          return 0;
+        }
+        ValueType segment_type =
+            this->module_->elem_segments[elem_segment.index].type;
+        if (!VALIDATE(IsSubtypeOf(segment_type, element_type, this->module_))) {
+          this->DecodeError(
+              "array.init_elem: segment type %s is not a subtype of array "
+              "element type %s",
+              segment_type.name().c_str(), element_type.name().c_str());
           return 0;
         }
 

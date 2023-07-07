@@ -37,10 +37,6 @@ enum ValueTypeCode : uint8_t {
   kI16Code = 0x79,
   // Current reference types
   kFuncRefCode = 0x70,
-  // TODO(7784): Switch to official opcodes once they are aligned with the
-  // stringref proposal for nofunc and noextern.
-  kNoExternCode = 0x69,
-  kNoFuncCode = 0x68,
   kExternRefCode = 0x6f,
   // typed-funcref and GC proposal types
   kAnyRefCode = 0x6e,
@@ -48,6 +44,8 @@ enum ValueTypeCode : uint8_t {
   kRefNullCode = 0x6c,
   kRefCode = 0x6b,
   kI31RefCode = 0x6a,
+  kNoExternCode = 0x69,  // TODO(7784): Switch to official encoding.
+  kNoFuncCode = 0x68,    // TODO(7784): Switch to official encoding.
   kStructRefCode = 0x67,
   kArrayRefCode = 0x66,
   kNoneCode = 0x65,

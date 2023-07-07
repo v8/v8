@@ -22,7 +22,6 @@
   'proposals/memory64/table/get-set': [FAIL],
   'proposals/tail-call/table/get-set': [FAIL],
   'proposals/js-types/memory/constructor': [FAIL],
-  'proposals/memory64/memory/constructor': [FAIL],
   'proposals/tail-call/memory/constructor': [FAIL],
   'proposals/js-types/interface': [FAIL],
   'proposals/memory64/interface': [FAIL],

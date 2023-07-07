@@ -18,19 +18,27 @@ META_TIMEOUT_REGEXP = re.compile(r"META:\s*timeout=(.*)")
 proposal_flags = [
     {
         'name': 'js-types',
-        'flags': ['--experimental-wasm-type-reflection', '--wasm-staging']
+        'flags': ['--experimental-wasm-type-reflection']
     },
     {
         'name': 'tail-call',
-        'flags': ['--experimental-wasm-tail-call', '--wasm-staging']
+        'flags': ['--experimental-wasm-tail-call']
     },
     {
         'name': 'memory64',
-        'flags': ['--experimental-wasm-memory64', '--wasm-staging']
+        'flags': ['--experimental-wasm-memory64']
     },
     {
         'name': 'extended-const',
-        'flags': ['--experimental-wasm-extended-const', '--wasm-staging']
+        'flags': ['--experimental-wasm-extended-const']
+    },
+    {
+        'name': 'function-references',
+        'flags': ['--experimental-wasm-typed-funcref']
+    },
+    {
+        'name': 'gc',
+        'flags': ['--experimental-wasm-gc']
     },
 ]
 
