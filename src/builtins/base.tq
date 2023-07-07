@@ -87,8 +87,8 @@ type PropertyKey = String|PublicSymbol;
 // https://tc39.es/ecma262/#sec-primitive-value.
 type JSPrimitive = Numeric|String|Symbol|Boolean|Null|Undefined;
 
-// A user-exposed JavaScript value, as opposed to V8-internal values like
-// TheHole or FixedArray.
+// A user-exposed JavaScript value, as opposed to V8-internal values like Holes
+// or a FixedArray.
 type JSAny = JSReceiver|JSPrimitive;
 
 type JSAnyNotNumeric = String|Symbol|Boolean|Null|Undefined|JSReceiver;
@@ -529,7 +529,7 @@ const kWasmArrayHeaderSize:
 const kHeapObjectHeaderSize:
     constexpr int32 generates 'HeapObject::kHeaderSize';
 
-type TheHole extends HeapObject;
+type TheHole extends Hole;
 type Null extends Oddball;
 type Undefined extends Oddball;
 type True extends Oddball;
@@ -971,12 +971,11 @@ macro Float64IsNaN(n: float64): bool {
 
 // The type of all tagged values that can safely be compared with TaggedEqual.
 @if(V8_ENABLE_WEBASSEMBLY)
-type TaggedWithIdentity =
-    JSReceiver | FixedArrayBase | Oddball | TheHole | Map | WeakCell | Context |
-    EmptyString | Symbol | WasmInternalFunction | WasmNull;
+type TaggedWithIdentity = JSReceiver | FixedArrayBase | Oddball | Hole | Map |
+    WeakCell | Context | EmptyString | Symbol | WasmInternalFunction | WasmNull;
 @ifnot(V8_ENABLE_WEBASSEMBLY)
-type TaggedWithIdentity = JSReceiver | FixedArrayBase | Oddball | TheHole |
-    Map | WeakCell | Context | EmptyString | Symbol;
+type TaggedWithIdentity = JSReceiver | FixedArrayBase | Oddball | Hole | Map |
+    WeakCell | Context | EmptyString | Symbol;
 
 extern operator '==' macro TaggedEqual(TaggedWithIdentity, Object): bool;
 extern operator '==' macro TaggedEqual(Object, TaggedWithIdentity): bool;
@@ -2006,29 +2005,6 @@ macro NumberIsSomeInfinity(n: Number): bool {
       return Float64IsSomeInfinity(Convert<float64>(hn));
     }
   }
-}
-
-// Assert that the objects satisfy SameValue or are both the hole.
-builtin CheckSameObject(implicit context: Context)(
-    lhs: Object, rhs: Object): Undefined {
-  typeswitch (lhs) {
-    case (TheHole): {
-      if (rhs == TheHole) return Undefined;
-    }
-    case (a: JSAny): {
-      typeswitch (rhs) {
-        case (b: JSAny): {
-          if (SameValue(a, b)) return Undefined;
-        }
-        case (Object): {
-        }
-      }
-    }
-    case (Object): {
-    }
-  }
-  Print('Distinct or unexpected values in CheckSameObject');
-  unreachable;
 }
 
 macro ReplaceTheHoleWithUndefined(o: JSAny|TheHole): JSAny {
