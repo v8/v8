@@ -48,6 +48,7 @@ class RuntimeCallStatsTest : public TestWithNativeContext {
     // Disable RuntimeCallStats before tearing down the isolate to prevent
     // printing the tests table. Comment the following line for debugging
     // purposes.
+    isolate()->AbortConcurrentOptimization(BlockingBehavior::kBlock);
     TracingFlags::runtime_stats.store(0, std::memory_order_relaxed);
   }
 
