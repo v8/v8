@@ -720,14 +720,7 @@ size_t IncrementalMarking::StepSizeToKeepUpWithAllocations() {
 
 size_t IncrementalMarking::StepSizeToMakeProgress() {
   const size_t kTargetStepCount = 256;
-  const size_t kTargetStepCountAtOOM = 32;
   const size_t kMaxStepSizeInByte = 256 * KB;
-  size_t oom_slack = heap()->new_space()->TotalCapacity() + 64 * MB;
-
-  if (!heap()->CanExpandOldGeneration(oom_slack)) {
-    return heap()->OldGenerationSizeOfObjects() / kTargetStepCountAtOOM;
-  }
-
   return std::min(std::max({initial_old_generation_size_ / kTargetStepCount,
                             IncrementalMarking::kMinStepSizeInBytes}),
                   kMaxStepSizeInByte);
@@ -748,7 +741,7 @@ void IncrementalMarking::ScheduleBytesToMarkBasedOnAllocation() {
   size_t bytes_to_mark = progress_bytes + allocation_bytes;
   AddScheduledBytesToMark(bytes_to_mark);
 
-  if (v8_flags.trace_incremental_marking) {
+  if (V8_UNLIKELY(v8_flags.trace_incremental_marking)) {
     isolate()->PrintWithTimestamp(
         "[IncrementalMarking] Scheduled %zuKB to mark based on allocation "
         "(progress=%zuKB, allocation=%zuKB)\n",
@@ -767,7 +760,7 @@ void IncrementalMarking::FetchBytesMarkedConcurrently() {
           current_bytes_marked_concurrently - bytes_marked_concurrently_;
       bytes_marked_concurrently_ = current_bytes_marked_concurrently;
     }
-    if (v8_flags.trace_incremental_marking) {
+    if (V8_UNLIKELY(v8_flags.trace_incremental_marking)) {
       isolate()->PrintWithTimestamp(
           "[IncrementalMarking] Marked %zuKB on background threads\n",
           heap_->concurrent_marking()->TotalMarkedBytes() / KB);
@@ -777,7 +770,7 @@ void IncrementalMarking::FetchBytesMarkedConcurrently() {
 
 size_t IncrementalMarking::ComputeStepSizeInBytes(StepOrigin step_origin) {
   FetchBytesMarkedConcurrently();
-  if (v8_flags.trace_incremental_marking) {
+  if (V8_UNLIKELY(v8_flags.trace_incremental_marking)) {
     if (scheduled_bytes_to_mark_ > bytes_marked_) {
       isolate()->PrintWithTimestamp(
           "[IncrementalMarking] Marker is %zuKB behind schedule\n",
@@ -788,12 +781,9 @@ size_t IncrementalMarking::ComputeStepSizeInBytes(StepOrigin step_origin) {
           (bytes_marked_ - scheduled_bytes_to_mark_) / KB);
     }
   }
-  // Allow steps on allocation to get behind the schedule by small amount.
-  // This gives higher priority to steps in tasks.
-  size_t kScheduleMarginInBytes = step_origin == StepOrigin::kV8 ? 1 * MB : 0;
-  if (bytes_marked_ + kScheduleMarginInBytes > scheduled_bytes_to_mark_)
-    return 0;
-  return scheduled_bytes_to_mark_ - bytes_marked_ - kScheduleMarginInBytes;
+  return (bytes_marked_ >= scheduled_bytes_to_mark_)
+             ? 0
+             : scheduled_bytes_to_mark_ - bytes_marked_;
 }
 
 void IncrementalMarking::Step(v8::base::TimeDelta max_duration,
