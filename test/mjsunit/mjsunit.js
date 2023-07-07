@@ -331,14 +331,17 @@ var prettyPrinted;
                     });
                 var joined = ArrayPrototypeJoin.call(mapped, ",");
                 return "[" + joined + "]";
-              case "Uint8Array":
               case "Int8Array":
+              case "Uint8Array":
+              case "Uint8ClampedArray":
               case "Int16Array":
               case "Uint16Array":
-              case "Uint32Array":
               case "Int32Array":
+              case "Uint32Array":
               case "Float32Array":
               case "Float64Array":
+              case "BigInt64Array":
+              case "BigUint64Array":
                 var joined = ArrayPrototypeJoin.call(value, ",");
                 return objectClass + "([" + joined + "])";
               case "Object":
@@ -412,7 +415,6 @@ var prettyPrinted;
     return true;
   }
 
-
   deepEquals = function deepEquals(a, b) {
     if (a === b) {
       // Check for -0.
@@ -420,13 +422,13 @@ var prettyPrinted;
       return true;
     }
     if (typeof a !== typeof b) return false;
-    if (typeof a === "number") return isNaN(a) && isNaN(b);
-    if (typeof a !== "object" && typeof a !== "function") return false;
+    if (typeof a === 'number') return isNaN(a) && isNaN(b);
+    if (typeof a !== 'object' && typeof a !== 'function') return false;
     // Neither a nor b is primitive.
     var objectClass = classOf(a);
     if (objectClass !== classOf(b)) return false;
     switch (objectClass) {
-      case "RegExp":
+      case 'RegExp':
         // For RegExp, just compare pattern and flags using its toString.
         return RegExpPrototypeToString.call(a) ===
             RegExpPrototypeToString.call(b);
@@ -440,17 +442,25 @@ var prettyPrinted;
           if (!deepEquals(a[i], b[i])) return false;
         }
         return true;
-      case 'Uint8Array':
       case 'Int8Array':
+      case 'Uint8Array':
+      case 'Uint8ClampedArray':
       case 'Int16Array':
       case 'Uint16Array':
-      case 'Uint32Array':
       case 'Int32Array':
+      case 'Uint32Array':
+      case 'BigInt64Array':
+      case 'BigUint64Array':
+        if (a.length !== b.length) return false;
+        for (let i = 0; i < a.length; i++) {
+          if (a[i] !== b[i]) return false;
+        }
+        return true;
       case 'Float32Array':
       case 'Float64Array':
         if (a.length !== b.length) return false;
         for (let i = 0; i < a.length; i++) {
-          if (a[i] !== b[i] && !(isNaN(a[i]) && isNaN(b[i]))) return false;
+          if (!deepEquals(a[i], b[i])) return false;
         }
         return true;
       case 'String':
