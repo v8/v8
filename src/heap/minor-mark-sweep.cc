@@ -370,6 +370,21 @@ void YoungGenerationRememberedSetsMarkingWorklist::MarkingItem::
   }
 }
 
+void YoungGenerationRememberedSetsMarkingWorklist::MarkingItem::
+    DeleteSetsOnTearDown() {
+  if (slots_type_ == SlotsType::kRegularSlots) {
+    if (slot_set_) SlotSet::Delete(slot_set_, chunk_->buckets());
+    if (background_slot_set_)
+      SlotSet::Delete(background_slot_set_, chunk_->buckets());
+
+  } else {
+    DCHECK_EQ(slots_type_, SlotsType::kTypedSlots);
+    DCHECK_NULL(background_slot_set_);
+    DCHECK_NOT_NULL(slot_set_);
+    delete typed_slot_set_;
+  }
+}
+
 YoungGenerationRememberedSetsMarkingWorklist::
     YoungGenerationRememberedSetsMarkingWorklist(Heap* heap)
     : remembered_sets_marking_items_(CollectItems(heap)),
@@ -386,6 +401,14 @@ YoungGenerationRememberedSetsMarkingWorklist::
   for (MarkingItem item : remembered_sets_marking_items_) {
     item.MergeAndDeleteRememberedSets();
   }
+}
+
+void YoungGenerationRememberedSetsMarkingWorklist::TearDown() {
+  for (MarkingItem& item : remembered_sets_marking_items_) {
+    item.DeleteSetsOnTearDown();
+  }
+  remembered_sets_marking_items_.clear();
+  remaining_remembered_sets_marking_items_.store(0, std::memory_order_relaxed);
 }
 
 YoungGenerationRootMarkingVisitor::YoungGenerationRootMarkingVisitor(
@@ -417,7 +440,7 @@ MinorMarkSweepCollector::~MinorMarkSweepCollector() = default;
 void MinorMarkSweepCollector::TearDown() {
   if (heap_->incremental_marking()->IsMinorMarking()) {
     DCHECK(heap_->concurrent_marking()->IsStopped());
-    remembered_sets_marking_handler_->Clear();
+    remembered_sets_marking_handler_->TearDown();
     local_marking_worklists_->Publish();
     heap_->main_thread_local_heap_->marking_barrier()->PublishIfNeeded();
     // Marking barriers of LocalHeaps will be published in their destructors.

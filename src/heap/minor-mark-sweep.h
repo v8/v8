@@ -110,11 +110,7 @@ class YoungGenerationRememberedSetsMarkingWorklist {
         std::memory_order_relaxed);
   }
 
-  void Clear() {
-    remembered_sets_marking_items_.clear();
-    remaining_remembered_sets_marking_items_.store(0,
-                                                   std::memory_order_relaxed);
-  }
+  void TearDown();
 
  private:
   class MarkingItem : public ParallelWorkItem {
@@ -137,6 +133,8 @@ class YoungGenerationRememberedSetsMarkingWorklist {
     template <typename Visitor>
     void Process(Visitor* visitor);
     void MergeAndDeleteRememberedSets();
+
+    void DeleteSetsOnTearDown();
 
    private:
     inline Heap* heap() { return chunk_->heap(); }
