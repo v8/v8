@@ -77,12 +77,12 @@ def mock_test262(is_fail, rdb_test_id):
               skip_if_expected)
 
 
-def mock_result(is_fail):
+def mock_result(is_fail, duration=None):
   Result = namedtuple('Result', ['has_unexpected_output', 'output', 'cmd'])
-  return Result(is_fail, Output(), BaseCommand('echo'))
+  return Result(is_fail, Output(duration=duration), BaseCommand('echo'))
 
 
-class TestSequenceProc(unittest.TestCase):
+class TestResultDBIndicator(unittest.TestCase):
 
   def test_send(self):
 
@@ -109,15 +109,24 @@ class TestSequenceProc(unittest.TestCase):
     assert_sent_count(2)
 
     self.rdb.send_result(
-        mock_test262(False, 'expected2pass-pass]'), mock_result(False), 0)
+        mock_test262(False, 'expected2pass-pass'), mock_result(False), 0)
     assert_sent_count(2)
+
+    self.rdb.send_result(
+        mock_test262(True, 'fast'), mock_result(True, duration=0.00001), 0)
+    assert_sent_count(3)
 
     def assert_testid_at_index(testid, idx):
       data = json.loads(server.post_data[idx])
       self.assertEqual(data['testResults'][0]['testId'], testid)
 
+    def assert_duration_at_index(duration_str, idx):
+      data = json.loads(server.post_data[idx])
+      self.assertEqual(data['testResults'][0]['duration'], duration_str)
+
     assert_testid_at_index('expected2fail-pass', 0)
     assert_testid_at_index('expected2pass-fail', 1)
+    assert_duration_at_index('0.000010s', 2)
 
 
 if __name__ == '__main__':
