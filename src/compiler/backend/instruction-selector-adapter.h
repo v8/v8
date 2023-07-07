@@ -190,6 +190,8 @@ struct TurbofanAdapter {
 
     node_t base() const { return node_->InputAt(0); }
     node_t index() const { return node_->InputAt(1); }
+    int32_t displacement() const { return 0; }
+    uint8_t element_size_log2() const { return 0; }
 
     operator node_t() const { return node_; }
 
@@ -279,9 +281,13 @@ struct TurbofanAdapter {
       return DeoptimizeParametersOf(node_->op()).feedback();
     }
     node_t frame_state() const {
-      if (is_deoptimize_if()) return node_->InputAt(1);
-      // TODO(nicohartmann@): Get right input for Deoptimize.
-      UNIMPLEMENTED();
+      if (is_deoptimize()) {
+        DCHECK_EQ(node_->InputAt(0)->opcode(), IrOpcode::kFrameState);
+        return node_->InputAt(0);
+      }
+      DCHECK(is_deoptimize_if() || is_deoptimize_unless());
+      DCHECK_EQ(node_->InputAt(1)->opcode(), IrOpcode::kFrameState);
+      return node_->InputAt(1);
     }
 
     bool is_deoptimize() const {
@@ -459,6 +465,11 @@ struct TurboshaftAdapter
   using opcode_t = turboshaft::Opcode;
   using id_t = uint32_t;
 
+  bool Matches(node_t node,
+               const turboshaft::MatchOrBind<node_t>& pattern) const {
+    return pattern.MatchesWith(graph_, node);
+  }
+
   class ConstantView {
     using Kind = turboshaft::ConstantOp::Kind;
 
@@ -593,6 +604,22 @@ struct TurboshaftAdapter
 
     node_t base() const { return op_->base(); }
     node_t index() const { return op_->index(); }
+    int32_t displacement() const {
+      static_assert(
+          std::is_same_v<decltype(turboshaft::StoreOp::offset), int32_t>);
+      int32_t offset = op_->offset;
+      if (op_->kind.tagged_base) {
+        CHECK_GE(offset, std::numeric_limits<int32_t>::min() + kHeapObjectTag);
+        offset -= kHeapObjectTag;
+      }
+      return offset;
+    }
+    uint8_t element_size_log2() const {
+      static_assert(
+          std::is_same_v<decltype(turboshaft::StoreOp::element_size_log2),
+                         uint8_t>);
+      return op_->element_size_log2;
+    }
 
     operator node_t() const { return node_; }
 
@@ -626,7 +653,12 @@ struct TurboshaftAdapter
     int32_t displacement() const {
       static_assert(
           std::is_same_v<decltype(turboshaft::StoreOp::offset), int32_t>);
-      return op_->offset;
+      int32_t offset = op_->offset;
+      if (op_->kind.tagged_base) {
+        CHECK_GE(offset, std::numeric_limits<int32_t>::min() + kHeapObjectTag);
+        offset -= kHeapObjectTag;
+      }
+      return offset;
     }
     uint8_t element_size_log2() const {
       static_assert(
@@ -675,7 +707,7 @@ struct TurboshaftAdapter
     }
 
     node_t condition() const {
-      DCHECK(is_deoptimize_if());
+      DCHECK(is_deoptimize_if() || is_deoptimize_unless());
       return deoptimize_if_op_->condition();
     }
 
@@ -819,7 +851,8 @@ struct TurboshaftAdapter
     return projection.index;
   }
   bool is_integer_constant(node_t node) const {
-    if (auto constant = graph_->Get(node).TryCast<turboshaft::ConstantOp>()) {
+    if (const auto constant =
+            graph_->Get(node).TryCast<turboshaft::ConstantOp>()) {
       return constant->kind == turboshaft::ConstantOp::Kind::kWord32 ||
              constant->kind == turboshaft::ConstantOp::Kind::kWord64;
     }

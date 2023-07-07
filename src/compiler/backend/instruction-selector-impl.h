@@ -399,6 +399,8 @@ class OperandGeneratorT : public Adapter {
                             constant->kind == Kind::kCompressedHeapObject);
           case Kind::kExternal:
             return Constant(constant->external_reference());
+          case Kind::kNumber:
+            return Constant(constant->number());
           default:
             UNREACHABLE();
         }

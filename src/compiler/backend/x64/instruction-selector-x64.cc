@@ -33,6 +33,8 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
+#define __ TurboshaftAdapter::Pattern::
+
 namespace {
 
 bool IsCompressed(Node* const node) {
@@ -428,8 +430,6 @@ X64OperandGeneratorT<TurboshaftAdapter>::GetEffectiveAddressMemoryOperand(
     size_t* input_count, RegisterUseKind reg_kind) {
   using ConstKind = turboshaft::ConstantOp::Kind;
 
-#define __ TurboshaftAdapter::Pattern::
-
   turboshaft::ConstantOp::Storage storage;
   int32_t offset;
 
@@ -474,8 +474,6 @@ X64OperandGeneratorT<TurboshaftAdapter>::GetEffectiveAddressMemoryOperand(
     inputs[(*input_count)++] = UseRegister(op.input(1), reg_kind);
     return kMode_MR1;
   }
-
-#undef __
 }
 
 template <>
@@ -3065,58 +3063,103 @@ void VisitWordCompare(InstructionSelectorT<Adapter>* selector,
 }
 
 template <typename Adapter>
-void VisitWord64EqualImpl(InstructionSelectorT<Adapter>* selector, Node* node,
+void VisitWord64EqualImpl(InstructionSelectorT<Adapter>* selector,
+                          typename Adapter::node_t node,
                           FlagsContinuationT<Adapter>* cont) {
   if (selector->CanUseRootsRegister()) {
     X64OperandGeneratorT<Adapter> g(selector);
     const RootsTable& roots_table = selector->isolate()->roots_table();
     RootIndex root_index;
-    HeapObjectBinopMatcher m(node);
-    if (m.right().HasResolvedValue() &&
-        roots_table.IsRootHandle(m.right().ResolvedValue(), &root_index)) {
-      InstructionCode opcode =
-          kX64Cmp | AddressingModeField::encode(kMode_Root);
-      return VisitCompare(
-          selector, opcode,
-          g.TempImmediate(
-              MacroAssemblerBase::RootRegisterOffsetForRootIndex(root_index)),
-          g.UseRegister(m.left().node()), cont);
+    if constexpr (Adapter::IsTurboshaft) {
+      typename Adapter::node_t left;
+      turboshaft::ConstantOp::Storage storage;
+      if (selector->Matches(
+              node,
+              __ Equal(&left,
+                       __ Constant(turboshaft::ConstantOp::Kind::kHeapObject,
+                                   &storage),
+                       turboshaft::RegisterRepresentation::Tagged()))) {
+        if (roots_table.IsRootHandle(storage.handle, &root_index)) {
+          InstructionCode opcode =
+              kX64Cmp | AddressingModeField::encode(kMode_Root);
+          return VisitCompare(
+              selector, opcode,
+              g.TempImmediate(
+                  MacroAssemblerBase::RootRegisterOffsetForRootIndex(
+                      root_index)),
+              g.UseRegister(left), cont);
+        }
+      }
+    } else {
+      HeapObjectBinopMatcher m(node);
+      if (m.right().HasResolvedValue() &&
+          roots_table.IsRootHandle(m.right().ResolvedValue(), &root_index)) {
+        InstructionCode opcode =
+            kX64Cmp | AddressingModeField::encode(kMode_Root);
+        return VisitCompare(
+            selector, opcode,
+            g.TempImmediate(
+                MacroAssemblerBase::RootRegisterOffsetForRootIndex(root_index)),
+            g.UseRegister(m.left().node()), cont);
+      }
     }
   }
   VisitWordCompare(selector, node, kX64Cmp, cont);
+}
+
+bool TryMatchHeapObjectEqual(InstructionSelectorT<TurbofanAdapter>* selector,
+                             Node* node, Node*& left,
+                             Handle<HeapObject>& right) {
+  DCHECK_EQ(node->opcode(), IrOpcode::kWord32Equal);
+  CompressedHeapObjectBinopMatcher m(node);
+  if (m.right().HasResolvedValue()) {
+    left = m.left().node();
+    right = m.right().ResolvedValue();
+    return true;
+  }
+  HeapObjectBinopMatcher m2(node);
+  if (m2.right().HasResolvedValue()) {
+    left = m2.left().node();
+    right = m2.right().ResolvedValue();
+    return true;
+  }
+  return false;
+}
+
+bool TryMatchHeapObjectEqual(InstructionSelectorT<TurboshaftAdapter>* selector,
+                             turboshaft::OpIndex node,
+                             turboshaft::OpIndex& left,
+                             Handle<HeapObject>& right) {
+  turboshaft::ConstantOp::Kind kind;
+  turboshaft::ConstantOp::Storage storage;
+  if (selector->Matches(
+          node, __ Equal(&left, __ Constant(&kind, &storage),
+                         turboshaft::RegisterRepresentation::Word32()))) {
+    if (kind == turboshaft::ConstantOp::Kind::kCompressedHeapObject ||
+        kind == turboshaft::ConstantOp::Kind::kHeapObject) {
+      right = storage.handle;
+      return true;
+    }
+  }
+  return false;
 }
 
 template <typename Adapter>
 void VisitWord32EqualImpl(InstructionSelectorT<Adapter>* selector,
                           typename Adapter::node_t node,
                           FlagsContinuationT<Adapter>* cont) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
-    if (COMPRESS_POINTERS_BOOL && selector->isolate()) {
-      X64OperandGeneratorT<Adapter> g(selector);
-      const RootsTable& roots_table = selector->isolate()->roots_table();
-      RootIndex root_index;
-      Node* left = nullptr;
-      Handle<HeapObject> right;
-      // HeapConstants and CompressedHeapConstants can be treated the same when
-      // using them as an input to a 32-bit comparison. Check whether either is
-      // present.
-      {
-        CompressedHeapObjectBinopMatcher m(node);
-        if (m.right().HasResolvedValue()) {
-          left = m.left().node();
-          right = m.right().ResolvedValue();
-        } else {
-          HeapObjectBinopMatcher m2(node);
-          if (m2.right().HasResolvedValue()) {
-            left = m2.left().node();
-            right = m2.right().ResolvedValue();
-          }
-        }
-      }
-      if (!right.is_null() && roots_table.IsRootHandle(right, &root_index)) {
-        DCHECK_NE(left, nullptr);
+  if (COMPRESS_POINTERS_BOOL && selector->isolate()) {
+    X64OperandGeneratorT<Adapter> g(selector);
+    const RootsTable& roots_table = selector->isolate()->roots_table();
+    RootIndex root_index;
+    typename Adapter::node_t left;
+    Handle<HeapObject> right;
+    // HeapConstants and CompressedHeapConstants can be treated the same when
+    // using them as an input to a 32-bit comparison. Check whether either is
+    // present.
+    if (TryMatchHeapObjectEqual(selector, node, left, right)) {
+      if (roots_table.IsRootHandle(right, &root_index)) {
+        DCHECK(Adapter::valid(left));
         if (RootsTable::IsReadOnly(root_index) &&
             (V8_STATIC_ROOTS_BOOL || !selector->isolate()->bootstrapper())) {
           return VisitCompare(
@@ -3137,8 +3180,8 @@ void VisitWord32EqualImpl(InstructionSelectorT<Adapter>* selector,
         }
       }
     }
-    VisitWordCompare(selector, node, kX64Cmp32, cont);
   }
+  VisitWordCompare(selector, node, kX64Cmp32, cont);
 }
 
 void VisitCompareZero(InstructionSelectorT<TurboshaftAdapter>* selector,
@@ -3582,19 +3625,27 @@ void InstructionSelectorT<Adapter>::VisitSwitch(Node* node,
   return EmitBinarySearchSwitch(sw, value_operand);
 }
 
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord32Equal(node_t node) {
-  node_t user = node;
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitWord32Equal(node_t node) {
   FlagsContinuation cont = FlagsContinuation::ForSet(kEqual, node);
-  if constexpr (Adapter::IsTurboshaft) {
-    // TODO(nicohartmann@): Implement this.
-    USE(user);
-    UNIMPLEMENTED();
-  } else {
-    Int32BinopMatcher m(user);
-    if (m.right().Is(0)) {
-      return VisitWordCompareZero(m.node(), m.left().node(), &cont);
-    }
+  node_t left;
+  turboshaft::ConstantOp::Storage storage;
+  turboshaft::ConstantOp::Kind kind;
+  if (this->Matches(node, __ Equal(&left, __ Constant(&kind, &storage), {})) &&
+      storage.integral == 0) {
+    DCHECK(kind == turboshaft::ConstantOp::Kind::kWord32 ||
+           kind == turboshaft::ConstantOp::Kind::kWord64);
+    return VisitWordCompareZero(node, left, &cont);
+  }
+  VisitWord32EqualImpl(this, node, &cont);
+}
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitWord32Equal(node_t node) {
+  FlagsContinuation cont = FlagsContinuation::ForSet(kEqual, node);
+  Int32BinopMatcher m(node);
+  if (m.right().Is(0)) {
+    return VisitWordCompareZero(m.node(), m.left().node(), &cont);
   }
   VisitWord32EqualImpl(this, node, &cont);
 }
@@ -3625,31 +3676,49 @@ void InstructionSelectorT<Adapter>::VisitUint32LessThanOrEqual(node_t node) {
   VisitWordCompare(this, node, kX64Cmp32, &cont);
 }
 
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord64Equal(Node* node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    // TODO(nicohartmann@): Implement this.
-    UNIMPLEMENTED();
-  } else {
-    FlagsContinuation cont = FlagsContinuation::ForSet(kEqual, node);
-    Int64BinopMatcher m(node);
-    if (m.right().Is(0)) {
-      // Try to combine the equality check with a comparison.
-      Node* const user = m.node();
-      Node* const value = m.left().node();
-      if (CanCover(user, value)) {
-        switch (value->opcode()) {
-          case IrOpcode::kInt64Sub:
-            return VisitWordCompare(this, value, kX64Cmp, &cont);
-          case IrOpcode::kWord64And:
-            return VisitWordCompare(this, value, kX64Test, &cont);
-          default:
-            break;
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitWord64Equal(node_t node) {
+  FlagsContinuation cont = FlagsContinuation::ForSet(kEqual, node);
+  node_t value;
+  turboshaft::ConstantOp::Storage storage;
+  if (this->Matches(node, __ Equal(&value, __ Constant({}, &storage), {})) &&
+      storage.integral == 0) {
+    if (CanCover(node, value)) {
+      turboshaft::WordBinopOp::Kind kind;
+      if (this->Matches(
+              value, __ WordBinop({}, {}, &kind,
+                                  turboshaft::WordRepresentation::Word64()))) {
+        if (kind == turboshaft::WordBinopOp::Kind::kSub) {
+          return VisitWordCompare(this, value, kX64Cmp, &cont);
+        } else if (kind == turboshaft::WordBinopOp::Kind::kBitwiseAnd) {
+          return VisitWordCompare(this, value, kX64Test, &cont);
         }
       }
     }
-    VisitWord64EqualImpl(this, node, &cont);
   }
+  VisitWord64EqualImpl(this, node, &cont);
+}
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitWord64Equal(node_t node) {
+  FlagsContinuation cont = FlagsContinuation::ForSet(kEqual, node);
+  Int64BinopMatcher m(node);
+  if (m.right().Is(0)) {
+    // Try to combine the equality check with a comparison.
+    Node* const user = m.node();
+    Node* const value = m.left().node();
+    if (CanCover(user, value)) {
+      switch (value->opcode()) {
+        case IrOpcode::kInt64Sub:
+          return VisitWordCompare(this, value, kX64Cmp, &cont);
+        case IrOpcode::kWord64And:
+          return VisitWordCompare(this, value, kX64Test, &cont);
+        default:
+          break;
+      }
+    }
+  }
+  VisitWord64EqualImpl(this, node, &cont);
 }
 
 template <>
@@ -3703,14 +3772,9 @@ void InstructionSelectorT<Adapter>::VisitInt32SubWithOverflow(Node* node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitInt64LessThan(Node* node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    // TODO(nicohartmann@): Implement this.
-    UNIMPLEMENTED();
-  } else {
-    FlagsContinuation cont = FlagsContinuation::ForSet(kSignedLessThan, node);
-    VisitWordCompare(this, node, kX64Cmp, &cont);
-  }
+void InstructionSelectorT<Adapter>::VisitInt64LessThan(node_t node) {
+  FlagsContinuation cont = FlagsContinuation::ForSet(kSignedLessThan, node);
+  VisitWordCompare(this, node, kX64Cmp, &cont);
 }
 
 template <typename Adapter>
@@ -5616,6 +5680,8 @@ template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
     InstructionSelectorT<TurbofanAdapter>;
 template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
     InstructionSelectorT<TurboshaftAdapter>;
+
+#undef __
 
 }  // namespace compiler
 }  // namespace internal

@@ -548,7 +548,21 @@ InstructionOperand OperandForDeopt(Isolate* isolate,
   const turboshaft::Operation& op = g->turboshaft_graph()->Get(input);
   if (const turboshaft::ConstantOp* constant =
           op.TryCast<turboshaft::ConstantOp>()) {
+    using Kind = turboshaft::ConstantOp::Kind;
     switch (constant->kind) {
+      case Kind::kWord32:
+      case Kind::kWord64:
+      case Kind::kFloat32:
+      case Kind::kFloat64:
+        return g->UseImmediate(input);
+      case Kind::kNumber:
+        if (rep == MachineRepresentation::kWord32) {
+          const double d = constant->number();
+          Smi smi = Smi::FromInt(static_cast<int32_t>(d));
+          CHECK_EQ(smi.value(), d);
+          return g->UseImmediate(static_cast<int32_t>(smi.ptr()));
+        }
+        return g->UseImmediate(input);
       case turboshaft::ConstantOp::Kind::kHeapObject:
       case turboshaft::ConstantOp::Kind::kCompressedHeapObject: {
         if (!CanBeTaggedOrCompressedPointer(rep)) {
@@ -1803,11 +1817,7 @@ void InstructionSelectorT<Adapter>::VisitWord64Popcnt(Node* node) {
   UNIMPLEMENTED();
 }
 
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord64Equal(Node* node) {
-  UNIMPLEMENTED();
-}
-
+VISIT_UNSUPPORTED_OP(Word64Equal)
 VISIT_UNSUPPORTED_OP(Int64Add)
 
 template <typename Adapter>
@@ -1850,10 +1860,7 @@ void InstructionSelectorT<Adapter>::VisitInt64Div(Node* node) {
   UNIMPLEMENTED();
 }
 
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitInt64LessThan(Node* node) {
-  UNIMPLEMENTED();
-}
+VISIT_UNSUPPORTED_OP(Int64LessThan)
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitInt64LessThanOrEqual(Node* node) {
@@ -2659,19 +2666,15 @@ void InstructionSelectorT<Adapter>::VisitDeoptimizeIf(node_t node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitDeoptimizeUnless(Node* node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    // TODO(nicohartmann@): Implement for Turboshaft.
-    UNIMPLEMENTED();
-  } else {
-    TryPrepareScheduleFirstProjection(node->InputAt(0));
+void InstructionSelectorT<Adapter>::VisitDeoptimizeUnless(node_t node) {
+  auto deopt = this->deoptimize_view(node);
+  DCHECK(deopt.is_deoptimize_unless());
+  TryPrepareScheduleFirstProjection(deopt.condition());
 
-    DeoptimizeParameters p = DeoptimizeParametersOf(node->op());
-    FlagsContinuation cont = FlagsContinuation::ForDeoptimize(
-        kEqual, p.reason(), node->id(), p.feedback(),
-        FrameState{node->InputAt(1)});
-    VisitWordCompareZero(node, node->InputAt(0), &cont);
-  }
+  FlagsContinuation cont =
+      FlagsContinuation::ForDeoptimize(kEqual, deopt.reason(), this->id(node),
+                                       deopt.feedback(), deopt.frame_state());
+  VisitWordCompareZero(node, deopt.condition(), &cont);
 }
 
 template <typename Adapter>
@@ -4456,9 +4459,20 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitNode(
     case Opcode::kEqual: {
       const turboshaft::EqualOp& equal = op.Cast<turboshaft::EqualOp>();
       switch (equal.rep) {
-        case turboshaft::RegisterRepresentation::Float64():
+        case Rep::Word32():
+          return VisitWord32Equal(node);
+        case Rep::Word64():
+          return VisitWord64Equal(node);
+        case Rep::Float32():
+          return VisitFloat32Equal(node);
+        case Rep::Float64():
           return VisitFloat64Equal(node);
-        default:
+        case Rep::Tagged():
+          if constexpr (Is64() && !COMPRESS_POINTERS_BOOL) {
+            return VisitWord64Equal(node);
+          }
+          return VisitWord32Equal(node);
+        case Rep::Compressed():
           UNIMPLEMENTED();
       }
       UNREACHABLE();
@@ -4474,10 +4488,13 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitNode(
             UNIMPLEMENTED();
           }
         case turboshaft::ComparisonOp::Kind::kSignedLessThan:
-          if (comparison.rep == Rep::Word32()) {
-            return VisitInt32LessThan(node);
-          } else {
-            UNIMPLEMENTED();
+          switch (comparison.rep) {
+            case Rep::Word32():
+              return VisitInt32LessThan(node);
+            case Rep::Word64():
+              return VisitInt64LessThan(node);
+            default:
+              UNIMPLEMENTED();
           }
         default:
           UNIMPLEMENTED();
@@ -4519,6 +4536,9 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitNode(
     case Opcode::kProjection:
       return VisitProjection(node);
     case Opcode::kDeoptimizeIf:
+      if (Get(node).Cast<turboshaft::DeoptimizeIfOp>().negated) {
+        return VisitDeoptimizeUnless(node);
+      }
       return VisitDeoptimizeIf(node);
     default: {
       const std::string op_string = op.ToString();

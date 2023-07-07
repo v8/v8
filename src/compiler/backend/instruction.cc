@@ -682,7 +682,11 @@ static RpoNumber GetLoopEndRpo(const BasicBlock* block) {
 
 static RpoNumber GetLoopEndRpo(const turboshaft::Block* block) {
   if (!block->IsLoop()) return RpoNumber::Invalid();
-  return GetRpo(block->LastPredecessor());
+  // In Turbofan, the `block->loop_end()` refers to the first after (outside)
+  // the loop. In the relevant use cases, we retrieve the backedge block by
+  // subtracting one from the rpo_number, so for Turboshaft we "fake" this by
+  // adding 1 to the backedge block's rpo_number.
+  return RpoNumber::FromInt(GetRpo(block->LastPredecessor()).ToInt() + 1);
 }
 
 static InstructionBlock* InstructionBlockFor(Zone* zone,

@@ -15,3 +15,15 @@ function simple1(x, y) { return x + y * x - y / x; }
 assertEquals(31.625, simple1(8, 3));
 %OptimizeFunctionOnNextCall(simple1);
 assertEquals(31.625, simple1(8, 3));
+
+function simple2(o, a, b, c) {
+  o.y = a;
+  for(let i = 0; i < b; ++i) {
+    o.y += c;
+  }
+  return o;
+}
+%PrepareFunctionForOptimization(simple2);
+assertEquals({ y:(3 + 8 * -4) }, simple2({}, 3, 8, -4));
+%OptimizeFunctionOnNextCall(simple2);
+assertEquals({ y:(3 + 8 * -4) }, simple2({}, 3, 8, -4));

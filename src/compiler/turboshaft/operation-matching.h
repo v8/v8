@@ -660,6 +660,19 @@ class OperationMatching {
       });
     }
 
+    static MatchOrBind<OpIndex> Equal(
+        const MatchOrBind<OpIndex>& left, const MatchOrBind<OpIndex>& right,
+        const MatchOrBind<RegisterRepresentation>& rep) {
+      return MatchOrBind<OpIndex>([=](const Graph* graph, const OpIndex& idx) {
+        if (const EqualOp* equal = graph->Get(idx).TryCast<EqualOp>()) {
+          return left.resolve(graph, equal->left()) &&
+                 right.resolve(graph, equal->right()) &&
+                 rep.resolve(graph, equal->rep);
+        }
+        return false;
+      });
+    }
+
     static bool MatchesWith(const Graph* graph, OpIndex index,
                             const MatchOrBind<OpIndex>& pattern) {
       return pattern.resolve(graph, index);

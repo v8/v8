@@ -716,8 +716,10 @@ class InstructionSelectorT final : public Adapter {
   DECLARE_GENERATOR_T(Word32AtomicStore)
   DECLARE_GENERATOR_T(Word64AtomicStore)
   DECLARE_GENERATOR_T(Word32Equal)
+  DECLARE_GENERATOR_T(Word64Equal)
   DECLARE_GENERATOR_T(Int32LessThan)
   DECLARE_GENERATOR_T(Int32LessThanOrEqual)
+  DECLARE_GENERATOR_T(Int64LessThan)
   DECLARE_GENERATOR_T(Uint32LessThan)
   DECLARE_GENERATOR_T(Uint32LessThanOrEqual)
   DECLARE_GENERATOR_T(Uint64LessThan)
@@ -782,8 +784,6 @@ class InstructionSelectorT final : public Adapter {
   DECLARE_GENERATOR(Uint64MulHigh)
   // END MACHINE_BINOP_64_LIST
   // MACHINE_COMPARE_BINOP_LIST
-  DECLARE_GENERATOR(Word64Equal)
-  DECLARE_GENERATOR(Int64LessThan)
   DECLARE_GENERATOR(Int64LessThanOrEqual)
   DECLARE_GENERATOR(Uint64LessThanOrEqual)
   // END MACHINE_COMPARE_BINOP_LIST
@@ -925,7 +925,7 @@ class InstructionSelectorT final : public Adapter {
   void VisitConstant(node_t node);
   void VisitCall(node_t call, block_t handler = {});
   void VisitDeoptimizeIf(node_t node);
-  void VisitDeoptimizeUnless(Node* node);
+  void VisitDeoptimizeUnless(node_t node);
   void VisitDynamicCheckMapsWithDeoptUnless(Node* node);
   void VisitTrapIf(node_t node, TrapId trap_id);
   void VisitTrapUnless(node_t node, TrapId trap_id);
