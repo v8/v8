@@ -43,7 +43,8 @@ if (this.Worker) {
   for (let i = 0; i < 1024 * 32; i++) {
     trash.push('a'.repeat(8));
   }
-  // Trigger a gc to move the object to old space.
+  // Trigger two GCs to move the object to old space.
+  gc({type: 'minor'});
   gc({type: 'minor'});
   assertFalse(%InLargeObjectSpace(payload));
   assertFalse(%InYoungGeneration(payload));
