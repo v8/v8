@@ -90,10 +90,12 @@ void StaticCallInterfaceDescriptor<DerivedDescriptor>::Initialize(
     CallInterfaceDescriptorData* data) {
   // Static local copy of the Registers array, for platform-specific
   // initialization
-  static auto registers = DerivedDescriptor::registers();
-  static auto double_registers = DerivedDescriptor::double_registers();
-  static auto return_registers = DerivedDescriptor::return_registers();
-  static auto return_double_registers =
+  static constexpr auto registers = DerivedDescriptor::registers();
+  static constexpr auto double_registers =
+      DerivedDescriptor::double_registers();
+  static constexpr auto return_registers =
+      DerivedDescriptor::return_registers();
+  static constexpr auto return_double_registers =
       DerivedDescriptor::return_double_registers();
 
   // The passed pointer should be a modifiable pointer to our own data.

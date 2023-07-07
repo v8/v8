@@ -579,7 +579,7 @@ struct CallInterfaceDescriptorFor;
 // Stub class replacing std::array<Register, 0>, as a workaround for MSVC's
 // https://github.com/microsoft/STL/issues/942
 struct EmptyRegisterArray {
-  Register* data() { return nullptr; }
+  const Register* data() const { return nullptr; }
   size_t size() const { return 0; }
   Register operator[](size_t i) const { UNREACHABLE(); }
 };
@@ -597,7 +597,7 @@ constexpr EmptyRegisterArray RegisterArray() { return {}; }
 // Stub class replacing std::array<Register, 0>, as a workaround for MSVC's
 // https://github.com/microsoft/STL/issues/942
 struct EmptyDoubleRegisterArray {
-  DoubleRegister* data() { return nullptr; }
+  const DoubleRegister* data() const { return nullptr; }
   size_t size() const { return 0; }
   DoubleRegister operator[](size_t i) const { UNREACHABLE(); }
 };
