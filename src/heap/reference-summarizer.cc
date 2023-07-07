@@ -123,6 +123,10 @@ class ReferenceSummarizerMarkingVisitor
 
   constexpr bool CanUpdateValuesInHeap() { return false; }
 
+  // Standard marking visitor functions:
+  bool TryMark(HeapObject obj) { return true; }
+  bool IsMarked(HeapObject obj) const { return false; }
+
  private:
   ReferenceSummarizerMarkingState* marking_state_;
 };

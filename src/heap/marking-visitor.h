@@ -30,13 +30,14 @@ struct EphemeronMarking {
 // support for bytecode flushing, embedder tracing and weak references.
 //
 // Derived classes are expected to provide the following methods:
-// - marking_state,
-// - CanUpdateValuesInHeap,
-// - AddStrongReferenceForReferenceSummarizer,
-// - AddWeakReferenceForReferenceSummarizer,
-// - retaining_path_mode,
-// - RecordSlot,
-// - RecordRelocSlot,
+// - CanUpdateValuesInHeap
+// - AddStrongReferenceForReferenceSummarizer
+// - AddWeakReferenceForReferenceSummarizer
+// - TryMark
+// - IsMarked
+// - retaining_path_mode
+// - RecordSlot
+// - RecordRelocSlot
 //
 // These methods capture the difference between the different visitor
 // implementations. For example, the concurrent visitor has to use the locking
@@ -148,6 +149,11 @@ class MarkingVisitorBase : public ConcurrentHeapVisitor<int, ConcreteVisitor> {
     return false;
   }
 
+  // Convenience method.
+  bool IsUnmarked(HeapObject obj) const {
+    return !concrete_visitor()->IsMarked(obj);
+  }
+
  protected:
   using ConcurrentHeapVisitor<int, ConcreteVisitor>::concrete_visitor;
 
@@ -233,6 +239,13 @@ class FullMarkingVisitorBase
                                                         HeapObject obj) {}
 
   constexpr bool CanUpdateValuesInHeap() { return true; }
+
+  bool TryMark(HeapObject obj) {
+    return MarkBit::From(obj).Set<AccessMode::ATOMIC>();
+  }
+  bool IsMarked(HeapObject obj) const {
+    return MarkBit::From(obj).Get<AccessMode::ATOMIC>();
+  }
 };
 
 template <typename ConcreteVisitor, typename MarkingState>
