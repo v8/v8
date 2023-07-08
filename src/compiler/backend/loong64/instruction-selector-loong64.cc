@@ -2949,7 +2949,7 @@ void InstructionSelectorT<Adapter>::VisitInt64SubWithOverflow(Node* node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord64Equal(Node* const node) {
+void InstructionSelectorT<Adapter>::VisitWord64Equal(node_t node) {
   if constexpr (Adapter::IsTurboshaft) {
     UNIMPLEMENTED();
   } else {
@@ -2959,7 +2959,7 @@ void InstructionSelectorT<Adapter>::VisitWord64Equal(Node* const node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitInt64LessThan(Node* node) {
+void InstructionSelectorT<Adapter>::VisitInt64LessThan(node_t node) {
   if constexpr (Adapter::IsTurboshaft) {
     UNIMPLEMENTED();
   } else {
