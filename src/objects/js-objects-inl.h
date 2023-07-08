@@ -478,21 +478,22 @@ void JSObject::WriteToField(InternalIndex descriptor, PropertyDetails details,
   }
 }
 
-Object JSObject::RawFastPropertyAtSwap(FieldIndex index, Object value,
-                                       SeqCstAccessTag tag) {
-  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
-  return RawFastPropertyAtSwap(cage_base, index, value, tag);
+Object JSObject::RawFastInobjectPropertyAtSwap(FieldIndex index, Object value,
+                                               SeqCstAccessTag tag) {
+  DCHECK(index.is_inobject());
+  DCHECK(value.IsShared());
+  int offset = index.offset();
+  Object old_value = SEQ_CST_SWAP_FIELD(*this, offset, value);
+  CONDITIONAL_WRITE_BARRIER(*this, offset, value, UPDATE_WRITE_BARRIER);
+  return old_value;
 }
 
-Object JSObject::RawFastPropertyAtSwap(PtrComprCageBase cage_base,
-                                       FieldIndex index, Object value,
+Object JSObject::RawFastPropertyAtSwap(FieldIndex index, Object value,
                                        SeqCstAccessTag tag) {
   if (index.is_inobject()) {
-    return TaggedField<Object>::SeqCst_Swap(cage_base, *this, index.offset(),
-                                            value);
+    return RawFastInobjectPropertyAtSwap(index, value, tag);
   }
-  return property_array().Swap(cage_base, index.outobject_array_index(), value,
-                               tag);
+  return property_array().Swap(index.outobject_array_index(), value, tag);
 }
 
 int JSObject::GetInObjectPropertyOffset(int index) {

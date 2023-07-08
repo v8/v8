@@ -727,10 +727,9 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
   inline void WriteToField(InternalIndex descriptor, PropertyDetails details,
                            Object value);
 
+  inline Object RawFastInobjectPropertyAtSwap(FieldIndex index, Object value,
+                                              SeqCstAccessTag tag);
   inline Object RawFastPropertyAtSwap(FieldIndex index, Object value,
-                                      SeqCstAccessTag tag);
-  inline Object RawFastPropertyAtSwap(PtrComprCageBase cage_base,
-                                      FieldIndex index, Object value,
                                       SeqCstAccessTag tag);
 
   // Access to in object properties.
