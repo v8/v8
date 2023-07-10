@@ -62,8 +62,6 @@ class YoungGenerationMainMarkingVisitor final
   template <typename TSlot>
   bool VisitObjectViaSlotInRemeberedSet(TSlot slot);
 
-  V8_INLINE void Finalize();
-
   V8_INLINE bool ShortCutStrings(HeapObjectSlot slot, HeapObject* heap_object);
 
  private:
