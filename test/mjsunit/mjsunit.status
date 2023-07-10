@@ -1374,6 +1374,18 @@
 }],  # variant == stress
 
 ##############################################################################
+['variant == turboshaft', {
+  # TODO(v8:14108): These tests require Liftoff. Enable again when we remove
+  # --no-liftoff from this variant.
+  'wasm/code-flushing': [FAIL],
+  'wasm/enter-and-leave-debug-state': [FAIL],
+  # TODO(v8:14108): Enable once we have stack checks.
+  'wasm/worker-running-empty-loop-interruptible': [SKIP],
+  # Slow TF compilation.
+  'wasm/large-struct': [SKIP],
+}],  # variant == turboshaft
+
+##############################################################################
 ['variant == stress and (arch == arm or arch == arm64) and simulator_run', {
   # Slow tests: https://crbug.com/v8/7783
   'es6/large-classes-properties': [SKIP],

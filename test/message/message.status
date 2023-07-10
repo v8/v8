@@ -127,4 +127,12 @@
   # Maglev doesn't support inlining of Wasm code.
   'wasm-inlining-into-js': [FAIL],
 }],  # variant == stress_maglev or variant == stress_maglev_future
+
+['variant == turboshaft', {
+  # TODO(14108): Remove when we have function entry/exit tracing.
+  'wasm-trace-turbofan': [SKIP],
+  # TODO(14108): Remove once we have proper stack traces for traps.
+  'fail/wasm-trap': [SKIP],
+}],  # variant == turboshaft
+
 ]

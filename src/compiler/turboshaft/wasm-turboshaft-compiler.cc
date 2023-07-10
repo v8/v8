@@ -54,6 +54,7 @@ wasm::WasmCompilationResult ExecuteTurboshaftWasmCompilation(
   if (!Pipeline::GenerateWasmCodeFromTurboshaftGraph(&info, env, data, mcgraph,
                                                      data.func_body, detected,
                                                      call_descriptor)) {
+    delete data.assumptions;
     return {};
   }
   auto result = info.ReleaseWasmCompilationResult();

@@ -152,7 +152,7 @@ WasmCompilationResult WasmCompilationUnit::ExecuteFunctionCompilation(
 #ifdef V8_TARGET_ARCH_64_BIT
       // Do not try Turboshaft for 32-bit architectures yet.
       // TODO(14108): Remove once we have int64-lowering.
-      if (v8_flags.turboshaft_wasm_graph_generation) {
+      if (v8_flags.turboshaft_wasm) {
         result = compiler::turboshaft::ExecuteTurboshaftWasmCompilation(
             env, data, detected);
         if (result.succeeded()) return result;

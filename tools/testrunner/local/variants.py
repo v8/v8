@@ -33,7 +33,9 @@ ALL_VARIANT_FLAGS = {
         "--maglev", "--no-turbofan", "--stress-maglev",
         "--optimize-on-next-call-optimizes-to-maglev"
     ]],
-    "turboshaft": [["--turboshaft"]],
+    # We test both the JS and Wasm Turboshaft pipelines under the same variant.
+    # For extended Wasm Turboshaft coverage, we add --no-liftoff to the options.
+    "turboshaft": [["--turboshaft", "--turboshaft-wasm", "--no-liftoff"]],
     "concurrent_sparkplug": [["--concurrent-sparkplug", "--sparkplug"]],
     "always_sparkplug": [["--always-sparkplug", "--sparkplug"]],
     "minor_ms": [["--minor-ms"]],
@@ -117,6 +119,12 @@ INCOMPATIBLE_FLAGS_PER_VARIANT = {
         "--wasm-dynamic-tiering"
     ],
     "sparkplug": ["--jitless", "--no-sparkplug"],
+    "turboshaft": [
+        # 'turboshaft' disables Liftoff, which conflicts with flags that require
+        # Liftoff support.
+        "--liftoff-only",
+        "--wasm-dynamic-tiering"
+    ],
     "concurrent_sparkplug": ["--jitless"],
     "maglev": ["--jitless", "--no-maglev"],
     "maglev_future": ["--jitless", "--no-maglev", "--no-maglev-future"],

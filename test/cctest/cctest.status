@@ -1059,6 +1059,13 @@
   # TODO(v8:12783, nicohartmann@): FastApiCalls temporarily disabled on
   # Turboshaft until support has been properly ported.
   'test-api/FastApiCalls': [SKIP],
+  # The 'turboshaft' variant sets the '--no-liftoff' flag, which means that Wasm
+  # compiles directly to Turboshaft. This makes the cache no longer incremental,
+  # and these tests don't make sense.
+  # TODO(14108): Remove once we remove '--no-liftoff' from the 'turboshaft'
+  # variant.
+  'test-streaming-compilation/AsyncTestIncrementalCaching': [FAIL],
+  'test-streaming-compilation/SingleThreadedTestIncrementalCaching': [FAIL],
 }],  # variant == turboshaft
 
 ##############################################################################
