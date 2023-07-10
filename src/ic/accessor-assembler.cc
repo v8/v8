@@ -2736,8 +2736,9 @@ void AccessorAssembler::GenericPropertyLoad(
       Comment("stub cache probe for fast property load");
       TVARIABLE(MaybeObject, var_handler);
       Label found_handler(this, &var_handler), stub_cache_miss(this);
-      TryProbeStubCache(isolate()->load_stub_cache(), lookup_start_object, name,
-                        &found_handler, &var_handler, &stub_cache_miss);
+      TryProbeStubCache(isolate()->load_stub_cache(), lookup_start_object,
+                        lookup_start_object_map, name, &found_handler,
+                        &var_handler, &stub_cache_miss);
       BIND(&found_handler);
       {
         LazyLoadICParameters lazy_p(p);
@@ -2947,6 +2948,7 @@ void AccessorAssembler::TryProbeStubCacheTable(
 
 void AccessorAssembler::TryProbeStubCache(StubCache* stub_cache,
                                           TNode<Object> lookup_start_object,
+                                          TNode<Map> lookup_start_object_map,
                                           TNode<Name> name, Label* if_handler,
                                           TVariable<MaybeObject>* var_handler,
                                           Label* if_miss) {
@@ -2954,27 +2956,6 @@ void AccessorAssembler::TryProbeStubCache(StubCache* stub_cache,
 
   Counters* counters = isolate()->counters();
   IncrementCounter(counters->megamorphic_stub_cache_probes(), 1);
-
-  Label smi(this), non_smi(this), do_lookup(this);
-  TVARIABLE(Map, map_var);
-  Branch(TaggedIsSmi(lookup_start_object), &smi, &non_smi);
-
-  BIND(&smi);
-  {
-    // Also for smis the HeapNumberMap is used to identify number feedback.
-    map_var = HeapNumberMapConstant();
-    Goto(&do_lookup);
-  }
-
-  BIND(&non_smi);
-  {
-    map_var = LoadMap(CAST(lookup_start_object));
-    Goto(&do_lookup);
-  }
-
-  BIND(&do_lookup);
-
-  TNode<Map> lookup_start_object_map = map_var.value();
 
   // Probe the primary table.
   TNode<IntPtrT> primary_offset =
@@ -3216,7 +3197,8 @@ void AccessorAssembler::LoadIC_Noninlined(const LoadICParameters* p,
     BIND(&try_megamorphic);
     {
       TryProbeStubCache(isolate()->load_stub_cache(), p->lookup_start_object(),
-                        CAST(p->name()), if_handler, var_handler, miss);
+                        lookup_start_object_map, CAST(p->name()), if_handler,
+                        var_handler, miss);
     }
 
     BIND(&try_megadom);
@@ -3848,7 +3830,8 @@ void AccessorAssembler::StoreIC(const StoreICParameters* p) {
     GotoIfNot(TaggedEqual(strong_feedback, MegamorphicSymbolConstant()), &miss);
 
     TryProbeStubCache(isolate()->store_stub_cache(), p->receiver(),
-                      CAST(p->name()), &if_handler, &var_handler, &miss);
+                      receiver_map, CAST(p->name()), &if_handler, &var_handler,
+                      &miss);
   }
 
   BIND(&no_feedback);
