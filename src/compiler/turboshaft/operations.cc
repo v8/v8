@@ -725,6 +725,9 @@ void FloatBinopOp::PrintOptions(std::ostream& os) const {
 void Word32PairBinopOp::PrintOptions(std::ostream& os) const {
   os << "[";
   switch (kind) {
+    case Kind::kAdd:
+      os << "Add";
+      break;
     case Kind::kMul:
       os << "Mul";
       break;

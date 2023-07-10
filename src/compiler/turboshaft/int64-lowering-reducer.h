@@ -29,8 +29,13 @@ class Int64LoweringReducer : public Next {
   OpIndex REDUCE(WordBinop)(OpIndex left, OpIndex right, WordBinopOp::Kind kind,
                             WordRepresentation rep) {
     if (rep == WordRepresentation::Word64()) {
-      if (kind == WordBinopOp::Kind::kMul) {
-        return ReduceMul(left, right);
+      switch (kind) {
+        case WordBinopOp::Kind::kAdd:
+          return ReducePairBinOp(left, right, Word32PairBinopOp::Kind::kAdd);
+        case WordBinopOp::Kind::kMul:
+          return ReducePairBinOp(left, right, Word32PairBinopOp::Kind::kMul);
+        default:
+          break;
       }
     }
     return Next::ReduceWordBinop(left, right, kind, rep);
@@ -91,11 +96,11 @@ class Int64LoweringReducer : public Next {
             __ Projection(input, 1, RegisterRepresentation::Word32())};
   }
 
-  OpIndex ReduceMul(OpIndex left, OpIndex right) {
+  OpIndex ReducePairBinOp(OpIndex left, OpIndex right,
+                          Word32PairBinopOp::Kind kind) {
     auto [left_low, left_high] = Unpack(left);
     auto [right_low, right_high] = Unpack(right);
-    return __ Word32PairBinop(left_low, left_high, right_low, right_high,
-                              Word32PairBinopOp::Kind::kMul);
+    return __ Word32PairBinop(left_low, left_high, right_low, right_high, kind);
   }
 
   void InitializeIndexMaps() {

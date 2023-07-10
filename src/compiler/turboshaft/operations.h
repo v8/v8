@@ -1076,6 +1076,7 @@ struct FloatBinopOp : FixedArityOperationT<2, FloatBinopOp> {
 
 struct Word32PairBinopOp : FixedArityOperationT<4, Word32PairBinopOp> {
   enum class Kind : uint8_t {
+    kAdd,
     kMul,
   };
   Kind kind;
