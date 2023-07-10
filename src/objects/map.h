@@ -996,7 +996,7 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   static const int kMaxFastProperties = 128;
 
   friend class MapUpdater;
-  template <typename ConcreteVisitor>
+  template <typename ConcreteVisitor, typename MarkingState>
   friend class MarkingVisitorBase;
 
   TQ_OBJECT_CONSTRUCTORS(Map)

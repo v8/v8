@@ -30,9 +30,9 @@ namespace internal {
 // Visiting strong and weak pointers =========================================
 // ===========================================================================
 
-template <typename ConcreteVisitor>
-void MarkingVisitorBase<ConcreteVisitor>::MarkObject(HeapObject host,
-                                                     HeapObject object) {
+template <typename ConcreteVisitor, typename MarkingState>
+void MarkingVisitorBase<ConcreteVisitor, MarkingState>::MarkObject(
+    HeapObject host, HeapObject object) {
   DCHECK(ReadOnlyHeap::Contains(object) || heap_->Contains(object));
   SynchronizePageAccess(object);
   concrete_visitor()->AddStrongReferenceForReferenceSummarizer(host, object);
@@ -46,10 +46,10 @@ void MarkingVisitorBase<ConcreteVisitor>::MarkObject(HeapObject host,
 }
 
 // class template arguments
-template <typename ConcreteVisitor>
+template <typename ConcreteVisitor, typename MarkingState>
 // method template arguments
 template <typename THeapObjectSlot>
-void MarkingVisitorBase<ConcreteVisitor>::ProcessStrongHeapObject(
+void MarkingVisitorBase<ConcreteVisitor, MarkingState>::ProcessStrongHeapObject(
     HeapObject host, THeapObjectSlot slot, HeapObject heap_object) {
   SynchronizePageAccess(heap_object);
   if (!ShouldMarkObject(heap_object)) return;
@@ -58,10 +58,10 @@ void MarkingVisitorBase<ConcreteVisitor>::ProcessStrongHeapObject(
 }
 
 // class template arguments
-template <typename ConcreteVisitor>
+template <typename ConcreteVisitor, typename MarkingState>
 // method template arguments
 template <typename THeapObjectSlot>
-void MarkingVisitorBase<ConcreteVisitor>::ProcessWeakHeapObject(
+void MarkingVisitorBase<ConcreteVisitor, MarkingState>::ProcessWeakHeapObject(
     HeapObject host, THeapObjectSlot slot, HeapObject heap_object) {
   SynchronizePageAccess(heap_object);
   if (!ShouldMarkObject(heap_object)) return;
@@ -81,10 +81,11 @@ void MarkingVisitorBase<ConcreteVisitor>::ProcessWeakHeapObject(
 }
 
 // class template arguments
-template <typename ConcreteVisitor>
+template <typename ConcreteVisitor, typename MarkingState>
 // method template arguments
 template <typename TSlot>
-V8_INLINE void MarkingVisitorBase<ConcreteVisitor>::VisitPointersImpl(
+V8_INLINE void
+MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitPointersImpl(
     HeapObject host, TSlot start, TSlot end) {
   using THeapObjectSlot = typename TSlot::THeapObjectSlot;
   for (TSlot slot = start; slot < end; ++slot) {
@@ -102,10 +103,9 @@ V8_INLINE void MarkingVisitorBase<ConcreteVisitor>::VisitPointersImpl(
   }
 }
 
-template <typename ConcreteVisitor>
-V8_INLINE void
-MarkingVisitorBase<ConcreteVisitor>::VisitInstructionStreamPointerImpl(
-    Code host, InstructionStreamSlot slot) {
+template <typename ConcreteVisitor, typename MarkingState>
+V8_INLINE void MarkingVisitorBase<ConcreteVisitor, MarkingState>::
+    VisitInstructionStreamPointerImpl(Code host, InstructionStreamSlot slot) {
   Object object =
       slot.Relaxed_Load(ObjectVisitorWithCageBases::code_cage_base());
   HeapObject heap_object;
@@ -117,8 +117,8 @@ MarkingVisitorBase<ConcreteVisitor>::VisitInstructionStreamPointerImpl(
   }
 }
 
-template <typename ConcreteVisitor>
-void MarkingVisitorBase<ConcreteVisitor>::VisitEmbeddedPointer(
+template <typename ConcreteVisitor, typename MarkingState>
+void MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitEmbeddedPointer(
     InstructionStream host, RelocInfo* rinfo) {
   DCHECK(RelocInfo::IsEmbeddedObjectMode(rinfo->rmode()));
   HeapObject object =
@@ -138,8 +138,8 @@ void MarkingVisitorBase<ConcreteVisitor>::VisitEmbeddedPointer(
   concrete_visitor()->RecordRelocSlot(host, rinfo, object);
 }
 
-template <typename ConcreteVisitor>
-void MarkingVisitorBase<ConcreteVisitor>::VisitCodeTarget(
+template <typename ConcreteVisitor, typename MarkingState>
+void MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitCodeTarget(
     InstructionStream host, RelocInfo* rinfo) {
   DCHECK(RelocInfo::IsCodeTargetMode(rinfo->rmode()));
   InstructionStream target =
@@ -150,8 +150,8 @@ void MarkingVisitorBase<ConcreteVisitor>::VisitCodeTarget(
   concrete_visitor()->RecordRelocSlot(host, rinfo, target);
 }
 
-template <typename ConcreteVisitor>
-void MarkingVisitorBase<ConcreteVisitor>::VisitExternalPointer(
+template <typename ConcreteVisitor, typename MarkingState>
+void MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitExternalPointer(
     HeapObject host, ExternalPointerSlot slot, ExternalPointerTag tag) {
 #ifdef V8_ENABLE_SANDBOX
   DCHECK_NE(tag, kExternalPointerNullTag);
@@ -170,8 +170,8 @@ void MarkingVisitorBase<ConcreteVisitor>::VisitExternalPointer(
 // Object participating in bytecode flushing =================================
 // ===========================================================================
 
-template <typename ConcreteVisitor>
-int MarkingVisitorBase<ConcreteVisitor>::VisitBytecodeArray(
+template <typename ConcreteVisitor, typename MarkingState>
+int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitBytecodeArray(
     Map map, BytecodeArray object) {
   int size = BytecodeArray::BodyDescriptor::SizeOf(map, object);
   this->VisitMapPointer(object);
@@ -179,8 +179,8 @@ int MarkingVisitorBase<ConcreteVisitor>::VisitBytecodeArray(
   return size;
 }
 
-template <typename ConcreteVisitor>
-int MarkingVisitorBase<ConcreteVisitor>::VisitJSFunction(
+template <typename ConcreteVisitor, typename MarkingState>
+int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitJSFunction(
     Map map, JSFunction js_function) {
   int size = concrete_visitor()->VisitJSObjectSubclass(map, js_function);
   if (ShouldFlushBaselineCode(js_function)) {
@@ -199,8 +199,8 @@ int MarkingVisitorBase<ConcreteVisitor>::VisitJSFunction(
   return size;
 }
 
-template <typename ConcreteVisitor>
-int MarkingVisitorBase<ConcreteVisitor>::VisitSharedFunctionInfo(
+template <typename ConcreteVisitor, typename MarkingState>
+int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitSharedFunctionInfo(
     Map map, SharedFunctionInfo shared_info) {
   int size = SharedFunctionInfo::BodyDescriptor::SizeOf(map, shared_info);
   this->VisitMapPointer(shared_info);
@@ -236,9 +236,9 @@ int MarkingVisitorBase<ConcreteVisitor>::VisitSharedFunctionInfo(
   return size;
 }
 
-template <typename ConcreteVisitor>
-bool MarkingVisitorBase<ConcreteVisitor>::HasBytecodeArrayForFlushing(
-    SharedFunctionInfo sfi) const {
+template <typename ConcreteVisitor, typename MarkingState>
+bool MarkingVisitorBase<ConcreteVisitor, MarkingState>::
+    HasBytecodeArrayForFlushing(SharedFunctionInfo sfi) const {
   if (IsFlushingDisabled(code_flush_mode_)) return false;
 
   // TODO(rmcilroy): Enable bytecode flushing for resumable functions.
@@ -266,14 +266,15 @@ bool MarkingVisitorBase<ConcreteVisitor>::HasBytecodeArrayForFlushing(
   return data.IsBytecodeArray();
 }
 
-template <typename ConcreteVisitor>
-bool MarkingVisitorBase<ConcreteVisitor>::ShouldFlushCode(
+template <typename ConcreteVisitor, typename MarkingState>
+bool MarkingVisitorBase<ConcreteVisitor, MarkingState>::ShouldFlushCode(
     SharedFunctionInfo sfi) const {
   return IsStressFlushingEnabled(code_flush_mode_) || IsOld(sfi);
 }
 
-template <typename ConcreteVisitor>
-bool MarkingVisitorBase<ConcreteVisitor>::IsOld(SharedFunctionInfo sfi) const {
+template <typename ConcreteVisitor, typename MarkingState>
+bool MarkingVisitorBase<ConcreteVisitor, MarkingState>::IsOld(
+    SharedFunctionInfo sfi) const {
   if (v8_flags.flush_code_based_on_time) {
     return sfi.age() >= v8_flags.bytecode_old_time;
   } else if (v8_flags.flush_code_based_on_tab_visibility) {
@@ -284,8 +285,8 @@ bool MarkingVisitorBase<ConcreteVisitor>::IsOld(SharedFunctionInfo sfi) const {
   }
 }
 
-template <typename ConcreteVisitor>
-void MarkingVisitorBase<ConcreteVisitor>::MakeOlder(
+template <typename ConcreteVisitor, typename MarkingState>
+void MarkingVisitorBase<ConcreteVisitor, MarkingState>::MakeOlder(
     SharedFunctionInfo sfi) const {
   if (v8_flags.flush_code_based_on_time) {
     DCHECK_NE(code_flushing_increase_, 0);
@@ -315,8 +316,8 @@ void MarkingVisitorBase<ConcreteVisitor>::MakeOlder(
   }
 }
 
-template <typename ConcreteVisitor>
-bool MarkingVisitorBase<ConcreteVisitor>::ShouldFlushBaselineCode(
+template <typename ConcreteVisitor, typename MarkingState>
+bool MarkingVisitorBase<ConcreteVisitor, MarkingState>::ShouldFlushBaselineCode(
     JSFunction js_function) const {
   if (!IsBaselineCodeFlushingEnabled(code_flush_mode_)) return false;
   // Do a raw read for shared and code fields here since this function may be
@@ -348,9 +349,10 @@ bool MarkingVisitorBase<ConcreteVisitor>::ShouldFlushBaselineCode(
 // Fixed arrays that need incremental processing and can be left-trimmed =====
 // ===========================================================================
 
-template <typename ConcreteVisitor>
-int MarkingVisitorBase<ConcreteVisitor>::VisitFixedArrayWithProgressBar(
-    Map map, FixedArray object, ProgressBar& progress_bar) {
+template <typename ConcreteVisitor, typename MarkingState>
+int MarkingVisitorBase<ConcreteVisitor, MarkingState>::
+    VisitFixedArrayWithProgressBar(Map map, FixedArray object,
+                                   ProgressBar& progress_bar) {
   const int kProgressBarScanningChunk = kMaxRegularHeapObjectSize;
   static_assert(kMaxRegularHeapObjectSize % kTaggedSize == 0);
   DCHECK(concrete_visitor()->IsMarked(object));
@@ -376,8 +378,8 @@ int MarkingVisitorBase<ConcreteVisitor>::VisitFixedArrayWithProgressBar(
   return end - start;
 }
 
-template <typename ConcreteVisitor>
-int MarkingVisitorBase<ConcreteVisitor>::VisitFixedArrayRegularly(
+template <typename ConcreteVisitor, typename MarkingState>
+int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitFixedArrayRegularly(
     Map map, FixedArray object) {
   int size = FixedArray::BodyDescriptor::SizeOf(map, object);
   concrete_visitor()
@@ -387,9 +389,9 @@ int MarkingVisitorBase<ConcreteVisitor>::VisitFixedArrayRegularly(
   return size;
 }
 
-template <typename ConcreteVisitor>
-int MarkingVisitorBase<ConcreteVisitor>::VisitFixedArray(Map map,
-                                                         FixedArray object) {
+template <typename ConcreteVisitor, typename MarkingState>
+int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitFixedArray(
+    Map map, FixedArray object) {
   ProgressBar& progress_bar =
       MemoryChunk::FromHeapObject(object)->ProgressBar();
   return concrete_visitor()->CanUpdateValuesInHeap() && progress_bar.IsEnabled()
@@ -401,17 +403,16 @@ int MarkingVisitorBase<ConcreteVisitor>::VisitFixedArray(Map map,
 // Objects participating in embedder tracing =================================
 // ===========================================================================
 
-template <typename ConcreteVisitor>
+template <typename ConcreteVisitor, typename MarkingState>
 template <typename T>
-inline int MarkingVisitorBase<
-    ConcreteVisitor>::VisitEmbedderTracingSubClassNoEmbedderTracing(Map map,
-                                                                    T object) {
+inline int MarkingVisitorBase<ConcreteVisitor, MarkingState>::
+    VisitEmbedderTracingSubClassNoEmbedderTracing(Map map, T object) {
   return concrete_visitor()->VisitJSObjectSubclass(map, object);
 }
 
-template <typename ConcreteVisitor>
+template <typename ConcreteVisitor, typename MarkingState>
 template <typename T>
-inline int MarkingVisitorBase<ConcreteVisitor>::
+inline int MarkingVisitorBase<ConcreteVisitor, MarkingState>::
     VisitEmbedderTracingSubClassWithEmbedderTracing(Map map, T object) {
   const bool requires_snapshot =
       local_marking_worklists_->SupportsExtractWrapper();
@@ -426,10 +427,11 @@ inline int MarkingVisitorBase<ConcreteVisitor>::
   return size;
 }
 
-template <typename ConcreteVisitor>
+template <typename ConcreteVisitor, typename MarkingState>
 template <typename T>
-int MarkingVisitorBase<ConcreteVisitor>::VisitEmbedderTracingSubclass(
-    Map map, T object) {
+int MarkingVisitorBase<ConcreteVisitor,
+                       MarkingState>::VisitEmbedderTracingSubclass(Map map,
+                                                                   T object) {
   DCHECK(object.MayHaveEmbedderFields());
   if (V8_LIKELY(trace_embedder_fields_)) {
     return VisitEmbedderTracingSubClassWithEmbedderTracing(map, object);
@@ -437,27 +439,28 @@ int MarkingVisitorBase<ConcreteVisitor>::VisitEmbedderTracingSubclass(
   return VisitEmbedderTracingSubClassNoEmbedderTracing(map, object);
 }
 
-template <typename ConcreteVisitor>
-int MarkingVisitorBase<ConcreteVisitor>::VisitJSApiObject(Map map,
-                                                          JSObject object) {
+template <typename ConcreteVisitor, typename MarkingState>
+int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitJSApiObject(
+    Map map, JSObject object) {
   return VisitEmbedderTracingSubclass(map, object);
 }
 
-template <typename ConcreteVisitor>
-int MarkingVisitorBase<ConcreteVisitor>::VisitJSArrayBuffer(
+template <typename ConcreteVisitor, typename MarkingState>
+int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitJSArrayBuffer(
     Map map, JSArrayBuffer object) {
   object.MarkExtension();
   return VisitEmbedderTracingSubclass(map, object);
 }
 
-template <typename ConcreteVisitor>
-int MarkingVisitorBase<ConcreteVisitor>::VisitJSDataViewOrRabGsabDataView(
-    Map map, JSDataViewOrRabGsabDataView object) {
+template <typename ConcreteVisitor, typename MarkingState>
+int MarkingVisitorBase<ConcreteVisitor, MarkingState>::
+    VisitJSDataViewOrRabGsabDataView(Map map,
+                                     JSDataViewOrRabGsabDataView object) {
   return VisitEmbedderTracingSubclass(map, object);
 }
 
-template <typename ConcreteVisitor>
-int MarkingVisitorBase<ConcreteVisitor>::VisitJSTypedArray(
+template <typename ConcreteVisitor, typename MarkingState>
+int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitJSTypedArray(
     Map map, JSTypedArray object) {
   return VisitEmbedderTracingSubclass(map, object);
 }
@@ -466,8 +469,8 @@ int MarkingVisitorBase<ConcreteVisitor>::VisitJSTypedArray(
 // Weak JavaScript objects ===================================================
 // ===========================================================================
 
-template <typename ConcreteVisitor>
-int MarkingVisitorBase<ConcreteVisitor>::VisitEphemeronHashTable(
+template <typename ConcreteVisitor, typename MarkingState>
+int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitEphemeronHashTable(
     Map map, EphemeronHashTable table) {
   local_weak_objects_->ephemeron_hash_tables_local.Push(table);
 
@@ -513,9 +516,9 @@ int MarkingVisitorBase<ConcreteVisitor>::VisitEphemeronHashTable(
   return table.SizeFromMap(map);
 }
 
-template <typename ConcreteVisitor>
-int MarkingVisitorBase<ConcreteVisitor>::VisitJSWeakRef(Map map,
-                                                        JSWeakRef weak_ref) {
+template <typename ConcreteVisitor, typename MarkingState>
+int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitJSWeakRef(
+    Map map, JSWeakRef weak_ref) {
   int size = concrete_visitor()->VisitJSObjectSubclass(map, weak_ref);
   if (size == 0) return 0;
   if (weak_ref.target().IsHeapObject()) {
@@ -537,9 +540,9 @@ int MarkingVisitorBase<ConcreteVisitor>::VisitJSWeakRef(Map map,
   return size;
 }
 
-template <typename ConcreteVisitor>
-int MarkingVisitorBase<ConcreteVisitor>::VisitWeakCell(Map map,
-                                                       WeakCell weak_cell) {
+template <typename ConcreteVisitor, typename MarkingState>
+int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitWeakCell(
+    Map map, WeakCell weak_cell) {
   int size = WeakCell::BodyDescriptor::SizeOf(map, weak_cell);
   this->VisitMapPointer(weak_cell);
   WeakCell::BodyDescriptor::IterateBody(map, weak_cell, size, this);
@@ -573,9 +576,9 @@ int MarkingVisitorBase<ConcreteVisitor>::VisitWeakCell(Map map,
 // Custom weakness in descriptor arrays and transition arrays ================
 // ===========================================================================
 
-template <typename ConcreteVisitor>
-int MarkingVisitorBase<ConcreteVisitor>::VisitDescriptorArrayStrongly(
-    Map map, DescriptorArray array) {
+template <typename ConcreteVisitor, typename MarkingState>
+int MarkingVisitorBase<ConcreteVisitor, MarkingState>::
+    VisitDescriptorArrayStrongly(Map map, DescriptorArray array) {
   this->VisitMapPointer(array);
   int size = DescriptorArray::BodyDescriptor::SizeOf(map, array);
   VisitPointers(array, array.GetFirstPointerSlot(), array.GetDescriptorSlot(0));
@@ -585,8 +588,8 @@ int MarkingVisitorBase<ConcreteVisitor>::VisitDescriptorArrayStrongly(
   return size;
 }
 
-template <typename ConcreteVisitor>
-int MarkingVisitorBase<ConcreteVisitor>::VisitDescriptorArray(
+template <typename ConcreteVisitor, typename MarkingState>
+int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitDescriptorArray(
     Map map, DescriptorArray array) {
   if (!concrete_visitor()->CanUpdateValuesInHeap()) {
     // If we cannot update the values in the heap, we just treat the array
@@ -620,8 +623,9 @@ int MarkingVisitorBase<ConcreteVisitor>::VisitDescriptorArray(
   return 0;
 }
 
-template <typename ConcreteVisitor>
-void MarkingVisitorBase<ConcreteVisitor>::VisitDescriptorsForMap(Map map) {
+template <typename ConcreteVisitor, typename MarkingState>
+void MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitDescriptorsForMap(
+    Map map) {
   if (!concrete_visitor()->CanUpdateValuesInHeap() || !map.CanTransition())
     return;
 
@@ -672,8 +676,9 @@ void MarkingVisitorBase<ConcreteVisitor>::VisitDescriptorsForMap(Map map) {
   }
 }
 
-template <typename ConcreteVisitor>
-int MarkingVisitorBase<ConcreteVisitor>::VisitMap(Map meta_map, Map map) {
+template <typename ConcreteVisitor, typename MarkingState>
+int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitMap(Map meta_map,
+                                                                Map map) {
   int size = Map::BodyDescriptor::SizeOf(meta_map, map);
   VisitDescriptorsForMap(map);
 
@@ -684,8 +689,8 @@ int MarkingVisitorBase<ConcreteVisitor>::VisitMap(Map meta_map, Map map) {
   return size;
 }
 
-template <typename ConcreteVisitor>
-int MarkingVisitorBase<ConcreteVisitor>::VisitTransitionArray(
+template <typename ConcreteVisitor, typename MarkingState>
+int MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitTransitionArray(
     Map map, TransitionArray array) {
   this->VisitMapPointer(array);
   int size = TransitionArray::BodyDescriptor::SizeOf(map, array);

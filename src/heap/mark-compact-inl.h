@@ -64,6 +64,20 @@ void MarkCompactCollector::AddTransitionArray(TransitionArray array) {
   local_weak_objects()->transition_arrays_local.Push(array);
 }
 
+template <typename MarkingState>
+template <typename TSlot>
+void MainMarkingVisitor<MarkingState>::RecordSlot(HeapObject object, TSlot slot,
+                                                  HeapObject target) {
+  MarkCompactCollector::RecordSlot(object, slot, target);
+}
+
+template <typename MarkingState>
+void MainMarkingVisitor<MarkingState>::RecordRelocSlot(InstructionStream host,
+                                                       RelocInfo* rinfo,
+                                                       HeapObject target) {
+  MarkCompactCollector::RecordRelocSlot(host, rinfo, target);
+}
+
 }  // namespace internal
 }  // namespace v8
 
