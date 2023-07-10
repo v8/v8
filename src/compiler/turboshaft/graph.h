@@ -386,6 +386,7 @@ class Block : public RandomAccessStackDominatorNode<Block> {
     return nullptr;
   }
 
+  bool IsComplete() const { return end_.valid(); }
   OpIndex begin() const {
     DCHECK(begin_.valid());
     return begin_;

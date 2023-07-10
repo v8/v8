@@ -975,7 +975,11 @@ class GraphVisitor {
 
   void FixLoopPhis(Block* loop) {
     DCHECK(loop->IsLoop());
-    for (Operation& op : assembler().output_graph().operations(*loop)) {
+    for (Operation& op : assembler().output_graph().operations(
+             loop->begin(),
+             loop->IsComplete()
+                 ? loop->end()
+                 : assembler().output_graph().next_operation_index())) {
       if (auto* pending_phi = op.TryCast<PendingLoopPhiOp>()) {
         if (pending_phi->kind != PendingLoopPhiOp::Kind::kOldGraphIndex) {
           continue;
