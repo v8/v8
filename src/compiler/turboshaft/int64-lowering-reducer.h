@@ -32,6 +32,8 @@ class Int64LoweringReducer : public Next {
       switch (kind) {
         case WordBinopOp::Kind::kAdd:
           return ReducePairBinOp(left, right, Word32PairBinopOp::Kind::kAdd);
+        case WordBinopOp::Kind::kSub:
+          return ReducePairBinOp(left, right, Word32PairBinopOp::Kind::kSub);
         case WordBinopOp::Kind::kMul:
           return ReducePairBinOp(left, right, Word32PairBinopOp::Kind::kMul);
         default:

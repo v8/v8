@@ -1478,16 +1478,21 @@ Node* ScheduleBuilder::ProcessOperation(const LoadRootRegisterOp& op) {
 
 Node* ScheduleBuilder::ProcessOperation(const Word32PairBinopOp& op) {
   using Kind = Word32PairBinopOp::Kind;
+  const Operator* pair_operator = nullptr;
   switch (op.kind) {
     case Kind::kAdd:
-      return AddNode(machine.Int32PairAdd(),
-                     {GetNode(op.left_low()), GetNode(op.left_high()),
-                      GetNode(op.right_low()), GetNode(op.right_high())});
+      pair_operator = machine.Int32PairAdd();
+      break;
+    case Kind::kSub:
+      pair_operator = machine.Int32PairSub();
+      break;
     case Kind::kMul:
-      return AddNode(machine.Int32PairMul(),
-                     {GetNode(op.left_low()), GetNode(op.left_high()),
-                      GetNode(op.right_low()), GetNode(op.right_high())});
+      pair_operator = machine.Int32PairMul();
+      break;
   }
+  return AddNode(pair_operator,
+                 {GetNode(op.left_low()), GetNode(op.left_high()),
+                  GetNode(op.right_low()), GetNode(op.right_high())});
 }
 
 }  // namespace

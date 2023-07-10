@@ -77,3 +77,22 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(0x12345678n + 0xABCDEF1234n,
                wasm.add(0x12345678n, 0xABCDEF1234n));
 })();
+
+(function I64Subtraction() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  builder.addFunction("sub", makeSig([kWasmI64, kWasmI64], [kWasmI64]))
+    .addBody([
+      kExprLocalGet, 0,
+      kExprLocalGet, 1,
+      kExprI64Sub,
+    ])
+    .exportFunc();
+
+  let wasm = builder.instantiate().exports;
+  assertEquals(-1n, wasm.sub(1n, 2n));
+  assertEquals(200n, wasm.sub(100n, -100n));
+  assertEquals(0x12345678n - 0xABCDEF1234n,
+               wasm.sub(0x12345678n, 0xABCDEF1234n));
+  assertEquals(0n, wasm.sub(0x123456789ABCDEFn, 0x123456789ABCDEFn));
+})();

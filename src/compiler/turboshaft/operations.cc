@@ -728,6 +728,9 @@ void Word32PairBinopOp::PrintOptions(std::ostream& os) const {
     case Kind::kAdd:
       os << "Add";
       break;
+    case Kind::kSub:
+      os << "Sub";
+      break;
     case Kind::kMul:
       os << "Mul";
       break;
