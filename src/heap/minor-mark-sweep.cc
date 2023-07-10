@@ -223,9 +223,9 @@ void YoungGenerationMarkingTask::DrainMarkingWorklist() {
               ObjectFields::kMaybePointers);
     const auto visited_size = visitor_.Visit(map, heap_object);
     if (visited_size) {
-      MemoryChunk::FromHeapObject(heap_object)
-          ->IncrementLiveBytesAtomically(
-              ALIGN_TO_ALLOCATION_ALIGNMENT(visited_size));
+      visitor_.IncrementLiveBytesCached(
+          MemoryChunk::FromHeapObject(heap_object),
+          ALIGN_TO_ALLOCATION_ALIGNMENT(visited_size));
     }
   }
   // Publish wrapper objects to the cppgc marking state, if registered.
@@ -887,9 +887,9 @@ void MinorMarkSweepCollector::DrainMarkingWorklist() {
       DCHECK_EQ(Map::ObjectFieldsFrom(map.visitor_id()),
                 ObjectFields::kMaybePointers);
       if (visited_size) {
-        MemoryChunk::FromHeapObject(heap_object)
-            ->IncrementLiveBytesAtomically(
-                ALIGN_TO_ALLOCATION_ALIGNMENT(visited_size));
+        main_marking_visitor_->IncrementLiveBytesCached(
+            MemoryChunk::FromHeapObject(heap_object),
+            ALIGN_TO_ALLOCATION_ALIGNMENT(visited_size));
       }
     }
   } while (remembered_sets.ProcessNextItem(main_marking_visitor_.get()) ||
