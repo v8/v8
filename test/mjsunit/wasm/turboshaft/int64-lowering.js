@@ -96,3 +96,69 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
                wasm.sub(0x12345678n, 0xABCDEF1234n));
   assertEquals(0n, wasm.sub(0x123456789ABCDEFn, 0x123456789ABCDEFn));
 })();
+
+(function I64BitAnd() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  builder.addFunction("and", makeSig([kWasmI64, kWasmI64], [kWasmI64]))
+    .addBody([
+      kExprLocalGet, 0,
+      kExprLocalGet, 1,
+      kExprI64And,
+    ])
+    .exportFunc();
+
+  let wasm = builder.instantiate().exports;
+  assertEquals(
+    0b10101010_00000000_11111111_01010101n, wasm.and(
+    0b10101010_00000000_11111111_01010101n,
+    0b10101010_00000000_11111111_01010101n));
+  assertEquals(
+    0b10101010_00000000_01010101_00000000n, wasm.and(
+    0b10101010_00000000_11111111_01010101n,
+    0b11111111_11111111_01010101_00000000n));
+})();
+
+(function I64BitOr() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  builder.addFunction("or", makeSig([kWasmI64, kWasmI64], [kWasmI64]))
+    .addBody([
+      kExprLocalGet, 0,
+      kExprLocalGet, 1,
+      kExprI64Ior,
+    ])
+    .exportFunc();
+
+  let wasm = builder.instantiate().exports;
+  assertEquals(
+    0b10101010_00000000_11111111_01010101n, wasm.or(
+    0b10101010_00000000_11111111_01010101n,
+    0b10101010_00000000_11111111_01010101n));
+  assertEquals(
+    0b11111111_11111111_11111111_01010101n, wasm.or(
+    0b10101010_00000000_11111111_01010101n,
+    0b11111111_11111111_01010101_00000000n));
+})();
+
+(function I64BitXor() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  builder.addFunction("xor", makeSig([kWasmI64, kWasmI64], [kWasmI64]))
+    .addBody([
+      kExprLocalGet, 0,
+      kExprLocalGet, 1,
+      kExprI64Xor,
+    ])
+    .exportFunc();
+
+  let wasm = builder.instantiate().exports;
+  assertEquals(
+    0b10101010_00000000_11111111_01010101n, wasm.xor(
+    0b10101010_00000000_11111111_01010101n,
+    0b00000000_00000000_00000000_00000000n));
+  assertEquals(
+    0b11111111_11111111_11111111_01010101n, wasm.xor(
+    0b10101010_00000000_11111111_01010101n,
+    0b01010101_11111111_00000000_00000000n));
+})();

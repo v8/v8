@@ -36,6 +36,12 @@ class Int64LoweringReducer : public Next {
           return ReducePairBinOp(left, right, Word32PairBinopOp::Kind::kSub);
         case WordBinopOp::Kind::kMul:
           return ReducePairBinOp(left, right, Word32PairBinopOp::Kind::kMul);
+        case WordBinopOp::Kind::kBitwiseAnd:
+          return ReduceBitwiseAnd(left, right);
+        case WordBinopOp::Kind::kBitwiseOr:
+          return ReduceBitwiseOr(left, right);
+        case WordBinopOp::Kind::kBitwiseXor:
+          return ReduceBitwiseXor(left, right);
         default:
           break;
       }
@@ -103,6 +109,30 @@ class Int64LoweringReducer : public Next {
     auto [left_low, left_high] = Unpack(left);
     auto [right_low, right_high] = Unpack(right);
     return __ Word32PairBinop(left_low, left_high, right_low, right_high, kind);
+  }
+
+  OpIndex ReduceBitwiseAnd(OpIndex left, OpIndex right) {
+    auto [left_low, left_high] = Unpack(left);
+    auto [right_low, right_high] = Unpack(right);
+    OpIndex low_result = __ Word32BitwiseAnd(left_low, right_low);
+    OpIndex high_result = __ Word32BitwiseAnd(left_high, right_high);
+    return __ Tuple(low_result, high_result);
+  }
+
+  OpIndex ReduceBitwiseOr(OpIndex left, OpIndex right) {
+    auto [left_low, left_high] = Unpack(left);
+    auto [right_low, right_high] = Unpack(right);
+    OpIndex low_result = __ Word32BitwiseOr(left_low, right_low);
+    OpIndex high_result = __ Word32BitwiseOr(left_high, right_high);
+    return __ Tuple(low_result, high_result);
+  }
+
+  OpIndex ReduceBitwiseXor(OpIndex left, OpIndex right) {
+    auto [left_low, left_high] = Unpack(left);
+    auto [right_low, right_high] = Unpack(right);
+    OpIndex low_result = __ Word32BitwiseXor(left_low, right_low);
+    OpIndex high_result = __ Word32BitwiseXor(left_high, right_high);
+    return __ Tuple(low_result, high_result);
   }
 
   void InitializeIndexMaps() {
