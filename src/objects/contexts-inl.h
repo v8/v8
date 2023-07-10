@@ -182,6 +182,8 @@ bool Context::HasSameSecurityTokenAs(Context that) const {
          that.native_context().security_token();
 }
 
+bool Context::IsDetached() const { return global_object().IsDetached(); }
+
 #define NATIVE_CONTEXT_FIELD_ACCESSORS(index, type, name)   \
   void Context::set_##name(type value) {                    \
     DCHECK(IsNativeContext());                              \

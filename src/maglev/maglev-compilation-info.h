@@ -103,6 +103,8 @@ class MaglevCompilationInfo final {
       std::unique_ptr<CanonicalHandlesMap>&& canonical_handles);
   std::unique_ptr<CanonicalHandlesMap> DetachCanonicalHandles();
 
+  bool is_detached();
+
  private:
   MaglevCompilationInfo(Isolate* isolate, Handle<JSFunction> function,
                         BytecodeOffset osr_offset);

@@ -629,6 +629,7 @@ class Context : public TorqueGeneratedContext<Context, HeapObject> {
 
   // Compute the native context.
   inline NativeContext native_context() const;
+  inline bool IsDetached() const;
 
   // Predicates for context types.  IsNativeContext is already defined on
   // Object.

@@ -1326,6 +1326,10 @@ PipelineCompilationJob::Status PipelineCompilationJob::FinalizeJobImpl(
     }
     return FAILED;
   }
+  Handle<NativeContext> context(compilation_info()->native_context(), isolate);
+  if (context->IsDetached()) {
+    return AbortOptimization(BailoutReason::kDetachedNativeContext);
+  }
   if (!pipeline_.CheckNoDeprecatedMaps(code)) {
     return RetryOptimization(BailoutReason::kConcurrentMapDeprecation);
   }
@@ -1334,7 +1338,6 @@ PipelineCompilationJob::Status PipelineCompilationJob::FinalizeJobImpl(
   }
 
   compilation_info()->SetCode(code);
-  Handle<NativeContext> context(compilation_info()->native_context(), isolate);
   RegisterWeakObjectsInOptimizedCode(isolate, context, code);
   return SUCCEEDED;
 }

@@ -116,6 +116,7 @@ namespace internal {
   V(kNativeFunctionLiteral, "Native function literal")                       \
   V(kOptimizationDisabled, "Optimization disabled")                          \
   V(kHigherTierAvailable, "A higher tier is already available")              \
+  V(kDetachedNativeContext, "The native context is detached")                \
   V(kNeverOptimize, "Optimization is always disabled")
 
 #define ERROR_MESSAGES_CONSTANTS(C, T) C,

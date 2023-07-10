@@ -504,7 +504,8 @@ MaybeHandle<Code> MaglevCompiler::GenerateCode(
   {
     TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                  "V8.Maglev.CodeGeneration");
-    if (!code_generator->Generate(isolate).ToHandle(&code)) {
+    if (compilation_info->is_detached() ||
+        !code_generator->Generate(isolate).ToHandle(&code)) {
       compilation_info->toplevel_compilation_unit()
           ->shared_function_info()
           .object()
@@ -515,7 +516,7 @@ MaybeHandle<Code> MaglevCompiler::GenerateCode(
 
   {
     TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
-                 "V8.Maglev.CommitingDependencies");
+                 "V8.Maglev.CommittingDependencies");
     if (!compilation_info->broker()->dependencies()->Commit(code)) {
       // Don't `set_maglev_compilation_failed` s.t. we may reattempt
       // compilation.
