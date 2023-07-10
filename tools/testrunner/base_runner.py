@@ -170,9 +170,9 @@ class BaseTestRunner(object):
       args = self._parse_test_args(args)
 
       with os_context(self.target_os, self.options) as ctx:
+        self._setup_env()
         names = self._args_to_suite_names(args)
         tests = self._load_testsuite_generators(ctx, names)
-        self._setup_env()
         print(">>> Running tests for %s.%s" % (self.build_config.arch,
                                                self.mode_options.label))
         exit_code = self._do_execute(tests, args, ctx)
@@ -456,6 +456,8 @@ class BaseTestRunner(object):
       if utils.GuessOS() == 'windows':
         # https://crbug.com/967663
         asan_options.append('detect_stack_use_after_return=0')
+        # https://crbug.com/1462556
+        asan_options.append('detect_container_overflow=0')
       os.environ['ASAN_OPTIONS'] = ":".join(asan_options)
 
     if self.build_config.cfi:
