@@ -25,6 +25,8 @@ class Smi : public Object {
   // This replaces the OBJECT_CONSTRUCTORS macro, because Smis are special
   // in that we want them to be constexprs.
   constexpr Smi() : Object() {}
+  explicit constexpr Smi(Address ptr, SkipTypeCheckTag)
+      : Object(ptr, SkipTypeCheckTag()) {}
   explicit constexpr Smi(Address ptr) : Object(ptr) {
     DCHECK(HAS_SMI_TAG(ptr));
   }

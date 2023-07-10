@@ -26,6 +26,11 @@
   template <typename TFieldType, int kFieldOffset, typename CompressionScheme> \
   friend class TaggedField;                                                    \
                                                                                \
+  /* Special constructor for constexpr construction which allows skipping type \
+   * checks. */                                                                \
+  explicit constexpr inline Type(Address ptr, Object::SkipTypeCheckTag)        \
+      : __VA_ARGS__(ptr, Object::SkipTypeCheckTag()) {}                        \
+                                                                               \
   explicit inline Type(Address ptr)
 
 #define OBJECT_CONSTRUCTORS_IMPL(Type, Super) \
@@ -155,10 +160,10 @@
   DECL_ACQUIRE_GETTER(name, MaybeObject)          \
   DECL_RELEASE_SETTER(name, MaybeObject)
 
-#define DECL_CAST(Type)                                 \
-  V8_INLINE static Type cast(Object object);            \
-  V8_INLINE static Type unchecked_cast(Object object) { \
-    return base::bit_cast<Type>(object);                \
+#define DECL_CAST(Type)                                           \
+  V8_INLINE static Type cast(Object object);                      \
+  V8_INLINE static constexpr Type unchecked_cast(Object object) { \
+    return Type(object.ptr(), SkipTypeCheckTag());                \
   }
 
 #define CAST_ACCESSOR(Type) \
@@ -717,15 +722,8 @@ static_assert(sizeof(unsigned) == sizeof(uint32_t),
     set(IndexForEntry(i) + k##name##Offset, value);             \
   }
 
-#define TQ_OBJECT_CONSTRUCTORS(Type)                                           \
- public:                                                                       \
-  constexpr Type() = default;                                                  \
-                                                                               \
- protected:                                                                    \
-  template <typename TFieldType, int kFieldOffset, typename CompressionScheme> \
-  friend class TaggedField;                                                    \
-                                                                               \
-  inline explicit Type(Address ptr);                                           \
+#define TQ_OBJECT_CONSTRUCTORS(Type)                             \
+  OBJECT_CONSTRUCTORS(Type, TorqueGenerated##Type<Type, Super>); \
   friend class TorqueGenerated##Type<Type, Super>;
 
 #define TQ_OBJECT_CONSTRUCTORS_IMPL(Type) \

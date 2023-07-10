@@ -4330,6 +4330,9 @@ void CppClassGenerator::GenerateClassConstructors() {
   hdr_ << "  }\n\n";
 
   hdr_ << " protected:\n";
+  hdr_ << "  inline explicit constexpr " << gen_name_
+       << "(Address ptr, Object::SkipTypeCheckTag\n)";
+  hdr_ << "    : P(ptr, Object::SkipTypeCheckTag()) {}\n";
   hdr_ << "  inline explicit " << gen_name_ << "(Address ptr);\n";
 
   inl_ << "template<class D, class P>\n";

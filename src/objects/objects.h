@@ -675,8 +675,10 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
 
   V8_EXPORT_PRIVATE void ShortPrint(std::ostream& os) const;
 
-  inline static Object cast(Object object) { return object; }
-  inline static Object unchecked_cast(Object object) { return object; }
+  inline static constexpr Object cast(Object object) { return object; }
+  inline static constexpr Object unchecked_cast(Object object) {
+    return object;
+  }
 
   // Layout description.
   static const int kHeaderSize = 0;  // Object does not take up any space.
@@ -817,6 +819,9 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   inline bool CanBeHeldWeakly() const;
 
  protected:
+  struct SkipTypeCheckTag {};
+  explicit constexpr Object(Address ptr, SkipTypeCheckTag) : Object(ptr) {}
+
   inline Address field_address(size_t offset) const {
     return ptr() + offset - kHeapObjectTag;
   }
