@@ -34,8 +34,17 @@ bool VisitYoungObjectViaSlot(Visitor* visitor, TSlot slot) {
   }
   HeapObject heap_object;
   // Treat weak references as strong.
-  if (!target.GetHeapObject(&heap_object) ||
-      !Heap::InYoungGeneration(heap_object)) {
+  if (!target.GetHeapObject(&heap_object)) {
+    return false;
+  }
+
+#ifdef THREAD_SANITIZER
+  if constexpr (Visitor::EnableConcurrentVisitation()) {
+    BasicMemoryChunk::FromHeapObject(heap_object)->SynchronizedHeapLoad();
+  }
+#endif  // THREAD_SANITIZER
+
+  if (!Heap::InYoungGeneration(heap_object)) {
     return false;
   }
 

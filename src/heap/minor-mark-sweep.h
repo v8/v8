@@ -146,9 +146,9 @@ class YoungGenerationRememberedSetsMarkingWorklist {
     V8_INLINE SlotCallbackResult CheckAndMarkObject(Visitor* visitor,
                                                     TSlot slot);
 
-    template <typename TSlot>
     V8_INLINE void CheckOldToNewSlotForSharedUntyped(MemoryChunk* chunk,
-                                                     TSlot slot);
+                                                     Address slot_address,
+                                                     MaybeObject object);
     V8_INLINE void CheckOldToNewSlotForSharedTyped(MemoryChunk* chunk,
                                                    SlotType slot_type,
                                                    Address slot_address,

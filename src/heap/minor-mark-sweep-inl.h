@@ -159,15 +159,14 @@ void YoungGenerationRememberedSetsMarkingWorklist::MarkingItem::Process(
   }
 }
 
-template <typename TSlot>
 void YoungGenerationRememberedSetsMarkingWorklist::MarkingItem::
-    CheckOldToNewSlotForSharedUntyped(MemoryChunk* chunk, TSlot slot) {
-  MaybeObject object = *slot;
+    CheckOldToNewSlotForSharedUntyped(MemoryChunk* chunk, Address slot_address,
+                                      MaybeObject object) {
   HeapObject heap_object;
   if (object.GetHeapObject(&heap_object) &&
       heap_object.InWritableSharedSpace()) {
-    RememberedSet<OLD_TO_SHARED>::Insert<AccessMode::ATOMIC>(chunk,
-                                                             slot.address());
+    const uintptr_t offset = slot_address - chunk->address();
+    RememberedSet<OLD_TO_SHARED>::Insert<AccessMode::ATOMIC>(chunk, offset);
   }
 }
 
@@ -197,7 +196,13 @@ void YoungGenerationRememberedSetsMarkingWorklist::MarkingItem::
                    record_old_to_shared_slots](MaybeObjectSlot slot) {
     SlotCallbackResult result = CheckAndMarkObject(visitor, slot);
     if (result == REMOVE_SLOT && record_old_to_shared_slots) {
-      CheckOldToNewSlotForSharedUntyped(chunk_, slot);
+      MaybeObject object;
+      if constexpr (Visitor::EnableConcurrentVisitation()) {
+        object = slot.Relaxed_Load(visitor->cage_base());
+      } else {
+        object = *slot;
+      }
+      CheckOldToNewSlotForSharedUntyped(chunk_, slot.address(), object);
     }
     return result;
   };
@@ -240,8 +245,14 @@ void YoungGenerationRememberedSetsMarkingWorklist::MarkingItem::
              slot_type](FullMaybeObjectSlot slot) {
               SlotCallbackResult result = CheckAndMarkObject(visitor, slot);
               if (result == REMOVE_SLOT && record_old_to_shared_slots) {
+                MaybeObject object;
+                if constexpr (Visitor::EnableConcurrentVisitation()) {
+                  object = slot.Relaxed_Load(visitor->cage_base());
+                } else {
+                  object = *slot;
+                }
                 CheckOldToNewSlotForSharedTyped(chunk_, slot_type, slot_address,
-                                                *slot);
+                                                object);
               }
               return result;
             });
