@@ -46,42 +46,16 @@ class SelectLoweringReducer : public Next {
       return Next::ReduceSelect(cond, vtrue, vfalse, rep, hint, implem);
     }
 
-    Block* true_block = Asm().NewBlock();
-    Block* false_block = Asm().NewBlock();
-    Block* merge_block = Asm().NewBlock();
-
-    Asm().Branch(cond, true_block, false_block, hint);
-
-    // Note that it's possible that other reducers of the stack optimizes the
-    // Branch that we just introduced into a Goto (if its condition is already
-    // known). Thus, we check the return values of Bind, and only insert the
-    // Gotos if Bind was successful: if not, then it means that the block
-    // ({true_block} or {false_block}) isn't reachable because the Branch was
-    // optimized to a Goto.
-
-    bool has_true_block = false;
-    bool has_false_block = false;
-
-    if (Asm().Bind(true_block)) {
-      has_true_block = true;
-      Asm().Goto(merge_block);
+    Variable result = Asm().NewLoopInvariantVariable(rep);
+    IF (cond) {
+      Asm().SetVariable(result, vtrue);
     }
-
-    if (Asm().Bind(false_block)) {
-      has_false_block = true;
-      Asm().Goto(merge_block);
+    ELSE {
+      Asm().SetVariable(result, vfalse);
     }
+    END_IF
 
-    Asm().BindReachable(merge_block);
-
-    if (has_true_block && has_false_block) {
-      return Asm().Phi(base::VectorOf({vtrue, vfalse}), rep);
-    } else if (has_true_block) {
-      return vtrue;
-    } else {
-      DCHECK(has_false_block);
-      return vfalse;
-    }
+    return Asm().GetVariable(result);
   }
 };
 
