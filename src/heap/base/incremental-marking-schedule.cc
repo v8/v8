@@ -40,6 +40,11 @@ v8::base::TimeDelta IncrementalMarkingSchedule::GetElapsedTime() {
   return v8::base::TimeTicks::Now() - incremental_marking_start_time_;
 }
 
+const IncrementalMarkingSchedule::StepInfo
+IncrementalMarkingSchedule::GetCurrentStepInfo() const {
+  return current_step_;
+}
+
 size_t IncrementalMarkingSchedule::GetNextIncrementalStepDuration(
     size_t estimated_live_bytes) {
   last_estimated_live_bytes_ = estimated_live_bytes;
@@ -49,6 +54,12 @@ size_t IncrementalMarkingSchedule::GetNextIncrementalStepDuration(
   const size_t expected_marked_bytes =
       std::ceil(estimated_live_bytes * elapsed_time.InMillisecondsF() /
                 kEstimatedMarkingTime.InMillisecondsF());
+  // Stash away the current data for others to access.
+  current_step_ = {.mutator_marked_bytes = mutator_thread_marked_bytes_,
+                   .concurrent_marked_bytes = GetConcurrentlyMarkedBytes(),
+                   .estimated_live_bytes = estimated_live_bytes,
+                   .expected_marked_bytes = expected_marked_bytes,
+                   .elapsed_time = elapsed_time};
   if (expected_marked_bytes < actual_marked_bytes) {
     // Marking is ahead of schedule, incremental marking should do the minimum.
     return kMinimumMarkedBytesPerIncrementalStep;

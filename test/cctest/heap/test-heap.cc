@@ -5772,8 +5772,9 @@ TEST(Regress598319) {
   // only partially marked the large object.
   static constexpr auto kSmallStepSize =
       v8::base::TimeDelta::FromMillisecondsD(0.1);
+  static constexpr size_t kSmallMaxBytesToMark = 100;
   while (!marking->IsMajorMarkingComplete()) {
-    marking->AdvanceForTesting(kSmallStepSize);
+    marking->AdvanceForTesting(kSmallStepSize, kSmallMaxBytesToMark);
     ProgressBar& progress_bar = page->ProgressBar();
     if (progress_bar.IsEnabled() && progress_bar.Value() > 0) {
       CHECK_NE(progress_bar.Value(), arr.get().Size());

@@ -5,6 +5,8 @@
 #ifndef V8_HEAP_INCREMENTAL_MARKING_H_
 #define V8_HEAP_INCREMENTAL_MARKING_H_
 
+#include <cstdint>
+
 #include "src/base/logging.h"
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/time.h"
@@ -136,10 +138,6 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
 
   bool black_allocation() { return black_allocation_; }
 
-  MarkingWorklists::Local* local_marking_worklists() const {
-    return current_local_marking_worklists;
-  }
-
   bool IsBelowActivationThresholds() const;
 
   void IncrementLiveBytesBackground(MemoryChunk* chunk, intptr_t by) {
@@ -157,11 +155,10 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
   void MarkRootsForTesting();
 
   // Performs incremental marking step for unit tests.
-  void AdvanceForTesting(v8::base::TimeDelta max_duration);
+  void AdvanceForTesting(v8::base::TimeDelta max_duration,
+                         size_t max_bytes_to_mark = SIZE_MAX);
 
  private:
-  MarkingState* marking_state() { return marking_state_; }
-
   class IncrementalMarkingRootMarkingVisitor;
 
   class Observer : public AllocationObserver {
@@ -179,89 +176,59 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
   void StartMarkingMajor();
   void StartMarkingMinor();
 
-  void EmbedderStep(double expected_duration_ms, double* duration_ms);
-
   void StartBlackAllocation();
   void PauseBlackAllocation();
   void FinishBlackAllocation();
 
-  void PublishWriteBarrierWorklists();
-
-  // Updates scheduled_bytes_to_mark_ to ensure marking progress based on
-  // time.
-  void ScheduleBytesToMarkBasedOnTime(double time_ms);
-  // Updates scheduled_bytes_to_mark_ to ensure marking progress based on
-  // allocations.
-  void ScheduleBytesToMarkBasedOnAllocation();
-  // Helper functions for ScheduleBytesToMarkBasedOnAllocation.
-  size_t StepSizeToKeepUpWithAllocations();
-  size_t StepSizeToMakeProgress();
-  void AddScheduledBytesToMark(size_t bytes_to_mark);
-
-  // Fetches marked byte counters from the concurrent marker.
-  void FetchBytesMarkedConcurrently();
-
-  // Returns the bytes to mark in the current step based on the scheduled
-  // bytes and already marked bytes.
-  size_t ComputeStepSizeInBytes(StepOrigin step_origin);
-
-  bool ShouldWaitForTask();
-  bool TryInitializeTaskTimeout();
-
   void MarkRoots();
-
-  // Performs incremental marking steps and returns before the deadline_in_ms is
-  // reached. It may return earlier if the marker is already ahead of the
-  // marking schedule, which is indicated with StepResult::kDone.
-  void AdvanceWithDeadline(StepOrigin step_origin);
-
-  void Step(v8::base::TimeDelta max_duration, StepOrigin step_origin);
-
   // Returns true if the function succeeds in transitioning the object
   // from white to grey.
   bool WhiteToGreyAndPush(HeapObject obj);
+  void PublishWriteBarrierWorklists();
 
+  // Fetches marked byte counters from the concurrent marker.
+  void FetchBytesMarkedConcurrently();
+  size_t GetScheduledBytes(StepOrigin step_origin);
+
+  bool ShouldWaitForTask();
+  bool TryInitializeTaskTimeout();
   double CurrentTimeToMarkingTask() const;
 
+  void EmbedderStep(double expected_duration_ms, double* duration_ms);
+  void Step(v8::base::TimeDelta max_duration, size_t max_bytes_to_process,
+            StepOrigin step_origin);
+
+  size_t OldGenerationSizeOfObjects() const;
+
+  MarkingState* marking_state() { return marking_state_; }
+  MarkingWorklists::Local* local_marking_worklists() const {
+    return current_local_marking_worklists_;
+  }
+
   Heap* const heap_;
-
   CurrentCollector current_collector_{CurrentCollector::kNone};
-
   MarkCompactCollector* const major_collector_;
   MinorMarkSweepCollector* const minor_collector_;
-
   WeakObjects* weak_objects_;
-
-  MarkingWorklists::Local* current_local_marking_worklists;
-
+  MarkingWorklists::Local* current_local_marking_worklists_ = nullptr;
+  MarkingState* const marking_state_;
   double start_time_ms_ = 0.0;
-  size_t initial_old_generation_size_ = 0;
-  size_t old_generation_allocation_counter_ = 0;
-  size_t bytes_marked_ = 0;
-  size_t scheduled_bytes_to_mark_ = 0;
-  double schedule_update_time_ms_ = 0.0;
+  size_t main_thread_marked_bytes_ = 0;
   // A sample of concurrent_marking()->TotalMarkedBytes() at the last
-  // incremental marking step. It is used for updating
-  // bytes_marked_ahead_of_schedule_ with contribution of concurrent marking.
+  // incremental marking step.
   size_t bytes_marked_concurrently_ = 0;
-
   bool is_marking_ = false;
-
   bool is_compacting_ = false;
   bool black_allocation_ = false;
-
   bool completion_task_scheduled_ = false;
   double completion_task_timeout_ = 0.0;
   bool collection_requested_via_stack_guard_ = false;
   IncrementalMarkingJob incremental_marking_job_;
-
   Observer new_generation_observer_;
   Observer old_generation_observer_;
-
-  MarkingState* const marking_state_;
-
   base::Mutex background_live_bytes_mutex_;
   std::unordered_map<MemoryChunk*, intptr_t> background_live_bytes_;
+  std::unique_ptr<::heap::base::IncrementalMarkingSchedule> schedule_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(IncrementalMarking);
 };

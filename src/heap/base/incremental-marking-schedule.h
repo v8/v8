@@ -13,10 +13,37 @@
 namespace heap::base {
 
 // Incremental marking schedule that assumes a fixed time window for scheduling
-// estimated set of bytes.
+// incremental marking steps.
+//
+// Usage:
+// 1. NotifyIncrementalMarkingStart()
+// 2. Any combination of:
+//   -> UpdateMutatorThreadMarkedBytes(mutator_marked_bytes)
+//   -> AddConcurrentlyMarkedBytes(concurrently_marked_bytes_delta)
+//   -> MarkSynchronously(GetNextIncrementalStepDuration(estimated_live_size))
 class V8_EXPORT_PRIVATE IncrementalMarkingSchedule final {
  public:
-  // Estimated duration of marking time per GC cycle.
+  struct StepInfo final {
+    size_t mutator_marked_bytes = 0;
+    size_t concurrent_marked_bytes = 0;
+    size_t estimated_live_bytes = 0;
+    size_t expected_marked_bytes = 0;
+    v8::base::TimeDelta elapsed_time;
+
+    size_t marked_bytes() const {
+      return mutator_marked_bytes + concurrent_marked_bytes;
+    }
+    // Returns the schedule delta in bytes. Positive and negative delta values
+    // indicate that the marked bytes are ahead and behind the expected
+    // schedule, respectively.
+    int64_t scheduled_delta_bytes() const {
+      return static_cast<int64_t>(marked_bytes()) - expected_marked_bytes;
+    }
+  };
+
+  // Estimated walltime duration of incremental marking per GC cycle. This value
+  // determines how the mutator thread will try to catch up on incremental
+  // marking steps.
   static constexpr v8::base::TimeDelta kEstimatedMarkingTime =
       v8::base::TimeDelta::FromMilliseconds(500);
 
@@ -24,18 +51,42 @@ class V8_EXPORT_PRIVATE IncrementalMarkingSchedule final {
   // marking step.
   static constexpr size_t kMinimumMarkedBytesPerIncrementalStep = 64 * 1024;
 
+  // Notifies the schedule that incremental marking has been started.
   void NotifyIncrementalMarkingStart();
 
+  // Updates the mutator marked bytes. Must be called from the thread owning the
+  // schedule.
   void UpdateMutatorThreadMarkedBytes(size_t);
+
+  // Adds concurrently marked bytes. May be called from any thread. Not required
+  // to be complete, i.e., it is okay to not report bytes already marked for the
+  // schedule.
   void AddConcurrentlyMarkedBytes(size_t);
 
+  // Returns the reported overall marked bytes including those marked by the
+  // mutator and concurrently.
   size_t GetOverallMarkedBytes() const;
+
+  // Returns the reported concurrently marked bytes. Only as accurate as
+  // `AddConcurrentlyMarkedBytes()` is.
   size_t GetConcurrentlyMarkedBytes() const;
 
-  size_t GetNextIncrementalStepDuration(size_t);
+  // Computes the next step duration based on reported marked bytes and the
+  // current `estimated_live_bytes`.
+  size_t GetNextIncrementalStepDuration(size_t estimated_live_bytes);
 
+  // Returns the step info for the current step. This function is most useful
+  // after calling `GetNextIncrementalStepDuration()` to report scheduling
+  // details.
+  const StepInfo GetCurrentStepInfo() const;
+
+  // Returns whether locally cached ephemerons should be flushed and made
+  // available globally. Will only return true once every
+  // `kEphemeronPairsFlushingRatioIncrements` percent of overall marked bytes.
   bool ShouldFlushEphemeronPairs();
 
+  // Sets the elapsed time for testing purposes. Is reset after calling
+  // `GetNextIncrementalStepDuration()`.
   void SetElapsedTimeForTesting(v8::base::TimeDelta);
 
  private:
@@ -48,6 +99,7 @@ class V8_EXPORT_PRIVATE IncrementalMarkingSchedule final {
   std::atomic_size_t concurrently_marked_bytes_{0};
   size_t last_estimated_live_bytes_ = 0;
   double ephemeron_pairs_flushing_ratio_target_ = 0.25;
+  StepInfo current_step_;
   v8::base::Optional<v8::base::TimeDelta> elapsed_time_for_testing_;
 };
 
