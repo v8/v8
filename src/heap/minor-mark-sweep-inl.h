@@ -165,8 +165,8 @@ void YoungGenerationRememberedSetsMarkingWorklist::MarkingItem::
   HeapObject heap_object;
   if (object.GetHeapObject(&heap_object) &&
       heap_object.InWritableSharedSpace()) {
-    const uintptr_t offset = slot_address - chunk->address();
-    RememberedSet<OLD_TO_SHARED>::Insert<AccessMode::ATOMIC>(chunk, offset);
+    RememberedSet<OLD_TO_SHARED>::Insert<AccessMode::ATOMIC>(chunk,
+                                                             slot_address);
   }
 }
 
