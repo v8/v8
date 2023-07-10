@@ -188,8 +188,9 @@ class TypeInferenceAnalysis {
         case Opcode::kWordBinop:
           ProcessWordBinop(index, op.Cast<WordBinopOp>());
           break;
+        case Opcode::kWord32PairBinop:
         case Opcode::kPendingLoopPhi:
-          // Input graph must not contain PendingLoopPhi.
+          // Input graph must not contain these op codes.
           UNREACHABLE();
         case Opcode::kPhi:
           if constexpr (revisit_loop_header) {

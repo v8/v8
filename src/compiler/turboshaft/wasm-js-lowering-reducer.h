@@ -10,11 +10,8 @@
 #define V8_COMPILER_TURBOSHAFT_WASM_JS_LOWERING_REDUCER_H_
 
 #include "src/compiler/turboshaft/assembler.h"
-#include "src/compiler/turboshaft/graph.h"
 #include "src/compiler/turboshaft/operations.h"
-#include "src/compiler/turboshaft/representations.h"
 #include "src/compiler/wasm-graph-assembler.h"
-#include "src/wasm/wasm-code-manager.h"
 
 namespace v8::internal::compiler::turboshaft {
 

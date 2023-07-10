@@ -119,6 +119,7 @@
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/compiler/int64-lowering.h"
+#include "src/compiler/turboshaft/int64-lowering-phase.h"
 #include "src/compiler/turboshaft/wasm-optimize-phase.h"
 #include "src/compiler/wasm-compiler.h"
 #include "src/compiler/wasm-escape-analysis.h"
@@ -3729,11 +3730,17 @@ bool Pipeline::GenerateWasmCodeFromTurboshaftGraph(
         << " using TurboFan" << std::endl;
   }
 
+  if (mcgraph->machine()->Is32()) {
+    call_descriptor =
+        GetI32WasmCallDescriptor(mcgraph->zone(), call_descriptor);
+  }
   Linkage linkage(call_descriptor);
 
   {
     turboshaft::PipelineData::Scope turboshaft_pipeline(
         pipeline.CreateTurboshaftPipeline());
+    turboshaft::PipelineData::Get().set_wasm_sig(
+        compilation_data.func_body.sig);
 
     AccountingAllocator allocator;
     if (!wasm::BuildTSGraph(&allocator, env->enabled_features, env->module,
@@ -3755,6 +3762,10 @@ bool Pipeline::GenerateWasmCodeFromTurboshaftGraph(
     // This is more than an optimization currently: We need it to sort blocks to
     // work around a bug in RecreateSchedulePhase.
     pipeline.Run<turboshaft::WasmOptimizePhase>();
+
+    if (mcgraph->machine()->Is32()) {
+      pipeline.Run<turboshaft::Int64LoweringPhase>();
+    }
 
     auto [new_graph, new_schedule] =
         pipeline.Run<turboshaft::RecreateSchedulePhase>(&linkage);
@@ -3797,6 +3808,8 @@ bool Pipeline::GenerateWasmCodeFromTurboshaftGraph(
     }
 #endif  // ENABLE_DISASSEMBLER
     json_of << "\"}\n]";
+    // TODO(mliedtke): Add sources of inlined wasm functions once inlining is
+    // supported.
     json_of << "\n}";
   }
 

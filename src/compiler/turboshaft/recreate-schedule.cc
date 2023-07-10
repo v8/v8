@@ -1476,6 +1476,16 @@ Node* ScheduleBuilder::ProcessOperation(const LoadRootRegisterOp& op) {
   return AddNode(machine.LoadRootRegister(), {});
 }
 
+Node* ScheduleBuilder::ProcessOperation(const Word32PairBinopOp& op) {
+  using Kind = Word32PairBinopOp::Kind;
+  switch (op.kind) {
+    case Kind::kMul:
+      return AddNode(machine.Int32PairMul(),
+                     {GetNode(op.left_low()), GetNode(op.left_high()),
+                      GetNode(op.right_low()), GetNode(op.right_high())});
+  }
+}
+
 }  // namespace
 
 RecreateScheduleResult RecreateSchedule(CallDescriptor* call_descriptor,

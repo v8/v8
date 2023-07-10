@@ -915,6 +915,11 @@ class GraphVisitor {
     return assembler().ReduceFindOrderedHashEntry(
         MapToNewGraph(op.data_structure()), MapToNewGraph(op.key()), op.kind);
   }
+  OpIndex AssembleOutputGraphWord32PairBinop(const Word32PairBinopOp& op) {
+    return assembler().ReduceWord32PairBinop(op.left_low(), op.left_high(),
+                                             op.right_low(), op.right_high(),
+                                             op.kind);
+  }
 
   void CreateOldToNewMapping(OpIndex old_index, OpIndex new_index) {
     if constexpr (reducer_list_contains<typename Assembler::ReducerList,

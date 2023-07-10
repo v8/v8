@@ -79,6 +79,14 @@ class PipelineData : public base::ContextualClass<PipelineData> {
   }
   Zone* instruction_zone() const { return instruction_zone_; }
 
+#if V8_ENABLE_WEBASSEMBLY
+  const wasm::FunctionSig* wasm_sig() const {
+    DCHECK(wasm_sig_ != nullptr);
+    return wasm_sig_;
+  }
+  void set_wasm_sig(const wasm::FunctionSig* sig) { wasm_sig_ = sig; }
+#endif
+
   void reset_schedule() { schedule_ = nullptr; }
 
   void InitializeInstructionSequence(const CallDescriptor* call_descriptor) {
@@ -112,6 +120,12 @@ class PipelineData : public base::ContextualClass<PipelineData> {
   size_t* address_of_max_unoptimized_frame_height_;
   size_t* address_of_max_pushed_argument_count_;
   Zone*& instruction_zone_;
+
+#if V8_ENABLE_WEBASSEMBLY
+  // TODO(14108): Consider splitting wasm members into its own WasmPipelineData
+  // if we need many of them.
+  const wasm::FunctionSig* wasm_sig_ = nullptr;
+#endif
 
   std::unique_ptr<turboshaft::Graph> graph_;
 };

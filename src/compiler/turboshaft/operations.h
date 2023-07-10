@@ -104,6 +104,7 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
   TURBOSHAFT_INTL_OPERATION_LIST(V)                       \
   V(WordBinop)                                            \
   V(FloatBinop)                                           \
+  V(Word32PairBinop)                                      \
   V(OverflowCheckedBinop)                                 \
   V(WordUnary)                                            \
   V(FloatUnary)                                           \
@@ -1070,6 +1071,32 @@ struct FloatBinopOp : FixedArityOperationT<2, FloatBinopOp> {
     DCHECK(ValidOpInputRep(graph, right(), rep));
   }
   auto options() const { return std::tuple{kind, rep}; }
+  void PrintOptions(std::ostream& os) const;
+};
+
+struct Word32PairBinopOp : FixedArityOperationT<4, Word32PairBinopOp> {
+  enum class Kind : uint8_t {
+    kMul,
+  };
+  Kind kind;
+
+  static constexpr OpEffects effects = OpEffects();
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return RepVector<RegisterRepresentation::Word32(),
+                     RegisterRepresentation::Word32()>();
+  }
+
+  OpIndex left_low() const { return input(0); }
+  OpIndex left_high() const { return input(1); }
+  OpIndex right_low() const { return input(2); }
+  OpIndex right_high() const { return input(3); }
+
+  Word32PairBinopOp(OpIndex left_low, OpIndex left_high, OpIndex right_low,
+                    OpIndex right_high, Kind kind)
+      : Base(left_low, left_high, right_low, right_high), kind(kind) {}
+
+  void Validate(const Graph& graph) const {}
+  auto options() const { return std::tuple{kind}; }
   void PrintOptions(std::ostream& os) const;
 };
 

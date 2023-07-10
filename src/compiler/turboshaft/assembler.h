@@ -2596,6 +2596,13 @@ class AssemblerOpInterface {
     return BigIntUnary(input, BigIntUnaryOp::Kind::kNegate);
   }
 
+  OpIndex Word32PairBinop(OpIndex left_low, OpIndex left_high,
+                          OpIndex right_low, OpIndex right_high,
+                          Word32PairBinopOp::Kind kind) {
+    return stack().ReduceWord32PairBinop(left_low, left_high, right_low,
+                                         right_high, kind);
+  }
+
   V<Word32> StringAt(V<String> string, V<WordPtr> position,
                      StringAtOp::Kind kind) {
     if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
