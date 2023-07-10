@@ -4,6 +4,8 @@
 
 #include "src/heap/marking-barrier.h"
 
+#include <memory>
+
 #include "src/base/logging.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap-write-barrier.h"
@@ -29,8 +31,6 @@ MarkingBarrier::MarkingBarrier(LocalHeap* local_heap)
       major_collector_(heap_->mark_compact_collector()),
       minor_collector_(heap_->minor_mark_sweep_collector()),
       incremental_marking_(heap_->incremental_marking()),
-      major_worklist_(*major_collector_->marking_worklists()->shared()),
-      minor_worklist_(*minor_collector_->marking_worklists()->shared()),
       marking_state_(isolate()),
       is_main_thread_barrier_(local_heap->is_main_thread()),
       uses_shared_heap_(isolate()->has_shared_space()),
@@ -139,7 +139,7 @@ void MarkingBarrier::Write(DescriptorArray descriptor_array,
     worklist = &*shared_heap_worklist_;
   } else {
     gc_epoch = major_collector_->epoch();
-    worklist = current_worklist_;
+    worklist = current_worklist_.get();
   }
 
   // The DescriptorArray needs to be marked black here to ensure that slots
@@ -291,11 +291,11 @@ void MarkingBarrier::ActivateAll(Heap* heap, bool is_compacting,
 void MarkingBarrier::Activate(bool is_compacting,
                               MarkingBarrierType marking_barrier_type) {
   DCHECK(!is_activated_);
-  DCHECK(major_worklist_.IsLocalEmpty());
-  DCHECK(minor_worklist_.IsLocalEmpty());
   is_compacting_ = is_compacting;
   marking_barrier_type_ = marking_barrier_type;
-  current_worklist_ = is_minor() ? &minor_worklist_ : &major_worklist_;
+  current_worklist_ = std::make_unique<MarkingWorklist::Local>(
+      is_minor() ? *minor_collector_->marking_worklists()->shared()
+                 : *major_collector_->marking_worklists()->shared());
   is_activated_ = true;
 }
 
@@ -340,6 +340,7 @@ void MarkingBarrier::Deactivate() {
   is_compacting_ = false;
   DCHECK(typed_slots_map_.empty());
   DCHECK(current_worklist_->IsLocalEmpty());
+  current_worklist_.reset();
 }
 
 void MarkingBarrier::DeactivateShared() {

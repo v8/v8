@@ -427,7 +427,6 @@ void Worklist<EntryType, MinSegmentSize>::Local::Publish() {
 template <typename EntryType, uint16_t MinSegmentSize>
 void Worklist<EntryType, MinSegmentSize>::Local::Merge(
     Worklist<EntryType, MinSegmentSize>::Local& other) {
-  other.Publish();
   worklist_.Merge(other.worklist_);
 }
 

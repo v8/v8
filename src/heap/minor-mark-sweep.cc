@@ -436,9 +436,11 @@ void MinorMarkSweepCollector::TearDown() {
     DCHECK(heap_->concurrent_marking()->IsStopped());
     remembered_sets_marking_handler_->TearDown();
     local_marking_worklists_->Publish();
+    local_ephemeron_table_list_->Publish();
     heap_->main_thread_local_heap_->marking_barrier()->PublishIfNeeded();
     // Marking barriers of LocalHeaps will be published in their destructors.
-    marking_worklists_.Clear();
+    marking_worklists_->Clear();
+    ephemeron_table_list_->Clear();
   }
 }
 
@@ -450,6 +452,9 @@ void MinorMarkSweepCollector::FinishConcurrentMarking() {
     heap_->concurrent_marking()->Join();
     heap_->concurrent_marking()->FlushMemoryChunkData(
         non_atomic_marking_state_);
+    // Concurrent marking may have pushed a few objects to OnHold after the last
+    // time it was merged.
+    local_marking_worklists_->MergeOnHold();
   }
   if (auto* cpp_heap = CppHeap::From(heap_->cpp_heap_)) {
     cpp_heap->FinishConcurrentMarkingIfNeeded();
@@ -477,9 +482,11 @@ void MinorMarkSweepCollector::StartMarking() {
   local_ephemeron_table_list_ =
       std::make_unique<EphemeronRememberedSet::TableList::Local>(
           *ephemeron_table_list_.get());
+  DCHECK_NULL(marking_worklists_);
+  marking_worklists_ = std::make_unique<MarkingWorklists>();
   DCHECK_NULL(local_marking_worklists_);
   local_marking_worklists_ = std::make_unique<MarkingWorklists::Local>(
-      &marking_worklists_,
+      marking_worklists_.get(),
       cpp_heap ? cpp_heap->CreateCppMarkingStateForMutatorThread()
                : MarkingWorklists::Local::kNoCppMarkingState);
   DCHECK_NULL(main_marking_visitor_);
@@ -640,7 +647,6 @@ void MinorMarkSweepCollector::ClearNonLiveReferences() {
   // whenever the entry has a dead young generation key.
   //
   // Worklist is collected during marking.
-  local_ephemeron_table_list_->Publish();
   EphemeronHashTable table;
   while (local_ephemeron_table_list_->Pop(&table)) {
     for (InternalIndex i : table.IterateEntries()) {
@@ -759,14 +765,14 @@ void MinorMarkSweepCollector::DoParallelMarking() {
   for (size_t i = 0; i < (v8_flags.parallel_marking ? kMaxParallelTasks : 1);
        ++i) {
     tasks.emplace_back(std::make_unique<YoungGenerationMarkingTask>(
-        heap_->isolate(), heap_, &marking_worklists_,
+        heap_->isolate(), heap_, marking_worklists_.get(),
         ephemeron_table_list_.get()));
   }
 
   V8::GetCurrentPlatform()
       ->CreateJob(v8::TaskPriority::kUserBlocking,
                   std::make_unique<YoungGenerationMarkingJob>(
-                      heap_->isolate(), heap_, &marking_worklists_, tasks))
+                      heap_->isolate(), heap_, marking_worklists_.get(), tasks))
       ->Join();
 
   // If unified young generation is in progress, the parallel marker may add
@@ -799,7 +805,9 @@ void MinorMarkSweepCollector::MarkLiveObjects() {
     MarkingBarrier::PublishAll(heap_);
   }
 
+  DCHECK_NOT_NULL(marking_worklists_);
   DCHECK_NOT_NULL(local_marking_worklists_);
+  DCHECK_NOT_NULL(main_marking_visitor_);
 
   YoungGenerationRootMarkingVisitor root_visitor(main_marking_visitor_.get());
 
@@ -851,6 +859,7 @@ void MinorMarkSweepCollector::MarkLiveObjects() {
 
   main_marking_visitor_.reset();
   local_marking_worklists_.reset();
+  marking_worklists_.reset();
   remembered_sets_marking_handler_.reset();
 
   if (v8_flags.minor_ms_trace_fragmentation) {

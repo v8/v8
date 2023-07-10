@@ -211,7 +211,7 @@ class MinorMarkSweepCollector final {
     return ephemeron_table_list_.get();
   }
 
-  MarkingWorklists* marking_worklists() { return &marking_worklists_; }
+  MarkingWorklists* marking_worklists() { return marking_worklists_.get(); }
 
   MarkingWorklists::Local* local_marking_worklists() const {
     return local_marking_worklists_.get();
@@ -260,7 +260,7 @@ class MinorMarkSweepCollector final {
 
   Heap* const heap_;
 
-  MarkingWorklists marking_worklists_;
+  std::unique_ptr<MarkingWorklists> marking_worklists_;
   std::unique_ptr<MarkingWorklists::Local> local_marking_worklists_;
 
   std::unique_ptr<EphemeronRememberedSet::TableList> ephemeron_table_list_;

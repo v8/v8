@@ -92,9 +92,7 @@ class MarkingBarrier {
   MarkCompactCollector* major_collector_;
   MinorMarkSweepCollector* minor_collector_;
   IncrementalMarking* incremental_marking_;
-  MarkingWorklist::Local major_worklist_;
-  MarkingWorklist::Local minor_worklist_;
-  MarkingWorklist::Local* current_worklist_;
+  std::unique_ptr<MarkingWorklist::Local> current_worklist_;
   base::Optional<MarkingWorklist::Local> shared_heap_worklist_;
   MarkingState marking_state_;
   std::unordered_map<MemoryChunk*, std::unique_ptr<TypedSlots>,
