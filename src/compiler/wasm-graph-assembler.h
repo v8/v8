@@ -29,6 +29,9 @@ class WasmGraphAssembler : public GraphAssembler {
       : GraphAssembler(mcgraph, zone, BranchSemantics::kMachine),
         simplified_(zone) {}
 
+  // TODOC(mliedtke): What is the difference between CallRuntimeStub and
+  // CallBuiltin and what are the considerations to take into account when
+  // choosing between them?
   template <typename... Args>
   Node* CallRuntimeStub(wasm::WasmCode::RuntimeStubId stub_id,
                         Operator::Properties properties, Args... args) {
