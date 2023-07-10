@@ -45,7 +45,6 @@
 #include "src/heap/traced-handles-marking-visitor.h"
 #include "src/heap/weak-object-worklists.h"
 #include "src/init/v8.h"
-#include "src/objects/hash-table.h"
 #include "src/objects/js-collection-inl.h"
 #include "src/objects/objects.h"
 #include "src/objects/string-forwarding-table-inl.h"
@@ -158,6 +157,8 @@ YoungGenerationMainMarkingVisitor::YoungGenerationMainMarkingVisitor(
           GarbageCollector::MINOR_MARK_SWEEPER)) {}
 
 YoungGenerationMainMarkingVisitor::~YoungGenerationMainMarkingVisitor() {
+  // The visitor should only be destroyed on the main thread since
+  // `MergeAllocationSitePretenuringFeedback` should not be called concurrently.
   pretenuring_handler()->MergeAllocationSitePretenuringFeedback(
       local_pretenuring_feedback_);
   local_pretenuring_feedback_.clear();
@@ -231,7 +232,7 @@ class YoungGenerationMarkingJob : public v8::JobTask {
  public:
   YoungGenerationMarkingJob(
       Isolate* isolate, Heap* heap, MarkingWorklists* global_worklists,
-      EphemeronRememberedSet::TableList* ephemeron_table_list);
+      const std::vector<std::unique_ptr<YoungGenerationMarkingTask>>& tasks);
 
   void Run(JobDelegate* delegate) override;
   size_t GetMaxConcurrency(size_t worker_count) const override;
@@ -241,19 +242,19 @@ class YoungGenerationMarkingJob : public v8::JobTask {
 
   Isolate* isolate_;
   Heap* heap_;
-  MarkingWorklists* const marking_worklists_;
-  EphemeronRememberedSet::TableList* const ephemeron_table_list_;
+  MarkingWorklists* global_worklists_;
+  const std::vector<std::unique_ptr<YoungGenerationMarkingTask>>& tasks_;
   YoungGenerationRememberedSetsMarkingWorklist* const
       remembered_sets_marking_handler_;
 };
 
 YoungGenerationMarkingJob::YoungGenerationMarkingJob(
-    Isolate* isolate, Heap* heap, MarkingWorklists* marking_worklists,
-    EphemeronRememberedSet::TableList* ephemeron_table_list)
+    Isolate* isolate, Heap* heap, MarkingWorklists* global_worklists,
+    const std::vector<std::unique_ptr<YoungGenerationMarkingTask>>& tasks)
     : isolate_(isolate),
       heap_(heap),
-      marking_worklists_(marking_worklists),
-      ephemeron_table_list_(ephemeron_table_list),
+      global_worklists_(global_worklists),
+      tasks_(tasks),
       remembered_sets_marking_handler_(
           heap_->minor_mark_sweep_collector()
               ->remembered_sets_marking_handler()) {}
@@ -277,8 +278,8 @@ size_t YoungGenerationMarkingJob::GetMaxConcurrency(size_t worker_count) const {
   size_t items =
       remembered_sets_marking_handler_->RemainingRememberedSetsMarkingIteams();
   size_t num_tasks = std::max((items + 1) / kPagesPerTask,
-                              marking_worklists_->shared()->Size() +
-                                  marking_worklists_->on_hold()->Size());
+                              global_worklists_->shared()->Size() +
+                                  global_worklists_->on_hold()->Size());
 
   if (!v8_flags.parallel_marking) {
     num_tasks = std::min<size_t>(1, num_tasks);
@@ -291,14 +292,15 @@ void YoungGenerationMarkingJob::ProcessItems(JobDelegate* delegate) {
   double marking_time = 0.0;
   {
     TimedScope scope(&marking_time);
-    YoungGenerationMarkingTask task(heap_->isolate(), heap_, marking_worklists_,
-                                    ephemeron_table_list_);
+    const int task_id = delegate->GetTaskId();
+    DCHECK_LT(task_id, tasks_.size());
+    YoungGenerationMarkingTask* task = tasks_[task_id].get();
     YoungGenerationRememberedSetsMarkingWorklist::Local remembered_sets(
         remembered_sets_marking_handler_);
-    while (remembered_sets.ProcessNextItem(task.visitor())) {
-      task.DrainMarkingWorklist();
+    while (remembered_sets.ProcessNextItem(task->visitor())) {
+      task->DrainMarkingWorklist();
     }
-    task.DrainMarkingWorklist();
+    task->DrainMarkingWorklist();
   }
   if (v8_flags.trace_minor_ms_parallel_marking) {
     PrintIsolate(isolate_, "marking[%p]: time=%f\n", static_cast<void*>(this),
@@ -752,11 +754,19 @@ void MinorMarkSweepCollector::MarkRoots(
 void MinorMarkSweepCollector::DoParallelMarking() {
   DCHECK(!v8_flags.concurrent_minor_ms_marking);
 
+  // Add tasks and run in parallel.
+  std::vector<std::unique_ptr<YoungGenerationMarkingTask>> tasks;
+  for (size_t i = 0; i < (v8_flags.parallel_marking ? kMaxParallelTasks : 1);
+       ++i) {
+    tasks.emplace_back(std::make_unique<YoungGenerationMarkingTask>(
+        heap_->isolate(), heap_, &marking_worklists_,
+        ephemeron_table_list_.get()));
+  }
+
   V8::GetCurrentPlatform()
       ->CreateJob(v8::TaskPriority::kUserBlocking,
                   std::make_unique<YoungGenerationMarkingJob>(
-                      heap_->isolate(), heap_, &marking_worklists_,
-                      ephemeron_table_list_.get()))
+                      heap_->isolate(), heap_, &marking_worklists_, tasks))
       ->Join();
 
   // If unified young generation is in progress, the parallel marker may add
