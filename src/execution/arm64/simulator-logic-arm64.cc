@@ -1023,7 +1023,8 @@ LogicVRegister Simulator::eor(VectorFormat vform, LogicVRegister dst,
                               const LogicVRegister& src2) {
   dst.ClearForWrite(vform);
   for (int i = 0; i < LaneCountFromFormat(vform); i++) {
-    dst.SetUint(vform, i, src1.Uint(vform, i) ^ src2.Uint(vform, i));
+    dst.SetUint(vform, i,
+                src1.Is(src2) ? 0 : src1.Uint(vform, i) ^ src2.Uint(vform, i));
   }
   return dst;
 }
