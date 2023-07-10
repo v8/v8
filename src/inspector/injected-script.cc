@@ -237,6 +237,9 @@ class InjectedScript::ProtocolPromiseHandler {
   }
 
   void thenCallback(v8::Local<v8::Value> value) {
+    // We don't need the m_evaluationResult in the `thenCallback`, but we also
+    // don't want `cleanup` running in case we re-enter JS.
+    m_evaluationResult.Reset();
     V8InspectorSessionImpl* session =
         m_inspector->sessionById(m_contextGroupId, m_sessionId);
     if (!session) return;
@@ -282,6 +285,9 @@ class InjectedScript::ProtocolPromiseHandler {
   }
 
   void catchCallback(v8::Local<v8::Value> result) {
+    // Hold strongly onto m_evaluationResult now to prevent `cleanup` from
+    // running in case any code below triggers GC.
+    m_evaluationResult.ClearWeak();
     V8InspectorSessionImpl* session =
         m_inspector->sessionById(m_contextGroupId, m_sessionId);
     if (!session) return;
