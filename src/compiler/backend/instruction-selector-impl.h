@@ -401,8 +401,36 @@ class OperandGeneratorT : public Adapter {
             return Constant(constant->external_reference());
           case Kind::kNumber:
             return Constant(constant->number());
-          default:
-            UNREACHABLE();
+          case Kind::kFloat32:
+            return Constant(constant->float32());
+          case Kind::kFloat64:
+            return Constant(constant->float64());
+          case Kind::kTaggedIndex: {
+            // Unencoded index value.
+            intptr_t value = static_cast<intptr_t>(constant->tagged_index());
+            DCHECK(TaggedIndex::IsValid(value));
+            // Generate it as 32/64-bit constant in a tagged form.
+            Address tagged_index = TaggedIndex::FromIntptr(value).ptr();
+            if (kSystemPointerSize == kInt32Size) {
+              return Constant(static_cast<int32_t>(tagged_index));
+            } else {
+              return Constant(static_cast<int64_t>(tagged_index));
+            }
+          }
+          case Kind::kRelocatableWasmCall:
+          case Kind::kRelocatableWasmStubCall: {
+            uint64_t value = constant->integral();
+            auto mode = constant->kind == Kind::kRelocatableWasmCall
+                            ? RelocInfo::WASM_CALL
+                            : RelocInfo::WASM_STUB_CALL;
+            if (Is64()) {
+              return Constant(RelocatablePtrConstantInfo(
+                  base::checked_cast<int64_t>(value), mode));
+            } else {
+              return Constant(RelocatablePtrConstantInfo(
+                  base::checked_cast<int32_t>(value), mode));
+            }
+          }
         }
       }
       UNREACHABLE();

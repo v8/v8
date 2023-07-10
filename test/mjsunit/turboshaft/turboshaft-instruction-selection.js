@@ -27,3 +27,18 @@ function simple2(o, a, b, c) {
 assertEquals({ y:(3 + 8 * -4) }, simple2({}, 3, 8, -4));
 %OptimizeFunctionOnNextCall(simple2);
 assertEquals({ y:(3 + 8 * -4) }, simple2({}, 3, 8, -4));
+
+function simple3(x, y, o) {
+  function foo(f, a) { return f(a + 1.5); }
+  o.x = { o:{a: x - 3.14 * y } };
+  o.y = (x / y) | 0;
+  o.z = y ** x;
+  for(let i = -5.0; i < 5.0; i += 0.5) {
+    o.z = foo((a) => a == 3.5 ? 10 : a, o.z);
+  }
+  return (o.w - o.x.o.a + o.y + o.z) | 0;
+}
+%PrepareFunctionForOptimization(simple3);
+assertEquals(354533, simple3(10.2, 3.5, {w:100}));
+%OptimizeFunctionOnNextCall(simple3);
+assertEquals(354533, simple3(10.2, 3.5, {w:100}));

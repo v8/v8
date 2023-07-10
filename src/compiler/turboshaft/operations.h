@@ -1398,6 +1398,7 @@ struct ComparisonOp : FixedArityOperationT<2, ComparisonOp> {
   }
 };
 std::ostream& operator<<(std::ostream& os, ComparisonOp::Kind kind);
+DEFINE_MULTI_SWITCH_INTEGRAL(ComparisonOp::Kind, 4)
 
 struct ChangeOp : FixedArityOperationT<1, ChangeOp> {
   enum class Kind : uint8_t {
@@ -1510,6 +1511,8 @@ struct ChangeOp : FixedArityOperationT<1, ChangeOp> {
 };
 std::ostream& operator<<(std::ostream& os, ChangeOp::Kind kind);
 std::ostream& operator<<(std::ostream& os, ChangeOp::Assumption assumption);
+DEFINE_MULTI_SWITCH_INTEGRAL(ChangeOp::Kind, 16)
+DEFINE_MULTI_SWITCH_INTEGRAL(ChangeOp::Assumption, 4)
 
 struct ChangeOrDeoptOp : FixedArityOperationT<2, ChangeOrDeoptOp> {
   enum class Kind : uint8_t {

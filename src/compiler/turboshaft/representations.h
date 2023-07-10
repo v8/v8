@@ -195,6 +195,16 @@ V8_INLINE size_t hash_value(RegisterRepresentation rep) {
 
 std::ostream& operator<<(std::ostream& os, RegisterRepresentation rep);
 
+template <>
+struct MultiSwitch<RegisterRepresentation> {
+  static constexpr uint64_t max_value = 8;
+  static constexpr uint64_t encode(RegisterRepresentation rep) {
+    const uint64_t value = static_cast<uint64_t>(rep.value());
+    DCHECK_LT(value, max_value);
+    return value;
+  }
+};
+
 class WordRepresentation : public RegisterRepresentation {
  public:
   enum class Enum : uint8_t {

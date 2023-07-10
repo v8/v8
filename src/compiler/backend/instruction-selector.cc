@@ -1629,7 +1629,7 @@ void InstructionSelectorT<Adapter>::VisitFloat64Atanh(Node* node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat64Atan2(Node* node) {
+void InstructionSelectorT<Adapter>::VisitFloat64Atan2(node_t node) {
   VisitFloat64Ieee754Binop(node, kIeee754Float64Atan2);
 }
 
@@ -1679,7 +1679,7 @@ void InstructionSelectorT<Adapter>::VisitFloat64Log10(Node* node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat64Pow(Node* node) {
+void InstructionSelectorT<Adapter>::VisitFloat64Pow(node_t node) {
   VisitFloat64Ieee754Binop(node, kIeee754Float64Pow);
 }
 
@@ -1779,23 +1779,10 @@ void InstructionSelectorT<Adapter>::VisitWord64Xor(Node* node) {
 }
 
 VISIT_UNSUPPORTED_OP(Word64Shl)
-
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord64Shr(Node* node) {
-  UNIMPLEMENTED();
-}
-
+VISIT_UNSUPPORTED_OP(Word64Shr)
 VISIT_UNSUPPORTED_OP(Word64Sar)
-
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord64Rol(Node* node) {
-  UNIMPLEMENTED();
-}
-
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord64Ror(Node* node) {
-  UNIMPLEMENTED();
-}
+VISIT_UNSUPPORTED_OP(Word64Rol)
+VISIT_UNSUPPORTED_OP(Word64Ror)
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord64Clz(Node* node) {
@@ -1861,11 +1848,7 @@ void InstructionSelectorT<Adapter>::VisitInt64Div(Node* node) {
 }
 
 VISIT_UNSUPPORTED_OP(Int64LessThan)
-
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitInt64LessThanOrEqual(Node* node) {
-  UNIMPLEMENTED();
-}
+VISIT_UNSUPPORTED_OP(Int64LessThanOrEqual)
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitUint64Div(Node* node) {
@@ -1878,48 +1861,20 @@ void InstructionSelectorT<Adapter>::VisitInt64Mod(Node* node) {
 }
 
 VISIT_UNSUPPORTED_OP(Uint64LessThan)
-
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitUint64LessThanOrEqual(Node* node) {
-  UNIMPLEMENTED();
-}
+VISIT_UNSUPPORTED_OP(Uint64LessThanOrEqual)
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitUint64Mod(Node* node) {
   UNIMPLEMENTED();
 }
 
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitBitcastWord32ToWord64(Node* node) {
-  UNIMPLEMENTED();
-}
-
+VISIT_UNSUPPORTED_OP(BitcastWord32ToWord64)
 VISIT_UNSUPPORTED_OP(ChangeInt32ToInt64)
-
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitChangeInt64ToFloat64(Node* node) {
-  UNIMPLEMENTED();
-}
-
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitChangeUint32ToUint64(Node* node) {
-  UNIMPLEMENTED();
-}
-
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitChangeFloat64ToInt64(Node* node) {
-  UNIMPLEMENTED();
-}
-
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitChangeFloat64ToUint64(Node* node) {
-  UNIMPLEMENTED();
-}
-
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitTruncateFloat64ToInt64(Node* node) {
-  UNIMPLEMENTED();
-}
+VISIT_UNSUPPORTED_OP(ChangeInt64ToFloat64)
+VISIT_UNSUPPORTED_OP(ChangeUint32ToUint64)
+VISIT_UNSUPPORTED_OP(ChangeFloat64ToInt64)
+VISIT_UNSUPPORTED_OP(ChangeFloat64ToUint64)
+VISIT_UNSUPPORTED_OP(TruncateFloat64ToInt64)
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitTryTruncateFloat32ToInt64(Node* node) {
@@ -1959,35 +1914,12 @@ void InstructionSelectorT<Adapter>::VisitTruncateInt64ToInt32(Node* node) {
   UNIMPLEMENTED();
 }
 
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitRoundInt64ToFloat32(Node* node) {
-  UNIMPLEMENTED();
-}
-
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitRoundInt64ToFloat64(Node* node) {
-  UNIMPLEMENTED();
-}
-
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitRoundUint64ToFloat32(Node* node) {
-  UNIMPLEMENTED();
-}
-
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitRoundUint64ToFloat64(Node* node) {
-  UNIMPLEMENTED();
-}
-
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitBitcastFloat64ToInt64(Node* node) {
-  UNIMPLEMENTED();
-}
-
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitBitcastInt64ToFloat64(Node* node) {
-  UNIMPLEMENTED();
-}
+VISIT_UNSUPPORTED_OP(RoundInt64ToFloat32)
+VISIT_UNSUPPORTED_OP(RoundInt64ToFloat64)
+VISIT_UNSUPPORTED_OP(RoundUint64ToFloat32)
+VISIT_UNSUPPORTED_OP(RoundUint64ToFloat64)
+VISIT_UNSUPPORTED_OP(BitcastFloat64ToInt64)
+VISIT_UNSUPPORTED_OP(BitcastInt64ToFloat64)
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitSignExtendWord8ToInt64(Node* node) {
@@ -3291,7 +3223,7 @@ void InstructionSelectorT<TurbofanAdapter>::VisitNode(Node* node) {
     case IrOpcode::kRoundUint32ToFloat32:
       return MarkAsFloat32(node), VisitRoundUint32ToFloat32(node);
     case IrOpcode::kRoundUint64ToFloat32:
-      return MarkAsFloat64(node), VisitRoundUint64ToFloat32(node);
+      return MarkAsFloat32(node), VisitRoundUint64ToFloat32(node);
     case IrOpcode::kRoundUint64ToFloat64:
       return MarkAsFloat64(node), VisitRoundUint64ToFloat64(node);
     case IrOpcode::kBitcastFloat64ToInt64:
@@ -4258,6 +4190,7 @@ void InstructionSelectorT<TurbofanAdapter>::VisitNode(Node* node) {
 template <>
 void InstructionSelectorT<TurboshaftAdapter>::VisitNode(
     turboshaft::OpIndex node) {
+  using namespace turboshaft;  // NOLINT(build/namespaces)
   tick_counter_->TickAndMaybeEnterSafepoint();
   const turboshaft::Operation& op = schedule()->Get(node);
   using Opcode = turboshaft::Opcode;
@@ -4277,40 +4210,121 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitNode(
       return VisitParameter(node);
     }
     case Opcode::kChange: {
-      using Kind = turboshaft::ChangeOp::Kind;
-      using Assumption = turboshaft::ChangeOp::Assumption;
       const turboshaft::ChangeOp& change = op.Cast<turboshaft::ChangeOp>();
+      MarkAsRepresentation(change.to.machine_representation(), node);
       switch (change.kind) {
-        case Kind::kSignExtend:
-          DCHECK_EQ(change.assumption, Assumption::kNoAssumption);
-          DCHECK_EQ(change.from, Rep::Word32());
-          DCHECK_EQ(change.to, Rep::Word64());
-          // ChangeInt32ToInt64
-          MarkAsWord64(node);
-          return VisitChangeInt32ToInt64(node);
-        case Kind::kSignedFloatTruncateOverflowToMin:
-          if (change.assumption == Assumption::kNoOverflow) {
-            if (change.from == Rep::Float64()) {
-              if (change.to == Rep::Word32()) {
-                // RoundFloat64ToInt32
-                MarkAsWord32(node);
-                return VisitRoundFloat64ToInt32(node);
+        case ChangeOp::Kind::kFloatConversion:
+          if (change.from == Rep::Float64()) {
+            DCHECK_EQ(change.to, Rep::Float32());
+            return VisitTruncateFloat64ToFloat32(node);
+          } else {
+            DCHECK_EQ(change.from, Rep::Float32());
+            DCHECK_EQ(change.to, Rep::Float64());
+            return VisitChangeFloat32ToFloat64(node);
+          }
+        case ChangeOp::Kind::kSignedFloatTruncateOverflowToMin:
+        case ChangeOp::Kind::kUnsignedFloatTruncateOverflowToMin: {
+          using A = ChangeOp::Assumption;
+          bool is_signed =
+              change.kind == ChangeOp::Kind::kSignedFloatTruncateOverflowToMin;
+          switch (multi(change.from, change.to, is_signed, change.assumption)) {
+            case multi(Rep::Float32(), Rep::Word32(), true, A::kNoOverflow):
+            case multi(Rep::Float32(), Rep::Word32(), true, A::kNoAssumption):
+              return VisitTruncateFloat32ToInt32(node);
+            case multi(Rep::Float32(), Rep::Word32(), false, A::kNoOverflow):
+            case multi(Rep::Float32(), Rep::Word32(), false, A::kNoAssumption):
+              return VisitTruncateFloat32ToUint32(node);
+            case multi(Rep::Float64(), Rep::Word32(), true, A::kReversible):
+              return VisitChangeFloat64ToInt32(node);
+            case multi(Rep::Float64(), Rep::Word32(), false, A::kReversible):
+              return VisitChangeFloat64ToUint32(node);
+            case multi(Rep::Float64(), Rep::Word32(), true, A::kNoOverflow):
+              return VisitRoundFloat64ToInt32(node);
+            case multi(Rep::Float64(), Rep::Word64(), true, A::kReversible):
+              return VisitChangeFloat64ToInt64(node);
+            case multi(Rep::Float64(), Rep::Word64(), false, A::kReversible):
+              return VisitChangeFloat64ToUint64(node);
+            case multi(Rep::Float64(), Rep::Word64(), true, A::kNoOverflow):
+            case multi(Rep::Float64(), Rep::Word64(), true, A::kNoAssumption):
+              return VisitTruncateFloat64ToInt64(node);
+            default:
+              // Invalid combination.
+              UNREACHABLE();
+          }
+
+          UNREACHABLE();
+        }
+        case ChangeOp::Kind::kJSFloatTruncate:
+          DCHECK_EQ(change.from, Rep::Float64());
+          DCHECK_EQ(change.to, Rep::Word32());
+          return VisitTruncateFloat64ToWord32(node);
+        case ChangeOp::Kind::kSignedToFloat:
+          if (change.from == Rep::Word32()) {
+            if (change.to == Rep::Float32()) {
+              return VisitRoundInt32ToFloat32(node);
+            } else {
+              DCHECK_EQ(change.to, Rep::Float64());
+              DCHECK_EQ(change.assumption, ChangeOp::Assumption::kNoAssumption);
+              return VisitChangeInt32ToFloat64(node);
+            }
+          } else {
+            DCHECK_EQ(change.from, Rep::Word64());
+            if (change.to == Rep::Float32()) {
+              return VisitRoundInt64ToFloat32(node);
+            } else {
+              DCHECK_EQ(change.to, Rep::Float64());
+              if (change.assumption == ChangeOp::Assumption::kReversible) {
+                return VisitChangeInt64ToFloat64(node);
+              } else {
+                return VisitRoundInt64ToFloat64(node);
               }
             }
           }
-          UNIMPLEMENTED();
-        case Kind::kSignedToFloat:
-          if (change.from == Rep::Word32()) {
-            if (change.to == Rep::Float64()) {
-              DCHECK_EQ(change.assumption, Assumption::kNoAssumption);
-              // ChangeInt32ToFloat64
-              MarkAsFloat64(node);
-              return VisitChangeInt32ToFloat64(node);
-            }
+          UNREACHABLE();
+        case ChangeOp::Kind::kUnsignedToFloat:
+          switch (multi(change.from, change.to)) {
+            case multi(Rep::Word32(), Rep::Float32()):
+              return VisitRoundUint32ToFloat32(node);
+            case multi(Rep::Word32(), Rep::Float64()):
+              return VisitChangeUint32ToFloat64(node);
+            case multi(Rep::Word64(), Rep::Float32()):
+              return VisitRoundUint64ToFloat32(node);
+            case multi(Rep::Word64(), Rep::Float64()):
+              return VisitRoundUint64ToFloat64(node);
+            default:
+              UNREACHABLE();
           }
-          UNIMPLEMENTED();
-        default:
-          UNIMPLEMENTED();
+        case ChangeOp::Kind::kExtractHighHalf:
+          DCHECK_EQ(change.from, Rep::Float64());
+          DCHECK_EQ(change.to, Rep::Word32());
+          return VisitFloat64ExtractHighWord32(node);
+        case ChangeOp::Kind::kExtractLowHalf:
+          DCHECK_EQ(change.from, Rep::Float64());
+          DCHECK_EQ(change.to, Rep::Word32());
+          return VisitFloat64ExtractLowWord32(node);
+        case ChangeOp::Kind::kZeroExtend:
+          DCHECK_EQ(change.from, Rep::Word32());
+          DCHECK_EQ(change.to, Rep::Word64());
+          return VisitChangeUint32ToUint64(node);
+        case ChangeOp::Kind::kSignExtend:
+          DCHECK_EQ(change.from, Rep::Word32());
+          DCHECK_EQ(change.to, Rep::Word64());
+          return VisitChangeInt32ToInt64(node);
+        case ChangeOp::Kind::kBitcast:
+          switch (multi(change.from, change.to)) {
+            case multi(Rep::Word32(), Rep::Word64()):
+              return VisitBitcastWord32ToWord64(node);
+            case multi(Rep::Word32(), Rep::Float32()):
+              return VisitBitcastInt32ToFloat32(node);
+            case multi(Rep::Word64(), Rep::Float64()):
+              return VisitBitcastInt64ToFloat64(node);
+            case multi(Rep::Float32(), Rep::Word32()):
+              return VisitBitcastFloat32ToInt32(node);
+            case multi(Rep::Float64(), Rep::Word64()):
+              return VisitBitcastFloat64ToInt64(node);
+            default:
+              UNREACHABLE();
+          }
       }
       UNREACHABLE();
     }
@@ -4372,20 +4386,49 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitNode(
       UNREACHABLE();
     }
     case Opcode::kFloatBinop: {
-      using Kind = turboshaft::FloatBinopOp::Kind;
       const auto& binop = op.Cast<turboshaft::FloatBinopOp>();
-      if (binop.rep == turboshaft::FloatRepresentation::Float32()) {
-        UNIMPLEMENTED();
+      if (binop.rep == Rep::Float32()) {
+        MarkAsFloat32(node);
+        switch (binop.kind) {
+          case FloatBinopOp::Kind::kAdd:
+            return VisitFloat32Add(node);
+          case FloatBinopOp::Kind::kSub:
+            return VisitFloat32Sub(node);
+          case FloatBinopOp::Kind::kMul:
+            return VisitFloat32Mul(node);
+          case FloatBinopOp::Kind::kDiv:
+            return VisitFloat32Div(node);
+          case FloatBinopOp::Kind::kMin:
+            return VisitFloat32Min(node);
+          case FloatBinopOp::Kind::kMax:
+            return VisitFloat32Max(node);
+          case FloatBinopOp::Kind::kMod:
+          case FloatBinopOp::Kind::kPower:
+          case FloatBinopOp::Kind::kAtan2:
+            UNREACHABLE();
+        }
       } else {
-        DCHECK_EQ(binop.rep, turboshaft::FloatRepresentation::Float64());
+        DCHECK_EQ(binop.rep, Rep::Float64());
         MarkAsFloat64(node);
         switch (binop.kind) {
-          case Kind::kSub:
+          case FloatBinopOp::Kind::kAdd:
+            return VisitFloat64Add(node);
+          case FloatBinopOp::Kind::kSub:
             return VisitFloat64Sub(node);
-          case Kind::kDiv:
+          case FloatBinopOp::Kind::kMul:
+            return VisitFloat64Mul(node);
+          case FloatBinopOp::Kind::kDiv:
             return VisitFloat64Div(node);
-          default:
-            UNIMPLEMENTED();
+          case FloatBinopOp::Kind::kMod:
+            return VisitFloat64Mod(node);
+          case FloatBinopOp::Kind::kMin:
+            return VisitFloat64Min(node);
+          case FloatBinopOp::Kind::kMax:
+            return VisitFloat64Max(node);
+          case FloatBinopOp::Kind::kPower:
+            return VisitFloat64Pow(node);
+          case FloatBinopOp::Kind::kAtan2:
+            return VisitFloat64Atan2(node);
         }
       }
       UNREACHABLE();
@@ -4410,26 +4453,37 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitNode(
       UNREACHABLE();
     }
     case Opcode::kShift: {
-      using Kind = turboshaft::ShiftOp::Kind;
-      const auto& shift = op.Cast<turboshaft::ShiftOp>();
-      if (shift.rep == turboshaft::RegisterRepresentation::Word32()) {
+      const auto& shift = op.Cast<ShiftOp>();
+      if (shift.rep == RegisterRepresentation::Word32()) {
         MarkAsWord32(node);
         switch (shift.kind) {
-          case Kind::kShiftRightArithmeticShiftOutZeros:
+          case ShiftOp::Kind::kShiftRightArithmeticShiftOutZeros:
+          case ShiftOp::Kind::kShiftRightArithmetic:
             return VisitWord32Sar(node);
-          default:
-            UNIMPLEMENTED();
+          case ShiftOp::Kind::kShiftRightLogical:
+            return VisitWord32Shr(node);
+          case ShiftOp::Kind::kShiftLeft:
+            return VisitWord32Shl(node);
+          case ShiftOp::Kind::kRotateRight:
+            return VisitWord32Ror(node);
+          case ShiftOp::Kind::kRotateLeft:
+            return VisitWord32Rol(node);
         }
       } else {
-        DCHECK_EQ(shift.rep, turboshaft::RegisterRepresentation::Word64());
+        DCHECK_EQ(shift.rep, RegisterRepresentation::Word64());
         MarkAsWord64(node);
         switch (shift.kind) {
-          case Kind::kShiftLeft:
-            return VisitWord64Shl(node);
-          case Kind::kShiftRightArithmeticShiftOutZeros:
+          case ShiftOp::Kind::kShiftRightArithmeticShiftOutZeros:
+          case ShiftOp::Kind::kShiftRightArithmetic:
             return VisitWord64Sar(node);
-          default:
-            UNIMPLEMENTED();
+          case ShiftOp::Kind::kShiftRightLogical:
+            return VisitWord64Shr(node);
+          case ShiftOp::Kind::kShiftLeft:
+            return VisitWord64Shl(node);
+          case ShiftOp::Kind::kRotateRight:
+            return VisitWord64Ror(node);
+          case ShiftOp::Kind::kRotateLeft:
+            return VisitWord64Rol(node);
         }
       }
       UNREACHABLE();
@@ -4478,26 +4532,35 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitNode(
       UNREACHABLE();
     }
     case Opcode::kComparison: {
-      const turboshaft::ComparisonOp& comparison =
-          op.Cast<turboshaft::ComparisonOp>();
-      switch (comparison.kind) {
-        case turboshaft::ComparisonOp::Kind::kUnsignedLessThan:
-          if (comparison.rep == Rep::Word64()) {
-            return VisitUint64LessThan(node);
-          } else {
-            UNIMPLEMENTED();
-          }
-        case turboshaft::ComparisonOp::Kind::kSignedLessThan:
-          switch (comparison.rep) {
-            case Rep::Word32():
-              return VisitInt32LessThan(node);
-            case Rep::Word64():
-              return VisitInt64LessThan(node);
-            default:
-              UNIMPLEMENTED();
-          }
+      const ComparisonOp& comparison = op.Cast<ComparisonOp>();
+      using Kind = ComparisonOp::Kind;
+      switch (multi(comparison.kind, comparison.rep)) {
+        case multi(Kind::kSignedLessThan, Rep::Word32()):
+          return VisitInt32LessThan(node);
+        case multi(Kind::kSignedLessThan, Rep::Word64()):
+          return VisitInt64LessThan(node);
+        case multi(Kind::kSignedLessThan, Rep::Float32()):
+          return VisitFloat32LessThan(node);
+        case multi(Kind::kSignedLessThan, Rep::Float64()):
+          return VisitFloat64LessThan(node);
+        case multi(Kind::kSignedLessThanOrEqual, Rep::Word32()):
+          return VisitInt32LessThanOrEqual(node);
+        case multi(Kind::kSignedLessThanOrEqual, Rep::Word64()):
+          return VisitInt64LessThanOrEqual(node);
+        case multi(Kind::kSignedLessThanOrEqual, Rep::Float32()):
+          return VisitFloat32LessThanOrEqual(node);
+        case multi(Kind::kSignedLessThanOrEqual, Rep::Float64()):
+          return VisitFloat64LessThanOrEqual(node);
+        case multi(Kind::kUnsignedLessThan, Rep::Word32()):
+          return VisitUint32LessThan(node);
+        case multi(Kind::kUnsignedLessThan, Rep::Word64()):
+          return VisitUint64LessThan(node);
+        case multi(Kind::kUnsignedLessThanOrEqual, Rep::Word32()):
+          return VisitUint32LessThanOrEqual(node);
+        case multi(Kind::kUnsignedLessThanOrEqual, Rep::Word64()):
+          return VisitUint64LessThanOrEqual(node);
         default:
-          UNIMPLEMENTED();
+          UNREACHABLE();
       }
       UNREACHABLE();
     }
@@ -4562,7 +4625,7 @@ bool InstructionSelectorT<Adapter>::CanProduceSignalingNaN(Node* node) {
 #if V8_TARGET_ARCH_64_BIT
 template <typename Adapter>
 bool InstructionSelectorT<Adapter>::ZeroExtendsWord32ToWord64(
-    Node* node, int recursion_depth) {
+    node_t node, int recursion_depth) {
   // To compute whether a Node sets its upper 32 bits to zero, there are three
   // cases.
   // 1. Phi node, with a computed result already available in phi_states_:
@@ -4576,8 +4639,8 @@ bool InstructionSelectorT<Adapter>::ZeroExtendsWord32ToWord64(
   // large functions.
   const int kMaxRecursionDepth = 100;
 
-  if (node->opcode() == IrOpcode::kPhi) {
-    Upper32BitsState current = phi_states_[node->id()];
+  if (this->IsPhi(node)) {
+    Upper32BitsState current = phi_states_[this->id(node)];
     if (current != Upper32BitsState::kNotYetChecked) {
       return current == Upper32BitsState::kUpperBitsGuaranteedZero;
     }
@@ -4591,13 +4654,13 @@ bool InstructionSelectorT<Adapter>::ZeroExtendsWord32ToWord64(
     // Mark the current node so that we skip it if we recursively visit it
     // again. Or, said differently, we compute a largest fixed-point so we can
     // be optimistic when we hit cycles.
-    phi_states_[node->id()] = Upper32BitsState::kUpperBitsGuaranteedZero;
+    phi_states_[this->id(node)] = Upper32BitsState::kUpperBitsGuaranteedZero;
 
-    int input_count = node->op()->ValueInputCount();
+    int input_count = this->value_input_count(node);
     for (int i = 0; i < input_count; ++i) {
-      Node* input = NodeProperties::GetValueInput(node, i);
+      node_t input = this->input_at(node, i);
       if (!ZeroExtendsWord32ToWord64(input, recursion_depth + 1)) {
-        phi_states_[node->id()] = Upper32BitsState::kNoGuarantee;
+        phi_states_[this->id(node)] = Upper32BitsState::kNoGuarantee;
         return false;
       }
     }

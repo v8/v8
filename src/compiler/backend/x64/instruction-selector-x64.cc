@@ -1311,11 +1311,6 @@ void TryMergeTruncateInt64ToInt32IntoLoad(
 
 // Shared routine for multiple 32-bit shift operations.
 // TODO(bmeurer): Merge this with VisitWord64Shift using template magic?
-void VisitWord32Shift(InstructionSelectorT<TurboshaftAdapter>*, Node*,
-                      ArchOpcode) {
-  UNREACHABLE();
-}
-
 template <typename Adapter>
 void VisitWord32Shift(InstructionSelectorT<Adapter>* selector,
                       typename Adapter::node_t node, ArchOpcode opcode) {
@@ -1343,11 +1338,6 @@ void VisitWord32Shift(InstructionSelectorT<Adapter>* selector,
 
 // Shared routine for multiple 64-bit shift operations.
 // TODO(bmeurer): Merge this with VisitWord32Shift using template magic?
-void VisitWord64Shift(InstructionSelectorT<TurboshaftAdapter>*, Node*,
-                      ArchOpcode) {
-  UNREACHABLE();
-}
-
 template <typename Adapter>
 void VisitWord64Shift(InstructionSelectorT<Adapter>* selector,
                       typename Adapter::node_t node, ArchOpcode opcode) {
@@ -1435,15 +1425,28 @@ void EmitLea(InstructionSelectorT<Adapter>* selector, InstructionCode opcode,
 
 }  // namespace
 
-template <>
-void InstructionSelectorT<TurbofanAdapter>::VisitWord32Shl(Node* node) {
-  Int32ScaleMatcher m(node, true);
-  if (m.matches()) {
-    Node* index = node->InputAt(0);
-    Node* base = m.power_of_two_plus_one() ? index : nullptr;
-    EmitLea(this, kX64Lea32, node, index, m.scale(), base, 0,
-            kPositiveDisplacement);
-    return;
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitWord32Shl(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    bool power_of_two_plus_one;
+    turboshaft::OpIndex index;
+    int scale;
+    if (__ ScaledIndex(&index, &scale, &power_of_two_plus_one)
+            .MatchesWith(this->turboshaft_graph(), node)) {
+      node_t base = power_of_two_plus_one ? index : node_t{};
+      EmitLea(this, kX64Lea32, node, index, scale, base, 0,
+              kPositiveDisplacement);
+      return;
+    }
+  } else {
+    Int32ScaleMatcher m(node, true);
+    if (m.matches()) {
+      Node* index = node->InputAt(0);
+      Node* base = m.power_of_two_plus_one() ? index : nullptr;
+      EmitLea(this, kX64Lea32, node, index, m.scale(), base, 0,
+              kPositiveDisplacement);
+      return;
+    }
   }
   VisitWord32Shift(this, node, kX64Shl32);
 }
@@ -1479,7 +1482,7 @@ void InstructionSelectorT<Adapter>::VisitWord64Shl(node_t node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord32Shr(Node* node) {
+void InstructionSelectorT<Adapter>::VisitWord32Shr(node_t node) {
   VisitWord32Shift(this, node, kX64Shr32);
 }
 
@@ -1594,7 +1597,7 @@ bool TryMatchLoadWord64AndShiftRight(
 }  // namespace
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord64Shr(Node* node) {
+void InstructionSelectorT<Adapter>::VisitWord64Shr(node_t node) {
   if (TryMatchLoadWord64AndShiftRight(this, node, kX64Movl)) return;
   VisitWord64Shift(this, node, kX64Shr);
 }
@@ -1627,22 +1630,22 @@ void InstructionSelectorT<Adapter>::VisitWord64Sar(node_t node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord32Rol(Node* node) {
+void InstructionSelectorT<Adapter>::VisitWord32Rol(node_t node) {
   VisitWord32Shift(this, node, kX64Rol32);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord64Rol(Node* node) {
+void InstructionSelectorT<Adapter>::VisitWord64Rol(node_t node) {
   VisitWord64Shift(this, node, kX64Rol);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord32Ror(Node* node) {
+void InstructionSelectorT<Adapter>::VisitWord32Ror(node_t node) {
   VisitWord32Shift(this, node, kX64Ror32);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord64Ror(Node* node) {
+void InstructionSelectorT<Adapter>::VisitWord64Ror(node_t node) {
   VisitWord64Shift(this, node, kX64Ror);
 }
 
@@ -2116,7 +2119,7 @@ void InstructionSelectorT<Adapter>::VisitTryTruncateFloat64ToInt32(Node* node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitBitcastWord32ToWord64(Node* node) {
+void InstructionSelectorT<Adapter>::VisitBitcastWord32ToWord64(node_t node) {
   DCHECK(SmiValuesAre31Bits());
   DCHECK(COMPRESS_POINTERS_BOOL);
   EmitIdentity(node);
@@ -2166,10 +2169,96 @@ void InstructionSelectorT<Adapter>::VisitChangeInt32ToInt64(node_t node) {
   }
 }
 
-template <typename Adapter>
-bool InstructionSelectorT<Adapter>::ZeroExtendsWord32ToWord64NoPhis(
+template <>
+bool InstructionSelectorT<TurboshaftAdapter>::ZeroExtendsWord32ToWord64NoPhis(
+    turboshaft::OpIndex node) {
+  using namespace turboshaft;  // NOLINT(build/namespaces)
+  const auto& op = this->Get(node);
+  switch (op.opcode) {
+    case turboshaft::Opcode::kWordBinop: {
+      const auto& binop = op.Cast<WordBinopOp>();
+      if (binop.rep != WordRepresentation::Word32()) return false;
+      DCHECK(binop.kind == WordBinopOp::Kind::kBitwiseAnd ||
+             binop.kind == WordBinopOp::Kind::kBitwiseOr ||
+             binop.kind == WordBinopOp::Kind::kBitwiseXor ||
+             binop.kind == WordBinopOp::Kind::kAdd ||
+             binop.kind == WordBinopOp::Kind::kSub ||
+             binop.kind == WordBinopOp::Kind::kMul ||
+             binop.kind == WordBinopOp::Kind::kSignedDiv ||
+             binop.kind == WordBinopOp::Kind::kUnsignedDiv ||
+             binop.kind == WordBinopOp::Kind::kSignedMod ||
+             binop.kind == WordBinopOp::Kind::kUnsignedMod ||
+             binop.kind == WordBinopOp::Kind::kSignedMulOverflownBits ||
+             binop.kind == WordBinopOp::Kind::kUnsignedMulOverflownBits);
+      return true;
+    }
+    case Opcode::kShift: {
+      const auto& shift = op.Cast<ShiftOp>();
+      if (shift.rep != WordRepresentation::Word32()) return false;
+      DCHECK(shift.kind == ShiftOp::Kind::kShiftLeft ||
+             shift.kind == ShiftOp::Kind::kShiftRightLogical ||
+             shift.kind == ShiftOp::Kind::kShiftRightArithmetic ||
+             shift.kind == ShiftOp::Kind::kShiftRightArithmeticShiftOutZeros ||
+             shift.kind == ShiftOp::Kind::kRotateLeft ||
+             shift.kind == ShiftOp::Kind::kRotateRight);
+      return true;
+    }
+    case Opcode::kEqual: {
+      const auto& equal = op.Cast<EqualOp>();
+      return equal.rep == RegisterRepresentation::Word32();
+    }
+    case Opcode::kComparison: {
+      const auto& comparison = op.Cast<ComparisonOp>();
+      DCHECK(comparison.kind == ComparisonOp::Kind::kSignedLessThan ||
+             comparison.kind == ComparisonOp::Kind::kSignedLessThanOrEqual ||
+             comparison.kind == ComparisonOp::Kind::kUnsignedLessThan ||
+             comparison.kind == ComparisonOp::Kind::kUnsignedLessThanOrEqual);
+      return comparison.rep == RegisterRepresentation::Word32();
+    }
+    case Opcode::kProjection: {
+      const auto& projection = op.Cast<ProjectionOp>();
+      if (const auto* binop =
+              this->Get(projection.input()).TryCast<OverflowCheckedBinopOp>()) {
+        DCHECK(binop->kind == OverflowCheckedBinopOp::Kind::kSignedAdd ||
+               binop->kind == OverflowCheckedBinopOp::Kind::kSignedSub ||
+               binop->kind == OverflowCheckedBinopOp::Kind::kSignedMul);
+        return binop->rep == RegisterRepresentation::Word32();
+      }
+      return false;
+    }
+    case Opcode::kLoad: {
+      const auto& load = op.Cast<LoadOp>();
+      // The movzxbl/movsxbl/movzxwl/movsxwl/movl operations implicitly
+      // zero-extend to 64-bit on x64, so the zero-extension is a no-op.
+      switch (load.loaded_rep.ToMachineType().representation()) {
+        case MachineRepresentation::kWord8:
+        case MachineRepresentation::kWord16:
+        case MachineRepresentation::kWord32:
+          return true;
+        default:
+          break;
+      }
+      return false;
+    }
+    case Opcode::kConstant: {
+      X64OperandGeneratorT<TurboshaftAdapter> g(this);
+      // Constants are loaded with movl or movq, or xorl for zero; see
+      // CodeGenerator::AssembleMove. So any non-negative constant that fits
+      // in a 32-bit signed integer is zero-extended to 64 bits.
+      if (g.CanBeImmediate(node)) {
+        return g.GetImmediateIntegerValue(node) >= 0;
+      }
+      return false;
+    }
+    default:
+      return false;
+  }
+}
+
+template <>
+bool InstructionSelectorT<TurbofanAdapter>::ZeroExtendsWord32ToWord64NoPhis(
     Node* node) {
-  X64OperandGeneratorT<Adapter> g(this);
+  X64OperandGeneratorT<TurbofanAdapter> g(this);
   DCHECK_NE(node->opcode(), IrOpcode::kPhi);
   switch (node->opcode()) {
     case IrOpcode::kWord32And:
@@ -2240,9 +2329,10 @@ bool InstructionSelectorT<Adapter>::ZeroExtendsWord32ToWord64NoPhis(
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitChangeUint32ToUint64(Node* node) {
+void InstructionSelectorT<Adapter>::VisitChangeUint32ToUint64(node_t node) {
   X64OperandGeneratorT<Adapter> g(this);
-  Node* value = node->InputAt(0);
+  DCHECK_EQ(this->value_input_count(node), 1);
+  node_t value = this->input_at(node, 0);
   if (ZeroExtendsWord32ToWord64(value)) {
     // These 32-bit operations implicitly zero-extend to 64-bit on x64, so the
     // zero-extension is a no-op.
@@ -2266,25 +2356,25 @@ void VisitRO(InstructionSelectorT<Adapter>* selector,
                  g.Use(selector->input_at(node, 0)));
 }
 
+void VisitRR(InstructionSelectorT<TurboshaftAdapter>*, Node*, InstructionCode) {
+  UNREACHABLE();
+}
+
 template <typename Adapter>
-void VisitRR(InstructionSelectorT<Adapter>* selector, Node* node,
-             InstructionCode opcode) {
+void VisitRR(InstructionSelectorT<Adapter>* selector,
+             typename Adapter::node_t node, InstructionCode opcode) {
   X64OperandGeneratorT<Adapter> g(selector);
   selector->Emit(opcode, g.DefineAsRegister(node),
-                 g.UseRegister(node->InputAt(0)));
+                 g.UseRegister(selector->input_at(node, 0)));
 }
 
 template <typename Adapter>
-void VisitRRO(InstructionSelectorT<Adapter>* selector, Node* node,
-              InstructionCode opcode) {
+void VisitRRO(InstructionSelectorT<Adapter>* selector,
+              typename Adapter::node_t node, InstructionCode opcode) {
   X64OperandGeneratorT<Adapter> g(selector);
   selector->Emit(opcode, g.DefineSameAsFirst(node),
-                 g.UseRegister(node->InputAt(0)), g.Use(node->InputAt(1)));
-}
-
-void VisitFloatBinop(InstructionSelectorT<TurboshaftAdapter>*, Node*,
-                     InstructionCode, InstructionCode) {
-  UNREACHABLE();
+                 g.UseRegister(selector->input_at(node, 0)),
+                 g.Use(selector->input_at(node, 1)));
 }
 
 template <typename Adapter>
@@ -2361,9 +2451,32 @@ void VisitFloatUnop(InstructionSelectorT<Adapter>* selector, Node* node,
 
 }  // namespace
 
-#define RO_OP_T_LIST(V)                      \
-  V(RoundFloat64ToInt32, kSSEFloat64ToInt32) \
-  V(ChangeInt32ToFloat64, kSSEInt32ToFloat64)
+#define RO_OP_T_LIST(V)                                                \
+  V(RoundFloat64ToInt32, kSSEFloat64ToInt32)                           \
+  V(ChangeInt32ToFloat64, kSSEInt32ToFloat64)                          \
+  V(TruncateFloat64ToFloat32, kSSEFloat64ToFloat32)                    \
+  V(ChangeFloat32ToFloat64, kSSEFloat32ToFloat64)                      \
+  V(ChangeFloat64ToInt32, kSSEFloat64ToInt32)                          \
+  V(ChangeFloat64ToUint32, kSSEFloat64ToUint32 | MiscField::encode(1)) \
+  V(ChangeFloat64ToInt64, kSSEFloat64ToInt64)                          \
+  V(ChangeFloat64ToUint64, kSSEFloat64ToUint64)                        \
+  V(RoundInt32ToFloat32, kSSEInt32ToFloat32)                           \
+  V(RoundInt64ToFloat32, kSSEInt64ToFloat32)                           \
+  V(RoundUint64ToFloat32, kSSEUint64ToFloat32)                         \
+  V(RoundInt64ToFloat64, kSSEInt64ToFloat64)                           \
+  V(RoundUint64ToFloat64, kSSEUint64ToFloat64)                         \
+  V(RoundUint32ToFloat32, kSSEUint32ToFloat32)                         \
+  V(ChangeInt64ToFloat64, kSSEInt64ToFloat64)                          \
+  V(ChangeUint32ToFloat64, kSSEUint32ToFloat64)                        \
+  V(Float64ExtractLowWord32, kSSEFloat64ExtractLowWord32)              \
+  V(Float64ExtractHighWord32, kSSEFloat64ExtractHighWord32)            \
+  V(BitcastFloat32ToInt32, kX64BitcastFI)                              \
+  V(BitcastFloat64ToInt64, kX64BitcastDL)                              \
+  V(BitcastInt32ToFloat32, kX64BitcastIF)                              \
+  V(BitcastInt64ToFloat64, kX64BitcastLD)                              \
+  V(TruncateFloat64ToInt64, kSSEFloat64ToInt64)                        \
+  V(TruncateFloat32ToInt32, kSSEFloat32ToInt32)                        \
+  V(TruncateFloat32ToUint32, kSSEFloat32ToUint32)
 
 #define RO_OP_LIST(V)                                                    \
   V(Word64Clz, kX64Lzcnt)                                                \
@@ -2374,30 +2487,7 @@ void VisitFloatUnop(InstructionSelectorT<Adapter>* selector, Node* node,
   V(Word32Popcnt, kX64Popcnt32)                                          \
   V(Float64Sqrt, kSSEFloat64Sqrt)                                        \
   V(Float32Sqrt, kSSEFloat32Sqrt)                                        \
-  V(ChangeFloat64ToInt32, kSSEFloat64ToInt32)                            \
-  V(ChangeFloat64ToInt64, kSSEFloat64ToInt64)                            \
-  V(ChangeFloat64ToUint32, kSSEFloat64ToUint32 | MiscField::encode(1))   \
-  V(TruncateFloat64ToInt64, kSSEFloat64ToInt64)                          \
   V(TruncateFloat64ToUint32, kSSEFloat64ToUint32 | MiscField::encode(0)) \
-  V(ChangeFloat64ToUint64, kSSEFloat64ToUint64)                          \
-  V(TruncateFloat64ToFloat32, kSSEFloat64ToFloat32)                      \
-  V(ChangeFloat32ToFloat64, kSSEFloat32ToFloat64)                        \
-  V(TruncateFloat32ToInt32, kSSEFloat32ToInt32)                          \
-  V(TruncateFloat32ToUint32, kSSEFloat32ToUint32)                        \
-  V(ChangeInt64ToFloat64, kSSEInt64ToFloat64)                            \
-  V(ChangeUint32ToFloat64, kSSEUint32ToFloat64)                          \
-  V(RoundInt32ToFloat32, kSSEInt32ToFloat32)                             \
-  V(RoundInt64ToFloat32, kSSEInt64ToFloat32)                             \
-  V(RoundUint64ToFloat32, kSSEUint64ToFloat32)                           \
-  V(RoundInt64ToFloat64, kSSEInt64ToFloat64)                             \
-  V(RoundUint64ToFloat64, kSSEUint64ToFloat64)                           \
-  V(RoundUint32ToFloat32, kSSEUint32ToFloat32)                           \
-  V(BitcastFloat32ToInt32, kX64BitcastFI)                                \
-  V(BitcastFloat64ToInt64, kX64BitcastDL)                                \
-  V(BitcastInt32ToFloat32, kX64BitcastIF)                                \
-  V(BitcastInt64ToFloat64, kX64BitcastLD)                                \
-  V(Float64ExtractLowWord32, kSSEFloat64ExtractLowWord32)                \
-  V(Float64ExtractHighWord32, kSSEFloat64ExtractHighWord32)              \
   V(SignExtendWord8ToInt32, kX64Movsxbl)                                 \
   V(SignExtendWord16ToInt32, kX64Movsxwl)                                \
   V(SignExtendWord8ToInt64, kX64Movsxbq)                                 \
@@ -2452,7 +2542,7 @@ RR_OP_LIST(RR_VISITOR)
 #undef RR_OP_LIST
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitTruncateFloat64ToWord32(Node* node) {
+void InstructionSelectorT<Adapter>::VisitTruncateFloat64ToWord32(node_t node) {
   VisitRR(this, node, kArchTruncateDoubleToI);
 }
 
@@ -2499,22 +2589,22 @@ void InstructionSelectorT<Adapter>::VisitTruncateInt64ToInt32(Node* node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat32Add(Node* node) {
+void InstructionSelectorT<Adapter>::VisitFloat32Add(node_t node) {
   VisitFloatBinop(this, node, kAVXFloat32Add, kSSEFloat32Add);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat32Sub(Node* node) {
+void InstructionSelectorT<Adapter>::VisitFloat32Sub(node_t node) {
   VisitFloatBinop(this, node, kAVXFloat32Sub, kSSEFloat32Sub);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat32Mul(Node* node) {
+void InstructionSelectorT<Adapter>::VisitFloat32Mul(node_t node) {
   VisitFloatBinop(this, node, kAVXFloat32Mul, kSSEFloat32Mul);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat32Div(Node* node) {
+void InstructionSelectorT<Adapter>::VisitFloat32Div(node_t node) {
   VisitFloatBinop(this, node, kAVXFloat32Div, kSSEFloat32Div);
 }
 
@@ -2524,17 +2614,17 @@ void InstructionSelectorT<Adapter>::VisitFloat32Abs(Node* node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat32Max(Node* node) {
+void InstructionSelectorT<Adapter>::VisitFloat32Max(node_t node) {
   VisitRRO(this, node, kSSEFloat32Max);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat32Min(Node* node) {
+void InstructionSelectorT<Adapter>::VisitFloat32Min(node_t node) {
   VisitRRO(this, node, kSSEFloat32Min);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat64Add(Node* node) {
+void InstructionSelectorT<Adapter>::VisitFloat64Add(node_t node) {
   VisitFloatBinop(this, node, kAVXFloat64Add, kSSEFloat64Add);
 }
 
@@ -2544,7 +2634,7 @@ void InstructionSelectorT<Adapter>::VisitFloat64Sub(node_t node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat64Mul(Node* node) {
+void InstructionSelectorT<Adapter>::VisitFloat64Mul(node_t node) {
   VisitFloatBinop(this, node, kAVXFloat64Mul, kSSEFloat64Mul);
 }
 
@@ -2554,21 +2644,22 @@ void InstructionSelectorT<Adapter>::VisitFloat64Div(node_t node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat64Mod(Node* node) {
+void InstructionSelectorT<Adapter>::VisitFloat64Mod(node_t node) {
+  DCHECK_EQ(this->value_input_count(node), 2);
   X64OperandGeneratorT<Adapter> g(this);
   InstructionOperand temps[] = {g.TempRegister(rax)};
   Emit(kSSEFloat64Mod, g.DefineSameAsFirst(node),
-       g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)), 1,
-       temps);
+       g.UseRegister(this->input_at(node, 0)),
+       g.UseRegister(this->input_at(node, 1)), 1, temps);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat64Max(Node* node) {
+void InstructionSelectorT<Adapter>::VisitFloat64Max(node_t node) {
   VisitRRO(this, node, kSSEFloat64Max);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat64Min(Node* node) {
+void InstructionSelectorT<Adapter>::VisitFloat64Min(node_t node) {
   VisitRRO(this, node, kSSEFloat64Min);
 }
 
@@ -2594,10 +2685,12 @@ void InstructionSelectorT<Adapter>::VisitFloat64Neg(Node* node) {
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitFloat64Ieee754Binop(
-    Node* node, InstructionCode opcode) {
+    node_t node, InstructionCode opcode) {
+  DCHECK_EQ(this->value_input_count(node), 2);
   X64OperandGeneratorT<Adapter> g(this);
-  Emit(opcode, g.DefineAsFixed(node, xmm0), g.UseFixed(node->InputAt(0), xmm0),
-       g.UseFixed(node->InputAt(1), xmm1))
+  Emit(opcode, g.DefineAsFixed(node, xmm0),
+       g.UseFixed(this->input_at(node, 0), xmm0),
+       g.UseFixed(this->input_at(node, 1), xmm1))
       ->MarkAsCall();
 }
 
@@ -3778,15 +3871,10 @@ void InstructionSelectorT<Adapter>::VisitInt64LessThan(node_t node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitInt64LessThanOrEqual(Node* node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    // TODO(nicohartmann@): Implement this.
-    UNIMPLEMENTED();
-  } else {
-    FlagsContinuation cont =
-        FlagsContinuation::ForSet(kSignedLessThanOrEqual, node);
-    VisitWordCompare(this, node, kX64Cmp, &cont);
-  }
+void InstructionSelectorT<Adapter>::VisitInt64LessThanOrEqual(node_t node) {
+  FlagsContinuation cont =
+      FlagsContinuation::ForSet(kSignedLessThanOrEqual, node);
+  VisitWordCompare(this, node, kX64Cmp, &cont);
 }
 
 template <typename Adapter>
@@ -3796,15 +3884,10 @@ void InstructionSelectorT<Adapter>::VisitUint64LessThan(node_t node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitUint64LessThanOrEqual(Node* node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    // TODO(nicohartmann@): Implement this.
-    UNIMPLEMENTED();
-  } else {
-    FlagsContinuation cont =
-        FlagsContinuation::ForSet(kUnsignedLessThanOrEqual, node);
-    VisitWordCompare(this, node, kX64Cmp, &cont);
-  }
+void InstructionSelectorT<Adapter>::VisitUint64LessThanOrEqual(node_t node) {
+  FlagsContinuation cont =
+      FlagsContinuation::ForSet(kUnsignedLessThanOrEqual, node);
+  VisitWordCompare(this, node, kX64Cmp, &cont);
 }
 
 template <typename Adapter>
@@ -3835,20 +3918,28 @@ void InstructionSelectorT<Adapter>::VisitFloat64Equal(node_t node) {
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitFloat64LessThan(node_t node) {
+  // Check for the pattern
+  //
+  //   Float64LessThan(#0.0, Float64Abs(x))
+  //
+  // which TurboFan generates for NumberToBoolean in the general case,
+  // and which evaluates to false if x is 0, -0 or NaN. We can compile
+  // this to a simple (v)ucomisd using not_equal flags condition, which
+  // avoids the costly Float64Abs.
   if constexpr (Adapter::IsTurboshaft) {
-    // TODO(nicohartmann@): Implement this.
-    UNIMPLEMENTED();
+    using namespace turboshaft;  // NOLINT(build/namespaces)
+    OpIndex x;
+    if (__ Float64LessThan(__ Float64Constant(0.0), __ Float64Abs(&x))
+            .MatchesWith(this->turboshaft_graph(), node)) {
+      FlagsContinuation cont = FlagsContinuation::ForSet(kNotEqual, node);
+      InstructionCode const opcode =
+          IsSupported(AVX) ? kAVXFloat64Cmp : kSSEFloat64Cmp;
+      return VisitCompare(this, opcode, this->input_at(node, 0), x, &cont,
+                          false);
+    }
   } else {
     Float64BinopMatcher m(node);
     if (m.left().Is(0.0) && m.right().IsFloat64Abs()) {
-      // This matches the pattern
-      //
-      //   Float64LessThan(#0.0, Float64Abs(x))
-      //
-      // which TurboFan generates for NumberToBoolean in the general case,
-      // and which evaluates to false if x is 0, -0 or NaN. We can compile
-      // this to a simple (v)ucomisd using not_equal flags condition, which
-      // avoids the costly Float64Abs.
       FlagsContinuation cont = FlagsContinuation::ForSet(kNotEqual, node);
       InstructionCode const opcode =
           IsSupported(AVX) ? kAVXFloat64Cmp : kSSEFloat64Cmp;

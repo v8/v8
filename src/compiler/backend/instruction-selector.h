@@ -699,7 +699,8 @@ class InstructionSelectorT final : public Adapter {
   void VisitNode(node_t node);
 
   // Visit the node and generate code for IEEE 754 functions.
-  void VisitFloat64Ieee754Binop(Node*, InstructionCode code);
+  DECLARE_UNREACHABLE_TURBOSHAFT_FALLBACK(void, VisitFloat64Ieee754Binop)
+  void VisitFloat64Ieee754Binop(node_t, InstructionCode code);
   void VisitFloat64Ieee754Unop(Node*, InstructionCode code);
 
   node_t FindProjection(node_t node, size_t projection_index);
@@ -708,8 +709,15 @@ class InstructionSelectorT final : public Adapter {
   DECLARE_GENERATOR_T(Word32And)
   DECLARE_GENERATOR_T(Word32Or)
   DECLARE_GENERATOR_T(Word32Sar)
+  DECLARE_GENERATOR_T(Word32Shl)
+  DECLARE_GENERATOR_T(Word32Shr)
+  DECLARE_GENERATOR_T(Word32Rol)
+  DECLARE_GENERATOR_T(Word32Ror)
   DECLARE_GENERATOR_T(Word64Shl)
   DECLARE_GENERATOR_T(Word64Sar)
+  DECLARE_GENERATOR_T(Word64Shr)
+  DECLARE_GENERATOR_T(Word64Rol)
+  DECLARE_GENERATOR_T(Word64Ror)
   DECLARE_GENERATOR_T(Int32AddWithOverflow)
   DECLARE_GENERATOR_T(Int32MulWithOverflow)
   DECLARE_GENERATOR_T(Int64Add)
@@ -720,9 +728,11 @@ class InstructionSelectorT final : public Adapter {
   DECLARE_GENERATOR_T(Int32LessThan)
   DECLARE_GENERATOR_T(Int32LessThanOrEqual)
   DECLARE_GENERATOR_T(Int64LessThan)
+  DECLARE_GENERATOR_T(Int64LessThanOrEqual)
   DECLARE_GENERATOR_T(Uint32LessThan)
   DECLARE_GENERATOR_T(Uint32LessThanOrEqual)
   DECLARE_GENERATOR_T(Uint64LessThan)
+  DECLARE_GENERATOR_T(Uint64LessThanOrEqual)
   DECLARE_GENERATOR_T(Float64Sub)
   DECLARE_GENERATOR_T(Float64Div)
   DECLARE_GENERATOR_T(Float32Equal)
@@ -739,7 +749,46 @@ class InstructionSelectorT final : public Adapter {
   DECLARE_GENERATOR_T(BitcastWordToTagged)
   DECLARE_GENERATOR_T(ChangeInt32ToInt64)
   DECLARE_GENERATOR_T(ChangeInt32ToFloat64)
+  DECLARE_GENERATOR_T(ChangeFloat32ToFloat64)
   DECLARE_GENERATOR_T(RoundFloat64ToInt32)
+  DECLARE_GENERATOR_T(TruncateFloat64ToWord32)
+  DECLARE_GENERATOR_T(TruncateFloat64ToFloat32)
+  DECLARE_GENERATOR_T(TruncateFloat32ToInt32)
+  DECLARE_GENERATOR_T(TruncateFloat32ToUint32)
+  DECLARE_GENERATOR_T(ChangeFloat64ToInt32)
+  DECLARE_GENERATOR_T(ChangeFloat64ToUint32)
+  DECLARE_GENERATOR_T(ChangeFloat64ToInt64)
+  DECLARE_GENERATOR_T(ChangeFloat64ToUint64)
+  DECLARE_GENERATOR_T(TruncateFloat64ToInt64)
+  DECLARE_GENERATOR_T(RoundInt32ToFloat32)
+  DECLARE_GENERATOR_T(RoundInt64ToFloat32)
+  DECLARE_GENERATOR_T(RoundInt64ToFloat64)
+  DECLARE_GENERATOR_T(RoundUint32ToFloat32)
+  DECLARE_GENERATOR_T(RoundUint64ToFloat32)
+  DECLARE_GENERATOR_T(RoundUint64ToFloat64)
+  DECLARE_GENERATOR_T(ChangeInt64ToFloat64)
+  DECLARE_GENERATOR_T(ChangeUint32ToFloat64)
+  DECLARE_GENERATOR_T(ChangeUint32ToUint64)
+  DECLARE_GENERATOR_T(Float64ExtractLowWord32)
+  DECLARE_GENERATOR_T(Float64ExtractHighWord32)
+  DECLARE_GENERATOR_T(Float32Add)
+  DECLARE_GENERATOR_T(Float32Sub)
+  DECLARE_GENERATOR_T(Float32Mul)
+  DECLARE_GENERATOR_T(Float32Div)
+  DECLARE_GENERATOR_T(Float32Max)
+  DECLARE_GENERATOR_T(Float32Min)
+  DECLARE_GENERATOR_T(Float64Atan2)
+  DECLARE_GENERATOR_T(Float64Max)
+  DECLARE_GENERATOR_T(Float64Min)
+  DECLARE_GENERATOR_T(Float64Add)
+  DECLARE_GENERATOR_T(Float64Mul)
+  DECLARE_GENERATOR_T(Float64Mod)
+  DECLARE_GENERATOR_T(Float64Pow)
+  DECLARE_GENERATOR_T(BitcastWord32ToWord64)
+  DECLARE_GENERATOR_T(BitcastFloat32ToInt32)
+  DECLARE_GENERATOR_T(BitcastFloat64ToInt64)
+  DECLARE_GENERATOR_T(BitcastInt32ToFloat32)
+  DECLARE_GENERATOR_T(BitcastInt64ToFloat64)
 #undef DECLARE_GENERATOR_T
 
 #define DECLARE_GENERATOR(x) void Visit##x(Node* node);
@@ -747,10 +796,6 @@ class InstructionSelectorT final : public Adapter {
   MACHINE_UNOP_32_LIST(DECLARE_GENERATOR)
   // MACHINE_BINOP_32_LIST
   DECLARE_GENERATOR(Word32Xor)
-  DECLARE_GENERATOR(Word32Shl)
-  DECLARE_GENERATOR(Word32Shr)
-  DECLARE_GENERATOR(Word32Rol)
-  DECLARE_GENERATOR(Word32Ror)
   DECLARE_GENERATOR(Int32Add)
   DECLARE_GENERATOR(Int32Sub)
   DECLARE_GENERATOR(Int32SubWithOverflow)
@@ -766,9 +811,6 @@ class InstructionSelectorT final : public Adapter {
   DECLARE_GENERATOR(Word64And)
   DECLARE_GENERATOR(Word64Or)
   DECLARE_GENERATOR(Word64Xor)
-  DECLARE_GENERATOR(Word64Shr)
-  DECLARE_GENERATOR(Word64Rol)
-  DECLARE_GENERATOR(Word64Ror)
   DECLARE_GENERATOR(Word64RolLowerable)
   DECLARE_GENERATOR(Word64RorLowerable)
   DECLARE_GENERATOR(Int64AddWithOverflow)
@@ -784,19 +826,11 @@ class InstructionSelectorT final : public Adapter {
   DECLARE_GENERATOR(Uint64MulHigh)
   // END MACHINE_BINOP_64_LIST
   // MACHINE_COMPARE_BINOP_LIST
-  DECLARE_GENERATOR(Int64LessThanOrEqual)
-  DECLARE_GENERATOR(Uint64LessThanOrEqual)
   // END MACHINE_COMPARE_BINOP_LIST
-  MACHINE_FLOAT32_BINOP_LIST(DECLARE_GENERATOR)
+  // MACHINE_FLOAT32_BINOP_LIST
+  // END MACHINE_FLOAT32_BINOP_LIST
   MACHINE_FLOAT32_UNOP_LIST(DECLARE_GENERATOR)
   // MACHINE_FLOAT64_BINOP_LIST
-  DECLARE_GENERATOR(Float64Atan2)
-  DECLARE_GENERATOR(Float64Max)
-  DECLARE_GENERATOR(Float64Min)
-  DECLARE_GENERATOR(Float64Add)
-  DECLARE_GENERATOR(Float64Mul)
-  DECLARE_GENERATOR(Float64Mod)
-  DECLARE_GENERATOR(Float64Pow)
   // END MACHINE_FLOAT64_BINOP_LIST
   MACHINE_FLOAT64_UNOP_LIST(DECLARE_GENERATOR)
   // MACHINE_ATOMIC_OP_LIST
@@ -844,41 +878,15 @@ class InstructionSelectorT final : public Adapter {
   DECLARE_GENERATOR(Int64AbsWithOverflow)
   DECLARE_GENERATOR(BitcastTaggedToWordForTagAndSmiBits)
   DECLARE_GENERATOR(BitcastWordToTaggedSigned)
-  DECLARE_GENERATOR(TruncateFloat64ToWord32)
-  DECLARE_GENERATOR(ChangeFloat32ToFloat64)
-  DECLARE_GENERATOR(ChangeFloat64ToInt32)
-  DECLARE_GENERATOR(ChangeFloat64ToInt64)
-  DECLARE_GENERATOR(ChangeFloat64ToUint32)
-  DECLARE_GENERATOR(ChangeFloat64ToUint64)
   DECLARE_GENERATOR(Float64SilenceNaN)
-  DECLARE_GENERATOR(TruncateFloat64ToInt64)
   DECLARE_GENERATOR(TruncateFloat64ToUint32)
-  DECLARE_GENERATOR(TruncateFloat32ToInt32)
-  DECLARE_GENERATOR(TruncateFloat32ToUint32)
   DECLARE_GENERATOR(TryTruncateFloat32ToInt64)
   DECLARE_GENERATOR(TryTruncateFloat64ToInt64)
   DECLARE_GENERATOR(TryTruncateFloat32ToUint64)
   DECLARE_GENERATOR(TryTruncateFloat64ToUint64)
   DECLARE_GENERATOR(TryTruncateFloat64ToInt32)
   DECLARE_GENERATOR(TryTruncateFloat64ToUint32)
-  DECLARE_GENERATOR(BitcastWord32ToWord64)
-  DECLARE_GENERATOR(ChangeInt64ToFloat64)
-  DECLARE_GENERATOR(ChangeUint32ToFloat64)
-  DECLARE_GENERATOR(ChangeUint32ToUint64)
-  DECLARE_GENERATOR(TruncateFloat64ToFloat32)
   DECLARE_GENERATOR(TruncateInt64ToInt32)
-  DECLARE_GENERATOR(RoundInt32ToFloat32)
-  DECLARE_GENERATOR(RoundInt64ToFloat32)
-  DECLARE_GENERATOR(RoundInt64ToFloat64)
-  DECLARE_GENERATOR(RoundUint32ToFloat32)
-  DECLARE_GENERATOR(RoundUint64ToFloat32)
-  DECLARE_GENERATOR(RoundUint64ToFloat64)
-  DECLARE_GENERATOR(BitcastFloat32ToInt32)
-  DECLARE_GENERATOR(BitcastFloat64ToInt64)
-  DECLARE_GENERATOR(BitcastInt32ToFloat32)
-  DECLARE_GENERATOR(BitcastInt64ToFloat64)
-  DECLARE_GENERATOR(Float64ExtractLowWord32)
-  DECLARE_GENERATOR(Float64ExtractHighWord32)
   DECLARE_GENERATOR(Float64InsertLowWord32)
   DECLARE_GENERATOR(Float64InsertHighWord32)
   DECLARE_GENERATOR(Word32Select)
@@ -1015,8 +1023,9 @@ class InstructionSelectorT final : public Adapter {
                                     ArchOpcode uint16_op, ArchOpcode uint32_op);
 
 #if V8_TARGET_ARCH_64_BIT
-  bool ZeroExtendsWord32ToWord64(Node* node, int recursion_depth = 0);
-  bool ZeroExtendsWord32ToWord64NoPhis(Node* node);
+  DECLARE_UNREACHABLE_TURBOSHAFT_FALLBACK(bool, ZeroExtendsWord32ToWord64)
+  bool ZeroExtendsWord32ToWord64(node_t node, int recursion_depth = 0);
+  bool ZeroExtendsWord32ToWord64NoPhis(node_t node);
 
   enum Upper32BitsState : uint8_t {
     kNotYetChecked,

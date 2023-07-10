@@ -742,7 +742,7 @@ Node* ScheduleBuilder::ProcessOperation(const ChangeOp& op) {
           DCHECK_EQ(truncate_kind, TruncateKind::kArchitectureDefault);
           o = machine.RoundFloat64ToInt32();
         } else {
-          machine.TruncateFloat32ToUint32(truncate_kind);
+          UNREACHABLE();
         }
       } else if (op.from == FloatRepresentation::Float32() &&
                  op.to == WordRepresentation::Word32()) {
@@ -777,9 +777,6 @@ Node* ScheduleBuilder::ProcessOperation(const ChangeOp& op) {
       } else if (op.from == WordRepresentation::Word64() &&
                  op.to == FloatRepresentation::Float32()) {
         o = machine.RoundInt64ToFloat32();
-      } else if (op.from == WordRepresentation::Word32() &&
-                 op.to == FloatRepresentation::Float64()) {
-        o = machine.ChangeInt32ToFloat64();
       } else {
         UNIMPLEMENTED();
       }

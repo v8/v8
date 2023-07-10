@@ -18,8 +18,8 @@ struct MatchOrBind {
   MatchOrBind(std::function<bool(const Graph*, const T&)>
                   predicate)  // NOLINT(runtime/explicit)
       : predicate_(predicate) {}
-  MatchOrBind(T* bind_result = nullptr)
-      : bind_result_(bind_result) {}  // NOLINT(runtime/explicit)
+  MatchOrBind(T* bind_result = nullptr)  // NOLINT(runtime/explicit)
+      : bind_result_(bind_result) {}
 
   bool resolve(const Graph* graph, const T& v) const {
     if (value_.has_value()) {
@@ -671,6 +671,76 @@ class OperationMatching {
         }
         return false;
       });
+    }
+
+    static MatchOrBind<OpIndex> FloatUnary(
+        const MatchOrBind<OpIndex>& input,
+        const MatchOrBind<FloatUnaryOp::Kind>& kind,
+        const MatchOrBind<FloatRepresentation>& rep) {
+      return MatchOrBind<OpIndex>([=](const Graph* graph, const OpIndex& idx) {
+        if (const FloatUnaryOp* unary =
+                graph->Get(idx).TryCast<FloatUnaryOp>()) {
+          return input.resolve(graph, unary->input()) &&
+                 kind.resolve(graph, unary->kind) &&
+                 rep.resolve(graph, unary->rep);
+        }
+        return false;
+      });
+    }
+
+    static MatchOrBind<OpIndex> Float64Abs(const MatchOrBind<OpIndex>& input) {
+      return FloatUnary(input, FloatUnaryOp::Kind::kAbs,
+                        FloatRepresentation::Float64());
+    }
+
+    static MatchOrBind<OpIndex> FloatBinop(
+        const MatchOrBind<OpIndex>& left, const MatchOrBind<OpIndex>& right,
+        const MatchOrBind<FloatBinopOp::Kind>& kind,
+        const MatchOrBind<FloatRepresentation>& rep) {
+      return MatchOrBind<OpIndex>([=](const Graph* graph, const OpIndex& idx) {
+        if (const FloatBinopOp* binop =
+                graph->Get(idx).TryCast<FloatBinopOp>()) {
+          return left.resolve(graph, binop->left()) &&
+                 right.resolve(graph, binop->right()) &&
+                 kind.resolve(graph, binop->kind) &&
+                 rep.resolve(graph, binop->rep);
+        }
+        return false;
+      });
+    }
+
+    static MatchOrBind<OpIndex> Float64Constant(
+        const MatchOrBind<double>& value) {
+      return MatchOrBind<OpIndex>([=](const Graph* graph, const OpIndex& idx) {
+        ConstantOp::Storage storage;
+        if (Constant(ConstantOp::Kind::kFloat64, &storage)
+                .MatchesWith(graph, idx)) {
+          return value.resolve(graph, storage.float64);
+        }
+        return false;
+      });
+    }
+
+    static MatchOrBind<OpIndex> Comparison(
+        const MatchOrBind<OpIndex>& left, const MatchOrBind<OpIndex>& right,
+        const MatchOrBind<ComparisonOp::Kind>& kind,
+        const MatchOrBind<RegisterRepresentation>& rep) {
+      return MatchOrBind<OpIndex>([=](const Graph* graph, const OpIndex& idx) {
+        if (const ComparisonOp* comparison =
+                graph->Get(idx).TryCast<ComparisonOp>()) {
+          return left.resolve(graph, comparison->left()) &&
+                 right.resolve(graph, comparison->right()) &&
+                 kind.resolve(graph, comparison->kind) &&
+                 rep.resolve(graph, comparison->rep);
+        }
+        return false;
+      });
+    }
+
+    static MatchOrBind<OpIndex> Float64LessThan(
+        const MatchOrBind<OpIndex>& left, const MatchOrBind<OpIndex>& right) {
+      return Comparison(left, right, ComparisonOp::Kind::kSignedLessThan,
+                        RegisterRepresentation::Float64());
     }
 
     static bool MatchesWith(const Graph* graph, OpIndex index,
