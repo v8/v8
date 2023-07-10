@@ -1730,7 +1730,7 @@ class Heap final {
   // Flush the number to string cache.
   void FlushNumberStringCache();
 
-  void ConfigureInitialOldGenerationSize();
+  void ShrinkOldGenerationAllocationLimitIfNotConfigured();
 
   double ComputeMutatorUtilization(const char* tag, double mutator_speed,
                                    double gc_speed);
@@ -2024,7 +2024,17 @@ class Heap final {
   size_t initial_max_old_generation_size_ = 0;
   size_t initial_max_old_generation_size_threshold_ = 0;
   size_t initial_old_generation_size_ = 0;
-  bool old_generation_size_configured_ = false;
+
+  // Before the first full GC the old generation allocation limit is considered
+  // to be *not* configured (unless initial limits were provided by the
+  // embedder). In this mode V8 starts with a very large old generation
+  // allocation limit initially. Minor GCs may then shrink this initial limit
+  // down until the first full GC computes a proper old generation allocation
+  // limit in Heap::RecomputeLimits. The old generation allocation limit is then
+  // considered to be configured for all subsequent GCs. After the first full GC
+  // this field is only ever reset for top context disposals.
+  bool old_generation_allocation_limit_configured_ = false;
+
   size_t maximum_committed_ = 0;
   size_t old_generation_capacity_after_bootstrap_ = 0;
 
