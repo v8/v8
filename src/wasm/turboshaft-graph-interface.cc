@@ -11,25 +11,38 @@
 #include "src/wasm/function-body-decoder-impl.h"
 #include "src/wasm/function-compiler.h"
 #include "src/wasm/wasm-engine.h"
+#include "src/wasm/wasm-linkage.h"
+#include "src/wasm/wasm-objects.h"
 #include "src/wasm/wasm-opcodes-inl.h"
 
 namespace v8::internal::wasm {
 
 using Assembler =
     compiler::turboshaft::Assembler<compiler::turboshaft::reducer_list<>>;
+using compiler::CallDescriptor;
+using compiler::LinkageLocation;
+using compiler::LocationSignature;
 using compiler::turboshaft::ConditionWithHint;
 using compiler::turboshaft::Float32;
 using compiler::turboshaft::Float64;
 using compiler::turboshaft::Graph;
+using compiler::turboshaft::LoadOp;
+using compiler::turboshaft::MemoryRepresentation;
 using compiler::turboshaft::OpIndex;
 using compiler::turboshaft::PendingLoopPhiOp;
 using compiler::turboshaft::RegisterRepresentation;
 using compiler::turboshaft::SupportedOperations;
+using compiler::turboshaft::TSCallDescriptor;
 using TSBlock = compiler::turboshaft::Block;
 using compiler::turboshaft::V;
 using compiler::turboshaft::Word32;
 using compiler::turboshaft::Word64;
 using compiler::turboshaft::WordPtr;
+
+#define LOAD_INSTANCE_FIELD(name, representation)       \
+  asm_.Load(instance_node_, LoadOp::Kind::TaggedBase(), \
+            MemoryRepresentation::representation(),     \
+            WasmInstanceObject::k##name##Offset);
 
 class TurboshaftGraphBuildingInterface {
  public:
@@ -55,12 +68,16 @@ class TurboshaftGraphBuildingInterface {
         : ControlBase(std::forward<Args>(args)...) {}
   };
 
-  explicit TurboshaftGraphBuildingInterface(Graph& graph, Zone* zone)
-      : asm_(graph, graph, zone, nullptr) {}
+  TurboshaftGraphBuildingInterface(Graph& graph, Zone* zone,
+                                   compiler::NodeOriginTable* node_origins)
+      : asm_(graph, graph, zone, node_origins) {}
 
   void StartFunction(FullDecoder* decoder) {
     TSBlock* block = asm_.NewBlock();
     asm_.Bind(block);
+    // Set 0 as the current source position (before locals declarations).
+    asm_.SetCurrentOrigin(WasmPositionToOpIndex(0));
+    instance_node_ = asm_.Parameter(0, RegisterRepresentation::PointerSized());
     ssa_env_.resize(decoder->num_locals());
     uint32_t index = 0;
     for (; index < decoder->sig_->parameter_count(); index++) {
@@ -81,15 +98,25 @@ class TurboshaftGraphBuildingInterface {
         ssa_env_[index++] = op;
       }
     }
+
+    StackCheck();  // TODO(14108): Remove for leaf functions.
   }
 
   void StartFunctionBody(FullDecoder* decoder, Control* block) {}
 
-  void FinishFunction(FullDecoder* decoder) {}
+  void FinishFunction(FullDecoder* decoder) {
+    for (OpIndex index : asm_.output_graph().AllOperationIndices()) {
+      WasmCodePosition position =
+          OpIndexToWasmPosition(asm_.output_graph().operation_origins()[index]);
+      asm_.output_graph().source_positions()[index] = SourcePosition(position);
+    }
+  }
 
   void OnFirstError(FullDecoder*) {}
 
-  void NextInstruction(FullDecoder*, WasmOpcode) {}
+  void NextInstruction(FullDecoder* decoder, WasmOpcode) {
+    asm_.SetCurrentOrigin(WasmPositionToOpIndex(decoder->position()));
+  }
 
   // ******** Control Flow ********
   // The basic structure of control flow is {block_phis_}. It contains a mapping
@@ -133,6 +160,8 @@ class TurboshaftGraphBuildingInterface {
               static_cast<int>(decoder->num_locals() + i)}});
       block->start_merge[i].op = phi;
     }
+
+    StackCheck();
 
     TSBlock* loop_merge = NewBlock(decoder, &block->start_merge);
     block->merge_block = loop_merge;
@@ -519,7 +548,33 @@ class TurboshaftGraphBuildingInterface {
 
   void CallDirect(FullDecoder* decoder, const CallFunctionImmediate& imm,
                   const Value args[], Value returns[]) {
-    Bailout(decoder);
+    if (imm.sig->contains(kWasmS128)) {
+      Bailout(decoder);
+      return;
+    }
+
+    if (imm.index < decoder->module_->num_imported_functions) {
+      // Imported function.
+      OpIndex func_index = asm_.IntPtrConstant(imm.index);
+      OpIndex imported_function_refs =
+          LOAD_INSTANCE_FIELD(ImportedFunctionRefs, TaggedPointer);
+      OpIndex ref = asm_.Load(imported_function_refs, func_index,
+                              LoadOp::Kind::TaggedBase(),
+                              MemoryRepresentation::TaggedPointer(),
+                              FixedArray::kHeaderSize, kTaggedSizeLog2);
+      OpIndex imported_targets =
+          LOAD_INSTANCE_FIELD(ImportedFunctionTargets, TaggedPointer);
+      OpIndex target =
+          asm_.Load(imported_targets, func_index, LoadOp::Kind::TaggedBase(),
+                    MemoryRepresentation::PointerSized(),
+                    FixedAddressArray::kHeaderSize, kSystemPointerSizeLog2);
+      BuildWasmCall(decoder, imm.sig, target, ref, args, returns);
+    } else {
+      // Locally defined function.
+      OpIndex callee =
+          asm_.RelocatableConstant(imm.index, RelocInfo::WASM_CALL);
+      BuildWasmCall(decoder, imm.sig, callee, instance_node_, args, returns);
+    }
   }
 
   void ReturnCall(FullDecoder* decoder, const CallFunctionImmediate& imm,
@@ -1026,7 +1081,7 @@ class TurboshaftGraphBuildingInterface {
   }
 
   void Forward(FullDecoder* decoder, const Value& from, Value* to) {
-    Bailout(decoder);
+    to->op = from.op;
   }
 
   bool did_bailout() { return did_bailout_; }
@@ -1165,10 +1220,11 @@ class TurboshaftGraphBuildingInterface {
         return RegisterRepresentation::Float32();
       case kF64:
         return RegisterRepresentation::Float64();
-      case kI8:
-      case kI16:
       case kRefNull:
       case kRef:
+        return RegisterRepresentation::Tagged();
+      case kI8:
+      case kI16:
       case kS128:
         BailoutWithoutOpcode(decoder, "unimplemented type");
         return RegisterRepresentation::Word32();
@@ -1576,6 +1632,79 @@ class TurboshaftGraphBuildingInterface {
     }
   }
 
+  void StackCheck() {
+    if (V8_UNLIKELY(!v8_flags.wasm_stack_checks)) return;
+    OpIndex limit_address =
+        LOAD_INSTANCE_FIELD(StackLimitAddress, PointerSized);
+    OpIndex limit = asm_.Load(limit_address, LoadOp::Kind::RawAligned(),
+                              MemoryRepresentation::PointerSized(), 0);
+    OpIndex check =
+        asm_.StackPointerGreaterThan(limit, compiler::StackCheckKind::kWasm);
+    TSBlock* continuation = asm_.NewBlock();
+    TSBlock* call_builtin = asm_.NewBlock();
+    asm_.Branch(ConditionWithHint(check, BranchHint::kTrue), continuation,
+                call_builtin);
+
+    // TODO(14108): Cache descriptor.
+    asm_.Bind(call_builtin);
+    OpIndex builtin = asm_.RelocatableConstant(WasmCode::kWasmStackGuard,
+                                               RelocInfo::WASM_STUB_CALL);
+    const CallDescriptor* call_descriptor =
+        compiler::Linkage::GetStubCallDescriptor(
+            asm_.graph_zone(),                    // zone
+            NoContextDescriptor{},                // descriptor
+            0,                                    // stack parameter count
+            CallDescriptor::kNoFlags,             // flags
+            compiler::Operator::kNoProperties,    // properties
+            StubCallMode::kCallWasmRuntimeStub);  // stub call mode
+    const TSCallDescriptor* ts_call_descriptor =
+        TSCallDescriptor::Create(call_descriptor, asm_.graph_zone());
+    asm_.Call(builtin, {}, ts_call_descriptor);
+    asm_.Goto(continuation);
+
+    asm_.Bind(continuation);
+  }
+
+  void BuildWasmCall(FullDecoder* decoder, const FunctionSig* sig,
+                     OpIndex callee, OpIndex ref, const Value args[],
+                     Value returns[]) {
+    const TSCallDescriptor* descriptor = TSCallDescriptor::Create(
+        compiler::GetWasmCallDescriptor(asm_.graph_zone(), sig),
+        asm_.graph_zone());
+
+    std::vector<OpIndex> arg_indices(sig->parameter_count() + 1);
+    arg_indices[0] = ref;
+    for (uint32_t i = 0; i < sig->parameter_count(); i++) {
+      arg_indices[i + 1] = args[i].op;
+    }
+
+    OpIndex call = asm_.Call(callee, OpIndex::Invalid(),
+                             base::VectorOf(arg_indices), descriptor);
+
+    if (sig->return_count() == 1) {
+      returns[0].op = call;
+    } else if (sig->return_count() > 1) {
+      for (uint32_t i = 0; i < sig->return_count(); i++) {
+        returns[i].op = asm_.Projection(
+            call, i, RepresentationFor(decoder, sig->GetReturn(i)));
+      }
+    }
+  }
+
+  OpIndex WasmPositionToOpIndex(WasmCodePosition position) {
+    return OpIndex(sizeof(compiler::turboshaft::OperationStorageSlot) *
+                   static_cast<int>(position));
+  }
+
+  WasmCodePosition OpIndexToWasmPosition(OpIndex index) {
+    return index.valid()
+               ? static_cast<WasmCodePosition>(
+                     index.offset() /
+                     sizeof(compiler::turboshaft::OperationStorageSlot))
+               : kNoCodePosition;
+  }
+
+  OpIndex instance_node_;
   std::unordered_map<TSBlock*, BlockPhis> block_phis_;
   Assembler asm_;
   std::vector<OpIndex> ssa_env_;
@@ -1586,15 +1715,19 @@ V8_EXPORT_PRIVATE bool BuildTSGraph(AccountingAllocator* allocator,
                                     const WasmFeatures& enabled,
                                     const WasmModule* module,
                                     WasmFeatures* detected,
-                                    const FunctionBody& body, Graph& graph) {
+                                    const FunctionBody& body, Graph& graph,
+                                    compiler::NodeOriginTable* node_origins) {
   Zone zone(allocator, ZONE_NAME);
   WasmFullDecoder<Decoder::FullValidationTag, TurboshaftGraphBuildingInterface>
-      decoder(&zone, module, enabled, detected, body, graph, &zone);
+      decoder(&zone, module, enabled, detected, body, graph, &zone,
+              node_origins);
   decoder.Decode();
   // Turboshaft runs with validation, but the function should already be
   // validated, so graph building must always succeed, unless we bailed out.
   DCHECK_IMPLIES(!decoder.ok(), decoder.interface().did_bailout());
   return decoder.ok();
 }
+
+#undef LOAD_INSTANCE_FIELD
 
 }  // namespace v8::internal::wasm

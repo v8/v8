@@ -5,7 +5,10 @@
 #include "src/compiler/wasm-compiler-definitions.h"
 
 #include "src/base/strings.h"
+#include "src/codegen/signature.h"
+#include "src/compiler/linkage.h"
 #include "src/wasm/compilation-environment.h"
+#include "src/wasm/wasm-linkage.h"
 #include "src/wasm/wasm-module.h"
 
 namespace v8::internal::compiler {
@@ -38,6 +41,64 @@ base::Vector<const char> GetDebugName(Zone* zone,
   char* index_name = zone->NewArray<char>(name_len);
   memcpy(index_name, name_vector.begin(), name_len);
   return base::Vector<const char>(index_name, name_len);
+}
+
+MachineRepresentation GetMachineRepresentation(wasm::ValueType type) {
+  return type.machine_representation();
+}
+
+MachineRepresentation GetMachineRepresentation(MachineType type) {
+  return type.representation();
+}
+
+// General code uses the above configuration data.
+CallDescriptor* GetWasmCallDescriptor(Zone* zone, const wasm::FunctionSig* fsig,
+                                      WasmCallKind call_kind,
+                                      bool need_frame_state) {
+  // The extra here is to accomodate the instance object as first parameter
+  // and, when specified, the additional callable.
+  bool extra_callable_param =
+      call_kind == kWasmImportWrapper || call_kind == kWasmCapiFunction;
+
+  int parameter_slots;
+  int return_slots;
+  LocationSignature* location_sig = BuildLocations(
+      zone, fsig, extra_callable_param, &parameter_slots, &return_slots);
+
+  const RegList kCalleeSaveRegisters;
+  const DoubleRegList kCalleeSaveFPRegisters;
+
+  // The target for wasm calls is always a code object.
+  MachineType target_type = MachineType::Pointer();
+  LinkageLocation target_loc = LinkageLocation::ForAnyRegister(target_type);
+
+  CallDescriptor::Kind descriptor_kind;
+  if (call_kind == kWasmFunction) {
+    descriptor_kind = CallDescriptor::kCallWasmFunction;
+  } else if (call_kind == kWasmImportWrapper) {
+    descriptor_kind = CallDescriptor::kCallWasmImportWrapper;
+  } else {
+    DCHECK_EQ(call_kind, kWasmCapiFunction);
+    descriptor_kind = CallDescriptor::kCallWasmCapiFunction;
+  }
+
+  CallDescriptor::Flags flags = need_frame_state
+                                    ? CallDescriptor::kNeedsFrameState
+                                    : CallDescriptor::kNoFlags;
+  return zone->New<CallDescriptor>(       // --
+      descriptor_kind,                    // kind
+      target_type,                        // target MachineType
+      target_loc,                         // target location
+      location_sig,                       // location_sig
+      parameter_slots,                    // parameter slot count
+      compiler::Operator::kNoProperties,  // properties
+      kCalleeSaveRegisters,               // callee-saved registers
+      kCalleeSaveFPRegisters,             // callee-saved fp regs
+      flags,                              // flags
+      "wasm-call",                        // debug name
+      StackArgumentOrder::kDefault,       // order of the arguments in the stack
+      RegList{},                          // allocatable registers
+      return_slots);                      // return slot count
 }
 
 }  // namespace v8::internal::compiler

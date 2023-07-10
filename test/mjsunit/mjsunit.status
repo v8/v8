@@ -1379,8 +1379,6 @@
   # --no-liftoff from this variant.
   'wasm/code-flushing': [FAIL],
   'wasm/enter-and-leave-debug-state': [FAIL],
-  # TODO(v8:14108): Enable once we have stack checks.
-  'wasm/worker-running-empty-loop-interruptible': [SKIP],
   # Slow TF compilation.
   'wasm/large-struct': [SKIP],
 }],  # variant == turboshaft

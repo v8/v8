@@ -14,9 +14,12 @@
 namespace v8::internal {
 class AccountingAllocator;
 
-namespace compiler::turboshaft {
+namespace compiler {
+class NodeOriginTable;
+namespace turboshaft {
 class Graph;
 }
+}  // namespace compiler
 
 namespace wasm {
 struct FunctionBody;
@@ -28,7 +31,8 @@ V8_EXPORT_PRIVATE bool BuildTSGraph(AccountingAllocator* allocator,
                                     const WasmModule* module,
                                     WasmFeatures* detected,
                                     const FunctionBody& body,
-                                    compiler::turboshaft::Graph& graph);
+                                    compiler::turboshaft::Graph& graph,
+                                    compiler::NodeOriginTable* node_origins);
 }  // namespace wasm
 }  // namespace v8::internal
 
