@@ -86,10 +86,13 @@ class VariableReducer : public Next {
 
  public:
   TURBOSHAFT_REDUCER_BOILERPLATE()
+
+#if defined(__clang__)
   // Phis with constant inputs introduced by `VariableReducer` need to be
   // eliminated.
   static_assert(
       reducer_list_contains<ReducerList, RequiredOptimizationReducer>::value);
+#endif
 
   void Bind(Block* new_block) {
     Next::Bind(new_block);
