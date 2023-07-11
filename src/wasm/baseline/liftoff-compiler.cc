@@ -1971,7 +1971,7 @@ class LiftoffCompiler {
       }
       case kExprExternExternalize: {
         LiftoffRegList pinned;
-        LiftoffRegister ref = pinned.set(__ PopToRegister(pinned));
+        LiftoffRegister ref = pinned.set(__ PopToModifiableRegister(pinned));
         LiftoffRegister null = __ GetUnusedRegister(kGpReg, pinned);
         LoadNullValueForCompare(null.gp(), pinned, kWasmAnyRef);
         Label label;
