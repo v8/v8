@@ -5128,23 +5128,18 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   }
 
   // If ArgvMode::kStack, argc is reused below and must be retained across the
-  // call in a callee-saved register.  Reserve a stack slot to preserve x22's
-  // previous value.
+  // call in a callee-saved register.
   static constexpr Register argc = x22;
-  const int kExtraStackSpace = argv_mode == ArgvMode::kStack ? 1 : 0;
 
   // Enter the exit frame.
+  const int kNoExtraSpace = 0;
   FrameScope scope(masm, StackFrame::MANUAL);
   __ EnterExitFrame(
-      x10, kExtraStackSpace,
+      x10, kNoExtraSpace,
       builtin_exit_frame ? StackFrame::BUILTIN_EXIT : StackFrame::EXIT);
 
   if (argv_mode == ArgvMode::kStack) {
-    DCHECK_EQ(kExtraStackSpace, 1);
-    __ Poke(x22, 1 * kSystemPointerSize);
     __ Mov(argc, argc_input);
-  } else {
-    DCHECK_EQ(kExtraStackSpace, 0);
   }
 
   // The stack (on entry) holds the arguments and the receiver, with the
@@ -5198,13 +5193,10 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
 
   // Restore saved registers.
   if (argv_mode == ArgvMode::kStack) {
-    DCHECK_EQ(kExtraStackSpace, 1);
     __ Mov(x11, argc);  // x11 used as scratch, just til DropArguments below.
-    __ Peek(x22, 1 * kSystemPointerSize);
     __ LeaveExitFrame(x10, x9);
     __ DropArguments(x11);
   } else {
-    DCHECK_EQ(kExtraStackSpace, 0);
     __ LeaveExitFrame(x10, x9);
   }
 
