@@ -690,8 +690,13 @@ void CheckJSTypedArrayBounds::GenerateCode(MaglevAssembler* masm,
   int element_size = ElementsKindSize(elements_kind_);
   if (element_size > 1) {
     DCHECK(element_size == 2 || element_size == 4 || element_size == 8);
-    __ cmp(byte_length,
-           Operand(index, LSL, base::bits::CountTrailingZeros(element_size)));
+    __ mov(index,
+           Operand(index, LSL, base::bits::CountTrailingZeros(element_size)),
+           SetCC);
+    // MOVS does not affect the overflow flag on Arm. Since we know {index} is
+    // an unsigned integer, we check the carry flag.
+    __ EmitEagerDeoptIf(cs, DeoptimizeReason::kOutOfBounds, this);
+    __ cmp(byte_length, index);
   } else {
     __ cmp(byte_length, index);
   }
