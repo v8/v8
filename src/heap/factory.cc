@@ -979,6 +979,13 @@ Handle<String> Factory::NewInternalizedStringImpl(Handle<String> string,
 
 StringTransitionStrategy Factory::ComputeInternalizationStrategyForString(
     Handle<String> string, MaybeHandle<Map>* internalized_map) {
+  // The serializer requires internalized strings to be in ReadOnlySpace s.t.
+  // other objects referencing the string can be allocated in RO space
+  // themselves.
+  if (isolate()->enable_ro_allocation_for_snapshot() &&
+      isolate()->serializer_enabled()) {
+    return StringTransitionStrategy::kCopy;
+  }
   // Do not internalize young strings in-place: This allows us to ignore both
   // string table and stub cache on scavenges.
   if (Heap::InYoungGeneration(*string)) {

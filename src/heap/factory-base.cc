@@ -444,17 +444,37 @@ FactoryBase<Impl>::NewUncompiledDataWithPreparseDataAndJob(
 }
 
 namespace {
-
-template <typename IsolateT>
+template <class IsolateT>
 bool ShouldAllocateSharedFunctionInfoInReadOnlySpace(IsolateT* isolate,
                                                      Builtin builtin) {
+  return false;
+}
+
+template <>
+bool ShouldAllocateSharedFunctionInfoInReadOnlySpace(Isolate* isolate,
+                                                     Builtin builtin) {
+  // This condition is needed in addition to enable_ro_allocation_for_snapshot
+  // because tests may create contexts from scratch without an enabled
+  // serializer.
   if (!isolate->serializer_enabled()) return false;
+  if (!isolate->enable_ro_allocation_for_snapshot()) return false;
+
   switch (builtin) {
     case Builtin::kNoBuiltinId:
       // Only builtin SFIs can be in RO space (for now).
       return false;
     case Builtin::kEmptyFunction:
       // The empty function SFI points at a (non-RO) Script object.
+      return false;
+    case Builtin::kIllegal:
+      // kIllegal is used e.g. for js_global_object_function, which is created
+      // during bootstrapping but never rooted. We currently assumed that all
+      // objects in the snapshot are live. But RO space is 1) not GC'd and 2)
+      // serialized verbatim, preserving dead objects. As a workaround, exclude
+      // this builtin id from RO allocation.
+      // TODO(jgruber): A better solution. Remove the liveness assumption (see
+      // test-heap-profiler.cc)? Overwrite dead RO objects with fillers
+      // pre-serialization? Implement a RO GC pass pre-serialization?
       return false;
     default:
       return true;
@@ -471,13 +491,10 @@ Handle<SharedFunctionInfo> FactoryBase<Impl>::NewSharedFunctionInfo(
   AllocationType allocation = AllocationType::kOld;
   WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER;
 
-  // TODO(jgruber): Enable RO allocation once DebugInfos are no longer attached
-  // to the SFI.
-  // if (ShouldAllocateSharedFunctionInfoInReadOnlySpace(isolate(), builtin)) {
-  //   allocation = AllocationType::kReadOnly;
-  //   barrier_mode = SKIP_WRITE_BARRIER;
-  // }
-  USE(ShouldAllocateSharedFunctionInfoInReadOnlySpace(isolate(), builtin));
+  if (ShouldAllocateSharedFunctionInfoInReadOnlySpace(isolate(), builtin)) {
+    allocation = AllocationType::kReadOnly;
+    barrier_mode = SKIP_WRITE_BARRIER;
+  }
 
   Handle<SharedFunctionInfo> shared = NewSharedFunctionInfo(allocation);
   DisallowGarbageCollection no_gc;

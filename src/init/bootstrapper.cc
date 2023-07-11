@@ -6759,6 +6759,8 @@ Genesis::Genesis(
   } else {
     DCHECK(native_context().is_null());
 
+    Isolate::EnableRoAllocationForSnapshotScope enable_ro_allocation(isolate);
+
     base::ElapsedTimer timer;
     if (v8_flags.profile_deserialization) timer.Start();
     DCHECK_EQ(0u, context_snapshot_index);
