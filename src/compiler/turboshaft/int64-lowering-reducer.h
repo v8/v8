@@ -62,6 +62,8 @@ class Int64LoweringReducer : public Next {
         case ShiftOp::Kind::kShiftRightLogical:
           return ReducePairBinOp(left, right,
                                  Word32PairBinopOp::Kind::kShiftRightLogical);
+        case ShiftOp::Kind::kRotateRight:
+          return ReduceRotateRight(left, right);
         default:
           break;
       }
@@ -109,8 +111,7 @@ class Int64LoweringReducer : public Next {
 
  private:
   bool CheckPairOrPairOp(OpIndex input) {
-    const TupleOp* tuple = Asm().template TryCast<TupleOp>(input);
-    if (tuple) {
+    if (const TupleOp* tuple = Asm().template TryCast<TupleOp>(input)) {
       DCHECK_EQ(2, tuple->input_count);
     } else {
       DCHECK(Asm().template Is<Word32PairBinopOp>(input));
@@ -153,6 +154,81 @@ class Int64LoweringReducer : public Next {
     OpIndex low_result = __ Word32BitwiseXor(left_low, right_low);
     OpIndex high_result = __ Word32BitwiseXor(left_high, right_high);
     return __ Tuple(low_result, high_result);
+  }
+
+  OpIndex ReduceRotateRight(OpIndex left, OpIndex right) {
+    // This reducer assumes that all rotates are mapped to rotate right.
+    DCHECK(!SupportedOperations::word64_rol());
+    auto [left_low, left_high] = Unpack(left);
+    // We can safely ignore the high word of the shift (as it encodes a multiple
+    // of 64).
+    OpIndex shift = Unpack(right).first;
+    uint32_t constant_shift = 0;
+
+    if (Asm().MatchWord32Constant(shift, &constant_shift)) {
+      // Precondition: 0 <= shift < 64.
+      uint32_t shift_value = constant_shift & 0x3F;
+      if (shift_value == 0) {
+        // No-op, return original tuple.
+        return left;
+      }
+      if (shift_value == 32) {
+        // Swap low and high of left.
+        return __ Tuple(left_high, left_low);
+      }
+
+      OpIndex low_input = left_high;
+      OpIndex high_input = left_low;
+      if (shift_value < 32) {
+        low_input = left_low;
+        high_input = left_high;
+      }
+
+      uint32_t masked_shift_value = shift_value & 0x1F;
+      OpIndex masked_shift = __ Word32Constant(masked_shift_value);
+      OpIndex inv_shift = __ Word32Constant(32 - masked_shift_value);
+
+      OpIndex low_node = __ Word32BitwiseOr(
+          __ Word32ShiftRightLogical(low_input, masked_shift),
+          __ Word32ShiftLeft(high_input, inv_shift));
+      OpIndex high_node = __ Word32BitwiseOr(
+          __ Word32ShiftRightLogical(high_input, masked_shift),
+          __ Word32ShiftLeft(low_input, inv_shift));
+      return __ Tuple(low_node, high_node);
+    }
+
+    OpIndex safe_shift = shift;
+    if (!SupportedOperations::word32_shift_is_safe()) {
+      // safe_shift = shift % 32
+      safe_shift = __ Word32BitwiseAnd(shift, __ Word32Constant(0x1F));
+    }
+    OpIndex all_bits_set = __ Word32Constant(-1);
+    OpIndex inv_mask = __ Word32BitwiseXor(
+        __ Word32ShiftRightLogical(all_bits_set, safe_shift), all_bits_set);
+    OpIndex bit_mask = __ Word32BitwiseXor(inv_mask, all_bits_set);
+
+    OpIndex less_than_32 = __ Int32LessThan(shift, __ Word32Constant(32));
+    // The low word and the high word can be swapped either at the input or
+    // at the output. We swap the inputs so that shift does not have to be
+    // kept for so long in a register.
+    ScopedVar<Word32> var_low(Asm(), left_high);
+    ScopedVar<Word32> var_high(Asm(), left_low);
+    IF (less_than_32) {
+      var_low = left_low;
+      var_high = left_high;
+    }
+    END_IF
+
+    OpIndex rotate_low = __ Word32RotateRight(*var_low, safe_shift);
+    OpIndex rotate_high = __ Word32RotateRight(*var_high, safe_shift);
+
+    OpIndex low_node =
+        __ Word32BitwiseOr(__ Word32BitwiseAnd(rotate_low, bit_mask),
+                           __ Word32BitwiseAnd(rotate_high, inv_mask));
+    OpIndex high_node =
+        __ Word32BitwiseOr(__ Word32BitwiseAnd(rotate_high, bit_mask),
+                           __ Word32BitwiseAnd(rotate_low, inv_mask));
+    return __ Tuple(low_node, high_node);
   }
 
   void InitializeIndexMaps() {

@@ -224,3 +224,79 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(31n >> 56n, wasm.shru(31n, -8n));
   assertEquals(31n >> 1n, wasm.shru(31n, 65n));
 })();
+
+(function I64BitRol() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  builder.addFunction("rol", makeSig([kWasmI64, kWasmI64], [kWasmI64]))
+    .addBody([
+      kExprLocalGet, 0,
+      kExprLocalGet, 1,
+      kExprI64Rol,
+    ])
+    .exportFunc();
+
+  let wasm = builder.instantiate().exports;
+  assertEquals(0x123456789n, wasm.rol(0x123456789n, 0n));
+  assertEquals(0x1234567890000n, wasm.rol(0x123456789n, 16n));
+  assertEquals(0x3456789000000012n, wasm.rol(0x123456789n, 36n));
+  assertEquals(0x34567890ABCDEF12n, wasm.rol(0xABCDEF1234567890n, 32n));
+  assertEquals(0x4D5E6F78091A2B3Cn, wasm.rol(0x123456789ABCDEF0n, 31n));
+  assertEquals(0x3579BDE02468ACF1n, wasm.rol(0x123456789ABCDEF0n, 33n));
+  assertEquals(31n << 56n, wasm.rol(31n, -8n));
+  assertEquals(31n << 1n, wasm.rol(31n, 65n));
+})();
+
+(function I64BitRolStaticRhs() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+
+  let tests = [
+    // [lhs, rhs, expected]
+    [0x123456789n, 0n, 0x123456789n],
+    [0x12345678_11111111n, 32n, 0x11111111_12345678n],
+    [0x1_23456789n, 16n, 0x12345_67890000n],
+    [0x1_23456789n, 36n, 0x34567890_00000012n],
+    [31n, -8, 31n << 56n],
+    [31n, 65n, 31n << 1n],
+  ];
+
+  for (const [lhs, rhs, expected] of tests) {
+    builder.addFunction(`rol${rhs}`, makeSig([kWasmI64], [kWasmI64]))
+    .addBody([
+      kExprLocalGet, 0,
+      ...wasmI64Const(rhs),
+      kExprI64Rol,
+    ])
+    .exportFunc();
+  }
+
+  let wasm = builder.instantiate().exports;
+
+  for (const [lhs, rhs, expected] of tests) {
+    print(`test i64.rol(${lhs}, ${rhs}) == ${expected}`);
+    assertEquals(expected, wasm[`rol${rhs}`](lhs));
+  }
+})();
+
+(function I64BitRor() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  builder.addFunction("ror", makeSig([kWasmI64, kWasmI64], [kWasmI64]))
+    .addBody([
+      kExprLocalGet, 0,
+      kExprLocalGet, 1,
+      kExprI64Ror,
+    ])
+    .exportFunc();
+
+  let wasm = builder.instantiate().exports;
+  assertEquals(0x123456789n, wasm.ror(0x123456789n, 0n));
+  assertEquals(0x6789000000012345n, wasm.ror(0x123456789n, 16n));
+  assertEquals(0x1234567890000000n, wasm.ror(0x123456789n, 36n));
+  assertEquals(0x34567890ABCDEF12n, wasm.ror(0xABCDEF1234567890n, 32n));
+  assertEquals(0x3579BDE02468ACF1n, wasm.ror(0x123456789ABCDEF0n, 31n));
+  assertEquals(0x4D5E6F78091A2B3Cn, wasm.ror(0x123456789ABCDEF0n, 33n));
+  assertEquals(31n << 8n, wasm.ror(31n, -8n));
+  assertEquals(31n << 1n, wasm.ror(31n, 127n));
+})();

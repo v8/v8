@@ -1991,7 +1991,7 @@ class TurboshaftGraphBuildingInterface {
           return asm_.Word64RotateLeft(lhs, asm_.Word64BitwiseAnd(rhs, 0x3f));
         } else {
           return asm_.Word64RotateRight(
-              lhs, asm_.Word64Sub(64, asm_.Word64BitwiseAnd(rhs, 0x3f)));
+              lhs, asm_.Word64BitwiseAnd(asm_.Word64Sub(64, rhs), 0x3f));
         }
       case kExprI64Eq:
         return asm_.Word64Equal(lhs, rhs);
