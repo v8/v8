@@ -5591,6 +5591,7 @@ class LiftoffCompiler {
       instance = __ GetUnusedRegister(kGpReg, pinned).gp();
       __ LoadInstanceFromFrame(instance);
     }
+    pinned.set(instance);
 
     // Only allocate the OOB code now, so the state of the stack is reflected
     // correctly.
@@ -5603,10 +5604,13 @@ class LiftoffCompiler {
                         no_reg, trapping);
     }
 
-    auto sig = MakeSig::Returns(kI32).Params(kIntPtrKind, kIntPtrKind, kI32,
-                                             kIntPtrKind);
-    VarState args[] = {
-        {kIntPtrKind, LiftoffRegister{instance}, 0}, dst, value, size};
+    auto sig = MakeSig::Returns(kI32).Params(kIntPtrKind, kI32, kIntPtrKind,
+                                             kI32, kIntPtrKind);
+    VarState args[] = {{kIntPtrKind, LiftoffRegister{instance}, 0},
+                       {kI32, static_cast<int32_t>(imm.index), 0},
+                       dst,
+                       value,
+                       size};
     // We don't need the instance anymore after the call. We can use the
     // register for the result.
     LiftoffRegister result(instance);

@@ -40,6 +40,18 @@ function addMemoryInitFunction(builder, data_segment, mem_index) {
       .exportFunc();
 }
 
+// Add a {fillN} function for memory N.
+function addMemoryFillFunction(builder, mem_index) {
+  builder.addFunction('fill' + mem_index, kSig_v_iii)
+      .addBody([
+        kExprLocalGet, 0,  // dst
+        kExprLocalGet, 1,  // value
+        kExprLocalGet, 2,  // size
+        kNumericPrefix, kExprMemoryFill, mem_index
+      ])
+      .exportFunc();
+}
+
 // Helper to test that two memories can be accessed independently.
 function testTwoMemories(instance, mem0_size, mem1_size) {
   const load0 = offset => instance.exports.load0(offset);
@@ -282,6 +294,56 @@ function assertMemoryEquals(expected, memory) {
   assertThrows(
       () => instance.exports.init1_0(0, 3, 1), WebAssembly.RuntimeError,
       'memory access out of bounds');
+})();
+
+(function testMultiMemoryFill() {
+  print(arguments.callee.name);
+  var builder = new WasmModuleBuilder();
+  const mem0_id = 0;
+  builder.addMemory(1, 1);
+  const mem1_id = 1;
+  builder.addMemory(2, 2);
+  builder.exportMemoryAs('mem0', mem0_id);
+  builder.exportMemoryAs('mem1', mem1_id);
+  addMemoryFillFunction(builder, mem0_id);
+  addMemoryFillFunction(builder, mem1_id);
+
+  const instance = builder.instantiate();
+  const expected_memory0 = new Uint8Array(kPageSize);
+  const expected_memory1 = new Uint8Array(2 * kPageSize);
+
+  assertMemoryEquals(expected_memory0, instance.exports.mem0);
+  assertMemoryEquals(expected_memory1, instance.exports.mem1);
+
+  // Fill [3..4] in mem0 with value 7.
+  instance.exports.fill0(3, 7, 2);  // dst, value, size
+  expected_memory0.fill(7, 3, 5);   // value, start, end
+  assertMemoryEquals(expected_memory0, instance.exports.mem0);
+  assertMemoryEquals(expected_memory1, instance.exports.mem1);
+
+  // Fill [4..11] in mem0 with value 17.
+  instance.exports.fill1(4, 17, 8);  // dst, value, size
+  expected_memory1.fill(17, 4, 12);  // value, start, end
+  assertMemoryEquals(expected_memory0, instance.exports.mem0);
+  assertMemoryEquals(expected_memory1, instance.exports.mem1);
+
+  // mem0 has size 1.
+  instance.exports.fill0(kPageSize - 1, 1, 1);
+  assertThrows(
+      () => instance.exports.fill0(kPageSize - 1, 1, 2),
+      WebAssembly.RuntimeError, 'memory access out of bounds');
+  assertThrows(
+      () => instance.exports.fill0(kPageSize, 1, 1), WebAssembly.RuntimeError,
+      'memory access out of bounds');
+
+  // mem1 has size 2.
+  instance.exports.fill1(2 * kPageSize - 1, 1, 1);
+  assertThrows(
+      () => instance.exports.fill1(2 * kPageSize - 1, 1, 2),
+      WebAssembly.RuntimeError, 'memory access out of bounds');
+  assertThrows(
+      () => instance.exports.fill1(2 * kPageSize, 1, 1),
+      WebAssembly.RuntimeError, 'memory access out of bounds');
 })();
 
 (function testGrowMultipleMemories() {

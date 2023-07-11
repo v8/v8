@@ -527,16 +527,15 @@ int32_t memory_fill_wrapper(Address data) {
   DisallowGarbageCollection no_gc;
 
   size_t offset = 0;
-  Object raw_instance = ReadAndIncrementOffset<Object>(data, &offset);
-  WasmInstanceObject instance = WasmInstanceObject::cast(raw_instance);
+  WasmInstanceObject instance =
+      WasmInstanceObject::cast(ReadAndIncrementOffset<Object>(data, &offset));
+  uint32_t mem_index = ReadAndIncrementOffset<uint32_t>(data, &offset);
   uintptr_t dst = ReadAndIncrementOffset<uintptr_t>(data, &offset);
   uint8_t value =
       static_cast<uint8_t>(ReadAndIncrementOffset<uint32_t>(data, &offset));
   uintptr_t size = ReadAndIncrementOffset<uintptr_t>(data, &offset);
 
-  // TODO(13918): Support multiple memories.
-  uint32_t mem_index = 0;
-  uint64_t mem_size = instance.memory0_size();
+  uint64_t mem_size = instance.memory_size(mem_index);
   if (!base::IsInBounds<uint64_t>(dst, size, mem_size)) return kOutOfBounds;
 
   std::memset(EffectiveAddress(instance, mem_index, dst), value, size);

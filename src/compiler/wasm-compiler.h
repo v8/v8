@@ -438,8 +438,8 @@ class WasmGraphBuilder {
   void MemoryCopy(Node* dst, Node* src, Node* size,
                   wasm::WasmCodePosition position);
   void DataDrop(uint32_t data_segment_index, wasm::WasmCodePosition position);
-  void MemoryFill(Node* dst, Node* fill, Node* size,
-                  wasm::WasmCodePosition position);
+  void MemoryFill(const wasm::WasmMemory* memory, Node* dst, Node* fill,
+                  Node* size, wasm::WasmCodePosition position);
 
   void TableInit(uint32_t table_index, uint32_t elem_segment_index, Node* dst,
                  Node* src, Node* size, wasm::WasmCodePosition position);

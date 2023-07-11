@@ -5297,17 +5297,17 @@ void WasmGraphBuilder::MemoryCopy(Node* dst, Node* src, Node* size,
   TrapIfFalse(wasm::kTrapMemOutOfBounds, call, position);
 }
 
-void WasmGraphBuilder::MemoryFill(Node* dst, Node* value, Node* size,
+void WasmGraphBuilder::MemoryFill(const wasm::WasmMemory* memory, Node* dst,
+                                  Node* value, Node* size,
                                   wasm::WasmCodePosition position) {
   Node* function =
       gasm_->ExternalConstant(ExternalReference::wasm_memory_fill());
 
-  // TODO(13918): Support multiple memories.
-  const wasm::WasmMemory* memory = env_->module->memories.data();
   MemTypeToUintPtrOrOOBTrap(memory, {&dst, &size}, position);
 
   Node* stack_slot = StoreArgsInStackSlot(
       {{MachineType::PointerRepresentation(), GetInstance()},
+       {MachineRepresentation::kWord32, gasm_->Int32Constant(memory->index)},
        {MachineType::PointerRepresentation(), dst},
        {MachineRepresentation::kWord32, value},
        {MachineType::PointerRepresentation(), size}});

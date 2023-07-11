@@ -38,8 +38,6 @@
   # TODO(13918): Implement missing features.
   'proposals/multi-memory/memory_copy0': [FAIL],
   'proposals/multi-memory/memory_copy1': [FAIL],
-  'proposals/multi-memory/memory_fill0': [FAIL],
-  'proposals/multi-memory/memory-multi': [FAIL],
 
   # TODO(7748): Make these pass.
   # Binary encoding mismatch (official repo vs. M6 prototype spec):

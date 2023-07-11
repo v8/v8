@@ -6159,7 +6159,6 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         if (!this->Validate(this->pc_ + opcode_length, imm)) return 0;
         ValueType mem_type = MemoryIndexType(imm.memory);
         auto [dst, value, size] = Pop(mem_type, kWasmI32, mem_type);
-        // TODO(13918): Pass memory index for multi-memory support.
         CALL_INTERFACE_IF_OK_AND_REACHABLE(MemoryFill, imm, dst, value, size);
         return opcode_length + imm.length;
       }

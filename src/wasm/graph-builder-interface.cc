@@ -1208,7 +1208,8 @@ class WasmGraphBuildingInterface {
 
   void MemoryFill(FullDecoder* decoder, const MemoryIndexImmediate& imm,
                   const Value& dst, const Value& value, const Value& size) {
-    builder_->MemoryFill(dst.node, value.node, size.node, decoder->position());
+    builder_->MemoryFill(imm.memory, dst.node, value.node, size.node,
+                         decoder->position());
   }
 
   void TableInit(FullDecoder* decoder, const TableInitImmediate& imm,
