@@ -95,12 +95,7 @@ void IncrementalMarkingJob::Task::RunInternal() {
   }
 
   if (incremental_marking->IsMajorMarking()) {
-    // All objects are initialized at that point.
-    heap->new_space()->MarkLabStartInitialized();
-    heap->new_lo_space()->ResetPendingObject();
-
     heap->incremental_marking()->AdvanceAndFinalizeIfComplete();
-
     if (incremental_marking->IsMajorMarking()) {
       // TODO(v8:12775): It is quite suprising that we schedule the task
       // immediately here. This was introduced since delayed task were

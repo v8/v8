@@ -1017,7 +1017,6 @@ class Heap final {
       GCCallbackFlags gc_callback_flags = GCCallbackFlags::kNoGCCallbackFlags);
   void StartIncrementalMarkingIfAllocationLimitIsReachedBackground();
 
-  void FinalizeIncrementalMarkingIfComplete(GarbageCollectionReason gc_reason);
   // Synchronously finalizes incremental marking.
   V8_EXPORT_PRIVATE void FinalizeIncrementalMarkingAtomically(
       GarbageCollectionReason gc_reason);

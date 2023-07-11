@@ -598,9 +598,6 @@ bool IncrementalMarking::ShouldWaitForTask() {
   if (!completion_task_scheduled_) {
     incremental_marking_job_.ScheduleTask();
     completion_task_scheduled_ = true;
-  }
-
-  if (completion_task_timeout_ == 0.0) {
     if (!TryInitializeTaskTimeout()) {
       return false;
     }
@@ -609,7 +606,7 @@ bool IncrementalMarking::ShouldWaitForTask() {
   const double current_time = heap()->MonotonicallyIncreasingTimeInMs();
   const bool wait_for_task = current_time < completion_task_timeout_;
 
-  if (v8_flags.trace_incremental_marking && wait_for_task) {
+  if (V8_UNLIKELY(v8_flags.trace_incremental_marking && wait_for_task)) {
     isolate()->PrintWithTimestamp(
         "[IncrementalMarking] Delaying GC via stack guard. time left: "
         "%fms\n",
@@ -632,25 +629,22 @@ bool IncrementalMarking::TryInitializeTaskTimeout() {
   const double time_to_marking_task = CurrentTimeToMarkingTask();
 
   if (time_to_marking_task == 0.0 || time_to_marking_task > overshoot_ms) {
-    if (v8_flags.trace_incremental_marking) {
+    if (V8_UNLIKELY(v8_flags.trace_incremental_marking)) {
       isolate()->PrintWithTimestamp(
           "[IncrementalMarking] Not delaying marking completion. time to "
           "task: %fms allowed overshoot: %fms\n",
           time_to_marking_task, overshoot_ms);
     }
-
     return false;
   } else {
     completion_task_timeout_ = now + overshoot_ms;
-
-    if (v8_flags.trace_incremental_marking) {
+    if (V8_UNLIKELY(v8_flags.trace_incremental_marking)) {
       isolate()->PrintWithTimestamp(
           "[IncrementalMarking] Delaying GC via stack guard. time to task: "
           "%fms "
           "allowed overshoot: %fms\n",
           time_to_marking_task, overshoot_ms);
     }
-
     return true;
   }
 }
@@ -683,17 +677,18 @@ size_t IncrementalMarking::GetScheduledBytes(StepOrigin step_origin) {
 void IncrementalMarking::AdvanceAndFinalizeIfComplete() {
   const size_t max_bytes_to_process = GetScheduledBytes(StepOrigin::kTask);
   Step(kMaxStepSizeOnTask, max_bytes_to_process, StepOrigin::kTask);
-  heap()->FinalizeIncrementalMarkingIfComplete(
-      GarbageCollectionReason::kFinalizeMarkingViaTask);
+  if (IsMajorMarkingComplete()) {
+    heap()->FinalizeIncrementalMarkingAtomically(
+        GarbageCollectionReason::kFinalizeMarkingViaTask);
+  }
 }
 
 void IncrementalMarking::AdvanceAndFinalizeIfNecessary() {
   if (!IsMajorMarking()) return;
   DCHECK(!heap_->always_allocate());
   AdvanceOnAllocation();
-
-  if (collection_requested_via_stack_guard_) {
-    heap()->FinalizeIncrementalMarkingIfComplete(
+  if (collection_requested_via_stack_guard_ && IsMajorMarkingComplete()) {
+    heap()->FinalizeIncrementalMarkingAtomically(
         GarbageCollectionReason::kFinalizeMarkingViaStackGuard);
   }
 }
@@ -708,23 +703,18 @@ void IncrementalMarking::AdvanceOnAllocation() {
   DCHECK(v8_flags.incremental_marking);
   DCHECK(IsMajorMarking());
 
-  // Code using an AlwaysAllocateScope assumes that the GC state does not
-  // change; that implies that no marking steps must be performed.
-  if (heap_->always_allocate()) {
-    return;
-  }
-
   const size_t max_bytes_to_process = GetScheduledBytes(StepOrigin::kV8);
   Step(kMaxStepSizeOnAllocation, max_bytes_to_process, StepOrigin::kV8);
 
-  if (IsMajorMarkingComplete()) {
-    // Marking cannot be finalized here. Schedule a completion task instead.
-    if (!ShouldWaitForTask()) {
-      // When task isn't run soon enough, fall back to stack guard to force
-      // completion.
-      collection_requested_via_stack_guard_ = true;
-      isolate()->stack_guard()->RequestGC();
-    }
+  // Bail out when an AlwaysAllocateScope is active as the assumption is that
+  // there's no GC being triggered. Check this condition at last position to
+  // allow a completion task to be scheduled.
+  if (IsMajorMarkingComplete() && !ShouldWaitForTask() &&
+      !heap()->always_allocate()) {
+    // When completion task isn't run soon enough, fall back to stack guard to
+    // force completion.
+    collection_requested_via_stack_guard_ = true;
+    isolate()->stack_guard()->RequestGC();
   }
 }
 
@@ -787,8 +777,15 @@ void IncrementalMarking::Step(v8::base::TimeDelta max_duration,
   if (v8_flags.concurrent_marking) {
     // It is safe to merge back all objects that were on hold to the shared
     // work list at Step because we are at a safepoint where all objects
-    // are properly initialized.
+    // are properly initialized. The exception is the last allocated object
+    // before invoking an AllocationObserver. This allocation had no way to
+    // escape and get marked though.
     local_marking_worklists()->MergeOnHold();
+  }
+  if (step_origin == StepOrigin::kTask) {
+    // We cannot publish the pending allocations for V8 step origin because the
+    // last object was allocated before invoking the step.
+    heap()->PublishPendingAllocations();
   }
 
   // Perform a single V8 and a single embedder step. In case both have been
@@ -819,11 +816,10 @@ void IncrementalMarking::Step(v8::base::TimeDelta max_duration,
         GarbageCollector::MARK_COMPACTOR);
   }
 
-  const double current_time = heap_->MonotonicallyIncreasingTimeInMs();
-  const double v8_duration = current_time - start - embedder_duration_ms;
-  heap_->tracer()->AddIncrementalMarkingStep(v8_duration, v8_bytes_processed);
+  heap_->tracer()->AddIncrementalMarkingStep(v8_time, v8_bytes_processed);
 
   if (V8_UNLIKELY(v8_flags.trace_incremental_marking)) {
+    const double current_time = heap_->MonotonicallyIncreasingTimeInMs();
     isolate()->PrintWithTimestamp(
         "[IncrementalMarking] Marking speed %.fMB/s\n",
         heap()->tracer()->IncrementalMarkingSpeedInBytesPerMillisecond() *

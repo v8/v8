@@ -81,13 +81,6 @@ void MemoryReducer::NotifyTimer(const Event& event) {
                                     GarbageCollectionReason::kMemoryReducer,
                                     kGCCallbackFlagCollectAllExternalMemory);
   } else if (state_.id() == kWait) {
-    if (!heap()->incremental_marking()->IsStopped() &&
-        heap()->ShouldOptimizeForMemoryUsage()) {
-      // Make progress with pending incremental marking if memory usage has
-      // higher priority than latency. This is important for background tabs
-      // that do not send idle notifications.
-      heap()->incremental_marking()->AdvanceAndFinalizeIfComplete();
-    }
     // Re-schedule the timer.
     ScheduleTimer(state_.next_gc_start_ms() - event.time_ms);
     if (v8_flags.trace_memory_reducer) {
