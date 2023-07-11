@@ -314,9 +314,7 @@ def v8_builder(defaults = None, utility_builder = False, **kwargs):
     defaults = defaults or defaults_dict[bucket_name]
     if kwargs.pop("close_tree", False):
         notifies = kwargs.pop("notifies", [])
-        if kwargs.get("executable") == "recipe:v8":
-            notifies.append("v8 tree closer")
-        else:
+        if kwargs.get("executable") != "recipe:v8":
             notifies.append("generic tree closer")
         notifies.append("infra-failure")
         kwargs["notifies"] = notifies
