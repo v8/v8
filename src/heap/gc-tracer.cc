@@ -926,6 +926,7 @@ void GCTracer::PrintNVP() const {
           "mark.incremental_seed=%.2f "
           "mark.finish_incremental=%.2f "
           "mark.seed=%.2f "
+          "mark.traced_handles=%.2f "
           "mark.closure_parallel=%.2f "
           "mark.closure=%.2f "
           "mark.conservative_stack=%.2f "
@@ -970,6 +971,7 @@ void GCTracer::PrintNVP() const {
           current_scope(Scope::MINOR_MS_MARK_INCREMENTAL_SEED),
           current_scope(Scope::MINOR_MS_MARK_FINISH_INCREMENTAL),
           current_scope(Scope::MINOR_MS_MARK_SEED),
+          current_scope(Scope::MINOR_MS_MARK_TRACED_HANDLES),
           current_scope(Scope::MINOR_MS_MARK_CLOSURE_PARALLEL),
           current_scope(Scope::MINOR_MS_MARK_CLOSURE),
           current_scope(Scope::MINOR_MS_MARK_CONSERVATIVE_STACK),

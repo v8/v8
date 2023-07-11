@@ -232,8 +232,6 @@ void IncrementalMarking::MarkRoots() {
 
     isolate()->global_handles()->IterateYoungStrongAndDependentRoots(
         &root_visitor);
-    heap_->minor_mark_sweep_collector()->MarkRootsFromTracedHandles(
-        root_visitor);
   }
 }
 

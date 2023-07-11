@@ -714,6 +714,7 @@ void VisitObjectWithEmbedderFields(JSObject object,
 
 void MinorMarkSweepCollector::MarkRootsFromTracedHandles(
     YoungGenerationRootMarkingVisitor& root_visitor) {
+  TRACE_GC(heap_->tracer(), GCTracer::Scope::MINOR_MS_MARK_TRACED_HANDLES);
   if (auto* cpp_heap = CppHeap::From(heap_->cpp_heap_);
       cpp_heap && cpp_heap->generational_gc_supported()) {
     // Visit the Oilpan-to-V8 remembered set.
@@ -750,9 +751,7 @@ void MinorMarkSweepCollector::MarkRoots(
             SkipRoot::kReadOnlyBuiltins, SkipRoot::kConservativeStack});
     isolate->global_handles()->IterateYoungStrongAndDependentRoots(
         &root_visitor);
-    if (!was_marked_incrementally) {
-      MarkRootsFromTracedHandles(root_visitor);
-    }
+    MarkRootsFromTracedHandles(root_visitor);
   }
 }
 

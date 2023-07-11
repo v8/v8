@@ -668,6 +668,7 @@
   F(MINOR_MS_MARK_PARALLEL)                          \
   F(MINOR_MS_MARK_INCREMENTAL_SEED)                  \
   F(MINOR_MS_MARK_SEED)                              \
+  F(MINOR_MS_MARK_TRACED_HANDLES)                    \
   F(MINOR_MS_MARK_CONSERVATIVE_STACK)                \
   F(MINOR_MS_MARK_CLOSURE_PARALLEL)                  \
   F(MINOR_MS_MARK_CLOSURE)                           \
