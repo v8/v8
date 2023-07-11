@@ -5,7 +5,8 @@ Version: 0
 Revision: 03764695ffd5887cebc446f61ec43059e03f55b5
 License: BSD
 License File: LICENSE
-Security Critical: no
+Security Critical: yes
+Shipped: yes
 
 Description:
 src/inspector uses these scripts to generate handlers from protocol
