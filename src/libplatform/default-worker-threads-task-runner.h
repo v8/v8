@@ -23,8 +23,9 @@ class V8_PLATFORM_EXPORT DefaultWorkerThreadsTaskRunner
  public:
   using TimeFunction = double (*)();
 
-  DefaultWorkerThreadsTaskRunner(uint32_t thread_pool_size,
-                                 TimeFunction time_function);
+  DefaultWorkerThreadsTaskRunner(
+      uint32_t thread_pool_size, TimeFunction time_function,
+      base::Thread::Priority priority = base::Thread::Priority::kDefault);
 
   ~DefaultWorkerThreadsTaskRunner() override;
 
@@ -45,7 +46,8 @@ class V8_PLATFORM_EXPORT DefaultWorkerThreadsTaskRunner
  private:
   class WorkerThread : public base::Thread {
    public:
-    explicit WorkerThread(DefaultWorkerThreadsTaskRunner* runner);
+    explicit WorkerThread(DefaultWorkerThreadsTaskRunner* runner,
+                          base::Thread::Priority priority);
     ~WorkerThread() override;
 
     WorkerThread(const WorkerThread&) = delete;

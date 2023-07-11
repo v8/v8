@@ -40,6 +40,7 @@ enum class TaskPriority : uint8_t {
    * possible.
    */
   kUserBlocking,
+  kMaxPriority = kUserBlocking
 };
 
 /**
@@ -1093,7 +1094,8 @@ class Platform {
   virtual void CallBlockingTaskOnWorkerThread(std::unique_ptr<Task> task) {
     // Embedders may optionally override this to process these tasks in a high
     // priority pool.
-    CallOnWorkerThread(std::move(task));
+    PostTaskOnWorkerThreadImpl(TaskPriority::kUserBlocking, std::move(task),
+                               SourceLocation::Current());
   }
 
   /**
@@ -1106,7 +1108,8 @@ class Platform {
   virtual void CallLowPriorityTaskOnWorkerThread(std::unique_ptr<Task> task) {
     // Embedders may optionally override this to process these tasks in a low
     // priority pool.
-    CallOnWorkerThread(std::move(task));
+    PostTaskOnWorkerThreadImpl(TaskPriority::kBestEffort, std::move(task),
+                               SourceLocation::Current());
   }
 
   /**
@@ -1299,7 +1302,9 @@ class Platform {
    */
   virtual void PostTaskOnWorkerThreadImpl(TaskPriority priority,
                                           std::unique_ptr<Task> task,
-                                          const SourceLocation& location) {}
+                                          const SourceLocation& location) {
+    CallOnWorkerThread(std::move(task));
+  }
 
   /**
    * Schedules a task with |priority| to be invoked on a worker thread after

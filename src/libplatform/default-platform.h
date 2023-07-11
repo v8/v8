@@ -30,7 +30,8 @@ class V8_PLATFORM_EXPORT DefaultPlatform : public NON_EXPORTED_BASE(Platform) {
   explicit DefaultPlatform(
       int thread_pool_size = 0,
       IdleTaskSupport idle_task_support = IdleTaskSupport::kDisabled,
-      std::unique_ptr<v8::TracingController> tracing_controller = {});
+      std::unique_ptr<v8::TracingController> tracing_controller = {},
+      PriorityMode priority_mode = PriorityMode::kDontApply);
 
   ~DefaultPlatform() override;
 
@@ -56,9 +57,12 @@ class V8_PLATFORM_EXPORT DefaultPlatform : public NON_EXPORTED_BASE(Platform) {
   int NumberOfWorkerThreads() override;
   std::shared_ptr<TaskRunner> GetForegroundTaskRunner(
       v8::Isolate* isolate) override;
-  void CallOnWorkerThread(std::unique_ptr<Task> task) override;
-  void CallDelayedOnWorkerThread(std::unique_ptr<Task> task,
-                                 double delay_in_seconds) override;
+  void PostTaskOnWorkerThreadImpl(TaskPriority priority,
+                                  std::unique_ptr<Task> task,
+                                  const SourceLocation& location) override;
+  void PostDelayedTaskOnWorkerThreadImpl(
+      TaskPriority priority, std::unique_ptr<Task> task,
+      double delay_in_seconds, const SourceLocation& location) override;
   bool IdleTasksEnabled(Isolate* isolate) override;
   std::unique_ptr<JobHandle> CreateJob(
       TaskPriority priority, std::unique_ptr<JobTask> job_state) override;
@@ -72,10 +76,36 @@ class V8_PLATFORM_EXPORT DefaultPlatform : public NON_EXPORTED_BASE(Platform) {
   void NotifyIsolateShutdown(Isolate* isolate);
 
  private:
+  base::Thread::Priority priority_from_index(int i) const {
+    if (priority_mode_ == PriorityMode::kDontApply) {
+      return base::Thread::Priority::kDefault;
+    }
+    switch (static_cast<TaskPriority>(i)) {
+      case TaskPriority::kUserBlocking:
+        return base::Thread::Priority::kUserBlocking;
+      case TaskPriority::kUserVisible:
+        return base::Thread::Priority::kUserVisible;
+      case TaskPriority::kBestEffort:
+        return base::Thread::Priority::kBestEffort;
+    }
+  }
+
+  int priority_to_index(TaskPriority priority) const {
+    if (priority_mode_ == PriorityMode::kDontApply) {
+      return 0;
+    }
+    return static_cast<int>(priority);
+  }
+
+  int num_worker_runners() const {
+    return priority_to_index(TaskPriority::kMaxPriority) + 1;
+  }
+
   base::Mutex lock_;
   const int thread_pool_size_;
   IdleTaskSupport idle_task_support_;
-  std::shared_ptr<DefaultWorkerThreadsTaskRunner> worker_threads_task_runner_;
+  std::shared_ptr<DefaultWorkerThreadsTaskRunner> worker_threads_task_runners_
+      [static_cast<int>(TaskPriority::kMaxPriority) + 1] = {0};
   std::map<v8::Isolate*, std::shared_ptr<DefaultForegroundTaskRunner>>
       foreground_task_runner_map_;
 
@@ -83,6 +113,7 @@ class V8_PLATFORM_EXPORT DefaultPlatform : public NON_EXPORTED_BASE(Platform) {
   std::unique_ptr<PageAllocator> page_allocator_;
   DefaultThreadIsolatedAllocator thread_isolated_allocator_;
 
+  const PriorityMode priority_mode_;
   TimeFunction time_function_for_testing_ = nullptr;
 };
 

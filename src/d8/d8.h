@@ -207,7 +207,8 @@ class Worker : public std::enable_shared_from_this<Worker> {
 
   // Start running the given worker in another thread.
   static bool StartWorkerThread(Isolate* requester,
-                                std::shared_ptr<Worker> worker);
+                                std::shared_ptr<Worker> worker,
+                                base::Thread::Priority priority);
 
  private:
   friend class ProcessMessageTask;
@@ -227,8 +228,9 @@ class Worker : public std::enable_shared_from_this<Worker> {
 
   class WorkerThread : public base::Thread {
    public:
-    explicit WorkerThread(std::shared_ptr<Worker> worker)
-        : base::Thread(base::Thread::Options("WorkerThread")),
+    explicit WorkerThread(std::shared_ptr<Worker> worker,
+                          base::Thread::Priority priority)
+        : base::Thread(base::Thread::Options("WorkerThread", priority)),
           worker_(std::move(worker)) {}
 
     void Run() override;
@@ -448,6 +450,7 @@ class ShellOptions {
   DisallowReassignment<int> read_from_tcp_port = {"read-from-tcp-port", -1};
   DisallowReassignment<bool> enable_os_system = {"enable-os-system", false};
   DisallowReassignment<bool> quiet_load = {"quiet-load", false};
+  DisallowReassignment<bool> apply_priority = {"apply-priority", true};
   DisallowReassignment<int> thread_pool_size = {"thread-pool-size", 0};
   DisallowReassignment<bool> stress_delay_tasks = {"stress-delay-tasks", false};
   std::vector<const char*> arguments;

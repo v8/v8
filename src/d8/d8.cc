@@ -72,6 +72,11 @@
 #include "src/utils/ostreams.h"
 #include "src/utils/utils.h"
 
+#ifdef V8_OS_DARWIN
+#include <mach/mach.h>
+#include <mach/task_policy.h>
+#endif
+
 #ifdef V8_ENABLE_MAGLEV
 #include "src/maglev/maglev-concurrent-dispatcher.h"
 #endif  // V8_ENABLE_MAGLEV
@@ -2879,7 +2884,10 @@ void Shell::WorkerNew(const v8::FunctionCallbackInfo<v8::Value>& info) {
     i::Handle<i::Object> managed = i::Managed<Worker>::FromSharedPtr(
         i_isolate, kWorkerSizeEstimate, worker);
     info.Holder()->SetInternalField(0, Utils::ToLocal(managed));
-    if (!Worker::StartWorkerThread(isolate, std::move(worker))) {
+    base::Thread::Priority priority =
+        options.apply_priority ? base::Thread::Priority::kUserBlocking
+                               : base::Thread::Priority::kDefault;
+    if (!Worker::StartWorkerThread(isolate, std::move(worker), priority)) {
       ThrowError(isolate, "Can't start thread");
       return;
     }
@@ -4550,11 +4558,12 @@ Worker::~Worker() {
 bool Worker::is_running() const { return state_.load() == State::kRunning; }
 
 bool Worker::StartWorkerThread(Isolate* requester,
-                               std::shared_ptr<Worker> worker) {
+                               std::shared_ptr<Worker> worker,
+                               base::Thread::Priority priority) {
   auto expected = State::kReady;
   CHECK(
       worker->state_.compare_exchange_strong(expected, State::kPrepareRunning));
-  auto thread = new WorkerThread(worker);
+  auto thread = new WorkerThread(worker, priority);
   worker->thread_ = thread;
   if (!thread->Start()) return false;
   // Wait until the worker is ready to receive messages.
@@ -4991,6 +5000,9 @@ bool Shell::SetOptions(int argc, char* argv[]) {
 #endif  // V8_OS_POSIX
     } else if (strcmp(argv[i], "--enable-os-system") == 0) {
       options.enable_os_system = true;
+      argv[i] = nullptr;
+    } else if (strcmp(argv[i], "--no-apply-priority") == 0) {
+      options.apply_priority = false;
       argv[i] = nullptr;
     } else if (strcmp(argv[i], "--quiet-load") == 0) {
       options.quiet_load = true;
@@ -5717,6 +5729,16 @@ int Shell::Main(int argc, char* argv[]) {
 
   v8::V8::InitializeICUDefaultLocation(argv[0], options.icu_data_file);
 
+#ifdef V8_OS_DARWIN
+  if (options.apply_priority) {
+    struct task_category_policy category = {.role =
+                                                TASK_FOREGROUND_APPLICATION};
+    task_policy_set(mach_task_self(), TASK_CATEGORY_POLICY,
+                    (task_policy_t)&category, TASK_CATEGORY_POLICY_COUNT);
+    pthread_set_qos_class_self_np(QOS_CLASS_USER_INTERACTIVE, 0);
+  }
+#endif
+
 #ifdef V8_INTL_SUPPORT
   if (options.icu_locale != nullptr) {
     icu::Locale locale(options.icu_locale);
@@ -5779,7 +5801,9 @@ int Shell::Main(int argc, char* argv[]) {
   platform::tracing::TracingController* tracing_controller = tracing.get();
   g_platform = v8::platform::NewDefaultPlatform(
       options.thread_pool_size, v8::platform::IdleTaskSupport::kEnabled,
-      in_process_stack_dumping, std::move(tracing));
+      in_process_stack_dumping, std::move(tracing),
+      options.apply_priority ? v8::platform::PriorityMode::kApply
+                             : v8::platform::PriorityMode::kDontApply);
   g_default_platform = g_platform.get();
   if (i::v8_flags.predictable) {
     g_platform = MakePredictablePlatform(std::move(g_platform));
