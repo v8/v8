@@ -24,19 +24,6 @@
 namespace v8 {
 namespace internal {
 
-// Marking state that keeps live bytes locally in a fixed-size hashmap. Hashmap
-// entries are evicted to the global counters on collision.
-class YoungGenerationMarkingState final
-    : public MarkingStateBase<YoungGenerationMarkingState, AccessMode::ATOMIC> {
- public:
-  explicit YoungGenerationMarkingState(PtrComprCageBase cage_base)
-      : MarkingStateBase(cage_base) {}
-
-  const MarkingBitmap* bitmap(const MemoryChunk* chunk) const {
-    return chunk->marking_bitmap();
-  }
-};
-
 class YoungGenerationMainMarkingVisitor final
     : public YoungGenerationMarkingVisitorBase<
           YoungGenerationMainMarkingVisitor, MarkingState> {
@@ -55,8 +42,6 @@ class YoungGenerationMainMarkingVisitor final
   template <typename TSlot>
   V8_INLINE void VisitPointersImpl(HeapObject host, TSlot start, TSlot end);
 
-  YoungGenerationMarkingState* marking_state() { return &marking_state_; }
-
   V8_INLINE void IncrementLiveBytesCached(MemoryChunk* chunk, intptr_t by);
 
   template <typename TSlot>
@@ -65,7 +50,6 @@ class YoungGenerationMainMarkingVisitor final
   V8_INLINE bool ShortCutStrings(HeapObjectSlot slot, HeapObject* heap_object);
 
  private:
-  YoungGenerationMarkingState marking_state_;
   PretenuringHandler::PretenuringFeedbackMap local_pretenuring_feedback_;
   const bool shortcut_strings_;
 

@@ -54,7 +54,7 @@ bool VisitYoungObjectViaSlot(Visitor* visitor, TSlot slot) {
     return false;
   }
 
-  if (!visitor->marking_state()->TryMark(heap_object)) return true;
+  if (!visitor->TryMark(heap_object)) return true;
 
   // Maps won't change in the atomic pause, so the map can be read without
   // atomics.

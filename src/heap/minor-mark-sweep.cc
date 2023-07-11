@@ -151,7 +151,6 @@ YoungGenerationMainMarkingVisitor::YoungGenerationMainMarkingVisitor(
                                         MarkingState>(
           isolate, worklists_local, ephemeron_table_list_local,
           &local_pretenuring_feedback_),
-      marking_state_(PtrComprCageBase(isolate)),
       local_pretenuring_feedback_(PretenuringHandler::kInitialFeedbackCapacity),
       shortcut_strings_(isolate->heap()->CanShortcutStringsDuringGC(
           GarbageCollector::MINOR_MARK_SWEEPER)) {}

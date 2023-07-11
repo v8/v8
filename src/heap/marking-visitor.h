@@ -292,6 +292,10 @@ class YoungGenerationMarkingVisitorBase
 
   MarkingWorklists::Local* worklists_local() const { return worklists_local_; }
 
+  bool TryMark(HeapObject obj) {
+    return MarkBit::From(obj).Set<AccessMode::ATOMIC>();
+  }
+
  protected:
   using NewSpaceVisitor<ConcreteVisitor>::concrete_visitor;
 
