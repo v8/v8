@@ -1732,17 +1732,28 @@ size_t GlobalMemorySizeFromV8Size(size_t v8_size) {
 
 }  // anonymous namespace
 
-void Heap::SetOldGenerationAndGlobalHeapLimit(size_t max_old_generation_size) {
+void Heap::SetOldGenerationAndGlobalMaximumSize(
+    size_t max_old_generation_size) {
   max_old_generation_size_.store(max_old_generation_size,
                                  std::memory_order_relaxed);
   max_global_memory_size_ = GlobalMemorySizeFromV8Size(max_old_generation_size);
 }
 
+void Heap::SetOldGenerationAndGlobalAllocationLimit(
+    size_t new_old_generation_allocation_limit,
+    size_t new_global_allocation_limit) {
+  CHECK_GE(new_global_allocation_limit, new_old_generation_allocation_limit);
+  old_generation_allocation_limit_.store(new_old_generation_allocation_limit,
+                                         std::memory_order_relaxed);
+  global_allocation_limit_ = new_global_allocation_limit;
+  old_generation_allocation_limit_configured_ = true;
+}
+
 void Heap::ResetOldGenerationAndGlobalAllocationLimit() {
+  SetOldGenerationAndGlobalAllocationLimit(
+      initial_old_generation_size_,
+      GlobalMemorySizeFromV8Size(initial_old_generation_size_));
   old_generation_allocation_limit_configured_ = false;
-  set_old_generation_allocation_limit(initial_old_generation_size_);
-  global_allocation_limit_ =
-      GlobalMemorySizeFromV8Size(old_generation_allocation_limit());
 }
 
 void Heap::CollectGarbage(AllocationSpace space,
@@ -1867,7 +1878,7 @@ void Heap::CollectGarbage(AllocationSpace space,
       if (initial_max_old_generation_size_ < max_old_generation_size() &&
           OldGenerationSizeOfObjects() <
               initial_max_old_generation_size_threshold_) {
-        SetOldGenerationAndGlobalHeapLimit(initial_max_old_generation_size_);
+        SetOldGenerationAndGlobalMaximumSize(initial_max_old_generation_size_);
       }
     }
 
@@ -2528,43 +2539,45 @@ void Heap::RecomputeLimits(GarbageCollector collector) {
   if (collector == GarbageCollector::MARK_COMPACTOR) {
     external_memory_.ResetAfterGC();
 
-    set_old_generation_allocation_limit(
+    size_t new_old_generation_allocation_limit =
         MemoryController<V8HeapTrait>::CalculateAllocationLimit(
             this, old_gen_size, min_old_generation_size_,
             max_old_generation_size(), new_space_capacity, v8_growing_factor,
-            mode));
-    old_generation_allocation_limit_configured_ = true;
+            mode);
     DCHECK_GT(global_growing_factor, 0);
-    global_allocation_limit_ =
+    size_t new_global_allocation_limit =
         MemoryController<GlobalMemoryTrait>::CalculateAllocationLimit(
             this, GlobalSizeOfObjects(), min_global_memory_size_,
             max_global_memory_size_, new_space_capacity, global_growing_factor,
             mode);
+    SetOldGenerationAndGlobalAllocationLimit(
+        new_old_generation_allocation_limit, new_global_allocation_limit);
     CheckIneffectiveMarkCompact(
         old_gen_size, tracer()->AverageMarkCompactMutatorUtilization());
   } else if (HasLowYoungGenerationAllocationRate() &&
              old_generation_allocation_limit_configured_) {
-    size_t new_old_generation_limit =
+    size_t new_old_generation_allocation_limit =
         MemoryController<V8HeapTrait>::CalculateAllocationLimit(
             this, old_gen_size, min_old_generation_size_,
             max_old_generation_size(), new_space_capacity, v8_growing_factor,
             mode);
-    if (new_old_generation_limit < old_generation_allocation_limit()) {
-      set_old_generation_allocation_limit(new_old_generation_limit);
-    }
+    new_old_generation_allocation_limit = std::min(
+        new_old_generation_allocation_limit, old_generation_allocation_limit());
     DCHECK_GT(global_growing_factor, 0);
-    size_t new_global_limit =
+    size_t new_global_allocation_limit =
         MemoryController<GlobalMemoryTrait>::CalculateAllocationLimit(
             this, GlobalSizeOfObjects(), min_global_memory_size_,
             max_global_memory_size_, new_space_capacity, global_growing_factor,
             mode);
-    if (new_global_limit < global_allocation_limit_) {
-      global_allocation_limit_ = new_global_limit;
-    }
+    new_global_allocation_limit =
+        std::min(new_global_allocation_limit, global_allocation_limit_);
+    SetOldGenerationAndGlobalAllocationLimit(
+        new_old_generation_allocation_limit, new_global_allocation_limit);
   }
 
   CHECK_EQ(max_global_memory_size_,
            GlobalMemorySizeFromV8Size(max_old_generation_size_));
+  CHECK_GE(global_allocation_limit_, old_generation_allocation_limit_);
 
   if (v8_flags.memory_balancer) {
     mb_->UpdateExternalAllocationLimit(global_allocation_limit_ -
@@ -3135,24 +3148,24 @@ void Heap::ShrinkOldGenerationAllocationLimitIfNotConfigured() {
     const size_t minimum_growing_step =
         MemoryController<V8HeapTrait>::MinimumAllocationLimitGrowingStep(
             CurrentHeapGrowingMode());
-    const size_t new_old_generation_allocation_limit =
+    size_t new_old_generation_allocation_limit =
         std::max(OldGenerationSizeOfObjects() + minimum_growing_step,
                  static_cast<size_t>(
                      static_cast<double>(old_generation_allocation_limit()) *
                      (tracer()->AverageSurvivalRatio() / 100)));
-    if (new_old_generation_allocation_limit <
-        old_generation_allocation_limit()) {
-      set_old_generation_allocation_limit(new_old_generation_allocation_limit);
-    } else {
-      old_generation_allocation_limit_configured_ = true;
-    }
-    const size_t new_global_memory_limit = std::max(
+    new_old_generation_allocation_limit = std::min(
+        new_old_generation_allocation_limit, old_generation_allocation_limit());
+    size_t new_global_allocation_limit = std::max(
         GlobalSizeOfObjects() + minimum_growing_step,
         static_cast<size_t>(static_cast<double>(global_allocation_limit_) *
                             (tracer()->AverageSurvivalRatio() / 100)));
-    if (new_global_memory_limit < global_allocation_limit_) {
-      global_allocation_limit_ = new_global_memory_limit;
-    }
+    new_global_allocation_limit =
+        std::min(new_global_allocation_limit, global_allocation_limit_);
+    SetOldGenerationAndGlobalAllocationLimit(
+        new_old_generation_allocation_limit, new_global_allocation_limit);
+    // We need to update limits but still remain in the "not configured" state.
+    // The first full GC will configure the heap.
+    old_generation_allocation_limit_configured_ = false;
   }
 }
 
@@ -4201,7 +4214,7 @@ bool Heap::InvokeNearHeapLimitCallback() {
     size_t heap_limit = callback(data, max_old_generation_size(),
                                  initial_max_old_generation_size_);
     if (heap_limit > max_old_generation_size()) {
-      SetOldGenerationAndGlobalHeapLimit(
+      SetOldGenerationAndGlobalMaximumSize(
           std::min(heap_limit, AllocatorLimitOnMaxOldGenerationSize()));
       return true;
     }
@@ -4868,7 +4881,7 @@ void Heap::ConfigureHeap(const v8::ResourceConstraints& constraints) {
     max_old_generation_size =
         RoundDown<Page::kPageSize>(max_old_generation_size);
 
-    SetOldGenerationAndGlobalHeapLimit(max_old_generation_size);
+    SetOldGenerationAndGlobalMaximumSize(max_old_generation_size);
   }
 
   CHECK_IMPLIES(
