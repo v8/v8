@@ -4852,6 +4852,20 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
               obj.type.name().c_str(), target_type.name().c_str());
           return 0;
         }
+        if (!VALIDATE(target_type != HeapType::kStringViewWtf8 &&
+                      target_type != HeapType::kStringViewWtf16 &&
+                      target_type != HeapType::kStringViewIter)) {
+          // TODO(12868): This reflects the current state of discussion at
+          // https://github.com/WebAssembly/stringref/issues/40
+          // It is suboptimal because it allows classifying a stringview_wtf16
+          // as a stringref. This would be solved by making the views types
+          // that aren't subtypes of anyref, which is one of the possible
+          // resolutions of that discussion.
+          this->DecodeError(
+              this->pc_,
+              "Invalid type for %s: string views are not classifiable",
+              WasmOpcodes::OpcodeName(opcode));
+        }
 
         bool null_succeeds = opcode == kExprRefCastNull;
         Value* value = Push(ValueType::RefMaybeNull(
@@ -4912,6 +4926,20 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
               WasmOpcodes::OpcodeName(opcode), SafeOpcodeNameAt(obj.pc()),
               obj.type.name().c_str(), target_type.name().c_str());
           return 0;
+        }
+        if (!VALIDATE(target_type != HeapType::kStringViewWtf8 &&
+                      target_type != HeapType::kStringViewWtf16 &&
+                      target_type != HeapType::kStringViewIter)) {
+          // TODO(12868): This reflects the current state of discussion at
+          // https://github.com/WebAssembly/stringref/issues/40
+          // It is suboptimal because it allows classifying a stringview_wtf16
+          // as a stringref. This would be solved by making the views types
+          // that aren't subtypes of anyref, which is one of the possible
+          // resolutions of that discussion.
+          this->DecodeError(
+              this->pc_,
+              "Invalid type for %s: string views are not classifiable",
+              WasmOpcodes::OpcodeName(opcode));
         }
         bool null_succeeds = opcode == kExprRefTestNull;
         if (V8_LIKELY(current_code_reachable_and_ok_)) {
