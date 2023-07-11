@@ -718,8 +718,9 @@ void SetInstanceMemory(WasmInstanceObject instance, JSArrayBuffer buffer,
   CHECK_IMPLIES(use_trap_handler, is_wasm_module);
   // Wasm modules compiled to use the trap handler don't have bounds checks,
   // so they must have a memory that has guard regions.
-  CHECK_IMPLIES(use_trap_handler,
-                buffer.GetBackingStore()->has_guard_regions());
+  const bool has_guard_regions =
+      buffer.GetBackingStore() && buffer.GetBackingStore()->has_guard_regions();
+  CHECK_IMPLIES(use_trap_handler, has_guard_regions);
 
   instance.SetRawMemory(memory_index,
                         reinterpret_cast<uint8_t*>(buffer.backing_store()),
