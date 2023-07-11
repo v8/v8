@@ -44,8 +44,8 @@ void MarkingBarrier::Write(HeapObject host, HeapObjectSlot slot,
   DCHECK(is_activated_ || shared_heap_worklist_.has_value());
   DCHECK(MemoryChunk::FromHeapObject(host)->IsMarking());
 
-  if (!marking_state_.IsMarked(host) &&
-      (is_major() || Heap::InYoungGeneration(host)))
+  if ((is_major() || Heap::InYoungGeneration(host)) &&
+      !marking_state_.IsMarked(host))
     return;
 
   MarkValue(host, value);

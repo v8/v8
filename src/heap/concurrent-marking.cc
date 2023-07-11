@@ -135,8 +135,13 @@ class YoungGenerationConcurrentMarkingVisitor final
   void VisitObjectImpl(TObject object) {
     HeapObject heap_object;
     // Treat weak references as strong.
-    if (!object.GetHeapObject(&heap_object) ||
-        !Heap::InYoungGeneration(heap_object) ||
+    if (!object.GetHeapObject(&heap_object)) return;
+
+#ifdef THREAD_SANITIZER
+    BasicMemoryChunk::FromHeapObject(heap_object)->SynchronizedHeapLoad();
+#endif  // THREAD_SANITIZER
+
+    if (!Heap::InYoungGeneration(heap_object) ||
         !marking_state_.TryMark(heap_object)) {
       return;
     }
