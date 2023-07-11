@@ -335,7 +335,7 @@ declare_args() {
 
   # Enable experimental code pointer sandboxing for the V8 sandbox.
   # Sets -DV8_CODE_POINTER_SANDBOXING
-  v8_code_pointer_sandboxing = ""
+  v8_code_pointer_sandboxing = false
 
   # Expose the memory corruption API to JavaScript. Useful for testing the sandbox.
   # WARNING This will expose builtins that (by design) cause memory corruption.
@@ -556,11 +556,6 @@ if (v8_enable_sandbox == "") {
   # on Fuchsia.
   v8_enable_sandbox = v8_enable_pointer_compression_shared_cage &&
                       v8_enable_external_code_space && target_os != "fuchsia"
-}
-
-if (v8_code_pointer_sandboxing == "") {
-  # By default, enable code pointer sandboxing if the sandbox is enabled.
-  v8_code_pointer_sandboxing = v8_enable_sandbox
 }
 
 if (v8_enable_static_roots == "") {
