@@ -31,6 +31,7 @@ using compiler::turboshaft::MemoryRepresentation;
 using compiler::turboshaft::OpIndex;
 using compiler::turboshaft::PendingLoopPhiOp;
 using compiler::turboshaft::RegisterRepresentation;
+using compiler::turboshaft::StoreOp;
 using compiler::turboshaft::SupportedOperations;
 using compiler::turboshaft::TSCallDescriptor;
 using TSBlock = compiler::turboshaft::Block;
@@ -100,6 +101,11 @@ class TurboshaftGraphBuildingInterface {
     }
 
     StackCheck();  // TODO(14108): Remove for leaf functions.
+
+    if (v8_flags.trace_wasm) {
+      asm_.SetCurrentOrigin(WasmPositionToOpIndex(decoder->position()));
+      CallRuntime(Runtime::kWasmTraceEnter, {});
+    }
   }
 
   void StartFunctionBody(FullDecoder* decoder, Control* block) {}
@@ -337,19 +343,30 @@ class TurboshaftGraphBuildingInterface {
 
   void DoReturn(FullDecoder* decoder, uint32_t drop_values) {
     size_t return_count = decoder->sig_->return_count();
-    if (return_count == 0) {
-      asm_.Return(asm_.Word32Constant(0), {});
-    } else if (return_count == 1) {
-      asm_.Return(decoder->stack_value(1 + drop_values)->op);
-    } else {
-      base::SmallVector<OpIndex, 8> return_values(return_count);
-      Value* stack_base = decoder->stack_value(
-          static_cast<uint32_t>(return_count + drop_values));
-      for (size_t i = 0; i < return_count; i++) {
-        return_values[i] = stack_base[i].op;
-      }
-      asm_.Return(asm_.Word32Constant(0), base::VectorOf(return_values));
+    base::SmallVector<OpIndex, 8> return_values(return_count);
+    Value* stack_base = return_count == 0
+                            ? nullptr
+                            : decoder->stack_value(static_cast<uint32_t>(
+                                  return_count + drop_values));
+    for (size_t i = 0; i < return_count; i++) {
+      return_values[i] = stack_base[i].op;
     }
+    if (v8_flags.trace_wasm) {
+      OpIndex info = asm_.IntPtrConstant(0);
+      if (return_count == 1) {
+        wasm::ValueType return_type = decoder->sig_->GetReturn(0);
+        int size = return_type.value_kind_size();
+        // TODO(14108): This won't fit everything.
+        info = asm_.StackSlot(size, size);
+        // TODO(14108): Write barrier might be needed.
+        asm_.Store(
+            info, return_values[0], StoreOp::Kind::RawAligned(),
+            MemoryRepresentation::FromMachineType(return_type.machine_type()),
+            compiler::kNoWriteBarrier);
+      }
+      CallRuntime(Runtime::kWasmTraceExit, base::VectorOf(&info, 1));
+    }
+    asm_.Return(asm_.Word32Constant(0), base::VectorOf(return_values));
   }
 
   void UnOp(FullDecoder* decoder, WasmOpcode opcode, const Value& value,
@@ -1689,6 +1706,31 @@ class TurboshaftGraphBuildingInterface {
             call, i, RepresentationFor(decoder, sig->GetReturn(i)));
       }
     }
+  }
+
+  OpIndex CallRuntime(Runtime::FunctionId f, base::Vector<OpIndex> args) {
+    const Runtime::Function* fun = Runtime::FunctionForId(f);
+    OpIndex isolate_root = asm_.LoadRootRegister();
+    DCHECK_EQ(1, fun->result_size);
+    int builtin_slot_offset = IsolateData::BuiltinSlotOffset(
+        Builtin::kCEntry_Return1_ArgvOnStack_NoBuiltinExit);
+    OpIndex centry_stub =
+        asm_.Load(isolate_root, LoadOp::Kind::RawAligned(),
+                  MemoryRepresentation::PointerSized(), builtin_slot_offset);
+    base::SmallVector<OpIndex, 8> centry_args;
+    for (OpIndex arg : args) centry_args.emplace_back(arg);
+    centry_args.emplace_back(
+        asm_.ExternalConstant(ExternalReference::Create(f)));
+    centry_args.emplace_back(asm_.Word32Constant(fun->nargs));
+    centry_args.emplace_back(asm_.NoContextConstant());  // js_context
+    const CallDescriptor* call_descriptor =
+        compiler::Linkage::GetRuntimeCallDescriptor(
+            asm_.graph_zone(), f, fun->nargs, compiler::Operator::kNoProperties,
+            CallDescriptor::kNoFlags);
+    const TSCallDescriptor* ts_call_descriptor =
+        TSCallDescriptor::Create(call_descriptor, asm_.graph_zone());
+    return asm_.Call(centry_stub, OpIndex::Invalid(),
+                     base::VectorOf(centry_args), ts_call_descriptor);
   }
 
   OpIndex WasmPositionToOpIndex(WasmCodePosition position) {

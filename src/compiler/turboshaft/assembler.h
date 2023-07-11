@@ -1849,6 +1849,13 @@ class AssemblerOpInterface {
     return stack().ReduceStackSlot(size, alignment);
   }
 
+  OpIndex LoadRootRegister() {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
+    return stack().ReduceLoadRootRegister();
+  }
+
   void Goto(Block* destination) {
     if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
       return;

@@ -128,9 +128,4 @@
   'wasm-inlining-into-js': [FAIL],
 }],  # variant == stress_maglev or variant == stress_maglev_future
 
-['variant == turboshaft', {
-  # TODO(14108): Remove when we have function entry/exit tracing.
-  'wasm-trace-turbofan': [SKIP],
-}],  # variant == turboshaft
-
 ]
