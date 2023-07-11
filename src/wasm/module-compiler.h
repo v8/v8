@@ -176,9 +176,10 @@ class AsyncCompileJob {
                                size_t code_size_estimate);
   void PrepareRuntimeObjects();
 
-  void FinishCompile(bool is_after_cache_hit);
-
-  void Failed();
+  // {FinishCompile} and {Failed} invalidate the {AsyncCompileJob}, so we only
+  // allow to call them on r-value references to make this clear at call sites.
+  void FinishCompile(bool is_after_cache_hit) &&;
+  void Failed() &&;
 
   void AsyncCompileSucceeded(DirectHandle<WasmModuleObject> result);
 

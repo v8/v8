@@ -2685,7 +2685,7 @@ void AsyncCompileJob::PrepareRuntimeObjects() {
 
 // This function assumes that it is executed in a HandleScope, and that a
 // context is set on the isolate.
-void AsyncCompileJob::FinishCompile(bool is_after_cache_hit) {
+void AsyncCompileJob::FinishCompile(bool is_after_cache_hit) && {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
                "wasm.FinishAsyncCompile");
   if (stream_) {
@@ -2780,7 +2780,7 @@ void AsyncCompileJob::FinishCompile(bool is_after_cache_hit) {
   FinishSuccessfully();
 }
 
-void AsyncCompileJob::Failed() {
+void AsyncCompileJob::Failed() && {
   // {job} keeps the {this} pointer alive.
   std::unique_ptr<AsyncCompileJob> job =
       GetWasmEngine()->RemoveCompileJob(this);
@@ -3067,7 +3067,8 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
       job->CreateNativeModule(module_, code_size_estimate_);
     } else if (job->GetOrCreateNativeModule(std::move(module_),
                                             code_size_estimate_)) {
-      job->FinishCompile(true);
+      // Finish compilation, invalidating the {AsyncCompileJob}.
+      std::move(*job).FinishCompile(true);
       return;
     } else if (!lazy_functions_are_validated_) {
       // If we are not streaming and did not get a cache hit, we might have hit
@@ -3082,7 +3083,8 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
       if (!v8_flags.wasm_lazy_validation &&
           ValidateFunctions(*job->native_module_, kOnlyLazyFunctions)
               .has_error()) {
-        job->Failed();
+        // Fail compilation, invalidating the {AsyncCompileJob}.
+        std::move(*job).Failed();
         return;
       }
     }
@@ -3141,7 +3143,8 @@ class AsyncCompileJob::FinishCompilation : public CompileStep {
       job->native_module_ = cached_native_module_;
     }
     // Then finalize and publish the generated module.
-    job->FinishCompile(cached_native_module_ != nullptr);
+    // This invalidates the {AsyncCompileJob}.
+    std::move(*job).FinishCompile(cached_native_module_ != nullptr);
   }
 
   std::shared_ptr<NativeModule> cached_native_module_;
@@ -3154,8 +3157,8 @@ class AsyncCompileJob::Fail : public CompileStep {
  private:
   void RunInForeground(AsyncCompileJob* job) override {
     TRACE_COMPILE("(4) Async compilation failed.\n");
-    // {job_} is deleted in {Failed}, therefore the {return}.
-    return job->Failed();
+    // Fail compilation, invalidating the {AsyncCompileJob}.
+    std::move(*job).Failed();
   }
 };
 
@@ -3379,7 +3382,7 @@ void AsyncStreamingProcessor::OnFinishedStream(
                                                   job_->compile_imports_);
     }
     // Calling {Failed} will invalidate the {AsyncCompileJob} and delete {this}.
-    job_->Failed();
+    std::move(*job_).Failed();
     return;
   }
 
@@ -3455,9 +3458,9 @@ void AsyncStreamingProcessor::OnFinishedStream(
     // We finally call {Failed} or {FinishCompile}, which will invalidate the
     // {AsyncCompileJob} and delete {this}.
     if (failed) {
-      job_->Failed();
+      std::move(*job_).Failed();
     } else {
-      job_->FinishCompile(cache_hit);
+      std::move(*job_).FinishCompile(cache_hit);
     }
   }
 }
@@ -3502,7 +3505,7 @@ bool AsyncStreamingProcessor::Deserialize(
   job_->native_module_ = job_->module_object_->shared_native_module();
   job_->wire_bytes_ = ModuleWireBytes(job_->native_module_->wire_bytes());
   // Calling {FinishCompile} deletes the {AsyncCompileJob} and {this}.
-  job_->FinishCompile(false);
+  std::move(*job_).FinishCompile(false);
   return true;
 }
 
