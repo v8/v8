@@ -182,8 +182,11 @@ class X64OperandGeneratorT final : public OperandGeneratorT<Adapter> {
     DCHECK(CanBeImmediate(node));
     auto constant = this->constant_view(node);
     if (constant.is_int32()) return constant.int32_value();
-    DCHECK(constant.is_int64());
-    return static_cast<int32_t>(constant.int64_value());
+    if (constant.is_int64()) {
+      return static_cast<int32_t>(constant.int64_value());
+    }
+    DCHECK(constant.is_number());
+    return static_cast<int32_t>(constant.number_value());
   }
 
   DECLARE_UNREACHABLE_TURBOSHAFT_FALLBACK(bool, CanBeMemoryOperand)
