@@ -855,6 +855,7 @@ uint32_t InitialValue::stack_slot() const {
   return stack_slot(source_.index());
 }
 
+int FunctionEntryStackCheck::MaxCallStackArgs() const { return 0; }
 void FunctionEntryStackCheck::SetValueLocationConstraints() {
   set_temporaries_needed(2);
   // kReturnRegister0 should not be one of the available temporary registers.
@@ -868,8 +869,11 @@ void FunctionEntryStackCheck::GenerateCode(MaglevAssembler* masm,
   // stack limit or tighter. By ensuring we have space until that limit
   // after building the frame we can quickly precheck both at once.
   const int stack_check_offset = masm->code_gen_state()->stack_check_offset();
+  // Only NewTarget can be live at this point.
+  DCHECK_LE(register_snapshot().live_registers.Count(), 1);
   Builtin builtin =
-      new_target_or_generator_register_is_valid()
+      register_snapshot().live_tagged_registers.has(
+          kJavaScriptCallNewTargetRegister)
           ? Builtin::kMaglevFunctionEntryStackCheck_WithNewTarget
           : Builtin::kMaglevFunctionEntryStackCheck_WithoutNewTarget;
   ZoneLabelRef done(masm);
