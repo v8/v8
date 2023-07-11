@@ -3662,7 +3662,6 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     CHECK_PROTOTYPE_OPCODE(return_call);
     CallFunctionImmediate imm(this, this->pc_ + 1, validate);
     if (!this->Validate(this->pc_ + 1, imm)) return 0;
-    // TODO(jkummerow): Should probably allow sig mismatch in unreachable code.
     if (!VALIDATE(this->CanReturnCall(imm.sig))) {
       this->DecodeError("%s: %s", WasmOpcodes::OpcodeName(kExprReturnCall),
                         "tail call type error");
@@ -3678,7 +3677,6 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     CHECK_PROTOTYPE_OPCODE(return_call);
     CallIndirectImmediate imm(this, this->pc_ + 1, validate);
     if (!this->Validate(this->pc_ + 1, imm)) return 0;
-    // TODO(jkummerow): Should probably allow sig mismatch in unreachable code.
     if (!VALIDATE(this->CanReturnCall(imm.sig))) {
       this->DecodeError("%s: %s",
                         WasmOpcodes::OpcodeName(kExprReturnCallIndirect),
@@ -3715,8 +3713,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     CHECK_PROTOTYPE_OPCODE(return_call);
     SigIndexImmediate imm(this, this->pc_ + 1, validate);
     if (!this->Validate(this->pc_ + 1, imm)) return 0;
-    if (!VALIDATE(this->control_.back().unreachable() ||
-                  this->CanReturnCall(imm.sig))) {
+    if (!VALIDATE(this->CanReturnCall(imm.sig))) {
       this->DecodeError("%s: %s", WasmOpcodes::OpcodeName(kExprReturnCallRef),
                         "tail call return types mismatch");
       return 0;
