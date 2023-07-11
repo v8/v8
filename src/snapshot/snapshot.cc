@@ -762,8 +762,9 @@ bool RunExtraCode(v8::Isolate* isolate, v8::Local<v8::Context> context,
   v8::ScriptOrigin origin(isolate, resource_name);
   v8::ScriptCompiler::Source source(source_string, origin);
   v8::Local<v8::Script> script;
-  if (!v8::ScriptCompiler::Compile(context, &source).ToLocal(&script))
+  if (!v8::ScriptCompiler::Compile(context, &source).ToLocal(&script)) {
     return false;
+  }
   if (script->Run(context).IsEmpty()) return false;
   CHECK(!try_catch.HasCaught());
   return true;

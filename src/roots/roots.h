@@ -238,7 +238,55 @@ class Symbol;
   /* Hash seed */                                                              \
   V(ByteArray, hash_seed, HashSeed)                                            \
   IF_WASM(V, HeapObject, wasm_null_padding, WasmNullPadding)                   \
-  IF_WASM(V, WasmNull, wasm_null, WasmNull)
+  IF_WASM(V, WasmNull, wasm_null, WasmNull)                                    \
+  /* Internal SharedFunctionInfos */                                           \
+  V(SharedFunctionInfo, async_function_await_reject_shared_fun,                \
+    AsyncFunctionAwaitRejectSharedFun)                                         \
+  V(SharedFunctionInfo, async_function_await_resolve_shared_fun,               \
+    AsyncFunctionAwaitResolveSharedFun)                                        \
+  V(SharedFunctionInfo, async_generator_await_reject_shared_fun,               \
+    AsyncGeneratorAwaitRejectSharedFun)                                        \
+  V(SharedFunctionInfo, async_generator_await_resolve_shared_fun,              \
+    AsyncGeneratorAwaitResolveSharedFun)                                       \
+  V(SharedFunctionInfo, async_generator_yield_with_await_resolve_shared_fun,   \
+    AsyncGeneratorYieldWithAwaitResolveSharedFun)                              \
+  V(SharedFunctionInfo, async_generator_return_resolve_shared_fun,             \
+    AsyncGeneratorReturnResolveSharedFun)                                      \
+  V(SharedFunctionInfo, async_generator_return_closed_reject_shared_fun,       \
+    AsyncGeneratorReturnClosedRejectSharedFun)                                 \
+  V(SharedFunctionInfo, async_generator_return_closed_resolve_shared_fun,      \
+    AsyncGeneratorReturnClosedResolveSharedFun)                                \
+  V(SharedFunctionInfo, async_iterator_value_unwrap_shared_fun,                \
+    AsyncIteratorValueUnwrapSharedFun)                                         \
+  V(SharedFunctionInfo, promise_all_resolve_element_shared_fun,                \
+    PromiseAllResolveElementSharedFun)                                         \
+  V(SharedFunctionInfo, promise_all_settled_resolve_element_shared_fun,        \
+    PromiseAllSettledResolveElementSharedFun)                                  \
+  V(SharedFunctionInfo, promise_all_settled_reject_element_shared_fun,         \
+    PromiseAllSettledRejectElementSharedFun)                                   \
+  V(SharedFunctionInfo, promise_any_reject_element_shared_fun,                 \
+    PromiseAnyRejectElementSharedFun)                                          \
+  V(SharedFunctionInfo, promise_capability_default_reject_shared_fun,          \
+    PromiseCapabilityDefaultRejectSharedFun)                                   \
+  V(SharedFunctionInfo, promise_capability_default_resolve_shared_fun,         \
+    PromiseCapabilityDefaultResolveSharedFun)                                  \
+  V(SharedFunctionInfo, promise_catch_finally_shared_fun,                      \
+    PromiseCatchFinallySharedFun)                                              \
+  V(SharedFunctionInfo, promise_get_capabilities_executor_shared_fun,          \
+    PromiseGetCapabilitiesExecutorSharedFun)                                   \
+  V(SharedFunctionInfo, promise_then_finally_shared_fun,                       \
+    PromiseThenFinallySharedFun)                                               \
+  V(SharedFunctionInfo, promise_thrower_finally_shared_fun,                    \
+    PromiseThrowerFinallySharedFun)                                            \
+  V(SharedFunctionInfo, promise_value_thunk_finally_shared_fun,                \
+    PromiseValueThunkFinallySharedFun)                                         \
+  V(SharedFunctionInfo, proxy_revoke_shared_fun, ProxyRevokeSharedFun)         \
+  V(SharedFunctionInfo, shadow_realm_import_value_fulfilled_sfi,               \
+    ShadowRealmImportValueFulfilledSFI)                                        \
+  V(SharedFunctionInfo, source_text_module_execute_async_module_fulfilled_sfi, \
+    SourceTextModuleExecuteAsyncModuleFulfilledSFI)                            \
+  V(SharedFunctionInfo, source_text_module_execute_async_module_rejected_sfi,  \
+    SourceTextModuleExecuteAsyncModuleRejectedSFI)
 
 // Mutable roots that are known to be immortal immovable, for which we can
 // safely skip write barriers.
@@ -275,59 +323,7 @@ class Symbol;
   V(FixedArray, string_split_cache, StringSplitCache)                          \
   V(FixedArray, regexp_multiple_cache, RegExpMultipleCache)                    \
   /* Indirection lists for isolate-independent builtins */                     \
-  V(FixedArray, builtins_constants_table, BuiltinsConstantsTable)              \
-  /* Internal SharedFunctionInfos */                                           \
-  V(SharedFunctionInfo, async_function_await_reject_shared_fun,                \
-    AsyncFunctionAwaitRejectSharedFun)                                         \
-  V(SharedFunctionInfo, async_function_await_resolve_shared_fun,               \
-    AsyncFunctionAwaitResolveSharedFun)                                        \
-  V(SharedFunctionInfo, async_generator_await_reject_shared_fun,               \
-    AsyncGeneratorAwaitRejectSharedFun)                                        \
-  V(SharedFunctionInfo, async_generator_await_resolve_shared_fun,              \
-    AsyncGeneratorAwaitResolveSharedFun)                                       \
-  V(SharedFunctionInfo, async_generator_yield_with_await_resolve_shared_fun,   \
-    AsyncGeneratorYieldWithAwaitResolveSharedFun)                              \
-  V(SharedFunctionInfo, async_generator_return_resolve_shared_fun,             \
-    AsyncGeneratorReturnResolveSharedFun)                                      \
-  V(SharedFunctionInfo, async_generator_return_closed_reject_shared_fun,       \
-    AsyncGeneratorReturnClosedRejectSharedFun)                                 \
-  V(SharedFunctionInfo, async_generator_return_closed_resolve_shared_fun,      \
-    AsyncGeneratorReturnClosedResolveSharedFun)                                \
-  V(SharedFunctionInfo, async_iterator_value_unwrap_shared_fun,                \
-    AsyncIteratorValueUnwrapSharedFun)                                         \
-  V(FunctionTemplateInfo, error_stack_getter_fun_template,                     \
-    ErrorStackGetterSharedFun)                                                 \
-  V(FunctionTemplateInfo, error_stack_setter_fun_template,                     \
-    ErrorStackSetterSharedFun)                                                 \
-  V(SharedFunctionInfo, promise_all_resolve_element_shared_fun,                \
-    PromiseAllResolveElementSharedFun)                                         \
-  V(SharedFunctionInfo, promise_all_settled_resolve_element_shared_fun,        \
-    PromiseAllSettledResolveElementSharedFun)                                  \
-  V(SharedFunctionInfo, promise_all_settled_reject_element_shared_fun,         \
-    PromiseAllSettledRejectElementSharedFun)                                   \
-  V(SharedFunctionInfo, promise_any_reject_element_shared_fun,                 \
-    PromiseAnyRejectElementSharedFun)                                          \
-  V(SharedFunctionInfo, promise_capability_default_reject_shared_fun,          \
-    PromiseCapabilityDefaultRejectSharedFun)                                   \
-  V(SharedFunctionInfo, promise_capability_default_resolve_shared_fun,         \
-    PromiseCapabilityDefaultResolveSharedFun)                                  \
-  V(SharedFunctionInfo, promise_catch_finally_shared_fun,                      \
-    PromiseCatchFinallySharedFun)                                              \
-  V(SharedFunctionInfo, promise_get_capabilities_executor_shared_fun,          \
-    PromiseGetCapabilitiesExecutorSharedFun)                                   \
-  V(SharedFunctionInfo, promise_then_finally_shared_fun,                       \
-    PromiseThenFinallySharedFun)                                               \
-  V(SharedFunctionInfo, promise_thrower_finally_shared_fun,                    \
-    PromiseThrowerFinallySharedFun)                                            \
-  V(SharedFunctionInfo, promise_value_thunk_finally_shared_fun,                \
-    PromiseValueThunkFinallySharedFun)                                         \
-  V(SharedFunctionInfo, proxy_revoke_shared_fun, ProxyRevokeSharedFun)         \
-  V(SharedFunctionInfo, shadow_realm_import_value_fulfilled_sfi,               \
-    ShadowRealmImportValueFulfilledSFI)                                        \
-  V(SharedFunctionInfo, source_text_module_execute_async_module_fulfilled_sfi, \
-    SourceTextModuleExecuteAsyncModuleFulfilledSFI)                            \
-  V(SharedFunctionInfo, source_text_module_execute_async_module_rejected_sfi,  \
-    SourceTextModuleExecuteAsyncModuleRejectedSFI)
+  V(FixedArray, builtins_constants_table, BuiltinsConstantsTable)
 
 // These root references can be updated by the mutator.
 #define STRONG_MUTABLE_MOVABLE_ROOT_LIST(V)                                 \
@@ -360,7 +356,12 @@ class Symbol;
   IF_WASM(V, HeapObject, active_continuation, ActiveContinuation)           \
   IF_WASM(V, HeapObject, active_suspender, ActiveSuspender)                 \
   IF_WASM(V, WeakArrayList, js_to_wasm_wrappers, JSToWasmWrappers)          \
-  IF_WASM(V, WeakArrayList, wasm_canonical_rtts, WasmCanonicalRtts)
+  IF_WASM(V, WeakArrayList, wasm_canonical_rtts, WasmCanonicalRtts)         \
+  /* Internal SharedFunctionInfos */                                        \
+  V(FunctionTemplateInfo, error_stack_getter_fun_template,                  \
+    ErrorStackGetterSharedFun)                                              \
+  V(FunctionTemplateInfo, error_stack_setter_fun_template,                  \
+    ErrorStackSetterSharedFun)
 
 // Entries in this list are limited to Smis and are not visited during GC.
 #define SMI_ROOT_LIST(V)                                                       \
