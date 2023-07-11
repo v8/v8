@@ -1958,10 +1958,7 @@ void Heap::StartIncrementalMarking(GCFlags gc_flags,
   // Delay incremental marking start while concurrent sweeping still has work.
   // This helps avoid large CompleteSweep blocks on the main thread when major
   // incremental marking should be scheduled following a minor GC.
-  if (sweeper()->AreMinorSweeperTasksRunning() ||
-      !sweeper()->IsSweepingDoneForSpace(NEW_SPACE) ||
-      sweeper()->IsIteratingPromotedPages())
-    return;
+  if (sweeper()->AreMinorSweeperTasksRunning()) return;
 
   if (IsYoungGenerationCollector(collector)) {
     CompleteSweepingYoung();
