@@ -428,7 +428,10 @@ def multibranch_builder(**kwargs):
         if branch.bucket == "ci":
             if close_tree:
                 notifies = args.pop("notifies", [])
-                notifies.append("v8 tree closer")
+                if parent_builder:
+                    notifies.append("v8 tree closer")
+                else:
+                    notifies.append("generic tree closer")
                 args["notifies"] = notifies
         else:
             args["disable_resultdb_exports"] = True
