@@ -158,7 +158,13 @@ v8::StartupData CreateSnapshotDataBlob(const char* embedded_source) {
   return data;
 }
 
-StartupBlobs Serialize(v8::Isolate* isolate) {
+enum class SerializeQuirks {
+  kNone,
+  kReadOnlySpaceIsSealed,
+};
+
+StartupBlobs Serialize(v8::Isolate* isolate,
+                       SerializeQuirks quirks = SerializeQuirks::kNone) {
   // We have to create one context.  One reason for this is so that the builtins
   // can be loaded from self hosted JS builtins and their addresses can be
   // processed.  This will clear the pending fixups array, which would otherwise
@@ -178,7 +184,8 @@ StartupBlobs Serialize(v8::Isolate* isolate) {
   IsolateSafepointScope safepoint(i_isolate->heap());
   HandleScope scope(i_isolate);
 
-  if (!i_isolate->initialized_from_snapshot()) {
+  if (!i_isolate->initialized_from_snapshot() &&
+      quirks != SerializeQuirks::kReadOnlySpaceIsSealed) {
     // When creating the snapshot from scratch, we are responsible for sealing
     // the RO heap here. Note we cannot delegate the responsibility e.g. to
     // Isolate::Init since it should still be possible to allocate into RO
@@ -273,13 +280,10 @@ UNINITIALIZED_TEST(StartupSerializerTwice) {
   DisableAlwaysOpt();
   v8::Isolate* isolate = TestSerializer::NewIsolateInitialized();
   StartupBlobs blobs1 = Serialize(isolate);
-  isolate->Dispose();
-
-  isolate = Deserialize(blobs1);
-  StartupBlobs blobs2 = Serialize(isolate);
+  StartupBlobs blobs2 =
+      Serialize(isolate, SerializeQuirks::kReadOnlySpaceIsSealed);
   isolate->Dispose();
   blobs1.Dispose();
-
   isolate = Deserialize(blobs2);
   {
     v8::Isolate::Scope isolate_scope(isolate);
@@ -324,13 +328,10 @@ UNINITIALIZED_TEST(StartupSerializerTwiceRunScript) {
   DisableAlwaysOpt();
   v8::Isolate* isolate = TestSerializer::NewIsolateInitialized();
   StartupBlobs blobs1 = Serialize(isolate);
-  isolate->Dispose();
-
-  isolate = Deserialize(blobs1);
-  StartupBlobs blobs2 = Serialize(isolate);
+  StartupBlobs blobs2 =
+      Serialize(isolate, SerializeQuirks::kReadOnlySpaceIsSealed);
   isolate->Dispose();
   blobs1.Dispose();
-
   isolate = Deserialize(blobs2);
   {
     v8::Isolate::Scope isolate_scope(isolate);

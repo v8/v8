@@ -61,6 +61,10 @@ namespace internal {
 
 namespace {
 
+// TODO(jgruber): Toggle this and remove the constant once RO allocation of
+// SFIs is possible.
+constexpr bool kSharedFunctionInfosInReadOnlySpace = false;
+
 Handle<SharedFunctionInfo> CreateSharedFunctionInfo(
     Isolate* isolate, Builtin builtin, int len,
     FunctionKind kind = FunctionKind::kNormalFunction) {
@@ -748,6 +752,154 @@ void Heap::StaticRootsEnsureAllocatedSize(Handle<HeapObject> obj,
   }
 }
 
+void Heap::CreateImportantSharedFunctionInfos() {
+  // Create internal SharedFunctionInfos.
+
+  auto CreateSharedFunctionInfoImpl =
+      [&](Isolate* isolate, Builtin builtin, int len,
+          FunctionKind kind = FunctionKind::kNormalFunction) {
+        Handle<SharedFunctionInfo> sfi =
+            CreateSharedFunctionInfo(isolate, builtin, len, kind);
+        if (kSharedFunctionInfosInReadOnlySpace) {
+          StaticRootsEnsureAllocatedSize(sfi, kStaticRootsSFISize);
+        }
+        return sfi;
+      };
+
+  // Async functions:
+  {
+    Handle<SharedFunctionInfo> info = CreateSharedFunctionInfoImpl(
+        isolate(), Builtin::kAsyncFunctionAwaitRejectClosure, 1);
+    set_async_function_await_reject_shared_fun(*info);
+
+    info = CreateSharedFunctionInfoImpl(
+        isolate(), Builtin::kAsyncFunctionAwaitResolveClosure, 1);
+    set_async_function_await_resolve_shared_fun(*info);
+  }
+
+  // Async generators:
+  {
+    Handle<SharedFunctionInfo> info = CreateSharedFunctionInfoImpl(
+        isolate(), Builtin::kAsyncGeneratorAwaitResolveClosure, 1);
+    set_async_generator_await_resolve_shared_fun(*info);
+
+    info = CreateSharedFunctionInfoImpl(
+        isolate(), Builtin::kAsyncGeneratorAwaitRejectClosure, 1);
+    set_async_generator_await_reject_shared_fun(*info);
+
+    info = CreateSharedFunctionInfoImpl(
+        isolate(), Builtin::kAsyncGeneratorYieldWithAwaitResolveClosure, 1);
+    set_async_generator_yield_with_await_resolve_shared_fun(*info);
+
+    info = CreateSharedFunctionInfoImpl(
+        isolate(), Builtin::kAsyncGeneratorReturnResolveClosure, 1);
+    set_async_generator_return_resolve_shared_fun(*info);
+
+    info = CreateSharedFunctionInfoImpl(
+        isolate(), Builtin::kAsyncGeneratorReturnClosedResolveClosure, 1);
+    set_async_generator_return_closed_resolve_shared_fun(*info);
+
+    info = CreateSharedFunctionInfoImpl(
+        isolate(), Builtin::kAsyncGeneratorReturnClosedRejectClosure, 1);
+    set_async_generator_return_closed_reject_shared_fun(*info);
+  }
+
+  // AsyncIterator:
+  {
+    Handle<SharedFunctionInfo> info = CreateSharedFunctionInfoImpl(
+        isolate_, Builtin::kAsyncIteratorValueUnwrap, 1);
+    set_async_iterator_value_unwrap_shared_fun(*info);
+  }
+
+  // Promises:
+  {
+    Handle<SharedFunctionInfo> info = CreateSharedFunctionInfoImpl(
+        isolate_, Builtin::kPromiseCapabilityDefaultResolve, 1,
+        FunctionKind::kConciseMethod);
+    info->set_native(true);
+    info->set_function_map_index(
+        Context::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX);
+    set_promise_capability_default_resolve_shared_fun(*info);
+
+    info = CreateSharedFunctionInfoImpl(
+        isolate_, Builtin::kPromiseCapabilityDefaultReject, 1,
+        FunctionKind::kConciseMethod);
+    info->set_native(true);
+    info->set_function_map_index(
+        Context::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX);
+    set_promise_capability_default_reject_shared_fun(*info);
+
+    info = CreateSharedFunctionInfoImpl(
+        isolate_, Builtin::kPromiseGetCapabilitiesExecutor, 2);
+    set_promise_get_capabilities_executor_shared_fun(*info);
+  }
+
+  // Promises / finally:
+  {
+    Handle<SharedFunctionInfo> info = CreateSharedFunctionInfoImpl(
+        isolate(), Builtin::kPromiseThenFinally, 1);
+    info->set_native(true);
+    set_promise_then_finally_shared_fun(*info);
+
+    info = CreateSharedFunctionInfoImpl(isolate(),
+                                        Builtin::kPromiseCatchFinally, 1);
+    info->set_native(true);
+    set_promise_catch_finally_shared_fun(*info);
+
+    info = CreateSharedFunctionInfoImpl(isolate(),
+                                        Builtin::kPromiseValueThunkFinally, 0);
+    set_promise_value_thunk_finally_shared_fun(*info);
+
+    info = CreateSharedFunctionInfoImpl(isolate(),
+                                        Builtin::kPromiseThrowerFinally, 0);
+    set_promise_thrower_finally_shared_fun(*info);
+  }
+
+  // Promise combinators:
+  {
+    Handle<SharedFunctionInfo> info = CreateSharedFunctionInfoImpl(
+        isolate_, Builtin::kPromiseAllResolveElementClosure, 1);
+    set_promise_all_resolve_element_shared_fun(*info);
+
+    info = CreateSharedFunctionInfoImpl(
+        isolate_, Builtin::kPromiseAllSettledResolveElementClosure, 1);
+    set_promise_all_settled_resolve_element_shared_fun(*info);
+
+    info = CreateSharedFunctionInfoImpl(
+        isolate_, Builtin::kPromiseAllSettledRejectElementClosure, 1);
+    set_promise_all_settled_reject_element_shared_fun(*info);
+
+    info = CreateSharedFunctionInfoImpl(
+        isolate_, Builtin::kPromiseAnyRejectElementClosure, 1);
+    set_promise_any_reject_element_shared_fun(*info);
+  }
+
+  // ProxyRevoke:
+  {
+    Handle<SharedFunctionInfo> info =
+        CreateSharedFunctionInfoImpl(isolate_, Builtin::kProxyRevoke, 0);
+    set_proxy_revoke_shared_fun(*info);
+  }
+
+  // ShadowRealm:
+  {
+    Handle<SharedFunctionInfo> info = CreateSharedFunctionInfoImpl(
+        isolate_, Builtin::kShadowRealmImportValueFulfilled, 0);
+    set_shadow_realm_import_value_fulfilled_sfi(*info);
+  }
+
+  // SourceTextModule:
+  {
+    Handle<SharedFunctionInfo> info = CreateSharedFunctionInfoImpl(
+        isolate_, Builtin::kCallAsyncModuleFulfilled, 0);
+    set_source_text_module_execute_async_module_fulfilled_sfi(*info);
+
+    info = CreateSharedFunctionInfoImpl(isolate_,
+                                        Builtin::kCallAsyncModuleRejected, 0);
+    set_source_text_module_execute_async_module_rejected_sfi(*info);
+  }
+}
+
 bool Heap::CreateImportantReadOnlyObjects() {
   // Allocate some objects early to get addresses to fit as arm64 immediates.
   HeapObject obj;
@@ -1126,148 +1278,8 @@ bool Heap::CreateReadOnlyObjects() {
       ScopeInfo::CreateForShadowRealmNativeContext(isolate());
   set_shadow_realm_scope_info(*shadow_realm_scope_info);
 
-  // Create internal SharedFunctionInfos.
-
-  auto CreateSharedFunctionInfoImpl =
-      [&](Isolate* isolate, Builtin builtin, int len,
-          FunctionKind kind = FunctionKind::kNormalFunction) {
-        Handle<SharedFunctionInfo> sfi =
-            CreateSharedFunctionInfo(isolate, builtin, len, kind);
-        StaticRootsEnsureAllocatedSize(sfi, kStaticRootsSFISize);
-        return sfi;
-      };
-
-  // Async functions:
-  {
-    Handle<SharedFunctionInfo> info = CreateSharedFunctionInfoImpl(
-        isolate(), Builtin::kAsyncFunctionAwaitRejectClosure, 1);
-    set_async_function_await_reject_shared_fun(*info);
-
-    info = CreateSharedFunctionInfoImpl(
-        isolate(), Builtin::kAsyncFunctionAwaitResolveClosure, 1);
-    set_async_function_await_resolve_shared_fun(*info);
-  }
-
-  // Async generators:
-  {
-    Handle<SharedFunctionInfo> info = CreateSharedFunctionInfoImpl(
-        isolate(), Builtin::kAsyncGeneratorAwaitResolveClosure, 1);
-    set_async_generator_await_resolve_shared_fun(*info);
-
-    info = CreateSharedFunctionInfoImpl(
-        isolate(), Builtin::kAsyncGeneratorAwaitRejectClosure, 1);
-    set_async_generator_await_reject_shared_fun(*info);
-
-    info = CreateSharedFunctionInfoImpl(
-        isolate(), Builtin::kAsyncGeneratorYieldWithAwaitResolveClosure, 1);
-    set_async_generator_yield_with_await_resolve_shared_fun(*info);
-
-    info = CreateSharedFunctionInfoImpl(
-        isolate(), Builtin::kAsyncGeneratorReturnResolveClosure, 1);
-    set_async_generator_return_resolve_shared_fun(*info);
-
-    info = CreateSharedFunctionInfoImpl(
-        isolate(), Builtin::kAsyncGeneratorReturnClosedResolveClosure, 1);
-    set_async_generator_return_closed_resolve_shared_fun(*info);
-
-    info = CreateSharedFunctionInfoImpl(
-        isolate(), Builtin::kAsyncGeneratorReturnClosedRejectClosure, 1);
-    set_async_generator_return_closed_reject_shared_fun(*info);
-  }
-
-  // AsyncIterator:
-  {
-    Handle<SharedFunctionInfo> info = CreateSharedFunctionInfoImpl(
-        isolate_, Builtin::kAsyncIteratorValueUnwrap, 1);
-    set_async_iterator_value_unwrap_shared_fun(*info);
-  }
-
-  // Promises:
-  {
-    Handle<SharedFunctionInfo> info = CreateSharedFunctionInfoImpl(
-        isolate_, Builtin::kPromiseCapabilityDefaultResolve, 1,
-        FunctionKind::kConciseMethod);
-    info->set_native(true);
-    info->set_function_map_index(
-        Context::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX);
-    set_promise_capability_default_resolve_shared_fun(*info);
-
-    info = CreateSharedFunctionInfoImpl(
-        isolate_, Builtin::kPromiseCapabilityDefaultReject, 1,
-        FunctionKind::kConciseMethod);
-    info->set_native(true);
-    info->set_function_map_index(
-        Context::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX);
-    set_promise_capability_default_reject_shared_fun(*info);
-
-    info = CreateSharedFunctionInfoImpl(
-        isolate_, Builtin::kPromiseGetCapabilitiesExecutor, 2);
-    set_promise_get_capabilities_executor_shared_fun(*info);
-  }
-
-  // Promises / finally:
-  {
-    Handle<SharedFunctionInfo> info = CreateSharedFunctionInfoImpl(
-        isolate(), Builtin::kPromiseThenFinally, 1);
-    info->set_native(true);
-    set_promise_then_finally_shared_fun(*info);
-
-    info = CreateSharedFunctionInfoImpl(isolate(),
-                                        Builtin::kPromiseCatchFinally, 1);
-    info->set_native(true);
-    set_promise_catch_finally_shared_fun(*info);
-
-    info = CreateSharedFunctionInfoImpl(isolate(),
-                                        Builtin::kPromiseValueThunkFinally, 0);
-    set_promise_value_thunk_finally_shared_fun(*info);
-
-    info = CreateSharedFunctionInfoImpl(isolate(),
-                                        Builtin::kPromiseThrowerFinally, 0);
-    set_promise_thrower_finally_shared_fun(*info);
-  }
-
-  // Promise combinators:
-  {
-    Handle<SharedFunctionInfo> info = CreateSharedFunctionInfoImpl(
-        isolate_, Builtin::kPromiseAllResolveElementClosure, 1);
-    set_promise_all_resolve_element_shared_fun(*info);
-
-    info = CreateSharedFunctionInfoImpl(
-        isolate_, Builtin::kPromiseAllSettledResolveElementClosure, 1);
-    set_promise_all_settled_resolve_element_shared_fun(*info);
-
-    info = CreateSharedFunctionInfoImpl(
-        isolate_, Builtin::kPromiseAllSettledRejectElementClosure, 1);
-    set_promise_all_settled_reject_element_shared_fun(*info);
-
-    info = CreateSharedFunctionInfoImpl(
-        isolate_, Builtin::kPromiseAnyRejectElementClosure, 1);
-    set_promise_any_reject_element_shared_fun(*info);
-  }
-
-  // ProxyRevoke:
-  {
-    Handle<SharedFunctionInfo> info =
-        CreateSharedFunctionInfoImpl(isolate_, Builtin::kProxyRevoke, 0);
-    set_proxy_revoke_shared_fun(*info);
-  }
-
-  // ShadowRealm:
-  {
-    Handle<SharedFunctionInfo> info = CreateSharedFunctionInfoImpl(
-        isolate_, Builtin::kShadowRealmImportValueFulfilled, 0);
-    set_shadow_realm_import_value_fulfilled_sfi(*info);
-  }
-
-  // SourceTextModule:
-  {
-    Handle<SharedFunctionInfo> info = CreateSharedFunctionInfoImpl(
-        isolate_, Builtin::kCallAsyncModuleFulfilled, 0);
-    set_source_text_module_execute_async_module_fulfilled_sfi(*info);
-
-    info = CreateSharedFunctionInfoImpl(isolate_,
-                                        Builtin::kCallAsyncModuleRejected, 0);
-    set_source_text_module_execute_async_module_rejected_sfi(*info);
+  if (kSharedFunctionInfosInReadOnlySpace) {
+    CreateImportantSharedFunctionInfos();
   }
 
   // Initialize the wasm null_value.
@@ -1444,6 +1456,10 @@ void Heap::CreateInitialMutableObjects() {
 
   // Initialize compilation cache.
   isolate_->compilation_cache()->Clear();
+
+  if (!kSharedFunctionInfosInReadOnlySpace) {
+    CreateImportantSharedFunctionInfos();
+  }
 
   // Error.stack accessor callbacks:
   {

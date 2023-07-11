@@ -2064,27 +2064,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   bool allow_compile_hints_magic() const { return allow_compile_hints_magic_; }
 
-  class EnableRoAllocationForSnapshotScope final {
-   public:
-    explicit EnableRoAllocationForSnapshotScope(Isolate* isolate)
-        : isolate_(isolate) {
-      CHECK(!isolate_->enable_ro_allocation_for_snapshot_);
-      isolate_->enable_ro_allocation_for_snapshot_ = true;
-    }
-
-    ~EnableRoAllocationForSnapshotScope() {
-      CHECK(isolate_->enable_ro_allocation_for_snapshot_);
-      isolate_->enable_ro_allocation_for_snapshot_ = false;
-    }
-
-   private:
-    Isolate* const isolate_;
-  };
-
-  bool enable_ro_allocation_for_snapshot() const {
-    return enable_ro_allocation_for_snapshot_;
-  }
-
  private:
   explicit Isolate(std::unique_ptr<IsolateAllocator> isolate_allocator);
   ~Isolate();
@@ -2399,9 +2378,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   unsigned int stress_deopt_count_ = 0;
 
   bool force_slow_path_ = false;
-
-  // Certain objects may be allocated in RO space if suitable for the snapshot.
-  bool enable_ro_allocation_for_snapshot_ = false;
 
   bool initialized_ = false;
   bool jitless_ = false;
