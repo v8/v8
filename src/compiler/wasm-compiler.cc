@@ -8647,6 +8647,9 @@ MaybeHandle<Code> CompileWasmToJSWrapper(Isolate* isolate,
   // Generate the call descriptor.
   CallDescriptor* incoming =
       GetWasmCallDescriptor(zone.get(), sig, WasmCallKind::kWasmImportWrapper);
+  if (machine->Is32()) {
+    incoming = GetI32WasmCallDescriptor(zone.get(), incoming);
+  }
 
   // Run the compilation job synchronously.
   std::unique_ptr<TurbofanCompilationJob> job(
