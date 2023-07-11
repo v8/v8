@@ -1486,6 +1486,15 @@ Node* ScheduleBuilder::ProcessOperation(const Word32PairBinopOp& op) {
     case Kind::kMul:
       pair_operator = machine.Int32PairMul();
       break;
+    case Kind::kShiftLeft:
+      pair_operator = machine.Word32PairShl();
+      break;
+    case Kind::kShiftRightArithmetic:
+      pair_operator = machine.Word32PairSar();
+      break;
+    case Kind::kShiftRightLogical:
+      pair_operator = machine.Word32PairShr();
+      break;
   }
   return AddNode(pair_operator,
                  {GetNode(op.left_low()), GetNode(op.left_high()),

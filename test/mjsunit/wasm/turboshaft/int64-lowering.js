@@ -162,3 +162,65 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     0b10101010_00000000_11111111_01010101n,
     0b01010101_11111111_00000000_00000000n));
 })();
+
+(function I64BitShl() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  builder.addFunction("shl", makeSig([kWasmI64, kWasmI64], [kWasmI64]))
+    .addBody([
+      kExprLocalGet, 0,
+      kExprLocalGet, 1,
+      kExprI64Shl,
+    ])
+    .exportFunc();
+
+  let wasm = builder.instantiate().exports;
+  assertEquals(0x123456789n, wasm.shl(0x123456789n, 0n));
+  assertEquals(0x1234567890000n, wasm.shl(0x123456789n, 16n));
+  assertEquals(0x3456789000000000n, wasm.shl(0x123456789n, 36n));
+  assertEquals(31n << 56n, wasm.shl(31n, -8n));
+  assertEquals(31n << 1n, wasm.shl(31n, 65n));
+})();
+
+(function I64BitShrs() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  builder.addFunction("shrs", makeSig([kWasmI64, kWasmI64], [kWasmI64]))
+    .addBody([
+      kExprLocalGet, 0,
+      kExprLocalGet, 1,
+      kExprI64ShrS,
+    ])
+    .exportFunc();
+
+  let wasm = builder.instantiate().exports;
+  assertEquals(0x123456789n, wasm.shrs(0x123456789n, 0n));
+  assertEquals(0x12345n, wasm.shrs(0x123456789n, 16n));
+  assertEquals(-0x2n, wasm.shrs(-0x123456789n, 32n));
+  assertEquals(-0x1n, wasm.shrs(-0x123456789n, 33n));
+  assertEquals(-0x1n, wasm.shrs(-0x123456789n, 40n));
+  assertEquals(-0x123456789n, wasm.shrs(-0x123456789n, 64n));
+  assertEquals(31n >> 56n, wasm.shrs(31n, -8n));
+  assertEquals(31n >> 1n, wasm.shrs(31n, 65n));
+})();
+
+(function I64BitShrU() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  builder.addFunction("shru", makeSig([kWasmI64, kWasmI64], [kWasmI64]))
+    .addBody([
+      kExprLocalGet, 0,
+      kExprLocalGet, 1,
+      kExprI64ShrU,
+    ])
+    .exportFunc();
+
+  let wasm = builder.instantiate().exports;
+  assertEquals(0x123456789n, wasm.shru(0x123456789n, 0n));
+  assertEquals(0x12345n, wasm.shru(0x123456789n, 16n));
+  assertEquals(0xFFFFFFFEn, wasm.shru(-0x123456789n, 32n));
+  assertEquals(0xFn, wasm.shru(-0x123456789n, 60n));
+  assertEquals(-0x123456789n, wasm.shru(-0x123456789n, 64n));
+  assertEquals(31n >> 56n, wasm.shru(31n, -8n));
+  assertEquals(31n >> 1n, wasm.shru(31n, 65n));
+})();

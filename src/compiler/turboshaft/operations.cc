@@ -734,6 +734,15 @@ void Word32PairBinopOp::PrintOptions(std::ostream& os) const {
     case Kind::kMul:
       os << "Mul";
       break;
+    case Kind::kShiftLeft:
+      os << "ShiftLeft";
+      break;
+    case Kind::kShiftRightArithmetic:
+      os << "ShiftRightSigned";
+      break;
+    case Kind::kShiftRightLogical:
+      os << "ShiftRightUnsigned";
+      break;
   }
   os << "]";
 }

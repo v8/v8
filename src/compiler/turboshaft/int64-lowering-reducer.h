@@ -49,6 +49,26 @@ class Int64LoweringReducer : public Next {
     return Next::ReduceWordBinop(left, right, kind, rep);
   }
 
+  OpIndex REDUCE(Shift)(OpIndex left, OpIndex right, ShiftOp::Kind kind,
+                        WordRepresentation rep) {
+    if (rep == WordRepresentation::Word64()) {
+      switch (kind) {
+        case ShiftOp::Kind::kShiftLeft:
+          return ReducePairBinOp(left, right,
+                                 Word32PairBinopOp::Kind::kShiftLeft);
+        case ShiftOp::Kind::kShiftRightArithmetic:
+          return ReducePairBinOp(
+              left, right, Word32PairBinopOp::Kind::kShiftRightArithmetic);
+        case ShiftOp::Kind::kShiftRightLogical:
+          return ReducePairBinOp(left, right,
+                                 Word32PairBinopOp::Kind::kShiftRightLogical);
+        default:
+          break;
+      }
+    }
+    return Next::ReduceShift(left, right, kind, rep);
+  }
+
   OpIndex REDUCE(Constant)(ConstantOp::Kind kind, ConstantOp::Storage value) {
     if (kind == ConstantOp::Kind::kWord64) {
       uint32_t high = value.integral >> 32;

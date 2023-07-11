@@ -1079,6 +1079,9 @@ struct Word32PairBinopOp : FixedArityOperationT<4, Word32PairBinopOp> {
     kAdd,
     kSub,
     kMul,
+    kShiftLeft,
+    kShiftRightArithmetic,
+    kShiftRightLogical,
   };
   Kind kind;
 
