@@ -167,8 +167,8 @@ void MarkingVisitorBase<ConcreteVisitor>::VisitExternalPointer(
 }
 
 #ifdef V8_CODE_POINTER_SANDBOXING
-template <typename ConcreteVisitor, typename MarkingState>
-void MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitCodePointerHandle(
+template <typename ConcreteVisitor>
+void MarkingVisitorBase<ConcreteVisitor>::VisitCodePointerHandle(
     HeapObject host, CodePointerHandle handle) {
   CodePointerTable* table = GetProcessWideCodePointerTable();
   CodePointerTable::Space* space = heap_->code_pointer_space();
