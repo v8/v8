@@ -207,18 +207,8 @@ class V8_EXPORT_PRIVATE ExternalEntityTable {
   // Returns true if this table has been initialized.
   bool is_initialized() const;
 
-  // Initializes the table by reserving the backing memory, allocating an
-  // initial segment, and populating the freelist.
-  void InitializeTable();
-
-  // Deallocates all memory associated with this table.
-  void TearDownTable();
-
-  // Initializes the given space for use with this table.
-  void InitializeSpace(Space* space);
-
-  // Deallocates all segments owned by the given space.
-  void TearDownSpace(Space* space);
+  // Returns the base address of this table.
+  Address base() const;
 
   // Allocates a new entry in the given space and return its index.
   //
@@ -266,6 +256,24 @@ class V8_EXPORT_PRIVATE ExternalEntityTable {
   // to recognize.
   static constexpr FreelistHead kEntryAllocationIsForbiddenMarker =
       FreelistHead(-1, -1);
+
+ public:
+  // Initializes the table by reserving the backing memory, allocating an
+  // initial segment, and populating the freelist.
+  void Initialize();
+
+  // Deallocates all memory associated with this table.
+  void TearDown();
+
+  // Initializes the given space for use with this table.
+  void InitializeSpace(Space* space);
+
+  // Deallocates all segments owned by the given space.
+  void TearDownSpace(Space* space);
+
+ private:
+  // Required for Isolate::CheckIsolateLayout().
+  friend class Isolate;
 
   // The pointer to the base of the virtual address space backing this table.
   // All entry accesses happen through this pointer.

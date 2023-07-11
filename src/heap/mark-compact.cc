@@ -385,10 +385,12 @@ void MarkCompactCollector::CollectGarbage() {
   DCHECK(state_ == PREPARE_GC);
 
   MarkLiveObjects();
+  // This will walk dead object graphs and so requires that all references are
+  // still intact.
+  RecordObjectStats();
   ClearNonLiveReferences();
   VerifyMarking();
   heap_->memory_measurement()->FinishProcessing(native_context_stats_);
-  RecordObjectStats();
 
   Sweep();
   Evacuate();
@@ -2735,6 +2737,14 @@ void MarkCompactCollector::ClearNonLiveReferences() {
     }
   }
 #endif  // V8_ENABLE_SANDBOX
+
+#ifdef V8_CODE_POINTER_SANDBOXING
+  {
+    TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_SWEEP_CODE_POINTER_TABLE);
+    GetProcessWideCodePointerTable()->Sweep(heap_->code_pointer_space(),
+                                            isolate->counters());
+  }
+#endif  // V8_CODE_POINTER_SANDBOXING
 
   {
     TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_CLEAR_JOIN_JOB);

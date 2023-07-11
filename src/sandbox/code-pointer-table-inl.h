@@ -38,6 +38,18 @@ uint32_t CodePointerTableEntry::GetNextFreelistEntryIndex() const {
   return static_cast<uint32_t>(pointer_.load(std::memory_order_relaxed));
 }
 
+void CodePointerTableEntry::Mark() {
+  marking_state_.store(1, std::memory_order_relaxed);
+}
+
+void CodePointerTableEntry::Unmark() {
+  marking_state_.store(0, std::memory_order_relaxed);
+}
+
+bool CodePointerTableEntry::IsMarked() const {
+  return marking_state_.load(std::memory_order_relaxed) != 0;
+}
+
 Address CodePointerTable::Get(CodePointerHandle handle) const {
   uint32_t index = HandleToIndex(handle);
   return at(index).GetCodePointer();
@@ -51,9 +63,24 @@ void CodePointerTable::Set(CodePointerHandle handle, Address value) {
 
 CodePointerHandle CodePointerTable::AllocateAndInitializeEntry(
     Space* space, Address initial_value) {
+  DCHECK(space->BelongsTo(this));
   uint32_t index = AllocateEntry(space);
   at(index).MakeCodePointerEntry(initial_value);
+  // Until we have write barriers for code pointer table entries we need to mark
+  // the entries as alive when they are allocated.
+  at(index).Mark();
   return IndexToHandle(index);
+}
+
+void CodePointerTable::Mark(Space* space, CodePointerHandle handle) {
+  DCHECK(space->BelongsTo(this));
+  // The null entry is immortal and immutable, so no need to mark it as alive.
+  if (handle == kNullCodePointerHandle) return;
+
+  uint32_t index = HandleToIndex(handle);
+  DCHECK(space->Contains(index));
+
+  at(index).Mark();
 }
 
 uint32_t CodePointerTable::HandleToIndex(CodePointerHandle handle) const {

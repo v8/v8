@@ -3479,9 +3479,10 @@ void MacroAssembler::LoadCodePointerField(Register destination,
   Register table = temps.AcquireX();
   Mov(table, ExternalReference::code_pointer_table_address());
   Ldr(destination.W(), field_operand);
+  // TODO(saelo): can the offset computation be done more efficiently?
   Mov(destination, Operand(destination, LSR, kCodePointerIndexShift));
-  Ldr(destination,
-      MemOperand(table, destination, LSL, kCodePointerTableEntrySizeLog2));
+  Mov(destination, Operand(destination, LSL, kCodePointerTableEntrySizeLog2));
+  Ldr(destination, MemOperand(table, destination));
 #else
   Ldr(destination, field_operand);
 #endif  // V8_CODE_POINTER_SANDBOXING

@@ -48,6 +48,12 @@ std::shared_ptr<ReadOnlyArtifacts> InitializeSharedReadOnlyArtifacts() {
 }
 }  // namespace
 
+ReadOnlyHeap::~ReadOnlyHeap() {
+#ifdef V8_CODE_POINTER_SANDBOXING
+  GetProcessWideCodePointerTable()->TearDownSpace(&code_pointer_space_);
+#endif
+}
+
 bool ReadOnlyHeap::IsSharedMemoryAvailable() {
   static bool shared_memory_allocation_supported =
       GetPlatformPageAllocator()->CanAllocateSharedPages();
@@ -210,6 +216,13 @@ void ReadOnlyHeap::InitFromIsolate(Isolate* isolate) {
   } else {
     read_only_space_->Seal(ReadOnlySpace::SealMode::kDoNotDetachFromHeap);
   }
+}
+
+ReadOnlyHeap::ReadOnlyHeap(ReadOnlySpace* ro_space)
+    : read_only_space_(ro_space) {
+#ifdef V8_CODE_POINTER_SANDBOXING
+  GetProcessWideCodePointerTable()->InitializeSpace(&code_pointer_space_);
+#endif
 }
 
 void ReadOnlyHeap::OnHeapTearDown(Heap* heap) {

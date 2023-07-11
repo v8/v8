@@ -43,6 +43,8 @@
 #include "src/objects/smi.h"
 #include "src/objects/visitors.h"
 #include "src/roots/roots.h"
+#include "src/sandbox/code-pointer-table.h"
+#include "src/sandbox/external-pointer-table.h"
 #include "src/utils/allocation.h"
 #include "testing/gtest/include/gtest/gtest_prod.h"  // nogncheck
 
@@ -768,6 +770,10 @@ class Heap final {
     return &external_pointer_space_;
   }
 #endif  // V8_COMPRESS_POINTERS
+        //
+#ifdef V8_CODE_POINTER_SANDBOXING
+  CodePointerTable::Space* code_pointer_space() { return &code_pointer_space_; }
+#endif  // V8_CODE_POINTER_SANDBOXING
 
   // ===========================================================================
   // Getters to other components. ==============================================
@@ -2089,6 +2095,11 @@ class Heap final {
   // in this heap.
   ExternalPointerTable::Space external_pointer_space_;
 #endif  // V8_COMPRESS_POINTERS
+
+#ifdef V8_CODE_POINTER_SANDBOXING
+  // The space in the process-wide code pointer table managed by this heap.
+  CodePointerTable::Space code_pointer_space_;
+#endif  // V8_CODE_POINTER_SANDBOXING
 
   LocalHeap* main_thread_local_heap_ = nullptr;
 

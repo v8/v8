@@ -18,6 +18,7 @@ namespace v8 {
 namespace internal {
 
 class Isolate;
+class Counters;
 
 /**
  * The entries of a CodePointerTable.
@@ -44,6 +45,15 @@ struct CodePointerTableEntry {
   // for efficient entry allocation, see TryAllocateEntryFromFreelist.
   inline uint32_t GetNextFreelistEntryIndex() const;
 
+  // Mark this entry as alive during garbage collection.
+  inline void Mark();
+
+  // Unmark this entry during sweeping.
+  inline void Unmark();
+
+  // Test whether this entry is currently marked as alive.
+  inline bool IsMarked() const;
+
  private:
   friend class CodePointerTable;
 
@@ -52,9 +62,12 @@ struct CodePointerTableEntry {
   static constexpr Address kFreeEntryTag = 0xffffffffULL << 32;
 
   std::atomic<Address> pointer_;
+  // Currently only contains the marking bit, but will likely contain another
+  // pointer (to the owning Code object) in the future.
+  std::atomic<Address> marking_state_;
 };
 
-static_assert(sizeof(CodePointerTableEntry) == 8);
+static_assert(sizeof(CodePointerTableEntry) == kCodePointerTableEntrySize);
 
 /**
  * A table containing pointers to code.
@@ -79,11 +92,13 @@ class V8_EXPORT_PRIVATE CodePointerTable
   CodePointerTable(const CodePointerTable&) = delete;
   CodePointerTable& operator=(const CodePointerTable&) = delete;
 
-  // Initializes this table by reserving the backing memory.
-  void Initialize();
-
-  // Resets this table and deletes all associated memory.
-  void TearDown();
+  // The Spaces used by a CodePointerTable.
+  struct Space
+      : public ExternalEntityTable<CodePointerTableEntry,
+                                   kCodePointerTableReservationSize>::Space {
+   private:
+    friend class CodePointerTable;
+  };
 
   // Retrieves the entry referenced by the given handle.
   //
@@ -102,8 +117,21 @@ class V8_EXPORT_PRIVATE CodePointerTable
   inline CodePointerHandle AllocateAndInitializeEntry(Space* space,
                                                       Address initial_value);
 
+  // Marks the specified entry as alive.
+  //
+  // This method is atomic and can be called from background threads.
+  inline void Mark(Space* space, CodePointerHandle handle);
+
+  // Frees all unmarked entries in the given space.
+  //
+  // This method must only be called while mutator threads are stopped as it is
+  // not safe to allocate table entries while a space is being swept.
+  //
+  // Returns the number of live entries after sweeping.
+  uint32_t Sweep(Space* space, Counters* counters);
+
   // The base address of this table, for use in JIT compilers.
-  Address base_address() const { return reinterpret_cast<Address>(base_); }
+  Address base_address() const { return base(); }
 
  private:
   inline uint32_t HandleToIndex(CodePointerHandle handle) const;

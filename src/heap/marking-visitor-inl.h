@@ -166,6 +166,16 @@ void MarkingVisitorBase<ConcreteVisitor>::VisitExternalPointer(
 #endif  // V8_ENABLE_SANDBOX
 }
 
+#ifdef V8_CODE_POINTER_SANDBOXING
+template <typename ConcreteVisitor, typename MarkingState>
+void MarkingVisitorBase<ConcreteVisitor, MarkingState>::VisitCodePointerHandle(
+    HeapObject host, CodePointerHandle handle) {
+  CodePointerTable* table = GetProcessWideCodePointerTable();
+  CodePointerTable::Space* space = heap_->code_pointer_space();
+  table->Mark(space, handle);
+}
+#endif  // V8_CODE_POINTER_SANDBOXING
+
 // ===========================================================================
 // Object participating in bytecode flushing =================================
 // ===========================================================================

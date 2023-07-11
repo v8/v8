@@ -347,18 +347,6 @@ class V8_EXPORT_PRIVATE ExternalPointerTable
     std::atomic<uint32_t> start_of_evacuation_area_;
   };
 
-  // Initializes this external pointer table by reserving the backing memory.
-  void Initialize();
-
-  // Resets this external pointer table and deletes all associated memory.
-  void TearDown();
-
-  // Initializes the given space for use with this table.
-  void Initialize(Space* space);
-
-  // Tears down the given space and deallocates all segments owned by it.
-  void TearDown(Space* space);
-
   // Retrieves the entry referenced by the given handle.
   //
   // This method is atomic and can be called from background threads.
@@ -406,9 +394,6 @@ class V8_EXPORT_PRIVATE ExternalPointerTable
   uint32_t SweepAndCompact(Space* space, Counters* counters);
 
  private:
-  // Required for Isolate::CheckIsolateLayout().
-  friend class Isolate;
-
   inline bool IsValidHandle(ExternalPointerHandle handle) const;
   inline uint32_t HandleToIndex(ExternalPointerHandle handle) const;
   inline ExternalPointerHandle IndexToHandle(uint32_t index) const;

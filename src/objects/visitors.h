@@ -178,6 +178,12 @@ class ObjectVisitor {
   virtual void VisitExternalPointer(HeapObject host, ExternalPointerSlot slot,
                                     ExternalPointerTag tag) {}
 
+#ifdef V8_CODE_POINTER_SANDBOXING
+  // TODO(saelo): do we want to add a CodePointerSlot struct as well?
+  virtual void VisitCodePointerHandle(HeapObject host,
+                                      CodePointerHandle handle) {}
+#endif
+
   virtual void VisitMapPointer(HeapObject host) { UNREACHABLE(); }
 };
 

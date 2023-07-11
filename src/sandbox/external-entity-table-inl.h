@@ -74,7 +74,13 @@ bool ExternalEntityTable<Entry, size>::is_initialized() const {
 }
 
 template <typename Entry, size_t size>
-void ExternalEntityTable<Entry, size>::InitializeTable() {
+Address ExternalEntityTable<Entry, size>::base() const {
+  DCHECK(is_initialized());
+  return reinterpret_cast<Address>(base_);
+}
+
+template <typename Entry, size_t size>
+void ExternalEntityTable<Entry, size>::Initialize() {
   DCHECK(!is_initialized());
   DCHECK_EQ(vas_, nullptr);
 
@@ -116,7 +122,7 @@ void ExternalEntityTable<Entry, size>::InitializeTable() {
 }
 
 template <typename Entry, size_t size>
-void ExternalEntityTable<Entry, size>::TearDownTable() {
+void ExternalEntityTable<Entry, size>::TearDown() {
   DCHECK(is_initialized());
 
   // Deallocate the (read-only) first segment.

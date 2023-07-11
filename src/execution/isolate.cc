@@ -3705,10 +3705,11 @@ void Isolate::Deinit() {
   }
 
 #ifdef V8_COMPRESS_POINTERS
-  external_pointer_table().TearDown(heap()->external_pointer_space());
+  external_pointer_table().TearDownSpace(heap()->external_pointer_space());
   external_pointer_table().TearDown();
   if (owns_shareable_data()) {
-    shared_external_pointer_table().TearDown(shared_external_pointer_space());
+    shared_external_pointer_table().TearDownSpace(
+        shared_external_pointer_space());
     shared_external_pointer_table().TearDown();
     delete isolate_data_.shared_external_pointer_table_;
     isolate_data_.shared_external_pointer_table_ = nullptr;
@@ -3716,6 +3717,10 @@ void Isolate::Deinit() {
     shared_external_pointer_space_ = nullptr;
   }
 #endif  // V8_COMPRESS_POINTERS
+
+#ifdef V8_CODE_POINTER_SANDBOXING
+  GetProcessWideCodePointerTable()->TearDownSpace(heap()->code_pointer_space());
+#endif
 
   {
     base::MutexGuard lock_guard(&thread_data_table_mutex_);
@@ -4454,12 +4459,13 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
 
 #ifdef V8_COMPRESS_POINTERS
   external_pointer_table().Initialize();
-  external_pointer_table().Initialize(heap()->external_pointer_space());
+  external_pointer_table().InitializeSpace(heap()->external_pointer_space());
   if (owns_shareable_data()) {
     isolate_data_.shared_external_pointer_table_ = new ExternalPointerTable();
     shared_external_pointer_space_ = new ExternalPointerTable::Space();
     shared_external_pointer_table().Initialize();
-    shared_external_pointer_table().Initialize(shared_external_pointer_space());
+    shared_external_pointer_table().InitializeSpace(
+        shared_external_pointer_space());
   } else {
     DCHECK(has_shared_space());
     isolate_data_.shared_external_pointer_table_ =
@@ -4468,6 +4474,11 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
         shared_space_isolate()->shared_external_pointer_space_;
   }
 #endif  // V8_COMPRESS_POINTERS
+        //
+#ifdef V8_CODE_POINTER_SANDBOXING
+  GetProcessWideCodePointerTable()->InitializeSpace(
+      heap()->code_pointer_space());
+#endif
 
 #if V8_ENABLE_WEBASSEMBLY
   wasm::GetWasmEngine()->AddIsolate(this);

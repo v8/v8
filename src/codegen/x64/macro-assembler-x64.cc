@@ -479,8 +479,8 @@ void MacroAssembler::LoadCodePointerField(Register destination,
   LoadAddress(scratch, ExternalReference::code_pointer_table_address());
   movl(destination, field_operand);
   shrl(destination, Immediate(kCodePointerIndexShift));
-  static_assert(kCodePointerTableEntrySize == 8);
-  movq(destination, Operand(scratch, destination, times_8, 0));
+  shll(destination, Immediate(kCodePointerTableEntrySizeLog2));
+  movq(destination, Operand(scratch, destination, times_1, 0));
 #else
   movq(destination, field_operand);
 #endif  // V8_CODE_POINTER_SANDBOXING

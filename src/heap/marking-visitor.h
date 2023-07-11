@@ -128,6 +128,11 @@ class MarkingVisitorBase : public ConcurrentHeapVisitor<int, ConcreteVisitor> {
 
   V8_INLINE void VisitExternalPointer(HeapObject host, ExternalPointerSlot slot,
                                       ExternalPointerTag tag) final;
+#ifdef V8_CODE_POINTER_SANDBOXING
+  V8_INLINE void VisitCodePointerHandle(HeapObject host,
+                                        CodePointerHandle handle) final;
+#endif
+
   void SynchronizePageAccess(HeapObject heap_object) {
 #ifdef THREAD_SANITIZER
     // This is needed because TSAN does not process the memory fence

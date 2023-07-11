@@ -1094,6 +1094,10 @@ class Code::BodyDescriptor final : public BodyDescriptorBase {
     v->VisitInstructionStreamPointer(
         Code::cast(obj),
         obj.RawInstructionStreamField(kInstructionStreamOffset));
+#ifdef V8_CODE_POINTER_SANDBOXING
+    v->VisitCodePointerHandle(Code::cast(obj), obj.ReadField<CodePointerHandle>(
+                                                   kInstructionStartOffset));
+#endif
   }
 
   static inline int SizeOf(Map map, HeapObject object) { return Code::kSize; }

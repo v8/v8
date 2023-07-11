@@ -17,8 +17,13 @@ namespace internal {
 V8_INLINE void InitCodePointerField(Address field_address, Isolate* isolate,
                                     Address value) {
 #ifdef V8_CODE_POINTER_SANDBOXING
+  CodePointerTable::Space* space =
+      ReadOnlyHeap::Contains(field_address)
+          ? isolate->read_only_heap()->code_pointer_space()
+          : isolate->heap()->code_pointer_space();
   CodePointerHandle handle =
-      GetProcessWideCodePointerTable()->AllocateAndInitializeEntry(value);
+      GetProcessWideCodePointerTable()->AllocateAndInitializeEntry(space,
+                                                                   value);
   // Use a Release_Store to ensure that the store of the pointer into the
   // table is not reordered after the store of the handle. Otherwise, other
   // threads may access an uninitialized table entry and crash.

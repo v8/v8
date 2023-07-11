@@ -14,6 +14,7 @@
 #include "src/objects/heap-object.h"
 #include "src/objects/objects.h"
 #include "src/roots/roots.h"
+#include "src/sandbox/code-pointer-table.h"
 
 namespace v8 {
 
@@ -37,7 +38,7 @@ class ReadOnlyHeap {
   static constexpr size_t kEntriesCount =
       static_cast<size_t>(RootIndex::kReadOnlyRootsCount);
 
-  virtual ~ReadOnlyHeap() = default;
+  virtual ~ReadOnlyHeap();
 
   ReadOnlyHeap(const ReadOnlyHeap&) = delete;
   ReadOnlyHeap& operator=(const ReadOnlyHeap&) = delete;
@@ -83,6 +84,10 @@ class ReadOnlyHeap {
 
   ReadOnlySpace* read_only_space() const { return read_only_space_; }
 
+#ifdef V8_CODE_POINTER_SANDBOXING
+  CodePointerTable::Space* code_pointer_space() { return &code_pointer_space_; }
+#endif
+
   // Returns whether the ReadOnlySpace will actually be shared taking into
   // account whether shared memory is available with pointer compression.
   static constexpr bool IsReadOnlySpaceShared() {
@@ -118,11 +123,17 @@ class ReadOnlyHeap {
   bool roots_init_complete_ = false;
   ReadOnlySpace* read_only_space_ = nullptr;
 
+#ifdef V8_CODE_POINTER_SANDBOXING
+  // The read-only heap has its own code pointer space. Entries in this space
+  // are never deallocated.
+  CodePointerTable::Space code_pointer_space_;
+#endif  // V8_CODE_POINTER_SANDBOXING
+
   // Returns whether shared memory can be allocated and then remapped to
   // additional addresses.
   static bool IsSharedMemoryAvailable();
 
-  explicit ReadOnlyHeap(ReadOnlySpace* ro_space) : read_only_space_(ro_space) {}
+  explicit ReadOnlyHeap(ReadOnlySpace* ro_space);
   ReadOnlyHeap(ReadOnlyHeap* ro_heap, ReadOnlySpace* ro_space);
 };
 

@@ -495,7 +495,7 @@ constexpr CodePointerHandle kNullCodePointerHandle = 0;
 // size allows omitting bounds checks on table accesses if the indices are
 // guaranteed (e.g. through shifting) to be below the maximum index. This
 // value must be a power of two.
-static const size_t kCodePointerTableReservationSize = 512 * MB;
+static const size_t kCodePointerTableReservationSize = 1 * GB;
 
 // The code pointer table indices stored in HeapObjects as external
 // pointers are shifted to the left by this amount to guarantee that they are
@@ -503,8 +503,8 @@ static const size_t kCodePointerTableReservationSize = 512 * MB;
 static const uint32_t kCodePointerIndexShift = 6;
 
 // The maximum number of entries in an external pointer table.
-static const int kCodePointerTableEntrySize = 8;
-static const int kCodePointerTableEntrySizeLog2 = 3;
+static const int kCodePointerTableEntrySize = 16;
+static const int kCodePointerTableEntrySizeLog2 = 4;
 static const size_t kMaxCodePointers =
     kCodePointerTableReservationSize / kCodePointerTableEntrySize;
 static_assert(
