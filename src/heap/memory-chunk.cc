@@ -9,6 +9,7 @@
 #include "src/base/platform/platform.h"
 #include "src/common/globals.h"
 #include "src/heap/basic-memory-chunk.h"
+#include "src/heap/incremental-marking.h"
 #include "src/heap/marking-state-inl.h"
 #include "src/heap/memory-allocator.h"
 #include "src/heap/memory-chunk-inl.h"
@@ -141,11 +142,10 @@ size_t MemoryChunk::CommittedPhysicalMemory() const {
   return active_system_pages_->Size(MemoryAllocator::GetCommitPageSizeBits());
 }
 
-void MemoryChunk::SetOldGenerationPageFlags(bool is_marking) {
-  if (is_marking) {
+void MemoryChunk::SetOldGenerationPageFlags(MarkingMode marking_mode) {
+  if (marking_mode == MarkingMode::kMajorMarking) {
     SetFlag(MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING);
     SetFlag(MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING);
-    SetFlag(MemoryChunk::INCREMENTAL_MARKING);
   } else {
     if (owner_identity() == SHARED_SPACE ||
         owner_identity() == SHARED_LO_SPACE) {
@@ -157,13 +157,18 @@ void MemoryChunk::SetOldGenerationPageFlags(bool is_marking) {
       ClearFlag(MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING);
       SetFlag(MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING);
     }
+  }
+
+  if (marking_mode != MarkingMode::kNoMarking) {
+    SetFlag(MemoryChunk::INCREMENTAL_MARKING);
+  } else {
     ClearFlag(MemoryChunk::INCREMENTAL_MARKING);
   }
 }
 
-void MemoryChunk::SetYoungGenerationPageFlags(bool is_marking) {
+void MemoryChunk::SetYoungGenerationPageFlags(MarkingMode marking_mode) {
   SetFlag(MemoryChunk::POINTERS_TO_HERE_ARE_INTERESTING);
-  if (is_marking) {
+  if (marking_mode != MarkingMode::kNoMarking) {
     SetFlag(MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING);
     SetFlag(MemoryChunk::INCREMENTAL_MARKING);
   } else {

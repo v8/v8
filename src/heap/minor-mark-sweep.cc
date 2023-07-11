@@ -800,7 +800,7 @@ void MinorMarkSweepCollector::MarkLiveObjects() {
     DCHECK(incremental_marking->IsMinorMarking());
     DCHECK(v8_flags.concurrent_minor_ms_marking);
     incremental_marking->Stop();
-    MarkingBarrier::PublishAll(heap_);
+    MarkingBarrier::PublishYoung(heap_);
   }
 
   DCHECK_NOT_NULL(marking_worklists_);
@@ -852,7 +852,7 @@ void MinorMarkSweepCollector::MarkLiveObjects() {
   if (was_marked_incrementally) {
     // Disable the marking barrier after concurrent/parallel marking has
     // finished as it will reset page flags.
-    MarkingBarrier::DeactivateAll(heap_);
+    MarkingBarrier::DeactivateYoung(heap_);
   }
 
   main_marking_visitor_.reset();

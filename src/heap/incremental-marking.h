@@ -39,8 +39,6 @@ enum class StepOrigin {
   kTask
 };
 
-enum class CurrentCollector { kNone, kMinorMS, kMajorMC };
-
 class V8_EXPORT_PRIVATE IncrementalMarking final {
  public:
   class V8_NODISCARD PauseBlackAllocationScope {
@@ -91,8 +89,10 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
 
   IncrementalMarking(Heap* heap, WeakObjects* weak_objects);
 
+  MarkingMode marking_mode() const { return marking_mode_; }
+
   bool IsStopped() const { return !IsMarking(); }
-  bool IsMarking() const { return is_marking_; }
+  bool IsMarking() const { return marking_mode_ != MarkingMode::kNoMarking; }
   bool IsMajorMarkingComplete() const {
     return IsMajorMarking() && ShouldFinalize();
   }
@@ -146,10 +146,10 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
   }
 
   bool IsMinorMarking() const {
-    return IsMarking() && current_collector_ == CurrentCollector::kMinorMS;
+    return marking_mode_ == MarkingMode::kMinorMarking;
   }
   bool IsMajorMarking() const {
-    return IsMarking() && current_collector_ == CurrentCollector::kMajorMC;
+    return marking_mode_ == MarkingMode::kMajorMarking;
   }
 
   void MarkRootsForTesting();
@@ -206,7 +206,6 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
   }
 
   Heap* const heap_;
-  CurrentCollector current_collector_{CurrentCollector::kNone};
   MarkCompactCollector* const major_collector_;
   MinorMarkSweepCollector* const minor_collector_;
   WeakObjects* weak_objects_;
@@ -217,7 +216,8 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
   // A sample of concurrent_marking()->TotalMarkedBytes() at the last
   // incremental marking step.
   size_t bytes_marked_concurrently_ = 0;
-  bool is_marking_ = false;
+  MarkingMode marking_mode_ = MarkingMode::kNoMarking;
+
   bool is_compacting_ = false;
   bool black_allocation_ = false;
   bool completion_task_scheduled_ = false;

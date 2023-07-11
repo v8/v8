@@ -64,6 +64,9 @@ void MarkingBarrier::MarkValueLocal(HeapObject value) {
   if (is_minor()) {
     // We do not need to insert into RememberedSet<OLD_TO_NEW> here because the
     // C++ marking barrier already does this for us.
+    // TODO(v8:13012): Consider updating C++ barriers to respect
+    // POINTERS_TO_HERE_ARE_INTERESTING and POINTERS_FROM_HERE_ARE_INTERESTING
+    // page flags and make the following branch a DCHECK.
     if (Heap::InYoungGeneration(value)) {
       WhiteToGreyAndPush<DataOnlyObjectHandlingMode::kSkipWorklist>(
           value);  // NEW->NEW

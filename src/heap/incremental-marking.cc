@@ -138,7 +138,6 @@ void IncrementalMarking::Start(GarbageCollector garbage_collector,
   bytes_marked_concurrently_ = 0;
 
   if (is_major) {
-    current_collector_ = CurrentCollector::kMajorMC;
     StartMarkingMajor();
     heap_->AddAllocationObserversToAllSpaces(&old_generation_observer_,
                                              &new_generation_observer_);
@@ -147,7 +146,6 @@ void IncrementalMarking::Start(GarbageCollector garbage_collector,
     schedule_ = std::make_unique<::heap::base::IncrementalMarkingSchedule>();
     schedule_->NotifyIncrementalMarkingStart();
   } else {
-    current_collector_ = CurrentCollector::kMinorMS;
     // Allocation observers are not currently used by MinorMS because we don't
     // do incremental marking.
     StartMarkingMinor();
@@ -274,11 +272,10 @@ void IncrementalMarking::StartMarkingMajor() {
   current_local_marking_worklists_ =
       major_collector_->local_marking_worklists();
 
-  is_marking_ = true;
+  marking_mode_ = MarkingMode::kMajorMarking;
   heap_->SetIsMarkingFlag(true);
 
-  MarkingBarrier::ActivateAll(heap(), is_compacting_,
-                              MarkingBarrierType::kMajor);
+  MarkingBarrier::ActivateAll(heap(), is_compacting_);
   isolate()->traced_handles()->SetIsMarking(true);
 
   StartBlackAllocation();
@@ -324,11 +321,11 @@ void IncrementalMarking::StartMarkingMinor() {
   current_local_marking_worklists_ =
       minor_collector_->local_marking_worklists();
 
-  is_marking_ = true;
+  marking_mode_ = MarkingMode::kMinorMarking;
   heap_->SetIsMarkingFlag(true);
   heap_->SetIsMinorMarkingFlag(true);
 
-  MarkingBarrier::ActivateAll(heap(), false, MarkingBarrierType::kMinor);
+  MarkingBarrier::ActivateYoung(heap());
 
   {
     TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MS_MARK_INCREMENTAL_SEED);
@@ -533,7 +530,7 @@ bool IncrementalMarking::Stop() {
   collection_requested_via_stack_guard_ = false;
   isolate()->stack_guard()->ClearGC();
 
-  is_marking_ = false;
+  marking_mode_ = MarkingMode::kNoMarking;
 
   if (isolate()->has_shared_space() && !isolate()->is_shared_space_isolate()) {
     // When disabling local incremental marking in a client isolate (= worker
@@ -562,7 +559,6 @@ bool IncrementalMarking::Stop() {
     }
   }
   background_live_bytes_.clear();
-  current_collector_ = CurrentCollector::kNone;
   schedule_.reset();
 
   return true;

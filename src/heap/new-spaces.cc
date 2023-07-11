@@ -30,7 +30,8 @@ Page* SemiSpace::InitializePage(MemoryChunk* chunk) {
   bool in_to_space = (id() != kFromSpace);
   chunk->SetFlag(in_to_space ? MemoryChunk::TO_PAGE : MemoryChunk::FROM_PAGE);
   Page* page = static_cast<Page*>(chunk);
-  page->SetYoungGenerationPageFlags(heap()->incremental_marking()->IsMarking());
+  page->SetYoungGenerationPageFlags(
+      heap()->incremental_marking()->marking_mode());
   page->list_node().Initialize();
   if (v8_flags.minor_ms) {
     page->ClearLiveness();
@@ -895,7 +896,8 @@ Page* PagedSpaceForNewSpace::InitializePage(MemoryChunk* chunk) {
   // Make sure that categories are initialized before freeing the area.
   page->ResetAllocationStatistics();
   page->SetFlags(Page::TO_PAGE);
-  page->SetYoungGenerationPageFlags(heap()->incremental_marking()->IsMarking());
+  page->SetYoungGenerationPageFlags(
+      heap()->incremental_marking()->marking_mode());
   page->ClearLiveness();
   page->AllocateFreeListCategories();
   page->InitializeFreeListCategories();

@@ -23,6 +23,8 @@ namespace internal {
 class FreeListCategory;
 class Space;
 
+enum class MarkingMode { kNoMarking, kMinorMarking, kMajorMarking };
+
 // MemoryChunk represents a memory region owned by a specific space.
 // It is divided into the header and the body. Chunk start is always
 // 1MB aligned. Start of the body is aligned so it can accommodate
@@ -74,8 +76,8 @@ class MemoryChunk : public BasicMemoryChunk {
 
   size_t buckets() const { return SlotSet::BucketsForSize(size()); }
 
-  void SetOldGenerationPageFlags(bool is_marking);
-  void SetYoungGenerationPageFlags(bool is_marking);
+  void SetOldGenerationPageFlags(MarkingMode marking_mode);
+  void SetYoungGenerationPageFlags(MarkingMode marking_mode);
 
   static inline void MoveExternalBackingStoreBytes(
       ExternalBackingStoreType type, MemoryChunk* from, MemoryChunk* to,

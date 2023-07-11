@@ -159,7 +159,8 @@ AllocationResult OldLargeObjectSpace::AllocateRaw(int object_size,
 
   LargePage* page = AllocateLargePage(object_size, executable);
   if (page == nullptr) return AllocationResult::Failure();
-  page->SetOldGenerationPageFlags(heap()->incremental_marking()->IsMarking());
+  page->SetOldGenerationPageFlags(
+      heap()->incremental_marking()->marking_mode());
   HeapObject object = page->GetObject();
   UpdatePendingObject(object);
   heap()->StartIncrementalMarkingIfAllocationLimitIsReached(
@@ -196,7 +197,8 @@ AllocationResult OldLargeObjectSpace::AllocateRawBackground(
 
   LargePage* page = AllocateLargePage(object_size, executable);
   if (page == nullptr) return AllocationResult::Failure();
-  page->SetOldGenerationPageFlags(heap()->incremental_marking()->IsMarking());
+  page->SetOldGenerationPageFlags(
+      heap()->incremental_marking()->marking_mode());
   HeapObject object = page->GetObject();
   heap()->StartIncrementalMarkingIfAllocationLimitIsReachedBackground();
   if (heap()->incremental_marking()->black_allocation()) {
@@ -252,7 +254,8 @@ void LargeObjectSpace::AddPage(LargePage* page, size_t object_size) {
   page_count_++;
   memory_chunk_list_.PushBack(page);
   page->set_owner(this);
-  page->SetOldGenerationPageFlags(heap()->incremental_marking()->IsMarking());
+  page->SetOldGenerationPageFlags(
+      heap()->incremental_marking()->marking_mode());
   for (size_t i = 0; i < ExternalBackingStoreType::kNumTypes; i++) {
     ExternalBackingStoreType t = static_cast<ExternalBackingStoreType>(i);
     IncrementExternalBackingStoreBytes(t, page->ExternalBackingStoreBytes(t));
@@ -448,7 +451,8 @@ AllocationResult NewLargeObjectSpace::AllocateRaw(int object_size) {
   capacity_ = std::max(capacity_, SizeOfObjects());
 
   HeapObject result = page->GetObject();
-  page->SetYoungGenerationPageFlags(heap()->incremental_marking()->IsMarking());
+  page->SetYoungGenerationPageFlags(
+      heap()->incremental_marking()->marking_mode());
   page->SetFlag(MemoryChunk::TO_PAGE);
   UpdatePendingObject(result);
   if (v8_flags.minor_ms) {

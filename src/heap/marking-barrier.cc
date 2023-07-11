@@ -17,6 +17,7 @@
 #include "src/heap/marking-barrier-inl.h"
 #include "src/heap/marking-worklist-inl.h"
 #include "src/heap/marking-worklist.h"
+#include "src/heap/memory-chunk.h"
 #include "src/heap/minor-mark-sweep.h"
 #include "src/heap/safepoint.h"
 #include "src/objects/heap-object.h"
@@ -174,103 +175,102 @@ void MarkingBarrier::RecordRelocSlot(InstructionStream host, RelocInfo* rinfo,
 }
 
 namespace {
-void ActivateSpace(PagedSpace* space) {
+void ActivateSpace(PagedSpace* space, MarkingMode marking_mode) {
   for (Page* p : *space) {
-    p->SetOldGenerationPageFlags(true);
+    p->SetOldGenerationPageFlags(marking_mode);
   }
 }
 
-void ActivateSpace(NewSpace* space) {
+void ActivateSpace(NewSpace* space, MarkingMode marking_mode) {
   for (Page* p : *space) {
-    p->SetYoungGenerationPageFlags(true);
+    p->SetYoungGenerationPageFlags(marking_mode);
   }
 }
 
-void ActivateSpaces(Heap* heap) {
-  ActivateSpace(heap->old_space());
-  {
-    CodePageHeaderModificationScope rwx_write_scope(
-        "Modification of InstructionStream page header flags requires write "
-        "access");
-    ActivateSpace(heap->code_space());
-  }
-  ActivateSpace(heap->new_space());
-  if (heap->shared_space()) {
-    ActivateSpace(heap->shared_space());
+void ActivateSpaces(Heap* heap, MarkingMode marking_mode) {
+  ActivateSpace(heap->old_space(), marking_mode);
+  for (LargePage* p : *heap->lo_space()) {
+    p->SetOldGenerationPageFlags(marking_mode);
   }
 
+  ActivateSpace(heap->new_space(), marking_mode);
   for (LargePage* p : *heap->new_lo_space()) {
-    p->SetYoungGenerationPageFlags(true);
+    p->SetYoungGenerationPageFlags(marking_mode);
     DCHECK(p->IsLargePage());
   }
 
-  for (LargePage* p : *heap->lo_space()) {
-    p->SetOldGenerationPageFlags(true);
-  }
-
   {
     CodePageHeaderModificationScope rwx_write_scope(
         "Modification of InstructionStream page header flags requires write "
         "access");
+    ActivateSpace(heap->code_space(), marking_mode);
     for (LargePage* p : *heap->code_lo_space()) {
-      p->SetOldGenerationPageFlags(true);
+      p->SetOldGenerationPageFlags(marking_mode);
     }
   }
 
-  if (heap->shared_lo_space()) {
-    for (LargePage* p : *heap->shared_lo_space()) {
-      p->SetOldGenerationPageFlags(true);
+  if (marking_mode == MarkingMode::kMajorMarking) {
+    if (heap->shared_space()) {
+      ActivateSpace(heap->shared_space(), MarkingMode::kMajorMarking);
+    }
+    if (heap->shared_lo_space()) {
+      for (LargePage* p : *heap->shared_lo_space()) {
+        p->SetOldGenerationPageFlags(MarkingMode::kMajorMarking);
+      }
     }
   }
 }
 
 void DeactivateSpace(PagedSpace* space) {
   for (Page* p : *space) {
-    p->SetOldGenerationPageFlags(false);
+    p->SetOldGenerationPageFlags(MarkingMode::kNoMarking);
   }
 }
 
 void DeactivateSpace(NewSpace* space) {
   for (Page* p : *space) {
-    p->SetYoungGenerationPageFlags(false);
+    p->SetYoungGenerationPageFlags(MarkingMode::kNoMarking);
   }
 }
 
-void DeactivateSpaces(Heap* heap) {
+void DeactivateSpaces(Heap* heap, MarkingMode marking_mode) {
   DeactivateSpace(heap->old_space());
-  DeactivateSpace(heap->code_space());
-  DeactivateSpace(heap->new_space());
-  if (heap->shared_space()) {
-    DeactivateSpace(heap->shared_space());
+  for (LargePage* p : *heap->lo_space()) {
+    p->SetOldGenerationPageFlags(MarkingMode::kNoMarking);
   }
+
+  DeactivateSpace(heap->new_space());
   for (LargePage* p : *heap->new_lo_space()) {
-    p->SetYoungGenerationPageFlags(false);
+    p->SetYoungGenerationPageFlags(MarkingMode::kNoMarking);
     DCHECK(p->IsLargePage());
   }
-  for (LargePage* p : *heap->lo_space()) {
-    p->SetOldGenerationPageFlags(false);
-  }
+
+  DeactivateSpace(heap->code_space());
   for (LargePage* p : *heap->code_lo_space()) {
-    p->SetOldGenerationPageFlags(false);
+    p->SetOldGenerationPageFlags(MarkingMode::kNoMarking);
   }
-  if (heap->shared_lo_space()) {
-    for (LargePage* p : *heap->shared_lo_space()) {
-      p->SetOldGenerationPageFlags(false);
+
+  if (marking_mode == MarkingMode::kMajorMarking) {
+    if (heap->shared_space()) {
+      DeactivateSpace(heap->shared_space());
+    }
+    if (heap->shared_lo_space()) {
+      for (LargePage* p : *heap->shared_lo_space()) {
+        p->SetOldGenerationPageFlags(MarkingMode::kNoMarking);
+      }
     }
   }
 }
 }  // namespace
 
 // static
-void MarkingBarrier::ActivateAll(Heap* heap, bool is_compacting,
-                                 MarkingBarrierType marking_barrier_type) {
-  ActivateSpaces(heap);
+void MarkingBarrier::ActivateAll(Heap* heap, bool is_compacting) {
+  ActivateSpaces(heap, MarkingMode::kMajorMarking);
 
-  heap->safepoint()->IterateLocalHeaps(
-      [is_compacting, marking_barrier_type](LocalHeap* local_heap) {
-        local_heap->marking_barrier()->Activate(is_compacting,
-                                                marking_barrier_type);
-      });
+  heap->safepoint()->IterateLocalHeaps([is_compacting](LocalHeap* local_heap) {
+    local_heap->marking_barrier()->Activate(is_compacting,
+                                            MarkingMode::kMajorMarking);
+  });
 
   if (heap->isolate()->is_shared_space_isolate()) {
     heap->isolate()
@@ -288,11 +288,19 @@ void MarkingBarrier::ActivateAll(Heap* heap, bool is_compacting,
   }
 }
 
-void MarkingBarrier::Activate(bool is_compacting,
-                              MarkingBarrierType marking_barrier_type) {
+// static
+void MarkingBarrier::ActivateYoung(Heap* heap) {
+  ActivateSpaces(heap, MarkingMode::kMinorMarking);
+
+  heap->safepoint()->IterateLocalHeaps([](LocalHeap* local_heap) {
+    local_heap->marking_barrier()->Activate(false, MarkingMode::kMinorMarking);
+  });
+}
+
+void MarkingBarrier::Activate(bool is_compacting, MarkingMode marking_mode) {
   DCHECK(!is_activated_);
   is_compacting_ = is_compacting;
-  marking_barrier_type_ = marking_barrier_type;
+  marking_mode_ = marking_mode;
   current_worklist_ = std::make_unique<MarkingWorklist::Local>(
       is_minor() ? *minor_collector_->marking_worklists()->shared()
                  : *major_collector_->marking_worklists()->shared());
@@ -310,7 +318,7 @@ void MarkingBarrier::ActivateShared() {
 
 // static
 void MarkingBarrier::DeactivateAll(Heap* heap) {
-  DeactivateSpaces(heap);
+  DeactivateSpaces(heap, MarkingMode::kMajorMarking);
 
   heap->safepoint()->IterateLocalHeaps([](LocalHeap* local_heap) {
     local_heap->marking_barrier()->Deactivate();
@@ -335,9 +343,19 @@ void MarkingBarrier::DeactivateAll(Heap* heap) {
   }
 }
 
+// static
+void MarkingBarrier::DeactivateYoung(Heap* heap) {
+  DeactivateSpaces(heap, MarkingMode::kMinorMarking);
+
+  heap->safepoint()->IterateLocalHeaps([](LocalHeap* local_heap) {
+    local_heap->marking_barrier()->Deactivate();
+  });
+}
+
 void MarkingBarrier::Deactivate() {
   is_activated_ = false;
   is_compacting_ = false;
+  marking_mode_ = MarkingMode::kNoMarking;
   DCHECK(typed_slots_map_.empty());
   DCHECK(current_worklist_->IsLocalEmpty());
   current_worklist_.reset();
@@ -365,6 +383,13 @@ void MarkingBarrier::PublishAll(Heap* heap) {
               });
         });
   }
+}
+
+// static
+void MarkingBarrier::PublishYoung(Heap* heap) {
+  heap->safepoint()->IterateLocalHeaps([](LocalHeap* local_heap) {
+    local_heap->marking_barrier()->PublishIfNeeded();
+  });
 }
 
 void MarkingBarrier::PublishIfNeeded() {
