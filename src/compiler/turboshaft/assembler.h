@@ -1927,19 +1927,22 @@ class AssemblerOpInterface {
 
   OpIndex Call(OpIndex callee, OpIndex frame_state,
                base::Vector<const OpIndex> arguments,
-               const TSCallDescriptor* descriptor) {
+               const TSCallDescriptor* descriptor,
+               OpEffects effects = OpEffects().CanCallAnything()) {
     if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
       return OpIndex::Invalid();
     }
-    return stack().ReduceCall(callee, frame_state, arguments, descriptor);
+    return stack().ReduceCall(callee, frame_state, arguments, descriptor,
+                              effects);
   }
   OpIndex Call(OpIndex callee, std::initializer_list<OpIndex> arguments,
-               const TSCallDescriptor* descriptor) {
+               const TSCallDescriptor* descriptor,
+               OpEffects effects = OpEffects().CanCallAnything()) {
     if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
       return OpIndex::Invalid();
     }
     return Call(callee, OpIndex::Invalid(), base::VectorOf(arguments),
-                descriptor);
+                descriptor, effects);
   }
 
   template <typename Descriptor>
@@ -1952,7 +1955,7 @@ class AssemblerOpInterface {
     return CallBuiltinImpl<typename Descriptor::result_t>(
         isolate, Descriptor::Function,
         Descriptor::Create(isolate, stack().output_graph().graph_zone()),
-        frame_state, context, args);
+        Descriptor::Effects, frame_state, context, args);
   }
   template <typename Descriptor>
   std::enable_if_t<!Descriptor::NeedsFrameState && Descriptor::NeedsContext,
@@ -1962,8 +1965,8 @@ class AssemblerOpInterface {
     DCHECK(context.valid());
     return CallBuiltinImpl<typename Descriptor::result_t>(
         isolate, Descriptor::Function,
-        Descriptor::Create(isolate, stack().output_graph().graph_zone()), {},
-        context, args);
+        Descriptor::Create(isolate, stack().output_graph().graph_zone()),
+        Descriptor::Effects, {}, context, args);
   }
   template <typename Descriptor>
   std::enable_if_t<Descriptor::NeedsFrameState && !Descriptor::NeedsContext,
@@ -1974,7 +1977,7 @@ class AssemblerOpInterface {
     return CallBuiltinImpl<typename Descriptor::result_t>(
         isolate, Descriptor::Function,
         Descriptor::Create(isolate, stack().output_graph().graph_zone()),
-        frame_state, {}, args);
+        Descriptor::Effects, frame_state, {}, args);
   }
   template <typename Descriptor>
   std::enable_if_t<!Descriptor::NeedsFrameState && !Descriptor::NeedsContext,
@@ -1982,14 +1985,15 @@ class AssemblerOpInterface {
   CallBuiltin(Isolate* isolate, const typename Descriptor::arguments_t& args) {
     return CallBuiltinImpl<typename Descriptor::result_t>(
         isolate, Descriptor::Function,
-        Descriptor::Create(isolate, stack().output_graph().graph_zone()), {},
-        {}, args);
+        Descriptor::Create(isolate, stack().output_graph().graph_zone()),
+        Descriptor::Effects, {}, {}, args);
   }
 
   template <typename Ret, typename Args>
   Ret CallBuiltinImpl(Isolate* isolate, Builtin function,
-                      const TSCallDescriptor* desc, OpIndex frame_state,
-                      V<Context> context, const Args& args) {
+                      const TSCallDescriptor* desc, OpEffects effects,
+                      OpIndex frame_state, V<Context> context,
+                      const Args& args) {
     Callable callable = Builtins::CallableFor(isolate, function);
     // Convert arguments from `args` tuple into a `SmallVector<OpIndex>`.
     auto inputs = std::apply(
@@ -2002,10 +2006,10 @@ class AssemblerOpInterface {
 
     if constexpr (std::is_same_v<Ret, void>) {
       Call(HeapConstant(callable.code()), frame_state, base::VectorOf(inputs),
-           desc);
+           desc, effects);
     } else {
       return Call(HeapConstant(callable.code()), frame_state,
-                  base::VectorOf(inputs), desc);
+                  base::VectorOf(inputs), desc, effects);
     }
   }
 
@@ -2803,6 +2807,13 @@ class AssemblerOpInterface {
       return;
     }
     stack().ReduceCheckMaps(heap_object, frame_state, maps, flags, feedback);
+  }
+
+  void AssumeMap(V<HeapObject> heap_object, const ZoneRefSet<Map>& maps) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return;
+    }
+    stack().ReduceAssumeMap(heap_object, maps);
   }
 
   V<Object> CheckedClosure(V<Object> input, OpIndex frame_state,

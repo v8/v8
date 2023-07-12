@@ -1182,6 +1182,11 @@ Node* ScheduleBuilder::ProcessOperation(const StaticAssertOp& op) {
       "Expected Turbofan static assert to hold, but got non-true input:\n  %s",
       op.source);
 }
+Node* ScheduleBuilder::ProcessOperation(const AssumeMapOp&) {
+  // AssumeMapOp is just a hint that optimization phases can use, but has no
+  // Turbofan equivalent and is thus not used past this point.
+  return nullptr;
+}
 Node* ScheduleBuilder::ProcessOperation(const CheckTurboshaftTypeOfOp& op) {
   if (op.successful) return GetNode(op.input());
 

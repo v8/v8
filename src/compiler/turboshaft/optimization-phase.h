@@ -501,7 +501,8 @@ class GraphVisitor {
     OpIndex frame_state = MapToNewGraphIfValid(op.frame_state());
     auto arguments = MapToNewGraph<16>(op.arguments());
     return assembler().ReduceCall(callee, frame_state,
-                                  base::VectorOf(arguments), op.descriptor);
+                                  base::VectorOf(arguments), op.descriptor,
+                                  op.Effects());
   }
   OpIndex AssembleOutputGraphCallAndCatchException(
       const CallAndCatchExceptionOp& op) {
@@ -857,6 +858,10 @@ class GraphVisitor {
     return assembler().ReduceCheckMaps(MapToNewGraph(op.heap_object()),
                                        MapToNewGraph(op.frame_state()), op.maps,
                                        op.flags, op.feedback);
+  }
+  OpIndex AssembleOutputGraphAssumeMap(const AssumeMapOp& op) {
+    return assembler().ReduceAssumeMap(MapToNewGraph(op.heap_object()),
+                                       op.maps);
   }
   OpIndex AssembleOutputGraphCheckedClosure(const CheckedClosureOp& op) {
     return assembler().ReduceCheckedClosure(MapToNewGraph(op.input()),

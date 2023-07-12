@@ -283,6 +283,7 @@ class TypeInferenceAnalysis {
         case Opcode::kTransitionAndStoreArrayElement:
         case Opcode::kCompareMaps:
         case Opcode::kCheckMaps:
+        case Opcode::kAssumeMap:
         case Opcode::kCheckedClosure:
         case Opcode::kCheckEqualsInternalizedString:
         case Opcode::kLoadMessage:

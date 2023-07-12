@@ -70,6 +70,8 @@ struct BuiltinCallDescriptor {
 #endif  // DEBUG
   };
 
+  static constexpr OpEffects base_effects = OpEffects().CanDependOnChecks();
+
  public:
   struct CheckTurbofanType : public Descriptor<CheckTurbofanType> {
     static constexpr auto Function = Builtin::kCheckTurbofanType;
@@ -80,6 +82,7 @@ struct BuiltinCallDescriptor {
     static constexpr bool NeedsContext = true;
     static constexpr Operator::Properties Properties =
         Operator::kNoThrow | Operator::kNoDeopt;
+    static constexpr OpEffects Effects = base_effects.CanReadMemory();
   };
 
   struct CopyFastSmiOrObjectElements
@@ -91,6 +94,8 @@ struct BuiltinCallDescriptor {
     static constexpr bool NeedsFrameState = false;
     static constexpr bool NeedsContext = false;
     static constexpr Operator::Properties Properties = Operator::kEliminatable;
+    static constexpr OpEffects Effects =
+        base_effects.CanWriteMemory().CanReadMemory().CanAllocate();
   };
 
   template <Builtin B>
@@ -102,6 +107,7 @@ struct BuiltinCallDescriptor {
     static constexpr bool NeedsFrameState = false;
     static constexpr bool NeedsContext = true;
     static constexpr Operator::Properties Properties = Operator::kEliminatable;
+    static constexpr OpEffects Effects = base_effects.CanReadMemory();
   };
   using FindOrderedHashMapEntry =
       FindOrderedHashEntry<Builtin::kFindOrderedHashMapEntry>;
@@ -117,6 +123,8 @@ struct BuiltinCallDescriptor {
     static constexpr bool NeedsFrameState = false;
     static constexpr bool NeedsContext = false;
     static constexpr Operator::Properties Properties = Operator::kEliminatable;
+    static constexpr OpEffects Effects =
+        base_effects.CanWriteMemory().CanReadMemory().CanAllocate();
   };
   using GrowFastDoubleElements =
       GrowFastElements<Builtin::kGrowFastDoubleElements>;
@@ -134,6 +142,7 @@ struct BuiltinCallDescriptor {
     static constexpr bool NeedsFrameState = false;
     static constexpr bool NeedsContext = false;
     static constexpr Operator::Properties Properties = Operator::kEliminatable;
+    static constexpr OpEffects Effects = base_effects.CanAllocate();
   };
   using NewSloppyArgumentsElements =
       NewArgumentsElements<Builtin::kNewSloppyArgumentsElements>;
@@ -150,6 +159,8 @@ struct BuiltinCallDescriptor {
     static constexpr bool NeedsFrameState = false;
     static constexpr bool NeedsContext = false;
     static constexpr Operator::Properties Properties = Operator::kEliminatable;
+    static constexpr OpEffects Effects =
+        base_effects.CanReadMemory().CanAllocate();
   };
 
   struct PlainPrimitiveToNumber : public Descriptor<PlainPrimitiveToNumber> {
@@ -160,6 +171,8 @@ struct BuiltinCallDescriptor {
     static constexpr bool NeedsFrameState = false;
     static constexpr bool NeedsContext = false;
     static constexpr Operator::Properties Properties = Operator::kEliminatable;
+    static constexpr OpEffects Effects =
+        base_effects.CanReadMemory().CanAllocate();
   };
 
   struct SameValue : public Descriptor<SameValue> {
@@ -170,6 +183,7 @@ struct BuiltinCallDescriptor {
     static constexpr bool NeedsFrameState = false;
     static constexpr bool NeedsContext = false;
     static constexpr Operator::Properties Properties = Operator::kEliminatable;
+    static constexpr OpEffects Effects = base_effects.CanReadMemory();
   };
 
   struct SameValueNumbersOnly : public Descriptor<SameValueNumbersOnly> {
@@ -180,6 +194,7 @@ struct BuiltinCallDescriptor {
     static constexpr bool NeedsFrameState = false;
     static constexpr bool NeedsContext = false;
     static constexpr Operator::Properties Properties = Operator::kEliminatable;
+    static constexpr OpEffects Effects = base_effects.CanReadMemory();
   };
 
   struct StringAdd_CheckNone : public Descriptor<StringAdd_CheckNone> {
@@ -190,6 +205,10 @@ struct BuiltinCallDescriptor {
     static constexpr bool NeedsFrameState = false;
     static constexpr bool NeedsContext = true;
     static constexpr Operator::Properties Properties = Operator::kEliminatable;
+    // This will only write in a fresh object, so the writes are not visible
+    // from Turboshaft, and CanAllocate is enough.
+    static constexpr OpEffects Effects =
+        base_effects.CanReadMemory().CanAllocate();
   };
 
   struct StringEqual : public Descriptor<StringEqual> {
@@ -200,6 +219,7 @@ struct BuiltinCallDescriptor {
     static constexpr bool NeedsFrameState = false;
     static constexpr bool NeedsContext = false;
     static constexpr Operator::Properties Properties = Operator::kEliminatable;
+    static constexpr OpEffects Effects = base_effects.CanReadMemory();
   };
 
   struct StringFromCodePointAt : public Descriptor<StringFromCodePointAt> {
@@ -210,6 +230,8 @@ struct BuiltinCallDescriptor {
     static constexpr bool NeedsFrameState = false;
     static constexpr bool NeedsContext = false;
     static constexpr Operator::Properties Properties = Operator::kEliminatable;
+    static constexpr OpEffects Effects =
+        base_effects.CanReadMemory().CanAllocate();
   };
 
   struct StringIndexOf : public Descriptor<StringIndexOf> {
@@ -220,6 +242,10 @@ struct BuiltinCallDescriptor {
     static constexpr bool NeedsFrameState = false;
     static constexpr bool NeedsContext = false;
     static constexpr Operator::Properties Properties = Operator::kEliminatable;
+    // StringIndexOf does a ToString on the receiver, which can allocate a new
+    // string.
+    static constexpr OpEffects Effects =
+        base_effects.CanReadMemory().CanAllocate();
   };
 
   template <Builtin B>
@@ -231,6 +257,7 @@ struct BuiltinCallDescriptor {
     static constexpr bool NeedsFrameState = false;
     static constexpr bool NeedsContext = false;
     static constexpr Operator::Properties Properties = Operator::kEliminatable;
+    static constexpr OpEffects Effects = base_effects.CanReadMemory();
   };
   using StringLessThan = StringComparison<Builtin::kStringLessThan>;
   using StringLessThanOrEqual =
@@ -244,6 +271,8 @@ struct BuiltinCallDescriptor {
     static constexpr bool NeedsFrameState = false;
     static constexpr bool NeedsContext = false;
     static constexpr Operator::Properties Properties = Operator::kEliminatable;
+    static constexpr OpEffects Effects =
+        base_effects.CanReadMemory().CanAllocate();
   };
 
 #ifdef V8_INTL_SUPPORT
@@ -256,6 +285,8 @@ struct BuiltinCallDescriptor {
     static constexpr bool NeedsContext = true;
     static constexpr Operator::Properties Properties =
         Operator::kNoDeopt | Operator::kNoThrow;
+    static constexpr OpEffects Effects =
+        base_effects.CanReadMemory().CanAllocate();
   };
 #endif  // V8_INTL_SUPPORT
 
@@ -267,6 +298,8 @@ struct BuiltinCallDescriptor {
     static constexpr bool NeedsFrameState = false;
     static constexpr bool NeedsContext = false;
     static constexpr Operator::Properties Properties = Operator::kEliminatable;
+    static constexpr OpEffects Effects =
+        base_effects.CanReadMemory().CanAllocate();
   };
 
   struct ToBoolean : public Descriptor<ToBoolean> {
@@ -277,6 +310,7 @@ struct BuiltinCallDescriptor {
     static constexpr bool NeedsFrameState = false;
     static constexpr bool NeedsContext = false;
     static constexpr Operator::Properties Properties = Operator::kEliminatable;
+    static constexpr OpEffects Effects = base_effects.CanReadMemory();
   };
 
   struct ToObject : public Descriptor<ToObject> {
@@ -287,6 +321,8 @@ struct BuiltinCallDescriptor {
     static constexpr bool NeedsFrameState = false;
     static constexpr bool NeedsContext = true;
     static constexpr Operator::Properties Properties = Operator::kEliminatable;
+    static constexpr OpEffects Effects =
+        base_effects.CanReadMemory().CanAllocate();
   };
 
   struct Typeof : public Descriptor<Typeof> {
@@ -297,6 +333,7 @@ struct BuiltinCallDescriptor {
     static constexpr bool NeedsFrameState = false;
     static constexpr bool NeedsContext = false;
     static constexpr Operator::Properties Properties = Operator::kEliminatable;
+    static constexpr OpEffects Effects = base_effects.CanReadMemory();
   };
 };
 

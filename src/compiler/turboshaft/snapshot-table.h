@@ -39,11 +39,8 @@ struct NoChangeCallback {
                   const Value& new_value) const {}
 };
 
-/*
 template <class Value, class KeyData>
 class SnapshotTable;
-
-namespace detail {
 
 // Place `KeyData` in a superclass to benefit from empty-base optimization.
 template <class Value, class KeyData>
@@ -80,54 +77,26 @@ class SnapshotTableKey {
   }
   const KeyData& data() const { return *entry_; }
   KeyData& data() { return *entry_; }
+  SnapshotTableKey() : entry_(nullptr) {}
+
+  bool valid() const { return entry_ != nullptr; }
 
  private:
   friend class SnapshotTable<Value, KeyData>;
-  friend struct fast_hash<SnapshotTableKey<Value, KeyData>>;
   SnapshotTableEntry<Value, KeyData>* entry_;
   explicit SnapshotTableKey(SnapshotTableEntry<Value, KeyData>& entry)
       : entry_(&entry) {}
 };
 
-}  // namespace detail
-
-template <class Value, class KeyData>
-struct fast_hash<detail::SnapshotTableKey<Value, KeyData>> {
-  size_t operator()(detail::SnapshotTableKey<Value, KeyData> v) const {
-    return fast_hash_combine(v.entry_);
-  }
-};
-
-template <class Value, class KeyData>
-V8_INLINE size_t hash_value(detail::SnapshotTableKey<Value, KeyData> v) {
-  return fast_hash<decltype(v)>{}(v);
-}
-*/
-
 template <class Value, class KeyData = NoKeyData>
 class SnapshotTable {
  private:
-  struct TableEntry;
   struct LogEntry;
   struct SnapshotData;
 
  public:
-  // A `Key` identifies an entry in the `SnapshotTable`. For better performance,
-  // keys always have identity. The template parameter `KeyData` can be used to
-  // embed additional data in the keys.
-  // A Key is implemented as a pointer into the table, which also contains the
-  // `KeyData`. Therefore, keys have pointer-size and are cheap to copy.
-  class Key {
-   public:
-    bool operator==(Key other) const { return entry_ == other.entry_; }
-    const KeyData& data() const { return *entry_; }
-    KeyData& data() { return *entry_; }
-
-   private:
-    friend SnapshotTable;
-    TableEntry* entry_;
-    explicit Key(TableEntry& entry) : entry_(&entry) {}
-  };
+  using TableEntry = SnapshotTableEntry<Value, KeyData>;
+  using Key = SnapshotTableKey<Value, KeyData>;
 
   // A `Snapshot` captures the state of the `SnapshotTable`.
   // A `Snapshot` is implemented as a pointer to internal data and is therefore
@@ -360,23 +329,6 @@ class SnapshotTable {
       std::numeric_limits<uint32_t>::max();
   static constexpr uint32_t kNoMergedPredecessor =
       std::numeric_limits<uint32_t>::max();
-};
-
-// Place `KeyData` in a superclass to benefit from empty-base optimization.
-template <class Value, class KeyData>
-struct SnapshotTable<Value, KeyData>::TableEntry : KeyData {
-  Value value;
-  // `merge_offset` is the offset in `merge_values_` where we store the
-  // merged values. It is used during merging (to know what to merge) and when
-  // calling GetPredecessorValue.
-  uint32_t merge_offset = kNoMergeOffset;
-  // Used during merging: the index of the predecessor for which we last
-  // recorded a value. This allows us to only use the last value for a given
-  // predecessor and skip over all earlier ones.
-  uint32_t last_merged_predecessor = kNoMergedPredecessor;
-
-  explicit TableEntry(Value value, KeyData data)
-      : KeyData(std::move(data)), value(std::move(value)) {}
 };
 
 template <class Value, class KeyData>

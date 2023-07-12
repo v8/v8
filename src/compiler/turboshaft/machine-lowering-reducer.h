@@ -2330,6 +2330,9 @@ class MachineLoweringReducer : public Next {
       __ DeoptimizeIfNot(__ CompareMaps(heap_object, maps), frame_state,
                          DeoptimizeReason::kWrongMap, feedback);
     }
+    // Inserting a AssumeMap so that subsequent optimizations know the map of
+    // this object.
+    __ AssumeMap(heap_object, maps);
     return OpIndex::Invalid();
   }
 

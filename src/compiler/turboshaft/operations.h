@@ -192,6 +192,7 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
   V(TransitionAndStoreArrayElement)                       \
   V(CompareMaps)                                          \
   V(CheckMaps)                                            \
+  V(AssumeMap)                                            \
   V(CheckedClosure)                                       \
   V(CheckEqualsInternalizedString)                        \
   V(LoadMessage)                                          \
@@ -366,6 +367,9 @@ struct OpEffects {
   OpEffects operator|(OpEffects other) const {
     return FromBits(bits() | other.bits());
   }
+  OpEffects operator&(OpEffects other) const {
+    return FromBits(bits() & other.bits());
+  }
   bool IsSubsetOf(OpEffects other) const {
     return (bits() & ~other.bits()) == 0;
   }
@@ -536,6 +540,9 @@ struct OpEffects {
   }
   bool requires_consistent_heap() const {
     return produces.before_raw_heap_access | consumes.after_raw_heap_access;
+  }
+  bool can_write() const {
+    return produces.store_heap_memory | produces.store_off_heap_memory;
   }
 };
 static_assert(sizeof(OpEffects) == sizeof(OpEffects::Bits));
@@ -2526,7 +2533,8 @@ struct TrapIfOp : OperationT<TrapIfOp> {
 };
 
 struct StaticAssertOp : FixedArityOperationT<1, StaticAssertOp> {
-  static constexpr OpEffects effects = OpEffects().CanDependOnChecks();
+  static constexpr OpEffects effects =
+      OpEffects().CanDependOnChecks().CanChangeControlFlow();
   base::Vector<const RegisterRepresentation> outputs_rep() const { return {}; }
   const char* source;
 
@@ -2599,8 +2607,9 @@ struct TSCallDescriptor : public NON_EXPORTED_BASE(ZoneObject) {
 
 struct CallOp : OperationT<CallOp> {
   const TSCallDescriptor* descriptor;
+  OpEffects callee_effects;
 
-  static constexpr OpEffects effects = OpEffects().CanCallAnything();
+  OpEffects Effects() const { return callee_effects; }
   base::Vector<const RegisterRepresentation> outputs_rep() const {
     return descriptor->out_reps;
   }
@@ -2619,9 +2628,10 @@ struct CallOp : OperationT<CallOp> {
 
   CallOp(OpIndex callee, OpIndex frame_state,
          base::Vector<const OpIndex> arguments,
-         const TSCallDescriptor* descriptor)
+         const TSCallDescriptor* descriptor, OpEffects effects)
       : Base(1 + frame_state.valid() + arguments.size()),
-        descriptor(descriptor) {
+        descriptor(descriptor),
+        callee_effects(effects) {
     base::Vector<OpIndex> inputs = this->inputs();
     inputs[0] = callee;
     if (frame_state.valid()) {
@@ -2639,9 +2649,9 @@ struct CallOp : OperationT<CallOp> {
 
   static CallOp& New(Graph* graph, OpIndex callee, OpIndex frame_state,
                      base::Vector<const OpIndex> arguments,
-                     const TSCallDescriptor* descriptor) {
+                     const TSCallDescriptor* descriptor, OpEffects effects) {
     return Base::New(graph, 1 + frame_state.valid() + arguments.size(), callee,
-                     frame_state, arguments, descriptor);
+                     frame_state, arguments, descriptor, effects);
   }
   auto options() const { return std::tuple{descriptor}; }
 };
@@ -4389,6 +4399,32 @@ struct CheckMapsOp : FixedArityOperationT<2, CheckMapsOp> {
   auto options() const { return std::tuple{maps, flags, feedback}; }
 };
 
+// AssumeMaps are inserted after CheckMaps have been lowered, in order to keep
+// map information around and easily accessible for subsequent optimization
+// passes (Load Elimination for instance can then use those AssumeMap to
+// determine that some objects don't alias because they have different maps).
+struct AssumeMapOp : FixedArityOperationT<1, AssumeMapOp> {
+  ZoneRefSet<Map> maps;
+  // AssumeMap should not be scheduled before the preceding CheckMaps
+  static constexpr OpEffects effects = OpEffects()
+                                           .CanDependOnChecks()
+                                           .CanReadHeapMemory()
+                                           .CanChangeControlFlow();
+  base::Vector<const RegisterRepresentation> outputs_rep() const { return {}; }
+
+  OpIndex heap_object() const { return Base::input(0); }
+
+  AssumeMapOp(OpIndex heap_object, ZoneRefSet<Map> maps)
+      : Base(heap_object), maps(std::move(maps)) {}
+
+  void Validate(const Graph& graph) const {
+    DCHECK(ValidOpInputRep(graph, heap_object(),
+                           RegisterRepresentation::Tagged()));
+  }
+
+  auto options() const { return std::tuple{maps}; }
+};
+
 struct CheckedClosureOp : FixedArityOperationT<2, CheckedClosureOp> {
   Handle<FeedbackCell> feedback_cell;
 
@@ -4885,6 +4921,8 @@ inline OpEffects Operation::Effects() const {
       return Cast<LoadOp>().Effects();
     case Opcode::kStore:
       return Cast<StoreOp>().Effects();
+    case Opcode::kCall:
+      return Cast<CallOp>().Effects();
     default:
       UNREACHABLE();
   }

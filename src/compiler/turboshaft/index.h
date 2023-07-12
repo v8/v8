@@ -53,6 +53,13 @@ class OpIndex {
     DCHECK_EQ(offset_ % sizeof(OperationStorageSlot), 0);
     return offset_ / sizeof(OperationStorageSlot) / kSlotsPerId;
   }
+  uint32_t hash() const {
+    // It can be useful to hash OpIndex::Invalid(), so we have this `hash`
+    // function, which returns the id, but without DCHECKing that Invalid is
+    // valid.
+    DCHECK_IMPLIES(valid(), offset_ % sizeof(OperationStorageSlot) == 0);
+    return offset_ / sizeof(OperationStorageSlot) / kSlotsPerId;
+  }
   uint32_t offset() const {
     DCHECK_EQ(offset_ % sizeof(OperationStorageSlot), 0);
     return offset_;
@@ -336,10 +343,10 @@ class ConstOrV {
 
 template <>
 struct fast_hash<OpIndex> {
-  V8_INLINE size_t operator()(OpIndex op) const { return op.id(); }
+  V8_INLINE size_t operator()(OpIndex op) const { return op.hash(); }
 };
 
-V8_INLINE size_t hash_value(OpIndex op) { return base::hash_value(op.id()); }
+V8_INLINE size_t hash_value(OpIndex op) { return base::hash_value(op.hash()); }
 
 // `BlockIndex` is the index of a bound block.
 // A dominating block always has a smaller index.

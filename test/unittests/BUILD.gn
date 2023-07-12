@@ -552,6 +552,7 @@ v8_source_set("v8_unittests_sources") {
       "compiler/simplified-operator-unittest.cc",
       "compiler/sloppy-equality-unittest.cc",
       "compiler/state-values-utils-unittest.cc",
+      "compiler/turboshaft/doubly-threaded-list-unittest.cc",
       "compiler/turboshaft/snapshot-table-unittest.cc",
       "compiler/turboshaft/turboshaft-typer-unittest.cc",
       "compiler/turboshaft/turboshaft-types-unittest.cc",
