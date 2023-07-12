@@ -458,7 +458,11 @@ class TurboshaftGraphBuildingInterface {
     Bailout(decoder);
   }
 
-  void Trap(FullDecoder* decoder, TrapReason reason) { Bailout(decoder); }
+  void Trap(FullDecoder* decoder, TrapReason reason) {
+    asm_.TrapIfNot(asm_.Word32Constant(0), OpIndex::Invalid(),
+                   GetTrapIdForTrap(reason));
+    asm_.Unreachable();
+  }
 
   void AssertNullTypecheck(FullDecoder* decoder, const Value& obj,
                            Value* result) {
@@ -2236,6 +2240,21 @@ class TurboshaftGraphBuildingInterface {
     MachineSignature sig(0, 1, reps);
     CallC(&sig, ref, &stack_slot);
     return asm_.Load(stack_slot, LoadOp::Kind::RawAligned(), arg_type);
+  }
+
+  compiler::TrapId GetTrapIdForTrap(wasm::TrapReason reason) {
+    switch (reason) {
+#define TRAPREASON_TO_TRAPID(name)                               \
+  case wasm::k##name:                                            \
+    static_assert(static_cast<int>(compiler::TrapId::k##name) == \
+                      wasm::WasmCode::kThrowWasm##name,          \
+                  "trap id mismatch");                           \
+    return compiler::TrapId::k##name;
+      FOREACH_WASM_TRAPREASON(TRAPREASON_TO_TRAPID)
+#undef TRAPREASON_TO_TRAPID
+      default:
+        UNREACHABLE();
+    }
   }
 
   OpIndex WasmPositionToOpIndex(WasmCodePosition position) {
