@@ -132,7 +132,7 @@ testOuterMemorySurvivalAcrossGc();
 function testOOBThrows() {
   var builder = new WasmModuleBuilder();
 
-  builder.addMemory(1, 1, true);
+  builder.addMemory(1, 1);
   builder.addFunction("geti", kSig_i_ii)
     .addBody([
       kExprLocalGet, 0,

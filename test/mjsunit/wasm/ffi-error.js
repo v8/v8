@@ -123,7 +123,7 @@ function checkFailingInstantiation(
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
 
-  builder.addMemory(1, 1, true);
+  builder.addMemory(1, 1);
   builder.addFunction('function_with_invalid_signature', kSig_l_ll)
     .addBody([           // --
       kExprLocalGet, 0,  // --
@@ -141,7 +141,7 @@ function checkFailingInstantiation(
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
 
-  builder.addMemory(1, 1, true);
+  builder.addMemory(1, 1);
   builder.addFunction('function_with_invalid_signature', kSig_i_l)
       .addBody([kExprLocalGet, 0, kExprI32ConvertI64])
       .exportFunc();

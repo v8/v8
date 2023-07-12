@@ -15,7 +15,7 @@ let kSig_v_w = makeSig([kWasmStringRef], []);
 
 (function () {
   let huge_builder = new WasmModuleBuilder();
-  huge_builder.addMemory(65001, undefined, false, false);
+  huge_builder.addMemory(65001, undefined);
 
   huge_builder.addFunction("huge", kSig_w_v).exportFunc().addBody([
     kExprI32Const, 0,                  // address
@@ -101,7 +101,7 @@ let kSig_v_w = makeSig([kWasmStringRef], []);
 (function TestThatOneCharacterStringsAreInternalized() {
   let builder = new WasmModuleBuilder();
 
-  builder.addMemory(1, undefined, false, false);
+  builder.addMemory(1, undefined);
   const kMemIndex = 0;
   builder.addDataSegment(0, [65, 0]);
 

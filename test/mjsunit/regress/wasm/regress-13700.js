@@ -33,7 +33,8 @@ for (let i = 0; i < bases.length; ++i) {
 
 for (let i = 0; i < bases.length; ++i) {
   let builder = new WasmModuleBuilder();
-  builder.addMemory(1, 1, true);
+  builder.addMemory(1, 1);
+  builder.exportMemoryAs("memory");
 
   builder.addFunction("trunci64", kSig_l_v).exportFunc().addBody([
     kExprI32Const, 0,  // address for load: 0

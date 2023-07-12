@@ -71,7 +71,7 @@ let kSig_w_zi = makeSig([kWasmStringViewIter, kWasmI32],
 (function TestInstructions() {
   let builder = new WasmModuleBuilder();
 
-  builder.addMemory(0, undefined, false, false);
+  builder.addMemory(0, undefined);
 
   builder.addFunction("string.new_utf8", kSig_w_ii)
     .addBody([
@@ -357,7 +357,7 @@ assertInvalid(
 
 assertInvalid(
   builder => {
-    builder.addMemory(0, undefined, false, false);
+    builder.addMemory(0, undefined);
     builder.addFunction("string.new_wtf8/bad-mem", kSig_w_ii)
       .addBody([
         kExprLocalGet, 0, kExprLocalGet, 1,
@@ -378,7 +378,7 @@ assertInvalid(
 
 assertInvalid(
   builder => {
-    builder.addMemory(0, undefined, false, false);
+    builder.addMemory(0, undefined);
     builder.addFunction("string.encode_wtf8/bad-mem", kSig_i_wi)
       .addBody([
         kExprLocalGet, 0, kExprLocalGet, 1,

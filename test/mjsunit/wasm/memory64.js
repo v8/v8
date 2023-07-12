@@ -19,7 +19,8 @@ function BasicMemory64Tests(num_pages, use_atomic_ops) {
       use_atomic_ops ? '' : 'non-'}atomic memory`);
 
   let builder = new WasmModuleBuilder();
-  builder.addMemory64(num_pages, num_pages, true);
+  builder.addMemory64(num_pages, num_pages);
+  builder.exportMemoryAs('memory');
 
   // A memory operation with alignment (0) and offset (0).
   let op = (non_atomic, atomic) => use_atomic_ops ?
@@ -201,7 +202,8 @@ function allowOOM(fn) {
 (function TestGrow64_ToMemory() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
-  builder.addMemory64(1, 10, true);
+  builder.addMemory64(1, 10);
+  builder.exportMemoryAs('memory');
 
   // Grow memory and store the result in memory for inspection from JS.
   builder.addFunction('grow', makeSig([kWasmI64], []))
@@ -235,7 +237,8 @@ function allowOOM(fn) {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   let max_pages = 5 * GB / kPageSize;
-  builder.addMemory64(1, max_pages, true);
+  builder.addMemory64(1, max_pages);
+  builder.exportMemoryAs('memory');
 
   builder.addFunction('grow', makeSig([kWasmI64], [kWasmI64]))
       .addBody([
@@ -377,7 +380,8 @@ function allowOOM(fn) {
 (function TestMemory64SharedBasic() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
-  builder.addMemory64(1, 10, true, true);
+  builder.addMemory64(1, 10, true);
+  builder.exportMemoryAs('memory');
   builder.addFunction('load', makeSig([kWasmI64], [kWasmI32]))
       .addBody([
         kExprLocalGet, 0,       // local.get 0
@@ -397,7 +401,8 @@ function allowOOM(fn) {
   // TODO(clemensb): Use the proper API once that's decided.
   let shared_mem64 = (function() {
     let builder = new WasmModuleBuilder();
-    builder.addMemory64(1, 10, true, true);
+    builder.addMemory64(1, 10, true);
+    builder.exportMemoryAs('memory');
     return builder.instantiate().exports.memory;
   })();
 
@@ -482,7 +487,7 @@ function allowOOM(fn) {
 (function Test64BitOffsetOn32BitMemory() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
-  builder.addMemory(1, 1, false);
+  builder.addMemory(1, 1);
 
   builder.addFunction('load', makeSig([kWasmI32], [kWasmI32]))
       .addBody([
@@ -500,7 +505,7 @@ function allowOOM(fn) {
 (function Test64BitOffsetOn64BitMemory() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
-  builder.addMemory64(1, 1, false);
+  builder.addMemory64(1, 1);
 
   builder.addFunction('load', makeSig([kWasmI64], [kWasmI32]))
       .addBody([

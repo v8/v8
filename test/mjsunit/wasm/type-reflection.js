@@ -25,7 +25,8 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 (function TestMemoryExports() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
-  builder.addMemory(1).exportMemoryAs("a")
+  builder.addMemory(1);
+  builder.exportMemoryAs("a")
   let module = new WebAssembly.Module(builder.toBuffer());
   let exports = WebAssembly.Module.exports(module);
 
@@ -35,7 +36,8 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   assertFalse("maximum" in exports[0].type);
 
   builder = new WasmModuleBuilder();
-  builder.addMemory(2, 16).exportMemoryAs("b")
+  builder.addMemory(2, 16);
+  builder.exportMemoryAs("b")
   module = new WebAssembly.Module(builder.toBuffer());
   exports = WebAssembly.Module.exports(module);
 

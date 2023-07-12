@@ -620,7 +620,6 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
     } else {
       os << ", undefined";
     }
-    os << ", " << (memory.exported ? "true" : "false");
     if (memory.is_shared) {
       os << ", true";
     }
@@ -750,9 +749,20 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
   }
 
   for (WasmExport& exp : module->export_table) {
-    if (exp.kind != kExternalFunction) continue;
-    os << "builder.addExport(" << PrintName(wire_bytes, exp.name) << ", "
-       << exp.index << ");\n";
+    switch (exp.kind) {
+      case kExternalFunction:
+        os << "builder.addExport(" << PrintName(wire_bytes, exp.name) << ", "
+           << exp.index << ");\n";
+        break;
+      case kExternalMemory:
+        os << "builder.exportMemoryAs(" << PrintName(wire_bytes, exp.name)
+           << ", " << exp.index << ");\n";
+        break;
+      default:
+        os << "// Unsupported export of '" << PrintName(wire_bytes, exp.name)
+           << "'.\n";
+        break;
+    }
   }
 
   if (compiles) {

@@ -154,7 +154,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
   let array = builder.addArray(kWasmI16, true);
 
-  builder.addMemory(10, 10, false);
+  builder.addMemory(10, 10);
 
   let passive = builder.addPassiveDataSegment([0, 1, 2, 3, 4, 5]);
   let active = builder.addDataSegment(0, [6, 7, 8, 9]);

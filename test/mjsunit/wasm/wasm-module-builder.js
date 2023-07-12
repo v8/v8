@@ -1325,33 +1325,15 @@ class WasmModuleBuilder {
     return this;
   }
 
-  addMemory(min, max, exported, shared) {
-    this.memories.push({
-      min: min,
-      max: max,
-      shared: shared || false,
-      is_memory64: false
-    });
-    if (exported) {
-      let index = this.memories.length - 1;
-      this.exports.push(
-          {name : 'memory', kind : kExternalMemory, index : index});
-    }
+  addMemory(min, max, shared) {
+    this.memories.push(
+        {min: min, max: max, shared: shared || false, is_memory64: false});
     return this;
   }
 
-  addMemory64(min, max, exported, shared) {
-    this.memories.push({
-      min: min,
-      max: max,
-      shared: shared || false,
-      is_memory64: true
-    });
-    if (exported) {
-      let index = this.memories.length - 1;
-      this.exports.push(
-          {name : 'memory', kind : kExternalMemory, index : index});
-    }
+  addMemory64(min, max, shared) {
+    this.memories.push(
+        {min: min, max: max, shared: shared || false, is_memory64: true});
     return this;
   }
 
@@ -1592,7 +1574,17 @@ class WasmModuleBuilder {
     return this.data_segments.length - 1;
   }
 
-  exportMemoryAs(name, memory_index = 0) {
+  exportMemoryAs(name, memory_index) {
+    if (memory_index === undefined) {
+      const num_memories = this.memories.length +
+          this.imports.filter(i => i.kind == kExternalMemory).length;
+      if (num_memories !== 1) {
+        throw new Error(
+            'Pass memory index to \'exportMemoryAs\' if there is not exactly ' +
+            'one memory imported or declared.');
+      }
+      memory_index = 0;
+    }
     this.exports.push({name: name, kind: kExternalMemory, index: memory_index});
   }
 

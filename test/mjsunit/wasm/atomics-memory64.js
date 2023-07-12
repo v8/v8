@@ -18,7 +18,8 @@ function allowOOM(fn) {
 
 function CreateBigSharedWasmMemory64(num_pages) {
   let builder = new WasmModuleBuilder();
-  builder.addMemory64(num_pages, num_pages, true, true);
+  builder.addMemory64(num_pages, num_pages, true);
+  builder.exportMemoryAs('memory');
   return builder.instantiate().exports.memory;
 }
 

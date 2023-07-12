@@ -154,7 +154,7 @@ function makeWtf8TestDataSegment() {
 (function TestStringNewWtf8() {
   let builder = new WasmModuleBuilder();
 
-  builder.addMemory(1, undefined, false, false);
+  builder.addMemory(1, undefined);
   let data = makeWtf8TestDataSegment();
   builder.addDataSegment(0, data.data);
 
@@ -222,7 +222,7 @@ function makeWtf8TestDataSegment() {
 (function TestStringNewUtf8TryNullCheck() {
   let builder = new WasmModuleBuilder();
 
-  builder.addMemory(1, undefined, false, false);
+  builder.addMemory(1, undefined);
   let data = makeWtf8TestDataSegment();
   builder.addDataSegment(0, data.data);
 
@@ -274,7 +274,7 @@ function makeWtf16TestDataSegment() {
 (function TestStringNewWtf16() {
   let builder = new WasmModuleBuilder();
 
-  builder.addMemory(1, undefined, false, false);
+  builder.addMemory(1, undefined);
   let data = makeWtf16TestDataSegment();
   builder.addDataSegment(0, data.data);
 
@@ -389,7 +389,8 @@ function makeWtf16TestDataSegment() {
 (function TestStringEncodeWtf8() {
   let builder = new WasmModuleBuilder();
 
-  builder.addMemory(1, undefined, true /* exported */, false);
+  builder.addMemory(1, undefined);
+  builder.exportMemoryAs("memory");
 
   for (let [instr, name] of [[kExprStringEncodeUtf8, "utf8"],
                              [kExprStringEncodeWtf8, "wtf8"],
@@ -487,7 +488,8 @@ function makeWtf16TestDataSegment() {
 (function TestStringEncodeWtf16() {
   let builder = new WasmModuleBuilder();
 
-  builder.addMemory(1, undefined, true /* exported */, false);
+  builder.addMemory(1, undefined);
+  builder.exportMemoryAs("memory");
 
   builder.addFunction("encode_wtf16", kSig_i_wi)
     .exportFunc()
@@ -684,7 +686,8 @@ function makeWtf16TestDataSegment() {
 (function TestStringViewWtf16() {
   let builder = new WasmModuleBuilder();
 
-  builder.addMemory(1, undefined, true /* exported */, false);
+  builder.addMemory(1, undefined);
+  builder.exportMemoryAs("memory");
 
   builder.addFunction("view_from_null", kSig_v_v).exportFunc().addBody([
     kExprRefNull, kStringRefCode,
@@ -860,7 +863,8 @@ function makeWtf16TestDataSegment() {
 (function TestStringViewWtf8() {
   let builder = new WasmModuleBuilder();
 
-  builder.addMemory(1, undefined, true /* exported */, false);
+  builder.addMemory(1, undefined);
+  builder.exportMemoryAs("memory");
 
   builder.addFunction("advance", kSig_i_wii)
     .exportFunc()
