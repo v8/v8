@@ -63,16 +63,16 @@ bool VisitYoungObjectViaSlot(Visitor* visitor, TSlot slot) {
     map = heap_object.map(visitor->cage_base());
   } else {
     map = Map::cast(*heap_object.map_slot());
-  }
-  const VisitorId visitor_id = map.visitor_id();
-  // Data-only objects don't require any body descriptor visitation at all and
-  // are always visited directly.
-  if (Map::ObjectFieldsFrom(visitor_id) == ObjectFields::kDataOnly) {
-    const int visited_size = heap_object.SizeFromMap(map);
-    visitor->IncrementLiveBytesCached(
-        MemoryChunk::cast(BasicMemoryChunk::FromHeapObject(heap_object)),
-        ALIGN_TO_ALLOCATION_ALIGNMENT(visited_size));
-    return true;
+    const VisitorId visitor_id = map.visitor_id();
+    // Data-only objects don't require any body descriptor visitation at all and
+    // are always visited directly.
+    if (Map::ObjectFieldsFrom(visitor_id) == ObjectFields::kDataOnly) {
+      const int visited_size = heap_object.SizeFromMap(map);
+      visitor->IncrementLiveBytesCached(
+          MemoryChunk::cast(BasicMemoryChunk::FromHeapObject(heap_object)),
+          ALIGN_TO_ALLOCATION_ALIGNMENT(visited_size));
+      return true;
+    }
   }
   if constexpr (visitation_mode == ObjectVisitationMode::kVisitDirectly) {
     const int visited_size = visitor->Visit(map, heap_object);
