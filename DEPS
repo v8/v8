@@ -61,7 +61,7 @@ vars = {
   'build_with_chromium': False,
 
   # GN CIPD package version.
-  'gn_version': 'git_revision:1de45d1a11cc9f8cb5c75a031386151e1c384847',
+  'gn_version': 'git_revision:fae280eabe5d31accc53100137459ece19a7a295',
 
   # ninja CIPD package version
   # https://chrome-infra-packages.appspot.com/p/infra/3pp/tools/ninja
@@ -113,7 +113,7 @@ deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '147f65333c38ddd1ebf554e89965c243c8ce50b3',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '143d726c8ef21c30bc50ec4436a4d10aca156f4c',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'e7cd327c471b44939bdd3837beb09e3d22652faa',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '1cc82962cb50a35f6008b25a165782c568edac27',
   'buildtools/linux64': {
@@ -221,7 +221,7 @@ deps = {
     'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '7d7df42f80f3cc0794555e937c56cd62771bbc4a',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '2e5846afedf2254d5083223ac72ec31b4c84b5a8',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
@@ -235,7 +235,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'e5277508c83c3dd1596504daf64b6ea8fe7d2dd1',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'c5dab1505083037964c61f513db6940bcf2f1cc0',
   'third_party/fuchsia-gn-sdk': {
     'url': Var('chromium_url') + '/chromium/src/third_party/fuchsia-gn-sdk.git' + '@' + 'aa39357819f94c46ba4f346c762bf9e4b3d52517',
     'condition': 'checkout_fuchsia',
@@ -290,11 +290,11 @@ deps = {
   'third_party/protobuf':
     Var('chromium_url') + '/external/github.com/google/protobuf'+ '@' + '6a59a2ad1f61d9696092f79b6d74368b4d7970a3',
   'third_party/requests': {
-      'url': Var('chromium_url') + '/external/github.com/kennethreitz/requests.git' + '@' + 'refs/tags/v2.23.0',
+      'url': Var('chromium_url') + '/external/github.com/kennethreitz/requests.git' + '@' + 'c7e0fc087ceeadb8b4c84a0953a422c474093d6d',
       'condition': 'checkout_android',
   },
   'third_party/zlib':
-    Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '7eff33bc00be3e2ddb55a94991689fad9dcbe85d',
+    Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '1206f0dbef0ac7cd92eea00c20fc4bbb1351c11d',
   'tools/clang':
     Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'c29b6b927f6760fb0f545c82d94a3910cd027380',
   'tools/luci-go': {
