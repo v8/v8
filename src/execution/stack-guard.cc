@@ -53,7 +53,10 @@ void StackGuard::SetStackLimit(uintptr_t limit) {
 
 void StackGuard::SetStackLimitForStackSwitching(uintptr_t limit) {
   ExecutionAccess access(isolate_);
-  SetStackLimitInternal(access, limit, limit);
+  uintptr_t climit = SimulatorStack::ShouldSwitchCStackForWasmStackSwitching()
+                         ? limit
+                         : thread_local_.real_climit_;
+  SetStackLimitInternal(access, climit, limit);
 }
 
 void StackGuard::SetStackLimitInternal(const ExecutionAccess& lock,

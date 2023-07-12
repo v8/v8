@@ -56,6 +56,10 @@ class SimulatorStack : public v8::internal::AllStatic {
     return Simulator::current(isolate)->GetCurrentStackView();
   }
 
+  // When running on the simulator, we should leave the C stack limits alone
+  // when switching stacks for Wasm.
+  static inline bool ShouldSwitchCStackForWasmStackSwitching() { return false; }
+
   // Returns the current stack address on the simulator stack frame.
   // The returned address is comparable with JS stack address.
   static inline uintptr_t RegisterJSStackComparableAddress(
@@ -94,6 +98,10 @@ class SimulatorStack : public v8::internal::AllStatic {
     size_t size = stack_start - limit;
     return base::VectorOf(reinterpret_cast<uint8_t*>(limit), size);
   }
+
+  // When running on real hardware, we should also switch the C stack limit
+  // when switching stacks for Wasm.
+  static inline bool ShouldSwitchCStackForWasmStackSwitching() { return true; }
 
   // Returns the current stack address on the native stack frame.
   // The returned address is comparable with JS stack address.

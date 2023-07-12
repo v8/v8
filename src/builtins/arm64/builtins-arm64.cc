@@ -3214,16 +3214,22 @@ void SwitchStackState(MacroAssembler* masm, Register jmpbuf,
   __ Str(tmp.W(), MemOperand(jmpbuf, wasm::kJmpBufStateOffset));
 }
 
-// Switch the simulator's stack limit, when running on the simulator. This
-// needs to be done as close as possible to changing the stack pointer, as
-// a mismatch between the stack pointer and the simulator's stack limit
-// can cause stack access check failures.
-void SwitchSimulatorStackLimit(MacroAssembler* masm, Register jmpbuf) {
+// Switch the stack pointer. Also switch the simulator's stack limit when
+// running on the simulator. This needs to be done as close as possible to
+// changing the stack pointer, as a mismatch between the stack pointer and the
+// simulator's stack limit can cause stack access check failures.
+void SwitchStackPointerAndSimulatorStackLimit(MacroAssembler* masm,
+                                              Register jmpbuf, Register tmp) {
   if (masm->options().enable_simulator_code) {
     UseScratchRegisterScope temps(masm);
     temps.Exclude(x16);
+    __ Ldr(tmp, MemOperand(jmpbuf, wasm::kJmpBufSpOffset));
     __ Ldr(x16, MemOperand(jmpbuf, wasm::kJmpBufStackLimitOffset));
+    __ Mov(sp, tmp);
     __ hlt(kImmExceptionIsSwitchStackLimit);
+  } else {
+    __ Ldr(tmp, MemOperand(jmpbuf, wasm::kJmpBufSpOffset));
+    __ Mov(sp, tmp);
   }
 }
 
@@ -3240,10 +3246,8 @@ void FillJumpBuffer(MacroAssembler* masm, Register jmpbuf, Label* pc,
 
 void LoadJumpBuffer(MacroAssembler* masm, Register jmpbuf, bool load_pc,
                     Register tmp) {
-  __ Ldr(tmp, MemOperand(jmpbuf, wasm::kJmpBufSpOffset));
-  __ Mov(sp, tmp);
+  SwitchStackPointerAndSimulatorStackLimit(masm, jmpbuf, tmp);
   __ Ldr(fp, MemOperand(jmpbuf, wasm::kJmpBufFpOffset));
-  SwitchSimulatorStackLimit(masm, jmpbuf);
   SwitchStackState(masm, jmpbuf, tmp, wasm::JumpBuffer::Inactive,
                    wasm::JumpBuffer::Active);
   if (load_pc) {
