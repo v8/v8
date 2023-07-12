@@ -121,6 +121,7 @@
 ##############################################################################
 ['system == windows and asan', {
   # BUG(893437).
+  'LanguageServer*': [SKIP],
   'Torque*': [SKIP],
 
   # Hangs on asan.

@@ -5860,12 +5860,6 @@ v8_source_set("torque_base") {
     "//build/config/compiler:no_rtti",
   ]
 
-  if (is_win && is_asan) {
-    # Due to a bug in ASAN on Windows (chromium:893437), we disable ASAN for
-    # Torque on Windows.
-    remove_configs += [ "//build/config/sanitizers:default_sanitizer_flags" ]
-  }
-
   if (is_debug && !v8_optimized_debug && v8_enable_fast_torque) {
     # The :no_optimize config is added to v8_add_configs in v8.gni.
     remove_configs += [ "//build/config/compiler:no_optimize" ]
@@ -5902,10 +5896,6 @@ v8_source_set("torque_ls_base") {
     "//build/config/compiler:no_exceptions",
     "//build/config/compiler:no_rtti",
   ]
-
-  if (is_win && is_asan) {
-    remove_configs += [ "//build/config/sanitizers:default_sanitizer_flags" ]
-  }
 }
 
 v8_component("v8_libbase") {
@@ -6768,10 +6758,6 @@ if (current_toolchain == v8_snapshot_toolchain) {
       "//build/config/compiler:no_exceptions",
       "//build/config/compiler:no_rtti",
     ]
-
-    if (is_win && is_asan) {
-      remove_configs += [ "//build/config/sanitizers:default_sanitizer_flags" ]
-    }
   }
 }
 
@@ -6799,10 +6785,6 @@ v8_executable("torque-language-server") {
     "//build/config/compiler:no_exceptions",
     "//build/config/compiler:no_rtti",
   ]
-
-  if (is_win && is_asan) {
-    remove_configs += [ "//build/config/sanitizers:default_sanitizer_flags" ]
-  }
 }
 
 if (v8_enable_i18n_support) {
