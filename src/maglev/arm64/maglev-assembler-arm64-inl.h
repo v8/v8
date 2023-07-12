@@ -111,6 +111,28 @@ int MapCompare::TemporaryCount(size_t map_count) { return 1; }
 
 namespace detail {
 
+// Check if the argument is already in a register and doesn't need any
+// scratches to reload. This should be in sync with `ToRegister` function below.
+template <typename Arg>
+inline bool AlreadyInARegister(Arg arg) {
+  return false;
+}
+
+inline bool AlreadyInARegister(Register reg) { return true; }
+
+inline bool AlreadyInARegister(const Input& input) {
+  if (input.operand().IsConstant()) {
+    return false;
+  }
+  const compiler::AllocatedOperand& operand =
+      compiler::AllocatedOperand::cast(input.operand());
+  if (operand.IsRegister()) {
+    return true;
+  }
+  DCHECK(operand.IsStackSlot());
+  return false;
+}
+
 template <typename Arg>
 inline Register ToRegister(MaglevAssembler* masm,
                            MaglevAssembler::ScratchRegisterScope* scratch,
@@ -225,6 +247,14 @@ inline void PushIteratorReverse(MaglevAssembler* masm,
 
 template <typename Arg1, typename Arg2>
 inline void PushAligned(MaglevAssembler* masm, Arg1 arg1, Arg2 arg2) {
+  if (AlreadyInARegister(arg1) || AlreadyInARegister(arg2)) {
+    // If one of the operands is already in a register, there is no need
+    // to reuse scratch registers, so two arguments can be pushed together.
+    MaglevAssembler::ScratchRegisterScope temps(masm);
+    masm->MacroAssembler::Push(ToRegister(masm, &temps, arg1),
+                               ToRegister(masm, &temps, arg2));
+    return;
+  }
   {
     // Push the first argument together with padding to ensure alignment.
     // The second argument is not pushed together with the first so we can
