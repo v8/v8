@@ -245,9 +245,14 @@ void DeactivateSpaces(Heap* heap, MarkingMode marking_mode) {
     DCHECK(p->IsLargePage());
   }
 
-  DeactivateSpace(heap->code_space());
-  for (LargePage* p : *heap->code_lo_space()) {
-    p->SetOldGenerationPageFlags(MarkingMode::kNoMarking);
+  {
+    CodePageHeaderModificationScope rwx_write_scope(
+        "Modification of InstructionStream page header flags requires write "
+        "access");
+    DeactivateSpace(heap->code_space());
+    for (LargePage* p : *heap->code_lo_space()) {
+      p->SetOldGenerationPageFlags(MarkingMode::kNoMarking);
+    }
   }
 
   if (marking_mode == MarkingMode::kMajorMarking) {
