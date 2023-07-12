@@ -3835,7 +3835,7 @@ cc_library(
     deps = [
         ":torque_base_headers",
         ":v8_libbase",
-        "@com_google_absl//absl/types:optional",
+        "//external:absl_optional",
     ],
 )
 
@@ -3967,8 +3967,8 @@ v8_binary(
         "UNISTR_FROM_CHAR_EXPLICIT=",
     ],
     deps = [
+        "//external:absl_optional",
         "//external:icu",
-        "@com_google_absl//absl/types:optional",
     ],
 )
 

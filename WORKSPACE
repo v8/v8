@@ -39,6 +39,11 @@ local_repository(
   path = "third_party/abseil-cpp",
 )
 
+bind(
+    name = "absl_optional",
+    actual = "@com_google_absl//absl/types:optional"
+)
+
 new_local_repository(
     name = "com_googlesource_chromium_icu",
     build_file = "bazel/BUILD.icu",
