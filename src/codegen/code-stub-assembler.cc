@@ -251,13 +251,12 @@ TNode<Smi> CodeStubAssembler::NoContextConstant() {
   return SmiConstant(Context::kNoContext);
 }
 
-#define HEAP_CONSTANT_ACCESSOR(rootIndexName, rootAccessorName, name)        \
-  TNode<std::remove_pointer<std::remove_reference<decltype(                  \
-      std::declval<Heap>().rootAccessorName())>::type>::type>                \
-      CodeStubAssembler::name##Constant() {                                  \
-    return UncheckedCast<std::remove_pointer<std::remove_reference<decltype( \
-        std::declval<Heap>().rootAccessorName())>::type>::type>(             \
-        LoadRoot(RootIndex::k##rootIndexName));                              \
+#define HEAP_CONSTANT_ACCESSOR(rootIndexName, rootAccessorName, name)          \
+  TNode<RemoveTagged<decltype(std::declval<Heap>().rootAccessorName())>::type> \
+      CodeStubAssembler::name##Constant() {                                    \
+    return UncheckedCast<RemoveTagged<                                         \
+        decltype(std::declval<Heap>().rootAccessorName())>::type>(             \
+        LoadRoot(RootIndex::k##rootIndexName));                                \
   }
 HEAP_MUTABLE_IMMOVABLE_OBJECT_LIST(HEAP_CONSTANT_ACCESSOR)
 #undef HEAP_CONSTANT_ACCESSOR

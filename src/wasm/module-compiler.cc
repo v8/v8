@@ -1577,9 +1577,9 @@ int AddExportWrapperUnits(Isolate* isolate, NativeModule* native_module,
             ->isorecursive_canonical_type_ids[function.sig_index];
     int wrapper_index =
         GetExportWrapperIndex(canonical_type_index, function.imported);
-    if (wrapper_index < isolate->heap()->js_to_wasm_wrappers().length()) {
+    if (wrapper_index < isolate->heap()->js_to_wasm_wrappers()->length()) {
       MaybeObject existing_wrapper =
-          isolate->heap()->js_to_wasm_wrappers().Get(wrapper_index);
+          isolate->heap()->js_to_wasm_wrappers()->Get(wrapper_index);
       if (existing_wrapper.IsStrongOrWeak() &&
           !existing_wrapper.GetHeapObject().IsUndefined()) {
         // Skip wrapper compilation as the wrapper is already cached.
@@ -3543,8 +3543,8 @@ void CompilationStateImpl::FinalizeJSToWasmWrappers(Isolate* isolate,
     Handle<Code> code = unit->Finalize();
     uint32_t index =
         GetExportWrapperIndex(unit->canonical_sig_index(), unit->is_import());
-    isolate->heap()->js_to_wasm_wrappers().Set(index,
-                                               MaybeObject::FromObject(*code));
+    isolate->heap()->js_to_wasm_wrappers()->Set(index,
+                                                MaybeObject::FromObject(*code));
     if (!code->is_builtin()) {
       // Do not increase code stats for non-jitted wrappers.
       RecordStats(*code, isolate->counters());
@@ -3909,7 +3909,7 @@ void CompileJsToWasmWrappers(Isolate* isolate, const WasmModule* module) {
     int wrapper_index =
         GetExportWrapperIndex(canonical_type_index, function.imported);
     MaybeObject existing_wrapper =
-        isolate->heap()->js_to_wasm_wrappers().Get(wrapper_index);
+        isolate->heap()->js_to_wasm_wrappers()->Get(wrapper_index);
     if (existing_wrapper.IsStrongOrWeak() &&
         !existing_wrapper.GetHeapObject().IsUndefined()) {
       continue;
@@ -3954,7 +3954,7 @@ void CompileJsToWasmWrappers(Isolate* isolate, const WasmModule* module) {
     DCHECK_EQ(isolate, unit->isolate());
     Handle<Code> code = unit->Finalize();
     int wrapper_index = GetExportWrapperIndex(key.second, key.first);
-    isolate->heap()->js_to_wasm_wrappers().Set(
+    isolate->heap()->js_to_wasm_wrappers()->Set(
         wrapper_index, HeapObjectReference::Strong(*code));
     if (!code->is_builtin()) {
       // Do not increase code stats for non-jitted wrappers.

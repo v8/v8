@@ -36,7 +36,7 @@ class V8_EXPORT_PRIVATE PagedSpaceObjectIterator : public ObjectIterator {
   // Advance to the next object, skipping free spaces and other fillers and
   // skipping the special garbage section of which there is one per space.
   // Returns nullptr when the iteration has ended.
-  inline HeapObject Next() override;
+  inline Tagged<HeapObject> Next() override;
 
   // The pointer compression cage base value used for decompression of all
   // tagged values except references to InstructionStream objects.
@@ -50,7 +50,7 @@ class V8_EXPORT_PRIVATE PagedSpaceObjectIterator : public ObjectIterator {
 
  private:
   // Fast (inlined) path of next().
-  inline HeapObject FromCurrentPage();
+  inline Tagged<HeapObject> FromCurrentPage();
 
   // Slow path of next(), goes into the next page.  Returns false if the
   // iteration has ended.
@@ -66,22 +66,22 @@ class V8_EXPORT_PRIVATE PagedSpaceObjectIterator : public ObjectIterator {
 #endif  // V8_COMPRESS_POINTERS
 };
 
-HeapObject PagedSpaceObjectIterator::Next() {
+Tagged<HeapObject> PagedSpaceObjectIterator::Next() {
   do {
-    HeapObject next_obj = FromCurrentPage();
-    if (!next_obj.is_null()) return next_obj;
+    Tagged<HeapObject> next_obj = FromCurrentPage();
+    if (!next_obj->is_null()) return next_obj;
   } while (AdvanceToNextPage());
-  return HeapObject();
+  return Tagged<HeapObject>();
 }
 
-HeapObject PagedSpaceObjectIterator::FromCurrentPage() {
+Tagged<HeapObject> PagedSpaceObjectIterator::FromCurrentPage() {
   while (cur_addr_ != cur_end_) {
-    HeapObject obj = HeapObject::FromAddress(cur_addr_);
-    const int obj_size = ALIGN_TO_ALLOCATION_ALIGNMENT(obj.Size(cage_base()));
+    Tagged<HeapObject> obj = HeapObject::FromAddress(cur_addr_);
+    const int obj_size = ALIGN_TO_ALLOCATION_ALIGNMENT(obj->Size(cage_base()));
     cur_addr_ += obj_size;
     DCHECK_LE(cur_addr_, cur_end_);
-    if (!obj.IsFreeSpaceOrFiller(cage_base())) {
-      if (obj.IsInstructionStream(cage_base())) {
+    if (!obj->IsFreeSpaceOrFiller(cage_base())) {
+      if (obj->IsInstructionStream(cage_base())) {
         DCHECK_EQ(space_->identity(), CODE_SPACE);
         DCHECK_CODEOBJECT_SIZE(obj_size, space_);
       } else {
@@ -90,7 +90,7 @@ HeapObject PagedSpaceObjectIterator::FromCurrentPage() {
       return obj;
     }
   }
-  return HeapObject();
+  return Tagged<HeapObject>();
 }
 
 bool PagedSpaceBase::Contains(Address addr) const {

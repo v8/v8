@@ -14,6 +14,7 @@
 #include "src/objects/maybe-object.h"
 #include "src/objects/objects.h"
 #include "src/objects/slots.h"
+#include "src/objects/tagged.h"
 #include "src/sandbox/external-pointer-inl.h"
 #include "src/utils/memcopy.h"
 
@@ -25,6 +26,9 @@ namespace internal {
 //
 
 FullObjectSlot::FullObjectSlot(Object* object)
+    : SlotBase(reinterpret_cast<Address>(&object->ptr_)) {}
+
+FullObjectSlot::FullObjectSlot(TaggedBase* object)
     : SlotBase(reinterpret_cast<Address>(&object->ptr_)) {}
 
 bool FullObjectSlot::contains_map_value(Address raw_value) const {

@@ -440,7 +440,7 @@ class WeakArrayList::Iterator {
   Iterator(const Iterator&) = delete;
   Iterator& operator=(const Iterator&) = delete;
 
-  inline HeapObject Next();
+  inline Tagged<HeapObject> Next();
 
  private:
   int index_;

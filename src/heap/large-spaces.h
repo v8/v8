@@ -50,7 +50,9 @@ class LargePage : public MemoryChunk {
             Address area_end, VirtualMemory reservation,
             Executability executable);
 
-  HeapObject GetObject() const { return HeapObject::FromAddress(area_start()); }
+  Tagged<HeapObject> GetObject() const {
+    return HeapObject::FromAddress(area_start());
+  }
 
   LargePage* next_page() { return LargePage::cast(list_node_.next()); }
   const LargePage* next_page() const {
@@ -245,7 +247,7 @@ class LargeObjectSpaceObjectIterator : public ObjectIterator {
  public:
   explicit LargeObjectSpaceObjectIterator(LargeObjectSpace* space);
 
-  HeapObject Next() override;
+  Tagged<HeapObject> Next() override;
 
  private:
   LargePage* current_;

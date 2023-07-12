@@ -25,17 +25,18 @@ namespace v8 {
 namespace internal {
 
 // Defined in heap.cc.
-V8_EXPORT_PRIVATE bool Heap_PageFlagsAreConsistent(HeapObject object);
+V8_EXPORT_PRIVATE bool Heap_PageFlagsAreConsistent(Tagged<HeapObject> object);
 V8_EXPORT_PRIVATE void Heap_CombinedGenerationalAndSharedBarrierSlow(
-    HeapObject object, Address slot, HeapObject value);
+    Tagged<HeapObject> object, Address slot, Tagged<HeapObject> value);
 V8_EXPORT_PRIVATE void Heap_CombinedGenerationalAndSharedEphemeronBarrierSlow(
-    EphemeronHashTable table, Address slot, HeapObject value);
+    Tagged<EphemeronHashTable> table, Address slot, Tagged<HeapObject> value);
 
 V8_EXPORT_PRIVATE void Heap_GenerationalBarrierForCodeSlow(
-    InstructionStream host, RelocInfo* rinfo, HeapObject object);
+    Tagged<InstructionStream> host, RelocInfo* rinfo,
+    Tagged<HeapObject> object);
 
 V8_EXPORT_PRIVATE void Heap_GenerationalEphemeronKeyBarrierSlow(
-    Heap* heap, HeapObject table, Address slot);
+    Heap* heap, Tagged<HeapObject> table, Address slot);
 
 inline bool IsCodeSpaceObject(HeapObject object);
 

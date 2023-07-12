@@ -157,7 +157,7 @@ void BasicBlockProfiler::ResetCounts(Isolate* isolate) {
 
 bool BasicBlockProfiler::HasData(Isolate* isolate) {
   return data_list_.size() > 0 ||
-         isolate->heap()->basic_block_profiling_data().Length() > 0;
+         isolate->heap()->basic_block_profiling_data()->Length() > 0;
 }
 
 void BasicBlockProfiler::Print(Isolate* isolate, std::ostream& os) {

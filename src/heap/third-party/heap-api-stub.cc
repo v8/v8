@@ -9,7 +9,7 @@
 namespace v8 {
 namespace internal {
 
-Isolate* Heap::GetIsolateFromWritableObject(HeapObject object) {
+Isolate* Heap::GetIsolateFromWritableObject(Tagged<HeapObject> object) {
   return GetHeapFromWritableObject(object)->isolate();
 }
 
@@ -64,7 +64,7 @@ bool Heap::IsValidCodeObject(HeapObject) { return false; }
 
 void Heap::ResetIterator() {}
 
-HeapObject Heap::NextObject() { return HeapObject(); }
+Tagged<HeapObject> Heap::NextObject() { return HeapObject(); }
 
 bool Heap::CollectGarbage() { return false; }
 

@@ -1158,8 +1158,8 @@ class MarkCompactWeakObjectRetainer : public WeakObjectRetainer {
   explicit MarkCompactWeakObjectRetainer(MarkingState* marking_state)
       : marking_state_(marking_state) {}
 
-  Object RetainAs(Object object) override {
-    HeapObject heap_object = HeapObject::cast(object);
+  Tagged<Object> RetainAs(Tagged<Object> object) override {
+    Tagged<HeapObject> heap_object = Tagged<HeapObject>::cast(object);
     if (marking_state_->IsMarked(heap_object)) {
       return object;
     } else if (object.IsAllocationSite() &&
@@ -1179,7 +1179,7 @@ class MarkCompactWeakObjectRetainer : public WeakObjectRetainer {
 
       return object;
     } else {
-      return Object();
+      return Smi::zero();
     }
   }
 
@@ -3722,13 +3722,14 @@ class PointersUpdatingVisitor final : public ObjectVisitorWithCageBases,
   }
 };
 
-static String UpdateReferenceInExternalStringTableEntry(Heap* heap,
-                                                        FullObjectSlot p) {
-  HeapObject old_string = HeapObject::cast(*p);
-  MapWord map_word = old_string.map_word(kRelaxedLoad);
+static Tagged<String> UpdateReferenceInExternalStringTableEntry(
+    Heap* heap, FullObjectSlot p) {
+  Tagged<HeapObject> old_string = Tagged<HeapObject>::cast(*p);
+  MapWord map_word = old_string->map_word(kRelaxedLoad);
 
   if (map_word.IsForwardingAddress()) {
-    String new_string = String::cast(map_word.ToForwardingAddress(old_string));
+    Tagged<String> new_string =
+        Tagged<String>::cast(map_word.ToForwardingAddress(old_string));
 
     if (new_string.IsExternalString()) {
       MemoryChunk::MoveExternalBackingStoreBytes(
@@ -3739,7 +3740,7 @@ static String UpdateReferenceInExternalStringTableEntry(Heap* heap,
     return new_string;
   }
 
-  return String::cast(*p);
+  return Tagged<String>::cast(*p);
 }
 
 void MarkCompactCollector::EvacuatePrologue() {
@@ -4008,7 +4009,7 @@ bool Evacuator::RawEvacuatePage(MemoryChunk* chunk, intptr_t* live_bytes) {
     case kPageNewToOld:
       if (chunk->IsLargePage()) {
         auto object = LargePage::cast(chunk)->GetObject();
-        bool success = new_to_old_page_visitor_.Visit(object, object.Size());
+        bool success = new_to_old_page_visitor_.Visit(object, object->Size());
         USE(success);
         DCHECK(success);
       } else {
@@ -4276,10 +4277,10 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
 
 class EvacuationWeakObjectRetainer : public WeakObjectRetainer {
  public:
-  Object RetainAs(Object object) override {
+  Tagged<Object> RetainAs(Tagged<Object> object) override {
     if (object.IsHeapObject()) {
-      HeapObject heap_object = HeapObject::cast(object);
-      MapWord map_word = heap_object.map_word(kRelaxedLoad);
+      Tagged<HeapObject> heap_object = Tagged<HeapObject>::cast(object);
+      MapWord map_word = heap_object->map_word(kRelaxedLoad);
       if (map_word.IsForwardingAddress()) {
         return map_word.ToForwardingAddress(heap_object);
       }

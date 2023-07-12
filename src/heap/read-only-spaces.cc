@@ -413,7 +413,7 @@ class ReadOnlySpaceObjectIterator : public ObjectIterator {
   // Advance to the next object, skipping free spaces and other fillers and
   // skipping the special garbage section of which there is one per space.
   // Returns a null object when the iteration has ended.
-  HeapObject Next() override {
+  Tagged<HeapObject> Next() override {
     while (cur_addr_ != cur_end_) {
       if (cur_addr_ == space_->top() && cur_addr_ != space_->limit()) {
         cur_addr_ = space_->limit();

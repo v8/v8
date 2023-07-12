@@ -47,7 +47,7 @@ class Heap {
   static bool IsValidCodeObject(HeapObject object);
 
   void ResetIterator();
-  HeapObject NextObject();
+  Tagged<HeapObject> NextObject();
 
   bool CollectGarbage();
 

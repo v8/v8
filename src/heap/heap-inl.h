@@ -117,16 +117,17 @@ int64_t Heap::update_external_memory(int64_t delta) {
 
 RootsTable& Heap::roots_table() { return isolate()->roots_table(); }
 
-#define ROOT_ACCESSOR(Type, name, CamelName)                           \
-  Type Heap::name() {                                                  \
-    return Type::cast(Object(roots_table()[RootIndex::k##CamelName])); \
+#define ROOT_ACCESSOR(Type, name, CamelName)                     \
+  Tagged<Type> Heap::name() {                                    \
+    return Tagged<Type>::cast(                                   \
+        Tagged<Object>(roots_table()[RootIndex::k##CamelName])); \
   }
 MUTABLE_ROOT_LIST(ROOT_ACCESSOR)
 #undef ROOT_ACCESSOR
 
-FixedArray Heap::single_character_string_table() {
-  return FixedArray::cast(
-      Object(roots_table()[RootIndex::kSingleCharacterStringTable]));
+Tagged<FixedArray> Heap::single_character_string_table() {
+  return Tagged<FixedArray>::cast(
+      Tagged<Object>(roots_table()[RootIndex::kSingleCharacterStringTable]));
 }
 
 #define STATIC_ROOTS_FAILED_MSG                                            \
@@ -148,13 +149,19 @@ FixedArray Heap::single_character_string_table() {
 #endif
 
 #define ROOT_ACCESSOR(type, name, CamelName)                                   \
-  void Heap::set_##name(type value) {                                          \
+  void Heap::set_##name(Tagged<type> value) {                                  \
     /* The deserializer makes use of the fact that these common roots are */   \
     /* never in new space and never on a page that is being compacted.    */   \
     DCHECK_IMPLIES(deserialization_complete(),                                 \
                    !RootsTable::IsImmortalImmovable(RootIndex::k##CamelName)); \
-    DCHECK_IMPLIES(RootsTable::IsImmortalImmovable(RootIndex::k##CamelName),   \
-                   IsImmovable(HeapObject::cast(value)));                      \
+    if constexpr (RootsTable::IsImmortalImmovable(RootIndex::k##CamelName)) {  \
+      /* Cast via object to avoid compile errors when trying to cast a Smi */  \
+      /* to HeapObject (these Smis will anyway be excluded by */               \
+      /* RootsTable::IsImmortalImmovable but this isn't enough for the*/       \
+      /* compiler, even with `if constexpr`)*/                                 \
+      DCHECK(                                                                  \
+          IsImmovable(Tagged<HeapObject>::cast(Tagged<Object>::cast(value)))); \
+    }                                                                          \
     DCHECK_STATIC_ROOT(value, CamelName);                                      \
     roots_table()[RootIndex::k##CamelName] = value.ptr();                      \
   }
@@ -163,19 +170,19 @@ ROOT_LIST(ROOT_ACCESSOR)
 #undef CHECK_STATIC_ROOT
 #undef STATIC_ROOTS_FAILED_MSG
 
-void Heap::SetRootMaterializedObjects(FixedArray objects) {
+void Heap::SetRootMaterializedObjects(Tagged<FixedArray> objects) {
   roots_table()[RootIndex::kMaterializedObjects] = objects.ptr();
 }
 
-void Heap::SetRootScriptList(Object value) {
+void Heap::SetRootScriptList(Tagged<Object> value) {
   roots_table()[RootIndex::kScriptList] = value.ptr();
 }
 
-void Heap::SetMessageListeners(TemplateList value) {
+void Heap::SetMessageListeners(Tagged<TemplateList> value) {
   roots_table()[RootIndex::kMessageListeners] = value.ptr();
 }
 
-void Heap::SetFunctionsMarkedForManualOptimization(Object hash_table) {
+void Heap::SetFunctionsMarkedForManualOptimization(Tagged<Object> hash_table) {
   DCHECK(hash_table.IsObjectHashTable() || hash_table.IsUndefined(isolate()));
   roots_table()[RootIndex::kFunctionsMarkedForManualOptimization] =
       hash_table.ptr();
@@ -242,24 +249,24 @@ Address Heap::AllocateRawOrFail(int size, AllocationType allocation,
       .address();
 }
 
-void Heap::RegisterExternalString(String string) {
+void Heap::RegisterExternalString(Tagged<String> string) {
   DCHECK(string.IsExternalString());
   DCHECK(!string.IsThinString());
   external_string_table_.AddString(string);
 }
 
-void Heap::FinalizeExternalString(String string) {
+void Heap::FinalizeExternalString(Tagged<String> string) {
   DCHECK(string.IsExternalString());
-  ExternalString ext_string = ExternalString::cast(string);
+  Tagged<ExternalString> ext_string = Tagged<ExternalString>::cast(string);
 
   if (!v8_flags.enable_third_party_heap) {
     Page* page = Page::FromHeapObject(string);
     page->DecrementExternalBackingStoreBytes(
         ExternalBackingStoreType::kExternalString,
-        ext_string.ExternalPayloadSize());
+        ext_string->ExternalPayloadSize());
   }
 
-  ext_string.DisposeResource(isolate());
+  ext_string->DisposeResource(isolate());
 }
 
 Address Heap::NewSpaceTop() {
@@ -357,7 +364,7 @@ inline bool Heap::InToPage(Tagged<T> object) {
   return InYoungGeneration(*object);
 }
 
-bool Heap::InOldSpace(Object object) {
+bool Heap::InOldSpace(Tagged<Object> object) {
   if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
     return object.IsHeapObject() &&
            third_party_heap::Heap::InOldSpace(object.ptr());
@@ -366,7 +373,7 @@ bool Heap::InOldSpace(Object object) {
 }
 
 // static
-Heap* Heap::FromWritableHeapObject(HeapObject obj) {
+Heap* Heap::FromWritableHeapObject(Tagged<HeapObject> obj) {
   if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
     return Heap::GetIsolateFromWritableObject(obj)->heap();
   }
@@ -385,7 +392,7 @@ void Heap::CopyBlock(Address dst, Address src, int byte_size) {
   CopyTagged(dst, src, static_cast<size_t>(byte_size / kTaggedSize));
 }
 
-bool Heap::IsPendingAllocationInternal(HeapObject object) {
+bool Heap::IsPendingAllocationInternal(Tagged<HeapObject> object) {
   DCHECK(deserialization_complete());
 
   if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
@@ -455,7 +462,7 @@ bool Heap::IsPendingAllocation(Object object) {
   return object.IsHeapObject() && IsPendingAllocation(HeapObject::cast(object));
 }
 
-void Heap::ExternalStringTable::AddString(String string) {
+void Heap::ExternalStringTable::AddString(Tagged<String> string) {
   base::Optional<base::MutexGuard> guard;
 
   // With --shared-string-table client isolates may insert into the main

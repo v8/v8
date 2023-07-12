@@ -38,11 +38,12 @@ void DependentCode::DeoptimizeDependencyGroups(Isolate* isolate,
 
 // static
 template <typename ObjectT>
-bool DependentCode::MarkCodeForDeoptimization(Isolate* isolate, ObjectT object,
+bool DependentCode::MarkCodeForDeoptimization(Isolate* isolate,
+                                              Tagged<ObjectT> object,
                                               DependencyGroups groups) {
   // Shared objects are designed to never invalidate code.
-  DCHECK(!object.InSharedHeap() && !object.InReadOnlySpace());
-  return object.dependent_code().MarkCodeForDeoptimization(isolate, groups);
+  DCHECK(!object.InAnySharedSpace() && !object.InReadOnlySpace());
+  return object->dependent_code().MarkCodeForDeoptimization(isolate, groups);
 }
 
 }  // namespace internal

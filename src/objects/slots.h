@@ -14,6 +14,7 @@ namespace v8 {
 namespace internal {
 
 class Object;
+class TaggedBase;
 
 template <typename Subclass, typename Data,
           size_t SlotDataAlignment = sizeof(Data)>
@@ -103,6 +104,7 @@ class FullObjectSlot : public SlotBase<FullObjectSlot, Address> {
   explicit FullObjectSlot(const Address* ptr)
       : SlotBase(reinterpret_cast<Address>(ptr)) {}
   inline explicit FullObjectSlot(Object* object);
+  inline explicit FullObjectSlot(TaggedBase* object);
   template <typename T>
   explicit FullObjectSlot(SlotBase<T, TData, kSlotDataAlignment> slot)
       : SlotBase(slot.address()) {}

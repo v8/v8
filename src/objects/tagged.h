@@ -82,6 +82,8 @@ class TaggedBase {
   }
 
  protected:
+  friend class FullObjectSlot;
+
   constexpr explicit TaggedBase(Address ptr) : ptr_(ptr) {}
   // TODO(leszeks): Consider a different default value, e.g. a tagged null.
   Address ptr_ = kNullAddress;

@@ -357,7 +357,7 @@ class V8_EXPORT_PRIVATE ObjectIterator : public Malloced {
   // compiler producing warnings about undefined inlines for Next()
   // on classes inheriting from it.
   virtual ~ObjectIterator() {}
-  virtual HeapObject Next() = 0;
+  virtual Tagged<HeapObject> Next() = 0;
 };
 
 template <class PAGE_TYPE>

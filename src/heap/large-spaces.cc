@@ -98,10 +98,10 @@ LargeObjectSpaceObjectIterator::LargeObjectSpaceObjectIterator(
   current_ = space->first_page();
 }
 
-HeapObject LargeObjectSpaceObjectIterator::Next() {
-  if (current_ == nullptr) return HeapObject();
+Tagged<HeapObject> LargeObjectSpaceObjectIterator::Next() {
+  if (current_ == nullptr) return Tagged<HeapObject>();
 
-  HeapObject object = current_->GetObject();
+  Tagged<HeapObject> object = current_->GetObject();
   current_ = current_->next_page();
   return object;
 }
@@ -244,7 +244,7 @@ void OldLargeObjectSpace::PromoteNewLargeObject(LargePage* page) {
   PtrComprCageBase cage_base(heap()->isolate());
   static_cast<LargeObjectSpace*>(page->owner())->RemovePage(page);
   page->ClearFlag(MemoryChunk::FROM_PAGE);
-  AddPage(page, static_cast<size_t>(page->GetObject().Size(cage_base)));
+  AddPage(page, static_cast<size_t>(page->GetObject()->Size(cage_base)));
 }
 
 void LargeObjectSpace::AddPage(LargePage* page, size_t object_size) {
@@ -280,7 +280,7 @@ void LargeObjectSpace::ShrinkPageToObjectSize(LargePage* page,
 #ifdef DEBUG
   PtrComprCageBase cage_base(heap()->isolate());
   DCHECK_EQ(object, page->GetObject());
-  DCHECK_EQ(object_size, page->GetObject().Size(cage_base));
+  DCHECK_EQ(object_size, page->GetObject()->Size(cage_base));
   DCHECK_EQ(page->executable(), NOT_EXECUTABLE);
 #endif  // DEBUG
 

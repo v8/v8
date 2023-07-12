@@ -1079,12 +1079,13 @@ void MinorMarkSweepCollector::Sweep() {
     // Otherwise, updating the table will happen during the next full GC.
     TRACE_GC(heap_->tracer(),
              GCTracer::Scope::MINOR_MS_SWEEP_UPDATE_STRING_TABLE);
-    heap_->UpdateYoungReferencesInExternalStringTable([](Heap* heap,
-                                                         FullObjectSlot p) {
-      DCHECK(
-          !HeapObject::cast(*p).map_word(kRelaxedLoad).IsForwardingAddress());
-      return String::cast(*p);
-    });
+    heap_->UpdateYoungReferencesInExternalStringTable(
+        [](Heap* heap, FullObjectSlot p) {
+          DCHECK(!Tagged<HeapObject>::cast(*p)
+                      ->map_word(kRelaxedLoad)
+                      .IsForwardingAddress());
+          return Tagged<String>::cast(*p);
+        });
   }
 
   sweeper_->StartMinorSweeping();

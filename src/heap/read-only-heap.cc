@@ -294,18 +294,18 @@ ReadOnlyHeapObjectIterator::ReadOnlyHeapObjectIterator(
   DCHECK(!V8_ENABLE_THIRD_PARTY_HEAP_BOOL);
 }
 
-HeapObject ReadOnlyHeapObjectIterator::Next() {
+Tagged<HeapObject> ReadOnlyHeapObjectIterator::Next() {
   while (current_page_ != ro_space_->pages().end()) {
-    HeapObject obj = page_iterator_.Next();
+    Tagged<HeapObject> obj = page_iterator_.Next();
     if (!obj.is_null()) return obj;
 
     ++current_page_;
-    if (current_page_ == ro_space_->pages().end()) return HeapObject();
+    if (current_page_ == ro_space_->pages().end()) return Tagged<HeapObject>();
     page_iterator_.Reset(*current_page_);
   }
 
   DCHECK_EQ(current_page_, ro_space_->pages().end());
-  return HeapObject();
+  return Tagged<HeapObject>();
 }
 
 ReadOnlyPageObjectIterator::ReadOnlyPageObjectIterator(

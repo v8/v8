@@ -6710,7 +6710,7 @@ Genesis::Genesis(
       // The global proxy function to reinitialize this global proxy is in the
       // context that is yet to be deserialized. We need to prepare a global
       // proxy of the correct size.
-      Object size = isolate->heap()->serialized_global_proxy_sizes().get(
+      Object size = isolate->heap()->serialized_global_proxy_sizes()->get(
           static_cast<int>(context_snapshot_index) - 1);
       instance_size = Smi::ToInt(size);
     } else {

@@ -227,7 +227,7 @@ bool Heap::CreateMutableHeapObjects() {
                  message_object)
     ALLOCATE_MAP(JS_EXTERNAL_OBJECT_TYPE, JSExternalObject::kHeaderSize,
                  external)
-    external_map().set_is_extensible(false);
+    external_map()->set_is_extensible(false);
   }
 #undef ALLOCATE_MAP
 
@@ -304,12 +304,12 @@ AllocationResult Heap::AllocatePartialMap(InstanceType instance_type,
   return AllocationResult::FromObject(map);
 }
 
-void Heap::FinalizePartialMap(Map map) {
+void Heap::FinalizePartialMap(Tagged<Map> map) {
   ReadOnlyRoots roots(this);
-  map.set_dependent_code(DependentCode::empty_dependent_code(roots));
-  map.set_raw_transitions(MaybeObject::FromSmi(Smi::zero()));
-  map.SetInstanceDescriptors(isolate(), roots.empty_descriptor_array(), 0);
-  map.init_prototype_and_constructor_or_back_pointer(roots);
+  map->set_dependent_code(DependentCode::empty_dependent_code(roots));
+  map->set_raw_transitions(MaybeObject::FromSmi(Smi::zero()));
+  map->SetInstanceDescriptors(isolate(), roots.empty_descriptor_array(), 0);
+  map->init_prototype_and_constructor_or_back_pointer(roots);
 }
 
 AllocationResult Heap::Allocate(Handle<Map> map,
@@ -952,7 +952,7 @@ bool Heap::CreateReadOnlyObjects() {
     Handle<String> str =
         factory->InternalizeString(base::Vector<const uint8_t>(&code, 1));
     DCHECK(ReadOnlyHeap::Contains(*str));
-    single_character_string_table().set(i, *str);
+    single_character_string_table()->set(i, *str);
   }
 
   for (const ConstantStringInit& entry : kNotImportantConstantStringTable) {

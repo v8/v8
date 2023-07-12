@@ -60,7 +60,7 @@ BUILTIN(SymbolKeyFor) {
   } else {
     result = ReadOnlyRoots(isolate).undefined_value();
   }
-  DCHECK_EQ(isolate->heap()->public_symbol_table().SlowReverseLookup(*symbol),
+  DCHECK_EQ(isolate->heap()->public_symbol_table()->SlowReverseLookup(*symbol),
             result);
   return result;
 }

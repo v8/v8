@@ -83,7 +83,8 @@ class DependentCode : public WeakArrayList {
                                          DependencyGroups groups);
 
   template <typename ObjectT>
-  static bool MarkCodeForDeoptimization(Isolate* isolate, ObjectT object,
+  static bool MarkCodeForDeoptimization(Isolate* isolate,
+                                        Tagged<ObjectT> object,
                                         DependencyGroups groups);
 
   V8_EXPORT_PRIVATE static DependentCode empty_dependent_code(

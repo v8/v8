@@ -479,7 +479,7 @@ size_t Isolate::HashIsolateForEmbeddedBlob() {
 
   // The builtins constants table is also tightly tied to embedded builtins.
   hash = base::hash_combine(
-      hash, static_cast<size_t>(heap_.builtins_constants_table().length()));
+      hash, static_cast<size_t>(heap_.builtins_constants_table()->length()));
 
   return hash;
 }

@@ -190,7 +190,7 @@ class V8_EXPORT_PRIVATE ReadOnlyHeapObjectIterator final {
   explicit ReadOnlyHeapObjectIterator(const ReadOnlyHeap* ro_heap);
   explicit ReadOnlyHeapObjectIterator(const ReadOnlySpace* ro_space);
 
-  HeapObject Next();
+  Tagged<HeapObject> Next();
 
  private:
   const ReadOnlySpace* const ro_space_;

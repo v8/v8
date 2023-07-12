@@ -1475,7 +1475,8 @@ Handle<JSFunction> WasmInternalFunction::GetOrCreateExternal(
   int wrapper_index =
       wasm::GetExportWrapperIndex(canonical_sig_index, function.imported);
 
-  MaybeObject entry = isolate->heap()->js_to_wasm_wrappers().Get(wrapper_index);
+  MaybeObject entry =
+      isolate->heap()->js_to_wasm_wrappers()->Get(wrapper_index);
 
   Handle<Code> wrapper;
   // {entry} can be cleared, {undefined}, or a ready {Code}.
@@ -1491,7 +1492,7 @@ Handle<JSFunction> WasmInternalFunction::GetOrCreateExternal(
   }
   // Store the wrapper in the isolate, or make its reference weak now that we
   // have a function referencing it.
-  isolate->heap()->js_to_wasm_wrappers().Set(
+  isolate->heap()->js_to_wasm_wrappers()->Set(
       wrapper_index, HeapObjectReference::Weak(*wrapper));
   auto result = WasmExportedFunction::New(
       isolate, instance, internal, internal->function_index(),

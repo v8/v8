@@ -545,7 +545,7 @@ void WeakArrayList::CopyElements(Isolate* isolate, int dst_index,
   isolate->heap()->CopyRange(*this, dst_slot, src_slot, len, mode);
 }
 
-HeapObject WeakArrayList::Iterator::Next() {
+Tagged<HeapObject> WeakArrayList::Iterator::Next() {
   if (!array_.is_null()) {
     while (index_ < array_.length()) {
       MaybeObject item = array_.Get(index_++);
@@ -554,7 +554,7 @@ HeapObject WeakArrayList::Iterator::Next() {
     }
     array_ = WeakArrayList();
   }
-  return HeapObject();
+  return Tagged<HeapObject>();
 }
 
 int ArrayList::Length() const {

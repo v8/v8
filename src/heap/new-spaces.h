@@ -213,7 +213,7 @@ class SemiSpaceObjectIterator : public ObjectIterator {
   // Create an iterator over the objects in the given to-space.
   inline explicit SemiSpaceObjectIterator(const SemiSpaceNewSpace* space);
 
-  inline HeapObject Next() final;
+  inline Tagged<HeapObject> Next() final;
 
  private:
   // The current iteration point.

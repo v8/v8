@@ -5169,7 +5169,7 @@ HEAP_TEST(NumberStringCacheSize) {
   if (!isolate->snapshot_available()) return;
   Heap* heap = isolate->heap();
   CHECK_EQ(Heap::kInitialNumberStringCacheSize * 2,
-           heap->number_string_cache().length());
+           heap->number_string_cache()->length());
 }
 
 
