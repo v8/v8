@@ -2993,8 +2993,7 @@ void InstructionSelectorT<TurbofanAdapter>::VisitNode(Node* node) {
     }
     case IrOpcode::kLoadTransform: {
       LoadTransformParameters params = LoadTransformParametersOf(node->op());
-      if (params.transformation == LoadTransformation::kS256Load32Splat ||
-          params.transformation == LoadTransformation::kS256Load64Splat) {
+      if (params.transformation >= LoadTransformation::kFirst256Transform) {
         MarkAsRepresentation(MachineRepresentation::kSimd256, node);
       } else {
         MarkAsRepresentation(MachineRepresentation::kSimd128, node);

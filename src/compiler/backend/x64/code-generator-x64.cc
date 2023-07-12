@@ -6386,6 +6386,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_SIMD256_BINOP(pmaddwd, AVX2);
       break;
     }
+    case kX64S256Load8Splat: {
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      CpuFeatureScope avx2_scope(masm(), AVX2);
+      __ vpbroadcastb(i.OutputSimd256Register(), i.MemoryOperand());
+      break;
+    }
+    case kX64S256Load16Splat: {
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      CpuFeatureScope avx2_scope(masm(), AVX2);
+      __ vpbroadcastw(i.OutputSimd256Register(), i.MemoryOperand());
+      break;
+    }
     case kX64S256Load32Splat: {
       EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
       CpuFeatureScope avx_scope(masm(), AVX);
@@ -6393,7 +6405,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kX64S256Load64Splat: {
-      UNIMPLEMENTED();
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());
+      CpuFeatureScope avx_scope(masm(), AVX);
+      __ vbroadcastsd(i.OutputSimd256Register(), i.MemoryOperand());
+      break;
     }
     case kX64Movdqu256: {
       EmitOOLTrapIfNeeded(zone(), this, opcode, instr, __ pc_offset());

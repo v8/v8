@@ -632,8 +632,7 @@ PackNode* SLPTree::BuildTreeRec(const ZoneVector<Node*>& node_group,
     return nullptr;
   }
 
-  if (node0->opcode() == IrOpcode::kProtectedLoad ||
-      node0->opcode() == IrOpcode::kLoadTransform) {
+  if (IsSupportedLoad(node0)) {
     TRACE("Load leaf node\n");
     if (!AllSameAddress(node_group)) {
       TRACE("Failed due to different load addr!\n");
@@ -663,12 +662,12 @@ PackNode* SLPTree::BuildTreeRec(const ZoneVector<Node*>& node_group,
       }
       LoadTransformParameters params = LoadTransformParametersOf(node0->op());
       // TODO(jiepan): Support more LoadTransformation types
-      if (params.transformation != LoadTransformation::kS128Load32Splat &&
-          params.transformation != LoadTransformation::kS128Load64Splat) {
+      if (params.transformation > LoadTransformation::kLast128Splat) {
         TRACE("LoadTransform failed due to unsupported type #%d!\n",
               node0->id());
         return nullptr;
       }
+      DCHECK_GE(params.transformation, LoadTransformation::kFirst128Splat);
     }
 
     if (!IsSideEffectFreeLoad(node_group)) {
@@ -1046,18 +1045,30 @@ Node* Revectorizer::VectorizeTree(PackNode* pnode) {
     }
     case IrOpcode::kLoadTransform: {
       LoadTransformParameters params = LoadTransformParametersOf(node0->op());
-      if (params.transformation == LoadTransformation::kS128Load32Splat) {
-        new_op = mcgraph_->machine()->LoadTransform(
-            params.kind, LoadTransformation::kS256Load32Splat);
-        SetMemoryOpInputs(inputs, pnode, 2);
-      } else if (params.transformation ==
-                 LoadTransformation::kS128Load64Splat) {
-        new_op = mcgraph_->machine()->LoadTransform(
-            params.kind, LoadTransformation::kS256Load64Splat);
-        SetMemoryOpInputs(inputs, pnode, 2);
-      } else {
-        TRACE("Unsupported #%d:%s!\n", node0->id(), node0->op()->mnemonic());
+      LoadTransformation new_transformation;
+
+      // clang-format off
+      switch (params.transformation) {
+        case LoadTransformation::kS128Load8Splat:
+          new_transformation = LoadTransformation::kS256Load8Splat;
+          break;
+        case LoadTransformation::kS128Load16Splat:
+          new_transformation = LoadTransformation::kS256Load16Splat;
+          break;
+        case LoadTransformation::kS128Load32Splat:
+          new_transformation = LoadTransformation::kS256Load32Splat;
+          break;
+        case LoadTransformation::kS128Load64Splat:
+          new_transformation = LoadTransformation::kS256Load64Splat;
+          break;
+        default:
+          UNREACHABLE();
       }
+      // clang-format on
+
+      new_op =
+          mcgraph_->machine()->LoadTransform(params.kind, new_transformation);
+      SetMemoryOpInputs(inputs, pnode, 2);
       break;
     }
     case IrOpcode::kExtractF128: {

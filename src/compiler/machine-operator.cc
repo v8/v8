@@ -127,6 +127,10 @@ std::ostream& operator<<(std::ostream& os, LoadTransformation rep) {
     case LoadTransformation::kS128Load64Zero:
       return os << "kS128Load64Zero";
     // Simd256
+    case LoadTransformation::kS256Load8Splat:
+      return os << "kS256Load8Splat";
+    case LoadTransformation::kS256Load16Splat:
+      return os << "kS256Load16Splat";
     case LoadTransformation::kS256Load32Splat:
       return os << "kS256Load32Splat";
     case LoadTransformation::kS256Load64Splat:
@@ -951,6 +955,8 @@ std::ostream& operator<<(std::ostream& os, TruncateKind kind) {
   V(S128Load32x2U)             \
   V(S128Load32Zero)            \
   V(S128Load64Zero)            \
+  V(S256Load8Splat)            \
+  V(S256Load16Splat)           \
   V(S256Load32Splat)           \
   V(S256Load64Splat)
 

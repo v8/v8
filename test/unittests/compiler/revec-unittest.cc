@@ -42,6 +42,8 @@ class RevecTest : public TestWithIsolateAndZone {
   void TestSplatOp(const Operator* splat_op,
                    MachineType splat_input_machine_type,
                    const IrOpcode::Value expected_simd256_op_code);
+  void TestLoadSplat(LoadTransformation transform, const Operator* bin_op,
+                     LoadTransformation expected_transform);
 
   Graph* graph() { return &graph_; }
   CommonOperatorBuilder* common() { return &common_; }
@@ -458,6 +460,77 @@ TEST_F(RevecTest, ShuffleForSplat) {
   Node* store_256 = ret->InputAt(1);
   EXPECT_EQ(StoreRepresentationOf(store_256->op()).representation(),
             MachineRepresentation::kSimd256);
+}
+
+void RevecTest::TestLoadSplat(
+    const LoadTransformation load_transform, const Operator* bin_op,
+    const LoadTransformation expected_load_transform) {
+  if (!CpuFeatures::IsSupported(AVX2)) {
+    return;
+  }
+  Node* start = graph()->NewNode(common()->Start(3));
+  graph()->SetStart(start);
+
+  Node* zero = graph()->NewNode(common()->Int32Constant(0));
+  Node* sixteen = graph()->NewNode(common()->Int64Constant(16));
+  Node* offset = graph()->NewNode(common()->Int64Constant(23));
+
+  Node* p0 = graph()->NewNode(common()->Parameter(0), start);
+  Node* a = graph()->NewNode(common()->Parameter(1), start);
+  Node* b = graph()->NewNode(common()->Parameter(2), start);
+  Node* c = graph()->NewNode(common()->Parameter(3), start);
+
+  Node* base = graph()->NewNode(machine()->Load(MachineType::Uint64()), p0,
+                                offset, start, start);
+
+  Node* loadSplat = graph()->NewNode(
+      machine()->LoadTransform(MemoryAccessKind::kProtected, load_transform),
+      base, a, base, start);
+
+  LoadRepresentation load_rep(MachineType::Simd128());
+  Node* load0 = graph()->NewNode(machine()->ProtectedLoad(load_rep), base, b,
+                                 loadSplat, start);
+  Node* load1 = graph()->NewNode(
+      machine()->ProtectedLoad(load_rep),
+      graph()->NewNode(machine()->Int64Add(), base, sixteen), b, load0, start);
+
+  StoreRepresentation store_rep(MachineRepresentation::kSimd128,
+                                WriteBarrierKind::kNoWriteBarrier);
+  Node* store0 = graph()->NewNode(machine()->Store(store_rep), base, c,
+                                  graph()->NewNode(bin_op, load0, loadSplat),
+                                  load1, start);
+  Node* store1 = graph()->NewNode(
+      machine()->Store(store_rep),
+      graph()->NewNode(machine()->Int64Add(), base, sixteen), c,
+      graph()->NewNode(bin_op, load1, loadSplat), store0, start);
+
+  Node* ret = graph()->NewNode(common()->Return(0), zero, store0, start);
+  Node* end = graph()->NewNode(common()->End(1), ret);
+  graph()->SetEnd(end);
+
+  graph()->RecordSimdStore(store0);
+  graph()->RecordSimdStore(store1);
+  graph()->SetSimd(true);
+
+  Revectorizer revec(zone(), graph(), mcgraph());
+  bool result = revec.TryRevectorize(nullptr);
+
+  EXPECT_TRUE(result);
+  Node* store_256 = ret->InputAt(1);
+  EXPECT_EQ(StoreRepresentationOf(store_256->op()).representation(),
+            MachineRepresentation::kSimd256);
+  EXPECT_EQ(LoadTransformParametersOf(store_256->InputAt(2)->InputAt(1)->op())
+                .transformation,
+            expected_load_transform);
+}
+
+TEST_F(RevecTest, Load8Splat) {
+  TestLoadSplat(LoadTransformation::kS128Load8Splat, machine()->I8x16Add(),
+                LoadTransformation::kS256Load8Splat);
+}
+TEST_F(RevecTest, Load64Splat) {
+  TestLoadSplat(LoadTransformation::kS128Load64Splat, machine()->I64x2Add(),
+                LoadTransformation::kS256Load64Splat);
 }
 
 }  // namespace compiler

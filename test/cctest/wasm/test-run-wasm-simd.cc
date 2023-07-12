@@ -3879,6 +3879,98 @@ WASM_EXEC_TEST(S128Load64Splat) {
   RunLoadSplatTest<int64_t>(execution_tier, kExprS128Load64Splat);
 }
 
+#ifdef V8_ENABLE_WASM_SIMD256_REVEC
+template <typename T>
+void RunLoadSplatRevecTest(WasmOpcode op, WasmOpcode bin_op,
+                           compiler::IrOpcode::Value revec_opcode,
+                           T (*expected_op)(T, T)) {
+  if (!CpuFeatures::IsSupported(AVX2)) return;
+
+  EXPERIMENTAL_FLAG_SCOPE(revectorize);
+  constexpr int lanes = 16 / sizeof(T);
+  constexpr int mem_index = 64;  // LoadSplat from mem index 64 (bytes).
+  constexpr uint8_t offset = 16;
+
+#define BUILD_LOADSPLAT(get_op, index)                                         \
+  T* memory = r.builder().AddMemoryElems<T>(kWasmPageSize / sizeof(T));        \
+  uint8_t temp1 = r.AllocateLocal(kWasmS128);                                  \
+  uint8_t temp2 = r.AllocateLocal(kWasmS128);                                  \
+  uint8_t temp3 = r.AllocateLocal(kWasmS128);                                  \
+                                                                               \
+  BUILD_AND_CHECK_REVEC_NODE(                                                  \
+      r, revec_opcode,                                                         \
+      WASM_LOCAL_SET(temp1, WASM_SIMD_LOAD_OP(op, get_op(index))),             \
+      WASM_LOCAL_SET(temp2,                                                    \
+                     WASM_SIMD_BINOP(bin_op, WASM_SIMD_LOAD_MEM(WASM_I32V(0)), \
+                                     WASM_LOCAL_GET(temp1))),                  \
+      WASM_LOCAL_SET(                                                          \
+          temp3, WASM_SIMD_BINOP(                                              \
+                     bin_op, WASM_SIMD_LOAD_MEM_OFFSET(offset, WASM_I32V(0)),  \
+                     WASM_LOCAL_GET(temp1))),                                  \
+                                                                               \
+      /* Store the result to the 32-th byte, which is 2*lanes-th element (size \
+         T) of memory */                                                       \
+      WASM_SIMD_STORE_MEM(WASM_I32V(32), WASM_LOCAL_GET(temp2)),               \
+      WASM_SIMD_STORE_MEM_OFFSET(offset, WASM_I32V(32),                        \
+                                 WASM_LOCAL_GET(temp3)),                       \
+      WASM_ONE);                                                               \
+                                                                               \
+  r.builder().WriteMemory(&memory[1], T(1));                                   \
+  r.builder().WriteMemory(&memory[lanes + 1], T(1));
+
+  {
+    WasmRunner<int32_t> r(TestExecutionTier::kTurbofan);
+    BUILD_LOADSPLAT(WASM_I32V, mem_index)
+
+    for (T x : compiler::ValueHelper::GetVector<T>()) {
+      // 64-th byte in memory is 4*lanes-th element (size T) of memory.
+      r.builder().WriteMemory(&memory[4 * lanes], x);
+      r.Call();
+      T expected = expected_op(1, x);
+      CHECK_EQ(expected, memory[2 * lanes + 1]);
+      CHECK_EQ(expected, memory[3 * lanes + 1]);
+    }
+  }
+
+  // Test for OOB.
+  {
+    WasmRunner<int32_t, int32_t> r(TestExecutionTier::kTurbofan);
+    BUILD_LOADSPLAT(WASM_LOCAL_GET, 0)
+
+    // Load splats load sizeof(T) bytes.
+    for (uint32_t offset = kWasmPageSize - (sizeof(T) - 1);
+         offset < kWasmPageSize; ++offset) {
+      CHECK_TRAP(r.Call(offset));
+    }
+  }
+#undef BUILD_RUN
+}
+
+TEST(RunWasmTurbofan_S256Load8Splat) {
+  RunLoadSplatRevecTest<int8_t>(kExprS128Load8Splat, kExprI32x4Add,
+                                compiler::IrOpcode::kI32x8Add,
+                                base::AddWithWraparound);
+}
+
+TEST(RunWasmTurbofan_S256Load16Splat) {
+  RunLoadSplatRevecTest<int16_t>(kExprS128Load16Splat, kExprI16x8Add,
+                                 compiler::IrOpcode::kI16x16Add,
+                                 base::AddWithWraparound);
+}
+
+TEST(RunWasmTurbofan_S256Load32Splat) {
+  RunLoadSplatRevecTest<int32_t>(kExprS128Load32Splat, kExprI32x4Add,
+                                 compiler::IrOpcode::kI32x8Add,
+                                 base::AddWithWraparound);
+}
+
+TEST(RunWasmTurbofan_S256Load64Splat) {
+  RunLoadSplatRevecTest<int64_t>(kExprS128Load64Splat, kExprI64x2Add,
+                                 compiler::IrOpcode::kI64x4Add,
+                                 base::AddWithWraparound);
+}
+#endif
+
 template <typename S, typename T>
 void RunLoadExtendTest(TestExecutionTier execution_tier, WasmOpcode op) {
   static_assert(sizeof(S) < sizeof(T),

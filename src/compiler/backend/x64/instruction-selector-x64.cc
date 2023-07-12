@@ -772,6 +772,12 @@ void InstructionSelectorT<Adapter>::VisitLoadTransform(Node* node) {
       opcode = kX64Movsd;
       break;
     // Simd256
+    case LoadTransformation::kS256Load8Splat:
+      opcode = kX64S256Load8Splat;
+      break;
+    case LoadTransformation::kS256Load16Splat:
+      opcode = kX64S256Load16Splat;
+      break;
     case LoadTransformation::kS256Load32Splat:
       opcode = kX64S256Load32Splat;
       break;

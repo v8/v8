@@ -114,10 +114,14 @@ V8_EXPORT_PRIVATE AtomicOpParameters AtomicOpParametersOf(Operator const*)
     V8_WARN_UNUSED_RESULT;
 
 enum class LoadTransformation {
+  // 128-bit LoadSplats must be first.
   kS128Load8Splat,
   kS128Load16Splat,
   kS128Load32Splat,
   kS128Load64Splat,
+  kFirst128Splat = kS128Load8Splat,
+  kLast128Splat = kS128Load64Splat,
+  // 128-bit LoadExtend.
   kS128Load8x8S,
   kS128Load8x8U,
   kS128Load16x4S,
@@ -126,8 +130,12 @@ enum class LoadTransformation {
   kS128Load32x2U,
   kS128Load32Zero,
   kS128Load64Zero,
+  // 256-bit transformations must be last.
+  kS256Load8Splat,
+  kS256Load16Splat,
   kS256Load32Splat,
   kS256Load64Splat,
+  kFirst256Transform = kS256Load8Splat
 };
 
 size_t hash_value(LoadTransformation);
