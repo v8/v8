@@ -203,11 +203,15 @@ void VisitRRRR(InstructionSelectorT<Adapter>* selector, ArchOpcode opcode,
 
 template <typename Adapter>
 static void VisitRRO(InstructionSelectorT<Adapter>* selector, ArchOpcode opcode,
-                     Node* node) {
-  Mips64OperandGeneratorT<Adapter> g(selector);
-  selector->Emit(opcode, g.DefineAsRegister(node),
-                 g.UseRegister(node->InputAt(0)),
-                 g.UseOperand(node->InputAt(1), opcode));
+                     typename Adapter::node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    Mips64OperandGeneratorT<Adapter> g(selector);
+    selector->Emit(opcode, g.DefineAsRegister(node),
+                   g.UseRegister(node->InputAt(0)),
+                   g.UseOperand(node->InputAt(1), opcode));
+  }
 }
 
 template <typename Adapter>
@@ -849,12 +853,17 @@ void InstructionSelectorT<Adapter>::VisitWord64Xor(Node* node) {
   VisitBinop(this, node, kMips64Xor, true, kMips64Xor);
 }
 
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord32Shl(Node* node) {
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitWord32Shl(node_t node) {
+  UNIMPLEMENTED();
+}
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitWord32Shl(Node* node) {
   Int32BinopMatcher m(node);
   if (m.left().IsWord32And() && CanCover(node, m.left().node()) &&
       m.right().IsInRange(1, 31)) {
-    Mips64OperandGeneratorT<Adapter> g(this);
+    Mips64OperandGeneratorT<TurbofanAdapter> g(this);
     Int32BinopMatcher mleft(m.left().node());
     // Match Word32Shl(Word32And(x, mask), imm) to Shl where the mask is
     // contiguous, and the shift immediate non-zero.
@@ -880,8 +889,13 @@ void InstructionSelectorT<Adapter>::VisitWord32Shl(Node* node) {
   VisitRRO(this, kMips64Shl, node);
 }
 
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord32Shr(Node* node) {
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitWord32Shr(node_t node) {
+  UNIMPLEMENTED();
+}
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitWord32Shr(Node* node) {
   Int32BinopMatcher m(node);
   if (m.left().IsWord32And() && m.right().HasResolvedValue()) {
     uint32_t lsb = m.right().ResolvedValue() & 0x1F;
@@ -894,7 +908,7 @@ void InstructionSelectorT<Adapter>::VisitWord32Shr(Node* node) {
       unsigned mask_width = base::bits::CountPopulation(mask);
       unsigned mask_msb = base::bits::CountLeadingZeros32(mask);
       if ((mask_msb + mask_width + lsb) == 32) {
-        Mips64OperandGeneratorT<Adapter> g(this);
+        Mips64OperandGeneratorT<TurbofanAdapter> g(this);
         DCHECK_EQ(lsb, base::bits::CountTrailingZeros32(mask));
         Emit(kMips64Ext, g.DefineAsRegister(node),
              g.UseRegister(mleft.left().node()), g.TempImmediate(lsb),
@@ -985,8 +999,13 @@ void InstructionSelectorT<Adapter>::VisitWord64Shl(node_t node) {
   }
 }
 
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord64Shr(Node* node) {
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitWord64Shr(node_t node) {
+  UNIMPLEMENTED();
+}
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitWord64Shr(Node* node) {
   Int64BinopMatcher m(node);
   if (m.left().IsWord64And() && m.right().HasResolvedValue()) {
     uint32_t lsb = m.right().ResolvedValue() & 0x3F;
@@ -999,7 +1018,7 @@ void InstructionSelectorT<Adapter>::VisitWord64Shr(Node* node) {
       unsigned mask_width = base::bits::CountPopulation(mask);
       unsigned mask_msb = base::bits::CountLeadingZeros64(mask);
       if ((mask_msb + mask_width + lsb) == 64) {
-        Mips64OperandGeneratorT<Adapter> g(this);
+        Mips64OperandGeneratorT<TurbofanAdapter> g(this);
         DCHECK_EQ(lsb, base::bits::CountTrailingZeros64(mask));
         Emit(kMips64Dext, g.DefineAsRegister(node),
              g.UseRegister(mleft.left().node()), g.TempImmediate(lsb),
@@ -1022,17 +1041,17 @@ void InstructionSelectorT<Adapter>::VisitWord64Sar(node_t node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord32Rol(Node* node) {
+void InstructionSelectorT<Adapter>::VisitWord32Rol(node_t node) {
   UNREACHABLE();
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord64Rol(Node* node) {
+void InstructionSelectorT<Adapter>::VisitWord64Rol(node_t node) {
   UNREACHABLE();
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord32Ror(Node* node) {
+void InstructionSelectorT<Adapter>::VisitWord32Ror(node_t node) {
   VisitRRO(this, kMips64Ror, node);
 }
 
@@ -1097,7 +1116,7 @@ void InstructionSelectorT<Adapter>::VisitWord64Popcnt(Node* node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord64Ror(Node* node) {
+void InstructionSelectorT<Adapter>::VisitWord64Ror(node_t node) {
   VisitRRO(this, kMips64Dror, node);
 }
 
@@ -1403,17 +1422,17 @@ void InstructionSelectorT<Adapter>::VisitUint64Mod(Node* node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitChangeFloat32ToFloat64(Node* node) {
+void InstructionSelectorT<Adapter>::VisitChangeFloat32ToFloat64(node_t node) {
   VisitRR(this, kMips64CvtDS, node);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitRoundInt32ToFloat32(Node* node) {
+void InstructionSelectorT<Adapter>::VisitRoundInt32ToFloat32(node_t node) {
   VisitRR(this, kMips64CvtSW, node);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitRoundUint32ToFloat32(Node* node) {
+void InstructionSelectorT<Adapter>::VisitRoundUint32ToFloat32(node_t node) {
   VisitRR(this, kMips64CvtSUw, node);
 }
 
@@ -1423,40 +1442,55 @@ void InstructionSelectorT<Adapter>::VisitChangeInt32ToFloat64(node_t node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitChangeInt64ToFloat64(Node* node) {
+void InstructionSelectorT<Adapter>::VisitChangeInt64ToFloat64(node_t node) {
   VisitRR(this, kMips64CvtDL, node);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitChangeUint32ToFloat64(Node* node) {
+void InstructionSelectorT<Adapter>::VisitChangeUint32ToFloat64(node_t node) {
   VisitRR(this, kMips64CvtDUw, node);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitTruncateFloat32ToInt32(Node* node) {
-  Mips64OperandGeneratorT<Adapter> g(this);
-  InstructionCode opcode = kMips64TruncWS;
-  TruncateKind kind = OpParameter<TruncateKind>(node->op());
-  if (kind == TruncateKind::kSetOverflowToMin) {
-    opcode |= MiscField::encode(true);
+void InstructionSelectorT<Adapter>::VisitTruncateFloat32ToInt32(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    Mips64OperandGeneratorT<Adapter> g(this);
+    InstructionCode opcode = kMips64TruncWS;
+    TruncateKind kind = OpParameter<TruncateKind>(node->op());
+    if (kind == TruncateKind::kSetOverflowToMin) {
+      opcode |= MiscField::encode(true);
+    }
+    Emit(opcode, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)));
   }
-  Emit(opcode, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)));
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitTruncateFloat32ToUint32(Node* node) {
-  Mips64OperandGeneratorT<Adapter> g(this);
-  InstructionCode opcode = kMips64TruncUwS;
-  TruncateKind kind = OpParameter<TruncateKind>(node->op());
-  if (kind == TruncateKind::kSetOverflowToMin) {
-    opcode |= MiscField::encode(true);
+void InstructionSelectorT<Adapter>::VisitTruncateFloat32ToUint32(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    Mips64OperandGeneratorT<Adapter> g(this);
+    InstructionCode opcode = kMips64TruncUwS;
+    TruncateKind kind = OpParameter<TruncateKind>(node->op());
+    if (kind == TruncateKind::kSetOverflowToMin) {
+      opcode |= MiscField::encode(true);
+    }
+    Emit(opcode, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)));
   }
-  Emit(opcode, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)));
 }
 
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitChangeFloat64ToInt32(Node* node) {
-  Mips64OperandGeneratorT<Adapter> g(this);
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitChangeFloat64ToInt32(
+    node_t node) {
+  UNIMPLEMENTED();
+}
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitChangeFloat64ToInt32(
+    Node* node) {
+  Mips64OperandGeneratorT<TurbofanAdapter> g(this);
   Node* value = node->InputAt(0);
   // Match ChangeFloat64ToInt32(Float64Round##OP) to corresponding instruction
   // which does rounding and conversion to integer format.
@@ -1519,17 +1553,17 @@ void InstructionSelectorT<Adapter>::VisitChangeFloat64ToInt32(Node* node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitChangeFloat64ToInt64(Node* node) {
+void InstructionSelectorT<Adapter>::VisitChangeFloat64ToInt64(node_t node) {
   VisitRR(this, kMips64TruncLD, node);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitChangeFloat64ToUint32(Node* node) {
+void InstructionSelectorT<Adapter>::VisitChangeFloat64ToUint32(node_t node) {
   VisitRR(this, kMips64TruncUwD, node);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitChangeFloat64ToUint64(Node* node) {
+void InstructionSelectorT<Adapter>::VisitChangeFloat64ToUint64(node_t node) {
   VisitRR(this, kMips64TruncUlD, node);
 }
 
@@ -1539,14 +1573,18 @@ void InstructionSelectorT<Adapter>::VisitTruncateFloat64ToUint32(Node* node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitTruncateFloat64ToInt64(Node* node) {
-  Mips64OperandGeneratorT<Adapter> g(this);
-  InstructionCode opcode = kMips64TruncLD;
-  TruncateKind kind = OpParameter<TruncateKind>(node->op());
-  if (kind == TruncateKind::kSetOverflowToMin) {
-    opcode |= MiscField::encode(true);
+void InstructionSelectorT<Adapter>::VisitTruncateFloat64ToInt64(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    Mips64OperandGeneratorT<Adapter> g(this);
+    InstructionCode opcode = kMips64TruncLD;
+    TruncateKind kind = OpParameter<TruncateKind>(node->op());
+    if (kind == TruncateKind::kSetOverflowToMin) {
+      opcode |= MiscField::encode(true);
+    }
+    Emit(opcode, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)));
   }
-  Emit(opcode, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)));
 }
 
 template <typename Adapter>
@@ -1652,7 +1690,7 @@ void InstructionSelectorT<Adapter>::VisitTryTruncateFloat64ToUint32(
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitBitcastWord32ToWord64(Node* node) {
+void InstructionSelectorT<Adapter>::VisitBitcastWord32ToWord64(node_t node) {
   UNIMPLEMENTED();
 }
 
@@ -1694,8 +1732,14 @@ void InstructionSelectorT<Adapter>::VisitChangeInt32ToInt64(node_t node) {
   }
 }
 
-template <typename Adapter>
-bool InstructionSelectorT<Adapter>::ZeroExtendsWord32ToWord64NoPhis(
+template <>
+bool InstructionSelectorT<TurboshaftAdapter>::ZeroExtendsWord32ToWord64NoPhis(
+    node_t node) {
+  UNIMPLEMENTED();
+}
+
+template <>
+bool InstructionSelectorT<TurbofanAdapter>::ZeroExtendsWord32ToWord64NoPhis(
     Node* node) {
   DCHECK_NE(node->opcode(), IrOpcode::kPhi);
   switch (node->opcode()) {
@@ -1742,29 +1786,33 @@ bool InstructionSelectorT<Adapter>::ZeroExtendsWord32ToWord64NoPhis(
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitChangeUint32ToUint64(Node* node) {
-  Mips64OperandGeneratorT<Adapter> g(this);
-  Node* value = node->InputAt(0);
-  IrOpcode::Value opcode = value->opcode();
+void InstructionSelectorT<Adapter>::VisitChangeUint32ToUint64(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    Mips64OperandGeneratorT<Adapter> g(this);
+    Node* value = node->InputAt(0);
+    IrOpcode::Value opcode = value->opcode();
 
-  if (opcode == IrOpcode::kLoad || opcode == IrOpcode::kUnalignedLoad) {
-    LoadRepresentation load_rep = LoadRepresentationOf(value->op());
-    ArchOpcode arch_opcode =
-        opcode == IrOpcode::kUnalignedLoad ? kMips64Ulwu : kMips64Lwu;
-    if (load_rep.IsUnsigned() &&
-        load_rep.representation() == MachineRepresentation::kWord32) {
-      EmitLoad(this, value, arch_opcode, node);
+    if (opcode == IrOpcode::kLoad || opcode == IrOpcode::kUnalignedLoad) {
+      LoadRepresentation load_rep = LoadRepresentationOf(value->op());
+      ArchOpcode arch_opcode =
+          opcode == IrOpcode::kUnalignedLoad ? kMips64Ulwu : kMips64Lwu;
+      if (load_rep.IsUnsigned() &&
+          load_rep.representation() == MachineRepresentation::kWord32) {
+        EmitLoad(this, value, arch_opcode, node);
+        return;
+      }
+    }
+
+    if (ZeroExtendsWord32ToWord64(value)) {
+      EmitIdentity(node);
       return;
     }
-  }
 
-  if (ZeroExtendsWord32ToWord64(value)) {
-    EmitIdentity(node);
-    return;
+    Emit(kMips64Dext, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)),
+         g.TempImmediate(0), g.TempImmediate(32));
   }
-
-  Emit(kMips64Dext, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)),
-       g.TempImmediate(0), g.TempImmediate(32));
 }
 
 template <typename Adapter>
@@ -1798,22 +1846,26 @@ void InstructionSelectorT<Adapter>::VisitTruncateInt64ToInt32(Node* node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitTruncateFloat64ToFloat32(Node* node) {
-  Mips64OperandGeneratorT<Adapter> g(this);
-  Node* value = node->InputAt(0);
-  // Match TruncateFloat64ToFloat32(ChangeInt32ToFloat64) to corresponding
-  // instruction.
-  if (CanCover(node, value) &&
-      value->opcode() == IrOpcode::kChangeInt32ToFloat64) {
-    Emit(kMips64CvtSW, g.DefineAsRegister(node),
-         g.UseRegister(value->InputAt(0)));
-    return;
+void InstructionSelectorT<Adapter>::VisitTruncateFloat64ToFloat32(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    Mips64OperandGeneratorT<Adapter> g(this);
+    Node* value = node->InputAt(0);
+    // Match TruncateFloat64ToFloat32(ChangeInt32ToFloat64) to corresponding
+    // instruction.
+    if (CanCover(node, value) &&
+        value->opcode() == IrOpcode::kChangeInt32ToFloat64) {
+      Emit(kMips64CvtSW, g.DefineAsRegister(node),
+           g.UseRegister(value->InputAt(0)));
+      return;
+    }
+    VisitRR(this, kMips64CvtSD, node);
   }
-  VisitRR(this, kMips64CvtSD, node);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitTruncateFloat64ToWord32(Node* node) {
+void InstructionSelectorT<Adapter>::VisitTruncateFloat64ToWord32(node_t node) {
   VisitRR(this, kArchTruncateDoubleToI, node);
 }
 
@@ -1823,64 +1875,68 @@ void InstructionSelectorT<Adapter>::VisitRoundFloat64ToInt32(node_t node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitRoundInt64ToFloat32(Node* node) {
+void InstructionSelectorT<Adapter>::VisitRoundInt64ToFloat32(node_t node) {
   VisitRR(this, kMips64CvtSL, node);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitRoundInt64ToFloat64(Node* node) {
+void InstructionSelectorT<Adapter>::VisitRoundInt64ToFloat64(node_t node) {
   VisitRR(this, kMips64CvtDL, node);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitRoundUint64ToFloat32(Node* node) {
+void InstructionSelectorT<Adapter>::VisitRoundUint64ToFloat32(node_t node) {
   VisitRR(this, kMips64CvtSUl, node);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitRoundUint64ToFloat64(Node* node) {
+void InstructionSelectorT<Adapter>::VisitRoundUint64ToFloat64(node_t node) {
   VisitRR(this, kMips64CvtDUl, node);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitBitcastFloat32ToInt32(Node* node) {
+void InstructionSelectorT<Adapter>::VisitBitcastFloat32ToInt32(node_t node) {
   VisitRR(this, kMips64Float64ExtractLowWord32, node);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitBitcastFloat64ToInt64(Node* node) {
+void InstructionSelectorT<Adapter>::VisitBitcastFloat64ToInt64(node_t node) {
   VisitRR(this, kMips64BitcastDL, node);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitBitcastInt32ToFloat32(Node* node) {
-  Mips64OperandGeneratorT<Adapter> g(this);
-  Emit(kMips64Float64InsertLowWord32, g.DefineAsRegister(node),
-       ImmediateOperand(ImmediateOperand::INLINE_INT32, 0),
-       g.UseRegister(node->InputAt(0)));
+void InstructionSelectorT<Adapter>::VisitBitcastInt32ToFloat32(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    Mips64OperandGeneratorT<Adapter> g(this);
+    Emit(kMips64Float64InsertLowWord32, g.DefineAsRegister(node),
+         ImmediateOperand(ImmediateOperand::INLINE_INT32, 0),
+         g.UseRegister(node->InputAt(0)));
+  }
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitBitcastInt64ToFloat64(Node* node) {
+void InstructionSelectorT<Adapter>::VisitBitcastInt64ToFloat64(node_t node) {
   VisitRR(this, kMips64BitcastLD, node);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat32Add(Node* node) {
+void InstructionSelectorT<Adapter>::VisitFloat32Add(node_t node) {
   // Optimization with Madd.S(z, x, y) is intentionally removed.
   // See explanation for madd_s in assembler-mips64.cc.
   VisitRRR(this, kMips64AddS, node);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat64Add(Node* node) {
+void InstructionSelectorT<Adapter>::VisitFloat64Add(node_t node) {
   // Optimization with Madd.D(z, x, y) is intentionally removed.
   // See explanation for madd_d in assembler-mips64.cc.
   VisitRRR(this, kMips64AddD, node);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat32Sub(Node* node) {
+void InstructionSelectorT<Adapter>::VisitFloat32Sub(node_t node) {
   // Optimization with Msub.S(z, x, y) is intentionally removed.
   // See explanation for madd_s in assembler-mips64.cc.
   VisitRRR(this, kMips64SubS, node);
@@ -1894,17 +1950,17 @@ void InstructionSelectorT<Adapter>::VisitFloat64Sub(node_t node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat32Mul(Node* node) {
+void InstructionSelectorT<Adapter>::VisitFloat32Mul(node_t node) {
   VisitRRR(this, kMips64MulS, node);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat64Mul(Node* node) {
+void InstructionSelectorT<Adapter>::VisitFloat64Mul(node_t node) {
   VisitRRR(this, kMips64MulD, node);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat32Div(Node* node) {
+void InstructionSelectorT<Adapter>::VisitFloat32Div(node_t node) {
   VisitRRR(this, kMips64DivS, node);
 }
 
@@ -1914,39 +1970,35 @@ void InstructionSelectorT<Adapter>::VisitFloat64Div(node_t node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat64Mod(Node* node) {
-  Mips64OperandGeneratorT<Adapter> g(this);
-  Emit(kMips64ModD, g.DefineAsFixed(node, f0),
-       g.UseFixed(node->InputAt(0), f12), g.UseFixed(node->InputAt(1), f14))
-      ->MarkAsCall();
+void InstructionSelectorT<Adapter>::VisitFloat64Mod(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    Mips64OperandGeneratorT<Adapter> g(this);
+    Emit(kMips64ModD, g.DefineAsFixed(node, f0),
+         g.UseFixed(node->InputAt(0), f12), g.UseFixed(node->InputAt(1), f14))
+        ->MarkAsCall();
+  }
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat32Max(Node* node) {
-  Mips64OperandGeneratorT<Adapter> g(this);
-  Emit(kMips64Float32Max, g.DefineAsRegister(node),
-       g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)));
+void InstructionSelectorT<Adapter>::VisitFloat32Max(node_t node) {
+  VisitRRR(this, kMips64Float32Max, node);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat64Max(Node* node) {
-  Mips64OperandGeneratorT<Adapter> g(this);
-  Emit(kMips64Float64Max, g.DefineAsRegister(node),
-       g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)));
+void InstructionSelectorT<Adapter>::VisitFloat64Max(node_t node) {
+  VisitRRR(this, kMips64Float64Max, node);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat32Min(Node* node) {
-  Mips64OperandGeneratorT<Adapter> g(this);
-  Emit(kMips64Float32Min, g.DefineAsRegister(node),
-       g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)));
+void InstructionSelectorT<Adapter>::VisitFloat32Min(node_t node) {
+  VisitRRR(this, kMips64Float32Min, node);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat64Min(Node* node) {
-  Mips64OperandGeneratorT<Adapter> g(this);
-  Emit(kMips64Float64Min, g.DefineAsRegister(node),
-       g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)));
+void InstructionSelectorT<Adapter>::VisitFloat64Min(node_t node) {
+  VisitRRR(this, kMips64Float64Min, node);
 }
 
 template <typename Adapter>
@@ -2024,10 +2076,16 @@ void InstructionSelectorT<Adapter>::VisitFloat64Neg(Node* node) {
   VisitRR(this, kMips64NegD, node);
 }
 
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat64Ieee754Binop(
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitFloat64Ieee754Binop(
+    node_t node, InstructionCode opcode) {
+  UNIMPLEMENTED();
+}
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitFloat64Ieee754Binop(
     Node* node, InstructionCode opcode) {
-  Mips64OperandGeneratorT<Adapter> g(this);
+  Mips64OperandGeneratorT<TurbofanAdapter> g(this);
   Emit(opcode, g.DefineAsFixed(node, f0), g.UseFixed(node->InputAt(0), f2),
        g.UseFixed(node->InputAt(1), f4))
       ->MarkAsCall();
@@ -3063,7 +3121,7 @@ void InstructionSelectorT<Adapter>::VisitInt64LessThan(node_t node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitInt64LessThanOrEqual(Node* node) {
+void InstructionSelectorT<Adapter>::VisitInt64LessThanOrEqual(node_t node) {
   if constexpr (Adapter::IsTurboshaft) {
     UNIMPLEMENTED();
   } else {
@@ -3084,7 +3142,7 @@ void InstructionSelectorT<Adapter>::VisitUint64LessThan(node_t node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitUint64LessThanOrEqual(Node* node) {
+void InstructionSelectorT<Adapter>::VisitUint64LessThanOrEqual(node_t node) {
   if constexpr (Adapter::IsTurboshaft) {
     UNIMPLEMENTED();
   } else {
@@ -3133,12 +3191,12 @@ void InstructionSelectorT<Adapter>::VisitFloat64LessThanOrEqual(node_t node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat64ExtractLowWord32(Node* node) {
+void InstructionSelectorT<Adapter>::VisitFloat64ExtractLowWord32(node_t node) {
   VisitRR(this, kMips64Float64ExtractLowWord32, node);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat64ExtractHighWord32(Node* node) {
+void InstructionSelectorT<Adapter>::VisitFloat64ExtractHighWord32(node_t node) {
   VisitRR(this, kMips64Float64ExtractHighWord32, node);
 }
 
