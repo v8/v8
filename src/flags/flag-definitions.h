@@ -2298,6 +2298,10 @@ DEFINE_EXPERIMENTAL_FEATURE(concurrent_minor_ms_marking,
 DEFINE_NEG_NEG_IMPLICATION(concurrent_marking, concurrent_minor_ms_marking)
 DEFINE_IMPLICATION(concurrent_minor_ms_marking, minor_ms)
 
+DEFINE_UINT(minor_ms_min_new_space_capacity_for_concurrent_marking_mb, 8,
+            "min new space capacity in MBs for using young generation "
+            "concurrent marking.")
+
 //
 // Dev shell flags
 //

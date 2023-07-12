@@ -259,14 +259,11 @@ class MinorMSIncrementalMarkingTaskObserver final
 
  protected:
   void StepImpl() final {
-    if (v8_flags.concurrent_minor_ms_marking) {
-      if (heap_->incremental_marking()->IsMinorMarking()) {
-        heap_->concurrent_marking()->RescheduleJobIfNeeded(
-            GarbageCollector::MINOR_MARK_SWEEPER);
-      }
-    }
+    DCHECK(!heap_->incremental_marking()->IsMinorMarking());
 
-    heap_->StartMinorMSIncrementalMarkingIfNeeded();
+    DCHECK_GE(heap_->new_space()->Size(),
+              MinorGCJob::YoungGenerationTaskTriggerSize(heap_));
+    heap_->StartMinorMSIncrementalMarkingIfPossible();
 
     ScheduleMinorGCTaskObserver::StepImpl();
   }
@@ -1495,12 +1492,13 @@ void Heap::ScheduleMinorGCTaskIfNeeded() {
   minor_gc_job_->ScheduleTaskIfNeeded(this);
 }
 
-void Heap::StartMinorMSIncrementalMarkingIfNeeded() {
+void Heap::StartMinorMSIncrementalMarkingIfPossible() {
   if (v8_flags.concurrent_minor_ms_marking && !IsTearingDown() &&
       !incremental_marking()->IsMarking() &&
       incremental_marking()->CanBeStarted() && V8_LIKELY(!v8_flags.gc_global) &&
-      (new_space()->Size() >=
-       MinorGCJob::YoungGenerationTaskTriggerSize(this))) {
+      (new_space()->TotalCapacity() >=
+       v8_flags.minor_ms_min_new_space_capacity_for_concurrent_marking_mb *
+           MB)) {
     StartIncrementalMarking(GCFlag::kNoFlags, GarbageCollectionReason::kTask,
                             kNoGCCallbackFlags,
                             GarbageCollector::MINOR_MARK_SWEEPER);
