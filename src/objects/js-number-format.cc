@@ -1064,14 +1064,6 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::UnwrapNumberFormat(
   return Handle<JSNumberFormat>::cast(object);
 }
 
-// 22. is in « 1, 2, 5, 10, 20, 25, 50, 100, 200, 250, 500, 1000, 2000, 2500,
-// 5000 »
-bool IsValidRoundingIncrement(int value) {
-  return value == 1 || value == 2 || value == 5 || value == 10 || value == 20 ||
-         value == 25 || value == 50 || value == 100 || value == 200 ||
-         value == 250 || value == 500 || value == 1000 || value == 2000 ||
-         value == 2500 || value == 5000;
-}
 // static
 MaybeHandle<JSNumberFormat> JSNumberFormat::New(Isolate* isolate,
                                                 Handle<Map> map,

@@ -1722,15 +1722,15 @@ Maybe<Intl::NumberFormatDigitOptions> Intl::SetNumberFormatDigitOptions(
     // a. If hasFd is true, then
     if (has_fd) {
       Handle<String> mnfd_str = factory->minimumFractionDigits_string();
-      // i. Let mnfd be ? DefaultNumberOption(mnfd, 0, 20, undefined).
+      // i. Let mnfd be ? DefaultNumberOption(mnfd, 0, 100, undefined).
       int mnfd;
-      if (!DefaultNumberOption(isolate, mnfd_obj, 0, 20, -1, mnfd_str)
+      if (!DefaultNumberOption(isolate, mnfd_obj, 0, 100, -1, mnfd_str)
                .To(&mnfd)) {
         return Nothing<NumberFormatDigitOptions>();
       }
-      // ii. Let mxfd be ? DefaultNumberOption(mxfd, 0, 20, undefined).
+      // ii. Let mxfd be ? DefaultNumberOption(mxfd, 0, 100, undefined).
       int mxfd;
-      if (!DefaultNumberOption(isolate, mxfd_obj, 0, 20, -1, mxfd_str)
+      if (!DefaultNumberOption(isolate, mxfd_obj, 0, 100, -1, mxfd_str)
                .To(&mxfd)) {
         return Nothing<NumberFormatDigitOptions>();
       }
