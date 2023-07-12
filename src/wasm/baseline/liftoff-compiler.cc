@@ -1683,26 +1683,23 @@ class LiftoffCompiler {
     if (!c->label.get()->is_bound()) __ bind(c->label.get());
   }
 
-  void GenerateCCall(const LiftoffRegister* result_regs,
-                     const ValueKindSig* sig, ValueKind out_argument_kind,
-                     const VarState* args, ExternalReference ext_ref) {
+  void GenerateCCall(const LiftoffRegister* result_regs, ValueKind return_kind,
+                     ValueKind out_argument_kind,
+                     const std::initializer_list<VarState> args,
+                     ExternalReference ext_ref) {
     // Before making a call, spill all cache registers.
     __ SpillAllRegisters();
 
     // Store arguments on our stack, then align the stack for calling to C.
     int param_bytes = 0;
-    for (ValueKind param_kind : sig->parameters()) {
-      param_bytes += value_kind_size(param_kind);
-    }
-    // Check parameter types for consistency.
-    // TODO(clemensb): We currently pass the parameter kinds twice; avoid that.
-    for (size_t i = 0; i < sig->parameter_count(); ++i) {
-      DCHECK_EQ(sig->GetParam(i), args[i].kind());
+    for (const VarState& arg : args) {
+      param_bytes += value_kind_size(arg.kind());
     }
     int out_arg_bytes =
         out_argument_kind == kVoid ? 0 : value_kind_size(out_argument_kind);
     int stack_bytes = std::max(param_bytes, out_arg_bytes);
-    __ CallC(sig, args, result_regs, out_argument_kind, stack_bytes, ext_ref);
+    __ CallC(args, result_regs, return_kind, out_argument_kind, stack_bytes,
+             ext_ref);
   }
 
   template <typename EmitFn, typename... Args>
@@ -1781,9 +1778,7 @@ class LiftoffCompiler {
                                     LiftoffRegister dst, LiftoffRegister src) {
       if ((asm_.*emit_fn)(dst.fp(), src.fp())) return;
       ExternalReference ext_ref = fallback_fn();
-      auto sig = MakeSig::Params(kind);
-      VarState arg{kind, src, 0};
-      GenerateCCall(&dst, &sig, kind, &arg, ext_ref);
+      GenerateCCall(&dst, kVoid, kind, {VarState{kind, src, 0}}, ext_ref);
     };
     EmitUnOp<kind, kind>(emit_with_c_fallback);
   }
@@ -1808,20 +1803,17 @@ class LiftoffCompiler {
       ExternalReference ext_ref = fallback_fn();
       if (can_trap) {
         // External references for potentially trapping conversions return int.
-        auto sig = MakeSig::Returns(kI32).Params(src_kind);
         LiftoffRegister ret_reg =
             __ GetUnusedRegister(kGpReg, LiftoffRegList{dst});
         LiftoffRegister dst_regs[] = {ret_reg, dst};
-        VarState arg{src_kind, src, 0};
-        GenerateCCall(dst_regs, &sig, dst_kind, &arg, ext_ref);
+        GenerateCCall(dst_regs, kI32, dst_kind, {VarState{src_kind, src, 0}},
+                      ext_ref);
         // It's okay that this is short-lived: we're trapping anyway.
         FREEZE_STATE(trapping);
         __ emit_cond_jump(kEqual, trap, kI32, ret_reg.gp(), no_reg, trapping);
       } else {
-        ValueKind sig_kinds[] = {src_kind};
-        ValueKindSig sig(0, 1, sig_kinds);
-        VarState arg{src_kind, src, 0};
-        GenerateCCall(&dst, &sig, dst_kind, &arg, ext_ref);
+        GenerateCCall(&dst, kVoid, dst_kind, {VarState{src_kind, src, 0}},
+                      ext_ref);
       }
     }
     __ PushRegister(dst_kind, dst);
@@ -1955,9 +1947,7 @@ class LiftoffCompiler {
         return EmitUnOp<kI32, kI32>(
             [this](LiftoffRegister dst, LiftoffRegister src) {
               if (__ emit_i32_popcnt(dst.gp(), src.gp())) return;
-              auto sig = MakeSig::Returns(kI32).Params(kI32);
-              VarState arg{kI32, src, 0};
-              GenerateCCall(&dst, &sig, kVoid, &arg,
+              GenerateCCall(&dst, kI32, kVoid, {VarState{kI32, src, 0}},
                             ExternalReference::wasm_word32_popcnt());
             });
       case kExprI64Popcnt:
@@ -1965,10 +1955,8 @@ class LiftoffCompiler {
             [this](LiftoffRegister dst, LiftoffRegister src) {
               if (__ emit_i64_popcnt(dst, src)) return;
               // The c function returns i32. We will zero-extend later.
-              auto sig = MakeSig::Returns(kI32).Params(kI64);
               LiftoffRegister c_call_dst = kNeedI64RegPair ? dst.low() : dst;
-              VarState arg{kI64, src, 0};
-              GenerateCCall(&c_call_dst, &sig, kVoid, &arg,
+              GenerateCCall(&c_call_dst, kI32, kVoid, {VarState{kI64, src, 0}},
                             ExternalReference::wasm_word64_popcnt());
               // Now zero-extend the result to i64.
               __ emit_type_conversion(kExprI64UConvertI32, dst, c_call_dst,
@@ -2077,10 +2065,9 @@ class LiftoffCompiler {
                            Label* trap_unrepresentable = nullptr) {
     // Cannot emit native instructions, build C call.
     LiftoffRegister ret = __ GetUnusedRegister(kGpReg, LiftoffRegList{dst});
-    VarState args[] = {{kI64, lhs, 0}, {kI64, rhs, 0}};
     LiftoffRegister result_regs[] = {ret, dst};
-    auto sig = MakeSig::Returns(kI32).Params(kI64, kI64);
-    GenerateCCall(result_regs, &sig, kI64, args, ext_ref);
+    GenerateCCall(result_regs, kI32, kI64, {{kI64, lhs, 0}, {kI64, rhs, 0}},
+                  ext_ref);
     FREEZE_STATE(trapping);
     __ emit_i32_cond_jumpi(kEqual, trap_by_zero, ret.gp(), 0, trapping);
     if (trap_unrepresentable) {
@@ -2106,12 +2093,11 @@ class LiftoffCompiler {
   void EmitCCallBinOp() {
     EmitBinOp<kind, kind>(
         [this](LiftoffRegister dst, LiftoffRegister lhs, LiftoffRegister rhs) {
-          VarState args[] = {{kind, lhs, 0}, {kind, rhs, 0}};
-          ValueKind sig_kinds[] = {kind, kind, kind};
           const bool out_via_stack = kind == kI64;
-          ValueKindSig sig(out_via_stack ? 0 : 1, 2, sig_kinds);
           ValueKind out_arg_kind = out_via_stack ? kI64 : kVoid;
-          GenerateCCall(&dst, &sig, out_arg_kind, args, ExtRefFn());
+          ValueKind return_kind = out_via_stack ? kVoid : kind;
+          GenerateCCall(&dst, return_kind, out_arg_kind,
+                        {{kind, lhs, 0}, {kind, rhs, 0}}, ExtRefFn());
         });
   }
 
@@ -3952,9 +3938,7 @@ class LiftoffCompiler {
     LiftoffRegister dst = __ GetUnusedRegister(rc, {src}, {});
     if (!(asm_.*emit_fn)(dst, src)) {
       // Return v128 via stack for ARM.
-      auto sig_v_s = MakeSig::Params(kS128);
-      VarState arg{kS128, src, 0};
-      GenerateCCall(&dst, &sig_v_s, kS128, &arg, ext_ref());
+      GenerateCCall(&dst, kVoid, kS128, {VarState{kS128, src, 0}}, ext_ref());
     }
     if (V8_UNLIKELY(nondeterminism_)) {
       LiftoffRegList pinned{dst};
@@ -5503,18 +5487,16 @@ class LiftoffCompiler {
       pinned.clear(mem_offsets_high_word);
     }
 
-    auto sig = MakeSig::Returns(kI32).Params(kIntPtrKind, kI32, kIntPtrKind,
-                                             kI32, kI32, kI32);
-    VarState args[] = {{kIntPtrKind, LiftoffRegister{instance}, 0},
-                       {kI32, static_cast<int32_t>(imm.memory.index), 0},
-                       dst,
-                       src,
-                       {kI32, static_cast<int32_t>(imm.data_segment.index), 0},
-                       size};
     // We don't need the instance anymore after the call. We can use the
     // register for the result.
     LiftoffRegister result{instance};
-    GenerateCCall(&result, &sig, kVoid, args,
+    GenerateCCall(&result, kI32, kVoid,
+                  {{kIntPtrKind, LiftoffRegister{instance}, 0},
+                   {kI32, static_cast<int32_t>(imm.memory.index), 0},
+                   dst,
+                   src,
+                   {kI32, static_cast<int32_t>(imm.data_segment.index), 0},
+                   size},
                   ExternalReference::wasm_memory_init());
     FREEZE_STATE(trapping);
     __ emit_cond_jump(kEqual, trap_label, kI32, result.gp(), no_reg, trapping);
@@ -5567,14 +5549,11 @@ class LiftoffCompiler {
                         no_reg, trapping);
     }
 
-    auto sig = MakeSig::Returns(kI32).Params(kIntPtrKind, kIntPtrKind,
-                                             kIntPtrKind, kIntPtrKind);
-    VarState args[] = {
-        {kIntPtrKind, LiftoffRegister{instance}, 0}, dst, src, size};
     // We don't need the instance anymore after the call. We can use the
     // register for the result.
     LiftoffRegister result(instance);
-    GenerateCCall(&result, &sig, kVoid, args,
+    GenerateCCall(&result, kI32, kVoid,
+                  {{kIntPtrKind, LiftoffRegister{instance}, 0}, dst, src, size},
                   ExternalReference::wasm_memory_copy());
     FREEZE_STATE(trapping);
     __ emit_cond_jump(kEqual, trap_label, kI32, result.gp(), no_reg, trapping);
@@ -5607,17 +5586,15 @@ class LiftoffCompiler {
                         no_reg, trapping);
     }
 
-    auto sig = MakeSig::Returns(kI32).Params(kIntPtrKind, kI32, kIntPtrKind,
-                                             kI32, kIntPtrKind);
-    VarState args[] = {{kIntPtrKind, LiftoffRegister{instance}, 0},
-                       {kI32, static_cast<int32_t>(imm.index), 0},
-                       dst,
-                       value,
-                       size};
     // We don't need the instance anymore after the call. We can use the
     // register for the result.
     LiftoffRegister result(instance);
-    GenerateCCall(&result, &sig, kVoid, args,
+    GenerateCCall(&result, kI32, kVoid,
+                  {{kIntPtrKind, LiftoffRegister{instance}, 0},
+                   {kI32, static_cast<int32_t>(imm.index), 0},
+                   dst,
+                   value,
+                   size},
                   ExternalReference::wasm_memory_fill());
     FREEZE_STATE(trapping);
     __ emit_cond_jump(kEqual, trap_label, kI32, result.gp(), no_reg, trapping);

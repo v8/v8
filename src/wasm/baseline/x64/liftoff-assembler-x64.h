@@ -4224,31 +4224,29 @@ void LiftoffAssembler::DropStackSlotsAndRet(uint32_t num_stack_slots) {
   ret(static_cast<int>(num_stack_slots * kSystemPointerSize));
 }
 
-void LiftoffAssembler::CallC(const ValueKindSig* sig, const VarState* args,
-                             const LiftoffRegister* rets,
+void LiftoffAssembler::CallC(const std::initializer_list<VarState> args,
+                             const LiftoffRegister* rets, ValueKind return_kind,
                              ValueKind out_argument_kind, int stack_bytes,
                              ExternalReference ext_ref) {
   AllocateStackSpace(stack_bytes);
 
   int arg_offset = 0;
-  const VarState* current_arg = args;
-  for (ValueKind param_kind : sig->parameters()) {
+  for (const VarState& arg : args) {
     Operand dst{rsp, arg_offset};
-    if (current_arg->is_reg()) {
-      liftoff::StoreToStack(this, dst, current_arg->reg(), param_kind);
-    } else if (current_arg->is_const()) {
-      DCHECK_EQ(kI32, param_kind);
-      movl(dst, Immediate(current_arg->i32_const()));
-    } else if (value_kind_size(current_arg->kind()) == 4) {
-      movl(kScratchRegister, liftoff::GetStackSlot(current_arg->offset()));
+    if (arg.is_reg()) {
+      liftoff::StoreToStack(this, dst, arg.reg(), arg.kind());
+    } else if (arg.is_const()) {
+      DCHECK_EQ(kI32, arg.kind());
+      movl(dst, Immediate(arg.i32_const()));
+    } else if (value_kind_size(arg.kind()) == 4) {
+      movl(kScratchRegister, liftoff::GetStackSlot(arg.offset()));
       movl(dst, kScratchRegister);
     } else {
-      DCHECK_EQ(8, value_kind_size(current_arg->kind()));
-      movq(kScratchRegister, liftoff::GetStackSlot(current_arg->offset()));
+      DCHECK_EQ(8, value_kind_size(arg.kind()));
+      movq(kScratchRegister, liftoff::GetStackSlot(arg.offset()));
       movq(dst, kScratchRegister);
     }
-    arg_offset += value_kind_size(param_kind);
-    ++current_arg;
+    arg_offset += value_kind_size(arg.kind());
   }
   DCHECK_LE(arg_offset, stack_bytes);
 
@@ -4263,11 +4261,10 @@ void LiftoffAssembler::CallC(const ValueKindSig* sig, const VarState* args,
 
   // Move return value to the right register.
   const LiftoffRegister* next_result_reg = rets;
-  if (sig->return_count() > 0) {
-    DCHECK_EQ(1, sig->return_count());
+  if (return_kind != kVoid) {
     constexpr Register kReturnReg = rax;
     if (kReturnReg != next_result_reg->gp()) {
-      Move(*next_result_reg, LiftoffRegister(kReturnReg), sig->GetReturn(0));
+      Move(*next_result_reg, LiftoffRegister(kReturnReg), return_kind);
     }
     ++next_result_reg;
   }

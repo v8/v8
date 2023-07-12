@@ -1602,9 +1602,10 @@ class LiftoffAssembler : public MacroAssembler {
   // this is the return value of the C function, stored in {rets[0]}. Further
   // outputs (specified in {sig->returns()}) are read from the buffer and stored
   // in the remaining {rets} registers.
-  inline void CallC(const ValueKindSig* sig, const VarState* args,
-                    const LiftoffRegister* rets, ValueKind out_argument_kind,
-                    int stack_bytes, ExternalReference ext_ref);
+  inline void CallC(const std::initializer_list<VarState> args,
+                    const LiftoffRegister* rets, ValueKind return_kind,
+                    ValueKind out_argument_kind, int stack_bytes,
+                    ExternalReference ext_ref);
 
   inline void CallNativeWasmCode(Address addr);
   inline void TailCallNativeWasmCode(Address addr);

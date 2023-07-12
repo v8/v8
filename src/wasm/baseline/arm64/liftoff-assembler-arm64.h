@@ -3438,8 +3438,8 @@ void LiftoffAssembler::DropStackSlotsAndRet(uint32_t num_stack_slots) {
   Ret();
 }
 
-void LiftoffAssembler::CallC(const ValueKindSig* sig, const VarState* args,
-                             const LiftoffRegister* rets,
+void LiftoffAssembler::CallC(const std::initializer_list<VarState> args,
+                             const LiftoffRegister* rets, ValueKind return_kind,
                              ValueKind out_argument_kind, int stack_bytes,
                              ExternalReference ext_ref) {
   // The stack pointer is required to be quadword aligned.
@@ -3448,27 +3448,25 @@ void LiftoffAssembler::CallC(const ValueKindSig* sig, const VarState* args,
   Claim(total_size, 1);
 
   int arg_offset = 0;
-  const VarState* current_arg = args;
-  for (ValueKind param_kind : sig->parameters()) {
+  for (const VarState& arg : args) {
     UseScratchRegisterScope temps(this);
     CPURegister src = no_reg;
-    if (current_arg->is_reg()) {
-      src = liftoff::GetRegFromType(current_arg->reg(), param_kind);
-    } else if (current_arg->is_const()) {
-      DCHECK_EQ(kI32, param_kind);
-      if (current_arg->i32_const() == 0) {
+    if (arg.is_reg()) {
+      src = liftoff::GetRegFromType(arg.reg(), arg.kind());
+    } else if (arg.is_const()) {
+      DCHECK_EQ(kI32, arg.kind());
+      if (arg.i32_const() == 0) {
         src = wzr;
       } else {
         src = temps.AcquireW();
-        Mov(src.W(), current_arg->i32_const());
+        Mov(src.W(), arg.i32_const());
       }
     } else {
-      src = liftoff::AcquireByType(&temps, param_kind);
-      Ldr(src, liftoff::GetStackSlot(current_arg->offset()));
+      src = liftoff::AcquireByType(&temps, arg.kind());
+      Ldr(src, liftoff::GetStackSlot(arg.offset()));
     }
     Poke(src, arg_offset);
-    ++current_arg;
-    arg_offset += value_kind_size(param_kind);
+    arg_offset += value_kind_size(arg.kind());
   }
   DCHECK_LE(arg_offset, stack_bytes);
 
@@ -3481,11 +3479,10 @@ void LiftoffAssembler::CallC(const ValueKindSig* sig, const VarState* args,
 
   // Move return value to the right register.
   const LiftoffRegister* next_result_reg = rets;
-  if (sig->return_count() > 0) {
-    DCHECK_EQ(1, sig->return_count());
+  if (return_kind != kVoid) {
     constexpr Register kReturnReg = x0;
     if (kReturnReg != next_result_reg->gp()) {
-      Move(*next_result_reg, LiftoffRegister(kReturnReg), sig->GetReturn(0));
+      Move(*next_result_reg, LiftoffRegister(kReturnReg), return_kind);
     }
     ++next_result_reg;
   }
