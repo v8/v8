@@ -1872,11 +1872,11 @@
 }], # third_party_heap
 
 ##############################################################################
-['arch != x64', {
+['arch != x64 or gc_fuzzer or deopt_fuzzer', {
   # TODO(nicohartmann@): Instruction selection on turboshaft graph is
   # currently only supported on x64.
   'turboshaft/turboshaft-instruction-selection': [SKIP],
-}],  # arch != x64
+}],  # arch != x64 or gc_fuzzer or deopt_fuzzer
 
 ##############################################################################
 ['((arch != x64 and arch != arm64) or (simulator_run and conservative_stack_scanning))', {
