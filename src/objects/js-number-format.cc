@@ -1025,12 +1025,12 @@ Handle<JSObject> JSNumberFormat::ResolvedOptions(
             RoundingIncrement(isolate, skeleton), Just(kDontThrow))
             .FromJust());
   CHECK(JSReceiver::CreateDataProperty(
-            isolate, options, factory->trailingZeroDisplay_string(),
-            TrailingZeroDisplayString(isolate, skeleton), Just(kDontThrow))
-            .FromJust());
-  CHECK(JSReceiver::CreateDataProperty(
             isolate, options, factory->roundingPriority_string(),
             RoundingPriorityString(isolate, skeleton), Just(kDontThrow))
+            .FromJust());
+  CHECK(JSReceiver::CreateDataProperty(
+            isolate, options, factory->trailingZeroDisplay_string(),
+            TrailingZeroDisplayString(isolate, skeleton), Just(kDontThrow))
             .FromJust());
   return options;
 }
