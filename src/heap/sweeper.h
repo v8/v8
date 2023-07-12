@@ -35,6 +35,19 @@ enum class FreeSpaceTreatmentMode { kIgnoreFreeSpace, kZapFreeSpace };
 
 class Sweeper {
  public:
+  // When the scope is entered, the concurrent sweeping tasks
+  // are preempted and are not looking at the heap objects, concurrent sweeping
+  // is resumed when the scope is exited.
+  class V8_NODISCARD PauseMajorSweepingScope {
+   public:
+    explicit PauseMajorSweepingScope(Sweeper* sweeper);
+    ~PauseMajorSweepingScope();
+
+   private:
+    Sweeper* const sweeper_;
+    const bool resume_on_exit_;
+  };
+
   using SweepingList = std::vector<Page*>;
   using SweptList = std::vector<Page*>;
 
@@ -250,6 +263,9 @@ class Sweeper {
     std::vector<ConcurrentSweeper>& concurrent_sweepers() {
       return concurrent_sweepers_;
     }
+
+    void Pause();
+    void Resume();
 
    private:
     Sweeper* sweeper_;

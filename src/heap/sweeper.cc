@@ -281,6 +281,22 @@ void Sweeper::SweepingState<scope>::FinishSweeping() {
   in_progress_ = false;
 }
 
+template <Sweeper::SweepingScope scope>
+void Sweeper::SweepingState<scope>::Pause() {
+  if (!job_handle_ || !job_handle_->IsValid()) return;
+
+  DCHECK(v8_flags.concurrent_sweeping);
+  job_handle_->Cancel();
+}
+
+template <Sweeper::SweepingScope scope>
+void Sweeper::SweepingState<scope>::Resume() {
+  DCHECK(in_progress_);
+  job_handle_ = V8::GetCurrentPlatform()->PostJob(
+      TaskPriority::kUserVisible,
+      std::make_unique<SweeperJob>(sweeper_->heap_->isolate(), sweeper_));
+}
+
 void Sweeper::LocalSweeper::ContributeAndWaitForPromotedPagesIteration() {
   if (!sweeper_->sweeping_in_progress()) return;
   if (!sweeper_->IsIteratingPromotedPages()) return;
@@ -1222,6 +1238,20 @@ void Sweeper::SweepEmptyNewSpacePage(Page* page) {
     // Decrement accounted memory for discarded memory.
     paged_space->ReduceActiveSystemPages(page,
                                          active_system_pages_after_sweeping);
+  }
+}
+
+Sweeper::PauseMajorSweepingScope::PauseMajorSweepingScope(Sweeper* sweeper)
+    : sweeper_(sweeper),
+      resume_on_exit_(sweeper->major_sweeping_in_progress()) {
+  DCHECK(v8_flags.minor_ms);
+  DCHECK_IMPLIES(resume_on_exit_, v8_flags.concurrent_sweeping);
+  sweeper_->major_sweeping_state_.Pause();
+}
+
+Sweeper::PauseMajorSweepingScope::~PauseMajorSweepingScope() {
+  if (resume_on_exit_) {
+    sweeper_->major_sweeping_state_.Resume();
   }
 }
 

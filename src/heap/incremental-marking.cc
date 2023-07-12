@@ -325,7 +325,10 @@ void IncrementalMarking::StartMarkingMinor() {
   heap_->SetIsMarkingFlag(true);
   heap_->SetIsMinorMarkingFlag(true);
 
-  MarkingBarrier::ActivateYoung(heap());
+  {
+    Sweeper::PauseMajorSweepingScope pause_sweeping_scope(heap_->sweeper());
+    MarkingBarrier::ActivateYoung(heap());
+  }
 
   {
     TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MS_MARK_INCREMENTAL_SEED);

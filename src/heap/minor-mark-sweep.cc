@@ -852,6 +852,7 @@ void MinorMarkSweepCollector::MarkLiveObjects() {
   if (was_marked_incrementally) {
     // Disable the marking barrier after concurrent/parallel marking has
     // finished as it will reset page flags.
+    Sweeper::PauseMajorSweepingScope pause_sweeping_scope(heap_->sweeper());
     MarkingBarrier::DeactivateYoung(heap_);
   }
 
