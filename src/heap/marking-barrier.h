@@ -64,12 +64,6 @@ class MarkingBarrier {
   inline void MarkValueShared(HeapObject value);
   inline void MarkValueLocal(HeapObject value);
 
-  enum class DataOnlyObjectHandlingMode {
-    kPushToWorklist,
-    kSkipWorklist,
-  };
-  template <DataOnlyObjectHandlingMode mode =
-                DataOnlyObjectHandlingMode::kPushToWorklist>
   inline bool WhiteToGreyAndPush(HeapObject value);
 
   void RecordRelocSlot(InstructionStream host, RelocInfo* rinfo,
