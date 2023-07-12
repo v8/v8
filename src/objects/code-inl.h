@@ -10,6 +10,7 @@
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/code.h"
 #include "src/objects/deoptimization-data-inl.h"
+#include "src/objects/instance-type-inl.h"
 #include "src/objects/instruction-stream-inl.h"
 #include "src/snapshot/embedded/embedded-data-inl.h"
 

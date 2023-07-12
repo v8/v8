@@ -159,13 +159,13 @@ void Script::set_origin_options(ScriptOriginOptions origin_options) {
 }
 
 bool Script::HasValidSource() {
-  Object src = this->source();
+  Tagged<Object> src = this->source();
   if (!src.IsString()) return true;
-  String src_str = String::cast(src);
+  Tagged<String> src_str = Tagged<String>::cast(src);
   if (!StringShape(src_str).IsExternal()) return true;
-  if (src_str.IsOneByteRepresentation()) {
+  if (src_str->IsOneByteRepresentation()) {
     return ExternalOneByteString::cast(src).resource() != nullptr;
-  } else if (src_str.IsTwoByteRepresentation()) {
+  } else if (src_str->IsTwoByteRepresentation()) {
     return ExternalTwoByteString::cast(src).resource() != nullptr;
   }
   return true;

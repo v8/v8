@@ -11,6 +11,7 @@
 #include "src/handles/handles-inl.h"
 #include "src/heap/factory.h"
 #include "src/numbers/hash-seed-inl.h"
+#include "src/objects/instance-type-inl.h"
 #include "src/objects/name-inl.h"
 #include "src/objects/smi-inl.h"
 #include "src/objects/string-table-inl.h"
@@ -19,6 +20,8 @@
 #include "src/sandbox/external-pointer.h"
 #include "src/strings/string-hasher-inl.h"
 #include "src/strings/unicode-inl.h"
+#include "src/torque/runtime-macro-shims.h"
+#include "src/torque/runtime-support.h"
 #include "src/utils/utils.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -128,14 +131,21 @@ TQ_OBJECT_CONSTRUCTORS_IMPL(ExternalString)
 TQ_OBJECT_CONSTRUCTORS_IMPL(ExternalOneByteString)
 TQ_OBJECT_CONSTRUCTORS_IMPL(ExternalTwoByteString)
 
-StringShape::StringShape(const String str)
-    : type_(str.map(kAcquireLoad).instance_type()) {
+static_assert(kTaggedCanConvertToRawObjects);
+
+StringShape::StringShape(const String str) : StringShape(Tagged<String>(str)) {}
+StringShape::StringShape(const String str, PtrComprCageBase cage_base)
+    : StringShape(Tagged<String>(str), cage_base) {}
+StringShape::StringShape(Map map) : StringShape(Tagged<Map>(map)) {}
+
+StringShape::StringShape(const Tagged<String> str)
+    : type_(str->map(kAcquireLoad).instance_type()) {
   set_valid();
   DCHECK_EQ(type_ & kIsNotStringMask, kStringTag);
 }
 
-StringShape::StringShape(const String str, PtrComprCageBase cage_base)
-    : type_(str.map(cage_base, kAcquireLoad).instance_type()) {
+StringShape::StringShape(const Tagged<String> str, PtrComprCageBase cage_base)
+    : type_(str->map(cage_base, kAcquireLoad).instance_type()) {
   set_valid();
   DCHECK_EQ(type_ & kIsNotStringMask, kStringTag);
 }
@@ -838,7 +848,7 @@ uint16_t String::GetImpl(
     }
   };
 
-  return StringShape(*this)
+  return StringShape(Tagged<String>(*this))
       .DispatchToSpecificType<StringGetDispatcher, uint16_t>(
           *this, index, cage_base, access_guard);
 }
@@ -881,7 +891,7 @@ String String::GetUnderlying() const {
 }
 
 template <class Visitor>
-ConsString String::VisitFlat(Visitor* visitor, String string,
+ConsString String::VisitFlat(Visitor* visitor, Tagged<String> string,
                              const int offset) {
   DCHECK(!SharedStringAccessGuardIfNeeded::IsNeeded(string));
   return VisitFlat(visitor, string, offset,
@@ -890,11 +900,11 @@ ConsString String::VisitFlat(Visitor* visitor, String string,
 
 template <class Visitor>
 ConsString String::VisitFlat(
-    Visitor* visitor, String string, const int offset,
+    Visitor* visitor, Tagged<String> string, const int offset,
     const SharedStringAccessGuardIfNeeded& access_guard) {
   DisallowGarbageCollection no_gc;
   int slice_offset = offset;
-  const int length = string.length();
+  const int length = string->length();
   DCHECK(offset <= length);
   PtrComprCageBase cage_base = GetPtrComprCageBase(string);
   while (true) {

@@ -9,7 +9,7 @@
 
 #include "src/base/functional.h"
 #include "src/handles/handles.h"
-#include "src/objects/heap-object.h"
+#include "src/objects/tagged.h"
 
 namespace v8 {
 namespace internal {

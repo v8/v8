@@ -7,6 +7,7 @@
 
 #include "src/base/bounds.h"
 #include "src/execution/isolate-utils-inl.h"
+#include "src/objects/instance-type-checker.h"
 #include "src/objects/instance-type.h"
 #include "src/objects/map-inl.h"
 
@@ -331,18 +332,9 @@ V8_INLINE bool IsFreeSpaceOrFiller(Map map_object) {
 
 }  // namespace InstanceTypeChecker
 
-#define TYPE_CHECKER(type, ...)                                               \
-  bool HeapObject::Is##type() const {                                         \
-    /* IsBlah() predicates needs to load the map and thus they require the */ \
-    /* main cage base. */                                                     \
-    PtrComprCageBase cage_base = GetPtrComprCageBase();                       \
-    return HeapObject::Is##type(cage_base);                                   \
-  }                                                                           \
-  /* The cage_base passed here must be the base of the main pointer */        \
-  /* compression cage, i.e. the one where the Map space is allocated. */      \
-  bool HeapObject::Is##type(PtrComprCageBase cage_base) const {               \
-    Map map_object = map(cage_base);                                          \
-    return InstanceTypeChecker::Is##type(map_object);                         \
+#define TYPE_CHECKER(type, ...)                  \
+  bool Map::Is##type##Map() const {              \
+    return InstanceTypeChecker::Is##type(*this); \
   }
 
 INSTANCE_TYPE_CHECKERS(TYPE_CHECKER)

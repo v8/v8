@@ -25,7 +25,7 @@
 #include "src/heap/read-only-heap-inl.h"
 #include "src/numbers/conversions-inl.h"
 #include "src/objects/bigint.h"
-#include "src/objects/deoptimization-data-inl.h"
+#include "src/objects/deoptimization-data.h"
 #include "src/objects/heap-number-inl.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/hole-inl.h"
@@ -92,74 +92,130 @@ bool Object::IsJSObjectThatCanBeTrackedAsPrototype() const {
          HeapObject::cast(*this).IsJSObjectThatCanBeTrackedAsPrototype();
 }
 
-#define IS_TYPE_FUNCTION_DEF(type_)                                        \
-  bool Object::Is##type_() const {                                         \
-    return IsHeapObject() && HeapObject::cast(*this).Is##type_();          \
-  }                                                                        \
-  bool Object::Is##type_(PtrComprCageBase cage_base) const {               \
-    return IsHeapObject() && HeapObject::cast(*this).Is##type_(cage_base); \
+#define IS_TYPE_FUNCTION_DEF(type_)                                            \
+  bool Object::Is##type_() const { return Tagged<Object>(*this).Is##type_(); } \
+  bool Object::Is##type_(PtrComprCageBase cage_base) const {                   \
+    return Tagged<Object>(*this).Is##type_(cage_base);                         \
+  }                                                                            \
+  bool Tagged<Object>::Is##type_() const {                                     \
+    return IsHeapObject() && Tagged<HeapObject>::cast(*this).Is##type_();      \
+  }                                                                            \
+  bool Tagged<Object>::Is##type_(PtrComprCageBase cage_base) const {           \
+    return IsHeapObject() &&                                                   \
+           Tagged<HeapObject>::cast(*this).Is##type_(cage_base);               \
+  }                                                                            \
+  bool Tagged<HeapObject>::Is##type_() const {                                 \
+    return ToRawPtr().Is##type_();                                             \
+  }                                                                            \
+  bool Tagged<HeapObject>::Is##type_(PtrComprCageBase cage_base) const {       \
+    return ToRawPtr().Is##type_(cage_base);                                    \
   }
 HEAP_OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DEF)
 IS_TYPE_FUNCTION_DEF(HashTableBase)
 IS_TYPE_FUNCTION_DEF(SmallOrderedHashTable)
 #undef IS_TYPE_FUNCTION_DEF
 
-#define IS_TYPE_FUNCTION_DEF(Type, Value, _)                     \
-  bool Object::Is##Type(Isolate* isolate) const {                \
-    return Is##Type(ReadOnlyRoots(isolate));                     \
-  }                                                              \
-  bool Object::Is##Type(LocalIsolate* isolate) const {           \
-    return Is##Type(ReadOnlyRoots(isolate));                     \
-  }                                                              \
-  bool Object::Is##Type() const {                                \
-    return IsHeapObject() && HeapObject::cast(*this).Is##Type(); \
-  }                                                              \
-  bool HeapObject::Is##Type(Isolate* isolate) const {            \
-    return Object::Is##Type(isolate);                            \
-  }                                                              \
-  bool HeapObject::Is##Type(LocalIsolate* isolate) const {       \
-    return Object::Is##Type(isolate);                            \
-  }                                                              \
-  bool HeapObject::Is##Type(ReadOnlyRoots roots) const {         \
-    return Object::Is##Type(roots);                              \
-  }                                                              \
-  bool HeapObject::Is##Type() const { return Is##Type(GetReadOnlyRoots()); }
+#define IS_TYPE_FUNCTION_DEF(Type, Value, _)                             \
+  bool Tagged<Object>::Is##Type(Isolate* isolate) const {                \
+    return Is##Type(ReadOnlyRoots(isolate));                             \
+  }                                                                      \
+  bool Tagged<Object>::Is##Type(LocalIsolate* isolate) const {           \
+    return Is##Type(ReadOnlyRoots(isolate));                             \
+  }                                                                      \
+  bool Tagged<Object>::Is##Type() const {                                \
+    return IsHeapObject() && Tagged<HeapObject>::cast(*this).Is##Type(); \
+  }                                                                      \
+  bool Tagged<HeapObject>::Is##Type(Isolate* isolate) const {            \
+    return Tagged<Object>(*this).Is##Type(isolate);                      \
+  }                                                                      \
+  bool Tagged<HeapObject>::Is##Type(LocalIsolate* isolate) const {       \
+    return Tagged<Object>(*this).Is##Type(isolate);                      \
+  }                                                                      \
+  bool Tagged<HeapObject>::Is##Type(ReadOnlyRoots roots) const {         \
+    return Tagged<Object>(*this).Is##Type(roots);                        \
+  }                                                                      \
+  bool Tagged<HeapObject>::Is##Type() const {                            \
+    return Is##Type(ToRawPtr().GetReadOnlyRoots());                      \
+  }
 ODDBALL_LIST(IS_TYPE_FUNCTION_DEF)
 HOLE_LIST(IS_TYPE_FUNCTION_DEF)
 #undef IS_TYPE_FUNCTION_DEF
 
 #if V8_STATIC_ROOTS_BOOL
 #define IS_TYPE_FUNCTION_DEF(Type, Value, CamelName)                       \
-  bool Object::Is##Type(ReadOnlyRoots roots) const {                       \
+  bool Tagged<Object>::Is##Type(ReadOnlyRoots roots) const {               \
     SLOW_DCHECK(CheckObjectComparisonAllowed(ptr(), roots.Value().ptr())); \
     return V8HeapCompressionScheme::CompressObject(ptr()) ==               \
            StaticReadOnlyRoot::k##CamelName;                               \
   }
 #else
-#define IS_TYPE_FUNCTION_DEF(Type, Value, _)         \
-  bool Object::Is##Type(ReadOnlyRoots roots) const { \
-    return (*this) == roots.Value();                 \
+#define IS_TYPE_FUNCTION_DEF(Type, Value, _)                 \
+  bool Tagged<Object>::Is##Type(ReadOnlyRoots roots) const { \
+    return (*this) == roots.Value();                         \
   }
 #endif
 ODDBALL_LIST(IS_TYPE_FUNCTION_DEF)
 HOLE_LIST(IS_TYPE_FUNCTION_DEF)
 #undef IS_TYPE_FUNCTION_DEF
 
-bool Object::IsNullOrUndefined(Isolate* isolate) const {
+bool Tagged<Object>::IsNullOrUndefined(Isolate* isolate) const {
   return IsNullOrUndefined(ReadOnlyRoots(isolate));
 }
 
-bool Object::IsNullOrUndefined(LocalIsolate* local_isolate) const {
+bool Tagged<Object>::IsNullOrUndefined(LocalIsolate* local_isolate) const {
   return IsNullOrUndefined(ReadOnlyRoots(local_isolate));
 }
 
-bool Object::IsNullOrUndefined(ReadOnlyRoots roots) const {
+bool Tagged<Object>::IsNullOrUndefined(ReadOnlyRoots roots) const {
   return IsNull(roots) || IsUndefined(roots);
 }
 
-bool Object::IsNullOrUndefined() const {
-  return IsHeapObject() && HeapObject::cast(*this).IsNullOrUndefined();
+bool Tagged<Object>::IsNullOrUndefined() const {
+  return IsHeapObject() && Tagged<HeapObject>::cast(*this).IsNullOrUndefined();
 }
+
+bool Tagged<HeapObject>::IsNullOrUndefined(Isolate* isolate) const {
+  return IsNullOrUndefined(ReadOnlyRoots(isolate));
+}
+
+bool Tagged<HeapObject>::IsNullOrUndefined(LocalIsolate* isolate) const {
+  return IsNullOrUndefined(ReadOnlyRoots(isolate));
+}
+
+bool Tagged<HeapObject>::IsNullOrUndefined(ReadOnlyRoots roots) const {
+  return Tagged<Object>(*this).IsNullOrUndefined(roots);
+}
+
+bool Tagged<HeapObject>::IsNullOrUndefined() const {
+  return IsNullOrUndefined(ToRawPtr().GetReadOnlyRoots());
+}
+
+// TODO(leszeks): Replace these with direct operations on the Tagged ptr.
+#define IS_TYPE_FUNCTION_DEF(Type, Value, _)                         \
+  bool Object::Is##Type(Isolate* isolate) const {                    \
+    return Tagged(*this).Is##Type(isolate);                          \
+  }                                                                  \
+  bool Object::Is##Type(LocalIsolate* isolate) const {               \
+    return Tagged(*this).Is##Type(isolate);                          \
+  }                                                                  \
+  bool Object::Is##Type(ReadOnlyRoots roots) const {                 \
+    return Tagged(*this).Is##Type(roots);                            \
+  }                                                                  \
+  bool Object::Is##Type() const { return Tagged(*this).Is##Type(); } \
+  bool HeapObject::Is##Type(Isolate* isolate) const {                \
+    return Tagged(*this).Is##Type(isolate);                          \
+  }                                                                  \
+  bool HeapObject::Is##Type(LocalIsolate* isolate) const {           \
+    return Tagged(*this).Is##Type(isolate);                          \
+  }                                                                  \
+  bool HeapObject::Is##Type(ReadOnlyRoots roots) const {             \
+    return Tagged(*this).Is##Type(roots);                            \
+  }                                                                  \
+  bool HeapObject::Is##Type() const { return Tagged(*this).Is##Type(); }
+ODDBALL_LIST(IS_TYPE_FUNCTION_DEF)
+HOLE_LIST(IS_TYPE_FUNCTION_DEF)
+IS_TYPE_FUNCTION_DEF(NullOrUndefined, , /* unused */)
+#undef IS_TYPE_FUNCTION_DEF
 
 bool Object::IsZero() const { return *this == Smi::zero(); }
 
@@ -204,33 +260,35 @@ void Object::Relaxed_WriteField(size_t offset, T value) {
 }
 
 bool HeapObject::InAnySharedSpace() const {
+  return Tagged<HeapObject>(*this).InAnySharedSpace();
+}
+
+bool HeapObject::InWritableSharedSpace() const {
+  return Tagged<HeapObject>(*this).InWritableSharedSpace();
+}
+
+bool HeapObject::InReadOnlySpace() const {
+  return Tagged<HeapObject>(*this).InReadOnlySpace();
+}
+
+bool Tagged<HeapObject>::InAnySharedSpace() const {
   if (IsReadOnlyHeapObject(*this)) return V8_SHARED_RO_HEAP_BOOL;
   return InWritableSharedSpace();
 }
 
-bool HeapObject::InWritableSharedSpace() const {
+bool Tagged<HeapObject>::InWritableSharedSpace() const {
   return BasicMemoryChunk::FromHeapObject(*this)->InWritableSharedSpace();
 }
 
-bool HeapObject::InReadOnlySpace() const { return IsReadOnlyHeapObject(*this); }
+bool Tagged<HeapObject>::InReadOnlySpace() const {
+  return IsReadOnlyHeapObject(*this);
+}
 
 bool HeapObject::IsJSObjectThatCanBeTrackedAsPrototype() const {
   // Do not optimize objects in the shared heap because it is not
   // threadsafe. Objects in the shared heap have fixed layouts and their maps
   // never change.
   return IsJSObject() && !InWritableSharedSpace();
-}
-
-bool HeapObject::IsNullOrUndefined(Isolate* isolate) const {
-  return IsNullOrUndefined(ReadOnlyRoots(isolate));
-}
-
-bool HeapObject::IsNullOrUndefined(ReadOnlyRoots roots) const {
-  return Object::IsNullOrUndefined(roots);
-}
-
-bool HeapObject::IsNullOrUndefined() const {
-  return IsNullOrUndefined(GetReadOnlyRoots());
 }
 
 DEF_GETTER(HeapObject, IsUniqueName, bool) {
@@ -270,7 +328,7 @@ DEF_GETTER(HeapObject, IsSourceTextModuleInfo, bool) {
 
 DEF_GETTER(HeapObject, IsConsString, bool) {
   if (!IsString(cage_base)) return false;
-  return StringShape(String::cast(*this).map(cage_base)).IsCons();
+  return StringShape(Tagged<String>::cast(*this)->map(cage_base)).IsCons();
 }
 
 DEF_GETTER(HeapObject, IsThinString, bool) {
@@ -460,12 +518,21 @@ DEF_GETTER(HeapObject, IsAccessCheckNeeded, bool) {
   return map(cage_base).is_access_check_needed();
 }
 
-#define MAKE_STRUCT_PREDICATE(NAME, Name, name)                           \
-  bool Object::Is##Name() const {                                         \
-    return IsHeapObject() && HeapObject::cast(*this).Is##Name();          \
-  }                                                                       \
-  bool Object::Is##Name(PtrComprCageBase cage_base) const {               \
-    return IsHeapObject() && HeapObject::cast(*this).Is##Name(cage_base); \
+#define MAKE_STRUCT_PREDICATE(NAME, Name, name)                               \
+  bool Object::Is##Name() const { return Tagged<Object>(*this).Is##Name(); }  \
+  bool Object::Is##Name(PtrComprCageBase cage_base) const {                   \
+    return Tagged<Object>(*this).Is##Name(cage_base);                         \
+  }                                                                           \
+  bool Tagged<Object>::Is##Name() const {                                     \
+    return IsHeapObject() && Tagged<HeapObject>::cast(*this).Is##Name();      \
+  }                                                                           \
+  bool Tagged<Object>::Is##Name(PtrComprCageBase cage_base) const {           \
+    return IsHeapObject() &&                                                  \
+           Tagged<HeapObject>::cast(*this).Is##Name(cage_base);               \
+  }                                                                           \
+  bool Tagged<HeapObject>::Is##Name() const { return ToRawPtr().Is##Name(); } \
+  bool Tagged<HeapObject>::Is##Name(PtrComprCageBase cage_base) const {       \
+    return ToRawPtr().Is##Name(cage_base);                                    \
   }
 STRUCT_LIST(MAKE_STRUCT_PREDICATE)
 #undef MAKE_STRUCT_PREDICATE

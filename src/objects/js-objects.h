@@ -6,6 +6,7 @@
 #define V8_OBJECTS_JS_OBJECTS_H_
 
 #include "src/base/optional.h"
+#include "src/handles/handles.h"
 #include "src/objects/embedder-data-slot.h"
 // TODO(jkummerow): Consider forward-declaring instead.
 #include "src/objects/internal-index.h"
@@ -29,6 +30,7 @@ class LookupIterator;
 class PropertyKey;
 class NativeContext;
 class IsCompiledScope;
+class SwissNameDictionary;
 
 #include "torque-generated/src/objects/js-objects-tq.inc"
 

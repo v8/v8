@@ -9,9 +9,11 @@
 #include "src/common/globals.h"
 #include "src/objects/code.h"
 #include "src/objects/heap-object.h"
+#include "src/objects/instance-type-checker.h"
 #include "src/objects/internal-index.h"
 #include "src/objects/objects.h"
 #include "src/objects/prototype-info.h"
+#include "src/roots/roots.h"
 #include "torque-generated/bit-fields.h"
 #include "torque-generated/visitor-lists.h"
 

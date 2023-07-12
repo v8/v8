@@ -6,7 +6,7 @@
 #define V8_OBJECTS_JS_ITERATOR_HELPERS_INL_H_
 
 #include "src/objects/js-iterator-helpers.h"
-#include "src/objects/objects-inl.h"
+#include "src/objects/oddball-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"

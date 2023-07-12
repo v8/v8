@@ -9,13 +9,15 @@
 
 #include "src/base/macros.h"
 #include "src/handles/handles.h"
-#include "src/objects/js-objects.h"
+#include "src/objects/tagged.h"
 
 namespace cppgc::internal {
 class HeapBase;
 }
 
 namespace v8::internal {
+
+class JSObject;
 
 // The class is used to remember V8 to Oilpan references.
 class V8_EXPORT_PRIVATE CrossHeapRememberedSet final {

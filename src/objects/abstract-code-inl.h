@@ -8,6 +8,7 @@
 #include "src/objects/abstract-code.h"
 #include "src/objects/bytecode-array-inl.h"
 #include "src/objects/code-inl.h"
+#include "src/objects/instance-type-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"

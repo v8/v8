@@ -14,6 +14,7 @@
 #include "src/objects/shared-function-info.h"
 #include "src/objects/smi.h"
 #include "src/roots/roots-inl.h"
+#include "src/torque/runtime-macro-shims.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"

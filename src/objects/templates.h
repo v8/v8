@@ -5,6 +5,7 @@
 #ifndef V8_OBJECTS_TEMPLATES_H_
 #define V8_OBJECTS_TEMPLATES_H_
 
+#include "src/handles/handles.h"
 #include "src/objects/struct.h"
 #include "torque-generated/bit-fields.h"
 

@@ -725,13 +725,6 @@ bool Map::CanTransition() const {
          !InstanceTypeChecker::IsAlwaysSharedSpaceJSObject(type);
 }
 
-#define DEF_TESTER(Type, ...)                    \
-  bool Map::Is##Type##Map() const {              \
-    return InstanceTypeChecker::Is##Type(*this); \
-  }
-INSTANCE_TYPE_CHECKERS(DEF_TESTER)
-#undef DEF_TESTER
-
 bool Map::IsBooleanMap() const {
   return *this == GetReadOnlyRoots().boolean_map();
 }

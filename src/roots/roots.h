@@ -35,6 +35,8 @@ class ReadOnlyHeap;
 class RootVisitor;
 class String;
 class Symbol;
+template <typename T>
+class Tagged;
 
 #define STRONG_READ_ONLY_HEAP_NUMBER_ROOT_LIST(V)         \
   /* Special numbers */                                   \
@@ -422,9 +424,9 @@ class Symbol;
   NAME_FOR_PROTECTOR_ROOT_LIST(V)  \
   DATA_HANDLER_MAPS_LIST(V)
 
-#define MUTABLE_ROOT_LIST(V)                \
-  STRONG_MUTABLE_IMMOVABLE_ROOT_LIST(V)     \
-  STRONG_MUTABLE_MOVABLE_ROOT_LIST(V)       \
+#define MUTABLE_ROOT_LIST(V)            \
+  STRONG_MUTABLE_IMMOVABLE_ROOT_LIST(V) \
+  STRONG_MUTABLE_MOVABLE_ROOT_LIST(V)   \
   SMI_ROOT_LIST(V)
 
 #define ROOT_LIST(V)     \

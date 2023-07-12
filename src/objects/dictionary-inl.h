@@ -293,7 +293,7 @@ void GlobalDictionary::SetEntry(InternalIndex entry, Object key, Object value,
 }
 
 void GlobalDictionary::ClearEntry(InternalIndex entry) {
-  Object the_hole = this->GetReadOnlyRoots().the_hole_value();
+  Tagged<Hole> the_hole = this->GetReadOnlyRoots().the_hole_value();
   set(EntryToIndex(entry) + kEntryKeyIndex, the_hole);
 }
 

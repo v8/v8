@@ -997,6 +997,8 @@ def emit_config():
   consts = [];
   for klassname in sorted(klasses):
     pklass = klasses[klassname]['parent'];
+    if (klassname == pklass):
+      continue
     bklass = get_base_class(klassname);
     if (bklass != 'Object'):
       continue;

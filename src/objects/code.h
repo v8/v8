@@ -17,6 +17,10 @@ namespace internal {
 
 class BytecodeArray;
 class CodeDesc;
+class Factory;
+template <typename Impl>
+class FactoryBase;
+class LocalFactory;
 
 enum class Builtin;
 

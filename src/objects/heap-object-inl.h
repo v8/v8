@@ -5,13 +5,32 @@
 #ifndef V8_OBJECTS_HEAP_OBJECT_INL_H_
 #define V8_OBJECTS_HEAP_OBJECT_INL_H_
 
+#include "src/common/ptr-compr-inl.h"
 #include "src/objects/heap-object.h"
+#include "src/objects/instance-type-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
 namespace v8 {
 namespace internal {
+
+#define TYPE_CHECKER(type, ...)                                               \
+  bool HeapObject::Is##type() const {                                         \
+    /* IsBlah() predicates needs to load the map and thus they require the */ \
+    /* main cage base. */                                                     \
+    PtrComprCageBase cage_base = GetPtrComprCageBase();                       \
+    return HeapObject::Is##type(cage_base);                                   \
+  }                                                                           \
+  /* The cage_base passed here must be the base of the main pointer */        \
+  /* compression cage, i.e. the one where the Map space is allocated. */      \
+  bool HeapObject::Is##type(PtrComprCageBase cage_base) const {               \
+    Map map_object = map(cage_base);                                          \
+    return InstanceTypeChecker::Is##type(map_object);                         \
+  }
+
+INSTANCE_TYPE_CHECKERS(TYPE_CHECKER)
+#undef TYPE_CHECKER
 
 }  // namespace internal
 }  // namespace v8

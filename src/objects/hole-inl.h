@@ -7,8 +7,11 @@
 
 #include "src/handles/handles.h"
 #include "src/heap/heap-write-barrier-inl.h"
+#include "src/objects/heap-number-inl.h"
 #include "src/objects/hole.h"
 #include "src/objects/objects-inl.h"
+#include "src/objects/smi-inl.h"
+#include "src/objects/tagged-field-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"

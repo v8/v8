@@ -9,9 +9,6 @@
 #include "src/objects/instance-type.h"
 #include "src/objects/objects.h"
 #include "src/objects/tagged-field.h"
-#include "src/roots/roots.h"
-#include "src/torque/runtime-macro-shims.h"
-#include "src/torque/runtime-support.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -21,6 +18,9 @@ namespace internal {
 
 class Heap;
 class PrimitiveHeapObject;
+class ExternalPointerSlot;
+template <typename T>
+class Tagged;
 
 // HeapObject is the superclass for all classes describing heap allocated
 // objects.
@@ -126,9 +126,10 @@ class HeapObject : public Object {
   V8_INLINE bool IsJSObjectThatCanBeTrackedAsPrototype() const;
 
   // Converts an address to a HeapObject pointer.
+  // TODO(leszeks): Move to Tagged<HeapObject>
   static inline HeapObject FromAddress(Address address) {
     DCHECK_TAG_ALIGNED(address);
-    return HeapObject(address + kHeapObjectTag);
+    return HeapObject::unchecked_cast(Object(address + kHeapObjectTag));
   }
 
   // Returns the address of this HeapObject.

@@ -244,7 +244,7 @@ inline bool ObjectInYoungGeneration(Object object) {
       ->InYoungGeneration();
 }
 
-inline bool IsReadOnlyHeapObject(HeapObject object) {
+inline bool IsReadOnlyHeapObject(Tagged<HeapObject> object) {
   if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) return ReadOnlyHeap::Contains(object);
   heap_internals::MemoryChunk* chunk =
       heap_internals::MemoryChunk::FromHeapObject(object);

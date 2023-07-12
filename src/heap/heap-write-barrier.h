@@ -47,7 +47,7 @@ void CombinedEphemeronWriteBarrier(EphemeronHashTable object, ObjectSlot slot,
 void GenerationalBarrierForCode(InstructionStream host, RelocInfo* rinfo,
                                 HeapObject object);
 
-inline bool IsReadOnlyHeapObject(HeapObject object);
+inline bool IsReadOnlyHeapObject(Tagged<HeapObject> object);
 
 class V8_EXPORT_PRIVATE WriteBarrier {
  public:

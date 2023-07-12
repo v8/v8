@@ -19,7 +19,7 @@
 #include "src/base/platform/platform.h"
 #include "src/numbers/conversions.h"
 #include "src/objects/heap-number-inl.h"
-#include "src/objects/objects-inl.h"
+#include "src/objects/smi-inl.h"
 
 namespace v8 {
 namespace internal {

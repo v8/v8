@@ -16,6 +16,8 @@
 #include "src/objects/maybe-object-inl.h"
 #include "src/objects/property.h"
 #include "src/objects/struct-inl.h"
+#include "src/torque/runtime-macro-shims.h"
+#include "src/torque/runtime-support.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"

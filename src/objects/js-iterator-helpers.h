@@ -13,6 +13,8 @@
 namespace v8 {
 namespace internal {
 
+class Boolean;
+
 #include "torque-generated/src/objects/js-iterator-helpers-tq.inc"
 
 // Iterator helpers are iterators that transform an underlying iterator in some

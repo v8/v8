@@ -12,6 +12,7 @@
 #include "src/heap/marking.h"
 #include "src/heap/memory-chunk-layout.h"
 #include "src/heap/spaces.h"
+#include "src/objects/instance-type-inl.h"
 
 namespace v8::internal {
 

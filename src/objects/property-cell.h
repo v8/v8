@@ -13,6 +13,9 @@
 namespace v8 {
 namespace internal {
 
+class FixedArray;
+class WeakFixedArray;
+
 #include "torque-generated/src/objects/property-cell-tq.inc"
 
 class PropertyCell

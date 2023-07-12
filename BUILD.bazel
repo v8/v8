@@ -1824,6 +1824,7 @@ filegroup(
         "src/objects/heap-object.h",
         "src/objects/heap-object-inl.h",
         "src/objects/instance-type.h",
+        "src/objects/instance-type-checker.h",
         "src/objects/instance-type-inl.h",
         "src/objects/internal-index.h",
         "src/objects/instruction-stream.cc",
