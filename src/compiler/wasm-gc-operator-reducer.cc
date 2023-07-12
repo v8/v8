@@ -72,6 +72,7 @@ Reduction WasmGCOperatorReducer::Reduce(Node* node) {
 namespace {
 bool InDeadBranch(Node* node) {
   return node->opcode() == IrOpcode::kDead ||
+         node->opcode() == IrOpcode::kDeadValue ||
          NodeProperties::GetType(node).AsWasm().type.is_uninhabited();
 }
 
@@ -129,7 +130,10 @@ Reduction WasmGCOperatorReducer::ReduceStart(Node* node) {
 
 wasm::TypeInModule WasmGCOperatorReducer::ObjectTypeFromContext(
     Node* object, Node* control, bool allow_non_wasm) {
-  if (object->opcode() == IrOpcode::kDead) return {};
+  if (object->opcode() == IrOpcode::kDead ||
+      object->opcode() == IrOpcode::kDeadValue) {
+    return {};
+  }
   if (!IsReduced(control)) return {};
   if (allow_non_wasm && !NodeProperties::IsTyped(object)) return {};
   Type raw_type = NodeProperties::GetType(object);
@@ -344,7 +348,9 @@ Reduction WasmGCOperatorReducer::ReduceWasmExternInternalize(Node* node) {
   while (input->opcode() == IrOpcode::kTypeGuard) {
     input = NodeProperties::GetValueInput(input, 0);
   }
-  if (input->opcode() == IrOpcode::kDead) return NoChange();
+  if (input->opcode() == IrOpcode::kDead ||
+      input->opcode() == IrOpcode::kDeadValue)
+    return NoChange();
   if (input->opcode() == IrOpcode::kWasmExternExternalize) {
     // "Skip" the extern.externalize which doesn't have an effect on the value.
     input = NodeProperties::GetValueInput(input, 0);
