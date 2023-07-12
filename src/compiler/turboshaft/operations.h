@@ -112,99 +112,115 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
   V(Switch)                                           \
   V(Deoptimize)
 
+// These operations should be lowered to Machine operations during
+// MachineLoweringPhase.
+#define TURBOSHAFT_SIMPLIFIED_OPERATION_LIST(V) \
+  TURBOSHAFT_INTL_OPERATION_LIST(V)             \
+  V(ArgumentsLength)                            \
+  V(BigIntBinop)                                \
+  V(BigIntComparison)                           \
+  V(BigIntEqual)                                \
+  V(BigIntUnary)                                \
+  V(CheckedClosure)                             \
+  V(CheckEqualsInternalizedString)              \
+  V(CheckMaps)                                  \
+  V(CompareMaps)                                \
+  V(FloatIs)                                    \
+  V(ObjectIs)                                   \
+  V(ObjectIsNumericValue)                       \
+  V(Float64SameValue)                           \
+  V(SameValue)                                  \
+  V(ChangeOrDeopt)                              \
+  V(Convert)                                    \
+  V(ConvertJSPrimitiveToObject)                 \
+  V(ConvertJSPrimitiveToUntagged)               \
+  V(ConvertJSPrimitiveToUntaggedOrDeopt)        \
+  V(ConvertUntaggedToJSPrimitive)               \
+  V(ConvertUntaggedToJSPrimitiveOrDeopt)        \
+  V(TruncateJSPrimitiveToUntagged)              \
+  V(TruncateJSPrimitiveToUntaggedOrDeopt)       \
+  V(DoubleArrayMinMax)                          \
+  V(EnsureWritableFastElements)                 \
+  V(FastApiCall)                                \
+  V(FindOrderedHashEntry)                       \
+  V(LoadDataViewElement)                        \
+  V(LoadFieldByIndex)                           \
+  V(LoadMessage)                                \
+  V(LoadStackArgument)                          \
+  V(LoadTypedElement)                           \
+  V(StoreDataViewElement)                       \
+  V(StoreMessage)                               \
+  V(StoreTypedElement)                          \
+  V(MaybeGrowFastElements)                      \
+  V(NewArgumentsElements)                       \
+  V(NewArray)                                   \
+  V(RuntimeAbort)                               \
+  V(StringAt)                                   \
+  V(StringComparison)                           \
+  V(StringConcat)                               \
+  V(StringEqual)                                \
+  V(StringFromCodePointAt)                      \
+  V(StringIndexOf)                              \
+  V(StringLength)                               \
+  V(StringSubstring)                            \
+  V(NewConsString)                              \
+  V(TransitionAndStoreArrayElement)             \
+  V(TransitionElementsKind)
+
+// These Operations are the lowest level handled by Turboshaft, and are
+// supported by the InstructionSelector.
+#define TURBOSHAFT_MACHINE_OPERATION_LIST(V) \
+  V(WordBinop)                               \
+  V(FloatBinop)                              \
+  V(Word32PairBinop)                         \
+  V(OverflowCheckedBinop)                    \
+  V(WordUnary)                               \
+  V(FloatUnary)                              \
+  V(Shift)                                   \
+  V(Equal)                                   \
+  V(Comparison)                              \
+  V(Change)                                  \
+  V(TryChange)                               \
+  V(BitcastWord32PairToFloat64)              \
+  V(TaggedBitcast)                           \
+  V(Select)                                  \
+  V(PendingLoopPhi)                          \
+  V(Constant)                                \
+  V(LoadException)                           \
+  V(LoadRootRegister)                        \
+  V(Load)                                    \
+  V(Store)                                   \
+  V(Retain)                                  \
+  V(Parameter)                               \
+  V(OsrValue)                                \
+  V(StackPointerGreaterThan)                 \
+  V(StackSlot)                               \
+  V(FrameConstant)                           \
+  V(DeoptimizeIf)                            \
+  V(TrapIf)                                  \
+  V(Phi)                                     \
+  V(FrameState)                              \
+  V(Call)                                    \
+  V(Tuple)                                   \
+  V(Projection)                              \
+  V(StaticAssert)                            \
+  V(DebugBreak)                              \
+  V(DebugPrint)                              \
+  V(CheckTurboshaftTypeOf)                   \
+  V(AssumeMap)
+
+// These are operations that are not Machine operations and need to be lowered
+// before Instruction Selection, but they are not lowered during the
+// MachineLoweringPhase.
+#define TURBOSHAFT_OTHER_OPERATION_LIST(V) \
+  V(Allocate)                              \
+  V(DecodeExternalPointer)
+
 #define TURBOSHAFT_OPERATION_LIST_NOT_BLOCK_TERMINATOR(V) \
-  TURBOSHAFT_INTL_OPERATION_LIST(V)                       \
   TURBOSHAFT_WASM_OPERATION_LIST(V)                       \
-  V(WordBinop)                                            \
-  V(FloatBinop)                                           \
-  V(Word32PairBinop)                                      \
-  V(OverflowCheckedBinop)                                 \
-  V(WordUnary)                                            \
-  V(FloatUnary)                                           \
-  V(Shift)                                                \
-  V(Equal)                                                \
-  V(Comparison)                                           \
-  V(Change)                                               \
-  V(ChangeOrDeopt)                                        \
-  V(TryChange)                                            \
-  V(BitcastWord32PairToFloat64)                           \
-  V(TaggedBitcast)                                        \
-  V(Select)                                               \
-  V(PendingLoopPhi)                                       \
-  V(Constant)                                             \
-  V(Load)                                                 \
-  V(Store)                                                \
-  V(Allocate)                                             \
-  V(DecodeExternalPointer)                                \
-  V(Retain)                                               \
-  V(Parameter)                                            \
-  V(OsrValue)                                             \
-  V(StackPointerGreaterThan)                              \
-  V(StackSlot)                                            \
-  V(FrameConstant)                                        \
-  V(DeoptimizeIf)                                         \
-  V(TrapIf)                                               \
-  V(Phi)                                                  \
-  V(FrameState)                                           \
-  V(Call)                                                 \
-  V(LoadException)                                        \
-  V(Tuple)                                                \
-  V(Projection)                                           \
-  V(StaticAssert)                                         \
-  V(CheckTurboshaftTypeOf)                                \
-  V(ObjectIs)                                             \
-  V(FloatIs)                                              \
-  V(ObjectIsNumericValue)                                 \
-  V(Convert)                                              \
-  V(ConvertUntaggedToJSPrimitive)                         \
-  V(ConvertUntaggedToJSPrimitiveOrDeopt)                  \
-  V(ConvertJSPrimitiveToUntagged)                         \
-  V(ConvertJSPrimitiveToUntaggedOrDeopt)                  \
-  V(TruncateJSPrimitiveToUntagged)                        \
-  V(TruncateJSPrimitiveToUntaggedOrDeopt)                 \
-  V(ConvertJSPrimitiveToObject)                           \
-  V(NewConsString)                                        \
-  V(NewArray)                                             \
-  V(DoubleArrayMinMax)                                    \
-  V(LoadFieldByIndex)                                     \
-  V(DebugBreak)                                           \
-  V(DebugPrint)                                           \
-  V(BigIntBinop)                                          \
-  V(BigIntEqual)                                          \
-  V(BigIntComparison)                                     \
-  V(BigIntUnary)                                          \
-  V(LoadRootRegister)                                     \
-  V(StringAt)                                             \
-  V(StringLength)                                         \
-  V(StringIndexOf)                                        \
-  V(StringFromCodePointAt)                                \
-  V(StringSubstring)                                      \
-  V(StringConcat)                                         \
-  V(StringEqual)                                          \
-  V(StringComparison)                                     \
-  V(ArgumentsLength)                                      \
-  V(NewArgumentsElements)                                 \
-  V(LoadTypedElement)                                     \
-  V(LoadDataViewElement)                                  \
-  V(LoadStackArgument)                                    \
-  V(StoreTypedElement)                                    \
-  V(StoreDataViewElement)                                 \
-  V(TransitionAndStoreArrayElement)                       \
-  V(CompareMaps)                                          \
-  V(CheckMaps)                                            \
-  V(AssumeMap)                                            \
-  V(CheckedClosure)                                       \
-  V(CheckEqualsInternalizedString)                        \
-  V(LoadMessage)                                          \
-  V(StoreMessage)                                         \
-  V(SameValue)                                            \
-  V(Float64SameValue)                                     \
-  V(FastApiCall)                                          \
-  V(RuntimeAbort)                                         \
-  V(EnsureWritableFastElements)                           \
-  V(MaybeGrowFastElements)                                \
-  V(TransitionElementsKind)                               \
-  V(FindOrderedHashEntry)
+  TURBOSHAFT_MACHINE_OPERATION_LIST(V)                    \
+  TURBOSHAFT_SIMPLIFIED_OPERATION_LIST(V)                 \
+  TURBOSHAFT_OTHER_OPERATION_LIST(V)
 
 #define TURBOSHAFT_OPERATION_LIST(V)            \
   TURBOSHAFT_OPERATION_LIST_BLOCK_TERMINATOR(V) \
