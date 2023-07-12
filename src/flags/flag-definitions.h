@@ -2300,7 +2300,14 @@ DEFINE_EXPERIMENTAL_FEATURE(concurrent_minor_ms_marking,
 DEFINE_NEG_NEG_IMPLICATION(concurrent_marking, concurrent_minor_ms_marking)
 DEFINE_IMPLICATION(concurrent_minor_ms_marking, minor_ms)
 
-DEFINE_UINT(minor_ms_min_new_space_capacity_for_concurrent_marking_mb, 8,
+#ifndef DEBUG
+#define V8_MINOR_MS_CONCURRENT_MARKING_MIN_CAPACITY_DEFAULT 8
+#else
+#define V8_MINOR_MS_CONCURRENT_MARKING_MIN_CAPACITY_DEFAULT 0
+#endif
+
+DEFINE_UINT(minor_ms_min_new_space_capacity_for_concurrent_marking_mb,
+            V8_MINOR_MS_CONCURRENT_MARKING_MIN_CAPACITY_DEFAULT,
             "min new space capacity in MBs for using young generation "
             "concurrent marking.")
 
