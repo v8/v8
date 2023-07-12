@@ -691,11 +691,19 @@ enum class CallApiCallbackMode {
   // side-effects checking by debugger.
   kGeneric,
 
-  // This version is used for generating calls from optimized code. It doesn't
-  // need to support side effects checking because function will be deoptimized
-  // when side effects checking is enabled, and it doesn't get the target
-  // function because it can be reconstructed from the lazy deopt info in case
-  // exception is thrown.
+  // The following two versions are used for generating calls from optimized
+  // code. They don't need to support side effects checking because function
+  // will be deoptimized when side effects checking is enabled, and they don't
+  // get the target function because it can be reconstructed from the lazy
+  // deopt info in case exception is thrown.
+
+  // This version is used for compiling code when Isolate profiling or runtime
+  // call stats is disabled. The code that uses this version must be created
+  // with a dependency on NoProfilingProtector.
+  kOptimizedNoProfiling,
+
+  // This version contains a dynamic check for enabled profiler and it supports
+  // runtime call stats.
   kOptimized,
 };
 

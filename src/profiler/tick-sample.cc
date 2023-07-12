@@ -316,10 +316,17 @@ bool TickSample::GetStackSample(Isolate* v8_isolate, RegisterState* regs,
   size_t i = 0;
   if (record_c_entry_frame == kIncludeCEntryFrame &&
       (it.top_frame_type() == internal::StackFrame::EXIT ||
-       it.top_frame_type() == internal::StackFrame::BUILTIN_EXIT ||
-       it.top_frame_type() == internal::StackFrame::API_CALLBACK_EXIT)) {
-    frames[i] = reinterpret_cast<void*>(isolate->c_function());
-    i++;
+       it.top_frame_type() == internal::StackFrame::BUILTIN_EXIT)) {
+    // While BUILTIN_EXIT definitely represents a call to CEntry the EXIT frame
+    // might represent either a call to CEntry or an optimized call to
+    // Api callback. In the latter case the ExternalCallbackScope points to
+    // the same function, so skip adding a frame in that case in order to avoid
+    // double-reporting.
+    void* c_function = reinterpret_cast<void*>(isolate->c_function());
+    if (sample_info->external_callback_entry != c_function) {
+      frames[i] = c_function;
+      i++;
+    }
   }
 #ifdef V8_RUNTIME_CALL_STATS
   i::RuntimeCallTimer* timer =

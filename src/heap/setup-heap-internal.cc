@@ -1418,6 +1418,7 @@ void Heap::CreateInitialMutableObjects() {
   set_map_iterator_protector(*factory->NewProtector());
   set_no_elements_protector(*factory->NewProtector());
   set_mega_dom_protector(*factory->NewProtector());
+  set_no_profiling_protector(*factory->NewProtector());
   set_promise_hook_protector(*factory->NewProtector());
   set_promise_resolve_protector(*factory->NewProtector());
   set_promise_species_protector(*factory->NewProtector());

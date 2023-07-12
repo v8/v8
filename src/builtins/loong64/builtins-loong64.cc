@@ -3033,7 +3033,8 @@ namespace {
 // *stack_space_operand * kSystemPointerSize or stack_space * kSystemPointerSize
 // (GCed, includes the call JS arguments space and the additional space
 // allocated for the fast call).
-void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
+void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
+                              Register function_address,
                               ExternalReference thunk_ref, Register thunk_arg,
                               int stack_space, MemOperand* stack_space_operand,
                               MemOperand return_value_operand) {
@@ -3081,11 +3082,12 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
   }
 
   Label profiler_or_side_effects_check_enabled, done_api_call;
-  __ RecordComment("Check if profiler or side effects check is enabled");
-  __ Ld_b(scratch, __ ExternalReferenceAsOperand(
-                       ER::execution_mode_address(isolate), no_reg));
-  __ Branch(&profiler_or_side_effects_check_enabled, ne, scratch,
-            Operand(zero_reg));
+  if (with_profiling) {
+    __ RecordComment("Check if profiler or side effects check is enabled");
+    __ Ld_b(scratch, __ ExternalReferenceAsOperand(
+                         ER::execution_mode_address(isolate), no_reg));
+    __ Branch(&profiler_or_side_effects_check_enabled, ne, scratch,
+              Operand(zero_reg));
 #ifdef V8_RUNTIME_CALL_STATS
   __ RecordComment("Check if RCS is enabled");
   __ li(scratch, ER::address_of_runtime_stats_flag());
@@ -3093,6 +3095,7 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
   __ Branch(&profiler_or_side_effects_check_enabled, ne, scratch,
             Operand(zero_reg));
 #endif  // V8_RUNTIME_CALL_STATS
+  }
 
   __ RecordComment("Call the api function directly.");
   __ StoreReturnAddressAndCall(function_address);
@@ -3160,7 +3163,7 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, Register function_address,
 
   __ Ret();
 
-  {
+  if (with_profiling) {
     ASM_CODE_COMMENT_STRING(masm, "Call the api function via thunk wrapper.");
     __ bind(&profiler_or_side_effects_check_enabled);
     // Additional parameter is the address of the actual callback function.
@@ -3212,7 +3215,7 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
   //  -- a2                  : arguments count (not including the receiver)
   //  -- a3                  : call handler info
   //  -- a0                  : holder
-  // CallApiCallbackMode::kOptimized mode:
+  // CallApiCallbackMode::kOptimizedNoProfiling/kOptimized modes:
   //  -- a1                  : api function address
   //  -- a2                  : arguments count
   //  -- a3                  : call data
@@ -3244,6 +3247,7 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
       holder = CallApiCallbackGenericDescriptor::HolderRegister();
       break;
 
+    case CallApiCallbackMode::kOptimizedNoProfiling:
     case CallApiCallbackMode::kOptimized:
       api_function_address =
           CallApiCallbackOptimizedDescriptor::ApiFunctionAddressRegister();
@@ -3307,6 +3311,7 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
       __ St_d(scratch2, MemOperand(sp, FCA::kDataIndex * kSystemPointerSize));
       break;
 
+    case CallApiCallbackMode::kOptimizedNoProfiling:
     case CallApiCallbackMode::kOptimized:
       __ St_d(call_data, MemOperand(sp, FCA::kDataIndex * kSystemPointerSize));
       break;
@@ -3418,9 +3423,11 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
 
   static constexpr int kUseStackSpaceOperand = 0;
 
-  CallApiFunctionAndReturn(masm, api_function_address, thunk_ref, thunk_arg,
-                           kUseStackSpaceOperand, &stack_space_operand,
-                           return_value_operand);
+  const bool with_profiling =
+      mode != CallApiCallbackMode::kOptimizedNoProfiling;
+  CallApiFunctionAndReturn(masm, with_profiling, api_function_address,
+                           thunk_ref, thunk_arg, kUseStackSpaceOperand,
+                           &stack_space_operand, return_value_operand);
 }
 
 void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
@@ -3534,9 +3541,10 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
       ExitFrameCallerStackSlotOperand(PCA::kReturnValueIndex + kPCAStackIndex);
   MemOperand* const kUseStackSpaceConstant = nullptr;
 
-  CallApiFunctionAndReturn(masm, api_function_address, thunk_ref, thunk_arg,
-                           kStackUnwindSpace, kUseStackSpaceConstant,
-                           return_value_operand);
+  const bool with_profiling = true;
+  CallApiFunctionAndReturn(masm, with_profiling, api_function_address,
+                           thunk_ref, thunk_arg, kStackUnwindSpace,
+                           kUseStackSpaceConstant, return_value_operand);
 }
 
 void Builtins::Generate_DirectCEntry(MacroAssembler* masm) {

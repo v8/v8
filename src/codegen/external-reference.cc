@@ -840,6 +840,8 @@ ExternalReference ExternalReference::invoke_function_callback(
       return invoke_function_callback_generic();
     case CallApiCallbackMode::kOptimized:
       return invoke_function_callback_optimized();
+    case CallApiCallbackMode::kOptimizedNoProfiling:
+      return ExternalReference();
   }
 }
 

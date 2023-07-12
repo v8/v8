@@ -1159,6 +1159,17 @@ bool CompilationDependencies::DependOnMegaDOMProtector() {
       MakeRef(broker_, broker_->isolate()->factory()->mega_dom_protector()));
 }
 
+bool CompilationDependencies::DependOnNoProfilingProtector() {
+  // A shortcut in case profiling was already enabled but the interrupt
+  // request to invalidate NoProfilingProtector wasn't processed yet.
+#ifdef V8_RUNTIME_CALL_STATS
+  if (TracingFlags::is_runtime_stats_enabled()) return false;
+#endif
+  if (broker_->isolate()->is_profiling()) return false;
+  return DependOnProtector(MakeRef(
+      broker_, broker_->isolate()->factory()->no_profiling_protector()));
+}
+
 bool CompilationDependencies::DependOnArrayBufferDetachingProtector() {
   return DependOnProtector(MakeRef(
       broker_,

@@ -43,6 +43,7 @@
 #include "src/codegen/source-position-table.h"
 #include "src/deoptimizer/deoptimize-reason.h"
 #include "src/execution/embedder-state.h"
+#include "src/execution/protectors-inl.h"
 #include "src/heap/spaces.h"
 #include "src/init/v8.h"
 #include "src/libsampler/sampler.h"
@@ -4510,6 +4511,110 @@ TEST(CanStartStopProfilerWithTitlesAndIds) {
   CHECK_EQ(anonymous_id_2, profile_with_id_2->id());
 }
 
+TEST(NoProfilingProtectorCPUProfiler) {
+#if !defined(V8_LITE_MODE) && \
+    (defined(V8_ENABLE_TURBOFAN) || defined(V8_ENABLE_MAGLEV))
+  if (i::v8_flags.jitless) return;
+
+#ifdef V8_ENABLE_TURBOFAN
+  FLAG_SCOPE(turbofan);
+#endif
+#ifdef V8_ENABLE_MAGLEV
+  FLAG_SCOPE(maglev);
+#endif
+  FLAG_SCOPE(allow_natives_syntax);
+
+  CcTest::InitializeVM();
+  LocalContext env;
+  v8::Isolate* isolate = CcTest::isolate();
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  i::HandleScope scope(i_isolate);
+
+  Local<v8::FunctionTemplate> receiver_templ = v8::FunctionTemplate::New(
+      isolate,
+      [](const v8::FunctionCallbackInfo<v8::Value>& info) {
+        CHECK(i::ValidateCallbackInfo(info));
+        // Artificially slow down the callback with a predictable amount of
+        // time. This ensures the test has a relatively stable run time on
+        // various platforms and protects it from flakyness.
+        v8::base::OS::Sleep(v8::base::TimeDelta::FromMilliseconds(100));
+      },
+      v8::Local<v8::Value>(), v8::Local<v8::Signature>(), 1,
+      v8::ConstructorBehavior::kThrow, v8::SideEffectType::kHasSideEffect);
+
+  v8::Local<v8::ObjectTemplate> object_template =
+      v8::ObjectTemplate::New(isolate);
+  const char* api_func_str = "api_func";
+  object_template->Set(isolate, api_func_str, receiver_templ);
+
+  v8::Local<v8::Object> object =
+      object_template->NewInstance(env.local()).ToLocalChecked();
+
+  env->Global()->Set(env.local(), v8_str("receiver"), object).Check();
+
+  // Prepare the code.
+  v8::Local<v8::Function> function = CreateApiCode(&env);
+  Handle<JSFunction> i_function =
+      Handle<JSFunction>::cast(v8::Utils::OpenHandle(*function));
+
+  CHECK(!i_function->code().is_optimized_code());
+  CompileRun("foo(42);");
+
+  Handle<Code> code(i_function->code(), i_isolate);
+  CHECK(code->is_optimized_code());
+  CHECK(!code->marked_for_deoptimization());
+  CHECK(Protectors::IsNoProfilingIntact(i_isolate));
+
+  // Setup and start CPU profiler.
+  int num_runs_arg = 100;
+  v8::Local<v8::Value> args[] = {
+      v8::Integer::New(env->GetIsolate(), num_runs_arg)};
+  ProfilerHelper helper(env.local(), kEagerLogging);
+  // Run some code to ensure that interrupt request that should invalidate
+  // NoProfilingProtector is processed.
+  CompileRun("(function () {})();");
+
+  // Enabling of the profiler should trigger code deoptimization.
+  CHECK(!Protectors::IsNoProfilingIntact(i_isolate));
+  CHECK(code->marked_for_deoptimization());
+
+  // Optimize function again, now it should be compiled with support for
+  // Api functions profiling.
+  CompileRun("%OptimizeFunctionOnNextCall(foo); foo(55);");
+
+  unsigned external_samples = 1000;
+  v8::CpuProfile* profile =
+      helper.Run(function, args, arraysize(args), 0, external_samples);
+
+  // Check that generated profile has the expected structure.
+  const v8::CpuProfileNode* root = profile->GetTopDownRoot();
+  const v8::CpuProfileNode* foo_node = GetChild(env.local(), root, "foo");
+  const v8::CpuProfileNode* api_func_node =
+      GetChild(env.local(), foo_node, api_func_str);
+  CHECK_NOT_NULL(api_func_node);
+  CHECK_EQ(api_func_node->GetSourceType(), CpuProfileNode::kCallback);
+  // Ensure the API function frame appears only once in the stack trace.
+  const v8::CpuProfileNode* api_func_node2 =
+      FindChild(env.local(), api_func_node, api_func_str);
+  CHECK_NULL(api_func_node2);
+
+  int foo_ticks = foo_node->GetHitCount();
+  int api_func_ticks = api_func_node->GetHitCount();
+  // Check that at least 80% of the samples in foo hit the fast callback.
+  CHECK_LE(foo_ticks, api_func_ticks * 0.2);
+  // The following constant in the CHECK is because above we expect at least
+  // 1000 samples with EXTERNAL type (see external_samples). Since the only
+  // thing that generates those kind of samples is the fast callback, then
+  // we're supposed to have close to 1000 ticks in its node. Since the CPU
+  // profiler is nondeterministic, we've allowed for some slack, otherwise
+  // this could be 1000 instead of 800.
+  CHECK_GE(api_func_ticks, 800);
+
+  profile->Delete();
+#endif  // !defined(V8_LITE_MODE) &&
+        // (defined(V8_ENABLE_TURBOFAN) || defined(V8_ENABLE_MAGLEV))
+}
+
 TEST(FastApiCPUProfiler) {
 #if !defined(V8_LITE_MODE) && !defined(USE_SIMULATOR) && \
     defined(V8_ENABLE_TURBOFAN)
@@ -4584,6 +4689,10 @@ TEST(FastApiCPUProfiler) {
       GetChild(env.local(), foo_node, api_func_str);
   CHECK_NOT_NULL(api_func_node);
   CHECK_EQ(api_func_node->GetSourceType(), CpuProfileNode::kCallback);
+  // Ensure the API function frame appears only once in the stack trace.
+  const v8::CpuProfileNode* api_func_node2 =
+      FindChild(env.local(), api_func_node, api_func_str);
+  CHECK_NULL(api_func_node2);
 
   // Check that the CodeEntry is the expected one, i.e. the fast callback.
   CodeEntry* code_entry =

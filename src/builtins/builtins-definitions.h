@@ -238,6 +238,7 @@ namespace internal {
                                                                                \
   /* API callback handling */                                                  \
   ASM(CallApiCallbackGeneric, CallApiCallbackGeneric)                          \
+  ASM(CallApiCallbackOptimizedNoProfiling, CallApiCallbackOptimized)           \
   ASM(CallApiCallbackOptimized, CallApiCallbackOptimized)                      \
   ASM(CallApiGetter, ApiGetter)                                                \
   TFC(HandleApiCallOrConstruct, JSTrampoline)                                  \

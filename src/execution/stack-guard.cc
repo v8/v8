@@ -8,6 +8,7 @@
 #include "src/compiler-dispatcher/optimizing-compile-dispatcher.h"
 #include "src/execution/interrupts-scope.h"
 #include "src/execution/isolate.h"
+#include "src/execution/protectors-inl.h"
 #include "src/execution/simulator.h"
 #include "src/logging/counters.h"
 #include "src/objects/backing-store.h"
@@ -348,6 +349,16 @@ Object StackGuard::HandleInterrupts(InterruptLevel level) {
     // Callbacks must be invoked outside of ExecutionAccess lock.
     isolate_->InvokeApiInterruptCallbacks();
   }
+
+#ifdef V8_RUNTIME_CALL_STATS
+  // Runtime call stats can be enabled at any via Chrome tracing and since
+  // there's no global list of active Isolates this seems to be the only
+  // simple way to invalidate the protector.
+  if (TracingFlags::is_runtime_stats_enabled() &&
+      Protectors::IsNoProfilingIntact(isolate_)) {
+    Protectors::InvalidateNoProfiling(isolate_);
+  }
+#endif
 
   isolate_->counters()->stack_interrupts()->Increment();
 

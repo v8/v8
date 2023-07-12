@@ -7218,6 +7218,13 @@ class CallKnownApiFunction : public ValueNodeT<CallKnownApiFunction> {
   using Base = ValueNodeT<CallKnownApiFunction>;
 
  public:
+  enum Mode {
+    // Use Builtin::kCallApiCallbackOptimizedNoProfiling.
+    kNoProfiling,
+    // Use Builtin::kCallApiCallbackOptimized.
+    kGeneric,
+  };
+
   static constexpr int kContextIndex = 0;
   static constexpr int kReceiverIndex = 1;
   static constexpr int kFixedInputCount = 2;
@@ -7228,13 +7235,13 @@ class CallKnownApiFunction : public ValueNodeT<CallKnownApiFunction> {
 
   // This ctor is used when for variable input counts.
   // Inputs must be initialized manually.
-  CallKnownApiFunction(uint64_t bitfield,
+  CallKnownApiFunction(uint64_t bitfield, Mode mode,
                        compiler::FunctionTemplateInfoRef function_template_info,
                        compiler::CallHandlerInfoRef call_handler_info,
                        compiler::ObjectRef data,
                        compiler::OptionalJSObjectRef api_holder,
                        ValueNode* context, ValueNode* receiver)
-      : Base(bitfield),
+      : Base(bitfield | ModeField::encode(mode)),
         function_template_info_(function_template_info),
         call_handler_info_(call_handler_info),
         data_(data),
@@ -7261,6 +7268,8 @@ class CallKnownApiFunction : public ValueNodeT<CallKnownApiFunction> {
   auto args_begin() { return std::make_reverse_iterator(&arg(-1)); }
   auto args_end() { return std::make_reverse_iterator(&arg(num_args() - 1)); }
 
+  Mode mode() const { return ModeField::decode(bitfield()); }
+
   compiler::FunctionTemplateInfoRef function_template_info() const {
     return function_template_info_;
   }
@@ -7276,6 +7285,8 @@ class CallKnownApiFunction : public ValueNodeT<CallKnownApiFunction> {
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
 
  private:
+  using ModeField = NextBitField<Mode, 1>;
+
   const compiler::FunctionTemplateInfoRef function_template_info_;
   const compiler::CallHandlerInfoRef call_handler_info_;
   const compiler::ObjectRef data_;

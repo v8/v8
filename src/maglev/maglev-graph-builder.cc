@@ -6543,6 +6543,11 @@ ReduceResult MaglevGraphBuilder::ReduceCallForApiFunction(
     CHECK_NOT_NULL(receiver);
   }
 
+  CallKnownApiFunction::Mode mode =
+      broker()->dependencies()->DependOnNoProfilingProtector()
+          ? CallKnownApiFunction::kNoProfiling
+          : CallKnownApiFunction::kGeneric;
+
   return AddNewNode<CallKnownApiFunction>(
       input_count,
       [&](CallKnownApiFunction* call) {
@@ -6550,7 +6555,7 @@ ReduceResult MaglevGraphBuilder::ReduceCallForApiFunction(
           call->set_arg(i, GetTaggedValue(args[i]));
         }
       },
-      api_callback, call_handler_info, data, api_holder, GetContext(),
+      mode, api_callback, call_handler_info, data, api_holder, GetContext(),
       receiver);
 }
 
@@ -6627,6 +6632,9 @@ ReduceResult MaglevGraphBuilder::TryBuildCallKnownApiFunction(
   // that does those checks dynamically. This is still significantly
   // faster than the generic call sequence.
   Builtin builtin_name;
+  // TODO(ishell): create no-profiling versions of kCallFunctionTemplate
+  // builtins and use them here based on DependOnNoProfilingProtector()
+  // dependency state.
   if (function_template_info.accept_any_receiver()) {
     DCHECK(!function_template_info.is_signature_undefined(broker()));
     builtin_name = Builtin::kCallFunctionTemplate_CheckCompatibleReceiver;

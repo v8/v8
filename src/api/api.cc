@@ -11442,6 +11442,9 @@ inline void InvokeFunctionCallback(
       // effects checking in the optimized version of the builtin.
       DCHECK(!i_isolate->should_check_side_effects());
       break;
+    case CallApiCallbackMode::kOptimizedNoProfiling:
+      // This mode doesn't call InvokeFunctionCallback.
+      UNREACHABLE();
   }
 
   Address arg = i_isolate->isolate_data()->api_callback_thunk_argument();

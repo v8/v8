@@ -68,6 +68,12 @@ void Builtins::Generate_CallApiCallbackGeneric(MacroAssembler* masm) {
   Generate_CallApiCallbackImpl(masm, CallApiCallbackMode::kGeneric);
 }
 
+void Builtins::Generate_CallApiCallbackOptimizedNoProfiling(
+    MacroAssembler* masm) {
+  Generate_CallApiCallbackImpl(masm,
+                               CallApiCallbackMode::kOptimizedNoProfiling);
+}
+
 void Builtins::Generate_CallApiCallbackOptimized(MacroAssembler* masm) {
   Generate_CallApiCallbackImpl(masm, CallApiCallbackMode::kOptimized);
 }

@@ -27,6 +27,7 @@ class Protectors : public AllStatic {
   V(NoElements, NoElementsProtector, no_elements_protector)                   \
                                                                               \
   V(MegaDOM, MegaDOMProtector, mega_dom_protector)                            \
+  V(NoProfiling, NoProfilingProtector, no_profiling_protector)                \
                                                                               \
   /* The MapIterator protector protects the original iteration behaviors   */ \
   /* of Map.prototype.keys(), Map.prototype.values(), and                  */ \

@@ -4794,7 +4794,14 @@ void CallKnownApiFunction::GenerateCode(MaglevAssembler* masm,
   __ Move(CallApiCallbackOptimizedDescriptor::ApiFunctionAddressRegister(),
           reference);
 
-  __ CallBuiltin(Builtin::kCallApiCallbackOptimized);
+  switch (mode()) {
+    case kNoProfiling:
+      __ CallBuiltin(Builtin::kCallApiCallbackOptimizedNoProfiling);
+      break;
+    case kGeneric:
+      __ CallBuiltin(Builtin::kCallApiCallbackOptimized);
+      break;
+  }
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }
 
@@ -6056,7 +6063,15 @@ void CallKnownJSFunction::PrintParams(
 
 void CallKnownApiFunction::PrintParams(
     std::ostream& os, MaglevGraphLabeller* graph_labeller) const {
-  os << "(" << function_template_info_.object() << ", ";
+  os << "(";
+  switch (mode()) {
+    case kNoProfiling:
+      os << "no profiling, ";
+      break;
+    case kGeneric:
+      break;
+  }
+  os << function_template_info_.object() << ", ";
   if (api_holder_.has_value()) {
     os << api_holder_.value().object();
   } else {

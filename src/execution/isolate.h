@@ -1070,6 +1070,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   void RequestInterrupt(InterruptCallback callback, void* data);
   void InvokeApiInterruptCallbacks();
 
+  void RequestInvalidateNoProfilingProtector();
+
   // Administration
   void Iterate(RootVisitor* v);
   void Iterate(RootVisitor* v, ThreadLocalTop* t);
@@ -1347,6 +1349,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   void SetIsProfiling(bool enabled) {
     if (enabled) {
       CollectSourcePositionsForAllBytecodeArrays();
+      RequestInvalidateNoProfilingProtector();
     }
     isolate_data_.execution_mode_.set(IsolateExecutionModeFlag::kIsProfiling,
                                       enabled);
