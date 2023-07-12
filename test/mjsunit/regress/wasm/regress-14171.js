@@ -21,8 +21,8 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   var mem = new WebAssembly.Memory({ initial: 1 });
 
   let i64arr = new BigUint64Array(mem.buffer);
-  i64arr[0] = 0n;
-  i64arr[1] = 0xffffffffn
+  new DataView(mem.buffer).setBigUint64(0, 0n, true);
+  new DataView(mem.buffer).setBigUint64(8, 0xffffffffn, true);
 
   const instance = builder.instantiate({ imports: { mem: mem } });
   assertEquals(0n, instance.exports.atomicAddI64(0, 1n));
