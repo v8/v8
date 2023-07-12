@@ -2857,14 +2857,24 @@ void ConvertReceiver::GenerateCode(MaglevAssembler* masm,
 int CheckConstructResult::MaxCallStackArgs() const { return 0; }
 void CheckConstructResult::SetValueLocationConstraints() {
   UseRegister(construct_result_input());
-  UseRegister(implicit_receiver_input());
+  if (for_derived_constructor()) {
+    UseAny(implicit_receiver_input());
+  } else {
+    UseRegister(implicit_receiver_input());
+  }
   DefineSameAsFirst(this);
+}
+bool CheckConstructResult::for_derived_constructor() {
+  RootConstant* constant =
+      implicit_receiver_input().node()->TryCast<RootConstant>();
+  if (constant == nullptr) return false;
+  return constant->index() == RootIndex::kTheHoleValue;
 }
 void CheckConstructResult::GenerateCode(MaglevAssembler* masm,
                                         const ProcessingState& state) {
   Register construct_result = ToRegister(construct_result_input());
-  Register implicit_receiver = ToRegister(implicit_receiver_input());
   Register result_reg = ToRegister(result());
+
   DCHECK_EQ(construct_result, result_reg);
 
   // If the result is an object (in the ECMA sense), we should get rid
@@ -2872,9 +2882,14 @@ void CheckConstructResult::GenerateCode(MaglevAssembler* masm,
   // on page 74.
   Label done, use_receiver;
 
-  // If the result is undefined, we'll use the implicit receiver.
-  __ JumpIfRoot(construct_result, RootIndex::kUndefinedValue, &use_receiver,
-                Label::Distance::kNear);
+  if (for_derived_constructor()) {
+    __ CompareRoot(construct_result, RootIndex::kUndefinedValue);
+    __ Assert(kNotEqual, AbortReason::kUnexpectedValue);
+  } else {
+    // If the result is undefined, we'll use the implicit receiver.
+    __ JumpIfRoot(construct_result, RootIndex::kUndefinedValue, &use_receiver,
+                  Label::Distance::kNear);
+  }
 
   // If the result is a smi, it is *not* an object in the ECMA sense.
   __ JumpIfSmi(construct_result, &use_receiver, Label::Distance::kNear);
@@ -2885,17 +2900,19 @@ void CheckConstructResult::GenerateCode(MaglevAssembler* masm,
   // Throw away the result of the constructor invocation and use the
   // implicit receiver as the result.
   __ bind(&use_receiver);
-  __ JumpIfRoot(
-      implicit_receiver, RootIndex::kTheHoleValue,
-      __ MakeDeferredCode(
-          [](MaglevAssembler* masm, CheckConstructResult* node) {
-            __ Move(kContextRegister, masm->native_context().object());
-            __ CallRuntime(Runtime::kThrowConstructorReturnedNonObject);
-            masm->DefineExceptionHandlerAndLazyDeoptPoint(node);
-            __ Abort(AbortReason::kUnexpectedReturnFromThrow);
-          },
-          this));
-  __ Move(result_reg, implicit_receiver);
+  if (for_derived_constructor()) {
+    __ Jump(__ MakeDeferredCode(
+        [](MaglevAssembler* masm, CheckConstructResult* node) {
+          __ Move(kContextRegister, masm->native_context().object());
+          __ CallRuntime(Runtime::kThrowConstructorReturnedNonObject);
+          masm->DefineExceptionHandlerAndLazyDeoptPoint(node);
+          __ Abort(AbortReason::kUnexpectedReturnFromThrow);
+        },
+        this));
+  } else {
+    Register implicit_receiver = ToRegister(implicit_receiver_input());
+    __ Move(result_reg, implicit_receiver);
+  }
 
   __ bind(&done);
 }
