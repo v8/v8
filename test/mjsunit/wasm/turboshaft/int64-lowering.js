@@ -300,3 +300,144 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(31n << 8n, wasm.ror(31n, -8n));
   assertEquals(31n << 1n, wasm.ror(31n, 127n));
 })();
+
+(function I64Equals() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  builder.addFunction("eq", makeSig([kWasmI64, kWasmI64], [kWasmI32]))
+    .addBody([
+      kExprLocalGet, 0,
+      kExprLocalGet, 1,
+      kExprI64Eq,
+    ])
+    .exportFunc();
+
+  let wasm = builder.instantiate().exports;
+  assertEquals(1, wasm.eq(0n, 0n));
+  assertEquals(1, wasm.eq(-123n, -123n));
+  assertEquals(0, wasm.eq(-123n, 123n));
+  assertEquals(0, wasm.eq(0x12345678_87654321n, 0x87654321_12345678n));
+  assertEquals(0, wasm.eq(0x12345678_87654321n, 0x1234567A_87654321n));
+  assertEquals(0, wasm.eq(0x12345678_87654321n, 0x12345678_8765432An));
+})();
+
+(function I64NotEquals() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  builder.addFunction("ne", makeSig([kWasmI64, kWasmI64], [kWasmI32]))
+    .addBody([
+      kExprLocalGet, 0,
+      kExprLocalGet, 1,
+      kExprI64Ne,
+    ])
+    .exportFunc();
+
+  let wasm = builder.instantiate().exports;
+  assertEquals(0, wasm.ne(0n, 0n));
+  assertEquals(0, wasm.ne(-123n, -123n));
+  assertEquals(1, wasm.ne(-123n, 123n));
+  assertEquals(1, wasm.ne(0x12345678_87654321n, 0x87654321_12345678n));
+  assertEquals(1, wasm.ne(0x12345678_87654321n, 0x1234567A_87654321n));
+  assertEquals(1, wasm.ne(0x12345678_87654321n, 0x12345678_8765432An));
+})();
+
+(function I64LessThanSigned() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  builder.addFunction("lts", makeSig([kWasmI64, kWasmI64], [kWasmI32]))
+    .addBody([
+      kExprLocalGet, 0,
+      kExprLocalGet, 1,
+      kExprI64LtS,
+    ])
+    .exportFunc();
+
+  let wasm = builder.instantiate().exports;
+  assertEquals(0, wasm.lts(0n, 0n));
+  assertEquals(1, wasm.lts(-123n, 123n));
+  assertEquals(0, wasm.lts(123n, -123n));
+  assertEquals(1, wasm.lts(0x12345678_12488421n, 0x12488421_12345678n));
+  assertEquals(0, wasm.lts(0x12488421_12345678n, 0x12345678_12488421n));
+  assertEquals(0, wasm.lts(0x12345678_87654321n, 0x12345678_87654320n));
+  assertEquals(1, wasm.lts(0x12345678_87654321n, 0x12345678_87654322n));
+})();
+
+(function I64LessThanOrEqualSigned() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  builder.addFunction("les", makeSig([kWasmI64, kWasmI64], [kWasmI32]))
+    .addBody([
+      kExprLocalGet, 0,
+      kExprLocalGet, 1,
+      kExprI64LeS,
+    ])
+    .exportFunc();
+
+  let wasm = builder.instantiate().exports;
+  assertEquals(1, wasm.les(0n, 0n));
+  assertEquals(1, wasm.les(-123n, 123n));
+  assertEquals(0, wasm.les(123n, -123n));
+  assertEquals(1, wasm.les(0x12345678_12488421n, 0x12488421_12345678n));
+  assertEquals(0, wasm.les(0x12488421_12345678n, 0x12345678_12488421n));
+  assertEquals(0, wasm.les(0x12345678_87654321n, 0x12345678_87654320n));
+  assertEquals(1, wasm.les(0x12345678_87654321n, 0x12345678_87654322n));
+})();
+
+(function I64LessThanUnsigned() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  builder.addFunction("ltu", makeSig([kWasmI64, kWasmI64], [kWasmI32]))
+    .addBody([
+      kExprLocalGet, 0,
+      kExprLocalGet, 1,
+      kExprI64LtU,
+    ])
+    .exportFunc();
+
+  let wasm = builder.instantiate().exports;
+  assertEquals(0, wasm.ltu(0n, 0n));
+  assertEquals(0, wasm.ltu(-123n, 123n));
+  assertEquals(1, wasm.ltu(123n, -123n));
+  assertEquals(1, wasm.ltu(0x12345678_12488421n, 0x12488421_12345678n));
+  assertEquals(0, wasm.ltu(0x12488421_12345678n, 0x12345678_12488421n));
+  assertEquals(0, wasm.ltu(0x12345678_87654321n, 0x12345678_87654320n));
+  assertEquals(1, wasm.ltu(0x12345678_87654321n, 0x12345678_87654322n));
+})();
+
+(function I64LessThanOrEqualUnsigned() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  builder.addFunction("leu", makeSig([kWasmI64, kWasmI64], [kWasmI32]))
+    .addBody([
+      kExprLocalGet, 0,
+      kExprLocalGet, 1,
+      kExprI64LeU,
+    ])
+    .exportFunc();
+
+  let wasm = builder.instantiate().exports;
+  assertEquals(1, wasm.leu(0n, 0n));
+  assertEquals(0, wasm.leu(-123n, 123n));
+  assertEquals(1, wasm.leu(123n, -123n));
+  assertEquals(1, wasm.leu(0x12345678_12488421n, 0x12488421_12345678n));
+  assertEquals(0, wasm.leu(0x12488421_12345678n, 0x12345678_12488421n));
+  assertEquals(0, wasm.leu(0x12345678_87654321n, 0x12345678_87654320n));
+  assertEquals(1, wasm.leu(0x12345678_87654321n, 0x12345678_87654322n));
+})();
+
+(function I64EqualsZero() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  builder.addFunction("eqz", makeSig([kWasmI64], [kWasmI32]))
+    .addBody([
+      kExprLocalGet, 0,
+      kExprI64Eqz,
+    ])
+    .exportFunc();
+
+  let wasm = builder.instantiate().exports;
+  assertEquals(1, wasm.eqz(0n));
+  assertEquals(0, wasm.eqz(1n));
+  assertEquals(0, wasm.eqz(-1n));
+  assertEquals(0, wasm.eqz(0x100_00000000n));
+})();

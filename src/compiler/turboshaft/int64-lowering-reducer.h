@@ -71,6 +71,57 @@ class Int64LoweringReducer : public Next {
     return Next::ReduceShift(left, right, kind, rep);
   }
 
+  OpIndex REDUCE(Equal)(OpIndex left, OpIndex right,
+                        RegisterRepresentation rep) {
+    if (rep != WordRepresentation::Word64()) {
+      return Next::ReduceEqual(left, right, rep);
+    }
+
+    auto [left_low, left_high] = Unpack(left);
+    auto [right_low, right_high] = Unpack(right);
+    // TODO(wasm): Use explicit comparisons and && here?
+    return __ Word32Equal(
+        __ Word32BitwiseOr(__ Word32BitwiseXor(left_low, right_low),
+                           __ Word32BitwiseXor(left_high, right_high)),
+        __ Word32Constant(0));
+  }
+
+  OpIndex REDUCE(Comparison)(OpIndex left, OpIndex right,
+                             ComparisonOp::Kind kind,
+                             RegisterRepresentation rep) {
+    if (rep != WordRepresentation::Word64()) {
+      return Next::ReduceComparison(left, right, kind, rep);
+    }
+
+    auto [left_low, left_high] = Unpack(left);
+    auto [right_low, right_high] = Unpack(right);
+    OpIndex high_comparison;
+    OpIndex low_comparison;
+    switch (kind) {
+      case ComparisonOp::Kind::kSignedLessThan:
+        high_comparison = __ Int32LessThan(left_high, right_high);
+        low_comparison = __ Uint32LessThan(left_low, right_low);
+        break;
+      case ComparisonOp::Kind::kSignedLessThanOrEqual:
+        high_comparison = __ Int32LessThan(left_high, right_high);
+        low_comparison = __ Uint32LessThanOrEqual(left_low, right_low);
+        break;
+      case ComparisonOp::Kind::kUnsignedLessThan:
+        high_comparison = __ Uint32LessThan(left_high, right_high);
+        low_comparison = __ Uint32LessThan(left_low, right_low);
+        break;
+      case ComparisonOp::Kind::kUnsignedLessThanOrEqual:
+        high_comparison = __ Uint32LessThan(left_high, right_high);
+        low_comparison = __ Uint32LessThanOrEqual(left_low, right_low);
+        break;
+    }
+
+    return __ Word32BitwiseOr(
+        high_comparison,
+        __ Word32BitwiseAnd(__ Word32Equal(left_high, right_high),
+                            low_comparison));
+  }
+
   OpIndex REDUCE(Constant)(ConstantOp::Kind kind, ConstantOp::Storage value) {
     if (kind == ConstantOp::Kind::kWord64) {
       uint32_t high = value.integral >> 32;
