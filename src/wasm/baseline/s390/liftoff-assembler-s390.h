@@ -2954,8 +2954,8 @@ void LiftoffAssembler::DropStackSlotsAndRet(uint32_t num_stack_slots) {
   Ret();
 }
 
-void LiftoffAssembler::CallC(const ValueKindSig* sig, const VarState* args,
-                             const LiftoffRegister* rets,
+void LiftoffAssembler::CallC(const std::initializer_list<VarState> args,
+                             const LiftoffRegister* rets, ValueKind return_kind,
                              ValueKind out_argument_kind, int stack_bytes,
                              ExternalReference ext_ref) {
   int total_size = RoundUp(stack_bytes, 8);
@@ -2973,45 +2973,43 @@ void LiftoffAssembler::CallC(const ValueKindSig* sig, const VarState* args,
   lay(sp, MemOperand(sp, -size));
 
   int arg_offset = 0;
-  const VarState* current_arg = args;
-  for (ValueKind param_kind : sig->parameters()) {
+  for (const VarState& arg : args) {
     MemOperand dst{sp, arg_offset};
-    if (current_arg->is_reg()) {
-      switch (param_kind) {
+    if (arg.is_reg()) {
+      switch (arg.kind()) {
         case kI32:
-          StoreU32(current_arg->reg().gp(), MemOperand(sp, arg_offset));
+          StoreU32(arg.reg().gp(), MemOperand(sp, arg_offset));
           break;
         case kI64:
-          StoreU64(current_arg->reg().gp(), MemOperand(sp, arg_offset));
+          StoreU64(arg.reg().gp(), MemOperand(sp, arg_offset));
           break;
         case kF32:
-          StoreF32(current_arg->reg().fp(), MemOperand(sp, arg_offset));
+          StoreF32(arg.reg().fp(), MemOperand(sp, arg_offset));
           break;
         case kF64:
-          StoreF64(current_arg->reg().fp(), MemOperand(sp, arg_offset));
+          StoreF64(arg.reg().fp(), MemOperand(sp, arg_offset));
           break;
         case kS128:
-          StoreV128(current_arg->reg().fp(), MemOperand(sp, arg_offset), r0);
+          StoreV128(arg.reg().fp(), MemOperand(sp, arg_offset), r0);
           break;
         default:
           UNREACHABLE();
       }
-    } else if (current_arg->is_const()) {
-      DCHECK_EQ(kI32, param_kind);
-      mov(r0, Operand(current_arg->i32_const()));
+    } else if (arg.is_const()) {
+      DCHECK_EQ(kI32, arg.kind());
+      mov(r0, Operand(arg.i32_const()));
       StoreU32(r0, dst);
-    } else if (value_kind_size(current_arg->kind()) == 4) {
-      MemOperand src = liftoff::GetStackSlot(current_arg->offset());
+    } else if (value_kind_size(arg.kind()) == 4) {
+      MemOperand src = liftoff::GetStackSlot(arg.offset());
       LoadU32(r0, src);
       StoreU32(r0, dst);
     } else {
-      DCHECK_EQ(8, value_kind_size(current_arg->kind()));
-      MemOperand src = liftoff::GetStackSlot(current_arg->offset());
+      DCHECK_EQ(8, value_kind_size(arg.kind()));
+      MemOperand src = liftoff::GetStackSlot(arg.offset());
       LoadU64(r0, src);
       StoreU64(r0, dst);
     }
-    arg_offset += value_kind_size(param_kind);
-    ++current_arg;
+    arg_offset += value_kind_size(arg.kind());
   }
   DCHECK_LE(arg_offset, stack_bytes);
 
@@ -3025,11 +3023,10 @@ void LiftoffAssembler::CallC(const ValueKindSig* sig, const VarState* args,
 
   // Move return value to the right register.
   const LiftoffRegister* result_reg = rets;
-  if (sig->return_count() > 0) {
-    DCHECK_EQ(1, sig->return_count());
+  if (return_kind != kVoid) {
     constexpr Register kReturnReg = r2;
     if (kReturnReg != rets->gp()) {
-      Move(*rets, LiftoffRegister(kReturnReg), sig->GetReturn(0));
+      Move(*rets, LiftoffRegister(kReturnReg), return_kind);
     }
     result_reg++;
   }
