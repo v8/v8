@@ -8859,15 +8859,12 @@ wasm::WasmCompilationResult ExecuteTurbofanWasmCompilation(
                                         call_descriptor, &inlining_positions,
                                         detected);
 
-  if (counters) {
-    int zone_bytes =
-        static_cast<int>(mcgraph->graph()->zone()->allocation_size());
-    counters->wasm_compile_function_peak_memory_bytes()->AddSample(zone_bytes);
-    if (data.body_size() >= 100 * KB) {
-      counters->wasm_compile_huge_function_peak_memory_bytes()->AddSample(
-          zone_bytes);
-    }
+  if (counters && data.body_size() >= 100 * KB) {
+    size_t zone_bytes = mcgraph->graph()->zone()->allocation_size();
+    counters->wasm_compile_huge_function_peak_memory_bytes()->AddSample(
+        static_cast<int>(zone_bytes));
   }
+
   // If we tiered up only one function for debugging, dump statistics
   // immediately.
   if (V8_UNLIKELY(v8_flags.turbo_stats_wasm &&
