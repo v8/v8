@@ -921,6 +921,17 @@ class GraphVisitor {
                                              op.kind);
   }
 
+#ifdef V8_ENABLE_WEBASSEMBLY
+  OpIndex AssembleOutputGraphGlobalGet(const GlobalGetOp& op) {
+    return assembler().ReduceGlobalGet(MapToNewGraph(op.instance()), op.global);
+  }
+
+  OpIndex AssembleOutputGraphGlobalSet(const GlobalSetOp& op) {
+    return assembler().ReduceGlobalSet(MapToNewGraph(op.instance()),
+                                       MapToNewGraph(op.value()), op.global);
+  }
+#endif
+
   void CreateOldToNewMapping(OpIndex old_index, OpIndex new_index) {
     if constexpr (reducer_list_contains<typename Assembler::ReducerList,
                                         VariableReducer>::value) {

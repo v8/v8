@@ -4009,6 +4009,7 @@ v8_header_set("v8_internal_headers") {
       "src/compiler/turboshaft/int64-lowering-phase.h",
       "src/compiler/turboshaft/int64-lowering-reducer.h",
       "src/compiler/turboshaft/wasm-js-lowering-reducer.h",
+      "src/compiler/turboshaft/wasm-lowering-reducer.h",
       "src/compiler/turboshaft/wasm-optimize-phase.h",
       "src/compiler/turboshaft/wasm-turboshaft-compiler.h",
       "src/compiler/wasm-address-reassociation.h",

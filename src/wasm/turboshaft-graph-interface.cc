@@ -440,12 +440,20 @@ class TurboshaftGraphBuildingInterface {
 
   void GlobalGet(FullDecoder* decoder, Value* result,
                  const GlobalIndexImmediate& imm) {
-    Bailout(decoder);
+    if (imm.global->type == kWasmS128) {
+      Bailout(decoder);
+      return;
+    }
+    result->op = asm_.GlobalGet(instance_node_, imm.global);
   }
 
   void GlobalSet(FullDecoder* decoder, const Value& value,
                  const GlobalIndexImmediate& imm) {
-    Bailout(decoder);
+    if (imm.global->type == kWasmS128) {
+      Bailout(decoder);
+      return;
+    }
+    asm_.GlobalSet(instance_node_, value.op, imm.global);
   }
 
   void TableGet(FullDecoder* decoder, const Value& index, Value* result,

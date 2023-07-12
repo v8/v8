@@ -35,6 +35,10 @@
 #include "src/compiler/turboshaft/utils.h"
 #include "src/compiler/write-barrier-kind.h"
 
+#if V8_ENABLE_WEBASSEMBLY
+#include "src/wasm/wasm-module.h"
+#endif
+
 namespace v8::internal {
 class HeapObject;
 std::ostream& operator<<(std::ostream& os, AbortReason reason);
@@ -90,6 +94,14 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
 #define TURBOSHAFT_INTL_OPERATION_LIST(V)
 #endif  // V8_INTL_SUPPORT
 
+#ifdef V8_ENABLE_WEBASSEMBLY
+#define TURBOSHAFT_WASM_OPERATION_LIST(V) \
+  V(GlobalGet)                            \
+  V(GlobalSet)
+#else
+#define TURBOSHAFT_WASM_OPERATION_LIST(V)
+#endif
+
 #define TURBOSHAFT_OPERATION_LIST_BLOCK_TERMINATOR(V) \
   V(CallAndCatchException)                            \
   V(Goto)                                             \
@@ -102,6 +114,7 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
 
 #define TURBOSHAFT_OPERATION_LIST_NOT_BLOCK_TERMINATOR(V) \
   TURBOSHAFT_INTL_OPERATION_LIST(V)                       \
+  TURBOSHAFT_WASM_OPERATION_LIST(V)                       \
   V(WordBinop)                                            \
   V(FloatBinop)                                           \
   V(Word32PairBinop)                                      \
@@ -4771,6 +4784,53 @@ struct FindOrderedHashEntryOp
   auto options() const { return std::tuple{kind}; }
 };
 std::ostream& operator<<(std::ostream& os, FindOrderedHashEntryOp::Kind kind);
+
+#if V8_ENABLE_WEBASSEMBLY
+
+const RegisterRepresentation& RepresentationFor(wasm::ValueType type);
+
+struct GlobalGetOp : FixedArityOperationT<1, GlobalGetOp> {
+  const wasm::WasmGlobal* global;
+  static constexpr OpEffects effects = OpEffects().CanReadMemory();
+
+  OpIndex instance() const { return Base::input(0); }
+
+  explicit GlobalGetOp(OpIndex instance, const wasm::WasmGlobal* global)
+      : Base(instance), global(global) {}
+
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    const RegisterRepresentation& repr = RepresentationFor(global->type);
+    return base::VectorOf(&repr, 1);
+  }
+
+  void Validate(const Graph& graph) const {
+    // TODO(14108): Validation.
+  }
+
+  auto options() const { return std::tuple{global}; }
+};
+
+struct GlobalSetOp : FixedArityOperationT<2, GlobalSetOp> {
+  const wasm::WasmGlobal* global;
+  static constexpr OpEffects effects = OpEffects().CanWriteMemory();
+
+  OpIndex instance() const { return Base::input(0); }
+  OpIndex value() const { return Base::input(1); }
+
+  explicit GlobalSetOp(OpIndex instance, OpIndex value,
+                       const wasm::WasmGlobal* global)
+      : Base(instance, value), global(global) {}
+
+  base::Vector<const RegisterRepresentation> outputs_rep() const { return {}; }
+
+  void Validate(const Graph& graph) const {
+    // TODO(14108): Validation.
+  }
+
+  auto options() const { return std::tuple{global}; }
+};
+
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 #define OPERATION_EFFECTS_CASE(Name) Name##Op::EffectsIfStatic(),
 static constexpr base::Optional<OpEffects>

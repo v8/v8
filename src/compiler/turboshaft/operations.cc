@@ -1197,6 +1197,45 @@ std::ostream& operator<<(std::ostream& os, FindOrderedHashEntryOp::Kind kind) {
   }
 }
 
+#if V8_ENABLE_WEBASSEMBLY
+
+const RegisterRepresentation& RepresentationFor(wasm::ValueType type) {
+  static const RegisterRepresentation kWord32 =
+      RegisterRepresentation::Word32();
+  static const RegisterRepresentation kWord64 =
+      RegisterRepresentation::Word64();
+  static const RegisterRepresentation kFloat32 =
+      RegisterRepresentation::Float32();
+  static const RegisterRepresentation kFloat64 =
+      RegisterRepresentation::Float64();
+  static const RegisterRepresentation kTagged =
+      RegisterRepresentation::Tagged();
+
+  switch (type.kind()) {
+    case wasm::kI8:
+    case wasm::kI16:
+    case wasm::kI32:
+      return kWord32;
+    case wasm::kI64:
+      return kWord64;
+    case wasm::kF32:
+      return kFloat32;
+    case wasm::kF64:
+      return kFloat64;
+    case wasm::kRefNull:
+    case wasm::kRef:
+      return kTagged;
+    case wasm::kS128:
+      UNIMPLEMENTED();
+    case wasm::kVoid:
+    case wasm::kRtt:
+    case wasm::kBottom:
+      UNREACHABLE();
+  }
+}
+
+#endif  // V8_ENABLE_WEBASSEBMLY
+
 std::string Operation::ToString() const {
   std::stringstream ss;
   ss << *this;

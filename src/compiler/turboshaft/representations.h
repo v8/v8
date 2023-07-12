@@ -476,6 +476,24 @@ class MemoryRepresentation {
     }
   }
 
+  static MemoryRepresentation FromRegisterRepresentation(
+      RegisterRepresentation repr, bool is_signed) {
+    switch (repr) {
+      case RegisterRepresentation::Word32():
+        return is_signed ? Int32() : Uint32();
+      case RegisterRepresentation::Word64():
+        return is_signed ? Int64() : Uint64();
+      case RegisterRepresentation::Float32():
+        return Float32();
+      case RegisterRepresentation::Float64():
+        return Float64();
+      case RegisterRepresentation::Tagged():
+        return AnyTagged();
+      case RegisterRepresentation::Compressed():
+        UNREACHABLE();
+    }
+  }
+
   // The required register representation for storing a value. When pointer
   // compression is enabled, we only store the lower 32bit of a tagged value,
   // which we indicate as `RegisterRepresentation::Compressed()` here.

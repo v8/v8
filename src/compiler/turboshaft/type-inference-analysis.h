@@ -163,6 +163,9 @@ class TypeInferenceAnalysis {
         case Opcode::kStaticAssert:
         case Opcode::kDebugBreak:
         case Opcode::kDebugPrint:
+#if V8_ENABLE_WEBASSEMBLY
+        case Opcode::kGlobalSet:
+#endif
           // These operations do not produce any output that needs to be typed.
           DCHECK_EQ(0, op.outputs_rep().size());
           break;
@@ -292,6 +295,9 @@ class TypeInferenceAnalysis {
         case Opcode::kMaybeGrowFastElements:
         case Opcode::kTransitionElementsKind:
         case Opcode::kFindOrderedHashEntry:
+#if V8_ENABLE_WEBASSEMBLY
+        case Opcode::kGlobalGet:
+#endif
           // TODO(nicohartmann@): Support remaining operations. For now we
           // compute fallback types.
           if (op.outputs_rep().size() > 0) {

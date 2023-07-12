@@ -7,6 +7,7 @@
 #include "src/compiler/js-heap-broker.h"
 #include "src/compiler/turboshaft/machine-optimization-reducer.h"
 #include "src/compiler/turboshaft/value-numbering-reducer.h"
+#include "src/compiler/turboshaft/wasm-lowering-reducer.h"
 #include "src/numbers/conversions-inl.h"
 
 namespace v8::internal::compiler::turboshaft {
@@ -15,9 +16,9 @@ void WasmOptimizePhase::Run(Zone* temp_zone) {
   UnparkedScopeIfNeeded scope(PipelineData::Get().broker(),
                               v8_flags.turboshaft_trace_reduction);
   // TODO(14108): Add more reducers as needed.
-  turboshaft::OptimizationPhase<
-      turboshaft::MachineOptimizationReducerSignallingNanPossible,
-      turboshaft::ValueNumberingReducer>::Run(temp_zone);
+  OptimizationPhase<WasmLoweringReducer,
+                    MachineOptimizationReducerSignallingNanPossible,
+                    ValueNumberingReducer>::Run(temp_zone);
 }
 
 }  // namespace v8::internal::compiler::turboshaft

@@ -2915,6 +2915,23 @@ class AssemblerOpInterface {
         FindOrderedHashEntryOp::Kind::kFindOrderedHashMapEntryForInt32Key);
   }
 
+#ifdef V8_ENABLE_WEBASSEMBLY
+  OpIndex GlobalGet(OpIndex instance, const wasm::WasmGlobal* global) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
+    return stack().ReduceGlobalGet(instance, global);
+  }
+
+  OpIndex GlobalSet(OpIndex instance, OpIndex value,
+                    const wasm::WasmGlobal* global) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
+    return stack().ReduceGlobalSet(instance, value, global);
+  }
+#endif
+
   template <typename Rep>
   V<Rep> resolve(const V<Rep>& v) {
     return v;
