@@ -307,6 +307,10 @@ void SimulateIncrementalMarking(i::Heap* heap, bool force_completion) {
 }
 
 void SimulateFullSpace(v8::internal::PagedSpace* space) {
+  Heap* heap = space->heap();
+  IsolateSafepointScope safepoint_scope(heap);
+  heap->FreeLinearAllocationAreas();
+
   // If you see this check failing, disable the flag at the start of your test:
   // v8_flags.stress_concurrent_allocation = false;
   // Background thread allocating concurrently interferes with this function.
@@ -320,6 +324,10 @@ void SimulateFullSpace(v8::internal::PagedSpace* space) {
 }
 
 void AbandonCurrentlyFreeMemory(PagedSpace* space) {
+  Heap* heap = space->heap();
+  IsolateSafepointScope safepoint_scope(heap);
+  heap->FreeLinearAllocationAreas();
+
   space->FreeLinearAllocationArea();
   for (Page* page : *space) {
     page->MarkNeverAllocateForTesting();

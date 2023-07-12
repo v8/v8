@@ -89,16 +89,30 @@ ConcurrentAllocator::ConcurrentAllocator(LocalHeap* local_heap,
 }
 
 void ConcurrentAllocator::FreeLinearAllocationArea() {
-  if (lab_.top() != lab_.limit() && IsBlackAllocationEnabled()) {
+  if (IsLabValid() && lab_.top() != lab_.limit()) {
     base::Optional<CodePageHeaderModificationScope> optional_scope;
     if (space_->identity() == CODE_SPACE) {
       optional_scope.emplace("Clears marking bitmap in the page header.");
     }
-    Page::FromAddress(lab_.top())
-        ->DestroyBlackAreaBackground(lab_.top(), lab_.limit());
+
+    Page* page = Page::FromAddress(lab_.top());
+
+    if (IsBlackAllocationEnabled()) {
+      page->DestroyBlackAreaBackground(lab_.top(), lab_.limit());
+    }
+
+    // When starting incremental marking free lists are dropped for evacuation
+    // candidates. So for evacuation candidates we just make the free memory
+    // iterable.
+    if (!page->IsEvacuationCandidate()) {
+      base::MutexGuard guard(space_->mutex());
+      space_->Free(lab_.top(), lab_.limit() - lab_.top(),
+                   SpaceAccountingMode::kSpaceAccounted);
+    } else {
+      MakeLabIterable();
+    }
   }
 
-  MakeLabIterable();
   ResetLab();
 }
 
