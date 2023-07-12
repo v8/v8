@@ -47,8 +47,14 @@ import io
 import sys
 import types
 import urllib.parse
-import v8heapconst
 import webbrowser
+
+try:
+  import v8heapconst
+except ImportError:
+  print("Importing v8heapconst.py failed. "
+        "Run `tools/dev/gm.py mkgrokdump` to regenerate it.")
+  sys.exit(1)
 
 PORT_NUMBER = 8081
 
