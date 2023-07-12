@@ -124,9 +124,9 @@ Tagged<Object> ObjectLookupAccessor(Isolate* isolate, Handle<Object> object,
 
       case LookupIterator::ACCESS_CHECK:
         if (it.HasAccess()) continue;
-        isolate->ReportFailedAccessCheck(it.GetHolder<JSObject>());
-        RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
-        return ReadOnlyRoots(isolate).undefined_value();
+        RETURN_FAILURE_ON_EXCEPTION(isolate, isolate->ReportFailedAccessCheck(
+                                                 it.GetHolder<JSObject>()));
+        UNREACHABLE();
 
       case LookupIterator::JSPROXY: {
         PropertyDescriptor desc;

@@ -475,10 +475,6 @@ class ShellOptions {
   DisallowReassignment<bool> enable_sandbox_crash_filter = {
       "enable-sandbox-crash-filter", false};
 #endif  // V8_ENABLE_SANDBOX
-  DisallowReassignment<bool> throw_on_failed_access_check = {
-      "throw-on-failed-access-check", false};
-  DisallowReassignment<bool> noop_on_failed_access_check = {
-      "noop-on-failed-access-check", false};
   DisallowReassignment<size_t> max_serializer_memory = {"max-serializer-memory",
                                                         1 * i::MB};
 };

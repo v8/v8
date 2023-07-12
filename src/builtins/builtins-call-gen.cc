@@ -729,11 +729,8 @@ void CallOrConstructBuiltinsAssembler::CallFunctionTemplate(
 
     BIND(&receiver_needs_access_check);
     {
-      TNode<BoolT> has_access =
-          IsTrue(CallRuntime(Runtime::kAccessCheck, context, receiver));
-      GotoIf(has_access, &receiver_done);
-      // Access check failed, return undefined value.
-      args.PopAndReturn(UndefinedConstant());
+      CallRuntime(Runtime::kAccessCheck, context, receiver);
+      Goto(&receiver_done);
     }
 
     BIND(&receiver_done);

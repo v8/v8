@@ -1504,9 +1504,10 @@ void Isolate::SetFailedAccessCheckCallback(
   thread_local_top()->failed_access_check_callback_ = callback;
 }
 
-void Isolate::ReportFailedAccessCheck(Handle<JSObject> receiver) {
+MaybeHandle<Object> Isolate::ReportFailedAccessCheck(
+    Handle<JSObject> receiver) {
   if (!thread_local_top()->failed_access_check_callback_) {
-    return ScheduleThrow(*factory()->NewTypeError(MessageTemplate::kNoAccess));
+    THROW_NEW_ERROR(this, NewTypeError(MessageTemplate::kNoAccess), Object);
   }
 
   DCHECK(IsAccessCheckNeeded(*receiver));
@@ -1520,16 +1521,20 @@ void Isolate::ReportFailedAccessCheck(Handle<JSObject> receiver) {
     AccessCheckInfo access_check_info = AccessCheckInfo::Get(this, receiver);
     if (access_check_info.is_null()) {
       no_gc.Release();
-      return ScheduleThrow(
-          *factory()->NewTypeError(MessageTemplate::kNoAccess));
+      THROW_NEW_ERROR(this, NewTypeError(MessageTemplate::kNoAccess), Object);
     }
     data = handle(access_check_info->data(), this);
   }
 
-  // Leaving JavaScript.
-  VMState<EXTERNAL> state(this);
-  thread_local_top()->failed_access_check_callback_(
-      v8::Utils::ToLocal(receiver), v8::ACCESS_HAS, v8::Utils::ToLocal(data));
+  {
+    // Leaving JavaScript.
+    VMState<EXTERNAL> state(this);
+    thread_local_top()->failed_access_check_callback_(
+        v8::Utils::ToLocal(receiver), v8::ACCESS_HAS, v8::Utils::ToLocal(data));
+  }
+  RETURN_VALUE_IF_SCHEDULED_EXCEPTION(this, {});
+  // Throw exception even the callback forgot to do so.
+  THROW_NEW_ERROR(this, NewTypeError(MessageTemplate::kNoAccess), Object);
 }
 
 bool Isolate::MayAccess(Handle<NativeContext> accessing_context,
