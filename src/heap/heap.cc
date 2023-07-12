@@ -1985,11 +1985,17 @@ void Heap::StartIncrementalMarking(GCFlags gc_flags,
 #endif
 
   if (isolate()->is_shared_space_isolate()) {
-    isolate()->global_safepoint()->IterateClientIsolates([](Isolate* client) {
-      if (v8_flags.concurrent_marking) {
-        client->heap()->concurrent_marking()->Pause();
-      }
-    });
+    isolate()->global_safepoint()->IterateClientIsolates(
+        [collector](Isolate* client) {
+          if (v8_flags.concurrent_marking) {
+            client->heap()->concurrent_marking()->Pause();
+          }
+
+          if (collector == GarbageCollector::MARK_COMPACTOR) {
+            Sweeper* const client_sweeper = client->heap()->sweeper();
+            client_sweeper->ContributeAndWaitForPromotedPagesIteration();
+          }
+        });
   }
 
   // Now that sweeping is completed, we can start the next full GC cycle.
