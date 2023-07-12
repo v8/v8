@@ -18,10 +18,11 @@
 #define LIKELY(...) ConditionWithHint(__VA_ARGS__, BranchHint::kTrue)
 #define UNLIKELY(...) ConditionWithHint(__VA_ARGS__, BranchHint::kFalse)
 
-#define BIND(label, ...)                                         \
-  auto [CONCAT(is_bound_, __LINE__), ##__VA_ARGS__] =            \
-    Asm().ControlFlowHelper_Bind(label);                         \
-    (detail::SuppressUnusedWarning(CONCAT(is_bound_, __LINE__)))
+#define BIND(label, ...)                                                  \
+  auto [CONCAT(is_bound_, __LINE__), ##__VA_ARGS__] =                     \
+    Asm().ControlFlowHelper_Bind(label);                                  \
+    (::v8::internal::compiler::turboshaft::detail::SuppressUnusedWarning( \
+        CONCAT(is_bound_, __LINE__)))
 #define LOOP(loop_label, ...) \
   for(auto [CONCAT(run_loop_, __LINE__), ##__VA_ARGS__] =                      \
     Asm().ControlFlowHelper_BindLoop(loop_label); CONCAT(run_loop_, __LINE__); \
@@ -52,15 +53,17 @@
 #ifdef DEBUG
 // In debug builds, `Reduce(operation)` makes sure that `operation##Op` exists by using this name in an expression. This will detect typos in the name which would otherwise stay unnoticed potentially.
 #define REDUCE(operation) \
-  CONCAT(CHECK_Reduce, operation)                                        \
-          = (detail::SuppressUnusedWarning(std::is_same_v<operation##Op, \
-                                          operation##Op>), OpIndex{});   \
+  CONCAT(CHECK_Reduce, operation)                                             \
+      = (::v8::internal::compiler::turboshaft::detail::SuppressUnusedWarning( \
+            std::is_same_v<operation##Op, operation##Op>),                    \
+         OpIndex{});                                                          \
   decltype(CONCAT(CHECK_Reduce, operation)) Reduce##operation
-#define REDUCE_INPUT_GRAPH(operation)                                    \
-  CONCAT(CHECK_ReduceInputGraph, operation)                              \
-          = (detail::SuppressUnusedWarning(std::is_same_v<operation##Op, \
-                                          operation##Op>), OpIndex{});   \
-  decltype(CONCAT(CHECK_ReduceInputGraph, operation))                    \
+#define REDUCE_INPUT_GRAPH(operation)                                         \
+  CONCAT(CHECK_ReduceInputGraph, operation)                                   \
+      = (::v8::internal::compiler::turboshaft::detail::SuppressUnusedWarning( \
+            std::is_same_v<operation##Op, operation##Op>),                    \
+            OpIndex{});                                                       \
+  decltype(CONCAT(CHECK_ReduceInputGraph, operation))                         \
           ReduceInputGraph##operation
 #else
 #define REDUCE(operation) Reduce##operation

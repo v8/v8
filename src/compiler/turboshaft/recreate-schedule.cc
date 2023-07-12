@@ -742,7 +742,7 @@ Node* ScheduleBuilder::ProcessOperation(const ChangeOp& op) {
           DCHECK_EQ(truncate_kind, TruncateKind::kArchitectureDefault);
           o = machine.RoundFloat64ToInt32();
         } else {
-          UNREACHABLE();
+          o = machine.TruncateFloat64ToUint32();
         }
       } else if (op.from == FloatRepresentation::Float32() &&
                  op.to == WordRepresentation::Word32()) {

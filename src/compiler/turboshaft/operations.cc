@@ -98,7 +98,7 @@ bool ValidOpInputRep(
       std::cerr << "Turboshaft operation has input #" << input
                 << " with wrong arity.\n";
       std::cerr << "Input has results " << PrintCollection(input_reps)
-                << ", but expected at least " << *projection_index
+                << ", but expected at least " << (*projection_index + 1)
                 << " results.\n";
       return false;
     }

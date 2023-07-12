@@ -17,6 +17,8 @@
 
 namespace v8::internal::wasm {
 
+#include "src/compiler/turboshaft/define-assembler-macros.inc"
+
 using Assembler =
     compiler::turboshaft::Assembler<compiler::turboshaft::reducer_list<>>;
 using compiler::CallDescriptor;
@@ -26,6 +28,7 @@ using compiler::turboshaft::ConditionWithHint;
 using compiler::turboshaft::Float32;
 using compiler::turboshaft::Float64;
 using compiler::turboshaft::Graph;
+using compiler::turboshaft::Label;
 using compiler::turboshaft::LoadOp;
 using compiler::turboshaft::MemoryRepresentation;
 using compiler::turboshaft::OpIndex;
@@ -33,8 +36,8 @@ using compiler::turboshaft::PendingLoopPhiOp;
 using compiler::turboshaft::RegisterRepresentation;
 using compiler::turboshaft::StoreOp;
 using compiler::turboshaft::SupportedOperations;
-using compiler::turboshaft::TSCallDescriptor;
 using TSBlock = compiler::turboshaft::Block;
+using compiler::turboshaft::TSCallDescriptor;
 using compiler::turboshaft::V;
 using compiler::turboshaft::Word32;
 using compiler::turboshaft::Word64;
@@ -1252,6 +1255,16 @@ class TurboshaftGraphBuildingInterface {
     }
   }
 
+  OpIndex ExtractTruncationProjections(OpIndex truncated) {
+    OpIndex result =
+        asm_.Projection(truncated, 0, RegisterRepresentation::Word64());
+    OpIndex check =
+        asm_.Projection(truncated, 1, RegisterRepresentation::Word32());
+    asm_.TrapIf(asm_.Word32Equal(check, 0), OpIndex::Invalid(),
+                compiler::TrapId::kTrapFloatUnrepresentable);
+    return result;
+  }
+
   // TODO(14108): Remove the decoder argument once we have no bailouts.
   OpIndex UnOpImpl(FullDecoder* decoder, WasmOpcode opcode, OpIndex arg) {
     switch (opcode) {
@@ -1269,23 +1282,376 @@ class TurboshaftGraphBuildingInterface {
         return asm_.Float64Negate(arg);
       case kExprF64Sqrt:
         return asm_.Float64Sqrt(arg);
-      case kExprI32SConvertF32:
-      case kExprI32UConvertF32:
-      case kExprI32SConvertF64:
-      case kExprI32UConvertF64:
-      case kExprI32SConvertSatF64:
-      case kExprI32UConvertSatF64:
-      case kExprI32SConvertSatF32:
-      case kExprI32UConvertSatF32:
-      case kExprF32ConvertF64:
+      case kExprI32SConvertF32: {
+        OpIndex truncated = UnOpImpl(decoder, kExprF32Trunc, arg);
+        OpIndex result = asm_.TruncateFloat32ToInt32OverflowToMin(truncated);
+        OpIndex converted_back = asm_.ChangeInt32ToFloat32(result);
+        asm_.TrapIf(
+            asm_.Word32Equal(asm_.Float32Equal(converted_back, truncated), 0),
+            OpIndex::Invalid(), compiler::TrapId::kTrapFloatUnrepresentable);
+        return result;
+      }
+      case kExprI32UConvertF32: {
+        OpIndex truncated = UnOpImpl(decoder, kExprF32Trunc, arg);
+        OpIndex result = asm_.TruncateFloat32ToUint32OverflowToMin(truncated);
+        OpIndex converted_back = asm_.ChangeUint32ToFloat32(result);
+        asm_.TrapIf(
+            asm_.Word32Equal(asm_.Float32Equal(converted_back, truncated), 0),
+            OpIndex::Invalid(), compiler::TrapId::kTrapFloatUnrepresentable);
+        return result;
+      }
+      case kExprI32SConvertF64: {
+        OpIndex truncated = UnOpImpl(decoder, kExprF64Trunc, arg);
+        OpIndex result = asm_.TruncateFloat64ToInt64OverflowToMin(truncated);
+        // Implicitly truncated to i32.
+        OpIndex converted_back = asm_.ChangeInt32ToFloat64(result);
+        asm_.TrapIf(
+            asm_.Word32Equal(asm_.Float64Equal(converted_back, truncated), 0),
+            OpIndex::Invalid(), compiler::TrapId::kTrapFloatUnrepresentable);
+        return result;
+      }
+      case kExprI32UConvertF64: {
+        OpIndex truncated = UnOpImpl(decoder, kExprF64Trunc, arg);
+        OpIndex result = asm_.TruncateFloat64ToUint32OverflowToMin(truncated);
+        OpIndex converted_back = asm_.ChangeUint32ToFloat64(result);
+        asm_.TrapIf(
+            asm_.Word32Equal(asm_.Float64Equal(converted_back, truncated), 0),
+            OpIndex::Invalid(), compiler::TrapId::kTrapFloatUnrepresentable);
+        return result;
+      }
+      case kExprI64SConvertF32:
+        return ExtractTruncationProjections(
+            asm_.TryTruncateFloat32ToInt64(arg));
+      case kExprI64UConvertF32:
+        return ExtractTruncationProjections(
+            asm_.TryTruncateFloat32ToUint64(arg));
+      case kExprI64SConvertF64:
+        return ExtractTruncationProjections(
+            asm_.TryTruncateFloat64ToInt64(arg));
+      case kExprI64UConvertF64:
+        return ExtractTruncationProjections(
+            asm_.TryTruncateFloat64ToUint64(arg));
       case kExprF64SConvertI32:
+        return asm_.ChangeInt32ToFloat64(arg);
       case kExprF64UConvertI32:
+        return asm_.ChangeUint32ToFloat64(arg);
       case kExprF32SConvertI32:
+        return asm_.ChangeInt32ToFloat32(arg);
       case kExprF32UConvertI32:
-      case kExprI32AsmjsSConvertF32:
-      case kExprI32AsmjsUConvertF32:
-        Bailout(decoder);
-        return OpIndex::Invalid();
+        return asm_.ChangeUint32ToFloat32(arg);
+      case kExprI32SConvertSatF32: {
+        OpIndex truncated = UnOpImpl(decoder, kExprF32Trunc, arg);
+        OpIndex converted =
+            asm_.TruncateFloat32ToInt32OverflowUndefined(truncated);
+        OpIndex converted_back = asm_.ChangeInt32ToFloat32(converted);
+
+        Label<compiler::turboshaft::Word32> done(&asm_);
+
+        IF (LIKELY(asm_.Float32Equal(truncated, converted_back))) {
+          GOTO(done, converted);
+        }
+        ELSE {
+          // Overflow.
+          IF (asm_.Float32Equal(arg, arg)) {
+            // Not NaN.
+            IF (asm_.Float32LessThan(arg, 0)) {
+              // Negative arg.
+              GOTO(done,
+                   asm_.Word32Constant(std::numeric_limits<int32_t>::min()));
+            }
+            ELSE {
+              // Positive arg.
+              GOTO(done,
+                   asm_.Word32Constant(std::numeric_limits<int32_t>::max()));
+            }
+            END_IF
+          }
+          ELSE {
+            // NaN.
+            GOTO(done, asm_.Word32Constant(0));
+          }
+          END_IF
+        }
+        END_IF
+        BIND(done, result);
+
+        return result;
+      }
+      case kExprI32UConvertSatF32: {
+        OpIndex truncated = UnOpImpl(decoder, kExprF32Trunc, arg);
+        OpIndex converted =
+            asm_.TruncateFloat32ToUint32OverflowUndefined(truncated);
+        OpIndex converted_back = asm_.ChangeUint32ToFloat32(converted);
+
+        Label<compiler::turboshaft::Word32> done(&asm_);
+
+        IF (LIKELY(asm_.Float32Equal(truncated, converted_back))) {
+          GOTO(done, converted);
+        }
+        ELSE {
+          // Overflow.
+          IF (asm_.Float32Equal(arg, arg)) {
+            // Not NaN.
+            IF (asm_.Float32LessThan(arg, 0)) {
+              // Negative arg.
+              GOTO(done, asm_.Word32Constant(0));
+            }
+            ELSE {
+              // Positive arg.
+              GOTO(done,
+                   asm_.Word32Constant(std::numeric_limits<uint32_t>::max()));
+            }
+            END_IF
+          }
+          ELSE {
+            // NaN.
+            GOTO(done, asm_.Word32Constant(0));
+          }
+          END_IF
+        }
+        END_IF
+        BIND(done, result);
+
+        return result;
+      }
+      case kExprI32SConvertSatF64: {
+        OpIndex truncated = UnOpImpl(decoder, kExprF64Trunc, arg);
+        OpIndex converted =
+            asm_.TruncateFloat64ToInt32OverflowUndefined(truncated);
+        OpIndex converted_back = asm_.ChangeInt32ToFloat64(converted);
+
+        Label<compiler::turboshaft::Word32> done(&asm_);
+
+        IF (LIKELY(asm_.Float64Equal(truncated, converted_back))) {
+          GOTO(done, converted);
+        }
+        ELSE {
+          // Overflow.
+          IF (asm_.Float64Equal(arg, arg)) {
+            // Not NaN.
+            IF (asm_.Float64LessThan(arg, 0)) {
+              // Negative arg.
+              GOTO(done,
+                   asm_.Word32Constant(std::numeric_limits<int32_t>::min()));
+            }
+            ELSE {
+              // Positive arg.
+              GOTO(done,
+                   asm_.Word32Constant(std::numeric_limits<int32_t>::max()));
+            }
+            END_IF
+          }
+          ELSE {
+            // NaN.
+            GOTO(done, asm_.Word32Constant(0));
+          }
+          END_IF
+        }
+        END_IF
+        BIND(done, result);
+
+        return result;
+      }
+      case kExprI32UConvertSatF64: {
+        OpIndex truncated = UnOpImpl(decoder, kExprF64Trunc, arg);
+        OpIndex converted =
+            asm_.TruncateFloat64ToUint32OverflowUndefined(truncated);
+        OpIndex converted_back = asm_.ChangeUint32ToFloat64(converted);
+
+        Label<compiler::turboshaft::Word32> done(&asm_);
+
+        IF (LIKELY(asm_.Float64Equal(truncated, converted_back))) {
+          GOTO(done, converted);
+        }
+        ELSE {
+          // Overflow.
+          IF (asm_.Float64Equal(arg, arg)) {
+            // Not NaN.
+            IF (asm_.Float64LessThan(arg, 0)) {
+              // Negative arg.
+              GOTO(done, asm_.Word32Constant(0));
+            }
+            ELSE {
+              // Positive arg.
+              GOTO(done,
+                   asm_.Word32Constant(std::numeric_limits<uint32_t>::max()));
+            }
+            END_IF
+          }
+          ELSE {
+            // NaN.
+            GOTO(done, asm_.Word32Constant(0));
+          }
+          END_IF
+        }
+        END_IF
+        BIND(done, result);
+
+        return result;
+      }
+      case kExprI64SConvertSatF32: {
+        OpIndex converted = asm_.TryTruncateFloat32ToInt64(arg);
+        Label<compiler::turboshaft::Word64> done(&asm_);
+
+        if (SupportedOperations::sat_conversion_is_safe()) {
+          return asm_.Projection(converted, 0,
+                                 RegisterRepresentation::Word64());
+        }
+        IF (LIKELY(asm_.Projection(converted, 1,
+                                   RegisterRepresentation::Word32()))) {
+          GOTO(done,
+               asm_.Projection(converted, 0, RegisterRepresentation::Word64()));
+        }
+        ELSE {
+          // Overflow.
+          IF (asm_.Float32Equal(arg, arg)) {
+            // Not NaN.
+            IF (asm_.Float32LessThan(arg, 0)) {
+              // Negative arg.
+              GOTO(done,
+                   asm_.Word64Constant(std::numeric_limits<int64_t>::min()));
+            }
+            ELSE {
+              // Positive arg.
+              GOTO(done,
+                   asm_.Word64Constant(std::numeric_limits<int64_t>::max()));
+            }
+            END_IF
+          }
+          ELSE {
+            // NaN.
+            GOTO(done, asm_.Word64Constant(int64_t{0}));
+          }
+          END_IF
+        }
+        END_IF
+        BIND(done, result);
+
+        return result;
+      }
+      case kExprI64UConvertSatF32: {
+        OpIndex converted = asm_.TryTruncateFloat32ToUint64(arg);
+        Label<compiler::turboshaft::Word64> done(&asm_);
+
+        if (SupportedOperations::sat_conversion_is_safe()) {
+          return asm_.Projection(converted, 0,
+                                 RegisterRepresentation::Word64());
+        }
+
+        IF (LIKELY(asm_.Projection(converted, 1,
+                                   RegisterRepresentation::Word32()))) {
+          GOTO(done,
+               asm_.Projection(converted, 0, RegisterRepresentation::Word64()));
+        }
+        ELSE {
+          // Overflow.
+          IF (asm_.Float32Equal(arg, arg)) {
+            // Not NaN.
+            IF (asm_.Float32LessThan(arg, 0)) {
+              // Negative arg.
+              GOTO(done, asm_.Word64Constant(int64_t{0}));
+            }
+            ELSE {
+              // Positive arg.
+              GOTO(done,
+                   asm_.Word64Constant(std::numeric_limits<uint64_t>::max()));
+            }
+            END_IF
+          }
+          ELSE {
+            // NaN.
+            GOTO(done, asm_.Word64Constant(int64_t{0}));
+          }
+          END_IF
+        }
+        END_IF
+        BIND(done, result);
+
+        return result;
+      }
+      case kExprI64SConvertSatF64: {
+        OpIndex converted = asm_.TryTruncateFloat64ToInt64(arg);
+        Label<compiler::turboshaft::Word64> done(&asm_);
+
+        if (SupportedOperations::sat_conversion_is_safe()) {
+          return asm_.Projection(converted, 0,
+                                 RegisterRepresentation::Word64());
+        }
+
+        IF (LIKELY(asm_.Projection(converted, 1,
+                                   RegisterRepresentation::Word32()))) {
+          GOTO(done,
+               asm_.Projection(converted, 0, RegisterRepresentation::Word64()));
+        }
+        ELSE {
+          // Overflow.
+          IF (asm_.Float64Equal(arg, arg)) {
+            // Not NaN.
+            IF (asm_.Float64LessThan(arg, 0)) {
+              // Negative arg.
+              GOTO(done,
+                   asm_.Word64Constant(std::numeric_limits<int64_t>::min()));
+            }
+            ELSE {
+              // Positive arg.
+              GOTO(done,
+                   asm_.Word64Constant(std::numeric_limits<int64_t>::max()));
+            }
+            END_IF
+          }
+          ELSE {
+            // NaN.
+            GOTO(done, asm_.Word64Constant(int64_t{0}));
+          }
+          END_IF
+        }
+        END_IF
+        BIND(done, result);
+
+        return result;
+      }
+      case kExprI64UConvertSatF64: {
+        OpIndex converted = asm_.TryTruncateFloat64ToUint64(arg);
+        Label<compiler::turboshaft::Word64> done(&asm_);
+
+        if (SupportedOperations::sat_conversion_is_safe()) {
+          return asm_.Projection(converted, 0,
+                                 RegisterRepresentation::Word64());
+        }
+
+        IF (LIKELY(asm_.Projection(converted, 1,
+                                   RegisterRepresentation::Word32()))) {
+          GOTO(done,
+               asm_.Projection(converted, 0, RegisterRepresentation::Word64()));
+        }
+        ELSE {
+          // Overflow.
+          IF (asm_.Float64Equal(arg, arg)) {
+            // Not NaN.
+            IF (asm_.Float64LessThan(arg, 0)) {
+              // Negative arg.
+              GOTO(done, asm_.Word64Constant(int64_t{0}));
+            }
+            ELSE {
+              // Positive arg.
+              GOTO(done,
+                   asm_.Word64Constant(std::numeric_limits<uint64_t>::max()));
+            }
+            END_IF
+          }
+          ELSE {
+            // NaN.
+            GOTO(done, asm_.Word64Constant(int64_t{0}));
+          }
+          END_IF
+        }
+        END_IF
+        BIND(done, result);
+
+        return result;
+      }
+      case kExprF32ConvertF64:
+        return asm_.ChangeFloat64ToFloat32(arg);
       case kExprF64ConvertF32:
         return asm_.ChangeFloat32ToFloat64(arg);
       case kExprF32ReinterpretI32:
@@ -1295,21 +1661,94 @@ class TurboshaftGraphBuildingInterface {
       case kExprI32Clz:
         return asm_.Word32CountLeadingZeros(arg);
       case kExprI32Ctz:
+        if (SupportedOperations::word32_ctz()) {
+          return asm_.Word32CountTrailingZeros(arg);
+        } else {
+          // TODO(14108): Use reverse_bits if supported.
+          return CallCStackSlotToInt32(arg,
+                                       ExternalReference::wasm_word32_ctz(),
+                                       MemoryRepresentation::Int32());
+        }
       case kExprI32Popcnt:
-        Bailout(decoder);
-        return OpIndex::Invalid();
+        if (SupportedOperations::word32_popcnt()) {
+          return asm_.Word32PopCount(arg);
+        } else {
+          return CallCStackSlotToInt32(arg,
+                                       ExternalReference::wasm_word32_popcnt(),
+                                       MemoryRepresentation::Int32());
+        }
       case kExprF32Floor:
+        if (SupportedOperations::float32_round_down()) {
+          return asm_.Float32RoundDown(arg);
+        } else {
+          return CallCStackSlotToStackSlot(arg,
+                                           ExternalReference::wasm_f32_floor(),
+                                           MemoryRepresentation::Float32());
+        }
       case kExprF32Ceil:
+        if (SupportedOperations::float32_round_up()) {
+          return asm_.Float32RoundUp(arg);
+        } else {
+          return CallCStackSlotToStackSlot(arg,
+                                           ExternalReference::wasm_f32_ceil(),
+                                           MemoryRepresentation::Float32());
+        }
       case kExprF32Trunc:
+        if (SupportedOperations::float32_round_to_zero()) {
+          return asm_.Float32RoundToZero(arg);
+        } else {
+          return CallCStackSlotToStackSlot(arg,
+                                           ExternalReference::wasm_f32_trunc(),
+                                           MemoryRepresentation::Float32());
+        }
       case kExprF32NearestInt:
+        if (SupportedOperations::float32_round_ties_even()) {
+          return asm_.Float32RoundTiesEven(arg);
+        } else {
+          return CallCStackSlotToStackSlot(
+              arg, ExternalReference::wasm_f32_nearest_int(),
+              MemoryRepresentation::Float32());
+        }
       case kExprF64Floor:
+        if (SupportedOperations::float64_round_down()) {
+          return asm_.Float64RoundDown(arg);
+        } else {
+          return CallCStackSlotToStackSlot(arg,
+                                           ExternalReference::wasm_f64_floor(),
+                                           MemoryRepresentation::Float64());
+        }
       case kExprF64Ceil:
+        if (SupportedOperations::float64_round_up()) {
+          return asm_.Float64RoundUp(arg);
+        } else {
+          return CallCStackSlotToStackSlot(arg,
+                                           ExternalReference::wasm_f64_ceil(),
+                                           MemoryRepresentation::Float64());
+        }
       case kExprF64Trunc:
+        if (SupportedOperations::float64_round_to_zero()) {
+          return asm_.Float64RoundToZero(arg);
+        } else {
+          return CallCStackSlotToStackSlot(arg,
+                                           ExternalReference::wasm_f64_trunc(),
+                                           MemoryRepresentation::Float64());
+        }
       case kExprF64NearestInt:
+        if (SupportedOperations::float64_round_ties_even()) {
+          return asm_.Float64RoundTiesEven(arg);
+        } else {
+          return CallCStackSlotToStackSlot(
+              arg, ExternalReference::wasm_f64_nearest_int(),
+              MemoryRepresentation::Float64());
+        }
       case kExprF64Acos:
+        return CallCStackSlotToStackSlot(
+            arg, ExternalReference::f64_acos_wrapper_function(),
+            MemoryRepresentation::Float64());
       case kExprF64Asin:
-        Bailout(decoder);
-        return OpIndex::Invalid();
+        return CallCStackSlotToStackSlot(
+            arg, ExternalReference::f64_asin_wrapper_function(),
+            MemoryRepresentation::Float64());
       case kExprF64Atan:
         return asm_.Float64Atan(arg);
       case kExprF64Cos:
@@ -1336,25 +1775,32 @@ class TurboshaftGraphBuildingInterface {
       case kExprI64Clz:
         return asm_.Word64CountLeadingZeros(arg);
       case kExprI64Ctz:
+        if (SupportedOperations::word64_ctz()) {
+          return asm_.Word64CountTrailingZeros(arg);
+        } else {
+          // TODO(14108): Use reverse_bits if supported.
+          return asm_.ChangeUint32ToUint64(
+              CallCStackSlotToInt32(arg, ExternalReference::wasm_word64_ctz(),
+                                    MemoryRepresentation::Int64()));
+        }
       case kExprI64Popcnt:
-        Bailout(decoder);
-        return OpIndex::Invalid();
+        if (SupportedOperations::word64_popcnt()) {
+          return asm_.Word64PopCount(arg);
+        } else {
+          return asm_.ChangeUint32ToUint64(CallCStackSlotToInt32(
+              arg, ExternalReference::wasm_word64_popcnt(),
+              MemoryRepresentation::Int64()));
+        }
       case kExprI64Eqz:
         return asm_.Word64Equal(arg, 0);
       case kExprF32SConvertI64:
+        return asm_.ChangeInt64ToFloat32(arg);
       case kExprF32UConvertI64:
+        return asm_.ChangeUint64ToFloat32(arg);
       case kExprF64SConvertI64:
+        return asm_.ChangeInt64ToFloat64(arg);
       case kExprF64UConvertI64:
-      case kExprI64SConvertF32:
-      case kExprI64UConvertF32:
-      case kExprI64SConvertF64:
-      case kExprI64UConvertF64:
-      case kExprI64SConvertSatF32:
-      case kExprI64UConvertSatF32:
-      case kExprI64SConvertSatF64:
-      case kExprI64UConvertSatF64:
-        Bailout(decoder);
-        return OpIndex::Invalid();
+        return asm_.ChangeUint64ToFloat64(arg);
       case kExprI32SExtendI8:
         return asm_.Word32SignExtend8(arg);
       case kExprI32SExtendI16:
@@ -1373,6 +1819,8 @@ class TurboshaftGraphBuildingInterface {
       case kExprI32AsmjsLoadMem:
       case kExprF32AsmjsLoadMem:
       case kExprF64AsmjsLoadMem:
+      case kExprI32AsmjsSConvertF32:
+      case kExprI32AsmjsUConvertF32:
       case kExprI32AsmjsSConvertF64:
       case kExprI32AsmjsUConvertF64:
       case kExprRefIsNull:
@@ -1386,6 +1834,7 @@ class TurboshaftGraphBuildingInterface {
     }
   }
 
+  // TODO(14108): Implement 64-bit divisions on 32-bit platforms.
   OpIndex BinOpImpl(FullDecoder* decoder, WasmOpcode opcode, OpIndex lhs,
                     OpIndex rhs) {
     switch (opcode) {
@@ -1629,8 +2078,9 @@ class TurboshaftGraphBuildingInterface {
       case kExprF64Atan2:
         return asm_.Float64Atan2(lhs, rhs);
       case kExprF64Mod:
-        Bailout(decoder);
-        return OpIndex::Invalid();
+        return CallCStackSlotToStackSlot(
+            lhs, rhs, ExternalReference::f64_mod_wrapper_function(),
+            MemoryRepresentation::Float64());
       case kExprRefEq:
         return asm_.TaggedEqual(lhs, rhs);
       case kExprI32AsmjsDivS:
@@ -1733,6 +2183,61 @@ class TurboshaftGraphBuildingInterface {
                      base::VectorOf(centry_args), ts_call_descriptor);
   }
 
+  OpIndex CallC(const MachineSignature* sig, ExternalReference ref,
+                base::Vector<OpIndex> args) {
+    DCHECK_LE(sig->return_count(), 1);
+    const CallDescriptor* call_descriptor =
+        compiler::Linkage::GetSimplifiedCDescriptor(asm_.graph_zone(), sig);
+    const TSCallDescriptor* ts_call_descriptor =
+        TSCallDescriptor::Create(call_descriptor, asm_.graph_zone());
+    return asm_.Call(asm_.ExternalConstant(ref), OpIndex::Invalid(), args,
+                     ts_call_descriptor);
+  }
+
+  OpIndex CallC(const MachineSignature* sig, ExternalReference ref,
+                OpIndex* arg) {
+    return CallC(sig, ref, base::VectorOf(arg, 1));
+  }
+
+  OpIndex CallCStackSlotToInt32(OpIndex arg, ExternalReference ref,
+                                MemoryRepresentation arg_type) {
+    OpIndex stack_slot_param =
+        asm_.StackSlot(arg_type.SizeInBytes(), arg_type.SizeInBytes());
+    asm_.Store(stack_slot_param, arg, StoreOp::Kind::RawAligned(), arg_type,
+               compiler::WriteBarrierKind::kNoWriteBarrier);
+    MachineType reps[]{MachineType::Int32(), MachineType::Pointer()};
+    MachineSignature sig(1, 1, reps);
+    return CallC(&sig, ref, &stack_slot_param);
+  }
+
+  OpIndex CallCStackSlotToStackSlot(OpIndex arg, ExternalReference ref,
+                                    MemoryRepresentation arg_type) {
+    OpIndex stack_slot =
+        asm_.StackSlot(arg_type.SizeInBytes(), arg_type.SizeInBytes());
+    asm_.Store(stack_slot, arg, StoreOp::Kind::RawAligned(), arg_type,
+               compiler::WriteBarrierKind::kNoWriteBarrier);
+    MachineType reps[]{MachineType::Pointer()};
+    MachineSignature sig(0, 1, reps);
+    CallC(&sig, ref, &stack_slot);
+    return asm_.Load(stack_slot, LoadOp::Kind::RawAligned(), arg_type);
+  }
+
+  OpIndex CallCStackSlotToStackSlot(OpIndex arg0, OpIndex arg1,
+                                    ExternalReference ref,
+                                    MemoryRepresentation arg_type) {
+    OpIndex stack_slot =
+        asm_.StackSlot(2 * arg_type.SizeInBytes(), arg_type.SizeInBytes());
+    asm_.Store(stack_slot, arg0, StoreOp::Kind::RawAligned(), arg_type,
+               compiler::WriteBarrierKind::kNoWriteBarrier);
+    asm_.Store(stack_slot, arg1, StoreOp::Kind::RawAligned(), arg_type,
+               compiler::WriteBarrierKind::kNoWriteBarrier,
+               arg_type.SizeInBytes());
+    MachineType reps[]{MachineType::Pointer()};
+    MachineSignature sig(0, 1, reps);
+    CallC(&sig, ref, &stack_slot);
+    return asm_.Load(stack_slot, LoadOp::Kind::RawAligned(), arg_type);
+  }
+
   OpIndex WasmPositionToOpIndex(WasmCodePosition position) {
     return OpIndex(sizeof(compiler::turboshaft::OperationStorageSlot) *
                    static_cast<int>(position));
@@ -1745,6 +2250,8 @@ class TurboshaftGraphBuildingInterface {
                      sizeof(compiler::turboshaft::OperationStorageSlot))
                : kNoCodePosition;
   }
+
+  Assembler& Asm() { return asm_; }
 
   OpIndex instance_node_;
   std::unordered_map<TSBlock*, BlockPhis> block_phis_;
@@ -1771,5 +2278,6 @@ V8_EXPORT_PRIVATE bool BuildTSGraph(AccountingAllocator* allocator,
 }
 
 #undef LOAD_INSTANCE_FIELD
+#include "src/compiler/turboshaft/undef-assembler-macros.inc"
 
 }  // namespace v8::internal::wasm
