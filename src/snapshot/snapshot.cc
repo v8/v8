@@ -392,12 +392,17 @@ v8::StartupData Snapshot::Create(
   DCHECK_GT(contexts->size(), 0);
   HandleScope scope(isolate);
 
-  if (!isolate->initialized_from_snapshot()) {
+  if ((flags & Snapshot::kAllowActiveIsolateForTesting) == 0) {
     // When creating the snapshot from scratch, we are responsible for sealing
     // the RO heap here. Note we cannot delegate the responsibility e.g. to
     // Isolate::Init since it should still be possible to allocate into RO
     // space after the Isolate has been initialized, for example as part of
     // Context creation.
+    //
+    // The only exception is --stress-snapshot which re-serializes an Isolate
+    // that has already been active, i.e. it's been deserialized and code has
+    // run in it. In this case, RO space has already been sealed and there is
+    // nothing to do here.
     isolate->read_only_heap()->OnCreateHeapObjectsComplete(isolate);
   }
 

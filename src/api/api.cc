@@ -594,6 +594,12 @@ SnapshotCreator::SnapshotCreator(const intptr_t* external_references,
 SnapshotCreator::~SnapshotCreator() {
   SnapshotCreatorData* data = SnapshotCreatorData::cast(data_);
   Isolate* v8_isolate = data->isolate_;
+  if (!data->created_) {
+    // No snapshot was serialized from the created Isolate. Seal RO space now
+    // to leave the Isolate in a consistent state for teardown code.
+    i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+    i_isolate->read_only_heap()->OnCreateHeapObjectsComplete(i_isolate);
+  }
   v8_isolate->Exit();
   if (data->owns_isolate_) {
     v8_isolate->Dispose();

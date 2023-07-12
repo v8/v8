@@ -126,10 +126,20 @@ void ReadOnlyHeap::DeserializeIntoIsolate(Isolate* isolate,
                                           SnapshotData* read_only_snapshot_data,
                                           bool can_rehash) {
   DCHECK_NOT_NULL(read_only_snapshot_data);
+
   ReadOnlyDeserializer des(isolate, read_only_snapshot_data, can_rehash);
   des.DeserializeIntoIsolate();
   OnCreateRootsComplete(isolate);
-  InitFromIsolate(isolate);
+
+  if (isolate->serializer_enabled()) {
+    // If this isolate will be serialized, leave RO space unfinalized and
+    // allocatable s.t. it can be extended (e.g. by future Context::New calls).
+    // We reach this scenario when creating custom snapshots - these initially
+    // create the isolate from the default V8 snapshot, create new customized
+    // contexts, and finally reserialize.
+  } else {
+    InitFromIsolate(isolate);
+  }
 }
 
 void ReadOnlyHeap::OnCreateRootsComplete(Isolate* isolate) {
