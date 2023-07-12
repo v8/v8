@@ -436,7 +436,7 @@ inline void AtomicBinop(LiftoffAssembler* lasm, Register dst_addr,
       __ sc_w(false, true, store_result, actual_addr, temp);
       break;
     case StoreType::kI64Store:
-      __ sc_w(false, true, store_result, actual_addr, temp);
+      __ sc_d(false, true, store_result, actual_addr, temp);
       break;
     default:
       UNREACHABLE();
