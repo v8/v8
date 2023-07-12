@@ -78,7 +78,7 @@ struct NodeInfo {
   // Alternative nodes with a value equivalent to the ToNumber of this node.
   ValueNode* truncated_int32_to_number = nullptr;
 
-  bool is_empty() {
+  bool is_empty() const {
     return type == NodeType::kUnknown && tagged_alternative == nullptr &&
            int32_alternative == nullptr && float64_alternative == nullptr &&
            truncated_int32_to_number == nullptr &&

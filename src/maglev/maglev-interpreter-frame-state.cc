@@ -189,22 +189,57 @@ MergePointInterpreterFrameState::MergePointInterpreterFrameState(
 namespace {
 void PrintBeforeMerge(const MaglevCompilationUnit& compilation_unit,
                       ValueNode* current_value, ValueNode* unmerged_value,
-                      interpreter::Register reg) {
+                      interpreter::Register reg, KnownNodeAspects* kna) {
   if (!v8_flags.trace_maglev_graph_building) return;
   std::cout << "  " << reg.ToString() << ": "
             << PrintNodeLabel(compilation_unit.graph_labeller(), current_value)
-            << " <- "
-            << PrintNodeLabel(compilation_unit.graph_labeller(),
-                              unmerged_value);
+            << "<";
+  if (kna) {
+    auto cur_type = kna->node_infos.find(current_value);
+    auto cur_map = kna->possible_maps.find(current_value);
+    if (cur_type != kna->node_infos.end()) {
+      std::cout << cur_type->second.type;
+    }
+    if (cur_map != kna->possible_maps.end()) {
+      std::cout << " " << cur_map->second.possible_maps.size();
+    }
+  }
+  std::cout << "> <- "
+            << PrintNodeLabel(compilation_unit.graph_labeller(), unmerged_value)
+            << "<";
+  if (kna) {
+    auto in_type = kna->node_infos.find(unmerged_value);
+    auto in_map = kna->possible_maps.find(unmerged_value);
+    if (in_type != kna->node_infos.end()) {
+      std::cout << in_type->second.type;
+    }
+    if (in_map != kna->possible_maps.end()) {
+      std::cout << " " << in_map->second.possible_maps.size();
+    }
+  }
+  std::cout << ">";
 }
 void PrintAfterMerge(const MaglevCompilationUnit& compilation_unit,
-                     ValueNode* merged_value) {
+                     ValueNode* merged_value, KnownNodeAspects* kna) {
   if (!v8_flags.trace_maglev_graph_building) return;
   std::cout << " => "
             << PrintNodeLabel(compilation_unit.graph_labeller(), merged_value)
             << ": "
             << PrintNode(compilation_unit.graph_labeller(), merged_value)
-            << std::endl;
+            << "<";
+
+  if (kna) {
+    auto type = kna->node_infos.find(merged_value);
+    auto map = kna->possible_maps.find(merged_value);
+    if (type != kna->node_infos.end()) {
+      std::cout << type->second.type;
+    }
+    if (map != kna->possible_maps.end()) {
+      std::cout << " " << map->second.possible_maps.size();
+    }
+  }
+
+  std::cout << ">" << std::endl;
 }
 }  // namespace
 
@@ -227,10 +262,11 @@ void MergePointInterpreterFrameState::Merge(
   int i = 0;
   frame_state_.ForEachValue(compilation_unit, [&](ValueNode*& value,
                                                   interpreter::Register reg) {
-    PrintBeforeMerge(compilation_unit, value, unmerged.get(reg), reg);
+    PrintBeforeMerge(compilation_unit, value, unmerged.get(reg), reg,
+                     known_node_aspects_);
     value = MergeValue(builder, reg, *unmerged.known_node_aspects(), value,
                        unmerged.get(reg), &per_predecessor_alternatives_[i]);
-    PrintAfterMerge(compilation_unit, value);
+    PrintAfterMerge(compilation_unit, value, known_node_aspects_);
     ++i;
   });
 
@@ -270,10 +306,11 @@ void MergePointInterpreterFrameState::MergeLoop(
   }
   frame_state_.ForEachValue(
       compilation_unit, [&](ValueNode* value, interpreter::Register reg) {
-        PrintBeforeMerge(compilation_unit, value, loop_end_state.get(reg), reg);
+        PrintBeforeMerge(compilation_unit, value, loop_end_state.get(reg), reg,
+                         known_node_aspects_);
         MergeLoopValue(builder, reg, *loop_end_state.known_node_aspects(),
                        value, loop_end_state.get(reg));
-        PrintAfterMerge(compilation_unit, value);
+        PrintAfterMerge(compilation_unit, value, known_node_aspects_);
       });
   predecessors_so_far_++;
   DCHECK_EQ(predecessors_so_far_, predecessor_count_);
@@ -306,17 +343,19 @@ void MergePointInterpreterFrameState::MergeThrow(
 
   frame_state_.ForEachParameter(*handler_unit, [&](ValueNode*& value,
                                                    interpreter::Register reg) {
-    PrintBeforeMerge(*handler_unit, value, handler_builder_frame.get(reg), reg);
+    PrintBeforeMerge(*handler_unit, value, handler_builder_frame.get(reg), reg,
+                     known_node_aspects_);
     value = MergeValue(builder, reg, *unmerged.known_node_aspects(), value,
                        handler_builder_frame.get(reg), nullptr);
-    PrintAfterMerge(*handler_unit, value);
+    PrintAfterMerge(*handler_unit, value, known_node_aspects_);
   });
   frame_state_.ForEachLocal(*handler_unit, [&](ValueNode*& value,
                                                interpreter::Register reg) {
-    PrintBeforeMerge(*handler_unit, value, handler_builder_frame.get(reg), reg);
+    PrintBeforeMerge(*handler_unit, value, handler_builder_frame.get(reg), reg,
+                     known_node_aspects_);
     value = MergeValue(builder, reg, *unmerged.known_node_aspects(), value,
                        handler_builder_frame.get(reg), nullptr);
-    PrintAfterMerge(*handler_unit, value);
+    PrintAfterMerge(*handler_unit, value, known_node_aspects_);
   });
 
   // Pick out the context value from the incoming registers.
@@ -326,12 +365,12 @@ void MergePointInterpreterFrameState::MergeThrow(
   ValueNode*& context = frame_state_.context(*handler_unit);
   PrintBeforeMerge(*handler_unit, context,
                    handler_builder_frame.get(catch_block_context_register_),
-                   catch_block_context_register_);
+                   catch_block_context_register_, known_node_aspects_);
   context = MergeValue(builder, catch_block_context_register_,
                        *unmerged.known_node_aspects(), context,
                        handler_builder_frame.get(catch_block_context_register_),
                        nullptr);
-  PrintAfterMerge(*handler_unit, context);
+  PrintAfterMerge(*handler_unit, context, known_node_aspects_);
 
   if (known_node_aspects_ == nullptr) {
     DCHECK_EQ(predecessors_so_far_, 0);

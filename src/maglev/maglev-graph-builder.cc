@@ -3471,7 +3471,14 @@ ReduceResult MaglevGraphBuilder::BuildCheckMaps(
 
   // If the known maps are the subset of the maps to check, we are done.
   if (merger.known_maps_are_subset_of_requested_maps()) {
-    DCHECK(NodeTypeIs(known_info->type, merger.node_type()));
+    // The node type of known_info can get out of sync with the possible maps.
+    // For instance after merging with an effectively dead branch (i.e., check
+    // contradicting all possible maps).
+    // TODO(olivf) Try to combine node_info and possible maps and ensure that
+    // narrowing the type also clears impossible possible_maps.
+    if (!NodeTypeIs(known_info->type, merger.node_type())) {
+      known_info->type = IntersectType(known_info->type, merger.node_type());
+    }
 #ifdef DEBUG
     // Double check that, for every possible map, it's one of the maps we'd
     // want to check.
