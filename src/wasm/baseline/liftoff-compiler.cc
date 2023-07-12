@@ -906,8 +906,6 @@ class LiftoffCompiler {
     USE(kInstanceParameterIndex);
     __ cache_state()->SetInstanceCacheRegister(kWasmInstanceRegister);
 
-    if (for_debugging_) __ ResetOSRTarget();
-
     if (num_params) {
       CODE_COMMENT("process parameters");
       ParameterProcessor processor(this, num_params);
@@ -965,17 +963,32 @@ class LiftoffCompiler {
       debug_sidetable_builder_->SetNumLocals(__ num_locals());
     }
 
+    if (V8_UNLIKELY(for_debugging_)) {
+      __ ResetOSRTarget();
+      if (V8_UNLIKELY(max_steps_)) {
+        // Generate the single OOL code to jump to if {max_steps_} have been
+        // executed.
+        DCHECK_EQ(0, out_of_line_code_.size());
+        // This trap is never intercepted (e.g. by a debugger), so we do not
+        // need safepoint information (which would be difficult to compute if
+        // the OOL code is shared).
+        out_of_line_code_.push_back(OutOfLineCode::Trap(
+            zone_, WasmCode::kThrowWasmTrapUnreachable, decoder->position(),
+            nullptr, nullptr, 0, nullptr));
+
+        // Subtract 16 steps for the function call itself (including the
+        // function prologue), plus 1 for each local (including parameters). Do
+        // this only *after* setting up the frame completely, even though we
+        // already executed the work then.
+        CheckMaxSteps(decoder, 16 + __ num_locals());
+      }
+    } else {
+      DCHECK(!max_steps_);
+    }
+
     // The function-prologue stack check is associated with position 0, which
     // is never a position of any instruction in the function.
     StackCheck(decoder, 0);
-
-    if (V8_UNLIKELY(max_steps_)) {
-      // Subtract 16 steps for the function call itself (including the function
-      // prologue), plus 1 for each local (including parameters).
-      // Do this only *after* setting up the frame completely, even though we
-      // already executed the work then.
-      CheckMaxSteps(decoder, 16 + __ num_locals());
-    }
 
     if (V8_UNLIKELY(v8_flags.trace_wasm)) TraceFunctionEntry(decoder);
   }
@@ -1144,20 +1157,10 @@ class LiftoffCompiler {
       __ Store(max_steps_addr.gp(), no_reg, 0, max_steps, StoreType::kI32Store,
                pinned);
       // Abort if max steps have been executed.
-      if (trap_too_many_steps_ool_index_ == kInvalidOolIndex) {
-        // Only generate one out of line trap to jump to as for each out of line
-        // trap an out of line debug side table entry is generated which needs a
-        // lot of memory.
-        Label* trap_label = AddOutOfLineTrap(
-            decoder, GetRuntimeStubIdForTrapReason(kTrapUnreachable));
-        trap_too_many_steps_ool_index_ = out_of_line_code_.size() - 1;
-        CHECK_EQ(trap_label,
-                 out_of_line_code_[trap_too_many_steps_ool_index_].label.get());
-      }
-      __ emit_i32_cond_jumpi(
-          kLessThan,
-          out_of_line_code_[trap_too_many_steps_ool_index_].label.get(),
-          max_steps.gp(), 0, frozen);
+      DCHECK_EQ(WasmCode::kThrowWasmTrapUnreachable,
+                out_of_line_code_.front().stub);
+      Label* trap_label = out_of_line_code_.front().label.get();
+      __ emit_i32_cond_jumpi(kLessThan, trap_label, max_steps.gp(), 0, frozen);
     }
   }
 
@@ -3070,11 +3073,11 @@ class LiftoffCompiler {
                    trapping_pc == 0);
     DCHECK(v8_flags.wasm_bounds_checks);
     OutOfLineSafepointInfo* safepoint_info = nullptr;
+    // Execution does not return after a trap. Therefore we don't have to define
+    // a safepoint for traps that would preserve references on the stack.
+    // However, if this is debug code, then we have to preserve the references
+    // so that they can be inspected.
     if (V8_UNLIKELY(for_debugging_)) {
-      // Execution does not return after a trap. Therefore we don't have to
-      // define a safepoint for traps that would preserve references on the
-      // stack. However, if this is debug code, then we have to preserve the
-      // references so that they can be inspected.
       safepoint_info = zone_->New<OutOfLineSafepointInfo>(zone_);
       __ cache_state()->GetTaggedSlotsForOOLCode(
           &safepoint_info->slots, &safepoint_info->spills,
@@ -8391,11 +8394,9 @@ class LiftoffCompiler {
   // After compilation, this is transferred into {WasmModule::type_feedback}.
   std::vector<uint32_t> encountered_call_instructions_;
 
+  // Pointer to information passed from the fuzzer. The pointers will be
+  // embedded in generated code, which will update the values at runtime.
   int32_t* max_steps_;
-  static constexpr size_t kInvalidOolIndex = std::numeric_limits<size_t>::max();
-  // Index of the out of line trap to jump to if max steps are executed.
-  size_t trap_too_many_steps_ool_index_ = kInvalidOolIndex;
-
   int32_t* nondeterminism_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(LiftoffCompiler);
