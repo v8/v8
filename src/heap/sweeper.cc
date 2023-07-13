@@ -441,7 +441,12 @@ class PromotedPageRecordMigratedSlotVisitor final
       ObjectSlot key_slot =
           table.RawFieldOfElementAt(EphemeronHashTable::EntryToIndex(i));
       Object key = key_slot.Acquire_Load();
-      if (Heap::InYoungGeneration(key)) {
+      HeapObject key_object;
+      if (!key.GetHeapObject(&key_object)) continue;
+#ifdef THREAD_SANITIZER
+      BasicMemoryChunk::FromHeapObject(key_object)->SynchronizedHeapLoad();
+#endif  // THREAD_SANITIZER
+      if (Heap::InYoungGeneration(key_object)) {
         indices.insert(i.as_int());
       }
     }
