@@ -428,14 +428,17 @@ void LocalHeap::UnmarkSharedLinearAllocationArea() {
 AllocationResult LocalHeap::PerformCollectionAndAllocateAgain(
     int object_size, AllocationType type, AllocationOrigin origin,
     AllocationAlignment alignment) {
+  // All allocation tries in this method should have this flag enabled.
   CHECK(!allocation_failed_);
-  CHECK(!main_thread_parked_);
   allocation_failed_ = true;
   static const int kMaxNumberOfRetries = 3;
   int failed_allocations = 0;
   int parked_allocations = 0;
 
   for (int i = 0; i < kMaxNumberOfRetries; i++) {
+    // This flag needs to be reset for each iteration.
+    CHECK(!main_thread_parked_);
+
     if (!heap_->CollectGarbageFromAnyThread(this)) {
       main_thread_parked_ = true;
       parked_allocations++;
@@ -443,13 +446,16 @@ AllocationResult LocalHeap::PerformCollectionAndAllocateAgain(
 
     AllocationResult result = AllocateRaw(object_size, type, origin, alignment);
 
-    if (result.IsFailure()) {
-      failed_allocations++;
-    } else {
+    main_thread_parked_ = false;
+
+    if (!result.IsFailure()) {
+      CHECK(allocation_failed_);
       allocation_failed_ = false;
-      main_thread_parked_ = false;
+      CHECK(!main_thread_parked_);
       return result;
     }
+
+    failed_allocations++;
   }
 
   if (v8_flags.trace_gc) {
@@ -460,6 +466,9 @@ AllocationResult LocalHeap::PerformCollectionAndAllocateAgain(
         failed_allocations, parked_allocations);
   }
 
+  CHECK(allocation_failed_);
+  allocation_failed_ = false;
+  CHECK(!main_thread_parked_);
   return AllocationResult::Failure();
 }
 
