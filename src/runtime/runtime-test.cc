@@ -828,10 +828,20 @@ RUNTIME_FUNCTION(Runtime_NeverOptimizeFunction) {
   Handle<JSFunction> function = Handle<JSFunction>::cast(function_object);
   Handle<SharedFunctionInfo> sfi(function->shared(cage_base), isolate);
   CodeKind code_kind = sfi->abstract_code(isolate).kind(cage_base);
-  if (code_kind != CodeKind::INTERPRETED_FUNCTION &&
-      code_kind != CodeKind::BUILTIN) {
-    return CrashUnlessFuzzing(isolate);
+  switch (code_kind) {
+    case CodeKind::INTERPRETED_FUNCTION:
+      break;
+    case CodeKind::BUILTIN:
+      if (sfi->InReadOnlySpace()) {
+        // SFIs for builtin functions are in RO space and thus we cannot set
+        // the never-optimize bit. But such SFIs cannot be optimized anyways.
+        return CrashUnlessFuzzing(isolate);
+      }
+      break;
+    default:
+      return CrashUnlessFuzzing(isolate);
   }
+
   // Make sure to finish compilation if there is a parallel lazy compilation in
   // progress, to make sure that the compilation finalization doesn't clobber
   // the SharedFunctionInfo's disable_optimization field.
