@@ -611,7 +611,7 @@ transitioning builtin IteratorFlatMapHelperNext(implicit context: Context)(
               MessageTemplate::kCalledOnNonObject, kFlatMapMethodName);
 
           // vi. Let innerIterator be Completion(GetIteratorFlattenable(mapped,
-          // sync)).
+          //     reject-strings)).
           innerIterator = GetIteratorFlattenable(mappedIter);
           helper.innerIterator = innerIterator;
 

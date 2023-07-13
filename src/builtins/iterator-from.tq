@@ -16,8 +16,10 @@ macro NewJSValidIteratorWrapper(implicit context: Context)(
 
 // https://tc39.es/proposal-iterator-helpers/#sec-getiteratorflattenable
 transitioning macro GetIteratorFlattenable(implicit context: Context)(
-    obj: JSReceiver): IteratorRecord {
-  // 1. If obj is not an Object, throw a TypeError exception.
+    obj: JSReceiver|String): IteratorRecord {
+  // 1. If obj is not an Object, then
+  //   a. If stringHandling is reject-strings or obj is not a String, throw a
+  //      TypeError exception.
   // (Done by caller.)
 
   let iterator: JSAny;
@@ -47,11 +49,13 @@ transitioning macro GetIteratorFlattenable(implicit context: Context)(
 transitioning javascript builtin IteratorFrom(
     js-implicit context: NativeContext,
     receiver: JSAny)(objArg: JSAny): JSReceiver {
-  // 1. If O is a String, set O to ! ToObject(O).
-  let obj: JSReceiver;
+  // GetIteratorFlattenable below accepts either Objects or Strings (without
+  // wrapping) with the iterate-strings parameter. The type checking is done by
+  // the caller of GetIteratorFlattenable.
+  let obj: JSReceiver|String;
   typeswitch (objArg) {
     case (o: String): {
-      obj = ToObject_Inline(context, o);
+      obj = o;
     }
     case (o: JSReceiver): {
       obj = o;
@@ -61,24 +65,24 @@ transitioning javascript builtin IteratorFrom(
     }
   }
 
-  // 2. Let iteratorRecord be ? GetIteratorFlattenable(O, sync).
+  // 1. Let iteratorRecord be ? GetIteratorFlattenable(O, iterate-strings).
   const iteratorRecord = GetIteratorFlattenable(obj);
 
-  // 3. Let hasInstance be ? OrdinaryHasInstance(%Iterator%,
+  // 2. Let hasInstance be ? OrdinaryHasInstance(%Iterator%,
   //    iteratorRecord.[[Iterator]]).
   const hasInstance = function::OrdinaryHasInstance(
       context, GetIteratorFunction(), iteratorRecord.object);
 
-  // 4. If hasInstance is true, then
+  // 3. If hasInstance is true, then
   if (hasInstance == True) {
     // a. Return iteratorRecord.[[Iterator]].
     return iteratorRecord.object;
   }
 
-  // 5. Let wrapper be OrdinaryObjectCreate(%WrapForValidIteratorPrototype%, «
+  // 4. Let wrapper be OrdinaryObjectCreate(%WrapForValidIteratorPrototype%, «
   //    [[Iterated]] »).
-  // 6. Set wrapper.[[Iterated]] to iteratorRecord.
-  // 7. Return wrapper.
+  // 5. Set wrapper.[[Iterated]] to iteratorRecord.
+  // 6. Return wrapper.
   return NewJSValidIteratorWrapper(iteratorRecord);
 }
 
