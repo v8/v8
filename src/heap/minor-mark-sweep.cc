@@ -357,7 +357,7 @@ void YoungGenerationRememberedSetsMarkingWorklist::MarkingItem::
   } else {
     DCHECK_EQ(slots_type_, SlotsType::kTypedSlots);
     DCHECK_NULL(background_slot_set_);
-    if (slot_set_)
+    if (typed_slot_set_)
       RememberedSet<OLD_TO_NEW>::MergeAndDeleteTyped(
           chunk_, std::move(*typed_slot_set_));
   }
@@ -373,8 +373,7 @@ void YoungGenerationRememberedSetsMarkingWorklist::MarkingItem::
   } else {
     DCHECK_EQ(slots_type_, SlotsType::kTypedSlots);
     DCHECK_NULL(background_slot_set_);
-    DCHECK_NOT_NULL(slot_set_);
-    delete typed_slot_set_;
+    if (typed_slot_set_) delete typed_slot_set_;
   }
 }
 
