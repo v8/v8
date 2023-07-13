@@ -3496,7 +3496,6 @@ Handle<DebugInfo> Factory::NewDebugInfo(Handle<SharedFunctionInfo> shared) {
   debug_info.set_shared(raw_shared);
   debug_info.set_debugger_hints(0);
   DCHECK_EQ(DebugInfo::kNoDebuggingId, debug_info.debugging_id());
-  debug_info.set_script(raw_shared.script(kAcquireLoad));
   HeapObject undefined = *undefined_value();
   debug_info.set_original_bytecode_array(undefined, kReleaseStore,
                                          SKIP_WRITE_BARRIER);
