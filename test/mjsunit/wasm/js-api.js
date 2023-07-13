@@ -59,8 +59,8 @@ let moduleBinaryImporting2Memories = (() => {
 
 let moduleBinaryWithMemSectionAndMemImport = (() => {
   var builder = new WasmModuleBuilder();
-  builder.addMemory(1, 1);
   builder.addImportedMemory('', 'memory1');
+  builder.addMemory(1, 1);
   return new Int8Array(builder.toBuffer());
 })();
 

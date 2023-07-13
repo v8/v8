@@ -1326,15 +1326,25 @@ class WasmModuleBuilder {
   }
 
   addMemory(min, max, shared) {
+    // Note: All imported memories are added before declared ones (see the check
+    // in {addImportedMemory}).
+    const imported_memories =
+        this.imports.filter(i => i.kind == kExternalMemory).length;
+    const mem_index = imported_memories + this.memories.length;
     this.memories.push(
         {min: min, max: max, shared: shared || false, is_memory64: false});
-    return this;
+    return mem_index;
   }
 
   addMemory64(min, max, shared) {
+    // Note: All imported memories are added before declared ones (see the check
+    // in {addImportedMemory}).
+    const imported_memories =
+        this.imports.filter(i => i.kind == kExternalMemory).length;
+    const mem_index = imported_memories + this.memories.length;
     this.memories.push(
         {min: min, max: max, shared: shared || false, is_memory64: true});
-    return this;
+    return mem_index;
   }
 
   addExplicitSection(bytes) {
@@ -1486,6 +1496,11 @@ class WasmModuleBuilder {
   }
 
   addImportedMemory(module, name, initial = 0, maximum, shared, is_memory64) {
+    if (this.memories.length !== 0) {
+      throw new Error(
+          'Add imported memories before declared memories to avoid messing ' +
+          'up the indexes');
+    }
     let o = {
       module: module,
       name: name,

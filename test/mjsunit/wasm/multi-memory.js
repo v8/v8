@@ -104,10 +104,10 @@ function assertMemoryEquals(expected, memory) {
 (function testBasicMultiMemory() {
   print(arguments.callee.name);
   const builder = new WasmModuleBuilder();
-  builder.addMemory(1, 1);
-  builder.addMemory(1, 1);
-  addLoadAndStoreFunctions(builder, 0);
-  addLoadAndStoreFunctions(builder, 1);
+  const mem0_idx = builder.addMemory(1, 1);
+  const mem1_idx = builder.addMemory(1, 1);
+  addLoadAndStoreFunctions(builder, mem0_idx);
+  addLoadAndStoreFunctions(builder, mem1_idx);
 
   const instance = builder.instantiate();
   testTwoMemories(instance, 1, 1);
@@ -179,12 +179,12 @@ function assertMemoryEquals(expected, memory) {
 (function testTwoExportedMemories() {
   print(arguments.callee.name);
   const builder = new WasmModuleBuilder();
-  builder.addMemory(1, 1);
-  builder.addMemory(1, 1);
-  addLoadAndStoreFunctions(builder, 0);
-  addLoadAndStoreFunctions(builder, 1);
-  builder.exportMemoryAs('mem0', 0);
-  builder.exportMemoryAs('mem1', 1);
+  const mem0_idx = builder.addMemory(1, 1);
+  const mem1_idx = builder.addMemory(1, 1);
+  addLoadAndStoreFunctions(builder, mem0_idx);
+  addLoadAndStoreFunctions(builder, mem1_idx);
+  builder.exportMemoryAs('mem0', mem0_idx);
+  builder.exportMemoryAs('mem1', mem1_idx);
 
   const instance = builder.instantiate();
   const mem0 = new Uint8Array(instance.exports.mem0.buffer);
@@ -204,10 +204,10 @@ function assertMemoryEquals(expected, memory) {
 (function testMultiMemoryDataSegments() {
   print(arguments.callee.name);
   var builder = new WasmModuleBuilder();
-  builder.addMemory(1, 1);
-  builder.addMemory(1, 1);
-  addLoadAndStoreFunctions(builder, 0);
-  addLoadAndStoreFunctions(builder, 1);
+  const mem0_idx = builder.addMemory(1, 1);
+  const mem1_idx = builder.addMemory(1, 1);
+  addLoadAndStoreFunctions(builder, mem0_idx);
+  addLoadAndStoreFunctions(builder, mem1_idx);
   const mem0_offset = 11;
   const mem1_offset = 23;
   builder.addDataSegment(mem1_offset, [7, 7], false, 1);
@@ -231,10 +231,10 @@ function assertMemoryEquals(expected, memory) {
   for (let [mem0_size, mem1_size] of [[1, 2], [2, 1]]) {
     for (let [mem0_offset, mem1_offset] of [[0, 0], [1, 2], [0, 2], [1, 0]]) {
       var builder = new WasmModuleBuilder();
-      builder.addMemory(mem0_size, mem0_size);
-      builder.addMemory(mem1_size, mem1_size);
-      builder.addDataSegment(mem0_offset * kPageSize, [0], false, 0);
-      builder.addDataSegment(mem1_offset * kPageSize, [0], false, 1);
+      const mem0_idx = builder.addMemory(mem0_size, mem0_size);
+      const mem1_idx = builder.addMemory(mem1_size, mem1_size);
+      builder.addDataSegment(mem0_offset * kPageSize, [0], false, mem0_idx);
+      builder.addDataSegment(mem1_offset * kPageSize, [0], false, mem1_idx);
       if (mem0_offset < mem0_size && mem1_offset < mem1_size) {
         builder.instantiate();  // should not throw.
         continue;
@@ -255,21 +255,19 @@ function assertMemoryEquals(expected, memory) {
 (function testMultiMemoryInit() {
   print(arguments.callee.name);
   var builder = new WasmModuleBuilder();
-  const mem0_id = 0;
-  builder.addMemory(1, 1);
-  const mem1_id = 1;
-  builder.addMemory(1, 1);
+  const mem0_idx = builder.addMemory(1, 1);
+  const mem1_idx = builder.addMemory(1, 1);
   const mem0_offset = 11;
   const mem1_offset = 23;
   const seg0_init = [5, 4, 3];
   const seg0_id = builder.addPassiveDataSegment(seg0_init);
   const seg1_init = [11, 10, 9, 8, 7];
   const seg1_id = builder.addPassiveDataSegment(seg1_init);
-  builder.exportMemoryAs('mem0', mem0_id);
-  builder.exportMemoryAs('mem1', mem1_id);
+  builder.exportMemoryAs('mem0', mem0_idx);
+  builder.exportMemoryAs('mem1', mem1_idx);
   // Initialize memory 1 from data segment 0 and vice versa.
-  addMemoryInitFunction(builder, mem0_id, seg1_id);
-  addMemoryInitFunction(builder, mem1_id, seg0_id);
+  addMemoryInitFunction(builder, mem0_idx, seg1_id);
+  addMemoryInitFunction(builder, mem1_idx, seg0_id);
 
   const instance = builder.instantiate();
   const expected_memory0 = new Uint8Array(kPageSize);
@@ -299,14 +297,12 @@ function assertMemoryEquals(expected, memory) {
 (function testMultiMemoryFill() {
   print(arguments.callee.name);
   var builder = new WasmModuleBuilder();
-  const mem0_id = 0;
-  builder.addMemory(1, 1);
-  const mem1_id = 1;
-  builder.addMemory(2, 2);
-  builder.exportMemoryAs('mem0', mem0_id);
-  builder.exportMemoryAs('mem1', mem1_id);
-  addMemoryFillFunction(builder, mem0_id);
-  addMemoryFillFunction(builder, mem1_id);
+  const mem0_idx = builder.addMemory(1, 1);
+  const mem1_idx = builder.addMemory(2, 2);
+  builder.exportMemoryAs('mem0', mem0_idx);
+  builder.exportMemoryAs('mem1', mem1_idx);
+  addMemoryFillFunction(builder, mem0_idx);
+  addMemoryFillFunction(builder, mem1_idx);
 
   const instance = builder.instantiate();
   const expected_memory0 = new Uint8Array(kPageSize);
@@ -349,12 +345,12 @@ function assertMemoryEquals(expected, memory) {
 (function testGrowMultipleMemories() {
   print(arguments.callee.name);
   var builder = new WasmModuleBuilder();
-  builder.addMemory(1, 4);
-  builder.addMemory(1, 5);
-  addGrowAndSizeFunctions(builder, 0);
-  addGrowAndSizeFunctions(builder, 1);
-  builder.exportMemoryAs('mem0', 0);
-  builder.exportMemoryAs('mem1', 1);
+  const mem0_idx = builder.addMemory(1, 4);
+  const mem1_idx = builder.addMemory(1, 5);
+  addGrowAndSizeFunctions(builder, mem0_idx);
+  addGrowAndSizeFunctions(builder, mem1_idx);
+  builder.exportMemoryAs('mem0', mem0_idx);
+  builder.exportMemoryAs('mem1', mem1_idx);
   const instance = builder.instantiate();
 
   assertEquals(1, instance.exports.grow0(2));
