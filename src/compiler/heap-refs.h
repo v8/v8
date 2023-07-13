@@ -79,6 +79,7 @@ enum class OddballType : uint8_t {
 enum class HoleType : uint8_t {
   kNone,  // Not a Hole.
   kGeneric,
+  kPropertyCell,
 };
 
 enum class RefSerializationKind {

@@ -424,6 +424,13 @@ Handle<Tuple2> Factory::NewTuple2(Handle<Object> value1, Handle<Object> value2,
   return handle(result, isolate());
 }
 
+Handle<Hole> Factory::NewHole() {
+  Handle<Hole> hole(Hole::cast(New(hole_map(), AllocationType::kReadOnly)),
+                    isolate());
+  Hole::Initialize(isolate(), hole, hole_nan_value());
+  return hole;
+}
+
 Handle<Oddball> Factory::NewOddball(Handle<Map> map, const char* to_string,
                                     Handle<Object> to_number,
                                     const char* type_of, uint8_t kind) {

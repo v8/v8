@@ -133,6 +133,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
                              Handle<Object> to_number, const char* type_of,
                              uint8_t kind);
 
+  Handle<Hole> NewHole();
+
   // Marks self references within code generation.
   Handle<Oddball> NewSelfReferenceMarker();
 

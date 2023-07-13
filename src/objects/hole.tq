@@ -5,5 +5,4 @@
 @cppObjectDefinition
 extern class Hole extends HeapObject {
   raw_numeric_value: float64;
-  kind: Smi;
 }

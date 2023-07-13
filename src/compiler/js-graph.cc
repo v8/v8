@@ -55,6 +55,8 @@ Node* JSGraph::Constant(ObjectRef ref, JSHeapBroker* broker) {
       break;
     case HoleType::kGeneric:
       return TheHoleConstant();
+    case HoleType::kPropertyCell:
+      return PropertyCellHoleConstant();
   }
 
   OddballType oddball_type =
@@ -164,6 +166,9 @@ DEFINE_GETTER(StaleRegisterConstant, HeapConstant(factory()->stale_register()))
 DEFINE_GETTER(UndefinedConstant, HeapConstant(factory()->undefined_value()))
 
 DEFINE_GETTER(TheHoleConstant, HeapConstant(factory()->the_hole_value()))
+
+DEFINE_GETTER(PropertyCellHoleConstant,
+              HeapConstant(factory()->property_cell_hole_value()))
 
 DEFINE_GETTER(TrueConstant, HeapConstant(factory()->true_value()))
 

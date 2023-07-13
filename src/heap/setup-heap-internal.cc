@@ -980,7 +980,9 @@ bool Heap::CreateReadOnlyObjects() {
 
   // Initialize the_hole_value.
   Hole::Initialize(isolate(), factory->the_hole_value(),
-                   factory->hole_nan_value(), Hole::kDefaultHole);
+                   factory->hole_nan_value());
+
+  set_property_cell_hole_value(*factory->NewHole());
 
   set_uninitialized_value(
       *factory->NewOddball(factory->uninitialized_map(), "uninitialized",

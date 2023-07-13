@@ -143,9 +143,7 @@ namespace compiler {
 #define PROPER_ATOMIC_BITSET_TYPE_HIGH_LIST(V)                             \
   V(Machine,                  uint64_t{1} << 32)                           \
   V(TheHole,                  uint64_t{1} << 33)                           \
-  /* Add a second hole type as a placeholder so that we can distinguish */ \
-  /* between TheHole and any Hole */                                       \
-  V(HolePlaceholder,                  uint64_t{1} << 34)
+  V(PropertyCellHole,         uint64_t{1} << 34)
 
 #define PROPER_BITSET_TYPE_LIST(V) \
   V(None,                     uint64_t{0}) \
@@ -181,7 +179,7 @@ namespace compiler {
   V(BooleanOrNumber,              kBoolean | kNumber) \
   V(BooleanOrNullOrNumber,        kBooleanOrNumber | kNull) \
   V(BooleanOrNullOrUndefined,     kBoolean | kNull | kUndefined) \
-  V(Hole,                         kTheHole | kHolePlaceholder) \
+  V(Hole,                         kTheHole | kPropertyCellHole) \
   V(NullOrNumber,                 kNull | kNumber) \
   V(NullOrUndefined,              kNull | kUndefined) \
   V(Undetectable,                 kNullOrUndefined | kOtherUndetectable) \

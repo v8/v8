@@ -1834,6 +1834,8 @@ bool ObjectRef::IsTheHole() const { return object()->IsTheHole(); }
 HoleType ObjectRef::HoleType() const {
   if (object()->IsTheHole()) {
     return HoleType::kGeneric;
+  } else if (object()->IsPropertyCellHole()) {
+    return HoleType::kPropertyCell;
   } else {
     return HoleType::kNone;
   }

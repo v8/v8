@@ -98,6 +98,7 @@ class V8_EXPORT_PRIVATE JSGraph : public MachineGraph {
   V(StaleRegisterConstant)                        \
   V(UndefinedConstant)                            \
   V(TheHoleConstant)                              \
+  V(PropertyCellHoleConstant)                     \
   V(TrueConstant)                                 \
   V(FalseConstant)                                \
   V(NullConstant)                                 \

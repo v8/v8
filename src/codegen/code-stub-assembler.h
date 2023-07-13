@@ -172,6 +172,7 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
   V(string_to_string, string_to_string, StringToString)                        \
   V(StringMap, string_map, StringMap)                                          \
   V(TheHoleValue, the_hole_value, TheHole)                                     \
+  V(PropertyCellHoleValue, property_cell_hole_value, PropertyCellHole)         \
   V(then_string, then_string, ThenString)                                      \
   V(toJSON_string, toJSON_string, ToJSONString)                                \
   V(toString_string, toString_string, ToStringString)                          \

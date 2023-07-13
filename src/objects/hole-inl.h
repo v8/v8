@@ -30,18 +30,9 @@ void Hole::set_raw_numeric_value(uint64_t bits) {
                                       bits);
 }
 
-uint8_t Hole::kind() const {
-  return Smi::ToInt(TaggedField<Smi>::load(*this, kKindOffset));
-}
-
-void Hole::set_kind(uint8_t value) {
-  WRITE_FIELD(*this, kKindOffset, Smi::FromInt(value));
-}
-
 void Hole::Initialize(Isolate* isolate, Handle<Hole> hole,
-                      Handle<HeapNumber> numeric_value, uint8_t kind) {
+                      Handle<HeapNumber> numeric_value) {
   hole->set_raw_numeric_value(numeric_value->value_as_bits(kRelaxedLoad));
-  hole->set_kind(kind);
 }
 
 }  // namespace internal

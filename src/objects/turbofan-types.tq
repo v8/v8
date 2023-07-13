@@ -55,7 +55,7 @@ bitfield struct TurbofanTypeLowBits extends uint32 {
 bitfield struct TurbofanTypeHighBits extends uint32 {
   machine: bool: 1 bit;
   the_hole: bool: 1 bit;
-  hole_placeholder: bool: 1 bit;
+  property_cell_hole: bool: 1 bit;
 }
 
 @export
