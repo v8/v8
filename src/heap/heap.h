@@ -1021,6 +1021,8 @@ class Heap final {
       GCCallbackFlags gc_callback_flags = GCCallbackFlags::kNoGCCallbackFlags,
       GarbageCollector collector = GarbageCollector::MARK_COMPACTOR);
 
+  V8_EXPORT_PRIVATE void StartIncrementalMarkingOnInterrupt();
+
   V8_EXPORT_PRIVATE void StartIncrementalMarkingIfAllocationLimitIsReached(
       GCFlags gc_flags,
       GCCallbackFlags gc_callback_flags = GCCallbackFlags::kNoGCCallbackFlags);

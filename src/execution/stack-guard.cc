@@ -295,6 +295,10 @@ Object StackGuard::HandleInterrupts(InterruptLevel level) {
     isolate_->heap()->HandleGCRequest();
   }
 
+  if (TestAndClear(&interrupt_flags, START_INCREMENTAL_MARKING)) {
+    isolate_->heap()->StartIncrementalMarkingOnInterrupt();
+  }
+
   if (TestAndClear(&interrupt_flags, GLOBAL_SAFEPOINT)) {
     TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"), "V8.GlobalSafepoint");
     isolate_->main_thread_local_heap()->Safepoint();

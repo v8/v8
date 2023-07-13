@@ -2053,6 +2053,11 @@ void Heap::CompleteSweepingFull() {
   DCHECK(!tracer()->IsSweepingInProgress());
 }
 
+void Heap::StartIncrementalMarkingOnInterrupt() {
+  StartIncrementalMarkingIfAllocationLimitIsReached(
+      GCFlagsForIncrementalMarking(), kGCCallbackScheduleIdleGarbageCollection);
+}
+
 void Heap::StartIncrementalMarkingIfAllocationLimitIsReached(
     GCFlags gc_flags, const GCCallbackFlags gc_callback_flags) {
   if (v8_flags.separate_gc_phases && gc_callbacks_depth_ > 0) {
@@ -2098,6 +2103,13 @@ void Heap::StartIncrementalMarkingIfAllocationLimitIsReachedBackground() {
 
   if (old_generation_space_available < NewSpaceTargetCapacity()) {
     incremental_marking()->incremental_marking_job()->ScheduleTask();
+    if (old_generation_space_available == 0) {
+      // Fulfil the role of IncrementalMarkingLimitReached() == kHardLimit and
+      // try to start incremental marking ASAP.
+      // TODO(dinfuehr): Unify this logic with the main thread
+      // IncrementalMarkingLimitReached() call.
+      isolate()->stack_guard()->RequestStartIncrementalMarking();
+    }
   }
 }
 

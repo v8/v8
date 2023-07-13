@@ -74,7 +74,9 @@ class V8_EXPORT_PRIVATE V8_NODISCARD StackGuard final {
   V(LOG_WASM_CODE, LogWasmCode, 7, InterruptLevel::kAnyEffect)                 \
   V(WASM_CODE_GC, WasmCodeGC, 8, InterruptLevel::kNoHeapWrites)                \
   V(INSTALL_MAGLEV_CODE, InstallMaglevCode, 9, InterruptLevel::kAnyEffect)     \
-  V(GLOBAL_SAFEPOINT, GlobalSafepoint, 10, InterruptLevel::kNoHeapWrites)
+  V(GLOBAL_SAFEPOINT, GlobalSafepoint, 10, InterruptLevel::kNoHeapWrites)      \
+  V(START_INCREMENTAL_MARKING, StartIncrementalMarking, 11,                    \
+    InterruptLevel::kNoHeapWrites)
 
 #define V(NAME, Name, id, interrupt_level)                   \
   inline bool Check##Name() { return CheckInterrupt(NAME); } \

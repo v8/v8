@@ -69,6 +69,8 @@ void IncrementalMarkingJob::Task::RunInternal() {
   VMState<GC> state(isolate());
   TRACE_EVENT_CALL_STATS_SCOPED(isolate(), "v8", "V8.Task");
 
+  isolate()->stack_guard()->ClearStartIncrementalMarking();
+
   Heap* heap = isolate()->heap();
   EmbedderStackStateScope scope(
       heap, EmbedderStackStateScope::kImplicitThroughTask, stack_state_);
