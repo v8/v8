@@ -815,10 +815,11 @@ Revectorizer::Revectorizer(Zone* zone, Graph* graph, MachineGraph* mcgraph)
       graph_(graph),
       mcgraph_(mcgraph),
       group_of_stores_(zone),
-      support_simd256_(false),
-      node_observer_for_test_(Isolate::Current()->node_observer()) {
+      support_simd256_(false) {
   DetectCPUFeatures();
   slp_tree_ = zone_->New<SLPTree>(zone, graph);
+  Isolate* isolate = Isolate::TryGetCurrent();
+  node_observer_for_test_ = isolate ? isolate->node_observer() : nullptr;
 }
 
 bool Revectorizer::DecideVectorize() {
