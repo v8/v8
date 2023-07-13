@@ -4512,8 +4512,9 @@ TEST(CanStartStopProfilerWithTitlesAndIds) {
 }
 
 TEST(NoProfilingProtectorCPUProfiler) {
-#if !defined(V8_LITE_MODE) && \
-    (defined(V8_ENABLE_TURBOFAN) || defined(V8_ENABLE_MAGLEV))
+#if !defined(V8_LITE_MODE) &&                                     \
+    (defined(V8_ENABLE_TURBOFAN) || defined(V8_ENABLE_MAGLEV)) && \
+    !defined(USE_SIMULATOR)
   if (i::v8_flags.jitless) return;
 
 #ifdef V8_ENABLE_TURBOFAN
