@@ -320,7 +320,7 @@ UnifiedHeapMarker::UnifiedHeapMarker(Heap* v8_heap,
       conservative_marking_visitor_(heap, mutator_marking_state_,
                                     *marking_visitor_) {
   concurrent_marker_ = std::make_unique<UnifiedHeapConcurrentMarker>(
-      heap_, v8_heap, marking_worklists_, schedule_, platform_,
+      heap_, v8_heap, marking_worklists_, *schedule_, platform_,
       mutator_unified_heap_marking_state_, config.collection_type);
 }
 

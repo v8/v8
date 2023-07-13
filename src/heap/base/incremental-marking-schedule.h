@@ -6,6 +6,7 @@
 #define V8_HEAP_BASE_INCREMENTAL_MARKING_SCHEDULE_H_
 
 #include <atomic>
+#include <memory>
 
 #include "src/base/optional.h"
 #include "src/base/platform/time.h"
@@ -52,13 +53,28 @@ class V8_EXPORT_PRIVATE IncrementalMarkingSchedule final {
 
   // Minimum number of bytes that should be marked during an incremental
   // marking step.
-  static constexpr size_t kMinimumMarkedBytesPerIncrementalStep = 64 * 1024;
+  static constexpr size_t kDefaultMinimumMarkedBytesPerIncrementalStep =
+      64 * 1024;
+
+  // Step size used when no progress is being made. This step size should allow
+  // for finalizing marking.
+  static constexpr size_t kStepSizeWhenNotMakingProgress = 64 * 1024;
+
+  static std::unique_ptr<IncrementalMarkingSchedule>
+  CreateWithDefaultMinimumMarkedBytesPerStep();
+  static std::unique_ptr<IncrementalMarkingSchedule>
+  CreateWithZeroMinimumMarkedBytesPerStep();
+
+  IncrementalMarkingSchedule(const IncrementalMarkingSchedule&) = delete;
+  IncrementalMarkingSchedule& operator=(const IncrementalMarkingSchedule&) =
+      delete;
 
   // Notifies the schedule that incremental marking has been started.
   void NotifyIncrementalMarkingStart();
 
   // Updates the mutator marked bytes. Must be called from the thread owning the
-  // schedule.
+  // schedule. The schedule supports marked bytes being adjusted downwards,
+  // i.e., going backwards in the schedule.
   void UpdateMutatorThreadMarkedBytes(size_t);
 
   // Adds concurrently marked bytes. May be called from any thread. Not required
@@ -88,12 +104,20 @@ class V8_EXPORT_PRIVATE IncrementalMarkingSchedule final {
   // `kEphemeronPairsFlushingRatioIncrements` percent of overall marked bytes.
   bool ShouldFlushEphemeronPairs();
 
+  // The minimum marked bytes per step. This is a lower bound for all the step
+  // sizes returned from `GetNextIncrementalStepDuration()`.
+  size_t min_marked_bytes_per_step() const {
+    return min_marked_bytes_per_step_;
+  }
+
   // Sets the elapsed time for testing purposes. Is reset after calling
   // `GetNextIncrementalStepDuration()`.
   void SetElapsedTimeForTesting(v8::base::TimeDelta);
 
  private:
   static constexpr double kEphemeronPairsFlushingRatioIncrements = 0.25;
+
+  explicit IncrementalMarkingSchedule(size_t minimum_marked_bytes_per_step);
 
   v8::base::TimeDelta GetElapsedTime();
 
@@ -103,6 +127,7 @@ class V8_EXPORT_PRIVATE IncrementalMarkingSchedule final {
   size_t last_estimated_live_bytes_ = 0;
   double ephemeron_pairs_flushing_ratio_target_ = 0.25;
   StepInfo current_step_;
+  const size_t min_marked_bytes_per_step_;
   v8::base::Optional<v8::base::TimeDelta> elapsed_time_for_testing_;
 };
 

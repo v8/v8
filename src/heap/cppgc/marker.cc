@@ -11,6 +11,7 @@
 #include "include/cppgc/heap-consistency.h"
 #include "include/cppgc/platform.h"
 #include "src/base/platform/time.h"
+#include "src/heap/base/incremental-marking-schedule.h"
 #include "src/heap/cppgc/globals.h"
 #include "src/heap/cppgc/heap-object-header.h"
 #include "src/heap/cppgc/heap-page.h"
@@ -163,7 +164,12 @@ MarkerBase::MarkerBase(HeapBase& heap, cppgc::Platform* platform,
       platform_(platform),
       foreground_task_runner_(platform_->GetForegroundTaskRunner()),
       mutator_marking_state_(heap, marking_worklists_,
-                             heap.compactor().compaction_worklists()) {
+                             heap.compactor().compaction_worklists()),
+      schedule_(config.incremental_task_delay.IsZero()
+                    ? ::heap::base::IncrementalMarkingSchedule::
+                          CreateWithDefaultMinimumMarkedBytesPerStep()
+                    : ::heap::base::IncrementalMarkingSchedule::
+                          CreateWithZeroMinimumMarkedBytesPerStep()) {
   DCHECK_IMPLIES(config_.collection_type == CollectionType::kMinor,
                  heap_.generational_gc_supported());
 }
@@ -238,7 +244,7 @@ void MarkerBase::StartMarking() {
         heap().stats_collector(), StatsCollector::kMarkIncrementalStart);
 
     // Performing incremental or concurrent marking.
-    schedule_.NotifyIncrementalMarkingStart();
+    schedule_->NotifyIncrementalMarkingStart();
     // Scanning the stack is expensive so we only do it at the atomic pause.
     VisitRoots(StackState::kNoHeapPointers);
     ScheduleIncrementalMarkingTask();
@@ -307,7 +313,7 @@ void MarkerBase::LeaveAtomicPause() {
     DCHECK(!incremental_marking_handle_);
     heap().stats_collector()->NotifyMarkingCompleted(
         // GetOverallMarkedBytes also includes concurrently marked bytes.
-        schedule_.GetOverallMarkedBytes());
+        schedule_->GetOverallMarkedBytes());
     is_marking_ = false;
   }
   {
@@ -562,23 +568,20 @@ bool MarkerBase::AdvanceMarkingWithLimits(v8::base::TimeDelta max_duration,
   if (!main_marking_disabled_for_testing_) {
     if (marked_bytes_limit == 0) {
       marked_bytes_limit = mutator_marking_state_.marked_bytes() +
-                           GetNextIncrementalStepDuration(schedule_, heap_);
+                           GetNextIncrementalStepDuration(*schedule_, heap_);
     }
     StatsCollector::EnabledScope deadline_scope(
         heap().stats_collector(),
         StatsCollector::kMarkTransitiveClosureWithDeadline, "deadline_ms",
         max_duration.InMillisecondsF());
     const auto deadline = v8::base::TimeTicks::Now() + max_duration;
-    // TODO(v8:14140): Consider ignoring marked_bytes_limit for the
-    // concurrent_bailout_objects() and merely use time as limiting factor. The
-    // schedule assumes that every objects can be concurrently processed.
     is_done = ProcessWorklistsWithDeadline(marked_bytes_limit, deadline);
     if (is_done && VisitCrossThreadPersistentsIfNeeded()) {
       // Both limits are absolute and hence can be passed along without further
       // adjustment.
       is_done = ProcessWorklistsWithDeadline(marked_bytes_limit, deadline);
     }
-    schedule_.UpdateMutatorThreadMarkedBytes(
+    schedule_->UpdateMutatorThreadMarkedBytes(
         mutator_marking_state_.marked_bytes());
   }
   mutator_marking_state_.Publish();
@@ -602,7 +605,7 @@ bool MarkerBase::ProcessWorklistsWithDeadline(
   do {
     mutator_marking_state_.ResetDidDiscoverNewEphemeronPairs();
     if ((config_.marking_type == MarkingConfig::MarkingType::kAtomic) ||
-        schedule_.ShouldFlushEphemeronPairs()) {
+        schedule_->ShouldFlushEphemeronPairs()) {
       mutator_marking_state_.FlushDiscoveredEphemeronPairs();
     }
 
@@ -614,7 +617,7 @@ bool MarkerBase::ProcessWorklistsWithDeadline(
           heap().stats_collector(), StatsCollector::kMarkProcessBailOutObjects);
       if (!DrainWorklistWithBytesAndTimeDeadline<kDefaultDeadlineCheckInterval /
                                                  5>(
-              mutator_marking_state_, marked_bytes_deadline, time_deadline,
+              mutator_marking_state_, SIZE_MAX, time_deadline,
               mutator_marking_state_.concurrent_marking_bailout_worklist(),
               [this](
                   const MarkingWorklists::ConcurrentMarkingBailoutItem& item) {
@@ -733,7 +736,7 @@ bool MarkerBase::IsAheadOfSchedule() const {
       kNumOfBailoutObjectsForNormalTask) {
     return false;
   }
-  if (schedule_.GetCurrentStepInfo().is_behind_expectation()) {
+  if (schedule_->GetCurrentStepInfo().is_behind_expectation()) {
     return false;
   }
   return true;
@@ -769,7 +772,7 @@ Marker::Marker(HeapBase& heap, cppgc::Platform* platform, MarkingConfig config)
       conservative_marking_visitor_(heap, mutator_marking_state_,
                                     marking_visitor_) {
   concurrent_marker_ = std::make_unique<ConcurrentMarker>(
-      heap_, marking_worklists_, schedule_, platform_);
+      heap_, marking_worklists_, *schedule_, platform_);
 }
 
 }  // namespace internal

@@ -148,7 +148,11 @@ void IncrementalMarking::Start(GarbageCollector garbage_collector,
       incremental_marking_job()->ScheduleTask();
     }
     DCHECK_NULL(schedule_);
-    schedule_ = std::make_unique<::heap::base::IncrementalMarkingSchedule>();
+    schedule_ = v8_flags.incremental_marking_task_delay_ms == 0
+                    ? ::heap::base::IncrementalMarkingSchedule::
+                          CreateWithDefaultMinimumMarkedBytesPerStep()
+                    : ::heap::base::IncrementalMarkingSchedule::
+                          CreateWithZeroMinimumMarkedBytesPerStep();
     schedule_->NotifyIncrementalMarkingStart();
   } else {
     // Allocation observers are not currently used by MinorMS because we don't
@@ -489,6 +493,8 @@ void IncrementalMarking::UpdateMarkingWorklistAfterScavenge() {
 void IncrementalMarking::UpdateMarkedBytesAfterScavenge(
     size_t dead_bytes_in_new_space) {
   if (!IsMarking()) return;
+  // When removing the call, adjust the marking schedule to only support
+  // monotonically increasing mutator marked bytes.
   main_thread_marked_bytes_ -=
       std::min(main_thread_marked_bytes_, dead_bytes_in_new_space);
 }

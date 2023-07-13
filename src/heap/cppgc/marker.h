@@ -139,7 +139,13 @@ class V8_EXPORT_PRIVATE MarkerBase {
   virtual ConservativeTracingVisitor& conservative_visitor() = 0;
   virtual heap::base::StackVisitor& stack_visitor() = 0;
 
-  bool ProcessWorklistsWithDeadline(size_t, v8::base::TimeTicks);
+  // Processes the worklists with given deadlines. The deadlines are only
+  // checked every few objects.
+  // - `marked_bytes_deadline`: Only process this many bytes. Ignored for
+  //   processing concurrent bailout objects.
+  // - `time_deadline`: Time deadline that is always respected.
+  bool ProcessWorklistsWithDeadline(size_t marked_bytes_deadline,
+                                    v8::base::TimeTicks time_deadline);
 
   void VisitRoots(StackState);
 
@@ -168,8 +174,7 @@ class V8_EXPORT_PRIVATE MarkerBase {
   MutatorMarkingState mutator_marking_state_;
   bool is_marking_{false};
 
-  heap::base::IncrementalMarkingSchedule schedule_;
-
+  std::unique_ptr<heap::base::IncrementalMarkingSchedule> schedule_;
   std::unique_ptr<ConcurrentMarkerBase> concurrent_marker_{nullptr};
 
   bool main_marking_disabled_for_testing_{false};

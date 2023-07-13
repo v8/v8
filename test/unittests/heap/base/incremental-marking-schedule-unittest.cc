@@ -11,10 +11,13 @@ namespace heap::base {
 
 namespace {
 
+constexpr size_t kZeroBytesStep = 0;
+
 class IncrementalMarkingScheduleTest : public ::testing::Test {
  public:
   static constexpr size_t kEstimatedLiveSize =
-      100 * IncrementalMarkingSchedule::kMinimumMarkedBytesPerIncrementalStep;
+      100 *
+      IncrementalMarkingSchedule::kDefaultMinimumMarkedBytesPerIncrementalStep;
 };
 
 const v8::base::TimeDelta kHalfEstimatedMarkingTime =
@@ -25,76 +28,115 @@ const v8::base::TimeDelta kHalfEstimatedMarkingTime =
 }  // namespace
 
 TEST_F(IncrementalMarkingScheduleTest, FirstStepReturnsDefaultDuration) {
-  IncrementalMarkingSchedule schedule;
-  schedule.NotifyIncrementalMarkingStart();
-  schedule.SetElapsedTimeForTesting(v8::base::TimeDelta::FromMilliseconds(0));
-  EXPECT_EQ(IncrementalMarkingSchedule::kMinimumMarkedBytesPerIncrementalStep,
-            schedule.GetNextIncrementalStepDuration(kEstimatedLiveSize));
+  auto schedule =
+      IncrementalMarkingSchedule::CreateWithDefaultMinimumMarkedBytesPerStep();
+  schedule->NotifyIncrementalMarkingStart();
+  schedule->SetElapsedTimeForTesting(v8::base::TimeDelta::FromMilliseconds(0));
+  EXPECT_EQ(
+      IncrementalMarkingSchedule::kDefaultMinimumMarkedBytesPerIncrementalStep,
+      schedule->GetNextIncrementalStepDuration(kEstimatedLiveSize));
+}
+
+TEST_F(IncrementalMarkingScheduleTest, EmptyStepDuration) {
+  auto schedule =
+      IncrementalMarkingSchedule::CreateWithZeroMinimumMarkedBytesPerStep();
+  schedule->NotifyIncrementalMarkingStart();
+  schedule->SetElapsedTimeForTesting(v8::base::TimeDelta::FromMilliseconds(0));
+  // Make some progress on the marker to avoid returning step size for no
+  // progress.
+  schedule->UpdateMutatorThreadMarkedBytes(
+      IncrementalMarkingSchedule::kStepSizeWhenNotMakingProgress);
+  EXPECT_EQ(kZeroBytesStep,
+            schedule->GetNextIncrementalStepDuration(kEstimatedLiveSize));
 }
 
 // If marking is not behind schedule and very small time passed between steps
 // the oracle should return the minimum step duration.
 TEST_F(IncrementalMarkingScheduleTest, NoTimePassedReturnsMinimumDuration) {
-  IncrementalMarkingSchedule schedule;
-  schedule.NotifyIncrementalMarkingStart();
+  auto schedule =
+      IncrementalMarkingSchedule::CreateWithDefaultMinimumMarkedBytesPerStep();
+  schedule->NotifyIncrementalMarkingStart();
   // Add incrementally marked bytes to tell oracle this is not the first step.
-  schedule.UpdateMutatorThreadMarkedBytes(
-      IncrementalMarkingSchedule::kMinimumMarkedBytesPerIncrementalStep);
-  schedule.SetElapsedTimeForTesting(v8::base::TimeDelta::FromMilliseconds(0));
-  EXPECT_EQ(IncrementalMarkingSchedule::kMinimumMarkedBytesPerIncrementalStep,
-            schedule.GetNextIncrementalStepDuration(kEstimatedLiveSize));
+  schedule->UpdateMutatorThreadMarkedBytes(
+      IncrementalMarkingSchedule::kDefaultMinimumMarkedBytesPerIncrementalStep);
+  schedule->SetElapsedTimeForTesting(v8::base::TimeDelta::FromMilliseconds(0));
+  EXPECT_EQ(
+      IncrementalMarkingSchedule::kDefaultMinimumMarkedBytesPerIncrementalStep,
+      schedule->GetNextIncrementalStepDuration(kEstimatedLiveSize));
 }
 
 TEST_F(IncrementalMarkingScheduleTest, OracleDoesntExccedMaximumStepDuration) {
-  IncrementalMarkingSchedule schedule;
-  schedule.NotifyIncrementalMarkingStart();
+  auto schedule =
+      IncrementalMarkingSchedule::CreateWithDefaultMinimumMarkedBytesPerStep();
+  schedule->NotifyIncrementalMarkingStart();
   // Add incrementally marked bytes to tell oracle this is not the first step.
-  static constexpr size_t kMarkedBytes = 1;
-  schedule.UpdateMutatorThreadMarkedBytes(kMarkedBytes);
-  schedule.SetElapsedTimeForTesting(
+  // Add at least `kStepSizeWhenNotMakingProgress` bytes or otherwise we'd get
+  // the step size for not making progress.
+  static constexpr size_t kMarkedBytes =
+      IncrementalMarkingSchedule::kStepSizeWhenNotMakingProgress;
+  schedule->UpdateMutatorThreadMarkedBytes(kMarkedBytes);
+  schedule->SetElapsedTimeForTesting(
       IncrementalMarkingSchedule::kEstimatedMarkingTime);
   EXPECT_EQ(kEstimatedLiveSize - kMarkedBytes,
-            schedule.GetNextIncrementalStepDuration(kEstimatedLiveSize));
+            schedule->GetNextIncrementalStepDuration(kEstimatedLiveSize));
 }
 
 TEST_F(IncrementalMarkingScheduleTest, AheadOfScheduleReturnsMinimumDuration) {
-  IncrementalMarkingSchedule schedule;
-  schedule.NotifyIncrementalMarkingStart();
+  auto schedule =
+      IncrementalMarkingSchedule::CreateWithDefaultMinimumMarkedBytesPerStep();
+  schedule->NotifyIncrementalMarkingStart();
   // Add incrementally marked bytes to tell oracle this is not the first step.
-  schedule.UpdateMutatorThreadMarkedBytes(
-      IncrementalMarkingSchedule::kMinimumMarkedBytesPerIncrementalStep);
-  schedule.AddConcurrentlyMarkedBytes(0.6 * kEstimatedLiveSize);
-  schedule.SetElapsedTimeForTesting(kHalfEstimatedMarkingTime);
-  EXPECT_EQ(IncrementalMarkingSchedule::kMinimumMarkedBytesPerIncrementalStep,
-            schedule.GetNextIncrementalStepDuration(kEstimatedLiveSize));
+  schedule->UpdateMutatorThreadMarkedBytes(
+      IncrementalMarkingSchedule::kDefaultMinimumMarkedBytesPerIncrementalStep);
+  schedule->AddConcurrentlyMarkedBytes(0.6 * kEstimatedLiveSize);
+  schedule->SetElapsedTimeForTesting(kHalfEstimatedMarkingTime);
+  EXPECT_EQ(
+      IncrementalMarkingSchedule::kDefaultMinimumMarkedBytesPerIncrementalStep,
+      schedule->GetNextIncrementalStepDuration(kEstimatedLiveSize));
 }
 
-TEST_F(IncrementalMarkingScheduleTest, BehindScheduleReturnsCorrectDuration) {
-  IncrementalMarkingSchedule schedule;
-  schedule.NotifyIncrementalMarkingStart();
-  schedule.UpdateMutatorThreadMarkedBytes(0.1 * kEstimatedLiveSize);
-  schedule.AddConcurrentlyMarkedBytes(0.25 * kEstimatedLiveSize);
-  schedule.SetElapsedTimeForTesting(kHalfEstimatedMarkingTime);
+TEST_F(IncrementalMarkingScheduleTest,
+       AheadOfScheduleReturnsMinimumDurationZeroStep) {
+  auto schedule =
+      IncrementalMarkingSchedule::CreateWithZeroMinimumMarkedBytesPerStep();
+  schedule->NotifyIncrementalMarkingStart();
+  // Add incrementally marked bytes to tell oracle this is not the first step.
+  schedule->UpdateMutatorThreadMarkedBytes(
+      IncrementalMarkingSchedule::kDefaultMinimumMarkedBytesPerIncrementalStep);
+  schedule->AddConcurrentlyMarkedBytes(0.6 * kEstimatedLiveSize);
+  schedule->SetElapsedTimeForTesting(kHalfEstimatedMarkingTime);
+  EXPECT_EQ(kZeroBytesStep,
+            schedule->GetNextIncrementalStepDuration(kEstimatedLiveSize));
+}
+
+TEST_F(IncrementalMarkingScheduleTest, BehindScheduleReturnsDelta) {
+  auto schedule =
+      IncrementalMarkingSchedule::CreateWithDefaultMinimumMarkedBytesPerStep();
+  schedule->NotifyIncrementalMarkingStart();
+  schedule->UpdateMutatorThreadMarkedBytes(0.1 * kEstimatedLiveSize);
+  schedule->AddConcurrentlyMarkedBytes(0.25 * kEstimatedLiveSize);
+  schedule->SetElapsedTimeForTesting(kHalfEstimatedMarkingTime);
   EXPECT_EQ(0.15 * kEstimatedLiveSize,
-            schedule.GetNextIncrementalStepDuration(kEstimatedLiveSize));
-  schedule.AddConcurrentlyMarkedBytes(0.05 * kEstimatedLiveSize);
-  schedule.SetElapsedTimeForTesting(kHalfEstimatedMarkingTime);
+            schedule->GetNextIncrementalStepDuration(kEstimatedLiveSize));
+  schedule->AddConcurrentlyMarkedBytes(0.05 * kEstimatedLiveSize);
+  schedule->SetElapsedTimeForTesting(kHalfEstimatedMarkingTime);
   EXPECT_EQ(0.1 * kEstimatedLiveSize,
-            schedule.GetNextIncrementalStepDuration(kEstimatedLiveSize));
-  schedule.AddConcurrentlyMarkedBytes(0.05 * kEstimatedLiveSize);
-  schedule.SetElapsedTimeForTesting(kHalfEstimatedMarkingTime);
+            schedule->GetNextIncrementalStepDuration(kEstimatedLiveSize));
+  schedule->AddConcurrentlyMarkedBytes(0.05 * kEstimatedLiveSize);
+  schedule->SetElapsedTimeForTesting(kHalfEstimatedMarkingTime);
   EXPECT_EQ(0.05 * kEstimatedLiveSize,
-            schedule.GetNextIncrementalStepDuration(kEstimatedLiveSize));
+            schedule->GetNextIncrementalStepDuration(kEstimatedLiveSize));
 }
 
 TEST_F(IncrementalMarkingScheduleTest, GetCurrentStepInfo) {
-  IncrementalMarkingSchedule schedule;
-  schedule.NotifyIncrementalMarkingStart();
-  schedule.UpdateMutatorThreadMarkedBytes(0.3 * kEstimatedLiveSize);
-  schedule.AddConcurrentlyMarkedBytes(0.4 * kEstimatedLiveSize);
-  schedule.SetElapsedTimeForTesting(kHalfEstimatedMarkingTime);
-  schedule.GetNextIncrementalStepDuration(kEstimatedLiveSize);
-  const auto step_info = schedule.GetCurrentStepInfo();
+  auto schedule =
+      IncrementalMarkingSchedule::CreateWithDefaultMinimumMarkedBytesPerStep();
+  schedule->NotifyIncrementalMarkingStart();
+  schedule->UpdateMutatorThreadMarkedBytes(0.3 * kEstimatedLiveSize);
+  schedule->AddConcurrentlyMarkedBytes(0.4 * kEstimatedLiveSize);
+  schedule->SetElapsedTimeForTesting(kHalfEstimatedMarkingTime);
+  schedule->GetNextIncrementalStepDuration(kEstimatedLiveSize);
+  const auto step_info = schedule->GetCurrentStepInfo();
   EXPECT_EQ(step_info.elapsed_time, kHalfEstimatedMarkingTime);
   EXPECT_EQ(step_info.mutator_marked_bytes, 0.3 * kEstimatedLiveSize);
   EXPECT_EQ(step_info.concurrent_marked_bytes, 0.4 * kEstimatedLiveSize);
