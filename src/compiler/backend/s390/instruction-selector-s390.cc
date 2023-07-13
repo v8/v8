@@ -960,56 +960,60 @@ static inline bool IsContiguousMask64(uint64_t value, int* mb, int* me) {
 
 #if V8_TARGET_ARCH_S390X
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord64And(Node* node) {
-  S390OperandGeneratorT<Adapter> g(this);
-  Int64BinopMatcher m(node);
-  int mb = 0;
-  int me = 0;
-  if (m.right().HasResolvedValue() &&
-      IsContiguousMask64(m.right().ResolvedValue(), &mb, &me)) {
-    int sh = 0;
-    Node* left = m.left().node();
-    if ((m.left().IsWord64Shr() || m.left().IsWord64Shl()) &&
-        CanCover(node, left)) {
-      Int64BinopMatcher mleft(m.left().node());
-      if (mleft.right().IsInRange(0, 63)) {
-        left = mleft.left().node();
-        sh = mleft.right().ResolvedValue();
-        if (m.left().IsWord64Shr()) {
-          // Adjust the mask such that it doesn't include any rotated bits.
-          if (mb > 63 - sh) mb = 63 - sh;
-          sh = (64 - sh) & 0x3F;
-        } else {
-          // Adjust the mask such that it doesn't include any rotated bits.
-          if (me < sh) me = sh;
+void InstructionSelectorT<Adapter>::VisitWord64And(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    S390OperandGeneratorT<Adapter> g(this);
+    Int64BinopMatcher m(node);
+    int mb = 0;
+    int me = 0;
+    if (m.right().HasResolvedValue() &&
+        IsContiguousMask64(m.right().ResolvedValue(), &mb, &me)) {
+      int sh = 0;
+      Node* left = m.left().node();
+      if ((m.left().IsWord64Shr() || m.left().IsWord64Shl()) &&
+          CanCover(node, left)) {
+        Int64BinopMatcher mleft(m.left().node());
+        if (mleft.right().IsInRange(0, 63)) {
+          left = mleft.left().node();
+          sh = mleft.right().ResolvedValue();
+          if (m.left().IsWord64Shr()) {
+            // Adjust the mask such that it doesn't include any rotated bits.
+            if (mb > 63 - sh) mb = 63 - sh;
+            sh = (64 - sh) & 0x3F;
+          } else {
+            // Adjust the mask such that it doesn't include any rotated bits.
+            if (me < sh) me = sh;
+          }
+        }
+      }
+      if (mb >= me) {
+        bool match = false;
+        ArchOpcode opcode;
+        int mask;
+        if (me == 0) {
+          match = true;
+          opcode = kS390_RotLeftAndClearLeft64;
+          mask = mb;
+        } else if (mb == 63) {
+          match = true;
+          opcode = kS390_RotLeftAndClearRight64;
+          mask = me;
+        } else if (sh && me <= sh && m.left().IsWord64Shl()) {
+          match = true;
+          opcode = kS390_RotLeftAndClear64;
+          mask = mb;
+        }
+        if (match && CpuFeatures::IsSupported(GENERAL_INSTR_EXT)) {
+          Emit(opcode, g.DefineAsRegister(node), g.UseRegister(left),
+               g.TempImmediate(sh), g.TempImmediate(mask));
+          return;
         }
       }
     }
-    if (mb >= me) {
-      bool match = false;
-      ArchOpcode opcode;
-      int mask;
-      if (me == 0) {
-        match = true;
-        opcode = kS390_RotLeftAndClearLeft64;
-        mask = mb;
-      } else if (mb == 63) {
-        match = true;
-        opcode = kS390_RotLeftAndClearRight64;
-        mask = me;
-      } else if (sh && me <= sh && m.left().IsWord64Shl()) {
-        match = true;
-        opcode = kS390_RotLeftAndClear64;
-        mask = mb;
-      }
-      if (match && CpuFeatures::IsSupported(GENERAL_INSTR_EXT)) {
-        Emit(opcode, g.DefineAsRegister(node), g.UseRegister(left),
-             g.TempImmediate(sh), g.TempImmediate(mask));
-        return;
-      }
-    }
+    VisitWord64BinOp(this, node, kS390_And64, And64OperandMode);
   }
-  VisitWord64BinOp(this, node, kS390_And64, And64OperandMode);
 }
 
 template <typename Adapter>
@@ -1479,30 +1483,8 @@ static inline bool TryMatchDoubleConstructFromInsert(
 #endif
 
 #define WORD32_BIN_OP_LIST(V)                                                \
-  V(Word32, Int32Add, kS390_Add32, AddOperandMode, null)                     \
-  V(Word32, Int32Sub, kS390_Sub32, SubOperandMode, ([&]() {                  \
-      return TryMatchNegFromSub<Adapter, Int32BinopMatcher, kS390_Neg32>(    \
-          this, node);                                                       \
-    }))                                                                      \
-  V(Word32, Int32Mul, kS390_Mul32, MulOperandMode, ([&]() {                  \
-      return TryMatchShiftFromMul<Adapter, Int32BinopMatcher,                \
-                                  kS390_ShiftLeft32>(this, node);            \
-    }))                                                                      \
   V(Word32, Int32SubWithOverflow, kS390_Sub32, SubOperandMode,               \
     ([&]() { return TryMatchInt32SubWithOverflow(this, node); }))            \
-  V(Word32, Int32MulHigh, kS390_MulHigh32,                                   \
-    OperandMode::kInt32Imm | OperandMode::kAllowDistinctOps, null)           \
-  V(Word32, Uint32MulHigh, kS390_MulHighU32,                                 \
-    OperandMode::kAllowRRM | OperandMode::kAllowRRR, null)                   \
-  V(Word32, Int32Div, kS390_Div32,                                           \
-    OperandMode::kAllowRRM | OperandMode::kAllowRRR, null)                   \
-  V(Word32, Uint32Div, kS390_DivU32,                                         \
-    OperandMode::kAllowRRM | OperandMode::kAllowRRR, null)                   \
-  V(Word32, Int32Mod, kS390_Mod32,                                           \
-    OperandMode::kAllowRRM | OperandMode::kAllowRRR, null)                   \
-  V(Word32, Uint32Mod, kS390_ModU32,                                         \
-    OperandMode::kAllowRRM | OperandMode::kAllowRRR, null)                   \
-  V(Word32, Word32Xor, kS390_Xor32, Xor32OperandMode, null)                  \
   V(Word32, Float64InsertLowWord32, kS390_DoubleInsertLowWord32,             \
     OperandMode::kAllowRRR,                                                  \
     [&]() -> bool { return TryMatchDoubleConstructFromInsert(this, node); }) \
@@ -1515,31 +1497,11 @@ static inline bool TryMatchDoubleConstructFromInsert(
   V(Word64, Word64Clz, kS390_Cntlz64, OperandMode::kNone, null)     \
   V(Word64, TruncateInt64ToInt32, kS390_Int64ToInt32, OperandMode::kNone, null)
 
-#define WORD64_BIN_OP_LIST(V)                                              \
-  V(Word64, Int64MulHigh, kS390_MulHighS64, OperandMode::kAllowRRR, null)  \
-  V(Word64, Uint64MulHigh, kS390_MulHighU64, OperandMode::kAllowRRR, null) \
-  V(Word64, Int64Sub, kS390_Sub64, SubOperandMode, ([&]() {                \
-      return TryMatchNegFromSub<Adapter, Int64BinopMatcher, kS390_Neg64>(  \
-          this, node);                                                     \
-    }))                                                                    \
-  V(Word64, Int64AddWithOverflow, kS390_Add64, AddOperandMode,             \
-    ([&]() { return TryMatchInt64AddWithOverflow(this, node); }))          \
-  V(Word64, Int64SubWithOverflow, kS390_Sub64, SubOperandMode,             \
-    ([&]() { return TryMatchInt64SubWithOverflow(this, node); }))          \
-  V(Word64, Int64Mul, kS390_Mul64, MulOperandMode, ([&]() {                \
-      return TryMatchShiftFromMul<Adapter, Int64BinopMatcher,              \
-                                  kS390_ShiftLeft64>(this, node);          \
-    }))                                                                    \
-  V(Word64, Int64Div, kS390_Div64,                                         \
-    OperandMode::kAllowRRM | OperandMode::kAllowRRR, null)                 \
-  V(Word64, Uint64Div, kS390_DivU64,                                       \
-    OperandMode::kAllowRRM | OperandMode::kAllowRRR, null)                 \
-  V(Word64, Int64Mod, kS390_Mod64,                                         \
-    OperandMode::kAllowRRM | OperandMode::kAllowRRR, null)                 \
-  V(Word64, Uint64Mod, kS390_ModU64,                                       \
-    OperandMode::kAllowRRM | OperandMode::kAllowRRR, null)                 \
-  V(Word64, Word64Or, kS390_Or64, Or64OperandMode, null)                   \
-  V(Word64, Word64Xor, kS390_Xor64, Xor64OperandMode, null)
+#define WORD64_BIN_OP_LIST(V)                                     \
+  V(Word64, Int64AddWithOverflow, kS390_Add64, AddOperandMode,    \
+    ([&]() { return TryMatchInt64AddWithOverflow(this, node); })) \
+  V(Word64, Int64SubWithOverflow, kS390_Sub64, SubOperandMode,    \
+    ([&]() { return TryMatchInt64SubWithOverflow(this, node); }))
 
 #define DECLARE_UNARY_OP(type, name, op, mode, try_extra)       \
   template <typename Adapter>                                   \
@@ -1638,6 +1600,28 @@ WORD64_BIN_OP_LIST(DECLARE_BIN_OP)
     })
 
 #define WORD32_BIN_OP_LIST(V)                                                 \
+  V(Word32, Uint32MulHigh, kS390_MulHighU32,                                  \
+    OperandMode::kAllowRRM | OperandMode::kAllowRRR, null)                    \
+  V(Word32, Uint32Mod, kS390_ModU32,                                          \
+    OperandMode::kAllowRRM | OperandMode::kAllowRRR, null)                    \
+  V(Word32, Uint32Div, kS390_DivU32,                                          \
+    OperandMode::kAllowRRM | OperandMode::kAllowRRR, null)                    \
+  V(Word32, Int32Mod, kS390_Mod32,                                            \
+    OperandMode::kAllowRRM | OperandMode::kAllowRRR, null)                    \
+  V(Word32, Int32Div, kS390_Div32,                                            \
+    OperandMode::kAllowRRM | OperandMode::kAllowRRR, null)                    \
+  V(Word32, Int32Mul, kS390_Mul32, MulOperandMode, ([&]() {                   \
+      return TryMatchShiftFromMul<Adapter, Int32BinopMatcher,                 \
+                                  kS390_ShiftLeft32>(this, node);             \
+    }))                                                                       \
+  V(Word32, Int32MulHigh, kS390_MulHigh32,                                    \
+    OperandMode::kInt32Imm | OperandMode::kAllowDistinctOps, null)            \
+  V(Word32, Int32Sub, kS390_Sub32, SubOperandMode, ([&]() {                   \
+      return TryMatchNegFromSub<Adapter, Int32BinopMatcher, kS390_Neg32>(     \
+          this, node);                                                        \
+    }))                                                                       \
+  V(Word32, Int32Add, kS390_Add32, AddOperandMode, null)                      \
+  V(Word32, Word32Xor, kS390_Xor32, Xor32OperandMode, null)                   \
   V(Word32, Word32Ror, kS390_RotRight32,                                      \
     OperandMode::kAllowRI | OperandMode::kAllowRRR | OperandMode::kAllowRRI | \
         OperandMode::kShift32Imm,                                             \
@@ -1666,9 +1650,29 @@ WORD64_BIN_OP_LIST(DECLARE_BIN_OP)
     null)                                                                    \
   V(Word64, RoundInt64ToFloat64, kS390_Int64ToDouble, OperandMode::kNone, null)
 
-#define WORD64_BIN_OP_LIST(V)                                      \
-  V(Word64, Word64Ror, kS390_RotRight64, Shift64OperandMode, null) \
-  V(Word64, Int64Add, kS390_Add64, AddOperandMode, null)           \
+#define WORD64_BIN_OP_LIST(V)                                              \
+  V(Word64, Uint64MulHigh, kS390_MulHighU64, OperandMode::kAllowRRR, null) \
+  V(Word64, Uint64Mod, kS390_ModU64,                                       \
+    OperandMode::kAllowRRM | OperandMode::kAllowRRR, null)                 \
+  V(Word64, Uint64Div, kS390_DivU64,                                       \
+    OperandMode::kAllowRRM | OperandMode::kAllowRRR, null)                 \
+  V(Word64, Int64Mod, kS390_Mod64,                                         \
+    OperandMode::kAllowRRM | OperandMode::kAllowRRR, null)                 \
+  V(Word64, Int64Div, kS390_Div64,                                         \
+    OperandMode::kAllowRRM | OperandMode::kAllowRRR, null)                 \
+  V(Word64, Int64MulHigh, kS390_MulHighS64, OperandMode::kAllowRRR, null)  \
+  V(Word64, Int64Mul, kS390_Mul64, MulOperandMode, ([&]() {                \
+      return TryMatchShiftFromMul<Adapter, Int64BinopMatcher,              \
+                                  kS390_ShiftLeft64>(this, node);          \
+    }))                                                                    \
+  V(Word64, Int64Sub, kS390_Sub64, SubOperandMode, ([&]() {                \
+      return TryMatchNegFromSub<Adapter, Int64BinopMatcher, kS390_Neg64>(  \
+          this, node);                                                     \
+    }))                                                                    \
+  V(Word64, Word64Xor, kS390_Xor64, Xor64OperandMode, null)                \
+  V(Word64, Word64Or, kS390_Or64, Or64OperandMode, null)                   \
+  V(Word64, Word64Ror, kS390_RotRight64, Shift64OperandMode, null)         \
+  V(Word64, Int64Add, kS390_Add64, AddOperandMode, null)                   \
   V(Word64, Word64Sar, kS390_ShiftRightArith64, Shift64OperandMode, null)
 
 #define DECLARE_UNARY_OP(type, name, op, mode, try_extra)        \
