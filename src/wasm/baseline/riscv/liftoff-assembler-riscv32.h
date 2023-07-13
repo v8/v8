@@ -850,15 +850,28 @@ void LiftoffAssembler::AtomicCompareExchange(
   if (type.value() == StoreType::kI64Store) {
     Register actual_addr = liftoff::CalculateActualAddress(
         this, dst_addr, offset_reg, offset_imm, kScratchReg);
-    Mv(a0, actual_addr);
     FrameScope scope(this, StackFrame::MANUAL);
-    PushCallerSaved(SaveFPRegsMode::kIgnore, a0, a1);
+    // NOTE:
+    // a0~a4 are caller-saved registers and also used
+    // to pass parameters for C functions.
+    RegList c_params = {arg_reg_1, arg_reg_2, arg_reg_3, arg_reg_4, a4};
+    RegList result_list = {result.low_gp(), result.high_gp()};
+    MultiPush(c_params - result_list);
+
+    Mv(a0, actual_addr);
+    Mv(a1, expected.low_gp());
+    Mv(a2, expected.high_gp());
+    Mv(a3, new_value.low_gp());
+    Mv(a4, new_value.high_gp());
+
+    MultiPush(kJSCallerSaved - c_params - result_list);
     PrepareCallCFunction(5, 0, kScratchReg);
     CallCFunction(ExternalReference::atomic_pair_compare_exchange_function(), 5,
                   0);
-    PopCallerSaved(SaveFPRegsMode::kIgnore, a0, a1);
-    Mv(result.low_gp(), a0);
-    Mv(result.high_gp(), a1);
+    MultiPop(kJSCallerSaved - c_params - result_list);
+    Mv(result.low_gp(), kReturnRegister0);
+    Mv(result.high_gp(), kReturnRegister1);
+    MultiPop(c_params - result_list);
     return;
   }
   // Make sure that {result} is unique.
