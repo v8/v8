@@ -441,3 +441,54 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(0, wasm.eqz(-1n));
   assertEquals(0, wasm.eqz(0x100_00000000n));
 })();
+
+(function I64Call() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let callee = builder.addFunction("callee",
+      makeSig([kWasmI64], [kWasmI64]))
+    .addBody([kExprLocalGet, 0])
+    .exportFunc();
+  builder.addFunction("call", makeSig([kWasmI64], [kWasmI64]))
+    .addBody([
+      kExprLocalGet, 0,
+      kExprCallFunction, callee.index,
+    ])
+    .exportFunc();
+
+  let wasm = builder.instantiate().exports;
+  assertEquals(123n, wasm.callee(123n));
+  assertEquals(123n, wasm.call(123n));
+})();
+
+(function I64CallMultiReturn() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let callee = builder.addFunction("callee",
+      makeSig([kWasmI32, kWasmI64, kWasmI64, kWasmI32],
+              [kWasmI32, kWasmI64, kWasmI64, kWasmI32]))
+    .addBody([
+      kExprLocalGet, 0,
+      kExprLocalGet, 1,
+      kExprLocalGet, 2,
+      kExprLocalGet, 3,
+    ])
+    .exportFunc();
+  builder.addFunction("call",
+      makeSig([kWasmI64, kWasmI64], [kWasmI32, kWasmI64, kWasmI64, kWasmI32]))
+    .addBody([
+      kExprI32Const, 11,
+      kExprLocalGet, 0,
+      kExprLocalGet, 1,
+      kExprI32Const, 22,
+      kExprCallFunction, callee.index,
+    ])
+    .exportFunc();
+
+  let wasm = builder.instantiate().exports;
+  assertEquals([11, 123n, -1n, 22], wasm.callee(11, 123n, -1n, 22));
+  assertEquals([11, 123n, -1n, 22], wasm.call(123n, -1n));
+
+  assertEquals([11, -123n, 123n, 22], wasm.callee(11, -123n, 123n, 22));
+  assertEquals([11, -123n, 123n, 22], wasm.call(-123n, 123n));
+})();

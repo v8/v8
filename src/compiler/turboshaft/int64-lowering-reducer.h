@@ -11,6 +11,7 @@
 
 #include "src/compiler/turboshaft/assembler.h"
 #include "src/compiler/turboshaft/operations.h"
+#include "src/compiler/wasm-compiler.h"
 #include "src/compiler/wasm-graph-assembler.h"
 
 namespace v8::internal::compiler::turboshaft {
@@ -122,6 +123,93 @@ class Int64LoweringReducer : public Next {
                             low_comparison));
   }
 
+  OpIndex REDUCE(Call)(OpIndex callee, OpIndex frame_state,
+                       base::Vector<const OpIndex> arguments,
+                       const TSCallDescriptor* descriptor, OpEffects effects) {
+    // Iterate over the call descriptor to skip lowering if the signature does
+    // not contain an i64.
+    const CallDescriptor* call_descriptor = descriptor->descriptor;
+    size_t param_count = call_descriptor->ParameterCount();
+    size_t i64_params = 0;
+    for (size_t i = 0; i < param_count; ++i) {
+      i64_params += call_descriptor->GetParameterType(i).representation() ==
+                    MachineRepresentation::kWord64;
+    }
+    size_t return_count = call_descriptor->ReturnCount();
+    size_t i64_returns = 0;
+    for (size_t i = 0; i < return_count; ++i) {
+      i64_returns += call_descriptor->GetReturnType(i).representation() ==
+                     MachineRepresentation::kWord64;
+    }
+    if (i64_params + i64_returns == 0) {
+      // No lowering required.
+      return Next::ReduceCall(callee, frame_state, arguments, descriptor,
+                              effects);
+    }
+
+    // Create descriptor with 2 i32s for every i64.
+    const CallDescriptor* lowered_descriptor =
+        GetI32WasmCallDescriptor(Asm().graph_zone(), call_descriptor);
+
+    // Map the arguments by unpacking i64 arguments (which have already been
+    // lowered to Tuple(i32, i32).)
+    base::SmallVector<OpIndex, 16> lowered_args;
+    lowered_args.reserve_no_init(param_count + i64_params);
+
+    DCHECK_EQ(param_count, arguments.size());
+    for (size_t i = 0; i < param_count; ++i) {
+      if (call_descriptor->GetParameterType(i).representation() ==
+          MachineRepresentation::kWord64) {
+        auto [low, high] = Unpack(arguments[i]);
+        lowered_args.push_back(low);
+        lowered_args.push_back(high);
+      } else {
+        lowered_args.push_back(arguments[i]);
+      }
+    }
+
+    OpIndex call = Next::ReduceCall(
+        callee, frame_state, base::VectorOf(lowered_args),
+        TSCallDescriptor::Create(lowered_descriptor, __ graph_zone()), effects);
+    // If it only returns one value, there isn't any projection for the
+    // different returns, so we don't need to update them. Similarly we don't
+    // need to update projections if there isn't any i64 in the result types.
+    if (return_count <= 1 || i64_returns == 0) {
+      return call;
+    }
+
+    // Create a map from the old projection index to the new projection index,
+    // so this information doesn't have to be recreated for each projection on
+    // the result.
+    int* result_map = __ phase_zone()->template NewArray<int>(return_count);
+    int lowered_index = 0;
+    for (size_t i = 0; i < return_count; ++i) {
+      result_map[i] = lowered_index;
+      bool is_i64 = call_descriptor->GetReturnType(i).representation() ==
+                    MachineRepresentation::kWord64;
+      lowered_index += is_i64 ? 2 : 1;
+    }
+    lowered_calls_[call] = result_map;
+    DCHECK_EQ(lowered_index, return_count + i64_returns);
+    return call;
+  }
+
+  OpIndex REDUCE(Projection)(OpIndex input, uint16_t idx,
+                             RegisterRepresentation rep) {
+    // Update projections of call results to the updated indices for any call
+    // returning at least 2 values and at least one i64.
+    auto calls_entry = lowered_calls_.find(input);
+    if (calls_entry != lowered_calls_.end()) {
+      idx = calls_entry->second[idx];
+      if (rep == RegisterRepresentation::Word64()) {
+        RegisterRepresentation word32 = RegisterRepresentation::Word32();
+        return __ Tuple(Next::ReduceProjection(input, idx, word32),
+                        Next::ReduceProjection(input, idx + 1, word32));
+      }
+    }
+    return Next::ReduceProjection(input, idx, rep);
+  }
+
   OpIndex REDUCE(Constant)(ConstantOp::Kind kind, ConstantOp::Storage value) {
     if (kind == ConstantOp::Kind::kWord64) {
       uint32_t high = value.integral >> 32;
@@ -133,13 +221,14 @@ class Int64LoweringReducer : public Next {
 
   OpIndex REDUCE(Parameter)(int32_t parameter_index, RegisterRepresentation rep,
                             const char* debug_name = "") {
+    DCHECK_LE(parameter_index, sig_->parameter_count());
+    int32_t new_index = param_index_map_[parameter_index];
     if (rep == RegisterRepresentation::Word64()) {
       rep = RegisterRepresentation::Word32();
-      int32_t low_index = param_index_map_[parameter_index];
-      return __ Tuple(__ Parameter(low_index, rep),
-                      __ Parameter(low_index + 1, rep));
+      return __ Tuple(Next::ReduceParameter(new_index, rep),
+                      Next::ReduceParameter(new_index + 1, rep));
     }
-    return Next::ReduceParameter(parameter_index, rep, debug_name);
+    return Next::ReduceParameter(new_index, rep, debug_name);
   }
 
   OpIndex REDUCE(Return)(OpIndex pop_count,
@@ -164,6 +253,14 @@ class Int64LoweringReducer : public Next {
   bool CheckPairOrPairOp(OpIndex input) {
     if (const TupleOp* tuple = Asm().template TryCast<TupleOp>(input)) {
       DCHECK_EQ(2, tuple->input_count);
+    } else if (const CallOp* call = Asm().template TryCast<CallOp>(input)) {
+      // If it's a call, it must be a call that returns exactly one i64.
+      // (Note that the CallDescriptor has already been lowered to [i32, i32].)
+      DCHECK_EQ(call->descriptor->descriptor->ReturnCount(), 2);
+      DCHECK_EQ(call->descriptor->descriptor->GetReturnType(0),
+                MachineType::Int32());
+      DCHECK_EQ(call->descriptor->descriptor->GetReturnType(1),
+                MachineType::Int32());
     } else {
       DCHECK(Asm().template Is<Word32PairBinopOp>(input));
     }
@@ -305,6 +402,10 @@ class Int64LoweringReducer : public Next {
   Zone* zone_ = PipelineData::Get().graph_zone();
   ZoneVector<int32_t> param_index_map_{__ phase_zone()};
   bool returns_i64_ = false;  // Returns at least one i64.
+
+  // Map for all call nodes which require lowering of the result projections.
+  // The value is an array mapping the original projection index to the new one.
+  ZoneUnorderedMap<OpIndex, int*> lowered_calls_{__ phase_zone()};
 };
 
 #include "src/compiler/turboshaft/undef-assembler-macros.inc"
