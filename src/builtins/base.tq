@@ -539,6 +539,7 @@ extern macro DefaultStringConstant(): String;
 extern macro EmptyStringConstant(): EmptyString;
 extern macro ErrorsStringConstant(): String;
 extern macro FalseConstant(): False;
+extern macro GetStringConstant(): String;
 extern macro HasStringConstant(): String;
 extern macro Int32FalseConstant(): bool;
 extern macro Int32TrueConstant(): bool;
@@ -704,7 +705,8 @@ extern transitioning macro ToThisValue(implicit context: Context)(
     JSAny, constexpr PrimitiveType, constexpr string): JSAny;
 extern transitioning macro GetProperty(implicit context: Context)(
     JSAny, JSAny): JSAny;
-extern macro GetInterestingProperty(Context, JSReceiver, Symbol): JSAny
+extern macro IsInterestingProperty(Name): bool;
+extern macro GetInterestingProperty(Context, JSReceiver, Name): JSAny
     labels NotFound;
 extern transitioning builtin SetProperty(implicit context: Context)(
     JSAny, JSAny, JSAny): JSAny;
@@ -1703,6 +1705,9 @@ transitioning macro GetLengthProperty(implicit context: Context)(o: JSAny):
 transitioning macro GetMethod(implicit context: Context)(
     o: JSAny, name: AnyName): Callable labels IfNullOrUndefined,
     IfMethodNotCallable(JSAny) {
+  // Use GetInterestingMethod - a version of GetMethod optimized for interesting
+  // properties.
+  dcheck(!IsInterestingProperty(name));
   const value = GetProperty(o, name);
   // TODO(v8:9933): Consider checking for null/undefined after checking for
   // callable because the latter seems to be more common.
@@ -1713,6 +1718,9 @@ transitioning macro GetMethod(implicit context: Context)(
 
 transitioning macro GetMethod(implicit context: Context)(
     o: JSAny, name: String): Callable labels IfNullOrUndefined {
+  // Use GetInterestingMethod - a version of GetMethod optimized for interesting
+  // properties.
+  dcheck(!IsInterestingProperty(name));
   try {
     return GetMethod(o, name) otherwise IfNullOrUndefined, IfMethodNotCallable;
   } label IfMethodNotCallable(value: JSAny) deferred {
@@ -1727,11 +1735,28 @@ transitioning macro GetMethod(implicit context: Context)(
 
 transitioning macro GetMethod(implicit context: Context)(
     o: JSAny, symbol: Symbol): Callable labels IfNullOrUndefined {
+  // Use GetInterestingMethod - a version of GetMethod optimized for interesting
+  // properties.
+  dcheck(!IsInterestingProperty(symbol));
   const value = GetProperty(o, symbol);
   if (value == Undefined || value == Null) goto IfNullOrUndefined;
   return Cast<Callable>(value)
       otherwise ThrowTypeError(
       MessageTemplate::kPropertyNotFunction, value, symbol, o);
+}
+
+transitioning macro GetInterestingMethod(implicit context: Context)(
+    o: JSReceiver, name: String): Callable labels IfNullOrUndefined {
+  dcheck(IsInterestingProperty(name));
+  try {
+    const value = GetInterestingProperty(context, o, name)
+        otherwise goto IfNullOrUndefined;
+    if (value == Undefined || value == Null) goto IfNullOrUndefined;
+    return Cast<Callable>(value)
+        otherwise goto IfMethodNotCallable(value);
+  } label IfMethodNotCallable(value: JSAny) deferred {
+    ThrowTypeError(MessageTemplate::kPropertyNotFunction, value, name, o);
+  }
 }
 
 extern macro IsOneByteStringInstanceType(InstanceType): bool;

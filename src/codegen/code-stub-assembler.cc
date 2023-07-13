@@ -10615,22 +10615,46 @@ CodeStubAssembler::AllocatePropertyDescriptorObject(TNode<Context> context) {
   return CAST(result);
 }
 
+TNode<BoolT> CodeStubAssembler::IsInterestingProperty(TNode<Name> name) {
+  TVARIABLE(BoolT, var_result);
+  Label return_false(this), return_true(this), return_generic(this);
+  // TODO(ishell): consider using ReadOnlyRoots::IsNameForProtector() trick for
+  // these strings and interesting symbols.
+  GotoIf(IsToJSONString(name), &return_true);
+  GotoIf(IsGetString(name), &return_true);
+  GotoIfNot(InstanceTypeEqual(LoadMapInstanceType(LoadMap(name)), SYMBOL_TYPE),
+            &return_false);
+  Branch(IsSetWord32<Symbol::IsInterestingSymbolBit>(
+             LoadObjectField<Uint32T>(name, Symbol::kFlagsOffset)),
+         &return_true, &return_false);
+
+  BIND(&return_false);
+  var_result = BoolConstant(false);
+  Goto(&return_generic);
+
+  BIND(&return_true);
+  var_result = BoolConstant(true);
+  Goto(&return_generic);
+
+  BIND(&return_generic);
+  return var_result.value();
+}
+
 TNode<Object> CodeStubAssembler::GetInterestingProperty(
-    TNode<Context> context, TNode<JSReceiver> receiver, TNode<Symbol> symbol,
+    TNode<Context> context, TNode<JSReceiver> receiver, TNode<Name> name,
     Label* if_not_found) {
   TVARIABLE(HeapObject, var_holder, receiver);
   TVARIABLE(Map, var_holder_map, LoadMap(receiver));
 
   return GetInterestingProperty(context, receiver, &var_holder, &var_holder_map,
-                                symbol, if_not_found);
+                                name, if_not_found);
 }
 
 TNode<Object> CodeStubAssembler::GetInterestingProperty(
     TNode<Context> context, TNode<Object> receiver,
     TVariable<HeapObject>* var_holder, TVariable<Map>* var_holder_map,
-    TNode<Symbol> symbol, Label* if_not_found) {
-  CSA_DCHECK(this, IsSetWord32<Symbol::IsInterestingSymbolBit>(
-                       LoadObjectField<Uint32T>(symbol, Symbol::kFlagsOffset)));
+    TNode<Name> name, Label* if_not_found) {
+  CSA_DCHECK(this, IsInterestingProperty(name));
   // The lookup starts at the var_holder and var_holder_map must contain
   // var_holder's map.
   CSA_DCHECK(this, TaggedEqual(LoadMap((*var_holder).value()),
@@ -10684,7 +10708,7 @@ TNode<Object> CodeStubAssembler::GetInterestingProperty(
 
   BIND(&lookup);
   return CallBuiltin(Builtin::kGetPropertyWithReceiver, context,
-                     (*var_holder).value(), symbol, receiver,
+                     (*var_holder).value(), name, receiver,
                      SmiConstant(OnNonExistent::kReturnUndefined));
 }
 

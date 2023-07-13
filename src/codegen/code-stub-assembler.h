@@ -113,6 +113,7 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
   V(FixedCOWArrayMap, fixed_cow_array_map, FixedCOWArrayMap)                   \
   V(Function_string, function_string, FunctionString)                          \
   V(function_to_string, function_to_string, FunctionToString)                  \
+  V(get_string, get_string, GetString)                                         \
   V(has_instance_symbol, has_instance_symbol, HasInstanceSymbol)               \
   V(has_string, has_string, HasString)                                         \
   V(Infinity_string, Infinity_string, InfinityString)                          \
@@ -172,6 +173,7 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
   V(StringMap, string_map, StringMap)                                          \
   V(TheHoleValue, the_hole_value, TheHole)                                     \
   V(then_string, then_string, ThenString)                                      \
+  V(toJSON_string, toJSON_string, ToJSONString)                                \
   V(toString_string, toString_string, ToStringString)                          \
   V(to_primitive_symbol, to_primitive_symbol, ToPrimitiveSymbol)               \
   V(to_string_tag_symbol, to_string_tag_symbol, ToStringTagSymbol)             \
@@ -3371,16 +3373,15 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     return CallBuiltin(Builtin::kGetProperty, context, receiver, name);
   }
 
+  TNode<BoolT> IsInterestingProperty(TNode<Name> name);
   TNode<Object> GetInterestingProperty(TNode<Context> context,
                                        TNode<JSReceiver> receiver,
-                                       TNode<Symbol> symbol,
-                                       Label* if_not_found);
+                                       TNode<Name> name, Label* if_not_found);
   TNode<Object> GetInterestingProperty(TNode<Context> context,
                                        TNode<Object> receiver,
                                        TVariable<HeapObject>* var_holder,
                                        TVariable<Map>* var_holder_map,
-                                       TNode<Symbol> symbol,
-                                       Label* if_not_found);
+                                       TNode<Name> name, Label* if_not_found);
 
   TNode<Object> SetPropertyStrict(TNode<Context> context,
                                   TNode<Object> receiver, TNode<Object> key,

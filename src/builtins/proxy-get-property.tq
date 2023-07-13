@@ -40,7 +40,7 @@ ProxyGetProperty(implicit context: Context)(
   // 6. Let trap be ? GetMethod(handler, "get").
   // 7. If trap is undefined, then (see 7.a below).
   // 7.a. Return ? target.[[Get]](P, Receiver).
-  const trap: Callable = GetMethod(handler, 'get')
+  const trap: Callable = GetInterestingMethod(handler, GetStringConstant())
       otherwise return GetPropertyWithReceiver(
       target, name, receiverValue, onNonExistent);
 

@@ -244,8 +244,11 @@ bool Name::TryGetHash(uint32_t* hash) const {
 }
 
 bool Name::IsInteresting(Isolate* isolate) {
+  // TODO(ishell): consider using ReadOnlyRoots::IsNameForProtector() trick for
+  // these strings and interesting symbols.
   return (IsSymbol() && Symbol::cast(*this).is_interesting_symbol()) ||
-         *this == *isolate->factory()->toJSON_string();
+         *this == *isolate->factory()->toJSON_string() ||
+         *this == *isolate->factory()->get_string();
 }
 
 DEF_GETTER(Name, IsPrivate, bool) {
