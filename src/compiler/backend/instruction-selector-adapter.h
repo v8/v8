@@ -431,6 +431,10 @@ struct TurbofanAdapter {
     DCHECK_EQ(node->opcode(), IrOpcode::kProjection);
     return ProjectionIndexOf(node->op());
   }
+  int osr_value_index_of(node_t node) const {
+    DCHECK_EQ(node->opcode(), IrOpcode::kOsrValue);
+    return OsrValueIndexOf(node->op());
+  }
   bool is_integer_constant(node_t node) const {
     return node->opcode() == IrOpcode::kInt32Constant ||
            node->opcode() == IrOpcode::kInt64Constant;
@@ -849,6 +853,11 @@ struct TurboshaftAdapter
     const turboshaft::ProjectionOp& projection =
         graph_->Get(node).Cast<turboshaft::ProjectionOp>();
     return projection.index;
+  }
+  int osr_value_index_of(node_t node) const {
+    const turboshaft::OsrValueOp& osr_value =
+        graph_->Get(node).Cast<turboshaft::OsrValueOp>();
+    return osr_value.index;
   }
   bool is_integer_constant(node_t node) const {
     if (const auto constant =

@@ -707,6 +707,16 @@ class InstructionSelectorT final : public Adapter {
 
 #define DECLARE_GENERATOR_T(x) void Visit##x(node_t node);
   DECLARE_GENERATOR_T(Word32And)
+  DECLARE_GENERATOR_T(Word32Xor)
+  DECLARE_GENERATOR_T(Int32Add)
+  DECLARE_GENERATOR_T(Int32Sub)
+  DECLARE_GENERATOR_T(Int32Mul)
+  DECLARE_GENERATOR_T(Int32MulHigh)
+  DECLARE_GENERATOR_T(Int32Div)
+  DECLARE_GENERATOR_T(Int32Mod)
+  DECLARE_GENERATOR_T(Uint32Div)
+  DECLARE_GENERATOR_T(Uint32Mod)
+  DECLARE_GENERATOR_T(Uint32MulHigh)
   DECLARE_GENERATOR_T(Word32Or)
   DECLARE_GENERATOR_T(Word32Sar)
   DECLARE_GENERATOR_T(Word32Shl)
@@ -721,6 +731,17 @@ class InstructionSelectorT final : public Adapter {
   DECLARE_GENERATOR_T(Int32AddWithOverflow)
   DECLARE_GENERATOR_T(Int32MulWithOverflow)
   DECLARE_GENERATOR_T(Int64Add)
+  DECLARE_GENERATOR_T(Word64And)
+  DECLARE_GENERATOR_T(Word64Or)
+  DECLARE_GENERATOR_T(Word64Xor)
+  DECLARE_GENERATOR_T(Int64Sub)
+  DECLARE_GENERATOR_T(Int64Mul)
+  DECLARE_GENERATOR_T(Int64MulHigh)
+  DECLARE_GENERATOR_T(Int64Div)
+  DECLARE_GENERATOR_T(Int64Mod)
+  DECLARE_GENERATOR_T(Uint64Div)
+  DECLARE_GENERATOR_T(Uint64Mod)
+  DECLARE_GENERATOR_T(Uint64MulHigh)
   DECLARE_GENERATOR_T(Word32AtomicStore)
   DECLARE_GENERATOR_T(Word64AtomicStore)
   DECLARE_GENERATOR_T(Word32Equal)
@@ -795,35 +816,14 @@ class InstructionSelectorT final : public Adapter {
   // MACHINE_OP_LIST
   MACHINE_UNOP_32_LIST(DECLARE_GENERATOR)
   // MACHINE_BINOP_32_LIST
-  DECLARE_GENERATOR(Word32Xor)
-  DECLARE_GENERATOR(Int32Add)
-  DECLARE_GENERATOR(Int32Sub)
   DECLARE_GENERATOR(Int32SubWithOverflow)
-  DECLARE_GENERATOR(Int32Mul)
-  DECLARE_GENERATOR(Int32MulHigh)
-  DECLARE_GENERATOR(Int32Div)
-  DECLARE_GENERATOR(Int32Mod)
-  DECLARE_GENERATOR(Uint32Div)
-  DECLARE_GENERATOR(Uint32Mod)
-  DECLARE_GENERATOR(Uint32MulHigh)
   // END MACHINE_BINOP_32_LIST
   // MACHINE_BINOP_64_LIST
-  DECLARE_GENERATOR(Word64And)
-  DECLARE_GENERATOR(Word64Or)
-  DECLARE_GENERATOR(Word64Xor)
   DECLARE_GENERATOR(Word64RolLowerable)
   DECLARE_GENERATOR(Word64RorLowerable)
   DECLARE_GENERATOR(Int64AddWithOverflow)
-  DECLARE_GENERATOR(Int64Sub)
   DECLARE_GENERATOR(Int64SubWithOverflow)
-  DECLARE_GENERATOR(Int64Mul)
-  DECLARE_GENERATOR(Int64MulHigh)
   DECLARE_GENERATOR(Int64MulWithOverflow)
-  DECLARE_GENERATOR(Int64Div)
-  DECLARE_GENERATOR(Int64Mod)
-  DECLARE_GENERATOR(Uint64Div)
-  DECLARE_GENERATOR(Uint64Mod)
-  DECLARE_GENERATOR(Uint64MulHigh)
   // END MACHINE_BINOP_64_LIST
   // MACHINE_COMPARE_BINOP_LIST
   // END MACHINE_COMPARE_BINOP_LIST
@@ -927,7 +927,7 @@ class InstructionSelectorT final : public Adapter {
   void VisitFinishRegion(Node* node);
   void VisitParameter(node_t node);
   void VisitIfException(Node* node);
-  void VisitOsrValue(Node* node);
+  void VisitOsrValue(node_t node);
   void VisitPhi(node_t node);
   void VisitProjection(node_t node);
   void VisitConstant(node_t node);
@@ -947,7 +947,7 @@ class InstructionSelectorT final : public Adapter {
   void VisitReturn(node_t node);
   void VisitThrow(Node* node);
   void VisitRetain(Node* node);
-  void VisitUnreachable(Node* node);
+  void VisitUnreachable(node_t node);
   void VisitStaticAssert(Node* node);
   void VisitDeadValue(Node* node);
 

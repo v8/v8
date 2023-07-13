@@ -1339,9 +1339,14 @@ void InstructionSelectorT<TurbofanAdapter>::VisitWord32And(Node* node) {
       CanCover(node, m.right().node()), kLogical32Imm);
 }
 
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord64And(Node* node) {
-  Arm64OperandGeneratorT<Adapter> g(this);
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitWord64And(node_t node) {
+  UNIMPLEMENTED();
+}
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitWord64And(Node* node) {
+  Arm64OperandGeneratorT<TurbofanAdapter> g(this);
   Int64BinopMatcher m(node);
   if (m.left().IsWord64Shr() && CanCover(node, m.left().node()) &&
       m.right().HasResolvedValue()) {
@@ -1376,7 +1381,7 @@ void InstructionSelectorT<Adapter>::VisitWord64And(Node* node) {
       // Other cases fall through to the normal And operation.
     }
   }
-  VisitLogical<Adapter, Int64BinopMatcher>(
+  VisitLogical<TurbofanAdapter, Int64BinopMatcher>(
       this, node, &m, kArm64And, CanCover(node, m.left().node()),
       CanCover(node, m.right().node()), kLogical64Imm);
 }
@@ -1394,27 +1399,39 @@ void InstructionSelectorT<Adapter>::VisitWord32Or(node_t node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord64Or(Node* node) {
-  Int64BinopMatcher m(node);
-  VisitLogical<Adapter, Int64BinopMatcher>(
-      this, node, &m, kArm64Or, CanCover(node, m.left().node()),
-      CanCover(node, m.right().node()), kLogical64Imm);
+void InstructionSelectorT<Adapter>::VisitWord64Or(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    Int64BinopMatcher m(node);
+    VisitLogical<Adapter, Int64BinopMatcher>(
+        this, node, &m, kArm64Or, CanCover(node, m.left().node()),
+        CanCover(node, m.right().node()), kLogical64Imm);
+  }
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord32Xor(Node* node) {
-  Int32BinopMatcher m(node);
-  VisitLogical<Adapter, Int32BinopMatcher>(
-      this, node, &m, kArm64Eor32, CanCover(node, m.left().node()),
-      CanCover(node, m.right().node()), kLogical32Imm);
+void InstructionSelectorT<Adapter>::VisitWord32Xor(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    Int32BinopMatcher m(node);
+    VisitLogical<Adapter, Int32BinopMatcher>(
+        this, node, &m, kArm64Eor32, CanCover(node, m.left().node()),
+        CanCover(node, m.right().node()), kLogical32Imm);
+  }
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord64Xor(Node* node) {
-  Int64BinopMatcher m(node);
-  VisitLogical<Adapter, Int64BinopMatcher>(
-      this, node, &m, kArm64Eor, CanCover(node, m.left().node()),
-      CanCover(node, m.right().node()), kLogical64Imm);
+void InstructionSelectorT<Adapter>::VisitWord64Xor(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    Int64BinopMatcher m(node);
+    VisitLogical<Adapter, Int64BinopMatcher>(
+        this, node, &m, kArm64Eor, CanCover(node, m.left().node()),
+        CanCover(node, m.right().node()), kLogical64Imm);
+  }
 }
 
 template <>
@@ -1803,6 +1820,14 @@ void InstructionSelectorT<Adapter>::VisitWord64Ror(node_t node) {
   V(F64x2NearestInt, kArm64Float64RoundTiesEven)
 
 #define RRR_OP_T_LIST(V)          \
+  V(Int32Div, kArm64Idiv32)       \
+  V(Int64Div, kArm64Idiv)         \
+  V(Uint32Div, kArm64Udiv32)      \
+  V(Uint64Div, kArm64Udiv)        \
+  V(Int32Mod, kArm64Imod32)       \
+  V(Int64Mod, kArm64Imod)         \
+  V(Uint32Mod, kArm64Umod32)      \
+  V(Uint64Mod, kArm64Umod)        \
   V(Float32Add, kArm64Float32Add) \
   V(Float64Add, kArm64Float64Add) \
   V(Float32Sub, kArm64Float32Sub) \
@@ -1814,16 +1839,7 @@ void InstructionSelectorT<Adapter>::VisitWord64Ror(node_t node) {
   V(Float32Min, kArm64Float32Min) \
   V(Float64Min, kArm64Float64Min)
 
-#define RRR_OP_LIST(V)       \
-  V(Int32Div, kArm64Idiv32)  \
-  V(Int64Div, kArm64Idiv)    \
-  V(Uint32Div, kArm64Udiv32) \
-  V(Uint64Div, kArm64Udiv)   \
-  V(Int32Mod, kArm64Imod32)  \
-  V(Int64Mod, kArm64Imod)    \
-  V(Uint32Mod, kArm64Umod32) \
-  V(Uint64Mod, kArm64Umod)   \
-  V(I8x16Swizzle, kArm64I8x16Swizzle)
+#define RRR_OP_LIST(V) V(I8x16Swizzle, kArm64I8x16Swizzle)
 
 #define RR_VISITOR(Name, opcode)                                \
   template <typename Adapter>                                   \
@@ -1871,9 +1887,14 @@ void InstructionSelectorT<Adapter>::VisitWord64Ctz(Node* node) {
   UNREACHABLE();
 }
 
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitInt32Add(Node* node) {
-  Arm64OperandGeneratorT<Adapter> g(this);
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitInt32Add(node_t node) {
+  UNIMPLEMENTED();
+}
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitInt32Add(Node* node) {
+  Arm64OperandGeneratorT<TurbofanAdapter> g(this);
   Int32BinopMatcher m(node);
   // Select Madd(x, y, z) for Add(Mul(x, y), z).
   if (m.left().IsInt32Mul() && CanCover(node, m.left().node())) {
@@ -1899,7 +1920,8 @@ void InstructionSelectorT<Adapter>::VisitInt32Add(Node* node) {
       return;
     }
   }
-  VisitAddSub<Adapter, Int32BinopMatcher>(this, node, kArm64Add32, kArm64Sub32);
+  VisitAddSub<TurbofanAdapter, Int32BinopMatcher>(this, node, kArm64Add32,
+                                                  kArm64Sub32);
 }
 
 template <typename Adapter>
@@ -1938,45 +1960,54 @@ void InstructionSelectorT<Adapter>::VisitInt64Add(node_t node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitInt32Sub(Node* node) {
-  Arm64OperandGeneratorT<Adapter> g(this);
-  Int32BinopMatcher m(node);
+void InstructionSelectorT<Adapter>::VisitInt32Sub(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    Arm64OperandGeneratorT<Adapter> g(this);
+    Int32BinopMatcher m(node);
 
-  // Select Msub(x, y, a) for Sub(a, Mul(x, y)).
-  if (m.right().IsInt32Mul() && CanCover(node, m.right().node())) {
-    Int32BinopMatcher mright(m.right().node());
-    // Check multiply can't be later reduced to addition with shift.
-    if (LeftShiftForReducedMultiply(&mright) == 0) {
-      Emit(kArm64Msub32, g.DefineAsRegister(node),
-           g.UseRegister(mright.left().node()),
-           g.UseRegister(mright.right().node()),
-           g.UseRegister(m.left().node()));
-      return;
+    // Select Msub(x, y, a) for Sub(a, Mul(x, y)).
+    if (m.right().IsInt32Mul() && CanCover(node, m.right().node())) {
+      Int32BinopMatcher mright(m.right().node());
+      // Check multiply can't be later reduced to addition with shift.
+      if (LeftShiftForReducedMultiply(&mright) == 0) {
+        Emit(kArm64Msub32, g.DefineAsRegister(node),
+             g.UseRegister(mright.left().node()),
+             g.UseRegister(mright.right().node()),
+             g.UseRegister(m.left().node()));
+        return;
+      }
     }
-  }
 
-  VisitAddSub<Adapter, Int32BinopMatcher>(this, node, kArm64Sub32, kArm64Add32);
+    VisitAddSub<Adapter, Int32BinopMatcher>(this, node, kArm64Sub32,
+                                            kArm64Add32);
+  }
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitInt64Sub(Node* node) {
-  Arm64OperandGeneratorT<Adapter> g(this);
-  Int64BinopMatcher m(node);
+void InstructionSelectorT<Adapter>::VisitInt64Sub(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    Arm64OperandGeneratorT<Adapter> g(this);
+    Int64BinopMatcher m(node);
 
-  // Select Msub(x, y, a) for Sub(a, Mul(x, y)).
-  if (m.right().IsInt64Mul() && CanCover(node, m.right().node())) {
-    Int64BinopMatcher mright(m.right().node());
-    // Check multiply can't be later reduced to addition with shift.
-    if (LeftShiftForReducedMultiply(&mright) == 0) {
-      Emit(kArm64Msub, g.DefineAsRegister(node),
-           g.UseRegister(mright.left().node()),
-           g.UseRegister(mright.right().node()),
-           g.UseRegister(m.left().node()));
-      return;
+    // Select Msub(x, y, a) for Sub(a, Mul(x, y)).
+    if (m.right().IsInt64Mul() && CanCover(node, m.right().node())) {
+      Int64BinopMatcher mright(m.right().node());
+      // Check multiply can't be later reduced to addition with shift.
+      if (LeftShiftForReducedMultiply(&mright) == 0) {
+        Emit(kArm64Msub, g.DefineAsRegister(node),
+             g.UseRegister(mright.left().node()),
+             g.UseRegister(mright.right().node()),
+             g.UseRegister(m.left().node()));
+        return;
+      }
     }
-  }
 
-  VisitAddSub<Adapter, Int64BinopMatcher>(this, node, kArm64Sub, kArm64Add);
+    VisitAddSub<Adapter, Int64BinopMatcher>(this, node, kArm64Sub, kArm64Add);
+  }
 }
 
 namespace {
@@ -2027,9 +2058,14 @@ void EmitInt64MulWithOverflow(InstructionSelectorT<Adapter>* selector,
 
 }  // namespace
 
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitInt32Mul(Node* node) {
-  Arm64OperandGeneratorT<Adapter> g(this);
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitInt32Mul(node_t node) {
+  UNIMPLEMENTED();
+}
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitInt32Mul(Node* node) {
+  Arm64OperandGeneratorT<TurbofanAdapter> g(this);
   Int32BinopMatcher m(node);
 
   // First, try to reduce the multiplication to addition with left shift.
@@ -2069,9 +2105,14 @@ void InstructionSelectorT<Adapter>::VisitInt32Mul(Node* node) {
   VisitRRR(this, kArm64Mul32, node);
 }
 
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitInt64Mul(Node* node) {
-  Arm64OperandGeneratorT<Adapter> g(this);
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitInt64Mul(node_t node) {
+  UNIMPLEMENTED();
+}
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitInt64Mul(Node* node) {
+  Arm64OperandGeneratorT<TurbofanAdapter> g(this);
   Int64BinopMatcher m(node);
 
   // First, try to reduce the multiplication to addition with left shift.
@@ -2211,30 +2252,40 @@ void InstructionSelectorT<Adapter>::VisitI16x8ExtAddPairwiseI8x16U(Node* node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitInt32MulHigh(Node* node) {
-  Arm64OperandGeneratorT<Adapter> g(this);
-  InstructionOperand const smull_operand = g.TempRegister();
-  Emit(kArm64Smull, smull_operand, g.UseRegister(node->InputAt(0)),
-       g.UseRegister(node->InputAt(1)));
-  Emit(kArm64Asr, g.DefineAsRegister(node), smull_operand, g.TempImmediate(32));
+void InstructionSelectorT<Adapter>::VisitInt32MulHigh(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    Arm64OperandGeneratorT<Adapter> g(this);
+    InstructionOperand const smull_operand = g.TempRegister();
+    Emit(kArm64Smull, smull_operand, g.UseRegister(node->InputAt(0)),
+         g.UseRegister(node->InputAt(1)));
+    Emit(kArm64Asr, g.DefineAsRegister(node), smull_operand,
+         g.TempImmediate(32));
+  }
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitInt64MulHigh(Node* node) {
+void InstructionSelectorT<Adapter>::VisitInt64MulHigh(node_t node) {
   return VisitRRR(this, kArm64Smulh, node);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitUint32MulHigh(Node* node) {
-  Arm64OperandGeneratorT<Adapter> g(this);
-  InstructionOperand const smull_operand = g.TempRegister();
-  Emit(kArm64Umull, smull_operand, g.UseRegister(node->InputAt(0)),
-       g.UseRegister(node->InputAt(1)));
-  Emit(kArm64Lsr, g.DefineAsRegister(node), smull_operand, g.TempImmediate(32));
+void InstructionSelectorT<Adapter>::VisitUint32MulHigh(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    Arm64OperandGeneratorT<Adapter> g(this);
+    InstructionOperand const smull_operand = g.TempRegister();
+    Emit(kArm64Umull, smull_operand, g.UseRegister(node->InputAt(0)),
+         g.UseRegister(node->InputAt(1)));
+    Emit(kArm64Lsr, g.DefineAsRegister(node), smull_operand,
+         g.TempImmediate(32));
+  }
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitUint64MulHigh(Node* node) {
+void InstructionSelectorT<Adapter>::VisitUint64MulHigh(node_t node) {
   return VisitRRR(this, kArm64Umulh, node);
 }
 

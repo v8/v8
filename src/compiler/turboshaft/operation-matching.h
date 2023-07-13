@@ -482,7 +482,6 @@ class OperationMatching {
                  displacement_mode.resolve(graph, kPositiveDisplacement);
         } else if (const WordBinopOp* binop =
                        graph->Get(idx).TryCast<WordBinopOp>();
-
                    binop && binop->kind == WordBinopOp::Kind::kAdd) {
           left = binop->left();
           right = binop->right();
@@ -716,6 +715,22 @@ class OperationMatching {
         if (Constant(ConstantOp::Kind::kFloat64, &storage)
                 .MatchesWith(graph, idx)) {
           return value.resolve(graph, storage.float64);
+        }
+        return false;
+      });
+    }
+
+    static MatchOrBind<OpIndex> WordConstant(
+        const MatchOrBind<uint64_t>& value) {
+      return MatchOrBind<OpIndex>([=](const Graph* graph, const OpIndex& idx) {
+        ConstantOp::Kind kind;
+        ConstantOp::Storage storage;
+        if (Constant(&kind, &storage).MatchesWith(graph, idx)) {
+          if (kind != ConstantOp::Kind::kWord32 &&
+              kind != ConstantOp::Kind::kWord64) {
+            return false;
+          }
+          return value.resolve(graph, storage.integral);
         }
         return false;
       });

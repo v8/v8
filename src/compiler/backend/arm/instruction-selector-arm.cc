@@ -378,36 +378,44 @@ void EmitDiv(InstructionSelectorT<Adapter>* selector, ArchOpcode div_opcode,
 }
 
 template <typename Adapter>
-void VisitDiv(InstructionSelectorT<Adapter>* selector, Node* node,
-              ArchOpcode div_opcode, ArchOpcode f64i32_opcode,
-              ArchOpcode i32f64_opcode) {
-  ArmOperandGeneratorT<Adapter> g(selector);
-  Int32BinopMatcher m(node);
-  EmitDiv(selector, div_opcode, f64i32_opcode, i32f64_opcode,
-          g.DefineAsRegister(node), g.UseRegister(m.left().node()),
-          g.UseRegister(m.right().node()));
+void VisitDiv(InstructionSelectorT<Adapter>* selector,
+              typename Adapter::node_t node, ArchOpcode div_opcode,
+              ArchOpcode f64i32_opcode, ArchOpcode i32f64_opcode) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    ArmOperandGeneratorT<Adapter> g(selector);
+    Int32BinopMatcher m(node);
+    EmitDiv(selector, div_opcode, f64i32_opcode, i32f64_opcode,
+            g.DefineAsRegister(node), g.UseRegister(m.left().node()),
+            g.UseRegister(m.right().node()));
+  }
 }
 
 template <typename Adapter>
-void VisitMod(InstructionSelectorT<Adapter>* selector, Node* node,
-              ArchOpcode div_opcode, ArchOpcode f64i32_opcode,
-              ArchOpcode i32f64_opcode) {
-  ArmOperandGeneratorT<Adapter> g(selector);
-  Int32BinopMatcher m(node);
-  InstructionOperand div_operand = g.TempRegister();
-  InstructionOperand result_operand = g.DefineAsRegister(node);
-  InstructionOperand left_operand = g.UseRegister(m.left().node());
-  InstructionOperand right_operand = g.UseRegister(m.right().node());
-  EmitDiv(selector, div_opcode, f64i32_opcode, i32f64_opcode, div_operand,
-          left_operand, right_operand);
-  if (selector->IsSupported(ARMv7)) {
-    selector->Emit(kArmMls, result_operand, div_operand, right_operand,
-                   left_operand);
+void VisitMod(InstructionSelectorT<Adapter>* selector,
+              typename Adapter::node_t node, ArchOpcode div_opcode,
+              ArchOpcode f64i32_opcode, ArchOpcode i32f64_opcode) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
   } else {
-    InstructionOperand mul_operand = g.TempRegister();
-    selector->Emit(kArmMul, mul_operand, div_operand, right_operand);
-    selector->Emit(kArmSub | AddressingModeField::encode(kMode_Operand2_R),
-                   result_operand, left_operand, mul_operand);
+    ArmOperandGeneratorT<Adapter> g(selector);
+    Int32BinopMatcher m(node);
+    InstructionOperand div_operand = g.TempRegister();
+    InstructionOperand result_operand = g.DefineAsRegister(node);
+    InstructionOperand left_operand = g.UseRegister(m.left().node());
+    InstructionOperand right_operand = g.UseRegister(m.right().node());
+    EmitDiv(selector, div_opcode, f64i32_opcode, i32f64_opcode, div_operand,
+            left_operand, right_operand);
+    if (selector->IsSupported(ARMv7)) {
+      selector->Emit(kArmMls, result_operand, div_operand, right_operand,
+                     left_operand);
+    } else {
+      InstructionOperand mul_operand = g.TempRegister();
+      selector->Emit(kArmMul, mul_operand, div_operand, right_operand);
+      selector->Emit(kArmSub | AddressingModeField::encode(kMode_Operand2_R),
+                     result_operand, left_operand, mul_operand);
+    }
   }
 }
 
@@ -1178,23 +1186,27 @@ void InstructionSelectorT<Adapter>::VisitWord32Or(node_t node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord32Xor(Node* node) {
-  ArmOperandGeneratorT<Adapter> g(this);
-  Int32BinopMatcher m(node);
-  if (m.right().Is(-1)) {
-    InstructionCode opcode = kArmMvn;
-    InstructionOperand value_operand;
-    InstructionOperand shift_operand;
-    if (TryMatchShift(this, &opcode, m.left().node(), &value_operand,
-                      &shift_operand)) {
-      Emit(opcode, g.DefineAsRegister(node), value_operand, shift_operand);
+void InstructionSelectorT<Adapter>::VisitWord32Xor(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    ArmOperandGeneratorT<Adapter> g(this);
+    Int32BinopMatcher m(node);
+    if (m.right().Is(-1)) {
+      InstructionCode opcode = kArmMvn;
+      InstructionOperand value_operand;
+      InstructionOperand shift_operand;
+      if (TryMatchShift(this, &opcode, m.left().node(), &value_operand,
+                        &shift_operand)) {
+        Emit(opcode, g.DefineAsRegister(node), value_operand, shift_operand);
+        return;
+      }
+      Emit(opcode | AddressingModeField::encode(kMode_Operand2_R),
+           g.DefineAsRegister(node), g.UseRegister(m.left().node()));
       return;
     }
-    Emit(opcode | AddressingModeField::encode(kMode_Operand2_R),
-         g.DefineAsRegister(node), g.UseRegister(m.left().node()));
-    return;
+    VisitBinop(this, node, kArmEor, kArmEor);
   }
-  VisitBinop(this, node, kArmEor, kArmEor);
 }
 
 template <typename Adapter>
@@ -1517,9 +1529,14 @@ void InstructionSelectorT<Adapter>::VisitWord32Popcnt(Node* node) {
   UNREACHABLE();
 }
 
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitInt32Add(Node* node) {
-  ArmOperandGeneratorT<Adapter> g(this);
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitInt32Add(node_t node) {
+  UNIMPLEMENTED();
+}
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitInt32Add(Node* node) {
+  ArmOperandGeneratorT<TurbofanAdapter> g(this);
   Int32BinopMatcher m(node);
   if (CanCover(node, m.left().node())) {
     switch (m.left().opcode()) {
@@ -1637,17 +1654,23 @@ void InstructionSelectorT<Adapter>::VisitInt32Add(Node* node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitInt32Sub(Node* node) {
-  ArmOperandGeneratorT<Adapter> g(this);
-  Int32BinopMatcher m(node);
-  if (IsSupported(ARMv7) && m.right().IsInt32Mul() &&
-      CanCover(node, m.right().node())) {
-    Int32BinopMatcher mright(m.right().node());
-    Emit(kArmMls, g.DefineAsRegister(node), g.UseRegister(mright.left().node()),
-         g.UseRegister(mright.right().node()), g.UseRegister(m.left().node()));
-    return;
+void InstructionSelectorT<Adapter>::VisitInt32Sub(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    ArmOperandGeneratorT<Adapter> g(this);
+    Int32BinopMatcher m(node);
+    if (IsSupported(ARMv7) && m.right().IsInt32Mul() &&
+        CanCover(node, m.right().node())) {
+      Int32BinopMatcher mright(m.right().node());
+      Emit(kArmMls, g.DefineAsRegister(node),
+           g.UseRegister(mright.left().node()),
+           g.UseRegister(mright.right().node()),
+           g.UseRegister(m.left().node()));
+      return;
+    }
+    VisitBinop(this, node, kArmSub, kArmRsb);
   }
-  VisitBinop(this, node, kArmSub, kArmRsb);
 }
 
 namespace {
@@ -1675,55 +1698,60 @@ void EmitInt32MulWithOverflow(InstructionSelectorT<Adapter>* selector,
 }  // namespace
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitInt32Mul(Node* node) {
-  ArmOperandGeneratorT<Adapter> g(this);
-  Int32BinopMatcher m(node);
-  if (m.right().HasResolvedValue() && m.right().ResolvedValue() > 0) {
-    int32_t value = m.right().ResolvedValue();
-    if (base::bits::IsPowerOfTwo(value - 1)) {
-      Emit(kArmAdd | AddressingModeField::encode(kMode_Operand2_R_LSL_I),
-           g.DefineAsRegister(node), g.UseRegister(m.left().node()),
-           g.UseRegister(m.left().node()),
-           g.TempImmediate(base::bits::WhichPowerOfTwo(value - 1)));
-      return;
+void InstructionSelectorT<Adapter>::VisitInt32Mul(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    ArmOperandGeneratorT<Adapter> g(this);
+    Int32BinopMatcher m(node);
+    if (m.right().HasResolvedValue() && m.right().ResolvedValue() > 0) {
+      int32_t value = m.right().ResolvedValue();
+      if (base::bits::IsPowerOfTwo(value - 1)) {
+        Emit(kArmAdd | AddressingModeField::encode(kMode_Operand2_R_LSL_I),
+             g.DefineAsRegister(node), g.UseRegister(m.left().node()),
+             g.UseRegister(m.left().node()),
+             g.TempImmediate(base::bits::WhichPowerOfTwo(value - 1)));
+        return;
+      }
+      if (value < kMaxInt && base::bits::IsPowerOfTwo(value + 1)) {
+        Emit(kArmRsb | AddressingModeField::encode(kMode_Operand2_R_LSL_I),
+             g.DefineAsRegister(node), g.UseRegister(m.left().node()),
+             g.UseRegister(m.left().node()),
+             g.TempImmediate(base::bits::WhichPowerOfTwo(value + 1)));
+        return;
+      }
     }
-    if (value < kMaxInt && base::bits::IsPowerOfTwo(value + 1)) {
-      Emit(kArmRsb | AddressingModeField::encode(kMode_Operand2_R_LSL_I),
-           g.DefineAsRegister(node), g.UseRegister(m.left().node()),
-           g.UseRegister(m.left().node()),
-           g.TempImmediate(base::bits::WhichPowerOfTwo(value + 1)));
-      return;
-    }
+    VisitRRR(this, kArmMul, node);
   }
-  VisitRRR(this, kArmMul, node);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitUint32MulHigh(Node* node) {
+void InstructionSelectorT<Adapter>::VisitUint32MulHigh(node_t node) {
+  auto binop = this->word_binop_view(node);
   ArmOperandGeneratorT<Adapter> g(this);
   InstructionOperand outputs[] = {g.TempRegister(), g.DefineAsRegister(node)};
-  InstructionOperand inputs[] = {g.UseRegister(node->InputAt(0)),
-                                 g.UseRegister(node->InputAt(1))};
+  InstructionOperand inputs[] = {g.UseRegister(binop.left()),
+                                 g.UseRegister(binop.right())};
   Emit(kArmUmull, arraysize(outputs), outputs, arraysize(inputs), inputs);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitInt32Div(Node* node) {
+void InstructionSelectorT<Adapter>::VisitInt32Div(node_t node) {
   VisitDiv(this, node, kArmSdiv, kArmVcvtF64S32, kArmVcvtS32F64);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitUint32Div(Node* node) {
+void InstructionSelectorT<Adapter>::VisitUint32Div(node_t node) {
   VisitDiv(this, node, kArmUdiv, kArmVcvtF64U32, kArmVcvtU32F64);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitInt32Mod(Node* node) {
+void InstructionSelectorT<Adapter>::VisitInt32Mod(node_t node) {
   VisitMod(this, node, kArmSdiv, kArmVcvtF64S32, kArmVcvtS32F64);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitUint32Mod(Node* node) {
+void InstructionSelectorT<Adapter>::VisitUint32Mod(node_t node) {
   VisitMod(this, node, kArmUdiv, kArmVcvtF64U32, kArmVcvtU32F64);
 }
 
@@ -1781,9 +1809,8 @@ void InstructionSelectorT<Adapter>::VisitUint32Mod(Node* node) {
   V(Float32Max, kArmFloat32Max) \
   V(Float64Max, kArmFloat64Max) \
   V(Float32Min, kArmFloat32Min) \
-  V(Float64Min, kArmFloat64Min)
-
-#define RRR_OP_LIST(V) V(Int32MulHigh, kArmSmmul)
+  V(Float64Min, kArmFloat64Min) \
+  V(Int32MulHigh, kArmSmmul)
 
 #define RR_VISITOR(Name, opcode)                                \
   template <typename Adapter>                                   \
@@ -1812,15 +1839,6 @@ RR_OP_T_LIST(RR_VISITOR)
 RR_OP_LIST_V8(RR_VISITOR_V8)
 #undef RR_VISITOR_V8
 #undef RR_OP_LIST_V8
-
-#define RRR_VISITOR(Name, opcode)                               \
-  template <typename Adapter>                                   \
-  void InstructionSelectorT<Adapter>::Visit##Name(Node* node) { \
-    VisitRRR(this, opcode, node);                               \
-  }
-RRR_OP_LIST(RRR_VISITOR)
-#undef RRR_VISITOR
-#undef RRR_OP_LIST
 
 #define RRR_VISITOR(Name, opcode)                                \
   template <typename Adapter>                                    \
