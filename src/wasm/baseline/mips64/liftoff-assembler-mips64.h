@@ -3624,43 +3624,41 @@ void LiftoffAssembler::DropStackSlotsAndRet(uint32_t num_stack_slots) {
   MacroAssembler::DropAndRet(static_cast<int>(num_stack_slots));
 }
 
-void LiftoffAssembler::CallC(const ValueKindSig* sig, const VarState* args,
-                             const LiftoffRegister* rets,
+void LiftoffAssembler::CallC(const std::initializer_list<VarState> args,
+                             const LiftoffRegister* rets, ValueKind return_kind,
                              ValueKind out_argument_kind, int stack_bytes,
                              ExternalReference ext_ref) {
   Daddu(sp, sp, -stack_bytes);
 
   int arg_offset = 0;
-  const VarState* current_arg = args;
-  for (ValueKind param_kind : sig->parameters()) {
-    if (current_arg->is_reg()) {
-      liftoff::Store(this, sp, arg_offset, current_arg->reg(), param_kind);
-    } else if (current_arg->is_const()) {
-      DCHECK_EQ(kI32, param_kind);
-      if (current_arg->i32_const() == 0) {
+  for (const VarState& arg : args) {
+    if (arg.is_reg()) {
+      liftoff::Store(this, sp, arg_offset, arg.reg(), arg.kind());
+    } else if (arg.is_const()) {
+      DCHECK_EQ(kI32, arg.kind());
+      if (arg.i32_const() == 0) {
         Sw(zero_reg, MemOperand(sp, arg_offset));
       } else {
         UseScratchRegisterScope temps(this);
         Register src = temps.Acquire();
-        li(src, current_arg->i32_const());
+        li(src, arg.i32_const());
         Sw(src, MemOperand(sp, arg_offset));
       }
-    } else if (value_kind_size(current_arg->kind()) == 4) {
+    } else if (value_kind_size(arg.kind()) == 4) {
       // Stack to stack move.
       UseScratchRegisterScope temps(this);
       Register src = temps.Acquire();
-      Lw(src, liftoff::GetStackSlot(current_arg->offset()));
+      Lw(src, liftoff::GetStackSlot(arg.offset()));
       Sw(src, MemOperand(sp, arg_offset));
     } else {
       // Stack to stack move.
-      DCHECK_EQ(8, value_kind_size(current_arg->kind()));
+      DCHECK_EQ(8, value_kind_size(arg.kind()));
       UseScratchRegisterScope temps(this);
       Register src = temps.Acquire();
-      Ld(src, liftoff::GetStackSlot(current_arg->offset()));
+      Ld(src, liftoff::GetStackSlot(arg.offset()));
       Sd(src, MemOperand(sp, arg_offset));
     }
-    arg_offset += value_kind_size(param_kind);
-    ++current_arg;
+    arg_offset += value_kind_size(arg.kind());
   }
   DCHECK_LE(arg_offset, stack_bytes);
 
@@ -3676,22 +3674,21 @@ void LiftoffAssembler::CallC(const ValueKindSig* sig, const VarState* args,
 
   // Move return value to the right register.
   const LiftoffRegister* next_result_reg = rets;
-  if (sig->return_count() > 0) {
-    DCHECK_EQ(1, sig->return_count());
+  if (return_kind != kVoid) {
     constexpr Register kReturnReg = v0;
 #ifdef USE_SIMULATOR
     // When call to a host function in simulator, if the function return an
     // int32 value, the simulator does not sign-extend it to int64 because
     // in simulator we do not know whether the function returns an int32 or
     // int64. so we need to sign extend it here.
-    if (sig->GetReturn(0) == kI32) {
+    if (return_kind == kI32) {
       sll(next_result_reg->gp(), kReturnReg, 0);
     } else if (kReturnReg != next_result_reg->gp()) {
-      Move(*next_result_reg, LiftoffRegister(kReturnReg), sig->GetReturn(0));
+      Move(*next_result_reg, LiftoffRegister(kReturnReg), return_kind);
     }
 #else
     if (kReturnReg != next_result_reg->gp()) {
-      Move(*next_result_reg, LiftoffRegister(kReturnReg), sig->GetReturn(0));
+      Move(*next_result_reg, LiftoffRegister(kReturnReg), return_kind);
     }
 #endif
     ++next_result_reg;
