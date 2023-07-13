@@ -1120,8 +1120,6 @@ void Oddball::OddballVerify(Isolate* isolate) {
   ReadOnlyRoots roots(heap);
   if (map() == roots.undefined_map()) {
     CHECK(*this == roots.undefined_value());
-  } else if (map() == roots.the_hole_map()) {
-    CHECK(*this == roots.the_hole_value());
   } else if (map() == roots.null_map()) {
     CHECK(*this == roots.null_value());
   } else if (map() == roots.boolean_map()) {
@@ -1149,15 +1147,17 @@ void Oddball::OddballVerify(Isolate* isolate) {
 }
 
 void Hole::HoleVerify(Isolate* isolate) {
-  CHECK(IsHole(isolate));
-
   ReadOnlyRoots roots(isolate->heap());
-  if (map() == roots.the_hole_map()) {
-    CHECK_EQ(*this, roots.the_hole_value());
-    CHECK_EQ(kind(), Hole::kDefaultHole);
-  } else {
-    UNREACHABLE();
+  CHECK_EQ(map(), roots.hole_map());
+
+#define COMPARE_ROOTS_VALUE(_, Value, __) \
+  if (*this == roots.Value()) {           \
+    return;                               \
   }
+  HOLE_LIST(COMPARE_ROOTS_VALUE);
+#undef COMPARE_ROOTS_VALUE
+
+  UNREACHABLE();
 }
 
 void PropertyCell::PropertyCellVerify(Isolate* isolate) {

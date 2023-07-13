@@ -32,7 +32,7 @@ struct StaticReadOnlyRoot {
   static constexpr Tagged_t kDescriptorArrayMap = 0x129;
   static constexpr Tagged_t kUndefinedMap = 0x151;
   static constexpr Tagged_t kNullMap = 0x179;
-  static constexpr Tagged_t kTheHoleMap = 0x1a1;
+  static constexpr Tagged_t kHoleMap = 0x1a1;
   static constexpr Tagged_t kCallSiteInfoMap = 0x1c9;
   static constexpr Tagged_t kEnumCacheMap = 0x1f1;
   static constexpr Tagged_t kEmptyFixedArray = 0x219;
@@ -908,7 +908,7 @@ static constexpr std::array<Tagged_t, 768> StaticReadOnlyRootsPointerTable = {
     StaticReadOnlyRoot::kSharedUncachedExternalOneByteStringMap,
     StaticReadOnlyRoot::kSharedUncachedExternalStringMap,
     StaticReadOnlyRoot::kUndefinedMap,
-    StaticReadOnlyRoot::kTheHoleMap,
+    StaticReadOnlyRoot::kHoleMap,
     StaticReadOnlyRoot::kNullMap,
     StaticReadOnlyRoot::kBooleanMap,
     StaticReadOnlyRoot::kUninitializedMap,

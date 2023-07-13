@@ -192,12 +192,9 @@ Type::bitset BitsetType::Lub(MapRefLike map, JSHeapBroker* broker) {
       }
       UNREACHABLE();
     case HOLE_TYPE:
-      switch (map.hole_type(broker)) {
-        case HoleType::kNone:
-          UNREACHABLE();
-        case HoleType::kGeneric:
-          return kTheHole;
-      }
+      // Holes have a single map and we should have distinguished them earlier
+      // by pointer comparison on the value.
+      UNREACHABLE();
     case HEAP_NUMBER_TYPE:
       return kNumber;
     case JS_ARRAY_ITERATOR_PROTOTYPE_TYPE:
@@ -922,6 +919,12 @@ Type Type::Constant(JSHeapBroker* broker, ObjectRef ref, Zone* zone) {
   if (ref.IsString() && !ref.IsInternalizedString()) {
     return Type::String();
   }
+  switch (ref.HoleType()) {
+    case HoleType::kNone:
+      break;
+    case HoleType::kGeneric:
+      return Type::TheHole();
+  }
   return HeapConstant(ref.AsHeapObject(), broker, zone);
 }
 
@@ -1162,6 +1165,7 @@ Type Type::OtherNumberConstant(double value, Zone* zone) {
 // static
 Type Type::HeapConstant(HeapObjectRef value, JSHeapBroker* broker, Zone* zone) {
   DCHECK(!value.IsHeapNumber());
+  DCHECK_EQ(value.HoleType(), HoleType::kNone);
   DCHECK_IMPLIES(value.IsString(), value.IsInternalizedString());
   BitsetType::bitset bitset =
       BitsetType::Lub(value.GetHeapObjectType(broker), broker);

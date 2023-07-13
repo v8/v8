@@ -361,6 +361,7 @@ class V8_EXPORT_PRIVATE ObjectRef {
 
   bool IsNull() const;
   bool IsUndefined() const;
+  enum HoleType HoleType() const;
   bool IsTheHole() const;
   bool IsNullOrUndefined() const;
 
@@ -837,7 +838,6 @@ class V8_EXPORT_PRIVATE MapRef : public HeapObjectRef {
   bool is_abandoned_prototype_map() const;
 
   OddballType oddball_type(JSHeapBroker* broker) const;
-  HoleType hole_type(JSHeapBroker* broker) const;
 
   bool CanInlineElementAccess() const;
 

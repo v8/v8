@@ -362,7 +362,7 @@ bool Heap::CreateEarlyReadOnlyMaps() {
 
     ALLOCATE_PARTIAL_MAP(ODDBALL_TYPE, Oddball::kSize, undefined);
     ALLOCATE_PARTIAL_MAP(ODDBALL_TYPE, Oddball::kSize, null);
-    ALLOCATE_PARTIAL_MAP(HOLE_TYPE, Hole::kSize, the_hole);
+    ALLOCATE_PARTIAL_MAP(HOLE_TYPE, Hole::kSize, hole);
 
     // Some struct maps which we need for later dependencies
     for (const StructInit& entry : kStructTable) {
@@ -422,7 +422,7 @@ bool Heap::CreateEarlyReadOnlyMaps() {
   DCHECK(!InYoungGeneration(roots.undefined_value()));
   {
     AllocationResult allocation =
-        Allocate(roots.the_hole_map_handle(), AllocationType::kReadOnly);
+        Allocate(roots.hole_map_handle(), AllocationType::kReadOnly);
     if (!allocation.To(&obj)) return false;
   }
   set_the_hole_value(Hole::cast(obj));
@@ -463,7 +463,7 @@ bool Heap::CreateEarlyReadOnlyMaps() {
   roots.undefined_map()->set_is_undetectable(true);
   FinalizePartialMap(roots.null_map());
   roots.null_map()->set_is_undetectable(true);
-  FinalizePartialMap(roots.the_hole_map());
+  FinalizePartialMap(roots.hole_map());
   for (const StructInit& entry : kStructTable) {
     if (!is_important_struct(entry.type)) continue;
     FinalizePartialMap(Map::cast(roots.object_at(entry.index)));

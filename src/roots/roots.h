@@ -184,7 +184,7 @@ class Tagged;
   V(Map, shared_uncached_external_string_map, SharedUncachedExternalStringMap) \
   /* Oddball maps */                                                           \
   V(Map, undefined_map, UndefinedMap)                                          \
-  V(Map, the_hole_map, TheHoleMap)                                             \
+  V(Map, hole_map, HoleMap)                                                    \
   V(Map, null_map, NullMap)                                                    \
   V(Map, boolean_map, BooleanMap)                                              \
   V(Map, uninitialized_map, UninitializedMap)                                  \
