@@ -1533,6 +1533,9 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=12681
   'built-ins/Array/prototype/push/set-length-zero-array-length-is-non-writable': [FAIL],
 
+  # https://bugs.chromium.org/p/v8/issues/detail?id=13558
+  'built-ins/Iterator/from/iterable-primitives': [FAIL],
+
   ######################## NEEDS INVESTIGATION ###########################
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=7833
