@@ -112,6 +112,9 @@ class V8_EXPORT_PRIVATE MarkerBase {
 
   bool IsMarking() const { return is_marking_; }
 
+  // Returns whether marking is considered ahead of schedule.
+  bool IsAheadOfSchedule() const;
+
   void SetMainThreadMarkingDisabledForTesting(bool);
   void WaitForConcurrentMarkingForTesting();
   void ClearAllWorklistsForTesting();

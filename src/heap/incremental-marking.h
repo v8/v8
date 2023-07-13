@@ -89,6 +89,9 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
 
   IncrementalMarking(Heap* heap, WeakObjects* weak_objects);
 
+  IncrementalMarking(const IncrementalMarking&) = delete;
+  IncrementalMarking& operator=(const IncrementalMarking&) = delete;
+
   MarkingMode marking_mode() const { return marking_mode_; }
 
   bool IsStopped() const { return !IsMarking(); }
@@ -125,6 +128,8 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
   // marking completes.
   void AdvanceOnAllocation();
 
+  bool IsAheadOfSchedule() const;
+
   void MarkBlackBackground(HeapObject obj, int object_size);
 
   bool IsCompacting() { return IsMarking() && is_compacting_; }
@@ -132,8 +137,8 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
   Heap* heap() const { return heap_; }
   Isolate* isolate() const;
 
-  IncrementalMarkingJob* incremental_marking_job() {
-    return &incremental_marking_job_;
+  IncrementalMarkingJob* incremental_marking_job() const {
+    return incremental_marking_job_.get();
   }
 
   bool black_allocation() { return black_allocation_; }
@@ -223,15 +228,16 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
   bool completion_task_scheduled_ = false;
   double completion_task_timeout_ = 0.0;
   bool collection_requested_via_stack_guard_ = false;
-  IncrementalMarkingJob incremental_marking_job_;
+  std::unique_ptr<IncrementalMarkingJob> incremental_marking_job_;
   Observer new_generation_observer_;
   Observer old_generation_observer_;
   base::Mutex background_live_bytes_mutex_;
   std::unordered_map<MemoryChunk*, intptr_t> background_live_bytes_;
   std::unique_ptr<::heap::base::IncrementalMarkingSchedule> schedule_;
 
-  DISALLOW_IMPLICIT_CONSTRUCTORS(IncrementalMarking);
+  friend class IncrementalMarkingJob;
 };
+
 }  // namespace internal
 }  // namespace v8
 

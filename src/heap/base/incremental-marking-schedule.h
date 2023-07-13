@@ -39,6 +39,9 @@ class V8_EXPORT_PRIVATE IncrementalMarkingSchedule final {
     int64_t scheduled_delta_bytes() const {
       return static_cast<int64_t>(marked_bytes()) - expected_marked_bytes;
     }
+
+    // Returns whether the schedule is behind the expectation.
+    bool is_behind_expectation() const { return scheduled_delta_bytes() < 0; }
   };
 
   // Estimated walltime duration of incremental marking per GC cycle. This value

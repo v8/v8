@@ -5814,8 +5814,10 @@ void Isolate::SetRAILMode(RAILMode rail_mode) {
     load_start_time_ms_ = heap()->MonotonicallyIncreasingTimeInMs();
   }
   rail_mode_.store(rail_mode);
-  if (old_rail_mode == PERFORMANCE_LOAD && rail_mode != PERFORMANCE_LOAD) {
-    heap()->incremental_marking()->incremental_marking_job()->ScheduleTask();
+  auto* job = heap()->incremental_marking()->incremental_marking_job();
+  if (old_rail_mode == PERFORMANCE_LOAD && rail_mode != PERFORMANCE_LOAD &&
+      job) {
+    job->ScheduleTask();
   }
   if (v8_flags.trace_rail) {
     PrintIsolate(this, "RAIL mode: %s\n", RAILModeName(rail_mode));

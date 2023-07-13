@@ -5,35 +5,48 @@
 #ifndef V8_HEAP_INCREMENTAL_MARKING_JOB_H_
 #define V8_HEAP_INCREMENTAL_MARKING_JOB_H_
 
-#include "src/tasks/cancelable-task.h"
+#include "include/v8-platform.h"
+#include "src/base/optional.h"
+#include "src/base/platform/mutex.h"
+#include "src/base/platform/time.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 class Heap;
 class Isolate;
 
 // The incremental marking job uses platform tasks to perform incremental
-// marking steps. The job posts a foreground task that makes a small (~1ms)
-// step and posts another task until the marking is completed.
+// marking actions (start, step, finalize). The job posts regular foreground
+// tasks or delayed foreground tasks if marking progress allows.
 class IncrementalMarkingJob final {
  public:
-  explicit IncrementalMarkingJob(Heap* heap) V8_NOEXCEPT;
+  enum class TaskType {
+    kNormal,
+    kPending,
+  };
 
-  void ScheduleTask();
-  double CurrentTimeToTask() const;
+  explicit IncrementalMarkingJob(Heap* heap);
+
+  IncrementalMarkingJob(const IncrementalMarkingJob&) = delete;
+  IncrementalMarkingJob& operator=(const IncrementalMarkingJob&) = delete;
+
+  // Schedules a task with a given `task_type`. Safe to be called from any
+  // thread.
+  void ScheduleTask(TaskType task_type = TaskType::kNormal);
+
+  // Gets the `TimeDelta` as time to task for the latest scheduled task. Returns
+  // an empty `TimeDelta` if no task has been scheduled.
+  v8::base::TimeDelta CurrentTimeToTask() const;
 
  private:
   class Task;
-  static constexpr double kDelayInSeconds = 10.0 / 1000.0;
 
-  Heap* heap_;
-  base::Mutex mutex_;
-  double scheduled_time_ = 0.0;
-  bool is_task_pending_ = false;
-  std::shared_ptr<v8::TaskRunner> foreground_task_runner_;
+  Heap* const heap_;
+  const std::shared_ptr<v8::TaskRunner> foreground_task_runner_;
+  mutable base::Mutex mutex_;
+  v8::base::TimeTicks scheduled_time_;
+  base::Optional<TaskType> pending_task_;
 };
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal
 
 #endif  // V8_HEAP_INCREMENTAL_MARKING_JOB_H_

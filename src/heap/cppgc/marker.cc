@@ -19,6 +19,7 @@
 #include "src/heap/cppgc/liveness-broker.h"
 #include "src/heap/cppgc/marking-state.h"
 #include "src/heap/cppgc/marking-visitor.h"
+#include "src/heap/cppgc/marking-worklists.h"
 #include "src/heap/cppgc/process-heap.h"
 #include "src/heap/cppgc/stats-collector.h"
 #include "src/heap/cppgc/write-barrier.h"
@@ -115,16 +116,30 @@ MarkerBase::IncrementalMarkingTask::Post(cppgc::TaskRunner* runner,
   DCHECK_IMPLIES(marker->heap().stack_support() !=
                      HeapBase::StackSupport::kSupportsConservativeStackScan,
                  runner->NonNestableTasksEnabled());
-  const auto stack_state_for_task = runner->NonNestableTasksEnabled()
-                                        ? StackState::kNoHeapPointers
-                                        : StackState::kMayContainHeapPointers;
-  auto task =
-      std::make_unique<IncrementalMarkingTask>(marker, stack_state_for_task);
+
+  const bool should_use_delayed_task =
+      !marker->config_.incremental_task_delay.IsZero() &&
+      marker->IsAheadOfSchedule();
+  const bool non_nestable_tasks_enabled = runner->NonNestableTasksEnabled();
+
+  auto task = std::make_unique<IncrementalMarkingTask>(
+      marker, non_nestable_tasks_enabled ? StackState::kNoHeapPointers
+                                         : StackState::kMayContainHeapPointers);
   auto handle = task->handle_;
-  if (runner->NonNestableTasksEnabled()) {
-    runner->PostNonNestableTask(std::move(task));
+  if (non_nestable_tasks_enabled) {
+    if (should_use_delayed_task) {
+      runner->PostNonNestableDelayedTask(
+          std::move(task), marker->config_.incremental_task_delay.InSecondsF());
+    } else {
+      runner->PostNonNestableTask(std::move(task));
+    }
   } else {
-    runner->PostTask(std::move(task));
+    if (should_use_delayed_task) {
+      runner->PostDelayedTask(
+          std::move(task), marker->config_.incremental_task_delay.InSecondsF());
+    } else {
+      runner->PostTask(std::move(task));
+    }
   }
   return handle;
 }
@@ -554,6 +569,9 @@ bool MarkerBase::AdvanceMarkingWithLimits(v8::base::TimeDelta max_duration,
         StatsCollector::kMarkTransitiveClosureWithDeadline, "deadline_ms",
         max_duration.InMillisecondsF());
     const auto deadline = v8::base::TimeTicks::Now() + max_duration;
+    // TODO(v8:14140): Consider ignoring marked_bytes_limit for the
+    // concurrent_bailout_objects() and merely use time as limiting factor. The
+    // schedule assumes that every objects can be concurrently processed.
     is_done = ProcessWorklistsWithDeadline(marked_bytes_limit, deadline);
     if (is_done && VisitCrossThreadPersistentsIfNeeded()) {
       // Both limits are absolute and hence can be passed along without further
@@ -706,6 +724,19 @@ void MarkerBase::MarkNotFullyConstructedObjects() {
     // accounting and markbit handling (bailout).
     conservative_visitor().TraceConservativelyIfNeeded(*object);
   }
+}
+
+bool MarkerBase::IsAheadOfSchedule() const {
+  static constexpr size_t kNumOfBailoutObjectsForNormalTask = 512;
+  if (marking_worklists_.concurrent_marking_bailout_worklist()->Size() *
+          MarkingWorklists::ConcurrentMarkingBailoutWorklist::kMinSegmentSize >
+      kNumOfBailoutObjectsForNormalTask) {
+    return false;
+  }
+  if (schedule_.GetCurrentStepInfo().is_behind_expectation()) {
+    return false;
+  }
+  return true;
 }
 
 void MarkerBase::ClearAllWorklistsForTesting() {

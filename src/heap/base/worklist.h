@@ -61,7 +61,7 @@ class Worklist final {
   class Local;
   class Segment;
 
-  static constexpr int kMinSegmentSizeForTesting = MinSegmentSize;
+  static constexpr int kMinSegmentSize = MinSegmentSize;
 
   Worklist() = default;
   ~Worklist() { CHECK(IsEmpty()); }

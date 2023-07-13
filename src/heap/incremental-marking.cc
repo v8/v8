@@ -61,7 +61,10 @@ IncrementalMarking::IncrementalMarking(Heap* heap, WeakObjects* weak_objects)
       minor_collector_(heap->minor_mark_sweep_collector()),
       weak_objects_(weak_objects),
       marking_state_(heap->marking_state()),
-      incremental_marking_job_(heap),
+      incremental_marking_job_(
+          v8_flags.incremental_marking_task
+              ? std::make_unique<IncrementalMarkingJob>(heap)
+              : nullptr),
       new_generation_observer_(this, kYoungGenerationAllocatedThreshold),
       old_generation_observer_(this, kOldGenerationAllocatedThreshold) {}
 
@@ -141,7 +144,9 @@ void IncrementalMarking::Start(GarbageCollector garbage_collector,
     StartMarkingMajor();
     heap_->AddAllocationObserversToAllSpaces(&old_generation_observer_,
                                              &new_generation_observer_);
-    incremental_marking_job()->ScheduleTask();
+    if (incremental_marking_job()) {
+      incremental_marking_job()->ScheduleTask();
+    }
     DCHECK_NULL(schedule_);
     schedule_ = std::make_unique<::heap::base::IncrementalMarkingSchedule>();
     schedule_->NotifyIncrementalMarkingStart();
@@ -568,10 +573,11 @@ bool IncrementalMarking::Stop() {
 }
 
 double IncrementalMarking::CurrentTimeToMarkingTask() const {
+  DCHECK_NOT_NULL(incremental_marking_job());
   const double recorded_time_to_marking_task =
       heap_->tracer()->AverageTimeToIncrementalMarkingTask();
   const double current_time_to_marking_task =
-      incremental_marking_job_.CurrentTimeToTask();
+      incremental_marking_job()->CurrentTimeToTask().InMillisecondsF();
   if (recorded_time_to_marking_task == 0.0) return 0.0;
   return std::max(recorded_time_to_marking_task, current_time_to_marking_task);
 }
@@ -599,7 +605,10 @@ size_t IncrementalMarking::OldGenerationSizeOfObjects() const {
 
 bool IncrementalMarking::ShouldWaitForTask() {
   if (!completion_task_scheduled_) {
-    incremental_marking_job_.ScheduleTask();
+    if (!incremental_marking_job()) {
+      return false;
+    }
+    incremental_marking_job()->ScheduleTask();
     completion_task_scheduled_ = true;
     if (!TryInitializeTaskTimeout()) {
       return false;
@@ -699,6 +708,21 @@ void IncrementalMarking::AdvanceAndFinalizeIfNecessary() {
 void IncrementalMarking::AdvanceForTesting(v8::base::TimeDelta max_duration,
                                            size_t max_bytes_to_mark) {
   Step(max_duration, max_bytes_to_mark, StepOrigin::kV8);
+}
+
+bool IncrementalMarking::IsAheadOfSchedule() const {
+  DCHECK(IsMajorMarking());
+
+  const ::heap::base::IncrementalMarkingSchedule* v8_schedule = schedule_.get();
+  if (v8_schedule->GetCurrentStepInfo().is_behind_expectation()) {
+    return false;
+  }
+  if (auto* cpp_heap = CppHeap::From(heap()->cpp_heap())) {
+    if (!cpp_heap->marker()->IsAheadOfSchedule()) {
+      return false;
+    }
+  }
+  return true;
 }
 
 void IncrementalMarking::AdvanceOnAllocation() {
@@ -826,13 +850,14 @@ void IncrementalMarking::Step(v8::base::TimeDelta max_duration,
     isolate()->PrintWithTimestamp(
         "[IncrementalMarking] Marking speed %.fMB/s\n",
         heap()->tracer()->IncrementalMarkingSpeedInBytesPerMillisecond() *
-            1000 / KB);
+            1000 / MB);
     isolate()->PrintWithTimestamp(
-        "[IncrementalMarking] Step %s V8: %zuKB (%zuKB), embedder: %fms "
+        "[IncrementalMarking] Step %s V8: %zuKB (%zuKB) in %.1f, embedder: "
+        "%fms "
         "(%fms) "
         "in %.1f (%.1f)\n",
         step_origin == StepOrigin::kV8 ? "in v8" : "in task",
-        v8_bytes_processed / KB, max_bytes_to_process / KB,
+        v8_bytes_processed / KB, max_bytes_to_process / KB, v8_time,
         embedder_duration_ms, embedder_time_ms, current_time - start,
         max_duration.InMillisecondsF());
   }
