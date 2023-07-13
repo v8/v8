@@ -935,6 +935,14 @@ class GraphVisitor {
     return assembler().ReduceGlobalSet(MapToNewGraph(op.instance()),
                                        MapToNewGraph(op.value()), op.global);
   }
+
+  OpIndex AssembleOutputGraphNull(const NullOp& op) {
+    return assembler().ReduceNull(op.type);
+  }
+
+  OpIndex AssembleOutputGraphIsNull(const IsNullOp& op) {
+    return assembler().ReduceIsNull(MapToNewGraph(op.object()), op.type);
+  }
 #endif
 
   void CreateOldToNewMapping(OpIndex old_index, OpIndex new_index) {

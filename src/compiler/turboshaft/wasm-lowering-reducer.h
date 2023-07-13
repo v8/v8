@@ -14,6 +14,7 @@
 #include "src/compiler/turboshaft/operations.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects.h"
+#include "src/wasm/wasm-subtyping.h"
 
 namespace v8::internal::compiler::turboshaft {
 
@@ -36,6 +37,13 @@ class WasmLoweringReducer : public Next {
   OpIndex REDUCE(GlobalSet)(OpIndex instance, OpIndex value,
                             const wasm::WasmGlobal* global) {
     return LowerGlobalSetOrGet(instance, value, global, GlobalMode::kStore);
+  }
+
+  OpIndex REDUCE(Null)(wasm::ValueType type) { return Null(type); }
+
+  OpIndex REDUCE(IsNull)(OpIndex object, wasm::ValueType type) {
+    // TODO(14108): Optimize for compressed-pointer, static-root builds.
+    return __ TaggedEqual(object, Null(type));
   }
 
  private:
@@ -124,6 +132,18 @@ class WasmLoweringReducer : public Next {
       }
     }
   }
+
+  OpIndex Null(wasm::ValueType type) {
+    OpIndex roots = __ LoadRootRegister();
+    RootIndex index = wasm::IsSubtypeOf(type, wasm::kWasmExternRef, module_)
+                          ? RootIndex::kNullValue
+                          : RootIndex::kWasmNull;
+    return __ Load(roots, LoadOp::Kind::RawAligned(),
+                   MemoryRepresentation::PointerSized(),
+                   IsolateData::root_slot_offset(index));
+  }
+
+  const wasm::WasmModule* module_ = PipelineData::Get().wasm_module();
 };
 
 #include "src/compiler/turboshaft/undef-assembler-macros.inc"

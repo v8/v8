@@ -36,6 +36,7 @@ using compiler::turboshaft::PendingLoopPhiOp;
 using compiler::turboshaft::RegisterRepresentation;
 using compiler::turboshaft::StoreOp;
 using compiler::turboshaft::SupportedOperations;
+using compiler::turboshaft::Tagged;
 using TSBlock = compiler::turboshaft::Block;
 using compiler::turboshaft::TSCallDescriptor;
 using compiler::turboshaft::V;
@@ -374,7 +375,7 @@ class TurboshaftGraphBuildingInterface {
 
   void UnOp(FullDecoder* decoder, WasmOpcode opcode, const Value& value,
             Value* result) {
-    result->op = UnOpImpl(decoder, opcode, value.op);
+    result->op = UnOpImpl(decoder, opcode, value.op, value.type);
   }
 
   void BinOp(FullDecoder* decoder, WasmOpcode opcode, const Value& lhs,
@@ -410,11 +411,32 @@ class TurboshaftGraphBuildingInterface {
   }
 
   void RefNull(FullDecoder* decoder, ValueType type, Value* result) {
-    Bailout(decoder);
+    result->op = asm_.Null(type);
   }
 
   void RefFunc(FullDecoder* decoder, uint32_t function_index, Value* result) {
-    Bailout(decoder);
+    OpIndex functions =
+        LOAD_INSTANCE_FIELD(WasmInternalFunctions, TaggedPointer);
+    OpIndex maybe_function =
+        asm_.Load(functions, LoadOp::Kind::TaggedBase(),
+                  MemoryRepresentation::AnyTagged(),
+                  FixedArray::kHeaderSize + function_index * kTaggedSize);
+
+    Label<Tagged> done(&asm_);
+    IF (IsSmi(maybe_function)) {
+      OpIndex function_index_constant = asm_.Word32Constant(function_index);
+      OpIndex from_builtin = CallBuiltinFromRuntimeStub(
+          wasm::WasmCode::kWasmRefFunc,
+          base::VectorOf(&function_index_constant, 1));
+      GOTO(done, from_builtin);
+    }
+    ELSE {
+      GOTO(done, maybe_function);
+    }
+    END_IF
+    BIND(done, result_value);
+
+    result->op = result_value;
   }
 
   void RefAsNonNull(FullDecoder* decoder, const Value& arg, Value* result) {
@@ -1227,9 +1249,10 @@ class TurboshaftGraphBuildingInterface {
         return asm_.Float32Constant(0.0f);
       case kF64:
         return asm_.Float64Constant(0.0);
+      case kRefNull:
+        return asm_.Null(type);
       case kI8:
       case kI16:
-      case kRefNull:
       case kS128:
         BailoutWithoutOpcode(decoder, "unimplemented type");
         return OpIndex::Invalid();
@@ -1278,7 +1301,8 @@ class TurboshaftGraphBuildingInterface {
   }
 
   // TODO(14108): Remove the decoder argument once we have no bailouts.
-  OpIndex UnOpImpl(FullDecoder* decoder, WasmOpcode opcode, OpIndex arg) {
+  OpIndex UnOpImpl(FullDecoder* decoder, WasmOpcode opcode, OpIndex arg,
+                   ValueType input_type /* for ref.is_null only*/) {
     switch (opcode) {
       case kExprI32Eqz:
         return asm_.Word32Equal(arg, 0);
@@ -1295,7 +1319,7 @@ class TurboshaftGraphBuildingInterface {
       case kExprF64Sqrt:
         return asm_.Float64Sqrt(arg);
       case kExprI32SConvertF32: {
-        OpIndex truncated = UnOpImpl(decoder, kExprF32Trunc, arg);
+        OpIndex truncated = UnOpImpl(decoder, kExprF32Trunc, arg, kWasmF32);
         OpIndex result = asm_.TruncateFloat32ToInt32OverflowToMin(truncated);
         OpIndex converted_back = asm_.ChangeInt32ToFloat32(result);
         asm_.TrapIf(
@@ -1304,7 +1328,7 @@ class TurboshaftGraphBuildingInterface {
         return result;
       }
       case kExprI32UConvertF32: {
-        OpIndex truncated = UnOpImpl(decoder, kExprF32Trunc, arg);
+        OpIndex truncated = UnOpImpl(decoder, kExprF32Trunc, arg, kWasmF32);
         OpIndex result = asm_.TruncateFloat32ToUint32OverflowToMin(truncated);
         OpIndex converted_back = asm_.ChangeUint32ToFloat32(result);
         asm_.TrapIf(
@@ -1313,7 +1337,7 @@ class TurboshaftGraphBuildingInterface {
         return result;
       }
       case kExprI32SConvertF64: {
-        OpIndex truncated = UnOpImpl(decoder, kExprF64Trunc, arg);
+        OpIndex truncated = UnOpImpl(decoder, kExprF64Trunc, arg, kWasmF64);
         OpIndex result = asm_.TruncateFloat64ToInt64OverflowToMin(truncated);
         // Implicitly truncated to i32.
         OpIndex converted_back = asm_.ChangeInt32ToFloat64(result);
@@ -1323,7 +1347,7 @@ class TurboshaftGraphBuildingInterface {
         return result;
       }
       case kExprI32UConvertF64: {
-        OpIndex truncated = UnOpImpl(decoder, kExprF64Trunc, arg);
+        OpIndex truncated = UnOpImpl(decoder, kExprF64Trunc, arg, kWasmF64);
         OpIndex result = asm_.TruncateFloat64ToUint32OverflowToMin(truncated);
         OpIndex converted_back = asm_.ChangeUint32ToFloat64(result);
         asm_.TrapIf(
@@ -1352,7 +1376,7 @@ class TurboshaftGraphBuildingInterface {
       case kExprF32UConvertI32:
         return asm_.ChangeUint32ToFloat32(arg);
       case kExprI32SConvertSatF32: {
-        OpIndex truncated = UnOpImpl(decoder, kExprF32Trunc, arg);
+        OpIndex truncated = UnOpImpl(decoder, kExprF32Trunc, arg, kWasmF32);
         OpIndex converted =
             asm_.TruncateFloat32ToInt32OverflowUndefined(truncated);
         OpIndex converted_back = asm_.ChangeInt32ToFloat32(converted);
@@ -1390,7 +1414,7 @@ class TurboshaftGraphBuildingInterface {
         return result;
       }
       case kExprI32UConvertSatF32: {
-        OpIndex truncated = UnOpImpl(decoder, kExprF32Trunc, arg);
+        OpIndex truncated = UnOpImpl(decoder, kExprF32Trunc, arg, kWasmF32);
         OpIndex converted =
             asm_.TruncateFloat32ToUint32OverflowUndefined(truncated);
         OpIndex converted_back = asm_.ChangeUint32ToFloat32(converted);
@@ -1427,7 +1451,7 @@ class TurboshaftGraphBuildingInterface {
         return result;
       }
       case kExprI32SConvertSatF64: {
-        OpIndex truncated = UnOpImpl(decoder, kExprF64Trunc, arg);
+        OpIndex truncated = UnOpImpl(decoder, kExprF64Trunc, arg, kWasmF64);
         OpIndex converted =
             asm_.TruncateFloat64ToInt32OverflowUndefined(truncated);
         OpIndex converted_back = asm_.ChangeInt32ToFloat64(converted);
@@ -1465,7 +1489,7 @@ class TurboshaftGraphBuildingInterface {
         return result;
       }
       case kExprI32UConvertSatF64: {
-        OpIndex truncated = UnOpImpl(decoder, kExprF64Trunc, arg);
+        OpIndex truncated = UnOpImpl(decoder, kExprF64Trunc, arg, kWasmF64);
         OpIndex converted =
             asm_.TruncateFloat64ToUint32OverflowUndefined(truncated);
         OpIndex converted_back = asm_.ChangeUint32ToFloat64(converted);
@@ -1824,6 +1848,8 @@ class TurboshaftGraphBuildingInterface {
       case kExprI64SExtendI32:
         // TODO(14108): Is this correct?
         return asm_.ChangeInt32ToInt64(arg);
+      case kExprRefIsNull:
+        return asm_.IsNull(arg, input_type);
       case kExprI32AsmjsLoadMem8S:
       case kExprI32AsmjsLoadMem8U:
       case kExprI32AsmjsLoadMem16S:
@@ -1835,7 +1861,6 @@ class TurboshaftGraphBuildingInterface {
       case kExprI32AsmjsUConvertF32:
       case kExprI32AsmjsSConvertF64:
       case kExprI32AsmjsUConvertF64:
-      case kExprRefIsNull:
       case kExprRefAsNonNull:
       case kExprExternInternalize:
       case kExprExternExternalize:
@@ -2170,6 +2195,24 @@ class TurboshaftGraphBuildingInterface {
     }
   }
 
+  OpIndex CallBuiltinFromRuntimeStub(WasmCode::RuntimeStubId stub_id,
+                                     base::Vector<OpIndex> args) {
+    Builtin builtin_name = RuntimeStubIdToBuiltinName(stub_id);
+    CallInterfaceDescriptor interface_descriptor =
+        Builtins::CallInterfaceDescriptorFor(builtin_name);
+    const CallDescriptor* call_descriptor =
+        compiler::Linkage::GetStubCallDescriptor(
+            asm_.graph_zone(), interface_descriptor,
+            interface_descriptor.GetStackParameterCount(),
+            CallDescriptor::kNoFlags, compiler::Operator::kNoProperties,
+            StubCallMode::kCallWasmRuntimeStub);
+    const TSCallDescriptor* ts_call_descriptor =
+        TSCallDescriptor::Create(call_descriptor, asm_.graph_zone());
+    OpIndex call_target =
+        asm_.RelocatableConstant(stub_id, RelocInfo::WASM_STUB_CALL);
+    return asm_.Call(call_target, OpIndex::Invalid(), args, ts_call_descriptor);
+  }
+
   OpIndex CallRuntime(Runtime::FunctionId f, base::Vector<OpIndex> args) {
     const Runtime::Function* fun = Runtime::FunctionForId(f);
     OpIndex isolate_root = asm_.LoadRootRegister();
@@ -2248,6 +2291,16 @@ class TurboshaftGraphBuildingInterface {
     MachineSignature sig(0, 1, reps);
     CallC(&sig, ref, &stack_slot);
     return asm_.Load(stack_slot, LoadOp::Kind::RawAligned(), arg_type);
+  }
+
+  OpIndex IsSmi(OpIndex object) {
+    if constexpr (COMPRESS_POINTERS_BOOL) {
+      return asm_.Word32Equal(asm_.Word32BitwiseAnd(object, kSmiTagMask),
+                              kSmiTag);
+    } else {
+      return asm_.WordPtrEqual(asm_.WordPtrBitwiseAnd(object, kSmiTagMask),
+                               kSmiTag);
+    }
   }
 
   compiler::TrapId GetTrapIdForTrap(wasm::TrapReason reason) {

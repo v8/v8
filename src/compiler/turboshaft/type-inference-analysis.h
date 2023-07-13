@@ -297,7 +297,10 @@ class TypeInferenceAnalysis {
         case Opcode::kTransitionElementsKind:
         case Opcode::kFindOrderedHashEntry:
 #if V8_ENABLE_WEBASSEMBLY
+        // TODO(14108): Implement.
         case Opcode::kGlobalGet:
+        case Opcode::kIsNull:
+        case Opcode::kNull:
 #endif
           // TODO(nicohartmann@): Support remaining operations. For now we
           // compute fallback types.

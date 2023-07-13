@@ -2941,6 +2941,20 @@ class AssemblerOpInterface {
     }
     return stack().ReduceGlobalSet(instance, value, global);
   }
+
+  OpIndex Null(wasm::ValueType type) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
+    return stack().ReduceNull(type);
+  }
+
+  OpIndex IsNull(OpIndex input, wasm::ValueType type) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
+    return stack().ReduceIsNull(input, type);
+  }
 #endif
 
   template <typename Rep>

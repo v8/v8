@@ -186,10 +186,7 @@ void ScheduleBuilder::ProcessOperation(const Operation& op) {
 // These operations should have been lowered in previous reducers already.
 TURBOSHAFT_SIMPLIFIED_OPERATION_LIST(SHOULD_HAVE_BEEN_LOWERED)
 TURBOSHAFT_OTHER_OPERATION_LIST(SHOULD_HAVE_BEEN_LOWERED)
-#ifdef V8_ENABLE_WEBASSEMBLY
-SHOULD_HAVE_BEEN_LOWERED(GlobalGet)
-SHOULD_HAVE_BEEN_LOWERED(GlobalSet)
-#endif
+TURBOSHAFT_WASM_OPERATION_LIST(SHOULD_HAVE_BEEN_LOWERED)
 #undef SHOULD_HAVE_BEEN_LOWERED
 
 Node* ScheduleBuilder::ProcessOperation(const WordBinopOp& op) {

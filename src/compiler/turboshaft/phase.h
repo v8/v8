@@ -85,6 +85,10 @@ class PipelineData : public base::ContextualClass<PipelineData> {
     return wasm_sig_;
   }
   void set_wasm_sig(const wasm::FunctionSig* sig) { wasm_sig_ = sig; }
+  const wasm::WasmModule* wasm_module() const { return wasm_module_; }
+  void set_wasm_module(const wasm::WasmModule* module) {
+    wasm_module_ = module;
+  }
 #endif
 
   void reset_schedule() { schedule_ = nullptr; }
@@ -125,6 +129,7 @@ class PipelineData : public base::ContextualClass<PipelineData> {
   // TODO(14108): Consider splitting wasm members into its own WasmPipelineData
   // if we need many of them.
   const wasm::FunctionSig* wasm_sig_ = nullptr;
+  const wasm::WasmModule* wasm_module_ = nullptr;
 #endif
 
   std::unique_ptr<turboshaft::Graph> graph_;

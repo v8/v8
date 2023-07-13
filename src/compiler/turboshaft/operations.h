@@ -97,7 +97,9 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
 #ifdef V8_ENABLE_WEBASSEMBLY
 #define TURBOSHAFT_WASM_OPERATION_LIST(V) \
   V(GlobalGet)                            \
-  V(GlobalSet)
+  V(GlobalSet)                            \
+  V(IsNull)                               \
+  V(Null)
 #else
 #define TURBOSHAFT_WASM_OPERATION_LIST(V)
 #endif
@@ -4880,6 +4882,42 @@ struct GlobalSetOp : FixedArityOperationT<2, GlobalSetOp> {
   }
 
   auto options() const { return std::tuple{global}; }
+};
+
+struct NullOp : FixedArityOperationT<0, NullOp> {
+  wasm::ValueType type;
+  static constexpr OpEffects effects = OpEffects();
+
+  explicit NullOp(wasm::ValueType type) : Base(), type(type) {}
+
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return RepVector<RegisterRepresentation::Tagged()>();
+  }
+
+  void Validate(const Graph& graph) const {
+    DCHECK(type.is_object_reference() && type.is_nullable());
+  }
+
+  auto options() const { return std::tuple{type}; }
+};
+
+struct IsNullOp : FixedArityOperationT<1, IsNullOp> {
+  wasm::ValueType type;
+  static constexpr OpEffects effects = OpEffects();
+
+  OpIndex object() const { return Base::input(0); }
+
+  IsNullOp(OpIndex object, wasm::ValueType type) : Base(object), type(type) {}
+
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return RepVector<RegisterRepresentation::Word32()>();
+  }
+
+  void Validate(const Graph& graph) const {
+    // TODO(14108): Validate
+  }
+
+  auto options() const { return std::tuple{type}; }
 };
 
 #endif  // V8_ENABLE_WEBASSEMBLY
