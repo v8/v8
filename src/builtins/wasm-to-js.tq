@@ -23,6 +23,7 @@ extern builtin CallVarargs(
 
 @export
 transitioning macro WasmToJSWrapper(ref: WasmApiFunctionRef): WasmToJSResult {
+  ModifyThreadInWasmFlag(0);
   const target = ref.callable;
   // Set the receiver to `Undefined` as the default. If the receiver would be
   // different, e.g. the global proxy for sloppy functions, then the CallVarargs
@@ -31,7 +32,9 @@ transitioning macro WasmToJSWrapper(ref: WasmApiFunctionRef): WasmToJSResult {
   const context = ref.native_context;
   const params = WasmAllocateFixedArray(1);
   params.objects[0] = receiver;
+
   const _result = CallVarargs(context, target, 0, 1, params);
+  ModifyThreadInWasmFlag(1);
   // TODO(ahaas): Provide actual return values here.
   return WasmToJSResult{
     popCount: kNumGPRegisterParameters + kNumFPRegisterParameters,

@@ -688,11 +688,6 @@ macro WasmToJSObject(
   }
 }
 
-macro GetRefAt<T: type, From: type>(base: From, offset: intptr): &T {
-  return torque_internal::unsafe::NewOffHeapReference<T>(
-      %RawDownCast<RawPtr<T>>(base + offset));
-}
-
 builtin JSToWasmHandleReturns(
     instance: WasmInstanceObject, resultArray: JSArray,
     wrapperBuffer: RawPtr<intptr>): JSAny {

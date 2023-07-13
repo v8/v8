@@ -561,6 +561,12 @@ TNode<RawPtrT> CodeAssembler::LoadParentFramePointer() {
   return UncheckedCast<RawPtrT>(raw_assembler()->LoadParentFramePointer());
 }
 
+TNode<RawPtrT> CodeAssembler::LoadPointerFromRootRegister(
+    TNode<IntPtrT> offset) {
+  return UncheckedCast<RawPtrT>(
+      Load(MachineType::IntPtr(), raw_assembler()->LoadRootRegister(), offset));
+}
+
 TNode<RawPtrT> CodeAssembler::StackSlotPtr(int size, int alignment) {
   return UncheckedCast<RawPtrT>(raw_assembler()->StackSlot(size, alignment));
 }
