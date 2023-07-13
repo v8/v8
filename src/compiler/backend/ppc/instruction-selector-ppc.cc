@@ -1933,8 +1933,12 @@ void InstructionSelectorT<Adapter>::VisitFloat64Max(node_t node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat64SilenceNaN(Node* node) {
-  VisitRR(this, kPPC_Float64SilenceNaN, node);
+void InstructionSelectorT<Adapter>::VisitFloat64SilenceNaN(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    VisitRR(this, kPPC_Float64SilenceNaN, node);
+  }
 }
 
 template <typename Adapter>
@@ -1956,26 +1960,42 @@ void InstructionSelectorT<Adapter>::VisitFloat64Min(node_t node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat32Abs(Node* node) {
-  VisitRR(this, kPPC_AbsDouble | MiscField::encode(1), node);
+void InstructionSelectorT<Adapter>::VisitFloat32Abs(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    VisitRR(this, kPPC_AbsDouble | MiscField::encode(1), node);
+  }
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat64Abs(Node* node) {
-  VisitRR(this, kPPC_AbsDouble, node);
+void InstructionSelectorT<Adapter>::VisitFloat64Abs(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    VisitRR(this, kPPC_AbsDouble, node);
+  }
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat32Sqrt(Node* node) {
-  VisitRR(this, kPPC_SqrtDouble | MiscField::encode(1), node);
+void InstructionSelectorT<Adapter>::VisitFloat32Sqrt(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    VisitRR(this, kPPC_SqrtDouble | MiscField::encode(1), node);
+  }
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitFloat64Ieee754Unop(
-    Node* node, InstructionCode opcode) {
-  PPCOperandGeneratorT<Adapter> g(this);
-  Emit(opcode, g.DefineAsFixed(node, d1), g.UseFixed(node->InputAt(0), d1))
-      ->MarkAsCall();
+    node_t node, InstructionCode opcode) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    PPCOperandGeneratorT<Adapter> g(this);
+    Emit(opcode, g.DefineAsFixed(node, d1), g.UseFixed(node->InputAt(0), d1))
+        ->MarkAsCall();
+  }
 }
 
 template <typename Adapter>
@@ -1992,53 +2012,93 @@ void InstructionSelectorT<Adapter>::VisitFloat64Ieee754Binop(
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat64Sqrt(Node* node) {
-  VisitRR(this, kPPC_SqrtDouble, node);
+void InstructionSelectorT<Adapter>::VisitFloat64Sqrt(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    VisitRR(this, kPPC_SqrtDouble, node);
+  }
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat32RoundDown(Node* node) {
-  VisitRR(this, kPPC_FloorDouble | MiscField::encode(1), node);
+void InstructionSelectorT<Adapter>::VisitFloat32RoundDown(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    VisitRR(this, kPPC_FloorDouble | MiscField::encode(1), node);
+  }
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat64RoundDown(Node* node) {
-  VisitRR(this, kPPC_FloorDouble, node);
+void InstructionSelectorT<Adapter>::VisitFloat64RoundDown(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    VisitRR(this, kPPC_FloorDouble, node);
+  }
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat32RoundUp(Node* node) {
-  VisitRR(this, kPPC_CeilDouble | MiscField::encode(1), node);
+void InstructionSelectorT<Adapter>::VisitFloat32RoundUp(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    VisitRR(this, kPPC_CeilDouble | MiscField::encode(1), node);
+  }
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat64RoundUp(Node* node) {
-  VisitRR(this, kPPC_CeilDouble, node);
+void InstructionSelectorT<Adapter>::VisitFloat64RoundUp(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    VisitRR(this, kPPC_CeilDouble, node);
+  }
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat32RoundTruncate(Node* node) {
-  VisitRR(this, kPPC_TruncateDouble | MiscField::encode(1), node);
+void InstructionSelectorT<Adapter>::VisitFloat32RoundTruncate(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    VisitRR(this, kPPC_TruncateDouble | MiscField::encode(1), node);
+  }
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat64RoundTruncate(Node* node) {
-  VisitRR(this, kPPC_TruncateDouble, node);
+void InstructionSelectorT<Adapter>::VisitFloat64RoundTruncate(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    VisitRR(this, kPPC_TruncateDouble, node);
+  }
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat64RoundTiesAway(Node* node) {
-  VisitRR(this, kPPC_RoundDouble, node);
+void InstructionSelectorT<Adapter>::VisitFloat64RoundTiesAway(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    VisitRR(this, kPPC_RoundDouble, node);
+  }
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat32Neg(Node* node) {
-  VisitRR(this, kPPC_NegDouble, node);
+void InstructionSelectorT<Adapter>::VisitFloat32Neg(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    VisitRR(this, kPPC_NegDouble, node);
+  }
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat64Neg(Node* node) {
-  VisitRR(this, kPPC_NegDouble, node);
+void InstructionSelectorT<Adapter>::VisitFloat64Neg(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    VisitRR(this, kPPC_NegDouble, node);
+  }
 }
 
 template <typename Adapter>
@@ -3461,12 +3521,12 @@ void InstructionSelectorT<Adapter>::AddOutputToSelectContinuation(
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat32RoundTiesEven(Node* node) {
+void InstructionSelectorT<Adapter>::VisitFloat32RoundTiesEven(node_t node) {
   UNREACHABLE();
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat64RoundTiesEven(Node* node) {
+void InstructionSelectorT<Adapter>::VisitFloat64RoundTiesEven(node_t node) {
   UNREACHABLE();
 }
 

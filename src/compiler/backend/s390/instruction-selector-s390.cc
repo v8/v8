@@ -1431,31 +1431,9 @@ static inline bool TryMatchDoubleConstructFromInsert(
 
 #define null ([]() { return false; })
 // TODO(john.yan): place kAllowRM where available
-#define FLOAT_UNARY_OP_LIST_32(V)                                              \
-  V(Float64, TruncateFloat64ToUint32, kS390_DoubleToUint32,                    \
-    OperandMode::kNone, null)                                                  \
-  V(Float64, Float64SilenceNaN, kS390_Float64SilenceNaN, OperandMode::kNone,   \
-    null)                                                                      \
-  V(Float32, Float32Abs, kS390_AbsFloat, OperandMode::kNone, null)             \
-  V(Float64, Float64Abs, kS390_AbsDouble, OperandMode::kNone, null)            \
-  V(Float32, Float32Sqrt, kS390_SqrtFloat, OperandMode::kNone, null)           \
-  V(Float64, Float64Sqrt, kS390_SqrtDouble, OperandMode::kNone, null)          \
-  V(Float32, Float32RoundDown, kS390_FloorFloat, OperandMode::kNone, null)     \
-  V(Float64, Float64RoundDown, kS390_FloorDouble, OperandMode::kNone, null)    \
-  V(Float32, Float32RoundUp, kS390_CeilFloat, OperandMode::kNone, null)        \
-  V(Float64, Float64RoundUp, kS390_CeilDouble, OperandMode::kNone, null)       \
-  V(Float32, Float32RoundTruncate, kS390_TruncateFloat, OperandMode::kNone,    \
-    null)                                                                      \
-  V(Float64, Float64RoundTruncate, kS390_TruncateDouble, OperandMode::kNone,   \
-    null)                                                                      \
-  V(Float64, Float64RoundTiesAway, kS390_RoundDouble, OperandMode::kNone,      \
-    null)                                                                      \
-  V(Float32, Float32RoundTiesEven, kS390_FloatNearestInt, OperandMode::kNone,  \
-    null)                                                                      \
-  V(Float64, Float64RoundTiesEven, kS390_DoubleNearestInt, OperandMode::kNone, \
-    null)                                                                      \
-  V(Float32, Float32Neg, kS390_NegFloat, OperandMode::kNone, null)             \
-  V(Float64, Float64Neg, kS390_NegDouble, OperandMode::kNone, null)
+#define FLOAT_UNARY_OP_LIST_32(V)                           \
+  V(Float64, TruncateFloat64ToUint32, kS390_DoubleToUint32, \
+    OperandMode::kNone, null)
 
 #define WORD32_UNARY_OP_LIST_32(V)                                  \
   V(Word32, Word32Clz, kS390_Cntlz32, OperandMode::kNone, null)     \
@@ -1535,32 +1513,54 @@ WORD64_BIN_OP_LIST(DECLARE_BIN_OP)
 #undef FLOAT_UNARY_OP_LIST
 #undef WORD32_UNARY_OP_LIST_32
 
-#define FLOAT_UNARY_OP_LIST(V)                                                \
-  V(Float64, BitcastFloat64ToInt64, kS390_BitcastDoubleToInt64,               \
-    OperandMode::kNone, null)                                                 \
-  V(Float32, BitcastFloat32ToInt32, kS390_BitcastFloat32ToInt32,              \
-    OperandMode::kAllowRM, null)                                              \
-  V(Word32, Float64ExtractHighWord32, kS390_DoubleExtractHighWord32,          \
-    OperandMode::kNone, null)                                                 \
-  /* TODO(john.yan): can use kAllowRM */                                      \
-  V(Word32, Float64ExtractLowWord32, kS390_DoubleExtractLowWord32,            \
-    OperandMode::kNone, null)                                                 \
-  V(Float64, ChangeFloat64ToUint64, kS390_DoubleToUint64, OperandMode::kNone, \
-    null)                                                                     \
-  V(Float64, ChangeFloat64ToInt64, kS390_DoubleToInt64, OperandMode::kNone,   \
-    null)                                                                     \
-  V(Float64, ChangeFloat64ToUint32, kS390_DoubleToUint32, OperandMode::kNone, \
-    null)                                                                     \
-  V(Float64, ChangeFloat64ToInt32, kS390_DoubleToInt32, OperandMode::kNone,   \
-    null)                                                                     \
-  V(Float64, TruncateFloat64ToInt64, kS390_DoubleToInt64, OperandMode::kNone, \
-    null)                                                                     \
-  V(Float64, TruncateFloat64ToFloat32, kS390_DoubleToFloat32,                 \
-    OperandMode::kNone, null)                                                 \
-  V(Float64, TruncateFloat64ToWord32, kArchTruncateDoubleToI,                 \
-    OperandMode::kNone, null)                                                 \
-  V(Float32, ChangeFloat32ToFloat64, kS390_Float32ToDouble,                   \
-    OperandMode::kAllowRM, null)                                              \
+#define FLOAT_UNARY_OP_LIST(V)                                                 \
+  V(Float64, Float64SilenceNaN, kS390_Float64SilenceNaN, OperandMode::kNone,   \
+    null)                                                                      \
+  V(Float64, Float64Sqrt, kS390_SqrtDouble, OperandMode::kNone, null)          \
+  V(Float64, Float64RoundUp, kS390_CeilDouble, OperandMode::kNone, null)       \
+  V(Float64, Float64RoundTruncate, kS390_TruncateDouble, OperandMode::kNone,   \
+    null)                                                                      \
+  V(Float64, Float64RoundTiesEven, kS390_DoubleNearestInt, OperandMode::kNone, \
+    null)                                                                      \
+  V(Float64, Float64RoundTiesAway, kS390_RoundDouble, OperandMode::kNone,      \
+    null)                                                                      \
+  V(Float64, Float64RoundDown, kS390_FloorDouble, OperandMode::kNone, null)    \
+  V(Float64, Float64Neg, kS390_NegDouble, OperandMode::kNone, null)            \
+  V(Float64, Float64Abs, kS390_AbsDouble, OperandMode::kNone, null)            \
+  V(Float32, Float32Sqrt, kS390_SqrtFloat, OperandMode::kNone, null)           \
+  V(Float32, Float32RoundUp, kS390_CeilFloat, OperandMode::kNone, null)        \
+  V(Float32, Float32RoundTruncate, kS390_TruncateFloat, OperandMode::kNone,    \
+    null)                                                                      \
+  V(Float32, Float32RoundTiesEven, kS390_FloatNearestInt, OperandMode::kNone,  \
+    null)                                                                      \
+  V(Float32, Float32RoundDown, kS390_FloorFloat, OperandMode::kNone, null)     \
+  V(Float32, Float32Neg, kS390_NegFloat, OperandMode::kNone, null)             \
+  V(Float32, Float32Abs, kS390_AbsFloat, OperandMode::kNone, null)             \
+  V(Float64, BitcastFloat64ToInt64, kS390_BitcastDoubleToInt64,                \
+    OperandMode::kNone, null)                                                  \
+  V(Float32, BitcastFloat32ToInt32, kS390_BitcastFloat32ToInt32,               \
+    OperandMode::kAllowRM, null)                                               \
+  V(Word32, Float64ExtractHighWord32, kS390_DoubleExtractHighWord32,           \
+    OperandMode::kNone, null)                                                  \
+  /* TODO(john.yan): can use kAllowRM */                                       \
+  V(Word32, Float64ExtractLowWord32, kS390_DoubleExtractLowWord32,             \
+    OperandMode::kNone, null)                                                  \
+  V(Float64, ChangeFloat64ToUint64, kS390_DoubleToUint64, OperandMode::kNone,  \
+    null)                                                                      \
+  V(Float64, ChangeFloat64ToInt64, kS390_DoubleToInt64, OperandMode::kNone,    \
+    null)                                                                      \
+  V(Float64, ChangeFloat64ToUint32, kS390_DoubleToUint32, OperandMode::kNone,  \
+    null)                                                                      \
+  V(Float64, ChangeFloat64ToInt32, kS390_DoubleToInt32, OperandMode::kNone,    \
+    null)                                                                      \
+  V(Float64, TruncateFloat64ToInt64, kS390_DoubleToInt64, OperandMode::kNone,  \
+    null)                                                                      \
+  V(Float64, TruncateFloat64ToFloat32, kS390_DoubleToFloat32,                  \
+    OperandMode::kNone, null)                                                  \
+  V(Float64, TruncateFloat64ToWord32, kArchTruncateDoubleToI,                  \
+    OperandMode::kNone, null)                                                  \
+  V(Float32, ChangeFloat32ToFloat64, kS390_Float32ToDouble,                    \
+    OperandMode::kAllowRM, null)                                               \
   V(Float64, RoundFloat64ToInt32, kS390_DoubleToInt32, OperandMode::kNone, null)
 
 #define FLOAT_BIN_OP_LIST(V)                                           \
@@ -1775,10 +1775,14 @@ void InstructionSelectorT<Adapter>::VisitFloat64Mod(node_t node) {
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitFloat64Ieee754Unop(
-    Node* node, InstructionCode opcode) {
-  S390OperandGeneratorT<Adapter> g(this);
-  Emit(opcode, g.DefineAsFixed(node, d1), g.UseFixed(node->InputAt(0), d1))
-      ->MarkAsCall();
+    node_t node, InstructionCode opcode) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    S390OperandGeneratorT<Adapter> g(this);
+    Emit(opcode, g.DefineAsFixed(node, d1), g.UseFixed(node->InputAt(0), d1))
+        ->MarkAsCall();
+  }
 }
 
 template <typename Adapter>
