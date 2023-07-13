@@ -1203,7 +1203,8 @@ class WasmGraphBuildingInterface {
 
   void MemoryCopy(FullDecoder* decoder, const MemoryCopyImmediate& imm,
                   const Value& dst, const Value& src, const Value& size) {
-    builder_->MemoryCopy(dst.node, src.node, size.node, decoder->position());
+    builder_->MemoryCopy(imm.memory_dst.memory, imm.memory_src.memory, dst.node,
+                         src.node, size.node, decoder->position());
   }
 
   void MemoryFill(FullDecoder* decoder, const MemoryIndexImmediate& imm,

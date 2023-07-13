@@ -5537,6 +5537,7 @@ class LiftoffCompiler {
       instance = __ GetUnusedRegister(kGpReg, pinned).gp();
       __ LoadInstanceFromFrame(instance);
     }
+    pinned.set(instance);
 
     // Only allocate the OOB code now, so the state of the stack is reflected
     // correctly.
@@ -5553,7 +5554,12 @@ class LiftoffCompiler {
     // register for the result.
     LiftoffRegister result(instance);
     GenerateCCall(&result, kI32, kVoid,
-                  {{kIntPtrKind, LiftoffRegister{instance}, 0}, dst, src, size},
+                  {{kIntPtrKind, LiftoffRegister{instance}, 0},
+                   {kI32, static_cast<int32_t>(imm.memory_dst.index), 0},
+                   {kI32, static_cast<int32_t>(imm.memory_src.index), 0},
+                   dst,
+                   src,
+                   size},
                   ExternalReference::wasm_memory_copy());
     FREEZE_STATE(trapping);
     __ emit_cond_jump(kEqual, trap_label, kI32, result.gp(), no_reg, trapping);

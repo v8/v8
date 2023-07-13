@@ -842,15 +842,15 @@ struct MemoryInitImmediate {
 };
 
 struct MemoryCopyImmediate {
-  MemoryIndexImmediate memory_src;
   MemoryIndexImmediate memory_dst;
+  MemoryIndexImmediate memory_src;
   uint32_t length;
 
   template <typename ValidationTag>
   MemoryCopyImmediate(Decoder* decoder, const uint8_t* pc,
                       ValidationTag validate = {})
-      : memory_src(decoder, pc, validate),
-        memory_dst(decoder, pc + memory_src.length, validate),
+      : memory_dst(decoder, pc, validate),
+        memory_src(decoder, pc + memory_dst.length, validate),
         length(memory_src.length + memory_dst.length) {}
 };
 

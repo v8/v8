@@ -5201,7 +5201,7 @@ void WasmGraphBuilder::MemoryInit(const wasm::WasmMemory* memory,
   Node* function =
       gasm_->ExternalConstant(ExternalReference::wasm_memory_init());
 
-  MemTypeToUintPtrOrOOBTrap(memory, {&dst}, position);
+  MemTypeToUintPtrOrOOBTrap(memory->is_memory64, {&dst}, position);
 
   Node* stack_slot = StoreArgsInStackSlot(
       {{MachineType::PointerRepresentation(), GetInstance()},
@@ -5255,9 +5255,9 @@ Node* WasmGraphBuilder::StoreArgsInStackSlot(
 }
 
 void WasmGraphBuilder::MemTypeToUintPtrOrOOBTrap(
-    const wasm::WasmMemory* memory, std::initializer_list<Node**> nodes,
+    bool is_memory64, std::initializer_list<Node**> nodes,
     wasm::WasmCodePosition position) {
-  if (!memory->is_memory64) {
+  if (!is_memory64) {
     for (Node** node : nodes) {
       *node = gasm_->BuildChangeUint32ToUintPtr(*node);
     }
@@ -5276,17 +5276,23 @@ void WasmGraphBuilder::MemTypeToUintPtrOrOOBTrap(
   TrapIfTrue(wasm::kTrapMemOutOfBounds, any_high_word, position);
 }
 
-void WasmGraphBuilder::MemoryCopy(Node* dst, Node* src, Node* size,
+void WasmGraphBuilder::MemoryCopy(const wasm::WasmMemory* dst_memory,
+                                  const wasm::WasmMemory* src_memory, Node* dst,
+                                  Node* src, Node* size,
                                   wasm::WasmCodePosition position) {
   Node* function =
       gasm_->ExternalConstant(ExternalReference::wasm_memory_copy());
 
-  // TODO(13918): Support multiple memories.
-  const wasm::WasmMemory* memory = env_->module->memories.data();
-  MemTypeToUintPtrOrOOBTrap(memory, {&dst, &src, &size}, position);
+  DCHECK_EQ(dst_memory->is_memory64, src_memory->is_memory64);
+  MemTypeToUintPtrOrOOBTrap(dst_memory->is_memory64, {&dst, &src, &size},
+                            position);
 
   Node* stack_slot = StoreArgsInStackSlot(
       {{MachineType::PointerRepresentation(), GetInstance()},
+       {MachineRepresentation::kWord32,
+        gasm_->Int32Constant(dst_memory->index)},
+       {MachineRepresentation::kWord32,
+        gasm_->Int32Constant(src_memory->index)},
        {MachineType::PointerRepresentation(), dst},
        {MachineType::PointerRepresentation(), src},
        {MachineType::PointerRepresentation(), size}});
@@ -5303,7 +5309,7 @@ void WasmGraphBuilder::MemoryFill(const wasm::WasmMemory* memory, Node* dst,
   Node* function =
       gasm_->ExternalConstant(ExternalReference::wasm_memory_fill());
 
-  MemTypeToUintPtrOrOOBTrap(memory, {&dst, &size}, position);
+  MemTypeToUintPtrOrOOBTrap(memory->is_memory64, {&dst, &size}, position);
 
   Node* stack_slot = StoreArgsInStackSlot(
       {{MachineType::PointerRepresentation(), GetInstance()},

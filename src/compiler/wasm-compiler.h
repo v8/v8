@@ -435,8 +435,9 @@ class WasmGraphBuilder {
   void MemoryInit(const wasm::WasmMemory* memory, uint32_t data_segment_index,
                   Node* dst, Node* src, Node* size,
                   wasm::WasmCodePosition position);
-  void MemoryCopy(Node* dst, Node* src, Node* size,
-                  wasm::WasmCodePosition position);
+  void MemoryCopy(const wasm::WasmMemory* dst_memory,
+                  const wasm::WasmMemory* src_memory, Node* dst, Node* src,
+                  Node* size, wasm::WasmCodePosition position);
   void DataDrop(uint32_t data_segment_index, wasm::WasmCodePosition position);
   void MemoryFill(const wasm::WasmMemory* memory, Node* dst, Node* fill,
                   Node* size, wasm::WasmCodePosition position);
@@ -747,7 +748,7 @@ class WasmGraphBuilder {
                        MachineType result_type, wasm::TrapReason trap_zero,
                        wasm::WasmCodePosition position);
 
-  void MemTypeToUintPtrOrOOBTrap(const wasm::WasmMemory* memory,
+  void MemTypeToUintPtrOrOOBTrap(bool is_memory64,
                                  std::initializer_list<Node**> nodes,
                                  wasm::WasmCodePosition position);
 

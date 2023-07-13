@@ -35,10 +35,6 @@
   'f32*': [PASS, HEAVY],
   'f64*': [PASS, HEAVY],
 
-  # TODO(13918): Implement missing features.
-  'proposals/multi-memory/memory_copy0': [FAIL],
-  'proposals/multi-memory/memory_copy1': [FAIL],
-
   # TODO(7748): Make these pass.
   # Binary encoding mismatch (official repo vs. M6 prototype spec):
   'proposals/gc/array': [FAIL],  # Also bogus test assertion.

@@ -504,21 +504,22 @@ int32_t memory_copy_wrapper(Address data) {
   ThreadNotInWasmScope thread_not_in_wasm_scope;
   DisallowGarbageCollection no_gc;
   size_t offset = 0;
-  Object raw_instance = ReadAndIncrementOffset<Object>(data, &offset);
-  WasmInstanceObject instance = WasmInstanceObject::cast(raw_instance);
+  WasmInstanceObject instance =
+      WasmInstanceObject::cast(ReadAndIncrementOffset<Object>(data, &offset));
+  uint32_t dst_mem_index = ReadAndIncrementOffset<uint32_t>(data, &offset);
+  uint32_t src_mem_index = ReadAndIncrementOffset<uint32_t>(data, &offset);
   uintptr_t dst = ReadAndIncrementOffset<uintptr_t>(data, &offset);
   uintptr_t src = ReadAndIncrementOffset<uintptr_t>(data, &offset);
   uintptr_t size = ReadAndIncrementOffset<uintptr_t>(data, &offset);
 
-  // TODO(13918): Support multiple memories.
-  uint32_t mem_index = 0;
-  uint64_t mem_size = instance.memory0_size();
-  if (!base::IsInBounds<uint64_t>(dst, size, mem_size)) return kOutOfBounds;
-  if (!base::IsInBounds<uint64_t>(src, size, mem_size)) return kOutOfBounds;
+  uint64_t dst_mem_size = instance.memory_size(dst_mem_index);
+  uint64_t src_mem_size = instance.memory_size(src_mem_index);
+  if (!base::IsInBounds<uint64_t>(dst, size, dst_mem_size)) return kOutOfBounds;
+  if (!base::IsInBounds<uint64_t>(src, size, src_mem_size)) return kOutOfBounds;
 
   // Use std::memmove, because the ranges can overlap.
-  std::memmove(EffectiveAddress(instance, mem_index, dst),
-               EffectiveAddress(instance, mem_index, src), size);
+  std::memmove(EffectiveAddress(instance, dst_mem_index, dst),
+               EffectiveAddress(instance, src_mem_index, src), size);
   return kSuccess;
 }
 
