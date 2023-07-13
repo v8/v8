@@ -1764,6 +1764,18 @@ void InstructionSelectorT<Adapter>::VisitWord64Ror(node_t node) {
 }
 
 #define RR_OP_T_LIST(V)                                     \
+  V(Float32Sqrt, kArm64Float32Sqrt)                         \
+  V(Float64Sqrt, kArm64Float64Sqrt)                         \
+  V(Float32RoundDown, kArm64Float32RoundDown)               \
+  V(Float64RoundDown, kArm64Float64RoundDown)               \
+  V(Float32RoundUp, kArm64Float32RoundUp)                   \
+  V(Float64RoundUp, kArm64Float64RoundUp)                   \
+  V(Float32RoundTruncate, kArm64Float32RoundTruncate)       \
+  V(Float64RoundTruncate, kArm64Float64RoundTruncate)       \
+  V(Float64RoundTiesAway, kArm64Float64RoundTiesAway)       \
+  V(Float32RoundTiesEven, kArm64Float32RoundTiesEven)       \
+  V(Float64RoundTiesEven, kArm64Float64RoundTiesEven)       \
+  V(Float64SilenceNaN, kArm64Float64SilenceNaN)             \
   V(ChangeInt32ToFloat64, kArm64Int32ToFloat64)             \
   V(RoundFloat64ToInt32, kArm64Float64ToInt32)              \
   V(ChangeFloat32ToFloat64, kArm64Float32ToFloat64)         \
@@ -1788,35 +1800,23 @@ void InstructionSelectorT<Adapter>::VisitWord64Ror(node_t node) {
   V(Float64ExtractLowWord32, kArm64Float64ExtractLowWord32) \
   V(Float64ExtractHighWord32, kArm64Float64ExtractHighWord32)
 
-#define RR_OP_LIST(V)                                 \
-  V(Word64Clz, kArm64Clz)                             \
-  V(Word32Clz, kArm64Clz32)                           \
-  V(Word32Popcnt, kArm64Cnt32)                        \
-  V(Word64Popcnt, kArm64Cnt64)                        \
-  V(Word32ReverseBits, kArm64Rbit32)                  \
-  V(Word64ReverseBits, kArm64Rbit)                    \
-  V(Word32ReverseBytes, kArm64Rev32)                  \
-  V(Word64ReverseBytes, kArm64Rev)                    \
-  V(TruncateFloat64ToUint32, kArm64Float64ToUint32)   \
-  V(Float32Sqrt, kArm64Float32Sqrt)                   \
-  V(Float64Sqrt, kArm64Float64Sqrt)                   \
-  V(Float32RoundDown, kArm64Float32RoundDown)         \
-  V(Float64RoundDown, kArm64Float64RoundDown)         \
-  V(Float32RoundUp, kArm64Float32RoundUp)             \
-  V(Float64RoundUp, kArm64Float64RoundUp)             \
-  V(Float32RoundTruncate, kArm64Float32RoundTruncate) \
-  V(Float64RoundTruncate, kArm64Float64RoundTruncate) \
-  V(Float64RoundTiesAway, kArm64Float64RoundTiesAway) \
-  V(Float32RoundTiesEven, kArm64Float32RoundTiesEven) \
-  V(Float64RoundTiesEven, kArm64Float64RoundTiesEven) \
-  V(Float64SilenceNaN, kArm64Float64SilenceNaN)       \
-  V(F32x4Ceil, kArm64Float32RoundUp)                  \
-  V(F32x4Floor, kArm64Float32RoundDown)               \
-  V(F32x4Trunc, kArm64Float32RoundTruncate)           \
-  V(F32x4NearestInt, kArm64Float32RoundTiesEven)      \
-  V(F64x2Ceil, kArm64Float64RoundUp)                  \
-  V(F64x2Floor, kArm64Float64RoundDown)               \
-  V(F64x2Trunc, kArm64Float64RoundTruncate)           \
+#define RR_OP_LIST(V)                               \
+  V(Word64Clz, kArm64Clz)                           \
+  V(Word32Clz, kArm64Clz32)                         \
+  V(Word32Popcnt, kArm64Cnt32)                      \
+  V(Word64Popcnt, kArm64Cnt64)                      \
+  V(Word32ReverseBits, kArm64Rbit32)                \
+  V(Word64ReverseBits, kArm64Rbit)                  \
+  V(Word32ReverseBytes, kArm64Rev32)                \
+  V(Word64ReverseBytes, kArm64Rev)                  \
+  V(TruncateFloat64ToUint32, kArm64Float64ToUint32) \
+  V(F32x4Ceil, kArm64Float32RoundUp)                \
+  V(F32x4Floor, kArm64Float32RoundDown)             \
+  V(F32x4Trunc, kArm64Float32RoundTruncate)         \
+  V(F32x4NearestInt, kArm64Float32RoundTiesEven)    \
+  V(F64x2Ceil, kArm64Float64RoundUp)                \
+  V(F64x2Floor, kArm64Float64RoundDown)             \
+  V(F64x2Trunc, kArm64Float64RoundTruncate)         \
   V(F64x2NearestInt, kArm64Float64RoundTiesEven)
 
 #define RRR_OP_T_LIST(V)          \
@@ -2611,10 +2611,16 @@ void InstructionSelectorT<TurbofanAdapter>::VisitFloat64Ieee754Binop(
       ->MarkAsCall();
 }
 
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat64Ieee754Unop(
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitFloat64Ieee754Unop(
+    node_t node, InstructionCode opcode) {
+  UNIMPLEMENTED();
+}
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitFloat64Ieee754Unop(
     Node* node, InstructionCode opcode) {
-  Arm64OperandGeneratorT<Adapter> g(this);
+  Arm64OperandGeneratorT<TurbofanAdapter> g(this);
   Emit(opcode, g.DefineAsFixed(node, d0), g.UseFixed(node->InputAt(0), d0))
       ->MarkAsCall();
 }
@@ -3936,16 +3942,20 @@ void InstructionSelectorT<Adapter>::VisitUint64LessThanOrEqual(node_t node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat32Neg(Node* node) {
-  Arm64OperandGeneratorT<Adapter> g(this);
-  Node* in = node->InputAt(0);
-  if (in->opcode() == IrOpcode::kFloat32Mul && CanCover(node, in)) {
-    Float32BinopMatcher m(in);
-    Emit(kArm64Float32Fnmul, g.DefineAsRegister(node),
-         g.UseRegister(m.left().node()), g.UseRegister(m.right().node()));
-    return;
+void InstructionSelectorT<Adapter>::VisitFloat32Neg(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    Arm64OperandGeneratorT<Adapter> g(this);
+    Node* in = node->InputAt(0);
+    if (in->opcode() == IrOpcode::kFloat32Mul && CanCover(node, in)) {
+      Float32BinopMatcher m(in);
+      Emit(kArm64Float32Fnmul, g.DefineAsRegister(node),
+           g.UseRegister(m.left().node()), g.UseRegister(m.right().node()));
+      return;
+    }
+    VisitRR(this, kArm64Float32Neg, node);
   }
-  VisitRR(this, kArm64Float32Neg, node);
 }
 
 template <typename Adapter>
@@ -3974,29 +3984,37 @@ void InstructionSelectorT<Adapter>::VisitFloat32Mul(node_t node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat32Abs(Node* node) {
-  Arm64OperandGeneratorT<Adapter> g(this);
-  Node* in = node->InputAt(0);
-  if (in->opcode() == IrOpcode::kFloat32Sub && CanCover(node, in)) {
-    Emit(kArm64Float32Abd, g.DefineAsRegister(node),
-         g.UseRegister(in->InputAt(0)), g.UseRegister(in->InputAt(1)));
-    return;
-  }
+void InstructionSelectorT<Adapter>::VisitFloat32Abs(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    Arm64OperandGeneratorT<Adapter> g(this);
+    Node* in = node->InputAt(0);
+    if (in->opcode() == IrOpcode::kFloat32Sub && CanCover(node, in)) {
+      Emit(kArm64Float32Abd, g.DefineAsRegister(node),
+           g.UseRegister(in->InputAt(0)), g.UseRegister(in->InputAt(1)));
+      return;
+    }
 
-  return VisitRR(this, kArm64Float32Abs, node);
+    return VisitRR(this, kArm64Float32Abs, node);
+  }
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat64Abs(Node* node) {
-  Arm64OperandGeneratorT<Adapter> g(this);
-  Node* in = node->InputAt(0);
-  if (in->opcode() == IrOpcode::kFloat64Sub && CanCover(node, in)) {
-    Emit(kArm64Float64Abd, g.DefineAsRegister(node),
-         g.UseRegister(in->InputAt(0)), g.UseRegister(in->InputAt(1)));
-    return;
-  }
+void InstructionSelectorT<Adapter>::VisitFloat64Abs(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    Arm64OperandGeneratorT<Adapter> g(this);
+    Node* in = node->InputAt(0);
+    if (in->opcode() == IrOpcode::kFloat64Sub && CanCover(node, in)) {
+      Emit(kArm64Float64Abd, g.DefineAsRegister(node),
+           g.UseRegister(in->InputAt(0)), g.UseRegister(in->InputAt(1)));
+      return;
+    }
 
-  return VisitRR(this, kArm64Float64Abs, node);
+    return VisitRR(this, kArm64Float64Abs, node);
+  }
 }
 
 template <typename Adapter>
@@ -4073,16 +4091,20 @@ void InstructionSelectorT<Adapter>::VisitFloat64InsertHighWord32(Node* node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat64Neg(Node* node) {
-  Arm64OperandGeneratorT<Adapter> g(this);
-  Node* in = node->InputAt(0);
-  if (in->opcode() == IrOpcode::kFloat64Mul && CanCover(node, in)) {
-    Float64BinopMatcher m(in);
-    Emit(kArm64Float64Fnmul, g.DefineAsRegister(node),
-         g.UseRegister(m.left().node()), g.UseRegister(m.right().node()));
-    return;
+void InstructionSelectorT<Adapter>::VisitFloat64Neg(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    Arm64OperandGeneratorT<Adapter> g(this);
+    Node* in = node->InputAt(0);
+    if (in->opcode() == IrOpcode::kFloat64Mul && CanCover(node, in)) {
+      Float64BinopMatcher m(in);
+      Emit(kArm64Float64Fnmul, g.DefineAsRegister(node),
+           g.UseRegister(m.left().node()), g.UseRegister(m.right().node()));
+      return;
+    }
+    VisitRR(this, kArm64Float64Neg, node);
   }
-  VisitRR(this, kArm64Float64Neg, node);
 }
 
 template <typename Adapter>

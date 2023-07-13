@@ -384,9 +384,15 @@ void VisitRROFloat(InstructionSelectorT<TurbofanAdapter>* selector, Node* node,
 // For float unary operations. Also allocates a temporary general register for
 // used in external operands. If a temp is not required, use VisitRRSimd (since
 // float and SIMD registers are the same on IA32.
+void VisitFloatUnop(InstructionSelectorT<TurboshaftAdapter>*, Node*, Node*,
+                    ArchOpcode) {
+  UNIMPLEMENTED();
+}
+
 template <typename Adapter>
-void VisitFloatUnop(InstructionSelectorT<Adapter>* selector, Node* node,
-                    Node* input, ArchOpcode opcode) {
+void VisitFloatUnop(InstructionSelectorT<Adapter>* selector,
+                    typename Adapter::node_t node,
+                    typename Adapter::node_t input, ArchOpcode opcode) {
   IA32OperandGeneratorT<Adapter> g(selector);
   InstructionOperand temps[] = {g.TempRegister()};
   // No need for unique because inputs are float but temp is general.
@@ -1296,6 +1302,8 @@ void InstructionSelectorT<Adapter>::VisitWord32Ror(node_t node) {
 }
 
 #define RO_OP_T_LIST(V)                                      \
+  V(Float32Sqrt, kIA32Float32Sqrt)                           \
+  V(Float64Sqrt, kIA32Float64Sqrt)                           \
   V(ChangeInt32ToFloat64, kSSEInt32ToFloat64)                \
   V(TruncateFloat32ToInt32, kIA32Float32ToInt32)             \
   V(TruncateFloat64ToFloat32, kIA32Float64ToFloat32)         \
@@ -1312,8 +1320,6 @@ void InstructionSelectorT<Adapter>::VisitWord32Ror(node_t node) {
   V(Word32Clz, kIA32Lzcnt)                 \
   V(Word32Ctz, kIA32Tzcnt)                 \
   V(Word32Popcnt, kIA32Popcnt)             \
-  V(Float32Sqrt, kIA32Float32Sqrt)         \
-  V(Float64Sqrt, kIA32Float64Sqrt)         \
   V(SignExtendWord8ToInt32, kIA32Movsxbl)  \
   V(SignExtendWord16ToInt32, kIA32Movsxwl) \
   V(F64x2Sqrt, kIA32F64x2Sqrt)
@@ -1327,9 +1333,7 @@ void InstructionSelectorT<Adapter>::VisitWord32Ror(node_t node) {
 #define RO_WITH_TEMP_SIMD_OP_LIST(V) \
   V(TruncateFloat64ToUint32, kIA32Float64ToUint32)
 
-#define RR_OP_T_LIST(V) V(TruncateFloat64ToWord32, kArchTruncateDoubleToI)
-
-#define RR_OP_LIST(V)                                                          \
+#define RR_OP_T_LIST(V)                                                        \
   V(Float32RoundDown, kIA32Float32Round | MiscField::encode(kRoundDown))       \
   V(Float64RoundDown, kIA32Float64Round | MiscField::encode(kRoundDown))       \
   V(Float32RoundUp, kIA32Float32Round | MiscField::encode(kRoundUp))           \
@@ -1340,13 +1344,16 @@ void InstructionSelectorT<Adapter>::VisitWord32Ror(node_t node) {
     kIA32Float32Round | MiscField::encode(kRoundToNearest))                    \
   V(Float64RoundTiesEven,                                                      \
     kIA32Float64Round | MiscField::encode(kRoundToNearest))                    \
-  V(F32x4Ceil, kIA32F32x4Round | MiscField::encode(kRoundUp))                  \
-  V(F32x4Floor, kIA32F32x4Round | MiscField::encode(kRoundDown))               \
-  V(F32x4Trunc, kIA32F32x4Round | MiscField::encode(kRoundToZero))             \
-  V(F32x4NearestInt, kIA32F32x4Round | MiscField::encode(kRoundToNearest))     \
-  V(F64x2Ceil, kIA32F64x2Round | MiscField::encode(kRoundUp))                  \
-  V(F64x2Floor, kIA32F64x2Round | MiscField::encode(kRoundDown))               \
-  V(F64x2Trunc, kIA32F64x2Round | MiscField::encode(kRoundToZero))             \
+  V(TruncateFloat64ToWord32, kArchTruncateDoubleToI)
+
+#define RR_OP_LIST(V)                                                      \
+  V(F32x4Ceil, kIA32F32x4Round | MiscField::encode(kRoundUp))              \
+  V(F32x4Floor, kIA32F32x4Round | MiscField::encode(kRoundDown))           \
+  V(F32x4Trunc, kIA32F32x4Round | MiscField::encode(kRoundToZero))         \
+  V(F32x4NearestInt, kIA32F32x4Round | MiscField::encode(kRoundToNearest)) \
+  V(F64x2Ceil, kIA32F64x2Round | MiscField::encode(kRoundUp))              \
+  V(F64x2Floor, kIA32F64x2Round | MiscField::encode(kRoundDown))           \
+  V(F64x2Trunc, kIA32F64x2Round | MiscField::encode(kRoundToZero))         \
   V(F64x2NearestInt, kIA32F64x2Round | MiscField::encode(kRoundToNearest))
 
 #define RRO_FLOAT_OP_T_LIST(V) \
@@ -1369,14 +1376,16 @@ void InstructionSelectorT<Adapter>::VisitWord32Ror(node_t node) {
   V(F64x2Lt, kIA32F64x2Lt)   \
   V(F64x2Le, kIA32F64x2Le)
 
-#define FLOAT_UNOP_LIST(V)   \
+#define FLOAT_UNOP_T_LIST(V) \
   V(Float32Abs, kFloat32Abs) \
   V(Float64Abs, kFloat64Abs) \
   V(Float32Neg, kFloat32Neg) \
-  V(Float64Neg, kFloat64Neg) \
-  V(F32x4Abs, kFloat32Abs)   \
-  V(F32x4Neg, kFloat32Neg)   \
-  V(F64x2Abs, kFloat64Abs)   \
+  V(Float64Neg, kFloat64Neg)
+
+#define FLOAT_UNOP_LIST(V) \
+  V(F32x4Abs, kFloat32Abs) \
+  V(F32x4Neg, kFloat32Neg) \
+  V(F64x2Abs, kFloat64Abs) \
   V(F64x2Neg, kFloat64Neg)
 
 #define RO_VISITOR(Name, opcode)                                \
@@ -1468,6 +1477,16 @@ RRO_FLOAT_OP_T_LIST(RRO_FLOAT_VISITOR)
 FLOAT_UNOP_LIST(FLOAT_UNOP_VISITOR)
 #undef FLOAT_UNOP_VISITOR
 #undef FLOAT_UNOP_LIST
+
+#define FLOAT_UNOP_VISITOR(Name, opcode)                         \
+  template <typename Adapter>                                    \
+  void InstructionSelectorT<Adapter>::Visit##Name(node_t node) { \
+    DCHECK_EQ(this->value_input_count(node), 1);                 \
+    VisitFloatUnop(this, node, this->input_at(node, 0), opcode); \
+  }
+FLOAT_UNOP_T_LIST(FLOAT_UNOP_VISITOR)
+#undef FLOAT_UNOP_VISITOR
+#undef FLOAT_UNOP_T_LIST
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord32ReverseBits(Node* node) {
@@ -1676,7 +1695,7 @@ void InstructionSelectorT<Adapter>::VisitFloat64Min(node_t node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat64RoundTiesAway(Node* node) {
+void InstructionSelectorT<Adapter>::VisitFloat64RoundTiesAway(node_t node) {
   UNREACHABLE();
 }
 
@@ -1695,10 +1714,16 @@ void InstructionSelectorT<TurbofanAdapter>::VisitFloat64Ieee754Binop(
       ->MarkAsCall();
 }
 
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat64Ieee754Unop(
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitFloat64Ieee754Unop(
+    node_t node, InstructionCode opcode) {
+  UNIMPLEMENTED();
+}
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitFloat64Ieee754Unop(
     Node* node, InstructionCode opcode) {
-  IA32OperandGeneratorT<Adapter> g(this);
+  IA32OperandGeneratorT<TurbofanAdapter> g(this);
   Emit(opcode, g.DefineSameAsFirst(node), g.UseRegister(node->InputAt(0)))
       ->MarkAsCall();
 }
@@ -2365,7 +2390,7 @@ void InstructionSelectorT<Adapter>::VisitFloat64InsertHighWord32(Node* node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat64SilenceNaN(Node* node) {
+void InstructionSelectorT<Adapter>::VisitFloat64SilenceNaN(node_t node) {
   if constexpr (Adapter::IsTurboshaft) {
     UNIMPLEMENTED();
   } else {

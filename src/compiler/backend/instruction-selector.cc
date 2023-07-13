@@ -957,8 +957,9 @@ size_t InstructionSelectorT<TurboshaftAdapter>::AddInputsToFrameStateDescriptor(
   size_t initial_size = inputs->size();
   USE(initial_size);  // initial_size is only used for debug.
   if (descriptor->outer_state()) {
-    // TODO(nicohartmann@): We might need to support this.
-    UNIMPLEMENTED();
+    entries += AddInputsToFrameStateDescriptor(
+        descriptor->outer_state(), state.parent_frame_state(), g, deduplicator,
+        inputs, kind, zone);
   }
 
   auto params = BuildStateValues(&it, info.parameter_count());
@@ -1599,32 +1600,32 @@ void InstructionSelectorT<Adapter>::VisitLoadRootRegister(Node* node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat64Acos(Node* node) {
+void InstructionSelectorT<Adapter>::VisitFloat64Acos(node_t node) {
   VisitFloat64Ieee754Unop(node, kIeee754Float64Acos);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat64Acosh(Node* node) {
+void InstructionSelectorT<Adapter>::VisitFloat64Acosh(node_t node) {
   VisitFloat64Ieee754Unop(node, kIeee754Float64Acosh);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat64Asin(Node* node) {
+void InstructionSelectorT<Adapter>::VisitFloat64Asin(node_t node) {
   VisitFloat64Ieee754Unop(node, kIeee754Float64Asin);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat64Asinh(Node* node) {
+void InstructionSelectorT<Adapter>::VisitFloat64Asinh(node_t node) {
   VisitFloat64Ieee754Unop(node, kIeee754Float64Asinh);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat64Atan(Node* node) {
+void InstructionSelectorT<Adapter>::VisitFloat64Atan(node_t node) {
   VisitFloat64Ieee754Unop(node, kIeee754Float64Atan);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat64Atanh(Node* node) {
+void InstructionSelectorT<Adapter>::VisitFloat64Atanh(node_t node) {
   VisitFloat64Ieee754Unop(node, kIeee754Float64Atanh);
 }
 
@@ -1634,47 +1635,47 @@ void InstructionSelectorT<Adapter>::VisitFloat64Atan2(node_t node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat64Cbrt(Node* node) {
+void InstructionSelectorT<Adapter>::VisitFloat64Cbrt(node_t node) {
   VisitFloat64Ieee754Unop(node, kIeee754Float64Cbrt);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat64Cos(Node* node) {
+void InstructionSelectorT<Adapter>::VisitFloat64Cos(node_t node) {
   VisitFloat64Ieee754Unop(node, kIeee754Float64Cos);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat64Cosh(Node* node) {
+void InstructionSelectorT<Adapter>::VisitFloat64Cosh(node_t node) {
   VisitFloat64Ieee754Unop(node, kIeee754Float64Cosh);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat64Exp(Node* node) {
+void InstructionSelectorT<Adapter>::VisitFloat64Exp(node_t node) {
   VisitFloat64Ieee754Unop(node, kIeee754Float64Exp);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat64Expm1(Node* node) {
+void InstructionSelectorT<Adapter>::VisitFloat64Expm1(node_t node) {
   VisitFloat64Ieee754Unop(node, kIeee754Float64Expm1);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat64Log(Node* node) {
+void InstructionSelectorT<Adapter>::VisitFloat64Log(node_t node) {
   VisitFloat64Ieee754Unop(node, kIeee754Float64Log);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat64Log1p(Node* node) {
+void InstructionSelectorT<Adapter>::VisitFloat64Log1p(node_t node) {
   VisitFloat64Ieee754Unop(node, kIeee754Float64Log1p);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat64Log2(Node* node) {
+void InstructionSelectorT<Adapter>::VisitFloat64Log2(node_t node) {
   VisitFloat64Ieee754Unop(node, kIeee754Float64Log2);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat64Log10(Node* node) {
+void InstructionSelectorT<Adapter>::VisitFloat64Log10(node_t node) {
   VisitFloat64Ieee754Unop(node, kIeee754Float64Log10);
 }
 
@@ -1684,22 +1685,22 @@ void InstructionSelectorT<Adapter>::VisitFloat64Pow(node_t node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat64Sin(Node* node) {
+void InstructionSelectorT<Adapter>::VisitFloat64Sin(node_t node) {
   VisitFloat64Ieee754Unop(node, kIeee754Float64Sin);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat64Sinh(Node* node) {
+void InstructionSelectorT<Adapter>::VisitFloat64Sinh(node_t node) {
   VisitFloat64Ieee754Unop(node, kIeee754Float64Sinh);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat64Tan(Node* node) {
+void InstructionSelectorT<Adapter>::VisitFloat64Tan(node_t node) {
   VisitFloat64Ieee754Unop(node, kIeee754Float64Tan);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat64Tanh(Node* node) {
+void InstructionSelectorT<Adapter>::VisitFloat64Tanh(node_t node) {
   VisitFloat64Ieee754Unop(node, kIeee754Float64Tanh);
 }
 
@@ -4154,6 +4155,7 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitNode(
     case Opcode::kGoto:
     case Opcode::kReturn:
     case Opcode::kUnreachable:
+    case Opcode::kDeoptimize:
       // Those are already handled in VisitControl.
       break;
     case Opcode::kParameter: {
@@ -4371,6 +4373,110 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitNode(
             return VisitInt64Mod(node);
           case WordBinopOp::Kind::kUnsignedMod:
             return VisitUint64Mod(node);
+        }
+      }
+      UNREACHABLE();
+    }
+    case Opcode::kFloatUnary: {
+      const auto& unop = op.Cast<FloatUnaryOp>();
+      if (unop.rep == Rep::Float32()) {
+        MarkAsFloat32(node);
+        switch (unop.kind) {
+          case FloatUnaryOp::Kind::kAbs:
+            return VisitFloat32Abs(node);
+          case FloatUnaryOp::Kind::kNegate:
+            return VisitFloat32Neg(node);
+          case FloatUnaryOp::Kind::kRoundDown:
+            return VisitFloat32RoundDown(node);
+          case FloatUnaryOp::Kind::kRoundUp:
+            return VisitFloat32RoundUp(node);
+          case FloatUnaryOp::Kind::kRoundToZero:
+            return VisitFloat32RoundTruncate(node);
+          case FloatUnaryOp::Kind::kRoundTiesEven:
+            return VisitFloat32RoundTiesEven(node);
+          case FloatUnaryOp::Kind::kSqrt:
+            return VisitFloat32Sqrt(node);
+          // Those operations are only supported on 64 bit.
+          case FloatUnaryOp::Kind::kSilenceNaN:
+          case FloatUnaryOp::Kind::kLog:
+          case FloatUnaryOp::Kind::kLog2:
+          case FloatUnaryOp::Kind::kLog10:
+          case FloatUnaryOp::Kind::kLog1p:
+          case FloatUnaryOp::Kind::kCbrt:
+          case FloatUnaryOp::Kind::kExp:
+          case FloatUnaryOp::Kind::kExpm1:
+          case FloatUnaryOp::Kind::kSin:
+          case FloatUnaryOp::Kind::kCos:
+          case FloatUnaryOp::Kind::kSinh:
+          case FloatUnaryOp::Kind::kCosh:
+          case FloatUnaryOp::Kind::kAcos:
+          case FloatUnaryOp::Kind::kAsin:
+          case FloatUnaryOp::Kind::kAsinh:
+          case FloatUnaryOp::Kind::kAcosh:
+          case FloatUnaryOp::Kind::kTan:
+          case FloatUnaryOp::Kind::kTanh:
+          case FloatUnaryOp::Kind::kAtan:
+          case FloatUnaryOp::Kind::kAtanh:
+            UNREACHABLE();
+        }
+      } else {
+        DCHECK_EQ(unop.rep, Rep::Float64());
+        MarkAsFloat64(node);
+        switch (unop.kind) {
+          case FloatUnaryOp::Kind::kAbs:
+            return VisitFloat64Abs(node);
+          case FloatUnaryOp::Kind::kNegate:
+            return VisitFloat64Neg(node);
+          case FloatUnaryOp::Kind::kSilenceNaN:
+            return VisitFloat64SilenceNaN(node);
+          case FloatUnaryOp::Kind::kRoundDown:
+            return VisitFloat64RoundDown(node);
+          case FloatUnaryOp::Kind::kRoundUp:
+            return VisitFloat64RoundUp(node);
+          case FloatUnaryOp::Kind::kRoundToZero:
+            return VisitFloat64RoundTruncate(node);
+          case FloatUnaryOp::Kind::kRoundTiesEven:
+            return VisitFloat64RoundTiesEven(node);
+          case FloatUnaryOp::Kind::kLog:
+            return VisitFloat64Log(node);
+          case FloatUnaryOp::Kind::kLog2:
+            return VisitFloat64Log2(node);
+          case FloatUnaryOp::Kind::kLog10:
+            return VisitFloat64Log10(node);
+          case FloatUnaryOp::Kind::kLog1p:
+            return VisitFloat64Log1p(node);
+          case FloatUnaryOp::Kind::kSqrt:
+            return VisitFloat64Sqrt(node);
+          case FloatUnaryOp::Kind::kCbrt:
+            return VisitFloat64Cbrt(node);
+          case FloatUnaryOp::Kind::kExp:
+            return VisitFloat64Exp(node);
+          case FloatUnaryOp::Kind::kExpm1:
+            return VisitFloat64Expm1(node);
+          case FloatUnaryOp::Kind::kSin:
+            return VisitFloat64Sin(node);
+          case FloatUnaryOp::Kind::kCos:
+            return VisitFloat64Cos(node);
+          case FloatUnaryOp::Kind::kSinh:
+            return VisitFloat64Sinh(node);
+          case FloatUnaryOp::Kind::kCosh:
+            return VisitFloat64Cosh(node);
+          case FloatUnaryOp::Kind::kAcos:
+            return VisitFloat64Acos(node);
+          case FloatUnaryOp::Kind::kAsin:
+            return VisitFloat64Asin(node);
+          case FloatUnaryOp::Kind::kAsinh:
+            return VisitFloat64Asinh(node);
+          case FloatUnaryOp::Kind::kAcosh:
+            return VisitFloat64Acosh(node);
+          case FloatUnaryOp::Kind::kTan:
+            return VisitFloat64Tan(node);
+          case FloatUnaryOp::Kind::kTanh:
+            return VisitFloat64Tanh(node);
+          case FloatUnaryOp::Kind::kAtan:
+            return VisitFloat64Atan(node);
+          case FloatUnaryOp::Kind::kAtanh:
+            return VisitFloat64Atanh(node);
         }
       }
       UNREACHABLE();

@@ -2621,9 +2621,15 @@ void VisitFloatBinop(InstructionSelectorT<Adapter>* selector,
   }
 }
 
+void VisitFloatUnop(InstructionSelectorT<TurboshaftAdapter>*, Node*, Node*,
+                    InstructionCode) {
+  UNIMPLEMENTED();
+}
+
 template <typename Adapter>
-void VisitFloatUnop(InstructionSelectorT<Adapter>* selector, Node* node,
-                    Node* input, InstructionCode opcode) {
+void VisitFloatUnop(InstructionSelectorT<Adapter>* selector,
+                    typename Adapter::node_t node,
+                    typename Adapter::node_t input, InstructionCode opcode) {
   X64OperandGeneratorT<Adapter> g(selector);
   if (selector->IsSupported(AVX)) {
     selector->Emit(opcode, g.DefineAsRegister(node), g.UseRegister(input));
@@ -2635,6 +2641,8 @@ void VisitFloatUnop(InstructionSelectorT<Adapter>* selector, Node* node,
 }  // namespace
 
 #define RO_OP_T_LIST(V)                                                \
+  V(Float64Sqrt, kSSEFloat64Sqrt)                                      \
+  V(Float32Sqrt, kSSEFloat32Sqrt)                                      \
   V(RoundFloat64ToInt32, kSSEFloat64ToInt32)                           \
   V(ChangeInt32ToFloat64, kSSEInt32ToFloat64)                          \
   V(TruncateFloat64ToFloat32, kSSEFloat64ToFloat32)                    \
@@ -2668,8 +2676,6 @@ void VisitFloatUnop(InstructionSelectorT<Adapter>* selector, Node* node,
   V(Word32Ctz, kX64Tzcnt32)                                              \
   V(Word64Popcnt, kX64Popcnt)                                            \
   V(Word32Popcnt, kX64Popcnt32)                                          \
-  V(Float64Sqrt, kSSEFloat64Sqrt)                                        \
-  V(Float32Sqrt, kSSEFloat32Sqrt)                                        \
   V(TruncateFloat64ToUint32, kSSEFloat64ToUint32 | MiscField::encode(0)) \
   V(SignExtendWord8ToInt32, kX64Movsxbl)                                 \
   V(SignExtendWord16ToInt32, kX64Movsxwl)                                \
@@ -2677,7 +2683,7 @@ void VisitFloatUnop(InstructionSelectorT<Adapter>* selector, Node* node,
   V(SignExtendWord16ToInt64, kX64Movsxwq)                                \
   V(SignExtendWord32ToInt64, kX64Movsxlq)
 
-#define RR_OP_LIST(V)                                                         \
+#define RR_OP_T_LIST(V)                                                       \
   V(Float32RoundDown, kSSEFloat32Round | MiscField::encode(kRoundDown))       \
   V(Float64RoundDown, kSSEFloat64Round | MiscField::encode(kRoundDown))       \
   V(Float32RoundUp, kSSEFloat32Round | MiscField::encode(kRoundUp))           \
@@ -2686,15 +2692,16 @@ void VisitFloatUnop(InstructionSelectorT<Adapter>* selector, Node* node,
   V(Float64RoundTruncate, kSSEFloat64Round | MiscField::encode(kRoundToZero)) \
   V(Float32RoundTiesEven,                                                     \
     kSSEFloat32Round | MiscField::encode(kRoundToNearest))                    \
-  V(Float64RoundTiesEven,                                                     \
-    kSSEFloat64Round | MiscField::encode(kRoundToNearest))                    \
-  V(F32x4Ceil, kX64F32x4Round | MiscField::encode(kRoundUp))                  \
-  V(F32x4Floor, kX64F32x4Round | MiscField::encode(kRoundDown))               \
-  V(F32x4Trunc, kX64F32x4Round | MiscField::encode(kRoundToZero))             \
-  V(F32x4NearestInt, kX64F32x4Round | MiscField::encode(kRoundToNearest))     \
-  V(F64x2Ceil, kX64F64x2Round | MiscField::encode(kRoundUp))                  \
-  V(F64x2Floor, kX64F64x2Round | MiscField::encode(kRoundDown))               \
-  V(F64x2Trunc, kX64F64x2Round | MiscField::encode(kRoundToZero))             \
+  V(Float64RoundTiesEven, kSSEFloat64Round | MiscField::encode(kRoundToNearest))
+
+#define RR_OP_LIST(V)                                                     \
+  V(F32x4Ceil, kX64F32x4Round | MiscField::encode(kRoundUp))              \
+  V(F32x4Floor, kX64F32x4Round | MiscField::encode(kRoundDown))           \
+  V(F32x4Trunc, kX64F32x4Round | MiscField::encode(kRoundToZero))         \
+  V(F32x4NearestInt, kX64F32x4Round | MiscField::encode(kRoundToNearest)) \
+  V(F64x2Ceil, kX64F64x2Round | MiscField::encode(kRoundUp))              \
+  V(F64x2Floor, kX64F64x2Round | MiscField::encode(kRoundDown))           \
+  V(F64x2Trunc, kX64F64x2Round | MiscField::encode(kRoundToZero))         \
   V(F64x2NearestInt, kX64F64x2Round | MiscField::encode(kRoundToNearest))
 
 #define RO_VISITOR(Name, opcode)                                \
@@ -2723,6 +2730,15 @@ RO_OP_T_LIST(RO_VISITOR)
 RR_OP_LIST(RR_VISITOR)
 #undef RR_VISITOR
 #undef RR_OP_LIST
+
+#define RR_VISITOR(Name, opcode)                                 \
+  template <typename Adapter>                                    \
+  void InstructionSelectorT<Adapter>::Visit##Name(node_t node) { \
+    VisitRR(this, node, opcode);                                 \
+  }
+RR_OP_T_LIST(RR_VISITOR)
+#undef RR_VISITOR
+#undef RR_OP_T_LIST
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitTruncateFloat64ToWord32(node_t node) {
@@ -2792,8 +2808,9 @@ void InstructionSelectorT<Adapter>::VisitFloat32Div(node_t node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat32Abs(Node* node) {
-  VisitFloatUnop(this, node, node->InputAt(0), kX64Float32Abs);
+void InstructionSelectorT<Adapter>::VisitFloat32Abs(node_t node) {
+  DCHECK_EQ(this->value_input_count(node), 1);
+  VisitFloatUnop(this, node, this->input_at(node, 0), kX64Float32Abs);
 }
 
 template <typename Adapter>
@@ -2847,23 +2864,26 @@ void InstructionSelectorT<Adapter>::VisitFloat64Min(node_t node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat64Abs(Node* node) {
-  VisitFloatUnop(this, node, node->InputAt(0), kX64Float64Abs);
+void InstructionSelectorT<Adapter>::VisitFloat64Abs(node_t node) {
+  DCHECK_EQ(this->value_input_count(node), 1);
+  VisitFloatUnop(this, node, this->input_at(node, 0), kX64Float64Abs);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat64RoundTiesAway(Node* node) {
+void InstructionSelectorT<Adapter>::VisitFloat64RoundTiesAway(node_t node) {
   UNREACHABLE();
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat32Neg(Node* node) {
-  VisitFloatUnop(this, node, node->InputAt(0), kX64Float32Neg);
+void InstructionSelectorT<Adapter>::VisitFloat32Neg(node_t node) {
+  DCHECK_EQ(this->value_input_count(node), 1);
+  VisitFloatUnop(this, node, this->input_at(node, 0), kX64Float32Neg);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat64Neg(Node* node) {
-  VisitFloatUnop(this, node, node->InputAt(0), kX64Float64Neg);
+void InstructionSelectorT<Adapter>::VisitFloat64Neg(node_t node) {
+  DCHECK_EQ(this->value_input_count(node), 1);
+  VisitFloatUnop(this, node, this->input_at(node, 0), kX64Float64Neg);
 }
 
 template <typename Adapter>
@@ -2879,9 +2899,11 @@ void InstructionSelectorT<Adapter>::VisitFloat64Ieee754Binop(
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitFloat64Ieee754Unop(
-    Node* node, InstructionCode opcode) {
+    node_t node, InstructionCode opcode) {
   X64OperandGeneratorT<Adapter> g(this);
-  Emit(opcode, g.DefineAsFixed(node, xmm0), g.UseFixed(node->InputAt(0), xmm0))
+  DCHECK_EQ(this->value_input_count(node), 1);
+  Emit(opcode, g.DefineAsFixed(node, xmm0),
+       g.UseFixed(this->input_at(node, 0), xmm0))
       ->MarkAsCall();
 }
 
@@ -4167,10 +4189,11 @@ void InstructionSelectorT<Adapter>::VisitFloat64InsertHighWord32(Node* node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat64SilenceNaN(Node* node) {
+void InstructionSelectorT<Adapter>::VisitFloat64SilenceNaN(node_t node) {
   X64OperandGeneratorT<Adapter> g(this);
+  DCHECK_EQ(this->value_input_count(node), 1);
   Emit(kSSEFloat64SilenceNaN, g.DefineSameAsFirst(node),
-       g.UseRegister(node->InputAt(0)));
+       g.UseRegister(this->input_at(node, 0)));
 }
 
 template <typename Adapter>

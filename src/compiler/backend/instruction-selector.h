@@ -699,9 +699,8 @@ class InstructionSelectorT final : public Adapter {
   void VisitNode(node_t node);
 
   // Visit the node and generate code for IEEE 754 functions.
-  DECLARE_UNREACHABLE_TURBOSHAFT_FALLBACK(void, VisitFloat64Ieee754Binop)
   void VisitFloat64Ieee754Binop(node_t, InstructionCode code);
-  void VisitFloat64Ieee754Unop(Node*, InstructionCode code);
+  void VisitFloat64Ieee754Unop(node_t, InstructionCode code);
 
   node_t FindProjection(node_t node, size_t projection_index);
 
@@ -810,30 +809,51 @@ class InstructionSelectorT final : public Adapter {
   DECLARE_GENERATOR_T(BitcastFloat64ToInt64)
   DECLARE_GENERATOR_T(BitcastInt32ToFloat32)
   DECLARE_GENERATOR_T(BitcastInt64ToFloat64)
+  DECLARE_GENERATOR_T(Float32Abs)
+  DECLARE_GENERATOR_T(Float32Neg)
+  DECLARE_GENERATOR_T(Float32RoundDown)
+  DECLARE_GENERATOR_T(Float32RoundTiesEven)
+  DECLARE_GENERATOR_T(Float32RoundTruncate)
+  DECLARE_GENERATOR_T(Float32RoundUp)
+  DECLARE_GENERATOR_T(Float32Sqrt)
+  DECLARE_GENERATOR_T(Float64Abs)
+  DECLARE_GENERATOR_T(Float64Acos)
+  DECLARE_GENERATOR_T(Float64Acosh)
+  DECLARE_GENERATOR_T(Float64Asin)
+  DECLARE_GENERATOR_T(Float64Asinh)
+  DECLARE_GENERATOR_T(Float64Atan)
+  DECLARE_GENERATOR_T(Float64Atanh)
+  DECLARE_GENERATOR_T(Float64Cbrt)
+  DECLARE_GENERATOR_T(Float64Cos)
+  DECLARE_GENERATOR_T(Float64Cosh)
+  DECLARE_GENERATOR_T(Float64Exp)
+  DECLARE_GENERATOR_T(Float64Expm1)
+  DECLARE_GENERATOR_T(Float64Log)
+  DECLARE_GENERATOR_T(Float64Log1p)
+  DECLARE_GENERATOR_T(Float64Log10)
+  DECLARE_GENERATOR_T(Float64Log2)
+  DECLARE_GENERATOR_T(Float64Neg)
+  DECLARE_GENERATOR_T(Float64RoundDown)
+  DECLARE_GENERATOR_T(Float64RoundTiesAway)
+  DECLARE_GENERATOR_T(Float64RoundTiesEven)
+  DECLARE_GENERATOR_T(Float64RoundTruncate)
+  DECLARE_GENERATOR_T(Float64RoundUp)
+  DECLARE_GENERATOR_T(Float64Sin)
+  DECLARE_GENERATOR_T(Float64Sinh)
+  DECLARE_GENERATOR_T(Float64Sqrt)
+  DECLARE_GENERATOR_T(Float64Tan)
+  DECLARE_GENERATOR_T(Float64Tanh)
+  DECLARE_GENERATOR_T(Float64SilenceNaN)
 #undef DECLARE_GENERATOR_T
 
 #define DECLARE_GENERATOR(x) void Visit##x(Node* node);
-  // MACHINE_OP_LIST
   MACHINE_UNOP_32_LIST(DECLARE_GENERATOR)
-  // MACHINE_BINOP_32_LIST
   DECLARE_GENERATOR(Int32SubWithOverflow)
-  // END MACHINE_BINOP_32_LIST
-  // MACHINE_BINOP_64_LIST
   DECLARE_GENERATOR(Word64RolLowerable)
   DECLARE_GENERATOR(Word64RorLowerable)
   DECLARE_GENERATOR(Int64AddWithOverflow)
   DECLARE_GENERATOR(Int64SubWithOverflow)
   DECLARE_GENERATOR(Int64MulWithOverflow)
-  // END MACHINE_BINOP_64_LIST
-  // MACHINE_COMPARE_BINOP_LIST
-  // END MACHINE_COMPARE_BINOP_LIST
-  // MACHINE_FLOAT32_BINOP_LIST
-  // END MACHINE_FLOAT32_BINOP_LIST
-  MACHINE_FLOAT32_UNOP_LIST(DECLARE_GENERATOR)
-  // MACHINE_FLOAT64_BINOP_LIST
-  // END MACHINE_FLOAT64_BINOP_LIST
-  MACHINE_FLOAT64_UNOP_LIST(DECLARE_GENERATOR)
-  // MACHINE_ATOMIC_OP_LIST
   DECLARE_GENERATOR(Word32AtomicLoad)
   DECLARE_GENERATOR(Word32AtomicExchange)
   DECLARE_GENERATOR(Word32AtomicCompareExchange)
@@ -859,7 +879,6 @@ class InstructionSelectorT final : public Adapter {
   DECLARE_GENERATOR(Word64AtomicXor)
   DECLARE_GENERATOR(Word64AtomicExchange)
   DECLARE_GENERATOR(Word64AtomicCompareExchange)
-  // END MACHINE_ATOMIC_OP_LIST
   DECLARE_GENERATOR(AbortCSADcheck)
   DECLARE_GENERATOR(DebugBreak)
   DECLARE_GENERATOR(Comment)
@@ -878,7 +897,6 @@ class InstructionSelectorT final : public Adapter {
   DECLARE_GENERATOR(Int64AbsWithOverflow)
   DECLARE_GENERATOR(BitcastTaggedToWordForTagAndSmiBits)
   DECLARE_GENERATOR(BitcastWordToTaggedSigned)
-  DECLARE_GENERATOR(Float64SilenceNaN)
   DECLARE_GENERATOR(TruncateFloat64ToUint32)
   DECLARE_GENERATOR(TryTruncateFloat32ToInt64)
   DECLARE_GENERATOR(TryTruncateFloat64ToInt64)
@@ -915,7 +933,6 @@ class InstructionSelectorT final : public Adapter {
   DECLARE_GENERATOR(SignExtendWord16ToInt64)
   DECLARE_GENERATOR(SignExtendWord32ToInt64)
   DECLARE_GENERATOR(TraceInstruction)
-  // END MACHINE_OP_LIST
   MACHINE_SIMD128_OP_LIST(DECLARE_GENERATOR)
   MACHINE_SIMD256_OP_LIST(DECLARE_GENERATOR)
 #undef DECLARE_GENERATOR

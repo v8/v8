@@ -1769,29 +1769,31 @@ void InstructionSelectorT<Adapter>::VisitUint32Mod(node_t node) {
   V(TruncateFloat64ToWord32, kArchTruncateDoubleToI) \
   V(BitcastFloat32ToInt32, kArmVmovU32F32)           \
   V(BitcastInt32ToFloat32, kArmVmovF32U32)           \
-  V(RoundFloat64ToInt32, kArmVcvtS32F64)
-
-#define RR_OP_LIST(V)                         \
-  V(Word32Clz, kArmClz)                       \
-  V(TruncateFloat64ToUint32, kArmVcvtU32F64)  \
-  V(Float64SilenceNaN, kArmFloat64SilenceNaN) \
-  V(Float32Abs, kArmVabsF32)                  \
-  V(Float64Abs, kArmVabsF64)                  \
-  V(Float32Neg, kArmVnegF32)                  \
-  V(Float64Neg, kArmVnegF64)                  \
-  V(Float32Sqrt, kArmVsqrtF32)                \
+  V(RoundFloat64ToInt32, kArmVcvtS32F64)             \
+  V(Float64SilenceNaN, kArmFloat64SilenceNaN)        \
+  V(Float32Abs, kArmVabsF32)                         \
+  V(Float64Abs, kArmVabsF64)                         \
+  V(Float32Neg, kArmVnegF32)                         \
+  V(Float64Neg, kArmVnegF64)                         \
+  V(Float32Sqrt, kArmVsqrtF32)                       \
   V(Float64Sqrt, kArmVsqrtF64)
 
+#define RR_OP_LIST(V)   \
+  V(Word32Clz, kArmClz) \
+  V(TruncateFloat64ToUint32, kArmVcvtU32F64)
+
+#define RR_OP_T_LIST_V8(V)               \
+  V(Float32RoundDown, kArmVrintmF32)     \
+  V(Float64RoundDown, kArmVrintmF64)     \
+  V(Float32RoundUp, kArmVrintpF32)       \
+  V(Float64RoundUp, kArmVrintpF64)       \
+  V(Float32RoundTruncate, kArmVrintzF32) \
+  V(Float64RoundTruncate, kArmVrintzF64) \
+  V(Float64RoundTiesAway, kArmVrintaF64) \
+  V(Float32RoundTiesEven, kArmVrintnF32) \
+  V(Float64RoundTiesEven, kArmVrintnF64)
+
 #define RR_OP_LIST_V8(V)                  \
-  V(Float32RoundDown, kArmVrintmF32)      \
-  V(Float64RoundDown, kArmVrintmF64)      \
-  V(Float32RoundUp, kArmVrintpF32)        \
-  V(Float64RoundUp, kArmVrintpF64)        \
-  V(Float32RoundTruncate, kArmVrintzF32)  \
-  V(Float64RoundTruncate, kArmVrintzF64)  \
-  V(Float64RoundTiesAway, kArmVrintaF64)  \
-  V(Float32RoundTiesEven, kArmVrintnF32)  \
-  V(Float64RoundTiesEven, kArmVrintnF64)  \
   V(F64x2Ceil, kArmF64x2Ceil)             \
   V(F64x2Floor, kArmF64x2Floor)           \
   V(F64x2Trunc, kArmF64x2Trunc)           \
@@ -1839,6 +1841,16 @@ RR_OP_T_LIST(RR_VISITOR)
 RR_OP_LIST_V8(RR_VISITOR_V8)
 #undef RR_VISITOR_V8
 #undef RR_OP_LIST_V8
+
+#define RR_VISITOR_V8(Name, opcode)                              \
+  template <typename Adapter>                                    \
+  void InstructionSelectorT<Adapter>::Visit##Name(node_t node) { \
+    DCHECK(CpuFeatures::IsSupported(ARMv8));                     \
+    VisitRR(this, opcode, node);                                 \
+  }
+RR_OP_T_LIST_V8(RR_VISITOR_V8)
+#undef RR_VISITOR_V8
+#undef RR_OP_T_LIST_V8
 
 #define RRR_VISITOR(Name, opcode)                                \
   template <typename Adapter>                                    \
@@ -1962,10 +1974,16 @@ void InstructionSelectorT<TurbofanAdapter>::VisitFloat64Ieee754Binop(
       ->MarkAsCall();
 }
 
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat64Ieee754Unop(
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitFloat64Ieee754Unop(
+    node_t node, InstructionCode opcode) {
+  UNIMPLEMENTED();
+}
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitFloat64Ieee754Unop(
     Node* node, InstructionCode opcode) {
-  ArmOperandGeneratorT<Adapter> g(this);
+  ArmOperandGeneratorT<TurbofanAdapter> g(this);
   Emit(opcode, g.DefineAsFixed(node, d0), g.UseFixed(node->InputAt(0), d0))
       ->MarkAsCall();
 }
