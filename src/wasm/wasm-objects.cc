@@ -905,7 +905,7 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
       return -1;
     }
 
-    BackingStore::BroadcastSharedWasmMemoryGrow(isolate, backing_store);
+    backing_store->BroadcastSharedWasmMemoryGrow(isolate);
     // Broadcasting the update should update this memory object too.
     CHECK_NE(*old_buffer, memory_object->array_buffer());
     size_t new_pages = result_inplace.value() + pages;

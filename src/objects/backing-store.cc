@@ -588,10 +588,8 @@ void BackingStore::AttachSharedWasmMemoryObject(
                                                         memory_object);
 }
 
-void BackingStore::BroadcastSharedWasmMemoryGrow(
-    Isolate* isolate, std::shared_ptr<BackingStore> backing_store) {
-  GlobalBackingStoreRegistry::BroadcastSharedWasmMemoryGrow(isolate,
-                                                            backing_store);
+void BackingStore::BroadcastSharedWasmMemoryGrow(Isolate* isolate) const {
+  GlobalBackingStoreRegistry::BroadcastSharedWasmMemoryGrow(isolate, this);
 }
 
 void BackingStore::RemoveSharedWasmMemoryObjects(Isolate* isolate) {
@@ -806,7 +804,7 @@ v8::ArrayBuffer::Allocator* BackingStore::get_v8_api_array_buffer_allocator() {
   return array_buffer_allocator;
 }
 
-SharedWasmMemoryData* BackingStore::get_shared_wasm_memory_data() {
+SharedWasmMemoryData* BackingStore::get_shared_wasm_memory_data() const {
   CHECK(is_wasm_memory_ && is_shared_);
   auto shared_wasm_memory_data = type_specific_data_.shared_wasm_memory_data;
   CHECK(shared_wasm_memory_data);
@@ -820,11 +818,9 @@ struct GlobalBackingStoreRegistryImpl {
   base::Mutex mutex_;
   std::unordered_map<const void*, std::weak_ptr<BackingStore>> map_;
 };
-base::LazyInstance<GlobalBackingStoreRegistryImpl>::type global_registry_impl_ =
-    LAZY_INSTANCE_INITIALIZER;
-inline GlobalBackingStoreRegistryImpl* impl() {
-  return global_registry_impl_.Pointer();
-}
+
+DEFINE_LAZY_LEAKY_OBJECT_GETTER(GlobalBackingStoreRegistryImpl,
+                                GetGlobalBackingStoreRegistryImpl)
 }  // namespace
 
 void GlobalBackingStoreRegistry::Register(
@@ -833,13 +829,14 @@ void GlobalBackingStoreRegistry::Register(
   // Only wasm memory backing stores need to be registered globally.
   CHECK(backing_store->is_wasm_memory());
 
-  base::MutexGuard scope_lock(&impl()->mutex_);
+  GlobalBackingStoreRegistryImpl* impl = GetGlobalBackingStoreRegistryImpl();
+  base::MutexGuard scope_lock(&impl->mutex_);
   if (backing_store->globally_registered_) return;
   TRACE_BS("BS:reg    bs=%p mem=%p (length=%zu, capacity=%zu)\n",
            backing_store.get(), backing_store->buffer_start(),
            backing_store->byte_length(), backing_store->byte_capacity());
   std::weak_ptr<BackingStore> weak = backing_store;
-  auto result = impl()->map_.insert({backing_store->buffer_start(), weak});
+  auto result = impl->map_.insert({backing_store->buffer_start(), weak});
   CHECK(result.second);
   backing_store->globally_registered_ = true;
 }
@@ -851,11 +848,12 @@ void GlobalBackingStoreRegistry::Unregister(BackingStore* backing_store) {
 
   DCHECK_NOT_NULL(backing_store->buffer_start());
 
-  base::MutexGuard scope_lock(&impl()->mutex_);
-  const auto& result = impl()->map_.find(backing_store->buffer_start());
-  if (result != impl()->map_.end()) {
+  GlobalBackingStoreRegistryImpl* impl = GetGlobalBackingStoreRegistryImpl();
+  base::MutexGuard scope_lock(&impl->mutex_);
+  const auto& result = impl->map_.find(backing_store->buffer_start());
+  if (result != impl->map_.end()) {
     DCHECK(!result->second.lock());
-    impl()->map_.erase(result);
+    impl->map_.erase(result);
   }
   backing_store->globally_registered_ = false;
 }
@@ -865,11 +863,12 @@ void GlobalBackingStoreRegistry::Purge(Isolate* isolate) {
   // in the purging loop below. Otherwise, we might get a deadlock
   // if the temporary backing store reference created in the loop is
   // the last reference. In that case the destructor of the backing store
-  // may try to take the &impl()->mutex_ in order to unregister itself.
+  // may try to take the &impl->mutex_ in order to unregister itself.
   std::vector<std::shared_ptr<BackingStore>> prevent_destruction_under_lock;
-  base::MutexGuard scope_lock(&impl()->mutex_);
+  GlobalBackingStoreRegistryImpl* impl = GetGlobalBackingStoreRegistryImpl();
+  base::MutexGuard scope_lock(&impl->mutex_);
   // Purge all entries in the map that refer to the given isolate.
-  for (auto& entry : impl()->map_) {
+  for (auto& entry : impl->map_) {
     auto backing_store = entry.second.lock();
     prevent_destruction_under_lock.emplace_back(backing_store);
     if (!backing_store) continue;  // skip entries where weak ptr is null
@@ -878,10 +877,14 @@ void GlobalBackingStoreRegistry::Purge(Isolate* isolate) {
     SharedWasmMemoryData* shared_data =
         backing_store->get_shared_wasm_memory_data();
     // Remove this isolate from the isolates list.
-    auto& isolates = shared_data->isolates_;
-    for (size_t i = 0; i < isolates.size(); i++) {
-      if (isolates[i] == isolate) isolates[i] = nullptr;
+    std::vector<Isolate*>& isolates = shared_data->isolates_;
+    auto isolates_it = std::find(isolates.begin(), isolates.end(), isolate);
+    if (isolates_it != isolates.end()) {
+      *isolates_it = isolates.back();
+      isolates.pop_back();
     }
+    DCHECK_EQ(isolates.end(),
+              std::find(isolates.begin(), isolates.end(), isolate));
   }
 }
 
@@ -893,7 +896,8 @@ void GlobalBackingStoreRegistry::AddSharedWasmMemoryObject(
   isolate->AddSharedWasmMemory(memory_object);
 
   // Add the isolate to the list of isolates sharing this backing store.
-  base::MutexGuard scope_lock(&impl()->mutex_);
+  GlobalBackingStoreRegistryImpl* impl = GetGlobalBackingStoreRegistryImpl();
+  base::MutexGuard scope_lock(&impl->mutex_);
   SharedWasmMemoryData* shared_data =
       backing_store->get_shared_wasm_memory_data();
   auto& isolates = shared_data->isolates_;
@@ -909,16 +913,16 @@ void GlobalBackingStoreRegistry::AddSharedWasmMemoryObject(
 }
 
 void GlobalBackingStoreRegistry::BroadcastSharedWasmMemoryGrow(
-    Isolate* isolate, std::shared_ptr<BackingStore> backing_store) {
+    Isolate* isolate, const BackingStore* backing_store) {
   {
+    GlobalBackingStoreRegistryImpl* impl = GetGlobalBackingStoreRegistryImpl();
     // The global lock protects the list of isolates per backing store.
-    base::MutexGuard scope_lock(&impl()->mutex_);
+    base::MutexGuard scope_lock(&impl->mutex_);
     SharedWasmMemoryData* shared_data =
         backing_store->get_shared_wasm_memory_data();
     for (Isolate* other : shared_data->isolates_) {
-      if (other && other != isolate) {
-        other->stack_guard()->RequestGrowSharedMemory();
-      }
+      if (other == isolate) continue;
+      other->stack_guard()->RequestGrowSharedMemory();
     }
   }
   // Update memory objects in this isolate.
@@ -931,7 +935,7 @@ void GlobalBackingStoreRegistry::UpdateSharedWasmMemoryObjects(
   Handle<WeakArrayList> shared_wasm_memories =
       isolate->factory()->shared_wasm_memories();
 
-  for (int i = 0; i < shared_wasm_memories->length(); i++) {
+  for (int i = 0, e = shared_wasm_memories->length(); i < e; ++i) {
     HeapObject obj;
     if (!shared_wasm_memories->Get(i).GetHeapObject(&obj)) continue;
 

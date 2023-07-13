@@ -144,8 +144,7 @@ class V8_EXPORT_PRIVATE BackingStore : public BackingStoreBase {
   // Send asynchronous updates to attached memory objects in other isolates
   // after the backing store has been grown. Memory objects in this
   // isolate are updated synchronously.
-  static void BroadcastSharedWasmMemoryGrow(Isolate* isolate,
-                                            std::shared_ptr<BackingStore>);
+  void BroadcastSharedWasmMemoryGrow(Isolate* isolate) const;
 
   // Remove all memory objects in the given isolate that refer to this
   // backing store.
@@ -239,7 +238,7 @@ class V8_EXPORT_PRIVATE BackingStore : public BackingStoreBase {
 
   // Accessors for type-specific data.
   v8::ArrayBuffer::Allocator* get_v8_api_array_buffer_allocator();
-  SharedWasmMemoryData* get_shared_wasm_memory_data();
+  SharedWasmMemoryData* get_shared_wasm_memory_data() const;
 
   void FreeResizableMemory();  // Free the reserved region for resizable memory
   void Clear();  // Internally clears fields after deallocation.
@@ -270,8 +269,8 @@ class GlobalBackingStoreRegistry {
   static void Purge(Isolate* isolate);
 
   // Broadcast updates to all attached memory objects.
-  static void BroadcastSharedWasmMemoryGrow(
-      Isolate* isolate, std::shared_ptr<BackingStore> backing_store);
+  static void BroadcastSharedWasmMemoryGrow(Isolate* isolate,
+                                            const BackingStore* backing_store);
 
   // Update all shared memory objects in the given isolate.
   static void UpdateSharedWasmMemoryObjects(Isolate* isolate);
