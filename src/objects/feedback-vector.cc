@@ -400,7 +400,7 @@ void FeedbackVector::SetOptimizedOsrCode(Isolate* isolate, FeedbackSlot slot,
     return;
   }
   Set(slot, HeapObjectReference::Weak(code));
-  set_maybe_has_optimized_osr_code(true);
+  set_maybe_has_optimized_osr_code(true, code.kind());
 }
 
 void FeedbackVector::reset_tiering_state() {
@@ -419,7 +419,8 @@ void FeedbackVector::reset_flags() {
             MaybeHasMaglevCodeBit::encode(false) |
             MaybeHasTurbofanCodeBit::encode(false) |
             OsrTieringStateBit::encode(TieringState::kNone) |
-            MaybeHasOptimizedOsrCodeBit::encode(false));
+            MaybeHasMaglevOsrCodeBit::encode(false) |
+            MaybeHasTurbofanOsrCodeBit::encode(false));
 }
 
 TieringState FeedbackVector::osr_tiering_state() {

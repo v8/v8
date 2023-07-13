@@ -1908,7 +1908,9 @@ void BaselineCompiler::VisitJumpLoop() {
     LoadFeedbackVector(feedback_vector);
     __ LoadWord8Field(osr_state, feedback_vector,
                       FeedbackVector::kOsrStateOffset);
-    static_assert(FeedbackVector::MaybeHasOptimizedOsrCodeBit::encode(true) >
+    static_assert(FeedbackVector::MaybeHasMaglevOsrCodeBit::encode(true) >
+                  FeedbackVector::kMaxOsrUrgency);
+    static_assert(FeedbackVector::MaybeHasTurbofanOsrCodeBit::encode(true) >
                   FeedbackVector::kMaxOsrUrgency);
     __ JumpIfByte(kUnsignedGreaterThan, osr_state, loop_depth, &osr_armed,
                   Label::kNear);

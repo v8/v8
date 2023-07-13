@@ -5466,16 +5466,18 @@ void TryOnStackReplacement::GenerateCode(MaglevAssembler* masm,
 
   ZoneLabelRef no_code_for_osr(masm);
 
-  if (masm->compilation_info()->toplevel_is_osr()) {
-    // TODO(olivf) The maybe_has_optimized_code bit is guaranteed to be set
-    // since we have optimized maglev code -- but are waiting for TF. Thus we
-    // have to go into the slow case more than neccessary.
-    __ DecodeField<FeedbackVector::OsrUrgencyBits>(osr_state);
+  if (v8_flags.maglev_osr) {
+    // In case we use maglev_osr, we need to explicitly know if there is
+    // turbofan code waiting for us (i.e., ignore the MaybeHasMaglevOsrCodeBit).
+    __ DecodeField<
+        base::BitFieldUnion<FeedbackVector::OsrUrgencyBits,
+                            FeedbackVector::MaybeHasTurbofanOsrCodeBit>>(
+        osr_state);
   }
 
   // The quick initial OSR check. If it passes, we proceed on to more
   // expensive OSR logic.
-  static_assert(FeedbackVector::MaybeHasOptimizedOsrCodeBit::encode(true) >
+  static_assert(FeedbackVector::MaybeHasTurbofanOsrCodeBit::encode(true) >
                 FeedbackVector::kMaxOsrUrgency);
   __ CompareInt32(osr_state, loop_depth_);
   __ JumpToDeferredIf(kUnsignedGreaterThan, AttemptOnStackReplacement,

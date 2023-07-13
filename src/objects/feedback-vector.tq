@@ -20,14 +20,16 @@ bitfield struct FeedbackVectorFlags extends uint16 {
 }
 
 bitfield struct OsrState extends uint8 {
-  // The layout is chosen s.t. osr_urgency and maybe_has_optimized_osr_code can
-  // be loaded with a single load (i.e. no masking required).
+  // The layout is chosen s.t. osr_urgency and
+  // maybe_has_(maglev|turbofan)_osr_code can be loaded with a single load
+  // (i.e. no masking required).
   osr_urgency: uint32: 3 bit;
-  maybe_has_optimized_osr_code: bool: 1 bit;
+  maybe_has_maglev_osr_code: bool: 1 bit;
+  maybe_has_turbofan_osr_code: bool: 1 bit;
   // In order to have fast OSR checks in Ignition and Sparkplug, these bits
   // should remain 0. That way, the OSR check can be implemented as a single
   // comparison.
-  dont_use_these_bits_unless_beneficial: uint32: 4 bit;
+  dont_use_these_bits_unless_beneficial: uint32: 3 bit;
 }
 
 @generateBodyDescriptor

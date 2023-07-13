@@ -880,8 +880,7 @@ void ResetFeedbackVectorOsrUrgency(MacroAssembler* masm,
                                    Register feedback_vector, Register scratch) {
   __ mov_b(scratch,
            FieldOperand(feedback_vector, FeedbackVector::kOsrStateOffset));
-  __ and_(scratch,
-          Immediate(FeedbackVector::MaybeHasOptimizedOsrCodeBit::kMask));
+  __ and_(scratch, Immediate(~FeedbackVector::OsrUrgencyBits::kMask));
   __ mov_b(FieldOperand(feedback_vector, FeedbackVector::kOsrStateOffset),
            scratch);
 }

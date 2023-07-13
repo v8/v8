@@ -139,11 +139,26 @@ void FeedbackVector::RequestOsrAtNextOpportunity() {
 void FeedbackVector::reset_osr_state() { set_osr_state(0); }
 
 bool FeedbackVector::maybe_has_optimized_osr_code() const {
-  return MaybeHasOptimizedOsrCodeBit::decode(osr_state());
+  return maybe_has_maglev_osr_code() || maybe_has_turbofan_osr_code();
 }
 
-void FeedbackVector::set_maybe_has_optimized_osr_code(bool value) {
-  set_osr_state(MaybeHasOptimizedOsrCodeBit::update(osr_state(), value));
+bool FeedbackVector::maybe_has_maglev_osr_code() const {
+  return MaybeHasMaglevOsrCodeBit::decode(osr_state());
+}
+
+bool FeedbackVector::maybe_has_turbofan_osr_code() const {
+  return MaybeHasTurbofanOsrCodeBit::decode(osr_state());
+}
+
+void FeedbackVector::set_maybe_has_optimized_osr_code(bool value,
+                                                      CodeKind code_kind) {
+  if (code_kind == CodeKind::MAGLEV) {
+    CHECK(v8_flags.maglev_osr);
+    set_osr_state(MaybeHasMaglevOsrCodeBit::update(osr_state(), value));
+  } else {
+    CHECK_EQ(code_kind, CodeKind::TURBOFAN);
+    set_osr_state(MaybeHasTurbofanOsrCodeBit::update(osr_state(), value));
+  }
 }
 
 Code FeedbackVector::optimized_code() const {
