@@ -953,6 +953,7 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   // Parameters.
   Node* TargetParameter();
   Node* Parameter(size_t index);
+  Node* LoadRootRegister() { return AddNode(machine()->LoadRootRegister()); }
 
   // Pointer utilities.
   Node* LoadFromPointer(void* address, MachineType type, int32_t offset = 0) {

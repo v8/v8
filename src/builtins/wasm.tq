@@ -794,6 +794,24 @@ transitioning javascript builtin ExperimentalWasmConvertArrayToString(
   }
 }
 
+macro GetRefAt<T: type, From: type>(base: From, offset: intptr): &T {
+  return torque_internal::unsafe::NewOffHeapReference<T>(
+      %RawDownCast<RawPtr<T>>(base + offset));
+}
+
+extern macro LoadPointerFromRootRegister(intptr): RawPtr;
+
+const kThreadInWasmFlagAddressOffset: constexpr intptr
+    generates 'Isolate::thread_in_wasm_flag_address_offset()';
+
+macro ModifyThreadInWasmFlag(newValue: int32): void {
+  const threadInWasmFlagAddress =
+      LoadPointerFromRootRegister(kThreadInWasmFlagAddressOffset);
+  const threadInWasmFlagRef = GetRefAt<int32>(threadInWasmFlagAddress, 0);
+  dcheck(*threadInWasmFlagRef != newValue);
+  *threadInWasmFlagRef = newValue;
+}
+
 // Non-standard experimental feature.
 // Arguments: string, sampleArray.
 transitioning javascript builtin ExperimentalWasmConvertStringToArray(
