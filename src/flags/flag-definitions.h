@@ -1183,6 +1183,12 @@ DEFINE_EXPERIMENTAL_FEATURE(
     "run instruction selection on Turboshaft IR directly")
 DEFINE_EXPERIMENTAL_FEATURE(turboshaft_load_elimination,
                             "enable Turboshaft's low-level load elimination")
+
+DEFINE_EXPERIMENTAL_FEATURE(
+    turboshaft_future,
+    "enable Turboshaft features that we want to ship in the not-too-far future")
+DEFINE_WEAK_IMPLICATION(turboshaft_future, turboshaft_load_elimination)
+
 #ifdef DEBUG
 DEFINE_UINT64(turboshaft_opt_bisect_limit, std::numeric_limits<uint64_t>::max(),
               "stop applying optional optimizations after a specified number "
