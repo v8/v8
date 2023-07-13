@@ -352,21 +352,19 @@ class WeakArrayList
   DECL_PRINTER(WeakArrayList)
 
   V8_EXPORT_PRIVATE static Handle<WeakArrayList> AddToEnd(
-      Isolate* isolate, Handle<WeakArrayList> array,
-      const MaybeObjectHandle& value);
+      Isolate* isolate, Handle<WeakArrayList> array, MaybeObjectHandle value);
 
   // A version that adds to elements. This ensures that the elements are
   // inserted atomically w.r.t GC.
   V8_EXPORT_PRIVATE static Handle<WeakArrayList> AddToEnd(
-      Isolate* isolate, Handle<WeakArrayList> array,
-      const MaybeObjectHandle& value1, Smi value2);
+      Isolate* isolate, Handle<WeakArrayList> array, MaybeObjectHandle value1,
+      Smi value2);
 
   // Appends an element to the array and possibly compacts and shrinks live weak
   // references to the start of the collection. Only use this method when
   // indices to elements can change.
   static Handle<WeakArrayList> Append(
-      Isolate* isolate, Handle<WeakArrayList> array,
-      const MaybeObjectHandle& value,
+      Isolate* isolate, Handle<WeakArrayList> array, MaybeObjectHandle value,
       AllocationType allocation = AllocationType::kYoung);
 
   // Compact weak references to the beginning of the array.
@@ -419,7 +417,7 @@ class WeakArrayList
   // around in the array - this method can only be used in cases where the user
   // doesn't care about the indices! Users should make sure there are no
   // duplicates.
-  V8_EXPORT_PRIVATE bool RemoveOne(const MaybeObjectHandle& value);
+  V8_EXPORT_PRIVATE bool RemoveOne(MaybeObjectHandle value);
 
   // Searches the array (linear time) and returns whether it contains the value.
   V8_EXPORT_PRIVATE bool Contains(MaybeObject value);

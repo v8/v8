@@ -4187,7 +4187,7 @@ Handle<ArrayList> ArrayList::EnsureSpace(Isolate* isolate,
 // static
 Handle<WeakArrayList> WeakArrayList::AddToEnd(Isolate* isolate,
                                               Handle<WeakArrayList> array,
-                                              const MaybeObjectHandle& value) {
+                                              MaybeObjectHandle value) {
   int length = array->length();
   array = EnsureSpace(isolate, array, length + 1);
   {
@@ -4203,7 +4203,7 @@ Handle<WeakArrayList> WeakArrayList::AddToEnd(Isolate* isolate,
 
 Handle<WeakArrayList> WeakArrayList::AddToEnd(Isolate* isolate,
                                               Handle<WeakArrayList> array,
-                                              const MaybeObjectHandle& value1,
+                                              MaybeObjectHandle value1,
                                               Smi value2) {
   int length = array->length();
   array = EnsureSpace(isolate, array, length + 2);
@@ -4222,7 +4222,7 @@ Handle<WeakArrayList> WeakArrayList::AddToEnd(Isolate* isolate,
 // static
 Handle<WeakArrayList> WeakArrayList::Append(Isolate* isolate,
                                             Handle<WeakArrayList> array,
-                                            const MaybeObjectHandle& value,
+                                            MaybeObjectHandle value,
                                             AllocationType allocation) {
   int length = 0;
   int new_length = 0;
@@ -4325,21 +4325,17 @@ int WeakArrayList::CountLiveElements() const {
   return non_cleared_objects;
 }
 
-bool WeakArrayList::RemoveOne(const MaybeObjectHandle& value) {
-  if (length() == 0) return false;
-  // Optimize for the most recently added element to be removed again.
-  MaybeObject cleared_weak_ref =
-      HeapObjectReference::ClearedValue(GetIsolate());
+bool WeakArrayList::RemoveOne(MaybeObjectHandle value) {
   int last_index = length() - 1;
+  // Optimize for the most recently added element to be removed again.
   for (int i = last_index; i >= 0; --i) {
-    if (Get(i) == *value) {
-      // Move the last element into the this slot (or no-op, if this is the
-      // last slot).
-      Set(i, Get(last_index));
-      Set(last_index, cleared_weak_ref);
-      set_length(last_index);
-      return true;
-    }
+    if (Get(i) != *value) continue;
+    // Move the last element into this slot (or no-op, if this is the last
+    // slot).
+    Set(i, Get(last_index));
+    Set(last_index, HeapObjectReference::ClearedValue(GetIsolate()));
+    set_length(last_index);
+    return true;
   }
   return false;
 }

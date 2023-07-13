@@ -3139,10 +3139,9 @@ void Isolate::UnregisterManagedPtrDestructor(ManagedPtrDestructor* destructor) {
 
 #if V8_ENABLE_WEBASSEMBLY
 void Isolate::AddSharedWasmMemory(Handle<WasmMemoryObject> memory_object) {
-  HandleScope scope(this);
   Handle<WeakArrayList> shared_wasm_memories =
       factory()->shared_wasm_memories();
-  shared_wasm_memories = WeakArrayList::AddToEnd(
+  shared_wasm_memories = WeakArrayList::Append(
       this, shared_wasm_memories, MaybeObjectHandle::Weak(memory_object));
   heap()->set_shared_wasm_memories(*shared_wasm_memories);
 }
