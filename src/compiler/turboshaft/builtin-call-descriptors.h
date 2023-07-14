@@ -82,7 +82,9 @@ struct BuiltinCallDescriptor {
     static constexpr bool NeedsContext = true;
     static constexpr Operator::Properties Properties =
         Operator::kNoThrow | Operator::kNoDeopt;
-    static constexpr OpEffects Effects = base_effects.CanReadMemory();
+    // Adding a .CanChangeControlFlow so that this call is not eliminated.
+    static constexpr OpEffects Effects =
+        base_effects.CanReadMemory().CanChangeControlFlow();
   };
 
   struct CopyFastSmiOrObjectElements
