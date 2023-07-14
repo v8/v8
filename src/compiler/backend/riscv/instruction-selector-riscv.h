@@ -647,8 +647,12 @@ void InstructionSelectorT<Adapter>::VisitFloat64ExtractHighWord32(node_t node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat64SilenceNaN(Node* node) {
-  VisitRR(this, kRiscvFloat64SilenceNaN, node);
+void InstructionSelectorT<Adapter>::VisitFloat64SilenceNaN(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    VisitRR(this, kRiscvFloat64SilenceNaN, node);
+  }
 }
 
 template <typename Adapter>
@@ -715,28 +719,48 @@ void InstructionSelectorT<Adapter>::EmitMoveFPRToParam(
     InstructionOperand* op, LinkageLocation location) {}
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat32Abs(Node* node) {
-  VisitRR(this, kRiscvAbsS, node);
+void InstructionSelectorT<Adapter>::VisitFloat32Abs(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    VisitRR(this, kRiscvAbsS, node);
+  }
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat64Abs(Node* node) {
-  VisitRR(this, kRiscvAbsD, node);
+void InstructionSelectorT<Adapter>::VisitFloat64Abs(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    VisitRR(this, kRiscvAbsD, node);
+  }
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat32Sqrt(Node* node) {
+void InstructionSelectorT<Adapter>::VisitFloat32Sqrt(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
   VisitRR(this, kRiscvSqrtS, node);
+  }
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat64Sqrt(Node* node) {
+void InstructionSelectorT<Adapter>::VisitFloat64Sqrt(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
   VisitRR(this, kRiscvSqrtD, node);
+  }
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat32RoundDown(Node* node) {
+void InstructionSelectorT<Adapter>::VisitFloat32RoundDown(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
   VisitRR(this, kRiscvFloat32RoundDown, node);
+  }
 }
 
 template <typename Adapter>

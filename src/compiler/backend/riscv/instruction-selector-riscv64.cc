@@ -469,7 +469,7 @@ void InstructionSelectorT<TurbofanAdapter>::VisitWord32And(Node* node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord64And(Node* node) {
+void InstructionSelectorT<Adapter>::VisitWord64And(node_t node) {
   if constexpr (Adapter::IsTurboshaft) {
     UNIMPLEMENTED();
   } else {
@@ -523,7 +523,7 @@ void InstructionSelectorT<Adapter>::VisitWord32Or(node_t node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord64Or(Node* node) {
+void InstructionSelectorT<Adapter>::VisitWord64Or(node_t node) {
   if constexpr (Adapter::IsTurboshaft) {
     UNIMPLEMENTED();
   } else {
@@ -533,7 +533,7 @@ void InstructionSelectorT<Adapter>::VisitWord64Or(Node* node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord32Xor(Node* node) {
+void InstructionSelectorT<Adapter>::VisitWord32Xor(node_t node) {
   if constexpr (Adapter::IsTurboshaft) {
     UNIMPLEMENTED();
   } else {
@@ -562,7 +562,7 @@ void InstructionSelectorT<Adapter>::VisitWord32Xor(Node* node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord64Xor(Node* node) {
+void InstructionSelectorT<Adapter>::VisitWord64Xor(node_t node) {
   if constexpr (Adapter::IsTurboshaft) {
     UNIMPLEMENTED();
   } else {
@@ -792,9 +792,14 @@ void InstructionSelectorT<Adapter>::VisitWord64Clz(Node* node) {
   VisitRR(this, kRiscvClz64, node);
 }
 
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitInt32Add(Node* node) {
-  VisitBinop<Adapter, Int32BinopMatcher>(this, node, kRiscvAdd32, true,
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitInt32Add(node_t node) {
+  UNIMPLEMENTED();
+}
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitInt32Add(Node* node) {
+  VisitBinop<TurbofanAdapter, Int32BinopMatcher>(this, node, kRiscvAdd32, true,
                                          kRiscvAdd32);
 }
 
@@ -809,18 +814,31 @@ void InstructionSelectorT<Adapter>::VisitInt64Add(node_t node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitInt32Sub(Node* node) {
-  VisitBinop<Adapter, Int32BinopMatcher>(this, node, kRiscvSub32);
+void InstructionSelectorT<Adapter>::VisitInt32Sub(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    VisitBinop<Adapter, Int32BinopMatcher>(this, node, kRiscvSub32);
+  }
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitInt64Sub(Node* node) {
+void InstructionSelectorT<Adapter>::VisitInt64Sub(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
   VisitBinop<Adapter, Int64BinopMatcher>(this, node, kRiscvSub64);
+  }
 }
 
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitInt32Mul(Node* node) {
-  RiscvOperandGeneratorT<Adapter> g(this);
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitInt32Mul(node_t node) {
+  UNIMPLEMENTED();
+}
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitInt32Mul(Node* node) {
+  RiscvOperandGeneratorT<TurbofanAdapter> g(this);
   Int32BinopMatcher m(node);
   if (m.right().HasResolvedValue() && m.right().ResolvedValue() > 0) {
     uint32_t value = static_cast<uint32_t>(m.right().ResolvedValue());
@@ -859,28 +877,49 @@ void InstructionSelectorT<Adapter>::VisitInt32Mul(Node* node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitInt32MulHigh(Node* node) {
-  VisitRRR(this, kRiscvMulHigh32, node);
+void InstructionSelectorT<Adapter>::VisitInt32MulHigh(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    VisitRRR(this, kRiscvMulHigh32, node);
+  }
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitInt64MulHigh(Node* node) {
-  VisitRRR(this, kRiscvMulHigh64, node);
+void InstructionSelectorT<Adapter>::VisitInt64MulHigh(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    return VisitRRR(this, kRiscvMulHigh64, node);
+  }
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitUint32MulHigh(Node* node) {
-  VisitRRR(this, kRiscvMulHighU32, node);
+void InstructionSelectorT<Adapter>::VisitUint32MulHigh(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    VisitRRR(this, kRiscvMulHighU32, node);
+  }
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitUint64MulHigh(Node* node) {
-  VisitRRR(this, kRiscvMulHighU64, node);
+void InstructionSelectorT<Adapter>::VisitUint64MulHigh(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    VisitRRR(this, kRiscvMulHighU64, node);
+  }
 }
 
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitInt64Mul(Node* node) {
-  RiscvOperandGeneratorT<Adapter> g(this);
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitInt64Mul(node_t node) {
+  UNIMPLEMENTED();
+}
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitInt64Mul(Node* node) {
+  RiscvOperandGeneratorT<TurbofanAdapter> g(this);
   Int64BinopMatcher m(node);
   // TODO(dusmil): Add optimization for shifts larger than 32.
   if (m.right().HasResolvedValue() && m.right().ResolvedValue() > 0) {
@@ -906,7 +945,10 @@ void InstructionSelectorT<Adapter>::VisitInt64Mul(Node* node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitInt32Div(Node* node) {
+void InstructionSelectorT<Adapter>::VisitInt32Div(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
   RiscvOperandGeneratorT<Adapter> g(this);
   Int32BinopMatcher m(node);
   Node* left = node->InputAt(0);
@@ -926,18 +968,26 @@ void InstructionSelectorT<Adapter>::VisitInt32Div(Node* node) {
   }
   Emit(kRiscvDiv32, g.DefineSameAsFirst(node), g.UseRegister(m.left().node()),
        g.UseRegister(m.right().node()));
+  }
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitUint32Div(Node* node) {
+void InstructionSelectorT<Adapter>::VisitUint32Div(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
   RiscvOperandGeneratorT<Adapter> g(this);
   Int32BinopMatcher m(node);
   Emit(kRiscvDivU32, g.DefineSameAsFirst(node), g.UseRegister(m.left().node()),
        g.UseRegister(m.right().node()));
+  }
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitInt32Mod(Node* node) {
+void InstructionSelectorT<Adapter>::VisitInt32Mod(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
   RiscvOperandGeneratorT<Adapter> g(this);
   Int32BinopMatcher m(node);
   Node* left = node->InputAt(0);
@@ -957,46 +1007,67 @@ void InstructionSelectorT<Adapter>::VisitInt32Mod(Node* node) {
   }
   Emit(kRiscvMod32, g.DefineAsRegister(node), g.UseRegister(m.left().node()),
        g.UseRegister(m.right().node()));
+  }
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitUint32Mod(Node* node) {
+void InstructionSelectorT<Adapter>::VisitUint32Mod(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
   RiscvOperandGeneratorT<Adapter> g(this);
   Int32BinopMatcher m(node);
   Emit(kRiscvModU32, g.DefineAsRegister(node), g.UseRegister(m.left().node()),
        g.UseRegister(m.right().node()));
+  }
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitInt64Div(Node* node) {
+void InstructionSelectorT<Adapter>::VisitInt64Div(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
   RiscvOperandGeneratorT<Adapter> g(this);
   Int64BinopMatcher m(node);
   Emit(kRiscvDiv64, g.DefineSameAsFirst(node), g.UseRegister(m.left().node()),
        g.UseRegister(m.right().node()));
+  }
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitUint64Div(Node* node) {
+void InstructionSelectorT<Adapter>::VisitUint64Div(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
   RiscvOperandGeneratorT<Adapter> g(this);
   Int64BinopMatcher m(node);
   Emit(kRiscvDivU64, g.DefineSameAsFirst(node), g.UseRegister(m.left().node()),
        g.UseRegister(m.right().node()));
+  }
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitInt64Mod(Node* node) {
+void InstructionSelectorT<Adapter>::VisitInt64Mod(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
   RiscvOperandGeneratorT<Adapter> g(this);
   Int64BinopMatcher m(node);
   Emit(kRiscvMod64, g.DefineAsRegister(node), g.UseRegister(m.left().node()),
        g.UseRegister(m.right().node()));
+  }
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitUint64Mod(Node* node) {
+void InstructionSelectorT<Adapter>::VisitUint64Mod(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
   RiscvOperandGeneratorT<Adapter> g(this);
   Int64BinopMatcher m(node);
   Emit(kRiscvModU64, g.DefineAsRegister(node), g.UseRegister(m.left().node()),
        g.UseRegister(m.right().node()));
+  }
 }
 
 template <typename Adapter>
@@ -1507,53 +1578,89 @@ void InstructionSelectorT<Adapter>::VisitBitcastInt64ToFloat64(node_t node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat64RoundDown(Node* node) {
+void InstructionSelectorT<Adapter>::VisitFloat64RoundDown(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
   VisitRR(this, kRiscvFloat64RoundDown, node);
+  }
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat32RoundUp(Node* node) {
+void InstructionSelectorT<Adapter>::VisitFloat32RoundUp(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
   VisitRR(this, kRiscvFloat32RoundUp, node);
+  }
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat64RoundUp(Node* node) {
-  VisitRR(this, kRiscvFloat64RoundUp, node);
+void InstructionSelectorT<Adapter>::VisitFloat64RoundUp(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    VisitRR(this, kRiscvFloat64RoundUp, node);
+  }
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat32RoundTruncate(Node* node) {
+void InstructionSelectorT<Adapter>::VisitFloat32RoundTruncate(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
   VisitRR(this, kRiscvFloat32RoundTruncate, node);
+  }
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat64RoundTruncate(Node* node) {
+void InstructionSelectorT<Adapter>::VisitFloat64RoundTruncate(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
   VisitRR(this, kRiscvFloat64RoundTruncate, node);
+  }
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat64RoundTiesAway(Node* node) {
+void InstructionSelectorT<Adapter>::VisitFloat64RoundTiesAway(node_t node) {
   UNREACHABLE();
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat32RoundTiesEven(Node* node) {
+void InstructionSelectorT<Adapter>::VisitFloat32RoundTiesEven(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
   VisitRR(this, kRiscvFloat32RoundTiesEven, node);
+  }
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat64RoundTiesEven(Node* node) {
+void InstructionSelectorT<Adapter>::VisitFloat64RoundTiesEven(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
   VisitRR(this, kRiscvFloat64RoundTiesEven, node);
+  }
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat32Neg(Node* node) {
+void InstructionSelectorT<Adapter>::VisitFloat32Neg(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
   VisitRR(this, kRiscvNegS, node);
+  }
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat64Neg(Node* node) {
+void InstructionSelectorT<Adapter>::VisitFloat64Neg(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
   VisitRR(this, kRiscvNegD, node);
+  }
 }
 
 template <typename Adapter>
@@ -1571,10 +1678,14 @@ void InstructionSelectorT<Adapter>::VisitFloat64Ieee754Binop(
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitFloat64Ieee754Unop(
-    Node* node, InstructionCode opcode) {
+    node_t node, InstructionCode opcode) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
   RiscvOperandGeneratorT<Adapter> g(this);
   Emit(opcode, g.DefineAsFixed(node, fa0), g.UseFixed(node->InputAt(0), fa1))
       ->MarkAsCall();
+  }
 }
 
 template <typename Adapter>
@@ -2255,7 +2366,7 @@ void InstructionSelectorT<Adapter>::VisitWord32Equal(node_t node) {
               MacroAssemblerBase::ReadOnlyRootPtr(root_index, isolate());
           if (g.CanBeImmediate(ptr, kRiscvCmp32)) {
             return VisitCompare(this, kRiscvCmp32, g.UseRegister(left),
-                                g.TempImmediate(ptr), &cont);
+                                g.TempImmediate(int32_t(ptr)), &cont);
           }
         }
       }
