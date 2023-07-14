@@ -208,7 +208,8 @@ class Tagged<Object> : public TaggedBase {
     static_assert(kTaggedCanConvertToRawObjects);
   }
   template <typename U,
-            typename = std::enable_if_t<std::is_convertible_v<Object*, U*>>>
+            typename = std::enable_if_t<std::is_base_of_v<U, Object> ||
+                                        std::is_convertible_v<Object*, U*>>>
   // NOLINTNEXTLINE
   constexpr operator U() {
     static_assert(kTaggedCanConvertToRawObjects);
@@ -228,8 +229,9 @@ class Tagged<Smi> : public TaggedBase {
   // this static assert).
   template <typename U>
   static constexpr Tagged<Smi> cast(Tagged<U> other) {
-    static_assert(std::is_convertible_v<U*, Smi*> ||
-                  std::is_convertible_v<Smi*, U*>);
+    static_assert(std::is_base_of_v<Smi, U> ||
+                  std::is_convertible_v<U*, Smi*> ||
+                  std::is_base_of_v<U, Smi> || std::is_convertible_v<Smi*, U*>);
     return Tagged<Smi>(Smi::cast(*other).ptr());
   }
   static constexpr Tagged<Smi> unchecked_cast(TaggedBase other) {
@@ -250,7 +252,8 @@ class Tagged<Smi> : public TaggedBase {
     static_assert(kTaggedCanConvertToRawObjects);
   }
   template <typename U,
-            typename = std::enable_if_t<std::is_convertible_v<Smi*, U*>>>
+            typename = std::enable_if_t<std::is_base_of_v<U, Smi> ||
+                                        std::is_convertible_v<Smi*, U*>>>
   // NOLINTNEXTLINE
   constexpr operator U() {
     static_assert(kTaggedCanConvertToRawObjects);
@@ -288,7 +291,9 @@ class Tagged<HeapObject> : public TaggedBase {
   // Explicit cast for sub- and superclasses.
   template <typename U>
   static constexpr Tagged<HeapObject> cast(Tagged<U> other) {
-    static_assert(std::is_convertible_v<U*, HeapObject*> ||
+    static_assert(std::is_base_of_v<HeapObject, U> ||
+                  std::is_convertible_v<U*, HeapObject*> ||
+                  std::is_base_of_v<U, HeapObject> ||
                   std::is_convertible_v<HeapObject*, U*>);
     return Tagged<HeapObject>(HeapObject::cast(*other).ptr());
   }
@@ -302,7 +307,8 @@ class Tagged<HeapObject> : public TaggedBase {
 
   // Implicit conversion for subclasses.
   template <typename U,
-            typename = std::enable_if_t<std::is_convertible_v<U*, HeapObject*>>>
+            typename = std::enable_if_t<std::is_base_of_v<HeapObject, U> ||
+                                        std::is_convertible_v<U*, HeapObject*>>>
   constexpr Tagged& operator=(Tagged<U> other) {
     this->ptr_ = other.ptr();
     return *this;
@@ -310,7 +316,8 @@ class Tagged<HeapObject> : public TaggedBase {
 
   // Implicit conversion for subclasses.
   template <typename U,
-            typename = std::enable_if_t<std::is_convertible_v<U*, HeapObject*>>>
+            typename = std::enable_if_t<std::is_base_of_v<HeapObject, U> ||
+                                        std::is_convertible_v<U*, HeapObject*>>>
   // NOLINTNEXTLINE
   constexpr Tagged(Tagged<U> other) : Base(other) {}
 
@@ -358,7 +365,8 @@ class Tagged<HeapObject> : public TaggedBase {
   // Implicit conversions and explicit casts to/from raw pointers
   // TODO(leszeks): Remove once we're using Tagged everywhere.
   template <typename U,
-            typename = std::enable_if_t<std::is_convertible_v<U*, HeapObject*>>>
+            typename = std::enable_if_t<std::is_base_of_v<HeapObject, U> ||
+                                        std::is_convertible_v<U*, HeapObject*>>>
   // NOLINTNEXTLINE
   constexpr Tagged(U raw) : Base(raw.ptr()) {
     static_assert(kTaggedCanConvertToRawObjects);
@@ -402,8 +410,8 @@ class Tagged : public Tagged<HeapObject> {
   // Explicit cast for sub- and superclasses.
   template <typename U>
   static constexpr Tagged<T> cast(Tagged<U> other) {
-    static_assert(std::is_convertible_v<U*, T*> ||
-                  std::is_convertible_v<T*, U*>);
+    static_assert(std::is_base_of_v<T, U> || std::is_convertible_v<U*, T*> ||
+                  std::is_base_of_v<U, T> || std::is_convertible_v<T*, U*>);
     return Tagged<T>(T::cast(*other).ptr());
   }
   static constexpr Tagged<T> unchecked_cast(TaggedBase other) {
@@ -416,7 +424,8 @@ class Tagged : public Tagged<HeapObject> {
 
   // Implicit conversion for subclasses.
   template <typename U,
-            typename = std::enable_if_t<std::is_convertible_v<U*, T*>>>
+            typename = std::enable_if_t<std::is_base_of_v<T, U> ||
+                                        std::is_convertible_v<U*, T*>>>
   constexpr Tagged& operator=(Tagged<U> other) {
     this->ptr_ = other.ptr();
     return *this;
@@ -424,7 +433,8 @@ class Tagged : public Tagged<HeapObject> {
 
   // Implicit conversion for subclasses.
   template <typename U,
-            typename = std::enable_if_t<std::is_convertible_v<U*, T*>>>
+            typename = std::enable_if_t<std::is_base_of_v<T, U> ||
+                                        std::is_convertible_v<U*, T*>>>
   // NOLINTNEXTLINE
   constexpr Tagged(Tagged<U> other) : Base(other) {}
 
@@ -436,13 +446,15 @@ class Tagged : public Tagged<HeapObject> {
   // Implicit conversions and explicit casts to/from raw pointers
   // TODO(leszeks): Remove once we're using Tagged everywhere.
   template <typename U,
-            typename = std::enable_if_t<std::is_convertible_v<U*, T*>>>
+            typename = std::enable_if_t<std::is_base_of_v<T, U> ||
+                                        std::is_convertible_v<U*, T*>>>
   // NOLINTNEXTLINE
   constexpr Tagged(U raw) : Base(raw.ptr()) {
     static_assert(kTaggedCanConvertToRawObjects);
   }
   template <typename U,
-            typename = std::enable_if_t<std::is_convertible_v<T*, U*>>>
+            typename = std::enable_if_t<std::is_base_of_v<U, T> ||
+                                        std::is_convertible_v<T*, U*>>>
   // NOLINTNEXTLINE
   constexpr operator U() {
     static_assert(kTaggedCanConvertToRawObjects);

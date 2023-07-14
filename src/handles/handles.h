@@ -105,9 +105,6 @@ class Handle final : public HandleBase {
   }
 
   V8_INLINE explicit Handle(Address* location) : HandleBase(location) {
-    // This static type check also fails for forward class declarations.
-    static_assert(std::is_convertible<T*, Object*>::value,
-                  "static type violation");
     // TODO(jkummerow): Runtime type check here as a SLOW_DCHECK?
   }
 
@@ -120,13 +117,19 @@ class Handle final : public HandleBase {
 
   // Constructor for handling automatic up casting.
   // Ex. Handle<JSFunction> can be passed when Handle<Object> is expected.
-  template <typename S, typename = typename std::enable_if<
-                            std::is_convertible<S*, T*>::value>::type>
+  template <typename S,
+            typename = std::enable_if_t<std::is_convertible_v<S*, T*>>>
   V8_INLINE Handle(Handle<S> handle) : HandleBase(handle) {}
 
   V8_INLINE Tagged<T> operator->() const { return **this; }
 
   V8_INLINE Tagged<T> operator*() const {
+    // This static type check also fails for forward class declarations. We
+    // check on access instead of on construction to allow Handles to forward
+    // declared types.
+    static_assert(
+        std::is_base_of_v<T, Object> || std::is_convertible_v<T*, Object*>,
+        "static type violation");
     // Direct construction of Tagged from address, without a type check, because
     // we rather trust Handle<T> to contain a T than include all the respective
     // -inl.h headers for SLOW_DCHECKs.
