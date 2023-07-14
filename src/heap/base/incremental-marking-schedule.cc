@@ -75,11 +75,8 @@ size_t IncrementalMarkingSchedule::GetNextIncrementalStepDuration(
       std::ceil(estimated_live_bytes * elapsed_time.InMillisecondsF() /
                 kEstimatedMarkingTime.InMillisecondsF());
   // Stash away the current data for others to access.
-  current_step_ = {.mutator_marked_bytes = mutator_thread_marked_bytes_,
-                   .concurrent_marked_bytes = GetConcurrentlyMarkedBytes(),
-                   .estimated_live_bytes = estimated_live_bytes,
-                   .expected_marked_bytes = expected_marked_bytes,
-                   .elapsed_time = elapsed_time};
+  current_step_ = {mutator_thread_marked_bytes_, GetConcurrentlyMarkedBytes(),
+                   estimated_live_bytes, expected_marked_bytes, elapsed_time};
   if ((actual_marked_bytes >= last_marked_bytes) &&
       (actual_marked_bytes - last_marked_bytes) <
           kStepSizeWhenNotMakingProgress) {
