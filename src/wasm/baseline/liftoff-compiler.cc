@@ -5408,13 +5408,11 @@ class LiftoffCompiler {
   // When truncating from u64 to u32, the {*high_word} is updated to contain
   // the ORed combination of all high words.
   VarState PopMemTypeToVarState(Register* high_word, LiftoffRegList* pinned) {
-    // TODO(13918): Support multiple memories.
-    const WasmMemory* memory = env_->module->memories.data();
-
     VarState slot = __ PopVarState();
+    const bool is_mem64 = slot.kind() == kI64;
     // For memory32 on a 32-bit system or memory64 on a 64-bit system, there is
     // nothing to do.
-    if ((kSystemPointerSize == kInt64Size) == memory->is_memory64) {
+    if ((kSystemPointerSize == kInt64Size) == is_mem64) {
       if (slot.is_reg()) pinned->set(slot.reg());
       return slot;
     }
@@ -5424,7 +5422,7 @@ class LiftoffCompiler {
     LiftoffRegister reg = __ LoadToRegister(slot, *pinned);
     // For memory32 on 64-bit hosts, zero-extend.
     if (kSystemPointerSize == kInt64Size) {
-      DCHECK(!memory->is_memory64);
+      DCHECK(!is_mem64);  // Handled above.
       // Get a register that we can overwrite, preferably {reg}.
       LiftoffRegister intptr_reg = __ GetUnusedRegister(kGpReg, {reg}, *pinned);
       __ emit_u32_to_uintptr(intptr_reg.gp(), reg.gp());
@@ -5435,9 +5433,8 @@ class LiftoffCompiler {
     // For memory64 on 32-bit systems, combine all high words for a zero-check
     // and only use the low words afterwards. This keeps the register pressure
     // managable.
-    DCHECK(memory->is_memory64);
-    DCHECK(kSystemPointerSize == kInt32Size);
-    DCHECK_GE(kMaxUInt32, memory->max_memory_size);
+    DCHECK(is_mem64);  // Other cases are handled above.
+    DCHECK_EQ(kSystemPointerSize, kInt32Size);
     pinned->set(reg.low());
     if (*high_word == no_reg) {
       // Choose a register to hold the (combination of) high word(s). It cannot
@@ -5458,6 +5455,18 @@ class LiftoffCompiler {
     return {kIntPtrKind, reg.low(), 0};
   }
 
+#ifdef DEBUG
+  // Checks that the top-of-stack value matches the declared memory (64-bit or
+  // 32-bit). To be used inside a DCHECK. Always returns true though, will fail
+  // internally on a detected inconsistency.
+  bool MatchingMemTypeOnTopOfStack(const WasmMemory* memory) {
+    DCHECK_LT(0, __ cache_state()->stack_state.size());
+    ValueKind expected_kind = memory->is_memory64 ? kI64 : kI32;
+    DCHECK_EQ(expected_kind, __ cache_state()->stack_state.back().kind());
+    return true;
+  }
+#endif
+
   void MemoryInit(FullDecoder* decoder, const MemoryInitImmediate& imm,
                   const Value&, const Value&, const Value&) {
     Register mem_offsets_high_word = no_reg;
@@ -5466,6 +5475,7 @@ class LiftoffCompiler {
     if (size.is_reg()) pinned.set(size.reg());
     VarState src = __ PopVarState();
     if (src.is_reg()) pinned.set(src.reg());
+    DCHECK(MatchingMemTypeOnTopOfStack(imm.memory.memory));
     VarState dst = PopMemTypeToVarState(&mem_offsets_high_word, &pinned);
 
     Register instance = __ cache_state()->cached_instance;
@@ -5528,8 +5538,13 @@ class LiftoffCompiler {
                   const Value&, const Value&, const Value&) {
     Register mem_offsets_high_word = no_reg;
     LiftoffRegList pinned;
+    DCHECK_EQ(imm.memory_dst.memory->is_memory64,
+              imm.memory_src.memory->is_memory64);
+    DCHECK(MatchingMemTypeOnTopOfStack(imm.memory_dst.memory));
     VarState size = PopMemTypeToVarState(&mem_offsets_high_word, &pinned);
+    DCHECK(MatchingMemTypeOnTopOfStack(imm.memory_dst.memory));
     VarState src = PopMemTypeToVarState(&mem_offsets_high_word, &pinned);
+    DCHECK(MatchingMemTypeOnTopOfStack(imm.memory_dst.memory));
     VarState dst = PopMemTypeToVarState(&mem_offsets_high_word, &pinned);
 
     Register instance = __ cache_state()->cached_instance;
@@ -5569,9 +5584,11 @@ class LiftoffCompiler {
                   const Value&, const Value&, const Value&) {
     Register mem_offsets_high_word = no_reg;
     LiftoffRegList pinned;
+    DCHECK(MatchingMemTypeOnTopOfStack(imm.memory));
     VarState size = PopMemTypeToVarState(&mem_offsets_high_word, &pinned);
     VarState value = __ PopVarState();
     if (value.is_reg()) pinned.set(value.reg());
+    DCHECK(MatchingMemTypeOnTopOfStack(imm.memory));
     VarState dst = PopMemTypeToVarState(&mem_offsets_high_word, &pinned);
 
     Register instance = __ cache_state()->cached_instance;

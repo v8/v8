@@ -66,10 +66,7 @@ function addMemoryCopyFunction(builder, mem_dst_index, mem_src_index) {
 
 // Helper to test that two memories can be accessed independently.
 function testTwoMemories(instance, mem0_size, mem1_size) {
-  const load0 = offset => instance.exports.load0(offset);
-  const load1 = offset => instance.exports.load1(offset);
-  const store0 = (value, offset) => instance.exports.store0(value, offset);
-  const store1 = (value, offset) => instance.exports.store1(value, offset);
+  const {load0, load1, store0, store1} = instance.exports;
 
   assertEquals(0, load0(0));
   assertEquals(0, load1(0));
@@ -298,12 +295,8 @@ function assertMemoryEquals(expected, memory) {
   assertMemoryEquals(expected_memory0, instance.exports.mem0);
   assertMemoryEquals(expected_memory1, instance.exports.mem1);
 
-  assertThrows(
-      () => instance.exports.init0_1(0, 5, 1), WebAssembly.RuntimeError,
-      'memory access out of bounds');
-  assertThrows(
-      () => instance.exports.init1_0(0, 3, 1), WebAssembly.RuntimeError,
-      'memory access out of bounds');
+  assertTraps(kTrapMemOutOfBounds, () => instance.exports.init0_1(0, 5, 1));
+  assertTraps(kTrapMemOutOfBounds, () => instance.exports.init1_0(0, 3, 1));
 })();
 
 (function testMultiMemoryFill() {
@@ -337,21 +330,18 @@ function assertMemoryEquals(expected, memory) {
 
   // mem0 has size 1.
   instance.exports.fill0(kPageSize - 1, 1, 1);
-  assertThrows(
-      () => instance.exports.fill0(kPageSize - 1, 1, 2),
-      WebAssembly.RuntimeError, 'memory access out of bounds');
-  assertThrows(
-      () => instance.exports.fill0(kPageSize, 1, 1), WebAssembly.RuntimeError,
-      'memory access out of bounds');
+  assertTraps(
+      kTrapMemOutOfBounds, () => instance.exports.fill0(kPageSize - 1, 1, 2));
+  assertTraps(
+      kTrapMemOutOfBounds, () => instance.exports.fill0(kPageSize, 1, 1));
 
   // mem1 has size 2.
   instance.exports.fill1(2 * kPageSize - 1, 1, 1);
-  assertThrows(
-      () => instance.exports.fill1(2 * kPageSize - 1, 1, 2),
-      WebAssembly.RuntimeError, 'memory access out of bounds');
-  assertThrows(
-      () => instance.exports.fill1(2 * kPageSize, 1, 1),
-      WebAssembly.RuntimeError, 'memory access out of bounds');
+  assertTraps(
+      kTrapMemOutOfBounds,
+      () => instance.exports.fill1(2 * kPageSize - 1, 1, 2));
+  assertTraps(
+      kTrapMemOutOfBounds, () => instance.exports.fill1(2 * kPageSize, 1, 1));
 })();
 
 (function testMultiMemoryCopy() {
@@ -411,18 +401,12 @@ function assertMemoryEquals(expected, memory) {
     // Test at the boundary.
     method(dst_size - 1, src_size - 1, 1);
     // Then test one byte further.
-    assertThrows(
-        () => method(dst_size, src_size - 1, 1), WebAssembly.RuntimeError,
-        'memory access out of bounds');
-    assertThrows(
-        () => method(dst_size - 1, src_size, 1), WebAssembly.RuntimeError,
-        'memory access out of bounds');
-    assertThrows(
-        () => method(dst_size - 1, src_size - 2, 2), WebAssembly.RuntimeError,
-        'memory access out of bounds');
-    assertThrows(
-        () => method(dst_size - 2, src_size - 1, 2), WebAssembly.RuntimeError,
-        'memory access out of bounds');
+    assertTraps(kTrapMemOutOfBounds, () => method(dst_size, src_size - 1, 1));
+    assertTraps(kTrapMemOutOfBounds, () => method(dst_size - 1, src_size, 1));
+    assertTraps(
+        kTrapMemOutOfBounds, () => method(dst_size - 1, src_size - 2, 2));
+    assertTraps(
+        kTrapMemOutOfBounds, () => method(dst_size - 2, src_size - 1, 2));
   }
 })();
 
