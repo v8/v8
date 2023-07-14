@@ -39,6 +39,15 @@ enum class StepOrigin {
   kTask
 };
 
+constexpr const char* ToString(StepOrigin step_origin) {
+  switch (step_origin) {
+    case StepOrigin::kV8:
+      return "V8";
+    case StepOrigin::kTask:
+      return "task";
+  }
+}
+
 class V8_EXPORT_PRIVATE IncrementalMarking final {
  public:
   class V8_NODISCARD PauseBlackAllocationScope {

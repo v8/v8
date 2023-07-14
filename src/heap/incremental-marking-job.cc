@@ -85,8 +85,7 @@ void IncrementalMarkingJob::ScheduleTask(TaskType task_type) {
   scheduled_time_ = v8::base::TimeTicks::Now();
   if (V8_UNLIKELY(v8_flags.trace_incremental_marking)) {
     heap_->isolate()->PrintWithTimestamp(
-        "[IncrementalMarking] Schedule task type: %s\n",
-        task_type == TaskType::kNormal ? "normal" : "delayed");
+        "[IncrementalMarking] Job: Schedule (%s)\n", ToString(task_type));
   }
 }
 
@@ -124,6 +123,11 @@ void IncrementalMarkingJob::Task::RunInternal() {
   // new task when starting incremental marking from a task.
   {
     base::MutexGuard guard(&job_->mutex_);
+    if (V8_UNLIKELY(v8_flags.trace_incremental_marking)) {
+      job_->heap_->isolate()->PrintWithTimestamp(
+          "[IncrementalMarking] Job: Run (%s)\n",
+          ToString(job_->pending_task_.value()));
+    }
     job_->pending_task_.reset();
   }
 

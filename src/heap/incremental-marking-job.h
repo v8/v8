@@ -47,6 +47,16 @@ class IncrementalMarkingJob final {
   v8::base::TimeTicks scheduled_time_;
   base::Optional<TaskType> pending_task_;
 };
+
+constexpr const char* ToString(IncrementalMarkingJob::TaskType task_type) {
+  switch (task_type) {
+    case IncrementalMarkingJob::TaskType::kNormal:
+      return "normal";
+    case IncrementalMarkingJob::TaskType::kPending:
+      return "pending";
+  }
+}
+
 }  // namespace v8::internal
 
 #endif  // V8_HEAP_INCREMENTAL_MARKING_JOB_H_

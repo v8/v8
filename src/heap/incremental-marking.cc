@@ -680,8 +680,7 @@ size_t IncrementalMarking::GetScheduledBytes(StepOrigin step_origin) {
         "%.1f, marked: %zuKB (mutator: %zuKB, concurrent %zuKB), expected "
         "marked: %zuKB, estimated live: %zuKB, schedule delta: %+" PRIi64
         "KB\n",
-        max_bytes_to_process / KB,
-        step_origin == StepOrigin::kV8 ? "v8" : "task",
+        max_bytes_to_process / KB, ToString(step_origin),
         step_info.elapsed_time.InMillisecondsF(), step_info.marked_bytes() / KB,
         step_info.mutator_marked_bytes / KB,
         step_info.concurrent_marked_bytes / KB,
@@ -854,18 +853,13 @@ void IncrementalMarking::Step(v8::base::TimeDelta max_duration,
   if (V8_UNLIKELY(v8_flags.trace_incremental_marking)) {
     const double current_time = heap_->MonotonicallyIncreasingTimeInMs();
     isolate()->PrintWithTimestamp(
-        "[IncrementalMarking] Marking speed %.fMB/s\n",
+        "[IncrementalMarking] Step: origin: %s, V8: %zuKB (%zuKB) in %.1f, "
+        "embedder: %fms (%fms) in %.1f (%.1f), V8 marking speed: %.fMB/s\n",
+        ToString(step_origin), v8_bytes_processed / KB,
+        max_bytes_to_process / KB, v8_time, embedder_duration_ms,
+        embedder_time_ms, current_time - start, max_duration.InMillisecondsF(),
         heap()->tracer()->IncrementalMarkingSpeedInBytesPerMillisecond() *
             1000 / MB);
-    isolate()->PrintWithTimestamp(
-        "[IncrementalMarking] Step %s V8: %zuKB (%zuKB) in %.1f, embedder: "
-        "%fms "
-        "(%fms) "
-        "in %.1f (%.1f)\n",
-        step_origin == StepOrigin::kV8 ? "in v8" : "in task",
-        v8_bytes_processed / KB, max_bytes_to_process / KB, v8_time,
-        embedder_duration_ms, embedder_time_ms, current_time - start,
-        max_duration.InMillisecondsF());
   }
 }
 
