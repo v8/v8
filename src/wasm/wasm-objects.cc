@@ -711,16 +711,20 @@ namespace {
 void SetInstanceMemory(WasmInstanceObject instance, JSArrayBuffer buffer,
                        int memory_index) {
   DisallowHeapAllocation no_gc;
-  const wasm::WasmMemory& memory = instance.module()->memories[memory_index];
+  const WasmModule* module = instance.module();
+  const wasm::WasmMemory& memory = module->memories[memory_index];
 
-  bool is_wasm_module = instance.module()->origin == wasm::kWasmOrigin;
+  bool is_wasm_module = module->origin == wasm::kWasmOrigin;
   bool use_trap_handler = memory.bounds_checks == wasm::kTrapHandler;
+  // Asm.js does not use trap handling.
   CHECK_IMPLIES(use_trap_handler, is_wasm_module);
+  // ArrayBuffers allocated for Wasm do always have a BackingStore.
+  std::shared_ptr<BackingStore> backing_store = buffer.GetBackingStore();
+  CHECK_IMPLIES(is_wasm_module,
+                backing_store && backing_store->is_wasm_memory());
   // Wasm modules compiled to use the trap handler don't have bounds checks,
   // so they must have a memory that has guard regions.
-  const bool has_guard_regions =
-      buffer.GetBackingStore() && buffer.GetBackingStore()->has_guard_regions();
-  CHECK_IMPLIES(use_trap_handler, has_guard_regions);
+  CHECK_IMPLIES(use_trap_handler, backing_store->has_guard_regions());
 
   instance.SetRawMemory(memory_index,
                         reinterpret_cast<uint8_t*>(buffer.backing_store()),
@@ -756,9 +760,13 @@ Handle<WasmMemoryObject> WasmMemoryObject::New(Isolate* isolate,
   memory_object->set_maximum_pages(maximum);
   memory_object->set_is_memory64(memory_type == WasmMemoryFlag::kWasmMemory64);
 
+  std::shared_ptr<BackingStore> backing_store = buffer->GetBackingStore();
   if (buffer->is_shared()) {
-    auto backing_store = buffer->GetBackingStore();
+    // Only Wasm memory can be shared (in contrast to asm.js memory).
+    CHECK(backing_store && backing_store->is_wasm_memory());
     backing_store->AttachSharedWasmMemoryObject(isolate, memory_object);
+  } else if (backing_store) {
+    CHECK(!backing_store->is_shared());
   }
 
   // For debugging purposes we memorize a link from the JSArrayBuffer

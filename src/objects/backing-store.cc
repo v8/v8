@@ -943,6 +943,10 @@ void GlobalBackingStoreRegistry::UpdateSharedWasmMemoryObjects(
                                            isolate);
     Handle<JSArrayBuffer> old_buffer(memory_object->array_buffer(), isolate);
     std::shared_ptr<BackingStore> backing_store = old_buffer->GetBackingStore();
+    // Wasm memory always has a BackingStore.
+    CHECK_NOT_NULL(backing_store);
+    CHECK(backing_store->is_wasm_memory());
+    CHECK(backing_store->is_shared());
 
     Handle<JSArrayBuffer> new_buffer =
         isolate->factory()->NewJSSharedArrayBuffer(std::move(backing_store));
