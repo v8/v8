@@ -15,6 +15,7 @@
 #include "src/compiler/opcodes.h"
 #include "src/compiler/operator-properties.h"
 #include "src/objects/feedback-cell.h"
+#include "src/objects/oddball.h"
 #include "src/runtime/runtime.h"
 
 namespace v8 {
@@ -1407,9 +1408,8 @@ class JSCallOrConstructNode : public JSNodeWrapperBase {
     DCHECK_GT(ArgumentCount(), 0);
     return Argument(ArgumentCount() - 1);
   }
-  TNode<Object> ArgumentOr(int i, Node* default_value) const {
-    return i < ArgumentCount() ? Argument(i)
-                               : TNode<Object>::UncheckedCast(default_value);
+  TNode<Object> ArgumentOr(int i, TNode<Object> default_value) const {
+    return i < ArgumentCount() ? Argument(i) : default_value;
   }
   TNode<Object> ArgumentOrUndefined(int i, JSGraph* jsgraph) const {
     return ArgumentOr(i, js_node_wrapper_utils::UndefinedConstant(jsgraph));

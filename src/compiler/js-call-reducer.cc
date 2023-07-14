@@ -3258,9 +3258,9 @@ Reduction JSCallReducer::ReduceReflectConstruct(Node* node) {
   CallParameters const& p = n.Parameters();
   int arity = p.arity_without_implicit_args();
   // Massage value inputs appropriately.
-  Node* arg_target = n.ArgumentOrUndefined(0, jsgraph());
-  Node* arg_argument_list = n.ArgumentOrUndefined(1, jsgraph());
-  Node* arg_new_target = n.ArgumentOr(2, arg_target);
+  TNode<Object> arg_target = n.ArgumentOrUndefined(0, jsgraph());
+  TNode<Object> arg_argument_list = n.ArgumentOrUndefined(1, jsgraph());
+  TNode<Object> arg_new_target = n.ArgumentOr(2, arg_target);
 
   static_assert(n.ReceiverIndex() > n.TargetIndex());
   node->RemoveInput(n.ReceiverIndex());
