@@ -2045,77 +2045,77 @@ void InstructionSelectorT<Adapter>::VisitFloat64Min(node_t node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat32Abs(Node* node) {
+void InstructionSelectorT<Adapter>::VisitFloat32Abs(node_t node) {
   VisitRR(this, kLoong64Float32Abs, node);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat64Abs(Node* node) {
+void InstructionSelectorT<Adapter>::VisitFloat64Abs(node_t node) {
   VisitRR(this, kLoong64Float64Abs, node);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat32Sqrt(Node* node) {
+void InstructionSelectorT<Adapter>::VisitFloat32Sqrt(node_t node) {
   VisitRR(this, kLoong64Float32Sqrt, node);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat64Sqrt(Node* node) {
+void InstructionSelectorT<Adapter>::VisitFloat64Sqrt(node_t node) {
   VisitRR(this, kLoong64Float64Sqrt, node);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat32RoundDown(Node* node) {
+void InstructionSelectorT<Adapter>::VisitFloat32RoundDown(node_t node) {
   VisitRR(this, kLoong64Float32RoundDown, node);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat64RoundDown(Node* node) {
+void InstructionSelectorT<Adapter>::VisitFloat64RoundDown(node_t node) {
   VisitRR(this, kLoong64Float64RoundDown, node);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat32RoundUp(Node* node) {
+void InstructionSelectorT<Adapter>::VisitFloat32RoundUp(node_t node) {
   VisitRR(this, kLoong64Float32RoundUp, node);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat64RoundUp(Node* node) {
+void InstructionSelectorT<Adapter>::VisitFloat64RoundUp(node_t node) {
   VisitRR(this, kLoong64Float64RoundUp, node);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat32RoundTruncate(Node* node) {
+void InstructionSelectorT<Adapter>::VisitFloat32RoundTruncate(node_t node) {
   VisitRR(this, kLoong64Float32RoundTruncate, node);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat64RoundTruncate(Node* node) {
+void InstructionSelectorT<Adapter>::VisitFloat64RoundTruncate(node_t node) {
   VisitRR(this, kLoong64Float64RoundTruncate, node);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat64RoundTiesAway(Node* node) {
+void InstructionSelectorT<Adapter>::VisitFloat64RoundTiesAway(node_t node) {
   UNREACHABLE();
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat32RoundTiesEven(Node* node) {
+void InstructionSelectorT<Adapter>::VisitFloat32RoundTiesEven(node_t node) {
   VisitRR(this, kLoong64Float32RoundTiesEven, node);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat64RoundTiesEven(Node* node) {
+void InstructionSelectorT<Adapter>::VisitFloat64RoundTiesEven(node_t node) {
   VisitRR(this, kLoong64Float64RoundTiesEven, node);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat32Neg(Node* node) {
+void InstructionSelectorT<Adapter>::VisitFloat32Neg(node_t node) {
   VisitRR(this, kLoong64Float32Neg, node);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat64Neg(Node* node) {
+void InstructionSelectorT<Adapter>::VisitFloat64Neg(node_t node) {
   VisitRR(this, kLoong64Float64Neg, node);
 }
 
@@ -2134,10 +2134,16 @@ void InstructionSelectorT<TurbofanAdapter>::VisitFloat64Ieee754Binop(
       ->MarkAsCall();
 }
 
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat64Ieee754Unop(
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitFloat64Ieee754Unop(
+    node_t node, InstructionCode opcode) {
+  UNIMPLEMENTED();
+}
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitFloat64Ieee754Unop(
     Node* node, InstructionCode opcode) {
-  Loong64OperandGeneratorT<Adapter> g(this);
+  Loong64OperandGeneratorT<TurbofanAdapter> g(this);
   Emit(opcode, g.DefineAsFixed(node, f0), g.UseFixed(node->InputAt(0), f0))
       ->MarkAsCall();
 }
@@ -3155,7 +3161,7 @@ void InstructionSelectorT<Adapter>::VisitFloat64ExtractHighWord32(node_t node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFloat64SilenceNaN(Node* node) {
+void InstructionSelectorT<Adapter>::VisitFloat64SilenceNaN(node_t node) {
   VisitRR(this, kLoong64Float64SilenceNaN, node);
 }
 
