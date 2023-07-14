@@ -1549,22 +1549,32 @@ void WasmInstanceObject::ImportWasmJSFunctionIntoTable(
                            ->shared()
                            .internal_formal_parameter_count_without_receiver();
     }
-    // TODO(manoskouk): Reuse js_function->wasm_to_js_wrapper_code().
-    wasm::WasmCompilationResult result = compiler::CompileWasmImportCallWrapper(
-        &env, kind, sig, false, expected_arity, suspend);
-    std::unique_ptr<wasm::WasmCode> wasm_code = native_module->AddCode(
-        result.func_index, result.code_desc, result.frame_slot_count,
-        result.tagged_parameter_slots,
-        result.protected_instructions_data.as_vector(),
-        result.source_positions.as_vector(), GetCodeKind(result),
-        wasm::ExecutionTier::kNone, wasm::kNotForDebugging);
-    wasm::WasmCode* published_code =
-        native_module->PublishCode(std::move(wasm_code));
-    isolate->counters()->wasm_generated_code_size()->Increment(
-        published_code->instructions().length());
-    isolate->counters()->wasm_reloc_size()->Increment(
-        published_code->reloc_info().length());
-    call_target = published_code->instruction_start();
+
+    wasm::WasmImportWrapperCache* cache = native_module->import_wrapper_cache();
+    wasm::WasmCode* wasm_code =
+        cache->MaybeGet(kind, canonical_sig_index, expected_arity, suspend);
+    if (!wasm_code) {
+      wasm::WasmCompilationResult result =
+          compiler::CompileWasmImportCallWrapper(&env, kind, sig, false,
+                                                 expected_arity, suspend);
+      std::unique_ptr<wasm::WasmCode> compiled_code = native_module->AddCode(
+          result.func_index, result.code_desc, result.frame_slot_count,
+          result.tagged_parameter_slots,
+          result.protected_instructions_data.as_vector(),
+          result.source_positions.as_vector(), GetCodeKind(result),
+          wasm::ExecutionTier::kNone, wasm::kNotForDebugging);
+      wasm_code = native_module->PublishCode(std::move(compiled_code));
+      isolate->counters()->wasm_generated_code_size()->Increment(
+          wasm_code->instructions().length());
+      isolate->counters()->wasm_reloc_size()->Increment(
+          wasm_code->reloc_info().length());
+
+      wasm::WasmImportWrapperCache::ModificationScope cache_scope(cache);
+      wasm::WasmImportWrapperCache::CacheKey key(kind, canonical_sig_index,
+                                                 expected_arity, suspend);
+      cache_scope[key] = wasm_code;
+    }
+    call_target = wasm_code->instruction_start();
   }
 
   // Update the dispatch table.

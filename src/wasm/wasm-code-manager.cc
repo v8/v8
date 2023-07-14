@@ -1776,11 +1776,13 @@ NativeModule::~NativeModule() {
   // Cancel all background compilation before resetting any field of the
   // NativeModule or freeing anything.
   compilation_state_->CancelCompilation();
-  GetWasmEngine()->FreeNativeModule(this);
+
   // Free the import wrapper cache before releasing the {WasmCode} objects in
   // {owned_code_}. The destructor of {WasmImportWrapperCache} still needs to
   // decrease reference counts on the {WasmCode} objects.
   import_wrapper_cache_.reset();
+
+  GetWasmEngine()->FreeNativeModule(this);
 
   // If experimental PGO support is enabled, serialize the PGO data now.
   if (V8_UNLIKELY(v8_flags.experimental_wasm_pgo_to_file)) {
