@@ -627,9 +627,14 @@ bool Heap::CanShortcutStringsDuringGC(GarbageCollector collector) const {
               ->shared_space_isolate()
               ->heap()
               ->incremental_marking()
-              ->IsMarking())
+              ->IsMarking()) {
+        DCHECK(isolate()
+                   ->shared_space_isolate()
+                   ->heap()
+                   ->incremental_marking()
+                   ->IsMajorMarking());
         return false;
-
+      }
       break;
     default:
       UNREACHABLE();
@@ -1094,6 +1099,7 @@ void UpdateRetainersMapAfterScavenge(UnorderedHeapObjectMap<HeapObject>* map) {
 
 void Heap::UpdateRetainersAfterScavenge() {
   if (!incremental_marking()->IsMarking()) return;
+  DCHECK(incremental_marking()->IsMajorMarking());
 
   // This is only used for Scavenger.
   DCHECK(!v8_flags.minor_ms);
@@ -2096,6 +2102,8 @@ void Heap::StartIncrementalMarkingIfAllocationLimitIsReached(
 }
 
 void Heap::StartIncrementalMarkingIfAllocationLimitIsReachedBackground() {
+  // TODO(v8:13012): Consider finalizing minor incremental marking when we need
+  // to start a full GC.
   if (incremental_marking()->IsMarking() ||
       !incremental_marking()->CanBeStarted()) {
     return;

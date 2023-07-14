@@ -621,7 +621,10 @@ Scavenger::Scavenger(ScavengerCollector* collector, Heap* heap, bool is_logging,
       shared_string_table_(shared_old_allocator_ != nullptr),
       mark_shared_heap_(heap->isolate()->is_shared_space_isolate()),
       shortcut_strings_(
-          heap->CanShortcutStringsDuringGC(GarbageCollector::SCAVENGER)) {}
+          heap->CanShortcutStringsDuringGC(GarbageCollector::SCAVENGER)) {
+  DCHECK_IMPLIES(is_incremental_marking_,
+                 heap->incremental_marking()->IsMajorMarking());
+}
 
 void Scavenger::IterateAndScavengePromotedObject(HeapObject target, Map map,
                                                  int size) {

@@ -157,7 +157,7 @@ void LocalHeap::SetUpSharedMarking() {
     if (isolate->shared_space_isolate()
             ->heap()
             ->incremental_marking()
-            ->IsMarking()) {
+            ->IsMajorMarking()) {
       marking_barrier_->ActivateShared();
     }
   }

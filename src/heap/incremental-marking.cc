@@ -359,7 +359,7 @@ void IncrementalMarking::StartMarkingMinor() {
 
 void IncrementalMarking::StartBlackAllocation() {
   DCHECK(!black_allocation_);
-  DCHECK(IsMarking());
+  DCHECK(IsMajorMarking());
   black_allocation_ = true;
   heap()->old_space()->MarkLinearAllocationAreaBlack();
   {
@@ -384,7 +384,7 @@ void IncrementalMarking::StartBlackAllocation() {
 }
 
 void IncrementalMarking::PauseBlackAllocation() {
-  DCHECK(IsMarking());
+  DCHECK(IsMajorMarking());
   heap()->old_space()->UnmarkLinearAllocationArea();
   {
     CodePageHeaderModificationScope rwx_write_scope(
@@ -418,7 +418,7 @@ void IncrementalMarking::FinishBlackAllocation() {
 }
 
 void IncrementalMarking::UpdateMarkingWorklistAfterScavenge() {
-  if (!IsMarking()) return;
+  if (!IsMajorMarking()) return;
   DCHECK(!v8_flags.separate_gc_phases);
   DCHECK(IsMajorMarking());
   // Minor MC never runs during incremental marking.
@@ -492,7 +492,7 @@ void IncrementalMarking::UpdateMarkingWorklistAfterScavenge() {
 
 void IncrementalMarking::UpdateMarkedBytesAfterScavenge(
     size_t dead_bytes_in_new_space) {
-  if (!IsMarking()) return;
+  if (!IsMajorMarking()) return;
   // When removing the call, adjust the marking schedule to only support
   // monotonically increasing mutator marked bytes.
   main_thread_marked_bytes_ -=

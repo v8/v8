@@ -132,7 +132,7 @@ int WriteBarrier::SharedMarkingFromCode(Address raw_host, Address raw_slot) {
 
 #if DEBUG
   Heap* heap = MemoryChunk::FromHeapObject(host)->heap();
-  DCHECK(heap->incremental_marking()->IsMarking());
+  DCHECK(heap->incremental_marking()->IsMajorMarking());
   Isolate* isolate = heap->isolate();
   DCHECK(isolate->is_shared_space_isolate());
 

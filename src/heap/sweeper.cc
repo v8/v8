@@ -831,7 +831,10 @@ int Sweeper::RawSweep(Page* p, FreeSpaceTreatmentMode free_space_treatment_mode,
          (space->identity() == NEW_SPACE && v8_flags.minor_ms));
   DCHECK(!p->IsEvacuationCandidate());
   DCHECK(!p->SweepingDone());
-  DCHECK(!heap_->incremental_marking()->IsMarking());
+  DCHECK_IMPLIES(space->identity() == NEW_SPACE || is_promoted_page,
+                 !heap_->incremental_marking()->IsMinorMarking());
+  DCHECK_IMPLIES(space->identity() != NEW_SPACE && !is_promoted_page,
+                 !heap_->incremental_marking()->IsMajorMarking());
   DCHECK_IMPLIES(is_promoted_page, v8_flags.minor_ms);
   DCHECK_IMPLIES(is_promoted_page, space->identity() == OLD_SPACE);
 

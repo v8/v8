@@ -659,6 +659,8 @@ void MarkCompactCollector::Prepare() {
   // for freeing might get unmapped during the GC.
   DCHECK(!heap_->memory_allocator()->unmapper()->IsRunning());
 
+  DCHECK_IMPLIES(heap_->incremental_marking()->IsMarking(),
+                 heap_->incremental_marking()->IsMajorMarking());
   if (!heap_->incremental_marking()->IsMarking()) {
     if (heap_->cpp_heap_) {
       TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_MARK_EMBEDDER_PROLOGUE);
@@ -1553,7 +1555,10 @@ class EvacuateNewSpaceVisitor final : public EvacuateVisitorBase {
         local_pretenuring_feedback_(local_pretenuring_feedback),
         is_incremental_marking_(heap->incremental_marking()->IsMarking()),
         shortcut_strings_(!heap_->IsGCWithStack() ||
-                          v8_flags.shortcut_strings_with_stack) {}
+                          v8_flags.shortcut_strings_with_stack) {
+    DCHECK_IMPLIES(is_incremental_marking_,
+                   heap->incremental_marking()->IsMajorMarking());
+  }
 
   inline bool Visit(HeapObject object, int size) override {
     if (TryEvacuateWithoutCopy(object)) return true;

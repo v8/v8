@@ -481,6 +481,8 @@ void NewLargeObjectSpace::Flip() {
 void NewLargeObjectSpace::FreeDeadObjects(
     const std::function<bool(HeapObject)>& is_dead) {
   bool is_marking = heap()->incremental_marking()->IsMarking();
+  DCHECK_IMPLIES(v8_flags.minor_ms, !is_marking);
+  DCHECK_IMPLIES(is_marking, heap()->incremental_marking()->IsMajorMarking());
   size_t surviving_object_size = 0;
   PtrComprCageBase cage_base(heap()->isolate());
   for (auto it = begin(); it != end();) {

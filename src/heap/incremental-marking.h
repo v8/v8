@@ -132,7 +132,7 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
 
   void MarkBlackBackground(HeapObject obj, int object_size);
 
-  bool IsCompacting() { return IsMarking() && is_compacting_; }
+  bool IsCompacting() { return IsMajorMarking() && is_compacting_; }
 
   Heap* heap() const { return heap_; }
   Isolate* isolate() const;
