@@ -742,8 +742,6 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   TNode<RawPtrT> LoadParentFramePointer();
   TNode<RawPtrT> StackSlotPtr(int size, int alignment);
 
-  TNode<RawPtrT> LoadPointerFromRootRegister(TNode<IntPtrT> offset);
-
   // Load raw memory location.
   Node* Load(MachineType type, Node* base);
   template <class Type>
