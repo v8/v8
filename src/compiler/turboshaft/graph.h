@@ -277,8 +277,6 @@ class Block : public RandomAccessStackDominatorNode<Block> {
   bool IsLoop() const { return kind_ == Kind::kLoopHeader; }
   bool IsMerge() const { return kind_ == Kind::kMerge; }
   bool IsBranchTarget() const { return kind_ == Kind::kBranchTarget; }
-  bool IsHandler() const { return false; }
-  bool IsSwitchCase() const { return false; }
 
   Kind kind() const { return kind_; }
   void SetKind(Kind kind) { kind_ = kind; }
@@ -397,7 +395,6 @@ class Block : public RandomAccessStackDominatorNode<Block> {
     return end_;
   }
 
-  // Might return nullptr if the first operation is invalid.
   const Operation& FirstOperation(const Graph& graph) const;
   const Operation& LastOperation(const Graph& graph) const;
 

@@ -1850,18 +1850,14 @@ void InstructionSelectorT<Adapter>::VisitInt64Add(node_t node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitInt64AddWithOverflow(Node* node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    // TODO(nicohartmann@): Implement this.
-    UNIMPLEMENTED();
-  } else {
-    if (Node* ovf = NodeProperties::FindProjection(node, 1)) {
-      FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf);
-      return VisitBinop(this, node, kX64Add, &cont);
-    }
-    FlagsContinuation cont;
-    VisitBinop(this, node, kX64Add, &cont);
+void InstructionSelectorT<Adapter>::VisitInt64AddWithOverflow(node_t node) {
+  node_t ovf = FindProjection(node, 1);
+  if (Adapter::valid(ovf)) {
+    FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf);
+    return VisitBinop(this, node, kX64Add, &cont);
   }
+  FlagsContinuation cont;
+  VisitBinop(this, node, kX64Add, &cont);
 }
 
 template <>
@@ -1992,18 +1988,14 @@ void InstructionSelectorT<TurbofanAdapter>::VisitInt64Sub(Node* node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitInt64SubWithOverflow(Node* node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    // TODO(nicohartmann@): Implement this.
-    UNIMPLEMENTED();
-  } else {
-    if (Node* ovf = NodeProperties::FindProjection(node, 1)) {
-      FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf);
-      return VisitBinop(this, node, kX64Sub, &cont);
-    }
-    FlagsContinuation cont;
-    VisitBinop(this, node, kX64Sub, &cont);
+void InstructionSelectorT<Adapter>::VisitInt64SubWithOverflow(node_t node) {
+  node_t ovf = FindProjection(node, 1);
+  if (Adapter::valid(ovf)) {
+    FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf);
+    return VisitBinop(this, node, kX64Sub, &cont);
   }
+  FlagsContinuation cont;
+  VisitBinop(this, node, kX64Sub, &cont);
 }
 
 namespace {
@@ -2100,18 +2092,14 @@ void InstructionSelectorT<Adapter>::VisitInt64Mul(node_t node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitInt64MulWithOverflow(Node* node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    // TODO(nicohartmann@): Implement this.
-    UNIMPLEMENTED();
-  } else {
-    if (Node* ovf = NodeProperties::FindProjection(node, 1)) {
-      FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf);
-      return VisitBinop(this, node, kX64Imul, &cont);
-    }
-    FlagsContinuation cont;
-    VisitBinop(this, node, kX64Imul, &cont);
+void InstructionSelectorT<Adapter>::VisitInt64MulWithOverflow(node_t node) {
+  node_t ovf = FindProjection(node, 1);
+  if (Adapter::valid(ovf)) {
+    FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf);
+    return VisitBinop(this, node, kX64Imul, &cont);
   }
+  FlagsContinuation cont;
+  VisitBinop(this, node, kX64Imul, &cont);
 }
 
 template <typename Adapter>
@@ -3881,10 +3869,11 @@ void InstructionSelectorT<TurbofanAdapter>::VisitWordCompareZero(
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitSwitch(Node* node,
+void InstructionSelectorT<Adapter>::VisitSwitch(node_t node,
                                                 const SwitchInfo& sw) {
   X64OperandGeneratorT<Adapter> g(this);
-  InstructionOperand value_operand = g.UseRegister(node->InputAt(0));
+  DCHECK_EQ(this->value_input_count(node), 1);
+  InstructionOperand value_operand = g.UseRegister(this->input_at(node, 0));
 
   // Emit either ArchTableSwitch or ArchBinarySearchSwitch.
   if (enable_switch_jump_table_ ==
@@ -3907,7 +3896,7 @@ void InstructionSelectorT<Adapter>::VisitSwitch(Node* node,
              value_operand, g.TempImmediate(-sw.min_value()));
       } else {
         // Zero extend, because we use it as 64-bit index into the jump table.
-        if (ZeroExtendsWord32ToWord64(node->InputAt(0))) {
+        if (ZeroExtendsWord32ToWord64(this->input_at(node, 0))) {
           // Input value has already been zero-extended.
           index_operand = value_operand;
         } else {
@@ -4055,18 +4044,14 @@ void InstructionSelectorT<Adapter>::VisitInt32AddWithOverflow(node_t node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitInt32SubWithOverflow(Node* node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    // TODO(nicohartmann@): Implement this.
-    UNIMPLEMENTED();
-  } else {
-    if (Node* ovf = NodeProperties::FindProjection(node, 1)) {
-      FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf);
-      return VisitBinop(this, node, kX64Sub32, &cont);
-    }
-    FlagsContinuation cont;
-    VisitBinop(this, node, kX64Sub32, &cont);
+void InstructionSelectorT<Adapter>::VisitInt32SubWithOverflow(node_t node) {
+  node_t ovf = FindProjection(node, 1);
+  if (Adapter::valid(ovf)) {
+    FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf);
+    return VisitBinop(this, node, kX64Sub32, &cont);
   }
+  FlagsContinuation cont;
+  VisitBinop(this, node, kX64Sub32, &cont);
 }
 
 template <typename Adapter>

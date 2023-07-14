@@ -771,7 +771,8 @@ class PipelineImpl final {
       base::Optional<turboshaft::PipelineData::Scope>& turboshaft_scope);
 
   // Substep B.3. Run register allocation on the instruction sequence.
-  bool AllocateRegisters(CallDescriptor* call_descriptor);
+  bool AllocateRegisters(CallDescriptor* call_descriptor,
+                         bool has_dummy_end_block);
 
   // Step C. Run the code assembly pass.
   void AssembleCode(Linkage* linkage);
@@ -2644,8 +2645,8 @@ struct OptimizeMovesPhase {
 struct FrameElisionPhase {
   DECL_PIPELINE_PHASE_CONSTANTS(FrameElision)
 
-  void Run(PipelineData* data, Zone* temp_zone) {
-    FrameElider(data->sequence()).Run();
+  void Run(PipelineData* data, Zone* temp_zone, bool has_dummy_end_block) {
+    FrameElider(data->sequence(), has_dummy_end_block).Run();
   }
 };
 
@@ -4072,7 +4073,7 @@ bool PipelineImpl::SelectInstructions(Linkage* linkage) {
 
   data->DeleteGraphZone();
 
-  return AllocateRegisters(call_descriptor);
+  return AllocateRegisters(call_descriptor, true);
 }
 
 bool PipelineImpl::SelectInstructionsTurboshaft(
@@ -4120,10 +4121,11 @@ bool PipelineImpl::SelectInstructionsTurboshaft(
   turboshaft_scope.reset();
   turbofan_data->DeleteGraphZone();
 
-  return AllocateRegisters(call_descriptor);
+  return AllocateRegisters(call_descriptor, false);
 }
 
-bool PipelineImpl::AllocateRegisters(CallDescriptor* call_descriptor) {
+bool PipelineImpl::AllocateRegisters(CallDescriptor* call_descriptor,
+                                     bool has_dummy_end_block) {
   PipelineData* data = this->data_;
   DCHECK_NOT_NULL(data->sequence());
 
@@ -4167,7 +4169,7 @@ bool PipelineImpl::AllocateRegisters(CallDescriptor* call_descriptor) {
   // Verify the instruction sequence has the same hash in two stages.
   VerifyGeneratedCodeIsIdempotent();
 
-  Run<FrameElisionPhase>();
+  Run<FrameElisionPhase>(has_dummy_end_block);
 
   // TODO(mtrofin): move this off to the register allocator.
   bool generate_frame_at_start =

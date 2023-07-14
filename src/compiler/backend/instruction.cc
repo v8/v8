@@ -715,7 +715,8 @@ static InstructionBlock* InstructionBlockFor(Zone* zone,
 static InstructionBlock* InstructionBlockFor(Zone* zone,
                                              const turboshaft::Graph& graph,
                                              const turboshaft::Block* block) {
-  bool is_handler = block->IsHandler();
+  bool is_handler =
+      block->FirstOperation(graph).Is<turboshaft::LoadExceptionOp>();
   // TODO(nicohartmann@): Properly get the loop_header.
   turboshaft::Block* loop_header = nullptr;  // block->loop_header()
   // TODO(nicohartmann@): Properly get the deferred.

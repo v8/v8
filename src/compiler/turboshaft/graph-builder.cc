@@ -139,12 +139,12 @@ struct GraphBuilder {
     if (frame_state.outer_frame_state()->opcode() != IrOpcode::kStart) {
       builder->AddParentFrameState(Map(frame_state.outer_frame_state()));
     }
-    ProcessStateValues(builder, frame_state.parameters());
-    ProcessStateValues(builder, frame_state.locals());
-    ProcessStateValues(builder, frame_state.stack());
-    ProcessDeoptInput(builder, frame_state.context(), MachineType::AnyTagged());
     ProcessDeoptInput(builder, frame_state.function(),
                       MachineType::AnyTagged());
+    ProcessStateValues(builder, frame_state.parameters());
+    ProcessDeoptInput(builder, frame_state.context(), MachineType::AnyTagged());
+    ProcessStateValues(builder, frame_state.locals());
+    ProcessStateValues(builder, frame_state.stack());
   }
 
   Block::Kind BlockKind(BasicBlock* block) {

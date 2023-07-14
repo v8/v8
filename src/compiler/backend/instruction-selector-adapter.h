@@ -525,27 +525,56 @@ struct TurboshaftAdapter
   class CallView {
    public:
     explicit CallView(turboshaft::Graph* graph, node_t node) : node_(node) {
+      if ((call_op_ = graph->Get(node_).TryCast<turboshaft::CallOp>())) {
+        return;
+      }
+      if ((call_and_catch_op_ =
+               graph->Get(node_)
+                   .TryCast<turboshaft::CallAndCatchExceptionOp>())) {
+        return;
+      }
       if (graph->Get(node_).Is<turboshaft::TailCallOp>()) {
         UNIMPLEMENTED();
       }
-      op_ = &graph->Get(node_).Cast<turboshaft::CallOp>();
+      UNREACHABLE();
     }
 
     int return_count() const {
-      return static_cast<int>(op_->outputs_rep().size());
+      if (call_op_) {
+        return static_cast<int>(call_op_->outputs_rep().size());
+      }
+      if (call_and_catch_op_) {
+        return static_cast<int>(call_and_catch_op_->outputs_rep().size());
+      }
+      UNREACHABLE();
     }
-    node_t callee() const { return op_->callee(); }
-    node_t frame_state() const { return op_->frame_state(); }
-    base::Vector<const node_t> arguments() const { return op_->arguments(); }
+    node_t callee() const {
+      if (call_op_) return call_op_->callee();
+      if (call_and_catch_op_) return call_and_catch_op_->callee();
+      UNREACHABLE();
+    }
+    node_t frame_state() const {
+      if (call_op_) return call_op_->frame_state();
+      if (call_and_catch_op_) return call_and_catch_op_->frame_state();
+      UNREACHABLE();
+    }
+    base::Vector<const node_t> arguments() const {
+      if (call_op_) return call_op_->arguments();
+      if (call_and_catch_op_) return call_and_catch_op_->arguments();
+      UNREACHABLE();
+    }
     const CallDescriptor* call_descriptor() const {
-      return op_->descriptor->descriptor;
+      if (call_op_) return call_op_->descriptor->descriptor;
+      if (call_and_catch_op_) return call_and_catch_op_->descriptor->descriptor;
+      UNREACHABLE();
     }
 
     operator node_t() const { return node_; }
 
    private:
     node_t node_;
-    const turboshaft::CallOp* op_;
+    const turboshaft::CallOp* call_op_;
+    const turboshaft::CallAndCatchExceptionOp* call_and_catch_op_;
   };
 
   class BranchView {

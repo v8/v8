@@ -44,8 +44,12 @@ class InstructionSelectorT;
 class Linkage;
 template <typename Adapter>
 class OperandGeneratorT;
-class SwitchInfo;
-class StateObjectDeduplicator;
+template <typename Adapter>
+class SwitchInfoT;
+template <typename Adapter>
+struct CaseInfoT;
+class TurbofanStateObjectDeduplicator;
+class TurboshaftStateObjectDeduplicator;
 
 class V8_EXPORT_PRIVATE InstructionSelector final {
  public:
@@ -369,6 +373,8 @@ class InstructionSelectorT final : public Adapter {
   using PushParameter = PushParameterT<Adapter>;
   using CallBuffer = CallBufferT<Adapter>;
   using FlagsContinuation = FlagsContinuationT<Adapter>;
+  using SwitchInfo = SwitchInfoT<Adapter>;
+  using CaseInfo = CaseInfoT<Adapter>;
 
   using schedule_t = typename Adapter::schedule_t;
   using block_t = typename Adapter::block_t;
@@ -665,6 +671,10 @@ class InstructionSelectorT final : public Adapter {
 
   void UpdateMaxPushedArgumentCount(size_t count);
 
+  using StateObjectDeduplicator =
+      std::conditional_t<std::is_same_v<Adapter, TurboshaftAdapter>,
+                         TurboshaftStateObjectDeduplicator,
+                         TurbofanStateObjectDeduplicator>;
   FrameStateDescriptor* GetFrameStateDescriptor(node_t node);
   size_t AddInputsToFrameStateDescriptor(FrameStateDescriptor* descriptor,
                                          node_t state, OperandGenerator* g,
@@ -729,6 +739,10 @@ class InstructionSelectorT final : public Adapter {
   DECLARE_GENERATOR_T(Word64Ror)
   DECLARE_GENERATOR_T(Int32AddWithOverflow)
   DECLARE_GENERATOR_T(Int32MulWithOverflow)
+  DECLARE_GENERATOR_T(Int32SubWithOverflow)
+  DECLARE_GENERATOR_T(Int64AddWithOverflow)
+  DECLARE_GENERATOR_T(Int64SubWithOverflow)
+  DECLARE_GENERATOR_T(Int64MulWithOverflow)
   DECLARE_GENERATOR_T(Int64Add)
   DECLARE_GENERATOR_T(Word64And)
   DECLARE_GENERATOR_T(Word64Or)
@@ -848,12 +862,8 @@ class InstructionSelectorT final : public Adapter {
 
 #define DECLARE_GENERATOR(x) void Visit##x(Node* node);
   MACHINE_UNOP_32_LIST(DECLARE_GENERATOR)
-  DECLARE_GENERATOR(Int32SubWithOverflow)
   DECLARE_GENERATOR(Word64RolLowerable)
   DECLARE_GENERATOR(Word64RorLowerable)
-  DECLARE_GENERATOR(Int64AddWithOverflow)
-  DECLARE_GENERATOR(Int64SubWithOverflow)
-  DECLARE_GENERATOR(Int64MulWithOverflow)
   DECLARE_GENERATOR(Word32AtomicLoad)
   DECLARE_GENERATOR(Word32AtomicExchange)
   DECLARE_GENERATOR(Word32AtomicCompareExchange)
@@ -943,7 +953,7 @@ class InstructionSelectorT final : public Adapter {
   void VisitLoadTransform(Node* node, Node* value, InstructionCode opcode);
   void VisitFinishRegion(Node* node);
   void VisitParameter(node_t node);
-  void VisitIfException(Node* node);
+  void VisitIfException(node_t node);
   void VisitOsrValue(node_t node);
   void VisitPhi(node_t node);
   void VisitProjection(node_t node);
@@ -957,13 +967,13 @@ class InstructionSelectorT final : public Adapter {
   void VisitTailCall(Node* call);
   void VisitGoto(block_t target);
   void VisitBranch(node_t input, block_t tbranch, block_t fbranch);
-  void VisitSwitch(Node* node, const SwitchInfo& sw);
+  void VisitSwitch(node_t node, const SwitchInfo& sw);
   void VisitDeoptimize(DeoptimizeReason reason, id_t node_id,
                        FeedbackSource const& feedback, node_t frame_state);
   void VisitSelect(Node* node);
   void VisitReturn(node_t node);
   void VisitThrow(Node* node);
-  void VisitRetain(Node* node);
+  void VisitRetain(node_t node);
   void VisitUnreachable(node_t node);
   void VisitStaticAssert(Node* node);
   void VisitDeadValue(Node* node);

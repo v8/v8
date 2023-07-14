@@ -1257,11 +1257,11 @@ Node* ScheduleBuilder::ProcessOperation(const FrameStateOp& op) {
   const FrameStateInfo& info = op.data->frame_state_info;
   auto it = op.data->iterator(op.state_values());
 
+  Node* closure = BuildTaggedInput(&it);
   Node* parameter_state_values = BuildStateValues(&it, info.parameter_count());
+  Node* context = BuildTaggedInput(&it);
   Node* register_state_values = BuildStateValues(&it, info.local_count());
   Node* accumulator_state_values = BuildStateValues(&it, info.stack_count());
-  Node* context = BuildTaggedInput(&it);
-  Node* closure = BuildTaggedInput(&it);
   Node* parent =
       op.inlined ? GetNode(op.parent_frame_state()) : tf_graph->start();
 

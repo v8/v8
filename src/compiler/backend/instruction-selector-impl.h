@@ -17,21 +17,28 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-struct CaseInfo {
+template <typename Adapter>
+struct CaseInfoT {
   int32_t value;  // The case value.
   int32_t order;  // The order for lowering to comparisons (less means earlier).
-  BasicBlock* branch;  // The basic blocks corresponding to the case value.
+  typename Adapter::block_t
+      branch;  // The basic blocks corresponding to the case value.
 };
 
-inline bool operator<(const CaseInfo& l, const CaseInfo& r) {
+template <typename Adapter>
+inline bool operator<(const CaseInfoT<Adapter>& l,
+                      const CaseInfoT<Adapter>& r) {
   return l.order < r.order;
 }
 
 // Helper struct containing data about a table or lookup switch.
-class SwitchInfo {
+template <typename Adapter>
+class SwitchInfoT {
  public:
-  SwitchInfo(ZoneVector<CaseInfo> const& cases, int32_t min_value,
-             int32_t max_value, BasicBlock* default_branch)
+  using CaseInfo = CaseInfoT<Adapter>;
+  using block_t = typename Adapter::block_t;
+  SwitchInfoT(ZoneVector<CaseInfo> const& cases, int32_t min_value,
+              int32_t max_value, block_t default_branch)
       : cases_(cases),
         min_value_(min_value),
         max_value_(max_value),
@@ -58,14 +65,14 @@ class SwitchInfo {
   int32_t max_value() const { return max_value_; }
   size_t value_range() const { return value_range_; }
   size_t case_count() const { return cases_.size(); }
-  BasicBlock* default_branch() const { return default_branch_; }
+  block_t default_branch() const { return default_branch_; }
 
  private:
   const ZoneVector<CaseInfo>& cases_;
   int32_t min_value_;   // minimum value of {cases_}
   int32_t max_value_;   // maximum value of {cases_}
   size_t value_range_;  // |max_value - min_value| + 1
-  BasicBlock* default_branch_;
+  block_t default_branch_;
 };
 
 #define OPERAND_GENERATOR_T_BOILERPLATE(adapter)           \

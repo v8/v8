@@ -14,6 +14,7 @@
 #include "src/compiler/backend/instruction.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/compiler-source-position-table.h"
+#include "src/compiler/graph.h"
 #include "src/compiler/js-heap-broker.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/schedule.h"
@@ -667,9 +668,9 @@ InstructionOperand OperandForDeopt(Isolate* isolate,
 
 }  // namespace
 
-class StateObjectDeduplicator {
+class TurbofanStateObjectDeduplicator {
  public:
-  explicit StateObjectDeduplicator(Zone* zone) : objects_(zone) {}
+  explicit TurbofanStateObjectDeduplicator(Zone* zone) : objects_(zone) {}
   static const size_t kNotDuplicated = SIZE_MAX;
 
   size_t GetObjectId(Node* node) {
@@ -711,31 +712,28 @@ class StateObjectDeduplicator {
   ZoneVector<Node*> objects_;
 };
 
-template <>
-size_t
-InstructionSelectorT<TurboshaftAdapter>::AddOperandToStateValueDescriptor(
-    StateValueList* values, InstructionOperandVector* inputs,
-    OperandGeneratorT<TurboshaftAdapter>* g,
-    StateObjectDeduplicator* deduplicator, turboshaft::OpIndex input,
-    MachineType type, FrameStateInputKind kind, Zone* zone) {
-  if (!input.valid()) {
-    // We use an invalid input to mark optimized out values.
-    values->PushOptimizedOut();
-    DCHECK(type.IsNone());
-    return 0;
+class TurboshaftStateObjectDeduplicator {
+ public:
+  explicit TurboshaftStateObjectDeduplicator(Zone* zone) : object_ids_(zone) {}
+  static constexpr size_t kNotDuplicated = std::numeric_limits<size_t>::max();
+
+  size_t GetObjectId(uint32_t object) {
+    for (size_t i = 0; i < object_ids_.size(); ++i) {
+      if (object_ids_[i] == object) return i;
+    }
+    return kNotDuplicated;
   }
-  InstructionOperand op =
-      OperandForDeopt(isolate(), g, input, kind, type.representation());
-  if (op.kind() == InstructionOperand::INVALID) {
-    // Invalid operand means the value is impossible or optimized-out.
-    values->PushOptimizedOut();
-    return 0;
-  } else {
-    inputs->push_back(op);
-    values->PushPlain(type);
-    return 1;
+
+  size_t InsertObject(uint32_t object) {
+    object_ids_.push_back(object);
+    return object_ids_.size() - 1;
   }
-}
+
+  size_t size() const { return object_ids_.size(); }
+
+ private:
+  ZoneVector<uint32_t> object_ids_;
+};
 
 // Returns the number of instruction operands added to inputs.
 template <>
@@ -895,63 +893,80 @@ size_t InstructionSelectorT<TurbofanAdapter>::AddInputsToFrameStateDescriptor(
   }
 }
 
+size_t AddOperandToStateValueDescriptor(
+    InstructionSelectorT<TurboshaftAdapter>* selector, StateValueList* values,
+    InstructionOperandVector* inputs, OperandGeneratorT<TurboshaftAdapter>* g,
+    TurboshaftStateObjectDeduplicator* deduplicator,
+    turboshaft::FrameStateData::Iterator* it, FrameStateInputKind kind,
+    Zone* zone) {
+  using namespace turboshaft;  // NOLINT(build/namespaces)
+  switch (it->current_instr()) {
+    case FrameStateData::Instr::kUnusedRegister:
+      it->ConsumeUnusedRegister();
+      values->PushOptimizedOut();
+      return 0;
+    case FrameStateData::Instr::kInput: {
+      MachineType type;
+      OpIndex input;
+      it->ConsumeInput(&type, &input);
+      const Operation& op = selector->Get(input);
+      if (op.outputs_rep()[0] == RegisterRepresentation::Word64() &&
+          type.representation() == MachineRepresentation::kWord32) {
+        // 64 to 32-bit conversion is implicit in turboshaft, but explicit in
+        // turbofan, so we insert this conversion.
+        UNIMPLEMENTED();
+      }
+      InstructionOperand instr_op = OperandForDeopt(
+          selector->isolate(), g, input, kind, type.representation());
+      if (instr_op.kind() == InstructionOperand::INVALID) {
+        // Invalid operand means the value is impossible or optimized-out.
+        values->PushOptimizedOut();
+        return 0;
+      } else {
+        inputs->push_back(instr_op);
+        values->PushPlain(type);
+        return 1;
+      }
+    }
+    case FrameStateData::Instr::kDematerializedObject: {
+      uint32_t obj_id;
+      uint32_t field_count;
+      it->ConsumeDematerializedObject(&obj_id, &field_count);
+      size_t id = deduplicator->GetObjectId(obj_id);
+      if (id == TurboshaftStateObjectDeduplicator::kNotDuplicated) {
+        id = deduplicator->InsertObject(obj_id);
+        size_t entries = 0;
+        StateValueList* nested = values->PushRecursiveField(zone, id);
+        for (uint32_t i = 0; i < field_count; ++i) {
+          entries += AddOperandToStateValueDescriptor(
+              selector, nested, inputs, g, deduplicator, it, kind, zone);
+        }
+        return entries;
+      } else {
+        // Deoptimizer counts duplicate objects for the running id, so we have
+        // to push the input again.
+        deduplicator->InsertObject(obj_id);
+        values->PushDuplicate(id);
+        return 0;
+      }
+    }
+    default:
+      UNIMPLEMENTED();
+  }
+}
+
 // Returns the number of instruction operands added to inputs.
 template <>
 size_t InstructionSelectorT<TurboshaftAdapter>::AddInputsToFrameStateDescriptor(
     FrameStateDescriptor* descriptor, node_t state_node, OperandGenerator* g,
-    StateObjectDeduplicator* deduplicator, InstructionOperandVector* inputs,
-    FrameStateInputKind kind, Zone* zone) {
+    TurboshaftStateObjectDeduplicator* deduplicator,
+    InstructionOperandVector* inputs, FrameStateInputKind kind, Zone* zone) {
   turboshaft::FrameStateOp& state =
       schedule()->Get(state_node).template Cast<turboshaft::FrameStateOp>();
   const FrameStateInfo& info = state.data->frame_state_info;
+  USE(info);
   turboshaft::FrameStateData::Iterator it =
       state.data->iterator(state.state_values());
-
-  struct StateValue {
-    turboshaft::OpIndex input;
-    MachineType type;
-
-    static StateValue OptimizedOut() {
-      return {turboshaft::OpIndex::Invalid(), MachineType::None()};
-    }
-  };
-
-  auto BuildDeoptInput =
-      [&](turboshaft::FrameStateData::Iterator* it) -> StateValue {
-    switch (it->current_instr()) {
-      using Instr = turboshaft::FrameStateData::Instr;
-      case Instr::kInput: {
-        StateValue result;
-        it->ConsumeInput(&result.type, &result.input);
-        const turboshaft::Operation& op = schedule()->Get(result.input);
-        if (op.outputs_rep()[0] ==
-                turboshaft::RegisterRepresentation::Word64() &&
-            result.type.representation() == MachineRepresentation::kWord32) {
-          // 64 to 32-bit conversion is implicit in turboshaft, but explicit
-          // in turbofan, so we insert this conversion.
-          UNIMPLEMENTED();
-        }
-        return result;
-      }
-      default:
-        UNIMPLEMENTED();
-    }
-  };
-
-  auto BuildStateValues = [&](turboshaft::FrameStateData::Iterator* it,
-                              int32_t count) {
-    base::SmallVector<StateValue, 16> inputs;
-    for (int32_t i = 0; i < count; ++i) {
-      if (it->current_instr() ==
-          turboshaft::FrameStateData::Instr::kUnusedRegister) {
-        it->ConsumeUnusedRegister();
-        inputs.push_back(StateValue::OptimizedOut());
-      } else {
-        inputs.push_back(BuildDeoptInput(it));
-      }
-    }
-    return inputs;
-  };
 
   size_t entries = 0;
   size_t initial_size = inputs->size();
@@ -962,12 +977,6 @@ size_t InstructionSelectorT<TurboshaftAdapter>::AddInputsToFrameStateDescriptor(
         inputs, kind, zone);
   }
 
-  auto params = BuildStateValues(&it, info.parameter_count());
-  auto locals = BuildStateValues(&it, info.local_count());
-  auto stacks = BuildStateValues(&it, info.stack_count());
-  auto context = BuildDeoptInput(&it);
-  auto function = BuildDeoptInput(&it);
-
   DCHECK_EQ(descriptor->parameters_count(), info.parameter_count());
   DCHECK_EQ(descriptor->locals_count(), info.local_count());
   DCHECK_EQ(descriptor->stack_count(), info.stack_count());
@@ -977,33 +986,34 @@ size_t InstructionSelectorT<TurboshaftAdapter>::AddInputsToFrameStateDescriptor(
   DCHECK_EQ(values_descriptor->size(), 0u);
   values_descriptor->ReserveSize(descriptor->GetSize());
 
-  DCHECK(this->valid(function.input));
-  DCHECK_EQ(function.type, MachineType::AnyTagged());
-  entries += AddOperandToStateValueDescriptor(
-      values_descriptor, inputs, g, deduplicator, function.input, function.type,
+  // Function
+  entries += v8::internal::compiler::AddOperandToStateValueDescriptor(
+      this, values_descriptor, inputs, g, deduplicator, &it,
       FrameStateInputKind::kStackSlot, zone);
 
-  for (auto [input, type] : params) {
-    entries += AddOperandToStateValueDescriptor(
-        values_descriptor, inputs, g, deduplicator, input, type, kind, zone);
+  // Parameters
+  for (size_t i = 0; i < descriptor->parameters_count(); ++i) {
+    entries += v8::internal::compiler::AddOperandToStateValueDescriptor(
+        this, values_descriptor, inputs, g, deduplicator, &it, kind, zone);
   }
 
+  // Context
   if (descriptor->HasContext()) {
-    DCHECK(this->valid(context.input));
-    DCHECK_EQ(context.type, MachineType::AnyTagged());
-    entries += AddOperandToStateValueDescriptor(
-        values_descriptor, inputs, g, deduplicator, context.input, context.type,
+    entries += v8::internal::compiler::AddOperandToStateValueDescriptor(
+        this, values_descriptor, inputs, g, deduplicator, &it,
         FrameStateInputKind::kStackSlot, zone);
   }
 
-  for (auto [index, type] : locals) {
-    entries += AddOperandToStateValueDescriptor(
-        values_descriptor, inputs, g, deduplicator, index, type, kind, zone);
+  // Locals
+  for (size_t i = 0; i < descriptor->locals_count(); ++i) {
+    entries += v8::internal::compiler::AddOperandToStateValueDescriptor(
+        this, values_descriptor, inputs, g, deduplicator, &it, kind, zone);
   }
 
-  for (auto [index, type] : stacks) {
-    entries += AddOperandToStateValueDescriptor(
-        values_descriptor, inputs, g, deduplicator, index, type, kind, zone);
+  // Stack
+  for (size_t i = 0; i < descriptor->stack_count(); ++i) {
+    entries += v8::internal::compiler::AddOperandToStateValueDescriptor(
+        this, values_descriptor, inputs, g, deduplicator, &it, kind, zone);
   }
 
   DCHECK_EQ(initial_size + entries, inputs->size());
@@ -1805,22 +1815,9 @@ VISIT_UNSUPPORTED_OP(Int64Div)
 VISIT_UNSUPPORTED_OP(Int64Mod)
 VISIT_UNSUPPORTED_OP(Uint64Div)
 VISIT_UNSUPPORTED_OP(Uint64Mod)
-
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitInt64AddWithOverflow(Node* node) {
-  UNIMPLEMENTED();
-}
-
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitInt64SubWithOverflow(Node* node) {
-  UNIMPLEMENTED();
-}
-
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitInt64MulWithOverflow(Node* node) {
-  UNIMPLEMENTED();
-}
-
+VISIT_UNSUPPORTED_OP(Int64AddWithOverflow)
+VISIT_UNSUPPORTED_OP(Int64MulWithOverflow)
+VISIT_UNSUPPORTED_OP(Int64SubWithOverflow)
 VISIT_UNSUPPORTED_OP(Int64LessThan)
 VISIT_UNSUPPORTED_OP(Int64LessThanOrEqual)
 VISIT_UNSUPPORTED_OP(Uint64LessThan)
@@ -2100,10 +2097,12 @@ constexpr InstructionCode EncodeCallDescriptorFlags(
 
 }  // namespace
 
-template <>
-void InstructionSelectorT<TurbofanAdapter>::VisitIfException(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitIfException(node_t node) {
   OperandGenerator g(this);
-  DCHECK_EQ(IrOpcode::kCall, node->InputAt(1)->opcode());
+  if constexpr (Adapter::IsTurbofan) {
+    DCHECK_EQ(IrOpcode::kCall, node->InputAt(1)->opcode());
+  }
   Emit(kArchNop, g.DefineAsLocation(node, ExceptionLocation()));
 }
 
@@ -2662,14 +2661,16 @@ void InstructionSelectorT<Adapter>::VisitComment(Node* node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitRetain(Node* node) {
+void InstructionSelectorT<Adapter>::VisitRetain(node_t node) {
   OperandGenerator g(this);
-  Emit(kArchNop, g.NoOutput(), g.UseAny(node->InputAt(0)));
+  DCHECK_EQ(this->value_input_count(node), 1);
+  Emit(kArchNop, g.NoOutput(), g.UseAny(this->input_at(node, 0)));
 }
 
 template <>
 void InstructionSelectorT<TurboshaftAdapter>::VisitControl(
     turboshaft::Block* block) {
+  using namespace turboshaft;  // NOLINT(build/namespaces)
 #ifdef DEBUG
   // SSA deconstruction requires targets of branches not to have phis.
   // Edge split form guarantees this property, but is more strict.
@@ -2687,27 +2688,25 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitControl(
     }
   }
 #endif  // DEBUG
-  const turboshaft::Operation& op = block->LastOperation(*schedule());
-  turboshaft::OpIndex node = schedule()->Index(op);
+  const Operation& op = block->LastOperation(*schedule());
+  OpIndex node = schedule()->Index(op);
   int instruction_end = static_cast<int>(instructions_.size());
-  using Opcode = turboshaft::Opcode;
   switch (op.opcode) {
     case Opcode::kGoto:
-      VisitGoto(op.Cast<turboshaft::GotoOp>().destination);
+      VisitGoto(op.Cast<GotoOp>().destination);
       break;
     case Opcode::kReturn:
       VisitReturn(node);
       break;
     case Opcode::kDeoptimize: {
-      const turboshaft::DeoptimizeOp& deoptimize =
-          op.Cast<turboshaft::DeoptimizeOp>();
+      const DeoptimizeOp& deoptimize = op.Cast<DeoptimizeOp>();
       VisitDeoptimize(deoptimize.parameters->reason(), node.id(),
                       deoptimize.parameters->feedback(),
                       deoptimize.frame_state());
       break;
     }
     case Opcode::kBranch: {
-      const turboshaft::BranchOp& branch = op.Cast<turboshaft::BranchOp>();
+      const BranchOp& branch = op.Cast<BranchOp>();
       block_t tbranch = branch.if_true;
       block_t fbranch = branch.if_false;
       if (tbranch == fbranch) {
@@ -2716,6 +2715,27 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitControl(
         VisitBranch(node, tbranch, fbranch);
       }
       break;
+    }
+    case Opcode::kSwitch: {
+      const SwitchOp& swtch = op.Cast<SwitchOp>();
+      int32_t min_value = std::numeric_limits<int32_t>::max();
+      int32_t max_value = std::numeric_limits<int32_t>::min();
+
+      ZoneVector<CaseInfo> cases(swtch.cases.size(), zone());
+      for (size_t i = 0; i < swtch.cases.size(); ++i) {
+        const SwitchOp::Case& c = swtch.cases[i];
+        cases[i] = CaseInfo{c.value, 0, c.destination};
+        if (min_value > c.value) min_value = c.value;
+        if (max_value < c.value) max_value = c.value;
+      }
+      SwitchInfo sw(std::move(cases), min_value, max_value, swtch.default_case);
+      return VisitSwitch(node, sw);
+    }
+    case Opcode::kCallAndCatchException: {
+      const CallAndCatchExceptionOp& call = op.Cast<CallAndCatchExceptionOp>();
+      VisitCall(node, call.if_exception);
+      VisitGoto(call.if_success);
+      return;
     }
     case Opcode::kUnreachable:
       return VisitUnreachable(node);
@@ -4158,6 +4178,7 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitNode(
     case Opcode::kReturn:
     case Opcode::kUnreachable:
     case Opcode::kDeoptimize:
+    case Opcode::kSwitch:
       // Those are already handled in VisitControl.
       break;
     case Opcode::kParameter: {
@@ -4532,21 +4553,28 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitNode(
       UNREACHABLE();
     }
     case Opcode::kOverflowCheckedBinop: {
-      const auto& binop = op.Cast<turboshaft::OverflowCheckedBinopOp>();
-      using Kind = turboshaft::OverflowCheckedBinopOp::Kind;
-      if (binop.rep == turboshaft::WordRepresentation::Word32()) {
+      const auto& binop = op.Cast<OverflowCheckedBinopOp>();
+      if (binop.rep == WordRepresentation::Word32()) {
         MarkAsWord32(node);
         switch (binop.kind) {
-          case Kind::kSignedAdd:
+          case OverflowCheckedBinopOp::Kind::kSignedAdd:
             return VisitInt32AddWithOverflow(node);
-          case Kind::kSignedMul:
+          case OverflowCheckedBinopOp::Kind::kSignedMul:
             return VisitInt32MulWithOverflow(node);
-          default:
-            UNIMPLEMENTED();
+          case OverflowCheckedBinopOp::Kind::kSignedSub:
+            return VisitInt32SubWithOverflow(node);
         }
       } else {
-        DCHECK_EQ(binop.rep, turboshaft::WordRepresentation::Word64());
-        UNIMPLEMENTED();
+        DCHECK_EQ(binop.rep, WordRepresentation::Word64());
+        MarkAsWord64(node);
+        switch (binop.kind) {
+          case OverflowCheckedBinopOp::Kind::kSignedAdd:
+            return VisitInt64AddWithOverflow(node);
+          case OverflowCheckedBinopOp::Kind::kSignedMul:
+            return VisitInt64MulWithOverflow(node);
+          case OverflowCheckedBinopOp::Kind::kSignedSub:
+            return VisitInt64SubWithOverflow(node);
+        }
       }
       UNREACHABLE();
     }
@@ -4701,10 +4729,10 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitNode(
         return VisitDeoptimizeUnless(node);
       }
       return VisitDeoptimizeIf(node);
-    case Opcode::kLoadException: {
-      DCHECK_NOT_NULL(current_block_);
-      UNIMPLEMENTED();
-    }
+    case Opcode::kLoadException:
+      return VisitIfException(node);
+    case Opcode::kRetain:
+      return VisitRetain(node);
     case Opcode::kOsrValue:
       MarkAsTagged(node);
       return VisitOsrValue(node);
