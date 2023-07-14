@@ -73,6 +73,9 @@ extern class WasmExportedFunctionData extends WasmFunctionData {
   sig: ExternalPointer;  // wasm::FunctionSig*
 }
 
+extern operator '.sig_ptr' macro LoadWasmExportedFunctionDataSigPtr(
+    WasmExportedFunctionData): RawPtr;
+
 extern class WasmJSFunctionData extends WasmFunctionData {
   serialized_return_count: Smi;
   serialized_parameter_count: Smi;

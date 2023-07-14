@@ -1207,6 +1207,13 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     return LoadExternalPointerFromObject(
         object, WasmTypeInfo::kNativeTypeOffset, kWasmTypeInfoNativeTypeTag);
   }
+
+  TNode<RawPtrT> LoadWasmExportedFunctionDataSigPtr(
+      TNode<WasmExportedFunctionData> object) {
+    return LoadExternalPointerFromObject(object,
+                                         WasmExportedFunctionData::kSigOffset,
+                                         kWasmExportedFunctionDataSignatureTag);
+  }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   TNode<RawPtrT> LoadJSTypedArrayExternalPointerPtr(

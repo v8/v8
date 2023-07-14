@@ -15,15 +15,7 @@ namespace wasm {
 extern builtin NewGenericJSToWasmWrapper(
     RawPtr<intptr>, WasmInstanceObject, JSAny): JSAny;
 
-extern enum ExternalPointerTag extends uint64 {
-  kWasmExportedFunctionDataSignatureTag,
-  ...
-}
-
 extern macro UniqueIntPtrConstant(constexpr intptr): intptr;
-
-extern macro LoadExternalPointerFromObject(
-    HeapObject, constexpr int32, constexpr ExternalPointerTag): RawPtr;
 
 const kWasmExportedFunctionDataSignatureOffset:
     constexpr int32 generates 'WasmExportedFunctionData::kSigOffset';
@@ -400,11 +392,8 @@ JSToWasmWrapper(
   if (functionData.wrapper_budget == 0) {
     runtime::WasmCompileWrapper(kNoContext, functionData);
   }
-  // TODO(ahaas): Define an `extern operator` for the signature the same as it
-  // exists for `call_target_ptr`.
-  const sig = LoadExternalPointerFromObject(
-      functionData, kWasmExportedFunctionDataSignatureOffset,
-      ExternalPointerTag::kWasmExportedFunctionDataSignatureTag);
+
+  const sig = functionData.sig_ptr;
 
   const paramCount = *GetRefAt<int32>(sig, kWasmParameterCountOffset);
 
