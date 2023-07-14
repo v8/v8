@@ -4807,14 +4807,14 @@ void ImplementationVisitor::GenerateClassDefinitions(
         }
 
         factory_impl << ");\n";
-        factory_impl << "  Map map = factory()->read_only_roots()."
+        factory_impl << "  Tagged<Map> map = factory()->read_only_roots()."
                      << SnakeifyString(type->name()) << "_map();";
-        factory_impl << "  HeapObject raw_object =\n";
+        factory_impl << "  Tagged<HeapObject> raw_object =\n";
         factory_impl << "    factory()->AllocateRawWithImmortalMap(size, "
                         "allocation_type, map);\n";
-        factory_impl << "  " << type->UnhandlifiedCppTypeName()
-                     << " result = " << type->UnhandlifiedCppTypeName()
-                     << "::cast(raw_object);\n";
+        factory_impl << "  Tagged<" << type->UnhandlifiedCppTypeName()
+                     << "> result = Tagged<" << type->UnhandlifiedCppTypeName()
+                     << ">::cast(raw_object);\n";
         factory_impl << "  DisallowGarbageCollection no_gc;";
         factory_impl << "  WriteBarrierMode write_barrier_mode =\n"
                      << "     allocation_type == AllocationType::kYoung\n"
@@ -4824,7 +4824,7 @@ void ImplementationVisitor::GenerateClassDefinitions(
         for (const Field& f : type->ComputeAllFields()) {
           if (f.name_and_type.name == "map") continue;
           if (!f.index) {
-            factory_impl << "  result.TorqueGeneratedClass::set_"
+            factory_impl << "  result->TorqueGeneratedClass::set_"
                          << SnakeifyString(f.name_and_type.name) << "(";
             if (f.name_and_type.type->IsSubtypeOf(
                     TypeOracle::GetTaggedType()) &&

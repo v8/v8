@@ -1421,7 +1421,8 @@ TEST(OrderedNameDictionaryInsertion) {
   Factory* factory = isolate->factory();
   HandleScope scope(isolate);
 
-  Handle<OrderedNameDictionary> dict = factory->NewOrderedNameDictionary();
+  Handle<OrderedNameDictionary> dict =
+      OrderedNameDictionary::Allocate(isolate, 2).ToHandleChecked();
   Verify(isolate, dict);
   CHECK_EQ(2, dict->NumberOfBuckets());
   CHECK_EQ(0, dict->NumberOfElements());
@@ -1455,7 +1456,8 @@ TEST(OrderedNameDictionaryFindEntry) {
   Factory* factory = isolate->factory();
   HandleScope scope(isolate);
 
-  Handle<OrderedNameDictionary> dict = factory->NewOrderedNameDictionary();
+  Handle<OrderedNameDictionary> dict =
+      OrderedNameDictionary::Allocate(isolate, 2).ToHandleChecked();
   Verify(isolate, dict);
   CHECK_EQ(2, dict->NumberOfBuckets());
   CHECK_EQ(0, dict->NumberOfElements());
@@ -1495,7 +1497,8 @@ TEST(OrderedNameDictionaryValueAtAndValueAtPut) {
   Factory* factory = isolate->factory();
   HandleScope scope(isolate);
 
-  Handle<OrderedNameDictionary> dict = factory->NewOrderedNameDictionary();
+  Handle<OrderedNameDictionary> dict =
+      OrderedNameDictionary::Allocate(isolate, 2).ToHandleChecked();
   Verify(isolate, dict);
   CHECK_EQ(2, dict->NumberOfBuckets());
   CHECK_EQ(0, dict->NumberOfElements());
@@ -1555,7 +1558,8 @@ TEST(OrderedNameDictionaryDetailsAtAndDetailsAtPut) {
   Factory* factory = isolate->factory();
   HandleScope scope(isolate);
 
-  Handle<OrderedNameDictionary> dict = factory->NewOrderedNameDictionary();
+  Handle<OrderedNameDictionary> dict =
+      OrderedNameDictionary::Allocate(isolate, 2).ToHandleChecked();
   Verify(isolate, dict);
   CHECK_EQ(2, dict->NumberOfBuckets());
   CHECK_EQ(0, dict->NumberOfElements());
@@ -1855,9 +1859,9 @@ TEST(SmallOrderedNameDictionarySetAndMigrateHash) {
 TEST(OrderedNameDictionarySetAndMigrateHash) {
   LocalContext context;
   Isolate* isolate = GetIsolateFrom(&context);
-  Factory* factory = isolate->factory();
   HandleScope scope(isolate);
-  Handle<OrderedNameDictionary> dict = factory->NewOrderedNameDictionary();
+  Handle<OrderedNameDictionary> dict =
+      OrderedNameDictionary::Allocate(isolate, 2).ToHandleChecked();
   Handle<String> value = isolate->factory()->InternalizeUtf8String("bar");
   PropertyDetails details = PropertyDetails::Empty();
 
@@ -1976,7 +1980,8 @@ TEST(OrderedNameDictionarySetEntry) {
   Factory* factory = isolate->factory();
   HandleScope scope(isolate);
 
-  Handle<OrderedNameDictionary> dict = factory->NewOrderedNameDictionary();
+  Handle<OrderedNameDictionary> dict =
+      OrderedNameDictionary::Allocate(isolate, 2).ToHandleChecked();
   Verify(isolate, dict);
   CHECK_EQ(2, dict->NumberOfBuckets());
   CHECK_EQ(0, dict->NumberOfElements());
@@ -2063,7 +2068,8 @@ TEST(OrderedNameDictionaryDeleteEntry) {
   Factory* factory = isolate->factory();
   HandleScope scope(isolate);
 
-  Handle<OrderedNameDictionary> dict = factory->NewOrderedNameDictionary();
+  Handle<OrderedNameDictionary> dict =
+      OrderedNameDictionary::Allocate(isolate, 2).ToHandleChecked();
   Verify(isolate, dict);
   CHECK_EQ(2, dict->NumberOfBuckets());
   CHECK_EQ(0, dict->NumberOfElements());

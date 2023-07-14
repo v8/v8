@@ -251,11 +251,8 @@ class Tagged<Smi> : public TaggedBase {
   constexpr Tagged(Smi raw) : TaggedBase(raw.ptr()) {
     static_assert(kTaggedCanConvertToRawObjects);
   }
-  template <typename U,
-            typename = std::enable_if_t<std::is_base_of_v<U, Smi> ||
-                                        std::is_convertible_v<Smi*, U*>>>
   // NOLINTNEXTLINE
-  constexpr operator U() {
+  constexpr operator Smi() {
     static_assert(kTaggedCanConvertToRawObjects);
     return Smi(ptr_);
   }

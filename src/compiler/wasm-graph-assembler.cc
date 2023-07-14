@@ -4,9 +4,11 @@
 
 #include "src/compiler/wasm-graph-assembler.h"
 
+#include "src/common/globals.h"
 #include "src/compiler/diamond.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/wasm-compiler-definitions.h"
+#include "src/objects/string.h"
 #include "src/wasm/object-access.h"
 #include "src/wasm/wasm-objects.h"
 

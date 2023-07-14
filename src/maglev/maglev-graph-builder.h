@@ -35,6 +35,7 @@
 #include "src/maglev/maglev-ir.h"
 #include "src/objects/bytecode-array.h"
 #include "src/objects/elements-kind.h"
+#include "src/objects/string.h"
 #include "src/utils/memcopy.h"
 
 namespace v8 {

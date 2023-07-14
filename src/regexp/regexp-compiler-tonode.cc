@@ -2,9 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/regexp/regexp-compiler.h"
-
+#include "src/common/globals.h"
 #include "src/execution/isolate.h"
+#include "src/objects/string.h"
+#include "src/regexp/regexp-compiler.h"
 #include "src/regexp/regexp.h"
 #include "src/strings/unicode-inl.h"
 #include "src/zone/zone-list-inl.h"

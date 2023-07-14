@@ -20,6 +20,7 @@
 #include "src/objects/scope-info-inl.h"
 #include "src/objects/script-inl.h"
 #include "src/objects/shared-function-info.h"
+#include "src/objects/string.h"
 #include "src/objects/templates-inl.h"
 
 #if V8_ENABLE_WEBASSEMBLY

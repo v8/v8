@@ -10,6 +10,7 @@
 #include "src/objects/cell-inl.h"
 #include "src/objects/dependent-code.h"
 #include "src/objects/descriptor-array-inl.h"
+#include "src/objects/dictionary.h"
 #include "src/objects/field-type.h"
 #include "src/objects/instance-type-inl.h"
 #include "src/objects/js-function-inl.h"
@@ -257,7 +258,7 @@ void Map::SetEnumLength(int length) {
 }
 
 FixedArrayBase Map::GetInitialElements() const {
-  FixedArrayBase result;
+  Tagged<FixedArrayBase> result;
   if (has_fast_elements() || has_fast_string_wrapper_elements() ||
       has_any_nonextensible_elements()) {
     result = GetReadOnlyRoots().empty_fixed_array();

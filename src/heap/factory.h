@@ -17,12 +17,8 @@
 #include "src/handles/maybe-handles.h"
 #include "src/heap/factory-base.h"
 #include "src/heap/heap.h"
-#include "src/objects/code.h"
-#include "src/objects/dictionary.h"
-#include "src/objects/js-array.h"
+// TODO(leszeks): Remove this by forward declaring JSRegExp::Flags.
 #include "src/objects/js-regexp.h"
-#include "src/objects/shared-function-info.h"
-#include "src/objects/string.h"
 
 namespace unibrow {
 enum class Utf8Variant : uint8_t;
@@ -175,11 +171,6 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   // |at_least_space_for| entries can be added without reallocating.
   Handle<NameDictionary> NewNameDictionary(int at_least_space_for);
 
-  // Allocates an OrderedNameDictionary of the given capacity. This guarantees
-  // that |capacity| entries can be added without reallocating.
-  Handle<OrderedNameDictionary> NewOrderedNameDictionary(
-      int capacity = OrderedNameDictionary::kInitialCapacity);
-
   Handle<OrderedHashSet> NewOrderedHashSet();
   Handle<OrderedHashMap> NewOrderedHashMap();
   Handle<SmallOrderedHashSet> NewSmallOrderedHashSet(
@@ -261,18 +252,9 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   // One-byte strings are pretenured when used as keys in the SourceCodeCache.
   template <size_t N>
   inline Handle<String> NewStringFromStaticChars(
-      const char (&str)[N],
-      AllocationType allocation = AllocationType::kYoung) {
-    DCHECK_EQ(N, strlen(str) + 1);
-    return NewStringFromOneByte(base::StaticOneByteVector(str), allocation)
-        .ToHandleChecked();
-  }
-
+      const char (&str)[N], AllocationType allocation = AllocationType::kYoung);
   inline Handle<String> NewStringFromAsciiChecked(
-      const char* str, AllocationType allocation = AllocationType::kYoung) {
-    return NewStringFromOneByte(base::OneByteVector(str), allocation)
-        .ToHandleChecked();
-  }
+      const char* str, AllocationType allocation = AllocationType::kYoung);
 
   // UTF8 strings are pretenured when used for regexp literal patterns and
   // flags in the parser.
@@ -373,9 +355,9 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   // because we cannot change the underlying buffer.  Note that these strings
   // are backed by a string resource that resides outside the V8 heap.
   V8_WARN_UNUSED_RESULT MaybeHandle<String> NewExternalStringFromOneByte(
-      const ExternalOneByteString::Resource* resource);
+      const v8::String::ExternalOneByteStringResource* resource);
   V8_WARN_UNUSED_RESULT MaybeHandle<String> NewExternalStringFromTwoByte(
-      const ExternalTwoByteString::Resource* resource);
+      const v8::String::ExternalStringResource* resource);
 
   // Create a symbol in old or read-only space.
   Handle<Symbol> NewSymbol(AllocationType allocation = AllocationType::kOld);
@@ -470,7 +452,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   Handle<Foreign> NewForeign(
       Address addr, AllocationType allocation_type = AllocationType::kYoung);
 
-  Handle<Cell> NewCell(Smi value);
+  Handle<Cell> NewCell(Tagged<Smi> value);
   Handle<Cell> NewCell();
 
   Handle<PropertyCell> NewPropertyCell(
@@ -496,7 +478,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   // Initializes the fields of a newly created Map using roots from the
   // passed-in Heap. Exposed for tests and heap setup; other code should just
   // call NewMap which takes care of it.
-  Map InitializeMap(Map map, InstanceType type, int instance_size,
+  Map InitializeMap(Tagged<Map> map, InstanceType type, int instance_size,
                     ElementsKind elements_kind, int inobject_properties,
                     Heap* roots);
 
@@ -578,19 +560,19 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   Handle<JSObject> NewJSObjectFromMap(
       Handle<Map> map, AllocationType allocation = AllocationType::kYoung,
       Handle<AllocationSite> allocation_site = Handle<AllocationSite>::null());
-  // Like NewJSObjectFromMap, but includes allocating a properties dictionary.
+  // Like NewJSObjectFromMap, but includes allocating a properties dictionary.);
   Handle<JSObject> NewSlowJSObjectFromMap(
-      Handle<Map> map,
-      int number_of_slow_properties = NameDictionary::kInitialCapacity,
+      Handle<Map> map, int number_of_slow_properties,
       AllocationType allocation = AllocationType::kYoung,
       Handle<AllocationSite> allocation_site = Handle<AllocationSite>::null());
+  Handle<JSObject> NewSlowJSObjectFromMap(Handle<Map> map);
   // Calls NewJSObjectFromMap or NewSlowJSObjectFromMap depending on whether the
   // map is a dictionary map.
   inline Handle<JSObject> NewFastOrSlowJSObjectFromMap(
-      Handle<Map> map,
-      int number_of_slow_properties = NameDictionary::kInitialCapacity,
+      Handle<Map> map, int number_of_slow_properties,
       AllocationType allocation = AllocationType::kYoung,
       Handle<AllocationSite> allocation_site = Handle<AllocationSite>::null());
+  inline Handle<JSObject> NewFastOrSlowJSObjectFromMap(Handle<Map> map);
   // Allocates and initializes a new JavaScript object with the given
   // {prototype} and {properties}. The newly created object will be
   // in dictionary properties mode. The {elements} can either be the
@@ -913,7 +895,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   Handle<CallHandlerInfo> NewCallHandlerInfo(bool has_no_side_effect = false);
 
-  HeapObject NewForTest(Handle<Map> map, AllocationType allocation) {
+  Tagged<HeapObject> NewForTest(Handle<Map> map, AllocationType allocation) {
     return New(map, allocation);
   }
 
@@ -1085,8 +1067,9 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   // ------
   // Customization points for FactoryBase
-  HeapObject AllocateRaw(int size, AllocationType allocation,
-                         AllocationAlignment alignment = kTaggedAligned);
+  Tagged<HeapObject> AllocateRaw(
+      int size, AllocationType allocation,
+      AllocationAlignment alignment = kTaggedAligned);
 
   Isolate* isolate() const {
     // Downcast to the privately inherited sub-class using c-style casts to
@@ -1116,7 +1099,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
                         ScriptEventType script_event_type);
   // ------
 
-  HeapObject AllocateRawWithAllocationSite(
+  Tagged<HeapObject> AllocateRawWithAllocationSite(
       Handle<Map> map, AllocationType allocation,
       Handle<AllocationSite> allocation_site);
 
@@ -1124,14 +1107,15 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       Handle<Map> map, Handle<FixedArrayBase> elements,
       Handle<JSArrayBuffer> buffer, size_t byte_offset, size_t byte_length);
 
-  Symbol NewSymbolInternal(AllocationType allocation = AllocationType::kOld);
+  Tagged<Symbol> NewSymbolInternal(
+      AllocationType allocation = AllocationType::kOld);
 
   // Allocates new context with given map, sets length and initializes the
   // after-header part with uninitialized values and leaves the context header
   // uninitialized.
-  Context NewContextInternal(Handle<Map> map, int size,
-                             int variadic_part_length,
-                             AllocationType allocation);
+  Tagged<Context> NewContextInternal(Handle<Map> map, int size,
+                                     int variadic_part_length,
+                                     AllocationType allocation);
 
   template <typename T>
   Handle<T> AllocateSmallOrderedHashTable(Handle<Map> map, int capacity,
@@ -1139,7 +1123,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   // Creates a heap object based on the map. The fields of the heap object are
   // not initialized, it's the responsibility of the caller to do that.
-  HeapObject New(Handle<Map> map, AllocationType allocation);
+  Tagged<HeapObject> New(Handle<Map> map, AllocationType allocation);
 
   template <typename T>
   Handle<T> CopyArrayWithMap(
@@ -1153,12 +1137,13 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
                                            AllocationType allocation);
 
   // Functions to get the hash of a number for the number_string_cache.
-  int NumberToStringCacheHash(Smi number);
+  int NumberToStringCacheHash(Tagged<Smi> number);
   int NumberToStringCacheHash(double number);
 
   // Attempt to find the number in a small cache.  If we finds it, return
   // the string representation of the number.  Otherwise return undefined.
-  V8_INLINE Handle<Object> NumberToStringCacheGet(Object number, int hash);
+  V8_INLINE Handle<Object> NumberToStringCacheGet(Tagged<Object> number,
+                                                  int hash);
 
   // Update the cache with a new number-string pair.
   V8_INLINE void NumberToStringCacheSet(Handle<Object> number, int hash,
@@ -1182,13 +1167,15 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       ArrayStorageAllocationMode mode =
           ArrayStorageAllocationMode::DONT_INITIALIZE_ARRAY_ELEMENTS);
 
-  void InitializeAllocationMemento(AllocationMemento memento,
-                                   AllocationSite allocation_site);
+  void InitializeAllocationMemento(Tagged<AllocationMemento> memento,
+                                   Tagged<AllocationSite> allocation_site);
 
   // Initializes a JSObject based on its map.
-  void InitializeJSObjectFromMap(JSObject obj, Object properties, Map map);
+  void InitializeJSObjectFromMap(Tagged<JSObject> obj,
+                                 Tagged<Object> properties, Tagged<Map> map);
   // Initializes JSObject body starting at given offset.
-  void InitializeJSObjectBody(JSObject obj, Map map, int start_offset);
+  void InitializeJSObjectBody(Tagged<JSObject> obj, Tagged<Map> map,
+                              int start_offset);
 
   Handle<WeakArrayList> NewUninitializedWeakArrayList(
       int capacity, AllocationType allocation = AllocationType::kYoung);
@@ -1197,7 +1184,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   // The resulting array will be uninitialized, which means GC might fail for
   // reference arrays until initialization. Follow this up with a
   // {DisallowGarbageCollection} scope until initialization.
-  WasmArray NewWasmArrayUninitialized(uint32_t length, Handle<Map> map);
+  Tagged<WasmArray> NewWasmArrayUninitialized(uint32_t length, Handle<Map> map);
 #endif  // V8_ENABLE_WEBASSEMBLY
 };
 

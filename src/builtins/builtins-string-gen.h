@@ -6,6 +6,7 @@
 #define V8_BUILTINS_BUILTINS_STRING_GEN_H_
 
 #include "src/codegen/code-stub-assembler.h"
+#include "src/objects/string.h"
 
 namespace v8 {
 namespace internal {

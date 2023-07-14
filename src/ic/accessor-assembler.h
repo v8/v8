@@ -8,6 +8,7 @@
 #include "src/base/optional.h"
 #include "src/codegen/code-stub-assembler.h"
 #include "src/compiler/code-assembler.h"
+#include "src/objects/dictionary.h"
 
 namespace v8 {
 namespace internal {

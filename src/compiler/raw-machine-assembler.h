@@ -21,6 +21,7 @@
 #include "src/compiler/write-barrier-kind.h"
 #include "src/execution/isolate.h"
 #include "src/heap/factory.h"
+#include "src/objects/string.h"
 
 namespace v8 {
 namespace internal {

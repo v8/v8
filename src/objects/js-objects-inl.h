@@ -7,10 +7,12 @@
 
 #include "src/common/globals.h"
 #include "src/heap/heap-write-barrier.h"
+#include "src/objects/dictionary.h"
 #include "src/objects/elements.h"
 #include "src/objects/embedder-data-slot-inl.h"
 #include "src/objects/feedback-vector.h"
 #include "src/objects/field-index-inl.h"
+#include "src/objects/fixed-array.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/heap-number-inl.h"
 #include "src/objects/instance-type-inl.h"
@@ -23,6 +25,7 @@
 #include "src/objects/shared-function-info.h"
 #include "src/objects/slots.h"
 #include "src/objects/smi-inl.h"
+#include "src/objects/string.h"
 #include "src/objects/swiss-name-dictionary-inl.h"
 
 // Has to be the last include (doesn't have include guards):

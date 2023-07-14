@@ -43,6 +43,20 @@ Handle<Name> Factory::InternalizeName(Handle<Name> name) {
                                                  Handle<String>::cast(name));
 }
 
+template <size_t N>
+Handle<String> Factory::NewStringFromStaticChars(const char (&str)[N],
+                                                 AllocationType allocation) {
+  DCHECK_EQ(N, strlen(str) + 1);
+  return NewStringFromOneByte(base::StaticOneByteVector(str), allocation)
+      .ToHandleChecked();
+}
+
+Handle<String> Factory::NewStringFromAsciiChecked(const char* str,
+                                                  AllocationType allocation) {
+  return NewStringFromOneByte(base::OneByteVector(str), allocation)
+      .ToHandleChecked();
+}
+
 Handle<String> Factory::NewSubString(Handle<String> str, int begin, int end) {
   if (begin == 0 && end == str->length()) return str;
   return NewProperSubString(str, begin, end);
@@ -62,6 +76,13 @@ Handle<JSObject> Factory::NewFastOrSlowJSObjectFromMap(
              ? NewSlowJSObjectFromMap(map, number_of_slow_properties,
                                       allocation, allocation_site)
              : NewJSObjectFromMap(map, allocation, allocation_site);
+}
+
+Handle<JSObject> Factory::NewFastOrSlowJSObjectFromMap(Handle<Map> map) {
+  return NewFastOrSlowJSObjectFromMap(
+      map, V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL
+               ? SwissNameDictionary::kInitialCapacity
+               : NameDictionary::kInitialCapacity);
 }
 
 Handle<Object> Factory::NewURIError() {
@@ -104,13 +125,14 @@ void Factory::NumberToStringCacheSet(Handle<Object> number, int hash,
   cache.set(hash * 2 + 1, *js_string);
 }
 
-Handle<Object> Factory::NumberToStringCacheGet(Object number, int hash) {
+Handle<Object> Factory::NumberToStringCacheGet(Tagged<Object> number,
+                                               int hash) {
   DisallowGarbageCollection no_gc;
-  FixedArray cache = *number_string_cache();
-  Object key = cache.get(hash * 2);
+  Tagged<FixedArray> cache = *number_string_cache();
+  Tagged<Object> key = cache->get(hash * 2);
   if (key == number || (key.IsHeapNumber() && number.IsHeapNumber() &&
-                        key.Number() == number.Number())) {
-    return Handle<String>(String::cast(cache.get(hash * 2 + 1)), isolate());
+                        key->Number() == number->Number())) {
+    return Handle<String>(String::cast(cache->get(hash * 2 + 1)), isolate());
   }
   return undefined_value();
 }

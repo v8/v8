@@ -5,8 +5,10 @@
 #ifndef V8_OBJECTS_OPTION_UTILS_H_
 #define V8_OBJECTS_OPTION_UTILS_H_
 
+#include "src/common/globals.h"
 #include "src/execution/isolate.h"
-#include "src/objects/objects.h"
+#include "src/objects/js-objects.h"
+#include "src/objects/string.h"
 
 namespace v8 {
 namespace internal {
