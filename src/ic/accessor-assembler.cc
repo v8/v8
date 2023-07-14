@@ -1468,7 +1468,7 @@ void AccessorAssembler::HandleStoreICTransitionMapHandlerCase(
                                     p->value(), miss, true);
 }
 
-void AccessorAssembler::UpdateMayHaveInterestingSymbol(
+void AccessorAssembler::UpdateMayHaveInterestingProperty(
     TNode<PropertyDictionary> dict, TNode<Name> name) {
   Comment("UpdateMayHaveInterestingSymbol");
   Label done(this);
@@ -1477,10 +1477,7 @@ void AccessorAssembler::UpdateMayHaveInterestingSymbol(
     // TODO(pthier): Add flags to swiss dictionaries.
     Goto(&done);
   } else {
-    GotoIfNot(IsSymbol(name), &done);
-    TNode<Uint32T> symbol_flags =
-        LoadObjectField<Uint32T>(name, Symbol::kFlagsOffset);
-    GotoIfNot(IsSetWord32<Symbol::IsInterestingSymbolBit>(symbol_flags), &done);
+    GotoIfNot(IsInterestingProperty(name), &done);
     TNode<Smi> flags = GetNameDictionaryFlags(dict);
     flags = SmiOr(
         flags,
@@ -1903,7 +1900,7 @@ void AccessorAssembler::HandleStoreICProtoHandler(
           CAST(LoadSlowProperties(CAST(p->receiver())));
       TNode<Name> name = CAST(p->name());
       AddToDictionary<PropertyDictionary>(properties, name, p->value(), &slow);
-      UpdateMayHaveInterestingSymbol(properties, name);
+      UpdateMayHaveInterestingProperty(properties, name);
       Return(p->value());
 
       BIND(&slow);

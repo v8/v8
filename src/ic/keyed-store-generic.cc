@@ -1018,7 +1018,7 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
       }
       Label add_dictionary_property_slow(this);
       InvalidateValidityCellIfPrototype(receiver_map, bitfield3);
-      UpdateMayHaveInterestingSymbol(properties, name);
+      UpdateMayHaveInterestingProperty(properties, name);
       AddToDictionary<PropertyDictionary>(properties, name, p->value(),
                                           &add_dictionary_property_slow);
       exit_point->Return(p->value());
