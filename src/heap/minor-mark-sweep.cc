@@ -823,7 +823,6 @@ void MinorMarkSweepCollector::MarkLiveObjects() {
     if (!v8_flags.concurrent_minor_ms_marking) {
       DoParallelMarking();
     } else {
-      if (was_marked_incrementally) local_marking_worklists_->MergeOnHold();
       if (v8_flags.parallel_marking) {
         heap_->concurrent_marking()->RescheduleJobIfNeeded(
             GarbageCollector::MINOR_MARK_SWEEPER, TaskPriority::kUserBlocking);
@@ -883,8 +882,9 @@ void MinorMarkSweepCollector::DrainMarkingWorklist() {
       Map map = Map::cast(*heap_object.map_slot());
       const auto visited_size = main_marking_visitor_->Visit(map, heap_object);
       // kDataOnly objects are filtered on push.
-      DCHECK_EQ(Map::ObjectFieldsFrom(map.visitor_id()),
-                ObjectFields::kMaybePointers);
+      DCHECK_IMPLIES(!v8_flags.concurrent_minor_ms_marking,
+                     Map::ObjectFieldsFrom(map.visitor_id()) ==
+                         ObjectFields::kMaybePointers);
       if (visited_size) {
         main_marking_visitor_->IncrementLiveBytesCached(
             MemoryChunk::FromHeapObject(heap_object),

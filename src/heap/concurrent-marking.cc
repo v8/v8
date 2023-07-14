@@ -505,8 +505,14 @@ void ConcurrentMarking::RunMinor(JobDelegate* delegate) {
     while (true) {
       HeapObject object;
       if (!local_marking_worklists.Pop(&object)) {
-        if (!remembered_sets.ProcessNextItem(&visitor) ||
-            !local_marking_worklists.Pop(&object)) {
+        bool process_remembered_set = true;
+        if (delegate->IsJoiningThread()) {
+          local_marking_worklists.MergeOnHold();
+          process_remembered_set = !local_marking_worklists.Pop(&object);
+        }
+        if (process_remembered_set &&
+            (!remembered_sets.ProcessNextItem(&visitor) ||
+             !local_marking_worklists.Pop(&object))) {
           break;
         }
       }
