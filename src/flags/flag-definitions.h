@@ -1973,7 +1973,7 @@ DEFINE_BOOL(
 DEFINE_BOOL(hard_abort, true, "abort by crashing")
 DEFINE_NEG_IMPLICATION(fuzzing, hard_abort)
 
-DEFINE_BOOL(experimental_value_unavailable, false,
+DEFINE_BOOL(experimental_value_unavailable, true,
             "enable experimental <value unavailable> in scopes")
 
 // disassembler
