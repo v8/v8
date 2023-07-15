@@ -1470,7 +1470,7 @@ void AccessorAssembler::HandleStoreICTransitionMapHandlerCase(
 
 void AccessorAssembler::UpdateMayHaveInterestingProperty(
     TNode<PropertyDictionary> dict, TNode<Name> name) {
-  Comment("UpdateMayHaveInterestingSymbol");
+  Comment("UpdateMayHaveInterestingProperty");
   Label done(this);
 
   if constexpr (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
