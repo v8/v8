@@ -68,12 +68,12 @@ vars = {
   'ninja_version': 'version:2@1.11.1.chromium.6',
 
   # luci-go CIPD package version.
-  'luci_go': 'git_revision:243d76fe545ee84b235ea7c91d0ff804a4c4014c',
+  'luci_go': 'git_revision:f02582af78f530a7bbfe2f059fa5d211c9517756',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Fuchsia sdk
   # and whatever else without interference from each other.
-  'fuchsia_version': 'version:13.20230711.2.1',
+  'fuchsia_version': 'version:13.20230714.0.1',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling android_sdk_build-tools_version
@@ -113,7 +113,7 @@ deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '147f65333c38ddd1ebf554e89965c243c8ce50b3',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '7565823755b750be076ac4f27a2617787aa3d010',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '4e911d48537ec9ac84177d714c033e1de13fd34e',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '1cc82962cb50a35f6008b25a165782c568edac27',
   'buildtools/linux64': {
@@ -221,7 +221,7 @@ deps = {
     'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + 'afb1d77b69efd4fe0711fe79903488f117ad36fc',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '394c179782cdaef8e28ba2b29b99e4ed4f5709d4',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
@@ -235,7 +235,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'abbd5858fa4264ab07c35fc3d46d8779edd5c883',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + 'b389d031a263181c816b6609333a30bdecf4194b',
   'third_party/fuchsia-gn-sdk': {
     'url': Var('chromium_url') + '/chromium/src/third_party/fuchsia-gn-sdk.git' + '@' + 'aa39357819f94c46ba4f346c762bf9e4b3d52517',
     'condition': 'checkout_fuchsia',
@@ -260,7 +260,7 @@ deps = {
   'third_party/icu':
     Var('chromium_url') + '/chromium/deps/icu.git' + '@' + 'e8c3bc9ea97d4423ad0515e5f1c064f486dae8b1',
   'third_party/instrumented_libraries':
-    Var('chromium_url') + '/chromium/src/third_party/instrumented_libraries.git' + '@' + '0f536d22dbed454b1254c7e6d7130eab28fba1fa',
+    Var('chromium_url') + '/chromium/src/third_party/instrumented_libraries.git' + '@' + '032e9c850ab975f7c088a625dcf2256917dbdfa6',
   'third_party/ittapi': {
     # Force checkout ittapi libraries to pass v8 header includes check on
     # bots that has check_v8_header_includes enabled.
