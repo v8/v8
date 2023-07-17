@@ -2641,6 +2641,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsHashTable(TNode<HeapObject> object);
   TNode<BoolT> IsEphemeronHashTable(TNode<HeapObject> object);
   TNode<BoolT> IsHeapNumberInstanceType(TNode<Int32T> instance_type);
+  // We only want to check for any hole in a negated way. For regular hole
+  // checks, we should check for a specific hole kind instead.
+  TNode<BoolT> IsNotAnyHole(TNode<Object> object);
+  TNode<BoolT> IsHoleInstanceType(TNode<Int32T> instance_type);
   TNode<BoolT> IsOddball(TNode<HeapObject> object);
   TNode<BoolT> IsOddballInstanceType(TNode<Int32T> instance_type);
   TNode<BoolT> IsIndirectStringInstanceType(TNode<Int32T> instance_type);

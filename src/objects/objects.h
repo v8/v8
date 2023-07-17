@@ -329,6 +329,10 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
 #undef IS_TYPE_FUNCTION_DECL
   V8_INLINE bool IsNumber(ReadOnlyRoots roots) const;
 
+  // A wrapper around IsHole to make it easier to distinguish from specific hole
+  // checks (e.g. IsTheHole).
+  V8_INLINE bool IsAnyHole(PtrComprCageBase cage_base) const;
+
 // Oddball checks are faster when they are raw pointer comparisons, so the
 // isolate/read-only roots overloads should be preferred where possible.
 #define IS_TYPE_FUNCTION_DECL(Type, Value, _)           \

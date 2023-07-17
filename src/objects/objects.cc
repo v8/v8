@@ -6809,7 +6809,7 @@ void PropertyCell::ClearAndInvalidate(ReadOnlyRoots roots) {
   DCHECK(!value().IsTheHole(roots));
   PropertyDetails details = property_details();
   details = details.set_cell_type(PropertyCellType::kConstant);
-  Transition(details, roots.the_hole_value_handle());
+  Transition(details, roots.property_cell_hole_value_handle());
   // TODO(11527): pass Isolate as an argument.
   Isolate* isolate = GetIsolateFromWritableObject(*this);
   DependentCode::DeoptimizeDependencyGroups(
@@ -6823,7 +6823,7 @@ Handle<PropertyCell> PropertyCell::InvalidateAndReplaceEntry(
   Handle<PropertyCell> cell(dictionary->CellAt(entry), isolate);
   Handle<Name> name(cell->name(), isolate);
   DCHECK(cell->property_details().IsConfigurable());
-  DCHECK(!cell->value().IsTheHole(isolate));
+  DCHECK(!cell->value().IsAnyHole(isolate));
 
   // Swap with a new property cell.
   Handle<PropertyCell> new_cell =
@@ -6857,8 +6857,8 @@ PropertyCellType PropertyCell::UpdatedType(Isolate* isolate, PropertyCell cell,
                                            Object value,
                                            PropertyDetails details) {
   DisallowGarbageCollection no_gc;
-  DCHECK(!value.IsTheHole(isolate));
-  DCHECK(!cell.value().IsTheHole(isolate));
+  DCHECK(!value.IsAnyHole(isolate));
+  DCHECK(!cell.value().IsAnyHole(isolate));
   switch (details.cell_type()) {
     case PropertyCellType::kUndefined:
       return PropertyCellType::kConstant;
@@ -6880,9 +6880,9 @@ PropertyCellType PropertyCell::UpdatedType(Isolate* isolate, PropertyCell cell,
 Handle<PropertyCell> PropertyCell::PrepareForAndSetValue(
     Isolate* isolate, Handle<GlobalDictionary> dictionary, InternalIndex entry,
     Handle<Object> value, PropertyDetails details) {
-  DCHECK(!value->IsTheHole(isolate));
+  DCHECK(!value->IsAnyHole(isolate));
   PropertyCell raw_cell = dictionary->CellAt(entry);
-  CHECK(!raw_cell.value().IsTheHole(isolate));
+  CHECK(!raw_cell.value().IsAnyHole(isolate));
   const PropertyDetails original_details = raw_cell.property_details();
   // Data accesses could be cached in ics or optimized code.
   bool invalidate = original_details.kind() == PropertyKind::kData &&
@@ -6934,7 +6934,7 @@ bool PropertyCell::CheckDataIsCompatible(PropertyDetails details,
   DisallowGarbageCollection no_gc;
   PropertyCellType cell_type = details.cell_type();
   CHECK_NE(cell_type, PropertyCellType::kInTransition);
-  if (value.IsTheHole()) {
+  if (value.IsPropertyCellHole()) {
     CHECK_EQ(cell_type, PropertyCellType::kConstant);
   } else {
     CHECK_EQ(value.IsAccessorInfo() || value.IsAccessorPair(),
@@ -6956,17 +6956,17 @@ bool PropertyCell::CanTransitionTo(PropertyDetails new_details,
     case PropertyCellType::kUndefined:
       return new_details.cell_type() != PropertyCellType::kUndefined;
     case PropertyCellType::kConstant:
-      return !value().IsTheHole() &&
+      return !value().IsPropertyCellHole() &&
              new_details.cell_type() != PropertyCellType::kUndefined;
     case PropertyCellType::kConstantType:
       return new_details.cell_type() == PropertyCellType::kConstantType ||
              new_details.cell_type() == PropertyCellType::kMutable ||
              (new_details.cell_type() == PropertyCellType::kConstant &&
-              new_value.IsTheHole());
+              new_value.IsPropertyCellHole());
     case PropertyCellType::kMutable:
       return new_details.cell_type() == PropertyCellType::kMutable ||
              (new_details.cell_type() == PropertyCellType::kConstant &&
-              new_value.IsTheHole());
+              new_value.IsPropertyCellHole());
     case PropertyCellType::kInTransition:
       UNREACHABLE();
   }

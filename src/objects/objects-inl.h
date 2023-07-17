@@ -115,6 +115,10 @@ IS_TYPE_FUNCTION_DEF(HashTableBase)
 IS_TYPE_FUNCTION_DEF(SmallOrderedHashTable)
 #undef IS_TYPE_FUNCTION_DEF
 
+bool Object::IsAnyHole(PtrComprCageBase cage_base) const {
+  return IsHole(cage_base);
+}
+
 #define IS_TYPE_FUNCTION_DEF(Type, Value, _)                             \
   bool Tagged<Object>::Is##Type(Isolate* isolate) const {                \
     return Is##Type(ReadOnlyRoots(isolate));                             \

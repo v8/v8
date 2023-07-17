@@ -7092,6 +7092,20 @@ TNode<BoolT> CodeStubAssembler::IsHeapNumberInstanceType(
   return InstanceTypeEqual(instance_type, HEAP_NUMBER_TYPE);
 }
 
+TNode<BoolT> CodeStubAssembler::IsNotAnyHole(TNode<Object> object) {
+  return Select<BoolT>(
+      TaggedIsSmi(object), [=] { return Int32TrueConstant(); },
+      [=] {
+        return Word32BinaryNot(IsHoleInstanceType(
+            LoadInstanceType(UncheckedCast<HeapObject>(object))));
+      });
+}
+
+TNode<BoolT> CodeStubAssembler::IsHoleInstanceType(
+    TNode<Int32T> instance_type) {
+  return InstanceTypeEqual(instance_type, HOLE_TYPE);
+}
+
 TNode<BoolT> CodeStubAssembler::IsOddball(TNode<HeapObject> object) {
   return IsOddballInstanceType(LoadInstanceType(object));
 }

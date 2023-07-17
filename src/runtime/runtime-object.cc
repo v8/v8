@@ -813,7 +813,7 @@ RUNTIME_FUNCTION(Runtime_GetProperty) {
           PropertyCell cell = dictionary.CellAt(entry);
           if (cell.property_details().kind() == PropertyKind::kData) {
             Object value = cell.value();
-            if (!value.IsTheHole(isolate)) return value;
+            if (!value.IsPropertyCellHole(isolate)) return value;
             // If value is the hole (meaning, absent) do the general lookup.
           }
         }

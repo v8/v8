@@ -807,7 +807,7 @@ void AccessorAssembler::HandleLoadICSmiHandlerLoadNamedCase(
         LoadObjectField(CAST(holder), PropertyCell::kValueOffset);
     TNode<Uint32T> details = Unsigned(LoadAndUntagToWord32ObjectField(
         CAST(holder), PropertyCell::kPropertyDetailsRawOffset));
-    GotoIf(IsTheHole(value), miss);
+    GotoIf(IsPropertyCellHole(value), miss);
 
     exit_point->Return(CallGetterIfAccessor(value, CAST(holder), details,
                                             p->context(), p->receiver(),
@@ -933,7 +933,7 @@ void AccessorAssembler::HandleLoadICSmiHandlerHasNamedCase(
     // Ensure the property cell doesn't contain the hole.
     TNode<Object> value =
         LoadObjectField(CAST(holder), PropertyCell::kValueOffset);
-    GotoIf(IsTheHole(value), miss);
+    GotoIf(IsPropertyCellHole(value), miss);
 
     exit_point->Return(TrueConstant());
   }
@@ -3327,7 +3327,7 @@ void AccessorAssembler::LoadGlobalIC_TryPropertyCellCase(
         CAST(GetHeapObjectAssumeWeak(maybe_weak_ref, try_handler));
     TNode<Object> value =
         LoadObjectField(property_cell, PropertyCell::kValueOffset);
-    GotoIf(TaggedEqual(value, TheHoleConstant()), miss);
+    GotoIf(TaggedEqual(value, PropertyCellHoleConstant()), miss);
     exit_point->Return(value);
   }
 
@@ -3950,7 +3950,7 @@ void AccessorAssembler::StoreGlobalIC_PropertyCellCase(
   GotoIf(Word32Equal(type, Int32Constant(
                                static_cast<int>(PropertyCellType::kConstant))),
          &constant);
-  CSA_DCHECK(this, Word32BinaryNot(IsTheHole(cell_contents)));
+  CSA_DCHECK(this, IsNotAnyHole(cell_contents));
 
   GotoIf(Word32Equal(
              type, Int32Constant(static_cast<int>(PropertyCellType::kMutable))),
@@ -3984,7 +3984,7 @@ void AccessorAssembler::StoreGlobalIC_PropertyCellCase(
   {
     // Since |value| is never the hole, the equality check below also handles an
     // invalidated property cell correctly.
-    CSA_DCHECK(this, Word32BinaryNot(IsTheHole(value)));
+    CSA_DCHECK(this, IsNotAnyHole(value));
     GotoIfNot(TaggedEqual(cell_contents, value), miss);
     exit_point->Return(value);
   }

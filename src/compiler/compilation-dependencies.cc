@@ -824,7 +824,8 @@ class GlobalPropertyDependency final : public CompilationDependency {
     Handle<PropertyCell> cell = cell_.object();
     // The dependency is never valid if the cell is 'invalidated'. This is
     // marked by setting the value to the hole.
-    if (cell->value() == *(broker->isolate()->factory()->the_hole_value())) {
+    if (cell->value() ==
+        *(broker->isolate()->factory()->property_cell_hole_value())) {
       return false;
     }
     return type_ == cell->property_details().cell_type() &&
