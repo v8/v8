@@ -22,6 +22,10 @@
  public:                                                                       \
   constexpr Type() : __VA_ARGS__() {}                                          \
                                                                                \
+  /* For every object, add a `->` operator which returns a pointer to this     \
+     object. This will allow smoother transition between T and Tagged<T>. */   \
+  Type* operator->() { return this; }                                          \
+                                                                               \
  protected:                                                                    \
   template <typename TFieldType, int kFieldOffset, typename CompressionScheme> \
   friend class TaggedField;                                                    \

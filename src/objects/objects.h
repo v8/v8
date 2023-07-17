@@ -307,6 +307,10 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   constexpr Object() : TaggedImpl(kNullAddress) {}
   explicit constexpr Object(Address ptr) : TaggedImpl(ptr) {}
 
+  /* For every object, add a `->` operator which returns a pointer to this     \
+     object. This will allow smoother transition between T and Tagged<T>. */
+  Object* operator->() { return this; }
+
   V8_INLINE bool IsTaggedIndex() const;
 
   // Whether the object is in the RO heap and the RO heap is shared, or in the
