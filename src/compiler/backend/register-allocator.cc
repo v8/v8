@@ -1095,12 +1095,20 @@ SpillRange::SpillRange(TopLevelLiveRange* parent, Zone* zone)
   // Spill ranges are created for top level. This is so that, when merging
   // decisions are made, we consider the full extent of the virtual register,
   // and avoid clobbering it.
+  LifetimePosition last_end = LifetimePosition::MaxPosition();
   for (const LiveRange* range = parent; range != nullptr;
        range = range->next()) {
     // Deep copy the `UseInterval`s, since the `LiveRange`s are subsequently
     // modified, so just storing those has correctness issues.
     for (UseInterval interval : range->intervals()) {
-      intervals_.push_back(interval);
+      DCHECK_NE(LifetimePosition::MaxPosition(), interval.start());
+      bool can_coalesce = last_end == interval.start();
+      if (can_coalesce) {
+        intervals_.back().set_end(interval.end());
+      } else {
+        intervals_.push_back(interval);
+      }
+      last_end = interval.end();
     }
   }
   ranges_.push_back(parent);
