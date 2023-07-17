@@ -501,24 +501,42 @@ Response V8DebuggerAgentImpl::setSkipAllPauses(bool skip) {
   return Response::Success();
 }
 
-static bool matches(V8InspectorImpl* inspector, const V8DebuggerScript& script,
-                    BreakpointType type, const String16& selector) {
-  switch (type) {
-    case BreakpointType::kByUrl:
-      return script.sourceURL() == selector;
-    case BreakpointType::kByScriptHash:
-      return script.hash() == selector;
-    case BreakpointType::kByUrlRegex: {
-      V8Regex regex(inspector, selector, true);
-      return regex.match(script.sourceURL()) != -1;
+namespace {
+
+class Matcher {
+ public:
+  Matcher(V8InspectorImpl* inspector, BreakpointType type,
+          const String16& selector)
+      : type_(type), selector_(selector) {
+    if (type == BreakpointType::kByUrlRegex) {
+      regex_ = std::make_unique<V8Regex>(inspector, selector, true);
     }
-    case BreakpointType::kByScriptId: {
-      return script.scriptId() == selector;
-    }
-    default:
-      return false;
   }
-}
+
+  bool matches(const V8DebuggerScript& script) {
+    switch (type_) {
+      case BreakpointType::kByUrl:
+        return script.sourceURL() == selector_;
+      case BreakpointType::kByScriptHash:
+        return script.hash() == selector_;
+      case BreakpointType::kByUrlRegex: {
+        return regex_->match(script.sourceURL()) != -1;
+      }
+      case BreakpointType::kByScriptId: {
+        return script.scriptId() == selector_;
+      }
+      default:
+        return false;
+    }
+  }
+
+ private:
+  std::unique_ptr<V8Regex> regex_;
+  BreakpointType type_;
+  const String16& selector_;
+};
+
+}  // namespace
 
 Response V8DebuggerAgentImpl::setBreakpointByUrl(
     int lineNumber, Maybe<String16> optionalURL,
@@ -557,6 +575,9 @@ Response V8DebuggerAgentImpl::setBreakpointByUrl(
     type = BreakpointType::kByScriptHash;
   }
 
+  // Note: This constructor can call into JavaScript.
+  Matcher matcher(m_inspector, type, selector);
+
   String16 condition = optionalCondition.fromMaybe(String16());
   String16 breakpointId =
       generateBreakpointId(type, selector, lineNumber, columnNumber);
@@ -587,7 +608,7 @@ Response V8DebuggerAgentImpl::setBreakpointByUrl(
 
   String16 hint;
   for (const auto& script : m_scripts) {
-    if (!matches(m_inspector, *script.second, type, selector)) continue;
+    if (!matcher.matches(*script.second)) continue;
     if (!hint.isEmpty()) {
       adjustBreakpointLocation(*script.second, hint, &lineNumber,
                                &columnNumber);
@@ -683,6 +704,7 @@ Response V8DebuggerAgentImpl::removeBreakpoint(const String16& breakpointId) {
   if (!parseBreakpointId(breakpointId, &type, &selector)) {
     return Response::Success();
   }
+  Matcher matcher(m_inspector, type, selector);
   protocol::DictionaryValue* breakpoints = nullptr;
   switch (type) {
     case BreakpointType::kByUrl: {
@@ -719,8 +741,7 @@ Response V8DebuggerAgentImpl::removeBreakpoint(const String16& breakpointId) {
   // not Wasm breakpoint.
   std::vector<V8DebuggerScript*> scripts;
   for (const auto& scriptIter : m_scripts) {
-    const bool scriptSelectorMatch =
-        matches(m_inspector, *scriptIter.second, type, selector);
+    const bool scriptSelectorMatch = matcher.matches(*scriptIter.second);
     const bool isInstrumentation =
         type == BreakpointType::kInstrumentationBreakpoint;
     if (!scriptSelectorMatch && !isInstrumentation) continue;
@@ -1874,8 +1895,9 @@ void V8DebuggerAgentImpl::didParseSource(
       int columnNumber = 0;
       parseBreakpointId(breakpointId, &type, &selector, &lineNumber,
                         &columnNumber);
+      Matcher matcher(m_inspector, type, selector);
 
-      if (!matches(m_inspector, *scriptRef, type, selector)) continue;
+      if (!matcher.matches(*scriptRef)) continue;
       String16 condition;
       breakpointWithCondition.second->asString(&condition);
       String16 hint;
