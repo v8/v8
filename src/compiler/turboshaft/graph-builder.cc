@@ -1142,6 +1142,7 @@ OpIndex GraphBuilder::Process(
       StoreOp::Kind kind = opcode == IrOpcode::kStore
                                ? StoreOp::Kind::RawAligned()
                                : StoreOp::Kind::RawUnaligned();
+      bool initializing_transitioning = inside_region;
 
       Node* base = node->InputAt(0);
       Node* index = node->InputAt(1);
@@ -1151,7 +1152,8 @@ OpIndex GraphBuilder::Process(
         __ Store(Map(base), Map(value), kind,
                  MemoryRepresentation::FromMachineRepresentation(
                      store_rep.representation()),
-                 store_rep.write_barrier_kind(), offset);
+                 store_rep.write_barrier_kind(), offset,
+                 initializing_transitioning);
         return OpIndex::Invalid();
       }
       if (index->opcode() == IrOpcode::kInt64Constant) {
@@ -1160,8 +1162,8 @@ OpIndex GraphBuilder::Process(
           __ Store(Map(base), Map(value), kind,
                    MemoryRepresentation::FromMachineRepresentation(
                        store_rep.representation()),
-                   store_rep.write_barrier_kind(),
-                   static_cast<int32_t>(offset));
+                   store_rep.write_barrier_kind(), static_cast<int32_t>(offset),
+                   initializing_transitioning);
           return OpIndex::Invalid();
         }
       }
@@ -1170,10 +1172,13 @@ OpIndex GraphBuilder::Process(
       __ Store(Map(base), Map(index), Map(value), kind,
                MemoryRepresentation::FromMachineRepresentation(
                    store_rep.representation()),
-               store_rep.write_barrier_kind(), offset, element_size_log2);
+               store_rep.write_barrier_kind(), offset, element_size_log2,
+               initializing_transitioning);
       return OpIndex::Invalid();
     }
     case IrOpcode::kProtectedStore:
+      // We don't mark ProtectedStores as initialzing even when inside regions,
+      // since we don't store-store eliminate them because they have a raw base.
       __ Store(Map(node->InputAt(0)), Map(node->InputAt(1)),
                Map(node->InputAt(2)), StoreOp::Kind::Protected(),
                MemoryRepresentation::FromMachineRepresentation(
@@ -1381,10 +1386,12 @@ OpIndex GraphBuilder::Process(
       Node* offset = node->InputAt(1);
       Node* value = node->InputAt(2);
       ObjectAccess const& access = ObjectAccessOf(node->op());
+      bool initializing_transitioning = inside_region;
       __ Store(Map(object), Map(offset), Map(value),
                StoreOp::Kind::TaggedBase(),
                MemoryRepresentation::FromMachineType(access.machine_type),
-               access.write_barrier_kind, kHeapObjectTag);
+               access.write_barrier_kind, kHeapObjectTag,
+               initializing_transitioning);
       return OpIndex::Invalid();
     }
     case IrOpcode::kStoreElement: {
@@ -1396,9 +1403,10 @@ OpIndex GraphBuilder::Process(
       StoreOp::Kind kind = StoreOp::Kind::Aligned(access.base_is_tagged);
       MemoryRepresentation rep =
           MemoryRepresentation::FromMachineType(access.machine_type);
+      bool initializing_transitioning = inside_region;
       __ Store(Map(object), Map(index), Map(value), kind, rep,
                access.write_barrier_kind, access.header_size,
-               rep.SizeInBytesLog2());
+               rep.SizeInBytesLog2(), initializing_transitioning);
       return OpIndex::Invalid();
     }
     case IrOpcode::kStoreField: {
