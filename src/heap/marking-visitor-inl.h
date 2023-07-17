@@ -704,8 +704,8 @@ int MarkingVisitorBase<ConcreteVisitor>::VisitTransitionArray(
   return size;
 }
 
-template <typename ConcreteVisitor>
-YoungGenerationMarkingVisitorBase<ConcreteVisitor>::
+template <typename ConcreteVisitor, typename MarkingState>
+YoungGenerationMarkingVisitorBase<ConcreteVisitor, MarkingState>::
     YoungGenerationMarkingVisitorBase(
         Isolate* isolate, MarkingWorklists::Local* worklists_local,
         EphemeronRememberedSet::TableList::Local* ephemeron_tables_local,
@@ -716,13 +716,14 @@ YoungGenerationMarkingVisitorBase<ConcreteVisitor>::
       pretenuring_handler_(isolate->heap()->pretenuring_handler()),
       local_pretenuring_feedback_(local_pretenuring_feedback) {}
 
-template <typename ConcreteVisitor>
+template <typename ConcreteVisitor, typename MarkingState>
 YoungGenerationMarkingVisitorBase<
-    ConcreteVisitor>::~YoungGenerationMarkingVisitorBase() = default;
+    ConcreteVisitor, MarkingState>::~YoungGenerationMarkingVisitorBase() =
+    default;
 
-template <typename ConcreteVisitor>
+template <typename ConcreteVisitor, typename MarkingState>
 template <typename T>
-int YoungGenerationMarkingVisitorBase<ConcreteVisitor>::
+int YoungGenerationMarkingVisitorBase<ConcreteVisitor, MarkingState>::
     VisitEmbedderTracingSubClassWithEmbedderTracing(Map map, T object) {
   const int size = concrete_visitor()->VisitJSObjectSubclass(map, object);
   if (!worklists_local_->SupportsExtractWrapper()) return size;
@@ -736,35 +737,37 @@ int YoungGenerationMarkingVisitorBase<ConcreteVisitor>::
   return size;
 }
 
-template <typename ConcreteVisitor>
-int YoungGenerationMarkingVisitorBase<ConcreteVisitor>::VisitJSArrayBuffer(
-    Map map, JSArrayBuffer object) {
+template <typename ConcreteVisitor, typename MarkingState>
+int YoungGenerationMarkingVisitorBase<
+    ConcreteVisitor, MarkingState>::VisitJSArrayBuffer(Map map,
+                                                       JSArrayBuffer object) {
   object.YoungMarkExtension();
   return VisitEmbedderTracingSubClassWithEmbedderTracing(map, object);
 }
 
-template <typename ConcreteVisitor>
-int YoungGenerationMarkingVisitorBase<ConcreteVisitor>::VisitJSApiObject(
-    Map map, JSObject object) {
+template <typename ConcreteVisitor, typename MarkingState>
+int YoungGenerationMarkingVisitorBase<
+    ConcreteVisitor, MarkingState>::VisitJSApiObject(Map map, JSObject object) {
   return VisitEmbedderTracingSubClassWithEmbedderTracing(map, object);
 }
 
-template <typename ConcreteVisitor>
-int YoungGenerationMarkingVisitorBase<ConcreteVisitor>::
+template <typename ConcreteVisitor, typename MarkingState>
+int YoungGenerationMarkingVisitorBase<ConcreteVisitor, MarkingState>::
     VisitJSDataViewOrRabGsabDataView(Map map,
                                      JSDataViewOrRabGsabDataView object) {
   return VisitEmbedderTracingSubClassWithEmbedderTracing(map, object);
 }
 
-template <typename ConcreteVisitor>
-int YoungGenerationMarkingVisitorBase<ConcreteVisitor>::VisitJSTypedArray(
-    Map map, JSTypedArray object) {
+template <typename ConcreteVisitor, typename MarkingState>
+int YoungGenerationMarkingVisitorBase<
+    ConcreteVisitor, MarkingState>::VisitJSTypedArray(Map map,
+                                                      JSTypedArray object) {
   return VisitEmbedderTracingSubClassWithEmbedderTracing(map, object);
 }
 
-template <typename ConcreteVisitor>
-int YoungGenerationMarkingVisitorBase<ConcreteVisitor>::VisitEphemeronHashTable(
-    Map map, EphemeronHashTable table) {
+template <typename ConcreteVisitor, typename MarkingState>
+int YoungGenerationMarkingVisitorBase<ConcreteVisitor, MarkingState>::
+    VisitEphemeronHashTable(Map map, EphemeronHashTable table) {
   // Register table with Minor MC, so it can take care of the weak keys later.
   // This allows to only iterate the tables' values, which are treated as strong
   // independently of whether the key is live.
@@ -777,9 +780,9 @@ int YoungGenerationMarkingVisitorBase<ConcreteVisitor>::VisitEphemeronHashTable(
   return EphemeronHashTable::BodyDescriptor::SizeOf(map, table);
 }
 
-template <typename ConcreteVisitor>
-int YoungGenerationMarkingVisitorBase<ConcreteVisitor>::VisitJSObject(
-    Map map, JSObject object) {
+template <typename ConcreteVisitor, typename MarkingState>
+int YoungGenerationMarkingVisitorBase<
+    ConcreteVisitor, MarkingState>::VisitJSObject(Map map, JSObject object) {
   int result = NewSpaceVisitor<ConcreteVisitor>::VisitJSObject(map, object);
   DCHECK_LT(0, result);
   pretenuring_handler_->UpdateAllocationSite(map, object,
@@ -787,9 +790,10 @@ int YoungGenerationMarkingVisitorBase<ConcreteVisitor>::VisitJSObject(
   return result;
 }
 
-template <typename ConcreteVisitor>
-int YoungGenerationMarkingVisitorBase<ConcreteVisitor>::VisitJSObjectFast(
-    Map map, JSObject object) {
+template <typename ConcreteVisitor, typename MarkingState>
+int YoungGenerationMarkingVisitorBase<
+    ConcreteVisitor, MarkingState>::VisitJSObjectFast(Map map,
+                                                      JSObject object) {
   int result = NewSpaceVisitor<ConcreteVisitor>::VisitJSObjectFast(map, object);
   DCHECK_LT(0, result);
   pretenuring_handler_->UpdateAllocationSite(map, object,
@@ -797,10 +801,10 @@ int YoungGenerationMarkingVisitorBase<ConcreteVisitor>::VisitJSObjectFast(
   return result;
 }
 
-template <typename ConcreteVisitor>
+template <typename ConcreteVisitor, typename MarkingState>
 template <typename T, typename TBodyDescriptor>
-int YoungGenerationMarkingVisitorBase<ConcreteVisitor>::VisitJSObjectSubclass(
-    Map map, T object) {
+int YoungGenerationMarkingVisitorBase<
+    ConcreteVisitor, MarkingState>::VisitJSObjectSubclass(Map map, T object) {
   int result = NewSpaceVisitor<ConcreteVisitor>::template VisitJSObjectSubclass<
       T, TBodyDescriptor>(map, object);
   DCHECK_LT(0, result);

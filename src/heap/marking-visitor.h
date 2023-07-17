@@ -252,7 +252,7 @@ class FullMarkingVisitorBase : public MarkingVisitorBase<ConcreteVisitor> {
   }
 };
 
-template <typename ConcreteVisitor>
+template <typename ConcreteVisitor, typename MarkingState>
 class YoungGenerationMarkingVisitorBase
     : public NewSpaceVisitor<ConcreteVisitor> {
  public:
@@ -298,10 +298,6 @@ class YoungGenerationMarkingVisitorBase
 
   bool TryMark(HeapObject obj) {
     return MarkBit::From(obj).Set<AccessMode::ATOMIC>();
-  }
-
-  bool IsMarked(HeapObject obj) {
-    return MarkBit::From(obj).Get<AccessMode::ATOMIC>();
   }
 
  protected:

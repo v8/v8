@@ -49,18 +49,33 @@
 namespace v8 {
 namespace internal {
 
+class ConcurrentMarkingState final
+    : public MarkingStateBase<ConcurrentMarkingState, AccessMode::ATOMIC> {
+ public:
+  explicit ConcurrentMarkingState(PtrComprCageBase cage_base)
+      : MarkingStateBase(cage_base) {}
+
+  MarkingBitmap* bitmap(MemoryChunk* chunk) const {
+    return chunk->marking_bitmap();
+  }
+
+  // The live_bytes and SetLiveBytes methods of the marking state are
+  // not used by the concurrent marker.
+};
+
 class YoungGenerationConcurrentMarkingVisitor final
     : public YoungGenerationMarkingVisitorBase<
-          YoungGenerationConcurrentMarkingVisitor> {
+          YoungGenerationConcurrentMarkingVisitor, ConcurrentMarkingState> {
  public:
   YoungGenerationConcurrentMarkingVisitor(
       Heap* heap, MarkingWorklists* marking_worklists,
       MemoryChunkDataMap* memory_chunk_data,
       PretenuringHandler::PretenuringFeedbackMap* local_pretenuring_feedback)
       : YoungGenerationMarkingVisitorBase<
-            YoungGenerationConcurrentMarkingVisitor>(
+            YoungGenerationConcurrentMarkingVisitor, ConcurrentMarkingState>(
             heap->isolate(), &local_marking_worklists_,
             &local_ephemeron_table_list_, local_pretenuring_feedback),
+        marking_state_(heap->isolate()),
         memory_chunk_data_(memory_chunk_data),
         local_ephemeron_table_list_(
             *heap->minor_mark_sweep_collector()->ephemeron_table_list()),
@@ -71,9 +86,12 @@ class YoungGenerationConcurrentMarkingVisitor final
                 : MarkingWorklists::Local::kNoCppMarkingState) {}
 
   using YoungGenerationMarkingVisitorBase<
-      YoungGenerationConcurrentMarkingVisitor>::VisitMapPointerIfNeeded;
+      YoungGenerationConcurrentMarkingVisitor,
+      ConcurrentMarkingState>::VisitMapPointerIfNeeded;
 
   static constexpr bool EnableConcurrentVisitation() { return true; }
+
+  ConcurrentMarkingState* marking_state() { return &marking_state_; }
 
   template <typename TSlot>
   V8_INLINE void VisitPointersImpl(HeapObject host, TSlot start, TSlot end) {
@@ -123,7 +141,8 @@ class YoungGenerationConcurrentMarkingVisitor final
     BasicMemoryChunk::FromHeapObject(heap_object)->SynchronizedHeapLoad();
 #endif  // THREAD_SANITIZER
 
-    if (!Heap::InYoungGeneration(heap_object) || !IsMarked(heap_object)) {
+    if (!Heap::InYoungGeneration(heap_object) ||
+        !marking_state_.TryMark(heap_object)) {
       return;
     }
 
@@ -138,6 +157,7 @@ class YoungGenerationConcurrentMarkingVisitor final
     }
   }
 
+  ConcurrentMarkingState marking_state_;
   MemoryChunkDataMap* memory_chunk_data_;
   EphemeronRememberedSet::TableList::Local local_ephemeron_table_list_;
   MarkingWorklists::Local local_marking_worklists_;
