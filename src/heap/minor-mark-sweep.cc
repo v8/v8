@@ -147,8 +147,7 @@ class YoungGenerationMarkingVerifier : public MarkingVerifierBase {
 YoungGenerationMainMarkingVisitor::YoungGenerationMainMarkingVisitor(
     Isolate* isolate, MarkingWorklists::Local* worklists_local,
     EphemeronRememberedSet::TableList::Local* ephemeron_table_list_local)
-    : YoungGenerationMarkingVisitorBase<YoungGenerationMainMarkingVisitor,
-                                        MarkingState>(
+    : YoungGenerationMarkingVisitorBase<YoungGenerationMainMarkingVisitor>(
           isolate, worklists_local, ephemeron_table_list_local,
           &local_pretenuring_feedback_),
       local_pretenuring_feedback_(PretenuringHandler::kInitialFeedbackCapacity),
