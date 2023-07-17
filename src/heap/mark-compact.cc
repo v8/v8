@@ -2100,7 +2100,7 @@ void MarkCompactCollector::PerformWrapperTracing() {
   if (!cpp_heap) return;
 
   TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_MARK_EMBEDDER_TRACING);
-  cpp_heap->AdvanceTracing(std::numeric_limits<double>::infinity());
+  cpp_heap->AdvanceTracing(v8::base::TimeDelta::Max());
 }
 
 namespace {

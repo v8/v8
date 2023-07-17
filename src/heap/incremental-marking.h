@@ -207,7 +207,8 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
   bool ShouldWaitForTask();
   bool TryInitializeTaskTimeout();
 
-  void EmbedderStep(double expected_duration_ms, double* duration_ms);
+  // Returns the actual used time.
+  v8::base::TimeDelta EmbedderStep(v8::base::TimeDelta expected_duration);
   void Step(v8::base::TimeDelta max_duration, size_t max_bytes_to_process,
             StepOrigin step_origin);
 
@@ -224,7 +225,7 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
   WeakObjects* weak_objects_;
   MarkingWorklists::Local* current_local_marking_worklists_ = nullptr;
   MarkingState* const marking_state_;
-  double start_time_ms_ = 0.0;
+  v8::base::TimeTicks start_time_;
   size_t main_thread_marked_bytes_ = 0;
   // A sample of concurrent_marking()->TotalMarkedBytes() at the last
   // incremental marking step.
@@ -234,7 +235,7 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
   bool is_compacting_ = false;
   bool black_allocation_ = false;
   bool completion_task_scheduled_ = false;
-  double completion_task_timeout_ = 0.0;
+  v8::base::TimeTicks completion_task_timeout_;
   bool collection_requested_via_stack_guard_ = false;
   std::unique_ptr<IncrementalMarkingJob> incremental_marking_job_;
   Observer new_generation_observer_;

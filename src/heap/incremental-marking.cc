@@ -7,6 +7,7 @@
 #include <inttypes.h>
 
 #include "src/base/logging.h"
+#include "src/base/platform/time.h"
 #include "src/codegen/compilation-cache.h"
 #include "src/execution/vm-state-inl.h"
 #include "src/handles/global-handles.h"
@@ -134,9 +135,9 @@ void IncrementalMarking::Start(GarbageCollector garbage_collector,
   TRACE_GC_EPOCH(heap()->tracer(), scope_id, ThreadKind::kMain);
   heap_->tracer()->NotifyIncrementalMarkingStart();
 
-  start_time_ms_ = heap()->MonotonicallyIncreasingTimeInMs();
+  start_time_ = v8::base::TimeTicks::Now();
   completion_task_scheduled_ = false;
-  completion_task_timeout_ = 0.0;
+  completion_task_timeout_ = v8::base::TimeTicks();
   main_thread_marked_bytes_ = 0;
   bytes_marked_concurrently_ = 0;
 
@@ -499,20 +500,19 @@ void IncrementalMarking::UpdateMarkedBytesAfterScavenge(
       std::min(main_thread_marked_bytes_, dead_bytes_in_new_space);
 }
 
-void IncrementalMarking::EmbedderStep(double expected_duration_ms,
-                                      double* duration_ms) {
+v8::base::TimeDelta IncrementalMarking::EmbedderStep(
+    v8::base::TimeDelta expected_duration) {
   DCHECK(IsMarking());
   auto* cpp_heap = CppHeap::From(heap_->cpp_heap());
   DCHECK_NOT_NULL(cpp_heap);
   if (!cpp_heap->incremental_marking_supported()) {
-    *duration_ms = 0.0;
-    return;
+    return {};
   }
 
   TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_INCREMENTAL_EMBEDDER_TRACING);
-  const double start = heap_->MonotonicallyIncreasingTimeInMs();
-  cpp_heap->AdvanceTracing(expected_duration_ms);
-  *duration_ms = heap_->MonotonicallyIncreasingTimeInMs() - start;
+  const auto start = v8::base::TimeTicks::Now();
+  cpp_heap->AdvanceTracing(expected_duration);
+  return v8::base::TimeTicks::Now() - start;
 }
 
 bool IncrementalMarking::Stop() {
@@ -611,13 +611,13 @@ bool IncrementalMarking::ShouldWaitForTask() {
     }
   }
 
-  const double current_time = heap()->MonotonicallyIncreasingTimeInMs();
-  const bool wait_for_task = current_time < completion_task_timeout_;
+  const auto now = v8::base::TimeTicks::Now();
+  const bool wait_for_task = now < completion_task_timeout_;
   if (V8_UNLIKELY(v8_flags.trace_incremental_marking && wait_for_task)) {
     isolate()->PrintWithTimestamp(
         "[IncrementalMarking] Completion: Delaying GC via stack guard, time "
         "left: %f.1ms\n",
-        completion_task_timeout_ - current_time);
+        (completion_task_timeout_ - now).InMillisecondsF());
   }
   return wait_for_task;
 }
@@ -628,18 +628,20 @@ bool IncrementalMarking::TryInitializeTaskTimeout() {
   constexpr double kAllowedOvershootPercentBasedOnWalltime = 0.1;
   // Minimum overshoot in ms. This is used to allow moving away from stack
   // when marking was fast.
-  constexpr double allowed_overshoot_based_on_delay_ms = 50;
-  const double now = heap_->MonotonicallyIncreasingTimeInMs();
-  const double allowed_overshoot_ms = std::max(
-      allowed_overshoot_based_on_delay_ms,
-      (now - start_time_ms_) * kAllowedOvershootPercentBasedOnWalltime);
+  constexpr auto kMinAllowedOvershoot =
+      v8::base::TimeDelta::FromMilliseconds(50);
+  const auto now = v8::base::TimeTicks::Now();
+  const auto allowed_overshoot = std::max(
+      kMinAllowedOvershoot, v8::base::TimeDelta::FromMillisecondsD(
+                                (now - start_time_).InMillisecondsF() *
+                                kAllowedOvershootPercentBasedOnWalltime));
   const auto optional_avg_time_to_marking_task =
       incremental_marking_job()->AverageTimeToTask();
-  const bool delaying = optional_avg_time_to_marking_task.has_value() &&
-                        optional_avg_time_to_marking_task->InMillisecondsF() <=
-                            allowed_overshoot_ms;
+  const bool delaying =
+      optional_avg_time_to_marking_task.has_value() &&
+      optional_avg_time_to_marking_task.value() <= allowed_overshoot;
   if (delaying) {
-    completion_task_timeout_ = now + allowed_overshoot_ms;
+    completion_task_timeout_ = now + allowed_overshoot;
   }
   if (V8_UNLIKELY(v8_flags.trace_incremental_marking)) {
     isolate()->PrintWithTimestamp(
@@ -650,7 +652,7 @@ bool IncrementalMarking::TryInitializeTaskTimeout() {
         optional_avg_time_to_marking_task.has_value()
             ? optional_avg_time_to_marking_task->InMillisecondsF()
             : 0.0,
-        allowed_overshoot_ms);
+        allowed_overshoot.InMillisecondsF());
   }
   return delaying;
 }
@@ -774,7 +776,7 @@ void IncrementalMarking::Step(v8::base::TimeDelta max_duration,
   TRACE_GC_EPOCH(heap_->tracer(), GCTracer::Scope::MC_INCREMENTAL,
                  ThreadKind::kMain);
   DCHECK(IsMajorMarking());
-  double start = heap_->MonotonicallyIncreasingTimeInMs();
+  const auto start = v8::base::TimeTicks::Now();
 
   base::Optional<SafepointScope> safepoint_scope;
   // Conceptually an incremental marking step (even though it always runs on the
@@ -791,8 +793,8 @@ void IncrementalMarking::Step(v8::base::TimeDelta max_duration,
 #endif
 
   size_t v8_bytes_processed = 0;
-  double embedder_duration_ms = 0.0;
-  double embedder_time_ms = 0.0;
+  v8::base::TimeDelta embedder_duration;
+  v8::base::TimeDelta max_embedder_duration;
 
   if (v8_flags.concurrent_marking) {
     // It is safe to merge back all objects that were on hold to the shared
@@ -820,14 +822,14 @@ void IncrementalMarking::Step(v8::base::TimeDelta max_duration,
           MarkCompactCollector::MarkingWorklistProcessingMode::kDefault);
   main_thread_marked_bytes_ += v8_bytes_processed;
   schedule_->UpdateMutatorThreadMarkedBytes(main_thread_marked_bytes_);
-  const double v8_time = heap_->MonotonicallyIncreasingTimeInMs() - start;
-  if (heap_->cpp_heap() && (v8_time < max_duration.InMillisecondsF())) {
+  const auto v8_time = v8::base::TimeTicks::Now() - start;
+  if (heap_->cpp_heap() && (v8_time < max_duration)) {
     // The CppHeap only gets the remaining slice and not the exact same time.
     // This is fine because CppHeap will schedule its own incremental steps. We
     // want to help out here to be able to fully finalize when all worklists
     // have been drained.
-    embedder_time_ms = max_duration.InMillisecondsF() - v8_time;
-    EmbedderStep(embedder_time_ms, &embedder_duration_ms);
+    max_embedder_duration = max_duration - v8_time;
+    embedder_duration = EmbedderStep(max_embedder_duration);
   }
 
   if (v8_flags.concurrent_marking) {
@@ -836,16 +838,19 @@ void IncrementalMarking::Step(v8::base::TimeDelta max_duration,
         GarbageCollector::MARK_COMPACTOR);
   }
 
-  heap_->tracer()->AddIncrementalMarkingStep(v8_time, v8_bytes_processed);
+  heap_->tracer()->AddIncrementalMarkingStep(v8_time.InMillisecondsF(),
+                                             v8_bytes_processed);
 
   if (V8_UNLIKELY(v8_flags.trace_incremental_marking)) {
-    const double current_time = heap_->MonotonicallyIncreasingTimeInMs();
     isolate()->PrintWithTimestamp(
         "[IncrementalMarking] Step: origin: %s, V8: %zuKB (%zuKB) in %.1f, "
         "embedder: %fms (%fms) in %.1f (%.1f), V8 marking speed: %.fMB/s\n",
         ToString(step_origin), v8_bytes_processed / KB,
-        max_bytes_to_process / KB, v8_time, embedder_duration_ms,
-        embedder_time_ms, current_time - start, max_duration.InMillisecondsF(),
+        max_bytes_to_process / KB, v8_time.InMillisecondsF(),
+        embedder_duration.InMillisecondsF(),
+        max_embedder_duration.InMillisecondsF(),
+        (v8::base::TimeTicks::Now() - start).InMillisecondsF(),
+        max_duration.InMillisecondsF(),
         heap()->tracer()->IncrementalMarkingSpeedInBytesPerMillisecond() *
             1000 / MB);
   }

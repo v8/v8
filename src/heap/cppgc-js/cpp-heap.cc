@@ -763,7 +763,7 @@ void CppHeap::StartTracing() {
   marking_done_ = false;
 }
 
-bool CppHeap::AdvanceTracing(double max_duration) {
+bool CppHeap::AdvanceTracing(v8::base::TimeDelta max_duration) {
   if (!TracingInitialized()) return true;
   is_in_v8_marking_step_ = true;
   cppgc::internal::StatsCollector::EnabledScope stats_scope(
@@ -771,8 +771,7 @@ bool CppHeap::AdvanceTracing(double max_duration) {
       in_atomic_pause_ ? cppgc::internal::StatsCollector::kAtomicMark
                        : cppgc::internal::StatsCollector::kIncrementalMark);
   const v8::base::TimeDelta deadline =
-      in_atomic_pause_ ? v8::base::TimeDelta::Max()
-                       : v8::base::TimeDelta::FromMillisecondsD(max_duration);
+      in_atomic_pause_ ? v8::base::TimeDelta::Max() : max_duration;
   const size_t marked_bytes_limit = in_atomic_pause_ ? SIZE_MAX : 0;
   DCHECK_NOT_NULL(marker_);
   if (in_atomic_pause_) {
@@ -1009,9 +1008,9 @@ void CppHeap::CollectGarbageForTesting(CollectionType collection_type,
       StartTracing();
     }
     EnterFinalPause(stack_state);
-    CHECK(AdvanceTracing(std::numeric_limits<double>::infinity()));
+    CHECK(AdvanceTracing(v8::base::TimeDelta::Max()));
     if (FinishConcurrentMarkingIfNeeded()) {
-      CHECK(AdvanceTracing(std::numeric_limits<double>::infinity()));
+      CHECK(AdvanceTracing(v8::base::TimeDelta::Max()));
     }
     TraceEpilogue();
   }

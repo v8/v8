@@ -141,7 +141,7 @@ class V8_EXPORT_PRIVATE CppHeap final
       CollectionType,
       GarbageCollectionFlags = GarbageCollectionFlagValues::kNoFlags);
   void StartTracing();
-  bool AdvanceTracing(double max_duration);
+  bool AdvanceTracing(v8::base::TimeDelta max_duration);
   bool IsTracingDone() const;
   void TraceEpilogue();
   void EnterFinalPause(cppgc::EmbedderStackState stack_state);
