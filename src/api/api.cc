@@ -5706,18 +5706,6 @@ int Function::GetScriptColumnNumber() const {
   return kLineOffsetNotFound;
 }
 
-int Function::GetScriptStartPosition() const {
-  auto self = Utils::OpenHandle(this);
-  if (!self->IsJSFunction()) {
-    return kLineOffsetNotFound;
-  }
-  auto func = i::Handle<i::JSFunction>::cast(self);
-  if (func->shared().script().IsScript()) {
-    return func->shared().StartPosition();
-  }
-  return kLineOffsetNotFound;
-}
-
 MaybeLocal<UnboundScript> Function::GetUnboundScript() const {
   i::Handle<i::JSReceiver> self = Utils::OpenHandle(this);
   if (!self->IsJSFunction()) return MaybeLocal<UnboundScript>();
