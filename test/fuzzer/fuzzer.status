@@ -31,7 +31,7 @@
 
 ##############################################################################
 ['no_simd_hardware == True', {
-  'wasm/regress-1464231.wasm': [FAIL],
+  'wasm/regress-1464231.wasm': [SKIP],
 }],  # no_simd_hardware == True
 
 ]
