@@ -512,6 +512,8 @@ using DebugObjectCache = std::vector<Handle<HeapObject>>;
     DefaultWasmAsyncResolvePromiseCallback)                                   \
   V(WasmLoadSourceMapCallback, wasm_load_source_map_callback, nullptr)        \
   V(WasmGCEnabledCallback, wasm_gc_enabled_callback, nullptr)                 \
+  V(WasmImportedStringsEnabledCallback,                                       \
+    wasm_imported_strings_enabled_callback, nullptr)                          \
   V(JavaScriptCompileHintsMagicEnabledCallback,                               \
     compile_hints_magic_enabled_callback, nullptr)                            \
   /* State for Relocatable. */                                                \
@@ -771,6 +773,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   bool IsWasmGCEnabled(Handle<NativeContext> context);
   bool IsWasmStringRefEnabled(Handle<NativeContext> context);
   bool IsWasmInliningEnabled(Handle<NativeContext> context);
+  bool IsWasmImportedStringsEnabled(Handle<NativeContext> context);
 
   bool IsCompileHintsMagicEnabled(Handle<NativeContext> context);
 

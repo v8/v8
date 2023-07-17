@@ -46,6 +46,9 @@ WasmFeatures WasmFeatures::FromContext(Isolate* isolate,
   if (isolate->IsWasmInliningEnabled(context)) {
     features.Add(kFeature_inlining);
   }
+  if (isolate->IsWasmImportedStringsEnabled(context)) {
+    features.Add(kFeature_imported_strings);
+  }
   // This space intentionally left blank for future Wasm origin trials.
   return features;
 }

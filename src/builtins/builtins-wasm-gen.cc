@@ -25,8 +25,13 @@ TNode<NativeContext> WasmBuiltinsAssembler::LoadContextFromWasmOrJsFrame() {
   TNode<HeapObject> function_or_instance =
       CAST(LoadFromParentFrame(WasmFrameConstants::kWasmInstanceOffset));
   Label js(this);
+  Label apifunc(this);
   Label done(this);
-  GotoIf(IsJSFunction(function_or_instance), &js);
+  TNode<Uint16T> instance_type =
+      LoadMapInstanceType(LoadMap(function_or_instance));
+  GotoIf(IsJSFunctionInstanceType(instance_type), &js);
+  GotoIf(Word32Equal(instance_type, Int32Constant(WASM_API_FUNCTION_REF_TYPE)),
+         &apifunc);
   context_result = LoadContextFromInstance(CAST(function_or_instance));
   Goto(&done);
 
@@ -35,6 +40,12 @@ TNode<NativeContext> WasmBuiltinsAssembler::LoadContextFromWasmOrJsFrame() {
   TNode<Context> context =
       LoadObjectField<Context>(function, JSFunction::kContextOffset);
   context_result = LoadNativeContext(context);
+  Goto(&done);
+
+  BIND(&apifunc);
+  TNode<WasmApiFunctionRef> apiref = CAST(function_or_instance);
+  context_result = LoadObjectField<NativeContext>(
+      apiref, WasmApiFunctionRef::kNativeContextOffset);
   Goto(&done);
 
   BIND(&done);

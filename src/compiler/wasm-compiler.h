@@ -547,8 +547,8 @@ class WasmGraphBuilder {
   Node* StringConcat(Node* head, CheckForNull head_null_check, Node* tail,
                      CheckForNull tail_null_check,
                      wasm::WasmCodePosition position);
-  Node* StringEqual(Node* a, CheckForNull a_null_check, Node* b,
-                    CheckForNull b_null_check, wasm::WasmCodePosition position);
+  Node* StringEqual(Node* a, wasm::ValueType a_type, Node* b,
+                    wasm::ValueType b_type, wasm::WasmCodePosition position);
   Node* StringIsUSVSequence(Node* str, CheckForNull null_check,
                             wasm::WasmCodePosition position);
   Node* StringAsWtf8(Node* str, CheckForNull null_check,
@@ -565,6 +565,8 @@ class WasmGraphBuilder {
   Node* StringViewWtf16GetCodeUnit(Node* string, CheckForNull null_check,
                                    Node* offset,
                                    wasm::WasmCodePosition position);
+  Node* StringCodePointAt(Node* string, CheckForNull null_check, Node* offset,
+                          wasm::WasmCodePosition position);
   Node* StringViewWtf16Encode(uint32_t memory, Node* string,
                               CheckForNull null_check, Node* offset,
                               Node* start, Node* length,
@@ -585,6 +587,7 @@ class WasmGraphBuilder {
   Node* StringCompare(Node* lhs, CheckForNull null_check_lhs, Node* rhs,
                       CheckForNull null_check_rhs,
                       wasm::WasmCodePosition position);
+  Node* StringFromCharCode(Node* char_code);
   Node* StringFromCodePoint(Node* code_point);
   Node* StringHash(Node* string, CheckForNull null_check,
                    wasm::WasmCodePosition position);

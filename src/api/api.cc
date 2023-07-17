@@ -10221,6 +10221,10 @@ CALLBACK_SETTER(WasmLoadSourceMapCallback, WasmLoadSourceMapCallback,
 CALLBACK_SETTER(WasmGCEnabledCallback, WasmGCEnabledCallback,
                 wasm_gc_enabled_callback)
 
+CALLBACK_SETTER(WasmImportedStringsEnabledCallback,
+                WasmImportedStringsEnabledCallback,
+                wasm_imported_strings_enabled_callback)
+
 CALLBACK_SETTER(SharedArrayBufferConstructorEnabledCallback,
                 SharedArrayBufferConstructorEnabledCallback,
                 sharedarraybuffer_constructor_enabled_callback)

@@ -3570,7 +3570,8 @@ void Pipeline::GenerateCodeForWasmFunction(
   FOREACH_WASM_FEATURE_FLAG(DETECTED_IMPLIES_ENABLED)
 #undef DETECTED_IMPLIES_ENABLED
 
-  if (detected->has_gc() || detected->has_stringref()) {
+  if (detected->has_gc() || detected->has_stringref() ||
+      detected->has_imported_strings()) {
     pipeline.Run<WasmTypingPhase>(compilation_data.func_index);
     pipeline.RunPrintAndVerify(WasmTypingPhase::phase_name(), true);
     if (v8_flags.wasm_opt) {
@@ -3581,7 +3582,8 @@ void Pipeline::GenerateCodeForWasmFunction(
 
   // These proposals use gc nodes.
   if (detected->has_gc() || detected->has_typed_funcref() ||
-      detected->has_stringref() || detected->has_reftypes()) {
+      detected->has_stringref() || detected->has_reftypes() ||
+      detected->has_imported_strings()) {
     pipeline.Run<WasmGCLoweringPhase>(module);
     pipeline.RunPrintAndVerify(WasmGCLoweringPhase::phase_name(), true);
   }

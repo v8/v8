@@ -331,6 +331,9 @@ using WasmLoadSourceMapCallback = Local<String> (*)(Isolate* isolate,
 // If the callback returns true, it will also enable Wasm stringrefs.
 using WasmGCEnabledCallback = bool (*)(Local<Context> context);
 
+// --- Callback for checking if WebAssembly imported strings are enabled ---
+using WasmImportedStringsEnabledCallback = bool (*)(Local<Context> context);
+
 // --- Callback for checking if the SharedArrayBuffer constructor is enabled ---
 using SharedArrayBufferConstructorEnabledCallback =
     bool (*)(Local<Context> context);

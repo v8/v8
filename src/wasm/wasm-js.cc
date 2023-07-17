@@ -2949,6 +2949,35 @@ Handle<JSObject> SetupConstructor(Isolate* isolate,
   return proto;
 }
 
+void InstallStrings(Isolate* isolate, Handle<JSObject> webassembly) {
+  Handle<JSObject> string = isolate->factory()->NewJSObjectWithNullProto();
+  JSObject::AddProperty(isolate, webassembly, "String", string, DONT_ENUM);
+  SimpleInstallFunction(isolate, string, "fromWtf16Array",
+                        Builtin::kWebAssemblyStringFromWtf16Array, 3, true);
+  SimpleInstallFunction(isolate, string, "toWtf16Array",
+                        Builtin::kWebAssemblyStringToWtf16Array, 3, true);
+  SimpleInstallFunction(isolate, string, "fromWtf8Array",
+                        Builtin::kWebAssemblyStringFromWtf8Array, 3, true);
+  SimpleInstallFunction(isolate, string, "fromCharCode",
+                        Builtin::kWebAssemblyStringFromCharCode, 1, true);
+  SimpleInstallFunction(isolate, string, "fromCodePoint",
+                        Builtin::kWebAssemblyStringFromCodePoint, 1, true);
+  SimpleInstallFunction(isolate, string, "codePointAt",
+                        Builtin::kWebAssemblyStringCodePointAt, 2, true);
+  SimpleInstallFunction(isolate, string, "charCodeAt",
+                        Builtin::kWebAssemblyStringCharCodeAt, 2, true);
+  SimpleInstallFunction(isolate, string, "length",
+                        Builtin::kWebAssemblyStringLength, 1, true);
+  SimpleInstallFunction(isolate, string, "concat",
+                        Builtin::kWebAssemblyStringConcat, 2, true);
+  SimpleInstallFunction(isolate, string, "substring",
+                        Builtin::kWebAssemblyStringSubstring, 3, true);
+  SimpleInstallFunction(isolate, string, "equals",
+                        Builtin::kWebAssemblyStringEquals, 2, true);
+  SimpleInstallFunction(isolate, string, "compare",
+                        Builtin::kWebAssemblyStringCompare, 2, true);
+}
+
 // static
 void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
   Handle<JSGlobalObject> global = isolate->global_object();
@@ -3160,6 +3189,11 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
     context->set_wasm_exported_function_map(*function_map);
   }
 
+  // Setup importable strings.
+  if (enabled_features.has_imported_strings()) {
+    InstallStrings(isolate, webassembly);
+  }
+
   // Setup errors
   Handle<JSFunction> compile_error(
       isolate->native_context()->wasm_compile_error_function(), isolate);
@@ -3180,8 +3214,26 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
 
 // static
 void WasmJs::InstallConditionalFeatures(Isolate* isolate,
-                                        Handle<Context> context) {
-  // This space left blank for future origin trials.
+                                        Handle<NativeContext> context) {
+  Handle<JSGlobalObject> global = handle(context->global_object(), isolate);
+  // If some fuzzer decided to make the global object non-extensible, then
+  // we can't install any features (and would CHECK-fail if we tried).
+  if (!global->map().is_extensible()) return;
+
+  MaybeHandle<Object> maybe_wasm =
+      JSReceiver::GetProperty(isolate, global, "WebAssembly");
+  Handle<Object> wasm_obj;
+  if (!maybe_wasm.ToHandle(&wasm_obj) || !wasm_obj->IsJSObject()) return;
+  Handle<JSObject> webassembly = Handle<JSObject>::cast(wasm_obj);
+  if (!webassembly->map().is_extensible()) return;
+
+  if (isolate->IsWasmImportedStringsEnabled(context)) {
+    Handle<String> string_string = isolate->factory()->String_string();
+    if (!JSObject::HasRealNamedProperty(isolate, webassembly, string_string)
+             .FromMaybe(true)) {
+      InstallStrings(isolate, webassembly);
+    }
+  }
 }
 
 namespace wasm {

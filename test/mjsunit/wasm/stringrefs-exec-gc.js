@@ -187,6 +187,10 @@ function makeWtf8TestDataSegment() {
                                                   "ascii".length));
   assertThrows(() => instance.exports.bounds_check(0, 100),
                WebAssembly.RuntimeError, "array element access out of bounds");
+  assertThrows(() => instance.exports.bounds_check(0, -1),
+               WebAssembly.RuntimeError, "array element access out of bounds");
+  assertThrows(() => instance.exports.bounds_check(-1, 0),
+               WebAssembly.RuntimeError, "array element access out of bounds");
   assertThrows(() => instance.exports.bounds_check("ascii".length,
                                                    "ascii".length + 1),
                WebAssembly.RuntimeError, "array element access out of bounds");

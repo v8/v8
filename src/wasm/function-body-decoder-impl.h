@@ -5778,7 +5778,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         if (!this->Validate(this->pc_ + opcode_length, imm)) return 0;
         ValueType addr_type = MemoryIndexType(imm.memory);
         auto [offset, size] = Pop(addr_type, kWasmI32);
-        Value* result = Push(ValueType::Ref(HeapType::kString));
+        Value* result = Push(kWasmRefString);
         // TODO(13918): Pass memory index for multi-memory support.
         CALL_INTERFACE_IF_OK_AND_REACHABLE(StringNewWtf16, imm, offset, size,
                                            result);
@@ -5787,7 +5787,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       case kExprStringConst: {
         StringConstImmediate imm(this, this->pc_ + opcode_length, validate);
         if (!this->Validate(this->pc_ + opcode_length, imm)) return 0;
-        Value* result = Push(ValueType::Ref(HeapType::kString));
+        Value* result = Push(kWasmRefString);
         CALL_INTERFACE_IF_OK_AND_REACHABLE(StringConst, imm, result);
         return opcode_length + imm.length;
       }
@@ -5828,7 +5828,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       case kExprStringConcat: {
         NON_CONST_ONLY
         auto [head, tail] = Pop(kWasmStringRef, kWasmStringRef);
-        Value* result = Push(ValueType::Ref(HeapType::kString));
+        Value* result = Push(kWasmRefString);
         CALL_INTERFACE_IF_OK_AND_REACHABLE(StringConcat, head, tail, result);
         return opcode_length;
       }
@@ -5873,7 +5873,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       case kExprStringViewWtf8Slice: {
         NON_CONST_ONLY
         auto [view, start, end] = Pop(kWasmStringViewWtf8, kWasmI32, kWasmI32);
-        Value* result = Push(ValueType::Ref(HeapType::kString));
+        Value* result = Push(kWasmRefString);
         CALL_INTERFACE_IF_OK_AND_REACHABLE(StringViewWtf8Slice, view, start,
                                            end, result);
         return opcode_length;
@@ -5916,7 +5916,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       case kExprStringViewWtf16Slice: {
         NON_CONST_ONLY
         auto [view, start, end] = Pop(kWasmStringViewWtf16, kWasmI32, kWasmI32);
-        Value* result = Push(ValueType::Ref(HeapType::kString));
+        Value* result = Push(kWasmRefString);
         CALL_INTERFACE_IF_OK_AND_REACHABLE(StringViewWtf16Slice, view, start,
                                            end, result);
         return opcode_length;
@@ -5954,7 +5954,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       case kExprStringViewIterSlice: {
         NON_CONST_ONLY
         auto [view, codepoints] = Pop(kWasmStringViewIter, kWasmI32);
-        Value* result = Push(ValueType::Ref(HeapType::kString));
+        Value* result = Push(kWasmRefString);
         CALL_INTERFACE_IF_OK_AND_REACHABLE(StringViewIterSlice, view,
                                            codepoints, result);
         return opcode_length;
@@ -5981,7 +5981,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
         Value end = Pop(2, kWasmI32);
         Value start = Pop(1, kWasmI32);
         Value array = PopPackedArray(0, kWasmI16, WasmArrayAccess::kRead);
-        Value* result = Push(ValueType::Ref(HeapType::kString));
+        Value* result = Push(kWasmRefString);
         CALL_INTERFACE_IF_OK_AND_REACHABLE(StringNewWtf16Array, array, start,
                                            end, result);
         return opcode_length;
@@ -6019,7 +6019,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
       case kExprStringFromCodePoint: {
         NON_CONST_ONLY
         Value code_point = Pop(kWasmI32);
-        Value* result = Push(ValueType::Ref(HeapType::kString));
+        Value* result = Push(kWasmRefString);
         CALL_INTERFACE_IF_OK_AND_REACHABLE(StringFromCodePoint, code_point,
                                            result);
         return opcode_length;

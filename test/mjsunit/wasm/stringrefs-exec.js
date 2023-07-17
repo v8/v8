@@ -845,6 +845,9 @@ function makeWtf16TestDataSegment() {
   assertEquals("oo", instance.exports.slice("foo", 1, 3));
   assertEquals("oo", instance.exports.slice("foo", 1, 100));
   assertEquals("", instance.exports.slice("foo", 1, 0));
+  assertEquals("", instance.exports.slice("foo", 3, 4));
+  assertEquals("foo", instance.exports.slice("foo", 0, -1));
+  assertEquals("", instance.exports.slice("foo", -1, 1));
 
   assertThrows(() => instance.exports.view_from_null(),
                WebAssembly.RuntimeError, 'dereferencing a null pointer');

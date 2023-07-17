@@ -215,4 +215,30 @@ TEST_F(ApiWasmTest, WasmEnableDisableGC) {
   isolate()->SetWasmGCEnabledCallback(nullptr);
 }
 
+TEST_F(ApiWasmTest, WasmEnableDisableImportedStrings) {
+  Local<Context> context_local = Context::New(isolate());
+  Context::Scope context_scope(context_local);
+  i::Handle<i::NativeContext> context = v8::Utils::OpenHandle(*context_local);
+  // Test enabling/disabling via flag.
+  {
+    i::FlagScope<bool> flag_strings(
+        &i::v8_flags.experimental_wasm_imported_strings, true);
+    EXPECT_TRUE(i_isolate()->IsWasmImportedStringsEnabled(context));
+  }
+  {
+    i::FlagScope<bool> flag_strings(
+        &i::v8_flags.experimental_wasm_imported_strings, false);
+    EXPECT_FALSE(i_isolate()->IsWasmImportedStringsEnabled(context));
+  }
+  // Test enabling/disabling via callback.
+  isolate()->SetWasmImportedStringsEnabledCallback([](auto) { return true; });
+  EXPECT_TRUE(i_isolate()->IsWasmImportedStringsEnabled(context));
+  EXPECT_TRUE(
+      i::wasm::WasmFeatures::FromIsolate(i_isolate()).has_imported_strings());
+  isolate()->SetWasmImportedStringsEnabledCallback([](auto) { return false; });
+  EXPECT_FALSE(i_isolate()->IsWasmImportedStringsEnabled(context));
+  EXPECT_FALSE(
+      i::wasm::WasmFeatures::FromIsolate(i_isolate()).has_imported_strings());
+}
+
 }  // namespace v8

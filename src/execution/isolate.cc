@@ -3045,6 +3045,20 @@ bool Isolate::IsWasmInliningEnabled(Handle<NativeContext> context) {
 #endif
 }
 
+bool Isolate::IsWasmImportedStringsEnabled(Handle<NativeContext> context) {
+#ifdef V8_ENABLE_WEBASSEMBLY
+  v8::WasmImportedStringsEnabledCallback callback =
+      wasm_imported_strings_enabled_callback();
+  if (callback) {
+    v8::Local<v8::Context> api_context = v8::Utils::ToLocal(context);
+    if (callback(api_context)) return true;
+  }
+  return v8_flags.experimental_wasm_imported_strings;
+#else
+  return false;
+#endif
+}
+
 Handle<NativeContext> Isolate::GetIncumbentContext() {
   JavaScriptStackFrameIterator it(this);
 

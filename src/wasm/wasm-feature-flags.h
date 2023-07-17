@@ -49,6 +49,12 @@
   /* V8 side owner: thibaudm, fgm */                                           \
   V(stack_switching, "stack switching", false)                                 \
                                                                                \
+  /* Imported Strings Proposal. */                                             \
+  /* https://github.com/WebAssembly/design/issues/1480 */                      \
+  /* Prototype spec: https://bit.ly/wasm-imported-strings */                   \
+  /* V8 side owner: jkummerow */                                               \
+  V(imported_strings, "imported strings", false)                               \
+                                                                               \
   /* Multi-memory Proposal. */                                                 \
   /* https://github.com/WebAssembly/multi-memory */                            \
   /* V8 side owner: clemensb */                                                \

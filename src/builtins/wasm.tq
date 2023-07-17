@@ -42,6 +42,8 @@ extern runtime WasmArrayCopy(
     Context, WasmArray, Smi, WasmArray, Smi, Smi): JSAny;
 extern runtime WasmArrayNewSegment(
     Context, WasmInstanceObject, Smi, Smi, Smi, Map): Object;
+extern runtime WasmStringNewSegmentWtf8(
+    Context, WasmInstanceObject, Smi, Smi, Smi): String;
 extern runtime WasmArrayInitSegment(
     Context, WasmInstanceObject, Smi, WasmArray, Smi, Smi, Smi): JSAny;
 extern runtime WasmStringNewWtf8(
@@ -754,6 +756,8 @@ macro WasmTypeInfo(map: Map): WasmTypeInfo {
 
 const kWasmI16ValueType: constexpr int32
     generates 'wasm::ValueType::Primitive(wasm::kI16).raw_bit_field()';
+const kWasmI8ValueType: constexpr int32
+    generates 'wasm::ValueType::Primitive(wasm::kI8).raw_bit_field()';
 
 const kWasmArrayTypeRepOffset:
     constexpr intptr generates 'wasm::ArrayType::kRepOffset';
@@ -767,6 +771,15 @@ macro IsWord16WasmArrayMap(map: Map): bool {
   const arrayTypeRef: &int32 =
       torque_internal::unsafe::NewOffHeapReference(arrayTypePtr);
   return *arrayTypeRef == kWasmI16ValueType;
+}
+
+macro IsWord8WasmArrayMap(map: Map): bool {
+  const arrayTypePtr: RawPtr<int32> = %RawDownCast<RawPtr<int32>>(
+      WasmTypeInfo(map).native_type_ptr + kWasmArrayTypeRepOffset +
+      kWasmValueTypeBitFieldOffset);
+  const arrayTypeRef: &int32 =
+      torque_internal::unsafe::NewOffHeapReference(arrayTypePtr);
+  return *arrayTypeRef == kWasmI8ValueType;
 }
 
 // Non-standard experimental feature.
@@ -863,7 +876,8 @@ builtin WasmStringNewWtf8(
 builtin WasmStringNewWtf8Array(
     start: uint32, end: uint32, array: WasmArray, utf8Variant: Smi): String|
     Null {
-  const context = LoadContextFromFrame();
+  // This can be called from Wasm and from WebAssembly.String.* JS builtins.
+  const context = LoadContextFromWasmOrJsFrame();
   try {
     if (array.length < end) goto OffsetOutOfRange;
     if (end < start) goto OffsetOutOfRange;
@@ -984,13 +998,43 @@ builtin WasmStringNewWtf16Array(
           torque_internal::TimesSizeOf<char16>(Convert<intptr>(end))
     });
   } label OffsetOutOfRange deferred {
-    const context = LoadContextFromFrame();
+    // This can be called from Wasm and from WebAssembly.String.* JS builtins.
+    const context = LoadContextFromWasmOrJsFrame();
     const error = MessageTemplate::kWasmTrapArrayOutOfBounds;
     runtime::ThrowWasmError(context, SmiConstant(error));
   } label Runtime deferred {
-    const context = LoadContextFromFrame();
+    const context = LoadContextFromWasmOrJsFrame();
     tail runtime::WasmStringNewWtf16Array(
         context, array, SmiFromUint32(start), SmiFromUint32(end));
+  }
+}
+
+// For imports based string constants.
+// Always returns a String if it didn't trap; typed "JSAny" to satisfy
+// Torque's type checker for tail calls.
+builtin WasmStringFromDataSegment(
+    segmentLength: uint32, arrayStart: uint32, arrayEnd: uint32,
+    segmentIndex: Smi, segmentOffset: Smi): JSAny {
+  const instance = LoadInstanceFromFrame();
+  try {
+    const segmentOffsetU: uint32 = Unsigned(SmiToInt32(segmentOffset));
+    if (segmentLength > Convert<uint32>(kSmiMax) - segmentOffsetU) {
+      goto SegmentOOB;
+    }
+    if (arrayStart > segmentLength) goto ArrayOutOfBounds;
+    if (arrayEnd < arrayStart) goto ArrayOutOfBounds;
+    const arrayLength = arrayEnd - arrayStart;
+    if (arrayLength > segmentLength - arrayStart) goto ArrayOutOfBounds;
+    const smiOffset = Convert<PositiveSmi>(segmentOffsetU + arrayStart)
+        otherwise SegmentOOB;
+    const smiLength = Convert<PositiveSmi>(arrayLength) otherwise SegmentOOB;
+    tail runtime::WasmStringNewSegmentWtf8(
+        LoadContextFromInstance(instance), instance, segmentIndex, smiOffset,
+        smiLength);
+  } label SegmentOOB deferred {
+    tail ThrowWasmTrapElementSegmentOutOfBounds();
+  } label ArrayOutOfBounds deferred {
+    tail ThrowWasmTrapArrayOutOfBounds();
   }
 }
 
@@ -1068,7 +1112,7 @@ builtin WasmStringEncodeWtf16Array(
     return Unsigned(string.length);
   } label OffsetOutOfRange deferred {
     const error = MessageTemplate::kWasmTrapArrayOutOfBounds;
-    runtime::ThrowWasmError(LoadContextFromFrame(), SmiConstant(error));
+    runtime::ThrowWasmError(LoadContextFromWasmOrJsFrame(), SmiConstant(error));
   }
 }
 
@@ -1243,6 +1287,24 @@ macro CombineSurrogatePair(lead: char16, trail: char16): int32 {
   const surrogateBias: uint32 = 0xFCA02400;
   return Signed((lead32 << 10) + trail32 + surrogateBias);
 }
+
+builtin WasmStringCodePointAt(string: String, offset: uint32): uint32 {
+  try {
+    if (Unsigned(string.length) <= offset) goto OffsetOutOfRange;
+    const lead: char16 = StringCharCodeAt(string, Convert<uintptr>(offset));
+    if (!IsLeadSurrogate(lead)) return Convert<uint32>(lead);
+    const trailOffset = offset + 1;
+    if (Unsigned(string.length) <= trailOffset) return Convert<uint32>(lead);
+    const trail: char16 =
+        StringCharCodeAt(string, Convert<uintptr>(trailOffset));
+    if (!IsTrailSurrogate(trail)) return Convert<uint32>(lead);
+    return Unsigned(CombineSurrogatePair(lead, trail));
+  } label OffsetOutOfRange deferred {
+    const error = MessageTemplate::kWasmTrapStringOffsetOutOfBounds;
+    runtime::ThrowWasmError(LoadContextFromFrame(), SmiConstant(error));
+  }
+}
+
 builtin WasmStringViewIterNext(view: WasmStringViewIter): int32 {
   const string = view.string;
   const offset = view.offset;

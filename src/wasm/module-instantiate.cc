@@ -360,6 +360,22 @@ bool IsStringOrExternRef(wasm::ValueType type) {
   return IsStringRef(type) || IsExternRef(type);
 }
 
+bool IsI16Array(wasm::ValueType type, const WasmModule* module, bool writable) {
+  if (!type.is_object_reference() || !type.has_index()) return false;
+  uint32_t reftype = type.ref_index();
+  if (!module->has_array(reftype)) return false;
+  if (writable && !module->array_type(reftype)->mutability()) return false;
+  return module->array_type(reftype)->element_type() == kWasmI16;
+}
+
+bool IsI8Array(wasm::ValueType type, const WasmModule* module, bool writable) {
+  if (!type.is_object_reference() || !type.has_index()) return false;
+  uint32_t reftype = type.ref_index();
+  if (!module->has_array(reftype)) return false;
+  if (writable && !module->array_type(reftype)->mutability()) return false;
+  return module->array_type(reftype)->element_type() == kWasmI8;
+}
+
 // This detects imports of the forms:
 // - `Function.prototype.call.bind(foo)`, where `foo` is something that has a
 //   Builtin id.
@@ -370,6 +386,7 @@ WellKnownImport CheckForWellKnownImport(Handle<WasmInstanceObject> instance,
                                         const wasm::FunctionSig* sig) {
   WellKnownImport kGeneric = WellKnownImport::kGeneric;  // "using" is C++20.
   if (instance.is_null()) return kGeneric;
+  static constexpr ValueType kRefExtern = ValueType::Ref(HeapType::kExtern);
   // Check for plain JS functions.
   if (callable->IsJSFunction()) {
     SharedFunctionInfo sfi = JSFunction::cast(*callable).shared();
@@ -379,6 +396,98 @@ WellKnownImport CheckForWellKnownImport(Handle<WasmInstanceObject> instance,
     // recognize receiver-requiring methods even when they're (erroneously)
     // being imported such that they don't get a receiver.
     switch (sfi.builtin_id()) {
+      case Builtin::kWebAssemblyStringCharCodeAt:
+        if (sig->parameter_count() == 2 && sig->return_count() == 1 &&
+            sig->GetParam(0) == kWasmExternRef &&
+            sig->GetParam(1) == kWasmI32 && sig->GetReturn(0) == kWasmI32) {
+          return WellKnownImport::kStringCharCodeAt;
+        }
+        break;
+      case Builtin::kWebAssemblyStringCodePointAt:
+        if (sig->parameter_count() == 2 && sig->return_count() == 1 &&
+            sig->GetParam(0) == kWasmExternRef &&
+            sig->GetParam(1) == kWasmI32 && sig->GetReturn(0) == kWasmI32) {
+          return WellKnownImport::kStringCodePointAt;
+        }
+        break;
+      case Builtin::kWebAssemblyStringCompare:
+        if (sig->parameter_count() == 2 && sig->return_count() == 1 &&
+            sig->GetParam(0) == kWasmExternRef &&
+            sig->GetParam(1) == kWasmExternRef &&
+            sig->GetReturn(0) == kWasmI32) {
+          return WellKnownImport::kStringCompare;
+        }
+        break;
+      case Builtin::kWebAssemblyStringConcat:
+        if (sig->parameter_count() == 2 && sig->return_count() == 1 &&
+            sig->GetParam(0) == kWasmExternRef &&
+            sig->GetParam(1) == kWasmExternRef &&
+            sig->GetReturn(0) == kRefExtern) {
+          return WellKnownImport::kStringConcat;
+        }
+        break;
+      case Builtin::kWebAssemblyStringEquals:
+        if (sig->parameter_count() == 2 && sig->return_count() == 1 &&
+            sig->GetParam(0) == kWasmExternRef &&
+            sig->GetParam(1) == kWasmExternRef &&
+            sig->GetReturn(0) == kWasmI32) {
+          return WellKnownImport::kStringEquals;
+        }
+        break;
+      case Builtin::kWebAssemblyStringFromCharCode:
+        if (sig->parameter_count() == 1 && sig->return_count() == 1 &&
+            sig->GetParam(0) == kWasmI32 && sig->GetReturn(0) == kRefExtern) {
+          return WellKnownImport::kStringFromCharCode;
+        }
+        break;
+      case Builtin::kWebAssemblyStringFromCodePoint:
+        if (sig->parameter_count() == 1 && sig->return_count() == 1 &&
+            sig->GetParam(0) == kWasmI32 && sig->GetReturn(0) == kRefExtern) {
+          return WellKnownImport::kStringFromCodePoint;
+        }
+        break;
+      case Builtin::kWebAssemblyStringFromWtf16Array:
+        // i16array, i32, i32 -> extern
+        if (sig->parameter_count() == 3 && sig->return_count() == 1 &&
+            IsI16Array(sig->GetParam(0), instance->module(), false) &&
+            sig->GetParam(1) == kWasmI32 && sig->GetParam(2) == kWasmI32 &&
+            sig->GetReturn(0) == kRefExtern) {
+          return WellKnownImport::kStringFromWtf16Array;
+        }
+        break;
+      case Builtin::kWebAssemblyStringFromWtf8Array:
+        // i8array, i32, i32 -> extern
+        if (sig->parameter_count() == 3 && sig->return_count() == 1 &&
+            IsI8Array(sig->GetParam(0), instance->module(), false) &&
+            sig->GetParam(1) == kWasmI32 && sig->GetParam(2) == kWasmI32 &&
+            sig->GetReturn(0) == kRefExtern) {
+          return WellKnownImport::kStringFromWtf8Array;
+        }
+        break;
+      case Builtin::kWebAssemblyStringLength:
+        if (sig->parameter_count() == 1 && sig->return_count() == 1 &&
+            sig->GetParam(0) == kWasmExternRef &&
+            sig->GetReturn(0) == kWasmI32) {
+          return WellKnownImport::kStringLength;
+        }
+        break;
+      case Builtin::kWebAssemblyStringSubstring:
+        if (sig->parameter_count() == 3 && sig->return_count() == 1 &&
+            sig->GetParam(0) == kWasmExternRef &&
+            sig->GetParam(1) == kWasmI32 && sig->GetParam(2) == kWasmI32 &&
+            sig->GetReturn(0) == kRefExtern) {
+          return WellKnownImport::kStringSubstring;
+        }
+        break;
+      case Builtin::kWebAssemblyStringToWtf16Array:
+        // string, i16array, i32 -> i32
+        if (sig->parameter_count() == 3 && sig->return_count() == 1 &&
+            sig->GetParam(0) == kWasmExternRef &&
+            IsI16Array(sig->GetParam(1), instance->module(), true) &&
+            sig->GetParam(2) == kWasmI32 && sig->GetReturn(0) == kWasmI32) {
+          return WellKnownImport::kStringToWtf16Array;
+        }
+        break;
       case Builtin::kNumberParseFloat:
         if (sig->parameter_count() == 1 && sig->return_count() == 1 &&
             IsStringRef(sig->GetParam(0)) &&

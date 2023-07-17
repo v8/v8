@@ -27,9 +27,21 @@ enum class WellKnownImport : uint8_t {
   kDoubleToString,
   kIntToString,
   kParseFloat,
+  kStringCharCodeAt,
+  kStringCodePointAt,
+  kStringCompare,
+  kStringConcat,
+  kStringEquals,
+  kStringFromCharCode,
+  kStringFromCodePoint,
+  kStringFromWtf16Array,
+  kStringFromWtf8Array,
   kStringIndexOf,
+  kStringLength,
+  kStringSubstring,
   kStringToLocaleLowerCaseStringref,
   kStringToLowerCaseStringref,
+  kStringToWtf16Array,
 };
 
 class NativeModule;

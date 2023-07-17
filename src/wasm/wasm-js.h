@@ -37,7 +37,7 @@ class WasmJs {
                                         bool exposed_on_global_object);
 
   V8_EXPORT_PRIVATE static void InstallConditionalFeatures(
-      Isolate* isolate, Handle<Context> context);
+      Isolate* isolate, Handle<NativeContext> context);
 };
 
 }  // namespace v8::internal

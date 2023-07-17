@@ -724,6 +724,17 @@ class WasmGraphBuildingInterface {
     ReloadInstanceCacheIntoSsa(ssa_env_, decoder->module_);
   }
 
+  TFNode* ExternRefToString(FullDecoder* decoder, const Value value,
+                            bool null_succeeds = false) {
+    wasm::ValueType target_type =
+        null_succeeds ? kWasmStringRef : kWasmRefString;
+    WasmTypeCheckConfig config{value.type, target_type};
+    TFNode* string =
+        builder_->RefCastAbstract(value.node, config, decoder->position());
+    TFNode* rename = builder_->TypeGuard(string, target_type);
+    return builder_->SetType(rename, target_type);
+  }
+
   bool HandleWellKnownImport(FullDecoder* decoder, uint32_t index,
                              const Value args[], Value returns[]) {
     if (!decoder->module_) return false;  // Only needed for tests.
@@ -737,6 +748,113 @@ class WasmGraphBuildingInterface {
       case WKI::kUninstantiated:
       case WKI::kGeneric:
         return false;
+
+      // WebAssembly.String.* imports.
+      case WKI::kStringCharCodeAt: {
+        TFNode* string = ExternRefToString(decoder, args[0]);
+        TFNode* view = builder_->StringAsWtf16(
+            string, compiler::kWithoutNullCheck, decoder->position());
+        builder_->SetType(view, kWasmRefString);
+        result = builder_->StringViewWtf16GetCodeUnit(
+            view, compiler::kWithoutNullCheck, args[1].node,
+            decoder->position());
+        decoder->detected_->Add(kFeature_imported_strings);
+        break;
+      }
+      case WKI::kStringCodePointAt: {
+        TFNode* string = ExternRefToString(decoder, args[0]);
+        TFNode* view = builder_->StringAsWtf16(
+            string, compiler::kWithoutNullCheck, decoder->position());
+        builder_->SetType(view, kWasmRefString);
+        result = builder_->StringCodePointAt(view, compiler::kWithoutNullCheck,
+                                             args[1].node, decoder->position());
+        decoder->detected_->Add(kFeature_imported_strings);
+        break;
+      }
+      case WKI::kStringCompare: {
+        TFNode* a_string = ExternRefToString(decoder, args[0]);
+        TFNode* b_string = ExternRefToString(decoder, args[1]);
+        result = builder_->StringCompare(a_string, compiler::kWithoutNullCheck,
+                                         b_string, compiler::kWithoutNullCheck,
+                                         decoder->position());
+        decoder->detected_->Add(kFeature_imported_strings);
+        break;
+      }
+      case WKI::kStringConcat: {
+        TFNode* head_string = ExternRefToString(decoder, args[0]);
+        TFNode* tail_string = ExternRefToString(decoder, args[1]);
+        result = builder_->StringConcat(
+            head_string, compiler::kWithoutNullCheck, tail_string,
+            compiler::kWithoutNullCheck, decoder->position());
+        builder_->SetType(result, kWasmRefString);
+        decoder->detected_->Add(kFeature_imported_strings);
+        break;
+      }
+      case WKI::kStringEquals: {
+        // Using nullable type guards here because this instruction needs to
+        // handle {null} without trapping.
+        static constexpr bool kNullSucceeds = true;
+        TFNode* a_string = ExternRefToString(decoder, args[0], kNullSucceeds);
+        TFNode* b_string = ExternRefToString(decoder, args[1], kNullSucceeds);
+        result = builder_->StringEqual(a_string, args[0].type, b_string,
+                                       args[1].type, decoder->position());
+        decoder->detected_->Add(kFeature_imported_strings);
+        break;
+      }
+      case WKI::kStringFromCharCode:
+        result = builder_->StringFromCharCode(args[0].node);
+        builder_->SetType(result, kWasmRefString);
+        decoder->detected_->Add(kFeature_imported_strings);
+        break;
+      case WKI::kStringFromCodePoint:
+        result = builder_->StringFromCodePoint(args[0].node);
+        builder_->SetType(result, kWasmRefString);
+        decoder->detected_->Add(kFeature_imported_strings);
+        break;
+      case WKI::kStringFromWtf16Array:
+        result = builder_->StringNewWtf16Array(
+            args[0].node, NullCheckFor(args[0].type), args[1].node,
+            args[2].node, decoder->position());
+        builder_->SetType(result, kWasmRefString);
+        decoder->detected_->Add(kFeature_imported_strings);
+        break;
+      case WKI::kStringFromWtf8Array:
+        result = builder_->StringNewWtf8Array(
+            unibrow::Utf8Variant::kWtf8, args[0].node,
+            NullCheckFor(args[0].type), args[1].node, args[2].node,
+            decoder->position());
+        builder_->SetType(result, kWasmRefString);
+        decoder->detected_->Add(kFeature_imported_strings);
+        break;
+      case WKI::kStringLength: {
+        TFNode* string = ExternRefToString(decoder, args[0]);
+        result = builder_->StringMeasureWtf16(
+            string, compiler::kWithoutNullCheck, decoder->position());
+        decoder->detected_->Add(kFeature_imported_strings);
+        break;
+      }
+      case WKI::kStringSubstring: {
+        TFNode* string = ExternRefToString(decoder, args[0]);
+        TFNode* view = builder_->StringAsWtf16(
+            string, compiler::kWithoutNullCheck, decoder->position());
+        builder_->SetType(view, kWasmRefString);
+        result = builder_->StringViewWtf16Slice(
+            view, compiler::kWithoutNullCheck, args[1].node, args[2].node,
+            decoder->position());
+        builder_->SetType(result, kWasmRefString);
+        decoder->detected_->Add(kFeature_imported_strings);
+        break;
+      }
+      case WKI::kStringToWtf16Array: {
+        TFNode* string = ExternRefToString(decoder, args[0]);
+        result = builder_->StringEncodeWtf16Array(
+            string, compiler::kWithoutNullCheck, args[1].node,
+            NullCheckFor(args[1].type), args[2].node, decoder->position());
+        decoder->detected_->Add(kFeature_imported_strings);
+        break;
+      }
+
+      // Other string-related imports.
       case WKI::kDoubleToString:
         result = builder_->WellKnown_DoubleToString(args[0].node);
         break;
@@ -746,11 +864,13 @@ class WasmGraphBuildingInterface {
       case WKI::kParseFloat:
         result = builder_->WellKnown_ParseFloat(args[0].node,
                                                 NullCheckFor(args[0].type));
+        decoder->detected_->Add(kFeature_stringref);
         break;
       case WKI::kStringIndexOf:
         result = builder_->WellKnown_StringIndexOf(
             args[0].node, args[1].node, args[2].node,
             NullCheckFor(args[0].type), NullCheckFor(args[1].type));
+        decoder->detected_->Add(kFeature_stringref);
         break;
       case WKI::kStringToLocaleLowerCaseStringref:
         // Temporarily ignored because of bugs (v8:13977, v8:13985).
@@ -758,10 +878,12 @@ class WasmGraphBuildingInterface {
         return false;
         // result = builder_->WellKnown_StringToLocaleLowerCaseStringref(
         //     args[0].node, args[1].node, NullCheckFor(args[0].type));
+        // decoder->detected_->Add(kFeature_stringref);
         // break;
       case WKI::kStringToLowerCaseStringref:
         result = builder_->WellKnown_StringToLowerCaseStringref(
             args[0].node, NullCheckFor(args[0].type));
+        decoder->detected_->Add(kFeature_stringref);
         break;
     }
     if (v8_flags.trace_wasm_inlining) {
@@ -782,12 +904,8 @@ class WasmGraphBuildingInterface {
       maybe_call_count = feedback.call_count(0);
     }
     // This must happen after the {next_call_feedback()} call.
-    if (HandleWellKnownImport(decoder, imm.index, args, returns)) {
-      // TODO(jkummerow): Move this into {HandleWKI} when we support
-      // non-stringref imports there.
-      decoder->detected_->Add(kFeature_stringref);
-      return;
-    }
+    if (HandleWellKnownImport(decoder, imm.index, args, returns)) return;
+
     DoCall(decoder, CallInfo::CallDirect(imm.index, maybe_call_count), imm.sig,
            args, returns);
   }
@@ -1824,8 +1942,7 @@ class WasmGraphBuildingInterface {
 
   void StringEq(FullDecoder* decoder, const Value& a, const Value& b,
                 Value* result) {
-    SetAndTypeNode(result, builder_->StringEqual(a.node, NullCheckFor(a.type),
-                                                 b.node, NullCheckFor(b.type),
+    SetAndTypeNode(result, builder_->StringEqual(a.node, a.type, b.node, b.type,
                                                  decoder->position()));
   }
 

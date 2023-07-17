@@ -138,6 +138,7 @@ enum class WellKnownImport : uint8_t;
   V(WasmStringIsUSVSequence)             \
   V(WasmStringAsWtf16)                   \
   V(WasmStringViewWtf16GetCodeUnit)      \
+  V(WasmStringCodePointAt)               \
   V(WasmStringViewWtf16Encode)           \
   V(WasmStringViewWtf16Slice)            \
   V(WasmStringNewWtf8Array)              \

@@ -1204,6 +1204,29 @@ RUNTIME_FUNCTION(Runtime_WasmStringConst) {
               .ToHandleChecked();
 }
 
+RUNTIME_FUNCTION(Runtime_WasmStringNewSegmentWtf8) {
+  ClearThreadInWasmScope flag_scope(isolate);
+  DCHECK_EQ(4, args.length());
+  HandleScope scope(isolate);
+  Handle<WasmInstanceObject> instance(WasmInstanceObject::cast(args[0]),
+                                      isolate);
+  uint32_t segment_index = args.positive_smi_value_at(1);
+  uint32_t offset = args.positive_smi_value_at(2);
+  uint32_t length = args.positive_smi_value_at(3);
+
+  if (!base::IsInBounds<uint32_t>(
+          offset, length, instance->data_segment_sizes().get(segment_index))) {
+    return ThrowWasmError(isolate,
+                          MessageTemplate::kWasmTrapDataSegmentOutOfBounds);
+  }
+
+  Address source = instance->data_segment_starts().get(segment_index) + offset;
+  RETURN_RESULT_OR_FAILURE(
+      isolate, isolate->factory()->NewStringFromUtf8(
+                   {reinterpret_cast<const uint8_t*>(source), length},
+                   unibrow::Utf8Variant::kWtf8));
+}
+
 namespace {
 // TODO(12868): Consider unifying with api.cc:String::Utf8Length.
 template <typename T>

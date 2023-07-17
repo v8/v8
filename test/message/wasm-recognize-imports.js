@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --experimental-wasm-stringref --allow-natives-syntax
+// Flags: --experimental-wasm-gc --experimental-wasm-imported-strings
 // Flags: --trace-wasm-inlining --liftoff --experimental-wasm-typed-funcref
 // Also explicitly enable inlining and disable debug code to avoid differences
 // between --future and --no-future or debug and release builds.
@@ -82,5 +83,54 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
       toLocaleLowerCase,
       toLocaleLowerCase_nn: toLocaleLowerCase,
     }
+  });
+})();
+
+// Tests imported strings.
+(function TestImportedStrings() {
+  console.log("Testing imported strings");
+  // We use "r" for nullable "externref", and "e" for non-nullable "ref extern".
+  let kRefExtern = wasmRefType(kWasmExternRef);
+  let kSig_e_ii = makeSig([kWasmI32, kWasmI32], [kRefExtern]);
+  let kSig_e_d = makeSig([kWasmF64], [kRefExtern]);
+  let kSig_i_ri = makeSig([kWasmExternRef, kWasmI32], [kWasmI32]);
+  let kSig_i_rr = makeSig([kWasmExternRef, kWasmExternRef], [kWasmI32]);
+  let kSig_e_i = makeSig([kWasmI32], [kRefExtern]);
+  let kSig_e_rii = makeSig([kWasmExternRef, kWasmI32, kWasmI32],
+                          [kRefExtern]);
+  let kSig_e_rr = makeSig([kWasmExternRef, kWasmExternRef], [kRefExtern]);
+
+  let builder = new WasmModuleBuilder();
+  let kArrayI16 = builder.addArray(kWasmI16, true);
+  let kArrayI8 = builder.addArray(kWasmI8, true);
+  let a16ref = wasmRefNullType(kArrayI16);
+  let a8ref = wasmRefNullType(kArrayI8);
+
+  builder.addImport('String', 'fromWtf16Array',
+                    makeSig([a16ref, kWasmI32, kWasmI32], [kRefExtern]));
+  builder.addImport('String', 'fromWtf8Array',
+                    makeSig([a8ref, kWasmI32, kWasmI32], [kRefExtern]));
+  builder.addImport('String', 'toWtf16Array',
+                    makeSig([kWasmExternRef, a16ref, kWasmI32], [kWasmI32]));
+  builder.addImport('String', 'fromCharCode', kSig_e_i);
+  builder.addImport('String', 'fromCodePoint', kSig_e_i);
+  builder.addImport('String', 'charCodeAt', kSig_i_ri);
+  builder.addImport('String', 'codePointAt', kSig_i_ri);
+  builder.addImport('String', 'length', kSig_i_r);
+  builder.addImport('String', 'concat', kSig_e_rr);
+  builder.addImport('String', 'substring', kSig_e_rii);
+  builder.addImport('String', 'equals', kSig_i_rr);
+  builder.addImport('String', 'compare', kSig_i_rr);
+
+  builder.addImport('related', 'intToString', kSig_e_ii);
+  builder.addImport('related', 'doubleToString', kSig_e_d);
+  // String-consuming imports like "toLowerCase" are not (yet?) supported for
+  // special-casing with imported strings due to lack of static typing.
+  let intToString = Function.prototype.call.bind(Number.prototype.toString);
+  let doubleToString = intToString;
+
+  builder.instantiate({
+    String: WebAssembly.String,
+    related: { intToString, doubleToString }
   });
 })();

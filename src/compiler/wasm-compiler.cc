@@ -5497,12 +5497,22 @@ Node* WasmGraphBuilder::ArrayNewSegment(uint32_t segment_index, Node* offset,
                                         Node* length, Node* rtt,
                                         bool is_element,
                                         wasm::WasmCodePosition position) {
-  Node* array = gasm_->CallBuiltin(
-      Builtin::kWasmArrayNewSegment, Operator::kNoDeopt | Operator::kNoThrow,
-      gasm_->Uint32Constant(segment_index), offset, length,
-      gasm_->SmiConstant(is_element ? 1 : 0), rtt);
+  Node* array =
+      gasm_->CallBuiltin(Builtin::kWasmArrayNewSegment, Operator::kEliminatable,
+                         gasm_->Uint32Constant(segment_index), offset, length,
+                         gasm_->SmiConstant(is_element ? 1 : 0), rtt);
   SetSourcePosition(array, position);
   return array;
+}
+
+// TODO(jkummerow): This check would be more elegant if we made
+// {ArrayNewSegment} a high-level node that's lowered later.
+bool IsArrayNewSegment(Node* node) {
+  if (node->opcode() != IrOpcode::kCall) return false;
+  Node* callee = NodeProperties::GetValueInput(node, 0);
+  if (callee->opcode() != IrOpcode::kNumberConstant) return false;
+  double target = OpParameter<double>(callee->op());
+  return target == static_cast<double>(Builtin::kWasmArrayNewSegment);
 }
 
 void WasmGraphBuilder::ArrayInitSegment(uint32_t segment_index, Node* array,
@@ -6096,6 +6106,30 @@ Node* WasmGraphBuilder::StringNewWtf8Array(unibrow::Utf8Variant variant,
                                            Node* array, CheckForNull null_check,
                                            Node* start, Node* end,
                                            wasm::WasmCodePosition position) {
+  // Special case: shortcut a sequence "array from data segment" + "string from
+  // wtf8 array" to directly create a string from the segment.
+  if (IsArrayNewSegment(array)) {
+    // We can only pass 3 untagged parameters to the builtin (on 32-bit
+    // platforms). The segment index is easy to tag: if it validated, it must
+    // be in Smi range.
+    Node* segment_index = NodeProperties::GetValueInput(array, 1);
+    Uint32Matcher index_matcher(segment_index);
+    DCHECK(index_matcher.HasResolvedValue());
+    Node* segment_index_smi = gasm_->SmiConstant(index_matcher.ResolvedValue());
+    // Arbitrary choice for the second tagged parameter: the segment offset.
+    Node* segment_offset = NodeProperties::GetValueInput(array, 2);
+    TrapIfFalse(wasm::kTrapDataSegmentOutOfBounds,
+                gasm_->Uint32LessThan(segment_offset,
+                                      gasm_->Uint32Constant(Smi::kMaxValue)),
+                position);
+    Node* segment_offset_smi = gasm_->BuildChangeInt32ToSmi(segment_offset);
+    Node* segment_length = NodeProperties::GetValueInput(array, 3);
+    return gasm_->CallBuiltin(Builtin::kWasmStringFromDataSegment,
+                              Operator::kEliminatable, segment_length, start,
+                              end, segment_index_smi, segment_offset_smi);
+  }
+
+  // Regular path if the shortcut wasn't taken.
   if (null_check == kWithNullCheck) {
     array = AssertNotNull(array, wasm::kWasmArrayRef, position);
   }
@@ -6235,19 +6269,17 @@ Node* WasmGraphBuilder::StringConcat(Node* head, CheckForNull head_null_check,
       LOAD_INSTANCE_FIELD(NativeContext, MachineType::TaggedPointer()));
 }
 
-Node* WasmGraphBuilder::StringEqual(Node* a, CheckForNull a_null_check, Node* b,
-                                    CheckForNull b_null_check,
+Node* WasmGraphBuilder::StringEqual(Node* a, wasm::ValueType a_type, Node* b,
+                                    wasm::ValueType b_type,
                                     wasm::WasmCodePosition position) {
   auto done = gasm_->MakeLabel(MachineRepresentation::kWord32);
   // Covers "identical string pointer" and "both are null" cases.
   gasm_->GotoIf(gasm_->TaggedEqual(a, b), &done, Int32Constant(1));
-  if (a_null_check == kWithNullCheck) {
-    gasm_->GotoIf(gasm_->IsNull(a, wasm::kWasmStringRef), &done,
-                  Int32Constant(0));
+  if (a_type.is_nullable()) {
+    gasm_->GotoIf(gasm_->IsNull(a, a_type), &done, Int32Constant(0));
   }
-  if (b_null_check == kWithNullCheck) {
-    gasm_->GotoIf(gasm_->IsNull(b, wasm::kWasmStringRef), &done,
-                  Int32Constant(0));
+  if (b_type.is_nullable()) {
+    gasm_->GotoIf(gasm_->IsNull(b, b_type), &done, Int32Constant(0));
   }
   // TODO(jkummerow): Call Builtin::kStringEqual directly.
   gasm_->Goto(&done, gasm_->CallBuiltin(Builtin::kWasmStringEqual,
@@ -6370,6 +6402,80 @@ Node* WasmGraphBuilder::StringViewWtf16GetCodeUnit(
   return done.PhiAt(0);
 }
 
+Node* WasmGraphBuilder::StringCodePointAt(Node* string, CheckForNull null_check,
+                                          Node* offset,
+                                          wasm::WasmCodePosition position) {
+  if (null_check == kWithNullCheck) {
+    string = AssertNotNull(string, wasm::kWasmStringRef, position);
+  }
+  Node* prepare = gasm_->StringPrepareForGetCodeunit(string);
+  Node* base = gasm_->Projection(0, prepare);
+  Node* base_offset = gasm_->Projection(1, prepare);
+  Node* charwidth_shift = gasm_->Projection(2, prepare);
+
+  // Bounds check.
+  Node* length = gasm_->LoadStringLength(string);
+  TrapIfFalse(wasm::kTrapStringOffsetOutOfBounds,
+              gasm_->Uint32LessThan(offset, length), position);
+
+  auto onebyte = gasm_->MakeLabel();
+  auto bailout = gasm_->MakeDeferredLabel();
+  auto done = gasm_->MakeLabel(MachineRepresentation::kWord32);
+  gasm_->GotoIf(
+      gasm_->Word32Equal(charwidth_shift,
+                         gasm_->Int32Constant(kCharWidthBailoutSentinel)),
+      &bailout);
+  gasm_->GotoIf(gasm_->Word32Equal(charwidth_shift, gasm_->Int32Constant(0)),
+                &onebyte);
+
+  // Two-byte.
+  Node* object_offset =
+      gasm_->IntAdd(gasm_->IntMul(gasm_->BuildChangeInt32ToIntPtr(offset),
+                                  gasm_->IntPtrConstant(2)),
+                    base_offset);
+  Node* lead = gasm_->LoadImmutableFromObject(MachineType::Uint16(), base,
+                                              object_offset);
+  Node* is_lead_surrogate =
+      gasm_->Word32Equal(gasm_->Word32And(lead, gasm_->Int32Constant(0xFC00)),
+                         gasm_->Int32Constant(0xD800));
+  gasm_->GotoIfNot(is_lead_surrogate, &done, lead);
+  Node* trail_offset = gasm_->Int32Add(offset, gasm_->Int32Constant(1));
+  gasm_->GotoIfNot(gasm_->Uint32LessThan(trail_offset, length), &done, lead);
+  Node* trail = gasm_->LoadImmutableFromObject(
+      MachineType::Uint16(), base,
+      gasm_->IntAdd(object_offset, gasm_->IntPtrConstant(2)));
+  Node* is_trail_surrogate =
+      gasm_->WordEqual(gasm_->Word32And(trail, gasm_->Int32Constant(0xFC00)),
+                       gasm_->Int32Constant(0xDC00));
+  gasm_->GotoIfNot(is_trail_surrogate, &done, lead);
+  Node* surrogate_bias =
+      gasm_->Int32Constant(0x10000 - (0xD800 << 10) - 0xDC00);
+  Node* result =
+      gasm_->Int32Add(gasm_->Word32Shl(lead, gasm_->Int32Constant(10)),
+                      gasm_->Int32Add(trail, surrogate_bias));
+  gasm_->Goto(&done, result);
+
+  // One-byte.
+  gasm_->Bind(&onebyte);
+  object_offset =
+      gasm_->IntAdd(gasm_->BuildChangeInt32ToIntPtr(offset), base_offset);
+  result =
+      gasm_->LoadImmutableFromObject(MachineType::Uint8(), base, object_offset);
+  gasm_->Goto(&done, result);
+
+  gasm_->Bind(&bailout);
+  gasm_->Goto(&done,
+              gasm_->CallRuntimeStub(wasm::WasmCode::kWasmStringCodePointAt,
+                                     Operator::kPure, string, offset));
+
+  gasm_->Bind(&done);
+  // Make sure the original string is kept alive as long as we're operating
+  // on pointers extracted from it (otherwise e.g. external strings' resources
+  // might get freed prematurely).
+  gasm_->Retain(string);
+  return done.PhiAt(0);
+}
+
 Node* WasmGraphBuilder::StringViewWtf16Encode(uint32_t memory, Node* string,
                                               CheckForNull null_check,
                                               Node* offset, Node* start,
@@ -6463,7 +6569,16 @@ Node* WasmGraphBuilder::StringCompare(Node* lhs, CheckForNull null_check_lhs,
       Builtin::kStringCompare, Operator::kEliminatable, lhs, rhs));
 }
 
+Node* WasmGraphBuilder::StringFromCharCode(Node* char_code) {
+  Node* capped = gasm_->Word32And(char_code, gasm_->Uint32Constant(0xFFFF));
+  return gasm_->CallBuiltin(Builtin::kWasmStringFromCodePoint,
+                            Operator::kEliminatable, capped);
+}
+
 Node* WasmGraphBuilder::StringFromCodePoint(Node* code_point) {
+  // TODO(jkummerow): Refactor the code in
+  // EffectControlLinearizer::LowerStringFromSingleCodePoint to make it
+  // accessible for Wasm.
   return gasm_->CallBuiltin(Builtin::kWasmStringFromCodePoint,
                             Operator::kEliminatable, code_point);
 }
@@ -6743,7 +6858,19 @@ Node* WasmGraphBuilder::SetType(Node* node, wasm::ValueType type) {
   } else {
     // We might try to set the type twice since some nodes are cached in the
     // graph assembler, but we should never change the type.
-    DCHECK_EQ(compiler::NodeProperties::GetType(node).AsWasm().type, type);
+    // The exception is imported strings support, which may special-case
+    // values that are officially externref-typed as being known to be strings.
+#if DEBUG
+    static constexpr wasm::ValueType kRefString =
+        wasm::ValueType::Ref(wasm::HeapType::kString);
+    static constexpr wasm::ValueType kRefExtern =
+        wasm::ValueType::Ref(wasm::HeapType::kExtern);
+    DCHECK(
+        (compiler::NodeProperties::GetType(node).AsWasm().type == type) ||
+        (enabled_features_.has_imported_strings() &&
+         compiler::NodeProperties::GetType(node).AsWasm().type == kRefString &&
+         (type == wasm::kWasmExternRef || type == kRefExtern)));
+#endif
   }
   return node;
 }

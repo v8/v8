@@ -721,6 +721,7 @@ constexpr ValueType kWasmI31Ref = ValueType::RefNull(HeapType::kI31);
 constexpr ValueType kWasmStructRef = ValueType::RefNull(HeapType::kStruct);
 constexpr ValueType kWasmArrayRef = ValueType::RefNull(HeapType::kArray);
 constexpr ValueType kWasmStringRef = ValueType::RefNull(HeapType::kString);
+constexpr ValueType kWasmRefString = ValueType::Ref(HeapType::kString);
 constexpr ValueType kWasmStringViewWtf8 =
     ValueType::RefNull(HeapType::kStringViewWtf8);
 constexpr ValueType kWasmStringViewWtf16 =
