@@ -31,10 +31,16 @@ const TSCallDescriptor* CreateAllocateBuiltinDescriptor(Zone* zone);
 // We can do write barrier elimination across loops if the loop does not contain
 // any potentially allocating operations.
 struct MemoryAnalyzer {
+  enum class AllocationFolding { kDoAllocationFolding, kDontAllocationFolding };
+
   Zone* phase_zone;
   const Graph& input_graph;
-  MemoryAnalyzer(Zone* phase_zone, const Graph& input_graph)
-      : phase_zone(phase_zone), input_graph(input_graph) {}
+  AllocationFolding allocation_folding;
+  MemoryAnalyzer(Zone* phase_zone, const Graph& input_graph,
+                 AllocationFolding allocation_folding)
+      : phase_zone(phase_zone),
+        input_graph(input_graph),
+        allocation_folding(allocation_folding) {}
 
   struct BlockState {
     const AllocateOp* last_allocation = nullptr;
@@ -97,7 +103,11 @@ class MemoryOptimizationReducer : public Next {
   TURBOSHAFT_REDUCER_BOILERPLATE()
 
   void Analyze() {
-    analyzer_.emplace(Asm().phase_zone(), Asm().input_graph());
+    analyzer_.emplace(
+        Asm().phase_zone(), Asm().input_graph(),
+        PipelineData::Get().info()->allocation_folding()
+            ? MemoryAnalyzer::AllocationFolding::kDoAllocationFolding
+            : MemoryAnalyzer::AllocationFolding::kDontAllocationFolding);
     analyzer_->Run();
     Next::Analyze();
   }
