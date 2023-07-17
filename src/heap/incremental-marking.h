@@ -206,7 +206,6 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
 
   bool ShouldWaitForTask();
   bool TryInitializeTaskTimeout();
-  double CurrentTimeToMarkingTask() const;
 
   void EmbedderStep(double expected_duration_ms, double* duration_ms);
   void Step(v8::base::TimeDelta max_duration, size_t max_bytes_to_process,

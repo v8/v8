@@ -578,16 +578,6 @@ bool IncrementalMarking::Stop() {
   return true;
 }
 
-double IncrementalMarking::CurrentTimeToMarkingTask() const {
-  DCHECK_NOT_NULL(incremental_marking_job());
-  const double recorded_time_to_marking_task =
-      heap_->tracer()->AverageTimeToIncrementalMarkingTask();
-  const double current_time_to_marking_task =
-      incremental_marking_job()->CurrentTimeToTask().InMillisecondsF();
-  if (recorded_time_to_marking_task == 0.0) return 0.0;
-  return std::max(recorded_time_to_marking_task, current_time_to_marking_task);
-}
-
 size_t IncrementalMarking::OldGenerationSizeOfObjects() const {
   // TODO(v8:14140): This is different to Heap::OldGenerationSizeOfObjects() in
   // that it only considers shared space for the shared space isolate. Consider
@@ -623,48 +613,46 @@ bool IncrementalMarking::ShouldWaitForTask() {
 
   const double current_time = heap()->MonotonicallyIncreasingTimeInMs();
   const bool wait_for_task = current_time < completion_task_timeout_;
-
   if (V8_UNLIKELY(v8_flags.trace_incremental_marking && wait_for_task)) {
     isolate()->PrintWithTimestamp(
-        "[IncrementalMarking] Delaying GC via stack guard. time left: "
-        "%fms\n",
+        "[IncrementalMarking] Completion: Delaying GC via stack guard, time "
+        "left: %f.1ms\n",
         completion_task_timeout_ - current_time);
   }
-
   return wait_for_task;
 }
 
 bool IncrementalMarking::TryInitializeTaskTimeout() {
+  DCHECK_NOT_NULL(incremental_marking_job());
   // Allowed overshoot percentage of incremental marking walltime.
-  constexpr double kAllowedOvershoot = 0.1;
+  constexpr double kAllowedOvershootPercentBasedOnWalltime = 0.1;
   // Minimum overshoot in ms. This is used to allow moving away from stack
   // when marking was fast.
-  constexpr double kMinOvershootMs = 50;
-
+  constexpr double allowed_overshoot_based_on_delay_ms = 50;
   const double now = heap_->MonotonicallyIncreasingTimeInMs();
-  const double overshoot_ms =
-      std::max(kMinOvershootMs, (now - start_time_ms_) * kAllowedOvershoot);
-  const double time_to_marking_task = CurrentTimeToMarkingTask();
-
-  if (time_to_marking_task == 0.0 || time_to_marking_task > overshoot_ms) {
-    if (V8_UNLIKELY(v8_flags.trace_incremental_marking)) {
-      isolate()->PrintWithTimestamp(
-          "[IncrementalMarking] Not delaying marking completion. time to "
-          "task: %fms allowed overshoot: %fms\n",
-          time_to_marking_task, overshoot_ms);
-    }
-    return false;
-  } else {
-    completion_task_timeout_ = now + overshoot_ms;
-    if (V8_UNLIKELY(v8_flags.trace_incremental_marking)) {
-      isolate()->PrintWithTimestamp(
-          "[IncrementalMarking] Delaying GC via stack guard. time to task: "
-          "%fms "
-          "allowed overshoot: %fms\n",
-          time_to_marking_task, overshoot_ms);
-    }
-    return true;
+  const double allowed_overshoot_ms = std::max(
+      allowed_overshoot_based_on_delay_ms,
+      (now - start_time_ms_) * kAllowedOvershootPercentBasedOnWalltime);
+  const auto optional_avg_time_to_marking_task =
+      incremental_marking_job()->AverageTimeToTask();
+  const bool delaying = optional_avg_time_to_marking_task.has_value() &&
+                        optional_avg_time_to_marking_task->InMillisecondsF() <=
+                            allowed_overshoot_ms;
+  if (delaying) {
+    completion_task_timeout_ = now + allowed_overshoot_ms;
   }
+  if (V8_UNLIKELY(v8_flags.trace_incremental_marking)) {
+    isolate()->PrintWithTimestamp(
+        "[IncrementalMarking] Completion: %s GC via stack guard, "
+        "time to task: "
+        "%f.1ms, allowed overshoot: %f.1ms\n",
+        delaying ? "delaying" : "not delaying",
+        optional_avg_time_to_marking_task.has_value()
+            ? optional_avg_time_to_marking_task->InMillisecondsF()
+            : 0.0,
+        allowed_overshoot_ms);
+  }
+  return delaying;
 }
 
 size_t IncrementalMarking::GetScheduledBytes(StepOrigin step_origin) {

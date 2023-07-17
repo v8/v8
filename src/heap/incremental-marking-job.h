@@ -34,9 +34,10 @@ class IncrementalMarkingJob final {
   // thread.
   void ScheduleTask(TaskType task_type = TaskType::kNormal);
 
-  // Gets the `TimeDelta` as time to task for the latest scheduled task. Returns
-  // an empty `TimeDelta` if no task has been scheduled.
-  v8::base::TimeDelta CurrentTimeToTask() const;
+  // Returns a weighted average of time to task. For delayed tasks the time to
+  // task is only recorded after the initial delay. In case a task is currently
+  // running, it is added to the average.
+  base::Optional<v8::base::TimeDelta> AverageTimeToTask() const;
 
  private:
   class Task;
