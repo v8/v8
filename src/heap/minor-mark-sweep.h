@@ -26,7 +26,7 @@ namespace internal {
 
 class YoungGenerationMainMarkingVisitor final
     : public YoungGenerationMarkingVisitorBase<
-          YoungGenerationMainMarkingVisitor, MarkingState> {
+          YoungGenerationMainMarkingVisitor> {
  public:
   YoungGenerationMainMarkingVisitor(
       Isolate* isolate, MarkingWorklists::Local* worklists_local,
@@ -60,7 +60,7 @@ class YoungGenerationMainMarkingVisitor final
   std::array<std::pair<MemoryChunk*, size_t>, kNumEntries> live_bytes_data_;
 
   friend class YoungGenerationMarkingVisitorBase<
-      YoungGenerationMainMarkingVisitor, MarkingState>;
+      YoungGenerationMainMarkingVisitor>;
 };
 
 class YoungGenerationRememberedSetsMarkingWorklist {

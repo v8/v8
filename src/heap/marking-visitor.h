@@ -252,7 +252,7 @@ class FullMarkingVisitorBase : public MarkingVisitorBase<ConcreteVisitor> {
   }
 };
 
-template <typename ConcreteVisitor, typename MarkingState>
+template <typename ConcreteVisitor>
 class YoungGenerationMarkingVisitorBase
     : public NewSpaceVisitor<ConcreteVisitor> {
  public:
