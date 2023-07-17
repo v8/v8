@@ -1901,12 +1901,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   bool IsIsolateInBackground() { return is_isolate_in_background_; }
 
-  void EnableMemorySavingsMode() { memory_savings_mode_active_ = true; }
-
-  void DisableMemorySavingsMode() { memory_savings_mode_active_ = false; }
-
-  bool IsMemorySavingsModeActive() { return memory_savings_mode_active_; }
-
   PRINTF_FORMAT(2, 3) void PrintWithTimestamp(const char* format, ...);
 
   void set_allow_atomics_wait(bool set) { allow_atomics_wait_ = set; }
@@ -2323,10 +2317,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // True if the isolate is in background. This flag is used
   // to prioritize between memory usage and latency.
   bool is_isolate_in_background_ = false;
-
-  // True if the isolate is in memory savings mode. This flag is used to
-  // favor memory over runtime performance.
-  bool memory_savings_mode_active_ = false;
 
   // Indicates whether the isolate owns shareable data.
   // Only false for client isolates attached to a shared isolate.

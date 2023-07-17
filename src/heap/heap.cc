@@ -1852,12 +1852,9 @@ void Heap::CollectGarbage(AllocationSpace space,
                                       isolate_);
       }
       if (record_gc_phases_info.type_priority_timer()) {
-        OptionalTimedHistogramScopeMode mode =
-            isolate_->IsMemorySavingsModeActive()
-                ? OptionalTimedHistogramScopeMode::DONT_TAKE_TIME
-                : OptionalTimedHistogramScopeMode::TAKE_TIME;
         histogram_timer_priority_scope.emplace(
-            record_gc_phases_info.type_priority_timer(), isolate_, mode);
+            record_gc_phases_info.type_priority_timer(), isolate_,
+            OptionalTimedHistogramScopeMode::TAKE_TIME);
       }
 
       if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
@@ -3824,8 +3821,7 @@ bool Heap::HasHighFragmentation() {
 bool Heap::ShouldOptimizeForMemoryUsage() {
   const size_t kOldGenerationSlack = max_old_generation_size() / 8;
   return v8_flags.optimize_for_size || isolate()->IsIsolateInBackground() ||
-         isolate()->IsMemorySavingsModeActive() || HighMemoryPressure() ||
-         !CanExpandOldGeneration(kOldGenerationSlack);
+         HighMemoryPressure() || !CanExpandOldGeneration(kOldGenerationSlack);
 }
 
 void Heap::ActivateMemoryReducerIfNeeded() {

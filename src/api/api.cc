@@ -10100,16 +10100,6 @@ void Isolate::ClearCachesForTesting() {
   i_isolate->compilation_cache()->Clear();
 }
 
-void Isolate::EnableMemorySavingsMode() {
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
-  i_isolate->EnableMemorySavingsMode();
-}
-
-void Isolate::DisableMemorySavingsMode() {
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
-  i_isolate->DisableMemorySavingsMode();
-}
-
 void Isolate::SetRAILMode(RAILMode rail_mode) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
   return i_isolate->SetRAILMode(rail_mode);
