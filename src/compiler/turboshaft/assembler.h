@@ -1950,6 +1950,9 @@ class AssemblerOpInterface {
                    typename Descriptor::result_t>
   CallBuiltin(Isolate* isolate, OpIndex frame_state, OpIndex context,
               const typename Descriptor::arguments_t& args) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
     DCHECK(frame_state.valid());
     DCHECK(context.valid());
     return CallBuiltinImpl<typename Descriptor::result_t>(
@@ -1962,6 +1965,9 @@ class AssemblerOpInterface {
                    typename Descriptor::result_t>
   CallBuiltin(Isolate* isolate, OpIndex context,
               const typename Descriptor::arguments_t& args) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
     DCHECK(context.valid());
     return CallBuiltinImpl<typename Descriptor::result_t>(
         isolate, Descriptor::Function,
@@ -1973,6 +1979,9 @@ class AssemblerOpInterface {
                    typename Descriptor::result_t>
   CallBuiltin(Isolate* isolate, OpIndex frame_state,
               const typename Descriptor::arguments_t& args) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
     DCHECK(frame_state.valid());
     return CallBuiltinImpl<typename Descriptor::result_t>(
         isolate, Descriptor::Function,
@@ -1983,6 +1992,9 @@ class AssemblerOpInterface {
   std::enable_if_t<!Descriptor::NeedsFrameState && !Descriptor::NeedsContext,
                    typename Descriptor::result_t>
   CallBuiltin(Isolate* isolate, const typename Descriptor::arguments_t& args) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
     return CallBuiltinImpl<typename Descriptor::result_t>(
         isolate, Descriptor::Function,
         Descriptor::Create(isolate, stack().output_graph().graph_zone()),
@@ -2157,6 +2169,9 @@ class AssemblerOpInterface {
   std::enable_if_t<Descriptor::NeedsFrameState, typename Descriptor::result_t>
   CallRuntime(Isolate* isolate, OpIndex frame_state, OpIndex context,
               const typename Descriptor::arguments_t& args) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
     DCHECK(frame_state.valid());
     DCHECK(context.valid());
     return CallRuntimeImpl<typename Descriptor::result_t>(
@@ -2168,6 +2183,9 @@ class AssemblerOpInterface {
   std::enable_if_t<!Descriptor::NeedsFrameState, typename Descriptor::result_t>
   CallRuntime(Isolate* isolate, OpIndex context,
               const typename Descriptor::arguments_t& args) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
     DCHECK(context.valid());
     return CallRuntimeImpl<typename Descriptor::result_t>(
         isolate, Descriptor::Function,
