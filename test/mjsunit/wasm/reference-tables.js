@@ -585,7 +585,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   let sub_struct = builder.addStruct(
     [makeField(kWasmI32, false), makeField(kWasmI32, false)], super_struct);
   let super_sig = builder.addType(
-    makeSig([kWasmI32], [wasmRefType(super_struct)]));
+    makeSig([kWasmI32], [wasmRefType(super_struct)]), kNoSuperType, false);
   let sub_sig = builder.addType(
     makeSig([kWasmI32], [wasmRefType(sub_struct)]), super_sig);
 

@@ -18,7 +18,7 @@ builder.addStruct([
   makeField(wasmRefType(0), true)
 ]);
 // 2
-builder.addType(makeSig([], [wasmRefNullType(2)]));
+builder.addType(makeSig([], [wasmRefNullType(2)]), kNoSuperType, false);
 // 3
 builder.addStruct([]);
 // 4
@@ -52,7 +52,7 @@ builder.addStruct([
 // 10
 builder.addArray(kWasmF64, false);
 // 11
-builder.addType(makeSig([], [wasmRefNullType(11)]), 2);
+builder.addType(makeSig([], [wasmRefNullType(11)]), 2, false);
 // 12
 builder.addType(makeSig([], [wasmRefNullType(12)]), 11);
 // 13

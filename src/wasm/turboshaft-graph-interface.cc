@@ -47,7 +47,7 @@ using compiler::turboshaft::WordPtr;
 #define LOAD_INSTANCE_FIELD(name, representation)       \
   asm_.Load(instance_node_, LoadOp::Kind::TaggedBase(), \
             MemoryRepresentation::representation(),     \
-            WasmInstanceObject::k##name##Offset);
+            WasmInstanceObject::k##name##Offset)
 
 class TurboshaftGraphBuildingInterface {
  public:
@@ -417,10 +417,7 @@ class TurboshaftGraphBuildingInterface {
   void RefFunc(FullDecoder* decoder, uint32_t function_index, Value* result) {
     OpIndex functions =
         LOAD_INSTANCE_FIELD(WasmInternalFunctions, TaggedPointer);
-    OpIndex maybe_function =
-        asm_.Load(functions, LoadOp::Kind::TaggedBase(),
-                  MemoryRepresentation::AnyTagged(),
-                  FixedArray::kHeaderSize + function_index * kTaggedSize);
+    OpIndex maybe_function = LoadFixedArrayElement(functions, function_index);
 
     Label<Tagged> done(&asm_);
     IF (IsSmi(maybe_function)) {
@@ -608,20 +605,7 @@ class TurboshaftGraphBuildingInterface {
     }
 
     if (imm.index < decoder->module_->num_imported_functions) {
-      // Imported function.
-      OpIndex func_index = asm_.IntPtrConstant(imm.index);
-      OpIndex imported_function_refs =
-          LOAD_INSTANCE_FIELD(ImportedFunctionRefs, TaggedPointer);
-      OpIndex ref = asm_.Load(imported_function_refs, func_index,
-                              LoadOp::Kind::TaggedBase(),
-                              MemoryRepresentation::TaggedPointer(),
-                              FixedArray::kHeaderSize, kTaggedSizeLog2);
-      OpIndex imported_targets =
-          LOAD_INSTANCE_FIELD(ImportedFunctionTargets, TaggedPointer);
-      OpIndex target =
-          asm_.Load(imported_targets, func_index, LoadOp::Kind::TaggedBase(),
-                    MemoryRepresentation::PointerSized(),
-                    FixedAddressArray::kHeaderSize, kSystemPointerSizeLog2);
+      auto [target, ref] = BuildImportedFunctionTargetAndRef(imm.index);
       BuildWasmCall(decoder, imm.sig, target, ref, args, returns);
     } else {
       // Locally defined function.
@@ -633,19 +617,45 @@ class TurboshaftGraphBuildingInterface {
 
   void ReturnCall(FullDecoder* decoder, const CallFunctionImmediate& imm,
                   const Value args[]) {
-    Bailout(decoder);
+    if (imm.sig->contains(kWasmS128)) {
+      Bailout(decoder);
+      return;
+    }
+
+    if (imm.index < decoder->module_->num_imported_functions) {
+      auto [target, ref] = BuildImportedFunctionTargetAndRef(imm.index);
+      BuildWasmReturnCall(imm.sig, target, ref, args);
+    } else {
+      // Locally defined function.
+      OpIndex callee =
+          asm_.RelocatableConstant(imm.index, RelocInfo::WASM_CALL);
+      BuildWasmReturnCall(imm.sig, callee, instance_node_, args);
+    }
   }
 
   void CallIndirect(FullDecoder* decoder, const Value& index,
                     const CallIndirectImmediate& imm, const Value args[],
                     Value returns[]) {
-    Bailout(decoder);
+    if (imm.sig->contains(kWasmS128)) {
+      Bailout(decoder);
+      return;
+    }
+
+    auto [target, ref] = BuildIndirectCallTargetAndRef(decoder, index.op, imm);
+    if (!target.valid()) return;
+    return BuildWasmCall(decoder, imm.sig, target, ref, args, returns);
   }
 
   void ReturnCallIndirect(FullDecoder* decoder, const Value& index,
                           const CallIndirectImmediate& imm,
                           const Value args[]) {
-    Bailout(decoder);
+    if (imm.sig->contains(kWasmS128)) {
+      Bailout(decoder);
+      return;
+    }
+    auto [target, ref] = BuildIndirectCallTargetAndRef(decoder, index.op, imm);
+    if (!target.valid()) return;
+    return BuildWasmReturnCall(imm.sig, target, ref, args);
   }
 
   void CallRef(FullDecoder* decoder, const Value& func_ref,
@@ -2169,6 +2179,112 @@ class TurboshaftGraphBuildingInterface {
     asm_.Bind(continuation);
   }
 
+  std::pair<OpIndex, OpIndex> BuildImportedFunctionTargetAndRef(
+      uint32_t function_index) {
+    // Imported function.
+    OpIndex func_index = asm_.IntPtrConstant(function_index);
+    OpIndex imported_function_refs =
+        LOAD_INSTANCE_FIELD(ImportedFunctionRefs, TaggedPointer);
+    OpIndex ref = LoadFixedArrayElement(imported_function_refs, func_index);
+    OpIndex imported_targets =
+        LOAD_INSTANCE_FIELD(ImportedFunctionTargets, TaggedPointer);
+    OpIndex target =
+        asm_.Load(imported_targets, func_index, LoadOp::Kind::TaggedBase(),
+                  MemoryRepresentation::PointerSized(),
+                  FixedAddressArray::kHeaderSize, kSystemPointerSizeLog2);
+    return {target, ref};
+  }
+
+  std::pair<OpIndex, OpIndex> BuildIndirectCallTargetAndRef(
+      FullDecoder* decoder, OpIndex index, CallIndirectImmediate imm) {
+    uint32_t table_index = imm.table_imm.index;
+    const WasmTable& table = decoder->module_->tables[table_index];
+    OpIndex index_intptr = asm_.ChangeInt32ToIntPtr(index);
+    uint32_t sig_index = imm.sig_imm.index;
+
+    /* Step 1: Load the indirect function tables for this table. */
+    bool needs_dynamic_size =
+        !(table.has_maximum_size && table.maximum_size == table.initial_size);
+    OpIndex ift_size, ift_sig_ids, ift_targets, ift_refs;
+    if (table_index == 0) {
+      ift_size = needs_dynamic_size
+                     ? LOAD_INSTANCE_FIELD(IndirectFunctionTableSize, Uint32)
+                     : asm_.Word32Constant(table.initial_size);
+      ift_sig_ids =
+          LOAD_INSTANCE_FIELD(IndirectFunctionTableSigIds, TaggedPointer);
+      ift_targets =
+          LOAD_INSTANCE_FIELD(IndirectFunctionTableTargets, TaggedPointer);
+      ift_refs = LOAD_INSTANCE_FIELD(IndirectFunctionTableRefs, TaggedPointer);
+    } else {
+      OpIndex ift_tables =
+          LOAD_INSTANCE_FIELD(IndirectFunctionTables, TaggedPointer);
+      OpIndex ift_table = LoadFixedArrayElement(ift_tables, table_index);
+      ift_size = needs_dynamic_size
+                     ? asm_.Load(ift_table, LoadOp::Kind::TaggedBase(),
+                                 MemoryRepresentation::Uint32(),
+                                 WasmIndirectFunctionTable::kSizeOffset)
+                     : asm_.Word32Constant(table.initial_size);
+      ift_sig_ids = asm_.Load(ift_table, LoadOp::Kind::TaggedBase(),
+                              MemoryRepresentation::TaggedPointer(),
+                              WasmIndirectFunctionTable::kSigIdsOffset);
+      ift_targets = asm_.Load(ift_table, LoadOp::Kind::TaggedBase(),
+                              MemoryRepresentation::TaggedPointer(),
+                              WasmIndirectFunctionTable::kTargetsOffset);
+      ift_refs = asm_.Load(ift_table, LoadOp::Kind::TaggedBase(),
+                           MemoryRepresentation::TaggedPointer(),
+                           WasmIndirectFunctionTable::kRefsOffset);
+    }
+
+    /* Step 2: Bounds check against the table size. */
+    asm_.TrapIfNot(asm_.Uint32LessThan(index, ift_size), OpIndex::Invalid(),
+                   compiler::TrapId::kTrapTableOutOfBounds);
+
+    /* Step 3: Check the canonical real signature against the canonical declared
+     * signature. */
+    bool needs_type_check =
+        !EquivalentTypes(table.type.AsNonNull(), ValueType::Ref(sig_index),
+                         decoder->module_, decoder->module_);
+    bool needs_null_check = table.type.is_nullable();
+
+    if (needs_type_check) {
+      OpIndex isorecursive_canonical_types =
+          LOAD_INSTANCE_FIELD(IsorecursiveCanonicalTypes, PointerSized);
+      OpIndex expected_sig_id =
+          asm_.Load(isorecursive_canonical_types, LoadOp::Kind::RawAligned(),
+                    MemoryRepresentation::Uint32(), sig_index * kUInt32Size);
+      OpIndex loaded_sig =
+          asm_.Load(ift_sig_ids, index_intptr, LoadOp::Kind::TaggedBase(),
+                    MemoryRepresentation::Uint32(), ByteArray::kHeaderSize,
+                    2 /* kInt32SizeLog2 */);
+      if (decoder->enabled_.has_gc() &&
+          !decoder->module_->types[sig_index].is_final) {
+        // In this case, a full null check and type check is needed.
+        Bailout(decoder);
+        return {};
+      } else {
+        // In this case, signatures must match exactly.
+        asm_.TrapIfNot(asm_.Word32Equal(expected_sig_id, loaded_sig),
+                       OpIndex::Invalid(),
+                       compiler::TrapId::kTrapFuncSigMismatch);
+      }
+    } else if (needs_null_check) {
+      OpIndex loaded_sig =
+          asm_.Load(ift_sig_ids, index_intptr, LoadOp::Kind::TaggedBase(),
+                    MemoryRepresentation::Uint32(), ByteArray::kHeaderSize,
+                    2 /* kInt32SizeLog2 */);
+      asm_.TrapIf(asm_.Word32Equal(-1, loaded_sig), OpIndex::Invalid(),
+                  compiler::TrapId::kTrapFuncSigMismatch);
+    }
+
+    /* Step 4: Extract ref and target. */
+    OpIndex target =
+        asm_.Load(ift_targets, index_intptr, LoadOp::Kind::TaggedBase(),
+                  MemoryRepresentation::PointerSized(), ByteArray::kHeaderSize,
+                  kSystemPointerSizeLog2);
+    OpIndex ref = LoadFixedArrayElement(ift_refs, index_intptr);
+    return {target, ref};
+  }
+
   void BuildWasmCall(FullDecoder* decoder, const FunctionSig* sig,
                      OpIndex callee, OpIndex ref, const Value args[],
                      Value returns[]) {
@@ -2193,6 +2309,21 @@ class TurboshaftGraphBuildingInterface {
             call, i, RepresentationFor(decoder, sig->GetReturn(i)));
       }
     }
+  }
+
+  void BuildWasmReturnCall(const FunctionSig* sig, OpIndex callee, OpIndex ref,
+                           const Value args[]) {
+    const TSCallDescriptor* descriptor = TSCallDescriptor::Create(
+        compiler::GetWasmCallDescriptor(asm_.graph_zone(), sig),
+        asm_.graph_zone());
+
+    base::SmallVector<OpIndex, 8> arg_indices(sig->parameter_count() + 1);
+    arg_indices[0] = ref;
+    for (uint32_t i = 0; i < sig->parameter_count(); i++) {
+      arg_indices[i + 1] = args[i].op;
+    }
+
+    asm_.TailCall(callee, base::VectorOf(arg_indices), descriptor);
   }
 
   OpIndex CallBuiltinFromRuntimeStub(WasmCode::RuntimeStubId stub_id,
@@ -2301,6 +2432,18 @@ class TurboshaftGraphBuildingInterface {
       return asm_.WordPtrEqual(asm_.WordPtrBitwiseAnd(object, kSmiTagMask),
                                kSmiTag);
     }
+  }
+
+  OpIndex LoadFixedArrayElement(OpIndex array, int index) {
+    return asm_.Load(array, LoadOp::Kind::TaggedBase(),
+                     MemoryRepresentation::AnyTagged(),
+                     FixedArray::kHeaderSize + index * kTaggedSize);
+  }
+
+  OpIndex LoadFixedArrayElement(OpIndex array, OpIndex index) {
+    return asm_.Load(array, index, LoadOp::Kind::TaggedBase(),
+                     MemoryRepresentation::AnyTagged(), FixedArray::kHeaderSize,
+                     kTaggedSizeLog2);
   }
 
   compiler::TrapId GetTrapIdForTrap(wasm::TrapReason reason) {

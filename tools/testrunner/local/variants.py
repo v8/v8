@@ -35,7 +35,14 @@ ALL_VARIANT_FLAGS = {
     ]],
     # We test both the JS and Wasm Turboshaft pipelines under the same variant.
     # For extended Wasm Turboshaft coverage, we add --no-liftoff to the options.
-    "turboshaft": [["--turboshaft", "--turboshaft-wasm", "--no-liftoff"]],
+    "turboshaft": [[
+        "--turboshaft",
+        "--turboshaft-wasm",
+        "--no-liftoff",
+        # We need this to correctly bailout for call_indirect with subtyping
+        # until we turn it on by default, or remove the bailout.
+        "--wasm-final-types"
+    ]],
     "concurrent_sparkplug": [["--concurrent-sparkplug", "--sparkplug"]],
     "always_sparkplug": [["--always-sparkplug", "--sparkplug"]],
     "minor_ms": [["--minor-ms"]],
