@@ -2179,7 +2179,6 @@ enum class AliasingKind {
   C(PendingHandlerSP, pending_handler_sp)                           \
   C(NumFramesAbovePendingHandler, num_frames_above_pending_handler) \
   C(ExternalCaughtException, external_caught_exception)             \
-  C(IsOnCentralStackFlag, is_on_central_stack_flag)                 \
   C(JSEntrySP, js_entry_sp)
 
 enum IsolateAddressId {

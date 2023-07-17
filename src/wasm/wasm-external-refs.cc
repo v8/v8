@@ -688,52 +688,6 @@ double flat_string_to_f64(Address string_address) {
                             std::numeric_limits<double>::quiet_NaN());
 }
 
-void sync_stack_limit(Isolate* isolate) {
-  CHECK(v8_flags.experimental_wasm_stack_switching);
-  DisallowGarbageCollection no_gc;
-
-  isolate->SyncStackLimit();
-}
-
-intptr_t switch_to_the_central_stack(Isolate* isolate, uintptr_t current_sp) {
-  CHECK(v8_flags.experimental_wasm_stack_switching);
-
-  ThreadLocalTop* thread_local_top = isolate->thread_local_top();
-  StackGuard* stack_guard = isolate->stack_guard();
-
-  CHECK_EQ(thread_local_top->secondary_stack_sp_, 0);
-  CHECK_EQ(thread_local_top->secondary_stack_limit_, 0);
-
-  auto secondary_stack_limit = stack_guard->real_jslimit();
-
-  stack_guard->SetStackLimitForStackSwitching(
-      thread_local_top->central_stack_limit_);
-
-  thread_local_top->secondary_stack_limit_ = secondary_stack_limit;
-  thread_local_top->secondary_stack_sp_ = current_sp;
-  thread_local_top->is_on_central_stack_flag_ = true;
-
-  isolate->counters()->wasm_switch_to_the_central_stack_count()->Increment(1);
-
-  return thread_local_top->central_stack_sp_;
-}
-
-void switch_from_the_central_stack(Isolate* isolate) {
-  CHECK(v8_flags.experimental_wasm_stack_switching);
-
-  ThreadLocalTop* thread_local_top = isolate->thread_local_top();
-  CHECK_NE(thread_local_top->secondary_stack_sp_, 0);
-  CHECK_NE(thread_local_top->secondary_stack_limit_, 0);
-
-  auto secondary_stack_limit = thread_local_top->secondary_stack_limit_;
-  thread_local_top->secondary_stack_limit_ = 0;
-  thread_local_top->secondary_stack_sp_ = 0;
-  thread_local_top->is_on_central_stack_flag_ = false;
-
-  StackGuard* stack_guard = isolate->stack_guard();
-  stack_guard->SetStackLimitForStackSwitching(secondary_stack_limit);
-}
-
 static WasmTrapCallbackForTesting wasm_trap_callback_for_testing = nullptr;
 
 void set_trap_callback_for_testing(WasmTrapCallbackForTesting callback) {

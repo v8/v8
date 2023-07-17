@@ -447,11 +447,6 @@ FUNCTION_REFERENCE(new_deoptimizer_function, Deoptimizer::New)
 FUNCTION_REFERENCE(compute_output_frames_function,
                    Deoptimizer::ComputeOutputFrames)
 
-IF_WASM(FUNCTION_REFERENCE, wasm_sync_stack_limit, wasm::sync_stack_limit)
-IF_WASM(FUNCTION_REFERENCE, wasm_switch_to_the_central_stack,
-        wasm::switch_to_the_central_stack)
-IF_WASM(FUNCTION_REFERENCE, wasm_switch_from_the_central_stack,
-        wasm::switch_from_the_central_stack)
 IF_WASM(FUNCTION_REFERENCE, wasm_f32_trunc, wasm::f32_trunc_wrapper)
 IF_WASM(FUNCTION_REFERENCE, wasm_f32_floor, wasm::f32_floor_wrapper)
 IF_WASM(FUNCTION_REFERENCE, wasm_f32_ceil, wasm::f32_ceil_wrapper)

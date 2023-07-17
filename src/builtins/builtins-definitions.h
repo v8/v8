@@ -1112,7 +1112,6 @@ namespace internal {
   ASM(CEntry_Return2_ArgvInRegister_NoBuiltinExit, CEntryDummy)                \
   ASM(CEntry_Return2_ArgvOnStack_BuiltinExit, CEntryDummy)                     \
   ASM(CEntry_Return2_ArgvOnStack_NoBuiltinExit, CEntryDummy)                   \
-  ASM(WasmCEntry, CEntryDummy)                                                 \
   ASM(DirectCEntry, CEntryDummy)                                               \
                                                                                \
   /* String helpers */                                                         \

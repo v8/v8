@@ -3146,28 +3146,6 @@ void Isolate::AddSharedWasmMemory(Handle<WasmMemoryObject> memory_object) {
   heap()->set_shared_wasm_memories(*shared_wasm_memories);
 }
 
-void Isolate::SyncStackLimit() {
-  // Synchronize the stack limit with the active continuation for
-  // stack-switching. This can be done before or after changing the stack
-  // pointer itself, as long as we update both before the next stack check.
-  // {StackGuard::SetStackLimitForStackSwitching} doesn't update the value of
-  // the jslimit if it contains a sentinel value, and it is also thread-safe. So
-  // if an interrupt is requested before, during or after this call, it will be
-  // preserved and handled at the next stack check.
-
-  DisallowGarbageCollection no_gc;
-  auto continuation =
-      WasmContinuationObject::cast(root(RootIndex::kActiveContinuation));
-  wasm::StackMemory* stack =
-      Managed<wasm::StackMemory>::cast(continuation.stack()).raw();
-  if (v8_flags.trace_wasm_stack_switching) {
-    PrintF("Switch to stack #%d\n", stack->id());
-  }
-  uintptr_t limit = reinterpret_cast<uintptr_t>(stack->jmpbuf()->stack_limit);
-  stack_guard()->SetStackLimitForStackSwitching(limit);
-  RecordStackSwitchForScanning();
-}
-
 void Isolate::RecordStackSwitchForScanning() {
   Object current = root(RootIndex::kActiveContinuation);
   DCHECK(!current.IsUndefined());
@@ -3179,7 +3157,6 @@ void Isolate::RecordStackSwitchForScanning() {
           .get();
   current = WasmContinuationObject::cast(current).parent();
   heap()->SetStackStart(reinterpret_cast<void*>(wasm_stack->base()));
-  thread_local_top()->is_on_central_stack_flag_ = current.IsUndefined();
   // We don't need to add all inactive stacks. Only the ones in the active chain
   // may contain cpp heap pointers.
   while (!current.IsUndefined()) {
@@ -3190,13 +3167,6 @@ void Isolate::RecordStackSwitchForScanning() {
         reinterpret_cast<const void*>(wasm_stack->base()),
         reinterpret_cast<const void*>(wasm_stack->jmpbuf()->sp));
     current = cont.parent();
-    // If the parent is undefined, wasm_stack is the central stack.
-    // Update the central stack SP for switching in CEntry.
-    if (current.IsUndefined()) {
-      thread_local_top()->central_stack_sp_ = wasm_stack->jmpbuf()->sp;
-      thread_local_top()->central_stack_limit_ =
-          reinterpret_cast<Address>(wasm_stack->jmpbuf()->stack_limit);
-    }
   }
 }
 
@@ -6003,24 +5973,6 @@ bool StackLimitCheck::JsHasOverflowed(uintptr_t gap) const {
   if (jssp - gap < stack_guard->real_jslimit()) return true;
 #endif  // USE_SIMULATOR
   return GetCurrentStackPosition() - gap < stack_guard->real_climit();
-}
-
-bool StackLimitCheck::WasmHasOverflowed(uintptr_t gap) const {
-  StackGuard* stack_guard = isolate_->stack_guard();
-  auto sp = isolate_->thread_local_top()->secondary_stack_sp_;
-  auto limit = isolate_->thread_local_top()->secondary_stack_limit_;
-  if (sp == 0) {
-#ifdef USE_SIMULATOR
-    // The simulator uses a separate JS stack.
-    // Use it if code is executed on the central stack.
-    Address jssp_address = Simulator::current(isolate_)->get_sp();
-    uintptr_t jssp = static_cast<uintptr_t>(jssp_address);
-    if (jssp - gap < stack_guard->real_jslimit()) return true;
-#endif  // USE_SIMULATOR
-    sp = GetCurrentStackPosition();
-    limit = stack_guard->real_climit();
-  }
-  return sp - gap < limit;
 }
 
 SaveContext::SaveContext(Isolate* isolate) : isolate_(isolate) {

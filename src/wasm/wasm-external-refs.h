@@ -15,9 +15,6 @@
 
 namespace v8 {
 namespace internal {
-
-class Isolate;
-
 namespace wasm {
 
 using Address = uintptr_t;
@@ -128,13 +125,6 @@ void array_fill_wrapper(Address raw_array, uint32_t index, uint32_t length,
                         Address initial_value_addr);
 
 double flat_string_to_f64(Address string_address);
-
-// Update the stack limit after a stack switch,
-// and preserve pending interrupts.
-void sync_stack_limit(Isolate* isolate);
-
-intptr_t switch_to_the_central_stack(Isolate* isolate, uintptr_t sp);
-void switch_from_the_central_stack(Isolate* isolate);
 
 using WasmTrapCallbackForTesting = void (*)();
 

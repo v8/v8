@@ -651,6 +651,7 @@ namespace internal {
   F(WasmArrayNewSegment, 5, 1)                \
   F(WasmArrayInitSegment, 6, 1)               \
   F(WasmAllocateSuspender, 0, 1)              \
+  F(WasmSyncStackLimit, 0, 1)                 \
   F(WasmStringNewWtf8, 5, 1)                  \
   F(WasmStringNewWtf8Array, 4, 1)             \
   F(WasmStringNewWtf16, 4, 1)                 \
@@ -667,36 +668,35 @@ namespace internal {
   F(WasmStringFromCodePoint, 1, 1)            \
   F(WasmStringHash, 1, 1)
 
-#define FOR_EACH_INTRINSIC_WASM_TEST(F, I)  \
-  F(DeserializeWasmModule, 2, 1)            \
-  F(DisallowWasmCodegen, 1, 1)              \
-  F(FlushWasmCode, 0, 1)                    \
-  F(FreezeWasmLazyCompilation, 1, 1)        \
-  F(GetWasmExceptionTagId, 2, 1)            \
-  F(GetWasmExceptionValues, 1, 1)           \
-  F(GetWasmRecoveredTrapCount, 0, 1)        \
-  F(IsAsmWasmCode, 1, 1)                    \
-  F(IsLiftoffFunction, 1, 1)                \
-  F(IsTurboFanFunction, 1, 1)               \
-  F(IsWasmDebugFunction, 1, 1)              \
-  F(IsUncompiledWasmFunction, 1, 1)         \
-  F(IsThreadInWasm, 0, 1)                   \
-  F(IsWasmCode, 1, 1)                       \
-  F(IsWasmTrapHandlerEnabled, 0, 1)         \
-  F(IsWasmPartialOOBWriteNoop, 0, 1)        \
-  F(SerializeWasmModule, 1, 1)              \
-  F(SetWasmCompileControls, 2, 1)           \
-  F(SetWasmInstantiateControls, 0, 1)       \
-  F(SetWasmGCEnabled, 1, 1)                 \
-  F(WasmCompiledExportWrappersCount, 0, 1)  \
-  F(WasmGetNumberOfInstances, 1, 1)         \
-  F(WasmNumCodeSpaces, 1, 1)                \
-  F(WasmEnterDebugging, 0, 1)               \
-  F(WasmLeaveDebugging, 0, 1)               \
-  F(WasmSwitchToTheCentralStackCount, 0, 1) \
-  F(WasmTierUpFunction, 1, 1)               \
-  F(WasmTraceEnter, 0, 1)                   \
-  F(WasmTraceExit, 1, 1)                    \
+#define FOR_EACH_INTRINSIC_WASM_TEST(F, I) \
+  F(DeserializeWasmModule, 2, 1)           \
+  F(DisallowWasmCodegen, 1, 1)             \
+  F(FlushWasmCode, 0, 1)                   \
+  F(FreezeWasmLazyCompilation, 1, 1)       \
+  F(GetWasmExceptionTagId, 2, 1)           \
+  F(GetWasmExceptionValues, 1, 1)          \
+  F(GetWasmRecoveredTrapCount, 0, 1)       \
+  F(IsAsmWasmCode, 1, 1)                   \
+  F(IsLiftoffFunction, 1, 1)               \
+  F(IsTurboFanFunction, 1, 1)              \
+  F(IsWasmDebugFunction, 1, 1)             \
+  F(IsUncompiledWasmFunction, 1, 1)        \
+  F(IsThreadInWasm, 0, 1)                  \
+  F(IsWasmCode, 1, 1)                      \
+  F(IsWasmTrapHandlerEnabled, 0, 1)        \
+  F(IsWasmPartialOOBWriteNoop, 0, 1)       \
+  F(SerializeWasmModule, 1, 1)             \
+  F(SetWasmCompileControls, 2, 1)          \
+  F(SetWasmInstantiateControls, 0, 1)      \
+  F(SetWasmGCEnabled, 1, 1)                \
+  F(WasmCompiledExportWrappersCount, 0, 1) \
+  F(WasmGetNumberOfInstances, 1, 1)        \
+  F(WasmNumCodeSpaces, 1, 1)               \
+  F(WasmEnterDebugging, 0, 1)              \
+  F(WasmLeaveDebugging, 0, 1)              \
+  F(WasmTierUpFunction, 1, 1)              \
+  F(WasmTraceEnter, 0, 1)                  \
+  F(WasmTraceExit, 1, 1)                   \
   F(WasmTraceMemory, 1, 1)
 
 #define FOR_EACH_INTRINSIC_WEAKREF(F, I)                             \
@@ -858,10 +858,6 @@ class Runtime : public AllStatic {
   // Check if a runtime function with the given {id} is allowlisted for
   // using it with fuzzers.
   static bool IsAllowListedForFuzzing(FunctionId id);
-
-  // Check if a switch to the central stack should be performed
-  // for a runtime function.
-  static bool SwitchToTheCentralStackForTarget(FunctionId id);
 
   // Get the intrinsic function with the given name.
   static const Function* FunctionForName(const unsigned char* name, int length);

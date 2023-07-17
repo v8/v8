@@ -295,7 +295,7 @@ RUNTIME_FUNCTION(Runtime_WasmStackGuard) {
 
   // Check if this is a real stack overflow.
   StackLimitCheck check(isolate);
-  if (check.WasmHasOverflowed()) return isolate->StackOverflow();
+  if (check.JsHasOverflowed()) return isolate->StackOverflow();
 
   return isolate->stack_guard()->HandleInterrupts(
       StackGuard::InterruptLevel::kAnyEffect);
@@ -989,6 +989,29 @@ RUNTIME_FUNCTION(Runtime_WasmArrayInitSegment) {
   }
 }
 
+namespace {
+// Synchronize the stack limit with the active continuation for stack-switching.
+// This can be done before or after changing the stack pointer itself, as long
+// as we update both before the next stack check.
+// {StackGuard::SetStackLimitForStackSwitching} doesn't update the value of the
+// jslimit if it contains a sentinel value, and it is also thread-safe. So if
+// an interrupt is requested before, during or after this call, it will be
+// preserved and handled at the next stack check.
+void SyncStackLimit(Isolate* isolate) {
+  DisallowGarbageCollection no_gc;
+  auto continuation = WasmContinuationObject::cast(
+      isolate->root(RootIndex::kActiveContinuation));
+  wasm::StackMemory* stack =
+      Managed<wasm::StackMemory>::cast(continuation.stack()).raw();
+  if (v8_flags.trace_wasm_stack_switching) {
+    PrintF("Switch to stack #%d\n", stack->id());
+  }
+  uintptr_t limit = reinterpret_cast<uintptr_t>(stack->jmpbuf()->stack_limit);
+  isolate->stack_guard()->SetStackLimitForStackSwitching(limit);
+  isolate->RecordStackSwitchForScanning();
+}
+}  // namespace
+
 // Allocate a new suspender, and prepare for stack switching by updating the
 // active continuation, active suspender and stack limit.
 RUNTIME_FUNCTION(Runtime_WasmAllocateSuspender) {
@@ -1015,13 +1038,20 @@ RUNTIME_FUNCTION(Runtime_WasmAllocateSuspender) {
   suspender->set_continuation(*target);
   active_suspender_slot.store(*suspender);
 
-  isolate->SyncStackLimit();
+  SyncStackLimit(isolate);
   wasm::JumpBuffer* jmpbuf = reinterpret_cast<wasm::JumpBuffer*>(
       parent->ReadExternalPointerField<kWasmContinuationJmpbufTag>(
           WasmContinuationObject::kJmpbufOffset, isolate));
   DCHECK_EQ(jmpbuf->state, wasm::JumpBuffer::Active);
   jmpbuf->state = wasm::JumpBuffer::Inactive;
   return *suspender;
+}
+
+// Update the stack limit after a stack switch, and preserve pending interrupts.
+RUNTIME_FUNCTION(Runtime_WasmSyncStackLimit) {
+  CHECK(v8_flags.experimental_wasm_stack_switching);
+  SyncStackLimit(isolate);
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 #define RETURN_RESULT_OR_TRAP(call)                                            \

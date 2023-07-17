@@ -4,7 +4,7 @@
 
 // Flags: --allow-natives-syntax --experimental-wasm-stack-switching
 // Flags: --expose-gc --wasm-stack-switching-stack-size=100
-// Flags: --experimental-wasm-typed-funcref --dump-counters
+// Flags: --experimental-wasm-typed-funcref
 
 // We pick a small stack size to run the stack overflow test quickly, but big
 // enough to run all the tests.
@@ -636,34 +636,4 @@ function TestNestedSuspenders(suspend) {
       {suspending: 'first'});
   let instance = builder.instantiate({m: {import: js_import}});
   assertEquals(42, instance.exports.test(null));
-})();
-
-(function TestSwitchingToTheCentralStack() {
-  print(arguments.callee.name);
-  let builder = new WasmModuleBuilder();
-  let table = builder.addTable(kWasmExternRef, 1);
-  builder.addFunction("test", kSig_i_r)
-      .addBody([
-        kExprLocalGet, 0,
-        kExprI32Const, 1,
-        kNumericPrefix, kExprTableGrow, table.index]).exportFunc();
-  builder.addFunction("test2", kSig_i_r)
-      .addBody([
-        kExprI32Const, 1]).exportFunc();
-  let instance = builder.instantiate();
-  let wrapper = ToPromising(instance.exports.test);
-  let wrapper2 = ToPromising(instance.exports.test2);
-  function switchesToCS(fn) {
-    const beforeCall = %WasmSwitchToTheCentralStackCount();
-    fn();
-    return %WasmSwitchToTheCentralStackCount() - beforeCall;
-  }
-  // Calling exported functions from the central stack.
-  assertEquals(switchesToCS(() => instance.exports.test({})), 0);
-  assertEquals(switchesToCS(() => instance.exports.test2({})), 0);
-
-  // Runtime call to table.grow.
-  assertEquals(switchesToCS(wrapper), 1);
-  // No runtime calls.
-  assertEquals(switchesToCS(wrapper2), 0);
 })();

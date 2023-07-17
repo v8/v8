@@ -573,11 +573,5 @@ RUNTIME_FUNCTION(Runtime_WasmCompiledExportWrappersCount) {
   return Smi::FromInt(count);
 }
 
-RUNTIME_FUNCTION(Runtime_WasmSwitchToTheCentralStackCount) {
-  int count =
-      isolate->counters()->wasm_switch_to_the_central_stack_count()->Get();
-  return Smi::FromInt(count);
-}
-
 }  // namespace internal
 }  // namespace v8

@@ -542,9 +542,8 @@ class V8_EXPORT_PRIVATE MacroAssembler
   // Print a message to stdout and abort execution.
   void Abort(AbortReason msg);
 
+  // Check that the stack is aligned.
   void CheckStackAlignment();
-
-  void AlignStackPointer();
 
   // Activation support.
   void EnterFrame(StackFrame::Type type);

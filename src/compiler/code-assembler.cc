@@ -1018,17 +1018,14 @@ class NodeArray {
   Node* arr_[kMaxSize];
   Node** ptr_ = arr_;
 };
-
 }  // namespace
 
 Node* CodeAssembler::CallRuntimeImpl(
     Runtime::FunctionId function, TNode<Object> context,
     std::initializer_list<TNode<Object>> args) {
   int result_size = Runtime::FunctionForId(function)->result_size;
-  bool switch_to_the_central_stack =
-      Runtime::SwitchToTheCentralStackForTarget(function);
-  TNode<Code> centry = HeapConstant(CodeFactory::RuntimeCEntry(
-      isolate(), result_size, switch_to_the_central_stack));
+  TNode<Code> centry =
+      HeapConstant(CodeFactory::RuntimeCEntry(isolate(), result_size));
   constexpr size_t kMaxNumArgs = 6;
   DCHECK_GE(kMaxNumArgs, args.size());
   int argc = static_cast<int>(args.size());
@@ -1060,10 +1057,8 @@ void CodeAssembler::TailCallRuntimeImpl(
     Runtime::FunctionId function, TNode<Int32T> arity, TNode<Object> context,
     std::initializer_list<TNode<Object>> args) {
   int result_size = Runtime::FunctionForId(function)->result_size;
-  bool switch_to_the_central_stack =
-      Runtime::SwitchToTheCentralStackForTarget(function);
-  TNode<Code> centry = HeapConstant(CodeFactory::RuntimeCEntry(
-      isolate(), result_size, switch_to_the_central_stack));
+  TNode<Code> centry =
+      HeapConstant(CodeFactory::RuntimeCEntry(isolate(), result_size));
   constexpr size_t kMaxNumArgs = 6;
   DCHECK_GE(kMaxNumArgs, args.size());
   int argc = static_cast<int>(args.size());

@@ -3303,20 +3303,6 @@ void LoadTargetJumpBuffer(MacroAssembler* masm, Register target_continuation,
   LoadJumpBuffer(masm, target_jmpbuf, false, tmp);
 }
 
-void SyncStackLimit(MacroAssembler* masm, const CPURegister& keep1 = NoReg,
-                    const CPURegister& keep2 = padreg) {
-  using ER = ExternalReference;
-#if V8_ENABLE_WEBASSEMBLY
-  __ Push(keep1, keep2);
-  {
-    FrameScope scope(masm, StackFrame::MANUAL);
-    __ Mov(arg_reg_1, ER::isolate_address(masm->isolate()));
-    __ CallCFunction(ER::wasm_sync_stack_limit(), 1);
-  }
-  __ Pop(keep2, keep1);
-#endif  // V8_ENABLE_WEBASSEMBLY
-}
-
 void ReloadParentContinuation(MacroAssembler* masm, Register return_reg,
                               Register tmp1, Register tmp2) {
   Register active_continuation = tmp1;
@@ -3355,7 +3341,14 @@ void ReloadParentContinuation(MacroAssembler* masm, Register return_reg,
   // Switch stack!
   LoadJumpBuffer(masm, jmpbuf, false, tmp1);
 
-  SyncStackLimit(masm, return_reg);
+  __ Mov(tmp1, 1);
+  __ Str(tmp1,
+         MemOperand(fp, BuiltinWasmWrapperConstants::kGCScanSlotCountOffset));
+  __ Stp(padreg, return_reg,
+         MemOperand(sp, -2 * kSystemPointerSize, PreIndex));  // Spill.
+  __ Move(kContextRegister, Smi::zero());
+  __ CallRuntime(Runtime::kWasmSyncStackLimit);
+  __ Ldp(padreg, return_reg, MemOperand(sp, 2 * kSystemPointerSize, PostIndex));
 }
 
 void RestoreParentSuspender(MacroAssembler* masm, Register tmp1,
@@ -4709,7 +4702,14 @@ void Builtins::Generate_WasmSuspend(MacroAssembler* masm) {
   // -------------------------------------------
   // Load jump buffer.
   // -------------------------------------------
-  SyncStackLimit(masm, caller, suspender);
+  MemOperand GCScanSlotPlace =
+      MemOperand(fp, BuiltinWasmWrapperConstants::kGCScanSlotCountOffset);
+  ASSIGN_REG(scratch);
+  __ Mov(scratch, 2);
+  __ Str(scratch, GCScanSlotPlace);
+  __ Stp(caller, suspender, MemOperand(sp, -2 * kSystemPointerSize, PreIndex));
+  __ CallRuntime(Runtime::kWasmSyncStackLimit);
+  __ Ldp(caller, suspender, MemOperand(sp, 2 * kSystemPointerSize, PostIndex));
   ASSIGN_REG(jmpbuf);
   __ LoadExternalPointerField(
       jmpbuf, FieldMemOperand(caller, WasmContinuationObject::kJmpbufOffset),
@@ -4717,10 +4717,7 @@ void Builtins::Generate_WasmSuspend(MacroAssembler* masm) {
   __ LoadTaggedField(
       kReturnRegister0,
       FieldMemOperand(suspender, WasmSuspenderObject::kPromiseOffset));
-  MemOperand GCScanSlotPlace =
-      MemOperand(fp, BuiltinWasmWrapperConstants::kGCScanSlotCountOffset);
   __ Str(xzr, GCScanSlotPlace);
-  ASSIGN_REG(scratch)
   LoadJumpBuffer(masm, jmpbuf, true, scratch);
   __ Trap();
   __ Bind(&resume, BranchTargetIdentifier::kBtiJump);
@@ -4858,7 +4855,15 @@ void Generate_WasmResumeHelper(MacroAssembler* masm, wasm::OnResume on_resume) {
   __ Str(target_continuation,
          MemOperand(kRootRegister, active_continuation_offset));
 
-  SyncStackLimit(masm, target_continuation);
+  MemOperand GCScanSlotPlace =
+      MemOperand(fp, BuiltinWasmWrapperConstants::kGCScanSlotCountOffset);
+  __ Mov(scratch, 1);
+  __ Str(scratch, GCScanSlotPlace);
+  __ Stp(target_continuation, scratch,  // Scratch for padding.
+         MemOperand(sp, -2 * kSystemPointerSize, PreIndex));
+  __ CallRuntime(Runtime::kWasmSyncStackLimit);
+  __ Ldp(target_continuation, scratch,
+         MemOperand(sp, 2*kSystemPointerSize, PostIndex));
 
   regs.ResetExcept(target_continuation);
 
@@ -4875,8 +4880,6 @@ void Generate_WasmResumeHelper(MacroAssembler* masm, wasm::OnResume on_resume) {
       kWasmContinuationJmpbufTag);
   // Move resolved value to return register.
   __ Ldr(kReturnRegister0, MemOperand(fp, 3 * kSystemPointerSize));
-  MemOperand GCScanSlotPlace =
-      MemOperand(fp, BuiltinWasmWrapperConstants::kGCScanSlotCountOffset);
   __ Str(xzr, GCScanSlotPlace);
   if (on_resume == wasm::OnResume::kThrow) {
     // Switch to the continuation's stack without restoring the PC.
@@ -5092,84 +5095,8 @@ void Builtins::Generate_NewGenericJSToWasmWrapper(MacroAssembler* masm) {
 
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-#if V8_ENABLE_WEBASSEMBLY
-namespace {
-void SwitchSimulatorStackLimit(MacroAssembler* masm) {
-  if (masm->options().enable_simulator_code) {
-    UseScratchRegisterScope temps(masm);
-    temps.Exclude(x16);
-    __ LoadStackLimit(x16, StackLimitKind::kRealStackLimit);
-    __ hlt(kImmExceptionIsSwitchStackLimit);
-  }
-}
-
-Register old_sp = x23;
-Register switch_flag = x24;
-
-void SwitchToTheCentralStackIfNeeded(MacroAssembler* masm, Register argc_input,
-                                     Register target_input,
-                                     Register argv_input) {
-  using ER = ExternalReference;
-
-  __ Mov(switch_flag, 0);
-  __ Mov(old_sp, sp);
-
-  // Using x2-x4 as temporary registers, because they will be rewritten
-  // before exiting to native code anyway.
-
-  ER on_central_stack_flag_loc = ER::Create(
-      IsolateAddressId::kIsOnCentralStackFlagAddress, masm->isolate());
-  const Register& on_central_stack_flag = x2;
-  __ Mov(on_central_stack_flag, on_central_stack_flag_loc);
-  __ Ldrb(on_central_stack_flag, MemOperand(on_central_stack_flag));
-
-  Label do_not_need_to_switch;
-  __ Cbnz(on_central_stack_flag, &do_not_need_to_switch);
-  // Switch to central stack.
-
-  static constexpr Register central_stack_sp = x4;
-  DCHECK(!AreAliased(central_stack_sp, argc_input, argv_input, target_input));
-  {
-    __ Push(argc_input, target_input, argv_input, padreg);
-    __ Mov(arg_reg_1, ER::isolate_address(masm->isolate()));
-    __ Mov(arg_reg_2, old_sp);
-    __ CallCFunction(ER::wasm_switch_to_the_central_stack(), 2);
-    __ Mov(central_stack_sp, kReturnRegister0);
-    __ Pop(padreg, argv_input, target_input, argc_input);
-  }
-
-  SwitchSimulatorStackLimit(masm);
-
-  __ Mov(sp, central_stack_sp);
-  __ Mov(switch_flag, 1);
-
-  __ bind(&do_not_need_to_switch);
-}
-
-void SwitchFromTheCentralStackIfNeeded(MacroAssembler* masm) {
-  using ER = ExternalReference;
-
-  Label no_stack_change;
-  __ Cbz(switch_flag, &no_stack_change);
-
-  __ Mov(sp, old_sp);
-  {
-    __ Push(kReturnRegister0, kReturnRegister1);
-    __ Mov(arg_reg_1, ER::isolate_address(masm->isolate()));
-    __ CallCFunction(ER::wasm_switch_from_the_central_stack(), 1);
-    __ Pop(kReturnRegister1, kReturnRegister0);
-  }
-
-  SwitchSimulatorStackLimit(masm);
-
-  __ bind(&no_stack_change);
-}
-}  // namespace
-#endif  // V8_ENABLE_WEBASSEMBLY
-
 void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
-                               ArgvMode argv_mode, bool builtin_exit_frame,
-                               bool switch_to_central_stack) {
+                               ArgvMode argv_mode, bool builtin_exit_frame) {
   ASM_LOCATION("CEntry::Generate entry");
 
   using ER = ExternalReference;
@@ -5218,16 +5145,6 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
     __ Mov(argc, argc_input);
   }
 
-#if V8_ENABLE_WEBASSEMBLY
-  if (switch_to_central_stack) {
-    SwitchToTheCentralStackIfNeeded(masm, argc_input, target_input, argv_input);
-  }
-#endif  // V8_ENABLE_WEBASSEMBLY
-
-  // x21 : argv
-  // x22 : argc
-  // x23 : call target
-  //
   // The stack (on entry) holds the arguments and the receiver, with the
   // receiver at the highest address:
   //
@@ -5261,11 +5178,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   static_assert(argv == x1);        // Already in the right spot.
   __ Mov(x2, ER::isolate_address(masm->isolate()));
 
-  if (switch_to_central_stack) {
-    __ StoreReturnAddressAndCall(target, old_sp);
-  } else {
-    __ StoreReturnAddressAndCall(target);
-  }
+  __ StoreReturnAddressAndCall(target);
 
   // Result returned in x0 or x1:x0 - do not destroy these registers!
 
@@ -5274,18 +5187,14 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   //  x22   argc         .. only if ArgvMode::kStack.
   const Register& result = x0;
 
-#if V8_ENABLE_WEBASSEMBLY
-  if (switch_to_central_stack) {
-    SwitchFromTheCentralStackIfNeeded(masm);
-  }
-#endif  // V8_ENABLE_WEBASSEMBLY
-
   // Check result for exception sentinel.
   Label exception_returned;
   __ CompareRoot(result, RootIndex::kException);
   __ B(eq, &exception_returned);
 
   // The call succeeded, so unwind the stack and return.
+
+  // Restore saved registers.
   if (argv_mode == ArgvMode::kStack) {
     __ Mov(x11, argc);  // x11 used as scratch, just til DropArguments below.
     __ LeaveExitFrame(x10, x9);

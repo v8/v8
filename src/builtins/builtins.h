@@ -226,8 +226,7 @@ class Builtins {
   static void Generate_Adaptor(MacroAssembler* masm, Address builtin_address);
 
   static void Generate_CEntry(MacroAssembler* masm, int result_size,
-                              ArgvMode argv_mode, bool builtin_exit_frame,
-                              bool switch_to_central_stack);
+                              ArgvMode argv_mode, bool builtin_exit_frame);
 
   static bool AllowDynamicFunction(Isolate* isolate, Handle<JSFunction> target,
                                    Handle<JSObject> target_global_proxy);

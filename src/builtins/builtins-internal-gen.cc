@@ -1298,36 +1298,32 @@ TF_BUILTIN(AbortCSADcheck, CodeStubAssembler) {
 
 void Builtins::Generate_CEntry_Return1_ArgvOnStack_NoBuiltinExit(
     MacroAssembler* masm) {
-  Generate_CEntry(masm, 1, ArgvMode::kStack, false, false);
+  Generate_CEntry(masm, 1, ArgvMode::kStack, false);
 }
 
 void Builtins::Generate_CEntry_Return1_ArgvOnStack_BuiltinExit(
     MacroAssembler* masm) {
-  Generate_CEntry(masm, 1, ArgvMode::kStack, true, false);
+  Generate_CEntry(masm, 1, ArgvMode::kStack, true);
 }
 
 void Builtins::Generate_CEntry_Return1_ArgvInRegister_NoBuiltinExit(
     MacroAssembler* masm) {
-  Generate_CEntry(masm, 1, ArgvMode::kRegister, false, false);
+  Generate_CEntry(masm, 1, ArgvMode::kRegister, false);
 }
 
 void Builtins::Generate_CEntry_Return2_ArgvOnStack_NoBuiltinExit(
     MacroAssembler* masm) {
-  Generate_CEntry(masm, 2, ArgvMode::kStack, false, false);
+  Generate_CEntry(masm, 2, ArgvMode::kStack, false);
 }
 
 void Builtins::Generate_CEntry_Return2_ArgvOnStack_BuiltinExit(
     MacroAssembler* masm) {
-  Generate_CEntry(masm, 2, ArgvMode::kStack, true, false);
+  Generate_CEntry(masm, 2, ArgvMode::kStack, true);
 }
 
 void Builtins::Generate_CEntry_Return2_ArgvInRegister_NoBuiltinExit(
     MacroAssembler* masm) {
-  Generate_CEntry(masm, 2, ArgvMode::kRegister, false, false);
-}
-
-void Builtins::Generate_WasmCEntry(MacroAssembler* masm) {
-  Generate_CEntry(masm, 1, ArgvMode::kStack, false, true);
+  Generate_CEntry(masm, 2, ArgvMode::kRegister, false);
 }
 
 #if !defined(V8_TARGET_ARCH_ARM)

@@ -14,27 +14,17 @@ namespace v8 {
 namespace internal {
 
 // static
-Handle<Code> CodeFactory::RuntimeCEntry(Isolate* isolate, int result_size,
-                                        bool switch_to_central_stack) {
-  return CodeFactory::CEntry(isolate, result_size, ArgvMode::kStack, false,
-                             switch_to_central_stack);
+Handle<Code> CodeFactory::RuntimeCEntry(Isolate* isolate, int result_size) {
+  return CodeFactory::CEntry(isolate, result_size);
 }
 
 // static
 Handle<Code> CodeFactory::CEntry(Isolate* isolate, int result_size,
-                                 ArgvMode argv_mode, bool builtin_exit_frame,
-                                 bool switch_to_central_stack) {
+                                 ArgvMode argv_mode, bool builtin_exit_frame) {
   // Aliases for readability below.
   const int rs = result_size;
   const ArgvMode am = argv_mode;
   const bool be = builtin_exit_frame;
-
-  if (switch_to_central_stack) {
-    DCHECK_EQ(result_size, 1);
-    DCHECK_EQ(argv_mode, ArgvMode::kStack);
-    DCHECK_EQ(builtin_exit_frame, false);
-    return BUILTIN_CODE(isolate, WasmCEntry);
-  }
 
   if (rs == 1 && am == ArgvMode::kStack && !be) {
     return BUILTIN_CODE(isolate, CEntry_Return1_ArgvOnStack_NoBuiltinExit);

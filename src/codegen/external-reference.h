@@ -255,11 +255,6 @@ class StatsCounter;
     "name_to_index_hashtable_lookup_forwarded_string")                         \
   V(name_to_index_hashtable_find_insertion_entry_forwarded_string,             \
     "name_to_index_hashtable_find_insertion_entry_forwarded_string")           \
-  IF_WASM(V, wasm_sync_stack_limit, "wasm_sync_stack_limit")                   \
-  IF_WASM(V, wasm_switch_to_the_central_stack,                                 \
-          "wasm::switch_to_the_central_stack")                                 \
-  IF_WASM(V, wasm_switch_from_the_central_stack,                               \
-          "wasm::switch_from_the_central_stack")                               \
   IF_WASM(V, wasm_call_trap_callback_for_testing,                              \
           "wasm::call_trap_callback_for_testing")                              \
   IF_WASM(V, wasm_f32_ceil, "wasm::f32_ceil_wrapper")                          \

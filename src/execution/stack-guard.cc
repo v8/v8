@@ -61,15 +61,6 @@ void StackGuard::SetStackLimitForStackSwitching(uintptr_t limit) {
 
 void StackGuard::SetStackLimitInternal(const ExecutionAccess& lock,
                                        uintptr_t limit, uintptr_t jslimit) {
-  // If secondary stack SP is not 0, it means we are currently switching
-  // to the central stack from a secondary stack.
-  if (isolate_->thread_local_top()->secondary_stack_sp_ != 0) {
-    DCHECK(isolate_->thread_local_top()->is_on_central_stack_flag_);
-    // Update only logical stack limit here.
-    // It will be synchronized on the exit from CEntry.
-    isolate_->thread_local_top()->secondary_stack_limit_ = jslimit;
-    return;
-  }
   // If the current limits are special (e.g. due to a pending interrupt) then
   // leave them alone.
   if (thread_local_.jslimit() == thread_local_.real_jslimit_) {

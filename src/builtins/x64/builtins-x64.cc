@@ -3079,25 +3079,6 @@ void LoadTargetJumpBuffer(MacroAssembler* masm, Register target_continuation) {
   LoadJumpBuffer(masm, target_jmpbuf, false);
 }
 
-void SyncStackLimit(MacroAssembler* masm, const Register& keep1,
-                    const Register& keep2 = no_reg) {
-  using ER = ExternalReference;
-  __ Push(keep1);
-  if (keep2 != no_reg) {
-    __ Push(keep2);
-  }
-  {
-    FrameScope scope(masm, StackFrame::MANUAL);
-    __ Move(arg_reg_1, ExternalReference::isolate_address(masm->isolate()));
-    __ PrepareCallCFunction(1);
-    __ CallCFunction(ER::wasm_sync_stack_limit(), 1);
-  }
-  if (keep2 != no_reg) {
-    __ Pop(keep2);
-  }
-  __ Pop(keep1);
-}
-
 void ReloadParentContinuation(MacroAssembler* masm, Register promise,
                               Register tmp1, Register tmp2) {
   Register active_continuation = tmp1;
@@ -3127,7 +3108,13 @@ void ReloadParentContinuation(MacroAssembler* masm, Register promise,
 
   // Switch stack!
   LoadJumpBuffer(masm, jmpbuf, false);
-  SyncStackLimit(masm, promise);
+  MemOperand GCScanSlotPlace =
+      MemOperand(rbp, BuiltinWasmWrapperConstants::kGCScanSlotCountOffset);
+  __ Move(GCScanSlotPlace, 1);
+  __ Move(kContextRegister, Smi::zero());
+  __ Push(promise);
+  __ CallRuntime(Runtime::kWasmSyncStackLimit);
+  __ Pop(promise);
 }
 
 void RestoreParentSuspender(MacroAssembler* masm, Register tmp1,
@@ -4399,7 +4386,15 @@ void Builtins::Generate_WasmSuspend(MacroAssembler* masm) {
   // -------------------------------------------
   // Load jump buffer.
   // -------------------------------------------
-  SyncStackLimit(masm, caller, suspender);
+  MemOperand GCScanSlotPlace =
+      MemOperand(rbp, BuiltinWasmWrapperConstants::kGCScanSlotCountOffset);
+  __ Move(GCScanSlotPlace, 2);
+  __ Push(caller);
+  __ Push(suspender);
+  __ Move(kContextRegister, Smi::zero());
+  __ CallRuntime(Runtime::kWasmSyncStackLimit);
+  __ Pop(suspender);
+  __ Pop(caller);
   jmpbuf = caller;
   __ LoadExternalPointerField(
       jmpbuf, FieldOperand(caller, WasmContinuationObject::kJmpbufOffset),
@@ -4408,8 +4403,6 @@ void Builtins::Generate_WasmSuspend(MacroAssembler* masm) {
   __ LoadTaggedField(
       kReturnRegister0,
       FieldOperand(suspender, WasmSuspenderObject::kPromiseOffset));
-  MemOperand GCScanSlotPlace =
-      MemOperand(rbp, BuiltinWasmWrapperConstants::kGCScanSlotCountOffset);
   __ Move(GCScanSlotPlace, 0);
   LoadJumpBuffer(masm, jmpbuf, true);
   __ Trap();
@@ -4528,7 +4521,12 @@ void Generate_WasmResumeHelper(MacroAssembler* masm, wasm::OnResume on_resume) {
   __ movq(masm->RootAsOperand(RootIndex::kActiveContinuation),
           target_continuation);
 
-  SyncStackLimit(masm, target_continuation);
+  MemOperand GCScanSlotPlace =
+      MemOperand(rbp, BuiltinWasmWrapperConstants::kGCScanSlotCountOffset);
+  __ Move(GCScanSlotPlace, 1);
+  __ Push(target_continuation);
+  __ CallRuntime(Runtime::kWasmSyncStackLimit);
+  __ Pop(target_continuation);
 
   // -------------------------------------------
   // Load state from target jmpbuf (longjmp).
@@ -4540,6 +4538,7 @@ void Generate_WasmResumeHelper(MacroAssembler* masm, wasm::OnResume on_resume) {
       kWasmContinuationJmpbufTag, rax);
   // Move resolved value to return register.
   __ movq(kReturnRegister0, Operand(rbp, 3 * kSystemPointerSize));
+  __ Move(GCScanSlotPlace, 0);
   if (on_resume == wasm::OnResume::kThrow) {
     // Switch to the continuation's stack without restoring the PC.
     LoadJumpBuffer(masm, target_jmpbuf, false);
@@ -4548,7 +4547,6 @@ void Generate_WasmResumeHelper(MacroAssembler* masm, wasm::OnResume on_resume) {
     __ LeaveFrame(StackFrame::STACK_SWITCH);
     // Forward the onRejected value to kThrow.
     __ pushq(kReturnRegister0);
-    __ Move(kContextRegister, Smi::zero());
     __ CallRuntime(Runtime::kThrow);
   } else {
     // Resume the continuation normally.
@@ -4577,97 +4575,10 @@ void Builtins::Generate_WasmOnStackReplace(MacroAssembler* masm) {
   __ jmp(kScratchRegister);
 }
 
-namespace {
-Register old_sp = r12;
-
-void SwitchToTheCentralStackIfNeeded(MacroAssembler* masm,
-                                     int r12_stack_slot_index) {
-  using ER = ExternalReference;
-
-  // Store r12 value on the stack to restore on exit from the builtin.
-  __ movq(ExitFrameStackSlotOperand(r12_stack_slot_index), r12);
-
-  // Old_sp used as a switch flag, if it is zero - no switch performed
-  // if it is not zero, it contains old sp value.
-  __ Move(old_sp, 0);
-
-  // Using arg1-2 regs as temporary registers, because they will be rewritten
-  // before exiting to native code anyway.
-  DCHECK(!AreAliased(arg_reg_1, arg_reg_2, old_sp, rax, rbx, r15));
-
-  ER on_central_stack_flag = ER::Create(
-      IsolateAddressId::kIsOnCentralStackFlagAddress, masm->isolate());
-
-  Label do_not_need_to_switch;
-  __ cmpb(__ ExternalReferenceAsOperand(on_central_stack_flag), Immediate(0));
-  __ j(not_zero, &do_not_need_to_switch);
-
-  // Perform switching to the central stack.
-
-  __ movq(old_sp, rsp);
-
-  static constexpr Register argc_input = rax;
-  Register central_stack_sp = arg_reg_2;
-  DCHECK(!AreAliased(central_stack_sp, argc_input));
-  {
-    FrameScope scope(masm, StackFrame::MANUAL);
-    __ pushq(argc_input);
-
-    __ Move(arg_reg_1, ER::isolate_address(masm->isolate()));
-    __ Move(arg_reg_2, old_sp);
-    __ PrepareCallCFunction(2);
-    __ CallCFunction(ER::wasm_switch_to_the_central_stack(), 2);
-    __ movq(central_stack_sp, kReturnRegister0);
-
-    __ popq(argc_input);
-  }
-  __ movq(rsp, central_stack_sp);
-  // rsp should be aligned by 16 bytes,
-  // but it is not guaranteed for stored SP.
-  __ AlignStackPointer();
-
-  // Update sp saved in the frame to new sp.
-  // It will be used to calculate PC of the callee during GC.
-  // PC is going to be on the new stack segment, so rewriting it here.
-  __ movq(Operand(rbp, ExitFrameConstants::kSPOffset), rsp);
-
-  __ bind(&do_not_need_to_switch);
-}
-
-void SwitchFromTheCentralStackIfNeeded(MacroAssembler* masm,
-                                       int r12_stack_slot_index) {
-  using ER = ExternalReference;
-
-  Label no_stack_change;
-  __ cmpq(old_sp, Immediate(0));
-  __ j(equal, &no_stack_change);
-  __ movq(rsp, old_sp);
-
-  {
-    FrameScope scope(masm, StackFrame::MANUAL);
-    __ pushq(kReturnRegister0);
-    __ pushq(kReturnRegister1);
-
-    __ Move(arg_reg_1, ER::isolate_address(masm->isolate()));
-    __ PrepareCallCFunction(1);
-    __ CallCFunction(ER::wasm_switch_from_the_central_stack(), 1);
-
-    __ popq(kReturnRegister1);
-    __ popq(kReturnRegister0);
-  }
-
-  __ bind(&no_stack_change);
-
-  // Restore previous value of r12.
-  __ movq(r12, ExitFrameStackSlotOperand(r12_stack_slot_index));
-}
-}  // namespace
-
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
-                               ArgvMode argv_mode, bool builtin_exit_frame,
-                               bool switch_to_central_stack) {
+                               ArgvMode argv_mode, bool builtin_exit_frame) {
   CHECK(result_size == 1 || result_size == 2);
 
   using ER = ExternalReference;
@@ -4681,26 +4592,20 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   // If argv_mode == ArgvMode::kRegister:
   // r15: pointer to the first argument
 
-  const int kSwitchToTheCentralStackSlots = switch_to_central_stack ? 1 : 0;
 #ifdef V8_TARGET_OS_WIN
   // Windows 64-bit ABI only allows a single-word to be returned in register
   // rax. Larger return sizes must be written to an address passed as a hidden
   // first argument.
   static constexpr int kMaxRegisterResultSize = 1;
   const int kReservedStackSlots =
-      kSwitchToTheCentralStackSlots + result_size <= kMaxRegisterResultSize
-          ? 0
-          : result_size;
+      result_size <= kMaxRegisterResultSize ? 0 : result_size;
 #else
   // Simple results are returned in rax, and a struct of two pointers are
   // returned in rax+rdx.
   static constexpr int kMaxRegisterResultSize = 2;
-  const int kReservedStackSlots = kSwitchToTheCentralStackSlots;
+  static constexpr int kReservedStackSlots = 0;
   CHECK_LE(result_size, kMaxRegisterResultSize);
 #endif  // V8_TARGET_OS_WIN
-#if V8_ENABLE_WEBASSEMBLY
-  const int kR12SpillSlot = kReservedStackSlots - 1;
-#endif  // V8_ENABLE_WEBASSEMBLY
 
   __ EnterExitFrame(
       kReservedStackSlots,
@@ -4722,12 +4627,6 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   // rsp: stack pointer (restored after C call).
   // rax: number of arguments including receiver
   // r15: argv pointer (C callee-saved).
-
-#if V8_ENABLE_WEBASSEMBLY
-  if (switch_to_central_stack) {
-    SwitchToTheCentralStackIfNeeded(masm, kR12SpillSlot);
-  }
-#endif  // V8_ENABLE_WEBASSEMBLY
 
   // Check stack alignment.
   if (v8_flags.debug_code) {
@@ -4767,12 +4666,6 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
 #endif  // V8_TARGET_OS_WIN
 
   // Result is in rax or rdx:rax - do not destroy these registers!
-
-#if V8_ENABLE_WEBASSEMBLY
-  if (switch_to_central_stack) {
-    SwitchFromTheCentralStackIfNeeded(masm, kR12SpillSlot);
-  }
-#endif  // V8_ENABLE_WEBASSEMBLY
 
   // Check result for exception sentinel.
   Label exception_returned;

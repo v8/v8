@@ -102,7 +102,6 @@ class StatsTable {
 class StatsCounter {
  public:
   void Set(int value) { GetPtr()->store(value, std::memory_order_relaxed); }
-  int Get() { return GetPtr()->load(); }
 
   void Increment(int value = 1) {
     GetPtr()->fetch_add(value, std::memory_order_relaxed);

@@ -3410,7 +3410,7 @@ Node* WasmGraphBuilder::BuildCallToRuntimeWithContext(Runtime::FunctionId f,
   // Isolate independent. At the moment this is only done for CEntryStub(1).
   Node* isolate_root = BuildLoadIsolateRoot();
   DCHECK_EQ(1, fun->result_size);
-  auto centry_id = Builtin::kWasmCEntry;
+  auto centry_id = Builtin::kCEntry_Return1_ArgvOnStack_NoBuiltinExit;
   int builtin_slot_offset = IsolateData::BuiltinSlotOffset(centry_id);
   Node* centry_stub =
       gasm_->Load(MachineType::Pointer(), isolate_root, builtin_slot_offset);

@@ -2002,10 +2002,7 @@ void MacroAssembler::CallRuntime(const Runtime::Function* f,
   Mov(x0, num_arguments);
   Mov(x1, ExternalReference::Create(f));
 
-  bool switch_to_central =
-      Runtime::SwitchToTheCentralStackForTarget(f->function_id);
-  Handle<Code> code = CodeFactory::CEntry(
-      isolate(), f->result_size, ArgvMode::kStack, false, switch_to_central);
+  Handle<Code> code = CodeFactory::CEntry(isolate(), f->result_size);
   Call(code, RelocInfo::CODE_TARGET);
 }
 
@@ -2468,8 +2465,7 @@ void MacroAssembler::JumpCodeObject(Register code_object, JumpMode jump_mode) {
   Jump(x17);
 }
 
-void MacroAssembler::StoreReturnAddressAndCall(Register target,
-                                               Register sp_reg) {
+void MacroAssembler::StoreReturnAddressAndCall(Register target) {
   ASM_CODE_COMMENT(this);
   // This generates the final instruction sequence for calls to C functions
   // once an exit frame has been constructed.
@@ -2485,10 +2481,10 @@ void MacroAssembler::StoreReturnAddressAndCall(Register target,
   Label return_location;
   Adr(x17, &return_location);
 #ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
-  Add(x16, sp_reg, kSystemPointerSize);
+  Add(x16, sp, kSystemPointerSize);
   Pacib1716();
 #endif
-  Str(x17, MemOperand(sp_reg));
+  Poke(x17, 0);
 
   if (v8_flags.debug_code) {
     ASM_CODE_COMMENT_STRING(this, "Verify fp[kSPOffset]-8");

@@ -1132,7 +1132,6 @@ static bool TransitivelyCalledBuiltinHasNoSideEffect(Builtin caller,
     case Builtin::kCEntry_Return2_ArgvOnStack_NoBuiltinExit:
     case Builtin::kCEntry_Return2_ArgvOnStack_BuiltinExit:
     case Builtin::kCEntry_Return2_ArgvInRegister_NoBuiltinExit:
-    case Builtin::kWasmCEntry:
     case Builtin::kCloneFastJSArray:
     case Builtin::kConstruct:
     case Builtin::kConvertToLocaleString:

@@ -710,15 +710,6 @@ void MacroAssembler::CheckStackAlignment() {
   }
 }
 
-void MacroAssembler::AlignStackPointer() {
-  const int kFrameAlignment = base::OS::ActivationFrameAlignment();
-  if (kFrameAlignment > 0) {
-    DCHECK(base::bits::IsPowerOfTwo(kFrameAlignment));
-    DCHECK(is_int8(kFrameAlignment));
-    andq(rsp, Immediate(-kFrameAlignment));
-  }
-}
-
 void MacroAssembler::Abort(AbortReason reason) {
   ASM_CODE_COMMENT(this);
   if (v8_flags.code_comments) {
@@ -778,10 +769,7 @@ void MacroAssembler::CallRuntime(const Runtime::Function* f,
   // smarter.
   Move(rax, num_arguments);
   LoadAddress(rbx, ExternalReference::Create(f));
-  bool switch_to_central =
-      Runtime::SwitchToTheCentralStackForTarget(f->function_id);
-  Handle<Code> code = CodeFactory::CEntry(
-      isolate(), f->result_size, ArgvMode::kStack, false, switch_to_central);
+  Handle<Code> code = CodeFactory::CEntry(isolate(), f->result_size);
   Call(code, RelocInfo::CODE_TARGET);
 }
 
@@ -3491,7 +3479,13 @@ void MacroAssembler::EnterExitFrame(int extra_slots,
 #endif
   AllocateStackSpace(extra_slots * kSystemPointerSize);
 
-  AlignStackPointer();
+  // Get the required frame alignment for the OS.
+  const int kFrameAlignment = base::OS::ActivationFrameAlignment();
+  if (kFrameAlignment > 0) {
+    DCHECK(base::bits::IsPowerOfTwo(kFrameAlignment));
+    DCHECK(is_int8(kFrameAlignment));
+    andq(rsp, Immediate(-kFrameAlignment));
+  }
 
   // Patch the saved entry sp.
   movq(Operand(rbp, ExitFrameConstants::kSPOffset), rsp);
