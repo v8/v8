@@ -178,18 +178,6 @@ class WasmGraphBuilder {
     kWasmApiFunctionRefMode,
     kNoSpecialParameterMode
   };
-  enum EnforceBoundsCheck : bool {  // --
-    kNeedsBoundsCheck = true,
-    kCanOmitBoundsCheck = false
-  };
-  enum BoundsCheckResult {
-    // Dynamically checked (using 1-2 conditional branches).
-    kDynamicallyChecked,
-    // OOB handled via the trap handler.
-    kTrapHandler,
-    // Statically known to be in bounds.
-    kInBounds
-  };
 
   V8_EXPORT_PRIVATE WasmGraphBuilder(
       wasm::CompilationEnv* env, Zone* zone, MachineGraph* mcgraph,

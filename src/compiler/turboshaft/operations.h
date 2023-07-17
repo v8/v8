@@ -937,6 +937,8 @@ class SupportedOperations {
 
  public:
   static void Initialize();
+  static bool IsUnalignedLoadSupported(MemoryRepresentation repr);
+  static bool IsUnalignedStoreSupported(MemoryRepresentation repr);
   SUPPORTED_OPERATIONS_LIST(DECLARE_GETTER)
 
  private:

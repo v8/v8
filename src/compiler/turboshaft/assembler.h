@@ -1480,6 +1480,24 @@ class AssemblerOpInterface {
     }
   }
 
+  V<Word64> ChangeIntPtrToInt64(V<WordPtr> input) {
+    if constexpr (Is64()) {
+      DCHECK_EQ(WordPtr::bits, Word64::bits);
+      return V<Word64>::Cast(input);
+    } else {
+      return ChangeInt32ToInt64(input);
+    }
+  }
+
+  V<Word64> ChangeUintPtrToUint64(V<WordPtr> input) {
+    if constexpr (Is64()) {
+      DCHECK_EQ(WordPtr::bits, Word64::bits);
+      return V<Word64>::Cast(input);
+    } else {
+      return ChangeUint32ToUint64(input);
+    }
+  }
+
 #define DECL_SIGNED_FLOAT_TRUNCATE(FloatBits, ResultBits)                     \
   DECL_CHANGE(TruncateFloat##FloatBits##ToInt##ResultBits##OverflowUndefined, \
               kSignedFloatTruncateOverflowToMin, kNoOverflow,                 \

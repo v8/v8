@@ -57,7 +57,21 @@ V8_INLINE bool operator==(const WasmTypeCheckConfig& p1,
 
 static constexpr int kCharWidthBailoutSentinel = 3;
 
-enum NullCheckStrategy { kExplicitNullChecks, kTrapHandler };
+enum class NullCheckStrategy { kExplicitNullChecks, kTrapHandler };
+
+enum class EnforceBoundsCheck : bool {  // --
+  kNeedsBoundsCheck = true,
+  kCanOmitBoundsCheck = false
+};
+
+enum class BoundsCheckResult {
+  // Dynamically checked (using 1-2 conditional branches).
+  kDynamicallyChecked,
+  // OOB handled via the trap handler.
+  kTrapHandler,
+  // Statically known to be in bounds.
+  kInBounds
+};
 
 // Static knowledge about whether a wasm-gc operation, such as struct.get, needs
 // a null check.

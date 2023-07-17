@@ -31,8 +31,8 @@ WasmGCLowering::WasmGCLowering(Editor* editor, MachineGraph* mcgraph,
     : AdvancedReducer(editor),
       null_check_strategy_(trap_handler::IsTrapHandlerEnabled() &&
                                    V8_STATIC_ROOTS_BOOL && !disable_trap_handler
-                               ? kTrapHandler
-                               : kExplicitNullChecks),
+                               ? NullCheckStrategy::kTrapHandler
+                               : NullCheckStrategy::kExplicitNullChecks),
       gasm_(mcgraph, mcgraph->zone()),
       module_(module),
       dead_(mcgraph->Dead()),
@@ -462,7 +462,7 @@ Reduction WasmGCLowering::ReduceAssertNotNull(Node* node) {
       // for null.
       // For subtypes of externref, we use JS null, so we have to check
       // explicitly.
-      if (null_check_strategy_ == kExplicitNullChecks ||
+      if (null_check_strategy_ == NullCheckStrategy::kExplicitNullChecks ||
           wasm::IsSubtypeOf(wasm::kWasmI31Ref.AsNonNull(), op_parameter.type,
                             module_) ||
           wasm::IsSubtypeOf(op_parameter.type, wasm::kWasmExternRef, module_)) {
@@ -661,7 +661,7 @@ Reduction WasmGCLowering::ReduceWasmStructGet(Node* node) {
 
   bool explicit_null_check =
       info.null_check == kWithNullCheck &&
-      (null_check_strategy_ == kExplicitNullChecks ||
+      (null_check_strategy_ == NullCheckStrategy::kExplicitNullChecks ||
        info.field_index > wasm::kMaxStructFieldIndexForImplicitNullCheck);
   bool implicit_null_check =
       info.null_check == kWithNullCheck && !explicit_null_check;
@@ -697,7 +697,7 @@ Reduction WasmGCLowering::ReduceWasmStructSet(Node* node) {
 
   bool explicit_null_check =
       info.null_check == kWithNullCheck &&
-      (null_check_strategy_ == kExplicitNullChecks ||
+      (null_check_strategy_ == NullCheckStrategy::kExplicitNullChecks ||
        info.field_index > wasm::kMaxStructFieldIndexForImplicitNullCheck);
   bool implicit_null_check =
       info.null_check == kWithNullCheck && !explicit_null_check;
@@ -785,7 +785,7 @@ Reduction WasmGCLowering::ReduceWasmArrayLength(Node* node) {
 
   bool null_check = OpParameter<bool>(node->op());
 
-  if (null_check_strategy_ == kExplicitNullChecks &&
+  if (null_check_strategy_ == NullCheckStrategy::kExplicitNullChecks &&
       null_check == kWithNullCheck) {
     gasm_.TrapIf(IsNull(object, wasm::kWasmAnyRef),
                  TrapId::kTrapNullDereference);
@@ -793,7 +793,8 @@ Reduction WasmGCLowering::ReduceWasmArrayLength(Node* node) {
   }
 
   bool use_null_trap =
-      null_check_strategy_ == kTrapHandler && null_check == kWithNullCheck;
+      null_check_strategy_ == NullCheckStrategy::kTrapHandler &&
+      null_check == kWithNullCheck;
   Node* length =
       use_null_trap
           ? gasm_.LoadTrapOnNull(

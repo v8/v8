@@ -1260,4 +1260,16 @@ void SupportedOperations::Initialize() {
 #undef SET_SUPPORTED
 }
 
+// static
+bool SupportedOperations::IsUnalignedLoadSupported(MemoryRepresentation repr) {
+  return InstructionSelector::AlignmentRequirements().IsUnalignedLoadSupported(
+      repr.ToMachineType().representation());
+}
+
+// static
+bool SupportedOperations::IsUnalignedStoreSupported(MemoryRepresentation repr) {
+  return InstructionSelector::AlignmentRequirements().IsUnalignedStoreSupported(
+      repr.ToMachineType().representation());
+}
+
 }  // namespace v8::internal::compiler::turboshaft
