@@ -51,7 +51,7 @@ ALL_VARIANT_FLAGS = {
     # compilation. "Liftoff-only" and eager compilation is not a problem,
     # because test functions do typically not get optimized to TurboFan anyways.
     "nooptimization": [[
-        "--no-turbofan", "--no-maglev", "--liftoff", "--no-wasm-tier-up",
+        "--no-turbofan", "--liftoff", "--no-wasm-tier-up",
         "--no-wasm-lazy-compilation"
     ]],
     "slow_path": [["--force-slow-path"]],
