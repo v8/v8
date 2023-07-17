@@ -33,7 +33,6 @@ uint32_t ExternalPointerTable::SweepAndCompact(Space* space,
   uint32_t start_of_evacuation_area =
       space->start_of_evacuation_area_.load(std::memory_order_relaxed);
   bool evacuation_was_successful = false;
-  bool was_compacting = space->IsCompacting();
   if (space->IsCompacting()) {
     TableCompactionOutcome outcome;
     if (space->CompactingWasAborted()) {
@@ -87,7 +86,6 @@ uint32_t ExternalPointerTable::SweepAndCompact(Space* space,
     for (uint32_t i = segment.last_entry(); i >= segment.first_entry(); i--) {
       auto payload = at(i).GetRawPayload();
       if (payload.ContainsEvacuationEntry()) {
-        CHECK(was_compacting);
         // Resolve the evacuation entry: take the pointer to the handle from the
         // evacuation entry, copy the entry to its new location, and finally
         // update the handle to point to the new entry.

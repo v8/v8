@@ -175,12 +175,12 @@ void ExternalPointerTable::Mark(Space* space, ExternalPointerHandle handle,
   // this is when the handle is zero, which may mean that it hasn't yet been
   // initialized. However, in that case we'll have already returned from this
   // function above.
-  CHECK(handle ==
-        base::AsAtomic32::Acquire_Load(
-            reinterpret_cast<ExternalPointerHandle*>(handle_location)));
+  DCHECK(handle ==
+         base::AsAtomic32::Acquire_Load(
+             reinterpret_cast<ExternalPointerHandle*>(handle_location)));
 
   uint32_t index = HandleToIndex(handle);
-  CHECK(space->Contains(index));
+  DCHECK(space->Contains(index));
 
   // If the table is being compacted and the entry is inside the evacuation
   // area, then allocate and set up an evacuation entry for it.
@@ -206,7 +206,7 @@ void ExternalPointerTable::MaybeCreateEvacuationEntry(Space* space,
     uint32_t new_index = AllocateEntryBelow(space, start_of_evacuation_area);
     if (new_index) {
       DCHECK_LT(new_index, start_of_evacuation_area);
-      CHECK(space->Contains(new_index));
+      DCHECK(space->Contains(new_index));
       // Even though the new entry will only be accessed during sweeping, this
       // still needs to be an atomic write as another thread may attempt (and
       // fail) to allocate the same table entry, thereby causing a read from
