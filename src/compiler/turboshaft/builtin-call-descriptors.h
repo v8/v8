@@ -221,7 +221,10 @@ struct BuiltinCallDescriptor {
     static constexpr bool NeedsFrameState = false;
     static constexpr bool NeedsContext = false;
     static constexpr Operator::Properties Properties = Operator::kEliminatable;
-    static constexpr OpEffects Effects = base_effects.CanReadMemory();
+    // If the strings aren't flat, StringEqual could flatten them, which will
+    // allocate new strings.
+    static constexpr OpEffects Effects =
+        base_effects.CanReadMemory().CanAllocate();
   };
 
   struct StringFromCodePointAt : public Descriptor<StringFromCodePointAt> {
