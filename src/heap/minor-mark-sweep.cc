@@ -1067,7 +1067,12 @@ bool MinorMarkSweepCollector::SweepNewLargeSpace() {
 
 void MinorMarkSweepCollector::Sweep() {
   DCHECK(!sweeper()->AreMinorSweeperTasksRunning());
-  TRACE_GC(heap_->tracer(), GCTracer::Scope::MINOR_MS_SWEEP);
+  sweeper_->InitializeMinorSweeping();
+
+  TRACE_GC_WITH_FLOW(
+      heap_->tracer(), GCTracer::Scope::MINOR_MS_SWEEP,
+      sweeper_->GetTraceIdForFlowEvent(GCTracer::Scope::MINOR_MS_SWEEP),
+      TRACE_EVENT_FLAG_FLOW_OUT);
 
   bool has_promoted_pages = false;
   if (StartSweepNewSpace()) has_promoted_pages = true;
@@ -1096,16 +1101,13 @@ void MinorMarkSweepCollector::Sweep() {
       GarbageCollector::MINOR_MARK_SWEEPER);
 #endif
 
-  {
-    TRACE_GC(heap_->tracer(), GCTracer::Scope::MINOR_MS_SWEEP_START_JOBS);
-    sweeper()->StartMinorSweeperTasks();
-    DCHECK_EQ(0, heap_->new_lo_space()->Size());
-    heap_->array_buffer_sweeper()->RequestSweep(
-        ArrayBufferSweeper::SweepingType::kYoung,
-        (heap_->new_space()->Size() == 0)
-            ? ArrayBufferSweeper::TreatAllYoungAsPromoted::kYes
-            : ArrayBufferSweeper::TreatAllYoungAsPromoted::kNo);
-  }
+  sweeper()->StartMinorSweeperTasks();
+  DCHECK_EQ(0, heap_->new_lo_space()->Size());
+  heap_->array_buffer_sweeper()->RequestSweep(
+      ArrayBufferSweeper::SweepingType::kYoung,
+      (heap_->new_space()->Size() == 0)
+          ? ArrayBufferSweeper::TreatAllYoungAsPromoted::kYes
+          : ArrayBufferSweeper::TreatAllYoungAsPromoted::kNo);
 }
 
 }  // namespace internal

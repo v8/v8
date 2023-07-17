@@ -944,6 +944,7 @@ void GCTracer::PrintNVP() const {
           "sweep.array_buffers=%.2f "
           "finish=%.2f "
           "finish.ensure_capacity=%.2f "
+          "finish.sweep_array_buffers=%.2f "
           "background.mark=%.2f "
           "background.sweep=%.2f "
           "background.sweep.array_buffers=%.2f "
@@ -989,6 +990,7 @@ void GCTracer::PrintNVP() const {
           current_scope(Scope::YOUNG_ARRAY_BUFFER_SWEEP),
           current_scope(Scope::MINOR_MS_FINISH),
           current_scope(Scope::MINOR_MS_FINISH_ENSURE_CAPACITY),
+          current_scope(Scope::MINOR_MS_FINISH_SWEEP_ARRAY_BUFFERS),
           current_scope(Scope::MINOR_MS_BACKGROUND_MARKING),
           current_scope(Scope::MINOR_MS_BACKGROUND_SWEEPING),
           current_scope(Scope::BACKGROUND_YOUNG_ARRAY_BUFFER_SWEEP),
@@ -1062,6 +1064,7 @@ void GCTracer::PrintNVP() const {
           "sweep.new=%.1f "
           "sweep.new_lo=%.1f "
           "sweep.old=%.1f "
+          "sweep.start_jobs=%.1f "
           "incremental=%.1f "
           "incremental.finalize=%.1f "
           "incremental.finalize.external.prologue=%.1f "
@@ -1149,6 +1152,7 @@ void GCTracer::PrintNVP() const {
           current_scope(Scope::MC_SWEEP_NEW),
           current_scope(Scope::MC_SWEEP_NEW_LO),
           current_scope(Scope::MC_SWEEP_OLD),
+          current_scope(Scope::MC_SWEEP_START_JOBS),
           current_scope(Scope::MC_INCREMENTAL),
           current_scope(Scope::MC_INCREMENTAL_FINALIZE),
           current_scope(Scope::MC_INCREMENTAL_EXTERNAL_PROLOGUE),

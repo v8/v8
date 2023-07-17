@@ -200,14 +200,17 @@ ConcurrentAllocator::AllocateFromSpaceFreeList(size_t min_size_in_bytes,
                                                   max_size_in_bytes, origin);
   if (result) return result;
 
+  uint64_t trace_flow_id = owning_heap()->sweeper()->GetTraceIdForFlowEvent(
+      GCTracer::Scope::MC_BACKGROUND_SWEEPING);
   // Sweeping is still in progress.
   if (owning_heap()->sweeping_in_progress()) {
     // First try to refill the free-list, concurrent sweeper threads
     // may have freed some objects in the meantime.
     {
-      TRACE_GC_EPOCH(owning_heap()->tracer(),
-                     GCTracer::Scope::MC_BACKGROUND_SWEEPING,
-                     ThreadKind::kBackground);
+      TRACE_GC_EPOCH_WITH_FLOW(
+          owning_heap()->tracer(), GCTracer::Scope::MC_BACKGROUND_SWEEPING,
+          ThreadKind::kBackground, trace_flow_id,
+          TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT);
       space_->RefillFreeList();
     }
 
@@ -221,9 +224,10 @@ ConcurrentAllocator::AllocateFromSpaceFreeList(size_t min_size_in_bytes,
       // reallocate.
       int max_freed;
       {
-        TRACE_GC_EPOCH(owning_heap()->tracer(),
-                       GCTracer::Scope::MC_BACKGROUND_SWEEPING,
-                       ThreadKind::kBackground);
+        TRACE_GC_EPOCH_WITH_FLOW(
+            owning_heap()->tracer(), GCTracer::Scope::MC_BACKGROUND_SWEEPING,
+            ThreadKind::kBackground, trace_flow_id,
+            TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT);
         const int kMaxPagesToSweep = 1;
         max_freed = owning_heap()->sweeper()->ParallelSweepSpace(
             space_->identity(), Sweeper::SweepingMode::kLazyOrConcurrent,
@@ -249,9 +253,10 @@ ConcurrentAllocator::AllocateFromSpaceFreeList(size_t min_size_in_bytes,
 
   if (owning_heap()->major_sweeping_in_progress()) {
     // Complete sweeping for this space.
-    TRACE_GC_EPOCH(owning_heap()->tracer(),
-                   GCTracer::Scope::MC_BACKGROUND_SWEEPING,
-                   ThreadKind::kBackground);
+    TRACE_GC_EPOCH_WITH_FLOW(
+        owning_heap()->tracer(), GCTracer::Scope::MC_BACKGROUND_SWEEPING,
+        ThreadKind::kBackground, trace_flow_id,
+        TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT);
     owning_heap()->DrainSweepingWorklistForSpace(space_->identity());
 
     space_->RefillFreeList();

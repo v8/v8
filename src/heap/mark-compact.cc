@@ -742,8 +742,10 @@ void ShrinkPagesToObjectSizes(Heap* heap, OldLargeObjectSpace* space) {
 
 void MarkCompactCollector::Finish() {
   {
-    TRACE_GC_EPOCH(heap_->tracer(), GCTracer::Scope::MC_SWEEP,
-                   ThreadKind::kMain);
+    TRACE_GC_EPOCH_WITH_FLOW(
+        heap_->tracer(), GCTracer::Scope::MC_SWEEP, ThreadKind::kMain,
+        sweeper_->GetTraceIdForFlowEvent(GCTracer::Scope::MC_SWEEP),
+        TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT);
 
     DCHECK_IMPLIES(!v8_flags.minor_ms,
                    empty_new_space_pages_to_be_swept_.empty());
@@ -832,7 +834,6 @@ void MarkCompactCollector::Finish() {
 }
 
 void MarkCompactCollector::SweepArrayBufferExtensions() {
-  TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_FINISH_SWEEP_ARRAY_BUFFERS);
   DCHECK_IMPLIES(heap_->new_space(), heap_->new_space()->Size() == 0);
   DCHECK_IMPLIES(heap_->new_lo_space(), heap_->new_lo_space()->Size() == 0);
   heap_->array_buffer_sweeper()->RequestSweep(
@@ -5045,7 +5046,12 @@ void MarkCompactCollector::SweepLargeSpace(LargeObjectSpace* space) {
 
 void MarkCompactCollector::Sweep() {
   DCHECK(!sweeper_->sweeping_in_progress());
-  TRACE_GC_EPOCH(heap_->tracer(), GCTracer::Scope::MC_SWEEP, ThreadKind::kMain);
+  sweeper_->InitializeMajorSweeping();
+
+  TRACE_GC_EPOCH_WITH_FLOW(
+      heap_->tracer(), GCTracer::Scope::MC_SWEEP, ThreadKind::kMain,
+      sweeper_->GetTraceIdForFlowEvent(GCTracer::Scope::MC_SWEEP),
+      TRACE_EVENT_FLAG_FLOW_OUT);
 #ifdef DEBUG
   state_ = SWEEP_SPACES;
 #endif

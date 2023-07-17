@@ -40,11 +40,30 @@ enum ScavengeSpeedMode { kForAllObjects, kForSurvivedObjects };
   TRACE_EVENT0(TRACE_GC_CATEGORIES,                                   \
                GCTracer::Scope::Name(GCTracer::Scope::ScopeId(scope_id)))
 
+#define TRACE_GC_WITH_FLOW(tracer, scope_id, bind_id, flow_flags)         \
+  DCHECK_NE(GCTracer::Scope::MC_SWEEP, scope_id);                         \
+  DCHECK_NE(GCTracer::Scope::MC_BACKGROUND_SWEEPING, scope_id);           \
+  GCTracer::Scope UNIQUE_IDENTIFIER(gc_tracer_scope)(                     \
+      tracer, GCTracer::Scope::ScopeId(scope_id), ThreadKind::kMain);     \
+  TRACE_EVENT_WITH_FLOW0(                                                 \
+      TRACE_GC_CATEGORIES,                                                \
+      GCTracer::Scope::Name(GCTracer::Scope::ScopeId(scope_id)), bind_id, \
+      flow_flags)
+
 #define TRACE_GC1(tracer, scope_id, thread_kind)                \
   GCTracer::Scope UNIQUE_IDENTIFIER(gc_tracer_scope)(           \
       tracer, GCTracer::Scope::ScopeId(scope_id), thread_kind); \
   TRACE_EVENT0(TRACE_GC_CATEGORIES,                             \
                GCTracer::Scope::Name(GCTracer::Scope::ScopeId(scope_id)))
+
+#define TRACE_GC1_WITH_FLOW(tracer, scope_id, thread_kind, bind_id,       \
+                            flow_flags)                                   \
+  GCTracer::Scope UNIQUE_IDENTIFIER(gc_tracer_scope)(                     \
+      tracer, GCTracer::Scope::ScopeId(scope_id), thread_kind);           \
+  TRACE_EVENT_WITH_FLOW0(                                                 \
+      TRACE_GC_CATEGORIES,                                                \
+      GCTracer::Scope::Name(GCTracer::Scope::ScopeId(scope_id)), bind_id, \
+      flow_flags)
 
 #define TRACE_GC_EPOCH(tracer, scope_id, thread_kind)                     \
   GCTracer::Scope UNIQUE_IDENTIFIER(gc_tracer_scope)(                     \
@@ -52,6 +71,15 @@ enum ScavengeSpeedMode { kForAllObjects, kForSurvivedObjects };
   TRACE_EVENT1(TRACE_GC_CATEGORIES,                                       \
                GCTracer::Scope::Name(GCTracer::Scope::ScopeId(scope_id)), \
                "epoch", tracer->CurrentEpoch(scope_id))
+
+#define TRACE_GC_EPOCH_WITH_FLOW(tracer, scope_id, thread_kind, bind_id,  \
+                                 flow_flags)                              \
+  GCTracer::Scope UNIQUE_IDENTIFIER(gc_tracer_scope)(                     \
+      tracer, GCTracer::Scope::ScopeId(scope_id), thread_kind);           \
+  TRACE_EVENT_WITH_FLOW1(                                                 \
+      TRACE_GC_CATEGORIES,                                                \
+      GCTracer::Scope::Name(GCTracer::Scope::ScopeId(scope_id)), bind_id, \
+      flow_flags, "epoch", tracer->CurrentEpoch(scope_id))
 
 using CollectionEpoch = uint32_t;
 

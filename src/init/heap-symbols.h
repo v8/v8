@@ -588,6 +588,33 @@
   F(MINOR_MS_MARK)             \
   F(MINOR_MS_SWEEP)
 
+#define MINOR_MS_MAIN_THREAD_SCOPES(F)      \
+  F(MINOR_MARK_SWEEPER)                     \
+  F(MINOR_MS)                               \
+  TOP_MINOR_MS_SCOPES(F)                    \
+  F(MINOR_MS_CLEAR_STRING_FORWARDING_TABLE) \
+  F(MINOR_MS_CLEAR_STRING_TABLE)            \
+  F(MINOR_MS_CLEAR_WEAK_GLOBAL_HANDLES)     \
+  F(MINOR_MS_COMPLETE_SWEEP_ARRAY_BUFFERS)  \
+  F(MINOR_MS_COMPLETE_SWEEPING)             \
+  F(MINOR_MS_MARK_FINISH_INCREMENTAL)       \
+  F(MINOR_MS_MARK_PARALLEL)                 \
+  F(MINOR_MS_MARK_INCREMENTAL_SEED)         \
+  F(MINOR_MS_MARK_SEED)                     \
+  F(MINOR_MS_MARK_TRACED_HANDLES)           \
+  F(MINOR_MS_MARK_CONSERVATIVE_STACK)       \
+  F(MINOR_MS_MARK_CLOSURE_PARALLEL)         \
+  F(MINOR_MS_MARK_CLOSURE)                  \
+  F(MINOR_MS_MARK_EMBEDDER_PROLOGUE)        \
+  F(MINOR_MS_MARK_EMBEDDER_TRACING)         \
+  F(MINOR_MS_MARK_VERIFY)                   \
+  F(MINOR_MS_SWEEP_NEW)                     \
+  F(MINOR_MS_SWEEP_NEW_LO)                  \
+  F(MINOR_MS_SWEEP_UPDATE_STRING_TABLE)     \
+  F(MINOR_MS_SWEEP_START_JOBS)              \
+  F(MINOR_MS_FINISH_SWEEP_ARRAY_BUFFERS)    \
+  F(MINOR_MS_FINISH_ENSURE_CAPACITY)
+
 #define TRACER_SCOPES(F)                             \
   INCREMENTAL_SCOPES(F)                              \
   MINOR_INCREMENTAL_SCOPES(F)                        \
@@ -656,30 +683,8 @@
   F(MC_SWEEP_OLD)                                    \
   F(MC_SWEEP_SHARED)                                 \
   F(MC_SWEEP_SHARED_LO)                              \
-  F(MINOR_MARK_SWEEPER)                              \
-  F(MINOR_MS)                                        \
-  TOP_MINOR_MS_SCOPES(F)                             \
-  F(MINOR_MS_CLEAR_STRING_FORWARDING_TABLE)          \
-  F(MINOR_MS_CLEAR_STRING_TABLE)                     \
-  F(MINOR_MS_CLEAR_WEAK_GLOBAL_HANDLES)              \
-  F(MINOR_MS_COMPLETE_SWEEP_ARRAY_BUFFERS)           \
-  F(MINOR_MS_COMPLETE_SWEEPING)                      \
-  F(MINOR_MS_MARK_FINISH_INCREMENTAL)                \
-  F(MINOR_MS_MARK_PARALLEL)                          \
-  F(MINOR_MS_MARK_INCREMENTAL_SEED)                  \
-  F(MINOR_MS_MARK_SEED)                              \
-  F(MINOR_MS_MARK_TRACED_HANDLES)                    \
-  F(MINOR_MS_MARK_CONSERVATIVE_STACK)                \
-  F(MINOR_MS_MARK_CLOSURE_PARALLEL)                  \
-  F(MINOR_MS_MARK_CLOSURE)                           \
-  F(MINOR_MS_MARK_EMBEDDER_PROLOGUE)                 \
-  F(MINOR_MS_MARK_EMBEDDER_TRACING)                  \
-  F(MINOR_MS_MARK_VERIFY)                            \
-  F(MINOR_MS_SWEEP_NEW)                              \
-  F(MINOR_MS_SWEEP_NEW_LO)                           \
-  F(MINOR_MS_SWEEP_UPDATE_STRING_TABLE)              \
-  F(MINOR_MS_SWEEP_START_JOBS)                       \
-  F(MINOR_MS_FINISH_ENSURE_CAPACITY)                 \
+  F(MC_SWEEP_START_JOBS)                             \
+  MINOR_MS_MAIN_THREAD_SCOPES(F)                     \
   F(SAFEPOINT)                                       \
   F(SCAVENGER)                                       \
   F(SCAVENGER_COMPLETE_SWEEP_ARRAY_BUFFERS)          \
@@ -697,6 +702,7 @@
   F(SCAVENGER_SWEEP_ARRAY_BUFFERS)                   \
   F(TIME_TO_GLOBAL_SAFEPOINT)                        \
   F(TIME_TO_SAFEPOINT)                               \
+  F(START_UNMAPPER)                                  \
   F(UNMAPPER)                                        \
   F(UNPARK)                                          \
   F(YOUNG_ARRAY_BUFFER_SWEEP)                        \
@@ -720,9 +726,7 @@
 #define TRACER_YOUNG_EPOCH_SCOPES(F)        \
   F(YOUNG_ARRAY_BUFFER_SWEEP)               \
   F(BACKGROUND_YOUNG_ARRAY_BUFFER_SWEEP)    \
-  F(MINOR_MARK_SWEEPER)                     \
-  F(MINOR_MS_COMPLETE_SWEEP_ARRAY_BUFFERS)  \
-  F(MINOR_MS_COMPLETE_SWEEPING)             \
+  MINOR_MS_MAIN_THREAD_SCOPES(F)            \
   F(MINOR_MS_BACKGROUND_MARKING)            \
   F(MINOR_MS_BACKGROUND_SWEEPING)           \
   F(SCAVENGER)                              \

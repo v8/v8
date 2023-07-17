@@ -122,6 +122,8 @@ class Sweeper {
   // are not running yet.
   void StartMajorSweeping();
   void StartMinorSweeping();
+  void InitializeMajorSweeping();
+  void InitializeMinorSweeping();
   V8_EXPORT_PRIVATE void StartMajorSweeperTasks();
   V8_EXPORT_PRIVATE void StartMinorSweeperTasks();
   void EnsureMajorCompleted();
@@ -145,6 +147,8 @@ class Sweeper {
   bool ShouldRefillFreelistForSpace(AllocationSpace space) const;
 
   void SweepEmptyNewSpacePage(Page* page);
+
+  uint64_t GetTraceIdForFlowEvent(GCTracer::Scope::ScopeId scope_id) const;
 
  private:
   NonAtomicMarkingState* marking_state() const { return marking_state_; }
@@ -250,6 +254,7 @@ class Sweeper {
     explicit SweepingState(Sweeper* sweeper);
     ~SweepingState();
 
+    void InitializeSweeping();
     void StartSweeping();
     void StartConcurrentSweeping();
     void StopConcurrentSweeping();
@@ -267,6 +272,8 @@ class Sweeper {
     void Pause();
     void Resume();
 
+    uint64_t trace_id() const { return trace_id_; }
+
    private:
     Sweeper* sweeper_;
     // Main thread can finalize sweeping, while background threads allocation
@@ -275,6 +282,7 @@ class Sweeper {
     std::atomic<bool> in_progress_{false};
     std::unique_ptr<JobHandle> job_handle_;
     std::vector<ConcurrentSweeper> concurrent_sweepers_;
+    uint64_t trace_id_;
     bool should_reduce_memory_ = false;
   };
 

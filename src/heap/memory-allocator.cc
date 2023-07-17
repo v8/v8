@@ -66,19 +66,25 @@ void MemoryAllocator::TearDown() {
 class MemoryAllocator::Unmapper::UnmapFreeMemoryJob : public JobTask {
  public:
   explicit UnmapFreeMemoryJob(Isolate* isolate, Unmapper* unmapper)
-      : unmapper_(unmapper), tracer_(isolate->heap()->tracer()) {}
+      : unmapper_(unmapper),
+        tracer_(isolate->heap()->tracer()),
+        trace_id_(reinterpret_cast<uint64_t>(this) ^
+                  tracer_->CurrentEpoch(GCTracer::Scope::BACKGROUND_UNMAPPER)) {
+  }
 
   UnmapFreeMemoryJob(const UnmapFreeMemoryJob&) = delete;
   UnmapFreeMemoryJob& operator=(const UnmapFreeMemoryJob&) = delete;
 
   void Run(JobDelegate* delegate) override {
     if (delegate->IsJoiningThread()) {
-      TRACE_GC(tracer_, GCTracer::Scope::UNMAPPER);
+      TRACE_GC_WITH_FLOW(tracer_, GCTracer::Scope::UNMAPPER, trace_id_,
+                         TRACE_EVENT_FLAG_FLOW_IN);
       RunImpl(delegate);
 
     } else {
-      TRACE_GC1(tracer_, GCTracer::Scope::BACKGROUND_UNMAPPER,
-                ThreadKind::kBackground);
+      TRACE_GC1_WITH_FLOW(tracer_, GCTracer::Scope::BACKGROUND_UNMAPPER,
+                          ThreadKind::kBackground, trace_id_,
+                          TRACE_EVENT_FLAG_FLOW_IN);
       RunImpl(delegate);
     }
   }
@@ -92,6 +98,8 @@ class MemoryAllocator::Unmapper::UnmapFreeMemoryJob : public JobTask {
                 kTaskPerChunk);
   }
 
+  uint64_t trace_id() const { return trace_id_; }
+
  private:
   void RunImpl(JobDelegate* delegate) {
     unmapper_->PerformFreeMemoryOnQueuedChunks(FreeMode::kUncommitPooled,
@@ -102,6 +110,7 @@ class MemoryAllocator::Unmapper::UnmapFreeMemoryJob : public JobTask {
   }
   Unmapper* const unmapper_;
   GCTracer* const tracer_;
+  const uint64_t trace_id_;
 };
 
 void MemoryAllocator::Unmapper::FreeQueuedChunks() {
@@ -111,9 +120,11 @@ void MemoryAllocator::Unmapper::FreeQueuedChunks() {
     if (job_handle_ && job_handle_->IsValid()) {
       job_handle_->NotifyConcurrencyIncrease();
     } else {
+      auto job = std::make_unique<UnmapFreeMemoryJob>(heap_->isolate(), this);
+      TRACE_GC_WITH_FLOW(heap_->tracer(), GCTracer::Scope::START_UNMAPPER,
+                         job->trace_id(), TRACE_EVENT_FLAG_FLOW_OUT);
       job_handle_ = V8::GetCurrentPlatform()->PostJob(
-          TaskPriority::kUserVisible,
-          std::make_unique<UnmapFreeMemoryJob>(heap_->isolate(), this));
+          TaskPriority::kUserVisible, std::move(job));
       if (v8_flags.trace_unmapper) {
         PrintIsolate(heap_->isolate(), "Unmapper::FreeQueuedChunks: new Job\n");
       }

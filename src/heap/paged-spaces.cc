@@ -885,8 +885,10 @@ bool PagedSpaceBase::RawRefillLabMain(int size_in_bytes,
     // may have freed some objects in the meantime.
     if (heap()->sweeper()->ShouldRefillFreelistForSpace(identity())) {
       {
-        TRACE_GC_EPOCH(heap()->tracer(), sweeping_scope_id,
-                       sweeping_scope_kind);
+        TRACE_GC_EPOCH_WITH_FLOW(
+            heap()->tracer(), sweeping_scope_id, sweeping_scope_kind,
+            heap()->sweeper()->GetTraceIdForFlowEvent(sweeping_scope_id),
+            TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT);
         RefillFreeList();
       }
 
@@ -950,7 +952,10 @@ bool PagedSpaceBase::ContributeToSweepingMain(
       heap()->sweeper()->IsSweepingDoneForSpace(identity()))
     return false;
 
-  TRACE_GC_EPOCH(heap()->tracer(), sweeping_scope_id, sweeping_scope_kind);
+  TRACE_GC_EPOCH_WITH_FLOW(
+      heap()->tracer(), sweeping_scope_id, sweeping_scope_kind,
+      heap()->sweeper()->GetTraceIdForFlowEvent(sweeping_scope_id),
+      TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT);
   // Cleanup invalidated old-to-new refs for compaction space in the
   // final atomic pause.
   Sweeper::SweepingMode sweeping_mode =

@@ -2044,7 +2044,10 @@ void CompleteArrayBufferSweeping(Heap* heap) {
         scope_id = GCTracer::Scope::MC_COMPLETE_SWEEP_ARRAY_BUFFERS;
     }
 
-    TRACE_GC_EPOCH(tracer, scope_id, ThreadKind::kMain);
+    TRACE_GC_EPOCH_WITH_FLOW(
+        tracer, scope_id, ThreadKind::kMain,
+        array_buffer_sweeper->GetTraceIdForFlowEvent(scope_id),
+        TRACE_EVENT_FLAG_FLOW_IN);
     array_buffer_sweeper->EnsureFinished();
   }
 }
@@ -7178,13 +7181,19 @@ void Heap::EnsureSweepingCompleted(SweepingForcedFinalizationMode mode) {
     sweeper()->EnsureMajorCompleted();
 
     if (v8_flags.minor_ms && new_space()) {
-      TRACE_GC_EPOCH(tracer(), GCTracer::Scope::MINOR_MS_COMPLETE_SWEEPING,
-                     ThreadKind::kMain);
+      TRACE_GC_EPOCH_WITH_FLOW(
+          tracer(), GCTracer::Scope::MINOR_MS_COMPLETE_SWEEPING,
+          ThreadKind::kMain,
+          sweeper_->GetTraceIdForFlowEvent(
+              GCTracer::Scope::MINOR_MS_COMPLETE_SWEEPING),
+          TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT);
       paged_new_space()->paged_space()->RefillFreeList();
     }
 
-    TRACE_GC_EPOCH(tracer(), GCTracer::Scope::MC_COMPLETE_SWEEPING,
-                   ThreadKind::kMain);
+    TRACE_GC_EPOCH_WITH_FLOW(
+        tracer(), GCTracer::Scope::MC_COMPLETE_SWEEPING, ThreadKind::kMain,
+        sweeper_->GetTraceIdForFlowEvent(GCTracer::Scope::MC_COMPLETE_SWEEPING),
+        TRACE_EVENT_FLAG_FLOW_IN);
     old_space()->RefillFreeList();
     {
       CodePageHeaderModificationScope rwx_write_scope(
@@ -7221,8 +7230,11 @@ void Heap::EnsureSweepingCompleted(SweepingForcedFinalizationMode mode) {
 void Heap::EnsureYoungSweepingCompleted() {
   if (!sweeper()->minor_sweeping_in_progress()) return;
 
-  TRACE_GC_EPOCH(tracer(), GCTracer::Scope::MINOR_MS_COMPLETE_SWEEPING,
-                 ThreadKind::kMain);
+  TRACE_GC_EPOCH_WITH_FLOW(
+      tracer(), GCTracer::Scope::MINOR_MS_COMPLETE_SWEEPING, ThreadKind::kMain,
+      sweeper_->GetTraceIdForFlowEvent(
+          GCTracer::Scope::MINOR_MS_COMPLETE_SWEEPING),
+      TRACE_EVENT_FLAG_FLOW_IN);
 
   sweeper()->EnsureMinorCompleted();
   paged_new_space()->paged_space()->RefillFreeList();
