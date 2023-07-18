@@ -2612,7 +2612,7 @@ struct TSCallDescriptor : public NON_EXPORTED_BASE(ZoneObject) {
   static const TSCallDescriptor* Create(const CallDescriptor* descriptor,
                                         Zone* graph_zone) {
     base::Vector<RegisterRepresentation> out_reps =
-        graph_zone->NewVector<RegisterRepresentation>(
+        graph_zone->AllocateVector<RegisterRepresentation>(
             descriptor->ReturnCount());
     for (size_t i = 0; i < descriptor->ReturnCount(); ++i) {
       out_reps[i] = RegisterRepresentation::FromMachineRepresentation(

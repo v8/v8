@@ -5439,7 +5439,8 @@ ReduceResult MaglevGraphBuilder::BuildInlined(ValueNode* context,
       compilation_unit_->shared_function_info()
           .internal_formal_parameter_count_without_receiver();
   if (arg_count != formal_parameter_count) {
-    inlined_arguments_.emplace(zone()->NewVector<ValueNode*>(arg_count + 1));
+    inlined_arguments_.emplace(
+        zone()->AllocateVector<ValueNode*>(arg_count + 1));
     (*inlined_arguments_)[0] = receiver;
     for (int i = 0; i < arg_count; i++) {
       (*inlined_arguments_)[i + 1] = args[i];
@@ -7375,7 +7376,7 @@ ReduceResult MaglevGraphBuilder::ReduceConstruct(
 
         int construct_arg_count = static_cast<int>(args.count());
         base::Vector<ValueNode*> construct_arguments_without_receiver =
-            zone()->NewVector<ValueNode*>(construct_arg_count);
+            zone()->AllocateVector<ValueNode*>(construct_arg_count);
         for (int i = 0; i < construct_arg_count; i++) {
           construct_arguments_without_receiver[i] = args[i];
         }

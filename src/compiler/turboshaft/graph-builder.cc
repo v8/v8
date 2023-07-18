@@ -377,7 +377,7 @@ OpIndex GraphBuilder::Process(
         return OpIndex::Invalid();
       }
       base::Vector<OpIndex> projections =
-          graph_zone->NewVector<OpIndex>(return_count);
+          graph_zone->AllocateVector<OpIndex>(return_count);
       for (size_t i = 0; i < return_count; i++) {
         projections[i] = __ Projection(call_idx, i, op.outputs_rep()[i]);
       }

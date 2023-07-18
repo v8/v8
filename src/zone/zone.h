@@ -129,8 +129,9 @@ class V8_EXPORT_PRIVATE Zone final {
     return static_cast<T*>(Allocate<TypeTag>(length * sizeof(T)));
   }
 
+  // Allocates a vector with 'length' uninitialized entries.
   template <typename T, typename TypeTag = T[]>
-  base::Vector<T> NewVector(size_t length) {
+  base::Vector<T> AllocateVector(size_t length) {
     T* new_array = AllocateArray<T, TypeTag>(length);
     return {new_array, length};
   }

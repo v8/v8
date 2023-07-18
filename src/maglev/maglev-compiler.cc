@@ -275,7 +275,7 @@ class UseMarkingProcessor {
       // TODO(leszeks): We only need to extend the lifetime in one outermost
       // loop, allow nodes to be "moved" between lifetime extensions.
       base::Vector<Input> used_node_inputs =
-          compilation_info_->zone()->NewVector<Input>(
+          compilation_info_->zone()->AllocateVector<Input>(
               loop_used_nodes.used_nodes.size());
       int i = 0;
       for (auto& [used_node, info] : loop_used_nodes.used_nodes) {
