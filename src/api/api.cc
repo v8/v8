@@ -36,7 +36,6 @@
 #include "src/base/platform/time.h"
 #include "src/base/safe_conversions.h"
 #include "src/base/utils/random-number-generator.h"
-#include "src/baseline/baseline-batch-compiler.h"
 #include "src/builtins/accessors.h"
 #include "src/builtins/builtins-utils.h"
 #include "src/codegen/compilation-cache.h"
@@ -122,7 +121,6 @@
 #include "src/snapshot/code-serializer.h"
 #include "src/snapshot/embedded/embedded-data.h"
 #include "src/snapshot/snapshot.h"
-#include "src/snapshot/startup-serializer.h"  // For SerializedHandleChecker.
 #include "src/strings/char-predicates-inl.h"
 #include "src/strings/string-hasher.h"
 #include "src/strings/unicode-inl.h"
@@ -542,269 +540,57 @@ class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
 };
 #endif  // V8_ENABLE_SANDBOX
 
-struct SnapshotCreatorData {
-  explicit SnapshotCreatorData(Isolate* v8_isolate, bool owns_isolate)
-      : isolate_(v8_isolate), owns_isolate_(owns_isolate) {}
-
-  static SnapshotCreatorData* cast(void* data) {
-    return reinterpret_cast<SnapshotCreatorData*>(data);
-  }
-
-  ArrayBufferAllocator allocator_;
-  Isolate* isolate_;
-  Persistent<Context> default_context_;
-  SerializeInternalFieldsCallback default_embedder_fields_serializer_;
-  std::vector<Global<Context>> contexts_;
-  std::vector<SerializeInternalFieldsCallback> embedder_fields_serializers_;
-  bool created_ = false;
-  const bool owns_isolate_;
-};
-
 }  // namespace
 
 SnapshotCreator::SnapshotCreator(Isolate* v8_isolate,
                                  const intptr_t* external_references,
                                  const StartupData* existing_snapshot,
-                                 bool owns_isolate) {
-  SnapshotCreatorData* data = new SnapshotCreatorData(v8_isolate, owns_isolate);
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
-  i_isolate->set_array_buffer_allocator(&data->allocator_);
-  i_isolate->set_api_external_references(external_references);
-  i_isolate->enable_serializer();
-  v8_isolate->Enter();
-  const StartupData* blob = existing_snapshot
-                                ? existing_snapshot
-                                : i::Snapshot::DefaultSnapshotBlob();
-  if (blob && blob->raw_size > 0) {
-    i_isolate->set_snapshot_blob(blob);
-    i::Snapshot::Initialize(i_isolate);
-  } else {
-    i_isolate->InitWithoutSnapshot();
-  }
-  data_ = data;
-  // Disable batch compilation during snapshot creation.
-  i_isolate->baseline_batch_compiler()->set_enabled(false);
-}
+                                 bool owns_isolate)
+    : data_(new i::SnapshotCreatorImpl(
+          reinterpret_cast<i::Isolate*>(v8_isolate), external_references,
+          existing_snapshot, owns_isolate)) {}
 
 SnapshotCreator::SnapshotCreator(const intptr_t* external_references,
                                  const StartupData* existing_snapshot)
-    : SnapshotCreator(Isolate::Allocate(), external_references,
-                      existing_snapshot) {}
+    : SnapshotCreator(nullptr, external_references, existing_snapshot) {}
 
 SnapshotCreator::~SnapshotCreator() {
-  SnapshotCreatorData* data = SnapshotCreatorData::cast(data_);
-  Isolate* v8_isolate = data->isolate_;
-  if (!data->created_) {
-    // No snapshot was serialized from the created Isolate. Seal RO space now
-    // to leave the Isolate in a consistent state for teardown code.
-    i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
-    i_isolate->read_only_heap()->OnCreateHeapObjectsComplete(i_isolate);
-  }
-  v8_isolate->Exit();
-  if (data->owns_isolate_) {
-    v8_isolate->Dispose();
-  }
-  delete data;
+  DCHECK_NOT_NULL(data_);
+  auto impl = static_cast<i::SnapshotCreatorImpl*>(data_);
+  delete impl;
 }
 
 Isolate* SnapshotCreator::GetIsolate() {
-  return SnapshotCreatorData::cast(data_)->isolate_;
+  auto impl = static_cast<i::SnapshotCreatorImpl*>(data_);
+  return reinterpret_cast<v8::Isolate*>(impl->isolate());
 }
 
 void SnapshotCreator::SetDefaultContext(
     Local<Context> context, SerializeInternalFieldsCallback callback) {
-  DCHECK(!context.IsEmpty());
-  SnapshotCreatorData* data = SnapshotCreatorData::cast(data_);
-  DCHECK(!data->created_);
-  DCHECK(data->default_context_.IsEmpty());
-  Isolate* v8_isolate = data->isolate_;
-  CHECK_EQ(v8_isolate, context->GetIsolate());
-  data->default_context_.Reset(v8_isolate, context);
-  data->default_embedder_fields_serializer_ = callback;
+  auto impl = static_cast<i::SnapshotCreatorImpl*>(data_);
+  impl->SetDefaultContext(Utils::OpenHandle(*context), callback);
 }
 
 size_t SnapshotCreator::AddContext(Local<Context> context,
                                    SerializeInternalFieldsCallback callback) {
-  DCHECK(!context.IsEmpty());
-  SnapshotCreatorData* data = SnapshotCreatorData::cast(data_);
-  DCHECK(!data->created_);
-  Isolate* v8_isolate = data->isolate_;
-  CHECK_EQ(v8_isolate, context->GetIsolate());
-  size_t index = data->contexts_.size();
-  data->contexts_.emplace_back(v8_isolate, context);
-  data->embedder_fields_serializers_.push_back(callback);
-  return index;
+  auto impl = static_cast<i::SnapshotCreatorImpl*>(data_);
+  return impl->AddContext(Utils::OpenHandle(*context), callback);
 }
 
 size_t SnapshotCreator::AddData(i::Address object) {
-  DCHECK_NE(object, i::kNullAddress);
-  SnapshotCreatorData* data = SnapshotCreatorData::cast(data_);
-  DCHECK(!data->created_);
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(data->isolate_);
-  i::HandleScope scope(i_isolate);
-  i::Handle<i::Object> obj(i::Object(object), i_isolate);
-  i::Handle<i::ArrayList> list;
-  if (!i_isolate->heap()->serialized_objects().IsArrayList()) {
-    list = i::ArrayList::New(i_isolate, 1);
-  } else {
-    list = i::Handle<i::ArrayList>(
-        i::ArrayList::cast(i_isolate->heap()->serialized_objects()), i_isolate);
-  }
-  size_t index = static_cast<size_t>(list->Length());
-  list = i::ArrayList::Add(i_isolate, list, obj);
-  i_isolate->heap()->SetSerializedObjects(*list);
-  return index;
+  auto impl = static_cast<i::SnapshotCreatorImpl*>(data_);
+  return impl->AddData(object);
 }
 
 size_t SnapshotCreator::AddData(Local<Context> context, i::Address object) {
-  DCHECK_NE(object, i::kNullAddress);
-  DCHECK(!SnapshotCreatorData::cast(data_)->created_);
-  i::DirectHandle<i::NativeContext> ctx = Utils::OpenDirectHandle(*context);
-  i::Isolate* i_isolate = ctx->GetIsolate();
-  i::HandleScope scope(i_isolate);
-  i::Handle<i::Object> obj(i::Object(object), i_isolate);
-  i::Handle<i::ArrayList> list;
-  if (!ctx->serialized_objects().IsArrayList()) {
-    list = i::ArrayList::New(i_isolate, 1);
-  } else {
-    list = i::Handle<i::ArrayList>(
-        i::ArrayList::cast(ctx->serialized_objects()), i_isolate);
-  }
-  size_t index = static_cast<size_t>(list->Length());
-  list = i::ArrayList::Add(i_isolate, list, obj);
-  ctx->set_serialized_objects(*list);
-  return index;
+  auto impl = static_cast<i::SnapshotCreatorImpl*>(data_);
+  return impl->AddData(Utils::OpenHandle(*context), object);
 }
-
-namespace {
-void ConvertSerializedObjectsToFixedArray(Local<Context> context) {
-  i::DirectHandle<i::NativeContext> ctx = Utils::OpenDirectHandle(*context);
-  i::Isolate* i_isolate = ctx->GetIsolate();
-  if (!ctx->serialized_objects().IsArrayList()) {
-    ctx->set_serialized_objects(
-        i::ReadOnlyRoots(i_isolate).empty_fixed_array());
-  } else {
-    i::Handle<i::ArrayList> list(i::ArrayList::cast(ctx->serialized_objects()),
-                                 i_isolate);
-    i::Handle<i::FixedArray> elements = i::ArrayList::Elements(i_isolate, list);
-    ctx->set_serialized_objects(*elements);
-  }
-}
-
-void ConvertSerializedObjectsToFixedArray(i::Isolate* i_isolate) {
-  if (!i_isolate->heap()->serialized_objects().IsArrayList()) {
-    i_isolate->heap()->SetSerializedObjects(
-        i::ReadOnlyRoots(i_isolate).empty_fixed_array());
-  } else {
-    i::Handle<i::ArrayList> list(
-        i::ArrayList::cast(i_isolate->heap()->serialized_objects()), i_isolate);
-    i::Handle<i::FixedArray> elements = i::ArrayList::Elements(i_isolate, list);
-    i_isolate->heap()->SetSerializedObjects(*elements);
-  }
-}
-}  // anonymous namespace
 
 StartupData SnapshotCreator::CreateBlob(
     SnapshotCreator::FunctionCodeHandling function_code_handling) {
-  SnapshotCreatorData* data = SnapshotCreatorData::cast(data_);
-  Isolate* isolate = data->isolate_;
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  Utils::ApiCheck(!data->created_, "v8::SnapshotCreator::CreateBlob",
-                  "CreateBlob() cannot be called more than once on the same "
-                  "SnapshotCreator");
-  Utils::ApiCheck(
-      !data->default_context_.IsEmpty(), "v8::SnapshotCreator::CreateBlob",
-      "CreateBlob() cannot be called before the default context is set");
-  const int num_additional_contexts = static_cast<int>(data->contexts_.size());
-  const int num_contexts = num_additional_contexts + 1;  // The default context.
-
-  // Create and store lists of embedder-provided data needed during
-  // serialization.
-  {
-    i::HandleScope scope(i_isolate);
-    // Convert list of context-independent data to FixedArray.
-    ConvertSerializedObjectsToFixedArray(i_isolate);
-
-    // Convert lists of context-dependent data to FixedArray.
-    ConvertSerializedObjectsToFixedArray(
-        data->default_context_.Get(data->isolate_));
-    for (int i = 0; i < num_additional_contexts; i++) {
-      ConvertSerializedObjectsToFixedArray(data->contexts_[i].Get(isolate));
-    }
-
-    // We need to store the global proxy size upfront in case we need the
-    // bootstrapper to create a global proxy before we deserialize the context.
-    i::Handle<i::FixedArray> global_proxy_sizes =
-        i_isolate->factory()->NewFixedArray(num_additional_contexts,
-                                            i::AllocationType::kOld);
-    for (int i = 0; i < num_additional_contexts; i++) {
-      i::Handle<i::Context> context =
-          v8::Utils::OpenHandle(*data->contexts_[i].Get(isolate));
-      global_proxy_sizes->set(i,
-                              i::Smi::FromInt(context->global_proxy().Size()));
-    }
-    i_isolate->heap()->SetSerializedGlobalProxySizes(*global_proxy_sizes);
-  }
-
-  // We might rehash strings and re-sort descriptors. Clear the lookup cache.
-  i_isolate->descriptor_lookup_cache()->Clear();
-
-  // If we don't do this then we end up with a stray root pointing at the
-  // context even after we have disposed of the context.
-  i_isolate->heap()->CollectAllAvailableGarbage(
-      i::GarbageCollectionReason::kSnapshotCreator);
-  {
-    i::HandleScope scope(i_isolate);
-    i_isolate->heap()->CompactWeakArrayLists();
-  }
-
-  i::Snapshot::ClearReconstructableDataForSerialization(
-      i_isolate, function_code_handling == FunctionCodeHandling::kClear);
-
-  i::SafepointKind safepoint_kind = i_isolate->has_shared_space()
-                                        ? i::SafepointKind::kGlobal
-                                        : i::SafepointKind::kIsolate;
-  i::SafepointScope safepoint_scope(i_isolate, safepoint_kind);
-  i::DisallowGarbageCollection no_gc_from_here_on;
-
-  // Create a vector with all contexts and clear associated Persistent fields.
-  // Note these contexts may be dead after calling Clear(), but will not be
-  // collected until serialization completes and the DisallowGarbageCollection
-  // scope above goes out of scope.
-  std::vector<i::Context> contexts;
-  contexts.reserve(num_contexts);
-  {
-    i::HandleScope scope(i_isolate);
-    contexts.push_back(
-        *v8::Utils::OpenHandle(*data->default_context_.Get(data->isolate_)));
-    data->default_context_.Reset();
-    for (int i = 0; i < num_additional_contexts; i++) {
-      i::Handle<i::Context> context =
-          v8::Utils::OpenHandle(*data->contexts_[i].Get(isolate));
-      contexts.push_back(*context);
-    }
-    data->contexts_.clear();
-  }
-
-  // Check that values referenced by global/eternal handles are accounted for.
-  i::SerializedHandleChecker handle_checker(i_isolate, &contexts);
-  if (!handle_checker.CheckGlobalAndEternalHandles()) {
-    GRACEFUL_FATAL("CheckGlobalAndEternalHandles failed");
-  }
-
-  // Create a vector with all embedder fields serializers.
-  std::vector<SerializeInternalFieldsCallback> embedder_fields_serializers;
-  embedder_fields_serializers.reserve(num_contexts);
-  embedder_fields_serializers.push_back(
-      data->default_embedder_fields_serializer_);
-  for (int i = 0; i < num_additional_contexts; i++) {
-    embedder_fields_serializers.push_back(
-        data->embedder_fields_serializers_[i]);
-  }
-
-  data->created_ = true;
-  return i::Snapshot::Create(i_isolate, &contexts, embedder_fields_serializers,
-                             safepoint_scope, no_gc_from_here_on);
+  auto impl = static_cast<i::SnapshotCreatorImpl*>(data_);
+  return impl->CreateBlob(function_code_handling);
 }
 
 bool StartupData::CanBeRehashed() const {

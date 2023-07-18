@@ -6,8 +6,10 @@
 
 #include "src/snapshot/snapshot.h"
 
+#include "src/baseline/baseline-batch-compiler.h"
 #include "src/common/assert-scope.h"
 #include "src/execution/local-isolate-inl.h"
+#include "src/handles/global-handles-inl.h"
 #include "src/heap/local-heap-inl.h"
 #include "src/heap/safepoint.h"
 #include "src/init/bootstrapper.h"
@@ -830,6 +832,237 @@ v8::StartupData WarmUpSnapshotDataBlobInternal(
 
   return snapshot_creator.CreateBlob(
       v8::SnapshotCreator::FunctionCodeHandling::kKeep);
+}
+
+SnapshotCreatorImpl::SnapshotCreatorImpl(
+    Isolate* isolate, const intptr_t* api_external_references,
+    const StartupData* existing_blob, bool owns_isolate)
+    : owns_isolate_(owns_isolate),
+      isolate_(isolate == nullptr ? Isolate::New() : isolate),
+      array_buffer_allocator_(ArrayBuffer::Allocator::NewDefaultAllocator()) {
+  DCHECK_NOT_NULL(isolate_);
+
+  isolate_->set_array_buffer_allocator(array_buffer_allocator_);
+  isolate_->set_api_external_references(api_external_references);
+  isolate_->enable_serializer();
+  isolate_->Enter();
+
+  const StartupData* blob = existing_blob != nullptr
+                                ? existing_blob
+                                : Snapshot::DefaultSnapshotBlob();
+  if (blob != nullptr && blob->raw_size > 0) {
+    isolate_->set_snapshot_blob(blob);
+    Snapshot::Initialize(isolate_);
+  } else {
+    isolate_->InitWithoutSnapshot();
+  }
+
+  isolate_->baseline_batch_compiler()->set_enabled(false);
+
+  // Reserve a spot for the default context s.t. the call sequence of
+  // SetDefaultContext / AddContext remains independent.
+  contexts_.push_back(SerializableContext{});
+  DCHECK_EQ(contexts_.size(), kDefaultContextIndex + 1);
+}
+
+SnapshotCreatorImpl::~SnapshotCreatorImpl() {
+  if (!created()) {
+    // Finalize the RO heap in order to leave the Isolate in a consistent state.
+    isolate_->read_only_heap()->OnCreateHeapObjectsComplete(isolate_);
+  }
+  // Destroy leftover global handles (i.e. if CreateBlob was never called).
+  for (size_t i = 0; i < contexts_.size(); i++) {
+    DCHECK(!created());
+    GlobalHandles::Destroy(contexts_[i].handle_location);
+    contexts_[i].handle_location = nullptr;
+  }
+  isolate_->Exit();
+  if (owns_isolate_) Isolate::Delete(isolate_);
+  delete array_buffer_allocator_;
+}
+
+void SnapshotCreatorImpl::SetDefaultContext(
+    Handle<NativeContext> context, SerializeInternalFieldsCallback callback) {
+  DCHECK(contexts_[kDefaultContextIndex].handle_location == nullptr);
+  DCHECK(!context.is_null());
+  DCHECK(!created());
+  CHECK_EQ(isolate_, context->GetIsolate());
+  contexts_[kDefaultContextIndex].handle_location =
+      isolate_->global_handles()->Create(*context).location();
+  contexts_[kDefaultContextIndex].callback = callback;
+}
+
+size_t SnapshotCreatorImpl::AddContext(
+    Handle<NativeContext> context, SerializeInternalFieldsCallback callback) {
+  DCHECK(!context.is_null());
+  DCHECK(!created());
+  CHECK_EQ(isolate_, context->GetIsolate());
+  size_t index = contexts_.size() - kFirstAddtlContextIndex;
+  contexts_.emplace_back(
+      isolate_->global_handles()->Create(*context).location(), callback);
+  return index;
+}
+
+size_t SnapshotCreatorImpl::AddData(Handle<NativeContext> context,
+                                    Address object) {
+  CHECK_EQ(isolate_, context->GetIsolate());
+  DCHECK_NE(object, kNullAddress);
+  DCHECK(!created());
+  HandleScope scope(isolate_);
+  Handle<Object> obj(Object(object), isolate_);
+  Handle<ArrayList> list;
+  if (!context->serialized_objects().IsArrayList()) {
+    list = ArrayList::New(isolate_, 1);
+  } else {
+    list = Handle<ArrayList>(ArrayList::cast(context->serialized_objects()),
+                             isolate_);
+  }
+  size_t index = static_cast<size_t>(list->Length());
+  list = ArrayList::Add(isolate_, list, obj);
+  context->set_serialized_objects(*list);
+  return index;
+}
+
+size_t SnapshotCreatorImpl::AddData(Address object) {
+  DCHECK_NE(object, kNullAddress);
+  DCHECK(!created());
+  HandleScope scope(isolate_);
+  Handle<Object> obj(Object(object), isolate_);
+  Handle<ArrayList> list;
+  if (!isolate_->heap()->serialized_objects().IsArrayList()) {
+    list = ArrayList::New(isolate_, 1);
+  } else {
+    list = Handle<ArrayList>(
+        ArrayList::cast(isolate_->heap()->serialized_objects()), isolate_);
+  }
+  size_t index = static_cast<size_t>(list->Length());
+  list = ArrayList::Add(isolate_, list, obj);
+  isolate_->heap()->SetSerializedObjects(*list);
+  return index;
+}
+
+Handle<NativeContext> SnapshotCreatorImpl::context_at(size_t i) const {
+  return Handle<NativeContext>(contexts_[i].handle_location);
+}
+
+namespace {
+
+void ConvertSerializedObjectsToFixedArray(Isolate* isolate) {
+  if (!isolate->heap()->serialized_objects().IsArrayList()) {
+    isolate->heap()->SetSerializedObjects(
+        ReadOnlyRoots(isolate).empty_fixed_array());
+  } else {
+    Handle<ArrayList> list(
+        ArrayList::cast(isolate->heap()->serialized_objects()), isolate);
+    Handle<FixedArray> elements = ArrayList::Elements(isolate, list);
+    isolate->heap()->SetSerializedObjects(*elements);
+  }
+}
+
+void ConvertSerializedObjectsToFixedArray(Isolate* isolate,
+                                          Handle<NativeContext> context) {
+  if (!context->serialized_objects().IsArrayList()) {
+    context->set_serialized_objects(ReadOnlyRoots(isolate).empty_fixed_array());
+  } else {
+    Handle<ArrayList> list(ArrayList::cast(context->serialized_objects()),
+                           isolate);
+    Handle<FixedArray> elements = ArrayList::Elements(isolate, list);
+    context->set_serialized_objects(*elements);
+  }
+}
+
+}  // anonymous namespace
+
+// static
+StartupData SnapshotCreatorImpl::CreateBlob(
+    SnapshotCreator::FunctionCodeHandling function_code_handling) {
+  CHECK(!created());
+  CHECK(contexts_[kDefaultContextIndex].handle_location != nullptr);
+
+  const size_t num_contexts = contexts_.size();
+  const size_t num_additional_contexts = num_contexts - 1;
+
+  // Create and store lists of embedder-provided data needed during
+  // serialization.
+  {
+    HandleScope scope(isolate_);
+
+    // Convert list of context-independent data to FixedArray.
+    ConvertSerializedObjectsToFixedArray(isolate_);
+
+    // Convert lists of context-dependent data to FixedArray.
+    for (size_t i = 0; i < num_contexts; i++) {
+      ConvertSerializedObjectsToFixedArray(isolate_, context_at(i));
+    }
+
+    // We need to store the global proxy size upfront in case we need the
+    // bootstrapper to create a global proxy before we deserialize the context.
+    Handle<FixedArray> global_proxy_sizes = isolate_->factory()->NewFixedArray(
+        static_cast<int>(num_additional_contexts), AllocationType::kOld);
+    for (size_t i = kFirstAddtlContextIndex; i < num_contexts; i++) {
+      global_proxy_sizes->set(
+          static_cast<int>(i - kFirstAddtlContextIndex),
+          Smi::FromInt(context_at(i)->global_proxy().Size()));
+    }
+    isolate_->heap()->SetSerializedGlobalProxySizes(*global_proxy_sizes);
+  }
+
+  // We might rehash strings and re-sort descriptors. Clear the lookup cache.
+  isolate_->descriptor_lookup_cache()->Clear();
+
+  // If we don't do this then we end up with a stray root pointing at the
+  // context even after we have disposed of the context.
+  isolate_->heap()->CollectAllAvailableGarbage(
+      GarbageCollectionReason::kSnapshotCreator);
+  {
+    HandleScope scope(isolate_);
+    isolate_->heap()->CompactWeakArrayLists();
+  }
+
+  Snapshot::ClearReconstructableDataForSerialization(
+      isolate_,
+      function_code_handling == SnapshotCreator::FunctionCodeHandling::kClear);
+
+  SafepointKind safepoint_kind = isolate_->has_shared_space()
+                                     ? SafepointKind::kGlobal
+                                     : SafepointKind::kIsolate;
+  SafepointScope safepoint_scope(isolate_, safepoint_kind);
+  DisallowGarbageCollection no_gc_from_here_on;
+
+  // Create a vector with all contexts and destroy associated global handles.
+  // This is important because serialization visits active global handles as
+  // roots, which we don't want for our internal SnapshotCreatorImpl-related
+  // data.
+  // Note these contexts may be dead after calling Clear(), but will not be
+  // collected until serialization completes and the DisallowGarbageCollection
+  // scope above goes out of scope.
+  std::vector<Context> raw_contexts;
+  raw_contexts.reserve(num_contexts);
+  {
+    HandleScope scope(isolate_);
+    for (size_t i = 0; i < num_contexts; i++) {
+      raw_contexts.push_back(*context_at(i));
+      GlobalHandles::Destroy(contexts_[i].handle_location);
+      contexts_[i].handle_location = nullptr;
+    }
+  }
+
+  // Check that values referenced by global/eternal handles are accounted for.
+  SerializedHandleChecker handle_checker(isolate_, &raw_contexts);
+  if (!handle_checker.CheckGlobalAndEternalHandles()) {
+    GRACEFUL_FATAL("CheckGlobalAndEternalHandles failed");
+  }
+
+  // Create a vector with all embedder fields serializers.
+  std::vector<SerializeInternalFieldsCallback> raw_callbacks;
+  raw_callbacks.reserve(num_contexts);
+  for (size_t i = 0; i < num_contexts; i++) {
+    raw_callbacks.push_back(contexts_[i].callback);
+  }
+
+  contexts_.clear();
+  return Snapshot::Create(isolate_, &raw_contexts, raw_callbacks,
+                          safepoint_scope, no_gc_from_here_on);
 }
 
 }  // namespace internal

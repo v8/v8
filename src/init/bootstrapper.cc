@@ -6714,7 +6714,8 @@ Genesis::Genesis(
       // context that is yet to be deserialized. We need to prepare a global
       // proxy of the correct size.
       Object size = isolate->heap()->serialized_global_proxy_sizes()->get(
-          static_cast<int>(context_snapshot_index) - 1);
+          static_cast<int>(context_snapshot_index) -
+          SnapshotCreatorImpl::kFirstAddtlContextIndex);
       instance_size = Smi::ToInt(size);
     } else {
       instance_size = JSGlobalProxy::SizeWithEmbedderFields(
