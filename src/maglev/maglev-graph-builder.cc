@@ -574,12 +574,12 @@ MaglevGraphBuilder::MaglevGraphBuilder(LocalIsolate* local_isolate,
       loop_headers_to_peel_(bytecode().length(), zone()),
       call_frequency_(call_frequency),
       // Add an extra jump_target slot for the inline exit if needed.
-      jump_targets_(zone()->NewArray<BasicBlockRef>(bytecode().length() +
-                                                    (is_inline() ? 1 : 0))),
+      jump_targets_(zone()->AllocateArray<BasicBlockRef>(
+          bytecode().length() + (is_inline() ? 1 : 0))),
       // Overallocate merge_states_ by one to allow always looking up the
       // next offset. This overallocated slot can also be used for the inline
       // exit when needed.
-      merge_states_(zone()->NewArray<MergePointInterpreterFrameState*>(
+      merge_states_(zone()->AllocateArray<MergePointInterpreterFrameState*>(
           bytecode().length() + 1)),
       current_interpreter_frame_(
           *compilation_unit_,
@@ -8027,7 +8027,7 @@ FastObject::FastObject(compiler::JSFunctionRef constructor, Zone* zone,
           constructor);
   inobject_properties = prediction.inobject_property_count();
   instance_size = prediction.instance_size();
-  fields = zone->NewArray<FastField>(inobject_properties);
+  fields = zone->AllocateArray<FastField>(inobject_properties);
   ClearFields();
   elements = FastFixedArray();
 }
@@ -9146,7 +9146,7 @@ void MaglevGraphBuilder::VisitSwitchOnSmiNoFeedback() {
   if (offsets.size() == 0) return;
 
   int case_value_base = (*offsets.begin()).case_value;
-  BasicBlockRef* targets = zone()->NewArray<BasicBlockRef>(offsets.size());
+  BasicBlockRef* targets = zone()->AllocateArray<BasicBlockRef>(offsets.size());
   for (interpreter::JumpTableTargetOffset offset : offsets) {
     BasicBlockRef* ref = &targets[offset.case_value - case_value_base];
     new (ref) BasicBlockRef(&jump_targets_[offset.target_offset]);
@@ -9484,7 +9484,7 @@ void MaglevGraphBuilder::VisitSwitchOnGeneratorState() {
 
   // Switch on generator state.
   int case_value_base = (*offsets.begin()).case_value;
-  BasicBlockRef* targets = zone()->NewArray<BasicBlockRef>(offsets.size());
+  BasicBlockRef* targets = zone()->AllocateArray<BasicBlockRef>(offsets.size());
   for (interpreter::JumpTableTargetOffset offset : offsets) {
     BasicBlockRef* ref = &targets[offset.case_value - case_value_base];
     new (ref) BasicBlockRef(&jump_targets_[offset.target_offset]);

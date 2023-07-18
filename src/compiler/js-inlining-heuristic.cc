@@ -723,7 +723,7 @@ Reduction JSInliningHeuristic::InlineCandidate(Candidate const& candidate,
 
   // Setup the inputs for the cloned call nodes.
   int const input_count = node->InputCount();
-  Node** inputs = graph()->zone()->NewArray<Node*>(input_count);
+  Node** inputs = graph()->zone()->AllocateArray<Node*>(input_count);
   for (int i = 0; i < input_count; ++i) {
     inputs[i] = node->InputAt(i);
   }

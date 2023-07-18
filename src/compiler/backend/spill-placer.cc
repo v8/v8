@@ -209,12 +209,12 @@ int SpillPlacer::GetOrCreateIndexForLatestVreg(int vreg) {
       DCHECK_EQ(entries_, nullptr);
       // We lazily allocate these arrays because many functions don't have any
       // values that use SpillPlacer.
-      entries_ =
-          zone_->NewArray<Entry>(data()->code()->instruction_blocks().size());
+      entries_ = zone_->AllocateArray<Entry>(
+          data()->code()->instruction_blocks().size());
       for (size_t i = 0; i < data()->code()->instruction_blocks().size(); ++i) {
         new (&entries_[i]) Entry();
       }
-      vreg_numbers_ = zone_->NewArray<int>(kValueIndicesPerEntry);
+      vreg_numbers_ = zone_->AllocateArray<int>(kValueIndicesPerEntry);
     }
 
     if (assigned_indices_ == kValueIndicesPerEntry) {

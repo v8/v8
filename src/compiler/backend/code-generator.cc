@@ -57,8 +57,8 @@ CodeGenerator::CodeGenerator(Zone* codegen_zone, Frame* frame, Linkage* linkage,
       instructions_(instructions),
       unwinding_info_writer_(codegen_zone),
       info_(info),
-      labels_(
-          codegen_zone->NewArray<Label>(instructions->InstructionBlockCount())),
+      labels_(codegen_zone->AllocateArray<Label>(
+          instructions->InstructionBlockCount())),
       current_block_(RpoNumber::Invalid()),
       start_source_position_(start_source_position),
       current_source_position_(SourcePosition::Unknown()),

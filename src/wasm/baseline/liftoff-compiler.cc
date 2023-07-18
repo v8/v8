@@ -391,7 +391,7 @@ class LiftoffCompiler {
                                 const FunctionSig* sig) {
       const size_t size = sig->parameter_count() + sig->return_count();
       if (V8_UNLIKELY(size > kInlineStorage)) {
-        storage = zone->NewArray<ValueKind>(size);
+        storage = zone->AllocateArray<ValueKind>(size);
       }
       std::transform(sig->all().begin(), sig->all().end(), storage,
                      [](ValueType type) { return type.kind(); });

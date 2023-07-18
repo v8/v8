@@ -118,8 +118,8 @@ class LiftoffCompileEnvironment {
 
   FunctionSig* AddSig(std::initializer_list<ValueType> return_types,
                       std::initializer_list<ValueType> param_types) {
-    ValueType* storage =
-        zone_.NewArray<ValueType>(return_types.size() + param_types.size());
+    ValueType* storage = zone_.AllocateArray<ValueType>(return_types.size() +
+                                                        param_types.size());
     std::copy(return_types.begin(), return_types.end(), storage);
     std::copy(param_types.begin(), param_types.end(),
               storage + return_types.size());

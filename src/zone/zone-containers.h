@@ -63,7 +63,7 @@ class ZoneVector {
   // Constructs a new vector and fills it with {size} elements, each
   // constructed via the default constructor.
   ZoneVector(size_t size, Zone* zone) : zone_(zone) {
-    data_ = size > 0 ? zone->NewArray<T>(size) : nullptr;
+    data_ = size > 0 ? zone->AllocateArray<T>(size) : nullptr;
     end_ = capacity_ = data_ + size;
     for (T* p = data_; p < end_; p++) emplace(p);
   }
@@ -71,7 +71,7 @@ class ZoneVector {
   // Constructs a new vector and fills it with {size} elements, each
   // having the value {def}.
   ZoneVector(size_t size, T def, Zone* zone) : zone_(zone) {
-    data_ = size > 0 ? zone->NewArray<T>(size) : nullptr;
+    data_ = size > 0 ? zone->AllocateArray<T>(size) : nullptr;
     end_ = capacity_ = data_ + size;
     for (T* p = data_; p < end_; p++) emplace(p, def);
   }
@@ -81,7 +81,7 @@ class ZoneVector {
   ZoneVector(std::initializer_list<T> list, Zone* zone) : zone_(zone) {
     size_t size = list.size();
     if (size > 0) {
-      data_ = zone->NewArray<T>(size);
+      data_ = zone->AllocateArray<T>(size);
       CopyToNewStorage(data_, list.begin(), list.end());
     } else {
       data_ = nullptr;
@@ -98,7 +98,7 @@ class ZoneVector {
                       std::random_access_iterator_tag,
                       typename std::iterator_traits<It>::iterator_category>) {
       size_t size = last - first;
-      data_ = size > 0 ? zone->NewArray<T>(size) : nullptr;
+      data_ = size > 0 ? zone->AllocateArray<T>(size) : nullptr;
       end_ = capacity_ = data_ + size;
       for (T* p = data_; p < end_; p++) emplace(p, *first++);
     } else {
@@ -146,7 +146,7 @@ class ZoneVector {
       if (data_) zone_->DeleteArray(data_, capacity());
       size_t new_cap = other.capacity();
       if (new_cap > 0) {
-        data_ = zone_->NewArray<T>(new_cap);
+        data_ = zone_->AllocateArray<T>(new_cap);
         CopyToNewStorage(data_, other.data_, other.end_);
       } else {
         data_ = nullptr;
@@ -469,7 +469,7 @@ class ZoneVector {
     T* old_end = end_;
     size_t old_size = size();
     size_t new_capacity = NewCapacity(minimum);
-    data_ = zone_->NewArray<T>(new_capacity);
+    data_ = zone_->AllocateArray<T>(new_capacity);
     end_ = data_ + old_size;
     if (old_data) {
       MoveToNewStorage(data_, old_data, old_end);
@@ -490,7 +490,7 @@ class ZoneVector {
       T* old_end = end_;
       size_t old_size = size();
       size_t new_capacity = NewCapacity(old_size + count);
-      data_ = zone_->NewArray<T>(new_capacity);
+      data_ = zone_->AllocateArray<T>(new_capacity);
       end_ = data_ + old_size + count;
       if (old_data) {
         MoveToNewStorage(data_, old_data, pos);

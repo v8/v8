@@ -674,7 +674,7 @@ class StructuralType : public TypeBase {
 
   StructuralType(Kind kind, int length, Zone* zone)
       : TypeBase(kind), length_(length) {
-    elements_ = zone->NewArray<Type>(length);
+    elements_ = zone->AllocateArray<Type>(length);
   }
 
  private:

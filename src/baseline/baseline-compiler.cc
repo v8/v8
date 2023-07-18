@@ -287,7 +287,7 @@ BaselineCompiler::BaselineCompiler(
       basm_(&masm_),
       iterator_(bytecode_),
       zone_(local_isolate->allocator(), ZONE_NAME),
-      labels_(zone_.NewArray<BaselineLabelPointer>(bytecode_->length())) {
+      labels_(zone_.AllocateArray<BaselineLabelPointer>(bytecode_->length())) {
   MemsetPointer(reinterpret_cast<Address*>(labels_), Address{0},
                 bytecode_->length());
 

@@ -605,7 +605,7 @@ void TryCloneBranch(Node* node, BasicBlock* block, Zone* temp_zone,
   BranchHint const hint = BranchHintOf(branch->op());
   int const input_count = merge->op()->ControlInputCount();
   DCHECK_LE(1, input_count);
-  Node** const inputs = graph->zone()->NewArray<Node*>(2 * input_count);
+  Node** const inputs = graph->zone()->AllocateArray<Node*>(2 * input_count);
   Node** const merge_true_inputs = &inputs[0];
   Node** const merge_false_inputs = &inputs[input_count];
   for (int index = 0; index < input_count; ++index) {
@@ -7035,7 +7035,7 @@ Node* EffectControlLinearizer::GenerateSlowApiCall(Node* node) {
   const CFunctionInfo* c_signature = params.c_functions()[0].signature;
   const int c_arg_count = c_signature->ArgumentCount();
 
-  Node** const slow_inputs = graph()->zone()->NewArray<Node*>(
+  Node** const slow_inputs = graph()->zone()->AllocateArray<Node*>(
       n.SlowCallArgumentCount() + FastApiCallNode::kEffectAndControlInputCount);
 
   int fast_call_params = c_arg_count;

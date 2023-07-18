@@ -67,7 +67,7 @@ MergePointInterpreterFrameState* MergePointInterpreterFrameState::New(
   MergePointInterpreterFrameState* merge_state =
       info.zone()->New<MergePointInterpreterFrameState>(
           info, merge_offset, predecessor_count, 1,
-          info.zone()->NewArray<BasicBlock*>(predecessor_count),
+          info.zone()->AllocateArray<BasicBlock*>(predecessor_count),
           BasicBlockType::kDefault, liveness);
   int i = 0;
   merge_state->frame_state_.ForEachValue(
@@ -97,7 +97,7 @@ MergePointInterpreterFrameState* MergePointInterpreterFrameState::NewForLoop(
   MergePointInterpreterFrameState* state =
       info.zone()->New<MergePointInterpreterFrameState>(
           info, merge_offset, predecessor_count, 0,
-          info.zone()->NewArray<BasicBlock*>(predecessor_count),
+          info.zone()->AllocateArray<BasicBlock*>(predecessor_count),
           BasicBlockType::kLoopHeader, liveness);
   state->bitfield_ =
       kIsLoopWithPeeledIterationBit::update(state->bitfield_, has_been_peeled);
@@ -183,7 +183,7 @@ MergePointInterpreterFrameState::MergePointInterpreterFrameState(
       per_predecessor_alternatives_(
           type == BasicBlockType::kExceptionHandlerStart
               ? nullptr
-              : info.zone()->NewArray<Alternatives::List>(
+              : info.zone()->AllocateArray<Alternatives::List>(
                     frame_state_.size(info))) {}
 
 namespace {

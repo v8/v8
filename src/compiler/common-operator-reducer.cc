@@ -477,7 +477,7 @@ Reduction CommonOperatorReducer::ReduceSwitch(Node* node) {
     bool matched = false;
 
     size_t const projection_count = node->op()->ControlOutputCount();
-    Node** projections = zone_->NewArray<Node*>(projection_count);
+    Node** projections = zone_->AllocateArray<Node*>(projection_count);
     NodeProperties::CollectControlProjections(node, projections,
                                               projection_count);
     for (size_t i = 0; i < projection_count - 1; i++) {

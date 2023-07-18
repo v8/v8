@@ -450,7 +450,7 @@ void WasmFunctionWrapper::Init(CallDescriptor* call_descriptor,
   // Create the TF graph for the wrapper.
 
   // Function, context_address, effect, and control.
-  Node** parameters = zone()->NewArray<Node*>(param_types.length() + 4);
+  Node** parameters = zone()->AllocateArray<Node*>(param_types.length() + 4);
   int start_value_output_count =
       static_cast<int>(signature_->parameter_count()) + 1;
   graph()->SetStart(
@@ -552,7 +552,7 @@ void WasmFunctionCompiler::Build(base::Vector<const uint8_t> bytes) {
   size_t locals_size = local_decls.Size();
   size_t total_size = bytes.size() + locals_size + 1;
   uint8_t* buffer =
-      zone()->NewArray<uint8_t, WasmFunctionCompilerBuffer>(total_size);
+      zone()->AllocateArray<uint8_t, WasmFunctionCompilerBuffer>(total_size);
   // Prepend the local decls to the code.
   local_decls.Emit(buffer);
   // Emit the code.
@@ -648,7 +648,8 @@ FunctionSig* WasmRunnerBase::CreateSig(Zone* zone, MachineType return_type,
   int param_count = param_types.length();
 
   // Allocate storage array in zone.
-  ValueType* sig_types = zone->NewArray<ValueType>(return_count + param_count);
+  ValueType* sig_types =
+      zone->AllocateArray<ValueType>(return_count + param_count);
 
   // Convert machine types to local types, and check that there are no
   // MachineType::None()'s in the parameters.

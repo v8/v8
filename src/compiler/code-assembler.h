@@ -616,7 +616,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
       message << " at " << loc.FileName() << ":" << loc.Line();
     }
     size_t buf_size = message.str().size() + 1;
-    char* message_dup = zone()->NewArray<char>(buf_size);
+    char* message_dup = zone()->AllocateArray<char>(buf_size);
     snprintf(message_dup, buf_size, "%s", message.str().c_str());
 
     return Cast(UntypedParameter(value), message_dup);

@@ -768,7 +768,7 @@ class DoubleEndedSplitVector {
     DoubleEndedSplitVector<T> old = std::move(*this);
 
     size_t new_capacity = std::max(kMinCapacity, new_minimum_capacity);
-    storage_begin_ = zone->NewArray<T>(new_capacity);
+    storage_begin_ = zone->AllocateArray<T>(new_capacity);
     storage_end_ = storage_begin_ + new_capacity;
 
     size_t remaining_capacity = new_capacity - old.size();

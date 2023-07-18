@@ -1056,7 +1056,7 @@ const char* Scanner::CurrentLiteralAsCString(Zone* zone) const {
   DCHECK(is_literal_one_byte());
   base::Vector<const uint8_t> vector = literal_one_byte_string();
   int length = vector.length();
-  char* buffer = zone->NewArray<char>(length + 1);
+  char* buffer = zone->AllocateArray<char>(length + 1);
   memcpy(buffer, vector.begin(), length);
   buffer[length] = '\0';
   return buffer;

@@ -798,7 +798,7 @@ std::ostream& operator<<(std::ostream& os,
 
 InstructionBlocks* InstructionSequence::InstructionBlocksFor(
     Zone* zone, const Schedule* schedule) {
-  InstructionBlocks* blocks = zone->NewArray<InstructionBlocks>(1);
+  InstructionBlocks* blocks = zone->AllocateArray<InstructionBlocks>(1);
   new (blocks) InstructionBlocks(
       static_cast<int>(schedule->rpo_order()->size()), nullptr, zone);
   size_t rpo_number = 0;
@@ -813,7 +813,7 @@ InstructionBlocks* InstructionSequence::InstructionBlocksFor(
 
 InstructionBlocks* InstructionSequence::InstructionBlocksFor(
     Zone* zone, const turboshaft::Graph& graph) {
-  InstructionBlocks* blocks = zone->NewArray<InstructionBlocks>(1);
+  InstructionBlocks* blocks = zone->AllocateArray<InstructionBlocks>(1);
   new (blocks)
       InstructionBlocks(static_cast<int>(graph.block_count()), nullptr, zone);
   size_t rpo_number = 0;
@@ -885,7 +885,7 @@ void InstructionSequence::ComputeAssemblyOrder() {
   int ao = 0;
   RpoNumber invalid = RpoNumber::Invalid();
 
-  ao_blocks_ = zone()->NewArray<InstructionBlocks>(1);
+  ao_blocks_ = zone()->AllocateArray<InstructionBlocks>(1);
   new (ao_blocks_) InstructionBlocks(zone());
   ao_blocks_->reserve(instruction_blocks_->size());
 

@@ -288,7 +288,7 @@ class ZoneCompactSet final {
     // We need to allocate both the List, and the backing store of the list, in
     // the zone, so that we have a List pointer and not an on-stack List (which
     // we can't use in the `data_` pointer).
-    return zone->New<List>(zone->NewArray<data_type*>(size), size);
+    return zone->New<List>(zone->AllocateArray<data_type*>(size), size);
   }
 
   static PointerWithPayload EmptyValue() {

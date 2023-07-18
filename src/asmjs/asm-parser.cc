@@ -208,7 +208,7 @@ wasm::AsmJsParser::VarInfo* AsmJsParser::GetVarInfo(
   if (is_global && index + 1 > num_globals_) num_globals_ = index + 1;
   if (index + 1 > old_capacity) {
     size_t new_size = std::max(2 * old_capacity, index + 1);
-    base::Vector<VarInfo> new_info{zone_->NewArray<VarInfo>(new_size),
+    base::Vector<VarInfo> new_info{zone_->AllocateArray<VarInfo>(new_size),
                                    new_size};
     std::uninitialized_fill(new_info.begin(), new_info.end(), VarInfo{});
     std::copy(var_info.begin(), var_info.end(), new_info.begin());
@@ -261,7 +261,7 @@ uint32_t AsmJsParser::TempVariable(int index) {
 
 base::Vector<const char> AsmJsParser::CopyCurrentIdentifierString() {
   const std::string& str = scanner_.GetIdentifierString();
-  char* buffer = zone()->NewArray<char>(str.size());
+  char* buffer = zone()->AllocateArray<char>(str.size());
   str.copy(buffer, str.size());
   return base::Vector<const char>(buffer, static_cast<int>(str.size()));
 }

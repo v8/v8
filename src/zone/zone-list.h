@@ -34,7 +34,7 @@ class ZoneList final : public ZoneObject {
   // always zero. The capacity must be non-negative.
   ZoneList(int capacity, Zone* zone) : capacity_(capacity) {
     DCHECK_GE(capacity, 0);
-    data_ = (capacity_ > 0) ? zone->NewArray<T>(capacity_) : nullptr;
+    data_ = (capacity_ > 0) ? zone->AllocateArray<T>(capacity_) : nullptr;
   }
 
   // Construct a new ZoneList by copying the elements of the given ZoneList.

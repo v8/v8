@@ -108,11 +108,11 @@ struct FastFixedArray {
   explicit FastFixedArray(int length, Zone* zone)
       : type(kTagged),
         length(length),
-        values(zone->NewArray<FastField>(length)) {}
+        values(zone->AllocateArray<FastField>(length)) {}
   explicit FastFixedArray(int length, Zone* zone, double)
       : type(kDouble),
         length(length),
-        double_values(zone->NewArray<Float64>(length)) {}
+        double_values(zone->AllocateArray<Float64>(length)) {}
 
   enum { kUninitialized, kCoW, kTagged, kDouble } type;
 
@@ -137,7 +137,7 @@ struct FastObject {
       : map(map),
         inobject_properties(map.GetInObjectProperties()),
         instance_size(map.instance_size()),
-        fields(zone->NewArray<FastField>(inobject_properties)),
+        fields(zone->AllocateArray<FastField>(inobject_properties)),
         elements(elements) {
     DCHECK(!map.is_dictionary_map());
     DCHECK(!map.IsInobjectSlackTrackingInProgress());
@@ -1905,7 +1905,7 @@ class MaglevGraphBuilder {
     // Add 1 after the end of the bytecode so we can always write to the offset
     // after the last bytecode.
     size_t array_length = bytecode().length() + 1;
-    predecessors_ = zone()->NewArray<uint32_t>(array_length);
+    predecessors_ = zone()->AllocateArray<uint32_t>(array_length);
     MemsetUint32(predecessors_, 0, entrypoint_);
     MemsetUint32(predecessors_ + entrypoint_, 1, array_length - entrypoint_);
 

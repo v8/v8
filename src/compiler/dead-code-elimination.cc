@@ -356,7 +356,7 @@ Reduction DeadCodeElimination::ReduceBranchOrSwitch(Node* node) {
     // control chain, they might still appear in reachable code. Remove them by
     // always choosing the first projection.
     size_t const projection_cnt = node->op()->ControlOutputCount();
-    Node** projections = zone_->NewArray<Node*>(projection_cnt);
+    Node** projections = zone_->AllocateArray<Node*>(projection_cnt);
     NodeProperties::CollectControlProjections(node, projections,
                                               projection_cnt);
     Replace(projections[0], NodeProperties::GetControlInput(node));

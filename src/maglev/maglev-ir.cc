@@ -323,7 +323,7 @@ DeoptInfo::DeoptInfo(Zone* zone, const DeoptFrame top_frame,
                      compiler::FeedbackSource feedback_to_update)
     : top_frame_(top_frame),
       feedback_to_update_(feedback_to_update),
-      input_locations_(zone->NewArray<InputLocation>(
+      input_locations_(zone->AllocateArray<InputLocation>(
           GetInputLocationsArraySize(top_frame))) {
   // Initialise InputLocations so that they correctly don't have a next use id.
   for (size_t i = 0; i < GetInputLocationsArraySize(top_frame); ++i) {

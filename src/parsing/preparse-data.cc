@@ -133,7 +133,8 @@ void PreparseDataBuilder::ByteData::Start(std::vector<uint8_t>* buffer) {
 struct RawPreparseData {};
 
 void PreparseDataBuilder::ByteData::Finalize(Zone* zone) {
-  uint8_t* raw_zone_data = zone->NewArray<uint8_t, RawPreparseData>(index_);
+  uint8_t* raw_zone_data =
+      zone->AllocateArray<uint8_t, RawPreparseData>(index_);
   memcpy(raw_zone_data, byte_data_->data(), index_);
   byte_data_->resize(0);
   zone_byte_data_ = base::Vector<uint8_t>(raw_zone_data, index_);

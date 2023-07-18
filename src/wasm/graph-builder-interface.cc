@@ -863,7 +863,7 @@ class WasmGraphBuildingInterface {
       builder_->SetControl(success_control);
       ssa_env_->control = success_control;
       Value* returns_direct =
-          decoder->zone()->NewArray<Value>(sig->return_count());
+          decoder->zone()->AllocateArray<Value>(sig->return_count());
       for (size_t i = 0; i < sig->return_count(); i++) {
         returns_direct[i].type = returns[i].type;
       }
@@ -879,7 +879,8 @@ class WasmGraphBuildingInterface {
       ssa_env_->effect = initial_effect;
       ssa_env_->control = failure_control;
     }
-    Value* returns_ref = decoder->zone()->NewArray<Value>(sig->return_count());
+    Value* returns_ref =
+        decoder->zone()->AllocateArray<Value>(sig->return_count());
     for (size_t i = 0; i < sig->return_count(); i++) {
       returns_ref[i].type = returns[i].type;
     }

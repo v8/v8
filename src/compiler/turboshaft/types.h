@@ -389,7 +389,7 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) WordType : public Type {
     } else {
       // Allocate storage in the zone.
       Payload_OutlineSet p;
-      p.array = zone->NewArray<word_t>(elements.size());
+      p.array = zone->AllocateArray<word_t>(elements.size());
       DCHECK_NOT_NULL(p.array);
       for (size_t i = 0; i < elements.size(); ++i) p.array[i] = elements[i];
       return WordType{SubKind::kSet, static_cast<uint8_t>(elements.size()), p};
@@ -596,7 +596,7 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) FloatType : public Type {
     } else {
       // Allocate storage in the zone.
       Payload_OutlineSet p;
-      p.array = zone->NewArray<float_t>(elements.size());
+      p.array = zone->AllocateArray<float_t>(elements.size());
       DCHECK_NOT_NULL(p.array);
       for (size_t i = 0; i < elements.size(); ++i) {
         p.array[i] = elements[i];
@@ -799,7 +799,7 @@ class TupleType : public Type {
   static TupleType Tuple(const Type& element0, const Type& element1,
                          Zone* zone) {
     Payload p;
-    p.array = zone->NewArray<Type>(2);
+    p.array = zone->AllocateArray<Type>(2);
     DCHECK_NOT_NULL(p.array);
     p.array[0] = element0;
     p.array[1] = element1;
@@ -809,7 +809,7 @@ class TupleType : public Type {
   static TupleType Tuple(base::Vector<Type> elements, Zone* zone) {
     DCHECK_LE(elements.size(), kMaxTupleSize);
     Payload p;
-    p.array = zone->NewArray<Type>(elements.size());
+    p.array = zone->AllocateArray<Type>(elements.size());
     DCHECK_NOT_NULL(p.array);
     for (size_t i = 0; i < elements.size(); ++i) {
       p.array[i] = elements[i];

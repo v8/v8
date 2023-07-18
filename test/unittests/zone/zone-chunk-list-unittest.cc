@@ -156,7 +156,7 @@ TEST_F(ZoneChunkListTest, CopyToTest) {
     zone_chunk_list.push_back(static_cast<uintptr_t>(i));
   }
 
-  uintptr_t* array = zone.NewArray<uintptr_t>(kItemCount);
+  uintptr_t* array = zone.AllocateArray<uintptr_t>(kItemCount);
 
   zone_chunk_list.CopyTo(array);
 
@@ -175,7 +175,7 @@ TEST_F(ZoneChunkListTest, SmallCopyToTest) {
     zone_chunk_list.push_back(static_cast<uint8_t>(i & 0xFF));
   }
 
-  uint8_t* array = zone.NewArray<uint8_t>(kItemCount);
+  uint8_t* array = zone.AllocateArray<uint8_t>(kItemCount);
 
   zone_chunk_list.CopyTo(array);
 
@@ -199,7 +199,7 @@ TEST_F(ZoneChunkListTest, BigCopyToTest) {
     zone_chunk_list.push_back({i, i + 5});
   }
 
-  Fubar* array = zone.NewArray<Fubar>(kItemCount);
+  Fubar* array = zone.AllocateArray<Fubar>(kItemCount);
 
   zone_chunk_list.CopyTo(array);
 

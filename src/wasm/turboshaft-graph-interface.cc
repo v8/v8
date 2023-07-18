@@ -235,7 +235,8 @@ class TurboshaftGraphBuildingInterface {
     compiler::turboshaft::SwitchOp::Case* cases =
         asm_.output_graph()
             .graph_zone()
-            ->NewArray<compiler::turboshaft::SwitchOp::Case>(imm.table_count);
+            ->AllocateArray<compiler::turboshaft::SwitchOp::Case>(
+                imm.table_count);
     BranchTableIterator<ValidationTag> new_block_iterator(decoder, imm);
     std::vector<TSBlock*> intermediate_blocks;
     TSBlock* default_case = nullptr;

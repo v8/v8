@@ -1710,7 +1710,8 @@ void InstructionSelectorT<Adapter>::EmitTableSwitch(
   OperandGenerator g(this);
   size_t input_count = 2 + sw.value_range();
   DCHECK_LE(sw.value_range(), std::numeric_limits<size_t>::max() - 2);
-  auto* inputs = zone()->template NewArray<InstructionOperand>(input_count);
+  auto* inputs =
+      zone()->template AllocateArray<InstructionOperand>(input_count);
   inputs[0] = index_operand;
   InstructionOperand default_operand = g.Label(sw.default_branch());
   std::fill(&inputs[1], &inputs[input_count], default_operand);
@@ -1729,7 +1730,8 @@ void InstructionSelectorT<Adapter>::EmitBinarySearchSwitch(
   OperandGenerator g(this);
   size_t input_count = 2 + sw.case_count() * 2;
   DCHECK_LE(sw.case_count(), (std::numeric_limits<size_t>::max() - 2) / 2);
-  auto* inputs = zone()->template NewArray<InstructionOperand>(input_count);
+  auto* inputs =
+      zone()->template AllocateArray<InstructionOperand>(input_count);
   inputs[0] = value_operand;
   inputs[1] = g.Label(sw.default_branch());
   std::vector<CaseInfo> cases = sw.CasesSortedByValue();
@@ -2386,7 +2388,7 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitReturn(node_t node) {
   DCHECK_GE(input_count, 1);
 
   auto value_locations =
-      zone()->template NewArray<InstructionOperand>(input_count);
+      zone()->template AllocateArray<InstructionOperand>(input_count);
   const turboshaft::Operation& pop_count = schedule()->Get(ret.pop_count());
   if (const turboshaft::ConstantOp* constant =
           pop_count.TryCast<turboshaft::ConstantOp>();
@@ -2412,7 +2414,7 @@ void InstructionSelectorT<TurbofanAdapter>::VisitReturn(node_t ret) {
                               : ret->op()->ValueInputCount();
   DCHECK_GE(input_count, 1);
   auto value_locations =
-      zone()->template NewArray<InstructionOperand>(input_count);
+      zone()->template AllocateArray<InstructionOperand>(input_count);
   Node* pop_count = ret->InputAt(0);
   value_locations[0] = (pop_count->opcode() == IrOpcode::kInt32Constant ||
                         pop_count->opcode() == IrOpcode::kInt64Constant)

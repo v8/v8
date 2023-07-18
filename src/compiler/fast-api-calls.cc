@@ -267,7 +267,7 @@ Node* FastApiCallBuilder::Build(const FastApiCallFunctionVector& c_functions,
   int extra_input_count = FastApiCallNode::kEffectAndControlInputCount +
                           (c_signature->HasOptions() ? 1 : 0);
 
-  Node** const inputs = graph()->zone()->NewArray<Node*>(
+  Node** const inputs = graph()->zone()->AllocateArray<Node*>(
       kFastTargetAddressInputCount + c_arg_count + extra_input_count);
 
   ExternalReference::Type ref_type = ExternalReference::FAST_C_CALL;

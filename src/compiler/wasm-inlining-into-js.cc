@@ -54,7 +54,7 @@ class WasmIntoJSInlinerImpl : private wasm::Decoder {
     // We have to add another +1 as the minimum parameter index is actually
     // -1, not 0...
     size_t params_extended = params + 1;
-    parameters_ = zone->NewArray<Node*>(params_extended);
+    parameters_ = zone->AllocateArray<Node*>(params_extended);
     for (unsigned i = 0; i < params_extended; i++) {
       parameters_[i] = nullptr;
     }

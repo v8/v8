@@ -181,7 +181,8 @@ class Int64LoweringReducer : public Next {
     // Create a map from the old projection index to the new projection index,
     // so this information doesn't have to be recreated for each projection on
     // the result.
-    int* result_map = __ phase_zone()->template NewArray<int>(return_count);
+    int* result_map =
+        __ phase_zone()->template AllocateArray<int>(return_count);
     int lowered_index = 0;
     for (size_t i = 0; i < return_count; ++i) {
       result_map[i] = lowered_index;

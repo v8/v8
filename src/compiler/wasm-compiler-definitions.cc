@@ -26,7 +26,7 @@ base::Vector<const char> GetDebugName(Zone* zone,
         module_bytes.value(), index);
     if (!name.is_empty()) {
       int name_len = name.length();
-      char* index_name = zone->NewArray<char>(name_len);
+      char* index_name = zone->AllocateArray<char>(name_len);
       memcpy(index_name, module_bytes->start() + name.offset(), name_len);
       return base::Vector<const char>(index_name, name_len);
     }
@@ -38,7 +38,7 @@ base::Vector<const char> GetDebugName(Zone* zone,
   int name_len = SNPrintF(name_vector, "wasm-function#%d", index);
   DCHECK(name_len > 0 && name_len < name_vector.length());
 
-  char* index_name = zone->NewArray<char>(name_len);
+  char* index_name = zone->AllocateArray<char>(name_len);
   memcpy(index_name, name_vector.begin(), name_len);
   return base::Vector<const char>(index_name, name_len);
 }

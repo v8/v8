@@ -1358,7 +1358,7 @@ class FastZoneVector {
         size_t{8}, base::bits::RoundUpToPowerOfTwo(size() + slots_needed));
     CHECK_GE(kMaxUInt32, new_capacity);
     DCHECK_LT(capacity_end_ - begin_, new_capacity);
-    T* new_begin = zone->template NewArray<T>(new_capacity);
+    T* new_begin = zone->template AllocateArray<T>(new_capacity);
     if (begin_) {
       for (T *ptr = begin_, *new_ptr = new_begin; ptr != end_;
            ++ptr, ++new_ptr) {
@@ -1491,7 +1491,7 @@ class WasmDecoder : public Decoder {
 
     if (num_locals_ > 0) {
       // Now build the array of local types from the parsed entries.
-      local_types_ = zone_->NewArray<ValueType>(num_locals_);
+      local_types_ = zone_->AllocateArray<ValueType>(num_locals_);
       ValueType* locals_ptr = local_types_;
 
       if (sig_->parameter_count() > 0) {
@@ -2728,7 +2728,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     has_nondefaultable_locals_ = non_defaultable_locals > 0;
     if (!has_nondefaultable_locals_) return;
     initialized_locals_ =
-        this->zone_->template NewArray<bool>(this->num_locals_);
+        this->zone_->template AllocateArray<bool>(this->num_locals_);
     // Parameters are always initialized.
     const size_t num_params = this->sig_->parameter_count();
     std::fill_n(initialized_locals_, num_params, true);
@@ -3924,7 +3924,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
     } else if (arity == 1) {
       merge->vals.first = get_val(0);
     } else if (arity > 1) {
-      merge->vals.array = this->zone()->template NewArray<Value>(arity);
+      merge->vals.array = this->zone()->template AllocateArray<Value>(arity);
       for (uint32_t i = 0; i < arity; i++) {
         merge->vals.array[i] = get_val(i);
       }

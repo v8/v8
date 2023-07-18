@@ -229,7 +229,7 @@ void WasmGraphBuilder::Start(unsigned params) {
   graph()->SetStart(start);
   SetEffectControl(start);
   // Initialize parameter nodes.
-  parameters_ = zone_->NewArray<Node*>(params);
+  parameters_ = zone_->AllocateArray<Node*>(params);
   for (unsigned i = 0; i < params; i++) {
     parameters_[i] = nullptr;
   }

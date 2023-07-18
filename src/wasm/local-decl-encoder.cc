@@ -18,7 +18,7 @@ void LocalDeclEncoder::Prepend(Zone* zone, const uint8_t** start,
                                const uint8_t** end) const {
   size_t size = (*end - *start);
   uint8_t* buffer =
-      zone->NewArray<uint8_t, LocalDeclEncoderBuffer>(Size() + size);
+      zone->AllocateArray<uint8_t, LocalDeclEncoderBuffer>(Size() + size);
   size_t pos = Emit(buffer);
   if (size > 0) {
     memcpy(buffer + pos, *start, size);

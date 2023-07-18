@@ -2978,7 +2978,7 @@ Reduction JSCallReducer::ReduceFunctionPrototypeBind(Node* node) {
   int const arity_with_bound_this = std::max(arity, kBoundThis);
   int const input_count =
       arity_with_bound_this + kReceiverContextEffectAndControl;
-  Node** inputs = graph()->zone()->NewArray<Node*>(input_count);
+  Node** inputs = graph()->zone()->AllocateArray<Node*>(input_count);
   int cursor = 0;
   inputs[cursor++] = receiver;
   inputs[cursor++] = n.ArgumentOrUndefined(0, jsgraph());  // bound_this.

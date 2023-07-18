@@ -55,7 +55,7 @@ Instruction* GetLastInstruction(InstructionSequence* code,
 void LiveRangeBoundArray::Initialize(Zone* zone, TopLevelLiveRange* range) {
   size_t max_child_count = range->GetMaxChildCount();
 
-  start_ = zone->NewArray<LiveRangeBound>(max_child_count);
+  start_ = zone->AllocateArray<LiveRangeBound>(max_child_count);
   length_ = 0;
   LiveRangeBound* curr = start_;
   // The primary loop in ResolveControlFlow is not responsible for inserting
@@ -123,7 +123,7 @@ LiveRangeFinder::LiveRangeFinder(const TopTierRegisterAllocationData* data,
                                  Zone* zone)
     : data_(data),
       bounds_length_(static_cast<int>(data_->live_ranges().size())),
-      bounds_(zone->NewArray<LiveRangeBoundArray>(bounds_length_)),
+      bounds_(zone->AllocateArray<LiveRangeBoundArray>(bounds_length_)),
       zone_(zone) {
   for (int i = 0; i < bounds_length_; ++i) {
     new (&bounds_[i]) LiveRangeBoundArray();

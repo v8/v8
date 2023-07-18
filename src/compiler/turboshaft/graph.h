@@ -72,9 +72,10 @@ class OperationBuffer {
 
   explicit OperationBuffer(Zone* zone, size_t initial_capacity) : zone_(zone) {
     DCHECK_NE(initial_capacity, 0);
-    begin_ = end_ = zone_->NewArray<OperationStorageSlot>(initial_capacity);
+    begin_ = end_ =
+        zone_->AllocateArray<OperationStorageSlot>(initial_capacity);
     operation_sizes_ =
-        zone_->NewArray<uint16_t>((initial_capacity + 1) / kSlotsPerId);
+        zone_->AllocateArray<uint16_t>((initial_capacity + 1) / kSlotsPerId);
     end_cap_ = begin_ + initial_capacity;
   }
 
@@ -163,11 +164,11 @@ class OperationBuffer {
                                sizeof(OperationStorageSlot));
 
     OperationStorageSlot* new_buffer =
-        zone_->NewArray<OperationStorageSlot>(new_capacity);
+        zone_->AllocateArray<OperationStorageSlot>(new_capacity);
     memcpy(new_buffer, begin_, size * sizeof(OperationStorageSlot));
 
     uint16_t* new_operation_sizes =
-        zone_->NewArray<uint16_t>(new_capacity / kSlotsPerId);
+        zone_->AllocateArray<uint16_t>(new_capacity / kSlotsPerId);
     memcpy(new_operation_sizes, operation_sizes_,
            size / kSlotsPerId * sizeof(uint16_t));
 

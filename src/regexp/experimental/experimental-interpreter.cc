@@ -147,7 +147,7 @@ class NfaInterpreter {
         input_object_(input),
         input_(ToCharacterVector<Character>(input, no_gc_)),
         input_index_(input_index),
-        pc_last_input_index_(zone->NewArray<int>(bytecode.length()),
+        pc_last_input_index_(zone->AllocateArray<int>(bytecode.length()),
                              bytecode.length()),
         active_threads_(0, zone),
         blocked_threads_(0, zone),

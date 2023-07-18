@@ -305,7 +305,7 @@ class CompactInterpreterFrameState {
   CompactInterpreterFrameState(const MaglevCompilationUnit& info,
                                const compiler::BytecodeLivenessState* liveness)
       : live_registers_and_accumulator_(
-            info.zone()->NewArray<ValueNode*>(SizeFor(info, liveness))),
+            info.zone()->AllocateArray<ValueNode*>(SizeFor(info, liveness))),
         liveness_(liveness) {}
 
   CompactInterpreterFrameState(const MaglevCompilationUnit& info,

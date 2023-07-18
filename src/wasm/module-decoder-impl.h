@@ -2193,7 +2193,8 @@ class ModuleDecoderImpl : public Decoder {
     if (failed()) return nullptr;
 
     // FunctionSig stores the return types first.
-    ValueType* buffer = zone->NewArray<ValueType>(param_count + return_count);
+    ValueType* buffer =
+        zone->AllocateArray<ValueType>(param_count + return_count);
     uint32_t b = 0;
     for (uint32_t i = 0; i < return_count; ++i) buffer[b++] = returns[i];
     for (uint32_t i = 0; i < param_count; ++i) buffer[b++] = params[i];
@@ -2205,15 +2206,15 @@ class ModuleDecoderImpl : public Decoder {
     uint32_t field_count =
         consume_count(", field count", kV8MaxWasmStructFields);
     if (failed()) return nullptr;
-    ValueType* fields = zone->NewArray<ValueType>(field_count);
-    bool* mutabilities = zone->NewArray<bool>(field_count);
+    ValueType* fields = zone->AllocateArray<ValueType>(field_count);
+    bool* mutabilities = zone->AllocateArray<bool>(field_count);
     for (uint32_t i = 0; ok() && i < field_count; ++i) {
       fields[i] = consume_storage_type();
       mutabilities[i] = consume_mutability();
       if (tracer_) tracer_->NextLine();
     }
     if (failed()) return nullptr;
-    uint32_t* offsets = zone->NewArray<uint32_t>(field_count);
+    uint32_t* offsets = zone->AllocateArray<uint32_t>(field_count);
     StructType* result =
         zone->New<StructType>(field_count, offsets, fields, mutabilities);
     result->InitializeOffsets();

@@ -122,7 +122,7 @@ class V8_EXPORT_PRIVATE Zone final {
   // buffer allocations with meaningful names to make buffer allocation sites
   // distinguishable between each other.
   template <typename T, typename TypeTag = T[]>
-  T* NewArray(size_t length) {
+  T* AllocateArray(size_t length) {
     static_assert(alignof(T) <= kAlignmentInBytes);
     DCHECK_IMPLIES(is_compressed_pointer<T>::value, supports_compression());
     DCHECK_LT(length, std::numeric_limits<size_t>::max() / sizeof(T));
@@ -131,20 +131,20 @@ class V8_EXPORT_PRIVATE Zone final {
 
   template <typename T, typename TypeTag = T[]>
   base::Vector<T> NewVector(size_t length) {
-    T* new_array = NewArray<T, TypeTag>(length);
+    T* new_array = AllocateArray<T, TypeTag>(length);
     return {new_array, length};
   }
 
   template <typename T, typename TypeTag = T[]>
   base::Vector<T> NewVector(size_t length, T value) {
-    T* new_array = NewArray<T, TypeTag>(length);
+    T* new_array = AllocateArray<T, TypeTag>(length);
     std::uninitialized_fill_n(new_array, length, value);
     return {new_array, length};
   }
 
   template <typename T, typename TypeTag = std::remove_const_t<T>[]>
   base::Vector<std::remove_const_t<T>> CloneVector(base::Vector<T> v) {
-    auto* new_array = NewArray<std::remove_const_t<T>, TypeTag>(v.size());
+    auto* new_array = AllocateArray<std::remove_const_t<T>, TypeTag>(v.size());
     std::uninitialized_copy(v.begin(), v.end(), new_array);
     return {new_array, v.size()};
   }
@@ -322,7 +322,7 @@ class ZoneAllocationPolicy {
 
   template <typename T, typename TypeTag = T[]>
   V8_INLINE T* NewArray(size_t length) {
-    return zone()->NewArray<T, TypeTag>(length);
+    return zone()->AllocateArray<T, TypeTag>(length);
   }
   template <typename T, typename TypeTag = T[]>
   V8_INLINE void DeleteArray(T* p, size_t length) {

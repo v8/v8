@@ -1741,7 +1741,7 @@ const wasm::FunctionSig* WasmCapiFunction::GetSignature(Zone* zone) const {
   PodArray<wasm::ValueType> serialized_sig =
       function_data.serialized_signature();
   int sig_size = serialized_sig.length() - 1;
-  wasm::ValueType* types = zone->NewArray<wasm::ValueType>(sig_size);
+  wasm::ValueType* types = zone->AllocateArray<wasm::ValueType>(sig_size);
   int returns_size = 0;
   int index = 0;
   while (serialized_sig.get(index) != wasm::kWasmVoid) {
@@ -2234,7 +2234,7 @@ wasm::Suspend WasmJSFunction::GetSuspend() const {
 const wasm::FunctionSig* WasmJSFunction::GetSignature(Zone* zone) const {
   WasmJSFunctionData function_data = shared().wasm_js_function_data();
   int sig_size = function_data.serialized_signature().length();
-  wasm::ValueType* types = zone->NewArray<wasm::ValueType>(sig_size);
+  wasm::ValueType* types = zone->AllocateArray<wasm::ValueType>(sig_size);
   if (sig_size > 0) {
     function_data.serialized_signature().copy_out(0, types, sig_size);
   }
