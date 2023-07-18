@@ -2169,8 +2169,8 @@ class Heap final {
   // Weak list tails.
   Tagged<Object> dirty_js_finalization_registries_list_tail_ = Smi::zero();
 
-  GCCallbacks<v8::Isolate, AllowGarbageCollection> gc_prologue_callbacks_;
-  GCCallbacks<v8::Isolate, AllowGarbageCollection> gc_epilogue_callbacks_;
+  GCCallbacks gc_prologue_callbacks_;
+  GCCallbacks gc_epilogue_callbacks_;
 
   GetExternallyAllocatedMemoryInBytesCallback external_memory_callback_;
 

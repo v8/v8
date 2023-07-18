@@ -43,7 +43,7 @@ void MinorGCJob::ScheduleTaskIfNeeded(Heap* heap) {
   if (!v8_flags.minor_gc_task) return;
   if (task_pending_) return;
   if (heap->IsTearingDown()) return;
-  if (!YoungGenerationSizeTaskTriggerReached(heap)) return;
+  DCHECK(YoungGenerationSizeTaskTriggerReached(heap));
   v8::Isolate* isolate = reinterpret_cast<v8::Isolate*>(heap->isolate());
   auto taskrunner = V8::GetCurrentPlatform()->GetForegroundTaskRunner(isolate);
   if (taskrunner->NonNestableTasksEnabled()) {

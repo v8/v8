@@ -39,8 +39,7 @@ class Safepoint;
 //            some time or for blocking operations like locking a mutex.
 class V8_EXPORT_PRIVATE LocalHeap {
  public:
-  using GCEpilogueCallback = void(LocalIsolate*, GCType, GCCallbackFlags,
-                                  void*);
+  using GCEpilogueCallback = void(void*);
 
   explicit LocalHeap(
       Heap* heap, ThreadKind kind,
@@ -183,11 +182,9 @@ class V8_EXPORT_PRIVATE LocalHeap {
   // The callback is invoked on the main thread before any background thread
   // resumes. The callback must not allocate or make any other calls that
   // can trigger GC.
-  void AddGCEpilogueCallback(
-      GCEpilogueCallback* callback, void* data,
-      GCType gc_type = static_cast<v8::GCType>(GCType::kGCTypeMarkSweepCompact |
-                                               GCType::kGCTypeScavenge |
-                                               GCType::kGCTypeMinorMarkSweep));
+  void AddGCEpilogueCallback(GCEpilogueCallback* callback, void* data,
+                             GCCallbacksInSafepoint::GCType gc_type =
+                                 GCCallbacksInSafepoint::GCType::kAll);
   void RemoveGCEpilogueCallback(GCEpilogueCallback* callback, void* data);
 
   // Weakens StrongDescriptorArray objects into regular DescriptorArray objects.
@@ -344,8 +341,8 @@ class V8_EXPORT_PRIVATE LocalHeap {
 
   void EnsurePersistentHandles();
 
-  void InvokeGCEpilogueCallbacksInSafepoint(GCType gc_type,
-                                            GCCallbackFlags flags);
+  void InvokeGCEpilogueCallbacksInSafepoint(
+      GCCallbacksInSafepoint::GCType gc_type);
 
   void SetUpMainThread();
   void SetUp();
@@ -367,7 +364,7 @@ class V8_EXPORT_PRIVATE LocalHeap {
   std::unique_ptr<PersistentHandles> persistent_handles_;
   std::unique_ptr<MarkingBarrier> marking_barrier_;
 
-  GCCallbacks<LocalIsolate, DisallowGarbageCollection> gc_epilogue_callbacks_;
+  GCCallbacksInSafepoint gc_epilogue_callbacks_;
 
   std::unique_ptr<ConcurrentAllocator> old_space_allocator_;
   std::unique_ptr<ConcurrentAllocator> code_space_allocator_;

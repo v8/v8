@@ -163,8 +163,7 @@ class V8_EXPORT_PRIVATE BytecodeArrayIterator {
 
   std::ostream& PrintTo(std::ostream& os) const;
 
-  static void UpdatePointersCallback(LocalIsolate*, GCType, GCCallbackFlags,
-                                     void* iterator) {
+  static void UpdatePointersCallback(void* iterator) {
     reinterpret_cast<BytecodeArrayIterator*>(iterator)->UpdatePointers();
   }
 

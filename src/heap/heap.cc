@@ -53,6 +53,7 @@
 #include "src/heap/ephemeron-remembered-set.h"
 #include "src/heap/evacuation-verifier-inl.h"
 #include "src/heap/finalization-registry-cleanup-task.h"
+#include "src/heap/gc-callbacks.h"
 #include "src/heap/gc-idle-time-handler.h"
 #include "src/heap/gc-tracer-inl.h"
 #include "src/heap/gc-tracer.h"
@@ -196,10 +197,7 @@ class ScheduleMinorGCTaskObserver : public AllocationObserver {
       : AllocationObserver(kNotUsingFixedStepSize), heap_(heap) {
     // Register GC callback for all atomic pause types.
     heap_->main_thread_local_heap()->AddGCEpilogueCallback(
-        &GCEpilogueCallback, this,
-        static_cast<GCType>(GCType::kGCTypeScavenge |
-                            GCType::kGCTypeMinorMarkSweep |
-                            GCType::kGCTypeMarkSweepCompact));
+        &GCEpilogueCallback, this, GCCallbacksInSafepoint::GCType::kLocal);
     AddToNewSpace();
   }
   ~ScheduleMinorGCTaskObserver() override {
@@ -228,8 +226,7 @@ class ScheduleMinorGCTaskObserver : public AllocationObserver {
   }
 
  protected:
-  static void GCEpilogueCallback(LocalIsolate*, GCType, GCCallbackFlags,
-                                 void* observer) {
+  static void GCEpilogueCallback(void* observer) {
     reinterpret_cast<ScheduleMinorGCTaskObserver*>(observer)
         ->RemoveFromNewSpace();
     reinterpret_cast<ScheduleMinorGCTaskObserver*>(observer)->AddToNewSpace();
@@ -237,6 +234,8 @@ class ScheduleMinorGCTaskObserver : public AllocationObserver {
 
   void AddToNewSpace() {
     DCHECK(!was_added_to_space_);
+    DCHECK_IMPLIES(v8_flags.minor_ms,
+                   heap_->new_space()->top() == kNullAddress);
     heap_->new_space()->AddAllocationObserver(this);
     was_added_to_space_ = true;
   }
@@ -262,8 +261,6 @@ class MinorMSIncrementalMarkingTaskObserver final
   void StepImpl() final {
     DCHECK(!heap_->incremental_marking()->IsMinorMarking());
 
-    DCHECK_GE(heap_->new_space()->Size(),
-              MinorGCJob::YoungGenerationTaskTriggerSize(heap_));
     heap_->StartMinorMSIncrementalMarkingIfPossible();
 
     ScheduleMinorGCTaskObserver::StepImpl();
@@ -1340,21 +1337,20 @@ void Heap::GarbageCollectionEpilogueInSafepoint(GarbageCollector collector) {
   {
     // Allows handle derefs for all threads/isolates from this thread.
     AllowHandleDereferenceAllThreads allow_all_handle_derefs;
-    safepoint()->IterateLocalHeaps([this, collector](LocalHeap* local_heap) {
+    safepoint()->IterateLocalHeaps([](LocalHeap* local_heap) {
       local_heap->InvokeGCEpilogueCallbacksInSafepoint(
-          GetGCTypeFromGarbageCollector(collector), current_gc_callback_flags_);
+          GCCallbacksInSafepoint::GCType::kLocal);
     });
 
-    if (isolate()->is_shared_space_isolate()) {
-      isolate()->global_safepoint()->IterateClientIsolates(
-          [this, collector](Isolate* client) {
-            client->heap()->safepoint()->IterateLocalHeaps(
-                [this, collector](LocalHeap* local_heap) {
-                  local_heap->InvokeGCEpilogueCallbacksInSafepoint(
-                      GetGCTypeFromGarbageCollector(collector),
-                      current_gc_callback_flags_);
-                });
-          });
+    if (collector == GarbageCollector::MARK_COMPACTOR &&
+        isolate()->is_shared_space_isolate()) {
+      isolate()->global_safepoint()->IterateClientIsolates([](Isolate* client) {
+        client->heap()->safepoint()->IterateLocalHeaps(
+            [](LocalHeap* local_heap) {
+              local_heap->InvokeGCEpilogueCallbacksInSafepoint(
+                  GCCallbacksInSafepoint::GCType::kShared);
+            });
+      });
     }
   }
 

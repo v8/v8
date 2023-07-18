@@ -473,10 +473,9 @@ AllocationResult LocalHeap::PerformCollectionAndAllocateAgain(
 }
 
 void LocalHeap::AddGCEpilogueCallback(GCEpilogueCallback* callback, void* data,
-                                      GCType gc_type) {
+                                      GCCallbacksInSafepoint::GCType gc_type) {
   DCHECK(IsRunning());
-  gc_epilogue_callbacks_.Add(callback, LocalIsolate::FromHeap(this), gc_type,
-                             data);
+  gc_epilogue_callbacks_.Add(callback, data, gc_type);
 }
 
 void LocalHeap::RemoveGCEpilogueCallback(GCEpilogueCallback* callback,
@@ -485,9 +484,9 @@ void LocalHeap::RemoveGCEpilogueCallback(GCEpilogueCallback* callback,
   gc_epilogue_callbacks_.Remove(callback, data);
 }
 
-void LocalHeap::InvokeGCEpilogueCallbacksInSafepoint(GCType gc_type,
-                                                     GCCallbackFlags flags) {
-  gc_epilogue_callbacks_.Invoke(gc_type, flags);
+void LocalHeap::InvokeGCEpilogueCallbacksInSafepoint(
+    GCCallbacksInSafepoint::GCType gc_type) {
+  gc_epilogue_callbacks_.Invoke(gc_type);
 }
 
 void LocalHeap::NotifyObjectSizeChange(
