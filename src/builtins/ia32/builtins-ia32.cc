@@ -3150,7 +3150,8 @@ void Builtins::Generate_WasmOnStackReplace(MacroAssembler* masm) {
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
-                               ArgvMode argv_mode, bool builtin_exit_frame) {
+                               ArgvMode argv_mode, bool builtin_exit_frame,
+                               bool switch_to_central_stack) {
   CHECK(result_size == 1 || result_size == 2);
 
   using ER = ExternalReference;

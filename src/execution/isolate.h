@@ -548,7 +548,8 @@ using DebugObjectCache = std::vector<Handle<HeapObject>>;
   V(uint32_t, javascript_execution_counter, 0)                                \
   V(bool, deoptimization_assert, true)                                        \
   V(bool, compilation_assert, true)                                           \
-  V(bool, no_exception_assert, true)
+  V(bool, no_exception_assert, true)                                          \
+  V(uint32_t, wasm_switch_to_the_central_stack_counter, 0)
 
 #define THREAD_LOCAL_TOP_ACCESSOR(type, name)                         \
   inline void set_##name(type v) { thread_local_top()->name##_ = v; } \
@@ -1280,6 +1281,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   }
 
   THREAD_LOCAL_TOP_ADDRESS(Address, thread_in_wasm_flag_address)
+
+  THREAD_LOCAL_TOP_ADDRESS(bool, is_on_central_stack_flag)
 
   MaterializedObjectStore* materialized_object_store() const {
     return materialized_object_store_;
@@ -2048,6 +2051,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // Update the thread local's Stack object so that it is aware of the new stack
   // start and the inactive stacks.
   void RecordStackSwitchForScanning();
+
+  void SyncStackLimit();
 #endif
 
   // Access to the global "locals block list cache". Caches outer-stack
@@ -2651,6 +2656,12 @@ class StackLimitCheck {
 
   // Use this to check for stack-overflow when entering runtime from JS code.
   bool JsHasOverflowed(uintptr_t gap = 0) const;
+
+  // Use this to check for stack-overflow when entering runtime from Wasm code.
+  // If it is called from the central stack, while a switch was performed,
+  // it checks logical stack limit of a secondary stack stored in the isolate,
+  // instead checking actual one.
+  bool WasmHasOverflowed(uintptr_t gap = 0) const;
 
   // Use this to check for interrupt request in C++ code.
   V8_INLINE bool InterruptRequested() {
