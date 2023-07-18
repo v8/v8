@@ -358,6 +358,7 @@ void MarkingBarrier::DeactivateYoung(Heap* heap) {
 }
 
 void MarkingBarrier::Deactivate() {
+  DCHECK(is_activated_);
   is_activated_ = false;
   is_compacting_ = false;
   marking_mode_ = MarkingMode::kNoMarking;
