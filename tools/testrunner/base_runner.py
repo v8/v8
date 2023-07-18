@@ -123,7 +123,7 @@ class TestRunnerError(Exception):
 
 class BaseTestRunner(object):
   def __init__(self, basedir=None):
-    self.v8_root = Path(__file__).resolve().parent.parent.parent
+    self.v8_root = Path(__file__).absolute().parent.parent.parent
     self.basedir = Path(basedir or self.v8_root)
     self.outdir = None
     self.build_config = None
