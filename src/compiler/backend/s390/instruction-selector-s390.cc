@@ -1461,8 +1461,6 @@ static inline bool TryMatchDoubleConstructFromInsert(
 #endif
 
 #define WORD32_BIN_OP_LIST(V)                                                \
-  V(Word32, Int32SubWithOverflow, kS390_Sub32, SubOperandMode,               \
-    ([&]() { return TryMatchInt32SubWithOverflow(this, node); }))            \
   V(Word32, Float64InsertLowWord32, kS390_DoubleInsertLowWord32,             \
     OperandMode::kAllowRRR,                                                  \
     [&]() -> bool { return TryMatchDoubleConstructFromInsert(this, node); }) \
@@ -1474,12 +1472,6 @@ static inline bool TryMatchDoubleConstructFromInsert(
   V(Word64, Word64Popcnt, kS390_Popcnt64, OperandMode::kNone, null) \
   V(Word64, Word64Clz, kS390_Cntlz64, OperandMode::kNone, null)     \
   V(Word64, TruncateInt64ToInt32, kS390_Int64ToInt32, OperandMode::kNone, null)
-
-#define WORD64_BIN_OP_LIST(V)                                     \
-  V(Word64, Int64AddWithOverflow, kS390_Add64, AddOperandMode,    \
-    ([&]() { return TryMatchInt64AddWithOverflow(this, node); })) \
-  V(Word64, Int64SubWithOverflow, kS390_Sub64, SubOperandMode,    \
-    ([&]() { return TryMatchInt64SubWithOverflow(this, node); }))
 
 #define DECLARE_UNARY_OP(type, name, op, mode, try_extra)       \
   template <typename Adapter>                                   \
@@ -1501,12 +1493,10 @@ FLOAT_UNARY_OP_LIST(DECLARE_UNARY_OP)
 
 #if V8_TARGET_ARCH_S390X
 WORD64_UNARY_OP_LIST(DECLARE_UNARY_OP)
-WORD64_BIN_OP_LIST(DECLARE_BIN_OP)
 #endif
 
 #undef DECLARE_BIN_OP
 #undef DECLARE_UNARY_OP
-#undef WORD64_BIN_OP_LIST
 #undef WORD64_UNARY_OP_LIST
 #undef WORD32_BIN_OP_LIST
 #undef WORD32_UNARY_OP_LIST
@@ -1600,6 +1590,8 @@ WORD64_BIN_OP_LIST(DECLARE_BIN_OP)
     })
 
 #define WORD32_BIN_OP_LIST(V)                                                 \
+  V(Word32, Int32SubWithOverflow, kS390_Sub32, SubOperandMode,                \
+    ([&]() { return TryMatchInt32SubWithOverflow(this, node); }))             \
   V(Word32, Uint32MulHigh, kS390_MulHighU32,                                  \
     OperandMode::kAllowRRM | OperandMode::kAllowRRR, null)                    \
   V(Word32, Uint32Mod, kS390_ModU32,                                          \
@@ -1638,6 +1630,8 @@ WORD64_BIN_OP_LIST(DECLARE_BIN_OP)
     [&]() { return TryMatchSignExtInt16OrInt8FromWord32Sar(this, node); })
 
 #define WORD64_UNARY_OP_LIST(V)                                              \
+  V(Word64, Int64SubWithOverflow, kS390_Sub64, SubOperandMode,               \
+    ([&]() { return TryMatchInt64SubWithOverflow(this, node); }))            \
   V(Word64, BitcastInt64ToFloat64, kS390_BitcastInt64ToDouble,               \
     OperandMode::kNone, null)                                                \
   V(Word64, ChangeInt64ToFloat64, kS390_Int64ToDouble, OperandMode::kNone,   \
@@ -1651,6 +1645,8 @@ WORD64_BIN_OP_LIST(DECLARE_BIN_OP)
   V(Word64, RoundInt64ToFloat64, kS390_Int64ToDouble, OperandMode::kNone, null)
 
 #define WORD64_BIN_OP_LIST(V)                                              \
+  V(Word64, Int64AddWithOverflow, kS390_Add64, AddOperandMode,             \
+    ([&]() { return TryMatchInt64AddWithOverflow(this, node); }))          \
   V(Word64, Uint64MulHigh, kS390_MulHighU64, OperandMode::kAllowRRR, null) \
   V(Word64, Uint64Mod, kS390_ModU64,                                       \
     OperandMode::kAllowRRM | OperandMode::kAllowRRR, null)                 \
@@ -1799,7 +1795,7 @@ void InstructionSelectorT<Adapter>::VisitFloat64Ieee754Binop(
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitInt64MulWithOverflow(Node* node) {
+void InstructionSelectorT<Adapter>::VisitInt64MulWithOverflow(node_t node) {
   if constexpr (Adapter::IsTurboshaft) {
     UNIMPLEMENTED();
   } else {
@@ -2256,8 +2252,11 @@ void InstructionSelectorT<Adapter>::VisitWordCompareZero(
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitSwitch(Node* node,
+void InstructionSelectorT<Adapter>::VisitSwitch(node_t node,
                                                 const SwitchInfo& sw) {
+  if constexpr (Adapter::IsTurboshaft) {
+  UNIMPLEMENTED();
+  } else {
   S390OperandGeneratorT<Adapter> g(this);
   InstructionOperand value_operand = g.UseRegister(node->InputAt(0));
 
@@ -2292,6 +2291,7 @@ void InstructionSelectorT<Adapter>::VisitSwitch(Node* node,
 
   // Generate a tree of conditional jumps.
   return EmitBinarySearchSwitch(sw, value_operand);
+  }
 }
 
 template <typename Adapter>
