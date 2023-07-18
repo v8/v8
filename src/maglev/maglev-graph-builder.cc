@@ -4877,6 +4877,14 @@ void MaglevGraphBuilder::VisitGetSuperConstructor() {
   StoreRegister(iterator_.GetRegisterOperand(0), map_proto);
 }
 
+bool MaglevGraphBuilder::HasValidInitialMap(
+    compiler::JSFunctionRef new_target, compiler::JSFunctionRef constructor) {
+  if (!new_target.map(broker()).has_prototype_slot()) return false;
+  if (!new_target.has_initial_map(broker())) return false;
+  compiler::MapRef initial_map = new_target.initial_map(broker());
+  return initial_map.GetConstructor(broker()).equals(constructor);
+}
+
 void MaglevGraphBuilder::VisitFindNonDefaultConstructorOrConstruct() {
   ValueNode* this_function = LoadRegisterTagged(0);
   ValueNode* new_target = LoadRegisterTagged(1);
@@ -4911,7 +4919,8 @@ void MaglevGraphBuilder::VisitFindNonDefaultConstructorOrConstruct() {
             TryGetConstant(new_target);
         if (kind == FunctionKind::kDefaultBaseConstructor) {
           ValueNode* object;
-          if (new_target_function && new_target_function->IsJSFunction()) {
+          if (new_target_function && new_target_function->IsJSFunction() &&
+              HasValidInitialMap(new_target_function->AsJSFunction(), current_function)) {
             object = BuildAllocateFastObject(
                 FastObject(new_target_function->AsJSFunction(), zone(),
                            broker()),
