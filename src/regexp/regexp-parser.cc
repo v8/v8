@@ -1897,7 +1897,7 @@ bool LookupPropertyValueName(UProperty property,
       ExtractStringsFromUnicodeSet(set, result_strings, flags, zone);
     }
     const bool needs_case_folding = IsUnicodeSets(flags) && IsIgnoreCase(flags);
-    if (needs_case_folding) CharacterRange::UnicodeSimpleCloseOver(set);
+    if (needs_case_folding) set.closeOver(USET_SIMPLE_CASE_INSENSITIVE);
     set.removeAllStrings();
     if (negate) set.complement();
     for (int i = 0; i < set.getRangeCount(); i++) {
