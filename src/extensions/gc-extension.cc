@@ -84,20 +84,20 @@ Maybe<GCOptions> Parse(v8::Isolate* isolate,
 void InvokeGC(v8::Isolate* isolate, ExecutionType execution_type,
               v8::Isolate::GarbageCollectionType type) {
   Heap* heap = reinterpret_cast<Isolate*>(isolate)->heap();
+  EmbedderStackStateScope stack_scope(
+      heap,
+      execution_type == ExecutionType::kAsync
+          ? EmbedderStackStateScope::kImplicitThroughTask
+          : EmbedderStackStateScope::kExplicitInvocation,
+      execution_type == ExecutionType::kAsync
+          ? StackState::kNoHeapPointers
+          : StackState::kMayContainHeapPointers);
   switch (type) {
     case v8::Isolate::GarbageCollectionType::kMinorGarbageCollection:
       heap->CollectGarbage(i::NEW_SPACE, i::GarbageCollectionReason::kTesting,
                            kGCCallbackFlagForced);
       break;
     case v8::Isolate::GarbageCollectionType::kFullGarbageCollection:
-      EmbedderStackStateScope stack_scope(
-          heap,
-          execution_type == ExecutionType::kAsync
-              ? EmbedderStackStateScope::kImplicitThroughTask
-              : EmbedderStackStateScope::kExplicitInvocation,
-          execution_type == ExecutionType::kAsync
-              ? StackState::kNoHeapPointers
-              : StackState::kMayContainHeapPointers);
       heap->PreciseCollectAllGarbage(i::GCFlag::kNoFlags,
                                      i::GarbageCollectionReason::kTesting,
                                      kGCCallbackFlagForced);
