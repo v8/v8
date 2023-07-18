@@ -6,6 +6,7 @@
 
 #include "src/compiler/turboshaft/assembler.h"
 #include "src/compiler/turboshaft/graph.h"
+#include "src/compiler/turboshaft/variable-reducer.h"
 #include "src/compiler/wasm-compiler-definitions.h"
 #include "src/wasm/compilation-environment.h"
 #include "src/wasm/function-body-decoder-impl.h"
@@ -21,7 +22,9 @@ namespace v8::internal::wasm {
 #include "src/compiler/turboshaft/define-assembler-macros.inc"
 
 using Assembler =
-    compiler::turboshaft::Assembler<compiler::turboshaft::reducer_list<>>;
+    compiler::turboshaft::Assembler<compiler::turboshaft::reducer_list<
+        compiler::turboshaft::VariableReducer,
+        compiler::turboshaft::RequiredOptimizationReducer>>;
 using compiler::CallDescriptor;
 using compiler::LinkageLocation;
 using compiler::LocationSignature;
@@ -1404,6 +1407,73 @@ class TurboshaftGraphBuildingInterface {
     return result;
   }
 
+  std::pair<OpIndex, OpIndex> BuildCCallForFloatConversion(
+      OpIndex arg, MemoryRepresentation float_type,
+      ExternalReference ccall_ref) {
+    uint8_t slot_size = MemoryRepresentation::Int64().SizeInBytes();
+    OpIndex stack_slot = __ StackSlot(slot_size, slot_size);
+    __ Store(stack_slot, arg, StoreOp::Kind::RawAligned(), float_type,
+             compiler::WriteBarrierKind::kNoWriteBarrier);
+    MachineType reps[]{MachineType::Int32(), MachineType::Pointer()};
+    MachineSignature sig(1, 1, reps);
+    OpIndex overflow = CallC(&sig, ccall_ref, &stack_slot);
+    return {stack_slot, overflow};
+  }
+
+  OpIndex BuildCcallConvertFloat(OpIndex arg, MemoryRepresentation float_type,
+                                 ExternalReference ccall_ref) {
+    auto [stack_slot, overflow] =
+        BuildCCallForFloatConversion(arg, float_type, ccall_ref);
+    __ TrapIf(__ Word32Equal(overflow, 0), OpIndex::Invalid(),
+              compiler::TrapId::kTrapFloatUnrepresentable);
+    MemoryRepresentation int64 = MemoryRepresentation::Int64();
+    return __ Load(stack_slot, LoadOp::Kind::RawAligned(), int64);
+  }
+
+  OpIndex BuildCcallConvertFloatSat(OpIndex arg,
+                                    MemoryRepresentation float_type,
+                                    ExternalReference ccall_ref,
+                                    bool is_signed) {
+    auto [stack_slot, overflow] =
+        BuildCCallForFloatConversion(arg, float_type, ccall_ref);
+    Assembler::ScopedVar<Word64> result(Asm());
+    // TODO(mliedtke): This is quite complicated code for handling exceptional
+    // cases. Wouldn't it be better to call the corresponding [...]_sat C
+    // function and let it be handled there?
+    IF (UNLIKELY(__ Word32Equal(overflow, 0))) {
+      OpIndex is_not_nan = float_type == MemoryRepresentation::Float32()
+                               ? __ Float32Equal(arg, arg)
+                               : __ Float64Equal(arg, arg);
+      OpIndex is_nan = __ Word32Equal(is_not_nan, 0);
+      IF (UNLIKELY(is_nan)) {
+        result = __ Word64Constant(uint64_t{0});
+      }
+      ELSE {
+        OpIndex less_than_zero = float_type == MemoryRepresentation::Float32()
+                                     ? __ Float32LessThan(arg, 0)
+                                     : __ Float64LessThan(arg, 0);
+        IF (less_than_zero) {
+          result = __ Word64Constant(
+              is_signed ? std::numeric_limits<int64_t>::min()
+                        : std::numeric_limits<uint64_t>::min());
+        }
+        ELSE {
+          result = __ Word64Constant(
+              is_signed ? std::numeric_limits<int64_t>::max()
+                        : std::numeric_limits<uint64_t>::max());
+        }
+        END_IF
+      }
+      END_IF
+    }
+    ELSE {
+      MemoryRepresentation int64 = MemoryRepresentation::Int64();
+      result = __ Load(stack_slot, LoadOp::Kind::RawAligned(), int64);
+    }
+    END_IF
+    return *result;
+  }
+
   // TODO(14108): Remove the decoder argument once we have no bailouts.
   OpIndex UnOpImpl(FullDecoder* decoder, WasmOpcode opcode, OpIndex arg,
                    ValueType input_type /* for ref.is_null only*/) {
@@ -1460,17 +1530,29 @@ class TurboshaftGraphBuildingInterface {
         return result;
       }
       case kExprI64SConvertF32:
-        return ExtractTruncationProjections(
-            asm_.TryTruncateFloat32ToInt64(arg));
+        return Is64() ? ExtractTruncationProjections(
+                            asm_.TryTruncateFloat32ToInt64(arg))
+                      : BuildCcallConvertFloat(
+                            arg, MemoryRepresentation::Float32(),
+                            ExternalReference::wasm_float32_to_int64());
       case kExprI64UConvertF32:
-        return ExtractTruncationProjections(
-            asm_.TryTruncateFloat32ToUint64(arg));
+        return Is64() ? ExtractTruncationProjections(
+                            asm_.TryTruncateFloat32ToUint64(arg))
+                      : BuildCcallConvertFloat(
+                            arg, MemoryRepresentation::Float32(),
+                            ExternalReference::wasm_float32_to_uint64());
       case kExprI64SConvertF64:
-        return ExtractTruncationProjections(
-            asm_.TryTruncateFloat64ToInt64(arg));
+        return Is64() ? ExtractTruncationProjections(
+                            asm_.TryTruncateFloat64ToInt64(arg))
+                      : BuildCcallConvertFloat(
+                            arg, MemoryRepresentation::Float64(),
+                            ExternalReference::wasm_float64_to_int64());
       case kExprI64UConvertF64:
-        return ExtractTruncationProjections(
-            asm_.TryTruncateFloat64ToUint64(arg));
+        return Is64() ? ExtractTruncationProjections(
+                            asm_.TryTruncateFloat64ToUint64(arg))
+                      : BuildCcallConvertFloat(
+                            arg, MemoryRepresentation::Float64(),
+                            ExternalReference::wasm_float64_to_uint64());
       case kExprF64SConvertI32:
         return asm_.ChangeInt32ToFloat64(arg);
       case kExprF64UConvertI32:
@@ -1630,6 +1712,12 @@ class TurboshaftGraphBuildingInterface {
         return result;
       }
       case kExprI64SConvertSatF32: {
+        if (!Is64()) {
+          bool is_signed = true;
+          return BuildCcallConvertFloatSat(
+              arg, MemoryRepresentation::Float32(),
+              ExternalReference::wasm_float32_to_int64(), is_signed);
+        }
         OpIndex converted = asm_.TryTruncateFloat32ToInt64(arg);
         Label<compiler::turboshaft::Word64> done(&asm_);
 
@@ -1670,6 +1758,12 @@ class TurboshaftGraphBuildingInterface {
         return result;
       }
       case kExprI64UConvertSatF32: {
+        if (!Is64()) {
+          bool is_signed = false;
+          return BuildCcallConvertFloatSat(
+              arg, MemoryRepresentation::Float32(),
+              ExternalReference::wasm_float32_to_uint64(), is_signed);
+        }
         OpIndex converted = asm_.TryTruncateFloat32ToUint64(arg);
         Label<compiler::turboshaft::Word64> done(&asm_);
 
@@ -1710,6 +1804,12 @@ class TurboshaftGraphBuildingInterface {
         return result;
       }
       case kExprI64SConvertSatF64: {
+        if (!Is64()) {
+          bool is_signed = true;
+          return BuildCcallConvertFloatSat(
+              arg, MemoryRepresentation::Float64(),
+              ExternalReference::wasm_float64_to_int64(), is_signed);
+        }
         OpIndex converted = asm_.TryTruncateFloat64ToInt64(arg);
         Label<compiler::turboshaft::Word64> done(&asm_);
 
@@ -1751,6 +1851,12 @@ class TurboshaftGraphBuildingInterface {
         return result;
       }
       case kExprI64UConvertSatF64: {
+        if (!Is64()) {
+          bool is_signed = false;
+          return BuildCcallConvertFloatSat(
+              arg, MemoryRepresentation::Float64(),
+              ExternalReference::wasm_float64_to_uint64(), is_signed);
+        }
         OpIndex converted = asm_.TryTruncateFloat64ToUint64(arg);
         Label<compiler::turboshaft::Word64> done(&asm_);
 

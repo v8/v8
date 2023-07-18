@@ -540,3 +540,141 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(0n, wasm.popcnt(0n));
   assertEquals(10n, wasm.popcnt(0b10101011111100001n));
 })();
+
+(function I64ConvertFromInt32() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  builder.addFunction("fromI32", makeSig([kWasmI32], [kWasmI64, kWasmI64]))
+    .addBody([
+      kExprLocalGet, 0,
+      kExprI64SConvertI32,
+      kExprLocalGet, 0,
+      kExprI64UConvertI32,
+    ])
+    .exportFunc();
+
+  let wasm = builder.instantiate().exports;
+  assertEquals([0n, 0n], wasm.fromI32(0));
+  assertEquals([123n, 123n], wasm.fromI32(123));
+  assertEquals([-1n, 0xFFFFFFFFn], wasm.fromI32(-1));
+  assertEquals([-2147483648n, 2147483648n], wasm.fromI32(0x80000000));
+})();
+
+(function I64ConvertFromF64() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  builder.addFunction("reinterpretF64", makeSig([kWasmF64], [kWasmI64]))
+    .addBody([
+      kExprLocalGet, 0,
+      kExprI64ReinterpretF64
+    ])
+    .exportFunc();
+  builder.addFunction("signedF64", makeSig([kWasmF64], [kWasmI64]))
+    .addBody([
+      kExprLocalGet, 0,
+      kExprI64SConvertF64,
+    ])
+    .exportFunc();
+  builder.addFunction("unsignedF64", makeSig([kWasmF64], [kWasmI64]))
+    .addBody([
+      kExprLocalGet, 0,
+      kExprI64UConvertF64,
+    ])
+    .exportFunc();
+  builder.addFunction("signedSatF64", makeSig([kWasmF64], [kWasmI64]))
+    .addBody([
+      kExprLocalGet, 0,
+      kNumericPrefix, kExprI64SConvertSatF64,
+    ])
+    .exportFunc();
+  builder.addFunction("unsignedSatF64", makeSig([kWasmF64], [kWasmI64]))
+    .addBody([
+      kExprLocalGet, 0,
+      kNumericPrefix, kExprI64UConvertSatF64,
+    ])
+    .exportFunc();
+
+  let wasm = builder.instantiate().exports;
+  assertEquals(0n, wasm.reinterpretF64(0));
+  assertEquals(4638355772470722560n, wasm.reinterpretF64(123));
+  assertEquals(-4585016264384053248n, wasm.reinterpretF64(-123));
+
+  assertEquals(0xFF_12345678n, wasm.signedF64(0xFF_12345678));
+  assertEquals(-0xFF_12345678n, wasm.signedF64(-0xFF_12345678));
+  assertTraps(kTrapFloatUnrepresentable, () => wasm.signedF64(NaN));
+  assertTraps(kTrapFloatUnrepresentable, () => wasm.signedF64(Infinity));
+  assertTraps(kTrapFloatUnrepresentable, () => wasm.signedF64(-Infinity));
+
+  assertEquals(0xFF_12345678n, wasm.unsignedF64(0xFF_12345678));
+  assertTraps(kTrapFloatUnrepresentable, () => wasm.unsignedF64(-1));
+  assertTraps(kTrapFloatUnrepresentable, () => wasm.unsignedF64(NaN));
+  assertTraps(kTrapFloatUnrepresentable, () => wasm.unsignedF64(Infinity));
+  assertTraps(kTrapFloatUnrepresentable, () => wasm.unsignedF64(-Infinity));
+
+  assertEquals(0xFF_12345678n, wasm.signedSatF64(0xFF_12345678));
+  assertEquals(-0xFF_12345678n, wasm.signedSatF64(-0xFF_12345678));
+  assertEquals(0n, wasm.signedSatF64(NaN));
+  assertEquals(9223372036854775807n, wasm.signedSatF64(Infinity));
+  assertEquals(-9223372036854775808n, wasm.signedSatF64(-Infinity));
+
+  assertEquals(0xFF_12345678n, wasm.unsignedSatF64(0xFF_12345678));
+  assertEquals(0n, wasm.unsignedSatF64(-0xFF_12345678));
+  assertEquals(0n, wasm.unsignedSatF64(NaN));
+  assertEquals(-1n, wasm.unsignedSatF64(Infinity));
+  assertEquals(0n, wasm.unsignedSatF64(-Infinity));
+})();
+
+(function I64ConvertFromF32() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  builder.addFunction("signedF32", makeSig([kWasmF32], [kWasmI64]))
+    .addBody([
+      kExprLocalGet, 0,
+      kExprI64SConvertF32,
+    ])
+    .exportFunc();
+  builder.addFunction("unsignedF32", makeSig([kWasmF32], [kWasmI64]))
+    .addBody([
+      kExprLocalGet, 0,
+      kExprI64UConvertF32,
+    ])
+    .exportFunc();
+  builder.addFunction("signedSatF32", makeSig([kWasmF32], [kWasmI64]))
+    .addBody([
+      kExprLocalGet, 0,
+      kNumericPrefix, kExprI64SConvertSatF32,
+    ])
+    .exportFunc();
+  builder.addFunction("unsignedSatF32", makeSig([kWasmF32], [kWasmI64]))
+    .addBody([
+      kExprLocalGet, 0,
+      kNumericPrefix, kExprI64UConvertSatF32,
+    ])
+    .exportFunc();
+
+  let wasm = builder.instantiate().exports;
+  // Loss of precision due to float32.
+  assertEquals(0xFF_12340000n, wasm.signedF32(0xFF_12345678));
+  assertEquals(-0xFF_12340000n, wasm.signedF32(-0xFF_12345678));
+  assertTraps(kTrapFloatUnrepresentable, () => wasm.signedF32(NaN));
+  assertTraps(kTrapFloatUnrepresentable, () => wasm.signedF32(Infinity));
+  assertTraps(kTrapFloatUnrepresentable, () => wasm.signedF32(-Infinity));
+
+  assertEquals(0xFF_12340000n, wasm.unsignedF32(0xFF_12345678));
+  assertTraps(kTrapFloatUnrepresentable, () => wasm.unsignedF32(-1));
+  assertTraps(kTrapFloatUnrepresentable, () => wasm.unsignedF32(NaN));
+  assertTraps(kTrapFloatUnrepresentable, () => wasm.unsignedF32(Infinity));
+  assertTraps(kTrapFloatUnrepresentable, () => wasm.unsignedF32(-Infinity));
+
+  assertEquals(0xFF_12340000n, wasm.signedSatF32(0xFF_12345678));
+  assertEquals(-0xFF_12340000n, wasm.signedSatF32(-0xFF_12345678));
+  assertEquals(0n, wasm.signedSatF32(NaN));
+  assertEquals(9223372036854775807n, wasm.signedSatF32(Infinity));
+  assertEquals(-9223372036854775808n, wasm.signedSatF32(-Infinity));
+
+  assertEquals(0xFF_12340000n, wasm.unsignedSatF32(0xFF_12345678));
+  assertEquals(0n, wasm.unsignedSatF32(-0xFF_12345678));
+  assertEquals(0n, wasm.unsignedSatF32(NaN));
+  assertEquals(-1n, wasm.unsignedSatF32(Infinity));
+  assertEquals(0n, wasm.unsignedSatF32(-Infinity));
+})();

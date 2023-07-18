@@ -271,14 +271,46 @@ class Int64LoweringReducer : public Next {
                          ChangeOp::Assumption assumption,
                          RegisterRepresentation from,
                          RegisterRepresentation to) {
+    auto word32 = RegisterRepresentation::Word32();
+    auto word64 = RegisterRepresentation::Word64();
+    auto float64 = RegisterRepresentation::Float64();
+    using Kind = ChangeOp::Kind;
     // TODO(mliedtke): Also support other conversions.
-    if (from == RegisterRepresentation::Word32() &&
-        to == RegisterRepresentation::Word64() &&
-        kind == ChangeOp::Kind::kZeroExtend) {
-      // Convert uint32 to uint64.
-      return __ Tuple(input, __ Word32Constant(0));
+    if (from == word32 && to == word64) {
+      if (kind == Kind::kZeroExtend) {
+        return __ Tuple(input, __ Word32Constant(0));
+      }
+      if (kind == Kind::kSignExtend) {
+        // We use SAR to preserve the sign in the high word.
+        return __ Tuple(input, __ Word32ShiftRightArithmetic(input, 31));
+      }
+      UNIMPLEMENTED();
+    }
+    if (from == float64 && to == word64) {
+      if (kind == Kind::kBitcast) {
+        return __ Tuple(__ Float64ExtractLowWord32(input),
+                        __ Float64ExtractHighWord32(input));
+      }
+      UNIMPLEMENTED();
     }
     return Next::ReduceChange(input, kind, assumption, from, to);
+  }
+
+  OpIndex REDUCE(Load)(OpIndex base_idx, OpIndex index, LoadOp::Kind kind,
+                       MemoryRepresentation loaded_rep,
+                       RegisterRepresentation result_rep, int32_t offset,
+                       uint8_t element_scale) {
+    if (loaded_rep == MemoryRepresentation::Int64()) {
+      return __ Tuple(
+          Next::ReduceLoad(base_idx, index, kind, MemoryRepresentation::Int32(),
+                           RegisterRepresentation::Word32(), offset,
+                           element_scale),
+          Next::ReduceLoad(base_idx, index, kind, MemoryRepresentation::Int32(),
+                           RegisterRepresentation::Word32(),
+                           offset + sizeof(int32_t), element_scale));
+    }
+    return Next::ReduceLoad(base_idx, index, kind, loaded_rep, result_rep,
+                            offset, element_scale);
   }
 
   OpIndex REDUCE(Store)(OpIndex base, OpIndex index, OpIndex value,
@@ -301,6 +333,24 @@ class Int64LoweringReducer : public Next {
     return Next::ReduceStore(base, index, value, kind, stored_rep,
                              write_barrier, offset, element_size_log2,
                              maybe_initializing_or_transitioning);
+  }
+
+  OpIndex REDUCE(Phi)(base::Vector<const OpIndex> inputs,
+                      RegisterRepresentation rep) {
+    if (rep == RegisterRepresentation::Word64()) {
+      base::SmallVector<OpIndex, 8> inputs_low;
+      base::SmallVector<OpIndex, 8> inputs_high;
+      auto word32 = RegisterRepresentation::Word32();
+      inputs_low.reserve_no_init(inputs.size());
+      inputs_high.reserve_no_init(inputs.size());
+      for (OpIndex input : inputs) {
+        inputs_low.push_back(__ Projection(input, 0, word32));
+        inputs_high.push_back(__ Projection(input, 1, word32));
+      }
+      return __ Tuple(Next::ReducePhi(base::VectorOf(inputs_low), word32),
+                      Next::ReducePhi(base::VectorOf(inputs_high), word32));
+    }
+    return Next::ReducePhi(inputs, rep);
   }
 
  private:
