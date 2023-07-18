@@ -7381,42 +7381,20 @@ ReduceResult MaglevGraphBuilder::ReduceConstruct(
       if (sfi.construct_as_builtin()) {
         // TODO(victorgomes): Inline JSBuiltinsConstructStub.
         return ReduceResult::Fail();
-      } else {
-        RETURN_IF_ABORT(BuildCheckValue(target, function));
+      }
 
-        int construct_arg_count = static_cast<int>(args.count());
-        base::Vector<ValueNode*> construct_arguments_without_receiver =
-            zone()->AllocateVector<ValueNode*>(construct_arg_count);
-        for (int i = 0; i < construct_arg_count; i++) {
-          construct_arguments_without_receiver[i] = args[i];
-        }
+      RETURN_IF_ABORT(BuildCheckValue(target, function));
 
-        ValueNode* implicit_receiver = nullptr;
-        bool implicit_receiver_is_js_receiver = false;
-        if (IsDerivedConstructor(sfi.kind())) {
-          implicit_receiver = GetRootConstant(RootIndex::kTheHoleValue);
-        } else {
-          // We do not create a construct stub lazy deopt frame, since
-          // FastNewObject cannot fail if target is a JSFunction.
-          if (function.has_initial_map(broker())) {
-            compiler::MapRef map = function.initial_map(broker());
-            if (map.GetConstructor(broker()).equals(feedback_target)) {
-              implicit_receiver = BuildAllocateFastObject(
-                  FastObject(function, zone(), broker()),
-                  AllocationType::kYoung);
-              // TODO(leszeks): Don't eagerly clear the raw allocation, have the
-              // next side effect clear it.
-              ClearCurrentRawAllocation();
-            }
-          }
-          if (implicit_receiver == nullptr) {
-            implicit_receiver =
-                BuildCallBuiltin<Builtin::kFastNewObject>({target, new_target});
-          }
-          EnsureType(implicit_receiver, NodeType::kJSReceiver);
-          implicit_receiver_is_js_receiver = true;
-        }
+      int construct_arg_count = static_cast<int>(args.count());
+      base::Vector<ValueNode*> construct_arguments_without_receiver =
+          zone()->AllocateVector<ValueNode*>(construct_arg_count);
+      for (int i = 0; i < construct_arg_count; i++) {
+        construct_arguments_without_receiver[i] = args[i];
+      }
 
+      if (IsDerivedConstructor(sfi.kind())) {
+        ValueNode* implicit_receiver =
+            GetRootConstant(RootIndex::kTheHoleValue);
         args.set_receiver(implicit_receiver);
         ValueNode* call_result;
         {
@@ -7428,21 +7406,55 @@ ReduceResult MaglevGraphBuilder::ReduceConstruct(
           call_result = result.value();
         }
         if (CheckType(call_result, NodeType::kJSReceiver)) return call_result;
-        if (!call_result->properties().is_tagged()) return implicit_receiver;
         ValueNode* constant_node;
         if (compiler::OptionalHeapObjectRef maybe_constant =
                 TryGetConstant(call_result, &constant_node)) {
           compiler::HeapObjectRef constant = maybe_constant.value();
-          if (!constant.IsTheHole()) {
-            DCHECK_EQ(CheckType(implicit_receiver, NodeType::kJSReceiver),
-                      implicit_receiver_is_js_receiver);
-            if (constant.IsJSReceiver()) return constant_node;
-            if (implicit_receiver_is_js_receiver) return implicit_receiver;
-          }
+          if (constant.IsJSReceiver()) return constant_node;
         }
-        return AddNewNode<CheckConstructResult>(
-            {call_result, implicit_receiver});
+        return AddNewNode<CheckDerivedConstructResult>({call_result});
       }
+
+      // We do not create a construct stub lazy deopt frame, since
+      // FastNewObject cannot fail if target is a JSFunction.
+      ValueNode* implicit_receiver = nullptr;
+      if (function.has_initial_map(broker())) {
+        compiler::MapRef map = function.initial_map(broker());
+        if (map.GetConstructor(broker()).equals(feedback_target)) {
+          implicit_receiver = BuildAllocateFastObject(
+              FastObject(function, zone(), broker()), AllocationType::kYoung);
+          // TODO(leszeks): Don't eagerly clear the raw allocation, have the
+          // next side effect clear it.
+          ClearCurrentRawAllocation();
+        }
+      }
+      if (implicit_receiver == nullptr) {
+        implicit_receiver =
+            BuildCallBuiltin<Builtin::kFastNewObject>({target, new_target});
+      }
+      EnsureType(implicit_receiver, NodeType::kJSReceiver);
+
+      args.set_receiver(implicit_receiver);
+      ValueNode* call_result;
+      {
+        DeoptFrameScope construct(this, target, implicit_receiver,
+                                  construct_arguments_without_receiver);
+        ReduceResult result = TryBuildCallKnownJSFunction(
+            function, new_target, args, feedback_source);
+        RETURN_IF_ABORT(result);
+        call_result = result.value();
+      }
+      if (CheckType(call_result, NodeType::kJSReceiver)) return call_result;
+      if (!call_result->properties().is_tagged()) return implicit_receiver;
+      ValueNode* constant_node;
+      if (compiler::OptionalHeapObjectRef maybe_constant =
+              TryGetConstant(call_result, &constant_node)) {
+        compiler::HeapObjectRef constant = maybe_constant.value();
+        DCHECK(CheckType(implicit_receiver, NodeType::kJSReceiver));
+        if (constant.IsJSReceiver()) return constant_node;
+        return implicit_receiver;
+      }
+      return AddNewNode<CheckConstructResult>({call_result, implicit_receiver});
     }
     // TODO(v8:7700): Add fast paths for other callables.
     return ReduceResult::Fail();

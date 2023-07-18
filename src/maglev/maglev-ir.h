@@ -150,6 +150,7 @@ class MergePointInterpreterFrameState;
   V(CallSelf)                                \
   V(Construct)                               \
   V(CheckConstructResult)                    \
+  V(CheckDerivedConstructResult)             \
   V(ConstructWithSpread)                     \
   V(ConvertReceiver)                         \
   V(ConvertHoleToUndefined)                  \
@@ -7389,10 +7390,28 @@ class CheckConstructResult
   Input& construct_result_input() { return input(0); }
   Input& implicit_receiver_input() { return input(1); }
 
-  static constexpr OpProperties kProperties =
-      OpProperties::CanThrow() | OpProperties::DeferredCall();
   static constexpr typename Base::InputTypes kInputTypes{
       ValueRepresentation::kTagged, ValueRepresentation::kTagged};
+
+  int MaxCallStackArgs() const;
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
+class CheckDerivedConstructResult
+    : public FixedInputValueNodeT<1, CheckDerivedConstructResult> {
+  using Base = FixedInputValueNodeT<1, CheckDerivedConstructResult>;
+
+ public:
+  explicit CheckDerivedConstructResult(uint64_t bitfield) : Base(bitfield) {}
+
+  Input& construct_result_input() { return input(0); }
+
+  static constexpr OpProperties kProperties =
+      OpProperties::CanThrow() | OpProperties::DeferredCall();
+  static constexpr
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
 
   bool for_derived_constructor();
 
