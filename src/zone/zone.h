@@ -332,7 +332,7 @@ class ZoneAllocationPolicy {
   explicit ZoneAllocationPolicy(Zone* zone) : zone_(zone) {}
 
   template <typename T, typename TypeTag = T[]>
-  V8_INLINE T* NewArray(size_t length) {
+  V8_INLINE T* AllocateArray(size_t length) {
     return zone()->AllocateArray<T, TypeTag>(length);
   }
   template <typename T, typename TypeTag = T[]>

@@ -25,7 +25,7 @@ struct IdentityMapFindResult {
 };
 
 // Base class of identity maps contains shared code for all template
-// instantions.
+// instantiations.
 class V8_EXPORT_PRIVATE IdentityMapBase {
  public:
   IdentityMapBase(const IdentityMapBase&) = delete;
@@ -68,7 +68,7 @@ class V8_EXPORT_PRIVATE IdentityMapBase {
   void EnableIteration();
   void DisableIteration();
 
-  virtual uintptr_t* NewPointerArray(size_t length) = 0;
+  virtual uintptr_t* NewPointerArray(size_t length, uintptr_t value) = 0;
   virtual void DeletePointerArray(uintptr_t* array, size_t length) = 0;
 
  private:
@@ -223,8 +223,11 @@ class IdentityMap : public IdentityMapBase {
   // TODO(ishell): consider removing virtual methods in favor of combining
   // IdentityMapBase and IdentityMap into one class. This would also save
   // space when sizeof(V) is less than sizeof(uintptr_t).
-  uintptr_t* NewPointerArray(size_t length) override {
-    return allocator_.template NewArray<uintptr_t, Buffer>(length);
+  uintptr_t* NewPointerArray(size_t length, uintptr_t value) override {
+    uintptr_t* result =
+        allocator_.template AllocateArray<uintptr_t, Buffer>(length);
+    std::uninitialized_fill_n(result, length, value);
+    return result;
   }
   void DeletePointerArray(uintptr_t* array, size_t length) override {
     allocator_.template DeleteArray<uintptr_t, Buffer>(array, length);

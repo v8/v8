@@ -206,11 +206,10 @@ IdentityMapBase::RawEntry IdentityMapBase::InsertEntry(Address key) {
     mask_ = kInitialIdentityMapSize - 1;
     gc_counter_ = heap_->gc_count();
 
-    keys_ = reinterpret_cast<Address*>(NewPointerArray(capacity_));
-    Address not_mapped = ReadOnlyRoots(heap_).not_mapped_symbol().ptr();
+    uintptr_t not_mapped = ReadOnlyRoots(heap_).not_mapped_symbol().ptr();
+    keys_ = reinterpret_cast<Address*>(NewPointerArray(capacity_, not_mapped));
     for (int i = 0; i < capacity_; i++) keys_[i] = not_mapped;
-    values_ = NewPointerArray(capacity_);
-    memset(values_, 0, sizeof(uintptr_t) * capacity_);
+    values_ = NewPointerArray(capacity_, 0);
 
     strong_roots_entry_ =
         heap_->RegisterStrongRoots("IdentityMapBase", FullObjectSlot(keys_),
@@ -315,11 +314,9 @@ void IdentityMapBase::Resize(int new_capacity) {
   gc_counter_ = heap_->gc_count();
   size_ = 0;
 
-  keys_ = reinterpret_cast<Address*>(NewPointerArray(capacity_));
   Address not_mapped = ReadOnlyRoots(heap_).not_mapped_symbol().ptr();
-  for (int i = 0; i < capacity_; i++) keys_[i] = not_mapped;
-  values_ = NewPointerArray(capacity_);
-  memset(values_, 0, sizeof(uintptr_t) * capacity_);
+  keys_ = reinterpret_cast<Address*>(NewPointerArray(capacity_, not_mapped));
+  values_ = NewPointerArray(capacity_, 0);
 
   for (int i = 0; i < old_capacity; i++) {
     if (old_keys[i] == not_mapped) continue;
