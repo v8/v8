@@ -872,7 +872,8 @@ class V8_EXPORT_PRIVATE FeedbackNexus final {
 
   // For CloneObject ICs
   static constexpr int kCloneObjectPolymorphicEntrySize = 2;
-  void ConfigureCloneObject(Handle<Map> source_map, Handle<Map> result_map);
+  void ConfigureCloneObject(Handle<Map> source_map,
+                            const MaybeObjectHandle& handler);
 
 // Bit positions in a smi that encodes lexical environment variable access.
 #define LEXICAL_MODE_BIT_FIELDS(V, _)  \
