@@ -2627,7 +2627,12 @@ struct CallOp : OperationT<CallOp> {
   const TSCallDescriptor* descriptor;
   OpEffects callee_effects;
 
-  OpEffects Effects() const { return callee_effects; }
+  OpEffects Effects() const {
+    // TODO(dmercadier): return `callee_effects` instead of `CanCallAnything`.
+    // (This has been temporarily changed, because of stability issues)
+    return OpEffects().CanCallAnything();
+    // return callee_effects;
+  }
   base::Vector<const RegisterRepresentation> outputs_rep() const {
     return descriptor->out_reps;
   }

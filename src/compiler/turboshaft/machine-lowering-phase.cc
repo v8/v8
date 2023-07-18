@@ -18,9 +18,11 @@ void MachineLoweringPhase::Run(Zone* temp_zone) {
   turboshaft::OptimizationPhase<
       turboshaft::VariableReducer, turboshaft::MachineLoweringReducer,
       turboshaft::FastApiCallReducer, turboshaft::RequiredOptimizationReducer,
-      turboshaft::SelectLoweringReducer,
-      turboshaft::MachineOptimizationReducerSignallingNanImpossible>::
-      Run(temp_zone);
+      turboshaft::SelectLoweringReducer
+      // TODO(dmercadier): re-add MachineOptimizationReducer to this stack (it
+      // has been temporarily removed for stability reasons).
+      //,turboshaft::MachineOptimizationReducerSignallingNanImpossible
+      >::Run(temp_zone);
 }
 
 }  // namespace v8::internal::compiler::turboshaft
