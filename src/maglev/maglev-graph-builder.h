@@ -1884,6 +1884,9 @@ class MaglevGraphBuilder {
   void MergeDeadLoopIntoFrameState(int target);
   void MergeIntoInlinedReturnFrameState(BasicBlock* block);
 
+  bool HasValidInitialMap(compiler::JSFunctionRef new_target,
+                          compiler::JSFunctionRef constructor);
+
   enum JumpType { kJumpIfTrue, kJumpIfFalse };
   enum class BranchSpecializationMode { kDefault, kAlwaysBoolean };
   JumpType NegateJumpType(JumpType jump_type);
