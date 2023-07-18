@@ -7386,21 +7386,13 @@ ReduceResult MaglevGraphBuilder::ReduceConstruct(
         if (IsDerivedConstructor(sfi.kind())) {
           implicit_receiver = GetRootConstant(RootIndex::kTheHoleValue);
         } else {
-          DeoptFrameScope construct(this, BytecodeOffset::ConstructStubCreate(),
-                                    target,
-                                    GetRootConstant(RootIndex::kTheHoleValue),
-                                    construct_arguments_without_receiver);
-          compiler::OptionalHeapObjectRef maybe_constant;
-          if (target == new_target &&
-              (maybe_constant = TryGetConstant(target)) &&
-              maybe_constant.value().equals(feedback_target) &&
-              feedback_target.IsJSFunction() &&
-              feedback_target.AsJSFunction().has_initial_map(broker())) {
-            compiler::MapRef map =
-                feedback_target.AsJSFunction().initial_map(broker());
+          // We do not create a construct stub lazy deopt frame, since
+          // FastNewObject cannot fail if target is a JSFunction.
+          if (function.has_initial_map(broker())) {
+            compiler::MapRef map = function.initial_map(broker());
             if (map.GetConstructor(broker()).equals(feedback_target)) {
               implicit_receiver = BuildAllocateFastObject(
-                  FastObject(feedback_target.AsJSFunction(), zone(), broker()),
+                  FastObject(function, zone(), broker()),
                   AllocationType::kYoung);
               // TODO(leszeks): Don't eagerly clear the raw allocation, have the
               // next side effect clear it.
