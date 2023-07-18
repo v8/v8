@@ -56,9 +56,7 @@ class JSCallAccessor {
     return call_->InputAt(JSCallOrConstructNode::TargetIndex());
   }
 
-  Node* receiver() const {
-    return JSCallNode{call_}.receiver();
-  }
+  Node* receiver() const { return JSCallNode{call_}.receiver(); }
 
   Node* new_target() const { return JSConstructNode{call_}.new_target(); }
 
@@ -831,10 +829,18 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
     if (NeedsImplicitReceiver(*shared_info)) {
       Effect effect = n.effect();
       Control control = n.control();
-      Node* frame_state_inside = CreateArtificialFrameState(
-          node, frame_state, n.ArgumentCount(),
-          BytecodeOffset::ConstructStubCreate(), FrameStateType::kConstructStub,
-          *shared_info, caller_context);
+      Node* frame_state_inside;
+      HeapObjectMatcher m(new_target);
+      if (m.HasResolvedValue() && m.Ref(broker()).IsJSFunction()) {
+        // If {new_target} is a JSFunction, then we cannot deopt in the
+        // NewObject call. Therefore we do not need the artificial frame state.
+        frame_state_inside = frame_state;
+      } else {
+        frame_state_inside = CreateArtificialFrameState(
+            node, frame_state, n.ArgumentCount(),
+            BytecodeOffset::ConstructStubCreate(),
+            FrameStateType::kConstructStub, *shared_info, caller_context);
+      }
       Node* create =
           graph()->NewNode(javascript()->Create(), call.target(), new_target,
                            caller_context, frame_state_inside, effect, control);
