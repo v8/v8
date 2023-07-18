@@ -187,8 +187,7 @@ class ValueNumberingReducer : public Next {
   void RehashIfNeeded() {
     if (V8_LIKELY(table_.size() - (table_.size() / 4) > entry_count_)) return;
     base::Vector<Entry> new_table = table_ =
-        Asm().phase_zone()->template NewVector<Entry>(table_.size() * 2,
-                                                      Entry());
+        Asm().phase_zone()->template NewVector<Entry>(table_.size() * 2);
     size_t mask = mask_ = table_.size() - 1;
 
     for (size_t depth_idx = 0; depth_idx < depths_heads_.size(); depth_idx++) {
@@ -263,8 +262,7 @@ class ValueNumberingReducer : public Next {
   ZoneVector<Block*> dominator_path_{Asm().phase_zone()};
   base::Vector<Entry> table_ = Asm().phase_zone()->template NewVector<Entry>(
       base::bits::RoundUpToPowerOfTwo(
-          std::max<size_t>(128, Asm().input_graph().op_id_capacity() / 2)),
-      Entry());
+          std::max<size_t>(128, Asm().input_graph().op_id_capacity() / 2)));
   size_t mask_ = table_.size() - 1;
   size_t entry_count_ = 0;
   ZoneVector<Entry*> depths_heads_{Asm().phase_zone()};

@@ -85,7 +85,7 @@ LayeredHashMap<Key, Value>::LayeredHashMap(Zone* zone,
   initial_capacity = base::bits::RoundUpToPowerOfTwo32(initial_capacity);
   mask_ = initial_capacity - 1;
   // Allocating the table_
-  table_ = zone_->NewVector(initial_capacity, Entry());
+  table_ = zone_->NewVector<Entry>(initial_capacity);
 }
 
 template <class Key, class Value>
@@ -141,7 +141,7 @@ template <class Key, class Value>
 void LayeredHashMap<Key, Value>::ResizeIfNeeded() {
   if (table_.size() * kNeedResizePercentage > entry_count_) return;
   CHECK_LE(table_.size(), std::numeric_limits<size_t>::max() / kGrowthFactor);
-  table_ = zone_->NewVector<Entry>(table_.size() * kGrowthFactor, Entry());
+  table_ = zone_->NewVector<Entry>(table_.size() * kGrowthFactor);
   mask_ = table_.size() - 1;
   DCHECK_EQ(base::bits::CountPopulation(mask_),
             sizeof(mask_) * 8 - base::bits::CountLeadingZeros(mask_));
