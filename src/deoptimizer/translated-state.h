@@ -188,7 +188,8 @@ class TranslatedFrame {
   enum Kind {
     kUnoptimizedFunction,
     kInlinedExtraArguments,
-    kConstructStub,
+    kConstructCreateStub,
+    kConstructInvokeStub,
     kBuiltinContinuation,
 #if V8_ENABLE_WEBASSEMBLY
     kWasmInlinedIntoJS,
@@ -289,9 +290,10 @@ class TranslatedFrame {
                                        SharedFunctionInfo shared_info);
   static TranslatedFrame InlinedExtraArguments(SharedFunctionInfo shared_info,
                                                int height);
-  static TranslatedFrame ConstructStubFrame(BytecodeOffset bailout_id,
-                                            SharedFunctionInfo shared_info,
-                                            int height);
+  static TranslatedFrame ConstructCreateStubFrame(
+      SharedFunctionInfo shared_info, int height);
+  static TranslatedFrame ConstructInvokeStubFrame(
+      SharedFunctionInfo shared_info, int height);
   static TranslatedFrame BuiltinContinuationFrame(
       BytecodeOffset bailout_id, SharedFunctionInfo shared_info, int height);
 #if V8_ENABLE_WEBASSEMBLY

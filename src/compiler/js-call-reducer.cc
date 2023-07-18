@@ -37,6 +37,7 @@
 #include "src/objects/js-function.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/ordered-hash-table.h"
+#include "src/utils/utils.h"
 
 #ifdef V8_INTL_SUPPORT
 #include "src/objects/intl-objects.h"
@@ -2317,15 +2318,14 @@ struct PromiseCtorFrameStateParams {
 // but probably not worth the effort.
 FrameState CreateArtificialFrameState(
     Node* node, Node* outer_frame_state, int parameter_count,
-    BytecodeOffset bailout_id, FrameStateType frame_state_type,
-    SharedFunctionInfoRef shared, Node* context, CommonOperatorBuilder* common,
-    Graph* graph) {
+    FrameStateType frame_state_type, SharedFunctionInfoRef shared,
+    Node* context, CommonOperatorBuilder* common, Graph* graph) {
   const FrameStateFunctionInfo* state_info =
       common->CreateFrameStateFunctionInfo(
           frame_state_type, parameter_count + 1, 0, shared.object());
 
   const Operator* op = common->FrameState(
-      bailout_id, OutputFrameStateCombine::Ignore(), state_info);
+      BytecodeOffset::None(), OutputFrameStateCombine::Ignore(), state_info);
   const Operator* op0 = common->StateValues(0, SparseInputMask::Dense());
   Node* node0 = graph->NewNode(op0);
 
@@ -2352,10 +2352,10 @@ FrameState PromiseConstructorFrameState(
     Graph* graph) {
   DCHECK_EQ(1,
             params.shared.internal_formal_parameter_count_without_receiver());
-  return CreateArtificialFrameState(
-      params.node_ptr, params.outer_frame_state, 1,
-      BytecodeOffset::ConstructStubInvoke(), FrameStateType::kConstructStub,
-      params.shared, params.context, common, graph);
+  return CreateArtificialFrameState(params.node_ptr, params.outer_frame_state,
+                                    1, FrameStateType::kConstructInvokeStub,
+                                    params.shared, params.context, common,
+                                    graph);
 }
 
 FrameState PromiseConstructorLazyFrameState(
@@ -7399,9 +7399,9 @@ Reduction JSCallReducer::ReduceTypedArrayConstructor(
 
   // Insert a construct stub frame into the chain of frame states. This will
   // reconstruct the proper frame when deoptimizing within the constructor.
-  frame_state = CreateArtificialFrameState(
-      node, frame_state, arity, BytecodeOffset::ConstructStubInvoke(),
-      FrameStateType::kConstructStub, shared, context, common(), graph());
+  frame_state = CreateArtificialFrameState(node, frame_state, arity,
+                                           FrameStateType::kConstructInvokeStub,
+                                           shared, context, common(), graph());
 
   // This continuation just returns the newly created JSTypedArray. We
   // pass the_hole as the receiver, just like the builtin construct stub

@@ -11,6 +11,7 @@
 #include "src/debug/debug.h"
 #include "src/deoptimizer/deoptimized-frame-info.h"
 #include "src/deoptimizer/materialized-object-store.h"
+#include "src/deoptimizer/translated-state.h"
 #include "src/execution/frames-inl.h"
 #include "src/execution/isolate.h"
 #include "src/execution/pointer-authentication.h"
@@ -23,6 +24,7 @@
 #include "src/objects/js-function-inl.h"
 #include "src/objects/oddball.h"
 #include "src/snapshot/embedded/embedded-data.h"
+#include "src/utils/utils.h"
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/wasm/wasm-linkage.h"
@@ -843,7 +845,8 @@ void Deoptimizer::DoComputeOutputFrames() {
       case TranslatedFrame::kInlinedExtraArguments:
         DoComputeInlinedExtraArguments(translated_frame, frame_index);
         break;
-      case TranslatedFrame::kConstructStub:
+      case TranslatedFrame::kConstructCreateStub:
+      case TranslatedFrame::kConstructInvokeStub:
         DoComputeConstructStubFrame(translated_frame, frame_index);
         break;
       case TranslatedFrame::kBuiltinContinuation:
@@ -1355,10 +1358,13 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
   // the topmost one). So it could only be the DeoptimizeKind::kLazy case.
   CHECK(!is_topmost || deopt_kind_ == DeoptimizeKind::kLazy);
 
+  bool is_create_stub =
+      (translated_frame->kind() == TranslatedFrame::kConstructCreateStub);
+  DCHECK(is_create_stub ||
+         (translated_frame->kind() == TranslatedFrame::kConstructInvokeStub));
+
   Builtins* builtins = isolate_->builtins();
   Code construct_stub = builtins->code(Builtin::kJSConstructStubGeneric);
-  BytecodeOffset bytecode_offset = translated_frame->bytecode_offset();
-
   const int parameters_count = translated_frame->height();
   ConstructStubFrameInfo frame_info =
       ConstructStubFrameInfo::Precise(parameters_count, is_topmost);
@@ -1367,11 +1373,9 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
   TranslatedFrame::iterator function_iterator = value_iterator++;
   if (verbose_tracing_enabled()) {
     PrintF(trace_scope()->file(),
-           "  translating construct stub => bytecode_offset=%d (%s), "
-           "variable_frame_size=%d, frame_size=%d\n",
-           bytecode_offset.ToInt(),
-           bytecode_offset == BytecodeOffset::ConstructStubCreate() ? "create"
-                                                                    : "invoke",
+           "  translating construct %s stub => variable_frame_size=%d, "
+           "frame_size=%d\n",
+           is_create_stub ? "create" : "invoke",
            frame_info.frame_size_in_bytes_without_fixed(), output_frame_size);
   }
 
@@ -1448,12 +1452,8 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
 
   frame_writer.PushRawObject(roots.the_hole_value(), "padding\n");
 
-  CHECK(bytecode_offset == BytecodeOffset::ConstructStubCreate() ||
-        bytecode_offset == BytecodeOffset::ConstructStubInvoke());
   const char* debug_hint =
-      bytecode_offset == BytecodeOffset::ConstructStubCreate()
-          ? "new target\n"
-          : "allocated receiver\n";
+      is_create_stub ? "new target\n" : "allocated receiver\n";
   frame_writer.PushTranslatedValue(receiver_iterator, debug_hint);
 
   if (is_topmost) {
@@ -1470,10 +1470,9 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
   CHECK_EQ(0u, frame_writer.top_offset());
 
   // Compute this frame's PC.
-  DCHECK(bytecode_offset.IsValidForConstructStub());
   Address start = construct_stub.instruction_start();
   const int pc_offset =
-      bytecode_offset == BytecodeOffset::ConstructStubCreate()
+      is_create_stub
           ? isolate_->heap()->construct_stub_create_deopt_pc_offset().value()
           : isolate_->heap()->construct_stub_invoke_deopt_pc_offset().value();
   intptr_t pc_value = static_cast<intptr_t>(start + pc_offset);

@@ -2482,7 +2482,8 @@ void OptimizedFrame::Summarize(std::vector<FrameSummary>* frames) const {
           is_constructor, *params);
       frames->push_back(summary);
       is_constructor = false;
-    } else if (it->kind() == TranslatedFrame::kConstructStub) {
+    } else if (it->kind() == TranslatedFrame::kConstructCreateStub ||
+               it->kind() == TranslatedFrame::kConstructInvokeStub) {
       // The next encountered JS frame will be marked as a constructor call.
       DCHECK(!is_constructor);
       is_constructor = true;

@@ -24,13 +24,11 @@ size_t hash_value(OutputFrameStateCombine const& sc) {
   return base::hash_value(sc.parameter_);
 }
 
-
 std::ostream& operator<<(std::ostream& os, OutputFrameStateCombine const& sc) {
   if (sc.parameter_ == OutputFrameStateCombine::kInvalidIndex)
     return os << "Ignore";
   return os << "PokeAt(" << sc.parameter_ << ")";
 }
-
 
 bool operator==(FrameStateInfo const& lhs, FrameStateInfo const& rhs) {
   return lhs.type() == rhs.type() && lhs.bailout_id() == rhs.bailout_id() &&
@@ -38,17 +36,14 @@ bool operator==(FrameStateInfo const& lhs, FrameStateInfo const& rhs) {
          lhs.function_info() == rhs.function_info();
 }
 
-
 bool operator!=(FrameStateInfo const& lhs, FrameStateInfo const& rhs) {
   return !(lhs == rhs);
 }
-
 
 size_t hash_value(FrameStateInfo const& info) {
   return base::hash_combine(static_cast<int>(info.type()), info.bailout_id(),
                             info.state_combine());
 }
-
 
 std::ostream& operator<<(std::ostream& os, FrameStateType type) {
   switch (type) {
@@ -58,8 +53,11 @@ std::ostream& operator<<(std::ostream& os, FrameStateType type) {
     case FrameStateType::kInlinedExtraArguments:
       os << "INLINED_EXTRA_ARGUMENTS";
       break;
-    case FrameStateType::kConstructStub:
-      os << "CONSTRUCT_STUB";
+    case FrameStateType::kConstructCreateStub:
+      os << "CONSTRUCT_CREATE_STUB";
+      break;
+    case FrameStateType::kConstructInvokeStub:
+      os << "CONSTRUCT_INVOKE_STUB";
       break;
     case FrameStateType::kBuiltinContinuation:
       os << "BUILTIN_CONTINUATION_FRAME";
@@ -81,7 +79,6 @@ std::ostream& operator<<(std::ostream& os, FrameStateType type) {
   }
   return os;
 }
-
 
 std::ostream& operator<<(std::ostream& os, FrameStateInfo const& info) {
   os << info.type() << ", " << info.bailout_id() << ", "

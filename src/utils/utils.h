@@ -497,10 +497,6 @@ class BytecodeOffset {
   //  - {ConstructStubInvoke} maps to {construct_stub_invoke_deopt_pc_offset}.
   static BytecodeOffset ConstructStubCreate() { return BytecodeOffset(1); }
   static BytecodeOffset ConstructStubInvoke() { return BytecodeOffset(2); }
-  bool IsValidForConstructStub() const {
-    return id_ == ConstructStubCreate().ToInt() ||
-           id_ == ConstructStubInvoke().ToInt();
-  }
 
   constexpr bool IsNone() const { return id_ == kNoneId; }
   bool operator==(const BytecodeOffset& other) const {

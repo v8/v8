@@ -1466,7 +1466,8 @@ class FrameStateDescriptor : public ZoneObject {
            // inlined wasm functions?
            type_ == FrameStateType::kWasmInlinedIntoJS ||
 #endif  // V8_ENABLE_WEBASSEMBLY
-           type_ == FrameStateType::kConstructStub;
+           type_ == FrameStateType::kConstructCreateStub ||
+           type_ == FrameStateType::kConstructInvokeStub;
   }
 
   // The frame height on the stack, in number of slots, as serialized into a
@@ -1680,10 +1681,10 @@ class V8_EXPORT_PRIVATE InstructionBlock final
   const RpoNumber loop_header_;
   const RpoNumber loop_end_;
   RpoNumber dominator_;
-  int32_t code_start_;   // start index of arch-specific code.
-  int32_t code_end_ = -1;     // end index of arch-specific code.
-  const bool deferred_ : 1;   // Block contains deferred code.
-  bool handler_ : 1;          // Block is a handler entry point.
+  int32_t code_start_;       // start index of arch-specific code.
+  int32_t code_end_ = -1;    // end index of arch-specific code.
+  const bool deferred_ : 1;  // Block contains deferred code.
+  bool handler_ : 1;         // Block is a handler entry point.
   bool switch_target_ : 1;
   bool code_target_alignment_ : 1;  // insert code target alignment before this
                                     // block

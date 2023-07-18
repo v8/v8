@@ -245,8 +245,8 @@ Reduction JSInliner::InlineCall(Node* call, Node* new_target, Node* context,
 
 FrameState JSInliner::CreateArtificialFrameState(
     Node* node, FrameState outer_frame_state, int parameter_count,
-    BytecodeOffset bailout_id, FrameStateType frame_state_type,
-    SharedFunctionInfoRef shared, Node* context, Node* callee) {
+    FrameStateType frame_state_type, SharedFunctionInfoRef shared,
+    Node* context, Node* callee) {
   const int parameter_count_with_receiver =
       parameter_count + JSCallOrConstructNode::kReceiverOrNewTargetInputCount;
   const FrameStateFunctionInfo* state_info =
@@ -254,7 +254,7 @@ FrameState JSInliner::CreateArtificialFrameState(
           frame_state_type, parameter_count_with_receiver, 0, shared.object());
 
   const Operator* op = common()->FrameState(
-      bailout_id, OutputFrameStateCombine::Ignore(), state_info);
+      BytecodeOffset::None(), OutputFrameStateCombine::Ignore(), state_info);
   const Operator* op0 = common()->StateValues(0, SparseInputMask::Dense());
   Node* node0 = graph()->NewNode(op0);
 
@@ -588,7 +588,7 @@ void JSInliner::InlineWasmFunction(Node* call, Node* inlinee_start,
   // We do not have a proper callee JSFunction object.
   Node* callee = jsgraph()->UndefinedConstant();
   Node* frame_state_inside = CreateArtificialFrameState(
-      call, FrameState{frame_state}, argument_count, BytecodeOffset::None(),
+      call, FrameState{frame_state}, argument_count,
       FrameStateType::kWasmInlinedIntoJS, shared_fct_info, context, callee);
   Node* check_point = graph()->NewNode(common()->Checkpoint(),
                                        frame_state_inside, effect, control);
@@ -838,8 +838,7 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
       } else {
         frame_state_inside = CreateArtificialFrameState(
             node, frame_state, n.ArgumentCount(),
-            BytecodeOffset::ConstructStubCreate(),
-            FrameStateType::kConstructStub, *shared_info, caller_context);
+            FrameStateType::kConstructCreateStub, *shared_info, caller_context);
       }
       Node* create =
           graph()->NewNode(javascript()->Create(), call.target(), new_target,
@@ -894,8 +893,7 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
     // reconstruct the proper frame when deoptimizing within the constructor.
     frame_state = CreateArtificialFrameState(
         node, frame_state, n.ArgumentCount(),
-        BytecodeOffset::ConstructStubInvoke(), FrameStateType::kConstructStub,
-        *shared_info, caller_context);
+        FrameStateType::kConstructInvokeStub, *shared_info, caller_context);
   }
 
   // Insert a JSConvertReceiver node for sloppy callees. Note that the context
@@ -924,7 +922,7 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
   DCHECK_EQ(parameter_count, start.FormalParameterCountWithoutReceiver());
   if (call.argument_count() != parameter_count) {
     frame_state = CreateArtificialFrameState(
-        node, frame_state, call.argument_count(), BytecodeOffset::None(),
+        node, frame_state, call.argument_count(),
         FrameStateType::kInlinedExtraArguments, *shared_info);
   }
 

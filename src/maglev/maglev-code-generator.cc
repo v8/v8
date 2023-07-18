@@ -989,8 +989,8 @@ BytecodeOffset GetBytecodeOffset(const DeoptFrame& deopt_frame) {
     case DeoptFrame::FrameType::kInlinedArgumentsFrame:
       DCHECK_NOT_NULL(deopt_frame.parent());
       return GetBytecodeOffset(*deopt_frame.parent());
-    case DeoptFrame::FrameType::kConstructStubFrame:
-      return deopt_frame.as_construct_stub().bytecode_position();
+    case DeoptFrame::FrameType::kConstructInvokeStubFrame:
+      return BytecodeOffset::None();
     case DeoptFrame::FrameType::kBuiltinContinuationFrame:
       return Builtins::GetContinuationBytecodeOffset(
           deopt_frame.as_builtin_continuation().builtin_id());
@@ -1003,7 +1003,7 @@ SourcePosition GetSourcePosition(const DeoptFrame& deopt_frame) {
     case DeoptFrame::FrameType::kInlinedArgumentsFrame:
       DCHECK_NOT_NULL(deopt_frame.parent());
       return GetSourcePosition(*deopt_frame.parent());
-    case DeoptFrame::FrameType::kConstructStubFrame:
+    case DeoptFrame::FrameType::kConstructInvokeStubFrame:
       return deopt_frame.as_construct_stub().source_position();
     case DeoptFrame::FrameType::kBuiltinContinuationFrame:
       return SourcePosition::Unknown();
@@ -1016,7 +1016,7 @@ compiler::SharedFunctionInfoRef GetSharedFunctionInfo(
       return deopt_frame.as_interpreted().unit().shared_function_info();
     case DeoptFrame::FrameType::kInlinedArgumentsFrame:
       return deopt_frame.as_inlined_arguments().unit().shared_function_info();
-    case DeoptFrame::FrameType::kConstructStubFrame:
+    case DeoptFrame::FrameType::kConstructInvokeStubFrame:
       return deopt_frame.as_construct_stub().unit().shared_function_info();
     case DeoptFrame::FrameType::kBuiltinContinuationFrame:
       return GetSharedFunctionInfo(*deopt_frame.parent());
@@ -1063,7 +1063,7 @@ class MaglevTranslationArrayBuilder {
       case DeoptFrame::FrameType::kInlinedArgumentsFrame:
         // The inlined arguments frame can never be the top frame.
         UNREACHABLE();
-      case DeoptFrame::FrameType::kConstructStubFrame:
+      case DeoptFrame::FrameType::kConstructInvokeStubFrame:
         return BuildSingleDeoptFrame(top_frame.as_construct_stub(),
                                      current_input_location);
       case DeoptFrame::FrameType::kBuiltinContinuationFrame:
@@ -1119,7 +1119,7 @@ class MaglevTranslationArrayBuilder {
       case DeoptFrame::FrameType::kInlinedArgumentsFrame:
         return BuildSingleDeoptFrame(frame.as_inlined_arguments(),
                                      current_input_location);
-      case DeoptFrame::FrameType::kConstructStubFrame:
+      case DeoptFrame::FrameType::kConstructInvokeStubFrame:
         return BuildSingleDeoptFrame(frame.as_construct_stub(),
                                      current_input_location);
       case DeoptFrame::FrameType::kBuiltinContinuationFrame:
@@ -1197,12 +1197,9 @@ class MaglevTranslationArrayBuilder {
     }
   }
 
-  void BuildSingleDeoptFrame(const ConstructStubDeoptFrame& frame,
+  void BuildSingleDeoptFrame(const ConstructInvokeStubDeoptFrame& frame,
                              const InputLocation*& current_input_location) {
-    // TODO(victorgomes): This is very similar to inlined arguments, should
-    // we generalise that?
-    translation_array_builder_->BeginConstructStubFrame(
-        frame.bytecode_position(),
+    translation_array_builder_->BeginConstructInvokeStubFrame(
         GetDeoptLiteral(GetSharedFunctionInfo(frame)),
         frame.arguments_without_receiver().length() + 1);
 

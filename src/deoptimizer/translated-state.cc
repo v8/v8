@@ -84,15 +84,36 @@ void TranslationArrayPrintSingleFrame(
       }
 
 #if V8_ENABLE_WEBASSEMBLY
-      case TranslationOpcode::WASM_INLINED_INTO_JS_FRAME:
-#endif
-      case TranslationOpcode::CONSTRUCT_STUB_FRAME: {
+      case TranslationOpcode::WASM_INLINED_INTO_JS_FRAME: {
         DCHECK_EQ(TranslationOpcodeOperandCount(opcode), 3);
         int bailout_id = iterator.NextOperand();
         int shared_info_id = iterator.NextOperand();
         Object shared_info = literal_array.get(shared_info_id);
         unsigned height = iterator.NextOperand();
         os << "{bailout_id=" << bailout_id << ", function="
+           << SharedFunctionInfo::cast(shared_info).DebugNameCStr().get()
+           << ", height=" << height << "}";
+        break;
+      }
+
+#endif
+      case TranslationOpcode::CONSTRUCT_CREATE_STUB_FRAME: {
+        DCHECK_EQ(TranslationOpcodeOperandCount(opcode), 2);
+        int shared_info_id = iterator.NextOperand();
+        Object shared_info = literal_array.get(shared_info_id);
+        unsigned height = iterator.NextOperand();
+        os << "{construct create stub, function="
+           << SharedFunctionInfo::cast(shared_info).DebugNameCStr().get()
+           << ", height=" << height << "}";
+        break;
+      }
+
+      case TranslationOpcode::CONSTRUCT_INVOKE_STUB_FRAME: {
+        DCHECK_EQ(TranslationOpcodeOperandCount(opcode), 2);
+        int shared_info_id = iterator.NextOperand();
+        Object shared_info = literal_array.get(shared_info_id);
+        unsigned height = iterator.NextOperand();
+        os << "{construct invoke stub, function="
            << SharedFunctionInfo::cast(shared_info).DebugNameCStr().get()
            << ", height=" << height << "}";
         break;
@@ -778,12 +799,14 @@ TranslatedFrame TranslatedFrame::InlinedExtraArguments(
   return TranslatedFrame(kInlinedExtraArguments, shared_info, height);
 }
 
-TranslatedFrame TranslatedFrame::ConstructStubFrame(
-    BytecodeOffset bytecode_offset, SharedFunctionInfo shared_info,
-    int height) {
-  TranslatedFrame frame(kConstructStub, shared_info, height);
-  frame.bytecode_offset_ = bytecode_offset;
-  return frame;
+TranslatedFrame TranslatedFrame::ConstructCreateStubFrame(
+    SharedFunctionInfo shared_info, int height) {
+  return TranslatedFrame(kConstructCreateStub, shared_info, height);
+}
+
+TranslatedFrame TranslatedFrame::ConstructInvokeStubFrame(
+    SharedFunctionInfo shared_info, int height) {
+  return TranslatedFrame(kConstructInvokeStub, shared_info, height);
 }
 
 TranslatedFrame TranslatedFrame::BuiltinContinuationFrame(
@@ -848,7 +871,8 @@ int TranslatedFrame::GetValueCount() {
     case kInlinedExtraArguments:
       return height() + kTheFunction;
 
-    case kConstructStub:
+    case kConstructCreateStub:
+    case kConstructInvokeStub:
     case kBuiltinContinuation:
 #if V8_ENABLE_WEBASSEMBLY
     case kJSToWasmBuiltinContinuation:
@@ -926,19 +950,32 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
       return TranslatedFrame::InlinedExtraArguments(shared_info, height);
     }
 
-    case TranslationOpcode::CONSTRUCT_STUB_FRAME: {
-      BytecodeOffset bytecode_offset = BytecodeOffset(iterator->NextOperand());
+    case TranslationOpcode::CONSTRUCT_CREATE_STUB_FRAME: {
       SharedFunctionInfo shared_info =
           SharedFunctionInfo::cast(literal_array.get(iterator->NextOperand()));
       int height = iterator->NextOperand();
       if (trace_file != nullptr) {
         std::unique_ptr<char[]> name = shared_info.DebugNameCStr();
-        PrintF(trace_file, "  reading construct stub frame %s", name.get());
-        PrintF(trace_file, " => bytecode_offset=%d, height=%d; inputs:\n",
-               bytecode_offset.ToInt(), height);
+        PrintF(trace_file,
+               "  reading construct create stub frame %s => height = %d; "
+               "inputs:\n",
+               name.get(), height);
       }
-      return TranslatedFrame::ConstructStubFrame(bytecode_offset, shared_info,
-                                                 height);
+      return TranslatedFrame::ConstructCreateStubFrame(shared_info, height);
+    }
+
+    case TranslationOpcode::CONSTRUCT_INVOKE_STUB_FRAME: {
+      SharedFunctionInfo shared_info =
+          SharedFunctionInfo::cast(literal_array.get(iterator->NextOperand()));
+      int height = iterator->NextOperand();
+      if (trace_file != nullptr) {
+        std::unique_ptr<char[]> name = shared_info.DebugNameCStr();
+        PrintF(trace_file,
+               "  reading construct invoke stub frame %s => height = %d; "
+               "inputs:\n",
+               name.get(), height);
+      }
+      return TranslatedFrame::ConstructInvokeStubFrame(shared_info, height);
     }
 
     case TranslationOpcode::BUILTIN_CONTINUATION_FRAME: {
@@ -1160,7 +1197,8 @@ int TranslatedState::CreateNextTranslatedValue(
     case TranslationOpcode::INTERPRETED_FRAME_WITH_RETURN:
     case TranslationOpcode::INTERPRETED_FRAME_WITHOUT_RETURN:
     case TranslationOpcode::INLINED_EXTRA_ARGUMENTS:
-    case TranslationOpcode::CONSTRUCT_STUB_FRAME:
+    case TranslationOpcode::CONSTRUCT_CREATE_STUB_FRAME:
+    case TranslationOpcode::CONSTRUCT_INVOKE_STUB_FRAME:
     case TranslationOpcode::JAVA_SCRIPT_BUILTIN_CONTINUATION_FRAME:
     case TranslationOpcode::JAVA_SCRIPT_BUILTIN_CONTINUATION_WITH_CATCH_FRAME:
     case TranslationOpcode::BUILTIN_CONTINUATION_FRAME:
@@ -1863,10 +1901,7 @@ void TranslatedState::MaterializeHeapNumber(TranslatedFrame* frame,
 
 namespace {
 
-enum StorageKind : uint8_t {
-  kStoreTagged,
-  kStoreHeapObject
-};
+enum StorageKind : uint8_t { kStoreTagged, kStoreHeapObject };
 
 }  // namespace
 

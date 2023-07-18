@@ -14,6 +14,7 @@
 #include "src/codegen/register-configuration.h"
 #include "src/codegen/source-position.h"
 #include "src/compiler/common-operator.h"
+#include "src/compiler/frame-states.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/node.h"
 #include "src/compiler/schedule.h"
@@ -1146,7 +1147,8 @@ size_t GetConservativeFrameSizeInBytes(FrameStateType type,
 #if V8_ENABLE_WEBASSEMBLY
     case FrameStateType::kWasmInlinedIntoJS:
 #endif
-    case FrameStateType::kConstructStub: {
+    case FrameStateType::kConstructCreateStub:
+    case FrameStateType::kConstructInvokeStub: {
       auto info = ConstructStubFrameInfo::Conservative(
           static_cast<int>(parameters_count));
       return info.frame_size_in_bytes();
@@ -1217,7 +1219,8 @@ size_t FrameStateDescriptor::GetHeight() const {
       // a receiver or context).
       return parameters_count();
     case FrameStateType::kInlinedExtraArguments:
-    case FrameStateType::kConstructStub:
+    case FrameStateType::kConstructCreateStub:
+    case FrameStateType::kConstructInvokeStub:
     case FrameStateType::kJavaScriptBuiltinContinuation:
     case FrameStateType::kJavaScriptBuiltinContinuationWithCatch:
       // JS linkage. The parameters count

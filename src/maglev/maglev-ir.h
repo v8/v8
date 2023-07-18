@@ -1069,14 +1069,14 @@ class Input : public InputLocation {
 
 class InterpretedDeoptFrame;
 class InlinedArgumentsDeoptFrame;
-class ConstructStubDeoptFrame;
+class ConstructInvokeStubDeoptFrame;
 class BuiltinContinuationDeoptFrame;
 class DeoptFrame {
  public:
   enum class FrameType {
     kInterpretedFrame,
     kInlinedArgumentsFrame,
-    kConstructStubFrame,
+    kConstructInvokeStubFrame,
     kBuiltinContinuationFrame,
   };
 
@@ -1095,9 +1095,8 @@ class DeoptFrame {
     const base::Vector<ValueNode*> arguments;
   };
 
-  struct ConstructStubFrameData {
+  struct ConstructInvokeStubFrameData {
     const MaglevCompilationUnit& unit;
-    const BytecodeOffset bytecode_position;
     const SourcePosition source_position;
     ValueNode* closure;
     ValueNode* receiver;
@@ -1114,7 +1113,7 @@ class DeoptFrame {
 
   using FrameData = base::DiscriminatedUnion<
       FrameType, InterpretedFrameData, InlinedArgumentsFrameData,
-      ConstructStubFrameData, BuiltinContinuationFrameData>;
+      ConstructInvokeStubFrameData, BuiltinContinuationFrameData>;
 
   DeoptFrame(FrameData&& data, DeoptFrame* parent)
       : data_(std::move(data)), parent_(parent) {}
@@ -1125,18 +1124,18 @@ class DeoptFrame {
 
   inline const InterpretedDeoptFrame& as_interpreted() const;
   inline const InlinedArgumentsDeoptFrame& as_inlined_arguments() const;
-  inline const ConstructStubDeoptFrame& as_construct_stub() const;
+  inline const ConstructInvokeStubDeoptFrame& as_construct_stub() const;
   inline const BuiltinContinuationDeoptFrame& as_builtin_continuation() const;
   inline InterpretedDeoptFrame& as_interpreted();
   inline InlinedArgumentsDeoptFrame& as_inlined_arguments();
-  inline ConstructStubDeoptFrame& as_construct_stub();
+  inline ConstructInvokeStubDeoptFrame& as_construct_stub();
   inline BuiltinContinuationDeoptFrame& as_builtin_continuation();
   bool IsJsFrame() const {
     switch (data_.tag()) {
       case FrameType::kInterpretedFrame:
       case FrameType::kBuiltinContinuationFrame:
         return true;
-      case FrameType::kConstructStubFrame:
+      case FrameType::kConstructInvokeStubFrame:
       case FrameType::kInlinedArgumentsFrame:
         return false;
     }
@@ -1147,7 +1146,7 @@ class DeoptFrame {
       : data_(std::move(data)), parent_(parent) {}
   DeoptFrame(InlinedArgumentsFrameData&& data, DeoptFrame* parent)
       : data_(std::move(data)), parent_(parent) {}
-  DeoptFrame(ConstructStubFrameData&& data, DeoptFrame* parent)
+  DeoptFrame(ConstructInvokeStubFrameData&& data, DeoptFrame* parent)
       : data_(std::move(data)), parent_(parent) {}
   DeoptFrame(BuiltinContinuationFrameData&& data, DeoptFrame* parent)
       : data_(std::move(data)), parent_(parent) {}
@@ -1233,21 +1232,20 @@ inline InlinedArgumentsDeoptFrame& DeoptFrame::as_inlined_arguments() {
   return static_cast<InlinedArgumentsDeoptFrame&>(*this);
 }
 
-class ConstructStubDeoptFrame : public DeoptFrame {
+class ConstructInvokeStubDeoptFrame : public DeoptFrame {
  public:
-  ConstructStubDeoptFrame(const MaglevCompilationUnit& unit,
-                          BytecodeOffset bytecode_position,
-                          SourcePosition source_position, ValueNode* closure,
-                          ValueNode* receiver,
-                          base::Vector<ValueNode*> arguments_without_receiver,
-                          ValueNode* context, DeoptFrame* parent)
-      : DeoptFrame(ConstructStubFrameData{unit, bytecode_position,
-                                          source_position, closure, receiver,
-                                          arguments_without_receiver, context},
-                   parent) {}
+  ConstructInvokeStubDeoptFrame(
+      const MaglevCompilationUnit& unit, SourcePosition source_position,
+      ValueNode* closure, ValueNode* receiver,
+      base::Vector<ValueNode*> arguments_without_receiver, ValueNode* context,
+      DeoptFrame* parent)
+      : DeoptFrame(
+            ConstructInvokeStubFrameData{unit, source_position, closure,
+                                         receiver, arguments_without_receiver,
+                                         context},
+            parent) {}
 
   const MaglevCompilationUnit& unit() const { return data().unit; }
-  BytecodeOffset bytecode_position() const { return data().bytecode_position; }
   ValueNode*& closure() { return data().closure; }
   ValueNode* closure() const { return data().closure; }
   ValueNode*& receiver() { return data().receiver; }
@@ -1260,23 +1258,26 @@ class ConstructStubDeoptFrame : public DeoptFrame {
   SourcePosition source_position() const { return data().source_position; }
 
  private:
-  ConstructStubFrameData& data() { return data_.get<ConstructStubFrameData>(); }
-  const ConstructStubFrameData& data() const {
-    return data_.get<ConstructStubFrameData>();
+  ConstructInvokeStubFrameData& data() {
+    return data_.get<ConstructInvokeStubFrameData>();
+  }
+  const ConstructInvokeStubFrameData& data() const {
+    return data_.get<ConstructInvokeStubFrameData>();
   }
 };
 
 // Make sure storing/passing deopt frames by value doesn't truncate them.
-static_assert(sizeof(ConstructStubDeoptFrame) == sizeof(DeoptFrame));
+static_assert(sizeof(ConstructInvokeStubDeoptFrame) == sizeof(DeoptFrame));
 
-inline const ConstructStubDeoptFrame& DeoptFrame::as_construct_stub() const {
-  DCHECK_EQ(type(), FrameType::kConstructStubFrame);
-  return static_cast<const ConstructStubDeoptFrame&>(*this);
+inline const ConstructInvokeStubDeoptFrame& DeoptFrame::as_construct_stub()
+    const {
+  DCHECK_EQ(type(), FrameType::kConstructInvokeStubFrame);
+  return static_cast<const ConstructInvokeStubDeoptFrame&>(*this);
 }
 
-inline ConstructStubDeoptFrame& DeoptFrame::as_construct_stub() {
-  DCHECK_EQ(type(), FrameType::kConstructStubFrame);
-  return static_cast<ConstructStubDeoptFrame&>(*this);
+inline ConstructInvokeStubDeoptFrame& DeoptFrame::as_construct_stub() {
+  DCHECK_EQ(type(), FrameType::kConstructInvokeStubFrame);
+  return static_cast<ConstructInvokeStubDeoptFrame&>(*this);
 }
 
 class BuiltinContinuationDeoptFrame : public DeoptFrame {
@@ -1420,7 +1421,7 @@ class LazyDeoptInfo : public DeoptInfo {
         // Interpreted frames obviously need a result location.
         return true;
       case DeoptFrame::FrameType::kInlinedArgumentsFrame:
-      case DeoptFrame::FrameType::kConstructStubFrame:
+      case DeoptFrame::FrameType::kConstructInvokeStubFrame:
         return false;
       case DeoptFrame::FrameType::kBuiltinContinuationFrame:
         // Normally if the function is going to be deoptimized then the top

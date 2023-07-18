@@ -132,7 +132,7 @@ class MaxCallDepthProcessor {
             deopt_frame->as_interpreted().unit().register_count());
         return info.frame_size_in_bytes();
       }
-      case DeoptFrame::FrameType::kConstructStubFrame: {
+      case DeoptFrame::FrameType::kConstructInvokeStubFrame: {
         int arg_count = deopt_frame->as_construct_stub()
                             .arguments_without_receiver()
                             .length() +

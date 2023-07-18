@@ -12,12 +12,14 @@
 #include "src/compiler/globals.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/pipeline.h"
+#include "src/deoptimizer/translated-state.h"
 #include "src/diagnostics/eh-frame.h"
 #include "src/execution/frames.h"
 #include "src/logging/counters.h"
 #include "src/logging/log.h"
 #include "src/objects/smi.h"
 #include "src/utils/address-map.h"
+#include "src/utils/utils.h"
 
 namespace v8 {
 namespace internal {
@@ -1099,9 +1101,11 @@ void CodeGenerator::BuildTranslationForFrameStateDescriptor(
     case FrameStateType::kInlinedExtraArguments:
       translations_.BeginInlinedExtraArguments(shared_info_id, height);
       break;
-    case FrameStateType::kConstructStub:
-      DCHECK(bailout_id.IsValidForConstructStub());
-      translations_.BeginConstructStubFrame(bailout_id, shared_info_id, height);
+    case FrameStateType::kConstructCreateStub:
+      translations_.BeginConstructCreateStubFrame(shared_info_id, height);
+      break;
+    case FrameStateType::kConstructInvokeStub:
+      translations_.BeginConstructInvokeStubFrame(shared_info_id, height);
       break;
     case FrameStateType::kBuiltinContinuation: {
       translations_.BeginBuiltinContinuationFrame(bailout_id, shared_info_id,

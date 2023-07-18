@@ -412,13 +412,8 @@ void PrintSingleDeoptFrame(
       os << "}";
       break;
     }
-    case DeoptFrame::FrameType::kConstructStubFrame: {
-      if (frame.as_construct_stub().bytecode_position() ==
-          BytecodeOffset::ConstructStubCreate()) {
-        os << "@ConstructStubCreate";
-      } else {
-        os << "@ConstructStubInvoke";
-      }
+    case DeoptFrame::FrameType::kConstructInvokeStubFrame: {
+      os << "@ConstructInvokeStub";
       if (!v8_flags.print_maglev_deopt_verbose) return;
       os << " : {";
       auto arguments_without_receiver =
@@ -596,7 +591,7 @@ void PrintExceptionHandlerPoint(std::ostream& os,
       break;
     case DeoptFrame::FrameType::kInlinedArgumentsFrame:
       UNREACHABLE();
-    case DeoptFrame::FrameType::kConstructStubFrame:
+    case DeoptFrame::FrameType::kConstructInvokeStubFrame:
     case DeoptFrame::FrameType::kBuiltinContinuationFrame:
       lazy_frame = &deopt_info->top_frame().parent()->as_interpreted();
       break;

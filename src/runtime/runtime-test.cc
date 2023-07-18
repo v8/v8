@@ -29,6 +29,7 @@
 #include "src/ic/stub-cache.h"
 #include "src/objects/bytecode-array.h"
 #include "src/objects/js-collection-inl.h"
+#include "src/utils/utils.h"
 #ifdef V8_ENABLE_MAGLEV
 #include "src/maglev/maglev-concurrent-dispatcher.h"
 #endif  // V8_ENABLE_MAGLEV
@@ -741,8 +742,9 @@ RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
       // TODO(olivf) It's possible that a valid osr_offset happens to be the
       // construct stub range but. We should use OptimizedFrame::Summarize here
       // instead.
-      if (!function->IsConstructor() ||
-          !current_offset.IsValidForConstructStub()) {
+      if (!(function->IsConstructor() &&
+            (current_offset == BytecodeOffset::ConstructStubCreate() ||
+             current_offset == BytecodeOffset::ConstructStubInvoke()))) {
         osr_offset = OffsetOfNextJumpLoop(isolate, bytecode_array,
                                           current_offset.ToInt());
       }

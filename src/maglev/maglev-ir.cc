@@ -230,7 +230,7 @@ size_t GetInputLocationsArraySize(const DeoptFrame& top_frame) {
       case DeoptFrame::FrameType::kInlinedArgumentsFrame:
         size += kClosureSize + frame->as_inlined_arguments().arguments().size();
         break;
-      case DeoptFrame::FrameType::kConstructStubFrame:
+      case DeoptFrame::FrameType::kConstructInvokeStubFrame:
         size += kClosureSize + kReceiverSize +
                 frame->as_construct_stub().arguments_without_receiver().size() +
                 kContextSize;
@@ -332,7 +332,7 @@ DeoptInfo::DeoptInfo(Zone* zone, const DeoptFrame top_frame,
 }
 
 bool LazyDeoptInfo::IsResultRegister(interpreter::Register reg) const {
-  if (top_frame().type() == DeoptFrame::FrameType::kConstructStubFrame) {
+  if (top_frame().type() == DeoptFrame::FrameType::kConstructInvokeStubFrame) {
     return reg == interpreter::Register::virtual_accumulator();
   }
   if (V8_LIKELY(result_size() == 1)) {
