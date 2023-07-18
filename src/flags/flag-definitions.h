@@ -1561,7 +1561,7 @@ DEFINE_BOOL(trace_parallel_scavenge, false, "trace parallel scavenge")
 DEFINE_EXPERIMENTAL_FEATURE(
     cppgc_young_generation,
     "run young generation garbage collections in Oilpan")
-// CppGC young generation (enables unified young heap) is based on Minor MC.
+// CppGC young generation (enables unified young heap) is based on Minor MS.
 DEFINE_IMPLICATION(cppgc_young_generation, minor_ms)
 // Unified young generation disables the unmodified wrapper reclamation
 // optimization.

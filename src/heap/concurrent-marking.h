@@ -157,6 +157,8 @@ class V8_EXPORT_PRIVATE ConcurrentMarking {
     return garbage_collector_.value();
   }
 
+  bool IsWorkLeft() const;
+
  private:
   struct TaskState;
   class JobTaskMinor;
@@ -167,7 +169,6 @@ class V8_EXPORT_PRIVATE ConcurrentMarking {
                 unsigned mark_compact_epoch, bool should_keep_ages_unchanged);
   size_t GetMajorMaxConcurrency(size_t worker_count);
   size_t GetMinorMaxConcurrency(size_t worker_count);
-  bool IsWorkLeft();
   void Resume();
   void FlushPretenuringFeedback();
 

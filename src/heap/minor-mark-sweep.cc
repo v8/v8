@@ -127,7 +127,7 @@ class YoungGenerationMarkingVerifier : public MarkingVerifierBase {
     for (TSlot slot = start; slot < end; ++slot) {
       typename TSlot::TObject object = slot.load(cage_base);
       HeapObject heap_object;
-      // Minor MC treats weak references as strong.
+      // Minor MS treats weak references as strong.
       if (object.GetHeapObject(&heap_object)) {
         VerifyHeapObjectImpl(heap_object);
       }
@@ -568,7 +568,7 @@ class YoungStringForwardingTableCleaner final
   explicit YoungStringForwardingTableCleaner(Heap* heap)
       : StringForwardingTableCleanerBase(heap) {}
 
-  // For Minor MC we don't mark forward objects, because they are always
+  // For Minor MS we don't mark forward objects, because they are always
   // in old generation (and thus considered live).
   // We only need to delete non-live young objects.
   void ProcessYoungObjects() {

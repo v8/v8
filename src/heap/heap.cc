@@ -546,9 +546,9 @@ bool Heap::HasBeenSetUp() const {
 GarbageCollector Heap::SelectGarbageCollector(AllocationSpace space,
                                               GarbageCollectionReason gc_reason,
                                               const char** reason) const {
-  if (gc_reason == GarbageCollectionReason::kFinalizeMinorMS) {
+  if (gc_reason == GarbageCollectionReason::kFinalizeConcurrentMinorMS) {
     DCHECK(new_space());
-    *reason = "finalize MinorMS";
+    *reason = "Concurrent MinorMS needs finalization";
     return GarbageCollector::MINOR_MARK_SWEEPER;
   }
 
@@ -610,10 +610,10 @@ bool Heap::CanShortcutStringsDuringGC(GarbageCollector collector) const {
 
       DCHECK(!incremental_marking()->IsMajorMarking());
 
-      // Minor MC cannot short cut strings during concurrent marking.
+      // Minor MS cannot short cut strings during concurrent marking.
       if (incremental_marking()->IsMinorMarking()) return false;
 
-      // Minor MC uses static roots to check for strings to shortcut.
+      // Minor MS uses static roots to check for strings to shortcut.
       if (!V8_STATIC_ROOTS_BOOL) return false;
 
       break;
@@ -1488,10 +1488,13 @@ void Heap::HandleGCRequest() {
     CheckMemoryPressure();
   } else if (CollectionRequested()) {
     CheckCollectionRequested();
-  } else if (incremental_marking()->CollectionRequested()) {
+  } else if (incremental_marking()->MajorCollectionRequested()) {
     CollectAllGarbage(current_gc_flags_,
                       GarbageCollectionReason::kFinalizeMarkingViaStackGuard,
                       current_gc_callback_flags_);
+  } else if (incremental_marking()->MinorCollectionRequested()) {
+    CollectGarbage(NEW_SPACE,
+                   GarbageCollectionReason::kFinalizeConcurrentMinorMS);
   }
 }
 
@@ -1800,7 +1803,8 @@ void Heap::CollectGarbage(AllocationSpace space,
 
   if (collector == GarbageCollector::MARK_COMPACTOR &&
       incremental_marking()->IsMinorMarking()) {
-    CollectGarbage(NEW_SPACE, GarbageCollectionReason::kFinalizeMinorMS);
+    CollectGarbage(NEW_SPACE,
+                   GarbageCollectionReason::kFinalizeConcurrentMinorMS);
   }
 
   const GCType gc_type = GetGCTypeFromGarbageCollector(collector);

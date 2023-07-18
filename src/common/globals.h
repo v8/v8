@@ -1157,7 +1157,7 @@ enum class GarbageCollectionReason : int {
   kGlobalAllocationLimit = 23,
   kMeasureMemory = 24,
   kBackgroundAllocationFailure = 25,
-  kFinalizeMinorMS = 26,
+  kFinalizeConcurrentMinorMS = 26,
   kCppHeapAllocationFailure = 27,
 
   NUM_REASONS,
@@ -1221,8 +1221,8 @@ constexpr const char* ToString(GarbageCollectionReason reason) {
       return "unknown";
     case GarbageCollectionReason::kBackgroundAllocationFailure:
       return "background allocation failure";
-    case GarbageCollectionReason::kFinalizeMinorMS:
-      return "finalize MinorMS";
+    case GarbageCollectionReason::kFinalizeConcurrentMinorMS:
+      return "finalize concurrent MinorMS";
     case GarbageCollectionReason::kCppHeapAllocationFailure:
       return "CppHeap allocation failure";
     case GarbageCollectionReason::NUM_REASONS:

@@ -287,7 +287,8 @@ void SimulateIncrementalMarking(i::Heap* heap, bool force_completion) {
     // If minor incremental marking is running, we need to finalize it first
     // because of the AdvanceForTesting call in this function which is currently
     // only possible for MajorMC.
-    heap->CollectGarbage(NEW_SPACE, GarbageCollectionReason::kFinalizeMinorMS);
+    heap->CollectGarbage(NEW_SPACE,
+                         GarbageCollectionReason::kFinalizeConcurrentMinorMS);
   }
 
   if (marking->IsStopped()) {

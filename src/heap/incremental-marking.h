@@ -64,21 +64,6 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
     bool paused_ = false;
   };
 
-  static constexpr size_t kYoungGenerationAllocatedThreshold = 64 * KB;
-  static constexpr size_t kOldGenerationAllocatedThreshold = 256 * KB;
-  static constexpr v8::base::TimeDelta kMaxStepSizeOnTask =
-      v8::base::TimeDelta::FromMilliseconds(1);
-  static constexpr v8::base::TimeDelta kMaxStepSizeOnAllocation =
-      v8::base::TimeDelta::FromMilliseconds(5);
-
-#ifndef DEBUG
-  static constexpr size_t kV8ActivationThreshold = 8 * MB;
-  static constexpr size_t kEmbedderActivationThreshold = 8 * MB;
-#else
-  static constexpr size_t kV8ActivationThreshold = 0;
-  static constexpr size_t kEmbedderActivationThreshold = 0;
-#endif
-
   V8_INLINE void TransferColor(HeapObject from, HeapObject to);
 
   IncrementalMarking(Heap* heap, WeakObjects* weak_objects);
@@ -101,8 +86,12 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
     return IsMajorMarking() && ShouldFinalize();
   }
 
-  bool CollectionRequested() const {
-    return collection_requested_via_stack_guard_;
+  bool MajorCollectionRequested() const {
+    return major_collection_requested_via_stack_guard_;
+  }
+
+  bool MinorCollectionRequested() const {
+    return minor_collection_requested_via_stack_guard_;
   }
 
   bool CanBeStarted() const;
@@ -162,6 +151,16 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
     IncrementalMarking* const incremental_marking_;
   };
 
+  class MinorGCObserver final : public AllocationObserver {
+   public:
+    explicit MinorGCObserver(IncrementalMarking* incremental_marking);
+    ~MinorGCObserver() override = default;
+    void Step(int, Address, size_t) final;
+
+   private:
+    IncrementalMarking* const incremental_marking_;
+  };
+
   void StartMarkingMajor();
   void StartMarkingMinor();
 
@@ -191,6 +190,8 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
 
   size_t OldGenerationSizeOfObjects() const;
 
+  void RequestMinorGCFinalizationIfNeeded();
+
   MarkingState* marking_state() { return marking_state_; }
   MarkingWorklists::Local* local_marking_worklists() const {
     return current_local_marking_worklists_;
@@ -213,10 +214,12 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
   bool black_allocation_ = false;
   bool completion_task_scheduled_ = false;
   v8::base::TimeTicks completion_task_timeout_;
-  bool collection_requested_via_stack_guard_ = false;
+  bool major_collection_requested_via_stack_guard_ = false;
+  bool minor_collection_requested_via_stack_guard_ = false;
   std::unique_ptr<IncrementalMarkingJob> incremental_marking_job_;
   Observer new_generation_observer_;
   Observer old_generation_observer_;
+  MinorGCObserver minor_gc_observer_;
   base::Mutex background_live_bytes_mutex_;
   std::unordered_map<MemoryChunk*, intptr_t> background_live_bytes_;
   std::unique_ptr<::heap::base::IncrementalMarkingSchedule> schedule_;

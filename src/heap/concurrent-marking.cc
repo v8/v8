@@ -599,7 +599,7 @@ void ConcurrentMarking::ScheduleJob(GarbageCollector garbage_collector,
   DCHECK(job_handle_->IsValid());
 }
 
-bool ConcurrentMarking::IsWorkLeft() {
+bool ConcurrentMarking::IsWorkLeft() const {
   DCHECK(garbage_collector_.has_value());
   if (garbage_collector_ == GarbageCollector::MARK_COMPACTOR) {
     return !marking_worklists_->shared()->IsEmpty() ||

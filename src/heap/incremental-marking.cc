@@ -39,18 +39,47 @@
 namespace v8 {
 namespace internal {
 
+namespace {
+
+static constexpr size_t kMajorGCYoungGenerationAllocationObserverStep = 64 * KB;
+static constexpr size_t kMajorGCOldGenerationAllocationObserverStep = 256 * KB;
+static constexpr size_t kMinorGCAllocationObserverStep = 32 * KB;
+
+static constexpr v8::base::TimeDelta kMaxStepSizeOnTask =
+    v8::base::TimeDelta::FromMilliseconds(1);
+static constexpr v8::base::TimeDelta kMaxStepSizeOnAllocation =
+    v8::base::TimeDelta::FromMilliseconds(5);
+
+#ifndef DEBUG
+static constexpr size_t kV8ActivationThreshold = 8 * MB;
+static constexpr size_t kEmbedderActivationThreshold = 8 * MB;
+#else
+static constexpr size_t kV8ActivationThreshold = 0;
+static constexpr size_t kEmbedderActivationThreshold = 0;
+#endif  // DEBUG
+
+}  // namespace
+
 IncrementalMarking::Observer::Observer(IncrementalMarking* incremental_marking,
                                        intptr_t step_size)
     : AllocationObserver(step_size),
       incremental_marking_(incremental_marking) {}
 
-void IncrementalMarking::Observer::Step(int bytes_allocated, Address addr,
-                                        size_t size) {
+void IncrementalMarking::Observer::Step(int, Address, size_t) {
   Heap* heap = incremental_marking_->heap();
   VMState<GC> state(heap->isolate());
   RCS_SCOPE(heap->isolate(),
             RuntimeCallCounterId::kGC_Custom_IncrementalMarkingObserver);
   incremental_marking_->AdvanceOnAllocation();
+}
+
+IncrementalMarking::MinorGCObserver::MinorGCObserver(
+    IncrementalMarking* incremental_marking)
+    : AllocationObserver(kMinorGCAllocationObserverStep),
+      incremental_marking_(incremental_marking) {}
+
+void IncrementalMarking::MinorGCObserver::Step(int, Address, size_t) {
+  incremental_marking_->RequestMinorGCFinalizationIfNeeded();
 }
 
 IncrementalMarking::IncrementalMarking(Heap* heap, WeakObjects* weak_objects)
@@ -63,8 +92,11 @@ IncrementalMarking::IncrementalMarking(Heap* heap, WeakObjects* weak_objects)
           v8_flags.incremental_marking_task
               ? std::make_unique<IncrementalMarkingJob>(heap)
               : nullptr),
-      new_generation_observer_(this, kYoungGenerationAllocatedThreshold),
-      old_generation_observer_(this, kOldGenerationAllocatedThreshold) {}
+      new_generation_observer_(this,
+                               kMajorGCYoungGenerationAllocationObserverStep),
+      old_generation_observer_(this,
+                               kMajorGCOldGenerationAllocationObserverStep),
+      minor_gc_observer_(this) {}
 
 void IncrementalMarking::MarkBlackBackground(HeapObject obj, int object_size) {
   CHECK(marking_state()->TryMark(obj));
@@ -157,8 +189,7 @@ void IncrementalMarking::Start(GarbageCollector garbage_collector,
     // Allocation observers are not currently used by MinorMS because we don't
     // do incremental marking.
     StartMarkingMinor();
-    // TODO(v8:13012): Add allocation observers for rescheduling concurrent
-    // marking.
+    heap_->new_space()->AddAllocationObserver(&minor_gc_observer_);
   }
 }
 
@@ -344,7 +375,7 @@ void IncrementalMarking::StartMarkingMinor() {
   }
 
   if (v8_flags.concurrent_minor_ms_marking && !heap_->IsTearingDown()) {
-    heap_->minor_mark_sweep_collector()->local_marking_worklists()->ShareWork();
+    local_marking_worklists()->ShareWork();
     heap_->concurrent_marking()->ScheduleJob(
         GarbageCollector::MINOR_MARK_SWEEPER);
   }
@@ -420,7 +451,7 @@ void IncrementalMarking::UpdateMarkingWorklistAfterScavenge() {
   if (!IsMajorMarking()) return;
   DCHECK(!v8_flags.separate_gc_phases);
   DCHECK(IsMajorMarking());
-  // Minor MC never runs during incremental marking.
+  // Minor MS never runs during incremental marking.
   DCHECK(!v8_flags.minor_ms);
 
   Map filler_map = ReadOnlyRoots(heap_).one_pointer_filler_map();
@@ -537,9 +568,15 @@ bool IncrementalMarking::Stop() {
         space->RemoveAllocationObserver(&old_generation_observer_);
       }
     }
+  } else {
+    DCHECK(IsMinorMarking());
+    heap_->new_space()->RemoveAllocationObserver(&minor_gc_observer_);
   }
 
-  collection_requested_via_stack_guard_ = false;
+  DCHECK(!major_collection_requested_via_stack_guard_ ||
+         !minor_collection_requested_via_stack_guard_);
+  major_collection_requested_via_stack_guard_ = false;
+  minor_collection_requested_via_stack_guard_ = false;
   isolate()->stack_guard()->ClearGC();
 
   marking_mode_ = MarkingMode::kNoMarking;
@@ -692,7 +729,7 @@ void IncrementalMarking::AdvanceAndFinalizeIfNecessary() {
   if (!IsMajorMarking()) return;
   DCHECK(!heap_->always_allocate());
   AdvanceOnAllocation();
-  if (collection_requested_via_stack_guard_ && IsMajorMarkingComplete()) {
+  if (major_collection_requested_via_stack_guard_ && IsMajorMarkingComplete()) {
     heap()->FinalizeIncrementalMarkingAtomically(
         GarbageCollectionReason::kFinalizeMarkingViaStackGuard);
   }
@@ -733,7 +770,7 @@ void IncrementalMarking::AdvanceOnAllocation() {
       !heap()->always_allocate()) {
     // When completion task isn't run soon enough, fall back to stack guard to
     // force completion.
-    collection_requested_via_stack_guard_ = true;
+    major_collection_requested_via_stack_guard_ = true;
     isolate()->stack_guard()->RequestGC();
   }
 }
@@ -851,6 +888,16 @@ void IncrementalMarking::Step(v8::base::TimeDelta max_duration,
         max_duration.InMillisecondsF(),
         heap()->tracer()->IncrementalMarkingSpeedInBytesPerMillisecond() *
             1000 / MB);
+  }
+}
+
+void IncrementalMarking::RequestMinorGCFinalizationIfNeeded() {
+  DCHECK(v8_flags.concurrent_minor_ms_marking);
+  if (!heap_->concurrent_marking()->IsWorkLeft()) {
+    minor_collection_requested_via_stack_guard_ = true;
+    isolate()->stack_guard()->RequestGC();
+  } else {
+    local_marking_worklists()->MergeOnHold();
   }
 }
 
