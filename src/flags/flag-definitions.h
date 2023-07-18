@@ -1539,8 +1539,8 @@ DEFINE_BOOL(trace_evacuation, false, "report evacuation statistics")
 DEFINE_BOOL(trace_mutator_utilization, false,
             "print mutator utilization, allocation speed, gc speed")
 DEFINE_BOOL(incremental_marking, true, "use incremental marking")
-DEFINE_BOOL(incremental_marking_wrappers, true,
-            "use incremental marking for marking wrappers")
+DEFINE_BOOL(incremental_marking_bailout_when_ahead_of_schedule, true,
+            "bails out of incremental marking when ahead of schedule")
 DEFINE_BOOL(incremental_marking_task, true, "use tasks for incremental marking")
 DEFINE_INT(incremental_marking_task_delay_ms, 0,
            "incremental marking task delay. 0 means not using delayed tasks.")

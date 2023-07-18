@@ -149,11 +149,11 @@ void IncrementalMarking::Start(GarbageCollector garbage_collector,
       incremental_marking_job()->ScheduleTask();
     }
     DCHECK_NULL(schedule_);
-    schedule_ = v8_flags.incremental_marking_task_delay_ms == 0
+    schedule_ = v8_flags.incremental_marking_bailout_when_ahead_of_schedule
                     ? ::heap::base::IncrementalMarkingSchedule::
-                          CreateWithDefaultMinimumMarkedBytesPerStep()
+                          CreateWithZeroMinimumMarkedBytesPerStep()
                     : ::heap::base::IncrementalMarkingSchedule::
-                          CreateWithZeroMinimumMarkedBytesPerStep();
+                          CreateWithDefaultMinimumMarkedBytesPerStep();
     schedule_->NotifyIncrementalMarkingStart();
   } else {
     // Allocation observers are not currently used by MinorMS because we don't

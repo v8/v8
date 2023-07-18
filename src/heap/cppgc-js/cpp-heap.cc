@@ -715,12 +715,15 @@ void CppHeap::InitializeTracing(CollectionType collection_type,
   current_gc_flags_ = gc_flags;
 
   const cppgc::internal::MarkingConfig marking_config{
-      *collection_type_, StackState::kNoHeapPointers, SelectMarkingType(),
+      *collection_type_,
+      StackState::kNoHeapPointers,
+      SelectMarkingType(),
       IsForceGC(current_gc_flags_)
           ? cppgc::internal::MarkingConfig::IsForcedGC::kForced
           : cppgc::internal::MarkingConfig::IsForcedGC::kNotForced,
       v8::base::TimeDelta::FromMilliseconds(
-          v8_flags.incremental_marking_task_delay_ms)};
+          v8_flags.incremental_marking_task_delay_ms),
+      v8_flags.incremental_marking_bailout_when_ahead_of_schedule};
   DCHECK_IMPLIES(!isolate_,
                  (MarkingType::kAtomic == marking_config.marking_type) ||
                      force_incremental_marking_for_testing_);

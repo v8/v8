@@ -165,11 +165,11 @@ MarkerBase::MarkerBase(HeapBase& heap, cppgc::Platform* platform,
       foreground_task_runner_(platform_->GetForegroundTaskRunner()),
       mutator_marking_state_(heap, marking_worklists_,
                              heap.compactor().compaction_worklists()),
-      schedule_(config.incremental_task_delay.IsZero()
+      schedule_(config.bailout_of_marking_when_ahead_of_schedule
                     ? ::heap::base::IncrementalMarkingSchedule::
-                          CreateWithDefaultMinimumMarkedBytesPerStep()
+                          CreateWithZeroMinimumMarkedBytesPerStep()
                     : ::heap::base::IncrementalMarkingSchedule::
-                          CreateWithZeroMinimumMarkedBytesPerStep()) {
+                          CreateWithDefaultMinimumMarkedBytesPerStep()) {
   DCHECK_IMPLIES(config_.collection_type == CollectionType::kMinor,
                  heap_.generational_gc_supported());
 }
