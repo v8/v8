@@ -1821,7 +1821,8 @@ class TurboshaftGraphBuildingInterface {
       case kExprI64Clz:
         return asm_.Word64CountLeadingZeros(arg);
       case kExprI64Ctz:
-        if (SupportedOperations::word64_ctz()) {
+        if (SupportedOperations::word64_ctz() ||
+            (!Is64() && SupportedOperations::word32_ctz())) {
           return asm_.Word64CountTrailingZeros(arg);
         } else {
           // TODO(14108): Use reverse_bits if supported.
@@ -1830,7 +1831,8 @@ class TurboshaftGraphBuildingInterface {
                                     MemoryRepresentation::Int64()));
         }
       case kExprI64Popcnt:
-        if (SupportedOperations::word64_popcnt()) {
+        if (SupportedOperations::word64_popcnt() ||
+            (!Is64() && SupportedOperations::word32_popcnt())) {
           return asm_.Word64PopCount(arg);
         } else {
           return asm_.ChangeUint32ToUint64(CallCStackSlotToInt32(

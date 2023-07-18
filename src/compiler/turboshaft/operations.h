@@ -1214,7 +1214,6 @@ struct WordUnaryOp : FixedArityOperationT<1, WordUnaryOp> {
       : Base(input), kind(kind), rep(rep) {}
 
   void Validate(const Graph& graph) const {
-    DCHECK(IsSupported(kind, rep));
     DCHECK(ValidOpInputRep(graph, input(), rep));
   }
   auto options() const { return std::tuple{kind, rep}; }

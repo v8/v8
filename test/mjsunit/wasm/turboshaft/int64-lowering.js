@@ -492,3 +492,51 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals([11, -123n, 123n, 22], wasm.callee(11, -123n, 123n, 22));
   assertEquals([11, -123n, 123n, 22], wasm.call(-123n, 123n));
 })();
+
+(function I64CountLeadingZeros() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  builder.addFunction("clz", makeSig([kWasmI64], [kWasmI64]))
+    .addBody([
+      kExprLocalGet, 0,
+      kExprI64Clz,
+    ])
+    .exportFunc();
+
+  let wasm = builder.instantiate().exports;
+  assertEquals(0n, wasm.clz(-1n));
+  assertEquals(64n, wasm.clz(0n));
+  assertEquals(47n, wasm.clz(0x1FFFFn));
+})();
+
+(function I64CountTrailingZeros() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  builder.addFunction("ctz", makeSig([kWasmI64], [kWasmI64]))
+    .addBody([
+      kExprLocalGet, 0,
+      kExprI64Ctz,
+    ])
+    .exportFunc();
+
+  let wasm = builder.instantiate().exports;
+  assertEquals(0n, wasm.ctz(-1n));
+  assertEquals(64n, wasm.ctz(0n));
+  assertEquals(17n, wasm.ctz(0xE0000n));
+})();
+
+(function I64PopCount() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  builder.addFunction("popcnt", makeSig([kWasmI64], [kWasmI64]))
+    .addBody([
+      kExprLocalGet, 0,
+      kExprI64Popcnt,
+    ])
+    .exportFunc();
+
+  let wasm = builder.instantiate().exports;
+  assertEquals(64n, wasm.popcnt(-1n));
+  assertEquals(0n, wasm.popcnt(0n));
+  assertEquals(10n, wasm.popcnt(0b10101011111100001n));
+})();

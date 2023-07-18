@@ -84,7 +84,7 @@ class Int64LoweringReducer : public Next {
     return __ Word32Equal(
         __ Word32BitwiseOr(__ Word32BitwiseXor(left_low, right_low),
                            __ Word32BitwiseXor(left_high, right_high)),
-        __ Word32Constant(0));
+        0);
   }
 
   OpIndex REDUCE(Comparison)(OpIndex left, OpIndex right,
@@ -249,6 +249,59 @@ class Int64LoweringReducer : public Next {
     return Next::ReduceReturn(pop_count, base::VectorOf(lowered_values));
   }
 
+  OpIndex REDUCE(WordUnary)(OpIndex input, WordUnaryOp::Kind kind,
+                            WordRepresentation rep) {
+    if (rep == RegisterRepresentation::Word64()) {
+      switch (kind) {
+        case WordUnaryOp::Kind::kCountLeadingZeros:
+          return ReduceClz(input);
+        case WordUnaryOp::Kind::kCountTrailingZeros:
+          return ReduceCtz(input);
+        case WordUnaryOp::Kind::kPopCount:
+          return ReducePopCount(input);
+        default:
+          UNIMPLEMENTED();
+      }
+    }
+    return Next::ReduceWordUnary(input, kind, rep);
+  }
+
+  OpIndex REDUCE(Change)(OpIndex input, ChangeOp::Kind kind,
+                         ChangeOp::Assumption assumption,
+                         RegisterRepresentation from,
+                         RegisterRepresentation to) {
+    // TODO(mliedtke): Also support other conversions.
+    if (from == RegisterRepresentation::Word32() &&
+        to == RegisterRepresentation::Word64() &&
+        kind == ChangeOp::Kind::kZeroExtend) {
+      // Convert uint32 to uint64.
+      return __ Tuple(input, __ Word32Constant(0));
+    }
+    return Next::ReduceChange(input, kind, assumption, from, to);
+  }
+
+  OpIndex REDUCE(Store)(OpIndex base, OpIndex index, OpIndex value,
+                        StoreOp::Kind kind, MemoryRepresentation stored_rep,
+                        WriteBarrierKind write_barrier, int32_t offset,
+                        uint8_t element_size_log2,
+                        bool maybe_initializing_or_transitioning) {
+    if (stored_rep == MemoryRepresentation::Int64()) {
+      auto [low, high] = Unpack(value);
+      return __ Tuple(
+          Next::ReduceStore(base, index, low, kind,
+                            MemoryRepresentation::Int32(), write_barrier,
+                            offset, element_size_log2,
+                            maybe_initializing_or_transitioning),
+          Next::ReduceStore(base, index, high, kind,
+                            MemoryRepresentation::Int32(), write_barrier,
+                            offset + sizeof(int32_t), element_size_log2,
+                            maybe_initializing_or_transitioning));
+    }
+    return Next::ReduceStore(base, index, value, kind, stored_rep,
+                             write_barrier, offset, element_size_log2,
+                             maybe_initializing_or_transitioning);
+  }
+
  private:
   bool CheckPairOrPairOp(OpIndex input) {
     if (const TupleOp* tuple = Asm().template TryCast<TupleOp>(input)) {
@@ -271,6 +324,41 @@ class Int64LoweringReducer : public Next {
     DCHECK(CheckPairOrPairOp(input));
     return {__ Projection(input, 0, RegisterRepresentation::Word32()),
             __ Projection(input, 1, RegisterRepresentation::Word32())};
+  }
+
+  OpIndex ReduceClz(OpIndex input) {
+    auto [low, high] = Unpack(input);
+    ScopedVar<Word32> result(Asm());
+    IF (__ Word32Equal(high, 0)) {
+      result = __ Word32Add(32, __ Word32CountLeadingZeros(low));
+    }
+    ELSE {
+      result = __ Word32CountLeadingZeros(high);
+    }
+    END_IF
+    return __ Tuple(*result, __ Word32Constant(0));
+  }
+
+  OpIndex ReduceCtz(OpIndex input) {
+    DCHECK(SupportedOperations::word32_ctz());
+    auto [low, high] = Unpack(input);
+    ScopedVar<Word32> result(Asm());
+    IF (__ Word32Equal(low, 0)) {
+      result = __ Word32Add(32, __ Word32CountTrailingZeros(high));
+    }
+    ELSE {
+      result = __ Word32CountTrailingZeros(low);
+    }
+    END_IF
+    return __ Tuple(*result, __ Word32Constant(0));
+  }
+
+  OpIndex ReducePopCount(OpIndex input) {
+    DCHECK(SupportedOperations::word32_popcnt());
+    auto [low, high] = Unpack(input);
+    return __ Tuple(
+        __ Word32Add(__ Word32PopCount(low), __ Word32PopCount(high)),
+        __ Word32Constant(0));
   }
 
   OpIndex ReducePairBinOp(OpIndex left, OpIndex right,
@@ -348,14 +436,14 @@ class Int64LoweringReducer : public Next {
     OpIndex safe_shift = shift;
     if (!SupportedOperations::word32_shift_is_safe()) {
       // safe_shift = shift % 32
-      safe_shift = __ Word32BitwiseAnd(shift, __ Word32Constant(0x1F));
+      safe_shift = __ Word32BitwiseAnd(shift, 0x1F);
     }
     OpIndex all_bits_set = __ Word32Constant(-1);
     OpIndex inv_mask = __ Word32BitwiseXor(
         __ Word32ShiftRightLogical(all_bits_set, safe_shift), all_bits_set);
     OpIndex bit_mask = __ Word32BitwiseXor(inv_mask, all_bits_set);
 
-    OpIndex less_than_32 = __ Int32LessThan(shift, __ Word32Constant(32));
+    OpIndex less_than_32 = __ Int32LessThan(shift, 32);
     // The low word and the high word can be swapped either at the input or
     // at the output. We swap the inputs so that shift does not have to be
     // kept for so long in a register.
