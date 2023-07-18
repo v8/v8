@@ -25,6 +25,7 @@
   /* For every object, add a `->` operator which returns a pointer to this     \
      object. This will allow smoother transition between T and Tagged<T>. */   \
   Type* operator->() { return this; }                                          \
+  const Type* operator->() const { return this; }                              \
                                                                                \
  protected:                                                                    \
   template <typename TFieldType, int kFieldOffset, typename CompressionScheme> \

@@ -310,6 +310,7 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   /* For every object, add a `->` operator which returns a pointer to this     \
      object. This will allow smoother transition between T and Tagged<T>. */
   Object* operator->() { return this; }
+  const Object* operator->() const { return this; }
 
   V8_INLINE bool IsTaggedIndex() const;
 
