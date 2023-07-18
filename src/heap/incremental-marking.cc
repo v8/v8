@@ -8,19 +8,15 @@
 
 #include "src/base/logging.h"
 #include "src/base/platform/time.h"
-#include "src/codegen/compilation-cache.h"
 #include "src/execution/vm-state-inl.h"
 #include "src/handles/global-handles.h"
 #include "src/heap/base/incremental-marking-schedule.h"
 #include "src/heap/concurrent-marking.h"
-#include "src/heap/gc-idle-time-handler.h"
 #include "src/heap/gc-tracer-inl.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap.h"
-#include "src/heap/incremental-marking-inl.h"
 #include "src/heap/incremental-marking-job.h"
-#include "src/heap/mark-compact-inl.h"
 #include "src/heap/mark-compact.h"
 #include "src/heap/marking-barrier.h"
 #include "src/heap/marking-visitor-inl.h"
@@ -28,7 +24,6 @@
 #include "src/heap/memory-chunk-layout.h"
 #include "src/heap/memory-chunk.h"
 #include "src/heap/minor-mark-sweep.h"
-#include "src/heap/object-stats.h"
 #include "src/heap/objects-visiting-inl.h"
 #include "src/heap/objects-visiting.h"
 #include "src/heap/safepoint.h"
@@ -36,16 +31,18 @@
 #include "src/logging/runtime-call-stats-scope.h"
 #include "src/numbers/conversions.h"
 #include "src/objects/data-handler-inl.h"
-#include "src/objects/embedder-data-array-inl.h"
-#include "src/objects/hash-table-inl.h"
 #include "src/objects/slots-inl.h"
-#include "src/objects/transitions-inl.h"
 #include "src/objects/visitors.h"
 #include "src/tracing/trace-event.h"
 #include "src/utils/utils.h"
 
 namespace v8 {
 namespace internal {
+
+IncrementalMarking::Observer::Observer(IncrementalMarking* incremental_marking,
+                                       intptr_t step_size)
+    : AllocationObserver(step_size),
+      incremental_marking_(incremental_marking) {}
 
 void IncrementalMarking::Observer::Step(int bytes_allocated, Address addr,
                                         size_t size) {
@@ -71,8 +68,9 @@ IncrementalMarking::IncrementalMarking(Heap* heap, WeakObjects* weak_objects)
 
 void IncrementalMarking::MarkBlackBackground(HeapObject obj, int object_size) {
   CHECK(marking_state()->TryMark(obj));
-  IncrementLiveBytesBackground(MemoryChunk::FromHeapObject(obj),
-                               static_cast<intptr_t>(object_size));
+  base::MutexGuard guard(&background_live_bytes_mutex_);
+  background_live_bytes_[MemoryChunk::FromHeapObject(obj)] +=
+      static_cast<intptr_t>(object_size);
 }
 
 bool IncrementalMarking::CanBeStarted() const {
@@ -857,6 +855,21 @@ void IncrementalMarking::Step(v8::base::TimeDelta max_duration,
 }
 
 Isolate* IncrementalMarking::isolate() const { return heap_->isolate(); }
+
+IncrementalMarking::PauseBlackAllocationScope::PauseBlackAllocationScope(
+    IncrementalMarking* marking)
+    : marking_(marking) {
+  if (marking_->black_allocation()) {
+    paused_ = true;
+    marking_->PauseBlackAllocation();
+  }
+}
+
+IncrementalMarking::PauseBlackAllocationScope::~PauseBlackAllocationScope() {
+  if (paused_) {
+    marking_->StartBlackAllocation();
+  }
+}
 
 }  // namespace internal
 }  // namespace v8

@@ -179,19 +179,6 @@ void Page::CreateBlackArea(Address start, Address end) {
   IncrementLiveBytesAtomically(static_cast<intptr_t>(end - start));
 }
 
-void Page::CreateBlackAreaBackground(Address start, Address end) {
-  DCHECK_NE(NEW_SPACE, owner_identity());
-  DCHECK(heap()->incremental_marking()->black_allocation());
-  DCHECK_EQ(Page::FromAddress(start), this);
-  DCHECK_LT(start, end);
-  DCHECK_EQ(Page::FromAddress(end - 1), this);
-  marking_bitmap()->SetRange<AccessMode::ATOMIC>(
-      MarkingBitmap::AddressToIndex(start),
-      MarkingBitmap::LimitAddressToIndex(end));
-  heap()->incremental_marking()->IncrementLiveBytesBackground(
-      this, static_cast<intptr_t>(end - start));
-}
-
 void Page::DestroyBlackArea(Address start, Address end) {
   DCHECK_NE(NEW_SPACE, owner_identity());
   DCHECK(heap()->incremental_marking()->black_allocation());
@@ -202,19 +189,6 @@ void Page::DestroyBlackArea(Address start, Address end) {
       MarkingBitmap::AddressToIndex(start),
       MarkingBitmap::LimitAddressToIndex(end));
   IncrementLiveBytesAtomically(-static_cast<intptr_t>(end - start));
-}
-
-void Page::DestroyBlackAreaBackground(Address start, Address end) {
-  DCHECK_NE(NEW_SPACE, owner_identity());
-  DCHECK(heap()->incremental_marking()->black_allocation());
-  DCHECK_EQ(Page::FromAddress(start), this);
-  DCHECK_LT(start, end);
-  DCHECK_EQ(Page::FromAddress(end - 1), this);
-  marking_bitmap()->ClearRange<AccessMode::ATOMIC>(
-      MarkingBitmap::AddressToIndex(start),
-      MarkingBitmap::LimitAddressToIndex(end));
-  heap()->incremental_marking()->IncrementLiveBytesBackground(
-      this, -static_cast<intptr_t>(end - start));
 }
 
 // -----------------------------------------------------------------------------

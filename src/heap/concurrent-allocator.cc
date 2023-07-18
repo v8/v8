@@ -98,7 +98,7 @@ void ConcurrentAllocator::FreeLinearAllocationArea() {
     Page* page = Page::FromAddress(lab_.top());
 
     if (IsBlackAllocationEnabled()) {
-      page->DestroyBlackAreaBackground(lab_.top(), lab_.limit());
+      page->DestroyBlackArea(lab_.top(), lab_.limit());
     }
 
     // When starting incremental marking free lists are dropped for evacuation
@@ -131,7 +131,7 @@ void ConcurrentAllocator::MarkLinearAllocationAreaBlack() {
           "Marking InstructionStream objects requires write access to the "
           "Code page header");
     }
-    Page::FromAllocationAreaAddress(top)->CreateBlackAreaBackground(top, limit);
+    Page::FromAllocationAreaAddress(top)->CreateBlackArea(top, limit);
   }
 }
 
@@ -146,8 +146,7 @@ void ConcurrentAllocator::UnmarkLinearAllocationArea() {
           "Marking InstructionStream objects requires write access to the "
           "Code page header");
     }
-    Page::FromAllocationAreaAddress(top)->DestroyBlackAreaBackground(top,
-                                                                     limit);
+    Page::FromAllocationAreaAddress(top)->DestroyBlackArea(top, limit);
   }
 }
 
@@ -178,7 +177,7 @@ bool ConcurrentAllocator::AllocateLab(AllocationOrigin origin) {
   if (IsBlackAllocationEnabled()) {
     Address top = lab_.top();
     Address limit = lab_.limit();
-    Page::FromAllocationAreaAddress(top)->CreateBlackAreaBackground(top, limit);
+    Page::FromAllocationAreaAddress(top)->CreateBlackArea(top, limit);
   }
 
   return true;

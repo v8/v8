@@ -50,37 +50,22 @@ constexpr const char* ToString(StepOrigin step_origin) {
 
 class V8_EXPORT_PRIVATE IncrementalMarking final {
  public:
-  class V8_NODISCARD PauseBlackAllocationScope {
+  class V8_NODISCARD PauseBlackAllocationScope final {
    public:
-    explicit PauseBlackAllocationScope(IncrementalMarking* marking)
-        : marking_(marking) {
-      if (marking_->black_allocation()) {
-        paused_ = true;
-        marking_->PauseBlackAllocation();
-      }
-    }
+    explicit PauseBlackAllocationScope(IncrementalMarking* marking);
+    ~PauseBlackAllocationScope();
 
-    ~PauseBlackAllocationScope() {
-      if (paused_) {
-        marking_->StartBlackAllocation();
-      }
-    }
+    PauseBlackAllocationScope(const PauseBlackAllocationScope&) = delete;
+    PauseBlackAllocationScope& operator=(const PauseBlackAllocationScope&) =
+        delete;
 
    private:
-    IncrementalMarking* marking_;
+    IncrementalMarking* const marking_;
     bool paused_ = false;
   };
 
-  // It's hard to know how much work the incremental marker should do to make
-  // progress in the face of the mutator creating new work for it.  We start
-  // of at a moderate rate of work and gradually increase the speed of the
-  // incremental marker until it completes.
-  // Do some marking every time this much memory has been allocated or that many
-  // heavy (color-checking) write barriers have been invoked.
-  static const size_t kYoungGenerationAllocatedThreshold = 64 * KB;
-  static const size_t kOldGenerationAllocatedThreshold = 256 * KB;
-  static const size_t kMinStepSizeInBytes = 64 * KB;
-
+  static constexpr size_t kYoungGenerationAllocatedThreshold = 64 * KB;
+  static constexpr size_t kOldGenerationAllocatedThreshold = 256 * KB;
   static constexpr v8::base::TimeDelta kMaxStepSizeOnTask =
       v8::base::TimeDelta::FromMilliseconds(1);
   static constexpr v8::base::TimeDelta kMaxStepSizeOnAllocation =
@@ -103,6 +88,13 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
 
   MarkingMode marking_mode() const { return marking_mode_; }
 
+  bool IsMinorMarking() const {
+    return marking_mode_ == MarkingMode::kMinorMarking;
+  }
+  bool IsMajorMarking() const {
+    return marking_mode_ == MarkingMode::kMajorMarking;
+  }
+
   bool IsStopped() const { return !IsMarking(); }
   bool IsMarking() const { return marking_mode_ != MarkingMode::kNoMarking; }
   bool IsMajorMarkingComplete() const {
@@ -113,10 +105,7 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
     return collection_requested_via_stack_guard_;
   }
 
-  bool ShouldFinalize() const;
-
   bool CanBeStarted() const;
-
   void Start(GarbageCollector garbage_collector,
              GarbageCollectionReason gc_reason);
   // Returns true if incremental marking was running and false otherwise.
@@ -139,8 +128,6 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
 
   bool IsAheadOfSchedule() const;
 
-  void MarkBlackBackground(HeapObject obj, int object_size);
-
   bool IsCompacting() { return IsMajorMarking() && is_compacting_; }
 
   Heap* heap() const { return heap_; }
@@ -154,17 +141,7 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
 
   bool IsBelowActivationThresholds() const;
 
-  void IncrementLiveBytesBackground(MemoryChunk* chunk, intptr_t by) {
-    base::MutexGuard guard(&background_live_bytes_mutex_);
-    background_live_bytes_[chunk] += by;
-  }
-
-  bool IsMinorMarking() const {
-    return marking_mode_ == MarkingMode::kMinorMarking;
-  }
-  bool IsMajorMarking() const {
-    return marking_mode_ == MarkingMode::kMajorMarking;
-  }
+  void MarkBlackBackground(HeapObject obj, int object_size);
 
   void MarkRootsForTesting();
 
@@ -175,16 +152,14 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
  private:
   class IncrementalMarkingRootMarkingVisitor;
 
-  class Observer : public AllocationObserver {
+  class Observer final : public AllocationObserver {
    public:
-    Observer(IncrementalMarking* incremental_marking, intptr_t step_size)
-        : AllocationObserver(step_size),
-          incremental_marking_(incremental_marking) {}
-
+    Observer(IncrementalMarking* incremental_marking, intptr_t step_size);
+    ~Observer() override = default;
     void Step(int bytes_allocated, Address, size_t) override;
 
    private:
-    IncrementalMarking* incremental_marking_;
+    IncrementalMarking* const incremental_marking_;
   };
 
   void StartMarkingMajor();
@@ -203,6 +178,8 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
   // Fetches marked byte counters from the concurrent marker.
   void FetchBytesMarkedConcurrently();
   size_t GetScheduledBytes(StepOrigin step_origin);
+
+  bool ShouldFinalize() const;
 
   bool ShouldWaitForTask();
   bool TryInitializeTaskTimeout();
