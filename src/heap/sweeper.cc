@@ -58,6 +58,7 @@ class Sweeper::ConcurrentMajorSweeper final {
       local_sweeper_.ParallelSweepPage(page, identity,
                                        SweepingMode::kLazyOrConcurrent);
     }
+    TRACE_GC_NOTE("Sweeper::ConcurrentMajorSweeper Preempted");
     return false;
   }
 
@@ -82,6 +83,7 @@ class Sweeper::ConcurrentMinorSweeper final {
       local_sweeper_.ParallelSweepPage(page, NEW_SPACE,
                                        SweepingMode::kLazyOrConcurrent);
     }
+    TRACE_GC_NOTE("Sweeper::ConcurrentMinorSweeper Preempted");
     return false;
   }
 
@@ -91,6 +93,7 @@ class Sweeper::ConcurrentMinorSweeper final {
       if (chunk == nullptr) return true;
       local_sweeper_.ParallelIterateAndSweepPromotedPage(chunk);
     }
+    TRACE_GC_NOTE("Sweeper::ConcurrentMinorSweeper Preempted");
     return false;
   }
 
