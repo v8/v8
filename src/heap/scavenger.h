@@ -260,6 +260,8 @@ class ScavengerCollector {
     void Run(JobDelegate* delegate) override;
     size_t GetMaxConcurrency(size_t worker_count) const override;
 
+    uint64_t trace_id() const { return trace_id_; }
+
    private:
     void ProcessItems(JobDelegate* delegate, Scavenger* scavenger);
     void ConcurrentScavengePages(Scavenger* scavenger);
@@ -273,6 +275,8 @@ class ScavengerCollector {
 
     Scavenger::CopiedList* copied_list_;
     Scavenger::PromotionList* promotion_list_;
+
+    const uint64_t trace_id_;
   };
 
   void MergeSurvivingNewLargeObjects(

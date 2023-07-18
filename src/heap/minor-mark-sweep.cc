@@ -235,6 +235,8 @@ class YoungGenerationMarkingJob : public v8::JobTask {
   void Run(JobDelegate* delegate) override;
   size_t GetMaxConcurrency(size_t worker_count) const override;
 
+  uint64_t trace_id() const { return trace_id_; }
+
  private:
   void ProcessItems(JobDelegate* delegate);
 
@@ -244,6 +246,7 @@ class YoungGenerationMarkingJob : public v8::JobTask {
   const std::vector<std::unique_ptr<YoungGenerationMarkingTask>>& tasks_;
   YoungGenerationRememberedSetsMarkingWorklist* const
       remembered_sets_marking_handler_;
+  const uint64_t trace_id_;
 };
 
 YoungGenerationMarkingJob::YoungGenerationMarkingJob(
@@ -253,18 +256,21 @@ YoungGenerationMarkingJob::YoungGenerationMarkingJob(
       heap_(heap),
       global_worklists_(global_worklists),
       tasks_(tasks),
-      remembered_sets_marking_handler_(
-          heap_->minor_mark_sweep_collector()
-              ->remembered_sets_marking_handler()) {}
+      remembered_sets_marking_handler_(heap_->minor_mark_sweep_collector()
+                                           ->remembered_sets_marking_handler()),
+      trace_id_(reinterpret_cast<uint64_t>(this) ^
+                heap_->tracer()->CurrentEpoch(
+                    GCTracer::Scope::MINOR_MS_MARK_PARALLEL)) {}
 
 void YoungGenerationMarkingJob::Run(JobDelegate* delegate) {
   if (delegate->IsJoiningThread()) {
-    TRACE_GC(heap_->tracer(), GCTracer::Scope::MINOR_MS_MARK_PARALLEL);
+    TRACE_GC_WITH_FLOW(heap_->tracer(), GCTracer::Scope::MINOR_MS_MARK_PARALLEL,
+                       trace_id_, TRACE_EVENT_FLAG_FLOW_IN);
     ProcessItems(delegate);
   } else {
-    TRACE_GC_EPOCH(heap_->tracer(),
-                   GCTracer::Scope::MINOR_MS_BACKGROUND_MARKING,
-                   ThreadKind::kBackground);
+    TRACE_GC_EPOCH_WITH_FLOW(
+        heap_->tracer(), GCTracer::Scope::MINOR_MS_BACKGROUND_MARKING,
+        ThreadKind::kBackground, trace_id_, TRACE_EVENT_FLAG_FLOW_IN);
     ProcessItems(delegate);
   }
 }
@@ -765,10 +771,12 @@ void MinorMarkSweepCollector::DoParallelMarking() {
         ephemeron_table_list_.get()));
   }
 
+  auto job = std::make_unique<YoungGenerationMarkingJob>(
+      heap_->isolate(), heap_, marking_worklists_.get(), tasks);
+  TRACE_GC_NOTE_WITH_FLOW("Minor parallel marking started", job->trace_id(),
+                          TRACE_EVENT_FLAG_FLOW_OUT);
   V8::GetCurrentPlatform()
-      ->CreateJob(v8::TaskPriority::kUserBlocking,
-                  std::make_unique<YoungGenerationMarkingJob>(
-                      heap_->isolate(), heap_, marking_worklists_.get(), tasks))
+      ->CreateJob(v8::TaskPriority::kUserBlocking, std::move(job))
       ->Join();
 
   // If unified young generation is in progress, the parallel marker may add

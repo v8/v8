@@ -2477,14 +2477,19 @@ class ParallelClearingJob final : public v8::JobTask {
 
 class ClearStringTableJobItem final : public ParallelClearingJob::ClearingItem {
  public:
-  explicit ClearStringTableJobItem(Isolate* isolate) : isolate_(isolate) {}
+  explicit ClearStringTableJobItem(Isolate* isolate)
+      : isolate_(isolate),
+        trace_id_(reinterpret_cast<uint64_t>(this) ^
+                  isolate->heap()->tracer()->CurrentEpoch(
+                      GCTracer::Scope::MC_CLEAR_STRING_TABLE)) {}
 
   void Run(JobDelegate* delegate) final {
     if (isolate_->OwnsStringTables()) {
-      TRACE_GC1(isolate_->heap()->tracer(),
-                GCTracer::Scope::MC_CLEAR_STRING_TABLE,
-                delegate->IsJoiningThread() ? ThreadKind::kMain
-                                            : ThreadKind::kBackground);
+      TRACE_GC1_WITH_FLOW(isolate_->heap()->tracer(),
+                          GCTracer::Scope::MC_CLEAR_STRING_TABLE,
+                          delegate->IsJoiningThread() ? ThreadKind::kMain
+                                                      : ThreadKind::kBackground,
+                          trace_id_, TRACE_EVENT_FLAG_FLOW_IN);
       // Prune the string table removing all strings only pointed to by the
       // string table.  Cannot use string_table() here because the string
       // table is marked.
@@ -2497,8 +2502,11 @@ class ClearStringTableJobItem final : public ParallelClearingJob::ClearingItem {
     }
   }
 
+  uint64_t trace_id() const { return trace_id_; }
+
  private:
   Isolate* const isolate_;
+  const uint64_t trace_id_;
 };
 
 class FullStringForwardingTableCleaner final
@@ -2658,7 +2666,12 @@ void MarkCompactCollector::ClearNonLiveReferences() {
   }
 
   auto clearing_job = std::make_unique<ParallelClearingJob>();
-  clearing_job->Add(std::make_unique<ClearStringTableJobItem>(isolate));
+  auto clear_string_table_job_item =
+      std::make_unique<ClearStringTableJobItem>(isolate);
+  const uint64_t trace_id = clear_string_table_job_item->trace_id();
+  clearing_job->Add(std::move(clear_string_table_job_item));
+  TRACE_GC_NOTE_WITH_FLOW("ClearStringTableJob started", trace_id,
+                          TRACE_EVENT_FLAG_FLOW_OUT);
   auto clearing_job_handle = V8::GetCurrentPlatform()->PostJob(
       TaskPriority::kUserBlocking, std::move(clearing_job));
 
@@ -4059,16 +4072,20 @@ class PageEvacuationJob : public v8::JobTask {
         evacuation_items_(std::move(evacuation_items)),
         remaining_evacuation_items_(evacuation_items_.size()),
         generator_(evacuation_items_.size()),
-        tracer_(isolate->heap()->tracer()) {}
+        tracer_(isolate->heap()->tracer()),
+        trace_id_(reinterpret_cast<uint64_t>(this) ^
+                  tracer_->CurrentEpoch(GCTracer::Scope::MC_EVACUATE)) {}
 
   void Run(JobDelegate* delegate) override {
     Evacuator* evacuator = (*evacuators_)[delegate->GetTaskId()].get();
     if (delegate->IsJoiningThread()) {
-      TRACE_GC(tracer_, GCTracer::Scope::MC_EVACUATE_COPY_PARALLEL);
+      TRACE_GC_WITH_FLOW(tracer_, GCTracer::Scope::MC_EVACUATE_COPY_PARALLEL,
+                         trace_id_, TRACE_EVENT_FLAG_FLOW_IN);
       ProcessItems(delegate, evacuator);
     } else {
-      TRACE_GC_EPOCH(tracer_, GCTracer::Scope::MC_BACKGROUND_EVACUATE_COPY,
-                     ThreadKind::kBackground);
+      TRACE_GC_EPOCH_WITH_FLOW(
+          tracer_, GCTracer::Scope::MC_BACKGROUND_EVACUATE_COPY,
+          ThreadKind::kBackground, trace_id_, TRACE_EVENT_FLAG_FLOW_IN);
       ProcessItems(delegate, evacuator);
     }
   }
@@ -4100,6 +4117,8 @@ class PageEvacuationJob : public v8::JobTask {
     return std::min<size_t>(wanted_num_workers, evacuators_->size());
   }
 
+  uint64_t trace_id() const { return trace_id_; }
+
  private:
   std::vector<std::unique_ptr<Evacuator>>* evacuators_;
   std::vector<std::pair<ParallelWorkItem, MemoryChunk*>> evacuation_items_;
@@ -4107,6 +4126,7 @@ class PageEvacuationJob : public v8::JobTask {
   IndexGenerator generator_;
 
   GCTracer* tracer_;
+  const uint64_t trace_id_;
 };
 
 namespace {
@@ -4127,11 +4147,14 @@ size_t CreateAndExecuteEvacuationTasks(
     }
     evacuators.push_back(std::move(evacuator));
   }
+  auto page_evacuation_job = std::make_unique<PageEvacuationJob>(
+      heap->isolate(), &evacuators, std::move(evacuation_items));
+  TRACE_GC_NOTE_WITH_FLOW("PageEvacuationJob started",
+                          page_evacuation_job->trace_id(),
+                          TRACE_EVENT_FLAG_FLOW_OUT);
   V8::GetCurrentPlatform()
-      ->CreateJob(
-          v8::TaskPriority::kUserBlocking,
-          std::make_unique<PageEvacuationJob>(heap->isolate(), &evacuators,
-                                              std::move(evacuation_items)))
+      ->CreateJob(v8::TaskPriority::kUserBlocking,
+                  std::move(page_evacuation_job))
       ->Join();
   for (auto& evacuator : evacuators) {
     evacuator->Finalize();
@@ -4379,16 +4402,20 @@ class PointersUpdatingJob : public v8::JobTask {
       : updating_items_(std::move(updating_items)),
         remaining_updating_items_(updating_items_.size()),
         generator_(updating_items_.size()),
-        tracer_(isolate->heap()->tracer()) {}
+        tracer_(isolate->heap()->tracer()),
+        trace_id_(reinterpret_cast<uint64_t>(this) ^
+                  tracer_->CurrentEpoch(GCTracer::Scope::MC_EVACUATE)) {}
 
   void Run(JobDelegate* delegate) override {
     if (delegate->IsJoiningThread()) {
-      TRACE_GC(tracer_, GCTracer::Scope::MC_EVACUATE_UPDATE_POINTERS_PARALLEL);
+      TRACE_GC_WITH_FLOW(tracer_,
+                         GCTracer::Scope::MC_EVACUATE_UPDATE_POINTERS_PARALLEL,
+                         trace_id_, TRACE_EVENT_FLAG_FLOW_IN);
       UpdatePointers(delegate);
     } else {
-      TRACE_GC_EPOCH(tracer_,
-                     GCTracer::Scope::MC_BACKGROUND_EVACUATE_UPDATE_POINTERS,
-                     ThreadKind::kBackground);
+      TRACE_GC_EPOCH_WITH_FLOW(
+          tracer_, GCTracer::Scope::MC_BACKGROUND_EVACUATE_UPDATE_POINTERS,
+          ThreadKind::kBackground, trace_id_, TRACE_EVENT_FLAG_FLOW_IN);
       UpdatePointers(delegate);
     }
   }
@@ -4418,12 +4445,15 @@ class PointersUpdatingJob : public v8::JobTask {
     return max_concurrency;
   }
 
+  uint64_t trace_id() const { return trace_id_; }
+
  private:
   std::vector<std::unique_ptr<UpdatingItem>> updating_items_;
   std::atomic<size_t> remaining_updating_items_{0};
   IndexGenerator generator_;
 
   GCTracer* tracer_;
+  const uint64_t trace_id_;
 };
 
 namespace {
@@ -4773,10 +4803,14 @@ void MarkCompactCollector::UpdatePointersAfterEvacuation() {
     updating_items.push_back(
         std::make_unique<EphemeronTableUpdatingItem>(heap_));
 
+    auto pointers_updating_job = std::make_unique<PointersUpdatingJob>(
+        heap_->isolate(), std::move(updating_items));
+    TRACE_GC_NOTE_WITH_FLOW("PointersUpdatingJob started",
+                            pointers_updating_job->trace_id(),
+                            TRACE_EVENT_FLAG_FLOW_OUT);
     V8::GetCurrentPlatform()
         ->CreateJob(v8::TaskPriority::kUserBlocking,
-                    std::make_unique<PointersUpdatingJob>(
-                        heap_->isolate(), std::move(updating_items)))
+                    std::move(pointers_updating_job))
         ->Join();
   }
 

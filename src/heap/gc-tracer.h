@@ -81,6 +81,16 @@ enum ScavengeSpeedMode { kForAllObjects, kForSurvivedObjects };
       GCTracer::Scope::Name(GCTracer::Scope::ScopeId(scope_id)), bind_id, \
       flow_flags, "epoch", tracer->CurrentEpoch(scope_id))
 
+#define TRACE_GC_NOTE(note)                  \
+  do {                                       \
+    TRACE_EVENT0(TRACE_GC_CATEGORIES, note); \
+  } while (0)
+
+#define TRACE_GC_NOTE_WITH_FLOW(note, bind_id, flow_flags)                  \
+  do {                                                                      \
+    TRACE_EVENT_WITH_FLOW0(TRACE_GC_CATEGORIES, note, bind_id, flow_flags); \
+  } while (0)
+
 using CollectionEpoch = uint32_t;
 
 // GCTracer collects and prints ONE line after each garbage collector

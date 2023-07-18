@@ -121,8 +121,8 @@ void MemoryAllocator::Unmapper::FreeQueuedChunks() {
       job_handle_->NotifyConcurrencyIncrease();
     } else {
       auto job = std::make_unique<UnmapFreeMemoryJob>(heap_->isolate(), this);
-      TRACE_GC_WITH_FLOW(heap_->tracer(), GCTracer::Scope::START_UNMAPPER,
-                         job->trace_id(), TRACE_EVENT_FLAG_FLOW_OUT);
+      TRACE_GC_NOTE_WITH_FLOW("MemoryAllocator::Unmapper started",
+                              job->trace_id(), TRACE_EVENT_FLAG_FLOW_OUT);
       job_handle_ = V8::GetCurrentPlatform()->PostJob(
           TaskPriority::kUserVisible, std::move(job));
       if (v8_flags.trace_unmapper) {

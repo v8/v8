@@ -421,8 +421,7 @@ void ConcurrentMarking::RunMajor(JobDelegate* delegate,
       base::AsAtomicWord::Relaxed_Store<size_t>(&task_state->marked_bytes,
                                                 marked_bytes);
       if (delegate->ShouldYield()) {
-        TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
-                     "ConcurrentMarking::RunMajor Preempted");
+        TRACE_GC_NOTE("ConcurrentMarking::RunMajor Preempted");
         break;
       }
     }
@@ -528,8 +527,7 @@ void ConcurrentMarking::RunMinor(JobDelegate* delegate) {
         base::AsAtomicWord::Relaxed_Store<size_t>(&task_state->marked_bytes,
                                                   marked_bytes);
         if (delegate->ShouldYield()) {
-          TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
-                       "ConcurrentMarking::RunMinor Preempted");
+          TRACE_GC_NOTE("ConcurrentMarking::RunMinor Preempted");
           break;
         }
       }
