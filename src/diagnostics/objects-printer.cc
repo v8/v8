@@ -2421,35 +2421,7 @@ void CallHandlerInfo::CallHandlerInfoPrint(std::ostream& os) {
   os << "\n - data: " << Brief(data());
   os << "\n - side_effect_free: "
      << (IsSideEffectFreeCallHandlerInfo() ? "true" : "false");
-  os << "\n";
-}
-
-void FunctionTemplateInfo::FunctionTemplateInfoPrint(std::ostream& os) {
-  PrintHeader(os, "FunctionTemplateInfo");
-  os << "\n - class name: " << Brief(class_name());
-  os << "\n - tag: " << tag();
-  os << "\n - serial_number: " << serial_number();
-  os << "\n - property_list: " << Brief(property_list());
-  os << "\n - call_code: " << Brief(call_code(kAcquireLoad));
-  os << "\n - property_accessors: " << Brief(property_accessors());
-  os << "\n - signature: " << Brief(signature());
-  os << "\n - cached_property_name: " << Brief(cached_property_name());
-  os << "\n - undetectable: " << (undetectable() ? "true" : "false");
-  os << "\n - need_access_check: " << (needs_access_check() ? "true" : "false");
-  os << "\n - instantiated: " << (instantiated() ? "true" : "false");
-  os << "\n - rare_data: " << Brief(rare_data(kAcquireLoad));
-  os << "\n";
-}
-
-void ObjectTemplateInfo::ObjectTemplateInfoPrint(std::ostream& os) {
-  PrintHeader(os, "ObjectTemplateInfo");
-  os << "\n - tag: " << tag();
-  os << "\n - serial_number: " << serial_number();
-  os << "\n - property_list: " << Brief(property_list());
-  os << "\n - property_accessors: " << Brief(property_accessors());
-  os << "\n - constructor: " << Brief(constructor());
-  os << "\n - embedder_field_count: " << embedder_field_count();
-  os << "\n - immutable_proto: " << (immutable_proto() ? "true" : "false");
+  os << "\n - owner_template: " << Brief(owner_template());
   os << "\n";
 }
 
