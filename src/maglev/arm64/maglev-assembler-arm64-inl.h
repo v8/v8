@@ -516,6 +516,7 @@ inline void MaglevAssembler::StoreField(MemOperand operand, Register value,
 inline void MaglevAssembler::ReverseByteOrder(Register value, int size) {
   if (size == 2) {
     Rev16(value, value);
+    Sxth(value, value);
   } else if (size == 4) {
     Rev32(value, value);
   } else {
