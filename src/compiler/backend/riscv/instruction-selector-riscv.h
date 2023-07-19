@@ -494,37 +494,41 @@ void VisitWordCompare(InstructionSelectorT<Adapter>* selector, Node* node,
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitSwitch(Node* node,
+void InstructionSelectorT<Adapter>::VisitSwitch(node_t node,
                                                 const SwitchInfo& sw) {
-  RiscvOperandGeneratorT<Adapter> g(this);
-  InstructionOperand value_operand = g.UseRegister(node->InputAt(0));
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    RiscvOperandGeneratorT<Adapter> g(this);
+    InstructionOperand value_operand = g.UseRegister(node->InputAt(0));
 
-  // Emit either ArchTableSwitch or ArchBinarySearchSwitch.
-  if (enable_switch_jump_table_ ==
-      InstructionSelector::kEnableSwitchJumpTable) {
-    static const size_t kMaxTableSwitchValueRange = 2 << 16;
-    size_t table_space_cost = 10 + 2 * sw.value_range();
-    size_t table_time_cost = 3;
-    size_t lookup_space_cost = 2 + 2 * sw.case_count();
-    size_t lookup_time_cost = sw.case_count();
-    if (sw.case_count() > 0 &&
-        table_space_cost + 3 * table_time_cost <=
-            lookup_space_cost + 3 * lookup_time_cost &&
-        sw.min_value() > std::numeric_limits<int32_t>::min() &&
-        sw.value_range() <= kMaxTableSwitchValueRange) {
-      InstructionOperand index_operand = value_operand;
-      if (sw.min_value()) {
-        index_operand = g.TempRegister();
-        Emit(kRiscvSub32, index_operand, value_operand,
-             g.TempImmediate(sw.min_value()));
+    // Emit either ArchTableSwitch or ArchBinarySearchSwitch.
+    if (enable_switch_jump_table_ ==
+        InstructionSelector::kEnableSwitchJumpTable) {
+      static const size_t kMaxTableSwitchValueRange = 2 << 16;
+      size_t table_space_cost = 10 + 2 * sw.value_range();
+      size_t table_time_cost = 3;
+      size_t lookup_space_cost = 2 + 2 * sw.case_count();
+      size_t lookup_time_cost = sw.case_count();
+      if (sw.case_count() > 0 &&
+          table_space_cost + 3 * table_time_cost <=
+              lookup_space_cost + 3 * lookup_time_cost &&
+          sw.min_value() > std::numeric_limits<int32_t>::min() &&
+          sw.value_range() <= kMaxTableSwitchValueRange) {
+        InstructionOperand index_operand = value_operand;
+        if (sw.min_value()) {
+          index_operand = g.TempRegister();
+          Emit(kRiscvSub32, index_operand, value_operand,
+               g.TempImmediate(sw.min_value()));
+        }
+        // Generate a table lookup.
+        return EmitTableSwitch(sw, index_operand);
       }
-      // Generate a table lookup.
-      return EmitTableSwitch(sw, index_operand);
     }
-  }
 
-  // Generate a tree of conditional jumps.
-  return EmitBinarySearchSwitch(sw, value_operand);
+    // Generate a tree of conditional jumps.
+    return EmitBinarySearchSwitch(sw, value_operand);
+  }
 }
 
 template <typename Adapter>

@@ -1196,7 +1196,7 @@ void InstructionSelectorT<Adapter>::VisitInt32AddWithOverflow(node_t node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitInt32SubWithOverflow(Node* node) {
+void InstructionSelectorT<Adapter>::VisitInt32SubWithOverflow(node_t node) {
   if constexpr (Adapter::IsTurboshaft) {
     UNIMPLEMENTED();
   } else {
