@@ -485,12 +485,25 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     ])
     .exportFunc();
 
+  builder.addFunction("tailCall",
+      makeSig([kWasmI64, kWasmI64], [kWasmI32, kWasmI64, kWasmI64, kWasmI32]))
+    .addBody([
+      kExprI32Const, 11,
+      kExprLocalGet, 0,
+      kExprLocalGet, 1,
+      kExprI32Const, 22,
+      kExprReturnCall, callee.index,
+    ])
+    .exportFunc();
+
   let wasm = builder.instantiate().exports;
   assertEquals([11, 123n, -1n, 22], wasm.callee(11, 123n, -1n, 22));
   assertEquals([11, 123n, -1n, 22], wasm.call(123n, -1n));
+  assertEquals([11, 123n, -1n, 22], wasm.tailCall(123n, -1n));
 
   assertEquals([11, -123n, 123n, 22], wasm.callee(11, -123n, 123n, 22));
   assertEquals([11, -123n, 123n, 22], wasm.call(-123n, 123n));
+  assertEquals([11, -123n, 123n, 22], wasm.tailCall(-123n, 123n));
 })();
 
 (function I64CountLeadingZeros() {

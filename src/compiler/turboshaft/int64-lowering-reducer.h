@@ -126,73 +126,18 @@ class Int64LoweringReducer : public Next {
   OpIndex REDUCE(Call)(OpIndex callee, OpIndex frame_state,
                        base::Vector<const OpIndex> arguments,
                        const TSCallDescriptor* descriptor, OpEffects effects) {
-    // Iterate over the call descriptor to skip lowering if the signature does
-    // not contain an i64.
-    const CallDescriptor* call_descriptor = descriptor->descriptor;
-    size_t param_count = call_descriptor->ParameterCount();
-    size_t i64_params = 0;
-    for (size_t i = 0; i < param_count; ++i) {
-      i64_params += call_descriptor->GetParameterType(i).representation() ==
-                    MachineRepresentation::kWord64;
-    }
-    size_t return_count = call_descriptor->ReturnCount();
-    size_t i64_returns = 0;
-    for (size_t i = 0; i < return_count; ++i) {
-      i64_returns += call_descriptor->GetReturnType(i).representation() ==
-                     MachineRepresentation::kWord64;
-    }
-    if (i64_params + i64_returns == 0) {
-      // No lowering required.
-      return Next::ReduceCall(callee, frame_state, arguments, descriptor,
-                              effects);
-    }
+    const bool is_tail_call = false;
+    return ReduceCall(callee, frame_state, arguments, descriptor, effects,
+                      is_tail_call);
+  }
 
-    // Create descriptor with 2 i32s for every i64.
-    const CallDescriptor* lowered_descriptor =
-        GetI32WasmCallDescriptor(Asm().graph_zone(), call_descriptor);
-
-    // Map the arguments by unpacking i64 arguments (which have already been
-    // lowered to Tuple(i32, i32).)
-    base::SmallVector<OpIndex, 16> lowered_args;
-    lowered_args.reserve_no_init(param_count + i64_params);
-
-    DCHECK_EQ(param_count, arguments.size());
-    for (size_t i = 0; i < param_count; ++i) {
-      if (call_descriptor->GetParameterType(i).representation() ==
-          MachineRepresentation::kWord64) {
-        auto [low, high] = Unpack(arguments[i]);
-        lowered_args.push_back(low);
-        lowered_args.push_back(high);
-      } else {
-        lowered_args.push_back(arguments[i]);
-      }
-    }
-
-    OpIndex call = Next::ReduceCall(
-        callee, frame_state, base::VectorOf(lowered_args),
-        TSCallDescriptor::Create(lowered_descriptor, __ graph_zone()), effects);
-    // If it only returns one value, there isn't any projection for the
-    // different returns, so we don't need to update them. Similarly we don't
-    // need to update projections if there isn't any i64 in the result types.
-    if (return_count <= 1 || i64_returns == 0) {
-      return call;
-    }
-
-    // Create a map from the old projection index to the new projection index,
-    // so this information doesn't have to be recreated for each projection on
-    // the result.
-    int* result_map =
-        __ phase_zone()->template AllocateArray<int>(return_count);
-    int lowered_index = 0;
-    for (size_t i = 0; i < return_count; ++i) {
-      result_map[i] = lowered_index;
-      bool is_i64 = call_descriptor->GetReturnType(i).representation() ==
-                    MachineRepresentation::kWord64;
-      lowered_index += is_i64 ? 2 : 1;
-    }
-    lowered_calls_[call] = result_map;
-    DCHECK_EQ(lowered_index, return_count + i64_returns);
-    return call;
+  OpIndex REDUCE(TailCall)(OpIndex callee,
+                           base::Vector<const OpIndex> arguments,
+                           const TSCallDescriptor* descriptor) {
+    const bool is_tail_call = true;
+    OpIndex frame_state = OpIndex::Invalid();
+    return ReduceCall(callee, frame_state, arguments, descriptor,
+                      OpEffects().CanCallAnything(), is_tail_call);
   }
 
   OpIndex REDUCE(Projection)(OpIndex input, uint16_t idx,
@@ -516,6 +461,86 @@ class Int64LoweringReducer : public Next {
         __ Word32BitwiseOr(__ Word32BitwiseAnd(rotate_high, bit_mask),
                            __ Word32BitwiseAnd(rotate_low, inv_mask));
     return __ Tuple(low_node, high_node);
+  }
+
+  OpIndex ReduceCall(OpIndex callee, OpIndex frame_state,
+                     base::Vector<const OpIndex> arguments,
+                     const TSCallDescriptor* descriptor, OpEffects effects,
+                     bool is_tail_call) {
+    // Iterate over the call descriptor to skip lowering if the signature does
+    // not contain an i64.
+    const CallDescriptor* call_descriptor = descriptor->descriptor;
+    size_t param_count = call_descriptor->ParameterCount();
+    size_t i64_params = 0;
+    for (size_t i = 0; i < param_count; ++i) {
+      i64_params += call_descriptor->GetParameterType(i).representation() ==
+                    MachineRepresentation::kWord64;
+    }
+    size_t return_count = call_descriptor->ReturnCount();
+    size_t i64_returns = 0;
+    for (size_t i = 0; i < return_count; ++i) {
+      i64_returns += call_descriptor->GetReturnType(i).representation() ==
+                     MachineRepresentation::kWord64;
+    }
+    if (i64_params + i64_returns == 0) {
+      // No lowering required.
+      return is_tail_call ? Next::ReduceTailCall(callee, arguments, descriptor)
+                          : Next::ReduceCall(callee, frame_state, arguments,
+                                             descriptor, effects);
+    }
+
+    // Create descriptor with 2 i32s for every i64.
+    const CallDescriptor* lowered_descriptor =
+        GetI32WasmCallDescriptor(Asm().graph_zone(), call_descriptor);
+
+    // Map the arguments by unpacking i64 arguments (which have already been
+    // lowered to Tuple(i32, i32).)
+    base::SmallVector<OpIndex, 16> lowered_args;
+    lowered_args.reserve_no_init(param_count + i64_params);
+
+    DCHECK_EQ(param_count, arguments.size());
+    for (size_t i = 0; i < param_count; ++i) {
+      if (call_descriptor->GetParameterType(i).representation() ==
+          MachineRepresentation::kWord64) {
+        auto [low, high] = Unpack(arguments[i]);
+        lowered_args.push_back(low);
+        lowered_args.push_back(high);
+      } else {
+        lowered_args.push_back(arguments[i]);
+      }
+    }
+
+    auto lowered_ts_descriptor =
+        TSCallDescriptor::Create(lowered_descriptor, __ graph_zone());
+    OpIndex call =
+        is_tail_call
+            ? Next::ReduceTailCall(callee, base::VectorOf(lowered_args),
+                                   lowered_ts_descriptor)
+            : Next::ReduceCall(callee, frame_state,
+                               base::VectorOf(lowered_args),
+                               lowered_ts_descriptor, effects);
+    // If it only returns one value, there isn't any projection for the
+    // different returns, so we don't need to update them. Similarly we don't
+    // need to update projections if there isn't any i64 in the result types.
+    if (return_count <= 1 || i64_returns == 0) {
+      return call;
+    }
+
+    // Create a map from the old projection index to the new projection index,
+    // so this information doesn't have to be recreated for each projection on
+    // the result.
+    int* result_map =
+        __ phase_zone()->template AllocateArray<int>(return_count);
+    int lowered_index = 0;
+    for (size_t i = 0; i < return_count; ++i) {
+      result_map[i] = lowered_index;
+      bool is_i64 = call_descriptor->GetReturnType(i).representation() ==
+                    MachineRepresentation::kWord64;
+      lowered_index += is_i64 ? 2 : 1;
+    }
+    lowered_calls_[call] = result_map;
+    DCHECK_EQ(lowered_index, return_count + i64_returns);
+    return call;
   }
 
   void InitializeIndexMaps() {
