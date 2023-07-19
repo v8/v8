@@ -127,7 +127,15 @@ class Snapshot : public AllStatic {
 // mksnapshot.
 V8_EXPORT_PRIVATE v8::StartupData CreateSnapshotDataBlobInternal(
     v8::SnapshotCreator::FunctionCodeHandling function_code_handling,
-    const char* embedded_source, v8::Isolate* isolate = nullptr);
+    const char* embedded_source = nullptr, Isolate* isolate = nullptr,
+    Snapshot::SerializerFlags serializer_flags =
+        Snapshot::kDefaultSerializerFlags);
+// .. and for inspector-test.cc which needs an extern declaration due to
+// restrictive include rules:
+V8_EXPORT_PRIVATE v8::StartupData
+CreateSnapshotDataBlobInternalForInspectorTest(
+    v8::SnapshotCreator::FunctionCodeHandling function_code_handling,
+    const char* embedded_source);
 
 // Convenience wrapper around snapshot data blob warmup used e.g. by tests and
 // mksnapshot.
@@ -156,7 +164,9 @@ class SnapshotCreatorImpl final {
   size_t AddData(Address object);
 
   StartupData CreateBlob(
-      SnapshotCreator::FunctionCodeHandling function_code_handling);
+      SnapshotCreator::FunctionCodeHandling function_code_handling,
+      Snapshot::SerializerFlags serializer_flags =
+          Snapshot::kDefaultSerializerFlags);
 
   static constexpr size_t kDefaultContextIndex = 0;
   static constexpr size_t kFirstAddtlContextIndex = kDefaultContextIndex + 1;

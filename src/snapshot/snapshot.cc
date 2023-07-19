@@ -6,6 +6,7 @@
 
 #include "src/snapshot/snapshot.h"
 
+#include "src/api/api-inl.h"  // For OpenHandle.
 #include "src/baseline/baseline-batch-compiler.h"
 #include "src/common/assert-scope.h"
 #include "src/execution/local-isolate-inl.h"
@@ -781,26 +782,29 @@ bool RunExtraCode(v8::Isolate* isolate, v8::Local<v8::Context> context,
 
 v8::StartupData CreateSnapshotDataBlobInternal(
     v8::SnapshotCreator::FunctionCodeHandling function_code_handling,
-    const char* embedded_source, v8::Isolate* isolate) {
-  bool owns_isolate = false;
-  // If no isolate is passed in, create it (and a new context) from scratch.
-  if (isolate == nullptr) {
-    isolate = v8::Isolate::Allocate();
-    owns_isolate = true;
-  }
+    const char* embedded_source, Isolate* isolate,
+    Snapshot::SerializerFlags serializer_flags) {
+  bool owns_isolate = isolate == nullptr;
+  SnapshotCreatorImpl creator(isolate, nullptr, nullptr, owns_isolate);
 
-  // Optionally run a script to embed, and serialize to create a snapshot blob.
-  v8::SnapshotCreator snapshot_creator(isolate, nullptr, nullptr, owns_isolate);
   {
-    v8::HandleScope scope(isolate);
-    v8::Local<v8::Context> context = v8::Context::New(isolate);
+    auto v8_isolate = reinterpret_cast<v8::Isolate*>(creator.isolate());
+    v8::HandleScope scope(v8_isolate);
+    v8::Local<v8::Context> context = v8::Context::New(v8_isolate);
     if (embedded_source != nullptr &&
-        !RunExtraCode(isolate, context, embedded_source, "<embedded>")) {
+        !RunExtraCode(v8_isolate, context, embedded_source, "<embedded>")) {
       return {};
     }
-    snapshot_creator.SetDefaultContext(context);
+    creator.SetDefaultContext(Utils::OpenHandle(*context), nullptr);
   }
-  return snapshot_creator.CreateBlob(function_code_handling);
+  return creator.CreateBlob(function_code_handling, serializer_flags);
+}
+
+v8::StartupData CreateSnapshotDataBlobInternalForInspectorTest(
+    v8::SnapshotCreator::FunctionCodeHandling function_code_handling,
+    const char* embedded_source) {
+  return CreateSnapshotDataBlobInternal(function_code_handling,
+                                        embedded_source);
 }
 
 v8::StartupData WarmUpSnapshotDataBlobInternal(
@@ -975,7 +979,8 @@ void ConvertSerializedObjectsToFixedArray(Isolate* isolate,
 
 // static
 StartupData SnapshotCreatorImpl::CreateBlob(
-    SnapshotCreator::FunctionCodeHandling function_code_handling) {
+    SnapshotCreator::FunctionCodeHandling function_code_handling,
+    Snapshot::SerializerFlags serializer_flags) {
   CHECK(!created());
   CHECK(contexts_[kDefaultContextIndex].handle_location != nullptr);
 
@@ -1062,7 +1067,8 @@ StartupData SnapshotCreatorImpl::CreateBlob(
 
   contexts_.clear();
   return Snapshot::Create(isolate_, &raw_contexts, raw_callbacks,
-                          safepoint_scope, no_gc_from_here_on);
+                          safepoint_scope, no_gc_from_here_on,
+                          serializer_flags);
 }
 
 }  // namespace internal

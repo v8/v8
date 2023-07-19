@@ -32,11 +32,9 @@ namespace internal {
 extern void DisableEmbeddedBlobRefcounting();
 extern void FreeCurrentEmbeddedBlob();
 
-extern v8::StartupData CreateSnapshotDataBlobInternal(
+extern v8::StartupData CreateSnapshotDataBlobInternalForInspectorTest(
     v8::SnapshotCreator::FunctionCodeHandling function_code_handling,
-    const char* embedded_source, v8::Isolate* isolate);
-extern v8::StartupData WarmUpSnapshotDataBlobInternal(
-    v8::StartupData cold_snapshot_blob, const char* warmup_source);
+    const char* embedded_source);
 
 namespace {
 
@@ -847,8 +845,8 @@ int InspectorTestMain(int argc, char* argv[]) {
     if (strcmp(argv[i], "--embed") == 0) {
       argv[i++] = nullptr;
       printf("Embedding script '%s'\n", argv[i]);
-      startup_data = i::CreateSnapshotDataBlobInternal(
-          SnapshotCreator::FunctionCodeHandling::kClear, argv[i], nullptr);
+      startup_data = i::CreateSnapshotDataBlobInternalForInspectorTest(
+          SnapshotCreator::FunctionCodeHandling::kClear, argv[i]);
       argv[i] = nullptr;
     }
   }
