@@ -17,6 +17,7 @@ namespace v8 {
 namespace internal {
 
 DEFINE_LAZY_LEAKY_OBJECT_GETTER(BasicBlockProfiler, BasicBlockProfiler::Get)
+DEFINE_LAZY_LEAKY_OBJECT_GETTER(BuiltinsCallGraph, BuiltinsCallGraph::Get)
 
 BasicBlockProfilerData::BasicBlockProfilerData(size_t n_blocks)
     : block_ids_(n_blocks), counts_(n_blocks, 0) {}
@@ -270,6 +271,28 @@ std::ostream& operator<<(std::ostream& os, const BasicBlockProfilerData& d) {
     os << d.code_.c_str() << std::endl;
   }
   return os;
+}
+
+BuiltinsCallGraph::BuiltinsCallGraph() : all_hash_matched_(true) {}
+
+void BuiltinsCallGraph::AddBuiltinCall(Builtin caller, Builtin callee,
+                                       int32_t block_id) {
+  if (builtin_call_map_.count(caller) == 0) {
+    builtin_call_map_.emplace(caller, BuiltinCallees());
+  }
+  BuiltinCallees& callees = builtin_call_map_.at(caller);
+  if (callees.count(block_id) == 0) {
+    callees.emplace(block_id, BlockCallees());
+  }
+  BlockCallees& block_callees = callees.at(block_id);
+  if (block_callees.count(callee) == 0) {
+    block_callees.emplace(callee);
+  }
+}
+
+const BuiltinCallees* BuiltinsCallGraph::GetBuiltinCallees(Builtin builtin) {
+  if (builtin_call_map_.count(builtin) == 0) return nullptr;
+  return &builtin_call_map_.at(builtin);
 }
 
 }  // namespace internal

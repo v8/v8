@@ -2224,6 +2224,8 @@ filegroup(
         "src/snapshot/snapshot-source-sink.h",
         "src/snapshot/snapshot-utils.cc",
         "src/snapshot/snapshot-utils.h",
+        "src/snapshot/sort-builtins.cc",
+        "src/snapshot/sort-builtins.h",
         "src/snapshot/startup-deserializer.cc",
         "src/snapshot/startup-deserializer.h",
         "src/snapshot/startup-serializer.cc",

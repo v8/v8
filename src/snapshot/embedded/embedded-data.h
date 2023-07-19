@@ -207,6 +207,8 @@ class EmbeddedData final {
   static_assert(offsetof(BuiltinLookupEntry, end_offset) == 0 * kUInt32Size);
   static_assert(offsetof(BuiltinLookupEntry, builtin_id) == 1 * kUInt32Size);
 
+  Builtin GetBuiltinId(ReorderedBuiltinIndex embedded_index) const;
+
   // The layout of the blob is as follows:
   //
   // data:

@@ -1096,6 +1096,8 @@ DEFINE_STRING(
     turbo_profiling_output, nullptr,
     "emit data about basic block usage in builtins to this file "
     "(requires that V8 was built with v8_enable_builtins_profiling=true)")
+DEFINE_BOOL(reorder_builtins, false,
+            "enable builtin reordering when run mksnapshot.")
 
 DEFINE_BOOL(abort_on_bad_builtin_profile_data, false,
             "flag for mksnapshot, abort if builtins profile can't be applied")
@@ -2284,7 +2286,7 @@ DEFINE_BOOL(target_is_simulator, false,
             "simulator and it can generate simulator-specific instructions. "
             "(mksnapshot only)")
 DEFINE_STRING(turbo_profiling_input, nullptr,
-              "Path of the input file containing basic block counters for "
+              "Path of the input file containing basic information for "
               "builtins. (mksnapshot only)")
 DEFINE_STRING(turbo_log_builtins_count_input, nullptr,
               "Path of the input file containing basic block counters for "

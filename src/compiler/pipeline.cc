@@ -3260,6 +3260,9 @@ MaybeHandle<Code> Pipeline::GenerateCodeForCodeStub(
   }
 
   if (profile_data != nullptr && profile_data->hash() != initial_graph_hash) {
+    if (v8_flags.reorder_builtins) {
+      BuiltinsCallGraph::Get()->set_all_hash_matched(false);
+    }
     if (v8_flags.abort_on_bad_builtin_profile_data ||
         v8_flags.warn_about_builtin_profile_data) {
       base::EmbeddedVector<char, 256> msg;
@@ -3989,6 +3992,11 @@ bool PipelineImpl::SelectInstructions(Linkage* linkage) {
   // We should have a scheduled graph.
   DCHECK_NOT_NULL(data->graph());
   DCHECK_NOT_NULL(data->schedule());
+
+  if (v8_flags.reorder_builtins && Builtins::IsBuiltinId(info()->builtin())) {
+    UnparkedScopeIfNeeded unparked_scope(data->broker());
+    BasicBlockCallGraphProfiler::StoreCallGraph(info(), data->schedule());
+  }
 
   if (v8_flags.turbo_profiling) {
     UnparkedScopeIfNeeded unparked_scope(data->broker());

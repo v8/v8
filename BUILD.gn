@@ -194,6 +194,10 @@ declare_args() {
   # the `--trace-turbo` .json file from `mksnapshot`.
   v8_log_builtins_block_count_input = ""
 
+  # This build flag is used to control whether reorder builtins acoording to
+  # the call graph with C3 algorithm based builtin PGO profiling.
+  v8_enable_builtins_reordering = false
+
   # Provides the given V8 log file as an input to mksnapshot, where it can be
   # used for profile-guided optimization of builtins.
   #
@@ -2341,6 +2345,10 @@ template("run_mksnapshot") {
         # list of builtins with incompatible profiles.
         "--abort-on-bad-builtin-profile-data",
       ]
+
+      if (!v8_enable_builtins_profiling && v8_enable_builtins_reordering) {
+        args += [ "--reorder-builtins" ]
+      }
     }
 
     # This is needed to distinguish between generating code for the simulator
@@ -3902,6 +3910,7 @@ v8_header_set("v8_internal_headers") {
     "src/snapshot/snapshot-source-sink.h",
     "src/snapshot/snapshot-utils.h",
     "src/snapshot/snapshot.h",
+    "src/snapshot/sort-builtins.h",
     "src/snapshot/startup-deserializer.h",
     "src/snapshot/startup-serializer.h",
     "src/strings/char-predicates-inl.h",
@@ -5281,6 +5290,7 @@ v8_source_set("v8_base_without_compiler") {
     "src/snapshot/snapshot-source-sink.cc",
     "src/snapshot/snapshot-utils.cc",
     "src/snapshot/snapshot.cc",
+    "src/snapshot/sort-builtins.cc",
     "src/snapshot/startup-deserializer.cc",
     "src/snapshot/startup-serializer.cc",
     "src/strings/char-predicates.cc",

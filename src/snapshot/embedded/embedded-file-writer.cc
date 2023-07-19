@@ -161,14 +161,9 @@ void EmbeddedFileWriter::WriteCodeSection(PlatformEmbeddedFileWriterBase* w,
   w->DeclareLabel(EmbeddedBlobCodeSymbol().c_str());
 
   static_assert(Builtins::kAllBuiltinsAreIsolateIndependent);
-  // We will traversal builtins in embedded snapshot order instead of builtin id
-  // order.
   for (ReorderedBuiltinIndex embedded_index = 0;
        embedded_index < Builtins::kBuiltinCount; embedded_index++) {
-    // TODO(v8:13938): Update the static_cast later when we introduce reordering
-    // builtins. At current stage builtin id equals to i in the loop, if we
-    // introduce reordering builtin, we may have to map them in another method.
-    Builtin builtin = static_cast<Builtin>(embedded_index);
+    Builtin builtin = blob->GetBuiltinId(embedded_index);
     WriteBuiltin(w, blob, builtin);
   }
   w->AlignToPageSizeIfNeeded();
