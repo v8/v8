@@ -4628,6 +4628,12 @@ void SwitchToTheCentralStackIfNeeded(MacroAssembler* masm,
   // but it is not guaranteed for stored SP.
   __ AlignStackPointer();
 
+#ifdef V8_TARGET_OS_WIN
+  // When we switch stack we leave home space allocated on the old stack.
+  // Allocate home space on the central stack to prevent stack corruption.
+  __ subq(rsp, Immediate(kWindowsHomeStackSlots * kSystemPointerSize));
+#endif  // V8_TARGET_OS_WIN
+
   // Update sp saved in the frame to new sp.
   // It will be used to calculate PC of the callee during GC.
   // PC is going to be on the new stack segment, so rewriting it here.
@@ -4689,10 +4695,8 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   // rax. Larger return sizes must be written to an address passed as a hidden
   // first argument.
   static constexpr int kMaxRegisterResultSize = 1;
-  const int kReservedStackSlots =
-      kSwitchToTheCentralStackSlots + result_size <= kMaxRegisterResultSize
-          ? 0
-          : result_size;
+  const int kReservedStackSlots = kSwitchToTheCentralStackSlots +
+      (result_size <= kMaxRegisterResultSize ? 0 : result_size);
 #else
   // Simple results are returned in rax, and a struct of two pointers are
   // returned in rax+rdx.
