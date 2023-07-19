@@ -11,6 +11,7 @@
 #include "src/heap/memory-chunk.h"
 #include "src/wasm/baseline/liftoff-assembler.h"
 #include "src/wasm/baseline/liftoff-register.h"
+#include "src/wasm/object-access.h"
 #include "src/wasm/wasm-objects.h"
 
 namespace v8 {
@@ -420,6 +421,40 @@ inline void EmitAnyTrue(LiftoffAssembler* assm, LiftoffRegister dst,
   assm->mov(dst.gp(), Operand(1), LeaveCC, ne);
 }
 
+class CacheStatePreservingTempRegisters {
+ public:
+  explicit CacheStatePreservingTempRegisters(LiftoffAssembler* assm,
+                                             LiftoffRegList pinned = {})
+      : assm_(assm), pinned_(pinned) {}
+
+  ~CacheStatePreservingTempRegisters() {
+    for (Register reg : must_pop_) {
+      assm_->Pop(reg);
+    }
+  }
+
+  Register Acquire() {
+    if (assm_->cache_state()->has_unused_register(kGpReg, pinned_)) {
+      return pinned_.set(
+          assm_->cache_state()->unused_register(kGpReg, pinned_).gp());
+    }
+
+    RegList available =
+        kLiftoffAssemblerGpCacheRegs - pinned_.GetGpList() - must_pop_;
+    DCHECK(!available.is_empty());
+    // Use {last()} here so we can just iterate forwards in the destructor.
+    Register reg = available.last();
+    assm_->Push(reg);
+    must_pop_.set(reg);
+    return reg;
+  }
+
+ private:
+  LiftoffAssembler* const assm_;
+  LiftoffRegList pinned_;
+  RegList must_pop_;
+};
+
 }  // namespace liftoff
 
 int LiftoffAssembler::PrepareStackFrame() {
@@ -579,6 +614,32 @@ int LiftoffAssembler::SlotSizeForType(ValueKind kind) {
 
 bool LiftoffAssembler::NeedsAlignment(ValueKind kind) {
   return kind == kS128 || is_reference(kind);
+}
+
+void LiftoffAssembler::CheckTierUp(int declared_func_index, int budget_used,
+                                   Label* ool_label,
+                                   const FreezeCacheState& frozen) {
+  {
+    liftoff::CacheStatePreservingTempRegisters temps{this};
+    Register budget_array = temps.Acquire();
+    Register budget = temps.Acquire();
+
+    Register instance = cache_state_.cached_instance;
+    if (instance == no_reg) {
+      instance = budget_array;  // Reuse the temp register.
+      LoadInstanceFromFrame(instance);
+    }
+
+    constexpr int kArrayOffset = wasm::ObjectAccess::ToTagged(
+        WasmInstanceObject::kTieringBudgetArrayOffset);
+    ldr(budget_array, MemOperand{instance, kArrayOffset});
+
+    MemOperand budget_addr{budget_array, kInt32Size * declared_func_index};
+    ldr(budget, budget_addr);
+    sub(budget, budget, Operand{budget_used}, SetCC);
+    str(budget, budget_addr);
+  }
+  b(ool_label, mi);
 }
 
 void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value) {
@@ -1392,38 +1453,11 @@ void LiftoffAssembler::LoadReturnStackSlot(LiftoffRegister dst, int offset,
   liftoff::Load(this, dst, src, kind);
 }
 
-class CacheStatePreservingTempRegister {
- public:
-  explicit CacheStatePreservingTempRegister(LiftoffAssembler& assm)
-      : assm_(assm) {}
-
-  ~CacheStatePreservingTempRegister() {
-    if (must_pop_) assm_.Pop(reg_);
-  }
-
-  Register Get() {
-    DCHECK_EQ(reg_, no_reg);  // This implementation supports only one register.
-    if (assm_.cache_state()->has_unused_register(kGpReg)) {
-      reg_ = assm_.cache_state()->unused_register(kGpReg).gp();
-    } else {
-      reg_ = r0;
-      assm_.Push(reg_);
-      must_pop_ = true;
-    }
-    return reg_;
-  }
-
- private:
-  Register reg_ = no_reg;
-  LiftoffAssembler& assm_;
-  bool must_pop_ = false;
-};
-
 void LiftoffAssembler::MoveStackValue(uint32_t dst_offset, uint32_t src_offset,
                                       ValueKind kind) {
   DCHECK_NE(dst_offset, src_offset);
-  CacheStatePreservingTempRegister temp(*this);
-  Register scratch = temp.Get();
+  liftoff::CacheStatePreservingTempRegisters temps{this};
+  Register scratch = temps.Acquire();
   const int kRegSize = 4;
   DCHECK_EQ(0, SlotSizeForType(kind) % kRegSize);
   int words = SlotSizeForType(kind) / kRegSize;
@@ -1476,12 +1510,12 @@ void LiftoffAssembler::Spill(int offset, WasmValue value) {
   RecordUsedSpillOffset(offset);
   MemOperand dst = liftoff::GetStackSlot(offset);
   UseScratchRegisterScope assembler_temps(this);
-  CacheStatePreservingTempRegister liftoff_temp(*this);
+  liftoff::CacheStatePreservingTempRegisters liftoff_temps{this};
   Register src = no_reg;
   // The scratch register will be required by str if multiple instructions
   // are required to encode the offset, and so we cannot use it in that case.
   if (!ImmediateFitsAddrMode2Instruction(dst.offset())) {
-    src = liftoff_temp.Get();
+    src = liftoff_temps.Acquire();
   } else {
     src = assembler_temps.Acquire();
   }
@@ -2295,13 +2329,6 @@ void LiftoffAssembler::emit_i32_cond_jumpi(Condition cond, Label* label,
                                            const FreezeCacheState& frozen) {
   cmp(lhs, Operand(imm));
   b(label, cond);
-}
-
-void LiftoffAssembler::emit_i32_subi_jump_negative(
-    Register value, int subtrahend, Label* result_negative,
-    const FreezeCacheState& frozen) {
-  sub(value, value, Operand(subtrahend), SetCC);
-  b(result_negative, mi);
 }
 
 void LiftoffAssembler::emit_i32_eqz(Register dst, Register src) {
