@@ -2111,22 +2111,6 @@ TNode<IntPtrT> CodeStubAssembler::LoadMapInobjectPropertiesStartInWords(
       map, Map::kInobjectPropertiesStartOrConstructorFunctionIndexOffset));
 }
 
-TNode<IntPtrT> CodeStubAssembler::MapUsedInstanceSizeInWords(TNode<Map> map) {
-  TNode<IntPtrT> used_or_unused =
-      ChangeInt32ToIntPtr(LoadMapUsedOrUnusedInstanceSizeInWords(map));
-
-  return Select<IntPtrT>(
-      UintPtrGreaterThanOrEqual(used_or_unused,
-                                IntPtrConstant(JSObject::kFieldsAdded)),
-      [=] { return used_or_unused; },
-      [=] { return LoadMapInstanceSizeInWords(map); });
-}
-
-TNode<IntPtrT> CodeStubAssembler::MapUsedInObjectProperties(TNode<Map> map) {
-  return IntPtrSub(MapUsedInstanceSizeInWords(map),
-                   LoadMapInobjectPropertiesStartInWords(map));
-}
-
 TNode<IntPtrT> CodeStubAssembler::LoadMapConstructorFunctionIndex(
     TNode<Map> map) {
   // See Map::GetConstructorFunctionIndex() for details.
@@ -3128,19 +3112,6 @@ TNode<Map> CodeStubAssembler::LoadObjectFunctionInitialMap(
   TNode<JSFunction> object_function =
       CAST(LoadContextElement(native_context, Context::OBJECT_FUNCTION_INDEX));
   return CAST(LoadJSFunctionPrototypeOrInitialMap(object_function));
-}
-
-TNode<Map> CodeStubAssembler::LoadCachedMap(TNode<NativeContext> native_context,
-                                            TNode<IntPtrT> number_of_properties,
-                                            Label* runtime) {
-  CSA_DCHECK(this, UintPtrLessThan(number_of_properties,
-                                   IntPtrConstant(JSObject::kMapCacheSize)));
-  TNode<WeakFixedArray> cache =
-      CAST(LoadContextElement(native_context, Context::MAP_CACHE_INDEX));
-  TNode<MaybeObject> value =
-      LoadWeakFixedArrayElement(cache, number_of_properties, 0);
-  TNode<Map> result = CAST(GetHeapObjectAssumeWeak(value, runtime));
-  return result;
 }
 
 TNode<Map> CodeStubAssembler::LoadSlowObjectWithNullPrototypeMap(
@@ -4173,14 +4144,11 @@ void CodeStubAssembler::InitializeJSObjectFromMap(
     StoreObjectFieldNoWriteBarrier(object, JSObject::kElementsOffset,
                                    *elements);
   }
-  switch (slack_tracking_mode) {
-    case SlackTrackingMode::kDontInitializeInObjectProperties:
-      return;
-    case kNoSlackTracking:
-      return InitializeJSObjectBodyNoSlackTracking(object, map, instance_size);
-    case kWithSlackTracking:
-      return InitializeJSObjectBodyWithSlackTracking(object, map,
-                                                     instance_size);
+  if (slack_tracking_mode == kNoSlackTracking) {
+    InitializeJSObjectBodyNoSlackTracking(object, map, instance_size);
+  } else {
+    DCHECK_EQ(slack_tracking_mode, kWithSlackTracking);
+    InitializeJSObjectBodyWithSlackTracking(object, map, instance_size);
   }
 }
 

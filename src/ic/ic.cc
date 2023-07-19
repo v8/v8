@@ -3114,46 +3114,14 @@ RUNTIME_FUNCTION(Runtime_ElementsTransitionAndStoreIC_Miss) {
   }
 }
 
-namespace {
-
-enum class FastCloneObjectMode {
-  // The clone has the same map as the input.
-  kIdenticalMap,
-  // The clone is the empty object literal.
-  kEmptyObject,
-  // The clone has an empty object literal map.
-  kDifferentMap,
-  // The source map is to complicated to handle.
-  kNotSupported,
-};
-
-FastCloneObjectMode GetCloneModeForMap(Handle<Map> map, int flags,
-                                       Isolate* isolate) {
+static bool CanFastCloneObject(Handle<Map> map) {
   DisallowGarbageCollection no_gc;
-  if (flags & ObjectLiteral::kHasNullPrototype) {
-    return FastCloneObjectMode::kDifferentMap;
-  }
-  if (!map->IsJSObjectMap()) {
-    // Everything that produces the empty object literal can be supported since
-    // we have a special case for that.
-    return map->IsNullOrUndefinedMap() || map->IsBooleanMap() ||
-                   map->IsHeapNumberMap()
-               ? FastCloneObjectMode::kEmptyObject
-               : FastCloneObjectMode::kNotSupported;
-  }
-  if (!IsSmiOrObjectElementsKind(map->elements_kind()) ||
+  if (map->IsNullOrUndefinedMap()) return true;
+  if (!map->IsJSObjectMap() ||
+      !IsSmiOrObjectElementsKind(map->elements_kind()) ||
       !map->OnlyHasSimpleProperties()) {
-    return FastCloneObjectMode::kNotSupported;
+    return false;
   }
-
-  // The clone must always start from an object literal map and it must be an
-  // instance of the object function. Therefore only for these source maps we
-  // can use the source as the target map.
-  FastCloneObjectMode mode =
-      map->instance_type() == JS_OBJECT_TYPE &&
-              map->GetConstructor() == *isolate->object_function()
-          ? FastCloneObjectMode::kIdenticalMap
-          : FastCloneObjectMode::kDifferentMap;
 
   DescriptorArray descriptors = map->instance_descriptors();
   for (InternalIndex i : map->IterateOwnDescriptors()) {
@@ -3161,64 +3129,64 @@ FastCloneObjectMode GetCloneModeForMap(Handle<Map> map, int flags,
     Name key = descriptors.GetKey(i);
     if (details.kind() != PropertyKind::kData || !details.IsEnumerable() ||
         key.IsPrivateName()) {
-      return FastCloneObjectMode::kNotSupported;
-    }
-    if (!details.IsConfigurable() || details.IsReadOnly()) {
-      mode = FastCloneObjectMode::kDifferentMap;
-    }
-  }
-
-  return mode;
-}
-
-bool CanFastCloneObjectWithDifferentMaps(Handle<Map> source_map,
-                                         Handle<Map> target_map,
-                                         Isolate* isolate) {
-  DisallowGarbageCollection no_gc;
-  // TODO(olivf): Add support for non JS_OBJECT_TYPE source maps. The reason for
-  // this restriction is that the IC does not initialize the target object and
-  // instead relies on copying the source objects bytes. Thus they need to have
-  // the same binary layout.
-  if (source_map->instance_type() != JS_OBJECT_TYPE ||
-      target_map->instance_type() != JS_OBJECT_TYPE ||
-      source_map->instance_size() < target_map->instance_size()) {
-    return false;
-  }
-  if (target_map->instance_size() > source_map->instance_size()) {
-    return false;
-  }
-  // TODO(olivf, chrome:1204540) The clone ic blindly copies the bytes from
-  // source object to result object. Therefore it must be ensured that
-  // the both maps are in the same slack tracking state and the result map is
-  // always at least as generic in the element representations as the source.
-  // The former could be relieved by a slighly more clever obect initialization
-  // in the fast case. For the latter, since we currently do not have any way of
-  // ensuring this dependency we limit ourselves to the cases where nothing bad
-  // can happen, since the source is already as generic as possible.
-  if (source_map->IsInobjectSlackTrackingInProgress() ||
-      target_map->IsInobjectSlackTrackingInProgress()) {
-    // Only if they belong to the same root map we can ensure that they end
-    // slack tracking at the same time.
-    if (source_map->FindRootMap(isolate) != target_map->FindRootMap(isolate)) {
       return false;
     }
   }
-  DescriptorArray descriptors = source_map->instance_descriptors();
-  DescriptorArray target_descriptors = target_map->instance_descriptors();
-  for (InternalIndex i : target_map->IterateOwnDescriptors()) {
-    PropertyDetails details = descriptors.GetDetails(i);
-    PropertyDetails target_details = target_descriptors.GetDetails(i);
-    DCHECK_EQ(details.kind(), PropertyKind::kData);
-    DCHECK_EQ(target_details.kind(), PropertyKind::kData);
-    if (!details.representation().MostGenericInPlaceChange().Equals(
-            target_details.representation())) {
-      return false;
-    }
-  }
+
   return true;
 }
 
-}  // namespace
+static Handle<Map> FastCloneObjectMap(Isolate* isolate, Handle<Map> source_map,
+                                      int flags) {
+  SLOW_DCHECK(CanFastCloneObject(source_map));
+  Handle<JSFunction> constructor(isolate->native_context()->object_function(),
+                                 isolate);
+  DCHECK(constructor->has_initial_map());
+  Handle<Map> initial_map(constructor->initial_map(), isolate);
+  Handle<Map> map = initial_map;
+
+  if (source_map->IsJSObjectMap() && source_map->GetInObjectProperties() !=
+                                         initial_map->GetInObjectProperties()) {
+    int inobject_properties = source_map->GetInObjectProperties();
+    int instance_size =
+        JSObject::kHeaderSize + kTaggedSize * inobject_properties;
+    int unused = source_map->UnusedInObjectProperties();
+    DCHECK(instance_size <= JSObject::kMaxInstanceSize);
+    map = Map::CopyInitialMap(isolate, map, instance_size, inobject_properties,
+                              unused);
+  }
+
+  if (flags & ObjectLiteral::kHasNullPrototype) {
+    if (map.is_identical_to(initial_map)) {
+      map = Map::Copy(isolate, map, "ObjectWithNullProto");
+    }
+    Map::SetPrototype(isolate, map, isolate->factory()->null_value());
+  }
+
+  if (source_map->NumberOfOwnDescriptors() == 0) {
+    return map;
+  }
+  DCHECK(!source_map->IsNullOrUndefinedMap());
+
+  if (map.is_identical_to(initial_map)) {
+    map = Map::Copy(isolate, map, "InitializeClonedDescriptors");
+  }
+
+  Handle<DescriptorArray> source_descriptors(
+      source_map->instance_descriptors(isolate), isolate);
+  int size = source_map->NumberOfOwnDescriptors();
+  int slack = 0;
+  Handle<DescriptorArray> descriptors = DescriptorArray::CopyForFastObjectClone(
+      isolate, source_descriptors, size, slack);
+  map->InitializeDescriptors(isolate, *descriptors);
+  map->CopyUnusedPropertyFieldsAdjustedForInstanceSize(*source_map);
+
+  // Update bitfields
+  map->set_may_have_interesting_properties(
+      source_map->may_have_interesting_properties());
+
+  return map;
+}
 
 static MaybeHandle<JSObject> CloneObjectSlowPath(Isolate* isolate,
                                                  Handle<Object> source,
@@ -3226,17 +3194,6 @@ static MaybeHandle<JSObject> CloneObjectSlowPath(Isolate* isolate,
   Handle<JSObject> new_object;
   if (flags & ObjectLiteral::kHasNullPrototype) {
     new_object = isolate->factory()->NewJSObjectWithNullProto();
-  } else if (source->IsJSObject() &&
-             JSObject::cast(*source).map().OnlyHasSimpleProperties()) {
-    Map source_map = JSObject::cast(*source).map();
-    // TODO(olivf, chrome:1204540) It might be interesting to pick a map with
-    // more properties, depending how many properties are added by the
-    // surrounding literal.
-    int properties = source_map.GetInObjectProperties() -
-                     source_map.UnusedInObjectProperties();
-    Handle<Map> map = isolate->factory()->ObjectLiteralMapFromCache(
-        isolate->native_context(), properties);
-    new_object = isolate->factory()->NewJSObjectFromMap(map);
   } else {
     Handle<JSFunction> constructor(isolate->native_context()->object_function(),
                                    isolate);
@@ -3255,15 +3212,6 @@ static MaybeHandle<JSObject> CloneObjectSlowPath(Isolate* isolate,
   return new_object;
 }
 
-RUNTIME_FUNCTION(Runtime_CloneObjectIC_Slow) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
-  Handle<Object> source = args.at(0);
-  int flags = args.smi_value_at(1);
-  RETURN_RESULT_OR_FAILURE(isolate,
-                           CloneObjectSlowPath(isolate, source, flags));
-}
-
 RUNTIME_FUNCTION(Runtime_CloneObjectIC_Miss) {
   HandleScope scope(isolate);
   DCHECK_EQ(4, args.length());
@@ -3271,49 +3219,21 @@ RUNTIME_FUNCTION(Runtime_CloneObjectIC_Miss) {
   int flags = args.smi_value_at(1);
 
   if (!MigrateDeprecated(isolate, source)) {
+    int index = args.tagged_index_value_at(2);
+    FeedbackSlot slot = FeedbackVector::ToSlot(index);
     Handle<HeapObject> maybe_vector = args.at<HeapObject>(3);
     if (maybe_vector->IsFeedbackVector()) {
-      int index = args.tagged_index_value_at(2);
-      FeedbackSlot slot = FeedbackVector::ToSlot(index);
       FeedbackNexus nexus(Handle<FeedbackVector>::cast(maybe_vector), slot);
       if (!source->IsSmi() && !nexus.IsMegamorphic()) {
         Handle<Map> source_map(Handle<HeapObject>::cast(source)->map(),
                                isolate);
-        FastCloneObjectMode clone_mode =
-            GetCloneModeForMap(source_map, flags, isolate);
-        switch (clone_mode) {
-          case FastCloneObjectMode::kIdenticalMap: {
-            nexus.ConfigureCloneObject(source_map,
-                                       MaybeObjectHandle(source_map));
-            // When returning a map the IC miss handler re-starts from the top.
-            return *source_map;
-          }
-          case FastCloneObjectMode::kEmptyObject: {
-            nexus.ConfigureCloneObject(source_map,
-                                       MaybeObjectHandle(Smi(0), isolate));
-            RETURN_RESULT_OR_FAILURE(
-                isolate, CloneObjectSlowPath(isolate, source, flags));
-          }
-          case FastCloneObjectMode::kDifferentMap: {
-            Handle<Object> res;
-            ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-                isolate, res, CloneObjectSlowPath(isolate, source, flags));
-            Handle<Map> result_map(Handle<HeapObject>::cast(res)->map(),
-                                   isolate);
-            if (CanFastCloneObjectWithDifferentMaps(source_map, result_map,
-                                                    isolate)) {
-              nexus.ConfigureCloneObject(source_map,
-                                         MaybeObjectHandle(result_map));
-            } else {
-              nexus.ConfigureMegamorphic();
-            }
-            return *res;
-          }
-          case FastCloneObjectMode::kNotSupported: {
-            break;
-          }
+        if (CanFastCloneObject(source_map)) {
+          Handle<Map> target_map =
+              FastCloneObjectMap(isolate, source_map, flags);
+          nexus.ConfigureCloneObject(source_map, target_map);
+          return *target_map;
         }
-        DCHECK(clone_mode == FastCloneObjectMode::kNotSupported);
+
         nexus.ConfigureMegamorphic();
       }
     }

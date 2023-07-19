@@ -4946,42 +4946,14 @@ void AccessorAssembler::GenerateCloneObjectIC_Slow() {
   auto flags = Parameter<Smi>(Descriptor::kFlags);
   auto context = Parameter<Context>(Descriptor::kContext);
 
-  // The CloneObjectIC_Slow implementation uses the same call interface as
-  // CloneObjectIC, so that it can be tail called from it. However, the feedback
-  // slot and vector are not used.
+  // The Slow case uses the same call interface as CloneObjectIC, so that it
+  // can be tail called from it. However, the feedback slot and vector are not
+  // used.
 
-  // First try a fast case where we copy the properties with a CSA loop.
-  Label try_fast_case(this), call_runtime(this, Label::kDeferred);
-
-  // For SMIs and non JSObjects we use 0 in object properties.
-  TVARIABLE(IntPtrT, number_of_properties, IntPtrConstant(0));
-  GotoIf(TaggedIsSmi(source), &try_fast_case);
-  {
-    TNode<Map> source_map = LoadMap(CAST(source));
-    // We still want to stay in the semi-fast case for oddballs, strings,
-    // proxies and such. Therefore we continue here, but using 0 in object
-    // properties.
-    GotoIfNot(IsJSObjectMap(source_map), &try_fast_case);
-
-    // At this point we don't know yet if ForEachEnumerableOwnProperty can
-    // handle the source object. In case it is a dictionary mode object or has
-    // non simple properties the latter will bail to `runtime_copy`. For code
-    // compactness we don't check it here, assuming that the number of in-object
-    // properties is set to 0 (or a reasonable value).
-    number_of_properties = MapUsedInObjectProperties(source_map);
-    GotoIf(IntPtrGreaterThanOrEqual(number_of_properties.value(),
-                                    IntPtrConstant(JSObject::kMapCacheSize)),
-           &call_runtime);
-  }
-  Goto(&try_fast_case);
-
-  BIND(&try_fast_case);
   TNode<NativeContext> native_context = LoadNativeContext(context);
-  TNode<Map> initial_map = LoadCachedMap(
-      native_context, number_of_properties.value(), &call_runtime);
+  TNode<Map> initial_map = LoadObjectFunctionInitialMap(native_context);
   TNode<JSObject> result = AllocateJSObjectFromMap(initial_map);
 
-  // Handle the case where the object literal overrides the prototype.
   {
     Label did_set_proto_if_needed(this);
     TNode<BoolT> is_null_proto = SmiNotEqual(
@@ -4996,37 +4968,29 @@ void AccessorAssembler::GenerateCloneObjectIC_Slow() {
     BIND(&did_set_proto_if_needed);
   }
 
-  // Early return for when we know there are no properties.
-  ReturnIf(TaggedIsSmi(source), result);
   ReturnIf(IsNullOrUndefined(source), result);
+  source = ToObject_Inline(context, source);
 
-  Label runtime_copy(this, Label::kDeferred);
+  Label call_runtime(this, Label::kDeferred), done(this);
 
   TNode<Map> source_map = LoadMap(CAST(source));
-  GotoIfNot(IsJSObjectMap(source_map), &runtime_copy);
-  // Takes care of objects with elements.
-  GotoIfNot(IsEmptyFixedArray(LoadElements(CAST(source))), &runtime_copy);
+  GotoIfNot(IsJSObjectMap(source_map), &call_runtime);
+  GotoIfNot(IsEmptyFixedArray(LoadElements(CAST(source))), &call_runtime);
 
-  // TODO(olivf, chrome:1204540) This can still be several times slower than the
-  // Babel translation. TF uses FastGetOwnValuesOrEntries -- should we do sth
-  // similar here?
   ForEachEnumerableOwnProperty(
       context, source_map, CAST(source), kPropertyAdditionOrder,
       [=](TNode<Name> key, TNode<Object> value) {
         CreateDataProperty(context, result, key, value);
       },
-      &runtime_copy);
-  Return(result);
+      &call_runtime);
+  Goto(&done);
 
-  // This is the fall-back case for the above fastcase, where we allocated an
-  // object, but failed to copy the properties in CSA.
-  BIND(&runtime_copy);
-  CallRuntime(Runtime::kCopyDataProperties, context, result, source);
-  Return(result);
-
-  // Final fallback is to call into the runtime version.
   BIND(&call_runtime);
-  Return(CallRuntime(Runtime::kCloneObjectIC_Slow, context, source, flags));
+  CallRuntime(Runtime::kCopyDataProperties, context, result, source);
+
+  Goto(&done);
+  BIND(&done);
+  Return(result);
 }
 
 void AccessorAssembler::GenerateCloneObjectICBaseline() {
@@ -5050,9 +5014,9 @@ void AccessorAssembler::GenerateCloneObjectIC() {
   auto slot = Parameter<TaggedIndex>(Descriptor::kSlot);
   auto maybe_vector = Parameter<HeapObject>(Descriptor::kVector);
   auto context = Parameter<Context>(Descriptor::kContext);
-  TVARIABLE(Map, result_map);
-  Label if_result_map(this, &result_map), if_empty_object(this),
-      miss(this, Label::kDeferred), try_polymorphic(this, Label::kDeferred),
+  TVARIABLE(MaybeObject, var_handler);
+  Label if_handler(this, &var_handler), miss(this, Label::kDeferred),
+      try_polymorphic(this, Label::kDeferred),
       try_megamorphic(this, Label::kDeferred), slow(this, Label::kDeferred);
 
   TNode<Map> source_map = LoadReceiverMap(source);
@@ -5060,68 +5024,25 @@ void AccessorAssembler::GenerateCloneObjectIC() {
 
   GotoIf(IsUndefined(maybe_vector), &slow);
 
-  TNode<HeapObjectReference> feedback;
   TNode<HeapObjectReference> weak_source_map = MakeWeak(source_map);
+  TNode<HeapObjectReference> feedback =
+      TryMonomorphicCase(slot, CAST(maybe_vector), weak_source_map, &if_handler,
+                         &var_handler, &try_polymorphic);
 
-  // Decide if monomorphic or polymorphic, then dispatch based on the handler.
+  BIND(&if_handler);
   {
-    TVARIABLE(MaybeObject, var_handler);
-    Label if_handler(this, &var_handler);
-    feedback = TryMonomorphicCase(slot, CAST(maybe_vector), weak_source_map,
-                                  &if_handler, &var_handler, &try_polymorphic);
-
-    BIND(&if_handler);
     Comment("CloneObjectIC_if_handler");
-
-    // When the result of cloning the object is an empty object literal we store
-    // a Smi into the feedback.
-    GotoIf(TaggedIsSmi(var_handler.value()), &if_empty_object);
 
     // Handlers for the CloneObjectIC stub are weak references to the Map of
     // a result object.
-    result_map = CAST(GetHeapObjectAssumeWeak(var_handler.value(), &miss));
-    Goto(&if_result_map);
-
-    BIND(&try_polymorphic);
-    TNode<HeapObject> strong_feedback = GetHeapObjectIfStrong(feedback, &miss);
-    {
-      Comment("CloneObjectIC_try_polymorphic");
-      GotoIfNot(IsWeakFixedArrayMap(LoadMap(strong_feedback)),
-                &try_megamorphic);
-      HandlePolymorphicCase(weak_source_map, CAST(strong_feedback), &if_handler,
-                            &var_handler, &miss);
-    }
-
-    BIND(&try_megamorphic);
-    {
-      Comment("CloneObjectIC_try_megamorphic");
-      CSA_DCHECK(
-          this,
-          Word32Or(TaggedEqual(strong_feedback, UninitializedSymbolConstant()),
-                   TaggedEqual(strong_feedback, MegamorphicSymbolConstant())));
-      GotoIfNot(TaggedEqual(strong_feedback, MegamorphicSymbolConstant()),
-                &miss);
-      Goto(&slow);
-    }
-  }
-
-  // Cloning with a concrete result_map.
-  {
-    BIND(&if_result_map);
-    Comment("CloneObjectIC_if_result_map");
-
-    // Next to the trivial case above the IC supports only JSObjects.
-    // TODO(olivf): To support JSObjects other than JS_OBJECT_TYPE we need to
-    // initialize the the in-object properties below in
-    // `AllocateJSObjectFromMap`.
-    CSA_DCHECK(this, InstanceTypeEqual(LoadMapInstanceType(source_map),
-                                       JS_OBJECT_TYPE));
-    CSA_DCHECK(this, IsStrong(result_map.value()));
-    CSA_DCHECK(this, InstanceTypeEqual(LoadMapInstanceType(result_map.value()),
-                                       JS_OBJECT_TYPE));
-
+    TNode<Map> result_map = CAST(var_handler.value());
     TVARIABLE(HeapObject, var_properties, EmptyFixedArrayConstant());
     TVARIABLE(FixedArray, var_elements, EmptyFixedArrayConstant());
+
+    Label allocate_object(this);
+    GotoIf(IsNullOrUndefined(source), &allocate_object);
+    CSA_SLOW_DCHECK(this, IsJSObjectMap(source_map));
+    CSA_SLOW_DCHECK(this, IsJSObjectMap(result_map));
 
     // The IC fast case should only be taken if the result map a compatible
     // elements kind with the source object.
@@ -5130,7 +5051,6 @@ void AccessorAssembler::GenerateCloneObjectIC() {
     auto flag = ExtractFixedArrayFlag::kAllFixedArraysDontCopyCOW;
     var_elements = CAST(CloneFixedArray(source_elements, flag));
 
-    Label allocate_object(this);
     // Copy the PropertyArray backing store. The source PropertyArray must be
     // either an Smi, or a PropertyArray.
     // FIXME: Make a CSA macro for this
@@ -5155,43 +5075,29 @@ void AccessorAssembler::GenerateCloneObjectIC() {
 
     Goto(&allocate_object);
     BIND(&allocate_object);
-
-    // Both maps need to be in the same slack tracking state or the unused
-    // fields will be wrongly initialized.
-    static_assert(Map::kNoSlackTracking == 0);
-    CSA_DCHECK(this,
-               Word32Equal(IsSetWord32<Map::Bits3::ConstructionCounterBits>(
-                               LoadMapBitField3(source_map)),
-                           IsSetWord32<Map::Bits3::ConstructionCounterBits>(
-                               LoadMapBitField3(result_map.value()))));
     TNode<JSObject> object = UncheckedCast<JSObject>(AllocateJSObjectFromMap(
-        result_map.value(), var_properties.value(), var_elements.value(),
-        AllocationFlag::kNone,
-        SlackTrackingMode::kDontInitializeInObjectProperties));
+        result_map, var_properties.value(), var_elements.value()));
+    ReturnIf(IsNullOrUndefined(source), object);
 
     // Lastly, clone any in-object properties.
     TNode<IntPtrT> source_start =
         LoadMapInobjectPropertiesStartInWords(source_map);
-    TNode<IntPtrT> result_start =
-        LoadMapInobjectPropertiesStartInWords(result_map.value());
-    TNode<IntPtrT> result_size = LoadMapInstanceSizeInWords(result_map.value());
-#ifdef DEBUG
     TNode<IntPtrT> source_size = LoadMapInstanceSizeInWords(source_map);
-    CSA_DCHECK(this, IntPtrGreaterThanOrEqual(source_size, result_size));
-#endif
+    TNode<IntPtrT> result_start =
+        LoadMapInobjectPropertiesStartInWords(result_map);
     TNode<IntPtrT> field_offset_difference =
         TimesTaggedSize(IntPtrSub(result_start, source_start));
 
     // Just copy the fields as raw data (pretending that there are no mutable
     // HeapNumbers). This doesn't need write barriers.
     BuildFastLoop<IntPtrT>(
-        result_start, result_size,
+        source_start, source_size,
         [=](TNode<IntPtrT> field_index) {
           TNode<IntPtrT> field_offset = TimesTaggedSize(field_index);
           TNode<TaggedT> field =
               LoadObjectField<TaggedT>(CAST(source), field_offset);
           TNode<IntPtrT> result_offset =
-              IntPtrSub(field_offset, field_offset_difference);
+              IntPtrAdd(field_offset, field_offset_difference);
           StoreObjectFieldNoWriteBarrier(object, result_offset, field);
         },
         1, LoopUnrollingMode::kYes, IndexAdvanceMode::kPost);
@@ -5202,23 +5108,31 @@ void AccessorAssembler::GenerateCloneObjectIC() {
     // double fields.
     TNode<IntPtrT> start_offset = TimesTaggedSize(result_start);
     TNode<IntPtrT> end_offset =
-        IntPtrAdd(TimesTaggedSize(result_size), field_offset_difference);
+        IntPtrAdd(TimesTaggedSize(source_size), field_offset_difference);
     ConstructorBuiltinsAssembler(state()).CopyMutableHeapNumbersInObject(
         object, start_offset, end_offset);
 
     Return(object);
   }
 
-  // Case for when the result is the empty object literal. Can't be shared with
-  // the above since we must initialize the in-object properties.
+  BIND(&try_polymorphic);
+  TNode<HeapObject> strong_feedback = GetHeapObjectIfStrong(feedback, &miss);
   {
-    BIND(&if_empty_object);
-    Comment("CloneObjectIC_if_empty_object");
-    TNode<NativeContext> native_context = LoadNativeContext(context);
-    TNode<Map> initial_map = LoadObjectFunctionInitialMap(native_context);
-    TNode<JSObject> object =
-        UncheckedCast<JSObject>(AllocateJSObjectFromMap(initial_map, {}, {}));
-    Return(object);
+    Comment("CloneObjectIC_try_polymorphic");
+    GotoIfNot(IsWeakFixedArrayMap(LoadMap(strong_feedback)), &try_megamorphic);
+    HandlePolymorphicCase(weak_source_map, CAST(strong_feedback), &if_handler,
+                          &var_handler, &miss);
+  }
+
+  BIND(&try_megamorphic);
+  {
+    Comment("CloneObjectIC_try_megamorphic");
+    CSA_DCHECK(
+        this,
+        Word32Or(TaggedEqual(strong_feedback, UninitializedSymbolConstant()),
+                 TaggedEqual(strong_feedback, MegamorphicSymbolConstant())));
+    GotoIfNot(TaggedEqual(strong_feedback, MegamorphicSymbolConstant()), &miss);
+    Goto(&slow);
   }
 
   BIND(&slow);
@@ -5233,14 +5147,10 @@ void AccessorAssembler::GenerateCloneObjectIC() {
     TNode<HeapObject> map_or_result =
         CAST(CallRuntime(Runtime::kCloneObjectIC_Miss, context, source, flags,
                          slot, maybe_vector));
-    Label restart(this);
-    GotoIf(IsMap(map_or_result), &restart);
+    var_handler = UncheckedCast<MaybeObject>(map_or_result);
+    GotoIf(IsMap(map_or_result), &if_handler);
     CSA_DCHECK(this, IsJSObject(map_or_result));
     Return(map_or_result);
-
-    BIND(&restart);
-    result_map = CAST(map_or_result);
-    Goto(&if_result_map);
   }
 }
 
