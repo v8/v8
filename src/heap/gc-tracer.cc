@@ -9,6 +9,8 @@
 #include "include/v8-metrics.h"
 #include "src/base/atomic-utils.h"
 #include "src/base/logging.h"
+#include "src/base/optional.h"
+#include "src/base/platform/time.h"
 #include "src/base/strings.h"
 #include "src/common/globals.h"
 #include "src/execution/thread-id.h"
@@ -40,11 +42,30 @@ static size_t CountTotalHolesSize(Heap* heap) {
 }
 
 namespace {
+
 std::atomic<CollectionEpoch> global_epoch{0};
 
 CollectionEpoch next_epoch() {
   return global_epoch.fetch_add(1, std::memory_order_relaxed) + 1;
 }
+
+using BytesAndDuration = ::heap::base::BytesAndDuration;
+
+double BoundedAverageSpeed(
+    const base::RingBuffer<BytesAndDuration>& buffer,
+    const BytesAndDuration& initial,
+    v8::base::Optional<v8::base::TimeDelta> selected_duration) {
+  constexpr size_t kMinNonEmptySpeedInBytesPerMs = 1;
+  constexpr size_t kMaxSpeedInBytesPerMs = GB;
+  return ::heap::base::AverageSpeed(buffer, initial, selected_duration,
+                                    kMinNonEmptySpeedInBytesPerMs,
+                                    kMaxSpeedInBytesPerMs);
+}
+
+double BoundedAverageSpeed(const base::RingBuffer<BytesAndDuration>& buffer) {
+  return BoundedAverageSpeed(buffer, BytesAndDuration(), base::nullopt);
+}
+
 }  // namespace
 
 GCTracer::Event::Event(Type type, State state,
@@ -221,15 +242,15 @@ void GCTracer::ResetForTesting() {
   new_space_allocation_in_bytes_since_gc_ = 0.0;
   old_generation_allocation_in_bytes_since_gc_ = 0.0;
   combined_mark_compact_speed_cache_ = 0.0;
-  recorded_minor_gcs_total_.Reset();
-  recorded_minor_gcs_survived_.Reset();
-  recorded_compactions_.Reset();
-  recorded_mark_compacts_.Reset();
-  recorded_incremental_mark_compacts_.Reset();
-  recorded_new_generation_allocations_.Reset();
-  recorded_old_generation_allocations_.Reset();
-  recorded_embedder_generation_allocations_.Reset();
-  recorded_survival_ratios_.Reset();
+  recorded_minor_gcs_total_.Clear();
+  recorded_minor_gcs_survived_.Clear();
+  recorded_compactions_.Clear();
+  recorded_mark_compacts_.Clear();
+  recorded_incremental_mark_compacts_.Clear();
+  recorded_new_generation_allocations_.Clear();
+  recorded_old_generation_allocations_.Clear();
+  recorded_embedder_generation_allocations_.Clear();
+  recorded_survival_ratios_.Clear();
   start_counter_ = 0;
   average_mutator_duration_ = 0;
   average_mark_compact_duration_ = 0;
@@ -384,25 +405,26 @@ void GCTracer::UpdateStatistics(GarbageCollector collector) {
   AddAllocation(current_.end_time);
 
   double duration = current_.end_time - current_.start_time;
+  const auto duration_delta = base::TimeDelta::FromMillisecondsD(duration);
   int64_t duration_us =
       static_cast<int64_t>(duration * base::Time::kMicrosecondsPerMillisecond);
   auto* long_task_stats = heap_->isolate()->GetCurrentLongTaskStats();
 
   if (is_young) {
     recorded_minor_gcs_total_.Push(
-        MakeBytesAndDuration(current_.young_object_size, duration));
+        BytesAndDuration(current_.young_object_size, duration_delta));
     recorded_minor_gcs_survived_.Push(
-        MakeBytesAndDuration(current_.survived_young_object_size, duration));
+        BytesAndDuration(current_.survived_young_object_size, duration_delta));
     long_task_stats->gc_young_wall_clock_duration_us += duration_us;
   } else {
     if (current_.type == Event::INCREMENTAL_MARK_COMPACTOR) {
       RecordIncrementalMarkingSpeed(incremental_marking_bytes_,
                                     incremental_marking_duration_);
       recorded_incremental_mark_compacts_.Push(
-          MakeBytesAndDuration(current_.end_object_size, duration));
+          BytesAndDuration(current_.end_object_size, duration_delta));
     } else {
       recorded_mark_compacts_.Push(
-          MakeBytesAndDuration(current_.end_object_size, duration));
+          BytesAndDuration(current_.end_object_size, duration_delta));
     }
     RecordMutatorUtilization(current_.end_time,
                              duration + incremental_marking_duration_);
@@ -715,14 +737,14 @@ uint16_t GCTracer::CodeFlushingIncrease() { return code_flushing_increase_; }
 void GCTracer::AddAllocation(double current_ms) {
   allocation_time_ms_ = current_ms;
   if (allocation_duration_since_gc_ > 0) {
-    recorded_new_generation_allocations_.Push(
-        MakeBytesAndDuration(new_space_allocation_in_bytes_since_gc_,
-                             allocation_duration_since_gc_));
-    recorded_old_generation_allocations_.Push(
-        MakeBytesAndDuration(old_generation_allocation_in_bytes_since_gc_,
-                             allocation_duration_since_gc_));
-    recorded_embedder_generation_allocations_.Push(MakeBytesAndDuration(
-        embedder_allocation_in_bytes_since_gc_, allocation_duration_since_gc_));
+    const auto duration_since_gc =
+        base::TimeDelta::FromMillisecondsD(allocation_duration_since_gc_);
+    recorded_new_generation_allocations_.Push(BytesAndDuration(
+        new_space_allocation_in_bytes_since_gc_, duration_since_gc));
+    recorded_old_generation_allocations_.Push(BytesAndDuration(
+        old_generation_allocation_in_bytes_since_gc_, duration_since_gc));
+    recorded_embedder_generation_allocations_.Push(BytesAndDuration(
+        embedder_allocation_in_bytes_since_gc_, duration_since_gc));
   }
   allocation_duration_since_gc_ = 0;
   new_space_allocation_in_bytes_since_gc_ = 0;
@@ -732,8 +754,8 @@ void GCTracer::AddAllocation(double current_ms) {
 
 void GCTracer::AddCompactionEvent(double duration,
                                   size_t live_bytes_compacted) {
-  recorded_compactions_.Push(
-      MakeBytesAndDuration(live_bytes_compacted, duration));
+  recorded_compactions_.Push(BytesAndDuration(
+      live_bytes_compacted, base::TimeDelta::FromMillisecondsD(duration)));
 }
 
 void GCTracer::AddSurvivalRatio(double promotion_ratio) {
@@ -1193,30 +1215,6 @@ void GCTracer::PrintNVP() const {
   }
 }
 
-double GCTracer::AverageSpeed(const base::RingBuffer<BytesAndDuration>& buffer,
-                              const BytesAndDuration& initial, double time_ms) {
-  BytesAndDuration sum = buffer.Sum(
-      [time_ms](BytesAndDuration a, BytesAndDuration b) {
-        if (time_ms != 0 && a.second >= time_ms) return a;
-        return std::make_pair(a.first + b.first, a.second + b.second);
-      },
-      initial);
-  uint64_t bytes = sum.first;
-  double durations = sum.second;
-  if (durations == 0.0) return 0;
-  double speed = bytes / durations;
-  const int max_speed = 1024 * MB;
-  const int min_speed = 1;
-  if (speed >= max_speed) return max_speed;
-  if (speed <= min_speed) return min_speed;
-  return speed;
-}
-
-double GCTracer::AverageSpeed(
-    const base::RingBuffer<BytesAndDuration>& buffer) {
-  return AverageSpeed(buffer, MakeBytesAndDuration(0, 0), 0);
-}
-
 void GCTracer::RecordIncrementalMarkingSpeed(size_t bytes, double duration) {
   if (duration == 0 || bytes == 0) return;
   double current_speed = bytes / duration;
@@ -1307,22 +1305,22 @@ double GCTracer::EmbedderSpeedInBytesPerMillisecond() const {
 double GCTracer::ScavengeSpeedInBytesPerMillisecond(
     ScavengeSpeedMode mode) const {
   if (mode == kForAllObjects) {
-    return AverageSpeed(recorded_minor_gcs_total_);
+    return BoundedAverageSpeed(recorded_minor_gcs_total_);
   } else {
-    return AverageSpeed(recorded_minor_gcs_survived_);
+    return BoundedAverageSpeed(recorded_minor_gcs_survived_);
   }
 }
 
 double GCTracer::CompactionSpeedInBytesPerMillisecond() const {
-  return AverageSpeed(recorded_compactions_);
+  return BoundedAverageSpeed(recorded_compactions_);
 }
 
 double GCTracer::MarkCompactSpeedInBytesPerMillisecond() const {
-  return AverageSpeed(recorded_mark_compacts_);
+  return BoundedAverageSpeed(recorded_mark_compacts_);
 }
 
 double GCTracer::FinalIncrementalMarkCompactSpeedInBytesPerMillisecond() const {
-  return AverageSpeed(recorded_incremental_mark_compacts_);
+  return BoundedAverageSpeed(recorded_incremental_mark_compacts_);
 }
 
 double GCTracer::CombinedMarkCompactSpeedInBytesPerMillisecond() {
@@ -1360,63 +1358,71 @@ double GCTracer::CombineSpeedsInBytesPerMillisecond(double default_speed,
 }
 
 double GCTracer::NewSpaceAllocationThroughputInBytesPerMillisecond(
-    double time_ms) const {
-  size_t bytes = new_space_allocation_in_bytes_since_gc_;
-  double durations = allocation_duration_since_gc_;
-  return AverageSpeed(recorded_new_generation_allocations_,
-                      MakeBytesAndDuration(bytes, durations), time_ms);
+    base::Optional<base::TimeDelta> selected_duration) const {
+  return BoundedAverageSpeed(
+      recorded_new_generation_allocations_,
+      BytesAndDuration(
+          new_space_allocation_in_bytes_since_gc_,
+          base::TimeDelta::FromMillisecondsD(allocation_duration_since_gc_)),
+      selected_duration);
 }
 
 double GCTracer::OldGenerationAllocationThroughputInBytesPerMillisecond(
-    double time_ms) const {
-  size_t bytes = old_generation_allocation_in_bytes_since_gc_;
-  double durations = allocation_duration_since_gc_;
-  return AverageSpeed(recorded_old_generation_allocations_,
-                      MakeBytesAndDuration(bytes, durations), time_ms);
+    base::Optional<base::TimeDelta> selected_duration) const {
+  return BoundedAverageSpeed(
+      recorded_old_generation_allocations_,
+      BytesAndDuration(
+          old_generation_allocation_in_bytes_since_gc_,
+          base::TimeDelta::FromMillisecondsD(allocation_duration_since_gc_)),
+      selected_duration);
 }
 
 double GCTracer::EmbedderAllocationThroughputInBytesPerMillisecond(
-    double time_ms) const {
-  size_t bytes = embedder_allocation_in_bytes_since_gc_;
-  double durations = allocation_duration_since_gc_;
-  return AverageSpeed(recorded_embedder_generation_allocations_,
-                      MakeBytesAndDuration(bytes, durations), time_ms);
+    base::Optional<base::TimeDelta> selected_duration) const {
+  return BoundedAverageSpeed(
+      recorded_embedder_generation_allocations_,
+      BytesAndDuration(
+          embedder_allocation_in_bytes_since_gc_,
+          base::TimeDelta::FromMillisecondsD(allocation_duration_since_gc_)),
+      selected_duration);
 }
 
 double GCTracer::AllocationThroughputInBytesPerMillisecond(
-    double time_ms) const {
-  return NewSpaceAllocationThroughputInBytesPerMillisecond(time_ms) +
-         OldGenerationAllocationThroughputInBytesPerMillisecond(time_ms);
+    base::Optional<base::TimeDelta> selected_duration) const {
+  return NewSpaceAllocationThroughputInBytesPerMillisecond(selected_duration) +
+         OldGenerationAllocationThroughputInBytesPerMillisecond(
+             selected_duration);
 }
 
 double GCTracer::CurrentAllocationThroughputInBytesPerMillisecond() const {
-  return AllocationThroughputInBytesPerMillisecond(kThroughputTimeFrameMs);
+  return AllocationThroughputInBytesPerMillisecond(
+      base::TimeDelta::FromMilliseconds(kThroughputTimeFrameMs));
 }
 
 double GCTracer::CurrentOldGenerationAllocationThroughputInBytesPerMillisecond()
     const {
   return OldGenerationAllocationThroughputInBytesPerMillisecond(
-      kThroughputTimeFrameMs);
+      base::TimeDelta::FromMilliseconds(kThroughputTimeFrameMs));
 }
 
 double GCTracer::CurrentEmbedderAllocationThroughputInBytesPerMillisecond()
     const {
   return EmbedderAllocationThroughputInBytesPerMillisecond(
-      kThroughputTimeFrameMs);
+      base::TimeDelta::FromMilliseconds(kThroughputTimeFrameMs));
 }
 
 double GCTracer::AverageSurvivalRatio() const {
-  if (recorded_survival_ratios_.Count() == 0) return 0.0;
-  double sum = recorded_survival_ratios_.Sum(
+  if (recorded_survival_ratios_.Empty()) return 0.0;
+  double sum = recorded_survival_ratios_.Reduce(
       [](double a, double b) { return a + b; }, 0.0);
-  return sum / recorded_survival_ratios_.Count();
+  return sum / recorded_survival_ratios_.Size();
 }
 
 bool GCTracer::SurvivalEventsRecorded() const {
-  return recorded_survival_ratios_.Count() > 0;
+  return !recorded_survival_ratios_.Empty();
 }
 
-void GCTracer::ResetSurvivalEvents() { recorded_survival_ratios_.Reset(); }
+void GCTracer::ResetSurvivalEvents() { recorded_survival_ratios_.Clear(); }
 
 void GCTracer::NotifyIncrementalMarkingStart() {
   incremental_marking_start_time_ = MonotonicallyIncreasingTimeInMs();

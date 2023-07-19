@@ -14,44 +14,9 @@
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 using GCTracerTest = TestWithContext;
-
-TEST(GCTracer, AverageSpeed) {
-  base::RingBuffer<BytesAndDuration> buffer;
-  EXPECT_EQ(100 / 2,
-            GCTracer::AverageSpeed(buffer, MakeBytesAndDuration(100, 2), 0));
-  buffer.Push(MakeBytesAndDuration(100, 8));
-  EXPECT_EQ(100 / 2,
-            GCTracer::AverageSpeed(buffer, MakeBytesAndDuration(100, 2), 2));
-  EXPECT_EQ(200 / 10,
-            GCTracer::AverageSpeed(buffer, MakeBytesAndDuration(100, 2), 3));
-  const int max_speed = 1024 * MB;
-  buffer.Reset();
-  buffer.Push(MakeBytesAndDuration(max_speed, 0.5));
-  EXPECT_EQ(max_speed,
-            GCTracer::AverageSpeed(buffer, MakeBytesAndDuration(0, 0), 1));
-  const int min_speed = 1;
-  buffer.Reset();
-  buffer.Push(MakeBytesAndDuration(1, 10000));
-  EXPECT_EQ(min_speed,
-            GCTracer::AverageSpeed(buffer, MakeBytesAndDuration(0, 0), 1));
-  buffer.Reset();
-  int sum = 0;
-  for (int i = 0; i < buffer.kSize; i++) {
-    sum += i + 1;
-    buffer.Push(MakeBytesAndDuration(i + 1, 1));
-  }
-  EXPECT_EQ(
-      sum * 1.0 / buffer.kSize,
-      GCTracer::AverageSpeed(buffer, MakeBytesAndDuration(0, 0), buffer.kSize));
-  buffer.Push(MakeBytesAndDuration(100, 1));
-  EXPECT_EQ(
-      (sum * 1.0 - 1 + 100) / buffer.kSize,
-      GCTracer::AverageSpeed(buffer, MakeBytesAndDuration(0, 0), buffer.kSize));
-}
 
 namespace {
 
@@ -131,20 +96,23 @@ TEST_F(GCTracerTest, AllocationThroughput) {
   const size_t counter2 = 2000;
   SampleAndAddAllocation(tracer, time2, counter2);
   // Will only consider the current sample.
-  EXPECT_EQ(2 * (counter2 - counter1) / (time2 - time1),
-            static_cast<size_t>(
-                tracer->AllocationThroughputInBytesPerMillisecond(100)));
+  EXPECT_EQ(
+      2 * (counter2 - counter1) / (time2 - time1),
+      static_cast<size_t>(tracer->AllocationThroughputInBytesPerMillisecond(
+          base::TimeDelta::FromMilliseconds(100))));
   const int time3 = 1000;
   const size_t counter3 = 30000;
   SampleAndAddAllocation(tracer, time3, counter3);
   // Only consider last sample.
-  EXPECT_EQ(2 * (counter3 - counter2) / (time3 - time2),
-            static_cast<size_t>(
-                tracer->AllocationThroughputInBytesPerMillisecond(800)));
+  EXPECT_EQ(
+      2 * (counter3 - counter2) / (time3 - time2),
+      static_cast<size_t>(tracer->AllocationThroughputInBytesPerMillisecond(
+          base::TimeDelta::FromMilliseconds(800))));
   // Considers last 2 samples.
-  EXPECT_EQ(2 * (counter3 - counter1) / (time3 - time1),
-            static_cast<size_t>(
-                tracer->AllocationThroughputInBytesPerMillisecond(801)));
+  EXPECT_EQ(
+      2 * (counter3 - counter1) / (time3 - time1),
+      static_cast<size_t>(tracer->AllocationThroughputInBytesPerMillisecond(
+          base::TimeDelta::FromMilliseconds(801))));
 }
 
 TEST_F(GCTracerTest, PerGenerationAllocationThroughput) {
@@ -197,37 +165,37 @@ TEST_F(GCTracerTest, PerGenerationAllocationThroughputWithProvidedTime) {
   const size_t counter2 = 2000;
   SampleAndAddAllocation(tracer, time2, counter2);
   const size_t expected_throughput1 = (counter2 - counter1) / (time2 - time1);
-  EXPECT_EQ(
-      expected_throughput1,
-      static_cast<size_t>(
-          tracer->NewSpaceAllocationThroughputInBytesPerMillisecond(100)));
-  EXPECT_EQ(
-      expected_throughput1,
-      static_cast<size_t>(
-          tracer->OldGenerationAllocationThroughputInBytesPerMillisecond(100)));
+  EXPECT_EQ(expected_throughput1,
+            static_cast<size_t>(
+                tracer->NewSpaceAllocationThroughputInBytesPerMillisecond(
+                    base::TimeDelta::FromMilliseconds(100))));
+  EXPECT_EQ(expected_throughput1,
+            static_cast<size_t>(
+                tracer->OldGenerationAllocationThroughputInBytesPerMillisecond(
+                    base::TimeDelta::FromMilliseconds(100))));
   const int time3 = 1000;
   const size_t counter3 = 30000;
   SampleAndAddAllocation(tracer, time3, counter3);
   const size_t expected_throughput2 = (counter3 - counter2) / (time3 - time2);
   // Only consider last sample.
-  EXPECT_EQ(
-      expected_throughput2,
-      static_cast<size_t>(
-          tracer->NewSpaceAllocationThroughputInBytesPerMillisecond(800)));
-  EXPECT_EQ(
-      expected_throughput2,
-      static_cast<size_t>(
-          tracer->OldGenerationAllocationThroughputInBytesPerMillisecond(800)));
+  EXPECT_EQ(expected_throughput2,
+            static_cast<size_t>(
+                tracer->NewSpaceAllocationThroughputInBytesPerMillisecond(
+                    base::TimeDelta::FromMilliseconds(800))));
+  EXPECT_EQ(expected_throughput2,
+            static_cast<size_t>(
+                tracer->OldGenerationAllocationThroughputInBytesPerMillisecond(
+                    base::TimeDelta::FromMilliseconds(800))));
   const size_t expected_throughput3 = (counter3 - counter1) / (time3 - time1);
   // Consider last two samples.
-  EXPECT_EQ(
-      expected_throughput3,
-      static_cast<size_t>(
-          tracer->NewSpaceAllocationThroughputInBytesPerMillisecond(801)));
-  EXPECT_EQ(
-      expected_throughput3,
-      static_cast<size_t>(
-          tracer->OldGenerationAllocationThroughputInBytesPerMillisecond(801)));
+  EXPECT_EQ(expected_throughput3,
+            static_cast<size_t>(
+                tracer->NewSpaceAllocationThroughputInBytesPerMillisecond(
+                    base::TimeDelta::FromMilliseconds(801))));
+  EXPECT_EQ(expected_throughput3,
+            static_cast<size_t>(
+                tracer->OldGenerationAllocationThroughputInBytesPerMillisecond(
+                    base::TimeDelta::FromMilliseconds(801))));
 }
 
 TEST_F(GCTracerTest, RegularScope) {
@@ -566,5 +534,4 @@ TEST_F(GCTracerTest, RecordScavengerHistograms) {
   GcHistogram::CleanUp();
 }
 
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal
