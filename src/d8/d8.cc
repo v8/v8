@@ -5798,11 +5798,17 @@ int Shell::Main(int argc, char* argv[]) {
   }
 
   platform::tracing::TracingController* tracing_controller = tracing.get();
-  g_platform = v8::platform::NewDefaultPlatform(
-      options.thread_pool_size, v8::platform::IdleTaskSupport::kEnabled,
-      in_process_stack_dumping, std::move(tracing),
-      options.apply_priority ? v8::platform::PriorityMode::kApply
-                             : v8::platform::PriorityMode::kDontApply);
+  if (i::v8_flags.single_threaded) {
+    g_platform = v8::platform::NewSingleThreadedDefaultPlatform(
+        v8::platform::IdleTaskSupport::kEnabled, in_process_stack_dumping,
+        std::move(tracing));
+  } else {
+    g_platform = v8::platform::NewDefaultPlatform(
+        options.thread_pool_size, v8::platform::IdleTaskSupport::kEnabled,
+        in_process_stack_dumping, std::move(tracing),
+        options.apply_priority ? v8::platform::PriorityMode::kApply
+                               : v8::platform::PriorityMode::kDontApply);
+  }
   g_default_platform = g_platform.get();
   if (i::v8_flags.predictable) {
     g_platform = MakePredictablePlatform(std::move(g_platform));
