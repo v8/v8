@@ -45,7 +45,7 @@ class YoungGenerationMainMarkingVisitor final
   V8_INLINE void IncrementLiveBytesCached(MemoryChunk* chunk, intptr_t by);
 
   template <typename TSlot>
-  bool VisitObjectViaSlotInRemeberedSet(TSlot slot);
+  V8_INLINE bool VisitObjectViaSlotInRemeberedSet(TSlot slot);
 
   V8_INLINE bool ShortCutStrings(HeapObjectSlot slot, HeapObject* heap_object);
 

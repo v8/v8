@@ -107,7 +107,7 @@ class YoungGenerationConcurrentMarkingVisitor final
   }
 
   template <typename TSlot>
-  bool VisitObjectViaSlotInRemeberedSet(TSlot slot) {
+  V8_INLINE bool VisitObjectViaSlotInRemeberedSet(TSlot slot) {
     return VisitYoungObjectViaSlot<ObjectVisitationMode::kPushToWorklist,
                                    SlotTreatmentMode::kReadOnly>(this, slot);
   }

@@ -25,7 +25,7 @@ enum class SlotTreatmentMode {
 template <ObjectVisitationMode visitation_mode,
           SlotTreatmentMode slot_treatment_mode, typename Visitor,
           typename TSlot>
-bool VisitYoungObjectViaSlot(Visitor* visitor, TSlot slot) {
+V8_INLINE bool VisitYoungObjectViaSlot(Visitor* visitor, TSlot slot) {
   typename TSlot::TObject target;
   if constexpr (Visitor::EnableConcurrentVisitation()) {
     target = slot.Relaxed_Load(visitor->cage_base());

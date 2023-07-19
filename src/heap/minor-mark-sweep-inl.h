@@ -71,7 +71,8 @@ void YoungGenerationMainMarkingVisitor::VisitPointersImpl(HeapObject host,
 }
 
 template <typename TSlot>
-bool YoungGenerationMainMarkingVisitor::VisitObjectViaSlotInRemeberedSet(
+V8_INLINE bool
+YoungGenerationMainMarkingVisitor::VisitObjectViaSlotInRemeberedSet(
     TSlot slot) {
   return VisitYoungObjectViaSlot<ObjectVisitationMode::kVisitDirectly,
                                  SlotTreatmentMode::kReadWrite>(this, slot);
