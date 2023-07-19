@@ -14,7 +14,6 @@
 #include "src/flags/flags.h"
 #include "src/heap/memory-chunk.h"
 #include "src/wasm/baseline/liftoff-assembler.h"
-#include "src/wasm/object-access.h"
 #include "src/wasm/simd-shuffle.h"
 #include "src/wasm/wasm-objects.h"
 
@@ -297,25 +296,6 @@ int LiftoffAssembler::SlotSizeForType(ValueKind kind) {
 
 bool LiftoffAssembler::NeedsAlignment(ValueKind kind) {
   return is_reference(kind);
-}
-
-void LiftoffAssembler::CheckTierUp(int declared_func_index, int budget_used,
-                                   Label* ool_label,
-                                   const FreezeCacheState& frozen) {
-  Register instance = cache_state_.cached_instance;
-  if (instance == no_reg) {
-    instance = kScratchRegister;
-    LoadInstanceFromFrame(instance);
-  }
-
-  Register budget_array = kScratchRegister;  // Overwriting {instance}.
-  constexpr int kArrayOffset = wasm::ObjectAccess::ToTagged(
-      WasmInstanceObject::kTieringBudgetArrayOffset);
-  movq(budget_array, Operand{instance, kArrayOffset});
-
-  int offset = kInt32Size * declared_func_index;
-  subl(Operand{budget_array, offset}, Immediate(budget_used));
-  j(negative, ool_label);
 }
 
 void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value) {
@@ -2207,6 +2187,13 @@ void LiftoffAssembler::emit_i32_cond_jumpi(Condition cond, Label* label,
                                            const FreezeCacheState& frozen) {
   cmpl(lhs, Immediate(imm));
   j(cond, label);
+}
+
+void LiftoffAssembler::emit_i32_subi_jump_negative(
+    Register value, int subtrahend, Label* result_negative,
+    const FreezeCacheState& frozen) {
+  subl(value, Immediate(subtrahend));
+  j(negative, result_negative);
 }
 
 void LiftoffAssembler::emit_i32_eqz(Register dst, Register src) {

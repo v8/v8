@@ -10,7 +10,6 @@
 #include "src/heap/memory-chunk.h"
 #include "src/wasm/baseline/liftoff-assembler.h"
 #include "src/wasm/baseline/liftoff-register.h"
-#include "src/wasm/object-access.h"
 #include "src/wasm/simd-shuffle.h"
 #include "src/wasm/value-type.h"
 #include "src/wasm/wasm-objects.h"
@@ -164,40 +163,6 @@ inline void MoveStackValue(LiftoffAssembler* assm, const Operand& src,
   }
 }
 
-class CacheStatePreservingTempRegisters {
- public:
-  explicit CacheStatePreservingTempRegisters(LiftoffAssembler* assm,
-                                             LiftoffRegList pinned = {})
-      : assm_(assm), pinned_(pinned) {}
-
-  ~CacheStatePreservingTempRegisters() {
-    for (Register reg : must_pop_) {
-      assm_->pop(reg);
-    }
-  }
-
-  Register Acquire() {
-    if (assm_->cache_state()->has_unused_register(kGpReg, pinned_)) {
-      return pinned_.set(
-          assm_->cache_state()->unused_register(kGpReg, pinned_).gp());
-    }
-
-    RegList available =
-        kLiftoffAssemblerGpCacheRegs - pinned_.GetGpList() - must_pop_;
-    DCHECK(!available.is_empty());
-    // Use {last()} here so we can just iterate forwards in the destructor.
-    Register reg = available.last();
-    assm_->push(reg);
-    must_pop_.set(reg);
-    return reg;
-  }
-
- private:
-  LiftoffAssembler* const assm_;
-  LiftoffRegList pinned_;
-  RegList must_pop_;
-};
-
 constexpr DoubleRegister kScratchDoubleReg = xmm7;
 
 constexpr int kSubSpSize = 6;  // 6 bytes for "sub esp, <imm32>"
@@ -349,29 +314,6 @@ int LiftoffAssembler::SlotSizeForType(ValueKind kind) {
 
 bool LiftoffAssembler::NeedsAlignment(ValueKind kind) {
   return is_reference(kind);
-}
-
-void LiftoffAssembler::CheckTierUp(int declared_func_index, int budget_used,
-                                   Label* ool_label,
-                                   const FreezeCacheState& frozen) {
-  {
-    liftoff::CacheStatePreservingTempRegisters temps{this};
-    Register budget_array = temps.Acquire();
-
-    Register instance = cache_state_.cached_instance;
-    if (instance == no_reg) {
-      instance = budget_array;  // Reuse the temp register.
-      LoadInstanceFromFrame(instance);
-    }
-
-    constexpr int kArrayOffset = wasm::ObjectAccess::ToTagged(
-        WasmInstanceObject::kTieringBudgetArrayOffset);
-    mov(budget_array, Operand{instance, kArrayOffset});
-
-    int array_offset = kInt32Size * declared_func_index;
-    sub(Operand{budget_array, array_offset}, Immediate(budget_used));
-  }
-  j(negative, ool_label);
 }
 
 void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value) {
@@ -2561,6 +2503,13 @@ void LiftoffAssembler::emit_i32_cond_jumpi(Condition cond, Label* label,
                                            const FreezeCacheState& frozen) {
   cmp(lhs, Immediate(imm));
   j(cond, label);
+}
+
+void LiftoffAssembler::emit_i32_subi_jump_negative(
+    Register value, int subtrahend, Label* result_negative,
+    const FreezeCacheState& frozen) {
+  sub(value, Immediate(subtrahend));
+  j(negative, result_negative);
 }
 
 namespace liftoff {

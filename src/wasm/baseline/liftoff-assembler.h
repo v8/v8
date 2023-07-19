@@ -780,8 +780,6 @@ class LiftoffAssembler : public MacroAssembler {
   inline static int SlotSizeForType(ValueKind kind);
   inline static bool NeedsAlignment(ValueKind kind);
 
-  inline void CheckTierUp(int declared_func_index, int budget_used,
-                          Label* ool_label, const FreezeCacheState& frozen);
   inline void LoadConstant(LiftoffRegister, WasmValue);
   inline void LoadInstanceFromFrame(Register dst);
   inline void LoadFromInstance(Register dst, Register instance, int offset,
@@ -1100,6 +1098,9 @@ class LiftoffAssembler : public MacroAssembler {
                              Register rhs, const FreezeCacheState& frozen);
   inline void emit_i32_cond_jumpi(Condition, Label*, Register lhs, int imm,
                                   const FreezeCacheState& frozen);
+  inline void emit_i32_subi_jump_negative(Register value, int subtrahend,
+                                          Label* result_negative,
+                                          const FreezeCacheState& frozen);
   // Set {dst} to 1 if condition holds, 0 otherwise.
   inline void emit_i32_eqz(Register dst, Register src);
   inline void emit_i32_set_cond(Condition, Register dst, Register lhs,
