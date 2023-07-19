@@ -223,14 +223,16 @@ Reduction WasmGCLowering::ReduceWasmTypeCheckAbstract(Node* node) {
     }
     // i31 is special in that the Smi check is the last thing to do.
     if (to_rep == wasm::HeapType::kI31) {
-      DCHECK(object_can_be_i31);  // Ensured by WasmGCOperatorReducer.
-      result = gasm_.IsSmi(object);
+      // If earlier optimization passes reached the limit of possible graph
+      // transformations, we could DCHECK(object_can_be_i31) here.
+      result = object_can_be_i31 ? gasm_.IsSmi(object) : gasm_.Int32Constant(0);
       break;
     }
     if (to_rep == wasm::HeapType::kEq) {
-      DCHECK(object_can_be_i31);  // Ensured by WasmGCOperatorReducer.
-      gasm_.GotoIf(gasm_.IsSmi(object), &end_label, BranchHint::kFalse,
-                   gasm_.Int32Constant(1));
+      if (object_can_be_i31) {
+        gasm_.GotoIf(gasm_.IsSmi(object), &end_label, BranchHint::kFalse,
+                     gasm_.Int32Constant(1));
+      }
       result = gasm_.IsDataRefMap(gasm_.LoadMap(object));
       break;
     }
@@ -393,14 +395,18 @@ Reduction WasmGCLowering::ReduceWasmTypeCastAbstract(Node* node) {
       gasm_.GotoIf(IsNull(object, config.from), &end_label, BranchHint::kFalse);
     }
     if (to_rep == wasm::HeapType::kI31) {
-      DCHECK(object_can_be_i31);  // Ensured by WasmGCOperatorBuilder.
-      gasm_.TrapUnless(gasm_.IsSmi(object), TrapId::kTrapIllegalCast);
+      // If earlier optimization passes reached the limit of possible graph
+      // transformations, we could DCHECK(object_can_be_i31) here.
+      Node* success =
+          object_can_be_i31 ? gasm_.IsSmi(object) : gasm_.Int32Constant(0);
+      gasm_.TrapUnless(success, TrapId::kTrapIllegalCast);
       UpdateSourcePosition(gasm_.effect(), node);
       break;
     }
     if (to_rep == wasm::HeapType::kEq) {
-      DCHECK(object_can_be_i31);  // Ensured by WasmGCOperatorReducer.
-      gasm_.GotoIf(gasm_.IsSmi(object), &end_label, BranchHint::kFalse);
+      if (object_can_be_i31) {
+        gasm_.GotoIf(gasm_.IsSmi(object), &end_label, BranchHint::kFalse);
+      }
       gasm_.TrapUnless(gasm_.IsDataRefMap(gasm_.LoadMap(object)),
                        TrapId::kTrapIllegalCast);
       UpdateSourcePosition(gasm_.effect(), node);

@@ -349,8 +349,9 @@ Reduction WasmGCOperatorReducer::ReduceWasmExternInternalize(Node* node) {
     input = NodeProperties::GetValueInput(input, 0);
   }
   if (input->opcode() == IrOpcode::kDead ||
-      input->opcode() == IrOpcode::kDeadValue)
+      input->opcode() == IrOpcode::kDeadValue) {
     return NoChange();
+  }
   if (input->opcode() == IrOpcode::kWasmExternExternalize) {
     // "Skip" the extern.externalize which doesn't have an effect on the value.
     input = NodeProperties::GetValueInput(input, 0);
