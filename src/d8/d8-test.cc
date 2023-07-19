@@ -1181,6 +1181,13 @@ class FastCApiObject {
     return a + b;
   }
 
+  template <typename T>
+  static bool Convert(double value, T* out_result) {
+    if (!IsInRange<T>(value)) return false;
+    *out_result = static_cast<T>(value);
+    return true;
+  }
+
   static void sumInt64AsNumberSlowCallback(
       const FunctionCallbackInfo<Value>& info) {
     Isolate* isolate = info.GetIsolate();
@@ -1197,20 +1204,24 @@ class FastCApiObject {
     Local<Value> value_a = info[0];
     Local<Value> value_b = info[1];
 
-    int64_t a;
-    if (value_a->IsNumber()) {
-      a = static_cast<int64_t>(value_a.As<Number>()->Value());
-    } else {
+    if (!value_a->IsNumber()) {
       info.GetIsolate()->ThrowError("Did not get a number as first parameter.");
       return;
     }
+    int64_t a;
+    if (!Convert(value_a.As<Number>()->Value(), &a)) {
+      info.GetIsolate()->ThrowError("First number is out of int64_t range.");
+      return;
+    }
 
-    int64_t b;
-    if (value_b->IsNumber()) {
-      b = static_cast<int64_t>(value_b.As<Number>()->Value());
-    } else {
+    if (!value_b->IsNumber()) {
       info.GetIsolate()->ThrowError(
           "Did not get a number as second parameter.");
+      return;
+    }
+    int64_t b;
+    if (!Convert(value_b.As<Number>()->Value(), &b)) {
+      info.GetIsolate()->ThrowError("Second number is out of int64_t range.");
       return;
     }
 
@@ -1279,20 +1290,24 @@ class FastCApiObject {
     Local<Value> value_a = info[0];
     Local<Value> value_b = info[1];
 
-    uint64_t a;
-    if (value_a->IsNumber()) {
-      a = static_cast<uint64_t>(value_a.As<Number>()->Value());
-    } else {
+    if (!value_a->IsNumber()) {
       info.GetIsolate()->ThrowError("Did not get a number as first parameter.");
       return;
     }
+    uint64_t a;
+    if (!Convert(value_a.As<Number>()->Value(), &a)) {
+      info.GetIsolate()->ThrowError("First number is out of uint64_t range.");
+      return;
+    }
 
-    uint64_t b;
-    if (value_b->IsNumber()) {
-      b = static_cast<uint64_t>(value_b.As<Number>()->Value());
-    } else {
+    if (!value_b->IsNumber()) {
       info.GetIsolate()->ThrowError(
           "Did not get a number as second parameter.");
+      return;
+    }
+    uint64_t b;
+    if (!Convert(value_b.As<Number>()->Value(), &b)) {
+      info.GetIsolate()->ThrowError("Second number is out of uint64_t range.");
       return;
     }
 
