@@ -29,15 +29,15 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   const instance = builder.instantiate({ imports: { mem: mem } });
   // Equal, new value is stored and old value returned.
   assertEquals(0n, instance.exports.run(0, 0n, 1n));
-  assertEquals(1n, i64arr[0]);
+  assertEquals(1n, dv.getBigUint64(0, true));
   // Not equal, old value stays.
   assertEquals(1n, instance.exports.run(0, 0n, 2n));
-  assertEquals(1n, i64arr[0]);
+  assertEquals(1n, dv.getBigUint64(0, true));
 
   // Equal, new value is stored and old value returned.
   assertEquals(0x8eeeffffffffn, instance.exports.run(8, 0x8eeeffffffffn, 0x1000ffffffffn));
-  assertEquals(0x1000ffffffffn, i64arr[1]);
+  assertEquals(0x1000ffffffffn, dv.getBigUint64(8, true));
   // Not equal, old value stays.
   assertEquals(0x1000ffffffffn, instance.exports.run(8, 0x8eeeffffffffn, 0x1n));
-  assertEquals(0x1000ffffffffn, i64arr[1]);
+  assertEquals(0x1000ffffffffn, dv.getBigUint64(8, true));
 })();

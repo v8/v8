@@ -42,9 +42,10 @@ function TestBinOp64(index, memory) {
   const instance = builder.instantiate({ imports: { mem: memory } });
 
   let i64arr = new BigUint64Array(memory.buffer);
-  new DataView(memory.buffer).setBigUint64(index * 8, sample[0], true);
+  let dv = new DataView(memory.buffer);
+  dv.setBigUint64(index * 8, sample[0], true);
   assertEquals(sample[0], instance.exports.run(index * 8, sample[1]));
-  assertEquals(sample[2], i64arr[index]);
+  assertEquals(sample[2], dv.getBigUint64(index * 8, true));
 }
 
 (function () {
