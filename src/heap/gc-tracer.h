@@ -11,13 +11,18 @@
 #include "src/base/optional.h"
 #include "src/base/ring-buffer.h"
 #include "src/common/globals.h"
-#include "src/heap/base/bytes.h"
 #include "src/init/heap-symbols.h"
 #include "src/logging/counters.h"
 #include "testing/gtest/include/gtest/gtest_prod.h"  // nogncheck
 
 namespace v8 {
 namespace internal {
+
+using BytesAndDuration = std::pair<uint64_t, double>;
+
+inline BytesAndDuration MakeBytesAndDuration(uint64_t bytes, double duration) {
+  return std::make_pair(bytes, duration);
+}
 
 enum ScavengeSpeedMode { kForAllObjects, kForSurvivedObjects };
 
@@ -367,25 +372,24 @@ class V8_EXPORT_PRIVATE GCTracer {
   // Allocation throughput in the new space in bytes/millisecond.
   // Returns 0 if no allocation events have been recorded.
   double NewSpaceAllocationThroughputInBytesPerMillisecond(
-      base::Optional<base::TimeDelta> selected_duration = base::nullopt) const;
+      double time_ms = 0) const;
 
   // Allocation throughput in the old generation in bytes/millisecond in the
   // last time_ms milliseconds.
   // Returns 0 if no allocation events have been recorded.
   double OldGenerationAllocationThroughputInBytesPerMillisecond(
-      base::Optional<base::TimeDelta> selected_duration = base::nullopt) const;
+      double time_ms = 0) const;
 
   // Allocation throughput in the embedder in bytes/millisecond in the
   // last time_ms milliseconds.
   // Returns 0 if no allocation events have been recorded.
   double EmbedderAllocationThroughputInBytesPerMillisecond(
-      base::Optional<base::TimeDelta> selected_duration = base::nullopt) const;
+      double time_ms = 0) const;
 
   // Allocation throughput in heap in bytes/millisecond in the last time_ms
   // milliseconds.
   // Returns 0 if no allocation events have been recorded.
-  double AllocationThroughputInBytesPerMillisecond(
-      base::Optional<base::TimeDelta> selected_duration) const;
+  double AllocationThroughputInBytesPerMillisecond(double time_ms) const;
 
   // Allocation throughput in heap in bytes/milliseconds in the last
   // kThroughputTimeFrameMs seconds.
@@ -445,7 +449,23 @@ class V8_EXPORT_PRIVATE GCTracer {
   GarbageCollector GetCurrentCollector() const;
 
  private:
-  using BytesAndDurationBuffer = ::heap::base::BytesAndDurationBuffer;
+  FRIEND_TEST(GCTracer, AverageSpeed);
+  FRIEND_TEST(GCTracerTest, AllocationThroughput);
+  FRIEND_TEST(GCTracerTest, BackgroundScavengerScope);
+  FRIEND_TEST(GCTracerTest, BackgroundMinorMSScope);
+  FRIEND_TEST(GCTracerTest, BackgroundMajorMCScope);
+  FRIEND_TEST(GCTracerTest, EmbedderAllocationThroughput);
+  FRIEND_TEST(GCTracerTest, MultithreadedBackgroundScope);
+  FRIEND_TEST(GCTracerTest, NewSpaceAllocationThroughput);
+  FRIEND_TEST(GCTracerTest, PerGenerationAllocationThroughput);
+  FRIEND_TEST(GCTracerTest, PerGenerationAllocationThroughputWithProvidedTime);
+  FRIEND_TEST(GCTracerTest, RegularScope);
+  FRIEND_TEST(GCTracerTest, IncrementalMarkingDetails);
+  FRIEND_TEST(GCTracerTest, IncrementalScope);
+  FRIEND_TEST(GCTracerTest, IncrementalMarkingSpeed);
+  FRIEND_TEST(GCTracerTest, MutatorUtilization);
+  FRIEND_TEST(GCTracerTest, RecordMarkCompactHistograms);
+  FRIEND_TEST(GCTracerTest, RecordScavengerHistograms);
 
   struct BackgroundCounter {
     double total_duration_ms;
@@ -463,6 +483,13 @@ class V8_EXPORT_PRIVATE GCTracer {
 
   V8_INLINE constexpr const IncrementalMarkingInfos& incremental_scope(
       Scope::ScopeId id) const;
+
+  // Returns the average speed of the events in the buffer.
+  // If the buffer is empty, the result is 0.
+  // Otherwise, the result is between 1 byte/ms and 1 GB/ms.
+  static double AverageSpeed(const base::RingBuffer<BytesAndDuration>& buffer);
+  static double AverageSpeed(const base::RingBuffer<BytesAndDuration>& buffer,
+                             const BytesAndDuration& initial, double time_ms);
 
   void ResetForTesting();
   void ResetIncrementalMarkingCounters();
@@ -564,14 +591,14 @@ class V8_EXPORT_PRIVATE GCTracer {
   double current_mark_compact_mutator_utilization_;
   double previous_mark_compact_end_time_;
 
-  BytesAndDurationBuffer recorded_minor_gcs_total_;
-  BytesAndDurationBuffer recorded_minor_gcs_survived_;
-  BytesAndDurationBuffer recorded_compactions_;
-  BytesAndDurationBuffer recorded_incremental_mark_compacts_;
-  BytesAndDurationBuffer recorded_mark_compacts_;
-  BytesAndDurationBuffer recorded_new_generation_allocations_;
-  BytesAndDurationBuffer recorded_old_generation_allocations_;
-  BytesAndDurationBuffer recorded_embedder_generation_allocations_;
+  base::RingBuffer<BytesAndDuration> recorded_minor_gcs_total_;
+  base::RingBuffer<BytesAndDuration> recorded_minor_gcs_survived_;
+  base::RingBuffer<BytesAndDuration> recorded_compactions_;
+  base::RingBuffer<BytesAndDuration> recorded_incremental_mark_compacts_;
+  base::RingBuffer<BytesAndDuration> recorded_mark_compacts_;
+  base::RingBuffer<BytesAndDuration> recorded_new_generation_allocations_;
+  base::RingBuffer<BytesAndDuration> recorded_old_generation_allocations_;
+  base::RingBuffer<BytesAndDuration> recorded_embedder_generation_allocations_;
   base::RingBuffer<double> recorded_survival_ratios_;
 
   // A full GC cycle stops only when both v8 and cppgc (if available) GCs have
@@ -601,23 +628,6 @@ class V8_EXPORT_PRIVATE GCTracer {
   BackgroundCounter background_counter_[Scope::NUMBER_OF_SCOPES];
 
   size_t concurrent_gc_time_ = 0;
-
-  FRIEND_TEST(GCTracerTest, AllocationThroughput);
-  FRIEND_TEST(GCTracerTest, BackgroundScavengerScope);
-  FRIEND_TEST(GCTracerTest, BackgroundMinorMSScope);
-  FRIEND_TEST(GCTracerTest, BackgroundMajorMCScope);
-  FRIEND_TEST(GCTracerTest, EmbedderAllocationThroughput);
-  FRIEND_TEST(GCTracerTest, MultithreadedBackgroundScope);
-  FRIEND_TEST(GCTracerTest, NewSpaceAllocationThroughput);
-  FRIEND_TEST(GCTracerTest, PerGenerationAllocationThroughput);
-  FRIEND_TEST(GCTracerTest, PerGenerationAllocationThroughputWithProvidedTime);
-  FRIEND_TEST(GCTracerTest, RegularScope);
-  FRIEND_TEST(GCTracerTest, IncrementalMarkingDetails);
-  FRIEND_TEST(GCTracerTest, IncrementalScope);
-  FRIEND_TEST(GCTracerTest, IncrementalMarkingSpeed);
-  FRIEND_TEST(GCTracerTest, MutatorUtilization);
-  FRIEND_TEST(GCTracerTest, RecordMarkCompactHistograms);
-  FRIEND_TEST(GCTracerTest, RecordScavengerHistograms);
 };
 
 }  // namespace internal

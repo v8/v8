@@ -5,58 +5,53 @@
 #ifndef V8_BASE_RING_BUFFER_H_
 #define V8_BASE_RING_BUFFER_H_
 
-#include <cstdint>
+#include "src/base/macros.h"
 
-namespace v8::base {
+namespace v8 {
+namespace base {
 
-template <typename T, uint8_t _SIZE = 10>
-class RingBuffer final {
+template <typename T>
+class RingBuffer {
  public:
-  static constexpr uint8_t kSize = _SIZE;
-
-  constexpr RingBuffer() = default;
-
+  RingBuffer() { Reset(); }
   RingBuffer(const RingBuffer&) = delete;
   RingBuffer& operator=(const RingBuffer&) = delete;
 
-  constexpr void Push(const T& value) {
-    elements_[pos_++] = value;
-    if (pos_ == kSize) {
-      pos_ = 0;
-      is_full_ = true;
+  static const int kSize = 10;
+
+  void Push(const T& value) {
+    if (count_ == kSize) {
+      elements_[start_++] = value;
+      if (start_ == kSize) start_ = 0;
+    } else {
+      DCHECK_EQ(start_, 0);
+      elements_[count_++] = value;
     }
   }
 
-  constexpr uint8_t Size() const { return is_full_ ? kSize : pos_; }
-
-  constexpr bool Empty() const { return Size() > 0; }
-
-  constexpr void Clear() {
-    pos_ = 0;
-    is_full_ = false;
-  }
+  int Count() const { return count_; }
 
   template <typename Callback>
-  constexpr T Reduce(Callback callback, const T& initial) const {
+  T Sum(Callback callback, const T& initial) const {
+    int j = start_ + count_ - 1;
+    if (j >= kSize) j -= kSize;
     T result = initial;
-    for (uint8_t i = pos_; i > 0; --i) {
-      result = callback(result, elements_[i - 1]);
-    }
-    if (!is_full_) {
-      return result;
-    }
-    for (uint8_t i = kSize; i > pos_; --i) {
-      result = callback(result, elements_[i - 1]);
+    for (int i = 0; i < count_; i++) {
+      result = callback(result, elements_[j]);
+      if (--j == -1) j += kSize;
     }
     return result;
   }
 
+  void Reset() { start_ = count_ = 0; }
+
  private:
   T elements_[kSize];
-  uint8_t pos_ = 0;
-  bool is_full_ = false;
+  int start_;
+  int count_;
 };
 
-}  // namespace v8::base
+}  // namespace base
+}  // namespace v8
 
 #endif  // V8_BASE_RING_BUFFER_H_
