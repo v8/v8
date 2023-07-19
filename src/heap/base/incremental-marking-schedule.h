@@ -61,9 +61,9 @@ class V8_EXPORT_PRIVATE IncrementalMarkingSchedule final {
   static constexpr size_t kStepSizeWhenNotMakingProgress = 64 * 1024;
 
   static std::unique_ptr<IncrementalMarkingSchedule>
-  CreateWithDefaultMinimumMarkedBytesPerStep();
+  CreateWithDefaultMinimumMarkedBytesPerStep(bool predictable_schedule = false);
   static std::unique_ptr<IncrementalMarkingSchedule>
-  CreateWithZeroMinimumMarkedBytesPerStep();
+  CreateWithZeroMinimumMarkedBytesPerStep(bool predictable_schedule = false);
 
   IncrementalMarkingSchedule(const IncrementalMarkingSchedule&) = delete;
   IncrementalMarkingSchedule& operator=(const IncrementalMarkingSchedule&) =
@@ -117,7 +117,8 @@ class V8_EXPORT_PRIVATE IncrementalMarkingSchedule final {
  private:
   static constexpr double kEphemeronPairsFlushingRatioIncrements = 0.25;
 
-  explicit IncrementalMarkingSchedule(size_t minimum_marked_bytes_per_step);
+  IncrementalMarkingSchedule(size_t minimum_marked_bytes_per_step,
+                             bool predictable_schedule);
 
   v8::base::TimeDelta GetElapsedTime();
 
@@ -128,7 +129,8 @@ class V8_EXPORT_PRIVATE IncrementalMarkingSchedule final {
   double ephemeron_pairs_flushing_ratio_target_ = 0.25;
   StepInfo current_step_;
   const size_t min_marked_bytes_per_step_;
-  v8::base::Optional<v8::base::TimeDelta> elapsed_time_for_testing_;
+  const bool predictable_schedule_ = false;
+  v8::base::Optional<v8::base::TimeDelta> elapsed_time_override_;
 };
 
 }  // namespace heap::base

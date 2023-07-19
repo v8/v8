@@ -9,6 +9,7 @@
 #include "src/base/logging.h"
 #include "src/base/platform/time.h"
 #include "src/execution/vm-state-inl.h"
+#include "src/flags/flags.h"
 #include "src/handles/global-handles.h"
 #include "src/heap/base/incremental-marking-schedule.h"
 #include "src/heap/concurrent-marking.h"
@@ -57,6 +58,18 @@ static constexpr size_t kEmbedderActivationThreshold = 8 * MB;
 static constexpr size_t kV8ActivationThreshold = 0;
 static constexpr size_t kEmbedderActivationThreshold = 0;
 #endif  // DEBUG
+
+base::TimeDelta GetMaxDuration(StepOrigin step_origin) {
+  if (v8_flags.predictable) {
+    return base::TimeDelta::Max();
+  }
+  switch (step_origin) {
+    case StepOrigin::kTask:
+      return kMaxStepSizeOnTask;
+    case StepOrigin::kV8:
+      return kMaxStepSizeOnAllocation;
+  }
+}
 
 }  // namespace
 
@@ -179,11 +192,13 @@ void IncrementalMarking::Start(GarbageCollector garbage_collector,
       incremental_marking_job()->ScheduleTask();
     }
     DCHECK_NULL(schedule_);
-    schedule_ = v8_flags.incremental_marking_bailout_when_ahead_of_schedule
-                    ? ::heap::base::IncrementalMarkingSchedule::
-                          CreateWithZeroMinimumMarkedBytesPerStep()
-                    : ::heap::base::IncrementalMarkingSchedule::
-                          CreateWithDefaultMinimumMarkedBytesPerStep();
+    schedule_ =
+        v8_flags.incremental_marking_bailout_when_ahead_of_schedule
+            ? ::heap::base::IncrementalMarkingSchedule::
+                  CreateWithZeroMinimumMarkedBytesPerStep(v8_flags.predictable)
+            : ::heap::base::IncrementalMarkingSchedule::
+                  CreateWithDefaultMinimumMarkedBytesPerStep(
+                      v8_flags.predictable);
     schedule_->NotifyIncrementalMarkingStart();
   } else {
     // Allocation observers are not currently used by MinorMS because we don't
@@ -718,7 +733,8 @@ size_t IncrementalMarking::GetScheduledBytes(StepOrigin step_origin) {
 
 void IncrementalMarking::AdvanceAndFinalizeIfComplete() {
   const size_t max_bytes_to_process = GetScheduledBytes(StepOrigin::kTask);
-  Step(kMaxStepSizeOnTask, max_bytes_to_process, StepOrigin::kTask);
+  Step(GetMaxDuration(StepOrigin::kTask), max_bytes_to_process,
+       StepOrigin::kTask);
   if (IsMajorMarkingComplete()) {
     heap()->FinalizeIncrementalMarkingAtomically(
         GarbageCollectionReason::kFinalizeMarkingViaTask);
@@ -761,7 +777,7 @@ void IncrementalMarking::AdvanceOnAllocation() {
   DCHECK(IsMajorMarking());
 
   const size_t max_bytes_to_process = GetScheduledBytes(StepOrigin::kV8);
-  Step(kMaxStepSizeOnAllocation, max_bytes_to_process, StepOrigin::kV8);
+  Step(GetMaxDuration(StepOrigin::kV8), max_bytes_to_process, StepOrigin::kV8);
 
   // Bail out when an AlwaysAllocateScope is active as the assumption is that
   // there's no GC being triggered. Check this condition at last position to

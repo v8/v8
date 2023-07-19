@@ -6,26 +6,42 @@
 
 #include <cmath>
 
+#include "src/base/platform/time.h"
+
 namespace heap::base {
+
+namespace {
+
+constexpr auto kTimeDeltaForPredictableSchedule =
+    v8::base::TimeDelta::FromMilliseconds(1);
+
+}  // namespace
 
 // static
 std::unique_ptr<IncrementalMarkingSchedule>
-IncrementalMarkingSchedule::CreateWithDefaultMinimumMarkedBytesPerStep() {
+IncrementalMarkingSchedule::CreateWithDefaultMinimumMarkedBytesPerStep(
+    bool predictable_schedule) {
   return std::unique_ptr<IncrementalMarkingSchedule>(
       new IncrementalMarkingSchedule(
-          kDefaultMinimumMarkedBytesPerIncrementalStep));
+          kDefaultMinimumMarkedBytesPerIncrementalStep, predictable_schedule));
 }
 
 // static
 std::unique_ptr<IncrementalMarkingSchedule>
-IncrementalMarkingSchedule::CreateWithZeroMinimumMarkedBytesPerStep() {
+IncrementalMarkingSchedule::CreateWithZeroMinimumMarkedBytesPerStep(
+    bool predictable_schedule) {
   return std::unique_ptr<IncrementalMarkingSchedule>(
-      new IncrementalMarkingSchedule(0));
+      new IncrementalMarkingSchedule(0, predictable_schedule));
 }
 
 IncrementalMarkingSchedule::IncrementalMarkingSchedule(
-    size_t min_marked_bytes_per_step)
-    : min_marked_bytes_per_step_(min_marked_bytes_per_step) {}
+    size_t min_marked_bytes_per_step, bool predictable_schedule)
+    : min_marked_bytes_per_step_(min_marked_bytes_per_step),
+      predictable_schedule_(predictable_schedule) {
+  if (predictable_schedule_) {
+    elapsed_time_override_.emplace(kTimeDeltaForPredictableSchedule);
+  }
+}
 
 void IncrementalMarkingSchedule::NotifyIncrementalMarkingStart() {
   DCHECK(incremental_marking_start_time_.IsNull());
@@ -51,9 +67,13 @@ size_t IncrementalMarkingSchedule::GetConcurrentlyMarkedBytes() const {
 }
 
 v8::base::TimeDelta IncrementalMarkingSchedule::GetElapsedTime() {
-  if (elapsed_time_for_testing_.has_value()) {
-    const v8::base::TimeDelta elapsed_time = *elapsed_time_for_testing_;
-    elapsed_time_for_testing_.reset();
+  if (elapsed_time_override_.has_value()) {
+    const v8::base::TimeDelta elapsed_time = *elapsed_time_override_;
+    if (predictable_schedule_) {
+      elapsed_time_override_ = kTimeDeltaForPredictableSchedule;
+    } else {
+      elapsed_time_override_.reset();
+    }
     return elapsed_time;
   }
   return v8::base::TimeTicks::Now() - incremental_marking_start_time_;
@@ -110,7 +130,7 @@ bool IncrementalMarkingSchedule::ShouldFlushEphemeronPairs() {
 
 void IncrementalMarkingSchedule::SetElapsedTimeForTesting(
     v8::base::TimeDelta elapsed_time) {
-  elapsed_time_for_testing_.emplace(elapsed_time);
+  elapsed_time_override_.emplace(elapsed_time);
 }
 
 }  // namespace heap::base
