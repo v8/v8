@@ -994,6 +994,12 @@ class ElementsAccessorBase : public InternalElementsAccessor {
                                         object->GetIsolate());
     uint32_t new_capacity = JSObject::NewElementsCapacity(index + 1);
     DCHECK(static_cast<uint32_t>(old_elements->length()) < new_capacity);
+    const uint32_t kMaxLength = IsDoubleElementsKind(kind())
+                                    ? FixedDoubleArray::kMaxLength
+                                    : FixedArray::kMaxLength;
+    if (new_capacity > kMaxLength) {
+      return Just(false);
+    }
     Handle<FixedArrayBase> elements;
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(
         object->GetIsolate(), elements,

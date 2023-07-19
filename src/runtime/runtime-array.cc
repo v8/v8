@@ -165,9 +165,6 @@ RUNTIME_FUNCTION(Runtime_GrowArrayElements) {
   Handle<Object> key = args.at(1);
   ElementsKind kind = object->GetElementsKind();
   CHECK(IsFastElementsKind(kind));
-  const intptr_t kMaxLength = IsDoubleElementsKind(kind)
-                                  ? FixedDoubleArray::kMaxLength
-                                  : FixedArray::kMaxLength;
   uint32_t index;
   if (key->IsSmi()) {
     int value = Smi::ToInt(*key);
@@ -176,7 +173,7 @@ RUNTIME_FUNCTION(Runtime_GrowArrayElements) {
   } else {
     CHECK(key->IsHeapNumber());
     double value = HeapNumber::cast(*key).value();
-    if (value < 0 || value > kMaxLength) {
+    if (value < 0 || value > std::numeric_limits<uint32_t>::max()) {
       return Smi::zero();
     }
     index = static_cast<uint32_t>(value);
