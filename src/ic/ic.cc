@@ -3147,12 +3147,14 @@ FastCloneObjectMode GetCloneModeForMap(Handle<Map> map, int flags,
   }
 
   // The clone must always start from an object literal map, it must be an
-  // instance of the object function and have the default prototype. Only if the
-  // source map fits that criterion we can directly use it as the target map.
+  // instance of the object function, have the default prototype and not be a
+  // prototype itself. Only if the source map fits that criterion we can
+  // directly use it as the target map.
   FastCloneObjectMode mode =
       map->instance_type() == JS_OBJECT_TYPE &&
               map->GetConstructor() == *isolate->object_function() &&
-              map->prototype() == *isolate->object_function_prototype()
+              map->prototype() == *isolate->object_function_prototype() &&
+              !map->is_prototype_map()
           ? FastCloneObjectMode::kIdenticalMap
           : FastCloneObjectMode::kDifferentMap;
 
