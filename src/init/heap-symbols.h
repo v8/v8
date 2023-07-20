@@ -715,7 +715,8 @@
   F(UNMAPPER)                            \
   F(UNPARK)                              \
   F(YOUNG_ARRAY_BUFFER_SWEEP)            \
-  F(FULL_ARRAY_BUFFER_SWEEP)
+  F(FULL_ARRAY_BUFFER_SWEEP)             \
+  F(CONSERVATIVE_STACK_SCANNING)
 
 #define TRACER_BACKGROUND_SCOPES(F)         \
   F(BACKGROUND_YOUNG_ARRAY_BUFFER_SWEEP)    \

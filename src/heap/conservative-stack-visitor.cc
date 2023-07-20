@@ -23,14 +23,19 @@ ConservativeStackVisitor::ConservativeStackVisitor(Isolate* isolate,
       allocator_(isolate->heap()->memory_allocator()),
       collector_(delegate->collector()) {}
 
-// static
+ConservativeStackVisitor::ConservativeStackVisitor(Isolate* isolate,
+                                                   GarbageCollector collector)
+    : cage_base_(isolate),
+      delegate_(nullptr),
+      allocator_(isolate->heap()->memory_allocator()),
+      collector_(collector) {}
+
 Address ConservativeStackVisitor::FindBasePtrForMarking(
-    Address maybe_inner_ptr, MemoryAllocator* allocator,
-    GarbageCollector collector) {
+    Address maybe_inner_ptr) const {
   // Check if the pointer is contained by a normal or large page owned by this
   // heap. Bail out if it is not.
   const BasicMemoryChunk* chunk =
-      allocator->LookupChunkContainingAddress(maybe_inner_ptr);
+      allocator_->LookupChunkContainingAddress(maybe_inner_ptr);
   if (chunk == nullptr) return kNullAddress;
   DCHECK(chunk->Contains(maybe_inner_ptr));
   // If it is contained in a large page, we want to mark the only object on it.
@@ -45,7 +50,8 @@ Address ConservativeStackVisitor::FindBasePtrForMarking(
   const Page* page = static_cast<const Page*>(chunk);
   // If it is not in the young generation and we're only interested in young
   // generation pointers, we must ignore it.
-  if (Heap::IsYoungGenerationCollector(collector) && !page->InYoungGeneration())
+  if (Heap::IsYoungGenerationCollector(collector_) &&
+      !page->InYoungGeneration())
     return kNullAddress;
   // If it is in the young generation "from" semispace, it is not used and we
   // must ignore it, as its markbits may not be clean.
@@ -82,10 +88,11 @@ void ConservativeStackVisitor::VisitPointer(const void* pointer) {
 }
 
 void ConservativeStackVisitor::VisitConservativelyIfPointer(Address address) {
-  Address base_ptr = FindBasePtrForMarking(address, allocator_, collector_);
+  Address base_ptr = FindBasePtrForMarking(address);
   if (base_ptr == kNullAddress) return;
   HeapObject obj = HeapObject::FromAddress(base_ptr);
   Object root = obj;
+  DCHECK_NOT_NULL(delegate_);
   delegate_->VisitRootPointer(Root::kStackRoots, nullptr,
                               FullObjectSlot(&root));
   // Check that the delegate visitor did not modify the root slot.

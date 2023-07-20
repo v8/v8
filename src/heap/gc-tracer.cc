@@ -902,6 +902,7 @@ void GCTracer::PrintNVP() const {
           "background.sweep.array_buffers=%.2f "
           "background.unmapper=%.2f "
           "unmapper=%.2f "
+          "conservative_stack_scanning=%.2f "
           "total_size_before=%zu "
           "total_size_after=%zu "
           "holes_size_before=%zu "
@@ -947,10 +948,11 @@ void GCTracer::PrintNVP() const {
           current_scope(Scope::MINOR_MS_BACKGROUND_SWEEPING),
           current_scope(Scope::BACKGROUND_YOUNG_ARRAY_BUFFER_SWEEP),
           current_scope(Scope::BACKGROUND_UNMAPPER),
-          current_scope(Scope::UNMAPPER), current_.start_object_size,
-          current_.end_object_size, current_.start_holes_size,
-          current_.end_holes_size, allocated_since_last_gc,
-          heap_->promoted_objects_size(),
+          current_scope(Scope::UNMAPPER),
+          current_scope(Scope::CONSERVATIVE_STACK_SCANNING),
+          current_.start_object_size, current_.end_object_size,
+          current_.start_holes_size, current_.end_holes_size,
+          allocated_since_last_gc, heap_->promoted_objects_size(),
           heap_->new_space_surviving_object_size(),
           heap_->nodes_died_in_new_space_, heap_->nodes_copied_in_new_space_,
           heap_->nodes_promoted_, heap_->promotion_ratio_,
@@ -1037,6 +1039,7 @@ void GCTracer::PrintNVP() const {
           "background.evacuate.update_pointers=%.1f "
           "background.unmapper=%.1f "
           "unmapper=%.1f "
+          "conservative_stack_scanning=%.2f "
           "total_size_before=%zu "
           "total_size_after=%zu "
           "holes_size_before=%zu "
@@ -1126,10 +1129,11 @@ void GCTracer::PrintNVP() const {
           current_scope(Scope::MC_BACKGROUND_EVACUATE_COPY),
           current_scope(Scope::MC_BACKGROUND_EVACUATE_UPDATE_POINTERS),
           current_scope(Scope::BACKGROUND_UNMAPPER),
-          current_scope(Scope::UNMAPPER), current_.start_object_size,
-          current_.end_object_size, current_.start_holes_size,
-          current_.end_holes_size, allocated_since_last_gc,
-          heap_->promoted_objects_size(),
+          current_scope(Scope::UNMAPPER),
+          current_scope(Scope::CONSERVATIVE_STACK_SCANNING),
+          current_.start_object_size, current_.end_object_size,
+          current_.start_holes_size, current_.end_holes_size,
+          allocated_since_last_gc, heap_->promoted_objects_size(),
           heap_->new_space_surviving_object_size(),
           heap_->nodes_died_in_new_space_, heap_->nodes_copied_in_new_space_,
           heap_->nodes_promoted_, heap_->promotion_ratio_,
