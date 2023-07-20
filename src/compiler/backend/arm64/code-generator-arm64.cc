@@ -64,13 +64,9 @@ class Arm64OperandConverter final : public InstructionOperandConverter {
 
   size_t OutputCount() { return instr_->OutputCount(); }
 
-  DoubleRegister OutputFloat32Register(size_t index = 0) {
-    return OutputDoubleRegister(index).S();
-  }
+  DoubleRegister OutputFloat32Register() { return OutputDoubleRegister().S(); }
 
-  DoubleRegister OutputFloat64Register(size_t index = 0) {
-    return OutputDoubleRegister(index);
-  }
+  DoubleRegister OutputFloat64Register() { return OutputDoubleRegister(); }
 
   DoubleRegister OutputSimd128Register() { return OutputDoubleRegister().Q(); }
 
@@ -108,11 +104,9 @@ class Arm64OperandConverter final : public InstructionOperandConverter {
     return ToOperand32(instr_->InputAt(index));
   }
 
-  Register OutputRegister64(size_t index = 0) { return OutputRegister(index); }
+  Register OutputRegister64() { return OutputRegister(); }
 
-  Register OutputRegister32(size_t index = 0) {
-    return OutputRegister(index).W();
-  }
+  Register OutputRegister32() { return OutputRegister().W(); }
 
   Register TempRegister32(size_t index) {
     return ToRegister(instr_->TempAt(index)).W();
@@ -3102,10 +3096,8 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
 void CodeGenerator::AssembleArchSelect(Instruction* instr,
                                        FlagsCondition condition) {
   Arm64OperandConverter i(this, instr);
-  // The result register is always the last output of the instruction.
-  size_t output_index = instr->OutputCount() - 1;
   MachineRepresentation rep =
-      LocationOperand::cast(instr->OutputAt(output_index))->representation();
+      LocationOperand::cast(instr->OutputAt(0))->representation();
   Condition cc = FlagsConditionToCondition(condition);
   // We don't now how many inputs were consumed by the condition, so we have to
   // calculate the indices of the last two inputs.
@@ -3113,12 +3105,12 @@ void CodeGenerator::AssembleArchSelect(Instruction* instr,
   size_t true_value_index = instr->InputCount() - 2;
   size_t false_value_index = instr->InputCount() - 1;
   if (rep == MachineRepresentation::kFloat32) {
-    __ Fcsel(i.OutputFloat32Register(output_index),
+    __ Fcsel(i.OutputFloat32Register(),
              i.InputFloat32Register(true_value_index),
              i.InputFloat32Register(false_value_index), cc);
   } else {
     DCHECK_EQ(rep, MachineRepresentation::kFloat64);
-    __ Fcsel(i.OutputFloat64Register(output_index),
+    __ Fcsel(i.OutputFloat64Register(),
              i.InputFloat64Register(true_value_index),
              i.InputFloat64Register(false_value_index), cc);
   }

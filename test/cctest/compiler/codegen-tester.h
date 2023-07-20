@@ -338,83 +338,17 @@ class TaggedBinopTester : public BinopTester<Type, USE_RETURN_REGISTER> {
                                                MachineType::AnyTagged()) {}
 };
 
-// A helper class for integer binary operations. Wraps a machine opcode and
-// provides evaluation routines and the operators.
-template <typename T>
-class IntBinopWrapper {
- public:
-  explicit IntBinopWrapper(IrOpcode::Value op) : opcode(op) {}
-
-  const Operator* op(MachineOperatorBuilder* machine) const {
-    switch (opcode) {
-      case IrOpcode::kInt32Add:
-        return machine->Int32Add();
-      case IrOpcode::kInt32Sub:
-        return machine->Int32Sub();
-      case IrOpcode::kInt32Mul:
-        return machine->Int32Mul();
-      case IrOpcode::kWord32And:
-        return machine->Word32And();
-      case IrOpcode::kWord32Or:
-        return machine->Word32Or();
-      case IrOpcode::kWord32Xor:
-        return machine->Word32Xor();
-      case IrOpcode::kInt64Add:
-        return machine->Int64Add();
-      case IrOpcode::kInt64Sub:
-        return machine->Int64Sub();
-      case IrOpcode::kInt64Mul:
-        return machine->Int64Mul();
-      case IrOpcode::kWord64And:
-        return machine->Word64And();
-      case IrOpcode::kWord64Or:
-        return machine->Word64Or();
-      case IrOpcode::kWord64Xor:
-        return machine->Word64Xor();
-      default:
-        UNREACHABLE();
-    }
-  }
-
-  T eval(T a, T b) const {
-    switch (opcode) {
-      case IrOpcode::kInt32Add:
-      case IrOpcode::kInt64Add:
-        return a + b;
-      case IrOpcode::kInt32Sub:
-      case IrOpcode::kInt64Sub:
-        return a - b;
-      case IrOpcode::kInt32Mul:
-      case IrOpcode::kInt64Mul:
-        return a * b;
-      case IrOpcode::kWord32And:
-      case IrOpcode::kWord64And:
-        return a & b;
-      case IrOpcode::kWord32Or:
-      case IrOpcode::kWord64Or:
-        return a | b;
-      case IrOpcode::kWord32Xor:
-      case IrOpcode::kWord64Xor:
-        return a ^ b;
-      default:
-        UNREACHABLE();
-    }
-  }
-  IrOpcode::Value opcode;
-};
-
 // A helper class for testing compares. Wraps a machine opcode and provides
 // evaluation routines and the operators.
 class CompareWrapper {
  public:
   explicit CompareWrapper(IrOpcode::Value op) : opcode(op) {}
 
-  Node* MakeNode(RawMachineAssemblerTester<int32_t>* m, Node* a,
-                 Node* b) const {
+  Node* MakeNode(RawMachineAssemblerTester<int32_t>* m, Node* a, Node* b) {
     return m->AddNode(op(m->machine()), a, b);
   }
 
-  const Operator* op(MachineOperatorBuilder* machine) const {
+  const Operator* op(MachineOperatorBuilder* machine) {
     switch (opcode) {
       case IrOpcode::kWord32Equal:
         return machine->Word32Equal();
@@ -426,16 +360,6 @@ class CompareWrapper {
         return machine->Uint32LessThan();
       case IrOpcode::kUint32LessThanOrEqual:
         return machine->Uint32LessThanOrEqual();
-      case IrOpcode::kWord64Equal:
-        return machine->Word64Equal();
-      case IrOpcode::kInt64LessThan:
-        return machine->Int64LessThan();
-      case IrOpcode::kInt64LessThanOrEqual:
-        return machine->Int64LessThanOrEqual();
-      case IrOpcode::kUint64LessThan:
-        return machine->Uint64LessThan();
-      case IrOpcode::kUint64LessThanOrEqual:
-        return machine->Uint64LessThanOrEqual();
       case IrOpcode::kFloat64Equal:
         return machine->Float64Equal();
       case IrOpcode::kFloat64LessThan:
@@ -447,7 +371,7 @@ class CompareWrapper {
     }
   }
 
-  bool Int32Compare(int32_t a, int32_t b) const {
+  bool Int32Compare(int32_t a, int32_t b) {
     switch (opcode) {
       case IrOpcode::kWord32Equal:
         return a == b;
@@ -464,24 +388,7 @@ class CompareWrapper {
     }
   }
 
-  bool Int64Compare(int64_t a, int64_t b) const {
-    switch (opcode) {
-      case IrOpcode::kWord64Equal:
-        return a == b;
-      case IrOpcode::kInt64LessThan:
-        return a < b;
-      case IrOpcode::kInt64LessThanOrEqual:
-        return a <= b;
-      case IrOpcode::kUint64LessThan:
-        return static_cast<uint64_t>(a) < static_cast<uint64_t>(b);
-      case IrOpcode::kUint64LessThanOrEqual:
-        return static_cast<uint64_t>(a) <= static_cast<uint64_t>(b);
-      default:
-        UNREACHABLE();
-    }
-  }
-
-  bool Float64Compare(double a, double b) const {
+  bool Float64Compare(double a, double b) {
     switch (opcode) {
       case IrOpcode::kFloat64Equal:
         return a == b;

@@ -205,13 +205,6 @@ class OperandGeneratorT : public Adapter {
                                         GetVReg(node)));
   }
 
-  DECLARE_UNREACHABLE_TURBOSHAFT_FALLBACK(InstructionOperand, UseRegisterAtEnd)
-  InstructionOperand UseRegisterAtEnd(node_t node) {
-    return Use(node, UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER,
-                                        UnallocatedOperand::USED_AT_END,
-                                        GetVReg(node)));
-  }
-
   DECLARE_UNREACHABLE_TURBOSHAFT_FALLBACK(InstructionOperand, UseUniqueSlot)
   InstructionOperand UseUniqueSlot(node_t node) {
     return Use(node, UnallocatedOperand(UnallocatedOperand::MUST_HAVE_SLOT,
