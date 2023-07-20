@@ -4132,8 +4132,7 @@ static int SlimAllocationSiteCount(Heap* heap) {
 }
 
 TEST(EnsureAllocationSiteDependentCodesProcessed) {
-  if (v8_flags.always_turbofan || !v8_flags.turbofan ||
-      !V8_ALLOCATION_SITE_TRACKING_BOOL) {
+  if (v8_flags.always_turbofan || !V8_ALLOCATION_SITE_TRACKING_BOOL) {
     return;
   }
   v8_flags.allow_natives_syntax = true;
@@ -4302,7 +4301,7 @@ TEST(AllocationSiteCreation) {
 }
 
 TEST(CellsInOptimizedCodeAreWeak) {
-  if (v8_flags.always_turbofan || !v8_flags.turbofan) return;
+  if (v8_flags.always_turbofan) return;
   v8_flags.allow_natives_syntax = true;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
@@ -4350,7 +4349,7 @@ TEST(CellsInOptimizedCodeAreWeak) {
 
 
 TEST(ObjectsInOptimizedCodeAreWeak) {
-  if (v8_flags.always_turbofan || !v8_flags.turbofan) return;
+  if (v8_flags.always_turbofan) return;
   v8_flags.allow_natives_syntax = true;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
@@ -4396,9 +4395,7 @@ TEST(ObjectsInOptimizedCodeAreWeak) {
 }
 
 TEST(NewSpaceObjectsInOptimizedCode) {
-  if (v8_flags.always_turbofan || !v8_flags.turbofan ||
-      v8_flags.single_generation)
-    return;
+  if (v8_flags.always_turbofan || v8_flags.single_generation) return;
   v8_flags.allow_natives_syntax = true;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
@@ -4462,7 +4459,7 @@ TEST(NewSpaceObjectsInOptimizedCode) {
 }
 
 TEST(ObjectsInEagerlyDeoptimizedCodeAreWeak) {
-  if (v8_flags.always_turbofan || !v8_flags.turbofan) return;
+  if (v8_flags.always_turbofan) return;
   v8_flags.allow_natives_syntax = true;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
