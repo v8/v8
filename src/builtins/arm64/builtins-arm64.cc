@@ -5259,11 +5259,15 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   static_assert(argv == x1);        // Already in the right spot.
   __ Mov(x2, ER::isolate_address(masm->isolate()));
 
+#if V8_ENABLE_WEBASSEMBLY
   if (switch_to_central_stack) {
     __ StoreReturnAddressAndCall(target, old_sp);
   } else {
     __ StoreReturnAddressAndCall(target);
   }
+#else
+  __ StoreReturnAddressAndCall(target);
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   // Result returned in x0 or x1:x0 - do not destroy these registers!
 
