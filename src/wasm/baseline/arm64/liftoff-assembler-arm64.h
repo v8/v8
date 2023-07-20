@@ -8,6 +8,7 @@
 #include "src/base/v8-fallthrough.h"
 #include "src/heap/memory-chunk.h"
 #include "src/wasm/baseline/liftoff-assembler.h"
+#include "src/wasm/object-access.h"
 #include "src/wasm/wasm-objects.h"
 
 namespace v8 {
@@ -390,6 +391,46 @@ int LiftoffAssembler::SlotSizeForType(ValueKind kind) {
 
 bool LiftoffAssembler::NeedsAlignment(ValueKind kind) {
   return kind == kS128 || is_reference(kind);
+}
+
+void LiftoffAssembler::CheckTierUp(int declared_func_index, int budget_used,
+                                   Label* ool_label,
+                                   const FreezeCacheState& frozen) {
+  UseScratchRegisterScope temps{this};
+  Register budget_array = temps.AcquireX();
+
+  Register instance = cache_state_.cached_instance;
+  if (instance == no_reg) {
+    instance = budget_array;  // Reuse the temp register.
+    LoadInstanceFromFrame(instance);
+  }
+
+  constexpr int kArrayOffset = wasm::ObjectAccess::ToTagged(
+      WasmInstanceObject::kTieringBudgetArrayOffset);
+  ldr(budget_array, MemOperand{instance, kArrayOffset});
+
+  int budget_arr_offset = kInt32Size * declared_func_index;
+  // If the offset cannot be used in the operand directly, add it once to the
+  // budget_array to avoid doing that two times below.
+  if (!IsImmLSScaled(budget_arr_offset, kInt32Size) &&
+      !IsImmLSUnscaled(budget_arr_offset)) {
+    Add(budget_array, budget_array, budget_arr_offset);
+    budget_arr_offset = 0;
+  }
+
+  Register budget = temps.AcquireW();
+  MemOperand budget_addr{budget_array, budget_arr_offset};
+  ldr(budget, budget_addr);
+  // Make sure that the {budget_used} can be used as an immediate for SUB.
+  if (budget_used > 0xFFF000) {
+    budget_used = 0xFFF000;  // 16'773'120
+  } else if (budget_used > 0xFFF) {
+    budget_used &= 0xFFF000;
+  }
+  DCHECK(IsImmAddSub(budget_used));
+  AddSub(budget, budget, Operand{budget_used}, SetFlags, SUB);
+  str(budget, budget_addr);
+  b(ool_label, mi);
 }
 
 void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value) {
@@ -1732,13 +1773,6 @@ void LiftoffAssembler::emit_i32_cond_jumpi(Condition cond, Label* label,
                                            const FreezeCacheState& frozen) {
   Cmp(lhs.W(), Operand(imm));
   B(label, cond);
-}
-
-void LiftoffAssembler::emit_i32_subi_jump_negative(
-    Register value, int subtrahend, Label* result_negative,
-    const FreezeCacheState& frozen) {
-  Subs(value.W(), value.W(), Immediate(subtrahend));
-  B(result_negative, mi);
 }
 
 void LiftoffAssembler::emit_i32_eqz(Register dst, Register src) {

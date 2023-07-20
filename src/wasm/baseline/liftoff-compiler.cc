@@ -774,47 +774,17 @@ class LiftoffCompiler {
   }
 
   void TierupCheck(FullDecoder* decoder, WasmCodePosition position,
-                   int budget_used, Register tmp1, Register tmp2) {
+                   int budget_used) {
     // We should always decrement the budget, and we don't expect integer
     // overflows in the budget calculation.
     DCHECK_LE(1, budget_used);
 
     if (for_debugging_ != kNotForDebugging) return;
-    CODE_COMMENT("tierup check");
+    SCOPED_CODE_COMMENT("tierup check");
     // We never want to blow the entire budget at once.
     const int kMax = v8_flags.wasm_tiering_budget / 4;
     if (budget_used > kMax) budget_used = kMax;
 
-    LiftoffRegister budget_reg(tmp2);
-    // Be careful not to cause caching of the instance.
-    Register instance = __ cache_state()->cached_instance;
-    if (instance == no_reg) {
-      instance = tmp1;
-      __ LoadInstanceFromFrame(instance);
-    }
-    constexpr int kArraySize = kSystemPointerSize;
-    constexpr int kArrayOffset =
-        WASM_INSTANCE_OBJECT_FIELD_OFFSET(TieringBudgetArray);
-    static_assert(WASM_INSTANCE_OBJECT_FIELD_SIZE(TieringBudgetArray) ==
-                  kArraySize);
-    Register array_reg = tmp1;  // Overwriting {instance}.
-    __ LoadFromInstance(array_reg, instance, kArrayOffset, kArraySize);
-    uint32_t offset =
-        kInt32Size * declared_function_index(env_->module, func_index_);
-#if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64
-    // Platforms where both this load and the later store would have to
-    // explicitly add the offset can save code size by performing the addition
-    // only once.
-    __ emit_ptrsize_addi(array_reg, array_reg, offset);
-    offset = 0;
-#endif
-    __ Load(budget_reg, array_reg, no_reg, offset, LoadType::kI32Load, {});
-    LiftoffRegList regs_to_save = __ cache_state()->used_registers;
-    // The cached instance will be reloaded separately.
-    if (__ cache_state()->cached_instance != no_reg) {
-      DCHECK(regs_to_save.has(__ cache_state()->cached_instance));
-      regs_to_save.clear(__ cache_state()->cached_instance);
-    }
     SpilledRegistersForInspection* spilled_regs = nullptr;
 
     OutOfLineSafepointInfo* safepoint_info =
@@ -822,14 +792,23 @@ class LiftoffCompiler {
     __ cache_state()->GetTaggedSlotsForOOLCode(
         &safepoint_info->slots, &safepoint_info->spills,
         LiftoffAssembler::CacheState::SpillLocation::kTopOfStack);
+
+    LiftoffRegList regs_to_save = __ cache_state()->used_registers;
+    // The cached instance will be reloaded separately.
+    if (__ cache_state()->cached_instance != no_reg) {
+      DCHECK(regs_to_save.has(__ cache_state()->cached_instance));
+      regs_to_save.clear(__ cache_state()->cached_instance);
+    }
+
     out_of_line_code_.push_back(OutOfLineCode::TierupCheck(
         zone_, position, regs_to_save, __ cache_state()->cached_instance,
         spilled_regs, safepoint_info, RegisterOOLDebugSideTableEntry(decoder)));
     OutOfLineCode& ool = out_of_line_code_.back();
-    FREEZE_STATE(trapping);
-    __ emit_i32_subi_jump_negative(budget_reg.gp(), budget_used,
-                                   ool.label.get(), trapping);
-    __ Store(array_reg, no_reg, offset, budget_reg, StoreType::kI32Store, {});
+
+    FREEZE_STATE(tierup_check);
+    __ CheckTierUp(declared_function_index(env_->module, func_index_),
+                   budget_used, ool.label.get(), tierup_check);
+
     __ bind(ool.continuation.get());
   }
 
@@ -2483,27 +2462,17 @@ class LiftoffCompiler {
 
   void TierupCheckOnTailCall(FullDecoder* decoder) {
     if (!dynamic_tiering()) return;
-    LiftoffRegList pinned;
-    Register tmp1 = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
-    Register tmp2 = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
-    TierupCheck(decoder, decoder->position(), __ pc_offset(), tmp1, tmp2);
+    TierupCheck(decoder, decoder->position(), __ pc_offset());
   }
 
   void DoReturn(FullDecoder* decoder, uint32_t /* drop values */) {
-    Register tmp1 = no_reg;
-    Register tmp2 = no_reg;
-    if (dynamic_tiering()) {
-      LiftoffRegList pinned;
-      tmp1 = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
-      tmp2 = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
-    }
-    ReturnImpl(decoder, tmp1, tmp2);
+    ReturnImpl(decoder);
   }
 
-  void ReturnImpl(FullDecoder* decoder, Register tmp1, Register tmp2) {
+  void ReturnImpl(FullDecoder* decoder) {
     if (V8_UNLIKELY(v8_flags.trace_wasm)) TraceFunctionExit(decoder);
     if (dynamic_tiering()) {
-      TierupCheck(decoder, decoder->position(), __ pc_offset(), tmp1, tmp2);
+      TierupCheck(decoder, decoder->position(), __ pc_offset());
     }
     size_t num_returns = decoder->sig_->return_count();
     if (num_returns > 0) __ MoveToReturnLocations(decoder->sig_, descriptor_);
@@ -2832,21 +2801,16 @@ class LiftoffCompiler {
     __ PushRegister(kind, dst);
   }
 
-  // {tmp1} and {tmp2} may be {no_reg} if it is guaranteed that {target}
-  // isn't a loop.
-  void BrImpl(FullDecoder* decoder, Control* target, Register tmp1,
-              Register tmp2) {
+  void BrImpl(FullDecoder* decoder, Control* target) {
     if (dynamic_tiering()) {
       if (target->is_loop()) {
         DCHECK(target->label.get()->is_bound());
-        DCHECK_NE(tmp1, no_reg);
-        DCHECK_NE(tmp2, no_reg);
         int jump_distance = __ pc_offset() - target->label.get()->pos();
         // For now we just add one as the cost for the tier up check. We might
         // want to revisit this when tuning tiering budgets later.
         const int kTierUpCheckCost = 1;
         TierupCheck(decoder, decoder->position(),
-                    jump_distance + kTierUpCheckCost, tmp1, tmp2);
+                    jump_distance + kTierUpCheckCost);
       } else {
         // To estimate time spent in this function more accurately, we could
         // increment the tiering budget on forward jumps. However, we don't
@@ -2872,29 +2836,16 @@ class LiftoffCompiler {
            decoder->control_at(br_depth)->is_loop();
   }
 
-  struct TierupTempRegisters {
-    Register tmp1 = no_reg;
-    Register tmp2 = no_reg;
-  };
-  void AllocateTempRegisters(TierupTempRegisters& temps) {
-    LiftoffRegList pinned;
-    temps.tmp1 = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
-    temps.tmp2 = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
-  }
-
   void BrOrRet(FullDecoder* decoder, uint32_t depth,
                uint32_t /* drop_values */) {
-    TierupTempRegisters temps;
-    if (NeedsTierupCheck(decoder, depth)) AllocateTempRegisters(temps);
-    BrOrRetImpl(decoder, depth, temps.tmp1, temps.tmp2);
+    BrOrRetImpl(decoder, depth);
   }
 
-  void BrOrRetImpl(FullDecoder* decoder, uint32_t depth, Register tmp1,
-                   Register tmp2) {
+  void BrOrRetImpl(FullDecoder* decoder, uint32_t depth) {
     if (depth == decoder->control_depth() - 1) {
-      ReturnImpl(decoder, tmp1, tmp2);
+      ReturnImpl(decoder);
     } else {
-      BrImpl(decoder, decoder->control_at(depth), tmp1, tmp2);
+      BrImpl(decoder, decoder->control_at(depth));
     }
   }
 
@@ -2905,14 +2856,12 @@ class LiftoffCompiler {
     }
 
     Label cont_false;
-    TierupTempRegisters temps;
-    if (NeedsTierupCheck(decoder, depth)) AllocateTempRegisters(temps);
 
     // Test the condition on the value stack, jump to {cont_false} if zero.
     base::Optional<FreezeCacheState> frozen;
     JumpIfFalse(decoder, &cont_false, frozen);
 
-    BrOrRetImpl(decoder, depth, temps.tmp1, temps.tmp2);
+    BrOrRetImpl(decoder, depth);
 
     __ bind(&cont_false);
   }
@@ -2920,14 +2869,13 @@ class LiftoffCompiler {
   // Generate a branch table case, potentially reusing previously generated
   // stack transfer code.
   void GenerateBrCase(FullDecoder* decoder, uint32_t br_depth,
-                      ZoneMap<uint32_t, MovableLabel>* br_targets,
-                      Register tmp1, Register tmp2) {
+                      ZoneMap<uint32_t, MovableLabel>* br_targets) {
     auto [iterator, is_new_target] = br_targets->emplace(br_depth, zone_);
     Label* label = iterator->second.get();
     DCHECK_EQ(is_new_target, !label->is_bound());
     if (is_new_target) {
       __ bind(label);
-      BrOrRetImpl(decoder, br_depth, tmp1, tmp2);
+      BrOrRetImpl(decoder, br_depth);
     } else {
       __ jmp(label);
     }
@@ -2939,13 +2887,12 @@ class LiftoffCompiler {
                        uint32_t min, uint32_t max,
                        BranchTableIterator<ValidationTag>* table_iterator,
                        ZoneMap<uint32_t, MovableLabel>* br_targets,
-                       Register tmp1, Register tmp2,
                        const FreezeCacheState& frozen) {
     DCHECK_LT(min, max);
     // Check base case.
     if (max == min + 1) {
       DCHECK_EQ(min, table_iterator->cur_index());
-      GenerateBrCase(decoder, table_iterator->next(), br_targets, tmp1, tmp2);
+      GenerateBrCase(decoder, table_iterator->next(), br_targets);
       return;
     }
 
@@ -2955,40 +2902,19 @@ class LiftoffCompiler {
                            split, frozen);
     // Emit br table for lower half:
     GenerateBrTable(decoder, value, min, split, table_iterator, br_targets,
-                    tmp1, tmp2, frozen);
+                    frozen);
     __ bind(&upper_half);
     // table_iterator will trigger a DCHECK if we don't stop decoding now.
     if (did_bailout()) return;
     // Emit br table for upper half:
     GenerateBrTable(decoder, value, split, max, table_iterator, br_targets,
-                    tmp1, tmp2, frozen);
+                    frozen);
   }
 
   void BrTable(FullDecoder* decoder, const BranchTableImmediate& imm,
                const Value& key) {
     LiftoffRegList pinned;
     LiftoffRegister value = pinned.set(__ PopToRegister());
-
-    // Reserve temp registers if any of the table entries will do a tierup
-    // check (function exit, or loop back edge).
-    Register tmp1 = no_reg;
-    Register tmp2 = no_reg;
-    if (dynamic_tiering()) {
-      bool need_temps = false;
-      BranchTableIterator<ValidationTag> table_iterator(decoder, imm);
-      while (table_iterator.has_next()) {
-        uint32_t depth = table_iterator.next();
-        if (depth == decoder->control_depth() - 1 ||
-            decoder->control_at(depth)->is_loop()) {
-          need_temps = true;
-          break;
-        }
-      }
-      if (need_temps) {
-        tmp1 = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
-        tmp2 = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
-      }
-    }
 
     {
       // All targets must have the same arity (checked by validation), so
@@ -3010,7 +2936,7 @@ class LiftoffCompiler {
                              value.gp(), imm.table_count, frozen);
 
       GenerateBrTable(decoder, value, 0, imm.table_count, &table_iterator,
-                      &br_targets, tmp1, tmp2, frozen);
+                      &br_targets, frozen);
 
       __ bind(&case_default);
       // table_iterator will trigger a DCHECK if we don't stop decoding now.
@@ -3018,7 +2944,7 @@ class LiftoffCompiler {
     }
 
     // Generate the default case.
-    GenerateBrCase(decoder, table_iterator.next(), &br_targets, tmp1, tmp2);
+    GenerateBrCase(decoder, table_iterator.next(), &br_targets);
     DCHECK(!table_iterator.has_next());
   }
 
@@ -3800,15 +3726,12 @@ class LiftoffCompiler {
         pinned.set(pass_null_along_branch ? __ PeekToRegister(0, pinned)
                                           : __ PopToRegister(pinned));
     Register null = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
-    Register tmp = NeedsTierupCheck(decoder, depth)
-                       ? pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp()
-                       : no_reg;
     LoadNullValueForCompare(null, pinned, ref_object.type);
     {
       FREEZE_STATE(frozen);
       __ emit_cond_jump(kNotEqual, &cont_false, ref_object.type.kind(),
                         ref.gp(), null, frozen);
-      BrOrRetImpl(decoder, depth, null, tmp);
+      BrOrRetImpl(decoder, depth);
     }
     __ bind(&cont_false);
     if (!pass_null_along_branch) {
@@ -3830,16 +3753,13 @@ class LiftoffCompiler {
     LiftoffRegister ref = pinned.set(__ PeekToRegister(0, pinned));
 
     Register null = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
-    Register tmp = NeedsTierupCheck(decoder, depth)
-                       ? pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp()
-                       : no_reg;
     LoadNullValueForCompare(null, pinned, ref_object.type);
     {
       FREEZE_STATE(frozen);
       __ emit_cond_jump(kEqual, &cont_false, ref_object.type.kind(), ref.gp(),
                         null, frozen);
 
-      BrOrRetImpl(decoder, depth, null, tmp);
+      BrOrRetImpl(decoder, depth);
     }
     // Drop the reference if we are not branching.
     if (drop_null_on_fallthrough) __ DropValues(1);
@@ -6402,7 +6322,7 @@ class LiftoffCompiler {
                  ValueType::Rtt(ref_index), scratch_null, scratch2, &cont_false,
                  null_handling, frozen);
 
-    BrOrRetImpl(decoder, depth, scratch_null, scratch2);
+    BrOrRetImpl(decoder, depth);
 
     __ bind(&cont_false);
   }
@@ -6434,7 +6354,7 @@ class LiftoffCompiler {
     __ emit_jump(&fallthrough);
 
     __ bind(&cont_branch);
-    BrOrRetImpl(decoder, depth, scratch_null, scratch2);
+    BrOrRetImpl(decoder, depth);
 
     __ bind(&fallthrough);
   }
@@ -6503,8 +6423,7 @@ class LiftoffCompiler {
   struct TypeCheck {
     Register obj_reg = no_reg;
     ValueType obj_type;
-    Register tmp1 = no_reg;
-    Register tmp2 = no_reg;
+    Register tmp = no_reg;
     Label* no_match;
     bool null_succeeds;
 
@@ -6513,8 +6432,8 @@ class LiftoffCompiler {
           no_match(no_match),
           null_succeeds(null_succeeds) {}
 
-    Register null_reg() { return tmp1; }       // After {Initialize}.
-    Register instance_type() { return tmp1; }  // After {LoadInstanceType}.
+    Register null_reg() { return tmp; }       // After {Initialize}.
+    Register instance_type() { return tmp; }  // After {LoadInstanceType}.
   };
 
   enum PopOrPeek { kPop, kPeek };
@@ -6526,8 +6445,7 @@ class LiftoffCompiler {
     } else {
       check.obj_reg = pinned.set(__ PeekToRegister(0, pinned)).gp();
     }
-    check.tmp1 = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
-    check.tmp2 = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
+    check.tmp = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
     if (check.obj_type.is_nullable()) {
       LoadNullValue(check.null_reg(), type);
     }
@@ -6597,7 +6515,7 @@ class LiftoffCompiler {
     Label match, no_match, done;
     TypeCheck check(object.type, &no_match, null_succeeds);
     Initialize(check, kPop, object.type);
-    LiftoffRegister result(check.tmp1);
+    LiftoffRegister result(check.tmp);
     {
       FREEZE_STATE(frozen);
 
@@ -6714,7 +6632,7 @@ class LiftoffCompiler {
 
     (this->*type_checker)(check, frozen);
     __ bind(&match);
-    BrOrRetImpl(decoder, br_depth, check.tmp1, check.tmp2);
+    BrOrRetImpl(decoder, br_depth);
 
     __ bind(&no_match);
   }
@@ -6741,7 +6659,7 @@ class LiftoffCompiler {
     __ emit_jump(&end);
 
     __ bind(&no_match);
-    BrOrRetImpl(decoder, br_depth, check.tmp1, check.tmp2);
+    BrOrRetImpl(decoder, br_depth);
 
     __ bind(&end);
   }
