@@ -588,8 +588,11 @@ void VisitBinop(InstructionSelectorT<Adapter>* selector, Node* node,
   }
 
   if (cont->IsSelect()) {
-    inputs[input_count++] = g.UseRegister(cont->true_value());
-    inputs[input_count++] = g.UseRegister(cont->false_value());
+    // Keep the values live until the end so that we can use operations that
+    // write registers to generate the condition, without accidently
+    // overwriting the inputs.
+    inputs[input_count++] = g.UseRegisterAtEnd(cont->true_value());
+    inputs[input_count++] = g.UseRegisterAtEnd(cont->false_value());
   }
 
   DCHECK_NE(0u, input_count);

@@ -198,6 +198,7 @@ v8_source_set("cctest_sources") {
       "compiler/test-run-stackcheck.cc",
       "compiler/test-run-unwinding-info.cc",
       "compiler/test-run-variables.cc",
+      "compiler/test-select-combine.cc",
       "compiler/test-verify-type.cc",
       "setup-isolate-for-tests.cc",
       "setup-isolate-for-tests.h",
