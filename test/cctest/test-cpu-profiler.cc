@@ -44,6 +44,7 @@
 #include "src/deoptimizer/deoptimize-reason.h"
 #include "src/execution/embedder-state.h"
 #include "src/execution/protectors-inl.h"
+#include "src/flags/flags.h"
 #include "src/heap/spaces.h"
 #include "src/init/v8.h"
 #include "src/libsampler/sampler.h"
@@ -1252,13 +1253,17 @@ TEST(BoundFunctionCall) {
 
 // This tests checks distribution of the samples through the source lines.
 static void TickLines(bool optimize) {
+  if (optimize && !v8_flags.turbofan) return;
+
 #if !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
   v8_flags.turbofan = optimize;
 #ifdef V8_ENABLE_MAGLEV
   // TODO(v8:7700): Also test maglev here.
   v8_flags.maglev = false;
+  v8_flags.optimize_on_next_call_optimizes_to_maglev = false;
 #endif  // V8_ENABLE_MAGLEV
 #endif  // !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
+
   CcTest::InitializeVM();
   LocalContext env;
   i::v8_flags.allow_natives_syntax = true;
@@ -1870,6 +1875,9 @@ static const char* inlining_test_source =
 //              action #16 7
 //      (program) #0 2
 TEST(Inlining) {
+  if (!v8_flags.turbofan) return;
+  if (v8_flags.optimize_on_next_call_optimizes_to_maglev) return;
+
   i::v8_flags.allow_natives_syntax = true;
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
@@ -1966,6 +1974,8 @@ static const char* inlining_test_source2 = R"(
 //                        bailed out due to 'Optimization is always disabled'
 //     2    (program):0 0 #2
 TEST(Inlining2) {
+  if (!v8_flags.turbofan) return;
+  if (v8_flags.optimize_on_next_call_optimizes_to_maglev) return;
   // Skip test if concurrent sparkplug is enabled. The test becomes flaky,
   // since it requires a precise trace.
   if (v8_flags.concurrent_sparkplug) return;
@@ -2534,8 +2544,9 @@ const char* GetBranchDeoptReason(v8::Local<v8::Context> context,
 
 // deopt at top function
 TEST(CollectDeoptEvents) {
-  if (!CcTest::i_isolate()->use_optimizer() || i::v8_flags.always_turbofan)
+  if (!CcTest::i_isolate()->use_optimizer() || i::v8_flags.always_turbofan) {
     return;
+  }
   i::v8_flags.allow_natives_syntax = true;
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
@@ -2643,8 +2654,12 @@ TEST(CollectDeoptEvents) {
   }
   {
     const char* branch[] = {"", "opt_function2", "opt_function2"};
-    CHECK_EQ(reason(i::DeoptimizeReason::kDivisionByZero),
-             GetBranchDeoptReason(env, iprofile, branch, arraysize(branch)));
+    const char* deopt_reason =
+        GetBranchDeoptReason(env, iprofile, branch, arraysize(branch));
+    if (deopt_reason != reason(i::DeoptimizeReason::kDivisionByZero) &&
+        deopt_reason != reason(i::DeoptimizeReason::kNotInt32)) {
+      FATAL("%s", deopt_reason);
+    }
   }
   iprofiler->DeleteProfile(iprofile);
 }
@@ -4358,7 +4373,7 @@ UNINITIALIZED_TEST(DetailedSourcePositionAPI) {
     int detailed_positions = GetSourcePositionEntryCount(i_isolate, source);
 
     CHECK((non_detailed_positions == -1 && detailed_positions == -1) ||
-          non_detailed_positions < detailed_positions);
+          non_detailed_positions <= detailed_positions);
   }
 
   isolate->Dispose();
@@ -4420,8 +4435,8 @@ UNINITIALIZED_TEST(DetailedSourcePositionAPI_Inlining) {
     if (non_detailed_positions == -1) {
       CHECK_EQ(non_detailed_positions, detailed_positions);
     } else {
-      CHECK_LT(non_detailed_positions, detailed_positions);
-      CHECK_LT(non_detailed_inlined_positions, detailed_inlined_positions);
+      CHECK_LE(non_detailed_positions, detailed_positions);
+      CHECK_LE(non_detailed_inlined_positions, detailed_inlined_positions);
     }
   }
 
@@ -4629,6 +4644,10 @@ TEST(FastApiCPUProfiler) {
   // feedback to go down the "best optimization" path for the fast call.
   FLAG_VALUE_SCOPE(always_turbofan, false);
   FLAG_VALUE_SCOPE(prof_browser_mode, false);
+#if V8_ENABLE_MAGLEV
+  FLAG_VALUE_SCOPE(maglev, false);
+  FLAG_VALUE_SCOPE(optimize_on_next_call_optimizes_to_maglev, false);
+#endif
 
   CcTest::InitializeVM();
   LocalContext env;

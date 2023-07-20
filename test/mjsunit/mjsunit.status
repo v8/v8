@@ -1964,7 +1964,7 @@
 ##############################################################################
 # Behavioural differences between Maglev and Turbofan when the former is used
 # for OptimizeFunctionOnNextCall.
-['variant == stress_maglev or variant == stress_maglev_future', {
+['variant in (stress_maglev, stress_maglev_future, stress_maglev_no_turbofan, maglev_no_turbofan)', {
   # Maglev doesn't inline Array constructors, so it won't bake in allocation
   # site feedback.
   'array-constructor-feedback': [FAIL],
@@ -2022,14 +2022,14 @@
   # the deprecated map. Wiring this through in Maglev would be too messy to be
   # worth it.
   'regress/regress-map-invalidation-2': [FAIL],
-}], # variant == stress_maglev or variant == stress_maglev_future
+}], # variant in (stress_maglev, stress_maglev_future, stress_maglev_no_turbofan, maglev_no_turbofan)
 
-['(variant == stress_maglev or variant == stress_maglev_future) and (arch != arm)', {
+['(variant in (stress_maglev, stress_maglev_future, stress_maglev_no_turbofan, maglev_no_turbofan)) and (arch != arm)', {
   # Maglev doesn't suppress BigInt size errors on truncation.
   # On Arm that works, since we always _and_ the shift amount first.
   'compiler/bigint-shift-left': [FAIL],
   'compiler/bigint-multiply-truncate': [FAIL],
-}], # variant == stress_maglev or variant == stress_maglev_future
+}], # (variant in (stress_maglev, stress_maglev_future, stress_maglev_no_turbofan, maglev_no_turbofan))' and (arch != arm)
 
 ##############################################################################
 ['clang_coverage and mode == debug', {

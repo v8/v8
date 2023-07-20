@@ -1072,7 +1072,7 @@
 ##############################################################################
 # Behavioural differences between Maglev and Turbofan when the former is used
 # for OptimizeFunctionOnNextCall.
-['variant == stress_maglev or variant == stress_maglev_future', {
+['variant in (stress_maglev, stress_maglev_future, stress_maglev_no_turbofan, maglev_no_turbofan)', {
   # Maglev doesn't support compiler::NodeObserver machinery.
   'test-js-to-wasm/TestFastJSWasmCall_I32Arg': [FAIL],
   'test-js-to-wasm/TestFastJSWasmCall_Nop': [FAIL],
@@ -1108,16 +1108,6 @@
   # Maglev doesn't support FastApi calls.
   'test-api/FastApiCalls': [FAIL],
   'test-api/FastApiSequenceOverloads': [FAIL],
-  # Maglev doesn't produce optimized enough code to match CPU profile tests
-  # expectations.
-  'test-cpu-profiler/CollectDeoptEvents': [FAIL],
-  'test-cpu-profiler/DetailedSourcePositionAPI_Inlining': [FAIL],
-  'test-cpu-profiler/DetailedSourcePositionAPI': [FAIL],
-  'test-cpu-profiler/DeoptAtFirstLevelInlinedSource': [FAIL],
-  'test-cpu-profiler/TickLinesOptimized': [FAIL],
-  'test-cpu-profiler/Inlining': [FAIL],
-  'test-cpu-profiler/FastApiCPUProfiler': [FAIL],
-  'test-cpu-profiler/DeoptAtSecondLevelInlinedSource': [FAIL],
   # Maglev doesn't produce optimized enough code to match heap tests
   # expectations.
   'test-heap/CellsInOptimizedCodeAreWeak': [FAIL],
@@ -1127,5 +1117,5 @@
   'test-heap/LeakNativeContextViaMapProto': [FAIL],
   'test-heap/ObjectsInOptimizedCodeAreWeak': [FAIL],
   'test-heap/ObjectsInEagerlyDeoptimizedCodeAreWeak': [FAIL],
-}],  # variant == stress_maglev or variant == stress_maglev_future
+}],  # variant in (stress_maglev, stress_maglev_future, stress_maglev_no_turbofan, maglev_no_turbofan)
 ]

@@ -123,9 +123,9 @@
 ##############################################################################
 # Behavioural differences between Maglev and Turbofan when the former is used
 # for OptimizeFunctionOnNextCall.
-['variant == stress_maglev or variant == stress_maglev_future', {
+['variant in (stress_maglev, stress_maglev_future, stress_maglev_no_turbofan, maglev_no_turbofan)', {
   # Maglev doesn't support inlining of Wasm code.
   'wasm-inlining-into-js': [FAIL],
-}],  # variant == stress_maglev or variant == stress_maglev_future
+}],  # variant in (stress_maglev, stress_maglev_future, stress_maglev_no_turbofan, maglev_no_turbofan)
 
 ]

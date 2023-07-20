@@ -559,6 +559,7 @@ MaglevGraphBuilder::MaglevGraphBuilder(LocalIsolate* local_isolate,
                                        MaglevCompilationUnit* compilation_unit,
                                        Graph* graph, float call_frequency,
                                        BytecodeOffset caller_bytecode_offset,
+                                       int inlining_id,
                                        MaglevGraphBuilder* parent)
     : local_isolate_(local_isolate),
       compilation_unit_(compilation_unit),
@@ -590,6 +591,7 @@ MaglevGraphBuilder::MaglevGraphBuilder(LocalIsolate* local_isolate,
       entrypoint_(compilation_unit->is_osr()
                       ? bytecode_analysis_.osr_entry_point()
                       : 0),
+      inlining_id_(inlining_id),
       catch_block_stack_(zone()) {
   memset(merge_states_, 0,
          (bytecode().length() + 1) * sizeof(InterpreterFrameState*));
@@ -5609,6 +5611,7 @@ ReduceResult MaglevGraphBuilder::TryBuildInlinedCall(
   graph()->inlined_functions().push_back(
       OptimizedCompilationInfo::InlinedFunctionHolder(
           shared.object(), bytecode.object(), current_source_position_));
+  int inlining_id = static_cast<int>(graph()->inlined_functions().size() - 1);
 
   // Create a new compilation unit and graph builder for the inlined
   // function.
@@ -5616,7 +5619,7 @@ ReduceResult MaglevGraphBuilder::TryBuildInlinedCall(
       zone(), compilation_unit_, shared, feedback_vector.value());
   MaglevGraphBuilder inner_graph_builder(
       local_isolate_, inner_unit, graph_, call_frequency,
-      BytecodeOffset(iterator_.current_offset()), this);
+      BytecodeOffset(iterator_.current_offset()), inlining_id, this);
 
   // Propagate catch block.
   inner_graph_builder.parent_catch_ = GetCurrentTryCatchBlock();

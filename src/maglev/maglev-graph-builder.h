@@ -250,6 +250,7 @@ class MaglevGraphBuilder {
       LocalIsolate* local_isolate, MaglevCompilationUnit* compilation_unit,
       Graph* graph, float call_frequency = 1.0f,
       BytecodeOffset caller_bytecode_offset = BytecodeOffset::None(),
+      int inlining_id = SourcePosition::kNotInlined,
       MaglevGraphBuilder* parent = nullptr);
 
   void Build() {
@@ -602,11 +603,9 @@ class MaglevGraphBuilder {
   void UpdateSourceAndBytecodePosition(int offset) {
     if (source_position_iterator_.done()) return;
     if (source_position_iterator_.code_offset() == offset) {
-      // TODO(leszeks): Add inlining support.
-      const int kInliningId = SourcePosition::kNotInlined;
       current_source_position_ = SourcePosition(
           source_position_iterator_.source_position().ScriptOffset(),
-          kInliningId);
+          inlining_id_);
       source_position_iterator_.Advance();
     } else {
       DCHECK_GT(source_position_iterator_.code_offset(), offset);
@@ -2084,6 +2083,8 @@ class MaglevGraphBuilder {
 
   // Bytecode offset at which compilation should start.
   int entrypoint_;
+
+  int inlining_id_;
 
   DeoptFrameScope* current_deopt_scope_ = nullptr;
 
