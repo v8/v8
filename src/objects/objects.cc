@@ -2073,12 +2073,14 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {
       break;
     }
     case HOLE_TYPE: {
-      if (IsTheHole()) {
-        os << "<the_hole>";
-      } else {
-        UNREACHABLE();
-      }
-      break;
+#define PRINT_HOLE(Type, Value, _) \
+  if (Is##Type()) {                \
+    os << "<" #Value ">";          \
+    break;                         \
+  }
+      HOLE_LIST(PRINT_HOLE)
+#undef PRINT_HOLE
+      UNREACHABLE();
     }
     case INSTRUCTION_STREAM_TYPE: {
       InstructionStream istream = InstructionStream::cast(*this);
