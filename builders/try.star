@@ -286,7 +286,7 @@ try_builder(
     bucket = "try",
     cq_properties = CQ.on_files("tools/clusterfuzz/js_fuzzer/.+"),
     executable = "recipe:v8/test_tools",
-    dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
+    dimensions = {"host_class": "docker", "os": "Ubuntu-22.04", "cpu": "x86-64"},
 )
 
 try_builder(

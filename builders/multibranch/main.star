@@ -330,6 +330,6 @@ in_category(
     main_multibranch_builder(
         name = "V8 Test Tools",
         executable = "recipe:v8/test_tools",
-        dimensions = {"os": "Ubuntu-22.04", "cpu": "x86-64"},
+        dimensions = {"host_class": "docker", "os": "Ubuntu-22.04", "cpu": "x86-64"},
     ),
 )
