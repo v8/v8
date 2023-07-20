@@ -863,6 +863,8 @@ class AssemblerOpInterface {
                           Word32)
   DECL_SINGLE_REP_BINOP_V(Word64ShiftRightLogical, Shift, ShiftRightLogical,
                           Word64)
+  DECL_SINGLE_REP_BINOP_V(WordPtrShiftRightLogical, Shift, ShiftRightLogical,
+                          WordPtr)
   DECL_MULTI_REP_BINOP(ShiftLeft, Shift, WordRepresentation, ShiftLeft)
   DECL_SINGLE_REP_BINOP_V(Word32ShiftLeft, Shift, ShiftLeft, Word32)
   DECL_SINGLE_REP_BINOP_V(Word64ShiftLeft, Shift, ShiftLeft, Word64)

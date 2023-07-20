@@ -1198,13 +1198,13 @@ class WasmGraphBuildingInterface {
     TFNode* expected_tag = builder_->LoadTagFromTable(imm.index);
 
     if (imm.tag->sig->parameter_count() == 1 &&
-        imm.tag->sig->GetParam(0) == kWasmExternRef) {
+        imm.tag->sig->GetParam(0).is_reference_to(HeapType::kExtern)) {
       // Check for the special case where the tag is WebAssembly.JSTag and the
       // exception is not a WebAssembly.Exception. In this case the exception is
       // caught and pushed on the operand stack.
       // Only perform this check if the tag signature is the same as
-      // the JSTag signature, i.e. a single externref, otherwise we know
-      // statically that it cannot be the JSTag.
+      // the JSTag signature, i.e. a single externref or (ref extern), otherwise
+      // we know statically that it cannot be the JSTag.
 
       TFNode* is_js_exn = builder_->IsExceptionTagUndefined(caught_tag);
       auto [exn_is_js, exn_is_wasm] = builder_->BranchExpectFalse(is_js_exn);

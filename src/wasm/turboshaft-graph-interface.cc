@@ -54,6 +54,11 @@ using compiler::turboshaft::WordPtr;
   asm_.Load(instance_node_, LoadOp::Kind::TaggedBase(), representation, \
             WasmInstanceObject::k##name##Offset)
 
+#define LOAD_ROOT(name)                                          \
+  asm_.Load(asm_.LoadRootRegister(), LoadOp::Kind::RawAligned(), \
+            MemoryRepresentation::PointerSized(),                \
+            IsolateData::root_slot_offset(RootIndex::k##name))
+
 class TurboshaftGraphBuildingInterface {
  public:
   using ValidationTag = Decoder::FullValidationTag;
@@ -72,9 +77,11 @@ class TurboshaftGraphBuildingInterface {
   };
 
   struct Control : public ControlBase<Value, ValidationTag> {
-    TSBlock* false_block = nullptr;  // Only for 'if'.
     TSBlock* merge_block = nullptr;
-    TSBlock* loop_block = nullptr;  // Only for loops.
+    TSBlock* false_block = nullptr;          // Only for 'if'.
+    TSBlock* loop_block = nullptr;           // Only for loops.
+    TSBlock* catch_block = nullptr;          // Only for 'try'.
+    OpIndex exception = OpIndex::Invalid();  // Only for 'try-catch'.
 
     template <typename... Args>
     explicit Control(Args&&... args) V8_NOEXCEPT
@@ -273,7 +280,14 @@ class TurboshaftGraphBuildingInterface {
     }
   }
 
-  void FallThruTo(FullDecoder* decoder, Control* block) { Bailout(decoder); }
+  void FallThruTo(FullDecoder* decoder, Control* block) {
+    // TODO(14108): Why is {block->reachable()} not reliable here? Maybe it is
+    // not in other spots as well.
+    if (asm_.current_block() != nullptr) {
+      SetupControlFlowEdge(decoder, block->merge_block);
+      asm_.Goto(block->merge_block);
+    }
+  }
 
   void PopControl(FullDecoder* decoder, Control* block) {
     switch (block->kind) {
@@ -286,13 +300,20 @@ class TurboshaftGraphBuildingInterface {
         // Exceptionally for one-armed if, we cannot take the values from the
         // stack; we have to pass the stack values at the beginning of the
         // if-block.
-        SetupControlFlowEdge(decoder, block->merge_block, &block->start_merge);
+        SetupControlFlowEdge(decoder, block->merge_block, OpIndex::Invalid(),
+                             &block->start_merge);
         asm_.Goto(block->merge_block);
         EnterBlock(decoder, block->merge_block, block->br_merge());
         break;
       case kControlIfElse:
       case kControlBlock:
-        if (block->reachable()) {
+      case kControlTry:
+      case kControlTryCatch:
+      case kControlTryCatchAll:
+        // {block->reachable()} is not reliable here for exceptions, because
+        // the decoder sets the reachability to the upper block's reachability
+        // before calling this interface function.
+        if (asm_.current_block() != nullptr) {
           SetupControlFlowEdge(decoder, block->merge_block);
           asm_.Goto(block->merge_block);
         }
@@ -346,11 +367,6 @@ class TurboshaftGraphBuildingInterface {
         EnterBlock(decoder, post_loop, nullptr);
         break;
       }
-      case kControlTry:
-      case kControlTryCatch:
-      case kControlTryCatchAll:
-        Bailout(decoder);
-        break;
     }
   }
 
@@ -432,7 +448,7 @@ class TurboshaftGraphBuildingInterface {
     IF (IsSmi(maybe_function)) {
       OpIndex function_index_constant = asm_.Word32Constant(function_index);
       OpIndex from_builtin = CallBuiltinFromRuntimeStub(
-          wasm::WasmCode::kWasmRefFunc,
+          decoder, wasm::WasmCode::kWasmRefFunc,
           base::VectorOf(&function_index_constant, 1));
       GOTO(done, from_builtin);
     }
@@ -673,15 +689,16 @@ class TurboshaftGraphBuildingInterface {
                   const Value& value, Value* result) {
     if (!imm.memory->is_memory64) {
       result->op = CallBuiltinFromRuntimeStub(
-          WasmCode::kWasmMemoryGrow, asm_.Word32Constant(imm.index), value.op);
+          decoder, WasmCode::kWasmMemoryGrow,
+          {asm_.Word32Constant(imm.index), value.op});
     } else {
       Label<Word64> done(&asm_);
 
       IF (asm_.Uint64LessThanOrEqual(
               value.op, asm_.Word64Constant(static_cast<int64_t>(kMaxInt)))) {
         GOTO(done, asm_.ChangeInt32ToInt64(CallBuiltinFromRuntimeStub(
-                       WasmCode::kWasmMemoryGrow,
-                       asm_.Word32Constant(imm.index), value.op)));
+                       decoder, WasmCode::kWasmMemoryGrow,
+                       {asm_.Word32Constant(imm.index), value.op})));
       }
       ELSE {
         GOTO(done, asm_.Word64Constant(int64_t{-1}));
@@ -794,25 +811,177 @@ class TurboshaftGraphBuildingInterface {
     Bailout(decoder);
   }
 
-  void Try(FullDecoder* decoder, Control* block) { Bailout(decoder); }
+  void Try(FullDecoder* decoder, Control* block) {
+    block->catch_block = NewBlock(decoder, nullptr);
+    block->merge_block = NewBlock(decoder, block->br_merge());
+  }
 
   void Throw(FullDecoder* decoder, const TagIndexImmediate& imm,
              const Value arg_values[]) {
-    Bailout(decoder);
+    size_t count = imm.tag->sig->parameter_count();
+    base::SmallVector<OpIndex, 8> values(count);
+    for (size_t index = 0; index < count; index++) {
+      values[index] = arg_values[index].op;
+    }
+
+    uint32_t encoded_size = WasmExceptionPackage::GetEncodedSize(imm.tag);
+
+    OpIndex values_array =
+        CallBuiltinFromRuntimeStub(decoder, WasmCode::kWasmAllocateFixedArray,
+                                   {asm_.IntPtrConstant(encoded_size)});
+
+    uint32_t index = 0;
+    const wasm::WasmTagSig* sig = imm.tag->sig;
+
+    // Encode the exception values in {values_array}.
+    for (size_t i = 0; i < count; i++) {
+      OpIndex value = values[i];
+      switch (sig->GetParam(i).kind()) {
+        case kF32:
+          value = asm_.BitcastFloat32ToWord32(value);
+          V8_FALLTHROUGH;
+        case kI32:
+          BuildEncodeException32BitValue(values_array, index, value);
+          // We need 2 Smis to encode a 32-bit value.
+          index += 2;
+          break;
+        case kF64:
+          value = asm_.BitcastFloat64ToWord64(value);
+          V8_FALLTHROUGH;
+        case kI64: {
+          // Truncations happen implicitly.
+          OpIndex upper_half = asm_.Word64ShiftRightLogical(value, 32);
+          BuildEncodeException32BitValue(values_array, index, upper_half);
+          index += 2;
+          BuildEncodeException32BitValue(values_array, index, value);
+          index += 2;
+          break;
+        }
+        case wasm::kRef:
+        case wasm::kRefNull:
+        case wasm::kRtt:
+          StoreFixedArrayElement(values_array, index, value,
+                                 compiler::kFullWriteBarrier);
+          index++;
+          break;
+        case kS128:
+          Bailout(decoder);
+          return;
+        case kI8:
+        case kI16:
+        case kVoid:
+        case kBottom:
+          UNREACHABLE();
+      }
+    }
+
+    OpIndex instance_tags =
+        LOAD_INSTANCE_FIELD(TagsTable, MemoryRepresentation::TaggedPointer());
+    OpIndex tag = LoadFixedArrayElement(instance_tags, imm.index);
+
+    CallBuiltinFromRuntimeStub(decoder, WasmCode::kWasmThrow,
+                               {tag, values_array}, CheckForException::kYes);
+    asm_.Unreachable();
   }
 
-  void Rethrow(FullDecoder* decoder, Control* block) { Bailout(decoder); }
+  void Rethrow(FullDecoder* decoder, Control* block) {
+    CallBuiltinFromRuntimeStub(decoder, WasmCode::kWasmRethrow,
+                               {block->exception}, CheckForException::kYes);
+    asm_.Unreachable();
+  }
 
+  // TODO(14108): Optimize in case of unreachable catch block?
   void CatchException(FullDecoder* decoder, const TagIndexImmediate& imm,
                       Control* block, base::Vector<Value> values) {
-    Bailout(decoder);
+    EnterBlock(decoder, block->catch_block, nullptr, &block->exception);
+    OpIndex native_context = LOAD_INSTANCE_FIELD(
+        NativeContext, MemoryRepresentation::TaggedPointer());
+    OpIndex caught_tag = CallBuiltinFromRuntimeStub(
+        decoder, WasmCode::kWasmGetOwnProperty,
+        {block->exception, LOAD_ROOT(wasm_exception_tag_symbol),
+         native_context});
+    OpIndex instance_tags =
+        LOAD_INSTANCE_FIELD(TagsTable, MemoryRepresentation::TaggedPointer());
+    OpIndex expected_tag = LoadFixedArrayElement(instance_tags, imm.index);
+    TSBlock* if_catch = asm_.NewBlock();
+    TSBlock* if_no_catch = NewBlock(decoder, nullptr);
+    SetupControlFlowEdge(decoder, if_no_catch);
+
+    // If the tags don't match we continue with the next tag by setting the
+    // no-catch environment as the new {block->catch_block} here.
+    block->catch_block = if_no_catch;
+
+    if (imm.tag->sig->parameter_count() == 1 &&
+        imm.tag->sig->GetParam(0).is_reference_to(HeapType::kExtern)) {
+      // Check for the special case where the tag is WebAssembly.JSTag and the
+      // exception is not a WebAssembly.Exception. In this case the exception is
+      // caught and pushed on the operand stack.
+      // Only perform this check if the tag signature is the same as
+      // the JSTag signature, i.e. a single externref or (ref extern), otherwise
+      // we know statically that it cannot be the JSTag.
+      OpIndex caught_tag_undefined =
+          asm_.TaggedEqual(caught_tag, LOAD_ROOT(UndefinedValue));
+      TSBlock* js_exception = asm_.NewBlock();
+      TSBlock* wasm_exception = asm_.NewBlock();
+      TSBlock* no_catch_merge = asm_.NewBlock();
+      asm_.Branch(ConditionWithHint(caught_tag_undefined, BranchHint::kFalse),
+                  js_exception, wasm_exception);
+
+      asm_.Bind(js_exception);
+      OpIndex tag_object = asm_.Load(
+          native_context, LoadOp::Kind::TaggedBase(),
+          MemoryRepresentation::TaggedPointer(),
+          NativeContext::OffsetOfElementAt(Context::WASM_JS_TAG_INDEX));
+      OpIndex js_tag = asm_.Load(tag_object, LoadOp::Kind::TaggedBase(),
+                                 MemoryRepresentation::TaggedPointer(),
+                                 WasmTagObject::kTagOffset);
+      asm_.Branch(ConditionWithHint(asm_.TaggedEqual(expected_tag, js_tag)),
+                  if_catch, no_catch_merge);
+
+      asm_.Bind(wasm_exception);
+      TSBlock* unpack_block = asm_.NewBlock();
+      asm_.Branch(ConditionWithHint(asm_.TaggedEqual(caught_tag, expected_tag)),
+                  unpack_block, no_catch_merge);
+      asm_.Bind(unpack_block);
+      UnpackWasmException(decoder, block->exception, values);
+      asm_.Goto(if_catch);
+
+      asm_.Bind(no_catch_merge);
+      asm_.Goto(if_no_catch);
+
+      asm_.Bind(if_catch);
+      values[0].op = asm_.Phi(base::VectorOf({block->exception, values[0].op}),
+                              RegisterRepresentation::Tagged());
+    } else {
+      asm_.Branch(ConditionWithHint(asm_.TaggedEqual(caught_tag, expected_tag)),
+                  if_catch, if_no_catch);
+      asm_.Bind(if_catch);
+      UnpackWasmException(decoder, block->exception, values);
+    }
   }
 
+  // TODO(14108): Optimize in case of unreachable catch block?
   void Delegate(FullDecoder* decoder, uint32_t depth, Control* block) {
-    Bailout(decoder);
+    EnterBlock(decoder, block->catch_block, nullptr, &block->exception);
+    if (depth == decoder->control_depth() - 1) {
+      // We just throw to the caller, no need to handle the exception in this
+      // frame.
+      CallBuiltinFromRuntimeStub(decoder, WasmCode::kWasmRethrow,
+                                 {block->exception});
+      asm_.Unreachable();
+    } else {
+      DCHECK(decoder->control_at(depth)->is_try());
+      TSBlock* target_catch = decoder->control_at(depth)->catch_block;
+      SetupControlFlowEdge(decoder, target_catch, block->exception);
+      asm_.Goto(target_catch);
+    }
   }
 
-  void CatchAll(FullDecoder* decoder, Control* block) { Bailout(decoder); }
+  void CatchAll(FullDecoder* decoder, Control* block) {
+    DCHECK(block->is_try_catchall() || block->is_try_catch());
+    DCHECK_EQ(decoder->control_at(0), block);
+    EnterBlock(decoder, block->catch_block, nullptr, &block->exception);
+  }
 
   void AtomicOp(FullDecoder* decoder, WasmOpcode opcode, const Value args[],
                 const size_t argc, const MemoryAccessImmediate& imm,
@@ -1254,10 +1423,13 @@ class TurboshaftGraphBuildingInterface {
     // The first vector corresponds to all inputs of the first phi etc.
     std::vector<std::vector<OpIndex>> phi_inputs;
     std::vector<ValueType> phi_types;
+    std::vector<OpIndex> incoming_exception;
 
     explicit BlockPhis(int total_arity)
         : phi_inputs(total_arity), phi_types(total_arity) {}
   };
+
+  enum class CheckForException { kNo, kYes };
 
   void Bailout(FullDecoder* decoder) {
     decoder->errorf("Unsupported Turboshaft operation: %s",
@@ -1293,6 +1465,7 @@ class TurboshaftGraphBuildingInterface {
   // {block}. The stack is {stack_values} if present, otherwise the current
   // decoder stack.
   void SetupControlFlowEdge(FullDecoder* decoder, TSBlock* block,
+                            OpIndex exception = OpIndex::Invalid(),
                             Merge<Value>* stack_values = nullptr) {
     // It is guaranteed that this element exists.
     BlockPhis& phis_for_block = block_phis_.find(block)->second;
@@ -1307,8 +1480,12 @@ class TurboshaftGraphBuildingInterface {
                             ? &(*stack_values)[0]
                             : decoder->stack_value(merge_arity);
     for (size_t i = 0; i < merge_arity; i++) {
+      DCHECK(stack_base[i].op.valid());
       phis_for_block.phi_inputs[decoder->num_locals() + i].emplace_back(
           stack_base[i].op);
+    }
+    if (exception.valid()) {
+      phis_for_block.incoming_exception.push_back(exception);
     }
   }
 
@@ -1327,7 +1504,8 @@ class TurboshaftGraphBuildingInterface {
   // Binds a block, initializes phis for its SSA environment from its entry in
   // {block_phis_}, and sets values to its {merge} (if available) from the
   // its entry in {block_phis_}.
-  void EnterBlock(FullDecoder* decoder, TSBlock* tsblock, Merge<Value>* merge) {
+  void EnterBlock(FullDecoder* decoder, TSBlock* tsblock, Merge<Value>* merge,
+                  OpIndex* exception = nullptr) {
     asm_.Bind(tsblock);
     BlockPhis& block_phis = block_phis_.at(tsblock);
     for (uint32_t i = 0; i < decoder->num_locals(); i++) {
@@ -1342,6 +1520,11 @@ class TurboshaftGraphBuildingInterface {
             MaybePhi(decoder, block_phis.phi_inputs[decoder->num_locals() + i],
                      block_phis.phi_types[decoder->num_locals() + i]);
       }
+    }
+    DCHECK_IMPLIES(exception == nullptr, block_phis.incoming_exception.empty());
+    if (exception != nullptr && !exception->valid()) {
+      *exception =
+          MaybePhi(decoder, block_phis.incoming_exception, kWasmExternRef);
     }
     block_phis_.erase(tsblock);
   }
@@ -2620,8 +2803,8 @@ class TurboshaftGraphBuildingInterface {
       arg_indices[i + 1] = args[i].op;
     }
 
-    OpIndex call = asm_.Call(callee, OpIndex::Invalid(),
-                             base::VectorOf(arg_indices), descriptor);
+    OpIndex call = CallAndMaybeCatchException(
+        decoder, callee, base::VectorOf(arg_indices), descriptor);
 
     if (sig->return_count() == 1) {
       returns[0].op = call;
@@ -2648,8 +2831,10 @@ class TurboshaftGraphBuildingInterface {
     asm_.TailCall(callee, base::VectorOf(arg_indices), descriptor);
   }
 
-  OpIndex CallBuiltinFromRuntimeStub(WasmCode::RuntimeStubId stub_id,
-                                     base::Vector<OpIndex> args) {
+  OpIndex CallBuiltinFromRuntimeStub(
+      FullDecoder* decoder, WasmCode::RuntimeStubId stub_id,
+      base::Vector<const OpIndex> args,
+      CheckForException check_for_exception = CheckForException::kNo) {
     Builtin builtin_name = RuntimeStubIdToBuiltinName(stub_id);
     CallInterfaceDescriptor interface_descriptor =
         Builtins::CallInterfaceDescriptorFor(builtin_name);
@@ -2663,15 +2848,44 @@ class TurboshaftGraphBuildingInterface {
         TSCallDescriptor::Create(call_descriptor, asm_.graph_zone());
     OpIndex call_target =
         asm_.RelocatableConstant(stub_id, RelocInfo::WASM_STUB_CALL);
-    return asm_.Call(call_target, OpIndex::Invalid(), args, ts_call_descriptor);
+    return check_for_exception == CheckForException::kYes
+               ? CallAndMaybeCatchException(decoder, call_target, args,
+                                            ts_call_descriptor)
+               : asm_.Call(call_target, OpIndex::Invalid(), args,
+                           ts_call_descriptor);
   }
 
-  template <typename... Args>
-  OpIndex CallBuiltinFromRuntimeStub(WasmCode::RuntimeStubId stub_id,
-                                     Args... args) {
-    OpIndex args_array[] = {args...};
-    return CallBuiltinFromRuntimeStub(
-        stub_id, base::VectorOf(args_array, arraysize(args_array)));
+  OpIndex CallBuiltinFromRuntimeStub(
+      FullDecoder* decoder, WasmCode::RuntimeStubId stub_id,
+      std::initializer_list<OpIndex> args,
+      CheckForException check_for_exception = CheckForException::kNo) {
+    return CallBuiltinFromRuntimeStub(decoder, stub_id, base::VectorOf(args),
+                                      check_for_exception);
+  }
+
+  OpIndex CallAndMaybeCatchException(FullDecoder* decoder, OpIndex callee,
+                                     base::Vector<const OpIndex> args,
+                                     const TSCallDescriptor* descriptor) {
+    if (decoder->current_catch() == -1) {
+      return asm_.Call(callee, OpIndex::Invalid(), args, descriptor);
+    }
+
+    Control* current_catch =
+        decoder->control_at(decoder->control_depth_of_current_catch());
+    TSBlock* catch_block = current_catch->catch_block;
+    TSBlock* success_block = asm_.NewBlock();
+    TSBlock* exception_block = asm_.NewBlock();
+    OpIndex call =
+        asm_.CallAndCatchException(callee, OpIndex::Invalid(), args,
+                                   success_block, exception_block, descriptor);
+
+    asm_.Bind(exception_block);
+    OpIndex exception = asm_.LoadException();
+    SetupControlFlowEdge(decoder, catch_block, exception);
+    asm_.Goto(catch_block);
+
+    asm_.Bind(success_block);
+    return call;
   }
 
   OpIndex CallRuntime(Runtime::FunctionId f, base::Vector<const OpIndex> args) {
@@ -2764,6 +2978,102 @@ class TurboshaftGraphBuildingInterface {
     }
   }
 
+  OpIndex ChangeUint31ToSmi(OpIndex value) {
+    return COMPRESS_POINTERS_BOOL
+               ? asm_.Word32ShiftLeft(value, kSmiShiftSize + kSmiTagSize)
+               : asm_.WordPtrShiftLeft(asm_.ChangeUint32ToUintPtr(value),
+                                       kSmiShiftSize + kSmiTagSize);
+  }
+
+  OpIndex ChangeSmiToUint32(OpIndex value) {
+    return COMPRESS_POINTERS_BOOL ? asm_.Word32ShiftRightLogical(
+                                        value, kSmiShiftSize + kSmiTagSize)
+                                  : asm_.WordPtrShiftRightLogical(
+                                        value, kSmiShiftSize + kSmiTagSize);
+  }
+
+  void BuildEncodeException32BitValue(OpIndex values_array, uint32_t index,
+                                      OpIndex value) {
+    OpIndex upper_half =
+        ChangeUint31ToSmi(asm_.Word32ShiftRightLogical(value, 16));
+    StoreFixedArrayElement(values_array, index, upper_half,
+                           compiler::kNoWriteBarrier);
+    OpIndex lower_half =
+        ChangeUint31ToSmi(asm_.Word32BitwiseAnd(value, 0xffffu));
+    StoreFixedArrayElement(values_array, index + 1, lower_half,
+                           compiler::kNoWriteBarrier);
+  }
+
+  OpIndex BuildDecodeException32BitValue(OpIndex exception_values_array,
+                                         int index) {
+    OpIndex upper_half = asm_.Word32ShiftLeft(
+        ChangeSmiToUint32(LoadFixedArrayElement(exception_values_array, index)),
+        16);
+    OpIndex lower_half = ChangeSmiToUint32(
+        LoadFixedArrayElement(exception_values_array, index + 1));
+    return asm_.Word32BitwiseOr(upper_half, lower_half);
+  }
+
+  OpIndex BuildDecodeException64BitValue(OpIndex exception_values_array,
+                                         int index) {
+    OpIndex upper_half = asm_.Word64ShiftLeft(
+        asm_.ChangeUint32ToUint64(
+            BuildDecodeException32BitValue(exception_values_array, index)),
+        32);
+    OpIndex lower_half = asm_.ChangeUint32ToUint64(
+        BuildDecodeException32BitValue(exception_values_array, index + 2));
+    return asm_.Word64BitwiseOr(upper_half, lower_half);
+  }
+
+  void UnpackWasmException(FullDecoder* decoder, OpIndex exception,
+                           base::Vector<Value> values) {
+    OpIndex exception_values_array = CallBuiltinFromRuntimeStub(
+        decoder, WasmCode::kWasmGetOwnProperty,
+        {exception, LOAD_ROOT(wasm_exception_values_symbol),
+         LOAD_INSTANCE_FIELD(NativeContext,
+                             MemoryRepresentation::TaggedPointer())});
+
+    int index = 0;
+    for (Value& value : values) {
+      switch (value.type.kind()) {
+        case kI32:
+          value.op =
+              BuildDecodeException32BitValue(exception_values_array, index);
+          index += 2;
+          break;
+        case kI64:
+          value.op =
+              BuildDecodeException64BitValue(exception_values_array, index);
+          index += 4;
+          break;
+        case kF32:
+          value.op = asm_.BitcastWord32ToFloat32(
+              BuildDecodeException32BitValue(exception_values_array, index));
+          index += 2;
+          break;
+        case kF64:
+          value.op = asm_.BitcastWord64ToFloat64(
+              BuildDecodeException64BitValue(exception_values_array, index));
+          index += 4;
+          break;
+        case kS128:
+          Bailout(decoder);
+          return;
+        case kRtt:
+        case kRef:
+        case kRefNull:
+          value.op = LoadFixedArrayElement(exception_values_array, index);
+          index++;
+          break;
+        case kI8:
+        case kI16:
+        case kVoid:
+        case kBottom:
+          UNREACHABLE();
+      }
+    }
+  }
+
   OpIndex LoadFixedArrayElement(OpIndex array, int index) {
     return asm_.Load(array, LoadOp::Kind::TaggedBase(),
                      MemoryRepresentation::AnyTagged(),
@@ -2774,6 +3084,20 @@ class TurboshaftGraphBuildingInterface {
     return asm_.Load(array, index, LoadOp::Kind::TaggedBase(),
                      MemoryRepresentation::AnyTagged(), FixedArray::kHeaderSize,
                      kTaggedSizeLog2);
+  }
+
+  void StoreFixedArrayElement(OpIndex array, int index, OpIndex value,
+                              compiler::WriteBarrierKind write_barrier) {
+    asm_.Store(array, value, LoadOp::Kind::TaggedBase(),
+               MemoryRepresentation::AnyTagged(), write_barrier,
+               FixedArray::kHeaderSize + index * kTaggedSize);
+  }
+
+  void StoreFixedArrayElement(OpIndex array, OpIndex index, OpIndex value,
+                              compiler::WriteBarrierKind write_barrier) {
+    asm_.Store(array, index, value, LoadOp::Kind::TaggedBase(),
+               MemoryRepresentation::AnyTagged(), write_barrier,
+               FixedArray::kHeaderSize, kTaggedSizeLog2);
   }
 
   TrapId GetTrapIdForTrap(wasm::TrapReason reason) {
