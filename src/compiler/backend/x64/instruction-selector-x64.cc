@@ -544,7 +544,11 @@ X64OperandGeneratorT<TurboshaftAdapter>::GetEffectiveAddressMemoryOperand(
   }
   if (TurboshaftAdapter::valid(m->base) &&
       this->Get(m->base).Is<turboshaft::LoadRootRegisterOp>()) {
-    UNIMPLEMENTED();
+    DCHECK(!this->valid(m->index));
+    DCHECK_EQ(m->scale, 0);
+    DCHECK(ValueFitsIntoImmediate(m->displacement));
+    inputs[(*input_count)++] = UseImmediate(static_cast<int>(m->displacement));
+    return kMode_Root;
   } else if (m->displacement == 0 || ValueFitsIntoImmediate(m->displacement)) {
     return GenerateMemoryOperandInputs(m->index, m->scale, m->base,
                                        m->displacement, m->displacement_mode,
@@ -1505,17 +1509,19 @@ void VisitWord64Shift(InstructionSelectorT<Adapter>* selector,
 }
 
 // Shared routine for multiple shift operations with continuation.
-template <typename Adapter, typename BinopMatcher, int Bits>
-bool TryVisitWordShift(InstructionSelectorT<Adapter>* selector, Node* node,
+template <typename Adapter>
+bool TryVisitWordShift(InstructionSelectorT<Adapter>* selector,
+                       typename Adapter::node_t node, int bits,
                        ArchOpcode opcode, FlagsContinuationT<Adapter>* cont) {
+  DCHECK(bits == 32 || bits == 64);
   X64OperandGeneratorT<Adapter> g(selector);
-  BinopMatcher m(node);
-  Node* left = m.left().node();
-  Node* right = m.right().node();
+  DCHECK_EQ(selector->value_input_count(node), 2);
+  auto left = selector->input_at(node, 0);
+  auto right = selector->input_at(node, 1);
 
   // If the shift count is 0, the flags are not affected.
   if (!g.CanBeImmediate(right) ||
-      (g.GetImmediateIntegerValue(right) & (Bits - 1)) == 0) {
+      (g.GetImmediateIntegerValue(right) & (bits - 1)) == 0) {
     return false;
   }
   InstructionOperand output = g.DefineSameAsFirst(node);
@@ -1787,15 +1793,19 @@ void InstructionSelectorT<Adapter>::VisitWord64ReverseBits(Node* node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord64ReverseBytes(Node* node) {
+void InstructionSelectorT<Adapter>::VisitWord64ReverseBytes(node_t node) {
   X64OperandGeneratorT<Adapter> g(this);
-  Emit(kX64Bswap, g.DefineSameAsFirst(node), g.UseRegister(node->InputAt(0)));
+  DCHECK_EQ(this->value_input_count(node), 1);
+  Emit(kX64Bswap, g.DefineSameAsFirst(node),
+       g.UseRegister(this->input_at(node, 0)));
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord32ReverseBytes(Node* node) {
+void InstructionSelectorT<Adapter>::VisitWord32ReverseBytes(node_t node) {
   X64OperandGeneratorT<Adapter> g(this);
-  Emit(kX64Bswap32, g.DefineSameAsFirst(node), g.UseRegister(node->InputAt(0)));
+  DCHECK_EQ(this->value_input_count(node), 1);
+  Emit(kX64Bswap32, g.DefineSameAsFirst(node),
+       g.UseRegister(this->input_at(node, 0)));
 }
 
 template <typename Adapter>
@@ -2629,6 +2639,12 @@ void VisitFloatUnop(InstructionSelectorT<Adapter>* selector,
 }  // namespace
 
 #define RO_OP_T_LIST(V)                                                \
+  V(Word64Clz, kX64Lzcnt)                                              \
+  V(Word32Clz, kX64Lzcnt32)                                            \
+  V(Word64Ctz, kX64Tzcnt)                                              \
+  V(Word32Ctz, kX64Tzcnt32)                                            \
+  V(Word64Popcnt, kX64Popcnt)                                          \
+  V(Word32Popcnt, kX64Popcnt32)                                        \
   V(Float64Sqrt, kSSEFloat64Sqrt)                                      \
   V(Float32Sqrt, kSSEFloat32Sqrt)                                      \
   V(RoundFloat64ToInt32, kSSEFloat64ToInt32)                           \
@@ -2653,22 +2669,16 @@ void VisitFloatUnop(InstructionSelectorT<Adapter>* selector,
   V(BitcastFloat64ToInt64, kX64BitcastDL)                              \
   V(BitcastInt32ToFloat32, kX64BitcastIF)                              \
   V(BitcastInt64ToFloat64, kX64BitcastLD)                              \
+  V(SignExtendWord8ToInt32, kX64Movsxbl)                               \
+  V(SignExtendWord16ToInt32, kX64Movsxwl)                              \
+  V(SignExtendWord8ToInt64, kX64Movsxbq)                               \
+  V(SignExtendWord16ToInt64, kX64Movsxwq)                              \
   V(TruncateFloat64ToInt64, kSSEFloat64ToInt64)                        \
   V(TruncateFloat32ToInt32, kSSEFloat32ToInt32)                        \
   V(TruncateFloat32ToUint32, kSSEFloat32ToUint32)
 
 #define RO_OP_LIST(V)                                                    \
-  V(Word64Clz, kX64Lzcnt)                                                \
-  V(Word32Clz, kX64Lzcnt32)                                              \
-  V(Word64Ctz, kX64Tzcnt)                                                \
-  V(Word32Ctz, kX64Tzcnt32)                                              \
-  V(Word64Popcnt, kX64Popcnt)                                            \
-  V(Word32Popcnt, kX64Popcnt32)                                          \
   V(TruncateFloat64ToUint32, kSSEFloat64ToUint32 | MiscField::encode(0)) \
-  V(SignExtendWord8ToInt32, kX64Movsxbl)                                 \
-  V(SignExtendWord16ToInt32, kX64Movsxwl)                                \
-  V(SignExtendWord8ToInt64, kX64Movsxbq)                                 \
-  V(SignExtendWord16ToInt64, kX64Movsxwq)                                \
   V(SignExtendWord32ToInt64, kX64Movsxlq)
 
 #define RR_OP_T_LIST(V)                                                       \
@@ -3474,35 +3484,43 @@ void VisitCompareZero(InstructionSelectorT<TurboshaftAdapter>* selector,
                       turboshaft::OpIndex user, turboshaft::OpIndex node,
                       InstructionCode opcode,
                       FlagsContinuationT<TurboshaftAdapter>* cont) {
+  using namespace turboshaft;  // NOLINT(build/namespaces)
   X64OperandGeneratorT<TurboshaftAdapter> g(selector);
-  const turboshaft::Operation& op = selector->turboshaft_graph()->Get(node);
+  const Operation& op = selector->turboshaft_graph()->Get(node);
   if (cont->IsBranch() &&
       (cont->condition() == kNotEqual || cont->condition() == kEqual)) {
-    if (const auto binop = op.TryCast<turboshaft::WordBinopOp>()) {
-      using Kind = turboshaft::WordBinopOp::Kind;
+    if (const WordBinopOp* binop = op.TryCast<WordBinopOp>()) {
       if (selector->IsOnlyUserOfNodeInSameBlock(user, node)) {
-        const bool is64 =
-            binop->rep == turboshaft::WordRepresentation::Word64();
+        const bool is64 = binop->rep == WordRepresentation::Word64();
         switch (binop->kind) {
-          case Kind::kAdd:
+          case WordBinopOp::Kind::kAdd:
             return VisitBinop(selector, node, is64 ? kX64Add : kX64Add32, cont);
-          case Kind::kSub:
+          case WordBinopOp::Kind::kSub:
             return VisitBinop(selector, node, is64 ? kX64Sub : kX64Sub32, cont);
-          case Kind::kBitwiseAnd:
+          case WordBinopOp::Kind::kBitwiseAnd:
             return VisitBinop(selector, node, is64 ? kX64And : kX64And32, cont);
-          case Kind::kBitwiseOr:
+          case WordBinopOp::Kind::kBitwiseOr:
             return VisitBinop(selector, node, is64 ? kX64Or : kX64Or32, cont);
           default:
             break;
         }
       }
-    } else if (const auto shift = op.TryCast<turboshaft::ShiftOp>()) {
-      using Kind = turboshaft::ShiftOp::Kind;
+    } else if (const ShiftOp* shift = op.TryCast<ShiftOp>()) {
       if (selector->IsOnlyUserOfNodeInSameBlock(user, node)) {
+        const bool is64 = shift->rep == WordRepresentation::Word64();
         switch (shift->kind) {
-          case Kind::kShiftLeft:
-          case Kind::kShiftRightLogical:
-            UNIMPLEMENTED();
+          case ShiftOp::Kind::kShiftLeft:
+            if (TryVisitWordShift(selector, node, is64 ? 64 : 32,
+                                  is64 ? kX64Shl : kX64Shl32, cont)) {
+              return;
+            }
+            break;
+          case ShiftOp::Kind::kShiftRightLogical:
+            if (TryVisitWordShift(selector, node, is64 ? 64 : 32,
+                                  is64 ? kX64Shr : kX64Shr32, cont)) {
+              return;
+            }
+            break;
           default:
             break;
         }
@@ -3561,21 +3579,17 @@ void VisitCompareZero(InstructionSelectorT<TurbofanAdapter>* selector,
 #undef FLAGS_SET_BINOP_LIST
 #undef FLAGS_SET_BINOP
 
-#define TRY_VISIT_WORD32_SHIFT \
-  TryVisitWordShift<TurbofanAdapter, Int32BinopMatcher, 32>
-#define TRY_VISIT_WORD64_SHIFT \
-  TryVisitWordShift<TurbofanAdapter, Int64BinopMatcher, 64>
 // Skip Word64Sar/Word32Sar since no instruction reduction in most cases.
-#define FLAGS_SET_SHIFT_LIST(V)                    \
-  V(kWord32Shl, TRY_VISIT_WORD32_SHIFT, kX64Shl32) \
-  V(kWord32Shr, TRY_VISIT_WORD32_SHIFT, kX64Shr32) \
-  V(kWord64Shl, TRY_VISIT_WORD64_SHIFT, kX64Shl)   \
-  V(kWord64Shr, TRY_VISIT_WORD64_SHIFT, kX64Shr)
-#define FLAGS_SET_SHIFT(opcode, TryVisit, archOpcode)         \
-  case IrOpcode::opcode:                                      \
-    if (selector->IsOnlyUserOfNodeInSameBlock(user, node)) {  \
-      if (TryVisit(selector, node, archOpcode, cont)) return; \
-    }                                                         \
+#define FLAGS_SET_SHIFT_LIST(V) \
+  V(kWord32Shl, 32, kX64Shl32)  \
+  V(kWord32Shr, 32, kX64Shr32)  \
+  V(kWord64Shl, 64, kX64Shl)    \
+  V(kWord64Shr, 64, kX64Shr)
+#define FLAGS_SET_SHIFT(opcode, bits, archOpcode)                            \
+  case IrOpcode::opcode:                                                     \
+    if (selector->IsOnlyUserOfNodeInSameBlock(user, node)) {                 \
+      if (TryVisitWordShift(selector, node, bits, archOpcode, cont)) return; \
+    }                                                                        \
     break;
       FLAGS_SET_SHIFT_LIST(FLAGS_SET_SHIFT)
 #undef TRY_VISIT_WORD32_SHIFT
@@ -4017,19 +4031,14 @@ Node* InstructionSelectorT<TurbofanAdapter>::FindProjection(
 template <>
 turboshaft::OpIndex InstructionSelectorT<TurboshaftAdapter>::FindProjection(
     turboshaft::OpIndex node, size_t projection_index) {
-  // TODO(nicohartmann@): This is a bit of a hack and doesn't cover all cases
-  // (projections need not be placed in the same block). We should find a better
-  // way to get those (e.g. by always placing them right after the op).
-  for (node_t n : this->nodes(current_block_)) {
+  for (turboshaft::OpIndex use : turboshaft_uses(node)) {
     if (const turboshaft::ProjectionOp* projection =
-            this->Get(n).TryCast<turboshaft::ProjectionOp>()) {
-      if (projection->input() == node &&
-          projection->index == projection_index) {
-        return n;
-      }
+            this->Get(use).TryCast<turboshaft::ProjectionOp>()) {
+      DCHECK_EQ(projection->input(), node);
+      if (projection->index == projection_index) return use;
     }
   }
-  UNIMPLEMENTED();
+  return turboshaft::OpIndex::Invalid();
 }
 
 template <typename Adapter>

@@ -1314,15 +1314,14 @@ void InstructionSelectorT<Adapter>::VisitWord32Ror(node_t node) {
   V(ChangeFloat64ToInt32, kIA32Float64ToInt32)               \
   V(ChangeFloat32ToFloat64, kIA32Float32ToFloat64)           \
   V(RoundInt32ToFloat32, kSSEInt32ToFloat32)                 \
-  V(RoundFloat64ToInt32, kIA32Float64ToInt32)
+  V(RoundFloat64ToInt32, kIA32Float64ToInt32)                \
+  V(Word32Clz, kIA32Lzcnt)                                   \
+  V(Word32Ctz, kIA32Tzcnt)                                   \
+  V(Word32Popcnt, kIA32Popcnt)                               \
+  V(SignExtendWord8ToInt32, kIA32Movsxbl)                    \
+  V(SignExtendWord16ToInt32, kIA32Movsxwl)
 
-#define RO_OP_LIST(V)                      \
-  V(Word32Clz, kIA32Lzcnt)                 \
-  V(Word32Ctz, kIA32Tzcnt)                 \
-  V(Word32Popcnt, kIA32Popcnt)             \
-  V(SignExtendWord8ToInt32, kIA32Movsxbl)  \
-  V(SignExtendWord16ToInt32, kIA32Movsxwl) \
-  V(F64x2Sqrt, kIA32F64x2Sqrt)
+#define RO_OP_LIST(V) V(F64x2Sqrt, kIA32F64x2Sqrt)
 
 #define RO_WITH_TEMP_OP_T_LIST(V) V(ChangeUint32ToFloat64, kIA32Uint32ToFloat64)
 
@@ -1494,14 +1493,16 @@ void InstructionSelectorT<Adapter>::VisitWord32ReverseBits(Node* node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord64ReverseBytes(Node* node) {
+void InstructionSelectorT<Adapter>::VisitWord64ReverseBytes(node_t node) {
   UNREACHABLE();
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord32ReverseBytes(Node* node) {
+void InstructionSelectorT<Adapter>::VisitWord32ReverseBytes(node_t node) {
   IA32OperandGeneratorT<Adapter> g(this);
-  Emit(kIA32Bswap, g.DefineSameAsFirst(node), g.UseRegister(node->InputAt(0)));
+  DCHECK_EQ(this->value_input_count(node), 1);
+  Emit(kIA32Bswap, g.DefineSameAsFirst(node),
+       g.UseRegister(this->input_at(node, 0)));
 }
 
 template <typename Adapter>
@@ -3828,6 +3829,19 @@ template <typename Adapter>
 void InstructionSelectorT<Adapter>::AddOutputToSelectContinuation(
     OperandGeneratorT<Adapter>* g, int first_input_index, node_t node) {
   UNREACHABLE();
+}
+
+template <>
+Node* InstructionSelectorT<TurbofanAdapter>::FindProjection(
+    Node* node, size_t projection_index) {
+  return NodeProperties::FindProjection(node, projection_index);
+}
+
+template <>
+TurboshaftAdapter::node_t
+InstructionSelectorT<TurboshaftAdapter>::FindProjection(
+    node_t node, size_t projection_index) {
+  UNIMPLEMENTED();
 }
 
 // static

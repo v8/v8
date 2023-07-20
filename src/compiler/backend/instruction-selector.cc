@@ -94,6 +94,10 @@ InstructionSelectorT<Adapter>::InstructionSelectorT(
       phi_states_(node_count, Upper32BitsState::kNotYetChecked, zone)
 #endif
 {
+  if constexpr (Adapter::IsTurboshaft) {
+    turboshaft_use_map_.emplace(*schedule_, zone);
+  }
+
   DCHECK_EQ(*max_unoptimized_frame_height, 0);  // Caller-initialized.
 
   instructions_.reserve(node_count);
@@ -336,14 +340,11 @@ bool InstructionSelectorT<Adapter>::IsOnlyUserOfNodeInSameBlock(
   if (bb_user != bb_node) return false;
 
   if constexpr (Adapter::IsTurboshaft) {
-    const turboshaft::Operation& user_op = this->turboshaft_graph()->Get(user);
-    if (user_op.saturated_use_count.Get() == 1) return true;
-    // TODO(nicohartmann@): We should find a better way to do this.
-    for (const auto& op : this->turboshaft_graph()->operations(*bb_user)) {
-      if (&op == &user_op) continue;
-      for (turboshaft::OpIndex input : op.inputs()) {
-        if (input == node) return false;
-      }
+    const turboshaft::Operation& node_op = this->turboshaft_graph()->Get(node);
+    if (node_op.saturated_use_count.Get() == 1) return true;
+    for (turboshaft::OpIndex use : turboshaft_uses(node)) {
+      if (use == user) continue;
+      if (this->block(schedule(), use) == bb_user) return false;
     }
     return true;
   } else {
@@ -715,6 +716,8 @@ class TurbofanStateObjectDeduplicator {
 class TurboshaftStateObjectDeduplicator {
  public:
   explicit TurboshaftStateObjectDeduplicator(Zone* zone) : object_ids_(zone) {}
+  static constexpr uint32_t kArgumentsElementsDummy =
+      std::numeric_limits<uint32_t>::max();
   static constexpr size_t kNotDuplicated = std::numeric_limits<size_t>::max();
 
   size_t GetObjectId(uint32_t object) {
@@ -727,6 +730,10 @@ class TurboshaftStateObjectDeduplicator {
   size_t InsertObject(uint32_t object) {
     object_ids_.push_back(object);
     return object_ids_.size() - 1;
+  }
+
+  void InsertDummyForArgumentsElements() {
+    object_ids_.push_back(kArgumentsElementsDummy);
   }
 
   size_t size() const { return object_ids_.size(); }
@@ -950,9 +957,32 @@ size_t AddOperandToStateValueDescriptor(
         return 0;
       }
     }
-    default:
-      UNIMPLEMENTED();
+    case FrameStateData::Instr::kDematerializedObjectReference: {
+      uint32_t obj_id;
+      it->ConsumeDematerializedObjectReference(&obj_id);
+      size_t id = deduplicator->GetObjectId(obj_id);
+      DCHECK_NE(id, TurboshaftStateObjectDeduplicator::kNotDuplicated);
+      // Deoptimizer counts duplicate objects for the running id, so we have
+      // to push the input again.
+      deduplicator->InsertObject(obj_id);
+      values->PushDuplicate(id);
+      return 0;
+    }
+    case FrameStateData::Instr::kArgumentsLength:
+      it->ConsumeArgumentsLength();
+      values->PushArgumentsLength();
+      return 0;
+    case FrameStateData::Instr::kArgumentsElements: {
+      CreateArgumentsType type;
+      it->ConsumeArgumentsElements(&type);
+      values->PushArgumentsElements(type);
+      // The elements backing store of an arguments object participates in the
+      // duplicate object counting, but can itself never appear duplicated.
+      deduplicator->InsertDummyForArgumentsElements();
+      return 0;
+    }
   }
+  UNREACHABLE();
 }
 
 // Returns the number of instruction operands added to inputs.
@@ -1242,15 +1272,20 @@ void InstructionSelectorT<Adapter>::InitializeCallBuffer(
       PushParameter result = {call, buffer->descriptor->GetReturnLocation(0)};
       buffer->output_nodes.push_back(result);
     } else {
+      buffer->output_nodes.resize(ret_count);
+      for (size_t i = 0; i < ret_count; ++i) {
+        LinkageLocation location = buffer->descriptor->GetReturnLocation(i);
+        buffer->output_nodes[i] = PushParameter({}, location);
+      }
       if constexpr (Adapter::IsTurboshaft) {
-        // TODO(nicohartmann@): Support this.
-        UNIMPLEMENTED();
-      } else {
-        buffer->output_nodes.resize(ret_count);
-        for (size_t i = 0; i < ret_count; ++i) {
-          LinkageLocation location = buffer->descriptor->GetReturnLocation(i);
-          buffer->output_nodes[i] = PushParameter(nullptr, location);
+        for (turboshaft::OpIndex use : turboshaft_uses(call)) {
+          DCHECK(this->is_projection(use));
+          size_t index = this->projection_index_of(use);
+          DCHECK_LT(index, buffer->output_nodes.size());
+          DCHECK(!Adapter::valid(buffer->output_nodes[index].node));
+          buffer->output_nodes[index].node = use;
         }
+      } else {
         for (Edge const edge : ((node_t)call)->use_edges()) {
           if (!NodeProperties::IsValueEdge(edge)) continue;
           Node* node = edge.from();
@@ -1261,10 +1296,9 @@ void InstructionSelectorT<Adapter>::InitializeCallBuffer(
           DCHECK(!buffer->output_nodes[index].node);
           buffer->output_nodes[index].node = node;
         }
-
-        frame_->EnsureReturnSlots(
-            static_cast<int>(buffer->descriptor->ReturnSlotCount()));
       }
+      frame_->EnsureReturnSlots(
+          static_cast<int>(buffer->descriptor->ReturnSlotCount()));
     }
 
     // Filter out the outputs that aren't live because no projection uses them.
@@ -1784,27 +1818,15 @@ VISIT_UNSUPPORTED_OP(Word64Shr)
 VISIT_UNSUPPORTED_OP(Word64Sar)
 VISIT_UNSUPPORTED_OP(Word64Rol)
 VISIT_UNSUPPORTED_OP(Word64Ror)
-
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord64Clz(Node* node) {
-  UNIMPLEMENTED();
-}
-
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord64Ctz(Node* node) {
-  UNIMPLEMENTED();
-}
+VISIT_UNSUPPORTED_OP(Word64Clz)
+VISIT_UNSUPPORTED_OP(Word64Ctz)
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord64ReverseBits(Node* node) {
   UNIMPLEMENTED();
 }
 
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord64Popcnt(Node* node) {
-  UNIMPLEMENTED();
-}
-
+VISIT_UNSUPPORTED_OP(Word64Popcnt)
 VISIT_UNSUPPORTED_OP(Word64Equal)
 VISIT_UNSUPPORTED_OP(Int64Add)
 VISIT_UNSUPPORTED_OP(Int64Sub)
@@ -1874,16 +1896,8 @@ VISIT_UNSUPPORTED_OP(RoundUint64ToFloat32)
 VISIT_UNSUPPORTED_OP(RoundUint64ToFloat64)
 VISIT_UNSUPPORTED_OP(BitcastFloat64ToInt64)
 VISIT_UNSUPPORTED_OP(BitcastInt64ToFloat64)
-
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitSignExtendWord8ToInt64(Node* node) {
-  UNIMPLEMENTED();
-}
-
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitSignExtendWord16ToInt64(Node* node) {
-  UNIMPLEMENTED();
-}
+VISIT_UNSUPPORTED_OP(SignExtendWord8ToInt64)
+VISIT_UNSUPPORTED_OP(SignExtendWord16ToInt64)
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitSignExtendWord32ToInt64(Node* node) {
@@ -2142,6 +2156,8 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitProjection(
       DCHECK_EQ(1u, projection.index);
       MarkAsUsed(projection.input());
     }
+  } else if (value_op.Is<turboshaft::CallOp>()) {
+    // Nothing to do for calls.
   } else {
     UNIMPLEMENTED();
   }
@@ -2179,8 +2195,19 @@ void InstructionSelectorT<TurbofanAdapter>::VisitProjection(Node* node) {
         MarkAsUsed(value);
       }
       break;
-    default:
+    case IrOpcode::kCall:
+    case IrOpcode::kWord32AtomicPairLoad:
+    case IrOpcode::kWord32AtomicPairExchange:
+    case IrOpcode::kWord32AtomicPairCompareExchange:
+    case IrOpcode::kWord32AtomicPairAdd:
+    case IrOpcode::kWord32AtomicPairSub:
+    case IrOpcode::kWord32AtomicPairAnd:
+    case IrOpcode::kWord32AtomicPairOr:
+    case IrOpcode::kWord32AtomicPairXor:
+      // Nothing to do for these opcodes.
       break;
+    default:
+      UNREACHABLE();
   }
 }
 
@@ -2463,81 +2490,92 @@ void InstructionSelectorT<Adapter>::VisitBranch(node_t branch_node,
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::TryPrepareScheduleFirstProjection(
     node_t maybe_projection) {
+  // The DeoptimizeIf/DeoptimizeUnless/Branch condition is not a projection.
+  if (!this->is_projection(maybe_projection)) return;
+
+  if (this->projection_index_of(maybe_projection) != 1u) {
+    // The DeoptimizeIf/DeoptimizeUnless/Branch isn't on the Projection[1]
+    // (ie, not on the overflow bit of a BinopOverflow).
+    return;
+  }
+
+  DCHECK_EQ(this->value_input_count(maybe_projection), 1);
+  node_t node = this->input_at(maybe_projection, 0);
+  if (this->block(schedule_, node) != current_block_) {
+    // The projection input is not in the current block, so it shouldn't be
+    // emitted now, so we don't need to eagerly schedule its Projection[0].
+    return;
+  }
+
   if constexpr (Adapter::IsTurboshaft) {
-    // TODO(nicohartmann@): Implement for Turboshaft.
+    using namespace turboshaft;  // NOLINT(build/namespaces)
+    auto* binop = this->Get(node).template TryCast<OverflowCheckedBinopOp>();
+    if (binop == nullptr) return;
+    DCHECK(binop->kind == OverflowCheckedBinopOp::Kind::kSignedAdd ||
+           binop->kind == OverflowCheckedBinopOp::Kind::kSignedSub ||
+           binop->kind == OverflowCheckedBinopOp::Kind::kSignedMul);
   } else {
-    if (maybe_projection->opcode() != IrOpcode::kProjection) {
-      // The DeoptimizeIf/DeoptimizeUnless/Branch condition is not a projection.
-      return;
-    }
-
-    if (ProjectionIndexOf(maybe_projection->op()) != 1u) {
-      // The DeoptimizeIf/DeoptimizeUnless/Branch isn't on the Projection[1]
-      // (ie, not on the overflow bit of a BinopOverflow).
-      return;
-    }
-
-    Node* const node = maybe_projection->InputAt(0);
-    if (this->block(schedule_, node) != current_block_) {
-      // The projection input is not in the current block, so it shouldn't be
-      // emitted now, so we don't need to eagerly schedule its Projection[0].
-      return;
-    }
-
     switch (node->opcode()) {
       case IrOpcode::kInt32AddWithOverflow:
       case IrOpcode::kInt32SubWithOverflow:
       case IrOpcode::kInt32MulWithOverflow:
       case IrOpcode::kInt64AddWithOverflow:
       case IrOpcode::kInt64SubWithOverflow:
-      case IrOpcode::kInt64MulWithOverflow: {
-        Node* result = NodeProperties::FindProjection(node, 0);
-        if (result == nullptr || IsDefined(result)) {
-          // No Projection(0), or it's already defined.
-          return;
-        }
-
-        if (this->block(schedule_, result) != current_block_) {
-          // {result} wasn't planned to be scheduled in {current_block_}. To
-          // avoid adding checks to see if it can still be scheduled now, we
-          // just bail out.
-          return;
-        }
-
-        // Checking if all uses of {result} that are in the current block have
-        // already been Defined.
-        // We also ignore Phi uses: if {result} is used in a Phi in the block in
-        // which it is defined, this means that this block is a loop header, and
-        // {result} back into it through the back edge. In this case, it's
-        // normal to schedule {result} before the Phi that uses it.
-        for (Node* use : result->uses()) {
-          if (!IsDefined(use) &&
-              this->block(schedule_, use) == current_block_ &&
-              use->opcode() != IrOpcode::kPhi) {
-            // {use} is in the current block but is not defined yet. It's
-            // possible that it's not actually used, but the IsUsed(x) predicate
-            // is not valid until we have visited `x`, so we overaproximate and
-            // assume that {use} is itself used.
-            return;
-          }
-        }
-
-        // Visiting the projection now. Note that this relies on the fact that
-        // VisitProjection doesn't Emit something: if it did, then we could be
-        // Emitting something after a Branch, which is invalid (Branch can only
-        // be at the end of a block, and the end of a block must always be a
-        // block terminator). (remember that we emit operation in reverse order,
-        // so because we are doing TryPrepareScheduleFirstProjection before
-        // actually emitting the Branch, it would be after in the final
-        // instruction sequence, not before)
-        VisitProjection(result);
-        return;
-      }
-
+      case IrOpcode::kInt64MulWithOverflow:
+        break;
       default:
         return;
     }
   }
+
+  node_t result = FindProjection(node, 0);
+  if (!Adapter::valid(result) || IsDefined(result)) {
+    // No Projection(0), or it's already defined.
+    return;
+  }
+
+  if (this->block(schedule_, result) != current_block_) {
+    // {result} wasn't planned to be scheduled in {current_block_}. To
+    // avoid adding checks to see if it can still be scheduled now, we
+    // just bail out.
+    return;
+  }
+
+  // Checking if all uses of {result} that are in the current block have
+  // already been Defined.
+  // We also ignore Phi uses: if {result} is used in a Phi in the block in
+  // which it is defined, this means that this block is a loop header, and
+  // {result} back into it through the back edge. In this case, it's
+  // normal to schedule {result} before the Phi that uses it.
+  if constexpr (Adapter::IsTurboshaft) {
+    for (turboshaft::OpIndex use : turboshaft_uses(result)) {
+      if (!IsDefined(use) && this->block(schedule_, use) == current_block_ &&
+          !this->Get(use).template Is<turboshaft::PhiOp>()) {
+        return;
+      }
+    }
+  } else {
+    for (Node* use : result->uses()) {
+      if (!IsDefined(use) && this->block(schedule_, use) == current_block_ &&
+          use->opcode() != IrOpcode::kPhi) {
+        // {use} is in the current block but is not defined yet. It's
+        // possible that it's not actually used, but the IsUsed(x) predicate
+        // is not valid until we have visited `x`, so we overaproximate and
+        // assume that {use} is itself used.
+        return;
+      }
+    }
+  }
+
+  // Visiting the projection now. Note that this relies on the fact that
+  // VisitProjection doesn't Emit something: if it did, then we could be
+  // Emitting something after a Branch, which is invalid (Branch can only
+  // be at the end of a block, and the end of a block must always be a
+  // block terminator). (remember that we emit operation in reverse order,
+  // so because we are doing TryPrepareScheduleFirstProjection before
+  // actually emitting the Branch, it would be after in the final
+  // instruction sequence, not before)
+  VisitProjection(result);
 }
 
 template <typename Adapter>
@@ -3024,7 +3062,7 @@ void InstructionSelectorT<TurbofanAdapter>::VisitNode(Node* node) {
     case IrOpcode::kWord32Popcnt:
       return MarkAsWord32(node), VisitWord32Popcnt(node);
     case IrOpcode::kWord64Popcnt:
-      return MarkAsWord32(node), VisitWord64Popcnt(node);
+      return MarkAsWord64(node), VisitWord64Popcnt(node);
     case IrOpcode::kWord32Select:
       return MarkAsWord32(node), VisitSelect(node);
     case IrOpcode::kWord64And:
@@ -4337,6 +4375,44 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitNode(
       }
       VisitConstant(node);
       break;
+    }
+    case Opcode::kWordUnary: {
+      const WordUnaryOp& unop = op.Cast<WordUnaryOp>();
+      if (unop.rep == WordRepresentation::Word32()) {
+        MarkAsWord32(node);
+        switch (unop.kind) {
+          case WordUnaryOp::Kind::kReverseBytes:
+            return VisitWord32ReverseBytes(node);
+          case WordUnaryOp::Kind::kCountLeadingZeros:
+            return VisitWord32Clz(node);
+          case WordUnaryOp::Kind::kCountTrailingZeros:
+            return VisitWord32Ctz(node);
+          case WordUnaryOp::Kind::kPopCount:
+            return VisitWord32Popcnt(node);
+          case WordUnaryOp::Kind::kSignExtend8:
+            return VisitSignExtendWord8ToInt32(node);
+          case WordUnaryOp::Kind::kSignExtend16:
+            return VisitSignExtendWord16ToInt32(node);
+        }
+      } else {
+        DCHECK_EQ(unop.rep, WordRepresentation::Word64());
+        MarkAsWord64(node);
+        switch (unop.kind) {
+          case WordUnaryOp::Kind::kReverseBytes:
+            return VisitWord64ReverseBytes(node);
+          case WordUnaryOp::Kind::kCountLeadingZeros:
+            return VisitWord64Clz(node);
+          case WordUnaryOp::Kind::kCountTrailingZeros:
+            return VisitWord64Ctz(node);
+          case WordUnaryOp::Kind::kPopCount:
+            return VisitWord64Popcnt(node);
+          case WordUnaryOp::Kind::kSignExtend8:
+            return VisitSignExtendWord8ToInt64(node);
+          case WordUnaryOp::Kind::kSignExtend16:
+            return VisitSignExtendWord16ToInt64(node);
+        }
+      }
+      UNREACHABLE();
     }
     case Opcode::kWordBinop: {
       const WordBinopOp& binop = op.Cast<WordBinopOp>();

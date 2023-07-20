@@ -3326,6 +3326,7 @@ v8_header_set("v8_internal_headers") {
     "src/compiler/turboshaft/types.h",
     "src/compiler/turboshaft/undef-assembler-macros.inc",
     "src/compiler/turboshaft/uniform-reducer-adapter.h",
+    "src/compiler/turboshaft/use-map.h",
     "src/compiler/turboshaft/utils.h",
     "src/compiler/turboshaft/value-numbering-reducer.h",
     "src/compiler/turboshaft/variable-reducer.h",
@@ -4813,6 +4814,7 @@ v8_source_set("v8_turboshaft") {
     "src/compiler/turboshaft/typed-optimizations-phase.cc",
     "src/compiler/turboshaft/typer.cc",
     "src/compiler/turboshaft/types.cc",
+    "src/compiler/turboshaft/use-map.cc",
     "src/compiler/turboshaft/utils.cc",
   ]
 

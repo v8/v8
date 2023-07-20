@@ -1763,52 +1763,52 @@ void InstructionSelectorT<Adapter>::VisitWord64Ror(node_t node) {
   VisitRRO(this, kArm64Ror, node, kShift64Imm);
 }
 
-#define RR_OP_T_LIST(V)                                     \
-  V(Float32Sqrt, kArm64Float32Sqrt)                         \
-  V(Float64Sqrt, kArm64Float64Sqrt)                         \
-  V(Float32RoundDown, kArm64Float32RoundDown)               \
-  V(Float64RoundDown, kArm64Float64RoundDown)               \
-  V(Float32RoundUp, kArm64Float32RoundUp)                   \
-  V(Float64RoundUp, kArm64Float64RoundUp)                   \
-  V(Float32RoundTruncate, kArm64Float32RoundTruncate)       \
-  V(Float64RoundTruncate, kArm64Float64RoundTruncate)       \
-  V(Float64RoundTiesAway, kArm64Float64RoundTiesAway)       \
-  V(Float32RoundTiesEven, kArm64Float32RoundTiesEven)       \
-  V(Float64RoundTiesEven, kArm64Float64RoundTiesEven)       \
-  V(Float64SilenceNaN, kArm64Float64SilenceNaN)             \
-  V(ChangeInt32ToFloat64, kArm64Int32ToFloat64)             \
-  V(RoundFloat64ToInt32, kArm64Float64ToInt32)              \
-  V(ChangeFloat32ToFloat64, kArm64Float32ToFloat64)         \
-  V(RoundInt32ToFloat32, kArm64Int32ToFloat32)              \
-  V(RoundUint32ToFloat32, kArm64Uint32ToFloat32)            \
-  V(ChangeInt64ToFloat64, kArm64Int64ToFloat64)             \
-  V(ChangeUint32ToFloat64, kArm64Uint32ToFloat64)           \
-  V(ChangeFloat64ToInt32, kArm64Float64ToInt32)             \
-  V(ChangeFloat64ToInt64, kArm64Float64ToInt64)             \
-  V(ChangeFloat64ToUint32, kArm64Float64ToUint32)           \
-  V(ChangeFloat64ToUint64, kArm64Float64ToUint64)           \
-  V(RoundInt64ToFloat32, kArm64Int64ToFloat32)              \
-  V(RoundInt64ToFloat64, kArm64Int64ToFloat64)              \
-  V(RoundUint64ToFloat32, kArm64Uint64ToFloat32)            \
-  V(RoundUint64ToFloat64, kArm64Uint64ToFloat64)            \
-  V(BitcastFloat32ToInt32, kArm64Float64ExtractLowWord32)   \
-  V(BitcastFloat64ToInt64, kArm64U64MoveFloat64)            \
-  V(BitcastInt32ToFloat32, kArm64Float64MoveU64)            \
-  V(BitcastInt64ToFloat64, kArm64Float64MoveU64)            \
-  V(TruncateFloat64ToFloat32, kArm64Float64ToFloat32)       \
-  V(TruncateFloat64ToWord32, kArchTruncateDoubleToI)        \
-  V(Float64ExtractLowWord32, kArm64Float64ExtractLowWord32) \
-  V(Float64ExtractHighWord32, kArm64Float64ExtractHighWord32)
+#define RR_OP_T_LIST(V)                                       \
+  V(Float32Sqrt, kArm64Float32Sqrt)                           \
+  V(Float64Sqrt, kArm64Float64Sqrt)                           \
+  V(Float32RoundDown, kArm64Float32RoundDown)                 \
+  V(Float64RoundDown, kArm64Float64RoundDown)                 \
+  V(Float32RoundUp, kArm64Float32RoundUp)                     \
+  V(Float64RoundUp, kArm64Float64RoundUp)                     \
+  V(Float32RoundTruncate, kArm64Float32RoundTruncate)         \
+  V(Float64RoundTruncate, kArm64Float64RoundTruncate)         \
+  V(Float64RoundTiesAway, kArm64Float64RoundTiesAway)         \
+  V(Float32RoundTiesEven, kArm64Float32RoundTiesEven)         \
+  V(Float64RoundTiesEven, kArm64Float64RoundTiesEven)         \
+  V(Float64SilenceNaN, kArm64Float64SilenceNaN)               \
+  V(ChangeInt32ToFloat64, kArm64Int32ToFloat64)               \
+  V(RoundFloat64ToInt32, kArm64Float64ToInt32)                \
+  V(ChangeFloat32ToFloat64, kArm64Float32ToFloat64)           \
+  V(RoundInt32ToFloat32, kArm64Int32ToFloat32)                \
+  V(RoundUint32ToFloat32, kArm64Uint32ToFloat32)              \
+  V(ChangeInt64ToFloat64, kArm64Int64ToFloat64)               \
+  V(ChangeUint32ToFloat64, kArm64Uint32ToFloat64)             \
+  V(ChangeFloat64ToInt32, kArm64Float64ToInt32)               \
+  V(ChangeFloat64ToInt64, kArm64Float64ToInt64)               \
+  V(ChangeFloat64ToUint32, kArm64Float64ToUint32)             \
+  V(ChangeFloat64ToUint64, kArm64Float64ToUint64)             \
+  V(RoundInt64ToFloat32, kArm64Int64ToFloat32)                \
+  V(RoundInt64ToFloat64, kArm64Int64ToFloat64)                \
+  V(RoundUint64ToFloat32, kArm64Uint64ToFloat32)              \
+  V(RoundUint64ToFloat64, kArm64Uint64ToFloat64)              \
+  V(BitcastFloat32ToInt32, kArm64Float64ExtractLowWord32)     \
+  V(BitcastFloat64ToInt64, kArm64U64MoveFloat64)              \
+  V(BitcastInt32ToFloat32, kArm64Float64MoveU64)              \
+  V(BitcastInt64ToFloat64, kArm64Float64MoveU64)              \
+  V(TruncateFloat64ToFloat32, kArm64Float64ToFloat32)         \
+  V(TruncateFloat64ToWord32, kArchTruncateDoubleToI)          \
+  V(Float64ExtractLowWord32, kArm64Float64ExtractLowWord32)   \
+  V(Float64ExtractHighWord32, kArm64Float64ExtractHighWord32) \
+  V(Word64Clz, kArm64Clz)                                     \
+  V(Word32Clz, kArm64Clz32)                                   \
+  V(Word32Popcnt, kArm64Cnt32)                                \
+  V(Word64Popcnt, kArm64Cnt64)                                \
+  V(Word32ReverseBytes, kArm64Rev32)                          \
+  V(Word64ReverseBytes, kArm64Rev)
 
 #define RR_OP_LIST(V)                               \
-  V(Word64Clz, kArm64Clz)                           \
-  V(Word32Clz, kArm64Clz32)                         \
-  V(Word32Popcnt, kArm64Cnt32)                      \
-  V(Word64Popcnt, kArm64Cnt64)                      \
   V(Word32ReverseBits, kArm64Rbit32)                \
   V(Word64ReverseBits, kArm64Rbit)                  \
-  V(Word32ReverseBytes, kArm64Rev32)                \
-  V(Word64ReverseBytes, kArm64Rev)                  \
   V(TruncateFloat64ToUint32, kArm64Float64ToUint32) \
   V(F32x4Ceil, kArm64Float32RoundUp)                \
   V(F32x4Floor, kArm64Float32RoundDown)             \
@@ -1878,12 +1878,12 @@ RRR_OP_T_LIST(RRR_VISITOR)
 #undef RRR_OP_T_LIST
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord32Ctz(Node* node) {
+void InstructionSelectorT<Adapter>::VisitWord32Ctz(node_t node) {
   UNREACHABLE();
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord64Ctz(Node* node) {
+void InstructionSelectorT<Adapter>::VisitWord64Ctz(node_t node) {
   UNREACHABLE();
 }
 
@@ -5204,22 +5204,22 @@ void InstructionSelectorT<Adapter>::VisitI8x16Shuffle(Node* node) {
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitSignExtendWord8ToInt32(Node* node) {
+void InstructionSelectorT<Adapter>::VisitSignExtendWord8ToInt32(node_t node) {
   VisitRR(this, kArm64Sxtb32, node);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitSignExtendWord16ToInt32(Node* node) {
+void InstructionSelectorT<Adapter>::VisitSignExtendWord16ToInt32(node_t node) {
   VisitRR(this, kArm64Sxth32, node);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitSignExtendWord8ToInt64(Node* node) {
+void InstructionSelectorT<Adapter>::VisitSignExtendWord8ToInt64(node_t node) {
   VisitRR(this, kArm64Sxtb, node);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitSignExtendWord16ToInt64(Node* node) {
+void InstructionSelectorT<Adapter>::VisitSignExtendWord16ToInt64(node_t node) {
   VisitRR(this, kArm64Sxth, node);
 }
 
@@ -5342,6 +5342,19 @@ template <typename Adapter>
 void InstructionSelectorT<Adapter>::AddOutputToSelectContinuation(
     OperandGenerator* g, int first_input_index, node_t node) {
   continuation_outputs_.push_back(g->DefineAsRegister(node));
+}
+
+template <>
+Node* InstructionSelectorT<TurbofanAdapter>::FindProjection(
+    Node* node, size_t projection_index) {
+  return NodeProperties::FindProjection(node, projection_index);
+}
+
+template <>
+TurboshaftAdapter::node_t
+InstructionSelectorT<TurboshaftAdapter>::FindProjection(
+    node_t node, size_t projection_index) {
+  UNIMPLEMENTED();
 }
 
 // static

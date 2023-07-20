@@ -858,10 +858,23 @@ class InstructionSelectorT final : public Adapter {
   DECLARE_GENERATOR_T(Float64Tan)
   DECLARE_GENERATOR_T(Float64Tanh)
   DECLARE_GENERATOR_T(Float64SilenceNaN)
+  DECLARE_GENERATOR_T(Word32Clz)
+  DECLARE_GENERATOR_T(Word32Ctz)
+  DECLARE_GENERATOR_T(Word32ReverseBytes)
+  DECLARE_GENERATOR_T(Word32Popcnt)
+  DECLARE_GENERATOR_T(Word64Popcnt)
+  DECLARE_GENERATOR_T(Word64Clz)
+  DECLARE_GENERATOR_T(Word64Ctz)
+  DECLARE_GENERATOR_T(Word64ReverseBytes)
+  DECLARE_GENERATOR_T(SignExtendWord8ToInt32)
+  DECLARE_GENERATOR_T(SignExtendWord16ToInt32)
+  DECLARE_GENERATOR_T(SignExtendWord8ToInt64)
+  DECLARE_GENERATOR_T(SignExtendWord16ToInt64)
 #undef DECLARE_GENERATOR_T
 
 #define DECLARE_GENERATOR(x) void Visit##x(Node* node);
-  MACHINE_UNOP_32_LIST(DECLARE_GENERATOR)
+  DECLARE_GENERATOR(Int32AbsWithOverflow)
+  DECLARE_GENERATOR(Word32ReverseBits)
   DECLARE_GENERATOR(Word64RolLowerable)
   DECLARE_GENERATOR(Word64RorLowerable)
   DECLARE_GENERATOR(Word32AtomicLoad)
@@ -895,14 +908,9 @@ class InstructionSelectorT final : public Adapter {
   DECLARE_GENERATOR(LoadImmutable)
   DECLARE_GENERATOR(StorePair)
   DECLARE_GENERATOR(StackSlot)
-  DECLARE_GENERATOR(Word32Popcnt)
-  DECLARE_GENERATOR(Word64Popcnt)
-  DECLARE_GENERATOR(Word64Clz)
-  DECLARE_GENERATOR(Word64Ctz)
   DECLARE_GENERATOR(Word64ClzLowerable)
   DECLARE_GENERATOR(Word64CtzLowerable)
   DECLARE_GENERATOR(Word64ReverseBits)
-  DECLARE_GENERATOR(Word64ReverseBytes)
   DECLARE_GENERATOR(Simd128ReverseBytes)
   DECLARE_GENERATOR(Int64AbsWithOverflow)
   DECLARE_GENERATOR(BitcastTaggedToWordForTagAndSmiBits)
@@ -937,10 +945,6 @@ class InstructionSelectorT final : public Adapter {
   DECLARE_GENERATOR(LoadTrapOnNull)
   DECLARE_GENERATOR(StoreTrapOnNull)
   DECLARE_GENERATOR(MemoryBarrier)
-  DECLARE_GENERATOR(SignExtendWord8ToInt32)
-  DECLARE_GENERATOR(SignExtendWord16ToInt32)
-  DECLARE_GENERATOR(SignExtendWord8ToInt64)
-  DECLARE_GENERATOR(SignExtendWord16ToInt64)
   DECLARE_GENERATOR(SignExtendWord32ToInt64)
   DECLARE_GENERATOR(TraceInstruction)
   MACHINE_SIMD128_OP_LIST(DECLARE_GENERATOR)
@@ -1023,6 +1027,11 @@ class InstructionSelectorT final : public Adapter {
   schedule_t schedule() const { return schedule_; }
   Linkage* linkage() const { return linkage_; }
   InstructionSequence* sequence() const { return sequence_; }
+  base::Vector<const turboshaft::OpIndex> turboshaft_uses(
+      turboshaft::OpIndex node) const {
+    DCHECK(turboshaft_use_map_.has_value());
+    return turboshaft_use_map_->uses(node);
+  }
   Zone* instruction_zone() const { return sequence()->zone(); }
   Zone* zone() const { return zone_; }
 
@@ -1129,6 +1138,9 @@ class InstructionSelectorT final : public Adapter {
   // arguments (for calls). Later used to apply an offset to stack checks.
   size_t* max_unoptimized_frame_height_;
   size_t* max_pushed_argument_count_;
+
+  // Turboshaft-adapter only.
+  base::Optional<turboshaft::UseMap> turboshaft_use_map_;
 
 #if V8_TARGET_ARCH_64_BIT
   // Holds lazily-computed results for whether phi nodes guarantee their upper
