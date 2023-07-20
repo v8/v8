@@ -5014,7 +5014,7 @@ void MacroAssembler::CheckDebugHook(Register fun, Register new_target,
     // Load receiver to pass it later to DebugOnFunctionCall hook.
     UseScratchRegisterScope temps(this);
     Register receiver = temps.Acquire();
-    LoadReceiver(receiver, actual_parameter_count);
+    LoadReceiver(receiver);
 
     FrameScope frame(
         this, has_frame() ? StackFrame::NO_FRAME_TYPE : StackFrame::INTERNAL);

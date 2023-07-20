@@ -1509,17 +1509,10 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
                              Register scratch_pair = r0);
 
   void LoadStackLimit(Register destination, StackLimitKind kind);
-  // It assumes that the arguments are located below the stack pointer.
-  // argc is the number of arguments not including the receiver.
-  // TODO(victorgomes): Remove this function once we stick with the reversed
-  // arguments order.
-  void LoadReceiver(Register dest, Register argc) {
-    LoadU64(dest, MemOperand(sp, 0));
-  }
 
-  void StoreReceiver(Register rec, Register argc, Register scratch) {
-    StoreU64(rec, MemOperand(sp, 0));
-  }
+  // It assumes that the arguments are located below the stack pointer.
+  void LoadReceiver(Register dest) { LoadU64(dest, MemOperand(sp, 0)); }
+  void StoreReceiver(Register rec) { StoreU64(rec, MemOperand(sp, 0)); }
 
   void CallRuntime(const Runtime::Function* f, int num_arguments);
 

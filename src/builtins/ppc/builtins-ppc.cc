@@ -2433,7 +2433,7 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
       __ LoadGlobalProxy(r6);
     } else {
       Label convert_to_object, convert_receiver;
-      __ LoadReceiver(r6, r3);
+      __ LoadReceiver(r6);
       __ JumpIfSmi(r6, &convert_to_object);
       static_assert(LAST_JS_RECEIVER_TYPE == LAST_TYPE);
       __ CompareObjectType(r6, r7, r7, FIRST_JS_RECEIVER_TYPE);
@@ -2470,7 +2470,7 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
           r5, FieldMemOperand(r4, JSFunction::kSharedFunctionInfoOffset), r0);
       __ bind(&convert_receiver);
     }
-    __ StoreReceiver(r6, r3, r7);
+    __ StoreReceiver(r6);
   }
   __ bind(&done_convert);
 
@@ -2571,7 +2571,7 @@ void Builtins::Generate_CallBoundFunctionImpl(MacroAssembler* masm) {
   // Patch the receiver to [[BoundThis]].
   __ LoadTaggedField(r6, FieldMemOperand(r4, JSBoundFunction::kBoundThisOffset),
                      r0);
-  __ StoreReceiver(r6, r3, ip);
+  __ StoreReceiver(r6);
 
   // Push the [[BoundArguments]] onto the stack.
   Generate_PushBoundArguments(masm);
@@ -2589,11 +2589,10 @@ void Builtins::Generate_Call(MacroAssembler* masm, ConvertReceiverMode mode) {
   //  -- r3 : the number of arguments
   //  -- r4 : the target to call (can be any Object).
   // -----------------------------------
-  Register argc = r3;
   Register target = r4;
   Register map = r7;
   Register instance_type = r8;
-  DCHECK(!AreAliased(argc, target, map, instance_type));
+  DCHECK(!AreAliased(r3, target, map, instance_type));
 
   Label non_callable, class_constructor;
   __ JumpIfSmi(target, &non_callable);
@@ -2634,7 +2633,7 @@ void Builtins::Generate_Call(MacroAssembler* masm, ConvertReceiverMode mode) {
   // 2. Call to something else, which might have a [[Call]] internal method (if
   // not we raise an exception).
   // Overwrite the original receiver the (original) target.
-  __ StoreReceiver(target, argc, r8);
+  __ StoreReceiver(target);
   // Let the "call_as_function_delegate" take care of the rest.
   __ LoadNativeContextSlot(target, Context::CALL_AS_FUNCTION_DELEGATE_INDEX);
   __ Jump(masm->isolate()->builtins()->CallFunction(
@@ -2727,11 +2726,10 @@ void Builtins::Generate_Construct(MacroAssembler* masm) {
   //  -- r6 : the new target (either the same as the constructor or
   //          the JSFunction on which new was invoked initially)
   // -----------------------------------
-  Register argc = r3;
   Register target = r4;
   Register map = r7;
   Register instance_type = r8;
-  DCHECK(!AreAliased(argc, target, map, instance_type));
+  DCHECK(!AreAliased(r3, target, map, instance_type));
 
   // Check if target is a Smi.
   Label non_constructor, non_proxy;
@@ -2741,7 +2739,7 @@ void Builtins::Generate_Construct(MacroAssembler* masm) {
   __ LoadTaggedField(map, FieldMemOperand(target, HeapObject::kMapOffset), r0);
   {
     Register flags = r5;
-    DCHECK(!AreAliased(argc, target, map, instance_type, flags));
+    DCHECK(!AreAliased(r3, target, map, instance_type, flags));
     __ lbz(flags, FieldMemOperand(map, Map::kBitFieldOffset));
     __ TestBit(flags, Map::Bits1::IsConstructorBit::kShift, r0);
     __ beq(&non_constructor, cr0);
@@ -2769,7 +2767,7 @@ void Builtins::Generate_Construct(MacroAssembler* masm) {
   __ bind(&non_proxy);
   {
     // Overwrite the original receiver with the (original) target.
-    __ StoreReceiver(target, argc, r8);
+    __ StoreReceiver(target);
     // Let the "call_as_constructor_delegate" take care of the rest.
     __ LoadNativeContextSlot(target,
                              Context::CALL_AS_CONSTRUCTOR_DELEGATE_INDEX);

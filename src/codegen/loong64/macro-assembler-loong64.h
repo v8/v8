@@ -843,16 +843,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
                                   Label* done);
 
   // It assumes that the arguments are located below the stack pointer.
-  // argc is the number of arguments not including the receiver.
-  // TODO(LOONG_dev): LOONG64: Remove this function once we stick with the
-  // reversed arguments order.
-  void LoadReceiver(Register dest, Register argc) {
-    Ld_d(dest, MemOperand(sp, 0));
-  }
-
-  void StoreReceiver(Register rec, Register argc, Register scratch) {
-    St_d(rec, MemOperand(sp, 0));
-  }
+  void LoadReceiver(Register dest) { Ld_d(dest, MemOperand(sp, 0)); }
+  void StoreReceiver(Register rec) { St_d(rec, MemOperand(sp, 0)); }
 
   bool IsNear(Label* L, Condition cond, int rs_reg);
 

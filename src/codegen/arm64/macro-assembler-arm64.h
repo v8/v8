@@ -1913,7 +1913,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
                                Label* if_marked_for_deoptimization);
   Operand ClearedValue() const;
 
-  Operand ReceiverOperand(const Register arg_count);
+  Operand ReceiverOperand();
 
   // ---- SMI and Number Utilities ----
 
