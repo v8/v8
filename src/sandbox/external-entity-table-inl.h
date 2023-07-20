@@ -98,7 +98,7 @@ void ExternalEntityTable<Entry, size>::Initialize() {
     // fully-backed emulated subspace.
     Address reservation_base = root_space->AllocatePages(
         VirtualAddressSpace::kNoHint, kReservationSize, kSegmentSize,
-        PagePermissions::kReadWrite);
+        PagePermissions::kNoAccess);
     if (reservation_base) {
       vas_ = new base::EmulatedVirtualAddressSubspace(
           root_space, reservation_base, kReservationSize, kReservationSize);
