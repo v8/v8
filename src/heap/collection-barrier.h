@@ -22,7 +22,8 @@ class Heap;
 // This class stops and resumes all background threads waiting for GC.
 class CollectionBarrier {
  public:
-  explicit CollectionBarrier(Heap* heap);
+  CollectionBarrier(
+      Heap* heap, std::shared_ptr<v8::TaskRunner> foreground_task_runner);
 
   // Returns true when collection was requested.
   bool WasGCRequested();

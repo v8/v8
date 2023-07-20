@@ -17,10 +17,9 @@
 namespace v8 {
 namespace internal {
 
-CollectionBarrier::CollectionBarrier(Heap* heap)
-    : heap_(heap),
-      foreground_task_runner_(V8::GetCurrentPlatform()->GetForegroundTaskRunner(
-          reinterpret_cast<v8::Isolate*>(heap->isolate()))) {}
+CollectionBarrier::CollectionBarrier(
+    Heap* heap, std::shared_ptr<v8::TaskRunner> foreground_task_runner)
+    : heap_(heap), foreground_task_runner_(foreground_task_runner) {}
 
 bool CollectionBarrier::WasGCRequested() {
   return collection_requested_.load();

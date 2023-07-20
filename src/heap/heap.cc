@@ -3827,12 +3827,37 @@ bool Heap::ShouldOptimizeForMemoryUsage() {
          HighMemoryPressure() || !CanExpandOldGeneration(kOldGenerationSlack);
 }
 
+class ActivateMemoryReducerTask : public CancelableTask {
+ public:
+  explicit ActivateMemoryReducerTask(Heap* heap)
+      : CancelableTask(heap->isolate()), heap_(heap) {}
+
+  ~ActivateMemoryReducerTask() override = default;
+  ActivateMemoryReducerTask(const ActivateMemoryReducerTask&) = delete;
+  ActivateMemoryReducerTask& operator=(const ActivateMemoryReducerTask&) =
+      delete;
+
+ private:
+  // v8::internal::CancelableTask overrides.
+  void RunInternal() override {
+    heap_->ActivateMemoryReducerIfNeededOnMainThread();
+  }
+
+  Heap* heap_;
+};
+
 void Heap::ActivateMemoryReducerIfNeeded() {
+  if (memory_reducer_ == nullptr) return;
+  // This method may be called from any thread. Post a task to run it on the
+  // isolate's main thread to avoid synchronization.
+  task_runner_->PostTask(std::make_unique<ActivateMemoryReducerTask>(this));
+}
+
+void Heap::ActivateMemoryReducerIfNeededOnMainThread() {
   // Activate memory reducer when switching to background if
   // - there was no mark compact since the start.
   // - the committed memory can be potentially reduced.
   // 2 pages for the old, code, and map space + 1 page for new space.
-  if (memory_reducer_ == nullptr) return;
   const int kMinCommittedMemory = 7 * Page::kPageSize;
   if (ms_count_ == 0 && CommittedMemory() > kMinCommittedMemory &&
       isolate()->IsIsolateInBackground()) {
@@ -4181,9 +4206,8 @@ void Heap::MemoryPressureNotification(MemoryPressureLevel level,
     } else {
       ExecutionAccess access(isolate());
       isolate()->stack_guard()->RequestGC();
-      auto taskrunner = V8::GetCurrentPlatform()->GetForegroundTaskRunner(
-          reinterpret_cast<v8::Isolate*>(isolate()));
-      taskrunner->PostTask(std::make_unique<MemoryPressureInterruptTask>(this));
+      task_runner_->PostTask(
+          std::make_unique<MemoryPressureInterruptTask>(this));
     }
   }
 }
@@ -5418,7 +5442,10 @@ void Heap::SetUp(LocalHeap* main_thread_local_heap) {
     code_page_allocator = isolate_->page_allocator();
   }
 
-  collection_barrier_.reset(new CollectionBarrier(this));
+  task_runner_ = V8::GetCurrentPlatform()->GetForegroundTaskRunner(
+      reinterpret_cast<v8::Isolate*>(isolate()));
+
+  collection_barrier_.reset(new CollectionBarrier(this, this->task_runner_));
 
   // Set up memory allocator.
   memory_allocator_.reset(
@@ -6546,10 +6573,8 @@ void Heap::PostFinalizationRegistryCleanupTaskIfNeeded() {
       is_finalization_registry_cleanup_task_posted_) {
     return;
   }
-  auto taskrunner = V8::GetCurrentPlatform()->GetForegroundTaskRunner(
-      reinterpret_cast<v8::Isolate*>(isolate()));
   auto task = std::make_unique<FinalizationRegistryCleanupTask>(this);
-  taskrunner->PostNonNestableTask(std::move(task));
+  task_runner_->PostNonNestableTask(std::move(task));
   is_finalization_registry_cleanup_task_posted_ = true;
 }
 

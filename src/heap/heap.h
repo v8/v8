@@ -1748,6 +1748,8 @@ class Heap final {
   // Flush the number to string cache.
   void FlushNumberStringCache();
 
+  void ActivateMemoryReducerIfNeededOnMainThread();
+
   void ShrinkOldGenerationAllocationLimitIfNotConfigured();
 
   double ComputeMutatorUtilization(const char* tag, double mutator_speed,
@@ -2214,6 +2216,8 @@ class Heap final {
       allocation_tracker_for_debugging_;
   std::unique_ptr<EphemeronRememberedSet> ephemeron_remembered_set_;
 
+  std::shared_ptr<v8::TaskRunner> task_runner_;
+
   // This object controls virtual space reserved for code on the V8 heap. This
   // is only valid for 64-bit architectures where kRequiresCodeRange.
   //
@@ -2330,6 +2334,7 @@ class Heap final {
   std::unique_ptr<MemoryBalancer> mb_;
 
   // Classes in "heap" can be friends.
+  friend class ActivateMemoryReducerTask;
   friend class AlwaysAllocateScope;
   friend class ArrayBufferCollector;
   friend class ArrayBufferSweeper;
