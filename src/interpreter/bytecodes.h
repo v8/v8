@@ -431,7 +431,7 @@ namespace interpreter {
     OperandType::kIdx, OperandType::kIdx)                                      \
                                                                                \
   /* Debugger */                                                               \
-  V(Debugger, ImplicitRegisterUse::kNone)                                      \
+  V(Debugger, ImplicitRegisterUse::kClobberAccumulator)                        \
                                                                                \
   /* Block Coverage */                                                         \
   V(IncBlockCounter, ImplicitRegisterUse::kNone, OperandType::kIdx)            \

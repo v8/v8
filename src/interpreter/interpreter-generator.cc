@@ -2860,7 +2860,9 @@ IGNITION_HANDLER(FindNonDefaultConstructorOrConstruct, InterpreterAssembler) {
 // Call runtime to handle debugger statement.
 IGNITION_HANDLER(Debugger, InterpreterAssembler) {
   TNode<Context> context = GetContext();
-  CallRuntime(Runtime::kHandleDebuggerStatement, context);
+  TNode<Object> result =
+      CallRuntime(Runtime::kHandleDebuggerStatement, context);
+  ClobberAccumulator(result);
   Dispatch();
 }
 

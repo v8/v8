@@ -2276,7 +2276,6 @@ void BaselineCompiler::VisitGetIterator() {
 }
 
 void BaselineCompiler::VisitDebugger() {
-  SaveAccumulatorScope accumulator_scope(&basm_);
   CallRuntime(Runtime::kHandleDebuggerStatement);
 }
 
