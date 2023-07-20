@@ -100,7 +100,7 @@ void IncrementalMarkingJob::Task::RunInternal() {
   {
     base::MutexGuard guard(&job_->mutex_);
     heap->tracer()->RecordTimeToIncrementalMarkingTask(
-        (v8::base::TimeTicks::Now() - job_->scheduled_time_).InMillisecondsF());
+        v8::base::TimeTicks::Now() - job_->scheduled_time_);
     job_->scheduled_time_ = v8::base::TimeTicks();
   }
 
@@ -151,39 +151,29 @@ void IncrementalMarkingJob::Task::RunInternal() {
   }
 }
 
-base::Optional<v8::base::TimeDelta> IncrementalMarkingJob::AverageTimeToTask()
+base::Optional<base::TimeDelta> IncrementalMarkingJob::CurrentTimeToTask()
     const {
-  const double recorded_time_to_task =
-      heap_->tracer()->AverageTimeToIncrementalMarkingTask();
-  base::Optional<double> current_time_to_task;
+  base::Optional<base::TimeDelta> current_time_to_task;
   if (pending_task_.has_value()) {
-    const double delta_ms =
-        (v8::base::TimeTicks::Now() - scheduled_time_).InMillisecondsF();
+    const auto now = base::TimeTicks::Now();
     if (pending_task_.value() == TaskType::kNormal) {
-      current_time_to_task.emplace(delta_ms);
+      DCHECK_GE(now, scheduled_time_);
+      current_time_to_task.emplace(now - scheduled_time_);
     } else {
-      const double delayed_delta_ms =
-          delta_ms - v8_flags.incremental_marking_task_delay_ms;
-      if (delayed_delta_ms > 0) {
-        current_time_to_task.emplace(delayed_delta_ms);
+      const auto delta = (now - scheduled_time_) -
+                         base::TimeDelta::FromMilliseconds(
+                             v8_flags.incremental_marking_task_delay_ms);
+      if (delta > base::TimeDelta::FromMilliseconds(0)) {
+        current_time_to_task.emplace(delta);
       }
     }
   }
-  if (recorded_time_to_task == 0.0) {
-    return current_time_to_task.has_value()
-               ? v8::base::Optional<
-                     v8::base::TimeDelta>{v8::base::TimeDelta::
-                                              FromMillisecondsD(
-                                                  current_time_to_task.value())}
-               : v8::base::Optional<v8::base::TimeDelta>{};
-  }
-  return current_time_to_task.has_value()
-             ? v8::base::Optional<
-                   v8::base::TimeDelta>{v8::base::TimeDelta::FromMillisecondsD(
-                   (current_time_to_task.value() + recorded_time_to_task) / 2)}
-             : v8::base::Optional<v8::base::TimeDelta>{
-                   v8::base::TimeDelta::FromMillisecondsD(
-                       recorded_time_to_task)};
+  return current_time_to_task;
+}
+
+base::Optional<v8::base::TimeDelta> IncrementalMarkingJob::AverageTimeToTask()
+    const {
+  return heap_->tracer()->AverageTimeToIncrementalMarkingTask();
 }
 
 }  // namespace v8::internal

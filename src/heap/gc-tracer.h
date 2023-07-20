@@ -435,8 +435,8 @@ class V8_EXPORT_PRIVATE GCTracer {
 
   // Returns the average time between scheduling and invocation of an
   // incremental marking task.
-  double AverageTimeToIncrementalMarkingTask() const;
-  void RecordTimeToIncrementalMarkingTask(double time_to_task);
+  base::Optional<base::TimeDelta> AverageTimeToIncrementalMarkingTask() const;
+  void RecordTimeToIncrementalMarkingTask(base::TimeDelta time_to_task);
 
 #ifdef V8_RUNTIME_CALL_STATS
   V8_INLINE WorkerThreadRuntimeCallStats* worker_thread_runtime_call_stats();
@@ -529,7 +529,7 @@ class V8_EXPORT_PRIVATE GCTracer {
 
   double recorded_incremental_marking_speed_;
 
-  double average_time_to_incremental_marking_task_ = 0.0;
+  base::Optional<base::TimeDelta> average_time_to_incremental_marking_task_;
 
   double recorded_embedder_speed_ = 0.0;
 

@@ -39,6 +39,8 @@ class IncrementalMarkingJob final {
   // running, it is added to the average.
   base::Optional<v8::base::TimeDelta> AverageTimeToTask() const;
 
+  base::Optional<v8::base::TimeDelta> CurrentTimeToTask() const;
+
  private:
   class Task;
 

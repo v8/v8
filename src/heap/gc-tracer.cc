@@ -1226,16 +1226,18 @@ void GCTracer::RecordIncrementalMarkingSpeed(size_t bytes, double duration) {
   }
 }
 
-void GCTracer::RecordTimeToIncrementalMarkingTask(double time_to_task) {
-  if (average_time_to_incremental_marking_task_ == 0.0) {
-    average_time_to_incremental_marking_task_ = time_to_task;
+void GCTracer::RecordTimeToIncrementalMarkingTask(
+    base::TimeDelta time_to_task) {
+  if (!average_time_to_incremental_marking_task_.has_value()) {
+    average_time_to_incremental_marking_task_.emplace(time_to_task);
   } else {
     average_time_to_incremental_marking_task_ =
-        (average_time_to_incremental_marking_task_ + time_to_task) / 2;
+        (average_time_to_incremental_marking_task_.value() + time_to_task) / 2;
   }
 }
 
-double GCTracer::AverageTimeToIncrementalMarkingTask() const {
+base::Optional<base::TimeDelta> GCTracer::AverageTimeToIncrementalMarkingTask()
+    const {
   return average_time_to_incremental_marking_task_;
 }
 

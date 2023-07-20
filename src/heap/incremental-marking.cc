@@ -6,6 +6,8 @@
 
 #include <inttypes.h>
 
+#include <cmath>
+
 #include "src/base/logging.h"
 #include "src/base/platform/time.h"
 #include "src/execution/vm-state-inl.h"
@@ -663,10 +665,11 @@ bool IncrementalMarking::ShouldWaitForTask() {
 
   const auto now = v8::base::TimeTicks::Now();
   const bool wait_for_task = now < completion_task_timeout_;
-  if (V8_UNLIKELY(v8_flags.trace_incremental_marking && wait_for_task)) {
+  if (V8_UNLIKELY(v8_flags.trace_incremental_marking)) {
     isolate()->PrintWithTimestamp(
-        "[IncrementalMarking] Completion: Delaying GC via stack guard, time "
-        "left: %f.1ms\n",
+        "[IncrementalMarking] Completion: %s GC via stack guard, time left: "
+        "%.1fms\n",
+        wait_for_task ? "Delaying" : "Not delaying",
         (completion_task_timeout_ - now).InMillisecondsF());
   }
   return wait_for_task;
@@ -687,21 +690,37 @@ bool IncrementalMarking::TryInitializeTaskTimeout() {
                                 kAllowedOvershootPercentBasedOnWalltime));
   const auto optional_avg_time_to_marking_task =
       incremental_marking_job()->AverageTimeToTask();
-  const bool delaying =
+  // Only allowed to delay if the recorded average exists and is below the
+  // threshold.
+  bool delaying =
       optional_avg_time_to_marking_task.has_value() &&
       optional_avg_time_to_marking_task.value() <= allowed_overshoot;
+  const auto optional_time_to_current_task =
+      incremental_marking_job()->CurrentTimeToTask();
+  // Don't bother delaying if the currently scheduled task is already waiting
+  // too long.
+  delaying =
+      delaying && (!optional_time_to_current_task.has_value() ||
+                   optional_time_to_current_task.value() <= allowed_overshoot);
   if (delaying) {
-    completion_task_timeout_ = now + allowed_overshoot;
+    const auto delta =
+        !optional_time_to_current_task.has_value()
+            ? allowed_overshoot
+            : allowed_overshoot - optional_time_to_current_task.value();
+    completion_task_timeout_ = now + delta;
   }
   if (V8_UNLIKELY(v8_flags.trace_incremental_marking)) {
     isolate()->PrintWithTimestamp(
         "[IncrementalMarking] Completion: %s GC via stack guard, "
-        "time to task: "
-        "%f.1ms, allowed overshoot: %f.1ms\n",
-        delaying ? "delaying" : "not delaying",
+        "avg time to task: %.1fms, current time to task: %.1fms allowed "
+        "overshoot: %.1fms\n",
+        delaying ? "Delaying" : "Not delaying",
         optional_avg_time_to_marking_task.has_value()
             ? optional_avg_time_to_marking_task->InMillisecondsF()
-            : 0.0,
+            : NAN,
+        optional_time_to_current_task.has_value()
+            ? optional_time_to_current_task->InMillisecondsF()
+            : NAN,
         allowed_overshoot.InMillisecondsF());
   }
   return delaying;
