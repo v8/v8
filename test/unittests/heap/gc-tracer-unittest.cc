@@ -244,17 +244,17 @@ TEST_F(GCTracerTest, IncrementalMarkingDetails) {
                StartTracingMode::kIncremental);
   tracer->AddScopeSample(GCTracer::Scope::MC_INCREMENTAL_FINALIZE, 100);
   StopTracing(tracer, GarbageCollector::MARK_COMPACTOR);
-  EXPECT_DOUBLE_EQ(
-      100, tracer->current_
-               .incremental_scopes[GCTracer::Scope::MC_INCREMENTAL_FINALIZE]
-               .longest_step);
+  EXPECT_EQ(base::TimeDelta::FromMilliseconds(100),
+            tracer->current_
+                .incremental_scopes[GCTracer::Scope::MC_INCREMENTAL_FINALIZE]
+                .longest_step);
   EXPECT_EQ(2, tracer->current_
                    .incremental_scopes[GCTracer::Scope::MC_INCREMENTAL_FINALIZE]
                    .steps);
-  EXPECT_DOUBLE_EQ(
-      150, tracer->current_
-               .incremental_scopes[GCTracer::Scope::MC_INCREMENTAL_FINALIZE]
-               .duration);
+  EXPECT_EQ(base::TimeDelta::FromMilliseconds(150),
+            tracer->current_
+                .incremental_scopes[GCTracer::Scope::MC_INCREMENTAL_FINALIZE]
+                .duration);
   EXPECT_DOUBLE_EQ(
       150, tracer->current_.scopes[GCTracer::Scope::MC_INCREMENTAL_FINALIZE]);
 
@@ -265,17 +265,17 @@ TEST_F(GCTracerTest, IncrementalMarkingDetails) {
                StartTracingMode::kIncremental);
   tracer->AddScopeSample(GCTracer::Scope::MC_INCREMENTAL_FINALIZE, 122);
   StopTracing(tracer, GarbageCollector::MARK_COMPACTOR);
-  EXPECT_DOUBLE_EQ(
-      122, tracer->current_
-               .incremental_scopes[GCTracer::Scope::MC_INCREMENTAL_FINALIZE]
-               .longest_step);
+  EXPECT_EQ(base::TimeDelta::FromMilliseconds(122),
+            tracer->current_
+                .incremental_scopes[GCTracer::Scope::MC_INCREMENTAL_FINALIZE]
+                .longest_step);
   EXPECT_EQ(3, tracer->current_
                    .incremental_scopes[GCTracer::Scope::MC_INCREMENTAL_FINALIZE]
                    .steps);
-  EXPECT_DOUBLE_EQ(
-      150, tracer->current_
-               .incremental_scopes[GCTracer::Scope::MC_INCREMENTAL_FINALIZE]
-               .duration);
+  EXPECT_EQ(base::TimeDelta::FromMilliseconds(150),
+            tracer->current_
+                .incremental_scopes[GCTracer::Scope::MC_INCREMENTAL_FINALIZE]
+                .duration);
   EXPECT_DOUBLE_EQ(
       150, tracer->current_.scopes[GCTracer::Scope::MC_INCREMENTAL_FINALIZE]);
 }
@@ -301,20 +301,23 @@ TEST_F(GCTracerTest, IncrementalMarkingSpeed) {
   StopTracing(tracer, GarbageCollector::SCAVENGER);
   // 1000000 bytes in 100ms.
   tracer->AddIncrementalMarkingStep(100, 1000000);
-  EXPECT_EQ(300, tracer->incremental_marking_duration_);
+  EXPECT_EQ(base::TimeDelta::FromMilliseconds(300),
+            tracer->incremental_marking_duration_);
   EXPECT_EQ(3000000u, tracer->incremental_marking_bytes_);
   EXPECT_EQ(1000000 / 100,
             tracer->IncrementalMarkingSpeedInBytesPerMillisecond());
   // 1000000 bytes in 100ms.
   tracer->AddIncrementalMarkingStep(100, 1000000);
-  EXPECT_EQ(400, tracer->incremental_marking_duration_);
+  EXPECT_EQ(base::TimeDelta::FromMilliseconds(400),
+            tracer->incremental_marking_duration_);
   EXPECT_EQ(4000000u, tracer->incremental_marking_bytes_);
   StartTracing(tracer, GarbageCollector::MARK_COMPACTOR,
                StartTracingMode::kIncrementalEnterPause);
   StopTracing(tracer, GarbageCollector::MARK_COMPACTOR);
-  EXPECT_EQ(400, tracer->current_.incremental_marking_duration);
+  EXPECT_EQ(base::TimeDelta::FromMilliseconds(400),
+            tracer->current_.incremental_marking_duration);
   EXPECT_EQ(4000000u, tracer->current_.incremental_marking_bytes);
-  EXPECT_EQ(0, tracer->incremental_marking_duration_);
+  EXPECT_TRUE(tracer->incremental_marking_duration_.IsZero());
   EXPECT_EQ(0u, tracer->incremental_marking_bytes_);
   EXPECT_EQ(1000000 / 100,
             tracer->IncrementalMarkingSpeedInBytesPerMillisecond());

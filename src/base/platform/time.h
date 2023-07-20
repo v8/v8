@@ -145,18 +145,18 @@ class V8_BASE_EXPORT TimeDelta final {
   struct timespec ToTimespec() const;
 
   // Computations with other deltas.
-  TimeDelta operator+(const TimeDelta& other) const {
+  constexpr TimeDelta operator+(const TimeDelta& other) const {
     return TimeDelta(delta_ + other.delta_);
   }
-  TimeDelta operator-(const TimeDelta& other) const {
+  constexpr TimeDelta operator-(const TimeDelta& other) const {
     return TimeDelta(delta_ - other.delta_);
   }
 
-  TimeDelta& operator+=(const TimeDelta& other) {
+  constexpr TimeDelta& operator+=(const TimeDelta& other) {
     delta_ += other.delta_;
     return *this;
   }
-  TimeDelta& operator-=(const TimeDelta& other) {
+  constexpr TimeDelta& operator-=(const TimeDelta& other) {
     delta_ -= other.delta_;
     return *this;
   }

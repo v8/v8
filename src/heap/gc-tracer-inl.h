@@ -13,21 +13,14 @@
 namespace v8 {
 namespace internal {
 
-GCTracer::IncrementalMarkingInfos::IncrementalMarkingInfos()
-    : duration(0), longest_step(0), steps(0) {}
-
-void GCTracer::IncrementalMarkingInfos::Update(double delta) {
+constexpr GCTracer::IncrementalInfos& GCTracer::IncrementalInfos::operator+=(
+    base::TimeDelta delta) {
   steps++;
   duration += delta;
   if (delta > longest_step) {
     longest_step = delta;
   }
-}
-
-void GCTracer::IncrementalMarkingInfos::ResetCurrentCycle() {
-  duration = 0;
-  longest_step = 0;
-  steps = 0;
+  return *this;
 }
 
 GCTracer::Scope::Scope(GCTracer* tracer, ScopeId scope, ThreadKind thread_kind)
@@ -107,48 +100,19 @@ constexpr int GCTracer::Scope::IncrementalOffset(ScopeId id) {
 }
 
 constexpr bool GCTracer::Event::IsYoungGenerationEvent(Type type) {
-  DCHECK_NE(START, type);
-  return type == SCAVENGER || type == MINOR_MARK_SWEEPER ||
-         type == INCREMENTAL_MINOR_MARK_SWEEPER;
+  DCHECK_NE(Type::START, type);
+  return type == Type::SCAVENGER || type == Type::MINOR_MARK_SWEEPER ||
+         type == Type::INCREMENTAL_MINOR_MARK_SWEEPER;
 }
 
 CollectionEpoch GCTracer::CurrentEpoch(Scope::ScopeId id) const {
   return Scope::NeedsYoungEpoch(id) ? epoch_young_ : epoch_full_;
 }
 
-#ifdef DEBUG
-bool GCTracer::IsInObservablePause() const {
-  return 0.0 < start_of_observable_pause_;
-}
-
-bool GCTracer::IsInAtomicPause() const {
-  return current_.state == Event::State::ATOMIC;
-}
-
-bool GCTracer::IsConsistentWithCollector(GarbageCollector collector) const {
-  return (collector == GarbageCollector::SCAVENGER &&
-          current_.type == Event::SCAVENGER) ||
-         (collector == GarbageCollector::MINOR_MARK_SWEEPER &&
-          (current_.type == Event::MINOR_MARK_SWEEPER ||
-           current_.type == Event::INCREMENTAL_MINOR_MARK_SWEEPER)) ||
-         (collector == GarbageCollector::MARK_COMPACTOR &&
-          (current_.type == Event::MARK_COMPACTOR ||
-           current_.type == Event::INCREMENTAL_MARK_COMPACTOR));
-}
-
-bool GCTracer::IsSweepingInProgress() const {
-  return (current_.type == Event::MARK_COMPACTOR ||
-          current_.type == Event::INCREMENTAL_MARK_COMPACTOR ||
-          current_.type == Event::MINOR_MARK_SWEEPER ||
-          current_.type == Event::INCREMENTAL_MINOR_MARK_SWEEPER) &&
-         current_.state == Event::State::SWEEPING;
-}
-#endif
-
 constexpr double GCTracer::current_scope(Scope::ScopeId id) const {
   if (Scope::FIRST_INCREMENTAL_SCOPE <= id &&
       id <= Scope::LAST_INCREMENTAL_SCOPE) {
-    return incremental_scope(id).duration;
+    return incremental_scope(id).duration.InMillisecondsF();
   } else if (Scope::FIRST_BACKGROUND_SCOPE <= id &&
              id <= Scope::LAST_BACKGROUND_SCOPE) {
     return background_counter_[id].total_duration_ms;
@@ -158,7 +122,7 @@ constexpr double GCTracer::current_scope(Scope::ScopeId id) const {
   }
 }
 
-constexpr const GCTracer::IncrementalMarkingInfos& GCTracer::incremental_scope(
+constexpr const GCTracer::IncrementalInfos& GCTracer::incremental_scope(
     Scope::ScopeId id) const {
   return incremental_scopes_[Scope::IncrementalOffset(id)];
 }
@@ -166,7 +130,8 @@ constexpr const GCTracer::IncrementalMarkingInfos& GCTracer::incremental_scope(
 void GCTracer::AddScopeSample(Scope::ScopeId id, double duration) {
   if (Scope::FIRST_INCREMENTAL_SCOPE <= id &&
       id <= Scope::LAST_INCREMENTAL_SCOPE) {
-    incremental_scopes_[Scope::IncrementalOffset(id)].Update(duration);
+    incremental_scopes_[Scope::IncrementalOffset(id)] +=
+        base::TimeDelta::FromMillisecondsD(duration);
   } else if (Scope::FIRST_BACKGROUND_SCOPE <= id &&
              id <= Scope::LAST_BACKGROUND_SCOPE) {
     base::MutexGuard guard(&background_counter_mutex_);
