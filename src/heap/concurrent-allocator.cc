@@ -199,15 +199,22 @@ ConcurrentAllocator::AllocateFromSpaceFreeList(size_t min_size_in_bytes,
                                                   max_size_in_bytes, origin);
   if (result) return result;
 
-  uint64_t trace_flow_id = owning_heap()->sweeper()->GetTraceIdForFlowEvent(
-      GCTracer::Scope::MC_BACKGROUND_SWEEPING);
+  uint64_t trace_flow_id;
   // Sweeping is still in progress.
   if (owning_heap()->sweeping_in_progress()) {
+    // If major sweeping is not in progress, we still try to refill the free
+    // list with old space pages that were swept by minor sweeping.
+    auto scope_id_for_free_list_refilling =
+        owning_heap()->major_sweeping_in_progress()
+            ? GCTracer::Scope::MC_BACKGROUND_SWEEPING
+            : GCTracer::Scope::MINOR_MS_BACKGROUND_SWEEPING;
+    trace_flow_id = owning_heap()->sweeper()->GetTraceIdForFlowEvent(
+        scope_id_for_free_list_refilling);
     // First try to refill the free-list, concurrent sweeper threads
     // may have freed some objects in the meantime.
     {
       TRACE_GC_EPOCH_WITH_FLOW(
-          owning_heap()->tracer(), GCTracer::Scope::MC_BACKGROUND_SWEEPING,
+          owning_heap()->tracer(), scope_id_for_free_list_refilling,
           ThreadKind::kBackground, trace_flow_id,
           TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT);
       space_->RefillFreeList();
