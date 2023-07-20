@@ -390,7 +390,7 @@ void IncrementalMarking::StartMarkingMinor() {
   }
 
   if (v8_flags.concurrent_minor_ms_marking && !heap_->IsTearingDown()) {
-    local_marking_worklists()->ShareWork();
+    local_marking_worklists()->PublishWork();
     heap_->concurrent_marking()->ScheduleJob(
         GarbageCollector::MINOR_MARK_SWEEPER);
   }
@@ -909,11 +909,19 @@ void IncrementalMarking::Step(v8::base::TimeDelta max_duration,
 
 void IncrementalMarking::RequestMinorGCFinalizationIfNeeded() {
   DCHECK(v8_flags.concurrent_minor_ms_marking);
+  // Finalize concurrent marking if markers are out of work. Since the main
+  // thread local worklist has not yet been flushed, write barrier items
+  // curerntly in the local are not accounted for in this check. This creates
+  // "slack" in the condition so that finalization is not constantly delayed due
+  // to write barriers.
   if (!heap_->concurrent_marking()->IsWorkLeft()) {
     minor_collection_requested_via_stack_guard_ = true;
     isolate()->stack_guard()->RequestGC();
   } else {
     local_marking_worklists()->MergeOnHold();
+    local_marking_worklists()->PublishWork();
+    heap_->concurrent_marking()->RescheduleJobIfNeeded(
+        GarbageCollector::MINOR_MARK_SWEEPER);
   }
 }
 

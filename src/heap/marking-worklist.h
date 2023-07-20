@@ -168,6 +168,9 @@ class V8_EXPORT_PRIVATE MarkingWorklists::Local final {
   // empty. In the per-context marking mode it also publishes the shared
   // worklist.
   void ShareWork();
+  // Publishes the local active marking worklist. Assume per-context marking
+  // mode is not used.
+  void PublishWork();
   // Merges the on-hold worklist to the shared worklist.
   void MergeOnHold();
 

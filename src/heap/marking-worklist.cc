@@ -164,6 +164,11 @@ void MarkingWorklists::Local::ShareWork() {
   }
 }
 
+void MarkingWorklists::Local::PublishWork() {
+  DCHECK(!is_per_context_mode_);
+  shared_.Publish();
+}
+
 void MarkingWorklists::Local::MergeOnHold() { shared_.Merge(on_hold_); }
 
 bool MarkingWorklists::Local::PopContext(HeapObject* object) {
