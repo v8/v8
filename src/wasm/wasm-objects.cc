@@ -720,8 +720,8 @@ void SetInstanceMemory(WasmInstanceObject instance, JSArrayBuffer buffer,
   CHECK_IMPLIES(use_trap_handler, is_wasm_module);
   // ArrayBuffers allocated for Wasm do always have a BackingStore.
   std::shared_ptr<BackingStore> backing_store = buffer.GetBackingStore();
-  CHECK_IMPLIES(is_wasm_module,
-                backing_store && backing_store->is_wasm_memory());
+  CHECK_IMPLIES(is_wasm_module, backing_store);
+  CHECK_IMPLIES(is_wasm_module, backing_store->is_wasm_memory());
   // Wasm modules compiled to use the trap handler don't have bounds checks,
   // so they must have a memory that has guard regions.
   CHECK_IMPLIES(use_trap_handler, backing_store->has_guard_regions());

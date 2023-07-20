@@ -80,6 +80,9 @@ void JSArrayBuffer::Attach(std::shared_ptr<BackingStore> backing_store) {
   Isolate* isolate = GetIsolate();
 
   if (backing_store->IsEmpty()) {
+    // Wasm memory always needs a backing store; this is guaranteed by reserving
+    // at least one page for the BackingStore (so {IsEmpty()} is always false).
+    CHECK(!backing_store->is_wasm_memory());
     set_backing_store(isolate, EmptyBackingStoreBuffer());
   } else {
     DCHECK_NE(nullptr, backing_store->buffer_start());

@@ -182,6 +182,12 @@ BackingStore::BackingStore(void* buffer_start, size_t byte_length,
                  byte_length_ == max_byte_length_);
   DCHECK_GE(max_byte_length_, byte_length_);
   DCHECK_GE(byte_capacity_, max_byte_length_);
+  // TODO(1445003): Demote to a DCHECK once we found the issue.
+  // Wasm memory should never be empty (== zero capacity). Otherwise
+  // {JSArrayBuffer::Attach} would replace it by the {EmptyBackingStore} and we
+  // loose information.
+  // This is particularly important for shared Wasm memory.
+  CHECK_IMPLIES(is_wasm_memory_, byte_capacity_ != 0);
 }
 
 BackingStore::~BackingStore() {
@@ -948,8 +954,13 @@ void GlobalBackingStoreRegistry::UpdateSharedWasmMemoryObjects(
     CHECK(backing_store->is_wasm_memory());
     CHECK(backing_store->is_shared());
 
+    // Keep a raw pointer to the backing store for a CHECK later one. Make it
+    // {void*} so we do not accidentally try to use it for anything else.
+    void* expected_backing_store = backing_store.get();
+
     Handle<JSArrayBuffer> new_buffer =
         isolate->factory()->NewJSSharedArrayBuffer(std::move(backing_store));
+    CHECK_EQ(expected_backing_store, new_buffer->GetBackingStore().get());
     memory_object->SetNewBuffer(*new_buffer);
   }
 }
