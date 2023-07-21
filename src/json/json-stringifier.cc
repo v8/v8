@@ -1106,15 +1106,14 @@ void JsonStringifier::SerializeString_(Handle<String> string) {
 template <>
 bool JsonStringifier::DoNotEscape(uint8_t c) {
   // https://tc39.github.io/ecma262/#table-json-single-character-escapes
-  return base::IsInRange(c, static_cast<uint8_t>(0x23),
-                         static_cast<uint8_t>(0x7E)) &&
-         c != 0x5C;
+  return (c >= 0x20 && c <= 0x21) || (c >= 0x23 && c <= 0x7E && c != 0x5C);
 }
 
 template <>
 bool JsonStringifier::DoNotEscape(uint16_t c) {
   // https://tc39.github.io/ecma262/#table-json-single-character-escapes
-  return c >= 0x23 && c != 0x5C && c != 0x7F && (c < 0xD800 || c > 0xDFFF);
+  return (c >= 0x20 && c <= 0x21) ||
+         (c >= 0x23 && c != 0x5C && c != 0x7F && (c < 0xD800 || c > 0xDFFF));
 }
 
 void JsonStringifier::NewLine() {
