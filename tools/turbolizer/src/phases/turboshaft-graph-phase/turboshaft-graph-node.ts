@@ -51,12 +51,16 @@ export class TurboshaftGraphNode extends Node<TurboshaftGraphEdge<TurboshaftGrap
       title += `\nOrigin: ${this.origin.toString()}`;
     }
     if (this.inputs.length > 0) {
-      title += `\nInputs: ${this.inputs.map(i => i.source.id).join(", ")}`;
+      title += `\nInputs: ${this.inputs.map(i => formatInput(i.source)).join(", ")}`;
     }
     if (this.outputs.length > 0) {
       title += `\nOutputs: ${this.outputs.map(i => i.target.id).join(", ")}`;
     }
     return title;
+
+    function formatInput(input: TurboshaftGraphNode) {
+      return `[${input.block}] ${input.displayLabel}`;
+    }
   }
 
   public getHistoryLabel(): string {
