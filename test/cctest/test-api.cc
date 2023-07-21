@@ -21428,7 +21428,7 @@ THREADED_TEST(FunctionNew) {
   auto serial_number =
       i::Handle<i::JSFunction>::cast(v8::Utils::OpenHandle(*func))
           ->shared()
-          ->get_api_func_data()
+          ->api_func_data()
           ->serial_number();
   CHECK_EQ(i::TemplateInfo::kDoNotCache, serial_number);
 

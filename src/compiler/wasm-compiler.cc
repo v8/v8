@@ -8113,7 +8113,7 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
     }
 
     SharedFunctionInfo shared = target->shared();
-    FunctionTemplateInfo api_func_data = shared->get_api_func_data();
+    FunctionTemplateInfo api_func_data = shared->api_func_data();
     const Address c_address = api_func_data->GetCFunction(0);
     const v8::CFunctionInfo* c_signature = api_func_data->GetCSignature(0);
 

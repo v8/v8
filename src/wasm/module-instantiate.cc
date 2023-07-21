@@ -243,17 +243,17 @@ bool IsSupportedWasmFastApiFunction(Isolate* isolate,
   if (!shared->IsApiFunction()) {
     return false;
   }
-  if (shared->get_api_func_data()->GetCFunctionsCount() == 0) {
+  if (shared->api_func_data()->GetCFunctionsCount() == 0) {
     return false;
   }
-  if (!shared->get_api_func_data()->accept_any_receiver()) {
+  if (!shared->api_func_data()->accept_any_receiver()) {
     return false;
   }
-  if (!shared->get_api_func_data()->signature().IsUndefined()) {
+  if (!shared->api_func_data()->signature().IsUndefined()) {
     // TODO(wasm): CFunctionInfo* signature check.
     return false;
   }
-  const CFunctionInfo* info = shared->get_api_func_data()->GetCSignature(0);
+  const CFunctionInfo* info = shared->api_func_data()->GetCSignature(0);
   if (!compiler::IsFastCallSupportedSignature(info)) {
     return false;
   }

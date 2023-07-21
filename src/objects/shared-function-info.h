@@ -330,7 +330,7 @@ class SharedFunctionInfo
 
   inline bool IsApiFunction() const;
   inline bool is_class_constructor() const;
-  inline FunctionTemplateInfo get_api_func_data() const;
+  inline FunctionTemplateInfo api_func_data() const;
   inline void set_api_func_data(FunctionTemplateInfo data);
   DECL_GETTER(HasBytecodeArray, bool)
   template <typename IsolateT>

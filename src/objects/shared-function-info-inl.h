@@ -583,7 +583,7 @@ bool SharedFunctionInfo::IsApiFunction() const {
   return function_data(kAcquireLoad).IsFunctionTemplateInfo();
 }
 
-FunctionTemplateInfo SharedFunctionInfo::get_api_func_data() const {
+FunctionTemplateInfo SharedFunctionInfo::api_func_data() const {
   DCHECK(IsApiFunction());
   return FunctionTemplateInfo::cast(function_data(kAcquireLoad));
 }

@@ -5353,7 +5353,7 @@ MaybeLocal<Object> Function::NewInstanceWithSideEffectType(
     CHECK(self->IsJSFunction() &&
           i::JSFunction::cast(*self)->shared()->IsApiFunction());
     i::Object obj =
-        i::JSFunction::cast(*self)->shared()->get_api_func_data()->call_code(
+        i::JSFunction::cast(*self)->shared()->api_func_data()->call_code(
             kAcquireLoad);
     if (obj.IsCallHandlerInfo()) {
       i::CallHandlerInfo handler_info = i::CallHandlerInfo::cast(obj);

@@ -314,8 +314,8 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> Invoke(Isolate* isolate,
       Handle<Object> receiver = params.is_construct
                                     ? isolate->factory()->the_hole_value()
                                     : params.receiver;
-      Handle<FunctionTemplateInfo> fun_data(
-          function->shared()->get_api_func_data(), isolate);
+      Handle<FunctionTemplateInfo> fun_data(function->shared()->api_func_data(),
+                                            isolate);
       auto value = Builtins::InvokeApiFunction(
           isolate, params.is_construct, fun_data, receiver, params.argc,
           params.argv, Handle<HeapObject>::cast(params.new_target));

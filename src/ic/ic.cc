@@ -621,7 +621,7 @@ bool IC::UpdateMegaDOMIC(const MaybeObjectHandle& handler, Handle<Name> name) {
 
   Handle<FunctionTemplateInfo> fti;
   if (accessor_obj->IsJSFunction()) {
-    fti = handle(JSFunction::cast(*accessor_obj)->shared()->get_api_func_data(),
+    fti = handle(JSFunction::cast(*accessor_obj)->shared()->api_func_data(),
                  isolate());
   } else {
     fti = Handle<FunctionTemplateInfo>::cast(accessor_obj);

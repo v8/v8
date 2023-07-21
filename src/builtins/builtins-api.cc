@@ -138,7 +138,7 @@ BUILTIN(HandleApiConstruct) {
   Handle<HeapObject> new_target = args.new_target();
   DCHECK(!new_target->IsUndefined(isolate));
   Handle<FunctionTemplateInfo> fun_data(
-      args.target()->shared()->get_api_func_data(), isolate);
+      args.target()->shared()->api_func_data(), isolate);
   int argc = args.length() - 1;
   Address* argv = args.address_of_first_argument();
   RETURN_RESULT_OR_FAILURE(
@@ -232,7 +232,7 @@ HandleApiCallAsFunctionOrConstructorDelegate(Isolate* isolate,
   JSFunction constructor = JSFunction::cast(obj->map()->GetConstructor());
   DCHECK(constructor->shared()->IsApiFunction());
   Object handler =
-      constructor->shared()->get_api_func_data()->GetInstanceCallHandler();
+      constructor->shared()->api_func_data()->GetInstanceCallHandler();
   DCHECK(!handler.IsUndefined(isolate));
   CallHandlerInfo call_data = CallHandlerInfo::cast(handler);
 

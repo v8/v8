@@ -2927,7 +2927,7 @@ void InstallGetterSetter(Isolate* isolate, Handle<JSObject> object,
 void SetDummyInstanceTemplate(Isolate* isolate, Handle<JSFunction> fun) {
   Handle<ObjectTemplateInfo> instance_template = NewObjectTemplate(isolate);
   FunctionTemplateInfo::SetInstanceTemplate(
-      isolate, handle(fun->shared()->get_api_func_data(), isolate),
+      isolate, handle(fun->shared()->api_func_data(), isolate),
       instance_template);
 }
 

@@ -2512,7 +2512,7 @@ void ExistingCodeLogger::LogExistingFunction(Handle<SharedFunctionInfo> shared,
   } else if (shared->IsApiFunction()) {
     // API function.
     Handle<FunctionTemplateInfo> fun_data =
-        handle(shared->get_api_func_data(), isolate_);
+        handle(shared->api_func_data(), isolate_);
     Object raw_call_data = fun_data->call_code(kAcquireLoad);
     if (!raw_call_data.IsUndefined(isolate_)) {
       CallHandlerInfo call_data = CallHandlerInfo::cast(raw_call_data);

@@ -142,7 +142,7 @@ template <class IsolateT>
 void CallOptimization::AnalyzePossibleApiFunction(IsolateT* isolate,
                                                   Handle<JSFunction> function) {
   if (!function->shared()->IsApiFunction()) return;
-  Handle<FunctionTemplateInfo> info(function->shared()->get_api_func_data(),
+  Handle<FunctionTemplateInfo> info(function->shared()->api_func_data(),
                                     isolate);
 
   // Require a C++ callback.

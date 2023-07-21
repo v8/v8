@@ -137,7 +137,7 @@ base::Optional<Name> FunctionTemplateInfo::TryGetCachedPropertyName(
     if (!getter.IsJSFunction()) return {};
     SharedFunctionInfo info = JSFunction::cast(getter)->shared();
     if (!info->IsApiFunction()) return {};
-    getter = info->get_api_func_data();
+    getter = info->api_func_data();
   }
   // Check if the accessor uses a cached property.
   Object maybe_name =

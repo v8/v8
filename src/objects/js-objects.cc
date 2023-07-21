@@ -2366,7 +2366,7 @@ bool JSReceiver::IsCodeLike(Isolate* isolate) const {
   }
   Object instance_template = JSFunction::cast(maybe_constructor)
                                  ->shared()
-                                 ->get_api_func_data()
+                                 ->api_func_data()
                                  ->GetInstanceTemplate();
   if (instance_template.IsUndefined(isolate)) return false;
   return ObjectTemplateInfo::cast(instance_template)->code_like();

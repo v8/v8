@@ -6973,7 +6973,7 @@ AccessCheckInfo AccessCheckInfo::Get(Isolate* isolate,
   if (!constructor->shared()->IsApiFunction()) return AccessCheckInfo();
 
   Object data_obj =
-      constructor->shared()->get_api_func_data()->GetAccessCheckInfo();
+      constructor->shared()->api_func_data()->GetAccessCheckInfo();
   if (data_obj.IsUndefined(isolate)) return AccessCheckInfo();
 
   return AccessCheckInfo::cast(data_obj);

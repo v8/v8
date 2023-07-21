@@ -918,7 +918,7 @@ DEF_GETTER(Map, GetFunctionTemplateInfo, FunctionTemplateInfo) {
   if (constructor.IsJSFunction(cage_base)) {
     SharedFunctionInfo sfi = JSFunction::cast(constructor)->shared(cage_base);
     DCHECK(sfi->IsApiFunction());
-    return sfi->get_api_func_data();
+    return sfi->api_func_data();
   }
   DCHECK(constructor.IsFunctionTemplateInfo(cage_base));
   return FunctionTemplateInfo::cast(constructor);
