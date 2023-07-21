@@ -23,13 +23,13 @@ inline T ToCData(v8::internal::Object obj) {
   static_assert(sizeof(T) == sizeof(v8::internal::Address));
   if (obj == v8::internal::Smi::zero()) return nullptr;
   return reinterpret_cast<T>(
-      v8::internal::Foreign::cast(obj).foreign_address());
+      v8::internal::Foreign::cast(obj)->foreign_address());
 }
 
 template <>
 inline v8::internal::Address ToCData(v8::internal::Object obj) {
   if (obj == v8::internal::Smi::zero()) return v8::internal::kNullAddress;
-  return v8::internal::Foreign::cast(obj).foreign_address();
+  return v8::internal::Foreign::cast(obj)->foreign_address();
 }
 
 template <typename T>
@@ -187,7 +187,7 @@ class V8_NODISCARD CallDepthScope {
       i::Context env = *Utils::OpenHandle(*context);
       i::HandleScopeImplementer* impl = isolate->handle_scope_implementer();
       if (isolate->context().is_null() ||
-          isolate->context().native_context() != env.native_context()) {
+          isolate->context()->native_context() != env->native_context()) {
         impl->SaveContext(isolate->context());
         isolate->set_context(env);
         did_enter_context_ = true;
@@ -204,7 +204,7 @@ class V8_NODISCARD CallDepthScope {
       }
 
       i::Handle<i::Context> env = Utils::OpenHandle(*context_);
-      microtask_queue = env->native_context().microtask_queue();
+      microtask_queue = env->native_context()->microtask_queue();
     }
     if (!escaped_) isolate_->thread_local_top()->DecrementCallDepth(this);
     if (do_callback) isolate_->FireCallCompletedCallback(microtask_queue);
@@ -271,7 +271,7 @@ template <typename T>
 void CopySmiElementsToTypedBuffer(T* dst, uint32_t length,
                                   i::FixedArray elements) {
   for (uint32_t i = 0; i < length; ++i) {
-    double value = elements.get(static_cast<int>(i)).Number();
+    double value = elements->get(static_cast<int>(i)).Number();
     // TODO(mslekova): Avoid converting back-and-forth when possible, e.g
     // avoid int->double->int conversions to boost performance.
     dst[i] = i::ConvertDouble<T>(value);
@@ -282,7 +282,7 @@ template <typename T>
 void CopyDoubleElementsToTypedBuffer(T* dst, uint32_t length,
                                      i::FixedDoubleArray elements) {
   for (uint32_t i = 0; i < length; ++i) {
-    double value = elements.get_scalar(static_cast<int>(i));
+    double value = elements->get_scalar(static_cast<int>(i));
     // TODO(mslekova): There are certain cases, e.g. double->double, in which
     // we could do a memcpy directly.
     dst[i] = i::ConvertDouble<T>(value);
@@ -310,8 +310,8 @@ bool CopyAndConvertArrayToCppBuffer(Local<Array> src, T* dst,
     return false;
   }
 
-  i::FixedArrayBase elements = obj.elements();
-  switch (obj.GetElementsKind()) {
+  i::FixedArrayBase elements = obj->elements();
+  switch (obj->GetElementsKind()) {
     case i::PACKED_SMI_ELEMENTS:
       CopySmiElementsToTypedBuffer(dst, length, i::FixedArray::cast(elements));
       return true;

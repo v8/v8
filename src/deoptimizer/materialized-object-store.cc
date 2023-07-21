@@ -42,12 +42,12 @@ bool MaterializedObjectStore::Remove(Address fp) {
   frame_fps_.erase(it);
   FixedArray array = isolate()->heap()->materialized_objects();
 
-  CHECK_LT(index, array.length());
+  CHECK_LT(index, array->length());
   int fps_size = static_cast<int>(frame_fps_.size());
   for (int i = index; i < fps_size; i++) {
-    array.set(i, array.get(i + 1));
+    array->set(i, array->get(i + 1));
   }
-  array.set(fps_size, ReadOnlyRoots(isolate()).undefined_value());
+  array->set(fps_size, ReadOnlyRoots(isolate()).undefined_value());
   return true;
 }
 

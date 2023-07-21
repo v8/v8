@@ -544,12 +544,12 @@
 #define EPHEMERON_KEY_WRITE_BARRIER(object, offset, value) \
   WRITE_BARRIER(object, offset, value)
 #else
-#define EPHEMERON_KEY_WRITE_BARRIER(object, offset, value)          \
-  do {                                                              \
-    DCHECK_NOT_NULL(GetHeapFromWritableObject(object));             \
-    CombinedEphemeronWriteBarrier(EphemeronHashTable::cast(object), \
-                                  (object).RawField(offset), value, \
-                                  UPDATE_WRITE_BARRIER);            \
+#define EPHEMERON_KEY_WRITE_BARRIER(object, offset, value)           \
+  do {                                                               \
+    DCHECK_NOT_NULL(GetHeapFromWritableObject(object));              \
+    CombinedEphemeronWriteBarrier(EphemeronHashTable::cast(object),  \
+                                  (object)->RawField(offset), value, \
+                                  UPDATE_WRITE_BARRIER);             \
   } while (false)
 #endif
 
@@ -559,10 +559,10 @@
 #define CONDITIONAL_WRITE_BARRIER(object, offset, value, mode) \
   WRITE_BARRIER(object, offset, value)
 #else
-#define CONDITIONAL_WRITE_BARRIER(object, offset, value, mode)            \
-  do {                                                                    \
-    DCHECK_NOT_NULL(GetHeapFromWritableObject(object));                   \
-    CombinedWriteBarrier(object, (object).RawField(offset), value, mode); \
+#define CONDITIONAL_WRITE_BARRIER(object, offset, value, mode)             \
+  do {                                                                     \
+    DCHECK_NOT_NULL(GetHeapFromWritableObject(object));                    \
+    CombinedWriteBarrier(object, (object)->RawField(offset), value, mode); \
   } while (false)
 #endif
 
@@ -572,11 +572,11 @@
 #define CONDITIONAL_WEAK_WRITE_BARRIER(object, offset, value, mode) \
   WRITE_BARRIER(object, offset, value)
 #else
-#define CONDITIONAL_WEAK_WRITE_BARRIER(object, offset, value, mode)         \
-  do {                                                                      \
-    DCHECK_NOT_NULL(GetHeapFromWritableObject(object));                     \
-    CombinedWriteBarrier(object, (object).RawMaybeWeakField(offset), value, \
-                         mode);                                             \
+#define CONDITIONAL_WEAK_WRITE_BARRIER(object, offset, value, mode)          \
+  do {                                                                       \
+    DCHECK_NOT_NULL(GetHeapFromWritableObject(object));                      \
+    CombinedWriteBarrier(object, (object)->RawMaybeWeakField(offset), value, \
+                         mode);                                              \
   } while (false)
 #endif
 
@@ -587,7 +587,7 @@
   do {                                                                       \
     DCHECK_NOT_NULL(GetHeapFromWritableObject(object));                      \
     CombinedEphemeronWriteBarrier(EphemeronHashTable::cast(object),          \
-                                  (object).RawField(offset), value, mode);   \
+                                  (object)->RawField(offset), value, mode);  \
   } while (false)
 #endif
 

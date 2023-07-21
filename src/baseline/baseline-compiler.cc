@@ -357,7 +357,7 @@ MaybeHandle<Code> BaselineCompiler::Build(LocalIsolate* local_isolate) {
 }
 
 int BaselineCompiler::EstimateInstructionSize(BytecodeArray bytecode) {
-  return bytecode.length() * kAverageBytecodeToInstructionRatio;
+  return bytecode->length() * kAverageBytecodeToInstructionRatio;
 }
 
 interpreter::Register BaselineCompiler::RegisterOperand(int operand_index) {

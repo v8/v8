@@ -949,7 +949,7 @@ bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
     if (options.compile_only) return true;
     if (options.compile_options == ScriptCompiler::kConsumeCodeCache) {
       i::Handle<i::Script> i_script(
-          i::Script::cast(Utils::OpenHandle(*script)->shared().script()),
+          i::Script::cast(Utils::OpenHandle(*script)->shared()->script()),
           i_isolate);
       // TODO(cbruni, chromium:1244145): remove once context-allocated.
       i_script->set_host_defined_options(i::FixedArray::cast(
@@ -2254,20 +2254,20 @@ void Shell::TestVerifySourcePositions(
   }
 
   i::Handle<i::JSFunction> function = i::Handle<i::JSFunction>::cast(callable);
-  if (!function->shared().HasBytecodeArray()) {
+  if (!function->shared()->HasBytecodeArray()) {
     ThrowError(isolate, "Function has no BytecodeArray attached.");
     return;
   }
   i::Handle<i::BytecodeArray> bytecodes =
-      handle(function->shared().GetBytecodeArray(i_isolate), i_isolate);
+      handle(function->shared()->GetBytecodeArray(i_isolate), i_isolate);
   i::interpreter::BytecodeArrayIterator bytecode_iterator(bytecodes);
-  bool has_baseline = function->shared().HasBaselineCode();
+  bool has_baseline = function->shared()->HasBaselineCode();
   i::Handle<i::ByteArray> bytecode_offsets;
   std::unique_ptr<i::baseline::BytecodeOffsetIterator> offset_iterator;
   if (has_baseline) {
     bytecode_offsets = handle(
         i::ByteArray::cast(
-            function->shared().GetCode(i_isolate).bytecode_offset_table()),
+            function->shared()->GetCode(i_isolate)->bytecode_offset_table()),
         i_isolate);
     offset_iterator = std::make_unique<i::baseline::BytecodeOffsetIterator>(
         bytecode_offsets, bytecodes);

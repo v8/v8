@@ -170,32 +170,32 @@ void ReadOnlyDeserializer::PostProcessNewObjects() {
   PtrComprCageBase cage_base(isolate());
   ReadOnlyHeapObjectIterator it(isolate()->read_only_heap());
   for (HeapObject o = it.Next(); !o.is_null(); o = it.Next()) {
-    const InstanceType instance_type = o.map(cage_base).instance_type();
+    const InstanceType instance_type = o->map(cage_base)->instance_type();
 
     if (should_rehash()) {
       if (InstanceTypeChecker::IsString(instance_type)) {
         String str = String::cast(o);
-        str.set_raw_hash_field(Name::kEmptyHashField);
+        str->set_raw_hash_field(Name::kEmptyHashField);
         PushObjectToRehash(handle(str, isolate()));
-      } else if (o.NeedsRehashing(instance_type)) {
+      } else if (o->NeedsRehashing(instance_type)) {
         PushObjectToRehash(handle(o, isolate()));
       }
     }
 
     if (InstanceTypeChecker::IsCode(instance_type)) {
       Code code = Code::cast(o);
-      code.init_instruction_start(main_thread_isolate(), kNullAddress);
+      code->init_instruction_start(main_thread_isolate(), kNullAddress);
       // RO space only contains builtin Code objects which don't have an
       // attached InstructionStream.
-      DCHECK(code.is_builtin());
-      DCHECK(!code.has_instruction_stream());
-      code.SetInstructionStartForOffHeapBuiltin(
+      DCHECK(code->is_builtin());
+      DCHECK(!code->has_instruction_stream());
+      code->SetInstructionStartForOffHeapBuiltin(
           main_thread_isolate(), EmbeddedData::FromBlob(main_thread_isolate())
-                                     .InstructionStartOf(code.builtin_id()));
+                                     .InstructionStartOf(code->builtin_id()));
     } else if (InstanceTypeChecker::IsSharedFunctionInfo(instance_type)) {
       SharedFunctionInfo sfi = SharedFunctionInfo::cast(o);
       // Reset the id to avoid collisions - it must be unique in this isolate.
-      sfi.set_unique_id(isolate()->GetAndIncNextUniqueSfiId());
+      sfi->set_unique_id(isolate()->GetAndIncNextUniqueSfiId());
     }
   }
 }

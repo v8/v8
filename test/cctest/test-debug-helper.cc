@@ -441,16 +441,16 @@ static void FrameIterationCheck(
       auto js_function = js_frame->function();
       CheckProp(*props->properties[0], "v8::internal::JSFunction",
                 "currently_executing_jsfunction", js_function.ptr());
-      auto shared_function_info = js_function.shared();
-      auto script = i::Script::cast(shared_function_info.script());
+      auto shared_function_info = js_function->shared();
+      auto script = i::Script::cast(shared_function_info->script());
       CheckProp(*props->properties[1], "v8::internal::Object", "script_name",
-                static_cast<i::Tagged_t>(script.name().ptr()));
+                static_cast<i::Tagged_t>(script->name().ptr()));
       CheckProp(*props->properties[2], "v8::internal::Object", "script_source",
-                static_cast<i::Tagged_t>(script.source().ptr()));
+                static_cast<i::Tagged_t>(script->source().ptr()));
 
-      auto scope_info = shared_function_info.scope_info();
+      auto scope_info = shared_function_info->scope_info();
       CheckProp(*props->properties[3], "v8::internal::Object", "function_name",
-                static_cast<i::Tagged_t>(scope_info.FunctionName().ptr()));
+                static_cast<i::Tagged_t>(scope_info->FunctionName().ptr()));
 
       CheckProp(*props->properties[4], "", "function_character_offset");
       const d::ObjectProperty& function_character_offset =

@@ -125,8 +125,8 @@ Object PopClearedCellHoldings(
   if (finalization_registry->cleared_cells().IsWeakCell()) {
     WeakCell cleared_cells_head =
         WeakCell::cast(finalization_registry->cleared_cells());
-    DCHECK_EQ(cleared_cells_head.prev(), *weak_cell);
-    cleared_cells_head.set_prev(ReadOnlyRoots(isolate).undefined_value());
+    DCHECK_EQ(cleared_cells_head->prev(), *weak_cell);
+    cleared_cells_head->set_prev(ReadOnlyRoots(isolate).undefined_value());
   } else {
     DCHECK(finalization_registry->cleared_cells().IsUndefined(isolate));
   }
@@ -153,15 +153,15 @@ void VerifyWeakCellChain(Isolate* isolate, Object list_head, int n_args, ...) {
   } else {
     WeakCell current = WeakCell::cast(Object(va_arg(args, Address)));
     CHECK_EQ(current, list_head);
-    CHECK(current.prev().IsUndefined(isolate));
+    CHECK(current->prev().IsUndefined(isolate));
 
     for (int i = 1; i < n_args; i++) {
       WeakCell next = WeakCell::cast(Object(va_arg(args, Address)));
-      CHECK_EQ(current.next(), next);
-      CHECK_EQ(next.prev(), current);
+      CHECK_EQ(current->next(), next);
+      CHECK_EQ(next->prev(), current);
       current = next;
     }
-    CHECK(current.next().IsUndefined(isolate));
+    CHECK(current->next().IsUndefined(isolate));
   }
   va_end(args);
 }
@@ -179,7 +179,7 @@ void VerifyWeakCellKeyChain(Isolate* isolate, SimpleNumberDictionary key_map,
   InternalIndex entry = InternalIndex::NotFound();
   if (!hash.IsUndefined(isolate)) {
     uint32_t key = Smi::ToInt(hash);
-    entry = key_map.FindEntry(isolate, key);
+    entry = key_map->FindEntry(isolate, key);
   }
   if (n_args == 0) {
     // Verify empty list
@@ -187,17 +187,17 @@ void VerifyWeakCellKeyChain(Isolate* isolate, SimpleNumberDictionary key_map,
   } else {
     CHECK(entry.is_found());
     WeakCell current = WeakCell::cast(Object(va_arg(args, Address)));
-    Object list_head = key_map.ValueAt(entry);
+    Object list_head = key_map->ValueAt(entry);
     CHECK_EQ(current, list_head);
-    CHECK(current.key_list_prev().IsUndefined(isolate));
+    CHECK(current->key_list_prev().IsUndefined(isolate));
 
     for (int i = 1; i < n_args; i++) {
       WeakCell next = WeakCell::cast(Object(va_arg(args, Address)));
-      CHECK_EQ(current.key_list_next(), next);
-      CHECK_EQ(next.key_list_prev(), current);
+      CHECK_EQ(current->key_list_next(), next);
+      CHECK_EQ(next->key_list_prev(), current);
       current = next;
     }
-    CHECK(current.key_list_next().IsUndefined(isolate));
+    CHECK(current->key_list_next().IsUndefined(isolate));
   }
   va_end(args);
 }

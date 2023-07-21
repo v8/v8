@@ -52,12 +52,12 @@ void CheckDescriptorArrayLookups(Isolate* isolate, Handle<Map> map,
   {
     DisallowGarbageCollection no_gc;
     DescriptorArray descriptors = map->instance_descriptors(isolate);
-    DCHECK(descriptors.IsSortedNoDuplicates());
-    int nof_descriptors = descriptors.number_of_descriptors();
+    DCHECK(descriptors->IsSortedNoDuplicates());
+    int nof_descriptors = descriptors->number_of_descriptors();
 
     for (size_t i = 0; i < names.size(); ++i) {
       Name name = *names[i];
-      InternalIndex index = descriptors.Search(name, nof_descriptors, false);
+      InternalIndex index = descriptors->Search(name, nof_descriptors, false);
       CHECK(index.is_found());
       CHECK_EQ(i, index.as_uint32());
     }
@@ -86,8 +86,8 @@ void CheckTransitionArrayLookups(Isolate* isolate,
 
     for (size_t i = 0; i < maps.size(); ++i) {
       Map expected_map = *maps[i];
-      Name name = expected_map.instance_descriptors(isolate).GetKey(
-          expected_map.LastAdded());
+      Name name = expected_map->instance_descriptors(isolate)->GetKey(
+          expected_map->LastAdded());
 
       Map map = transitions->SearchAndGetTargetForTesting(PropertyKind::kData,
                                                           name, NONE);
@@ -100,7 +100,7 @@ void CheckTransitionArrayLookups(Isolate* isolate,
   if (!v8_flags.jitless) {
     for (size_t i = 0; i < maps.size(); ++i) {
       Handle<Map> expected_map = maps[i];
-      Handle<Name> name(expected_map->instance_descriptors(isolate).GetKey(
+      Handle<Name> name(expected_map->instance_descriptors(isolate)->GetKey(
                             expected_map->LastAdded()),
                         isolate);
 
@@ -255,7 +255,7 @@ TEST(DescriptorArrayHashCollisionMassive) {
   CheckDescriptorArrayLookups(isolate, map, names, csa_lookup);
 
   // Sort descriptor array and check it again.
-  map->instance_descriptors(isolate).Sort();
+  map->instance_descriptors(isolate)->Sort();
   CheckDescriptorArrayLookups(isolate, map, names, csa_lookup);
 }
 
@@ -306,7 +306,7 @@ TEST(DescriptorArrayHashCollision) {
   CheckDescriptorArrayLookups(isolate, map, names, csa_lookup);
 
   // Sort descriptor array and check it again.
-  map->instance_descriptors(isolate).Sort();
+  map->instance_descriptors(isolate)->Sort();
   CheckDescriptorArrayLookups(isolate, map, names, csa_lookup);
 }
 

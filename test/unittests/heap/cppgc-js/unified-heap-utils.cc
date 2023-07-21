@@ -103,7 +103,7 @@ v8::Local<v8::Object> WrapperHelper::CreateWrapper(
   SetWrappableConnection(instance, wrappable_type, wrappable_object);
   CHECK(!instance.IsEmpty());
   i::Handle<i::JSReceiver> js_obj = v8::Utils::OpenHandle(*instance);
-  CHECK_EQ(i::JS_API_OBJECT_TYPE, js_obj->map().instance_type());
+  CHECK_EQ(i::JS_API_OBJECT_TYPE, js_obj->map()->instance_type());
   return scope.Escape(instance);
 }
 

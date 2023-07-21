@@ -33,7 +33,7 @@ int64_t CapRelativeIndex(Handle<Object> num, int64_t minimum, int64_t maximum) {
                         : std::min<int64_t>(relative, maximum);
   } else {
     DCHECK(num->IsHeapNumber());
-    double relative = HeapNumber::cast(*num).value();
+    double relative = HeapNumber::cast(*num)->value();
     DCHECK(!std::isnan(relative));
     return static_cast<int64_t>(
         relative < 0 ? std::max<double>(relative + maximum, minimum)
@@ -126,7 +126,7 @@ BUILTIN(TypedArrayPrototypeCopyWithin) {
   count = count * element_size;
 
   uint8_t* data = static_cast<uint8_t*>(array->DataPtr());
-  if (array->buffer().is_shared()) {
+  if (array->buffer()->is_shared()) {
     base::Relaxed_Memmove(reinterpret_cast<base::Atomic8*>(data + to),
                           reinterpret_cast<base::Atomic8*>(data + from), count);
   } else {

@@ -42,7 +42,7 @@ SharedFunctionInfo DeoptimizationData::GetInlinedFunction(int index) {
   if (index == -1) {
     return SharedFunctionInfo::cast(SharedFunctionInfo());
   } else {
-    return SharedFunctionInfo::cast(LiteralArray().get(index));
+    return SharedFunctionInfo::cast(LiteralArray()->get(index));
   }
 }
 
@@ -67,7 +67,7 @@ void DeoptimizationData::DeoptimizationDataPrint(std::ostream& os) {
   int const inlined_function_count = InlinedFunctionCount().value();
   os << "Inlined functions (count = " << inlined_function_count << ")\n";
   for (int id = 0; id < inlined_function_count; ++id) {
-    Object info = LiteralArray().get(id);
+    Object info = LiteralArray()->get(id);
     os << " " << Brief(SharedFunctionInfo::cast(info)) << "\n";
   }
   os << "\n";

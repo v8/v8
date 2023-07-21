@@ -87,7 +87,7 @@ void AddToDescriptorArrayTemplate(
         descriptor_array_template->Set(entry, &d);
         pair = *new_pair;
       }
-      pair.set(ToAccessorComponent(value_kind), *value, kReleaseStore);
+      pair->set(ToAccessorComponent(value_kind), *value, kReleaseStore);
     }
   }
 }
@@ -211,9 +211,9 @@ void AddToDictionaryTemplate(IsolateT* isolate, Handle<Dictionary> dictionary,
         AccessorPair current_pair = AccessorPair::cast(existing_value);
 
         int existing_getter_index =
-            GetExistingValueIndex(current_pair.getter());
+            GetExistingValueIndex(current_pair->getter());
         int existing_setter_index =
-            GetExistingValueIndex(current_pair.setter());
+            GetExistingValueIndex(current_pair->setter());
         // At least one of the accessors must already be defined.
         static_assert(kAccessorNotDefined < 0);
         DCHECK(existing_getter_index >= 0 || existing_setter_index >= 0);
@@ -276,9 +276,9 @@ void AddToDictionaryTemplate(IsolateT* isolate, Handle<Dictionary> dictionary,
         DCHECK_IMPLIES(!existing_value.IsSmi(),
                        existing_value.IsAccessorInfo());
         DCHECK_IMPLIES(!existing_value.IsSmi(),
-                       AccessorInfo::cast(existing_value).name() ==
+                       AccessorInfo::cast(existing_value)->name() ==
                                *isolate->factory()->length_string() ||
-                           AccessorInfo::cast(existing_value).name() ==
+                           AccessorInfo::cast(existing_value)->name() ==
                                *isolate->factory()->name_string());
         if (!existing_value.IsSmi() || Smi::ToInt(existing_value) < key_index) {
           // Overwrite existing value because it was defined before the computed
@@ -313,9 +313,9 @@ void AddToDictionaryTemplate(IsolateT* isolate, Handle<Dictionary> dictionary,
         AccessorPair current_pair = AccessorPair::cast(existing_value);
 
         int existing_component_index =
-            GetExistingValueIndex(current_pair.get(component));
+            GetExistingValueIndex(current_pair->get(component));
         if (existing_component_index < key_index) {
-          current_pair.set(component, value, kReleaseStore);
+          current_pair->set(component, value, kReleaseStore);
         } else {
           // The existing accessor property overwrites the computed one, update
           // its enumeration order accordingly.

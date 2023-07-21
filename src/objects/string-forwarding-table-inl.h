@@ -130,7 +130,7 @@ uint32_t StringForwardingTable::Record::raw_hash(
   Object hash_or_string = ForwardStringObjectOrHash(cage_base);
   uint32_t raw_hash;
   if (hash_or_string.IsHeapObject()) {
-    raw_hash = String::cast(hash_or_string).RawHash();
+    raw_hash = String::cast(hash_or_string)->RawHash();
   } else {
     raw_hash = static_cast<uint32_t>(hash_or_string.ptr());
   }
@@ -213,13 +213,13 @@ void StringForwardingTable::Record::DisposeUnusedExternalResource(
   String stored_original =
       original_string(GetIsolateFromWritableObject(original));
   if (stored_original.IsThinString()) {
-    stored_original = ThinString::cast(stored_original).actual();
+    stored_original = ThinString::cast(stored_original)->actual();
   }
   DCHECK_EQ(original, stored_original);
 #endif
   if (!original.IsExternalString()) return;
   Address original_resource =
-      ExternalString::cast(original).resource_as_address();
+      ExternalString::cast(original)->resource_as_address();
   bool is_one_byte;
   auto resource = external_resource(&is_one_byte);
   if (resource != nullptr &&

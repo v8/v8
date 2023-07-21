@@ -64,7 +64,7 @@ void Serializer::CountAllocation(Map map, int size, SnapshotSpace space) {
   const int space_number = static_cast<int>(space);
   allocation_size_[space_number] += size;
 #ifdef VERBOSE_SERIALIZATION_STATISTICS
-  int instance_type = map.instance_type();
+  int instance_type = map->instance_type();
   instance_type_count_[space_number][instance_type]++;
   instance_type_size_[space_number][instance_type] += size;
 #endif  // VERBOSE_SERIALIZATION_STATISTICS
@@ -153,14 +153,14 @@ void Serializer::SerializeObject(Handle<HeapObject> obj, SlotType slot_type) {
   // ThinStrings are just an indirection to an internalized string, so elide the
   // indirection and serialize the actual string directly.
   if (obj->IsThinString(isolate())) {
-    obj = handle(ThinString::cast(*obj).actual(isolate()), isolate());
+    obj = handle(ThinString::cast(*obj)->actual(isolate()), isolate());
   } else if (obj->IsCode(isolate())) {
     Code code = Code::cast(*obj);
-    if (code.kind() == CodeKind::BASELINE) {
+    if (code->kind() == CodeKind::BASELINE) {
       // For now just serialize the BytecodeArray instead of baseline code.
       // TODO(v8:11429,pthier): Handle Baseline code in cases we want to
       // serialize it.
-      obj = handle(code.bytecode_or_interpreter_data(isolate()), isolate());
+      obj = handle(code->bytecode_or_interpreter_data(isolate()), isolate());
     }
   }
   SerializeObjectImpl(obj, slot_type);
@@ -261,7 +261,7 @@ bool Serializer::SerializePendingObject(HeapObject obj) {
 
 bool Serializer::ObjectIsBytecodeHandler(HeapObject obj) const {
   if (!obj.IsCode()) return false;
-  return (Code::cast(obj).kind() == CodeKind::BYTECODE_HANDLER);
+  return (Code::cast(obj)->kind() == CodeKind::BYTECODE_HANDLER);
 }
 
 void Serializer::PutRoot(RootIndex root) {
@@ -428,7 +428,7 @@ InstructionStream Serializer::CopyCode(InstructionStream istream) {
   // While this doesn't guarantee the exact same alignment, it's enough to
   // fulfill the alignment requirements of writes during relocation.
   code_buffer_.resize(InstructionStream::kCodeAlignmentMinusCodeHeader);
-  int size = istream.Size();
+  int size = istream->Size();
   code_buffer_.insert(code_buffer_.end(),
                       reinterpret_cast<uint8_t*>(istream.address()),
                       reinterpret_cast<uint8_t*>(istream.address() + size));
@@ -551,37 +551,37 @@ void Serializer::ObjectSerializer::SerializeJSTypedArray() {
   {
     DisallowGarbageCollection no_gc;
     JSTypedArray typed_array = JSTypedArray::cast(*object_);
-    if (typed_array.is_on_heap()) {
-      typed_array.RemoveExternalPointerCompensationForSerialization(isolate());
+    if (typed_array->is_on_heap()) {
+      typed_array->RemoveExternalPointerCompensationForSerialization(isolate());
     } else {
-      if (!typed_array.IsDetachedOrOutOfBounds()) {
+      if (!typed_array->IsDetachedOrOutOfBounds()) {
         // Explicitly serialize the backing store now.
-        JSArrayBuffer buffer = JSArrayBuffer::cast(typed_array.buffer());
+        JSArrayBuffer buffer = JSArrayBuffer::cast(typed_array->buffer());
         // We cannot store byte_length or max_byte_length larger than uint32
         // range in the snapshot.
-        size_t byte_length_size = buffer.GetByteLength();
+        size_t byte_length_size = buffer->GetByteLength();
         CHECK_LE(byte_length_size,
                  size_t{std::numeric_limits<uint32_t>::max()});
         uint32_t byte_length = static_cast<uint32_t>(byte_length_size);
         Maybe<uint32_t> max_byte_length = Nothing<uint32_t>();
-        if (buffer.is_resizable_by_js()) {
-          CHECK_LE(buffer.max_byte_length(),
+        if (buffer->is_resizable_by_js()) {
+          CHECK_LE(buffer->max_byte_length(),
                    std::numeric_limits<uint32_t>::max());
           max_byte_length =
-              Just(static_cast<uint32_t>(buffer.max_byte_length()));
+              Just(static_cast<uint32_t>(buffer->max_byte_length()));
         }
-        size_t byte_offset = typed_array.byte_offset();
+        size_t byte_offset = typed_array->byte_offset();
 
         // We need to calculate the backing store from the data pointer
         // because the ArrayBuffer may already have been serialized.
         void* backing_store = reinterpret_cast<void*>(
-            reinterpret_cast<Address>(typed_array.DataPtr()) - byte_offset);
+            reinterpret_cast<Address>(typed_array->DataPtr()) - byte_offset);
 
         uint32_t ref =
             SerializeBackingStore(backing_store, byte_length, max_byte_length);
-        typed_array.SetExternalBackingStoreRefForSerialization(ref);
+        typed_array->SetExternalBackingStoreRefForSerialization(ref);
       } else {
-        typed_array.SetExternalBackingStoreRefForSerialization(0);
+        typed_array->SetExternalBackingStoreRefForSerialization(0);
       }
     }
   }
@@ -594,36 +594,36 @@ void Serializer::ObjectSerializer::SerializeJSArrayBuffer() {
   {
     DisallowGarbageCollection no_gc;
     JSArrayBuffer buffer = JSArrayBuffer::cast(*object_);
-    backing_store = buffer.backing_store();
+    backing_store = buffer->backing_store();
     // We cannot store byte_length or max_byte_length larger than uint32 range
     // in the snapshot.
-    CHECK_LE(buffer.byte_length(), std::numeric_limits<uint32_t>::max());
-    uint32_t byte_length = static_cast<uint32_t>(buffer.byte_length());
+    CHECK_LE(buffer->byte_length(), std::numeric_limits<uint32_t>::max());
+    uint32_t byte_length = static_cast<uint32_t>(buffer->byte_length());
     Maybe<uint32_t> max_byte_length = Nothing<uint32_t>();
-    if (buffer.is_resizable_by_js()) {
-      CHECK_LE(buffer.max_byte_length(), std::numeric_limits<uint32_t>::max());
-      max_byte_length = Just(static_cast<uint32_t>(buffer.max_byte_length()));
+    if (buffer->is_resizable_by_js()) {
+      CHECK_LE(buffer->max_byte_length(), std::numeric_limits<uint32_t>::max());
+      max_byte_length = Just(static_cast<uint32_t>(buffer->max_byte_length()));
     }
-    extension = buffer.extension();
+    extension = buffer->extension();
 
     // Only serialize non-empty backing stores.
-    if (buffer.IsEmpty()) {
-      buffer.SetBackingStoreRefForSerialization(kEmptyBackingStoreRefSentinel);
+    if (buffer->IsEmpty()) {
+      buffer->SetBackingStoreRefForSerialization(kEmptyBackingStoreRefSentinel);
     } else {
       uint32_t ref =
           SerializeBackingStore(backing_store, byte_length, max_byte_length);
-      buffer.SetBackingStoreRefForSerialization(ref);
+      buffer->SetBackingStoreRefForSerialization(ref);
     }
 
     // Ensure deterministic output by setting extension to null during
     // serialization.
-    buffer.set_extension(nullptr);
+    buffer->set_extension(nullptr);
   }
   SerializeObject();
   {
     JSArrayBuffer buffer = JSArrayBuffer::cast(*object_);
-    buffer.set_backing_store(isolate(), backing_store);
-    buffer.set_extension(extension);
+    buffer->set_backing_store(isolate(), backing_store);
+    buffer->set_extension(extension);
   }
 }
 
@@ -719,17 +719,17 @@ class V8_NODISCARD UnlinkWeakNextScope {
   explicit UnlinkWeakNextScope(Heap* heap, HeapObject object) {
     Isolate* isolate = heap->isolate();
     if (object.IsAllocationSite(isolate) &&
-        AllocationSite::cast(object).HasWeakNext()) {
+        AllocationSite::cast(object)->HasWeakNext()) {
       object_ = object;
-      next_ = AllocationSite::cast(object).weak_next();
-      AllocationSite::cast(object).set_weak_next(
+      next_ = AllocationSite::cast(object)->weak_next();
+      AllocationSite::cast(object)->set_weak_next(
           ReadOnlyRoots(isolate).undefined_value());
     }
   }
 
   ~UnlinkWeakNextScope() {
     if (next_ == Smi::zero()) return;
-    AllocationSite::cast(object_).set_weak_next(next_, UPDATE_WRITE_BARRIER);
+    AllocationSite::cast(object_)->set_weak_next(next_, UPDATE_WRITE_BARRIER);
   }
 
  private:
@@ -777,7 +777,7 @@ void Serializer::ObjectSerializer::Serialize(SlotType slot_type) {
   }
 
   PtrComprCageBase cage_base(isolate());
-  InstanceType instance_type = object_->map(cage_base).instance_type();
+  InstanceType instance_type = object_->map(cage_base)->instance_type();
   if (InstanceTypeChecker::IsExternalString(instance_type)) {
     SerializeExternalString();
     return;
@@ -902,7 +902,7 @@ void Serializer::ObjectSerializer::SerializeContent(Map map, int size) {
   HeapObject raw = *object_;
   UnlinkWeakNextScope unlink_weak_next(isolate()->heap(), raw);
   // Iterate references first.
-  raw.IterateBody(map, size, this);
+  raw->IterateBody(map, size, this);
   // Then output data payload, if any.
   OutputRawData(raw.address() + size);
 }
@@ -983,7 +983,7 @@ void Serializer::ObjectSerializer::VisitPointers(HeapObject host,
 
 void Serializer::ObjectSerializer::VisitInstructionStreamPointer(
     Code host, InstructionStreamSlot slot) {
-  DCHECK(!host.has_instruction_stream());
+  DCHECK(!host->has_instruction_stream());
 }
 
 // All of these visitor functions are unreachable since we don't serialize
@@ -1074,7 +1074,7 @@ void Serializer::ObjectSerializer::OutputExternalReference(
 void Serializer::ObjectSerializer::VisitExternalPointer(
     HeapObject host, ExternalPointerSlot slot, ExternalPointerTag tag) {
   PtrComprCageBase cage_base(isolate());
-  InstanceType instance_type = object_->map(cage_base).instance_type();
+  InstanceType instance_type = object_->map(cage_base)->instance_type();
   if (InstanceTypeChecker::IsForeign(instance_type) ||
       InstanceTypeChecker::IsJSExternalObject(instance_type) ||
       InstanceTypeChecker::IsAccessorInfo(instance_type) ||
@@ -1104,7 +1104,7 @@ void Serializer::ObjectSerializer::VisitExternalPointer(
         InstanceTypeChecker::IsNativeContext(instance_type) ||
         // See ContextSerializer::SerializeJSObjectWithEmbedderFields().
         (InstanceTypeChecker::IsJSObject(instance_type) &&
-         JSObject::cast(host).GetEmbedderFieldCount() > 0));
+         JSObject::cast(host)->GetEmbedderFieldCount() > 0));
   }
 }
 
@@ -1187,7 +1187,7 @@ void Serializer::ObjectSerializer::OutputRawData(Address up_to) {
       // SeqStrings may contain padding. Serialize the padding bytes as 0s to
       // make the snapshot content deterministic.
       SeqString::DataAndPaddingSizes sizes =
-          SeqString::cast(*object_).GetDataAndPaddingSizes();
+          SeqString::cast(*object_)->GetDataAndPaddingSizes();
       DCHECK_EQ(bytes_to_output, sizes.data_size - base + sizes.padding_size);
       int data_bytes_to_output = sizes.data_size - base;
       sink_->PutRaw(reinterpret_cast<uint8_t*>(object_start + base),
@@ -1219,7 +1219,7 @@ Handle<FixedArray> ObjectCacheIndexMap::Values(Isolate* isolate) {
   IdentityMap<int, base::DefaultAllocationPolicy>::IteratableScope it_scope(
       &map_);
   for (auto it = it_scope.begin(); it != it_scope.end(); ++it) {
-    raw.set(*it.entry(), it.key());
+    raw->set(*it.entry(), it.key());
   }
 
   return externals;

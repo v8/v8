@@ -44,15 +44,15 @@ HEAP_TEST(WriteBarrier_Marking) {
   CHECK(heap->marking_state()->IsUnmarked(host));
   CHECK(heap->marking_state()->IsUnmarked(value1));
   // Trigger the barrier for the unmarked host and expect the bail out.
-  WriteBarrier::Marking(host, host.RawFieldOfElementAt(0), value1);
+  WriteBarrier::Marking(host, host->RawFieldOfElementAt(0), value1);
   CHECK(!heap->marking_state()->IsMarked(value1));
   heap->marking_state()->TryMarkAndAccountLiveBytes(host);
   // Trigger the barrier for the marked host.
-  WriteBarrier::Marking(host, host.RawFieldOfElementAt(0), value1);
+  WriteBarrier::Marking(host, host->RawFieldOfElementAt(0), value1);
   CHECK(heap->marking_state()->IsMarked(value1));
 
   CHECK(heap->marking_state()->IsUnmarked(value2));
-  WriteBarrier::Marking(host, host.RawFieldOfElementAt(0), value2);
+  WriteBarrier::Marking(host, host->RawFieldOfElementAt(0), value2);
   CHECK(heap->marking_state()->IsMarked(value2));
   heap::SimulateIncrementalMarking(CcTest::heap(), true);
   CHECK(heap->marking_state()->IsMarked(host));

@@ -64,7 +64,7 @@ TEST(Run_WasmModule_Buffer_Externalized_Regression_UseAfterFree) {
 
     // Make sure the memory object has a new buffer that can be written to.
     uint32_t* int_buffer = reinterpret_cast<uint32_t*>(
-        memory_object->array_buffer().backing_store());
+        memory_object->array_buffer()->backing_store());
     int_buffer[0] = 0;
   }
   heap::InvokeMemoryReducingMajorGCs(CcTest::heap());

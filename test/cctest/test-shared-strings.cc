@@ -1422,13 +1422,13 @@ UNINITIALIZED_TEST(InternalizeSharedExternalString) {
   // ThinString, disposing the external resource.
   i_isolate1->heap()->CollectGarbageShared(i_isolate1->main_thread_local_heap(),
                                            GarbageCollectionReason::kTesting);
-  CHECK_EQ(shared_one_byte->map().instance_type(),
+  CHECK_EQ(shared_one_byte->map()->instance_type(),
            InstanceType::EXTERNAL_ONE_BYTE_INTERNALIZED_STRING_TYPE);
   if (is_uncached) {
     CHECK(shared_two_byte->IsThinString());
     CHECK(two_byte_res->IsDisposed());
   } else {
-    CHECK_EQ(shared_two_byte->map().instance_type(),
+    CHECK_EQ(shared_two_byte->map()->instance_type(),
              InstanceType::EXTERNAL_INTERNALIZED_STRING_TYPE);
   }
 }
@@ -1935,7 +1935,7 @@ void TestConcurrentExternalizationAndInternalization(
     String string = *input_string;
     if (hit_or_miss == kTestHit) {
       CHECK(string.IsThinString());
-      string = ThinString::cast(string).actual();
+      string = ThinString::cast(string)->actual();
     }
     int alive_resources = 0;
     for (int t = kInternalizationThreads; t < kTotalThreads; t++) {
@@ -1954,7 +1954,7 @@ void TestConcurrentExternalizationAndInternalization(
     // and dispose the resource.
     CHECK_LE(alive_resources, 1);
     CHECK_EQ(shape.IsExternal(), alive_resources);
-    CHECK(string.HasHashCode());
+    CHECK(string->HasHashCode());
   }
 
   ParkingThread::ParkedJoinAll(local_isolate, threads);

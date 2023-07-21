@@ -34,12 +34,12 @@ Handle<WasmInstanceObject> CompileModule(Zone* zone, Isolate* isolate,
 }
 
 bool IsGeneric(Code wrapper) {
-  return wrapper.is_builtin() &&
-         wrapper.builtin_id() == Builtin::kJSToWasmWrapper;
+  return wrapper->is_builtin() &&
+         wrapper->builtin_id() == Builtin::kJSToWasmWrapper;
 }
 
 bool IsSpecific(Code wrapper) {
-  return wrapper.kind() == CodeKind::JS_TO_WASM_FUNCTION;
+  return wrapper->kind() == CodeKind::JS_TO_WASM_FUNCTION;
 }
 
 Handle<Object> SmiHandle(Isolate* isolate, int value) {
@@ -98,7 +98,7 @@ TEST(WrapperBudget) {
         testing::GetExportedFunction(isolate, instance, "main")
             .ToHandleChecked();
     Handle<WasmExportedFunctionData> main_function_data =
-        handle(main_export->shared().wasm_exported_function_data(), isolate);
+        handle(main_export->shared()->wasm_exported_function_data(), isolate);
 
     // Check that the generic-wrapper budget has initially a value of
     // kGenericWrapperBudget.
@@ -147,7 +147,7 @@ TEST(WrapperReplacement) {
         testing::GetExportedFunction(isolate, instance, "main")
             .ToHandleChecked();
     Handle<WasmExportedFunctionData> main_function_data =
-        handle(main_export->shared().wasm_exported_function_data(), isolate);
+        handle(main_export->shared()->wasm_exported_function_data(), isolate);
 
     // Check that the generic-wrapper budget has initially a value of
     // kGenericWrapperBudget.
@@ -238,11 +238,11 @@ TEST(EagerWrapperReplacement) {
 
     // Get the function data for all exported functions.
     Handle<WasmExportedFunctionData> add_function_data =
-        handle(add_export->shared().wasm_exported_function_data(), isolate);
+        handle(add_export->shared()->wasm_exported_function_data(), isolate);
     Handle<WasmExportedFunctionData> mult_function_data =
-        handle(mult_export->shared().wasm_exported_function_data(), isolate);
+        handle(mult_export->shared()->wasm_exported_function_data(), isolate);
     Handle<WasmExportedFunctionData> id_function_data =
-        handle(id_export->shared().wasm_exported_function_data(), isolate);
+        handle(id_export->shared()->wasm_exported_function_data(), isolate);
 
     // Set the remaining generic-wrapper budget for add to 1,
     // so that the next call to it will cause the function to tier up.
@@ -335,7 +335,7 @@ TEST(WrapperReplacement_IndirectExport) {
 
     // Get the exported table.
     Handle<WasmTableObject> table(
-        WasmTableObject::cast(instance->tables().get(table_index)), isolate);
+        WasmTableObject::cast(instance->tables()->get(table_index)), isolate);
     // Get the Wasm function through the exported table.
     Handle<Object> function =
         WasmTableObject::Get(isolate, table, function_index);
@@ -345,7 +345,7 @@ TEST(WrapperReplacement_IndirectExport) {
                 Handle<WasmInternalFunction>::cast(function)));
     // Get the function data.
     Handle<WasmExportedFunctionData> indirect_function_data(
-        indirect_function->shared().wasm_exported_function_data(), isolate);
+        indirect_function->shared()->wasm_exported_function_data(), isolate);
 
     // Verify that the generic-wrapper budget has initially a value of
     // kGenericWrapperBudget and the wrapper to be used for calls to the

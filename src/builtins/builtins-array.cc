@@ -35,8 +35,8 @@ inline bool IsJSArrayFastElementMovingAllowed(Isolate* isolate,
 }
 
 inline bool HasSimpleElements(JSObject current) {
-  return !current.map().IsCustomElementsReceiverMap() &&
-         !current.GetElementsAccessor()->HasAccessors(current);
+  return !current->map()->IsCustomElementsReceiverMap() &&
+         !current->GetElementsAccessor()->HasAccessors(current);
 }
 
 inline bool HasOnlySimpleReceiverElements(Isolate* isolate, JSObject receiver) {
@@ -107,7 +107,7 @@ inline bool EnsureJSArrayWithWritableFastElements(Isolate* isolate,
   Handle<JSArray> array = Handle<JSArray>::cast(receiver);
   ElementsKind origin_kind = array->GetElementsKind();
   if (IsDictionaryElementsKind(origin_kind)) return false;
-  if (!array->map().is_extensible()) return false;
+  if (!array->map()->is_extensible()) return false;
   if (args == nullptr) return true;
 
   // If there may be elements accessors in the prototype chain, the fast path
@@ -629,7 +629,7 @@ BUILTIN(ArrayUnshift) {
   Handle<JSArray> array = Handle<JSArray>::cast(args.receiver());
 
   // These are checked in the Torque builtin.
-  DCHECK(array->map().is_extensible());
+  DCHECK(array->map()->is_extensible());
   DCHECK(!IsDictionaryElementsKind(array->GetElementsKind()));
   DCHECK(IsJSArrayFastElementMovingAllowed(isolate, *array));
   DCHECK(!isolate->IsAnyInitialArrayPrototype(*array));
@@ -680,7 +680,7 @@ class ArrayConcatVisitor {
                        storage->IsFixedArray(isolate) ||
                        // Don't take fast path for storages that might have
                        // side effects when storing to them.
-                       (!storage->map(isolate).IsCustomElementsReceiverMap() &&
+                       (!storage->map(isolate)->IsCustomElementsReceiverMap() &&
                         !storage->IsJSTypedArray(isolate)))) {
     DCHECK_IMPLIES(this->fast_elements(), is_fixed_array());
   }
@@ -748,7 +748,7 @@ class ArrayConcatVisitor {
     // provided-for index range, go to dictionary mode now.
     if (fast_elements() &&
         index_offset_ >
-            static_cast<uint32_t>(FixedArrayBase::cast(*storage_).length())) {
+            static_cast<uint32_t>(FixedArrayBase::cast(*storage_)->length())) {
       SetDictionaryMode();
     }
   }
@@ -874,7 +874,7 @@ uint32_t EstimateElementCount(Isolate* isolate, Handle<JSArray> array) {
       int fast_length = static_cast<int>(length);
       FixedArray elements = FixedArray::cast(array->elements());
       for (int i = 0; i < fast_length; i++) {
-        if (!elements.get(i).IsTheHole(isolate)) element_count++;
+        if (!elements->get(i).IsTheHole(isolate)) element_count++;
       }
       break;
     }
@@ -885,20 +885,20 @@ uint32_t EstimateElementCount(Isolate* isolate, Handle<JSArray> array) {
       DCHECK_GE(static_cast<int32_t>(FixedDoubleArray::kMaxLength), 0);
       int fast_length = static_cast<int>(length);
       if (array->elements().IsFixedArray()) {
-        DCHECK_EQ(FixedArray::cast(array->elements()).length(), 0);
+        DCHECK_EQ(FixedArray::cast(array->elements())->length(), 0);
         break;
       }
       FixedDoubleArray elements = FixedDoubleArray::cast(array->elements());
       for (int i = 0; i < fast_length; i++) {
-        if (!elements.is_the_hole(i)) element_count++;
+        if (!elements->is_the_hole(i)) element_count++;
       }
       break;
     }
     case DICTIONARY_ELEMENTS: {
       NumberDictionary dictionary = NumberDictionary::cast(array->elements());
       ReadOnlyRoots roots(isolate);
-      for (InternalIndex i : dictionary.IterateEntries()) {
-        Object key = dictionary.KeyAt(i);
+      for (InternalIndex i : dictionary->IterateEntries()) {
+        Object key = dictionary->KeyAt(i);
         if (dictionary.IsKey(roots, key)) {
           element_count++;
         }
@@ -944,10 +944,10 @@ void CollectElementIndices(Isolate* isolate, Handle<JSObject> object,
     case HOLEY_ELEMENTS: {
       DisallowGarbageCollection no_gc;
       FixedArray elements = FixedArray::cast(object->elements());
-      uint32_t length = static_cast<uint32_t>(elements.length());
+      uint32_t length = static_cast<uint32_t>(elements->length());
       if (range < length) length = range;
       for (uint32_t i = 0; i < length; i++) {
-        if (!elements.get(i).IsTheHole(isolate)) {
+        if (!elements->get(i).IsTheHole(isolate)) {
           indices->push_back(i);
         }
       }
@@ -956,7 +956,7 @@ void CollectElementIndices(Isolate* isolate, Handle<JSObject> object,
     case HOLEY_DOUBLE_ELEMENTS:
     case PACKED_DOUBLE_ELEMENTS: {
       if (object->elements().IsFixedArray()) {
-        DCHECK_EQ(object->elements().length(), 0);
+        DCHECK_EQ(object->elements()->length(), 0);
         break;
       }
       Handle<FixedDoubleArray> elements(
@@ -973,10 +973,10 @@ void CollectElementIndices(Isolate* isolate, Handle<JSObject> object,
     case DICTIONARY_ELEMENTS: {
       DisallowGarbageCollection no_gc;
       NumberDictionary dict = NumberDictionary::cast(object->elements());
-      uint32_t capacity = dict.Capacity();
+      uint32_t capacity = dict->Capacity();
       ReadOnlyRoots roots(isolate);
       FOR_WITH_HANDLE_SCOPE(isolate, uint32_t, j = 0, j, j < capacity, j++, {
-        Object k = dict.KeyAt(InternalIndex(j));
+        Object k = dict->KeyAt(InternalIndex(j));
         if (!dict.IsKey(roots, k)) continue;
         DCHECK(k.IsNumber());
         uint32_t index = static_cast<uint32_t>(k.Number());
@@ -1046,7 +1046,7 @@ void CollectElementIndices(Isolate* isolate, Handle<JSObject> object,
       UNIMPLEMENTED();
     case SHARED_ARRAY_ELEMENTS: {
       uint32_t length =
-          Handle<JSSharedArray>::cast(object)->elements().length();
+          Handle<JSSharedArray>::cast(object)->elements()->length();
       if (range <= length) {
         length = range;
         indices->clear();
@@ -1177,7 +1177,7 @@ bool IterateElements(Isolate* isolate, Handle<JSReceiver> receiver,
       // Run through the elements FixedArray and use HasElement and GetElement
       // to check the prototype for missing elements.
       if (array->elements().IsFixedArray()) {
-        DCHECK_EQ(array->elements().length(), 0);
+        DCHECK_EQ(array->elements()->length(), 0);
         break;
       }
       Handle<FixedDoubleArray> elements(
@@ -1269,7 +1269,7 @@ static Maybe<bool> IsConcatSpreadable(Isolate* isolate, Handle<Object> obj) {
   HandleScope handle_scope(isolate);
   if (!obj->IsJSReceiver()) return Just(false);
   if (!Protectors::IsIsConcatSpreadableLookupChainIntact(isolate) ||
-      JSReceiver::cast(*obj).HasProxyInPrototype(isolate)) {
+      JSReceiver::cast(*obj)->HasProxyInPrototype(isolate)) {
     // Slow path if @@isConcatSpreadable has been used.
     Handle<Symbol> key(isolate->factory()->is_concat_spreadable_symbol());
     Handle<Object> value;
@@ -1285,7 +1285,7 @@ Object Slow_ArrayConcat(BuiltinArguments* args, Handle<Object> species,
                         Isolate* isolate) {
   int argument_count = args->length();
 
-  bool is_array_species = *species == isolate->context().array_function();
+  bool is_array_species = *species == isolate->context()->array_function();
 
   // Pass 1: estimate the length and number of elements of the result.
   // The actual length can be larger if any of the arguments have getters
@@ -1359,16 +1359,16 @@ Object Slow_ArrayConcat(BuiltinArguments* args, Handle<Object> species,
         } else {
           DisallowGarbageCollection no_gc;
           JSArray array = JSArray::cast(*obj);
-          uint32_t length = static_cast<uint32_t>(array.length().Number());
-          switch (array.GetElementsKind()) {
+          uint32_t length = static_cast<uint32_t>(array->length().Number());
+          switch (array->GetElementsKind()) {
             case HOLEY_DOUBLE_ELEMENTS:
             case PACKED_DOUBLE_ELEMENTS: {
               // Empty array is FixedArray but not FixedDoubleArray.
               if (length == 0) break;
               FixedDoubleArray elements =
-                  FixedDoubleArray::cast(array.elements());
+                  FixedDoubleArray::cast(array->elements());
               for (uint32_t k = 0; k < length; k++) {
-                if (elements.is_the_hole(k)) {
+                if (elements->is_the_hole(k)) {
                   // TODO(jkummerow/verwaest): We could be a bit more clever
                   // here: Check if there are no elements/getters on the
                   // prototype chain, and if so, allow creation of a holey
@@ -1377,7 +1377,7 @@ Object Slow_ArrayConcat(BuiltinArguments* args, Handle<Object> species,
                   failure = true;
                   break;
                 }
-                double double_value = elements.get_scalar(k);
+                double double_value = elements->get_scalar(k);
                 double_storage->set(j, double_value);
                 j++;
               }
@@ -1386,9 +1386,9 @@ Object Slow_ArrayConcat(BuiltinArguments* args, Handle<Object> species,
             case HOLEY_SMI_ELEMENTS:
             case PACKED_SMI_ELEMENTS: {
               Object the_hole = ReadOnlyRoots(isolate).the_hole_value();
-              FixedArray elements(FixedArray::cast(array.elements()));
+              FixedArray elements(FixedArray::cast(array->elements()));
               for (uint32_t k = 0; k < length; k++) {
-                Object element = elements.get(k);
+                Object element = elements->get(k);
                 if (element == the_hole) {
                   failure = true;
                   break;
@@ -1486,8 +1486,9 @@ bool IsSimpleArray(Isolate* isolate, Handle<JSArray> obj) {
   DisallowGarbageCollection no_gc;
   Map map = obj->map();
   // If there is only the 'length' property we are fine.
-  if (map.prototype() == isolate->native_context()->initial_array_prototype() &&
-      map.NumberOfOwnDescriptors() == 1) {
+  if (map->prototype() ==
+          isolate->native_context()->initial_array_prototype() &&
+      map->NumberOfOwnDescriptors() == 1) {
     return true;
   }
   // TODO(cbruni): slower lookup for array subclasses and support slow
@@ -1519,7 +1520,7 @@ MaybeHandle<JSArray> Fast_ArrayConcat(Isolate* isolate,
         return MaybeHandle<JSArray>();
       }
       // TODO(cbruni): support fast concatenation of DICTIONARY_ELEMENTS.
-      if (!JSObject::cast(arg).HasFastElements()) {
+      if (!JSObject::cast(arg)->HasFastElements()) {
         return MaybeHandle<JSArray>();
       }
       Handle<JSArray> array(JSArray::cast(arg), isolate);

@@ -134,7 +134,7 @@ void ProfilerListener::CodeCreateEvent(CodeTag tag,
       Handle<BytecodeArray> bytecodes(shared->GetBytecodeArray(isolate_),
                                       isolate_);
       Handle<ByteArray> bytecode_offsets(
-          abstract_code->GetCode().bytecode_offset_table(cage_base), isolate_);
+          abstract_code->GetCode()->bytecode_offset_table(cage_base), isolate_);
       baseline_iterator = std::make_unique<baseline::BytecodeOffsetIterator>(
           bytecode_offsets, bytecodes);
     }
@@ -299,8 +299,8 @@ void ProfilerListener::CodeMoveEvent(InstructionStream from,
   DisallowGarbageCollection no_gc;
   CodeEventsContainer evt_rec(CodeEventRecord::Type::kCodeMove);
   CodeMoveEventRecord* rec = &evt_rec.CodeMoveEventRecord_;
-  rec->from_instruction_start = from.instruction_start();
-  rec->to_instruction_start = to.instruction_start();
+  rec->from_instruction_start = from->instruction_start();
+  rec->to_instruction_start = to->instruction_start();
   DispatchCodeEvent(evt_rec);
 }
 
@@ -308,8 +308,8 @@ void ProfilerListener::BytecodeMoveEvent(BytecodeArray from, BytecodeArray to) {
   DisallowGarbageCollection no_gc;
   CodeEventsContainer evt_rec(CodeEventRecord::Type::kCodeMove);
   CodeMoveEventRecord* rec = &evt_rec.CodeMoveEventRecord_;
-  rec->from_instruction_start = from.GetFirstBytecodeAddress();
-  rec->to_instruction_start = to.GetFirstBytecodeAddress();
+  rec->from_instruction_start = from->GetFirstBytecodeAddress();
+  rec->to_instruction_start = to->GetFirstBytecodeAddress();
   DispatchCodeEvent(evt_rec);
 }
 
@@ -368,18 +368,18 @@ const char* ProfilerListener::GetName(base::Vector<const char> name) {
 }
 
 Name ProfilerListener::InferScriptName(Name name, SharedFunctionInfo info) {
-  if (name.IsString() && String::cast(name).length()) return name;
-  if (!info.script().IsScript()) return name;
-  Object source_url = Script::cast(info.script()).source_url();
+  if (name.IsString() && String::cast(name)->length()) return name;
+  if (!info->script().IsScript()) return name;
+  Object source_url = Script::cast(info->script())->source_url();
   return source_url.IsName() ? Name::cast(source_url) : name;
 }
 
 const char* ProfilerListener::GetFunctionName(SharedFunctionInfo shared) {
   switch (naming_mode_) {
     case kDebugNaming:
-      return GetName(shared.DebugNameCStr().get());
+      return GetName(shared->DebugNameCStr().get());
     case kStandardNaming:
-      return GetName(shared.Name());
+      return GetName(shared->Name());
     default:
       UNREACHABLE();
   }

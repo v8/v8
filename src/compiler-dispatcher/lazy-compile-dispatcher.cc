@@ -95,30 +95,31 @@ void SetUncompiledDataJobPointer(LocalIsolate* isolate,
                                  Handle<SharedFunctionInfo> shared_info,
                                  Address job_address) {
   UncompiledData uncompiled_data = shared_info->uncompiled_data();
-  switch (uncompiled_data.map(isolate).instance_type()) {
+  switch (uncompiled_data->map(isolate)->instance_type()) {
     // The easy cases -- we already have a job slot, so can write into it and
     // return.
     case UNCOMPILED_DATA_WITH_PREPARSE_DATA_AND_JOB_TYPE:
       UncompiledDataWithPreparseDataAndJob::cast(uncompiled_data)
-          .set_job(job_address);
+          ->set_job(job_address);
       break;
     case UNCOMPILED_DATA_WITHOUT_PREPARSE_DATA_WITH_JOB_TYPE:
       UncompiledDataWithoutPreparseDataWithJob::cast(uncompiled_data)
-          .set_job(job_address);
+          ->set_job(job_address);
       break;
 
     // Otherwise, we'll have to allocate a new UncompiledData (with or without
     // preparse data as appropriate), set the job pointer on that, and update
     // the SharedFunctionInfo to use the new UncompiledData
     case UNCOMPILED_DATA_WITH_PREPARSE_DATA_TYPE: {
-      Handle<String> inferred_name(uncompiled_data.inferred_name(), isolate);
+      Handle<String> inferred_name(uncompiled_data->inferred_name(), isolate);
       Handle<PreparseData> preparse_data(
-          UncompiledDataWithPreparseData::cast(uncompiled_data).preparse_data(),
+          UncompiledDataWithPreparseData::cast(uncompiled_data)
+              ->preparse_data(),
           isolate);
       Handle<UncompiledDataWithPreparseDataAndJob> new_uncompiled_data =
           isolate->factory()->NewUncompiledDataWithPreparseDataAndJob(
-              inferred_name, uncompiled_data.start_position(),
-              uncompiled_data.end_position(), preparse_data);
+              inferred_name, uncompiled_data->start_position(),
+              uncompiled_data->end_position(), preparse_data);
 
       new_uncompiled_data->set_job(job_address);
       shared_info->set_uncompiled_data(*new_uncompiled_data);
@@ -126,11 +127,11 @@ void SetUncompiledDataJobPointer(LocalIsolate* isolate,
     }
     case UNCOMPILED_DATA_WITHOUT_PREPARSE_DATA_TYPE: {
       DCHECK(uncompiled_data.IsUncompiledDataWithoutPreparseData());
-      Handle<String> inferred_name(uncompiled_data.inferred_name(), isolate);
+      Handle<String> inferred_name(uncompiled_data->inferred_name(), isolate);
       Handle<UncompiledDataWithoutPreparseDataWithJob> new_uncompiled_data =
           isolate->factory()->NewUncompiledDataWithoutPreparseDataWithJob(
-              inferred_name, uncompiled_data.start_position(),
-              uncompiled_data.end_position());
+              inferred_name, uncompiled_data->start_position(),
+              uncompiled_data->end_position());
 
       new_uncompiled_data->set_job(job_address);
       shared_info->set_uncompiled_data(*new_uncompiled_data);
@@ -185,10 +186,10 @@ bool LazyCompileDispatcher::IsEnqueued(
   Object function_data = function->function_data(kAcquireLoad);
   if (function_data.IsUncompiledDataWithPreparseDataAndJob()) {
     job = reinterpret_cast<Job*>(
-        UncompiledDataWithPreparseDataAndJob::cast(function_data).job());
+        UncompiledDataWithPreparseDataAndJob::cast(function_data)->job());
   } else if (function_data.IsUncompiledDataWithoutPreparseDataWithJob()) {
     job = reinterpret_cast<Job*>(
-        UncompiledDataWithoutPreparseDataWithJob::cast(function_data).job());
+        UncompiledDataWithoutPreparseDataWithJob::cast(function_data)->job());
   }
   return job != nullptr;
 }
@@ -371,10 +372,10 @@ LazyCompileDispatcher::Job* LazyCompileDispatcher::GetJobFor(
   Object function_data = shared->function_data(kAcquireLoad);
   if (function_data.IsUncompiledDataWithPreparseDataAndJob()) {
     return reinterpret_cast<Job*>(
-        UncompiledDataWithPreparseDataAndJob::cast(function_data).job());
+        UncompiledDataWithPreparseDataAndJob::cast(function_data)->job());
   } else if (function_data.IsUncompiledDataWithoutPreparseDataWithJob()) {
     return reinterpret_cast<Job*>(
-        UncompiledDataWithoutPreparseDataWithJob::cast(function_data).job());
+        UncompiledDataWithoutPreparseDataWithJob::cast(function_data)->job());
   }
   return nullptr;
 }

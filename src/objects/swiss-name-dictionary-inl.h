@@ -150,8 +150,8 @@ void SwissNameDictionary::SetEntryForEnumerationIndex(int enumeration_index,
 template <typename IsolateT>
 InternalIndex SwissNameDictionary::FindEntry(IsolateT* isolate, Object key) {
   Name name = Name::cast(key);
-  DCHECK(name.IsUniqueName());
-  uint32_t hash = name.hash();
+  DCHECK(name->IsUniqueName());
+  uint32_t hash = name->hash();
 
   // We probe the hash table in groups of |kGroupWidth| buckets. One bucket
   // corresponds to a 1-byte entry in the control table.
@@ -440,9 +440,9 @@ void SwissNameDictionary::SetMetaTableField(ByteArray meta_table,
                 (std::is_same<T, uint16_t>::value) ||
                 (std::is_same<T, uint32_t>::value));
   DCHECK_LE(value, std::numeric_limits<T>::max());
-  DCHECK_LT(meta_table.GetDataStartAddress() + field_index * sizeof(T),
-            meta_table.GetDataEndAddress());
-  T* raw_data = reinterpret_cast<T*>(meta_table.GetDataStartAddress());
+  DCHECK_LT(meta_table->GetDataStartAddress() + field_index * sizeof(T),
+            meta_table->GetDataEndAddress());
+  T* raw_data = reinterpret_cast<T*>(meta_table->GetDataStartAddress());
   raw_data[field_index] = value;
 }
 
@@ -453,9 +453,9 @@ int SwissNameDictionary::GetMetaTableField(ByteArray meta_table,
   static_assert((std::is_same<T, uint8_t>::value) ||
                 (std::is_same<T, uint16_t>::value) ||
                 (std::is_same<T, uint32_t>::value));
-  DCHECK_LT(meta_table.GetDataStartAddress() + field_index * sizeof(T),
-            meta_table.GetDataEndAddress());
-  T* raw_data = reinterpret_cast<T*>(meta_table.GetDataStartAddress());
+  DCHECK_LT(meta_table->GetDataStartAddress() + field_index * sizeof(T),
+            meta_table->GetDataEndAddress());
+  T* raw_data = reinterpret_cast<T*>(meta_table->GetDataStartAddress());
   return raw_data[field_index];
 }
 
@@ -534,10 +534,10 @@ int SwissNameDictionary::AddInternal(Name key, Object value,
                                      PropertyDetails details) {
   DisallowHeapAllocation no_gc;
 
-  DCHECK(key.IsUniqueName());
+  DCHECK(key->IsUniqueName());
   DCHECK_LE(UsedCapacity(), MaxUsableCapacity(Capacity()));
 
-  uint32_t hash = key.hash();
+  uint32_t hash = key->hash();
 
   // For now we don't re-use deleted buckets (due to enumeration table
   // complications), which is why we only look for empty buckets here, not
@@ -754,7 +754,7 @@ SwissNameDictionary::probe(uint32_t hash, int capacity) {
 
 ACCESSORS_CHECKED2(SwissNameDictionary, meta_table, ByteArray,
                    MetaTablePointerOffset(), true,
-                   value.length() >= kMetaTableEnumerationDataStartIndex)
+                   value->length() >= kMetaTableEnumerationDataStartIndex)
 
 }  // namespace internal
 }  // namespace v8

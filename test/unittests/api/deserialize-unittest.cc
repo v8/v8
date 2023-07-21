@@ -311,36 +311,37 @@ class MergeDeserializedCodeTest : public DeserializeTest {
       bool lazy_should_be_compiled = false,
       bool eager_should_be_compiled = true) {
     i::DisallowGarbageCollection no_gc;
-    CHECK(toplevel_sfi.is_compiled());
-    array.Set(kToplevelSfi, WeakOrSmi(toplevel_sfi));
-    array.Set(kToplevelFunctionData,
-              WeakOrSmi(toplevel_sfi.function_data(kAcquireLoad)));
-    array.Set(kToplevelFeedbackMetadata,
-              WeakOrSmi(toplevel_sfi.feedback_metadata()));
-    i::Script script = i::Script::cast(toplevel_sfi.script());
-    array.Set(kScript, WeakOrSmi(script));
-    i::WeakFixedArray sfis = script.shared_function_infos();
-    CHECK_EQ(sfis.length(), 4);
-    CHECK_EQ(sfis.Get(0), WeakOrSmi(toplevel_sfi));
+    CHECK(toplevel_sfi->is_compiled());
+    array->Set(kToplevelSfi, WeakOrSmi(toplevel_sfi));
+    array->Set(kToplevelFunctionData,
+               WeakOrSmi(toplevel_sfi->function_data(kAcquireLoad)));
+    array->Set(kToplevelFeedbackMetadata,
+               WeakOrSmi(toplevel_sfi->feedback_metadata()));
+    i::Script script = i::Script::cast(toplevel_sfi->script());
+    array->Set(kScript, WeakOrSmi(script));
+    i::WeakFixedArray sfis = script->shared_function_infos();
+    CHECK_EQ(sfis->length(), 4);
+    CHECK_EQ(sfis->Get(0), WeakOrSmi(toplevel_sfi));
     i::SharedFunctionInfo eager =
-        i::SharedFunctionInfo::cast(sfis.Get(1).GetHeapObjectAssumeWeak());
-    CHECK_EQ(eager.is_compiled(), eager_should_be_compiled);
-    array.Set(kEagerSfi, WeakOrSmi(eager));
+        i::SharedFunctionInfo::cast(sfis->Get(1).GetHeapObjectAssumeWeak());
+    CHECK_EQ(eager->is_compiled(), eager_should_be_compiled);
+    array->Set(kEagerSfi, WeakOrSmi(eager));
     if (eager_should_be_compiled) {
-      array.Set(kEagerFunctionData,
-                WeakOrSmi(eager.function_data(kAcquireLoad)));
-      array.Set(kEagerFeedbackMetadata, WeakOrSmi(eager.feedback_metadata()));
+      array->Set(kEagerFunctionData,
+                 WeakOrSmi(eager->function_data(kAcquireLoad)));
+      array->Set(kEagerFeedbackMetadata, WeakOrSmi(eager->feedback_metadata()));
       i::SharedFunctionInfo iife =
-          i::SharedFunctionInfo::cast(sfis.Get(2).GetHeapObjectAssumeWeak());
-      CHECK(iife.is_compiled());
-      array.Set(kIifeSfi, WeakOrSmi(iife));
-      array.Set(kIifeFunctionData, WeakOrSmi(iife.function_data(kAcquireLoad)));
-      array.Set(kIifeFeedbackMetadata, WeakOrSmi(iife.feedback_metadata()));
+          i::SharedFunctionInfo::cast(sfis->Get(2).GetHeapObjectAssumeWeak());
+      CHECK(iife->is_compiled());
+      array->Set(kIifeSfi, WeakOrSmi(iife));
+      array->Set(kIifeFunctionData,
+                 WeakOrSmi(iife->function_data(kAcquireLoad)));
+      array->Set(kIifeFeedbackMetadata, WeakOrSmi(iife->feedback_metadata()));
     }
     i::SharedFunctionInfo lazy =
-        i::SharedFunctionInfo::cast(sfis.Get(3).GetHeapObjectAssumeWeak());
-    CHECK_EQ(lazy.is_compiled(), lazy_should_be_compiled);
-    array.Set(kLazySfi, WeakOrSmi(lazy));
+        i::SharedFunctionInfo::cast(sfis->Get(3).GetHeapObjectAssumeWeak());
+    CHECK_EQ(lazy->is_compiled(), lazy_should_be_compiled);
+    array->Set(kLazySfi, WeakOrSmi(lazy));
   }
 
   void AgeBytecodeAndGC(ScriptObjectFlag sfis_to_age,
@@ -378,14 +379,14 @@ class MergeDeserializedCodeTest : public DeserializeTest {
                      i::Isolate* i_isolate) {
     for (int index = 0; index < kScriptObjectsCount; ++index) {
       if ((to_retain & (1 << index)) == (1 << index)) {
-        i::MaybeObject maybe = original_objects.Get(index);
+        i::MaybeObject maybe = original_objects->Get(index);
         if (i::HeapObject heap_object;
             maybe.GetHeapObjectIfWeak(&heap_object)) {
-          retained_original_objects.set(index, heap_object);
+          retained_original_objects->set(index, heap_object);
           continue;
         }
       }
-      retained_original_objects.set(
+      retained_original_objects->set(
           index, i::ReadOnlyRoots(i_isolate).undefined_value());
     }
   }

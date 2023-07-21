@@ -54,7 +54,7 @@ struct InvokeParams {
   bool IsScript() const {
     if (!target->IsJSFunction()) return false;
     Handle<JSFunction> function = Handle<JSFunction>::cast(target);
-    return function->shared().is_script();
+    return function->shared()->is_script();
   }
 
   Handle<FixedArray> GetAndResetHostDefinedOptions() {
@@ -196,8 +196,8 @@ MaybeHandle<Context> NewScriptContext(Isolate* isolate,
   }
   SaveAndSwitchContext save(isolate, function->context());
   SharedFunctionInfo sfi = function->shared();
-  Handle<Script> script(Script::cast(sfi.script()), isolate);
-  Handle<ScopeInfo> scope_info(sfi.scope_info(), isolate);
+  Handle<Script> script(Script::cast(sfi->script()), isolate);
+  Handle<ScopeInfo> scope_info(sfi->scope_info(), isolate);
   Handle<NativeContext> native_context(NativeContext::cast(function->context()),
                                        isolate);
   Handle<JSGlobalObject> global_object(native_context->global_object(),
@@ -221,7 +221,7 @@ MaybeHandle<Context> NewScriptContext(Isolate* isolate,
                (mode == VariableMode::kConst &&
                 lookup.mode == VariableMode::kConst)) &&
               scope_info->IsReplModeScope() &&
-              context->scope_info().IsReplModeScope())) {
+              context->scope_info()->IsReplModeScope())) {
           // ES#sec-globaldeclarationinstantiation 5.b:
           // If envRec.HasLexicalDeclaration(name) is true, throw a SyntaxError
           // exception.
@@ -306,16 +306,16 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> Invoke(Isolate* isolate,
   if (params.target->IsJSFunction()) {
     Handle<JSFunction> function = Handle<JSFunction>::cast(params.target);
     if ((!params.is_construct || function->IsConstructor()) &&
-        function->shared().IsApiFunction() &&
-        !function->shared().BreakAtEntry(isolate)) {
+        function->shared()->IsApiFunction() &&
+        !function->shared()->BreakAtEntry(isolate)) {
       SaveAndSwitchContext save(isolate, function->context());
-      DCHECK(function->context().global_object().IsJSGlobalObject());
+      DCHECK(function->context()->global_object().IsJSGlobalObject());
 
       Handle<Object> receiver = params.is_construct
                                     ? isolate->factory()->the_hole_value()
                                     : params.receiver;
       Handle<FunctionTemplateInfo> fun_data(
-          function->shared().get_api_func_data(), isolate);
+          function->shared()->get_api_func_data(), isolate);
       auto value = Builtins::InvokeApiFunction(
           isolate, params.is_construct, fun_data, receiver, params.argc,
           params.argv, Handle<HeapObject>::cast(params.new_target));
@@ -332,7 +332,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> Invoke(Isolate* isolate,
       return value;
     }
 #ifdef DEBUG
-    if (function->shared().is_script()) {
+    if (function->shared()->is_script()) {
       DCHECK(params.IsScript());
       DCHECK(params.receiver->IsJSGlobalProxy());
       DCHECK_EQ(params.argc, 1);
@@ -342,7 +342,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> Invoke(Isolate* isolate,
     }
 #endif
     // Set up a ScriptContext when running scripts that need it.
-    if (function->shared().needs_script_context()) {
+    if (function->shared()->needs_script_context()) {
       Handle<Context> context;
       Handle<FixedArray> host_defined_options =
           const_cast<InvokeParams&>(params).GetAndResetHostDefinedOptions();
@@ -525,7 +525,7 @@ MaybeHandle<Object> Execution::Call(Isolate* isolate, Handle<Object> callable,
                                     Handle<Object> argv[]) {
   // Use Execution::CallScript instead for scripts:
   DCHECK_IMPLIES(callable->IsJSFunction(),
-                 !JSFunction::cast(*callable).shared().is_script());
+                 !JSFunction::cast(*callable)->shared()->is_script());
   return Invoke(isolate, InvokeParams::SetUpForCall(isolate, callable, receiver,
                                                     argc, argv));
 }
@@ -535,7 +535,7 @@ MaybeHandle<Object> Execution::CallScript(Isolate* isolate,
                                           Handle<JSFunction> script_function,
                                           Handle<Object> receiver,
                                           Handle<Object> host_defined_options) {
-  DCHECK(script_function->shared().is_script());
+  DCHECK(script_function->shared()->is_script());
   DCHECK(receiver->IsJSGlobalProxy() || receiver->IsJSGlobalObject());
   return Invoke(
       isolate, InvokeParams::SetUpForCall(isolate, script_function, receiver, 1,
@@ -546,7 +546,7 @@ MaybeHandle<Object> Execution::CallBuiltin(Isolate* isolate,
                                            Handle<JSFunction> builtin,
                                            Handle<Object> receiver, int argc,
                                            Handle<Object> argv[]) {
-  DCHECK(builtin->code().is_builtin());
+  DCHECK(builtin->code()->is_builtin());
   DisableBreak no_break(isolate->debug());
   return Invoke(isolate, InvokeParams::SetUpForCall(isolate, builtin, receiver,
                                                     argc, argv));
@@ -572,7 +572,7 @@ MaybeHandle<Object> Execution::TryCallScript(
     Handle<Object> receiver, Handle<FixedArray> host_defined_options,
     MessageHandling message_handling, MaybeHandle<Object>* exception_out,
     bool reschedule_terminate) {
-  DCHECK(script_function->shared().is_script());
+  DCHECK(script_function->shared()->is_script());
   DCHECK(receiver->IsJSGlobalProxy() || receiver->IsJSGlobalObject());
   Handle<Object> argument = host_defined_options;
   return InvokeWithTryCatch(
@@ -588,7 +588,7 @@ MaybeHandle<Object> Execution::TryCall(
     MaybeHandle<Object>* exception_out, bool reschedule_terminate) {
   // Use Execution::TryCallScript instead for scripts:
   DCHECK_IMPLIES(callable->IsJSFunction(),
-                 !JSFunction::cast(*callable).shared().is_script());
+                 !JSFunction::cast(*callable)->shared()->is_script());
   return InvokeWithTryCatch(
       isolate, InvokeParams::SetUpForTryCall(
                    isolate, callable, receiver, argc, argv, message_handling,

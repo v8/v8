@@ -16,8 +16,8 @@ namespace v8::internal {
 base::Optional<WrappableInfo> WrappableInfo::From(
     Isolate* isolate, JSObject wrapper,
     const WrapperDescriptor& wrapper_descriptor) {
-  DCHECK(wrapper.MayHaveEmbedderFields());
-  return wrapper.GetEmbedderFieldCount() < 2
+  DCHECK(wrapper->MayHaveEmbedderFields());
+  return wrapper->GetEmbedderFieldCount() < 2
              ? base::Optional<WrappableInfo>()
              : From(isolate,
                     EmbedderDataSlot(wrapper,

@@ -67,19 +67,19 @@ void CompilationCacheScript::Age() {
   if (table_.IsUndefined(isolate())) return;
   CompilationCacheTable table = CompilationCacheTable::cast(table_);
 
-  for (InternalIndex entry : table.IterateEntries()) {
+  for (InternalIndex entry : table->IterateEntries()) {
     Object key;
-    if (!table.ToKey(isolate(), entry, &key)) continue;
+    if (!table->ToKey(isolate(), entry, &key)) continue;
     DCHECK(key.IsWeakFixedArray());
 
-    Object value = table.PrimaryValueAt(entry);
+    Object value = table->PrimaryValueAt(entry);
     if (!value.IsUndefined(isolate())) {
       SharedFunctionInfo info = SharedFunctionInfo::cast(value);
       // Clear entries after Bytecode was flushed from SFI.
-      if (!info.HasBytecodeArray()) {
-        table.SetPrimaryValueAt(entry,
-                                ReadOnlyRoots(isolate()).undefined_value(),
-                                SKIP_WRITE_BARRIER);
+      if (!info->HasBytecodeArray()) {
+        table->SetPrimaryValueAt(entry,
+                                 ReadOnlyRoots(isolate()).undefined_value(),
+                                 SKIP_WRITE_BARRIER);
       }
     }
   }
@@ -90,9 +90,9 @@ void CompilationCacheEval::Age() {
   if (table_.IsUndefined(isolate())) return;
   CompilationCacheTable table = CompilationCacheTable::cast(table_);
 
-  for (InternalIndex entry : table.IterateEntries()) {
+  for (InternalIndex entry : table->IterateEntries()) {
     Object key;
-    if (!table.ToKey(isolate(), entry, &key)) continue;
+    if (!table->ToKey(isolate(), entry, &key)) continue;
 
     if (key.IsNumber(isolate())) {
       // The ageing mechanism for the initial dummy entry in the eval cache.
@@ -103,22 +103,22 @@ void CompilationCacheEval::Age() {
       // connection between initialization- and use-sites of the smi value
       // field.
       static_assert(CompilationCacheTable::kHashGenerations);
-      const int new_count = Smi::ToInt(table.PrimaryValueAt(entry)) - 1;
+      const int new_count = Smi::ToInt(table->PrimaryValueAt(entry)) - 1;
       if (new_count == 0) {
-        table.RemoveEntry(entry);
+        table->RemoveEntry(entry);
       } else {
         DCHECK_GT(new_count, 0);
-        table.SetPrimaryValueAt(entry, Smi::FromInt(new_count),
-                                SKIP_WRITE_BARRIER);
+        table->SetPrimaryValueAt(entry, Smi::FromInt(new_count),
+                                 SKIP_WRITE_BARRIER);
       }
     } else {
       DCHECK(key.IsFixedArray());
       // The ageing mechanism for eval caches.
       SharedFunctionInfo info =
-          SharedFunctionInfo::cast(table.PrimaryValueAt(entry));
+          SharedFunctionInfo::cast(table->PrimaryValueAt(entry));
       // Clear entries after Bytecode was flushed from SFI.
-      if (!info.HasBytecodeArray()) {
-        table.RemoveEntry(entry);
+      if (!info->HasBytecodeArray()) {
+        table->RemoveEntry(entry);
       }
     }
   }
@@ -147,7 +147,7 @@ void CompilationCacheRegExp::Clear() {
 void CompilationCacheEvalOrScript::Remove(
     Handle<SharedFunctionInfo> function_info) {
   if (table_.IsUndefined(isolate())) return;
-  CompilationCacheTable::cast(table_).Remove(*function_info);
+  CompilationCacheTable::cast(table_)->Remove(*function_info);
 }
 
 CompilationCacheScript::LookupResult CompilationCacheScript::Lookup(

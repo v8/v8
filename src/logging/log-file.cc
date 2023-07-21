@@ -115,10 +115,10 @@ void LogFile::MessageBuilder::AppendString(String str,
   DisallowGarbageCollection no_gc;  // Ensure string stays valid.
   PtrComprCageBase cage_base = GetPtrComprCageBase(str);
   SharedStringAccessGuardIfNeeded access_guard(str);
-  int length = str.length();
+  int length = str->length();
   if (length_limit) length = std::min(length, *length_limit);
   for (int i = 0; i < length; i++) {
-    uint16_t c = str.Get(i, cage_base, access_guard);
+    uint16_t c = str->Get(i, cage_base, access_guard);
     if (c <= 0xFF) {
       AppendCharacter(static_cast<char>(c));
     } else {
@@ -196,12 +196,12 @@ void LogFile::MessageBuilder::AppendSymbolName(Symbol symbol) {
   DCHECK(!symbol.is_null());
   OFStream& os = log_->os_;
   os << "symbol(";
-  if (!symbol.description().IsUndefined()) {
+  if (!symbol->description().IsUndefined()) {
     os << "\"";
-    AppendSymbolNameDetails(String::cast(symbol.description()), false);
+    AppendSymbolNameDetails(String::cast(symbol->description()), false);
     os << "\" ";
   }
-  os << "hash " << std::hex << symbol.hash() << std::dec << ")";
+  os << "hash " << std::hex << symbol->hash() << std::dec << ")";
 }
 
 void LogFile::MessageBuilder::AppendSymbolNameDetails(String str,
@@ -210,13 +210,13 @@ void LogFile::MessageBuilder::AppendSymbolNameDetails(String str,
 
   DisallowGarbageCollection no_gc;  // Ensure string stays valid.
   OFStream& os = log_->os_;
-  int limit = str.length();
+  int limit = str->length();
   if (limit > 0x1000) limit = 0x1000;
   if (show_impl_info) {
-    os << (str.IsOneByteRepresentation() ? 'a' : '2');
+    os << (str->IsOneByteRepresentation() ? 'a' : '2');
     if (StringShape(str).IsExternal()) os << 'e';
     if (StringShape(str).IsInternalized()) os << '#';
-    os << ':' << str.length() << ':';
+    os << ':' << str->length() << ':';
   }
   AppendString(str, limit);
 }

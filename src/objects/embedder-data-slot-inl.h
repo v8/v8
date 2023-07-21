@@ -26,7 +26,7 @@ EmbedderDataSlot::EmbedderDataSlot(EmbedderDataArray array, int entry_index)
 
 EmbedderDataSlot::EmbedderDataSlot(JSObject object, int embedder_field_index)
     : SlotBase(FIELD_ADDR(
-          object, object.GetEmbedderFieldOffset(embedder_field_index))) {}
+          object, object->GetEmbedderFieldOffset(embedder_field_index))) {}
 
 EmbedderDataSlot::EmbedderDataSlot(const EmbedderDataSlotSnapshot& snapshot)
     : SlotBase(reinterpret_cast<Address>(&snapshot)) {}
@@ -81,7 +81,7 @@ void EmbedderDataSlot::store_tagged(JSObject object, int embedder_field_index,
         V8HeapCompressionScheme::GetPtrComprCageBaseAddress(value.ptr()) ==
             V8HeapCompressionScheme::GetPtrComprCageBaseAddress(object.ptr()));
 #endif
-  int slot_offset = object.GetEmbedderFieldOffset(embedder_field_index);
+  int slot_offset = object->GetEmbedderFieldOffset(embedder_field_index);
   ObjectSlot(FIELD_ADDR(object, slot_offset + kTaggedPayloadOffset))
       .Relaxed_Store(value);
   WRITE_BARRIER(object, slot_offset + kTaggedPayloadOffset, value);
@@ -199,7 +199,7 @@ void EmbedderDataSlot::PopulateEmbedderDataSnapshot(
   static_assert(sizeof(EmbedderDataSlotSnapshot) == kEmbedderDataSlotSize);
 
   const Address field_base =
-      FIELD_ADDR(js_object, js_object.GetEmbedderFieldOffset(entry_index));
+      FIELD_ADDR(js_object, js_object->GetEmbedderFieldOffset(entry_index));
 
 #if defined(V8_TARGET_BIG_ENDIAN) && defined(V8_COMPRESS_POINTERS)
   const int index = 1;

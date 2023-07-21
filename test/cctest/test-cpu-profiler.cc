@@ -207,8 +207,8 @@ TEST(CodeEvents) {
                                         moved_code->GetBytecodeArray());
   } else {
     profiler_listener.CodeMoveEvent(
-        comment2_code->GetCode().instruction_stream(),
-        moved_code->GetCode().instruction_stream());
+        comment2_code->GetCode()->instruction_stream(),
+        moved_code->GetCode()->instruction_stream());
   }
 
   // Enqueue a tick event to enable code events processing.
@@ -1311,7 +1311,7 @@ static void TickLines(bool optimize) {
   i::Handle<i::JSFunction> func = i::Handle<i::JSFunction>::cast(
       v8::Utils::OpenHandle(*GetFunction(env.local(), func_name)));
   CHECK(!func->shared().is_null());
-  CHECK(!func->shared().abstract_code(isolate).is_null());
+  CHECK(!func->shared()->abstract_code(isolate).is_null());
   CHECK(!optimize || func->HasAttachedOptimizedCode() ||
         !CcTest::i_isolate()->use_optimizer());
   i::Handle<i::AbstractCode> code(func->abstract_code(isolate), isolate);
@@ -4573,7 +4573,7 @@ TEST(NoProfilingProtectorCPUProfiler) {
   Handle<JSFunction> i_function =
       Handle<JSFunction>::cast(v8::Utils::OpenHandle(*function));
 
-  CHECK(!i_function->code().is_optimized_code());
+  CHECK(!i_function->code()->is_optimized_code());
   CompileRun("foo(42);");
 
   Handle<Code> code(i_function->code(), i_isolate);
@@ -4791,24 +4791,24 @@ TEST(BytecodeFlushEventsEagerLogging) {
             .ToHandleChecked();
     CHECK(func_value->IsJSFunction());
     Handle<JSFunction> function = Handle<JSFunction>::cast(func_value);
-    CHECK(function->shared().is_compiled());
+    CHECK(function->shared()->is_compiled());
 
     i::BytecodeArray compiled_data =
-        function->shared().GetBytecodeArray(i_isolate);
-    i::Address bytecode_start = compiled_data.GetFirstBytecodeAddress();
+        function->shared()->GetBytecodeArray(i_isolate);
+    i::Address bytecode_start = compiled_data->GetFirstBytecodeAddress();
 
     CHECK(instruction_stream_map->FindEntry(bytecode_start));
 
     // The code will survive at least two GCs.
     heap::InvokeMajorGC(CcTest::heap());
     heap::InvokeMajorGC(CcTest::heap());
-    CHECK(function->shared().is_compiled());
+    CHECK(function->shared()->is_compiled());
 
     i::SharedFunctionInfo::EnsureOldForTesting(function->shared());
     heap::InvokeMajorGC(CcTest::heap());
 
     // foo should no longer be in the compilation cache
-    CHECK(!function->shared().is_compiled());
+    CHECK(!function->shared()->is_compiled());
     CHECK(!function->is_compiled());
 
     CHECK(!instruction_stream_map->FindEntry(bytecode_start));

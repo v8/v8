@@ -67,12 +67,12 @@ bool FunctionTemplateInfo::IsTemplateFor(Map map) const {
       RuntimeCallCounterId::kIsTemplateFor);
 
   // There is a constraint on the object; check.
-  if (!map.IsJSObjectMap()) return false;
+  if (!map->IsJSObjectMap()) return false;
 
   if (v8_flags.embedder_instance_types) {
     DCHECK_IMPLIES(allowed_receiver_instance_type_range_start() == 0,
                    allowed_receiver_instance_type_range_end() == 0);
-    if (base::IsInRange(map.instance_type(),
+    if (base::IsInRange(map->instance_type(),
                         allowed_receiver_instance_type_range_start(),
                         allowed_receiver_instance_type_range_end())) {
       return true;
@@ -80,11 +80,11 @@ bool FunctionTemplateInfo::IsTemplateFor(Map map) const {
   }
 
   // Fetch the constructor function of the object.
-  Object cons_obj = map.GetConstructor();
+  Object cons_obj = map->GetConstructor();
   Object type;
   if (cons_obj.IsJSFunction()) {
     JSFunction fun = JSFunction::cast(cons_obj);
-    type = fun.shared().function_data(kAcquireLoad);
+    type = fun->shared()->function_data(kAcquireLoad);
   } else if (cons_obj.IsFunctionTemplateInfo()) {
     type = FunctionTemplateInfo::cast(cons_obj);
   } else {
@@ -94,7 +94,7 @@ bool FunctionTemplateInfo::IsTemplateFor(Map map) const {
   // see if the required one occurs.
   while (type.IsFunctionTemplateInfo()) {
     if (type == *this) return true;
-    type = FunctionTemplateInfo::cast(type).GetParentTemplate();
+    type = FunctionTemplateInfo::cast(type)->GetParentTemplate();
   }
   // Didn't find the required type in the inheritance chain.
   return false;
@@ -108,11 +108,11 @@ bool FunctionTemplateInfo::IsLeafTemplateForApiObject(Object object) const {
   }
 
   bool result = false;
-  Map map = HeapObject::cast(object).map();
-  Object constructor_obj = map.GetConstructor();
+  Map map = HeapObject::cast(object)->map();
+  Object constructor_obj = map->GetConstructor();
   if (constructor_obj.IsJSFunction()) {
     JSFunction fun = JSFunction::cast(constructor_obj);
-    result = (*this == fun.shared().function_data(kAcquireLoad));
+    result = (*this == fun->shared()->function_data(kAcquireLoad));
   } else if (constructor_obj.IsFunctionTemplateInfo()) {
     result = (*this == constructor_obj);
   }
@@ -135,33 +135,34 @@ base::Optional<Name> FunctionTemplateInfo::TryGetCachedPropertyName(
   DisallowGarbageCollection no_gc;
   if (!getter.IsFunctionTemplateInfo()) {
     if (!getter.IsJSFunction()) return {};
-    SharedFunctionInfo info = JSFunction::cast(getter).shared();
-    if (!info.IsApiFunction()) return {};
-    getter = info.get_api_func_data();
+    SharedFunctionInfo info = JSFunction::cast(getter)->shared();
+    if (!info->IsApiFunction()) return {};
+    getter = info->get_api_func_data();
   }
   // Check if the accessor uses a cached property.
-  Object maybe_name = FunctionTemplateInfo::cast(getter).cached_property_name();
+  Object maybe_name =
+      FunctionTemplateInfo::cast(getter)->cached_property_name();
   if (maybe_name.IsTheHole(isolate)) return {};
   return Name::cast(maybe_name);
 }
 
 int FunctionTemplateInfo::GetCFunctionsCount() const {
   i::DisallowHeapAllocation no_gc;
-  return FixedArray::cast(GetCFunctionOverloads()).length() /
+  return FixedArray::cast(GetCFunctionOverloads())->length() /
          kFunctionOverloadEntrySize;
 }
 
 Address FunctionTemplateInfo::GetCFunction(int index) const {
   i::DisallowHeapAllocation no_gc;
   return v8::ToCData<Address>(FixedArray::cast(GetCFunctionOverloads())
-                                  .get(index * kFunctionOverloadEntrySize));
+                                  ->get(index * kFunctionOverloadEntrySize));
 }
 
 const CFunctionInfo* FunctionTemplateInfo::GetCSignature(int index) const {
   i::DisallowHeapAllocation no_gc;
   return v8::ToCData<CFunctionInfo*>(
       FixedArray::cast(GetCFunctionOverloads())
-          .get(index * kFunctionOverloadEntrySize + 1));
+          ->get(index * kFunctionOverloadEntrySize + 1));
 }
 
 }  // namespace internal

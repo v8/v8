@@ -307,23 +307,23 @@ void ConsStringGenerationData::Reset() {
 }
 
 void AccumulateStats(ConsString cons_string, ConsStringStats* stats) {
-  int left_length = cons_string.first().length();
-  int right_length = cons_string.second().length();
-  CHECK(cons_string.length() == left_length + right_length);
+  int left_length = cons_string->first()->length();
+  int right_length = cons_string->second()->length();
+  CHECK(cons_string->length() == left_length + right_length);
   // Check left side.
-  bool left_is_cons = cons_string.first().IsConsString();
+  bool left_is_cons = cons_string->first().IsConsString();
   if (left_is_cons) {
     stats->left_traversals_++;
-    AccumulateStats(ConsString::cast(cons_string.first()), stats);
+    AccumulateStats(ConsString::cast(cons_string->first()), stats);
   } else {
     CHECK_NE(left_length, 0);
     stats->leaves_++;
     stats->chars_ += left_length;
   }
   // Check right side.
-  if (cons_string.second().IsConsString()) {
+  if (cons_string->second().IsConsString()) {
     stats->right_traversals_++;
-    AccumulateStats(ConsString::cast(cons_string.second()), stats);
+    AccumulateStats(ConsString::cast(cons_string->second()), stats);
   } else {
     if (right_length == 0) {
       stats->empty_leaves_++;
@@ -352,7 +352,7 @@ void AccumulateStatsWithOperator(ConsString cons_string,
     // Accumulate stats.
     CHECK_EQ(0, offset);
     stats->leaves_++;
-    stats->chars_ += string.length();
+    stats->chars_ += string->length();
   }
 }
 
@@ -612,10 +612,10 @@ TEST(ConsStringWithEmptyFirstFlatten) {
 
 static void VerifyCharacterStream(String flat_string, String cons_string) {
   // Do not want to test ConString traversal on flat string.
-  CHECK(flat_string.IsFlat() && !flat_string.IsConsString());
+  CHECK(flat_string->IsFlat() && !flat_string.IsConsString());
   CHECK(cons_string.IsConsString());
   // TODO(dcarney) Test stream reset as well.
-  int length = flat_string.length();
+  int length = flat_string->length();
   // Iterate start search in multiple places in the string.
   int outer_iterations = length > 20 ? 20 : length;
   for (int j = 0; j <= outer_iterations; j++) {
@@ -626,7 +626,7 @@ static void VerifyCharacterStream(String flat_string, String cons_string) {
     StringCharacterStream flat_stream(flat_string, offset);
     StringCharacterStream cons_stream(cons_string, offset);
     for (int i = offset; i < length; i++) {
-      uint16_t c = flat_string.Get(i);
+      uint16_t c = flat_string->Get(i);
       CHECK(flat_stream.HasMore());
       CHECK(cons_stream.HasMore());
       CHECK_EQ(c, flat_stream.GetNext());
@@ -1313,11 +1313,11 @@ TEST(SliceFromCons) {
   CHECK(slice->IsSlicedString());
   // TODO(leszeks): Remove Tagged cast when .first() returns a Tagged.
   static_assert(kTaggedCanConvertToRawObjects);
-  CHECK_EQ(SlicedString::cast(*slice).parent(),
+  CHECK_EQ(SlicedString::cast(*slice)->parent(),
            // Parent could have been short-circuited.
-           parent->IsConsString() ? Tagged(ConsString::cast(*parent).first())
+           parent->IsConsString() ? Tagged(ConsString::cast(*parent)->first())
                                   : *parent);
-  CHECK(SlicedString::cast(*slice).parent().IsSeqString());
+  CHECK(SlicedString::cast(*slice)->parent().IsSeqString());
   CHECK(slice->IsFlat());
 }
 
@@ -1419,8 +1419,8 @@ TEST(SliceFromExternal) {
   Handle<String> slice = factory->NewSubString(string, 1, 25);
   CHECK(slice->IsSlicedString());
   CHECK(string->IsExternalString());
-  CHECK_EQ(SlicedString::cast(*slice).parent(), *string);
-  CHECK(SlicedString::cast(*slice).parent().IsExternalString());
+  CHECK_EQ(SlicedString::cast(*slice)->parent(), *string);
+  CHECK(SlicedString::cast(*slice)->parent().IsExternalString());
   CHECK(slice->IsFlat());
   // This avoids the GC from trying to free stack allocated resources.
   i::Handle<i::ExternalOneByteString>::cast(string)->SetResource(
@@ -1473,14 +1473,14 @@ TEST(SliceFromSlice) {
   CHECK(result->IsString());
   string = v8::Utils::OpenHandle(v8::String::Cast(*result));
   CHECK(string->IsSlicedString());
-  CHECK(SlicedString::cast(*string).parent().IsSeqString());
+  CHECK(SlicedString::cast(*string)->parent().IsSeqString());
   CHECK_EQ(0, strcmp("bcdefghijklmnopqrstuvwxy", string->ToCString().get()));
 
   result = CompileRun(slice_from_slice);
   CHECK(result->IsString());
   string = v8::Utils::OpenHandle(v8::String::Cast(*result));
   CHECK(string->IsSlicedString());
-  CHECK(SlicedString::cast(*string).parent().IsSeqString());
+  CHECK(SlicedString::cast(*string)->parent().IsSeqString());
   CHECK_EQ(0, strcmp("cdefghijklmnopqrstuvwx", string->ToCString().get()));
 }
 

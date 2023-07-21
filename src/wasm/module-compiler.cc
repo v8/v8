@@ -1111,8 +1111,8 @@ class CompileLazyTimingScope {
 bool CompileLazy(Isolate* isolate, WasmInstanceObject instance,
                  int func_index) {
   DisallowGarbageCollection no_gc;
-  WasmModuleObject module_object = instance.module_object();
-  NativeModule* native_module = module_object.native_module();
+  WasmModuleObject module_object = instance->module_object();
+  NativeModule* native_module = module_object->native_module();
   Counters* counters = isolate->counters();
 
   // Put the timer scope around everything, including the {CodeSpaceWriteScope}
@@ -1159,11 +1159,11 @@ bool CompileLazy(Isolate* isolate, WasmInstanceObject instance,
   DCHECK_EQ(func_index, code->index());
 
   if (WasmCode::ShouldBeLogged(isolate)) {
-    Object url_obj = module_object.script().name();
+    Object url_obj = module_object->script()->name();
     DCHECK(url_obj.IsString() || url_obj.IsUndefined());
     std::unique_ptr<char[]> url =
-        url_obj.IsString() ? String::cast(url_obj).ToCString() : nullptr;
-    code->LogCode(isolate, url.get(), module_object.script().id());
+        url_obj.IsString() ? String::cast(url_obj)->ToCString() : nullptr;
+    code->LogCode(isolate, url.get(), module_object->script()->id());
   }
 
   counters->wasm_lazily_compiled_functions()->Increment();
@@ -1211,7 +1211,7 @@ class TransitiveTypeFeedbackProcessor {
  private:
   TransitiveTypeFeedbackProcessor(WasmInstanceObject instance, int func_index)
       : instance_(instance),
-        module_(instance.module()),
+        module_(instance->module()),
         mutex_guard(&module_->type_feedback.mutex),
         feedback_for_function_(module_->type_feedback.feedback_for_function) {
     queue_.insert(func_index);
@@ -1262,7 +1262,7 @@ class FeedbackMaker {
   FeedbackMaker(WasmInstanceObject instance, int func_index, int num_calls)
       : instance_(instance),
         num_imported_functions_(
-            static_cast<int>(instance.module()->num_imported_functions)),
+            static_cast<int>(instance->module()->num_imported_functions)),
         func_index_(func_index) {
     result_.reserve(num_calls);
   }
@@ -1270,12 +1270,12 @@ class FeedbackMaker {
   void AddCandidate(Object maybe_function, int count) {
     if (!maybe_function.IsWasmInternalFunction()) return;
     WasmInternalFunction function = WasmInternalFunction::cast(maybe_function);
-    if (function.ref() != instance_) {
+    if (function->ref() != instance_) {
       // Not a wasm function, or not a function declared in this instance.
       return;
     }
-    if (function.function_index() < num_imported_functions_) return;
-    AddCall(function.function_index(), count);
+    if (function->function_index() < num_imported_functions_) return;
+    AddCall(function->function_index(), count);
   }
 
   void AddCall(int target, int count) {
@@ -1336,26 +1336,26 @@ class FeedbackMaker {
 
 void TransitiveTypeFeedbackProcessor::ProcessFunction(int func_index) {
   int which_vector = declared_function_index(module_, func_index);
-  Object maybe_feedback = instance_.feedback_vectors().get(which_vector);
+  Object maybe_feedback = instance_->feedback_vectors()->get(which_vector);
   if (!maybe_feedback.IsFixedArray()) return;
   FixedArray feedback = FixedArray::cast(maybe_feedback);
   base::Vector<uint32_t> call_direct_targets =
       module_->type_feedback.feedback_for_function[func_index]
           .call_targets.as_vector();
-  DCHECK_EQ(feedback.length(), call_direct_targets.size() * 2);
-  FeedbackMaker fm(instance_, func_index, feedback.length() / 2);
-  for (int i = 0; i < feedback.length(); i += 2) {
-    Object value = feedback.get(i);
+  DCHECK_EQ(feedback->length(), call_direct_targets.size() * 2);
+  FeedbackMaker fm(instance_, func_index, feedback->length() / 2);
+  for (int i = 0; i < feedback->length(); i += 2) {
+    Object value = feedback->get(i);
     if (value.IsWasmInternalFunction()) {
       // Monomorphic.
-      int count = Smi::cast(feedback.get(i + 1)).value();
+      int count = Smi::cast(feedback->get(i + 1)).value();
       fm.AddCandidate(value, count);
     } else if (value.IsFixedArray()) {
       // Polymorphic.
       FixedArray polymorphic = FixedArray::cast(value);
-      for (int j = 0; j < polymorphic.length(); j += 2) {
-        Object function = polymorphic.get(j);
-        int count = Smi::cast(polymorphic.get(j + 1)).value();
+      for (int j = 0; j < polymorphic->length(); j += 2) {
+        Object function = polymorphic->get(j);
+        int count = Smi::cast(polymorphic->get(j + 1)).value();
         fm.AddCandidate(function, count);
       }
     } else if (value.IsSmi()) {
@@ -1368,7 +1368,8 @@ void TransitiveTypeFeedbackProcessor::ProcessFunction(int func_index) {
         PrintF("[function %d: call #%d: uninitialized]\n", func_index, i / 2);
       }
     } else if (v8_flags.trace_wasm_inlining) {
-      if (value == ReadOnlyRoots(instance_.GetIsolate()).megamorphic_symbol()) {
+      if (value ==
+          ReadOnlyRoots(instance_->GetIsolate()).megamorphic_symbol()) {
         PrintF("[function %d: call #%d: megamorphic]\n", func_index, i / 2);
       }
     }
@@ -1380,7 +1381,7 @@ void TransitiveTypeFeedbackProcessor::ProcessFunction(int func_index) {
 }
 
 void TriggerTierUp(WasmInstanceObject instance, int func_index) {
-  NativeModule* native_module = instance.module_object().native_module();
+  NativeModule* native_module = instance->module_object()->native_module();
   CompilationStateImpl* compilation_state =
       Impl(native_module->compilation_state());
   WasmCompilationUnit tiering_unit{func_index, ExecutionTier::kTurbofan,
@@ -1392,8 +1393,9 @@ void TriggerTierUp(WasmInstanceObject instance, int func_index) {
     base::SharedMutexGuard<base::kExclusive> mutex_guard(
         &module->type_feedback.mutex);
     int array_index =
-        wasm::declared_function_index(instance.module(), func_index);
-    instance.tiering_budget_array()[array_index] = v8_flags.wasm_tiering_budget;
+        wasm::declared_function_index(instance->module(), func_index);
+    instance->tiering_budget_array()[array_index] =
+        v8_flags.wasm_tiering_budget;
     int& stored_priority =
         module->type_feedback.feedback_for_function[func_index].tierup_priority;
     if (stored_priority < kMaxInt) ++stored_priority;
@@ -1419,7 +1421,7 @@ void TriggerTierUp(WasmInstanceObject instance, int func_index) {
 
 void TierUpNowForTesting(Isolate* isolate, WasmInstanceObject instance,
                          int func_index) {
-  NativeModule* native_module = instance.module_object().native_module();
+  NativeModule* native_module = instance->module_object()->native_module();
   if (native_module->enabled_features().has_inlining()) {
     TransitiveTypeFeedbackProcessor::Process(instance, func_index);
   }
@@ -1432,9 +1434,9 @@ void TierUpNowForTesting(Isolate* isolate, WasmInstanceObject instance,
 namespace {
 
 void RecordStats(Code code, Counters* counters) {
-  if (!code.has_instruction_stream()) return;
-  counters->wasm_generated_code_size()->Increment(code.body_size());
-  counters->wasm_reloc_size()->Increment(code.relocation_size());
+  if (!code->has_instruction_stream()) return;
+  counters->wasm_generated_code_size()->Increment(code->body_size());
+  counters->wasm_reloc_size()->Increment(code->relocation_size());
 }
 
 enum CompilationExecutionResult : int8_t { kNoMoreUnits, kYield };

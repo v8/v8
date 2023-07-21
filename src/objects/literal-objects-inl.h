@@ -133,7 +133,7 @@ void ArrayBoilerplateDescription::set_elements_kind(ElementsKind kind) {
 }
 
 bool ArrayBoilerplateDescription::is_empty() const {
-  return constant_elements().length() == 0;
+  return constant_elements()->length() == 0;
 }
 
 //

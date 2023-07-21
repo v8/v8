@@ -51,6 +51,11 @@ class Managed : public Foreign {
   Managed() : Foreign() {}
   explicit Managed(Address ptr) : Foreign(ptr) {}
 
+  // For every object, add a `->` operator which returns a pointer to this
+  // object. This will allow smoother transition between T and Tagged<T>.
+  Managed* operator->() { return this; }
+  const Managed* operator->() const { return this; }
+
   // Get a raw pointer to the C++ object.
   V8_INLINE CppType* raw() { return GetSharedPtrPtr()->get(); }
 

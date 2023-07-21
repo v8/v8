@@ -92,15 +92,15 @@ TEST_F(WeakMapsTest, Weakness) {
     Handle<Smi> smi(Smi::FromInt(23), isolate);
     JSWeakCollection::Set(weakmap, symbol, smi, symbol->hash());
   }
-  CHECK_EQ(3, EphemeronHashTable::cast(weakmap->table()).NumberOfElements());
+  CHECK_EQ(3, EphemeronHashTable::cast(weakmap->table())->NumberOfElements());
 
   // Force a full GC.
   InvokeAtomicMajorGC();
   CHECK_EQ(0, NumberOfWeakCalls);
   // Symbol key should be deleted.
-  CHECK_EQ(2, EphemeronHashTable::cast(weakmap->table()).NumberOfElements());
+  CHECK_EQ(2, EphemeronHashTable::cast(weakmap->table())->NumberOfElements());
   CHECK_EQ(
-      1, EphemeronHashTable::cast(weakmap->table()).NumberOfDeletedElements());
+      1, EphemeronHashTable::cast(weakmap->table())->NumberOfDeletedElements());
 
   // Make the global reference to the key weak.
   std::pair<Handle<Object>*, int> handle_and_id(&key, 1234);
@@ -111,9 +111,9 @@ TEST_F(WeakMapsTest, Weakness) {
 
   InvokeAtomicMajorGC();
   CHECK_EQ(1, NumberOfWeakCalls);
-  CHECK_EQ(0, EphemeronHashTable::cast(weakmap->table()).NumberOfElements());
+  CHECK_EQ(0, EphemeronHashTable::cast(weakmap->table())->NumberOfElements());
   CHECK_EQ(
-      3, EphemeronHashTable::cast(weakmap->table()).NumberOfDeletedElements());
+      3, EphemeronHashTable::cast(weakmap->table())->NumberOfDeletedElements());
 }
 
 TEST_F(WeakMapsTest, Shrinking) {
@@ -125,7 +125,7 @@ TEST_F(WeakMapsTest, Shrinking) {
   Handle<JSWeakMap> weakmap = isolate->factory()->NewJSWeakMap();
 
   // Check initial capacity.
-  CHECK_EQ(32, EphemeronHashTable::cast(weakmap->table()).Capacity());
+  CHECK_EQ(32, EphemeronHashTable::cast(weakmap->table())->Capacity());
 
   // Fill up weak map to trigger capacity change.
   {
@@ -140,25 +140,26 @@ TEST_F(WeakMapsTest, Shrinking) {
   }
 
   // Check increased capacity.
-  CHECK_EQ(128, EphemeronHashTable::cast(weakmap->table()).Capacity());
+  CHECK_EQ(128, EphemeronHashTable::cast(weakmap->table())->Capacity());
 
   // Force a full GC.
-  CHECK_EQ(32, EphemeronHashTable::cast(weakmap->table()).NumberOfElements());
+  CHECK_EQ(32, EphemeronHashTable::cast(weakmap->table())->NumberOfElements());
   CHECK_EQ(
-      0, EphemeronHashTable::cast(weakmap->table()).NumberOfDeletedElements());
+      0, EphemeronHashTable::cast(weakmap->table())->NumberOfDeletedElements());
   InvokeAtomicMajorGC();
-  CHECK_EQ(0, EphemeronHashTable::cast(weakmap->table()).NumberOfElements());
+  CHECK_EQ(0, EphemeronHashTable::cast(weakmap->table())->NumberOfElements());
   CHECK_EQ(
-      32, EphemeronHashTable::cast(weakmap->table()).NumberOfDeletedElements());
+      32,
+      EphemeronHashTable::cast(weakmap->table())->NumberOfDeletedElements());
 
   // Check shrunk capacity.
-  CHECK_EQ(32, EphemeronHashTable::cast(weakmap->table()).Capacity());
+  CHECK_EQ(32, EphemeronHashTable::cast(weakmap->table())->Capacity());
 }
 
 namespace {
 bool EphemeronHashTableContainsKey(EphemeronHashTable table, HeapObject key) {
-  for (InternalIndex i : table.IterateEntries()) {
-    if (table.KeyAt(i) == key) return true;
+  for (InternalIndex i : table->IterateEntries()) {
+    if (table->KeyAt(i) == key) return true;
   }
   return false;
 }

@@ -135,7 +135,7 @@ class GeneratedCode {
   }
 
   static GeneratedCode FromCode(Isolate* isolate, Code code) {
-    return FromAddress(isolate, code.instruction_start());
+    return FromAddress(isolate, code->instruction_start());
   }
 
 #ifdef USE_SIMULATOR

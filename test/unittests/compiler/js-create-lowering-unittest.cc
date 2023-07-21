@@ -75,7 +75,7 @@ TEST_F(JSCreateLoweringTest, JSCreate) {
   EXPECT_THAT(
       r.replacement(),
       IsFinishRegion(
-          IsAllocate(IsNumberConstant(function->initial_map().instance_size()),
+          IsAllocate(IsNumberConstant(function->initial_map()->instance_size()),
                      IsBeginRegion(effect), control),
           _));
 }

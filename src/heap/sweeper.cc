@@ -439,8 +439,8 @@ class PromotedPageRecordMigratedSlotVisitor final
   }
 
   void Process(HeapObject object) {
-    Map map = object.map(cage_base());
-    if (Map::ObjectFieldsFrom(map.visitor_id()) == ObjectFields::kDataOnly) {
+    Map map = object->map(cage_base());
+    if (Map::ObjectFieldsFrom(map->visitor_id()) == ObjectFields::kDataOnly) {
       return;
     }
     Visit(map, object);
@@ -455,7 +455,7 @@ class PromotedPageRecordMigratedSlotVisitor final
 
   V8_INLINE void VisitMapPointer(HeapObject host) final {
     VerifyHost(host);
-    VisitObjectImpl(host, host.map(cage_base()), host.map_slot().address());
+    VisitObjectImpl(host, host->map(cage_base()), host->map_slot().address());
   }
 
   V8_INLINE void VisitPointer(HeapObject host, ObjectSlot p) final {
@@ -474,7 +474,7 @@ class PromotedPageRecordMigratedSlotVisitor final
   }
 
   V8_INLINE int VisitJSArrayBuffer(Map map, JSArrayBuffer object) {
-    object.YoungMarkExtensionPromoted();
+    object->YoungMarkExtensionPromoted();
     return NewSpaceVisitor<
         PromotedPageRecordMigratedSlotVisitor>::VisitJSArrayBuffer(map, object);
   }
@@ -483,12 +483,12 @@ class PromotedPageRecordMigratedSlotVisitor final
     NewSpaceVisitor<PromotedPageRecordMigratedSlotVisitor>::
         VisitMapPointerIfNeeded<VisitorId::kVisitEphemeronHashTable>(table);
     EphemeronRememberedSet::IndicesSet indices;
-    for (InternalIndex i : table.IterateEntries()) {
+    for (InternalIndex i : table->IterateEntries()) {
       ObjectSlot value_slot =
-          table.RawFieldOfElementAt(EphemeronHashTable::EntryToValueIndex(i));
+          table->RawFieldOfElementAt(EphemeronHashTable::EntryToValueIndex(i));
       VisitPointer(table, value_slot);
       ObjectSlot key_slot =
-          table.RawFieldOfElementAt(EphemeronHashTable::EntryToIndex(i));
+          table->RawFieldOfElementAt(EphemeronHashTable::EntryToIndex(i));
       Object key = key_slot.Acquire_Load();
       HeapObject key_object;
       if (!key.GetHeapObject(&key_object)) continue;

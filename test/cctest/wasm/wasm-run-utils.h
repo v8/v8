@@ -189,9 +189,9 @@ class TestingModuleBuilder {
     // TODO(13918): Adapt this for multi-memory.
     DCHECK_EQ(1, test_module_->memories.size());
     test_module_->memories[0].maximum_pages = maximum_pages;
-    DCHECK_EQ(instance_object_->memory_objects().length(),
+    DCHECK_EQ(instance_object_->memory_objects()->length(),
               test_module_->memories.size());
-    instance_object_->memory_object(0).set_maximum_pages(maximum_pages);
+    instance_object_->memory_object(0)->set_maximum_pages(maximum_pages);
   }
 
   void SetMemoryShared() {
@@ -493,7 +493,7 @@ class WasmRunnerBase : public InitializedHandleScope {
       jsfuncs_[function_index] = builder_.WrapCode(function_index);
     }
     Handle<JSFunction> jsfunc = jsfuncs_[function_index];
-    Handle<Object> global(isolate->context().global_object(), isolate);
+    Handle<Object> global(isolate->context()->global_object(), isolate);
     MaybeHandle<Object> retval =
         Execution::TryCall(isolate, jsfunc, global, count, buffer,
                            Execution::MessageHandling::kReport, nullptr);
@@ -506,7 +506,7 @@ class WasmRunnerBase : public InitializedHandleScope {
         CHECK_EQ(expected, Smi::ToInt(*result));
       } else {
         CHECK(result->IsHeapNumber());
-        CHECK_DOUBLE_EQ(expected, HeapNumber::cast(*result).value());
+        CHECK_DOUBLE_EQ(expected, HeapNumber::cast(*result)->value());
       }
     }
   }

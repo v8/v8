@@ -44,13 +44,13 @@ class IterateAndScavengePromotedObjectsVisitor final : public ObjectVisitor {
 
   V8_INLINE void VisitMapPointer(HeapObject host) final {
     if (!record_slots_) return;
-    MapWord map_word = host.map_word(kRelaxedLoad);
+    MapWord map_word = host->map_word(kRelaxedLoad);
     if (map_word.IsForwardingAddress()) {
       // Surviving new large objects have forwarding pointers in the map word.
       DCHECK(MemoryChunk::FromHeapObject(host)->InNewLargeObjectSpace());
       return;
     }
-    HandleSlot(host, HeapObjectSlot(host.map_slot()), map_word.ToMap());
+    HandleSlot(host, HeapObjectSlot(host->map_slot()), map_word.ToMap());
   }
 
   V8_INLINE void VisitPointers(HeapObject host, ObjectSlot start,
@@ -159,14 +159,15 @@ class IterateAndScavengePromotedObjectsVisitor final : public ObjectVisitor {
 namespace {
 
 V8_INLINE bool IsUnscavengedHeapObject(Heap* heap, Object object) {
-  return Heap::InFromPage(object) &&
-         !HeapObject::cast(object).map_word(kRelaxedLoad).IsForwardingAddress();
+  return Heap::InFromPage(object) && !HeapObject::cast(object)
+                                          ->map_word(kRelaxedLoad)
+                                          .IsForwardingAddress();
 }
 
 // Same as IsUnscavengedHeapObject() above but specialized for HeapObjects.
 V8_INLINE bool IsUnscavengedHeapObject(Heap* heap, HeapObject heap_object) {
   return Heap::InFromPage(heap_object) &&
-         !heap_object.map_word(kRelaxedLoad).IsForwardingAddress();
+         !heap_object->map_word(kRelaxedLoad).IsForwardingAddress();
 }
 
 bool IsUnscavengedHeapObjectSlot(Heap* heap, FullObjectSlot p) {
@@ -286,7 +287,7 @@ class GlobalHandlesWeakRootsUpdatingVisitor final : public RootVisitor {
     // TODO(chromium:1336158): Turn the following CHECKs into DCHECKs after
     // flushing out potential issues.
     CHECK(Heap::InFromPage(heap_object));
-    MapWord first_word = heap_object.map_word(kRelaxedLoad);
+    MapWord first_word = heap_object->map_word(kRelaxedLoad);
     CHECK(first_word.IsForwardingAddress());
     HeapObject dest = first_word.ToForwardingAddress(heap_object);
     HeapObjectReference::Update(FullHeapObjectSlot(p), dest);
@@ -546,12 +547,12 @@ void ScavengerCollector::HandleSurvivingNewLargeObjects() {
     Map map = update_info.second;
     // Order is important here. We have to re-install the map to have access
     // to meta-data like size during page promotion.
-    object.set_map_word(map, kRelaxedStore);
+    object->set_map_word(map, kRelaxedStore);
 
     if (is_compacting && marking_state->IsMarked(object) &&
         MarkCompactCollector::IsOnEvacuationCandidate(map)) {
       RememberedSet<OLD_TO_OLD>::Insert<AccessMode::ATOMIC>(
-          MemoryChunk::FromHeapObject(object), object.map_slot().address());
+          MemoryChunk::FromHeapObject(object), object->map_slot().address());
     }
     LargePage* page = LargePage::FromHeapObject(object);
     heap_->lo_space()->PromoteNewLargeObject(page);
@@ -646,11 +647,11 @@ void Scavenger::IterateAndScavengePromotedObject(HeapObject target, Map map,
   IterateAndScavengePromotedObjectsVisitor visitor(this, record_slots);
 
   // Iterate all outgoing pointers including map word.
-  target.IterateFast(map, size, &visitor);
+  target->IterateFast(map, size, &visitor);
 
-  if (map.IsJSArrayBufferMap()) {
+  if (map->IsJSArrayBufferMap()) {
     DCHECK(!BasicMemoryChunk::FromHeapObject(target)->IsLargePage());
-    JSArrayBuffer::cast(target).YoungMarkExtensionPromoted();
+    JSArrayBuffer::cast(target)->YoungMarkExtensionPromoted();
   }
 }
 
@@ -757,13 +758,13 @@ void ScavengerCollector::ProcessWeakReferences(
 void ScavengerCollector::ClearYoungEphemerons(
     EphemeronRememberedSet::TableList* ephemeron_table_list) {
   ephemeron_table_list->Iterate([this](EphemeronHashTable table) {
-    for (InternalIndex i : table.IterateEntries()) {
+    for (InternalIndex i : table->IterateEntries()) {
       // Keys in EphemeronHashTables must be heap objects.
       HeapObjectSlot key_slot(
-          table.RawFieldOfElementAt(EphemeronHashTable::EntryToIndex(i)));
+          table->RawFieldOfElementAt(EphemeronHashTable::EntryToIndex(i)));
       HeapObject key = key_slot.ToHeapObject();
       if (IsUnscavengedHeapObject(heap_, key)) {
-        table.RemoveEntry(i);
+        table->RemoveEntry(i);
       } else {
         HeapObject forwarded = ForwardingAddress(key);
         key_slot.StoreHeapObject(forwarded);
@@ -782,11 +783,11 @@ void ScavengerCollector::ClearOldEphemerons() {
     auto& indices = it->second;
     for (auto iti = indices.begin(); iti != indices.end();) {
       // Keys in EphemeronHashTables must be heap objects.
-      HeapObjectSlot key_slot(table.RawFieldOfElementAt(
+      HeapObjectSlot key_slot(table->RawFieldOfElementAt(
           EphemeronHashTable::EntryToIndex(InternalIndex(*iti))));
       HeapObject key = key_slot.ToHeapObject();
       if (IsUnscavengedHeapObject(heap_, key)) {
-        table.RemoveEntry(InternalIndex(*iti));
+        table->RemoveEntry(InternalIndex(*iti));
         iti = indices.erase(iti);
       } else {
         HeapObject forwarded = ForwardingAddress(key);

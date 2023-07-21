@@ -558,13 +558,13 @@ Handle<Object> GetTimeZone(Isolate* isolate,
 Handle<String> JSDateTimeFormat::Calendar(
     Isolate* isolate, Handle<JSDateTimeFormat> date_time_format) {
   return GetCalendar(isolate,
-                     *(date_time_format->icu_simple_date_format().raw()));
+                     *(date_time_format->icu_simple_date_format()->raw()));
 }
 
 Handle<Object> JSDateTimeFormat::TimeZone(
     Isolate* isolate, Handle<JSDateTimeFormat> date_time_format) {
   return GetTimeZone(isolate,
-                     *(date_time_format->icu_simple_date_format().raw()));
+                     *(date_time_format->icu_simple_date_format()->raw()));
 }
 
 // ecma402 #sec-intl.datetimeformat.prototype.resolvedoptions
@@ -578,11 +578,11 @@ MaybeHandle<JSObject> JSDateTimeFormat::ResolvedOptions(
 
   Handle<String> locale = Handle<String>(date_time_format->locale(), isolate);
   DCHECK(!date_time_format->icu_locale().is_null());
-  DCHECK_NOT_NULL(date_time_format->icu_locale().raw());
-  icu::Locale* icu_locale = date_time_format->icu_locale().raw();
+  DCHECK_NOT_NULL(date_time_format->icu_locale()->raw());
+  icu::Locale* icu_locale = date_time_format->icu_locale()->raw();
 
   icu::SimpleDateFormat* icu_simple_date_format =
-      date_time_format->icu_simple_date_format().raw();
+      date_time_format->icu_simple_date_format()->raw();
   Handle<Object> timezone =
       JSDateTimeFormat::TimeZone(isolate, date_time_format);
 
@@ -1421,7 +1421,7 @@ MaybeHandle<String> FormatDateTimeWithTemporalSupport(
     Isolate* isolate, Handle<JSDateTimeFormat> date_time_format,
     Handle<Object> x, const char* method_name) {
   return FormatDateTimeWithTemporalSupport(
-      isolate, *(date_time_format->icu_simple_date_format().raw()),
+      isolate, *(date_time_format->icu_simple_date_format()->raw()),
       JSDateTimeFormat::Calendar(isolate, date_time_format), x, method_name);
 }
 
@@ -1454,7 +1454,7 @@ MaybeHandle<String> JSDateTimeFormat::DateTimeFormat(
   }
   // 5. Return FormatDateTime(dtf, x).
   icu::SimpleDateFormat* format =
-      date_time_format->icu_simple_date_format().raw();
+      date_time_format->icu_simple_date_format()->raw();
   return FormatDateTime(isolate, *format, x);
 }
 
@@ -1515,8 +1515,9 @@ MaybeHandle<String> JSDateTimeFormat::ToLocaleDateTime(
 
   // 4. Let dateFormat be ? Construct(%DateTimeFormat%, « locales, options »).
   Handle<JSFunction> constructor = Handle<JSFunction>(
-      JSFunction::cast(
-          isolate->context().native_context().intl_date_time_format_function()),
+      JSFunction::cast(isolate->context()
+                           ->native_context()
+                           ->intl_date_time_format_function()),
       isolate);
   Handle<Map> map;
   ASSIGN_RETURN_ON_EXCEPTION(
@@ -1533,11 +1534,11 @@ MaybeHandle<String> JSDateTimeFormat::ToLocaleDateTime(
     isolate->set_icu_object_in_cache(
         cache_type, locales,
         std::static_pointer_cast<icu::UMemory>(
-            date_time_format->icu_simple_date_format().get()));
+            date_time_format->icu_simple_date_format()->get()));
   }
   // 5. Return FormatDateTime(dateFormat, x).
   icu::SimpleDateFormat* format =
-      date_time_format->icu_simple_date_format().raw();
+      date_time_format->icu_simple_date_format()->raw();
   return FormatDateTime(isolate, *format, x);
 }
 
@@ -1546,7 +1547,7 @@ MaybeHandle<String> JSDateTimeFormat::TemporalToLocaleString(
     Handle<Object> options, const char* method_name) {
   // 4. Let dateFormat be ? Construct(%DateTimeFormat%, « locales, options »).
   Handle<JSFunction> constructor(
-      isolate->context().native_context().intl_date_time_format_function(),
+      isolate->context()->native_context()->intl_date_time_format_function(),
       isolate);
   Handle<Map> map = JSFunction::GetDerivedMap(isolate, constructor, constructor)
                         .ToHandleChecked();
@@ -1716,7 +1717,7 @@ MaybeHandle<JSObject> JSDateTimeFormat::ToDateTimeOptions(
 MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::UnwrapDateTimeFormat(
     Isolate* isolate, Handle<JSReceiver> format_holder) {
   Handle<Context> native_context =
-      Handle<Context>(isolate->context().native_context(), isolate);
+      Handle<Context>(isolate->context()->native_context(), isolate);
   Handle<JSFunction> constructor = Handle<JSFunction>(
       JSFunction::cast(native_context->intl_date_time_format_function()),
       isolate);
@@ -1950,13 +1951,13 @@ std::unique_ptr<icu::DateIntervalFormat> LazyCreateDateIntervalFormat(
     PatternKind kind) {
   Managed<icu::DateIntervalFormat> managed_format =
       date_time_format->icu_date_interval_format();
-  if (kind == PatternKind::kDate && managed_format.get()) {
+  if (kind == PatternKind::kDate && managed_format->get()) {
     return std::unique_ptr<icu::DateIntervalFormat>(
-        managed_format.raw()->clone());
+        managed_format->raw()->clone());
   }
   UErrorCode status = U_ZERO_ERROR;
 
-  icu::Locale loc = *(date_time_format->icu_locale().raw());
+  icu::Locale loc = *(date_time_format->icu_locale()->raw());
   // We need to pass in the hc to DateIntervalFormat by using Unicode 'hc'
   // extension.
   std::string hcString = ToHourCycleString(date_time_format->hour_cycle());
@@ -1965,7 +1966,7 @@ std::unique_ptr<icu::DateIntervalFormat> LazyCreateDateIntervalFormat(
   }
 
   icu::SimpleDateFormat* icu_simple_date_format =
-      date_time_format->icu_simple_date_format().raw();
+      date_time_format->icu_simple_date_format()->raw();
 
   icu::UnicodeString skeleton = GetSkeletonForPatternKind(
       SkeletonFromDateFormat(*icu_simple_date_format), kind);
@@ -2721,7 +2722,7 @@ MaybeHandle<JSArray> FormatToPartsWithTemporalSupport(
     Isolate* isolate, Handle<JSDateTimeFormat> date_time_format,
     Handle<Object> x, bool output_source, const char* method_name) {
   icu::SimpleDateFormat* format =
-      date_time_format->icu_simple_date_format().raw();
+      date_time_format->icu_simple_date_format()->raw();
   DCHECK_NOT_NULL(format);
 
   // 1. Let x be ? HandleDateTimeValue(dateTimeFormat, x).
@@ -2778,7 +2779,7 @@ MaybeHandle<JSArray> JSDateTimeFormat::FormatToParts(
                     JSArray);
   }
   return FormatMillisecondsToArray(
-      isolate, *(date_time_format->icu_simple_date_format().raw()), date_value,
+      isolate, *(date_time_format->icu_simple_date_format()->raw()), date_value,
       output_source);
 }
 
@@ -3005,7 +3006,7 @@ base::Optional<MaybeHandle<T>> PartitionDateTimeRangePattern(
   }
 
   icu::SimpleDateFormat* date_format =
-      date_time_format->icu_simple_date_format().raw();
+      date_time_format->icu_simple_date_format()->raw();
   const icu::Calendar* calendar = date_format->getCalendar();
 
   return CallICUFormatRange<T, Format>(isolate, format.get(), calendar, x, y);
@@ -3053,7 +3054,7 @@ MaybeHandle<T> FormatRangeCommonWithTemporalSupport(
   }
   // 6. Let x be ? HandleDateTimeValue(dateTimeFormat, x).
   icu::SimpleDateFormat* icu_simple_date_format =
-      date_time_format->icu_simple_date_format().raw();
+      date_time_format->icu_simple_date_format()->raw();
   Handle<String> date_time_format_calendar =
       GetCalendar(isolate, *icu_simple_date_format);
   DateTimeValueRecord x_record;
@@ -3078,7 +3079,7 @@ MaybeHandle<T> FormatRangeCommonWithTemporalSupport(
   }
 
   const icu::Calendar* calendar =
-      date_time_format->icu_simple_date_format().raw()->getCalendar();
+      date_time_format->icu_simple_date_format()->raw()->getCalendar();
 
   base::Optional<MaybeHandle<T>> result = CallICUFormatRange<T, Format>(
       isolate, format.get(), calendar, x_record.epoch_milliseconds,
@@ -3110,7 +3111,7 @@ MaybeHandle<T> FormatRangeCommon(Isolate* isolate,
       PartitionDateTimeRangePattern<T, Format>(isolate, date_time_format, x, y,
                                                method_name);
   if (result.has_value()) return *result;
-  return Fallback(isolate, *(date_time_format->icu_simple_date_format().raw()),
+  return Fallback(isolate, *(date_time_format->icu_simple_date_format()->raw()),
                   x);
 }
 

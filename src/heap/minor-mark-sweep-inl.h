@@ -29,9 +29,9 @@ V8_INLINE bool YoungGenerationMainMarkingVisitor::ShortCutStrings(
     ObjectSlot map_slot = heap_object->map_slot();
     if (map_slot.contains_map_value(StaticReadOnlyRoot::kThinStringMap)) {
       DCHECK_EQ(heap_object->map(ObjectVisitorWithCageBases::cage_base())
-                    .visitor_id(),
+                    ->visitor_id(),
                 VisitorId::kVisitThinString);
-      *heap_object = ThinString::cast(*heap_object).actual();
+      *heap_object = ThinString::cast(*heap_object)->actual();
       // ThinStrings always refer to internalized strings, which are always
       // in old space.
       DCHECK(!Heap::InYoungGeneration(*heap_object));
@@ -42,12 +42,12 @@ V8_INLINE bool YoungGenerationMainMarkingVisitor::ShortCutStrings(
       // Not all ConsString are short cut candidates.
       const VisitorId visitor_id =
           heap_object->map(ObjectVisitorWithCageBases::cage_base())
-              .visitor_id();
+              ->visitor_id();
       if (visitor_id == VisitorId::kVisitShortcutCandidate) {
         ConsString string = ConsString::cast(*heap_object);
-        if (static_cast<Tagged_t>(string.second().ptr()) ==
+        if (static_cast<Tagged_t>(string->second().ptr()) ==
             StaticReadOnlyRoot::kempty_string) {
-          *heap_object = string.first();
+          *heap_object = string->first();
           slot.StoreHeapObject(*heap_object);
           if (!Heap::InYoungGeneration(*heap_object)) {
             return false;

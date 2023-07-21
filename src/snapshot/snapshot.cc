@@ -239,18 +239,18 @@ void Snapshot::ClearReconstructableDataForSerialization(
       for (i::HeapObject o = it.Next(); !o.is_null(); o = it.Next()) {
         if (clear_recompilable_data && o.IsSharedFunctionInfo(cage_base)) {
           i::SharedFunctionInfo shared = i::SharedFunctionInfo::cast(o);
-          if (shared.script(cage_base).IsScript(cage_base) &&
-              Script::cast(shared.script(cage_base)).type() ==
+          if (shared->script(cage_base).IsScript(cage_base) &&
+              Script::cast(shared->script(cage_base))->type() ==
                   Script::Type::kExtension) {
             continue;  // Don't clear extensions, they cannot be recompiled.
           }
-          if (shared.CanDiscardCompiled()) {
+          if (shared->CanDiscardCompiled()) {
             sfis_to_clear.emplace_back(shared, isolate);
           }
         } else if (o.IsJSRegExp(cage_base)) {
           i::JSRegExp regexp = i::JSRegExp::cast(o);
-          if (regexp.HasCompiledCode()) {
-            regexp.DiscardCompiledCodeForSerialization();
+          if (regexp->HasCompiledCode()) {
+            regexp->DiscardCompiledCodeForSerialization();
           }
         }
       }
@@ -280,29 +280,29 @@ void Snapshot::ClearReconstructableDataForSerialization(
     if (!o.IsJSFunction(cage_base)) continue;
 
     i::JSFunction fun = i::JSFunction::cast(o);
-    fun.CompleteInobjectSlackTrackingIfActive();
+    fun->CompleteInobjectSlackTrackingIfActive();
 
-    i::SharedFunctionInfo shared = fun.shared();
-    if (shared.script(cage_base).IsScript(cage_base) &&
-        Script::cast(shared.script(cage_base)).type() ==
+    i::SharedFunctionInfo shared = fun->shared();
+    if (shared->script(cage_base).IsScript(cage_base) &&
+        Script::cast(shared->script(cage_base))->type() ==
             Script::Type::kExtension) {
       continue;  // Don't clear extensions, they cannot be recompiled.
     }
 
     // Also, clear out feedback vectors and recompilable code.
-    if (fun.CanDiscardCompiled()) {
-      fun.set_code(*BUILTIN_CODE(isolate, CompileLazy));
+    if (fun->CanDiscardCompiled()) {
+      fun->set_code(*BUILTIN_CODE(isolate, CompileLazy));
     }
-    if (!fun.raw_feedback_cell(cage_base).value(cage_base).IsUndefined()) {
-      fun.raw_feedback_cell(cage_base).set_value(
+    if (!fun->raw_feedback_cell(cage_base)->value(cage_base).IsUndefined()) {
+      fun->raw_feedback_cell(cage_base)->set_value(
           i::ReadOnlyRoots(isolate).undefined_value());
     }
 #ifdef DEBUG
     if (clear_recompilable_data) {
 #if V8_ENABLE_WEBASSEMBLY
-      DCHECK(fun.shared().HasWasmExportedFunctionData() ||
-             fun.shared().HasBuiltinId() || fun.shared().IsApiFunction() ||
-             fun.shared().HasUncompiledDataWithoutPreparseData());
+      DCHECK(fun->shared()->HasWasmExportedFunctionData() ||
+             fun->shared()->HasBuiltinId() || fun->shared()->IsApiFunction() ||
+             fun->shared()->HasUncompiledDataWithoutPreparseData());
 #else
       DCHECK(fun.shared().HasBuiltinId() || fun.shared().IsApiFunction() ||
              fun.shared().HasUncompiledDataWithoutPreparseData());
@@ -1007,7 +1007,7 @@ StartupData SnapshotCreatorImpl::CreateBlob(
     for (size_t i = kFirstAddtlContextIndex; i < num_contexts; i++) {
       global_proxy_sizes->set(
           static_cast<int>(i - kFirstAddtlContextIndex),
-          Smi::FromInt(context_at(i)->global_proxy().Size()));
+          Smi::FromInt(context_at(i)->global_proxy()->Size()));
     }
     isolate_->heap()->SetSerializedGlobalProxySizes(*global_proxy_sizes);
   }

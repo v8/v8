@@ -153,8 +153,8 @@ TEST_F(CodePagesTest, OptimizedCodeWithCodeRange) {
   Code code = foo->code();
   // We don't produce optimized code when run with --no-turbofan and
   // --no-maglev.
-  if (!code.is_optimized_code()) return;
-  InstructionStream foo_code = code.instruction_stream();
+  if (!code->is_optimized_code()) return;
+  InstructionStream foo_code = code->instruction_stream();
 
   EXPECT_TRUE(i_isolate()->heap()->InSpace(foo_code, CODE_SPACE));
 
@@ -196,15 +196,15 @@ TEST_F(CodePagesTest, OptimizedCodeWithCodePages) {
       // If there is baseline code, check that it's only due to
       // --always-sparkplug (if this check fails, we'll have to re-think this
       // test).
-      if (foo->shared().HasBaselineCode()) {
+      if (foo->shared()->HasBaselineCode()) {
         EXPECT_TRUE(v8_flags.always_sparkplug);
         return;
       }
       Code code = foo->code();
       // We don't produce optimized code when run with --no-turbofan and
       // --no-maglev.
-      if (!code.is_optimized_code()) return;
-      InstructionStream foo_code = code.instruction_stream();
+      if (!code->is_optimized_code()) return;
+      InstructionStream foo_code = code->instruction_stream();
 
       EXPECT_TRUE(i_isolate()->heap()->InSpace(foo_code, CODE_SPACE));
 

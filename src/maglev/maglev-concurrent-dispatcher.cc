@@ -199,7 +199,7 @@ void MaglevCompilationJob::RecordCompilationStats(Isolate* isolate) const {
                          time_taken_to_execute_.InMillisecondsF() +
                          time_taken_to_finalize_.InMillisecondsF());
     compiled_functions++;
-    code_size += function()->shared().SourceSize();
+    code_size += function()->shared()->SourceSize();
     PrintF(
         "[maglev] Compiled: %d functions with %d byte source size in %fms.\n",
         compiled_functions, code_size, compilation_time);
@@ -213,7 +213,7 @@ uint64_t MaglevCompilationJob::trace_id() const {
   return reinterpret_cast<uint64_t>(this) ^
          reinterpret_cast<uint64_t>(info_.get()) ^
          info_->toplevel_function().address() ^
-         info_->toplevel_function()->shared().function_literal_id();
+         info_->toplevel_function()->shared()->function_literal_id();
 }
 
 void MaglevCompilationJob::BeginPhaseKind(const char* name) {

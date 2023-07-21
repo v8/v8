@@ -85,7 +85,7 @@ inline bool ContainsReadOnlyMap(PtrComprCageBase, HeapObject) {
       PtrComprCageBase cage_base, HeapObject object) {                        \
     /* If you see this DCHECK fail we encountered a Map with a VisitorId that \
      * should have only ever appeared in read-only space. */                  \
-    DCHECK(object.map(cage_base).InReadOnlySpace());                          \
+    DCHECK(object->map(cage_base).InReadOnlySpace());                         \
     return true;                                                              \
   }
 READ_ONLY_MAPS_VISITOR_ID_LIST(DEFINE_READ_ONLY_MAP_SPECIALIZATION)
@@ -120,7 +120,7 @@ template <typename ResultType, typename ConcreteVisitor>
 ResultType HeapVisitor<ResultType, ConcreteVisitor>::Visit(Map map,
                                                            HeapObject object) {
   ConcreteVisitor* visitor = static_cast<ConcreteVisitor*>(this);
-  switch (map.visitor_id()) {
+  switch (map->visitor_id()) {
 #define CASE(TypeName)               \
   case kVisit##TypeName:             \
     return visitor->Visit##TypeName( \
@@ -178,7 +178,7 @@ void HeapVisitor<ResultType, ConcreteVisitor>::VisitMapPointerIfNeeded(
      * problematic as the GC requires those sizes to match for accounting    \
      * reasons. The fix likely involves adding a padding field in the object \
      * defintions. */                                                        \
-    DCHECK_EQ(object.SizeFromMap(map),                                       \
+    DCHECK_EQ(object->SizeFromMap(map),                                      \
               TypeName::BodyDescriptor::SizeOf(map, object));                \
     visitor->template VisitMapPointerIfNeeded<VisitorId::kVisit##TypeName>(  \
         object);                                                             \
@@ -200,7 +200,7 @@ template <typename ResultType, typename ConcreteVisitor>
 ResultType HeapVisitor<ResultType, ConcreteVisitor>::VisitDataObject(
     Map map, HeapObject object) {
   ConcreteVisitor* visitor = static_cast<ConcreteVisitor*>(this);
-  int size = map.instance_size();
+  int size = map->instance_size();
   visitor->template VisitMapPointerIfNeeded<VisitorId::kVisitDataObject>(
       object);
 #ifdef V8_ENABLE_SANDBOX
@@ -231,7 +231,7 @@ template <typename ResultType, typename ConcreteVisitor>
 ResultType HeapVisitor<ResultType, ConcreteVisitor>::VisitStruct(
     Map map, HeapObject object) {
   ConcreteVisitor* visitor = static_cast<ConcreteVisitor*>(this);
-  int size = map.instance_size();
+  int size = map->instance_size();
   visitor->template VisitMapPointerIfNeeded<VisitorId::kVisitStruct>(object);
   StructBodyDescriptor::IterateBody(map, object, size, visitor);
   return static_cast<ResultType>(size);
@@ -242,7 +242,7 @@ ResultType HeapVisitor<ResultType, ConcreteVisitor>::VisitFreeSpace(
     Map map, FreeSpace object) {
   ConcreteVisitor* visitor = static_cast<ConcreteVisitor*>(this);
   visitor->template VisitMapPointerIfNeeded<VisitorId::kVisitFreeSpace>(object);
-  return static_cast<ResultType>(object.size(kRelaxedLoad));
+  return static_cast<ResultType>(object->size(kRelaxedLoad));
 }
 
 template <typename ResultType, typename ConcreteVisitor>
@@ -252,7 +252,7 @@ ResultType HeapVisitor<ResultType, ConcreteVisitor>::VisitJSObjectSubclass(
   ConcreteVisitor* visitor = static_cast<ConcreteVisitor*>(this);
   visitor->template VisitMapPointerIfNeeded<VisitorId::kVisitJSObject>(object);
   const int size = TBodyDescriptor::SizeOf(map, object);
-  const int used_size = map.UsedInstanceSize();
+  const int used_size = map->UsedInstanceSize();
   DCHECK_LE(used_size, size);
   DCHECK_GE(used_size, JSObject::GetHeaderSize(map));
   // It is important to visit only the used field and ignore the slack fields
@@ -320,7 +320,7 @@ ResultType ConcurrentHeapVisitor<ResultType,
   // transitioned.
   Map map = object.map(visitor->cage_base());
   int size;
-  switch (map.visitor_id()) {
+  switch (map->visitor_id()) {
 #define UNSAFE_STRING_TRANSITION_TARGET_CASE(VisitorIdType, TypeName)         \
   case kVisit##VisitorIdType:                                                 \
     visitor                                                                   \

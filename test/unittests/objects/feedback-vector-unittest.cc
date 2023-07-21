@@ -86,7 +86,7 @@ TEST_F(FeedbackVectorTest, VectorStructure) {
     vector = NewFeedbackVector(isolate, &spec);
     FeedbackVectorHelper helper(vector);
     FeedbackCell cell = *vector->GetClosureFeedbackCell(0);
-    CHECK_EQ(cell.value(), *factory->undefined_value());
+    CHECK_EQ(cell->value(), *factory->undefined_value());
   }
 }
 

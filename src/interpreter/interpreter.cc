@@ -119,10 +119,10 @@ Code Interpreter::GetBytecodeHandler(Bytecode bytecode,
 
 void Interpreter::SetBytecodeHandler(Bytecode bytecode,
                                      OperandScale operand_scale, Code handler) {
-  DCHECK(!handler.has_instruction_stream());
-  DCHECK(handler.kind() == CodeKind::BYTECODE_HANDLER);
+  DCHECK(!handler->has_instruction_stream());
+  DCHECK(handler->kind() == CodeKind::BYTECODE_HANDLER);
   size_t index = GetDispatchTableIndex(bytecode, operand_scale);
-  dispatch_table_[index] = handler.instruction_start();
+  dispatch_table_[index] = handler->instruction_start();
 }
 
 // static
@@ -229,7 +229,7 @@ void InterpreterCompilationJob::CheckAndPrintBytecodeMismatch(
     Object script_name = script->GetNameOrSourceURL();
     if (script_name.IsString()) {
       std::cerr << " ";
-      String::cast(script_name).PrintUC16(std::cerr);
+      String::cast(script_name)->PrintUC16(std::cerr);
       std::cerr << ":" << parse_info()->literal()->start_position();
     }
 #endif

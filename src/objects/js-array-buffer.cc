@@ -177,9 +177,9 @@ size_t JSArrayBuffer::GsabByteLength(Isolate* isolate,
   DisallowGarbageCollection no_gc;
   DisallowJavascriptExecution no_js(isolate);
   JSArrayBuffer buffer = JSArrayBuffer::cast(Object(raw_array_buffer));
-  CHECK(buffer.is_resizable_by_js());
-  CHECK(buffer.is_shared());
-  return buffer.GetBackingStore()->byte_length(std::memory_order_seq_cst);
+  CHECK(buffer->is_resizable_by_js());
+  CHECK(buffer->is_shared());
+  return buffer->GetBackingStore()->byte_length(std::memory_order_seq_cst);
 }
 
 // static
@@ -367,7 +367,7 @@ Maybe<bool> JSTypedArray::DefineOwnProperty(Isolate* isolate,
 }
 
 ExternalArrayType JSTypedArray::type() {
-  switch (map().elements_kind()) {
+  switch (map()->elements_kind()) {
 #define ELEMENTS_KIND_TO_ARRAY_TYPE(Type, type, TYPE, ctype) \
   case TYPE##_ELEMENTS:                                      \
     return kExternal##Type##Array;
@@ -382,7 +382,7 @@ ExternalArrayType JSTypedArray::type() {
 }
 
 size_t JSTypedArray::element_size() const {
-  switch (map().elements_kind()) {
+  switch (map()->elements_kind()) {
 #define ELEMENTS_KIND_TO_ELEMENT_SIZE(Type, type, TYPE, ctype) \
   case TYPE##_ELEMENTS:                                        \
     return sizeof(ctype);
@@ -404,33 +404,34 @@ size_t JSTypedArray::LengthTrackingGsabBackedTypedArrayLength(
   DisallowGarbageCollection no_gc;
   DisallowJavascriptExecution no_js(isolate);
   JSTypedArray array = JSTypedArray::cast(Object(raw_array));
-  CHECK(array.is_length_tracking());
-  JSArrayBuffer buffer = array.buffer();
-  CHECK(buffer.is_resizable_by_js());
-  CHECK(buffer.is_shared());
+  CHECK(array->is_length_tracking());
+  JSArrayBuffer buffer = array->buffer();
+  CHECK(buffer->is_resizable_by_js());
+  CHECK(buffer->is_shared());
   size_t backing_byte_length =
-      buffer.GetBackingStore()->byte_length(std::memory_order_seq_cst);
-  CHECK_GE(backing_byte_length, array.byte_offset());
-  auto element_byte_size = ElementsKindToByteSize(array.GetElementsKind());
-  return (backing_byte_length - array.byte_offset()) / element_byte_size;
+      buffer->GetBackingStore()->byte_length(std::memory_order_seq_cst);
+  CHECK_GE(backing_byte_length, array->byte_offset());
+  auto element_byte_size = ElementsKindToByteSize(array->GetElementsKind());
+  return (backing_byte_length - array->byte_offset()) / element_byte_size;
 }
 
 size_t JSTypedArray::GetVariableLengthOrOutOfBounds(bool& out_of_bounds) const {
   DCHECK(!WasDetached());
   if (is_length_tracking()) {
     if (is_backed_by_rab()) {
-      if (byte_offset() > buffer().byte_length()) {
+      if (byte_offset() > buffer()->byte_length()) {
         out_of_bounds = true;
         return 0;
       }
-      return (buffer().byte_length() - byte_offset()) / element_size();
+      return (buffer()->byte_length() - byte_offset()) / element_size();
     }
     if (byte_offset() >
-        buffer().GetBackingStore()->byte_length(std::memory_order_seq_cst)) {
+        buffer()->GetBackingStore()->byte_length(std::memory_order_seq_cst)) {
       out_of_bounds = true;
       return 0;
     }
-    return (buffer().GetBackingStore()->byte_length(std::memory_order_seq_cst) -
+    return (buffer()->GetBackingStore()->byte_length(
+                std::memory_order_seq_cst) -
             byte_offset()) /
            element_size();
   }
@@ -438,7 +439,7 @@ size_t JSTypedArray::GetVariableLengthOrOutOfBounds(bool& out_of_bounds) const {
   size_t array_length = LengthUnchecked();
   // The sum can't overflow, since we have managed to allocate the
   // JSTypedArray.
-  if (byte_offset() + array_length * element_size() > buffer().byte_length()) {
+  if (byte_offset() + array_length * element_size() > buffer()->byte_length()) {
     out_of_bounds = true;
     return 0;
   }

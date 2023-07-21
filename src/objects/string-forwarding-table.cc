@@ -71,7 +71,7 @@ void StringForwardingTable::Block::UpdateAfterFullEvacuation(
 namespace {
 
 bool UpdateForwardedSlot(HeapObject object, OffHeapObjectSlot slot) {
-  MapWord map_word = object.map_word(kRelaxedLoad);
+  MapWord map_word = object->map_word(kRelaxedLoad);
   if (map_word.IsForwardingAddress()) {
     HeapObject forwarded_object = map_word.ToForwardingAddress(object);
     slot.Release_Store(forwarded_object);
@@ -102,7 +102,7 @@ void StringForwardingTable::Block::UpdateAfterYoungEvacuation(
         slot.Release_Store(deleted_element());
       }
     } else {
-      DCHECK(!object.map_word(kRelaxedLoad).IsForwardingAddress());
+      DCHECK(!object->map_word(kRelaxedLoad).IsForwardingAddress());
     }
 // No need to update forwarded (internalized) strings as they are never
 // in young space.

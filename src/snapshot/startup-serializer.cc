@@ -122,7 +122,7 @@ void StartupSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
     // Clear inferred name for native functions.
     Handle<SharedFunctionInfo> shared = Handle<SharedFunctionInfo>::cast(obj);
     if (!shared->IsSubjectToDebugging() && shared->HasUncompiledData()) {
-      shared->uncompiled_data().set_inferred_name(
+      shared->uncompiled_data()->set_inferred_name(
           ReadOnlyRoots(isolate()).empty_string());
     }
   }
@@ -171,7 +171,7 @@ SerializedHandleChecker::SerializedHandleChecker(Isolate* isolate,
     : isolate_(isolate) {
   AddToSet(isolate->heap()->serialized_objects());
   for (auto const& context : *contexts) {
-    AddToSet(context.serialized_objects());
+    AddToSet(context->serialized_objects());
   }
 }
 
@@ -198,8 +198,8 @@ void StartupSerializer::CheckNoDirtyFinalizationRegistries() {
 }
 
 void SerializedHandleChecker::AddToSet(FixedArray serialized) {
-  int length = serialized.length();
-  for (int i = 0; i < length; i++) serialized_.insert(serialized.get(i));
+  int length = serialized->length();
+  for (int i = 0; i < length; i++) serialized_.insert(serialized->get(i));
 }
 
 void SerializedHandleChecker::VisitRootPointers(Root root,

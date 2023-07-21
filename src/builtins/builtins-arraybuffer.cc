@@ -40,7 +40,7 @@ namespace {
 Object ConstructBuffer(Isolate* isolate, Handle<JSFunction> target,
                        Handle<JSReceiver> new_target, Handle<Object> length,
                        Handle<Object> max_length, InitializedFlag initialized) {
-  SharedFlag shared = *target != target->native_context().array_buffer_fun()
+  SharedFlag shared = *target != target->native_context()->array_buffer_fun()
                           ? SharedFlag::kShared
                           : SharedFlag::kNotShared;
   ResizableFlag resizable = max_length.is_null() ? ResizableFlag::kNotResizable
@@ -116,12 +116,12 @@ Object ConstructBuffer(Isolate* isolate, Handle<JSFunction> target,
 BUILTIN(ArrayBufferConstructor) {
   HandleScope scope(isolate);
   Handle<JSFunction> target = args.target();
-  DCHECK(*target == target->native_context().array_buffer_fun() ||
-         *target == target->native_context().shared_array_buffer_fun());
+  DCHECK(*target == target->native_context()->array_buffer_fun() ||
+         *target == target->native_context()->shared_array_buffer_fun());
   if (args.new_target()->IsUndefined(isolate)) {  // [[Call]]
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kConstructorNotFunction,
-                              handle(target->shared().Name(), isolate)));
+                              handle(target->shared()->Name(), isolate)));
   }
   // [[Construct]]
   Handle<JSReceiver> new_target = Handle<JSReceiver>::cast(args.new_target());

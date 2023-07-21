@@ -61,7 +61,7 @@ void JSArray::SetContent(Handle<JSArray> array,
 }
 
 bool JSArray::HasArrayPrototype(Isolate* isolate) {
-  return map().prototype() == *isolate->initial_array_prototype();
+  return map()->prototype() == *isolate->initial_array_prototype();
 }
 
 SMI_ACCESSORS(JSArrayIterator, raw_kind, kKindOffset)

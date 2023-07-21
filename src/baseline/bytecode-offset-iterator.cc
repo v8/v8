@@ -28,8 +28,8 @@ BytecodeOffsetIterator::BytecodeOffsetIterator(Handle<ByteArray> mapping_table,
 
 BytecodeOffsetIterator::BytecodeOffsetIterator(ByteArray mapping_table,
                                                BytecodeArray bytecodes)
-    : data_start_address_(mapping_table.GetDataStartAddress()),
-      data_length_(mapping_table.length()),
+    : data_start_address_(mapping_table->GetDataStartAddress()),
+      data_length_(mapping_table->length()),
       current_index_(0),
       bytecode_handle_storage_(bytecodes),
       // In the non-handlified version, no GC is allowed. We use a "dummy"

@@ -26,7 +26,7 @@ uint32_t SharedFunctionInfo::Hash() {
   // don't use the function's literal id since getting that is slow for compiled
   // functions.
   int start_pos = StartPosition();
-  int script_id = script().IsScript() ? Script::cast(script()).id() : 0;
+  int script_id = script().IsScript() ? Script::cast(script())->id() : 0;
   return static_cast<uint32_t>(base::hash_combine(start_pos, script_id));
 }
 
@@ -100,16 +100,16 @@ Code SharedFunctionInfo::GetCode(Isolate* isolate) const {
   if (data.IsWasmExportedFunctionData()) {
     // Having a WasmExportedFunctionData means the code is in there.
     DCHECK(HasWasmExportedFunctionData());
-    return wasm_exported_function_data().wrapper_code();
+    return wasm_exported_function_data()->wrapper_code();
   }
   if (data.IsWasmJSFunctionData()) {
-    return wasm_js_function_data().wrapper_code();
+    return wasm_js_function_data()->wrapper_code();
   }
   if (data.IsWasmCapiFunctionData()) {
-    return wasm_capi_function_data().wrapper_code();
+    return wasm_capi_function_data()->wrapper_code();
   }
   if (data.IsWasmResumeData()) {
-    if (static_cast<wasm::OnResume>(wasm_resume_data().on_resume()) ==
+    if (static_cast<wasm::OnResume>(wasm_resume_data()->on_resume()) ==
         wasm::OnResume::kContinue) {
       return isolate->builtins()->code(Builtin::kWasmResume);
     } else {
@@ -130,7 +130,7 @@ Code SharedFunctionInfo::GetCode(Isolate* isolate) const {
   if (data.IsInterpreterData()) {
     Code code = InterpreterTrampoline();
     DCHECK(code.IsCode());
-    DCHECK(code.is_interpreter_trampoline_builtin());
+    DCHECK(code->is_interpreter_trampoline_builtin());
     return code;
   }
   UNREACHABLE();
@@ -166,7 +166,7 @@ WasmResumeData SharedFunctionInfo::wasm_resume_data() const {
 
 SharedFunctionInfo::ScriptIterator::ScriptIterator(Isolate* isolate,
                                                    Script script)
-    : ScriptIterator(handle(script.shared_function_infos(), isolate)) {}
+    : ScriptIterator(handle(script->shared_function_infos(), isolate)) {}
 
 SharedFunctionInfo::ScriptIterator::ScriptIterator(
     Handle<WeakFixedArray> shared_function_infos)
@@ -186,7 +186,7 @@ SharedFunctionInfo SharedFunctionInfo::ScriptIterator::Next() {
 
 void SharedFunctionInfo::ScriptIterator::Reset(Isolate* isolate,
                                                Script script) {
-  shared_function_infos_ = handle(script.shared_function_infos(), isolate);
+  shared_function_infos_ = handle(script->shared_function_infos(), isolate);
   index_ = 0;
 }
 
@@ -209,16 +209,16 @@ void SharedFunctionInfo::SetScript(ReadOnlyRoots roots,
   if (script_object.IsScript()) {
     DCHECK(!script().IsScript());
     Script script = Script::cast(script_object);
-    WeakFixedArray list = script.shared_function_infos();
+    WeakFixedArray list = script->shared_function_infos();
 #ifdef DEBUG
-    DCHECK_LT(function_literal_id, list.length());
-    MaybeObject maybe_object = list.Get(function_literal_id);
+    DCHECK_LT(function_literal_id, list->length());
+    MaybeObject maybe_object = list->Get(function_literal_id);
     HeapObject heap_object;
     if (maybe_object->GetHeapObjectIfWeak(&heap_object)) {
       DCHECK_EQ(heap_object, *this);
     }
 #endif
-    list.Set(function_literal_id, HeapObjectReference::Weak(*this));
+    list->Set(function_literal_id, HeapObjectReference::Weak(*this));
   } else {
     DCHECK(script().IsScript());
 
@@ -227,13 +227,13 @@ void SharedFunctionInfo::SetScript(ReadOnlyRoots roots,
 
     // Due to liveedit, it might happen that the old_script doesn't know
     // about the SharedFunctionInfo, so we have to guard against that.
-    WeakFixedArray infos = old_script.shared_function_infos();
-    if (function_literal_id < infos.length()) {
+    WeakFixedArray infos = old_script->shared_function_infos();
+    if (function_literal_id < infos->length()) {
       MaybeObject raw =
-          old_script.shared_function_infos().Get(function_literal_id);
+          old_script->shared_function_infos()->Get(function_literal_id);
       HeapObject heap_object;
       if (raw->GetHeapObjectIfWeak(&heap_object) && heap_object == *this) {
-        old_script.shared_function_infos().Set(
+        old_script->shared_function_infos()->Set(
             function_literal_id,
             HeapObjectReference::Strong(roots.undefined_value()));
       }
@@ -246,26 +246,26 @@ void SharedFunctionInfo::SetScript(ReadOnlyRoots roots,
 
 void SharedFunctionInfo::CopyFrom(SharedFunctionInfo other) {
   PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
-  set_function_data(other.function_data(cage_base, kAcquireLoad),
+  set_function_data(other->function_data(cage_base, kAcquireLoad),
                     kReleaseStore);
-  set_name_or_scope_info(other.name_or_scope_info(cage_base, kAcquireLoad),
+  set_name_or_scope_info(other->name_or_scope_info(cage_base, kAcquireLoad),
                          kReleaseStore);
   set_outer_scope_info_or_feedback_metadata(
-      other.outer_scope_info_or_feedback_metadata(cage_base));
-  set_script(other.script(cage_base, kAcquireLoad), kReleaseStore);
+      other->outer_scope_info_or_feedback_metadata(cage_base));
+  set_script(other->script(cage_base, kAcquireLoad), kReleaseStore);
 
-  set_length(other.length());
-  set_formal_parameter_count(other.formal_parameter_count());
-  set_function_token_offset(other.function_token_offset());
-  set_expected_nof_properties(other.expected_nof_properties());
-  set_flags2(other.flags2());
-  set_flags(other.flags(kRelaxedLoad), kRelaxedStore);
-  set_function_literal_id(other.function_literal_id());
-  set_unique_id(other.unique_id());
+  set_length(other->length());
+  set_formal_parameter_count(other->formal_parameter_count());
+  set_function_token_offset(other->function_token_offset());
+  set_expected_nof_properties(other->expected_nof_properties());
+  set_flags2(other->flags2());
+  set_flags(other->flags(kRelaxedLoad), kRelaxedStore);
+  set_function_literal_id(other->function_literal_id());
+  set_unique_id(other->unique_id());
 
 #if DEBUG
   // Copy age just for the following memcmp-check.
-  set_age(other.age());
+  set_age(other->age());
 
   // This should now be byte-for-byte identical to the input.
   DCHECK_EQ(memcmp(reinterpret_cast<void*>(address()),
@@ -304,20 +304,20 @@ bool SharedFunctionInfo::HasCoverageInfo(Isolate* isolate) const {
 
 CoverageInfo SharedFunctionInfo::GetCoverageInfo(Isolate* isolate) const {
   DCHECK(HasCoverageInfo(isolate));
-  return CoverageInfo::cast(GetDebugInfo(isolate).coverage_info());
+  return CoverageInfo::cast(GetDebugInfo(isolate)->coverage_info());
 }
 
 std::unique_ptr<char[]> SharedFunctionInfo::DebugNameCStr() const {
 #if V8_ENABLE_WEBASSEMBLY
   if (HasWasmExportedFunctionData()) {
     return WasmExportedFunction::GetDebugName(
-        wasm_exported_function_data().sig());
+        wasm_exported_function_data()->sig());
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
   DisallowGarbageCollection no_gc;
   String function_name = Name();
-  if (function_name.length() == 0) function_name = inferred_name();
-  return function_name.ToCString();
+  if (function_name->length() == 0) function_name = inferred_name();
+  return function_name->ToCString();
 }
 
 // static
@@ -338,7 +338,7 @@ Handle<String> SharedFunctionInfo::DebugName(
   }
   DisallowHeapAllocation no_gc;
   String function_name = shared->Name();
-  if (function_name.length() == 0) function_name = shared->inferred_name();
+  if (function_name->length() == 0) function_name = shared->inferred_name();
   return handle(function_name, isolate);
 }
 
@@ -351,8 +351,8 @@ bool SharedFunctionInfo::PassesFilter(const char* raw_filter) {
 bool SharedFunctionInfo::HasSourceCode() const {
   ReadOnlyRoots roots = GetReadOnlyRoots();
   return !script().IsUndefined(roots) &&
-         !Script::cast(script()).source().IsUndefined(roots) &&
-         String::cast(Script::cast(script()).source()).length() > 0;
+         !Script::cast(script())->source().IsUndefined(roots) &&
+         String::cast(Script::cast(script())->source())->length() > 0;
 }
 
 void SharedFunctionInfo::DiscardCompiledMetadata(
@@ -369,8 +369,8 @@ void SharedFunctionInfo::DiscardCompiledMetadata(
     }
 
     HeapObject outer_scope_info;
-    if (scope_info().HasOuterScopeInfo()) {
-      outer_scope_info = scope_info().OuterScopeInfo();
+    if (scope_info()->HasOuterScopeInfo()) {
+      outer_scope_info = scope_info()->OuterScopeInfo();
     } else {
       outer_scope_info = ReadOnlyRoots(isolate).the_hole_value();
     }
@@ -430,7 +430,7 @@ void SharedFunctionInfo::DiscardCompiled(
 Handle<Object> SharedFunctionInfo::GetSourceCode(
     Isolate* isolate, Handle<SharedFunctionInfo> shared) {
   if (!shared->HasSourceCode()) return isolate->factory()->undefined_value();
-  Handle<String> source(String::cast(Script::cast(shared->script()).source()),
+  Handle<String> source(String::cast(Script::cast(shared->script())->source()),
                         isolate);
   return isolate->factory()->NewSubString(source, shared->StartPosition(),
                                           shared->EndPosition());
@@ -441,7 +441,7 @@ Handle<Object> SharedFunctionInfo::GetSourceCodeHarmony(
     Isolate* isolate, Handle<SharedFunctionInfo> shared) {
   if (!shared->HasSourceCode()) return isolate->factory()->undefined_value();
   Handle<String> script_source(
-      String::cast(Script::cast(shared->script()).source()), isolate);
+      String::cast(Script::cast(shared->script())->source()), isolate);
   int start_pos = shared->function_token_position();
   DCHECK_NE(start_pos, kNoSourcePosition);
   Handle<String> source = isolate->factory()->NewSubString(
@@ -453,7 +453,7 @@ Handle<Object> SharedFunctionInfo::GetSourceCodeHarmony(
   builder.AppendCStringLiteral("function ");
   builder.AppendString(Handle<String>(shared->Name(), isolate));
   builder.AppendCharacter('(');
-  Handle<FixedArray> args(Script::cast(shared->script()).wrapped_arguments(),
+  Handle<FixedArray> args(Script::cast(shared->script())->wrapped_arguments(),
                           isolate);
   int argc = args->length();
   for (int i = 0; i < argc; i++) {
@@ -472,31 +472,31 @@ int SharedFunctionInfo::SourceSize() { return EndPosition() - StartPosition(); }
 std::ostream& operator<<(std::ostream& os, const SourceCodeOf& v) {
   const SharedFunctionInfo s = v.value;
   // For some native functions there is no source.
-  if (!s.HasSourceCode()) return os << "<No Source>";
+  if (!s->HasSourceCode()) return os << "<No Source>";
 
   // Get the source for the script which this function came from.
   // Don't use String::cast because we don't want more assertion errors while
   // we are already creating a stack dump.
   String script_source =
-      String::unchecked_cast(Script::cast(s.script()).source());
+      String::unchecked_cast(Script::cast(s->script())->source());
 
-  if (!script_source.LooksValid()) return os << "<Invalid Source>";
+  if (!script_source->LooksValid()) return os << "<Invalid Source>";
 
-  if (!s.is_toplevel()) {
+  if (!s->is_toplevel()) {
     os << "function ";
-    String name = s.Name();
-    if (name.length() > 0) {
-      name.PrintUC16(os);
+    String name = s->Name();
+    if (name->length() > 0) {
+      name->PrintUC16(os);
     }
   }
 
-  int len = s.EndPosition() - s.StartPosition();
+  int len = s->EndPosition() - s->StartPosition();
   if (len <= v.max_length || v.max_length < 0) {
-    script_source.PrintUC16(os, s.StartPosition(), s.EndPosition());
+    script_source->PrintUC16(os, s->StartPosition(), s->EndPosition());
     return os;
   } else {
-    script_source.PrintUC16(os, s.StartPosition(),
-                            s.StartPosition() + v.max_length);
+    script_source->PrintUC16(os, s->StartPosition(),
+                             s->StartPosition() + v.max_length);
     return os << "...\n";
   }
 }
@@ -509,7 +509,7 @@ void SharedFunctionInfo::DisableOptimization(Isolate* isolate,
             kRelaxedStore);
   // Code should be the lazy compilation stub or else interpreted.
   if constexpr (DEBUG_BOOL) {
-    CodeKind kind = abstract_code(isolate).kind(isolate);
+    CodeKind kind = abstract_code(isolate)->kind(isolate);
     CHECK(kind == CodeKind::INTERPRETED_FUNCTION || kind == CodeKind::BUILTIN);
   }
   PROFILE(isolate, CodeDisableOptEvent(handle(abstract_code(isolate), isolate),
@@ -701,13 +701,13 @@ int SharedFunctionInfo::StartPosition() const {
   Object maybe_scope_info = name_or_scope_info(kAcquireLoad);
   if (maybe_scope_info.IsScopeInfo()) {
     ScopeInfo info = ScopeInfo::cast(maybe_scope_info);
-    if (info.HasPositionInfo()) {
-      return info.StartPosition();
+    if (info->HasPositionInfo()) {
+      return info->StartPosition();
     }
   }
   if (HasUncompiledData()) {
     // Works with or without scope.
-    return uncompiled_data().start_position();
+    return uncompiled_data()->start_position();
   }
   if (IsApiFunction() || HasBuiltinId()) {
     DCHECK_IMPLIES(HasBuiltinId(), builtin_id() != Builtin::kCompileLazy);
@@ -715,9 +715,9 @@ int SharedFunctionInfo::StartPosition() const {
   }
 #if V8_ENABLE_WEBASSEMBLY
   if (HasWasmExportedFunctionData()) {
-    WasmInstanceObject instance = wasm_exported_function_data().instance();
-    int func_index = wasm_exported_function_data().function_index();
-    auto& function = instance.module()->functions[func_index];
+    WasmInstanceObject instance = wasm_exported_function_data()->instance();
+    int func_index = wasm_exported_function_data()->function_index();
+    auto& function = instance->module()->functions[func_index];
     return static_cast<int>(function.code.offset());
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -728,13 +728,13 @@ int SharedFunctionInfo::EndPosition() const {
   Object maybe_scope_info = name_or_scope_info(kAcquireLoad);
   if (maybe_scope_info.IsScopeInfo()) {
     ScopeInfo info = ScopeInfo::cast(maybe_scope_info);
-    if (info.HasPositionInfo()) {
-      return info.EndPosition();
+    if (info->HasPositionInfo()) {
+      return info->EndPosition();
     }
   }
   if (HasUncompiledData()) {
     // Works with or without scope.
-    return uncompiled_data().end_position();
+    return uncompiled_data()->end_position();
   }
   if (IsApiFunction() || HasBuiltinId()) {
     DCHECK_IMPLIES(HasBuiltinId(), builtin_id() != Builtin::kCompileLazy);
@@ -742,9 +742,9 @@ int SharedFunctionInfo::EndPosition() const {
   }
 #if V8_ENABLE_WEBASSEMBLY
   if (HasWasmExportedFunctionData()) {
-    WasmInstanceObject instance = wasm_exported_function_data().instance();
-    int func_index = wasm_exported_function_data().function_index();
-    auto& function = instance.module()->functions[func_index];
+    WasmInstanceObject instance = wasm_exported_function_data()->instance();
+    int func_index = wasm_exported_function_data()->function_index();
+    auto& function = instance->module()->functions[func_index];
     return static_cast<int>(function.code.end_offset());
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -758,15 +758,15 @@ void SharedFunctionInfo::UpdateFromFunctionLiteralForLiveEdit(
     // Updating the ScopeInfo is safe since they are identical modulo
     // source positions.
     ScopeInfo new_scope_info = *lit->scope()->scope_info();
-    DCHECK(new_scope_info.Equals(ScopeInfo::cast(maybe_scope_info), true));
+    DCHECK(new_scope_info->Equals(ScopeInfo::cast(maybe_scope_info), true));
     SetScopeInfo(new_scope_info);
   } else if (!is_compiled()) {
     CHECK(HasUncompiledData());
     if (HasUncompiledDataWithPreparseData()) {
       ClearPreparseData();
     }
-    uncompiled_data().set_start_position(lit->start_position());
-    uncompiled_data().set_end_position(lit->end_position());
+    uncompiled_data()->set_start_position(lit->start_position());
+    uncompiled_data()->set_end_position(lit->end_position());
 
     if (!is_toplevel()) {
       Scope* outer_scope = lit->scope()->GetOuterScopeWithContext();
@@ -791,7 +791,7 @@ void SharedFunctionInfo::EnsureBytecodeArrayAvailable(
                            is_compiled_scope, flag)) {
       FATAL("Failed to compile shared info that was already compiled before");
     }
-    DCHECK(shared_info->GetBytecodeArray(isolate).HasSourcePositionTable());
+    DCHECK(shared_info->GetBytecodeArray(isolate)->HasSourcePositionTable());
   } else {
     *is_compiled_scope = shared_info->is_compiled_scope(isolate);
   }
@@ -819,9 +819,9 @@ void SharedFunctionInfo::InstallDebugBytecode(Handle<SharedFunctionInfo> shared,
     base::SharedMutexGuard<base::kExclusive> mutex_guard(
         isolate->shared_function_info_access());
     DebugInfo debug_info = shared->GetDebugInfo(isolate);
-    debug_info.set_original_bytecode_array(*original_bytecode_array,
-                                           kReleaseStore);
-    debug_info.set_debug_bytecode_array(*debug_bytecode_array, kReleaseStore);
+    debug_info->set_original_bytecode_array(*original_bytecode_array,
+                                            kReleaseStore);
+    debug_info->set_debug_bytecode_array(*debug_bytecode_array, kReleaseStore);
     shared->SetActiveBytecodeArray(*debug_bytecode_array);
   }
 }
@@ -832,23 +832,23 @@ void SharedFunctionInfo::UninstallDebugBytecode(SharedFunctionInfo shared,
   DisallowGarbageCollection no_gc;
   base::SharedMutexGuard<base::kExclusive> mutex_guard(
       isolate->shared_function_info_access());
-  DebugInfo debug_info = shared.GetDebugInfo(isolate);
-  BytecodeArray original_bytecode_array = debug_info.OriginalBytecodeArray();
-  DCHECK(!shared.HasBaselineCode());
-  shared.SetActiveBytecodeArray(original_bytecode_array);
-  debug_info.set_original_bytecode_array(
+  DebugInfo debug_info = shared->GetDebugInfo(isolate);
+  BytecodeArray original_bytecode_array = debug_info->OriginalBytecodeArray();
+  DCHECK(!shared->HasBaselineCode());
+  shared->SetActiveBytecodeArray(original_bytecode_array);
+  debug_info->set_original_bytecode_array(
       ReadOnlyRoots(isolate).undefined_value(), kReleaseStore);
-  debug_info.set_debug_bytecode_array(ReadOnlyRoots(isolate).undefined_value(),
-                                      kReleaseStore);
+  debug_info->set_debug_bytecode_array(ReadOnlyRoots(isolate).undefined_value(),
+                                       kReleaseStore);
 }
 
 // static
 void SharedFunctionInfo::EnsureOldForTesting(SharedFunctionInfo sfi) {
   if (v8_flags.flush_code_based_on_time ||
       v8_flags.flush_code_based_on_tab_visibility) {
-    sfi.set_age(kMaxAge);
+    sfi->set_age(kMaxAge);
   } else {
-    sfi.set_age(v8_flags.bytecode_old_age);
+    sfi->set_age(v8_flags.bytecode_old_age);
   }
 }
 
@@ -859,7 +859,7 @@ bool SharedFunctionInfo::UniqueIdsAreUnique(Isolate* isolate) {
   CombinedHeapObjectIterator it(isolate->heap());
   for (HeapObject o = it.Next(); !o.is_null(); o = it.Next()) {
     if (!o.IsSharedFunctionInfo()) continue;
-    auto result = ids.emplace(SharedFunctionInfo::cast(o).unique_id());
+    auto result = ids.emplace(SharedFunctionInfo::cast(o)->unique_id());
     // If previously inserted...
     if (!result.second) return false;
   }

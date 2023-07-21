@@ -114,7 +114,7 @@ TEST_F(ConcurrentDescriptorArrayTest, LinearSearchFlatObject) {
                                                       filler_value, NONE)
         .Check();
   }
-  EXPECT_EQ(js_object->map().NumberOfOwnDescriptors(), 8);
+  EXPECT_EQ(js_object->map()->NumberOfOwnDescriptors(), 8);
 
   thread->Join();
 }
@@ -148,7 +148,7 @@ TEST_F(ConcurrentDescriptorArrayTest, LinearSearchFlatObject_ManyElements) {
                                                       filler_value, NONE)
         .Check();
   }
-  EXPECT_GT(js_object->map().NumberOfOwnDescriptors(), 8);
+  EXPECT_GT(js_object->map()->NumberOfOwnDescriptors(), 8);
 
   for (int i = 0; i < kNumHandles; i++) {
     handles.push_back(ph->NewHandle(js_object));

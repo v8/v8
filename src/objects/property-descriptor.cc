@@ -48,19 +48,19 @@ bool ToPropertyDescriptorFastPath(Isolate* isolate, Handle<JSReceiver> obj,
     Tagged<JSReceiver> raw_obj = *obj;
     if (!raw_obj->IsJSObject()) return false;
     Map raw_map = raw_obj->map(isolate);
-    if (raw_map.instance_type() != JS_OBJECT_TYPE) return false;
-    if (raw_map.is_access_check_needed()) return false;
-    if (raw_map.prototype() != *isolate->initial_object_prototype())
+    if (raw_map->instance_type() != JS_OBJECT_TYPE) return false;
+    if (raw_map->is_access_check_needed()) return false;
+    if (raw_map->prototype() != *isolate->initial_object_prototype())
       return false;
     // During bootstrapping, the object_function_prototype_map hasn't been
     // set up yet.
     if (isolate->bootstrapper()->IsActive()) return false;
-    if (JSObject::cast(raw_map.prototype()).map() !=
-        isolate->raw_native_context().object_function_prototype_map()) {
+    if (JSObject::cast(raw_map->prototype())->map() !=
+        isolate->raw_native_context()->object_function_prototype_map()) {
       return false;
     }
     // TODO(jkummerow): support dictionary properties?
-    if (raw_map.is_dictionary_map()) return false;
+    if (raw_map->is_dictionary_map()) return false;
   }
 
   Handle<Map> map(obj->map(isolate), isolate);

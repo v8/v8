@@ -105,16 +105,16 @@ void Script::set_shared_function_infos(WeakFixedArray value,
 }
 
 int Script::shared_function_info_count() const {
-  return shared_function_infos().length();
+  return shared_function_infos()->length();
 }
 
 #if V8_ENABLE_WEBASSEMBLY
 bool Script::has_wasm_breakpoint_infos() const {
-  return type() == Type::kWasm && wasm_breakpoint_infos().length() > 0;
+  return type() == Type::kWasm && wasm_breakpoint_infos()->length() > 0;
 }
 
 wasm::NativeModule* Script::wasm_native_module() const {
-  return Managed<wasm::NativeModule>::cast(wasm_managed_native_module()).raw();
+  return Managed<wasm::NativeModule>::cast(wasm_managed_native_module())->raw();
 }
 
 bool Script::break_on_entry() const { return BreakOnEntryBit::decode(flags()); }
@@ -165,9 +165,9 @@ bool Script::HasValidSource() {
   Tagged<String> src_str = Tagged<String>::cast(src);
   if (!StringShape(src_str).IsExternal()) return true;
   if (src_str->IsOneByteRepresentation()) {
-    return ExternalOneByteString::cast(src).resource() != nullptr;
+    return ExternalOneByteString::cast(src)->resource() != nullptr;
   } else if (src_str->IsTwoByteRepresentation()) {
-    return ExternalTwoByteString::cast(src).resource() != nullptr;
+    return ExternalTwoByteString::cast(src)->resource() != nullptr;
   }
   return true;
 }
@@ -194,13 +194,13 @@ void Script::InitLineEnds(LocalIsolate* isolate, Handle<Script> script) {
 }
 
 bool Script::HasSourceURLComment() const {
-  return source_url().IsString() && String::cast(source_url()).length() != 0;
+  return source_url().IsString() && String::cast(source_url())->length() != 0;
 }
 
 bool Script::IsMaybeUnfinalized(Isolate* isolate) const {
   // TODO(v8:12051): A more robust detection, e.g. with a dedicated sentinel
   // value.
-  return source().IsUndefined(isolate) || String::cast(source()).length() == 0;
+  return source().IsUndefined(isolate) || String::cast(source())->length() == 0;
 }
 
 }  // namespace internal

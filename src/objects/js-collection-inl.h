@@ -51,7 +51,7 @@ Object JSMapIterator::CurrentValue() {
   int index = Smi::ToInt(this->index());
   DCHECK_GE(index, 0);
   InternalIndex entry(index);
-  Object value = table.ValueAt(entry);
+  Object value = table->ValueAt(entry);
   DCHECK(!value.IsTheHole());
   return value;
 }

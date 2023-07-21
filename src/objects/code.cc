@@ -91,8 +91,8 @@ void Code::CopyFromNoFlush(ByteArray reloc_info, Heap* heap,
   DCHECK_EQ(body_size(), instruction_size() + metadata_size());
 
   // Copy the relocation info.
-  DCHECK_EQ(reloc_info.length(), desc.reloc_size);
-  CopyBytes(reloc_info.GetDataStartAddress(), desc.buffer + desc.reloc_offset,
+  DCHECK_EQ(reloc_info->length(), desc.reloc_size);
+  CopyBytes(reloc_info->GetDataStartAddress(), desc.buffer + desc.reloc_offset,
             static_cast<size_t>(desc.reloc_size));
 
   RelocateFromDesc(heap, desc);
@@ -114,9 +114,9 @@ void Code::RelocateFromDesc(Heap* heap, const CodeDesc& desc) {
       // code object.
       Handle<HeapObject> p = it.rinfo()->target_object_handle(origin);
       DCHECK(p->IsCode());
-      InstructionStream target_istream = Code::cast(*p).instruction_stream();
+      InstructionStream target_istream = Code::cast(*p)->instruction_stream();
       it.rinfo()->set_target_address(istream,
-                                     target_istream.instruction_start(),
+                                     target_istream->instruction_start(),
                                      UPDATE_WRITE_BARRIER, SKIP_ICACHE_FLUSH);
     } else if (RelocInfo::IsNearBuiltinEntry(mode)) {
       // Rewrite builtin IDs to PC-relative offset to the builtin entry point.
@@ -219,12 +219,12 @@ bool Code::Inlines(SharedFunctionInfo sfi) {
   DisallowGarbageCollection no_gc;
   DeoptimizationData const data =
       DeoptimizationData::cast(deoptimization_data());
-  if (data.length() == 0) return false;
-  if (data.SharedFunctionInfo() == sfi) return true;
-  DeoptimizationLiteralArray const literals = data.LiteralArray();
-  int const inlined_count = data.InlinedFunctionCount().value();
+  if (data->length() == 0) return false;
+  if (data->SharedFunctionInfo() == sfi) return true;
+  DeoptimizationLiteralArray const literals = data->LiteralArray();
+  int const inlined_count = data->InlinedFunctionCount().value();
   for (int i = 0; i < inlined_count; ++i) {
-    if (SharedFunctionInfo::cast(literals.get(i)) == sfi) return true;
+    if (SharedFunctionInfo::cast(literals->get(i)) == sfi) return true;
   }
   return false;
 }
@@ -248,43 +248,43 @@ void DisassembleCodeRange(Isolate* isolate, std::ostream& os, Code code,
 
 void DisassembleOnlyCode(const char* name, std::ostream& os, Isolate* isolate,
                          Code code, Address current_pc, size_t range_limit) {
-  int code_size = code.instruction_size();
-  DisassembleCodeRange(isolate, os, code, code.instruction_start(), code_size,
+  int code_size = code->instruction_size();
+  DisassembleCodeRange(isolate, os, code, code->instruction_start(), code_size,
                        current_pc, range_limit);
 }
 
 void Disassemble(const char* name, std::ostream& os, Isolate* isolate,
                  Code code, Address current_pc) {
-  CodeKind kind = code.kind();
+  CodeKind kind = code->kind();
   os << "kind = " << CodeKindToString(kind) << "\n";
-  if (name == nullptr && code.is_builtin()) {
-    name = Builtins::name(code.builtin_id());
+  if (name == nullptr && code->is_builtin()) {
+    name = Builtins::name(code->builtin_id());
   }
   if ((name != nullptr) && (name[0] != '\0')) {
     os << "name = " << name << "\n";
   }
   if (CodeKindIsOptimizedJSFunction(kind) && kind != CodeKind::BASELINE) {
-    os << "stack_slots = " << code.stack_slots() << "\n";
+    os << "stack_slots = " << code->stack_slots() << "\n";
   }
   os << "compiler = "
-     << (code.is_turbofanned()        ? "turbofan"
-         : code.is_maglevved()        ? "maglev"
+     << (code->is_turbofanned()       ? "turbofan"
+         : code->is_maglevved()       ? "maglev"
          : kind == CodeKind::BASELINE ? "baseline"
                                       : "unknown")
      << "\n";
   os << "address = " << reinterpret_cast<void*>(code.ptr()) << "\n\n";
 
   {
-    int code_size = code.instruction_size();
+    int code_size = code->instruction_size();
     os << "Instructions (size = " << code_size << ")\n";
-    DisassembleCodeRange(isolate, os, code, code.instruction_start(), code_size,
-                         current_pc);
+    DisassembleCodeRange(isolate, os, code, code->instruction_start(),
+                         code_size, current_pc);
 
-    if (int pool_size = code.constant_pool_size()) {
+    if (int pool_size = code->constant_pool_size()) {
       DCHECK_EQ(pool_size & kPointerAlignmentMask, 0);
       os << "\nConstant Pool (size = " << pool_size << ")\n";
       base::Vector<char> buf = base::Vector<char>::New(50);
-      intptr_t* ptr = reinterpret_cast<intptr_t*>(code.constant_pool());
+      intptr_t* ptr = reinterpret_cast<intptr_t*>(code->constant_pool());
       for (int i = 0; i < pool_size; i += kSystemPointerSize, ptr++) {
         SNPrintF(buf, "%4d %08" V8PRIxPTR, i, *ptr);
         os << static_cast<const void*>(ptr) << "  " << buf.begin() << "\n";
@@ -297,7 +297,7 @@ void Disassemble(const char* name, std::ostream& os, Isolate* isolate,
   if (kind != CodeKind::BASELINE) {
     {
       SourcePositionTableIterator it(
-          code.source_position_table(),
+          code->source_position_table(),
           SourcePositionTableIterator::kJavaScriptOnly);
       if (!it.done()) {
         os << "Source positions:\n pc offset  position\n";
@@ -312,7 +312,7 @@ void Disassemble(const char* name, std::ostream& os, Isolate* isolate,
 
     {
       SourcePositionTableIterator it(
-          code.source_position_table(),
+          code->source_position_table(),
           SourcePositionTableIterator::kExternalOnly);
       if (!it.done()) {
         os << "External Source positions:\n pc offset  fileid  line\n";
@@ -329,13 +329,13 @@ void Disassemble(const char* name, std::ostream& os, Isolate* isolate,
 
   if (CodeKindCanDeoptimize(kind)) {
     DeoptimizationData data =
-        DeoptimizationData::cast(code.deoptimization_data());
-    data.DeoptimizationDataPrint(os);
+        DeoptimizationData::cast(code->deoptimization_data());
+    data->DeoptimizationDataPrint(os);
   }
   os << "\n";
 
-  if (code.uses_safepoint_table()) {
-    if (code.is_maglevved()) {
+  if (code->uses_safepoint_table()) {
+    if (code->is_maglevved()) {
       MaglevSafepointTable table(isolate, current_pc, code);
       table.Print(os);
     } else {
@@ -345,7 +345,7 @@ void Disassemble(const char* name, std::ostream& os, Isolate* isolate,
     os << "\n";
   }
 
-  if (code.has_handler_table()) {
+  if (code->has_handler_table()) {
     HandlerTable table(code);
     os << "Handler Table (size = " << table.NumberOfReturnEntries() << ")\n";
     if (CodeKindIsOptimizedJSFunction(kind)) {
@@ -354,19 +354,19 @@ void Disassemble(const char* name, std::ostream& os, Isolate* isolate,
     os << "\n";
   }
 
-  os << "RelocInfo (size = " << code.relocation_size() << ")\n";
-  if (code.has_instruction_stream()) {
+  os << "RelocInfo (size = " << code->relocation_size() << ")\n";
+  if (code->has_instruction_stream()) {
     for (RelocIterator it(code); !it.done(); it.next()) {
       it.rinfo()->Print(isolate, os);
     }
   }
   os << "\n";
 
-  if (code.has_unwinding_info()) {
-    os << "UnwindingInfo (size = " << code.unwinding_info_size() << ")\n";
+  if (code->has_unwinding_info()) {
+    os << "UnwindingInfo (size = " << code->unwinding_info_size() << ")\n";
     EhFrameDisassembler eh_frame_disassembler(
-        reinterpret_cast<uint8_t*>(code.unwinding_info_start()),
-        reinterpret_cast<uint8_t*>(code.unwinding_info_end()));
+        reinterpret_cast<uint8_t*>(code->unwinding_info_start()),
+        reinterpret_cast<uint8_t*>(code->unwinding_info_end()));
     eh_frame_disassembler.DisassembleToStream(os);
     os << "\n";
   }

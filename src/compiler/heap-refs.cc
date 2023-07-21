@@ -181,11 +181,11 @@ class PropertyCellData : public HeapObjectData {
 namespace {
 
 ZoneVector<Address> GetCFunctions(FixedArray function_overloads, Zone* zone) {
-  const int len = function_overloads.length() /
+  const int len = function_overloads->length() /
                   FunctionTemplateInfo::kFunctionOverloadEntrySize;
   ZoneVector<Address> c_functions = ZoneVector<Address>(len, zone);
   for (int i = 0; i < len; i++) {
-    c_functions[i] = v8::ToCData<Address>(function_overloads.get(
+    c_functions[i] = v8::ToCData<Address>(function_overloads->get(
         FunctionTemplateInfo::kFunctionOverloadEntrySize * i));
   }
   return c_functions;
@@ -193,12 +193,12 @@ ZoneVector<Address> GetCFunctions(FixedArray function_overloads, Zone* zone) {
 
 ZoneVector<const CFunctionInfo*> GetCSignatures(FixedArray function_overloads,
                                                 Zone* zone) {
-  const int len = function_overloads.length() /
+  const int len = function_overloads->length() /
                   FunctionTemplateInfo::kFunctionOverloadEntrySize;
   ZoneVector<const CFunctionInfo*> c_signatures =
       ZoneVector<const CFunctionInfo*>(len, zone);
   for (int i = 0; i < len; i++) {
-    c_signatures[i] = v8::ToCData<const CFunctionInfo*>(function_overloads.get(
+    c_signatures[i] = v8::ToCData<const CFunctionInfo*>(function_overloads->get(
         FunctionTemplateInfo::kFunctionOverloadEntrySize * i + 1));
   }
   return c_signatures;
@@ -323,8 +323,8 @@ OptionalObjectRef GetOwnFastDataPropertyFromHeap(JSHeapBroker* broker,
       }
       PropertyArray properties = PropertyArray::cast(raw_properties_or_hash);
       const int array_index = field_index.outobject_array_index();
-      if (array_index < properties.length(kAcquireLoad)) {
-        constant = properties.get(array_index);
+      if (array_index < properties->length(kAcquireLoad)) {
+        constant = properties->get(array_index);
       } else {
         TRACE_BROKER_MISSING(
             broker, "Backing store for " << holder << " not long enough.");
@@ -808,7 +808,7 @@ bool IsReadOnlyLengthDescriptor(Isolate* isolate, Handle<Map> jsarray_map) {
       JSArray::kLengthOffset == JSObject::kHeaderSize,
       "The length should be the first property on the descriptor array");
   InternalIndex offset(0);
-  return descriptors.GetDetails(offset).IsReadOnly();
+  return descriptors->GetDetails(offset).IsReadOnly();
 }
 
 // Important: this predicate does not check Protectors::IsNoElementsIntact. The
@@ -942,8 +942,8 @@ ContextRef ContextRef::previous(JSHeapBroker* broker, size_t* depth) const {
   if (*depth == 0) return *this;
 
   Context current = *object();
-  while (*depth != 0 && current.unchecked_previous().IsContext()) {
-    current = Context::cast(current.unchecked_previous());
+  while (*depth != 0 && current->unchecked_previous().IsContext()) {
+    current = Context::cast(current->unchecked_previous());
     (*depth)--;
   }
   // The `previous` field is immutable after initialization and the
@@ -1373,7 +1373,7 @@ base::Optional<double> StringRef::ToInt(JSHeapBroker* broker, int radix) {
 }
 
 int ArrayBoilerplateDescriptionRef::constants_elements_length() const {
-  return object()->constant_elements().length();
+  return object()->constant_elements()->length();
 }
 
 OptionalObjectRef FixedArrayRef::TryGet(JSHeapBroker* broker, int i) const {
@@ -1405,11 +1405,11 @@ Handle<ByteArray> BytecodeArrayRef::SourcePositionTable(
 
 Address BytecodeArrayRef::handler_table_address() const {
   return reinterpret_cast<Address>(
-      object()->handler_table().GetDataStartAddress());
+      object()->handler_table()->GetDataStartAddress());
 }
 
 int BytecodeArrayRef::handler_table_size() const {
-  return object()->handler_table().length();
+  return object()->handler_table()->length();
 }
 
 #define IF_ACCESS_FROM_HEAP_C(name)  \
@@ -1908,7 +1908,7 @@ base::Optional<Object> JSObjectRef::GetOwnConstantElementFromHeap(
   //   of `length` below.
   if (holder->IsJSArray()) {
     Object array_length_obj =
-        JSArray::cast(*holder).length(broker->isolate(), kRelaxedLoad);
+        JSArray::cast(*holder)->length(broker->isolate(), kRelaxedLoad);
     if (!array_length_obj.IsSmi()) {
       // Can't safely read into HeapNumber objects without atomic semantics
       // (relaxed would be sufficient due to the guarantees above).
@@ -2031,7 +2031,7 @@ OptionalMapRef HeapObjectRef::map_direct_read(JSHeapBroker* broker) const {
 namespace {
 
 OddballType GetOddballType(Isolate* isolate, Map map) {
-  if (map.instance_type() != ODDBALL_TYPE) {
+  if (map->instance_type() != ODDBALL_TYPE) {
     return OddballType::kNone;
   }
   ReadOnlyRoots roots(isolate);
@@ -2059,9 +2059,9 @@ HeapObjectType HeapObjectRef::GetHeapObjectType(JSHeapBroker* broker) const {
   if (data_->should_access_heap()) {
     Map map = Handle<HeapObject>::cast(object())->map(broker->cage_base());
     HeapObjectType::Flags flags(0);
-    if (map.is_undetectable()) flags |= HeapObjectType::kUndetectable;
-    if (map.is_callable()) flags |= HeapObjectType::kCallable;
-    return HeapObjectType(map.instance_type(), flags,
+    if (map->is_undetectable()) flags |= HeapObjectType::kUndetectable;
+    if (map->is_callable()) flags |= HeapObjectType::kCallable;
+    return HeapObjectType(map->instance_type(), flags,
                           GetOddballType(broker->isolate(), map), HoleType());
   }
   HeapObjectType::Flags flags(0);
@@ -2247,11 +2247,11 @@ OptionalFunctionTemplateInfoRef SharedFunctionInfoRef::function_template_info(
 }
 
 int SharedFunctionInfoRef::context_header_size() const {
-  return object()->scope_info().ContextHeaderLength();
+  return object()->scope_info()->ContextHeaderLength();
 }
 
 int SharedFunctionInfoRef::context_parameters_start() const {
-  return object()->scope_info().ParametersStartIndex();
+  return object()->scope_info()->ParametersStartIndex();
 }
 
 ScopeInfoRef SharedFunctionInfoRef::scope_info(JSHeapBroker* broker) const {
@@ -2314,8 +2314,8 @@ std::ostream& operator<<(std::ostream& os, ObjectRef ref) {
 
 unsigned CodeRef::GetInlinedBytecodeSize() const {
   Code code = *object();
-  const unsigned value = code.inlined_bytecode_size();
-  if (value != 0 && code.marked_for_deoptimization()) {
+  const unsigned value = code->inlined_bytecode_size();
+  if (value != 0 && code->marked_for_deoptimization()) {
     // Don't report inlined bytecode size if the code object was already
     // deoptimized.
     return 0;

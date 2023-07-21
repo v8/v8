@@ -59,7 +59,7 @@ MaglevCompilationInfo::MaglevCompilationInfo(Isolate* isolate,
       specialize_to_function_context_(
           osr_offset == BytecodeOffset::None() &&
           v8_flags.maglev_function_context_specialization &&
-          function->raw_feedback_cell().map() ==
+          function->raw_feedback_cell()->map() ==
               ReadOnlyRoots(isolate).one_closure_cell_map()) {
   DCHECK(maglev::IsMaglevEnabled());
   DCHECK_IMPLIES(osr_offset != BytecodeOffset::None(),
@@ -148,7 +148,7 @@ void MaglevCompilationInfo::set_canonical_handles(
 }
 
 bool MaglevCompilationInfo::is_detached() {
-  return toplevel_function_->context().IsDetached();
+  return toplevel_function_->context()->IsDetached();
 }
 
 std::unique_ptr<CanonicalHandlesMap>

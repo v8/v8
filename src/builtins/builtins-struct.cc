@@ -209,8 +209,8 @@ BUILTIN(SharedStructTypeConstructor) {
       isolate->factory()->NewTuple2(isolate->function_function(),
                                     factory->null_value(),
                                     AllocationType::kOld);
-  constructor->map().set_has_non_instance_prototype(true);
-  constructor->map().SetConstructor(*non_instance_prototype_constructor_tuple);
+  constructor->map()->set_has_non_instance_prototype(true);
+  constructor->map()->SetConstructor(*non_instance_prototype_constructor_tuple);
 
   int num_elements = num_properties - num_fields;
   if (num_elements != 0) {

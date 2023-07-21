@@ -334,7 +334,7 @@ HeapObject ReadOnlyPageObjectIterator::Next() {
     if (current_addr_ == end) return HeapObject();
 
     HeapObject object = HeapObject::FromAddress(current_addr_);
-    const int object_size = object.Size();
+    const int object_size = object->Size();
     current_addr_ += ALIGN_TO_ALLOCATION_ALIGNMENT(object_size);
 
     if (skip_free_space_or_filler_ == SkipFreeSpaceOrFiller::kYes &&

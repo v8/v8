@@ -57,7 +57,7 @@ void ReadOnlyRoots::VerifyNameForProtectors() {
       // Make sure the objects are adjacent in memory.
       CHECK_LT(prev.address(), current.address());
       Address computed_address =
-          prev.address() + ALIGN_TO_ALLOCATION_ALIGNMENT(prev.Size());
+          prev.address() + ALIGN_TO_ALLOCATION_ALIGNMENT(prev->Size());
       CHECK_EQ(computed_address, current.address());
     }
     prev = current;
@@ -97,7 +97,7 @@ Handle<HeapNumber> ReadOnlyRoots::FindHeapNumber(double value) {
   for (auto pos = RootIndex::kFirstHeapNumberRoot;
        pos <= RootIndex::kLastHeapNumberRoot; ++pos) {
     auto root = HeapNumber::cast(object_at(pos));
-    if (base::bit_cast<uint64_t>(root.value()) == bits) {
+    if (base::bit_cast<uint64_t>(root->value()) == bits) {
       return Handle<HeapNumber>(GetLocation(pos));
     }
   }

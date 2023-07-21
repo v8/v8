@@ -75,7 +75,7 @@ void SamplingHeapProfiler::SampleObject(Address soon_object, size_t size) {
   DisallowGarbageCollection no_gc;
 
   // Check if the area is iterable by confirming that it starts with a map.
-  DCHECK(HeapObject::FromAddress(soon_object).map(isolate_).IsMap(isolate_));
+  DCHECK(HeapObject::FromAddress(soon_object)->map(isolate_).IsMap(isolate_));
 
   HandleScope scope(isolate_);
   HeapObject heap_object = HeapObject::FromAddress(soon_object);
@@ -161,7 +161,7 @@ SamplingHeapProfiler::AllocationNode* SamplingHeapProfiler::AddStack() {
     // in the top frames of the stack). The allocations made in this
     // sensitive moment belong to the formerly optimized frame anyway.
     if (frame->unchecked_function().IsJSFunction()) {
-      SharedFunctionInfo shared = frame->function().shared();
+      SharedFunctionInfo shared = frame->function()->shared();
       stack.push_back(shared);
       frames_captured++;
     } else {
@@ -208,13 +208,13 @@ SamplingHeapProfiler::AllocationNode* SamplingHeapProfiler::AddStack() {
   // the first element in the list.
   for (auto it = stack.rbegin(); it != stack.rend(); ++it) {
     SharedFunctionInfo shared = *it;
-    const char* name = this->names()->GetCopy(shared.DebugNameCStr().get());
+    const char* name = this->names()->GetCopy(shared->DebugNameCStr().get());
     int script_id = v8::UnboundScript::kNoScriptId;
-    if (shared.script().IsScript()) {
-      Script script = Script::cast(shared.script());
-      script_id = script.id();
+    if (shared->script().IsScript()) {
+      Script script = Script::cast(shared->script());
+      script_id = script->id();
     }
-    node = FindOrAddChildNode(node, name, script_id, shared.StartPosition());
+    node = FindOrAddChildNode(node, name, script_id, shared->StartPosition());
   }
 
   if (found_arguments_marker_frames) {
@@ -286,7 +286,7 @@ v8::AllocationProfile* SamplingHeapProfiler::GetAllocationProfile() {
     Script::Iterator iterator(isolate_);
     for (Script script = iterator.Next(); !script.is_null();
          script = iterator.Next()) {
-      scripts[script.id()] = handle(script, isolate_);
+      scripts[script->id()] = handle(script, isolate_);
     }
   }
   auto profile = new v8::internal::AllocationProfile();

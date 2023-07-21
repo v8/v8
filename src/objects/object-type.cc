@@ -78,7 +78,7 @@ Address CheckObjectType(Address raw_value, Address raw_type,
   FATAL(
       "Type cast failed in %s\n"
       "  Expected %s but found %s",
-      location.ToAsciiArray(), expected, value_description.str().c_str());
+      location->ToAsciiArray(), expected, value_description.str().c_str());
 #else
   UNREACHABLE();
 #endif

@@ -732,7 +732,7 @@ TEST_F(PreParserTest, PreParserScopeAnalysis) {
 
       CHECK(shared->HasUncompiledDataWithPreparseData());
       i::Handle<i::PreparseData> produced_data_on_heap(
-          shared->uncompiled_data_with_preparse_data().preparse_data(),
+          shared->uncompiled_data_with_preparse_data()->preparse_data(),
           isolate);
 
       i::UnoptimizedCompileFlags flags =

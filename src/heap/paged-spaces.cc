@@ -705,13 +705,13 @@ void PagedSpaceBase::Verify(Isolate* isolate,
       visitor->VerifyObject(object);
 
       // All the interior pointers should be contained in the heap.
-      int size = object.Size(cage_base);
+      int size = object->Size(cage_base);
       CHECK(object.address() + size <= top);
       end_of_previous_object = object.address() + size;
 
       if (object.IsExternalString(cage_base)) {
         ExternalString external_string = ExternalString::cast(object);
-        size_t payload_size = external_string.ExternalPayloadSize();
+        size_t payload_size = external_string->ExternalPayloadSize();
         external_page_bytes[ExternalBackingStoreType::kExternalString] +=
             payload_size;
       }
@@ -759,7 +759,7 @@ void PagedSpaceBase::VerifyLiveBytes() const {
     for (HeapObject object = it.Next(); !object.is_null(); object = it.Next()) {
       // All the interior pointers should be contained in the heap.
       if (marking_state->IsMarked(object)) {
-        black_size += object.Size(cage_base);
+        black_size += object->Size(cage_base);
       }
     }
     CHECK_LE(black_size, page->live_bytes());
@@ -779,7 +779,8 @@ void PagedSpaceBase::VerifyCountersAfterSweeping(Heap* heap) const {
     size_t real_allocated = 0;
     for (HeapObject object = it.Next(); !object.is_null(); object = it.Next()) {
       if (!object.IsFreeSpaceOrFiller()) {
-        real_allocated += ALIGN_TO_ALLOCATION_ALIGNMENT(object.Size(cage_base));
+        real_allocated +=
+            ALIGN_TO_ALLOCATION_ALIGNMENT(object->Size(cage_base));
       }
     }
     total_allocated += page->allocated_bytes();

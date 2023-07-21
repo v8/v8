@@ -188,7 +188,7 @@ namespace {
 Handle<JSFunction> CreateBoundFunction(Isolate* isolate,
                                        Handle<JSObject> object, Builtin builtin,
                                        int len) {
-  Handle<NativeContext> native_context(isolate->context().native_context(),
+  Handle<NativeContext> native_context(isolate->context()->native_context(),
                                        isolate);
   Handle<Context> context = isolate->factory()->NewBuiltinContext(
       native_context,
@@ -971,13 +971,13 @@ bool IsFastLocale(Object maybe_locale) {
     return false;
   }
   auto locale = SeqOneByteString::cast(maybe_locale);
-  uint8_t* chars = locale.GetChars(no_gc);
-  if (locale.length() < 2 || !std::isalpha(chars[0]) ||
+  uint8_t* chars = locale->GetChars(no_gc);
+  if (locale->length() < 2 || !std::isalpha(chars[0]) ||
       !std::isalpha(chars[1])) {
     return false;
   }
-  if (locale.length() != 2 &&
-      (locale.length() != 5 || chars[2] != '-' || !std::isalpha(chars[3]) ||
+  if (locale->length() != 2 &&
+      (locale->length() != 5 || chars[2] != '-' || !std::isalpha(chars[3]) ||
        !std::isalpha(chars[4]))) {
     return false;
   }
@@ -1175,7 +1175,7 @@ BUILTIN(CollatorInternalCompare) {
                                      Object::ToString(isolate, y));
 
   // 7. Return CompareStrings(collator, X, Y).
-  icu::Collator* icu_collator = collator->icu_collator().raw();
+  icu::Collator* icu_collator = collator->icu_collator()->raw();
   CHECK_NOT_NULL(icu_collator);
   return Smi::FromInt(
       Intl::CompareStrings(isolate, *icu_collator, string_x, string_y));
@@ -1258,7 +1258,7 @@ BUILTIN(SegmentsPrototypeIterator) {
   CHECK_RECEIVER(JSSegments, segments, method_name);
   RETURN_RESULT_OR_FAILURE(
       isolate,
-      JSSegmentIterator::Create(isolate, segments->icu_break_iterator().raw(),
+      JSSegmentIterator::Create(isolate, segments->icu_break_iterator()->raw(),
                                 segments->granularity()));
 }
 

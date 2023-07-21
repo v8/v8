@@ -311,7 +311,7 @@ uint32_t RegisteredSymbolTableShape::Hash(ReadOnlyRoots roots,
 
 uint32_t RegisteredSymbolTableShape::HashForObject(ReadOnlyRoots roots,
                                                    Object object) {
-  return String::cast(object).EnsureHash();
+  return String::cast(object)->EnsureHash();
 }
 
 bool NameToIndexShape::IsMatch(Handle<Name> key, Object other) {
@@ -319,7 +319,7 @@ bool NameToIndexShape::IsMatch(Handle<Name> key, Object other) {
 }
 
 uint32_t NameToIndexShape::HashForObject(ReadOnlyRoots roots, Object other) {
-  return Name::cast(other).hash();
+  return Name::cast(other)->hash();
 }
 
 uint32_t NameToIndexShape::Hash(ReadOnlyRoots roots, Handle<Name> key) {

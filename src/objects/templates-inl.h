@@ -66,19 +66,19 @@ FunctionTemplateRareData FunctionTemplateInfo::EnsureFunctionTemplateRareData(
   }
 }
 
-#define RARE_ACCESSORS(Name, CamelName, Type, Default)                        \
-  DEF_GETTER(FunctionTemplateInfo, Get##CamelName, Type) {                    \
-    HeapObject extra = rare_data(cage_base, kAcquireLoad);                    \
-    HeapObject undefined = GetReadOnlyRoots(cage_base).undefined_value();     \
-    return extra == undefined ? Default                                       \
-                              : FunctionTemplateRareData::cast(extra).Name(); \
-  }                                                                           \
-  inline void FunctionTemplateInfo::Set##CamelName(                           \
-      Isolate* isolate, Handle<FunctionTemplateInfo> function_template_info,  \
-      Handle<Type> Name) {                                                    \
-    FunctionTemplateRareData rare_data =                                      \
-        EnsureFunctionTemplateRareData(isolate, function_template_info);      \
-    rare_data.set_##Name(*Name);                                              \
+#define RARE_ACCESSORS(Name, CamelName, Type, Default)                         \
+  DEF_GETTER(FunctionTemplateInfo, Get##CamelName, Type) {                     \
+    HeapObject extra = rare_data(cage_base, kAcquireLoad);                     \
+    HeapObject undefined = GetReadOnlyRoots(cage_base).undefined_value();      \
+    return extra == undefined ? Default                                        \
+                              : FunctionTemplateRareData::cast(extra)->Name(); \
+  }                                                                            \
+  inline void FunctionTemplateInfo::Set##CamelName(                            \
+      Isolate* isolate, Handle<FunctionTemplateInfo> function_template_info,   \
+      Handle<Type> Name) {                                                     \
+    FunctionTemplateRareData rare_data =                                       \
+        EnsureFunctionTemplateRareData(isolate, function_template_info);       \
+    rare_data->set_##Name(*Name);                                              \
   }
 
 RARE_ACCESSORS(prototype_template, PrototypeTemplate, HeapObject, undefined)
@@ -129,7 +129,7 @@ inline bool FunctionTemplateInfo::BreakAtEntry(Isolate* isolate) {
   Object maybe_shared = shared_function_info();
   if (maybe_shared.IsSharedFunctionInfo()) {
     SharedFunctionInfo shared = SharedFunctionInfo::cast(maybe_shared);
-    return shared.BreakAtEntry(isolate);
+    return shared->BreakAtEntry(isolate);
   }
   return false;
 }
@@ -145,9 +145,9 @@ ObjectTemplateInfo ObjectTemplateInfo::GetParent(Isolate* isolate) {
   if (maybe_ctor.IsUndefined(isolate)) return ObjectTemplateInfo();
   FunctionTemplateInfo constructor = FunctionTemplateInfo::cast(maybe_ctor);
   while (true) {
-    constructor = constructor.GetParent(isolate);
+    constructor = constructor->GetParent(isolate);
     if (constructor.is_null()) return ObjectTemplateInfo();
-    Object maybe_obj = constructor.GetInstanceTemplate();
+    Object maybe_obj = constructor->GetInstanceTemplate();
     if (!maybe_obj.IsUndefined(isolate)) {
       return ObjectTemplateInfo::cast(maybe_obj);
     }
@@ -181,7 +181,7 @@ void ObjectTemplateInfo::set_code_like(bool is_code_like) {
 }
 
 bool FunctionTemplateInfo::IsTemplateFor(JSObject object) {
-  return IsTemplateFor(object.map());
+  return IsTemplateFor(object->map());
 }
 
 }  // namespace internal

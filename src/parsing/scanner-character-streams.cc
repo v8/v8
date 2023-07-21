@@ -26,10 +26,10 @@ class V8_NODISCARD ScopedExternalStringLock {
   explicit ScopedExternalStringLock(ExternalString string) {
     DCHECK(!string.is_null());
     if (string.IsExternalOneByteString()) {
-      resource_ = ExternalOneByteString::cast(string).resource();
+      resource_ = ExternalOneByteString::cast(string)->resource();
     } else {
       DCHECK(string.IsExternalTwoByteString());
-      resource_ = ExternalTwoByteString::cast(string).resource();
+      resource_ = ExternalTwoByteString::cast(string)->resource();
     }
     DCHECK(resource_);
     resource_->Lock();
@@ -867,9 +867,9 @@ Utf16CharacterStream* ScannerStream::For(Isolate* isolate, Handle<String> data,
   size_t start_offset = 0;
   if (data->IsSlicedString()) {
     SlicedString string = SlicedString::cast(*data);
-    start_offset = string.offset();
-    String parent = string.parent();
-    if (parent.IsThinString()) parent = ThinString::cast(parent).actual();
+    start_offset = string->offset();
+    String parent = string->parent();
+    if (parent.IsThinString()) parent = ThinString::cast(parent)->actual();
     data = handle(parent, isolate);
   } else {
     data = String::Flatten(isolate, data);

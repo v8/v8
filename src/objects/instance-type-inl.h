@@ -176,14 +176,14 @@ inline bool MayHaveMapCheckFastCase(InstanceType type) { return false; }
             UniqueMapRangeOfInstanceType(forinstancetype)) { \
       return CheckInstanceMapRange(*range, map_object);      \
     }                                                        \
-    return Is##type(map_object.instance_type());             \
+    return Is##type(map_object->instance_type());            \
   }
 
 #else
 
 #define INSTANCE_TYPE_CHECKER2(type, forinstancetype) \
   V8_INLINE bool Is##type(Map map_object) {           \
-    return Is##type(map_object.instance_type());      \
+    return Is##type(map_object->instance_type());     \
   }
 
 #endif  // V8_STATIC_ROOTS_BOOL
@@ -240,7 +240,7 @@ struct InstanceRangeChecker<lower_limit, LAST_TYPE> {
       DCHECK(MayHaveMapCheckFastCase(last_instance_type));           \
       return CheckInstanceMapRange(*range, map_object);              \
     }                                                                \
-    return Is##type(map_object.instance_type());                     \
+    return Is##type(map_object->instance_type());                    \
   }
 
 #else
@@ -248,7 +248,7 @@ struct InstanceRangeChecker<lower_limit, LAST_TYPE> {
 #define INSTANCE_TYPE_CHECKER_RANGE2(type, first_instance_type, \
                                      last_instance_type)        \
   V8_INLINE bool Is##type(Map map_object) {                     \
-    return Is##type(map_object.instance_type());                \
+    return Is##type(map_object->instance_type());               \
   }
 
 #endif  // V8_STATIC_ROOTS_BOOL
@@ -273,7 +273,7 @@ V8_INLINE bool IsInternalizedString(Map map_object) {
   return CheckInstanceMapRange(kUniqueMapRangeOfStringType::kInternalizedString,
                                map_object);
 #else
-  return IsInternalizedString(map_object.instance_type());
+  return IsInternalizedString(map_object->instance_type());
 #endif
 }
 
@@ -287,7 +287,7 @@ V8_INLINE bool IsExternalString(Map map_object) {
   return CheckInstanceMapRange(kUniqueMapRangeOfStringType::kExternalString,
                                map_object);
 #else
-  return IsExternalString(map_object.instance_type());
+  return IsExternalString(map_object->instance_type());
 #endif
 }
 
@@ -299,7 +299,7 @@ V8_INLINE bool IsThinString(Map map_object) {
 #if V8_STATIC_ROOTS_BOOL
   return CheckInstanceMap(RootIndex::kThinStringMap, map_object);
 #else
-  return IsThinString(map_object.instance_type());
+  return IsThinString(map_object->instance_type());
 #endif
 }
 
@@ -319,7 +319,7 @@ V8_INLINE constexpr bool IsAbstractCode(InstanceType instance_type) {
 }
 
 V8_INLINE bool IsAbstractCode(Map map_object) {
-  return IsAbstractCode(map_object.instance_type());
+  return IsAbstractCode(map_object->instance_type());
 }
 
 V8_INLINE constexpr bool IsFreeSpaceOrFiller(InstanceType instance_type) {
@@ -327,7 +327,7 @@ V8_INLINE constexpr bool IsFreeSpaceOrFiller(InstanceType instance_type) {
 }
 
 V8_INLINE bool IsFreeSpaceOrFiller(Map map_object) {
-  return IsFreeSpaceOrFiller(map_object.instance_type());
+  return IsFreeSpaceOrFiller(map_object->instance_type());
 }
 
 }  // namespace InstanceTypeChecker

@@ -30,7 +30,7 @@ ACCESSORS(JSRegExp, last_index, Object, kLastIndexOffset)
 JSRegExp::Type JSRegExp::type_tag() const {
   Object data = this->data();
   if (data.IsUndefined()) return JSRegExp::NOT_COMPILED;
-  Smi smi = Smi::cast(FixedArray::cast(data).get(kTagIndex));
+  Smi smi = Smi::cast(FixedArray::cast(data)->get(kTagIndex));
   return static_cast<JSRegExp::Type>(smi.value());
 }
 
@@ -99,14 +99,14 @@ void JSRegExp::set_capture_name_map(Handle<FixedArray> capture_name_map) {
 
 Object JSRegExp::DataAt(int index) const {
   DCHECK(type_tag() != NOT_COMPILED);
-  return FixedArray::cast(data()).get(index);
+  return FixedArray::cast(data())->get(index);
 }
 
 void JSRegExp::SetDataAt(int index, Object value) {
   DCHECK(type_tag() != NOT_COMPILED);
   // Only implementation data can be set this way.
   DCHECK_GE(index, kFirstTypeSpecificIndex);
-  FixedArray::cast(data()).set(index, value);
+  FixedArray::cast(data())->set(index, value);
 }
 
 bool JSRegExp::HasCompiledCode() const {

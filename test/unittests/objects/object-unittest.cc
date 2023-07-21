@@ -161,10 +161,10 @@ TEST_F(TestWithNativeContext, EmptyFunctionScopeInfo) {
   // Check that the empty_function has a properly set up ScopeInfo.
   Handle<JSFunction> function = RunJS<JSFunction>("(function(){})");
 
-  Handle<ScopeInfo> scope_info(function->shared().scope_info(),
+  Handle<ScopeInfo> scope_info(function->shared()->scope_info(),
                                function->GetIsolate());
   Handle<ScopeInfo> empty_function_scope_info(
-      isolate()->empty_function()->shared().scope_info(),
+      isolate()->empty_function()->shared()->scope_info(),
       function->GetIsolate());
 
   EXPECT_EQ(scope_info->Flags(), empty_function_scope_info->Flags());
@@ -177,7 +177,7 @@ TEST_F(TestWithNativeContext, EmptyFunctionScopeInfo) {
 TEST_F(TestWithNativeContext, RecreateScopeInfoWithLocalsBlocklistWorks) {
   // Create a JSFunction to get a {ScopeInfo} we can use for the test.
   Handle<JSFunction> function = RunJS<JSFunction>("(function foo() {})");
-  Handle<ScopeInfo> original_scope_info(function->shared().scope_info(),
+  Handle<ScopeInfo> original_scope_info(function->shared()->scope_info(),
                                         isolate());
   ASSERT_FALSE(original_scope_info->HasLocalsBlockList());
 
@@ -194,8 +194,8 @@ TEST_F(TestWithNativeContext, RecreateScopeInfoWithLocalsBlocklistWorks) {
 
   DisallowGarbageCollection no_gc;
   EXPECT_TRUE(scope_info->HasLocalsBlockList());
-  EXPECT_TRUE(scope_info->LocalsBlockList().Has(isolate(), foo_string));
-  EXPECT_FALSE(scope_info->LocalsBlockList().Has(isolate(), bar_string));
+  EXPECT_TRUE(scope_info->LocalsBlockList()->Has(isolate(), foo_string));
+  EXPECT_FALSE(scope_info->LocalsBlockList()->Has(isolate(), bar_string));
 
   EXPECT_EQ(original_scope_info->length() + 1, scope_info->length());
 
@@ -315,143 +315,143 @@ TEST_F(ObjectTest, EnumCache) {
       *context()->Global()->Get(context(), NewString("cc")).ToLocalChecked()));
 
   // Check the transition tree.
-  CHECK_EQ(a->map().instance_descriptors(), b->map().instance_descriptors());
-  CHECK_EQ(b->map().instance_descriptors(), c->map().instance_descriptors());
-  CHECK_NE(c->map().instance_descriptors(), cc->map().instance_descriptors());
-  CHECK_NE(b->map().instance_descriptors(), cc->map().instance_descriptors());
+  CHECK_EQ(a->map()->instance_descriptors(), b->map()->instance_descriptors());
+  CHECK_EQ(b->map()->instance_descriptors(), c->map()->instance_descriptors());
+  CHECK_NE(c->map()->instance_descriptors(), cc->map()->instance_descriptors());
+  CHECK_NE(b->map()->instance_descriptors(), cc->map()->instance_descriptors());
 
   // Check that the EnumLength is unset.
-  CHECK_EQ(a->map().EnumLength(), kInvalidEnumCacheSentinel);
-  CHECK_EQ(b->map().EnumLength(), kInvalidEnumCacheSentinel);
-  CHECK_EQ(c->map().EnumLength(), kInvalidEnumCacheSentinel);
-  CHECK_EQ(cc->map().EnumLength(), kInvalidEnumCacheSentinel);
+  CHECK_EQ(a->map()->EnumLength(), kInvalidEnumCacheSentinel);
+  CHECK_EQ(b->map()->EnumLength(), kInvalidEnumCacheSentinel);
+  CHECK_EQ(c->map()->EnumLength(), kInvalidEnumCacheSentinel);
+  CHECK_EQ(cc->map()->EnumLength(), kInvalidEnumCacheSentinel);
 
   // Check that the EnumCache is empty.
-  CHECK_EQ(a->map().instance_descriptors().enum_cache(),
+  CHECK_EQ(a->map()->instance_descriptors()->enum_cache(),
            *factory->empty_enum_cache());
-  CHECK_EQ(b->map().instance_descriptors().enum_cache(),
+  CHECK_EQ(b->map()->instance_descriptors()->enum_cache(),
            *factory->empty_enum_cache());
-  CHECK_EQ(c->map().instance_descriptors().enum_cache(),
+  CHECK_EQ(c->map()->instance_descriptors()->enum_cache(),
            *factory->empty_enum_cache());
-  CHECK_EQ(cc->map().instance_descriptors().enum_cache(),
+  CHECK_EQ(cc->map()->instance_descriptors()->enum_cache(),
            *factory->empty_enum_cache());
 
   // The EnumCache is shared on the DescriptorArray, creating it on {cc} has no
   // effect on the other maps.
   RunJS("var s = 0; for (let key in cc) { s += cc[key] };");
   {
-    CHECK_EQ(a->map().EnumLength(), kInvalidEnumCacheSentinel);
-    CHECK_EQ(b->map().EnumLength(), kInvalidEnumCacheSentinel);
-    CHECK_EQ(c->map().EnumLength(), kInvalidEnumCacheSentinel);
-    CHECK_EQ(cc->map().EnumLength(), 3);
+    CHECK_EQ(a->map()->EnumLength(), kInvalidEnumCacheSentinel);
+    CHECK_EQ(b->map()->EnumLength(), kInvalidEnumCacheSentinel);
+    CHECK_EQ(c->map()->EnumLength(), kInvalidEnumCacheSentinel);
+    CHECK_EQ(cc->map()->EnumLength(), 3);
 
-    CHECK_EQ(a->map().instance_descriptors().enum_cache(),
+    CHECK_EQ(a->map()->instance_descriptors()->enum_cache(),
              *factory->empty_enum_cache());
-    CHECK_EQ(b->map().instance_descriptors().enum_cache(),
+    CHECK_EQ(b->map()->instance_descriptors()->enum_cache(),
              *factory->empty_enum_cache());
-    CHECK_EQ(c->map().instance_descriptors().enum_cache(),
+    CHECK_EQ(c->map()->instance_descriptors()->enum_cache(),
              *factory->empty_enum_cache());
 
-    EnumCache enum_cache = cc->map().instance_descriptors().enum_cache();
+    EnumCache enum_cache = cc->map()->instance_descriptors()->enum_cache();
     CHECK_NE(enum_cache, *factory->empty_enum_cache());
-    CHECK_EQ(enum_cache.keys().length(), 3);
-    CHECK_EQ(enum_cache.indices().length(), 3);
+    CHECK_EQ(enum_cache->keys()->length(), 3);
+    CHECK_EQ(enum_cache->indices()->length(), 3);
   }
 
   // Initializing the EnumCache for the the topmost map {a} will not create the
   // cache for the other maps.
   RunJS("var s = 0; for (let key in a) { s += a[key] };");
   {
-    CHECK_EQ(a->map().EnumLength(), 1);
-    CHECK_EQ(b->map().EnumLength(), kInvalidEnumCacheSentinel);
-    CHECK_EQ(c->map().EnumLength(), kInvalidEnumCacheSentinel);
-    CHECK_EQ(cc->map().EnumLength(), 3);
+    CHECK_EQ(a->map()->EnumLength(), 1);
+    CHECK_EQ(b->map()->EnumLength(), kInvalidEnumCacheSentinel);
+    CHECK_EQ(c->map()->EnumLength(), kInvalidEnumCacheSentinel);
+    CHECK_EQ(cc->map()->EnumLength(), 3);
 
     // The enum cache is shared on the descriptor array of maps {a}, {b} and
     // {c} only.
-    EnumCache enum_cache = a->map().instance_descriptors().enum_cache();
+    EnumCache enum_cache = a->map()->instance_descriptors()->enum_cache();
     CHECK_NE(enum_cache, *factory->empty_enum_cache());
-    CHECK_NE(cc->map().instance_descriptors().enum_cache(),
+    CHECK_NE(cc->map()->instance_descriptors()->enum_cache(),
              *factory->empty_enum_cache());
-    CHECK_NE(cc->map().instance_descriptors().enum_cache(), enum_cache);
-    CHECK_EQ(a->map().instance_descriptors().enum_cache(), enum_cache);
-    CHECK_EQ(b->map().instance_descriptors().enum_cache(), enum_cache);
-    CHECK_EQ(c->map().instance_descriptors().enum_cache(), enum_cache);
+    CHECK_NE(cc->map()->instance_descriptors()->enum_cache(), enum_cache);
+    CHECK_EQ(a->map()->instance_descriptors()->enum_cache(), enum_cache);
+    CHECK_EQ(b->map()->instance_descriptors()->enum_cache(), enum_cache);
+    CHECK_EQ(c->map()->instance_descriptors()->enum_cache(), enum_cache);
 
-    CHECK_EQ(enum_cache.keys().length(), 1);
-    CHECK_EQ(enum_cache.indices().length(), 1);
+    CHECK_EQ(enum_cache->keys()->length(), 1);
+    CHECK_EQ(enum_cache->indices()->length(), 1);
   }
 
   // Creating the EnumCache for {c} will create a new EnumCache on the shared
   // DescriptorArray.
   Handle<EnumCache> previous_enum_cache(
-      a->map().instance_descriptors().enum_cache(), a->GetIsolate());
+      a->map()->instance_descriptors()->enum_cache(), a->GetIsolate());
   Handle<FixedArray> previous_keys(previous_enum_cache->keys(),
                                    a->GetIsolate());
   Handle<FixedArray> previous_indices(previous_enum_cache->indices(),
                                       a->GetIsolate());
   RunJS("var s = 0; for (let key in c) { s += c[key] };");
   {
-    CHECK_EQ(a->map().EnumLength(), 1);
-    CHECK_EQ(b->map().EnumLength(), kInvalidEnumCacheSentinel);
-    CHECK_EQ(c->map().EnumLength(), 3);
-    CHECK_EQ(cc->map().EnumLength(), 3);
+    CHECK_EQ(a->map()->EnumLength(), 1);
+    CHECK_EQ(b->map()->EnumLength(), kInvalidEnumCacheSentinel);
+    CHECK_EQ(c->map()->EnumLength(), 3);
+    CHECK_EQ(cc->map()->EnumLength(), 3);
 
-    EnumCache enum_cache = c->map().instance_descriptors().enum_cache();
+    EnumCache enum_cache = c->map()->instance_descriptors()->enum_cache();
     CHECK_NE(enum_cache, *factory->empty_enum_cache());
     // The keys and indices caches are updated.
     CHECK_EQ(enum_cache, *previous_enum_cache);
-    CHECK_NE(enum_cache.keys(), *previous_keys);
-    CHECK_NE(enum_cache.indices(), *previous_indices);
+    CHECK_NE(enum_cache->keys(), *previous_keys);
+    CHECK_NE(enum_cache->indices(), *previous_indices);
     CHECK_EQ(previous_keys->length(), 1);
     CHECK_EQ(previous_indices->length(), 1);
-    CHECK_EQ(enum_cache.keys().length(), 3);
-    CHECK_EQ(enum_cache.indices().length(), 3);
+    CHECK_EQ(enum_cache->keys()->length(), 3);
+    CHECK_EQ(enum_cache->indices()->length(), 3);
 
     // The enum cache is shared on the descriptor array of maps {a}, {b} and
     // {c} only.
-    CHECK_NE(cc->map().instance_descriptors().enum_cache(),
+    CHECK_NE(cc->map()->instance_descriptors()->enum_cache(),
              *factory->empty_enum_cache());
-    CHECK_NE(cc->map().instance_descriptors().enum_cache(), enum_cache);
-    CHECK_NE(cc->map().instance_descriptors().enum_cache(),
+    CHECK_NE(cc->map()->instance_descriptors()->enum_cache(), enum_cache);
+    CHECK_NE(cc->map()->instance_descriptors()->enum_cache(),
              *previous_enum_cache);
-    CHECK_EQ(a->map().instance_descriptors().enum_cache(), enum_cache);
-    CHECK_EQ(b->map().instance_descriptors().enum_cache(), enum_cache);
-    CHECK_EQ(c->map().instance_descriptors().enum_cache(), enum_cache);
+    CHECK_EQ(a->map()->instance_descriptors()->enum_cache(), enum_cache);
+    CHECK_EQ(b->map()->instance_descriptors()->enum_cache(), enum_cache);
+    CHECK_EQ(c->map()->instance_descriptors()->enum_cache(), enum_cache);
   }
 
   // {b} can reuse the existing EnumCache, hence we only need to set the correct
   // EnumLength on the map without modifying the cache itself.
   previous_enum_cache =
-      handle(a->map().instance_descriptors().enum_cache(), a->GetIsolate());
+      handle(a->map()->instance_descriptors()->enum_cache(), a->GetIsolate());
   previous_keys = handle(previous_enum_cache->keys(), a->GetIsolate());
   previous_indices = handle(previous_enum_cache->indices(), a->GetIsolate());
   RunJS("var s = 0; for (let key in b) { s += b[key] };");
   {
-    CHECK_EQ(a->map().EnumLength(), 1);
-    CHECK_EQ(b->map().EnumLength(), 2);
-    CHECK_EQ(c->map().EnumLength(), 3);
-    CHECK_EQ(cc->map().EnumLength(), 3);
+    CHECK_EQ(a->map()->EnumLength(), 1);
+    CHECK_EQ(b->map()->EnumLength(), 2);
+    CHECK_EQ(c->map()->EnumLength(), 3);
+    CHECK_EQ(cc->map()->EnumLength(), 3);
 
-    EnumCache enum_cache = c->map().instance_descriptors().enum_cache();
+    EnumCache enum_cache = c->map()->instance_descriptors()->enum_cache();
     CHECK_NE(enum_cache, *factory->empty_enum_cache());
     // The keys and indices caches are not updated.
     CHECK_EQ(enum_cache, *previous_enum_cache);
-    CHECK_EQ(enum_cache.keys(), *previous_keys);
-    CHECK_EQ(enum_cache.indices(), *previous_indices);
-    CHECK_EQ(enum_cache.keys().length(), 3);
-    CHECK_EQ(enum_cache.indices().length(), 3);
+    CHECK_EQ(enum_cache->keys(), *previous_keys);
+    CHECK_EQ(enum_cache->indices(), *previous_indices);
+    CHECK_EQ(enum_cache->keys()->length(), 3);
+    CHECK_EQ(enum_cache->indices()->length(), 3);
 
     // The enum cache is shared on the descriptor array of maps {a}, {b} and
     // {c} only.
-    CHECK_NE(cc->map().instance_descriptors().enum_cache(),
+    CHECK_NE(cc->map()->instance_descriptors()->enum_cache(),
              *factory->empty_enum_cache());
-    CHECK_NE(cc->map().instance_descriptors().enum_cache(), enum_cache);
-    CHECK_NE(cc->map().instance_descriptors().enum_cache(),
+    CHECK_NE(cc->map()->instance_descriptors()->enum_cache(), enum_cache);
+    CHECK_NE(cc->map()->instance_descriptors()->enum_cache(),
              *previous_enum_cache);
-    CHECK_EQ(a->map().instance_descriptors().enum_cache(), enum_cache);
-    CHECK_EQ(b->map().instance_descriptors().enum_cache(), enum_cache);
-    CHECK_EQ(c->map().instance_descriptors().enum_cache(), enum_cache);
+    CHECK_EQ(a->map()->instance_descriptors()->enum_cache(), enum_cache);
+    CHECK_EQ(b->map()->instance_descriptors()->enum_cache(), enum_cache);
+    CHECK_EQ(c->map()->instance_descriptors()->enum_cache(), enum_cache);
   }
 }
 
@@ -659,7 +659,8 @@ TEST_F(ObjectTest, ConstructorInstanceTypes) {
   for (int i = 0; i < Context::NATIVE_CONTEXT_SLOTS; i++) {
     Object value = context->get(i);
     if (!value.IsJSFunction()) continue;
-    InstanceType instance_type = JSFunction::cast(value).map().instance_type();
+    InstanceType instance_type =
+        JSFunction::cast(value)->map()->instance_type();
 
     switch (i) {
       case Context::ARRAY_FUNCTION_INDEX:
@@ -743,7 +744,7 @@ TEST_F(ObjectTest, AddDataPropertyNameCollisionDeprecatedMap) {
       "a.corrupted_prop = 1;"
       "b.regular_prop = 5.5;");
 
-  CHECK(a->map().is_deprecated());
+  CHECK(a->map()->is_deprecated());
 
   EXPECT_DEATH_IF_SUPPORTED(
       Object::AddDataProperty(&it, value, NONE,

@@ -51,7 +51,7 @@ void EvacuationVerifier::VisitRootPointers(Root root, const char* description,
 }
 
 void EvacuationVerifier::VisitMapPointer(HeapObject object) {
-  VerifyHeapObjectImpl(object.map(cage_base()));
+  VerifyHeapObjectImpl(object->map(cage_base()));
 }
 
 void EvacuationVerifier::VisitCodeTarget(InstructionStream host,
@@ -77,9 +77,9 @@ void EvacuationVerifier::VerifyEvacuationOnPage(Address start, Address end) {
   while (current < end) {
     HeapObject object = HeapObject::FromAddress(current);
     if (!object.IsFreeSpaceOrFiller(cage_base())) {
-      object.Iterate(cage_base(), this);
+      object->Iterate(cage_base(), this);
     }
-    current += ALIGN_TO_ALLOCATION_ALIGNMENT(object.Size(cage_base()));
+    current += ALIGN_TO_ALLOCATION_ALIGNMENT(object->Size(cage_base()));
   }
 }
 

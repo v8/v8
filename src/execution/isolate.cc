@@ -751,7 +751,7 @@ class CallSiteBuilder {
     if (IsStrictFrame(function)) flags |= CallSiteInfo::kIsStrict;
 
     Handle<Object> receiver(generator_object->receiver(), isolate_);
-    Handle<BytecodeArray> code(function->shared().GetBytecodeArray(isolate_),
+    Handle<BytecodeArray> code(function->shared()->GetBytecodeArray(isolate_),
                                isolate_);
     // The stored bytecode offset is relative to a different base than what
     // is used in the source position table, hence the subtraction.
@@ -763,7 +763,7 @@ class CallSiteBuilder {
       parameters = isolate_->factory()->CopyFixedArrayUpTo(
           handle(generator_object->parameters_and_registers(), isolate_),
           function->shared()
-              .internal_formal_parameter_count_without_receiver());
+              ->internal_formal_parameter_count_without_receiver());
     }
 
     AppendFrame(receiver, function, code, offset, flags, parameters);
@@ -775,7 +775,7 @@ class CallSiteBuilder {
     int flags =
         CallSiteInfo::kIsAsync | CallSiteInfo::kIsSourcePositionComputed;
 
-    Handle<Object> receiver(combinator->native_context().promise_function(),
+    Handle<Object> receiver(combinator->native_context()->promise_function(),
                             isolate_);
     Handle<Code> code(combinator->code(), isolate_);
 
@@ -808,7 +808,7 @@ class CallSiteBuilder {
     if (summary.code()->kind() != wasm::WasmCode::kWasmFunction) return;
     Handle<WasmInstanceObject> instance = summary.wasm_instance();
     int flags = CallSiteInfo::kIsWasm;
-    if (instance->module_object().is_asm_js()) {
+    if (instance->module_object()->is_asm_js()) {
       flags |= CallSiteInfo::kIsAsmJsWasm;
       if (summary.at_to_number_conversion()) {
         flags |= CallSiteInfo::kIsAsmJsAtNumberConversion;
@@ -817,7 +817,7 @@ class CallSiteBuilder {
 
     auto code = Managed<wasm::GlobalWasmCodeRef>::Allocate(
         isolate_, 0, summary.code(),
-        instance->module_object().shared_native_module());
+        instance->module_object()->shared_native_module());
     AppendFrame(instance,
                 handle(Smi::FromInt(summary.function_index()), isolate_), code,
                 summary.code_offset(), flags,
@@ -858,7 +858,7 @@ class CallSiteBuilder {
   bool IsStrictFrame(Handle<JSFunction> function) {
     if (!encountered_strict_function_) {
       encountered_strict_function_ =
-          is_strict(function->shared().language_mode());
+          is_strict(function->shared()->language_mode());
     }
     return encountered_strict_function_;
   }
@@ -895,7 +895,7 @@ class CallSiteBuilder {
     // TODO(szuend): Remove this check once the flag is enabled
     //               by default.
     if (!v8_flags.experimental_stack_trace_frames &&
-        function->shared().IsApiFunction()) {
+        function->shared()->IsApiFunction()) {
       return false;
     }
     // Functions defined not in user scripts are not visible unless directly
@@ -903,8 +903,9 @@ class CallSiteBuilder {
     // The --builtins-in-stack-traces command line flag allows including
     // internal call sites in the stack trace for debugging purposes.
     if (!v8_flags.builtins_in_stack_traces &&
-        !function->shared().IsUserJavaScript()) {
-      return function->shared().native() || function->shared().IsApiFunction();
+        !function->shared()->IsUserJavaScript()) {
+      return function->shared()->native() ||
+             function->shared()->IsApiFunction();
     }
     return true;
   }
@@ -954,7 +955,7 @@ bool GetStackTraceLimit(Isolate* isolate, int* result) {
 bool IsBuiltinFunction(Isolate* isolate, HeapObject object, Builtin builtin) {
   if (!object.IsJSFunction()) return false;
   JSFunction const function = JSFunction::cast(object);
-  return function.code() == isolate->builtins()->code(builtin);
+  return function->code() == isolate->builtins()->code(builtin);
 }
 
 void CaptureAsyncStackTrace(Isolate* isolate, Handle<JSPromise> promise,
@@ -981,7 +982,7 @@ void CaptureAsyncStackTrace(Isolate* isolate, Handle<JSPromise> promise,
       // Now peek into the handlers' AwaitContext to get to
       // the JSGeneratorObject for the async function.
       Handle<Context> context(
-          JSFunction::cast(reaction->fulfill_handler()).context(), isolate);
+          JSFunction::cast(reaction->fulfill_handler())->context(), isolate);
       Handle<JSGeneratorObject> generator_object(
           JSGeneratorObject::cast(context->extension()), isolate);
       CHECK(generator_object->is_suspended());
@@ -1009,7 +1010,7 @@ void CaptureAsyncStackTrace(Isolate* isolate, Handle<JSPromise> promise,
       Handle<JSFunction> function(JSFunction::cast(reaction->fulfill_handler()),
                                   isolate);
       Handle<Context> context(function->context(), isolate);
-      Handle<JSFunction> combinator(context->native_context().promise_all(),
+      Handle<JSFunction> combinator(context->native_context()->promise_all(),
                                     isolate);
       builder->AppendPromiseCombinatorFrame(function, combinator);
 
@@ -1029,7 +1030,7 @@ void CaptureAsyncStackTrace(Isolate* isolate, Handle<JSPromise> promise,
                                   isolate);
       Handle<Context> context(function->context(), isolate);
       Handle<JSFunction> combinator(
-          context->native_context().promise_all_settled(), isolate);
+          context->native_context()->promise_all_settled(), isolate);
       builder->AppendPromiseCombinatorFrame(function, combinator);
 
       // Now peak into the Promise.allSettled() resolve element context to
@@ -1046,7 +1047,7 @@ void CaptureAsyncStackTrace(Isolate* isolate, Handle<JSPromise> promise,
       Handle<JSFunction> function(JSFunction::cast(reaction->reject_handler()),
                                   isolate);
       Handle<Context> context(function->context(), isolate);
-      Handle<JSFunction> combinator(context->native_context().promise_any(),
+      Handle<JSFunction> combinator(context->native_context()->promise_any(),
                                     isolate);
       builder->AppendPromiseCombinatorFrame(function, combinator);
 
@@ -1109,7 +1110,7 @@ void CaptureAsyncStackTrace(Isolate* isolate, CallSiteBuilder* builder) {
       // Now peek into the handlers' AwaitContext to get to
       // the JSGeneratorObject for the async function.
       Handle<Context> context(
-          JSFunction::cast(promise_reaction_job_task->handler()).context(),
+          JSFunction::cast(promise_reaction_job_task->handler())->context(),
           isolate);
       Handle<JSGeneratorObject> generator_object(
           JSGeneratorObject::cast(context->extension()), isolate);
@@ -1330,11 +1331,11 @@ Address Isolate::GetAbstractPC(int* line, int* column) {
   JavaScriptFrame* frame = it.frame();
   DCHECK(!frame->is_builtin());
 
-  Handle<SharedFunctionInfo> shared = handle(frame->function().shared(), this);
+  Handle<SharedFunctionInfo> shared = handle(frame->function()->shared(), this);
   SharedFunctionInfo::EnsureSourcePositionsAvailable(this, shared);
   int position = frame->position();
 
-  Object maybe_script = frame->function().shared().script();
+  Object maybe_script = frame->function()->shared()->script();
   if (maybe_script.IsScript()) {
     Handle<Script> script(Script::cast(maybe_script), this);
     Script::PositionInfo info;
@@ -1349,7 +1350,7 @@ Address Isolate::GetAbstractPC(int* line, int* column) {
   if (frame->is_unoptimized()) {
     UnoptimizedFrame* iframe = static_cast<UnoptimizedFrame*>(frame);
     Address bytecode_start =
-        iframe->GetBytecodeArray().GetFirstBytecodeAddress();
+        iframe->GetBytecodeArray()->GetFirstBytecodeAddress();
     return bytecode_start + iframe->GetBytecodeOffset();
   }
 
@@ -1516,7 +1517,7 @@ void Isolate::ReportFailedAccessCheck(Handle<JSObject> receiver) {
       return ScheduleThrow(
           *factory()->NewTypeError(MessageTemplate::kNoAccess));
     }
-    data = handle(access_check_info.data(), this);
+    data = handle(access_check_info->data(), this);
   }
 
   // Leaving JavaScript.
@@ -1538,12 +1539,13 @@ bool Isolate::MayAccess(Handle<NativeContext> accessing_context,
     DisallowGarbageCollection no_gc;
 
     if (receiver->IsJSGlobalProxy()) {
-      Object receiver_context = JSGlobalProxy::cast(*receiver).native_context();
+      Object receiver_context =
+          JSGlobalProxy::cast(*receiver)->native_context();
       if (!receiver_context.IsContext()) return false;
 
       if (receiver_context == *accessing_context) return true;
 
-      if (Context::cast(receiver_context).security_token() ==
+      if (Context::cast(receiver_context)->security_token() ==
           accessing_context->security_token())
         return true;
     }
@@ -1556,9 +1558,9 @@ bool Isolate::MayAccess(Handle<NativeContext> accessing_context,
     DisallowGarbageCollection no_gc;
     AccessCheckInfo access_check_info = AccessCheckInfo::Get(this, receiver);
     if (access_check_info.is_null()) return false;
-    Object fun_obj = access_check_info.callback();
+    Object fun_obj = access_check_info->callback();
     callback = v8::ToCData<v8::AccessCheckCallback>(fun_obj);
-    data = handle(access_check_info.data(), this);
+    data = handle(access_check_info->data(), this);
   }
 
   {
@@ -1713,17 +1715,17 @@ void ReportBootstrappingException(Handle<Object> exception,
   if (exception->IsString() && location->script()->name().IsString()) {
     base::OS::PrintError(
         "Extension or internal compilation error: %s in %s at line %d.\n",
-        String::cast(*exception).ToCString().get(),
-        String::cast(location->script()->name()).ToCString().get(),
+        String::cast(*exception)->ToCString().get(),
+        String::cast(location->script()->name())->ToCString().get(),
         line_number);
   } else if (location->script()->name().IsString()) {
     base::OS::PrintError(
         "Extension or internal compilation error in %s at line %d.\n",
-        String::cast(location->script()->name()).ToCString().get(),
+        String::cast(location->script()->name())->ToCString().get(),
         line_number);
   } else if (exception->IsString()) {
     base::OS::PrintError("Extension or internal compilation error: %s.\n",
-                         String::cast(*exception).ToCString().get());
+                         String::cast(*exception)->ToCString().get());
   } else {
     base::OS::PrintError("Extension or internal compilation error.\n");
   }
@@ -1805,8 +1807,8 @@ Object Isolate::ThrowInternal(Object raw_exception, MessageLocation* location) {
       Handle<Script> script = location->script();
       Handle<Object> name(script->GetNameOrSourceURL(), this);
       PrintF("at ");
-      if (name->IsString() && String::cast(*name).length() > 0)
-        String::cast(*name).PrintOn(stdout);
+      if (name->IsString() && String::cast(*name)->length() > 0)
+        String::cast(*name)->PrintOn(stdout);
       else
         PrintF("<anonymous>");
 // Script::GetLineNumber and Script::GetColumnNumber can allocate on the heap to
@@ -1966,7 +1968,7 @@ Object Isolate::UnwindAndFindHandler() {
     // uncatchable terminate exception, we need to clear the array join stack to
     // avoid leaving the stack in an invalid state.
     // See also CycleProtectedArrayJoin.
-    raw_native_context().set_array_join_stack(
+    raw_native_context()->set_array_join_stack(
         ReadOnlyRoots(this).undefined_value());
   }
 
@@ -1990,7 +1992,7 @@ Object Isolate::UnwindAndFindHandler() {
       Code code = builtins()->code(Builtin::kWasmReturnPromiseOnSuspend);
       HandlerTable table(code);
       Address instruction_start =
-          code.InstructionStart(this, iter.frame()->pc());
+          code->InstructionStart(this, iter.frame()->pc());
       int handler_offset = table.LookupReturn(0);
       return FoundHandler(Context(), instruction_start, handler_offset,
                           kNullAddress, iter.frame()->sp(), iter.frame()->fp(),
@@ -2016,29 +2018,29 @@ Object Isolate::UnwindAndFindHandler() {
         Code code = frame->LookupCode();
         // The debugger triggers lazy deopt for the "to-be-restarted" frame
         // immediately when the CDP event arrives while paused.
-        CHECK(code.marked_for_deoptimization());
+        CHECK(code->marked_for_deoptimization());
         set_deoptimizer_lazy_throw(true);
 
         // Jump directly to the optimized frames return, to immediately fall
         // into the deoptimizer.
         const int offset =
-            static_cast<int>(frame->pc() - code.instruction_start());
+            static_cast<int>(frame->pc() - code->instruction_start());
 
         // Compute the stack pointer from the frame pointer. This ensures that
         // argument slots on the stack are dropped as returning would.
         // Note: Needed by the deoptimizer to rematerialize frames.
         Address return_sp = frame->fp() +
                             StandardFrameConstants::kFixedFrameSizeAboveFp -
-                            code.stack_slots() * kSystemPointerSize;
-        return FoundHandler(Context(), code.instruction_start(), offset,
-                            code.constant_pool(), return_sp, frame->fp(),
+                            code->stack_slots() * kSystemPointerSize;
+        return FoundHandler(Context(), code->instruction_start(), offset,
+                            code->constant_pool(), return_sp, frame->fp(),
                             visited_frames);
       }
 
       debug()->clear_restart_frame();
       Code code = *BUILTIN_CODE(this, RestartFrameTrampoline);
-      return FoundHandler(Context(), code.instruction_start(), 0,
-                          code.constant_pool(), kNullAddress, frame->fp(),
+      return FoundHandler(Context(), code->instruction_start(), 0,
+                          code->constant_pool(), kNullAddress, frame->fp(),
                           visited_frames);
     }
 
@@ -2054,8 +2056,9 @@ Object Isolate::UnwindAndFindHandler() {
         // Gather information from the handler.
         Code code = frame->LookupCode();
         HandlerTable table(code);
-        return FoundHandler(Context(), code.InstructionStart(this, frame->pc()),
-                            table.LookupReturn(0), code.constant_pool(),
+        return FoundHandler(Context(),
+                            code->InstructionStart(this, frame->pc()),
+                            table.LookupReturn(0), code->constant_pool(),
                             handler->address() + StackHandlerConstants::kSize,
                             0, visited_frames);
       }
@@ -2066,7 +2069,7 @@ Object Isolate::UnwindAndFindHandler() {
         thread_local_top()->handler_ = handler->next_address();
         Code code = frame->LookupCode();
         HandlerTable table(code);
-        Address instruction_start = code.instruction_start();
+        Address instruction_start = code->instruction_start();
         int return_offset = static_cast<int>(frame->pc() - instruction_start);
         int handler_offset = table.LookupReturn(return_offset);
         DCHECK_NE(-1, handler_offset);
@@ -2074,9 +2077,9 @@ Object Isolate::UnwindAndFindHandler() {
         // argument slots on the stack are dropped as returning would.
         Address return_sp = frame->fp() +
                             StandardFrameConstants::kFixedFrameSizeAboveFp -
-                            code.stack_slots() * kSystemPointerSize;
+                            code->stack_slots() * kSystemPointerSize;
         return FoundHandler(Context(), instruction_start, handler_offset,
-                            code.constant_pool(), return_sp, frame->fp(),
+                            code->constant_pool(), return_sp, frame->fp(),
                             visited_frames);
       }
 
@@ -2121,9 +2124,9 @@ Object Isolate::UnwindAndFindHandler() {
           if (!suspender_obj.IsUndefined()) {
             WasmSuspenderObject suspender =
                 WasmSuspenderObject::cast(suspender_obj);
-            int wasm_to_js_counter = suspender.wasm_to_js_counter();
+            int wasm_to_js_counter = suspender->wasm_to_js_counter();
             DCHECK_LT(0, wasm_to_js_counter);
-            suspender.set_wasm_to_js_counter(wasm_to_js_counter - 1);
+            suspender->set_wasm_to_js_counter(wasm_to_js_counter - 1);
           }
         }
         break;
@@ -2142,22 +2145,22 @@ Object Isolate::UnwindAndFindHandler() {
         // that argument slots on the stack are dropped as returning would.
         Address return_sp = frame->fp() +
                             StandardFrameConstants::kFixedFrameSizeAboveFp -
-                            code.stack_slots() * kSystemPointerSize;
+                            code->stack_slots() * kSystemPointerSize;
 
         // TODO(bmeurer): Turbofanned BUILTIN frames appear as TURBOFAN,
         // but do not have a code kind of TURBOFAN.
-        if (CodeKindCanDeoptimize(code.kind()) &&
-            code.marked_for_deoptimization()) {
+        if (CodeKindCanDeoptimize(code->kind()) &&
+            code->marked_for_deoptimization()) {
           // If the target code is lazy deoptimized, we jump to the original
           // return address, but we make a note that we are throwing, so
           // that the deoptimizer can do the right thing.
-          offset = static_cast<int>(frame->pc() - code.instruction_start());
+          offset = static_cast<int>(frame->pc() - code->instruction_start());
           set_deoptimizer_lazy_throw(true);
         }
 
-        return FoundHandler(Context(), code.InstructionStart(this, frame->pc()),
-                            offset, code.constant_pool(), return_sp,
-                            frame->fp(), visited_frames);
+        return FoundHandler(
+            Context(), code->InstructionStart(this, frame->pc()), offset,
+            code->constant_pool(), return_sp, frame->fp(), visited_frames);
       }
 
       case StackFrame::STUB: {
@@ -2172,7 +2175,7 @@ Object Isolate::UnwindAndFindHandler() {
         // The code might be a dynamically generated stub or a turbofanned
         // embedded builtin.
         Code code = stub_frame->LookupCode();
-        if (!code.is_turbofanned() || !code.has_handler_table()) {
+        if (!code->is_turbofanned() || !code->has_handler_table()) {
           break;
         }
 
@@ -2183,11 +2186,11 @@ Object Isolate::UnwindAndFindHandler() {
         // that argument slots on the stack are dropped as returning would.
         Address return_sp = frame->fp() +
                             StandardFrameConstants::kFixedFrameSizeAboveFp -
-                            code.stack_slots() * kSystemPointerSize;
+                            code->stack_slots() * kSystemPointerSize;
 
-        return FoundHandler(Context(), code.InstructionStart(this, frame->pc()),
-                            offset, code.constant_pool(), return_sp,
-                            frame->fp(), visited_frames);
+        return FoundHandler(
+            Context(), code->InstructionStart(this, frame->pc()), offset,
+            code->constant_pool(), return_sp, frame->fp(), visited_frames);
       }
 
       case StackFrame::INTERPRETED:
@@ -2196,7 +2199,7 @@ Object Isolate::UnwindAndFindHandler() {
         if (!catchable_by_js) break;
         UnoptimizedFrame* js_frame = UnoptimizedFrame::cast(frame);
         int register_slots = UnoptimizedFrameConstants::RegisterStackSlotCount(
-            js_frame->GetBytecodeArray().register_count());
+            js_frame->GetBytecodeArray()->register_count());
         int context_reg = 0;  // Will contain register index holding context.
         int offset =
             js_frame->LookupExceptionHandlerInTable(&context_reg, nullptr);
@@ -2225,8 +2228,8 @@ Object Isolate::UnwindAndFindHandler() {
           // Patch the context register directly on the frame, so that we don't
           // need to have a context read + write in the baseline code.
           sp_frame->PatchContext(context);
-          return FoundHandler(Context(), code.instruction_start(), pc_offset,
-                              code.constant_pool(), return_sp, sp_frame->fp(),
+          return FoundHandler(Context(), code->instruction_start(), pc_offset,
+                              code->constant_pool(), return_sp, sp_frame->fp(),
                               visited_frames);
         } else {
           InterpretedFrame::cast(js_frame)->PatchBytecodeOffset(
@@ -2241,8 +2244,8 @@ Object Isolate::UnwindAndFindHandler() {
           // because at a minimum, an exit frame into C++ has to separate
           // it and the context in which this C++ code runs.
           CHECK_GE(visited_frames, 1);
-          return FoundHandler(context, code.instruction_start(), 0,
-                              code.constant_pool(), return_sp, frame->fp(),
+          return FoundHandler(context, code->instruction_start(), 0,
+                              code->constant_pool(), return_sp, frame->fp(),
                               visited_frames - 1);
         }
       }
@@ -2265,8 +2268,8 @@ Object Isolate::UnwindAndFindHandler() {
         // Reconstruct the stack pointer from the frame pointer.
         Address return_sp = js_frame->fp() - js_frame->GetSPToFPDelta();
         Code code = js_frame->LookupCode();
-        return FoundHandler(Context(), code.instruction_start(), 0,
-                            code.constant_pool(), return_sp, frame->fp(),
+        return FoundHandler(Context(), code->instruction_start(), 0,
+                            code->constant_pool(), return_sp, frame->fp(),
                             visited_frames);
       }
 
@@ -2281,7 +2284,7 @@ Object Isolate::UnwindAndFindHandler() {
       USE(removed);
       // If there were any materialized objects, the code should be
       // marked for deopt.
-      DCHECK_IMPLIES(removed, frame->LookupCode().marked_for_deoptimization());
+      DCHECK_IMPLIES(removed, frame->LookupCode()->marked_for_deoptimization());
     }
   }
 
@@ -2316,7 +2319,7 @@ HandlerTable::CatchPrediction PredictException(JavaScriptFrame* frame) {
         const FrameSummary& summary = summaries[i - 1];
         Handle<AbstractCode> code = summary.AsJavaScript().abstract_code();
         if (code->kind(cage_base) == CodeKind::BUILTIN) {
-          auto prediction = CatchPredictionFor(code->GetCode().builtin_id());
+          auto prediction = CatchPredictionFor(code->GetCode()->builtin_id());
           if (prediction == HandlerTable::UNCAUGHT) continue;
           return prediction;
         }
@@ -2504,7 +2507,8 @@ bool Isolate::ComputeLocation(MessageLocation* target) {
   FrameSummary summary = it.GetTopValidFrame();
   Handle<SharedFunctionInfo> shared;
   Handle<Object> script = summary.script();
-  if (!script->IsScript() || Script::cast(*script).source().IsUndefined(this)) {
+  if (!script->IsScript() ||
+      Script::cast(*script)->source().IsUndefined(this)) {
     return false;
   }
 
@@ -2777,7 +2781,7 @@ void Isolate::PushPromise(Handle<JSObject> promise) {
 void Isolate::PopPromise() {
   if (!IsPromiseStackEmpty()) {
     debug()->thread_local_.promise_stack_ =
-        PromiseOnStack::cast(debug()->thread_local_.promise_stack_).prev();
+        PromiseOnStack::cast(debug()->thread_local_.promise_stack_)->prev();
   }
 }
 
@@ -2959,7 +2963,7 @@ void Isolate::InstallConditionalFeatures(Handle<NativeContext> context) {
   Handle<JSGlobalObject> global = handle(context->global_object(), this);
   // If some fuzzer decided to make the global object non-extensible, then
   // we can't install any features (and would CHECK-fail if we tried).
-  if (!global->map().is_extensible()) return;
+  if (!global->map()->is_extensible()) return;
   Handle<String> sab_name = factory()->SharedArrayBuffer_string();
   if (IsSharedArrayBufferConstructorEnabled(context)) {
     if (!JSObject::HasRealNamedProperty(this, global, sab_name)
@@ -3073,7 +3077,7 @@ Handle<NativeContext> Isolate::GetIncumbentContext() {
   if (!it.done() &&
       (!top_backup_incumbent || it.frame()->sp() < top_backup_incumbent)) {
     Context context = Context::cast(it.frame()->context());
-    return Handle<NativeContext>(context.native_context(), this);
+    return Handle<NativeContext>(context->native_context(), this);
   }
 
   // 2nd candidate: the last Context::Scope's incumbent context if any.
@@ -3173,7 +3177,7 @@ void Isolate::SyncStackLimit() {
   auto continuation =
       WasmContinuationObject::cast(root(RootIndex::kActiveContinuation));
   wasm::StackMemory* stack =
-      Managed<wasm::StackMemory>::cast(continuation.stack()).raw();
+      Managed<wasm::StackMemory>::cast(continuation->stack())->raw();
   if (v8_flags.trace_wasm_stack_switching) {
     PrintF("Switch to stack #%d\n", stack->id());
   }
@@ -3188,10 +3192,10 @@ void Isolate::RecordStackSwitchForScanning() {
   stack().ClearStackSegments();
   wasm::StackMemory* wasm_stack =
       Managed<wasm::StackMemory>::cast(
-          WasmContinuationObject::cast(current).stack())
-          .get()
+          WasmContinuationObject::cast(current)->stack())
+          ->get()
           .get();
-  current = WasmContinuationObject::cast(current).parent();
+  current = WasmContinuationObject::cast(current)->parent();
   heap()->SetStackStart(reinterpret_cast<void*>(wasm_stack->base()));
   thread_local_top()->is_on_central_stack_flag_ = current.IsUndefined();
   // We don't need to add all inactive stacks. Only the ones in the active chain
@@ -3199,11 +3203,11 @@ void Isolate::RecordStackSwitchForScanning() {
   while (!current.IsUndefined()) {
     auto cont = WasmContinuationObject::cast(current);
     auto* wasm_stack =
-        Managed<wasm::StackMemory>::cast(cont.stack()).get().get();
+        Managed<wasm::StackMemory>::cast(cont->stack())->get().get();
     stack().AddStackSegment(
         reinterpret_cast<const void*>(wasm_stack->base()),
         reinterpret_cast<const void*>(wasm_stack->jmpbuf()->sp));
-    current = cont.parent();
+    current = cont->parent();
     // If the parent is undefined, wasm_stack is the central stack.
     // Update the central stack SP for switching in CEntry.
     if (current.IsUndefined()) {
@@ -4278,36 +4282,36 @@ void Isolate::VerifyStaticRoots() {
 
 #define INSTANCE_TYPE_CHECKER_SINGLE(type, _)  \
   CHECK_EQ(InstanceTypeChecker::Is##type(map), \
-           InstanceTypeChecker::Is##type(map.instance_type()));
+           InstanceTypeChecker::Is##type(map->instance_type()));
     INSTANCE_TYPE_CHECKERS_SINGLE(INSTANCE_TYPE_CHECKER_SINGLE)
 #undef INSTANCE_TYPE_CHECKER_SINGLE
 
 #define INSTANCE_TYPE_CHECKER_RANGE(type, _1, _2) \
   CHECK_EQ(InstanceTypeChecker::Is##type(map),    \
-           InstanceTypeChecker::Is##type(map.instance_type()));
+           InstanceTypeChecker::Is##type(map->instance_type()));
     INSTANCE_TYPE_CHECKERS_RANGE(INSTANCE_TYPE_CHECKER_RANGE)
 #undef INSTANCE_TYPE_CHECKER_RANGE
 
     // This limit is used in various places as a fast IsJSReceiver check.
     CHECK_IMPLIES(
-        InstanceTypeChecker::IsPrimitiveHeapObject(map.instance_type()),
+        InstanceTypeChecker::IsPrimitiveHeapObject(map->instance_type()),
         V8HeapCompressionScheme::CompressObject(map.ptr()) <
             InstanceTypeChecker::kNonJsReceiverMapLimit);
-    CHECK_IMPLIES(InstanceTypeChecker::IsJSReceiver(map.instance_type()),
+    CHECK_IMPLIES(InstanceTypeChecker::IsJSReceiver(map->instance_type()),
                   V8HeapCompressionScheme::CompressObject(map.ptr()) >=
                       InstanceTypeChecker::kNonJsReceiverMapLimit);
     CHECK(InstanceTypeChecker::kNonJsReceiverMapLimit <
           read_only_heap()->read_only_space()->Size());
 
-    if (InstanceTypeChecker::IsString(map.instance_type())) {
+    if (InstanceTypeChecker::IsString(map->instance_type())) {
       CHECK_EQ(InstanceTypeChecker::IsString(map),
-               InstanceTypeChecker::IsString(map.instance_type()));
+               InstanceTypeChecker::IsString(map->instance_type()));
       CHECK_EQ(InstanceTypeChecker::IsExternalString(map),
-               InstanceTypeChecker::IsExternalString(map.instance_type()));
+               InstanceTypeChecker::IsExternalString(map->instance_type()));
       CHECK_EQ(InstanceTypeChecker::IsInternalizedString(map),
-               InstanceTypeChecker::IsInternalizedString(map.instance_type()));
+               InstanceTypeChecker::IsInternalizedString(map->instance_type()));
       CHECK_EQ(InstanceTypeChecker::IsThinString(map),
-               InstanceTypeChecker::IsThinString(map.instance_type()));
+               InstanceTypeChecker::IsThinString(map->instance_type()));
     }
   }
 
@@ -4980,10 +4984,10 @@ void Isolate::MaybeInitializeVectorListFromHeap() {
       if (!current_obj.IsFeedbackVector()) continue;
 
       FeedbackVector vector = FeedbackVector::cast(current_obj);
-      SharedFunctionInfo shared = vector.shared_function_info();
+      SharedFunctionInfo shared = vector->shared_function_info();
 
       // No need to preserve the feedback vector for non-user-visible functions.
-      if (!shared.IsSubjectToDebugging()) continue;
+      if (!shared->IsSubjectToDebugging()) continue;
 
       vectors.emplace_back(vector, this);
     }
@@ -5008,14 +5012,14 @@ Isolate::KnownPrototype Isolate::IsArrayOrObjectOrStringPrototype(
   Object context = heap()->native_contexts_list();
   while (!context.IsUndefined(this)) {
     Context current_context = Context::cast(context);
-    if (current_context.initial_object_prototype() == object) {
+    if (current_context->initial_object_prototype() == object) {
       return KnownPrototype::kObject;
-    } else if (current_context.initial_array_prototype() == object) {
+    } else if (current_context->initial_array_prototype() == object) {
       return KnownPrototype::kArray;
-    } else if (current_context.initial_string_prototype() == object) {
+    } else if (current_context->initial_string_prototype() == object) {
       return KnownPrototype::kString;
     }
-    context = current_context.next_context_link();
+    context = current_context->next_context_link();
   }
   return KnownPrototype::kNone;
 }
@@ -5025,17 +5029,17 @@ bool Isolate::IsInAnyContext(Object object, uint32_t index) {
   Object context = heap()->native_contexts_list();
   while (!context.IsUndefined(this)) {
     Context current_context = Context::cast(context);
-    if (current_context.get(index) == object) {
+    if (current_context->get(index) == object) {
       return true;
     }
-    context = current_context.next_context_link();
+    context = current_context->next_context_link();
   }
   return false;
 }
 
 void Isolate::UpdateNoElementsProtectorOnSetElement(Handle<JSObject> object) {
   DisallowGarbageCollection no_gc;
-  if (!object->map().is_prototype_map()) return;
+  if (!object->map()->is_prototype_map()) return;
   if (!Protectors::IsNoElementsIntact(this)) return;
   KnownPrototype obj_type = IsArrayOrObjectOrStringPrototype(*object);
   if (obj_type == KnownPrototype::kNone) return;
@@ -5070,7 +5074,7 @@ void Isolate::UpdateNumberStringNotRegexpLikeProtectorOnSetPrototype(
   // approximation. Using JSPrimitiveWrapper as prototype should be
   // sufficiently rare.
   DCHECK(!object->IsJSObjectPrototype());
-  if (object->map().is_prototype_map() && (object->IsJSPrimitiveWrapper())) {
+  if (object->map()->is_prototype_map() && (object->IsJSPrimitiveWrapper())) {
     Protectors::InvalidateNumberStringNotRegexpLike(this);
   }
 }
@@ -5743,7 +5747,7 @@ void Isolate::CountUsage(v8::Isolate::UseCounterFeature feature) {
   // blink, or passing it to the callback explicitly.
   if (heap_.gc_state() == Heap::NOT_IN_GC && !context().is_null()) {
     DCHECK(context().IsContext());
-    DCHECK(context().native_context().IsNativeContext());
+    DCHECK(context()->native_context().IsNativeContext());
     if (use_counter_callback_) {
       HandleScope handle_scope(this);
       use_counter_callback_(reinterpret_cast<v8::Isolate*>(this), feature);
@@ -5824,7 +5828,7 @@ void Isolate::CheckDetachedContextsAfterGC() {
 
 void Isolate::DetachGlobal(Handle<Context> env) {
   counters()->errors_thrown_per_context()->AddSample(
-      env->native_context().GetErrorsThrown());
+      env->native_context()->GetErrorsThrown());
 
   ReadOnlyRoots roots(this);
   Handle<JSGlobalProxy> global_proxy(env->global_proxy(), this);
@@ -5832,12 +5836,12 @@ void Isolate::DetachGlobal(Handle<Context> env) {
   // NOTE: Turbofan's JSNativeContextSpecialization and Maglev depend on
   // DetachGlobal causing a map change.
   JSObject::ForceSetPrototype(this, global_proxy, factory()->null_value());
-  global_proxy->map().set_constructor_or_back_pointer(roots.null_value(),
-                                                      kRelaxedStore);
+  global_proxy->map()->set_constructor_or_back_pointer(roots.null_value(),
+                                                       kRelaxedStore);
   if (v8_flags.track_detached_contexts) AddDetachedContext(env);
   DCHECK(global_proxy->IsDetached());
 
-  env->native_context().set_microtask_queue(this, nullptr);
+  env->native_context()->set_microtask_queue(this, nullptr);
 }
 
 double Isolate::LoadStartTimeMs() {
@@ -5910,12 +5914,12 @@ void Isolate::CollectSourcePositionsForAllBytecodeArrays() {
       SharedFunctionInfo sfi = SharedFunctionInfo::cast(obj);
       // If the script is a Smi, then the SharedFunctionInfo is in
       // the process of being deserialized.
-      Object script = sfi.raw_script(kAcquireLoad);
+      Object script = sfi->raw_script(kAcquireLoad);
       if (script.IsSmi()) {
         DCHECK_EQ(script, Smi::uninitialized_deserialization_value());
         continue;
       }
-      if (!sfi.CanCollectSourcePosition(this)) continue;
+      if (!sfi->CanCollectSourcePosition(this)) continue;
       sfis.push_back(Handle<SharedFunctionInfo>(sfi, this));
     }
   }
@@ -5930,7 +5934,7 @@ namespace {
 
 std::string GetStringFromLocales(Isolate* isolate, Handle<Object> locales) {
   if (locales->IsUndefined(isolate)) return "";
-  return std::string(String::cast(*locales).ToCString().get());
+  return std::string(String::cast(*locales)->ToCString().get());
 }
 
 bool StringEqualsLocales(Isolate* isolate, const std::string& str,
@@ -6306,8 +6310,8 @@ Object Isolate::LocalsBlockListCacheGet(Handle<ScopeInfo> scope_info) {
 
   Object maybe_value =
       EphemeronHashTable::cast(heap()->locals_block_list_cache())
-          .Lookup(scope_info);
-  if (maybe_value.IsTuple2()) return Tuple2::cast(maybe_value).value2();
+          ->Lookup(scope_info);
+  if (maybe_value.IsTuple2()) return Tuple2::cast(maybe_value)->value2();
 
   CHECK(maybe_value.IsStringSet() || maybe_value.IsTheHole());
   return maybe_value;

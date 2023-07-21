@@ -93,9 +93,9 @@ static const int kPretenureCreationCount =
 static void CheckMap(Map map, int type, int instance_size) {
   CHECK(map.IsHeapObject());
   DCHECK(IsValidHeapObject(CcTest::heap(), map));
-  CHECK_EQ(ReadOnlyRoots(CcTest::heap()).meta_map(), map.map());
-  CHECK_EQ(type, map.instance_type());
-  CHECK_EQ(instance_size, map.instance_size());
+  CHECK_EQ(ReadOnlyRoots(CcTest::heap()).meta_map(), map->map());
+  CHECK_EQ(type, map->instance_type());
+  CHECK_EQ(instance_size, map->instance_size());
 }
 
 
@@ -119,7 +119,7 @@ static void VerifyStoredPrototypeMap(Isolate* isolate,
 
   Handle<JSFunction> fun(
       JSFunction::cast(context->get(stored_ctor_context_index)), isolate);
-  Handle<JSObject> proto(JSObject::cast(fun->initial_map().prototype()),
+  Handle<JSObject> proto(JSObject::cast(fun->initial_map()->prototype()),
                          isolate);
   Handle<Map> that_map(proto->map(), isolate);
 
@@ -169,13 +169,13 @@ static void CheckOddball(Isolate* isolate, Object obj, const char* string) {
   CHECK(obj.IsOddball());
   Handle<Object> handle(obj, isolate);
   Object print_string = *Object::ToString(isolate, handle).ToHandleChecked();
-  CHECK(String::cast(print_string).IsOneByteEqualTo(base::CStrVector(string)));
+  CHECK(String::cast(print_string)->IsOneByteEqualTo(base::CStrVector(string)));
 }
 
 static void CheckSmi(Isolate* isolate, int value, const char* string) {
   Handle<Object> handle(Smi::FromInt(value), isolate);
   Object print_string = *Object::ToString(isolate, handle).ToHandleChecked();
-  CHECK(String::cast(print_string).IsOneByteEqualTo(base::CStrVector(string)));
+  CHECK(String::cast(print_string)->IsOneByteEqualTo(base::CStrVector(string)));
 }
 
 
@@ -184,7 +184,8 @@ static void CheckNumber(Isolate* isolate, double value, const char* string) {
   CHECK(number->IsNumber());
   Handle<Object> print_string =
       Object::ToString(isolate, number).ToHandleChecked();
-  CHECK(String::cast(*print_string).IsOneByteEqualTo(base::CStrVector(string)));
+  CHECK(
+      String::cast(*print_string)->IsOneByteEqualTo(base::CStrVector(string)));
 }
 
 void CheckEmbeddedObjectsAreEqual(Isolate* isolate, Handle<Code> lhs,
@@ -225,9 +226,9 @@ static void CheckGcSafeFindCodeForInnerPointer(Isolate* isolate) {
   HeapObject obj = HeapObject::cast(*code);
   Address obj_addr = obj.address();
 
-  for (int i = 0; i < obj.Size(cage_base); i += kTaggedSize) {
+  for (int i = 0; i < obj->Size(cage_base); i += kTaggedSize) {
     Code lookup_result = isolate->heap()->FindCodeForInnerPointer(obj_addr + i);
-    CHECK_EQ(*code, lookup_result.instruction_stream());
+    CHECK_EQ(*code, lookup_result->instruction_stream());
   }
 
   Handle<InstructionStream> copy(
@@ -237,9 +238,9 @@ static void CheckGcSafeFindCodeForInnerPointer(Isolate* isolate) {
       isolate);
   HeapObject obj_copy = HeapObject::cast(*copy);
   Code not_right = isolate->heap()->FindCodeForInnerPointer(
-      obj_copy.address() + obj_copy.Size(cage_base) / 2);
-  CHECK_NE(not_right.instruction_stream(), *code);
-  CHECK_EQ(not_right.instruction_stream(), *copy);
+      obj_copy.address() + obj_copy->Size(cage_base) / 2);
+  CHECK_NE(not_right->instruction_stream(), *code);
+  CHECK_EQ(not_right->instruction_stream(), *copy);
 }
 
 TEST(HandleNull) {
@@ -313,7 +314,7 @@ TEST(HeapObjects) {
   CHECK_EQ(10, s->length());
 
   Handle<String> object_string = Handle<String>::cast(factory->Object_string());
-  Handle<JSGlobalObject> global(CcTest::i_isolate()->context().global_object(),
+  Handle<JSGlobalObject> global(CcTest::i_isolate()->context()->global_object(),
                                 isolate);
   CHECK(Just(true) ==
         JSReceiver::HasOwnProperty(isolate, global, object_string));
@@ -357,7 +358,7 @@ TEST(GarbageCollection) {
   // Check GC.
   heap::InvokeMinorGC(CcTest::heap());
 
-  Handle<JSGlobalObject> global(CcTest::i_isolate()->context().global_object(),
+  Handle<JSGlobalObject> global(CcTest::i_isolate()->context()->global_object(),
                                 isolate);
   Handle<String> name = factory->InternalizeUtf8String("theFunction");
   Handle<String> prop_name = factory->InternalizeUtf8String("theSlot");
@@ -1061,7 +1062,7 @@ TEST(Iteration) {
 
   // Add a Map object to look for.
   objs[next_objs_index++] =
-      Handle<Map>(HeapObject::cast(*objs[0]).map(), isolate);
+      Handle<Map>(HeapObject::cast(*objs[0])->map(), isolate);
 
   CHECK_EQ(objs_count, next_objs_index);
   CHECK_EQ(objs_count, ObjectsFoundInHeap(CcTest::heap(), objs, objs_count));
@@ -1110,22 +1111,22 @@ TEST(TestBytecodeFlushing) {
             .ToHandleChecked();
     CHECK(func_value->IsJSFunction());
     Handle<JSFunction> function = Handle<JSFunction>::cast(func_value);
-    CHECK(function->shared().is_compiled());
+    CHECK(function->shared()->is_compiled());
 
     // The code will survive at least two GCs.
     heap::InvokeMajorGC(CcTest::heap());
     heap::InvokeMajorGC(CcTest::heap());
-    CHECK(function->shared().is_compiled());
+    CHECK(function->shared()->is_compiled());
 
     i::SharedFunctionInfo::EnsureOldForTesting(function->shared());
     heap::InvokeMajorGC(CcTest::heap());
 
     // foo should no longer be in the compilation cache
-    CHECK(!function->shared().is_compiled());
+    CHECK(!function->shared()->is_compiled());
     CHECK(!function->is_compiled());
     // Call foo to get it recompiled.
     CompileRun("foo()");
-    CHECK(function->shared().is_compiled());
+    CHECK(function->shared()->is_compiled());
     CHECK(function->is_compiled());
   }
 }
@@ -1252,27 +1253,27 @@ HEAP_TEST(Regress10560) {
             .ToHandleChecked();
     CHECK(func_value->IsJSFunction());
     Handle<JSFunction> function = Handle<JSFunction>::cast(func_value);
-    CHECK(function->shared().is_compiled());
+    CHECK(function->shared()->is_compiled());
     CHECK(!function->has_feedback_vector());
 
     // Pre-age bytecode so it will be flushed on next run.
-    CHECK(function->shared().HasBytecodeArray());
+    CHECK(function->shared()->HasBytecodeArray());
     SharedFunctionInfo::EnsureOldForTesting(function->shared());
 
     heap::SimulateFullSpace(heap->old_space());
 
     // Just check bytecode isn't flushed still
-    CHECK(function->shared().is_compiled());
+    CHECK(function->shared()->is_compiled());
 
     heap->set_force_gc_on_next_allocation();
 
     // Allocate feedback vector.
     IsCompiledScope is_compiled_scope(
-        function->shared().is_compiled_scope(i_isolate));
+        function->shared()->is_compiled_scope(i_isolate));
     JSFunction::EnsureFeedbackVector(i_isolate, function, &is_compiled_scope);
 
     CHECK(function->has_feedback_vector());
-    CHECK(function->shared().is_compiled());
+    CHECK(function->shared()->is_compiled());
     CHECK(function->is_compiled());
   }
 }
@@ -1425,17 +1426,17 @@ TEST(TestOptimizeAfterBytecodeFlushingCandidate) {
           .ToHandleChecked();
   CHECK(func_value->IsJSFunction());
   Handle<JSFunction> function = Handle<JSFunction>::cast(func_value);
-  CHECK(function->shared().is_compiled());
+  CHECK(function->shared()->is_compiled());
 
   // The code will survive at least two GCs.
   heap::InvokeMajorGC(CcTest::heap());
   heap::InvokeMajorGC(CcTest::heap());
-  CHECK(function->shared().is_compiled());
+  CHECK(function->shared()->is_compiled());
 
   i::SharedFunctionInfo::EnsureOldForTesting(function->shared());
   heap::InvokeMajorGC(CcTest::heap());
 
-  CHECK(!function->shared().is_compiled());
+  CHECK(!function->shared()->is_compiled());
   CHECK(!function->is_compiled());
 
   // This compile will compile the function again.
@@ -1458,7 +1459,7 @@ TEST(TestOptimizeAfterBytecodeFlushingCandidate) {
 
   // Simulate one final GC and make sure the candidate wasn't flushed.
   heap::InvokeMajorGC(CcTest::heap());
-  CHECK(function->shared().is_compiled());
+  CHECK(function->shared()->is_compiled());
   CHECK(function->is_compiled());
 }
 #endif  // !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
@@ -1737,7 +1738,7 @@ void CompilationCacheRegeneration(bool retain_root_sfi, bool flush_root_sfi,
     Handle<Script> script(Script::cast(lazy_sfi->script()), isolate);
     bool root_sfi_still_exists = false;
     MaybeObject maybe_root_sfi =
-        script->shared_function_infos().Get(kFunctionLiteralIdTopLevel);
+        script->shared_function_infos()->Get(kFunctionLiteralIdTopLevel);
     if (HeapObject sfi_or_undefined;
         maybe_root_sfi.GetHeapObject(&sfi_or_undefined)) {
       root_sfi_still_exists = !sfi_or_undefined.IsUndefined();
@@ -1845,7 +1846,7 @@ int CountNativeContexts() {
   Object object = CcTest::heap()->native_contexts_list();
   while (!object.IsUndefined(CcTest::i_isolate())) {
     count++;
-    object = Context::cast(object).next_context_link();
+    object = Context::cast(object)->next_context_link();
   }
   return count;
 }
@@ -2140,7 +2141,7 @@ TEST(TestAlignedAllocation) {
     // There is a filler object before the object.
     filler = HeapObject::FromAddress(start);
     CHECK(obj != filler && filler.IsFreeSpaceOrFiller() &&
-          filler.Size() == kTaggedSize);
+          filler->Size() == kTaggedSize);
     CHECK_EQ(kTaggedSize + double_misalignment, *top_addr - start);
 
     // Similarly for kDoubleUnaligned.
@@ -2154,7 +2155,7 @@ TEST(TestAlignedAllocation) {
     // There is a filler object before the object.
     filler = HeapObject::FromAddress(start);
     CHECK(obj != filler && filler.IsFreeSpaceOrFiller() &&
-          filler.Size() == kTaggedSize);
+          filler->Size() == kTaggedSize);
     CHECK_EQ(kTaggedSize + double_misalignment, *top_addr - start);
   }
 }
@@ -2217,9 +2218,9 @@ TEST(TestAlignedOverAllocation) {
     filler = HeapObject::FromAddress(start);
     CHECK(obj != filler);
     CHECK(filler.IsFreeSpaceOrFiller());
-    CHECK_EQ(kTaggedSize, filler.Size());
+    CHECK_EQ(kTaggedSize, filler->Size());
     CHECK(obj != filler && filler.IsFreeSpaceOrFiller() &&
-          filler.Size() == kTaggedSize);
+          filler->Size() == kTaggedSize);
 
     // Similarly for kDoubleUnaligned.
     start = AlignOldSpace(kDoubleUnaligned, 0);
@@ -2232,7 +2233,7 @@ TEST(TestAlignedOverAllocation) {
     CHECK(IsAligned(obj.address() + kTaggedSize, kDoubleAlignment));
     filler = HeapObject::FromAddress(start);
     CHECK(obj != filler && filler.IsFreeSpaceOrFiller() &&
-          filler.Size() == kTaggedSize);
+          filler->Size() == kTaggedSize);
   }
 }
 
@@ -2281,7 +2282,7 @@ TEST(TestSizeOfObjectsVsHeapObjectIteratorPrecision) {
   for (HeapObject obj = iterator.Next(); !obj.is_null();
        obj = iterator.Next()) {
     if (!obj.IsFreeSpace(cage_base)) {
-      size_of_objects_2 += obj.Size(cage_base);
+      size_of_objects_2 += obj->Size(cage_base);
     }
   }
   // Delta must be within 5% of the larger result.
@@ -2854,8 +2855,8 @@ TEST(OptimizedPretenuringMixedInObjectProperties) {
 
   JSObject inner_object = JSObject::cast(o->RawFastPropertyAt(idx1));
   CHECK(CcTest::heap()->InOldSpace(inner_object));
-  CHECK(CcTest::heap()->InOldSpace(inner_object.RawFastPropertyAt(idx1)));
-  CHECK(CcTest::heap()->InOldSpace(inner_object.RawFastPropertyAt(idx2)));
+  CHECK(CcTest::heap()->InOldSpace(inner_object->RawFastPropertyAt(idx1)));
+  CHECK(CcTest::heap()->InOldSpace(inner_object->RawFastPropertyAt(idx2)));
 }
 
 
@@ -3230,7 +3231,7 @@ TEST(TransitionArrayShrinksDuringAllocToZero) {
   // Count number of live transitions after marking.  Note that one transition
   // is left, because 'o' still holds an instance of one transition target.
   int transitions_after =
-      CountMapTransitions(i_isolate, Map::cast(root->map().GetBackPointer()));
+      CountMapTransitions(i_isolate, Map::cast(root->map()->GetBackPointer()));
   CHECK_EQ(1, transitions_after);
 }
 
@@ -3259,7 +3260,7 @@ TEST(TransitionArrayShrinksDuringAllocToOne) {
   // Count number of live transitions after marking.  Note that one transition
   // is left, because 'o' still holds an instance of one transition target.
   int transitions_after =
-      CountMapTransitions(i_isolate, Map::cast(root->map().GetBackPointer()));
+      CountMapTransitions(i_isolate, Map::cast(root->map()->GetBackPointer()));
   CHECK_EQ(2, transitions_after);
 }
 
@@ -3288,7 +3289,7 @@ TEST(TransitionArrayShrinksDuringAllocToOnePropertyFound) {
   // Count number of live transitions after marking.  Note that one transition
   // is left, because 'o' still holds an instance of one transition target.
   int transitions_after =
-      CountMapTransitions(i_isolate, Map::cast(root->map().GetBackPointer()));
+      CountMapTransitions(i_isolate, Map::cast(root->map()->GetBackPointer()));
   CHECK_EQ(1, transitions_after);
 }
 #endif  // DEBUG
@@ -3746,7 +3747,7 @@ void DetailedErrorStackTraceTest(const char* src,
 }
 
 FixedArray ParametersOf(Handle<FixedArray> stack_trace, int frame_index) {
-  return CallSiteInfo::cast(stack_trace->get(frame_index)).parameters();
+  return CallSiteInfo::cast(stack_trace->get(frame_index))->parameters();
 }
 
 // * Test interpreted function error
@@ -3768,23 +3769,23 @@ TEST(DetailedErrorStackTrace) {
 
   DetailedErrorStackTraceTest(source, [](Handle<FixedArray> stack_trace) {
     FixedArray foo_parameters = ParametersOf(stack_trace, 0);
-    CHECK_EQ(foo_parameters.length(), 1);
-    CHECK(foo_parameters.get(0).IsSmi());
-    CHECK_EQ(Smi::ToInt(foo_parameters.get(0)), 42);
+    CHECK_EQ(foo_parameters->length(), 1);
+    CHECK(foo_parameters->get(0).IsSmi());
+    CHECK_EQ(Smi::ToInt(foo_parameters->get(0)), 42);
 
     FixedArray bar_parameters = ParametersOf(stack_trace, 1);
-    CHECK_EQ(bar_parameters.length(), 2);
-    CHECK(bar_parameters.get(0).IsJSObject());
-    CHECK(bar_parameters.get(1).IsBoolean());
+    CHECK_EQ(bar_parameters->length(), 2);
+    CHECK(bar_parameters->get(0).IsJSObject());
+    CHECK(bar_parameters->get(1).IsBoolean());
     Handle<Object> foo = Handle<Object>::cast(GetByName("foo"));
-    CHECK_EQ(bar_parameters.get(0), *foo);
-    CHECK(!bar_parameters.get(1).BooleanValue(CcTest::i_isolate()));
+    CHECK_EQ(bar_parameters->get(0), *foo);
+    CHECK(!bar_parameters->get(1).BooleanValue(CcTest::i_isolate()));
 
     FixedArray main_parameters = ParametersOf(stack_trace, 2);
-    CHECK_EQ(main_parameters.length(), 2);
-    CHECK(main_parameters.get(0).IsJSObject());
-    CHECK(main_parameters.get(1).IsUndefined());
-    CHECK_EQ(main_parameters.get(0), *foo);
+    CHECK_EQ(main_parameters->length(), 2);
+    CHECK(main_parameters->get(0).IsJSObject());
+    CHECK(main_parameters->get(1).IsUndefined());
+    CHECK_EQ(main_parameters->get(0), *foo);
   });
 }
 
@@ -3809,14 +3810,14 @@ TEST(DetailedErrorStackTraceInline) {
 
   DetailedErrorStackTraceTest(source, [](Handle<FixedArray> stack_trace) {
     FixedArray parameters_add = ParametersOf(stack_trace, 0);
-    CHECK_EQ(parameters_add.length(), 1);
-    CHECK(parameters_add.get(0).IsSmi());
-    CHECK_EQ(Smi::ToInt(parameters_add.get(0)), 42);
+    CHECK_EQ(parameters_add->length(), 1);
+    CHECK(parameters_add->get(0).IsSmi());
+    CHECK_EQ(Smi::ToInt(parameters_add->get(0)), 42);
 
     FixedArray parameters_foo = ParametersOf(stack_trace, 1);
-    CHECK_EQ(parameters_foo.length(), 1);
-    CHECK(parameters_foo.get(0).IsSmi());
-    CHECK_EQ(Smi::ToInt(parameters_foo.get(0)), 41);
+    CHECK_EQ(parameters_foo->length(), 1);
+    CHECK(parameters_foo->get(0).IsSmi());
+    CHECK_EQ(Smi::ToInt(parameters_foo->get(0)), 41);
   });
 }
 
@@ -3831,9 +3832,9 @@ TEST(DetailedErrorStackTraceBuiltinExit) {
   DetailedErrorStackTraceTest(source, [](Handle<FixedArray> stack_trace) {
     FixedArray parameters = ParametersOf(stack_trace, 0);
 
-    CHECK_EQ(parameters.length(), 2);
-    CHECK(parameters.get(1).IsSmi());
-    CHECK_EQ(Smi::ToInt(parameters.get(1)), 9999);
+    CHECK_EQ(parameters->length(), 2);
+    CHECK(parameters->get(1).IsSmi());
+    CHECK_EQ(Smi::ToInt(parameters->get(1)), 9999);
   });
 }
 
@@ -4108,8 +4109,8 @@ static int AllocationSitesCount(Heap* heap) {
   int count = 0;
   for (Object site = heap->allocation_sites_list(); site.IsAllocationSite();) {
     AllocationSite cur = AllocationSite::cast(site);
-    CHECK(cur.HasWeakNext());
-    site = cur.weak_next();
+    CHECK(cur->HasWeakNext());
+    site = cur->weak_next();
     count++;
   }
   return count;
@@ -4120,13 +4121,13 @@ static int SlimAllocationSiteCount(Heap* heap) {
   for (Object weak_list = heap->allocation_sites_list();
        weak_list.IsAllocationSite();) {
     AllocationSite weak_cur = AllocationSite::cast(weak_list);
-    for (Object site = weak_cur.nested_site(); site.IsAllocationSite();) {
+    for (Object site = weak_cur->nested_site(); site.IsAllocationSite();) {
       AllocationSite cur = AllocationSite::cast(site);
-      CHECK(!cur.HasWeakNext());
-      site = cur.nested_site();
+      CHECK(!cur->HasWeakNext());
+      site = cur->nested_site();
       count++;
     }
-    weak_list = weak_cur.weak_next();
+    weak_list = weak_cur->weak_next();
   }
   return count;
 }
@@ -4177,11 +4178,11 @@ TEST(EnsureAllocationSiteDependentCodesProcessed) {
     DependentCode dependency = site->dependent_code();
     CHECK_NE(dependency,
              DependentCode::empty_dependent_code(ReadOnlyRoots(isolate)));
-    CHECK_EQ(dependency.length(), DependentCode::kSlotsPerEntry);
-    MaybeObject code = dependency.Get(0 + DependentCode::kCodeSlotOffset);
+    CHECK_EQ(dependency->length(), DependentCode::kSlotsPerEntry);
+    MaybeObject code = dependency->Get(0 + DependentCode::kCodeSlotOffset);
     CHECK(code->IsWeak());
     CHECK_EQ(bar_handle->code(), Code::cast(code->GetHeapObjectAssumeWeak()));
-    Smi groups = dependency.Get(0 + DependentCode::kGroupsSlotOffset).ToSmi();
+    Smi groups = dependency->Get(0 + DependentCode::kGroupsSlotOffset).ToSmi();
     CHECK_EQ(static_cast<DependentCode::DependencyGroups>(groups.value()),
              DependentCode::kAllocationSiteTransitionChangedGroup |
                  DependentCode::kAllocationSiteTenuringChangedGroup);
@@ -4195,7 +4196,7 @@ TEST(EnsureAllocationSiteDependentCodesProcessed) {
 
   // The site still exists because of our global handle, but the code is no
   // longer referred to by dependent_code().
-  CHECK(site->dependent_code().Get(0)->IsCleared());
+  CHECK(site->dependent_code()->Get(0)->IsCleared());
 }
 
 void CheckNumberOfAllocations(Heap* heap, const char* source,
@@ -4444,7 +4445,7 @@ TEST(NewSpaceObjectsInOptimizedCode) {
 #ifdef VERIFY_HEAP
     HeapVerifier::VerifyHeap(CcTest::heap());
 #endif
-    CHECK(!bar->code().marked_for_deoptimization());
+    CHECK(!bar->code()->marked_for_deoptimization());
     code = handle(bar->code(), isolate);
     code = scope.CloseAndEscape(code);
   }
@@ -5148,7 +5149,7 @@ TEST(Regress442710) {
   Factory* factory = isolate->factory();
 
   HandleScope sc(isolate);
-  Handle<JSGlobalObject> global(CcTest::i_isolate()->context().global_object(),
+  Handle<JSGlobalObject> global(CcTest::i_isolate()->context()->global_object(),
                                 isolate);
   Handle<JSArray> array = factory->NewJSArray(2);
 
@@ -5527,10 +5528,10 @@ AllocationResult HeapTester::AllocateByteArrayForTest(
     if (!allocation.To(&result)) return allocation;
   }
 
-  result.set_map_after_allocation(ReadOnlyRoots(heap).byte_array_map(),
-                                  SKIP_WRITE_BARRIER);
-  ByteArray::cast(result).set_length(length);
-  ByteArray::cast(result).clear_padding();
+  result->set_map_after_allocation(ReadOnlyRoots(heap).byte_array_map(),
+                                   SKIP_WRITE_BARRIER);
+  ByteArray::cast(result)->set_length(length);
+  ByteArray::cast(result)->clear_padding();
   return AllocationResult::FromObject(result);
 }
 
@@ -5574,7 +5575,7 @@ HEAP_TEST(Regress587004) {
   while (
       AllocateByteArrayForTest(heap, M, AllocationType::kOld).To(&byte_array)) {
     for (int j = 0; j < M; j++) {
-      byte_array.set(j, 0x31);
+      byte_array->set(j, 0x31);
     }
   }
   // Re-enable old space expansion to avoid OOM crash.
@@ -5612,7 +5613,7 @@ HEAP_TEST(Regress589413) {
     if (Page::FromHeapObject(byte_array) != young_page) break;
 
     for (int j = 0; j < M; j++) {
-      byte_array.set(j, 0x31);
+      byte_array->set(j, 0x31);
     }
     // Add the array in root set.
     handle(byte_array, isolate);
@@ -5671,7 +5672,7 @@ HEAP_TEST(Regress589413) {
       for (size_t j = 0; j < arrays.size(); j++) {
         array = arrays[j];
         for (int i = 0; i < N; i++) {
-          array.set(i, *ec_obj);
+          array->set(i, *ec_obj);
         }
       }
     }
@@ -5712,9 +5713,9 @@ TEST(Regress598319) {
         Handle<FixedArray> tmp = isolate->factory()->NewFixedArray(
             number_of_objects, AllocationType::kOld);
         root->set(0, *tmp);
-        for (int i = 0; i < get().length(); i++) {
+        for (int i = 0; i < get()->length(); i++) {
           tmp = isolate->factory()->NewFixedArray(100, AllocationType::kOld);
-          get().set(i, *tmp);
+          get()->set(i, *tmp);
         }
       }
       global_root.Reset(CcTest::isolate(),
@@ -5730,7 +5731,7 @@ TEST(Regress598319) {
     v8::Global<Value> global_root;
   } arr(isolate, kNumberOfObjects);
 
-  CHECK_EQ(arr.get().length(), kNumberOfObjects);
+  CHECK_EQ(arr.get()->length(), kNumberOfObjects);
   CHECK(heap->lo_space()->Contains(arr.get()));
   LargePage* page = LargePage::FromHeapObject(arr.get());
   CHECK_NOT_NULL(page);
@@ -5746,8 +5747,8 @@ TEST(Regress598319) {
   IncrementalMarking* marking = heap->incremental_marking();
   MarkingState* marking_state = heap->marking_state();
   CHECK(marking_state->IsUnmarked(arr.get()));
-  for (int i = 0; i < arr.get().length(); i++) {
-    HeapObject arr_value = HeapObject::cast(arr.get().get(i));
+  for (int i = 0; i < arr.get()->length(); i++) {
+    HeapObject arr_value = HeapObject::cast(arr.get()->get(i));
     CHECK(marking_state->IsUnmarked(arr_value));
   }
 
@@ -5760,8 +5761,8 @@ TEST(Regress598319) {
   CHECK(marking->IsMarking());
 
   // Check that we have not marked the interesting array during root scanning.
-  for (int i = 0; i < arr.get().length(); i++) {
-    HeapObject arr_value = HeapObject::cast(arr.get().get(i));
+  for (int i = 0; i < arr.get()->length(); i++) {
+    HeapObject arr_value = HeapObject::cast(arr.get()->get(i));
     CHECK(marking_state->IsUnmarked(arr_value));
   }
 
@@ -5774,7 +5775,7 @@ TEST(Regress598319) {
     marking->AdvanceForTesting(kSmallStepSize, kSmallMaxBytesToMark);
     ProgressBar& progress_bar = page->ProgressBar();
     if (progress_bar.IsEnabled() && progress_bar.Value() > 0) {
-      CHECK_NE(progress_bar.Value(), arr.get().Size());
+      CHECK_NE(progress_bar.Value(), arr.get()->Size());
       {
         // Shift by 1, effectively moving one white object across the progress
         // bar, meaning that we will miss marking it.
@@ -5800,8 +5801,8 @@ TEST(Regress598319) {
 
   // All objects need to be black after marking. If a white object crossed the
   // progress bar, we would fail here.
-  for (int i = 0; i < arr.get().length(); i++) {
-    HeapObject arr_value = HeapObject::cast(arr.get().get(i));
+  for (int i = 0; i < arr.get()->length(); i++) {
+    HeapObject arr_value = HeapObject::cast(arr.get()->get(i));
     CHECK(arr_value.InReadOnlySpace() || marking_state->IsMarked(arr_value));
   }
 }
@@ -7007,7 +7008,7 @@ TEST(Regress10698) {
   // Step 4. Set the filler at the end of the first array.
   // It will have an impossible markbit pattern because the second markbit
   // will be taken from the second array.
-  filler.set_map_after_allocation(*factory->one_pointer_filler_map());
+  filler->set_map_after_allocation(*factory->one_pointer_filler_map());
 }
 
 class TestAllocationTracker : public HeapObjectAllocationTracker {

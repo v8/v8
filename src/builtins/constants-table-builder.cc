@@ -77,7 +77,7 @@ void BuiltinsConstantsTableBuilder::PatchSelfReference(
     Handle<Object> self_reference, Handle<InstructionStream> code_object) {
   CheckPreconditionsForPatching(isolate_, code_object);
   DCHECK(self_reference->IsOddball());
-  DCHECK(Oddball::cast(*self_reference).kind() ==
+  DCHECK(Oddball::cast(*self_reference)->kind() ==
          Oddball::kSelfReferenceMarker);
 
   uint32_t key;
@@ -116,12 +116,12 @@ void BuiltinsConstantsTableBuilder::Finalize() {
   for (auto it = it_scope.begin(); it != it_scope.end(); ++it) {
     uint32_t index = *it.entry();
     Object value = it.key();
-    if (value.IsCode() && Code::cast(value).kind() == CodeKind::BUILTIN) {
+    if (value.IsCode() && Code::cast(value)->kind() == CodeKind::BUILTIN) {
       // Replace placeholder code objects with the real builtin.
       // See also: SetupIsolateDelegate::PopulateWithPlaceholders.
       // TODO(jgruber): Deduplicate placeholders and their corresponding
       // builtin.
-      value = builtins->code(Code::cast(value).builtin_id());
+      value = builtins->code(Code::cast(value)->builtin_id());
     }
     DCHECK(value.IsHeapObject());
     table->set(index, value);

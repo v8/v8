@@ -876,17 +876,17 @@ void NativeModule::LogWasmCodes(Isolate* isolate, Script script) {
   TRACE_EVENT1("v8.wasm", "wasm.LogWasmCodes", "functions",
                module_->num_declared_functions);
 
-  Object url_obj = script.name();
+  Object url_obj = script->name();
   DCHECK(url_obj.IsString() || url_obj.IsUndefined());
   std::unique_ptr<char[]> source_url =
-      url_obj.IsString() ? String::cast(url_obj).ToCString()
+      url_obj.IsString() ? String::cast(url_obj)->ToCString()
                          : std::unique_ptr<char[]>(new char[1]{'\0'});
 
   // Log all owned code, not just the current entries in the code table. This
   // will also include import wrappers.
   WasmCodeRefScope code_ref_scope;
   for (auto& code : SnapshotAllOwnedCode()) {
-    code->LogCode(isolate, source_url.get(), script.id());
+    code->LogCode(isolate, source_url.get(), script->id());
   }
 }
 
@@ -903,7 +903,7 @@ WasmCode* NativeModule::AddCodeForTesting(Handle<Code> code) {
         base::Vector<uint8_t>{code->relocation_start(), relocation_size});
   }
   Handle<ByteArray> source_pos_table(code->source_position_table(),
-                                     code->instruction_stream().GetIsolate());
+                                     code->instruction_stream()->GetIsolate());
   base::OwnedVector<uint8_t> source_pos =
       base::OwnedVector<uint8_t>::NewForOverwrite(source_pos_table->length());
   if (source_pos_table->length() > 0) {

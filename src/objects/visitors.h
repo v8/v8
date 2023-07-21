@@ -288,7 +288,7 @@ class ClientObjectVisitor final : public ObjectVisitorWithCageBases {
   void VisitPointers(HeapObject host, ObjectSlot start, ObjectSlot end) final {
     for (ObjectSlot p = start; p < end; ++p) {
       // The map slot should be handled in VisitMapPointer.
-      DCHECK_NE(host.map_slot(), p);
+      DCHECK_NE(host->map_slot(), p);
       DCHECK(!HasWeakHeapObjectTag(p.load(cage_base())));
       VisitPointer(host, p);
     }

@@ -177,15 +177,15 @@ void MessageHandler::ReportMessageNoExceptions(
       HandleScope scope(isolate);
       if (global_listeners->get(i).IsUndefined(isolate)) continue;
       FixedArray listener = FixedArray::cast(global_listeners->get(i));
-      Foreign callback_obj = Foreign::cast(listener.get(0));
+      Foreign callback_obj = Foreign::cast(listener->get(0));
       int32_t message_levels =
-          static_cast<int32_t>(Smi::ToInt(listener.get(2)));
+          static_cast<int32_t>(Smi::ToInt(listener->get(2)));
       if (!(message_levels & error_level)) {
         continue;
       }
       v8::MessageCallback callback =
-          FUNCTION_CAST<v8::MessageCallback>(callback_obj.foreign_address());
-      Handle<Object> callback_data(listener.get(1), isolate);
+          FUNCTION_CAST<v8::MessageCallback>(callback_obj->foreign_address());
+      Handle<Object> callback_data(listener->get(1), isolate);
       {
         RCS_SCOPE(isolate, RuntimeCallCounterId::kMessageListenerCallback);
         // Do not allow exceptions to propagate.
@@ -348,7 +348,7 @@ MaybeHandle<Object> ErrorUtils::FormatStackTrace(Isolate* isolate,
         if (V8_UNLIKELY(error->IsJSGlobalObject())) {
           // Pass global proxy instead of global object.
           argv[0] =
-              handle(JSGlobalObject::cast(*error).global_proxy(), isolate);
+              handle(JSGlobalObject::cast(*error)->global_proxy(), isolate);
         } else {
           argv[0] = error;
         }
@@ -711,7 +711,7 @@ Handle<JSObject> ErrorUtils::MakeGenericError(
 
   Handle<Object> no_caller;
   // The call below can't fail because constructor is a builtin.
-  DCHECK(constructor->shared().HasBuiltinId());
+  DCHECK(constructor->shared()->HasBuiltinId());
   return ErrorUtils::Construct(isolate, constructor, constructor, msg, options,
                                mode, no_caller, StackTraceCollection::kEnabled)
       .ToHandleChecked();

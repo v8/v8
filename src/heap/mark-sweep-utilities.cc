@@ -25,7 +25,7 @@ MarkingVerifierBase::MarkingVerifierBase(Heap* heap)
     : ObjectVisitorWithCageBases(heap), heap_(heap) {}
 
 void MarkingVerifierBase::VisitMapPointer(HeapObject object) {
-  VerifyMap(object.map(cage_base()));
+  VerifyMap(object->map(cage_base()));
 }
 
 void MarkingVerifierBase::VerifyRoots() {
@@ -91,7 +91,7 @@ void MarkingVerifierBase::VerifyMarking(LargeObjectSpace* lo_space) {
   LargeObjectSpaceObjectIterator it(lo_space);
   for (HeapObject obj = it.Next(); !obj.is_null(); obj = it.Next()) {
     if (IsMarked(obj)) {
-      obj.Iterate(cage_base(), this);
+      obj->Iterate(cage_base(), this);
     }
   }
 }

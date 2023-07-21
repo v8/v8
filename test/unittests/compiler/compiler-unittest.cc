@@ -39,7 +39,7 @@ static void SetGlobalProperty(const char* name, Object value) {
   Handle<Object> object(value, isolate);
   Handle<String> internalized_name =
       isolate->factory()->InternalizeUtf8String(name);
-  Handle<JSObject> global(isolate->context().global_object(), isolate);
+  Handle<JSObject> global(isolate->context()->global_object(), isolate);
   Runtime::SetObjectProperty(isolate, global, internalized_name, object,
                              StoreOrigin::kMaybeKeyed, Just(kDontThrow))
       .Check();
@@ -68,7 +68,7 @@ static double Inc(Isolate* isolate, int x) {
   Handle<JSFunction> fun = Compile(buffer.begin());
   if (fun.is_null()) return -1;
 
-  Handle<JSObject> global(isolate->context().global_object(), isolate);
+  Handle<JSObject> global(isolate->context()->global_object(), isolate);
   Execution::CallScript(isolate, fun, global,
                         isolate->factory()->empty_fixed_array())
       .Check();
@@ -86,7 +86,7 @@ static double Add(Isolate* isolate, int x, int y) {
 
   SetGlobalProperty("x", Smi::FromInt(x));
   SetGlobalProperty("y", Smi::FromInt(y));
-  Handle<JSObject> global(isolate->context().global_object(), isolate);
+  Handle<JSObject> global(isolate->context()->global_object(), isolate);
   Execution::CallScript(isolate, fun, global,
                         isolate->factory()->empty_fixed_array())
       .Check();
@@ -103,7 +103,7 @@ static double Abs(Isolate* isolate, int x) {
   if (fun.is_null()) return -1;
 
   SetGlobalProperty("x", Smi::FromInt(x));
-  Handle<JSObject> global(isolate->context().global_object(), isolate);
+  Handle<JSObject> global(isolate->context()->global_object(), isolate);
   Execution::CallScript(isolate, fun, global,
                         isolate->factory()->empty_fixed_array())
       .Check();
@@ -121,7 +121,7 @@ static double Sum(Isolate* isolate, int n) {
   if (fun.is_null()) return -1;
 
   SetGlobalProperty("n", Smi::FromInt(n));
-  Handle<JSObject> global(isolate->context().global_object(), isolate);
+  Handle<JSObject> global(isolate->context()->global_object(), isolate);
   Execution::CallScript(isolate, fun, global,
                         isolate->factory()->empty_fixed_array())
       .Check();
@@ -145,7 +145,7 @@ TEST_F(CompilerPrintTest, Print) {
   const char* source = "for (n = 0; n < 100; ++n) print(n, 1, 2);";
   Handle<JSFunction> fun = Compile(source);
   if (fun.is_null()) return;
-  Handle<JSObject> global(i_isolate()->context().global_object(), i_isolate());
+  Handle<JSObject> global(i_isolate()->context()->global_object(), i_isolate());
   Execution::CallScript(i_isolate(), fun, global,
                         i_isolate()->factory()->empty_fixed_array())
       .Check();
@@ -176,7 +176,7 @@ TEST_F(CompilerTest, Stuff) {
 
   Handle<JSFunction> fun = Compile(source);
   EXPECT_TRUE(!fun.is_null());
-  Handle<JSObject> global(i_isolate()->context().global_object(), i_isolate());
+  Handle<JSObject> global(i_isolate()->context()->global_object(), i_isolate());
   Execution::CallScript(i_isolate(), fun, global,
                         i_isolate()->factory()->empty_fixed_array())
       .Check();
@@ -190,7 +190,7 @@ TEST_F(CompilerTest, UncaughtThrow) {
   Handle<JSFunction> fun = Compile(source);
   EXPECT_TRUE(!fun.is_null());
   Isolate* isolate = fun->GetIsolate();
-  Handle<JSObject> global(isolate->context().global_object(), isolate);
+  Handle<JSObject> global(isolate->context()->global_object(), isolate);
   EXPECT_TRUE(Execution::CallScript(isolate, fun, global,
                                     isolate->factory()->empty_fixed_array())
                   .is_null());
@@ -221,7 +221,7 @@ TEST_F(CompilerC2JSFramesTest, C2JSFrames) {
   Isolate* isolate = fun0->GetIsolate();
 
   // Run the generated code to populate the global object with 'foo'.
-  Handle<JSObject> global(isolate->context().global_object(), isolate);
+  Handle<JSObject> global(isolate->context()->global_object(), isolate);
   Execution::CallScript(isolate, fun0, global,
                         isolate->factory()->empty_fixed_array())
       .Check();
@@ -309,7 +309,7 @@ TEST_F(CompilerTest, FeedbackVectorPreservedAcrossRecompiles) {
   // Verify that the feedback is still "gathered" despite a recompilation
   // of the full code.
   EXPECT_TRUE(f->HasAttachedOptimizedCode());
-  object = f->feedback_vector().Get(slot_for_a);
+  object = f->feedback_vector()->Get(slot_for_a);
   {
     HeapObject heap_object;
     EXPECT_TRUE(object->GetHeapObjectIfWeak(&heap_object));
@@ -346,12 +346,12 @@ TEST_F(CompilerTest, FeedbackVectorUnaffectedByScopeChanges) {
 
   // If we are compiling lazily then it should not be compiled, and so no
   // feedback vector allocated yet.
-  EXPECT_TRUE(!f->shared().is_compiled());
+  EXPECT_TRUE(!f->shared()->is_compiled());
 
   RunJS("morphing_call();");
 
   // Now a feedback vector / closure feedback cell array is allocated.
-  EXPECT_TRUE(f->shared().is_compiled());
+  EXPECT_TRUE(f->shared()->is_compiled());
   EXPECT_TRUE(f->has_feedback_vector() || f->has_closure_feedback_cell_array());
 }
 
@@ -614,10 +614,10 @@ TEST_F(CompilerTest, CompileFunctionScriptOrigin) {
   EXPECT_TRUE(!fun.IsEmpty());
   auto fun_i = i::Handle<i::JSFunction>::cast(Utils::OpenHandle(*fun));
   EXPECT_TRUE(fun_i->shared().IsSharedFunctionInfo());
-  EXPECT_TRUE(
-      Utils::ToLocal(i::handle(i::Script::cast(fun_i->shared().script()).name(),
-                               i_isolate()))
-          ->StrictEquals(NewString("test")));
+  EXPECT_TRUE(Utils::ToLocal(
+                  i::handle(i::Script::cast(fun_i->shared()->script())->name(),
+                            i_isolate()))
+                  ->StrictEquals(NewString("test")));
   v8::TryCatch try_catch(isolate());
   isolate()->SetCaptureStackTraceForUncaughtExceptions(true);
   EXPECT_TRUE(fun->Call(context(), context()->Global(), 0, nullptr).IsEmpty());
@@ -738,13 +738,13 @@ TEST_F(CompilerTest, InvocationCount) {
       "%EnsureFeedbackVectorForFunction(foo);"
       "foo();");
   Handle<JSFunction> foo = Handle<JSFunction>::cast(GetGlobalProperty("foo"));
-  EXPECT_EQ(1, foo->feedback_vector().invocation_count());
+  EXPECT_EQ(1, foo->feedback_vector()->invocation_count());
   RunJS("foo()");
-  EXPECT_EQ(2, foo->feedback_vector().invocation_count());
+  EXPECT_EQ(2, foo->feedback_vector()->invocation_count());
   RunJS("bar()");
-  EXPECT_EQ(2, foo->feedback_vector().invocation_count());
+  EXPECT_EQ(2, foo->feedback_vector()->invocation_count());
   RunJS("foo(); foo()");
-  EXPECT_EQ(4, foo->feedback_vector().invocation_count());
+  EXPECT_EQ(4, foo->feedback_vector()->invocation_count());
 }
 
 TEST_F(CompilerTest, ShallowEagerCompilation) {
@@ -919,7 +919,7 @@ TEST_F(CompilerTest, ProfilerEnabledDuringBackgroundCompile) {
           .ToLocalChecked();
 
   i::Handle<i::Object> obj = Utils::OpenHandle(*script);
-  EXPECT_TRUE(i::JSFunction::cast(*obj).shared().AreSourcePositionsAvailable(
+  EXPECT_TRUE(i::JSFunction::cast(*obj)->shared()->AreSourcePositionsAvailable(
       i_isolate()));
 
   cpu_profiler->StopProfiling(profile);

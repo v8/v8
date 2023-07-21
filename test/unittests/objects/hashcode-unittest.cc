@@ -43,17 +43,17 @@ class HashcodeTest : public TestWithContext {
 
   int GetPropertyDictionaryHash(Handle<JSObject> obj) {
     if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
-      return obj->property_dictionary_swiss().Hash();
+      return obj->property_dictionary_swiss()->Hash();
     } else {
-      return obj->property_dictionary().Hash();
+      return obj->property_dictionary()->Hash();
     }
   }
 
   int GetPropertyDictionaryLength(Handle<JSObject> obj) {
     if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
-      return obj->property_dictionary_swiss().Capacity();
+      return obj->property_dictionary_swiss()->Capacity();
     } else {
-      return obj->property_dictionary().length();
+      return obj->property_dictionary()->length();
     }
   }
 
@@ -69,7 +69,7 @@ class HashcodeTest : public TestWithContext {
     CHECK(obj->HasFastProperties());
     CHECK(obj->raw_properties_or_hash().IsPropertyArray());
     CHECK_EQ(Smi::FromInt(hash), obj->GetHash());
-    CHECK_EQ(hash, obj->property_array().Hash());
+    CHECK_EQ(hash, obj->property_array()->Hash());
   }
 
   void CheckDictionaryObject(Handle<JSObject> obj, int hash) {
@@ -139,9 +139,9 @@ TEST_F(HashcodeTest, TransitionFastWithInObjectToFastWithPropertyArray) {
   int hash = AddToSetAndGetHash(obj, true);
   CHECK_EQ(Smi::FromInt(hash), obj->raw_properties_or_hash());
 
-  int length = obj->property_array().length();
+  int length = obj->property_array()->length();
   RunJS("x.e = 5;");
-  CHECK(obj->property_array().length() > length);
+  CHECK(obj->property_array()->length() > length);
   CheckFastObject(obj, hash);
 }
 
@@ -155,11 +155,11 @@ TEST_F(HashcodeTest, TransitionFastWithPropertyArray) {
   CHECK(obj->raw_properties_or_hash().IsPropertyArray());
 
   int hash = AddToSetAndGetHash(obj, true);
-  CHECK_EQ(hash, obj->property_array().Hash());
+  CHECK_EQ(hash, obj->property_array()->Hash());
 
-  int length = obj->property_array().length();
+  int length = obj->property_array()->length();
   RunJS("x.f = 2; x.g = 5; x.h = 2");
-  CHECK(obj->property_array().length() > length);
+  CHECK(obj->property_array()->length() > length);
   CheckFastObject(obj, hash);
 }
 
@@ -174,7 +174,7 @@ TEST_F(HashcodeTest, TransitionFastWithPropertyArrayToSlow) {
 
   int hash = AddToSetAndGetHash(obj, true);
   CHECK(obj->raw_properties_or_hash().IsPropertyArray());
-  CHECK_EQ(hash, obj->property_array().Hash());
+  CHECK_EQ(hash, obj->property_array()->Hash());
 
   JSObject::NormalizeProperties(i_isolate(), obj, KEEP_INOBJECT_PROPERTIES, 0,
                                 "cctest/test-hashcode");

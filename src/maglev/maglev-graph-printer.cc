@@ -659,9 +659,9 @@ void MaybePrintProvenance(std::ostream& os, std::vector<BasicBlock*> targets,
        provenance.unit != existing_provenance.unit)) {
     script = Script::cast(
         provenance.unit->shared_function_info().object()->script());
-    has_position_info =
-        script.GetPositionInfo(provenance.position.ScriptOffset(),
-                               &position_info, Script::OffsetFlag::kWithOffset);
+    has_position_info = script->GetPositionInfo(
+        provenance.position.ScriptOffset(), &position_info,
+        Script::OffsetFlag::kWithOffset);
     needs_function_print = true;
   }
 
@@ -676,7 +676,7 @@ void MaybePrintProvenance(std::ostream& os, std::vector<BasicBlock*> targets,
       os << "\033[1;34m";
     }
     os << *provenance.unit->shared_function_info().object() << " ("
-       << script.GetNameOrSourceURL();
+       << script->GetNameOrSourceURL();
     if (has_position_info) {
       os << ":" << position_info.line << ":" << position_info.column;
     } else if (provenance.position.IsKnown()) {

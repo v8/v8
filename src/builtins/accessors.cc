@@ -155,7 +155,7 @@ void Accessors::ArrayLengthGetter(
   DisallowGarbageCollection no_gc;
   HandleScope scope(isolate);
   JSArray holder = JSArray::cast(*Utils::OpenHandle(*info.Holder()));
-  Object result = holder.length();
+  Object result = holder->length();
   info.GetReturnValue().Set(Utils::ToLocal(Handle<Object>(result, isolate)));
 }
 
@@ -241,7 +241,8 @@ void Accessors::ModuleNamespaceEntryGetter(
   JSModuleNamespace holder =
       JSModuleNamespace::cast(*Utils::OpenHandle(*info.Holder()));
   Handle<Object> result;
-  if (!holder.GetExport(isolate, Handle<String>::cast(Utils::OpenHandle(*name)))
+  if (!holder
+           ->GetExport(isolate, Handle<String>::cast(Utils::OpenHandle(*name)))
            .ToHandle(&result)) {
     isolate->OptionalRescheduleException(false);
   } else {
@@ -295,9 +296,9 @@ void Accessors::StringLengthGetter(
     // Not a string value. That means that we either got a String wrapper or
     // a Value with a String wrapper in its prototype chain.
     value =
-        JSPrimitiveWrapper::cast(*Utils::OpenHandle(*info.Holder())).value();
+        JSPrimitiveWrapper::cast(*Utils::OpenHandle(*info.Holder()))->value();
   }
-  Object result = Smi::FromInt(String::cast(value).length());
+  Object result = Smi::FromInt(String::cast(value)->length());
   info.GetReturnValue().Set(Utils::ToLocal(Handle<Object>(result, isolate)));
 }
 
@@ -485,7 +486,7 @@ Handle<JSObject> GetFrameArguments(Isolate* isolate,
     if (value.IsTheHole(isolate)) {
       // Generators currently use holes as dummy arguments when resuming.  We
       // must not leak those.
-      DCHECK(IsResumableFunction(function->shared().kind()));
+      DCHECK(IsResumableFunction(function->shared()->kind()));
       value = ReadOnlyRoots(isolate).undefined_value();
     }
     array->set(i, value);
@@ -495,7 +496,7 @@ Handle<JSObject> GetFrameArguments(Isolate* isolate,
   // For optimized functions, the frame arguments may be outdated, so we should
   // update them with the deopt info, while keeping the length and extra
   // arguments from the actual frame.
-  if (CodeKindCanDeoptimize(frame->LookupCode().kind()) && length > 0) {
+  if (CodeKindCanDeoptimize(frame->LookupCode()->kind()) && length > 0) {
     Handle<JSObject> arguments_from_deopt_info =
         ArgumentsFromDeoptInfo(frame, function_index);
     Handle<FixedArray> elements_from_deopt_info(
@@ -533,7 +534,7 @@ void Accessors::FunctionArgumentsGetter(
   Handle<JSFunction> function =
       Handle<JSFunction>::cast(Utils::OpenHandle(*info.Holder()));
   Handle<Object> result = isolate->factory()->null_value();
-  if (!function->shared().native()) {
+  if (!function->shared()->native()) {
     // Find the top invocation of the function by traversing frames.
     for (JavaScriptStackFrameIterator it(isolate); !it.done(); it.Advance()) {
       JavaScriptFrame* frame = it.frame();
@@ -558,7 +559,7 @@ Handle<AccessorInfo> Accessors::MakeFunctionArgumentsInfo(Isolate* isolate) {
 
 static inline bool AllowAccessToFunction(Context current_context,
                                          JSFunction function) {
-  return current_context.HasSameSecurityTokenAs(function.context());
+  return current_context->HasSameSecurityTokenAs(function->context());
 }
 
 class FrameFunctionIterator {
@@ -582,7 +583,7 @@ class FrameFunctionIterator {
   bool FindNextNonTopLevel() {
     do {
       if (!next().ToHandle(&function_)) return false;
-    } while (function_->shared().is_toplevel());
+    } while (function_->shared()->is_toplevel());
     return true;
   }
 
@@ -591,8 +592,8 @@ class FrameFunctionIterator {
   // unless directly exposed, in which case the native flag is set on them.
   // Returns true if one is found, and false if the iterator ends before.
   bool FindFirstNativeOrUserJavaScript() {
-    while (!function_->shared().native() &&
-           !function_->shared().IsUserJavaScript()) {
+    while (!function_->shared()->native() &&
+           !function_->shared()->IsUserJavaScript()) {
       if (!next().ToHandle(&function_)) return false;
     }
     return true;
@@ -663,7 +664,7 @@ class FrameFunctionIterator {
 MaybeHandle<JSFunction> FindCaller(Isolate* isolate,
                                    Handle<JSFunction> function) {
   FrameFunctionIterator it(isolate);
-  if (function->shared().native()) {
+  if (function->shared()->native()) {
     return MaybeHandle<JSFunction>();
   }
   // Find the function from the frames. Return null in case no frame
@@ -690,7 +691,7 @@ MaybeHandle<JSFunction> FindCaller(Isolate* isolate,
   // Censor if the caller is not a sloppy mode function.
   // Change from ES5, which used to throw, see:
   // https://bugs.ecmascript.org/show_bug.cgi?id=310
-  if (is_strict(caller->shared().language_mode())) {
+  if (is_strict(caller->shared()->language_mode())) {
     return MaybeHandle<JSFunction>();
   }
   // Don't return caller from another security context.

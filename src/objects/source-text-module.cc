@@ -93,12 +93,12 @@ SharedFunctionInfo SourceTextModule::GetSharedFunctionInfo() const {
     case kPreLinking:
       return SharedFunctionInfo::cast(code());
     case kLinking:
-      return JSFunction::cast(code()).shared();
+      return JSFunction::cast(code())->shared();
     case kLinked:
     case kEvaluating:
     case kEvaluatingAsync:
     case kEvaluated:
-      return JSGeneratorObject::cast(code()).function().shared();
+      return JSGeneratorObject::cast(code())->function()->shared();
     case kErrored:
       return SharedFunctionInfo::cast(code());
   }
@@ -107,7 +107,7 @@ SharedFunctionInfo SourceTextModule::GetSharedFunctionInfo() const {
 
 Script SourceTextModule::GetScript() const {
   DisallowGarbageCollection no_gc;
-  return Script::cast(GetSharedFunctionInfo().script());
+  return Script::cast(GetSharedFunctionInfo()->script());
 }
 
 int SourceTextModule::ExportIndex(int cell_index) {
@@ -136,7 +136,7 @@ void SourceTextModule::CreateExport(Isolate* isolate,
                                     int cell_index, Handle<FixedArray> names) {
   DCHECK_LT(0, names->length());
   Handle<Cell> cell = isolate->factory()->NewCell();
-  module->regular_exports().set(ExportIndex(cell_index), *cell);
+  module->regular_exports()->set(ExportIndex(cell_index), *cell);
 
   Handle<ObjectHashTable> exports(module->exports(), isolate);
   for (int i = 0, n = names->length(); i < n; ++i) {
@@ -152,10 +152,10 @@ Cell SourceTextModule::GetCell(int cell_index) {
   Object cell;
   switch (SourceTextModuleDescriptor::GetCellIndexKind(cell_index)) {
     case SourceTextModuleDescriptor::kImport:
-      cell = regular_imports().get(ImportIndex(cell_index));
+      cell = regular_imports()->get(ImportIndex(cell_index));
       break;
     case SourceTextModuleDescriptor::kExport:
-      cell = regular_exports().get(ExportIndex(cell_index));
+      cell = regular_exports()->get(ExportIndex(cell_index));
       break;
     case SourceTextModuleDescriptor::kInvalid:
       UNREACHABLE();
@@ -166,7 +166,7 @@ Cell SourceTextModule::GetCell(int cell_index) {
 Handle<Object> SourceTextModule::LoadVariable(Isolate* isolate,
                                               Handle<SourceTextModule> module,
                                               int cell_index) {
-  return handle(module->GetCell(cell_index).value(), isolate);
+  return handle(module->GetCell(cell_index)->value(), isolate);
 }
 
 void SourceTextModule::StoreVariable(Handle<SourceTextModule> module,
@@ -174,14 +174,14 @@ void SourceTextModule::StoreVariable(Handle<SourceTextModule> module,
   DisallowGarbageCollection no_gc;
   DCHECK_EQ(SourceTextModuleDescriptor::GetCellIndexKind(cell_index),
             SourceTextModuleDescriptor::kExport);
-  module->GetCell(cell_index).set_value(*value);
+  module->GetCell(cell_index)->set_value(*value);
 }
 
 MaybeHandle<Cell> SourceTextModule::ResolveExport(
     Isolate* isolate, Handle<SourceTextModule> module,
     Handle<String> module_specifier, Handle<String> export_name,
     MessageLocation loc, bool must_resolve, Module::ResolveSet* resolve_set) {
-  Handle<Object> object(module->exports().Lookup(export_name), isolate);
+  Handle<Object> object(module->exports()->Lookup(export_name), isolate);
   if (object->IsCell()) {
     // Already resolved (e.g. because it's a local export).
     return Handle<Cell>::cast(object);
@@ -247,11 +247,11 @@ MaybeHandle<Cell> SourceTextModule::ResolveImport(
     int module_request_index, MessageLocation loc, bool must_resolve,
     Module::ResolveSet* resolve_set) {
   Handle<Module> requested_module(
-      Module::cast(module->requested_modules().get(module_request_index)),
+      Module::cast(module->requested_modules()->get(module_request_index)),
       isolate);
   Handle<ModuleRequest> module_request(
       ModuleRequest::cast(
-          module->info().module_requests().get(module_request_index)),
+          module->info()->module_requests()->get(module_request_index)),
       isolate);
   Handle<String> module_specifier(String::cast(module_request->specifier()),
                                   isolate);
@@ -270,7 +270,7 @@ MaybeHandle<Cell> SourceTextModule::ResolveExportUsingStarExports(
     // Go through all star exports looking for the given name.  If multiple star
     // exports provide the name, make sure they all map it to the same cell.
     Handle<Cell> unique_cell;
-    Handle<FixedArray> special_exports(module->info().special_exports(),
+    Handle<FixedArray> special_exports(module->info()->special_exports(),
                                        isolate);
     for (int i = 0, n = special_exports->length(); i < n; ++i) {
       i::Handle<i::SourceTextModuleInfoEntry> entry(
@@ -398,10 +398,10 @@ bool SourceTextModule::RunInitializationCode(Isolate* isolate,
                                              Handle<SourceTextModule> module) {
   DCHECK_EQ(module->status(), kLinking);
   Handle<JSFunction> function(JSFunction::cast(module->code()), isolate);
-  DCHECK_EQ(MODULE_SCOPE, function->shared().scope_info().scope_type());
+  DCHECK_EQ(MODULE_SCOPE, function->shared()->scope_info()->scope_type());
   Handle<Object> receiver = isolate->factory()->undefined_value();
 
-  Handle<ScopeInfo> scope_info(function->shared().scope_info(), isolate);
+  Handle<ScopeInfo> scope_info(function->shared()->scope_info(), isolate);
   Handle<Context> context = isolate->factory()->NewModuleContext(
       module, isolate->native_context(), scope_info);
   function->set_context(*context);
@@ -491,7 +491,7 @@ bool SourceTextModule::FinishInstantiate(
       // SourceTextModule
       module->set_dfs_ancestor_index(std::min(
           module->dfs_ancestor_index(),
-          SourceTextModule::cast(*requested_module).dfs_ancestor_index()));
+          SourceTextModule::cast(*requested_module)->dfs_ancestor_index()));
     }
   }
 
@@ -512,7 +512,7 @@ bool SourceTextModule::FinishInstantiate(
              .ToHandle(&cell)) {
       return false;
     }
-    module->regular_imports().set(ImportIndex(entry->cell_index()), *cell);
+    module->regular_imports()->set(ImportIndex(entry->cell_index()), *cell);
   }
 
   // Resolve indirect exports.
@@ -551,7 +551,8 @@ void SourceTextModule::FetchStarExports(Isolate* isolate,
   // Maybe split special_exports into indirect_exports and star_exports.
 
   ReadOnlyRoots roots(isolate);
-  Handle<FixedArray> special_exports(module->info().special_exports(), isolate);
+  Handle<FixedArray> special_exports(module->info()->special_exports(),
+                                     isolate);
   for (int i = 0, n = special_exports->length(); i < n; ++i) {
     Handle<SourceTextModuleInfoEntry> entry(
         SourceTextModuleInfoEntry::cast(special_exports->get(i)), isolate);
@@ -560,7 +561,7 @@ void SourceTextModule::FetchStarExports(Isolate* isolate,
     }
 
     Handle<Module> requested_module(
-        Module::cast(module->requested_modules().get(entry->module_request())),
+        Module::cast(module->requested_modules()->get(entry->module_request())),
         isolate);
 
     // Recurse.
@@ -665,7 +666,7 @@ void SourceTextModule::GatherAsyncParentCompletions(
 Handle<JSModuleNamespace> SourceTextModule::GetModuleNamespace(
     Isolate* isolate, Handle<SourceTextModule> module, int module_request) {
   Handle<Module> requested_module(
-      Module::cast(module->requested_modules().get(module_request)), isolate);
+      Module::cast(module->requested_modules()->get(module_request)), isolate);
   return Module::GetModuleNamespace(isolate, requested_module);
 }
 
@@ -1024,8 +1025,8 @@ MaybeHandle<Object> SourceTextModule::ExecuteModule(
                          Execution::MessageHandling::kKeepPending, nullptr,
                          false),
       Object);
-  DCHECK(JSIteratorResult::cast(*result).done().BooleanValue(isolate));
-  return handle(JSIteratorResult::cast(*result).value(), isolate);
+  DCHECK(JSIteratorResult::cast(*result)->done().BooleanValue(isolate));
+  return handle(JSIteratorResult::cast(*result)->value(), isolate);
 }
 
 MaybeHandle<Object> SourceTextModule::InnerModuleEvaluation(
@@ -1204,16 +1205,16 @@ void SourceTextModule::Reset(Isolate* isolate,
   DCHECK(module->import_meta(kAcquireLoad).IsTheHole(isolate));
 
   Handle<FixedArray> regular_exports =
-      factory->NewFixedArray(module->regular_exports().length());
+      factory->NewFixedArray(module->regular_exports()->length());
   Handle<FixedArray> regular_imports =
-      factory->NewFixedArray(module->regular_imports().length());
+      factory->NewFixedArray(module->regular_imports()->length());
   Handle<FixedArray> requested_modules =
-      factory->NewFixedArray(module->requested_modules().length());
+      factory->NewFixedArray(module->requested_modules()->length());
 
   DisallowGarbageCollection no_gc;
   Tagged<SourceTextModule> raw_module = *module;
   if (raw_module->status() == kLinking) {
-    raw_module->set_code(JSFunction::cast(raw_module->code()).shared());
+    raw_module->set_code(JSFunction::cast(raw_module->code())->shared());
   }
   raw_module->set_regular_exports(*regular_exports);
   raw_module->set_regular_imports(*regular_imports);
@@ -1263,15 +1264,15 @@ void SourceTextModule::InnerGetStalledTopLevelAwaitModule(
   }
   // The module isn't what we are looking for, continue looking in the graph.
   FixedArray requested = requested_modules();
-  int length = requested.length();
+  int length = requested->length();
   for (int i = 0; i < length; ++i) {
-    Module requested_module = Module::cast(requested.get(i));
+    Module requested_module = Module::cast(requested->get(i));
     if (requested_module.IsSourceTextModule() &&
         visited->insert(handle(requested_module, isolate)).second) {
       SourceTextModule source_text_module =
           SourceTextModule::cast(requested_module);
-      source_text_module.InnerGetStalledTopLevelAwaitModule(isolate, visited,
-                                                            result);
+      source_text_module->InnerGetStalledTopLevelAwaitModule(isolate, visited,
+                                                             result);
     }
   }
 }

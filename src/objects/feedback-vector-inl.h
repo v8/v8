@@ -106,11 +106,11 @@ FeedbackCell ClosureFeedbackCellArray::cell(int index) {
 bool FeedbackVector::is_empty() const { return length() == 0; }
 
 FeedbackMetadata FeedbackVector::metadata() const {
-  return shared_function_info().feedback_metadata();
+  return shared_function_info()->feedback_metadata();
 }
 
 FeedbackMetadata FeedbackVector::metadata(AcquireLoadTag tag) const {
-  return shared_function_info().feedback_metadata(tag);
+  return shared_function_info()->feedback_metadata(tag);
 }
 
 RELAXED_INT32_ACCESSORS(FeedbackVector, invocation_count,
@@ -174,9 +174,9 @@ Code FeedbackVector::optimized_code() const {
   // time / when we create new closure.
   DCHECK_IMPLIES(!code.is_null(),
                  maybe_has_maglev_code() || maybe_has_turbofan_code());
-  DCHECK_IMPLIES(!code.is_null() && code.is_maglevved(),
+  DCHECK_IMPLIES(!code.is_null() && code->is_maglevved(),
                  maybe_has_maglev_code());
-  DCHECK_IMPLIES(!code.is_null() && code.is_turbofanned(),
+  DCHECK_IMPLIES(!code.is_null() && code->is_turbofanned(),
                  maybe_has_turbofan_code());
   return code;
 }
@@ -221,7 +221,7 @@ base::Optional<Code> FeedbackVector::GetOptimizedOsrCode(Isolate* isolate,
   if (maybe_code->IsCleared()) return {};
 
   Code code = Code::cast(maybe_code->GetHeapObject());
-  if (code.marked_for_deoptimization()) {
+  if (code->marked_for_deoptimization()) {
     // Clear the cached Code object if deoptimized.
     // TODO(jgruber): Add tracing.
     Set(slot, HeapObjectReference::ClearedValue(isolate));
@@ -267,12 +267,12 @@ MaybeObject FeedbackVector::Get(PtrComprCageBase cage_base,
 
 Handle<FeedbackCell> FeedbackVector::GetClosureFeedbackCell(int index) const {
   DCHECK_GE(index, 0);
-  return closure_feedback_cell_array().GetFeedbackCell(index);
+  return closure_feedback_cell_array()->GetFeedbackCell(index);
 }
 
 FeedbackCell FeedbackVector::closure_feedback_cell(int index) const {
   DCHECK_GE(index, 0);
-  return closure_feedback_cell_array().cell(index);
+  return closure_feedback_cell_array()->cell(index);
 }
 
 MaybeObject FeedbackVector::SynchronizedGet(FeedbackSlot slot) const {
@@ -436,14 +436,14 @@ int FeedbackMetadataIterator::entry_size() const {
 
 MaybeObject NexusConfig::GetFeedback(FeedbackVector vector,
                                      FeedbackSlot slot) const {
-  return vector.SynchronizedGet(slot);
+  return vector->SynchronizedGet(slot);
 }
 
 void NexusConfig::SetFeedback(FeedbackVector vector, FeedbackSlot slot,
                               MaybeObject feedback,
                               WriteBarrierMode mode) const {
   DCHECK(can_write());
-  vector.SynchronizedSet(slot, feedback, mode);
+  vector->SynchronizedSet(slot, feedback, mode);
 }
 
 MaybeObject FeedbackNexus::UninitializedSentinel() const {

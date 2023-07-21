@@ -157,8 +157,8 @@ class FullMarkingVerifier : public MarkingVerifierBase {
   void VisitEmbeddedPointer(InstructionStream host, RelocInfo* rinfo) override {
     DCHECK(RelocInfo::IsEmbeddedObjectMode(rinfo->rmode()));
     HeapObject target_object = rinfo->target_object(cage_base());
-    Code code = Code::unchecked_cast(host.raw_code(kAcquireLoad));
-    if (!code.IsWeakObject(target_object)) {
+    Code code = Code::unchecked_cast(host->raw_code(kAcquireLoad));
+    if (!code->IsWeakObject(target_object)) {
       VerifyHeapObjectImpl(target_object);
     }
   }
@@ -731,7 +731,7 @@ void ShrinkPagesToObjectSizes(Heap* heap, OldLargeObjectSpace* space) {
   for (auto it = space->begin(); it != space->end();) {
     LargePage* current = *(it++);
     HeapObject object = current->GetObject();
-    const size_t object_size = static_cast<size_t>(object.Size(cage_base));
+    const size_t object_size = static_cast<size_t>(object->Size(cage_base));
     space->ShrinkPageToObjectSize(current, object, object_size);
     surviving_object_size += object_size;
   }
@@ -883,13 +883,13 @@ class MarkCompactCollector::RootMarkingVisitor final : public RootVisitor {
     DCHECK(istream_or_smi_zero == Smi::zero() ||
            istream_or_smi_zero.IsInstructionStream());
     Code code = Code::cast(*code_slot);
-    DCHECK_EQ(code.raw_instruction_stream(PtrComprCageBase{
+    DCHECK_EQ(code->raw_instruction_stream(PtrComprCageBase{
                   collector_->heap_->isolate()->code_cage_base()}),
               istream_or_smi_zero);
 
     // We must not remove deoptimization literals which may be needed in
     // order to successfully deoptimize.
-    code.IterateDeoptimizationLiterals(this);
+    code->IterateDeoptimizationLiterals(this);
 
     if (istream_or_smi_zero != Smi::zero()) {
       VisitRootPointer(Root::kStackRoots, nullptr, istream_or_smi_zero_slot);
@@ -934,13 +934,13 @@ class MarkCompactCollector::CustomRootBodyMarkingVisitor final
   }
 
   void VisitMapPointer(HeapObject host) final {
-    MarkObject(host, host.map(cage_base()));
+    MarkObject(host, host->map(cage_base()));
   }
 
   void VisitPointers(HeapObject host, ObjectSlot start, ObjectSlot end) final {
     for (ObjectSlot p = start; p < end; ++p) {
       // The map slot should be handled in VisitMapPointer.
-      DCHECK_NE(host.map_slot(), p);
+      DCHECK_NE(host->map_slot(), p);
       DCHECK(!HasWeakHeapObjectTag(p.load(cage_base())));
       MarkObject(host, p.load(cage_base()));
     }
@@ -997,13 +997,13 @@ class MarkCompactCollector::SharedHeapObjectVisitor final
   }
 
   void VisitMapPointer(HeapObject host) final {
-    CheckForSharedObject(host, host.map_slot(), host.map(cage_base()));
+    CheckForSharedObject(host, host->map_slot(), host->map(cage_base()));
   }
 
   void VisitPointers(HeapObject host, ObjectSlot start, ObjectSlot end) final {
     for (ObjectSlot p = start; p < end; ++p) {
       // The map slot should be handled in VisitMapPointer.
-      DCHECK_NE(host.map_slot(), p);
+      DCHECK_NE(host->map_slot(), p);
       DCHECK(!HasWeakHeapObjectTag(p.load(cage_base())));
       CheckForSharedObject(host, p, p.load(cage_base()));
     }
@@ -1018,7 +1018,7 @@ class MarkCompactCollector::SharedHeapObjectVisitor final
                      MaybeObjectSlot end) final {
     for (MaybeObjectSlot p = start; p < end; ++p) {
       // The map slot should be handled in VisitMapPointer.
-      DCHECK_NE(host.map_slot(), ObjectSlot(p));
+      DCHECK_NE(host->map_slot(), ObjectSlot(p));
       VisitPointer(host, p);
     }
   }
@@ -1103,7 +1103,7 @@ class MarkExternalPointerFromExternalStringTable : public RootVisitor {
         HeapObject heap_object = HeapObject::cast(o);
         if (heap_object.IsExternalString()) {
           ExternalString string = ExternalString::cast(heap_object);
-          string.VisitExternalPointers(&visitor);
+          string->VisitExternalPointers(&visitor);
         } else {
           // The original external string may have been internalized.
           DCHECK(o.IsThinString());
@@ -1166,7 +1166,7 @@ class MarkCompactWeakObjectRetainer : public WeakObjectRetainer {
     if (marking_state_->IsMarked(heap_object)) {
       return object;
     } else if (object.IsAllocationSite() &&
-               !(AllocationSite::cast(object).IsZombie())) {
+               !(AllocationSite::cast(object)->IsZombie())) {
       // "dead" AllocationSites need to live long enough for a traversal of new
       // space. These sites get a one-time reprieve.
 
@@ -1175,8 +1175,8 @@ class MarkCompactWeakObjectRetainer : public WeakObjectRetainer {
         AllocationSite current_site = AllocationSite::cast(nested);
         // MarkZombie will override the nested_site, read it first before
         // marking
-        nested = current_site.nested_site();
-        current_site.MarkZombie();
+        nested = current_site->nested_site();
+        current_site->MarkZombie();
         marking_state_->TryMarkAndAccountLiveBytes(current_site);
       }
 
@@ -1205,7 +1205,7 @@ class RecordMigratedSlotVisitor : public ObjectVisitorWithCageBases {
   }
 
   inline void VisitMapPointer(HeapObject host) final {
-    VisitPointer(host, host.map_slot());
+    VisitPointer(host, host->map_slot());
   }
 
   inline void VisitPointer(HeapObject host, MaybeObjectSlot p) final {
@@ -1404,7 +1404,7 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
     Address dst_addr = dst.address();
     Address src_addr = src.address();
     PtrComprCageBase cage_base = base->cage_base();
-    DCHECK(base->heap_->AllowedToBeMigrated(src.map(cage_base), src, dest));
+    DCHECK(base->heap_->AllowedToBeMigrated(src->map(cage_base), src, dest));
     DCHECK_NE(dest, LO_SPACE);
     DCHECK_NE(dest, CODE_LO_SPACE);
     if (dest == OLD_SPACE) {
@@ -1416,7 +1416,7 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
       }
       // In case the object's map gets relocated during GC we load the old map
       // here. This is fine since they store the same content.
-      dst.IterateFast(dst.map(cage_base), size, base->record_visitor_);
+      dst->IterateFast(dst->map(cage_base), size, base->record_visitor_);
     } else if (dest == SHARED_SPACE) {
       DCHECK_OBJECT_SIZE(size);
       DCHECK(IsAligned(size, kTaggedSize));
@@ -1424,7 +1424,7 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
       if (mode != MigrationMode::kFast) {
         base->ExecuteMigrationObservers(dest, src, dst, size);
       }
-      dst.IterateFast(dst.map(cage_base), size, base->record_visitor_);
+      dst->IterateFast(dst->map(cage_base), size, base->record_visitor_);
     } else if (dest == CODE_SPACE) {
       DCHECK_CODEOBJECT_SIZE(size, base->heap_->code_space());
       {
@@ -1433,14 +1433,14 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
         ThreadIsolation::RegisterInstructionStreamAllocation(dst_addr, size);
         base->heap_->CopyBlock(dst_addr, src_addr, size);
         InstructionStream istream = InstructionStream::cast(dst);
-        istream.Relocate(dst_addr - src_addr);
+        istream->Relocate(dst_addr - src_addr);
       }
       if (mode != MigrationMode::kFast) {
         base->ExecuteMigrationObservers(dest, src, dst, size);
       }
       // In case the object's map gets relocated during GC we load the old map
       // here. This is fine since they store the same content.
-      dst.IterateFast(dst.map(cage_base), size, base->record_visitor_);
+      dst->IterateFast(dst->map(cage_base), size, base->record_visitor_);
     } else {
       DCHECK_OBJECT_SIZE(size);
       DCHECK(dest == NEW_SPACE);
@@ -1453,7 +1453,7 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
     if (dest == CODE_SPACE) {
       memory_modification_scope.emplace(InstructionStream::cast(src));
     }
-    src.set_map_word_forwarded(dst, kRelaxedStore);
+    src->set_map_word_forwarded(dst, kRelaxedStore);
   }
 
   EvacuateVisitorBase(Heap* heap, EvacuationAllocator* local_allocator,
@@ -1484,7 +1484,7 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
     }
 #endif  // DEBUG
 
-    Map map = object.map(cage_base());
+    Map map = object->map(cage_base());
     AllocationAlignment alignment = HeapObject::RequiredAlignment(map);
     AllocationResult allocation;
     if (target_space == OLD_SPACE && ShouldPromoteIntoSharedHeap(map)) {
@@ -1510,7 +1510,7 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
   inline bool ShouldPromoteIntoSharedHeap(Map map) {
     if (shared_string_table_) {
       return String::IsInPlaceInternalizableExcludingExternal(
-          map.instance_type());
+          map->instance_type());
     }
     return false;
   }
@@ -1565,7 +1565,7 @@ class EvacuateNewSpaceVisitor final : public EvacuateVisitorBase {
     if (TryEvacuateWithoutCopy(object)) return true;
     HeapObject target_object;
 
-    pretenuring_handler_->UpdateAllocationSite(object.map(), object,
+    pretenuring_handler_->UpdateAllocationSite(object->map(), object,
                                                local_pretenuring_feedback_);
 
     if (!TryEvacuateObject(OLD_SPACE, object, size, &target_object)) {
@@ -1586,13 +1586,13 @@ class EvacuateNewSpaceVisitor final : public EvacuateVisitorBase {
 
     if (!shortcut_strings_) return false;
 
-    Map map = object.map();
+    Map map = object->map();
 
     // Some objects can be evacuated without creating a copy.
-    if (map.visitor_id() == kVisitThinString) {
-      HeapObject actual = ThinString::cast(object).unchecked_actual();
+    if (map->visitor_id() == kVisitThinString) {
+      HeapObject actual = ThinString::cast(object)->unchecked_actual();
       if (MarkCompactCollector::IsOnEvacuationCandidate(actual)) return false;
-      object.set_map_word_forwarded(actual, kRelaxedStore);
+      object->set_map_word_forwarded(actual, kRelaxedStore);
       return true;
     }
     // TODO(mlippautz): Handle ConsString.
@@ -1603,7 +1603,7 @@ class EvacuateNewSpaceVisitor final : public EvacuateVisitorBase {
   inline AllocationSpace AllocateTargetObject(HeapObject old_object, int size,
                                               HeapObject* target_object) {
     AllocationAlignment alignment =
-        HeapObject::RequiredAlignment(old_object.map());
+        HeapObject::RequiredAlignment(old_object->map());
     AllocationSpace space_allocated_in = NEW_SPACE;
     AllocationResult allocation = local_allocator_->Allocate(
         NEW_SPACE, size, AllocationOrigin::kGC, alignment);
@@ -1654,12 +1654,12 @@ class EvacuateNewToOldSpacePageVisitor final : public HeapObjectVisitor {
 
   inline bool Visit(HeapObject object, int size) override {
     if (v8_flags.minor_ms) {
-      pretenuring_handler_->UpdateAllocationSite(object.map(), object,
+      pretenuring_handler_->UpdateAllocationSite(object->map(), object,
                                                  local_pretenuring_feedback_);
     }
     DCHECK(!IsCodeSpaceObject(object));
     PtrComprCageBase cage_base = GetPtrComprCageBase(object);
-    object.IterateFast(cage_base, record_visitor_);
+    object->IterateFast(cage_base, record_visitor_);
     return true;
   }
 
@@ -1686,7 +1686,7 @@ class EvacuateOldSpaceVisitor final : public EvacuateVisitorBase {
     HeapObject target_object;
     if (TryEvacuateObject(Page::FromHeapObject(object)->owner_identity(),
                           object, size, &target_object)) {
-      DCHECK(object.map_word(heap_->isolate(), kRelaxedLoad)
+      DCHECK(object->map_word(heap_->isolate(), kRelaxedLoad)
                  .IsForwardingAddress());
       return true;
     }
@@ -1702,12 +1702,12 @@ class EvacuateRecordOnlyVisitor final : public HeapObjectVisitor {
   bool Visit(HeapObject object, int size) override {
     RecordMigratedSlotVisitor visitor(
         heap_, heap_->ephemeron_remembered_set()->tables());
-    Map map = object.map(cage_base_);
+    Map map = object->map(cage_base_);
     // Instead of calling object.IterateFast(cage_base(), &visitor) here
     // we can shortcut and use the precomputed size value passed to the visitor.
-    DCHECK_EQ(object.SizeFromMap(map), size);
+    DCHECK_EQ(object->SizeFromMap(map), size);
     live_object_size_ += ALIGN_TO_ALLOCATION_ALIGNMENT(size);
-    object.IterateFast(map, size, &visitor);
+    object->IterateFast(map, size, &visitor);
     return true;
   }
 
@@ -1830,7 +1830,7 @@ void MarkCompactCollector::MarkObjectsFromClientHeap(Isolate* client) {
         heap->new_space()->GetObjectIterator(heap);
     for (HeapObject obj = iterator->Next(); !obj.is_null();
          obj = iterator->Next()) {
-      obj.IterateFast(cage_base, &visitor);
+      obj->IterateFast(cage_base, &visitor);
     }
   }
 
@@ -1839,7 +1839,7 @@ void MarkCompactCollector::MarkObjectsFromClientHeap(Isolate* client) {
         heap->new_lo_space()->GetObjectIterator(heap);
     for (HeapObject obj = iterator->Next(); !obj.is_null();
          obj = iterator->Next()) {
-      obj.IterateFast(cage_base, &visitor);
+      obj->IterateFast(cage_base, &visitor);
     }
   }
 
@@ -2134,12 +2134,12 @@ std::pair<size_t, size_t> MarkCompactCollector::ProcessMarkingWorklist(
     if (object.IsFreeSpaceOrFiller(cage_base)) {
       // Due to copying mark bits and the fact that grey and black have their
       // first bit set, one word fillers are always black.
-      DCHECK_IMPLIES(object.map(cage_base) ==
+      DCHECK_IMPLIES(object->map(cage_base) ==
                          ReadOnlyRoots(isolate).one_pointer_filler_map(),
                      marking_state_->IsMarked(object));
       // Other fillers may be black or grey depending on the color of the object
       // that was trimmed.
-      DCHECK_IMPLIES(object.map(cage_base) !=
+      DCHECK_IMPLIES(object->map(cage_base) !=
                          ReadOnlyRoots(isolate).one_pointer_filler_map(),
                      marking_state_->IsMarked(object));
       continue;
@@ -2153,7 +2153,7 @@ std::pair<size_t, size_t> MarkCompactCollector::ProcessMarkingWorklist(
                     kTrackNewlyDiscoveredObjects) {
       AddNewlyDiscovered(object);
     }
-    Map map = object.map(cage_base);
+    Map map = object->map(cage_base);
     if (is_per_context_mode) {
       Address context;
       if (native_context_inferrer_.Infer(isolate, map, object, &context)) {
@@ -2241,12 +2241,12 @@ void MarkCompactCollector::ProcessTopOptimizedFrame(ObjectVisitor* visitor,
     if (it.frame()->is_unoptimized()) return;
     if (it.frame()->is_optimized()) {
       GcSafeCode lookup_result = it.frame()->GcSafeLookupCode();
-      if (!lookup_result.has_instruction_stream()) return;
-      if (!lookup_result.CanDeoptAt(isolate, it.frame()->pc())) {
+      if (!lookup_result->has_instruction_stream()) return;
+      if (!lookup_result->CanDeoptAt(isolate, it.frame()->pc())) {
         InstructionStream istream = InstructionStream::unchecked_cast(
-            lookup_result.raw_instruction_stream());
+            lookup_result->raw_instruction_stream());
         PtrComprCageBase cage_base(isolate);
-        InstructionStream::BodyDescriptor::IterateBody(istream.map(cage_base),
+        InstructionStream::BodyDescriptor::IterateBody(istream->map(cage_base),
                                                        istream, visitor);
       }
       return;
@@ -2288,7 +2288,7 @@ bool ShouldRetainMap(MarkingState* marking_state, Map map, int age) {
     // The map has aged. Do not retain this map.
     return false;
   }
-  Object constructor = map.GetConstructor();
+  Object constructor = map->GetConstructor();
   if (!constructor.IsHeapObject() ||
       (!HeapObject::cast(constructor).InReadOnlySpace() &&
        marking_state->IsUnmarked(HeapObject::cast(constructor)))) {
@@ -2309,14 +2309,14 @@ void MarkCompactCollector::RetainMaps() {
       !heap_->ShouldReduceMemory() && v8_flags.retain_maps_for_n_gc != 0;
 
   for (WeakArrayList retained_maps : heap_->FindAllRetainedMaps()) {
-    DCHECK_EQ(0, retained_maps.length() % 2);
-    for (int i = 0; i < retained_maps.length(); i += 2) {
-      MaybeObject value = retained_maps.Get(i);
+    DCHECK_EQ(0, retained_maps->length() % 2);
+    for (int i = 0; i < retained_maps->length(); i += 2) {
+      MaybeObject value = retained_maps->Get(i);
       HeapObject map_heap_object;
       if (!value->GetHeapObjectIfWeak(&map_heap_object)) {
         continue;
       }
-      int age = retained_maps.Get(i + 1).ToSmi().value();
+      int age = retained_maps->Get(i + 1).ToSmi().value();
       int new_age;
       Map map = Map::cast(map_heap_object);
       if (should_retain_maps && marking_state_->IsUnmarked(map)) {
@@ -2328,7 +2328,7 @@ void MarkCompactCollector::RetainMaps() {
             heap_->AddRetainingRoot(Root::kRetainMaps, map);
           }
         }
-        Object prototype = map.prototype();
+        Object prototype = map->prototype();
         if (age > 0 && prototype.IsHeapObject() &&
             (!HeapObject::cast(prototype).InReadOnlySpace() &&
              marking_state_->IsUnmarked(HeapObject::cast(prototype)))) {
@@ -2344,7 +2344,7 @@ void MarkCompactCollector::RetainMaps() {
       }
       // Compact the array and update the age.
       if (new_age != age) {
-        retained_maps.Set(i + 1, MaybeObject::FromSmi(Smi::FromInt(new_age)));
+        retained_maps->Set(i + 1, MaybeObject::FromSmi(Smi::FromInt(new_age)));
       }
     }
   }
@@ -2581,11 +2581,11 @@ class FullStringForwardingTableCleaner final
     if (marking_state_->IsMarked(HeapObject::cast(original))) {
       String original_string = String::cast(original);
       if (original_string.IsThinString()) {
-        original_string = ThinString::cast(original_string).actual();
+        original_string = ThinString::cast(original_string)->actual();
       }
       TryExternalize(original_string, record);
       TryInternalize(original_string, record);
-      original_string.set_raw_hash_field(record->raw_hash(isolate_));
+      original_string->set_raw_hash_field(record->raw_hash(isolate_));
     } else {
       DisposeExternalResource(record);
     }
@@ -2605,12 +2605,12 @@ class FullStringForwardingTableCleaner final
     if (external_resource == nullptr) return;
 
     if (is_one_byte) {
-      original_string.MakeExternalDuringGC(
+      original_string->MakeExternalDuringGC(
           isolate_,
           reinterpret_cast<v8::String::ExternalOneByteStringResource*>(
               external_resource));
     } else {
-      original_string.MakeExternalDuringGC(
+      original_string->MakeExternalDuringGC(
           isolate_, reinterpret_cast<v8::String::ExternalStringResource*>(
                         external_resource));
     }
@@ -2631,12 +2631,12 @@ class FullStringForwardingTableCleaner final
     }
     // Transition the original string to a ThinString and override the
     // forwarding index with the correct hash.
-    original_string.MakeThin(isolate_, forward_string);
+    original_string->MakeThin(isolate_, forward_string);
     // Record the slot in the old-to-old remembered set. This is
     // required as the internalized string could be relocated during
     // compaction.
     ObjectSlot slot =
-        ThinString::cast(original_string).RawField(ThinString::kActualOffset);
+        ThinString::cast(original_string)->RawField(ThinString::kActualOffset);
     MarkCompactCollector::RecordSlot(original_string, slot, forward_string);
   }
 
@@ -2789,20 +2789,20 @@ void MarkCompactCollector::MarkDependentCodeForDeoptimization() {
     HeapObject object = weak_object_in_code.first;
     Code code = weak_object_in_code.second;
     if (!non_atomic_marking_state_->IsMarked(object) &&
-        !code.embedded_objects_cleared()) {
-      if (!code.marked_for_deoptimization()) {
-        code.SetMarkedForDeoptimization(heap_->isolate(), "weak objects");
+        !code->embedded_objects_cleared()) {
+      if (!code->marked_for_deoptimization()) {
+        code->SetMarkedForDeoptimization(heap_->isolate(), "weak objects");
         have_code_to_deoptimize_ = true;
       }
-      code.ClearEmbeddedObjects(heap_);
-      DCHECK(code.embedded_objects_cleared());
+      code->ClearEmbeddedObjects(heap_);
+      DCHECK(code->embedded_objects_cleared());
     }
   }
 }
 
 void MarkCompactCollector::ClearPotentialSimpleMapTransition(Map dead_target) {
   DCHECK(non_atomic_marking_state_->IsUnmarked(dead_target));
-  Object potential_parent = dead_target.constructor_or_back_pointer();
+  Object potential_parent = dead_target->constructor_or_back_pointer();
   if (potential_parent.IsMap()) {
     Map parent = Map::cast(potential_parent);
     DisallowGarbageCollection no_gc_obviously;
@@ -2816,29 +2816,29 @@ void MarkCompactCollector::ClearPotentialSimpleMapTransition(Map dead_target) {
 
 void MarkCompactCollector::ClearPotentialSimpleMapTransition(Map map,
                                                              Map dead_target) {
-  DCHECK(!map.is_prototype_map());
-  DCHECK(!dead_target.is_prototype_map());
-  DCHECK_EQ(map.raw_transitions(), HeapObjectReference::Weak(dead_target));
+  DCHECK(!map->is_prototype_map());
+  DCHECK(!dead_target->is_prototype_map());
+  DCHECK_EQ(map->raw_transitions(), HeapObjectReference::Weak(dead_target));
   // Take ownership of the descriptor array.
-  int number_of_own_descriptors = map.NumberOfOwnDescriptors();
-  DescriptorArray descriptors = map.instance_descriptors(heap_->isolate());
-  if (descriptors == dead_target.instance_descriptors(heap_->isolate()) &&
+  int number_of_own_descriptors = map->NumberOfOwnDescriptors();
+  DescriptorArray descriptors = map->instance_descriptors(heap_->isolate());
+  if (descriptors == dead_target->instance_descriptors(heap_->isolate()) &&
       number_of_own_descriptors > 0) {
     TrimDescriptorArray(map, descriptors);
-    DCHECK(descriptors.number_of_descriptors() == number_of_own_descriptors);
+    DCHECK(descriptors->number_of_descriptors() == number_of_own_descriptors);
   }
 }
 
 void MarkCompactCollector::FlushBytecodeFromSFI(
     SharedFunctionInfo shared_info) {
-  DCHECK(shared_info.HasBytecodeArray());
+  DCHECK(shared_info->HasBytecodeArray());
 
   // Retain objects required for uncompiled data.
-  String inferred_name = shared_info.inferred_name();
-  int start_position = shared_info.StartPosition();
-  int end_position = shared_info.EndPosition();
+  String inferred_name = shared_info->inferred_name();
+  int start_position = shared_info->StartPosition();
+  int end_position = shared_info->EndPosition();
 
-  shared_info.DiscardCompiledMetadata(
+  shared_info->DiscardCompiledMetadata(
       heap_->isolate(),
       [](HeapObject object, ObjectSlot slot, HeapObject target) {
         RecordSlot(object, slot, target);
@@ -2850,9 +2850,9 @@ void MarkCompactCollector::FlushBytecodeFromSFI(
                 UncompiledDataWithoutPreparseData::kSize);
 
   // Replace bytecode array with an uncompiled data array.
-  HeapObject compiled_data = shared_info.GetBytecodeArray(heap_->isolate());
+  HeapObject compiled_data = shared_info->GetBytecodeArray(heap_->isolate());
   Address compiled_data_start = compiled_data.address();
-  int compiled_data_size = ALIGN_TO_ALLOCATION_ALIGNMENT(compiled_data.Size());
+  int compiled_data_size = ALIGN_TO_ALLOCATION_ALIGNMENT(compiled_data->Size());
   MemoryChunk* chunk = MemoryChunk::FromAddress(compiled_data_start);
 
   // Clear any recorded slots for the compiled data as being invalid.
@@ -2871,7 +2871,7 @@ void MarkCompactCollector::FlushBytecodeFromSFI(
 
   // Swap the map, using set_map_after_allocation to avoid verify heap checks
   // which are not necessary since we are doing this during the GC atomic pause.
-  compiled_data.set_map_after_allocation(
+  compiled_data->set_map_after_allocation(
       ReadOnlyRoots(heap_).uncompiled_data_without_preparse_data_map(),
       SKIP_WRITE_BARRIER);
 
@@ -2885,7 +2885,7 @@ void MarkCompactCollector::FlushBytecodeFromSFI(
 
   // Initialize the uncompiled data.
   UncompiledData uncompiled_data = UncompiledData::cast(compiled_data);
-  uncompiled_data.InitAfterBytecodeFlush(
+  uncompiled_data->InitAfterBytecodeFlush(
       inferred_name, start_position, end_position,
       [](HeapObject object, ObjectSlot slot, HeapObject target) {
         RecordSlot(object, slot, target);
@@ -2899,8 +2899,8 @@ void MarkCompactCollector::FlushBytecodeFromSFI(
 
   // Use the raw function data setter to avoid validity checks, since we're
   // performing the unusual task of decompiling.
-  shared_info.set_function_data(uncompiled_data, kReleaseStore);
-  DCHECK(!shared_info.is_compiled());
+  shared_info->set_function_data(uncompiled_data, kReleaseStore);
+  DCHECK(!shared_info->is_compiled());
 }
 
 void MarkCompactCollector::ProcessOldCodeCandidates() {
@@ -2911,7 +2911,7 @@ void MarkCompactCollector::ProcessOldCodeCandidates() {
   while (local_weak_objects()->code_flushing_candidates_local.Pop(
       &flushing_candidate)) {
     bool is_bytecode_live;
-    if (v8_flags.flush_baseline_code && flushing_candidate.HasBaselineCode()) {
+    if (v8_flags.flush_baseline_code && flushing_candidate->HasBaselineCode()) {
       is_bytecode_live = ProcessOldBaselineSFI(flushing_candidate);
     } else {
       is_bytecode_live = ProcessOldBytecodeSFI(flushing_candidate);
@@ -2922,7 +2922,7 @@ void MarkCompactCollector::ProcessOldCodeCandidates() {
     // Now record the slot, which has either been updated to an uncompiled data,
     // Baseline code or BytecodeArray which is still alive.
     ObjectSlot slot =
-        flushing_candidate.RawField(SharedFunctionInfo::kFunctionDataOffset);
+        flushing_candidate->RawField(SharedFunctionInfo::kFunctionDataOffset);
     RecordSlot(flushing_candidate, slot, HeapObject::cast(*slot));
   }
 
@@ -2941,12 +2941,12 @@ bool MarkCompactCollector::ProcessOldBytecodeSFI(
   // CloneSharedFunctionInfo().
   Isolate* const isolate = heap_->isolate();
   const bool bytecode_already_decompiled =
-      flushing_candidate.function_data(isolate, kAcquireLoad)
+      flushing_candidate->function_data(isolate, kAcquireLoad)
           .IsUncompiledData(isolate);
   const bool is_bytecode_live =
       !bytecode_already_decompiled &&
       non_atomic_marking_state_->IsMarked(
-          flushing_candidate.GetBytecodeArray(isolate));
+          flushing_candidate->GetBytecodeArray(isolate));
 
   if (!is_bytecode_live) {
     FlushSFI(flushing_candidate, bytecode_already_decompiled);
@@ -2957,12 +2957,12 @@ bool MarkCompactCollector::ProcessOldBytecodeSFI(
 bool MarkCompactCollector::ProcessOldBaselineSFI(
     SharedFunctionInfo flushing_candidate) {
   Code baseline_code =
-      Code::cast(flushing_candidate.function_data(kAcquireLoad));
+      Code::cast(flushing_candidate->function_data(kAcquireLoad));
   // Safe to do a relaxed load here since the Code was acquire-loaded.
-  InstructionStream baseline_istream = baseline_code.instruction_stream(
-      baseline_code.code_cage_base(), kRelaxedLoad);
+  InstructionStream baseline_istream = baseline_code->instruction_stream(
+      baseline_code->code_cage_base(), kRelaxedLoad);
   HeapObject baseline_bytecode_or_interpreter_data =
-      baseline_code.bytecode_or_interpreter_data();
+      baseline_code->bytecode_or_interpreter_data();
 
   // During flushing a BytecodeArray is transformed into an UncompiledData
   // in place. Seeing an UncompiledData here implies that another
@@ -2974,7 +2974,7 @@ bool MarkCompactCollector::ProcessOldBaselineSFI(
   const bool is_bytecode_live =
       !bytecode_already_decompiled &&
       non_atomic_marking_state_->IsMarked(
-          flushing_candidate.GetBytecodeArray(heap_->isolate()));
+          flushing_candidate->GetBytecodeArray(heap_->isolate()));
 
   if (non_atomic_marking_state_->IsMarked(baseline_istream)) {
     // Currently baseline code holds bytecode array strongly and it is
@@ -2995,8 +2995,8 @@ bool MarkCompactCollector::ProcessOldBaselineSFI(
     // or UncompiledData found on the baseline code. We can skip this step
     // if the BytecodeArray is not live and not already decompiled, because
     // FlushBytecodeFromSFI below will set the function_data field.
-    flushing_candidate.set_function_data(baseline_bytecode_or_interpreter_data,
-                                         kReleaseStore);
+    flushing_candidate->set_function_data(baseline_bytecode_or_interpreter_data,
+                                          kReleaseStore);
   }
 
   if (!is_bytecode_live) {
@@ -3009,10 +3009,10 @@ void MarkCompactCollector::FlushSFI(SharedFunctionInfo sfi,
                                     bool bytecode_already_decompiled) {
   // If baseline code flushing is disabled we should only flush bytecode
   // from functions that don't have baseline data.
-  DCHECK(v8_flags.flush_baseline_code || !sfi.HasBaselineCode());
+  DCHECK(v8_flags.flush_baseline_code || !sfi->HasBaselineCode());
 
   if (bytecode_already_decompiled) {
-    sfi.DiscardCompiledMetadata(
+    sfi->DiscardCompiledMetadata(
         heap_->isolate(),
         [](HeapObject object, ObjectSlot slot, HeapObject target) {
           RecordSlot(object, slot, target);
@@ -3034,7 +3034,7 @@ void MarkCompactCollector::ClearFlushedJsFunctions() {
                                      Object target) {
       RecordSlot(object, slot, HeapObject::cast(target));
     };
-    flushed_js_function.ResetIfCodeFlushed(gc_notify_updated_slot);
+    flushed_js_function->ResetIfCodeFlushed(gc_notify_updated_slot);
   }
 }
 
@@ -3048,11 +3048,11 @@ void MarkCompactCollector::ProcessFlushedBaselineCandidates() {
                                      Object target) {
       RecordSlot(object, slot, HeapObject::cast(target));
     };
-    flushed_js_function.ResetIfCodeFlushed(gc_notify_updated_slot);
+    flushed_js_function->ResetIfCodeFlushed(gc_notify_updated_slot);
 
     // Record the code slot that has been updated either to CompileLazy,
     // InterpreterEntryTrampoline or baseline code.
-    ObjectSlot slot = flushed_js_function.RawField(JSFunction::kCodeOffset);
+    ObjectSlot slot = flushed_js_function->RawField(JSFunction::kCodeOffset);
     RecordSlot(flushed_js_function, slot, HeapObject::cast(*slot));
   }
 }
@@ -3061,25 +3061,25 @@ void MarkCompactCollector::ClearFullMapTransitions() {
   TransitionArray array;
   Isolate* const isolate = heap_->isolate();
   while (local_weak_objects()->transition_arrays_local.Pop(&array)) {
-    int num_transitions = array.number_of_entries();
+    int num_transitions = array->number_of_entries();
     if (num_transitions > 0) {
       Map map;
       // The array might contain "undefined" elements because it's not yet
       // filled. Allow it.
-      if (array.GetTargetIfExists(0, isolate, &map)) {
+      if (array->GetTargetIfExists(0, isolate, &map)) {
         DCHECK(!map.is_null());  // Weak pointers aren't cleared yet.
-        Object constructor_or_back_pointer = map.constructor_or_back_pointer();
+        Object constructor_or_back_pointer = map->constructor_or_back_pointer();
         if (constructor_or_back_pointer.IsSmi()) {
           DCHECK(isolate->has_active_deserializer());
           DCHECK_EQ(constructor_or_back_pointer,
                     Smi::uninitialized_deserialization_value());
           continue;
         }
-        Map parent = Map::cast(map.constructor_or_back_pointer());
+        Map parent = Map::cast(map->constructor_or_back_pointer());
         bool parent_is_alive = non_atomic_marking_state_->IsMarked(parent);
-        DescriptorArray descriptors = parent_is_alive
-                                          ? parent.instance_descriptors(isolate)
-                                          : DescriptorArray();
+        DescriptorArray descriptors =
+            parent_is_alive ? parent->instance_descriptors(isolate)
+                            : DescriptorArray();
         bool descriptors_owner_died =
             CompactTransitionArray(parent, array, descriptors);
         if (descriptors_owner_died) {
@@ -3095,7 +3095,7 @@ void MarkCompactCollector::ClearFullMapTransitions() {
 bool MarkCompactCollector::TransitionArrayNeedsCompaction(
     TransitionArray transitions, int num_transitions) {
   for (int i = 0; i < num_transitions; ++i) {
-    MaybeObject raw_target = transitions.GetRawTarget(i);
+    MaybeObject raw_target = transitions->GetRawTarget(i);
     if (raw_target.IsSmi()) {
       // This target is still being deserialized,
       DCHECK(heap_->isolate()->has_active_deserializer());
@@ -3104,8 +3104,8 @@ bool MarkCompactCollector::TransitionArrayNeedsCompaction(
       // Targets can only be dead iff this array is fully deserialized.
       for (int j = 0; j < num_transitions; ++j) {
         DCHECK_IMPLIES(
-            !transitions.GetRawTarget(j).IsSmi(),
-            !non_atomic_marking_state_->IsUnmarked(transitions.GetTarget(j)));
+            !transitions->GetRawTarget(j).IsSmi(),
+            !non_atomic_marking_state_->IsUnmarked(transitions->GetTarget(j)));
       }
 #endif
       return false;
@@ -3114,7 +3114,7 @@ bool MarkCompactCollector::TransitionArrayNeedsCompaction(
 #ifdef DEBUG
       // Targets can only be dead iff this array is fully deserialized.
       for (int j = 0; j < num_transitions; ++j) {
-        DCHECK(!transitions.GetRawTarget(j).IsSmi());
+        DCHECK(!transitions->GetRawTarget(j).IsSmi());
       }
 #endif
       return true;
@@ -3126,8 +3126,8 @@ bool MarkCompactCollector::TransitionArrayNeedsCompaction(
 bool MarkCompactCollector::CompactTransitionArray(Map map,
                                                   TransitionArray transitions,
                                                   DescriptorArray descriptors) {
-  DCHECK(!map.is_prototype_map());
-  int num_transitions = transitions.number_of_entries();
+  DCHECK(!map->is_prototype_map());
+  int num_transitions = transitions->number_of_entries();
   if (!TransitionArrayNeedsCompaction(transitions, num_transitions)) {
     return false;
   }
@@ -3135,24 +3135,24 @@ bool MarkCompactCollector::CompactTransitionArray(Map map,
   int transition_index = 0;
   // Compact all live transitions to the left.
   for (int i = 0; i < num_transitions; ++i) {
-    Map target = transitions.GetTarget(i);
-    DCHECK_EQ(target.constructor_or_back_pointer(), map);
+    Map target = transitions->GetTarget(i);
+    DCHECK_EQ(target->constructor_or_back_pointer(), map);
     if (non_atomic_marking_state_->IsUnmarked(target)) {
       if (!descriptors.is_null() &&
-          target.instance_descriptors(heap_->isolate()) == descriptors) {
-        DCHECK(!target.is_prototype_map());
+          target->instance_descriptors(heap_->isolate()) == descriptors) {
+        DCHECK(!target->is_prototype_map());
         descriptors_owner_died = true;
       }
     } else {
       if (i != transition_index) {
-        Name key = transitions.GetKey(i);
-        transitions.SetKey(transition_index, key);
-        HeapObjectSlot key_slot = transitions.GetKeySlot(transition_index);
+        Name key = transitions->GetKey(i);
+        transitions->SetKey(transition_index, key);
+        HeapObjectSlot key_slot = transitions->GetKeySlot(transition_index);
         RecordSlot(transitions, key_slot, key);
-        MaybeObject raw_target = transitions.GetRawTarget(i);
-        transitions.SetRawTarget(transition_index, raw_target);
+        MaybeObject raw_target = transitions->GetRawTarget(i);
+        transitions->SetRawTarget(transition_index, raw_target);
         HeapObjectSlot target_slot =
-            transitions.GetTargetSlot(transition_index);
+            transitions->GetTargetSlot(transition_index);
         RecordSlot(transitions, target_slot, raw_target->GetHeapObject());
       }
       transition_index++;
@@ -3167,23 +3167,23 @@ bool MarkCompactCollector::CompactTransitionArray(Map map,
   // such that number_of_transitions() == 0. If this assumption changes,
   // TransitionArray::Insert() will need to deal with the case that a transition
   // array disappeared during GC.
-  int trim = transitions.Capacity() - transition_index;
+  int trim = transitions->Capacity() - transition_index;
   if (trim > 0) {
     heap_->RightTrimWeakFixedArray(transitions,
                                    trim * TransitionArray::kEntrySize);
-    transitions.SetNumberOfTransitions(transition_index);
+    transitions->SetNumberOfTransitions(transition_index);
   }
   return descriptors_owner_died;
 }
 
 void MarkCompactCollector::RightTrimDescriptorArray(DescriptorArray array,
                                                     int descriptors_to_trim) {
-  int old_nof_all_descriptors = array.number_of_all_descriptors();
+  int old_nof_all_descriptors = array->number_of_all_descriptors();
   int new_nof_all_descriptors = old_nof_all_descriptors - descriptors_to_trim;
   DCHECK_LT(0, descriptors_to_trim);
   DCHECK_LE(0, new_nof_all_descriptors);
-  Address start = array.GetDescriptorSlot(new_nof_all_descriptors).address();
-  Address end = array.GetDescriptorSlot(old_nof_all_descriptors).address();
+  Address start = array->GetDescriptorSlot(new_nof_all_descriptors).address();
+  Address end = array->GetDescriptorSlot(old_nof_all_descriptors).address();
   MemoryChunk* chunk = MemoryChunk::FromHeapObject(array);
   RememberedSet<OLD_TO_NEW>::RemoveRange(chunk, start, end,
                                          SlotSet::FREE_EMPTY_BUCKETS);
@@ -3208,7 +3208,7 @@ void MarkCompactCollector::RightTrimDescriptorArray(DescriptorArray array,
   } else {
     heap_->CreateFillerObjectAt(start, static_cast<int>(end - start));
   }
-  array.set_number_of_all_descriptors(new_nof_all_descriptors);
+  array->set_number_of_all_descriptors(new_nof_all_descriptors);
 }
 
 void MarkCompactCollector::RecordStrongDescriptorArraysForWeakening(
@@ -3225,8 +3225,8 @@ void MarkCompactCollector::WeakenStrongDescriptorArrays() {
     for (auto it = vec.begin(); it != vec.end(); ++it) {
       DescriptorArray raw = it.raw();
       DCHECK(raw.IsStrongDescriptorArray());
-      raw.set_map_safe_transition_no_write_barrier(descriptor_array_map);
-      DCHECK_EQ(raw.raw_gc_state(kRelaxedLoad), 0);
+      raw->set_map_safe_transition_no_write_barrier(descriptor_array_map);
+      DCHECK_EQ(raw->raw_gc_state(kRelaxedLoad), 0);
     }
   }
   strong_descriptor_arrays_.clear();
@@ -3234,39 +3234,39 @@ void MarkCompactCollector::WeakenStrongDescriptorArrays() {
 
 void MarkCompactCollector::TrimDescriptorArray(Map map,
                                                DescriptorArray descriptors) {
-  int number_of_own_descriptors = map.NumberOfOwnDescriptors();
+  int number_of_own_descriptors = map->NumberOfOwnDescriptors();
   if (number_of_own_descriptors == 0) {
     DCHECK(descriptors == ReadOnlyRoots(heap_).empty_descriptor_array());
     return;
   }
   int to_trim =
-      descriptors.number_of_all_descriptors() - number_of_own_descriptors;
+      descriptors->number_of_all_descriptors() - number_of_own_descriptors;
   if (to_trim > 0) {
-    descriptors.set_number_of_descriptors(number_of_own_descriptors);
+    descriptors->set_number_of_descriptors(number_of_own_descriptors);
     RightTrimDescriptorArray(descriptors, to_trim);
 
     TrimEnumCache(map, descriptors);
-    descriptors.Sort();
+    descriptors->Sort();
   }
-  DCHECK(descriptors.number_of_descriptors() == number_of_own_descriptors);
-  map.set_owns_descriptors(true);
+  DCHECK(descriptors->number_of_descriptors() == number_of_own_descriptors);
+  map->set_owns_descriptors(true);
 }
 
 void MarkCompactCollector::TrimEnumCache(Map map, DescriptorArray descriptors) {
-  int live_enum = map.EnumLength();
+  int live_enum = map->EnumLength();
   if (live_enum == kInvalidEnumCacheSentinel) {
-    live_enum = map.NumberOfEnumerableProperties();
+    live_enum = map->NumberOfEnumerableProperties();
   }
-  if (live_enum == 0) return descriptors.ClearEnumCache();
-  EnumCache enum_cache = descriptors.enum_cache();
+  if (live_enum == 0) return descriptors->ClearEnumCache();
+  EnumCache enum_cache = descriptors->enum_cache();
 
-  FixedArray keys = enum_cache.keys();
-  int to_trim = keys.length() - live_enum;
+  FixedArray keys = enum_cache->keys();
+  int to_trim = keys->length() - live_enum;
   if (to_trim <= 0) return;
   heap_->RightTrimFixedArray(keys, to_trim);
 
-  FixedArray indices = enum_cache.indices();
-  to_trim = indices.length() - live_enum;
+  FixedArray indices = enum_cache->indices();
+  to_trim = indices->length() - live_enum;
   if (to_trim <= 0) return;
   heap_->RightTrimFixedArray(indices, to_trim);
 }
@@ -3275,11 +3275,11 @@ void MarkCompactCollector::ClearWeakCollections() {
   TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_CLEAR_WEAK_COLLECTIONS);
   EphemeronHashTable table;
   while (local_weak_objects()->ephemeron_hash_tables_local.Pop(&table)) {
-    for (InternalIndex i : table.IterateEntries()) {
-      HeapObject key = HeapObject::cast(table.KeyAt(i));
+    for (InternalIndex i : table->IterateEntries()) {
+      HeapObject key = HeapObject::cast(table->KeyAt(i));
 #ifdef VERIFY_HEAP
       if (v8_flags.verify_heap) {
-        Object value = table.ValueAt(i);
+        Object value = table->ValueAt(i);
         if (value.IsHeapObject()) {
           HeapObject heap_object = HeapObject::cast(value);
           CHECK_IMPLIES(!ShouldMarkObject(key) ||
@@ -3291,7 +3291,7 @@ void MarkCompactCollector::ClearWeakCollections() {
 #endif  // VERIFY_HEAP
       if (!ShouldMarkObject(key)) continue;
       if (!non_atomic_marking_state_->IsMarked(key)) {
-        table.RemoveEntry(i);
+        table->RemoveEntry(i);
       }
     }
   }
@@ -3336,13 +3336,13 @@ void MarkCompactCollector::ClearJSWeakRefs() {
   JSWeakRef weak_ref;
   Isolate* const isolate = heap_->isolate();
   while (local_weak_objects()->js_weak_refs_local.Pop(&weak_ref)) {
-    HeapObject target = HeapObject::cast(weak_ref.target());
+    HeapObject target = HeapObject::cast(weak_ref->target());
     if (!target.InReadOnlySpace() &&
         !non_atomic_marking_state_->IsMarked(target)) {
-      weak_ref.set_target(ReadOnlyRoots(isolate).undefined_value());
+      weak_ref->set_target(ReadOnlyRoots(isolate).undefined_value());
     } else {
       // The value of the JSWeakRef is alive.
-      ObjectSlot slot = weak_ref.RawField(JSWeakRef::kTargetOffset);
+      ObjectSlot slot = weak_ref->RawField(JSWeakRef::kTargetOffset);
       RecordSlot(weak_ref, slot, target);
     }
   }
@@ -3354,30 +3354,30 @@ void MarkCompactCollector::ClearJSWeakRefs() {
         RecordSlot(object, slot, HeapObject::cast(target));
       }
     };
-    HeapObject target = HeapObject::cast(weak_cell.target());
+    HeapObject target = HeapObject::cast(weak_cell->target());
     if (!target.InReadOnlySpace() &&
         !non_atomic_marking_state_->IsMarked(target)) {
       DCHECK(target.CanBeHeldWeakly());
       // The value of the WeakCell is dead.
       JSFinalizationRegistry finalization_registry =
-          JSFinalizationRegistry::cast(weak_cell.finalization_registry());
-      if (!finalization_registry.scheduled_for_cleanup()) {
+          JSFinalizationRegistry::cast(weak_cell->finalization_registry());
+      if (!finalization_registry->scheduled_for_cleanup()) {
         heap_->EnqueueDirtyJSFinalizationRegistry(finalization_registry,
                                                   gc_notify_updated_slot);
       }
       // We're modifying the pointers in WeakCell and JSFinalizationRegistry
       // during GC; thus we need to record the slots it writes. The normal write
       // barrier is not enough, since it's disabled before GC.
-      weak_cell.Nullify(isolate, gc_notify_updated_slot);
-      DCHECK(finalization_registry.NeedsCleanup());
-      DCHECK(finalization_registry.scheduled_for_cleanup());
+      weak_cell->Nullify(isolate, gc_notify_updated_slot);
+      DCHECK(finalization_registry->NeedsCleanup());
+      DCHECK(finalization_registry->scheduled_for_cleanup());
     } else {
       // The value of the WeakCell is alive.
-      ObjectSlot slot = weak_cell.RawField(WeakCell::kTargetOffset);
+      ObjectSlot slot = weak_cell->RawField(WeakCell::kTargetOffset);
       RecordSlot(weak_cell, slot, HeapObject::cast(*slot));
     }
 
-    HeapObject unregister_token = weak_cell.unregister_token();
+    HeapObject unregister_token = weak_cell->unregister_token();
     if (!unregister_token.InReadOnlySpace() &&
         !non_atomic_marking_state_->IsMarked(unregister_token)) {
       DCHECK(unregister_token.CanBeHeldWeakly());
@@ -3387,14 +3387,14 @@ void MarkCompactCollector::ClearJSWeakRefs() {
       // WeakCell. Like above, we're modifying pointers during GC, so record the
       // slots.
       JSFinalizationRegistry finalization_registry =
-          JSFinalizationRegistry::cast(weak_cell.finalization_registry());
-      finalization_registry.RemoveUnregisterToken(
+          JSFinalizationRegistry::cast(weak_cell->finalization_registry());
+      finalization_registry->RemoveUnregisterToken(
           unregister_token, isolate,
           JSFinalizationRegistry::kKeepMatchedCellsInRegistry,
           gc_notify_updated_slot);
     } else {
       // The unregister_token is alive.
-      ObjectSlot slot = weak_cell.RawField(WeakCell::kUnregisterTokenOffset);
+      ObjectSlot slot = weak_cell->RawField(WeakCell::kUnregisterTokenOffset);
       RecordSlot(weak_cell, slot, HeapObject::cast(*slot));
     }
   }
@@ -3545,7 +3545,7 @@ static inline void UpdateSlot(PtrComprCageBase cage_base, TSlot slot,
                     std::is_same<TSlot, InstructionStreamSlot>::value,
                 "Only [Full|OffHeap]ObjectSlot, [Full]MaybeObjectSlot "
                 "or InstructionStreamSlot are expected here");
-  MapWord map_word = heap_obj.map_word(cage_base, kRelaxedLoad);
+  MapWord map_word = heap_obj->map_word(cage_base, kRelaxedLoad);
   if (map_word.IsForwardingAddress()) {
     DCHECK_IMPLIES((!v8_flags.minor_ms && !Heap::InFromPage(heap_obj)),
                    MarkCompactCollector::IsOnEvacuationCandidate(heap_obj) ||
@@ -3641,9 +3641,9 @@ static inline void UpdateStrongCodeSlot(HeapObject host,
     Code code = Code::cast(HeapObject::FromAddress(
         slot.address() - Code::kInstructionStreamOffset));
     InstructionStream instruction_stream =
-        code.instruction_stream(code_cage_base);
+        code->instruction_stream(code_cage_base);
     Isolate* isolate_for_sandbox = GetIsolateForSandbox(host);
-    code.UpdateInstructionStart(isolate_for_sandbox, instruction_stream);
+    code->UpdateInstructionStart(isolate_for_sandbox, instruction_stream);
   }
 }
 
@@ -3756,7 +3756,7 @@ static Tagged<String> UpdateReferenceInExternalStringTableEntry(
       MemoryChunk::MoveExternalBackingStoreBytes(
           ExternalBackingStoreType::kExternalString,
           Page::FromAddress((*p).ptr()), Page::FromHeapObject(new_string),
-          ExternalString::cast(new_string).ExternalPayloadSize());
+          ExternalString::cast(new_string)->ExternalPayloadSize());
     }
     return new_string;
   }
@@ -4532,7 +4532,7 @@ class RememberedSetUpdatingItem : public UpdatingItem {
       DCHECK(Heap::InFromPage(heap_object));
     }
 
-    MapWord map_word = heap_object.map_word(kRelaxedLoad);
+    MapWord map_word = heap_object->map_word(kRelaxedLoad);
     if (map_word.IsForwardingAddress()) {
       using THeapObjectSlot = typename TSlot::THeapObjectSlot;
       HeapObjectReference::Update(THeapObjectSlot(slot),
@@ -4723,20 +4723,20 @@ class EphemeronTableUpdatingItem : public UpdatingItem {
     for (auto it = table_map->begin(); it != table_map->end();) {
       EphemeronHashTable table = it->first;
       auto& indices = it->second;
-      if (table.map_word(cage_base, kRelaxedLoad).IsForwardingAddress()) {
+      if (table->map_word(cage_base, kRelaxedLoad).IsForwardingAddress()) {
         // The table has moved, and RecordMigratedSlotVisitor::VisitEphemeron
         // inserts entries for the moved table into ephemeron_remembered_set_.
         it = table_map->erase(it);
         continue;
       }
-      DCHECK(table.map(cage_base).IsMap(cage_base));
+      DCHECK(table->map(cage_base).IsMap(cage_base));
       DCHECK(table.IsEphemeronHashTable(cage_base));
       for (auto iti = indices.begin(); iti != indices.end();) {
         // EphemeronHashTable keys must be heap objects.
-        HeapObjectSlot key_slot(table.RawFieldOfElementAt(
+        HeapObjectSlot key_slot(table->RawFieldOfElementAt(
             EphemeronHashTable::EntryToIndex(InternalIndex(*iti))));
         HeapObject key = key_slot.ToHeapObject();
-        MapWord map_word = key.map_word(cage_base, kRelaxedLoad);
+        MapWord map_word = key->map_word(cage_base, kRelaxedLoad);
         if (map_word.IsForwardingAddress()) {
           key = map_word.ToForwardingAddress(key);
           key_slot.StoreHeapObject(key);
@@ -5075,7 +5075,7 @@ void MarkCompactCollector::SweepLargeSpace(LargeObjectSpace* space) {
     MarkBit::From(object).Clear();
     current->ProgressBar().ResetIfEnabled();
     current->SetLiveBytes(0);
-    surviving_object_size += static_cast<size_t>(object.Size(cage_base));
+    surviving_object_size += static_cast<size_t>(object->Size(cage_base));
   }
   space->set_objects_size(surviving_object_size);
 }

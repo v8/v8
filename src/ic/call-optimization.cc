@@ -28,10 +28,10 @@ base::Optional<NativeContext> CallOptimization::GetAccessorContext(
   if (is_constant_call()) {
     return constant_function_->native_context();
   }
-  Object maybe_constructor = holder_map.GetConstructor();
+  Object maybe_constructor = holder_map->GetConstructor();
   if (maybe_constructor.IsJSFunction()) {
     JSFunction constructor = JSFunction::cast(maybe_constructor);
-    return constructor.native_context();
+    return constructor->native_context();
   }
   // |maybe_constructor| might theoretically be |null| for some objects but
   // they can't be holders for lazy accessor properties.
@@ -103,7 +103,7 @@ bool CallOptimization::IsCompatibleReceiverMap(
       {
         JSObject object = *api_holder;
         while (true) {
-          Object prototype = object.map().prototype();
+          Object prototype = object->map()->prototype();
           if (!prototype.IsJSObject()) return false;
           if (prototype == *holder) return true;
           object = JSObject::cast(prototype);
@@ -141,8 +141,8 @@ void CallOptimization::Initialize(IsolateT* isolate,
 template <class IsolateT>
 void CallOptimization::AnalyzePossibleApiFunction(IsolateT* isolate,
                                                   Handle<JSFunction> function) {
-  if (!function->shared().IsApiFunction()) return;
-  Handle<FunctionTemplateInfo> info(function->shared().get_api_func_data(),
+  if (!function->shared()->IsApiFunction()) return;
+  Handle<FunctionTemplateInfo> info(function->shared()->get_api_func_data(),
                                     isolate);
 
   // Require a C++ callback.

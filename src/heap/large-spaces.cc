@@ -387,7 +387,7 @@ void LargeObjectSpace::Verify(Isolate* isolate,
     if (!is_valid_lo_space_object) {
       object.Print();
       FATAL("Found invalid Object (instance_type=%i) in large object space.",
-            object.map(cage_base).instance_type());
+            object->map(cage_base)->instance_type());
     }
 
     // Invoke visitor on each object.
@@ -498,7 +498,7 @@ void NewLargeObjectSpace::FreeDeadObjects(
         heap()->concurrent_marking()->ClearMemoryChunkData(page);
       }
     } else {
-      surviving_object_size += static_cast<size_t>(object.Size(cage_base));
+      surviving_object_size += static_cast<size_t>(object->Size(cage_base));
     }
   }
   // Right-trimming does not update the objects_size_ counter. We are lazily

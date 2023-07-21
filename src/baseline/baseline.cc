@@ -35,12 +35,12 @@ bool CanCompileWithBaseline(Isolate* isolate, SharedFunctionInfo shared) {
   }
 
   // Check if we actually have bytecode.
-  if (!shared.HasBytecodeArray()) return false;
+  if (!shared->HasBytecodeArray()) return false;
 
   // Do not optimize when debugger needs to hook into every call.
   if (isolate->debug()->needs_check_on_function_call()) return false;
 
-  if (auto debug_info = shared.TryGetDebugInfo(isolate)) {
+  if (auto debug_info = shared->TryGetDebugInfo(isolate)) {
     // Functions with breakpoints have to stay interpreted.
     if (debug_info->HasBreakInfo()) return false;
 
@@ -50,7 +50,7 @@ bool CanCompileWithBaseline(Isolate* isolate, SharedFunctionInfo shared) {
   }
 
   // Do not baseline compile if function doesn't pass sparkplug_filter.
-  if (!shared.PassesFilter(v8_flags.sparkplug_filter)) return false;
+  if (!shared->PassesFilter(v8_flags.sparkplug_filter)) return false;
 
   return true;
 }

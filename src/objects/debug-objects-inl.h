@@ -48,7 +48,7 @@ BytecodeArray DebugInfo::OriginalBytecodeArray() {
 
 BytecodeArray DebugInfo::DebugBytecodeArray() {
   DCHECK(HasInstrumentedBytecodeArray());
-  DCHECK_EQ(shared().GetActiveBytecodeArray(),
+  DCHECK_EQ(shared()->GetActiveBytecodeArray(),
             debug_bytecode_array(kAcquireLoad));
   return BytecodeArray::cast(debug_bytecode_array(kAcquireLoad));
 }
@@ -59,7 +59,7 @@ NEVER_READ_ONLY_SPACE_IMPL(StackFrameInfo)
 Script StackFrameInfo::script() const {
   HeapObject object = shared_or_script();
   if (object.IsSharedFunctionInfo()) {
-    object = SharedFunctionInfo::cast(object).script();
+    object = SharedFunctionInfo::cast(object)->script();
   }
   return Script::cast(object);
 }

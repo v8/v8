@@ -29,9 +29,9 @@ namespace {
 #ifdef DEBUG
 void PrintModuleName(Module module, std::ostream& os) {
   if (module.IsSourceTextModule()) {
-    SourceTextModule::cast(module).GetScript().GetNameOrSourceURL().Print(os);
+    SourceTextModule::cast(module)->GetScript()->GetNameOrSourceURL().Print(os);
   } else {
-    SyntheticModule::cast(module).name().Print(os);
+    SyntheticModule::cast(module)->name().Print(os);
   }
 #ifndef OBJECT_PRINT
   os << "\n";
@@ -42,7 +42,7 @@ void PrintStatusTransition(Module module, Module::Status old_status) {
   if (!v8_flags.trace_module_status) return;
   StdoutStream os;
   os << "Changing module status from " << old_status << " to "
-     << module.status() << " for ";
+     << module->status() << " for ";
   PrintModuleName(module, os);
 }
 
@@ -57,8 +57,8 @@ void PrintStatusMessage(Module module, const char* message) {
 void SetStatusInternal(Module module, Module::Status new_status) {
   DisallowGarbageCollection no_gc;
 #ifdef DEBUG
-  Module::Status old_status = static_cast<Module::Status>(module.status());
-  module.set_status(new_status);
+  Module::Status old_status = static_cast<Module::Status>(module->status());
+  module->set_status(new_status);
   PrintStatusTransition(module, old_status);
 #else
   module.set_status(new_status);
@@ -84,7 +84,7 @@ void Module::RecordError(Isolate* isolate, Object error) {
     // Revert to minmal SFI in case we have already been instantiating or
     // evaluating.
     auto self = SourceTextModule::cast(*this);
-    self.set_code(self.GetSharedFunctionInfo());
+    self->set_code(self->GetSharedFunctionInfo());
   }
   SetStatusInternal(*this, Module::kErrored);
   if (isolate->is_catchable_by_javascript(error)) {
@@ -104,7 +104,7 @@ void Module::ResetGraph(Isolate* isolate, Handle<Module> module) {
   Handle<FixedArray> requested_modules =
       module->IsSourceTextModule()
           ? Handle<FixedArray>(
-                SourceTextModule::cast(*module).requested_modules(), isolate)
+                SourceTextModule::cast(*module)->requested_modules(), isolate)
           : Handle<FixedArray>();
   Reset(isolate, module);
 
@@ -131,8 +131,8 @@ void Module::Reset(Isolate* isolate, Handle<Module> module) {
   DCHECK(!module->module_namespace().IsJSModuleNamespace());
   const int export_count =
       module->IsSourceTextModule()
-          ? SourceTextModule::cast(*module).regular_exports().length()
-          : SyntheticModule::cast(*module).export_names().length();
+          ? SourceTextModule::cast(*module)->regular_exports()->length()
+          : SyntheticModule::cast(*module)->export_names()->length();
   Handle<ObjectHashTable> exports = ObjectHashTable::New(isolate, export_count);
 
   if (module->IsSourceTextModule()) {
@@ -361,18 +361,18 @@ Handle<JSModuleNamespace> Module::GetModuleNamespace(Isolate* isolate,
 }
 
 bool JSModuleNamespace::HasExport(Isolate* isolate, Handle<String> name) {
-  Handle<Object> object(module().exports().Lookup(name), isolate);
+  Handle<Object> object(module()->exports()->Lookup(name), isolate);
   return !object->IsTheHole(isolate);
 }
 
 MaybeHandle<Object> JSModuleNamespace::GetExport(Isolate* isolate,
                                                  Handle<String> name) {
-  Handle<Object> object(module().exports().Lookup(name), isolate);
+  Handle<Object> object(module()->exports()->Lookup(name), isolate);
   if (object->IsTheHole(isolate)) {
     return isolate->factory()->undefined_value();
   }
 
-  Handle<Object> value(Cell::cast(*object).value(), isolate);
+  Handle<Object> value(Cell::cast(*object)->value(), isolate);
   if (value->IsTheHole(isolate)) {
     // According to https://tc39.es/ecma262/#sec-InnerModuleLinking
     // step 10 and
@@ -397,7 +397,7 @@ Maybe<PropertyAttributes> JSModuleNamespace::GetPropertyAttributes(
 
   Isolate* isolate = it->isolate();
 
-  Handle<Object> lookup(object->module().exports().Lookup(name), isolate);
+  Handle<Object> lookup(object->module()->exports()->Lookup(name), isolate);
   if (lookup->IsTheHole(isolate)) return Just(ABSENT);
 
   Handle<Object> value(Handle<Cell>::cast(lookup)->value(), isolate);
@@ -465,12 +465,12 @@ bool Module::IsGraphAsync(Isolate* isolate) const {
   do {
     SourceTextModule current = worklist.back();
     worklist.pop_back();
-    DCHECK_GE(current.status(), kLinked);
+    DCHECK_GE(current->status(), kLinked);
 
-    if (current.async()) return true;
-    FixedArray requested_modules = current.requested_modules();
-    for (int i = 0, length = requested_modules.length(); i < length; ++i) {
-      Module descendant = Module::cast(requested_modules.get(i));
+    if (current->async()) return true;
+    FixedArray requested_modules = current->requested_modules();
+    for (int i = 0, length = requested_modules->length(); i < length; ++i) {
+      Module descendant = Module::cast(requested_modules->get(i));
       if (descendant.IsSourceTextModule()) {
         const bool cycle = !visited.insert(descendant).second;
         if (!cycle) worklist.push_back(SourceTextModule::cast(descendant));

@@ -37,12 +37,12 @@ ACCESSORS(SourceTextModule, async_parent_modules, ArrayList,
 
 struct Module::Hash {
   V8_INLINE size_t operator()(Module const& module) const {
-    return module.hash();
+    return module->hash();
   }
 };
 
 SourceTextModuleInfo SourceTextModule::info() const {
-  return GetSharedFunctionInfo().scope_info().ModuleDescriptorInfo();
+  return GetSharedFunctionInfo()->scope_info()->ModuleDescriptorInfo();
 }
 
 OBJECT_CONSTRUCTORS_IMPL(SourceTextModuleInfo, FixedArray)
@@ -70,11 +70,11 @@ FixedArray SourceTextModuleInfo::namespace_imports() const {
 
 #ifdef DEBUG
 bool SourceTextModuleInfo::Equals(SourceTextModuleInfo other) const {
-  return regular_exports() == other.regular_exports() &&
-         regular_imports() == other.regular_imports() &&
-         special_exports() == other.special_exports() &&
-         namespace_imports() == other.namespace_imports() &&
-         module_requests() == other.module_requests();
+  return regular_exports() == other->regular_exports() &&
+         regular_imports() == other->regular_imports() &&
+         special_exports() == other->special_exports() &&
+         namespace_imports() == other->namespace_imports() &&
+         module_requests() == other->module_requests();
 }
 #endif
 
@@ -123,12 +123,12 @@ void SourceTextModule::AddAsyncParentModule(Isolate* isolate,
 Handle<SourceTextModule> SourceTextModule::GetAsyncParentModule(
     Isolate* isolate, int index) {
   Handle<SourceTextModule> module(
-      SourceTextModule::cast(async_parent_modules().Get(index)), isolate);
+      SourceTextModule::cast(async_parent_modules()->Get(index)), isolate);
   return module;
 }
 
 int SourceTextModule::AsyncParentModuleCount() {
-  return async_parent_modules().Length();
+  return async_parent_modules()->Length();
 }
 
 bool SourceTextModule::IsAsyncEvaluating() const {

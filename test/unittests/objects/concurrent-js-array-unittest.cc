@@ -55,7 +55,7 @@ class BackgroundThread final : public v8::base::Thread {
       Handle<JSArray> x = handles_[i];
       Handle<FixedArrayBase> elements =
           local_heap.NewPersistentHandle(x->elements(isolate, kRelaxedLoad));
-      ElementsKind elements_kind = x->map(isolate).elements_kind();
+      ElementsKind elements_kind = x->map(isolate)->elements_kind();
 
       // Mirroring the conditions in JSArrayRef::GetOwnCowElement.
       if (!IsSmiOrObjectElementsKind(elements_kind)) continue;
@@ -100,7 +100,7 @@ TEST_F(ConcurrentJsArrayTest, ArrayWithCowElements) {
   for (int i = 0; i < kNumArrays; i++) {
     Handle<JSArray> x =
         Handle<JSArray>::cast(Utils::OpenHandle(*RunJS("xs[i++] = f();")));
-    EXPECT_EQ(x->elements().map(),
+    EXPECT_EQ(x->elements()->map(),
               ReadOnlyRoots(i_isolate()).fixed_cow_array_map());
     handles.push_back(x);
     persistent_handles.push_back(ph->NewHandle(x));
@@ -126,7 +126,7 @@ TEST_F(ConcurrentJsArrayTest, ArrayWithCowElements) {
 
   for (int i = kNumArrays - 1; i >= 0; i--) {
     RunJS(kMutators[i % kNumMutators]);
-    EXPECT_NE(handles[i]->elements().map(),
+    EXPECT_NE(handles[i]->elements()->map(),
               ReadOnlyRoots(i_isolate()).fixed_cow_array_map());
   }
 

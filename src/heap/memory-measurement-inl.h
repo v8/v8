@@ -18,7 +18,7 @@ namespace internal {
 
 bool NativeContextInferrer::Infer(Isolate* isolate, Map map, HeapObject object,
                                   Address* native_context) {
-  switch (map.visitor_id()) {
+  switch (map->visitor_id()) {
     case kVisitContext:
       return InferForContext(isolate, Context::cast(object), native_context);
     case kVisitNativeContext:
@@ -42,7 +42,7 @@ bool NativeContextInferrer::Infer(Isolate* isolate, Map map, HeapObject object,
 }
 
 V8_INLINE bool NativeContextStats::HasExternalBytes(Map map) {
-  InstanceType instance_type = map.instance_type();
+  InstanceType instance_type = map->instance_type();
   return (instance_type == JS_ARRAY_BUFFER_TYPE ||
           InstanceTypeChecker::IsExternalString(instance_type));
 }

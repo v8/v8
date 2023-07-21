@@ -170,8 +170,8 @@ Handle<FixedArray> FactoryBase<Impl>::NewFixedArrayWithFiller(
   DCHECK(ReadOnlyHeap::Contains(*filler));
   result->set_map_after_allocation(*map, SKIP_WRITE_BARRIER);
   FixedArray array = Tagged<FixedArray>::cast(result);
-  array.set_length(length);
-  MemsetTagged(array.data_start(), *filler, length);
+  array->set_length(length);
+  MemsetTagged(array->data_start(), *filler, length);
   return handle(array, isolate());
 }
 
@@ -188,8 +188,8 @@ Handle<FixedArray> FactoryBase<Impl>::NewFixedArrayWithZeroes(
   result->set_map_after_allocation(read_only_roots().fixed_array_map(),
                                    SKIP_WRITE_BARRIER);
   FixedArray array = Tagged<FixedArray>::cast(result);
-  array.set_length(length);
-  MemsetTagged(array.data_start(), Smi::zero(), length);
+  array->set_length(length);
+  MemsetTagged(array->data_start(), Smi::zero(), length);
   return handle(array, isolate());
 }
 
@@ -208,7 +208,7 @@ Handle<FixedArrayBase> FactoryBase<Impl>::NewFixedDoubleArray(
       AllocateRawWithImmortalMap(size, allocation, map, kDoubleAligned);
   DisallowGarbageCollection no_gc;
   FixedDoubleArray array = Tagged<FixedDoubleArray>::cast(result);
-  array.set_length(length);
+  array->set_length(length);
   return handle(array, isolate());
 }
 
@@ -224,8 +224,8 @@ Handle<WeakFixedArray> FactoryBase<Impl>::NewWeakFixedArrayWithMap(
   result->set_map_after_allocation(map, SKIP_WRITE_BARRIER);
   DisallowGarbageCollection no_gc;
   WeakFixedArray array = Tagged<WeakFixedArray>::cast(result);
-  array.set_length(length);
-  MemsetTagged(ObjectSlot(array.data_start()),
+  array->set_length(length);
+  MemsetTagged(ObjectSlot(array->data_start()),
                read_only_roots().undefined_value(), length);
 
   return handle(array, isolate());
@@ -253,8 +253,8 @@ Handle<ByteArray> FactoryBase<Impl>::NewByteArray(int length,
       size, allocation, read_only_roots().byte_array_map());
   DisallowGarbageCollection no_gc;
   ByteArray array = Tagged<ByteArray>::cast(result);
-  array.set_length(length);
-  array.clear_padding();
+  array->set_length(length);
+  array->clear_padding();
   return handle(array, isolate());
 }
 
@@ -278,7 +278,7 @@ Handle<ExternalPointerArray> FactoryBase<Impl>::NewExternalPointerArray(
   Address data_start = array.address() + ExternalPointerArray::kHeaderSize;
   size_t byte_length = length * kExternalPointerSlotSize;
   memset(reinterpret_cast<uint8_t*>(data_start), 0, byte_length);
-  array.set_length(length);
+  array->set_length(length);
   return handle(array, isolate());
 }
 
@@ -306,19 +306,19 @@ Handle<BytecodeArray> FactoryBase<Impl>::NewBytecodeArray(
       size, AllocationType::kOld, read_only_roots().bytecode_array_map());
   DisallowGarbageCollection no_gc;
   BytecodeArray instance = Tagged<BytecodeArray>::cast(result);
-  instance.set_length(length);
-  instance.set_frame_size(frame_size);
-  instance.set_parameter_count(parameter_count);
-  instance.set_incoming_new_target_or_generator_register(
+  instance->set_length(length);
+  instance->set_frame_size(frame_size);
+  instance->set_parameter_count(parameter_count);
+  instance->set_incoming_new_target_or_generator_register(
       interpreter::Register::invalid_value());
-  instance.set_constant_pool(*constant_pool);
+  instance->set_constant_pool(*constant_pool);
   instance.set_handler_table(read_only_roots().empty_byte_array(),
                              SKIP_WRITE_BARRIER);
   instance.set_source_position_table(read_only_roots().undefined_value(),
                                      kReleaseStore, SKIP_WRITE_BARRIER);
-  CopyBytes(reinterpret_cast<uint8_t*>(instance.GetFirstBytecodeAddress()),
+  CopyBytes(reinterpret_cast<uint8_t*>(instance->GetFirstBytecodeAddress()),
             raw_bytecodes, length);
-  instance.clear_padding();
+  instance->clear_padding();
   return handle(instance, isolate());
 }
 
@@ -341,24 +341,25 @@ Handle<Script> FactoryBase<Impl>::NewScriptWithId(
   {
     DisallowGarbageCollection no_gc;
     Script raw = *script;
-    raw.set_source(*source);
-    raw.set_name(roots.undefined_value(), SKIP_WRITE_BARRIER);
-    raw.set_id(script_id);
-    raw.set_line_offset(0);
-    raw.set_column_offset(0);
-    raw.set_context_data(roots.undefined_value(), SKIP_WRITE_BARRIER);
-    raw.set_type(Script::Type::kNormal);
-    raw.set_line_ends(Smi::zero());
-    raw.set_eval_from_shared_or_wrapped_arguments(roots.undefined_value(),
-                                                  SKIP_WRITE_BARRIER);
-    raw.set_eval_from_position(0);
-    raw.set_shared_function_infos(roots.empty_weak_fixed_array(),
+    raw->set_source(*source);
+    raw->set_name(roots.undefined_value(), SKIP_WRITE_BARRIER);
+    raw->set_id(script_id);
+    raw->set_line_offset(0);
+    raw->set_column_offset(0);
+    raw->set_context_data(roots.undefined_value(), SKIP_WRITE_BARRIER);
+    raw->set_type(Script::Type::kNormal);
+    raw->set_line_ends(Smi::zero());
+    raw->set_eval_from_shared_or_wrapped_arguments(roots.undefined_value(),
+                                                   SKIP_WRITE_BARRIER);
+    raw->set_eval_from_position(0);
+    raw->set_shared_function_infos(roots.empty_weak_fixed_array(),
+                                   SKIP_WRITE_BARRIER);
+    raw->set_flags(0);
+    raw->set_host_defined_options(roots.empty_fixed_array(),
                                   SKIP_WRITE_BARRIER);
-    raw.set_flags(0);
-    raw.set_host_defined_options(roots.empty_fixed_array(), SKIP_WRITE_BARRIER);
-    raw.set_source_hash(roots.undefined_value(), SKIP_WRITE_BARRIER);
-    raw.set_compiled_lazy_function_positions(roots.undefined_value(),
-                                             SKIP_WRITE_BARRIER);
+    raw->set_source_hash(roots.undefined_value(), SKIP_WRITE_BARRIER);
+    raw->set_compiled_lazy_function_positions(roots.undefined_value(),
+                                              SKIP_WRITE_BARRIER);
 #ifdef V8_SCRIPTORMODULE_LEGACY_LIFETIME
     raw.set_script_or_modules(roots.empty_array_list());
 #endif
@@ -377,7 +378,7 @@ Handle<ArrayList> FactoryBase<Impl>::NewArrayList(int size,
     DisallowGarbageCollection no_gc;
     FixedArray raw = *fixed_array;
     raw.set_map_no_write_barrier(read_only_roots().array_list_map());
-    ArrayList::cast(raw).SetLength(0);
+    ArrayList::cast(raw)->SetLength(0);
   }
   return Handle<ArrayList>::cast(fixed_array);
 }
@@ -405,8 +406,8 @@ Handle<SharedFunctionInfo> FactoryBase<Impl>::CloneSharedFunctionInfo(
       SharedFunctionInfo::cast(NewWithImmortalMap(map, AllocationType::kOld));
   DisallowGarbageCollection no_gc;
 
-  shared.clear_padding();
-  shared.CopyFrom(*other);
+  shared->clear_padding();
+  shared->CopyFrom(*other);
 
   return handle(shared, isolate());
 }
@@ -532,9 +533,9 @@ Handle<SharedFunctionInfo> FactoryBase<Impl>::NewSharedFunctionInfo(
     DCHECK(shared_name->IsFlat());
     DCHECK_IMPLIES(allocation == AllocationType::kReadOnly,
                    ReadOnlyHeap::Contains(*shared_name));
-    raw.set_name_or_scope_info(*shared_name, kReleaseStore, barrier_mode);
+    raw->set_name_or_scope_info(*shared_name, kReleaseStore, barrier_mode);
   } else {
-    DCHECK_EQ(raw.name_or_scope_info(kAcquireLoad),
+    DCHECK_EQ(raw->name_or_scope_info(kAcquireLoad),
               SharedFunctionInfo::kNoSharedNameSentinel);
   }
 
@@ -546,16 +547,16 @@ Handle<SharedFunctionInfo> FactoryBase<Impl>::NewSharedFunctionInfo(
     DCHECK(!function_data->IsInstructionStream());
     DCHECK_IMPLIES(allocation == AllocationType::kReadOnly,
                    ReadOnlyHeap::Contains(*function_data));
-    raw.set_function_data(*function_data, kReleaseStore, barrier_mode);
+    raw->set_function_data(*function_data, kReleaseStore, barrier_mode);
   } else if (Builtins::IsBuiltinId(builtin)) {
-    raw.set_builtin_id(builtin);
+    raw->set_builtin_id(builtin);
   } else {
-    DCHECK(raw.HasBuiltinId());
-    DCHECK_EQ(Builtin::kIllegal, raw.builtin_id());
+    DCHECK(raw->HasBuiltinId());
+    DCHECK_EQ(Builtin::kIllegal, raw->builtin_id());
   }
 
-  raw.CalculateConstructAsBuiltin();
-  raw.set_kind(kind);
+  raw->CalculateConstructAsBuiltin();
+  raw->set_kind(kind);
 
 #ifdef VERIFY_HEAP
   if (v8_flags.verify_heap) raw.SharedFunctionInfoVerify(isolate());
@@ -672,10 +673,10 @@ Handle<CoverageInfo> FactoryBase<Impl>::NewCoverageInfo(
   Tagged<Map> map = read_only_roots().coverage_info_map();
   CoverageInfo info = CoverageInfo::cast(
       AllocateRawWithImmortalMap(size, AllocationType::kOld, map));
-  info.set_slot_count(slot_count);
+  info->set_slot_count(slot_count);
   for (int i = 0; i < slot_count; i++) {
     SourceRange range = slots[i];
-    info.InitializeSlot(i, range.start, range.end);
+    info->InitializeSlot(i, range.start, range.end);
   }
   return handle(info, isolate());
 }
@@ -836,10 +837,10 @@ template <typename Impl>
 MaybeHandle<String> FactoryBase<Impl>::NewConsString(
     Handle<String> left, Handle<String> right, AllocationType allocation) {
   if (left->IsThinString()) {
-    left = handle(ThinString::cast(*left).actual(), isolate());
+    left = handle(ThinString::cast(*left)->actual(), isolate());
   }
   if (right->IsThinString()) {
-    right = handle(ThinString::cast(*right).actual(), isolate());
+    right = handle(ThinString::cast(*right)->actual(), isolate());
   }
   int left_length = left->length();
   if (left_length == 0) return right;
@@ -964,7 +965,7 @@ MaybeHandle<String> FactoryBase<Impl>::NewStringFromOneByte(
   // SharedStringAccessGuardIfNeeded is NotNeeded because {result} is freshly
   // allocated and hasn't escaped the factory yet, so it can't be concurrently
   // accessed.
-  CopyChars(SeqOneByteString::cast(*result).GetChars(
+  CopyChars(SeqOneByteString::cast(*result)->GetChars(
                 no_gc, SharedStringAccessGuardIfNeeded::NotNeeded()),
             string.begin(), length);
   return result;
@@ -1062,11 +1063,11 @@ inline Handle<String> FactoryBase<Impl>::SmiToString(Tagged<Smi> number,
   {
     DisallowGarbageCollection no_gc;
     String raw = *result;
-    if (raw.raw_hash_field() == String::kEmptyHashField &&
+    if (raw->raw_hash_field() == String::kEmptyHashField &&
         number.value() >= 0) {
       uint32_t raw_hash_field = StringHasher::MakeArrayIndexHash(
-          static_cast<uint32_t>(number.value()), raw.length());
-      raw.set_raw_hash_field(raw_hash_field);
+          static_cast<uint32_t>(number.value()), raw->length());
+      raw->set_raw_hash_field(raw_hash_field);
     }
   }
   return result;
@@ -1083,7 +1084,7 @@ Handle<FreshlyAllocatedBigInt> FactoryBase<Impl>::NewBigInt(
       BigInt::SizeFor(length), allocation, read_only_roots().bigint_map());
   DisallowGarbageCollection no_gc;
   FreshlyAllocatedBigInt bigint = Tagged<FreshlyAllocatedBigInt>::cast(result);
-  bigint.clear_padding();
+  bigint->clear_padding();
   return handle(bigint, isolate());
 }
 
@@ -1095,7 +1096,7 @@ Handle<ScopeInfo> FactoryBase<Impl>::NewScopeInfo(int length,
   Tagged<HeapObject> obj = AllocateRawWithImmortalMap(
       size, type, read_only_roots().scope_info_map());
   ScopeInfo scope_info = ScopeInfo::cast(obj);
-  MemsetTagged(scope_info.data_start(), read_only_roots().undefined_value(),
+  MemsetTagged(scope_info->data_start(), read_only_roots().undefined_value(),
                length);
   return handle(scope_info, isolate());
 }
@@ -1180,10 +1181,10 @@ FactoryBase<Impl>::AllocateRawOneByteInternalizedString(
   Tagged<HeapObject> result = AllocateRawWithImmortalMap(size, allocation, map);
   SeqOneByteString answer = Tagged<SeqOneByteString>::cast(result);
   DisallowGarbageCollection no_gc;
-  answer.clear_padding_destructively(length);
-  answer.set_length(length);
-  answer.set_raw_hash_field(raw_hash_field);
-  DCHECK_EQ(size, answer.Size());
+  answer->clear_padding_destructively(length);
+  answer->set_length(length);
+  answer->set_raw_hash_field(raw_hash_field);
+  DCHECK_EQ(size, answer->Size());
   return handle(answer, isolate());
 }
 
@@ -1202,10 +1203,10 @@ FactoryBase<Impl>::AllocateRawTwoByteInternalizedString(
                                                          map),
       map));
   DisallowGarbageCollection no_gc;
-  answer.clear_padding_destructively(length);
-  answer.set_length(length);
-  answer.set_raw_hash_field(raw_hash_field);
-  DCHECK_EQ(size, answer.Size());
+  answer->clear_padding_destructively(length);
+  answer->set_length(length);
+  answer->set_raw_hash_field(raw_hash_field);
+  DCHECK_EQ(size, answer->Size());
   return handle(answer, isolate());
 }
 

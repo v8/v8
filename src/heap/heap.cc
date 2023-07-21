@@ -1952,7 +1952,7 @@ int Heap::NotifyContextDisposed(bool has_dependent_context) {
   isolate()->AbortConcurrentOptimization(BlockingBehavior::kDontBlock);
   if (!isolate()->context().is_null()) {
     RemoveDirtyFinalizationRegistriesOnContext(isolate()->raw_native_context());
-    isolate()->raw_native_context().set_retained_maps(
+    isolate()->raw_native_context()->set_retained_maps(
         ReadOnlyRoots(this).empty_weak_array_list());
   }
   return ++contexts_disposed_;
@@ -2817,7 +2817,7 @@ Tagged<String> Heap::UpdateYoungReferenceInExternalStringTableEntry(
     MemoryChunk::MoveExternalBackingStoreBytes(
         ExternalBackingStoreType::kExternalString,
         Page::FromAddress((*p).ptr()), Page::FromHeapObject(new_string),
-        ExternalString::cast(new_string).ExternalPayloadSize());
+        ExternalString::cast(new_string)->ExternalPayloadSize());
     return new_string;
   }
 
@@ -3250,7 +3250,7 @@ void CreateFillerObjectAtImpl(Heap* heap, Address addr, int size,
     DCHECK_GT(size, 2 * kTaggedSize);
     filler->set_map_after_allocation(roots.unchecked_free_space_map(),
                                      SKIP_WRITE_BARRIER);
-    FreeSpace::cast(filler).set_size(size, kRelaxedStore);
+    FreeSpace::cast(filler)->set_size(size, kRelaxedStore);
     if (clear_memory_mode == ClearFreedMemoryMode::kClearFreedMemory) {
       MemsetTagged(ObjectSlot(addr) + 2, Object(kClearedFreeMemoryValue),
                    (size / kTaggedSize) - 2);
@@ -5088,7 +5088,7 @@ void Heap::RecordStats(HeapStats* stats, bool take_snapshot) {
     HeapObjectIterator iterator(this);
     for (Tagged<HeapObject> obj = iterator.Next(); !obj.is_null();
          obj = iterator.Next()) {
-      InstanceType type = obj->map().instance_type();
+      InstanceType type = obj->map()->instance_type();
       DCHECK(0 <= type && type <= LAST_TYPE);
       stats->objects_per_type[type]++;
       stats->size_per_type[type] += obj->Size();
@@ -6267,7 +6267,7 @@ class UnreachableObjectsFilter : public HeapObjectsFilter {
         : ObjectVisitorWithCageBases(filter->heap_), filter_(filter) {}
 
     void VisitMapPointer(HeapObject object) override {
-      MarkHeapObject(Map::unchecked_cast(object.map(cage_base())));
+      MarkHeapObject(Map::unchecked_cast(object->map(cage_base())));
     }
     void VisitPointers(HeapObject host, ObjectSlot start,
                        ObjectSlot end) override {
@@ -6809,7 +6809,7 @@ Map Heap::GcSafeMapOfHeapObject(Tagged<HeapObject> object) {
   PtrComprCageBase cage_base(isolate());
   MapWord map_word = object->map_word(cage_base, kRelaxedLoad);
   if (map_word.IsForwardingAddress()) {
-    return map_word.ToForwardingAddress(object).map(cage_base);
+    return map_word.ToForwardingAddress(object)->map(cage_base);
   }
   return map_word.ToMap();
 }
@@ -6820,7 +6820,7 @@ GcSafeCode Heap::GcSafeGetCodeFromInstructionStream(
       InstructionStream::unchecked_cast(instruction_stream);
   DCHECK(!istream.is_null());
   DCHECK(GcSafeInstructionStreamContains(istream, inner_pointer));
-  return GcSafeCode::unchecked_cast(istream.raw_code(kAcquireLoad));
+  return GcSafeCode::unchecked_cast(istream->raw_code(kAcquireLoad));
 }
 
 bool Heap::GcSafeInstructionStreamContains(Tagged<InstructionStream> istream,
@@ -6832,7 +6832,7 @@ bool Heap::GcSafeInstructionStreamContains(Tagged<InstructionStream> istream,
       OffHeapInstructionStream::TryLookupCode(isolate(), addr);
   if (Builtins::IsBuiltinId(builtin_lookup_result)) {
     // Builtins don't have InstructionStream objects.
-    DCHECK(!Builtins::IsBuiltinId(istream->code(kAcquireLoad).builtin_id()));
+    DCHECK(!Builtins::IsBuiltinId(istream->code(kAcquireLoad)->builtin_id()));
     return false;
   }
 
@@ -6875,7 +6875,7 @@ base::Optional<GcSafeCode> Heap::GcSafeTryFindCodeForInnerPointer(
 }
 
 Code Heap::FindCodeForInnerPointer(Address inner_pointer) {
-  return GcSafeFindCodeForInnerPointer(inner_pointer).UnsafeCastToCode();
+  return GcSafeFindCodeForInnerPointer(inner_pointer)->UnsafeCastToCode();
 }
 
 GcSafeCode Heap::GcSafeFindCodeForInnerPointer(Address inner_pointer) {

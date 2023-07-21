@@ -792,7 +792,7 @@ TEST(ShrinkPageToHighWaterMarkOneWordFiller) {
   old_space->ResetFreeList();
 
   HeapObject filler = HeapObject::FromAddress(array->address() + array->Size());
-  CHECK_EQ(filler.map(),
+  CHECK_EQ(filler->map(),
            ReadOnlyRoots(CcTest::heap()).one_pointer_filler_map());
 
   size_t shrunk = old_space->ShrinkPageToHighWaterMark(page);
@@ -820,7 +820,7 @@ TEST(ShrinkPageToHighWaterMarkTwoWordFiller) {
   old_space->ResetFreeList();
 
   HeapObject filler = HeapObject::FromAddress(array->address() + array->Size());
-  CHECK_EQ(filler.map(),
+  CHECK_EQ(filler->map(),
            ReadOnlyRoots(CcTest::heap()).two_pointer_filler_map());
 
   size_t shrunk = old_space->ShrinkPageToHighWaterMark(page);

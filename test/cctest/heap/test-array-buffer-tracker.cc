@@ -38,7 +38,7 @@ bool IsTracked(i::Heap* heap, i::ArrayBufferExtension* extension) {
 }
 
 bool IsTracked(i::Heap* heap, i::JSArrayBuffer buffer) {
-  return IsTracked(heap, buffer.extension());
+  return IsTracked(heap, buffer->extension());
 }
 
 }  // namespace
@@ -247,7 +247,7 @@ TEST(ArrayBuffer_NonLivePromotion) {
     heap::InvokeAtomicMinorGC(heap);
     CHECK(IsTracked(heap, JSArrayBuffer::cast(root->get(0))));
     ArrayBufferExtension* extension =
-        JSArrayBuffer::cast(root->get(0)).extension();
+        JSArrayBuffer::cast(root->get(0))->extension();
     root->set(0, ReadOnlyRoots(heap).undefined_value());
     heap::SimulateIncrementalMarking(heap, true);
     heap::InvokeAtomicMajorGC(heap);

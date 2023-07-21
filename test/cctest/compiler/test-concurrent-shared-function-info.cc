@@ -31,29 +31,29 @@ enum class SfiState {
 
 void ExpectSharedFunctionInfoState(Isolate* isolate, SharedFunctionInfo sfi,
                                    SfiState expectedState) {
-  Object function_data = sfi.function_data(kAcquireLoad);
-  HeapObject script = sfi.script(kAcquireLoad);
+  Object function_data = sfi->function_data(kAcquireLoad);
+  HeapObject script = sfi->script(kAcquireLoad);
   switch (expectedState) {
     case SfiState::Compiled:
       CHECK(function_data.IsBytecodeArray() ||
             (function_data.IsCode() &&
-             Code::cast(function_data).kind() == CodeKind::BASELINE));
+             Code::cast(function_data)->kind() == CodeKind::BASELINE));
       CHECK(script.IsScript());
       break;
     case SfiState::DebugInfo: {
       CHECK(function_data.IsBytecodeArray() ||
             (function_data.IsCode() &&
-             Code::cast(function_data).kind() == CodeKind::BASELINE));
+             Code::cast(function_data)->kind() == CodeKind::BASELINE));
       CHECK(script.IsScript());
-      DebugInfo debug_info = sfi.GetDebugInfo(isolate);
-      CHECK(!debug_info.HasInstrumentedBytecodeArray());
+      DebugInfo debug_info = sfi->GetDebugInfo(isolate);
+      CHECK(!debug_info->HasInstrumentedBytecodeArray());
       break;
     }
     case SfiState::PreparedForDebugExecution: {
       CHECK(function_data.IsBytecodeArray());
       CHECK(script.IsScript());
-      DebugInfo debug_info = sfi.GetDebugInfo(isolate);
-      CHECK(debug_info.HasInstrumentedBytecodeArray());
+      DebugInfo debug_info = sfi->GetDebugInfo(isolate);
+      CHECK(debug_info->HasInstrumentedBytecodeArray());
       break;
     }
   }
@@ -178,7 +178,7 @@ TEST(TestConcurrentSharedFunctionInfo) {
     // PreparedForDebugExecution ==> DebugInfo
     {
       DebugInfo debug_info = test_sfi->GetDebugInfo(isolate);
-      debug_info.ClearBreakInfo(isolate);
+      debug_info->ClearBreakInfo(isolate);
       ExpectSharedFunctionInfoState(isolate, *test_sfi, SfiState::DebugInfo);
     }
   }

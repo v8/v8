@@ -74,7 +74,7 @@ Object FixedArray::get(PtrComprCageBase cage_base, int index) const {
 }
 
 Handle<Object> FixedArray::get(FixedArray array, int index, Isolate* isolate) {
-  return handle(array.get(isolate, index), isolate);
+  return handle(array->get(isolate, index), isolate);
 }
 
 bool FixedArray::is_the_hole(Isolate* isolate, int index) {
@@ -108,9 +108,9 @@ void FixedArray::set(int index, Object value, WriteBarrierMode mode) {
 
 // static
 void FixedArray::NoWriteBarrierSet(FixedArray array, int index, Object value) {
-  DCHECK_NE(array.map(), array.GetReadOnlyRoots().fixed_cow_array_map());
+  DCHECK_NE(array->map(), array->GetReadOnlyRoots().fixed_cow_array_map());
   DCHECK_LT(static_cast<unsigned>(index),
-            static_cast<unsigned>(array.length()));
+            static_cast<unsigned>(array->length()));
   DCHECK(!ObjectInYoungGeneration(value));
   int offset = OffsetOfElementAt(index);
   RELAXED_WRITE_FIELD(array, offset, value);
@@ -264,11 +264,11 @@ void FixedArray::CopyElements(Isolate* isolate, int dst_index, FixedArray src,
                               int src_index, int len, WriteBarrierMode mode) {
   if (len == 0) return;
   DCHECK_LE(dst_index + len, length());
-  DCHECK_LE(src_index + len, src.length());
+  DCHECK_LE(src_index + len, src->length());
   DisallowGarbageCollection no_gc;
 
   ObjectSlot dst_slot(RawFieldOfElementAt(dst_index));
-  ObjectSlot src_slot(src.RawFieldOfElementAt(src_index));
+  ObjectSlot src_slot(src->RawFieldOfElementAt(src_index));
   isolate->heap()->CopyRange(*this, dst_slot, src_slot, len, mode);
 }
 
@@ -293,7 +293,7 @@ int BinarySearch(T* array, Name name, int valid_entries,
   // index). After doing the binary search and getting the correct internal
   // index we check to have the index lower than valid_entries, if needed.
   int high = array->number_of_entries() - 1;
-  uint32_t hash = name.hash();
+  uint32_t hash = name->hash();
   int limit = high;
 
   DCHECK(low <= high);
@@ -301,7 +301,7 @@ int BinarySearch(T* array, Name name, int valid_entries,
   while (low != high) {
     int mid = low + (high - low) / 2;
     Name mid_name = array->GetSortedKey(mid);
-    uint32_t mid_hash = mid_name.hash();
+    uint32_t mid_hash = mid_name->hash();
 
     if (mid_hash >= hash) {
       high = mid;
@@ -313,7 +313,7 @@ int BinarySearch(T* array, Name name, int valid_entries,
   for (; low <= limit; ++low) {
     int sort_index = array->GetSortedKeyIndex(low);
     Name entry = array->GetKey(InternalIndex(sort_index));
-    uint32_t current_hash = entry.hash();
+    uint32_t current_hash = entry->hash();
     if (current_hash != hash) {
       // 'search_mode == ALL_ENTRIES' here and below is not needed since
       // 'out_insertion_index != nullptr' implies 'search_mode == ALL_ENTRIES'.
@@ -345,12 +345,12 @@ template <SearchMode search_mode, typename T>
 int LinearSearch(T* array, Name name, int valid_entries,
                  int* out_insertion_index) {
   if (search_mode == ALL_ENTRIES && out_insertion_index != nullptr) {
-    uint32_t hash = name.hash();
+    uint32_t hash = name->hash();
     int len = array->number_of_entries();
     for (int number = 0; number < len; number++) {
       int sorted_index = array->GetSortedKeyIndex(number);
       Name entry = array->GetKey(InternalIndex(sorted_index));
-      uint32_t current_hash = entry.hash();
+      uint32_t current_hash = entry->hash();
       if (current_hash > hash) {
         *out_insertion_index = sorted_index;
         return T::kNotFound;
@@ -412,10 +412,10 @@ uint64_t FixedDoubleArray::get_representation(int index) {
 
 Handle<Object> FixedDoubleArray::get(FixedDoubleArray array, int index,
                                      Isolate* isolate) {
-  if (array.is_the_hole(index)) {
+  if (array->is_the_hole(index)) {
     return ReadOnlyRoots(isolate).the_hole_value_handle();
   } else {
-    return isolate->factory()->NewNumber(array.get_scalar(index));
+    return isolate->factory()->NewNumber(array->get_scalar(index));
   }
 }
 
@@ -503,11 +503,11 @@ void WeakFixedArray::CopyElements(Isolate* isolate, int dst_index,
                                   WriteBarrierMode mode) {
   if (len == 0) return;
   DCHECK_LE(dst_index + len, length());
-  DCHECK_LE(src_index + len, src.length());
+  DCHECK_LE(src_index + len, src->length());
   DisallowGarbageCollection no_gc;
 
   MaybeObjectSlot dst_slot(data_start() + dst_index);
-  MaybeObjectSlot src_slot(src.data_start() + src_index);
+  MaybeObjectSlot src_slot(src->data_start() + src_index);
   isolate->heap()->CopyRange(*this, dst_slot, src_slot, len, mode);
 }
 
@@ -538,18 +538,18 @@ void WeakArrayList::CopyElements(Isolate* isolate, int dst_index,
                                  WriteBarrierMode mode) {
   if (len == 0) return;
   DCHECK_LE(dst_index + len, capacity());
-  DCHECK_LE(src_index + len, src.capacity());
+  DCHECK_LE(src_index + len, src->capacity());
   DisallowGarbageCollection no_gc;
 
   MaybeObjectSlot dst_slot(data_start() + dst_index);
-  MaybeObjectSlot src_slot(src.data_start() + src_index);
+  MaybeObjectSlot src_slot(src->data_start() + src_index);
   isolate->heap()->CopyRange(*this, dst_slot, src_slot, len, mode);
 }
 
 Tagged<HeapObject> WeakArrayList::Iterator::Next() {
   if (!array_.is_null()) {
-    while (index_ < array_.length()) {
-      MaybeObject item = array_.Get(index_++);
+    while (index_ < array_->length()) {
+      MaybeObject item = array_->Get(index_++);
       DCHECK(item->IsWeakOrCleared());
       if (!item->IsCleared()) return item->GetHeapObjectAssumeWeak();
     }
@@ -559,20 +559,20 @@ Tagged<HeapObject> WeakArrayList::Iterator::Next() {
 }
 
 int ArrayList::Length() const {
-  if (FixedArray::cast(*this).length() == 0) return 0;
-  return Smi::ToInt(FixedArray::cast(*this).get(kLengthIndex));
+  if (FixedArray::cast(*this)->length() == 0) return 0;
+  return Smi::ToInt(FixedArray::cast(*this)->get(kLengthIndex));
 }
 
 void ArrayList::SetLength(int length) {
-  return FixedArray::cast(*this).set(kLengthIndex, Smi::FromInt(length));
+  return FixedArray::cast(*this)->set(kLengthIndex, Smi::FromInt(length));
 }
 
 Object ArrayList::Get(int index) const {
-  return FixedArray::cast(*this).get(kFirstIndex + index);
+  return FixedArray::cast(*this)->get(kFirstIndex + index);
 }
 
 Object ArrayList::Get(PtrComprCageBase cage_base, int index) const {
-  return FixedArray::cast(*this).get(cage_base, kFirstIndex + index);
+  return FixedArray::cast(*this)->get(cage_base, kFirstIndex + index);
 }
 
 ObjectSlot ArrayList::Slot(int index) {
@@ -580,7 +580,7 @@ ObjectSlot ArrayList::Slot(int index) {
 }
 
 void ArrayList::Set(int index, Object obj, WriteBarrierMode mode) {
-  FixedArray::cast(*this).set(kFirstIndex + index, obj, mode);
+  FixedArray::cast(*this)->set(kFirstIndex + index, obj, mode);
 }
 
 void ArrayList::Set(int index, Smi value) {
@@ -589,8 +589,8 @@ void ArrayList::Set(int index, Smi value) {
 }
 void ArrayList::Clear(int index, Object undefined) {
   DCHECK(undefined.IsUndefined());
-  FixedArray::cast(*this).set(kFirstIndex + index, undefined,
-                              SKIP_WRITE_BARRIER);
+  FixedArray::cast(*this)->set(kFirstIndex + index, undefined,
+                               SKIP_WRITE_BARRIER);
 }
 
 int ByteArray::Size() { return RoundUp(length() + kHeaderSize, kTaggedSize); }
@@ -778,19 +778,19 @@ int PodArray<T>::length() const {
 }
 
 int TemplateList::length() const {
-  return Smi::ToInt(FixedArray::cast(*this).get(kLengthIndex));
+  return Smi::ToInt(FixedArray::cast(*this)->get(kLengthIndex));
 }
 
 Object TemplateList::get(int index) const {
-  return FixedArray::cast(*this).get(kFirstElementIndex + index);
+  return FixedArray::cast(*this)->get(kFirstElementIndex + index);
 }
 
 Object TemplateList::get(PtrComprCageBase cage_base, int index) const {
-  return FixedArray::cast(*this).get(cage_base, kFirstElementIndex + index);
+  return FixedArray::cast(*this)->get(cage_base, kFirstElementIndex + index);
 }
 
 void TemplateList::set(int index, Object value) {
-  FixedArray::cast(*this).set(kFirstElementIndex + index, value);
+  FixedArray::cast(*this)->set(kFirstElementIndex + index, value);
 }
 
 }  // namespace internal

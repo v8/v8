@@ -119,7 +119,7 @@ void CodeSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
     if (SerializeBackReference(raw)) return;
     if (SerializeReadOnlyObjectReference(raw, &sink_)) return;
 
-    instance_type = raw.map().instance_type();
+    instance_type = raw->map()->instance_type();
     CHECK(!InstanceTypeChecker::IsInstructionStream(instance_type));
   }
 
@@ -129,28 +129,28 @@ void CodeSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
     {
       DisallowGarbageCollection no_gc;
       Script script_obj = Script::cast(*obj);
-      DCHECK_NE(script_obj.compilation_type(), Script::CompilationType::kEval);
+      DCHECK_NE(script_obj->compilation_type(), Script::CompilationType::kEval);
       // We want to differentiate between undefined and uninitialized_symbol for
       // context_data for now. It is hack to allow debugging for scripts that
       // are included as a part of custom snapshot. (see
       // debug::Script::IsEmbedded())
-      Object raw_context_data = script_obj.context_data();
+      Object raw_context_data = script_obj->context_data();
       if (raw_context_data != roots.undefined_value() &&
           raw_context_data != roots.uninitialized_symbol()) {
-        script_obj.set_context_data(roots.undefined_value());
+        script_obj->set_context_data(roots.undefined_value());
       }
       context_data = handle(raw_context_data, isolate());
       // We don't want to serialize host options to avoid serializing
       // unnecessary object graph.
-      host_options = handle(script_obj.host_defined_options(), isolate());
-      script_obj.set_host_defined_options(roots.empty_fixed_array());
+      host_options = handle(script_obj->host_defined_options(), isolate());
+      script_obj->set_host_defined_options(roots.empty_fixed_array());
     }
     SerializeGeneric(obj, slot_type);
     {
       DisallowGarbageCollection no_gc;
       Script script_obj = Script::cast(*obj);
-      script_obj.set_host_defined_options(*host_options);
-      script_obj.set_context_data(*context_data);
+      script_obj->set_host_defined_options(*host_options);
+      script_obj->set_context_data(*context_data);
     }
     return;
   } else if (InstanceTypeChecker::IsSharedFunctionInfo(instance_type)) {
@@ -159,19 +159,19 @@ void CodeSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
     {
       DisallowGarbageCollection no_gc;
       SharedFunctionInfo sfi = SharedFunctionInfo::cast(*obj);
-      DCHECK(!sfi.IsApiFunction());
+      DCHECK(!sfi->IsApiFunction());
 #if V8_ENABLE_WEBASSEMBLY
       // TODO(7110): Enable serializing of Asm modules once the AsmWasmData
       // is context independent.
-      DCHECK(!sfi.HasAsmWasmData());
+      DCHECK(!sfi->HasAsmWasmData());
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-      if (auto maybe_debug_info = sfi.TryGetDebugInfo(isolate())) {
+      if (auto maybe_debug_info = sfi->TryGetDebugInfo(isolate())) {
         debug_info = handle(maybe_debug_info.value(), isolate());
         // Clear debug info.
         if (debug_info->HasInstrumentedBytecodeArray()) {
           restore_bytecode = true;
-          sfi.SetActiveBytecodeArray(debug_info->OriginalBytecodeArray());
+          sfi->SetActiveBytecodeArray(debug_info->OriginalBytecodeArray());
         }
       }
     }
@@ -179,7 +179,7 @@ void CodeSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
     if (restore_bytecode) {
       DisallowGarbageCollection no_gc;
       SharedFunctionInfo sfi = SharedFunctionInfo::cast(*obj);
-      sfi.SetActiveBytecodeArray(debug_info->DebugBytecodeArray());
+      sfi->SetActiveBytecodeArray(debug_info->DebugBytecodeArray());
     }
     return;
   } else if (InstanceTypeChecker::IsUncompiledDataWithoutPreparseDataWithJob(
@@ -209,7 +209,7 @@ void CodeSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
   // --interpreted-frames-native-stack is on. See v8:9122 for more context
   if (V8_UNLIKELY(v8_flags.interpreted_frames_native_stack) &&
       obj->IsInterpreterData()) {
-    obj = handle(InterpreterData::cast(*obj).bytecode_array(), isolate());
+    obj = handle(InterpreterData::cast(*obj)->bytecode_array(), isolate());
   }
 
   // Past this point we should not see any (context-specific) maps anymore.
@@ -257,7 +257,7 @@ void CreateInterpreterDataForDeserializedCode(
        shared_info = iter.Next()) {
     IsCompiledScope is_compiled(shared_info, isolate);
     if (!is_compiled.is_compiled()) continue;
-    DCHECK(shared_info.HasBytecodeArray());
+    DCHECK(shared_info->HasBytecodeArray());
     Handle<SharedFunctionInfo> sfi = handle(shared_info, isolate);
 
     Handle<Code> code =
@@ -271,7 +271,7 @@ void CreateInterpreterDataForDeserializedCode(
     interpreter_data->set_interpreter_trampoline(*code);
     if (sfi->HasBaselineCode()) {
       sfi->baseline_code(kAcquireLoad)
-          .set_bytecode_or_interpreter_data(*interpreter_data);
+          ->set_bytecode_or_interpreter_data(*interpreter_data);
     } else {
       sfi->set_interpreter_data(*interpreter_data);
     }
@@ -359,7 +359,7 @@ void FinalizeDeserialization(Isolate* isolate,
   SharedFunctionInfo::ScriptIterator iter(isolate, *script);
   for (SharedFunctionInfo info = iter.Next(); !info.is_null();
        info = iter.Next()) {
-    if (!info.is_compiled()) continue;
+    if (!info->is_compiled()) continue;
     Handle<SharedFunctionInfo> shared_info(info, isolate);
     if (needs_source_positions) {
       SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate, shared_info);
@@ -385,7 +385,7 @@ void BaselineBatchCompileIfSparkplugCompiled(Isolate* isolate, Script script) {
     SharedFunctionInfo::ScriptIterator iter(isolate, script);
     for (SharedFunctionInfo info = iter.Next(); !info.is_null();
          info = iter.Next()) {
-      if (info.sparkplug_compiled() && CanCompileWithBaseline(isolate, info)) {
+      if (info->sparkplug_compiled() && CanCompileWithBaseline(isolate, info)) {
         isolate->baseline_batch_compiler()->EnqueueSFI(info);
       }
     }
@@ -573,7 +573,7 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::FinishOffThreadDeserialize(
       background_merge_task->HasPendingForegroundWork()) {
     Handle<Script> script = handle(Script::cast(result->script()), isolate);
     result = background_merge_task->CompleteMergeInForeground(isolate, script);
-    DCHECK(Script::cast(result->script()).source().StrictEquals(*source));
+    DCHECK(Script::cast(result->script())->source().StrictEquals(*source));
     DCHECK(isolate->factory()->script_list()->Contains(
         MaybeObject::MakeWeak(MaybeObject::FromObject(result->script()))));
   } else {

@@ -62,12 +62,12 @@ V8_INLINE bool VisitYoungObjectViaSlot(Visitor* visitor, TSlot slot) {
   if constexpr (Visitor::EnableConcurrentVisitation()) {
     map = heap_object.map(visitor->cage_base());
   } else {
-    map = Map::cast(*heap_object.map_slot());
-    const VisitorId visitor_id = map.visitor_id();
+    map = Map::cast(*heap_object->map_slot());
+    const VisitorId visitor_id = map->visitor_id();
     // Data-only objects don't require any body descriptor visitation at all and
     // are always visited directly.
     if (Map::ObjectFieldsFrom(visitor_id) == ObjectFields::kDataOnly) {
-      const int visited_size = heap_object.SizeFromMap(map);
+      const int visited_size = heap_object->SizeFromMap(map);
       visitor->IncrementLiveBytesCached(
           MemoryChunk::cast(BasicMemoryChunk::FromHeapObject(heap_object)),
           ALIGN_TO_ALLOCATION_ALIGNMENT(visited_size));

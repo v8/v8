@@ -19,7 +19,7 @@ MaglevPipelineStatistics::MaglevPipelineStatistics(
     std::shared_ptr<CompilationStatistics> compilation_stats,
     compiler::ZoneStats* zone_stats)
     : Base(info->zone(), zone_stats, compilation_stats, CodeKind::MAGLEV) {
-  set_function_name(info->toplevel_function()->shared().DebugNameCStr().get());
+  set_function_name(info->toplevel_function()->shared()->DebugNameCStr().get());
 }
 
 void MaglevPipelineStatistics::BeginPhaseKind(const char* name) {

@@ -76,7 +76,7 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
     }
   }
 
-  if (object->map(isolate).is_deprecated()) {
+  if (object->map(isolate)->is_deprecated()) {
     base::SharedMutexGuard<base::kExclusive> mutex_guard(
         isolate->boilerplate_migration_access());
     JSObject::MigrateInstance(isolate, object);
@@ -104,8 +104,8 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
   if (!copy->IsJSArray(isolate)) {
     if (copy->HasFastProperties(isolate)) {
       Handle<DescriptorArray> descriptors(
-          copy->map(isolate).instance_descriptors(isolate), isolate);
-      for (InternalIndex i : copy->map(isolate).IterateOwnDescriptors()) {
+          copy->map(isolate)->instance_descriptors(isolate), isolate);
+      for (InternalIndex i : copy->map(isolate)->IterateOwnDescriptors()) {
         PropertyDetails details = descriptors->GetDetails(i);
         DCHECK_EQ(PropertyLocation::kField, details.location());
         DCHECK_EQ(PropertyKind::kData, details.kind());
@@ -120,7 +120,7 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
           if (copying) copy->FastPropertyAtPut(index, *value);
         } else if (copying && details.representation().IsDouble()) {
           uint64_t double_value =
-              HeapNumber::cast(raw).value_as_bits(kRelaxedLoad);
+              HeapNumber::cast(raw)->value_as_bits(kRelaxedLoad);
           auto value = isolate->factory()->NewHeapNumberFromBits(double_value);
           copy->FastPropertyAtPut(index, *value);
         }
@@ -154,7 +154,7 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
     }
 
     // Assume non-arrays don't end up having elements.
-    if (copy->elements(isolate).length() == 0) return copy;
+    if (copy->elements(isolate)->length() == 0) return copy;
   }
 
   // Deep copy own elements.
@@ -442,7 +442,7 @@ Handle<JSObject> CreateObjectLiteral(
     // TODO(cbruni): avoid making the boilerplate fast again, the clone stub
     // supports dict-mode objects directly.
     JSObject::MigrateSlowToFast(
-        boilerplate, boilerplate->map().UnusedPropertyFields(), "FastLiteral");
+        boilerplate, boilerplate->map()->UnusedPropertyFields(), "FastLiteral");
   }
   return boilerplate;
 }

@@ -203,8 +203,8 @@ void JSRegExp::ResetLastTierUpTick() {
   DCHECK(v8_flags.regexp_tier_up);
   DCHECK_EQ(type_tag(), JSRegExp::IRREGEXP);
   int tier_up_ticks = Smi::ToInt(DataAt(kIrregexpTicksUntilTierUpIndex)) + 1;
-  FixedArray::cast(data()).set(JSRegExp::kIrregexpTicksUntilTierUpIndex,
-                               Smi::FromInt(tier_up_ticks));
+  FixedArray::cast(data())->set(JSRegExp::kIrregexpTicksUntilTierUpIndex,
+                                Smi::FromInt(tier_up_ticks));
 }
 
 void JSRegExp::TierUpTick() {
@@ -214,15 +214,15 @@ void JSRegExp::TierUpTick() {
   if (tier_up_ticks == 0) {
     return;
   }
-  FixedArray::cast(data()).set(JSRegExp::kIrregexpTicksUntilTierUpIndex,
-                               Smi::FromInt(tier_up_ticks - 1));
+  FixedArray::cast(data())->set(JSRegExp::kIrregexpTicksUntilTierUpIndex,
+                                Smi::FromInt(tier_up_ticks - 1));
 }
 
 void JSRegExp::MarkTierUpForNextExec() {
   DCHECK(v8_flags.regexp_tier_up);
   DCHECK_EQ(type_tag(), JSRegExp::IRREGEXP);
-  FixedArray::cast(data()).set(JSRegExp::kIrregexpTicksUntilTierUpIndex,
-                               Smi::zero());
+  FixedArray::cast(data())->set(JSRegExp::kIrregexpTicksUntilTierUpIndex,
+                                Smi::zero());
 }
 
 // static
@@ -414,9 +414,9 @@ MaybeHandle<JSRegExp> JSRegExp::Initialize(Handle<JSRegExp> regexp,
   regexp->set_flags(Smi::FromInt(flags));
 
   Map map = regexp->map();
-  Object constructor = map.GetConstructor();
+  Object constructor = map->GetConstructor();
   if (constructor.IsJSFunction() &&
-      JSFunction::cast(constructor).initial_map() == map) {
+      JSFunction::cast(constructor)->initial_map() == map) {
     // If we still have the original map, set in-object properties directly.
     regexp->InObjectPropertyAtPut(JSRegExp::kLastIndexFieldIndex,
                                   Smi::FromInt(kInitialLastIndexValue),

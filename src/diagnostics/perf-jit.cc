@@ -221,7 +221,7 @@ void LinuxPerfJitLogger::LogRecordedBuffer(
     const char* name, int length) {
   DisallowGarbageCollection no_gc;
   if (v8_flags.perf_basic_prof_only_functions) {
-    CodeKind code_kind = abstract_code.kind(isolate_);
+    CodeKind code_kind = abstract_code->kind(isolate_);
     if (code_kind != CodeKind::INTERPRETED_FUNCTION &&
         code_kind != CodeKind::TURBOFAN && code_kind != CodeKind::MAGLEV &&
         code_kind != CodeKind::BASELINE) {
@@ -234,29 +234,29 @@ void LinuxPerfJitLogger::LogRecordedBuffer(
   if (perf_output_handle_ == nullptr) return;
 
   // We only support non-interpreted functions.
-  if (!abstract_code.IsCode(isolate_)) return;
+  if (!abstract_code->IsCode(isolate_)) return;
   Code code = Code::cast(abstract_code);
 
   // Debug info has to be emitted first.
   Handle<SharedFunctionInfo> sfi;
   if (v8_flags.perf_prof && maybe_sfi.ToHandle(&sfi)) {
     // TODO(herhut): This currently breaks for js2wasm/wasm2js functions.
-    CodeKind kind = code.kind();
+    CodeKind kind = code->kind();
     if (kind != CodeKind::JS_TO_WASM_FUNCTION &&
         kind != CodeKind::WASM_TO_JS_FUNCTION) {
       DCHECK_IMPLIES(sfi->script().IsScript(),
-                     Script::cast(sfi->script()).has_line_ends());
+                     Script::cast(sfi->script())->has_line_ends());
       LogWriteDebugInfo(code, sfi);
     }
   }
 
   const char* code_name = name;
-  uint8_t* code_pointer = reinterpret_cast<uint8_t*>(code.instruction_start());
+  uint8_t* code_pointer = reinterpret_cast<uint8_t*>(code->instruction_start());
 
   // Unwinding info comes right after debug info.
   if (v8_flags.perf_prof_unwinding_info) LogWriteUnwindingInfo(code);
 
-  WriteJitCodeLoadEntry(code_pointer, code.instruction_size(), code_name,
+  WriteJitCodeLoadEntry(code_pointer, code->instruction_size(), code_name,
                         length);
 }
 
@@ -308,15 +308,16 @@ base::Vector<const char> GetScriptName(Object maybeScript,
                                        std::unique_ptr<char[]>* storage,
                                        const DisallowGarbageCollection& no_gc) {
   if (maybeScript.IsScript()) {
-    Object name_or_url = Script::cast(maybeScript).GetNameOrSourceURL();
+    Object name_or_url = Script::cast(maybeScript)->GetNameOrSourceURL();
     if (name_or_url.IsSeqOneByteString()) {
       SeqOneByteString str = SeqOneByteString::cast(name_or_url);
-      return {reinterpret_cast<char*>(str.GetChars(no_gc)),
-              static_cast<size_t>(str.length())};
+      return {reinterpret_cast<char*>(str->GetChars(no_gc)),
+              static_cast<size_t>(str->length())};
     } else if (name_or_url.IsString()) {
       int length;
-      *storage = String::cast(name_or_url)
-                     .ToCString(DISALLOW_NULLS, FAST_STRING_TRAVERSAL, &length);
+      *storage =
+          String::cast(name_or_url)
+              ->ToCString(DISALLOW_NULLS, FAST_STRING_TRAVERSAL, &length);
       return {storage->get(), static_cast<size_t>(length)};
     }
   }
@@ -329,7 +330,7 @@ SourcePositionInfo GetSourcePositionInfo(Isolate* isolate, Code code,
                                          Handle<SharedFunctionInfo> function,
                                          SourcePosition pos) {
   DisallowGarbageCollection disallow;
-  if (code.is_turbofanned()) {
+  if (code->is_turbofanned()) {
     return pos.FirstInfo(isolate, code);
   } else {
     return SourcePositionInfo(isolate, pos, function);
@@ -344,13 +345,13 @@ void LinuxPerfJitLogger::LogWriteDebugInfo(Code code,
   DisallowGarbageCollection no_gc;
   // The WasmToJS wrapper stubs have source position entries.
   SharedFunctionInfo raw_shared = *shared;
-  if (!raw_shared.HasSourceCode()) return;
+  if (!raw_shared->HasSourceCode()) return;
 
   PerfJitCodeDebugInfo debug_info;
   uint32_t size = sizeof(debug_info);
 
   ByteArray source_position_table =
-      code.SourcePositionTable(isolate_, raw_shared);
+      code->SourcePositionTable(isolate_, raw_shared);
   // Compute the entry count and get the names of all scripts.
   // Avoid additional work if the script name is repeated. Multiple script
   // names only occur for cross-script inlining.
@@ -365,7 +366,7 @@ void LinuxPerfJitLogger::LogWriteDebugInfo(Code code,
     Object current_script = *info.script;
     if (current_script != last_script) {
       std::unique_ptr<char[]> name_storage;
-      auto name = GetScriptName(raw_shared.script(), &name_storage, no_gc);
+      auto name = GetScriptName(raw_shared->script(), &name_storage, no_gc);
       script_names.push_back(name);
       // Add the size of the name after each entry.
       last_script_name_size = name.size() + sizeof(kStringTerminator);
@@ -381,7 +382,7 @@ void LinuxPerfJitLogger::LogWriteDebugInfo(Code code,
 
   debug_info.event_ = PerfJitCodeLoad::kDebugInfo;
   debug_info.time_stamp_ = GetTimestamp();
-  debug_info.address_ = code.instruction_start();
+  debug_info.address_ = code->instruction_start();
   debug_info.entry_count_ = entry_count;
 
   // Add the sizes of fixed parts of entries.
@@ -391,7 +392,7 @@ void LinuxPerfJitLogger::LogWriteDebugInfo(Code code,
   debug_info.size_ = size + padding;
   LogWriteBytes(reinterpret_cast<const char*>(&debug_info), sizeof(debug_info));
 
-  Address code_start = code.instruction_start();
+  Address code_start = code->instruction_start();
 
   last_script = Smi::zero();
   int script_names_index = 0;
@@ -496,8 +497,8 @@ void LinuxPerfJitLogger::LogWriteUnwindingInfo(Code code) {
   unwinding_info_header.time_stamp_ = GetTimestamp();
   unwinding_info_header.eh_frame_hdr_size_ = EhFrameConstants::kEhFrameHdrSize;
 
-  if (code.has_unwinding_info()) {
-    unwinding_info_header.unwinding_size_ = code.unwinding_info_size();
+  if (code->has_unwinding_info()) {
+    unwinding_info_header.unwinding_size_ = code->unwinding_info_size();
     unwinding_info_header.mapped_size_ = unwinding_info_header.unwinding_size_;
   } else {
     unwinding_info_header.unwinding_size_ = EhFrameConstants::kEhFrameHdrSize;
@@ -512,9 +513,9 @@ void LinuxPerfJitLogger::LogWriteUnwindingInfo(Code code) {
   LogWriteBytes(reinterpret_cast<const char*>(&unwinding_info_header),
                 sizeof(unwinding_info_header));
 
-  if (code.has_unwinding_info()) {
-    LogWriteBytes(reinterpret_cast<const char*>(code.unwinding_info_start()),
-                  code.unwinding_info_size());
+  if (code->has_unwinding_info()) {
+    LogWriteBytes(reinterpret_cast<const char*>(code->unwinding_info_start()),
+                  code->unwinding_info_size());
   } else {
     OFStream perf_output_stream(perf_output_handle_);
     EhFrameWriter::WriteEmptyEhFrame(perf_output_stream);

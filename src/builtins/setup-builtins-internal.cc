@@ -210,7 +210,7 @@ Code BuildWithCodeStubAssemblerCS(Isolate* isolate, Builtin builtin,
 // static
 void SetupIsolateDelegate::AddBuiltin(Builtins* builtins, Builtin builtin,
                                       Code code) {
-  DCHECK_EQ(builtin, code.builtin_id());
+  DCHECK_EQ(builtin, code->builtin_id());
   builtins->set_code(builtin, code);
 }
 
@@ -242,7 +242,7 @@ void SetupIsolateDelegate::ReplacePlaceholders(Isolate* isolate) {
   for (Builtin builtin = Builtins::kFirst; builtin <= Builtins::kLast;
        ++builtin) {
     Code code = builtins->code(builtin);
-    InstructionStream istream = code.instruction_stream();
+    InstructionStream istream = code->instruction_stream();
     CodePageMemoryModificationScope code_modification_scope(istream);
     bool flush_icache = false;
     for (RelocIterator it(code, kRelocMask); !it.done(); it.next()) {
@@ -251,25 +251,26 @@ void SetupIsolateDelegate::ReplacePlaceholders(Isolate* isolate) {
         Code target_code = Code::FromTargetAddress(rinfo->target_address());
         DCHECK_IMPLIES(
             RelocInfo::IsRelativeCodeTarget(rinfo->rmode()),
-            Builtins::IsIsolateIndependent(target_code.builtin_id()));
-        if (!target_code.is_builtin()) continue;
-        Code new_target = builtins->code(target_code.builtin_id());
-        rinfo->set_target_address(istream, new_target.instruction_start(),
+            Builtins::IsIsolateIndependent(target_code->builtin_id()));
+        if (!target_code->is_builtin()) continue;
+        Code new_target = builtins->code(target_code->builtin_id());
+        rinfo->set_target_address(istream, new_target->instruction_start(),
                                   UPDATE_WRITE_BARRIER, SKIP_ICACHE_FLUSH);
       } else {
         DCHECK(RelocInfo::IsEmbeddedObjectMode(rinfo->rmode()));
         Object object = rinfo->target_object(cage_base);
         if (!object.IsCode(cage_base)) continue;
         Code target = Code::cast(object);
-        if (!target.is_builtin()) continue;
-        Code new_target = builtins->code(target.builtin_id());
+        if (!target->is_builtin()) continue;
+        Code new_target = builtins->code(target->builtin_id());
         rinfo->set_target_object(istream, new_target, UPDATE_WRITE_BARRIER,
                                  SKIP_ICACHE_FLUSH);
       }
       flush_icache = true;
     }
     if (flush_icache) {
-      FlushInstructionCache(code.instruction_start(), code.instruction_size());
+      FlushInstructionCache(code->instruction_start(),
+                            code->instruction_size());
     }
   }
 }

@@ -201,7 +201,7 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
       Handle<Object> self_reference;
       if (self_reference_.ToHandle(&self_reference)) {
         DCHECK(self_reference->IsOddball());
-        DCHECK_EQ(Oddball::cast(*self_reference).kind(),
+        DCHECK_EQ(Oddball::cast(*self_reference)->kind(),
                   Oddball::kSelfReferenceMarker);
         DCHECK_NE(kind_, CodeKind::BASELINE);
         if (isolate_->IsGeneratingEmbeddedBuiltins()) {
@@ -509,7 +509,7 @@ Handle<FeedbackVector> Factory::NewFeedbackVector(
     Handle<SharedFunctionInfo> shared,
     Handle<ClosureFeedbackCellArray> closure_feedback_cell_array,
     Handle<FeedbackCell> parent_feedback_cell) {
-  int length = shared->feedback_metadata().slot_count();
+  int length = shared->feedback_metadata()->slot_count();
   DCHECK_LE(0, length);
   int size = FeedbackVector::SizeFor(length);
 
@@ -1052,7 +1052,7 @@ StringTransitionStrategy Factory::ComputeSharingStrategyForString(
   }
   DCHECK_NOT_NULL(shared_map);
   DisallowGarbageCollection no_gc;
-  InstanceType instance_type = string->map().instance_type();
+  InstanceType instance_type = string->map()->instance_type();
   if (StringShape(instance_type).IsShared()) {
     return StringTransitionStrategy::kAlreadyTransitioned;
   }
@@ -1847,7 +1847,7 @@ Handle<WasmArray> Factory::NewWasmArrayFromMemory(uint32_t length,
                                                   Handle<Map> map,
                                                   Address source) {
   wasm::ValueType element_type =
-      reinterpret_cast<wasm::ArrayType*>(map->wasm_type_info().native_type())
+      reinterpret_cast<wasm::ArrayType*>(map->wasm_type_info()->native_type())
           ->element_type();
   DCHECK(element_type.is_numeric());
   Tagged<WasmArray> result = NewWasmArrayUninitialized(length, map);
@@ -1875,7 +1875,7 @@ Handle<Object> Factory::NewWasmArrayFromElementSegment(
   }
 
   Handle<FixedArray> elements =
-      handle(FixedArray::cast(instance->element_segments().get(segment_index)),
+      handle(FixedArray::cast(instance->element_segments()->get(segment_index)),
              isolate());
 
   Tagged<WasmArray> result = NewWasmArrayUninitialized(length, map);
@@ -2494,10 +2494,10 @@ Handle<JSObject> Factory::NewFunctionPrototype(Handle<JSFunction> function) {
   // can be from a different context.
   Handle<NativeContext> native_context(function->native_context(), isolate());
   Handle<Map> new_map;
-  if (V8_UNLIKELY(IsAsyncGeneratorFunction(function->shared().kind()))) {
+  if (V8_UNLIKELY(IsAsyncGeneratorFunction(function->shared()->kind()))) {
     new_map = handle(native_context->async_generator_object_prototype_map(),
                      isolate());
-  } else if (IsResumableFunction(function->shared().kind())) {
+  } else if (IsResumableFunction(function->shared()->kind())) {
     // Generator and async function prototypes can share maps since they
     // don't have "constructor" properties.
     new_map =
@@ -2514,7 +2514,7 @@ Handle<JSObject> Factory::NewFunctionPrototype(Handle<JSFunction> function) {
   DCHECK(!new_map->is_prototype_map());
   Handle<JSObject> prototype = NewJSObjectFromMap(new_map);
 
-  if (!IsResumableFunction(function->shared().kind())) {
+  if (!IsResumableFunction(function->shared()->kind())) {
     JSObject::AddProperty(isolate(), prototype, constructor_string(), function,
                           DONT_ENUM);
   }
@@ -2728,7 +2728,7 @@ void Factory::InitializeJSObjectBody(Tagged<JSObject> obj, Tagged<Map> map,
                       ReadOnlyRoots(isolate()).one_pointer_filler_map_word(),
                       *undefined_value());
   if (in_progress) {
-    map->FindRootMap(isolate()).InobjectSlackTrackingStep(isolate());
+    map->FindRootMap(isolate())->InobjectSlackTrackingStep(isolate());
   }
 }
 
@@ -2752,7 +2752,7 @@ Handle<JSObject> Factory::NewJSObjectFromMap(
          (isolate()->bootstrapper()->IsActive() ||
           *map == isolate()
                       ->raw_native_context()
-                      .js_array_template_literal_object_map()) ||
+                      ->js_array_template_literal_object_map()) ||
          js_obj->HasTypedArrayOrRabGsabTypedArrayElements() ||
          js_obj->HasFastStringWrapperElements() ||
          js_obj->HasFastArgumentsElements() ||
@@ -2937,7 +2937,7 @@ Handle<FixedArrayBase> Factory::NewJSArrayStorage(
 
 Handle<JSWeakMap> Factory::NewJSWeakMap() {
   Tagged<NativeContext> native_context = isolate()->raw_native_context();
-  Handle<Map> map(native_context->js_weak_map_fun().initial_map(), isolate());
+  Handle<Map> map(native_context->js_weak_map_fun()->initial_map(), isolate());
   Handle<JSWeakMap> weakmap(JSWeakMap::cast(*NewJSObjectFromMap(map)),
                             isolate());
   {
@@ -2982,7 +2982,7 @@ Handle<JSWrappedFunction> Factory::NewJSWrappedFunction(
 
 Handle<JSGeneratorObject> Factory::NewJSGeneratorObject(
     Handle<JSFunction> function) {
-  DCHECK(IsResumableFunction(function->shared().kind()));
+  DCHECK(IsResumableFunction(function->shared()->kind()));
   JSFunction::EnsureHasInitialMap(function);
   Handle<Map> map(function->initial_map(), isolate());
 
@@ -2995,14 +2995,14 @@ Handle<JSGeneratorObject> Factory::NewJSGeneratorObject(
 Handle<SourceTextModule> Factory::NewSourceTextModule(
     Handle<SharedFunctionInfo> sfi) {
   Handle<SourceTextModuleInfo> module_info(
-      sfi->scope_info().ModuleDescriptorInfo(), isolate());
+      sfi->scope_info()->ModuleDescriptorInfo(), isolate());
   Handle<ObjectHashTable> exports =
       ObjectHashTable::New(isolate(), module_info->RegularExportCount());
   Handle<FixedArray> regular_exports =
       NewFixedArray(module_info->RegularExportCount());
   Handle<FixedArray> regular_imports =
-      NewFixedArray(module_info->regular_imports().length());
-  int requested_modules_length = module_info->module_requests().length();
+      NewFixedArray(module_info->regular_imports()->length());
+  int requested_modules_length = module_info->module_requests()->length();
   Handle<FixedArray> requested_modules =
       requested_modules_length > 0 ? NewFixedArray(requested_modules_length)
                                    : empty_fixed_array();
@@ -3061,8 +3061,9 @@ Handle<SyntheticModule> Factory::NewSyntheticModule(
 
 Handle<JSArrayBuffer> Factory::NewJSArrayBuffer(
     std::shared_ptr<BackingStore> backing_store, AllocationType allocation) {
-  Handle<Map> map(isolate()->native_context()->array_buffer_fun().initial_map(),
-                  isolate());
+  Handle<Map> map(
+      isolate()->native_context()->array_buffer_fun()->initial_map(),
+      isolate());
   ResizableFlag resizable_by_js = ResizableFlag::kNotResizable;
   if (v8_flags.harmony_rab_gsab && backing_store->is_resizable_by_js()) {
     resizable_by_js = ResizableFlag::kResizable;
@@ -3108,8 +3109,9 @@ MaybeHandle<JSArrayBuffer> Factory::NewJSArrayBufferAndBackingStore(
       if (!backing_store) return MaybeHandle<JSArrayBuffer>();
     }
   }
-  Handle<Map> map(isolate()->native_context()->array_buffer_fun().initial_map(),
-                  isolate());
+  Handle<Map> map(
+      isolate()->native_context()->array_buffer_fun()->initial_map(),
+      isolate());
   auto array_buffer =
       Handle<JSArrayBuffer>::cast(NewJSObjectFromMap(map, allocation));
   array_buffer->Setup(SharedFlag::kNotShared, resizable,
@@ -3122,7 +3124,7 @@ Handle<JSArrayBuffer> Factory::NewJSSharedArrayBuffer(
   DCHECK_IMPLIES(backing_store->is_resizable_by_js(),
                  v8_flags.harmony_rab_gsab);
   Handle<Map> map(
-      isolate()->native_context()->shared_array_buffer_fun().initial_map(),
+      isolate()->native_context()->shared_array_buffer_fun()->initial_map(),
       isolate());
   auto result = Handle<JSArrayBuffer>::cast(
       NewJSObjectFromMap(map, AllocationType::kYoung));
@@ -3233,12 +3235,12 @@ Handle<JSTypedArray> Factory::NewJSTypedArray(ExternalArrayType type,
   Handle<Map> map;
   if (is_backed_by_rab || is_length_tracking) {
     map = handle(
-        isolate()->raw_native_context().TypedArrayElementsKindToRabGsabCtorMap(
+        isolate()->raw_native_context()->TypedArrayElementsKindToRabGsabCtorMap(
             elements_kind),
         isolate());
   } else {
     map =
-        handle(isolate()->raw_native_context().TypedArrayElementsKindToCtorMap(
+        handle(isolate()->raw_native_context()->TypedArrayElementsKindToCtorMap(
                    elements_kind),
                isolate());
   }
@@ -3282,7 +3284,7 @@ Handle<JSDataViewOrRabGsabDataView> Factory::NewJSDataViewOrRabGsabDataView(
     map = handle(isolate()->native_context()->js_rab_gsab_data_view_map(),
                  isolate());
   } else {
-    map = handle(isolate()->native_context()->data_view_fun().initial_map(),
+    map = handle(isolate()->native_context()->data_view_fun()->initial_map(),
                  isolate());
   }
   Handle<JSDataViewOrRabGsabDataView> obj =
@@ -3606,8 +3608,8 @@ Handle<PromiseOnStack> Factory::NewPromiseOnStack(Handle<Object> prev,
 
 Handle<JSObject> Factory::NewArgumentsObject(Handle<JSFunction> callee,
                                              int length) {
-  bool strict_mode_callee = is_strict(callee->shared().language_mode()) ||
-                            !callee->shared().has_simple_parameters();
+  bool strict_mode_callee = is_strict(callee->shared()->language_mode()) ||
+                            !callee->shared()->has_simple_parameters();
   Handle<Map> map = strict_mode_callee ? isolate()->strict_arguments_map()
                                        : isolate()->sloppy_arguments_map();
   AllocationSiteUsageContext context(isolate(), Handle<AllocationSite>(),
@@ -3839,7 +3841,7 @@ Handle<Map> Factory::CreateSloppyFunctionMap(
     // creation.
     DCHECK(isolate()
                ->raw_native_context()
-               .get(Context::EMPTY_FUNCTION_INDEX)
+               ->get(Context::EMPTY_FUNCTION_INDEX)
                .IsUndefined());
   }
 
@@ -3899,8 +3901,8 @@ Handle<Map> Factory::CreateSloppyFunctionMap(
     map->AppendDescriptor(isolate(), &d);
   }
   DCHECK_EQ(inobject_properties_count, field_index);
-  DCHECK_EQ(0,
-            map->instance_descriptors(isolate()).number_of_slack_descriptors());
+  DCHECK_EQ(
+      0, map->instance_descriptors(isolate())->number_of_slack_descriptors());
   LOG(isolate(), MapDetails(*map));
   return map;
 }
@@ -3979,8 +3981,8 @@ Handle<Map> Factory::CreateStrictFunctionMap(
     map->AppendDescriptor(isolate(), &d);
   }
   DCHECK_EQ(inobject_properties_count, field_index);
-  DCHECK_EQ(0,
-            map->instance_descriptors(isolate()).number_of_slack_descriptors());
+  DCHECK_EQ(
+      0, map->instance_descriptors(isolate())->number_of_slack_descriptors());
   LOG(isolate(), MapDetails(*map));
   return map;
 }
@@ -4209,7 +4211,7 @@ void Factory::JSFunctionBuilder::PrepareMap() {
   if (maybe_map_.is_null()) {
     // No specific map requested, use the default.
     maybe_map_ = handle(
-        Map::cast(context_->native_context().get(sfi_->function_map_index())),
+        Map::cast(context_->native_context()->get(sfi_->function_map_index())),
         isolate_);
   }
 }

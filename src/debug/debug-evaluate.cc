@@ -76,7 +76,7 @@ MaybeHandle<Object> DebugEvaluate::Global(Isolate* isolate,
   }
   // TODO(cbruni, 1244145): Use host-defined options from script context.
   Handle<FixedArray> host_defined_options(
-      Script::cast(function->shared().script()).host_defined_options(),
+      Script::cast(function->shared()->script())->host_defined_options(),
       isolate);
   MaybeHandle<Object> result = Execution::CallScript(
       isolate, function, Handle<JSObject>(context->global_proxy(), isolate),
@@ -101,7 +101,7 @@ MaybeHandle<Object> DebugEvaluate::Local(Isolate* isolate,
   if (it.is_wasm()) {
     WasmFrame* frame = WasmFrame::cast(it.frame());
     Handle<SharedFunctionInfo> outer_info(
-        isolate->native_context()->empty_function().shared(), isolate);
+        isolate->native_context()->empty_function()->shared(), isolate);
     Handle<JSObject> context_extension = GetWasmDebugProxy(frame);
     Handle<ScopeInfo> scope_info =
         ScopeInfo::CreateForWithScope(isolate, Handle<ScopeInfo>::null());
@@ -141,7 +141,7 @@ MaybeHandle<Object> DebugEvaluate::WithTopmostArguments(Isolate* isolate,
 
   // Get context and receiver.
   Handle<Context> native_context(
-      Context::cast(it.frame()->context()).native_context(), isolate);
+      Context::cast(it.frame()->context())->native_context(), isolate);
 
   // Materialize arguments as property on an extension object.
   Handle<JSObject> materialized = factory->NewSlowJSObjectWithNullProto();
@@ -168,7 +168,7 @@ MaybeHandle<Object> DebugEvaluate::WithTopmostArguments(Isolate* isolate,
   Handle<Context> evaluation_context = factory->NewDebugEvaluateContext(
       native_context, scope_info, materialized, Handle<Context>());
   Handle<SharedFunctionInfo> outer_info(
-      native_context->empty_function().shared(), isolate);
+      native_context->empty_function()->shared(), isolate);
   Handle<JSObject> receiver(native_context->global_proxy(), isolate);
   const bool throw_on_side_effect = false;
   MaybeHandle<Object> maybe_result =
@@ -273,7 +273,7 @@ DebugEvaluate::ContextBuilder::ContextBuilder(Isolate* isolate,
       // and also associate the temporary scope_info we create here with that
       // blocklist.
       Handle<ScopeInfo> function_scope_info = handle(
-          frame_inspector_.GetFunction()->shared().scope_info(), isolate_);
+          frame_inspector_.GetFunction()->shared()->scope_info(), isolate_);
       Handle<Object> block_list = handle(
           isolate_->LocalsBlockListCacheGet(function_scope_info), isolate_);
       CHECK(block_list->IsStringSet());
@@ -1075,8 +1075,8 @@ DebugInfo::SideEffectState DebugEvaluate::FunctionGetSideEffectState(
                                    : DebugInfo::kHasNoSideEffect;
   } else if (info->IsApiFunction()) {
     Code code = info->GetCode(isolate);
-    if (code.is_builtin()) {
-      return code.builtin_id() == Builtin::kHandleApiCallOrConstruct
+    if (code->is_builtin()) {
+      return code->builtin_id() == Builtin::kHandleApiCallOrConstruct
                  ? DebugInfo::kHasNoSideEffect
                  : DebugInfo::kHasSideEffects;
     }
@@ -1253,7 +1253,7 @@ void DebugEvaluate::VerifyTransitiveBuiltins(Isolate* isolate) {
       DCHECK(RelocInfo::IsCodeTargetMode(rinfo->rmode()));
       Code lookup_result =
           isolate->heap()->FindCodeForInnerPointer(rinfo->target_address());
-      Builtin callee = lookup_result.builtin_id();
+      Builtin callee = lookup_result->builtin_id();
       if (BuiltinGetSideEffectState(callee) == DebugInfo::kHasNoSideEffect) {
         continue;
       }

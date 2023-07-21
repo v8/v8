@@ -57,7 +57,7 @@ void MarkingWorklists::PrintWorklist(const char* worklist_name,
   int total_count = 0;
   worklist->Iterate([&count, &total_count](HeapObject obj) {
     ++total_count;
-    count[obj.map().instance_type()]++;
+    count[obj->map()->instance_type()]++;
   });
   std::vector<std::pair<int, InstanceType>> rank;
   rank.reserve(count.size());

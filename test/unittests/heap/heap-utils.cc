@@ -80,7 +80,7 @@ void FillPageInPagedSpace(Page* page,
   page->ForAllFreeListCategories(
       [&available_sizes](FreeListCategory* category) {
         category->IterateNodesForTesting([&available_sizes](FreeSpace node) {
-          int node_size = node.Size();
+          int node_size = node->Size();
           if (node_size >= kMaxRegularHeapObjectSize) {
             available_sizes.push_back(node_size);
           }
@@ -113,7 +113,7 @@ void FillPageInPagedSpace(Page* page,
         std::vector<int>& sizes_in_category =
             remaining_sizes[remaining_sizes.size() - 1];
         category->IterateNodesForTesting([&sizes_in_category](FreeSpace node) {
-          int node_size = node.Size();
+          int node_size = node->Size();
           DCHECK_LT(0, FixedArrayLenFromSize(node_size));
           sizes_in_category.push_back(node_size);
         });

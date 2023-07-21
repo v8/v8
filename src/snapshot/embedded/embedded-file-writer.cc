@@ -271,9 +271,10 @@ void EmbeddedFileWriter::PrepareBuiltinSourcePositionMap(Builtins* builtins) {
        ++builtin) {
     // Retrieve the SourcePositionTable and copy it.
     Code code = builtins->code(builtin);
-    ByteArray source_position_table = code.source_position_table();
-    std::vector<unsigned char> data(source_position_table.GetDataStartAddress(),
-                                    source_position_table.GetDataEndAddress());
+    ByteArray source_position_table = code->source_position_table();
+    std::vector<unsigned char> data(
+        source_position_table->GetDataStartAddress(),
+        source_position_table->GetDataEndAddress());
     source_positions_[static_cast<int>(builtin)] = data;
   }
 }

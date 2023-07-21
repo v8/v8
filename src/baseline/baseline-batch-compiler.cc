@@ -29,7 +29,7 @@ namespace baseline {
 
 static bool CanCompileWithConcurrentBaseline(SharedFunctionInfo shared,
                                              Isolate* isolate) {
-  return !shared.HasBaselineCode() && CanCompileWithBaseline(isolate, shared);
+  return !shared->HasBaselineCode() && CanCompileWithBaseline(isolate, shared);
 }
 
 class BaselineCompilerTask {
@@ -37,8 +37,8 @@ class BaselineCompilerTask {
   BaselineCompilerTask(Isolate* isolate, PersistentHandles* handles,
                        SharedFunctionInfo sfi)
       : shared_function_info_(handles->NewHandle(sfi)),
-        bytecode_(handles->NewHandle(sfi.GetBytecodeArray(isolate))) {
-    DCHECK(sfi.is_compiled());
+        bytecode_(handles->NewHandle(sfi->GetBytecodeArray(isolate))) {
+    DCHECK(sfi->is_compiled());
     shared_function_info_->set_is_sparkplug_compiling(true);
   }
 
@@ -114,7 +114,7 @@ class BaselineBatchCompilerJob {
       SharedFunctionInfo shared = SharedFunctionInfo::cast(obj);
       if (!CanCompileWithConcurrentBaseline(shared, isolate)) continue;
       // Skip functions that are already being compiled.
-      if (shared.is_sparkplug_compiling()) continue;
+      if (shared->is_sparkplug_compiling()) continue;
       tasks_.emplace_back(isolate, handles_.get(), shared);
     }
     if (v8_flags.trace_baseline_concurrent_compilation) {
@@ -256,7 +256,7 @@ void BaselineBatchCompiler::EnqueueFunction(Handle<JSFunction> function) {
   // Immediately compile the function if batch compilation is disabled.
   if (!is_enabled()) {
     IsCompiledScope is_compiled_scope(
-        function->shared().is_compiled_scope(isolate_));
+        function->shared()->is_compiled_scope(isolate_));
     Compiler::CompileBaseline(isolate_, function, Compiler::CLEAR_EXCEPTION,
                               &is_compiled_scope);
     return;
@@ -310,7 +310,7 @@ void BaselineBatchCompiler::EnsureQueueCapacity() {
 void BaselineBatchCompiler::CompileBatch(Handle<JSFunction> function) {
   {
     IsCompiledScope is_compiled_scope(
-        function->shared().is_compiled_scope(isolate_));
+        function->shared()->is_compiled_scope(isolate_));
     Compiler::CompileBaseline(isolate_, function, Compiler::CLEAR_EXCEPTION,
                               &is_compiled_scope);
   }
@@ -331,22 +331,22 @@ void BaselineBatchCompiler::CompileBatchConcurrent(SharedFunctionInfo shared) {
 bool BaselineBatchCompiler::ShouldCompileBatch(SharedFunctionInfo shared) {
   // Early return if the function is compiled with baseline already or it is not
   // suitable for baseline compilation.
-  if (shared.HasBaselineCode()) return false;
+  if (shared->HasBaselineCode()) return false;
   // If we're already compiling this function, return.
-  if (shared.is_sparkplug_compiling()) return false;
+  if (shared->is_sparkplug_compiling()) return false;
   if (!CanCompileWithBaseline(isolate_, shared)) return false;
 
   int estimated_size;
   {
     DisallowHeapAllocation no_gc;
     estimated_size = BaselineCompiler::EstimateInstructionSize(
-        shared.GetBytecodeArray(isolate_));
+        shared->GetBytecodeArray(isolate_));
   }
   estimated_instruction_size_ += estimated_size;
   if (v8_flags.trace_baseline_batch_compilation) {
     CodeTracer::Scope trace_scope(isolate_->GetCodeTracer());
     PrintF(trace_scope.file(), "[Baseline batch compilation] Enqueued SFI %s",
-           shared.DebugNameCStr().get());
+           shared->DebugNameCStr().get());
     PrintF(trace_scope.file(),
            " with estimated size %d (current budget: %d/%d)\n", estimated_size,
            estimated_instruction_size_,

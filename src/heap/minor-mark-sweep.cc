@@ -211,9 +211,9 @@ void YoungGenerationMarkingTask::DrainMarkingWorklist() {
   while (marking_worklists_local_.Pop(&heap_object)) {
     // Maps won't change in the atomic pause, so the map can be read without
     // atomics.
-    Map map = Map::cast(*heap_object.map_slot());
+    Map map = Map::cast(*heap_object->map_slot());
     // kDataOnly objects are filtered on push.
-    DCHECK_EQ(Map::ObjectFieldsFrom(map.visitor_id()),
+    DCHECK_EQ(Map::ObjectFieldsFrom(map->visitor_id()),
               ObjectFields::kMaybePointers);
     const auto visited_size = visitor_.Visit(map, heap_object);
     if (visited_size) {
@@ -652,14 +652,14 @@ void MinorMarkSweepCollector::ClearNonLiveReferences() {
   // Worklist is collected during marking.
   EphemeronHashTable table;
   while (local_ephemeron_table_list_->Pop(&table)) {
-    for (InternalIndex i : table.IterateEntries()) {
+    for (InternalIndex i : table->IterateEntries()) {
       // Keys in EphemeronHashTables must be heap objects.
       HeapObjectSlot key_slot(
-          table.RawFieldOfElementAt(EphemeronHashTable::EntryToIndex(i)));
+          table->RawFieldOfElementAt(EphemeronHashTable::EntryToIndex(i)));
       HeapObject key = key_slot.ToHeapObject();
       if (Heap::InYoungGeneration(key) &&
           non_atomic_marking_state_->IsUnmarked(key)) {
-        table.RemoveEntry(i);
+        table->RemoveEntry(i);
       }
     }
   }
@@ -678,7 +678,7 @@ void MinorMarkSweepCollector::ClearNonLiveReferences() {
     auto& indices = it->second;
     for (auto iti = indices.begin(); iti != indices.end();) {
       // Keys in EphemeronHashTables must be heap objects.
-      HeapObjectSlot key_slot(table.RawFieldOfElementAt(
+      HeapObjectSlot key_slot(table->RawFieldOfElementAt(
           EphemeronHashTable::EntryToIndex(InternalIndex(*iti))));
       HeapObject key = key_slot.ToHeapObject();
       // There may be old generation entries left in the remembered set as
@@ -686,7 +686,7 @@ void MinorMarkSweepCollector::ClearNonLiveReferences() {
       if (!Heap::InYoungGeneration(key)) {
         iti = indices.erase(iti);
       } else if (non_atomic_marking_state_->IsUnmarked(key)) {
-        table.RemoveEntry(InternalIndex(*iti));
+        table->RemoveEntry(InternalIndex(*iti));
         iti = indices.erase(iti);
       } else {
         ++iti;
@@ -704,12 +704,12 @@ void MinorMarkSweepCollector::ClearNonLiveReferences() {
 namespace {
 void VisitObjectWithEmbedderFields(JSObject object,
                                    MarkingWorklists::Local& worklist) {
-  DCHECK(object.MayHaveEmbedderFields());
+  DCHECK(object->MayHaveEmbedderFields());
   DCHECK(!Heap::InYoungGeneration(object));
 
   MarkingWorklists::Local::WrapperSnapshot wrapper_snapshot;
   const bool valid_snapshot =
-      worklist.ExtractWrapper(object.map(), object, wrapper_snapshot);
+      worklist.ExtractWrapper(object->map(), object, wrapper_snapshot);
   DCHECK(valid_snapshot);
   USE(valid_snapshot);
   worklist.PushExtractedWrapper(wrapper_snapshot);
@@ -887,11 +887,11 @@ void MinorMarkSweepCollector::DrainMarkingWorklist() {
       DCHECK(!non_atomic_marking_state_->IsUnmarked(heap_object));
       // Maps won't change in the atomic pause, so the map can be read without
       // atomics.
-      Map map = Map::cast(*heap_object.map_slot());
+      Map map = Map::cast(*heap_object->map_slot());
       const auto visited_size = main_marking_visitor_->Visit(map, heap_object);
       // kDataOnly objects are filtered on push.
       DCHECK_IMPLIES(!v8_flags.concurrent_minor_ms_marking,
-                     Map::ObjectFieldsFrom(map.visitor_id()) ==
+                     Map::ObjectFieldsFrom(map->visitor_id()) ==
                          ObjectFields::kMaybePointers);
       if (visited_size) {
         main_marking_visitor_->IncrementLiveBytesCached(

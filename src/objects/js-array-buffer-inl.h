@@ -199,7 +199,7 @@ void JSArrayBufferView::set_byte_length(size_t value) {
 }
 
 bool JSArrayBufferView::WasDetached() const {
-  return JSArrayBuffer::cast(buffer()).was_detached();
+  return JSArrayBuffer::cast(buffer())->was_detached();
 }
 
 BIT_FIELD_ACCESSORS(JSArrayBufferView, bit_field, is_length_tracking,
@@ -407,7 +407,7 @@ size_t JSRabGsabDataView::GetByteLength() const {
   if (is_length_tracking()) {
     // Invariant: byte_length of length tracking DataViews is 0.
     DCHECK_EQ(0, byte_length());
-    return buffer().GetByteLength() - byte_offset();
+    return buffer()->GetByteLength() - byte_offset();
   }
   return byte_length();
 }
@@ -417,9 +417,9 @@ bool JSRabGsabDataView::IsOutOfBounds() const {
     return false;
   }
   if (is_length_tracking()) {
-    return byte_offset() > buffer().GetByteLength();
+    return byte_offset() > buffer()->GetByteLength();
   }
-  return byte_offset() + byte_length() > buffer().GetByteLength();
+  return byte_offset() + byte_length() > buffer()->GetByteLength();
 }
 
 }  // namespace internal

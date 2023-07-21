@@ -29,7 +29,7 @@ class V8_NODISCARD SanitizeNativeContextScope final {
 #ifdef DEBUG
     if (!allow_active_isolate_for_testing) {
       // Microtasks.
-      MicrotaskQueue* microtask_queue = native_context_.microtask_queue();
+      MicrotaskQueue* microtask_queue = native_context_->microtask_queue();
       DCHECK_EQ(0, microtask_queue->size());
       DCHECK(!microtask_queue->HasMicrotasksSuppressions());
       DCHECK_EQ(0, microtask_queue->GetMicrotasksScopeDepth());
@@ -38,14 +38,14 @@ class V8_NODISCARD SanitizeNativeContextScope final {
 #endif
     microtask_queue_external_pointer_ =
         native_context
-            .RawExternalPointerField(NativeContext::kMicrotaskQueueOffset)
+            ->RawExternalPointerField(NativeContext::kMicrotaskQueueOffset)
             .GetAndClearContentForSerialization(no_gc);
   }
 
   ~SanitizeNativeContextScope() {
     // Restore saved fields.
     native_context_
-        .RawExternalPointerField(NativeContext::kMicrotaskQueueOffset)
+        ->RawExternalPointerField(NativeContext::kMicrotaskQueueOffset)
         .RestoreContentAfterSerialization(microtask_queue_external_pointer_,
                                           no_gc_);
   }
@@ -80,8 +80,8 @@ void ContextSerializer::Serialize(Context* o,
 
   // Upon deserialization, references to the global proxy and its map will be
   // replaced.
-  reference_map()->AddAttachedReference(context_.global_proxy());
-  reference_map()->AddAttachedReference(context_.global_proxy().map());
+  reference_map()->AddAttachedReference(context_->global_proxy());
+  reference_map()->AddAttachedReference(context_->global_proxy()->map());
 
   // The bootstrap snapshot has a code-stub context. When serializing the
   // context snapshot, it is chained into the weak context list on the isolate
@@ -90,14 +90,14 @@ void ContextSerializer::Serialize(Context* o,
   // explicitly when it's loaded.
   // TODO(v8:10416): These mutations should not observably affect the running
   // context.
-  context_.set(Context::NEXT_CONTEXT_LINK,
-               ReadOnlyRoots(isolate()).undefined_value());
-  DCHECK(!context_.global_object().IsUndefined());
+  context_->set(Context::NEXT_CONTEXT_LINK,
+                ReadOnlyRoots(isolate()).undefined_value());
+  DCHECK(!context_->global_object().IsUndefined());
   // Reset math random cache to get fresh random numbers.
   MathRandom::ResetContext(context_);
 
   SanitizeNativeContextScope sanitize_native_context(
-      isolate(), context_.native_context(), allow_active_isolate_for_testing(),
+      isolate(), context_->native_context(), allow_active_isolate_for_testing(),
       no_gc);
 
   VisitRootPointer(Root::kStartupObjectCache, nullptr, FullObjectSlot(o));
@@ -154,7 +154,7 @@ void ContextSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
   // Function and object templates are not context specific.
   DCHECK(!obj->IsTemplateInfo());
 
-  InstanceType instance_type = obj->map().instance_type();
+  InstanceType instance_type = obj->map()->instance_type();
   if (InstanceTypeChecker::IsFeedbackVector(instance_type)) {
     // Clear literal boilerplates and feedback.
     Handle<FeedbackVector>::cast(obj)->ClearSlots(isolate());
@@ -167,15 +167,15 @@ void ContextSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
       // Unconditionally reset the JSFunction to its SFI's code, since we can't
       // serialize optimized code anyway.
       JSFunction closure = JSFunction::cast(*obj);
-      if (closure.shared().HasBytecodeArray()) {
-        closure.SetInterruptBudget(isolate());
+      if (closure->shared()->HasBytecodeArray()) {
+        closure->SetInterruptBudget(isolate());
       }
-      closure.ResetIfCodeFlushed();
-      if (closure.is_compiled()) {
-        if (closure.shared().HasBaselineCode()) {
-          closure.shared().FlushBaselineCode();
+      closure->ResetIfCodeFlushed();
+      if (closure->is_compiled()) {
+        if (closure->shared()->HasBaselineCode()) {
+          closure->shared()->FlushBaselineCode();
         }
-        closure.set_code(closure.shared().GetCode(isolate()), kReleaseStore);
+        closure->set_code(closure->shared()->GetCode(isolate()), kReleaseStore);
       }
     }
   }
@@ -195,7 +195,7 @@ bool ContextSerializer::ShouldBeInTheStartupObjectCache(HeapObject o) {
          o.IsHeapNumber() || o.IsCode() || o.IsInstructionStream() ||
          o.IsScopeInfo() || o.IsAccessorInfo() || o.IsTemplateInfo() ||
          o.IsClassPositions() ||
-         o.map() == ReadOnlyRoots(isolate()).fixed_cow_array_map();
+         o->map() == ReadOnlyRoots(isolate()).fixed_cow_array_map();
 }
 
 bool ContextSerializer::ShouldBeInTheSharedObjectCache(HeapObject o) {
@@ -212,10 +212,10 @@ bool ContextSerializer::SerializeJSObjectWithEmbedderFields(
     Handle<JSObject> obj) {
   DisallowGarbageCollection no_gc;
   JSObject js_obj = *obj;
-  int embedder_fields_count = js_obj.GetEmbedderFieldCount();
+  int embedder_fields_count = js_obj->GetEmbedderFieldCount();
   if (embedder_fields_count == 0) return false;
   CHECK_GT(embedder_fields_count, 0);
-  DCHECK(!js_obj.NeedsRehashing(cage_base()));
+  DCHECK(!js_obj->NeedsRehashing(cage_base()));
 
   DisallowJavascriptExecution no_js(isolate());
   DisallowCompilation no_compile(isolate());
@@ -305,8 +305,8 @@ bool ContextSerializer::SerializeJSObjectWithEmbedderFields(
 
 void ContextSerializer::CheckRehashability(HeapObject obj) {
   if (!can_be_rehashed_) return;
-  if (!obj.NeedsRehashing(cage_base())) return;
-  if (obj.CanBeRehashed(cage_base())) return;
+  if (!obj->NeedsRehashing(cage_base())) return;
+  if (obj->CanBeRehashed(cage_base())) return;
   can_be_rehashed_ = false;
 }
 

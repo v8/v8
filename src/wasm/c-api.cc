@@ -451,9 +451,9 @@ void StoreImpl::SetHostInfo(i::Handle<i::Object> object, void* info,
 
 void* StoreImpl::GetHostInfo(i::Handle<i::Object> key) {
   i::Object raw =
-      i::EphemeronHashTable::cast(host_info_map_->table()).Lookup(key);
+      i::EphemeronHashTable::cast(host_info_map_->table())->Lookup(key);
   if (raw.IsTheHole(i_isolate())) return nullptr;
-  return i::Managed<ManagedData>::cast(raw).raw()->info;
+  return i::Managed<ManagedData>::cast(raw)->raw()->info;
 }
 
 template <>
@@ -1416,36 +1416,36 @@ class SignatureHelper : public i::AllStatic {
 
   static own<FuncType> Deserialize(i::PodArray<i::wasm::ValueType> sig) {
     int result_arity = ResultArity(sig);
-    int param_arity = sig.length() - result_arity - 1;
+    int param_arity = sig->length() - result_arity - 1;
     ownvec<ValType> results = ownvec<ValType>::make_uninitialized(result_arity);
     ownvec<ValType> params = ownvec<ValType>::make_uninitialized(param_arity);
 
     int i = 0;
     for (; i < result_arity; ++i) {
-      results[i] = ValType::make(V8ValueTypeToWasm(sig.get(i)));
+      results[i] = ValType::make(V8ValueTypeToWasm(sig->get(i)));
     }
     i++;  // Skip marker.
-    for (int p = 0; i < sig.length(); ++i, ++p) {
-      params[p] = ValType::make(V8ValueTypeToWasm(sig.get(i)));
+    for (int p = 0; i < sig->length(); ++i, ++p) {
+      params[p] = ValType::make(V8ValueTypeToWasm(sig->get(i)));
     }
     return FuncType::make(std::move(params), std::move(results));
   }
 
   static int ResultArity(i::PodArray<i::wasm::ValueType> sig) {
     int count = 0;
-    for (; count < sig.length(); count++) {
-      if (sig.get(count) == kMarker) return count;
+    for (; count < sig->length(); count++) {
+      if (sig->get(count) == kMarker) return count;
     }
     UNREACHABLE();
   }
 
   static int ParamArity(i::PodArray<i::wasm::ValueType> sig) {
-    return sig.length() - ResultArity(sig) - 1;
+    return sig->length() - ResultArity(sig) - 1;
   }
 
   static i::PodArray<i::wasm::ValueType> GetSig(
       i::Handle<i::JSFunction> function) {
-    return i::WasmCapiFunction::cast(*function).GetSerializedSignature();
+    return i::WasmCapiFunction::cast(*function)->GetSerializedSignature();
   }
 };
 
@@ -1465,8 +1465,8 @@ auto make_func(Store* store_abs, FuncData* data) -> own<Func> {
       isolate, reinterpret_cast<i::Address>(&FuncData::v8_callback),
       embedder_data, SignatureHelper::Serialize(isolate, data->type.get()));
   i::WasmApiFunctionRef::cast(
-      function->shared().wasm_capi_function_data().internal().ref())
-      .set_callable(*function);
+      function->shared()->wasm_capi_function_data()->internal()->ref())
+      ->set_callable(*function);
   auto func = implement<Func>::type::make(store, function);
   return func;
 }
@@ -1497,8 +1497,10 @@ auto Func::type() const -> own<FuncType> {
   DCHECK(i::WasmExportedFunction::IsWasmExportedFunction(*func));
   i::Handle<i::WasmExportedFunction> function =
       i::Handle<i::WasmExportedFunction>::cast(func);
-  return FunctionSigToFuncType(
-      function->instance().module()->functions[function->function_index()].sig);
+  return FunctionSigToFuncType(function->instance()
+                                   ->module()
+                                   ->functions[function->function_index()]
+                                   .sig);
 }
 
 auto Func::param_arity() const -> size_t {
@@ -1510,7 +1512,7 @@ auto Func::param_arity() const -> size_t {
   i::Handle<i::WasmExportedFunction> function =
       i::Handle<i::WasmExportedFunction>::cast(func);
   const i::wasm::FunctionSig* sig =
-      function->instance().module()->functions[function->function_index()].sig;
+      function->instance()->module()->functions[function->function_index()].sig;
   return sig->parameter_count();
 }
 
@@ -1523,7 +1525,7 @@ auto Func::result_arity() const -> size_t {
   i::Handle<i::WasmExportedFunction> function =
       i::Handle<i::WasmExportedFunction>::cast(func);
   const i::wasm::FunctionSig* sig =
-      function->instance().module()->functions[function->function_index()].sig;
+      function->instance()->module()->functions[function->function_index()].sig;
   return sig->return_count();
 }
 
@@ -1633,7 +1635,8 @@ void PopArgs(const i::wasm::FunctionSig* sig, Val results[],
 
 own<Trap> CallWasmCapiFunction(i::WasmCapiFunctionData data, const Val args[],
                                Val results[]) {
-  FuncData* func_data = i::Managed<FuncData>::cast(data.embedder_data()).raw();
+  FuncData* func_data =
+      i::Managed<FuncData>::cast(data->embedder_data())->raw();
   if (func_data->kind == FuncData::kCallback) {
     return (func_data->callback)(args, results);
   }
@@ -1669,7 +1672,7 @@ auto Func::call(const Val args[], Val results[]) const -> own<Trap> {
   v8::Isolate::Scope isolate_scope(store->isolate());
   i::HandleScope handle_scope(isolate);
   i::Object raw_function_data =
-      func->v8_object()->shared().function_data(v8::kAcquireLoad);
+      func->v8_object()->shared()->function_data(v8::kAcquireLoad);
 
   // WasmCapiFunctions can be called directly.
   if (raw_function_data.IsWasmCapiFunctionData()) {
@@ -1687,7 +1690,7 @@ auto Func::call(const Val args[], Val results[]) const -> own<Trap> {
       instance->module()->functions[function_index].sig;
   PrepareFunctionData(isolate, function_data, sig, instance->module());
   i::Handle<i::Code> wrapper_code(function_data->c_wrapper_code(), isolate);
-  i::Address call_target = function_data->internal().call_target(isolate);
+  i::Address call_target = function_data->internal()->call_target(isolate);
 
   i::wasm::CWasmArgumentsPacker packer(function_data->packed_args_size());
   PushArgs(sig, args, &packer, store);
@@ -1696,11 +1699,11 @@ auto Func::call(const Val args[], Val results[]) const -> own<Trap> {
   if (function_index <
       static_cast<int>(instance->module()->num_imported_functions)) {
     object_ref = i::handle(
-        instance->imported_function_refs().get(function_index), isolate);
+        instance->imported_function_refs()->get(function_index), isolate);
     if (object_ref->IsWasmApiFunctionRef()) {
       i::JSFunction jsfunc = i::JSFunction::cast(
-          i::WasmApiFunctionRef::cast(*object_ref).callable());
-      i::Object data = jsfunc.shared().function_data(v8::kAcquireLoad);
+          i::WasmApiFunctionRef::cast(*object_ref)->callable());
+      i::Object data = jsfunc->shared()->function_data(v8::kAcquireLoad);
       if (data.IsWasmCapiFunctionData()) {
         return CallWasmCapiFunction(i::WasmCapiFunctionData::cast(data), args,
                                     results);
@@ -1732,7 +1735,7 @@ auto Func::call(const Val args[], Val results[]) const -> own<Trap> {
 i::Address FuncData::v8_callback(i::Address host_data_foreign,
                                  i::Address argv) {
   FuncData* self =
-      i::Managed<FuncData>::cast(i::Object(host_data_foreign)).raw();
+      i::Managed<FuncData>::cast(i::Object(host_data_foreign))->raw();
   StoreImpl* store = impl(self->store);
   i::Isolate* isolate = store->i_isolate();
   v8::Isolate::Scope isolate_scope(store->isolate());
@@ -1993,7 +1996,7 @@ auto Table::make(Store* store_abs, const TableType* type, const Ref* ref)
       // This doesn't call WasmTableObject::Set because the table has
       // just been created, so it can't be imported by any instances
       // yet that might require updating.
-      DCHECK_EQ(table_obj->dispatch_tables().length(), 0);
+      DCHECK_EQ(table_obj->dispatch_tables()->length(), 0);
       backing_store->set(i, *init);
     }
   }
@@ -2117,7 +2120,7 @@ auto Memory::make(Store* store_abs, const MemoryType* type) -> own<Memory> {
 
 auto Memory::type() const -> own<MemoryType> {
   i::Handle<i::WasmMemoryObject> memory = impl(this)->v8_object();
-  uint32_t min = static_cast<uint32_t>(memory->array_buffer().byte_length() /
+  uint32_t min = static_cast<uint32_t>(memory->array_buffer()->byte_length() /
                                        i::wasm::kWasmPageSize);
   uint32_t max =
       memory->has_maximum_pages() ? memory->maximum_pages() : 0xFFFFFFFFu;
@@ -2126,16 +2129,16 @@ auto Memory::type() const -> own<MemoryType> {
 
 auto Memory::data() const -> byte_t* {
   return reinterpret_cast<byte_t*>(
-      impl(this)->v8_object()->array_buffer().backing_store());
+      impl(this)->v8_object()->array_buffer()->backing_store());
 }
 
 auto Memory::data_size() const -> size_t {
-  return impl(this)->v8_object()->array_buffer().byte_length();
+  return impl(this)->v8_object()->array_buffer()->byte_length();
 }
 
 auto Memory::size() const -> pages_t {
   return static_cast<pages_t>(
-      impl(this)->v8_object()->array_buffer().byte_length() /
+      impl(this)->v8_object()->array_buffer()->byte_length() /
       i::wasm::kWasmPageSize);
 }
 

@@ -209,7 +209,7 @@ TEST_F(BackgroundCompileTaskTest, EagerInnerFunctions) {
 
   Handle<JSFunction> e = RunJS<JSFunction>("f();");
 
-  ASSERT_TRUE(e->shared().is_compiled());
+  ASSERT_TRUE(e->shared()->is_compiled());
 }
 
 TEST_F(BackgroundCompileTaskTest, LazyInnerFunctions) {
@@ -239,7 +239,7 @@ TEST_F(BackgroundCompileTaskTest, LazyInnerFunctions) {
 
   Handle<JSFunction> e = RunJS<JSFunction>("f();");
 
-  ASSERT_FALSE(e->shared().is_compiled());
+  ASSERT_FALSE(e->shared()->is_compiled());
 }
 
 }  // namespace internal

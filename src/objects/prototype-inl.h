@@ -41,29 +41,29 @@ PrototypeIterator::PrototypeIterator(Isolate* isolate, JSReceiver receiver,
 PrototypeIterator::PrototypeIterator(Isolate* isolate, Map receiver_map,
                                      WhereToEnd where_to_end)
     : isolate_(isolate),
-      object_(receiver_map.GetPrototypeChainRootMap(isolate_).prototype()),
+      object_(receiver_map->GetPrototypeChainRootMap(isolate_)->prototype()),
       where_to_end_(where_to_end),
       is_at_end_(object_.IsNull(isolate_)),
       seen_proxies_(0) {
   if (!is_at_end_ && where_to_end_ == END_AT_NON_HIDDEN) {
     DCHECK(object_.IsJSReceiver());
-    Map map = JSReceiver::cast(object_).map();
-    is_at_end_ = !map.IsJSGlobalProxyMap();
+    Map map = JSReceiver::cast(object_)->map();
+    is_at_end_ = !map->IsJSGlobalProxyMap();
   }
 }
 
 PrototypeIterator::PrototypeIterator(Isolate* isolate, Handle<Map> receiver_map,
                                      WhereToEnd where_to_end)
     : isolate_(isolate),
-      handle_(receiver_map->GetPrototypeChainRootMap(isolate_).prototype(),
+      handle_(receiver_map->GetPrototypeChainRootMap(isolate_)->prototype(),
               isolate_),
       where_to_end_(where_to_end),
       is_at_end_(handle_->IsNull(isolate_)),
       seen_proxies_(0) {
   if (!is_at_end_ && where_to_end_ == END_AT_NON_HIDDEN) {
     DCHECK(handle_->IsJSReceiver());
-    Map map = JSReceiver::cast(*handle_).map();
-    is_at_end_ = !map.IsJSGlobalProxyMap();
+    Map map = JSReceiver::cast(*handle_)->map();
+    is_at_end_ = !map->IsJSGlobalProxyMap();
   }
 }
 
@@ -93,12 +93,12 @@ void PrototypeIterator::Advance() {
 
 void PrototypeIterator::AdvanceIgnoringProxies() {
   Object object = handle_.is_null() ? object_ : *handle_;
-  Map map = HeapObject::cast(object).map();
+  Map map = HeapObject::cast(object)->map();
 
-  HeapObject prototype = map.prototype();
+  HeapObject prototype = map->prototype();
   is_at_end_ =
       prototype.IsNull(isolate_) ||
-      (where_to_end_ == END_AT_NON_HIDDEN && !map.IsJSGlobalProxyMap());
+      (where_to_end_ == END_AT_NON_HIDDEN && !map->IsJSGlobalProxyMap());
 
   if (handle_.is_null()) {
     object_ = prototype;

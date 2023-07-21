@@ -31,7 +31,7 @@ Code GcSafeCode::UnsafeCastToCode() const {
 }
 
 #define GCSAFE_CODE_FWD_ACCESSOR(ReturnType, Name) \
-  ReturnType GcSafeCode::Name() const { return UnsafeCastToCode().Name(); }
+  ReturnType GcSafeCode::Name() const { return UnsafeCastToCode()->Name(); }
 GCSAFE_CODE_FWD_ACCESSOR(Address, instruction_start)
 GCSAFE_CODE_FWD_ACCESSOR(Address, instruction_end)
 GCSAFE_CODE_FWD_ACCESSOR(bool, is_builtin)
@@ -53,30 +53,30 @@ GCSAFE_CODE_FWD_ACCESSOR(Address, safepoint_table_address)
 
 int GcSafeCode::GetOffsetFromInstructionStart(Isolate* isolate,
                                               Address pc) const {
-  return UnsafeCastToCode().GetOffsetFromInstructionStart(isolate, pc);
+  return UnsafeCastToCode()->GetOffsetFromInstructionStart(isolate, pc);
 }
 
 Address GcSafeCode::InstructionStart(Isolate* isolate, Address pc) const {
-  return UnsafeCastToCode().InstructionStart(isolate, pc);
+  return UnsafeCastToCode()->InstructionStart(isolate, pc);
 }
 
 Address GcSafeCode::InstructionEnd(Isolate* isolate, Address pc) const {
-  return UnsafeCastToCode().InstructionEnd(isolate, pc);
+  return UnsafeCastToCode()->InstructionEnd(isolate, pc);
 }
 
 Address GcSafeCode::constant_pool(InstructionStream istream) const {
-  return UnsafeCastToCode().constant_pool(istream);
+  return UnsafeCastToCode()->constant_pool(istream);
 }
 
 bool GcSafeCode::CanDeoptAt(Isolate* isolate, Address pc) const {
   DeoptimizationData deopt_data = DeoptimizationData::unchecked_cast(
-      UnsafeCastToCode().unchecked_deoptimization_data());
+      UnsafeCastToCode()->unchecked_deoptimization_data());
   Address code_start_address = instruction_start();
-  for (int i = 0; i < deopt_data.DeoptCount(); i++) {
-    if (deopt_data.Pc(i).value() == -1) continue;
-    Address address = code_start_address + deopt_data.Pc(i).value();
+  for (int i = 0; i < deopt_data->DeoptCount(); i++) {
+    if (deopt_data->Pc(i).value() == -1) continue;
+    Address address = code_start_address + deopt_data->Pc(i).value();
     if (address == pc &&
-        deopt_data.GetBytecodeOffset(i) != BytecodeOffset::None()) {
+        deopt_data->GetBytecodeOffset(i) != BytecodeOffset::None()) {
       return true;
     }
   }
@@ -85,7 +85,7 @@ bool GcSafeCode::CanDeoptAt(Isolate* isolate, Address pc) const {
 
 Object GcSafeCode::raw_instruction_stream(
     PtrComprCageBase code_cage_base) const {
-  return UnsafeCastToCode().raw_instruction_stream(code_cage_base);
+  return UnsafeCastToCode()->raw_instruction_stream(code_cage_base);
 }
 
 INT_ACCESSORS(Code, instruction_size, kInstructionSizeOffset)
@@ -120,7 +120,7 @@ ByteArray Code::SourcePositionTable(Isolate* isolate,
 
   DisallowGarbageCollection no_gc;
   if (kind() == CodeKind::BASELINE) {
-    return sfi.GetBytecodeArray(isolate).SourcePositionTable(isolate);
+    return sfi->GetBytecodeArray(isolate)->SourcePositionTable(isolate);
   }
   return source_position_table(isolate);
 }
@@ -211,19 +211,19 @@ FixedArray Code::unchecked_deoptimization_data() const {
 
 uint8_t* Code::relocation_start() const {
   return V8_LIKELY(has_instruction_stream())
-             ? instruction_stream().relocation_start()
+             ? instruction_stream()->relocation_start()
              : nullptr;
 }
 
 uint8_t* Code::relocation_end() const {
   return V8_LIKELY(has_instruction_stream())
-             ? instruction_stream().relocation_end()
+             ? instruction_stream()->relocation_end()
              : nullptr;
 }
 
 int Code::relocation_size() const {
   return V8_LIKELY(has_instruction_stream())
-             ? instruction_stream().relocation_size()
+             ? instruction_stream()->relocation_size()
              : 0;
 }
 
@@ -241,7 +241,7 @@ int Code::SizeIncludingMetadata() const {
   int size = InstructionStreamObjectSize();
   size += relocation_size();
   if (kind() != CodeKind::BASELINE) {
-    size += deoptimization_data().Size();
+    size += deoptimization_data()->Size();
   }
   return size;
 }
@@ -430,7 +430,7 @@ Address Code::constant_pool() const {
 Address Code::constant_pool(InstructionStream instruction_stream) const {
   if (!has_constant_pool()) return kNullAddress;
   static_assert(InstructionStream::kOnHeapBodyIsContiguous);
-  return instruction_stream.instruction_start() + instruction_size() +
+  return instruction_stream->instruction_start() + instruction_size() +
          constant_pool_offset();
 }
 
@@ -458,7 +458,7 @@ bool Code::has_unwinding_info() const { return unwinding_info_size() > 0; }
 
 // static
 Code Code::FromTargetAddress(Address address) {
-  return InstructionStream::FromTargetAddress(address).code(kAcquireLoad);
+  return InstructionStream::FromTargetAddress(address)->code(kAcquireLoad);
 }
 
 bool Code::CanContainWeakObjects() {
@@ -470,9 +470,9 @@ bool Code::IsWeakObject(HeapObject object) {
 }
 
 bool Code::IsWeakObjectInOptimizedCode(HeapObject object) {
-  Map map_object = object.map(kAcquireLoad);
+  Map map_object = object->map(kAcquireLoad);
   if (InstanceTypeChecker::IsMap(map_object)) {
-    return Map::cast(object).CanTransition();
+    return Map::cast(object)->CanTransition();
   }
   return InstanceTypeChecker::IsPropertyCell(map_object) ||
          InstanceTypeChecker::IsJSReceiver(map_object) ||
@@ -492,12 +492,12 @@ void Code::IterateDeoptimizationLiterals(RootVisitor* v) {
   if (kind() == CodeKind::BASELINE) return;
 
   auto deopt_data = DeoptimizationData::cast(deoptimization_data());
-  if (deopt_data.length() == 0) return;
+  if (deopt_data->length() == 0) return;
 
-  DeoptimizationLiteralArray literals = deopt_data.LiteralArray();
-  const int literals_length = literals.length();
+  DeoptimizationLiteralArray literals = deopt_data->LiteralArray();
+  const int literals_length = literals->length();
   for (int i = 0; i < literals_length; ++i) {
-    MaybeObject maybe_literal = literals.Get(i);
+    MaybeObject maybe_literal = literals->Get(i);
     HeapObject heap_literal;
     if (maybe_literal.GetHeapObject(&heap_literal)) {
       v->VisitRootPointer(Root::kStackRoots, "deoptimization literal",
@@ -604,7 +604,7 @@ void Code::SetInstructionStreamAndInstructionStart(Isolate* isolate_for_sandbox,
                                                    InstructionStream code,
                                                    WriteBarrierMode mode) {
   set_raw_instruction_stream(code, mode);
-  set_instruction_start(isolate_for_sandbox, code.instruction_start());
+  set_instruction_start(isolate_for_sandbox, code->instruction_start());
 }
 
 void Code::SetInstructionStartForOffHeapBuiltin(Isolate* isolate_for_sandbox,
@@ -637,7 +637,7 @@ void Code::RestoreInstructionStartForSerialization(
 void Code::UpdateInstructionStart(Isolate* isolate_for_sandbox,
                                   InstructionStream istream) {
   DCHECK_EQ(raw_instruction_stream(), istream);
-  set_instruction_start(isolate_for_sandbox, istream.instruction_start());
+  set_instruction_start(isolate_for_sandbox, istream->instruction_start());
 }
 
 void Code::clear_padding() {

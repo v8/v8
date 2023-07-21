@@ -137,7 +137,7 @@ class WeakScriptHandle {
     DCHECK(script->name().IsString() || script->name().IsUndefined());
     if (script->name().IsString()) {
       std::unique_ptr<char[]> source_url =
-          String::cast(script->name()).ToCString();
+          String::cast(script->name())->ToCString();
       // Convert from {unique_ptr} to {shared_ptr}.
       source_url_ = {source_url.release(), source_url.get_deleter()};
     }
@@ -524,7 +524,7 @@ Handle<WasmModuleObject> WasmEngine::FinalizeTranslatedAsmJs(
     Isolate* isolate, Handle<AsmWasmData> asm_wasm_data,
     Handle<Script> script) {
   std::shared_ptr<NativeModule> native_module =
-      asm_wasm_data->managed_native_module().get();
+      asm_wasm_data->managed_native_module()->get();
   Handle<WasmModuleObject> module_object =
       WasmModuleObject::New(isolate, std::move(native_module), script);
   return module_object;

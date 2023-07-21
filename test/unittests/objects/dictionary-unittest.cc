@@ -232,6 +232,11 @@ class ObjectHashTableTest : public ObjectHashTable {
  public:
   explicit ObjectHashTableTest(ObjectHashTable o) : ObjectHashTable(o) {}
 
+  // For every object, add a `->` operator which returns a pointer to this
+  // object. This will allow smoother transition between T and Tagged<T>.
+  ObjectHashTableTest* operator->() { return this; }
+  const ObjectHashTableTest* operator->() const { return this; }
+
   void insert(InternalIndex entry, int key, int value) {
     set(EntryToIndex(entry), Smi::FromInt(key));
     set(EntryToIndex(entry) + 1, Smi::FromInt(value));
@@ -250,26 +255,26 @@ TEST_F(DictionaryTest, HashTableRehash) {
   {
     Handle<ObjectHashTable> table = ObjectHashTable::New(isolate(), 100);
     ObjectHashTableTest t(*table);
-    int capacity = t.capacity();
+    int capacity = t->capacity();
     for (int i = 0; i < capacity - 1; i++) {
-      t.insert(InternalIndex(i), i * i, i);
+      t->insert(InternalIndex(i), i * i, i);
     }
-    t.Rehash(isolate());
+    t->Rehash(isolate());
     for (int i = 0; i < capacity - 1; i++) {
-      CHECK_EQ(i, t.lookup(i * i, isolate()));
+      CHECK_EQ(i, t->lookup(i * i, isolate()));
     }
   }
   // Test half-filled table.
   {
     Handle<ObjectHashTable> table = ObjectHashTable::New(isolate(), 100);
     ObjectHashTableTest t(*table);
-    int capacity = t.capacity();
+    int capacity = t->capacity();
     for (int i = 0; i < capacity / 2; i++) {
-      t.insert(InternalIndex(i), i * i, i);
+      t->insert(InternalIndex(i), i * i, i);
     }
-    t.Rehash(isolate());
+    t->Rehash(isolate());
     for (int i = 0; i < capacity / 2; i++) {
-      CHECK_EQ(i, t.lookup(i * i, isolate()));
+      CHECK_EQ(i, t->lookup(i * i, isolate()));
     }
   }
 }

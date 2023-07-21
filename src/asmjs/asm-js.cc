@@ -73,11 +73,11 @@ bool AreStdlibMembersValid(Isolate* isolate, Handle<JSReceiver> stdlib,
     Handle<Object> value = StdlibMathMember(isolate, stdlib, name);        \
     if (!value->IsJSFunction()) return false;                              \
     SharedFunctionInfo shared = Handle<JSFunction>::cast(value)->shared(); \
-    if (!shared.HasBuiltinId() ||                                          \
-        shared.builtin_id() != Builtin::kMath##FName) {                    \
+    if (!shared->HasBuiltinId() ||                                         \
+        shared->builtin_id() != Builtin::kMath##FName) {                   \
       return false;                                                        \
     }                                                                      \
-    DCHECK_EQ(shared.GetCode(isolate),                                     \
+    DCHECK_EQ(shared->GetCode(isolate),                                    \
               isolate->builtins()->code(Builtin::kMath##FName));           \
   }
   STDLIB_MATH_FUNCTION_LIST(STDLIB_MATH_FUNC)
@@ -334,7 +334,7 @@ MaybeHandle<Object> AsmJs::InstantiateAsmWasm(Isolate* isolate,
   int position = shared->StartPosition();
 
   // Check that the module is not instantiated as a generator or async function.
-  if (IsResumableFunction(shared->scope_info().function_kind())) {
+  if (IsResumableFunction(shared->scope_info()->function_kind())) {
     ReportInstantiationFailure(script, position,
                                "Cannot be instantiated as resumable function");
     return MaybeHandle<Object>();

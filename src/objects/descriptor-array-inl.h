@@ -45,20 +45,20 @@ inline int DescriptorArray::number_of_entries() const {
 }
 
 void DescriptorArray::CopyEnumCacheFrom(DescriptorArray array) {
-  set_enum_cache(array.enum_cache());
+  set_enum_cache(array->enum_cache());
 }
 
 InternalIndex DescriptorArray::Search(Name name, int valid_descriptors,
                                       bool concurrent_search) {
-  DCHECK(name.IsUniqueName());
+  DCHECK(name->IsUniqueName());
   return InternalIndex(internal::Search<VALID_ENTRIES>(
       this, name, valid_descriptors, nullptr, concurrent_search));
 }
 
 InternalIndex DescriptorArray::Search(Name name, Map map,
                                       bool concurrent_search) {
-  DCHECK(name.IsUniqueName());
-  int number_of_own_descriptors = map.NumberOfOwnDescriptors();
+  DCHECK(name->IsUniqueName());
+  int number_of_own_descriptors = map->NumberOfOwnDescriptors();
   if (number_of_own_descriptors == 0) return InternalIndex::NotFound();
   return Search(name, number_of_own_descriptors, concurrent_search);
 }
@@ -77,15 +77,15 @@ InternalIndex DescriptorArray::Search(int field_index, int valid_descriptors) {
 }
 
 InternalIndex DescriptorArray::Search(int field_index, Map map) {
-  int number_of_own_descriptors = map.NumberOfOwnDescriptors();
+  int number_of_own_descriptors = map->NumberOfOwnDescriptors();
   if (number_of_own_descriptors == 0) return InternalIndex::NotFound();
   return Search(field_index, number_of_own_descriptors);
 }
 
 InternalIndex DescriptorArray::SearchWithCache(Isolate* isolate, Name name,
                                                Map map) {
-  DCHECK(name.IsUniqueName());
-  int number_of_own_descriptors = map.NumberOfOwnDescriptors();
+  DCHECK(name->IsUniqueName());
+  int number_of_own_descriptors = map->NumberOfOwnDescriptors();
   if (number_of_own_descriptors == 0) return InternalIndex::NotFound();
 
   DescriptorLookupCache* cache = isolate->descriptor_lookup_cache();
@@ -243,7 +243,7 @@ void DescriptorArray::Append(Descriptor* desc) {
 
   for (insertion = descriptor_number; insertion > 0; --insertion) {
     Name key = GetSortedKey(insertion - 1);
-    collision_hash = key.hash();
+    collision_hash = key->hash();
     if (collision_hash <= desc_hash) break;
     SetSortedKey(insertion, GetSortedKeyIndex(insertion - 1));
   }
@@ -266,7 +266,7 @@ bool DescriptorArrayMarkingState::TryUpdateIndicesToMark(
     unsigned gc_epoch, DescriptorArray array, DescriptorIndex index_to_mark) {
   const auto current_epoch = gc_epoch & Epoch::kMask;
   while (true) {
-    const RawGCStateType raw_gc_state = array.raw_gc_state(kRelaxedLoad);
+    const RawGCStateType raw_gc_state = array->raw_gc_state(kRelaxedLoad);
     const auto epoch_from_state = Epoch::decode(raw_gc_state);
     RawGCStateType new_raw_gc_state = 0;
     if (current_epoch != epoch_from_state) {
@@ -298,7 +298,7 @@ DescriptorArrayMarkingState::AcquireDescriptorRangeToMark(
     unsigned gc_epoch, DescriptorArray array) {
   const auto current_epoch = gc_epoch & Epoch::kMask;
   while (true) {
-    const RawGCStateType raw_gc_state = array.raw_gc_state(kRelaxedLoad);
+    const RawGCStateType raw_gc_state = array->raw_gc_state(kRelaxedLoad);
     const DescriptorIndex marked = Marked::decode(raw_gc_state);
     const DescriptorIndex delta = Delta::decode(raw_gc_state);
     // We may encounter an array here that was merely pushed to the marker. In
@@ -314,8 +314,8 @@ DescriptorArrayMarkingState::AcquireDescriptorRangeToMark(
       // and delta as valid state which leads to double-accounting through the
       // marking barrier (when nof>1 in the barrier).
       const int16_t number_of_descriptors =
-          array.number_of_descriptors() ? array.number_of_descriptors()
-                                        : array.number_of_all_descriptors();
+          array->number_of_descriptors() ? array->number_of_descriptors()
+                                         : array->number_of_all_descriptors();
       DCHECK_GT(number_of_descriptors, 0);
       if (SwapState(array, raw_gc_state,
                     NewState(current_epoch, number_of_descriptors, 0))) {

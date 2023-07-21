@@ -927,7 +927,7 @@ class CodeDescription {
 
   ScopeInfo scope_info() const {
     DCHECK(has_scope_info());
-    return shared_info_.scope_info();
+    return shared_info_->scope_info();
   }
 
   uintptr_t CodeStart() const { return code_region_.begin(); }
@@ -937,10 +937,10 @@ class CodeDescription {
   uintptr_t CodeSize() const { return code_region_.size(); }
 
   bool has_script() {
-    return !shared_info_.is_null() && shared_info_.script().IsScript();
+    return !shared_info_.is_null() && shared_info_->script().IsScript();
   }
 
-  Script script() { return Script::cast(shared_info_.script()); }
+  Script script() { return Script::cast(shared_info_->script()); }
 
   bool IsLineInfoAvailable() { return lineinfo_ != nullptr; }
 
@@ -959,8 +959,8 @@ class CodeDescription {
 #endif
 
   std::unique_ptr<char[]> GetFilename() {
-    if (!shared_info_.is_null() && script().name().IsString()) {
-      return String::cast(script().name()).ToCString();
+    if (!shared_info_.is_null() && script()->name().IsString()) {
+      return String::cast(script()->name())->ToCString();
     } else {
       std::unique_ptr<char[]> result(new char[1]);
       result[0] = 0;
@@ -970,7 +970,7 @@ class CodeDescription {
 
   int GetScriptLineNumber(int pos) {
     if (!shared_info_.is_null()) {
-      return script().GetLineNumber(pos) + 1;
+      return script()->GetLineNumber(pos) + 1;
     } else {
       return 0;
     }
@@ -1105,10 +1105,10 @@ class DebugInfoSection : public DebugSection {
 #endif
       fb_block_size.set(static_cast<uint32_t>(w->position() - fb_block_start));
 
-      int params = scope.ParameterCount();
-      int context_slots = scope.ContextLocalCount();
+      int params = scope->ParameterCount();
+      int context_slots = scope->ContextLocalCount();
       // The real slot ID is internal_slots + context_slot_id.
-      int internal_slots = scope.ContextHeaderLength();
+      int internal_slots = scope->ContextHeaderLength();
       int current_abbreviation = 4;
 
       for (int param = 0; param < params; ++param) {
@@ -1266,8 +1266,8 @@ class DebugAbbrevSection : public DebugSection {
 
     if (extra_info) {
       ScopeInfo scope = desc_->scope_info();
-      int params = scope.ParameterCount();
-      int context_slots = scope.ContextLocalCount();
+      int params = scope->ParameterCount();
+      int context_slots = scope->ContextLocalCount();
       // The real slot ID is internal_slots + context_slot_id.
       int internal_slots = Context::MIN_CONTEXT_SLOTS;
       // Total children is params + context_slots + internal_slots + 2
@@ -2065,7 +2065,7 @@ void EventHandler(const v8::JitCodeEvent* event) {
       // TODO(zhin): Rename is_function to be more accurate.
       if (event->code_type == v8::JitCodeEvent::JIT_CODE) {
         Code lookup_result = isolate->heap()->FindCodeForInnerPointer(addr);
-        is_function = CodeKindIsOptimizedJSFunction(lookup_result.kind());
+        is_function = CodeKindIsOptimizedJSFunction(lookup_result->kind());
       }
       AddCode(event_name.c_str(), {addr, event->code_len}, shared, lineinfo,
               isolate, is_function);

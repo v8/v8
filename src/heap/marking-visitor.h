@@ -96,7 +96,7 @@ class MarkingVisitorBase : public ConcurrentHeapVisitor<int, ConcreteVisitor> {
   // ObjectVisitor overrides.
   void VisitMapPointer(HeapObject host) final {
     Map map = host.map(ObjectVisitorWithCageBases::cage_base());
-    ProcessStrongHeapObject(host, host.map_slot(), map);
+    ProcessStrongHeapObject(host, host->map_slot(), map);
   }
   V8_INLINE void VisitPointer(HeapObject host, ObjectSlot p) final {
     VisitPointersImpl(host, p, p + 1);

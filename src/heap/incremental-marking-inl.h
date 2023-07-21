@@ -27,9 +27,9 @@ void IncrementalMarking::TransferColor(HeapObject from, HeapObject to) {
     USE(success);
     if (!to.IsDescriptorArray() ||
         (DescriptorArrayMarkingState::Marked::decode(
-             DescriptorArray::cast(to).raw_gc_state(kRelaxedLoad)) != 0)) {
+             DescriptorArray::cast(to)->raw_gc_state(kRelaxedLoad)) != 0)) {
       MemoryChunk::FromHeapObject(to)->IncrementLiveBytesAtomically(
-          ALIGN_TO_ALLOCATION_ALIGNMENT(to.Size()));
+          ALIGN_TO_ALLOCATION_ALIGNMENT(to->Size()));
     }
   }
 }

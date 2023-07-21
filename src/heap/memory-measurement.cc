@@ -337,7 +337,7 @@ std::unique_ptr<v8::MeasureMemoryDelegate> MemoryMeasurement::DefaultDelegate(
 bool NativeContextInferrer::InferForContext(Isolate* isolate, Context context,
                                             Address* native_context) {
   PtrComprCageBase cage_base(isolate);
-  Map context_map = context.map(cage_base, kAcquireLoad);
+  Map context_map = context->map(cage_base, kAcquireLoad);
   Object maybe_native_context =
       TaggedField<Object, Map::kConstructorOrBackPointerOrNativeContextOffset>::
           Acquire_Load(cage_base, context_map);
@@ -369,9 +369,9 @@ bool NativeContextInferrer::InferForJSFunction(Isolate* isolate,
 bool NativeContextInferrer::InferForJSObject(Isolate* isolate, Map map,
                                              JSObject object,
                                              Address* native_context) {
-  if (map.instance_type() == JS_GLOBAL_OBJECT_TYPE) {
+  if (map->instance_type() == JS_GLOBAL_OBJECT_TYPE) {
     Object maybe_context =
-        JSGlobalObject::cast(object).native_context_unchecked(isolate);
+        JSGlobalObject::cast(object)->native_context_unchecked(isolate);
     if (maybe_context.IsNativeContext()) {
       *native_context = maybe_context.ptr();
       return true;
@@ -379,7 +379,7 @@ bool NativeContextInferrer::InferForJSObject(Isolate* isolate, Map map,
   }
   // The maximum number of steps to perform when looking for the context.
   const int kMaxSteps = 3;
-  Object maybe_constructor = map.TryGetConstructor(isolate, kMaxSteps);
+  Object maybe_constructor = map->TryGetConstructor(isolate, kMaxSteps);
   if (maybe_constructor.IsJSFunction()) {
     return InferForJSFunction(isolate, JSFunction::cast(maybe_constructor),
                               native_context);
@@ -397,13 +397,13 @@ void NativeContextStats::Merge(const NativeContextStats& other) {
 
 void NativeContextStats::IncrementExternalSize(Address context, Map map,
                                                HeapObject object) {
-  InstanceType instance_type = map.instance_type();
+  InstanceType instance_type = map->instance_type();
   size_t external_size = 0;
   if (instance_type == JS_ARRAY_BUFFER_TYPE) {
-    external_size = JSArrayBuffer::cast(object).GetByteLength();
+    external_size = JSArrayBuffer::cast(object)->GetByteLength();
   } else {
     DCHECK(InstanceTypeChecker::IsExternalString(instance_type));
-    external_size = ExternalString::cast(object).ExternalPayloadSize();
+    external_size = ExternalString::cast(object)->ExternalPayloadSize();
   }
   size_by_context_[context] += external_size;
 }

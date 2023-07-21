@@ -127,9 +127,9 @@ class YoungGenerationConcurrentMarkingVisitor final
       return;
     }
 
-    Map map = heap_object.map(ObjectVisitorWithCageBases::cage_base());
-    if (Map::ObjectFieldsFrom(map.visitor_id()) == ObjectFields::kDataOnly) {
-      const int visited_size = heap_object.SizeFromMap(map);
+    Map map = heap_object->map(ObjectVisitorWithCageBases::cage_base());
+    if (Map::ObjectFieldsFrom(map->visitor_id()) == ObjectFields::kDataOnly) {
+      const int visited_size = heap_object->SizeFromMap(map);
       IncrementLiveBytesCached(
           MemoryChunk::cast(BasicMemoryChunk::FromHeapObject(heap_object)),
           ALIGN_TO_ALLOCATION_ALIGNMENT(visited_size));
@@ -415,7 +415,7 @@ void ConcurrentMarking::RunMajor(JobDelegate* delegate,
             addr == new_large_object) {
           local_marking_worklists.PushOnHold(object);
         } else {
-          Map map = object.map(isolate, kAcquireLoad);
+          Map map = object->map(isolate, kAcquireLoad);
           if (is_per_context_mode) {
             Address context;
             if (native_context_inferrer.Infer(isolate, map, object, &context)) {
@@ -528,7 +528,7 @@ void ConcurrentMarking::RunMinor(JobDelegate* delegate) {
         DCHECK(!delegate->IsJoiningThread());
         local_marking_worklists.PushOnHold(object);
       } else {
-        Map map = object.map(isolate);
+        Map map = object->map(isolate);
         const auto visited_size = visitor.Visit(map, object);
         current_marked_bytes += visited_size;
         if (visited_size) {

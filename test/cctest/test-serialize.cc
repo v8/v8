@@ -806,7 +806,7 @@ UNINITIALIZED_TEST(CustomSnapshotDataBlobStringNotInternalized) {
     v8::Local<v8::Value> result = CompileRun("f()").As<v8::Value>();
     CHECK(result->IsString());
     i::String str = *v8::Utils::OpenHandle(*result.As<v8::String>());
-    CHECK_EQ(std::string(str.ToCString().get()), "AB");
+    CHECK_EQ(std::string(str->ToCString().get()), "AB");
     CHECK(!str.IsInternalizedString());
     CHECK(!i::ReadOnlyHeap::Contains(str));
   }
@@ -1466,7 +1466,7 @@ bool IsCompiled(const char* name) {
   return i::Handle<i::JSFunction>::cast(
              v8::Utils::OpenHandle(*CompileRun(name)))
       ->shared()
-      .is_compiled();
+      ->is_compiled();
 }
 
 UNINITIALIZED_TEST(SnapshotDataBlobWithWarmup) {
@@ -1635,7 +1635,7 @@ int CountBuiltins() {
   int counter = 0;
   for (HeapObject obj = iterator.Next(); !obj.is_null();
        obj = iterator.Next()) {
-    if (obj.IsCode() && Code::cast(obj).kind() == CodeKind::BUILTIN) counter++;
+    if (obj.IsCode() && Code::cast(obj)->kind() == CodeKind::BUILTIN) counter++;
   }
   return counter;
 }
@@ -1697,7 +1697,7 @@ TEST(CodeSerializerWithProfiler) {
       isolate, orig_source, default_script_details, &cache,
       v8::ScriptCompiler::kNoCompileOptions);
 
-  CHECK(!orig->GetBytecodeArray(isolate).HasSourcePositionTable());
+  CHECK(!orig->GetBytecodeArray(isolate)->HasSourcePositionTable());
 
   isolate->SetIsProfiling(true);
 
@@ -1709,7 +1709,7 @@ TEST(CodeSerializerWithProfiler) {
 
   // Since the profiler is now enabled, source positions should be collected
   // after deserialization.
-  CHECK(copy->GetBytecodeArray(isolate).HasSourcePositionTable());
+  CHECK(copy->GetBytecodeArray(isolate)->HasSourcePositionTable());
 
   delete cache;
 }
@@ -1750,12 +1750,12 @@ void TestCodeSerializerOnePlusOneImpl(bool verify_builtins_count = true) {
   }
 
   CHECK_NE(*orig, *copy);
-  CHECK(Script::cast(copy->script()).source() == *copy_source);
+  CHECK(Script::cast(copy->script())->source() == *copy_source);
 
   Handle<JSFunction> copy_fun =
       Factory::JSFunctionBuilder{isolate, copy, isolate->native_context()}
           .Build();
-  Handle<JSObject> global(isolate->context().global_object(), isolate);
+  Handle<JSObject> global(isolate->context()->global_object(), isolate);
   Handle<Object> copy_result =
       Execution::CallScript(isolate, copy_fun, global,
                             isolate->factory()->empty_fixed_array())
@@ -1971,7 +1971,7 @@ TEST(CodeSerializerInternalizedString) {
   CHECK(!orig_source.is_identical_to(copy_source));
   CHECK(orig_source->Equals(*copy_source));
 
-  Handle<JSObject> global(isolate->context().global_object(), isolate);
+  Handle<JSObject> global(isolate->context()->global_object(), isolate);
 
   i::AlignedCachedData* cached_data = nullptr;
   Handle<SharedFunctionInfo> orig = CompileScriptAndProduceCache(
@@ -1995,7 +1995,7 @@ TEST(CodeSerializerInternalizedString) {
                          v8::ScriptCompiler::kConsumeCodeCache);
   }
   CHECK_NE(*orig, *copy);
-  CHECK(Script::cast(copy->script()).source() == *copy_source);
+  CHECK(Script::cast(copy->script())->source() == *copy_source);
 
   Handle<JSFunction> copy_fun =
       Factory::JSFunctionBuilder{isolate, copy, isolate->native_context()}
@@ -2035,7 +2035,7 @@ TEST(CodeSerializerLargeCodeObject) {
   Handle<String> source_str =
       isolate->factory()->NewStringFromUtf8(source).ToHandleChecked();
 
-  Handle<JSObject> global(isolate->context().global_object(), isolate);
+  Handle<JSObject> global(isolate->context()->global_object(), isolate);
   AlignedCachedData* cache = nullptr;
 
   Handle<SharedFunctionInfo> orig =
@@ -2105,7 +2105,7 @@ TEST(CodeSerializerLargeCodeObjectWithIncrementalMarking) {
     ec_page = Page::FromHeapObject(*moving_object);
   }
 
-  Handle<JSObject> global(isolate->context().global_object(), isolate);
+  Handle<JSObject> global(isolate->context()->global_object(), isolate);
   AlignedCachedData* cache = nullptr;
 
   Handle<SharedFunctionInfo> orig =
@@ -2172,7 +2172,7 @@ TEST(CodeSerializerLargeStrings) {
                        f->NewStringFromUtf8(source_t).ToHandleChecked())
           .ToHandleChecked();
 
-  Handle<JSObject> global(isolate->context().global_object(), isolate);
+  Handle<JSObject> global(isolate->context()->global_object(), isolate);
   AlignedCachedData* cache = nullptr;
 
   Handle<SharedFunctionInfo> orig =
@@ -2248,7 +2248,7 @@ TEST(CodeSerializerThreeBigStrings) {
            source_c_str)
           .ToHandleChecked();
 
-  Handle<JSObject> global(isolate->context().global_object(), isolate);
+  Handle<JSObject> global(isolate->context()->global_object(), isolate);
   AlignedCachedData* cache = nullptr;
 
   Handle<SharedFunctionInfo> orig =
@@ -2372,7 +2372,7 @@ TEST(CodeSerializerExternalString) {
           ->NewStringFromUtf8(base::CStrVector(source))
           .ToHandleChecked();
 
-  Handle<JSObject> global(isolate->context().global_object(), isolate);
+  Handle<JSObject> global(isolate->context()->global_object(), isolate);
   AlignedCachedData* cache = nullptr;
 
   Handle<SharedFunctionInfo> orig = CompileScriptAndProduceCache(
@@ -2438,7 +2438,7 @@ TEST(CodeSerializerLargeExternalString) {
                .ToHandleChecked())
           .ToHandleChecked();
 
-  Handle<JSObject> global(isolate->context().global_object(), isolate);
+  Handle<JSObject> global(isolate->context()->global_object(), isolate);
   AlignedCachedData* cache = nullptr;
 
   Handle<SharedFunctionInfo> orig =
@@ -2494,7 +2494,7 @@ TEST(CodeSerializerExternalScriptName) {
   CHECK(name->IsExternalOneByteString());
   CHECK(!name->IsInternalizedString());
 
-  Handle<JSObject> global(isolate->context().global_object(), isolate);
+  Handle<JSObject> global(isolate->context()->global_object(), isolate);
   AlignedCachedData* cache = nullptr;
 
   Handle<SharedFunctionInfo> orig = CompileScriptAndProduceCache(
@@ -2901,9 +2901,9 @@ static void CodeSerializerMergeDeserializedScript(bool retain_toplevel_sfi) {
 
   Handle<HeapObject> retained_toplevel_sfi;
   if (retain_toplevel_sfi) {
-    retained_toplevel_sfi =
-        handle(script->shared_function_infos().Get(0).GetHeapObjectAssumeWeak(),
-               isolate);
+    retained_toplevel_sfi = handle(
+        script->shared_function_infos()->Get(0).GetHeapObjectAssumeWeak(),
+        isolate);
   }
 
   // GC twice in case incremental marking had already marked the bytecode array.
@@ -4895,10 +4895,10 @@ UNINITIALIZED_TEST(ClassFieldsWithBindings) {
 }
 
 void CheckSFIsAreWeak(WeakFixedArray sfis, Isolate* isolate) {
-  CHECK_GT(sfis.length(), 0);
+  CHECK_GT(sfis->length(), 0);
   int no_of_weak = 0;
-  for (int i = 0; i < sfis.length(); ++i) {
-    MaybeObject maybe_object = sfis.Get(i);
+  for (int i = 0; i < sfis->length(); ++i) {
+    MaybeObject maybe_object = sfis->Get(i);
     HeapObject heap_object;
     CHECK(maybe_object->IsWeakOrCleared() ||
           (maybe_object->GetHeapObjectIfStrong(&heap_object) &&
@@ -4955,7 +4955,7 @@ UNINITIALIZED_TEST(WeakArraySerializationInSnapshot) {
 
     // Verify that the pointers in shared_function_infos are weak.
     WeakFixedArray sfis =
-        Script::cast(function->shared().script()).shared_function_infos();
+        Script::cast(function->shared()->script())->shared_function_infos();
     CheckSFIsAreWeak(sfis, reinterpret_cast<i::Isolate*>(isolate));
   }
   isolate->Dispose();
@@ -4987,7 +4987,7 @@ TEST(WeakArraySerializationInCodeCache) {
                     v8::ScriptCompiler::kConsumeCodeCache);
 
   // Verify that the pointers in shared_function_infos are weak.
-  WeakFixedArray sfis = Script::cast(copy->script()).shared_function_infos();
+  WeakFixedArray sfis = Script::cast(copy->script())->shared_function_infos();
   CheckSFIsAreWeak(sfis, isolate);
 
   delete cache;
@@ -5058,7 +5058,7 @@ TEST(CachedCompileFunctionRespectsEager) {
     auto i_fun = i::Handle<i::JSFunction>::cast(Utils::OpenHandle(*fun));
 
     // Function should be compiled iff kEagerCompile was used.
-    CHECK_EQ(i_fun->shared().is_compiled(), eager_compile);
+    CHECK_EQ(i_fun->shared()->is_compiled(), eager_compile);
   }
 }
 

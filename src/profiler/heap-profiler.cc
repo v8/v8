@@ -271,9 +271,9 @@ void HeapProfiler::QueryObjects(Handle<Context> context,
     for (HeapObject heap_obj = heap_iterator.Next(); !heap_obj.is_null();
          heap_obj = heap_iterator.Next()) {
       if (heap_obj.IsFeedbackVector()) {
-        FeedbackVector::cast(heap_obj).ClearSlots(isolate());
+        FeedbackVector::cast(heap_obj)->ClearSlots(isolate());
       } else if (heap_obj.IsJSTypedArray() &&
-                 JSTypedArray::cast(heap_obj).is_on_heap()) {
+                 JSTypedArray::cast(heap_obj)->is_on_heap()) {
         // Cannot call typed_array->GetBuffer() here directly because it may
         // trigger GC. Defer that call by collecting the object in a vector.
         on_heap_typed_arrays.push_back(

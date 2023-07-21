@@ -221,7 +221,7 @@ bool OptimizedCompilationInfo::has_global_object() const {
 
 JSGlobalObject OptimizedCompilationInfo::global_object() const {
   DCHECK(has_global_object());
-  return native_context().global_object();
+  return native_context()->global_object();
 }
 
 int OptimizedCompilationInfo::AddInlinedFunction(

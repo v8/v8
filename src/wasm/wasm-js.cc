@@ -1739,9 +1739,9 @@ namespace {
 
 uint32_t GetEncodedSize(i::Handle<i::WasmTagObject> tag_object) {
   auto serialized_sig = tag_object->serialized_signature();
-  i::wasm::WasmTagSig sig{0, static_cast<size_t>(serialized_sig.length()),
+  i::wasm::WasmTagSig sig{0, static_cast<size_t>(serialized_sig->length()),
                           reinterpret_cast<i::wasm::ValueType*>(
-                              serialized_sig.GetDataStartAddress())};
+                              serialized_sig->GetDataStartAddress())};
   return i::WasmExceptionPackage::GetEncodedSize(&sig);
 }
 
@@ -2123,26 +2123,27 @@ void WebAssemblyFunction(const v8::FunctionCallbackInfo<v8::Value>& info) {
   if (is_wasm_exported_function && promise) {
     auto wasm_exported_function = i::WasmExportedFunction::cast(*callable);
     i::Handle<i::WasmExportedFunctionData> data(
-        wasm_exported_function.shared().wasm_exported_function_data(),
+        wasm_exported_function->shared()->wasm_exported_function_data(),
         i_isolate);
     if (!IsPromisingSignature(data->sig(), sig)) {
       thrower.TypeError("Incompatible signature for promising function");
       return;
     }
     i::Handle<i::WasmInstanceObject> instance(
-        i::WasmInstanceObject::cast(data->internal().ref()), i_isolate);
+        i::WasmInstanceObject::cast(data->internal()->ref()), i_isolate);
     int func_index = data->function_index();
     i::Handle<i::Code> wrapper =
         BUILTIN_CODE(i_isolate, WasmReturnPromiseOnSuspend);
 
     i::Handle<i::Map> rtt;
     bool has_gc =
-        instance->module_object().native_module()->enabled_features().has_gc();
+        instance->module_object()->native_module()->enabled_features().has_gc();
     if (has_gc) {
       int sig_index = instance->module()->functions[func_index].sig_index;
       // TODO(14034): Create funcref RTTs lazily?
-      rtt = handle(i::Map::cast(instance->managed_object_maps().get(sig_index)),
-                   i_isolate);
+      rtt =
+          handle(i::Map::cast(instance->managed_object_maps()->get(sig_index)),
+                 i_isolate);
     } else {
       rtt = i_isolate->factory()->wasm_internal_function_map();
     }
@@ -2151,9 +2152,10 @@ void WebAssemblyFunction(const v8::FunctionCallbackInfo<v8::Value>& info) {
     i::Handle<i::HeapObject> ref =
         func_index >= num_imported_functions
             ? instance
-            : i::handle(i::HeapObject::cast(
-                            instance->imported_function_refs().get(func_index)),
-                        i_isolate);
+            : i::handle(
+                  i::HeapObject::cast(
+                      instance->imported_function_refs()->get(func_index)),
+                  i_isolate);
 
     i::Handle<i::WasmInternalFunction> internal =
         i_isolate->factory()->NewWasmInternalFunction(
@@ -2176,7 +2178,7 @@ void WebAssemblyFunction(const v8::FunctionCallbackInfo<v8::Value>& info) {
   if (is_wasm_js_function && suspend) {
     auto wasm_js_function = i::WasmJSFunction::cast(*callable);
     const i::wasm::FunctionSig* inner_sig =
-        wasm_js_function.GetSignature(&zone);
+        wasm_js_function->GetSignature(&zone);
     if (!IsSuspendingSignature(inner_sig, sig)) {
       thrower.TypeError("Incompatible signature for suspending function");
       return;
@@ -2530,10 +2532,10 @@ void WebAssemblyTagType(const v8::FunctionCallbackInfo<v8::Value>& info) {
   EXTRACT_THIS(tag, WasmTagObject);
   if (thrower.error()) return;
 
-  int n = tag->serialized_signature().length();
+  int n = tag->serialized_signature()->length();
   std::vector<i::wasm::ValueType> data(n);
   if (n > 0) {
-    tag->serialized_signature().copy_out(0, data.data(), n);
+    tag->serialized_signature()->copy_out(0, data.data(), n);
   }
   const i::wasm::FunctionSig sig{0, data.size(), data.data()};
   constexpr bool kForException = true;
@@ -2575,7 +2577,7 @@ void WebAssemblyExceptionGetArg(
   DCHECK(!maybe_values->IsUndefined());
   auto values = i::Handle<i::FixedArray>::cast(maybe_values);
   auto signature = tag->serialized_signature();
-  if (index >= static_cast<uint32_t>(signature.length())) {
+  if (index >= static_cast<uint32_t>(signature->length())) {
     thrower.RangeError("Index out of range");
     return;
   }
@@ -2583,7 +2585,7 @@ void WebAssemblyExceptionGetArg(
   uint32_t decode_index = 0;
   // Since the bounds check above passed, the cast to int is safe.
   for (int i = 0; i < static_cast<int>(index); ++i) {
-    switch (signature.get(i).kind()) {
+    switch (signature->get(i).kind()) {
       case i::wasm::kI32:
       case i::wasm::kF32:
         decode_index += 2;
@@ -2607,7 +2609,7 @@ void WebAssemblyExceptionGetArg(
   }
   // Decode the value at {decode_index}.
   Local<Value> result;
-  switch (signature.get(index).kind()) {
+  switch (signature->get(index).kind()) {
     case i::wasm::kI32: {
       uint32_t u32_bits = 0;
       i::DecodeI32ExceptionValue(values, &decode_index, &u32_bits);
@@ -2641,7 +2643,7 @@ void WebAssemblyExceptionGetArg(
       i::Handle<i::Object> obj = handle(values->get(decode_index), i_isolate);
       ReturnValue<Value> return_value = info.GetReturnValue();
       return WasmObjectToJSReturnValue(return_value, obj,
-                                       signature.get(index).heap_type(),
+                                       signature->get(index).heap_type(),
                                        i_isolate, &thrower);
     }
     case i::wasm::kRtt:
@@ -2786,7 +2788,7 @@ void WebAssemblyGlobalSetValue(
     case i::wasm::kRefNull: {
       const i::wasm::WasmModule* module =
           receiver->instance().IsWasmInstanceObject()
-              ? i::WasmInstanceObject::cast(receiver->instance()).module()
+              ? i::WasmInstanceObject::cast(receiver->instance())->module()
               : nullptr;
       i::Handle<i::Object> value = Utils::OpenHandle(*info[0]);
       const char* error_message;
@@ -2855,7 +2857,7 @@ Handle<JSFunction> CreateFunc(
       NewFunctionTemplate(isolate, func, has_prototype, side_effect_type);
   Handle<JSFunction> function =
       ApiNatives::InstantiateFunction(temp, name).ToHandleChecked();
-  DCHECK(function->shared().HasSharedName());
+  DCHECK(function->shared()->HasSharedName());
   return function;
 }
 
@@ -2867,7 +2869,7 @@ Handle<JSFunction> InstallFunc(
   Handle<String> name = v8_str(isolate, str);
   Handle<JSFunction> function =
       CreateFunc(isolate, name, func, has_prototype, side_effect_type);
-  function->shared().set_length(length);
+  function->shared()->set_length(length);
   JSObject::AddProperty(isolate, object, name, function, attributes);
   return function;
 }
@@ -2911,7 +2913,7 @@ void InstallGetterSetter(Isolate* isolate, Handle<JSObject> object,
                  SideEffectType::kHasNoSideEffect);
   Handle<JSFunction> setter_func =
       CreateFunc(isolate, SetterName(isolate, name), setter, false);
-  setter_func->shared().set_length(1);
+  setter_func->shared()->set_length(1);
 
   Utils::ToLocal(object)->SetAccessorProperty(
       Utils::ToLocal(name), Utils::ToLocal(getter_func),
@@ -2925,7 +2927,7 @@ void InstallGetterSetter(Isolate* isolate, Handle<JSObject> object,
 void SetDummyInstanceTemplate(Isolate* isolate, Handle<JSFunction> fun) {
   Handle<ObjectTemplateInfo> instance_template = NewObjectTemplate(isolate);
   FunctionTemplateInfo::SetInstanceTemplate(
-      isolate, handle(fun->shared().get_api_func_data(), isolate),
+      isolate, handle(fun->shared()->get_api_func_data(), isolate),
       instance_template);
 }
 
@@ -3174,7 +3176,7 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
                   "WebAssembly.Function");
     CHECK(JSObject::SetPrototype(
               isolate, function_proto,
-              handle(context->function_function().prototype(), isolate), false,
+              handle(context->function_function()->prototype(), isolate), false,
               kDontThrow)
               .FromJust());
     JSFunction::SetInitialMap(isolate, function_constructor, function_map,
@@ -3218,14 +3220,14 @@ void WasmJs::InstallConditionalFeatures(Isolate* isolate,
   Handle<JSGlobalObject> global = handle(context->global_object(), isolate);
   // If some fuzzer decided to make the global object non-extensible, then
   // we can't install any features (and would CHECK-fail if we tried).
-  if (!global->map().is_extensible()) return;
+  if (!global->map()->is_extensible()) return;
 
   MaybeHandle<Object> maybe_wasm =
       JSReceiver::GetProperty(isolate, global, "WebAssembly");
   Handle<Object> wasm_obj;
   if (!maybe_wasm.ToHandle(&wasm_obj) || !wasm_obj->IsJSObject()) return;
   Handle<JSObject> webassembly = Handle<JSObject>::cast(wasm_obj);
-  if (!webassembly->map().is_extensible()) return;
+  if (!webassembly->map()->is_extensible()) return;
 
   if (isolate->IsWasmImportedStringsEnabled(context)) {
     Handle<String> string_string = isolate->factory()->String_string();

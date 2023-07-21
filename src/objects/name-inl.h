@@ -59,7 +59,7 @@ void Symbol::set_is_private_name() {
 }
 
 DEF_GETTER(Name, IsUniqueName, bool) {
-  uint32_t type = map(cage_base).instance_type();
+  uint32_t type = map(cage_base)->instance_type();
   bool result = (type & (kIsNotStringMask | kIsNotInternalizedMask)) !=
                 (kStringTag | kNotInternalizedTag);
   SLOW_DCHECK(result == HeapObject::IsUniqueName());
@@ -73,7 +73,7 @@ bool Name::Equals(Name other) {
       this->IsSymbol() || other.IsSymbol()) {
     return false;
   }
-  return String::cast(*this).SlowEquals(String::cast(other));
+  return String::cast(*this)->SlowEquals(String::cast(other));
 }
 
 bool Name::Equals(Isolate* isolate, Handle<Name> one, Handle<Name> two) {
@@ -175,7 +175,7 @@ uint32_t Name::EnsureRawHash() {
     return GetRawHashFromForwardingTable(field);
   }
   // Slow case: compute hash code and set it. Has to be a string.
-  return String::cast(*this).ComputeAndSetRawHash();
+  return String::cast(*this)->ComputeAndSetRawHash();
 }
 
 uint32_t Name::EnsureRawHash(
@@ -188,7 +188,7 @@ uint32_t Name::EnsureRawHash(
     return GetRawHashFromForwardingTable(field);
   }
   // Slow case: compute hash code and set it. Has to be a string.
-  return String::cast(*this).ComputeAndSetRawHash(access_guard);
+  return String::cast(*this)->ComputeAndSetRawHash(access_guard);
 }
 
 uint32_t Name::RawHash() {
@@ -216,7 +216,7 @@ void Name::set_raw_hash_field_if_empty(uint32_t hash) {
   // In all cases we don't want overwrite the old value, so we don't handle the
   // failure case.
   DCHECK_IMPLIES(result != kEmptyHashField,
-                 (String::cast(*this).IsShared() ||
+                 (String::cast(*this)->IsShared() ||
                   v8_flags.always_use_string_forwarding_table) &&
                      (result == hash || IsForwardingIndex(hash)));
 }
@@ -246,35 +246,35 @@ bool Name::TryGetHash(uint32_t* hash) const {
 bool Name::IsInteresting(Isolate* isolate) {
   // TODO(ishell): consider using ReadOnlyRoots::IsNameForProtector() trick for
   // these strings and interesting symbols.
-  return (IsSymbol() && Symbol::cast(*this).is_interesting_symbol()) ||
+  return (IsSymbol() && Symbol::cast(*this)->is_interesting_symbol()) ||
          *this == *isolate->factory()->toJSON_string() ||
          *this == *isolate->factory()->get_string();
 }
 
 DEF_GETTER(Name, IsPrivate, bool) {
-  return this->IsSymbol(cage_base) && Symbol::cast(*this).is_private();
+  return this->IsSymbol(cage_base) && Symbol::cast(*this)->is_private();
 }
 
 DEF_GETTER(Name, IsPrivateName, bool) {
   bool is_private_name =
-      this->IsSymbol(cage_base) && Symbol::cast(*this).is_private_name();
+      this->IsSymbol(cage_base) && Symbol::cast(*this)->is_private_name();
   DCHECK_IMPLIES(is_private_name, IsPrivate());
   return is_private_name;
 }
 
 DEF_GETTER(Name, IsPrivateBrand, bool) {
   bool is_private_brand =
-      this->IsSymbol(cage_base) && Symbol::cast(*this).is_private_brand();
+      this->IsSymbol(cage_base) && Symbol::cast(*this)->is_private_brand();
   DCHECK_IMPLIES(is_private_brand, IsPrivateName());
   return is_private_brand;
 }
 
 bool Name::AsArrayIndex(uint32_t* index) {
-  return IsString() && String::cast(*this).AsArrayIndex(index);
+  return IsString() && String::cast(*this)->AsArrayIndex(index);
 }
 
 bool Name::AsIntegerIndex(size_t* index) {
-  return IsString() && String::cast(*this).AsIntegerIndex(index);
+  return IsString() && String::cast(*this)->AsIntegerIndex(index);
 }
 
 // static

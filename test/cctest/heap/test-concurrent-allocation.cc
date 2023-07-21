@@ -36,12 +36,12 @@ namespace internal {
 namespace {
 void CreateFixedArray(Heap* heap, Address start, int size) {
   HeapObject object = HeapObject::FromAddress(start);
-  object.set_map_after_allocation(ReadOnlyRoots(heap).fixed_array_map(),
-                                  SKIP_WRITE_BARRIER);
+  object->set_map_after_allocation(ReadOnlyRoots(heap).fixed_array_map(),
+                                   SKIP_WRITE_BARRIER);
   FixedArray array = FixedArray::cast(object);
   int length = (size - FixedArray::kHeaderSize) / kTaggedSize;
-  array.set_length(length);
-  MemsetTagged(array.data_start(), ReadOnlyRoots(heap).undefined_value(),
+  array->set_length(length);
+  MemsetTagged(array->data_start(), ReadOnlyRoots(heap).undefined_value(),
                length);
 }
 
@@ -422,7 +422,7 @@ class ConcurrentWriteBarrierThread final : public v8::base::Thread {
   void Run() override {
     LocalHeap local_heap(heap_, ThreadKind::kBackground);
     UnparkedScope unparked_scope(&local_heap);
-    fixed_array_.set(0, value_);
+    fixed_array_->set(0, value_);
   }
 
   Heap* heap_;
@@ -488,7 +488,7 @@ class ConcurrentRecordRelocSlotThread final : public v8::base::Thread {
     // Modification of InstructionStream object requires write access.
     RwxMemoryWriteScopeForTesting rwx_write_scope;
     DisallowGarbageCollection no_gc;
-    InstructionStream istream = code_.instruction_stream();
+    InstructionStream istream = code_->instruction_stream();
     int mode_mask = RelocInfo::EmbeddedObjectModeMask();
     CodePageMemoryModificationScope memory_modification_scope(istream);
     for (RelocIterator it(code_, mode_mask); !it.done(); it.next()) {

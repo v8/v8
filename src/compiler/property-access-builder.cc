@@ -169,7 +169,7 @@ base::Optional<Node*> PropertyAccessBuilder::FoldLoadDictPrototypeConstant(
               .value();
       // {constructor.initial_map()} is loaded/stored with acquire-release
       // semantics for constructors.
-      map = MakeRefAssumeMemoryFence(broker(), constructor.initial_map());
+      map = MakeRefAssumeMemoryFence(broker(), constructor->initial_map());
       DCHECK(map.object()->IsJSObjectMap());
     }
     dependencies()->DependOnConstantInDictionaryPrototypeChain(

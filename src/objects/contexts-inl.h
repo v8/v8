@@ -129,60 +129,60 @@ Object Context::next_context_link() const {
 }
 
 bool Context::has_extension() const {
-  return scope_info().HasContextExtensionSlot() && !extension().IsUndefined();
+  return scope_info()->HasContextExtensionSlot() && !extension().IsUndefined();
 }
 
 HeapObject Context::extension() const {
-  DCHECK(scope_info().HasContextExtensionSlot());
+  DCHECK(scope_info()->HasContextExtensionSlot());
   return HeapObject::cast(get(EXTENSION_INDEX));
 }
 
 NativeContext Context::native_context() const {
-  return this->map().native_context();
+  return this->map()->native_context();
 }
 
 bool Context::IsFunctionContext() const {
-  return map().instance_type() == FUNCTION_CONTEXT_TYPE;
+  return map()->instance_type() == FUNCTION_CONTEXT_TYPE;
 }
 
 bool Context::IsCatchContext() const {
-  return map().instance_type() == CATCH_CONTEXT_TYPE;
+  return map()->instance_type() == CATCH_CONTEXT_TYPE;
 }
 
 bool Context::IsWithContext() const {
-  return map().instance_type() == WITH_CONTEXT_TYPE;
+  return map()->instance_type() == WITH_CONTEXT_TYPE;
 }
 
 bool Context::IsDebugEvaluateContext() const {
-  return map().instance_type() == DEBUG_EVALUATE_CONTEXT_TYPE;
+  return map()->instance_type() == DEBUG_EVALUATE_CONTEXT_TYPE;
 }
 
 bool Context::IsAwaitContext() const {
-  return map().instance_type() == AWAIT_CONTEXT_TYPE;
+  return map()->instance_type() == AWAIT_CONTEXT_TYPE;
 }
 
 bool Context::IsBlockContext() const {
-  return map().instance_type() == BLOCK_CONTEXT_TYPE;
+  return map()->instance_type() == BLOCK_CONTEXT_TYPE;
 }
 
 bool Context::IsModuleContext() const {
-  return map().instance_type() == MODULE_CONTEXT_TYPE;
+  return map()->instance_type() == MODULE_CONTEXT_TYPE;
 }
 
 bool Context::IsEvalContext() const {
-  return map().instance_type() == EVAL_CONTEXT_TYPE;
+  return map()->instance_type() == EVAL_CONTEXT_TYPE;
 }
 
 bool Context::IsScriptContext() const {
-  return map().instance_type() == SCRIPT_CONTEXT_TYPE;
+  return map()->instance_type() == SCRIPT_CONTEXT_TYPE;
 }
 
 bool Context::HasSameSecurityTokenAs(Context that) const {
-  return this->native_context().security_token() ==
-         that.native_context().security_token();
+  return this->native_context()->security_token() ==
+         that->native_context()->security_token();
 }
 
-bool Context::IsDetached() const { return global_object().IsDetached(); }
+bool Context::IsDetached() const { return global_object()->IsDetached(); }
 
 #define NATIVE_CONTEXT_FIELD_ACCESSORS(index, type, name)   \
   void Context::set_##name(type value) {                    \
@@ -287,8 +287,8 @@ Map NativeContext::TypedArrayElementsKindToCtorMap(
     ElementsKind element_kind) const {
   int ctor_index = Context::FIRST_FIXED_TYPED_ARRAY_FUN_INDEX + element_kind -
                    ElementsKind::FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND;
-  Map map = Map::cast(JSFunction::cast(get(ctor_index)).initial_map());
-  DCHECK_EQ(map.elements_kind(), element_kind);
+  Map map = Map::cast(JSFunction::cast(get(ctor_index))->initial_map());
+  DCHECK_EQ(map->elements_kind(), element_kind);
   DCHECK(InstanceTypeChecker::IsJSTypedArray(map));
   return map;
 }
@@ -299,7 +299,7 @@ Map NativeContext::TypedArrayElementsKindToRabGsabCtorMap(
                    element_kind -
                    ElementsKind::FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND;
   Map map = Map::cast(get(ctor_index));
-  DCHECK_EQ(map.elements_kind(),
+  DCHECK_EQ(map->elements_kind(),
             GetCorrespondingRabGsabElementsKind(element_kind));
   DCHECK(InstanceTypeChecker::IsJSTypedArray(map));
   return map;

@@ -422,8 +422,8 @@ Scope* Scope::DeserializeScopeChain(IsolateT* isolate, Zone* zone,
   Scope* outer_scope = nullptr;
   bool cache_scope_found = false;
   while (!scope_info.is_null()) {
-    if (scope_info.scope_type() == WITH_SCOPE) {
-      if (scope_info.IsDebugEvaluateScope()) {
+    if (scope_info->scope_type() == WITH_SCOPE) {
+      if (scope_info->IsDebugEvaluateScope()) {
         outer_scope =
             zone->New<DeclarationScope>(zone, FUNCTION_SCOPE, ast_value_factory,
                                         handle(scope_info, isolate));
@@ -434,50 +434,50 @@ Scope* Scope::DeserializeScopeChain(IsolateT* isolate, Zone* zone,
                                        handle(scope_info, isolate));
       }
 
-    } else if (scope_info.scope_type() == SCRIPT_SCOPE) {
+    } else if (scope_info->scope_type() == SCRIPT_SCOPE) {
       // If we reach a script scope, it's the outermost scope. Install the
       // scope info of this script context onto the existing script scope to
       // avoid nesting script scopes.
       if (deserialization_mode == DeserializationMode::kIncludingVariables) {
         script_scope->SetScriptScopeInfo(handle(scope_info, isolate));
       }
-      if (scope_info.IsReplModeScope()) script_scope->set_is_repl_mode_scope();
-      DCHECK(!scope_info.HasOuterScopeInfo());
+      if (scope_info->IsReplModeScope()) script_scope->set_is_repl_mode_scope();
+      DCHECK(!scope_info->HasOuterScopeInfo());
       break;
-    } else if (scope_info.scope_type() == FUNCTION_SCOPE) {
+    } else if (scope_info->scope_type() == FUNCTION_SCOPE) {
       outer_scope = zone->New<DeclarationScope>(
           zone, FUNCTION_SCOPE, ast_value_factory, handle(scope_info, isolate));
 #if V8_ENABLE_WEBASSEMBLY
-      if (scope_info.IsAsmModule()) {
+      if (scope_info->IsAsmModule()) {
         outer_scope->AsDeclarationScope()->set_is_asm_module();
       }
 #endif  // V8_ENABLE_WEBASSEMBLY
-    } else if (scope_info.scope_type() == EVAL_SCOPE) {
+    } else if (scope_info->scope_type() == EVAL_SCOPE) {
       outer_scope = zone->New<DeclarationScope>(
           zone, EVAL_SCOPE, ast_value_factory, handle(scope_info, isolate));
-    } else if (scope_info.scope_type() == CLASS_SCOPE) {
+    } else if (scope_info->scope_type() == CLASS_SCOPE) {
       outer_scope = zone->New<ClassScope>(isolate, zone, ast_value_factory,
                                           handle(scope_info, isolate));
-    } else if (scope_info.scope_type() == BLOCK_SCOPE) {
-      if (scope_info.is_declaration_scope()) {
+    } else if (scope_info->scope_type() == BLOCK_SCOPE) {
+      if (scope_info->is_declaration_scope()) {
         outer_scope = zone->New<DeclarationScope>(
             zone, BLOCK_SCOPE, ast_value_factory, handle(scope_info, isolate));
       } else {
         outer_scope = zone->New<Scope>(zone, BLOCK_SCOPE, ast_value_factory,
                                        handle(scope_info, isolate));
       }
-    } else if (scope_info.scope_type() == MODULE_SCOPE) {
+    } else if (scope_info->scope_type() == MODULE_SCOPE) {
       outer_scope = zone->New<ModuleScope>(handle(scope_info, isolate),
                                            ast_value_factory);
     } else {
-      DCHECK_EQ(scope_info.scope_type(), CATCH_SCOPE);
-      DCHECK_EQ(scope_info.ContextLocalCount(), 1);
-      DCHECK_EQ(scope_info.ContextLocalMode(0), VariableMode::kVar);
-      DCHECK_EQ(scope_info.ContextLocalInitFlag(0), kCreatedInitialized);
-      DCHECK(scope_info.HasInlinedLocalNames());
-      String name = scope_info.ContextInlinedLocalName(0);
+      DCHECK_EQ(scope_info->scope_type(), CATCH_SCOPE);
+      DCHECK_EQ(scope_info->ContextLocalCount(), 1);
+      DCHECK_EQ(scope_info->ContextLocalMode(0), VariableMode::kVar);
+      DCHECK_EQ(scope_info->ContextLocalInitFlag(0), kCreatedInitialized);
+      DCHECK(scope_info->HasInlinedLocalNames());
+      String name = scope_info->ContextInlinedLocalName(0);
       MaybeAssignedFlag maybe_assigned =
-          scope_info.ContextLocalMaybeAssignedFlag(0);
+          scope_info->ContextLocalMaybeAssignedFlag(0);
       outer_scope =
           zone->New<Scope>(zone,
                            ast_value_factory->GetString(
@@ -501,8 +501,8 @@ Scope* Scope::DeserializeScopeChain(IsolateT* isolate, Zone* zone,
     }
     current_scope = outer_scope;
     if (innermost_scope == nullptr) innermost_scope = current_scope;
-    scope_info = scope_info.HasOuterScopeInfo() ? scope_info.OuterScopeInfo()
-                                                : ScopeInfo();
+    scope_info = scope_info->HasOuterScopeInfo() ? scope_info->OuterScopeInfo()
+                                                 : ScopeInfo();
   }
 
   if (deserialization_mode == DeserializationMode::kIncludingVariables) {
@@ -989,20 +989,20 @@ Variable* Scope::LookupInScopeInfo(const AstRawString* name, Scope* cache) {
 
   {
     location = VariableLocation::CONTEXT;
-    index = scope_info.ContextSlotIndex(name->string(), &lookup_result);
+    index = scope_info->ContextSlotIndex(name->string(), &lookup_result);
     found = index >= 0;
   }
 
   if (!found && is_module_scope()) {
     location = VariableLocation::MODULE;
-    index = scope_info.ModuleIndex(name_handle, &lookup_result.mode,
-                                   &lookup_result.init_flag,
-                                   &lookup_result.maybe_assigned_flag);
+    index = scope_info->ModuleIndex(name_handle, &lookup_result.mode,
+                                    &lookup_result.init_flag,
+                                    &lookup_result.maybe_assigned_flag);
     found = index != 0;
   }
 
   if (!found) {
-    index = scope_info.FunctionContextSlotIndex(name_handle);
+    index = scope_info->FunctionContextSlotIndex(name_handle);
     if (index < 0) return nullptr;  // Nowhere found.
     Variable* var = AsDeclarationScope()->DeclareFunctionVar(name, cache);
     DCHECK_EQ(VariableMode::kConst, var->mode());
@@ -1011,7 +1011,7 @@ Variable* Scope::LookupInScopeInfo(const AstRawString* name, Scope* cache) {
   }
 
   if (!is_module_scope()) {
-    DCHECK_NE(index, scope_info.ReceiverContextSlotIndex());
+    DCHECK_NE(index, scope_info->ReceiverContextSlotIndex());
   }
 
   bool was_added;

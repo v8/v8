@@ -91,15 +91,15 @@ ByteArray InstructionStream::unchecked_relocation_info() const {
 }
 
 uint8_t* InstructionStream::relocation_start() const {
-  return relocation_info().GetDataStartAddress();
+  return relocation_info()->GetDataStartAddress();
 }
 
 uint8_t* InstructionStream::relocation_end() const {
-  return relocation_info().GetDataEndAddress();
+  return relocation_info()->GetDataEndAddress();
 }
 
 int InstructionStream::relocation_size() const {
-  return relocation_info().length();
+  return relocation_info()->length();
 }
 
 int InstructionStream::Size() const { return SizeFor(body_size()); }

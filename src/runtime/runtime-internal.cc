@@ -775,7 +775,7 @@ RUNTIME_FUNCTION(Runtime_GetTemplateObject) {
   Handle<SharedFunctionInfo> shared_info = args.at<SharedFunctionInfo>(1);
   int slot_id = args.smi_value_at(2);
 
-  Handle<NativeContext> native_context(isolate->context().native_context(),
+  Handle<NativeContext> native_context(isolate->context()->native_context(),
                                        isolate);
   return *TemplateObjectDescription::GetTemplateObject(
       isolate, native_context, description, shared_info, slot_id);

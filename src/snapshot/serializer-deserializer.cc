@@ -60,20 +60,20 @@ bool SerializerDeserializer::CanBeDeferred(HeapObject o, SlotType slot_type) {
   // TODO(leszeks): Could we defer string serialization if forward references
   // were resolved after object post processing?
   return !o.IsInternalizedString() &&
-         !(o.IsJSObject() && JSObject::cast(o).GetEmbedderFieldCount() > 0) &&
+         !(o.IsJSObject() && JSObject::cast(o)->GetEmbedderFieldCount() > 0) &&
          !o.IsByteArray();
 }
 
 void SerializerDeserializer::RestoreExternalReferenceRedirector(
     Isolate* isolate, AccessorInfo accessor_info) {
   DisallowGarbageCollection no_gc;
-  accessor_info.init_getter_redirection(isolate);
+  accessor_info->init_getter_redirection(isolate);
 }
 
 void SerializerDeserializer::RestoreExternalReferenceRedirector(
     Isolate* isolate, CallHandlerInfo call_handler_info) {
   DisallowGarbageCollection no_gc;
-  call_handler_info.init_callback_redirection(isolate);
+  call_handler_info->init_callback_redirection(isolate);
 }
 
 }  // namespace internal

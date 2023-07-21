@@ -59,7 +59,7 @@ bool ManualOptimizationTable::IsMarkedForManualOptimization(
       table->IsUndefined()
           ? handle(ReadOnlyRoots(isolate).the_hole_value(), isolate)
           : handle(Handle<ObjectHashTable>::cast(table)->Lookup(
-                       handle(function.shared(), isolate)),
+                       handle(function->shared(), isolate)),
                    isolate);
 
   return !entry->IsTheHole();

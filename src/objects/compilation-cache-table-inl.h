@@ -78,11 +78,11 @@ class ScriptCacheKey : public HashTableKey {
     DisallowGarbageCollection no_gc;
     DCHECK(obj.IsWeakFixedArray());
     WeakFixedArray array = WeakFixedArray::cast(obj);
-    DCHECK_EQ(array.length(), kEnd);
+    DCHECK_EQ(array->length(), kEnd);
 
-    MaybeObject maybe_script = array.Get(kWeakScript);
+    MaybeObject maybe_script = array->Get(kWeakScript);
     if (HeapObject script; maybe_script.GetHeapObjectIfWeak(&script)) {
-      PrimitiveHeapObject source_or_undefined = Script::cast(script).source();
+      PrimitiveHeapObject source_or_undefined = Script::cast(script)->source();
       // Scripts stored in the script cache should always have a source string.
       return String::cast(source_or_undefined);
     }
@@ -102,22 +102,22 @@ class ScriptCacheKey : public HashTableKey {
 };
 
 uint32_t CompilationCacheShape::RegExpHash(String string, Smi flags) {
-  return string.EnsureHash() + flags.value();
+  return string->EnsureHash() + flags.value();
 }
 
 uint32_t CompilationCacheShape::EvalHash(String source,
                                          SharedFunctionInfo shared,
                                          LanguageMode language_mode,
                                          int position) {
-  uint32_t hash = source.EnsureHash();
-  if (shared.HasSourceCode()) {
+  uint32_t hash = source->EnsureHash();
+  if (shared->HasSourceCode()) {
     // Instead of using the SharedFunctionInfo pointer in the hash
     // code computation, we use a combination of the hash of the
     // script source code and the start position of the calling scope.
     // We do this to ensure that the cache entries can survive garbage
     // collection.
-    Script script(Script::cast(shared.script()));
-    hash ^= String::cast(script.source()).EnsureHash();
+    Script script(Script::cast(shared->script()));
+    hash ^= String::cast(script->source())->EnsureHash();
   }
   static_assert(LanguageModeSize == 2);
   if (is_strict(language_mode)) hash ^= 0x8000;
@@ -132,40 +132,40 @@ uint32_t CompilationCacheShape::HashForObject(ReadOnlyRoots roots,
 
   // Code: The key field contains the SFI key.
   if (object.IsSharedFunctionInfo()) {
-    return SharedFunctionInfo::cast(object).Hash();
+    return SharedFunctionInfo::cast(object)->Hash();
   }
 
   // Script.
   if (object.IsWeakFixedArray()) {
     uint32_t result = static_cast<uint32_t>(Smi::ToInt(
-        WeakFixedArray::cast(object).Get(ScriptCacheKey::kHash).ToSmi()));
+        WeakFixedArray::cast(object)->Get(ScriptCacheKey::kHash).ToSmi()));
     return result;
   }
 
   // Eval: See EvalCacheKey::ToHandle for the encoding.
   FixedArray val = FixedArray::cast(object);
-  if (val.map() == roots.fixed_cow_array_map()) {
-    DCHECK_EQ(4, val.length());
-    String source = String::cast(val.get(1));
-    int language_unchecked = Smi::ToInt(val.get(2));
+  if (val->map() == roots.fixed_cow_array_map()) {
+    DCHECK_EQ(4, val->length());
+    String source = String::cast(val->get(1));
+    int language_unchecked = Smi::ToInt(val->get(2));
     DCHECK(is_valid_language_mode(language_unchecked));
     LanguageMode language_mode = static_cast<LanguageMode>(language_unchecked);
-    int position = Smi::ToInt(val.get(3));
-    Object shared = val.get(0);
+    int position = Smi::ToInt(val->get(3));
+    Object shared = val->get(0);
     return EvalHash(source, SharedFunctionInfo::cast(shared), language_mode,
                     position);
   }
 
   // RegExp: The key field (and the value field) contains the
   // JSRegExp::data fixed array.
-  DCHECK_GE(val.length(), JSRegExp::kMinDataArrayLength);
-  return RegExpHash(String::cast(val.get(JSRegExp::kSourceIndex)),
-                    Smi::cast(val.get(JSRegExp::kFlagsIndex)));
+  DCHECK_GE(val->length(), JSRegExp::kMinDataArrayLength);
+  return RegExpHash(String::cast(val->get(JSRegExp::kSourceIndex)),
+                    Smi::cast(val->get(JSRegExp::kFlagsIndex)));
 }
 
 InfoCellPair::InfoCellPair(Isolate* isolate, SharedFunctionInfo shared,
                            FeedbackCell feedback_cell)
-    : is_compiled_scope_(!shared.is_null() ? shared.is_compiled_scope(isolate)
+    : is_compiled_scope_(!shared.is_null() ? shared->is_compiled_scope(isolate)
                                            : IsCompiledScope()),
       shared_(shared),
       feedback_cell_(feedback_cell) {}

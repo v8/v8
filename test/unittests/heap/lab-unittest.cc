@@ -44,8 +44,8 @@ void VerifyIterable(Address base, Address limit,
     object = HeapObject::FromAddress(base);
     EXPECT_TRUE(object.IsFreeSpaceOrFiller());
     EXPECT_LT(counter, expected_size.size());
-    EXPECT_EQ(expected_size[counter], static_cast<size_t>(object.Size()));
-    base += object.Size();
+    EXPECT_EQ(expected_size[counter], static_cast<size_t>(object->Size()));
+    base += object->Size();
     counter++;
   }
 }

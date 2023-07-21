@@ -148,10 +148,10 @@ int32_t CallWasmFunctionForTesting(Isolate* isolate,
     return Smi::ToInt(*result);
   }
   if (result->IsHeapNumber()) {
-    return static_cast<int32_t>(HeapNumber::cast(*result).value());
+    return static_cast<int32_t>(HeapNumber::cast(*result)->value());
   }
   if (result->IsBigInt()) {
-    return static_cast<int32_t>(BigInt::cast(*result).AsInt64());
+    return static_cast<int32_t>(BigInt::cast(*result)->AsInt64());
   }
   return -1;
 }

@@ -22,7 +22,7 @@ void InstructionStream::Relocate(intptr_t delta) {
        !it.done(); it.next()) {
     it.rinfo()->apply(delta);
   }
-  FlushInstructionCache(instruction_start(), code.instruction_size());
+  FlushInstructionCache(instruction_start(), code->instruction_size());
 }
 
 }  // namespace internal

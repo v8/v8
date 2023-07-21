@@ -86,13 +86,13 @@ int BytecodeArrayWriter::CheckBytecodeMatches(BytecodeArray bytecode) {
   int mismatches = false;
   int bytecode_size = static_cast<int>(bytecodes()->size());
   const uint8_t* bytecode_ptr = &bytecodes()->front();
-  if (bytecode_size != bytecode.length()) mismatches = true;
+  if (bytecode_size != bytecode->length()) mismatches = true;
 
   // If there's a mismatch only in the length of the bytecode (very unlikely)
   // then the first mismatch will be the first extra bytecode.
-  int first_mismatch = std::min(bytecode_size, bytecode.length());
+  int first_mismatch = std::min(bytecode_size, bytecode->length());
   for (int i = 0; i < first_mismatch; ++i) {
-    if (bytecode_ptr[i] != bytecode.get(i)) {
+    if (bytecode_ptr[i] != bytecode->get(i)) {
       mismatches = true;
       first_mismatch = i;
       break;

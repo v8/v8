@@ -22,10 +22,10 @@ CAST_ACCESSOR(AbstractCode)
 int AbstractCode::InstructionSize(PtrComprCageBase cage_base) {
   Map map_object = map(cage_base);
   if (InstanceTypeChecker::IsCode(map_object)) {
-    return GetCode().instruction_size();
+    return GetCode()->instruction_size();
   } else {
     DCHECK(InstanceTypeChecker::IsBytecodeArray(map_object));
-    return GetBytecodeArray().length();
+    return GetBytecodeArray()->length();
   }
 }
 
@@ -34,13 +34,13 @@ ByteArray AbstractCode::SourcePositionTableInternal(
   Map map_object = map(cage_base);
   if (InstanceTypeChecker::IsCode(map_object)) {
     Code code = GetCode();
-    if (!code.has_instruction_stream()) {
+    if (!code->has_instruction_stream()) {
       return GetReadOnlyRoots().empty_byte_array();
     }
-    return code.source_position_table(cage_base);
+    return code->source_position_table(cage_base);
   } else {
     DCHECK(InstanceTypeChecker::IsBytecodeArray(map_object));
-    return GetBytecodeArray().SourcePositionTable(cage_base);
+    return GetBytecodeArray()->SourcePositionTable(cage_base);
   }
 }
 
@@ -48,41 +48,41 @@ ByteArray AbstractCode::SourcePositionTable(Isolate* isolate,
                                             SharedFunctionInfo sfi) {
   Map map_object = map(isolate);
   if (InstanceTypeChecker::IsCode(map_object)) {
-    return GetCode().SourcePositionTable(isolate, sfi);
+    return GetCode()->SourcePositionTable(isolate, sfi);
   } else {
     DCHECK(InstanceTypeChecker::IsBytecodeArray(map_object));
-    return GetBytecodeArray().SourcePositionTable(isolate);
+    return GetBytecodeArray()->SourcePositionTable(isolate);
   }
 }
 
 int AbstractCode::SizeIncludingMetadata(PtrComprCageBase cage_base) {
   Map map_object = map(cage_base);
   if (InstanceTypeChecker::IsCode(map_object)) {
-    return GetCode().SizeIncludingMetadata();
+    return GetCode()->SizeIncludingMetadata();
   } else {
     DCHECK(InstanceTypeChecker::IsBytecodeArray(map_object));
-    return GetBytecodeArray().SizeIncludingMetadata();
+    return GetBytecodeArray()->SizeIncludingMetadata();
   }
 }
 
 Address AbstractCode::InstructionStart(PtrComprCageBase cage_base) {
   Map map_object = map(cage_base);
   if (InstanceTypeChecker::IsCode(map_object)) {
-    return GetCode().instruction_start();
+    return GetCode()->instruction_start();
   } else {
     DCHECK(InstanceTypeChecker::IsBytecodeArray(map_object));
-    return GetBytecodeArray().GetFirstBytecodeAddress();
+    return GetBytecodeArray()->GetFirstBytecodeAddress();
   }
 }
 
 Address AbstractCode::InstructionEnd(PtrComprCageBase cage_base) {
   Map map_object = map(cage_base);
   if (InstanceTypeChecker::IsCode(map_object)) {
-    return GetCode().instruction_end();
+    return GetCode()->instruction_end();
   } else {
     DCHECK(InstanceTypeChecker::IsBytecodeArray(map_object));
     BytecodeArray bytecode_array = GetBytecodeArray();
-    return bytecode_array.GetFirstBytecodeAddress() + bytecode_array.length();
+    return bytecode_array->GetFirstBytecodeAddress() + bytecode_array->length();
   }
 }
 
@@ -90,7 +90,7 @@ bool AbstractCode::contains(Isolate* isolate, Address inner_pointer) {
   PtrComprCageBase cage_base(isolate);
   Map map_object = map(cage_base);
   if (InstanceTypeChecker::IsCode(map_object)) {
-    return GetCode().contains(isolate, inner_pointer);
+    return GetCode()->contains(isolate, inner_pointer);
   } else {
     DCHECK(InstanceTypeChecker::IsBytecodeArray(map_object));
     return (address() <= inner_pointer) &&
@@ -101,7 +101,7 @@ bool AbstractCode::contains(Isolate* isolate, Address inner_pointer) {
 CodeKind AbstractCode::kind(PtrComprCageBase cage_base) {
   Map map_object = map(cage_base);
   if (InstanceTypeChecker::IsCode(map_object)) {
-    return GetCode().kind();
+    return GetCode()->kind();
   } else {
     DCHECK(InstanceTypeChecker::IsBytecodeArray(map_object));
     return CodeKind::INTERPRETED_FUNCTION;
@@ -111,7 +111,7 @@ CodeKind AbstractCode::kind(PtrComprCageBase cage_base) {
 Builtin AbstractCode::builtin_id(PtrComprCageBase cage_base) {
   Map map_object = map(cage_base);
   if (InstanceTypeChecker::IsCode(map_object)) {
-    return GetCode().builtin_id();
+    return GetCode()->builtin_id();
   } else {
     DCHECK(InstanceTypeChecker::IsBytecodeArray(map_object));
     return Builtin::kNoBuiltinId;
@@ -120,7 +120,7 @@ Builtin AbstractCode::builtin_id(PtrComprCageBase cage_base) {
 
 bool AbstractCode::has_instruction_stream(PtrComprCageBase cage_base) {
   DCHECK(InstanceTypeChecker::IsCode(map(cage_base)));
-  return GetCode().has_instruction_stream();
+  return GetCode()->has_instruction_stream();
 }
 
 bool AbstractCode::IsCode(PtrComprCageBase cage_base) const {

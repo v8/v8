@@ -75,10 +75,10 @@ RUNTIME_FUNCTION_RETURN_PAIR(Runtime_DebugBreakOnBytecode) {
 
   // Make sure to only access these objects after the side effect check, as the
   // check can allocate on failure.
-  SharedFunctionInfo shared = interpreted_frame->function().shared();
-  BytecodeArray bytecode_array = shared.GetBytecodeArray(isolate);
+  SharedFunctionInfo shared = interpreted_frame->function()->shared();
+  BytecodeArray bytecode_array = shared->GetBytecodeArray(isolate);
   int bytecode_offset = interpreted_frame->GetBytecodeOffset();
-  Bytecode bytecode = Bytecodes::FromByte(bytecode_array.get(bytecode_offset));
+  Bytecode bytecode = Bytecodes::FromByte(bytecode_array->get(bytecode_offset));
 
   if (Bytecodes::Returns(bytecode)) {
     // If we are returning (or suspending), reset the bytecode array on the
@@ -114,7 +114,7 @@ RUNTIME_FUNCTION(Runtime_DebugBreakAtEntry) {
   DCHECK_EQ(1, args.length());
   Handle<JSFunction> function = args.at<JSFunction>(0);
 
-  DCHECK(function->shared().BreakAtEntry(isolate));
+  DCHECK(function->shared()->BreakAtEntry(isolate));
 
   // Get the top-most JavaScript frame. This is the debug target function.
   JavaScriptStackFrameIterator it(isolate);
@@ -539,7 +539,7 @@ RUNTIME_FUNCTION(Runtime_FunctionGetInferredName) {
 
   Object f = args[0];
   if (f.IsJSFunction()) {
-    return JSFunction::cast(f).shared().inferred_name();
+    return JSFunction::cast(f)->shared()->inferred_name();
   }
   return ReadOnlyRoots(isolate).empty_string();
 }
@@ -570,13 +570,13 @@ int ScriptLinePosition(Handle<Script> script, int line) {
   Script::InitLineEnds(script->GetIsolate(), script);
 
   FixedArray line_ends_array = FixedArray::cast(script->line_ends());
-  const int line_count = line_ends_array.length();
+  const int line_count = line_ends_array->length();
   DCHECK_LT(0, line_count);
 
   if (line == 0) return 0;
   // If line == line_count, we return the first position beyond the last line.
   if (line > line_count) return -1;
-  return Smi::ToInt(line_ends_array.get(line - 1)) + 1;
+  return Smi::ToInt(line_ends_array->get(line - 1)) + 1;
 }
 
 int ScriptLinePositionWithOffset(Handle<Script> script, int line, int offset) {
@@ -664,7 +664,7 @@ bool GetScriptById(Isolate* isolate, int needle, Handle<Script>* result) {
   Script::Iterator iterator(isolate);
   for (Script script = iterator.Next(); !script.is_null();
        script = iterator.Next()) {
-    if (script.id() == needle) {
+    if (script->id() == needle) {
       *result = handle(script, isolate);
       return true;
     }
@@ -809,7 +809,7 @@ RUNTIME_FUNCTION(Runtime_DebugCollectCoverage) {
 
 RUNTIME_FUNCTION(Runtime_DebugTogglePreciseCoverage) {
   SealHandleScope shs(isolate);
-  bool enable = Boolean::cast(args[0]).ToBool(isolate);
+  bool enable = Boolean::cast(args[0])->ToBool(isolate);
   Coverage::SelectMode(isolate, enable ? debug::CoverageMode::kPreciseCount
                                        : debug::CoverageMode::kBestEffort);
   return ReadOnlyRoots(isolate).undefined_value();
@@ -817,7 +817,7 @@ RUNTIME_FUNCTION(Runtime_DebugTogglePreciseCoverage) {
 
 RUNTIME_FUNCTION(Runtime_DebugToggleBlockCoverage) {
   SealHandleScope shs(isolate);
-  bool enable = Boolean::cast(args[0]).ToBool(isolate);
+  bool enable = Boolean::cast(args[0])->ToBool(isolate);
   Coverage::SelectMode(isolate, enable ? debug::CoverageMode::kBlockCount
                                        : debug::CoverageMode::kBestEffort);
   return ReadOnlyRoots(isolate).undefined_value();
@@ -834,7 +834,7 @@ RUNTIME_FUNCTION(Runtime_DebugAsyncFunctionSuspended) {
   Handle<JSPromise> outer_promise = args.at<JSPromise>(1);
   Handle<JSFunction> reject_handler = args.at<JSFunction>(2);
   Handle<JSGeneratorObject> generator = args.at<JSGeneratorObject>(3);
-  bool is_predicted_as_caught = Boolean::cast(args[4]).ToBool(isolate);
+  bool is_predicted_as_caught = Boolean::cast(args[4])->ToBool(isolate);
 
   // Allocate the throwaway promise and fire the appropriate init
   // hook for the throwaway promise (passing the {promise} as its
@@ -894,7 +894,7 @@ RUNTIME_FUNCTION(Runtime_LiveEditPatchScript) {
   Handle<JSFunction> script_function = args.at<JSFunction>(0);
   Handle<String> new_source = args.at<String>(1);
 
-  Handle<Script> script(Script::cast(script_function->shared().script()),
+  Handle<Script> script(Script::cast(script_function->shared()->script()),
                         isolate);
   v8::debug::LiveEditResult result;
   LiveEdit::PatchScript(isolate, script, new_source, /* preview */ false,

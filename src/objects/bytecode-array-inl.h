@@ -147,19 +147,19 @@ DEF_GETTER(BytecodeArray, SizeIncludingMetadata, int) {
   int size = BytecodeArraySize();
   Object maybe_constant_pool = raw_constant_pool(cage_base);
   if (maybe_constant_pool.IsFixedArray()) {
-    size += FixedArray::cast(maybe_constant_pool).Size(cage_base);
+    size += FixedArray::cast(maybe_constant_pool)->Size(cage_base);
   } else {
     DCHECK_EQ(maybe_constant_pool, Smi::zero());
   }
   Object maybe_handler_table = raw_handler_table(cage_base);
   if (maybe_handler_table.IsByteArray()) {
-    size += ByteArray::cast(maybe_handler_table).Size();
+    size += ByteArray::cast(maybe_handler_table)->Size();
   } else {
     DCHECK_EQ(maybe_handler_table, Smi::zero());
   }
   Object maybe_table = raw_source_position_table(cage_base);
   if (maybe_table.IsByteArray()) {
-    size += ByteArray::cast(maybe_table).Size();
+    size += ByteArray::cast(maybe_table)->Size();
   }
   return size;
 }

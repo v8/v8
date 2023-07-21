@@ -48,7 +48,7 @@ struct ReadOnlySegmentForSerialization {
       size_t o_offset = o.ptr() - segment_start;
       Address o_dst = reinterpret_cast<Address>(contents.get()) + o_offset;
       Code code = Code::cast(Object(o_dst));
-      code.ClearInstructionStartForSerialization(isolate);
+      code->ClearInstructionStartForSerialization(isolate);
     }
   }
 
@@ -113,14 +113,14 @@ class EncodeRelocationsVisitor final : public ObjectVisitor {
   }
 
   void VisitMapPointer(HeapObject host) override {
-    ProcessSlot(host.RawMaybeWeakField(HeapObject::kMapOffset));
+    ProcessSlot(host->RawMaybeWeakField(HeapObject::kMapOffset));
   }
 
   // Sanity-checks:
   void VisitInstructionStreamPointer(Code host,
                                      InstructionStreamSlot slot) override {
     // RO space contains only builtin Code objects.
-    DCHECK(!host.has_instruction_stream());
+    DCHECK(!host->has_instruction_stream());
   }
   void VisitCodeTarget(InstructionStream, RelocInfo*) override {
     UNREACHABLE();
@@ -186,7 +186,7 @@ void ReadOnlySegmentForSerialization::EncodeTaggedSlots(Isolate* isolate) {
                                 SkipFreeSpaceOrFiller::kNo);
   for (HeapObject o = it.Next(); !o.is_null(); o = it.Next()) {
     if (o.address() >= segment_end) break;
-    o.Iterate(cage_base, &v);
+    o->Iterate(cage_base, &v);
   }
 }
 
@@ -307,7 +307,7 @@ std::vector<ReadOnlyHeapImageSerializer::MemoryRegion> GetUnmappedRegions(
     unmapped.push_back({wasm_null_padding_start,
                         wasm_null.address() - wasm_null_padding_start});
   }
-  unmapped.push_back({wasm_null.payload(), WasmNull::kPayloadSize});
+  unmapped.push_back({wasm_null->payload(), WasmNull::kPayloadSize});
   return unmapped;
 #else
   return {};
@@ -333,7 +333,7 @@ void ReadOnlySerializer::Serialize() {
   for (HeapObject o = it.Next(); !o.is_null(); o = it.Next()) {
     CheckRehashability(o);
     if (v8_flags.serialization_statistics) {
-      CountAllocation(o.map(), o.Size(), SnapshotSpace::kReadOnlyHeap);
+      CountAllocation(o->map(), o->Size(), SnapshotSpace::kReadOnlyHeap);
     }
   }
 }

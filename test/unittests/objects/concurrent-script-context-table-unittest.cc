@@ -46,7 +46,7 @@ class ScriptContextTableAccessUsedThread final : public v8::base::Thread {
 
     for (int i = 0; i < script_context_table_->used(kAcquireLoad); ++i) {
       Context context = script_context_table_->get_context(i);
-      EXPECT_TRUE(context.IsScriptContext());
+      EXPECT_TRUE(context->IsScriptContext());
     }
   }
 

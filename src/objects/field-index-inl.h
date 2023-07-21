@@ -25,10 +25,10 @@ FieldIndex FieldIndex::ForSmiLoadHandler(Map map, int32_t handler) {
   DCHECK_EQ(LoadHandler::KindBits::decode(handler), LoadHandler::Kind::kField);
 
   bool is_inobject = LoadHandler::IsInobjectBits::decode(handler);
-  int inobject_properties = map.GetInObjectProperties();
+  int inobject_properties = map->GetInObjectProperties();
   int first_inobject_offset;
   if (is_inobject) {
-    first_inobject_offset = map.GetInObjectPropertyOffset(0);
+    first_inobject_offset = map->GetInObjectPropertyOffset(0);
   } else {
     first_inobject_offset = FixedArray::kHeaderSize;
   }
@@ -40,14 +40,14 @@ FieldIndex FieldIndex::ForSmiLoadHandler(Map map, int32_t handler) {
 
 FieldIndex FieldIndex::ForPropertyIndex(Map map, int property_index,
                                         Representation representation) {
-  DCHECK(map.instance_type() >= FIRST_NONSTRING_TYPE);
-  int inobject_properties = map.GetInObjectProperties();
+  DCHECK(map->instance_type() >= FIRST_NONSTRING_TYPE);
+  int inobject_properties = map->GetInObjectProperties();
   bool is_inobject = property_index < inobject_properties;
   int first_inobject_offset;
   int offset;
   if (is_inobject) {
-    first_inobject_offset = map.GetInObjectPropertyOffset(0);
-    offset = map.GetInObjectPropertyOffset(property_index);
+    first_inobject_offset = map->GetInObjectPropertyOffset(0);
+    offset = map->GetInObjectPropertyOffset(property_index);
   } else {
     first_inobject_offset = FixedArray::kHeaderSize;
     property_index -= inobject_properties;
@@ -86,8 +86,8 @@ FieldIndex FieldIndex::ForDescriptor(Map map, InternalIndex descriptor_index) {
 
 FieldIndex FieldIndex::ForDescriptor(PtrComprCageBase cage_base, Map map,
                                      InternalIndex descriptor_index) {
-  PropertyDetails details = map.instance_descriptors(cage_base, kRelaxedLoad)
-                                .GetDetails(descriptor_index);
+  PropertyDetails details = map->instance_descriptors(cage_base, kRelaxedLoad)
+                                ->GetDetails(descriptor_index);
   return ForDetails(map, details);
 }
 

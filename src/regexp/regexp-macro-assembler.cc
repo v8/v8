@@ -287,8 +287,8 @@ int NativeRegExpMacroAssembler::CheckStackGuardState(
     const uint8_t** input_start, const uint8_t** input_end) {
   DisallowGarbageCollection no_gc;
   Address old_pc = PointerAuthentication::AuthenticatePC(return_address, 0);
-  DCHECK_LE(re_code.instruction_start(), old_pc);
-  DCHECK_LE(old_pc, re_code.code(kAcquireLoad).instruction_end());
+  DCHECK_LE(re_code->instruction_start(), old_pc);
+  DCHECK_LE(old_pc, re_code->code(kAcquireLoad)->instruction_end());
 
   StackLimitCheck check(isolate);
   bool js_has_overflowed = check.JsHasOverflowed();
@@ -380,31 +380,31 @@ int NativeRegExpMacroAssembler::Match(Handle<JSRegExp> regexp,
   String subject_ptr = *subject;
   // Character offsets into string.
   int start_offset = previous_index;
-  int char_length = subject_ptr.length() - start_offset;
+  int char_length = subject_ptr->length() - start_offset;
   int slice_offset = 0;
 
   // The string has been flattened, so if it is a cons string it contains the
   // full string in the first part.
   if (StringShape(subject_ptr).IsCons()) {
-    DCHECK_EQ(0, ConsString::cast(subject_ptr).second().length());
-    subject_ptr = ConsString::cast(subject_ptr).first();
+    DCHECK_EQ(0, ConsString::cast(subject_ptr)->second()->length());
+    subject_ptr = ConsString::cast(subject_ptr)->first();
   } else if (StringShape(subject_ptr).IsSliced()) {
     SlicedString slice = SlicedString::cast(subject_ptr);
-    subject_ptr = slice.parent();
-    slice_offset = slice.offset();
+    subject_ptr = slice->parent();
+    slice_offset = slice->offset();
   }
   if (StringShape(subject_ptr).IsThin()) {
-    subject_ptr = ThinString::cast(subject_ptr).actual();
+    subject_ptr = ThinString::cast(subject_ptr)->actual();
   }
   // Ensure that an underlying string has the same representation.
-  bool is_one_byte = subject_ptr.IsOneByteRepresentation();
+  bool is_one_byte = subject_ptr->IsOneByteRepresentation();
   DCHECK(subject_ptr.IsExternalString() || subject_ptr.IsSeqString());
   // String is now either Sequential or External
   int char_size_shift = is_one_byte ? 0 : 1;
 
   DisallowGarbageCollection no_gc;
   const uint8_t* input_start =
-      subject_ptr.AddressOfCharacterAt(start_offset + slice_offset, no_gc);
+      subject_ptr->AddressOfCharacterAt(start_offset + slice_offset, no_gc);
   int byte_length = char_length << char_size_shift;
   const uint8_t* input_end = input_start + byte_length;
   return Execute(*subject, start_offset, input_start, input_end, offsets_vector,
@@ -431,7 +431,7 @@ int NativeRegExpMacroAssembler::Execute(
   RegExpStackScope stack_scope(isolate);
 
   bool is_one_byte = String::IsOneByteRepresentationUnderneath(input);
-  Code code = Code::cast(regexp.code(is_one_byte));
+  Code code = Code::cast(regexp->code(is_one_byte));
   RegExp::CallOrigin call_origin = RegExp::CallOrigin::kFromRuntime;
 
   using RegexpMatcherSig =

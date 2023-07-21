@@ -48,12 +48,12 @@ void Isolate::set_context(Context context) {
 
 Handle<NativeContext> Isolate::native_context() {
   DCHECK(!context().is_null());
-  return handle(context().native_context(), this);
+  return handle(context()->native_context(), this);
 }
 
 NativeContext Isolate::raw_native_context() {
   DCHECK(!context().is_null());
-  return context().native_context();
+  return context()->native_context();
 }
 
 void Isolate::set_pending_message(Object message_obj) {
@@ -185,11 +185,11 @@ void Isolate::FireBeforeCallEnteredCallback() {
 }
 
 Handle<JSGlobalObject> Isolate::global_object() {
-  return handle(context().global_object(), this);
+  return handle(context()->global_object(), this);
 }
 
 Handle<JSGlobalProxy> Isolate::global_proxy() {
-  return handle(context().global_proxy(), this);
+  return handle(context()->global_proxy(), this);
 }
 
 Isolate::ExceptionScope::ExceptionScope(Isolate* isolate)
@@ -235,12 +235,12 @@ void Isolate::DidFinishModuleAsyncEvaluation(unsigned ordinal) {
   }
 }
 
-#define NATIVE_CONTEXT_FIELD_ACCESSOR(index, type, name)    \
-  Handle<type> Isolate::name() {                            \
-    return Handle<type>(raw_native_context().name(), this); \
-  }                                                         \
-  bool Isolate::is_##name(type value) {                     \
-    return raw_native_context().is_##name(value);           \
+#define NATIVE_CONTEXT_FIELD_ACCESSOR(index, type, name)     \
+  Handle<type> Isolate::name() {                             \
+    return Handle<type>(raw_native_context()->name(), this); \
+  }                                                          \
+  bool Isolate::is_##name(type value) {                      \
+    return raw_native_context()->is_##name(value);           \
   }
 NATIVE_CONTEXT_FIELDS(NATIVE_CONTEXT_FIELD_ACCESSOR)
 #undef NATIVE_CONTEXT_FIELD_ACCESSOR

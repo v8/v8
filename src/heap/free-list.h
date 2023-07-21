@@ -82,7 +82,7 @@ class FreeListCategory {
   template <typename Callback>
   void IterateNodesForTesting(Callback callback) {
     for (FreeSpace cur_node = top(); !cur_node.is_null();
-         cur_node = cur_node.next()) {
+         cur_node = cur_node->next()) {
       callback(cur_node);
     }
   }

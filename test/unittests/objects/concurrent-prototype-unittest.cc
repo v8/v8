@@ -50,7 +50,7 @@ class ConcurrentSearchThread final : public v8::base::Thread {
       // Walk up the prototype chain all the way to the top.
       Handle<Map> map(js_obj->map(kAcquireLoad), &local_heap);
       while (!map->prototype().IsNull()) {
-        Handle<Map> map_prototype_map(map->prototype().map(kAcquireLoad),
+        Handle<Map> map_prototype_map(map->prototype()->map(kAcquireLoad),
                                       &local_heap);
         if (!map_prototype_map->IsJSObjectMap()) {
           break;
@@ -176,7 +176,7 @@ TEST_F(ConcurrentPrototypeTest, ProtoWalkBackground_PrototypeChainWrite) {
   Handle<Map> map(js_object->map(), i_isolate());
   Handle<HeapObject> old_proto(map->prototype(), i_isolate());
   DCHECK(!old_proto->IsNull());
-  Handle<HeapObject> new_proto(old_proto->map().prototype(), i_isolate());
+  Handle<HeapObject> new_proto(old_proto->map()->prototype(), i_isolate());
 
   sema_started.Wait();
 

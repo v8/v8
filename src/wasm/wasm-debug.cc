@@ -391,7 +391,7 @@ class DebugInfoImpl {
   }
 
   bool IsStepping(WasmFrame* frame) {
-    Isolate* isolate = frame->wasm_instance().GetIsolate();
+    Isolate* isolate = frame->wasm_instance()->GetIsolate();
     if (isolate->debug()->last_step_action() == StepInto) return true;
     base::MutexGuard guard(&mutex_);
     auto it = per_isolate_data_.find(isolate);
@@ -669,7 +669,7 @@ class DebugInfoImpl {
     DisallowGarbageCollection no_gc;
     int position = frame->position();
     NativeModule* native_module =
-        frame->wasm_instance().module_object().native_module();
+        frame->wasm_instance()->module_object()->native_module();
     uint8_t opcode = native_module->wire_bytes()[position];
     if (opcode == kExprReturn) return true;
     // Another implicit return is at the last kExprEnd in the function body.
@@ -812,16 +812,16 @@ int FindNextBreakablePosition(wasm::NativeModule* native_module, int func_index,
 }
 
 void SetBreakOnEntryFlag(Script script, bool enabled) {
-  if (script.break_on_entry() == enabled) return;
+  if (script->break_on_entry() == enabled) return;
 
-  script.set_break_on_entry(enabled);
+  script->set_break_on_entry(enabled);
   // Update the "break_on_entry" flag on all live instances.
-  i::WeakArrayList weak_instance_list = script.wasm_weak_instance_list();
-  for (int i = 0; i < weak_instance_list.length(); ++i) {
-    if (weak_instance_list.Get(i)->IsCleared()) continue;
-    i::WasmInstanceObject instance =
-        i::WasmInstanceObject::cast(weak_instance_list.Get(i)->GetHeapObject());
-    instance.set_break_on_entry(enabled);
+  i::WeakArrayList weak_instance_list = script->wasm_weak_instance_list();
+  for (int i = 0; i < weak_instance_list->length(); ++i) {
+    if (weak_instance_list->Get(i)->IsCleared()) continue;
+    i::WasmInstanceObject instance = i::WasmInstanceObject::cast(
+        weak_instance_list->Get(i)->GetHeapObject());
+    instance->set_break_on_entry(enabled);
   }
 }
 }  // namespace
@@ -896,7 +896,7 @@ namespace {
 
 int GetBreakpointPos(Isolate* isolate, Object break_point_info_or_undef) {
   if (break_point_info_or_undef.IsUndefined(isolate)) return kMaxInt;
-  return BreakPointInfo::cast(break_point_info_or_undef).source_position();
+  return BreakPointInfo::cast(break_point_info_or_undef)->source_position();
 }
 
 int FindBreakpointInfoInsertPos(Isolate* isolate,
@@ -999,8 +999,8 @@ bool WasmScript::ClearBreakPointById(Handle<Script> script, int breakpoint_id) {
 
 // static
 void WasmScript::ClearAllBreakpoints(Script script) {
-  script.set_wasm_breakpoint_infos(
-      ReadOnlyRoots(script.GetIsolate()).empty_fixed_array());
+  script->set_wasm_breakpoint_infos(
+      ReadOnlyRoots(script->GetIsolate()).empty_fixed_array());
   SetBreakOnEntryFlag(script, false);
 }
 
@@ -1133,7 +1133,7 @@ namespace {
 
 bool CheckBreakPoint(Isolate* isolate, Handle<BreakPoint> break_point,
                      StackFrameId frame_id) {
-  if (break_point->condition().length() == 0) return true;
+  if (break_point->condition()->length() == 0) return true;
 
   HandleScope scope(isolate);
   Handle<String> condition(break_point->condition(), isolate);

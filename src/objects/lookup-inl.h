@@ -225,7 +225,7 @@ PropertyKey LookupIterator::GetKey() const {
 bool LookupIterator::IsElement(JSReceiver object) const {
   return index_ <= JSObject::kMaxElementIndex ||
          (index_ != kInvalidIndex &&
-          object.map().has_any_typed_array_or_wasm_array_elements());
+          object->map()->has_any_typed_array_or_wasm_array_elements());
 }
 
 bool LookupIterator::IsPrivateName() const {
@@ -256,7 +256,7 @@ bool LookupIterator::ExtendingNonExtensible(Handle<JSReceiver> receiver) {
   DCHECK(receiver.is_identical_to(GetStoreTarget<JSReceiver>()));
   // Shared objects have fixed layout. No properties may be added to them, not
   // even private symbols.
-  return !receiver->map(isolate_).is_extensible() &&
+  return !receiver->map(isolate_)->is_extensible() &&
          (IsElement() || (!name_->IsPrivate(isolate_) ||
                           receiver->IsAlwaysSharedSpaceJSObject()));
 }
@@ -340,7 +340,7 @@ Handle<T> LookupIterator::GetStoreTarget() const {
   DCHECK(receiver_->IsJSReceiver(isolate_));
   if (receiver_->IsJSGlobalProxy(isolate_)) {
     HeapObject prototype =
-        JSGlobalProxy::cast(*receiver_).map(isolate_).prototype(isolate_);
+        JSGlobalProxy::cast(*receiver_)->map(isolate_)->prototype(isolate_);
     if (prototype.IsJSGlobalObject(isolate_)) {
       return handle(JSGlobalObject::cast(prototype), isolate_);
     }
@@ -351,9 +351,9 @@ Handle<T> LookupIterator::GetStoreTarget() const {
 template <bool is_element>
 InterceptorInfo LookupIterator::GetInterceptor(JSObject holder) const {
   if (is_element && index_ <= JSObject::kMaxElementIndex) {
-    return holder.GetIndexedInterceptor(isolate_);
+    return holder->GetIndexedInterceptor(isolate_);
   } else {
-    return holder.GetNamedInterceptor(isolate_);
+    return holder->GetNamedInterceptor(isolate_);
   }
 }
 

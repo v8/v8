@@ -318,10 +318,10 @@ JsonParser<Char>::JsonParser(Isolate* isolate, Handle<String> source)
   PtrComprCageBase cage_base(isolate);
   if (source->IsSlicedString(cage_base)) {
     SlicedString string = SlicedString::cast(*source);
-    start = string.offset();
-    String parent = string.parent(cage_base);
+    start = string->offset();
+    String parent = string->parent(cage_base);
     if (parent.IsThinString(cage_base))
-      parent = ThinString::cast(parent).actual(cage_base);
+      parent = ThinString::cast(parent)->actual(cage_base);
     source_ = handle(parent, isolate);
   } else {
     source_ = String::Flatten(isolate, source);
@@ -347,7 +347,7 @@ bool JsonParser<Char>::IsSpecialString() {
   // The special cases are undefined, NaN, Infinity, and {} being passed to the
   // parse method
   int offset = original_source_->IsSlicedString()
-                   ? SlicedString::cast(*original_source_).offset()
+                   ? SlicedString::cast(*original_source_)->offset()
                    : 0;
   size_t length = original_source_->length();
 #define CASES(V)       \
@@ -443,7 +443,7 @@ void JsonParser<Char>::CalculateFileLocation(Handle<Object>& line,
   int line_number = 1;
   const Char* start =
       chars_ + (original_source_->IsSlicedString()
-                    ? SlicedString::cast(*original_source_).offset()
+                    ? SlicedString::cast(*original_source_)->offset()
                     : 0);
   const Char* last_line_break = start;
   const Char* cursor = start;
@@ -474,7 +474,7 @@ void JsonParser<Char>::ReportUnexpectedToken(
   // Parse failed. Current character is the unexpected token.
   Factory* factory = this->factory();
   int offset = original_source_->IsSlicedString()
-                   ? SlicedString::cast(*original_source_).offset()
+                   ? SlicedString::cast(*original_source_)->offset()
                    : 0;
   int pos = position() - offset;
   Handle<Object> arg(Smi::FromInt(pos), isolate());
@@ -494,7 +494,7 @@ void JsonParser<Char>::ReportUnexpectedToken(
     script->set_eval_from_shared(summary.AsJavaScript().function()->shared());
     if (summary.script()->IsScript()) {
       script->set_origin_options(
-          Script::cast(*summary.script()).origin_options());
+          Script::cast(*summary.script())->origin_options());
     }
   }
 
@@ -684,7 +684,7 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
           factory()->NewFixedArrayWithHoles(cont.max_index + 1);
       DisallowGarbageCollection no_gc;
       FixedArray raw_elements = *elms;
-      WriteBarrierMode mode = raw_elements.GetWriteBarrierMode(no_gc);
+      WriteBarrierMode mode = raw_elements->GetWriteBarrierMode(no_gc);
       DCHECK_EQ(HOLEY_ELEMENTS, map->elements_kind());
 
       for (int i = 0; i < length; i++) {
@@ -692,7 +692,7 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
         if (!property.string.is_index()) continue;
         uint32_t index = property.string.index();
         Handle<Object> value = property.value;
-        raw_elements.set(static_cast<int>(index), *value, mode);
+        raw_elements->set(static_cast<int>(index), *value, mode);
       }
       elements = elms;
     }
@@ -723,7 +723,7 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
     InternalIndex descriptor_index(descriptor);
     if (descriptor < feedback_descriptors) {
       expected =
-          handle(String::cast(feedback->instance_descriptors(isolate_).GetKey(
+          handle(String::cast(feedback->instance_descriptors(isolate_)->GetKey(
                      descriptor_index)),
                  isolate_);
     } else {
@@ -755,7 +755,7 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
     Handle<Object> value = property.value;
 
     PropertyDetails details =
-        target->instance_descriptors(isolate_).GetDetails(descriptor_index);
+        target->instance_descriptors(isolate_)->GetDetails(descriptor_index);
     Representation expected_representation = details.representation();
 
     if (!value->FitsRepresentation(expected_representation)) {
@@ -856,7 +856,7 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
 
           HeapObject hn = HeapObject::FromAddress(mutable_double_address);
           hn.set_map_after_allocation(roots().heap_number_map());
-          HeapNumber::cast(hn).set_value_as_bits(bits, kRelaxedStore);
+          HeapNumber::cast(hn)->set_value_as_bits(bits, kRelaxedStore);
           value = hn;
           mutable_double_address +=
               ALIGN_TO_ALLOCATION_ALIGNMENT(kMutableDoubleSize);
@@ -932,16 +932,16 @@ Handle<Object> JsonParser<Char>::BuildJsonArray(
     DisallowGarbageCollection no_gc;
     FixedDoubleArray elements = FixedDoubleArray::cast(array->elements());
     for (int i = 0; i < length; i++) {
-      elements.set(i, element_stack[start + i]->Number());
+      elements->set(i, element_stack[start + i]->Number());
     }
   } else {
     DisallowGarbageCollection no_gc;
     FixedArray elements = FixedArray::cast(array->elements());
     WriteBarrierMode mode = kind == PACKED_SMI_ELEMENTS
                                 ? SKIP_WRITE_BARRIER
-                                : elements.GetWriteBarrierMode(no_gc);
+                                : elements->GetWriteBarrierMode(no_gc);
     for (int i = 0; i < length; i++) {
-      elements.set(i, *element_stack[start + i], mode);
+      elements->set(i, *element_stack[start + i], mode);
     }
   }
   return array;
@@ -1222,12 +1222,12 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue(Handle<Object> reviver) {
               cont_stack.back().type() == JsonContinuation::kArrayElement &&
               cont_stack.back().index < element_stack.size() &&
               element_stack.back()->IsJSObject()) {
-            Map maybe_feedback = JSObject::cast(*element_stack.back()).map();
+            Map maybe_feedback = JSObject::cast(*element_stack.back())->map();
             // Don't consume feedback from objects with a map that's detached
             // from the transition tree.
-            if (!maybe_feedback.IsDetached(isolate_)) {
+            if (!maybe_feedback->IsDetached(isolate_)) {
               feedback = handle(maybe_feedback, isolate_);
-              if (maybe_feedback.is_deprecated()) {
+              if (maybe_feedback->is_deprecated()) {
                 feedback = Map::Update(isolate_, feedback);
               }
             }

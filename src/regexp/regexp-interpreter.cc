@@ -439,7 +439,7 @@ IrregexpInterpreter::Result RawMatch(
 
 #endif  // V8_USE_COMPUTED_GOTO
 
-  const uint8_t* pc = code_array.GetDataStartAddress();
+  const uint8_t* pc = code_array->GetDataStartAddress();
   const uint8_t* code_base = pc;
 
   InterpreterRegisters registers(total_register_count, output_registers,
@@ -1059,15 +1059,15 @@ IrregexpInterpreter::Result IrregexpInterpreter::Match(
     Isolate* isolate, JSRegExp regexp, String subject_string,
     int* output_registers, int output_register_count, int start_position,
     RegExp::CallOrigin call_origin) {
-  if (v8_flags.regexp_tier_up) regexp.TierUpTick();
+  if (v8_flags.regexp_tier_up) regexp->TierUpTick();
 
   bool is_one_byte = String::IsOneByteRepresentationUnderneath(subject_string);
-  ByteArray code_array = ByteArray::cast(regexp.bytecode(is_one_byte));
-  int total_register_count = regexp.max_register_count();
+  ByteArray code_array = ByteArray::cast(regexp->bytecode(is_one_byte));
+  int total_register_count = regexp->max_register_count();
 
   return MatchInternal(isolate, code_array, subject_string, output_registers,
                        output_register_count, total_register_count,
-                       start_position, call_origin, regexp.backtrack_limit());
+                       start_position, call_origin, regexp->backtrack_limit());
 }
 
 IrregexpInterpreter::Result IrregexpInterpreter::MatchInternal(
@@ -1075,7 +1075,7 @@ IrregexpInterpreter::Result IrregexpInterpreter::MatchInternal(
     int* output_registers, int output_register_count, int total_register_count,
     int start_position, RegExp::CallOrigin call_origin,
     uint32_t backtrack_limit) {
-  DCHECK(subject_string.IsFlat());
+  DCHECK(subject_string->IsFlat());
 
   // TODO(chromium:1262676): Remove this CHECK once fixed.
   CHECK(code_array.IsByteArray());
@@ -1089,7 +1089,7 @@ IrregexpInterpreter::Result IrregexpInterpreter::MatchInternal(
   DisallowGarbageCollection no_gc;
 
   base::uc16 previous_char = '\n';
-  String::FlatContent subject_content = subject_string.GetFlatContent(no_gc);
+  String::FlatContent subject_content = subject_string->GetFlatContent(no_gc);
   // Because interrupts can result in GC and string content relocation, the
   // checksum verification in FlatContent may fail even though this code is
   // safe. See (2) above.
@@ -1134,7 +1134,7 @@ IrregexpInterpreter::Result IrregexpInterpreter::MatchForCallFromJs(
   String subject_string = String::cast(Object(subject));
   JSRegExp regexp_obj = JSRegExp::cast(Object(regexp));
 
-  if (regexp_obj.MarkedForTierUp()) {
+  if (regexp_obj->MarkedForTierUp()) {
     // Returning RETRY will re-enter through runtime, where actual recompilation
     // for tier-up takes place.
     return IrregexpInterpreter::RETRY;

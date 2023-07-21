@@ -126,8 +126,8 @@ void MarkingVisitorBase<ConcreteVisitor>::VisitEmbeddedPointer(
   if (!ShouldMarkObject(object)) return;
 
   if (!concrete_visitor()->IsMarked(object)) {
-    Code code = Code::unchecked_cast(host.raw_code(kAcquireLoad));
-    if (code.IsWeakObject(object)) {
+    Code code = Code::unchecked_cast(host->raw_code(kAcquireLoad));
+    if (code->IsWeakObject(object)) {
       local_weak_objects_->weak_objects_in_code_local.Push(
           std::make_pair(object, code));
       concrete_visitor()->AddWeakReferenceForReferenceSummarizer(host, object);
@@ -197,12 +197,12 @@ int MarkingVisitorBase<ConcreteVisitor>::VisitJSFunction(
     DCHECK(IsBaselineCodeFlushingEnabled(code_flush_mode_));
     local_weak_objects_->baseline_flushing_candidates_local.Push(js_function);
   } else {
-    VisitPointer(js_function, js_function.RawField(JSFunction::kCodeOffset));
+    VisitPointer(js_function, js_function->RawField(JSFunction::kCodeOffset));
     // TODO(mythria): Consider updating the check for ShouldFlushBaselineCode to
     // also include cases where there is old bytecode even when there is no
     // baseline code and remove this check here.
     if (IsByteCodeFlushingEnabled(code_flush_mode_) &&
-        js_function.NeedsResetDueToFlushedBytecode()) {
+        js_function->NeedsResetDueToFlushedBytecode()) {
       local_weak_objects_->flushed_js_functions_local.Push(js_function);
     }
   }
@@ -226,16 +226,16 @@ int MarkingVisitorBase<ConcreteVisitor>::VisitSharedFunctionInfo(
   if (!can_flush_bytecode || !ShouldFlushCode(shared_info)) {
     // If the SharedFunctionInfo doesn't have old bytecode visit the function
     // data strongly.
-    VisitPointer(shared_info,
-                 shared_info.RawField(SharedFunctionInfo::kFunctionDataOffset));
+    VisitPointer(shared_info, shared_info->RawField(
+                                  SharedFunctionInfo::kFunctionDataOffset));
   } else if (!IsByteCodeFlushingEnabled(code_flush_mode_)) {
     // If bytecode flushing is disabled but baseline code flushing is enabled
     // then we have to visit the bytecode but not the baseline code.
     DCHECK(IsBaselineCodeFlushingEnabled(code_flush_mode_));
-    Code baseline_code = Code::cast(shared_info.function_data(kAcquireLoad));
+    Code baseline_code = Code::cast(shared_info->function_data(kAcquireLoad));
     // Visit the bytecode hanging off baseline code.
     VisitPointer(baseline_code,
-                 baseline_code.RawField(
+                 baseline_code->RawField(
                      Code::kDeoptimizationDataOrInterpreterDataOffset));
     local_weak_objects_->code_flushing_candidates_local.Push(shared_info);
   } else {
@@ -252,21 +252,21 @@ bool MarkingVisitorBase<ConcreteVisitor>::HasBytecodeArrayForFlushing(
   if (IsFlushingDisabled(code_flush_mode_)) return false;
 
   // TODO(rmcilroy): Enable bytecode flushing for resumable functions.
-  if (IsResumableFunction(sfi.kind()) || !sfi.allows_lazy_compilation()) {
+  if (IsResumableFunction(sfi->kind()) || !sfi->allows_lazy_compilation()) {
     return false;
   }
 
   // Get a snapshot of the function data field, and if it is a bytecode array,
   // check if it is old. Note, this is done this way since this function can be
   // called by the concurrent marker.
-  Object data = sfi.function_data(kAcquireLoad);
+  Object data = sfi->function_data(kAcquireLoad);
   if (data.IsCode()) {
     Code baseline_code = Code::cast(data);
-    DCHECK_EQ(baseline_code.kind(), CodeKind::BASELINE);
+    DCHECK_EQ(baseline_code->kind(), CodeKind::BASELINE);
     // If baseline code flushing isn't enabled and we have baseline data on SFI
     // we cannot flush baseline / bytecode.
     if (!IsBaselineCodeFlushingEnabled(code_flush_mode_)) return false;
-    data = baseline_code.bytecode_or_interpreter_data();
+    data = baseline_code->bytecode_or_interpreter_data();
   } else if (!IsByteCodeFlushingEnabled(code_flush_mode_)) {
     // If bytecode flushing isn't enabled and there is no baseline code there is
     // nothing to flush.
@@ -285,12 +285,12 @@ bool MarkingVisitorBase<ConcreteVisitor>::ShouldFlushCode(
 template <typename ConcreteVisitor>
 bool MarkingVisitorBase<ConcreteVisitor>::IsOld(SharedFunctionInfo sfi) const {
   if (v8_flags.flush_code_based_on_time) {
-    return sfi.age() >= v8_flags.bytecode_old_time;
+    return sfi->age() >= v8_flags.bytecode_old_time;
   } else if (v8_flags.flush_code_based_on_tab_visibility) {
     return isolate_in_background_ ||
-           V8_UNLIKELY(sfi.age() == SharedFunctionInfo::kMaxAge);
+           V8_UNLIKELY(sfi->age() == SharedFunctionInfo::kMaxAge);
   } else {
-    return sfi.age() >= v8_flags.bytecode_old_age;
+    return sfi->age() >= v8_flags.bytecode_old_age;
   }
 }
 
@@ -303,7 +303,7 @@ void MarkingVisitorBase<ConcreteVisitor>::MakeOlder(
     uint16_t updated_age;
 
     do {
-      current_age = sfi.age();
+      current_age = sfi->age();
       // When the age is 0, it was reset by the function prologue in
       // Ignition/Sparkplug. But that might have been some time after the last
       // full GC. So in this case we don't increment the value like we normally
@@ -313,15 +313,15 @@ void MarkingVisitorBase<ConcreteVisitor>::MakeOlder(
       updated_age = current_age == 0
                         ? 1
                         : SaturateAdd(current_age, code_flushing_increase_);
-    } while (sfi.CompareExchangeAge(current_age, updated_age) != current_age);
+    } while (sfi->CompareExchangeAge(current_age, updated_age) != current_age);
   } else if (v8_flags.flush_code_based_on_tab_visibility) {
     // No need to increment age.
   } else {
-    uint16_t age = sfi.age();
+    uint16_t age = sfi->age();
     if (age < v8_flags.bytecode_old_age) {
-      sfi.CompareExchangeAge(age, age + 1);
+      sfi->CompareExchangeAge(age, age + 1);
     }
-    DCHECK_LE(sfi.age(), v8_flags.bytecode_old_age);
+    DCHECK_LE(sfi->age(), v8_flags.bytecode_old_age);
   }
 }
 
@@ -348,7 +348,7 @@ bool MarkingVisitorBase<ConcreteVisitor>::ShouldFlushBaselineCode(
 #endif
   if (!maybe_code.IsCode()) return false;
   Code code = Code::cast(maybe_code);
-  if (code.kind() != CodeKind::BASELINE) return false;
+  if (code->kind() != CodeKind::BASELINE) return false;
 
   SharedFunctionInfo shared = SharedFunctionInfo::cast(maybe_shared);
   return HasBytecodeArrayForFlushing(shared) && ShouldFlushCode(shared);
@@ -373,7 +373,7 @@ int MarkingVisitorBase<ConcreteVisitor>::VisitFixedArrayWithProgressBar(
   }
   int end = std::min(size, start + kProgressBarScanningChunk);
   if (start < end) {
-    VisitPointers(object, object.RawField(start), object.RawField(end));
+    VisitPointers(object, object->RawField(start), object->RawField(end));
     bool success = progress_bar.TrySetNewValue(current_progress_bar, end);
     CHECK(success);
     if (end < size) {
@@ -456,7 +456,7 @@ int MarkingVisitorBase<ConcreteVisitor>::VisitJSApiObject(Map map,
 template <typename ConcreteVisitor>
 int MarkingVisitorBase<ConcreteVisitor>::VisitJSArrayBuffer(
     Map map, JSArrayBuffer object) {
-  object.MarkExtension();
+  object->MarkExtension();
   return VisitEmbedderTracingSubclass(map, object);
 }
 
@@ -481,17 +481,17 @@ int MarkingVisitorBase<ConcreteVisitor>::VisitEphemeronHashTable(
     Map map, EphemeronHashTable table) {
   local_weak_objects_->ephemeron_hash_tables_local.Push(table);
 
-  for (InternalIndex i : table.IterateEntries()) {
+  for (InternalIndex i : table->IterateEntries()) {
     ObjectSlot key_slot =
-        table.RawFieldOfElementAt(EphemeronHashTable::EntryToIndex(i));
-    HeapObject key = HeapObject::cast(table.KeyAt(i));
+        table->RawFieldOfElementAt(EphemeronHashTable::EntryToIndex(i));
+    HeapObject key = HeapObject::cast(table->KeyAt(i));
 
     SynchronizePageAccess(key);
     concrete_visitor()->RecordSlot(table, key_slot, key);
     concrete_visitor()->AddWeakReferenceForReferenceSummarizer(table, key);
 
     ObjectSlot value_slot =
-        table.RawFieldOfElementAt(EphemeronHashTable::EntryToValueIndex(i));
+        table->RawFieldOfElementAt(EphemeronHashTable::EntryToValueIndex(i));
 
     // Objects in the shared heap are prohibited from being used as keys in
     // WeakMaps and WeakSets and therefore cannot be ephemeron keys. See also
@@ -500,7 +500,7 @@ int MarkingVisitorBase<ConcreteVisitor>::VisitEphemeronHashTable(
     if (key.InReadOnlySpace() || concrete_visitor()->IsMarked(key)) {
       VisitPointer(table, value_slot);
     } else {
-      Object value_obj = table.ValueAt(i);
+      Object value_obj = table->ValueAt(i);
 
       if (value_obj.IsHeapObject()) {
         HeapObject value = HeapObject::cast(value_obj);
@@ -520,7 +520,7 @@ int MarkingVisitorBase<ConcreteVisitor>::VisitEphemeronHashTable(
       }
     }
   }
-  return table.SizeFromMap(map);
+  return table->SizeFromMap(map);
 }
 
 template <typename ConcreteVisitor>
@@ -528,13 +528,13 @@ int MarkingVisitorBase<ConcreteVisitor>::VisitJSWeakRef(Map map,
                                                         JSWeakRef weak_ref) {
   int size = concrete_visitor()->VisitJSObjectSubclass(map, weak_ref);
   if (size == 0) return 0;
-  if (weak_ref.target().IsHeapObject()) {
-    HeapObject target = HeapObject::cast(weak_ref.target());
+  if (weak_ref->target().IsHeapObject()) {
+    HeapObject target = HeapObject::cast(weak_ref->target());
     SynchronizePageAccess(target);
     if (target.InReadOnlySpace() || concrete_visitor()->IsMarked(target)) {
       // Record the slot inside the JSWeakRef, since the
       // VisitJSObjectSubclass above didn't visit it.
-      ObjectSlot slot = weak_ref.RawField(JSWeakRef::kTargetOffset);
+      ObjectSlot slot = weak_ref->RawField(JSWeakRef::kTargetOffset);
       concrete_visitor()->RecordSlot(weak_ref, slot, target);
     } else {
       // JSWeakRef points to a potentially dead object. We have to process
@@ -553,8 +553,8 @@ int MarkingVisitorBase<ConcreteVisitor>::VisitWeakCell(Map map,
   int size = WeakCell::BodyDescriptor::SizeOf(map, weak_cell);
   this->VisitMapPointer(weak_cell);
   WeakCell::BodyDescriptor::IterateBody(map, weak_cell, size, this);
-  HeapObject target = weak_cell.relaxed_target();
-  HeapObject unregister_token = weak_cell.relaxed_unregister_token();
+  HeapObject target = weak_cell->relaxed_target();
+  HeapObject unregister_token = weak_cell->relaxed_unregister_token();
   SynchronizePageAccess(target);
   SynchronizePageAccess(unregister_token);
   if ((target.InReadOnlySpace() || concrete_visitor()->IsMarked(target)) &&
@@ -562,9 +562,9 @@ int MarkingVisitorBase<ConcreteVisitor>::VisitWeakCell(Map map,
        concrete_visitor()->IsMarked(unregister_token))) {
     // Record the slots inside the WeakCell, since the IterateBody above
     // didn't visit it.
-    ObjectSlot slot = weak_cell.RawField(WeakCell::kTargetOffset);
+    ObjectSlot slot = weak_cell->RawField(WeakCell::kTargetOffset);
     concrete_visitor()->RecordSlot(weak_cell, slot, target);
-    slot = weak_cell.RawField(WeakCell::kUnregisterTokenOffset);
+    slot = weak_cell->RawField(WeakCell::kUnregisterTokenOffset);
     concrete_visitor()->RecordSlot(weak_cell, slot, unregister_token);
   } else {
     // WeakCell points to a potentially dead object or a dead unregister
@@ -588,10 +588,11 @@ int MarkingVisitorBase<ConcreteVisitor>::VisitDescriptorArrayStrongly(
     Map map, DescriptorArray array) {
   this->VisitMapPointer(array);
   int size = DescriptorArray::BodyDescriptor::SizeOf(map, array);
-  VisitPointers(array, array.GetFirstPointerSlot(), array.GetDescriptorSlot(0));
-  VisitPointers(
-      array, MaybeObjectSlot(array.GetDescriptorSlot(0)),
-      MaybeObjectSlot(array.GetDescriptorSlot(array.number_of_descriptors())));
+  VisitPointers(array, array->GetFirstPointerSlot(),
+                array->GetDescriptorSlot(0));
+  VisitPointers(array, MaybeObjectSlot(array->GetDescriptorSlot(0)),
+                MaybeObjectSlot(
+                    array->GetDescriptorSlot(array->number_of_descriptors())));
   return size;
 }
 
@@ -613,14 +614,14 @@ int MarkingVisitorBase<ConcreteVisitor>::VisitDescriptorArray(
           mark_compact_epoch_, array);
   if (start != end) {
     DCHECK_LT(start, end);
-    VisitPointers(array, MaybeObjectSlot(array.GetDescriptorSlot(start)),
-                  MaybeObjectSlot(array.GetDescriptorSlot(end)));
+    VisitPointers(array, MaybeObjectSlot(array->GetDescriptorSlot(start)),
+                  MaybeObjectSlot(array->GetDescriptorSlot(end)));
     if (start == 0) {
       // We are processing the object the first time. Visit the header and
       // return a size for accounting.
       int size = DescriptorArray::BodyDescriptor::SizeOf(map, array);
-      VisitPointers(array, array.GetFirstPointerSlot(),
-                    array.GetDescriptorSlot(0));
+      VisitPointers(array, array->GetFirstPointerSlot(),
+                    array->GetDescriptorSlot(0));
       concrete_visitor()
           ->template VisitMapPointerIfNeeded<VisitorId::kVisitDescriptorArray>(
               array);
@@ -632,7 +633,7 @@ int MarkingVisitorBase<ConcreteVisitor>::VisitDescriptorArray(
 
 template <typename ConcreteVisitor>
 void MarkingVisitorBase<ConcreteVisitor>::VisitDescriptorsForMap(Map map) {
-  if (!concrete_visitor()->CanUpdateValuesInHeap() || !map.CanTransition())
+  if (!concrete_visitor()->CanUpdateValuesInHeap() || !map->CanTransition())
     return;
 
   // Maps that can transition share their descriptor arrays and require
@@ -664,7 +665,7 @@ void MarkingVisitorBase<ConcreteVisitor>::VisitDescriptorsForMap(Map map) {
     return;
   }
 
-  const int number_of_own_descriptors = map.NumberOfOwnDescriptors();
+  const int number_of_own_descriptors = map->NumberOfOwnDescriptors();
   if (number_of_own_descriptors) {
     // It is possible that the concurrent marker observes the
     // number_of_own_descriptors out of sync with the descriptors. In that
@@ -673,7 +674,7 @@ void MarkingVisitorBase<ConcreteVisitor>::VisitDescriptorsForMap(Map map) {
     // just should avoid crashing in that case. That's why we need the
     // std::min<int>() below.
     const auto descriptors_to_mark = std::min<int>(
-        number_of_own_descriptors, descriptors.number_of_descriptors());
+        number_of_own_descriptors, descriptors->number_of_descriptors());
     concrete_visitor()->TryMark(descriptors);
     if (DescriptorArrayMarkingState::TryUpdateIndicesToMark(
             mark_compact_epoch_, descriptors, descriptors_to_mark)) {
@@ -739,7 +740,7 @@ int YoungGenerationMarkingVisitorBase<ConcreteVisitor>::
 template <typename ConcreteVisitor>
 int YoungGenerationMarkingVisitorBase<ConcreteVisitor>::VisitJSArrayBuffer(
     Map map, JSArrayBuffer object) {
-  object.YoungMarkExtension();
+  object->YoungMarkExtension();
   return VisitEmbedderTracingSubClassWithEmbedderTracing(map, object);
 }
 
@@ -769,9 +770,9 @@ int YoungGenerationMarkingVisitorBase<ConcreteVisitor>::VisitEphemeronHashTable(
   // This allows to only iterate the tables' values, which are treated as strong
   // independently of whether the key is live.
   ephemeron_tables_local_->Push(table);
-  for (InternalIndex i : table.IterateEntries()) {
+  for (InternalIndex i : table->IterateEntries()) {
     ObjectSlot value_slot =
-        table.RawFieldOfElementAt(EphemeronHashTable::EntryToValueIndex(i));
+        table->RawFieldOfElementAt(EphemeronHashTable::EntryToValueIndex(i));
     VisitPointer(table, value_slot);
   }
   return EphemeronHashTable::BodyDescriptor::SizeOf(map, table);

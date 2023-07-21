@@ -1171,7 +1171,7 @@ ValueNode* MaglevGraphBuilder::GetTruncatedInt32ForToNumber(ValueNode* value,
           local_isolate_->root(value->Cast<RootConstant>()->index());
       if (!root_object.IsOddball(local_isolate_)) break;
       int32_t truncated_value =
-          DoubleToInt32(Oddball::cast(root_object).to_number_raw());
+          DoubleToInt32(Oddball::cast(root_object)->to_number_raw());
       // All oddball ToNumber truncations are valid Smis.
       DCHECK(Smi::IsValid(truncated_value));
       return GetInt32Constant(truncated_value);
@@ -1332,10 +1332,10 @@ ValueNode* MaglevGraphBuilder::GetFloat64ForToNumber(ValueNode* value,
       Object root_object =
           local_isolate_->root(value->Cast<RootConstant>()->index());
       if (hint != ToNumberHint::kDisallowToNumber && root_object.IsOddball()) {
-        return GetFloat64Constant(Oddball::cast(root_object).to_number_raw());
+        return GetFloat64Constant(Oddball::cast(root_object)->to_number_raw());
       }
       if (root_object.IsHeapNumber()) {
-        return GetFloat64Constant(HeapNumber::cast(root_object).value());
+        return GetFloat64Constant(HeapNumber::cast(root_object)->value());
       }
       break;
     }
@@ -3646,7 +3646,7 @@ MaglevGraphBuilder::TryFoldLoadDictPrototypeConstant(
               .value();
       // {constructor.initial_map()} is loaded/stored with acquire-release
       // semantics for constructors.
-      map = MakeRefAssumeMemoryFence(broker(), constructor.initial_map());
+      map = MakeRefAssumeMemoryFence(broker(), constructor->initial_map());
       DCHECK(map.object()->IsJSObjectMap());
     }
     broker()->dependencies()->DependOnConstantInDictionaryPrototypeChain(
@@ -4806,7 +4806,7 @@ ValueNode* MaglevGraphBuilder::GetConstant(compiler::ObjectRef ref) {
 
   if (constant.object()->IsThinString()) {
     constant = MakeRefAssumeMemoryFence(
-        broker(), ThinString::cast(*constant.object()).actual());
+        broker(), ThinString::cast(*constant.object())->actual());
   }
 
   auto root_index = broker()->FindRootIndex(constant);

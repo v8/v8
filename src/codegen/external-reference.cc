@@ -798,8 +798,8 @@ static uintptr_t BaselinePCForBytecodeOffset(Address raw_code_obj,
   Code code_obj = Code::cast(Object(raw_code_obj));
   BytecodeArray bytecode_array =
       BytecodeArray::cast(Object(raw_bytecode_array));
-  return code_obj.GetBaselineStartPCForBytecodeOffset(bytecode_offset,
-                                                      bytecode_array);
+  return code_obj->GetBaselineStartPCForBytecodeOffset(bytecode_offset,
+                                                       bytecode_array);
 }
 
 static uintptr_t BaselinePCForNextExecutedBytecode(Address raw_code_obj,
@@ -808,8 +808,8 @@ static uintptr_t BaselinePCForNextExecutedBytecode(Address raw_code_obj,
   Code code_obj = Code::cast(Object(raw_code_obj));
   BytecodeArray bytecode_array =
       BytecodeArray::cast(Object(raw_bytecode_array));
-  return code_obj.GetBaselinePCForNextExecutedBytecode(bytecode_offset,
-                                                       bytecode_array);
+  return code_obj->GetBaselinePCForNextExecutedBytecode(bytecode_offset,
+                                                        bytecode_array);
 }
 
 }  // namespace
@@ -1104,7 +1104,7 @@ const uint8_t* ExternalOneByteStringGetChars(Address string) {
   // failing the address range check.
   // TODO(chromium:1160961): Consider removing the CHECK when CFI is fixed.
   CHECK(Object(string).IsExternalOneByteString(cage_base));
-  return ExternalOneByteString::cast(Object(string)).GetChars(cage_base);
+  return ExternalOneByteString::cast(Object(string))->GetChars(cage_base);
 }
 const uint16_t* ExternalTwoByteStringGetChars(Address string) {
   PtrComprCageBase cage_base = GetPtrComprCageBaseFromOnHeapAddress(string);
@@ -1114,7 +1114,7 @@ const uint16_t* ExternalTwoByteStringGetChars(Address string) {
   // failing the address range check.
   // TODO(chromium:1160961): Consider removing the CHECK when CFI is fixed.
   CHECK(Object(string).IsExternalTwoByteString(cage_base));
-  return ExternalTwoByteString::cast(Object(string)).GetChars(cage_base);
+  return ExternalTwoByteString::cast(Object(string))->GetChars(cage_base);
 }
 
 }  // namespace

@@ -57,8 +57,9 @@ RELEASE_ACQUIRE_WEAK_ACCESSORS(Map, raw_transitions,
 ACCESSORS_CHECKED2(Map, prototype, HeapObject, kPrototypeOffset, true,
                    value.IsNull() || value.IsJSProxy() ||
                        value.IsWasmObject() ||
-                       (value.IsJSObject() && (value.InWritableSharedSpace() ||
-                                               value.map().is_prototype_map())))
+                       (value.IsJSObject() &&
+                        (value.InWritableSharedSpace() ||
+                         value->map()->is_prototype_map())))
 
 DEF_GETTER(Map, prototype_info, Object) {
   Object value = TaggedField<Object, kTransitionsOrPrototypeInfoOffset>::load(
@@ -130,13 +131,13 @@ BIT_FIELD_ACCESSORS(Map, relaxed_bit_field3, construction_counter,
 DEF_GETTER(Map, GetNamedInterceptor, InterceptorInfo) {
   DCHECK(has_named_interceptor());
   FunctionTemplateInfo info = GetFunctionTemplateInfo(cage_base);
-  return InterceptorInfo::cast(info.GetNamedPropertyHandler(cage_base));
+  return InterceptorInfo::cast(info->GetNamedPropertyHandler(cage_base));
 }
 
 DEF_GETTER(Map, GetIndexedInterceptor, InterceptorInfo) {
   DCHECK(has_indexed_interceptor());
   FunctionTemplateInfo info = GetFunctionTemplateInfo(cage_base);
-  return InterceptorInfo::cast(info.GetIndexedPropertyHandler(cage_base));
+  return InterceptorInfo::cast(info->GetIndexedPropertyHandler(cage_base));
 }
 
 // static
@@ -214,11 +215,11 @@ bool Map::TooManyFastProperties(StoreOrigin store_origin) const {
 }
 
 Name Map::GetLastDescriptorName(Isolate* isolate) const {
-  return instance_descriptors(isolate).GetKey(LastAdded());
+  return instance_descriptors(isolate)->GetKey(LastAdded());
 }
 
 PropertyDetails Map::GetLastDescriptorDetails(Isolate* isolate) const {
-  return instance_descriptors(isolate).GetDetails(LastAdded());
+  return instance_descriptors(isolate)->GetDetails(LastAdded());
 }
 
 InternalIndex Map::LastAdded() const {
@@ -233,7 +234,7 @@ int Map::NumberOfOwnDescriptors() const {
 }
 
 void Map::SetNumberOfOwnDescriptors(int number) {
-  DCHECK_LE(number, instance_descriptors().number_of_descriptors());
+  DCHECK_LE(number, instance_descriptors()->number_of_descriptors());
   CHECK_LE(static_cast<unsigned>(number),
            static_cast<unsigned>(kMaxNumberOfDescriptors));
   set_release_acquire_bit_field3(
@@ -450,19 +451,19 @@ void Map::SetOutOfObjectUnusedPropertyFields(int value) {
 
 void Map::CopyUnusedPropertyFields(Map map) {
   set_used_or_unused_instance_size_in_words(
-      map.used_or_unused_instance_size_in_words());
-  DCHECK_EQ(UnusedPropertyFields(), map.UnusedPropertyFields());
+      map->used_or_unused_instance_size_in_words());
+  DCHECK_EQ(UnusedPropertyFields(), map->UnusedPropertyFields());
 }
 
 void Map::CopyUnusedPropertyFieldsAdjustedForInstanceSize(Map map) {
-  int value = map.used_or_unused_instance_size_in_words();
+  int value = map->used_or_unused_instance_size_in_words();
   if (value >= JSPrimitiveWrapper::kFieldsAdded) {
     // Unused in-object fields. Adjust the offset from the object’s start
     // so it matches the distance to the object’s end.
-    value += instance_size_in_words() - map.instance_size_in_words();
+    value += instance_size_in_words() - map->instance_size_in_words();
   }
   set_used_or_unused_instance_size_in_words(value);
-  DCHECK_EQ(UnusedPropertyFields(), map.UnusedPropertyFields());
+  DCHECK_EQ(UnusedPropertyFields(), map->UnusedPropertyFields());
 }
 
 void Map::AccountAddedPropertyField() {
@@ -576,7 +577,7 @@ bool Map::is_abandoned_prototype_map() const {
 bool Map::should_be_fast_prototype_map() const {
   DCHECK(is_prototype_map());
   if (!has_prototype_info()) return false;
-  return PrototypeInfo::cast(prototype_info()).should_be_fast_map();
+  return PrototypeInfo::cast(prototype_info())->should_be_fast_map();
 }
 
 bool Map::has_prototype_info() const {
@@ -697,7 +698,7 @@ bool Map::is_stable() const {
 
 bool Map::CanBeDeprecated() const {
   for (InternalIndex i : IterateOwnDescriptors()) {
-    PropertyDetails details = instance_descriptors(kRelaxedLoad).GetDetails(i);
+    PropertyDetails details = instance_descriptors(kRelaxedLoad)->GetDetails(i);
     if (details.representation().MightCauseMapDeprecation()) return true;
     if (details.kind() == PropertyKind::kData &&
         details.location() == PropertyLocation::kDescriptor) {
@@ -746,7 +747,7 @@ void Map::UpdateDescriptors(Isolate* isolate, DescriptorArray descriptors,
 
 void Map::InitializeDescriptors(Isolate* isolate, DescriptorArray descriptors) {
   SetInstanceDescriptors(isolate, descriptors,
-                         descriptors.number_of_descriptors());
+                         descriptors->number_of_descriptors());
 }
 
 void Map::clear_padding() {
@@ -759,11 +760,11 @@ void Map::clear_padding() {
 void Map::AppendDescriptor(Isolate* isolate, Descriptor* desc) {
   DescriptorArray descriptors = instance_descriptors(isolate);
   int number_of_own_descriptors = NumberOfOwnDescriptors();
-  DCHECK(descriptors.number_of_descriptors() == number_of_own_descriptors);
+  DCHECK(descriptors->number_of_descriptors() == number_of_own_descriptors);
   {
     // The following two operations need to happen before the marking write
     // barrier.
-    descriptors.Append(desc);
+    descriptors->Append(desc);
     SetNumberOfOwnDescriptors(number_of_own_descriptors + 1);
 #ifndef V8_DISABLE_WRITE_BARRIERS
     WriteBarrier::Marking(descriptors, number_of_own_descriptors + 1);
@@ -789,7 +790,7 @@ void Map::AppendDescriptor(Isolate* isolate, Descriptor* desc) {
 
 bool Map::ConcurrentIsMap(PtrComprCageBase cage_base,
                           const Object& object) const {
-  return object.IsHeapObject() && HeapObject::cast(object).map(cage_base) ==
+  return object.IsHeapObject() && HeapObject::cast(object)->map(cage_base) ==
                                       GetReadOnlyRoots(cage_base).meta_map();
 }
 
@@ -815,7 +816,8 @@ void Map::SetBackPointer(HeapObject value, WriteBarrierMode mode) {
   CHECK_GE(instance_type(), FIRST_JS_RECEIVER_TYPE);
   CHECK(value.IsMap());
   CHECK(GetBackPointer().IsUndefined());
-  CHECK_EQ(Map::cast(value).GetConstructorRaw(), constructor_or_back_pointer());
+  CHECK_EQ(Map::cast(value)->GetConstructorRaw(),
+           constructor_or_back_pointer());
   set_constructor_or_back_pointer(value, mode);
 }
 
@@ -860,7 +862,7 @@ bool Map::IsPrototypeValidityCellValid() const {
     DCHECK_EQ(Smi::cast(validity_cell).value(), Map::kPrototypeChainValid);
     return true;
   }
-  Smi cell_value = Smi::cast(Cell::cast(validity_cell).value());
+  Smi cell_value = Smi::cast(Cell::cast(validity_cell)->value());
   return cell_value == Smi::FromInt(Map::kPrototypeChainValid);
 }
 
@@ -869,7 +871,7 @@ DEF_GETTER(Map, GetConstructorRaw, Object) {
   // Follow any back pointers.
   while (ConcurrentIsMap(cage_base, maybe_constructor)) {
     maybe_constructor =
-        Map::cast(maybe_constructor).constructor_or_back_pointer(cage_base);
+        Map::cast(maybe_constructor)->constructor_or_back_pointer(cage_base);
   }
   return maybe_constructor;
 }
@@ -881,7 +883,7 @@ DEF_GETTER(Map, GetNonInstancePrototype, Object) {
   // Get prototype from the {constructor, non-instance_prototype} tuple.
   Tuple2 non_instance_prototype_constructor_tuple =
       Tuple2::cast(raw_constructor);
-  Object result = non_instance_prototype_constructor_tuple.value2();
+  Object result = non_instance_prototype_constructor_tuple->value2();
   DCHECK(!result.IsJSReceiver());
   DCHECK(!result.IsFunctionTemplateInfo());
   return result;
@@ -891,7 +893,7 @@ DEF_GETTER(Map, GetConstructor, Object) {
   Object maybe_constructor = GetConstructorRaw(cage_base);
   if (maybe_constructor.IsTuple2()) {
     // Get constructor from the {constructor, non-instance_prototype} tuple.
-    maybe_constructor = Tuple2::cast(maybe_constructor).value1();
+    maybe_constructor = Tuple2::cast(maybe_constructor)->value1();
   }
   return maybe_constructor;
 }
@@ -902,11 +904,11 @@ Object Map::TryGetConstructor(Isolate* isolate, int max_steps) {
   while (maybe_constructor.IsMap(isolate)) {
     if (max_steps-- == 0) return Smi::FromInt(0);
     maybe_constructor =
-        Map::cast(maybe_constructor).constructor_or_back_pointer(isolate);
+        Map::cast(maybe_constructor)->constructor_or_back_pointer(isolate);
   }
   if (maybe_constructor.IsTuple2()) {
     // Get constructor from the {constructor, non-instance_prototype} tuple.
-    maybe_constructor = Tuple2::cast(maybe_constructor).value1();
+    maybe_constructor = Tuple2::cast(maybe_constructor)->value1();
   }
   return maybe_constructor;
 }
@@ -914,9 +916,9 @@ Object Map::TryGetConstructor(Isolate* isolate, int max_steps) {
 DEF_GETTER(Map, GetFunctionTemplateInfo, FunctionTemplateInfo) {
   Object constructor = GetConstructor(cage_base);
   if (constructor.IsJSFunction(cage_base)) {
-    SharedFunctionInfo sfi = JSFunction::cast(constructor).shared(cage_base);
-    DCHECK(sfi.IsApiFunction());
-    return sfi.get_api_func_data();
+    SharedFunctionInfo sfi = JSFunction::cast(constructor)->shared(cage_base);
+    DCHECK(sfi->IsApiFunction());
+    return sfi->get_api_func_data();
   }
   DCHECK(constructor.IsFunctionTemplateInfo(cage_base));
   return FunctionTemplateInfo::cast(constructor);
@@ -977,7 +979,7 @@ int NormalizedMapCache::GetIndex(Handle<Map> map) {
 
 DEF_GETTER(HeapObject, IsNormalizedMapCache, bool) {
   if (!IsWeakFixedArray(cage_base)) return false;
-  if (WeakFixedArray::cast(*this).length() != NormalizedMapCache::kEntries) {
+  if (WeakFixedArray::cast(*this)->length() != NormalizedMapCache::kEntries) {
     return false;
   }
   return true;

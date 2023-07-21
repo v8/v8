@@ -921,7 +921,7 @@ void PrintFunctionSource(OptimizedCompilationInfo* info, Isolate* isolate,
       auto& os = tracing_scope.stream();
       os << "--- FUNCTION SOURCE (";
       if (source_name.IsString()) {
-        os << String::cast(source_name).ToCString().get() << ":";
+        os << String::cast(source_name)->ToCString().get() << ":";
       }
       os << shared->DebugNameCStr().get() << ") id{";
       os << info->optimization_id() << "," << source_id << "} start{";
@@ -997,10 +997,10 @@ void PrintCode(Isolate* isolate, Handle<Code> code,
     if (print_source) {
       Handle<SharedFunctionInfo> shared = info->shared_info();
       if (shared->script().IsScript() &&
-          !Script::cast(shared->script()).source().IsUndefined(isolate)) {
+          !Script::cast(shared->script())->source().IsUndefined(isolate)) {
         os << "--- Raw source ---\n";
         StringCharacterStream stream(
-            String::cast(Script::cast(shared->script()).source()),
+            String::cast(Script::cast(shared->script())->source()),
             shared->StartPosition());
         // fun->end_position() points to the last character in the stream. We
         // need to compensate by adding one to calculate the length.
@@ -1261,7 +1261,7 @@ PipelineCompilationJob::Status PipelineCompilationJob::PrepareJobImpl(
   // generated code on the native context keyed on SharedFunctionInfo.
   // TODO(mythria): Check if it is better to key the OSR cache on JSFunction and
   // allow context specialization for OSR code.
-  if (compilation_info()->closure()->raw_feedback_cell().map() ==
+  if (compilation_info()->closure()->raw_feedback_cell()->map() ==
           ReadOnlyRoots(isolate).one_closure_cell_map() &&
       !compilation_info()->is_osr()) {
     compilation_info()->set_function_context_specializing();
@@ -2892,7 +2892,7 @@ void PipelineImpl::InitializeHeapBroker() {
     TurboCfgFile tcf(isolate());
     tcf << AsC1VCompilation(info());
   }
-  if (data->info()->bytecode_array()->SourcePositionTable().DataSize() == 0) {
+  if (data->info()->bytecode_array()->SourcePositionTable()->DataSize() == 0) {
     data->source_positions()->Disable();
   }
   data->source_positions()->AddDecorator();
@@ -4372,7 +4372,7 @@ bool PipelineImpl::CheckNoDeprecatedMaps(Handle<Code> code) {
   for (RelocIterator it(*code, mode_mask); !it.done(); it.next()) {
     DCHECK(RelocInfo::IsEmbeddedObjectMode(it.rinfo()->rmode()));
     HeapObject obj = it.rinfo()->target_object(data_->isolate());
-    if (obj.IsMap() && Map::cast(obj).is_deprecated()) {
+    if (obj.IsMap() && Map::cast(obj)->is_deprecated()) {
       return false;
     }
   }

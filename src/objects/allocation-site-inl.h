@@ -197,7 +197,7 @@ inline void AllocationSite::IncrementMementoCreateCount() {
 
 bool AllocationMemento::IsValid() const {
   return allocation_site().IsAllocationSite() &&
-         !AllocationSite::cast(allocation_site()).IsZombie();
+         !AllocationSite::cast(allocation_site())->IsZombie();
 }
 
 AllocationSite AllocationMemento::GetAllocationSite() const {

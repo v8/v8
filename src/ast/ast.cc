@@ -679,13 +679,14 @@ void ArrayLiteralBoilerplateBuilder::BuildBoilerplateDescription(
       if (literal && literal->type() == Literal::kTheHole) {
         DCHECK(IsHoleyElementsKind(kind));
         DCHECK(GetBoilerplateValue(element, isolate)->IsTheHole(isolate));
-        FixedDoubleArray::cast(*elements).set_the_hole(array_index);
+        FixedDoubleArray::cast(*elements)->set_the_hole(array_index);
         continue;
       } else if (literal && literal->IsNumber()) {
-        FixedDoubleArray::cast(*elements).set(array_index, literal->AsNumber());
+        FixedDoubleArray::cast(*elements)->set(array_index,
+                                               literal->AsNumber());
       } else {
         DCHECK(GetBoilerplateValue(element, isolate)->IsUninitialized(isolate));
-        FixedDoubleArray::cast(*elements).set(array_index, 0);
+        FixedDoubleArray::cast(*elements)->set(array_index, 0);
       }
 
     } else {
@@ -714,7 +715,7 @@ void ArrayLiteralBoilerplateBuilder::BuildBoilerplateDescription(
                           kind, boilerplate_value.OptimalElementsKind(
                                     GetPtrComprCageBase(*elements))));
 
-      FixedArray::cast(*elements).set(array_index, boilerplate_value);
+      FixedArray::cast(*elements)->set(array_index, boilerplate_value);
     }
   }  // namespace internal
 
@@ -803,7 +804,7 @@ Handle<TemplateObjectDescription> GetTemplateObject::GetOrBuildDescription(
     DisallowGarbageCollection no_gc;
     FixedArray raw_strings = *raw_strings_handle;
 
-    for (int i = 0; i < raw_strings.length(); ++i) {
+    for (int i = 0; i < raw_strings->length(); ++i) {
       if (this->raw_strings()->at(i) != this->cooked_strings()->at(i)) {
         // If the AstRawStrings don't match, then neither should the allocated
         // Strings, since the AstValueFactory should have deduplicated them
@@ -814,7 +815,7 @@ Handle<TemplateObjectDescription> GetTemplateObject::GetOrBuildDescription(
 
         raw_and_cooked_match = false;
       }
-      raw_strings.set(i, *this->raw_strings()->at(i)->string());
+      raw_strings->set(i, *this->raw_strings()->at(i)->string());
     }
   }
   Handle<FixedArray> cooked_strings_handle = raw_strings_handle;
@@ -824,11 +825,11 @@ Handle<TemplateObjectDescription> GetTemplateObject::GetOrBuildDescription(
     DisallowGarbageCollection no_gc;
     FixedArray cooked_strings = *cooked_strings_handle;
     ReadOnlyRoots roots(isolate);
-    for (int i = 0; i < cooked_strings.length(); ++i) {
+    for (int i = 0; i < cooked_strings->length(); ++i) {
       if (this->cooked_strings()->at(i) != nullptr) {
-        cooked_strings.set(i, *this->cooked_strings()->at(i)->string());
+        cooked_strings->set(i, *this->cooked_strings()->at(i)->string());
       } else {
-        cooked_strings.set_undefined(roots, i);
+        cooked_strings->set_undefined(roots, i);
       }
     }
   }

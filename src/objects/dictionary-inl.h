@@ -224,7 +224,7 @@ void BaseDictionaryShape<Key>::DetailsAtPut(Dictionary dict,
 }
 
 Object GlobalDictionaryShape::Unwrap(Object object) {
-  return PropertyCell::cast(object).name();
+  return PropertyCell::cast(object)->name();
 }
 
 Handle<Map> GlobalDictionary::GetMap(ReadOnlyRoots roots) {
@@ -272,7 +272,7 @@ Name GlobalDictionary::NameAt(InternalIndex entry) {
 }
 
 Name GlobalDictionary::NameAt(PtrComprCageBase cage_base, InternalIndex entry) {
-  return CellAt(cage_base, entry).name(cage_base);
+  return CellAt(cage_base, entry)->name(cage_base);
 }
 
 Object GlobalDictionary::ValueAt(InternalIndex entry) {
@@ -282,12 +282,12 @@ Object GlobalDictionary::ValueAt(InternalIndex entry) {
 
 Object GlobalDictionary::ValueAt(PtrComprCageBase cage_base,
                                  InternalIndex entry) {
-  return CellAt(cage_base, entry).value(cage_base);
+  return CellAt(cage_base, entry)->value(cage_base);
 }
 
 void GlobalDictionary::SetEntry(InternalIndex entry, Object key, Object value,
                                 PropertyDetails details) {
-  DCHECK_EQ(key, PropertyCell::cast(value).name());
+  DCHECK_EQ(key, PropertyCell::cast(value)->name());
   set(EntryToIndex(entry) + kEntryKeyIndex, value);
   DetailsAtPut(entry, details);
 }
@@ -338,7 +338,7 @@ Handle<Map> SimpleNumberDictionary::GetMap(ReadOnlyRoots roots) {
 }
 
 bool BaseNameDictionaryShape::IsMatch(Handle<Name> key, Object other) {
-  DCHECK(other.IsTheHole() || Name::cast(other).IsUniqueName());
+  DCHECK(other.IsTheHole() || Name::cast(other)->IsUniqueName());
   DCHECK(key->IsUniqueName());
   return *key == other;
 }
@@ -351,18 +351,18 @@ uint32_t BaseNameDictionaryShape::Hash(ReadOnlyRoots roots, Handle<Name> key) {
 uint32_t BaseNameDictionaryShape::HashForObject(ReadOnlyRoots roots,
                                                 Object other) {
   DCHECK(other.IsUniqueName());
-  return Name::cast(other).hash();
+  return Name::cast(other)->hash();
 }
 
 bool GlobalDictionaryShape::IsMatch(Handle<Name> key, Object other) {
   DCHECK(key->IsUniqueName());
-  DCHECK(PropertyCell::cast(other).name().IsUniqueName());
-  return *key == PropertyCell::cast(other).name();
+  DCHECK(PropertyCell::cast(other)->name()->IsUniqueName());
+  return *key == PropertyCell::cast(other)->name();
 }
 
 uint32_t GlobalDictionaryShape::HashForObject(ReadOnlyRoots roots,
                                               Object other) {
-  return PropertyCell::cast(other).name().hash();
+  return PropertyCell::cast(other)->name()->hash();
 }
 
 template <AllocationType allocation>

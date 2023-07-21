@@ -26,18 +26,18 @@ void PretenuringHandler::UpdateAllocationSite(
                  chunk->IsFlagSet(MemoryChunk::PAGE_NEW_OLD_PROMOTION));
 #endif
   if (!v8_flags.allocation_site_pretenuring ||
-      !AllocationSite::CanTrack(map.instance_type())) {
+      !AllocationSite::CanTrack(map->instance_type())) {
     return;
   }
   AllocationMemento memento_candidate =
       FindAllocationMemento<kForGC>(map, object);
   if (memento_candidate.is_null()) return;
-  DCHECK(map.IsJSObjectMap());
+  DCHECK(map->IsJSObjectMap());
 
   // Entering cached feedback is used in the parallel case. We are not allowed
   // to dereference the allocation site and rather have to postpone all checks
   // till actually merging the data.
-  Address key = memento_candidate.GetAllocationSiteUnchecked();
+  Address key = memento_candidate->GetAllocationSiteUnchecked();
   (*pretenuring_feedback)[AllocationSite::unchecked_cast(Object(key))]++;
 }
 
@@ -46,7 +46,7 @@ AllocationMemento PretenuringHandler::FindAllocationMemento(Map map,
                                                             HeapObject object) {
   Address object_address = object.address();
   Address memento_address =
-      object_address + ALIGN_TO_ALLOCATION_ALIGNMENT(object.SizeFromMap(map));
+      object_address + ALIGN_TO_ALLOCATION_ALIGNMENT(object->SizeFromMap(map));
   Address last_memento_word_address = memento_address + kTaggedSize;
   // If the memento would be on another page, bail out immediately.
   if (!Page::OnSamePage(object_address, last_memento_word_address)) {
@@ -60,7 +60,7 @@ AllocationMemento PretenuringHandler::FindAllocationMemento(Map map,
     return AllocationMemento();
 
   HeapObject candidate = HeapObject::FromAddress(memento_address);
-  ObjectSlot candidate_map_slot = candidate.map_slot();
+  ObjectSlot candidate_map_slot = candidate->map_slot();
   // This fast check may peek at an uninitialized word. However, the slow check
   // below (memento_address == top) ensures that this is safe. Mark the word as
   // initialized to silence MemorySanitizer warnings.
@@ -102,7 +102,7 @@ AllocationMemento PretenuringHandler::FindAllocationMemento(Map map,
              memento_address +
                      ALIGN_TO_ALLOCATION_ALIGNMENT(AllocationMemento::kSize) <=
                  top);
-      if ((memento_address != top) && memento_candidate.IsValid()) {
+      if ((memento_address != top) && memento_candidate->IsValid()) {
         return memento_candidate;
       }
       return AllocationMemento();

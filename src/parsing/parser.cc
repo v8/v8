@@ -577,7 +577,7 @@ void Parser::ParseProgram(Isolate* isolate, Handle<Script> script,
     if (!flags().is_eval()) {
       event_name = "parse-script";
       start = 0;
-      end = String::cast(script->source()).length();
+      end = String::cast(script->source())->length();
     }
     LOG(isolate,
         FunctionEvent(event_name, flags().script_id(), ms, start, end, "", 0));

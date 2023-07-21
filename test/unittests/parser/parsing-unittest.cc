@@ -69,28 +69,28 @@ struct Input {
 
 // Helpers for parsing and checking that the result has no error, implemented as
 // macros to report the correct test error location.
-#define FAIL_WITH_PENDING_PARSER_ERROR(info, script, isolate)                \
-  do {                                                                       \
-    (info)->pending_error_handler()->PrepareErrors(                          \
-        (isolate), (info)->ast_value_factory());                             \
-    (info)->pending_error_handler()->ReportErrors((isolate), (script));      \
-                                                                             \
-    i::Handle<i::JSObject> exception_handle(                                 \
-        i::JSObject::cast((isolate)->pending_exception()), (isolate));       \
-    i::Handle<i::String> message_string = i::Handle<i::String>::cast(        \
-        i::JSReceiver::GetProperty((isolate), exception_handle, "message")   \
-            .ToHandleChecked());                                             \
-    (isolate)->clear_pending_exception();                                    \
-                                                                             \
-    String script_source = String::cast((script)->source());                 \
-                                                                             \
-    FATAL(                                                                   \
-        "Parser failed on:\n"                                                \
-        "\t%s\n"                                                             \
-        "with error:\n"                                                      \
-        "\t%s\n"                                                             \
-        "However, we expected no error.",                                    \
-        script_source.ToCString().get(), message_string->ToCString().get()); \
+#define FAIL_WITH_PENDING_PARSER_ERROR(info, script, isolate)                 \
+  do {                                                                        \
+    (info)->pending_error_handler()->PrepareErrors(                           \
+        (isolate), (info)->ast_value_factory());                              \
+    (info)->pending_error_handler()->ReportErrors((isolate), (script));       \
+                                                                              \
+    i::Handle<i::JSObject> exception_handle(                                  \
+        i::JSObject::cast((isolate)->pending_exception()), (isolate));        \
+    i::Handle<i::String> message_string = i::Handle<i::String>::cast(         \
+        i::JSReceiver::GetProperty((isolate), exception_handle, "message")    \
+            .ToHandleChecked());                                              \
+    (isolate)->clear_pending_exception();                                     \
+                                                                              \
+    String script_source = String::cast((script)->source());                  \
+                                                                              \
+    FATAL(                                                                    \
+        "Parser failed on:\n"                                                 \
+        "\t%s\n"                                                              \
+        "with error:\n"                                                       \
+        "\t%s\n"                                                              \
+        "However, we expected no error.",                                     \
+        script_source->ToCString().get(), message_string->ToCString().get()); \
   } while (false)
 
 #define CHECK_PARSE_PROGRAM(info, script, isolate)                        \
@@ -4156,7 +4156,7 @@ i::Scope* DeserializeFunctionScope(i::Isolate* isolate, i::Zone* zone,
   i::DeclarationScope* script_scope =
       zone->New<i::DeclarationScope>(zone, &avf);
   i::Scope* s = i::Scope::DeserializeScopeChain(
-      isolate, zone, f->context().scope_info(), script_scope, &avf,
+      isolate, zone, f->context()->scope_info(), script_scope, &avf,
       i::Scope::DeserializationMode::kIncludingVariables);
   return s;
 }

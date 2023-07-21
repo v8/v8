@@ -113,7 +113,7 @@ uint8_t* TestingModuleBuilder::AddMemory(uint32_t size, SharedFlag shared,
   CHECK_EQ(0, test_module_->memories.size());
   CHECK_NULL(mem0_start_);
   CHECK_EQ(0, mem0_size_);
-  CHECK_EQ(0, instance_object_->memory_objects().length());
+  CHECK_EQ(0, instance_object_->memory_objects()->length());
 
   uint32_t initial_pages = RoundUp(size, kWasmPageSize) / kWasmPageSize;
   uint32_t maximum_pages = initial_pages;
@@ -138,8 +138,8 @@ uint8_t* TestingModuleBuilder::AddMemory(uint32_t size, SharedFlag shared,
   // Create the memory_bases_and_sizes array.
   Handle<FixedAddressArray> memory_bases_and_sizes =
       FixedAddressArray::New(isolate_, 2);
-  uint8_t* mem_start =
-      reinterpret_cast<uint8_t*>(memory_object->array_buffer().backing_store());
+  uint8_t* mem_start = reinterpret_cast<uint8_t*>(
+      memory_object->array_buffer()->backing_store());
   memory_bases_and_sizes->set_sandboxed_pointer(
       0, reinterpret_cast<Address>(mem_start));
   memory_bases_and_sizes->set(1, size);
@@ -567,7 +567,7 @@ void WasmFunctionCompiler::Build(base::Vector<const uint8_t> bytes) {
 
   base::Vector<const uint8_t> wire_bytes = builder_->instance_object()
                                                ->module_object()
-                                               .native_module()
+                                               ->native_module()
                                                ->wire_bytes();
 
   CompilationEnv env = builder_->CreateCompilationEnv();
@@ -578,7 +578,7 @@ void WasmFunctionCompiler::Build(base::Vector<const uint8_t> bytes) {
   FunctionBody func_body{function_->sig, function_->code.offset(),
                          func_wire_bytes.begin(), func_wire_bytes.end()};
   NativeModule* native_module =
-      builder_->instance_object()->module_object().native_module();
+      builder_->instance_object()->module_object()->native_module();
   ForDebugging for_debugging =
       native_module->IsInDebugState() ? kForDebugging : kNotForDebugging;
 
@@ -616,10 +616,11 @@ void WasmFunctionCompiler::Build(base::Vector<const uint8_t> bytes) {
       native_module->PublishCode(native_module->AddCompiledCode(*result));
   DCHECK_NOT_NULL(code);
   DisallowGarbageCollection no_gc;
-  Script script = builder_->instance_object()->module_object().script();
-  std::unique_ptr<char[]> source_url = String::cast(script.name()).ToCString();
+  Script script = builder_->instance_object()->module_object()->script();
+  std::unique_ptr<char[]> source_url =
+      String::cast(script->name())->ToCString();
   if (WasmCode::ShouldBeLogged(isolate())) {
-    code->LogCode(isolate(), source_url.get(), script.id());
+    code->LogCode(isolate(), source_url.get(), script->id());
   }
 }
 
