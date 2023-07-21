@@ -153,16 +153,19 @@ macro TestTurboshaftFloat64Type(
     value: float64, expected: TurboshaftFloat64Type): bool {
   if (Float64IsNaN(value)) return expected.special_values.nan;
   if (IsMinusZero(value)) return expected.special_values.minus_zero;
+  const kMaxRelativeError = 0.0000001;
   typeswitch (expected) {
     case (range: TurboshaftFloat64RangeType): {
-      return range.min <= value && value <= range.max;
+      return (range.min < value ||
+              Float64AlmostEqual(range.min, value, kMaxRelativeError)) &&
+          (value < range.max ||
+           Float64AlmostEqual(value, range.max, kMaxRelativeError));
     }
     case (set: TurboshaftFloat64SetType): {
-      const delta = 0.000001;
       for (let i: uint32 = 0; i < set.set_size; ++i) {
-        if (set.elements[i] - delta <= value &&
-            value <= set.elements[i] + delta)
+        if (Float64AlmostEqual(set.elements[i], value, kMaxRelativeError)) {
           return true;
+        }
       }
       return false;
     }
@@ -212,7 +215,7 @@ builtin CheckTurboshaftFloat32Type(implicit context: Context)(
 
   Print('Type assertion failed!');
   Print('Node id', nodeId);
-  Print('Actual value', Convert<Number>(v));
+  Print('Actual value', v);
   Print('Expected type', expectedType);
   unreachable;
 }
@@ -228,7 +231,7 @@ builtin CheckTurboshaftFloat64Type(implicit context: Context)(
 
   Print('Type assertion failed!');
   Print('Node id', nodeId);
-  Print('Actual value', Convert<Number>(value));
+  Print('Actual value', value);
   Print('Expected type', expectedType);
   unreachable;
 }
@@ -237,5 +240,12 @@ builtin CheckTurboshaftFloat64Type(implicit context: Context)(
 builtin DebugPrintWordPtr(implicit context: Context)(value: uintptr):
     Undefined {
   Print('DebugPrint (word): ', value);
+  return Undefined;
+}
+
+@customInterfaceDescriptor
+builtin DebugPrintFloat64(implicit context: Context)(value: float64):
+    Undefined {
+  Print('DebugPrint (float64): ', value);
   return Undefined;
 }

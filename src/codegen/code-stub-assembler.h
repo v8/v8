@@ -611,6 +611,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<UintPtrT> UintPtrMin(TNode<UintPtrT> left, TNode<UintPtrT> right);
 
   // Float64 operations.
+  TNode<BoolT> Float64AlmostEqual(TNode<Float64T> x, TNode<Float64T> y,
+                                  double max_relative_error = 0.0000001);
   TNode<Float64T> Float64Ceil(TNode<Float64T> x);
   TNode<Float64T> Float64Floor(TNode<Float64T> x);
   TNode<Float64T> Float64Round(TNode<Float64T> x);
@@ -4076,6 +4078,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     return Print(nullptr, tagged_value);
   }
   void Print(const char* prefix, TNode<UintPtrT> value);
+  void Print(const char* prefix, TNode<Float64T> value);
   void PrintErr(const char* s);
   void PrintErr(const char* prefix, TNode<MaybeObject> tagged_value);
   void PrintErr(TNode<MaybeObject> tagged_value) {
@@ -4085,6 +4088,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   void PrintToStream(const char* prefix, TNode<MaybeObject> tagged_value,
                      int stream);
   void PrintToStream(const char* prefix, TNode<UintPtrT> value, int stream);
+  void PrintToStream(const char* prefix, TNode<Float64T> value, int stream);
 
   template <class... TArgs>
   TNode<HeapObject> MakeTypeError(MessageTemplate message,

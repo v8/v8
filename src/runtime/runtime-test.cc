@@ -5,11 +5,13 @@
 #include <stdio.h>
 
 #include <fstream>
+#include <iomanip>
 #include <memory>
 
 #include "include/v8-function.h"
 #include "include/v8-profiler.h"
 #include "src/api/api-inl.h"
+#include "src/base/macros.h"
 #include "src/base/numbers/double.h"
 #include "src/codegen/compiler.h"
 #include "src/codegen/pending-optimization-table.h"
@@ -1299,6 +1301,39 @@ RUNTIME_FUNCTION(Runtime_DebugPrintWord) {
   } else {
     StdoutStream os;
     os << "0x" << std::hex << value << std::dec << std::endl;
+  }
+  return ReadOnlyRoots(isolate).undefined_value();
+}
+
+RUNTIME_FUNCTION(Runtime_DebugPrintFloat) {
+  static constexpr int kNum16BitChunks = 4;
+  SealHandleScope shs(isolate);
+
+  // Args are: <bits 63-48>, <bits 47-32>, <bits 31-16>, <bits 15-0>, stream.
+  if (args.length() != kNum16BitChunks + 1) {
+    return CrashUnlessFuzzing(isolate);
+  }
+
+  uint64_t value = 0;
+  for (int i = 0; i < kNum16BitChunks; ++i) {
+    value <<= 16;
+    CHECK(args[i].IsSmi());
+    uint32_t chunk = Smi::cast(args[i]).value();
+    // We encode 16 bit per chunk only!
+    CHECK_EQ(chunk & 0xFFFF0000, 0);
+    value |= chunk;
+  }
+
+  if (!args[4].IsSmi() || (Smi::cast(args[4]).value() == fileno(stderr))) {
+    StderrStream os;
+    std::streamsize precision = os.precision();
+    os << std::setprecision(20) << base::bit_cast<double>(value) << std::endl;
+    os.precision(precision);
+  } else {
+    StdoutStream os;
+    std::streamsize precision = os.precision();
+    os << std::setprecision(20) << base::bit_cast<double>(value) << std::endl;
+    os.precision(precision);
   }
   return ReadOnlyRoots(isolate).undefined_value();
 }

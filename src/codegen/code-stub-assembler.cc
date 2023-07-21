@@ -357,6 +357,25 @@ TNode<BoolT> CodeStubAssembler::WordIsPowerOfTwo(TNode<IntPtrT> value) {
       IntPtrConstant(0));
 }
 
+TNode<BoolT> CodeStubAssembler::Float64AlmostEqual(TNode<Float64T> x,
+                                                   TNode<Float64T> y,
+                                                   double max_relative_error) {
+  TVARIABLE(BoolT, result, BoolConstant(true));
+  Label done(this);
+
+  GotoIf(Float64Equal(x, y), &done);
+  GotoIf(Float64LessThan(Float64Div(Float64Abs(Float64Sub(x, y)),
+                                    Float64Max(Float64Abs(x), Float64Abs(y))),
+                         Float64Constant(max_relative_error)),
+         &done);
+
+  result = BoolConstant(false);
+  Goto(&done);
+
+  BIND(&done);
+  return result.value();
+}
+
 TNode<Float64T> CodeStubAssembler::Float64Round(TNode<Float64T> x) {
   TNode<Float64T> one = Float64Constant(1.0);
   TNode<Float64T> one_half = Float64Constant(0.5);
@@ -16124,6 +16143,10 @@ void CodeStubAssembler::Print(const char* prefix, TNode<UintPtrT> value) {
   PrintToStream(prefix, value, fileno(stdout));
 }
 
+void CodeStubAssembler::Print(const char* prefix, TNode<Float64T> value) {
+  PrintToStream(prefix, value, fileno(stdout));
+}
+
 void CodeStubAssembler::PrintErr(const char* prefix,
                                  TNode<MaybeObject> tagged_value) {
   PrintToStream(prefix, tagged_value, fileno(stderr));
@@ -16168,6 +16191,36 @@ void CodeStubAssembler::PrintToStream(const char* prefix, TNode<UintPtrT> value,
 
   // Args are: <bits 63-48>, <bits 47-32>, <bits 31-16>, <bits 15-0>, stream.
   CallRuntime(Runtime::kDebugPrintWord, NoContextConstant(), chunks[3],
+              chunks[2], chunks[1], chunks[0], SmiConstant(stream));
+}
+
+void CodeStubAssembler::PrintToStream(const char* prefix, TNode<Float64T> value,
+                                      int stream) {
+  if (prefix != nullptr) {
+    std::string formatted(prefix);
+    formatted += ": ";
+    Handle<String> string =
+        isolate()->factory()->InternalizeString(formatted.c_str());
+    CallRuntime(Runtime::kGlobalPrint, NoContextConstant(),
+                HeapConstant(string), SmiConstant(stream));
+  }
+
+  // We use word32 extraction instead of `BitcastFloat64ToInt64` to support 32
+  // bit architectures, too.
+  TNode<Uint32T> high = Float64ExtractHighWord32(value);
+  TNode<Uint32T> low = Float64ExtractLowWord32(value);
+
+  // We use 16 bit per chunk.
+  TNode<Smi> chunks[4];
+  chunks[0] = SmiFromUint32(ReinterpretCast<Uint32T>(Word32And(low, 0xFFFF)));
+  chunks[1] = SmiFromUint32(ReinterpretCast<Uint32T>(
+      Word32And(Word32Shr(low, Int32Constant(16)), 0xFFFF)));
+  chunks[2] = SmiFromUint32(ReinterpretCast<Uint32T>(Word32And(high, 0xFFFF)));
+  chunks[3] = SmiFromUint32(ReinterpretCast<Uint32T>(
+      Word32And(Word32Shr(high, Int32Constant(16)), 0xFFFF)));
+
+  // Args are: <bits 63-48>, <bits 47-32>, <bits 31-16>, <bits 15-0>, stream.
+  CallRuntime(Runtime::kDebugPrintFloat, NoContextConstant(), chunks[3],
               chunks[2], chunks[1], chunks[0], SmiConstant(stream));
 }
 

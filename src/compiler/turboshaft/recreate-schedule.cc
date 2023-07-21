@@ -1402,20 +1402,30 @@ Node* ScheduleBuilder::ProcessOperation(const DebugBreakOp& op) {
 }
 
 Node* ScheduleBuilder::ProcessOperation(const DebugPrintOp& op) {
-  // TODO(nicohartmann@): Support other representations.
-  DCHECK_EQ(op.rep, RegisterRepresentation::PointerSized());
   Node* input = GetNode(op.input());
 
-  const Callable callable = Builtins::CallableFor(PipelineData::Get().isolate(),
-                                                  Builtin::kDebugPrintWordPtr);
+  base::Optional<Callable> callable;
+  switch (op.rep) {
+    case RegisterRepresentation::PointerSized():
+      callable.emplace(Builtins::CallableFor(PipelineData::Get().isolate(),
+                                             Builtin::kDebugPrintWordPtr));
+      break;
+    case RegisterRepresentation::Float64():
+      callable.emplace(Builtins::CallableFor(PipelineData::Get().isolate(),
+                                             Builtin::kDebugPrintFloat64));
+      break;
+    default:
+      // TODO(nicohartmann@): Support other representations.
+      UNIMPLEMENTED();
+  }
 
   const CallDescriptor* call_descriptor = Linkage::GetStubCallDescriptor(
-      graph_zone, callable.descriptor(),
-      callable.descriptor().GetStackParameterCount(), CallDescriptor::kNoFlags,
+      graph_zone, callable->descriptor(),
+      callable->descriptor().GetStackParameterCount(), CallDescriptor::kNoFlags,
       Operator::kNoThrow | Operator::kNoDeopt);
 
   base::SmallVector<Node*, 8> inputs;
-  inputs.push_back(AddNode(common.HeapConstant(callable.code()), {}));
+  inputs.push_back(AddNode(common.HeapConstant(callable->code()), {}));
   inputs.push_back(input);
   inputs.push_back(AddNode(common.Int32Constant(Context::kNoContext), {}));
 

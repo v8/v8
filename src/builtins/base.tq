@@ -634,6 +634,7 @@ extern macro Print(constexpr string): void;
 extern macro Print(constexpr string, Object): void;
 extern macro Print(Object): void;
 extern macro Print(constexpr string, uintptr): void;
+extern macro Print(constexpr string, float64): void;
 extern macro PrintErr(constexpr string): void;
 extern macro PrintErr(constexpr string, Object): void;
 extern macro PrintErr(Object): void;
@@ -934,6 +935,7 @@ extern operator '>' macro Float64GreaterThan(float64, float64): bool;
 extern operator '>=' macro Float64GreaterThanOrEqual(float64, float64): bool;
 extern operator '<' macro Float64LessThan(float64, float64): bool;
 extern operator '<=' macro Float64LessThanOrEqual(float64, float64): bool;
+extern macro Float64AlmostEqual(float64, float64, constexpr float64): bool;
 
 extern macro BranchIfNumberEqual(Number, Number): never
     labels Taken, NotTaken;

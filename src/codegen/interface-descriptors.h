@@ -2364,6 +2364,15 @@ class DebugPrintWordPtrDescriptor
   DECLARE_DEFAULT_DESCRIPTOR(DebugPrintWordPtrDescriptor)
 };
 
+class DebugPrintFloat64Descriptor
+    : public StaticCallInterfaceDescriptor<DebugPrintFloat64Descriptor> {
+ public:
+  DEFINE_RESULT_AND_PARAMETERS(1, kValue)
+  DEFINE_RESULT_AND_PARAMETER_TYPES(MachineType::TaggedPointer(),
+                                    MachineType::Float64())
+  DECLARE_DEFAULT_DESCRIPTOR(DebugPrintFloat64Descriptor)
+};
+
 #define DEFINE_TFS_BUILTIN_DESCRIPTOR(Name, DoesNeedContext, ...)            \
   class Name##Descriptor                                                     \
       : public StaticCallInterfaceDescriptor<Name##Descriptor> {             \
