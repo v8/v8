@@ -186,10 +186,10 @@ struct V8HeapProfilerAgentImpl::HeapSnapshotProtocolOptions {
                               Maybe<bool> treatGlobalObjectsAsRoots,
                               Maybe<bool> captureNumericValue,
                               Maybe<bool> exposeInternals)
-      : m_reportProgress(reportProgress.fromMaybe(false)),
-        m_treatGlobalObjectsAsRoots(treatGlobalObjectsAsRoots.fromMaybe(true)),
-        m_captureNumericValue(captureNumericValue.fromMaybe(false)),
-        m_exposeInternals(exposeInternals.fromMaybe(false)) {}
+      : m_reportProgress(reportProgress.value_or(false)),
+        m_treatGlobalObjectsAsRoots(treatGlobalObjectsAsRoots.value_or(true)),
+        m_captureNumericValue(captureNumericValue.value_or(false)),
+        m_exposeInternals(exposeInternals.value_or(false)) {}
   bool m_reportProgress;
   bool m_treatGlobalObjectsAsRoots;
   bool m_captureNumericValue;
@@ -310,7 +310,7 @@ void V8HeapProfilerAgentImpl::collectGarbage(
 Response V8HeapProfilerAgentImpl::startTrackingHeapObjects(
     Maybe<bool> trackAllocations) {
   m_state->setBoolean(HeapProfilerAgentState::heapObjectsTrackingEnabled, true);
-  bool allocationTrackingEnabled = trackAllocations.fromMaybe(false);
+  bool allocationTrackingEnabled = trackAllocations.value_or(false);
   m_state->setBoolean(HeapProfilerAgentState::allocationTrackingEnabled,
                       allocationTrackingEnabled);
   startTrackingHeapObjectsInternal(allocationTrackingEnabled);
@@ -433,7 +433,7 @@ Response V8HeapProfilerAgentImpl::getObjectByHeapObjectId(
     return Response::ServerError("Object is not available");
   }
   *result = m_session->wrapObject(creationContext, heapObject,
-                                  objectGroup.fromMaybe(""), false);
+                                  objectGroup.value_or(""), false);
   if (!*result) return Response::ServerError("Object is not available");
   return Response::Success();
 }
@@ -555,7 +555,7 @@ Response V8HeapProfilerAgentImpl::startSampling(
   if (!profiler) return Response::ServerError("Cannot access v8 heap profiler");
   const unsigned defaultSamplingInterval = 1 << 15;
   double samplingIntervalValue =
-      samplingInterval.fromMaybe(defaultSamplingInterval);
+      samplingInterval.value_or(defaultSamplingInterval);
   if (samplingIntervalValue <= 0.0) {
     return Response::ServerError("Invalid sampling interval");
   }
@@ -564,10 +564,10 @@ Response V8HeapProfilerAgentImpl::startSampling(
   m_state->setBoolean(HeapProfilerAgentState::samplingHeapProfilerEnabled,
                       true);
   int flags = v8::HeapProfiler::kSamplingForceGC;
-  if (includeObjectsCollectedByMajorGC.fromMaybe(false)) {
+  if (includeObjectsCollectedByMajorGC.value_or(false)) {
     flags |= v8::HeapProfiler::kSamplingIncludeObjectsCollectedByMajorGC;
   }
-  if (includeObjectsCollectedByMinorGC.fromMaybe(false)) {
+  if (includeObjectsCollectedByMinorGC.value_or(false)) {
     flags |= v8::HeapProfiler::kSamplingIncludeObjectsCollectedByMinorGC;
   }
   m_state->setInteger(HeapProfilerAgentState::samplingHeapProfilerFlags, flags);

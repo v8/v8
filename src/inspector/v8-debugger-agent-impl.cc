@@ -463,7 +463,7 @@ Response V8DebuggerAgentImpl::enable(Maybe<double> maxScriptsCacheSize,
   if (m_enableState == kStopping)
     return Response::ServerError("Debugger is stopping");
   m_maxScriptCacheSize = v8::base::saturated_cast<size_t>(
-      maxScriptsCacheSize.fromMaybe(std::numeric_limits<double>::max()));
+      maxScriptsCacheSize.value_or(std::numeric_limits<double>::max()));
   *outDebuggerId =
       m_debugger->debuggerIdFor(m_session->contextGroupId()).toString();
   if (enabled()) return Response::Success();
@@ -611,37 +611,37 @@ Response V8DebuggerAgentImpl::setBreakpointByUrl(
 
   *locations = std::make_unique<Array<protocol::Debugger::Location>>();
 
-  int specified = (optionalURL.isJust() ? 1 : 0) +
-                  (optionalURLRegex.isJust() ? 1 : 0) +
-                  (optionalScriptHash.isJust() ? 1 : 0);
+  int specified = (optionalURL.has_value() ? 1 : 0) +
+                  (optionalURLRegex.has_value() ? 1 : 0) +
+                  (optionalScriptHash.has_value() ? 1 : 0);
   if (specified != 1) {
     return Response::ServerError(
         "Either url or urlRegex or scriptHash must be specified.");
   }
   int columnNumber = 0;
-  if (optionalColumnNumber.isJust()) {
-    columnNumber = optionalColumnNumber.fromJust();
+  if (optionalColumnNumber.has_value()) {
+    columnNumber = optionalColumnNumber.value();
     if (columnNumber < 0)
       return Response::ServerError("Incorrect column number");
   }
 
   BreakpointType type = BreakpointType::kByUrl;
   String16 selector;
-  if (optionalURLRegex.isJust()) {
-    selector = optionalURLRegex.fromJust();
+  if (optionalURLRegex.has_value()) {
+    selector = optionalURLRegex.value();
     type = BreakpointType::kByUrlRegex;
-  } else if (optionalURL.isJust()) {
-    selector = optionalURL.fromJust();
+  } else if (optionalURL.has_value()) {
+    selector = optionalURL.value();
     type = BreakpointType::kByUrl;
-  } else if (optionalScriptHash.isJust()) {
-    selector = optionalScriptHash.fromJust();
+  } else if (optionalScriptHash.has_value()) {
+    selector = optionalScriptHash.value();
     type = BreakpointType::kByScriptHash;
   }
 
   // Note: This constructor can call into JavaScript.
   Matcher matcher(m_inspector, type, selector);
 
-  String16 condition = optionalCondition.fromMaybe(String16());
+  String16 condition = optionalCondition.value_or(String16());
   String16 breakpointId =
       generateBreakpointId(type, selector, lineNumber, columnNumber);
   protocol::DictionaryValue* breakpoints;
@@ -716,7 +716,7 @@ Response V8DebuggerAgentImpl::setBreakpoint(
         "Breakpoint at specified location already exists.");
   }
   *actualLocation = setBreakpointImpl(breakpointId, location->getScriptId(),
-                                      optionalCondition.fromMaybe(String16()),
+                                      optionalCondition.value_or(String16()),
                                       location->getLineNumber(),
                                       location->getColumnNumber(0));
   if (!*actualLocation)
@@ -746,7 +746,7 @@ Response V8DebuggerAgentImpl::setBreakpointOnFunctionCall(
         "Breakpoint at specified location already exists.");
   }
   v8::Local<v8::String> condition =
-      toV8String(m_isolate, optionalCondition.fromMaybe(String16()));
+      toV8String(m_isolate, optionalCondition.value_or(String16()));
   setBreakpointImpl(breakpointId, function, condition);
   *outBreakpointId = breakpointId;
   return Response::Success();
@@ -865,12 +865,12 @@ Response V8DebuggerAgentImpl::getPossibleBreakpoints(
   v8::debug::Location v8Start(start->getLineNumber(),
                               start->getColumnNumber(0));
   v8::debug::Location v8End;
-  if (end.isJust()) {
-    if (end.fromJust()->getScriptId() != scriptId)
+  if (end.has_value()) {
+    if (end->getScriptId() != scriptId)
       return Response::ServerError(
           "Locations should contain the same scriptId");
-    int line = end.fromJust()->getLineNumber();
-    int column = end.fromJust()->getColumnNumber(0);
+    int line = end->getLineNumber();
+    int column = end->getColumnNumber(0);
     if (line < 0 || column < 0)
       return Response::ServerError(
           "end.lineNumber and end.columnNumber should be >= 0");
@@ -891,7 +891,7 @@ Response V8DebuggerAgentImpl::getPossibleBreakpoints(
                                    v8::MicrotasksScope::kDoNotRunMicrotasks);
     v8::TryCatch tryCatch(m_isolate);
     it->second->getPossibleBreakpoints(
-        v8Start, v8End, restrictToFunction.fromMaybe(false), &v8Locations);
+        v8Start, v8End, restrictToFunction.value_or(false), &v8Locations);
   }
 
   *locations =
@@ -934,7 +934,7 @@ Response V8DebuggerAgentImpl::continueToLocation(
   v8::Context::Scope contextScope(inspected->context());
   return m_debugger->continueToLocation(
       m_session->contextGroupId(), script, std::move(location),
-      targetCallFrames.fromMaybe(
+      targetCallFrames.value_or(
           protocol::Debugger::ContinueToLocation::TargetCallFramesEnum::Any));
 }
 
@@ -1093,8 +1093,8 @@ Response V8DebuggerAgentImpl::searchInContent(
 
   *results = std::make_unique<protocol::Array<protocol::Debugger::SearchMatch>>(
       searchInTextByLinesImpl(m_session, it->second->source(0), query,
-                              optionalCaseSensitive.fromMaybe(false),
-                              optionalIsRegex.fromMaybe(false)));
+                              optionalCaseSensitive.value_or(false),
+                              optionalIsRegex.value_or(false)));
   return Response::Success();
 }
 
@@ -1140,10 +1140,10 @@ Response V8DebuggerAgentImpl::setScriptSource(
   v8::HandleScope handleScope(m_isolate);
   v8::Local<v8::Context> context = inspected->context();
   v8::Context::Scope contextScope(context);
-  const bool allowTopFrameLiveEditing = allowTopFrameEditing.fromMaybe(false);
+  const bool allowTopFrameLiveEditing = allowTopFrameEditing.value_or(false);
 
   v8::debug::LiveEditResult result;
-  it->second->setSource(newContent, dryRun.fromMaybe(false),
+  it->second->setSource(newContent, dryRun.value_or(false),
                         allowTopFrameLiveEditing, &result);
   *status = buildStatus(result.status);
   if (result.status == v8::debug::LiveEditResult::COMPILE_ERROR) {
@@ -1177,12 +1177,11 @@ Response V8DebuggerAgentImpl::restartFrame(
     Maybe<protocol::Runtime::StackTrace>* asyncStackTrace,
     Maybe<protocol::Runtime::StackTraceId>* asyncStackTraceId) {
   if (!isPaused()) return Response::ServerError(kDebuggerNotPaused);
-  if (!mode.isJust()) {
+  if (!mode.has_value()) {
     return Response::ServerError(
         "Restarting frame without 'mode' not supported");
   }
-  CHECK_EQ(mode.fromJust(),
-           protocol::Debugger::RestartFrame::ModeEnum::StepInto);
+  CHECK_EQ(mode.value(), protocol::Debugger::RestartFrame::ModeEnum::StepInto);
 
   InjectedScript::CallFrameScope scope(m_session, callFrameId);
   Response response = scope.initialize();
@@ -1461,7 +1460,7 @@ Response V8DebuggerAgentImpl::resume(Maybe<bool> terminateOnResume) {
 
   m_instrumentationFinished = true;
   m_debugger->continueProgram(m_session->contextGroupId(),
-                              terminateOnResume.fromMaybe(false));
+                              terminateOnResume.value_or(false));
   return Response::Success();
 }
 
@@ -1469,8 +1468,8 @@ Response V8DebuggerAgentImpl::stepOver(
     Maybe<protocol::Array<protocol::Debugger::LocationRange>> inSkipList) {
   if (!isPaused()) return Response::ServerError(kDebuggerNotPaused);
 
-  if (inSkipList.isJust()) {
-    const Response res = processSkipList(inSkipList.fromJust());
+  if (inSkipList.has_value()) {
+    const Response res = processSkipList(inSkipList.value());
     if (res.IsError()) return res;
   } else {
     m_skipList.clear();
@@ -1486,8 +1485,8 @@ Response V8DebuggerAgentImpl::stepInto(
     Maybe<protocol::Array<protocol::Debugger::LocationRange>> inSkipList) {
   if (!isPaused()) return Response::ServerError(kDebuggerNotPaused);
 
-  if (inSkipList.isJust()) {
-    const Response res = processSkipList(inSkipList.fromJust());
+  if (inSkipList.has_value()) {
+    const Response res = processSkipList(inSkipList.value());
     if (res.IsError()) return res;
   } else {
     m_skipList.clear();
@@ -1495,7 +1494,7 @@ Response V8DebuggerAgentImpl::stepInto(
 
   m_session->releaseObjectGroup(kBacktraceObjectGroup);
   m_debugger->stepIntoStatement(m_session->contextGroupId(),
-                                inBreakOnAsyncCall.fromMaybe(false));
+                                inBreakOnAsyncCall.value_or(false));
   return Response::Success();
 }
 
@@ -1551,8 +1550,8 @@ Response V8DebuggerAgentImpl::evaluateOnCallFrame(
   InjectedScript::CallFrameScope scope(m_session, callFrameId);
   Response response = scope.initialize();
   if (!response.IsSuccess()) return response;
-  if (includeCommandLineAPI.fromMaybe(false)) scope.installCommandLineAPI();
-  if (silent.fromMaybe(false)) scope.ignoreExceptionsAndMuteConsole();
+  if (includeCommandLineAPI.value_or(false)) scope.installCommandLineAPI();
+  if (silent.value_or(false)) scope.ignoreExceptionsAndMuteConsole();
 
   int frameOrdinal = static_cast<int>(scope.frameOrdinal());
   auto it = v8::debug::StackTraceIterator::Create(m_isolate, frameOrdinal);
@@ -1563,26 +1562,25 @@ Response V8DebuggerAgentImpl::evaluateOnCallFrame(
   v8::MaybeLocal<v8::Value> maybeResultValue;
   {
     V8InspectorImpl::EvaluateScope evaluateScope(scope);
-    if (timeout.isJust()) {
-      response = evaluateScope.setTimeout(timeout.fromJust() / 1000.0);
+    if (timeout.has_value()) {
+      response = evaluateScope.setTimeout(timeout.value() / 1000.0);
       if (!response.IsSuccess()) return response;
     }
     maybeResultValue = it->Evaluate(toV8String(m_isolate, expression),
-                                    throwOnSideEffect.fromMaybe(false));
+                                    throwOnSideEffect.value_or(false));
   }
   // Re-initialize after running client's code, as it could have destroyed
   // context or session.
   response = scope.initialize();
   if (!response.IsSuccess()) return response;
-  WrapOptions wrapOptions = generatePreview.fromMaybe(false)
+  WrapOptions wrapOptions = generatePreview.value_or(false)
                                 ? WrapOptions({WrapMode::kPreview})
                                 : WrapOptions({WrapMode::kIdOnly});
-  if (returnByValue.fromMaybe(false))
+  if (returnByValue.value_or(false))
     wrapOptions = WrapOptions({WrapMode::kJson});
   return scope.injectedScript()->wrapEvaluateResult(
-      maybeResultValue, scope.tryCatch(), objectGroup.fromMaybe(""),
-      wrapOptions, throwOnSideEffect.fromMaybe(false), result,
-      exceptionDetails);
+      maybeResultValue, scope.tryCatch(), objectGroup.value_or(""), wrapOptions,
+      throwOnSideEffect.value_or(false), result, exceptionDetails);
 }
 
 Response V8DebuggerAgentImpl::setVariableValue(
@@ -2288,9 +2286,9 @@ void V8DebuggerAgentImpl::ScriptCollected(const V8DebuggerScript* script) {
 }
 
 Response V8DebuggerAgentImpl::processSkipList(
-    protocol::Array<protocol::Debugger::LocationRange>* skipList) {
+    protocol::Array<protocol::Debugger::LocationRange>& skipList) {
   std::unordered_map<String16, std::vector<std::pair<int, int>>> skipListInit;
-  for (std::unique_ptr<protocol::Debugger::LocationRange>& range : *skipList) {
+  for (std::unique_ptr<protocol::Debugger::LocationRange>& range : skipList) {
     protocol::Debugger::ScriptPosition* start = range->getStart();
     protocol::Debugger::ScriptPosition* end = range->getEnd();
     String16 scriptId = range->getScriptId();
