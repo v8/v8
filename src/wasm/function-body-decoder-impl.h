@@ -4368,7 +4368,12 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
                      this->module_);
     // For "unrelated" types the check can still succeed for the null value on
     // instructions treating null as a successful check.
-    return (types_unrelated && (!null_succeeds || !obj.type.is_nullable())) ||
+    // TODO(12868): For string views, this implementation anticipates that
+    // https://github.com/WebAssembly/stringref/issues/40 will be resolved
+    // by making the views standalone types.
+    return (types_unrelated &&
+            (!null_succeeds || !obj.type.is_nullable() ||
+             obj.type.is_string_view() || expected_type.is_string_view())) ||
            (!null_succeeds &&
             (expected_type.representation() == HeapType::kNone ||
              expected_type.representation() == HeapType::kNoFunc ||
@@ -4852,9 +4857,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
               obj.type.name().c_str(), target_type.name().c_str());
           return 0;
         }
-        if (!VALIDATE(target_type != HeapType::kStringViewWtf8 &&
-                      target_type != HeapType::kStringViewWtf16 &&
-                      target_type != HeapType::kStringViewIter)) {
+        if (!VALIDATE(!target_type.is_string_view())) {
           // TODO(12868): This reflects the current state of discussion at
           // https://github.com/WebAssembly/stringref/issues/40
           // It is suboptimal because it allows classifying a stringview_wtf16
@@ -4865,6 +4868,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
               this->pc_,
               "Invalid type for %s: string views are not classifiable",
               WasmOpcodes::OpcodeName(opcode));
+          return 0;
         }
 
         bool null_succeeds = opcode == kExprRefCastNull;
@@ -4927,9 +4931,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
               obj.type.name().c_str(), target_type.name().c_str());
           return 0;
         }
-        if (!VALIDATE(target_type != HeapType::kStringViewWtf8 &&
-                      target_type != HeapType::kStringViewWtf16 &&
-                      target_type != HeapType::kStringViewIter)) {
+        if (!VALIDATE(!target_type.is_string_view())) {
           // TODO(12868): This reflects the current state of discussion at
           // https://github.com/WebAssembly/stringref/issues/40
           // It is suboptimal because it allows classifying a stringview_wtf16
@@ -4940,6 +4942,7 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
               this->pc_,
               "Invalid type for %s: string views are not classifiable",
               WasmOpcodes::OpcodeName(opcode));
+          return 0;
         }
         bool null_succeeds = opcode == kExprRefTestNull;
         if (V8_LIKELY(current_code_reachable_and_ok_)) {

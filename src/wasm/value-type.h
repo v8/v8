@@ -148,6 +148,12 @@ class HeapType {
 
   constexpr bool is_bottom() const { return representation_ == kBottom; }
 
+  constexpr bool is_string_view() const {
+    return representation_ == kStringViewWtf8 ||
+           representation_ == kStringViewWtf16 ||
+           representation_ == kStringViewIter;
+  }
+
   std::string name() const {
     switch (representation_) {
       case kFunc:
@@ -430,6 +436,10 @@ class ValueType {
   constexpr bool is_defaultable() const { return wasm::is_defaultable(kind()); }
 
   constexpr bool is_bottom() const { return kind() == kBottom; }
+
+  constexpr bool is_string_view() const {
+    return is_object_reference() && heap_type().is_string_view();
+  }
 
   // Except for {bottom}, these can occur as the result of trapping type casts,
   // type propagation, or trivially uninhabitable parameters/locals, but never
