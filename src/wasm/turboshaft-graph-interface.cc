@@ -6,7 +6,6 @@
 
 #include "src/compiler/turboshaft/assembler.h"
 #include "src/compiler/turboshaft/graph.h"
-#include "src/compiler/turboshaft/variable-reducer.h"
 #include "src/compiler/wasm-compiler-definitions.h"
 #include "src/wasm/compilation-environment.h"
 #include "src/wasm/function-body-decoder-impl.h"
@@ -22,9 +21,7 @@ namespace v8::internal::wasm {
 #include "src/compiler/turboshaft/define-assembler-macros.inc"
 
 using Assembler =
-    compiler::turboshaft::Assembler<compiler::turboshaft::reducer_list<
-        compiler::turboshaft::VariableReducer,
-        compiler::turboshaft::RequiredOptimizationReducer>>;
+    compiler::turboshaft::Assembler<compiler::turboshaft::reducer_list<>>;
 using compiler::CallDescriptor;
 using compiler::LinkageLocation;
 using compiler::LocationSignature;
@@ -200,10 +197,10 @@ class TurboshaftGraphBuildingInterface {
     TSBlock* merge_block = NewBlock(decoder, &if_block->end_merge);
     if_block->false_block = false_block;
     if_block->merge_block = merge_block;
-    // TODO(14108): Branch hints.
-    asm_.Branch(ConditionWithHint(cond.op), true_block, false_block);
     SetupControlFlowEdge(decoder, true_block);
     SetupControlFlowEdge(decoder, false_block);
+    // TODO(14108): Branch hints.
+    asm_.Branch(ConditionWithHint(cond.op), true_block, false_block);
     EnterBlock(decoder, true_block, nullptr);
   }
 
@@ -1468,6 +1465,7 @@ class TurboshaftGraphBuildingInterface {
   void SetupControlFlowEdge(FullDecoder* decoder, TSBlock* block,
                             OpIndex exception = OpIndex::Invalid(),
                             Merge<Value>* stack_values = nullptr) {
+    if (asm_.current_block() == nullptr) return;
     // It is guaranteed that this element exists.
     BlockPhis& phis_for_block = block_phis_.find(block)->second;
     uint32_t merge_arity =
@@ -1620,31 +1618,31 @@ class TurboshaftGraphBuildingInterface {
                                     bool is_signed) {
     auto [stack_slot, overflow] =
         BuildCCallForFloatConversion(arg, float_type, ccall_ref);
-    Assembler::ScopedVar<Word64> result(Asm());
     // TODO(mliedtke): This is quite complicated code for handling exceptional
     // cases. Wouldn't it be better to call the corresponding [...]_sat C
     // function and let it be handled there?
+    Label<Word64> done(&asm_);
     IF (UNLIKELY(__ Word32Equal(overflow, 0))) {
       OpIndex is_not_nan = float_type == MemoryRepresentation::Float32()
                                ? __ Float32Equal(arg, arg)
                                : __ Float64Equal(arg, arg);
       OpIndex is_nan = __ Word32Equal(is_not_nan, 0);
       IF (UNLIKELY(is_nan)) {
-        result = __ Word64Constant(uint64_t{0});
+        GOTO(done, __ Word64Constant(uint64_t{0}));
       }
       ELSE {
         OpIndex less_than_zero = float_type == MemoryRepresentation::Float32()
                                      ? __ Float32LessThan(arg, 0)
                                      : __ Float64LessThan(arg, 0);
         IF (less_than_zero) {
-          result = __ Word64Constant(
-              is_signed ? std::numeric_limits<int64_t>::min()
-                        : std::numeric_limits<uint64_t>::min());
+          GOTO(done, __ Word64Constant(
+                         is_signed ? std::numeric_limits<int64_t>::min()
+                                   : std::numeric_limits<uint64_t>::min()));
         }
         ELSE {
-          result = __ Word64Constant(
-              is_signed ? std::numeric_limits<int64_t>::max()
-                        : std::numeric_limits<uint64_t>::max());
+          GOTO(done, __ Word64Constant(
+                         is_signed ? std::numeric_limits<int64_t>::max()
+                                   : std::numeric_limits<uint64_t>::max()));
         }
         END_IF
       }
@@ -1652,10 +1650,11 @@ class TurboshaftGraphBuildingInterface {
     }
     ELSE {
       MemoryRepresentation int64 = MemoryRepresentation::Int64();
-      result = __ Load(stack_slot, LoadOp::Kind::RawAligned(), int64);
+      GOTO(done, __ Load(stack_slot, LoadOp::Kind::RawAligned(), int64));
     }
     END_IF
-    return *result;
+    BIND(done, result);
+    return result;
   }
 
   // TODO(14108): Remove the decoder argument once we have no bailouts.
