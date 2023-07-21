@@ -2806,7 +2806,7 @@ bool IsComplementaryAccessorPair(VariableMode a, VariableMode b) {
 }
 
 void ClassScope::FinalizeReparsedClassScope(
-    Isolate* isolate, MaybeHandle<ScopeInfo> maybe_scope_info,
+    Isolate* isolate, MaybeHandle<ScopeInfo> maybe_class_scope_info,
     AstValueFactory* ast_value_factory, bool needs_allocation_fixup) {
   // Set this bit so that DeclarationScope::Analyze recognizes
   // the reparsed instance member initializer scope.
@@ -2822,10 +2822,10 @@ void ClassScope::FinalizeReparsedClassScope(
   // the class scope from ScopeInfo, so that we don't need to run
   // resolution and allocation on these variables again when generating
   // code for the initializer function.
-  DCHECK(!maybe_scope_info.is_null());
-  Handle<ScopeInfo> scope_info = maybe_scope_info.ToHandleChecked();
+  DCHECK(!maybe_class_scope_info.is_null());
+  Handle<ScopeInfo> scope_info = maybe_class_scope_info.ToHandleChecked();
   DCHECK_EQ(scope_info->scope_type(), CLASS_SCOPE);
-  DCHECK_EQ(scope_info->StartPosition(), start_position_);
+  DCHECK_EQ(scope_info->EndPosition(), end_position_);
 
   int context_header_length = scope_info->ContextHeaderLength();
   DisallowGarbageCollection no_gc;

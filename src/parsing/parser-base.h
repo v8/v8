@@ -597,19 +597,7 @@ class ParserBase {
           private_members(parser->impl()->NewClassPropertyList(4)),
           static_elements(parser->impl()->NewClassStaticElementList(4)),
           instance_fields(parser->impl()->NewClassPropertyList(4)),
-          constructor(parser->impl()->NullExpression()),
-          has_seen_constructor(false),
-          has_static_computed_names(false),
-          has_static_elements(false),
-          has_static_private_methods(false),
-          has_static_blocks(false),
-          has_instance_members(false),
-          requires_brand(false),
-          is_anonymous(false),
-          has_private_methods(false),
-          static_elements_scope(nullptr),
-          instance_members_scope(nullptr),
-          computed_field_count(0) {}
+          constructor(parser->impl()->NullExpression()) {}
     ExpressionT extends;
     ClassPropertyListT public_members;
     ClassPropertyListT private_members;
@@ -617,18 +605,18 @@ class ParserBase {
     ClassPropertyListT instance_fields;
     FunctionLiteralT constructor;
 
-    bool has_seen_constructor;
-    bool has_static_computed_names;
-    bool has_static_elements;
-    bool has_static_private_methods;
-    bool has_static_blocks;
-    bool has_instance_members;
-    bool requires_brand;
-    bool is_anonymous;
-    bool has_private_methods;
-    DeclarationScope* static_elements_scope;
-    DeclarationScope* instance_members_scope;
-    int computed_field_count;
+    bool has_seen_constructor = false;
+    bool has_static_computed_names = false;
+    bool has_static_elements = false;
+    bool has_static_private_methods = false;
+    bool has_static_blocks = false;
+    bool has_instance_members = false;
+    bool requires_brand = false;
+    bool is_anonymous = false;
+    bool has_private_methods = false;
+    DeclarationScope* static_elements_scope = nullptr;
+    DeclarationScope* instance_members_scope = nullptr;
+    int computed_field_count = 0;
     Variable* home_object_variable = nullptr;
     Variable* static_home_object_variable = nullptr;
   };
@@ -1242,6 +1230,9 @@ class ParserBase {
                                 Scanner::Location class_name_location,
                                 bool name_is_strict_reserved,
                                 int class_token_pos);
+  ExpressionT ParseClassLiteralBody(ClassScope* class_scope,
+                                    ClassInfo& class_info, IdentifierT name,
+                                    int class_token_pos);
 
   ExpressionT ParseTemplateLiteral(ExpressionT tag, int start, bool tagged);
   ExpressionT ParseSuperExpression();
@@ -2600,7 +2591,6 @@ typename ParserBase<Impl>::BlockT ParserBase<Impl>::ParseClassStaticBlock(
   if (initializer_scope == nullptr) {
     initializer_scope =
         NewFunctionScope(FunctionKind::kClassStaticInitializerFunction);
-    initializer_scope->set_start_position(position());
     initializer_scope->SetLanguageMode(LanguageMode::kStrict);
     class_info->static_elements_scope = initializer_scope;
   }
@@ -2612,7 +2602,6 @@ typename ParserBase<Impl>::BlockT ParserBase<Impl>::ParseClassStaticBlock(
   // block scope instead of using the synthetic members initializer function
   // scope.
   BlockT static_block = ParseBlock(nullptr, NewVarblockScope());
-  initializer_scope->set_end_position(end_position());
   class_info->has_static_elements = true;
   return static_block;
 }
@@ -4769,10 +4758,18 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteral(
     class_info.extends = ParseLeftHandSideExpression();
     scope.ValidateExpression();
   }
+  return ParseClassLiteralBody(class_scope, class_info, name, class_token_pos);
+}
+
+template <typename Impl>
+typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteralBody(
+    ClassScope* class_scope, ClassInfo& class_info, IdentifierT name,
+    int class_token_pos) {
+  bool has_extends = !impl()->IsNull(class_info.extends);
 
   Expect(Token::LBRACE);
+  int start_pos = position();
 
-  const bool has_extends = !impl()->IsNull(class_info.extends);
   while (peek() != Token::RBRACE) {
     if (Check(Token::SEMICOLON)) continue;
 
@@ -4841,13 +4838,13 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteral(
   if (class_info.static_elements_scope != nullptr) {
     // Use the positions of the class body for the static initializer
     // function so that we can reparse it later.
-    class_info.static_elements_scope->set_start_position(class_token_pos);
+    class_info.static_elements_scope->set_start_position(start_pos);
     class_info.static_elements_scope->set_end_position(end_pos);
   }
   if (class_info.instance_members_scope != nullptr) {
     // Use the positions of the class body for the instance initializer
     // function so that we can reparse it later.
-    class_info.instance_members_scope->set_start_position(class_token_pos);
+    class_info.instance_members_scope->set_start_position(start_pos);
     class_info.instance_members_scope->set_end_position(end_pos);
   }
 
@@ -4874,7 +4871,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteral(
 
   bool should_save_class_variable_index =
       class_scope->should_save_class_variable_index();
-  if (!is_anonymous || should_save_class_variable_index) {
+  if (!class_info.is_anonymous || should_save_class_variable_index) {
     impl()->DeclareClassVariable(class_scope, name, &class_info,
                                  class_token_pos);
     if (should_save_class_variable_index) {

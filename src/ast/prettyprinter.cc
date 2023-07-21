@@ -853,7 +853,7 @@ const char* AstPrinter::PrintProgram(FunctionLiteral* program) {
 
 
 void AstPrinter::PrintOut(Isolate* isolate, AstNode* node) {
-  AstPrinter printer(isolate->stack_guard()->real_climit());
+  AstPrinter printer(isolate ? isolate->stack_guard()->real_climit() : 0);
   printer.Init();
   printer.Visit(node);
   PrintF("%s", printer.output_);

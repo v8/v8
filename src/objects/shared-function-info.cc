@@ -330,6 +330,12 @@ Handle<String> SharedFunctionInfo::DebugName(
         .ToHandleChecked();
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
+  FunctionKind function_kind = shared->kind();
+  if (IsClassMembersInitializerFunction(function_kind)) {
+    return function_kind == FunctionKind::kClassMembersInitializerFunction
+               ? isolate->factory()->instance_members_initializer_string()
+               : isolate->factory()->static_initializer_string();
+  }
   DisallowHeapAllocation no_gc;
   String function_name = shared->Name();
   if (function_name.length() == 0) function_name = shared->inferred_name();

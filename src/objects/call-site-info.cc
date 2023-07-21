@@ -447,18 +447,17 @@ Handle<Object> CallSiteInfo::GetMethodName(Handle<CallSiteInfo> info) {
     return isolate->factory()->null_value();
   }
 
-  Handle<JSReceiver> receiver =
-      JSReceiver::ToObject(isolate, receiver_or_instance).ToHandleChecked();
   Handle<JSFunction> function =
       handle(JSFunction::cast(info->function()), isolate);
+  // Class members initializer function is not a method.
+  if (IsClassMembersInitializerFunction(function->shared().kind())) {
+    return isolate->factory()->null_value();
+  }
+
+  Handle<JSReceiver> receiver =
+      JSReceiver::ToObject(isolate, receiver_or_instance).ToHandleChecked();
   Handle<String> name(function->shared().Name(), isolate);
   name = String::Flatten(isolate, name);
-
-  // The static initializer function is not a method, so don't add a
-  // class name, just return the function name.
-  if (name->HasOneBytePrefix(base::CStrVector("<static_fields_initializer>"))) {
-    return name;
-  }
 
   // ES2015 gives getters and setters name prefixes which must
   // be stripped to find the property name.
