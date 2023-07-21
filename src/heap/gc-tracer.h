@@ -140,7 +140,7 @@ class V8_EXPORT_PRIVATE GCTracer {
     GCTracer* const tracer_;
     const ScopeId scope_;
     const ThreadKind thread_kind_;
-    const double start_time_;
+    const base::TimeTicks start_time_;
 #ifdef V8_RUNTIME_CALL_STATS
     RuntimeCallTimer timer_;
     RuntimeCallStats* runtime_stats_ = nullptr;
@@ -423,7 +423,7 @@ class V8_EXPORT_PRIVATE GCTracer {
   double AverageMarkCompactMutatorUtilization() const;
   double CurrentMarkCompactMutatorUtilization() const;
 
-  V8_INLINE void AddScopeSample(Scope::ScopeId id, double duration);
+  V8_INLINE void AddScopeSample(Scope::ScopeId id, base::TimeDelta duration);
 
   void RecordGCPhasesHistograms(RecordGCPhasesInfo::Mode mode);
 

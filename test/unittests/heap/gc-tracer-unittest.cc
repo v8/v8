@@ -206,10 +206,12 @@ TEST_F(GCTracerTest, RegularScope) {
   EXPECT_EQ(base::TimeDelta(),
             tracer->current_.scopes[GCTracer::Scope::MC_MARK]);
   // Sample not added because the cycle has not started.
-  tracer->AddScopeSample(GCTracer::Scope::MC_MARK, 10);
+  tracer->AddScopeSample(GCTracer::Scope::MC_MARK,
+                         base::TimeDelta::FromMilliseconds(10));
   StartTracing(tracer, GarbageCollector::MARK_COMPACTOR,
                StartTracingMode::kAtomic);
-  tracer->AddScopeSample(GCTracer::Scope::MC_MARK, 100);
+  tracer->AddScopeSample(GCTracer::Scope::MC_MARK,
+                         base::TimeDelta::FromMilliseconds(100));
   StopTracing(tracer, GarbageCollector::MARK_COMPACTOR);
   EXPECT_EQ(base::TimeDelta::FromMilliseconds(100),
             tracer->current_.scopes[GCTracer::Scope::MC_MARK]);
@@ -223,10 +225,12 @@ TEST_F(GCTracerTest, IncrementalScope) {
   EXPECT_EQ(base::TimeDelta(),
             tracer->current_.scopes[GCTracer::Scope::MC_INCREMENTAL_FINALIZE]);
   // Sample is added because its ScopeId is listed as incremental sample.
-  tracer->AddScopeSample(GCTracer::Scope::MC_INCREMENTAL_FINALIZE, 100);
+  tracer->AddScopeSample(GCTracer::Scope::MC_INCREMENTAL_FINALIZE,
+                         base::TimeDelta::FromMilliseconds(100));
   StartTracing(tracer, GarbageCollector::MARK_COMPACTOR,
                StartTracingMode::kIncremental);
-  tracer->AddScopeSample(GCTracer::Scope::MC_INCREMENTAL_FINALIZE, 100);
+  tracer->AddScopeSample(GCTracer::Scope::MC_INCREMENTAL_FINALIZE,
+                         base::TimeDelta::FromMilliseconds(100));
   StopTracing(tracer, GarbageCollector::MARK_COMPACTOR);
   EXPECT_EQ(base::TimeDelta::FromMilliseconds(200),
             tracer->current_.scopes[GCTracer::Scope::MC_INCREMENTAL_FINALIZE]);
@@ -238,13 +242,15 @@ TEST_F(GCTracerTest, IncrementalMarkingDetails) {
   tracer->ResetForTesting();
 
   // Round 1.
-  tracer->AddScopeSample(GCTracer::Scope::MC_INCREMENTAL_FINALIZE, 50);
+  tracer->AddScopeSample(GCTracer::Scope::MC_INCREMENTAL_FINALIZE,
+                         base::TimeDelta::FromMilliseconds(50));
   // Scavenger has no impact on incremental marking details.
   StartTracing(tracer, GarbageCollector::SCAVENGER, StartTracingMode::kAtomic);
   StopTracing(tracer, GarbageCollector::SCAVENGER);
   StartTracing(tracer, GarbageCollector::MARK_COMPACTOR,
                StartTracingMode::kIncremental);
-  tracer->AddScopeSample(GCTracer::Scope::MC_INCREMENTAL_FINALIZE, 100);
+  tracer->AddScopeSample(GCTracer::Scope::MC_INCREMENTAL_FINALIZE,
+                         base::TimeDelta::FromMilliseconds(100));
   StopTracing(tracer, GarbageCollector::MARK_COMPACTOR);
   EXPECT_EQ(base::TimeDelta::FromMilliseconds(100),
             tracer->current_
@@ -261,11 +267,14 @@ TEST_F(GCTracerTest, IncrementalMarkingDetails) {
             tracer->current_.scopes[GCTracer::Scope::MC_INCREMENTAL_FINALIZE]);
 
   // Round 2. Numbers should be reset.
-  tracer->AddScopeSample(GCTracer::Scope::MC_INCREMENTAL_FINALIZE, 13);
-  tracer->AddScopeSample(GCTracer::Scope::MC_INCREMENTAL_FINALIZE, 15);
+  tracer->AddScopeSample(GCTracer::Scope::MC_INCREMENTAL_FINALIZE,
+                         base::TimeDelta::FromMilliseconds(13));
+  tracer->AddScopeSample(GCTracer::Scope::MC_INCREMENTAL_FINALIZE,
+                         base::TimeDelta::FromMilliseconds(15));
   StartTracing(tracer, GarbageCollector::MARK_COMPACTOR,
                StartTracingMode::kIncremental);
-  tracer->AddScopeSample(GCTracer::Scope::MC_INCREMENTAL_FINALIZE, 122);
+  tracer->AddScopeSample(GCTracer::Scope::MC_INCREMENTAL_FINALIZE,
+                         base::TimeDelta::FromMilliseconds(122));
   StopTracing(tracer, GarbageCollector::MARK_COMPACTOR);
   EXPECT_EQ(base::TimeDelta::FromMilliseconds(122),
             tracer->current_
@@ -379,9 +388,11 @@ TEST_F(GCTracerTest, BackgroundScavengerScope) {
   tracer->ResetForTesting();
   StartTracing(tracer, GarbageCollector::SCAVENGER, StartTracingMode::kAtomic);
   tracer->AddScopeSample(
-      GCTracer::Scope::SCAVENGER_BACKGROUND_SCAVENGE_PARALLEL, 10);
+      GCTracer::Scope::SCAVENGER_BACKGROUND_SCAVENGE_PARALLEL,
+      base::TimeDelta::FromMilliseconds(10));
   tracer->AddScopeSample(
-      GCTracer::Scope::SCAVENGER_BACKGROUND_SCAVENGE_PARALLEL, 1);
+      GCTracer::Scope::SCAVENGER_BACKGROUND_SCAVENGE_PARALLEL,
+      base::TimeDelta::FromMilliseconds(1));
   StopTracing(tracer, GarbageCollector::SCAVENGER);
   EXPECT_EQ(
       base::TimeDelta::FromMilliseconds(11),
@@ -395,8 +406,10 @@ TEST_F(GCTracerTest, BackgroundMinorMSScope) {
   tracer->ResetForTesting();
   StartTracing(tracer, GarbageCollector::MINOR_MARK_SWEEPER,
                StartTracingMode::kAtomic);
-  tracer->AddScopeSample(GCTracer::Scope::MINOR_MS_BACKGROUND_MARKING, 10);
-  tracer->AddScopeSample(GCTracer::Scope::MINOR_MS_BACKGROUND_MARKING, 1);
+  tracer->AddScopeSample(GCTracer::Scope::MINOR_MS_BACKGROUND_MARKING,
+                         base::TimeDelta::FromMilliseconds(10));
+  tracer->AddScopeSample(GCTracer::Scope::MINOR_MS_BACKGROUND_MARKING,
+                         base::TimeDelta::FromMilliseconds(1));
   StopTracing(tracer, GarbageCollector::MINOR_MARK_SWEEPER);
   EXPECT_EQ(
       base::TimeDelta::FromMilliseconds(11),
@@ -407,23 +420,33 @@ TEST_F(GCTracerTest, BackgroundMajorMCScope) {
   if (v8_flags.stress_incremental_marking) return;
   GCTracer* tracer = i_isolate()->heap()->tracer();
   tracer->ResetForTesting();
-  tracer->AddScopeSample(GCTracer::Scope::MC_BACKGROUND_MARKING, 100);
-  tracer->AddScopeSample(GCTracer::Scope::MC_BACKGROUND_SWEEPING, 200);
-  tracer->AddScopeSample(GCTracer::Scope::MC_BACKGROUND_MARKING, 10);
+  tracer->AddScopeSample(GCTracer::Scope::MC_BACKGROUND_MARKING,
+                         base::TimeDelta::FromMilliseconds(100));
+  tracer->AddScopeSample(GCTracer::Scope::MC_BACKGROUND_SWEEPING,
+                         base::TimeDelta::FromMilliseconds(200));
+  tracer->AddScopeSample(GCTracer::Scope::MC_BACKGROUND_MARKING,
+                         base::TimeDelta::FromMilliseconds(10));
   // Scavenger should not affect the major mark-compact scopes.
   StartTracing(tracer, GarbageCollector::SCAVENGER, StartTracingMode::kAtomic);
   StopTracing(tracer, GarbageCollector::SCAVENGER);
-  tracer->AddScopeSample(GCTracer::Scope::MC_BACKGROUND_SWEEPING, 20);
-  tracer->AddScopeSample(GCTracer::Scope::MC_BACKGROUND_MARKING, 1);
-  tracer->AddScopeSample(GCTracer::Scope::MC_BACKGROUND_SWEEPING, 2);
+  tracer->AddScopeSample(GCTracer::Scope::MC_BACKGROUND_SWEEPING,
+                         base::TimeDelta::FromMilliseconds(20));
+  tracer->AddScopeSample(GCTracer::Scope::MC_BACKGROUND_MARKING,
+                         base::TimeDelta::FromMilliseconds(1));
+  tracer->AddScopeSample(GCTracer::Scope::MC_BACKGROUND_SWEEPING,
+                         base::TimeDelta::FromMilliseconds(2));
   StartTracing(tracer, GarbageCollector::MARK_COMPACTOR,
                StartTracingMode::kAtomic);
-  tracer->AddScopeSample(GCTracer::Scope::MC_BACKGROUND_EVACUATE_COPY, 30);
-  tracer->AddScopeSample(GCTracer::Scope::MC_BACKGROUND_EVACUATE_COPY, 3);
+  tracer->AddScopeSample(GCTracer::Scope::MC_BACKGROUND_EVACUATE_COPY,
+                         base::TimeDelta::FromMilliseconds(30));
+  tracer->AddScopeSample(GCTracer::Scope::MC_BACKGROUND_EVACUATE_COPY,
+                         base::TimeDelta::FromMilliseconds(3));
   tracer->AddScopeSample(
-      GCTracer::Scope::MC_BACKGROUND_EVACUATE_UPDATE_POINTERS, 40);
+      GCTracer::Scope::MC_BACKGROUND_EVACUATE_UPDATE_POINTERS,
+      base::TimeDelta::FromMilliseconds(40));
   tracer->AddScopeSample(
-      GCTracer::Scope::MC_BACKGROUND_EVACUATE_UPDATE_POINTERS, 4);
+      GCTracer::Scope::MC_BACKGROUND_EVACUATE_UPDATE_POINTERS,
+      base::TimeDelta::FromMilliseconds(4));
   StopTracing(tracer, GarbageCollector::MARK_COMPACTOR);
   EXPECT_EQ(base::TimeDelta::FromMilliseconds(111),
             tracer->current_.scopes[GCTracer::Scope::MC_BACKGROUND_MARKING]);

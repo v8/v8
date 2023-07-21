@@ -5,6 +5,7 @@
 #ifndef V8_HEAP_GC_TRACER_INL_H_
 #define V8_HEAP_GC_TRACER_INL_H_
 
+#include "src/base/logging.h"
 #include "src/base/platform/platform.h"
 #include "src/execution/isolate.h"
 #include "src/heap/gc-tracer.h"
@@ -27,12 +28,14 @@ GCTracer::Scope::Scope(GCTracer* tracer, ScopeId scope, ThreadKind thread_kind)
     : tracer_(tracer),
       scope_(scope),
       thread_kind_(thread_kind),
-      start_time_(tracer_->MonotonicallyIncreasingTimeInMs()) {
+      start_time_(base::TimeTicks::Now()) {
+  DCHECK_IMPLIES(
+      thread_kind_ == ThreadKind::kMain,
+      tracer_->heap_->IsMainThread() || tracer_->heap_->IsSharedMainThread());
+
 #ifdef V8_RUNTIME_CALL_STATS
   if (V8_LIKELY(!TracingFlags::is_runtime_stats_enabled())) return;
   if (thread_kind_ == ThreadKind::kMain) {
-    DCHECK(tracer_->heap_->IsMainThread() ||
-           tracer_->heap_->IsSharedMainThread());
     runtime_stats_ = tracer_->heap_->isolate_->counters()->runtime_call_stats();
     runtime_stats_->Enter(&timer_, GCTracer::RCSCounterFromScope(scope));
   } else {
@@ -45,20 +48,17 @@ GCTracer::Scope::Scope(GCTracer* tracer, ScopeId scope, ThreadKind thread_kind)
 }
 
 GCTracer::Scope::~Scope() {
-  double duration_ms = tracer_->MonotonicallyIncreasingTimeInMs() - start_time_;
-  tracer_->AddScopeSample(scope_, duration_ms);
+  const base::TimeDelta duration = base::TimeTicks::Now() - start_time_;
+  tracer_->AddScopeSample(scope_, duration);
 
   if (thread_kind_ == ThreadKind::kMain) {
-    DCHECK(tracer_->heap_->IsMainThread() ||
-           tracer_->heap_->IsSharedMainThread());
     if (scope_ == ScopeId::MC_INCREMENTAL ||
         scope_ == ScopeId::MC_INCREMENTAL_START ||
         scope_ == ScopeId::MC_INCREMENTAL_FINALIZE) {
       auto* long_task_stats =
           tracer_->heap_->isolate_->GetCurrentLongTaskStats();
       long_task_stats->gc_full_incremental_wall_clock_duration_us +=
-          static_cast<int64_t>(duration_ms *
-                               base::Time::kMicrosecondsPerMillisecond);
+          duration.InMicroseconds();
     }
   }
 
@@ -127,18 +127,17 @@ constexpr const GCTracer::IncrementalInfos& GCTracer::incremental_scope(
   return incremental_scopes_[Scope::IncrementalOffset(id)];
 }
 
-void GCTracer::AddScopeSample(Scope::ScopeId id, double duration) {
+void GCTracer::AddScopeSample(Scope::ScopeId id, base::TimeDelta duration) {
   if (Scope::FIRST_INCREMENTAL_SCOPE <= id &&
       id <= Scope::LAST_INCREMENTAL_SCOPE) {
-    incremental_scopes_[Scope::IncrementalOffset(id)] +=
-        base::TimeDelta::FromMillisecondsD(duration);
+    incremental_scopes_[Scope::IncrementalOffset(id)] += duration;
   } else if (Scope::FIRST_BACKGROUND_SCOPE <= id &&
              id <= Scope::LAST_BACKGROUND_SCOPE) {
     base::MutexGuard guard(&background_scopes_mutex_);
-    background_scopes_[id] += base::TimeDelta::FromMillisecondsD(duration);
+    background_scopes_[id] += duration;
   } else {
     DCHECK_GT(Scope::NUMBER_OF_SCOPES, id);
-    current_.scopes[id] += base::TimeDelta::FromMillisecondsD(duration);
+    current_.scopes[id] += duration;
   }
 }
 
