@@ -299,6 +299,20 @@ void LiftoffAssembler::LoadTaggedPointerFromInstance(Register dst,
   LoadTaggedField(dst, MemOperand(instance, offset), r0);
 }
 
+void LiftoffAssembler::LoadExternalPointer(Register dst, Register src_addr,
+                                           int offset, ExternalPointerTag tag,
+                                           Register /* scratch */) {
+  LoadFullPointer(dst, src_addr, offset);
+}
+
+void LiftoffAssembler::LoadExternalPointer(Register dst, Register src_addr,
+                                           int offset, Register index,
+                                           ExternalPointerTag tag,
+                                           Register scratch) {
+  ShiftLeftU64(scratch, index, Operand(kSystemPointerSizeLog2));
+  LoadU64(dst, MemOperand(src_addr, scratch, offset), r0);
+}
+
 void LiftoffAssembler::SpillInstance(Register instance) {
   StoreU64(instance, liftoff::GetInstanceOperand(), r0);
 }
