@@ -8,6 +8,7 @@
 #include "src/codegen/machine-type.h"
 #include "src/heap/memory-chunk.h"
 #include "src/wasm/baseline/liftoff-assembler.h"
+#include "src/wasm/object-access.h"
 #include "src/wasm/wasm-objects.h"
 
 namespace v8 {
@@ -308,6 +309,32 @@ int LiftoffAssembler::SlotSizeForType(ValueKind kind) {
 
 bool LiftoffAssembler::NeedsAlignment(ValueKind kind) {
   return kind == kS128 || is_reference(kind);
+}
+
+void LiftoffAssembler::CheckTierUp(int declared_func_index, int budget_used,
+                                   Label* ool_label,
+                                   const FreezeCacheState& frozen) {
+  Register budget_array = kScratchReg;
+
+  Register instance = cache_state_.cached_instance;
+  if (instance == no_reg) {
+    instance = budget_array;  // Reuse the scratch register.
+    LoadInstanceFromFrame(instance);
+  }
+
+  constexpr int kArrayOffset = wasm::ObjectAccess::ToTagged(
+      WasmInstanceObject::kTieringBudgetArrayOffset);
+  Ld_d(budget_array, MemOperand(instance, kArrayOffset));
+
+  int budget_arr_offset = kInt32Size * declared_func_index;
+
+  Register budget = kScratchReg2;
+  MemOperand budget_addr(budget_array, budget_arr_offset);
+  Ld_w(budget, budget_addr);
+  Sub_w(budget, budget, budget_used);
+  St_w(budget, budget_addr);
+
+  Branch(ool_label, less, budget, Operand(zero_reg));
 }
 
 void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value) {
@@ -1669,13 +1696,6 @@ void LiftoffAssembler::emit_i32_cond_jumpi(Condition cond, Label* label,
                                            Register lhs, int32_t imm,
                                            const FreezeCacheState& frozen) {
   MacroAssembler::CompareTaggedAndBranch(label, cond, lhs, Operand(imm));
-}
-
-void LiftoffAssembler::emit_i32_subi_jump_negative(
-    Register value, int subtrahend, Label* result_negative,
-    const FreezeCacheState& frozen) {
-  MacroAssembler::Sub_w(value, value, Operand(subtrahend));
-  MacroAssembler::Branch(result_negative, less, value, Operand(zero_reg));
 }
 
 void LiftoffAssembler::emit_i32_eqz(Register dst, Register src) {
