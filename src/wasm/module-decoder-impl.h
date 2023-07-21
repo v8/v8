@@ -906,10 +906,10 @@ class ModuleDecoderImpl : public Decoder {
       if (enabled_features_.has_typed_funcref() &&
           read_u8<Decoder::FullValidationTag>(
               pc(), "table-with-initializer byte") == 0x40) {
-        consume_bytes(1, "table-with-initializer byte", tracer_);
+        consume_bytes(1, "with-initializer ", tracer_);
         has_initializer = true;
         type_position++;
-        uint8_t reserved = consume_u8("reserved byte", tracer_);
+        uint8_t reserved = consume_u8("reserved-byte", tracer_);
         if (reserved != 0) {
           error(type_position, "Reserved byte must be 0x00");
           break;
@@ -2365,7 +2365,7 @@ class ModuleDecoderImpl : public Decoder {
     }
 
     uint32_t num_elem =
-        consume_count("number of elements", max_table_init_entries());
+        consume_count(" number of elements", max_table_init_entries());
 
     if (is_active) {
       return {type,         table_index, std::move(offset),

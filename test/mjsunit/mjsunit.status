@@ -1669,6 +1669,7 @@
   'regress/wasm/regress-crbug-1338980': [SKIP],
   'regress/wasm/regress-crbug-1355070': [SKIP],
   'regress/wasm/regress-crbug-1356718': [SKIP],
+  'regress/wasm/regress-crbug-1465386': [SKIP],
 }],  # no_simd_hardware == True
 
 ##############################################################################
