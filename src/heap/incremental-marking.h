@@ -138,6 +138,8 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
   void AdvanceForTesting(v8::base::TimeDelta max_duration,
                          size_t max_bytes_to_mark = SIZE_MAX);
 
+  uint64_t current_trace_id() const { return current_trace_id_.value(); }
+
  private:
   class IncrementalMarkingRootMarkingVisitor;
 
@@ -223,6 +225,7 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
   base::Mutex background_live_bytes_mutex_;
   std::unordered_map<MemoryChunk*, intptr_t> background_live_bytes_;
   std::unique_ptr<::heap::base::IncrementalMarkingSchedule> schedule_;
+  base::Optional<uint64_t> current_trace_id_;
 
   friend class IncrementalMarkingJob;
 };

@@ -113,7 +113,7 @@ void IncrementalMarkingJob::Task::RunInternal() {
                                     GarbageCollectionReason::kTask,
                                     kGCCallbackScheduleIdleGarbageCollection);
     } else if (v8_flags.minor_ms && v8_flags.concurrent_minor_ms_marking) {
-      heap->StartMinorMSIncrementalMarkingIfPossible();
+      heap->StartMinorMSIncrementalMarkingIfNeeded();
     }
   }
 

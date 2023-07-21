@@ -2356,8 +2356,10 @@ void MarkCompactCollector::MarkLiveObjects() {
   const bool was_marked_incrementally =
       !heap_->incremental_marking()->IsStopped();
   if (was_marked_incrementally) {
-    TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_MARK_FINISH_INCREMENTAL);
     auto* incremental_marking = heap_->incremental_marking();
+    TRACE_GC_WITH_FLOW(
+        heap_->tracer(), GCTracer::Scope::MC_MARK_FINISH_INCREMENTAL,
+        incremental_marking->current_trace_id(), TRACE_EVENT_FLAG_FLOW_IN);
     DCHECK(incremental_marking->IsMajorMarking());
     incremental_marking->Stop();
     MarkingBarrier::PublishAll(heap_);

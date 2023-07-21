@@ -172,12 +172,18 @@ void IncrementalMarking::Start(GarbageCollector garbage_collector,
                : counters->gc_minor_incremental_marking_start());
   const auto scope_id = is_major ? GCTracer::Scope::MC_INCREMENTAL_START
                                  : GCTracer::Scope::MINOR_MS_INCREMENTAL_START;
+  DCHECK(!current_trace_id_.has_value());
+  current_trace_id_.emplace(
+      reinterpret_cast<uint64_t>(this) ^
+      heap_->tracer()->CurrentEpoch(GCTracer::Scope::MC_INCREMENTAL));
   TRACE_EVENT2("v8",
                is_major ? "V8.GCIncrementalMarkingStart"
                         : "V8.GCMinorIncrementalMarkingStart",
                "epoch", heap_->tracer()->CurrentEpoch(scope_id), "reason",
                ToString(gc_reason));
-  TRACE_GC_EPOCH(heap()->tracer(), scope_id, ThreadKind::kMain);
+  TRACE_GC_EPOCH_WITH_FLOW(heap()->tracer(), scope_id, ThreadKind::kMain,
+                           current_trace_id_.value(),
+                           TRACE_EVENT_FLAG_FLOW_OUT);
   heap_->tracer()->NotifyIncrementalMarkingStart();
 
   start_time_ = v8::base::TimeTicks::Now();
@@ -597,6 +603,8 @@ bool IncrementalMarking::Stop() {
   isolate()->stack_guard()->ClearGC();
 
   marking_mode_ = MarkingMode::kNoMarking;
+  current_local_marking_worklists_ = nullptr;
+  current_trace_id_.reset();
 
   if (isolate()->has_shared_space() && !isolate()->is_shared_space_isolate()) {
     // When disabling local incremental marking in a client isolate (= worker
@@ -843,8 +851,10 @@ void IncrementalMarking::Step(v8::base::TimeDelta max_duration,
       isolate()->counters()->gc_incremental_marking());
   TRACE_EVENT1("v8", "V8.GCIncrementalMarking", "epoch",
                heap_->tracer()->CurrentEpoch(GCTracer::Scope::MC_INCREMENTAL));
-  TRACE_GC_EPOCH(heap_->tracer(), GCTracer::Scope::MC_INCREMENTAL,
-                 ThreadKind::kMain);
+  TRACE_GC_EPOCH_WITH_FLOW(
+      heap_->tracer(), GCTracer::Scope::MC_INCREMENTAL, ThreadKind::kMain,
+      current_trace_id_.value(),
+      TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT);
   DCHECK(IsMajorMarking());
   const auto start = v8::base::TimeTicks::Now();
 
@@ -928,6 +938,10 @@ void IncrementalMarking::Step(v8::base::TimeDelta max_duration,
 
 void IncrementalMarking::RequestMinorGCFinalizationIfNeeded() {
   DCHECK(v8_flags.concurrent_minor_ms_marking);
+  TRACE_GC_EPOCH_WITH_FLOW(
+      heap_->tracer(), GCTracer::Scope::MINOR_MS_INCREMENTAL_STEP,
+      ThreadKind::kMain, current_trace_id_.value(),
+      TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT);
   // Finalize concurrent marking if markers are out of work. Since the main
   // thread local worklist has not yet been flushed, write barrier items
   // curerntly in the local are not accounted for in this check. This creates

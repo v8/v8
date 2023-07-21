@@ -800,9 +800,10 @@ void MinorMarkSweepCollector::MarkLiveObjects() {
   if (!was_marked_incrementally) {
     StartMarking();
   } else {
-    TRACE_GC(heap_->tracer(),
-             GCTracer::Scope::MINOR_MS_MARK_FINISH_INCREMENTAL);
     auto* incremental_marking = heap_->incremental_marking();
+    TRACE_GC_WITH_FLOW(
+        heap_->tracer(), GCTracer::Scope::MINOR_MS_MARK_FINISH_INCREMENTAL,
+        incremental_marking->current_trace_id(), TRACE_EVENT_FLAG_FLOW_IN);
     DCHECK(incremental_marking->IsMinorMarking());
     DCHECK(v8_flags.concurrent_minor_ms_marking);
     incremental_marking->Stop();

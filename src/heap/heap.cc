@@ -261,7 +261,7 @@ class MinorMSIncrementalMarkingTaskObserver final
   void StepImpl() final {
     DCHECK(!heap_->incremental_marking()->IsMinorMarking());
 
-    heap_->StartMinorMSIncrementalMarkingIfPossible();
+    heap_->StartMinorMSIncrementalMarkingIfNeeded();
 
     ScheduleMinorGCTaskObserver::StepImpl();
   }
@@ -1499,7 +1499,7 @@ void Heap::ScheduleMinorGCTaskIfNeeded() {
   minor_gc_job_->ScheduleTaskIfNeeded(this);
 }
 
-void Heap::StartMinorMSIncrementalMarkingIfPossible() {
+void Heap::StartMinorMSIncrementalMarkingIfNeeded() {
   if (v8_flags.concurrent_minor_ms_marking && !IsTearingDown() &&
       !ShouldOptimizeForLoadTime() && !incremental_marking()->IsMarking() &&
       incremental_marking()->CanBeStarted() && V8_LIKELY(!v8_flags.gc_global) &&

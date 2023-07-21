@@ -608,6 +608,7 @@
   F(MINOR_MS_MARK_EMBEDDER_PROLOGUE)        \
   F(MINOR_MS_MARK_EMBEDDER_TRACING)         \
   F(MINOR_MS_MARK_VERIFY)                   \
+  F(MINOR_MS_INCREMENTAL_STEP)              \
   F(MINOR_MS_SWEEP_NEW)                     \
   F(MINOR_MS_SWEEP_NEW_LO)                  \
   F(MINOR_MS_SWEEP_UPDATE_STRING_TABLE)     \
