@@ -113,9 +113,8 @@ void IsolateSafepoint::InitiateGlobalSafepointScopeRaw(
   if (isolate() != initiator) {
     // An isolate might be waiting in the event loop. Post a task in order to
     // wake it up.
-    V8::GetCurrentPlatform()
-        ->GetForegroundTaskRunner(reinterpret_cast<v8::Isolate*>(isolate()))
-        ->PostTask(std::make_unique<GlobalSafepointInterruptTask>(heap_));
+    isolate()->heap()->GetForegroundTaskRunner()->PostTask(
+        std::make_unique<GlobalSafepointInterruptTask>(heap_));
 
     // Request an interrupt in case of long-running code.
     isolate()->stack_guard()->RequestGlobalSafepoint();

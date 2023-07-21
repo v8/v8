@@ -57,6 +57,7 @@ class MemoryMeasurement {
   std::list<Request> processing_;
   std::list<Request> done_;
   Isolate* isolate_;
+  std::shared_ptr<v8::TaskRunner> task_runner_;
   bool reporting_task_pending_ = false;
   bool delayed_gc_task_pending_ = false;
   bool eager_gc_task_pending_ = false;

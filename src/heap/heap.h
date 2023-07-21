@@ -1600,6 +1600,8 @@ class Heap final {
   // Returns the amount of external memory registered since last global gc.
   V8_EXPORT_PRIVATE uint64_t AllocatedExternalMemorySinceMarkCompact() const;
 
+  std::shared_ptr<v8::TaskRunner> GetForegroundTaskRunner() const;
+
  private:
   class AllocationTrackerForDebugging;
 

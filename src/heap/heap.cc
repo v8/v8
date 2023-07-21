@@ -5663,6 +5663,10 @@ void Heap::InitializeHashSeed() {
       0, reinterpret_cast<uint8_t*>(&new_hash_seed), kInt64Size);
 }
 
+std::shared_ptr<v8::TaskRunner> Heap::GetForegroundTaskRunner() const {
+  return task_runner_;
+}
+
 // static
 void Heap::InitializeOncePerProcess() {
 #ifdef V8_ENABLE_ALLOCATION_TIMEOUT

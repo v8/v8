@@ -42,9 +42,7 @@ class IncrementalMarkingJob::Task final : public CancelableTask {
 };
 
 IncrementalMarkingJob::IncrementalMarkingJob(Heap* heap)
-    : heap_(heap),
-      foreground_task_runner_(V8::GetCurrentPlatform()->GetForegroundTaskRunner(
-          reinterpret_cast<v8::Isolate*>(heap->isolate()))) {
+    : heap_(heap), foreground_task_runner_(heap->GetForegroundTaskRunner()) {
   CHECK(v8_flags.incremental_marking_task);
 }
 

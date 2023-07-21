@@ -37,9 +37,7 @@ void MemoryBalancer::UpdateHeapLimit(size_t new_limit) {
 }
 
 void MemoryBalancer::PostHeartbeatTask() {
-  auto taskrunner = V8::GetCurrentPlatform()->GetForegroundTaskRunner(
-      reinterpret_cast<v8::Isolate*>(heap_->isolate()));
-  taskrunner->PostDelayedTask(
+  heap_->GetForegroundTaskRunner()->PostDelayedTask(
       std::make_unique<HeartbeatTask>(heap_->isolate(), this), 1);
 }
 

@@ -165,7 +165,9 @@ void MeasureMemoryDelegate::MeasurementComplete(
 }
 
 MemoryMeasurement::MemoryMeasurement(Isolate* isolate)
-    : isolate_(isolate), random_number_generator_() {
+    : isolate_(isolate),
+      task_runner_(isolate->heap()->GetForegroundTaskRunner()),
+      random_number_generator_() {
   if (v8_flags.random_seed) {
     random_number_generator_.SetSeed(v8_flags.random_seed);
   }
@@ -233,9 +235,7 @@ void MemoryMeasurement::FinishProcessing(const NativeContextStats& stats) {
 void MemoryMeasurement::ScheduleReportingTask() {
   if (reporting_task_pending_) return;
   reporting_task_pending_ = true;
-  auto taskrunner = V8::GetCurrentPlatform()->GetForegroundTaskRunner(
-      reinterpret_cast<v8::Isolate*>(isolate_));
-  taskrunner->PostTask(MakeCancelableTask(isolate_, [this] {
+  task_runner_->PostTask(MakeCancelableTask(isolate_, [this] {
     reporting_task_pending_ = false;
     ReportResults();
   }));
@@ -273,8 +273,6 @@ void MemoryMeasurement::ScheduleGCTask(v8::MeasureMemoryExecution execution) {
   if (execution == v8::MeasureMemoryExecution::kLazy) return;
   if (IsGCTaskPending(execution)) return;
   SetGCTaskPending(execution);
-  auto taskrunner = V8::GetCurrentPlatform()->GetForegroundTaskRunner(
-      reinterpret_cast<v8::Isolate*>(isolate_));
   auto task = MakeCancelableTask(isolate_, [this, execution] {
     SetGCTaskDone(execution);
     if (received_.empty()) return;
@@ -295,9 +293,9 @@ void MemoryMeasurement::ScheduleGCTask(v8::MeasureMemoryExecution execution) {
     }
   });
   if (execution == v8::MeasureMemoryExecution::kEager) {
-    taskrunner->PostTask(std::move(task));
+    task_runner_->PostTask(std::move(task));
   } else {
-    taskrunner->PostDelayedTask(std::move(task), NextGCTaskDelayInSeconds());
+    task_runner_->PostDelayedTask(std::move(task), NextGCTaskDelayInSeconds());
   }
 }
 

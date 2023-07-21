@@ -22,8 +22,7 @@ const size_t MemoryReducer::kCommittedMemoryDelta = 10 * MB;
 
 MemoryReducer::MemoryReducer(Heap* heap)
     : heap_(heap),
-      taskrunner_(V8::GetCurrentPlatform()->GetForegroundTaskRunner(
-          reinterpret_cast<v8::Isolate*>(heap->isolate()))),
+      taskrunner_(heap->GetForegroundTaskRunner()),
       state_(State::CreateUninitialized()),
       js_calls_counter_(0),
       js_calls_sample_time_ms_(0.0) {
