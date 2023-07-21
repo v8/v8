@@ -127,33 +127,6 @@ struct SharedWasmMemoryData {
   std::vector<Isolate*> isolates_;
 };
 
-void BackingStore::Clear() {
-  buffer_start_ = nullptr;
-  byte_length_ = 0;
-  has_guard_regions_ = false;
-  if (holds_shared_ptr_to_allocator_) {
-    type_specific_data_.v8_api_array_buffer_allocator_shared
-        .std::shared_ptr<v8::ArrayBuffer::Allocator>::~shared_ptr();
-    holds_shared_ptr_to_allocator_ = false;
-  }
-  type_specific_data_.v8_api_array_buffer_allocator = nullptr;
-}
-
-void BackingStore::FreeResizableMemory() {
-  DCHECK(free_on_destruct_);
-  DCHECK(!custom_deleter_);
-  DCHECK(is_resizable_by_js_ || is_wasm_memory_);
-  auto region =
-      GetReservedRegion(has_guard_regions_, buffer_start_, byte_capacity_);
-
-  PageAllocator* page_allocator = GetArrayBufferPageAllocator();
-  if (!region.is_empty()) {
-    FreePages(page_allocator, reinterpret_cast<void*>(region.begin()),
-              region.size());
-  }
-  Clear();
-}
-
 BackingStore::BackingStore(void* buffer_start, size_t byte_length,
                            size_t max_byte_length, size_t byte_capacity,
                            SharedFlag shared, ResizableFlag resizable,
@@ -193,10 +166,31 @@ BackingStore::BackingStore(void* buffer_start, size_t byte_length,
 BackingStore::~BackingStore() {
   GlobalBackingStoreRegistry::Unregister(this);
 
-  if (buffer_start_ == nullptr) {
-    Clear();
-    return;
-  }
+  struct ClearSharedAllocator {
+    BackingStore* const bs;
+
+    ~ClearSharedAllocator() {
+      if (!bs->holds_shared_ptr_to_allocator_) return;
+      bs->type_specific_data_.v8_api_array_buffer_allocator_shared
+          .std::shared_ptr<v8::ArrayBuffer::Allocator>::~shared_ptr();
+    }
+  } clear_shared_allocator{this};
+
+  if (buffer_start_ == nullptr) return;
+
+  auto FreeResizableMemory = [this] {
+    DCHECK(free_on_destruct_);
+    DCHECK(!custom_deleter_);
+    DCHECK(is_resizable_by_js_ || is_wasm_memory_);
+    auto region =
+        GetReservedRegion(has_guard_regions_, buffer_start_, byte_capacity_);
+
+    PageAllocator* page_allocator = GetArrayBufferPageAllocator();
+    if (!region.is_empty()) {
+      FreePages(page_allocator, reinterpret_cast<void*>(region.begin()),
+                region.size());
+    }
+  };
 
 #if V8_ENABLE_WEBASSEMBLY
   if (is_wasm_memory_) {
@@ -211,7 +205,6 @@ BackingStore::~BackingStore() {
       // Deallocate the list of attached memory objects.
       SharedWasmMemoryData* shared_data = get_shared_wasm_memory_data();
       delete shared_data;
-      type_specific_data_.shared_wasm_memory_data = nullptr;
     }
     // Wasm memories are always allocated through the page allocator.
     FreeResizableMemory();
@@ -223,15 +216,16 @@ BackingStore::~BackingStore() {
     FreeResizableMemory();
     return;
   }
+
   if (custom_deleter_) {
     DCHECK(free_on_destruct_);
     TRACE_BS("BS:custom deleter bs=%p mem=%p (length=%zu, capacity=%zu)\n",
              this, buffer_start_, byte_length(), byte_capacity_);
     type_specific_data_.deleter.callback(buffer_start_, byte_length_,
                                          type_specific_data_.deleter.data);
-    Clear();
     return;
   }
+
   if (free_on_destruct_) {
     // JSArrayBuffer backing store. Deallocate through the embedder's allocator.
     auto allocator = get_v8_api_array_buffer_allocator();
@@ -239,7 +233,6 @@ BackingStore::~BackingStore() {
              buffer_start_, byte_length(), byte_capacity_);
     allocator->Free(buffer_start_, byte_length_);
   }
-  Clear();
 }
 
 // Allocate a backing store using the array buffer allocator from the embedder.
