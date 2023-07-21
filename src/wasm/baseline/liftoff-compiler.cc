@@ -94,9 +94,6 @@ struct assert_field_size {
 #define SCOPED_CODE_COMMENT(str) ((void)0)
 #endif
 
-constexpr LoadType::LoadTypeValue kPointerLoadType =
-    kSystemPointerSize == 8 ? LoadType::kI64Load : LoadType::kI32Load;
-
 constexpr ValueKind kIntPtrKind = LiftoffAssembler::kIntPtrKind;
 constexpr ValueKind kSmiKind = LiftoffAssembler::kSmiKind;
 
@@ -7838,9 +7835,10 @@ class LiftoffCompiler {
                              wasm::ObjectAccess::ToTagged(
                                  WasmIndirectFunctionTable::kTargetsOffset));
       }
-      int buffer_offset = wasm::ObjectAccess::ToTagged(ByteArray::kHeaderSize);
-      __ Load(LiftoffRegister(function_target), function_target, index,
-              buffer_offset, kPointerLoadType, nullptr, false, false, true);
+      __ LoadExternalPointer(
+          function_target, function_target,
+          ObjectAccess::ElementOffsetInTaggedExternalPointerArray(0), index,
+          kWasmIndirectFunctionTargetTag, tmp3);
 
       auto call_descriptor = compiler::GetWasmCallDescriptor(zone_, imm.sig);
       call_descriptor = GetLoweredCallDescriptor(zone_, call_descriptor);
@@ -7927,15 +7925,10 @@ class LiftoffCompiler {
           instance.gp(), func_ref.gp(), no_reg,
           wasm::ObjectAccess::ToTagged(WasmInternalFunction::kRefOffset));
 
-#ifdef V8_ENABLE_SANDBOX
-      __ LoadExternalPointer(target.gp(), func_ref.gp(),
-                             WasmInternalFunction::kCallTargetOffset,
-                             kWasmInternalFunctionCallTargetTag, temp.gp());
-#else
-      __ LoadFullPointer(target.gp(), func_ref.gp(),
-                         wasm::ObjectAccess::ToTagged(
-                             WasmInternalFunction::kCallTargetOffset));
-#endif
+      __ LoadExternalPointer(
+          target.gp(), func_ref.gp(),
+          wasm::ObjectAccess::ToTagged(WasmInternalFunction::kCallTargetOffset),
+          kWasmInternalFunctionCallTargetTag, temp.gp());
 
       FREEZE_STATE(frozen);
       Label perform_call;

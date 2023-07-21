@@ -29,6 +29,10 @@ extern class ByteArray extends FixedArrayBase {
   bytes[length]: uint8;
 }
 
+extern class ExternalPointerArray extends FixedArrayBase {
+  pointers[length]: ExternalPointer;
+}
+
 extern macro CodeStubAssembler::AllocateByteArray(uintptr): ByteArray;
 
 @hasSameInstanceTypeAsParent

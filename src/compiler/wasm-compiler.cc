@@ -3034,9 +3034,9 @@ Node* WasmGraphBuilder::BuildIndirectCall(uint32_t table_index,
   Node* target_instance = gasm_->LoadFixedArrayElement(
       ift_instances, key_intptr, MachineType::TaggedPointer());
 
-  Node* target = gasm_->LoadByteArrayElement(ift_targets, key_intptr,
-                                             MachineType::Pointer());
-
+  Node* target = gasm_->LoadExternalPointerArrayElement(
+      ift_targets, key_intptr, kWasmIndirectFunctionTargetTag,
+      BuildLoadIsolateRoot());
   args[0] = target;
 
   const wasm::FunctionSig* sig = env_->module->signature(sig_index);

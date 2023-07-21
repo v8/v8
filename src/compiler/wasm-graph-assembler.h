@@ -150,8 +150,15 @@ class WasmGraphAssembler : public GraphAssembler {
                                        value);
   }
 
+  Node* BuildDecodeSandboxedExternalPointer(Node* handle,
+                                            ExternalPointerTag tag,
+                                            Node* isolate_root);
   Node* BuildLoadExternalPointerFromObject(Node* object, int offset,
                                            ExternalPointerTag tag,
+                                           Node* isolate_root);
+
+  Node* BuildLoadExternalPointerFromObject(Node* object, int offset,
+                                           Node* index, ExternalPointerTag tag,
                                            Node* isolate_root);
 
   Node* IsSmi(Node* object);
@@ -193,6 +200,10 @@ class WasmGraphAssembler : public GraphAssembler {
 
   Node* LoadByteArrayElement(Node* byte_array, Node* index_intptr,
                              MachineType type);
+
+  Node* LoadExternalPointerArrayElement(Node* array, Node* index_intptr,
+                                        ExternalPointerTag tag,
+                                        Node* isolate_root);
 
   Node* StoreFixedArrayElement(Node* array, int index, Node* value,
                                ObjectAccess access);

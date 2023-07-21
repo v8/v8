@@ -792,6 +792,18 @@ void Object::WriteExternalPointerField(size_t offset, Isolate* isolate,
   i::WriteExternalPointerField<tag>(field_address(offset), isolate, value);
 }
 
+template <ExternalPointerTag tag>
+void Object::WriteLazilyInitializedExternalPointerField(size_t offset,
+                                                        Isolate* isolate,
+                                                        Address value) {
+  i::WriteLazilyInitializedExternalPointerField<tag>(field_address(offset),
+                                                     isolate, value);
+}
+
+void Object::ResetLazilyInitializedExternalPointerField(size_t offset) {
+  i::ResetLazilyInitializedExternalPointerField(field_address(offset));
+}
+
 void Object::InitCodePointerField(size_t offset, Isolate* isolate,
                                   Address value) {
   i::InitCodePointerField(field_address(offset), isolate, value);

@@ -619,8 +619,8 @@ using FixedInt64Array = FixedIntegerArray<int64_t>;
 using FixedUInt64Array = FixedIntegerArray<uint64_t>;
 
 // Use with care! Raw addresses on the heap are not safe in combination with
-// the sandbox. However, this can for example be used to store sandboxed
-// pointers, which is safe.
+// the sandbox. Use an ExternalPointerArray instead. However, this can for
+// example be used to store sandboxed pointers, which is safe.
 class FixedAddressArray : public FixedIntegerArray<Address> {
  public:
   // Get/set a sandboxed pointer from this array.
@@ -634,6 +634,46 @@ class FixedAddressArray : public FixedIntegerArray<Address> {
   DECL_CAST(FixedAddressArray)
 
   OBJECT_CONSTRUCTORS(FixedAddressArray, FixedIntegerArray<Address>);
+};
+
+// An array containing external pointers.
+// When the sandbox is off, this will simply contain system-pointer sized words.
+// Otherwise, it contains external pointer handles, i.e. indices into the
+// external pointer table.
+// This class uses lazily-initialized external pointer slots. As such, its
+// content can simply be zero-initialized, and the external pointer table
+// entries are only allocated when an element is written to for the first time.
+class ExternalPointerArray
+    : public TorqueGeneratedExternalPointerArray<ExternalPointerArray,
+                                                 FixedArrayBase> {
+ public:
+  template <ExternalPointerTag tag>
+  inline Address get(int index, Isolate* isolate);
+  template <ExternalPointerTag tag>
+  inline void set(int index, Isolate* isolate, Address value);
+  inline void clear(int index);
+
+  static inline Handle<ExternalPointerArray> New(
+      Isolate* isolate, int length,
+      AllocationType allocation = AllocationType::kYoung);
+
+  static constexpr int SizeFor(int length) {
+    return kHeaderSize + length * kExternalPointerSlotSize;
+  }
+
+  static constexpr int OffsetOfElementAt(int index) {
+    return kHeaderSize + index * kExternalPointerSlotSize;
+  }
+
+  // Maximal length of a single ExternalPointerArray.
+  static const int kMaxLength = kMaxSize - kHeaderSize;
+  static_assert(Internals::IsValidSmi(kMaxLength),
+                "ExternalPointerArray maxLength not a Smi");
+
+  class BodyDescriptor;
+
+ protected:
+  TQ_OBJECT_CONSTRUCTORS(ExternalPointerArray)
 };
 
 // Wrapper class for ByteArray which can store arbitrary C++ classes, as long
