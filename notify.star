@@ -38,15 +38,6 @@ v8_notifier(
 )
 
 v8_notifier(
-    name = "infra",
-    on_occurrence = ["FAILURE"],
-    failed_step_regexp_exclude = FAILED_STEPS_EXCLUDE,
-    notify_emails = [
-        "v8-infra@google.com",
-    ],
-)
-
-v8_notifier(
     name = "infra-failure",
     on_occurrence = ["INFRA_FAILURE"],
     notify_emails = [
@@ -188,7 +179,7 @@ on {{.Build.EndTime | time}}
 )
 
 v8_notifier(
-    name = "branch monitor - infra",
+    name = "infra",
     on_new_status = ["SUCCESS", "FAILURE", "INFRA_FAILURE"],
     notify_emails = [
         "v8-infra-alerts-cc@google.com",
