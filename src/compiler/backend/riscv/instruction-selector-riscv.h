@@ -1473,17 +1473,58 @@ void InstructionSelectorT<Adapter>::VisitI8x16Swizzle(Node* node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitSignExtendWord8ToInt32(Node* node) {
-  RiscvOperandGeneratorT<Adapter> g(this);
-  Emit(kRiscvSignExtendByte, g.DefineAsRegister(node),
-       g.UseRegister(node->InputAt(0)));
+void InstructionSelectorT<Adapter>::VisitSignExtendWord8ToInt32(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    RiscvOperandGeneratorT<Adapter> g(this);
+    Emit(kRiscvSignExtendByte, g.DefineAsRegister(node),
+         g.UseRegister(node->InputAt(0)));
+  }
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitSignExtendWord16ToInt32(Node* node) {
-  RiscvOperandGeneratorT<Adapter> g(this);
-  Emit(kRiscvSignExtendShort, g.DefineAsRegister(node),
-       g.UseRegister(node->InputAt(0)));
+void InstructionSelectorT<Adapter>::VisitSignExtendWord16ToInt32(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    RiscvOperandGeneratorT<Adapter> g(this);
+    Emit(kRiscvSignExtendShort, g.DefineAsRegister(node),
+         g.UseRegister(node->InputAt(0)));
+  }
+}
+
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitWord32Clz(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    VisitRR(this, kRiscvClz32, node);
+  }
+}
+
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitWord32Ctz(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    RiscvOperandGeneratorT<Adapter> g(this);
+    Emit(kRiscvCtz32, g.DefineAsRegister(node),
+         g.UseRegister(node->InputAt(0)));
+  }
+}
+
+template <>
+Node* InstructionSelectorT<TurbofanAdapter>::FindProjection(
+    Node* node, size_t projection_index) {
+  return NodeProperties::FindProjection(node, projection_index);
+}
+
+template <>
+TurboshaftAdapter::node_t
+InstructionSelectorT<TurboshaftAdapter>::FindProjection(
+    node_t node, size_t projection_index) {
+  UNIMPLEMENTED();
 }
 
 #define VISIT_EXT_MUL(OPCODE1, OPCODE2, TYPE)                                 \

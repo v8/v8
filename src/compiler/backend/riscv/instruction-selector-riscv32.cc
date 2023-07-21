@@ -377,25 +377,24 @@ void InstructionSelectorT<Adapter>::VisitWord32Ror(node_t node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord32Clz(Node* node) {
-  VisitRR(this, kRiscvClz32, node);
-}
-
-template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord32ReverseBits(Node* node) {
   UNREACHABLE();
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord64ReverseBytes(Node* node) {
+void InstructionSelectorT<Adapter>::VisitWord64ReverseBytes(node_t node) {
   UNREACHABLE();
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord32ReverseBytes(Node* node) {
-  RiscvOperandGeneratorT<Adapter> g(this);
-  Emit(kRiscvByteSwap32, g.DefineAsRegister(node),
-       g.UseRegister(node->InputAt(0)));
+void InstructionSelectorT<Adapter>::VisitWord32ReverseBytes(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    RiscvOperandGeneratorT<Adapter> g(this);
+    Emit(kRiscvByteSwap32, g.DefineAsRegister(node),
+         g.UseRegister(node->InputAt(0)));
+  }
 }
 
 template <typename Adapter>
@@ -404,16 +403,14 @@ void InstructionSelectorT<Adapter>::VisitSimd128ReverseBytes(Node* node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord32Ctz(Node* node) {
-  RiscvOperandGeneratorT<Adapter> g(this);
-  Emit(kRiscvCtz32, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)));
-}
-
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord32Popcnt(Node* node) {
-  RiscvOperandGeneratorT<Adapter> g(this);
-  Emit(kRiscvPopcnt32, g.DefineAsRegister(node),
-       g.UseRegister(node->InputAt(0)));
+void InstructionSelectorT<Adapter>::VisitWord32Popcnt(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    RiscvOperandGeneratorT<Adapter> g(this);
+    Emit(kRiscvPopcnt32, g.DefineAsRegister(node),
+         g.UseRegister(node->InputAt(0)));
+  }
 }
 
 template <>

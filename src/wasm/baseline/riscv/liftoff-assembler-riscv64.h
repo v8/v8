@@ -149,6 +149,7 @@ inline void push(LiftoffAssembler* assm, LiftoffRegister reg, ValueKind kind) {
 
 }  // namespace liftoff
 
+
 void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value) {
   switch (value.type().kind()) {
     case kI32:
@@ -1323,13 +1324,6 @@ void LiftoffAssembler::emit_i32_cond_jumpi(Condition cond, Label* label,
                                            Register lhs, int32_t imm,
                                            const FreezeCacheState& frozen) {
   MacroAssembler::CompareTaggedAndBranch(label, cond, lhs, Operand(imm));
-}
-
-void LiftoffAssembler::emit_i32_subi_jump_negative(
-    Register value, int subtrahend, Label* result_negative,
-    const FreezeCacheState& frozen) {
-  Sub32(value, value, Operand(subtrahend));
-  MacroAssembler::Branch(result_negative, lt, value, Operand(zero_reg));
 }
 
 void LiftoffAssembler::emit_i32_eqz(Register dst, Register src) {

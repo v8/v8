@@ -693,11 +693,6 @@ void InstructionSelectorT<Adapter>::VisitWord32Ror(node_t node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord32Clz(Node* node) {
-  VisitRR(this, kRiscvClz32, node);
-}
-
-template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord32ReverseBits(Node* node) {
   UNREACHABLE();
 }
@@ -708,7 +703,7 @@ void InstructionSelectorT<Adapter>::VisitWord64ReverseBits(Node* node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord64ReverseBytes(Node* node) {
+void InstructionSelectorT<Adapter>::VisitWord64ReverseBytes(node_t node) {
   if constexpr (Adapter::IsTurboshaft) {
     UNIMPLEMENTED();
   } else {
@@ -719,7 +714,7 @@ void InstructionSelectorT<Adapter>::VisitWord64ReverseBytes(Node* node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord32ReverseBytes(Node* node) {
+void InstructionSelectorT<Adapter>::VisitWord32ReverseBytes(node_t node) {
   if constexpr (Adapter::IsTurboshaft) {
     UNIMPLEMENTED();
   } else {
@@ -735,18 +730,7 @@ void InstructionSelectorT<Adapter>::VisitSimd128ReverseBytes(Node* node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord32Ctz(Node* node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
-    RiscvOperandGeneratorT<Adapter> g(this);
-    Emit(kRiscvCtz32, g.DefineAsRegister(node),
-         g.UseRegister(node->InputAt(0)));
-  }
-}
-
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord64Ctz(Node* node) {
+void InstructionSelectorT<Adapter>::VisitWord64Ctz(node_t node) {
   if constexpr (Adapter::IsTurboshaft) {
     UNIMPLEMENTED();
   } else {
@@ -757,7 +741,7 @@ void InstructionSelectorT<Adapter>::VisitWord64Ctz(Node* node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord32Popcnt(Node* node) {
+void InstructionSelectorT<Adapter>::VisitWord32Popcnt(node_t node) {
   if constexpr (Adapter::IsTurboshaft) {
     UNIMPLEMENTED();
   } else {
@@ -768,7 +752,7 @@ void InstructionSelectorT<Adapter>::VisitWord32Popcnt(Node* node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord64Popcnt(Node* node) {
+void InstructionSelectorT<Adapter>::VisitWord64Popcnt(node_t node) {
   if constexpr (Adapter::IsTurboshaft) {
     UNIMPLEMENTED();
   } else {
@@ -788,8 +772,12 @@ void InstructionSelectorT<Adapter>::VisitWord64Ror(node_t node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord64Clz(Node* node) {
-  VisitRR(this, kRiscvClz64, node);
+void InstructionSelectorT<Adapter>::VisitWord64Clz(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    VisitRR(this, kRiscvClz64, node);
+  }
 }
 
 template <>
@@ -2784,7 +2772,7 @@ void InstructionSelectorT<Adapter>::VisitInt64AbsWithOverflow(Node* node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitSignExtendWord8ToInt64(Node* node) {
+void InstructionSelectorT<Adapter>::VisitSignExtendWord8ToInt64(node_t node) {
   if constexpr (Adapter::IsTurboshaft) {
     UNIMPLEMENTED();
   } else {
@@ -2795,7 +2783,7 @@ void InstructionSelectorT<Adapter>::VisitSignExtendWord8ToInt64(Node* node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitSignExtendWord16ToInt64(Node* node) {
+void InstructionSelectorT<Adapter>::VisitSignExtendWord16ToInt64(node_t node) {
   if constexpr (Adapter::IsTurboshaft) {
     UNIMPLEMENTED();
   } else {

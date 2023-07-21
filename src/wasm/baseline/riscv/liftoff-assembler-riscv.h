@@ -8,6 +8,7 @@
 #include "src/heap/memory-chunk.h"
 #include "src/wasm/baseline/liftoff-assembler.h"
 #include "src/wasm/wasm-objects.h"
+#include "src/wasm/object-access.h"
 
 namespace v8 {
 namespace internal {
@@ -59,6 +60,33 @@ void LiftoffAssembler::PrepareTailCall(int num_callee_stack_params,
 }
 
 void LiftoffAssembler::AlignFrameSize() {}
+
+void LiftoffAssembler::CheckTierUp(int declared_func_index, int budget_used,
+                                   Label* ool_label,
+                                   const FreezeCacheState& frozen) {
+  UseScratchRegisterScope temps(this);
+  Register budget_array = temps.Acquire();
+  Register instance = cache_state_.cached_instance;
+
+  if (instance == no_reg) {
+    instance = budget_array;  // Reuse the temp register.
+    LoadInstanceFromFrame(instance);
+  }
+
+  constexpr int kArrayOffset = wasm::ObjectAccess::ToTagged(
+      WasmInstanceObject::kTieringBudgetArrayOffset);
+  LoadWord(budget_array, MemOperand(instance, kArrayOffset));
+
+  int budget_arr_offset = kInt32Size * declared_func_index;
+  // Pick a random register from kLiftoffAssemblerGpCacheRegs.
+  // TODO(miladfarca): Use ScratchRegisterScope when available.
+  Register budget = kScratchReg;
+  MemOperand budget_addr(budget_array, budget_arr_offset);
+  Lw(budget, budget_addr);
+  Sub32(budget, budget, Operand{budget_used});
+  Sw(budget, budget_addr);
+  Branch(ool_label, lt, budget, Operand{0});
+}
 
 void LiftoffAssembler::PatchPrepareStackFrame(
     int offset, SafepointTableBuilder* safepoint_table_builder,
