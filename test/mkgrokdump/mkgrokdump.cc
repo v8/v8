@@ -62,7 +62,7 @@ static void DumpKnownMap(FILE* out, i::Heap* heap, const char* space_name,
 
   if (root_name == nullptr) return;
   i::PrintF(out, "    (\"%s\", 0x%05" V8PRIxPTR "): (%d, \"%s\"),\n",
-            space_name, root_ptr, map.instance_type(), root_name);
+            space_name, root_ptr, map->instance_type(), root_name);
 
 #undef MUTABLE_ROOT_LIST_CASE
 #undef RO_ROOT_LIST_CASE

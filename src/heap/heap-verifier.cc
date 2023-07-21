@@ -127,18 +127,18 @@ void VerifyPointersVisitor::VisitRootPointers(Root root,
 }
 
 void VerifyPointersVisitor::VisitMapPointer(HeapObject host) {
-  VerifyHeapObjectImpl(host.map(cage_base()));
+  VerifyHeapObjectImpl(host->map(cage_base()));
 }
 
 void VerifyPointersVisitor::VerifyHeapObjectImpl(HeapObject heap_object) {
   CHECK(IsValidHeapObject(heap_, heap_object));
-  CHECK(heap_object.map(cage_base()).IsMap());
+  CHECK(heap_object->map(cage_base()).IsMap());
 }
 
 void VerifyPointersVisitor::VerifyCodeObjectImpl(HeapObject heap_object) {
   CHECK(IsValidCodeObject(heap_, heap_object));
-  CHECK(heap_object.map(cage_base()).IsMap());
-  CHECK(heap_object.map(cage_base()).instance_type() ==
+  CHECK(heap_object->map(cage_base()).IsMap());
+  CHECK(heap_object->map(cage_base())->instance_type() ==
         INSTRUCTION_STREAM_TYPE);
 }
 
@@ -163,7 +163,7 @@ void VerifyPointersVisitor::VerifyPointers(HeapObject host,
   // to one of objects in DATA_ONLY_VISITOR_ID_LIST. You can fix
   // this by moving that object to POINTER_VISITOR_ID_LIST.
   DCHECK_EQ(ObjectFields::kMaybePointers,
-            Map::ObjectFieldsFrom(host.map(cage_base()).visitor_id()));
+            Map::ObjectFieldsFrom(host->map(cage_base())->visitor_id()));
   VerifyPointersImpl(start, end);
 }
 
@@ -188,7 +188,7 @@ class VerifyReadOnlyPointersVisitor : public VerifyPointersVisitor {
   void VerifyPointers(HeapObject host, MaybeObjectSlot start,
                       MaybeObjectSlot end) override {
     if (!host.is_null()) {
-      CHECK(ReadOnlyHeap::Contains(host.map()));
+      CHECK(ReadOnlyHeap::Contains(host->map()));
     }
     VerifyPointersVisitor::VerifyPointers(host, start, end);
 
@@ -215,7 +215,7 @@ class VerifySharedHeapObjectVisitor : public VerifyPointersVisitor {
   void VerifyPointers(HeapObject host, MaybeObjectSlot start,
                       MaybeObjectSlot end) override {
     if (!host.is_null()) {
-      Map map = host.map();
+      Map map = host->map();
       CHECK(ReadOnlyHeap::Contains(map) || shared_space_->Contains(map));
     }
     VerifyPointersVisitor::VerifyPointers(host, start, end);
@@ -305,11 +305,11 @@ void HeapVerification::Verify() {
   if (!isolate()->context().is_null() &&
       !isolate()->raw_native_context().is_null()) {
     Object normalized_map_cache =
-        isolate()->raw_native_context().normalized_map_cache();
+        isolate()->raw_native_context()->normalized_map_cache();
 
     if (normalized_map_cache.IsNormalizedMapCache()) {
       NormalizedMapCache::cast(normalized_map_cache)
-          .NormalizedMapCacheVerify(isolate());
+          ->NormalizedMapCacheVerify(isolate());
     }
   }
 
@@ -387,20 +387,20 @@ void HeapVerification::VerifyOutgoingPointers(HeapObject object) {
   switch (current_space_identity()) {
     case RO_SPACE: {
       VerifyReadOnlyPointersVisitor visitor(heap());
-      object.Iterate(cage_base_, &visitor);
+      object->Iterate(cage_base_, &visitor);
       break;
     }
 
     case SHARED_SPACE:
     case SHARED_LO_SPACE: {
       VerifySharedHeapObjectVisitor visitor(heap());
-      object.Iterate(cage_base_, &visitor);
+      object->Iterate(cage_base_, &visitor);
       break;
     }
 
     default: {
       VerifyPointersVisitor visitor(heap());
-      object.Iterate(cage_base_, &visitor);
+      object->Iterate(cage_base_, &visitor);
       break;
     }
   }
@@ -409,7 +409,7 @@ void HeapVerification::VerifyOutgoingPointers(HeapObject object) {
 void HeapVerification::VerifyObjectMap(HeapObject object) {
   // The first word should be a map, and we expect all map pointers to be
   // in map space or read-only space.
-  Map map = object.map(cage_base_);
+  Map map = object->map(cage_base_);
   CHECK(map.IsMap(cage_base_));
   CHECK(ReadOnlyHeap::Contains(map) || old_space()->Contains(map) ||
         (shared_space() && shared_space()->Contains(map)));
@@ -631,7 +631,7 @@ void HeapVerification::VerifyRememberedSetFor(HeapObject object) {
   MemoryChunk* chunk = MemoryChunk::FromHeapObject(object);
 
   Address start = object.address();
-  Address end = start + object.Size(cage_base_);
+  Address end = start + object->Size(cage_base_);
 
   std::set<Address> old_to_new;
   std::set<std::pair<SlotType, Address>> typed_old_to_new;
@@ -642,7 +642,7 @@ void HeapVerification::VerifyRememberedSetFor(HeapObject object) {
   OldToNewSlotVerifyingVisitor old_to_new_visitor(
       isolate(), &old_to_new, &typed_old_to_new,
       heap()->ephemeron_remembered_set()->tables());
-  object.IterateBody(cage_base_, &old_to_new_visitor);
+  object->IterateBody(cage_base_, &old_to_new_visitor);
 
   std::set<Address> old_to_shared;
   std::set<std::pair<SlotType, Address>> typed_old_to_shared;
@@ -650,7 +650,7 @@ void HeapVerification::VerifyRememberedSetFor(HeapObject object) {
                               &typed_old_to_shared);
   OldToSharedSlotVerifyingVisitor old_to_shared_visitor(
       isolate(), &old_to_shared, &typed_old_to_shared);
-  object.IterateBody(cage_base_, &old_to_shared_visitor);
+  object->IterateBody(cage_base_, &old_to_shared_visitor);
 
   if (object.InWritableSharedSpace()) {
     CHECK_NULL(chunk->slot_set<OLD_TO_SHARED>());
@@ -763,7 +763,7 @@ void HeapVerifier::VerifySafeMapTransition(Heap* heap, HeapObject object,
   }
 
   if (v8_flags.shared_string_table && object.IsString(cage_base) &&
-      InstanceTypeChecker::IsInternalizedString(new_map.instance_type())) {
+      InstanceTypeChecker::IsInternalizedString(new_map->instance_type())) {
     // In-place internalization does not change a string's fields.
     //
     // When sharing the string table, the setting and re-setting of maps below
@@ -774,14 +774,14 @@ void HeapVerifier::VerifySafeMapTransition(Heap* heap, HeapObject object,
 
   // Check that the set of slots before and after the transition match.
   SlotCollectingVisitor old_visitor;
-  object.IterateFast(cage_base, &old_visitor);
-  MapWord old_map_word = object.map_word(cage_base, kRelaxedLoad);
+  object->IterateFast(cage_base, &old_visitor);
+  MapWord old_map_word = object->map_word(cage_base, kRelaxedLoad);
   // Temporarily set the new map to iterate new slots.
-  object.set_map_word(new_map, kRelaxedStore);
+  object->set_map_word(new_map, kRelaxedStore);
   SlotCollectingVisitor new_visitor;
-  object.IterateFast(cage_base, &new_visitor);
+  object->IterateFast(cage_base, &new_visitor);
   // Restore the old map.
-  object.set_map_word(old_map_word.ToMap(), kRelaxedStore);
+  object->set_map_word(old_map_word.ToMap(), kRelaxedStore);
   DCHECK_EQ(new_visitor.number_of_slots(), old_visitor.number_of_slots());
   for (int i = 0; i < new_visitor.number_of_slots(); i++) {
     DCHECK_EQ(new_visitor.slot(i), old_visitor.slot(i));

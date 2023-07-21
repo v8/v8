@@ -14,16 +14,16 @@ namespace internal {
 namespace {
 
 void PrepareMapCommon(Map map) {
-  DCHECK(map.IsAlwaysSharedSpaceJSObjectMap());
+  DCHECK(map->IsAlwaysSharedSpaceJSObjectMap());
   DisallowGarbageCollection no_gc;
   // Shared objects have fixed layout ahead of time, so there's no slack.
-  map.SetInObjectUnusedPropertyFields(0);
+  map->SetInObjectUnusedPropertyFields(0);
   // Shared objects are not extensible and have a null prototype.
-  map.set_is_extensible(false);
+  map->set_is_extensible(false);
   // Shared space objects are not optimizable as prototypes because it is
   // not threadsafe.
-  map.set_prototype_validity_cell(Smi::FromInt(Map::kPrototypeChainValid),
-                                  kRelaxedStore, SKIP_WRITE_BARRIER);
+  map->set_prototype_validity_cell(Smi::FromInt(Map::kPrototypeChainValid),
+                                   kRelaxedStore, SKIP_WRITE_BARRIER);
 }
 
 }  // namespace
@@ -31,7 +31,7 @@ void PrepareMapCommon(Map map) {
 // static
 void AlwaysSharedSpaceJSObject::PrepareMapNoEnumerableProperties(Map map) {
   PrepareMapCommon(map);
-  map.SetEnumLength(0);
+  map->SetEnumLength(0);
 }
 
 // static
@@ -69,7 +69,7 @@ Maybe<bool> AlwaysSharedSpaceJSObject::DefineOwnProperty(
       PropertyDescriptor::IsDataDescriptor(desc) !=
           PropertyDescriptor::IsDataDescriptor(&current) ||
       desc->ToAttributes() != current.ToAttributes()) {
-    DCHECK(!shared_obj->map().is_extensible());
+    DCHECK(!shared_obj->map()->is_extensible());
     RETURN_FAILURE(isolate, GetShouldThrow(isolate, should_throw),
                    NewTypeError(MessageTemplate::kDefineDisallowedFixedLayout,
                                 it.GetName()));

@@ -125,9 +125,9 @@ bool ExperimentalRegExp::Compile(Isolate* isolate, Handle<JSRegExp> re) {
 
 base::Vector<RegExpInstruction> AsInstructionSequence(ByteArray raw_bytes) {
   RegExpInstruction* inst_begin =
-      reinterpret_cast<RegExpInstruction*>(raw_bytes.GetDataStartAddress());
-  int inst_num = raw_bytes.length() / sizeof(RegExpInstruction);
-  DCHECK_EQ(sizeof(RegExpInstruction) * inst_num, raw_bytes.length());
+      reinterpret_cast<RegExpInstruction*>(raw_bytes->GetDataStartAddress());
+  int inst_num = raw_bytes->length() / sizeof(RegExpInstruction);
+  DCHECK_EQ(sizeof(RegExpInstruction) * inst_num, raw_bytes->length());
   return base::Vector<RegExpInstruction>(inst_begin, inst_num);
 }
 
@@ -146,7 +146,7 @@ int32_t ExecRawImpl(Isolate* isolate, RegExp::CallOrigin call_origin,
 
   int32_t result;
   do {
-    DCHECK(subject.IsFlat());
+    DCHECK(subject->IsFlat());
     Zone zone(isolate->allocator(), ZONE_NAME);
     result = ExperimentalRegExpInterpreter::FindMatches(
         isolate, call_origin, bytecode, register_count_per_match, subject,
@@ -169,15 +169,15 @@ int32_t ExperimentalRegExp::ExecRaw(Isolate* isolate,
   DisallowGarbageCollection no_gc;
 
   if (v8_flags.trace_experimental_regexp_engine) {
-    StdoutStream{} << "Executing experimental regexp " << regexp.source()
+    StdoutStream{} << "Executing experimental regexp " << regexp->source()
                    << std::endl;
   }
 
   static constexpr bool kIsLatin1 = true;
-  ByteArray bytecode = ByteArray::cast(regexp.bytecode(kIsLatin1));
+  ByteArray bytecode = ByteArray::cast(regexp->bytecode(kIsLatin1));
 
   return ExecRawImpl(isolate, call_origin, bytecode, subject,
-                     regexp.capture_count(), output_registers,
+                     regexp->capture_count(), output_registers,
                      output_register_count, subject_index);
 }
 

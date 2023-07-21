@@ -59,7 +59,7 @@ RUNTIME_FUNCTION(Runtime_SymbolIsPrivate) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
   auto symbol = Symbol::cast(args[0]);
-  return isolate->heap()->ToBoolean(symbol.is_private());
+  return isolate->heap()->ToBoolean(symbol->is_private());
 }
 }  // namespace internal
 }  // namespace v8

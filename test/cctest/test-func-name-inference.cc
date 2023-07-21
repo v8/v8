@@ -56,7 +56,7 @@ static void CheckFunctionName(v8::Local<v8::Script> script,
         Handle<SharedFunctionInfo>(SharedFunctionInfo::cast(*obj), isolate);
   } else {
     shared_function =
-        Handle<SharedFunctionInfo>(JSFunction::cast(*obj).shared(), isolate);
+        Handle<SharedFunctionInfo>(JSFunction::cast(*obj)->shared(), isolate);
   }
   Handle<i::Script> i_script(i::Script::cast(shared_function->script()),
                              isolate);
@@ -83,7 +83,7 @@ static void CheckFunctionName(v8::Local<v8::Script> script,
 
   // Verify inferred function name.
   std::unique_ptr<char[]> inferred_name =
-      shared_func_info->inferred_name().ToCString();
+      shared_func_info->inferred_name()->ToCString();
   if (strcmp(ref_inferred_name, inferred_name.get()) != 0) {
     GRACEFUL_FATAL("expected: %s, found: %s\n", ref_inferred_name,
                    inferred_name.get());

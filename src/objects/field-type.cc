@@ -50,7 +50,7 @@ Map FieldType::AsClass() const {
 }
 
 bool FieldType::NowStable() const {
-  return !this->IsClass() || AsClass().is_stable();
+  return !this->IsClass() || AsClass()->is_stable();
 }
 
 bool FieldType::NowIs(FieldType other) const {
@@ -89,7 +89,7 @@ bool FieldType::NowContains(Object value) const {
   if (*this == Any()) return true;
   if (*this == None()) return false;
   if (!value.IsHeapObject()) return false;
-  return HeapObject::cast(value).map() == Map::cast(*this);
+  return HeapObject::cast(value)->map() == Map::cast(*this);
 }
 
 }  // namespace internal

@@ -33,7 +33,7 @@ Object PositiveNumberOrNull(int value, Isolate* isolate) {
 }
 
 bool NativeContextIsForShadowRealm(NativeContext native_context) {
-  return native_context.scope_info().scope_type() == SHADOW_REALM_SCOPE;
+  return native_context->scope_info()->scope_type() == SHADOW_REALM_SCOPE;
 }
 
 }  // namespace
@@ -80,7 +80,7 @@ BUILTIN(CallSitePrototypeGetFunction) {
   if (NativeContextIsForShadowRealm(isolate->raw_native_context()) ||
       (frame->function().IsJSFunction() &&
        NativeContextIsForShadowRealm(
-           JSFunction::cast(frame->function()).native_context()))) {
+           JSFunction::cast(frame->function())->native_context()))) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate,
         NewTypeError(
@@ -89,7 +89,7 @@ BUILTIN(CallSitePrototypeGetFunction) {
   }
   if (frame->IsStrict() ||
       (frame->function().IsJSFunction() &&
-       JSFunction::cast(frame->function()).shared().is_toplevel())) {
+       JSFunction::cast(frame->function())->shared()->is_toplevel())) {
     return ReadOnlyRoots(isolate).undefined_value();
   }
   isolate->CountUsage(v8::Isolate::kCallSiteAPIGetFunctionSloppyCall);
@@ -152,7 +152,7 @@ BUILTIN(CallSitePrototypeGetThis) {
   if (NativeContextIsForShadowRealm(isolate->raw_native_context()) ||
       (frame->function().IsJSFunction() &&
        NativeContextIsForShadowRealm(
-           JSFunction::cast(frame->function()).native_context()))) {
+           JSFunction::cast(frame->function())->native_context()))) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate,
         NewTypeError(
@@ -163,7 +163,7 @@ BUILTIN(CallSitePrototypeGetThis) {
   isolate->CountUsage(v8::Isolate::kCallSiteAPIGetThisSloppyCall);
 #if V8_ENABLE_WEBASSEMBLY
   if (frame->IsAsmJsWasm()) {
-    return frame->GetWasmInstance().native_context().global_proxy();
+    return frame->GetWasmInstance()->native_context()->global_proxy();
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
   return frame->receiver_or_instance();

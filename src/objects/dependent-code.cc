@@ -14,11 +14,11 @@ namespace internal {
 
 DependentCode DependentCode::GetDependentCode(HeapObject object) {
   if (object.IsMap()) {
-    return Map::cast(object).dependent_code();
+    return Map::cast(object)->dependent_code();
   } else if (object.IsPropertyCell()) {
-    return PropertyCell::cast(object).dependent_code();
+    return PropertyCell::cast(object)->dependent_code();
   } else if (object.IsAllocationSite()) {
-    return AllocationSite::cast(object).dependent_code();
+    return AllocationSite::cast(object)->dependent_code();
   }
   UNREACHABLE();
 }
@@ -124,8 +124,8 @@ bool DependentCode::MarkCodeForDeoptimization(
   IterateAndCompact([&](Code code, DependencyGroups groups) {
     if ((groups & deopt_groups) == 0) return false;
 
-    if (!code.marked_for_deoptimization()) {
-      code.SetMarkedForDeoptimization(isolate, "code dependencies");
+    if (!code->marked_for_deoptimization()) {
+      code->SetMarkedForDeoptimization(isolate, "code dependencies");
       marked_something = true;
     }
 

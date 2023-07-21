@@ -119,8 +119,8 @@ void DecodeEntry(base::Vector<const uint8_t> bytes, int* index,
 }
 
 base::Vector<const uint8_t> VectorFromByteArray(ByteArray byte_array) {
-  return base::Vector<const uint8_t>(byte_array.GetDataStartAddress(),
-                                     byte_array.length());
+  return base::Vector<const uint8_t>(byte_array->GetDataStartAddress(),
+                                     byte_array->length());
 }
 
 #ifdef ENABLE_SLOW_DCHECKS

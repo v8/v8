@@ -49,15 +49,15 @@ inline bool MakePretenureDecision(
       // We just transition into tenure state when the semi-space was at
       // maximum capacity.
       if (new_space_capacity_was_above_pretenuring_threshold) {
-        site.set_deopt_dependent_code(true);
-        site.set_pretenure_decision(AllocationSite::kTenure);
+        site->set_deopt_dependent_code(true);
+        site->set_pretenure_decision(AllocationSite::kTenure);
         // Currently we just need to deopt when we make a state transition to
         // tenure.
         return true;
       }
-      site.set_pretenure_decision(AllocationSite::kMaybeTenure);
+      site->set_pretenure_decision(AllocationSite::kMaybeTenure);
     } else {
-      site.set_pretenure_decision(AllocationSite::kDontTenure);
+      site->set_pretenure_decision(AllocationSite::kDontTenure);
     }
   }
   return false;
@@ -65,8 +65,8 @@ inline bool MakePretenureDecision(
 
 // Clear feedback calculation fields until the next gc.
 inline void ResetPretenuringFeedback(AllocationSite site) {
-  site.set_memento_found_count(0);
-  site.set_memento_create_count(0);
+  site->set_memento_found_count(0);
+  site->set_memento_create_count(0);
 }
 
 inline bool DigestPretenuringFeedback(
@@ -74,15 +74,15 @@ inline bool DigestPretenuringFeedback(
     bool new_space_capacity_was_above_pretenuring_threshold,
     size_t new_space_capacity) {
   bool deopt = false;
-  int create_count = site.memento_create_count();
-  int found_count = site.memento_found_count();
+  int create_count = site->memento_create_count();
+  int found_count = site->memento_found_count();
   bool minimum_mementos_created = create_count >= kMinMementoCount;
   double ratio =
       minimum_mementos_created || v8_flags.trace_pretenuring_statistics
           ? static_cast<double>(found_count) / create_count
           : 0.0;
   AllocationSite::PretenureDecision current_decision =
-      site.pretenure_decision();
+      site->pretenure_decision();
 
   if (minimum_mementos_created) {
     deopt = MakePretenureDecision(
@@ -95,8 +95,8 @@ inline bool DigestPretenuringFeedback(
                  "pretenuring: AllocationSite(%p): (created, found, ratio) "
                  "(%d, %d, %f) %s => %s\n",
                  reinterpret_cast<void*>(site.ptr()), create_count, found_count,
-                 ratio, site.PretenureDecisionName(current_decision),
-                 site.PretenureDecisionName(site.pretenure_decision()));
+                 ratio, site->PretenureDecisionName(current_decision),
+                 site->PretenureDecisionName(site->pretenure_decision()));
   }
 
   ResetPretenuringFeedback(site);
@@ -105,12 +105,12 @@ inline bool DigestPretenuringFeedback(
 
 bool PretenureAllocationSiteManually(Isolate* isolate, AllocationSite site) {
   AllocationSite::PretenureDecision current_decision =
-      site.pretenure_decision();
+      site->pretenure_decision();
   bool deopt = true;
   if (current_decision == AllocationSite::kUndecided ||
       current_decision == AllocationSite::kMaybeTenure) {
-    site.set_deopt_dependent_code(true);
-    site.set_pretenure_decision(AllocationSite::kTenure);
+    site->set_deopt_dependent_code(true);
+    site->set_pretenure_decision(AllocationSite::kTenure);
   } else {
     deopt = false;
   }
@@ -119,8 +119,8 @@ bool PretenureAllocationSiteManually(Isolate* isolate, AllocationSite site) {
                  "pretenuring manually requested: AllocationSite(%p): "
                  "%s => %s\n",
                  reinterpret_cast<void*>(site.ptr()),
-                 site.PretenureDecisionName(current_decision),
-                 site.PretenureDecisionName(site.pretenure_decision()));
+                 site->PretenureDecisionName(current_decision),
+                 site->PretenureDecisionName(site->pretenure_decision()));
   }
 
   ResetPretenuringFeedback(site);
@@ -140,7 +140,7 @@ void PretenuringHandler::MergeAllocationSitePretenuringFeedback(
   AllocationSite site;
   for (auto& site_and_count : local_pretenuring_feedback) {
     site = site_and_count.first;
-    MapWord map_word = site.map_word(cage_base, kRelaxedLoad);
+    MapWord map_word = site->map_word(cage_base, kRelaxedLoad);
     if (map_word.IsForwardingAddress()) {
       site = AllocationSite::cast(map_word.ToForwardingAddress(site));
     }
@@ -148,11 +148,11 @@ void PretenuringHandler::MergeAllocationSitePretenuringFeedback(
     // We have not validated the allocation site yet, since we have not
     // dereferenced the site during collecting information.
     // This is an inlined check of AllocationMemento::IsValid.
-    if (!site.IsAllocationSite() || site.IsZombie()) continue;
+    if (!site.IsAllocationSite() || site->IsZombie()) continue;
 
     const int value = static_cast<int>(site_and_count.second);
     DCHECK_LT(0, value);
-    if (site.IncrementMementoFoundCount(value) >= kMinMementoCount) {
+    if (site->IncrementMementoFoundCount(value) >= kMinMementoCount) {
       // For sites in the global map the count is accessed through the site.
       global_pretenuring_feedback_.insert(std::make_pair(site, 0));
     }
@@ -203,7 +203,7 @@ void PretenuringHandler::ProcessPretenuringFeedback(
     site = site_and_count.first;
     // Count is always access through the site.
     DCHECK_EQ(0, site_and_count.second);
-    int found_count = site.memento_found_count();
+    int found_count = site->memento_found_count();
     // An entry in the storage does not imply that the count is > 0 because
     // allocation sites might have been reset due to too many objects dying
     // in old space.
@@ -216,7 +216,7 @@ void PretenuringHandler::ProcessPretenuringFeedback(
                                     new_space_capacity_before_gc)) {
         trigger_deoptimization = true;
       }
-      if (site.GetAllocationType() == AllocationType::kOld) {
+      if (site->GetAllocationType() == AllocationType::kOld) {
         tenure_decisions++;
       } else {
         dont_tenure_decisions++;
@@ -247,8 +247,8 @@ void PretenuringHandler::ProcessPretenuringFeedback(
         [&allocation_sites, &trigger_deoptimization](AllocationSite site) {
           DCHECK(site.IsAllocationSite());
           allocation_sites++;
-          if (site.IsMaybeTenure()) {
-            site.set_deopt_dependent_code(true);
+          if (site->IsMaybeTenure()) {
+            site->set_deopt_dependent_code(true);
             trigger_deoptimization = true;
           }
         });

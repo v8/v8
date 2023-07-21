@@ -716,13 +716,13 @@ void SemiSpaceNewSpace::VerifyObjects(Isolate* isolate,
 
       // The first word should be a map, and we expect all map pointers to
       // be in map space or read-only space.
-      int size = object.Size(cage_base);
+      int size = object->Size(cage_base);
 
       visitor->VerifyObject(object);
 
       if (object.IsExternalString(cage_base)) {
         ExternalString external_string = ExternalString::cast(object);
-        size_t string_size = external_string.ExternalPayloadSize();
+        size_t string_size = external_string->ExternalPayloadSize();
         external_space_bytes[ExternalBackingStoreType::kExternalString] +=
             string_size;
       }

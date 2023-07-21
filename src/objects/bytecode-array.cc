@@ -58,11 +58,11 @@ void BytecodeArray::PrintJson(std::ostream& os) {
 
   os << "]";
 
-  int constant_pool_lenght = constant_pool().length();
+  int constant_pool_lenght = constant_pool()->length();
   if (constant_pool_lenght > 0) {
     os << ", \"constantPool\": [";
     for (int i = 0; i < constant_pool_lenght; i++) {
-      Object object = constant_pool().get(i);
+      Object object = constant_pool()->get(i);
       if (i > 0) os << ", ";
       os << "\"" << object << "\"";
     }
@@ -131,26 +131,26 @@ void BytecodeArray::Disassemble(Handle<BytecodeArray> handle,
     iterator.Advance();
   }
 
-  os << "Constant pool (size = " << handle->constant_pool().length() << ")\n";
+  os << "Constant pool (size = " << handle->constant_pool()->length() << ")\n";
 #ifdef OBJECT_PRINT
-  if (handle->constant_pool().length() > 0) {
+  if (handle->constant_pool()->length() > 0) {
     handle->constant_pool().Print(os);
   }
 #endif
 
-  os << "Handler Table (size = " << handle->handler_table().length() << ")\n";
+  os << "Handler Table (size = " << handle->handler_table()->length() << ")\n";
 #ifdef ENABLE_DISASSEMBLER
-  if (handle->handler_table().length() > 0) {
+  if (handle->handler_table()->length() > 0) {
     HandlerTable table(*handle);
     table.HandlerTableRangePrint(os);
   }
 #endif
 
   ByteArray source_position_table = handle->SourcePositionTable();
-  os << "Source Position Table (size = " << source_position_table.length()
+  os << "Source Position Table (size = " << source_position_table->length()
      << ")\n";
 #ifdef OBJECT_PRINT
-  if (source_position_table.length() > 0) {
+  if (source_position_table->length() > 0) {
     os << Brief(source_position_table) << std::endl;
   }
 #endif
@@ -158,10 +158,10 @@ void BytecodeArray::Disassemble(Handle<BytecodeArray> handle,
 
 void BytecodeArray::CopyBytecodesTo(BytecodeArray to) {
   BytecodeArray from = *this;
-  DCHECK_EQ(from.length(), to.length());
-  CopyBytes(reinterpret_cast<uint8_t*>(to.GetFirstBytecodeAddress()),
-            reinterpret_cast<uint8_t*>(from.GetFirstBytecodeAddress()),
-            from.length());
+  DCHECK_EQ(from->length(), to->length());
+  CopyBytes(reinterpret_cast<uint8_t*>(to->GetFirstBytecodeAddress()),
+            reinterpret_cast<uint8_t*>(from->GetFirstBytecodeAddress()),
+            from->length());
 }
 
 }  // namespace internal

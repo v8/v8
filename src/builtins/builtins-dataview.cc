@@ -129,15 +129,15 @@ BUILTIN(DataViewConstructor) {
 
     for (int i = 0; i < ArrayBufferView::kEmbedderFieldCount; ++i) {
       // TODO(v8:10391, saelo): Handle external pointers in EmbedderDataSlot
-      raw.SetEmbedderField(i, Smi::zero());
+      raw->SetEmbedderField(i, Smi::zero());
     }
-    raw.set_bit_field(0);
-    raw.set_is_backed_by_rab(is_backed_by_rab);
-    raw.set_is_length_tracking(length_tracking);
-    raw.set_byte_length(0);
-    raw.set_byte_offset(0);
-    raw.set_data_pointer(isolate, array_buffer->backing_store());
-    raw.set_buffer(*array_buffer);
+    raw->set_bit_field(0);
+    raw->set_is_backed_by_rab(is_backed_by_rab);
+    raw->set_is_length_tracking(length_tracking);
+    raw->set_byte_length(0);
+    raw->set_byte_offset(0);
+    raw->set_data_pointer(isolate, array_buffer->backing_store());
+    raw->set_buffer(*array_buffer);
   }
 
   // 13. If IsDetachedBuffer(buffer) is true, throw a TypeError exception.

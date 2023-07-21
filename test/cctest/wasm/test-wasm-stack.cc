@@ -110,9 +110,9 @@ void CheckComputeLocation(v8::internal::Isolate* i_isolate, Handle<Object> exc,
   String scriptSource = message->GetSource();
   CHECK(scriptSource.IsString());
   if (stackFrame->IsWasm()) {
-    CHECK_EQ(scriptSource.length(), 0);
+    CHECK_EQ(scriptSource->length(), 0);
   } else {
-    CHECK_GT(scriptSource.length(), 0);
+    CHECK_GT(scriptSource->length(), 0);
   }
 }
 
@@ -150,7 +150,7 @@ WASM_COMPILED_EXEC_TEST(CollectDetailedWasmStack_ExplicitThrowFromJs) {
   Isolate* isolate = js_wasm_wrapper->GetIsolate();
   isolate->SetCaptureStackTraceForUncaughtExceptions(true, 10,
                                                      v8::StackTrace::kOverview);
-  Handle<Object> global(isolate->context().global_object(), isolate);
+  Handle<Object> global(isolate->context()->global_object(), isolate);
   MaybeHandle<Object> maybe_exc;
   Handle<Object> args[] = {js_wasm_wrapper};
   MaybeHandle<Object> returnObjMaybe =
@@ -196,11 +196,11 @@ WASM_COMPILED_EXEC_TEST(CollectDetailedWasmStack_WasmUrl) {
   const char* url = "http://example.com/example.wasm";
   const Handle<String> source_url =
       isolate->factory()->InternalizeUtf8String(url);
-  r.builder().instance_object()->module_object().script().set_source_url(
+  r.builder().instance_object()->module_object()->script()->set_source_url(
       *source_url);
 
   // Run the js wrapper.
-  Handle<Object> global(isolate->context().global_object(), isolate);
+  Handle<Object> global(isolate->context()->global_object(), isolate);
   MaybeHandle<Object> maybe_exc;
   Handle<Object> args[] = {js_wasm_wrapper};
   MaybeHandle<Object> maybe_return_obj =
@@ -256,7 +256,7 @@ WASM_COMPILED_EXEC_TEST(CollectDetailedWasmStack_WasmError) {
     Isolate* isolate = js_wasm_wrapper->GetIsolate();
     isolate->SetCaptureStackTraceForUncaughtExceptions(
         true, 10, v8::StackTrace::kOverview);
-    Handle<Object> global(isolate->context().global_object(), isolate);
+    Handle<Object> global(isolate->context()->global_object(), isolate);
     MaybeHandle<Object> maybe_exc;
     Handle<Object> args[] = {js_wasm_wrapper};
     MaybeHandle<Object> maybe_return_obj =

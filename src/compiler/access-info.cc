@@ -523,7 +523,7 @@ PropertyAccessInfo AccessorAccessInfoHelper(
         broker->CanonicalPersistentHandle(
             JSModuleNamespace::cast(proto_info->module_namespace()));
     Handle<Cell> cell = broker->CanonicalPersistentHandle(
-        Cell::cast(module_namespace->module().exports().Lookup(
+        Cell::cast(module_namespace->module()->exports()->Lookup(
             isolate, name.object(), Smi::ToInt(name.object()->GetHash()))));
     if (cell->value(kRelaxedLoad).IsTheHole(isolate)) {
       // This module has not been fully initialized yet.
@@ -683,22 +683,22 @@ bool AccessInfoFactory::TryLoadPropertyDetails(
     Handle<JSObject> holder = maybe_holder->object();
     if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
       SwissNameDictionary dict = holder->property_dictionary_swiss();
-      *index_out = dict.FindEntry(isolate(), name.object());
+      *index_out = dict->FindEntry(isolate(), name.object());
       if (index_out->is_found()) {
-        *details_out = dict.DetailsAt(*index_out);
+        *details_out = dict->DetailsAt(*index_out);
       }
     } else {
       NameDictionary dict = holder->property_dictionary();
-      *index_out = dict.FindEntry(isolate(), name.object());
+      *index_out = dict->FindEntry(isolate(), name.object());
       if (index_out->is_found()) {
-        *details_out = dict.DetailsAt(*index_out);
+        *details_out = dict->DetailsAt(*index_out);
       }
     }
   } else {
     DescriptorArray descriptors = *map.instance_descriptors(broker()).object();
-    *index_out = descriptors.Search(*name.object(), *map.object(), true);
+    *index_out = descriptors->Search(*name.object(), *map.object(), true);
     if (index_out->is_found()) {
-      *details_out = descriptors.GetDetails(*index_out);
+      *details_out = descriptors->GetDetails(*index_out);
     }
   }
 
@@ -862,7 +862,7 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
 
     if (V8_DICT_PROPERTY_CONST_TRACKING_BOOL && holder.has_value()) {
       // At this point, we are past the first loop iteration.
-      DCHECK(holder->object()->map().is_prototype_map());
+      DCHECK(holder->object()->map()->is_prototype_map());
       DCHECK(!holder->map(broker()).equals(receiver_map));
 
       fast_mode_prototype_on_chain =

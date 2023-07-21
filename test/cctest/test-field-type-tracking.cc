@@ -238,7 +238,7 @@ class Expectations {
   }
 
   bool Check(DescriptorArray descriptors, InternalIndex descriptor) const {
-    PropertyDetails details = descriptors.GetDetails(descriptor);
+    PropertyDetails details = descriptors->GetDetails(descriptor);
 
     if (details.kind() != kinds_[descriptor.as_int()]) return false;
     if (details.location() != locations_[descriptor.as_int()]) return false;
@@ -255,7 +255,7 @@ class Expectations {
     Object expected_value = *values_[descriptor.as_int()];
     if (details.location() == PropertyLocation::kField) {
       if (details.kind() == PropertyKind::kData) {
-        FieldType type = descriptors.GetFieldType(descriptor);
+        FieldType type = descriptors->GetFieldType(descriptor);
         return FieldType::cast(expected_value) == type;
       } else {
         // kAccessor
@@ -263,22 +263,22 @@ class Expectations {
       }
     } else {
       CHECK_EQ(PropertyKind::kAccessor, details.kind());
-      Object value = descriptors.GetStrongValue(descriptor);
+      Object value = descriptors->GetStrongValue(descriptor);
       if (value == expected_value) return true;
       if (!value.IsAccessorPair()) return false;
       AccessorPair pair = AccessorPair::cast(value);
-      return pair.Equals(expected_value, *setter_values_[descriptor.as_int()]);
+      return pair->Equals(expected_value, *setter_values_[descriptor.as_int()]);
     }
     UNREACHABLE();
   }
 
   bool Check(Map map, int expected_nof) const {
-    CHECK_EQ(elements_kind_, map.elements_kind());
+    CHECK_EQ(elements_kind_, map->elements_kind());
     CHECK(number_of_properties_ <= MAX_PROPERTIES);
-    CHECK_EQ(expected_nof, map.NumberOfOwnDescriptors());
-    CHECK(!map.is_dictionary_map());
+    CHECK_EQ(expected_nof, map->NumberOfOwnDescriptors());
+    CHECK(!map->is_dictionary_map());
 
-    DescriptorArray descriptors = map.instance_descriptors();
+    DescriptorArray descriptors = map->instance_descriptors();
     CHECK(expected_nof <= number_of_properties_);
     for (InternalIndex i : InternalIndex::Range(expected_nof)) {
       if (!Check(descriptors, i)) {
@@ -295,8 +295,8 @@ class Expectations {
   bool Check(Map map) const { return Check(map, number_of_properties_); }
 
   bool CheckNormalized(Map map) const {
-    CHECK(map.is_dictionary_map());
-    CHECK_EQ(elements_kind_, map.elements_kind());
+    CHECK(map->is_dictionary_map());
+    CHECK_EQ(elements_kind_, map->elements_kind());
     // TODO(leszeks): Iterate over the key/value pairs of the map and compare
     // them against the expected fields.
     return true;
@@ -448,8 +448,8 @@ class Expectations {
     Handle<Object> setter(pair->setter(), isolate);
 
     InternalIndex descriptor =
-        map->instance_descriptors(isolate).SearchWithCache(isolate, *name,
-                                                           *map);
+        map->instance_descriptors(isolate)->SearchWithCache(isolate, *name,
+                                                            *map);
     map = Map::TransitionToAccessorProperty(isolate, map, name, descriptor,
                                             getter, setter, attributes);
     CHECK(!map->is_deprecated());
@@ -573,18 +573,18 @@ TEST(ReconfigureAccessorToNonExistingDataFieldHeavy) {
   CHECK(obj_value->IsJSObject());
   Handle<JSObject> obj = Handle<JSObject>::cast(obj_value);
 
-  CHECK_EQ(1, obj->map().NumberOfOwnDescriptors());
+  CHECK_EQ(1, obj->map()->NumberOfOwnDescriptors());
   InternalIndex first(0);
   CHECK(obj->map()
-            .instance_descriptors(isolate)
-            .GetStrongValue(first)
+            ->instance_descriptors(isolate)
+            ->GetStrongValue(first)
             .IsAccessorPair());
 
   Handle<Object> value(Smi::FromInt(42), isolate);
   JSObject::SetOwnPropertyIgnoreAttributes(obj, foo_str, value, NONE).Check();
 
   // Check that the property contains |value|.
-  CHECK_EQ(1, obj->map().NumberOfOwnDescriptors());
+  CHECK_EQ(1, obj->map()->NumberOfOwnDescriptors());
   FieldIndex index = FieldIndex::ForDescriptor(obj->map(), first);
   Object the_value = obj->RawFastPropertyAt(index);
   CHECK(the_value.IsSmi());
@@ -757,10 +757,10 @@ void TestGeneralizeField(int detach_property_at_index, int property_index,
     // Check that all previous maps are not stable.
     Map tmp = *new_map;
     while (true) {
-      Object back = tmp.GetBackPointer();
+      Object back = tmp->GetBackPointer();
       if (back.IsUndefined(isolate)) break;
       tmp = Map::cast(back);
-      CHECK(!tmp.is_stable());
+      CHECK(!tmp->is_stable());
     }
   }
 
@@ -2793,11 +2793,11 @@ TEST(HoleyHeapNumber) {
       Object::NewStorageFor(isolate, isolate->factory()->uninitialized_value(),
                             Representation::Double());
   CHECK(obj->IsHeapNumber());
-  CHECK_EQ(kHoleNanInt64, HeapNumber::cast(*obj).value_as_bits(kRelaxedLoad));
+  CHECK_EQ(kHoleNanInt64, HeapNumber::cast(*obj)->value_as_bits(kRelaxedLoad));
 
   obj = Object::NewStorageFor(isolate, mhn, Representation::Double());
   CHECK(obj->IsHeapNumber());
-  CHECK_EQ(kHoleNanInt64, HeapNumber::cast(*obj).value_as_bits(kRelaxedLoad));
+  CHECK_EQ(kHoleNanInt64, HeapNumber::cast(*obj)->value_as_bits(kRelaxedLoad));
 }
 
 namespace {
@@ -2836,11 +2836,11 @@ void TestStoreToConstantField(const char* store_func_source,
   CHECK_EQ(1, map->NumberOfOwnDescriptors());
   InternalIndex first(0);
   CHECK(map->instance_descriptors(isolate)
-            .GetDetails(first)
+            ->GetDetails(first)
             .representation()
             .Equals(expected_rep));
   CHECK_EQ(PropertyConstness::kConst,
-           map->instance_descriptors(isolate).GetDetails(first).constness());
+           map->instance_descriptors(isolate)->GetDetails(first).constness());
 
   // Store value2 to obj2 and check that it got same map and property details
   // did not change.
@@ -2853,11 +2853,11 @@ void TestStoreToConstantField(const char* store_func_source,
   CHECK_EQ(1, map->NumberOfOwnDescriptors());
 
   CHECK(map->instance_descriptors(isolate)
-            .GetDetails(first)
+            ->GetDetails(first)
             .representation()
             .Equals(expected_rep));
   CHECK_EQ(PropertyConstness::kConst,
-           map->instance_descriptors(isolate).GetDetails(first).constness());
+           map->instance_descriptors(isolate)->GetDetails(first).constness());
 
   // Store value2 to obj1 and check that property became mutable.
   Call(isolate, store_func, obj1, value2).Check();
@@ -2868,11 +2868,11 @@ void TestStoreToConstantField(const char* store_func_source,
   CHECK_EQ(1, map->NumberOfOwnDescriptors());
 
   CHECK(map->instance_descriptors(isolate)
-            .GetDetails(first)
+            ->GetDetails(first)
             .representation()
             .Equals(expected_rep));
   CHECK_EQ(expected_constness,
-           map->instance_descriptors(isolate).GetDetails(first).constness());
+           map->instance_descriptors(isolate)->GetDetails(first).constness());
 }
 
 void TestStoreToConstantField_PlusMinusZero(const char* store_func_source,
@@ -3112,13 +3112,13 @@ TEST(DeletePropertyGeneralizesConstness) {
     tmp = Map::TransitionToDataProperty(isolate, new_parent_map, name_x, value,
                                         attributes, PropertyConstness::kConst,
                                         StoreOrigin::kNamed);
-    CHECK(!tmp->map(isolate).is_dictionary_map());
+    CHECK(!tmp->map(isolate)->is_dictionary_map());
     transitions.push_back(tmp);
 
     tmp = Map::TransitionToDataProperty(isolate, new_parent_map, name_y, value,
                                         attributes, PropertyConstness::kConst,
                                         StoreOrigin::kNamed);
-    CHECK(!tmp->map(isolate).is_dictionary_map());
+    CHECK(!tmp->map(isolate)->is_dictionary_map());
     transitions.push_back(tmp);
   }
 

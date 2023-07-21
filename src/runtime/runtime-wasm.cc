@@ -82,7 +82,7 @@ WasmInstanceObject GetWasmInstanceOnStackTop(
 }
 
 Context GetNativeContextFromWasmInstanceOnStackTop(Isolate* isolate) {
-  return GetWasmInstanceOnStackTop(isolate).native_context();
+  return GetWasmInstanceOnStackTop(isolate)->native_context();
 }
 
 class V8_NODISCARD ClearThreadInWasmScope {
@@ -213,7 +213,7 @@ RUNTIME_FUNCTION(Runtime_WasmMemoryGrow) {
   uint32_t memory_index = args.positive_smi_value_at(1);
   uint32_t delta_pages = args.positive_smi_value_at(2);
 
-  Handle<WasmMemoryObject> memory_object{instance.memory_object(memory_index),
+  Handle<WasmMemoryObject> memory_object{instance->memory_object(memory_index),
                                          isolate};
   int ret = WasmMemoryObject::Grow(isolate, memory_object, delta_pages);
   // The WasmMemoryGrow builtin which calls this runtime function expects us to
@@ -310,18 +310,18 @@ RUNTIME_FUNCTION(Runtime_WasmCompileLazy) {
   int func_index = args.smi_value_at(1);
 
   DCHECK(isolate->context().is_null());
-  isolate->set_context(instance.native_context());
+  isolate->set_context(instance->native_context());
   bool success = wasm::CompileLazy(isolate, instance, func_index);
   if (!success) {
     DCHECK(v8_flags.wasm_lazy_validation);
     AllowHeapAllocation throwing_unwinds_the_stack;
     wasm::ThrowLazyCompilationError(
-        isolate, instance.module_object().native_module(), func_index);
+        isolate, instance->module_object()->native_module(), func_index);
     DCHECK(isolate->has_pending_exception());
     return ReadOnlyRoots{isolate}.exception();
   }
 
-  return Smi::FromInt(wasm::JumpTableOffset(instance.module(), func_index));
+  return Smi::FromInt(wasm::JumpTableOffset(instance->module(), func_index));
 }
 
 RUNTIME_FUNCTION(Runtime_WasmAllocateFeedbackVector) {
@@ -333,7 +333,8 @@ RUNTIME_FUNCTION(Runtime_WasmAllocateFeedbackVector) {
   int declared_func_index = args.smi_value_at(1);
   wasm::NativeModule** native_module_stack_slot =
       reinterpret_cast<wasm::NativeModule**>(args.address_of_arg_at(2));
-  wasm::NativeModule* native_module = instance->module_object().native_module();
+  wasm::NativeModule* native_module =
+      instance->module_object()->native_module();
   DCHECK(native_module->enabled_features().has_inlining());
   // We have to save the native_module on the stack, in case the allocation
   // triggers a GC and we need the module to scan LiftoffSetupFrame stack frame.
@@ -349,8 +350,9 @@ RUNTIME_FUNCTION(Runtime_WasmAllocateFeedbackVector) {
                       : 0;
   Handle<FixedArray> vector =
       isolate->factory()->NewFixedArrayWithZeroes(num_slots);
-  DCHECK_EQ(instance->feedback_vectors().get(declared_func_index), Smi::zero());
-  instance->feedback_vectors().set(declared_func_index, *vector);
+  DCHECK_EQ(instance->feedback_vectors()->get(declared_func_index),
+            Smi::zero());
+  instance->feedback_vectors()->set(declared_func_index, *vector);
   return *vector;
 }
 
@@ -365,8 +367,8 @@ void ReplaceWrapper(Isolate* isolate, Handle<WasmInstanceObject> instance,
       WasmInternalFunction::GetOrCreateExternal(internal);
   exported_function->set_code(*wrapper_code);
   WasmExportedFunctionData function_data =
-      exported_function->shared().wasm_exported_function_data();
-  function_data.set_wrapper_code(*wrapper_code);
+      exported_function->shared()->wasm_exported_function_data();
+  function_data->set_wrapper_code(*wrapper_code);
 }
 }  // namespace
 
@@ -468,7 +470,7 @@ RUNTIME_FUNCTION(Runtime_WasmAtomicNotify) {
   uint32_t memory_index = 0;
 
   Handle<JSArrayBuffer> array_buffer{
-      instance.memory_object(memory_index).array_buffer(), isolate};
+      instance->memory_object(memory_index)->array_buffer(), isolate};
   // Should have trapped if address was OOB.
   DCHECK_LT(offset, array_buffer->byte_length());
   if (!array_buffer->is_shared()) return Smi::FromInt(0);
@@ -488,7 +490,7 @@ RUNTIME_FUNCTION(Runtime_WasmI32AtomicWait) {
   uint32_t memory_index = 0;
 
   Handle<JSArrayBuffer> array_buffer{
-      instance.memory_object(memory_index).array_buffer(), isolate};
+      instance->memory_object(memory_index)->array_buffer(), isolate};
   // Should have trapped if address was OOB.
   DCHECK_LT(offset, array_buffer->byte_length());
 
@@ -499,7 +501,7 @@ RUNTIME_FUNCTION(Runtime_WasmI32AtomicWait) {
         isolate->factory()->NewStringFromAsciiChecked("Atomics.wait"));
   }
   return FutexEmulation::WaitWasm32(isolate, array_buffer, offset,
-                                    expected_value, timeout_ns.AsInt64());
+                                    expected_value, timeout_ns->AsInt64());
 }
 
 RUNTIME_FUNCTION(Runtime_WasmI64AtomicWait) {
@@ -515,7 +517,7 @@ RUNTIME_FUNCTION(Runtime_WasmI64AtomicWait) {
   uint32_t memory_index = 0;
 
   Handle<JSArrayBuffer> array_buffer{
-      instance.memory_object(memory_index).array_buffer(), isolate};
+      instance->memory_object(memory_index)->array_buffer(), isolate};
   // Should have trapped if address was OOB.
   DCHECK_LT(offset, array_buffer->byte_length());
 
@@ -526,8 +528,8 @@ RUNTIME_FUNCTION(Runtime_WasmI64AtomicWait) {
         isolate->factory()->NewStringFromAsciiChecked("Atomics.wait"));
   }
   return FutexEmulation::WaitWasm64(isolate, array_buffer, offset,
-                                    expected_value.AsInt64(),
-                                    timeout_ns.AsInt64());
+                                    expected_value->AsInt64(),
+                                    timeout_ns->AsInt64());
 }
 
 namespace {
@@ -570,15 +572,15 @@ RUNTIME_FUNCTION(Runtime_WasmFunctionTableGet) {
   WasmInstanceObject instance = WasmInstanceObject::cast(args[0]);
   uint32_t table_index = args.positive_smi_value_at(1);
   uint32_t entry_index = args.positive_smi_value_at(2);
-  DCHECK_LT(table_index, instance.tables().length());
-  auto table = handle(WasmTableObject::cast(instance.tables().get(table_index)),
-                      isolate);
+  DCHECK_LT(table_index, instance->tables()->length());
+  auto table = handle(
+      WasmTableObject::cast(instance->tables()->get(table_index)), isolate);
   // We only use the runtime call for lazily initialized function references.
   DCHECK(
       table->instance().IsUndefined()
           ? table->type() == wasm::kWasmFuncRef
           : IsSubtypeOf(table->type(), wasm::kWasmFuncRef,
-                        WasmInstanceObject::cast(table->instance()).module()));
+                        WasmInstanceObject::cast(table->instance())->module()));
 
   if (!table->is_in_bounds(entry_index)) {
     return ThrowWasmError(isolate, MessageTemplate::kWasmTrapTableOutOfBounds);
@@ -595,15 +597,15 @@ RUNTIME_FUNCTION(Runtime_WasmFunctionTableSet) {
   uint32_t table_index = args.positive_smi_value_at(1);
   uint32_t entry_index = args.positive_smi_value_at(2);
   Handle<Object> element(args[3], isolate);
-  DCHECK_LT(table_index, instance.tables().length());
-  auto table = handle(WasmTableObject::cast(instance.tables().get(table_index)),
-                      isolate);
+  DCHECK_LT(table_index, instance->tables()->length());
+  auto table = handle(
+      WasmTableObject::cast(instance->tables()->get(table_index)), isolate);
   // We only use the runtime call for lazily initialized function references.
   DCHECK(
       table->instance().IsUndefined()
           ? table->type() == wasm::kWasmFuncRef
           : IsSubtypeOf(table->type(), wasm::kWasmFuncRef,
-                        WasmInstanceObject::cast(table->instance()).module()));
+                        WasmInstanceObject::cast(table->instance())->module()));
 
   if (!table->is_in_bounds(entry_index)) {
     return ThrowWasmError(isolate, MessageTemplate::kWasmTrapTableOutOfBounds);
@@ -671,7 +673,7 @@ RUNTIME_FUNCTION(Runtime_WasmTableGrow) {
   uint32_t delta = args.positive_smi_value_at(3);
 
   Handle<WasmTableObject> table(
-      WasmTableObject::cast(instance.tables().get(table_index)), isolate);
+      WasmTableObject::cast(instance->tables()->get(table_index)), isolate);
   int result = WasmTableObject::Grow(isolate, table, delta, value);
 
   return Smi::FromInt(result);
@@ -689,7 +691,7 @@ RUNTIME_FUNCTION(Runtime_WasmTableFill) {
   uint32_t count = args.positive_smi_value_at(4);
 
   Handle<WasmTableObject> table(
-      WasmTableObject::cast(instance->tables().get(table_index)), isolate);
+      WasmTableObject::cast(instance->tables()->get(table_index)), isolate);
 
   uint32_t table_size = table->current_length();
 
@@ -713,8 +715,8 @@ namespace {
 bool ExecuteWasmDebugBreaks(Isolate* isolate,
                             Handle<WasmInstanceObject> instance,
                             WasmFrame* frame) {
-  Handle<Script> script{instance->module_object().script(), isolate};
-  auto* debug_info = instance->module_object().native_module()->GetDebugInfo();
+  Handle<Script> script{instance->module_object()->script(), isolate};
+  auto* debug_info = instance->module_object()->native_module()->GetDebugInfo();
 
   // Enter the debugger.
   DebugScope debug_scope(isolate->debug());
@@ -731,10 +733,10 @@ bool ExecuteWasmDebugBreaks(Isolate* isolate,
     script->set_break_on_entry(false);
     // Update the "break_on_entry" flag on all live instances.
     i::WeakArrayList weak_instance_list = script->wasm_weak_instance_list();
-    for (int i = 0; i < weak_instance_list.length(); ++i) {
-      if (weak_instance_list.Get(i)->IsCleared()) continue;
-      i::WasmInstanceObject::cast(weak_instance_list.Get(i)->GetHeapObject())
-          .set_break_on_entry(false);
+    for (int i = 0; i < weak_instance_list->length(); ++i) {
+      if (weak_instance_list->Get(i)->IsCleared()) continue;
+      i::WasmInstanceObject::cast(weak_instance_list->Get(i)->GetHeapObject())
+          ->set_break_on_entry(false);
     }
     DCHECK(!instance->break_on_entry());
     if (!maybe_on_entry_breakpoints.is_null()) {
@@ -786,7 +788,7 @@ RUNTIME_FUNCTION(Runtime_WasmDebugBreak) {
     // not request stepping, clear this (to save further calls into this runtime
     // function).
     auto* debug_info =
-        instance->module_object().native_module()->GetDebugInfo();
+        instance->module_object()->native_module()->GetDebugInfo();
     debug_info->ClearStepping(frame);
   }
 
@@ -821,10 +823,10 @@ RUNTIME_FUNCTION(Runtime_WasmArrayCopy) {
       dst_array.ptr() == src_array.ptr() &&
       (dst_index < src_index ? dst_index + length > src_index
                              : src_index + length > dst_index);
-  wasm::ValueType element_type = src_array.type()->element_type();
+  wasm::ValueType element_type = src_array->type()->element_type();
   if (element_type.is_reference()) {
-    ObjectSlot dst_slot = dst_array.ElementSlot(dst_index);
-    ObjectSlot src_slot = src_array.ElementSlot(src_index);
+    ObjectSlot dst_slot = dst_array->ElementSlot(dst_index);
+    ObjectSlot src_slot = src_array->ElementSlot(src_index);
     if (overlapping_ranges) {
       isolate->heap()->MoveRange(dst_array, dst_slot, src_slot, length,
                                  UPDATE_WRITE_BARRIER);
@@ -833,8 +835,8 @@ RUNTIME_FUNCTION(Runtime_WasmArrayCopy) {
                                  UPDATE_WRITE_BARRIER);
     }
   } else {
-    void* dst = reinterpret_cast<void*>(dst_array.ElementAddress(dst_index));
-    void* src = reinterpret_cast<void*>(src_array.ElementAddress(src_index));
+    void* dst = reinterpret_cast<void*>(dst_array->ElementAddress(dst_index));
+    void* src = reinterpret_cast<void*>(src_array->ElementAddress(src_index));
     size_t copy_size = length * element_type.value_kind_size();
     if (overlapping_ranges) {
       MemMove(dst, src, copy_size);
@@ -857,7 +859,7 @@ RUNTIME_FUNCTION(Runtime_WasmArrayNewSegment) {
   Handle<Map> rtt(Map::cast(args[4]), isolate);
 
   wasm::ArrayType* type =
-      reinterpret_cast<wasm::ArrayType*>(rtt->wasm_type_info().native_type());
+      reinterpret_cast<wasm::ArrayType*>(rtt->wasm_type_info()->native_type());
 
   uint32_t element_size = type->element_type().value_kind_size();
   // This check also implies no overflow.
@@ -877,11 +879,11 @@ RUNTIME_FUNCTION(Runtime_WasmArrayNewSegment) {
     }
 
     Address source =
-        instance->data_segment_starts().get(segment_index) + offset;
+        instance->data_segment_starts()->get(segment_index) + offset;
     return *isolate->factory()->NewWasmArrayFromMemory(length, rtt, source);
   } else {
     Handle<Object> elem_segment_raw =
-        handle(instance->element_segments().get(segment_index), isolate);
+        handle(instance->element_segments()->get(segment_index), isolate);
     const wasm::WasmElemSegment* module_elem_segment =
         &instance->module()->elem_segments[segment_index];
     // If the segment is initialized in the instance, we have to get its length
@@ -919,7 +921,7 @@ RUNTIME_FUNCTION(Runtime_WasmArrayInitSegment) {
   uint32_t length = args.positive_smi_value_at(5);
 
   wasm::ArrayType* type = reinterpret_cast<wasm::ArrayType*>(
-      array->map().wasm_type_info().native_type());
+      array->map()->wasm_type_info()->native_type());
 
   uint32_t element_size = type->element_type().value_kind_size();
 
@@ -941,14 +943,14 @@ RUNTIME_FUNCTION(Runtime_WasmArrayInitSegment) {
     }
 
     Address source =
-        instance->data_segment_starts().get(segment_index) + segment_offset;
+        instance->data_segment_starts()->get(segment_index) + segment_offset;
     Address dest = array->ElementAddress(array_index);
     MemCopy(reinterpret_cast<void*>(dest), reinterpret_cast<void*>(source),
             length_in_bytes);
     return *isolate->factory()->undefined_value();
   } else {
     Handle<Object> elem_segment_raw =
-        handle(instance->element_segments().get(segment_index), isolate);
+        handle(instance->element_segments()->get(segment_index), isolate);
     const wasm::WasmElemSegment* module_elem_segment =
         &instance->module()->elem_segments[segment_index];
     // If the segment is initialized in the instance, we have to get its length
@@ -978,7 +980,7 @@ RUNTIME_FUNCTION(Runtime_WasmArrayInitSegment) {
     }
 
     auto elements = handle(
-        FixedArray::cast(instance->element_segments().get(segment_index)),
+        FixedArray::cast(instance->element_segments()->get(segment_index)),
         isolate);
     if (length > 0) {
       isolate->heap()->CopyRange(*array, array->ElementSlot(array_index),
@@ -1003,7 +1005,7 @@ RUNTIME_FUNCTION(Runtime_WasmAllocateSuspender) {
   Handle<WasmContinuationObject> target =
       WasmContinuationObject::New(isolate, wasm::JumpBuffer::Inactive, parent);
   auto target_stack =
-      Managed<wasm::StackMemory>::cast(target->stack()).get().get();
+      Managed<wasm::StackMemory>::cast(target->stack())->get().get();
   isolate->wasm_stacks()->Add(target_stack);
   isolate->roots_table().slot(RootIndex::kActiveContinuation).store(*target);
 
@@ -1065,12 +1067,12 @@ RUNTIME_FUNCTION(Runtime_WasmStringNewWtf8) {
   auto utf8_variant = static_cast<unibrow::Utf8Variant>(utf8_variant_value);
 
   // TODO(13918): Support multiple memories.
-  uint64_t mem_size = instance.memory0_size();
+  uint64_t mem_size = instance->memory0_size();
   if (!base::IsInBounds<uint64_t>(offset, size, mem_size)) {
     return ThrowWasmError(isolate, MessageTemplate::kWasmTrapMemOutOfBounds);
   }
 
-  const base::Vector<const uint8_t> bytes{instance.memory0_start() + offset,
+  const base::Vector<const uint8_t> bytes{instance->memory0_start() + offset,
                                           size};
   MaybeHandle<v8::internal::String> result_string =
       isolate->factory()->NewStringFromUtf8(bytes, utf8_variant);
@@ -1122,7 +1124,7 @@ RUNTIME_FUNCTION(Runtime_WasmStringNewWtf16) {
   USE(memory);
 
   // TODO(13918): Support multiple memories.
-  uint64_t mem_size = instance.memory0_size();
+  uint64_t mem_size = instance->memory0_size();
   if (size_in_codeunits > kMaxUInt32 / 2 ||
       !base::IsInBounds<uint64_t>(offset, size_in_codeunits * 2, mem_size)) {
     return ThrowWasmError(isolate, MessageTemplate::kWasmTrapMemOutOfBounds);
@@ -1131,7 +1133,7 @@ RUNTIME_FUNCTION(Runtime_WasmStringNewWtf16) {
     return ThrowWasmError(isolate, MessageTemplate::kWasmTrapUnalignedAccess);
   }
 
-  const uint8_t* bytes = instance.memory0_start() + offset;
+  const uint8_t* bytes = instance->memory0_start() + offset;
   const base::uc16* codeunits = reinterpret_cast<const base::uc16*>(bytes);
   RETURN_RESULT_OR_TRAP(isolate->factory()->NewStringFromTwoByteLittleEndian(
       {codeunits, size_in_codeunits}));
@@ -1159,12 +1161,12 @@ RUNTIME_FUNCTION(Runtime_WasmStringConst) {
       base::IsInRange(wasm::kV8MaxWasmStringLiterals, 0, Smi::kMaxValue));
   uint32_t index = args.positive_smi_value_at(1);
 
-  DCHECK_LT(index, instance.module()->stringref_literals.size());
+  DCHECK_LT(index, instance->module()->stringref_literals.size());
 
   const wasm::WasmStringRefLiteral& literal =
-      instance.module()->stringref_literals[index];
+      instance->module()->stringref_literals[index];
   const base::Vector<const uint8_t> module_bytes =
-      instance.module_object().native_module()->wire_bytes();
+      instance->module_object()->native_module()->wire_bytes();
   const base::Vector<const uint8_t> string_bytes =
       module_bytes.SubVector(literal.source.offset(),
                              literal.source.offset() + literal.source.length());
@@ -1190,7 +1192,7 @@ RUNTIME_FUNCTION(Runtime_WasmStringNewSegmentWtf8) {
                           MessageTemplate::kWasmTrapDataSegmentOutOfBounds);
   }
 
-  Address source = instance->data_segment_starts().get(segment_index) + offset;
+  Address source = instance->data_segment_starts()->get(segment_index) + offset;
   RETURN_RESULT_OR_FAILURE(
       isolate, isolate->factory()->NewStringFromUtf8(
                    {reinterpret_cast<const uint8_t*>(source), length},
@@ -1353,11 +1355,11 @@ RUNTIME_FUNCTION(Runtime_WasmStringEncodeWtf8) {
          static_cast<uint32_t>(unibrow::Utf8Variant::kLastUtf8Variant));
 
   // TODO(13918): Support multiple memories.
-  char* memory_start = reinterpret_cast<char*>(instance.memory0_start());
+  char* memory_start = reinterpret_cast<char*>(instance->memory0_start());
   auto utf8_variant = static_cast<unibrow::Utf8Variant>(utf8_variant_value);
   auto get_writable_bytes =
       [&](const DisallowGarbageCollection&) -> base::Vector<char> {
-    return {memory_start, instance.memory0_size()};
+    return {memory_start, instance->memory0_size()};
   };
   return EncodeWtf8(isolate, utf8_variant, string, get_writable_bytes, offset,
                     MessageTemplate::kWasmTrapMemOutOfBounds);
@@ -1396,10 +1398,10 @@ RUNTIME_FUNCTION(Runtime_WasmStringEncodeWtf16) {
 
   DCHECK_EQ(memory, 0);
   USE(memory);
-  DCHECK(base::IsInBounds<uint32_t>(start, length, string.length()));
+  DCHECK(base::IsInBounds<uint32_t>(start, length, string->length()));
 
   // TODO(13918): Support multiple memories.
-  size_t mem_size = instance.memory0_size();
+  size_t mem_size = instance->memory0_size();
   static_assert(String::kMaxLength <=
                 (std::numeric_limits<size_t>::max() / sizeof(base::uc16)));
   if (!base::IsInBounds<size_t>(offset, length * sizeof(base::uc16),
@@ -1412,7 +1414,7 @@ RUNTIME_FUNCTION(Runtime_WasmStringEncodeWtf16) {
 
 #if defined(V8_TARGET_LITTLE_ENDIAN)
   uint16_t* dst =
-      reinterpret_cast<uint16_t*>(instance.memory0_start() + offset);
+      reinterpret_cast<uint16_t*>(instance->memory0_start() + offset);
   String::WriteToFlat(string, dst, start, length);
 #elif defined(V8_TARGET_BIG_ENDIAN)
   // TODO(12868): The host is big-endian but we need to write the string
@@ -1466,11 +1468,11 @@ RUNTIME_FUNCTION(Runtime_WasmStringViewWtf8Encode) {
   size_t length = end - start;
 
   // TODO(13918): Support multiple memories.
-  if (!base::IsInBounds<size_t>(addr, length, instance.memory0_size())) {
+  if (!base::IsInBounds<size_t>(addr, length, instance->memory0_size())) {
     return ThrowWasmError(isolate, MessageTemplate::kWasmTrapMemOutOfBounds);
   }
 
-  uint8_t* memory_start = reinterpret_cast<uint8_t*>(instance.memory0_start());
+  uint8_t* memory_start = reinterpret_cast<uint8_t*>(instance->memory0_start());
   const uint8_t* src =
       reinterpret_cast<const uint8_t*>(array->GetDataStartAddress() + start);
   uint8_t* dst = memory_start + addr;
@@ -1547,7 +1549,7 @@ RUNTIME_FUNCTION(Runtime_WasmStringHash) {
   ClearThreadInWasmScope flag_scope(isolate);
   DCHECK_EQ(1, args.length());
   String string(String::cast(args[0]));
-  uint32_t hash = string.EnsureHash();
+  uint32_t hash = string->EnsureHash();
   return Smi::FromInt(static_cast<int>(hash));
 }
 

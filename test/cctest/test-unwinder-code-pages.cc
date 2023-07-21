@@ -170,9 +170,9 @@ TEST(Unwind_BuiltinPCInMiddle_Success_CodePagesAPI) {
   // Put the current PC inside of a valid builtin.
   Code builtin = *BUILTIN_CODE(i_isolate, StringEqual);
   const uintptr_t offset = 40;
-  CHECK_LT(offset, builtin.instruction_size());
+  CHECK_LT(offset, builtin->instruction_size());
   register_state.pc =
-      reinterpret_cast<void*>(builtin.instruction_start() + offset);
+      reinterpret_cast<void*>(builtin->instruction_start() + offset);
 
   bool unwound = v8::Unwinder::TryUnwindV8Frames(
       entry_stubs, pages_length, code_pages, &register_state, stack_base);
@@ -226,7 +226,7 @@ TEST(Unwind_BuiltinPCAtStart_Success_CodePagesAPI) {
   // Put the current PC at the start of a valid builtin, so that we are setting
   // up the frame.
   Code builtin = *BUILTIN_CODE(i_isolate, StringEqual);
-  register_state.pc = reinterpret_cast<void*>(builtin.instruction_start());
+  register_state.pc = reinterpret_cast<void*>(builtin->instruction_start());
 
   bool unwound = v8::Unwinder::TryUnwindV8Frames(
       entry_stubs, pages_length, code_pages, &register_state, stack_base);
@@ -299,14 +299,14 @@ TEST(Unwind_CodeObjectPCInMiddle_Success_CodePagesAPI) {
   Code code = foo->code();
   // We don't produce optimized code when run with --no-turbofan and
   // --no-maglev.
-  if (!code.is_optimized_code()) return;
+  if (!code->is_optimized_code()) return;
 
   // We don't want the offset too early or it could be the `push rbp`
   // instruction (which is not at the start of generated code, because the lazy
   // deopt check happens before frame setup).
-  const uintptr_t offset = code.instruction_size() - 20;
-  CHECK_LT(offset, code.instruction_size());
-  Address pc = code.instruction_start() + offset;
+  const uintptr_t offset = code->instruction_size() - 20;
+  CHECK_LT(offset, code->instruction_size());
+  Address pc = code->instruction_start() + offset;
   register_state.pc = reinterpret_cast<void*>(pc);
 
   // Get code pages from the API now that the code obejct exists and check that
@@ -456,7 +456,7 @@ TEST(Unwind_JSEntry_Fail_CodePagesAPI) {
   RegisterState register_state;
 
   Code js_entry = *BUILTIN_CODE(i_isolate, JSEntry);
-  uint8_t* start = reinterpret_cast<uint8_t*>(js_entry.instruction_start());
+  uint8_t* start = reinterpret_cast<uint8_t*>(js_entry->instruction_start());
   register_state.pc = start + 10;
 
   bool unwound = v8::Unwinder::TryUnwindV8Frames(
@@ -638,8 +638,8 @@ TEST(PCIsInV8_InJSEntryRange_CodePagesAPI) {
   CHECK_LE(pages_length, arraysize(code_pages));
 
   Code js_entry = *BUILTIN_CODE(i_isolate, JSEntry);
-  uint8_t* start = reinterpret_cast<uint8_t*>(js_entry.instruction_start());
-  size_t length = js_entry.instruction_size();
+  uint8_t* start = reinterpret_cast<uint8_t*>(js_entry->instruction_start());
+  size_t length = js_entry->instruction_size();
 
   void* pc = start;
   CHECK(v8::Unwinder::PCIsInV8(pages_length, code_pages, pc));

@@ -19,11 +19,11 @@ namespace {
 bool CachedTemplateMatches(Isolate* isolate, NativeContext native_context,
                            JSArray entry, int function_literal_id, int slot_id,
                            DisallowGarbageCollection& no_gc) {
-  if (native_context.is_js_array_template_literal_object_map(
-          entry.map(isolate))) {
+  if (native_context->is_js_array_template_literal_object_map(
+          entry->map(isolate))) {
     TemplateLiteralObject template_object = TemplateLiteralObject::cast(entry);
-    return template_object.function_literal_id() == function_literal_id &&
-           template_object.slot_id() == slot_id;
+    return template_object->function_literal_id() == function_literal_id &&
+           template_object->slot_id() == slot_id;
   }
 
   Handle<JSArray> entry_handle(entry, isolate);
@@ -63,7 +63,7 @@ Handle<JSArray> TemplateObjectDescription::GetTemplateObject(
     EphemeronHashTable template_weakmap =
         EphemeronHashTable::cast(native_context->template_weakmap());
     Object cached_templates_lookup =
-        template_weakmap.Lookup(isolate, script, hash);
+        template_weakmap->Lookup(isolate, script, hash);
     if (!cached_templates_lookup.IsTheHole(roots)) {
       ArrayList cached_templates = ArrayList::cast(cached_templates_lookup);
       maybe_cached_templates = handle(cached_templates, isolate);
@@ -71,8 +71,8 @@ Handle<JSArray> TemplateObjectDescription::GetTemplateObject(
       // Linear search over the cached template array list for a template
       // object matching the given function_literal_id + slot_id.
       // TODO(leszeks): Consider keeping this list sorted for faster lookup.
-      for (int i = 0; i < cached_templates.Length(); i++) {
-        JSArray template_object = JSArray::cast(cached_templates.Get(i));
+      for (int i = 0; i < cached_templates->Length(); i++) {
+        JSArray template_object = JSArray::cast(cached_templates->Get(i));
         if (CachedTemplateMatches(isolate, *native_context, template_object,
                                   function_literal_id, slot_id, no_gc)) {
           return handle(template_object, isolate);
@@ -116,7 +116,7 @@ Handle<JSArray> TemplateObjectDescription::GetTemplateObject(
   // Check that the list is in the appropriate location on the weakmap, and
   // that the appropriate entry is in the right location in this list.
   DCHECK_EQ(EphemeronHashTable::cast(native_context->template_weakmap())
-                .Lookup(isolate, script, hash),
+                ->Lookup(isolate, script, hash),
             *cached_templates);
   DCHECK_EQ(cached_templates->Get(cached_templates->Length() - 1),
             *template_object);

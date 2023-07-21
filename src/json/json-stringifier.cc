@@ -521,7 +521,8 @@ Handle<String> JsonStringifier::ConstructCircularStructureErrorMessage(
 bool MayHaveInterestingProperties(Isolate* isolate, JSReceiver object) {
   for (PrototypeIterator iter(isolate, object, kStartAtReceiver);
        !iter.IsAtEnd(); iter.Advance()) {
-    if (iter.GetCurrent().map().may_have_interesting_properties()) return true;
+    if (iter.GetCurrent()->map()->may_have_interesting_properties())
+      return true;
   }
   return false;
 }
@@ -540,7 +541,7 @@ JsonStringifier::Result JsonStringifier::Serialize_(Handle<Object> object,
   PtrComprCageBase cage_base(isolate_);
   if (!object->IsSmi()) {
     InstanceType instance_type =
-        HeapObject::cast(*object).map(cage_base).instance_type();
+        HeapObject::cast(*object)->map(cage_base)->instance_type();
     if ((InstanceTypeChecker::IsJSReceiver(instance_type) &&
          MayHaveInterestingProperties(isolate_, JSReceiver::cast(*object))) ||
         InstanceTypeChecker::IsBigInt(instance_type)) {
@@ -560,7 +561,7 @@ JsonStringifier::Result JsonStringifier::Serialize_(Handle<Object> object,
   }
 
   InstanceType instance_type =
-      HeapObject::cast(*object).map(cage_base).instance_type();
+      HeapObject::cast(*object)->map(cage_base)->instance_type();
   switch (instance_type) {
     case HEAP_NUMBER_TYPE:
       if (deferred_string_key) SerializeDeferredKey(comma, key);
@@ -570,7 +571,7 @@ JsonStringifier::Result JsonStringifier::Serialize_(Handle<Object> object,
           *factory()->NewTypeError(MessageTemplate::kBigIntSerializeJSON));
       return EXCEPTION;
     case ODDBALL_TYPE:
-      switch (Oddball::cast(*object).kind()) {
+      switch (Oddball::cast(*object)->kind()) {
         case Oddball::kFalse:
           if (deferred_string_key) SerializeDeferredKey(comma, key);
           builder_.AppendCStringLiteral("false");
@@ -772,7 +773,7 @@ JsonStringifier::Result JsonStringifier::SerializeJSArray(
           Separator(i == 0);
           Result result = SerializeElement(
               isolate_,
-              handle(FixedArray::cast(object->elements()).get(cage_base, i),
+              handle(FixedArray::cast(object->elements())->get(cage_base, i),
                      isolate_),
               i);
           if (result == UNCHANGED) {
@@ -834,10 +835,10 @@ namespace {
 V8_INLINE bool CanFastSerializeJSObject(PtrComprCageBase cage_base,
                                         JSObject raw_object, Isolate* isolate) {
   DisallowGarbageCollection no_gc;
-  if (raw_object.map(cage_base).IsCustomElementsReceiverMap()) return false;
-  if (!raw_object.HasFastProperties(cage_base)) return false;
+  if (raw_object->map(cage_base)->IsCustomElementsReceiverMap()) return false;
+  if (!raw_object->HasFastProperties(cage_base)) return false;
   auto roots = ReadOnlyRoots(isolate);
-  auto elements = raw_object.elements(cage_base);
+  auto elements = raw_object->elements(cage_base);
   return elements == roots.empty_fixed_array() ||
          elements == roots.empty_slow_element_dictionary();
 }
@@ -879,11 +880,11 @@ JsonStringifier::Result JsonStringifier::SerializeJSObject(
     {
       DisallowGarbageCollection no_gc;
       DescriptorArray descriptors = map->instance_descriptors(cage_base);
-      Name name = descriptors.GetKey(i);
+      Name name = descriptors->GetKey(i);
       // TODO(rossberg): Should this throw?
       if (!name.IsString(cage_base)) continue;
       key_name = handle(String::cast(name), isolate_);
-      details = descriptors.GetDetails(i);
+      details = descriptors->GetDetails(i);
     }
     if (details.IsDontEnum()) continue;
     Handle<Object> property;

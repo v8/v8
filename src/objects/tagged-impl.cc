@@ -74,9 +74,9 @@ void TaggedImpl<kRefType, StorageType>::Print(std::ostream& os) {
     os << "[cleared]";
   } else if (GetHeapObjectIfWeak(&heap_object)) {
     os << "[weak] ";
-    heap_object.HeapObjectPrint(os);
+    heap_object->HeapObjectPrint(os);
   } else if (GetHeapObjectIfStrong(&heap_object)) {
-    heap_object.HeapObjectPrint(os);
+    heap_object->HeapObjectPrint(os);
   } else {
     UNREACHABLE();
   }

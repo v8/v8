@@ -96,7 +96,7 @@ void JsonPrintFunctionSource(std::ostream& os, int source_id,
     os << ", \"sourceName\": \"";
     if (source_name.IsString()) {
       std::ostringstream escaped_name;
-      escaped_name << String::cast(source_name).ToCString().get();
+      escaped_name << String::cast(source_name)->ToCString().get();
       os << JSONEscaped(escaped_name);
     }
     os << "\"";
@@ -116,10 +116,10 @@ void JsonPrintFunctionSource(std::ostream& os, int source_id,
       } else if (shared->HasWasmExportedFunctionData()) {
         WasmExportedFunctionData function_data =
             shared->wasm_exported_function_data();
-        Handle<WasmInstanceObject> instance(function_data.instance(), isolate);
+        Handle<WasmInstanceObject> instance(function_data->instance(), isolate);
         const wasm::WasmModule* module = instance->module();
         wasm::NativeModule* native_module =
-            instance->module_object().native_module();
+            instance->module_object()->native_module();
 
         // Add a comment with the wasm debug name as the sourceName above will
         // be something like "wasm://wasm/5b5cdc9e:js-to-wasm:n:i".
@@ -127,15 +127,16 @@ void JsonPrintFunctionSource(std::ostream& os, int source_id,
         wasm::StringBuilder sb;
         sb << "// debug name: ";
         native_module->GetNamesProvider()->PrintFunctionName(
-            sb, function_data.function_index(), wasm::NamesProvider::kDevTools);
+            sb, function_data->function_index(),
+            wasm::NamesProvider::kDevTools);
         sb << '\n';
         str.write(sb.start(), sb.length());
 
         wasm::WireBytesRef wire_bytes_ref =
-            module->functions[function_data.function_index()].code;
+            module->functions[function_data->function_index()].code;
         base::Vector<const uint8_t> bytes(native_module->wire_bytes().SubVector(
             wire_bytes_ref.offset(), wire_bytes_ref.end_offset()));
-        wasm::FunctionBody func_body{function_data.sig(),
+        wasm::FunctionBody func_body{function_data->sig(),
                                      wire_bytes_ref.offset(), bytes.begin(),
                                      bytes.end()};
         AccountingAllocator allocator;
@@ -329,11 +330,11 @@ std::unique_ptr<char[]> GetVisualizerLogFileName(OptimizedCompilationInfo* info,
   bool source_available = false;
   if (v8_flags.trace_file_names && info->has_shared_info() &&
       info->shared_info()->script().IsScript()) {
-    Object source_name = Script::cast(info->shared_info()->script()).name();
+    Object source_name = Script::cast(info->shared_info()->script())->name();
     if (source_name.IsString()) {
       String str = String::cast(source_name);
-      if (str.length() > 0) {
-        SNPrintF(source_file, "%s", str.ToCString().get());
+      if (str->length() > 0) {
+        SNPrintF(source_file, "%s", str->ToCString().get());
         std::replace(source_file.begin(),
                      source_file.begin() + source_file.length(), '/', '_');
         source_available = true;

@@ -493,7 +493,7 @@ void IncrementalMarking::UpdateMarkingWorklistAfterScavenge() {
 
     // Only pointers to from space have to be updated.
     if (Heap::InFromPage(obj)) {
-      MapWord map_word = obj.map_word(cage_base, kRelaxedLoad);
+      MapWord map_word = obj->map_word(cage_base, kRelaxedLoad);
       if (!map_word.IsForwardingAddress()) {
         // There may be objects on the marking deque that do not exist
         // anymore, e.g. left trimmed objects or objects from the root set
@@ -521,7 +521,7 @@ void IncrementalMarking::UpdateMarkingWorklistAfterScavenge() {
       // here.
       if (!dest.IsDescriptorArray()) {
         MemoryChunk::FromHeapObject(dest)->IncrementLiveBytesAtomically(
-            -ALIGN_TO_ALLOCATION_ALIGNMENT(dest.Size()));
+            -ALIGN_TO_ALLOCATION_ALIGNMENT(dest->Size()));
       }
       *out = dest;
       return true;
@@ -531,7 +531,7 @@ void IncrementalMarking::UpdateMarkingWorklistAfterScavenge() {
                      obj.IsFreeSpaceOrFiller(cage_base));
       // Skip one word filler objects that appear on the
       // stack when we perform in place array shift.
-      if (obj.map(cage_base) != filler_map) {
+      if (obj->map(cage_base) != filler_map) {
         *out = obj;
         return true;
       }

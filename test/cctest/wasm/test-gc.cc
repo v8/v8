@@ -242,7 +242,7 @@ class WasmGCTester {
   void CallFunctionImpl(uint32_t function_index, const FunctionSig* sig,
                         CWasmArgumentsPacker* packer) {
     WasmCodeRefScope code_ref_scope;
-    NativeModule* native_module = instance_->module_object().native_module();
+    NativeModule* native_module = instance_->module_object()->native_module();
     Address wasm_call_target = instance_->GetCallTarget(function_index);
     Handle<Object> object_ref = instance_;
     Handle<Code> c_wasm_entry =
@@ -1521,7 +1521,7 @@ WASM_COMPILED_EXEC_TEST(ArrayNewMap) {
   Handle<Object> result = tester.GetResultObject(array_new).ToHandleChecked();
   CHECK(result->IsWasmArray());
   CHECK_EQ(Handle<WasmArray>::cast(result)->map(),
-           tester.instance()->managed_object_maps().get(type_index));
+           tester.instance()->managed_object_maps()->get(type_index));
 }
 
 WASM_COMPILED_EXEC_TEST(FunctionRefs) {
@@ -1581,8 +1581,8 @@ WASM_COMPILED_EXEC_TEST(FunctionRefs) {
       WasmInternalFunction::GetOrCreateExternal(
           Handle<WasmInternalFunction>::cast(result_cast_reference));
 
-  CHECK_EQ(cast_function->code().instruction_start(),
-           cast_function_reference->code().instruction_start());
+  CHECK_EQ(cast_function->code()->instruction_start(),
+           cast_function_reference->code()->instruction_start());
 
   tester.CheckResult(test_deprecated, 1);
   tester.CheckResult(test_fail_deprecated, 0);

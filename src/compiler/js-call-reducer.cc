@@ -3767,9 +3767,9 @@ Reduction JSCallReducer::ReduceCallWasmFunction(Node* node,
   if (shared.object()->HasWasmExportedFunctionData()) {
     native_module = shared.object()
                         ->wasm_exported_function_data()
-                        .instance()
-                        .module_object()
-                        .native_module();
+                        ->instance()
+                        ->module_object()
+                        ->native_module();
   }
   // TODO(mliedtke): We should be able to remove module, signature, native
   // module and function index from the SharedFunctionInfoRef. However, for some

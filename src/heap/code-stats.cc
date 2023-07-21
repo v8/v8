@@ -21,18 +21,18 @@ void CodeStatistics::RecordCodeAndMetadataStatistics(HeapObject object,
   if (object.IsScript(cage_base)) {
     Script script = Script::cast(object);
     // Log the size of external source code.
-    Object source = script.source(cage_base);
+    Object source = script->source(cage_base);
     if (source.IsExternalString(cage_base)) {
       ExternalString external_source_string = ExternalString::cast(source);
       int size = isolate->external_script_source_size();
-      size += external_source_string.ExternalPayloadSize();
+      size += external_source_string->ExternalPayloadSize();
       isolate->set_external_script_source_size(size);
     }
   } else if (object.IsAbstractCode(cage_base)) {
     // Record code+metadata statistics.
     AbstractCode abstract_code = AbstractCode::cast(object);
-    int size = abstract_code.SizeIncludingMetadata(cage_base);
-    if (abstract_code.IsCode(cage_base)) {
+    int size = abstract_code->SizeIncludingMetadata(cage_base);
+    if (abstract_code->IsCode(cage_base)) {
       size += isolate->code_and_metadata_size();
       isolate->set_code_and_metadata_size(size);
     } else {
@@ -42,9 +42,9 @@ void CodeStatistics::RecordCodeAndMetadataStatistics(HeapObject object,
 
 #ifdef DEBUG
     // Record code kind and code comment statistics.
-    CodeKind code_kind = abstract_code.kind(cage_base);
+    CodeKind code_kind = abstract_code->kind(cage_base);
     isolate->code_kind_statistics()[static_cast<int>(code_kind)] +=
-        abstract_code.Size(cage_base);
+        abstract_code->Size(cage_base);
     CodeStatistics::CollectCodeCommentStatistics(abstract_code, isolate);
 #endif
   }
@@ -201,15 +201,15 @@ void CodeStatistics::CollectCodeCommentStatistics(AbstractCode obj,
                                                   Isolate* isolate) {
   // Bytecode objects do not contain RelocInfo.
   PtrComprCageBase cage_base{isolate};
-  if (!obj.IsCode(cage_base)) return;
+  if (!obj->IsCode(cage_base)) return;
 
   Code code = Code::cast(obj);
 
   // Off-heap builtins might contain comments but they are a part of binary so
   // it doesn't make sense to account them in the stats.
-  if (!code.has_instruction_stream()) return;
+  if (!code->has_instruction_stream()) return;
 
-  CodeCommentsIterator cit(code.code_comments(), code.code_comments_size());
+  CodeCommentsIterator cit(code->code_comments(), code->code_comments_size());
   int delta = 0;
   int prev_pc_offset = 0;
   while (cit.HasCurrent()) {
@@ -219,8 +219,8 @@ void CodeStatistics::CollectCodeCommentStatistics(AbstractCode obj,
     cit.Next();
   }
 
-  DCHECK(0 <= prev_pc_offset && prev_pc_offset <= code.instruction_size());
-  delta += static_cast<int>(code.instruction_size() - prev_pc_offset);
+  DCHECK(0 <= prev_pc_offset && prev_pc_offset <= code->instruction_size());
+  delta += static_cast<int>(code->instruction_size() - prev_pc_offset);
   EnterComment(isolate, "NoComment", delta);
 }
 #endif

@@ -342,7 +342,7 @@ const AstRawString* AstValueFactory::GetString(
     String literal, const SharedStringAccessGuardIfNeeded& access_guard) {
   const AstRawString* result = nullptr;
   DisallowGarbageCollection no_gc;
-  String::FlatContent content = literal.GetFlatContent(no_gc, access_guard);
+  String::FlatContent content = literal->GetFlatContent(no_gc, access_guard);
   if (content.IsOneByte()) {
     result = GetOneByteStringInternal(content.ToOneByteVector());
   } else {

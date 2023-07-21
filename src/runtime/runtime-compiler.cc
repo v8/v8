@@ -23,22 +23,22 @@ namespace {
 void LogExecution(Isolate* isolate, Handle<JSFunction> function) {
   DCHECK(v8_flags.log_function_events);
   if (!function->has_feedback_vector()) return;
-  if (!function->feedback_vector().log_next_execution()) return;
+  if (!function->feedback_vector()->log_next_execution()) return;
   Handle<SharedFunctionInfo> sfi(function->shared(), isolate);
   Handle<String> name = SharedFunctionInfo::DebugName(isolate, sfi);
   DisallowGarbageCollection no_gc;
   Tagged<SharedFunctionInfo> raw_sfi = *sfi;
   std::string event_name = "first-execution";
-  CodeKind kind = function->abstract_code(isolate).kind(isolate);
+  CodeKind kind = function->abstract_code(isolate)->kind(isolate);
   // Not adding "-interpreter" for tooling backwards compatiblity.
   if (kind != CodeKind::INTERPRETED_FUNCTION) {
     event_name += "-";
     event_name += CodeKindToString(kind);
   }
-  LOG(isolate,
-      FunctionEvent(event_name.c_str(), Script::cast(raw_sfi->script()).id(), 0,
-                    raw_sfi->StartPosition(), raw_sfi->EndPosition(), *name));
-  function->feedback_vector().set_log_next_execution(false);
+  LOG(isolate, FunctionEvent(
+                   event_name.c_str(), Script::cast(raw_sfi->script())->id(), 0,
+                   raw_sfi->StartPosition(), raw_sfi->EndPosition(), *name));
+  function->feedback_vector()->set_log_next_execution(false);
 }
 }  // namespace
 
@@ -160,9 +160,9 @@ RUNTIME_FUNCTION(Runtime_HealOptimizedCodeSlot) {
   DCHECK_EQ(1, args.length());
   Handle<JSFunction> function = args.at<JSFunction>(0);
 
-  DCHECK(function->shared().is_compiled());
+  DCHECK(function->shared()->is_compiled());
 
-  function->feedback_vector().EvictOptimizedCodeMarkedForDeoptimization(
+  function->feedback_vector()->EvictOptimizedCodeMarkedForDeoptimization(
       isolate, function->shared(), "Runtime_HealOptimizedCodeSlot");
   return function->code();
 }
@@ -223,7 +223,7 @@ bool TryGetOptimizedOsrCode(Isolate* isolate, FeedbackVector vector,
                             const interpreter::BytecodeArrayIterator& it,
                             Code* code_out) {
   base::Optional<Code> maybe_code =
-      vector.GetOptimizedOsrCode(isolate, it.GetSlotOperand(2));
+      vector->GetOptimizedOsrCode(isolate, it.GetSlotOperand(2));
   if (maybe_code.has_value()) {
     *code_out = maybe_code.value();
     return true;
@@ -248,18 +248,18 @@ void DeoptAllOsrLoopsContainingDeoptExit(Isolate* isolate, JSFunction function,
   DCHECK(!deopt_exit_offset.IsNone());
 
   if (!v8_flags.use_ic ||
-      !function.feedback_vector().maybe_has_optimized_osr_code()) {
+      !function->feedback_vector()->maybe_has_optimized_osr_code()) {
     return;
   }
   Handle<BytecodeArray> bytecode_array(
-      function.shared().GetBytecodeArray(isolate), isolate);
+      function->shared()->GetBytecodeArray(isolate), isolate);
   DCHECK(interpreter::BytecodeArrayIterator::IsValidOffset(
       bytecode_array, deopt_exit_offset.ToInt()));
 
   interpreter::BytecodeArrayIterator it(bytecode_array,
                                         deopt_exit_offset.ToInt());
 
-  FeedbackVector vector = function.feedback_vector();
+  FeedbackVector vector = function->feedback_vector();
   Code code;
   base::SmallVector<Code, 8> osr_codes;
   // Visit before the first loop-with-deopt is found
@@ -432,15 +432,15 @@ void GetOsrOffsetAndFunctionForOSR(Isolate* isolate, BytecodeOffset* osr_offset,
   JavaScriptStackFrameIterator it(isolate);
   UnoptimizedFrame* frame = UnoptimizedFrame::cast(it.frame());
   DCHECK_IMPLIES(frame->is_interpreted(),
-                 frame->LookupCode().is_interpreter_trampoline_builtin());
+                 frame->LookupCode()->is_interpreter_trampoline_builtin());
   DCHECK_IMPLIES(frame->is_baseline(),
-                 frame->LookupCode().kind() == CodeKind::BASELINE);
+                 frame->LookupCode()->kind() == CodeKind::BASELINE);
 
   *osr_offset = BytecodeOffset(frame->GetBytecodeOffset());
   *function = handle(frame->function(), isolate);
 
   DCHECK(!osr_offset->IsNone());
-  DCHECK((*function)->shared().HasBytecodeArray());
+  DCHECK((*function)->shared()->HasBytecodeArray());
 }
 
 Object CompileOptimizedOSR(Isolate* isolate, Handle<JSFunction> function,
@@ -464,7 +464,7 @@ Object CompileOptimizedOSR(Isolate* isolate, Handle<JSFunction> function,
     // 2) synchronous compilation failed for some reason.
 
     if (!function->HasAttachedOptimizedCode()) {
-      function->set_code(function->shared().GetCode(isolate));
+      function->set_code(function->shared()->GetCode(isolate));
     }
 
     return {};
@@ -477,8 +477,8 @@ Object CompileOptimizedOSR(Isolate* isolate, Handle<JSFunction> function,
 #ifdef DEBUG
   DeoptimizationData data =
       DeoptimizationData::cast(result->deoptimization_data());
-  DCHECK_EQ(BytecodeOffset(data.OsrBytecodeOffset().value()), osr_offset);
-  DCHECK_GE(data.OsrPcOffset().value(), 0);
+  DCHECK_EQ(BytecodeOffset(data->OsrBytecodeOffset().value()), osr_offset);
+  DCHECK_GE(data->OsrPcOffset().value(), 0);
 #endif  // DEBUG
 
   // First execution logging happens in LogOrTraceOptimizedOSREntry
@@ -546,7 +546,7 @@ RUNTIME_FUNCTION(Runtime_CompileOptimizedOSRFromMaglev) {
 
   JavaScriptStackFrameIterator it(isolate);
   MaglevFrame* frame = MaglevFrame::cast(it.frame());
-  DCHECK_EQ(frame->LookupCode().kind(), CodeKind::MAGLEV);
+  DCHECK_EQ(frame->LookupCode()->kind(), CodeKind::MAGLEV);
   Handle<JSFunction> function = handle(frame->function(), isolate);
 
   return CompileOptimizedOSRFromMaglev(isolate, function, osr_offset);
@@ -562,12 +562,12 @@ RUNTIME_FUNCTION(Runtime_CompileOptimizedOSRFromMaglevInlined) {
 
   JavaScriptStackFrameIterator it(isolate);
   MaglevFrame* frame = MaglevFrame::cast(it.frame());
-  DCHECK_EQ(frame->LookupCode().kind(), CodeKind::MAGLEV);
+  DCHECK_EQ(frame->LookupCode()->kind(), CodeKind::MAGLEV);
 
   if (*function != frame->function()) {
     // We are OSRing an inlined function. Mark the top frame one for
     // optimization.
-    if (!frame->function().ActiveTierIsTurbofan()) {
+    if (!frame->function()->ActiveTierIsTurbofan()) {
       isolate->tiering_manager()->MarkForTurboFanOptimization(
           frame->function());
     }

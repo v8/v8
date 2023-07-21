@@ -274,18 +274,18 @@ V8_WARN_UNUSED_RESULT Maybe<bool> FastAssign(
   // Non-empty strings are the only non-JSReceivers that need to be handled
   // explicitly by Object.assign.
   if (!source->IsJSReceiver()) {
-    return Just(!source->IsString() || String::cast(*source).length() == 0);
+    return Just(!source->IsString() || String::cast(*source)->length() == 0);
   }
 
   // If the target is deprecated, the object will be updated on first store. If
   // the source for that store equals the target, this will invalidate the
   // cached representation of the source. Preventively upgrade the target.
   // Do this on each iteration since any property load could cause deprecation.
-  if (target->map().is_deprecated()) {
+  if (target->map()->is_deprecated()) {
     JSObject::MigrateInstance(isolate, Handle<JSObject>::cast(target));
   }
 
-  Handle<Map> map(JSReceiver::cast(*source).map(), isolate);
+  Handle<Map> map(JSReceiver::cast(*source)->map(), isolate);
 
   if (!map->IsJSObjectMap()) return Just(false);
   if (!map->OnlyHasSimpleProperties()) return Just(false);
@@ -434,14 +434,14 @@ Maybe<bool> JSReceiver::SetOrCopyDataProperties(
     int source_length;
     if (from->IsJSGlobalObject()) {
       source_length = JSGlobalObject::cast(*from)
-                          .global_dictionary(kAcquireLoad)
-                          .NumberOfEnumerableProperties();
+                          ->global_dictionary(kAcquireLoad)
+                          ->NumberOfEnumerableProperties();
     } else if constexpr (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
       source_length =
-          from->property_dictionary_swiss().NumberOfEnumerableProperties();
+          from->property_dictionary_swiss()->NumberOfEnumerableProperties();
     } else {
       source_length =
-          from->property_dictionary().NumberOfEnumerableProperties();
+          from->property_dictionary()->NumberOfEnumerableProperties();
     }
     if (source_length > kMaxNumberOfDescriptors) {
       JSObject::NormalizeProperties(isolate, Handle<JSObject>::cast(target),
@@ -499,7 +499,7 @@ String JSReceiver::class_name() {
   if (IsJSArgumentsObject()) return roots.Arguments_string();
   if (IsJSArray()) return roots.Array_string();
   if (IsJSArrayBuffer()) {
-    if (JSArrayBuffer::cast(*this).is_shared()) {
+    if (JSArrayBuffer::cast(*this)->is_shared()) {
       return roots.SharedArrayBuffer_string();
     }
     return roots.ArrayBuffer_string();
@@ -511,22 +511,22 @@ String JSReceiver::class_name() {
   if (IsJSMap()) return roots.Map_string();
   if (IsJSMapIterator()) return roots.MapIterator_string();
   if (IsJSProxy()) {
-    return map().is_callable() ? roots.Function_string()
-                               : roots.Object_string();
+    return map()->is_callable() ? roots.Function_string()
+                                : roots.Object_string();
   }
   if (IsJSRegExp()) return roots.RegExp_string();
   if (IsJSSet()) return roots.Set_string();
   if (IsJSSetIterator()) return roots.SetIterator_string();
   if (IsJSTypedArray()) {
-#define SWITCH_KIND(Type, type, TYPE, ctype)      \
-  if (map().elements_kind() == TYPE##_ELEMENTS) { \
-    return roots.Type##Array_string();            \
+#define SWITCH_KIND(Type, type, TYPE, ctype)       \
+  if (map()->elements_kind() == TYPE##_ELEMENTS) { \
+    return roots.Type##Array_string();             \
   }
     TYPED_ARRAYS(SWITCH_KIND)
 #undef SWITCH_KIND
   }
   if (IsJSPrimitiveWrapper()) {
-    Object value = JSPrimitiveWrapper::cast(*this).value();
+    Object value = JSPrimitiveWrapper::cast(*this)->value();
     if (value.IsBoolean()) return roots.Boolean_string();
     if (value.IsString()) return roots.String_string();
     if (value.IsNumber()) return roots.Number_string();
@@ -557,9 +557,10 @@ std::pair<MaybeHandle<JSFunction>, Handle<String>> GetConstructorHelper(
   // constructor on the map provides the most accurate name.
   // Don't provide the info for prototypes, since their constructors are
   // reclaimed and replaced by Object in OptimizeAsPrototype.
-  if (!receiver->IsJSProxy() && receiver->map().new_target_is_base() &&
-      !receiver->map().is_prototype_map()) {
-    Handle<Object> maybe_constructor(receiver->map().GetConstructor(), isolate);
+  if (!receiver->IsJSProxy() && receiver->map()->new_target_is_base() &&
+      !receiver->map()->is_prototype_map()) {
+    Handle<Object> maybe_constructor(receiver->map()->GetConstructor(),
+                                     isolate);
     if (maybe_constructor->IsJSFunction()) {
       Handle<JSFunction> constructor =
           Handle<JSFunction>::cast(maybe_constructor);
@@ -637,17 +638,17 @@ base::Optional<NativeContext> JSReceiver::GetCreationContextRaw() {
   JSFunction function;
   {
     JSReceiver receiver = *this;
-    Map receiver_map = receiver.map();
-    InstanceType receiver_instance_type = receiver_map.instance_type();
+    Map receiver_map = receiver->map();
+    InstanceType receiver_instance_type = receiver_map->instance_type();
     if (V8_LIKELY(InstanceTypeChecker::IsJSFunction(receiver_instance_type))) {
       function = JSFunction::cast(receiver);
     } else if (InstanceTypeChecker::IsJSGeneratorObject(
                    receiver_instance_type)) {
-      function = JSGeneratorObject::cast(receiver).function();
+      function = JSGeneratorObject::cast(receiver)->function();
     } else {
       // Externals are JSObjects with null as a constructor.
       DCHECK(!receiver.IsJSExternalObject());
-      Object constructor = receiver_map.GetConstructor();
+      Object constructor = receiver_map->GetConstructor();
       if (constructor.IsJSFunction()) {
         function = JSFunction::cast(constructor);
       } else {
@@ -658,8 +659,8 @@ base::Optional<NativeContext> JSReceiver::GetCreationContextRaw() {
       }
     }
   }
-  CHECK(function.has_context());
-  return function.native_context();
+  CHECK(function->has_context());
+  return function->native_context();
 }
 
 MaybeHandle<NativeContext> JSReceiver::GetCreationContext() {
@@ -678,34 +679,34 @@ MaybeHandle<NativeContext> JSReceiver::GetFunctionRealm(
   DisallowGarbageCollection no_gc;
   JSReceiver current = *receiver;
   do {
-    DCHECK(current.map().is_constructor());
+    DCHECK(current->map()->is_constructor());
     if (current.IsJSProxy()) {
       JSProxy proxy = JSProxy::cast(current);
-      if (proxy.IsRevoked()) {
+      if (proxy->IsRevoked()) {
         AllowGarbageCollection allow_allocating_errors;
         THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kProxyRevoked),
                         NativeContext);
       }
-      current = JSReceiver::cast(proxy.target());
+      current = JSReceiver::cast(proxy->target());
       continue;
     }
     if (current.IsJSFunction()) {
       JSFunction function = JSFunction::cast(current);
-      return handle(function.native_context(), isolate);
+      return handle(function->native_context(), isolate);
     }
     if (current.IsJSBoundFunction()) {
       JSBoundFunction function = JSBoundFunction::cast(current);
-      current = function.bound_target_function();
+      current = function->bound_target_function();
       continue;
     }
     if (current.IsJSWrappedFunction()) {
       JSWrappedFunction function = JSWrappedFunction::cast(current);
-      current = function.wrapped_target_function();
+      current = function->wrapped_target_function();
       continue;
     }
     JSObject object = JSObject::cast(current);
     DCHECK(!object.IsJSFunction());
-    return object.GetCreationContext();
+    return object->GetCreationContext();
   } while (true);
 }
 
@@ -772,7 +773,7 @@ Object SetHashAndUpdateProperties(HeapObject properties, int hash) {
   DCHECK_NE(PropertyArray::kNoHashSentinel, hash);
   DCHECK(PropertyArray::HashField::is_valid(hash));
 
-  ReadOnlyRoots roots = properties.GetReadOnlyRoots();
+  ReadOnlyRoots roots = properties->GetReadOnlyRoots();
   if (properties == roots.empty_fixed_array() ||
       properties == roots.empty_property_array() ||
       properties == roots.empty_property_dictionary() ||
@@ -781,53 +782,53 @@ Object SetHashAndUpdateProperties(HeapObject properties, int hash) {
   }
 
   if (properties.IsPropertyArray()) {
-    PropertyArray::cast(properties).SetHash(hash);
-    DCHECK_LT(0, PropertyArray::cast(properties).length());
+    PropertyArray::cast(properties)->SetHash(hash);
+    DCHECK_LT(0, PropertyArray::cast(properties)->length());
     return properties;
   }
 
   if (properties.IsGlobalDictionary()) {
-    GlobalDictionary::cast(properties).SetHash(hash);
+    GlobalDictionary::cast(properties)->SetHash(hash);
     return properties;
   }
 
   if constexpr (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
     DCHECK(properties.IsSwissNameDictionary());
-    SwissNameDictionary::cast(properties).SetHash(hash);
+    SwissNameDictionary::cast(properties)->SetHash(hash);
   } else {
     DCHECK(properties.IsNameDictionary());
-    NameDictionary::cast(properties).SetHash(hash);
+    NameDictionary::cast(properties)->SetHash(hash);
   }
   return properties;
 }
 
 int GetIdentityHashHelper(JSReceiver object) {
   DisallowGarbageCollection no_gc;
-  Object properties = object.raw_properties_or_hash();
+  Object properties = object->raw_properties_or_hash();
   if (properties.IsSmi()) {
     return Smi::ToInt(properties);
   }
 
   if (properties.IsPropertyArray()) {
-    return PropertyArray::cast(properties).Hash();
+    return PropertyArray::cast(properties)->Hash();
   }
   if constexpr (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
     if (properties.IsSwissNameDictionary()) {
-      return SwissNameDictionary::cast(properties).Hash();
+      return SwissNameDictionary::cast(properties)->Hash();
     }
   }
 
   if (properties.IsNameDictionary()) {
     DCHECK(!V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL);
-    return NameDictionary::cast(properties).Hash();
+    return NameDictionary::cast(properties)->Hash();
   }
 
   if (properties.IsGlobalDictionary()) {
-    return GlobalDictionary::cast(properties).Hash();
+    return GlobalDictionary::cast(properties)->Hash();
   }
 
 #ifdef DEBUG
-  ReadOnlyRoots roots = object.GetReadOnlyRoots();
+  ReadOnlyRoots roots = object->GetReadOnlyRoots();
   DCHECK(properties == roots.empty_fixed_array() ||
          properties == roots.empty_property_dictionary() ||
          properties == roots.empty_swiss_property_dictionary());
@@ -849,7 +850,7 @@ void JSReceiver::SetIdentityHash(int hash) {
 
 void JSReceiver::SetProperties(HeapObject properties) {
   DCHECK_IMPLIES(properties.IsPropertyArray() &&
-                     PropertyArray::cast(properties).length() == 0,
+                     PropertyArray::cast(properties)->length() == 0,
                  properties == GetReadOnlyRoots().empty_property_array());
   DisallowGarbageCollection no_gc;
   int hash = GetIdentityHashHelper(*this);
@@ -881,7 +882,7 @@ Smi JSReceiver::CreateIdentityHash(Isolate* isolate, JSReceiver key) {
   int hash = isolate->GenerateIdentityHash(PropertyArray::HashField::kMax);
   DCHECK_NE(PropertyArray::kNoHashSentinel, hash);
 
-  key.SetIdentityHash(hash);
+  key->SetIdentityHash(hash);
   return Smi::FromInt(hash);
 }
 
@@ -906,14 +907,15 @@ void JSReceiver::DeleteNormalizedProperty(Handle<JSReceiver> object,
     // If we have a global object, invalidate the cell and remove it from the
     // global object's dictionary.
     Handle<GlobalDictionary> dictionary(
-        JSGlobalObject::cast(*object).global_dictionary(kAcquireLoad), isolate);
+        JSGlobalObject::cast(*object)->global_dictionary(kAcquireLoad),
+        isolate);
 
     Handle<PropertyCell> cell(dictionary->CellAt(entry), isolate);
 
     Handle<GlobalDictionary> new_dictionary =
         GlobalDictionary::DeleteEntry(isolate, dictionary, entry);
-    JSGlobalObject::cast(*object).set_global_dictionary(*new_dictionary,
-                                                        kReleaseStore);
+    JSGlobalObject::cast(*object)->set_global_dictionary(*new_dictionary,
+                                                         kReleaseStore);
 
     cell->ClearAndInvalidate(ReadOnlyRoots(isolate));
   } else {
@@ -930,7 +932,7 @@ void JSReceiver::DeleteNormalizedProperty(Handle<JSReceiver> object,
       object->SetProperties(*dictionary);
     }
   }
-  if (object->map().is_prototype_map()) {
+  if (object->map()->is_prototype_map()) {
     // Invalidate prototype validity cell as this may invalidate transitioning
     // store IC handlers.
     JSObject::InvalidatePrototypeChains(object->map());
@@ -2062,7 +2064,7 @@ Maybe<bool> GenericTestIntegrityLevel(Isolate* isolate,
 Maybe<bool> JSReceiver::TestIntegrityLevel(Isolate* isolate,
                                            Handle<JSReceiver> receiver,
                                            IntegrityLevel level) {
-  if (!receiver->map().IsCustomElementsReceiverMap()) {
+  if (!receiver->map()->IsCustomElementsReceiverMap()) {
     return JSObject::TestIntegrityLevel(
         isolate, Handle<JSObject>::cast(receiver), level);
   }
@@ -2160,7 +2162,7 @@ MaybeHandle<Object> JSReceiver::OrdinaryToPrimitive(
 V8_WARN_UNUSED_RESULT Maybe<bool> FastGetOwnValuesOrEntries(
     Isolate* isolate, Handle<JSReceiver> receiver, bool get_entries,
     Handle<FixedArray>* result) {
-  Handle<Map> map(JSReceiver::cast(*receiver).map(), isolate);
+  Handle<Map> map(JSReceiver::cast(*receiver)->map(), isolate);
 
   if (!map->IsJSObjectMap()) return Just(false);
   if (!map->OnlyHasSimpleProperties()) return Just(false);
@@ -2357,17 +2359,17 @@ bool JSReceiver::HasProxyInPrototype(Isolate* isolate) {
 
 bool JSReceiver::IsCodeLike(Isolate* isolate) const {
   DisallowGarbageCollection no_gc;
-  Object maybe_constructor = map().GetConstructor();
+  Object maybe_constructor = map()->GetConstructor();
   if (!maybe_constructor.IsJSFunction()) return false;
-  if (!JSFunction::cast(maybe_constructor).shared().IsApiFunction()) {
+  if (!JSFunction::cast(maybe_constructor)->shared()->IsApiFunction()) {
     return false;
   }
   Object instance_template = JSFunction::cast(maybe_constructor)
-                                 .shared()
-                                 .get_api_func_data()
-                                 .GetInstanceTemplate();
+                                 ->shared()
+                                 ->get_api_func_data()
+                                 ->GetInstanceTemplate();
   if (instance_template.IsUndefined(isolate)) return false;
-  return ObjectTemplateInfo::cast(instance_template).code_like();
+  return ObjectTemplateInfo::cast(instance_template)->code_like();
 }
 
 // static
@@ -2384,7 +2386,7 @@ MaybeHandle<JSObject> JSObject::New(Handle<JSFunction> constructor,
   DCHECK(new_target->IsConstructor());
   DCHECK(!constructor->has_initial_map() ||
          !InstanceTypeChecker::IsJSFunction(
-             constructor->initial_map().instance_type()));
+             constructor->initial_map()->instance_type()));
 
   Handle<Map> initial_map;
   ASSIGN_RETURN_ON_EXCEPTION(
@@ -2431,7 +2433,7 @@ void JSObject::EnsureWritableFastElements(Handle<JSObject> object) {
          object->HasAnyNonextensibleElements());
   FixedArray raw_elems = FixedArray::cast(object->elements());
   Isolate* isolate = object->GetIsolate();
-  if (raw_elems.map() != ReadOnlyRoots(isolate).fixed_cow_array_map()) return;
+  if (raw_elems->map() != ReadOnlyRoots(isolate).fixed_cow_array_map()) return;
   Handle<FixedArray> elems(raw_elems, isolate);
   Handle<FixedArray> writable_elems = isolate->factory()->CopyFixedArrayWithMap(
       elems, isolate->factory()->fixed_array_map());
@@ -2662,7 +2664,7 @@ bool JSObject::AllCanRead(LookupIterator* it) {
     if (it->state() == LookupIterator::ACCESSOR) {
       auto accessors = it->GetAccessors();
       if (accessors->IsAccessorInfo()) {
-        if (AccessorInfo::cast(*accessors).all_can_read()) return true;
+        if (AccessorInfo::cast(*accessors)->all_can_read()) return true;
       }
     } else if (it->state() == LookupIterator::INTERCEPTOR) {
       if (it->GetInterceptor()->all_can_read()) return true;
@@ -2705,7 +2707,7 @@ MaybeHandle<Object> JSObject::GetPropertyWithFailedAccessCheck(
   // Cross-Origin [[Get]] of Well-Known Symbols does not throw, and returns
   // undefined.
   Handle<Name> name = it->GetName();
-  if (name->IsSymbol() && Symbol::cast(*name).is_well_known_symbol()) {
+  if (name->IsSymbol() && Symbol::cast(*name)->is_well_known_symbol()) {
     return it->factory()->undefined_value();
   }
 
@@ -2750,7 +2752,7 @@ bool JSObject::AllCanWrite(LookupIterator* it) {
     if (it->state() == LookupIterator::ACCESSOR) {
       Handle<Object> accessors = it->GetAccessors();
       if (accessors->IsAccessorInfo()) {
-        if (AccessorInfo::cast(*accessors).all_can_write()) return true;
+        if (AccessorInfo::cast(*accessors)->all_can_write()) return true;
       }
     }
   }
@@ -2795,7 +2797,7 @@ void JSObject::SetNormalizedProperty(Handle<JSObject> object, Handle<Name> name,
     InternalIndex entry = dictionary->FindEntry(isolate, roots, name, hash);
 
     if (entry.is_not_found()) {
-      DCHECK_IMPLIES(global_obj->map().is_prototype_map(),
+      DCHECK_IMPLIES(global_obj->map()->is_prototype_map(),
                      Map::IsPrototypeChainInvalidated(global_obj->map()));
       auto cell_type = value->IsUndefined(roots) ? PropertyCellType::kUndefined
                                                  : PropertyCellType::kConstant;
@@ -2807,7 +2809,7 @@ void JSObject::SetNormalizedProperty(Handle<JSObject> object, Handle<Name> name,
     } else {
       PropertyCell::PrepareForAndSetValue(isolate, dictionary, entry, value,
                                           details);
-      DCHECK_EQ(dictionary->CellAt(entry).value(), *value);
+      DCHECK_EQ(dictionary->CellAt(entry)->value(), *value);
     }
   } else {
     if constexpr (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
@@ -2815,7 +2817,7 @@ void JSObject::SetNormalizedProperty(Handle<JSObject> object, Handle<Name> name,
           object->property_dictionary_swiss(), isolate);
       InternalIndex entry = dictionary->FindEntry(isolate, *name);
       if (entry.is_not_found()) {
-        DCHECK_IMPLIES(object->map().is_prototype_map(),
+        DCHECK_IMPLIES(object->map()->is_prototype_map(),
                        Map::IsPrototypeChainInvalidated(object->map()));
         dictionary =
             SwissNameDictionary::Add(isolate, dictionary, name, value, details);
@@ -2828,7 +2830,7 @@ void JSObject::SetNormalizedProperty(Handle<JSObject> object, Handle<Name> name,
       Handle<NameDictionary> dictionary(object->property_dictionary(), isolate);
       InternalIndex entry = dictionary->FindEntry(isolate, name);
       if (entry.is_not_found()) {
-        DCHECK_IMPLIES(object->map().is_prototype_map(),
+        DCHECK_IMPLIES(object->map()->is_prototype_map(),
                        Map::IsPrototypeChainInvalidated(object->map()));
         dictionary =
             NameDictionary::Add(isolate, dictionary, name, value, details);
@@ -2863,11 +2865,11 @@ void JSObject::SetNormalizedElement(Handle<JSObject> object, uint32_t index,
 }
 
 void JSObject::JSObjectShortPrint(StringStream* accumulator) {
-  switch (map().instance_type()) {
+  switch (map()->instance_type()) {
     case JS_ARRAY_TYPE: {
-      double length = JSArray::cast(*this).length().IsUndefined()
+      double length = JSArray::cast(*this)->length().IsUndefined()
                           ? 0
-                          : JSArray::cast(*this).length().Number();
+                          : JSArray::cast(*this)->length().Number();
       accumulator->Add("<JSArray[%u]>", static_cast<uint32_t>(length));
       break;
     }
@@ -2876,7 +2878,7 @@ void JSObject::JSObjectShortPrint(StringStream* accumulator) {
       accumulator->Add("<JSBoundFunction");
       accumulator->Add(" (BoundTargetFunction %p)>",
                        reinterpret_cast<void*>(
-                           bound_function.bound_target_function().ptr()));
+                           bound_function->bound_target_function().ptr()));
       break;
     }
     case JS_WEAK_MAP_TYPE: {
@@ -2890,9 +2892,9 @@ void JSObject::JSObjectShortPrint(StringStream* accumulator) {
     case JS_REG_EXP_TYPE: {
       accumulator->Add("<JSRegExp");
       JSRegExp regexp = JSRegExp::cast(*this);
-      if (regexp.source().IsString()) {
+      if (regexp->source().IsString()) {
         accumulator->Add(" ");
-        String::cast(regexp.source()).StringShortPrint(accumulator);
+        String::cast(regexp->source())->StringShortPrint(accumulator);
       }
       accumulator->Add(">");
 
@@ -2908,7 +2910,7 @@ void JSObject::JSObjectShortPrint(StringStream* accumulator) {
     case JS_CLASS_CONSTRUCTOR_TYPE:
     case JS_FUNCTION_TYPE: {
       JSFunction function = JSFunction::cast(*this);
-      std::unique_ptr<char[]> fun_name = function.shared().DebugNameCStr();
+      std::unique_ptr<char[]> fun_name = function->shared()->DebugNameCStr();
       if (fun_name[0] != '\0') {
         accumulator->Add("<JSFunction ");
         accumulator->Add(fun_name.get());
@@ -2916,10 +2918,10 @@ void JSObject::JSObjectShortPrint(StringStream* accumulator) {
         accumulator->Add("<JSFunction");
       }
       if (v8_flags.trace_file_names) {
-        Object source_name = Script::cast(function.shared().script()).name();
+        Object source_name = Script::cast(function->shared()->script())->name();
         if (source_name.IsString()) {
           String str = String::cast(source_name);
-          if (str.length() > 0) {
+          if (str->length() > 0) {
             accumulator->Add(" <");
             accumulator->Put(str);
             accumulator->Add(">");
@@ -2927,7 +2929,7 @@ void JSObject::JSObjectShortPrint(StringStream* accumulator) {
         }
       }
       accumulator->Add(" (sfi = %p)",
-                       reinterpret_cast<void*>(function.shared().ptr()));
+                       reinterpret_cast<void*>(function->shared().ptr()));
       accumulator->Put('>');
       break;
     }
@@ -2959,7 +2961,7 @@ void JSObject::JSObjectShortPrint(StringStream* accumulator) {
     default: {
       Map map_of_this = map();
       Heap* heap = GetHeap();
-      Object constructor = map_of_this.GetConstructor();
+      Object constructor = map_of_this->GetConstructor();
       bool printed = false;
       if (constructor.IsHeapObject() &&
           !heap->Contains(HeapObject::cast(constructor))) {
@@ -2967,17 +2969,18 @@ void JSObject::JSObjectShortPrint(StringStream* accumulator) {
       } else {
         bool is_global_proxy = IsJSGlobalProxy();
         if (constructor.IsJSFunction()) {
-          if (!heap->Contains(JSFunction::cast(constructor).shared())) {
+          if (!heap->Contains(JSFunction::cast(constructor)->shared())) {
             accumulator->Add("!!!INVALID SHARED ON CONSTRUCTOR!!!");
           } else {
             String constructor_name =
-                JSFunction::cast(constructor).shared().Name();
-            if (constructor_name.length() > 0) {
+                JSFunction::cast(constructor)->shared()->Name();
+            if (constructor_name->length() > 0) {
               accumulator->Add(is_global_proxy ? "<GlobalObject " : "<");
               accumulator->Put(constructor_name);
-              accumulator->Add(" %smap = %p",
-                               map_of_this.is_deprecated() ? "deprecated-" : "",
-                               map_of_this);
+              accumulator->Add(
+                  " %smap = %p",
+                  map_of_this->is_deprecated() ? "deprecated-" : "",
+                  map_of_this);
               printed = true;
             }
           }
@@ -2998,7 +3001,7 @@ void JSObject::JSObjectShortPrint(StringStream* accumulator) {
       }
       if (IsJSPrimitiveWrapper()) {
         accumulator->Add(" value = ");
-        JSPrimitiveWrapper::cast(*this).value().ShortPrint(accumulator);
+        JSPrimitiveWrapper::cast(*this)->value().ShortPrint(accumulator);
       }
       accumulator->Put('>');
       break;
@@ -3028,34 +3031,34 @@ void JSObject::PrintElementsTransition(FILE* file, Handle<JSObject> object,
 
 void JSObject::PrintInstanceMigration(FILE* file, Map original_map,
                                       Map new_map) {
-  if (new_map.is_dictionary_map()) {
+  if (new_map->is_dictionary_map()) {
     PrintF(file, "[migrating to slow]\n");
     return;
   }
   PrintF(file, "[migrating]");
   Isolate* isolate = GetIsolate();
-  DescriptorArray o = original_map.instance_descriptors(isolate);
-  DescriptorArray n = new_map.instance_descriptors(isolate);
-  for (InternalIndex i : original_map.IterateOwnDescriptors()) {
-    Representation o_r = o.GetDetails(i).representation();
-    Representation n_r = n.GetDetails(i).representation();
+  DescriptorArray o = original_map->instance_descriptors(isolate);
+  DescriptorArray n = new_map->instance_descriptors(isolate);
+  for (InternalIndex i : original_map->IterateOwnDescriptors()) {
+    Representation o_r = o->GetDetails(i).representation();
+    Representation n_r = n->GetDetails(i).representation();
     if (!o_r.Equals(n_r)) {
-      String::cast(o.GetKey(i)).PrintOn(file);
+      String::cast(o->GetKey(i))->PrintOn(file);
       PrintF(file, ":%s->%s ", o_r.Mnemonic(), n_r.Mnemonic());
-    } else if (o.GetDetails(i).location() == PropertyLocation::kDescriptor &&
-               n.GetDetails(i).location() == PropertyLocation::kField) {
-      Name name = o.GetKey(i);
+    } else if (o->GetDetails(i).location() == PropertyLocation::kDescriptor &&
+               n->GetDetails(i).location() == PropertyLocation::kField) {
+      Name name = o->GetKey(i);
       if (name.IsString()) {
-        String::cast(name).PrintOn(file);
+        String::cast(name)->PrintOn(file);
       } else {
         PrintF(file, "{symbol %p}", reinterpret_cast<void*>(name.ptr()));
       }
       PrintF(file, " ");
     }
   }
-  if (original_map.elements_kind() != new_map.elements_kind()) {
-    PrintF(file, "elements_kind[%i->%i]", original_map.elements_kind(),
-           new_map.elements_kind());
+  if (original_map->elements_kind() != new_map->elements_kind()) {
+    PrintF(file, "elements_kind[%i->%i]", original_map->elements_kind(),
+           new_map->elements_kind());
   }
   PrintF(file, "\n");
 }
@@ -3066,15 +3069,15 @@ bool JSObject::IsUnmodifiedApiObject(FullObjectSlot o) {
   HeapObject heap_object = HeapObject::cast(object);
   if (!object.IsJSObject()) return false;
   JSObject js_object = JSObject::cast(object);
-  if (!js_object.IsDroppableApiObject()) return false;
-  Object maybe_constructor = js_object.map().GetConstructor();
+  if (!js_object->IsDroppableApiObject()) return false;
+  Object maybe_constructor = js_object->map()->GetConstructor();
   if (!maybe_constructor.IsJSFunction()) return false;
   JSFunction constructor = JSFunction::cast(maybe_constructor);
-  if (js_object.elements().length() != 0) return false;
+  if (js_object->elements()->length() != 0) return false;
   // Check that the object is not a key in a WeakMap (over-approximation).
-  if (!js_object.GetIdentityHash().IsUndefined()) return false;
+  if (!js_object->GetIdentityHash().IsUndefined()) return false;
 
-  return constructor.initial_map() == heap_object.map();
+  return constructor->initial_map() == heap_object->map();
 }
 
 // static
@@ -3097,7 +3100,7 @@ void JSObject::UpdatePrototypeUserRegistration(Handle<Map> old_map,
       // The new map isn't registered with its prototype yet; reflect this fact
       // in the PrototypeInfo it just inherited from the old map.
       PrototypeInfo::cast(new_map->prototype_info())
-          .set_registry_slot(PrototypeInfo::UNREGISTERED);
+          ->set_registry_slot(PrototypeInfo::UNREGISTERED);
     }
     JSObject::LazyRegisterPrototypeUser(new_map, isolate);
   }
@@ -3159,7 +3162,7 @@ void MigrateFastToFast(Isolate* isolate, Handle<JSObject> object,
     // double boxes).
     FieldIndex index = FieldIndex::ForDetails(*new_map, details);
     if (index.is_inobject() || index.outobject_array_index() <
-                                   object->property_array(isolate).length()) {
+                                   object->property_array(isolate)->length()) {
       // Allocate HeapNumbers for double fields.
       if (index.is_double()) {
         auto value = isolate->factory()->NewHeapNumberWithHoleNaN();
@@ -3518,8 +3521,9 @@ Handle<Map> JSObject::GetElementsTransitionMap(Handle<JSObject> object,
 }
 
 void JSObject::AllocateStorageForMap(Handle<JSObject> object, Handle<Map> map) {
-  DCHECK(object->map().GetInObjectProperties() == map->GetInObjectProperties());
-  ElementsKind obj_kind = object->map().elements_kind();
+  DCHECK(object->map()->GetInObjectProperties() ==
+         map->GetInObjectProperties());
+  ElementsKind obj_kind = object->map()->elements_kind();
   ElementsKind map_kind = map->elements_kind();
   Isolate* isolate = object->GetIsolate();
   if (map_kind != obj_kind) {
@@ -3619,7 +3623,7 @@ void JSObject::AddProperty(Isolate* isolate, Handle<JSObject> object,
   Maybe<PropertyAttributes> maybe = GetPropertyAttributes(&it);
   DCHECK(maybe.IsJust());
   DCHECK(!it.IsFound());
-  DCHECK(object->map().is_extensible() || name->IsPrivate());
+  DCHECK(object->map()->is_extensible() || name->IsPrivate());
 #endif
   CHECK(Object::AddDataProperty(&it, value, attributes,
                                 Just(ShouldThrow::kThrowOnError),
@@ -3946,7 +3950,7 @@ void JSObject::MigrateSlowToFast(Handle<JSObject> object,
 
     // Dictionary keys are internalized upon insertion.
     // TODO(jkummerow): Turn this into a DCHECK if it's not hit in the wild.
-    CHECK(k.IsUniqueName());
+    CHECK(k->IsUniqueName());
     Handle<Name> key(k, isolate);
 
     // Properly mark the {new_map} if the {key} is an "interesting symbol".
@@ -4020,9 +4024,9 @@ void JSObject::MigrateSlowToFast(Handle<JSObject> object,
 void JSObject::RequireSlowElements(NumberDictionary dictionary) {
   DCHECK_NE(dictionary,
             ReadOnlyRoots(GetIsolate()).empty_slow_element_dictionary());
-  if (dictionary.requires_slow_elements()) return;
-  dictionary.set_requires_slow_elements();
-  if (map().is_prototype_map()) {
+  if (dictionary->requires_slow_elements()) return;
+  dictionary->set_requires_slow_elements();
+  if (map()->is_prototype_map()) {
     // If this object is a prototype (the callee will check), invalidate any
     // prototype chains involving it.
     InvalidatePrototypeChains(map());
@@ -4038,7 +4042,7 @@ Handle<NumberDictionary> JSObject::NormalizeElements(Handle<JSObject> object) {
     FixedArrayBase elements = object->elements();
 
     if (is_sloppy_arguments) {
-      elements = SloppyArgumentsElements::cast(elements).arguments();
+      elements = SloppyArgumentsElements::cast(elements)->arguments();
     }
 
     if (elements.IsNumberDictionary()) {
@@ -4066,7 +4070,7 @@ Handle<NumberDictionary> JSObject::NormalizeElements(Handle<JSObject> object) {
 
   if (is_sloppy_arguments) {
     SloppyArgumentsElements::cast(object->elements())
-        .set_arguments(*dictionary);
+        ->set_arguments(*dictionary);
   } else {
     object->set_elements(*dictionary);
   }
@@ -4165,13 +4169,13 @@ bool TestDictionaryPropertiesIntegrityLevel(Dictionary dict,
 
 bool TestFastPropertiesIntegrityLevel(Map map, PropertyAttributes level) {
   DCHECK(level == SEALED || level == FROZEN);
-  DCHECK(!map.IsCustomElementsReceiverMap());
-  DCHECK(!map.is_dictionary_map());
+  DCHECK(!map->IsCustomElementsReceiverMap());
+  DCHECK(!map->is_dictionary_map());
 
-  DescriptorArray descriptors = map.instance_descriptors();
-  for (InternalIndex i : map.IterateOwnDescriptors()) {
-    if (descriptors.GetKey(i).IsPrivate()) continue;
-    PropertyDetails details = descriptors.GetDetails(i);
+  DescriptorArray descriptors = map->instance_descriptors();
+  for (InternalIndex i : map->IterateOwnDescriptors()) {
+    if (descriptors->GetKey(i)->IsPrivate()) continue;
+    PropertyDetails details = descriptors->GetDetails(i);
     if (details.IsConfigurable()) return false;
     if (level == FROZEN && details.kind() == PropertyKind::kData &&
         !details.IsReadOnly()) {
@@ -4182,33 +4186,33 @@ bool TestFastPropertiesIntegrityLevel(Map map, PropertyAttributes level) {
 }
 
 bool TestPropertiesIntegrityLevel(JSObject object, PropertyAttributes level) {
-  DCHECK(!object.map().IsCustomElementsReceiverMap());
+  DCHECK(!object->map()->IsCustomElementsReceiverMap());
 
-  if (object.HasFastProperties()) {
-    return TestFastPropertiesIntegrityLevel(object.map(), level);
+  if (object->HasFastProperties()) {
+    return TestFastPropertiesIntegrityLevel(object->map(), level);
   }
 
   if constexpr (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
     return TestDictionaryPropertiesIntegrityLevel(
-        object.property_dictionary_swiss(), object.GetReadOnlyRoots(), level);
+        object->property_dictionary_swiss(), object->GetReadOnlyRoots(), level);
   } else {
     return TestDictionaryPropertiesIntegrityLevel(
-        object.property_dictionary(), object.GetReadOnlyRoots(), level);
+        object->property_dictionary(), object->GetReadOnlyRoots(), level);
   }
 }
 
 bool TestElementsIntegrityLevel(JSObject object, PropertyAttributes level) {
-  DCHECK(!object.HasSloppyArgumentsElements());
+  DCHECK(!object->HasSloppyArgumentsElements());
 
-  ElementsKind kind = object.GetElementsKind();
+  ElementsKind kind = object->GetElementsKind();
 
   if (IsDictionaryElementsKind(kind)) {
     return TestDictionaryPropertiesIntegrityLevel(
-        NumberDictionary::cast(object.elements()), object.GetReadOnlyRoots(),
+        NumberDictionary::cast(object->elements()), object->GetReadOnlyRoots(),
         level);
   }
   if (IsTypedArrayOrRabGsabTypedArrayElementsKind(kind)) {
-    if (level == FROZEN && JSArrayBufferView::cast(object).byte_length() > 0) {
+    if (level == FROZEN && JSArrayBufferView::cast(object)->byte_length() > 0) {
       return false;  // TypedArrays with elements can't be frozen.
     }
     return TestPropertiesIntegrityLevel(object, level);
@@ -4224,9 +4228,9 @@ bool TestElementsIntegrityLevel(JSObject object, PropertyAttributes level) {
 }
 
 bool FastTestIntegrityLevel(JSObject object, PropertyAttributes level) {
-  DCHECK(!object.map().IsCustomElementsReceiverMap());
+  DCHECK(!object->map()->IsCustomElementsReceiverMap());
 
-  return !object.map().is_extensible() &&
+  return !object->map()->is_extensible() &&
          TestElementsIntegrityLevel(object, level) &&
          TestPropertiesIntegrityLevel(object, level);
 }
@@ -4236,7 +4240,7 @@ bool FastTestIntegrityLevel(JSObject object, PropertyAttributes level) {
 Maybe<bool> JSObject::TestIntegrityLevel(Isolate* isolate,
                                          Handle<JSObject> object,
                                          IntegrityLevel level) {
-  if (!object->map().IsCustomElementsReceiverMap() &&
+  if (!object->map()->IsCustomElementsReceiverMap() &&
       !object->HasSloppyArgumentsElements()) {
     return Just(FastTestIntegrityLevel(*object, level));
   }
@@ -4259,7 +4263,7 @@ Maybe<bool> JSObject::PreventExtensions(Isolate* isolate,
                    NewTypeError(MessageTemplate::kNoAccess));
   }
 
-  if (!object->map().is_extensible()) return Just(true);
+  if (!object->map()->is_extensible()) return Just(true);
 
   if (object->IsJSGlobalProxy()) {
     PrototypeIterator iter(isolate, object);
@@ -4269,8 +4273,8 @@ Maybe<bool> JSObject::PreventExtensions(Isolate* isolate,
         isolate, PrototypeIterator::GetCurrent<JSObject>(iter), should_throw);
   }
 
-  if (object->map().has_named_interceptor() ||
-      object->map().has_indexed_interceptor()) {
+  if (object->map()->has_named_interceptor() ||
+      object->map()->has_indexed_interceptor()) {
     RETURN_FAILURE(isolate, should_throw,
                    NewTypeError(MessageTemplate::kCannotPreventExt));
   }
@@ -4294,7 +4298,7 @@ Maybe<bool> JSObject::PreventExtensions(Isolate* isolate,
 
   new_map->set_is_extensible(false);
   JSObject::MigrateToMap(isolate, object, new_map);
-  DCHECK(!object->map().is_extensible());
+  DCHECK(!object->map()->is_extensible());
 
   return Just(true);
 }
@@ -4308,9 +4312,9 @@ bool JSObject::IsExtensible(Isolate* isolate, Handle<JSObject> object) {
     PrototypeIterator iter(isolate, *object);
     if (iter.IsAtEnd()) return false;
     DCHECK(iter.GetCurrent().IsJSGlobalObject());
-    return iter.GetCurrent<JSObject>().map().is_extensible();
+    return iter.GetCurrent<JSObject>()->map()->is_extensible();
   }
-  return object->map().is_extensible();
+  return object->map()->is_extensible();
 }
 
 // static
@@ -4356,7 +4360,7 @@ Handle<NumberDictionary> CreateElementDictionary(Isolate* isolate,
       !object->HasSlowStringWrapperElements()) {
     int length = object->IsJSArray()
                      ? Smi::ToInt(Handle<JSArray>::cast(object)->length())
-                     : object->elements().length();
+                     : object->elements()->length();
     new_element_dictionary =
         length == 0 ? isolate->factory()->empty_slow_element_dictionary()
                     : object->GetElementsAccessor()->Normalize(object);
@@ -4382,12 +4386,12 @@ Maybe<bool> JSObject::PreventExtensionsWithTransition(
                    NewTypeError(MessageTemplate::kNoAccess));
   }
 
-  if (attrs == NONE && !object->map().is_extensible()) {
+  if (attrs == NONE && !object->map()->is_extensible()) {
     return Just(true);
   }
 
   {
-    ElementsKind old_elements_kind = object->map().elements_kind();
+    ElementsKind old_elements_kind = object->map()->elements_kind();
     if (IsFrozenElementsKind(old_elements_kind)) return Just(true);
     if (attrs != FROZEN && IsSealedElementsKind(old_elements_kind)) {
       return Just(true);
@@ -4413,8 +4417,8 @@ Maybe<bool> JSObject::PreventExtensionsWithTransition(
                    NewTypeError(MessageTemplate::kCannotFreeze));
   }
 
-  if (object->map().has_named_interceptor() ||
-      object->map().has_indexed_interceptor()) {
+  if (object->map()->has_named_interceptor() ||
+      object->map()->has_indexed_interceptor()) {
     MessageTemplate message = MessageTemplate::kNone;
     switch (attrs) {
       case NONE:
@@ -4448,7 +4452,7 @@ Maybe<bool> JSObject::PreventExtensionsWithTransition(
   // elements kind, we will transition to Object elements kind first to make
   // sure of valid element access.
   if (v8_flags.enable_sealed_frozen_elements_kind) {
-    switch (object->map().elements_kind()) {
+    switch (object->map()->elements_kind()) {
       case PACKED_SMI_ELEMENTS:
       case PACKED_DOUBLE_ELEMENTS:
         JSObject::TransitionElementsKind(object, PACKED_ELEMENTS);
@@ -4514,7 +4518,7 @@ Maybe<bool> JSObject::PreventExtensionsWithTransition(
       ReadOnlyRoots roots(isolate);
       if (object->IsJSGlobalObject()) {
         Handle<GlobalDictionary> dictionary(
-            JSGlobalObject::cast(*object).global_dictionary(kAcquireLoad),
+            JSGlobalObject::cast(*object)->global_dictionary(kAcquireLoad),
             isolate);
         JSObject::ApplyAttributesToDictionary(isolate, roots, dictionary,
                                               attrs);
@@ -4532,7 +4536,7 @@ Maybe<bool> JSObject::PreventExtensionsWithTransition(
     }
   }
 
-  if (object->map().has_any_nonextensible_elements()) {
+  if (object->map()->has_any_nonextensible_elements()) {
     DCHECK(new_element_dictionary.is_null());
     return Just(true);
   }
@@ -4541,7 +4545,7 @@ Maybe<bool> JSObject::PreventExtensionsWithTransition(
   // typed array elements. Freeze works only if there are no actual elements.
   if (object->HasTypedArrayOrRabGsabTypedArrayElements()) {
     DCHECK(new_element_dictionary.is_null());
-    if (attrs == FROZEN && JSTypedArray::cast(*object).GetLength() > 0) {
+    if (attrs == FROZEN && JSTypedArray::cast(*object)->GetLength() > 0) {
       isolate->Throw(*isolate->factory()->NewTypeError(
           MessageTemplate::kCannotFreezeArrayBufferView));
       return Nothing<bool>();
@@ -4549,8 +4553,8 @@ Maybe<bool> JSObject::PreventExtensionsWithTransition(
     return Just(true);
   }
 
-  DCHECK(object->map().has_dictionary_elements() ||
-         object->map().elements_kind() == SLOW_STRING_WRAPPER_ELEMENTS);
+  DCHECK(object->map()->has_dictionary_elements() ||
+         object->map()->elements_kind() == SLOW_STRING_WRAPPER_ELEMENTS);
   if (!new_element_dictionary.is_null()) {
     object->set_elements(*new_element_dictionary);
   }
@@ -4592,10 +4596,10 @@ Handle<Object> JSObject::DictionaryPropertyAt(Isolate* isolate,
   DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
   if constexpr (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
     SwissNameDictionary dict = object->property_dictionary_swiss();
-    return handle(dict.ValueAt(dict_index), isolate);
+    return handle(dict->ValueAt(dict_index), isolate);
   } else {
     NameDictionary dict = object->property_dictionary();
-    return handle(dict.ValueAt(dict_index), isolate);
+    return handle(dict->ValueAt(dict_index), isolate);
   }
 }
 
@@ -4610,10 +4614,11 @@ base::Optional<Object> JSObject::DictionaryPropertyAt(Handle<JSObject> object,
   base::Optional<Object> maybe_obj;
   if constexpr (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
     if (!backing_store.IsSwissNameDictionary()) return {};
-    maybe_obj = SwissNameDictionary::cast(backing_store).TryValueAt(dict_index);
+    maybe_obj =
+        SwissNameDictionary::cast(backing_store)->TryValueAt(dict_index);
   } else {
     if (!backing_store.IsNameDictionary()) return {};
-    maybe_obj = NameDictionary::cast(backing_store).TryValueAt(dict_index);
+    maybe_obj = NameDictionary::cast(backing_store)->TryValueAt(dict_index);
   }
 
   if (!maybe_obj) return {};
@@ -4624,7 +4629,7 @@ base::Optional<Object> JSObject::DictionaryPropertyAt(Handle<JSObject> object,
 bool JSObject::HasEnumerableElements() {
   // TODO(cbruni): cleanup
   JSObject object = *this;
-  switch (object.GetElementsKind()) {
+  switch (object->GetElementsKind()) {
     case PACKED_SMI_ELEMENTS:
     case PACKED_ELEMENTS:
     case PACKED_FROZEN_ELEMENTS:
@@ -4633,8 +4638,8 @@ bool JSObject::HasEnumerableElements() {
     case PACKED_DOUBLE_ELEMENTS:
     case SHARED_ARRAY_ELEMENTS: {
       int length = object.IsJSArray()
-                       ? Smi::ToInt(JSArray::cast(object).length())
-                       : object.elements().length();
+                       ? Smi::ToInt(JSArray::cast(object)->length())
+                       : object->elements()->length();
       return length > 0;
     }
     case HOLEY_SMI_ELEMENTS:
@@ -4642,45 +4647,45 @@ bool JSObject::HasEnumerableElements() {
     case HOLEY_SEALED_ELEMENTS:
     case HOLEY_NONEXTENSIBLE_ELEMENTS:
     case HOLEY_ELEMENTS: {
-      FixedArray elements = FixedArray::cast(object.elements());
+      FixedArray elements = FixedArray::cast(object->elements());
       int length = object.IsJSArray()
-                       ? Smi::ToInt(JSArray::cast(object).length())
-                       : elements.length();
+                       ? Smi::ToInt(JSArray::cast(object)->length())
+                       : elements->length();
       Isolate* isolate = GetIsolate();
       for (int i = 0; i < length; i++) {
-        if (!elements.is_the_hole(isolate, i)) return true;
+        if (!elements->is_the_hole(isolate, i)) return true;
       }
       return false;
     }
     case HOLEY_DOUBLE_ELEMENTS: {
       int length = object.IsJSArray()
-                       ? Smi::ToInt(JSArray::cast(object).length())
-                       : object.elements().length();
+                       ? Smi::ToInt(JSArray::cast(object)->length())
+                       : object->elements()->length();
       // Zero-length arrays would use the empty FixedArray...
       if (length == 0) return false;
       // ...so only cast to FixedDoubleArray otherwise.
-      FixedDoubleArray elements = FixedDoubleArray::cast(object.elements());
+      FixedDoubleArray elements = FixedDoubleArray::cast(object->elements());
       for (int i = 0; i < length; i++) {
-        if (!elements.is_the_hole(i)) return true;
+        if (!elements->is_the_hole(i)) return true;
       }
       return false;
     }
 #define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) case TYPE##_ELEMENTS:
 
       TYPED_ARRAYS(TYPED_ARRAY_CASE) {
-        size_t length = JSTypedArray::cast(object).length();
+        size_t length = JSTypedArray::cast(object)->length();
         return length > 0;
       }
 
       RAB_GSAB_TYPED_ARRAYS(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE
       {
-        size_t length = JSTypedArray::cast(object).GetLength();
+        size_t length = JSTypedArray::cast(object)->GetLength();
         return length > 0;
       }
     case DICTIONARY_ELEMENTS: {
-      NumberDictionary elements = NumberDictionary::cast(object.elements());
-      return elements.NumberOfEnumerableProperties() > 0;
+      NumberDictionary elements = NumberDictionary::cast(object->elements());
+      return elements->NumberOfEnumerableProperties() > 0;
     }
     case FAST_SLOPPY_ARGUMENTS_ELEMENTS:
     case SLOW_SLOPPY_ARGUMENTS_ELEMENTS:
@@ -4688,10 +4693,11 @@ bool JSObject::HasEnumerableElements() {
       return true;
     case FAST_STRING_WRAPPER_ELEMENTS:
     case SLOW_STRING_WRAPPER_ELEMENTS:
-      if (String::cast(JSPrimitiveWrapper::cast(object).value()).length() > 0) {
+      if (String::cast(JSPrimitiveWrapper::cast(object)->value())->length() >
+          0) {
         return true;
       }
-      return object.elements().length() > 0;
+      return object->elements()->length() > 0;
     case WASM_ARRAY_ELEMENTS:
       UNIMPLEMENTED();
 
@@ -4809,10 +4815,10 @@ Maybe<bool> JSObject::CheckIfCanDefineAsConfigurable(
 
 Object JSObject::SlowReverseLookup(Object value) {
   if (HasFastProperties()) {
-    DescriptorArray descs = map().instance_descriptors();
+    DescriptorArray descs = map()->instance_descriptors();
     bool value_is_number = value.IsNumber();
-    for (InternalIndex i : map().IterateOwnDescriptors()) {
-      PropertyDetails details = descs.GetDetails(i);
+    for (InternalIndex i : map()->IterateOwnDescriptors()) {
+      PropertyDetails details = descs->GetDetails(i);
       if (details.location() == PropertyLocation::kField) {
         DCHECK_EQ(PropertyKind::kData, details.kind());
         FieldIndex field_index = FieldIndex::ForDetails(map(), details);
@@ -4820,16 +4826,16 @@ Object JSObject::SlowReverseLookup(Object value) {
         if (field_index.is_double()) {
           DCHECK(property.IsHeapNumber());
           if (value_is_number && property.Number() == value.Number()) {
-            return descs.GetKey(i);
+            return descs->GetKey(i);
           }
         } else if (property == value) {
-          return descs.GetKey(i);
+          return descs->GetKey(i);
         }
       } else {
         DCHECK_EQ(PropertyLocation::kDescriptor, details.location());
         if (details.kind() == PropertyKind::kData) {
-          if (descs.GetStrongValue(i) == value) {
-            return descs.GetKey(i);
+          if (descs->GetStrongValue(i) == value) {
+            return descs->GetKey(i);
           }
         }
       }
@@ -4837,24 +4843,24 @@ Object JSObject::SlowReverseLookup(Object value) {
     return GetReadOnlyRoots().undefined_value();
   } else if (IsJSGlobalObject()) {
     return JSGlobalObject::cast(*this)
-        .global_dictionary(kAcquireLoad)
-        .SlowReverseLookup(value);
+        ->global_dictionary(kAcquireLoad)
+        ->SlowReverseLookup(value);
   } else if constexpr (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
-    return property_dictionary_swiss().SlowReverseLookup(GetIsolate(), value);
+    return property_dictionary_swiss()->SlowReverseLookup(GetIsolate(), value);
   } else {
-    return property_dictionary().SlowReverseLookup(value);
+    return property_dictionary()->SlowReverseLookup(value);
   }
 }
 
 void JSObject::PrototypeRegistryCompactionCallback(HeapObject value,
                                                    int old_index,
                                                    int new_index) {
-  DCHECK(value.IsMap() && Map::cast(value).is_prototype_map());
+  DCHECK(value.IsMap() && Map::cast(value)->is_prototype_map());
   Map map = Map::cast(value);
-  DCHECK(map.prototype_info().IsPrototypeInfo());
-  PrototypeInfo proto_info = PrototypeInfo::cast(map.prototype_info());
-  DCHECK_EQ(old_index, proto_info.registry_slot());
-  proto_info.set_registry_slot(new_index);
+  DCHECK(map->prototype_info().IsPrototypeInfo());
+  PrototypeInfo proto_info = PrototypeInfo::cast(map->prototype_info());
+  DCHECK_EQ(old_index, proto_info->registry_slot());
+  proto_info->set_registry_slot(new_index);
 }
 
 // static
@@ -4869,10 +4875,10 @@ void JSObject::MakePrototypesFast(Handle<Object> receiver,
     if (!current->IsJSObjectThatCanBeTrackedAsPrototype()) return;
     Handle<JSObject> current_obj = Handle<JSObject>::cast(current);
     Map current_map = current_obj->map();
-    if (current_map.is_prototype_map()) {
+    if (current_map->is_prototype_map()) {
       // If the map is already marked as should be fast, we're done. Its
       // prototypes will have been marked already as well.
-      if (current_map.should_be_fast_prototype_map()) return;
+      if (current_map->should_be_fast_prototype_map()) return;
       Handle<Map> map(current_map, isolate);
       Map::SetShouldBeFastPrototypeMap(map, true, isolate);
       JSObject::OptimizeAsPrototype(current_obj);
@@ -4882,13 +4888,13 @@ void JSObject::MakePrototypesFast(Handle<Object> receiver,
 
 static bool PrototypeBenefitsFromNormalization(JSObject object) {
   DisallowGarbageCollection no_gc;
-  if (!object.HasFastProperties()) return false;
+  if (!object->HasFastProperties()) return false;
   if (object.IsJSGlobalProxy()) return false;
   // TODO(v8:11248) make bootstrapper create dict mode prototypes, too?
-  if (object.GetIsolate()->bootstrapper()->IsActive()) return false;
+  if (object->GetIsolate()->bootstrapper()->IsActive()) return false;
   if (V8_DICT_PROPERTY_CONST_TRACKING_BOOL) return true;
-  return !object.map().is_prototype_map() ||
-         !object.map().should_be_fast_prototype_map();
+  return !object->map()->is_prototype_map() ||
+         !object->map()->should_be_fast_prototype_map();
 }
 
 // static
@@ -4897,17 +4903,17 @@ void JSObject::OptimizeAsPrototype(Handle<JSObject> object,
   DCHECK(object->IsJSObjectThatCanBeTrackedAsPrototype());
   if (object->IsJSGlobalObject()) return;
   Isolate* isolate = object->GetIsolate();
-  if (object->map().is_prototype_map()) {
+  if (object->map()->is_prototype_map()) {
     if (enable_setup_mode && PrototypeBenefitsFromNormalization(*object)) {
       // This is the only way PrototypeBenefitsFromNormalization can be true:
-      DCHECK(!object->map().should_be_fast_prototype_map());
+      DCHECK(!object->map()->should_be_fast_prototype_map());
       // First normalize to ensure all JSFunctions are DATA_CONSTANT.
       constexpr bool kUseCache = true;
       JSObject::NormalizeProperties(isolate, object, KEEP_INOBJECT_PROPERTIES,
                                     0, kUseCache, "NormalizeAsPrototype");
     }
     if (!V8_DICT_PROPERTY_CONST_TRACKING_BOOL &&
-        object->map().should_be_fast_prototype_map() &&
+        object->map()->should_be_fast_prototype_map() &&
         !object->HasFastProperties()) {
       JSObject::MigrateSlowToFast(object, 0, "OptimizeAsPrototype");
     }
@@ -4943,15 +4949,15 @@ void JSObject::OptimizeAsPrototype(Handle<JSObject> object,
       // Handle the {constructor, non-instance_prototype} tuple case if the map
       // has non-instance prototype.
       tuple = Tuple2::cast(maybe_constructor);
-      maybe_constructor = tuple.value1();
+      maybe_constructor = tuple->value1();
     }
     if (maybe_constructor.IsJSFunction()) {
       JSFunction constructor = JSFunction::cast(maybe_constructor);
-      if (!constructor.shared().IsApiFunction()) {
-        NativeContext context = constructor.native_context();
-        JSFunction object_function = context.object_function();
+      if (!constructor->shared()->IsApiFunction()) {
+        NativeContext context = constructor->native_context();
+        JSFunction object_function = context->object_function();
         if (!tuple.is_null()) {
-          tuple.set_value1(object_function);
+          tuple->set_value1(object_function);
         } else {
           new_map->SetConstructor(object_function);
         }
@@ -4985,7 +4991,7 @@ void JSObject::OptimizeAsPrototype(Handle<JSObject> object,
                               enable_setup_mode && !object->IsJSGlobalProxy() &&
                               !isolate->bootstrapper()->IsActive();
   DCHECK_IMPLIES(should_be_dictionary,
-                 object->map(isolate).is_dictionary_map());
+                 object->map(isolate)->is_dictionary_map());
 #endif
 }
 
@@ -4993,8 +4999,8 @@ void JSObject::OptimizeAsPrototype(Handle<JSObject> object,
 void JSObject::ReoptimizeIfPrototype(Handle<JSObject> object) {
   {
     Map map = object->map();
-    if (!map.is_prototype_map()) return;
-    if (!map.should_be_fast_prototype_map()) return;
+    if (!map->is_prototype_map()) return;
+    if (!map->should_be_fast_prototype_map()) return;
   }
   OptimizeAsPrototype(object);
 }
@@ -5064,7 +5070,7 @@ bool JSObject::UnregisterPrototypeUser(Handle<Map> user, Isolate* isolate) {
   // registration.
   if (!user->prototype().IsJSObject()) {
     Object users =
-        PrototypeInfo::cast(user->prototype_info()).prototype_users();
+        PrototypeInfo::cast(user->prototype_info())->prototype_users();
     return users.IsWeakArrayList();
   }
   Handle<JSObject> prototype(JSObject::cast(user->prototype()), isolate);
@@ -5072,8 +5078,8 @@ bool JSObject::UnregisterPrototypeUser(Handle<Map> user, Isolate* isolate) {
       Map::GetOrCreatePrototypeInfo(user, isolate);
   int slot = user_info->registry_slot();
   if (slot == PrototypeInfo::UNREGISTERED) return false;
-  DCHECK(prototype->map().is_prototype_map());
-  Object maybe_proto_info = prototype->map().prototype_info();
+  DCHECK(prototype->map()->is_prototype_map());
+  Object maybe_proto_info = prototype->map()->prototype_info();
   // User knows its registry slot, prototype info and user registry must exist.
   DCHECK(maybe_proto_info.IsPrototypeInfo());
   Handle<PrototypeInfo> proto_info(PrototypeInfo::cast(maybe_proto_info),
@@ -5096,23 +5102,23 @@ namespace {
 // AccessorAssembler::InvalidateValidityCellIfPrototype() which does pre-checks
 // before jumping here.
 void InvalidateOnePrototypeValidityCellInternal(Map map) {
-  DCHECK(map.is_prototype_map());
+  DCHECK(map->is_prototype_map());
   if (v8_flags.trace_prototype_users) {
     PrintF("Invalidating prototype map %p 's cell\n",
            reinterpret_cast<void*>(map.ptr()));
   }
-  Object maybe_cell = map.prototype_validity_cell(kRelaxedLoad);
+  Object maybe_cell = map->prototype_validity_cell(kRelaxedLoad);
   if (maybe_cell.IsCell()) {
     // Just set the value; the cell will be replaced lazily.
     Cell cell = Cell::cast(maybe_cell);
     Smi invalid_value = Smi::FromInt(Map::kPrototypeChainInvalid);
-    if (cell.value() != invalid_value) {
-      cell.set_value(invalid_value);
+    if (cell->value() != invalid_value) {
+      cell->set_value(invalid_value);
     }
   }
   PrototypeInfo prototype_info;
-  if (map.TryGetPrototypeInfo(&prototype_info)) {
-    prototype_info.set_prototype_chain_enum_cache(Object());
+  if (map->TryGetPrototypeInfo(&prototype_info)) {
+    prototype_info->set_prototype_chain_enum_cache(Object());
   }
 
   // We may inline accesses to constants stored in dictionary mode prototypes in
@@ -5126,7 +5132,7 @@ void InvalidateOnePrototypeValidityCellInternal(Map map) {
   // whenever the validity cell would be invalidated. However, the actual value
   // of the validity cell is not used. Therefore, we always trigger the de-opt
   // here, even if the cell was already invalid.
-  if (V8_DICT_PROPERTY_CONST_TRACKING_BOOL && map.is_dictionary_map()) {
+  if (V8_DICT_PROPERTY_CONST_TRACKING_BOOL && map->is_dictionary_map()) {
     // TODO(11527): pass Isolate as an argument.
     Isolate* isolate = GetIsolateFromWritableObject(map);
     DependentCode::DeoptimizeDependencyGroups(
@@ -5144,17 +5150,17 @@ void InvalidatePrototypeChainsInternal(Map map) {
     InvalidateOnePrototypeValidityCellInternal(map);
 
     PrototypeInfo proto_info;
-    if (!map.TryGetPrototypeInfo(&proto_info)) return;
-    if (!proto_info.prototype_users().IsWeakArrayList()) {
+    if (!map->TryGetPrototypeInfo(&proto_info)) return;
+    if (!proto_info->prototype_users().IsWeakArrayList()) {
       return;
     }
     WeakArrayList prototype_users =
-        WeakArrayList::cast(proto_info.prototype_users());
+        WeakArrayList::cast(proto_info->prototype_users());
     // For now, only maps register themselves as users.
-    for (int i = PrototypeUsers::kFirstIndex; i < prototype_users.length();
+    for (int i = PrototypeUsers::kFirstIndex; i < prototype_users->length();
          ++i) {
       HeapObject heap_object;
-      if (prototype_users.Get(i)->GetHeapObjectIfWeak(&heap_object) &&
+      if (prototype_users->Get(i)->GetHeapObjectIfWeak(&heap_object) &&
           heap_object.IsMap()) {
         // Walk the prototype chain (backwards, towards leaf objects) if
         // necessary.
@@ -5187,7 +5193,7 @@ Map JSObject::InvalidatePrototypeChains(Map map) {
 // static
 void JSObject::InvalidatePrototypeValidityCell(JSGlobalObject global) {
   DisallowGarbageCollection no_gc;
-  InvalidateOnePrototypeValidityCellInternal(global.map());
+  InvalidateOnePrototypeValidityCellInternal(global->map());
 }
 
 Maybe<bool> JSObject::SetPrototype(Isolate* isolate, Handle<JSObject> object,
@@ -5213,7 +5219,7 @@ Maybe<bool> JSObject::SetPrototype(Isolate* isolate, Handle<JSObject> object,
   // SpiderMonkey behaves this way.
   if (!value->IsJSReceiver() && !value->IsNull(isolate)) return Just(true);
 
-  bool all_extensible = object->map().is_extensible();
+  bool all_extensible = object->map()->is_extensible();
   Handle<JSObject> real_receiver = object;
   if (from_javascript) {
     // Find the first object in the chain whose prototype object is not
@@ -5225,7 +5231,7 @@ Maybe<bool> JSObject::SetPrototype(Isolate* isolate, Handle<JSObject> object,
       // JSProxies.
       real_receiver = PrototypeIterator::GetCurrent<JSObject>(iter);
       iter.Advance();
-      all_extensible = all_extensible && real_receiver->map().is_extensible();
+      all_extensible = all_extensible && real_receiver->map()->is_extensible();
     }
   }
   Handle<Map> map(real_receiver->map(), isolate);
@@ -5319,7 +5325,7 @@ void JSObject::ValidateElements(JSObject object) {
 
 bool JSObject::WouldConvertToSlowElements(uint32_t index) {
   if (!HasFastElements()) return false;
-  uint32_t capacity = static_cast<uint32_t>(elements().length());
+  uint32_t capacity = static_cast<uint32_t>(elements()->length());
   uint32_t new_capacity;
   return ShouldConvertToSlowElements(*this, capacity, index, &new_capacity);
 }
@@ -5330,23 +5336,23 @@ static bool ShouldConvertToFastElements(JSObject object,
                                         uint32_t* new_capacity) {
   // If properties with non-standard attributes or accessors were added, we
   // cannot go back to fast elements.
-  if (dictionary.requires_slow_elements()) return false;
+  if (dictionary->requires_slow_elements()) return false;
 
   // Adding a property with this index will require slow elements.
   if (index >= static_cast<uint32_t>(Smi::kMaxValue)) return false;
 
   if (object.IsJSArray()) {
-    Object length = JSArray::cast(object).length();
+    Object length = JSArray::cast(object)->length();
     if (!length.IsSmi()) return false;
     *new_capacity = static_cast<uint32_t>(Smi::ToInt(length));
   } else if (object.IsJSArgumentsObject()) {
     return false;
   } else {
-    *new_capacity = dictionary.max_number_key() + 1;
+    *new_capacity = dictionary->max_number_key() + 1;
   }
   *new_capacity = std::max(index + 1, *new_capacity);
 
-  uint32_t dictionary_size = static_cast<uint32_t>(dictionary.Capacity()) *
+  uint32_t dictionary_size = static_cast<uint32_t>(dictionary->Capacity()) *
                              NumberDictionary::kEntrySize;
 
   // Turn fast if the dictionary only saves 50% space.
@@ -5354,22 +5360,22 @@ static bool ShouldConvertToFastElements(JSObject object,
 }
 
 static ElementsKind BestFittingFastElementsKind(JSObject object) {
-  if (!object.map().CanHaveFastTransitionableElementsKind()) {
+  if (!object->map()->CanHaveFastTransitionableElementsKind()) {
     return HOLEY_ELEMENTS;
   }
-  if (object.HasSloppyArgumentsElements()) {
+  if (object->HasSloppyArgumentsElements()) {
     return FAST_SLOPPY_ARGUMENTS_ELEMENTS;
   }
-  if (object.HasStringWrapperElements()) {
+  if (object->HasStringWrapperElements()) {
     return FAST_STRING_WRAPPER_ELEMENTS;
   }
-  DCHECK(object.HasDictionaryElements());
-  NumberDictionary dictionary = object.element_dictionary();
+  DCHECK(object->HasDictionaryElements());
+  NumberDictionary dictionary = object->element_dictionary();
   ElementsKind kind = HOLEY_SMI_ELEMENTS;
-  for (InternalIndex i : dictionary.IterateEntries()) {
-    Object key = dictionary.KeyAt(i);
+  for (InternalIndex i : dictionary->IterateEntries()) {
+    Object key = dictionary->KeyAt(i);
     if (key.IsNumber()) {
-      Object value = dictionary.ValueAt(i);
+      Object value = dictionary->ValueAt(i);
       if (!value.IsNumber()) return HOLEY_ELEMENTS;
       if (!value.IsSmi()) {
         if (!v8_flags.unbox_double_arrays) return HOLEY_ELEMENTS;
@@ -5386,20 +5392,20 @@ Maybe<bool> JSObject::AddDataElement(Handle<JSObject> object, uint32_t index,
                                      PropertyAttributes attributes) {
   Isolate* isolate = object->GetIsolate();
 
-  DCHECK(object->map(isolate).is_extensible());
+  DCHECK(object->map(isolate)->is_extensible());
 
   uint32_t old_length = 0;
   uint32_t new_capacity = 0;
 
   if (object->IsJSArray(isolate)) {
-    CHECK(JSArray::cast(*object).length().ToArrayLength(&old_length));
+    CHECK(JSArray::cast(*object)->length().ToArrayLength(&old_length));
   }
 
   ElementsKind kind = object->GetElementsKind(isolate);
   FixedArrayBase elements = object->elements(isolate);
   ElementsKind dictionary_kind = DICTIONARY_ELEMENTS;
   if (IsSloppyArgumentsElementsKind(kind)) {
-    elements = SloppyArgumentsElements::cast(elements).arguments(isolate);
+    elements = SloppyArgumentsElements::cast(elements)->arguments(isolate);
     dictionary_kind = SLOW_SLOPPY_ARGUMENTS_ELEMENTS;
   } else if (IsStringWrapperElementsKind(kind)) {
     dictionary_kind = SLOW_STRING_WRAPPER_ELEMENTS;
@@ -5413,7 +5419,7 @@ Maybe<bool> JSObject::AddDataElement(Handle<JSObject> object, uint32_t index,
                ? BestFittingFastElementsKind(*object)
                : dictionary_kind;
   } else if (ShouldConvertToSlowElements(
-                 *object, static_cast<uint32_t>(elements.length()), index,
+                 *object, static_cast<uint32_t>(elements->length()), index,
                  &new_capacity)) {
     kind = dictionary_kind;
   }
@@ -5432,7 +5438,7 @@ Maybe<bool> JSObject::AddDataElement(Handle<JSObject> object, uint32_t index,
   if (object->IsJSArray(isolate) && index >= old_length) {
     Handle<Object> new_length =
         isolate->factory()->NewNumberFromUint(index + 1);
-    JSArray::cast(*object).set_length(*new_length);
+    JSArray::cast(*object)->set_length(*new_length);
   }
   return Just(true);
 }
@@ -5459,7 +5465,7 @@ bool JSObject::UpdateAllocationSite(Handle<JSObject> object,
     if (memento.is_null()) return false;
 
     // Walk through to the Allocation Site
-    site = handle(memento.GetAllocationSite(), heap->isolate());
+    site = handle(memento->GetAllocationSite(), heap->isolate());
   }
   return AllocationSite::DigestTransitionFeedback<update_or_check>(site,
                                                                    to_kind);
@@ -5503,7 +5509,7 @@ void JSObject::TransitionElementsKind(Handle<JSObject> object,
   } else {
     DCHECK((IsSmiElementsKind(from_kind) && IsDoubleElementsKind(to_kind)) ||
            (IsDoubleElementsKind(from_kind) && IsObjectElementsKind(to_kind)));
-    uint32_t c = static_cast<uint32_t>(object->elements().length());
+    uint32_t c = static_cast<uint32_t>(object->elements()->length());
     if (ElementsAccessor::ForKind(to_kind)
             ->GrowCapacityAndConvert(object, c)
             .IsNothing()) {
@@ -5520,8 +5526,8 @@ void JSObject::TransitionElementsKind(Handle<JSObject> object,
 
 template <typename BackingStore>
 static int HoleyElementsUsage(JSObject object, BackingStore store) {
-  Isolate* isolate = object.GetIsolate();
-  int limit = object.IsJSArray() ? Smi::ToInt(JSArray::cast(object).length())
+  Isolate* isolate = object->GetIsolate();
+  int limit = object.IsJSArray() ? Smi::ToInt(JSArray::cast(object)->length())
                                  : store.length();
   int used = 0;
   for (int i = 0; i < limit; ++i) {
@@ -5540,10 +5546,10 @@ int JSObject::GetFastElementsUsage() {
     case PACKED_SEALED_ELEMENTS:
     case PACKED_NONEXTENSIBLE_ELEMENTS:
     case SHARED_ARRAY_ELEMENTS:
-      return IsJSArray() ? Smi::ToInt(JSArray::cast(*this).length())
-                         : store.length();
+      return IsJSArray() ? Smi::ToInt(JSArray::cast(*this)->length())
+                         : store->length();
     case FAST_SLOPPY_ARGUMENTS_ELEMENTS:
-      store = SloppyArgumentsElements::cast(store).arguments();
+      store = SloppyArgumentsElements::cast(store)->arguments();
       V8_FALLTHROUGH;
     case HOLEY_SMI_ELEMENTS:
     case HOLEY_ELEMENTS:
@@ -5553,7 +5559,7 @@ int JSObject::GetFastElementsUsage() {
     case FAST_STRING_WRAPPER_ELEMENTS:
       return HoleyElementsUsage(*this, FixedArray::cast(store));
     case HOLEY_DOUBLE_ELEMENTS:
-      if (elements().length() == 0) return 0;
+      if (elements()->length() == 0) return 0;
       return HoleyElementsUsage(*this, FixedDoubleArray::cast(store));
 
     case SLOW_SLOPPY_ARGUMENTS_ELEMENTS:
@@ -5668,7 +5674,7 @@ Address JSDate::GetField(Isolate* isolate, Address raw_object,
   Object object(raw_object);
   Smi index(smi_index);
   return JSDate::cast(object)
-      .DoGetField(isolate, static_cast<FieldIndex>(index.value()))
+      ->DoGetField(isolate, static_cast<FieldIndex>(index.value()))
       .ptr();
 }
 
@@ -5832,7 +5838,7 @@ void JSMessageObject::InitializeSourcePositions(
       isolate, shared_info, &is_compiled_scope, CreateSourcePositions::kYes);
   SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate, shared_info);
   DCHECK(shared_info->HasBytecodeArray());
-  int position = shared_info->abstract_code(isolate).SourcePosition(
+  int position = shared_info->abstract_code(isolate)->SourcePosition(
       isolate, message->bytecode_offset().value());
   DCHECK_GE(position, 0);
   message->set_start_position(position);
@@ -5845,10 +5851,10 @@ int JSMessageObject::GetLineNumber() const {
   DCHECK(DidEnsureSourcePositionsAvailable());
   if (start_position() == -1) return Message::kNoLineNumberInfo;
 
-  DCHECK(script().has_line_ends());
+  DCHECK(script()->has_line_ends());
   Handle<Script> the_script(script(), GetIsolate());
   Script::PositionInfo info;
-  if (!script().GetPositionInfo(start_position(), &info)) {
+  if (!script()->GetPositionInfo(start_position(), &info)) {
     return Message::kNoLineNumberInfo;
   }
   return info.line + 1;
@@ -5859,10 +5865,10 @@ int JSMessageObject::GetColumnNumber() const {
   DCHECK(DidEnsureSourcePositionsAvailable());
   if (start_position() == -1) return -1;
 
-  DCHECK(script().has_line_ends());
+  DCHECK(script()->has_line_ends());
   Handle<Script> the_script(script(), GetIsolate());
   Script::PositionInfo info;
-  if (!script().GetPositionInfo(start_position(), &info)) {
+  if (!script()->GetPositionInfo(start_position(), &info)) {
     return -1;
   }
   return info.column;  // Note: No '+1' in contrast to GetLineNumber.
@@ -5871,8 +5877,8 @@ int JSMessageObject::GetColumnNumber() const {
 String JSMessageObject::GetSource() const {
   DisallowGarbageCollection no_gc;
   Script script_object = script();
-  if (script_object.HasValidSource()) {
-    Object source = script_object.source();
+  if (script_object->HasValidSource()) {
+    Object source = script_object->source();
     if (source.IsString()) return String::cast(source);
   }
   return ReadOnlyRoots(GetIsolate()).empty_string();
@@ -5882,7 +5888,7 @@ Handle<String> JSMessageObject::GetSourceLine() const {
   Isolate* isolate = GetIsolate();
 
 #if V8_ENABLE_WEBASSEMBLY
-  if (script().type() == Script::Type::kWasm) {
+  if (script()->type() == Script::Type::kWasm) {
     return isolate->factory()->empty_string();
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -5890,13 +5896,13 @@ Handle<String> JSMessageObject::GetSourceLine() const {
   {
     DisallowGarbageCollection no_gc;
     DCHECK(DidEnsureSourcePositionsAvailable());
-    DCHECK(script().has_line_ends());
-    if (!script().GetPositionInfo(start_position(), &info)) {
+    DCHECK(script()->has_line_ends());
+    if (!script()->GetPositionInfo(start_position(), &info)) {
       return isolate->factory()->empty_string();
     }
   }
 
-  Handle<String> src = handle(String::cast(script().source()), isolate);
+  Handle<String> src = handle(String::cast(script()->source()), isolate);
   return isolate->factory()->NewSubString(src, info.line_start, info.line_end);
 }
 

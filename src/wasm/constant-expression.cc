@@ -51,7 +51,7 @@ ValueOrError EvaluateConstantExpression(Zone* zone, ConstantExpression expr,
       WireBytesRef ref = expr.wire_bytes_ref();
 
       base::Vector<const uint8_t> module_bytes =
-          instance->module_object().native_module()->wire_bytes();
+          instance->module_object()->native_module()->wire_bytes();
 
       const uint8_t* start = module_bytes.begin() + ref.offset();
       const uint8_t* end = module_bytes.begin() + ref.end_offset();

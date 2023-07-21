@@ -17,7 +17,7 @@ void StringBuilderConcatHelper(String special, sinkchar* sink,
   DisallowGarbageCollection no_gc;
   int position = 0;
   for (int i = 0; i < array_length; i++) {
-    Object element = fixed_array.get(i);
+    Object element = fixed_array->get(i);
     if (element.IsSmi()) {
       // Smi encoding of position and length.
       int encoded_slice = Smi::ToInt(element);
@@ -29,7 +29,7 @@ void StringBuilderConcatHelper(String special, sinkchar* sink,
         len = StringBuilderSubstringLength::decode(encoded_slice);
       } else {
         // Position and length encoded in two smis.
-        Object obj = fixed_array.get(++i);
+        Object obj = fixed_array->get(++i);
         DCHECK(obj.IsSmi());
         pos = Smi::ToInt(obj);
         len = -encoded_slice;
@@ -38,7 +38,7 @@ void StringBuilderConcatHelper(String special, sinkchar* sink,
       position += len;
     } else {
       String string = String::cast(element);
-      int element_length = string.length();
+      int element_length = string->length();
       String::WriteToFlat(string, sink + position, 0, element_length);
       position += element_length;
     }
@@ -60,7 +60,7 @@ int StringBuilderConcatLength(int special_length, FixedArray fixed_array,
   int position = 0;
   for (int i = 0; i < array_length; i++) {
     int increment = 0;
-    Object elt = fixed_array.get(i);
+    Object elt = fixed_array->get(i);
     if (elt.IsSmi()) {
       // Smi encoding of position and length.
       int smi_value = Smi::ToInt(elt);
@@ -76,7 +76,7 @@ int StringBuilderConcatLength(int special_length, FixedArray fixed_array,
         // Get the position and check that it is a positive smi.
         i++;
         if (i >= array_length) return -1;
-        Object next_smi = fixed_array.get(i);
+        Object next_smi = fixed_array->get(i);
         if (!next_smi.IsSmi()) return -1;
         pos = Smi::ToInt(next_smi);
         if (pos < 0) return -1;
@@ -87,9 +87,9 @@ int StringBuilderConcatLength(int special_length, FixedArray fixed_array,
       increment = len;
     } else if (elt.IsString()) {
       String element = String::cast(elt);
-      int element_length = element.length();
+      int element_length = element->length();
       increment = element_length;
-      if (*one_byte && !element.IsOneByteRepresentation()) {
+      if (*one_byte && !element->IsOneByteRepresentation()) {
         *one_byte = false;
       }
     } else {

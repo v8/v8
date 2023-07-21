@@ -438,12 +438,12 @@ InternalIndex OrderedNameDictionary::FindEntry(IsolateT* isolate, Object key) {
     return InternalIndex::NotFound();
   }
 
-  int raw_entry = HashToEntryRaw(raw_key.hash());
+  int raw_entry = HashToEntryRaw(raw_key->hash());
   while (raw_entry != kNotFound) {
     InternalIndex entry(raw_entry);
     Object candidate_key = KeyAt(entry);
     DCHECK(candidate_key.IsTheHole() ||
-           Name::cast(candidate_key).IsUniqueName());
+           Name::cast(candidate_key)->IsUniqueName());
     if (candidate_key == raw_key) return entry;
 
     // TODO(gsathya): This is loading the bucket count from the hash
@@ -790,7 +790,7 @@ SmallOrderedHashTable<SmallOrderedNameDictionary>::FindEntry(Isolate* isolate,
   DCHECK(key.IsUniqueName());
   Name raw_key = Name::cast(key);
 
-  int raw_entry = HashToFirstEntry(raw_key.hash());
+  int raw_entry = HashToFirstEntry(raw_key->hash());
 
   // Walk the chain in the bucket to find the key.
   while (raw_entry != kNotFound) {
@@ -1290,13 +1290,13 @@ void OrderedNameDictionaryHandler::SetEntry(HeapObject table,
                                             PropertyDetails details) {
   DisallowGarbageCollection no_gc;
   if (table.IsSmallOrderedNameDictionary()) {
-    return SmallOrderedNameDictionary::cast(table).SetEntry(entry, key, value,
-                                                            details);
+    return SmallOrderedNameDictionary::cast(table)->SetEntry(entry, key, value,
+                                                             details);
   }
 
   DCHECK(table.IsOrderedNameDictionary());
-  return OrderedNameDictionary::cast(table).SetEntry(InternalIndex(entry), key,
-                                                     value, details);
+  return OrderedNameDictionary::cast(table)->SetEntry(InternalIndex(entry), key,
+                                                      value, details);
 }
 
 InternalIndex OrderedNameDictionaryHandler::FindEntry(Isolate* isolate,
@@ -1304,97 +1304,98 @@ InternalIndex OrderedNameDictionaryHandler::FindEntry(Isolate* isolate,
                                                       Name key) {
   DisallowGarbageCollection no_gc;
   if (table.IsSmallOrderedNameDictionary()) {
-    return SmallOrderedNameDictionary::cast(table).FindEntry(isolate, key);
+    return SmallOrderedNameDictionary::cast(table)->FindEntry(isolate, key);
   }
 
   DCHECK(table.IsOrderedNameDictionary());
-  return OrderedNameDictionary::cast(table).FindEntry(isolate, key);
+  return OrderedNameDictionary::cast(table)->FindEntry(isolate, key);
 }
 
 Object OrderedNameDictionaryHandler::ValueAt(HeapObject table,
                                              InternalIndex entry) {
   if (table.IsSmallOrderedNameDictionary()) {
-    return SmallOrderedNameDictionary::cast(table).ValueAt(entry);
+    return SmallOrderedNameDictionary::cast(table)->ValueAt(entry);
   }
 
   DCHECK(table.IsOrderedNameDictionary());
-  return OrderedNameDictionary::cast(table).ValueAt(entry);
+  return OrderedNameDictionary::cast(table)->ValueAt(entry);
 }
 
 void OrderedNameDictionaryHandler::ValueAtPut(HeapObject table,
                                               InternalIndex entry,
                                               Object value) {
   if (table.IsSmallOrderedNameDictionary()) {
-    return SmallOrderedNameDictionary::cast(table).ValueAtPut(entry, value);
+    return SmallOrderedNameDictionary::cast(table)->ValueAtPut(entry, value);
   }
 
   DCHECK(table.IsOrderedNameDictionary());
-  OrderedNameDictionary::cast(table).ValueAtPut(entry, value);
+  OrderedNameDictionary::cast(table)->ValueAtPut(entry, value);
 }
 
 PropertyDetails OrderedNameDictionaryHandler::DetailsAt(HeapObject table,
                                                         InternalIndex entry) {
   if (table.IsSmallOrderedNameDictionary()) {
-    return SmallOrderedNameDictionary::cast(table).DetailsAt(entry);
+    return SmallOrderedNameDictionary::cast(table)->DetailsAt(entry);
   }
 
   DCHECK(table.IsOrderedNameDictionary());
-  return OrderedNameDictionary::cast(table).DetailsAt(entry);
+  return OrderedNameDictionary::cast(table)->DetailsAt(entry);
 }
 
 void OrderedNameDictionaryHandler::DetailsAtPut(HeapObject table,
                                                 InternalIndex entry,
                                                 PropertyDetails details) {
   if (table.IsSmallOrderedNameDictionary()) {
-    return SmallOrderedNameDictionary::cast(table).DetailsAtPut(entry, details);
+    return SmallOrderedNameDictionary::cast(table)->DetailsAtPut(entry,
+                                                                 details);
   }
 
   DCHECK(table.IsOrderedNameDictionary());
-  OrderedNameDictionary::cast(table).DetailsAtPut(entry, details);
+  OrderedNameDictionary::cast(table)->DetailsAtPut(entry, details);
 }
 
 int OrderedNameDictionaryHandler::Hash(HeapObject table) {
   if (table.IsSmallOrderedNameDictionary()) {
-    return SmallOrderedNameDictionary::cast(table).Hash();
+    return SmallOrderedNameDictionary::cast(table)->Hash();
   }
 
   DCHECK(table.IsOrderedNameDictionary());
-  return OrderedNameDictionary::cast(table).Hash();
+  return OrderedNameDictionary::cast(table)->Hash();
 }
 
 void OrderedNameDictionaryHandler::SetHash(HeapObject table, int hash) {
   if (table.IsSmallOrderedNameDictionary()) {
-    return SmallOrderedNameDictionary::cast(table).SetHash(hash);
+    return SmallOrderedNameDictionary::cast(table)->SetHash(hash);
   }
 
   DCHECK(table.IsOrderedNameDictionary());
-  OrderedNameDictionary::cast(table).SetHash(hash);
+  OrderedNameDictionary::cast(table)->SetHash(hash);
 }
 
 Name OrderedNameDictionaryHandler::KeyAt(HeapObject table,
                                          InternalIndex entry) {
   if (table.IsSmallOrderedNameDictionary()) {
-    return Name::cast(SmallOrderedNameDictionary::cast(table).KeyAt(entry));
+    return Name::cast(SmallOrderedNameDictionary::cast(table)->KeyAt(entry));
   }
 
   return Name::cast(
-      OrderedNameDictionary::cast(table).KeyAt(InternalIndex(entry)));
+      OrderedNameDictionary::cast(table)->KeyAt(InternalIndex(entry)));
 }
 
 int OrderedNameDictionaryHandler::NumberOfElements(HeapObject table) {
   if (table.IsSmallOrderedNameDictionary()) {
-    return SmallOrderedNameDictionary::cast(table).NumberOfElements();
+    return SmallOrderedNameDictionary::cast(table)->NumberOfElements();
   }
 
-  return OrderedNameDictionary::cast(table).NumberOfElements();
+  return OrderedNameDictionary::cast(table)->NumberOfElements();
 }
 
 int OrderedNameDictionaryHandler::Capacity(HeapObject table) {
   if (table.IsSmallOrderedNameDictionary()) {
-    return SmallOrderedNameDictionary::cast(table).Capacity();
+    return SmallOrderedNameDictionary::cast(table)->Capacity();
   }
 
-  return OrderedNameDictionary::cast(table).Capacity();
+  return OrderedNameDictionary::cast(table)->Capacity();
 }
 
 Handle<HeapObject> OrderedNameDictionaryHandler::Shrink(

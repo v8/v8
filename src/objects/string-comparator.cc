@@ -47,7 +47,7 @@ void StringComparator::State::Advance(
 bool StringComparator::Equals(
     String string_1, String string_2,
     const SharedStringAccessGuardIfNeeded& access_guard) {
-  int length = string_1.length();
+  int length = string_1->length();
   state_1_.Init(string_1, access_guard);
   state_2_.Init(string_2, access_guard);
   while (true) {

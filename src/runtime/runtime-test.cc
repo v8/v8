@@ -93,8 +93,8 @@ bool IsAsmWasmFunction(Isolate* isolate, JSFunction function) {
 #if V8_ENABLE_WEBASSEMBLY
   // For simplicity we include invalid asm.js functions whose code hasn't yet
   // been updated to CompileLazy but is still the InstantiateAsmJs builtin.
-  return function.shared().HasAsmWasmData() ||
-         function.code().builtin_id() == Builtin::kInstantiateAsmJs;
+  return function->shared()->HasAsmWasmData() ||
+         function->code()->builtin_id() == Builtin::kInstantiateAsmJs;
 #else
   return false;
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -297,7 +297,7 @@ bool CanOptimizeFunction(CodeKind target_kind, Handle<JSFunction> function,
   // The following conditions were lifted (in part) from the DCHECK inside
   // JSFunction::MarkForOptimization().
 
-  if (!function->shared().allows_lazy_compilation()) {
+  if (!function->shared()->allows_lazy_compilation()) {
     return CrashUnlessFuzzingReturnFalse(isolate);
   }
 
@@ -313,8 +313,8 @@ bool CanOptimizeFunction(CodeKind target_kind, Handle<JSFunction> function,
     return false;
   }
 
-  if (function->shared().optimization_disabled() &&
-      function->shared().disabled_optimization_reason() ==
+  if (function->shared()->optimization_disabled() &&
+      function->shared()->disabled_optimization_reason() ==
           BailoutReason::kNeverOptimize) {
     return CrashUnlessFuzzingReturnFalse(isolate);
   }
@@ -350,7 +350,7 @@ Object OptimizeFunctionOnNextCall(RuntimeArguments& args, Isolate* isolate,
   Handle<JSFunction> function = Handle<JSFunction>::cast(function_object);
 
   IsCompiledScope is_compiled_scope(
-      function->shared().is_compiled_scope(isolate));
+      function->shared()->is_compiled_scope(isolate));
   if (!CanOptimizeFunction(target_kind, function, isolate,
                            &is_compiled_scope)) {
     return ReadOnlyRoots(isolate).undefined_value();
@@ -370,10 +370,10 @@ Object OptimizeFunctionOnNextCall(RuntimeArguments& args, Isolate* isolate,
   // This function may not have been lazily compiled yet, even though its shared
   // function has.
   if (!function->is_compiled()) {
-    DCHECK(function->shared().HasBytecodeArray());
+    DCHECK(function->shared()->HasBytecodeArray());
     Code code = *BUILTIN_CODE(isolate, InterpreterEntryTrampoline);
-    if (function->shared().HasBaselineCode()) {
-      code = function->shared().baseline_code(kAcquireLoad);
+    if (function->shared()->HasBaselineCode()) {
+      code = function->shared()->baseline_code(kAcquireLoad);
     }
     function->set_code(code);
   }
@@ -389,11 +389,11 @@ bool EnsureCompiledAndFeedbackVector(Isolate* isolate,
                                      Handle<JSFunction> function,
                                      IsCompiledScope* is_compiled_scope) {
   // Check function allows lazy compilation.
-  if (!function->shared().allows_lazy_compilation()) return false;
+  if (!function->shared()->allows_lazy_compilation()) return false;
 
   // If function isn't compiled, compile it now.
   *is_compiled_scope =
-      function->shared().is_compiled_scope(function->GetIsolate());
+      function->shared()->is_compiled_scope(function->GetIsolate());
   if (!is_compiled_scope->is_compiled() &&
       !Compiler::Compile(isolate, function, Compiler::CLEAR_EXCEPTION,
                          is_compiled_scope)) {
@@ -418,9 +418,9 @@ RUNTIME_FUNCTION(Runtime_CompileBaseline) {
   Handle<JSFunction> function = Handle<JSFunction>::cast(function_object);
 
   IsCompiledScope is_compiled_scope =
-      function->shared(isolate).is_compiled_scope(isolate);
+      function->shared(isolate)->is_compiled_scope(isolate);
 
-  if (!function->shared(isolate).IsUserJavaScript()) {
+  if (!function->shared(isolate)->IsUserJavaScript()) {
     return CrashUnlessFuzzing(isolate);
   }
 
@@ -572,8 +572,8 @@ RUNTIME_FUNCTION(Runtime_PrepareFunctionForOptimization) {
 
   // If optimization is disabled for the function, return without marking it for
   // manual optimization
-  if (function->shared().optimization_disabled() &&
-      function->shared().disabled_optimization_reason() ==
+  if (function->shared()->optimization_disabled() &&
+      function->shared()->disabled_optimization_reason() ==
           BailoutReason::kNeverOptimize) {
     return CrashUnlessFuzzing(isolate);
   }
@@ -678,12 +678,12 @@ RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
     return ReadOnlyRoots(isolate).undefined_value();
   }
 
-  if (!function->shared().allows_lazy_compilation()) {
+  if (!function->shared()->allows_lazy_compilation()) {
     return CrashUnlessFuzzing(isolate);
   }
 
-  if (function->shared().optimization_disabled() &&
-      function->shared().disabled_optimization_reason() ==
+  if (function->shared()->optimization_disabled() &&
+      function->shared()->disabled_optimization_reason() ==
           BailoutReason::kNeverOptimize) {
     return CrashUnlessFuzzing(isolate);
   }
@@ -694,7 +694,7 @@ RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
   }
 
   if (function->HasAvailableOptimizedCode() &&
-      (!function->code().is_maglevved() || !v8_flags.osr_from_maglev)) {
+      (!function->code()->is_maglevved() || !v8_flags.osr_from_maglev)) {
     DCHECK(function->HasAttachedOptimizedCode() ||
            function->ChecksTieringState());
     // If function is already optimized, return.
@@ -708,7 +708,7 @@ RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
   }
 
   IsCompiledScope is_compiled_scope(
-      function->shared().is_compiled_scope(isolate));
+      function->shared()->is_compiled_scope(isolate));
   JSFunction::EnsureFeedbackVector(isolate, function, &is_compiled_scope);
   isolate->tiering_manager()->RequestOsrAtNextOpportunity(*function);
 
@@ -739,7 +739,7 @@ RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
     } else {
       MaglevFrame* frame = MaglevFrame::cast(it.frame());
       Handle<BytecodeArray> bytecode_array(
-          function->shared().GetBytecodeArray(isolate), isolate);
+          function->shared()->GetBytecodeArray(isolate), isolate);
       const BytecodeOffset current_offset = frame->GetBytecodeOffsetForOSR();
       // TODO(olivf) It's possible that a valid osr_offset happens to be the
       // construct stub range but. We should use OptimizedFrame::Summarize here
@@ -786,7 +786,7 @@ RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
     if (is_maglev) {
       // Maglev ignores the maybe_has_optimized_osr_code flag, thus we also need
       // to set a maximum urgency.
-      function->feedback_vector().set_osr_urgency(
+      function->feedback_vector()->set_osr_urgency(
           FeedbackVector::kMaxOsrUrgency);
     }
   }
@@ -812,7 +812,7 @@ RUNTIME_FUNCTION(Runtime_BaselineOsr) {
   }
 
   IsCompiledScope is_compiled_scope(
-      function->shared().is_compiled_scope(isolate));
+      function->shared()->is_compiled_scope(isolate));
   Compiler::CompileBaseline(isolate, function, Compiler::CLEAR_EXCEPTION,
                             &is_compiled_scope);
 
@@ -831,7 +831,7 @@ RUNTIME_FUNCTION(Runtime_NeverOptimizeFunction) {
   }
   Handle<JSFunction> function = Handle<JSFunction>::cast(function_object);
   Handle<SharedFunctionInfo> sfi(function->shared(cage_base), isolate);
-  CodeKind code_kind = sfi->abstract_code(isolate).kind(cage_base);
+  CodeKind code_kind = sfi->abstract_code(isolate)->kind(cage_base);
   switch (code_kind) {
     case CodeKind::INTERPRETED_FUNCTION:
       break;
@@ -909,14 +909,14 @@ RUNTIME_FUNCTION(Runtime_GetOptimizationStatus) {
 
   if (function->HasAttachedOptimizedCode()) {
     Code code = function->code();
-    if (code.marked_for_deoptimization()) {
+    if (code->marked_for_deoptimization()) {
       status |= static_cast<int>(OptimizationStatus::kMarkedForDeoptimization);
     } else {
       status |= static_cast<int>(OptimizationStatus::kOptimized);
     }
-    if (code.is_maglevved()) {
+    if (code->is_maglevved()) {
       status |= static_cast<int>(OptimizationStatus::kMaglevved);
-    } else if (code.is_turbofanned()) {
+    } else if (code->is_turbofanned()) {
       status |= static_cast<int>(OptimizationStatus::kTurboFanned);
     }
   }
@@ -1225,7 +1225,7 @@ static void DebugPrintImpl(MaybeObject maybe_object, std::ostream& os) {
     if (weak) os << "[weak] ";
     object.Print(os);
     if (object.IsHeapObject()) {
-      HeapObject::cast(object).map().Print(os);
+      HeapObject::cast(object)->map().Print(os);
     }
 #else
     if (weak) os << "[weak] ";
@@ -1497,9 +1497,9 @@ RUNTIME_FUNCTION(Runtime_DisassembleFunction) {
   Handle<JSFunction> func = args.at<JSFunction>(0);
   IsCompiledScope is_compiled_scope;
   if (!func->is_compiled() && func->HasAvailableOptimizedCode()) {
-    func->set_code(func->feedback_vector().optimized_code());
+    func->set_code(func->feedback_vector()->optimized_code());
   }
-  CHECK(func->shared().is_compiled() ||
+  CHECK(func->shared()->is_compiled() ||
         Compiler::Compile(isolate, func, Compiler::KEEP_EXCEPTION,
                           &is_compiled_scope));
   StdoutStream os;
@@ -1559,7 +1559,7 @@ RUNTIME_FUNCTION(Runtime_HaveSameMap) {
   }
   auto obj1 = HeapObject::cast(args[0]);
   auto obj2 = HeapObject::cast(args[1]);
-  return isolate->heap()->ToBoolean(obj1.map() == obj2.map());
+  return isolate->heap()->ToBoolean(obj1->map() == obj2->map());
 }
 
 RUNTIME_FUNCTION(Runtime_InLargeObjectSpace) {
@@ -1580,7 +1580,7 @@ RUNTIME_FUNCTION(Runtime_HasElementsInALargeObjectSpace) {
     return CrashUnlessFuzzing(isolate);
   }
   auto array = JSArray::cast(args[0]);
-  FixedArrayBase elements = array.elements();
+  FixedArrayBase elements = array->elements();
   return isolate->heap()->ToBoolean(
       isolate->heap()->new_lo_space()->Contains(elements) ||
       isolate->heap()->lo_space()->Contains(elements));
@@ -1604,7 +1604,7 @@ RUNTIME_FUNCTION(Runtime_PretenureAllocationSite) {
   if (!arg.IsJSObject()) return CrashUnlessFuzzing(isolate);
   JSObject object = JSObject::cast(arg);
 
-  Heap* heap = object.GetHeap();
+  Heap* heap = object->GetHeap();
   if (!heap->InYoungGeneration(object)) {
     // Object is not in new space, thus there is no memento and nothing to do.
     return ReturnFuzzSafe(ReadOnlyRoots(isolate).false_value(), isolate);
@@ -1613,11 +1613,11 @@ RUNTIME_FUNCTION(Runtime_PretenureAllocationSite) {
   PretenuringHandler* pretenuring_handler = heap->pretenuring_handler();
   AllocationMemento memento =
       pretenuring_handler
-          ->FindAllocationMemento<PretenuringHandler::kForRuntime>(object.map(),
-                                                                   object);
+          ->FindAllocationMemento<PretenuringHandler::kForRuntime>(
+              object->map(), object);
   if (memento.is_null())
     return ReturnFuzzSafe(ReadOnlyRoots(isolate).false_value(), isolate);
-  AllocationSite site = memento.GetAllocationSite();
+  AllocationSite site = memento->GetAllocationSite();
   pretenuring_handler->PretenureAllocationSiteOnNextCollection(site);
   return ReturnFuzzSafe(ReadOnlyRoots(isolate).true_value(), isolate);
 }
@@ -1637,7 +1637,7 @@ RUNTIME_FUNCTION(Runtime_DisallowCodegenFromStrings) {
   if (args.length() != 1) {
     return CrashUnlessFuzzing(isolate);
   }
-  bool flag = Boolean::cast(args[0]).ToBool(isolate);
+  bool flag = Boolean::cast(args[0])->ToBool(isolate);
   v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
   v8_isolate->SetModifyCodeGenerationFromStringsCallback(
       flag ? DisallowCodegenFromStringsCallback : nullptr);
@@ -1650,10 +1650,10 @@ RUNTIME_FUNCTION(Runtime_RegexpHasBytecode) {
     return CrashUnlessFuzzing(isolate);
   }
   auto regexp = JSRegExp::cast(args[0]);
-  bool is_latin1 = Boolean::cast(args[1]).ToBool(isolate);
+  bool is_latin1 = Boolean::cast(args[1])->ToBool(isolate);
   bool result;
-  if (regexp.type_tag() == JSRegExp::IRREGEXP) {
-    result = regexp.bytecode(is_latin1).IsByteArray();
+  if (regexp->type_tag() == JSRegExp::IRREGEXP) {
+    result = regexp->bytecode(is_latin1).IsByteArray();
   } else {
     result = false;
   }
@@ -1666,10 +1666,10 @@ RUNTIME_FUNCTION(Runtime_RegexpHasNativeCode) {
     return CrashUnlessFuzzing(isolate);
   }
   auto regexp = JSRegExp::cast(args[0]);
-  bool is_latin1 = Boolean::cast(args[1]).ToBool(isolate);
+  bool is_latin1 = Boolean::cast(args[1])->ToBool(isolate);
   bool result;
-  if (regexp.type_tag() == JSRegExp::IRREGEXP) {
-    result = regexp.code(is_latin1).IsCode();
+  if (regexp->type_tag() == JSRegExp::IRREGEXP) {
+    result = regexp->code(is_latin1).IsCode();
   } else {
     result = false;
   }
@@ -1683,7 +1683,7 @@ RUNTIME_FUNCTION(Runtime_RegexpTypeTag) {
   }
   auto regexp = JSRegExp::cast(args[0]);
   const char* type_str;
-  switch (regexp.type_tag()) {
+  switch (regexp->type_tag()) {
     case JSRegExp::NOT_COMPILED:
       type_str = "NOT_COMPILED";
       break;
@@ -1710,10 +1710,10 @@ RUNTIME_FUNCTION(Runtime_RegexpIsUnmodified) {
       RegExp::IsUnmodifiedRegExp(isolate, regexp));
 }
 
-#define ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(Name) \
-  RUNTIME_FUNCTION(Runtime_##Name) {               \
-    auto obj = JSObject::cast(args[0]);            \
-    return isolate->heap()->ToBoolean(obj.Name()); \
+#define ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(Name)  \
+  RUNTIME_FUNCTION(Runtime_##Name) {                \
+    auto obj = JSObject::cast(args[0]);             \
+    return isolate->heap()->ToBoolean(obj->Name()); \
   }
 
 ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(HasFastElements)
@@ -1733,7 +1733,7 @@ ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(HasFastProperties)
 #define FIXED_TYPED_ARRAYS_CHECK_RUNTIME_FUNCTION(Type, type, TYPE, ctype) \
   RUNTIME_FUNCTION(Runtime_HasFixed##Type##Elements) {                     \
     auto obj = JSObject::cast(args[0]);                                    \
-    return isolate->heap()->ToBoolean(obj.HasFixed##Type##Elements());     \
+    return isolate->heap()->ToBoolean(obj->HasFixed##Type##Elements());    \
   }
 
 TYPED_ARRAYS(FIXED_TYPED_ARRAYS_CHECK_RUNTIME_FUNCTION)
@@ -2054,7 +2054,7 @@ RUNTIME_FUNCTION(Runtime_GetWeakCollectionSize) {
   Handle<JSWeakCollection> collection = args.at<JSWeakCollection>(0);
 
   return Smi::FromInt(
-      EphemeronHashTable::cast(collection->table()).NumberOfElements());
+      EphemeronHashTable::cast(collection->table())->NumberOfElements());
 }
 
 }  // namespace internal

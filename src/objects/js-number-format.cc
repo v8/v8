@@ -880,7 +880,7 @@ Handle<JSObject> JSNumberFormat::ResolvedOptions(
 
   UErrorCode status = U_ZERO_ERROR;
   icu::number::LocalizedNumberFormatter* fmt =
-      number_format->icu_number_formatter().raw();
+      number_format->icu_number_formatter()->raw();
   icu::UnicodeString skeleton = fmt->toSkeleton(status);
   DCHECK(U_SUCCESS(status));
 
@@ -1041,7 +1041,7 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::UnwrapNumberFormat(
   // old code copy from NumberFormat::Unwrap that has no spec comment and
   // compiled but fail unit tests.
   Handle<Context> native_context =
-      Handle<Context>(isolate->context().native_context(), isolate);
+      Handle<Context>(isolate->context()->native_context(), isolate);
   Handle<JSFunction> constructor = Handle<JSFunction>(
       JSFunction::cast(native_context->intl_number_format_function()), isolate);
   Handle<Object> object;
@@ -2034,7 +2034,7 @@ MaybeHandle<T> PartitionNumberRangePattern(Isolate* isolate,
   Maybe<icu::number::LocalizedNumberRangeFormatter> maybe_range_formatter =
       JSNumberFormat::GetRangeFormatter(
           isolate, number_format->locale(),
-          *number_format->icu_number_formatter().raw());
+          *number_format->icu_number_formatter()->raw());
   MAYBE_RETURN(maybe_range_formatter, MaybeHandle<T>());
 
   icu::number::LocalizedNumberRangeFormatter nrfmt =
@@ -2046,7 +2046,7 @@ MaybeHandle<T> PartitionNumberRangePattern(Isolate* isolate,
   icu::number::FormattedNumberRange formatted =
       std::move(maybe_formatted).FromJust();
 
-  return F(isolate, formatted, *(number_format->icu_number_formatter().raw()),
+  return F(isolate, formatted, *(number_format->icu_number_formatter()->raw()),
            false /* is_nan */);
 }
 
@@ -2103,7 +2103,7 @@ JSNumberFormat::GetRangeFormatter(
           .numberFormatterBoth(icu::number::NumberFormatter::forSkeleton(
               number_formatter.toSkeleton(status), perror, status))
           .locale(
-              icu::Locale::forLanguageTag(locale.ToCString().get(), status));
+              icu::Locale::forLanguageTag(locale->ToCString().get(), status));
   if (U_FAILURE(status)) {
     THROW_NEW_ERROR_RETURN_VALUE(
         isolate, NewTypeError(MessageTemplate::kIcuError),
@@ -2129,7 +2129,7 @@ MaybeHandle<String> JSNumberFormat::NumberFormatFunction(
     Isolate* isolate, Handle<JSNumberFormat> number_format,
     Handle<Object> value) {
   icu::number::LocalizedNumberFormatter* fmt =
-      number_format->icu_number_formatter().raw();
+      number_format->icu_number_formatter()->raw();
   CHECK_NOT_NULL(fmt);
 
   // 4. Let x be ? ToIntlMathematicalValue(value).
@@ -2152,7 +2152,7 @@ MaybeHandle<JSArray> JSNumberFormat::FormatToParts(
     Isolate* isolate, Handle<JSNumberFormat> number_format,
     Handle<Object> numeric_obj) {
   icu::number::LocalizedNumberFormatter* fmt =
-      number_format->icu_number_formatter().raw();
+      number_format->icu_number_formatter()->raw();
   DCHECK_NOT_NULL(fmt);
   IntlMathematicalValue value;
   MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
