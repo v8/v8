@@ -17,6 +17,7 @@
 #include "src/heap/mark-compact.h"
 #include "src/heap/marking-barrier.h"
 #include "src/heap/memory-chunk.h"
+#include "src/heap/page-inl.h"
 #include "src/heap/safepoint.h"
 #include "src/heap/spaces.h"
 #include "src/objects/free-space-inl.h"

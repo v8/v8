@@ -29,6 +29,7 @@
 #include "src/heap/memory-chunk-layout.h"
 #include "src/heap/memory-chunk.h"
 #include "src/heap/new-spaces.h"
+#include "src/heap/page-inl.h"
 #include "src/heap/paged-spaces.h"
 #include "src/heap/pretenuring-handler-inl.h"
 #include "src/heap/pretenuring-handler.h"

@@ -178,13 +178,7 @@ class FreeList {
   void increase_wasted_bytes(size_t bytes) { wasted_bytes_ += bytes; }
   void decrease_wasted_bytes(size_t bytes) { wasted_bytes_ -= bytes; }
 
-  bool IsEmpty() {
-    bool empty = true;
-    ForAllFreeListCategories([&empty](FreeListCategory* category) {
-      if (!category->is_empty()) empty = false;
-    });
-    return empty;
-  }
+  inline bool IsEmpty();
 
   // Used after booting the VM.
   void RepairLists(Heap* heap);
