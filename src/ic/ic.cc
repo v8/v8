@@ -3132,9 +3132,6 @@ enum class FastCloneObjectMode {
 FastCloneObjectMode GetCloneModeForMap(Handle<Map> map, int flags,
                                        Isolate* isolate) {
   DisallowGarbageCollection no_gc;
-  if (flags & ObjectLiteral::kHasNullPrototype) {
-    return FastCloneObjectMode::kDifferentMap;
-  }
   if (!map->IsJSObjectMap()) {
     // Everything that produces the empty object literal can be supported since
     // we have a special case for that.
@@ -3159,6 +3156,10 @@ FastCloneObjectMode GetCloneModeForMap(Handle<Map> map, int flags,
               !map->is_prototype_map()
           ? FastCloneObjectMode::kIdenticalMap
           : FastCloneObjectMode::kDifferentMap;
+
+  if (flags & ObjectLiteral::kHasNullPrototype || map->prototype().IsNull()) {
+    mode = FastCloneObjectMode::kDifferentMap;
+  }
 
   DescriptorArray descriptors = map->instance_descriptors();
   for (InternalIndex i : map->IterateOwnDescriptors()) {
@@ -3189,7 +3190,9 @@ bool CanFastCloneObjectWithDifferentMaps(Handle<Map> source_map,
   // the same binary layout.
   if (source_map->instance_type() != JS_OBJECT_TYPE ||
       target_map->instance_type() != JS_OBJECT_TYPE ||
-      source_map->instance_size() < target_map->instance_size()) {
+      source_map->instance_size() < target_map->instance_size() ||
+      !source_map->OnlyHasSimpleProperties() ||
+      !target_map->OnlyHasSimpleProperties()) {
     return false;
   }
   if (target_map->instance_size() > source_map->instance_size()) {
@@ -3244,7 +3247,7 @@ static MaybeHandle<JSObject> CloneObjectSlowPath(Isolate* isolate,
                      source_map->UnusedInObjectProperties();
     Handle<Map> map = isolate->factory()->ObjectLiteralMapFromCache(
         isolate->native_context(), properties);
-    new_object = isolate->factory()->NewJSObjectFromMap(map);
+    new_object = isolate->factory()->NewFastOrSlowJSObjectFromMap(map);
   } else {
     Handle<JSFunction> constructor(isolate->native_context()->object_function(),
                                    isolate);
@@ -3310,6 +3313,7 @@ RUNTIME_FUNCTION(Runtime_CloneObjectIC_Miss) {
                                    isolate);
             if (CanFastCloneObjectWithDifferentMaps(source_map, result_map,
                                                     isolate)) {
+              DCHECK(result_map->OnlyHasSimpleProperties());
               nexus.ConfigureCloneObject(source_map,
                                          MaybeObjectHandle(result_map));
             } else {

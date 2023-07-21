@@ -2612,6 +2612,9 @@ Handle<JSObject> Factory::NewJSObject(Handle<JSFunction> constructor,
                                       AllocationType allocation) {
   JSFunction::EnsureHasInitialMap(constructor);
   Handle<Map> map(constructor->initial_map(), isolate());
+  // NewJSObjectFromMap does not support creating dictionary mode objects. Need
+  // to use NewSlowJSObjectFromMap instead.
+  DCHECK(!map->is_dictionary_map());
   return NewJSObjectFromMap(map, allocation);
 }
 

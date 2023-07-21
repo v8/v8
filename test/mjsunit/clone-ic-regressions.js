@@ -98,11 +98,64 @@ test({}, buffer);
 test({0:0,1:0}, idView);
 
 // with prototypes
-__v_0 = Object.create(null);
-__v_1 = Object.create(__v_0);
-test({}, __v_0);
-test({}, __v_1);
+{
+  __v_0 = Object.create(null);
+  __v_1 = Object.create(__v_0);
+  test({}, __v_0);
+  test({}, __v_1);
+  function F0() {}
+  const v2 = new F0();
+  test({}, v2);
+}
 
-function F0() {}
-const v2 = new F0();
-test({}, v2);
+// null prototype
+{
+  function F0() {
+      this.b = 4294967297;
+  }
+  const v3 = new F0();
+  const o4 = {
+      __proto__: v3,
+  };
+  const o7 = {
+      ...o4,
+      __proto__: null,
+  };
+  const o6 = {
+      ...v3,
+      __proto__: null,
+  };
+  assertEquals(o6, {b: 4294967297});
+  assertEquals(o7, {});
+  test({}, o7);
+  test({b: 4294967297}, o6);
+}
+
+// Dictionary mode objects
+{
+  let v0 = "";
+  for (let v1 = 0; v1 < 250; v1++) {
+      v0 += `this.a${v1} = 0;\n`;
+  }
+  const v4 = Function(v0);
+  const v5 = new v4();
+  const o6 = {
+     ...v5,
+  };
+  test(o6, v5);
+}
+
+// Null proto with non data props
+{
+  const v0 = [1];
+  const o3 = {
+      ...v0,
+      get g() {
+      },
+  };
+  const o4 = {
+      ...o3,
+      __proto__: null,
+  };
+  test({0: 1, g: undefined}, o4);
+}
