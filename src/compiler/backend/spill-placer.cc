@@ -11,9 +11,8 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-SpillPlacer::SpillPlacer(LiveRangeFinder* finder,
-                         TopTierRegisterAllocationData* data, Zone* zone)
-    : finder_(finder), data_(data), zone_(zone) {}
+SpillPlacer::SpillPlacer(TopTierRegisterAllocationData* data, Zone* zone)
+    : data_(data), zone_(zone) {}
 
 SpillPlacer::~SpillPlacer() {
   if (assigned_indices_ > 0) {
@@ -462,19 +461,19 @@ void SpillPlacer::SecondBackwardPass() {
 
 void SpillPlacer::CommitSpill(int vreg, InstructionBlock* predecessor,
                               InstructionBlock* successor) {
-  TopLevelLiveRange* top = data()->live_ranges()[vreg];
-  LiveRangeBoundArray* array = finder_->ArrayFor(vreg);
+  TopLevelLiveRange* live_range = data()->live_ranges()[vreg];
   LifetimePosition pred_end = LifetimePosition::InstructionFromInstructionIndex(
       predecessor->last_instruction_index());
-  LiveRangeBound* bound = array->Find(pred_end);
-  InstructionOperand pred_op = bound->range_->GetAssignedOperand();
+  LiveRange* child_range = live_range->GetChildCovers(pred_end);
+  DCHECK_NOT_NULL(child_range);
+  InstructionOperand pred_op = child_range->GetAssignedOperand();
   DCHECK(pred_op.IsAnyRegister());
   DCHECK_EQ(successor->PredecessorCount(), 1);
   data()->AddGapMove(successor->first_instruction_index(),
                      Instruction::GapPosition::START, pred_op,
-                     top->GetSpillRangeOperand());
+                     live_range->GetSpillRangeOperand());
   successor->mark_needs_frame();
-  top->SetLateSpillingSelected(true);
+  live_range->SetLateSpillingSelected(true);
 }
 
 }  // namespace compiler

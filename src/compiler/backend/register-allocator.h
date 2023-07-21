@@ -906,12 +906,14 @@ class V8_EXPORT_PRIVATE LiveRange : public NON_EXPORTED_BASE(ZoneObject) {
 
   LifetimePosition Start() const {
     DCHECK(!IsEmpty());
-    return intervals_.front().start();
+    DCHECK_EQ(start_, intervals_.front().start());
+    return start_;
   }
 
   LifetimePosition End() const {
     DCHECK(!IsEmpty());
-    return intervals_.back().end();
+    DCHECK_EQ(end_, intervals_.back().end());
+    return end_;
   }
 
   bool ShouldBeAllocatedBefore(const LiveRange* other) const;
@@ -991,6 +993,11 @@ class V8_EXPORT_PRIVATE LiveRange : public NON_EXPORTED_BASE(ZoneObject) {
 
   // Next interval start, relative to the current linear scan position.
   LifetimePosition next_start_;
+
+  // Just a cache for `Start()` and `End()` that improves locality
+  // (i.e., one less pointer indirection).
+  LifetimePosition start_;
+  LifetimePosition end_;
 };
 
 struct LiveRangeOrdering {
@@ -1201,15 +1208,11 @@ class V8_EXPORT_PRIVATE TopLevelLiveRange final : public LiveRange {
   void VerifyChildrenInOrder() const;
 #endif
 
-  // Returns the LiveRange covering the given position, or nullptr if no such
-  // range exists. Uses a linear search through child ranges. The range at the
-  // previously requested position is cached, so this function will be very fast
-  // if you call it with a non-decreasing sequence of positions.
+  // Returns the child `LiveRange` covering the given position, or `nullptr`
+  // if no such range exists. Uses a binary search.
   LiveRange* GetChildCovers(LifetimePosition pos);
 
   int GetNextChildId() { return ++last_child_id_; }
-
-  int GetMaxChildCount() const { return last_child_id_ + 1; }
 
   bool IsSpilledOnlyInDeferredBlocks(
       const TopTierRegisterAllocationData* data) const {
@@ -1359,70 +1362,6 @@ class SpillRange final : public ZoneObject {
 
   int assigned_slot_;
   int byte_width_;
-};
-
-// A live range with the start and end position, and helper methods for the
-// ResolveControlFlow phase.
-class LiveRangeBound {
- public:
-  explicit LiveRangeBound(LiveRange* range, bool skip)
-      : range_(range), start_(range->Start()), end_(range->End()), skip_(skip) {
-    DCHECK(!range->IsEmpty());
-  }
-  LiveRangeBound(const LiveRangeBound&) = delete;
-  LiveRangeBound& operator=(const LiveRangeBound&) = delete;
-
-  bool CanCover(LifetimePosition position) {
-    return start_ <= position && position < end_;
-  }
-
-  LiveRange* const range_;
-  const LifetimePosition start_;
-  const LifetimePosition end_;
-  const bool skip_;
-};
-
-struct FindResult {
-  LiveRange* cur_cover_;
-  LiveRange* pred_cover_;
-};
-
-// An array of LiveRangeBounds belonging to the same TopLevelLiveRange. Sorted
-// by their start position for quick binary search.
-class LiveRangeBoundArray {
- public:
-  LiveRangeBoundArray() : length_(0), start_(nullptr) {}
-  LiveRangeBoundArray(const LiveRangeBoundArray&) = delete;
-  LiveRangeBoundArray& operator=(const LiveRangeBoundArray&) = delete;
-
-  bool ShouldInitialize() { return start_ == nullptr; }
-  void Initialize(Zone* zone, TopLevelLiveRange* range);
-  LiveRangeBound* Find(const LifetimePosition position) const;
-  LiveRangeBound* FindPred(const InstructionBlock* pred);
-  LiveRangeBound* FindSucc(const InstructionBlock* succ);
-  bool FindConnectableSubranges(const InstructionBlock* block,
-                                const InstructionBlock* pred,
-                                FindResult* result) const;
-
- private:
-  size_t length_;
-  LiveRangeBound* start_;
-};
-
-class LiveRangeFinder {
- public:
-  explicit LiveRangeFinder(const TopTierRegisterAllocationData* data,
-                           Zone* zone);
-  LiveRangeFinder(const LiveRangeFinder&) = delete;
-  LiveRangeFinder& operator=(const LiveRangeFinder&) = delete;
-
-  LiveRangeBoundArray* ArrayFor(int operand_index);
-
- private:
-  const TopTierRegisterAllocationData* const data_;
-  const int bounds_length_;
-  LiveRangeBoundArray* const bounds_;
-  Zone* const zone_;
 };
 
 class ConstraintBuilder final : public ZoneObject {
@@ -1876,14 +1815,20 @@ class LiveRangeConnector final : public ZoneObject {
 
   bool CanEagerlyResolveControlFlow(const InstructionBlock* block) const;
 
+  struct FindResult {
+    LiveRange* cur_cover_;
+    LiveRange* pred_cover_;
+  };
+  base::Optional<FindResult> FindConnectableSubranges(
+      TopLevelLiveRange* live_range, const InstructionBlock* block,
+      const InstructionBlock* pred) const;
+
   int ResolveControlFlow(const InstructionBlock* block,
                          const InstructionOperand& cur_op,
                          const InstructionBlock* pred,
                          const InstructionOperand& pred_op);
 
-  void CommitSpillsInDeferredBlocks(TopLevelLiveRange* range,
-                                    LiveRangeBoundArray* array,
-                                    Zone* temp_zone);
+  void CommitSpillsInDeferredBlocks(TopLevelLiveRange* range, Zone* temp_zone);
 
   TopTierRegisterAllocationData* const data_;
 };
