@@ -424,20 +424,6 @@ void LiftoffAssembler::LoadTaggedPointerFromInstance(Register dst,
   mov(dst, Operand{instance, offset});
 }
 
-void LiftoffAssembler::LoadExternalPointer(Register dst, Register src_addr,
-                                           int offset, ExternalPointerTag tag,
-                                           Register scratch) {
-  LoadFullPointer(dst, src_addr, offset);
-}
-
-void LiftoffAssembler::LoadExternalPointer(Register dst, Register src_addr,
-                                           int offset, Register index,
-                                           ExternalPointerTag tag,
-                                           Register scratch) {
-  Operand src_op = Operand(src_addr, index, times_4, offset);
-  mov(dst, src_op);
-}
-
 void LiftoffAssembler::SpillInstance(Register instance) {
   mov(liftoff::GetInstanceOperand(), instance);
 }

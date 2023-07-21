@@ -785,13 +785,6 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   inline void WriteExternalPointerField(size_t offset, Isolate* isolate,
                                         Address value);
 
-  template <ExternalPointerTag tag>
-  inline void WriteLazilyInitializedExternalPointerField(size_t offset,
-                                                         Isolate* isolate,
-                                                         Address value);
-
-  inline void ResetLazilyInitializedExternalPointerField(size_t offset);
-
   //
   // CodePointer field accessors.
   //

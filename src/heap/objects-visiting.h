@@ -26,7 +26,6 @@ namespace internal {
   V(BigInt)                             \
   V(ByteArray)                          \
   V(BytecodeArray)                      \
-  V(ExternalPointerArray)               \
   V(CallHandlerInfo)                    \
   V(Cell)                               \
   V(InstructionStream)                  \

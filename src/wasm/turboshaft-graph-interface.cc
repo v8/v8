@@ -43,7 +43,6 @@ using compiler::turboshaft::RegisterRepresentation;
 using compiler::turboshaft::StoreOp;
 using compiler::turboshaft::SupportedOperations;
 using compiler::turboshaft::Tagged;
-using compiler::turboshaft::WordRepresentation;
 using TSBlock = compiler::turboshaft::Block;
 using compiler::turboshaft::TSCallDescriptor;
 using compiler::turboshaft::V;
@@ -2517,27 +2516,6 @@ class TurboshaftGraphBuildingInterface {
     return {target, ref};
   }
 
-  OpIndex BuildDecodeExternalPointer(OpIndex handle, ExternalPointerTag tag) {
-#ifdef V8_ENABLE_SANDBOX
-    // Decode loaded external pointer.
-    OpIndex isolate_root = asm_.LoadRootRegister();
-    DCHECK(!IsSharedExternalPointerType(tag));
-    OpIndex table =
-        asm_.Load(isolate_root, LoadOp::Kind::RawAligned(),
-                  MemoryRepresentation::PointerSized(),
-                  IsolateData::external_pointer_table_offset() +
-                      Internals::kExternalPointerTableBasePointerOffset);
-    OpIndex index = asm_.ShiftRightLogical(handle, kExternalPointerIndexShift,
-                                           WordRepresentation::Word32());
-    OpIndex pointer = asm_.LoadOffHeap(table, asm_.ChangeUint32ToUint64(index),
-                                       0, MemoryRepresentation::PointerSized());
-    pointer = asm_.Word64BitwiseAnd(pointer, asm_.Word64Constant(~tag));
-    return pointer;
-#else   // V8_ENABLE_SANDBOX
-    UNREACHABLE();
-#endif  // V8_ENABLE_SANDBOX
-  }
-
   std::pair<OpIndex, OpIndex> BuildIndirectCallTargetAndRef(
       FullDecoder* decoder, OpIndex index, CallIndirectImmediate imm) {
     uint32_t table_index = imm.table_imm.index;
@@ -2621,18 +2599,10 @@ class TurboshaftGraphBuildingInterface {
     }
 
     /* Step 4: Extract ref and target. */
-#ifdef V8_ENABLE_SANDBOX
-    OpIndex external_pointer_handle = asm_.Load(
-        ift_targets, index_intptr, LoadOp::Kind::TaggedBase(),
-        MemoryRepresentation::Uint32(), ExternalPointerArray::kHeaderSize, 2);
-    OpIndex target = BuildDecodeExternalPointer(external_pointer_handle,
-                                                kWasmIndirectFunctionTargetTag);
-#else
     OpIndex target =
         asm_.Load(ift_targets, index_intptr, LoadOp::Kind::TaggedBase(),
-                  MemoryRepresentation::PointerSized(),
-                  ExternalPointerArray::kHeaderSize, kSystemPointerSizeLog2);
-#endif
+                  MemoryRepresentation::PointerSized(), ByteArray::kHeaderSize,
+                  kSystemPointerSizeLog2);
     OpIndex ref = LoadFixedArrayElement(ift_refs, index_intptr);
     return {target, ref};
   }

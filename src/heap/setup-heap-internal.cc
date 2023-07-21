@@ -667,7 +667,6 @@ bool Heap::CreateLateReadOnlyNonJSReceiverMaps() {
     IF_WASM(ALLOCATE_MAP, WASM_NULL_TYPE, kVariableSizeSentinel, wasm_null);
 
     ALLOCATE_MAP(WEAK_CELL_TYPE, WeakCell::kSize, weak_cell)
-    ALLOCATE_VARSIZE_MAP(EXTERNAL_POINTER_ARRAY_TYPE, external_pointer_array)
   }
 
   return true;
@@ -1271,18 +1270,6 @@ bool Heap::CreateReadOnlyObjects() {
     info = CreateSharedFunctionInfoImpl(isolate_,
                                         Builtin::kCallAsyncModuleRejected, 0);
     set_source_text_module_execute_async_module_rejected_sfi(*info);
-  }
-
-  // EmptyExternalPointerArray:
-  {
-    if (!AllocateRaw(ExternalPointerArray::SizeFor(0),
-                     AllocationType::kReadOnly)
-             .To(&obj))
-      return false;
-    obj.set_map_after_allocation(roots.external_pointer_array_map(),
-                                 SKIP_WRITE_BARRIER);
-    ExternalPointerArray::cast(obj).set_length(0);
-    set_empty_external_pointer_array(ExternalPointerArray::cast(obj));
   }
 
   // Initialize the wasm null_value.

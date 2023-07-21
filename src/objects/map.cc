@@ -104,9 +104,6 @@ VisitorId Map::GetVisitorId(Map map) {
     case BYTECODE_ARRAY_TYPE:
       return kVisitBytecodeArray;
 
-    case EXTERNAL_POINTER_ARRAY_TYPE:
-      return kVisitExternalPointerArray;
-
     case FREE_SPACE_TYPE:
       return kVisitFreeSpace;
 

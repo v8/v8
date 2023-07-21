@@ -3467,12 +3467,7 @@ void MacroAssembler::LoadExternalPointerField(Register destination,
   Mov(destination, Operand(destination, LSR, kExternalPointerIndexShift));
   Ldr(destination, MemOperand(external_table, destination, LSL,
                               kExternalPointerTableEntrySizeLog2));
-  // We need another scratch register for the 64-bit tag constant. Instead of
-  // forcing the `And` to allocate a new temp register (which we may not have),
-  // reuse the temp register that we used for the external pointer table base.
-  Register tag_reg = external_table;
-  Mov(tag_reg, Immediate(~tag));
-  And(destination, destination, tag_reg);
+  And(destination, destination, Immediate(~tag));
 #else
   Ldr(destination, field_operand);
 #endif  // V8_ENABLE_SANDBOX

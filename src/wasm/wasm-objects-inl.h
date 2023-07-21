@@ -207,7 +207,7 @@ PRIMITIVE_ACCESSORS(WasmInstanceObject, indirect_function_table_size, uint32_t,
 ACCESSORS(WasmInstanceObject, indirect_function_table_sig_ids, FixedUInt32Array,
           kIndirectFunctionTableSigIdsOffset)
 ACCESSORS(WasmInstanceObject, indirect_function_table_targets,
-          ExternalPointerArray, kIndirectFunctionTableTargetsOffset)
+          FixedAddressArray, kIndirectFunctionTableTargetsOffset)
 PRIMITIVE_ACCESSORS(WasmInstanceObject, jump_table_start, Address,
                     kJumpTableStartOffset)
 PRIMITIVE_ACCESSORS(WasmInstanceObject, hook_on_function_call_address, Address,
@@ -330,8 +330,7 @@ CAST_ACCESSOR(WasmExternalFunction)
 // WasmIndirectFunctionTable
 TQ_OBJECT_CONSTRUCTORS_IMPL(WasmIndirectFunctionTable)
 ACCESSORS(WasmIndirectFunctionTable, sig_ids, FixedUInt32Array, kSigIdsOffset)
-ACCESSORS(WasmIndirectFunctionTable, targets, ExternalPointerArray,
-          kTargetsOffset)
+ACCESSORS(WasmIndirectFunctionTable, targets, FixedAddressArray, kTargetsOffset)
 
 // WasmTypeInfo
 EXTERNAL_POINTER_ACCESSORS(WasmTypeInfo, native_type, Address,

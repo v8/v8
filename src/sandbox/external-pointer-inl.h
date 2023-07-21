@@ -110,16 +110,6 @@ V8_INLINE void WriteLazilyInitializedExternalPointerField(Address field_address,
 #endif  // V8_ENABLE_SANDBOX
 }
 
-V8_INLINE void ResetLazilyInitializedExternalPointerField(
-    Address field_address) {
-#ifdef V8_ENABLE_SANDBOX
-  auto location = reinterpret_cast<ExternalPointerHandle*>(field_address);
-  base::AsAtomic32::Release_Store(location, kNullExternalPointerHandle);
-#else
-  WriteMaybeUnalignedValue<Address>(field_address, kNullAddress);
-#endif
-}
-
 }  // namespace internal
 }  // namespace v8
 

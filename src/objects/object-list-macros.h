@@ -15,7 +15,6 @@ class AccessorPair;
 class AccessCheckInfo;
 class AllocationSite;
 class ByteArray;
-class ExternalPointerArray;
 class Cell;
 class ClosureFeedbackCellArray;
 class ConsString;
@@ -88,7 +87,6 @@ class ZoneForwardList;
   V(Boolean)                                    \
   V(BooleanWrapper)                             \
   V(ByteArray)                                  \
-  V(ExternalPointerArray)                       \
   V(BytecodeArray)                              \
   V(CallHandlerInfo)                            \
   V(Callable)                                   \

@@ -482,21 +482,11 @@ void LiftoffAssembler::LoadTaggedPointerFromInstance(Register dst,
   LoadTaggedField(dst, MemOperand{instance, offset});
 }
 
-void LiftoffAssembler::LoadExternalPointer(Register dst, Register src_addr,
+void LiftoffAssembler::LoadExternalPointer(Register dst, Register instance,
                                            int offset, ExternalPointerTag tag,
                                            Register /* scratch */) {
-  LoadExternalPointerField(dst, MemOperand{src_addr, offset}, tag,
+  LoadExternalPointerField(dst, FieldMemOperand(instance, offset), tag,
                            kRootRegister);
-}
-
-void LiftoffAssembler::LoadExternalPointer(Register dst, Register src_addr,
-                                           int offset, Register index,
-                                           ExternalPointerTag tag,
-                                           Register /* scratch */) {
-  UseScratchRegisterScope temps(this);
-  MemOperand src_op = liftoff::GetMemOp(this, &temps, src_addr, index, offset,
-                                        false, V8_ENABLE_SANDBOX ? 2 : 3);
-  LoadExternalPointerField(dst, src_op, tag, kRootRegister);
 }
 
 void LiftoffAssembler::SpillInstance(Register instance) {

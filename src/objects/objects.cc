@@ -1966,10 +1966,6 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {
     case BYTECODE_ARRAY_TYPE:
       os << "<BytecodeArray[" << BytecodeArray::cast(*this).length() << "]>";
       break;
-    case EXTERNAL_POINTER_ARRAY_TYPE:
-      os << "<ExternalPointerArray["
-         << ExternalPointerArray::cast(*this).length() << "]>";
-      break;
     case DESCRIPTOR_ARRAY_TYPE:
       os << "<DescriptorArray["
          << DescriptorArray::cast(*this).number_of_descriptors() << "]>";
@@ -2255,10 +2251,6 @@ int HeapObject::SizeFromMap(Map map) const {
   if (instance_type == BYTECODE_ARRAY_TYPE) {
     return BytecodeArray::SizeFor(
         BytecodeArray::unchecked_cast(*this).length(kAcquireLoad));
-  }
-  if (instance_type == EXTERNAL_POINTER_ARRAY_TYPE) {
-    return ExternalPointerArray::SizeFor(
-        ExternalPointerArray::unchecked_cast(*this).length(kAcquireLoad));
   }
   if (instance_type == FREE_SPACE_TYPE) {
     return FreeSpace::unchecked_cast(*this).size(kRelaxedLoad);

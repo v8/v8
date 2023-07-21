@@ -361,7 +361,6 @@ void LargeObjectSpace::Verify(Isolate* isolate,
         object.IsAbstractCode(cage_base) ||                       //
         object.IsBigInt(cage_base) ||                             //
         object.IsByteArray(cage_base) ||                          //
-        object.IsExternalPointerArray(cage_base) ||               //
         object.IsContext(cage_base) ||                            //
         object.IsExternalString(cage_base) ||                     //
         object.IsFeedbackMetadata(cage_base) ||                   //
