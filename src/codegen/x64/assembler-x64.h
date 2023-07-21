@@ -173,6 +173,7 @@ enum ScaleFactor : int8_t {
   times_half_system_pointer_size = times_4,
   times_system_pointer_size = times_8,
   times_tagged_size = (kTaggedSize == 8) ? times_8 : times_4,
+  times_external_pointer_size = V8_ENABLE_SANDBOX_BOOL ? times_4 : times_8,
 };
 
 class V8_EXPORT_PRIVATE Operand {

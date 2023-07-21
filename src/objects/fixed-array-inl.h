@@ -33,6 +33,7 @@ TQ_OBJECT_CONSTRUCTORS_IMPL(FixedArray)
 TQ_OBJECT_CONSTRUCTORS_IMPL(FixedDoubleArray)
 TQ_OBJECT_CONSTRUCTORS_IMPL(ArrayList)
 TQ_OBJECT_CONSTRUCTORS_IMPL(ByteArray)
+TQ_OBJECT_CONSTRUCTORS_IMPL(ExternalPointerArray)
 TQ_OBJECT_CONSTRUCTORS_IMPL(TemplateList)
 TQ_OBJECT_CONSTRUCTORS_IMPL(WeakFixedArray)
 TQ_OBJECT_CONSTRUCTORS_IMPL(WeakArrayList)
@@ -722,6 +723,28 @@ template <typename T>
 int FixedIntegerArray<T>::length() const {
   DCHECK_EQ(ByteArray::length() % sizeof(T), 0);
   return ByteArray::length() / sizeof(T);
+}
+
+template <ExternalPointerTag tag>
+inline Address ExternalPointerArray::get(int index, Isolate* isolate) {
+  return ReadExternalPointerField<tag>(OffsetOfElementAt(index), isolate);
+}
+
+template <ExternalPointerTag tag>
+inline void ExternalPointerArray::set(int index, Isolate* isolate,
+                                      Address value) {
+  WriteLazilyInitializedExternalPointerField<tag>(OffsetOfElementAt(index),
+                                                  isolate, value);
+}
+
+inline void ExternalPointerArray::clear(int index) {
+  ResetLazilyInitializedExternalPointerField(OffsetOfElementAt(index));
+}
+
+// static
+Handle<ExternalPointerArray> ExternalPointerArray::New(
+    Isolate* isolate, int length, AllocationType allocation) {
+  return isolate->factory()->NewExternalPointerArray(length, allocation);
 }
 
 template <class T>

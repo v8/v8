@@ -259,6 +259,30 @@ Handle<ByteArray> FactoryBase<Impl>::NewByteArray(int length,
 }
 
 template <typename Impl>
+Handle<ExternalPointerArray> FactoryBase<Impl>::NewExternalPointerArray(
+    int length, AllocationType allocation) {
+  if (length < 0 || length > ExternalPointerArray::kMaxLength) {
+    FATAL("Fatal JavaScript invalid size error %d", length);
+    UNREACHABLE();
+  }
+  if (length == 0) return impl()->empty_external_pointer_array();
+  int size =
+      ALIGN_TO_ALLOCATION_ALIGNMENT(ExternalPointerArray::SizeFor(length));
+  HeapObject result = AllocateRawWithImmortalMap(
+      size, allocation, read_only_roots().external_pointer_array_map());
+  DisallowGarbageCollection no_gc;
+  ExternalPointerArray array = ExternalPointerArray::cast(result);
+  // ExternalPointerArrays must be initialized to zero so that when the sandbox
+  // is enabled, they contain all kNullExternalPointerHandle values.
+  static_assert(kNullExternalPointerHandle == 0);
+  Address data_start = array.address() + ExternalPointerArray::kHeaderSize;
+  size_t byte_length = length * kExternalPointerSlotSize;
+  memset(reinterpret_cast<uint8_t*>(data_start), 0, byte_length);
+  array.set_length(length);
+  return handle(array, isolate());
+}
+
+template <typename Impl>
 Handle<DeoptimizationLiteralArray>
 FactoryBase<Impl>::NewDeoptimizationLiteralArray(int length) {
   return Handle<DeoptimizationLiteralArray>::cast(

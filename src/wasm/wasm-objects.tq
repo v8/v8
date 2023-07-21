@@ -94,7 +94,7 @@ extern class WasmResumeData extends HeapObject {
 
 extern class WasmIndirectFunctionTable extends Struct {
   sig_ids: ByteArray;
-  targets: ByteArray;
+  targets: ExternalPointerArray;
   refs: FixedArray;
   size: uint32;
   @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
