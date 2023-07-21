@@ -125,6 +125,9 @@ V8_INLINE bool PagedSpaceBase::EnsureAllocation(int size_in_bytes,
         heap()->GCFlagsForIncrementalMarking(),
         kGCCallbackScheduleIdleGarbageCollection);
   }
+  if (identity() == NEW_SPACE && heap()->incremental_marking()->IsStopped()) {
+    heap()->StartMinorMSIncrementalMarkingIfNeeded();
+  }
 
   // We don't know exactly how much filler we need to align until space is
   // allocated, so assume the worst case.

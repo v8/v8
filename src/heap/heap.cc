@@ -191,7 +191,7 @@ void Heap::SetBasicBlockProfilingData(Handle<ArrayList> list) {
   set_basic_block_profiling_data(*list);
 }
 
-class ScheduleMinorGCTaskObserver : public AllocationObserver {
+class ScheduleMinorGCTaskObserver final : public AllocationObserver {
  public:
   explicit ScheduleMinorGCTaskObserver(Heap* heap)
       : AllocationObserver(kNotUsingFixedStepSize), heap_(heap) {
@@ -200,7 +200,7 @@ class ScheduleMinorGCTaskObserver : public AllocationObserver {
         &GCEpilogueCallback, this, GCCallbacksInSafepoint::GCType::kLocal);
     AddToNewSpace();
   }
-  ~ScheduleMinorGCTaskObserver() override {
+  ~ScheduleMinorGCTaskObserver() final {
     RemoveFromNewSpace();
     heap_->main_thread_local_heap()->RemoveGCEpilogueCallback(
         &GCEpilogueCallback, this);
@@ -218,7 +218,7 @@ class ScheduleMinorGCTaskObserver : public AllocationObserver {
   }
 
   void Step(int, Address, size_t) final {
-    StepImpl();
+    heap_->ScheduleMinorGCTaskIfNeeded();
     // Remove this observer. It will be re-added after a GC.
     DCHECK(was_added_to_space_);
     heap_->new_space()->RemoveAllocationObserver(this);
@@ -246,25 +246,8 @@ class ScheduleMinorGCTaskObserver : public AllocationObserver {
     was_added_to_space_ = false;
   }
 
-  virtual void StepImpl() { heap_->ScheduleMinorGCTaskIfNeeded(); }
   Heap* heap_;
   bool was_added_to_space_ = false;
-};
-
-class MinorMSIncrementalMarkingTaskObserver final
-    : public ScheduleMinorGCTaskObserver {
- public:
-  explicit MinorMSIncrementalMarkingTaskObserver(Heap* heap)
-      : ScheduleMinorGCTaskObserver(heap) {}
-
- protected:
-  void StepImpl() final {
-    DCHECK(!heap_->incremental_marking()->IsMinorMarking());
-
-    heap_->StartMinorMSIncrementalMarkingIfNeeded();
-
-    ScheduleMinorGCTaskObserver::StepImpl();
-  }
 };
 
 Heap::Heap()
@@ -1499,14 +1482,22 @@ void Heap::ScheduleMinorGCTaskIfNeeded() {
   minor_gc_job_->ScheduleTaskIfNeeded(this);
 }
 
+namespace {
+size_t MinorMSConcurrentMarkingTrigger(Heap* heap) {
+  return heap->new_space()->TotalCapacity() *
+         v8_flags.minor_ms_concurrent_marking_trigger / 100;
+}
+}  // namespace
+
 void Heap::StartMinorMSIncrementalMarkingIfNeeded() {
+  DCHECK(!incremental_marking()->IsMarking());
   if (v8_flags.concurrent_minor_ms_marking && !IsTearingDown() &&
-      !ShouldOptimizeForLoadTime() && !incremental_marking()->IsMarking() &&
-      incremental_marking()->CanBeStarted() && V8_LIKELY(!v8_flags.gc_global) &&
+      !ShouldOptimizeForLoadTime() && incremental_marking()->CanBeStarted() &&
+      V8_LIKELY(!v8_flags.gc_global) &&
       (new_space()->TotalCapacity() >=
        v8_flags.minor_ms_min_new_space_capacity_for_concurrent_marking_mb *
            MB) &&
-      new_space()->Size() >= MinorGCJob::YoungGenerationTaskTriggerSize(this)) {
+      new_space()->Size() >= MinorMSConcurrentMarkingTrigger(this)) {
     StartIncrementalMarking(GCFlag::kNoFlags, GarbageCollectionReason::kTask,
                             kNoGCCallbackFlags,
                             GarbageCollector::MINOR_MARK_SWEEPER);
@@ -5602,18 +5593,7 @@ void Heap::SetUpSpaces(LinearAllocationArea& new_allocation_info,
 
   if (new_space()) {
     minor_gc_job_.reset(new MinorGCJob());
-    if (v8_flags.minor_ms && v8_flags.concurrent_minor_ms_marking) {
-      // TODO(v8:13012): Atomic MinorMS should not use ScavengeJob. Instead, we
-      // should schedule MinorMS tasks at a soft limit, which are used by atomic
-      // MinorMS, and to finalize concurrent MinorMS. The condition
-      // v8_flags.concurrent_minor_ms_marking can then be changed to
-      // v8_flags.minor_ms (here and at the RemoveAllocationObserver call site).
-      minor_gc_task_observer_.reset(
-          new MinorMSIncrementalMarkingTaskObserver(this));
-    } else {
-      // ScavengeJob is used by atomic MinorMS and Scavenger.
-      minor_gc_task_observer_.reset(new ScheduleMinorGCTaskObserver(this));
-    }
+    minor_gc_task_observer_.reset(new ScheduleMinorGCTaskObserver(this));
   }
 
   SetGetExternallyAllocatedMemoryInBytesCallback(ReturnNull);
