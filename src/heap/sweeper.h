@@ -269,12 +269,12 @@ class Sweeper {
       return concurrent_sweepers_;
     }
 
-    uint64_t trace_id() const { return trace_id_.value(); }
-
-   private:
     void Pause();
     void Resume();
 
+    uint64_t trace_id() const { return trace_id_; }
+
+   private:
     Sweeper* sweeper_;
     // Main thread can finalize sweeping, while background threads allocation
     // slow path checks this flag to see whether it could support concurrent
@@ -282,11 +282,8 @@ class Sweeper {
     std::atomic<bool> in_progress_{false};
     std::unique_ptr<JobHandle> job_handle_;
     std::vector<ConcurrentSweeper> concurrent_sweepers_;
-    base::Optional<uint64_t> trace_id_;
-    base::Optional<uint64_t> concurrent_trace_id_;
+    uint64_t trace_id_;
     bool should_reduce_memory_ = false;
-
-    friend class PauseMajorSweepingScope;
   };
 
   Heap* const heap_;
