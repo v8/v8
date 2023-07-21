@@ -1411,15 +1411,14 @@ void InterpreterAssembler::OnStackReplacement(
 
   BIND(&osr_to_opt);
   {
-    TNode<IntPtrT> length =
-        LoadAndUntagFixedArrayBaseLength(BytecodeArrayTaggedPointer());
-    TNode<IntPtrT> weight =
-        IntPtrMul(length, IntPtrConstant(v8_flags.osr_to_tierup));
-    DecreaseInterruptBudget(TruncateWordToInt32(weight), kDisableStackCheck);
+    TNode<Uint32T> length =
+        LoadAndUntagFixedArrayBaseLengthAsUint32(BytecodeArrayTaggedPointer());
+    TNode<Uint32T> weight =
+        Uint32Mul(length, Uint32Constant(v8_flags.osr_to_tierup));
+    DecreaseInterruptBudget(Signed(weight), kDisableStackCheck);
     Callable callable = CodeFactory::InterpreterOnStackReplacement(isolate());
     CallStub(callable, context, maybe_target_code.value());
-    UpdateInterruptBudget(
-        Int32Mul(TruncateWordToInt32(weight), Int32Constant(-1)));
+    UpdateInterruptBudget(Int32Mul(Signed(weight), Int32Constant(-1)));
     JumpBackward(relative_jump);
   }
 

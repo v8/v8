@@ -1444,6 +1444,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<Smi> LoadFixedArrayBaseLength(TNode<FixedArrayBase> array);
   // Load the length of a fixed array base instance.
   TNode<IntPtrT> LoadAndUntagFixedArrayBaseLength(TNode<FixedArrayBase> array);
+  TNode<Uint32T> LoadAndUntagFixedArrayBaseLengthAsUint32(
+      TNode<FixedArrayBase> array);
   // Load the length of a WeakFixedArray.
   TNode<Smi> LoadWeakFixedArrayLength(TNode<WeakFixedArray> array);
   TNode<IntPtrT> LoadAndUntagWeakFixedArrayLength(TNode<WeakFixedArray> array);
@@ -1477,7 +1479,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Load the constructor of a Map (equivalent to Map::GetConstructor()).
   TNode<Object> LoadMapConstructor(TNode<Map> map);
   // Load the EnumLength of a Map.
-  TNode<WordT> LoadMapEnumLength(TNode<Map> map);
+  TNode<Uint32T> LoadMapEnumLength(TNode<Map> map);
   // Load the back-pointer of a Map.
   TNode<Object> LoadMapBackPointer(TNode<Map> map);
   // Compute the used instance size in words of a map.

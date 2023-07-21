@@ -2044,6 +2044,14 @@ TNode<IntPtrT> CodeStubAssembler::LoadAndUntagFixedArrayBaseLength(
                                             FixedArrayBase::kLengthOffset);
 }
 
+TNode<Uint32T> CodeStubAssembler::LoadAndUntagFixedArrayBaseLengthAsUint32(
+    TNode<FixedArrayBase> array) {
+  TNode<Int32T> value =
+      LoadAndUntagToWord32ObjectField(array, FixedArrayBase::kLengthOffset);
+  CSA_DCHECK(this, Int32GreaterThanOrEqual(value, Int32Constant(0)));
+  return Unsigned(value);
+}
+
 TNode<IntPtrT> CodeStubAssembler::LoadFeedbackVectorLength(
     TNode<FeedbackVector> vector) {
   TNode<Int32T> length =
@@ -2176,9 +2184,9 @@ TNode<Object> CodeStubAssembler::LoadMapConstructor(TNode<Map> map) {
   return result.value();
 }
 
-TNode<WordT> CodeStubAssembler::LoadMapEnumLength(TNode<Map> map) {
+TNode<Uint32T> CodeStubAssembler::LoadMapEnumLength(TNode<Map> map) {
   TNode<Uint32T> bit_field3 = LoadMapBitField3(map);
-  return DecodeWordFromWord32<Map::Bits3::EnumLengthBits>(bit_field3);
+  return DecodeWord32<Map::Bits3::EnumLengthBits>(bit_field3);
 }
 
 TNode<Object> CodeStubAssembler::LoadMapBackPointer(TNode<Map> map) {
@@ -7789,11 +7797,11 @@ TNode<String> CodeStubAssembler::NumberToString(TNode<Number> input,
 
   // Make the hash mask from the length of the number string cache. It
   // contains two elements (number and string) for each cache entry.
-  TNode<IntPtrT> number_string_cache_length =
-      LoadAndUntagFixedArrayBaseLength(number_string_cache);
+  TNode<Uint32T> number_string_cache_length =
+      LoadAndUntagFixedArrayBaseLengthAsUint32(number_string_cache);
   TNode<Int32T> one = Int32Constant(1);
-  TNode<Word32T> mask = Int32Sub(
-      Word32Shr(TruncateWordToInt32(number_string_cache_length), one), one);
+  TNode<Word32T> mask =
+      Int32Sub(Word32Shr(number_string_cache_length, one), one);
 
   GotoIfNot(TaggedIsSmi(input), &if_heap_number);
   smi_input = CAST(input);
@@ -7831,8 +7839,8 @@ TNode<String> CodeStubAssembler::NumberToString(TNode<Number> input,
       // Bailout when the cache is not full-size.
       const int kFullCacheSize =
           isolate()->heap()->MaxNumberToStringCacheSize();
-      Branch(IntPtrLessThan(number_string_cache_length,
-                            IntPtrConstant(kFullCacheSize)),
+      Branch(Uint32LessThan(number_string_cache_length,
+                            Uint32Constant(kFullCacheSize)),
              bailout, &store_to_cache);
 
       BIND(&store_to_cache);
@@ -14605,9 +14613,9 @@ void CodeStubAssembler::ForInPrepare(TNode<HeapObject> enumerator,
   {
     // Load the enumeration length and cache from the {enumerator}.
     TNode<Map> map_enumerator = CAST(enumerator);
-    TNode<WordT> enum_length = LoadMapEnumLength(map_enumerator);
-    CSA_DCHECK(this, WordNotEqual(enum_length,
-                                  IntPtrConstant(kInvalidEnumCacheSentinel)));
+    TNode<Uint32T> enum_length = LoadMapEnumLength(map_enumerator);
+    CSA_DCHECK(this, Word32NotEqual(enum_length,
+                                    Uint32Constant(kInvalidEnumCacheSentinel)));
     TNode<DescriptorArray> descriptors = LoadMapDescriptors(map_enumerator);
     TNode<EnumCache> enum_cache = LoadObjectField<EnumCache>(
         descriptors, DescriptorArray::kEnumCacheOffset);
@@ -14617,16 +14625,16 @@ void CodeStubAssembler::ForInPrepare(TNode<HeapObject> enumerator,
     // Check if we have enum indices available.
     TNode<FixedArray> enum_indices =
         LoadObjectField<FixedArray>(enum_cache, EnumCache::kIndicesOffset);
-    TNode<IntPtrT> enum_indices_length =
-        LoadAndUntagFixedArrayBaseLength(enum_indices);
+    TNode<Uint32T> enum_indices_length =
+        LoadAndUntagFixedArrayBaseLengthAsUint32(enum_indices);
     TNode<Smi> feedback = SelectSmiConstant(
-        IntPtrLessThanOrEqual(enum_length, enum_indices_length),
+        Uint32LessThanOrEqual(enum_length, enum_indices_length),
         static_cast<int>(ForInFeedback::kEnumCacheKeysAndIndices),
         static_cast<int>(ForInFeedback::kEnumCacheKeys));
     UpdateFeedback(feedback, maybe_feedback_vector, slot, update_feedback_mode);
 
     cache_array = enum_keys;
-    cache_length = SmiTag(Signed(enum_length));
+    cache_length = SmiFromUint32(enum_length);
     Goto(&out);
   }
 
@@ -16036,8 +16044,8 @@ void CodeStubAssembler::CheckPrototypeEnumCache(TNode<JSReceiver> receiver,
     // For all {object}s but the {receiver}, check that the cache is empty.
     var_object = CAST(object);
     object_map = LoadMap(object);
-    TNode<WordT> object_enum_length = LoadMapEnumLength(object_map.value());
-    Branch(WordEqual(object_enum_length, IntPtrConstant(0)), &loop, if_slow);
+    TNode<Uint32T> object_enum_length = LoadMapEnumLength(object_map.value());
+    Branch(Word32Equal(object_enum_length, Uint32Constant(0)), &loop, if_slow);
   }
 }
 
@@ -16049,9 +16057,9 @@ TNode<Map> CodeStubAssembler::CheckEnumCache(TNode<JSReceiver> receiver,
 
   // Check if the enum length field of the {receiver} is properly initialized,
   // indicating that there is an enum cache.
-  TNode<WordT> receiver_enum_length = LoadMapEnumLength(receiver_map);
-  Branch(WordEqual(receiver_enum_length,
-                   IntPtrConstant(kInvalidEnumCacheSentinel)),
+  TNode<Uint32T> receiver_enum_length = LoadMapEnumLength(receiver_map);
+  Branch(Word32Equal(receiver_enum_length,
+                     Uint32Constant(kInvalidEnumCacheSentinel)),
          &if_no_cache, &if_cache);
 
   BIND(&if_no_cache);
