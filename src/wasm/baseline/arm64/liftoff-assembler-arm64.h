@@ -412,7 +412,7 @@ void LiftoffAssembler::CheckTierUp(int declared_func_index, int budget_used,
   int budget_arr_offset = kInt32Size * declared_func_index;
   // If the offset cannot be used in the operand directly, add it once to the
   // budget_array to avoid doing that two times below.
-  if (!IsImmLSScaled(budget_arr_offset, kInt32Size) &&
+  if (!IsImmLSScaled(budget_arr_offset, 2 /* log2(sizeof(i32)) */) &&
       !IsImmLSUnscaled(budget_arr_offset)) {
     Add(budget_array, budget_array, budget_arr_offset);
     budget_arr_offset = 0;
