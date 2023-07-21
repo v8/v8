@@ -46,7 +46,7 @@ namespace {
 
 static constexpr size_t kMajorGCYoungGenerationAllocationObserverStep = 64 * KB;
 static constexpr size_t kMajorGCOldGenerationAllocationObserverStep = 256 * KB;
-static constexpr size_t kMinorGCAllocationObserverStep = 32 * KB;
+static constexpr size_t kMinorGCAllocationObserverStep = 4 * KB;
 
 static constexpr v8::base::TimeDelta kMaxStepSizeOnTask =
     v8::base::TimeDelta::FromMilliseconds(1);
