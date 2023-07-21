@@ -1150,17 +1150,13 @@ void InstructionSelectorT<Adapter>::VisitWord64ReverseBits(Node* node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord32ReverseBytes(Node* node) {
-  Loong64OperandGeneratorT<Adapter> g(this);
-  Emit(kLoong64ByteSwap32, g.DefineAsRegister(node),
-       g.UseRegister(node->InputAt(0)));
+void InstructionSelectorT<Adapter>::VisitWord32ReverseBytes(node_t node) {
+  VisitRR(this, kLoong64ByteSwap32, node);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord64ReverseBytes(Node* node) {
-  Loong64OperandGeneratorT<Adapter> g(this);
-  Emit(kLoong64ByteSwap64, g.DefineAsRegister(node),
-       g.UseRegister(node->InputAt(0)));
+void InstructionSelectorT<Adapter>::VisitWord64ReverseBytes(node_t node) {
+  VisitRR(this, kLoong64ByteSwap64, node);
 }
 
 template <typename Adapter>
@@ -1169,32 +1165,32 @@ void InstructionSelectorT<Adapter>::VisitSimd128ReverseBytes(Node* node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord32Clz(Node* node) {
+void InstructionSelectorT<Adapter>::VisitWord32Clz(node_t node) {
   VisitRR(this, kLoong64Clz_w, node);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord64Clz(Node* node) {
+void InstructionSelectorT<Adapter>::VisitWord64Clz(node_t node) {
   VisitRR(this, kLoong64Clz_d, node);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord32Ctz(Node* node) {
+void InstructionSelectorT<Adapter>::VisitWord32Ctz(node_t node) {
   UNREACHABLE();
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord64Ctz(Node* node) {
+void InstructionSelectorT<Adapter>::VisitWord64Ctz(node_t node) {
   UNREACHABLE();
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord32Popcnt(Node* node) {
+void InstructionSelectorT<Adapter>::VisitWord32Popcnt(node_t node) {
   UNREACHABLE();
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord64Popcnt(Node* node) {
+void InstructionSelectorT<Adapter>::VisitWord64Popcnt(node_t node) {
   UNREACHABLE();
 }
 
@@ -3816,31 +3812,23 @@ void InstructionSelectorT<Adapter>::VisitI8x16Swizzle(Node* node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitSignExtendWord8ToInt32(Node* node) {
-  Loong64OperandGeneratorT<Adapter> g(this);
-  Emit(kLoong64Ext_w_b, g.DefineAsRegister(node),
-       g.UseRegister(node->InputAt(0)));
+void InstructionSelectorT<Adapter>::VisitSignExtendWord8ToInt32(node_t node) {
+  VisitRR(this, kLoong64Ext_w_b, node);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitSignExtendWord16ToInt32(Node* node) {
-  Loong64OperandGeneratorT<Adapter> g(this);
-  Emit(kLoong64Ext_w_h, g.DefineAsRegister(node),
-       g.UseRegister(node->InputAt(0)));
+void InstructionSelectorT<Adapter>::VisitSignExtendWord16ToInt32(node_t node) {
+  VisitRR(this, kLoong64Ext_w_h, node);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitSignExtendWord8ToInt64(Node* node) {
-  Loong64OperandGeneratorT<Adapter> g(this);
-  Emit(kLoong64Ext_w_b, g.DefineAsRegister(node),
-       g.UseRegister(node->InputAt(0)));
+void InstructionSelectorT<Adapter>::VisitSignExtendWord8ToInt64(node_t node) {
+  VisitRR(this, kLoong64Ext_w_b, node);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitSignExtendWord16ToInt64(Node* node) {
-  Loong64OperandGeneratorT<Adapter> g(this);
-  Emit(kLoong64Ext_w_h, g.DefineAsRegister(node),
-       g.UseRegister(node->InputAt(0)));
+void InstructionSelectorT<Adapter>::VisitSignExtendWord16ToInt64(node_t node) {
+  VisitRR(this, kLoong64Ext_w_h, node);
 }
 
 template <typename Adapter>
@@ -3903,6 +3891,19 @@ template <typename Adapter>
 void InstructionSelectorT<Adapter>::AddOutputToSelectContinuation(
     OperandGenerator* g, int first_input_index, node_t node) {
   UNREACHABLE();
+}
+
+template <>
+Node* InstructionSelectorT<TurbofanAdapter>::FindProjection(
+    Node* node, size_t projection_index) {
+  return NodeProperties::FindProjection(node, projection_index);
+}
+
+template <>
+TurboshaftAdapter::node_t
+InstructionSelectorT<TurboshaftAdapter>::FindProjection(
+    node_t node, size_t projection_index) {
+  UNIMPLEMENTED();
 }
 
 // static

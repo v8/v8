@@ -1073,7 +1073,7 @@ void InstructionSelectorT<Adapter>::VisitWord32Ror(node_t node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord32Clz(Node* node) {
+void InstructionSelectorT<Adapter>::VisitWord32Clz(node_t node) {
   VisitRR(this, kMips64Clz, node);
 }
 
@@ -1088,17 +1088,13 @@ void InstructionSelectorT<Adapter>::VisitWord64ReverseBits(Node* node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord64ReverseBytes(Node* node) {
-  Mips64OperandGeneratorT<Adapter> g(this);
-  Emit(kMips64ByteSwap64, g.DefineAsRegister(node),
-       g.UseRegister(node->InputAt(0)));
+void InstructionSelectorT<Adapter>::VisitWord64ReverseBytes(node_t node) {
+  VisitRR(this, kMips64ByteSwap64, node);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord32ReverseBytes(Node* node) {
-  Mips64OperandGeneratorT<Adapter> g(this);
-  Emit(kMips64ByteSwap32, g.DefineAsRegister(node),
-       g.UseRegister(node->InputAt(0)));
+void InstructionSelectorT<Adapter>::VisitWord32ReverseBytes(node_t node) {
+  VisitRR(this, kMips64ByteSwap32, node);
 }
 
 template <typename Adapter>
@@ -1107,29 +1103,23 @@ void InstructionSelectorT<Adapter>::VisitSimd128ReverseBytes(Node* node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord32Ctz(Node* node) {
-  Mips64OperandGeneratorT<Adapter> g(this);
-  Emit(kMips64Ctz, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)));
+void InstructionSelectorT<Adapter>::VisitWord32Ctz(node_t node) {
+  VisitRR(this, kMips64Ctz, node);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord64Ctz(Node* node) {
-  Mips64OperandGeneratorT<Adapter> g(this);
-  Emit(kMips64Dctz, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)));
+void InstructionSelectorT<Adapter>::VisitWord64Ctz(node_t node) {
+  VisitRR(this, kMips64Dctz, node);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord32Popcnt(Node* node) {
-  Mips64OperandGeneratorT<Adapter> g(this);
-  Emit(kMips64Popcnt, g.DefineAsRegister(node),
-       g.UseRegister(node->InputAt(0)));
+void InstructionSelectorT<Adapter>::VisitWord32Popcnt(node_t node) {
+  VisitRR(this, kMips64Popcnt, node);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord64Popcnt(Node* node) {
-  Mips64OperandGeneratorT<Adapter> g(this);
-  Emit(kMips64Dpopcnt, g.DefineAsRegister(node),
-       g.UseRegister(node->InputAt(0)));
+void InstructionSelectorT<Adapter>::VisitWord64Popcnt(node_t node) {
+  VisitRR(this, kMips64Dpopcnt, node);
 }
 
 template <typename Adapter>
@@ -1138,7 +1128,7 @@ void InstructionSelectorT<Adapter>::VisitWord64Ror(node_t node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord64Clz(Node* node) {
+void InstructionSelectorT<Adapter>::VisitWord64Clz(node_t node) {
   VisitRR(this, kMips64Dclz, node);
 }
 
@@ -3907,27 +3897,23 @@ void InstructionSelectorT<Adapter>::VisitI8x16Swizzle(Node* node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitSignExtendWord8ToInt32(Node* node) {
-  Mips64OperandGeneratorT<Adapter> g(this);
-  Emit(kMips64Seb, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)));
+void InstructionSelectorT<Adapter>::VisitSignExtendWord8ToInt32(node_t node) {
+  VisitRR(this, kMips64Seb, node);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitSignExtendWord16ToInt32(Node* node) {
-  Mips64OperandGeneratorT<Adapter> g(this);
-  Emit(kMips64Seh, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)));
+void InstructionSelectorT<Adapter>::VisitSignExtendWord16ToInt32(node_t node) {
+  VisitRR(this, kMips64Seh, node);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitSignExtendWord8ToInt64(Node* node) {
-  Mips64OperandGeneratorT<Adapter> g(this);
-  Emit(kMips64Seb, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)));
+void InstructionSelectorT<Adapter>::VisitSignExtendWord8ToInt64(node_t node) {
+  VisitRR(this, kMips64Seb, node);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitSignExtendWord16ToInt64(Node* node) {
-  Mips64OperandGeneratorT<Adapter> g(this);
-  Emit(kMips64Seh, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)));
+void InstructionSelectorT<Adapter>::VisitSignExtendWord16ToInt64(node_t node) {
+  VisitRR(this, kMips64Seh, node);
 }
 
 template <typename Adapter>
@@ -3999,6 +3985,19 @@ template <typename Adapter>
 void InstructionSelectorT<Adapter>::AddOutputToSelectContinuation(
     OperandGenerator* g, int first_input_index, node_t node) {
   UNREACHABLE();
+}
+
+template <>
+Node* InstructionSelectorT<TurbofanAdapter>::FindProjection(
+    Node* node, size_t projection_index) {
+  return NodeProperties::FindProjection(node, projection_index);
+}
+
+template <>
+TurboshaftAdapter::node_t
+InstructionSelectorT<TurboshaftAdapter>::FindProjection(
+    node_t node, size_t projection_index) {
+  UNIMPLEMENTED();
 }
 
 // static
