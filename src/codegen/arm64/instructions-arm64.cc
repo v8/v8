@@ -153,18 +153,17 @@ double Instruction::ImmNEONFP64() const {
   return Imm8ToFP64(ImmNEONabcdefgh());
 }
 
-unsigned CalcLSDataSize(LoadStoreOp op) {
-  DCHECK_EQ(static_cast<unsigned>(LSSize_offset + LSSize_width),
-            kInstrSize * 8);
-  unsigned size = static_cast<Instr>(op) >> LSSize_offset;
+unsigned CalcLSDataSizeLog2(LoadStoreOp op) {
+  DCHECK_EQ(LSSize_offset + LSSize_width, kInstrSize * 8);
+  unsigned size_log2 = static_cast<Instr>(op) >> LSSize_offset;
   if ((op & LSVector_mask) != 0) {
     // Vector register memory operations encode the access size in the "size"
     // and "opc" fields.
-    if ((size == 0) && ((op & LSOpc_mask) >> LSOpc_offset) >= 2) {
-      size = kQRegSizeLog2;
+    if (size_log2 == 0 && ((op & LSOpc_mask) >> LSOpc_offset) >= 2) {
+      size_log2 = kQRegSizeLog2;
     }
   }
-  return size;
+  return size_log2;
 }
 
 unsigned CalcLSPairDataSize(LoadStorePairOp op) {

@@ -2820,7 +2820,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   inline static Instr ImmHint(int imm7);
   inline static Instr ImmBarrierDomain(int imm2);
   inline static Instr ImmBarrierType(int imm2);
-  inline static unsigned CalcLSDataSize(LoadStoreOp op);
+  inline static unsigned CalcLSDataSizeLog2(LoadStoreOp op);
 
   // Instruction bits for vector format in data processing operations.
   static Instr VFormat(VRegister vd) {
@@ -2982,11 +2982,11 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   static constexpr bool IsImmLSUnscaled(int64_t offset) {
     return is_int9(offset);
   }
-  static constexpr bool IsImmLSScaled(int64_t offset, unsigned size) {
+  static constexpr bool IsImmLSScaled(int64_t offset, unsigned size_log2) {
     bool offset_is_size_multiple =
-        (static_cast<int64_t>(static_cast<uint64_t>(offset >> size) << size) ==
-         offset);
-    return offset_is_size_multiple && is_uint12(offset >> size);
+        (static_cast<int64_t>(static_cast<uint64_t>(offset >> size_log2)
+                              << size_log2) == offset);
+    return offset_is_size_multiple && is_uint12(offset >> size_log2);
   }
   static bool IsImmLLiteral(int64_t offset);
 

@@ -50,7 +50,7 @@ extern const float16 kFP16DefaultNaN;
 }  // end of extern "C"
 #endif
 
-unsigned CalcLSDataSize(LoadStoreOp op);
+unsigned CalcLSDataSizeLog2(LoadStoreOp op);
 unsigned CalcLSPairDataSize(LoadStorePairOp op);
 
 enum ImmBranchType {
@@ -144,7 +144,7 @@ class Instruction {
   double ImmNEONFP64() const;
 
   unsigned SizeLS() const {
-    return CalcLSDataSize(static_cast<LoadStoreOp>(Mask(LoadStoreMask)));
+    return CalcLSDataSizeLog2(static_cast<LoadStoreOp>(Mask(LoadStoreMask)));
   }
 
   unsigned SizeLSPair() const {

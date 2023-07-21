@@ -912,9 +912,9 @@ void MacroAssembler::LoadStoreMacro(const CPURegister& rt,
   Instr memop = op | Rt(rt) | RnSP(addr.base());
   if (addr.IsImmediateOffset()) {
     int64_t offset = addr.offset();
-    unsigned size = CalcLSDataSize(op);
-    if (IsImmLSScaled(offset, size)) {
-      LoadStoreScaledImmOffset(memop, static_cast<int>(offset), size);
+    unsigned size_log2 = CalcLSDataSizeLog2(op);
+    if (IsImmLSScaled(offset, size_log2)) {
+      LoadStoreScaledImmOffset(memop, static_cast<int>(offset), size_log2);
       return;
     } else if (IsImmLSUnscaled(offset)) {
       LoadStoreUnscaledImmOffset(memop, static_cast<int>(offset));
@@ -942,7 +942,7 @@ void MacroAssembler::LoadStoreMacroComplex(const CPURegister& rt,
   } else if (addr.IsImmediateOffset()) {
     // Load/stores with immediate offset addressing should have been handled by
     // the caller.
-    DCHECK(!IsImmLSScaled(offset, CalcLSDataSize(op)) && !is_imm_unscaled);
+    DCHECK(!IsImmLSScaled(offset, CalcLSDataSizeLog2(op)) && !is_imm_unscaled);
     UseScratchRegisterScope temps(this);
     Register temp = temps.AcquireSameSizeAs(addr.base());
     Mov(temp, offset);

@@ -3654,16 +3654,16 @@ void CodeGenerator::SetPendingMove(MoveOperands* move) {
       move_cycle_.scratch_regs.set(temp);
     }
     int64_t src_offset = src.offset();
-    unsigned src_size = CalcLSDataSize(LDR_x);
+    unsigned src_size_log2 = CalcLSDataSizeLog2(LDR_x);
     int64_t dst_offset = dst.offset();
-    unsigned dst_size = CalcLSDataSize(STR_x);
+    unsigned dst_size_log2 = CalcLSDataSizeLog2(STR_x);
     // Offset doesn't fit into the immediate field so the assembler will emit
     // two instructions and use a second temp register.
     if ((src.IsImmediateOffset() &&
-         !masm()->IsImmLSScaled(src_offset, src_size) &&
+         !masm()->IsImmLSScaled(src_offset, src_size_log2) &&
          !masm()->IsImmLSUnscaled(src_offset)) ||
         (dst.IsImmediateOffset() &&
-         !masm()->IsImmLSScaled(dst_offset, dst_size) &&
+         !masm()->IsImmLSScaled(dst_offset, dst_size_log2) &&
          !masm()->IsImmLSUnscaled(dst_offset))) {
       Register temp = temps.AcquireX();
       move_cycle_.scratch_regs.set(temp);

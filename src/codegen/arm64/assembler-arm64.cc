@@ -4117,10 +4117,10 @@ void Assembler::LoadStore(const CPURegister& rt, const MemOperand& addr,
   Instr memop = op | Rt(rt) | RnSP(addr.base());
 
   if (addr.IsImmediateOffset()) {
-    unsigned size = CalcLSDataSize(op);
+    unsigned size_log2 = CalcLSDataSizeLog2(op);
     int offset = static_cast<int>(addr.offset());
-    if (IsImmLSScaled(addr.offset(), size)) {
-      LoadStoreScaledImmOffset(memop, offset, size);
+    if (IsImmLSScaled(addr.offset(), size_log2)) {
+      LoadStoreScaledImmOffset(memop, offset, size_log2);
     } else {
       DCHECK(IsImmLSUnscaled(addr.offset()));
       LoadStoreUnscaledImmOffset(memop, offset);
@@ -4137,8 +4137,7 @@ void Assembler::LoadStore(const CPURegister& rt, const MemOperand& addr,
 
     // Shifts are encoded in one bit, indicating a left shift by the memory
     // access size.
-    DCHECK((shift_amount == 0) ||
-           (shift_amount == static_cast<unsigned>(CalcLSDataSize(op))));
+    DCHECK(shift_amount == 0 || shift_amount == CalcLSDataSizeLog2(op));
     Emit(LoadStoreRegisterOffsetFixed | memop | Rm(addr.regoffset()) |
          ExtendMode(ext) | ImmShiftLS((shift_amount > 0) ? 1 : 0));
   } else {

@@ -1051,17 +1051,17 @@ Instr Assembler::ImmBarrierType(int imm2) {
   return imm2 << ImmBarrierType_offset;
 }
 
-unsigned Assembler::CalcLSDataSize(LoadStoreOp op) {
+unsigned Assembler::CalcLSDataSizeLog2(LoadStoreOp op) {
   DCHECK((LSSize_offset + LSSize_width) == (kInstrSize * 8));
-  unsigned size = static_cast<Instr>(op >> LSSize_offset);
+  unsigned size_log2 = static_cast<Instr>(op >> LSSize_offset);
   if ((op & LSVector_mask) != 0) {
     // Vector register memory operations encode the access size in the "size"
     // and "opc" fields.
-    if ((size == 0) && ((op & LSOpc_mask) >> LSOpc_offset) >= 2) {
-      size = kQRegSizeLog2;
+    if (size_log2 == 0 && ((op & LSOpc_mask) >> LSOpc_offset) >= 2) {
+      size_log2 = kQRegSizeLog2;
     }
   }
-  return size;
+  return size_log2;
 }
 
 Instr Assembler::ImmMoveWide(int imm) {
