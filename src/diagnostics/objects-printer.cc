@@ -2846,9 +2846,9 @@ void Map::MapPrint(std::ostream& os) {
   }
   if (IsJSObjectMap()) {
     os << "\n - inobject properties: " << GetInObjectProperties();
+    os << "\n - unused property fields: " << UnusedPropertyFields();
   }
   os << "\n - elements kind: " << ElementsKindToString(elements_kind());
-  os << "\n - unused property fields: " << UnusedPropertyFields();
   os << "\n - enum length: ";
   if (EnumLength() == kInvalidEnumCacheSentinel) {
     os << "invalid";

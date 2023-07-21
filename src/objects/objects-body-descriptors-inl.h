@@ -531,7 +531,8 @@ class ByteArray::BodyDescriptor final : public BodyDescriptorBase {
                                  ObjectVisitor* v) {}
 
   static inline int SizeOf(Map map, HeapObject obj) {
-    return ByteArray::SizeFor(ByteArray::cast(obj)->length(kAcquireLoad));
+    return ByteArray::SizeFor(
+        ByteArray::unchecked_cast(obj)->length(kAcquireLoad));
   }
 };
 
@@ -593,7 +594,7 @@ class BigInt::BodyDescriptor final : public BodyDescriptorBase {
                                  ObjectVisitor* v) {}
 
   static inline int SizeOf(Map map, HeapObject obj) {
-    return BigInt::SizeFor(BigInt::cast(obj)->length(kAcquireLoad));
+    return BigInt::SizeFor(BigInt::unchecked_cast(obj)->length(kAcquireLoad));
   }
 };
 
@@ -607,7 +608,7 @@ class FixedDoubleArray::BodyDescriptor final : public BodyDescriptorBase {
 
   static inline int SizeOf(Map map, HeapObject obj) {
     return FixedDoubleArray::SizeFor(
-        FixedDoubleArray::cast(obj)->length(kAcquireLoad));
+        FixedDoubleArray::unchecked_cast(obj)->length(kAcquireLoad));
   }
 };
 
@@ -621,27 +622,27 @@ class FeedbackMetadata::BodyDescriptor final : public BodyDescriptorBase {
 
   static inline int SizeOf(Map map, HeapObject obj) {
     return FeedbackMetadata::SizeFor(
-        FeedbackMetadata::cast(obj)->slot_count(kAcquireLoad));
+        FeedbackMetadata::unchecked_cast(obj)->slot_count(kAcquireLoad));
   }
 };
 
 class PreparseData::BodyDescriptor final : public BodyDescriptorBase {
  public:
   static bool IsValidSlot(Map map, HeapObject obj, int offset) {
-    return offset >= PreparseData::cast(obj)->inner_start_offset();
+    return offset >= PreparseData::unchecked_cast(obj)->inner_start_offset();
   }
 
   template <typename ObjectVisitor>
   static inline void IterateBody(Map map, HeapObject obj, int object_size,
                                  ObjectVisitor* v) {
-    PreparseData data = PreparseData::cast(obj);
+    PreparseData data = PreparseData::unchecked_cast(obj);
     int start_offset = data->inner_start_offset();
     int end_offset = start_offset + data->children_length() * kTaggedSize;
     IteratePointers(obj, start_offset, end_offset, v);
   }
 
   static inline int SizeOf(Map map, HeapObject obj) {
-    PreparseData data = PreparseData::cast(obj);
+    PreparseData data = PreparseData::unchecked_cast(obj);
     return PreparseData::SizeFor(data->data_length(), data->children_length());
   }
 };
@@ -885,7 +886,7 @@ class WasmArray::BodyDescriptor final : public BodyDescriptorBase {
   }
 
   static inline int SizeOf(Map map, HeapObject object) {
-    return WasmArray::SizeFor(map, WasmArray::cast(object)->length());
+    return WasmArray::SizeFor(map, WasmArray::unchecked_cast(object)->length());
   }
 };
 
@@ -918,7 +919,7 @@ class WasmStruct::BodyDescriptor final : public BodyDescriptorBase {
   template <typename ObjectVisitor>
   static inline void IterateBody(Map map, HeapObject obj, int object_size,
                                  ObjectVisitor* v) {
-    WasmStruct wasm_struct = WasmStruct::cast(obj);
+    WasmStruct wasm_struct = WasmStruct::unchecked_cast(obj);
     // The {type} is safe to use because it's kept alive by the {map}'s
     // WasmTypeInfo.
     wasm::StructType* type = WasmStruct::GcSafeType(map);
@@ -1016,7 +1017,7 @@ class InstructionStream::BodyDescriptor final : public BodyDescriptorBase {
     IteratePointers(obj, kStartOfStrongFieldsOffset, kEndOfStrongFieldsOffset,
                     v);
 
-    InstructionStream istream = InstructionStream::cast(obj);
+    InstructionStream istream = InstructionStream::unchecked_cast(obj);
     Code code;
     if (istream->TryGetCodeUnchecked(&code, kAcquireLoad)) {
       RelocIterator it(code, istream, istream->unchecked_relocation_info(),
