@@ -109,16 +109,16 @@ CollectionEpoch GCTracer::CurrentEpoch(Scope::ScopeId id) const {
   return Scope::NeedsYoungEpoch(id) ? epoch_young_ : epoch_full_;
 }
 
-constexpr double GCTracer::current_scope(Scope::ScopeId id) const {
+double GCTracer::current_scope(Scope::ScopeId id) const {
   if (Scope::FIRST_INCREMENTAL_SCOPE <= id &&
       id <= Scope::LAST_INCREMENTAL_SCOPE) {
     return incremental_scope(id).duration.InMillisecondsF();
   } else if (Scope::FIRST_BACKGROUND_SCOPE <= id &&
              id <= Scope::LAST_BACKGROUND_SCOPE) {
-    return background_counter_[id].total_duration_ms;
+    return background_scopes_[id].InMillisecondsF();
   } else {
     DCHECK_GT(Scope::NUMBER_OF_SCOPES, id);
-    return current_.scopes[id];
+    return current_.scopes[id].InMillisecondsF();
   }
 }
 
@@ -134,11 +134,11 @@ void GCTracer::AddScopeSample(Scope::ScopeId id, double duration) {
         base::TimeDelta::FromMillisecondsD(duration);
   } else if (Scope::FIRST_BACKGROUND_SCOPE <= id &&
              id <= Scope::LAST_BACKGROUND_SCOPE) {
-    base::MutexGuard guard(&background_counter_mutex_);
-    background_counter_[id].total_duration_ms += duration;
+    base::MutexGuard guard(&background_scopes_mutex_);
+    background_scopes_[id] += base::TimeDelta::FromMillisecondsD(duration);
   } else {
     DCHECK_GT(Scope::NUMBER_OF_SCOPES, id);
-    current_.scopes[id] += duration;
+    current_.scopes[id] += base::TimeDelta::FromMillisecondsD(duration);
   }
 }
 

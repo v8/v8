@@ -223,8 +223,8 @@ class V8_EXPORT_PRIVATE GCTracer {
     // INCREMENTAL_MARK_COMPACTOR.
     base::TimeDelta incremental_marking_duration;
 
-    // Amounts of time (in ms) spent in different scopes during GC.
-    double scopes[Scope::NUMBER_OF_SCOPES] = {0};
+    // Amounts of time spent in different scopes during GC.
+    base::TimeDelta scopes[Scope::NUMBER_OF_SCOPES];
 
     // Holds details for incremental marking scopes.
     IncrementalInfos incremental_scopes[Scope::NUMBER_OF_INCREMENTAL_SCOPES];
@@ -251,7 +251,8 @@ class V8_EXPORT_PRIVATE GCTracer {
     TimedHistogram* type_priority_timer_;
   };
 
-  static const int kThroughputTimeFrameMs = 5000;
+  static constexpr base::TimeDelta kThroughputTimeFrame =
+      base::TimeDelta::FromSeconds(5);
   static constexpr double kConservativeSpeedInBytesPerMillisecond = 128 * KB;
 
   static double CombineSpeedsInBytesPerMillisecond(double default_speed,
@@ -454,7 +455,7 @@ class V8_EXPORT_PRIVATE GCTracer {
   // Note: when accessing a background scope via this method, the caller is
   // responsible for avoiding data races, e.g., by acquiring
   // background_counter_mutex_.
-  V8_INLINE constexpr double current_scope(Scope::ScopeId id) const;
+  V8_INLINE double current_scope(Scope::ScopeId id) const;
 
   V8_INLINE constexpr const IncrementalInfos& incremental_scope(
       Scope::ScopeId id) const;
@@ -463,7 +464,7 @@ class V8_EXPORT_PRIVATE GCTracer {
   void ResetIncrementalCounters();
   void RecordIncrementalMarkingSpeed(size_t bytes, base::TimeDelta duration);
   void RecordMutatorUtilization(double mark_compactor_end_time,
-                                double mark_compactor_duration);
+                                base::TimeDelta mark_compactor_duration);
 
   // Update counters for an entire full GC cycle. Exact accounting of events
   // within a GC is not necessary which is why the recording takes place at the
@@ -591,10 +592,10 @@ class V8_EXPORT_PRIVATE GCTracer {
   v8::metrics::GarbageCollectionFullMainThreadBatchedIncrementalSweep
       incremental_sweep_batched_events_;
 
-  mutable base::Mutex background_counter_mutex_;
-  BackgroundCounter background_counter_[Scope::NUMBER_OF_SCOPES];
+  mutable base::Mutex background_scopes_mutex_;
+  base::TimeDelta background_scopes_[Scope::NUMBER_OF_SCOPES];
 
-  size_t concurrent_gc_time_ = 0;
+  base::TimeDelta concurrent_gc_time_;
 
   FRIEND_TEST(GCTracerTest, AllocationThroughput);
   FRIEND_TEST(GCTracerTest, BackgroundScavengerScope);

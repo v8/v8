@@ -203,14 +203,16 @@ TEST_F(GCTracerTest, RegularScope) {
   GCTracer* tracer = i_isolate()->heap()->tracer();
   tracer->ResetForTesting();
 
-  EXPECT_DOUBLE_EQ(0.0, tracer->current_.scopes[GCTracer::Scope::MC_MARK]);
+  EXPECT_EQ(base::TimeDelta(),
+            tracer->current_.scopes[GCTracer::Scope::MC_MARK]);
   // Sample not added because the cycle has not started.
   tracer->AddScopeSample(GCTracer::Scope::MC_MARK, 10);
   StartTracing(tracer, GarbageCollector::MARK_COMPACTOR,
                StartTracingMode::kAtomic);
   tracer->AddScopeSample(GCTracer::Scope::MC_MARK, 100);
   StopTracing(tracer, GarbageCollector::MARK_COMPACTOR);
-  EXPECT_DOUBLE_EQ(100.0, tracer->current_.scopes[GCTracer::Scope::MC_MARK]);
+  EXPECT_EQ(base::TimeDelta::FromMilliseconds(100),
+            tracer->current_.scopes[GCTracer::Scope::MC_MARK]);
 }
 
 TEST_F(GCTracerTest, IncrementalScope) {
@@ -218,16 +220,16 @@ TEST_F(GCTracerTest, IncrementalScope) {
   GCTracer* tracer = i_isolate()->heap()->tracer();
   tracer->ResetForTesting();
 
-  EXPECT_DOUBLE_EQ(
-      0.0, tracer->current_.scopes[GCTracer::Scope::MC_INCREMENTAL_FINALIZE]);
+  EXPECT_EQ(base::TimeDelta(),
+            tracer->current_.scopes[GCTracer::Scope::MC_INCREMENTAL_FINALIZE]);
   // Sample is added because its ScopeId is listed as incremental sample.
   tracer->AddScopeSample(GCTracer::Scope::MC_INCREMENTAL_FINALIZE, 100);
   StartTracing(tracer, GarbageCollector::MARK_COMPACTOR,
                StartTracingMode::kIncremental);
   tracer->AddScopeSample(GCTracer::Scope::MC_INCREMENTAL_FINALIZE, 100);
   StopTracing(tracer, GarbageCollector::MARK_COMPACTOR);
-  EXPECT_DOUBLE_EQ(
-      200.0, tracer->current_.scopes[GCTracer::Scope::MC_INCREMENTAL_FINALIZE]);
+  EXPECT_EQ(base::TimeDelta::FromMilliseconds(200),
+            tracer->current_.scopes[GCTracer::Scope::MC_INCREMENTAL_FINALIZE]);
 }
 
 TEST_F(GCTracerTest, IncrementalMarkingDetails) {
@@ -255,8 +257,8 @@ TEST_F(GCTracerTest, IncrementalMarkingDetails) {
             tracer->current_
                 .incremental_scopes[GCTracer::Scope::MC_INCREMENTAL_FINALIZE]
                 .duration);
-  EXPECT_DOUBLE_EQ(
-      150, tracer->current_.scopes[GCTracer::Scope::MC_INCREMENTAL_FINALIZE]);
+  EXPECT_EQ(base::TimeDelta::FromMilliseconds(150),
+            tracer->current_.scopes[GCTracer::Scope::MC_INCREMENTAL_FINALIZE]);
 
   // Round 2. Numbers should be reset.
   tracer->AddScopeSample(GCTracer::Scope::MC_INCREMENTAL_FINALIZE, 13);
@@ -276,8 +278,8 @@ TEST_F(GCTracerTest, IncrementalMarkingDetails) {
             tracer->current_
                 .incremental_scopes[GCTracer::Scope::MC_INCREMENTAL_FINALIZE]
                 .duration);
-  EXPECT_DOUBLE_EQ(
-      150, tracer->current_.scopes[GCTracer::Scope::MC_INCREMENTAL_FINALIZE]);
+  EXPECT_EQ(base::TimeDelta::FromMilliseconds(150),
+            tracer->current_.scopes[GCTracer::Scope::MC_INCREMENTAL_FINALIZE]);
 }
 
 TEST_F(GCTracerTest, IncrementalMarkingSpeed) {
@@ -340,14 +342,14 @@ TEST_F(GCTracerTest, MutatorUtilization) {
   tracer->ResetForTesting();
 
   // Mark-compact #1 ended at 200ms and took 100ms.
-  tracer->RecordMutatorUtilization(200, 100);
+  tracer->RecordMutatorUtilization(200, base::TimeDelta::FromMilliseconds(100));
   // Avarage mark-compact time = 0ms.
   // Avarage mutator time = 0ms.
   EXPECT_DOUBLE_EQ(1.0, tracer->CurrentMarkCompactMutatorUtilization());
   EXPECT_DOUBLE_EQ(1.0, tracer->AverageMarkCompactMutatorUtilization());
 
   // Mark-compact #2 ended at 400ms and took 100ms.
-  tracer->RecordMutatorUtilization(400, 100);
+  tracer->RecordMutatorUtilization(400, base::TimeDelta::FromMilliseconds(100));
   // The first mark-compactor is ignored.
   // Avarage mark-compact time = 100ms.
   // Avarage mutator time = 100ms.
@@ -355,7 +357,7 @@ TEST_F(GCTracerTest, MutatorUtilization) {
   EXPECT_DOUBLE_EQ(0.5, tracer->AverageMarkCompactMutatorUtilization());
 
   // Mark-compact #3 ended at 600ms and took 200ms.
-  tracer->RecordMutatorUtilization(600, 200);
+  tracer->RecordMutatorUtilization(600, base::TimeDelta::FromMilliseconds(200));
   // Avarage mark-compact time = 100ms * 0.5 + 200ms * 0.5.
   // Avarage mutator time = 100ms * 0.5 + 0ms * 0.5.
   EXPECT_DOUBLE_EQ(0.0, tracer->CurrentMarkCompactMutatorUtilization());
@@ -363,7 +365,7 @@ TEST_F(GCTracerTest, MutatorUtilization) {
                    tracer->AverageMarkCompactMutatorUtilization());
 
   // Mark-compact #4 ended at 800ms and took 0ms.
-  tracer->RecordMutatorUtilization(800, 0);
+  tracer->RecordMutatorUtilization(800, base::TimeDelta());
   // Avarage mark-compact time = 150ms * 0.5 + 0ms * 0.5.
   // Avarage mutator time = 50ms * 0.5 + 200ms * 0.5.
   EXPECT_DOUBLE_EQ(1.0, tracer->CurrentMarkCompactMutatorUtilization());
@@ -381,9 +383,10 @@ TEST_F(GCTracerTest, BackgroundScavengerScope) {
   tracer->AddScopeSample(
       GCTracer::Scope::SCAVENGER_BACKGROUND_SCAVENGE_PARALLEL, 1);
   StopTracing(tracer, GarbageCollector::SCAVENGER);
-  EXPECT_DOUBLE_EQ(
-      11, tracer->current_
-              .scopes[GCTracer::Scope::SCAVENGER_BACKGROUND_SCAVENGE_PARALLEL]);
+  EXPECT_EQ(
+      base::TimeDelta::FromMilliseconds(11),
+      tracer->current_
+          .scopes[GCTracer::Scope::SCAVENGER_BACKGROUND_SCAVENGE_PARALLEL]);
 }
 
 TEST_F(GCTracerTest, BackgroundMinorMSScope) {
@@ -395,8 +398,8 @@ TEST_F(GCTracerTest, BackgroundMinorMSScope) {
   tracer->AddScopeSample(GCTracer::Scope::MINOR_MS_BACKGROUND_MARKING, 10);
   tracer->AddScopeSample(GCTracer::Scope::MINOR_MS_BACKGROUND_MARKING, 1);
   StopTracing(tracer, GarbageCollector::MINOR_MARK_SWEEPER);
-  EXPECT_DOUBLE_EQ(
-      11,
+  EXPECT_EQ(
+      base::TimeDelta::FromMilliseconds(11),
       tracer->current_.scopes[GCTracer::Scope::MINOR_MS_BACKGROUND_MARKING]);
 }
 
@@ -422,16 +425,17 @@ TEST_F(GCTracerTest, BackgroundMajorMCScope) {
   tracer->AddScopeSample(
       GCTracer::Scope::MC_BACKGROUND_EVACUATE_UPDATE_POINTERS, 4);
   StopTracing(tracer, GarbageCollector::MARK_COMPACTOR);
-  EXPECT_DOUBLE_EQ(
-      111, tracer->current_.scopes[GCTracer::Scope::MC_BACKGROUND_MARKING]);
-  EXPECT_DOUBLE_EQ(
-      222, tracer->current_.scopes[GCTracer::Scope::MC_BACKGROUND_SWEEPING]);
-  EXPECT_DOUBLE_EQ(
-      33,
+  EXPECT_EQ(base::TimeDelta::FromMilliseconds(111),
+            tracer->current_.scopes[GCTracer::Scope::MC_BACKGROUND_MARKING]);
+  EXPECT_EQ(base::TimeDelta::FromMilliseconds(222),
+            tracer->current_.scopes[GCTracer::Scope::MC_BACKGROUND_SWEEPING]);
+  EXPECT_EQ(
+      base::TimeDelta::FromMilliseconds(33),
       tracer->current_.scopes[GCTracer::Scope::MC_BACKGROUND_EVACUATE_COPY]);
-  EXPECT_DOUBLE_EQ(
-      44, tracer->current_
-              .scopes[GCTracer::Scope::MC_BACKGROUND_EVACUATE_UPDATE_POINTERS]);
+  EXPECT_EQ(
+      base::TimeDelta::FromMilliseconds(44),
+      tracer->current_
+          .scopes[GCTracer::Scope::MC_BACKGROUND_EVACUATE_UPDATE_POINTERS]);
 }
 
 class ThreadWithBackgroundScope final : public base::Thread {
@@ -459,7 +463,8 @@ TEST_F(GCTracerTest, MultithreadedBackgroundScope) {
   thread1.Join();
   thread2.Join();
   tracer->FetchBackgroundMarkCompactCounters();
-  EXPECT_LE(0, tracer->current_.scopes[GCTracer::Scope::MC_BACKGROUND_MARKING]);
+  EXPECT_LE(base::TimeDelta(),
+            tracer->current_.scopes[GCTracer::Scope::MC_BACKGROUND_MARKING]);
 }
 
 class GcHistogram {
@@ -503,13 +508,20 @@ TEST_F(GCTracerTest, RecordMarkCompactHistograms) {
   isolate()->SetAddHistogramSampleFunction(&GcHistogram::AddHistogramSample);
   GCTracer* tracer = i_isolate()->heap()->tracer();
   tracer->ResetForTesting();
-  tracer->current_.scopes[GCTracer::Scope::MC_CLEAR] = 1;
-  tracer->current_.scopes[GCTracer::Scope::MC_EPILOGUE] = 2;
-  tracer->current_.scopes[GCTracer::Scope::MC_EVACUATE] = 3;
-  tracer->current_.scopes[GCTracer::Scope::MC_FINISH] = 4;
-  tracer->current_.scopes[GCTracer::Scope::MC_MARK] = 5;
-  tracer->current_.scopes[GCTracer::Scope::MC_PROLOGUE] = 6;
-  tracer->current_.scopes[GCTracer::Scope::MC_SWEEP] = 7;
+  tracer->current_.scopes[GCTracer::Scope::MC_CLEAR] =
+      base::TimeDelta::FromMilliseconds(1);
+  tracer->current_.scopes[GCTracer::Scope::MC_EPILOGUE] =
+      base::TimeDelta::FromMilliseconds(2);
+  tracer->current_.scopes[GCTracer::Scope::MC_EVACUATE] =
+      base::TimeDelta::FromMilliseconds(3);
+  tracer->current_.scopes[GCTracer::Scope::MC_FINISH] =
+      base::TimeDelta::FromMilliseconds(4);
+  tracer->current_.scopes[GCTracer::Scope::MC_MARK] =
+      base::TimeDelta::FromMilliseconds(5);
+  tracer->current_.scopes[GCTracer::Scope::MC_PROLOGUE] =
+      base::TimeDelta::FromMilliseconds(6);
+  tracer->current_.scopes[GCTracer::Scope::MC_SWEEP] =
+      base::TimeDelta::FromMilliseconds(7);
   tracer->RecordGCPhasesHistograms(
       GCTracer::RecordGCPhasesInfo::Mode::Finalize);
   EXPECT_EQ(1, GcHistogram::Get("V8.GCFinalizeMC.Clear")->Total());
@@ -528,8 +540,10 @@ TEST_F(GCTracerTest, RecordScavengerHistograms) {
   isolate()->SetAddHistogramSampleFunction(&GcHistogram::AddHistogramSample);
   GCTracer* tracer = i_isolate()->heap()->tracer();
   tracer->ResetForTesting();
-  tracer->current_.scopes[GCTracer::Scope::SCAVENGER_SCAVENGE_ROOTS] = 1;
-  tracer->current_.scopes[GCTracer::Scope::SCAVENGER_SCAVENGE_PARALLEL] = 2;
+  tracer->current_.scopes[GCTracer::Scope::SCAVENGER_SCAVENGE_ROOTS] =
+      base::TimeDelta::FromMilliseconds(1);
+  tracer->current_.scopes[GCTracer::Scope::SCAVENGER_SCAVENGE_PARALLEL] =
+      base::TimeDelta::FromMilliseconds(2);
   tracer->RecordGCPhasesHistograms(
       GCTracer::RecordGCPhasesInfo::Mode::Scavenger);
   EXPECT_EQ(1, GcHistogram::Get("V8.GCScavenger.ScavengeRoots")->Total());
