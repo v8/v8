@@ -4995,14 +4995,45 @@ void InstructionSelectorT<Adapter>::VisitV128AnyTrue(Node* node) {
        g.UseUniqueRegister(node->InputAt(0)));
 }
 
+namespace {
+
+static bool IsV128ZeroConst(Node* node) {
+  if (node->opcode() == IrOpcode::kS128Zero) {
+    return true;
+  }
+  // If the node is a V128 const, check all the elements
+  auto m = V128ConstMatcher(node);
+  if (m.HasResolvedValue()) {
+    auto imms = m.ResolvedValue().immediate();
+    return std::all_of(imms.begin(), imms.end(), [](auto i) { return i == 0; });
+  }
+  return false;
+}
+
+}  // namespace
+
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitS128Select(Node* node) {
   X64OperandGeneratorT<Adapter> g(this);
-  InstructionOperand dst =
-      IsSupported(AVX) ? g.DefineAsRegister(node) : g.DefineSameAsFirst(node);
-  Emit(kX64SSelect | VectorLengthField::encode(kV128), dst,
-       g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)),
-       g.UseRegister(node->InputAt(2)));
+
+  if (IsV128ZeroConst(node->InputAt(2))) {
+    // select(cond, input1, 0) -> and(cond, input1)
+    Emit(
+        kX64SAnd | VectorLengthField::encode(kV128),
+        IsSupported(AVX) ? g.DefineAsRegister(node) : g.DefineSameAsFirst(node),
+        g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)));
+  } else if (IsV128ZeroConst(node->InputAt(1))) {
+    // select(cond, 0, input2) -> and(not(cond), input2)
+    Emit(kX64SAndNot | VectorLengthField::encode(kV128),
+         g.DefineSameAsFirst(node), g.UseRegister(node->InputAt(0)),
+         g.UseRegister(node->InputAt(2)));
+  } else {
+    InstructionOperand dst =
+        IsSupported(AVX) ? g.DefineAsRegister(node) : g.DefineSameAsFirst(node);
+    Emit(kX64SSelect | VectorLengthField::encode(kV128), dst,
+         g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)),
+         g.UseRegister(node->InputAt(2)));
+  }
 }
 
 template <typename Adapter>
@@ -5297,19 +5328,6 @@ bool TryMatchShufps(const uint8_t* shuffle32x4) {
   // the other 2 indices select the second input [4-7].
   return shuffle32x4[0] < 4 && shuffle32x4[1] < 4 && shuffle32x4[2] > 3 &&
          shuffle32x4[3] > 3;
-}
-
-static bool IsV128ZeroConst(Node* node) {
-  if (node->opcode() == IrOpcode::kS128Zero) {
-    return true;
-  }
-  // If the node is a V128 const, check all the elements
-  auto m = V128ConstMatcher(node);
-  if (m.HasResolvedValue()) {
-    auto imms = m.ResolvedValue().immediate();
-    return std::all_of(imms.begin(), imms.end(), [](auto i) { return i == 0; });
-  }
-  return false;
 }
 
 static bool TryMatchOneInputIsZeros(Node* node, uint8_t* shuffle,
