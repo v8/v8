@@ -4365,7 +4365,7 @@ void CodeGenerator::Pop(InstructionOperand* dest, MachineRepresentation rep) {
     AllocatedOperand stack_slot(LocationOperand::STACK_SLOT, rep, slot_id);
     AssembleMove(&stack_slot, dest);
     frame_access_state()->IncreaseSPDelta(-dropped_slots);
-    __ Daddu(sp, sp, Operand(new_slots * kSystemPointerSize));
+    __ Daddu(sp, sp, Operand(dropped_slots * kSystemPointerSize));
   }
   temp_slots_ -= dropped_slots;
 }
