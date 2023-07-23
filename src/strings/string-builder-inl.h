@@ -151,20 +151,12 @@ class IncrementalStringBuilder {
     return AppendCString(literal);
   }
 
-  V8_INLINE void AppendCString(const char* s) {
-    const uint8_t* u = reinterpret_cast<const uint8_t*>(s);
+  template <typename SrcChar>
+  V8_INLINE void AppendCString(const SrcChar* s) {
     if (encoding_ == String::ONE_BYTE_ENCODING) {
-      while (*u != '\0') Append<uint8_t, uint8_t>(*(u++));
+      while (*s != '\0') Append<SrcChar, uint8_t>(*s++);
     } else {
-      while (*u != '\0') Append<uint8_t, base::uc16>(*(u++));
-    }
-  }
-
-  V8_INLINE void AppendCString(const base::uc16* s) {
-    if (encoding_ == String::ONE_BYTE_ENCODING) {
-      while (*s != '\0') Append<base::uc16, uint8_t>(*(s++));
-    } else {
-      while (*s != '\0') Append<base::uc16, base::uc16>(*(s++));
+      while (*s != '\0') Append<SrcChar, base::uc16>(*s++);
     }
   }
 
