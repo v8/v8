@@ -901,7 +901,6 @@ void Parser::ParseFunction(Isolate* isolate, ParseInfo* info,
   FunctionKind function_kind = flags().function_kind();
   FunctionLiteral* result;
   if (V8_UNLIKELY(IsClassMembersInitializerFunction(function_kind))) {
-    DCHECK(!maybe_outer_scope_info.is_null());
     // Reparsing of class member initializer functions has to be handled
     // specially because they require reparsing of the whole class body,
     // function start/end positions correspond to the class literal body
