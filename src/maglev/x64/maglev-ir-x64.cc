@@ -280,18 +280,28 @@ void LoadSignedIntDataViewElement::GenerateCode(MaglevAssembler* masm,
     __ Assert(above_equal, AbortReason::kUnexpectedValue);
   }
 
+  // We need to make sure we don't clobber is_little_endian_input by writing to
+  // the result register.
+  Register reg_with_result = result_reg;
+  if (type_ != ExternalArrayType::kExternalInt8Array &&
+      !is_little_endian_constant() &&
+      result_reg == ToRegister(is_little_endian_input())) {
+    reg_with_result = data_pointer;
+  }
+
   // Load data pointer.
   __ LoadExternalPointerField(
       data_pointer, FieldOperand(object, JSDataView::kDataPointerOffset));
 
   int element_size = ExternalArrayElementSize(type_);
-  __ LoadSignedField(result_reg, Operand(data_pointer, index, times_1, 0),
+  __ LoadSignedField(reg_with_result, Operand(data_pointer, index, times_1, 0),
                      element_size);
 
   // We ignore little endian argument if type is a byte size.
   if (type_ != ExternalArrayType::kExternalInt8Array) {
     if (is_little_endian_constant()) {
       if (!FromConstantToBool(masm, is_little_endian_input().node())) {
+        DCHECK_EQ(reg_with_result, result_reg);
         __ ReverseByteOrder(result_reg, element_size);
       }
     } else {
@@ -300,10 +310,13 @@ void LoadSignedIntDataViewElement::GenerateCode(MaglevAssembler* masm,
                    CheckType::kCheckHeapObject, is_little_endian, is_big_endian,
                    false);
       __ bind(*is_big_endian);
-      __ ReverseByteOrder(result_reg, element_size);
+      __ ReverseByteOrder(reg_with_result, element_size);
       __ bind(*is_little_endian);
       // x64 is little endian.
       static_assert(V8_TARGET_LITTLE_ENDIAN == 1);
+      if (reg_with_result != result_reg) {
+        __ Move(result_reg, reg_with_result);
+      }
     }
   }
 }
