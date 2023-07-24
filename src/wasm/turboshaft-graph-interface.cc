@@ -498,16 +498,6 @@ class TurboshaftGraphBuildingInterface {
     asm_.GlobalSet(instance_node_, value.op, imm.global);
   }
 
-  void TableGet(FullDecoder* decoder, const Value& index, Value* result,
-                const IndexImmediate& imm) {
-    Bailout(decoder);
-  }
-
-  void TableSet(FullDecoder* decoder, const Value& index, const Value& value,
-                const IndexImmediate& imm) {
-    Bailout(decoder);
-  }
-
   void Trap(FullDecoder* decoder, TrapReason reason) {
     asm_.TrapIfNot(asm_.Word32Constant(0), OpIndex::Invalid(),
                    GetTrapIdForTrap(reason));
@@ -991,50 +981,139 @@ class TurboshaftGraphBuildingInterface {
 
   void MemoryInit(FullDecoder* decoder, const MemoryInitImmediate& imm,
                   const Value& dst, const Value& src, const Value& size) {
-    Bailout(decoder);
-  }
-
-  void DataDrop(FullDecoder* decoder, const IndexImmediate& imm) {
-    Bailout(decoder);
+    OpIndex dst_uintptr =
+        MemoryIndexToUintPtrOrOOBTrap(imm.memory.memory->is_memory64, dst.op);
+    DCHECK_EQ(size.type, kWasmI32);
+    OpIndex result = CallCStackSlotToInt32(
+        ExternalReference::wasm_memory_init(),
+        {{instance_node_, MemoryRepresentation::PointerSized()},
+         {asm_.Word32Constant(imm.memory.index), MemoryRepresentation::Int32()},
+         {dst_uintptr, MemoryRepresentation::PointerSized()},
+         {src.op, MemoryRepresentation::Int32()},
+         {asm_.Word32Constant(imm.data_segment.index),
+          MemoryRepresentation::Int32()},
+         {size.op, MemoryRepresentation::Int32()}});
+    asm_.TrapIfNot(result, OpIndex::Invalid(), TrapId::kTrapMemOutOfBounds);
   }
 
   void MemoryCopy(FullDecoder* decoder, const MemoryCopyImmediate& imm,
                   const Value& dst, const Value& src, const Value& size) {
-    Bailout(decoder);
+    bool is_memory_64 = imm.memory_src.memory->is_memory64;
+    DCHECK_EQ(is_memory_64, imm.memory_dst.memory->is_memory64);
+    OpIndex dst_uintptr = MemoryIndexToUintPtrOrOOBTrap(is_memory_64, dst.op);
+    OpIndex src_uintptr = MemoryIndexToUintPtrOrOOBTrap(is_memory_64, src.op);
+    OpIndex size_uintptr = MemoryIndexToUintPtrOrOOBTrap(is_memory_64, size.op);
+    OpIndex result = CallCStackSlotToInt32(
+        ExternalReference::wasm_memory_copy(),
+        {{instance_node_, MemoryRepresentation::PointerSized()},
+         {asm_.Word32Constant(imm.memory_dst.index),
+          MemoryRepresentation::Int32()},
+         {asm_.Word32Constant(imm.memory_src.index),
+          MemoryRepresentation::Int32()},
+         {dst_uintptr, MemoryRepresentation::PointerSized()},
+         {src_uintptr, MemoryRepresentation::PointerSized()},
+         {size_uintptr, MemoryRepresentation::PointerSized()}});
+    asm_.TrapIfNot(result, OpIndex::Invalid(), TrapId::kTrapMemOutOfBounds);
   }
 
   void MemoryFill(FullDecoder* decoder, const MemoryIndexImmediate& imm,
                   const Value& dst, const Value& value, const Value& size) {
-    Bailout(decoder);
+    bool is_memory_64 = imm.memory->is_memory64;
+    OpIndex dst_uintptr = MemoryIndexToUintPtrOrOOBTrap(is_memory_64, dst.op);
+    OpIndex size_uintptr = MemoryIndexToUintPtrOrOOBTrap(is_memory_64, size.op);
+    OpIndex result = CallCStackSlotToInt32(
+        ExternalReference::wasm_memory_fill(),
+        {{instance_node_, MemoryRepresentation::PointerSized()},
+         {asm_.Word32Constant(imm.index), MemoryRepresentation::Int32()},
+         {dst_uintptr, MemoryRepresentation::PointerSized()},
+         {value.op, MemoryRepresentation::Int32()},
+         {size_uintptr, MemoryRepresentation::PointerSized()}});
+
+    asm_.TrapIfNot(result, OpIndex::Invalid(), TrapId::kTrapMemOutOfBounds);
+  }
+
+  void DataDrop(FullDecoder* decoder, const IndexImmediate& imm) {
+    OpIndex data_segment_sizes = LOAD_INSTANCE_FIELD(
+        DataSegmentSizes, MemoryRepresentation::TaggedPointer());
+    asm_.Store(data_segment_sizes, asm_.Word32Constant(0),
+               StoreOp::Kind::TaggedBase(), MemoryRepresentation::Int32(),
+               compiler::kNoWriteBarrier,
+               FixedUInt32Array::kHeaderSize + imm.index * kUInt32Size);
+  }
+
+  void TableGet(FullDecoder* decoder, const Value& index, Value* result,
+                const IndexImmediate& imm) {
+    ValueType table_type = decoder->module_->tables[imm.index].type;
+    auto stub = IsSubtypeOf(table_type, kWasmFuncRef, decoder->module_)
+                    ? WasmCode::kWasmTableGetFuncRef
+                    : WasmCode::kWasmTableGet;
+    result->op = CallBuiltinFromRuntimeStub(
+        decoder, stub, {asm_.IntPtrConstant(imm.index), index.op});
+  }
+
+  void TableSet(FullDecoder* decoder, const Value& index, const Value& value,
+                const IndexImmediate& imm) {
+    ValueType table_type = decoder->module_->tables[imm.index].type;
+    auto stub = IsSubtypeOf(table_type, kWasmFuncRef, decoder->module_)
+                    ? WasmCode::kWasmTableSetFuncRef
+                    : WasmCode::kWasmTableSet;
+    CallBuiltinFromRuntimeStub(
+        decoder, stub, {asm_.IntPtrConstant(imm.index), index.op, value.op});
   }
 
   void TableInit(FullDecoder* decoder, const TableInitImmediate& imm,
                  const Value* args) {
-    Bailout(decoder);
-  }
-
-  void ElemDrop(FullDecoder* decoder, const IndexImmediate& imm) {
-    Bailout(decoder);
+    OpIndex dst = args[0].op;
+    OpIndex src = args[1].op;
+    OpIndex size = args[2].op;
+    CallBuiltinFromRuntimeStub(
+        decoder, WasmCode::kWasmTableInit,
+        {dst, src, size, asm_.NumberConstant(imm.table.index),
+         asm_.NumberConstant(imm.element_segment.index)});
   }
 
   void TableCopy(FullDecoder* decoder, const TableCopyImmediate& imm,
                  const Value args[]) {
-    Bailout(decoder);
+    OpIndex dst = args[0].op;
+    OpIndex src = args[1].op;
+    OpIndex size = args[2].op;
+    CallBuiltinFromRuntimeStub(
+        decoder, WasmCode::kWasmTableCopy,
+        {dst, src, size, asm_.NumberConstant(imm.table_dst.index),
+         asm_.NumberConstant(imm.table_src.index)});
   }
 
   void TableGrow(FullDecoder* decoder, const IndexImmediate& imm,
                  const Value& value, const Value& delta, Value* result) {
-    Bailout(decoder);
-  }
-
-  void TableSize(FullDecoder* decoder, const IndexImmediate& imm,
-                 Value* result) {
-    Bailout(decoder);
+    V<Tagged> result_smi = CallBuiltinFromRuntimeStub(
+        decoder, WasmCode::kWasmTableGrow,
+        {asm_.NumberConstant(imm.index), delta.op, value.op});
+    result->op = asm_.UntagSmi(result_smi);
   }
 
   void TableFill(FullDecoder* decoder, const IndexImmediate& imm,
                  const Value& start, const Value& value, const Value& count) {
-    Bailout(decoder);
+    CallBuiltinFromRuntimeStub(
+        decoder, WasmCode::kWasmTableFill,
+        {asm_.NumberConstant(imm.index), start.op, count.op, value.op});
+  }
+
+  void TableSize(FullDecoder* decoder, const IndexImmediate& imm,
+                 Value* result) {
+    V<Tagged> tables =
+        LOAD_INSTANCE_FIELD(Tables, MemoryRepresentation::TaggedPointer());
+    V<Tagged> table = LoadFixedArrayElement(tables, imm.index);
+    V<Tagged> size_smi = asm_.Load(table, LoadOp::Kind::TaggedBase(),
+                                   MemoryRepresentation::TaggedSigned(),
+                                   WasmTableObject::kCurrentLengthOffset);
+    result->op = asm_.UntagSmi(size_smi);
+  }
+
+  void ElemDrop(FullDecoder* decoder, const IndexImmediate& imm) {
+    V<Tagged> elem_segments = LOAD_INSTANCE_FIELD(
+        ElementSegments, MemoryRepresentation::TaggedPointer());
+    StoreFixedArrayElement(elem_segments, imm.index, LOAD_ROOT(EmptyFixedArray),
+                           compiler::kFullWriteBarrier);
   }
 
   void StructNew(FullDecoder* decoder, const StructIndexImmediate& imm,
@@ -2969,6 +3048,26 @@ class TurboshaftGraphBuildingInterface {
     return CallC(&sig, ref, &stack_slot_param);
   }
 
+  OpIndex CallCStackSlotToInt32(
+      ExternalReference ref,
+      std::initializer_list<std::pair<OpIndex, MemoryRepresentation>> args) {
+    int slot_size = 0;
+    for (auto arg : args) slot_size += arg.second.SizeInBytes();
+    // Since we are storing the arguments unaligned anyway, we do not need
+    // alignment > 0.
+    OpIndex stack_slot_param = asm_.StackSlot(slot_size, 0);
+    int offset = 0;
+    for (auto arg : args) {
+      asm_.Store(stack_slot_param, arg.first, StoreOp::Kind::RawUnaligned(),
+                 arg.second, compiler::WriteBarrierKind::kNoWriteBarrier,
+                 offset);
+      offset += arg.second.SizeInBytes();
+    }
+    MachineType reps[]{MachineType::Int32(), MachineType::Pointer()};
+    MachineSignature sig(1, 1, reps);
+    return CallC(&sig, ref, &stack_slot_param);
+  }
+
   OpIndex CallCStackSlotToStackSlot(OpIndex arg, ExternalReference ref,
                                     MemoryRepresentation arg_type) {
     OpIndex stack_slot =
@@ -2995,6 +3094,15 @@ class TurboshaftGraphBuildingInterface {
     MachineSignature sig(0, 1, reps);
     CallC(&sig, ref, &stack_slot);
     return asm_.Load(stack_slot, LoadOp::Kind::RawAligned(), arg_type);
+  }
+
+  OpIndex MemoryIndexToUintPtrOrOOBTrap(bool memory_is_64, OpIndex index) {
+    if (!memory_is_64) return asm_.ChangeUint32ToUintPtr(index);
+    if (kSystemPointerSize == kInt64Size) return index;
+    // Truncations from 64 to 32 bits are implicit.
+    asm_.TrapIf(asm_.Word64ShiftRightLogical(index, 32), OpIndex::Invalid(),
+                TrapId::kTrapMemOutOfBounds);
+    return index;
   }
 
   OpIndex IsSmi(OpIndex object) {
@@ -3103,26 +3211,27 @@ class TurboshaftGraphBuildingInterface {
     }
   }
 
-  OpIndex LoadFixedArrayElement(OpIndex array, int index) {
+  V<Tagged> LoadFixedArrayElement(V<Tagged> array, int index) {
     return asm_.Load(array, LoadOp::Kind::TaggedBase(),
                      MemoryRepresentation::AnyTagged(),
                      FixedArray::kHeaderSize + index * kTaggedSize);
   }
 
-  OpIndex LoadFixedArrayElement(OpIndex array, OpIndex index) {
+  V<Tagged> LoadFixedArrayElement(V<Tagged> array, V<WordPtr> index) {
     return asm_.Load(array, index, LoadOp::Kind::TaggedBase(),
                      MemoryRepresentation::AnyTagged(), FixedArray::kHeaderSize,
                      kTaggedSizeLog2);
   }
 
-  void StoreFixedArrayElement(OpIndex array, int index, OpIndex value,
+  void StoreFixedArrayElement(V<Tagged> array, int index, V<Tagged> value,
                               compiler::WriteBarrierKind write_barrier) {
     asm_.Store(array, value, LoadOp::Kind::TaggedBase(),
                MemoryRepresentation::AnyTagged(), write_barrier,
                FixedArray::kHeaderSize + index * kTaggedSize);
   }
 
-  void StoreFixedArrayElement(OpIndex array, OpIndex index, OpIndex value,
+  void StoreFixedArrayElement(V<Tagged> array, V<WordPtr> index,
+                              V<Tagged> value,
                               compiler::WriteBarrierKind write_barrier) {
     asm_.Store(array, index, value, LoadOp::Kind::TaggedBase(),
                MemoryRepresentation::AnyTagged(), write_barrier,

@@ -1071,6 +1071,8 @@ struct ControlBase : public PcForErrors<ValidationTag::full_validation> {
   F(I31New, const Value& input, Value* result)                                 \
   F(StringConst, const StringConstImmediate& imm, Value* result)
 
+// TODO(manoskouk): Refactor table.init, table.copy to have individual named
+// args.
 #define INTERFACE_NON_CONSTANT_FUNCTIONS(F) /*       force 80 columns       */ \
   /* Control: */                                                               \
   F(Block, Control* block)                                                     \

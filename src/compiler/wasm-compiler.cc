@@ -5341,12 +5341,10 @@ void WasmGraphBuilder::ElemDrop(uint32_t elem_segment_index,
 
   Node* elem_segments =
       LOAD_INSTANCE_FIELD(ElementSegments, MachineType::TaggedPointer());
-  auto store_rep = StoreRepresentation(MachineRepresentation::kTaggedPointer,
-                                       kFullWriteBarrier);
-  gasm_->Store(
-      store_rep, elem_segments,
-      wasm::ObjectAccess::ElementOffsetInTaggedFixedArray(elem_segment_index),
-      LOAD_ROOT(EmptyFixedArray, empty_fixed_array));
+  gasm_->StoreFixedArrayElement(
+      elem_segments, elem_segment_index,
+      LOAD_ROOT(EmptyFixedArray, empty_fixed_array),
+      ObjectAccess(MachineType::TaggedPointer(), kFullWriteBarrier));
 }
 
 void WasmGraphBuilder::TableCopy(uint32_t table_dst_index,
@@ -5359,10 +5357,9 @@ void WasmGraphBuilder::TableCopy(uint32_t table_dst_index,
 
 Node* WasmGraphBuilder::TableGrow(uint32_t table_index, Node* value,
                                   Node* delta) {
-  return gasm_->BuildChangeSmiToInt32(gasm_->CallRuntimeStub(
-      wasm::WasmCode::kWasmTableGrow, Operator::kNoThrow,
-      graph()->NewNode(mcgraph()->common()->NumberConstant(table_index)), delta,
-      value));
+  return gasm_->BuildChangeSmiToInt32(
+      gasm_->CallRuntimeStub(wasm::WasmCode::kWasmTableGrow, Operator::kNoThrow,
+                             gasm_->NumberConstant(table_index), delta, value));
 }
 
 Node* WasmGraphBuilder::TableSize(uint32_t table_index) {
@@ -5380,10 +5377,9 @@ Node* WasmGraphBuilder::TableSize(uint32_t table_index) {
 
 void WasmGraphBuilder::TableFill(uint32_t table_index, Node* start, Node* value,
                                  Node* count) {
-  gasm_->CallRuntimeStub(
-      wasm::WasmCode::kWasmTableFill, Operator::kNoThrow,
-      graph()->NewNode(mcgraph()->common()->NumberConstant(table_index)), start,
-      count, value);
+  gasm_->CallRuntimeStub(wasm::WasmCode::kWasmTableFill, Operator::kNoThrow,
+                         gasm_->NumberConstant(table_index), start, count,
+                         value);
 }
 
 Node* WasmGraphBuilder::DefaultValue(wasm::ValueType type) {
