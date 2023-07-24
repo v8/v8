@@ -2993,6 +2993,13 @@ class AssemblerOpInterface {
     }
     return stack().ReduceIsNull(input, type);
   }
+
+  OpIndex AssertNotNull(OpIndex object, wasm::ValueType type, TrapId trap_id) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
+    return stack().ReduceAssertNotNull(object, type, trap_id);
+  }
 #endif
 
   template <typename Rep>

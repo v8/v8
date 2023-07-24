@@ -943,6 +943,11 @@ class GraphVisitor {
   OpIndex AssembleOutputGraphIsNull(const IsNullOp& op) {
     return assembler().ReduceIsNull(MapToNewGraph(op.object()), op.type);
   }
+
+  OpIndex AssembleOutputGraphAssertNotNull(const AssertNotNullOp& op) {
+    return assembler().ReduceAssertNotNull(MapToNewGraph(op.object()), op.type,
+                                           op.trap_id);
+  }
 #endif
 
   void CreateOldToNewMapping(OpIndex old_index, OpIndex new_index) {

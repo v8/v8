@@ -99,7 +99,8 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
   V(GlobalGet)                            \
   V(GlobalSet)                            \
   V(IsNull)                               \
-  V(Null)
+  V(Null)                                 \
+  V(AssertNotNull)
 #else
 #define TURBOSHAFT_WASM_OPERATION_LIST(V)
 #endif
@@ -2114,6 +2115,7 @@ struct LoadOp : OperationT<LoadOp> {
     static constexpr Kind RawAligned() { return Kind{false, false, false}; }
     static constexpr Kind RawUnaligned() { return Kind{false, true, false}; }
     static constexpr Kind Protected() { return Kind{false, false, true}; }
+    static constexpr Kind TrapOnNull() { return Kind{true, false, true}; }
 
     bool operator==(const Kind& other) const {
       return tagged_base == other.tagged_base &&
@@ -4924,6 +4926,32 @@ struct IsNullOp : FixedArityOperationT<1, IsNullOp> {
   }
 
   auto options() const { return std::tuple{type}; }
+};
+
+// Traps on a null input, otherwise returns the input, type-cast to the
+// respective non-nullable type.
+struct AssertNotNullOp : FixedArityOperationT<1, AssertNotNullOp> {
+  wasm::ValueType type;
+  TrapId trap_id;
+
+  // Lowers to a trap and inherits {TrapIf}'s effects.
+  static constexpr OpEffects effects =
+      OpEffects().CanDependOnChecks().CanLeaveCurrentFunction();
+
+  OpIndex object() const { return Base::input(0); }
+
+  AssertNotNullOp(OpIndex object, wasm::ValueType type, TrapId trap_id)
+      : Base(object), type(type), trap_id(trap_id) {}
+
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return RepVector<RegisterRepresentation::Tagged()>();
+  }
+
+  void Validate(const Graph& graph) const {
+    // TODO(14108): Validate.
+  }
+
+  auto options() const { return std::tuple{type, trap_id}; }
 };
 
 #endif  // V8_ENABLE_WEBASSEMBLY

@@ -217,7 +217,7 @@ class TurboshaftGraphBuildingInterface {
       DoReturn(decoder, drop_values);
     } else {
       Control* target = decoder->control_at(depth);
-      SetupControlFlowEdge(decoder, target->merge_block);
+      SetupControlFlowEdge(decoder, target->merge_block, drop_values);
       asm_.Goto(target->merge_block);
     }
   }
@@ -298,7 +298,7 @@ class TurboshaftGraphBuildingInterface {
         // Exceptionally for one-armed if, we cannot take the values from the
         // stack; we have to pass the stack values at the beginning of the
         // if-block.
-        SetupControlFlowEdge(decoder, block->merge_block, OpIndex::Invalid(),
+        SetupControlFlowEdge(decoder, block->merge_block, 0, OpIndex::Invalid(),
                              &block->start_merge);
         asm_.Goto(block->merge_block);
         EnterBlock(decoder, block->merge_block, block->br_merge());
@@ -419,13 +419,11 @@ class TurboshaftGraphBuildingInterface {
   }
 
   void F32Const(FullDecoder* decoder, Value* result, float value) {
-    result->op = asm_.FloatConstant(
-        value, compiler::turboshaft::FloatRepresentation::Float32());
+    result->op = asm_.Float32Constant(value);
   }
 
   void F64Const(FullDecoder* decoder, Value* result, double value) {
-    result->op = asm_.FloatConstant(
-        value, compiler::turboshaft::FloatRepresentation::Float64());
+    result->op = asm_.Float64Constant(value);
   }
 
   void S128Const(FullDecoder* decoder, const Simd128Immediate& imm,
@@ -460,7 +458,8 @@ class TurboshaftGraphBuildingInterface {
   }
 
   void RefAsNonNull(FullDecoder* decoder, const Value& arg, Value* result) {
-    Bailout(decoder);
+    result->op =
+        asm_.AssertNotNull(arg.op, arg.type, TrapId::kTrapNullDereference);
   }
 
   void Drop(FullDecoder* decoder) {}
@@ -774,12 +773,28 @@ class TurboshaftGraphBuildingInterface {
 
   void BrOnNull(FullDecoder* decoder, const Value& ref_object, uint32_t depth,
                 bool pass_null_along_branch, Value* result_on_fallthrough) {
-    Bailout(decoder);
+    result_on_fallthrough->op = ref_object.op;
+    TSBlock* null_branch = asm_.NewBlock();
+    TSBlock* non_null_branch = asm_.NewBlock();
+    asm_.Branch(ConditionWithHint(asm_.IsNull(ref_object.op, ref_object.type),
+                                  BranchHint::kFalse),
+                null_branch, non_null_branch);
+    asm_.Bind(null_branch);
+    BrOrRet(decoder, depth, pass_null_along_branch ? 0 : 1);
+    asm_.Bind(non_null_branch);
   }
 
   void BrOnNonNull(FullDecoder* decoder, const Value& ref_object, Value* result,
                    uint32_t depth, bool /* drop_null_on_fallthrough */) {
-    Bailout(decoder);
+    result->op = ref_object.op;
+    TSBlock* null_branch = asm_.NewBlock();
+    TSBlock* non_null_branch = asm_.NewBlock();
+    asm_.Branch(ConditionWithHint(asm_.IsNull(ref_object.op, ref_object.type),
+                                  BranchHint::kFalse),
+                null_branch, non_null_branch);
+    asm_.Bind(non_null_branch);
+    BrOrRet(decoder, depth, 0);
+    asm_.Bind(null_branch);
   }
 
   void SimdOp(FullDecoder* decoder, WasmOpcode opcode, const Value* args,
@@ -960,7 +975,7 @@ class TurboshaftGraphBuildingInterface {
     } else {
       DCHECK(decoder->control_at(depth)->is_try());
       TSBlock* target_catch = decoder->control_at(depth)->catch_block;
-      SetupControlFlowEdge(decoder, target_catch, block->exception);
+      SetupControlFlowEdge(decoder, target_catch, 0, block->exception);
       asm_.Goto(target_catch);
     }
   }
@@ -1542,6 +1557,7 @@ class TurboshaftGraphBuildingInterface {
   // {block}. The stack is {stack_values} if present, otherwise the current
   // decoder stack.
   void SetupControlFlowEdge(FullDecoder* decoder, TSBlock* block,
+                            uint32_t drop_values = 0,
                             OpIndex exception = OpIndex::Invalid(),
                             Merge<Value>* stack_values = nullptr) {
     if (asm_.current_block() == nullptr) return;
@@ -1553,10 +1569,12 @@ class TurboshaftGraphBuildingInterface {
     for (size_t i = 0; i < ssa_env_.size(); i++) {
       phis_for_block.phi_inputs[i].emplace_back(ssa_env_[i]);
     }
+    // We never drop values from an explicit merge.
+    DCHECK_IMPLIES(stack_values != nullptr, drop_values == 0);
     Value* stack_base = merge_arity == 0 ? nullptr
                         : stack_values != nullptr
                             ? &(*stack_values)[0]
-                            : decoder->stack_value(merge_arity);
+                            : decoder->stack_value(merge_arity + drop_values);
     for (size_t i = 0; i < merge_arity; i++) {
       DCHECK(stack_base[i].op.valid());
       phis_for_block.phi_inputs[decoder->num_locals() + i].emplace_back(
@@ -2345,6 +2363,9 @@ class TurboshaftGraphBuildingInterface {
       case kExprI32AsmjsUConvertF64:
         return asm_.JSTruncateFloat64ToWord32(arg);
       case kExprRefAsNonNull:
+        // We abuse ref.as_non_null, which isn't otherwise used in this switch,
+        // as a sentinel for the negation of ref.is_null.
+        return asm_.Word32Equal(asm_.IsNull(arg, input_type), 0);
       case kExprExternInternalize:
       case kExprExternExternalize:
         Bailout(decoder);
@@ -3071,7 +3092,7 @@ class TurboshaftGraphBuildingInterface {
 
     asm_.Bind(exception_block);
     OpIndex exception = asm_.LoadException();
-    SetupControlFlowEdge(decoder, catch_block, exception);
+    SetupControlFlowEdge(decoder, catch_block, 0, exception);
     asm_.Goto(catch_block);
 
     asm_.Bind(success_block);

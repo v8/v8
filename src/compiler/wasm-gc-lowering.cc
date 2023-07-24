@@ -477,7 +477,7 @@ Reduction WasmGCLowering::ReduceAssertNotNull(Node* node) {
       } else {
         static_assert(WasmStruct::kHeaderSize > kTaggedSize);
         static_assert(WasmArray::kHeaderSize > kTaggedSize);
-        // TODO(manoskouk): JSFunction::kHeaderSize also has to be >kTaggedSize.
+        static_assert(WasmInternalFunction::kHeaderSize > kTaggedSize);
         Node* trap_null = gasm_.LoadTrapOnNull(
             MachineType::Int32(), object,
             gasm_.IntPtrConstant(wasm::ObjectAccess::ToTagged(kTaggedSize)));

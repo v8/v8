@@ -964,7 +964,11 @@ Node* ScheduleBuilder::ProcessOperation(const LoadOp& op) {
     }
   } else if (op.kind.with_trap_handler) {
     DCHECK(!op.kind.maybe_unaligned);
-    o = machine.ProtectedLoad(loaded_rep);
+    if (op.kind.tagged_base) {
+      o = machine.LoadTrapOnNull(loaded_rep);
+    } else {
+      o = machine.ProtectedLoad(loaded_rep);
+    }
   } else {
     o = machine.Load(loaded_rep);
   }
@@ -1008,8 +1012,14 @@ Node* ScheduleBuilder::ProcessOperation(const StoreOp& op) {
     }
   } else if (op.kind.with_trap_handler) {
     DCHECK(!op.kind.maybe_unaligned);
-    DCHECK_EQ(op.write_barrier, WriteBarrierKind::kNoWriteBarrier);
-    o = machine.ProtectedStore(op.stored_rep.ToMachineType().representation());
+    if (op.kind.tagged_base) {
+      o = machine.StoreTrapOnNull(StoreRepresentation(
+          op.stored_rep.ToMachineType().representation(), op.write_barrier));
+    } else {
+      DCHECK_EQ(op.write_barrier, WriteBarrierKind::kNoWriteBarrier);
+      o = machine.ProtectedStore(
+          op.stored_rep.ToMachineType().representation());
+    }
   } else {
     o = machine.Store(StoreRepresentation(
         op.stored_rep.ToMachineType().representation(), op.write_barrier));

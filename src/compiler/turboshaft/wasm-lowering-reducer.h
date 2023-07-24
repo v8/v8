@@ -46,6 +46,34 @@ class WasmLoweringReducer : public Next {
     return __ TaggedEqual(object, Null(type));
   }
 
+  OpIndex REDUCE(AssertNotNull)(OpIndex object, wasm::ValueType type,
+                                TrapId trap_id) {
+    if (trap_id == TrapId::kTrapNullDereference) {
+      // Skip the check altogether if null checks are turned off.
+      if (!v8_flags.experimental_wasm_skip_null_checks) {
+        // Use an explicit null check if
+        // (1) we cannot use trap handler or
+        // (2) the object might be a Smi or
+        // (3) the object might be a JS object.
+        if (null_check_strategy_ == NullCheckStrategy::kExplicitNullChecks ||
+            wasm::IsSubtypeOf(wasm::kWasmI31Ref.AsNonNull(), type, module_) ||
+            wasm::IsSubtypeOf(type, wasm::kWasmExternRef, module_)) {
+          __ TrapIf(__ IsNull(object, type), OpIndex::Invalid(), trap_id);
+        } else {
+          // Otherwise, load the word after the map word.
+          static_assert(WasmStruct::kHeaderSize > kTaggedSize);
+          static_assert(WasmArray::kHeaderSize > kTaggedSize);
+          static_assert(WasmInternalFunction::kHeaderSize > kTaggedSize);
+          __ Load(object, LoadOp::Kind::TrapOnNull(),
+                  MemoryRepresentation::Int32(), kTaggedSize);
+        }
+      }
+    } else {
+      __ TrapIf(__ IsNull(object, type), OpIndex::Invalid(), trap_id);
+    }
+    return object;
+  }
+
  private:
   enum class GlobalMode { kLoad, kStore };
 
@@ -144,6 +172,10 @@ class WasmLoweringReducer : public Next {
   }
 
   const wasm::WasmModule* module_ = PipelineData::Get().wasm_module();
+  const NullCheckStrategy null_check_strategy_ =
+      trap_handler::IsTrapHandlerEnabled() && V8_STATIC_ROOTS_BOOL
+          ? NullCheckStrategy::kTrapHandler
+          : NullCheckStrategy::kExplicitNullChecks;
 };
 
 #include "src/compiler/turboshaft/undef-assembler-macros.inc"

@@ -301,6 +301,7 @@ class TypeInferenceAnalysis {
         case Opcode::kGlobalGet:
         case Opcode::kIsNull:
         case Opcode::kNull:
+        case Opcode::kAssertNotNull:
 #endif
           // TODO(nicohartmann@): Support remaining operations. For now we
           // compute fallback types.
