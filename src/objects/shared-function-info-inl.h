@@ -768,6 +768,12 @@ int SharedFunctionInfo::wasm_function_index() const {
   return function_data->function_index();
 }
 
+bool SharedFunctionInfo::is_promising_wasm_export() const {
+  const WasmExportedFunctionData& function_data = wasm_exported_function_data();
+  return function_data.wrapper_code().builtin_id() ==
+         Builtin::kWasmReturnPromiseOnSuspend;
+}
+
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 bool SharedFunctionInfo::HasBuiltinId() const {
