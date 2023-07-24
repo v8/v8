@@ -7,6 +7,7 @@
 #include "src/compiler/turboshaft/assembler.h"
 #include "src/compiler/turboshaft/graph.h"
 #include "src/compiler/wasm-compiler-definitions.h"
+#include "src/trap-handler/trap-handler.h"
 #include "src/wasm/compilation-environment.h"
 #include "src/wasm/function-body-decoder-impl.h"
 #include "src/wasm/function-compiler.h"
@@ -762,13 +763,25 @@ class TurboshaftGraphBuildingInterface {
   void CallRef(FullDecoder* decoder, const Value& func_ref,
                const FunctionSig* sig, uint32_t sig_index, const Value args[],
                Value returns[]) {
-    Bailout(decoder);
+    if (sig->contains(kWasmS128)) {
+      Bailout(decoder);
+      return;
+    }
+    auto [target, ref] =
+        BuildFunctionReferenceTargetAndRef(func_ref.op, func_ref.type);
+    BuildWasmCall(decoder, sig, target, ref, args, returns);
   }
 
   void ReturnCallRef(FullDecoder* decoder, const Value& func_ref,
                      const FunctionSig* sig, uint32_t sig_index,
                      const Value args[]) {
-    Bailout(decoder);
+    if (sig->contains(kWasmS128)) {
+      Bailout(decoder);
+      return;
+    }
+    auto [target, ref] =
+        BuildFunctionReferenceTargetAndRef(func_ref.op, func_ref.type);
+    BuildWasmReturnCall(sig, target, ref, args);
   }
 
   void BrOnNull(FullDecoder* decoder, const Value& ref_object, uint32_t depth,
@@ -2881,27 +2894,6 @@ class TurboshaftGraphBuildingInterface {
     return {target, ref};
   }
 
-  OpIndex BuildDecodeExternalPointer(OpIndex handle, ExternalPointerTag tag) {
-#ifdef V8_ENABLE_SANDBOX
-    // Decode loaded external pointer.
-    OpIndex isolate_root = asm_.LoadRootRegister();
-    DCHECK(!IsSharedExternalPointerType(tag));
-    OpIndex table =
-        asm_.Load(isolate_root, LoadOp::Kind::RawAligned(),
-                  MemoryRepresentation::PointerSized(),
-                  IsolateData::external_pointer_table_offset() +
-                      Internals::kExternalPointerTableBasePointerOffset);
-    OpIndex index = asm_.ShiftRightLogical(handle, kExternalPointerIndexShift,
-                                           WordRepresentation::Word32());
-    OpIndex pointer = asm_.LoadOffHeap(table, asm_.ChangeUint32ToUint64(index),
-                                       0, MemoryRepresentation::PointerSized());
-    pointer = asm_.Word64BitwiseAnd(pointer, asm_.Word64Constant(~tag));
-    return pointer;
-#else   // V8_ENABLE_SANDBOX
-    UNREACHABLE();
-#endif  // V8_ENABLE_SANDBOX
-  }
-
   std::pair<OpIndex, OpIndex> BuildIndirectCallTargetAndRef(
       FullDecoder* decoder, OpIndex index, CallIndirectImmediate imm) {
     uint32_t table_index = imm.table_imm.index;
@@ -2999,6 +2991,70 @@ class TurboshaftGraphBuildingInterface {
 #endif
     OpIndex ref = LoadFixedArrayElement(ift_refs, index_intptr);
     return {target, ref};
+  }
+
+  std::pair<OpIndex, OpIndex> BuildFunctionReferenceTargetAndRef(
+      OpIndex func_ref, ValueType type) {
+    if (type.is_nullable() &&
+        null_check_strategy_ ==
+            compiler::NullCheckStrategy::kExplicitNullChecks) {
+      func_ref =
+          asm_.AssertNotNull(func_ref, type, TrapId::kTrapNullDereference);
+    }
+
+    OpIndex ref =
+        type.is_nullable() && null_check_strategy_ ==
+                                  compiler::NullCheckStrategy::kTrapHandler
+            ? asm_.Load(func_ref, LoadOp::Kind::TrapOnNull(),
+                        MemoryRepresentation::TaggedPointer(),
+                        WasmInternalFunction::kRefOffset)
+            : asm_.Load(func_ref, LoadOp::Kind::TaggedBase(),
+                        MemoryRepresentation::TaggedPointer(),
+                        WasmInternalFunction::kRefOffset);
+
+#ifdef V8_ENABLE_SANDBOX
+    OpIndex target_handle = asm_.Load(func_ref, LoadOp::Kind::TaggedBase(),
+                                      MemoryRepresentation::Uint32(),
+                                      WasmInternalFunction::kCallTargetOffset);
+    OpIndex target = BuildDecodeExternalPointer(
+        target_handle, kWasmInternalFunctionCallTargetTag);
+#else
+    OpIndex target = asm_.Load(func_ref, LoadOp::Kind::TaggedBase(),
+                               MemoryRepresentation::PointerSized(),
+                               WasmInternalFunction::kCallTargetOffset);
+#endif
+    Label<WordPtr> done(&asm_);
+    // For wasm functions, we have a cached handle to a pointer to off-heap
+    // code. For WasmJSFunctions we used not to be able to cache this handle
+    // because the code was on-heap, so we needed to fetch it every time from
+    // the on-heap Code object. However now, when code pointer sandboxing is on,
+    // the on-heap Code object also has a handle to off-heap code, so we could
+    // probably also cache that somehow.
+    // TODO(manoskouk): Figure out how to improve the situation.
+    IF (UNLIKELY(asm_.WordPtrEqual(target, 0))) {
+      OpIndex wrapper_code = asm_.Load(func_ref, LoadOp::Kind::TaggedBase(),
+                                       MemoryRepresentation::TaggedPointer(),
+                                       WasmInternalFunction::kCodeOffset);
+#ifdef V8_CODE_POINTER_SANDBOXING
+      OpIndex call_target_handle = asm_.Load(
+          wrapper_code, LoadOp::Kind::TaggedBase(),
+          MemoryRepresentation::Uint32(), Code::kInstructionStartOffset);
+      OpIndex call_target = BuildDecodeExternalCodePointer(call_target_handle);
+#else
+      OpIndex call_target = asm_.Load(wrapper_code, LoadOp::Kind::TaggedBase(),
+                                      MemoryRepresentation::PointerSized(),
+                                      Code::kInstructionStartOffset);
+#endif
+      GOTO(done, call_target);
+    }
+    ELSE {
+      GOTO(done, target);
+    }
+    END_IF
+
+    BIND(done, final_target);
+
+    return {final_target, ref};
   }
 
   void BuildWasmCall(FullDecoder* decoder, const FunctionSig* sig,
@@ -3232,6 +3288,42 @@ class TurboshaftGraphBuildingInterface {
                                         value, kSmiShiftSize + kSmiTagSize);
   }
 
+  OpIndex BuildDecodeExternalPointer(OpIndex handle, ExternalPointerTag tag) {
+#ifdef V8_ENABLE_SANDBOX
+    // Decode loaded external pointer.
+    OpIndex isolate_root = asm_.LoadRootRegister();
+    DCHECK(!IsSharedExternalPointerType(tag));
+    OpIndex table =
+        asm_.Load(isolate_root, LoadOp::Kind::RawAligned(),
+                  MemoryRepresentation::PointerSized(),
+                  IsolateData::external_pointer_table_offset() +
+                      Internals::kExternalPointerTableBasePointerOffset);
+    OpIndex index =
+        asm_.Word32ShiftRightLogical(handle, kExternalPointerIndexShift);
+    OpIndex pointer = asm_.LoadOffHeap(table, asm_.ChangeUint32ToUint64(index),
+                                       0, MemoryRepresentation::PointerSized());
+    pointer = asm_.Word64BitwiseAnd(pointer, asm_.Word64Constant(~tag));
+    return pointer;
+#else   // V8_ENABLE_SANDBOX
+    UNREACHABLE();
+#endif  // V8_ENABLE_SANDBOX
+  }
+
+  OpIndex BuildDecodeExternalCodePointer(OpIndex handle) {
+#ifdef V8_CODE_POINTER_SANDBOXING
+    OpIndex index =
+        asm_.Word32ShiftRightLogical(handle, kCodePointerIndexShift);
+    OpIndex offset = asm_.ChangeUint32ToUintPtr(
+        asm_.Word32ShiftLeft(index, kCodePointerTableEntrySizeLog2));
+    OpIndex table =
+        asm_.ExternalConstant(ExternalReference::code_pointer_table_address());
+    return asm_.Load(table, offset, LoadOp::Kind::RawAligned(),
+                     MemoryRepresentation::PointerSized());
+#else
+    UNREACHABLE();
+#endif
+  }
+
   void BuildEncodeException32BitValue(OpIndex values_array, uint32_t index,
                                       OpIndex value) {
     OpIndex upper_half =
@@ -3434,6 +3526,10 @@ class TurboshaftGraphBuildingInterface {
   Assembler asm_;
   std::vector<OpIndex> ssa_env_;
   bool did_bailout_ = false;
+  compiler::NullCheckStrategy null_check_strategy_ =
+      trap_handler::IsTrapHandlerEnabled() && V8_STATIC_ROOTS_BOOL
+          ? compiler::NullCheckStrategy::kTrapHandler
+          : compiler::NullCheckStrategy::kExplicitNullChecks;
 };
 
 V8_EXPORT_PRIVATE bool BuildTSGraph(AccountingAllocator* allocator,
