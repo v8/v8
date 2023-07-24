@@ -1619,8 +1619,9 @@ bool UseGenericWrapper(const wasm::FunctionSig* sig, Suspend suspend) {
 #if !V8_TARGET_ARCH_X64
   return false;
 #else
-  for (auto type : sig->all()) {
-    if (type.is_reference()) return false;
+  if (sig->return_count() > 0) return false;
+  for (auto param : sig->parameters()) {
+    if (param.is_reference()) return false;
   }
   if (suspend == kSuspend) return false;
 
