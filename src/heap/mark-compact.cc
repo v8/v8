@@ -3821,7 +3821,7 @@ ConcurrentAllocator* CreateSharedOldAllocator(Heap* heap) {
 }
 }  // namespace
 
-class Evacuator : public Malloced {
+class Evacuator final : public Malloced {
  public:
   enum EvacuationMode {
     kObjectsNewToOld,
@@ -3867,8 +3867,6 @@ class Evacuator : public Malloced {
         duration_(0.0),
         bytes_compacted_(0) {}
 
-  virtual ~Evacuator() = default;
-
   void EvacuatePage(MemoryChunk* chunk);
 
   void AddObserver(MigrationObserver* observer) {
@@ -3880,9 +3878,9 @@ class Evacuator : public Malloced {
   // to be called from the main thread.
   void Finalize();
 
- protected:
+ private:
   // |saved_live_bytes| returns the live bytes of the page that was processed.
-  bool RawEvacuatePage(MemoryChunk* chunk, intptr_t* saved_live_bytes);
+  bool RawEvacuatePage(MemoryChunk* chunk);
 
   inline Heap* heap() { return heap_; }
 
@@ -3917,13 +3915,13 @@ class Evacuator : public Malloced {
 void Evacuator::EvacuatePage(MemoryChunk* chunk) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"), "Evacuator::EvacuatePage");
   DCHECK(chunk->SweepingDone());
-  intptr_t saved_live_bytes = 0;
+  intptr_t saved_live_bytes = chunk->live_bytes();
   double evacuation_time = 0.0;
   bool success = false;
   {
     AlwaysAllocateScope always_allocate(heap_);
     TimedScope timed_scope(&evacuation_time);
-    success = RawEvacuatePage(chunk, &saved_live_bytes);
+    success = RawEvacuatePage(chunk);
   }
   ReportCompactionProgress(evacuation_time, saved_live_bytes);
   if (v8_flags.trace_evacuation) {
@@ -4013,12 +4011,12 @@ void LiveObjectVisitor::VisitMarkedObjectsNoFail(Page* page, Visitor* visitor) {
   }
 }
 
-bool Evacuator::RawEvacuatePage(MemoryChunk* chunk, intptr_t* live_bytes) {
+bool Evacuator::RawEvacuatePage(MemoryChunk* chunk) {
   const EvacuationMode evacuation_mode = ComputeEvacuationMode(chunk);
-  *live_bytes = chunk->live_bytes();
   TRACE_EVENT2(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
                "FullEvacuator::RawEvacuatePage", "evacuation_mode",
-               EvacuationModeName(evacuation_mode), "live_bytes", *live_bytes);
+               EvacuationModeName(evacuation_mode), "live_bytes",
+               chunk->live_bytes());
   switch (evacuation_mode) {
     case kObjectsNewToOld:
 #if DEBUG
@@ -4133,7 +4131,6 @@ class PageEvacuationJob : public v8::JobTask {
 };
 
 namespace {
-template <class Evacuator>
 size_t CreateAndExecuteEvacuationTasks(
     Heap* heap,
     std::vector<std::pair<ParallelWorkItem, MemoryChunk*>> evacuation_items) {
@@ -4295,8 +4292,8 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
                  "MarkCompactCollector::EvacuatePagesInParallel", "pages",
                  evacuation_items.size());
 
-    wanted_num_tasks = CreateAndExecuteEvacuationTasks<Evacuator>(
-        heap_, std::move(evacuation_items));
+    wanted_num_tasks =
+        CreateAndExecuteEvacuationTasks(heap_, std::move(evacuation_items));
   }
 
   const size_t aborted_pages = PostProcessAbortedEvacuationCandidates();
