@@ -626,34 +626,33 @@ void GCTracer::SampleAllocation(base::TimeTicks current,
 }
 
 void GCTracer::NotifyMarkingStart() {
-  const double marking_start = MonotonicallyIncreasingTimeInMs();
+  const auto marking_start = base::TimeTicks::Now();
+
   uint16_t result = 1;
-
-  if (last_marking_start_time_) {
-    const double diff_in_seconds =
-        std::round((marking_start - last_marking_start_time_) /
-                   base::Time::kMillisecondsPerSecond);
-
+  if (last_marking_start_time_.has_value()) {
+    const double diff_in_seconds = std::round(
+        (marking_start - last_marking_start_time_.value()).InSecondsF());
     if (diff_in_seconds > UINT16_MAX) {
       result = UINT16_MAX;
     } else if (diff_in_seconds >= 1) {
       result = static_cast<uint16_t>(diff_in_seconds);
     }
   }
-
   DCHECK_GT(result, 0);
   DCHECK_LE(result, UINT16_MAX);
 
-  if (v8_flags.trace_flush_code) {
-    PrintIsolate(heap_->isolate(), "code flushing time: %d second(s)\n",
-                 result);
-  }
-
-  code_flushing_increase_ = result;
+  code_flushing_increase_s_ = result;
   last_marking_start_time_ = marking_start;
+
+  if (V8_UNLIKELY(v8_flags.trace_flush_code)) {
+    PrintIsolate(heap_->isolate(), "code flushing time: %d second(s)\n",
+                 code_flushing_increase_s_);
+  }
 }
 
-uint16_t GCTracer::CodeFlushingIncrease() { return code_flushing_increase_; }
+uint16_t GCTracer::CodeFlushingIncrease() const {
+  return code_flushing_increase_s_;
+}
 
 void GCTracer::AddAllocation(base::TimeTicks current) {
   allocation_time_ = current;

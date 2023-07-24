@@ -154,15 +154,6 @@ RuntimeCallCounterId GCTracer::RCSCounterFromScope(Scope::ScopeId id) {
 }
 #endif  // defined(V8_RUNTIME_CALL_STATS)
 
-double GCTracer::MonotonicallyIncreasingTimeInMs() {
-  if (V8_UNLIKELY(v8_flags.predictable)) {
-    return heap_->MonotonicallyIncreasingTimeInMs();
-  } else {
-    return base::TimeTicks::Now().ToInternalValue() /
-           static_cast<double>(base::Time::kMicrosecondsPerMillisecond);
-  }
-}
-
 }  // namespace internal
 }  // namespace v8
 

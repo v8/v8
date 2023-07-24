@@ -416,7 +416,7 @@ class V8_EXPORT_PRIVATE GCTracer {
   void NotifyMarkingStart();
 
   // Returns the current cycle's code flushing increase in seconds.
-  uint16_t CodeFlushingIncrease();
+  uint16_t CodeFlushingIncrease() const;
 
   // Returns average mutator utilization with respect to mark-compact
   // garbage collections. This ignores scavenger.
@@ -470,8 +470,6 @@ class V8_EXPORT_PRIVATE GCTracer {
   // within a GC is not necessary which is why the recording takes place at the
   // end of the atomic pause.
   void RecordGCSumCounters();
-
-  V8_INLINE double MonotonicallyIncreasingTimeInMs();
 
   // Print one detailed trace line in name=value format.
   // TODO(ernstm): Move to Heap.
@@ -529,8 +527,8 @@ class V8_EXPORT_PRIVATE GCTracer {
 
   double recorded_embedder_speed_ = 0.0;
 
-  double last_marking_start_time_ = 0.0;
-  uint16_t code_flushing_increase_ = 0;
+  base::Optional<base::TimeTicks> last_marking_start_time_;
+  uint16_t code_flushing_increase_s_ = 0;
 
   // Incremental scopes carry more information than just the duration. The infos
   // here are merged back upon starting/stopping the GC tracer.
