@@ -151,7 +151,7 @@ WasmGraphBuilder::WasmGraphBuilder(
       null_check_strategy_(trap_handler::IsTrapHandlerEnabled() &&
                                    V8_STATIC_ROOTS_BOOL
                                ? NullCheckStrategy::kTrapHandler
-                               : NullCheckStrategy::kExplicitNullChecks) {
+                               : NullCheckStrategy::kExplicit) {
   DCHECK_EQ(isolate == nullptr, parameter_mode_ != kNoSpecialParameterMode);
   DCHECK_IMPLIES(env && env->module &&
                      std::any_of(env->module->memories.begin(),
@@ -3088,7 +3088,7 @@ Node* WasmGraphBuilder::BuildCallRef(const wasm::FunctionSig* sig,
                                      IsReturnCall continuation,
                                      wasm::WasmCodePosition position) {
   if (null_check == kWithNullCheck &&
-      null_check_strategy_ == NullCheckStrategy::kExplicitNullChecks) {
+      null_check_strategy_ == NullCheckStrategy::kExplicit) {
     args[0] =
         AssertNotNull(args[0], wasm::kWasmFuncRef /* good enough */, position);
   }

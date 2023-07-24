@@ -3002,8 +3002,7 @@ class TurboshaftGraphBuildingInterface {
   std::pair<OpIndex, OpIndex> BuildFunctionReferenceTargetAndRef(
       OpIndex func_ref, ValueType type) {
     if (type.is_nullable() &&
-        null_check_strategy_ ==
-            compiler::NullCheckStrategy::kExplicitNullChecks) {
+        null_check_strategy_ == compiler::NullCheckStrategy::kExplicit) {
       func_ref =
           asm_.AssertNotNull(func_ref, type, TrapId::kTrapNullDereference);
     }
@@ -3535,7 +3534,7 @@ class TurboshaftGraphBuildingInterface {
   compiler::NullCheckStrategy null_check_strategy_ =
       trap_handler::IsTrapHandlerEnabled() && V8_STATIC_ROOTS_BOOL
           ? compiler::NullCheckStrategy::kTrapHandler
-          : compiler::NullCheckStrategy::kExplicitNullChecks;
+          : compiler::NullCheckStrategy::kExplicit;
 };
 
 V8_EXPORT_PRIVATE bool BuildTSGraph(AccountingAllocator* allocator,

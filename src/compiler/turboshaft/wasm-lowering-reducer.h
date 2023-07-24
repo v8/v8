@@ -55,7 +55,7 @@ class WasmLoweringReducer : public Next {
         // (1) we cannot use trap handler or
         // (2) the object might be a Smi or
         // (3) the object might be a JS object.
-        if (null_check_strategy_ == NullCheckStrategy::kExplicitNullChecks ||
+        if (null_check_strategy_ == NullCheckStrategy::kExplicit ||
             wasm::IsSubtypeOf(wasm::kWasmI31Ref.AsNonNull(), type, module_) ||
             wasm::IsSubtypeOf(type, wasm::kWasmExternRef, module_)) {
           __ TrapIf(__ IsNull(object, type), OpIndex::Invalid(), trap_id);
@@ -175,7 +175,7 @@ class WasmLoweringReducer : public Next {
   const NullCheckStrategy null_check_strategy_ =
       trap_handler::IsTrapHandlerEnabled() && V8_STATIC_ROOTS_BOOL
           ? NullCheckStrategy::kTrapHandler
-          : NullCheckStrategy::kExplicitNullChecks;
+          : NullCheckStrategy::kExplicit;
 };
 
 #include "src/compiler/turboshaft/undef-assembler-macros.inc"

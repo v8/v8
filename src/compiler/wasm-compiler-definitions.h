@@ -57,7 +57,7 @@ V8_INLINE bool operator==(const WasmTypeCheckConfig& p1,
 
 static constexpr int kCharWidthBailoutSentinel = 3;
 
-enum class NullCheckStrategy { kExplicitNullChecks, kTrapHandler };
+enum class NullCheckStrategy { kExplicit, kTrapHandler };
 
 enum class EnforceBoundsCheck : bool {  // --
   kNeedsBoundsCheck = true,
