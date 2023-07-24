@@ -241,7 +241,6 @@ function GenerateAndRunTest() {
   RunTest(params, returns);
 }
 
-RunTest([], []);
-for (let i = 0; i < 2; ++i) {
+for (let i = 0; i < (debug ? 200 : 2); ++i) {
   GenerateAndRunTest();
 }
