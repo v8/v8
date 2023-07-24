@@ -77,9 +77,8 @@ class TurboshaftGraphBuildingInterface {
 
   struct Control : public ControlBase<Value, ValidationTag> {
     TSBlock* merge_block = nullptr;
-    TSBlock* false_block = nullptr;          // Only for 'if'.
-    TSBlock* loop_block = nullptr;           // Only for loops.
-    TSBlock* catch_block = nullptr;          // Only for 'try'.
+    // for 'if', loops, and 'try' respectively.
+    TSBlock* false_or_loop_or_catch_block = nullptr;
     OpIndex exception = OpIndex::Invalid();  // Only for 'try-catch'.
 
     template <typename... Args>
@@ -189,14 +188,14 @@ class TurboshaftGraphBuildingInterface {
 
     TSBlock* loop_merge = NewBlock(decoder, &block->start_merge);
     block->merge_block = loop_merge;
-    block->loop_block = loop;
+    block->false_or_loop_or_catch_block = loop;
   }
 
   void If(FullDecoder* decoder, const Value& cond, Control* if_block) {
     TSBlock* true_block = NewBlock(decoder, nullptr);
     TSBlock* false_block = NewBlock(decoder, nullptr);
     TSBlock* merge_block = NewBlock(decoder, &if_block->end_merge);
-    if_block->false_block = false_block;
+    if_block->false_or_loop_or_catch_block = false_block;
     if_block->merge_block = merge_block;
     SetupControlFlowEdge(decoder, true_block);
     SetupControlFlowEdge(decoder, false_block);
@@ -210,7 +209,7 @@ class TurboshaftGraphBuildingInterface {
       SetupControlFlowEdge(decoder, if_block->merge_block);
       asm_.Goto(if_block->merge_block);
     }
-    EnterBlock(decoder, if_block->false_block, nullptr);
+    EnterBlock(decoder, if_block->false_or_loop_or_catch_block, nullptr);
   }
 
   void BrOrRet(FullDecoder* decoder, uint32_t depth, uint32_t drop_values) {
@@ -295,7 +294,7 @@ class TurboshaftGraphBuildingInterface {
           SetupControlFlowEdge(decoder, block->merge_block);
           asm_.Goto(block->merge_block);
         }
-        EnterBlock(decoder, block->false_block, nullptr);
+        EnterBlock(decoder, block->false_or_loop_or_catch_block, nullptr);
         // Exceptionally for one-armed if, we cannot take the values from the
         // stack; we have to pass the stack values at the beginning of the
         // if-block.
@@ -328,8 +327,11 @@ class TurboshaftGraphBuildingInterface {
           // Turns out, the loop has no backedges, i.e. it is not quite a loop
           // at all. Replace it with a merge, and its PendingPhis with one-input
           // phis.
-          block->loop_block->SetKind(compiler::turboshaft::Block::Kind::kMerge);
-          auto to = asm_.output_graph().operations(*block->loop_block).begin();
+          block->false_or_loop_or_catch_block->SetKind(
+              compiler::turboshaft::Block::Kind::kMerge);
+          auto to = asm_.output_graph()
+                        .operations(*block->false_or_loop_or_catch_block)
+                        .begin();
           for (uint32_t i = 0; i < ssa_env_.size() + block->br_merge()->arity;
                ++i, ++to) {
             // TODO(manoskouk): Add `->` operator to the iterator.
@@ -344,8 +346,10 @@ class TurboshaftGraphBuildingInterface {
           // anymore, to store backedge inputs for the pending phi stack values
           // of the loop.
           EnterBlock(decoder, block->merge_block, block->br_merge());
-          asm_.Goto(block->loop_block);
-          auto to = asm_.output_graph().operations(*block->loop_block).begin();
+          asm_.Goto(block->false_or_loop_or_catch_block);
+          auto to = asm_.output_graph()
+                        .operations(*block->false_or_loop_or_catch_block)
+                        .begin();
           for (uint32_t i = 0; i < ssa_env_.size(); ++i, ++to) {
             PendingLoopPhiOp& pending_phi = (*to).Cast<PendingLoopPhiOp>();
             OpIndex replaced = asm_.output_graph().Index(*to);
@@ -828,7 +832,7 @@ class TurboshaftGraphBuildingInterface {
   }
 
   void Try(FullDecoder* decoder, Control* block) {
-    block->catch_block = NewBlock(decoder, nullptr);
+    block->false_or_loop_or_catch_block = NewBlock(decoder, nullptr);
     block->merge_block = NewBlock(decoder, block->br_merge());
   }
 
@@ -909,7 +913,8 @@ class TurboshaftGraphBuildingInterface {
   // TODO(14108): Optimize in case of unreachable catch block?
   void CatchException(FullDecoder* decoder, const TagIndexImmediate& imm,
                       Control* block, base::Vector<Value> values) {
-    EnterBlock(decoder, block->catch_block, nullptr, &block->exception);
+    EnterBlock(decoder, block->false_or_loop_or_catch_block, nullptr,
+               &block->exception);
     OpIndex native_context = LOAD_INSTANCE_FIELD(
         NativeContext, MemoryRepresentation::TaggedPointer());
     OpIndex caught_tag = CallBuiltinFromRuntimeStub(
@@ -925,7 +930,7 @@ class TurboshaftGraphBuildingInterface {
 
     // If the tags don't match we continue with the next tag by setting the
     // no-catch environment as the new {block->catch_block} here.
-    block->catch_block = if_no_catch;
+    block->false_or_loop_or_catch_block = if_no_catch;
 
     if (imm.tag->sig->parameter_count() == 1 &&
         imm.tag->sig->GetParam(0).is_reference_to(HeapType::kExtern)) {
@@ -978,7 +983,8 @@ class TurboshaftGraphBuildingInterface {
 
   // TODO(14108): Optimize in case of unreachable catch block?
   void Delegate(FullDecoder* decoder, uint32_t depth, Control* block) {
-    EnterBlock(decoder, block->catch_block, nullptr, &block->exception);
+    EnterBlock(decoder, block->false_or_loop_or_catch_block, nullptr,
+               &block->exception);
     if (depth == decoder->control_depth() - 1) {
       // We just throw to the caller, no need to handle the exception in this
       // frame.
@@ -987,7 +993,8 @@ class TurboshaftGraphBuildingInterface {
       asm_.Unreachable();
     } else {
       DCHECK(decoder->control_at(depth)->is_try());
-      TSBlock* target_catch = decoder->control_at(depth)->catch_block;
+      TSBlock* target_catch =
+          decoder->control_at(depth)->false_or_loop_or_catch_block;
       SetupControlFlowEdge(decoder, target_catch, 0, block->exception);
       asm_.Goto(target_catch);
     }
@@ -996,7 +1003,8 @@ class TurboshaftGraphBuildingInterface {
   void CatchAll(FullDecoder* decoder, Control* block) {
     DCHECK(block->is_try_catchall() || block->is_try_catch());
     DCHECK_EQ(decoder->control_at(0), block);
-    EnterBlock(decoder, block->catch_block, nullptr, &block->exception);
+    EnterBlock(decoder, block->false_or_loop_or_catch_block, nullptr,
+               &block->exception);
   }
 
   void AtomicOp(FullDecoder* decoder, WasmOpcode opcode, const Value args[],
@@ -3144,7 +3152,7 @@ class TurboshaftGraphBuildingInterface {
 
     Control* current_catch =
         decoder->control_at(decoder->control_depth_of_current_catch());
-    TSBlock* catch_block = current_catch->catch_block;
+    TSBlock* catch_block = current_catch->false_or_loop_or_catch_block;
     TSBlock* success_block = asm_.NewBlock();
     TSBlock* exception_block = asm_.NewBlock();
     OpIndex call;
