@@ -272,7 +272,8 @@ inline TResult StringShape::DispatchToSpecificTypeWithoutCast(TArgs&&... args) {
     case kSlicedStringTag | kOneByteStringTag:
     case kSlicedStringTag | kTwoByteStringTag:
       return TDispatcher::HandleSlicedString(std::forward<TArgs>(args)...);
-    case kThinStringTag:
+    case kThinStringTag | kOneByteStringTag:
+    case kThinStringTag | kTwoByteStringTag:
       return TDispatcher::HandleThinString(std::forward<TArgs>(args)...);
     default:
       return TDispatcher::HandleInvalidString(std::forward<TArgs>(args)...);
@@ -312,14 +313,12 @@ inline TResult StringShape::DispatchToSpecificType(String str,
 }
 
 DEF_GETTER(String, IsOneByteRepresentation, bool) {
-  String string = IsThinString() ? ThinString::cast(*this)->actual() : *this;
-  uint32_t type = string->map(cage_base)->instance_type();
+  uint32_t type = map(cage_base)->instance_type();
   return (type & kStringEncodingMask) == kOneByteStringTag;
 }
 
 DEF_GETTER(String, IsTwoByteRepresentation, bool) {
-  String string = IsThinString() ? ThinString::cast(*this)->actual() : *this;
-  uint32_t type = string->map(cage_base)->instance_type();
+  uint32_t type = map(cage_base)->instance_type();
   return (type & kStringEncodingMask) == kTwoByteStringTag;
 }
 
@@ -589,7 +588,8 @@ bool String::IsEqualToImpl(
                                              cage_base, access_guard);
       }
 
-      case kThinStringTag:
+      case kThinStringTag | kOneByteStringTag:
+      case kThinStringTag | kTwoByteStringTag:
         string = ThinString::cast(string)->actual(cage_base);
         continue;
 
@@ -953,7 +953,8 @@ ConsString String::VisitFlat(
       case kConsStringTag | kTwoByteStringTag:
         return ConsString::cast(string);
 
-      case kThinStringTag:
+      case kThinStringTag | kOneByteStringTag:
+      case kThinStringTag | kTwoByteStringTag:
         string = ThinString::cast(string)->actual(cage_base);
         continue;
 
@@ -966,14 +967,6 @@ ConsString String::VisitFlat(
 bool String::IsWellFormedUnicode(Isolate* isolate, Handle<String> string) {
   // One-byte strings are definitionally well formed and cannot have unpaired
   // surrogates.
-  //
-  // Note that an indirect string's 1-byte flag can differ from their underlying
-  // string's 1-byte flag, because the underlying string may have been
-  // externalized from 1-byte to 2-byte. That is, the 1-byte flag is the
-  // 1-byteness at time of creation. However, this is sufficient to determine
-  // well-formedness. String::MakeExternal requires that the external resource's
-  // content is equal to the original string's content, even if 1-byteness
-  // differs.
   if (string->IsOneByteRepresentation()) return true;
 
   // TODO(v8:13557): The two-byte case can be optimized by extending the

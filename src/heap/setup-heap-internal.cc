@@ -809,13 +809,6 @@ bool Heap::CreateImportantReadOnlyObjects() {
           .ToHandleChecked();
   set_empty_ordered_property_dictionary(*empty_ordered_property_dictionary);
 
-  // Allocate the empty SwissNameDictionary
-  Handle<SwissNameDictionary> empty_swiss_property_dictionary =
-      factory->CreateCanonicalEmptySwissNameDictionary();
-  set_empty_swiss_property_dictionary(*empty_swiss_property_dictionary);
-  StaticRootsEnsureAllocatedSize(empty_swiss_property_dictionary,
-                                 8 * kTaggedSize);
-
   {
     if (!AllocateRaw(ByteArray::SizeFor(0), AllocationType::kReadOnly).To(&obj))
       return false;
@@ -940,6 +933,13 @@ bool Heap::CreateReadOnlyObjects() {
   }
 
   DCHECK(!InYoungGeneration(roots.empty_fixed_array()));
+
+  // Allocate the empty SwissNameDictionary
+  Handle<SwissNameDictionary> empty_swiss_property_dictionary =
+      factory->CreateCanonicalEmptySwissNameDictionary();
+  set_empty_swiss_property_dictionary(*empty_swiss_property_dictionary);
+  StaticRootsEnsureAllocatedSize(empty_swiss_property_dictionary,
+                                 8 * kTaggedSize);
 
   roots.bigint_map()->SetConstructorFunctionIndex(
       Context::BIGINT_FUNCTION_INDEX);

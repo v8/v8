@@ -436,25 +436,22 @@ TNode<String> StringBuiltinsAssembler::AllocateConsString(TNode<Uint32T> length,
   // Added string can be a cons string.
   Comment("Allocating ConsString");
   TVARIABLE(String, first, left);
-  TVARIABLE(Int32T, left_instance_type, LoadInstanceType(left));
+  TNode<Int32T> left_instance_type = LoadInstanceType(left);
   Label handle_right(this);
-  GotoIfNot(InstanceTypeEqual(left_instance_type.value(), THIN_STRING_TYPE),
-            &handle_right);
+  static_assert(base::bits::CountPopulation(kThinStringTagBit) == 1);
+  GotoIfNot(IsSetWord32(left_instance_type, kThinStringTagBit), &handle_right);
   {
     first = LoadObjectField<String>(left, ThinString::kActualOffset);
-    left_instance_type = LoadInstanceType(first.value());
     Goto(&handle_right);
   }
 
   BIND(&handle_right);
   TVARIABLE(String, second, right);
-  TVARIABLE(Int32T, right_instance_type, LoadInstanceType(right));
+  TNode<Int32T> right_instance_type = LoadInstanceType(right);
   Label allocate(this);
-  GotoIfNot(InstanceTypeEqual(right_instance_type.value(), THIN_STRING_TYPE),
-            &allocate);
+  GotoIfNot(IsSetWord32(right_instance_type, kThinStringTagBit), &allocate);
   {
     second = LoadObjectField<String>(right, ThinString::kActualOffset);
-    right_instance_type = LoadInstanceType(second.value());
     Goto(&allocate);
   }
 
@@ -464,7 +461,7 @@ TNode<String> StringBuiltinsAssembler::AllocateConsString(TNode<Uint32T> length,
   static_assert(kOneByteStringTag != 0);
   static_assert(kTwoByteStringTag == 0);
   TNode<Int32T> combined_instance_type =
-      Word32And(left_instance_type.value(), right_instance_type.value());
+      Word32And(left_instance_type, right_instance_type);
   TNode<Map> result_map = CAST(Select<Object>(
       IsSetWord32(combined_instance_type, kStringEncodingMask),
       [=] { return ConsOneByteStringMapConstant(); },

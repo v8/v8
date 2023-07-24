@@ -27,9 +27,7 @@ StringPrototypeIsWellFormed(
 
   // Fast path: one-byte strings cannot have unpaired surrogates and are
   // definitionally well-formed.
-  //
-  // See note in String::IsWellFormedUnicode.
-  if (s.IsOneByteRepresentation()) return True;
+  if (s.StringInstanceType().is_one_byte) return True;
 
   // Slow path: flatten the string and look for unpaired surrogates.
   //

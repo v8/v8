@@ -8607,7 +8607,8 @@ void CodeStubAssembler::TryToName(TNode<Object> key, Label* if_keyisindex,
                  raw_hash_field, Name::HashFieldType::kIntegerIndex),
              if_bailout);
 
-      GotoIf(InstanceTypeEqual(var_instance_type.value(), THIN_STRING_TYPE),
+      static_assert(base::bits::CountPopulation(kThinStringTagBit) == 1);
+      GotoIf(IsSetWord32(var_instance_type.value(), kThinStringTagBit),
              &if_thinstring);
 
       // Check if the hash field encodes an internalized string forwarding

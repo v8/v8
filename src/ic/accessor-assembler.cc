@@ -3668,7 +3668,8 @@ void AccessorAssembler::KeyedLoadICGeneric_StringKey(
 
     TVARIABLE(Name, var_unique);
     Label if_thinstring(this), if_unique_name(this), if_notunique(this);
-    GotoIf(InstanceTypeEqual(instance_type, THIN_STRING_TYPE), &if_thinstring);
+    static_assert(base::bits::CountPopulation(kThinStringTagBit) == 1);
+    GotoIf(IsSetWord32(instance_type, kThinStringTagBit), &if_thinstring);
 
     // Check |key| does not contain forwarding index.
     CSA_DCHECK(this,

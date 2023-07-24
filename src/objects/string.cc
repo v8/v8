@@ -210,7 +210,10 @@ void String::MakeThin(IsolateT* isolate, String internalized) {
 
   bool may_contain_recorded_slots = initial_shape.IsIndirect();
   int old_size = SizeFromMap(initial_map);
-  Map target_map = ReadOnlyRoots(isolate).thin_string_map();
+  ReadOnlyRoots roots(isolate);
+  Map target_map = internalized.IsOneByteRepresentation()
+                       ? roots.thin_one_byte_string_map()
+                       : roots.thin_string_map();
   if (initial_shape.IsExternal()) {
     // Notify GC about the layout change before the transition to avoid
     // concurrent marking from observing any in-between state (e.g.
@@ -978,7 +981,8 @@ void String::WriteToFlat(String source, sinkchar* sink, int start, int length,
         start += offset;
         continue;
       }
-      case kThinStringTag:
+      case kOneByteStringTag | kThinStringTag:
+      case kTwoByteStringTag | kThinStringTag:
         source = ThinString::cast(source)->actual(cage_base);
         continue;
     }

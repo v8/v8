@@ -6127,9 +6127,11 @@ void EffectControlLinearizer::LowerCheckEqualsInternalizedString(
         __ LoadField(AccessBuilder::ForMapInstanceType(), val_map);
 
     // ThinString.
-    __ Branch(
-        __ Word32Equal(val_instance_type, __ Int32Constant(THIN_STRING_TYPE)),
-        &if_thinstring, &if_notthinstring);
+    __ Branch(__ Word32Equal(
+                  __ Word32And(val_instance_type,
+                               __ Int32Constant(kStringRepresentationMask)),
+                  __ Int32Constant(kThinStringTag)),
+              &if_thinstring, &if_notthinstring);
 
     __ Bind(&if_notthinstring);
     {

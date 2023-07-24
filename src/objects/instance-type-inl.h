@@ -99,6 +99,8 @@ struct kUniqueMapRangeOfStringType {
   static constexpr RootIndexRange kExternalString = {
       RootIndex::kExternalStringMap,
       RootIndex::kUncachedExternalOneByteInternalizedStringMap};
+  static constexpr RootIndexRange kThinString = {
+      RootIndex::kThinStringMap, RootIndex::kThinOneByteStringMap};
 };
 
 #if V8_STATIC_ROOTS_BOOL
@@ -292,12 +294,13 @@ V8_INLINE bool IsExternalString(Map map_object) {
 }
 
 V8_INLINE constexpr bool IsThinString(InstanceType instance_type) {
-  return instance_type == THIN_STRING_TYPE;
+  return (instance_type & kStringRepresentationMask) == kThinStringTag;
 }
 
 V8_INLINE bool IsThinString(Map map_object) {
 #if V8_STATIC_ROOTS_BOOL
-  return CheckInstanceMap(RootIndex::kThinStringMap, map_object);
+  return CheckInstanceMapRange(kUniqueMapRangeOfStringType::kThinString,
+                               map_object);
 #else
   return IsThinString(map_object->instance_type());
 #endif

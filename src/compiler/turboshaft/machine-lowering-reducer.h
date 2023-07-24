@@ -2584,9 +2584,10 @@ class MachineLoweringReducer : public Next {
                     DeoptimizeReason::kWrongName, FeedbackSource{});
     V<Map> value_map = __ LoadMapField(value);
     V<Word32> value_instance_type = __ LoadInstanceTypeField(value_map);
-
+    V<Word32> value_representation =
+        __ Word32BitwiseAnd(value_instance_type, kStringRepresentationMask);
     // ThinString
-    IF(__ Word32Equal(value_instance_type, THIN_STRING_TYPE)) {
+    IF (__ Word32Equal(value_representation, kThinStringTag)) {
       // The {value} is a ThinString, let's check the actual value.
       V<String> value_actual = __ template LoadField<String>(
           value, AccessBuilder::ForThinStringActual());

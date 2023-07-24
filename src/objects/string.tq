@@ -16,18 +16,6 @@ extern class String extends Name {
     return this.StringInstanceType().is_not_internalized;
   }
 
-  // Keep this in sync with the C++ String::IsOneByteRepresentation.
-  macro IsOneByteRepresentation(): bool {
-    let s: String;
-    try {
-      const thin = Cast<ThinString>(this) otherwise NotThin;
-      s = thin.actual;
-    } label NotThin {
-      s = this;
-    }
-    return s.StringInstanceType().is_one_byte;
-  }
-
   // Keep this in sync with the C++ String::IsOneByteRepresentationUnderneath.
   macro IsOneByteRepresentationUnderneath(): bool {
     let string = this;
@@ -38,7 +26,11 @@ extern class String extends Name {
           string = cons.first;
         }
         case (thin: ThinString): {
-          string = thin.actual;
+          // Internalized strings can't change representation.
+          dcheck(
+              thin.StringInstanceType().is_one_byte ==
+              thin.actual.StringInstanceType().is_one_byte);
+          return thin.StringInstanceType().is_one_byte;
         }
         case (slice: SlicedString): {
           string = slice.parent;

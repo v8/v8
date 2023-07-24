@@ -160,9 +160,10 @@ class Tagged;
   V(Map, external_pointer_array_map, ExternalPointerArrayMap)                  \
   /* String maps */                                                            \
   V(Map, string_map, StringMap)                                                \
-  V(Map, cons_one_byte_string_map, ConsOneByteStringMap)                       \
   V(Map, cons_string_map, ConsStringMap)                                       \
+  V(Map, cons_one_byte_string_map, ConsOneByteStringMap)                       \
   V(Map, thin_string_map, ThinStringMap)                                       \
+  V(Map, thin_one_byte_string_map, ThinOneByteStringMap)                       \
   V(Map, sliced_string_map, SlicedStringMap)                                   \
   V(Map, sliced_one_byte_string_map, SlicedOneByteStringMap)                   \
   V(Map, external_string_map, ExternalStringMap)                               \
