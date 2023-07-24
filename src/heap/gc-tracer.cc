@@ -189,9 +189,6 @@ void GCTracer::ResetForTesting() {
 }
 
 void GCTracer::StartObservablePause() {
-  DCHECK_EQ(0, start_counter_);
-  start_counter_++;
-
   DCHECK(!IsInObservablePause());
   start_of_observable_pause_ = MonotonicallyIncreasingTimeInMs();
 }
@@ -312,9 +309,6 @@ void GCTracer::StopInSafepoint() {
 }
 
 void GCTracer::StopObservablePause() {
-  start_counter_--;
-  DCHECK_EQ(0, start_counter_);
-
   DCHECK(IsInObservablePause());
   start_of_observable_pause_ = 0.0;
 

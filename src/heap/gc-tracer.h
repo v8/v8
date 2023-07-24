@@ -550,9 +550,6 @@ class V8_EXPORT_PRIVATE GCTracer {
 
   double combined_mark_compact_speed_cache_ = 0.0;
 
-  // Counts how many tracers were started without stopping.
-  int start_counter_ = 0;
-
   // Used for computing average mutator utilization.
   double average_mutator_duration_ = 0.0;
   double average_mark_compact_duration_ = 0.0;
