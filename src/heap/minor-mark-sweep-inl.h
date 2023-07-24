@@ -27,7 +27,9 @@ V8_INLINE bool YoungGenerationMainMarkingVisitor::ShortCutStrings(
     DCHECK(V8_STATIC_ROOTS_BOOL);
 #if V8_STATIC_ROOTS_BOOL
     ObjectSlot map_slot = heap_object->map_slot();
-    if (map_slot.contains_map_value(StaticReadOnlyRoot::kThinStringMap)) {
+    Address map_address = map_slot.load_map().ptr();
+    if (map_address == StaticReadOnlyRoot::kThinOneByteStringMap ||
+        map_address == StaticReadOnlyRoot::kThinStringMap) {
       DCHECK_EQ(heap_object->map(ObjectVisitorWithCageBases::cage_base())
                     ->visitor_id(),
                 VisitorId::kVisitThinString);
@@ -37,8 +39,8 @@ V8_INLINE bool YoungGenerationMainMarkingVisitor::ShortCutStrings(
       DCHECK(!Heap::InYoungGeneration(*heap_object));
       slot.StoreHeapObject(*heap_object);
       return false;
-    } else if (map_slot.contains_map_value(
-                   StaticReadOnlyRoot::kConsStringMap)) {
+    } else if (map_address == StaticReadOnlyRoot::kConsOneByteStringMap ||
+               map_address == StaticReadOnlyRoot::kConsStringMap) {
       // Not all ConsString are short cut candidates.
       const VisitorId visitor_id =
           heap_object->map(ObjectVisitorWithCageBases::cage_base())
