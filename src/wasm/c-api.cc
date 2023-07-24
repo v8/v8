@@ -35,6 +35,7 @@
 #include "src/objects/managed-inl.h"
 #include "src/wasm/leb-helper.h"
 #include "src/wasm/module-instantiate.h"
+#include "src/wasm/serialized-signature-inl.h"
 #include "src/wasm/wasm-arguments.h"
 #include "src/wasm/wasm-constants.h"
 #include "src/wasm/wasm-engine.h"
@@ -1386,61 +1387,41 @@ struct FuncData {
 
 namespace {
 
-// TODO(jkummerow): Generalize for WasmExportedFunction and WasmCapiFunction.
 class SignatureHelper : public i::AllStatic {
  public:
-  // Use an invalid type as a marker separating params and results.
-  static constexpr i::wasm::ValueType kMarker = i::wasm::kWasmVoid;
-
   static i::Handle<i::PodArray<i::wasm::ValueType>> Serialize(
       i::Isolate* isolate, FuncType* type) {
-    int sig_size =
-        static_cast<int>(type->params().size() + type->results().size() + 1);
     i::Handle<i::PodArray<i::wasm::ValueType>> sig =
-        i::PodArray<i::wasm::ValueType>::New(isolate, sig_size,
-                                             i::AllocationType::kOld);
-    int index = 0;
+        i::wasm::SerializedSignatureHelper::NewEmptyPodArrayForSignature(
+            isolate, type->results().size(), type->params().size());
+
     // TODO(jkummerow): Consider making vec<> range-based for-iterable.
     for (size_t i = 0; i < type->results().size(); i++) {
-      sig->set(index++, WasmValKindToV8(type->results()[i]->kind()));
+      i::wasm::SerializedSignatureHelper::SetReturn(
+          *sig, i, WasmValKindToV8(type->results()[i]->kind()));
     }
-    // {sig->set} needs to take the address of its second parameter,
-    // so we can't pass in the static const kMarker directly.
-    i::wasm::ValueType marker = kMarker;
-    sig->set(index++, marker);
     for (size_t i = 0; i < type->params().size(); i++) {
-      sig->set(index++, WasmValKindToV8(type->params()[i]->kind()));
+      i::wasm::SerializedSignatureHelper::SetParam(
+          *sig, i, WasmValKindToV8(type->params()[i]->kind()));
     }
     return sig;
   }
 
   static own<FuncType> Deserialize(i::PodArray<i::wasm::ValueType> sig) {
-    int result_arity = ResultArity(sig);
-    int param_arity = sig->length() - result_arity - 1;
+    int result_arity = i::wasm::SerializedSignatureHelper::ReturnCount(sig);
+    int param_arity = i::wasm::SerializedSignatureHelper::ParamCount(sig);
     ownvec<ValType> results = ownvec<ValType>::make_uninitialized(result_arity);
     ownvec<ValType> params = ownvec<ValType>::make_uninitialized(param_arity);
 
-    int i = 0;
-    for (; i < result_arity; ++i) {
-      results[i] = ValType::make(V8ValueTypeToWasm(sig->get(i)));
+    for (int i = 0; i < result_arity; ++i) {
+      results[i] = ValType::make(V8ValueTypeToWasm(
+          i::wasm::SerializedSignatureHelper::GetReturn(sig, i)));
     }
-    i++;  // Skip marker.
-    for (int p = 0; i < sig->length(); ++i, ++p) {
-      params[p] = ValType::make(V8ValueTypeToWasm(sig->get(i)));
+    for (int i = 0; i < param_arity; ++i) {
+      params[i] = ValType::make(V8ValueTypeToWasm(
+          i::wasm::SerializedSignatureHelper::GetParam(sig, i)));
     }
     return FuncType::make(std::move(params), std::move(results));
-  }
-
-  static int ResultArity(i::PodArray<i::wasm::ValueType> sig) {
-    int count = 0;
-    for (; count < sig->length(); count++) {
-      if (sig->get(count) == kMarker) return count;
-    }
-    UNREACHABLE();
-  }
-
-  static int ParamArity(i::PodArray<i::wasm::ValueType> sig) {
-    return sig->length() - ResultArity(sig) - 1;
   }
 
   static i::PodArray<i::wasm::ValueType> GetSig(
@@ -1448,10 +1429,6 @@ class SignatureHelper : public i::AllStatic {
     return i::WasmCapiFunction::cast(*function)->GetSerializedSignature();
   }
 };
-
-// Explicit instantiation makes the linker happy for component builds of
-// wasm_api_tests.
-constexpr i::wasm::ValueType SignatureHelper::kMarker;
 
 auto make_func(Store* store_abs, FuncData* data) -> own<Func> {
   auto store = impl(store_abs);
@@ -1506,7 +1483,8 @@ auto Func::type() const -> own<FuncType> {
 auto Func::param_arity() const -> size_t {
   i::Handle<i::JSFunction> func = impl(this)->v8_object();
   if (i::WasmCapiFunction::IsWasmCapiFunction(*func)) {
-    return SignatureHelper::ParamArity(SignatureHelper::GetSig(func));
+    return i::wasm::SerializedSignatureHelper::ParamCount(
+        SignatureHelper::GetSig(func));
   }
   DCHECK(i::WasmExportedFunction::IsWasmExportedFunction(*func));
   i::Handle<i::WasmExportedFunction> function =
@@ -1519,7 +1497,8 @@ auto Func::param_arity() const -> size_t {
 auto Func::result_arity() const -> size_t {
   i::Handle<i::JSFunction> func = impl(this)->v8_object();
   if (i::WasmCapiFunction::IsWasmCapiFunction(*func)) {
-    return SignatureHelper::ResultArity(SignatureHelper::GetSig(func));
+    return i::wasm::SerializedSignatureHelper::ReturnCount(
+        SignatureHelper::GetSig(func));
   }
   DCHECK(i::WasmExportedFunction::IsWasmExportedFunction(*func));
   i::Handle<i::WasmExportedFunction> function =

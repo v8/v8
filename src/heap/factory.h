@@ -676,8 +676,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   // {opt_call_target} is kNullAddress for JavaScript functions, and
   // non-null for exported Wasm functions.
   Handle<WasmJSFunctionData> NewWasmJSFunctionData(
-      Address opt_call_target, Handle<JSReceiver> callable, int return_count,
-      int parameter_count, Handle<PodArray<wasm::ValueType>> serialized_sig,
+      Address opt_call_target, Handle<JSReceiver> callable,
+      Handle<PodArray<wasm::ValueType>> serialized_sig,
       Handle<Code> wrapper_code, Handle<Map> rtt, wasm::Suspend suspend,
       wasm::Promise promise);
   Handle<WasmResumeData> NewWasmResumeData(

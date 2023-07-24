@@ -1700,10 +1700,9 @@ Handle<WasmInternalFunction> Factory::NewWasmInternalFunction(
 }
 
 Handle<WasmJSFunctionData> Factory::NewWasmJSFunctionData(
-    Address opt_call_target, Handle<JSReceiver> callable, int return_count,
-    int parameter_count, Handle<PodArray<wasm::ValueType>> serialized_sig,
-    Handle<Code> wrapper_code, Handle<Map> rtt, wasm::Suspend suspend,
-    wasm::Promise promise) {
+    Address opt_call_target, Handle<JSReceiver> callable,
+    Handle<PodArray<wasm::ValueType>> serialized_sig, Handle<Code> wrapper_code,
+    Handle<Map> rtt, wasm::Suspend suspend, wasm::Promise promise) {
   Handle<WasmApiFunctionRef> ref =
       NewWasmApiFunctionRef(callable, suspend, Handle<WasmInstanceObject>());
   Handle<WasmInternalFunction> internal =
@@ -1715,8 +1714,6 @@ Handle<WasmJSFunctionData> Factory::NewWasmJSFunctionData(
   DisallowGarbageCollection no_gc;
   result->set_internal(*internal);
   result->set_wrapper_code(*wrapper_code);
-  result->set_serialized_return_count(return_count);
-  result->set_serialized_parameter_count(parameter_count);
   result->set_serialized_signature(*serialized_sig);
   result->set_js_promise_flags(WasmFunctionData::SuspendField::encode(suspend) |
                                WasmFunctionData::PromiseField::encode(promise));

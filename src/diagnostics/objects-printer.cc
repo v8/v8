@@ -2291,8 +2291,6 @@ void WasmExportedFunctionData::WasmExportedFunctionDataPrint(std::ostream& os) {
 void WasmJSFunctionData::WasmJSFunctionDataPrint(std::ostream& os) {
   PrintHeader(os, "WasmJSFunctionData");
   WasmFunctionDataPrint(os);
-  os << "\n - serialized_return_count: " << serialized_return_count();
-  os << "\n - serialized_parameter_count: " << serialized_parameter_count();
   os << "\n - serialized_signature: " << Brief(serialized_signature());
   os << "\n";
 }

@@ -17,6 +17,7 @@
 #include "src/wasm/module-compiler.h"
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/module-instantiate.h"
+#include "src/wasm/serialized-signature-inl.h"
 #include "src/wasm/value-type.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-engine.h"
@@ -497,22 +498,9 @@ void WasmTableObject::UpdateDispatchTables(
   DCHECK_EQ(0, dispatch_tables->length() % kDispatchTableNumElements);
 
   // Reconstruct signature.
-  // TODO(jkummerow): Unify with "SignatureHelper" in c-api.cc.
-  PodArray<wasm::ValueType> serialized_sig =
-      capi_function->GetSerializedSignature();
-  int total_count = serialized_sig->length() - 1;
-  std::unique_ptr<wasm::ValueType[]> reps(new wasm::ValueType[total_count]);
-  int result_count;
-  static const wasm::ValueType kMarker = wasm::kWasmVoid;
-  for (int i = 0, j = 0; i <= total_count; i++) {
-    if (serialized_sig->get(i) == kMarker) {
-      result_count = i;
-      continue;
-    }
-    reps[j++] = serialized_sig->get(i);
-  }
-  int param_count = total_count - result_count;
-  wasm::FunctionSig sig(result_count, param_count, reps.get());
+  std::unique_ptr<wasm::ValueType[]> reps;
+  wasm::FunctionSig sig = wasm::SerializedSignatureHelper::DeserializeSignature(
+      capi_function->GetSerializedSignature(), &reps);
 
   for (int i = 0; i < dispatch_tables->length();
        i += kDispatchTableNumElements) {
@@ -528,6 +516,7 @@ void WasmTableObject::UpdateDispatchTables(
     auto kind = wasm::ImportCallKind::kWasmToCapi;
     uint32_t canonical_type_index =
         wasm::GetTypeCanonicalizer()->AddRecursiveGroup(&sig);
+    int param_count = static_cast<int>(sig.parameter_count());
     wasm::WasmCode* wasm_code = cache->MaybeGet(kind, canonical_type_index,
                                                 param_count, wasm::kNoSuspend);
     if (wasm_code == nullptr) {
@@ -1746,25 +1735,9 @@ bool WasmTagObject::MatchesSignature(uint32_t expected_canonical_type_index) {
 }
 
 const wasm::FunctionSig* WasmCapiFunction::GetSignature(Zone* zone) const {
-  WasmCapiFunctionData function_data = shared()->wasm_capi_function_data();
-  PodArray<wasm::ValueType> serialized_sig =
-      function_data->serialized_signature();
-  int sig_size = serialized_sig->length() - 1;
-  wasm::ValueType* types = zone->AllocateArray<wasm::ValueType>(sig_size);
-  int returns_size = 0;
-  int index = 0;
-  while (serialized_sig->get(index) != wasm::kWasmVoid) {
-    types[index] = serialized_sig->get(index);
-    index++;
-  }
-  returns_size = index;
-  while (index < sig_size) {
-    types[index] = serialized_sig->get(index + 1);
-    index++;
-  }
-
-  return zone->New<wasm::FunctionSig>(returns_size, sig_size - returns_size,
-                                      types);
+  WasmCapiFunctionData function_data = shared().wasm_capi_function_data();
+  return wasm::SerializedSignatureHelper::DeserializeSignature(
+      zone, function_data.serialized_signature());
 }
 
 bool WasmCapiFunction::MatchesSignature(
@@ -2161,14 +2134,9 @@ Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
                                            Handle<JSReceiver> callable,
                                            wasm::Suspend suspend) {
   DCHECK_LE(sig->all().size(), kMaxInt);
-  int sig_size = static_cast<int>(sig->all().size());
-  int return_count = static_cast<int>(sig->return_count());
   int parameter_count = static_cast<int>(sig->parameter_count());
   Handle<PodArray<wasm::ValueType>> serialized_sig =
-      PodArray<wasm::ValueType>::New(isolate, sig_size, AllocationType::kOld);
-  if (sig_size > 0) {
-    serialized_sig->copy_in(0, sig->all().begin(), sig_size);
-  }
+      wasm::SerializedSignatureHelper::SerializeSignature(isolate, sig);
   // TODO(wasm): Think about caching and sharing the JS-to-JS wrappers per
   // signature instead of compiling a new one for every instantiation.
   Handle<Code> wrapper_code =
@@ -2185,8 +2153,8 @@ Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
   Factory* factory = isolate->factory();
   Handle<Map> rtt = factory->wasm_internal_function_map();
   Handle<WasmJSFunctionData> function_data = factory->NewWasmJSFunctionData(
-      call_target, callable, return_count, parameter_count, serialized_sig,
-      wrapper_code, rtt, suspend, wasm::kNoPromise);
+      call_target, callable, serialized_sig, wrapper_code, rtt, suspend,
+      wasm::kNoPromise);
 
   if (wasm::WasmFeatures::FromIsolate(isolate).has_typed_funcref()) {
     using CK = wasm::ImportCallKind;
@@ -2242,15 +2210,9 @@ wasm::Suspend WasmJSFunction::GetSuspend() const {
 }
 
 const wasm::FunctionSig* WasmJSFunction::GetSignature(Zone* zone) const {
-  WasmJSFunctionData function_data = shared()->wasm_js_function_data();
-  int sig_size = function_data->serialized_signature()->length();
-  wasm::ValueType* types = zone->AllocateArray<wasm::ValueType>(sig_size);
-  if (sig_size > 0) {
-    function_data->serialized_signature()->copy_out(0, types, sig_size);
-  }
-  int return_count = function_data->serialized_return_count();
-  int parameter_count = function_data->serialized_parameter_count();
-  return zone->New<wasm::FunctionSig>(return_count, parameter_count, types);
+  WasmJSFunctionData function_data = shared().wasm_js_function_data();
+  return wasm::SerializedSignatureHelper::DeserializeSignature(
+      zone, function_data.serialized_signature());
 }
 
 bool WasmJSFunction::MatchesSignature(
