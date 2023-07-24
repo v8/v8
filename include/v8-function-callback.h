@@ -126,7 +126,6 @@ class FunctionCallbackInfo {
   friend class internal::FunctionCallbackArguments;
   friend class internal::CustomArguments<FunctionCallbackInfo>;
   friend class debug::ConsoleCallArguments;
-  friend class internal::Builtins;
 
   static constexpr int kHolderIndex = 0;
   static constexpr int kIsolateIndex = 1;

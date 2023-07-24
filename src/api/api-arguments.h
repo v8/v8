@@ -183,7 +183,14 @@ class FunctionCallbackArguments
   static constexpr int kNewTargetIndex = T::kNewTargetIndex;
 
   static_assert(T::kThisValuesIndex == BuiltinArguments::kReceiverArgsOffset);
+
+  static constexpr int kSize = T::kSize;
+  static constexpr int kImplicitArgsOffset = T::kImplicitArgsOffset;
+  static constexpr int kValuesOffset = T::kValuesOffset;
+  static constexpr int kLengthOffset = T::kLengthOffset;
+
   // Make sure all FunctionCallbackInfo constants are in sync.
+  static_assert(T::kSize == sizeof(T));
   static_assert(T::kImplicitArgsOffset == offsetof(T, implicit_args_));
   static_assert(T::kValuesOffset == offsetof(T, values_));
   static_assert(T::kLengthOffset == offsetof(T, length_));
