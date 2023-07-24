@@ -3116,11 +3116,19 @@ void CodeGenerator::AssembleArchSelect(Instruction* instr,
     __ Fcsel(i.OutputFloat32Register(output_index),
              i.InputFloat32Register(true_value_index),
              i.InputFloat32Register(false_value_index), cc);
-  } else {
-    DCHECK_EQ(rep, MachineRepresentation::kFloat64);
+  } else if (rep == MachineRepresentation::kFloat64) {
     __ Fcsel(i.OutputFloat64Register(output_index),
              i.InputFloat64Register(true_value_index),
              i.InputFloat64Register(false_value_index), cc);
+  } else if (rep == MachineRepresentation::kWord32) {
+    __ Csel(i.OutputRegister32(output_index),
+            i.InputRegister32(true_value_index),
+            i.InputRegister32(false_value_index), cc);
+  } else {
+    DCHECK_EQ(rep, MachineRepresentation::kWord64);
+    __ Csel(i.OutputRegister64(output_index),
+            i.InputRegister64(true_value_index),
+            i.InputRegister64(false_value_index), cc);
   }
 }
 
