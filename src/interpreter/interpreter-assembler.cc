@@ -826,13 +826,26 @@ TNode<Object> InterpreterAssembler::Construct(
   DCHECK(Bytecodes::MakesCallAlongCriticalPath(bytecode_));
   TVARIABLE(Object, var_result);
   TVARIABLE(AllocationSite, var_site);
-  Label return_result(this), construct_generic(this),
+  Label return_result(this), try_fast_construct(this), construct_generic(this),
       construct_array(this, &var_site);
 
   TNode<Word32T> args_count = JSParameterCount(args.reg_count());
   CollectConstructFeedback(context, target, new_target, maybe_feedback_vector,
                            slot_id, UpdateFeedbackMode::kOptionalFeedback,
-                           &construct_generic, &construct_array, &var_site);
+                           &try_fast_construct, &construct_array, &var_site);
+
+  BIND(&try_fast_construct);
+  {
+    Comment("call using FastConstruct builtin");
+    GotoIf(TaggedIsSmi(target), &construct_generic);
+    GotoIfNot(IsJSFunction(CAST(target)), &construct_generic);
+    Callable callable = Builtins::CallableFor(
+        isolate(), Builtin::kInterpreterPushArgsThenFastConstructFunction);
+    var_result =
+        CallStub(callable, context, args_count, args.base_reg_location(),
+                 target, new_target, UndefinedConstant());
+    Goto(&return_result);
+  }
 
   BIND(&construct_generic);
   {

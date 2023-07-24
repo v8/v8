@@ -1428,6 +1428,170 @@ void Builtins::Generate_InterpreterPushArgsThenConstructImpl(
   }
 }
 
+namespace {
+
+void NewImplicitReceiver(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- rax : the number of arguments
+  //  -- rdx : the new target
+  //  -- rdi : the constructor to call (checked to be a JSFunction)
+  //
+  //  Stack:
+  //  -- Implicit Receiver
+  //  -- [arguments without receiver]
+  //  -- Implicit Receiver
+  //  -- Context
+  //  -- FastConstructMarker
+  //  -- FramePointer
+  // -----------------------------------
+  Register implicit_receiver = rcx;
+
+  // Save live registers.
+  __ SmiTag(rax);
+  __ Push(rax);  // Number of arguments
+  __ Push(rdx);  // NewTarget
+  __ Push(rdi);  // Target
+  __ Call(BUILTIN_CODE(masm->isolate(), FastNewObject), RelocInfo::CODE_TARGET);
+  // Save result.
+  __ movq(implicit_receiver, rax);
+  // Restore live registers.
+  __ Pop(rdi);
+  __ Pop(rdx);
+  __ Pop(rax);
+  __ SmiUntagUnsigned(rax);
+
+  // Patch implicit receiver (in arguments)
+  __ movq(Operand(rsp, 0 /* first argument */), implicit_receiver);
+  // Patch second implicit (in construct frame)
+  __ movq(Operand(rbp, FastConstructFrameConstants::kImplicitReceiverOffset),
+          implicit_receiver);
+
+  // Restore context.
+  __ movq(rsi, Operand(rbp, FastConstructFrameConstants::kContextOffset));
+}
+
+}  // namespace
+
+// static
+void Builtins::Generate_InterpreterPushArgsThenFastConstructFunction(
+    MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- rax : the number of arguments
+  //  -- rdx : the new target
+  //  -- rdi : the constructor to call (checked to be a JSFunction)
+  //  -- rcx : the address of the first argument to be pushed. Subsequent
+  //           arguments should be consecutive above this, in the same order as
+  //           they are to be pushed onto the stack.
+  // -----------------------------------
+  __ AssertFunction(rdi);
+
+  // Check if target has a [[Construct]] internal method.
+  Label non_constructor;
+  __ LoadMap(kScratchRegister, rdi);
+  __ testb(FieldOperand(kScratchRegister, Map::kBitFieldOffset),
+           Immediate(Map::Bits1::IsConstructorBit::kMask));
+  __ j(zero, &non_constructor);
+
+  // Add a stack check before pushing arguments.
+  Label stack_overflow;
+  __ StackOverflowCheck(rax, &stack_overflow);
+
+  // Enter a construct frame.
+  FrameScope scope(masm, StackFrame::MANUAL);
+  __ EnterFrame(StackFrame::FAST_CONSTRUCT);
+  __ Push(rsi);
+  // Implicit receiver stored in the construct frame.
+  __ PushRoot(RootIndex::kTheHoleValue);
+
+  // Push arguments + implicit receiver.
+  Register argc_without_receiver = r11;
+  __ leaq(argc_without_receiver, Operand(rax, -kJSArgcReceiverSlots));
+  GenerateInterpreterPushArgs(masm, argc_without_receiver, rcx, r12);
+  // Implicit receiver as part of the arguments (patched later if needed).
+  __ PushRoot(RootIndex::kTheHoleValue);
+
+  // Check if it is a builtin call.
+  Label builtin_call;
+  const TaggedRegister shared_function_info(kScratchRegister);
+  __ LoadTaggedField(shared_function_info,
+                     FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
+  __ testl(FieldOperand(shared_function_info, SharedFunctionInfo::kFlagsOffset),
+           Immediate(SharedFunctionInfo::ConstructAsBuiltinBit::kMask));
+  __ j(not_zero, &builtin_call);
+
+  // Check if we need to create an implicit receiver.
+  Label not_create_implicit_receiver;
+  __ movl(kScratchRegister,
+          FieldOperand(shared_function_info, SharedFunctionInfo::kFlagsOffset));
+  __ DecodeField<SharedFunctionInfo::FunctionKindBits>(kScratchRegister);
+  __ JumpIfIsInRange(
+      kScratchRegister,
+      static_cast<uint32_t>(FunctionKind::kDefaultDerivedConstructor),
+      static_cast<uint32_t>(FunctionKind::kDerivedConstructor),
+      &not_create_implicit_receiver, Label::kNear);
+  NewImplicitReceiver(masm);
+  __ bind(&not_create_implicit_receiver);
+
+  // Call the function.
+  __ InvokeFunction(rdi, rdx, rax, InvokeType::kCall);
+
+  // TODO(victorgomes): Change deopt frame in Maglev/TF and point to here!
+
+  // If the result is an object (in the ECMA sense), we should get rid
+  // of the receiver and use the result; see ECMA-262 section 13.2.2-7
+  // on page 74.
+  Label use_receiver, do_throw, leave_and_return, check_result;
+
+  // If the result is undefined, we'll use the implicit receiver. Otherwise we
+  // do a smi check and fall through to check if the return value is a valid
+  // receiver.
+  __ JumpIfNotRoot(rax, RootIndex::kUndefinedValue, &check_result,
+                   Label::kNear);
+
+  // Throw away the result of the constructor invocation and use the
+  // on-stack receiver as the result.
+  __ bind(&use_receiver);
+  __ movq(rax,
+          Operand(rbp, FastConstructFrameConstants::kImplicitReceiverOffset));
+  __ JumpIfRoot(rax, RootIndex::kTheHoleValue, &do_throw, Label::kNear);
+
+  __ bind(&leave_and_return);
+  __ LeaveFrame(StackFrame::FAST_CONSTRUCT);
+  __ ret(0);
+
+  // If the result is a smi, it is *not* an object in the ECMA sense.
+  __ bind(&check_result);
+  __ JumpIfSmi(rax, &use_receiver, Label::kNear);
+
+  // Check if the type of the result is not an object in the ECMA sense.
+  __ JumpIfJSAnyIsNotPrimitive(rax, rcx, &leave_and_return, Label::kNear);
+  __ jmp(&use_receiver);
+
+  __ bind(&do_throw);
+  __ movq(rsi, Operand(rbp, ConstructFrameConstants::kContextOffset));
+  __ CallRuntime(Runtime::kThrowConstructorReturnedNonObject);
+  // We don't return here.
+  __ int3();
+
+  __ bind(&builtin_call);
+  // TODO(victorgomes): Check the possibility to turn this into a tailcall.
+  __ InvokeFunction(rdi, rdx, rax, InvokeType::kCall);
+  __ LeaveFrame(StackFrame::FAST_CONSTRUCT);
+  __ ret(0);
+
+  // Called Construct on an Object that doesn't have a [[Construct]] internal
+  // method.
+  __ bind(&non_constructor);
+  __ Jump(BUILTIN_CODE(masm->isolate(), ConstructedNonConstructable),
+          RelocInfo::CODE_TARGET);
+
+  // Throw stack overflow exception.
+  __ bind(&stack_overflow);
+  __ TailCallRuntime(Runtime::kThrowStackOverflow);
+  // This should be unreachable.
+  __ int3();
+}
+
 static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
   // Set the return address to the correct point in the interpreter entry
   // trampoline.

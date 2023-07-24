@@ -232,6 +232,15 @@ class ConstructFrameConstants : public TypedFrameConstants {
   DEFINE_TYPED_FRAME_SIZES(5);
 };
 
+class FastConstructFrameConstants : public TypedFrameConstants {
+ public:
+  // FP-relative.
+  static constexpr int kContextOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(0);
+  static constexpr int kImplicitReceiverOffset =
+      TYPED_FRAME_PUSHED_VALUE_OFFSET(1);
+  DEFINE_TYPED_FRAME_SIZES(2);
+};
+
 #if V8_ENABLE_WEBASSEMBLY
 class CWasmEntryFrameConstants : public TypedFrameConstants {
  public:
