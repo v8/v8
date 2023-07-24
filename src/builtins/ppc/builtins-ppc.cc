@@ -1771,6 +1771,169 @@ void Builtins::Generate_InterpreterPushArgsThenConstructImpl(
   }
 }
 
+namespace {
+
+void NewImplicitReceiver(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  // -- r3 : argument count
+  // -- r4 : constructor to call (checked to be a JSFunction)
+  // -- r6 : new target
+  //
+  //  Stack:
+  //  -- Implicit Receiver
+  //  -- [arguments without receiver]
+  //  -- Implicit Receiver
+  //  -- Context
+  //  -- FastConstructMarker
+  //  -- FramePointer
+  // -----------------------------------
+  Register implicit_receiver = r7;
+
+  // Save live registers.
+  __ SmiTag(r3);
+  __ Push(r3, r4, r6);
+  __ Call(BUILTIN_CODE(masm->isolate(), FastNewObject), RelocInfo::CODE_TARGET);
+  // Save result.
+  __ Move(implicit_receiver, r3);
+  // Restore live registers.
+  __ Pop(r3, r4, r6);
+  __ SmiUntag(r3);
+
+  // Patch implicit receiver (in arguments)
+  __ StoreU64(implicit_receiver, MemOperand(sp, 0 * kSystemPointerSize), r0);
+  // Patch second implicit (in construct frame)
+  __ StoreU64(
+      implicit_receiver,
+      MemOperand(fp, FastConstructFrameConstants::kImplicitReceiverOffset), r0);
+
+  // Restore context.
+  __ LoadU64(cp, MemOperand(fp, FastConstructFrameConstants::kContextOffset),
+             r0);
+}
+
+}  // namespace
+
+// static
+void Builtins::Generate_InterpreterPushArgsThenFastConstructFunction(
+    MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  // -- r3 : argument count
+  // -- r4 : constructor to call (checked to be a JSFunction)
+  // -- r6 : new target
+  // -- r7 : address of the first argument
+  // -- cp/r30 : context pointer
+  // -----------------------------------
+  __ AssertFunction(r4);
+
+  // Check if target has a [[Construct]] internal method.
+  Label non_constructor;
+  __ LoadMap(r5, r4);
+  __ lbz(r5, FieldMemOperand(r5, Map::kBitFieldOffset));
+  __ TestBit(r5, Map::Bits1::IsConstructorBit::kShift, r0);
+  __ beq(&non_constructor, cr0);
+
+  // Add a stack check before pushing arguments.
+  Label stack_overflow;
+  __ StackOverflowCheck(r3, r5, &stack_overflow);
+
+  // Enter a construct frame.
+  FrameScope scope(masm, StackFrame::MANUAL);
+  __ EnterFrame(StackFrame::FAST_CONSTRUCT);
+  // Implicit receiver stored in the construct frame.
+  __ LoadRoot(r5, RootIndex::kTheHoleValue);
+  __ Push(cp, r5);
+
+  // Push arguments + implicit receiver.
+  Register argc_without_receiver = r9;
+  __ SubS64(argc_without_receiver, r3, Operand(kJSArgcReceiverSlots));
+  // Push the arguments. r7 and r8 will be modified.
+  GenerateInterpreterPushArgs(masm, argc_without_receiver, r7, r8);
+  // Implicit receiver as part of the arguments (patched later if needed).
+  __ push(r5);
+
+  // Check if it is a builtin call.
+  Label builtin_call;
+  __ LoadTaggedField(
+      r5, FieldMemOperand(r4, JSFunction::kSharedFunctionInfoOffset), r0);
+  __ lwz(r5, FieldMemOperand(r5, SharedFunctionInfo::kFlagsOffset));
+  __ mov(ip, Operand(SharedFunctionInfo::ConstructAsBuiltinBit::kMask));
+  __ and_(r0, r5, ip, SetRC);
+  __ bne(&builtin_call, cr0);
+
+  // Check if we need to create an implicit receiver.
+  Label not_create_implicit_receiver;
+  __ DecodeField<SharedFunctionInfo::FunctionKindBits>(r5);
+  __ JumpIfIsInRange(
+      r5, static_cast<uint32_t>(FunctionKind::kDefaultDerivedConstructor),
+      static_cast<uint32_t>(FunctionKind::kDerivedConstructor),
+      &not_create_implicit_receiver);
+  NewImplicitReceiver(masm);
+  __ bind(&not_create_implicit_receiver);
+
+  // Call the function.
+  __ InvokeFunctionWithNewTarget(r4, r6, r3, InvokeType::kCall);
+
+  // If the result is an object (in the ECMA sense), we should get rid
+  // of the receiver and use the result; see ECMA-262 section 13.2.2-7
+  // on page 74.
+  Label use_receiver, do_throw, leave_and_return, check_receiver;
+
+  // If the result is undefined, we jump out to using the implicit receiver.
+  __ JumpIfNotRoot(r3, RootIndex::kUndefinedValue, &check_receiver);
+
+  // Otherwise we do a smi check and fall through to check if the return value
+  // is a valid receiver.
+
+  // Throw away the result of the constructor invocation and use the
+  // on-stack receiver as the result.
+  __ bind(&use_receiver);
+  __ LoadU64(
+      r3, MemOperand(fp, FastConstructFrameConstants::kImplicitReceiverOffset),
+      r0);
+  __ JumpIfRoot(r3, RootIndex::kTheHoleValue, &do_throw);
+
+  __ bind(&leave_and_return);
+  // Leave construct frame.
+  __ LeaveFrame(StackFrame::CONSTRUCT);
+  __ blr();
+
+  __ bind(&check_receiver);
+  // If the result is a smi, it is *not* an object in the ECMA sense.
+  __ JumpIfSmi(r3, &use_receiver);
+
+  // If the type of the result (stored in its map) is less than
+  // FIRST_JS_RECEIVER_TYPE, it is not an object in the ECMA sense.
+  static_assert(LAST_JS_RECEIVER_TYPE == LAST_TYPE);
+  __ CompareObjectType(r3, r7, r8, FIRST_JS_RECEIVER_TYPE);
+  __ bge(&leave_and_return);
+  __ b(&use_receiver);
+
+  __ bind(&builtin_call);
+  // TODO(victorgomes): Check the possibility to turn this into a tailcall.
+  __ InvokeFunctionWithNewTarget(r4, r6, r3, InvokeType::kCall);
+  __ LeaveFrame(StackFrame::FAST_CONSTRUCT);
+  __ blr();
+
+  __ bind(&do_throw);
+  // Restore the context from the frame.
+  __ LoadU64(cp, MemOperand(fp, FastConstructFrameConstants::kContextOffset),
+             r0);
+  __ CallRuntime(Runtime::kThrowConstructorReturnedNonObject);
+  __ bkpt(0);
+
+  __ bind(&stack_overflow);
+  // Restore the context from the frame.
+  __ TailCallRuntime(Runtime::kThrowStackOverflow);
+  // Unreachable code.
+  __ bkpt(0);
+
+  // Called Construct on an Object that doesn't have a [[Construct]] internal
+  // method.
+  __ bind(&non_constructor);
+  __ Jump(BUILTIN_CODE(masm->isolate(), ConstructedNonConstructable),
+          RelocInfo::CODE_TARGET);
+}
+
 static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
   // Set the return address to the correct point in the interpreter entry
   // trampoline.
