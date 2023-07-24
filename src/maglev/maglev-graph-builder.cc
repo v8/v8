@@ -7415,6 +7415,10 @@ ReduceResult MaglevGraphBuilder::ReduceConstruct(
           compiler::HeapObjectRef constant = maybe_constant.value();
           if (constant.IsJSReceiver()) return constant_node;
         }
+        if (!call_result->properties().is_tagged()) {
+          return BuildCallRuntime(Runtime::kThrowConstructorReturnedNonObject,
+                                  {});
+        }
         return AddNewNode<CheckDerivedConstructResult>({call_result});
       }
 
