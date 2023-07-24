@@ -1961,15 +1961,6 @@
   'language/statements/class/decorator/syntax/valid/class-element-decorator-member-expr-identifier-reference': [FAIL],
   'language/statements/class/decorator/syntax/valid/class-element-decorator-parenthesized-expr-identifier-reference': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=11660
-  # https://github.com/tc39/proposal-intl-duration-format/issues/114
-  'intl402/DurationFormat/prototype/format/style-digital-en': [FAIL],
-  'intl402/DurationFormat/prototype/formatToParts/formatToParts-style-default-en': [FAIL],
-  'intl402/DurationFormat/prototype/formatToParts/formatToParts-style-digital-en': [FAIL],
-  'intl402/DurationFormat/prototype/formatToParts/formatToParts-style-long-en': [FAIL],
-  'intl402/DurationFormat/prototype/formatToParts/formatToParts-style-narrow-en': [FAIL],
-  'intl402/DurationFormat/prototype/formatToParts/formatToParts-style-short-en': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=12763
   'language/expressions/class/decorator/syntax/class-valid/decorator-member-expr-private-identifier': [FAIL],
   'language/expressions/class/decorator/syntax/valid/decorator-call-expr-identifier-reference': [FAIL],

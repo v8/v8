@@ -62,6 +62,8 @@ IMPL_INLINE_DISPLAY_SETTER_GETTER(microseconds, Microseconds)
 IMPL_INLINE_DISPLAY_SETTER_GETTER(nanoseconds, Nanoseconds)
 
 IMPL_INLINE_SETTER_GETTER(Style, style, StyleBits, style_flags, kDigital)
+IMPL_INLINE_SETTER_GETTER(Separator, separator, SeparatorBits, style_flags,
+                          kMax)
 
 IMPL_INLINE_FIELD_STYLE3_SETTER_GETTER(years, Years)
 IMPL_INLINE_FIELD_STYLE3_SETTER_GETTER(months, Months)

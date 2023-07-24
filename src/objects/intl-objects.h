@@ -237,6 +237,12 @@ class Intl {
                          Handle<String> additional_property_name,
                          Handle<String> additional_property_value);
 
+  // A helper function to implement formatToParts which add element to array
+  static Maybe<int> AddNumberElements(Isolate* isolate,
+                                      const icu::FormattedValue& formatted,
+                                      Handle<JSArray> result, int start_index,
+                                      Handle<String> unit);
+
   // In ECMA 402 v1, Intl constructors supported a mode of operation
   // where calling them with an existing object as a receiver would
   // transform the receiver into the relevant Intl instance with all

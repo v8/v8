@@ -1917,7 +1917,8 @@ namespace {
 Maybe<int> ConstructParts(Isolate* isolate,
                           const icu::FormattedValue& formatted,
                           Handle<JSArray> result, int start_index,
-                          bool style_is_unit, bool is_nan, bool output_source) {
+                          bool style_is_unit, bool is_nan, bool output_source,
+                          bool output_unit, Handle<String> unit) {
   UErrorCode status = U_ZERO_ERROR;
   icu::UnicodeString formatted_text = formatted.toString(status);
   if (U_FAILURE(status)) {
@@ -1979,13 +1980,30 @@ Maybe<int> ConstructParts(Isolate* isolate,
           Intl::SourceString(isolate,
                              tracker.GetSource(part.begin_pos, part.end_pos)));
     } else {
-      Intl::AddElement(isolate, result, index, field_type_string, substring);
+      if (output_unit) {
+        Intl::AddElement(isolate, result, index, field_type_string, substring,
+                         isolate->factory()->unit_string(), unit);
+      } else {
+        Intl::AddElement(isolate, result, index, field_type_string, substring);
+      }
     }
     ++index;
   }
   JSObject::ValidateElements(*result);
   return Just(index);
 }
+
+}  // namespace
+
+Maybe<int> Intl::AddNumberElements(Isolate* isolate,
+                                   const icu::FormattedValue& formatted,
+                                   Handle<JSArray> result, int start_index,
+                                   Handle<String> unit) {
+  return ConstructParts(isolate, formatted, result, start_index, true, false,
+                        false, true, unit);
+}
+
+namespace {
 
 // #sec-partitionnumberrangepattern
 template <typename T, MaybeHandle<T> (*F)(
@@ -2069,7 +2087,7 @@ MaybeHandle<JSArray> FormatToJSArray(
   MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, format_to_parts,
       ConstructParts(isolate, formatted, result, 0, is_unit, is_nan,
-                     output_source),
+                     output_source, false, Handle<String>()),
       Handle<JSArray>());
   USE(format_to_parts);
 
