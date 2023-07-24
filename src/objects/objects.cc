@@ -2240,9 +2240,9 @@ int HeapObject::SizeFromMap(Map map) const {
     if (instance_type == NATIVE_CONTEXT_TYPE) return NativeContext::kSize;
     return Context::SizeFor(Context::unchecked_cast(*this)->length());
   }
-  if (instance_type == ONE_BYTE_STRING_TYPE ||
-      instance_type == ONE_BYTE_INTERNALIZED_STRING_TYPE ||
-      instance_type == SHARED_ONE_BYTE_STRING_TYPE) {
+  if (instance_type == SEQ_ONE_BYTE_STRING_TYPE ||
+      instance_type == INTERNALIZED_ONE_BYTE_STRING_TYPE ||
+      instance_type == SHARED_SEQ_ONE_BYTE_STRING_TYPE) {
     // Strings may get concurrently truncated, hence we have to access its
     // length synchronized.
     return SeqOneByteString::SizeFor(
@@ -2263,9 +2263,9 @@ int HeapObject::SizeFromMap(Map map) const {
   if (instance_type == FREE_SPACE_TYPE) {
     return FreeSpace::unchecked_cast(*this)->size(kRelaxedLoad);
   }
-  if (instance_type == STRING_TYPE ||
-      instance_type == INTERNALIZED_STRING_TYPE ||
-      instance_type == SHARED_STRING_TYPE) {
+  if (instance_type == SEQ_TWO_BYTE_STRING_TYPE ||
+      instance_type == INTERNALIZED_TWO_BYTE_STRING_TYPE ||
+      instance_type == SHARED_SEQ_TWO_BYTE_STRING_TYPE) {
     // Strings may get concurrently truncated, hence we have to access its
     // length synchronized.
     return SeqTwoByteString::SizeFor(
@@ -2488,8 +2488,8 @@ void HeapObject::RehashBasedOnMap(IsolateT* isolate) {
     case SMALL_ORDERED_NAME_DICTIONARY_TYPE:
       DCHECK_EQ(0, SmallOrderedNameDictionary::cast(*this)->NumberOfElements());
       break;
-    case ONE_BYTE_INTERNALIZED_STRING_TYPE:
-    case INTERNALIZED_STRING_TYPE:
+    case INTERNALIZED_ONE_BYTE_STRING_TYPE:
+    case INTERNALIZED_TWO_BYTE_STRING_TYPE:
       // Rare case, rehash read-only space strings before they are sealed.
       DCHECK(ReadOnlyHeap::Contains(*this));
       String::cast(*this)->EnsureHash();

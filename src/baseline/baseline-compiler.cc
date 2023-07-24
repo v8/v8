@@ -1568,7 +1568,7 @@ void BaselineCompiler::VisitTestTypeOf() {
     case interpreter::TestTypeOfFlags::LiteralFlag::kString: {
       Label is_smi, bad_instance_type;
       __ JumpIfSmi(kInterpreterAccumulatorRegister, &is_smi, Label::kNear);
-      static_assert(INTERNALIZED_STRING_TYPE == FIRST_TYPE);
+      static_assert(INTERNALIZED_TWO_BYTE_STRING_TYPE == FIRST_TYPE);
       __ JumpIfObjectType(kGreaterThanEqual, kInterpreterAccumulatorRegister,
                           FIRST_NONSTRING_TYPE, scratch_scope.AcquireScratch(),
                           &bad_instance_type, Label::kNear);

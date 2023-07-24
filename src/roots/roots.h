@@ -81,8 +81,8 @@ class Tagged;
   V(Map, fixed_double_array_map, FixedDoubleArrayMap)                          \
   V(Map, hash_table_map, HashTableMap)                                         \
   V(Map, symbol_map, SymbolMap)                                                \
-  V(Map, one_byte_string_map, OneByteStringMap)                                \
-  V(Map, one_byte_internalized_string_map, OneByteInternalizedStringMap)       \
+  V(Map, seq_one_byte_string_map, SeqOneByteStringMap)                         \
+  V(Map, internalized_one_byte_string_map, InternalizedOneByteStringMap)       \
   V(Map, scope_info_map, ScopeInfoMap)                                         \
   V(Map, shared_function_info_map, SharedFunctionInfoMap)                      \
   V(Map, instruction_stream_map, InstructionStreamMap)                         \
@@ -159,33 +159,36 @@ class Tagged;
   V(Map, weak_cell_map, WeakCellMap)                                           \
   V(Map, external_pointer_array_map, ExternalPointerArrayMap)                  \
   /* String maps */                                                            \
-  V(Map, string_map, StringMap)                                                \
-  V(Map, cons_string_map, ConsStringMap)                                       \
+  V(Map, seq_two_byte_string_map, SeqTwoByteStringMap)                         \
+  V(Map, cons_two_byte_string_map, ConsTwoByteStringMap)                       \
   V(Map, cons_one_byte_string_map, ConsOneByteStringMap)                       \
-  V(Map, thin_string_map, ThinStringMap)                                       \
+  V(Map, thin_two_byte_string_map, ThinTwoByteStringMap)                       \
   V(Map, thin_one_byte_string_map, ThinOneByteStringMap)                       \
-  V(Map, sliced_string_map, SlicedStringMap)                                   \
+  V(Map, sliced_two_byte_string_map, SlicedTwoByteStringMap)                   \
   V(Map, sliced_one_byte_string_map, SlicedOneByteStringMap)                   \
-  V(Map, external_string_map, ExternalStringMap)                               \
+  V(Map, external_two_byte_string_map, ExternalTwoByteStringMap)               \
   V(Map, external_one_byte_string_map, ExternalOneByteStringMap)               \
-  V(Map, uncached_external_string_map, UncachedExternalStringMap)              \
-  V(Map, internalized_string_map, InternalizedStringMap)                       \
-  V(Map, external_internalized_string_map, ExternalInternalizedStringMap)      \
-  V(Map, external_one_byte_internalized_string_map,                            \
-    ExternalOneByteInternalizedStringMap)                                      \
-  V(Map, uncached_external_internalized_string_map,                            \
-    UncachedExternalInternalizedStringMap)                                     \
-  V(Map, uncached_external_one_byte_internalized_string_map,                   \
-    UncachedExternalOneByteInternalizedStringMap)                              \
+  V(Map, internalized_two_byte_string_map, InternalizedTwoByteStringMap)       \
+  V(Map, external_internalized_two_byte_string_map,                            \
+    ExternalInternalizedTwoByteStringMap)                                      \
+  V(Map, external_internalized_one_byte_string_map,                            \
+    ExternalInternalizedOneByteStringMap)                                      \
+  V(Map, uncached_external_internalized_two_byte_string_map,                   \
+    UncachedExternalInternalizedTwoByteStringMap)                              \
+  V(Map, uncached_external_internalized_one_byte_string_map,                   \
+    UncachedExternalInternalizedOneByteStringMap)                              \
+  V(Map, uncached_external_two_byte_string_map,                                \
+    UncachedExternalTwoByteStringMap)                                          \
   V(Map, uncached_external_one_byte_string_map,                                \
     UncachedExternalOneByteStringMap)                                          \
-  V(Map, shared_one_byte_string_map, SharedOneByteStringMap)                   \
-  V(Map, shared_string_map, SharedStringMap)                                   \
+  V(Map, shared_seq_one_byte_string_map, SharedSeqOneByteStringMap)            \
+  V(Map, shared_seq_two_byte_string_map, SharedSeqTwoByteStringMap)            \
   V(Map, shared_external_one_byte_string_map, SharedExternalOneByteStringMap)  \
-  V(Map, shared_external_string_map, SharedExternalStringMap)                  \
+  V(Map, shared_external_two_byte_string_map, SharedExternalTwoByteStringMap)  \
   V(Map, shared_uncached_external_one_byte_string_map,                         \
     SharedUncachedExternalOneByteStringMap)                                    \
-  V(Map, shared_uncached_external_string_map, SharedUncachedExternalStringMap) \
+  V(Map, shared_uncached_external_two_byte_string_map,                         \
+    SharedUncachedExternalTwoByteStringMap)                                    \
   /* Oddball maps */                                                           \
   V(Map, undefined_map, UndefinedMap)                                          \
   V(Map, hole_map, HoleMap)                                                    \

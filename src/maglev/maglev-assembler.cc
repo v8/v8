@@ -30,7 +30,7 @@ void MaglevAssembler::AllocateTwoByteString(RegisterSnapshot register_snapshot,
   int size = SeqTwoByteString::SizeFor(length);
   Allocate(register_snapshot, result, size);
   StoreInt32Field(result, size - kObjectAlignment, 0);
-  SetMapAsRoot(result, RootIndex::kStringMap);
+  SetMapAsRoot(result, RootIndex::kSeqTwoByteStringMap);
   StoreInt32Field(result, Name::kRawHashFieldOffset, Name::kEmptyHashField);
   StoreInt32Field(result, String::kLengthOffset, length);
 }

@@ -29,7 +29,7 @@ V8_INLINE bool YoungGenerationMainMarkingVisitor::ShortCutStrings(
     ObjectSlot map_slot = heap_object->map_slot();
     Address map_address = map_slot.load_map().ptr();
     if (map_address == StaticReadOnlyRoot::kThinOneByteStringMap ||
-        map_address == StaticReadOnlyRoot::kThinStringMap) {
+        map_address == StaticReadOnlyRoot::kThinTwoByteStringMap) {
       DCHECK_EQ(heap_object->map(ObjectVisitorWithCageBases::cage_base())
                     ->visitor_id(),
                 VisitorId::kVisitThinString);
@@ -40,7 +40,7 @@ V8_INLINE bool YoungGenerationMainMarkingVisitor::ShortCutStrings(
       slot.StoreHeapObject(*heap_object);
       return false;
     } else if (map_address == StaticReadOnlyRoot::kConsOneByteStringMap ||
-               map_address == StaticReadOnlyRoot::kConsStringMap) {
+               map_address == StaticReadOnlyRoot::kConsTwoByteStringMap) {
       // Not all ConsString are short cut candidates.
       const VisitorId visitor_id =
           heap_object->map(ObjectVisitorWithCageBases::cage_base())

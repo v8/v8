@@ -90,7 +90,7 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
   V(boolean_to_string, boolean_to_string, BooleanToString)                     \
   V(class_fields_symbol, class_fields_symbol, ClassFieldsSymbol)               \
   V(ConsOneByteStringMap, cons_one_byte_string_map, ConsOneByteStringMap)      \
-  V(ConsStringMap, cons_string_map, ConsStringMap)                             \
+  V(ConsTwoByteStringMap, cons_two_byte_string_map, ConsTwoByteStringMap)      \
   V(constructor_string, constructor_string, ConstructorString)                 \
   V(date_to_string, date_to_string, DateToString)                              \
   V(default_string, default_string, DefaultString)                             \
@@ -142,7 +142,7 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
   V(number_to_string, number_to_string, NumberToString)                        \
   V(Object_string, Object_string, ObjectString)                                \
   V(object_to_string, object_to_string, ObjectToString)                        \
-  V(OneByteStringMap, one_byte_string_map, OneByteStringMap)                   \
+  V(SeqOneByteStringMap, seq_one_byte_string_map, SeqOneByteStringMap)         \
   V(OneClosureCellMap, one_closure_cell_map, OneClosureCellMap)                \
   V(OnePointerFillerMap, one_pointer_filler_map, OnePointerFillerMap)          \
   V(PromiseCapabilityMap, promise_capability_map, PromiseCapabilityMap)        \
@@ -171,7 +171,7 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
   V(StoreHandler0Map, store_handler0_map, StoreHandler0Map)                    \
   V(string_string, string_string, StringString)                                \
   V(string_to_string, string_to_string, StringToString)                        \
-  V(StringMap, string_map, StringMap)                                          \
+  V(SeqTwoByteStringMap, seq_two_byte_string_map, SeqTwoByteStringMap)         \
   V(TheHoleValue, the_hole_value, TheHole)                                     \
   V(PropertyCellHoleValue, property_cell_hole_value, PropertyCellHole)         \
   V(then_string, then_string, ThenString)                                      \

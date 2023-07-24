@@ -1423,13 +1423,13 @@ UNINITIALIZED_TEST(InternalizeSharedExternalString) {
   i_isolate1->heap()->CollectGarbageShared(i_isolate1->main_thread_local_heap(),
                                            GarbageCollectionReason::kTesting);
   CHECK_EQ(shared_one_byte->map()->instance_type(),
-           InstanceType::EXTERNAL_ONE_BYTE_INTERNALIZED_STRING_TYPE);
+           InstanceType::EXTERNAL_INTERNALIZED_ONE_BYTE_STRING_TYPE);
   if (is_uncached) {
     CHECK(shared_two_byte->IsThinString());
     CHECK(two_byte_res->IsDisposed());
   } else {
     CHECK_EQ(shared_two_byte->map()->instance_type(),
-             InstanceType::EXTERNAL_INTERNALIZED_STRING_TYPE);
+             InstanceType::EXTERNAL_INTERNALIZED_TWO_BYTE_STRING_TYPE);
   }
 }
 

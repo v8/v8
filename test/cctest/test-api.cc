@@ -14858,13 +14858,13 @@ static void MorphAString(i::String string,
     // Check old map is not internalized or long.
     CHECK(string->map() == roots.external_one_byte_string_map());
     // Morph external string to be TwoByte string.
-    string->set_map(roots.external_string_map());
+    string->set_map(roots.external_two_byte_string_map());
     i::ExternalTwoByteString morphed = i::ExternalTwoByteString::cast(string);
     CcTest::heap()->UpdateExternalString(morphed, string->length(), 0);
     morphed->SetResource(isolate, uc16_resource);
   } else {
     // Check old map is not internalized or long.
-    CHECK(string->map() == roots.external_string_map());
+    CHECK(string->map() == roots.external_two_byte_string_map());
     // Morph external string to be one-byte string.
     string->set_map(roots.external_one_byte_string_map());
     i::ExternalOneByteString morphed = i::ExternalOneByteString::cast(string);

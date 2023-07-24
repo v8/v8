@@ -32,7 +32,7 @@ bytecodes: [
   /*  130 S> */ B(Return),
 ]
 constant pool: [
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["method"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["method"],
 ]
 handlers: [
 ]
@@ -69,7 +69,7 @@ bytecodes: [
   /*  158 S> */ B(Return),
 ]
 constant pool: [
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["x"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["x"],
 ]
 handlers: [
 ]
@@ -113,7 +113,7 @@ bytecodes: [
   /*  141 S> */ B(Return),
 ]
 constant pool: [
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["y_"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["y_"],
 ]
 handlers: [
 ]
@@ -155,7 +155,7 @@ bytecodes: [
   /*  139 S> */ B(Return),
 ]
 constant pool: [
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["y_"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["y_"],
 ]
 handlers: [
 ]

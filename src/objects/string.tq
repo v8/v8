@@ -162,7 +162,7 @@ macro AllocateNonEmptySeqOneByteString<Iterator: type>(
     length: uint32, content: Iterator): SeqOneByteString {
   dcheck(length != 0 && length <= kStringMaxLength);
   return new (ClearPadding) SeqOneByteString{
-    map: kOneByteStringMap,
+    map: kSeqOneByteStringMap,
     raw_hash_field: kNameEmptyHashField,
     length: Signed(length),
     chars: ...content
@@ -173,7 +173,7 @@ macro AllocateNonEmptySeqTwoByteString<Iterator: type>(
     length: uint32, content: Iterator): SeqTwoByteString {
   dcheck(length > 0 && length <= kStringMaxLength);
   return new (ClearPadding) SeqTwoByteString{
-    map: kStringMap,
+    map: kSeqTwoByteStringMap,
     raw_hash_field: kNameEmptyHashField,
     length: Signed(length),
     chars: ...content

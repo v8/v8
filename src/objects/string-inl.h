@@ -1091,13 +1091,14 @@ inline int SeqTwoByteString::AllocatedSize() {
 
 // static
 bool SeqOneByteString::IsCompatibleMap(Tagged<Map> map, ReadOnlyRoots roots) {
-  return map == roots.one_byte_string_map() ||
-         map == roots.shared_one_byte_string_map();
+  return map == roots.seq_one_byte_string_map() ||
+         map == roots.shared_seq_one_byte_string_map();
 }
 
 // static
 bool SeqTwoByteString::IsCompatibleMap(Tagged<Map> map, ReadOnlyRoots roots) {
-  return map == roots.string_map() || map == roots.shared_string_map();
+  return map == roots.seq_two_byte_string_map() ||
+         map == roots.shared_seq_two_byte_string_map();
 }
 
 void SlicedString::set_parent(String parent, WriteBarrierMode mode) {
@@ -1526,13 +1527,13 @@ bool String::IsInPlaceInternalizable(String string) {
 // static
 bool String::IsInPlaceInternalizable(InstanceType instance_type) {
   switch (instance_type) {
-    case STRING_TYPE:
-    case ONE_BYTE_STRING_TYPE:
-    case SHARED_STRING_TYPE:
-    case SHARED_ONE_BYTE_STRING_TYPE:
-    case EXTERNAL_STRING_TYPE:
+    case SEQ_TWO_BYTE_STRING_TYPE:
+    case SEQ_ONE_BYTE_STRING_TYPE:
+    case SHARED_SEQ_TWO_BYTE_STRING_TYPE:
+    case SHARED_SEQ_ONE_BYTE_STRING_TYPE:
+    case EXTERNAL_TWO_BYTE_STRING_TYPE:
     case EXTERNAL_ONE_BYTE_STRING_TYPE:
-    case SHARED_EXTERNAL_STRING_TYPE:
+    case SHARED_EXTERNAL_TWO_BYTE_STRING_TYPE:
     case SHARED_EXTERNAL_ONE_BYTE_STRING_TYPE:
       return true;
     default:

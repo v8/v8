@@ -91,7 +91,7 @@ bytecodes: [
                 B(Throw),
 ]
 constant pool: [
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["#b"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["#b"],
 ]
 handlers: [
 ]
@@ -123,7 +123,7 @@ bytecodes: [
                 B(Throw),
 ]
 constant pool: [
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["#c"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["#c"],
 ]
 handlers: [
 ]
@@ -157,7 +157,7 @@ bytecodes: [
                 B(Throw),
 ]
 constant pool: [
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["#d"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["#d"],
 ]
 handlers: [
 ]
@@ -189,7 +189,7 @@ bytecodes: [
                 B(Throw),
 ]
 constant pool: [
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["#e"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["#e"],
 ]
 handlers: [
 ]

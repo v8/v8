@@ -668,14 +668,15 @@ void Serializer::ObjectSerializer::SerializeExternalStringAsSequentialString() {
   // Find the map and size for the imaginary sequential string.
   bool internalized = object_->IsInternalizedString(cage_base);
   if (object_->IsExternalOneByteString(cage_base)) {
-    map = internalized ? roots.one_byte_internalized_string_map()
-                       : roots.one_byte_string_map();
+    map = internalized ? roots.internalized_one_byte_string_map()
+                       : roots.seq_one_byte_string_map();
     allocation_size = SeqOneByteString::SizeFor(length);
     content_size = length * kCharSize;
     resource = reinterpret_cast<const uint8_t*>(
         Handle<ExternalOneByteString>::cast(string)->resource()->data());
   } else {
-    map = internalized ? roots.internalized_string_map() : roots.string_map();
+    map = internalized ? roots.internalized_two_byte_string_map()
+                       : roots.seq_two_byte_string_map();
     allocation_size = SeqTwoByteString::SizeFor(length);
     content_size = length * kShortSize;
     resource = reinterpret_cast<const uint8_t*>(

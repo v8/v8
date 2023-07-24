@@ -1057,22 +1057,23 @@ StringTransitionStrategy Factory::ComputeSharingStrategyForString(
     return StringTransitionStrategy::kAlreadyTransitioned;
   }
   switch (instance_type) {
-    case STRING_TYPE:
-      *shared_map = read_only_roots().shared_string_map_handle();
+    case SEQ_TWO_BYTE_STRING_TYPE:
+      *shared_map = read_only_roots().shared_seq_two_byte_string_map_handle();
       return StringTransitionStrategy::kInPlace;
-    case ONE_BYTE_STRING_TYPE:
-      *shared_map = read_only_roots().shared_one_byte_string_map_handle();
+    case SEQ_ONE_BYTE_STRING_TYPE:
+      *shared_map = read_only_roots().shared_seq_one_byte_string_map_handle();
       return StringTransitionStrategy::kInPlace;
-    case EXTERNAL_STRING_TYPE:
-      *shared_map = read_only_roots().shared_external_string_map_handle();
+    case EXTERNAL_TWO_BYTE_STRING_TYPE:
+      *shared_map =
+          read_only_roots().shared_external_two_byte_string_map_handle();
       return StringTransitionStrategy::kInPlace;
     case EXTERNAL_ONE_BYTE_STRING_TYPE:
       *shared_map =
           read_only_roots().shared_external_one_byte_string_map_handle();
       return StringTransitionStrategy::kInPlace;
-    case UNCACHED_EXTERNAL_STRING_TYPE:
-      *shared_map =
-          read_only_roots().shared_uncached_external_string_map_handle();
+    case UNCACHED_EXTERNAL_TWO_BYTE_STRING_TYPE:
+      *shared_map = read_only_roots()
+                        .shared_uncached_external_two_byte_string_map_handle();
       return StringTransitionStrategy::kInPlace;
     case UNCACHED_EXTERNAL_ONE_BYTE_STRING_TYPE:
       *shared_map = read_only_roots()
@@ -1154,7 +1155,7 @@ Handle<String> Factory::NewProperSubString(Handle<String> str, int begin,
   DCHECK(str->IsSeqString() || str->IsExternalString());
   Handle<Map> map = str->IsOneByteRepresentation()
                         ? sliced_one_byte_string_map()
-                        : sliced_string_map();
+                        : sliced_two_byte_string_map();
   Tagged<SlicedString> slice =
       Tagged<SlicedString>::cast(New(map, AllocationType::kYoung));
   DisallowGarbageCollection no_gc;
@@ -1197,8 +1198,9 @@ MaybeHandle<String> Factory::NewExternalStringFromTwoByte(
   }
   if (length == 0) return empty_string();
 
-  Handle<Map> map = resource->IsCacheable() ? external_string_map()
-                                            : uncached_external_string_map();
+  Handle<Map> map = resource->IsCacheable()
+                        ? external_two_byte_string_map()
+                        : uncached_external_two_byte_string_map();
   Tagged<ExternalTwoByteString> string =
       Tagged<ExternalTwoByteString>::cast(New(map, AllocationType::kOld));
   DisallowGarbageCollection no_gc;

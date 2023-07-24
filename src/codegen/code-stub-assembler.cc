@@ -3859,8 +3859,8 @@ TNode<String> CodeStubAssembler::AllocateSeqOneByteString(
                       IntPtrConstant(SeqOneByteString::SizeFor(length) -
                                      kObjectAlignment - kHeapObjectTag),
                       SmiConstant(0));
-  DCHECK(RootsTable::IsImmortalImmovable(RootIndex::kOneByteStringMap));
-  StoreMapNoWriteBarrier(result, RootIndex::kOneByteStringMap);
+  DCHECK(RootsTable::IsImmortalImmovable(RootIndex::kSeqOneByteStringMap));
+  StoreMapNoWriteBarrier(result, RootIndex::kSeqOneByteStringMap);
   StoreObjectFieldNoWriteBarrier(result, SeqOneByteString::kLengthOffset,
                                  Uint32Constant(length));
   StoreObjectFieldNoWriteBarrier(result, SeqOneByteString::kRawHashFieldOffset,
@@ -3885,8 +3885,8 @@ TNode<String> CodeStubAssembler::AllocateSeqTwoByteString(
                       IntPtrConstant(SeqTwoByteString::SizeFor(length) -
                                      kObjectAlignment - kHeapObjectTag),
                       SmiConstant(0));
-  DCHECK(RootsTable::IsImmortalImmovable(RootIndex::kStringMap));
-  StoreMapNoWriteBarrier(result, RootIndex::kStringMap);
+  DCHECK(RootsTable::IsImmortalImmovable(RootIndex::kSeqTwoByteStringMap));
+  StoreMapNoWriteBarrier(result, RootIndex::kSeqTwoByteStringMap);
   StoreObjectFieldNoWriteBarrier(result, SeqTwoByteString::kLengthOffset,
                                  Uint32Constant(length));
   StoreObjectFieldNoWriteBarrier(result, SeqTwoByteString::kRawHashFieldOffset,
@@ -3899,7 +3899,7 @@ TNode<String> CodeStubAssembler::AllocateSlicedString(RootIndex map_root_index,
                                                       TNode<String> parent,
                                                       TNode<Smi> offset) {
   DCHECK(map_root_index == RootIndex::kSlicedOneByteStringMap ||
-         map_root_index == RootIndex::kSlicedStringMap);
+         map_root_index == RootIndex::kSlicedTwoByteStringMap);
   TNode<HeapObject> result = Allocate(SlicedString::kSize);
   DCHECK(RootsTable::IsImmortalImmovable(map_root_index));
   StoreMapNoWriteBarrier(result, map_root_index);
@@ -3919,8 +3919,8 @@ TNode<String> CodeStubAssembler::AllocateSlicedOneByteString(
 
 TNode<String> CodeStubAssembler::AllocateSlicedTwoByteString(
     TNode<Uint32T> length, TNode<String> parent, TNode<Smi> offset) {
-  return AllocateSlicedString(RootIndex::kSlicedStringMap, length, parent,
-                              offset);
+  return AllocateSlicedString(RootIndex::kSlicedTwoByteStringMap, length,
+                              parent, offset);
 }
 
 TNode<NameDictionary> CodeStubAssembler::AllocateNameDictionary(
@@ -6783,7 +6783,7 @@ TNode<BoolT> CodeStubAssembler::IsCustomElementsReceiverInstanceType(
 
 TNode<BoolT> CodeStubAssembler::IsStringInstanceType(
     TNode<Int32T> instance_type) {
-  static_assert(INTERNALIZED_STRING_TYPE == FIRST_TYPE);
+  static_assert(INTERNALIZED_TWO_BYTE_STRING_TYPE == FIRST_TYPE);
   return Int32LessThan(instance_type, Int32Constant(FIRST_NONSTRING_TYPE));
 }
 

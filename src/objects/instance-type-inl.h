@@ -77,9 +77,10 @@ constexpr std::array<std::pair<InstanceTypeRange, RootIndexRange>, 6>
           {RootIndex::kAllocationSiteWithWeakNextMap,
            RootIndex::kAllocationSiteWithoutWeakNextMap}},
          {{FIRST_STRING_TYPE, LAST_STRING_TYPE},
-          {RootIndex::kStringMap, RootIndex::kSharedOneByteStringMap}},
+          {RootIndex::kSeqTwoByteStringMap,
+           RootIndex::kSharedSeqOneByteStringMap}},
          {{FIRST_NAME_TYPE, LAST_NAME_TYPE},
-          {RootIndex::kSymbolMap, RootIndex::kSharedOneByteStringMap}},
+          {RootIndex::kSymbolMap, RootIndex::kSharedSeqOneByteStringMap}},
          {{FIRST_SMALL_ORDERED_HASH_TABLE_TYPE,
            LAST_SMALL_ORDERED_HASH_TABLE_TYPE},
           {RootIndex::kSmallOrderedHashMapMap,
@@ -94,13 +95,13 @@ constexpr std::array<std::pair<InstanceTypeRange, RootIndexRange>, 6>
 
 struct kUniqueMapRangeOfStringType {
   static constexpr RootIndexRange kInternalizedString = {
-      RootIndex::kExternalInternalizedStringMap,
-      RootIndex::kOneByteInternalizedStringMap};
+      RootIndex::kExternalInternalizedTwoByteStringMap,
+      RootIndex::kInternalizedOneByteStringMap};
   static constexpr RootIndexRange kExternalString = {
-      RootIndex::kExternalStringMap,
-      RootIndex::kUncachedExternalOneByteInternalizedStringMap};
+      RootIndex::kExternalTwoByteStringMap,
+      RootIndex::kUncachedExternalInternalizedOneByteStringMap};
   static constexpr RootIndexRange kThinString = {
-      RootIndex::kThinStringMap, RootIndex::kThinOneByteStringMap};
+      RootIndex::kThinTwoByteStringMap, RootIndex::kThinOneByteStringMap};
 };
 
 #if V8_STATIC_ROOTS_BOOL

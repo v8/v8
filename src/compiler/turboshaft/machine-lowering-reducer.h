@@ -764,8 +764,9 @@ class MachineLoweringReducer : public Next {
                         MemoryRepresentation::TaggedSigned(),
                         WriteBarrierKind::kNoWriteBarrier,
                         SeqTwoByteString::SizeFor(2) - kObjectAlignment);
-          __ InitializeField(string, AccessBuilder::ForMap(),
-                             __ HeapConstant(factory_->string_map()));
+          __ InitializeField(
+              string, AccessBuilder::ForMap(),
+              __ HeapConstant(factory_->seq_two_byte_string_map()));
           __ InitializeField(string, AccessBuilder::ForNameRawHashField(),
                              __ Word32Constant(Name::kEmptyHashField));
           __ InitializeField(string, AccessBuilder::ForStringLength(),
@@ -806,8 +807,9 @@ class MachineLoweringReducer : public Next {
                           MemoryRepresentation::TaggedSigned(),
                           WriteBarrierKind::kNoWriteBarrier,
                           SeqTwoByteString::SizeFor(1) - kObjectAlignment);
-            __ InitializeField(string, AccessBuilder::ForMap(),
-                               __ HeapConstant(factory_->string_map()));
+            __ InitializeField(
+                string, AccessBuilder::ForMap(),
+                __ HeapConstant(factory_->seq_two_byte_string_map()));
             __ InitializeField(string, AccessBuilder::ForNameRawHashField(),
                                __ Word32Constant(Name::kEmptyHashField));
             __ InitializeField(string, AccessBuilder::ForStringLength(),
@@ -1403,7 +1405,8 @@ class MachineLoweringReducer : public Next {
     V<Word32> encoding =
         __ Word32BitwiseAnd(instance_type, kStringEncodingMask);
     IF(__ Word32Equal(encoding, kTwoByteStringTag)) {
-      GOTO(allocate_string, __ HeapConstant(factory_->cons_string_map()));
+      GOTO(allocate_string,
+           __ HeapConstant(factory_->cons_two_byte_string_map()));
     }
     ELSE {
       GOTO(allocate_string,

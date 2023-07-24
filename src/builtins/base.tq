@@ -1330,8 +1330,8 @@ extern macro FixedCOWArrayMapConstant(): Map;
 extern macro EmptyByteArrayConstant(): ByteArray;
 extern macro EmptyFixedArrayConstant(): EmptyFixedArray;
 extern macro PromiseCapabilityMapConstant(): Map;
-extern macro OneByteStringMapConstant(): Map;
-extern macro StringMapConstant(): Map;
+extern macro SeqOneByteStringMapConstant(): Map;
+extern macro SeqTwoByteStringMapConstant(): Map;
 
 const kFixedArrayMap: Map = FixedArrayMapConstant();
 const kFixedDoubleArrayMap: Map = FixedDoubleArrayMapConstant();
@@ -1340,9 +1340,9 @@ const kEmptyByteArray: ByteArray = EmptyByteArrayConstant();
 const kEmptyFixedArray: EmptyFixedArray = EmptyFixedArrayConstant();
 const kPromiseCapabilityMap: Map = PromiseCapabilityMapConstant();
 // The map of a non-internalized internal SeqOneByteString.
-const kOneByteStringMap: Map = OneByteStringMapConstant();
+const kSeqOneByteStringMap: Map = SeqOneByteStringMapConstant();
 // The map of a non-internalized internal SeqTwoByteString.
-const kStringMap: Map = StringMapConstant();
+const kSeqTwoByteStringMap: Map = SeqTwoByteStringMapConstant();
 
 macro OutOfBounds<T: type, X: type>(index: T, length: X): bool {
   return UintPtrGreaterThanOrEqual(

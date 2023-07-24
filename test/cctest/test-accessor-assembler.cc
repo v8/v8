@@ -62,7 +62,7 @@ void TestStubCacheOffsetCalculation(StubCache::Table table) {
       factory->cell_map(),     Map::Create(isolate, 0),
       factory->meta_map(),     factory->instruction_stream_map(),
       Map::Create(isolate, 0), factory->hash_table_map(),
-      factory->symbol_map(),   factory->string_map(),
+      factory->symbol_map(),   factory->seq_two_byte_string_map(),
       Map::Create(isolate, 0), factory->sloppy_arguments_elements_map(),
   };
 

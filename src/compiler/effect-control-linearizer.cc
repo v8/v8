@@ -2719,9 +2719,10 @@ Node* EffectControlLinearizer::AllocateSeqString(Node* length, bool one_byte) {
   Node* seq_string =
       __ Allocate(AllocationType::kYoung, size, AllowLargeObjects::kTrue);
 
-  __ StoreField(AccessBuilder::ForMap(), seq_string,
-                __ HeapConstant(one_byte ? factory()->one_byte_string_map()
-                                         : factory()->string_map()));
+  __ StoreField(
+      AccessBuilder::ForMap(), seq_string,
+      __ HeapConstant(one_byte ? factory()->seq_one_byte_string_map()
+                               : factory()->seq_two_byte_string_map()));
   __ StoreField(AccessBuilder::ForNameRawHashField(), seq_string,
                 __ Int32Constant(Name::kEmptyHashField));
   __ StoreField(AccessBuilder::ForStringLength(), seq_string, length);
@@ -2762,11 +2763,11 @@ Node* EffectControlLinearizer::AllocateSeqString(Node* length,
       is_one_byte,
       [&]() {
         __ StoreField(AccessBuilder::ForMap(), seq_string,
-                      __ HeapConstant(factory()->one_byte_string_map()));
+                      __ HeapConstant(factory()->seq_one_byte_string_map()));
       },
       [&]() {
         __ StoreField(AccessBuilder::ForMap(), seq_string,
-                      __ HeapConstant(factory()->string_map()));
+                      __ HeapConstant(factory()->seq_two_byte_string_map()));
       });
   return seq_string;
 }
@@ -2785,9 +2786,9 @@ Node* EffectControlLinearizer::AllocateTwoByteSlicedString() {
   Node* sliced_string = __ Allocate(
       AllocationType::kYoung,
       __ IntPtrConstant(
-          jsgraph()->factory()->sliced_string_map()->instance_size()));
+          jsgraph()->factory()->sliced_two_byte_string_map()->instance_size()));
   __ StoreField(AccessBuilder::ForMap(), sliced_string,
-                __ HeapConstant(factory()->sliced_string_map()));
+                __ HeapConstant(factory()->sliced_two_byte_string_map()));
   return sliced_string;
 }
 
@@ -3263,7 +3264,7 @@ Node* EffectControlLinearizer::LowerStringConcat(Node* node) {
         Node* new_backing_store = ConvertOneByteStringToTwoByte(
             init_backing_store, max_length, current_length);
         __ StoreField(AccessBuilder::ForMap(), sliced_string,
-                      __ HeapConstant(factory()->sliced_string_map()));
+                      __ HeapConstant(factory()->sliced_two_byte_string_map()));
         __ StoreField(AccessBuilder::ForSlicedStringParent(), sliced_string,
                       new_backing_store);
         __ Goto(&has_correct_representation, new_backing_store);
@@ -5198,7 +5199,7 @@ Node* EffectControlLinearizer::LowerNewConsString(Node* node) {
   __ Bind(&if_onebyte);
   __ Goto(&done, __ HeapConstant(factory()->cons_one_byte_string_map()));
   __ Bind(&if_twobyte);
-  __ Goto(&done, __ HeapConstant(factory()->cons_string_map()));
+  __ Goto(&done, __ HeapConstant(factory()->cons_two_byte_string_map()));
   __ Bind(&done);
   Node* result_map = done.PhiAt(0);
 
@@ -5545,7 +5546,7 @@ Node* EffectControlLinearizer::LowerStringFromSingleCharCode(Node* node) {
              SeqTwoByteString::SizeFor(1) - kObjectAlignment - kHeapObjectTag,
              __ SmiConstant(0));
     __ StoreField(AccessBuilder::ForMap(), vfalse1,
-                  __ HeapConstant(factory()->string_map()));
+                  __ HeapConstant(factory()->seq_two_byte_string_map()));
     __ StoreField(AccessBuilder::ForNameRawHashField(), vfalse1,
                   __ Int32Constant(Name::kEmptyHashField));
     __ StoreField(AccessBuilder::ForStringLength(), vfalse1,
@@ -5649,7 +5650,7 @@ Node* EffectControlLinearizer::LowerStringFromSingleCodePoint(Node* node) {
                SeqTwoByteString::SizeFor(1) - kObjectAlignment - kHeapObjectTag,
                __ SmiConstant(0));
       __ StoreField(AccessBuilder::ForMap(), vfalse1,
-                    __ HeapConstant(factory()->string_map()));
+                    __ HeapConstant(factory()->seq_two_byte_string_map()));
       __ StoreField(AccessBuilder::ForNameRawHashField(), vfalse1,
                     __ IntPtrConstant(Name::kEmptyHashField));
       __ StoreField(AccessBuilder::ForStringLength(), vfalse1,
@@ -5694,7 +5695,7 @@ Node* EffectControlLinearizer::LowerStringFromSingleCodePoint(Node* node) {
              SeqTwoByteString::SizeFor(2) - kObjectAlignment - kHeapObjectTag,
              __ SmiConstant(0));
     __ StoreField(AccessBuilder::ForMap(), vfalse0,
-                  __ HeapConstant(factory()->string_map()));
+                  __ HeapConstant(factory()->seq_two_byte_string_map()));
     __ StoreField(AccessBuilder::ForNameRawHashField(), vfalse0,
                   __ Int32Constant(Name::kEmptyHashField));
     __ StoreField(AccessBuilder::ForStringLength(), vfalse0,

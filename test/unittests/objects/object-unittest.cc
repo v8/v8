@@ -60,7 +60,7 @@ TEST(Object, InstanceTypeListOrder) {
   int prev = -1;
   InstanceType current_type = static_cast<InstanceType>(current);
   EXPECT_EQ(current_type, InstanceType::FIRST_TYPE);
-  EXPECT_EQ(current_type, InstanceType::INTERNALIZED_STRING_TYPE);
+  EXPECT_EQ(current_type, InstanceType::INTERNALIZED_TWO_BYTE_STRING_TYPE);
 #define TEST_INSTANCE_TYPE(type)                                           \
   current_type = InstanceType::type;                                       \
   current = static_cast<int>(current_type);                                \

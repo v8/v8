@@ -802,7 +802,7 @@ MaybeHandle<SeqStringT> FactoryBase<Impl>::NewRawStringWithMap(
 template <typename Impl>
 MaybeHandle<SeqOneByteString> FactoryBase<Impl>::NewRawOneByteString(
     int length, AllocationType allocation) {
-  Tagged<Map> map = read_only_roots().one_byte_string_map();
+  Tagged<Map> map = read_only_roots().seq_one_byte_string_map();
   return NewRawStringWithMap<SeqOneByteString>(
       length, map,
       RefineAllocationTypeForInPlaceInternalizableString(allocation, map));
@@ -811,7 +811,7 @@ MaybeHandle<SeqOneByteString> FactoryBase<Impl>::NewRawOneByteString(
 template <typename Impl>
 MaybeHandle<SeqTwoByteString> FactoryBase<Impl>::NewRawTwoByteString(
     int length, AllocationType allocation) {
-  Tagged<Map> map = read_only_roots().string_map();
+  Tagged<Map> map = read_only_roots().seq_two_byte_string_map();
   return NewRawStringWithMap<SeqTwoByteString>(
       length, map,
       RefineAllocationTypeForInPlaceInternalizableString(allocation, map));
@@ -821,7 +821,7 @@ template <typename Impl>
 MaybeHandle<SeqOneByteString> FactoryBase<Impl>::NewRawSharedOneByteString(
     int length) {
   return NewRawStringWithMap<SeqOneByteString>(
-      length, read_only_roots().shared_one_byte_string_map(),
+      length, read_only_roots().shared_seq_one_byte_string_map(),
       AllocationType::kSharedOld);
 }
 
@@ -829,7 +829,7 @@ template <typename Impl>
 MaybeHandle<SeqTwoByteString> FactoryBase<Impl>::NewRawSharedTwoByteString(
     int length) {
   return NewRawStringWithMap<SeqTwoByteString>(
-      length, read_only_roots().shared_string_map(),
+      length, read_only_roots().shared_seq_two_byte_string_map(),
       AllocationType::kSharedOld);
 }
 
@@ -923,8 +923,8 @@ Handle<String> FactoryBase<Impl>::NewConsString(Handle<String> left,
   Tagged<ConsString> result = Tagged<ConsString>::cast(
       one_byte ? NewWithImmortalMap(
                      read_only_roots().cons_one_byte_string_map(), allocation)
-               : NewWithImmortalMap(read_only_roots().cons_string_map(),
-                                    allocation));
+               : NewWithImmortalMap(
+                     read_only_roots().cons_two_byte_string_map(), allocation));
 
   DisallowGarbageCollection no_gc;
   WriteBarrierMode mode = result->GetWriteBarrierMode(no_gc);
@@ -1171,7 +1171,7 @@ FactoryBase<Impl>::AllocateRawOneByteInternalizedString(
   // The canonical empty_string is the only zero-length string we allow.
   DCHECK_IMPLIES(length == 0, !impl()->EmptyStringRootIsInitialized());
 
-  Tagged<Map> map = read_only_roots().one_byte_internalized_string_map();
+  Tagged<Map> map = read_only_roots().internalized_one_byte_string_map();
   const int size = SeqOneByteString::SizeFor(length);
   const AllocationType allocation =
       RefineAllocationTypeForInPlaceInternalizableString(
@@ -1195,7 +1195,7 @@ FactoryBase<Impl>::AllocateRawTwoByteInternalizedString(
   CHECK_GE(String::kMaxLength, length);
   DCHECK_NE(0, length);  // Use Heap::empty_string() instead.
 
-  Tagged<Map> map = read_only_roots().internalized_string_map();
+  Tagged<Map> map = read_only_roots().internalized_two_byte_string_map();
   int size = SeqTwoByteString::SizeFor(length);
   SeqTwoByteString answer = SeqTwoByteString::cast(AllocateRawWithImmortalMap(
       size,
@@ -1326,22 +1326,23 @@ MaybeHandle<Map> FactoryBase<Impl>::GetInPlaceInternalizedStringMap(
   InstanceType instance_type = from_string_map->instance_type();
   MaybeHandle<Map> map;
   switch (instance_type) {
-    case STRING_TYPE:
-    case SHARED_STRING_TYPE:
-      map = read_only_roots().internalized_string_map_handle();
+    case SEQ_TWO_BYTE_STRING_TYPE:
+    case SHARED_SEQ_TWO_BYTE_STRING_TYPE:
+      map = read_only_roots().internalized_two_byte_string_map_handle();
       break;
-    case ONE_BYTE_STRING_TYPE:
-    case SHARED_ONE_BYTE_STRING_TYPE:
-      map = read_only_roots().one_byte_internalized_string_map_handle();
+    case SEQ_ONE_BYTE_STRING_TYPE:
+    case SHARED_SEQ_ONE_BYTE_STRING_TYPE:
+      map = read_only_roots().internalized_one_byte_string_map_handle();
       break;
-    case SHARED_EXTERNAL_STRING_TYPE:
-    case EXTERNAL_STRING_TYPE:
-      map = read_only_roots().external_internalized_string_map_handle();
+    case SHARED_EXTERNAL_TWO_BYTE_STRING_TYPE:
+    case EXTERNAL_TWO_BYTE_STRING_TYPE:
+      map =
+          read_only_roots().external_internalized_two_byte_string_map_handle();
       break;
     case SHARED_EXTERNAL_ONE_BYTE_STRING_TYPE:
     case EXTERNAL_ONE_BYTE_STRING_TYPE:
       map =
-          read_only_roots().external_one_byte_internalized_string_map_handle();
+          read_only_roots().external_internalized_one_byte_string_map_handle();
       break;
     default:
       break;

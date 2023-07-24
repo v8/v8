@@ -61,31 +61,32 @@ struct StaticReadOnlyRoot {
   static constexpr Tagged_t kBasicBlockCountersMarkerMap = 0x4ed;
   static constexpr Tagged_t kBigIntMap = 0x515;
   static constexpr Tagged_t kSymbolMap = 0x53d;
-  static constexpr Tagged_t kStringMap = 0x565;
-  static constexpr Tagged_t kOneByteStringMap = 0x58d;
-  static constexpr Tagged_t kConsStringMap = 0x5b5;
+  static constexpr Tagged_t kSeqTwoByteStringMap = 0x565;
+  static constexpr Tagged_t kSeqOneByteStringMap = 0x58d;
+  static constexpr Tagged_t kConsTwoByteStringMap = 0x5b5;
   static constexpr Tagged_t kConsOneByteStringMap = 0x5dd;
-  static constexpr Tagged_t kSlicedStringMap = 0x605;
+  static constexpr Tagged_t kSlicedTwoByteStringMap = 0x605;
   static constexpr Tagged_t kSlicedOneByteStringMap = 0x62d;
-  static constexpr Tagged_t kExternalStringMap = 0x655;
+  static constexpr Tagged_t kExternalTwoByteStringMap = 0x655;
   static constexpr Tagged_t kExternalOneByteStringMap = 0x67d;
-  static constexpr Tagged_t kUncachedExternalStringMap = 0x6a5;
+  static constexpr Tagged_t kUncachedExternalTwoByteStringMap = 0x6a5;
   static constexpr Tagged_t kUncachedExternalOneByteStringMap = 0x6cd;
-  static constexpr Tagged_t kSharedExternalStringMap = 0x6f5;
+  static constexpr Tagged_t kSharedExternalTwoByteStringMap = 0x6f5;
   static constexpr Tagged_t kSharedExternalOneByteStringMap = 0x71d;
-  static constexpr Tagged_t kSharedUncachedExternalStringMap = 0x745;
+  static constexpr Tagged_t kSharedUncachedExternalTwoByteStringMap = 0x745;
   static constexpr Tagged_t kSharedUncachedExternalOneByteStringMap = 0x76d;
-  static constexpr Tagged_t kExternalInternalizedStringMap = 0x795;
-  static constexpr Tagged_t kExternalOneByteInternalizedStringMap = 0x7bd;
-  static constexpr Tagged_t kUncachedExternalInternalizedStringMap = 0x7e5;
-  static constexpr Tagged_t kUncachedExternalOneByteInternalizedStringMap =
+  static constexpr Tagged_t kExternalInternalizedTwoByteStringMap = 0x795;
+  static constexpr Tagged_t kExternalInternalizedOneByteStringMap = 0x7bd;
+  static constexpr Tagged_t kUncachedExternalInternalizedTwoByteStringMap =
+      0x7e5;
+  static constexpr Tagged_t kUncachedExternalInternalizedOneByteStringMap =
       0x80d;
-  static constexpr Tagged_t kInternalizedStringMap = 0x835;
-  static constexpr Tagged_t kOneByteInternalizedStringMap = 0x85d;
-  static constexpr Tagged_t kThinStringMap = 0x885;
+  static constexpr Tagged_t kInternalizedTwoByteStringMap = 0x835;
+  static constexpr Tagged_t kInternalizedOneByteStringMap = 0x85d;
+  static constexpr Tagged_t kThinTwoByteStringMap = 0x885;
   static constexpr Tagged_t kThinOneByteStringMap = 0x8ad;
-  static constexpr Tagged_t kSharedStringMap = 0x8d5;
-  static constexpr Tagged_t kSharedOneByteStringMap = 0x8fd;
+  static constexpr Tagged_t kSharedSeqTwoByteStringMap = 0x8d5;
+  static constexpr Tagged_t kSharedSeqOneByteStringMap = 0x8fd;
   static constexpr Tagged_t kFixedDoubleArrayMap = 0x925;
   static constexpr Tagged_t kFeedbackMetadataArrayMap = 0x94d;
   static constexpr Tagged_t kByteArrayMap = 0x975;
@@ -826,8 +827,8 @@ static constexpr std::array<Tagged_t, 775> StaticReadOnlyRootsPointerTable = {
     StaticReadOnlyRoot::kFixedDoubleArrayMap,
     StaticReadOnlyRoot::kHashTableMap,
     StaticReadOnlyRoot::kSymbolMap,
-    StaticReadOnlyRoot::kOneByteStringMap,
-    StaticReadOnlyRoot::kOneByteInternalizedStringMap,
+    StaticReadOnlyRoot::kSeqOneByteStringMap,
+    StaticReadOnlyRoot::kInternalizedOneByteStringMap,
     StaticReadOnlyRoot::kScopeInfoMap,
     StaticReadOnlyRoot::kSharedFunctionInfoMap,
     StaticReadOnlyRoot::kInstructionStreamMap,
@@ -895,28 +896,28 @@ static constexpr std::array<Tagged_t, 775> StaticReadOnlyRootsPointerTable = {
     StaticReadOnlyRoot::kEmbedderDataArrayMap,
     StaticReadOnlyRoot::kWeakCellMap,
     StaticReadOnlyRoot::kExternalPointerArrayMap,
-    StaticReadOnlyRoot::kStringMap,
-    StaticReadOnlyRoot::kConsStringMap,
+    StaticReadOnlyRoot::kSeqTwoByteStringMap,
+    StaticReadOnlyRoot::kConsTwoByteStringMap,
     StaticReadOnlyRoot::kConsOneByteStringMap,
-    StaticReadOnlyRoot::kThinStringMap,
+    StaticReadOnlyRoot::kThinTwoByteStringMap,
     StaticReadOnlyRoot::kThinOneByteStringMap,
-    StaticReadOnlyRoot::kSlicedStringMap,
+    StaticReadOnlyRoot::kSlicedTwoByteStringMap,
     StaticReadOnlyRoot::kSlicedOneByteStringMap,
-    StaticReadOnlyRoot::kExternalStringMap,
+    StaticReadOnlyRoot::kExternalTwoByteStringMap,
     StaticReadOnlyRoot::kExternalOneByteStringMap,
-    StaticReadOnlyRoot::kUncachedExternalStringMap,
-    StaticReadOnlyRoot::kInternalizedStringMap,
-    StaticReadOnlyRoot::kExternalInternalizedStringMap,
-    StaticReadOnlyRoot::kExternalOneByteInternalizedStringMap,
-    StaticReadOnlyRoot::kUncachedExternalInternalizedStringMap,
-    StaticReadOnlyRoot::kUncachedExternalOneByteInternalizedStringMap,
+    StaticReadOnlyRoot::kInternalizedTwoByteStringMap,
+    StaticReadOnlyRoot::kExternalInternalizedTwoByteStringMap,
+    StaticReadOnlyRoot::kExternalInternalizedOneByteStringMap,
+    StaticReadOnlyRoot::kUncachedExternalInternalizedTwoByteStringMap,
+    StaticReadOnlyRoot::kUncachedExternalInternalizedOneByteStringMap,
+    StaticReadOnlyRoot::kUncachedExternalTwoByteStringMap,
     StaticReadOnlyRoot::kUncachedExternalOneByteStringMap,
-    StaticReadOnlyRoot::kSharedOneByteStringMap,
-    StaticReadOnlyRoot::kSharedStringMap,
+    StaticReadOnlyRoot::kSharedSeqOneByteStringMap,
+    StaticReadOnlyRoot::kSharedSeqTwoByteStringMap,
     StaticReadOnlyRoot::kSharedExternalOneByteStringMap,
-    StaticReadOnlyRoot::kSharedExternalStringMap,
+    StaticReadOnlyRoot::kSharedExternalTwoByteStringMap,
     StaticReadOnlyRoot::kSharedUncachedExternalOneByteStringMap,
-    StaticReadOnlyRoot::kSharedUncachedExternalStringMap,
+    StaticReadOnlyRoot::kSharedUncachedExternalTwoByteStringMap,
     StaticReadOnlyRoot::kUndefinedMap,
     StaticReadOnlyRoot::kHoleMap,
     StaticReadOnlyRoot::kNullMap,

@@ -755,7 +755,7 @@ void HeapVerifier::VerifySafeMapTransition(Heap* heap, HeapObject object,
   }
 
   if (object.IsString(cage_base) &&
-      (new_map == ReadOnlyRoots(heap).thin_string_map() ||
+      (new_map == ReadOnlyRoots(heap).thin_two_byte_string_map() ||
        new_map == ReadOnlyRoots(heap).thin_one_byte_string_map())) {
     // When transitioning a string to ThinString,
     // Heap::NotifyObjectLayoutChange doesn't need to be invoked because only

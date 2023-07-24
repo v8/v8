@@ -213,7 +213,7 @@ void String::MakeThin(IsolateT* isolate, String internalized) {
   ReadOnlyRoots roots(isolate);
   Map target_map = internalized.IsOneByteRepresentation()
                        ? roots.thin_one_byte_string_map()
-                       : roots.thin_string_map();
+                       : roots.thin_two_byte_string_map();
   if (initial_shape.IsExternal()) {
     // Notify GC about the layout change before the transition to avoid
     // concurrent marking from observing any in-between state (e.g.
@@ -304,14 +304,14 @@ Map ComputeExternalStringMap(Isolate* isolate, String string, int size) {
   if constexpr (is_one_byte) {
     if (size < ExternalString::kSizeOfAllExternalStrings) {
       if (is_internalized) {
-        return roots.uncached_external_one_byte_internalized_string_map();
+        return roots.uncached_external_internalized_one_byte_string_map();
       } else {
         return is_shared ? roots.shared_uncached_external_one_byte_string_map()
                          : roots.uncached_external_one_byte_string_map();
       }
     } else {
       if (is_internalized) {
-        return roots.external_one_byte_internalized_string_map();
+        return roots.external_internalized_one_byte_string_map();
       } else {
         return is_shared ? roots.shared_external_one_byte_string_map()
                          : roots.external_one_byte_string_map();
@@ -320,17 +320,17 @@ Map ComputeExternalStringMap(Isolate* isolate, String string, int size) {
   } else {
     if (size < ExternalString::kSizeOfAllExternalStrings) {
       if (is_internalized) {
-        return roots.uncached_external_internalized_string_map();
+        return roots.uncached_external_internalized_two_byte_string_map();
       } else {
-        return is_shared ? roots.shared_uncached_external_string_map()
-                         : roots.uncached_external_string_map();
+        return is_shared ? roots.shared_uncached_external_two_byte_string_map()
+                         : roots.uncached_external_two_byte_string_map();
       }
     } else {
       if (is_internalized) {
-        return roots.external_internalized_string_map();
+        return roots.external_internalized_two_byte_string_map();
       } else {
-        return is_shared ? roots.shared_external_string_map()
-                         : roots.external_string_map();
+        return is_shared ? roots.shared_external_two_byte_string_map()
+                         : roots.external_two_byte_string_map();
       }
     }
   }
