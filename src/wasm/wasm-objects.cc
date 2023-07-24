@@ -1043,34 +1043,30 @@ FunctionTargetAndRef::FunctionTargetAndRef(
 
 void ImportedFunctionEntry::SetWasmToJs(Isolate* isolate,
                                         Handle<JSReceiver> callable,
-                                        wasm::Suspend suspend,
-                                        const wasm::FunctionSig* sig) {
+                                        wasm::Suspend suspend) {
   Address wrapper = isolate->builtins()
                         ->code(Builtin::kWasmToJsWrapperAsm)
                         ->instruction_start();
   TRACE_IFT("Import callable 0x%" PRIxPTR "[%d] = {callable=0x%" PRIxPTR
             ", target=0x%" PRIxPTR "}\n",
             instance_->ptr(), index_, callable->ptr(), wrapper);
-  Handle<WasmApiFunctionRef> ref = isolate->factory()->NewWasmApiFunctionRef(
-      callable, suspend, instance_,
-      wasm::SerializedSignatureHelper::SerializeSignature(isolate, sig));
+  Handle<WasmApiFunctionRef> ref =
+      isolate->factory()->NewWasmApiFunctionRef(callable, suspend, instance_);
   instance_->imported_function_refs()->set(index_, *ref);
   instance_->imported_function_targets()->set(index_, wrapper);
 }
 
 void ImportedFunctionEntry::SetWasmToJs(
     Isolate* isolate, Handle<JSReceiver> callable,
-    const wasm::WasmCode* wasm_to_js_wrapper, wasm::Suspend suspend,
-    const wasm::FunctionSig* sig) {
+    const wasm::WasmCode* wasm_to_js_wrapper, wasm::Suspend suspend) {
   TRACE_IFT("Import callable 0x%" PRIxPTR "[%d] = {callable=0x%" PRIxPTR
             ", target=%p}\n",
             instance_->ptr(), index_, callable->ptr(),
             wasm_to_js_wrapper->instructions().begin());
   DCHECK(wasm_to_js_wrapper->kind() == wasm::WasmCode::kWasmToJsWrapper ||
          wasm_to_js_wrapper->kind() == wasm::WasmCode::kWasmToCapiWrapper);
-  Handle<WasmApiFunctionRef> ref = isolate->factory()->NewWasmApiFunctionRef(
-      callable, suspend, instance_,
-      wasm::SerializedSignatureHelper::SerializeSignature(isolate, sig));
+  Handle<WasmApiFunctionRef> ref =
+      isolate->factory()->NewWasmApiFunctionRef(callable, suspend, instance_);
   instance_->imported_function_refs()->set(index_, *ref);
   instance_->imported_function_targets()->set(
       index_, wasm_to_js_wrapper->instruction_start());
@@ -1528,8 +1524,8 @@ void WasmInstanceObject::ImportWasmJSFunctionIntoTable(
   wasm::WasmCodeRefScope code_ref_scope;
   Address call_target = kNullAddress;
 
-  const wasm::WasmModule* module = instance->module();
-  auto module_canonical_ids = module->isorecursive_canonical_type_ids;
+  auto module_canonical_ids =
+      instance->module()->isorecursive_canonical_type_ids;
   // TODO(manoskouk): Consider adding a set of canonical indices to the module
   // to avoid this linear search.
   auto sig_in_module =
@@ -1577,25 +1573,15 @@ void WasmInstanceObject::ImportWasmJSFunctionIntoTable(
       cache_scope[key] = wasm_code;
     }
     call_target = wasm_code->instruction_start();
-
-    // Update the dispatch table.
-    int sig_id = static_cast<int>(
-        std::distance(module_canonical_ids.begin(), sig_in_module));
-    Handle<WasmApiFunctionRef> ref = isolate->factory()->NewWasmApiFunctionRef(
-        callable, suspend, instance,
-        wasm::SerializedSignatureHelper::SerializeSignature(
-            isolate, module->signature(sig_id)));
-
-    WasmIndirectFunctionTable::cast(
-        instance->indirect_function_tables()->get(table_index))
-        ->Set(entry_index, canonical_sig_index, call_target, *ref);
-    return;
   }
-  // We pass the instance as ref-parameter as a dummy value. It will never be
-  // used because `call_target` == nullptr.
+
+  // Update the dispatch table.
+  Handle<WasmApiFunctionRef> ref =
+      isolate->factory()->NewWasmApiFunctionRef(callable, suspend, instance);
+
   WasmIndirectFunctionTable::cast(
       instance->indirect_function_tables()->get(table_index))
-      ->Set(entry_index, canonical_sig_index, call_target, *instance);
+      ->Set(entry_index, canonical_sig_index, call_target, *ref);
 }
 
 // static
