@@ -1437,21 +1437,8 @@ void MacroAssembler::CallDebugOnFunctionCall(Register fun, Register new_target,
                                              Register expected_parameter_count,
                                              Register actual_parameter_count) {
   ASM_CODE_COMMENT(this);
-
-  // We have no available register. So we spill the root register (ebx) and
-  // recover it later.
-  movd(xmm0, kRootRegister);
-
-  // Load receiver to pass it later to DebugOnFunctionCall hook.
-  // Receiver is located on top of the stack if we have a frame (usually a
-  // construct frame), or after the return address if we do not yet have a
-  // frame.
-  Register receiver = kRootRegister;
-  mov(receiver, Operand(esp, has_frame() ? 0 : kSystemPointerSize));
-
   FrameScope frame(
       this, has_frame() ? StackFrame::NO_FRAME_TYPE : StackFrame::INTERNAL);
-
   SmiTag(expected_parameter_count);
   Push(expected_parameter_count);
 
@@ -1464,11 +1451,9 @@ void MacroAssembler::CallDebugOnFunctionCall(Register fun, Register new_target,
   }
   Push(fun);
   Push(fun);
-  Push(receiver);
-
-  // Recover root register.
-  movd(kRootRegister, xmm0);
-
+  // Arguments are located 2 words below the base pointer.
+  Operand receiver_op = Operand(ebp, kSystemPointerSize * 2);
+  Push(receiver_op);
   CallRuntime(Runtime::kDebugOnFunctionCall);
   Pop(fun);
   if (new_target.is_valid()) {

@@ -181,8 +181,6 @@ namespace internal {
   ASM(InterpreterPushUndefinedAndArgsThenCall, InterpreterPushArgsThenCall)    \
   ASM(InterpreterPushArgsThenCallWithFinalSpread, InterpreterPushArgsThenCall) \
   ASM(InterpreterPushArgsThenConstruct, InterpreterPushArgsThenConstruct)      \
-  ASM(InterpreterPushArgsThenFastConstructFunction,                            \
-      InterpreterPushArgsThenConstruct)                                        \
   ASM(InterpreterPushArgsThenConstructArrayFunction,                           \
       InterpreterPushArgsThenConstruct)                                        \
   ASM(InterpreterPushArgsThenConstructWithFinalSpread,                         \

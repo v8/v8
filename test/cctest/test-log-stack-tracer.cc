@@ -70,8 +70,7 @@ static void construct_call(const v8::FunctionCallbackInfo<v8::Value>& info) {
         frame_iterator.frame()->is_builtin_exit() ||
         frame_iterator.frame()->is_api_callback_exit());
   frame_iterator.Advance();
-  CHECK(frame_iterator.frame()->is_construct() ||
-        frame_iterator.frame()->is_fast_construct());
+  CHECK(frame_iterator.frame()->is_construct());
   frame_iterator.Advance();
   if (frame_iterator.frame()->type() == i::StackFrame::STUB) {
     // Skip over bytecode handler frame.
