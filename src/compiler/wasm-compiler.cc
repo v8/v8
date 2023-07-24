@@ -2597,7 +2597,7 @@ Node* WasmGraphBuilder::BuildI32AsmjsDivU(Node* left, Node* right) {
     return gasm_->Uint32Div(left, right);
   }
 
-  // Explicit check for x % 0.
+  // Explicit check for x / 0.
   Diamond z(graph(), mcgraph()->common(),
             gasm_->Word32Equal(right, Int32Constant(0)), BranchHint::kFalse);
   z.Chain(control());

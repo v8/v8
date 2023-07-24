@@ -2325,16 +2325,25 @@ class TurboshaftGraphBuildingInterface {
       case kExprRefIsNull:
         return asm_.IsNull(arg, input_type);
       case kExprI32AsmjsLoadMem8S:
+        return AsmjsLoadMem(arg, MemoryRepresentation::Int8());
       case kExprI32AsmjsLoadMem8U:
+        return AsmjsLoadMem(arg, MemoryRepresentation::Uint8());
       case kExprI32AsmjsLoadMem16S:
+        return AsmjsLoadMem(arg, MemoryRepresentation::Int16());
       case kExprI32AsmjsLoadMem16U:
+        return AsmjsLoadMem(arg, MemoryRepresentation::Uint16());
       case kExprI32AsmjsLoadMem:
+        return AsmjsLoadMem(arg, MemoryRepresentation::Int32());
       case kExprF32AsmjsLoadMem:
+        return AsmjsLoadMem(arg, MemoryRepresentation::Float32());
       case kExprF64AsmjsLoadMem:
+        return AsmjsLoadMem(arg, MemoryRepresentation::Float64());
       case kExprI32AsmjsSConvertF32:
       case kExprI32AsmjsUConvertF32:
+        return asm_.JSTruncateFloat64ToWord32(asm_.ChangeFloat32ToFloat64(arg));
       case kExprI32AsmjsSConvertF64:
       case kExprI32AsmjsUConvertF64:
+        return asm_.JSTruncateFloat64ToWord32(arg);
       case kExprRefAsNonNull:
       case kExprExternInternalize:
       case kExprExternExternalize:
@@ -2594,17 +2603,90 @@ class TurboshaftGraphBuildingInterface {
             MemoryRepresentation::Float64());
       case kExprRefEq:
         return asm_.TaggedEqual(lhs, rhs);
-      case kExprI32AsmjsDivS:
-      case kExprI32AsmjsDivU:
-      case kExprI32AsmjsRemS:
-      case kExprI32AsmjsRemU:
+      case kExprI32AsmjsDivS: {
+        // asmjs semantics return 0 when dividing by 0.
+        if (SupportedOperations::int32_div_is_safe()) {
+          return asm_.Int32Div(lhs, rhs);
+        }
+        Label<Word32> done(&asm_);
+        IF (UNLIKELY(asm_.Word32Equal(rhs, 0))) {
+          GOTO(done, asm_.Word32Constant(0));
+        }
+        ELSE {
+          IF (UNLIKELY(asm_.Word32Equal(rhs, -1))) {
+            GOTO(done, asm_.Word32Sub(0, lhs));
+          }
+          ELSE {
+            GOTO(done, asm_.Int32Div(lhs, rhs));
+          }
+          END_IF
+        }
+        END_IF
+        BIND(done, result);
+        return result;
+      }
+      case kExprI32AsmjsDivU: {
+        // asmjs semantics return 0 when dividing by 0.
+        if (SupportedOperations::uint32_div_is_safe()) {
+          return asm_.Uint32Div(lhs, rhs);
+        }
+        Label<Word32> done(&asm_);
+        IF (UNLIKELY(asm_.Word32Equal(rhs, 0))) {
+          GOTO(done, asm_.Word32Constant(0));
+        }
+        ELSE {
+          GOTO(done, asm_.Uint32Div(lhs, rhs));
+        }
+        END_IF
+        BIND(done, result);
+        return result;
+      }
+      case kExprI32AsmjsRemS: {
+        Label<Word32> done(&asm_);
+        IF (UNLIKELY(asm_.Word32Equal(rhs, 0))) {
+          GOTO(done, asm_.Word32Constant(0));
+        }
+        ELSE {
+          IF (UNLIKELY(asm_.Word32Equal(rhs, -1))) {
+            GOTO(done, asm_.Word32Constant(0));
+          }
+          ELSE {
+            GOTO(done, asm_.Int32Mod(lhs, rhs));
+          }
+          END_IF
+        }
+        END_IF
+        BIND(done, result);
+        return result;
+      }
+      case kExprI32AsmjsRemU: {
+        // asmjs semantics return 0 for mod with 0.
+        Label<Word32> done(&asm_);
+        IF (UNLIKELY(asm_.Word32Equal(rhs, 0))) {
+          GOTO(done, asm_.Word32Constant(0));
+        }
+        ELSE {
+          GOTO(done, asm_.Uint32Mod(lhs, rhs));
+        }
+        END_IF
+        BIND(done, result);
+        return result;
+      }
       case kExprI32AsmjsStoreMem8:
+        AsmjsStoreMem(lhs, rhs, MemoryRepresentation::Int8());
+        return rhs;
       case kExprI32AsmjsStoreMem16:
+        AsmjsStoreMem(lhs, rhs, MemoryRepresentation::Int16());
+        return rhs;
       case kExprI32AsmjsStoreMem:
+        AsmjsStoreMem(lhs, rhs, MemoryRepresentation::Int32());
+        return rhs;
       case kExprF32AsmjsStoreMem:
+        AsmjsStoreMem(lhs, rhs, MemoryRepresentation::Float32());
+        return rhs;
       case kExprF64AsmjsStoreMem:
-        Bailout(decoder);
-        return OpIndex::Invalid();
+        AsmjsStoreMem(lhs, rhs, MemoryRepresentation::Float64());
+        return rhs;
       default:
         UNREACHABLE();
     }
@@ -3209,6 +3291,64 @@ class TurboshaftGraphBuildingInterface {
           UNREACHABLE();
       }
     }
+  }
+
+  void AsmjsStoreMem(V<Word32> index, OpIndex value,
+                     MemoryRepresentation repr) {
+    // Since asmjs does not support unaligned accesses, we can bounds-check
+    // ignoring the access size.
+    IF (LIKELY(asm_.Uint32LessThan(index, MemSize(0)))) {
+      asm_.Store(MemStart(0), asm_.ChangeUint32ToUintPtr(index), value,
+                 StoreOp::Kind::RawAligned(), repr, compiler::kNoWriteBarrier,
+                 0);
+    }
+    END_IF
+  }
+
+  OpIndex AsmjsLoadMem(V<Word32> index, MemoryRepresentation repr) {
+    // Since asmjs does not support unaligned accesses, we can bounds-check
+    // ignoring the access size.
+    TSBlock* in_bounds = asm_.NewBlock();
+    TSBlock* out_of_bounds = asm_.NewBlock();
+    TSBlock* done = asm_.NewBlock();
+
+    asm_.Branch(ConditionWithHint(asm_.Uint32LessThan(index, MemSize(0)),
+                                  BranchHint::kTrue),
+                in_bounds, out_of_bounds);
+
+    asm_.Bind(in_bounds);
+    OpIndex loaded_value =
+        asm_.Load(MemStart(0), asm_.ChangeInt32ToIntPtr(index),
+                  LoadOp::Kind::RawAligned(), repr);
+    asm_.Goto(done);
+
+    asm_.Bind(out_of_bounds);
+    OpIndex default_value;
+    switch (repr) {
+      case MemoryRepresentation::Int8():
+      case MemoryRepresentation::Int16():
+      case MemoryRepresentation::Int32():
+      case MemoryRepresentation::Uint8():
+      case MemoryRepresentation::Uint16():
+      case MemoryRepresentation::Uint32():
+        default_value = asm_.Word32Constant(0);
+        break;
+      case MemoryRepresentation::Float32():
+        default_value =
+            asm_.Float32Constant(std::numeric_limits<float>::quiet_NaN());
+        break;
+      case MemoryRepresentation::Float64():
+        default_value =
+            asm_.Float64Constant(std::numeric_limits<double>::quiet_NaN());
+        break;
+      default:
+        UNREACHABLE();
+    }
+    asm_.Goto(done);
+
+    asm_.Bind(done);
+    return asm_.Phi(base::VectorOf({loaded_value, default_value}),
+                    repr.ToRegisterRepresentation());
   }
 
   V<Tagged> LoadFixedArrayElement(V<Tagged> array, int index) {
