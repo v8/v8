@@ -1463,6 +1463,8 @@ struct ChangeOp : FixedArityOperationT<1, ChangeOp> {
     kZeroExtend,
     // increase bid-width for signed integer values
     kSignExtend,
+    // truncate word64 to word32
+    kTruncate,
     // preserve bits, change meaning
     kBitcast
   };
@@ -1483,6 +1485,10 @@ struct ChangeOp : FixedArityOperationT<1, ChangeOp> {
   RegisterRepresentation from;
   RegisterRepresentation to;
 
+  // Returns true if change<kind>(change<reverse_kind>(a)) == a for all a.
+  // This assumes that change<reverse_kind> uses the inverted {from} and {to}
+  // representations, i.e. the input to the inner change op has the same
+  // representation as the result of the outer change op.
   static bool IsReversible(Kind kind, Assumption assumption,
                            RegisterRepresentation from,
                            RegisterRepresentation to, Kind reverse_kind,
@@ -1526,6 +1532,10 @@ struct ChangeOp : FixedArityOperationT<1, ChangeOp> {
       case Kind::kZeroExtend:
       case Kind::kSignExtend:
         return false;
+      case Kind::kTruncate:
+        DCHECK_EQ(from, RegisterRepresentation::Word64());
+        DCHECK_EQ(to, RegisterRepresentation::Word32());
+        return reverse_kind == Kind::kBitcast;
       case Kind::kBitcast:
         return reverse_kind == Kind::kBitcast;
     }

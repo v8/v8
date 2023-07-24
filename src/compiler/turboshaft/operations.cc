@@ -44,6 +44,8 @@ bool AllowImplicitRepresentationChange(RegisterRepresentation actual_rep,
   }
   switch (expected_rep.value()) {
     case RegisterRepresentation::Word32():
+      // TODO(mliedtke): Remove this once JS graph building and JS reducers
+      // always produce explicit truncations.
       // We allow implicit 64- to 32-bit truncation.
       if (actual_rep == RegisterRepresentation::Word64()) {
         return true;
@@ -325,6 +327,8 @@ std::ostream& operator<<(std::ostream& os, ChangeOp::Kind kind) {
       return os << "ZeroExtend";
     case ChangeOp::Kind::kSignExtend:
       return os << "SignExtend";
+    case ChangeOp::Kind::kTruncate:
+      return os << "Truncate";
     case ChangeOp::Kind::kBitcast:
       return os << "Bitcast";
   }

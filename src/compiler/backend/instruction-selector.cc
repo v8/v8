@@ -4328,6 +4328,10 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitNode(
           DCHECK_EQ(change.from, Rep::Word32());
           DCHECK_EQ(change.to, Rep::Word64());
           return VisitChangeInt32ToInt64(node);
+        case ChangeOp::Kind::kTruncate:
+          DCHECK_EQ(change.from, Rep::Word64());
+          DCHECK_EQ(change.to, Rep::Word32());
+          return;  // implicit operation.
         case ChangeOp::Kind::kBitcast:
           switch (multi(change.from, change.to)) {
             case multi(Rep::Word32(), Rep::Word64()):

@@ -2301,8 +2301,7 @@ class TurboshaftGraphBuildingInterface {
       case kExprF64Log:
         return asm_.Float64Log(arg);
       case kExprI32ConvertI64:
-        // Implicit in Turboshaft.
-        return arg;
+        return asm_.TruncateWord64ToWord32(arg);
       case kExprI64SConvertI32:
         return asm_.ChangeInt32ToInt64(arg);
       case kExprI64UConvertI32:
@@ -2527,21 +2526,27 @@ class TurboshaftGraphBuildingInterface {
         return asm_.Word64BitwiseXor(lhs, rhs);
       case kExprI64Shl:
         // If possible, the bitwise-and gets optimized away later.
-        return asm_.Word64ShiftLeft(lhs, asm_.Word64BitwiseAnd(rhs, 0x3f));
+        return asm_.Word64ShiftLeft(
+            lhs, asm_.Word32BitwiseAnd(asm_.TruncateWord64ToWord32(rhs), 0x3f));
       case kExprI64ShrS:
         return asm_.Word64ShiftRightArithmetic(
-            lhs, asm_.Word64BitwiseAnd(rhs, 0x3f));
+            lhs, asm_.Word32BitwiseAnd(asm_.TruncateWord64ToWord32(rhs), 0x3f));
       case kExprI64ShrU:
-        return asm_.Word64ShiftRightLogical(lhs,
-                                            asm_.Word64BitwiseAnd(rhs, 0x3f));
+        return asm_.Word64ShiftRightLogical(
+            lhs, asm_.Word32BitwiseAnd(asm_.TruncateWord64ToWord32(rhs), 0x3f));
       case kExprI64Ror:
-        return asm_.Word64RotateRight(lhs, asm_.Word64BitwiseAnd(rhs, 0x3f));
+        return asm_.Word64RotateRight(
+            lhs, asm_.Word32BitwiseAnd(asm_.TruncateWord64ToWord32(rhs), 0x3f));
       case kExprI64Rol:
         if (SupportedOperations::word64_rol()) {
-          return asm_.Word64RotateLeft(lhs, asm_.Word64BitwiseAnd(rhs, 0x3f));
+          return asm_.Word64RotateLeft(
+              lhs,
+              asm_.Word32BitwiseAnd(asm_.TruncateWord64ToWord32(rhs), 0x3f));
         } else {
           return asm_.Word64RotateRight(
-              lhs, asm_.Word64BitwiseAnd(asm_.Word64Sub(64, rhs), 0x3f));
+              lhs,
+              asm_.Word32BitwiseAnd(
+                  asm_.Word32Sub(64, asm_.TruncateWord64ToWord32(rhs)), 0x3f));
         }
       case kExprI64Eq:
         return asm_.Word64Equal(lhs, rhs);
@@ -2745,7 +2750,8 @@ class TurboshaftGraphBuildingInterface {
         V<Word32> high_word = asm_.Word64ShiftRightLogical(index, 32);
         asm_.TrapIf(high_word, OpIndex::Invalid(), TrapId::kTrapMemOutOfBounds);
       }
-      // Index gets implicitly truncated to 32-bit.
+      // Truncate index to 32-bit.
+      index = asm_.TruncateWord64ToWord32(index);
     }
 
     //  If no bounds checks should be performed (for testing), just return the

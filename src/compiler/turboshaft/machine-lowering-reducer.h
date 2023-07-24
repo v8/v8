@@ -558,12 +558,12 @@ class MachineLoweringReducer : public Next {
           V<Word32> bitfield = __ Word32BitwiseOr(
               BigInt::LengthBits::encode(1),
               __ Word64ShiftRightLogical(
-                  input, static_cast<int64_t>(63 - BigInt::SignBits::kShift)));
+                  input, static_cast<int32_t>(63 - BigInt::SignBits::kShift)));
 
           // We use (value XOR (value >> 63)) - (value >> 63) to compute the
           // absolute value, in a branchless fashion.
           V<Word64> sign_mask =
-              __ Word64ShiftRightArithmetic(input, int64_t{63});
+              __ Word64ShiftRightArithmetic(input, int32_t{63});
           V<Word64> absolute_value =
               __ Word64Sub(__ Word64BitwiseXor(input, sign_mask), sign_mask);
           GOTO(done, AllocateBigInt(bitfield, absolute_value));
@@ -1459,8 +1459,9 @@ class MachineLoweringReducer : public Next {
         break;
       }
     }
-    V<WordPtr> size = __ WordPtrAdd(__ WordPtrShiftLeft(length, size_log2),
-                                    access.header_size);
+    V<WordPtr> size =
+        __ WordPtrAdd(__ WordPtrShiftLeft(length, static_cast<int>(size_log2)),
+                      access.header_size);
 
     // Allocate the result and initialize the header.
     auto uninitialized_array =

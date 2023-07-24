@@ -792,6 +792,13 @@ Node* ScheduleBuilder::ProcessOperation(const ChangeOp& op) {
         UNIMPLEMENTED();
       }
       break;
+    case Kind::kTruncate:
+      if (op.from == WordRepresentation::Word64() &&
+          op.to == WordRepresentation::Word32()) {
+        return GetNode(op.input());
+      } else {
+        UNIMPLEMENTED();
+      }
   }
   return AddNode(o, {GetNode(op.input())});
 }

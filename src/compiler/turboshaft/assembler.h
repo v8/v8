@@ -841,40 +841,47 @@ class AssemblerOpInterface {
     return stack().ReduceShift(left, right, kind, rep);
   }
 
+#define DECL_SINGLE_REP_SHIFT_V(name, kind, tag)                     \
+  V<tag> name(ConstOrV<tag> left, ConstOrV<Word32> right) {          \
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {  \
+      return OpIndex::Invalid();                                     \
+    }                                                                \
+    return stack().ReduceShift(resolve(left), resolve(right),        \
+                               ShiftOp::Kind::k##kind, V<tag>::rep); \
+  }
+
   DECL_MULTI_REP_BINOP(ShiftRightArithmeticShiftOutZeros, Shift,
                        WordRepresentation, ShiftRightArithmeticShiftOutZeros)
-  DECL_SINGLE_REP_BINOP_V(Word32ShiftRightArithmeticShiftOutZeros, Shift,
+  DECL_SINGLE_REP_SHIFT_V(Word32ShiftRightArithmeticShiftOutZeros,
                           ShiftRightArithmeticShiftOutZeros, Word32)
-  DECL_SINGLE_REP_BINOP_V(Word64ShiftRightArithmeticShiftOutZeros, Shift,
+  DECL_SINGLE_REP_SHIFT_V(Word64ShiftRightArithmeticShiftOutZeros,
                           ShiftRightArithmeticShiftOutZeros, Word64)
-  DECL_SINGLE_REP_BINOP_V(WordPtrShiftRightArithmeticShiftOutZeros, Shift,
+  DECL_SINGLE_REP_SHIFT_V(WordPtrShiftRightArithmeticShiftOutZeros,
                           ShiftRightArithmeticShiftOutZeros, WordPtr)
   DECL_MULTI_REP_BINOP(ShiftRightArithmetic, Shift, WordRepresentation,
                        ShiftRightArithmetic)
-  DECL_SINGLE_REP_BINOP_V(Word32ShiftRightArithmetic, Shift,
-                          ShiftRightArithmetic, Word32)
-  DECL_SINGLE_REP_BINOP_V(Word64ShiftRightArithmetic, Shift,
-                          ShiftRightArithmetic, Word64)
-  DECL_SINGLE_REP_BINOP_V(WordPtrShiftRightArithmetic, Shift,
-                          ShiftRightArithmetic, WordPtr)
+  DECL_SINGLE_REP_SHIFT_V(Word32ShiftRightArithmetic, ShiftRightArithmetic,
+                          Word32)
+  DECL_SINGLE_REP_SHIFT_V(Word64ShiftRightArithmetic, ShiftRightArithmetic,
+                          Word64)
+  DECL_SINGLE_REP_SHIFT_V(WordPtrShiftRightArithmetic, ShiftRightArithmetic,
+                          WordPtr)
   DECL_MULTI_REP_BINOP(ShiftRightLogical, Shift, WordRepresentation,
                        ShiftRightLogical)
-  DECL_SINGLE_REP_BINOP_V(Word32ShiftRightLogical, Shift, ShiftRightLogical,
-                          Word32)
-  DECL_SINGLE_REP_BINOP_V(Word64ShiftRightLogical, Shift, ShiftRightLogical,
-                          Word64)
+  DECL_SINGLE_REP_SHIFT_V(Word32ShiftRightLogical, ShiftRightLogical, Word32)
+  DECL_SINGLE_REP_SHIFT_V(Word64ShiftRightLogical, ShiftRightLogical, Word64)
   DECL_SINGLE_REP_BINOP_V(WordPtrShiftRightLogical, Shift, ShiftRightLogical,
                           WordPtr)
   DECL_MULTI_REP_BINOP(ShiftLeft, Shift, WordRepresentation, ShiftLeft)
-  DECL_SINGLE_REP_BINOP_V(Word32ShiftLeft, Shift, ShiftLeft, Word32)
-  DECL_SINGLE_REP_BINOP_V(Word64ShiftLeft, Shift, ShiftLeft, Word64)
-  DECL_SINGLE_REP_BINOP_V(WordPtrShiftLeft, Shift, ShiftLeft, WordPtr)
+  DECL_SINGLE_REP_SHIFT_V(Word32ShiftLeft, ShiftLeft, Word32)
+  DECL_SINGLE_REP_SHIFT_V(Word64ShiftLeft, ShiftLeft, Word64)
+  DECL_SINGLE_REP_SHIFT_V(WordPtrShiftLeft, ShiftLeft, WordPtr)
   DECL_MULTI_REP_BINOP(RotateRight, Shift, WordRepresentation, RotateRight)
-  DECL_SINGLE_REP_BINOP_V(Word32RotateRight, Shift, RotateRight, Word32)
-  DECL_SINGLE_REP_BINOP_V(Word64RotateRight, Shift, RotateRight, Word64)
+  DECL_SINGLE_REP_SHIFT_V(Word32RotateRight, RotateRight, Word32)
+  DECL_SINGLE_REP_SHIFT_V(Word64RotateRight, RotateRight, Word64)
   DECL_MULTI_REP_BINOP(RotateLeft, Shift, WordRepresentation, RotateLeft)
-  DECL_SINGLE_REP_BINOP_V(Word32RotateLeft, Shift, RotateLeft, Word32)
-  DECL_SINGLE_REP_BINOP_V(Word64RotateLeft, Shift, RotateLeft, Word64)
+  DECL_SINGLE_REP_SHIFT_V(Word32RotateLeft, RotateLeft, Word32)
+  DECL_SINGLE_REP_SHIFT_V(Word64RotateLeft, RotateLeft, Word64)
 
   OpIndex ShiftRightLogical(OpIndex left, uint32_t right,
                             WordRepresentation rep) {
@@ -1465,6 +1472,8 @@ class AssemblerOpInterface {
                 Float32, Float64)
   DECL_CHANGE_V(JSTruncateFloat64ToWord32, kJSFloatTruncate, kNoAssumption,
                 Float64, Word32)
+  DECL_CHANGE_V(TruncateWord64ToWord32, kTruncate, kNoAssumption, Word64,
+                Word32)
   V<WordPtr> ChangeInt32ToIntPtr(V<Word32> input) {
     if constexpr (Is64()) {
       return ChangeInt32ToInt64(input);

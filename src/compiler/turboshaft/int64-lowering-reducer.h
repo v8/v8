@@ -55,14 +55,14 @@ class Int64LoweringReducer : public Next {
     if (rep == WordRepresentation::Word64()) {
       switch (kind) {
         case ShiftOp::Kind::kShiftLeft:
-          return ReducePairBinOp(left, right,
-                                 Word32PairBinopOp::Kind::kShiftLeft);
+          return ReducePairShiftOp(left, right,
+                                   Word32PairBinopOp::Kind::kShiftLeft);
         case ShiftOp::Kind::kShiftRightArithmetic:
-          return ReducePairBinOp(
+          return ReducePairShiftOp(
               left, right, Word32PairBinopOp::Kind::kShiftRightArithmetic);
         case ShiftOp::Kind::kShiftRightLogical:
-          return ReducePairBinOp(left, right,
-                                 Word32PairBinopOp::Kind::kShiftRightLogical);
+          return ReducePairShiftOp(left, right,
+                                   Word32PairBinopOp::Kind::kShiftRightLogical);
         case ShiftOp::Kind::kRotateRight:
           return ReduceRotateRight(left, right);
         default:
@@ -238,6 +238,9 @@ class Int64LoweringReducer : public Next {
       }
       UNIMPLEMENTED();
     }
+    if (from == word64 && to == word32 && kind == Kind::kTruncate) {
+      return __ Projection(input, 0, word32);
+    }
     return Next::ReduceChange(input, kind, assumption, from, to);
   }
 
@@ -364,6 +367,14 @@ class Int64LoweringReducer : public Next {
     return __ Word32PairBinop(left_low, left_high, right_low, right_high, kind);
   }
 
+  OpIndex ReducePairShiftOp(OpIndex left, OpIndex right,
+                            Word32PairBinopOp::Kind kind) {
+    auto [left_low, left_high] = Unpack(left);
+    // Note: The rhs of a 64 bit shift is a 32 bit value in turboshaft.
+    OpIndex right_high = __ Word32Constant(0);
+    return __ Word32PairBinop(left_low, left_high, right, right_high, kind);
+  }
+
   OpIndex ReduceBitwiseAnd(OpIndex left, OpIndex right) {
     auto [left_low, left_high] = Unpack(left);
     auto [right_low, right_high] = Unpack(right);
@@ -392,9 +403,7 @@ class Int64LoweringReducer : public Next {
     // This reducer assumes that all rotates are mapped to rotate right.
     DCHECK(!SupportedOperations::word64_rol());
     auto [left_low, left_high] = Unpack(left);
-    // We can safely ignore the high word of the shift (as it encodes a multiple
-    // of 64).
-    OpIndex shift = Unpack(right).first;
+    OpIndex shift = right;
     uint32_t constant_shift = 0;
 
     if (Asm().MatchWord32Constant(shift, &constant_shift)) {
