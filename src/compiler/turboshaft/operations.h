@@ -380,15 +380,19 @@ struct OpEffects {
   bool can_create_identity : 1;
   // If the operation can allocate and therefore can trigger GC.
   bool can_allocate : 1;
+  // Instructions that have no uses but are `required_when_unused` should not be
+  // removed.
+  bool required_when_unused : 1;
   // We need to ensure that the padding bits have a specified value, as they are
   // observable in bitwise operations.  This is split into two fields so that
   // also MSVC creates the correct object layout.
-  uint8_t unused_padding_1 : 6;
+  uint8_t unused_padding_1 : 5;
   uint8_t unused_padding_2;
 
   constexpr OpEffects()
       : can_create_identity(false),
         can_allocate(false),
+        required_when_unused(false),
         unused_padding_1(0),
         unused_padding_2(0) {}
 
@@ -460,6 +464,7 @@ struct OpEffects {
   // Writing any off-memory or other output.
   constexpr OpEffects CanWriteOffHeapMemory() const {
     OpEffects result = *this;
+    result.required_when_unused = true;
     result.produces.store_off_heap_memory = true;
     // Do not reorder before stores.
     result.consumes.store_off_heap_memory = true;
@@ -473,6 +478,7 @@ struct OpEffects {
   // newly allocated memory doesn't count.
   constexpr OpEffects CanWriteHeapMemory() const {
     OpEffects result = *this;
+    result.required_when_unused = true;
     result.produces.store_heap_memory = true;
     // Do not reorder before stores.
     result.consumes.store_heap_memory = true;
@@ -509,6 +515,7 @@ struct OpEffects {
   // The operation can affect control flow (like branch, deopt, throw or crash).
   constexpr OpEffects CanChangeControlFlow() const {
     OpEffects result = *this;
+    result.required_when_unused = true;
     // Signal that this changes control flow. Prevents stores or operations
     // relying on checks from flowing before this operation.
     result.produces.control_flow = true;
@@ -521,7 +528,7 @@ struct OpEffects {
   // because of return, deopt, exception throw or abort/trap.
   constexpr OpEffects CanLeaveCurrentFunction() const {
     // All memory becomes observable.
-    return CanChangeControlFlow().CanReadMemory();
+    return CanChangeControlFlow().CanReadMemory().RequiredWhenUnused();
   }
   // The operation can deopt.
   constexpr OpEffects CanDeopt() const {
@@ -542,17 +549,19 @@ struct OpEffects {
         .CanWriteMemory()
         .CanAllocate()
         .CanChangeControlFlow()
-        .CanDependOnChecks();
+        .CanDependOnChecks()
+        .RequiredWhenUnused();
+  }
+  constexpr OpEffects RequiredWhenUnused() const {
+    OpEffects result = *this;
+    result.required_when_unused = true;
+    return result;
   }
 
   // Operations that can be removed if their result is not used. Unused
   // allocations can be removed.
-  bool observable_when_unused() const {
-    return !IsSubsetOf(OpEffects()
-                           .CanDependOnChecks()
-                           .CanAllocate()
-                           .CanReadMemory()
-                           .CanCreateIdentity());
+  constexpr bool is_required_when_unused() const {
+    return required_when_unused;
   }
   // Operations that can be moved before a preceding branch or check.
   bool hoistable_before_a_branch() const {
@@ -679,8 +688,8 @@ struct alignas(OpIndex) Operation {
     return turboshaft::IsBlockTerminator(opcode);
   }
   bool IsRequiredWhenUnused() const {
-    DCHECK_IMPLIES(IsBlockTerminator(), Effects().observable_when_unused());
-    return Effects().observable_when_unused();
+    DCHECK_IMPLIES(IsBlockTerminator(), Effects().is_required_when_unused());
+    return Effects().is_required_when_unused();
   }
 
   std::string ToString() const;
@@ -740,7 +749,7 @@ struct OperationT : Operation {
   }
   bool IsRequiredWhenUnused() const {
     return IsBlockTerminator() ||
-           derived_this().Effects().observable_when_unused();
+           derived_this().Effects().is_required_when_unused();
   }
 
   static constexpr base::Optional<OpEffects> EffectsIfStatic() {
@@ -2582,7 +2591,7 @@ struct TrapIfOp : OperationT<TrapIfOp> {
 
 struct StaticAssertOp : FixedArityOperationT<1, StaticAssertOp> {
   static constexpr OpEffects effects =
-      OpEffects().CanDependOnChecks().CanChangeControlFlow();
+      OpEffects().CanDependOnChecks().RequiredWhenUnused();
   base::Vector<const RegisterRepresentation> outputs_rep() const { return {}; }
   const char* source;
 
@@ -3024,8 +3033,10 @@ struct CheckTurboshaftTypeOfOp
   Type type;
   bool successful;
 
-  static constexpr OpEffects effects =
-      OpEffects().CanDependOnChecks().CanReadImmutableMemory();
+  static constexpr OpEffects effects = OpEffects()
+                                           .CanDependOnChecks()
+                                           .CanReadImmutableMemory()
+                                           .RequiredWhenUnused();
   base::Vector<const RegisterRepresentation> outputs_rep() const { return {}; }
 
   OpIndex input() const { return Base::input(0); }
