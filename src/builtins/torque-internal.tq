@@ -58,6 +58,11 @@ macro TimesSizeOf<T: type>(i: intptr): intptr {
 }
 
 struct Reference<T: type> {
+  macro GCUnsafeRawPtr(): RawPtr<T> {
+    return %RawDownCast<RawPtr<T>>(
+        unsafe::GCUnsafeReferenceToRawPtr(this.object, this.offset));
+  }
+
   const object: HeapObject|TaggedZeroPattern;
   const offset: intptr;
   unsafeMarker: Unsafe;

@@ -167,13 +167,13 @@ function assertValueArray(original, transformed) {
     const arg = transformed[i];
     if (typeof arg === 'bigint') {
       // For values of type I64.
-      assertEquals(arg, BigInt(original[i]));
+      assertEquals(BigInt(original[i]), arg);
     } else if (typeof arg === 'number') {
       // For values of type I32, F32, and F64.
-      assertEquals(arg, Number(original[i]));
+      assertEquals(Number(original[i]), arg);
     } else {
       // For values of type externref.
-      assertEquals(arg, original[i]);
+      assertEquals(original[i], arg);
     }
   }
 }
@@ -215,7 +215,7 @@ function RunTest(params, returns) {
 
   const sig = makeSig(params, returns);
   builder.addFunction('main', sig).addBody(body).exportFunc();
-  const instance = builder.instantiate({m: {f: impFunction}});
+  const instance = builder.instantiate({ m: { f: impFunction } });
   let result = instance.exports.main(...paramValues);
   if (returns.length === 0) return;
   if (returns.length === 1) result = [result];

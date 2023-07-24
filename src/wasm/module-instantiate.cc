@@ -1620,7 +1620,9 @@ bool UseGenericWrapper(const wasm::FunctionSig* sig, Suspend suspend) {
   return false;
 #else
   if (sig->return_count() > 0) return false;
-  if (sig->parameter_count() > 0) return false;
+  for (auto param : sig->parameters()) {
+    if (param.is_reference()) return false;
+  }
   if (suspend == kSuspend) return false;
 
   return v8_flags.wasm_to_js_generic_wrapper;

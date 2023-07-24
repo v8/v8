@@ -338,8 +338,7 @@ struct LocationAllocator {
   smallSlotLast: bool;
 }
 
-macro LocationAllocatorForParams(paramBuffer: MutableSlice<intptr>):
-    LocationAllocator {
+macro LocationAllocatorForParams(paramBuffer: &intptr): LocationAllocator {
   let slotsPerFloat: intptr;
   if constexpr (Is64()) {
     slotsPerFloat = 1;
@@ -452,7 +451,7 @@ JSToWasmWrapper(
       sigTypes, Convert<intptr>(returnCount), Convert<intptr>(paramCount))
       otherwise unreachable;
 
-  let paramBuffer: MutableSlice<intptr>;
+  let paramBuffer: &intptr;
 
   // 10 here is an arbitrary number. The analysis of signatures of exported
   // functions of big modules showed that most signatures have a low number of
@@ -469,11 +468,7 @@ JSToWasmWrapper(
     // by register, so all 8 FP register slots would remain empty.
     const stackSlots = %RawDownCast<RawPtr<intptr>>(
         StackSlotPtr(144, torque_internal::SizeOf<float64>()));
-    // The size of the slice is set to 36, which is correct on 32-bit platforms.
-    // It does not matter though, because the size field never gets read
-    // afterwards.
-    paramBuffer =
-        torque_internal::unsafe::NewOffHeapMutableSlice(stackSlots, 36);
+    paramBuffer = torque_internal::unsafe::NewOffHeapReference(stackSlots);
   } else {
     // We have to estimate the size of the byte array such that it can store
     // all converted parameters. The size is the sum of sizes of the segments
@@ -490,8 +485,8 @@ JSToWasmWrapper(
         UniqueIntPtrConstant(kNumFPRegisterParameters) * kSlotSize +
         Convert<intptr>(paramCount) * kSlotSize;
     const slice = &AllocateByteArray(Convert<uintptr>(bufferSize)).bytes;
-    paramBuffer = torque_internal::unsafe::NewMutableSlice<intptr>(
-        slice.object, slice.offset, slice.length);
+    paramBuffer = torque_internal::unsafe::NewReference<intptr>(
+        slice.object, slice.offset);
   }
 
   let locationAllocator = LocationAllocatorForParams(paramBuffer);
@@ -589,7 +584,7 @@ JSToWasmWrapper(
       k++;
     }
   }
-  const paramStart = paramBuffer.GCUnsafeStartPointer();
+  const paramStart = paramBuffer.GCUnsafeRawPtr();
   const paramEnd = locationAllocator.GetStackEnd();
 
   const internal: WasmInternalFunction = functionData.internal;

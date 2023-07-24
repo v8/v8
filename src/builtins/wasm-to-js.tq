@@ -14,11 +14,10 @@ struct WasmToJSResult {
 
 extern builtin CallVarargs(
     Context,
-    JSAny,  // target rdi
-    int32,  // actual arguments count rax (number of arguments already on the
-            // stack)
-    int32,  // arguments length rcx
-    FixedArray  // arguments list rbx
+    JSAny,      // target
+    int32,      // number of arguments already on the stack
+    int32,      // number of arguments in the FixedArray
+    FixedArray  // arguments list
     ): JSAny;
 
 @export
@@ -34,19 +33,61 @@ transitioning macro WasmToJSWrapper(ref: WasmApiFunctionRef): WasmToJSResult {
   const paramCount: intptr = serializedSig.length - returnCount - 1;
   const _returnTypes = Subslice(serializedSig, Convert<intptr>(1), returnCount)
       otherwise unreachable;
-  const _paramTypes = Subslice(serializedSig, returnCount + 1, paramCount)
+  const paramTypes = Subslice(serializedSig, returnCount + 1, paramCount)
       otherwise unreachable;
 
-  const target = ref.callable;
+  const outParams = WasmAllocateFixedArray(paramCount + 1);
+  let nextIndex: intptr = 0;
   // Set the receiver to `Undefined` as the default. If the receiver would be
   // different, e.g. the global proxy for sloppy functions, then the CallVarargs
   // builtin takes care of it automatically
-  const receiver = Undefined;
-  const context = ref.native_context;
-  const params = WasmAllocateFixedArray(1);
-  params.objects[0] = receiver;
+  outParams.objects[nextIndex++] = Undefined;
 
-  const _result = CallVarargs(context, target, 0, 1, params);
+  const inParams =
+      torque_internal::unsafe::NewOffHeapReference(%RawDownCast<RawPtr<intptr>>(
+          LoadFramePointer() + 2 * torque_internal::SizeOf<intptr>()));
+
+  let locationAllocator = LocationAllocatorForParams(inParams);
+
+  let paramIt = paramTypes.Iterator();
+
+  while (!paramIt.Empty()) {
+    const paramType = paramIt.NextNotEmpty();
+    if (paramType == kWasmI32Type) {
+      const slot = locationAllocator.GetGPSlot();
+      const val = *RefCast<int32>(slot);
+      outParams.objects[nextIndex++] = Convert<Number>(val);
+    } else if (paramType == kWasmF32Type) {
+      const slot = locationAllocator.GetFP32Slot();
+      const val = *RefCast<float32>(slot);
+      outParams.objects[nextIndex++] = Convert<Number>(val);
+    } else if (paramType == kWasmI64Type) {
+      if constexpr (Is64()) {
+        const slot = locationAllocator.GetGPSlot();
+        const val = *slot;
+        outParams.objects[nextIndex++] = I64ToBigInt(val);
+      } else {
+        const lowWordSlot = locationAllocator.GetGPSlot();
+        const highWordSlot = locationAllocator.GetGPSlot();
+        const lowWord = *lowWordSlot;
+        const highWord = *highWordSlot;
+        outParams.objects[nextIndex++] = I32PairToBigInt(lowWord, highWord);
+      }
+    } else if (paramType == kWasmF64Type) {
+      const slot = locationAllocator.GetFP64Slot();
+      const val = *RefCast<float64>(slot);
+      outParams.objects[nextIndex++] = Convert<Number>(val);
+    } else {
+      // Not implemented yet.
+      unreachable;
+    }
+  }
+  const target = ref.callable;
+
+  const context = ref.native_context;
+
+  const _result = CallVarargs(
+      context, target, 0, Convert<int32>(paramCount) + 1, outParams);
   ModifyThreadInWasmFlag(1);
   // TODO(ahaas): Provide actual return values here.
   return WasmToJSResult{
