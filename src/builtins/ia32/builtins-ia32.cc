@@ -1412,6 +1412,191 @@ void Builtins::Generate_InterpreterPushArgsThenConstructImpl(
   __ int3();
 }
 
+namespace {
+
+void NewImplicitReceiver(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  // -- eax : argument count
+  // -- edi : constructor to call
+  // -- edx : new target (checked to be a JSFunction)
+  //
+  //  Stack:
+  //  -- Implicit Receiver
+  //  -- [arguments without receiver]
+  //  -- Implicit Receiver
+  //  -- Context
+  //  -- FastConstructMarker
+  //  -- FramePointer
+
+  Register implicit_receiver = ecx;
+
+  // Save live registers.
+  __ SmiTag(eax);
+  __ Push(eax);  // Number of arguments
+  __ Push(edx);  // NewTarget
+  __ Push(edi);  // Target
+  __ Call(BUILTIN_CODE(masm->isolate(), FastNewObject), RelocInfo::CODE_TARGET);
+  // Save result.
+  __ mov(implicit_receiver, eax);
+  // Restore live registers.
+  __ Pop(edi);
+  __ Pop(edx);
+  __ Pop(eax);
+  __ SmiUntag(eax);
+
+  // Patch implicit receiver (in arguments)
+  __ mov(Operand(esp, 0 /* first argument */), implicit_receiver);
+  // Patch second implicit (in construct frame)
+  __ mov(Operand(ebp, FastConstructFrameConstants::kImplicitReceiverOffset),
+         implicit_receiver);
+
+  // Restore context.
+  __ mov(esi, Operand(ebp, FastConstructFrameConstants::kContextOffset));
+}
+
+}  // namespace
+
+// static
+void Builtins::Generate_InterpreterPushArgsThenFastConstructFunction(
+    MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- eax     : the number of arguments
+  //  -- ecx     : the address of the first argument to be pushed. Subsequent
+  //               arguments should be consecutive above this, in the same order
+  //               as they are to be pushed onto the stack.
+  //  -- esi     : the context
+  //  -- esp[0]  : return address
+  //  -- esp[4]  : allocation site feedback (if available or undefined)
+  //  -- esp[8]  : the new target
+  //  -- esp[12] : the constructor (checked to be a JSFunction)
+  // -----------------------------------
+
+  // Load constructor.
+  __ mov(edi, Operand(esp, 3 * kSystemPointerSize));
+  __ AssertFunction(edi, edx);
+
+  // Check if target has a [[Construct]] internal method.
+  Label non_constructor;
+  // Load constructor.
+  __ LoadMap(edx, edi);
+  __ test_b(FieldOperand(edx, Map::kBitFieldOffset),
+            Immediate(Map::Bits1::IsConstructorBit::kMask));
+  __ j(zero, &non_constructor);
+
+  // Add a stack check before pushing arguments.
+  Label stack_overflow;
+  __ StackOverflowCheck(eax, edx, &stack_overflow, true);
+
+  // Spill number of arguments.
+  __ movd(xmm0, eax);
+
+  // Load NewTarget.
+  __ mov(edx, Operand(esp, 2 * kSystemPointerSize));
+
+  // Drop stub arguments from the stack.
+  __ PopReturnAddressTo(eax);
+  __ Drop(3);  // The allocation site is unused.
+  __ PushReturnAddressFrom(eax);
+
+  // Enter a construct frame.
+  FrameScope scope(masm, StackFrame::MANUAL);
+  __ EnterFrame(StackFrame::FAST_CONSTRUCT);
+  __ Push(esi);
+  // Implicit receiver stored in the construct frame.
+  __ PushRoot(RootIndex::kTheHoleValue);
+
+  // Push arguments + implicit receiver
+  __ movd(eax, xmm0);  // Recover number of arguments.
+  // Find the address of the last argument.
+  __ lea(esi, Operand(eax, times_system_pointer_size,
+                      -kJSArgcReceiverSlots * kSystemPointerSize));
+  __ neg(esi);
+  __ add(esi, ecx);
+  GenerateInterpreterPushArgs(masm, esi, ecx);
+  __ PushRoot(RootIndex::kTheHoleValue);
+
+  // Restore context.
+  __ mov(esi, Operand(ebp, FastConstructFrameConstants::kContextOffset));
+
+  // Check if it is a builtin call.
+  Label builtin_call;
+  __ mov(ecx, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
+  __ test(FieldOperand(ecx, SharedFunctionInfo::kFlagsOffset),
+          Immediate(SharedFunctionInfo::ConstructAsBuiltinBit::kMask));
+  __ j(not_zero, &builtin_call);
+
+  // Check if we need to create an implicit receiver.
+  Label not_create_implicit_receiver;
+  __ mov(ecx, FieldOperand(ecx, SharedFunctionInfo::kFlagsOffset));
+  __ DecodeField<SharedFunctionInfo::FunctionKindBits>(ecx);
+  __ JumpIfIsInRange(
+      ecx, static_cast<uint32_t>(FunctionKind::kDefaultDerivedConstructor),
+      static_cast<uint32_t>(FunctionKind::kDerivedConstructor), ecx,
+      &not_create_implicit_receiver, Label::kNear);
+  NewImplicitReceiver(masm);
+  __ bind(&not_create_implicit_receiver);
+
+  // Call the constructor.
+  __ InvokeFunction(edi, edx, eax, InvokeType::kCall);
+
+  // If the result is an object (in the ECMA sense), we should get rid
+  // of the receiver and use the result; see ECMA-262 section 13.2.2-7
+  // on page 74.
+
+  Label check_result, use_receiver, do_throw, leave_and_return;
+  // If the result is undefined, we jump out to using the implicit receiver.
+  __ JumpIfNotRoot(eax, RootIndex::kUndefinedValue, &check_result,
+                   Label::kNear);
+
+  // Throw away the result of the constructor invocation and use the
+  // on-stack receiver as the result.
+  __ bind(&use_receiver);
+  __ mov(eax, Operand(esp, 0 * kSystemPointerSize));
+  __ JumpIfRoot(eax, RootIndex::kTheHoleValue, &do_throw);
+
+  __ bind(&leave_and_return);
+  __ LeaveFrame(StackFrame::FAST_CONSTRUCT);
+  __ ret(0);
+
+  // Otherwise we do a smi check and fall through to check if the return value
+  // is a valid receiver.
+  __ bind(&check_result);
+
+  // If the result is a smi, it is *not* an object in the ECMA sense.
+  __ JumpIfSmi(eax, &use_receiver, Label::kNear);
+
+  // If the type of the result (stored in its map) is less than
+  // FIRST_JS_RECEIVER_TYPE, it is not an object in the ECMA sense.
+  static_assert(LAST_JS_RECEIVER_TYPE == LAST_TYPE);
+  __ CmpObjectType(eax, FIRST_JS_RECEIVER_TYPE, ecx);
+  __ j(above_equal, &leave_and_return, Label::kNear);
+  __ jmp(&use_receiver, Label::kNear);
+
+  __ bind(&do_throw);
+  // Restore context from the frame.
+  __ mov(esi, Operand(ebp, ConstructFrameConstants::kContextOffset));
+  __ CallRuntime(Runtime::kThrowConstructorReturnedNonObject);
+  // This should be unreachable.
+  __ int3();
+
+  __ bind(&builtin_call);
+  __ InvokeFunction(edi, edx, eax, InvokeType::kCall);
+  __ LeaveFrame(StackFrame::FAST_CONSTRUCT);
+  __ ret(0);
+
+  // Called Construct on an Object that doesn't have a [[Construct]] internal
+  // method.
+  __ bind(&non_constructor);
+  __ Jump(BUILTIN_CODE(masm->isolate(), ConstructedNonConstructable),
+          RelocInfo::CODE_TARGET);
+
+  // Throw stack overflow exception.
+  __ bind(&stack_overflow);
+  __ CallRuntime(Runtime::kThrowStackOverflow);
+  // This should be unreachable.
+  __ int3();
+}
+
 static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
   // Set the return address to the correct point in the interpreter entry
   // trampoline.

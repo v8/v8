@@ -46,6 +46,7 @@
 //       - CWasmEntryFrame
 //     - Internal
 //       - ConstructFrame
+//       - FastConstructFrame
 //       - BuiltinContinuationFrame
 //     - WasmFrame
 //       - WasmExitFrame
@@ -130,6 +131,7 @@ class StackHandler {
     JavaScriptBuiltinContinuationWithCatchFrame)                          \
   V(INTERNAL, InternalFrame)                                              \
   V(CONSTRUCT, ConstructFrame)                                            \
+  V(FAST_CONSTRUCT, FastConstructFrame)                                   \
   V(BUILTIN, BuiltinFrame)                                                \
   V(BUILTIN_EXIT, BuiltinExitFrame)                                       \
   V(API_CALLBACK_EXIT, ApiCallbackExitFrame)                              \
@@ -261,6 +263,7 @@ class StackFrame {
     return type() == JAVA_SCRIPT_BUILTIN_CONTINUATION_WITH_CATCH;
   }
   bool is_construct() const { return type() == CONSTRUCT; }
+  bool is_fast_construct() const { return type() == FAST_CONSTRUCT; }
   bool is_builtin_exit() const { return type() == BUILTIN_EXIT; }
   bool is_api_callback_exit() const { return type() == API_CALLBACK_EXIT; }
   bool is_irregexp() const { return type() == IRREGEXP; }
@@ -1311,6 +1314,24 @@ class ConstructFrame : public InternalFrame {
 
  protected:
   inline explicit ConstructFrame(StackFrameIteratorBase* iterator);
+
+ private:
+  friend class StackFrameIteratorBase;
+};
+
+// Fast construct frames are special construct trampoline frames that avoid
+// pushing arguments to the stack twice.
+class FastConstructFrame : public InternalFrame {
+ public:
+  Type type() const override { return FAST_CONSTRUCT; }
+
+  static FastConstructFrame* cast(StackFrame* frame) {
+    DCHECK(frame->is_fast_construct());
+    return static_cast<FastConstructFrame*>(frame);
+  }
+
+ protected:
+  inline explicit FastConstructFrame(StackFrameIteratorBase* iterator);
 
  private:
   friend class StackFrameIteratorBase;
