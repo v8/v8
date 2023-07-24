@@ -149,6 +149,14 @@ inline void push(LiftoffAssembler* assm, LiftoffRegister reg, ValueKind kind) {
 
 }  // namespace liftoff
 
+void LiftoffAssembler::LoadExternalPointer(Register dst, Register src_addr,
+                                           int offset, Register index,
+                                           ExternalPointerTag tag,
+                                           Register scratch) {
+  MemOperand src_op = liftoff::GetMemOp(this, src_addr, index, offset, false,
+                                        kSystemPointerSizeLog2);
+  LoadWord(dst, src_op);
+}
 
 void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value) {
   switch (value.type().kind()) {
