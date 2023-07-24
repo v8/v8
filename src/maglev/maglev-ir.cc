@@ -2146,15 +2146,23 @@ void LoadSignedIntDataViewElement::GenerateCode(MaglevAssembler* masm,
 
   int element_size = ExternalArrayElementSize(type_);
 
-  // Load data pointer.
-  {
-    MaglevAssembler::ScratchRegisterScope temps(masm);
-    Register data_pointer = temps.Acquire();
-    __ LoadExternalPointerField(
-        data_pointer, FieldMemOperand(object, JSDataView::kDataPointerOffset));
-    MemOperand element_address = __ DataViewElementOperand(data_pointer, index);
-    __ LoadSignedField(result_reg, element_address, element_size);
+  MaglevAssembler::ScratchRegisterScope temps(masm);
+  Register data_pointer = temps.Acquire();
+
+  // We need to make sure we don't clobber is_little_endian_input by writing to
+  // the result register.
+  Register reg_with_result = result_reg;
+  if (type_ != ExternalArrayType::kExternalInt8Array &&
+      !is_little_endian_constant() &&
+      result_reg == ToRegister(is_little_endian_input())) {
+    reg_with_result = data_pointer;
   }
+
+  // Load data pointer.
+  __ LoadExternalPointerField(
+      data_pointer, FieldMemOperand(object, JSDataView::kDataPointerOffset));
+  MemOperand element_address = __ DataViewElementOperand(data_pointer, index);
+  __ LoadSignedField(reg_with_result, element_address, element_size);
 
   // We ignore little endian argument if type is a byte size.
   if (type_ != ExternalArrayType::kExternalInt8Array) {
@@ -2162,16 +2170,21 @@ void LoadSignedIntDataViewElement::GenerateCode(MaglevAssembler* masm,
       // TODO(v8:7700): Support big endian architectures.
       static_assert(V8_TARGET_LITTLE_ENDIAN == 1);
       if (!FromConstantToBool(masm, is_little_endian_input().node())) {
+        DCHECK_EQ(reg_with_result, result_reg);
         __ ReverseByteOrder(result_reg, element_size);
       }
     } else {
       ZoneLabelRef is_little_endian(masm), is_big_endian(masm);
+      DCHECK_NE(reg_with_result, ToRegister(is_little_endian_input()));
       __ ToBoolean(ToRegister(is_little_endian_input()),
                    CheckType::kCheckHeapObject, is_little_endian, is_big_endian,
                    false);
       __ bind(*is_big_endian);
-      __ ReverseByteOrder(result_reg, element_size);
+      __ ReverseByteOrder(reg_with_result, element_size);
       __ bind(*is_little_endian);
+      if (reg_with_result != result_reg) {
+        __ Move(result_reg, reg_with_result);
+      }
     }
   }
 }
