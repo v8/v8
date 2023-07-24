@@ -128,7 +128,7 @@ macro RefCast<To: type>(i: &intptr):
   return torque_internal::unsafe::NewReference<To>(i.object, i.offset);
 }
 
-macro TrucateBigIntToI64(context: Context, input: JSAny): intptr {
+macro TruncateBigIntToI64(context: Context, input: JSAny): intptr {
   // This is only safe to use on 64-bit platforms.
   dcheck(Is64());
   const bigint = ToBigInt(context, input);
@@ -516,7 +516,7 @@ JSToWasmWrapper(
     } else if (paramType == kWasmI64Type) {
       if constexpr (Is64()) {
         let toRef = locationAllocator.GetGPSlot();
-        const v = TrucateBigIntToI64(context, param);
+        const v = TruncateBigIntToI64(context, param);
         *toRef = v;
       } else {
         let toLowRef = locationAllocator.GetGPSlot();
