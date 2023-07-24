@@ -98,11 +98,12 @@ class ImportedFunctionEntry {
 
   // Initialize this entry as a Wasm to JS call. This accepts the isolate as a
   // parameter, since it must allocate a tuple.
-  void SetWasmToJs(Isolate*, Handle<JSReceiver> callable,
-                   wasm::Suspend suspend);
+  void SetWasmToJs(Isolate*, Handle<JSReceiver> callable, wasm::Suspend suspend,
+                   const wasm::FunctionSig* sig);
   V8_EXPORT_PRIVATE void SetWasmToJs(Isolate*, Handle<JSReceiver> callable,
                                      const wasm::WasmCode* wasm_to_js_wrapper,
-                                     wasm::Suspend suspend);
+                                     wasm::Suspend suspend,
+                                     const wasm::FunctionSig* sig);
 
   // Initialize this entry as a Wasm to Wasm call.
   void SetWasmToWasm(WasmInstanceObject target_instance, Address call_target);

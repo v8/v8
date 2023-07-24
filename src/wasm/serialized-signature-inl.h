@@ -39,7 +39,10 @@ class SerializedSignatureHelper {
       Isolate* isolate, const wasm::FunctionSig* sig) {
     Handle<PodArray<wasm::ValueType>> result = NewEmptyPodArrayForSignature(
         isolate, sig->return_count(), sig->parameter_count());
-    result->copy_in(1, sig->all().begin(), static_cast<int>(sig->all().size()));
+    if (!sig->all().empty()) {
+      result->copy_in(1, sig->all().begin(),
+                      static_cast<int>(sig->all().size()));
+    }
     return result;
   }
 
