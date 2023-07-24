@@ -1708,7 +1708,8 @@ bool InstanceBuilder::ProcessImportedFunction(
       ImportedFunctionEntry entry(instance, func_index);
       // We re-use the SetWasmToJs infrastructure because it passes the
       // callable to the wrapper, which we need to get the function data.
-      entry.SetWasmToJs(isolate_, js_receiver, wasm_code, kNoSuspend);
+      entry.SetWasmToJs(isolate_, js_receiver, wasm_code, kNoSuspend,
+                        expected_sig);
       break;
     }
     case ImportCallKind::kWasmToJSFastApi: {
@@ -1718,7 +1719,8 @@ bool InstanceBuilder::ProcessImportedFunction(
       WasmCode* wasm_code = compiler::CompileWasmJSFastCallWrapper(
           native_module, expected_sig, js_receiver);
       ImportedFunctionEntry entry(instance, func_index);
-      entry.SetWasmToJs(isolate_, js_receiver, wasm_code, kNoSuspend);
+      entry.SetWasmToJs(isolate_, js_receiver, wasm_code, kNoSuspend,
+                        expected_sig);
       break;
     }
     default: {
@@ -1727,7 +1729,8 @@ bool InstanceBuilder::ProcessImportedFunction(
           (kind == ImportCallKind::kJSFunctionArityMatch ||
            kind == ImportCallKind::kJSFunctionArityMismatch)) {
         ImportedFunctionEntry entry(instance, func_index);
-        entry.SetWasmToJs(isolate_, js_receiver, resolved.suspend());
+        entry.SetWasmToJs(isolate_, js_receiver, resolved.suspend(),
+                          expected_sig);
         break;
       }
       int expected_arity = static_cast<int>(expected_sig->parameter_count());
@@ -1748,7 +1751,8 @@ bool InstanceBuilder::ProcessImportedFunction(
       ImportedFunctionEntry entry(instance, func_index);
       if (wasm_code->kind() == WasmCode::kWasmToJsWrapper) {
         // Wasm to JS wrappers are treated specially in the import table.
-        entry.SetWasmToJs(isolate_, js_receiver, wasm_code, resolved.suspend());
+        entry.SetWasmToJs(isolate_, js_receiver, wasm_code, resolved.suspend(),
+                          expected_sig);
       } else {
         // Wasm math intrinsics are compiled as regular Wasm functions.
         DCHECK(kind >= ImportCallKind::kFirstMathIntrinsic &&

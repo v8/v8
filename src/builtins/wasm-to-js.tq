@@ -24,6 +24,19 @@ extern builtin CallVarargs(
 @export
 transitioning macro WasmToJSWrapper(ref: WasmApiFunctionRef): WasmToJSResult {
   ModifyThreadInWasmFlag(0);
+  const signaturePod = &ref.sig.bytes;
+  const serializedSig = torque_internal::unsafe::NewConstSlice<int32>(
+      signaturePod.object, signaturePod.offset,
+      signaturePod.length / torque_internal::SizeOf<int32>());
+  const returnCount =
+      Convert<intptr>(*torque_internal::unsafe::NewReference<int32>(
+          serializedSig.object, serializedSig.offset));
+  const paramCount: intptr = serializedSig.length - returnCount - 1;
+  const _returnTypes = Subslice(serializedSig, Convert<intptr>(1), returnCount)
+      otherwise unreachable;
+  const _paramTypes = Subslice(serializedSig, returnCount + 1, paramCount)
+      otherwise unreachable;
+
   const target = ref.callable;
   // Set the receiver to `Undefined` as the default. If the receiver would be
   // different, e.g. the global proxy for sloppy functions, then the CallVarargs

@@ -74,29 +74,29 @@ TestingModuleBuilder::TestingModuleBuilder(
   instance_object_->set_tables(*tables);
 
   if (maybe_import) {
+    const wasm::FunctionSig* sig = maybe_import->sig;
     // Manually compile an import wrapper and insert it into the instance.
     uint32_t canonical_type_index =
-        GetTypeCanonicalizer()->AddRecursiveGroup(maybe_import->sig);
-    WasmImportData resolved({}, -1, maybe_import->js_function,
-                            maybe_import->sig, canonical_type_index);
+        GetTypeCanonicalizer()->AddRecursiveGroup(sig);
+    WasmImportData resolved({}, -1, maybe_import->js_function, sig,
+                            canonical_type_index);
     ImportCallKind kind = resolved.kind();
     Handle<JSReceiver> callable = resolved.callable();
     WasmImportWrapperCache::ModificationScope cache_scope(
         native_module_->import_wrapper_cache());
     WasmImportWrapperCache::CacheKey key(
-        kind, canonical_type_index,
-        static_cast<int>(maybe_import->sig->parameter_count()), kNoSuspend);
+        kind, canonical_type_index, static_cast<int>(sig->parameter_count()),
+        kNoSuspend);
     auto import_wrapper = cache_scope[key];
     if (import_wrapper == nullptr) {
       import_wrapper = CompileImportWrapper(
-          native_module_, isolate_->counters(), kind, maybe_import->sig,
-          canonical_type_index,
-          static_cast<int>(maybe_import->sig->parameter_count()), kNoSuspend,
-          &cache_scope);
+          native_module_, isolate_->counters(), kind, sig, canonical_type_index,
+          static_cast<int>(sig->parameter_count()), kNoSuspend, &cache_scope);
     }
 
     ImportedFunctionEntry(instance_object_, maybe_import_index)
-        .SetWasmToJs(isolate_, callable, import_wrapper, resolved.suspend());
+        .SetWasmToJs(isolate_, callable, import_wrapper, resolved.suspend(),
+                     sig);
   }
 }
 
