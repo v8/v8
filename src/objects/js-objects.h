@@ -1303,6 +1303,39 @@ class JSValidIteratorWrapper
   TQ_OBJECT_CONSTRUCTORS(JSValidIteratorWrapper)
 };
 
+// JSPromiseWithResolversResult is just a JSObject with a specific initial map.
+// This initial map adds in-object properties for "promise", "resolve", and
+// "reject", in that order.
+class JSPromiseWithResolversResult : public JSObject {
+ public:
+  DECL_ACCESSORS(promise, Object)
+
+  DECL_ACCESSORS(resolve, Object)
+
+  DECL_ACCESSORS(reject, Object)
+
+  // Layout description.
+#define JS_PROMISE_WITHRESOLVERS_RESULT_FIELDS(V) \
+  V(kPromiseOffset, kTaggedSize)                  \
+  V(kResolveOffset, kTaggedSize)                  \
+  V(kRejectOffset, kTaggedSize)                   \
+  /* Total size. */                               \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
+                                JS_PROMISE_WITHRESOLVERS_RESULT_FIELDS)
+#undef JS_PROMISE_WITHRESOLVERS_RESULT_FIELDS
+
+  // Indices of in-object properties.
+  static const int kPromiseIndex = 0;
+  static const int kResolveIndex = 1;
+  static const int kRejectIndex = 2;
+
+  DECL_CAST(JSPromiseWithResolversResult)
+
+  OBJECT_CONSTRUCTORS(JSPromiseWithResolversResult, JSObject);
+};
+
 }  // namespace internal
 }  // namespace v8
 

@@ -381,6 +381,7 @@
   V(_, preventExtensions_string, "preventExtensions")                         \
   V(_, private_constructor_string, "#constructor")                            \
   V(_, Promise_string, "Promise")                                             \
+  V(_, promise_string, "promise")                                             \
   V(_, proto_string, "__proto__")                                             \
   V(_, proxy_string, "proxy")                                                 \
   V(_, Proxy_string, "Proxy")                                                 \

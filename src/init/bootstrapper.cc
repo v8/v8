@@ -242,8 +242,11 @@ class Genesis {
 #define DECLARE_FEATURE_INITIALIZATION(id, descr) void InitializeGlobal_##id();
 
   HARMONY_INPROGRESS(DECLARE_FEATURE_INITIALIZATION)
+  JAVASCRIPT_INPROGRESS_FEATURES(DECLARE_FEATURE_INITIALIZATION)
   HARMONY_STAGED(DECLARE_FEATURE_INITIALIZATION)
+  JAVASCRIPT_STAGED_FEATURES(DECLARE_FEATURE_INITIALIZATION)
   HARMONY_SHIPPING(DECLARE_FEATURE_INITIALIZATION)
+  JAVASCRIPT_SHIPPED_FEATURES(DECLARE_FEATURE_INITIALIZATION)
 #undef DECLARE_FEATURE_INITIALIZATION
   void InitializeGlobal_regexp_linear_flag();
   void InitializeGlobal_sharedarraybuffer();
@@ -715,6 +718,29 @@ void InstallToStringTag(Isolate* isolate, Handle<JSObject> holder,
                         const char* value) {
   InstallToStringTag(isolate, holder,
                      isolate->factory()->InternalizeUtf8String(value));
+}
+
+// Create a map for result objects returned from builtins in such a way that
+// it's exactly the same map as the one produced by object literals. E.g.,
+// iterator result objects have the same map as literals in the form `{value,
+// done}`.
+//
+// This way we have better sharing of maps (i.e. less polymorphism) and also
+// make it possible to hit the fast-paths in various builtins (i.e. promises and
+// collections) with user defined iterators.
+template <size_t N>
+Handle<Map> CreateLiteralObjectMapFromCache(
+    Isolate* isolate, const std::array<Handle<Name>, N>& properties) {
+  Factory* factory = isolate->factory();
+  Handle<NativeContext> native_context = isolate->native_context();
+  Handle<Map> map = factory->ObjectLiteralMapFromCache(native_context, N);
+  for (Handle<Name> name : properties) {
+    map = Map::CopyWithField(isolate, map, name, FieldType::Any(isolate), NONE,
+                             PropertyConstness::kConst,
+                             Representation::Tagged(), INSERT_TRANSITION)
+              .ToHandleChecked();
+  }
+  return map;
 }
 
 }  // namespace
@@ -3755,28 +3781,9 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
   }
 
   {  // -- I t e r a t o r R e s u l t
-    // Setup the map for IterResultObjects created from builtins in such a
-    // way that it's exactly the same map as the one produced by object
-    // literals in the form `{value, done}`. This way we have better sharing
-    // of maps (i.e. less polymorphism) and also make it possible to hit the
-    // fast-paths in various builtins (i.e. promises and collections) with
-    // user defined iterators.
-    Handle<Map> map = factory->ObjectLiteralMapFromCache(native_context(), 2);
-
-    // value
-    map = Map::CopyWithField(isolate(), map, factory->value_string(),
-                             FieldType::Any(isolate()), NONE,
-                             PropertyConstness::kConst,
-                             Representation::Tagged(), INSERT_TRANSITION)
-              .ToHandleChecked();
-
-    // done
-    map = Map::CopyWithField(isolate(), map, factory->done_string(),
-                             FieldType::Any(isolate()), NONE,
-                             PropertyConstness::kConst,
-                             Representation::HeapObject(), INSERT_TRANSITION)
-              .ToHandleChecked();
-
+    std::array<Handle<Name>, 2> fields{factory->value_string(),
+                                       factory->done_string()};
+    Handle<Map> map = CreateLiteralObjectMapFromCache(isolate(), fields);
     native_context()->set_iterator_result_map(*map);
   }
 
@@ -4201,8 +4208,11 @@ void Genesis::InitializeExperimentalGlobal() {
   // features may depend on more mature features having been initialized
   // already.
   HARMONY_SHIPPING(FEATURE_INITIALIZE_GLOBAL)
+  JAVASCRIPT_SHIPPED_FEATURES(FEATURE_INITIALIZE_GLOBAL)
   HARMONY_STAGED(FEATURE_INITIALIZE_GLOBAL)
+  JAVASCRIPT_SHIPPED_FEATURES(FEATURE_INITIALIZE_GLOBAL)
   HARMONY_INPROGRESS(FEATURE_INITIALIZE_GLOBAL)
+  JAVASCRIPT_INPROGRESS_FEATURES(FEATURE_INITIALIZE_GLOBAL)
 #undef FEATURE_INITIALIZE_GLOBAL
   InitializeGlobal_regexp_linear_flag();
   InitializeGlobal_sharedarraybuffer();
@@ -4685,6 +4695,23 @@ void Genesis::InitializeGlobal_harmony_iterator_helpers() {
 
 #undef INSTALL_ITERATOR_HELPER
 #undef ITERATOR_HELPERS
+}
+
+void Genesis::InitializeGlobal_js_promise_withresolvers() {
+  if (!v8_flags.js_promise_withresolvers) return;
+
+  Factory* factory = isolate()->factory();
+
+  std::array<Handle<Name>, 3> fields{factory->promise_string(),
+                                     factory->resolve_string(),
+                                     factory->reject_string()};
+  Handle<Map> result_map = CreateLiteralObjectMapFromCache(isolate(), fields);
+  native_context()->set_promise_withresolvers_result_map(*result_map);
+
+  Handle<JSFunction> promise_fun =
+      handle(native_context()->promise_function(), isolate());
+  InstallFunctionWithBuiltinId(isolate(), promise_fun, "withResolvers",
+                               Builtin::kPromiseWithResolvers, 0, true);
 }
 
 void Genesis::InitializeGlobal_harmony_set_methods() {

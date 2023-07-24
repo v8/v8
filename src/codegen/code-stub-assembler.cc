@@ -15201,6 +15201,28 @@ TNode<JSObject> CodeStubAssembler::AllocateJSIteratorResultForEntry(
   return CAST(result);
 }
 
+TNode<JSObject> CodeStubAssembler::AllocatePromiseWithResolversResult(
+    TNode<Context> context, TNode<Object> promise, TNode<Object> resolve,
+    TNode<Object> reject) {
+  TNode<NativeContext> native_context = LoadNativeContext(context);
+  TNode<Map> map = CAST(LoadContextElement(
+      native_context, Context::PROMISE_WITHRESOLVERS_RESULT_MAP_INDEX));
+  TNode<HeapObject> result = Allocate(JSPromiseWithResolversResult::kSize);
+  StoreMapNoWriteBarrier(result, map);
+  StoreObjectFieldRoot(result,
+                       JSPromiseWithResolversResult::kPropertiesOrHashOffset,
+                       RootIndex::kEmptyFixedArray);
+  StoreObjectFieldRoot(result, JSPromiseWithResolversResult::kElementsOffset,
+                       RootIndex::kEmptyFixedArray);
+  StoreObjectFieldNoWriteBarrier(
+      result, JSPromiseWithResolversResult::kPromiseOffset, promise);
+  StoreObjectFieldNoWriteBarrier(
+      result, JSPromiseWithResolversResult::kResolveOffset, resolve);
+  StoreObjectFieldNoWriteBarrier(
+      result, JSPromiseWithResolversResult::kRejectOffset, reject);
+  return CAST(result);
+}
+
 TNode<JSReceiver> CodeStubAssembler::ArraySpeciesCreate(TNode<Context> context,
                                                         TNode<Object> o,
                                                         TNode<Number> len) {

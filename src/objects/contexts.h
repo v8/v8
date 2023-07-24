@@ -219,6 +219,8 @@ enum ContextLookupFlags {
   V(JS_TEMPORAL_ZONED_DATE_TIME_FUNCTION_INDEX, JSFunction,                    \
     temporal_zoned_date_time_function)                                         \
   V(JSON_OBJECT, JSObject, json_object)                                        \
+  V(PROMISE_WITHRESOLVERS_RESULT_MAP_INDEX, Map,                               \
+    promise_withresolvers_result_map)                                          \
   V(TEMPORAL_INSTANT_FIXED_ARRAY_FROM_ITERABLE_FUNCTION_INDEX, JSFunction,     \
     temporal_instant_fixed_array_from_iterable)                                \
   V(STRING_FIXED_ARRAY_FROM_ITERABLE_FUNCTION_INDEX, JSFunction,               \

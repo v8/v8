@@ -2163,6 +2163,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                                    TNode<Object> key,
                                                    TNode<Object> value);
 
+  TNode<JSObject> AllocatePromiseWithResolversResult(TNode<Context> context,
+                                                     TNode<Object> promise,
+                                                     TNode<Object> resolve,
+                                                     TNode<Object> reject);
+
   TNode<JSReceiver> ArraySpeciesCreate(TNode<Context> context,
                                        TNode<Object> originalArray,
                                        TNode<Number> len);
