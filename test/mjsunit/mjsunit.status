@@ -1165,6 +1165,9 @@
 
   # BUG(v8:11826) Skipped until we remove flakes on NumFuzz.
   'regress/wasm/regress-1231950': [SKIP],
+
+  # BUG(v8:13433)
+  'compiler/array-slice-clone': [SKIP],
 }],  # 'gc_fuzzer'
 
 ##############################################################################
