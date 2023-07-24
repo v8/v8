@@ -1804,25 +1804,19 @@ void GCTracer::ReportYoungCycleToRecorder() {
         current_.young_object_size;
   }
   // Efficiency:
-  auto freed_bytes =
-      current_.young_object_size - current_.survived_young_object_size;
-  if (freed_bytes == 0) {
-    event.efficiency_in_bytes_per_us = 0;
-    event.main_thread_efficiency_in_bytes_per_us = 0;
-  } else {
-    // Here, main_thread_wall_clock_duration_in_us or even
-    // total_wall_clock_duration_in_us can be zero if the clock resolution is
-    // not small enough and the entire GC was very short, so the timed value
-    // was zero. This appears to happen on Windows, see crbug.com/1338256 and
-    // crbug.com/1339180, related to the same issue in cppgc. In this case, we
-    // are only here if the number of freed bytes is nonzero and the division
-    // below produces an infinite value.
-    event.efficiency_in_bytes_per_us =
-        freed_bytes / total_wall_clock_duration.InMicroseconds();
-    event.main_thread_efficiency_in_bytes_per_us =
-        freed_bytes / main_thread_wall_clock_duration.InMicroseconds();
-  }
-
+  //
+  // It's possible that time durations are rounded/clamped to zero, in which
+  // case we report infinity efficiency.
+  const double freed_bytes = static_cast<double>(
+      current_.young_object_size - current_.survived_young_object_size);
+  event.efficiency_in_bytes_per_us =
+      total_wall_clock_duration.IsZero()
+          ? std::numeric_limits<double>::infinity()
+          : freed_bytes / total_wall_clock_duration.InMicroseconds();
+  event.main_thread_efficiency_in_bytes_per_us =
+      main_thread_wall_clock_duration.IsZero()
+          ? std::numeric_limits<double>::infinity()
+          : freed_bytes / main_thread_wall_clock_duration.InMicroseconds();
   recorder->AddMainThreadEvent(event, GetContextId(heap_->isolate()));
 }
 
