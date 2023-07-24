@@ -166,8 +166,11 @@ void YoungGenerationRememberedSetsMarkingWorklist::MarkingItem::
     CheckOldToNewSlotForSharedUntyped(MemoryChunk* chunk, Address slot_address,
                                       MaybeObject object) {
   HeapObject heap_object;
-  if (object.GetHeapObject(&heap_object) &&
-      heap_object.InWritableSharedSpace()) {
+  if (!object.GetHeapObject(&heap_object)) return;
+#ifdef THREAD_SANITIZER
+  BasicMemoryChunk::FromHeapObject(heap_object)->SynchronizedHeapLoad();
+#endif  // THREAD_SANITIZER
+  if (heap_object.InWritableSharedSpace()) {
     RememberedSet<OLD_TO_SHARED>::Insert<AccessMode::ATOMIC>(chunk,
                                                              slot_address);
   }
@@ -178,9 +181,11 @@ void YoungGenerationRememberedSetsMarkingWorklist::MarkingItem::
                                     Address slot_address,
                                     MaybeObject new_target) {
   HeapObject heap_object;
-
-  if (new_target.GetHeapObject(&heap_object) &&
-      heap_object.InWritableSharedSpace()) {
+  if (!new_target.GetHeapObject(&heap_object)) return;
+#ifdef THREAD_SANITIZER
+  BasicMemoryChunk::FromHeapObject(heap_object)->SynchronizedHeapLoad();
+#endif  // THREAD_SANITIZER
+  if (heap_object.InWritableSharedSpace()) {
     const uintptr_t offset = slot_address - chunk->address();
     DCHECK_LT(offset, static_cast<uintptr_t>(TypedSlotSet::kMaxOffset));
     RememberedSet<OLD_TO_SHARED>::InsertTyped(chunk, slot_type,
