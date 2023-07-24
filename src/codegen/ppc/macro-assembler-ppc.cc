@@ -5304,6 +5304,173 @@ void MacroAssembler::ReverseBitsInSingleByteU64(Register dst, Register src,
   orx(dst, dst, scratch2);
 }
 
+// Calls an API function.  Allocates HandleScope, extracts returned value
+// from handle and propagates exceptions.  Restores context.  On return removes
+// *stack_space_operand * kSystemPointerSize or stack_space * kSystemPointerSize
+// (GCed, includes the call JS arguments space and the additional space
+// allocated for the fast call).
+void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
+                              Register function_address,
+                              ExternalReference thunk_ref, Register thunk_arg,
+                              int stack_space, MemOperand* stack_space_operand,
+                              MemOperand return_value_operand) {
+  using ER = ExternalReference;
+
+  Isolate* isolate = masm->isolate();
+  MemOperand next_mem_op = __ ExternalReferenceAsOperand(
+      ER::handle_scope_next_address(isolate), no_reg);
+  MemOperand limit_mem_op = __ ExternalReferenceAsOperand(
+      ER::handle_scope_limit_address(isolate), no_reg);
+  MemOperand level_mem_op = __ ExternalReferenceAsOperand(
+      ER::handle_scope_level_address(isolate), no_reg);
+
+  // Additional parameter is the address of the actual callback.
+  Register return_value = r3;
+  Register scratch = ip;
+  Register scratch2 = r0;
+
+  // Allocate HandleScope in callee-saved registers.
+  // We will need to restore the HandleScope after the call to the API function,
+  // by allocating it in callee-saved registers it'll be preserved by C code.
+  Register prev_next_address_reg = r14;
+  Register prev_limit_reg = r15;
+  Register prev_level_reg = r16;
+
+  // C arguments (arg_reg_1/2) are expected to be initialized outside, so this
+  // function must not corrupt them (return_value overlaps with arg_reg_1 but
+  // that's ok because we start using it only after the C call).
+  DCHECK(!AreAliased(arg_reg_1, arg_reg_2,  // C args
+                     scratch, scratch2, prev_next_address_reg, prev_limit_reg));
+  // function_address and thunk_arg might overlap but this function must not
+  // corrupted them until the call is made (i.e. overlap with return_value is
+  // fine).
+  DCHECK(!AreAliased(function_address,  // incoming parameters
+                     scratch, scratch2, prev_next_address_reg, prev_limit_reg));
+  DCHECK(!AreAliased(thunk_arg,  // incoming parameters
+                     scratch, scratch2, prev_next_address_reg, prev_limit_reg));
+  {
+    ASM_CODE_COMMENT_STRING(masm,
+                            "Allocate HandleScope in callee-save registers.");
+    __ LoadU64(prev_next_address_reg, next_mem_op);
+    __ LoadU64(prev_limit_reg, limit_mem_op);
+    __ lwz(prev_level_reg, level_mem_op);
+    __ addi(scratch, prev_level_reg, Operand(1));
+    __ stw(scratch, level_mem_op);
+  }
+
+  Label profiler_or_side_effects_check_enabled, done_api_call;
+  if (with_profiling) {
+    __ RecordComment("Check if profiler or side effects check is enabled");
+    __ lbz(scratch, __ ExternalReferenceAsOperand(
+                        ER::execution_mode_address(isolate), no_reg));
+    __ cmpi(scratch, Operand::Zero());
+    __ bne(&profiler_or_side_effects_check_enabled);
+#ifdef V8_RUNTIME_CALL_STATS
+    __ RecordComment("Check if RCS is enabled");
+    __ Move(scratch, ER::address_of_runtime_stats_flag());
+    __ lwz(scratch, MemOperand(scratch, 0));
+    __ cmpi(scratch, Operand::Zero());
+    __ bne(&profiler_or_side_effects_check_enabled);
+#endif  // V8_RUNTIME_CALL_STATS
+  }
+
+  __ RecordComment("Call the api function directly.");
+  __ StoreReturnAddressAndCall(function_address);
+  __ bind(&done_api_call);
+
+  Label promote_scheduled_exception;
+  Label delete_allocated_handles;
+  Label leave_exit_frame;
+
+  // load value from ReturnValue
+  __ RecordComment("Load the value from ReturnValue");
+  __ LoadU64(r3, return_value_operand);
+
+  {
+    ASM_CODE_COMMENT_STRING(
+        masm,
+        "No more valid handles (the result handle was the last one)."
+        "Restore previous handle scope.");
+    __ StoreU64(prev_next_address_reg, next_mem_op);
+    if (v8_flags.debug_code) {
+      __ lwz(scratch, level_mem_op);
+      __ subi(scratch, scratch, Operand(1));
+      __ CmpS64(scratch, prev_level_reg);
+      __ Check(eq, AbortReason::kUnexpectedLevelAfterReturnFromApiCall);
+    }
+    __ stw(prev_level_reg, level_mem_op);
+    __ LoadU64(scratch, limit_mem_op);
+    __ CmpS64(scratch, prev_limit_reg);
+    __ bne(&delete_allocated_handles);
+  }
+
+  __ RecordComment("Leave the API exit frame.");
+  __ bind(&leave_exit_frame);
+  // LeaveExitFrame expects unwind space to be in a register.
+  Register stack_space_reg = prev_limit_reg;
+  if (stack_space_operand != nullptr) {
+    __ LoadU64(stack_space_reg, *stack_space_operand);
+  } else {
+    __ mov(stack_space_reg, Operand(stack_space));
+  }
+  __ LeaveExitFrame(stack_space_reg, stack_space_operand != nullptr);
+
+  {
+    ASM_CODE_COMMENT_STRING(masm,
+                            "Check if the function scheduled an exception.");
+    __ LoadRoot(scratch, RootIndex::kTheHoleValue);
+    __ LoadU64(scratch2, __ ExternalReferenceAsOperand(
+                             ER::scheduled_exception_address(isolate), no_reg));
+    __ CmpS64(scratch, scratch2);
+    __ bne(&promote_scheduled_exception);
+  }
+
+  {
+    ASM_CODE_COMMENT_STRING(masm, "Convert return value");
+    Label finish_return;
+    __ CompareRoot(return_value, RootIndex::kTheHoleValue);
+    __ bne(&finish_return);
+    __ LoadRoot(return_value, RootIndex::kUndefinedValue);
+    __ bind(&finish_return);
+  }
+
+  __ AssertJSAny(return_value, scratch, scratch2,
+                 AbortReason::kAPICallReturnedInvalidObject);
+
+  __ blr();
+
+  if (with_profiling) {
+    ASM_CODE_COMMENT_STRING(masm, "Call the api function via the thunk.");
+    __ bind(&profiler_or_side_effects_check_enabled);
+    // Additional parameter is the address of the actual callback function.
+    MemOperand thunk_arg_mem_op = __ ExternalReferenceAsOperand(
+        ER::api_callback_thunk_argument_address(isolate), no_reg);
+    __ StoreU64(thunk_arg, thunk_arg_mem_op);
+    __ Move(scratch, thunk_ref);
+    __ StoreReturnAddressAndCall(scratch);
+    __ b(&done_api_call);
+  }
+
+  __ RecordComment("Re-throw by promoting a scheduled exception.");
+  __ bind(&promote_scheduled_exception);
+  __ TailCallRuntime(Runtime::kPromoteScheduledException);
+
+  {
+    ASM_CODE_COMMENT_STRING(
+        masm, "HandleScope limit has changed. Delete allocated extensions.");
+    __ bind(&delete_allocated_handles);
+    __ StoreU64(prev_limit_reg, limit_mem_op);
+    // Save the return value in a callee-save register.
+    Register saved_result = prev_limit_reg;
+    __ mr(saved_result, return_value);
+    __ PrepareCallCFunction(1, scratch);
+    __ Move(arg_reg_1, ER::isolate_address(isolate));
+    __ CallCFunction(ER::delete_handle_scope_extensions(), 1);
+    __ mr(return_value, saved_result);
+    __ b(&leave_exit_frame);
+  }
+}
+
 }  // namespace internal
 }  // namespace v8
 
