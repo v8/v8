@@ -1008,8 +1008,8 @@ class SetOrCopyDataPropertiesAssembler : public CodeStubAssembler {
       // Non-empty strings are the only non-JSReceivers that need to be
       // handled explicitly by Object.assign() and CopyDataProperties.
       GotoIfNot(IsStringInstanceType(source_instance_type), &if_done);
-      TNode<IntPtrT> source_length = LoadStringLengthAsWord(CAST(source));
-      Branch(IntPtrEqual(source_length, IntPtrConstant(0)), &if_done,
+      TNode<Uint32T> source_length = LoadStringLengthAsWord32(CAST(source));
+      Branch(Word32Equal(source_length, Uint32Constant(0)), &if_done,
              if_runtime);
     }
 

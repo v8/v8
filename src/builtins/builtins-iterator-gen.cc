@@ -384,10 +384,10 @@ void IteratorBuiltinsAssembler::FastIterableToList(
         iterable, context, &string_maybe_fast_call, &check_map);
 
     BIND(&string_maybe_fast_call);
-    const TNode<IntPtrT> length = LoadStringLengthAsWord(CAST(iterable));
+    const TNode<Uint32T> length = LoadStringLengthAsWord32(CAST(iterable));
     // Use string length as conservative approximation of number of codepoints.
     GotoIf(
-        IntPtrGreaterThan(length, IntPtrConstant(JSArray::kMaxFastArrayLength)),
+        Uint32GreaterThan(length, Uint32Constant(JSArray::kMaxFastArrayLength)),
         slow);
     *var_result = CAST(CallBuiltin(Builtin::kStringToList, context, iterable));
     Goto(&done);

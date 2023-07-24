@@ -416,7 +416,7 @@ TNode<HeapObject> RegExpBuiltinsAssembler::RegExpExecInternal(
   GotoIf(TaggedIsNotSmi(last_index), &if_failure);
 
   TNode<IntPtrT> int_string_length = LoadStringLengthAsWord(string);
-  TNode<IntPtrT> int_last_index = SmiUntag(CAST(last_index));
+  TNode<IntPtrT> int_last_index = PositiveSmiUntag(CAST(last_index));
 
   GotoIf(UintPtrGreaterThan(int_last_index, int_string_length), &if_failure);
 
