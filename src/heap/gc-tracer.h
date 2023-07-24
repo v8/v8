@@ -182,10 +182,10 @@ class V8_EXPORT_PRIVATE GCTracer {
     const char* collector_reason;
 
     // Timestamp set in the constructor.
-    double start_time = 0.0;
+    base::TimeTicks start_time;
 
     // Timestamp set in the destructor.
-    double end_time = 0.0;
+    base::TimeTicks end_time;
 
     // Memory reduction flag set.
     bool reduce_memory = false;
@@ -313,12 +313,12 @@ class V8_EXPORT_PRIVATE GCTracer {
 #endif
 
   // Sample and accumulate bytes allocated since the last GC.
-  void SampleAllocation(double current_ms, size_t new_space_counter_bytes,
+  void SampleAllocation(base::TimeTicks current, size_t new_space_counter_bytes,
                         size_t old_generation_counter_bytes,
                         size_t embedder_counter_bytes);
 
   // Log the accumulated new space allocation bytes.
-  void AddAllocation(double current_ms);
+  void AddAllocation(base::TimeTicks current);
 
   void AddCompactionEvent(double duration, size_t live_bytes_compacted);
 
@@ -463,7 +463,7 @@ class V8_EXPORT_PRIVATE GCTracer {
   void ResetForTesting();
   void ResetIncrementalCounters();
   void RecordIncrementalMarkingSpeed(size_t bytes, base::TimeDelta duration);
-  void RecordMutatorUtilization(double mark_compactor_end_time,
+  void RecordMutatorUtilization(base::TimeTicks mark_compactor_end_time,
                                 base::TimeDelta mark_compactor_duration);
 
   // Update counters for an entire full GC cycle. Exact accounting of events
@@ -505,8 +505,8 @@ class V8_EXPORT_PRIVATE GCTracer {
   // Previous tracer event.
   Event previous_;
 
-  // The starting time of the observable pause or 0.0 if we're not inside it.
-  double start_of_observable_pause_ = 0.0;
+  // The starting time of the observable pause if set.
+  base::Optional<base::TimeTicks> start_of_observable_pause_;
 
   // We need two epochs, since there can be scavenges during incremental
   // marking.
@@ -521,7 +521,7 @@ class V8_EXPORT_PRIVATE GCTracer {
   // mark-compact event.
   base::TimeDelta incremental_marking_duration_;
 
-  double incremental_marking_start_time_ = 0.0;
+  base::TimeTicks incremental_marking_start_time_;
 
   double recorded_incremental_marking_speed_ = 0.0;
 
@@ -537,7 +537,7 @@ class V8_EXPORT_PRIVATE GCTracer {
   IncrementalInfos incremental_scopes_[Scope::NUMBER_OF_INCREMENTAL_SCOPES];
 
   // Timestamp and allocation counter at the last sampled allocation event.
-  double allocation_time_ms_ = 0.0;
+  base::Optional<base::TimeTicks> allocation_time_;
   size_t new_space_allocation_counter_bytes_ = 0;
   size_t old_generation_allocation_counter_bytes_ = 0;
   size_t embedder_allocation_counter_bytes_ = 0;
@@ -554,7 +554,7 @@ class V8_EXPORT_PRIVATE GCTracer {
   double average_mutator_duration_ = 0.0;
   double average_mark_compact_duration_ = 0.0;
   double current_mark_compact_mutator_utilization_ = 1.0;
-  double previous_mark_compact_end_time_ = 0.0;
+  base::Optional<base::TimeTicks> previous_mark_compact_end_time_;
 
   BytesAndDurationBuffer recorded_minor_gcs_total_;
   BytesAndDurationBuffer recorded_minor_gcs_survived_;

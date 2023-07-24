@@ -180,7 +180,7 @@ GCTracer::GCTracer(Heap* heap, GarbageCollectionReason initial_gc_reason)
   // We assume that MC_INCREMENTAL is the first scope so that we can properly
   // map it to RuntimeCallStats.
   static_assert(0 == Scope::MC_INCREMENTAL);
-  current_.end_time = MonotonicallyIncreasingTimeInMs();
+  current_.end_time = base::TimeTicks();
 }
 
 void GCTracer::ResetForTesting() {
@@ -190,7 +190,7 @@ void GCTracer::ResetForTesting() {
 
 void GCTracer::StartObservablePause() {
   DCHECK(!IsInObservablePause());
-  start_of_observable_pause_ = MonotonicallyIncreasingTimeInMs();
+  start_of_observable_pause_.emplace(base::TimeTicks::Now());
 }
 
 void GCTracer::UpdateCurrentEvent(GarbageCollectionReason gc_reason,
@@ -206,7 +206,7 @@ void GCTracer::UpdateCurrentEvent(GarbageCollectionReason gc_reason,
   // TODO(chromium:1154636): The start_time of the current event contains
   // currently the start time of the observable pause. This should be
   // reconsidered.
-  current_.start_time = start_of_observable_pause_;
+  current_.start_time = start_of_observable_pause_.value();
   current_.reduce_memory = heap_->ShouldReduceMemory();
 }
 
@@ -255,7 +255,7 @@ void GCTracer::StartCycle(GarbageCollector collector,
       // TODO(chromium:1154636): The start_time of the current event contains
       // currently the start time of the observable pause. This should be
       // reconsidered.
-      current_.start_time = start_of_observable_pause_;
+      current_.start_time = start_of_observable_pause_.value();
       current_.reduce_memory = heap_->ShouldReduceMemory();
       break;
     case MarkingType::kIncremental:
@@ -310,12 +310,12 @@ void GCTracer::StopInSafepoint() {
 
 void GCTracer::StopObservablePause() {
   DCHECK(IsInObservablePause());
-  start_of_observable_pause_ = 0.0;
+  start_of_observable_pause_.reset();
 
   // TODO(chromium:1154636): The end_time of the current event contains
   // currently the end time of the observable pause. This should be
   // reconsidered.
-  current_.end_time = MonotonicallyIncreasingTimeInMs();
+  current_.end_time = base::TimeTicks::Now();
 }
 
 void GCTracer::UpdateStatistics(GarbageCollector collector) {
@@ -324,40 +324,39 @@ void GCTracer::UpdateStatistics(GarbageCollector collector) {
 
   AddAllocation(current_.end_time);
 
-  double duration = current_.end_time - current_.start_time;
-  const auto duration_delta = base::TimeDelta::FromMillisecondsD(duration);
+  const base::TimeDelta duration = current_.end_time - current_.start_time;
   auto* long_task_stats = heap_->isolate()->GetCurrentLongTaskStats();
 
   if (is_young) {
     recorded_minor_gcs_total_.Push(
-        BytesAndDuration(current_.young_object_size, duration_delta));
+        BytesAndDuration(current_.young_object_size, duration));
     recorded_minor_gcs_survived_.Push(
-        BytesAndDuration(current_.survived_young_object_size, duration_delta));
+        BytesAndDuration(current_.survived_young_object_size, duration));
     long_task_stats->gc_young_wall_clock_duration_us +=
-        duration_delta.InMicroseconds();
+        duration.InMicroseconds();
   } else {
     if (current_.type == Event::Type::INCREMENTAL_MARK_COMPACTOR) {
       RecordIncrementalMarkingSpeed(incremental_marking_bytes_,
                                     incremental_marking_duration_);
       recorded_incremental_mark_compacts_.Push(
-          BytesAndDuration(current_.end_object_size, duration_delta));
+          BytesAndDuration(current_.end_object_size, duration));
     } else {
       recorded_mark_compacts_.Push(
-          BytesAndDuration(current_.end_object_size, duration_delta));
+          BytesAndDuration(current_.end_object_size, duration));
     }
     RecordMutatorUtilization(current_.end_time,
-                             duration_delta + incremental_marking_duration_);
+                             duration + incremental_marking_duration_);
     RecordGCSumCounters();
     combined_mark_compact_speed_cache_ = 0.0;
     long_task_stats->gc_full_atomic_wall_clock_duration_us +=
-        duration_delta.InMicroseconds();
+        duration.InMicroseconds();
     if (v8_flags.memory_balancer) {
       size_t live_memory = current_.end_object_size;
       double major_gc_bytes = current_.start_object_size +
                               heap_->AllocatedExternalMemorySinceMarkCompact() +
                               current_.incremental_marking_bytes;
       const base::TimeDelta blocked_time_taken =
-          duration_delta + current_.incremental_marking_duration;
+          duration + current_.incremental_marking_duration;
       const base::TimeDelta major_gc_duration =
           blocked_time_taken + concurrent_gc_time_;
       concurrent_gc_time_ = base::TimeDelta();
@@ -365,12 +364,12 @@ void GCTracer::UpdateStatistics(GarbageCollector collector) {
       double major_allocation_bytes = std::max<int64_t>(
           0, current_.start_object_size - previous_.end_object_size +
                  heap_->AllocatedExternalMemorySinceMarkCompact());
-      double major_allocation_duration = current_.end_time -
-                                         previous_.end_time -
-                                         blocked_time_taken.InMillisecondsF();
-      CHECK_GT(major_allocation_duration, 0);
+      const base::TimeDelta major_allocation_duration =
+          (current_.end_time - previous_.end_time) - blocked_time_taken;
+      CHECK_GT(major_allocation_duration, base::TimeDelta());
       heap_->mb_->TracerUpdate(live_memory, major_allocation_bytes,
-                               major_allocation_duration, major_gc_bytes,
+                               major_allocation_duration.InMillisecondsF(),
+                               major_gc_bytes,
                                major_gc_duration.InMillisecondsF());
     }
   }
@@ -594,13 +593,13 @@ void GCTracer::NotifyYoungCppGCRunning() {
   notified_young_cppgc_running_ = true;
 }
 
-void GCTracer::SampleAllocation(double current_ms,
+void GCTracer::SampleAllocation(base::TimeTicks current,
                                 size_t new_space_counter_bytes,
                                 size_t old_generation_counter_bytes,
                                 size_t embedder_counter_bytes) {
-  if (allocation_time_ms_ == 0) {
+  if (!allocation_time_.has_value()) {
     // It is the first sample.
-    allocation_time_ms_ = current_ms;
+    allocation_time_.emplace(current);
     new_space_allocation_counter_bytes_ = new_space_counter_bytes;
     old_generation_allocation_counter_bytes_ = old_generation_counter_bytes;
     embedder_allocation_counter_bytes_ = embedder_counter_bytes;
@@ -614,12 +613,12 @@ void GCTracer::SampleAllocation(double current_ms,
       old_generation_counter_bytes - old_generation_allocation_counter_bytes_;
   size_t embedder_allocated_bytes =
       embedder_counter_bytes - embedder_allocation_counter_bytes_;
-  double duration = current_ms - allocation_time_ms_;
-  allocation_time_ms_ = current_ms;
+  const base::TimeDelta duration = current - allocation_time_.value();
+  allocation_time_ = current;
   new_space_allocation_counter_bytes_ = new_space_counter_bytes;
   old_generation_allocation_counter_bytes_ = old_generation_counter_bytes;
   embedder_allocation_counter_bytes_ = embedder_counter_bytes;
-  allocation_duration_since_gc_ += duration;
+  allocation_duration_since_gc_ += duration.InMillisecondsF();
   new_space_allocation_in_bytes_since_gc_ += new_space_allocated_bytes;
   old_generation_allocation_in_bytes_since_gc_ +=
       old_generation_allocated_bytes;
@@ -656,8 +655,8 @@ void GCTracer::NotifyMarkingStart() {
 
 uint16_t GCTracer::CodeFlushingIncrease() { return code_flushing_increase_; }
 
-void GCTracer::AddAllocation(double current_ms) {
-  allocation_time_ms_ = current_ms;
+void GCTracer::AddAllocation(base::TimeTicks current) {
+  allocation_time_ = current;
   if (allocation_duration_since_gc_ > 0) {
     const auto duration_since_gc =
         base::TimeDelta::FromMillisecondsD(allocation_duration_since_gc_);
@@ -717,7 +716,7 @@ void GCTracer::Output(const char* format, ...) const {
 }
 
 void GCTracer::Print() const {
-  double duration = current_.end_time - current_.start_time;
+  const base::TimeDelta duration = current_.end_time - current_.start_time;
   const size_t kIncrementalStatsSize = 128;
   char incremental_buffer[kIncrementalStatsSize] = {0};
 
@@ -729,7 +728,8 @@ void GCTracer::Print() const {
         current_scope(Scope::MC_INCREMENTAL),
         incremental_scope(Scope::MC_INCREMENTAL).steps,
         incremental_scope(Scope::MC_INCREMENTAL).longest_step.InMillisecondsF(),
-        current_.end_time - incremental_marking_start_time_);
+        (current_.end_time - incremental_marking_start_time_)
+            .InMillisecondsF());
   }
 
   const double total_external_time =
@@ -753,21 +753,21 @@ void GCTracer::Print() const {
       static_cast<double>(current_.start_object_size) / MB,
       static_cast<double>(current_.start_memory_size) / MB,
       static_cast<double>(current_.end_object_size) / MB,
-      static_cast<double>(current_.end_memory_size) / MB, duration,
-      total_external_time, incremental_buffer,
+      static_cast<double>(current_.end_memory_size) / MB,
+      duration.InMillisecondsF(), total_external_time, incremental_buffer,
       AverageMarkCompactMutatorUtilization(),
       CurrentMarkCompactMutatorUtilization(), ToString(current_.gc_reason),
       current_.collector_reason != nullptr ? current_.collector_reason : "");
 }
 
 void GCTracer::PrintNVP() const {
-  double duration = current_.end_time - current_.start_time;
-  double spent_in_mutator = current_.start_time - previous_.end_time;
+  const base::TimeDelta duration = current_.end_time - current_.start_time;
+  const base::TimeDelta spent_in_mutator =
+      current_.start_time - previous_.end_time;
   size_t allocated_since_last_gc =
       current_.start_object_size - previous_.end_object_size;
 
-  double incremental_walltime_duration = 0;
-
+  base::TimeDelta incremental_walltime_duration;
   if (current_.type == Event::Type::INCREMENTAL_MARK_COMPACTOR) {
     incremental_walltime_duration =
         current_.end_time - incremental_marking_start_time_;
@@ -823,8 +823,8 @@ void GCTracer::PrintNVP() const {
           "new_space_survive_rate_=%.1f%% "
           "new_space_allocation_throughput=%.1f "
           "unmapper_chunks=%d\n",
-          duration, spent_in_mutator, ToString(current_.type, true),
-          current_.reduce_memory,
+          duration.InMillisecondsF(), spent_in_mutator.InMillisecondsF(),
+          ToString(current_.type, true), current_.reduce_memory,
           current_.scopes[Scope::TIME_TO_SAFEPOINT].InMillisecondsF(),
           current_scope(Scope::HEAP_PROLOGUE),
           current_scope(Scope::HEAP_EPILOGUE),
@@ -912,8 +912,8 @@ void GCTracer::PrintNVP() const {
           "promotion_rate=%.1f%% "
           "new_space_survive_rate_=%.1f%% "
           "new_space_allocation_throughput=%.1f\n",
-          duration, spent_in_mutator, "mmc", current_.reduce_memory,
-          current_scope(Scope::MINOR_MS),
+          duration.InMillisecondsF(), spent_in_mutator.InMillisecondsF(), "mmc",
+          current_.reduce_memory, current_scope(Scope::MINOR_MS),
           current_scope(Scope::TIME_TO_SAFEPOINT),
           current_scope(Scope::MINOR_MS_MARK),
           current_scope(Scope::MINOR_MS_MARK_INCREMENTAL_SEED),
@@ -1051,8 +1051,9 @@ void GCTracer::PrintNVP() const {
           "new_space_allocation_throughput=%.1f "
           "unmapper_chunks=%d "
           "compaction_speed=%.f\n",
-          duration, spent_in_mutator, ToString(current_.type, true),
-          current_.reduce_memory, current_scope(Scope::TIME_TO_SAFEPOINT),
+          duration.InMillisecondsF(), spent_in_mutator.InMillisecondsF(),
+          ToString(current_.type, true), current_.reduce_memory,
+          current_scope(Scope::TIME_TO_SAFEPOINT),
           current_scope(Scope::HEAP_PROLOGUE),
           current_scope(Scope::HEAP_EMBEDDER_TRACING_EPILOGUE),
           current_scope(Scope::HEAP_EPILOGUE),
@@ -1117,7 +1118,7 @@ void GCTracer::PrintNVP() const {
               .longest_step.InMillisecondsF(),
           incremental_scope(Scope::MC_INCREMENTAL).steps,
           IncrementalMarkingSpeedInBytesPerMillisecond(),
-          incremental_walltime_duration,
+          incremental_walltime_duration.InMillisecondsF(),
           current_scope(Scope::MC_BACKGROUND_MARKING),
           current_scope(Scope::MC_BACKGROUND_SWEEPING),
           current_scope(Scope::MC_BACKGROUND_EVACUATE_COPY),
@@ -1182,31 +1183,33 @@ void GCTracer::RecordEmbedderSpeed(size_t bytes, double duration) {
   }
 }
 
-void GCTracer::RecordMutatorUtilization(double mark_compact_end_time,
+void GCTracer::RecordMutatorUtilization(base::TimeTicks mark_compact_end_time,
                                         base::TimeDelta mark_compact_duration) {
-  if (previous_mark_compact_end_time_ == 0) {
+  if (!previous_mark_compact_end_time_.has_value()) {
     // The first event only contributes to previous_mark_compact_end_time_,
     // because we cannot compute the mutator duration.
-    previous_mark_compact_end_time_ = mark_compact_end_time;
+    previous_mark_compact_end_time_.emplace(mark_compact_end_time);
   } else {
-    double total_duration =
-        mark_compact_end_time - previous_mark_compact_end_time_;
-    double mutator_duration =
-        total_duration - mark_compact_duration.InMillisecondsF();
+    const base::TimeDelta total_duration =
+        mark_compact_end_time - previous_mark_compact_end_time_.value();
+    const base::TimeDelta mutator_duration =
+        total_duration - mark_compact_duration;
     if (average_mark_compact_duration_ == 0 && average_mutator_duration_ == 0) {
       // This is the first event with mutator and mark-compact durations.
       average_mark_compact_duration_ = mark_compact_duration.InMillisecondsF();
-      average_mutator_duration_ = mutator_duration;
+      average_mutator_duration_ = mutator_duration.InMillisecondsF();
     } else {
       average_mark_compact_duration_ =
           (average_mark_compact_duration_ +
            mark_compact_duration.InMillisecondsF()) /
           2;
       average_mutator_duration_ =
-          (average_mutator_duration_ + mutator_duration) / 2;
+          (average_mutator_duration_ + mutator_duration.InMillisecondsF()) / 2;
     }
     current_mark_compact_mutator_utilization_ =
-        total_duration ? mutator_duration / total_duration : 0;
+        !total_duration.IsZero() ? mutator_duration.InMillisecondsF() /
+                                       total_duration.InMillisecondsF()
+                                 : 0;
     previous_mark_compact_end_time_ = mark_compact_end_time;
   }
 }
@@ -1361,7 +1364,7 @@ bool GCTracer::SurvivalEventsRecorded() const {
 void GCTracer::ResetSurvivalEvents() { recorded_survival_ratios_.Clear(); }
 
 void GCTracer::NotifyIncrementalMarkingStart() {
-  incremental_marking_start_time_ = MonotonicallyIncreasingTimeInMs();
+  incremental_marking_start_time_ = base::TimeTicks::Now();
 }
 
 void GCTracer::FetchBackgroundMarkCompactCounters() {
@@ -1831,7 +1834,7 @@ GarbageCollector GCTracer::GetCurrentCollector() const {
 
 #ifdef DEBUG
 bool GCTracer::IsInObservablePause() const {
-  return 0.0 < start_of_observable_pause_;
+  return start_of_observable_pause_.has_value();
 }
 
 bool GCTracer::IsInAtomicPause() const {

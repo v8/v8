@@ -1850,7 +1850,7 @@ class Heap final {
     return old_generation_allocation_limit() - static_cast<size_t>(bytes);
   }
 
-  void UpdateTotalGCTime(double duration);
+  void UpdateTotalGCTime(base::TimeDelta duration);
 
   bool IsIneffectiveMarkCompact(size_t old_generation_size,
                                 double mutator_utilization);
@@ -2191,7 +2191,7 @@ class Heap final {
   int nodes_promoted_ = 0;
 
   // Total time spent in GC.
-  double total_gc_time_ms_ = 0.0;
+  base::TimeDelta total_gc_time_ms_;
 
   // Last time a garbage collection happened.
   double last_gc_time_ = 0.0;

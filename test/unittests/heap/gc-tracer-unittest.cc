@@ -20,12 +20,12 @@ using GCTracerTest = TestWithContext;
 
 namespace {
 
-void SampleAndAddAllocation(GCTracer* tracer, double time_ms,
+void SampleAndAddAllocation(GCTracer* tracer, base::TimeTicks time,
                             size_t per_space_counter_bytes) {
   // Increment counters of all spaces.
-  tracer->SampleAllocation(time_ms, per_space_counter_bytes,
+  tracer->SampleAllocation(time, per_space_counter_bytes,
                            per_space_counter_bytes, per_space_counter_bytes);
-  tracer->AddAllocation(time_ms);
+  tracer->AddAllocation(time);
 }
 
 enum class StartTracingMode {
@@ -91,10 +91,12 @@ TEST_F(GCTracerTest, AllocationThroughput) {
 
   const int time1 = 100;
   const size_t counter1 = 1000;
-  SampleAndAddAllocation(tracer, time1, counter1);
+  SampleAndAddAllocation(tracer, base::TimeTicks::FromMsTicksForTesting(time1),
+                         counter1);
   const int time2 = 200;
   const size_t counter2 = 2000;
-  SampleAndAddAllocation(tracer, time2, counter2);
+  SampleAndAddAllocation(tracer, base::TimeTicks::FromMsTicksForTesting(time2),
+                         counter2);
   // Will only consider the current sample.
   EXPECT_EQ(
       2 * (counter2 - counter1) / (time2 - time1),
@@ -102,7 +104,8 @@ TEST_F(GCTracerTest, AllocationThroughput) {
           base::TimeDelta::FromMilliseconds(100))));
   const int time3 = 1000;
   const size_t counter3 = 30000;
-  SampleAndAddAllocation(tracer, time3, counter3);
+  SampleAndAddAllocation(tracer, base::TimeTicks::FromMsTicksForTesting(time3),
+                         counter3);
   // Only consider last sample.
   EXPECT_EQ(
       2 * (counter3 - counter2) / (time3 - time2),
@@ -122,11 +125,13 @@ TEST_F(GCTracerTest, PerGenerationAllocationThroughput) {
 
   const int time1 = 100;
   const size_t counter1 = 1000;
-  SampleAndAddAllocation(tracer, time1, counter1);
+  SampleAndAddAllocation(tracer, base::TimeTicks::FromMsTicksForTesting(time1),
+                         counter1);
   const int time2 = 200;
   const size_t counter2 = 2000;
-  SampleAndAddAllocation(tracer, time2, counter2);
-  const size_t expected_throughput1 = (counter2 - counter1) / (time2 - time1);
+  SampleAndAddAllocation(tracer, base::TimeTicks::FromMsTicksForTesting(time2),
+                         counter2);
+  const size_t expected_throughput1 = (counter2 - counter1) / (200 - 100);
   EXPECT_EQ(expected_throughput1,
             static_cast<size_t>(
                 tracer->NewSpaceAllocationThroughputInBytesPerMillisecond()));
@@ -139,7 +144,8 @@ TEST_F(GCTracerTest, PerGenerationAllocationThroughput) {
                 tracer->EmbedderAllocationThroughputInBytesPerMillisecond()));
   const int time3 = 1000;
   const size_t counter3 = 30000;
-  SampleAndAddAllocation(tracer, time3, counter3);
+  SampleAndAddAllocation(tracer, base::TimeTicks::FromMsTicksForTesting(time3),
+                         counter3);
   const size_t expected_throughput2 = (counter3 - counter1) / (time3 - time1);
   EXPECT_EQ(expected_throughput2,
             static_cast<size_t>(
@@ -160,10 +166,12 @@ TEST_F(GCTracerTest, PerGenerationAllocationThroughputWithProvidedTime) {
 
   const int time1 = 100;
   const size_t counter1 = 1000;
-  SampleAndAddAllocation(tracer, time1, counter1);
+  SampleAndAddAllocation(tracer, base::TimeTicks::FromMsTicksForTesting(time1),
+                         counter1);
   const int time2 = 200;
   const size_t counter2 = 2000;
-  SampleAndAddAllocation(tracer, time2, counter2);
+  SampleAndAddAllocation(tracer, base::TimeTicks::FromMsTicksForTesting(time2),
+                         counter2);
   const size_t expected_throughput1 = (counter2 - counter1) / (time2 - time1);
   EXPECT_EQ(expected_throughput1,
             static_cast<size_t>(
@@ -175,7 +183,8 @@ TEST_F(GCTracerTest, PerGenerationAllocationThroughputWithProvidedTime) {
                     base::TimeDelta::FromMilliseconds(100))));
   const int time3 = 1000;
   const size_t counter3 = 30000;
-  SampleAndAddAllocation(tracer, time3, counter3);
+  SampleAndAddAllocation(tracer, base::TimeTicks::FromMsTicksForTesting(time3),
+                         counter3);
   const size_t expected_throughput2 = (counter3 - counter2) / (time3 - time2);
   // Only consider last sample.
   EXPECT_EQ(expected_throughput2,
@@ -351,32 +360,36 @@ TEST_F(GCTracerTest, MutatorUtilization) {
   tracer->ResetForTesting();
 
   // Mark-compact #1 ended at 200ms and took 100ms.
-  tracer->RecordMutatorUtilization(200, base::TimeDelta::FromMilliseconds(100));
-  // Avarage mark-compact time = 0ms.
-  // Avarage mutator time = 0ms.
+  tracer->RecordMutatorUtilization(base::TimeTicks::FromMsTicksForTesting(200),
+                                   base::TimeDelta::FromMilliseconds(100));
+  // Average mark-compact time = 0ms.
+  // Average mutator time = 0ms.
   EXPECT_DOUBLE_EQ(1.0, tracer->CurrentMarkCompactMutatorUtilization());
   EXPECT_DOUBLE_EQ(1.0, tracer->AverageMarkCompactMutatorUtilization());
 
   // Mark-compact #2 ended at 400ms and took 100ms.
-  tracer->RecordMutatorUtilization(400, base::TimeDelta::FromMilliseconds(100));
+  tracer->RecordMutatorUtilization(base::TimeTicks::FromMsTicksForTesting(400),
+                                   base::TimeDelta::FromMilliseconds(100));
   // The first mark-compactor is ignored.
-  // Avarage mark-compact time = 100ms.
-  // Avarage mutator time = 100ms.
+  // Average mark-compact time = 100ms.
+  // Average mutator time = 100ms.
   EXPECT_DOUBLE_EQ(0.5, tracer->CurrentMarkCompactMutatorUtilization());
   EXPECT_DOUBLE_EQ(0.5, tracer->AverageMarkCompactMutatorUtilization());
 
   // Mark-compact #3 ended at 600ms and took 200ms.
-  tracer->RecordMutatorUtilization(600, base::TimeDelta::FromMilliseconds(200));
-  // Avarage mark-compact time = 100ms * 0.5 + 200ms * 0.5.
-  // Avarage mutator time = 100ms * 0.5 + 0ms * 0.5.
+  tracer->RecordMutatorUtilization(base::TimeTicks::FromMsTicksForTesting(600),
+                                   base::TimeDelta::FromMilliseconds(200));
+  // Average mark-compact time = 100ms * 0.5 + 200ms * 0.5.
+  // Average mutator time = 100ms * 0.5 + 0ms * 0.5.
   EXPECT_DOUBLE_EQ(0.0, tracer->CurrentMarkCompactMutatorUtilization());
   EXPECT_DOUBLE_EQ(50.0 / 200.0,
                    tracer->AverageMarkCompactMutatorUtilization());
 
   // Mark-compact #4 ended at 800ms and took 0ms.
-  tracer->RecordMutatorUtilization(800, base::TimeDelta());
-  // Avarage mark-compact time = 150ms * 0.5 + 0ms * 0.5.
-  // Avarage mutator time = 50ms * 0.5 + 200ms * 0.5.
+  tracer->RecordMutatorUtilization(base::TimeTicks::FromMsTicksForTesting(800),
+                                   base::TimeDelta());
+  // Average mark-compact time = 150ms * 0.5 + 0ms * 0.5.
+  // Average mutator time = 50ms * 0.5 + 200ms * 0.5.
   EXPECT_DOUBLE_EQ(1.0, tracer->CurrentMarkCompactMutatorUtilization());
   EXPECT_DOUBLE_EQ(125.0 / 200.0,
                    tracer->AverageMarkCompactMutatorUtilization());

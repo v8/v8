@@ -38,7 +38,8 @@ MemoryReducer::TimerTask::TimerTask(MemoryReducer* memory_reducer)
 void MemoryReducer::TimerTask::RunInternal() {
   Heap* heap = memory_reducer_->heap();
   const double time_ms = heap->MonotonicallyIncreasingTimeInMs();
-  heap->tracer()->SampleAllocation(time_ms, heap->NewSpaceAllocationCounter(),
+  heap->tracer()->SampleAllocation(base::TimeTicks::Now(),
+                                   heap->NewSpaceAllocationCounter(),
                                    heap->OldGenerationAllocationCounter(),
                                    heap->EmbedderAllocationCounter());
   const bool low_allocation_rate = heap->HasLowAllocationRate();

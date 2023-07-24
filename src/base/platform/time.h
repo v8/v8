@@ -435,6 +435,10 @@ class V8_BASE_EXPORT TimeTicks final
   // Returns true if the high-resolution clock is working on this system.
   static bool IsHighResolution();
 
+  static constexpr TimeTicks FromMsTicksForTesting(int64_t ticks) {
+    return TimeTicks(ticks * kMicrosecondsPerMillisecond);
+  }
+
  private:
   friend class time_internal::TimeBase<TimeTicks>;
 

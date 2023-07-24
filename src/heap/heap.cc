@@ -696,7 +696,7 @@ void Heap::PrintShortHeapStatistics() {
   PrintIsolate(isolate_, "External memory global %zu KB\n",
                external_memory_callback_() / KB);
   PrintIsolate(isolate_, "Total time spent in GC  : %.1f ms\n",
-               total_gc_time_ms_);
+               total_gc_time_ms_.InMillisecondsF());
   if (sweeping_in_progress()) {
     PrintIsolate(isolate_,
                  "(*) Sweeping is still in progress, making available sizes "
@@ -4095,9 +4095,9 @@ bool Heap::IdleNotification(double deadline_in_seconds) {
   double start_ms = MonotonicallyIncreasingTimeInMs();
   double idle_time_in_ms = deadline_in_ms - start_ms;
 
-  tracer()->SampleAllocation(start_ms, NewSpaceAllocationCounter(),
-                             OldGenerationAllocationCounter(),
-                             EmbedderAllocationCounter());
+  tracer()->SampleAllocation(
+      base::TimeTicks::Now(), NewSpaceAllocationCounter(),
+      OldGenerationAllocationCounter(), EmbedderAllocationCounter());
 
   GCIdleTimeHeapState heap_state = ComputeHeapState();
   GCIdleTimeAction action =
@@ -6408,10 +6408,8 @@ Tagged<HeapObject> HeapObjectIterator::NextObject() {
   return Tagged<HeapObject>();
 }
 
-void Heap::UpdateTotalGCTime(double duration) {
-  if (v8_flags.trace_gc_verbose) {
-    total_gc_time_ms_ += duration;
-  }
+void Heap::UpdateTotalGCTime(base::TimeDelta duration) {
+  total_gc_time_ms_ += duration;
 }
 
 void Heap::ExternalStringTable::CleanUpYoung() {
