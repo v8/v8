@@ -38,71 +38,17 @@ class Preparation(Step):
     self.Git("fetch origin +refs/tags/*:refs/tags/*")
 
 
-class DetectLastRoll(Step):
-  MESSAGE = "Detect commit ID of the last Chromium roll."
-
-  def RunStep(self):
-    self["last_roll"] = self._options.last_roll
-    if not self["last_roll"]:
-      # Get last-rolled v8 revision from Chromium's DEPS file.
-      self["last_roll"] = self.Command(
-          "gclient", "getdep -r src/v8", cwd=self._options.chromium).strip()
-
-    self["last_version"] = self.GetVersionTag(self["last_roll"])
-    assert self["last_version"], "The last rolled v8 revision is not tagged."
-
-
-class DetectRevisionToRoll(Step):
-  MESSAGE = "Detect commit ID of the V8 revision to roll."
-
-  def RunStep(self):
-    self["roll"] = self._options.revision
-    if self["roll"]:
-      # If the revision was passed on the cmd line, continue script execution
-      # in the next step.
-      return False
-
-    # The revision that should be rolled. Check for the latest of the most
-    # recent releases based on commit timestamp.
-    response = self.Git(
-        r"for-each-ref --count=80 --sort=-committerdate --format "
-        r"'%(refname) %(objectname)' 'refs/tags/*-pgo'"
-    )
-    version_revisions = []
-    for line in response.split('\n'):
-      match = re.fullmatch(REF_LINE_PATTERN, line)
-      if not match:
-        continue
-      version_revisions.append(match.groups())
-
-    assert version_revisions, "Didn't find any recent release."
-
-    # There must be some progress between the last roll and the new candidate
-    # revision (i.e. we don't go backwards). The revisions are ordered newest
-    # to oldest. It is possible that the newest timestamp has no progress
-    # compared to the last roll, i.e. if the newest release is a cherry-pick
-    # on a release branch. Then we look further.
-    for version, revision in version_revisions:
-      if LooseVersion(self["last_version"]) < LooseVersion(version):
-        self["roll"] = revision
-        break
-    else:
-      print("There is no newer v8 revision than the one in Chromium (%s)."
-            % self["last_roll"])
-      return True
-
-
 class PrepareRollCandidate(Step):
   MESSAGE = "Robustness checks of the roll candidate."
 
   def RunStep(self):
-    self["roll_title"] = self.GitLog(n=1, format="%s",
-                                     git_hash=self["roll"])
+    self["roll_title"] = self.GitLog(
+        n=1, format="%s", git_hash=self._options.revision)
 
     # Make sure the last roll and the roll candidate are releases.
-    version = self.GetVersionTag(self["roll"])
+    version = self.GetVersionTag(self._options.revision)
     assert version, "The revision to roll is not tagged."
-    version = self.GetVersionTag(self["last_roll"])
+    version = self.GetVersionTag(self._options.last_roll)
     assert version, "The revision used as last roll is not tagged."
 
 
@@ -142,14 +88,15 @@ class UploadCL(Step):
     cwd = self._options.chromium
     # Patch DEPS file.
     if self.Command("gclient", "setdep -r src/v8@%s" %
-                    self["roll"], cwd=cwd) is None:
-      self.Die("Failed to create deps for %s" % self["roll"])
+                    self._options.revision, cwd=cwd) is None:
+      self.Die("Failed to create deps for %s" % self._options.revision)
 
     message = []
     message.append("Update V8 to %s." % self["roll_title"].lower())
 
     message.append(
-        ROLL_SUMMARY % (self["last_roll"][:8], self["roll"][:8]))
+        ROLL_SUMMARY % (self._options.last_roll[:8],
+                        self._options.revision[:8]))
 
     message.append(ISSUE_MSG)
 
@@ -174,8 +121,7 @@ class CleanUp(Step):
 
   def RunStep(self):
     print("Congratulations, you have successfully rolled %s into "
-          "Chromium."
-          % self["roll"])
+          "Chromium." % self._options.revision)
 
     # Clean up all temporary files.
     Command("rm", "-f %s*" % self._config["PERSISTFILE_BASENAME"])
@@ -187,11 +133,8 @@ class AutoRoll(ScriptsBase):
                         help=("The path to your Chromium src/ "
                               "directory to automate the V8 roll."))
     parser.add_argument("--last-roll",
-                        help="The git commit ID of the last rolled version. "
-                             "Auto-detected if not specified.")
-    parser.add_argument("--revision",
-                        help="Revision to roll. Auto-detected if not "
-                             "specified."),
+                        help="The git commit ID of the last rolled version.")
+    parser.add_argument("--revision", help="Revision to roll."),
     parser.add_argument("--roll", help="Deprecated.",
                         default=True, action="store_true")
     group = parser.add_mutually_exclusive_group()
@@ -207,6 +150,10 @@ class AutoRoll(ScriptsBase):
       print("A reviewer (-r) and an author (-a) are required.")
       return False
 
+    if not options.last_roll or not options.revision:
+      print("Options --last-roll and --revision are required.")
+      return False
+
     options.requires_editor = False
     options.force = True
     options.manual = False
@@ -220,8 +167,6 @@ class AutoRoll(ScriptsBase):
   def _Steps(self):
     return [
       Preparation,
-      DetectLastRoll,
-      DetectRevisionToRoll,
       PrepareRollCandidate,
       SwitchChromium,
       UpdateChromiumCheckout,

@@ -556,32 +556,6 @@ deps = {
 }
 """
 
-  def testChromiumRollUpToDate(self):
-    TEST_CONFIG["CHROMIUM"] = self.MakeEmptyTempDirectory()
-    json_output_file = os.path.join(TEST_CONFIG["CHROMIUM"], "out.json")
-    TextToFile(self.FAKE_DEPS, os.path.join(TEST_CONFIG["CHROMIUM"], "DEPS"))
-    chrome_dir = TEST_CONFIG["CHROMIUM"]
-    self.Expect([
-      Cmd("git fetch origin", ""),
-      Cmd("git fetch origin +refs/tags/*:refs/tags/*", ""),
-      Cmd("gclient getdep -r src/v8", "last_roll_hsh", cwd=chrome_dir),
-      Cmd("git tag --points-at last_roll_hsh", "3.22.4\n3.22.4-pgo"),
-      Cmd((
-          "git for-each-ref --count=80 --sort=-committerdate --format "
-          "'%(refname) %(objectname)' 'refs/tags/*-pgo'"
-      ), "\n".join([
-          f"refs/tags/3.22.4-pgo {self.ROLL_HASH}",
-          f"refs/tags/3.22.3-pgo {self.HASH_ALT_1}",
-      ])),
-    ])
-
-    result = auto_roll.AutoRoll(TEST_CONFIG, self).Run(
-        AUTO_PUSH_ARGS + [
-          "-c", TEST_CONFIG["CHROMIUM"],
-          "--json-output", json_output_file])
-    self.assertEquals(0, result)
-
-
   def testChromiumRoll(self):
     # Setup fake directory structures.
     TEST_CONFIG["CHROMIUM"] = self.MakeEmptyTempDirectory()
@@ -598,15 +572,6 @@ deps = {
     expectations = [
       Cmd("git fetch origin", ""),
       Cmd("git fetch origin +refs/tags/*:refs/tags/*", ""),
-      Cmd("gclient getdep -r src/v8", "last_roll_hsh", cwd=chrome_dir),
-      Cmd("git tag --points-at last_roll_hsh", "3.22.3.1\n22.3.1-pgo"),
-      Cmd((
-          "git for-each-ref --count=80 --sort=-committerdate --format "
-          "'%(refname) %(objectname)' 'refs/tags/*-pgo'"
-      ), "\n".join([
-          f"refs/tags/3.22.4-pgo {self.ROLL_HASH}",
-          f"refs/tags/3.22.3-pgo {self.HASH_ALT_1}",
-      ])),
       Cmd(f"git log -1 --format=%s {self.ROLL_HASH}", "Version 3.22.4\n"),
       Cmd(f"git tag --points-at {self.ROLL_HASH}", "3.22.4\n3.22.4-pgo"),
       Cmd("git tag --points-at last_roll_hsh", "3.22.2.1\n22.2.1-pgo"),
@@ -631,6 +596,7 @@ deps = {
     self.Expect(expectations)
 
     args = ["-a", "author@chromium.org", "-c", chrome_dir,
+            "--last-roll", "last_roll_hsh", "--revision", self.ROLL_HASH,
             "-r", "reviewer@chromium.org", "--json-output", json_output_file]
     auto_roll.AutoRoll(TEST_CONFIG, self).Run(args)
 
