@@ -94,7 +94,7 @@ inline MapCompare::MapCompare(MaglevAssembler* masm, Register object,
                               size_t map_count)
     : masm_(masm), object_(object), map_count_(map_count) {
   map_ = masm_->scratch_register_scope()->Acquire();
-  masm_->LoadMap(map_, object_);
+  masm_->LoadCompressedMap(map_, object_);
   USE(map_count_);
 }
 
@@ -105,7 +105,12 @@ void MapCompare::Generate(Handle<Map> map) {
   masm_->CmpTagged(map_, temp);
 }
 
-Register MapCompare::GetMap() { return map_; }
+Register MapCompare::GetMap() {
+  // Decompression is idempotent (UXTW operand is used), so this would return a
+  // valid pointer even if called multiple times in a row.
+  masm_->DecompressTagged(map_, map_);
+  return map_;
+}
 
 int MapCompare::TemporaryCount(size_t map_count) { return 1; }
 
