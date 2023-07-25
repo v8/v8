@@ -16,7 +16,7 @@ const TSCallDescriptor* CreateAllocateBuiltinDescriptor(Zone* zone) {
           AllocateDescriptor{}.GetStackParameterCount(),
           CallDescriptor::kCanUseRoots, Operator::kNoThrow,
           StubCallMode::kCallCodeObject),
-      zone);
+      CanThrow::kNo, zone);
 }
 
 void MemoryAnalyzer::Run() {

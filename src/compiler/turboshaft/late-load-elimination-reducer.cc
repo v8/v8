@@ -33,9 +33,8 @@ void LateLoadEliminationAnalyzer::ProcessBlock(const Block& block,
         ProcessAllocate(op_idx, op.Cast<AllocateOp>());
         break;
       case Opcode::kCall:
-      case Opcode::kCallAndCatchException:
         // Invalidate state (+ maybe invalidate aliases)
-        ProcessCall(op_idx, op);
+        ProcessCall(op_idx, op.Cast<CallOp>());
         break;
       case Opcode::kPhi:
         // Invalidate aliases
@@ -45,7 +44,7 @@ void LateLoadEliminationAnalyzer::ProcessBlock(const Block& block,
         // Update known maps
         ProcessAssumeMap(op_idx, op.Cast<AssumeMapOp>());
         break;
-      case Opcode::kLoadException:
+      case Opcode::kCatchBlockBegin:
       case Opcode::kRetain:
         // We explicitely break for those operations that have can_write effects
         // but don't actually write.
@@ -152,48 +151,44 @@ base::Optional<Builtin> TryGetBuiltinId(ConstantOp* target,
 // {non_aliasing_objects_}) can alias with anything when coming back from the
 // call if it was an argument of the call.
 void LateLoadEliminationAnalyzer::ProcessCall(OpIndex op_idx,
-                                              const Operation& op) {
-  DCHECK(op.Is<CallOp>() || op.Is<CallAndCatchExceptionOp>());
-
-  if (const CallOp* call = op.TryCast<CallOp>()) {
-    // Some builtins do not create aliases and do not invalidate existing
-    // memory, and some even return fresh objects. For such cases, we don't
-    // invalidate the state, and record the non-alias if any.
-    if (!call->Effects().can_write()) {
-      return;
-    }
-    if (auto builtin_id = TryGetBuiltinId(
-            graph_.Get(call->callee()).TryCast<ConstantOp>(), broker_)) {
-      switch (*builtin_id) {
-        // TODO(dmercadier): extend this list.
-        case Builtin::kCopyFastSmiOrObjectElements:
-          // This function just replaces the Elements array of an object.
-          // It doesn't invalidate any alias or any other memory than this
-          // Elements array.
-          memory_content_.Invalidate(call->arguments()[0], OpIndex::Invalid(),
-                                     JSObject::kElementsOffset);
-          return;
-        case Builtin::kCEntry_Return1_ArgvOnStack_NoBuiltinExit: {
-          DCHECK_GE(op.input_count, 3);
-          if (const ConstantOp* real_callee =
-                  graph_.Get(op.input(2)).TryCast<ConstantOp>();
-              real_callee != nullptr &&
-              real_callee->kind == ConstantOp::Kind::kExternal &&
-              real_callee->external_reference() ==
-                  ExternalReference::Create(
-                      Runtime::kHandleNoHeapWritesInterrupts)) {
-            // This is a stack check that cannot write heap memory.
-            return;
-          }
-          break;
-        }
-        default:
-          break;
-      }
-    }
-    // Not a builtin call, or not a builtin that we know doesn't invalidate
-    // memory.
+                                              const CallOp& op) {
+  // Some builtins do not create aliases and do not invalidate existing
+  // memory, and some even return fresh objects. For such cases, we don't
+  // invalidate the state, and record the non-alias if any.
+  if (!op.Effects().can_write()) {
+    return;
   }
+  if (auto builtin_id = TryGetBuiltinId(
+          graph_.Get(op.callee()).TryCast<ConstantOp>(), broker_)) {
+    switch (*builtin_id) {
+      // TODO(dmercadier): extend this list.
+      case Builtin::kCopyFastSmiOrObjectElements:
+        // This function just replaces the Elements array of an object.
+        // It doesn't invalidate any alias or any other memory than this
+        // Elements array.
+        memory_content_.Invalidate(op.arguments()[0], OpIndex::Invalid(),
+                                   JSObject::kElementsOffset);
+        return;
+      case Builtin::kCEntry_Return1_ArgvOnStack_NoBuiltinExit: {
+        DCHECK_GE(op.input_count, 3);
+        if (const ConstantOp* real_callee =
+                graph_.Get(op.input(2)).TryCast<ConstantOp>();
+            real_callee != nullptr &&
+            real_callee->kind == ConstantOp::Kind::kExternal &&
+            real_callee->external_reference() ==
+                ExternalReference::Create(
+                    Runtime::kHandleNoHeapWritesInterrupts)) {
+          // This is a stack check that cannot write heap memory.
+          return;
+        }
+        break;
+      }
+      default:
+        break;
+    }
+  }
+  // Not a builtin call, or not a builtin that we know doesn't invalidate
+  // memory.
 
   for (OpIndex input : op.inputs()) {
     InvalidateIfAlias(input);

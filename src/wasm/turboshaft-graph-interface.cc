@@ -2876,8 +2876,8 @@ class TurboshaftGraphBuildingInterface {
             CallDescriptor::kNoFlags,             // flags
             compiler::Operator::kNoProperties,    // properties
             StubCallMode::kCallWasmRuntimeStub);  // stub call mode
-    const TSCallDescriptor* ts_call_descriptor =
-        TSCallDescriptor::Create(call_descriptor, asm_.graph_zone());
+    const TSCallDescriptor* ts_call_descriptor = TSCallDescriptor::Create(
+        call_descriptor, compiler::CanThrow::kNo, asm_.graph_zone());
     asm_.Call(builtin, {}, ts_call_descriptor);
     asm_.Goto(continuation);
 
@@ -3067,7 +3067,7 @@ class TurboshaftGraphBuildingInterface {
                      Value returns[]) {
     const TSCallDescriptor* descriptor = TSCallDescriptor::Create(
         compiler::GetWasmCallDescriptor(asm_.graph_zone(), sig),
-        asm_.graph_zone());
+        compiler::CanThrow::kYes, asm_.graph_zone());
 
     std::vector<OpIndex> arg_indices(sig->parameter_count() + 1);
     arg_indices[0] = ref;
@@ -3092,7 +3092,7 @@ class TurboshaftGraphBuildingInterface {
                            const Value args[]) {
     const TSCallDescriptor* descriptor = TSCallDescriptor::Create(
         compiler::GetWasmCallDescriptor(asm_.graph_zone(), sig),
-        asm_.graph_zone());
+        compiler::CanThrow::kYes, asm_.graph_zone());
 
     base::SmallVector<OpIndex, 8> arg_indices(sig->parameter_count() + 1);
     arg_indices[0] = ref;
@@ -3116,8 +3116,8 @@ class TurboshaftGraphBuildingInterface {
             interface_descriptor.GetStackParameterCount(),
             CallDescriptor::kNoFlags, compiler::Operator::kNoProperties,
             StubCallMode::kCallWasmRuntimeStub);
-    const TSCallDescriptor* ts_call_descriptor =
-        TSCallDescriptor::Create(call_descriptor, asm_.graph_zone());
+    const TSCallDescriptor* ts_call_descriptor = TSCallDescriptor::Create(
+        call_descriptor, compiler::CanThrow::kYes, asm_.graph_zone());
     OpIndex call_target =
         asm_.RelocatableConstant(stub_id, RelocInfo::WASM_STUB_CALL);
     return check_for_exception == CheckForException::kYes
@@ -3147,12 +3147,16 @@ class TurboshaftGraphBuildingInterface {
     TSBlock* catch_block = current_catch->catch_block;
     TSBlock* success_block = asm_.NewBlock();
     TSBlock* exception_block = asm_.NewBlock();
-    OpIndex call =
-        asm_.CallAndCatchException(callee, OpIndex::Invalid(), args,
-                                   success_block, exception_block, descriptor);
+    OpIndex call;
+    {
+      decltype(asm_)::CatchScope scope(asm_, exception_block);
+
+      call = asm_.Call(callee, OpIndex::Invalid(), args, descriptor);
+      asm_.Goto(success_block);
+    }
 
     asm_.Bind(exception_block);
-    OpIndex exception = asm_.LoadException();
+    OpIndex exception = asm_.CatchBlockBegin();
     SetupControlFlowEdge(decoder, catch_block, 0, exception);
     asm_.Goto(catch_block);
 
@@ -3179,8 +3183,8 @@ class TurboshaftGraphBuildingInterface {
         compiler::Linkage::GetRuntimeCallDescriptor(
             asm_.graph_zone(), f, fun->nargs, compiler::Operator::kNoProperties,
             CallDescriptor::kNoFlags);
-    const TSCallDescriptor* ts_call_descriptor =
-        TSCallDescriptor::Create(call_descriptor, asm_.graph_zone());
+    const TSCallDescriptor* ts_call_descriptor = TSCallDescriptor::Create(
+        call_descriptor, compiler::CanThrow::kYes, asm_.graph_zone());
     return asm_.Call(centry_stub, OpIndex::Invalid(),
                      base::VectorOf(centry_args), ts_call_descriptor);
   }
@@ -3190,8 +3194,8 @@ class TurboshaftGraphBuildingInterface {
     DCHECK_LE(sig->return_count(), 1);
     const CallDescriptor* call_descriptor =
         compiler::Linkage::GetSimplifiedCDescriptor(asm_.graph_zone(), sig);
-    const TSCallDescriptor* ts_call_descriptor =
-        TSCallDescriptor::Create(call_descriptor, asm_.graph_zone());
+    const TSCallDescriptor* ts_call_descriptor = TSCallDescriptor::Create(
+        call_descriptor, compiler::CanThrow::kNo, asm_.graph_zone());
     return asm_.Call(asm_.ExternalConstant(ref), OpIndex::Invalid(), args,
                      ts_call_descriptor);
   }

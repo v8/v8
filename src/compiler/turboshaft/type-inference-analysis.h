@@ -166,6 +166,7 @@ class TypeInferenceAnalysis {
 #if V8_ENABLE_WEBASSEMBLY
         case Opcode::kGlobalSet:
 #endif
+        case Opcode::kCheckException:
           // These operations do not produce any output that needs to be typed.
           DCHECK_EQ(0, op.outputs_rep().size());
           break;
@@ -240,9 +241,9 @@ class TypeInferenceAnalysis {
         case Opcode::kStackSlot:
         case Opcode::kFrameConstant:
         case Opcode::kCall:
-        case Opcode::kCallAndCatchException:
-        case Opcode::kLoadException:
+        case Opcode::kCatchBlockBegin:
         case Opcode::kTailCall:
+        case Opcode::kDidntThrow:
         case Opcode::kObjectIs:
         case Opcode::kFloatIs:
         case Opcode::kObjectIsNumericValue:

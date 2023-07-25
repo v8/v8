@@ -2769,10 +2769,10 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitControl(
       SwitchInfo sw(std::move(cases), min_value, max_value, swtch.default_case);
       return VisitSwitch(node, sw);
     }
-    case Opcode::kCallAndCatchException: {
-      const CallAndCatchExceptionOp& call = op.Cast<CallAndCatchExceptionOp>();
-      VisitCall(node, call.if_exception);
-      VisitGoto(call.if_success);
+    case Opcode::kCheckException: {
+      const CheckExceptionOp& check = op.Cast<CheckExceptionOp>();
+      VisitCall(check.throwing_operation(), check.catch_block);
+      VisitGoto(check.didnt_throw_block);
       return;
     }
     case Opcode::kUnreachable:
@@ -4695,7 +4695,12 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitNode(
       UNREACHABLE();
     }
     case Opcode::kCall:
-      VisitCall(node);
+      // Process the call at `DidntThrow`, when we know if exceptions are caught
+      // or not.
+      break;
+    case Opcode::kDidntThrow:
+      VisitCall(op.Cast<DidntThrowOp>().throwing_operation());
+      EmitIdentity(node);
       break;
     case Opcode::kFrameConstant: {
       const auto& constant = op.Cast<turboshaft::FrameConstantOp>();
@@ -4809,7 +4814,7 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitNode(
         return VisitDeoptimizeUnless(node);
       }
       return VisitDeoptimizeIf(node);
-    case Opcode::kLoadException:
+    case Opcode::kCatchBlockBegin:
       return VisitIfException(node);
     case Opcode::kRetain:
       return VisitRetain(node);

@@ -83,7 +83,7 @@ class AssertTypesReducer
           Asm().CallBuiltin(
               builtin, OpIndex::Invalid(),
               {actual_value_indices.data(), actual_value_indices.size()},
-              isolate_);
+              CanThrow::kNo, isolate_);
 #ifdef DEBUG
           // Used for debugging
           if (v8_flags.turboshaft_trace_typing) {

@@ -106,7 +106,7 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
 #endif
 
 #define TURBOSHAFT_OPERATION_LIST_BLOCK_TERMINATOR(V) \
-  V(CallAndCatchException)                            \
+  V(CheckException)                                   \
   V(Goto)                                             \
   V(TailCall)                                         \
   V(Unreachable)                                      \
@@ -189,7 +189,6 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
   V(Select)                                  \
   V(PendingLoopPhi)                          \
   V(Constant)                                \
-  V(LoadException)                           \
   V(LoadRootRegister)                        \
   V(Load)                                    \
   V(Store)                                   \
@@ -204,6 +203,8 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
   V(Phi)                                     \
   V(FrameState)                              \
   V(Call)                                    \
+  V(CatchBlockBegin)                         \
+  V(DidntThrow)                              \
   V(Tuple)                                   \
   V(Projection)                              \
   V(StaticAssert)                            \
@@ -252,6 +253,22 @@ constexpr uint16_t kNumberOfOpcodes =
 
 inline constexpr bool IsBlockTerminator(Opcode opcode) {
   return OpcodeIndex(opcode) < kNumberOfBlockTerminatorOpcodes;
+}
+
+// This list repeats the operations that may throw and need to be followed by
+// `DidntThrow`.
+#define TURBOSHAFT_THROWING_OPERATIONS_LIST(V) V(Call)
+
+// Operations that need to be followed by `DidntThrowOp`.
+inline constexpr bool MayThrow(Opcode opcode) {
+#define CASE(Name) case Opcode::k##Name:
+  switch (opcode) {
+    TURBOSHAFT_THROWING_OPERATIONS_LIST(CASE)
+    return true;
+    default:
+      return false;
+  }
+#undef CASE
 }
 
 struct EffectDimensions {
@@ -2618,13 +2635,15 @@ struct OsrValueOp : FixedArityOperationT<0, OsrValueOp> {
 struct TSCallDescriptor : public NON_EXPORTED_BASE(ZoneObject) {
   const CallDescriptor* descriptor;
   base::Vector<const RegisterRepresentation> out_reps;
+  CanThrow can_throw;
 
   TSCallDescriptor(const CallDescriptor* descriptor,
-                   base::Vector<const RegisterRepresentation> out_reps)
-      : descriptor(descriptor), out_reps(out_reps) {}
+                   base::Vector<const RegisterRepresentation> out_reps,
+                   CanThrow can_throw)
+      : descriptor(descriptor), out_reps(out_reps), can_throw(can_throw) {}
 
   static const TSCallDescriptor* Create(const CallDescriptor* descriptor,
-                                        Zone* graph_zone) {
+                                        CanThrow can_throw, Zone* graph_zone) {
     base::Vector<RegisterRepresentation> out_reps =
         graph_zone->AllocateVector<RegisterRepresentation>(
             descriptor->ReturnCount());
@@ -2632,7 +2651,7 @@ struct TSCallDescriptor : public NON_EXPORTED_BASE(ZoneObject) {
       out_reps[i] = RegisterRepresentation::FromMachineRepresentation(
           descriptor->GetReturnType(i).representation());
     }
-    return graph_zone->New<TSCallDescriptor>(descriptor, out_reps);
+    return graph_zone->New<TSCallDescriptor>(descriptor, out_reps, can_throw);
   }
 };
 
@@ -2646,7 +2665,12 @@ struct CallOp : OperationT<CallOp> {
     return OpEffects().CanCallAnything();
     // return callee_effects;
   }
+
+  // The outputs are produced by the `DidntThrow` operation.
   base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return RepVector<>();
+  }
+  base::Vector<const RegisterRepresentation> results_rep() const {
     return descriptor->out_reps;
   }
 
@@ -2692,78 +2716,94 @@ struct CallOp : OperationT<CallOp> {
   auto options() const { return std::tuple{descriptor}; }
 };
 
-struct CallAndCatchExceptionOp : OperationT<CallAndCatchExceptionOp> {
-  const TSCallDescriptor* descriptor;
-  Block* if_success;
-  Block* if_exception;
+// Catch an exception from the first operation of the `successor` block and
+// continue execution in `catch_block` in this case.
+struct CheckExceptionOp : FixedArityOperationT<1, CheckExceptionOp> {
+  Block* didnt_throw_block;
+  Block* catch_block;
 
   static constexpr OpEffects effects = OpEffects().CanCallAnything();
-  base::Vector<const RegisterRepresentation> outputs_rep() const {
-    return descriptor->out_reps;
-  }
+  base::Vector<const RegisterRepresentation> outputs_rep() const { return {}; }
 
-  bool HasFrameState() const {
-    return descriptor->descriptor->NeedsFrameState();
-  }
+  OpIndex throwing_operation() const { return input(0); }
 
-  OpIndex callee() const { return input(0); }
-  OpIndex frame_state() const {
-    return HasFrameState() ? input(1) : OpIndex::Invalid();
-  }
-  base::Vector<const OpIndex> arguments() const {
-    return inputs().SubVector(1 + HasFrameState(), input_count);
-  }
+  CheckExceptionOp(OpIndex throwing_operation, Block* successor,
+                   Block* catch_block)
+      : Base(throwing_operation),
+        didnt_throw_block(successor),
+        catch_block(catch_block) {}
 
-  CallAndCatchExceptionOp(OpIndex callee, OpIndex frame_state,
-                          base::Vector<const OpIndex> arguments,
-                          Block* if_success, Block* if_exception,
-                          const TSCallDescriptor* descriptor)
-      : Base(1 + frame_state.valid() + arguments.size()),
-        descriptor(descriptor),
-        if_success(if_success),
-        if_exception(if_exception) {
-    base::Vector<OpIndex> inputs = this->inputs();
-    inputs[0] = callee;
-    if (frame_state.valid()) {
-      inputs[1] = frame_state;
-    }
-    inputs.SubVector(1 + frame_state.valid(), inputs.size())
-        .OverwriteWith(arguments);
-  }
+  void Validate(const Graph& graph) const;
 
-  void Validate(const Graph& graph) const {
-    if (frame_state().valid()) {
-      DCHECK(Get(graph, frame_state()).Is<FrameStateOp>());
-    }
-  }
-
-  static CallAndCatchExceptionOp& New(Graph* graph, OpIndex callee,
-                                      OpIndex frame_state,
-                                      base::Vector<const OpIndex> arguments,
-                                      Block* if_success, Block* if_exception,
-                                      const TSCallDescriptor* descriptor) {
-    return Base::New(graph, 1 + frame_state.valid() + arguments.size(), callee,
-                     frame_state, arguments, if_success, if_exception,
-                     descriptor);
-  }
-
-  auto options() const {
-    return std::tuple{descriptor, if_success, if_exception};
-  }
+  auto options() const { return std::tuple{didnt_throw_block, catch_block}; }
 };
 
-struct LoadExceptionOp : FixedArityOperationT<0, LoadExceptionOp> {
-  // This is a pseudo-operation to retrieve the exception, we prevent
-  // reorderings to keep it in place.
+// This is a pseudo-operation that marks the beginning of a catch block. It
+// returns the caught exception.
+struct CatchBlockBeginOp : FixedArityOperationT<0, CatchBlockBeginOp> {
   static constexpr OpEffects effects = OpEffects().CanCallAnything();
 
   base::Vector<const RegisterRepresentation> outputs_rep() const {
     return RepVector<RegisterRepresentation::Tagged()>();
   }
 
-  LoadExceptionOp() : Base() {}
+  CatchBlockBeginOp() : Base() {}
   void Validate(const Graph& graph) const {}
+  auto options() const { return std::tuple{}; }
+};
 
+// Throwing operations always appear together with `DidntThrowOp`, which
+// produces the value in case that no exception was thrown. If the callsite is
+// non-catching, then `DidntThrowOp` follows right after the throwing operation:
+//
+//   100: Call(...)
+//   101: DidntThrow(100)
+//   102: Foo(101)
+//
+// If the callsite can catch, then the
+// pattern is as follows:
+//
+//   100: Call(...)
+//   101: CheckException(B10, B11)
+//
+//   B10:
+//   102: DidntThrow(100)
+//   103: Foo(102)
+//
+//   B11:
+//   200: CatchBlockBegin()
+//   201: ...
+//
+// This complexity is mostly hidden from graph creation, with
+// `DidntThrowOp` and `CheckExceptionOp` being inserted automatically.
+// The correct way to produce `CheckExceptionOp` is to create an
+// `Assembler::CatchScope`, which will cause all throwing operations
+// to add a `CheckExceptionOp` automatically while the scope is active.
+// Since `OptimizationPhase` does this automatically, lowering throwing
+// operations into an arbitrary subgraph works automatically.
+struct DidntThrowOp : FixedArityOperationT<1, DidntThrowOp> {
+  static constexpr OpEffects effects = OpEffects().CanCallAnything();
+
+  // If there is a `CheckException` operation with a catch block for
+  // `throwing_operation`.
+  bool has_catch_block;
+  // This is a pointer to a vector instead of a vector to save a bit of memory,
+  // using optimal 16 bytes instead of 24.
+  const base::Vector<const RegisterRepresentation>* results_rep;
+
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return *results_rep;
+  }
+
+  OpIndex throwing_operation() const { return input(0); }
+
+  explicit DidntThrowOp(
+      OpIndex throwing_operation, bool has_catch_block,
+      const base::Vector<const RegisterRepresentation>* results_rep)
+      : Base(throwing_operation),
+        has_catch_block(has_catch_block),
+        results_rep(results_rep) {}
+  void Validate(const Graph& graph) const;
   auto options() const { return std::tuple{}; }
 };
 
@@ -2915,9 +2955,9 @@ struct fast_hash<SwitchOp::Case> {
 inline base::SmallVector<Block*, 4> SuccessorBlocks(const Operation& op) {
   DCHECK(op.IsBlockTerminator());
   switch (op.opcode) {
-    case Opcode::kCallAndCatchException: {
-      auto& casted = op.Cast<CallAndCatchExceptionOp>();
-      return {casted.if_success, casted.if_exception};
+    case Opcode::kCheckException: {
+      auto& casted = op.Cast<CheckExceptionOp>();
+      return {casted.didnt_throw_block, casted.catch_block};
     }
     case Opcode::kGoto: {
       auto& casted = op.Cast<GotoOp>();

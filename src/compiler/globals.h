@@ -32,6 +32,8 @@ enum class StackCheckKind : uint8_t {
   kWasm,
 };
 
+enum class CanThrow : uint8_t { kNo, kYes };
+
 inline std::ostream& operator<<(std::ostream& os, StackCheckKind kind) {
   switch (kind) {
     case StackCheckKind::kJSFunctionEntry:

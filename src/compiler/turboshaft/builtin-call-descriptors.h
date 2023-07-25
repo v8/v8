@@ -30,7 +30,9 @@ struct BuiltinCallDescriptor {
 #ifdef DEBUG
       Derived::Verify(descriptor);
 #endif  // DEBUG
-      return TSCallDescriptor::Create(descriptor, zone);
+      bool can_throw = !(Derived::Properties & Operator::kNoThrow);
+      return TSCallDescriptor::Create(
+          descriptor, can_throw ? CanThrow::kYes : CanThrow::kNo, zone);
     }
 
 #ifdef DEBUG
@@ -339,6 +341,53 @@ struct BuiltinCallDescriptor {
     static constexpr bool NeedsContext = false;
     static constexpr Operator::Properties Properties = Operator::kEliminatable;
     static constexpr OpEffects Effects = base_effects.CanReadMemory();
+  };
+
+  struct CheckTurboshaftWord32Type
+      : public Descriptor<CheckTurboshaftWord32Type> {
+    static constexpr auto Function = Builtin::kCheckTurboshaftWord32Type;
+    using arguments_t = std::tuple<V<Word32>, V<TurboshaftWord32Type>, V<Smi>>;
+    using result_t = V<Oddball>;
+    static constexpr bool NeedsFrameState = false;
+    static constexpr bool NeedsContext = false;
+    static constexpr Operator::Properties Properties =
+        Operator::kNoDeopt | Operator::kNoThrow;
+  };
+
+  struct CheckTurboshaftWord64Type
+      : public Descriptor<CheckTurboshaftWord64Type> {
+    static constexpr auto Function = Builtin::kCheckTurboshaftWord64Type;
+    using arguments_t =
+        std::tuple<V<Word32>, V<Word32>, V<TurboshaftWord64Type>, V<Smi>>;
+    using result_t = V<Oddball>;
+    static constexpr bool NeedsFrameState = false;
+    static constexpr bool NeedsContext = false;
+    static constexpr Operator::Properties Properties =
+        Operator::kNoDeopt | Operator::kNoThrow;
+  };
+
+  struct CheckTurboshaftFloat32Type
+      : public Descriptor<CheckTurboshaftFloat32Type> {
+    static constexpr auto Function = Builtin::kCheckTurboshaftFloat32Type;
+    using arguments_t =
+        std::tuple<V<Float32>, V<TurboshaftFloat64Type>, V<Smi>>;
+    using result_t = V<Oddball>;
+    static constexpr bool NeedsFrameState = false;
+    static constexpr bool NeedsContext = false;
+    static constexpr Operator::Properties Properties =
+        Operator::kNoDeopt | Operator::kNoThrow;
+  };
+
+  struct CheckTurboshaftFloat64Type
+      : public Descriptor<CheckTurboshaftFloat64Type> {
+    static constexpr auto Function = Builtin::kCheckTurboshaftFloat64Type;
+    using arguments_t =
+        std::tuple<V<Float64>, V<TurboshaftFloat64Type>, V<Smi>>;
+    using result_t = V<Oddball>;
+    static constexpr bool NeedsFrameState = false;
+    static constexpr bool NeedsContext = false;
+    static constexpr Operator::Properties Properties =
+        Operator::kNoDeopt | Operator::kNoThrow;
   };
 };
 

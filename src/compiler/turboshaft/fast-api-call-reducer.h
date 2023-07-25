@@ -108,7 +108,7 @@ class FastApiCallReducer : public Next {
     // Build the actual call.
     const TSCallDescriptor* call_descriptor = TSCallDescriptor::Create(
         Linkage::GetSimplifiedCDescriptor(__ graph_zone(), builder.Build()),
-        __ graph_zone());
+        CanThrow::kNo, __ graph_zone());
     OpIndex c_call_result =
         WrapFastCall(call_descriptor, callee, base::VectorOf(args));
     V<Object> fast_call_result = ConvertReturnValue(c_signature, c_call_result);
@@ -587,7 +587,8 @@ class FastApiCallReducer : public Next {
     OpIndex handle =
         __ Call(allocate_and_initialize_external_pointer_table_entry,
                 {isolate_ptr, pointer},
-                TSCallDescriptor::Create(call_descriptor, __ graph_zone()));
+                TSCallDescriptor::Create(call_descriptor, CanThrow::kNo,
+                                         __ graph_zone()));
     __ InitializeField(
         external, AccessBuilder::ForJSExternalObjectPointerHandle(), handle);
 #else

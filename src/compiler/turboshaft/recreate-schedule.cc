@@ -1300,38 +1300,31 @@ Node* ScheduleBuilder::ProcessOperation(const CallOp& op) {
   return AddNode(common.Call(op.descriptor->descriptor),
                  base::VectorOf(inputs));
 }
-Node* ScheduleBuilder::ProcessOperation(const CallAndCatchExceptionOp& op) {
-  // Re-building the call
-  base::SmallVector<Node*, 16> inputs;
-  inputs.push_back(GetNode(op.callee()));
-  for (OpIndex i : op.arguments()) {
-    inputs.push_back(GetNode(i));
-  }
-  if (op.HasFrameState()) {
-    DCHECK(op.frame_state().valid());
-    inputs.push_back(GetNode(op.frame_state()));
-  }
-  Node* call =
-      AddNode(common.Call(op.descriptor->descriptor), base::VectorOf(inputs));
+Node* ScheduleBuilder::ProcessOperation(const CheckExceptionOp& op) {
+  Node* call_node = GetNode(op.throwing_operation());
+  DCHECK_EQ(call_node->opcode(), IrOpcode::kCall);
 
   // Re-building the IfSuccess/IfException mechanism.
-  BasicBlock* success_block = GetBlock(*op.if_success);
-  BasicBlock* exception_block = GetBlock(*op.if_exception);
-  schedule->AddCall(current_block, call, success_block, exception_block);
+  BasicBlock* success_block = GetBlock(*op.didnt_throw_block);
+  BasicBlock* exception_block = GetBlock(*op.catch_block);
+  schedule->AddCall(current_block, call_node, success_block, exception_block);
   // Pass `call` as the control input of `IfSuccess` and as both the effect and
   // control input of `IfException`.
-  Node* if_success = MakeNode(common.IfSuccess(), {call});
-  Node* if_exception = MakeNode(common.IfException(), {call, call});
+  Node* if_success = MakeNode(common.IfSuccess(), {call_node});
+  Node* if_exception = MakeNode(common.IfException(), {call_node, call_node});
   schedule->AddNode(success_block, if_success);
   schedule->AddNode(exception_block, if_exception);
   current_block = nullptr;
-  return call;
+  return nullptr;
 }
-Node* ScheduleBuilder::ProcessOperation(const LoadExceptionOp& op) {
+Node* ScheduleBuilder::ProcessOperation(const CatchBlockBeginOp& op) {
   Node* if_exception = current_block->NodeAt(0);
   DCHECK(if_exception != nullptr &&
          if_exception->opcode() == IrOpcode::kIfException);
   return if_exception;
+}
+Node* ScheduleBuilder::ProcessOperation(const DidntThrowOp& op) {
+  return GetNode(op.throwing_operation());
 }
 Node* ScheduleBuilder::ProcessOperation(const TailCallOp& op) {
   base::SmallVector<Node*, 16> inputs;

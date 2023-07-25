@@ -357,36 +357,10 @@ OpIndex GraphBuilder::Process(
     }
 
     case IrOpcode::kIfException: {
-      return __ LoadException();
+      return __ CatchBlockBegin();
     }
 
     case IrOpcode::kIfSuccess: {
-      // We emit all of the value projections of the call now, emit a Tuple with
-      // all of those projections, and remap the old call to this new Tuple
-      // instead of the CallAndCatchExceptionOp.
-      Node* call = node->InputAt(0);
-      DCHECK_EQ(call->opcode(), IrOpcode::kCall);
-      OpIndex call_idx = Map(call);
-      CallAndCatchExceptionOp& op =
-          __ output_graph().Get(call_idx).Cast<CallAndCatchExceptionOp>();
-
-      size_t return_count = op.outputs_rep().size();
-      DCHECK_EQ(return_count, op.descriptor->descriptor->ReturnCount());
-      if (return_count <= 1) {
-        // Calls with one output (or zero) do not require Projections.
-        return OpIndex::Invalid();
-      }
-      base::Vector<OpIndex> projections =
-          graph_zone->AllocateVector<OpIndex>(return_count);
-      for (size_t i = 0; i < return_count; i++) {
-        projections[i] = __ Projection(call_idx, i, op.outputs_rep()[i]);
-      }
-      OpIndex tuple_idx = __ Tuple(projections);
-
-      // Re-mapping {call} to {tuple_idx} so that subsequent projections are not
-      // emitted.
-      op_mapping.Set(call, tuple_idx);
-
       return OpIndex::Invalid();
     }
 
@@ -1236,9 +1210,10 @@ OpIndex GraphBuilder::Process(
            ++i) {
         arguments.emplace_back(Map(node->InputAt(i)));
       }
-
+      CanThrow can_throw =
+          op->HasProperty(Operator::kNoThrow) ? CanThrow::kNo : CanThrow::kYes;
       const TSCallDescriptor* ts_descriptor =
-          TSCallDescriptor::Create(call_descriptor, graph_zone);
+          TSCallDescriptor::Create(call_descriptor, can_throw, graph_zone);
 
       OpIndex frame_state_idx = OpIndex::Invalid();
       if (call_descriptor->NeedsFrameState()) {
@@ -1246,22 +1221,20 @@ OpIndex GraphBuilder::Process(
             node->InputAt(static_cast<int>(call_descriptor->InputCount()))};
         frame_state_idx = Map(frame_state);
       }
-
-      if (!is_final_control) {
-        return EmitProjectionsAndTuple(__ Call(
-            callee, frame_state_idx, base::VectorOf(arguments), ts_descriptor));
-      } else {
-        DCHECK_EQ(block->SuccessorCount(), 2);
-
-        Block* if_success = Map(block->SuccessorAt(0));
-        Block* if_exception = Map(block->SuccessorAt(1));
-        // CallAndCatchException is a block terminator, so we can't generate the
-        // projections right away. We'll generate them in the IfSuccess
-        // successor.
-        return __ CallAndCatchException(callee, frame_state_idx,
-                                        base::VectorOf(arguments), if_success,
-                                        if_exception, ts_descriptor);
+      base::Optional<decltype(assembler)::CatchScope> catch_scope;
+      if (is_final_control) {
+        Block* catch_block = Map(block->SuccessorAt(1));
+        catch_scope.emplace(assembler, catch_block);
       }
+      OpIndex result = EmitProjectionsAndTuple(__ Call(
+          callee, frame_state_idx, base::VectorOf(arguments), ts_descriptor));
+      if (is_final_control) {
+        // The `__ Call()` before has already created exceptional control flow
+        // and bound a new block for the success case. So we can just `Goto` the
+        // block that Turbofan designated as the `IfSuccess` successor.
+        __ Goto(Map(block->SuccessorAt(0)));
+      }
+      return result;
     }
 
     case IrOpcode::kTailCall: {
@@ -1276,8 +1249,10 @@ OpIndex GraphBuilder::Process(
         arguments.emplace_back(Map(node->InputAt(i)));
       }
 
+      CanThrow can_throw =
+          op->HasProperty(Operator::kNoThrow) ? CanThrow::kNo : CanThrow::kYes;
       const TSCallDescriptor* ts_descriptor =
-          TSCallDescriptor::Create(call_descriptor, graph_zone);
+          TSCallDescriptor::Create(call_descriptor, can_throw, graph_zone);
 
       __ TailCall(callee, base::VectorOf(arguments), ts_descriptor);
       return OpIndex::Invalid();
@@ -2098,7 +2073,8 @@ OpIndex GraphBuilder::Process(
           return __ Call(
               slow_call_callee, dominating_frame_state,
               base::VectorOf(slow_call_arguments),
-              TSCallDescriptor::Create(params.descriptor(), __ graph_zone()));
+              TSCallDescriptor::Create(params.descriptor(), CanThrow::kYes,
+                                       __ graph_zone()));
         }
       }
 
@@ -2129,10 +2105,11 @@ OpIndex GraphBuilder::Process(
         // 2) the embedder requested fallback possibility via providing options
         // arg. None of the above usually holds true for Wasm functions with
         // primitive types only, so we avoid generating an extra branch here.
-        V<Object> slow_call_result = __ Call(
-            slow_call_callee, dominating_frame_state,
-            base::VectorOf(slow_call_arguments),
-            TSCallDescriptor::Create(params.descriptor(), __ graph_zone()));
+        V<Object> slow_call_result =
+            __ Call(slow_call_callee, dominating_frame_state,
+                    base::VectorOf(slow_call_arguments),
+                    TSCallDescriptor::Create(params.descriptor(),
+                                             CanThrow::kYes, __ graph_zone()));
         GOTO(done, slow_call_result);
       }
       END_IF

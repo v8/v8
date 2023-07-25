@@ -402,7 +402,7 @@ class Block : public RandomAccessStackDominatorNode<Block> {
     switch (LastOperation(graph).opcode) {
       case Opcode::kBranch:
       case Opcode::kSwitch:
-      case Opcode::kCallAndCatchException:
+      case Opcode::kCheckException:
         return true;
       default:
         return false;

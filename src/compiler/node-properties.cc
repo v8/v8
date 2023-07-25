@@ -204,6 +204,10 @@ void NodeProperties::ChangeOp(Node* node, const Operator* new_op) {
   Verifier::VerifyNode(node);
 }
 
+// static
+void NodeProperties::ChangeOpUnchecked(Node* node, const Operator* new_op) {
+  node->set_op(new_op);
+}
 
 // static
 Node* NodeProperties::FindFrameStateBefore(Node* node,

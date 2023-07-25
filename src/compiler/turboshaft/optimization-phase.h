@@ -152,10 +152,6 @@ class GraphVisitor {
     // version of {input_block} that we just cloned.
     blocks_needing_variables.insert(input_block->index());
 
-    // Updating the origin of "current_block", so that translating Phis can
-    // still properly be done (in OptimizationPhase::ReducePhi).
-    assembler().current_block()->SetOrigin(input_block);
-
     ScopedModification<bool> set_true(&current_block_needs_variables_, true);
     for (OpIndex index : input_graph().OperationIndices(*input_block)) {
       if (const PhiOp* phi =
@@ -270,6 +266,7 @@ class GraphVisitor {
     Block* current_block = assembler().current_block();
     if (!current_block) return false;
     assembler().SetCurrentOrigin(index);
+    current_block->SetOrigin(input_block);
     OpIndex first_output_index =
         assembler().output_graph().next_operation_index();
     USE(first_output_index);
@@ -504,19 +501,57 @@ class GraphVisitor {
                                   base::VectorOf(arguments), op.descriptor,
                                   op.Effects());
   }
-  OpIndex AssembleOutputGraphCallAndCatchException(
-      const CallAndCatchExceptionOp& op) {
-    OpIndex callee = MapToNewGraph(op.callee());
-    Block* if_success = op.if_success->MapToNextGraph();
-    Block* if_exception = op.if_exception->MapToNextGraph();
-    OpIndex frame_state = MapToNewGraphIfValid(op.frame_state());
-    auto arguments = MapToNewGraph<16>(op.arguments());
-    return assembler().ReduceCallAndCatchException(
-        callee, frame_state, base::VectorOf(arguments), if_success,
-        if_exception, op.descriptor);
+  OpIndex AssembleOutputGraphDidntThrow(const DidntThrowOp& op) {
+    const Operation& throwing_operation =
+        input_graph().Get(op.throwing_operation());
+    OpIndex result;
+    switch (throwing_operation.opcode) {
+#define CASE(Name)                                                           \
+  case Opcode::k##Name:                                                      \
+    result = AssembleOutputGraph##Name(throwing_operation.Cast<Name##Op>()); \
+    break;
+      TURBOSHAFT_THROWING_OPERATIONS_LIST(CASE)
+#undef CASE
+      default:
+        UNREACHABLE();
+    }
+    // The assembler automatically re-attaches the `DidntThrow`.
+    DCHECK(output_graph().Get(result).template Is<DidntThrowOp>());
+    return result;
   }
-  OpIndex AssembleOutputGraphLoadException(const LoadExceptionOp& op) {
-    return assembler().ReduceLoadException();
+  OpIndex AssembleOutputGraphCheckException(const CheckExceptionOp& op) {
+    Graph::OpIndexIterator it(op.didnt_throw_block->begin(),
+                              &assembler().input_graph());
+    Graph::OpIndexIterator end(op.didnt_throw_block->end(),
+                               &assembler().input_graph());
+    // To translate `CheckException` to the new graph, we reduce the throwing
+    // operation (actually it's `DidntThrow` operation, but that triggers the
+    // actual reduction) with a catch scope. If the reduction replaces the
+    // throwing operation with other throwing operations, all of them will be
+    // connected to the provided catch block. The reduction should automatically
+    // bind a block that represents non-throwing control flow of the original
+    // operation, so we can inline the rest of the `didnt_throw` block.
+    {
+      typename Assembler::CatchScope scope(assembler(),
+                                           op.catch_block->MapToNextGraph());
+      DCHECK(input_graph().Get(*it).template Is<DidntThrowOp>());
+      if (!assembler().InlineOp(*it, op.didnt_throw_block)) {
+        return OpIndex::Invalid();
+      }
+      ++it;
+    }
+    for (; it != end; ++it) {
+      // Using `InlineOp` requires that the inlined operation is not emitted
+      // multiple times. This is the case here because we just removed the
+      // single predecessor of `didnt_throw_block`.
+      if (!assembler().InlineOp(*it, op.didnt_throw_block)) {
+        break;
+      }
+    }
+    return OpIndex::Invalid();
+  }
+  OpIndex AssembleOutputGraphCatchBlockBegin(const CatchBlockBeginOp& op) {
+    return assembler().ReduceCatchBlockBegin();
   }
   OpIndex AssembleOutputGraphTailCall(const TailCallOp& op) {
     OpIndex callee = MapToNewGraph(op.callee());

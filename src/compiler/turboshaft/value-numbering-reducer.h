@@ -82,15 +82,18 @@ class ValueNumberingReducer : public Next {
  public:
   TURBOSHAFT_REDUCER_BOILERPLATE()
 
-#define EMIT_OP(Name)                                                 \
-  template <class... Args>                                            \
-  OpIndex Reduce##Name(Args... args) {                                \
-    OpIndex next_index = Asm().output_graph().next_operation_index(); \
-    USE(next_index);                                                  \
-    OpIndex result = Next::Reduce##Name(args...);                     \
-    if (ShouldSkipOptimizationStep()) return result;                  \
-    DCHECK_EQ(next_index, result);                                    \
-    return AddOrFind<Name##Op>(result);                               \
+#define EMIT_OP(Name)                                                      \
+  template <class... Args>                                                 \
+  OpIndex Reduce##Name(Args... args) {                                     \
+    OpIndex next_index = Asm().output_graph().next_operation_index();      \
+    USE(next_index);                                                       \
+    OpIndex result = Next::Reduce##Name(args...);                          \
+    if (ShouldSkipOptimizationStep()) return result;                       \
+    /* Throwing operations have a non-trivial lowering, so they don't work \
+     * with value numbering. */                                            \
+    if constexpr (MayThrow(Opcode::k##Name)) return result;                \
+    DCHECK_EQ(next_index, result);                                         \
+    return AddOrFind<Name##Op>(result);                                    \
   }
   TURBOSHAFT_OPERATION_LIST(EMIT_OP)
 #undef EMIT_OP

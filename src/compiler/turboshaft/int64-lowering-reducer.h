@@ -303,19 +303,24 @@ class Int64LoweringReducer : public Next {
 
  private:
   bool CheckPairOrPairOp(OpIndex input) {
+#ifdef DEBUG
     if (const TupleOp* tuple = Asm().template TryCast<TupleOp>(input)) {
       DCHECK_EQ(2, tuple->input_count);
-    } else if (const CallOp* call = Asm().template TryCast<CallOp>(input)) {
+    } else if (const DidntThrowOp* didnt_throw =
+                   Asm().template TryCast<DidntThrowOp>(input)) {
       // If it's a call, it must be a call that returns exactly one i64.
       // (Note that the CallDescriptor has already been lowered to [i32, i32].)
-      DCHECK_EQ(call->descriptor->descriptor->ReturnCount(), 2);
-      DCHECK_EQ(call->descriptor->descriptor->GetReturnType(0),
+      const CallOp& call =
+          Asm().Get(didnt_throw->throwing_operation()).template Cast<CallOp>();
+      DCHECK_EQ(call.descriptor->descriptor->ReturnCount(), 2);
+      DCHECK_EQ(call.descriptor->descriptor->GetReturnType(0),
                 MachineType::Int32());
-      DCHECK_EQ(call->descriptor->descriptor->GetReturnType(1),
+      DCHECK_EQ(call.descriptor->descriptor->GetReturnType(1),
                 MachineType::Int32());
     } else {
       DCHECK(Asm().template Is<Word32PairBinopOp>(input));
     }
+#endif
     return true;
   }
 
@@ -519,8 +524,8 @@ class Int64LoweringReducer : public Next {
       }
     }
 
-    auto lowered_ts_descriptor =
-        TSCallDescriptor::Create(lowered_descriptor, __ graph_zone());
+    auto lowered_ts_descriptor = TSCallDescriptor::Create(
+        lowered_descriptor, descriptor->can_throw, __ graph_zone());
     OpIndex call =
         is_tail_call
             ? Next::ReduceTailCall(callee, base::VectorOf(lowered_args),

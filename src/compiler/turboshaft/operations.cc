@@ -647,6 +647,32 @@ void FrameStateOp::Validate(const Graph& graph) const {
   }
 }
 
+void DidntThrowOp::Validate(const Graph& graph) const {
+#ifdef DEBUG
+  DCHECK(MayThrow(graph.Get(throwing_operation()).opcode));
+  switch (graph.Get(throwing_operation()).opcode) {
+    case Opcode::kCall: {
+      auto& call_op = graph.Get(throwing_operation()).Cast<CallOp>();
+      DCHECK(call_op.descriptor->out_reps == outputs_rep());
+      break;
+    }
+    default:
+      UNREACHABLE();
+  }
+  // Check that `may_throw()` is either immediately before or that there is only
+  // a `CheckExceptionOp` in-between.
+  OpIndex this_index = graph.Index(*this);
+  OpIndex in_between = graph.NextIndex(throwing_operation());
+  if (has_catch_block) {
+    DCHECK_NE(in_between, this_index);
+    auto& catch_op = graph.Get(in_between).Cast<CheckExceptionOp>();
+    DCHECK_EQ(catch_op.didnt_throw_block->begin(), this_index);
+  } else {
+    DCHECK_EQ(in_between, this_index);
+  }
+#endif
+}
+
 void WordBinopOp::PrintOptions(std::ostream& os) const {
   os << "[";
   switch (kind) {
@@ -1274,6 +1300,12 @@ bool SupportedOperations::IsUnalignedLoadSupported(MemoryRepresentation repr) {
 bool SupportedOperations::IsUnalignedStoreSupported(MemoryRepresentation repr) {
   return InstructionSelector::AlignmentRequirements().IsUnalignedStoreSupported(
       repr.ToMachineType().representation());
+}
+
+void CheckExceptionOp::Validate(const Graph& graph) const {
+  DCHECK_NE(didnt_throw_block, catch_block);
+  // `CheckException` should follow right after the throwing operation.
+  DCHECK_EQ(throwing_operation(), graph.PreviousIndex(graph.Index(*this)));
 }
 
 }  // namespace v8::internal::compiler::turboshaft

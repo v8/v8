@@ -15,6 +15,7 @@
 #include "src/base/macros.h"
 #include "src/base/small-vector.h"
 #include "src/base/template-utils.h"
+#include "src/base/vector.h"
 #include "src/codegen/callable.h"
 #include "src/codegen/code-factory.h"
 #include "src/codegen/reloc-info.h"
@@ -32,6 +33,7 @@
 #include "src/compiler/turboshaft/runtime-call-descriptors.h"
 #include "src/compiler/turboshaft/sidetable.h"
 #include "src/compiler/turboshaft/snapshot-table.h"
+#include "src/compiler/turboshaft/utils.h"
 #include "src/logging/runtime-call-stats.h"
 #include "src/objects/heap-number.h"
 #include "src/objects/oddball.h"
@@ -574,7 +576,9 @@ class ReducerBaseForwarder : public Next {
  public:
 #define EMIT_OP(Name)                                                    \
   OpIndex ReduceInputGraph##Name(OpIndex ig_index, const Name##Op& op) { \
-    return this->Asm().AssembleOutputGraph##Name(op);                    \
+    return MayThrow(Opcode::k##Name)                                     \
+               ? OpIndex::Invalid()                                      \
+               : this->Asm().AssembleOutputGraph##Name(op);              \
   }                                                                      \
   template <class... Args>                                               \
   OpIndex Reduce##Name(Args... args) {                                   \
@@ -585,7 +589,7 @@ class ReducerBaseForwarder : public Next {
 };
 
 // ReducerBase provides default implementations of Branch-related Operations
-// (Goto, Branch, Switch, CallAndCatchException), and takes care of updating
+// (Goto, Branch, Switch, CheckException), and takes care of updating
 // Block predecessors (and calls the Assembler to maintain split-edge form).
 // ReducerBase is always added by Assembler at the bottom of the reducer stack.
 template <class Next>
@@ -648,20 +652,30 @@ class ReducerBase : public ReducerBaseForwarder<Next> {
     return new_opindex;
   }
 
-  OpIndex ReduceCallAndCatchException(OpIndex callee, OpIndex frame_state,
-                                      base::Vector<const OpIndex> arguments,
-                                      Block* if_success, Block* if_exception,
-                                      const TSCallDescriptor* descriptor) {
-    // {if_success} and {if_exception} should never be the same.  If we ever
-    // decide to lift this condition, then AddPredecessor and SplitEdge should
-    // be updated accordingly.
-    DCHECK_NE(if_success, if_exception);
-    Block* saved_current_block = Asm().current_block();
-    OpIndex new_opindex = Base::ReduceCallAndCatchException(
-        callee, frame_state, arguments, if_success, if_exception, descriptor);
-    Asm().AddPredecessor(saved_current_block, if_success, true);
-    Asm().AddPredecessor(saved_current_block, if_exception, true);
-    return new_opindex;
+  OpIndex ReduceCatchBlockBegin() {
+    Block* current_block = Asm().current_block();
+    if (current_block->IsBranchTarget()) {
+      DCHECK_EQ(current_block->PredecessorCount(), 1);
+      DCHECK_EQ(current_block->LastPredecessor()
+                    ->LastOperation(Asm().output_graph())
+                    .template Cast<CheckExceptionOp>()
+                    .catch_block,
+                current_block);
+      return Base::ReduceCatchBlockBegin();
+    }
+    // We are trying to emit a CatchBlockBegin into a block that used to be the
+    // catch_block successor but got edge-splitted into a merge. Therefore, we
+    // need to emit a phi now and can rely on the predecessors all having a
+    // ReduceCatchBlockBegin and nothing else.
+    DCHECK(current_block->IsMerge());
+    base::SmallVector<OpIndex, 8> phi_inputs;
+    for (Block* predecessor : current_block->Predecessors()) {
+      OpIndex catch_begin = predecessor->begin();
+      DCHECK(Asm().Get(catch_begin).template Is<CatchBlockBeginOp>());
+      phi_inputs.push_back(catch_begin);
+    }
+    return Asm().Phi(base::VectorOf(phi_inputs),
+                     RegisterRepresentation::Tagged());
   }
 
   OpIndex ReduceSwitch(OpIndex input, base::Vector<const SwitchOp::Case> cases,
@@ -685,6 +699,47 @@ class ReducerBase : public ReducerBaseForwarder<Next> {
     }
     Asm().AddPredecessor(saved_current_block, default_case, true);
     return new_opindex;
+  }
+
+  OpIndex ReduceCall(OpIndex callee, OpIndex frame_state,
+                     base::Vector<const OpIndex> arguments,
+                     const TSCallDescriptor* descriptor, OpEffects effects) {
+    OpIndex raw_call =
+        Base::ReduceCall(callee, frame_state, arguments, descriptor, effects);
+    bool has_catch_block = false;
+    if (descriptor->can_throw == CanThrow::kYes) {
+      has_catch_block = CatchIfInCatchScope(raw_call);
+    }
+    return ReduceDidntThrow(raw_call, has_catch_block, &descriptor->out_reps);
+  }
+
+ private:
+  // These reduce functions are private, as they should only be emitted
+  // automatically by `CatchIfInCatchScope` and `DoNotCatch` defined below and
+  // never explicitly.
+  using Base::ReduceDidntThrow;
+  OpIndex ReduceCheckException(OpIndex throwing_operation, Block* successor,
+                               Block* catch_block) {
+    // {successor} and {catch_block} should never be the same.  AddPredecessor
+    // and SplitEdge rely on this.
+    DCHECK_NE(successor, catch_block);
+    Block* saved_current_block = Asm().current_block();
+    OpIndex new_opindex =
+        Base::ReduceCheckException(throwing_operation, successor, catch_block);
+    Asm().AddPredecessor(saved_current_block, successor, true);
+    Asm().AddPredecessor(saved_current_block, catch_block, true);
+    return new_opindex;
+  }
+
+  bool CatchIfInCatchScope(OpIndex throwing_operation) {
+    if (Asm().current_catch_block()) {
+      Block* successor = Asm().NewBlock();
+      ReduceCheckException(throwing_operation, successor,
+                           Asm().current_catch_block());
+      Asm().BindReachable(successor);
+      return true;
+    }
+    return false;
   }
 };
 
@@ -2291,16 +2346,6 @@ class AssemblerOpInterface {
         isolate, context, {heap_object});
   }
 
-  OpIndex CallAndCatchException(OpIndex callee, OpIndex frame_state,
-                                base::Vector<const OpIndex> arguments,
-                                Block* if_success, Block* if_exception,
-                                const TSCallDescriptor* descriptor) {
-    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
-      return OpIndex::Invalid();
-    }
-    return stack().ReduceCallAndCatchException(
-        callee, frame_state, arguments, if_success, if_exception, descriptor);
-  }
   void TailCall(OpIndex callee, base::Vector<const OpIndex> arguments,
                 const TSCallDescriptor* descriptor) {
     if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
@@ -2483,11 +2528,11 @@ class AssemblerOpInterface {
                                                successful);
   }
 
-  OpIndex LoadException() {
+  OpIndex CatchBlockBegin() {
     if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
       return OpIndex::Invalid();
     }
-    return stack().ReduceLoadException();
+    return stack().ReduceCatchBlockBegin();
   }
 
   // Return `true` if the control flow after the conditional jump is reachable.
@@ -2520,7 +2565,8 @@ class AssemblerOpInterface {
   }
 
   OpIndex CallBuiltin(Builtin builtin, OpIndex frame_state,
-                      base::Vector<OpIndex> arguments, Isolate* isolate) {
+                      base::Vector<OpIndex> arguments, CanThrow can_throw,
+                      Isolate* isolate) {
     if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
       return OpIndex::Invalid();
     }
@@ -2534,7 +2580,7 @@ class AssemblerOpInterface {
     DCHECK_EQ(call_descriptor->NeedsFrameState(), frame_state.valid());
 
     const TSCallDescriptor* ts_call_descriptor =
-        TSCallDescriptor::Create(call_descriptor, graph_zone);
+        TSCallDescriptor::Create(call_descriptor, can_throw, graph_zone);
 
     OpIndex callee = stack().HeapConstant(callable.code());
 
@@ -3182,6 +3228,8 @@ class Assembler : public GraphVisitor<Assembler<Reducers>>,
   using Stack = typename reducer_stack_type<Reducers>::type;
 
  public:
+  class CatchScope;
+
   explicit Assembler(Graph& input_graph, Graph& output_graph, Zone* phase_zone,
                      compiler::NodeOriginTable* origins)
       : GraphVisitor<Assembler>(input_graph, output_graph, phase_zone, origins),
@@ -3231,6 +3279,7 @@ class Assembler : public GraphVisitor<Assembler<Reducers>>,
   }
 
   Block* current_block() const { return current_block_; }
+  Block* current_catch_block() const { return current_catch_block_; }
   bool generating_unreachable_operations() const {
     DCHECK_IMPLIES(generating_unreachable_operations_,
                    current_block_ == nullptr);
@@ -3342,7 +3391,7 @@ class Assembler : public GraphVisitor<Assembler<Reducers>>,
     // block is not reachable.
     intermediate_block->AddPredecessor(source);
 
-    // Updating {source}'s last Branch/Switch/CallAndCatchException. Note that
+    // Updating {source}'s last Branch/Switch/CheckException. Note that
     // this must be done before Binding {intermediate_block}, otherwise,
     // Reducer::Bind methods will see an invalid block being bound (because its
     // predecessor would be a branch, but none of its targets would be the block
@@ -3363,18 +3412,23 @@ class Assembler : public GraphVisitor<Assembler<Reducers>>,
         }
         break;
       }
-      case Opcode::kCallAndCatchException: {
-        CallAndCatchExceptionOp& catch_exception =
-            op.Cast<CallAndCatchExceptionOp>();
-        if (catch_exception.if_success == destination) {
-          catch_exception.if_success = intermediate_block;
-          // We enforce that CallAndCatchException's if_success and if_exception
+      case Opcode::kCheckException: {
+        CheckExceptionOp& catch_exception_op = op.Cast<CheckExceptionOp>();
+        if (catch_exception_op.didnt_throw_block == destination) {
+          catch_exception_op.didnt_throw_block = intermediate_block;
+          // We assume that CheckException's successor and catch_block
           // can never be the same (there is a DCHECK in
-          // Assembler::CallAndCatchException enforcing that).
-          DCHECK_NE(catch_exception.if_exception, destination);
+          // CheckExceptionOp::Validate enforcing that).
+          DCHECK_NE(catch_exception_op.catch_block, destination);
         } else {
-          DCHECK_EQ(catch_exception.if_exception, destination);
-          catch_exception.if_exception = intermediate_block;
+          DCHECK_EQ(catch_exception_op.catch_block, destination);
+          catch_exception_op.catch_block = intermediate_block;
+          // A catch block always has to start with a `CatchBlockBeginOp`.
+          BindReachable(intermediate_block);
+          intermediate_block->SetOrigin(source->OriginForBlockEnd());
+          this->CatchBlockBegin();
+          this->Goto(destination);
+          return;
         }
         break;
       }
@@ -3414,6 +3468,7 @@ class Assembler : public GraphVisitor<Assembler<Reducers>>,
   }
 
   Block* current_block_ = nullptr;
+  Block* current_catch_block_ = nullptr;
   bool generating_unreachable_operations_ = false;
   // TODO(dmercadier,tebbi): remove {current_operation_origin_} and pass instead
   // additional parameters to ReduceXXX methods.
@@ -3450,6 +3505,38 @@ class Assembler : public GraphVisitor<Assembler<Reducers>>,
     return true;
   }
 #endif  // DEBUG
+};
+
+template <class Reducers>
+class Assembler<Reducers>::CatchScope {
+ public:
+  CatchScope(Assembler& assembler, Block* catch_block)
+      : assembler_(assembler),
+        previous_catch_block_(assembler.current_catch_block_) {
+    assembler_.current_catch_block_ = catch_block;
+#ifdef DEBUG
+    this->catch_block = catch_block;
+#endif
+  }
+
+  ~CatchScope() {
+    DCHECK_EQ(assembler_.current_catch_block_, catch_block);
+    assembler_.current_catch_block_ = previous_catch_block_;
+  }
+
+  CatchScope& operator=(const CatchScope&) = delete;
+  CatchScope(const CatchScope&) = delete;
+  CatchScope& operator=(CatchScope&&) = delete;
+  CatchScope(CatchScope&&) = delete;
+
+ private:
+  Assembler& assembler_;
+  Block* previous_catch_block_;
+#ifdef DEBUG
+  Block* catch_block = nullptr;
+#endif
+
+  friend class Assembler;
 };
 
 }  // namespace v8::internal::compiler::turboshaft

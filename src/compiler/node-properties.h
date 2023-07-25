@@ -175,6 +175,8 @@ class V8_EXPORT_PRIVATE NodeProperties {
   // Safe wrapper to mutate the operator of a node. Checks that the node is
   // currently in a state that satisfies constraints of the new operator.
   static void ChangeOp(Node* node, const Operator* new_op);
+  // Like `ChangeOp`, but without checking constraints.
+  static void ChangeOpUnchecked(Node* node, const Operator* new_op);
 
   // ---------------------------------------------------------------------------
   // Miscellaneous utilities.

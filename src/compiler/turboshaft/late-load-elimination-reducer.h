@@ -652,7 +652,7 @@ class LateLoadEliminationAnalyzer {
   void ProcessLoad(OpIndex op_idx, const LoadOp& op);
   void ProcessStore(OpIndex op_idx, const StoreOp& op);
   void ProcessAllocate(OpIndex op_idx, const AllocateOp& op);
-  void ProcessCall(OpIndex op_idx, const Operation& op);
+  void ProcessCall(OpIndex op_idx, const CallOp& op);
   void ProcessPhi(OpIndex op_idx, const PhiOp& op);
   void ProcessAssumeMap(OpIndex op_idx, const AssumeMapOp& op);
 
