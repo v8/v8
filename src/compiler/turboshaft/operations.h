@@ -1585,6 +1585,12 @@ struct ChangeOp : FixedArityOperationT<1, ChangeOp> {
 
   void Validate(const Graph& graph) const {
     DCHECK(ValidOpInputRep(graph, input(), from));
+    // Bitcasts from and to Tagged should use a TaggedBitcast instead (which has
+    // different effects, since it's unsafe to reorder such bitcasts accross
+    // GCs).
+    DCHECK_IMPLIES(kind == Kind::kBitcast,
+                   from != RegisterRepresentation::Tagged() &&
+                       to != RegisterRepresentation::Tagged());
   }
   auto options() const { return std::tuple{kind, assumption, from, to}; }
 };
