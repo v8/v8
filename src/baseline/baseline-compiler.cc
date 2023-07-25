@@ -369,11 +369,17 @@ void BaselineCompiler::LoadRegister(Register output, int operand_index) {
 }
 
 void BaselineCompiler::StoreRegister(int operand_index, Register value) {
+#ifdef DEBUG
+  effect_state_.CheckEffect();
+#endif
   __ Move(RegisterOperand(operand_index), value);
 }
 
 void BaselineCompiler::StoreRegisterPair(int operand_index, Register val0,
                                          Register val1) {
+#ifdef DEBUG
+  effect_state_.CheckEffect();
+#endif
   interpreter::Register reg0, reg1;
   std::tie(reg0, reg1) = iterator().GetRegisterPairOperand(operand_index);
   __ StoreRegister(reg0, val0);
@@ -493,6 +499,9 @@ void BaselineCompiler::PreVisitSingleBytecode() {
 }
 
 void BaselineCompiler::VisitSingleBytecode() {
+#ifdef DEBUG
+  effect_state_.clear();
+#endif
   int offset = iterator().current_offset();
   BaselineLabelPointer label = labels_[offset];
   if (label.GetPointer()) __ Bind(label.GetPointer());
@@ -578,7 +587,7 @@ void BaselineCompiler::TraceBytecode(Runtime::FunctionId function_id) {
                           function_id == Runtime::kTraceUnoptimizedBytecodeEntry
                               ? "Trace bytecode entry"
                               : "Trace bytecode exit");
-  SaveAccumulatorScope accumulator_scope(&basm_);
+  SaveAccumulatorScope accumulator_scope(this, &basm_);
   CallRuntime(function_id, bytecode_,
               Smi::FromInt(BytecodeArray::kHeaderSize - kHeapObjectTag +
                            iterator().current_offset()),
@@ -603,7 +612,6 @@ void BaselineCompiler::UpdateInterruptBudgetAndJumpToLabel(
     __ AddToInterruptBudgetAndJumpIfNotExceeded(weight, skip_interrupt_label);
 
     DCHECK_LT(weight, 0);
-    SaveAccumulatorScope accumulator_scope(&basm_);
     CallRuntime(stack_check_behavior == kEnableStackCheck
                     ? Runtime::kBytecodeBudgetInterruptWithStackCheck_Sparkplug
                     : Runtime::kBytecodeBudgetInterrupt_Sparkplug,
@@ -633,8 +641,34 @@ Label* BaselineCompiler::BuildForwardJumpLabel() {
   return EnsureLabel(target_offset);
 }
 
+#ifdef DEBUG
+// Allowlist to mark builtin calls during which it is impossible that the
+// sparkplug frame would have to be deoptimized. Either because they don't
+// execute any user code, or because they would anyway replace the current
+// frame, e.g., due to OSR.
+constexpr static bool BuiltinMayDeopt(Builtin id) {
+  switch (id) {
+    case Builtin::kSuspendGeneratorBaseline:
+    case Builtin::kBaselineOutOfLinePrologue:
+    case Builtin::kIncBlockCounter:
+    case Builtin::kToObject:
+    // This one explicitly skips the construct if the debugger is enabled.
+    case Builtin::kFindNonDefaultConstructorOrConstruct:
+      return false;
+    default:
+      return true;
+  }
+}
+#endif  // DEBUG
+
 template <Builtin kBuiltin, typename... Args>
 void BaselineCompiler::CallBuiltin(Args... args) {
+#ifdef DEBUG
+  effect_state_.CheckEffect();
+  if (BuiltinMayDeopt(kBuiltin)) {
+    effect_state_.MayDeopt();
+  }
+#endif
   ASM_CODE_COMMENT(&masm_);
   detail::MoveArgumentsForBuiltin<kBuiltin>(&basm_, args...);
   __ CallBuiltin(kBuiltin);
@@ -642,12 +676,19 @@ void BaselineCompiler::CallBuiltin(Args... args) {
 
 template <Builtin kBuiltin, typename... Args>
 void BaselineCompiler::TailCallBuiltin(Args... args) {
+#ifdef DEBUG
+  effect_state_.CheckEffect();
+#endif
   detail::MoveArgumentsForBuiltin<kBuiltin>(&basm_, args...);
   __ TailCallBuiltin(kBuiltin);
 }
 
 template <typename... Args>
 void BaselineCompiler::CallRuntime(Runtime::FunctionId function, Args... args) {
+#ifdef DEBUG
+  effect_state_.CheckEffect();
+  effect_state_.MayDeopt();
+#endif
   __ LoadContext(kContextRegister);
   int nargs = __ Push(args...);
   __ CallRuntime(function, nargs);
@@ -1145,7 +1186,7 @@ void BaselineCompiler::VisitGetSuperConstructor() {
 }
 
 void BaselineCompiler::VisitFindNonDefaultConstructorOrConstruct() {
-  SaveAccumulatorScope accumulator_scope(&basm_);
+  SaveAccumulatorScope accumulator_scope(this, &basm_);
   CallBuiltin<Builtin::kFindNonDefaultConstructorOrConstruct>(
       RegisterOperand(0), RegisterOperand(1));
   StoreRegisterPair(2, kReturnRegister0, kReturnRegister1);
@@ -1270,10 +1311,24 @@ void BaselineCompiler::VisitCallRuntime() {
 }
 
 void BaselineCompiler::VisitCallRuntimeForPair() {
-  SaveAccumulatorScope accumulator_scope(&basm_);
-  CallRuntime(iterator().GetRuntimeIdOperand(0),
-              iterator().GetRegisterListOperand(1));
-  StoreRegisterPair(3, kReturnRegister0, kReturnRegister1);
+  auto builtin = iterator().GetRuntimeIdOperand(0);
+  switch (builtin) {
+    case Runtime::kLoadLookupSlotForCall: {
+      // TODO(olivf) Once we have more builtins to support here we should find
+      // out how to do this generically.
+      auto in = iterator().GetRegisterListOperand(1);
+      auto out = iterator().GetRegisterPairOperand(3);
+      BaselineAssembler::ScratchRegisterScope scratch_scope(&basm_);
+      Register out_reg = scratch_scope.AcquireScratch();
+      __ RegisterFrameAddress(out.first, out_reg);
+      DCHECK(in.register_count() == 1);
+      CallRuntime(Runtime::kLoadLookupSlotForCall_Baseline, in.first_register(),
+                  out_reg);
+      break;
+    }
+    default:
+      UNREACHABLE();
+  }
 }
 
 void BaselineCompiler::VisitCallJSRuntime() {
@@ -1711,9 +1766,7 @@ void BaselineCompiler::VisitTestTypeOf() {
 }
 
 void BaselineCompiler::VisitToName() {
-  SaveAccumulatorScope save_accumulator(&basm_);
   CallBuiltin<Builtin::kToName>(kInterpreterAccumulatorRegister);
-  StoreRegister(0, kInterpreterAccumulatorRegister);
 }
 
 void BaselineCompiler::VisitToNumber() {
@@ -1727,7 +1780,7 @@ void BaselineCompiler::VisitToNumeric() {
 }
 
 void BaselineCompiler::VisitToObject() {
-  SaveAccumulatorScope save_accumulator(&basm_);
+  SaveAccumulatorScope save_accumulator(this, &basm_);
   CallBuiltin<Builtin::kToObject>(kInterpreterAccumulatorRegister);
   StoreRegister(0, kInterpreterAccumulatorRegister);
 }
@@ -1928,6 +1981,13 @@ void BaselineCompiler::VisitJumpLoop() {
 
 #ifndef V8_JITLESS
   {
+    // In case we deopt during the above interrupt check then this part of the
+    // jump loop is skipped. This is not a problem as nothing observable happens
+    // here.
+#ifdef DEBUG
+    effect_state_.safe_to_skip = true;
+#endif
+
     ASM_CODE_COMMENT_STRING(&masm_, "OSR Handle Armed");
     __ Bind(&osr_armed);
     Register maybe_target_code = D::MaybeTargetCodeRegister();
@@ -1950,12 +2010,18 @@ void BaselineCompiler::VisitJumpLoop() {
     __ Bind(&osr);
     Label do_osr;
     int weight = bytecode_->length() * v8_flags.osr_to_tierup;
+    __ Push(maybe_target_code);
     UpdateInterruptBudgetAndJumpToLabel(-weight, nullptr, &do_osr,
                                         kDisableStackCheck);
     __ Bind(&do_osr);
+    __ Pop(maybe_target_code);
     CallBuiltin<Builtin::kBaselineOnStackReplacement>(maybe_target_code);
     __ AddToInterruptBudgetAndJumpIfNotExceeded(weight, nullptr);
     __ Jump(&osr_not_armed, Label::kNear);
+
+#ifdef DEBUG
+    effect_state_.safe_to_skip = false;
+#endif
   }
 #endif  // !V8_JITLESS
 }
@@ -2244,7 +2310,7 @@ void BaselineCompiler::VisitSuspendGenerator() {
   Register generator_object = scratch_scope.AcquireScratch();
   LoadRegister(generator_object, 0);
   {
-    SaveAccumulatorScope accumulator_scope(&basm_);
+    SaveAccumulatorScope accumulator_scope(this, &basm_);
 
     int bytecode_offset =
         BytecodeArray::kHeaderSize + iterator().current_offset();
@@ -2280,7 +2346,7 @@ void BaselineCompiler::VisitDebugger() {
 }
 
 void BaselineCompiler::VisitIncBlockCounter() {
-  SaveAccumulatorScope accumulator_scope(&basm_);
+  SaveAccumulatorScope accumulator_scope(this, &basm_);
   CallBuiltin<Builtin::kIncBlockCounter>(__ FunctionOperand(),
                                          IndexAsSmi(0));  // coverage array slot
 }
@@ -2308,6 +2374,30 @@ void BaselineCompiler::VisitIllegal() {
   void BaselineCompiler::Visit##Name() { UNREACHABLE(); }
 DEBUG_BREAK_BYTECODE_LIST(DEBUG_BREAK)
 #undef DEBUG_BREAK
+
+SaveAccumulatorScope::SaveAccumulatorScope(BaselineCompiler* compiler,
+                                           BaselineAssembler* assembler)
+    :
+#ifdef DEBUG
+      compiler_(compiler),
+#endif
+      assembler_(assembler) {
+#ifdef DEBUG
+  DCHECK(!compiler_->effect_state_.accumulator_on_stack);
+  compiler_->effect_state_.accumulator_on_stack = true;
+#endif  // DEBUG
+  ASM_CODE_COMMENT(assembler_->masm());
+  assembler_->Push(kInterpreterAccumulatorRegister);
+}
+
+SaveAccumulatorScope::~SaveAccumulatorScope() {
+#ifdef DEBUG
+  DCHECK(compiler_->effect_state_.accumulator_on_stack);
+  compiler_->effect_state_.accumulator_on_stack = false;
+#endif  // DEBUG
+  ASM_CODE_COMMENT(assembler_->masm());
+  assembler_->Pop(kInterpreterAccumulatorRegister);
+}
 
 }  // namespace baseline
 }  // namespace internal

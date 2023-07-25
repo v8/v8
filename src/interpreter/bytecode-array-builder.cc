@@ -1075,8 +1075,8 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::ToObject(Register out) {
   return *this;
 }
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::ToName(Register out) {
-  OutputToName(out);
+BytecodeArrayBuilder& BytecodeArrayBuilder::ToName() {
+  OutputToName();
   return *this;
 }
 

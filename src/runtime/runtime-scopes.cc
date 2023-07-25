@@ -761,6 +761,26 @@ RUNTIME_FUNCTION_RETURN_PAIR(Runtime_LoadLookupSlotForCall) {
   return MakePair(*value, *receiver);
 }
 
+RUNTIME_FUNCTION(Runtime_LoadLookupSlotForCall_Baseline) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  Handle<String> name = args.at<String>(0);
+  // Output pair is returned into two consecutive stack slots.
+  FullObjectSlot value_ret = args.slot_from_address_at(1, 0);
+  FullObjectSlot receiver_ret = args.slot_from_address_at(1, -1);
+  Handle<Object> receiver;
+  Handle<Object> value;
+  if (!LoadLookupSlot(isolate, name, kThrowOnError, &receiver)
+           .ToHandle(&value)) {
+    DCHECK((isolate)->has_pending_exception());
+    value_ret.store(ReadOnlyRoots(isolate).exception());
+    receiver_ret.store(Object());
+    return ReadOnlyRoots(isolate).exception();
+  }
+  value_ret.store(*value);
+  receiver_ret.store(*receiver);
+  return ReadOnlyRoots(isolate).undefined_value();
+}
 
 namespace {
 

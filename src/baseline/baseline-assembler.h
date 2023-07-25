@@ -240,16 +240,6 @@ class BaselineAssembler {
   ScratchRegisterScope* scratch_register_scope_ = nullptr;
 };
 
-class SaveAccumulatorScope final {
- public:
-  inline explicit SaveAccumulatorScope(BaselineAssembler* assembler);
-
-  inline ~SaveAccumulatorScope();
-
- private:
-  BaselineAssembler* assembler_;
-};
-
 class EnsureAccumulatorPreservedScope final {
  public:
   inline explicit EnsureAccumulatorPreservedScope(BaselineAssembler* assembler);

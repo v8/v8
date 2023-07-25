@@ -7934,12 +7934,10 @@ void MaglevGraphBuilder::VisitTestIn() {
 void MaglevGraphBuilder::VisitToName() {
   // ToObject <dst>
   ValueNode* value = GetAccumulatorTagged();
-  interpreter::Register destination = iterator_.GetRegisterOperand(0);
   if (CheckType(value, NodeType::kName)) {
-    MoveNodeBetweenRegisters(interpreter::Register::virtual_accumulator(),
-                             destination);
+    SetAccumulator(value);
   } else {
-    StoreRegister(destination, AddNewNode<ToName>({GetContext(), value}));
+    SetAccumulator(AddNewNode<ToName>({GetContext(), value}));
   }
 }
 

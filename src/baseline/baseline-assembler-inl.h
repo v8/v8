@@ -144,17 +144,6 @@ void BaselineAssembler::DecodeField(Register reg) {
   __ DecodeField<Field>(reg);
 }
 
-SaveAccumulatorScope::SaveAccumulatorScope(BaselineAssembler* assembler)
-    : assembler_(assembler) {
-  ASM_CODE_COMMENT(assembler_->masm());
-  assembler_->Push(kInterpreterAccumulatorRegister);
-}
-
-SaveAccumulatorScope::~SaveAccumulatorScope() {
-  ASM_CODE_COMMENT(assembler_->masm());
-  assembler_->Pop(kInterpreterAccumulatorRegister);
-}
-
 EnsureAccumulatorPreservedScope::EnsureAccumulatorPreservedScope(
     BaselineAssembler* assembler)
     : assembler_(assembler)

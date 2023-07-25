@@ -1171,7 +1171,7 @@ IGNITION_HANDLER(ToName, InterpreterAssembler) {
   TNode<Object> object = GetAccumulator();
   TNode<Context> context = GetContext();
   TNode<Object> result = CallBuiltin(Builtin::kToName, context, object);
-  StoreRegisterAtOperandIndex(result, 0);
+  SetAccumulator(result);
   Dispatch();
 }
 
@@ -1544,6 +1544,7 @@ IGNITION_HANDLER(CallRuntimeForPair, InterpreterAssembler) {
   TNode<Object> result0 = Projection<0>(result_pair);
   TNode<Object> result1 = Projection<1>(result_pair);
   StoreRegisterPairAtOperandIndex(result0, result1, 3);
+  ClobberAccumulator(result0);
   Dispatch();
 }
 
@@ -2225,6 +2226,8 @@ IGNITION_HANDLER(JumpLoop, InterpreterAssembler) {
 
   BIND(&ok);
 #endif  // !V8_JITLESS
+
+  ClobberAccumulator(UndefinedConstant());
 
   // The backward jump can trigger a budget interrupt, which can handle stack
   // interrupts, so we don't need to explicitly handle them here.

@@ -3408,7 +3408,9 @@ void BytecodeGraphBuilder::BuildCastOperator(const Operator* js_op) {
 }
 
 void BytecodeGraphBuilder::VisitToName() {
-  BuildCastOperator(javascript()->ToName());
+  Node* value =
+      NewNode(javascript()->ToName(), environment()->LookupAccumulator());
+  environment()->BindAccumulator(value, Environment::kAttachFrameState);
 }
 
 void BytecodeGraphBuilder::VisitToObject() {

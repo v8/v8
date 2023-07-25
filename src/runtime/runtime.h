@@ -437,6 +437,7 @@ namespace internal {
   F(DeleteLookupSlot, 1, 1)                        \
   F(LoadLookupSlot, 1, 1)                          \
   F(LoadLookupSlotInsideTypeof, 1, 1)              \
+  F(LoadLookupSlotForCall_Baseline, 2, 1)          \
                                                    \
   F(NewClosure, 2, 1)                              \
   F(NewClosure_Tenured, 2, 1)                      \

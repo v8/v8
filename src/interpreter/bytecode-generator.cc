@@ -4738,7 +4738,7 @@ void BytecodeGenerator::BuildDestructuringObjectAssignment(
           DCHECK(!pattern_key->IsPropertyName() ||
                  !pattern_key->IsNumberLiteral());
           VisitForAccumulatorValue(pattern_key);
-          builder()->ToName(value_key);
+          builder()->ToName().StoreAccumulatorInRegister(value_key);
         } else {
           // We only need the key for non-computed properties when it is numeric
           // or is being saved for the rest_runtime_callargs.
@@ -7511,7 +7511,7 @@ void BytecodeGenerator::BuildLoadPropertyKey(LiteralProperty* property,
         .StoreAccumulatorInRegister(out_reg);
   } else {
     VisitForAccumulatorValue(property->key());
-    builder()->ToName(out_reg);
+    builder()->ToName().StoreAccumulatorInRegister(out_reg);
   }
 }
 

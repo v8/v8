@@ -199,6 +199,42 @@ class BaselineCompiler {
   }
 
   BaselineLabelPointer* labels_;
+
+#ifdef DEBUG
+  friend class SaveAccumulatorScope;
+
+  struct EffectState {
+    bool may_have_deopted = false;
+    bool accumulator_on_stack = false;
+    bool safe_to_skip = false;
+
+    void MayDeopt() {
+      DCHECK(!accumulator_on_stack);
+      may_have_deopted = true;
+    }
+
+    void CheckEffect() { DCHECK(!may_have_deopted || safe_to_skip); }
+
+    void clear() {
+      DCHECK(!accumulator_on_stack);
+      *this = EffectState();
+    }
+  } effect_state_;
+#endif
+};
+
+class SaveAccumulatorScope final {
+ public:
+  SaveAccumulatorScope(BaselineCompiler* compiler,
+                       BaselineAssembler* assembler);
+
+  ~SaveAccumulatorScope();
+
+ private:
+#ifdef DEBUG
+  BaselineCompiler* compiler_;
+#endif
+  BaselineAssembler* assembler_;
 };
 
 }  // namespace baseline
