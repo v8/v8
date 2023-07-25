@@ -13,6 +13,7 @@
 #include "src/codegen/assembler.h"
 #include "src/codegen/bailout-reason.h"
 #include "src/common/globals.h"
+#include "src/execution/frame-constants.h"
 #include "src/execution/isolate-data.h"
 #include "src/objects/tagged-index.h"
 
@@ -1604,6 +1605,22 @@ struct MoveCycleState {
   // Scratch register picked by {MoveToTempLocation}.
   base::Optional<Register> scratch_reg;
 };
+
+inline MemOperand ExitFrameStackSlotOperand(int offset) {
+  static constexpr int kSPOffset = 1 * kSystemPointerSize;
+  return MemOperand(sp, kSPOffset + offset);
+}
+
+inline MemOperand ExitFrameCallerStackSlotOperand(int index) {
+  return MemOperand(fp, (ExitFrameConstants::kFixedSlotCountAboveFp + index) *
+                            kSystemPointerSize);
+}
+
+void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
+                              Register function_address,
+                              ExternalReference thunk_ref, Register thunk_arg,
+                              int stack_space, MemOperand* stack_space_operand,
+                              MemOperand return_value_operand);
 
 #define ACCESS_MASM(masm) masm->
 
