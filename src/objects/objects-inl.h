@@ -239,7 +239,7 @@ template <class T,
                                    std::is_enum<T>::value) &&
                                       !std::is_floating_point<T>::value,
                                   int>::type>
-T Object::Relaxed_ReadField(size_t offset) const {
+T HeapObject::Relaxed_ReadField(size_t offset) const {
   // Pointer compression causes types larger than kTaggedSize to be
   // unaligned. Atomic loads must be aligned.
   DCHECK_IMPLIES(COMPRESS_POINTERS_BOOL, sizeof(T) <= kTaggedSize);
@@ -253,7 +253,7 @@ template <class T,
                                    std::is_enum<T>::value) &&
                                       !std::is_floating_point<T>::value,
                                   int>::type>
-void Object::Relaxed_WriteField(size_t offset, T value) {
+void HeapObject::Relaxed_WriteField(size_t offset, T value) {
   // Pointer compression causes types larger than kTaggedSize to be
   // unaligned. Atomic stores must be aligned.
   DCHECK_IMPLIES(COMPRESS_POINTERS_BOOL, sizeof(T) <= kTaggedSize);
@@ -749,71 +749,71 @@ MaybeHandle<Object> Object::SetElement(Isolate* isolate, Handle<Object> object,
   return value;
 }
 
-Address Object::ReadSandboxedPointerField(size_t offset,
-                                          PtrComprCageBase cage_base) const {
+Address HeapObject::ReadSandboxedPointerField(
+    size_t offset, PtrComprCageBase cage_base) const {
   return i::ReadSandboxedPointerField(field_address(offset), cage_base);
 }
 
-void Object::WriteSandboxedPointerField(size_t offset,
-                                        PtrComprCageBase cage_base,
-                                        Address value) {
+void HeapObject::WriteSandboxedPointerField(size_t offset,
+                                            PtrComprCageBase cage_base,
+                                            Address value) {
   i::WriteSandboxedPointerField(field_address(offset), cage_base, value);
 }
 
-void Object::WriteSandboxedPointerField(size_t offset, Isolate* isolate,
-                                        Address value) {
+void HeapObject::WriteSandboxedPointerField(size_t offset, Isolate* isolate,
+                                            Address value) {
   i::WriteSandboxedPointerField(field_address(offset),
                                 PtrComprCageBase(isolate), value);
 }
 
-size_t Object::ReadBoundedSizeField(size_t offset) const {
+size_t HeapObject::ReadBoundedSizeField(size_t offset) const {
   return i::ReadBoundedSizeField(field_address(offset));
 }
 
-void Object::WriteBoundedSizeField(size_t offset, size_t value) {
+void HeapObject::WriteBoundedSizeField(size_t offset, size_t value) {
   i::WriteBoundedSizeField(field_address(offset), value);
 }
 
 template <ExternalPointerTag tag>
-void Object::InitExternalPointerField(size_t offset, Isolate* isolate,
-                                      Address value) {
+void HeapObject::InitExternalPointerField(size_t offset, Isolate* isolate,
+                                          Address value) {
   i::InitExternalPointerField<tag>(field_address(offset), isolate, value);
 }
 
 template <ExternalPointerTag tag>
-Address Object::ReadExternalPointerField(size_t offset,
-                                         Isolate* isolate) const {
+Address HeapObject::ReadExternalPointerField(size_t offset,
+                                             Isolate* isolate) const {
   return i::ReadExternalPointerField<tag>(field_address(offset), isolate);
 }
 
 template <ExternalPointerTag tag>
-void Object::WriteExternalPointerField(size_t offset, Isolate* isolate,
-                                       Address value) {
+void HeapObject::WriteExternalPointerField(size_t offset, Isolate* isolate,
+                                           Address value) {
   i::WriteExternalPointerField<tag>(field_address(offset), isolate, value);
 }
 
 template <ExternalPointerTag tag>
-void Object::WriteLazilyInitializedExternalPointerField(size_t offset,
-                                                        Isolate* isolate,
-                                                        Address value) {
+void HeapObject::WriteLazilyInitializedExternalPointerField(size_t offset,
+                                                            Isolate* isolate,
+                                                            Address value) {
   i::WriteLazilyInitializedExternalPointerField<tag>(field_address(offset),
                                                      isolate, value);
 }
 
-void Object::ResetLazilyInitializedExternalPointerField(size_t offset) {
+void HeapObject::ResetLazilyInitializedExternalPointerField(size_t offset) {
   i::ResetLazilyInitializedExternalPointerField(field_address(offset));
 }
 
-void Object::InitCodePointerField(size_t offset, Isolate* isolate,
-                                  Address value) {
+void HeapObject::InitCodePointerField(size_t offset, Isolate* isolate,
+                                      Address value) {
   i::InitCodePointerField(field_address(offset), isolate, value);
 }
 
-Address Object::ReadCodePointerField(size_t offset) const {
+Address HeapObject::ReadCodePointerField(size_t offset) const {
   return i::ReadCodePointerField(field_address(offset));
 }
 
-void Object::WriteCodePointerField(size_t offset, Address value) {
+void HeapObject::WriteCodePointerField(size_t offset, Address value) {
   i::WriteCodePointerField(field_address(offset), value);
 }
 

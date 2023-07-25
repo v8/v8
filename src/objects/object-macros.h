@@ -442,8 +442,8 @@
     /* This is a workaround for MSVC error C2440 not allowing  */           \
     /* reinterpret casts to the same type. */                               \
     struct C2440 {};                                                        \
-    Address result =                                                        \
-        Object::ReadExternalPointerField<tag>(offset, isolate_for_sandbox); \
+    Address result = HeapObject::ReadExternalPointerField<tag>(             \
+        offset, isolate_for_sandbox);                                       \
     return reinterpret_cast<type>(reinterpret_cast<C2440*>(result));        \
   }                                                                         \
   void holder::init_##name(i::Isolate* isolate, const type initial_value) { \
@@ -452,7 +452,7 @@
     struct C2440 {};                                                        \
     Address the_value = reinterpret_cast<Address>(                          \
         reinterpret_cast<const C2440*>(initial_value));                     \
-    Object::InitExternalPointerField<tag>(offset, isolate, the_value);      \
+    HeapObject::InitExternalPointerField<tag>(offset, isolate, the_value);  \
   }                                                                         \
   void holder::set_##name(i::Isolate* isolate, const type value) {          \
     /* This is a workaround for MSVC error C2440 not allowing  */           \
@@ -460,7 +460,7 @@
     struct C2440 {};                                                        \
     Address the_value =                                                     \
         reinterpret_cast<Address>(reinterpret_cast<const C2440*>(value));   \
-    Object::WriteExternalPointerField<tag>(offset, isolate, the_value);     \
+    HeapObject::WriteExternalPointerField<tag>(offset, isolate, the_value); \
   }
 
 #define BIT_FIELD_ACCESSORS2(holder, get_field, set_field, name, BitField) \

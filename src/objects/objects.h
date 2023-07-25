@@ -723,83 +723,6 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
     bool operator()(const Object a, const Object b) const { return a < b; }
   };
 
-  template <class T, typename std::enable_if<std::is_arithmetic<T>::value ||
-                                                 std::is_enum<T>::value,
-                                             int>::type = 0>
-  inline T ReadField(size_t offset) const {
-    return ReadMaybeUnalignedValue<T>(field_address(offset));
-  }
-
-  template <class T, typename std::enable_if<std::is_arithmetic<T>::value ||
-                                                 std::is_enum<T>::value,
-                                             int>::type = 0>
-  inline void WriteField(size_t offset, T value) const {
-    return WriteMaybeUnalignedValue<T>(field_address(offset), value);
-  }
-
-  // Atomically reads a field using relaxed memory ordering. Can only be used
-  // with integral types whose size is <= kTaggedSize (to guarantee alignment).
-  template <class T,
-            typename std::enable_if<(std::is_arithmetic<T>::value ||
-                                     std::is_enum<T>::value) &&
-                                        !std::is_floating_point<T>::value,
-                                    int>::type = 0>
-  inline T Relaxed_ReadField(size_t offset) const;
-
-  // Atomically writes a field using relaxed memory ordering. Can only be used
-  // with integral types whose size is <= kTaggedSize (to guarantee alignment).
-  template <class T,
-            typename std::enable_if<(std::is_arithmetic<T>::value ||
-                                     std::is_enum<T>::value) &&
-                                        !std::is_floating_point<T>::value,
-                                    int>::type = 0>
-  inline void Relaxed_WriteField(size_t offset, T value);
-
-  //
-  // SandboxedPointer_t field accessors.
-  //
-  inline Address ReadSandboxedPointerField(size_t offset,
-                                           PtrComprCageBase cage_base) const;
-  inline void WriteSandboxedPointerField(size_t offset,
-                                         PtrComprCageBase cage_base,
-                                         Address value);
-  inline void WriteSandboxedPointerField(size_t offset, Isolate* isolate,
-                                         Address value);
-
-  //
-  // BoundedSize field accessors.
-  //
-  inline size_t ReadBoundedSizeField(size_t offset) const;
-  inline void WriteBoundedSizeField(size_t offset, size_t value);
-
-  //
-  // ExternalPointer_t field accessors.
-  //
-  template <ExternalPointerTag tag>
-  inline void InitExternalPointerField(size_t offset, Isolate* isolate,
-                                       Address value);
-  template <ExternalPointerTag tag>
-  inline Address ReadExternalPointerField(size_t offset,
-                                          Isolate* isolate) const;
-  template <ExternalPointerTag tag>
-  inline void WriteExternalPointerField(size_t offset, Isolate* isolate,
-                                        Address value);
-
-  template <ExternalPointerTag tag>
-  inline void WriteLazilyInitializedExternalPointerField(size_t offset,
-                                                         Isolate* isolate,
-                                                         Address value);
-
-  inline void ResetLazilyInitializedExternalPointerField(size_t offset);
-
-  //
-  // CodePointer field accessors.
-  //
-  inline void InitCodePointerField(size_t offset, Isolate* isolate,
-                                   Address value);
-  inline Address ReadCodePointerField(size_t offset) const;
-  inline void WriteCodePointerField(size_t offset, Address value);
-
   // If the receiver is the JSGlobalObject, the store was contextual. In case
   // the property did not exist yet on the global object itself, we have to
   // throw a reference error in strict mode.  In sloppy mode, we continue.
@@ -837,10 +760,6 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
  protected:
   struct SkipTypeCheckTag {};
   explicit constexpr Object(Address ptr, SkipTypeCheckTag) : Object(ptr) {}
-
-  inline Address field_address(size_t offset) const {
-    return ptr() + offset - kHeapObjectTag;
-  }
 
  private:
   friend class CompressedObjectSlot;

@@ -177,6 +177,83 @@ class HeapObject : public Object {
   // GC internal.
   V8_EXPORT_PRIVATE int SizeFromMap(Map map) const;
 
+  template <class T, typename std::enable_if<std::is_arithmetic<T>::value ||
+                                                 std::is_enum<T>::value,
+                                             int>::type = 0>
+  inline T ReadField(size_t offset) const {
+    return ReadMaybeUnalignedValue<T>(field_address(offset));
+  }
+
+  template <class T, typename std::enable_if<std::is_arithmetic<T>::value ||
+                                                 std::is_enum<T>::value,
+                                             int>::type = 0>
+  inline void WriteField(size_t offset, T value) const {
+    return WriteMaybeUnalignedValue<T>(field_address(offset), value);
+  }
+
+  // Atomically reads a field using relaxed memory ordering. Can only be used
+  // with integral types whose size is <= kTaggedSize (to guarantee alignment).
+  template <class T,
+            typename std::enable_if<(std::is_arithmetic<T>::value ||
+                                     std::is_enum<T>::value) &&
+                                        !std::is_floating_point<T>::value,
+                                    int>::type = 0>
+  inline T Relaxed_ReadField(size_t offset) const;
+
+  // Atomically writes a field using relaxed memory ordering. Can only be used
+  // with integral types whose size is <= kTaggedSize (to guarantee alignment).
+  template <class T,
+            typename std::enable_if<(std::is_arithmetic<T>::value ||
+                                     std::is_enum<T>::value) &&
+                                        !std::is_floating_point<T>::value,
+                                    int>::type = 0>
+  inline void Relaxed_WriteField(size_t offset, T value);
+
+  //
+  // SandboxedPointer_t field accessors.
+  //
+  inline Address ReadSandboxedPointerField(size_t offset,
+                                           PtrComprCageBase cage_base) const;
+  inline void WriteSandboxedPointerField(size_t offset,
+                                         PtrComprCageBase cage_base,
+                                         Address value);
+  inline void WriteSandboxedPointerField(size_t offset, Isolate* isolate,
+                                         Address value);
+
+  //
+  // BoundedSize field accessors.
+  //
+  inline size_t ReadBoundedSizeField(size_t offset) const;
+  inline void WriteBoundedSizeField(size_t offset, size_t value);
+
+  //
+  // ExternalPointer_t field accessors.
+  //
+  template <ExternalPointerTag tag>
+  inline void InitExternalPointerField(size_t offset, Isolate* isolate,
+                                       Address value);
+  template <ExternalPointerTag tag>
+  inline Address ReadExternalPointerField(size_t offset,
+                                          Isolate* isolate) const;
+  template <ExternalPointerTag tag>
+  inline void WriteExternalPointerField(size_t offset, Isolate* isolate,
+                                        Address value);
+
+  template <ExternalPointerTag tag>
+  inline void WriteLazilyInitializedExternalPointerField(size_t offset,
+                                                         Isolate* isolate,
+                                                         Address value);
+
+  inline void ResetLazilyInitializedExternalPointerField(size_t offset);
+
+  //
+  // CodePointer field accessors.
+  //
+  inline void InitCodePointerField(size_t offset, Isolate* isolate,
+                                   Address value);
+  inline Address ReadCodePointerField(size_t offset) const;
+  inline void WriteCodePointerField(size_t offset, Address value);
+
   // Returns the field at offset in obj, as a read/write Object reference.
   // Does no checking, and is safe to use during GC, while maps are invalid.
   // Does not invoke write barrier, so should only be assigned to
@@ -249,6 +326,10 @@ class HeapObject : public Object {
 
  protected:
   OBJECT_CONSTRUCTORS(HeapObject, Object);
+
+  inline Address field_address(size_t offset) const {
+    return ptr() + offset - kHeapObjectTag;
+  }
 
  private:
   enum class VerificationMode {
