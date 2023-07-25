@@ -1290,6 +1290,11 @@ void SupportedOperations::Initialize() {
 #undef SET_SUPPORTED
 }
 
+base::SmallVector<Block*, 4> SuccessorBlocks(const Block& block,
+                                             const Graph& graph) {
+  return SuccessorBlocks(block.LastOperation(graph));
+}
+
 // static
 bool SupportedOperations::IsUnalignedLoadSupported(MemoryRepresentation repr) {
   return InstructionSelector::AlignmentRequirements().IsUnalignedLoadSupported(

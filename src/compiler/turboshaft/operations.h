@@ -2994,6 +2994,9 @@ inline base::SmallVector<Block*, 4> SuccessorBlocks(const Operation& op) {
   }
 }
 
+base::SmallVector<Block*, 4> SuccessorBlocks(const Block& block,
+                                             const Graph& graph);
+
 // Tuples are only used to lower operations with multiple outputs.
 // `TupleOp` should be folded away by subsequent `ProjectionOp`s.
 struct TupleOp : OperationT<TupleOp> {

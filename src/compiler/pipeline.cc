@@ -84,9 +84,6 @@
 #include "src/compiler/turboshaft/build-graph-phase.h"
 #include "src/compiler/turboshaft/dead-code-elimination-phase.h"
 #include "src/compiler/turboshaft/decompression-optimization-phase.h"
-#include "src/compiler/turboshaft/graph-visualizer.h"
-#include "src/compiler/turboshaft/graph.h"
-#include "src/compiler/turboshaft/index.h"
 #include "src/compiler/turboshaft/instruction-selection-phase.h"
 #include "src/compiler/turboshaft/machine-lowering-phase.h"
 #include "src/compiler/turboshaft/optimize-phase.h"
@@ -105,14 +102,15 @@
 #include "src/compiler/zone-stats.h"
 #include "src/diagnostics/code-tracer.h"
 #include "src/diagnostics/disassembler.h"
-#include "src/execution/isolate-inl.h"
 #include "src/flags/flags.h"
+#include "src/handles/handles-inl.h"
 #include "src/heap/local-heap.h"
 #include "src/logging/code-events.h"
 #include "src/logging/counters.h"
 #include "src/logging/runtime-call-stats-scope.h"
 #include "src/logging/runtime-call-stats.h"
 #include "src/objects/shared-function-info.h"
+#include "src/objects/string-inl.h"
 #include "src/tracing/trace-event.h"
 #include "src/utils/ostreams.h"
 #include "src/utils/utils.h"
@@ -4092,8 +4090,6 @@ bool PipelineImpl::SelectInstructionsTurboshaft(
   auto call_descriptor = linkage->GetIncomingDescriptor();
   PipelineData* turbofan_data = this->data_;
 
-  turboshaft_scope->Value().InitializeInstructionSequence(call_descriptor);
-
   // Depending on which code path led us to this function, the frame may or
   // may not have been initialized. If it hasn't yet, initialize it now.
   if (!turbofan_data->frame()) {
@@ -4101,7 +4097,8 @@ bool PipelineImpl::SelectInstructionsTurboshaft(
   }
   // Select and schedule instructions covering the scheduled graph.
   if (base::Optional<BailoutReason> bailout =
-          Run<turboshaft::InstructionSelectionPhase>(linkage)) {
+          Run<turboshaft::InstructionSelectionPhase>(call_descriptor,
+                                                     linkage)) {
     info()->AbortOptimization(*bailout);
     turbofan_data->EndPhaseKind();
     return false;

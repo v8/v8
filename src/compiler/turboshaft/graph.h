@@ -469,6 +469,7 @@ class Graph {
       : operations_(graph_zone, initial_capacity),
         bound_blocks_(graph_zone),
         all_blocks_(graph_zone),
+        block_permutation_(graph_zone),
         graph_zone_(graph_zone),
         source_positions_(graph_zone),
         operation_origins_(graph_zone),
@@ -484,6 +485,7 @@ class Graph {
   void Reset() {
     operations_.Reset();
     bound_blocks_.clear();
+    block_permutation_.clear();
     source_positions_.Reset();
     operation_origins_.Reset();
     operation_types_.Reset();
@@ -528,11 +530,19 @@ class Graph {
 
   OpIndex Index(const Operation& op) const { return operations_.Index(op); }
   BlockIndex BlockOf(OpIndex index) const {
-    auto it = std::upper_bound(
-        bound_blocks_.begin(), bound_blocks_.end(), index,
-        [](OpIndex value, const Block* b) { return value < b->begin_; });
+    ZoneVector<Block*>::const_iterator it;
+    if (block_permutation_.empty()) {
+      it = std::upper_bound(
+          bound_blocks_.begin(), bound_blocks_.end(), index,
+          [](OpIndex value, const Block* b) { return value < b->begin_; });
+    } else {
+      it = std::upper_bound(
+          block_permutation_.begin(), block_permutation_.end(), index,
+          [](OpIndex value, const Block* b) { return value < b->begin_; });
+    }
     DCHECK_NE(it, bound_blocks_.begin());
     --it;
+    DCHECK((*it)->Contains(index));
     return (*it)->index();
   }
 
@@ -818,6 +828,17 @@ class Graph {
   }
 #endif  // DEBUG
 
+  void ReorderBlocks(base::Vector<uint32_t> permutation) {
+    DCHECK_EQ(permutation.size(), bound_blocks_.size());
+    block_permutation_.resize(bound_blocks_.size());
+    std::swap(block_permutation_, bound_blocks_);
+
+    for (size_t i = 0; i < permutation.size(); ++i) {
+      bound_blocks_[i] = block_permutation_[permutation[i]];
+      bound_blocks_[i]->index_ = BlockIndex(static_cast<uint32_t>(i));
+    }
+  }
+
   Graph& GetOrCreateCompanion() {
     if (!companion_) {
       companion_ = std::make_unique<Graph>(graph_zone_, operations_.size());
@@ -835,6 +856,7 @@ class Graph {
     std::swap(operations_, companion.operations_);
     std::swap(bound_blocks_, companion.bound_blocks_);
     std::swap(all_blocks_, companion.all_blocks_);
+    std::swap(block_permutation_, companion.block_permutation_);
     std::swap(next_block_, companion.next_block_);
     std::swap(graph_zone_, companion.graph_zone_);
     std::swap(source_positions_, companion.source_positions_);
@@ -894,6 +916,10 @@ class Graph {
   OperationBuffer operations_;
   ZoneVector<Block*> bound_blocks_;
   ZoneVector<Block*> all_blocks_;
+  // When `ReorderBlocks` is called, `block_permutation_` contains the original
+  // order of blocks in order to provide a proper OpIndex->Block mapping for
+  // `BlockOf`. In non-reordered graphs, this vector is empty.
+  ZoneVector<Block*> block_permutation_;
   size_t next_block_ = 0;
   Zone* graph_zone_;
   GrowingSidetable<SourcePosition> source_positions_;

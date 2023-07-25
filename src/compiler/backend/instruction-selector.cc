@@ -2706,8 +2706,7 @@ void InstructionSelectorT<Adapter>::VisitRetain(node_t node) {
 }
 
 template <>
-void InstructionSelectorT<TurboshaftAdapter>::VisitControl(
-    turboshaft::Block* block) {
+void InstructionSelectorT<TurboshaftAdapter>::VisitControl(block_t block) {
   using namespace turboshaft;  // NOLINT(build/namespaces)
 #ifdef DEBUG
   // SSA deconstruction requires targets of branches not to have phis.
@@ -4218,6 +4217,7 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitNode(
     case Opcode::kDeoptimize:
     case Opcode::kSwitch:
       // Those are already handled in VisitControl.
+      DCHECK(op.IsBlockTerminator());
       break;
     case Opcode::kParameter: {
       // Parameters should always be scheduled to the first block.

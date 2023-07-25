@@ -12,7 +12,9 @@ namespace v8::internal::compiler::turboshaft {
 struct InstructionSelectionPhase {
   DECL_TURBOSHAFT_PHASE_CONSTANTS(InstructionSelection)
 
-  base::Optional<BailoutReason> Run(Zone* temp_zone, Linkage* linkage);
+  base::Optional<BailoutReason> Run(Zone* temp_zone,
+                                    const CallDescriptor* call_descriptor,
+                                    Linkage* linkage);
 };
 
 // Disable printing a default turboshaft graph as this phase produces an
