@@ -14,6 +14,7 @@
 #include "include/v8-platform.h"
 #include "src/base/bounded-page-allocator.h"
 #include "src/base/export-template.h"
+#include "src/base/functional.h"
 #include "src/base/macros.h"
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/semaphore.h"
@@ -430,7 +431,7 @@ class MemoryAllocator {
 #ifdef DEBUG
   // Data structure to remember allocated executable memory chunks.
   // This data structure is used only in DCHECKs.
-  std::unordered_set<MemoryChunk*> executable_memory_;
+  std::unordered_set<MemoryChunk*, base::hash<MemoryChunk*>> executable_memory_;
   base::Mutex executable_memory_mutex_;
 #endif  // DEBUG
 
@@ -440,7 +441,9 @@ class MemoryAllocator {
   // Page*, and the large page set is guaranteed to contain LargePage*. We will
   // be looking up BasicMemoryChunk*, however, and we want to avoid pointer
   // casts that are technically undefined behaviour.
-  std::unordered_set<const BasicMemoryChunk*> normal_pages_;
+  std::unordered_set<const BasicMemoryChunk*,
+                     base::hash<const BasicMemoryChunk*>>
+      normal_pages_;
   std::set<const BasicMemoryChunk*> large_pages_;
 
   mutable base::Mutex pages_mutex_;

@@ -357,6 +357,16 @@ class MemoryChunk : public BasicMemoryChunk {
 };
 
 }  // namespace internal
+
+namespace base {
+// Define special hash function for chunk pointers, to be used with std data
+// structures, e.g. std::unordered_set<MemoryChunk*, base::hash<MemoryChunk*>
+template <>
+struct hash<i::MemoryChunk*> : hash<i::BasicMemoryChunk*> {};
+template <>
+struct hash<const i::MemoryChunk*> : hash<const i::BasicMemoryChunk*> {};
+}  // namespace base
+
 }  // namespace v8
 
 #endif  // V8_HEAP_MEMORY_CHUNK_H_

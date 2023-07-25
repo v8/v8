@@ -6,6 +6,7 @@
 #define V8_HEAP_MARKING_BARRIER_H_
 
 #include "include/v8-internal.h"
+#include "src/base/functional.h"
 #include "src/common/globals.h"
 #include "src/heap/mark-compact.h"
 #include "src/heap/marking-worklist.h"
@@ -88,7 +89,7 @@ class MarkingBarrier {
   base::Optional<MarkingWorklist::Local> shared_heap_worklist_;
   MarkingState marking_state_;
   std::unordered_map<MemoryChunk*, std::unique_ptr<TypedSlots>,
-                     MemoryChunk::Hasher>
+                     base::hash<MemoryChunk*>>
       typed_slots_map_;
   bool is_compacting_ = false;
   bool is_activated_ = false;

@@ -10,6 +10,7 @@
 
 #include "src/base/atomic-utils.h"
 #include "src/base/flags.h"
+#include "src/base/functional.h"
 #include "src/common/globals.h"
 #include "src/flags/flags.h"
 #include "src/heap/marking.h"
@@ -24,13 +25,6 @@ class BaseSpace;
 
 class BasicMemoryChunk {
  public:
-  // Use with std data structures.
-  struct Hasher {
-    size_t operator()(const BasicMemoryChunk* const chunk) const {
-      return reinterpret_cast<size_t>(chunk) >> kPageSizeBits;
-    }
-  };
-
   // All possible flags that can be set on a page. While the value of flags
   // doesn't matter in principle, keep flags used in the write barrier together
   // in order to have dense page flag checks in the write barrier.
@@ -363,6 +357,32 @@ DEFINE_OPERATORS_FOR_FLAGS(BasicMemoryChunk::MainThreadFlags)
 static_assert(std::is_standard_layout<BasicMemoryChunk>::value);
 
 }  // namespace internal
+
+namespace base {
+
+// Define special hash function for chunk pointers, to be used with std data
+// structures, e.g.
+// std::unordered_set<BasicMemoryChunk*, base::hash<BasicMemoryChunk*>
+// This hash function discards the trailing zero bits (chunk alignment).
+// Notice that, when pointer compression is enabled, it also discards the
+// cage base.
+template <>
+struct hash<const i::BasicMemoryChunk*> {
+  V8_INLINE size_t operator()(const i::BasicMemoryChunk* chunk) const {
+    return static_cast<v8::internal::Tagged_t>(
+               reinterpret_cast<uintptr_t>(chunk)) >>
+           kPageSizeBits;
+  }
+};
+
+template <>
+struct hash<i::BasicMemoryChunk*> {
+  V8_INLINE size_t operator()(i::BasicMemoryChunk* chunk) const {
+    return hash<const i::BasicMemoryChunk*>()(chunk);
+  }
+};
+
+}  // namespace base
 }  // namespace v8
 
 #endif  // V8_HEAP_BASIC_MEMORY_CHUNK_H_

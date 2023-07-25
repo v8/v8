@@ -56,6 +56,16 @@ class LargePage : public MemoryChunk {
 static_assert(sizeof(LargePage) <= MemoryChunk::kHeaderSize);
 
 }  // namespace internal
+
+namespace base {
+// Define special hash function for page pointers, to be used with std data
+// structures, e.g. std::unordered_set<LargePage*, base::hash<LargePage*>
+template <>
+struct hash<i::LargePage*> : hash<i::BasicMemoryChunk*> {};
+template <>
+struct hash<const i::LargePage*> : hash<const i::BasicMemoryChunk*> {};
+}  // namespace base
+
 }  // namespace v8
 
 #endif  // V8_HEAP_LARGE_PAGE_H_

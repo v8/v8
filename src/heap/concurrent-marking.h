@@ -9,6 +9,7 @@
 
 #include "include/v8-platform.h"
 #include "src/base/atomic-utils.h"
+#include "src/base/functional.h"
 #include "src/base/optional.h"
 #include "src/base/platform/condition-variable.h"
 #include "src/base/platform/mutex.h"
@@ -41,8 +42,8 @@ struct MemoryChunkData {
 // common case where the requested element is the same as the one previously
 // tried.
 class MemoryChunkDataMap final {
-  using MemoryChunkDataMapT =
-      std::unordered_map<MemoryChunk*, MemoryChunkData, MemoryChunk::Hasher>;
+  using MemoryChunkDataMapT = std::unordered_map<MemoryChunk*, MemoryChunkData,
+                                                 base::hash<MemoryChunk*>>;
 
  public:
   MemoryChunkDataMapT::mapped_type& operator[](

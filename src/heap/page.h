@@ -142,6 +142,16 @@ static_assert(sizeof(MemoryChunk) <= MemoryChunk::kHeaderSize);
 static_assert(sizeof(Page) <= MemoryChunk::kHeaderSize);
 
 }  // namespace internal
+
+namespace base {
+// Define special hash function for page pointers, to be used with std data
+// structures, e.g. std::unordered_set<Page*, base::hash<Page*>
+template <>
+struct hash<i::Page*> : hash<i::BasicMemoryChunk*> {};
+template <>
+struct hash<const i::Page*> : hash<const i::BasicMemoryChunk*> {};
+}  // namespace base
+
 }  // namespace v8
 
 #endif  // V8_HEAP_PAGE_H_
