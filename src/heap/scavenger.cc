@@ -214,11 +214,13 @@ size_t ScavengerCollector::JobTask::GetMaxConcurrency(
     size_t worker_count) const {
   // We need to account for local segments held by worker_count in addition to
   // GlobalPoolSize() of copied_list_ and promotion_list_.
-  return std::min<size_t>(
-      scavengers_->size(),
-      std::max<size_t>(
-          remaining_memory_chunks_.load(std::memory_order_relaxed),
-          worker_count + copied_list_->Size() + promotion_list_->Size()));
+  size_t wanted_num_workers = std::max<size_t>(
+      remaining_memory_chunks_.load(std::memory_order_relaxed),
+      worker_count + copied_list_->Size() + promotion_list_->Size());
+  if (!outer_->heap_->ShouldUseBackgroundThreads()) {
+    return std::min<size_t>(wanted_num_workers, 1);
+  }
+  return std::min<size_t>(scavengers_->size(), wanted_num_workers);
 }
 
 void ScavengerCollector::JobTask::ProcessItems(JobDelegate* delegate,

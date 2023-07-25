@@ -567,11 +567,16 @@ size_t ConcurrentMarking::GetMinorMaxConcurrency(size_t worker_count) {
   return std::min<size_t>(task_state_.size() - 1, worker_count + marking_items);
 }
 
-void ConcurrentMarking::ScheduleJob(GarbageCollector garbage_collector,
-                                    TaskPriority priority) {
+void ConcurrentMarking::TryScheduleJob(GarbageCollector garbage_collector,
+                                       TaskPriority priority) {
   DCHECK(v8_flags.parallel_marking || v8_flags.concurrent_marking);
   DCHECK(!heap_->IsTearingDown());
   DCHECK(IsStopped());
+
+  if (garbage_collector == GarbageCollector::MARK_COMPACTOR &&
+      !heap_->mark_compact_collector()->UseBackgroundThreadsInCycle()) {
+    return;
+  }
 
   if (v8_flags.concurrent_marking_high_priority_threads) {
     priority = TaskPriority::kUserBlocking;
@@ -616,13 +621,19 @@ bool ConcurrentMarking::IsWorkLeft() const {
 void ConcurrentMarking::RescheduleJobIfNeeded(
     GarbageCollector garbage_collector, TaskPriority priority) {
   DCHECK(v8_flags.parallel_marking || v8_flags.concurrent_marking);
+
+  if (garbage_collector == GarbageCollector::MARK_COMPACTOR &&
+      !heap_->mark_compact_collector()->UseBackgroundThreadsInCycle()) {
+    return;
+  }
+
   if (heap_->IsTearingDown()) return;
 
   if (IsStopped()) {
     // This DCHECK is for the case that concurrent marking was paused.
     DCHECK_IMPLIES(garbage_collector_.has_value(),
                    garbage_collector == garbage_collector_);
-    ScheduleJob(garbage_collector, priority);
+    TryScheduleJob(garbage_collector, priority);
   } else {
     DCHECK_EQ(garbage_collector, garbage_collector_);
     if (!IsWorkLeft()) return;
@@ -649,6 +660,9 @@ void ConcurrentMarking::FlushPretenuringFeedback() {
 
 void ConcurrentMarking::Join() {
   DCHECK(v8_flags.parallel_marking || v8_flags.concurrent_marking);
+  DCHECK_IMPLIES(
+      garbage_collector_ == GarbageCollector::MARK_COMPACTOR,
+      heap_->mark_compact_collector()->UseBackgroundThreadsInCycle());
   if (!job_handle_ || !job_handle_->IsValid()) return;
   job_handle_->Join();
   FlushPretenuringFeedback();

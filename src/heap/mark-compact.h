@@ -154,6 +154,10 @@ class MarkCompactCollector final {
     ephemeron_marking_.newly_discovered.clear();
   }
 
+  bool UseBackgroundThreadsInCycle() {
+    return use_background_threads_in_cycle_;
+  }
+
   explicit MarkCompactCollector(Heap* heap);
   ~MarkCompactCollector();
 
@@ -391,6 +395,8 @@ class MarkCompactCollector final {
   base::EnumSet<CodeFlushMode> code_flush_mode_;
 
   std::vector<Page*> empty_new_space_pages_to_be_swept_;
+
+  bool use_background_threads_in_cycle_ = false;
 
   friend class Evacuator;
   friend class RecordMigratedSlotVisitor;

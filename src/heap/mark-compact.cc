@@ -354,6 +354,7 @@ void MarkCompactCollector::StartMarking() {
   }
   heap_->tracer()->NotifyMarkingStart();
   code_flush_mode_ = Heap::GetCodeFlushMode(heap_->isolate());
+  use_background_threads_in_cycle_ = heap_->ShouldUseBackgroundThreads();
   marking_worklists_.CreateContextWorklists(contexts);
   auto* cpp_heap = CppHeap::From(heap_->cpp_heap_);
   local_marking_worklists_ = std::make_unique<MarkingWorklists::Local>(
@@ -812,7 +813,9 @@ void MarkCompactCollector::Finish() {
   local_weak_objects_.reset();
   weak_objects_.next_ephemerons.Clear();
 
-  sweeper_->StartMajorSweeperTasks();
+  if (UseBackgroundThreadsInCycle()) {
+    sweeper_->StartMajorSweeperTasks();
+  }
 
   // Ensure unmapper tasks are stopped such that queued pages aren't freed
   // before this point. We still need all pages to be accessible for the "update
@@ -2124,9 +2127,10 @@ std::pair<size_t, size_t> MarkCompactCollector::ProcessMarkingWorklist(
   CodePageHeaderModificationScope rwx_write_scope(
       "Marking of InstructionStream objects require write access to "
       "Code page headers");
-  if (parallel_marking_)
+  if (parallel_marking_ && UseBackgroundThreadsInCycle()) {
     heap_->concurrent_marking()->RescheduleJobIfNeeded(
         GarbageCollector::MARK_COMPACTOR, TaskPriority::kUserBlocking);
+  }
 
   while (local_marking_worklists_->Pop(&object) ||
          local_marking_worklists_->PopOnHold(&object)) {
@@ -2393,7 +2397,7 @@ void MarkCompactCollector::MarkLiveObjects() {
     RetainMaps();
   }
 
-  if (v8_flags.parallel_marking) {
+  if (v8_flags.parallel_marking && UseBackgroundThreadsInCycle()) {
     TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_MARK_FULL_CLOSURE_PARALLEL);
     parallel_marking_ = true;
     heap_->concurrent_marking()->RescheduleJobIfNeeded(
@@ -2405,6 +2409,9 @@ void MarkCompactCollector::MarkLiveObjects() {
       FinishConcurrentMarking();
     }
     parallel_marking_ = false;
+  } else {
+    TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_MARK_FULL_CLOSURE_SERIAL);
+    MarkTransitiveClosure();
   }
 
   {
@@ -2448,7 +2455,8 @@ class ParallelClearingJob final : public v8::JobTask {
     virtual void Run(JobDelegate* delegate) = 0;
   };
 
-  ParallelClearingJob() = default;
+  explicit ParallelClearingJob(MarkCompactCollector* collector)
+      : collector_(collector) {}
   ~ParallelClearingJob() override = default;
   ParallelClearingJob(const ParallelClearingJob&) = delete;
   ParallelClearingJob& operator=(const ParallelClearingJob&) = delete;
@@ -2466,6 +2474,10 @@ class ParallelClearingJob final : public v8::JobTask {
 
   size_t GetMaxConcurrency(size_t worker_count) const override {
     base::MutexGuard guard(&items_mutex_);
+    if (!v8_flags.parallel_weak_ref_clearing ||
+        !collector_->UseBackgroundThreadsInCycle()) {
+      return std::min<size_t>(items_.size(), 1);
+    }
     return items_.size();
   }
 
@@ -2474,6 +2486,7 @@ class ParallelClearingJob final : public v8::JobTask {
   }
 
  private:
+  MarkCompactCollector* collector_;
   mutable base::Mutex items_mutex_;
   std::vector<std::unique_ptr<ClearingItem>> items_;
 };
@@ -2668,15 +2681,18 @@ void MarkCompactCollector::ClearNonLiveReferences() {
     }
   }
 
-  auto clearing_job = std::make_unique<ParallelClearingJob>();
+  auto clearing_job = std::make_unique<ParallelClearingJob>(this);
   auto clear_string_table_job_item =
       std::make_unique<ClearStringTableJobItem>(isolate);
   const uint64_t trace_id = clear_string_table_job_item->trace_id();
   clearing_job->Add(std::move(clear_string_table_job_item));
   TRACE_GC_NOTE_WITH_FLOW("ClearStringTableJob started", trace_id,
                           TRACE_EVENT_FLAG_FLOW_OUT);
-  auto clearing_job_handle = V8::GetCurrentPlatform()->PostJob(
+  auto clearing_job_handle = V8::GetCurrentPlatform()->CreateJob(
       TaskPriority::kUserBlocking, std::move(clearing_job));
+  if (v8_flags.parallel_weak_ref_clearing && UseBackgroundThreadsInCycle()) {
+    clearing_job_handle->NotifyConcurrencyIncrease();
+  }
 
   {
     TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_CLEAR_EXTERNAL_STRING_TABLE);
@@ -4067,9 +4083,11 @@ bool Evacuator::RawEvacuatePage(MemoryChunk* chunk) {
 class PageEvacuationJob : public v8::JobTask {
  public:
   PageEvacuationJob(
-      Isolate* isolate, std::vector<std::unique_ptr<Evacuator>>* evacuators,
+      Isolate* isolate, MarkCompactCollector* collector,
+      std::vector<std::unique_ptr<Evacuator>>* evacuators,
       std::vector<std::pair<ParallelWorkItem, MemoryChunk*>> evacuation_items)
-      : evacuators_(evacuators),
+      : collector_(collector),
+        evacuators_(evacuators),
         evacuation_items_(std::move(evacuation_items)),
         remaining_evacuation_items_(evacuation_items_.size()),
         generator_(evacuation_items_.size()),
@@ -4111,16 +4129,22 @@ class PageEvacuationJob : public v8::JobTask {
     const size_t kItemsPerWorker = std::max(1, MB / Page::kPageSize);
     // Ceiling division to ensure enough workers for all
     // |remaining_evacuation_items_|
-    const size_t wanted_num_workers =
+    size_t wanted_num_workers =
         (remaining_evacuation_items_.load(std::memory_order_relaxed) +
          kItemsPerWorker - 1) /
         kItemsPerWorker;
-    return std::min<size_t>(wanted_num_workers, evacuators_->size());
+    wanted_num_workers =
+        std::min<size_t>(wanted_num_workers, evacuators_->size());
+    if (!collector_->UseBackgroundThreadsInCycle()) {
+      return std::min<size_t>(wanted_num_workers, 1);
+    }
+    return wanted_num_workers;
   }
 
   uint64_t trace_id() const { return trace_id_; }
 
  private:
+  MarkCompactCollector* collector_;
   std::vector<std::unique_ptr<Evacuator>>* evacuators_;
   std::vector<std::pair<ParallelWorkItem, MemoryChunk*>> evacuation_items_;
   std::atomic<size_t> remaining_evacuation_items_{0};
@@ -4132,7 +4156,7 @@ class PageEvacuationJob : public v8::JobTask {
 
 namespace {
 size_t CreateAndExecuteEvacuationTasks(
-    Heap* heap,
+    Heap* heap, MarkCompactCollector* collector,
     std::vector<std::pair<ParallelWorkItem, MemoryChunk*>> evacuation_items) {
   base::Optional<ProfilingMigrationObserver> profiling_observer;
   if (heap->isolate()->log_object_relocation()) {
@@ -4148,7 +4172,7 @@ size_t CreateAndExecuteEvacuationTasks(
     evacuators.push_back(std::move(evacuator));
   }
   auto page_evacuation_job = std::make_unique<PageEvacuationJob>(
-      heap->isolate(), &evacuators, std::move(evacuation_items));
+      heap->isolate(), collector, &evacuators, std::move(evacuation_items));
   TRACE_GC_NOTE_WITH_FLOW("PageEvacuationJob started",
                           page_evacuation_job->trace_id(),
                           TRACE_EVENT_FLAG_FLOW_OUT);
@@ -4292,8 +4316,8 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
                  "MarkCompactCollector::EvacuatePagesInParallel", "pages",
                  evacuation_items.size());
 
-    wanted_num_tasks =
-        CreateAndExecuteEvacuationTasks(heap_, std::move(evacuation_items));
+    wanted_num_tasks = CreateAndExecuteEvacuationTasks(
+        heap_, this, std::move(evacuation_items));
   }
 
   const size_t aborted_pages = PostProcessAbortedEvacuationCandidates();
@@ -4397,9 +4421,10 @@ class UpdatingItem : public ParallelWorkItem {
 class PointersUpdatingJob : public v8::JobTask {
  public:
   explicit PointersUpdatingJob(
-      Isolate* isolate,
+      Isolate* isolate, MarkCompactCollector* collector,
       std::vector<std::unique_ptr<UpdatingItem>> updating_items)
-      : updating_items_(std::move(updating_items)),
+      : collector_(collector),
+        updating_items_(std::move(updating_items)),
         remaining_updating_items_(updating_items_.size()),
         generator_(updating_items_.size()),
         tracer_(isolate->heap()->tracer()),
@@ -4438,7 +4463,10 @@ class PointersUpdatingJob : public v8::JobTask {
 
   size_t GetMaxConcurrency(size_t worker_count) const override {
     size_t items = remaining_updating_items_.load(std::memory_order_relaxed);
-    if (!v8_flags.parallel_pointer_update) return items > 0;
+    if (!v8_flags.parallel_pointer_update ||
+        !collector_->UseBackgroundThreadsInCycle()) {
+      return std::min<size_t>(items, 1);
+    }
     const size_t kMaxPointerUpdateTasks = 8;
     size_t max_concurrency = std::min<size_t>(kMaxPointerUpdateTasks, items);
     DCHECK_IMPLIES(items > 0, max_concurrency > 0);
@@ -4448,6 +4476,7 @@ class PointersUpdatingJob : public v8::JobTask {
   uint64_t trace_id() const { return trace_id_; }
 
  private:
+  MarkCompactCollector* collector_;
   std::vector<std::unique_ptr<UpdatingItem>> updating_items_;
   std::atomic<size_t> remaining_updating_items_{0};
   IndexGenerator generator_;
@@ -4804,7 +4833,7 @@ void MarkCompactCollector::UpdatePointersAfterEvacuation() {
         std::make_unique<EphemeronTableUpdatingItem>(heap_));
 
     auto pointers_updating_job = std::make_unique<PointersUpdatingJob>(
-        heap_->isolate(), std::move(updating_items));
+        heap_->isolate(), this, std::move(updating_items));
     TRACE_GC_NOTE_WITH_FLOW("PointersUpdatingJob started",
                             pointers_updating_job->trace_id(),
                             TRACE_EVENT_FLAG_FLOW_OUT);

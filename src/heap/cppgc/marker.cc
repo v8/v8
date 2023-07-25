@@ -274,6 +274,8 @@ void MarkerBase::EnterAtomicPause(StackState stack_state) {
   StatsCollector::EnabledScope stats_scope(heap().stats_collector(),
                                            StatsCollector::kMarkAtomicPrologue);
 
+  const MarkingConfig::MarkingType old_marking_type = config_.marking_type;
+
   if (ExitIncrementalMarkingIfNeeded(config_, heap())) {
     // Cancel remaining incremental tasks. Concurrent marking jobs are left to
     // run in parallel with the atomic pause until the mutator thread runs out
@@ -292,7 +294,7 @@ void MarkerBase::EnterAtomicPause(StackState stack_state) {
     VisitRoots(config_.stack_state);
     HandleNotFullyConstructedObjects();
   }
-  if (heap().marking_support() ==
+  if (old_marking_type ==
       MarkingConfig::MarkingType::kIncrementalAndConcurrent) {
     // Start parallel marking.
     mutator_marking_state_.Publish();

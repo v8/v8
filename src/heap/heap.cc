@@ -523,6 +523,11 @@ bool Heap::HasBeenSetUp() const {
   return old_space_ != nullptr;
 }
 
+bool Heap::ShouldUseBackgroundThreads() const {
+  return !v8_flags.single_threaded_gc_in_background ||
+         !isolate()->IsIsolateInBackground();
+}
+
 GarbageCollector Heap::SelectGarbageCollector(AllocationSpace space,
                                               GarbageCollectionReason gc_reason,
                                               const char** reason) const {
@@ -1984,11 +1989,14 @@ void Heap::StartIncrementalMarking(GCFlags gc_flags,
   VerifyCountersAfterSweeping();
 #endif
 
+  std::vector<Isolate*> paused_clients;
+
   if (isolate()->is_shared_space_isolate()) {
     isolate()->global_safepoint()->IterateClientIsolates(
-        [collector](Isolate* client) {
-          if (v8_flags.concurrent_marking) {
-            client->heap()->concurrent_marking()->Pause();
+        [collector, &paused_clients](Isolate* client) {
+          if (v8_flags.concurrent_marking &&
+              client->heap()->concurrent_marking()->Pause()) {
+            paused_clients.push_back(client);
           }
 
           if (collector == GarbageCollector::MARK_COMPACTOR) {
@@ -2008,12 +2016,11 @@ void Heap::StartIncrementalMarking(GCFlags gc_flags,
   incremental_marking()->Start(collector, gc_reason);
 
   if (isolate()->is_shared_space_isolate()) {
-    isolate()->global_safepoint()->IterateClientIsolates([](Isolate* client) {
-      if (v8_flags.concurrent_marking &&
-          client->heap()->incremental_marking()->IsMarking()) {
-        client->heap()->concurrent_marking()->Resume();
-      }
-    });
+    for (Isolate* client : paused_clients) {
+      client->heap()->concurrent_marking()->Resume();
+    }
+  } else {
+    DCHECK(paused_clients.empty());
   }
 }
 
@@ -2347,13 +2354,16 @@ void Heap::PerformGarbageCollection(GarbageCollector collector,
 
   HeapVerifier::VerifyHeapIfEnabled(this);
 
+  std::vector<Isolate*> paused_clients;
+
   if (isolate()->is_shared_space_isolate()) {
     isolate()->global_safepoint()->IterateClientIsolates(
-        [collector](Isolate* client) {
+        [collector, &paused_clients](Isolate* client) {
           CHECK(client->heap()->deserialization_complete());
 
-          if (v8_flags.concurrent_marking) {
-            client->heap()->concurrent_marking()->Pause();
+          if (v8_flags.concurrent_marking &&
+              client->heap()->concurrent_marking()->Pause()) {
+            paused_clients.push_back(client);
           }
 
           if (collector == GarbageCollector::MARK_COMPACTOR) {
@@ -2449,12 +2459,13 @@ void Heap::PerformGarbageCollection(GarbageCollector collector,
   if (isolate()->is_shared_space_isolate()) {
     isolate()->global_safepoint()->IterateClientIsolates([](Isolate* client) {
       HeapVerifier::VerifyHeapIfEnabled(client->heap());
-
-      if (v8_flags.concurrent_marking &&
-          client->heap()->incremental_marking()->IsMarking()) {
-        client->heap()->concurrent_marking()->Resume();
-      }
     });
+
+    for (Isolate* client : paused_clients) {
+      client->heap()->concurrent_marking()->Resume();
+    }
+  } else {
+    DCHECK(paused_clients.empty());
   }
 }
 

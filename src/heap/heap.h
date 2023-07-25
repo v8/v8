@@ -1602,6 +1602,8 @@ class Heap final {
 
   std::shared_ptr<v8::TaskRunner> GetForegroundTaskRunner() const;
 
+  bool ShouldUseBackgroundThreads() const;
+
  private:
   class AllocationTrackerForDebugging;
 

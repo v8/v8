@@ -117,8 +117,8 @@ class V8_EXPORT_PRIVATE ConcurrentMarking {
   // Schedules asynchronous job to perform concurrent marking at |priority|.
   // Objects in the heap should not be moved while these are active (can be
   // stopped safely via Stop() or PauseScope).
-  void ScheduleJob(GarbageCollector garbage_collector,
-                   TaskPriority priority = TaskPriority::kUserVisible);
+  void TryScheduleJob(GarbageCollector garbage_collector,
+                      TaskPriority priority = TaskPriority::kUserVisible);
 
   // Waits for scheduled job to complete.
   void Join();

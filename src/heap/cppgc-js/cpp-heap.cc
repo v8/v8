@@ -644,6 +644,13 @@ CppHeap::MarkingType CppHeap::SelectMarkingType() const {
   if (IsForceGC(current_gc_flags_) && !force_incremental_marking_for_testing_)
     return MarkingType::kAtomic;
 
+  const MarkingType marking_type = marking_support();
+
+  if (marking_type == MarkingType::kIncrementalAndConcurrent && heap_ &&
+      !heap_->mark_compact_collector()->UseBackgroundThreadsInCycle()) {
+    return MarkingType::kIncremental;
+  }
+
   return marking_support();
 }
 

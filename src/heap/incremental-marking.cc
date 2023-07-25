@@ -348,7 +348,8 @@ void IncrementalMarking::StartMarkingMajor() {
   }
 
   if (v8_flags.concurrent_marking && !heap_->IsTearingDown()) {
-    heap_->concurrent_marking()->ScheduleJob(GarbageCollector::MARK_COMPACTOR);
+    heap_->concurrent_marking()->TryScheduleJob(
+        GarbageCollector::MARK_COMPACTOR);
   }
 
   // Ready to start incremental marking.
@@ -399,7 +400,7 @@ void IncrementalMarking::StartMarkingMinor() {
 
   if (v8_flags.concurrent_minor_ms_marking && !heap_->IsTearingDown()) {
     local_marking_worklists()->PublishWork();
-    heap_->concurrent_marking()->ScheduleJob(
+    heap_->concurrent_marking()->TryScheduleJob(
         GarbageCollector::MINOR_MARK_SWEEPER);
   }
 
