@@ -37,6 +37,7 @@ ALL_VARIANT_FLAGS = {
     # For extended Wasm Turboshaft coverage, we add --no-liftoff to the options.
     "turboshaft": [[
         "--turboshaft",
+        "--turboshaft-future",
         "--turboshaft-wasm",
         "--no-liftoff",
         # We need this to correctly bailout for call_indirect with subtyping

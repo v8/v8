@@ -46,6 +46,8 @@ void LateLoadEliminationAnalyzer::ProcessBlock(const Block& block,
         break;
       case Opcode::kCatchBlockBegin:
       case Opcode::kRetain:
+      case Opcode::kDidntThrow:
+      case Opcode::kCheckException:
         // We explicitely break for those operations that have can_write effects
         // but don't actually write.
         break;
