@@ -124,7 +124,11 @@ class JsonStringifier {
   // an escaped character is 6. Shifting the remaining string length right by 3
   // is a more pessimistic estimate, but faster to calculate.
   V8_INLINE bool EscapedLengthIfCurrentPartFits(int length) {
-    return part_length_ - current_index_ > length << 3;
+    if (length > kMaxPartLength) return false;
+    static_assert((kMaxPartLength << 3) <= String::kMaxLength);
+    // This shift will not overflow because length is already less than the
+    // maximum part length.
+    return CurrentPartCanFit(length << 3);
   }
 
   // Short strings can be copied directly to {current_part_}.
@@ -262,6 +266,7 @@ class JsonStringifier {
   static const int kCircularErrorMessagePostfixCount = 1;
 
   static const int kInitialPartLength = 2048;
+  static const int kMaxPartLength = 16 * 1024;
   static const int kPartLengthGrowthFactor = 2;
 
   Factory* factory() { return isolate_->factory(); }
@@ -1209,11 +1214,7 @@ void JsonStringifier::SerializeString_(Handle<String> string) {
   Append<uint8_t, DestChar>('"');
   // We might be able to fit the whole escaped string in the current string
   // part, or we might need to allocate.
-  // We make a rough estimate to find out if the current string can be
-  // serialized without allocating a new string part. The worst case length of
-  // an escaped character is 6. Shifting the remaining string length right by 3
-  // is a more pessimistic estimate, but faster to calculate.
-  if V8_LIKELY (CurrentPartCanFit(length << 3)) {
+  if V8_LIKELY (EscapedLengthIfCurrentPartFits(length)) {
     DisallowGarbageCollection no_gc;
     base::Vector<const SrcChar> vector = string->GetCharVector<SrcChar>(no_gc);
     NoExtendBuilder<DestChar> no_extend(
