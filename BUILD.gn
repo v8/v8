@@ -1908,6 +1908,7 @@ torque_files = [
   "src/builtins/regexp.tq",
   "src/builtins/set-difference.tq",
   "src/builtins/set-intersection.tq",
+  "src/builtins/set-is-subset-of.tq",
   "src/builtins/set-symmetric-difference.tq",
   "src/builtins/set-union.tq",
   "src/builtins/string-at.tq",

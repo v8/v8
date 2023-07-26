@@ -4727,6 +4727,8 @@ void Genesis::InitializeGlobal_harmony_set_methods() {
                         Builtin::kSetPrototypeDifference, 1, true);
   SimpleInstallFunction(isolate(), set_prototype, "symmetricDifference",
                         Builtin::kSetPrototypeSymmetricDifference, 1, true);
+  SimpleInstallFunction(isolate(), set_prototype, "isSubsetOf",
+                        Builtin::kSetPrototypeIsSubsetOf, 1, true);
 }
 
 void Genesis::InitializeGlobal_harmony_json_parse_with_source() {
