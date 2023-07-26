@@ -416,23 +416,11 @@ void PrintSingleDeoptFrame(
       os << "@ConstructInvokeStub";
       if (!v8_flags.print_maglev_deopt_verbose) return;
       os << " : {";
-      auto arguments_without_receiver =
-          frame.as_construct_stub().arguments_without_receiver();
       os << "<this>:"
          << PrintNodeLabel(graph_labeller, frame.as_construct_stub().receiver())
          << ":" << current_input_location->operand();
       current_input_location++;
-      if (arguments_without_receiver.size() > 0) {
-        os << ", ";
-      }
-      for (size_t i = 0; i < arguments_without_receiver.size(); i++) {
-        os << "a" << i << ":"
-           << PrintNodeLabel(graph_labeller, arguments_without_receiver[i])
-           << ":" << current_input_location->operand();
-        current_input_location++;
-        os << ", ";
-      }
-      os << "<context>:"
+      os << ", <context>:"
          << PrintNodeLabel(graph_labeller, frame.as_construct_stub().context())
          << ":" << current_input_location->operand();
       current_input_location++;

@@ -2316,13 +2316,12 @@ struct PromiseCtorFrameStateParams {
 
 // Remnant of old-style JSCallReducer code. Could be ported to graph assembler,
 // but probably not worth the effort.
-FrameState CreateArtificialFrameState(
-    Node* node, Node* outer_frame_state, int parameter_count,
-    FrameStateType frame_state_type, SharedFunctionInfoRef shared,
+FrameState CreateConstructInvokeStubFrameState(
+    Node* node, Node* outer_frame_state, SharedFunctionInfoRef shared,
     Node* context, CommonOperatorBuilder* common, Graph* graph) {
   const FrameStateFunctionInfo* state_info =
-      common->CreateFrameStateFunctionInfo(
-          frame_state_type, parameter_count + 1, 0, shared.object());
+      common->CreateFrameStateFunctionInfo(FrameStateType::kConstructInvokeStub,
+                                           1, 0, shared.object());
 
   const Operator* op = common->FrameState(
       BytecodeOffset::None(), OutputFrameStateCombine::Ignore(), state_info);
@@ -2331,12 +2330,8 @@ FrameState CreateArtificialFrameState(
 
   static constexpr int kTargetInputIndex = 0;
   static constexpr int kReceiverInputIndex = 1;
-  const int parameter_count_with_receiver = parameter_count + 1;
   std::vector<Node*> params;
-  params.reserve(parameter_count_with_receiver);
-  for (int i = 0; i < parameter_count_with_receiver; i++) {
-    params.push_back(node->InputAt(kReceiverInputIndex + i));
-  }
+  params.push_back(node->InputAt(kReceiverInputIndex));
   const Operator* op_param = common->StateValues(
       static_cast<int>(params.size()), SparseInputMask::Dense());
   Node* params_node = graph->NewNode(op_param, static_cast<int>(params.size()),
@@ -2352,10 +2347,9 @@ FrameState PromiseConstructorFrameState(
     Graph* graph) {
   DCHECK_EQ(1,
             params.shared.internal_formal_parameter_count_without_receiver());
-  return CreateArtificialFrameState(params.node_ptr, params.outer_frame_state,
-                                    1, FrameStateType::kConstructInvokeStub,
-                                    params.shared, params.context, common,
-                                    graph);
+  return CreateConstructInvokeStubFrameState(
+      params.node_ptr, params.outer_frame_state, params.shared, params.context,
+      common, graph);
 }
 
 FrameState PromiseConstructorLazyFrameState(
@@ -7385,8 +7379,6 @@ Reduction JSCallReducer::ReducePromiseResolveTrampoline(Node* node) {
 Reduction JSCallReducer::ReduceTypedArrayConstructor(
     Node* node, SharedFunctionInfoRef shared) {
   JSConstructNode n(node);
-  ConstructParameters const& p = n.Parameters();
-  int arity = p.arity_without_implicit_args();
   Node* target = n.target();
   Node* arg0 = n.ArgumentOrUndefined(0, jsgraph());
   Node* arg1 = n.ArgumentOrUndefined(1, jsgraph());
@@ -7399,9 +7391,8 @@ Reduction JSCallReducer::ReduceTypedArrayConstructor(
 
   // Insert a construct stub frame into the chain of frame states. This will
   // reconstruct the proper frame when deoptimizing within the constructor.
-  frame_state = CreateArtificialFrameState(node, frame_state, arity,
-                                           FrameStateType::kConstructInvokeStub,
-                                           shared, context, common(), graph());
+  frame_state = CreateConstructInvokeStubFrameState(node, frame_state, shared,
+                                                    context, common(), graph());
 
   // This continuation just returns the newly created JSTypedArray. We
   // pass the_hole as the receiver, just like the builtin construct stub

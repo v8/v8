@@ -109,13 +109,12 @@ void TranslationArrayPrintSingleFrame(
       }
 
       case TranslationOpcode::CONSTRUCT_INVOKE_STUB_FRAME: {
-        DCHECK_EQ(TranslationOpcodeOperandCount(opcode), 2);
+        DCHECK_EQ(TranslationOpcodeOperandCount(opcode), 1);
         int shared_info_id = iterator.NextOperand();
         Object shared_info = literal_array->get(shared_info_id);
-        unsigned height = iterator.NextOperand();
         os << "{construct invoke stub, function="
            << SharedFunctionInfo::cast(shared_info)->DebugNameCStr().get()
-           << ", height=" << height << "}";
+           << "}";
         break;
       }
 
@@ -805,8 +804,8 @@ TranslatedFrame TranslatedFrame::ConstructCreateStubFrame(
 }
 
 TranslatedFrame TranslatedFrame::ConstructInvokeStubFrame(
-    SharedFunctionInfo shared_info, int height) {
-  return TranslatedFrame(kConstructInvokeStub, shared_info, height);
+    SharedFunctionInfo shared_info) {
+  return TranslatedFrame(kConstructInvokeStub, shared_info, 0);
 }
 
 TranslatedFrame TranslatedFrame::BuiltinContinuationFrame(
@@ -967,15 +966,13 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
     case TranslationOpcode::CONSTRUCT_INVOKE_STUB_FRAME: {
       SharedFunctionInfo shared_info =
           SharedFunctionInfo::cast(literal_array->get(iterator->NextOperand()));
-      int height = iterator->NextOperand();
       if (trace_file != nullptr) {
         std::unique_ptr<char[]> name = shared_info->DebugNameCStr();
         PrintF(trace_file,
-               "  reading construct invoke stub frame %s => height = %d; "
-               "inputs:\n",
-               name.get(), height);
+               "  reading construct invoke stub frame %s, inputs:\n",
+               name.get());
       }
-      return TranslatedFrame::ConstructInvokeStubFrame(shared_info, height);
+      return TranslatedFrame::ConstructInvokeStubFrame(shared_info);
     }
 
     case TranslationOpcode::BUILTIN_CONTINUATION_FRAME: {

@@ -248,19 +248,6 @@ void Builtins::Generate_JSConstructStubGeneric(MacroAssembler* masm) {
   __ mov(edi, Operand(ebp, ConstructFrameConstants::kConstructorOffset));
   __ InvokeFunction(edi, edx, eax, InvokeType::kCall);
 
-  // ----------- S t a t e -------------
-  //  --                eax: constructor result
-  //  -- sp[0*kSystemPointerSize]: implicit receiver
-  //  -- sp[1*kSystemPointerSize]: padding
-  //  -- sp[2*kSystemPointerSize]: constructor function
-  //  -- sp[3*kSystemPointerSize]: number of arguments
-  //  -- sp[4*kSystemPointerSize]: context
-  // -----------------------------------
-
-  // Store offset of return address for deoptimizer.
-  masm->isolate()->heap()->SetConstructStubInvokeDeoptPCOffset(
-      masm->pc_offset());
-
   // If the result is an object (in the ECMA sense), we should get rid
   // of the receiver and use the result; see ECMA-262 section 13.2.2-7
   // on page 74.
@@ -1538,6 +1525,20 @@ void Builtins::Generate_InterpreterPushArgsThenFastConstructFunction(
 
   // Call the constructor.
   __ InvokeFunction(edi, edx, eax, InvokeType::kCall);
+
+  // ----------- S t a t e -------------
+  //  -- eax     constructor result
+  //
+  //  Stack:
+  //  -- Implicit Receiver
+  //  -- Context
+  //  -- FastConstructMarker
+  //  -- FramePointer
+  // -----------------------------------
+
+  // Store offset of return address for deoptimizer.
+  masm->isolate()->heap()->SetConstructStubInvokeDeoptPCOffset(
+      masm->pc_offset());
 
   // If the result is an object (in the ECMA sense), we should get rid
   // of the receiver and use the result; see ECMA-262 section 13.2.2-7

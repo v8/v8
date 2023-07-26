@@ -293,7 +293,7 @@ class TranslatedFrame {
   static TranslatedFrame ConstructCreateStubFrame(
       SharedFunctionInfo shared_info, int height);
   static TranslatedFrame ConstructInvokeStubFrame(
-      SharedFunctionInfo shared_info, int height);
+      SharedFunctionInfo shared_info);
   static TranslatedFrame BuiltinContinuationFrame(
       BytecodeOffset bailout_id, SharedFunctionInfo shared_info, int height);
 #if V8_ENABLE_WEBASSEMBLY

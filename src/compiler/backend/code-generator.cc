@@ -1105,7 +1105,7 @@ void CodeGenerator::BuildTranslationForFrameStateDescriptor(
       translations_.BeginConstructCreateStubFrame(shared_info_id, height);
       break;
     case FrameStateType::kConstructInvokeStub:
-      translations_.BeginConstructInvokeStubFrame(shared_info_id, height);
+      translations_.BeginConstructInvokeStubFrame(shared_info_id);
       break;
     case FrameStateType::kBuiltinContinuation: {
       translations_.BeginBuiltinContinuationFrame(bailout_id, shared_info_id,

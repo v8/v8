@@ -231,9 +231,7 @@ size_t GetInputLocationsArraySize(const DeoptFrame& top_frame) {
         size += kClosureSize + frame->as_inlined_arguments().arguments().size();
         break;
       case DeoptFrame::FrameType::kConstructInvokeStubFrame:
-        size += kClosureSize + kReceiverSize +
-                frame->as_construct_stub().arguments_without_receiver().size() +
-                kContextSize;
+        size += kReceiverSize + kContextSize;
         break;
       case DeoptFrame::FrameType::kBuiltinContinuationFrame:
         size +=

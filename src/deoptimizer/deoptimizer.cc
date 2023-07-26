@@ -846,8 +846,10 @@ void Deoptimizer::DoComputeOutputFrames() {
         DoComputeInlinedExtraArguments(translated_frame, frame_index);
         break;
       case TranslatedFrame::kConstructCreateStub:
+        DoComputeConstructCreateStubFrame(translated_frame, frame_index);
+        break;
       case TranslatedFrame::kConstructInvokeStub:
-        DoComputeConstructStubFrame(translated_frame, frame_index);
+        DoComputeConstructInvokeStubFrame(translated_frame, frame_index);
         break;
       case TranslatedFrame::kBuiltinContinuation:
 #if V8_ENABLE_WEBASSEMBLY
@@ -1349,22 +1351,16 @@ void Deoptimizer::DoComputeInlinedExtraArguments(
   }
 }
 
-void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
-                                              int frame_index) {
+void Deoptimizer::DoComputeConstructCreateStubFrame(
+    TranslatedFrame* translated_frame, int frame_index) {
   TranslatedFrame::iterator value_iterator = translated_frame->begin();
   const bool is_topmost = (output_count_ - 1 == frame_index);
   // The construct frame could become topmost only if we inlined a constructor
   // call which does a tail call (otherwise the tail callee's frame would be
   // the topmost one). So it could only be the DeoptimizeKind::kLazy case.
   CHECK(!is_topmost || deopt_kind_ == DeoptimizeKind::kLazy);
+  DCHECK_EQ(translated_frame->kind(), TranslatedFrame::kConstructCreateStub);
 
-  bool is_create_stub =
-      (translated_frame->kind() == TranslatedFrame::kConstructCreateStub);
-  DCHECK(is_create_stub ||
-         (translated_frame->kind() == TranslatedFrame::kConstructInvokeStub));
-
-  Builtins* builtins = isolate_->builtins();
-  Code construct_stub = builtins->code(Builtin::kJSConstructStubGeneric);
   const int parameters_count = translated_frame->height();
   ConstructStubFrameInfo frame_info =
       ConstructStubFrameInfo::Precise(parameters_count, is_topmost);
@@ -1373,9 +1369,8 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
   TranslatedFrame::iterator function_iterator = value_iterator++;
   if (verbose_tracing_enabled()) {
     PrintF(trace_scope()->file(),
-           "  translating construct %s stub => variable_frame_size=%d, "
+           "  translating construct create stub => variable_frame_size=%d, "
            "frame_size=%d\n",
-           is_create_stub ? "create" : "invoke",
            frame_info.frame_size_in_bytes_without_fixed(), output_frame_size);
   }
 
@@ -1383,8 +1378,6 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
   FrameDescription* output_frame = new (output_frame_size)
       FrameDescription(output_frame_size, parameters_count, isolate());
   FrameWriter frame_writer(this, output_frame, verbose_trace_scope());
-
-  // Construct stub can not be topmost.
   DCHECK(frame_index > 0 && frame_index < output_count_);
   DCHECK_NULL(output_[frame_index]);
   output_[frame_index] = output_frame;
@@ -1449,12 +1442,8 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
   // The deopt info contains the implicit receiver or the new target at the
   // position of the receiver. Copy it to the top of stack, with the hole value
   // as padding to maintain alignment.
-
   frame_writer.PushRawObject(roots.the_hole_value(), "padding\n");
-
-  const char* debug_hint =
-      is_create_stub ? "new target\n" : "allocated receiver\n";
-  frame_writer.PushTranslatedValue(receiver_iterator, debug_hint);
+  frame_writer.PushTranslatedValue(receiver_iterator, "new target\n");
 
   if (is_topmost) {
     for (int i = 0; i < ArgumentPaddingSlots(1); ++i) {
@@ -1470,11 +1459,11 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
   CHECK_EQ(0u, frame_writer.top_offset());
 
   // Compute this frame's PC.
+  Code construct_stub =
+      isolate_->builtins()->code(Builtin::kJSConstructStubGeneric);
   Address start = construct_stub->instruction_start();
   const int pc_offset =
-      is_create_stub
-          ? isolate_->heap()->construct_stub_create_deopt_pc_offset().value()
-          : isolate_->heap()->construct_stub_invoke_deopt_pc_offset().value();
+      isolate_->heap()->construct_stub_create_deopt_pc_offset().value();
   intptr_t pc_value = static_cast<intptr_t>(start + pc_offset);
   if (is_topmost) {
     // Only the pc of the topmost frame needs to be signed since it is
@@ -1504,12 +1493,139 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
     intptr_t context_value = static_cast<intptr_t>(Smi::zero().ptr());
     Register context_reg = JavaScriptFrame::context_register();
     output_frame->SetRegister(context_reg.code(), context_value);
+
+    // Set the continuation for the topmost frame.
+    DCHECK_EQ(DeoptimizeKind::kLazy, deopt_kind_);
+    Code continuation = isolate_->builtins()->code(Builtin::kNotifyDeoptimized);
+    output_frame->SetContinuation(
+        static_cast<intptr_t>(continuation->instruction_start()));
+  }
+}
+
+void Deoptimizer::DoComputeConstructInvokeStubFrame(
+    TranslatedFrame* translated_frame, int frame_index) {
+  TranslatedFrame::iterator value_iterator = translated_frame->begin();
+  const bool is_topmost = (output_count_ - 1 == frame_index);
+  // The construct frame could become topmost only if we inlined a constructor
+  // call which does a tail call (otherwise the tail callee's frame would be
+  // the topmost one). So it could only be the DeoptimizeKind::kLazy case.
+  CHECK(!is_topmost || deopt_kind_ == DeoptimizeKind::kLazy);
+  DCHECK_EQ(translated_frame->kind(), TranslatedFrame::kConstructInvokeStub);
+  DCHECK_EQ(translated_frame->height(), 0);
+
+  FastConstructStubFrameInfo frame_info =
+      FastConstructStubFrameInfo::Precise(is_topmost);
+  const uint32_t output_frame_size = frame_info.frame_size_in_bytes();
+  if (verbose_tracing_enabled()) {
+    PrintF(trace_scope()->file(),
+           "  translating construct invoke stub => variable_frame_size=%d, "
+           "frame_size=%d\n",
+           frame_info.frame_size_in_bytes_without_fixed(), output_frame_size);
   }
 
-  // Set the continuation for the topmost frame.
+  // Allocate and store the output frame description.
+  FrameDescription* output_frame =
+      new (output_frame_size) FrameDescription(output_frame_size, 0, isolate());
+  FrameWriter frame_writer(this, output_frame, verbose_trace_scope());
+  DCHECK(frame_index > 0 && frame_index < output_count_);
+  DCHECK_NULL(output_[frame_index]);
+  output_[frame_index] = output_frame;
+
+  // The top address of the frame is computed from the previous frame's top and
+  // this frame's size.
+  const intptr_t top_address =
+      output_[frame_index - 1]->GetTop() - output_frame_size;
+  output_frame->SetTop(top_address);
+
+  // The allocated receiver of a construct stub frame is passed as the
+  // receiver parameter through the translation. It might be encoding
+  // a captured object, so we need save it for later.
+  TranslatedFrame::iterator receiver_iterator = value_iterator;
+  value_iterator++;
+
+  // Read caller's PC from the previous frame.
+  const intptr_t caller_pc = output_[frame_index - 1]->GetPc();
+  frame_writer.PushApprovedCallerPc(caller_pc);
+
+  // Read caller's FP from the previous frame, and set this frame's FP.
+  const intptr_t caller_fp = output_[frame_index - 1]->GetFp();
+  frame_writer.PushCallerFp(caller_fp);
+
+  const intptr_t fp_value = top_address + frame_writer.top_offset();
+  output_frame->SetFp(fp_value);
   if (is_topmost) {
+    Register fp_reg = JavaScriptFrame::fp_register();
+    output_frame->SetRegister(fp_reg.code(), fp_value);
+  }
+
+  if (V8_EMBEDDED_CONSTANT_POOL_BOOL) {
+    // Read the caller's constant pool from the previous frame.
+    const intptr_t caller_cp = output_[frame_index - 1]->GetConstantPool();
+    frame_writer.PushCallerConstantPool(caller_cp);
+  }
+  intptr_t marker = StackFrame::TypeToMarker(StackFrame::FAST_CONSTRUCT);
+  frame_writer.PushRawValue(marker, "fast construct stub sentinel\n");
+  frame_writer.PushTranslatedValue(value_iterator++, "context");
+  frame_writer.PushTranslatedValue(receiver_iterator, "implicit receiver");
+
+  // The FastConstructFrame needs to be aligned in some architectures.
+  ReadOnlyRoots roots(isolate());
+  for (int i = 0; i < ArgumentPaddingSlots(1); ++i) {
+    frame_writer.PushRawObject(roots.the_hole_value(), "padding\n");
+  }
+
+  if (is_topmost) {
+    for (int i = 0; i < ArgumentPaddingSlots(1); ++i) {
+      frame_writer.PushRawObject(roots.the_hole_value(), "padding\n");
+    }
+    // Ensure the result is restored back when we return to the stub.
+    Register result_reg = kReturnRegister0;
+    intptr_t result = input_->GetRegister(result_reg.code());
+    frame_writer.PushRawValue(result, "subcall result\n");
+  }
+
+  CHECK_EQ(translated_frame->end(), value_iterator);
+  CHECK_EQ(0u, frame_writer.top_offset());
+
+  // Compute this frame's PC.
+  Code construct_stub = isolate_->builtins()->code(
+      Builtin::kInterpreterPushArgsThenFastConstructFunction);
+  Address start = construct_stub->instruction_start();
+  const int pc_offset =
+      isolate_->heap()->construct_stub_invoke_deopt_pc_offset().value();
+  intptr_t pc_value = static_cast<intptr_t>(start + pc_offset);
+  if (is_topmost) {
+    // Only the pc of the topmost frame needs to be signed since it is
+    // authenticated at the end of the DeoptimizationEntry builtin.
+    output_frame->SetPc(PointerAuthentication::SignAndCheckPC(
+        isolate(), pc_value, frame_writer.frame()->GetTop()));
+  } else {
+    output_frame->SetPc(pc_value);
+  }
+
+  // Update constant pool.
+  if (V8_EMBEDDED_CONSTANT_POOL_BOOL) {
+    intptr_t constant_pool_value =
+        static_cast<intptr_t>(construct_stub->constant_pool());
+    output_frame->SetConstantPool(constant_pool_value);
+    if (is_topmost) {
+      Register constant_pool_reg =
+          JavaScriptFrame::constant_pool_pointer_register();
+      output_frame->SetRegister(constant_pool_reg.code(), constant_pool_value);
+    }
+  }
+
+  // Clear the context register. The context might be a de-materialized object
+  // and will be materialized by {Runtime_NotifyDeoptimized}. For additional
+  // safety we use Smi(0) instead of the potential {arguments_marker} here.
+  if (is_topmost) {
+    intptr_t context_value = static_cast<intptr_t>(Smi::zero().ptr());
+    Register context_reg = JavaScriptFrame::context_register();
+    output_frame->SetRegister(context_reg.code(), context_value);
+
+    // Set the continuation for the topmost frame.
     DCHECK_EQ(DeoptimizeKind::kLazy, deopt_kind_);
-    Code continuation = builtins->code(Builtin::kNotifyDeoptimized);
+    Code continuation = isolate_->builtins()->code(Builtin::kNotifyDeoptimized);
     output_frame->SetContinuation(
         static_cast<intptr_t>(continuation->instruction_start()));
   }

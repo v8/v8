@@ -1099,9 +1099,7 @@ class DeoptFrame {
   struct ConstructInvokeStubFrameData {
     const MaglevCompilationUnit& unit;
     const SourcePosition source_position;
-    ValueNode* closure;
     ValueNode* receiver;
-    const base::Vector<ValueNode*> arguments_without_receiver;
     ValueNode* context;
   };
 
@@ -1235,25 +1233,17 @@ inline InlinedArgumentsDeoptFrame& DeoptFrame::as_inlined_arguments() {
 
 class ConstructInvokeStubDeoptFrame : public DeoptFrame {
  public:
-  ConstructInvokeStubDeoptFrame(
-      const MaglevCompilationUnit& unit, SourcePosition source_position,
-      ValueNode* closure, ValueNode* receiver,
-      base::Vector<ValueNode*> arguments_without_receiver, ValueNode* context,
-      DeoptFrame* parent)
-      : DeoptFrame(
-            ConstructInvokeStubFrameData{unit, source_position, closure,
-                                         receiver, arguments_without_receiver,
-                                         context},
-            parent) {}
+  ConstructInvokeStubDeoptFrame(const MaglevCompilationUnit& unit,
+                                SourcePosition source_position,
+                                ValueNode* receiver, ValueNode* context,
+                                DeoptFrame* parent)
+      : DeoptFrame(ConstructInvokeStubFrameData{unit, source_position, receiver,
+                                                context},
+                   parent) {}
 
   const MaglevCompilationUnit& unit() const { return data().unit; }
-  ValueNode*& closure() { return data().closure; }
-  ValueNode* closure() const { return data().closure; }
   ValueNode*& receiver() { return data().receiver; }
   ValueNode* receiver() const { return data().receiver; }
-  base::Vector<ValueNode*> arguments_without_receiver() const {
-    return data().arguments_without_receiver;
-  }
   ValueNode*& context() { return data().context; }
   ValueNode* context() const { return data().context; }
   SourcePosition source_position() const { return data().source_position; }

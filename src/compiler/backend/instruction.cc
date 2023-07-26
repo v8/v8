@@ -1147,12 +1147,13 @@ size_t GetConservativeFrameSizeInBytes(FrameStateType type,
 #if V8_ENABLE_WEBASSEMBLY
     case FrameStateType::kWasmInlinedIntoJS:
 #endif
-    case FrameStateType::kConstructCreateStub:
-    case FrameStateType::kConstructInvokeStub: {
+    case FrameStateType::kConstructCreateStub: {
       auto info = ConstructStubFrameInfo::Conservative(
           static_cast<int>(parameters_count));
       return info.frame_size_in_bytes();
     }
+    case FrameStateType::kConstructInvokeStub:
+      return FastConstructStubFrameInfo::Conservative().frame_size_in_bytes();
     case FrameStateType::kBuiltinContinuation:
 #if V8_ENABLE_WEBASSEMBLY
     case FrameStateType::kJSToWasmBuiltinContinuation:
@@ -1234,8 +1235,8 @@ size_t FrameStateDescriptor::GetHeight() const {
 }
 
 size_t FrameStateDescriptor::GetSize() const {
-  return 1 + parameters_count() + locals_count() + stack_count() +
-         (HasContext() ? 1 : 0);
+  return (HasClosure() ? 1 : 0) + parameters_count() + locals_count() +
+         stack_count() + (HasContext() ? 1 : 0);
 }
 
 size_t FrameStateDescriptor::GetTotalSize() const {

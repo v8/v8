@@ -133,12 +133,7 @@ class MaxCallDepthProcessor {
         return info.frame_size_in_bytes();
       }
       case DeoptFrame::FrameType::kConstructInvokeStubFrame: {
-        int arg_count = deopt_frame->as_construct_stub()
-                            .arguments_without_receiver()
-                            .length() +
-                        1;
-        auto info = ConstructStubFrameInfo::Conservative(arg_count);
-        return info.frame_size_in_bytes();
+        return FastConstructStubFrameInfo::Conservative().frame_size_in_bytes();
       }
       case DeoptFrame::FrameType::kInlinedArgumentsFrame: {
         return std::max(

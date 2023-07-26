@@ -1017,9 +1017,11 @@ size_t InstructionSelectorT<TurboshaftAdapter>::AddInputsToFrameStateDescriptor(
   values_descriptor->ReserveSize(descriptor->GetSize());
 
   // Function
-  entries += v8::internal::compiler::AddOperandToStateValueDescriptor(
-      this, values_descriptor, inputs, g, deduplicator, &it,
-      FrameStateInputKind::kStackSlot, zone);
+  if (descriptor->HasClosure()) {
+    entries += v8::internal::compiler::AddOperandToStateValueDescriptor(
+        this, values_descriptor, inputs, g, deduplicator, &it,
+        FrameStateInputKind::kStackSlot, zone);
+  }
 
   // Parameters
   for (size_t i = 0; i < descriptor->parameters_count(); ++i) {
@@ -1082,10 +1084,12 @@ size_t InstructionSelectorT<TurbofanAdapter>::AddInputsToFrameStateDescriptor(
   DCHECK_EQ(values_descriptor->size(), 0u);
   values_descriptor->ReserveSize(descriptor->GetSize());
 
-  DCHECK_NOT_NULL(function);
-  entries += AddOperandToStateValueDescriptor(
-      values_descriptor, inputs, g, deduplicator, function,
-      MachineType::AnyTagged(), FrameStateInputKind::kStackSlot, zone);
+  if (descriptor->HasClosure()) {
+    DCHECK_NOT_NULL(function);
+    entries += AddOperandToStateValueDescriptor(
+        values_descriptor, inputs, g, deduplicator, function,
+        MachineType::AnyTagged(), FrameStateInputKind::kStackSlot, zone);
+  }
 
   entries += AddInputsToFrameStateDescriptor(
       values_descriptor, inputs, g, deduplicator, parameters, kind, zone);

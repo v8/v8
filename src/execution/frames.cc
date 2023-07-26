@@ -3383,6 +3383,23 @@ ConstructStubFrameInfo::ConstructStubFrameInfo(int translation_height,
                          ConstructFrameConstants::kFixedFrameSize;
 }
 
+FastConstructStubFrameInfo::FastConstructStubFrameInfo(bool is_topmost) {
+  // If the construct frame appears to be topmost we should ensure that the
+  // value of result register is preserved during continuation execution.
+  // We do this here by "pushing" the result of the constructor function to
+  // the top of the reconstructed stack and popping it in
+  // {Builtin::kNotifyDeoptimized}.
+
+  static constexpr int kTopOfStackPadding = TopOfStackRegisterPaddingSlots();
+  static constexpr int kTheResult = 1;
+  const int adjusted_height =
+      ArgumentPaddingSlots(1) +
+      (is_topmost ? kTheResult + kTopOfStackPadding : 0);
+  frame_size_in_bytes_without_fixed_ = adjusted_height * kSystemPointerSize;
+  frame_size_in_bytes_ = frame_size_in_bytes_without_fixed_ +
+                         FastConstructFrameConstants::kFixedFrameSize;
+}
+
 BuiltinContinuationFrameInfo::BuiltinContinuationFrameInfo(
     int translation_height,
     const CallInterfaceDescriptor& continuation_descriptor,

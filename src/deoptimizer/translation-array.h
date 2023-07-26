@@ -82,7 +82,7 @@ class TranslationArrayBuilder {
                              int return_value_count);
   void BeginInlinedExtraArguments(int literal_id, unsigned height);
   void BeginConstructCreateStubFrame(int literal_id, unsigned height);
-  void BeginConstructInvokeStubFrame(int literal_id, unsigned height);
+  void BeginConstructInvokeStubFrame(int literal_id);
   void BeginBuiltinContinuationFrame(BytecodeOffset bailout_id, int literal_id,
                                      unsigned height);
 #if V8_ENABLE_WEBASSEMBLY

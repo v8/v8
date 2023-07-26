@@ -892,8 +892,8 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
     // Insert a construct stub frame into the chain of frame states. This will
     // reconstruct the proper frame when deoptimizing within the constructor.
     frame_state = CreateArtificialFrameState(
-        node, frame_state, n.ArgumentCount(),
-        FrameStateType::kConstructInvokeStub, *shared_info, caller_context);
+        node, frame_state, 0, FrameStateType::kConstructInvokeStub,
+        *shared_info, caller_context);
   }
 
   // Insert a JSConvertReceiver node for sloppy callees. Note that the context

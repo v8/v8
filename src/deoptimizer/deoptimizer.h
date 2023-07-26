@@ -159,8 +159,10 @@ class Deoptimizer : public Malloced {
                                  int frame_index, bool goto_catch_handler);
   void DoComputeInlinedExtraArguments(TranslatedFrame* translated_frame,
                                       int frame_index);
-  void DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
-                                   int frame_index);
+  void DoComputeConstructCreateStubFrame(TranslatedFrame* translated_frame,
+                                         int frame_index);
+  void DoComputeConstructInvokeStubFrame(TranslatedFrame* translated_frame,
+                                         int frame_index);
 
   static Builtin TrampolineForBuiltinContinuation(BuiltinContinuationMode mode,
                                                   bool must_handle_result);

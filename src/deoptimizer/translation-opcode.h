@@ -20,7 +20,7 @@ namespace internal {
 #define TRANSLATION_OPCODE_LIST(V)                     \
   TRANSLATION_JS_FRAME_OPCODE_LIST(V)                  \
   V(CONSTRUCT_CREATE_STUB_FRAME, 2)                    \
-  V(CONSTRUCT_INVOKE_STUB_FRAME, 2)                    \
+  V(CONSTRUCT_INVOKE_STUB_FRAME, 1)                    \
   V(BUILTIN_CONTINUATION_FRAME, 3)                     \
   IF_WASM(V, JS_TO_WASM_BUILTIN_CONTINUATION_FRAME, 4) \
   IF_WASM(V, WASM_INLINED_INTO_JS_FRAME, 3)            \

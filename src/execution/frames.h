@@ -1712,6 +1712,29 @@ class ConstructStubFrameInfo {
   uint32_t frame_size_in_bytes_;
 };
 
+class FastConstructStubFrameInfo {
+ public:
+  static FastConstructStubFrameInfo Precise(bool is_topmost) {
+    return FastConstructStubFrameInfo(is_topmost);
+  }
+
+  static FastConstructStubFrameInfo Conservative() {
+    // Assume it is the top most frame when conservative.
+    return FastConstructStubFrameInfo(true);
+  }
+
+  uint32_t frame_size_in_bytes_without_fixed() const {
+    return frame_size_in_bytes_without_fixed_;
+  }
+  uint32_t frame_size_in_bytes() const { return frame_size_in_bytes_; }
+
+ private:
+  explicit FastConstructStubFrameInfo(bool is_topmost);
+
+  uint32_t frame_size_in_bytes_without_fixed_;
+  uint32_t frame_size_in_bytes_;
+};
+
 // Used by BuiltinContinuationFrameInfo.
 class CallInterfaceDescriptor;
 class RegisterConfiguration;

@@ -78,6 +78,9 @@ class JSInliner final : public AdvancedReducer {
   OptionalSharedFunctionInfoRef DetermineCallTarget(Node* node);
   FeedbackCellRef DetermineCallContext(Node* node, Node** context_out);
 
+  // TODO(victorgomes): This function is used to create 3 *quite* different
+  // artificial frame states, we should perhaps split it into three different
+  // functions.
   FrameState CreateArtificialFrameState(
       Node* node, FrameState outer_frame_state, int parameter_count,
       FrameStateType frame_state_type, SharedFunctionInfoRef shared,

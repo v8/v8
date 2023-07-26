@@ -1200,21 +1200,13 @@ class MaglevTranslationArrayBuilder {
   void BuildSingleDeoptFrame(const ConstructInvokeStubDeoptFrame& frame,
                              const InputLocation*& current_input_location) {
     translation_array_builder_->BeginConstructInvokeStubFrame(
-        GetDeoptLiteral(GetSharedFunctionInfo(frame)),
-        frame.arguments_without_receiver().length() + 1);
+        GetDeoptLiteral(GetSharedFunctionInfo(frame)));
 
-    // Closure
-    BuildDeoptFrameSingleValue(frame.closure(), current_input_location);
-
-    // Arguments
+    // Implicit receiver
     BuildDeoptFrameSingleValue(frame.receiver(), current_input_location);
-    for (ValueNode* value : frame.arguments_without_receiver()) {
-      BuildDeoptFrameSingleValue(value, current_input_location);
-    }
 
     // Context
-    ValueNode* value = frame.context();
-    BuildDeoptFrameSingleValue(value, current_input_location);
+    BuildDeoptFrameSingleValue(frame.context(), current_input_location);
   }
 
   void BuildSingleDeoptFrame(const BuiltinContinuationDeoptFrame& frame,

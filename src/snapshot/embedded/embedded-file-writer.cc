@@ -81,9 +81,10 @@ void EmbeddedFileWriter::WriteBuiltin(PlatformEmbeddedFileWriterBase* w,
   CHECK(positions.done());  // Release builds must not contain debug infos.
 #endif
 
-  // Some builtins (JSConstructStubGeneric) have entry points located in the
-  // middle of them, we need to store their addresses since they are part of
-  // the list of allowed return addresses in the deoptimizer.
+  // Some builtins (InterpreterPushArgsThenFastConstructFunction,
+  // JSConstructStubGeneric) have entry points located in the middle of them, we
+  // need to store their addresses since they are part of the list of allowed
+  // return addresses in the deoptimizer.
   const std::vector<LabelInfo>& current_labels = label_info_[builtin_id];
   auto label = current_labels.begin();
 
@@ -283,8 +284,9 @@ void EmbeddedFileWriter::PrepareBuiltinLabelInfoMap(int create_offset,
                                                     int invoke_offset) {
   label_info_[static_cast<int>(Builtin::kJSConstructStubGeneric)].push_back(
       {create_offset, "construct_stub_create_deopt_addr"});
-  label_info_[static_cast<int>(Builtin::kJSConstructStubGeneric)].push_back(
-      {invoke_offset, "construct_stub_invoke_deopt_addr"});
+  label_info_[static_cast<int>(
+                  Builtin::kInterpreterPushArgsThenFastConstructFunction)]
+      .push_back({invoke_offset, "construct_stub_invoke_deopt_addr"});
 }
 
 }  // namespace internal

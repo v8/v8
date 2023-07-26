@@ -275,15 +275,12 @@ class V8_NODISCARD MaglevGraphBuilder::DeoptFrameScope {
     builder_->current_deopt_scope_ = this;
   }
 
-  DeoptFrameScope(MaglevGraphBuilder* builder, ValueNode* closure,
-                  ValueNode* receiver,
-                  const base::Vector<ValueNode*> arguments_without_receiver)
+  DeoptFrameScope(MaglevGraphBuilder* builder, ValueNode* receiver)
       : builder_(builder),
         parent_(builder->current_deopt_scope_),
         data_(DeoptFrame::ConstructInvokeStubFrameData{
             *builder->compilation_unit(), builder->current_source_position_,
-            closure, receiver, arguments_without_receiver,
-            builder->GetContext()}) {
+            receiver, builder->GetContext()}) {
     builder_->current_deopt_scope_ = this;
   }
 
@@ -7401,8 +7398,7 @@ ReduceResult MaglevGraphBuilder::ReduceConstruct(
         args.set_receiver(implicit_receiver);
         ValueNode* call_result;
         {
-          DeoptFrameScope construct(this, target, implicit_receiver,
-                                    construct_arguments_without_receiver);
+          DeoptFrameScope construct(this, implicit_receiver);
           ReduceResult result = TryBuildCallKnownJSFunction(
               function, new_target, args, feedback_source);
           RETURN_IF_ABORT(result);
@@ -7444,8 +7440,7 @@ ReduceResult MaglevGraphBuilder::ReduceConstruct(
       args.set_receiver(implicit_receiver);
       ValueNode* call_result;
       {
-        DeoptFrameScope construct(this, target, implicit_receiver,
-                                  construct_arguments_without_receiver);
+        DeoptFrameScope construct(this, implicit_receiver);
         ReduceResult result = TryBuildCallKnownJSFunction(
             function, new_target, args, feedback_source);
         RETURN_IF_ABORT(result);
