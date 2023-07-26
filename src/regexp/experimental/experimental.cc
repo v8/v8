@@ -145,14 +145,11 @@ int32_t ExecRawImpl(Isolate* isolate, RegExp::CallOrigin call_origin,
       JSRegExp::RegistersForCaptureCount(capture_count);
 
   int32_t result;
-  do {
-    DCHECK(subject->IsFlat());
-    Zone zone(isolate->allocator(), ZONE_NAME);
-    result = ExperimentalRegExpInterpreter::FindMatches(
-        isolate, call_origin, bytecode, register_count_per_match, subject,
-        subject_index, output_registers, output_register_count, &zone);
-  } while (result == RegExp::kInternalRegExpRetry &&
-           call_origin == RegExp::kFromRuntime);
+  DCHECK(subject->IsFlat());
+  Zone zone(isolate->allocator(), ZONE_NAME);
+  result = ExperimentalRegExpInterpreter::FindMatches(
+      isolate, call_origin, bytecode, register_count_per_match, subject,
+      subject_index, output_registers, output_register_count, &zone);
   return result;
 }
 
@@ -234,26 +231,33 @@ MaybeHandle<Object> ExperimentalRegExp::Exec(
     output_registers_release.reset(output_registers);
   }
 
-  int num_matches =
-      ExecRaw(isolate, RegExp::kFromRuntime, *regexp, *subject,
-              output_registers, output_register_count, subject_index);
+  do {
+    int num_matches =
+        ExecRaw(isolate, RegExp::kFromRuntime, *regexp, *subject,
+                output_registers, output_register_count, subject_index);
 
-  if (num_matches > 0) {
-    DCHECK_EQ(num_matches, 1);
-    if (exec_quirks == RegExp::ExecQuirks::kTreatMatchAtEndAsFailure) {
-      if (output_registers[0] >= subject->length()) {
-        return isolate->factory()->null_value();
+    if (num_matches > 0) {
+      DCHECK_EQ(num_matches, 1);
+      if (exec_quirks == RegExp::ExecQuirks::kTreatMatchAtEndAsFailure) {
+        if (output_registers[0] >= subject->length()) {
+          return isolate->factory()->null_value();
+        }
       }
+      return RegExp::SetLastMatchInfo(isolate, last_match_info, subject,
+                                      capture_count, output_registers);
+    } else if (num_matches == 0) {
+      return isolate->factory()->null_value();
+    } else {
+      DCHECK_LT(num_matches, 0);
+      if (num_matches == RegExp::kInternalRegExpRetry) {
+        // Re-run execution.
+        continue;
+      }
+      DCHECK(isolate->has_pending_exception());
+      return MaybeHandle<Object>();
     }
-    return RegExp::SetLastMatchInfo(isolate, last_match_info, subject,
-                                    capture_count, output_registers);
-  } else if (num_matches == 0) {
-    return isolate->factory()->null_value();
-  } else {
-    DCHECK_LT(num_matches, 0);
-    DCHECK(isolate->has_pending_exception());
-    return MaybeHandle<Object>();
-  }
+  } while (true);
+  UNREACHABLE();
 }
 
 int32_t ExperimentalRegExp::OneshotExecRaw(Isolate* isolate,
@@ -299,25 +303,32 @@ MaybeHandle<Object> ExperimentalRegExp::OneshotExec(
     output_registers_release.reset(output_registers);
   }
 
-  int num_matches = OneshotExecRaw(isolate, regexp, subject, output_registers,
-                                   output_register_count, subject_index);
+  do {
+    int num_matches = OneshotExecRaw(isolate, regexp, subject, output_registers,
+                                     output_register_count, subject_index);
 
-  if (num_matches > 0) {
-    DCHECK_EQ(num_matches, 1);
-    if (exec_quirks == RegExp::ExecQuirks::kTreatMatchAtEndAsFailure) {
-      if (output_registers[0] >= subject->length()) {
-        return isolate->factory()->null_value();
+    if (num_matches > 0) {
+      DCHECK_EQ(num_matches, 1);
+      if (exec_quirks == RegExp::ExecQuirks::kTreatMatchAtEndAsFailure) {
+        if (output_registers[0] >= subject->length()) {
+          return isolate->factory()->null_value();
+        }
       }
+      return RegExp::SetLastMatchInfo(isolate, last_match_info, subject,
+                                      capture_count, output_registers);
+    } else if (num_matches == 0) {
+      return isolate->factory()->null_value();
+    } else {
+      DCHECK_LT(num_matches, 0);
+      if (num_matches == RegExp::kInternalRegExpRetry) {
+        // Re-run execution.
+        continue;
+      }
+      DCHECK(isolate->has_pending_exception());
+      return MaybeHandle<Object>();
     }
-    return RegExp::SetLastMatchInfo(isolate, last_match_info, subject,
-                                    capture_count, output_registers);
-  } else if (num_matches == 0) {
-    return isolate->factory()->null_value();
-  } else {
-    DCHECK_LT(num_matches, 0);
-    DCHECK(isolate->has_pending_exception());
-    return MaybeHandle<Object>();
-  }
+  } while (true);
+  UNREACHABLE();
 }
 
 }  // namespace internal
