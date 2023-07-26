@@ -39,6 +39,10 @@
 #include "src/objects/oddball.h"
 #include "src/objects/turbofan-types.h"
 
+#ifdef V8_ENABLE_WEBASSEMBLY
+#include "src/wasm/wasm-objects.h"
+#endif
+
 namespace v8::internal {
 enum class Builtin : int32_t;
 }
@@ -1427,7 +1431,7 @@ class AssemblerOpInterface {
     }
     return stack().ReduceConstant(ConstantOp::Kind::kExternal, value);
   }
-  OpIndex RelocatableConstant(int64_t value, RelocInfo::Mode mode) {
+  V<WordPtr> RelocatableConstant(int64_t value, RelocInfo::Mode mode) {
     DCHECK_EQ(mode, any_of(RelocInfo::WASM_CALL, RelocInfo::WASM_STUB_CALL));
     if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
       return OpIndex::Invalid();
@@ -1461,15 +1465,6 @@ class AssemblerOpInterface {
     return HeapConstant(cached_centry_stub_constants_[index].ToHandleChecked());
   }
 
-#define DECL_CHANGE(name, kind, assumption, from, to)                  \
-  OpIndex name(OpIndex input) {                                        \
-    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {    \
-      return OpIndex::Invalid();                                       \
-    }                                                                  \
-    return stack().ReduceChange(                                       \
-        input, ChangeOp::Kind::kind, ChangeOp::Assumption::assumption, \
-        RegisterRepresentation::from(), RegisterRepresentation::to()); \
-  }
 #define DECL_CHANGE_V(name, kind, assumption, from, to)               \
   V<to> name(ConstOrV<from> input) {                                  \
     if (V8_UNLIKELY(stack().generating_unreachable_operations())) {   \
@@ -1479,8 +1474,8 @@ class AssemblerOpInterface {
                                 ChangeOp::Assumption::assumption,     \
                                 V<from>::rep, V<to>::rep);            \
   }
-#define DECL_TRY_CHANGE(name, kind, from, to)                       \
-  OpIndex name(OpIndex input) {                                     \
+#define DECL_TRY_CHANGE_V(name, kind, from, to)                     \
+  V<to> name(V<from> input) {                                       \
     if (V8_UNLIKELY(stack().generating_unreachable_operations())) { \
       return OpIndex::Invalid();                                    \
     }                                                               \
@@ -1564,34 +1559,38 @@ class AssemblerOpInterface {
     }
   }
 
-#define DECL_SIGNED_FLOAT_TRUNCATE(FloatBits, ResultBits)                     \
-  DECL_CHANGE(TruncateFloat##FloatBits##ToInt##ResultBits##OverflowUndefined, \
-              kSignedFloatTruncateOverflowToMin, kNoOverflow,                 \
-              Float##FloatBits, Word##ResultBits)                             \
-  DECL_TRY_CHANGE(TryTruncateFloat##FloatBits##ToInt##ResultBits,             \
-                  kSignedFloatTruncateOverflowUndefined, Float##FloatBits,    \
-                  Word##ResultBits)
+#define DECL_SIGNED_FLOAT_TRUNCATE(FloatBits, ResultBits)                    \
+  DECL_CHANGE_V(                                                             \
+      TruncateFloat##FloatBits##ToInt##ResultBits##OverflowUndefined,        \
+      kSignedFloatTruncateOverflowToMin, kNoOverflow, Float##FloatBits,      \
+      Word##ResultBits)                                                      \
+  DECL_TRY_CHANGE_V(TryTruncateFloat##FloatBits##ToInt##ResultBits,          \
+                    kSignedFloatTruncateOverflowUndefined, Float##FloatBits, \
+                    Word##ResultBits)
 
   DECL_SIGNED_FLOAT_TRUNCATE(64, 64)
   DECL_SIGNED_FLOAT_TRUNCATE(64, 32)
   DECL_SIGNED_FLOAT_TRUNCATE(32, 64)
   DECL_SIGNED_FLOAT_TRUNCATE(32, 32)
 #undef DECL_SIGNED_FLOAT_TRUNCATE
-  DECL_CHANGE(TruncateFloat64ToInt64OverflowToMin,
-              kSignedFloatTruncateOverflowToMin, kNoAssumption, Float64, Word64)
-  DECL_CHANGE(TruncateFloat32ToInt32OverflowToMin,
-              kSignedFloatTruncateOverflowToMin, kNoAssumption, Float32, Word32)
+  DECL_CHANGE_V(TruncateFloat64ToInt64OverflowToMin,
+                kSignedFloatTruncateOverflowToMin, kNoAssumption, Float64,
+                Word64)
+  DECL_CHANGE_V(TruncateFloat32ToInt32OverflowToMin,
+                kSignedFloatTruncateOverflowToMin, kNoAssumption, Float32,
+                Word32)
 
 #define DECL_UNSIGNED_FLOAT_TRUNCATE(FloatBits, ResultBits)                    \
-  DECL_CHANGE(TruncateFloat##FloatBits##ToUint##ResultBits##OverflowUndefined, \
-              kUnsignedFloatTruncateOverflowToMin, kNoOverflow,                \
-              Float##FloatBits, Word##ResultBits)                              \
-  DECL_CHANGE(TruncateFloat##FloatBits##ToUint##ResultBits##OverflowToMin,     \
-              kUnsignedFloatTruncateOverflowToMin, kNoAssumption,              \
-              Float##FloatBits, Word##ResultBits)                              \
-  DECL_TRY_CHANGE(TryTruncateFloat##FloatBits##ToUint##ResultBits,             \
-                  kUnsignedFloatTruncateOverflowUndefined, Float##FloatBits,   \
-                  Word##ResultBits)
+  DECL_CHANGE_V(                                                               \
+      TruncateFloat##FloatBits##ToUint##ResultBits##OverflowUndefined,         \
+      kUnsignedFloatTruncateOverflowToMin, kNoOverflow, Float##FloatBits,      \
+      Word##ResultBits)                                                        \
+  DECL_CHANGE_V(TruncateFloat##FloatBits##ToUint##ResultBits##OverflowToMin,   \
+                kUnsignedFloatTruncateOverflowToMin, kNoAssumption,            \
+                Float##FloatBits, Word##ResultBits)                            \
+  DECL_TRY_CHANGE_V(TryTruncateFloat##FloatBits##ToUint##ResultBits,           \
+                    kUnsignedFloatTruncateOverflowUndefined, Float##FloatBits, \
+                    Word##ResultBits)
 
   DECL_UNSIGNED_FLOAT_TRUNCATE(64, 64)
   DECL_UNSIGNED_FLOAT_TRUNCATE(64, 32)
@@ -1611,9 +1610,8 @@ class AssemblerOpInterface {
                 Float64, Word32)
   DECL_CHANGE_V(Float64ExtractHighWord32, kExtractHighHalf, kNoAssumption,
                 Float64, Word32)
-#undef DECL_CHANGE
 #undef DECL_CHANGE_V
-#undef DECL_TRY_CHANGE
+#undef DECL_TRY_CHANGE_V
 
   OpIndex ChangeOrDeopt(OpIndex input, OpIndex frame_state,
                         ChangeOrDeoptOp::Kind kind,
@@ -1926,7 +1924,7 @@ class AssemblerOpInterface {
         FrameConstantOp::Kind::kParentFramePointer);
   }
 
-  OpIndex StackSlot(int size, int alignment) {
+  V<WordPtr> StackSlot(int size, int alignment) {
     if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
       return OpIndex::Invalid();
     }
@@ -2421,7 +2419,7 @@ class AssemblerOpInterface {
     Deoptimize(frame_state, params);
   }
 
-  void TrapIf(OpIndex condition, OpIndex frame_state, TrapId trap_id) {
+  void TrapIf(V<Word32> condition, OpIndex frame_state, TrapId trap_id) {
     if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
       return;
     }
@@ -2431,7 +2429,7 @@ class AssemblerOpInterface {
       stack().SetGeneratingUnreachableOperations();
     }
   }
-  void TrapIfNot(OpIndex condition, OpIndex frame_state, TrapId trap_id) {
+  void TrapIfNot(V<Word32> condition, OpIndex frame_state, TrapId trap_id) {
     if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
       return;
     }
@@ -3020,14 +3018,15 @@ class AssemblerOpInterface {
   }
 
 #ifdef V8_ENABLE_WEBASSEMBLY
-  OpIndex GlobalGet(OpIndex instance, const wasm::WasmGlobal* global) {
+  OpIndex GlobalGet(V<WasmInstanceObject> instance,
+                    const wasm::WasmGlobal* global) {
     if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
       return OpIndex::Invalid();
     }
     return stack().ReduceGlobalGet(instance, global);
   }
 
-  OpIndex GlobalSet(OpIndex instance, OpIndex value,
+  OpIndex GlobalSet(V<WasmInstanceObject> instance, OpIndex value,
                     const wasm::WasmGlobal* global) {
     if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
       return OpIndex::Invalid();
@@ -3035,28 +3034,29 @@ class AssemblerOpInterface {
     return stack().ReduceGlobalSet(instance, value, global);
   }
 
-  OpIndex Null(wasm::ValueType type) {
+  V<HeapObject> Null(wasm::ValueType type) {
     if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
       return OpIndex::Invalid();
     }
     return stack().ReduceNull(type);
   }
 
-  OpIndex IsNull(OpIndex input, wasm::ValueType type) {
+  V<Word32> IsNull(V<Tagged> input, wasm::ValueType type) {
     if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
       return OpIndex::Invalid();
     }
     return stack().ReduceIsNull(input, type);
   }
 
-  OpIndex AssertNotNull(OpIndex object, wasm::ValueType type, TrapId trap_id) {
+  V<Tagged> AssertNotNull(V<Tagged> object, wasm::ValueType type,
+                          TrapId trap_id) {
     if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
       return OpIndex::Invalid();
     }
     return stack().ReduceAssertNotNull(object, type, trap_id);
   }
 
-  OpIndex Simd128Constant(const uint8_t value[kSimd128Size]) {
+  V<Simd128> Simd128Constant(const uint8_t value[kSimd128Size]) {
     if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
       return OpIndex::Invalid();
     }
