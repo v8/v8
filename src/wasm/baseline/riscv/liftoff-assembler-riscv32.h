@@ -2150,25 +2150,40 @@ void LiftoffStackSlots::Construct(int param_slots) {
     const LiftoffAssembler::VarState& src = slot.src_;
     switch (src.loc()) {
       case LiftoffAssembler::VarState::kStack: {
-        if (src.kind() == kF64) {
-          asm_->AllocateStackSpace(stack_decrement - kDoubleSize);
-          DCHECK_EQ(kLowWord, slot.half_);
-          asm_->Lw(kScratchReg,
-                   liftoff::GetHalfStackSlot(slot.src_offset_, kHighWord));
-          asm_->push(kScratchReg);
-          asm_->Lw(kScratchReg,
-                   liftoff::GetHalfStackSlot(slot.src_offset_, kLowWord));
-          asm_->push(kScratchReg);
-        } else if (src.kind() != kS128) {
-          asm_->AllocateStackSpace(stack_decrement - kSystemPointerSize);
-          asm_->Lw(kScratchReg, liftoff::GetStackSlot(slot.src_offset_));
-          asm_->push(kScratchReg);
-        } else {
-          asm_->AllocateStackSpace(stack_decrement - kSimd128Size);
-          asm_->Lw(kScratchReg, liftoff::GetStackSlot(slot.src_offset_ - 8));
-          asm_->push(kScratchReg);
-          asm_->Lw(kScratchReg, liftoff::GetStackSlot(slot.src_offset_));
-          asm_->push(kScratchReg);
+        switch (src.kind()) {
+          // i32 and i64 can be treated as similar cases, i64 being previously
+          // split into two i32 registers
+          case kI32:
+          case kI64:
+          case kF32:
+          case kRef:
+          case kRefNull: {
+            asm_->AllocateStackSpace(stack_decrement - kSystemPointerSize);
+            UseScratchRegisterScope temps(asm_);
+            Register scratch = temps.Acquire();
+            asm_->Lw(scratch,
+                     liftoff::GetHalfStackSlot(slot.src_offset_, slot.half_));
+            asm_->Push(scratch);
+          } break;
+          case kF64: {
+            asm_->AllocateStackSpace(stack_decrement - kDoubleSize);
+            DCHECK_EQ(kLowWord, slot.half_);
+            asm_->Lw(kScratchReg,
+                     liftoff::GetHalfStackSlot(slot.src_offset_, kHighWord));
+            asm_->push(kScratchReg);
+            asm_->Lw(kScratchReg,
+                     liftoff::GetHalfStackSlot(slot.src_offset_, kLowWord));
+            asm_->push(kScratchReg);
+          } break;
+          case kS128: {
+            asm_->AllocateStackSpace(stack_decrement - kSimd128Size);
+            asm_->Lw(kScratchReg, liftoff::GetStackSlot(slot.src_offset_ - 8));
+            asm_->push(kScratchReg);
+            asm_->Lw(kScratchReg, liftoff::GetStackSlot(slot.src_offset_));
+            asm_->push(kScratchReg);
+          } break;
+          default:
+            UNREACHABLE();
         }
         break;
       }
