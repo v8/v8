@@ -205,8 +205,7 @@ TEST_F(HeapTest, HeapLayout) {
     Address address = chunk->address();
     size_t size = chunk->area_end() - address;
     AllocationSpace owner_id = chunk->owner_identity();
-    if (V8_EXTERNAL_CODE_SPACE_BOOL &&
-        (owner_id == CODE_SPACE || owner_id == CODE_LO_SPACE)) {
+    if (V8_EXTERNAL_CODE_SPACE_BOOL && IsAnyCodeSpace(owner_id)) {
       EXPECT_TRUE(code_reservation.contains(address, size));
     } else {
       EXPECT_TRUE(heap_reservation.contains(address, size));

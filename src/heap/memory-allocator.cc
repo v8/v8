@@ -38,10 +38,6 @@ MemoryAllocator::MemoryAllocator(Isolate* isolate,
       data_page_allocator_(isolate->page_allocator()),
       code_page_allocator_(code_page_allocator),
       capacity_(RoundUp(capacity, Page::kPageSize)),
-      size_(0),
-      size_executable_(0),
-      lowest_ever_allocated_(static_cast<Address>(-1ll)),
-      highest_ever_allocated_(kNullAddress),
       unmapper_(isolate->heap(), this) {
   DCHECK_NOT_NULL(code_page_allocator);
 }
@@ -233,13 +229,14 @@ bool MemoryAllocator::Unmapper::IsRunning() const {
   return job_handle_ && job_handle_->IsValid();
 }
 
-bool MemoryAllocator::CommitMemory(VirtualMemory* reservation) {
+bool MemoryAllocator::CommitMemory(VirtualMemory* reservation,
+                                   Executability executable) {
   Address base = reservation->address();
   size_t size = reservation->size();
   if (!reservation->SetPermissions(base, size, PageAllocator::kReadWrite)) {
     return false;
   }
-  UpdateAllocatedSpaceLimits(base, base + size);
+  UpdateAllocatedSpaceLimits(base, base + size, executable);
   return true;
 }
 
@@ -285,7 +282,7 @@ Address MemoryAllocator::AllocateAlignedMemory(
   if (executable == EXECUTABLE) {
     if (!SetPermissionsOnExecutableMemoryChunk(&reservation, base, area_size,
                                                chunk_size)) {
-      return HandleAllocationFailure(executable);
+      return HandleAllocationFailure(EXECUTABLE);
     }
   } else {
     // No guard page between page header and object area. This allows us to make
@@ -296,9 +293,9 @@ Address MemoryAllocator::AllocateAlignedMemory(
 
     if (reservation.SetPermissions(base, commit_size,
                                    PageAllocator::kReadWrite)) {
-      UpdateAllocatedSpaceLimits(base, base + commit_size);
+      UpdateAllocatedSpaceLimits(base, base + commit_size, NOT_EXECUTABLE);
     } else {
-      return HandleAllocationFailure(executable);
+      return HandleAllocationFailure(NOT_EXECUTABLE);
     }
   }
 
@@ -672,7 +669,7 @@ MemoryAllocator::AllocateUninitializedPageFromPool(Space* space) {
   // Pooled pages are always regular data pages.
   DCHECK_NE(CODE_SPACE, space->identity());
   VirtualMemory reservation(data_page_allocator(), start, size);
-  if (!CommitMemory(&reservation)) return {};
+  if (!CommitMemory(&reservation, NOT_EXECUTABLE)) return {};
   if (heap::ShouldZapGarbage()) {
     heap::ZapBlock(start, size, kZapValue);
   }
@@ -751,7 +748,8 @@ bool MemoryAllocator::SetPermissionsOnExecutableMemoryChunk(VirtualMemory* vm,
                               PageAllocator::kReadWriteExecute)) {
           // Create the post-code guard page.
           if (vm->DiscardSystemPages(post_guard_page, page_size)) {
-            UpdateAllocatedSpaceLimits(start, code_area + aligned_area_size);
+            UpdateAllocatedSpaceLimits(start, code_area + aligned_area_size,
+                                       EXECUTABLE);
             return true;
           }
 
@@ -785,7 +783,8 @@ bool MemoryAllocator::SetPermissionsOnExecutableMemoryChunk(VirtualMemory* vm,
           // Create the post-code guard page.
           if (vm->SetPermissions(post_guard_page, page_size,
                                  PageAllocator::kNoAccess)) {
-            UpdateAllocatedSpaceLimits(start, code_area + aligned_area_size);
+            UpdateAllocatedSpaceLimits(start, code_area + aligned_area_size,
+                                       EXECUTABLE);
             return true;
           }
 
@@ -802,7 +801,7 @@ bool MemoryAllocator::SetPermissionsOnExecutableMemoryChunk(VirtualMemory* vm,
   return false;
 }
 
-#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+#if defined(V8_ENABLE_CONSERVATIVE_STACK_SCANNING) || defined(DEBUG)
 
 const BasicMemoryChunk* MemoryAllocator::LookupChunkContainingAddress(
     Address addr) const {
@@ -831,7 +830,7 @@ const BasicMemoryChunk* MemoryAllocator::LookupChunkContainingAddress(
   return nullptr;
 }
 
-#endif  // V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+#endif  // V8_ENABLE_CONSERVATIVE_STACK_SCANNING || DEBUG
 
 void MemoryAllocator::RecordNormalPageCreated(const Page& page) {
 #ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING

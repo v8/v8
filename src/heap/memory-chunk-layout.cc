@@ -60,7 +60,7 @@ intptr_t MemoryChunkLayout::ObjectStartOffsetInReadOnlyPage() {
 
 size_t MemoryChunkLayout::ObjectStartOffsetInMemoryChunk(
     AllocationSpace space) {
-  if (space == CODE_SPACE || space == CODE_LO_SPACE) {
+  if (IsAnyCodeSpace(space)) {
     return ObjectStartOffsetInCodePage();
   }
   if (space == RO_SPACE) {

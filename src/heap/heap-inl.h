@@ -603,8 +603,7 @@ CodePageMemoryModificationScope::CodePageMemoryModificationScope(
       scope_active_(chunk_->IsFlagSet(BasicMemoryChunk::IS_EXECUTABLE) &&
                     chunk_->heap()->write_protect_code_memory()) {
   if (scope_active_) {
-    DCHECK(chunk_->owner()->identity() == CODE_SPACE ||
-           (chunk_->owner()->identity() == CODE_LO_SPACE));
+    DCHECK(IsAnyCodeSpace(chunk_->owner()->identity()));
     guard_.emplace(MemoryChunk::cast(chunk_)->SetCodeModificationPermissions());
   }
 }

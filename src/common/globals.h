@@ -1065,6 +1065,10 @@ enum AllocationSpace {
 constexpr int kSpaceTagSize = 4;
 static_assert(FIRST_SPACE == 0);
 
+constexpr bool IsAnyCodeSpace(AllocationSpace space) {
+  return space == CODE_SPACE || space == CODE_LO_SPACE;
+}
+
 constexpr const char* ToString(AllocationSpace space) {
   switch (space) {
     case AllocationSpace::RO_SPACE:

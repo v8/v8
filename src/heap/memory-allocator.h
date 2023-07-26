@@ -222,10 +222,26 @@ class MemoryAllocator {
   }
 
   // Returns an indication of whether a pointer is in a space that has
-  // been allocated by this MemoryAllocator.
+  // been allocated by this MemoryAllocator. It is conservative, allowing
+  // false negatives (i.e., if a pointer is outside the allocated space, it may
+  // return false) but not false positives (i.e., if a pointer is inside the
+  // allocated space, it will definitely return false).
   V8_INLINE bool IsOutsideAllocatedSpace(Address address) const {
-    return address < lowest_ever_allocated_ ||
-           address >= highest_ever_allocated_;
+    bool result = IsOutsideAllocatedSpace(address, NOT_EXECUTABLE) &&
+                  IsOutsideAllocatedSpace(address, EXECUTABLE);
+    DCHECK_IMPLIES(LookupChunkContainingAddress(address) != nullptr, !result);
+    return result;
+  }
+  V8_INLINE bool IsOutsideAllocatedSpace(Address address,
+                                         Executability executable) const {
+    switch (executable) {
+      case NOT_EXECUTABLE:
+        return address < lowest_not_executable_ever_allocated_ ||
+               address >= highest_not_executable_ever_allocated_;
+      case EXECUTABLE:
+        return address < lowest_executable_ever_allocated_ ||
+               address >= highest_executable_ever_allocated_;
+    }
   }
 
   // Partially release |bytes_to_free| bytes starting at |start_free|. Note that
@@ -265,12 +281,12 @@ class MemoryAllocator {
 
   Address HandleAllocationFailure(Executability executable);
 
-#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+#if defined(V8_ENABLE_CONSERVATIVE_STACK_SCANNING) || defined(DEBUG)
   // Return the normal or large page that contains this address, if it is owned
   // by this heap, otherwise a nullptr.
   V8_EXPORT_PRIVATE const BasicMemoryChunk* LookupChunkContainingAddress(
       Address addr) const;
-#endif  // V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+#endif  // V8_ENABLE_CONSERVATIVE_STACK_SCANNING || DEBUG
 
   // Insert and remove normal and large pages that are owned by this heap.
   void RecordNormalPageCreated(const Page& page);
@@ -316,7 +332,7 @@ class MemoryAllocator {
 
   // Commit memory region owned by given reservation object.  Returns true if
   // it succeeded and false otherwise.
-  bool CommitMemory(VirtualMemory* reservation);
+  bool CommitMemory(VirtualMemory* reservation, Executability executable);
 
   // Sets memory permissions on executable memory chunks. This entails page
   // header (RW), guard pages (no access) and the object area (code modification
@@ -356,17 +372,40 @@ class MemoryAllocator {
   Page* InitializePagesInChunk(int chunk_id, int pages_in_chunk,
                                PagedSpace* space);
 
-  void UpdateAllocatedSpaceLimits(Address low, Address high) {
+  void UpdateAllocatedSpaceLimits(Address low, Address high,
+                                  Executability executable) {
     // The use of atomic primitives does not guarantee correctness (wrt.
     // desired semantics) by default. The loop here ensures that we update the
     // values only if they did not change in between.
-    Address ptr = lowest_ever_allocated_.load(std::memory_order_relaxed);
-    while ((low < ptr) && !lowest_ever_allocated_.compare_exchange_weak(
-                              ptr, low, std::memory_order_acq_rel)) {
-    }
-    ptr = highest_ever_allocated_.load(std::memory_order_relaxed);
-    while ((high > ptr) && !highest_ever_allocated_.compare_exchange_weak(
-                               ptr, high, std::memory_order_acq_rel)) {
+    Address ptr;
+    switch (executable) {
+      case NOT_EXECUTABLE:
+        ptr = lowest_not_executable_ever_allocated_.load(
+            std::memory_order_relaxed);
+        while ((low < ptr) &&
+               !lowest_not_executable_ever_allocated_.compare_exchange_weak(
+                   ptr, low, std::memory_order_acq_rel)) {
+        }
+        ptr = highest_not_executable_ever_allocated_.load(
+            std::memory_order_relaxed);
+        while ((high > ptr) &&
+               !highest_not_executable_ever_allocated_.compare_exchange_weak(
+                   ptr, high, std::memory_order_acq_rel)) {
+        }
+        break;
+      case EXECUTABLE:
+        ptr = lowest_executable_ever_allocated_.load(std::memory_order_relaxed);
+        while ((low < ptr) &&
+               !lowest_executable_ever_allocated_.compare_exchange_weak(
+                   ptr, low, std::memory_order_acq_rel)) {
+        }
+        ptr =
+            highest_executable_ever_allocated_.load(std::memory_order_relaxed);
+        while ((high > ptr) &&
+               !highest_executable_ever_allocated_.compare_exchange_weak(
+                   ptr, high, std::memory_order_acq_rel)) {
+        }
+        break;
     }
   }
 
@@ -413,17 +452,23 @@ class MemoryAllocator {
   size_t capacity_;
 
   // Allocated space size in bytes.
-  std::atomic<size_t> size_;
+  std::atomic<size_t> size_ = 0;
   // Allocated executable space size in bytes.
-  std::atomic<size_t> size_executable_;
+  std::atomic<size_t> size_executable_ = 0;
 
   // We keep the lowest and highest addresses allocated as a quick way
   // of determining that pointers are outside the heap. The estimate is
   // conservative, i.e. not all addresses in 'allocated' space are allocated
   // to our heap. The range is [lowest, highest[, inclusive on the low end
-  // and exclusive on the high end.
-  std::atomic<Address> lowest_ever_allocated_;
-  std::atomic<Address> highest_ever_allocated_;
+  // and exclusive on the high end. Addresses are distinguished between
+  // executable and not-executable, as they may generally be placed in distinct
+  // areas of the heap.
+  std::atomic<Address> lowest_not_executable_ever_allocated_{
+      static_cast<Address>(-1ll)};
+  std::atomic<Address> highest_not_executable_ever_allocated_{kNullAddress};
+  std::atomic<Address> lowest_executable_ever_allocated_{
+      static_cast<Address>(-1ll)};
+  std::atomic<Address> highest_executable_ever_allocated_{kNullAddress};
 
   base::Optional<VirtualMemory> reserved_chunk_at_virtual_memory_limit_;
   Unmapper unmapper_;
@@ -435,7 +480,7 @@ class MemoryAllocator {
   base::Mutex executable_memory_mutex_;
 #endif  // DEBUG
 
-#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+#if defined(V8_ENABLE_CONSERVATIVE_STACK_SCANNING) || defined(DEBUG)
   // Allocated normal and large pages are stored here, to be used during
   // conservative stack scanning. The normal page set is guaranteed to contain
   // Page*, and the large page set is guaranteed to contain LargePage*. We will
@@ -447,7 +492,7 @@ class MemoryAllocator {
   std::set<const BasicMemoryChunk*> large_pages_;
 
   mutable base::Mutex pages_mutex_;
-#endif  // V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+#endif  // V8_ENABLE_CONSERVATIVE_STACK_SCANNING || DEBUG
 
   V8_EXPORT_PRIVATE static size_t commit_page_size_;
   V8_EXPORT_PRIVATE static size_t commit_page_size_bits_;

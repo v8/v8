@@ -340,8 +340,7 @@ YoungGenerationRememberedSetsMarkingWorklist::CollectItems(Heap* heap) {
     }
     if (TypedSlotSet* typed_slot_set =
             chunk->ExtractTypedSlotSet<OLD_TO_NEW>()) {
-      DCHECK(chunk->owner_identity() == CODE_SPACE ||
-             chunk->owner_identity() == CODE_LO_SPACE);
+      DCHECK(IsAnyCodeSpace(chunk->owner_identity()));
       items.emplace_back(chunk, MarkingItem::SlotsType::kTypedSlots,
                          typed_slot_set);
     }

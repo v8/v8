@@ -50,7 +50,7 @@ void MemoryChunk::DecrementWriteUnprotectCounterAndMaybeSetPermissions(
   DCHECK(permission == PageAllocator::kRead ||
          permission == PageAllocator::kReadExecute);
   DCHECK(IsFlagSet(MemoryChunk::IS_EXECUTABLE));
-  DCHECK(owner_identity() == CODE_SPACE || owner_identity() == CODE_LO_SPACE);
+  DCHECK(IsAnyCodeSpace(owner_identity()));
   page_protection_change_mutex_->AssertHeld();
   Address protect_start =
       address() + MemoryChunkLayout::ObjectPageOffsetInCodePage();
@@ -73,7 +73,7 @@ void MemoryChunk::SetReadAndExecutable() {
 base::MutexGuard MemoryChunk::SetCodeModificationPermissions() {
   DCHECK(!V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT);
   DCHECK(IsFlagSet(MemoryChunk::IS_EXECUTABLE));
-  DCHECK(owner_identity() == CODE_SPACE || owner_identity() == CODE_LO_SPACE);
+  DCHECK(IsAnyCodeSpace(owner_identity()));
   // Incrementing the write_unprotect_counter_ and changing the page
   // protection mode has to be atomic.
   base::MutexGuard guard(page_protection_change_mutex_);

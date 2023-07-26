@@ -4358,7 +4358,8 @@ bool Heap::ContainsCode(Tagged<HeapObject> value) const {
     return true;
   }
   // TODO(v8:11880): support external code space.
-  if (memory_allocator()->IsOutsideAllocatedSpace(value.address())) {
+  if (memory_allocator()->IsOutsideAllocatedSpace(value.address(),
+                                                  EXECUTABLE)) {
     return false;
   }
   return HasBeenSetUp() &&
@@ -4386,7 +4387,9 @@ bool Heap::MustBeInSharedOldSpace(Tagged<HeapObject> value) {
 bool Heap::InSpace(Tagged<HeapObject> value, AllocationSpace space) const {
   if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL)
     return third_party_heap::Heap::InSpace(value.address(), space);
-  if (memory_allocator()->IsOutsideAllocatedSpace(value.address())) {
+  if (memory_allocator()->IsOutsideAllocatedSpace(
+          value.address(),
+          IsAnyCodeSpace(space) ? EXECUTABLE : NOT_EXECUTABLE)) {
     return false;
   }
   if (!HasBeenSetUp()) return false;
@@ -4415,7 +4418,8 @@ bool Heap::InSpace(Tagged<HeapObject> value, AllocationSpace space) const {
 }
 
 bool Heap::InSpaceSlow(Address addr, AllocationSpace space) const {
-  if (memory_allocator()->IsOutsideAllocatedSpace(addr)) {
+  if (memory_allocator()->IsOutsideAllocatedSpace(
+          addr, IsAnyCodeSpace(space) ? EXECUTABLE : NOT_EXECUTABLE)) {
     return false;
   }
   if (!HasBeenSetUp()) return false;
@@ -5770,7 +5774,7 @@ void Heap::NotifyOldGenerationExpansionBackground(AllocationSpace space,
     DCHECK_NE(NEW_SPACE, chunk->owner()->identity());
     chunk->MarkNeverEvacuate();
   }
-  if (space == CODE_SPACE || space == CODE_LO_SPACE) {
+  if (IsAnyCodeSpace(space)) {
     isolate()->AddCodeMemoryChunk(chunk);
   }
 }
