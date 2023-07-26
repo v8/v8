@@ -92,9 +92,6 @@ using CollectionEpoch = uint32_t;
 // invocation IFF --trace_gc is used.
 class V8_EXPORT_PRIVATE GCTracer {
  public:
-  GCTracer(const GCTracer&) = delete;
-  GCTracer& operator=(const GCTracer&) = delete;
-
   struct IncrementalInfos final {
     constexpr V8_INLINE IncrementalInfos& operator+=(base::TimeDelta delta);
 
@@ -258,6 +255,9 @@ class V8_EXPORT_PRIVATE GCTracer {
 
   explicit GCTracer(Heap* heap, GarbageCollectionReason initial_gc_reason =
                                     GarbageCollectionReason::kUnknown);
+
+  GCTracer(const GCTracer&) = delete;
+  GCTracer& operator=(const GCTracer&) = delete;
 
   V8_INLINE CollectionEpoch CurrentEpoch(Scope::ScopeId id) const;
 

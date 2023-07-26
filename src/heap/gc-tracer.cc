@@ -180,7 +180,10 @@ GCTracer::GCTracer(Heap* heap, GarbageCollectionReason initial_gc_reason)
   // We assume that MC_INCREMENTAL is the first scope so that we can properly
   // map it to RuntimeCallStats.
   static_assert(0 == Scope::MC_INCREMENTAL);
-  current_.end_time = base::TimeTicks();
+  // Starting a new cycle will make the current event the previous event.
+  // Setting the current end time here allows us to refer back to a previous
+  // event's end time to compute time spent in mutator.
+  current_.end_time = base::TimeTicks::Now();
 }
 
 void GCTracer::ResetForTesting() {
