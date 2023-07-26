@@ -744,9 +744,8 @@ RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
       // TODO(olivf) It's possible that a valid osr_offset happens to be the
       // construct stub range but. We should use OptimizedFrame::Summarize here
       // instead.
-      if (!(function->IsConstructor() &&
-            (current_offset == BytecodeOffset::ConstructStubCreate() ||
-             current_offset == BytecodeOffset::ConstructStubInvoke()))) {
+      if (!function->IsConstructor() ||
+          current_offset != BytecodeOffset::None()) {
         osr_offset = OffsetOfNextJumpLoop(isolate, bytecode_array,
                                           current_offset.ToInt());
       }
