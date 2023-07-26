@@ -45,10 +45,10 @@ transitioning macro WasmToJSWrapper(ref: WasmApiFunctionRef): WasmToJSResult {
   // builtin takes care of it automatically
   outParams.objects[nextIndex++] = Undefined;
 
-  const stackParamStart =
+  const stackParamAndReturnAreaStart =
       LoadFramePointer() + 2 * torque_internal::SizeOf<intptr>();
   const inParams = torque_internal::unsafe::NewOffHeapReference(
-      %RawDownCast<RawPtr<intptr>>(stackParamStart));
+      %RawDownCast<RawPtr<intptr>>(stackParamAndReturnAreaStart));
 
   let locationAllocator = LocationAllocatorForParams(inParams);
 
@@ -106,8 +106,13 @@ transitioning macro WasmToJSWrapper(ref: WasmApiFunctionRef): WasmToJSResult {
   const fpRegSlots = %RawDownCast<RawPtr<float64>>(StackSlotPtr(
       2 * torque_internal::SizeOf<float64>(),
       torque_internal::SizeOf<float64>()));
-  // The return area on the stack starts right after the stack area.
-  const stackSlots = locationAllocator.GetStackEnd();
+  // The return area on the stack starts after the spill slots of the incoming
+  // GP and FP parameter registers.
+  const numGPParamRegs = UniqueIntPtrConstant(kNumGPRegisterParameters);
+  const numFPParamRegs = UniqueIntPtrConstant(kNumFPRegisterParameters);
+  const stackSlots = stackParamAndReturnAreaStart +
+      numGPParamRegs * torque_internal::SizeOf<intptr>() +
+      numFPParamRegs * torque_internal::SizeOf<float64>();
   locationAllocator =
       LocationAllocatorForReturns(gpRegSlots, fpRegSlots, stackSlots);
 
@@ -157,8 +162,6 @@ transitioning macro WasmToJSWrapper(ref: WasmApiFunctionRef): WasmToJSResult {
   }
 
   ModifyThreadInWasmFlag(1);
-  const numGPParamRegs = UniqueIntPtrConstant(kNumGPRegisterParameters);
-  const numFPParamRegs = UniqueIntPtrConstant(kNumFPRegisterParameters);
   return WasmToJSResult{
     popCount: numGPParamRegs + numFPParamRegs,
     result0: *GetRefAt<intptr>(gpRegSlots, 0),
