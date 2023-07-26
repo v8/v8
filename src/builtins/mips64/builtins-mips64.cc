@@ -3215,191 +3215,6 @@ void Builtins::Generate_DoubleToI(MacroAssembler* masm) {
   __ Ret();
 }
 
-namespace {
-
-// Calls an API function.  Allocates HandleScope, extracts returned value
-// from handle and propagates exceptions.  Restores context. On return removes
-// *stack_space_operand * kSystemPointerSize or stack_space * kSystemPointerSize
-// (GCed, includes the call JS arguments space and the additional space
-// allocated for the fast call).
-void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
-                              Register function_address,
-                              ExternalReference thunk_ref, Register thunk_arg,
-                              int stack_space, MemOperand* stack_space_operand,
-                              MemOperand return_value_operand) {
-  using ER = ExternalReference;
-
-  Isolate* isolate = masm->isolate();
-  MemOperand next_mem_op = __ ExternalReferenceAsOperand(
-      ER::handle_scope_next_address(isolate), no_reg);
-  MemOperand limit_mem_op = __ ExternalReferenceAsOperand(
-      ER::handle_scope_limit_address(isolate), no_reg);
-  MemOperand level_mem_op = __ ExternalReferenceAsOperand(
-      ER::handle_scope_level_address(isolate), no_reg);
-
-  Register return_value = v0;
-  Register scratch = a4;
-  Register scratch2 = a5;
-
-  // Allocate HandleScope in callee-saved registers.
-  // We will need to restore the HandleScope after the call to the API function,
-  // by allocating it in callee-saved registers it'll be preserved by C code.
-  Register prev_next_address_reg = s0;
-  Register prev_limit_reg = s1;
-  Register prev_level_reg = s2;
-
-  // C arguments (arg_reg_1/2) are expected to be initialized outside, so this
-  // function must not corrupt them (return_value overlaps with arg_reg_1 but
-  // that's ok because we start using it only after the C call).
-  DCHECK(!AreAliased(arg_reg_1, arg_reg_2,  // C args
-                     scratch, scratch2, prev_next_address_reg, prev_limit_reg));
-  // function_address and thunk_arg might overlap but this function must not
-  // corrupted them until the call is made (i.e. overlap with return_value is
-  // fine).
-  DCHECK(!AreAliased(function_address,  // incoming parameters
-                     scratch, scratch2, prev_next_address_reg, prev_limit_reg));
-  DCHECK(!AreAliased(thunk_arg,  // incoming parameters
-                     scratch, scratch2, prev_next_address_reg, prev_limit_reg));
-
-  {
-    ASM_CODE_COMMENT_STRING(masm,
-                            "Allocate HandleScope in callee-save registers.");
-    __ Ld(prev_next_address_reg, next_mem_op);
-    __ Ld(prev_limit_reg, limit_mem_op);
-    __ Lw(prev_level_reg, level_mem_op);
-    __ Addu(scratch, prev_level_reg, Operand(1));
-    __ Sw(scratch, level_mem_op);
-  }
-
-  Label profiler_or_side_effects_check_enabled, done_api_call;
-  if (with_profiling) {
-    __ RecordComment("Check if profiler or side effects check is enabled");
-    __ Lb(scratch, __ ExternalReferenceAsOperand(
-                       ER::execution_mode_address(isolate), no_reg));
-    __ Branch(&profiler_or_side_effects_check_enabled, ne, scratch,
-              Operand(zero_reg));
-#ifdef V8_RUNTIME_CALL_STATS
-  __ RecordComment("Check if RCS is enabled");
-  __ li(scratch, ER::address_of_runtime_stats_flag());
-  __ Lw(scratch, MemOperand(scratch, 0));
-  __ Branch(&profiler_or_side_effects_check_enabled, ne, scratch,
-            Operand(zero_reg));
-#endif  // V8_RUNTIME_CALL_STATS
-  }
-
-  __ RecordComment("Call the api function directly.");
-  __ StoreReturnAddressAndCall(function_address);
-  __ bind(&done_api_call);
-
-  Label promote_scheduled_exception;
-  Label delete_allocated_handles;
-  Label leave_exit_frame;
-
-  __ RecordComment("Load value from ReturnValue.");
-  __ Ld(return_value, return_value_operand);
-
-  {
-    ASM_CODE_COMMENT_STRING(
-        masm,
-        "No more valid handles (the result handle was the last one)."
-        "Restore previous handle scope.");
-    __ Sd(prev_next_address_reg, next_mem_op);
-    if (v8_flags.debug_code) {
-      __ Lw(scratch, level_mem_op);
-      __ Subu(scratch, scratch, Operand(1));
-      __ Check(eq, AbortReason::kUnexpectedLevelAfterReturnFromApiCall, scratch,
-               Operand(prev_level_reg));
-    }
-    __ Sw(prev_level_reg, level_mem_op);
-    __ Ld(scratch, limit_mem_op);
-    __ Branch(&delete_allocated_handles, ne, prev_limit_reg, Operand(scratch));
-  }
-
-  __ RecordComment("Leave the API exit frame.");
-  __ bind(&leave_exit_frame);
-
-  Register stack_space_reg = prev_limit_reg;
-  if (stack_space_operand == nullptr) {
-    DCHECK_NE(stack_space, 0);
-    __ li(stack_space_reg, Operand(stack_space));
-  } else {
-    DCHECK_EQ(stack_space, 0);
-    static_assert(kCArgSlotCount == 0);
-    __ Ld(stack_space_reg, *stack_space_operand);
-  }
-
-  static constexpr bool kRegisterContainsSlotCount = false;
-  __ LeaveExitFrame(stack_space_reg, NO_EMIT_RETURN,
-                    kRegisterContainsSlotCount);
-
-  {
-    ASM_CODE_COMMENT_STRING(masm,
-                            "Check if the function scheduled an exception.");
-    __ LoadRoot(scratch, RootIndex::kTheHoleValue);
-    __ Ld(scratch2, __ ExternalReferenceAsOperand(
-                        ER::scheduled_exception_address(isolate), no_reg));
-    __ Branch(&promote_scheduled_exception, ne, scratch, Operand(scratch2));
-  }
-
-  {
-    ASM_CODE_COMMENT_STRING(masm, "Convert return value");
-    Label finish_return;
-    __ Branch(&finish_return, ne, return_value, RootIndex::kTheHoleValue);
-    __ LoadRoot(return_value, RootIndex::kUndefinedValue);
-    __ bind(&finish_return);
-  }
-
-  __ AssertJSAny(return_value, scratch, scratch2,
-                 AbortReason::kAPICallReturnedInvalidObject);
-
-  __ Ret();
-
-  if (with_profiling) {
-    ASM_CODE_COMMENT_STRING(masm, "Call the api function via thunk wrapper.");
-    __ bind(&profiler_or_side_effects_check_enabled);
-    // Additional parameter is the address of the actual callback.
-    MemOperand thunk_arg_mem_op = __ ExternalReferenceAsOperand(
-        ER::api_callback_thunk_argument_address(isolate), no_reg);
-    __ Sd(thunk_arg, thunk_arg_mem_op);
-    __ li(scratch, thunk_ref);
-    __ StoreReturnAddressAndCall(scratch);
-    __ Branch(&done_api_call);
-  }
-
-  __ RecordComment("Re-throw by promoting a scheduled exception.");
-  __ bind(&promote_scheduled_exception);
-  __ TailCallRuntime(Runtime::kPromoteScheduledException);
-
-  {
-    ASM_CODE_COMMENT_STRING(
-        masm, "HandleScope limit has changed. Delete allocated extensions.");
-    __ bind(&delete_allocated_handles);
-    __ Sd(prev_limit_reg, limit_mem_op);
-    // Save the return value in a callee-save register.
-    Register saved_result = prev_limit_reg;
-    __ mov(saved_result, v0);
-    __ mov(arg_reg_1, v0);
-    __ PrepareCallCFunction(1, prev_level_reg);
-    __ li(arg_reg_1, ER::isolate_address(isolate));
-    __ CallCFunction(ER::delete_handle_scope_extensions(), 1);
-    __ mov(v0, saved_result);
-    __ jmp(&leave_exit_frame);
-  }
-}
-
-MemOperand ExitFrameStackSlotOperand(int offset) {
-  // SP ponts one pointer below.
-  static constexpr int kSPOffset = 1 * kSystemPointerSize;
-  return MemOperand(sp, kSPOffset + offset);
-}
-
-MemOperand ExitFrameCallerStackSlotOperand(int index) {
-  return MemOperand(fp, (ExitFrameConstants::kFixedSlotCountAboveFp + index) *
-                            kSystemPointerSize);
-}
-
-}  // namespace
-
 void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
                                             CallApiCallbackMode mode) {
   // ----------- S t a t e -------------
@@ -3451,7 +3266,6 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
   DCHECK(!AreAliased(api_function_address, argc, holder, call_data, callback,
                      scratch, scratch2, base));
 
-  using FCI = FunctionCallbackInfo<v8::Value>;
   using FCA = FunctionCallbackArguments;
 
   static_assert(FCA::kArgsLength == 6);
@@ -3519,11 +3333,11 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
   // it's not controlled by GC.
   static constexpr int kSlotsToDropOnStackSize = 1 * kSystemPointerSize;
   static constexpr int kApiStackSpace =
-      (FCI::kSize + kSlotsToDropOnStackSize) / kSystemPointerSize;
+      (FCA::kSize + kSlotsToDropOnStackSize) / kSystemPointerSize;
   static_assert(kApiStackSpace == 4);
-  static_assert(FCI::kImplicitArgsOffset == 0);
-  static_assert(FCI::kValuesOffset == 1 * kSystemPointerSize);
-  static_assert(FCI::kLengthOffset == 2 * kSystemPointerSize);
+  static_assert(FCA::kImplicitArgsOffset == 0);
+  static_assert(FCA::kValuesOffset == 1 * kSystemPointerSize);
+  static_assert(FCA::kLengthOffset == 2 * kSystemPointerSize);
   const int exit_frame_params_count =
       mode == CallApiCallbackMode::kGeneric
           ? ApiCallbackExitFrameConstants::kAdditionalParametersCount
@@ -3568,19 +3382,19 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
     ASM_CODE_COMMENT_STRING(masm, "Initialize FunctionCallbackInfo");
     // FunctionCallbackInfo::implicit_args_ (points at kHolder as set up above).
     // Arguments are after the return address (pushed by EnterExitFrame()).
-    __ Sd(holder, ExitFrameStackSlotOperand(FCI::kImplicitArgsOffset));
+    __ Sd(holder, ExitFrameStackSlotOperand(FCA::kImplicitArgsOffset));
 
     // FunctionCallbackInfo::values_ (points at the first varargs argument
     // passed on the stack).
     __ Daddu(holder, holder,
              Operand(FCA::kArgsLengthWithReceiver * kSystemPointerSize));
 
-    __ Sd(holder, ExitFrameStackSlotOperand(FCI::kValuesOffset));
+    __ Sd(holder, ExitFrameStackSlotOperand(FCA::kValuesOffset));
 
     // FunctionCallbackInfo::length_.
     // Stored as int field, 32-bit integers within struct on stack always left
     // justified by n64 ABI.
-    __ Sw(argc, ExitFrameStackSlotOperand(FCI::kLengthOffset));
+    __ Sw(argc, ExitFrameStackSlotOperand(FCA::kLengthOffset));
   }
 
   // We also store the number of bytes to drop from the stack after returning
@@ -3588,7 +3402,7 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
   // Note: Unlike on other architectures, this stores the number of slots to
   // drop, not the number of bytes.
   MemOperand stack_space_operand =
-      ExitFrameStackSlotOperand(FCI::kLengthOffset + kSlotsToDropOnStackSize);
+      ExitFrameStackSlotOperand(FCA::kLengthOffset + kSlotsToDropOnStackSize);
   __ Daddu(scratch, argc,
            Operand(FCA::kArgsLengthWithReceiver + exit_frame_params_count));
   __ Sd(scratch, stack_space_operand);
