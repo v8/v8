@@ -5,6 +5,7 @@
 #include "src/compiler/decompression-optimizer.h"
 
 #include "src/compiler/graph.h"
+#include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
 
 namespace v8 {
@@ -42,8 +43,21 @@ bool IsTaggedPhi(Node* const node) {
   return false;
 }
 
+bool IsWord64BitwiseOp(Node* const node) {
+  return node->opcode() == IrOpcode::kWord64And ||
+         node->opcode() == IrOpcode::kWord64Or;
+}
+
 bool CanBeCompressed(Node* const node) {
-  return IsHeapConstant(node) || IsTaggedMachineLoad(node) || IsTaggedPhi(node);
+  return IsHeapConstant(node) || IsTaggedMachineLoad(node) ||
+         IsTaggedPhi(node) || IsWord64BitwiseOp(node);
+}
+
+void Replace(Node* const node, Node* const replacement) {
+  for (Edge edge : node->use_edges()) {
+    edge.UpdateTo(replacement);
+  }
+  node->Kill();
 }
 
 }  // anonymous namespace
@@ -73,6 +87,7 @@ void DecompressionOptimizer::MarkNodeInputs(Node* node) {
     // UNOPS.
     case IrOpcode::kBitcastTaggedToWord:
     case IrOpcode::kBitcastTaggedToWordForTagAndSmiBits:
+    case IrOpcode::kBitcastWordToTagged:
       // Replicate the bitcast's state for its input.
       DCHECK_EQ(node->op()->ValueInputCount(), 1);
       MaybeMarkAndQueueForRevisit(node->InputAt(0),
@@ -88,9 +103,10 @@ void DecompressionOptimizer::MarkNodeInputs(Node* node) {
     case IrOpcode::kInt32LessThanOrEqual:
     case IrOpcode::kUint32LessThan:
     case IrOpcode::kUint32LessThanOrEqual:
-    case IrOpcode::kWord32And:
     case IrOpcode::kWord32Equal:
-    case IrOpcode::kWord32Shl:
+#define Word32Op(Name) case IrOpcode::k##Name:
+      MACHINE_BINOP_32_LIST(Word32Op)
+#undef Word32Op
       DCHECK_EQ(node->op()->ValueInputCount(), 2);
       MaybeMarkAndQueueForRevisit(node->InputAt(0),
                                   State::kOnly32BitsObserved);  // value_0
@@ -292,6 +308,50 @@ void DecompressionOptimizer::ChangeLoad(Node* const node) {
   }
 }
 
+void DecompressionOptimizer::ChangeWord64BitwiseOp(Node* const node,
+                                                   const Operator* new_op) {
+  Int64Matcher mleft(node->InputAt(0));
+  Int64Matcher mright(node->InputAt(1));
+
+  // Replace inputs.
+  if (mleft.IsChangeInt32ToInt64() || mleft.IsChangeUint32ToUint64()) {
+    node->ReplaceInput(0, mleft.node()->InputAt(0));
+  } else if (mleft.IsInt64Constant()) {
+    node->ReplaceInput(0, graph()->NewNode(common()->Int32Constant(
+                              static_cast<int32_t>(mleft.ResolvedValue()))));
+  } else {
+    node->ReplaceInput(
+        0, graph()->NewNode(machine()->TruncateInt64ToInt32(), mleft.node()));
+  }
+  if (mright.IsChangeInt32ToInt64() || mright.IsChangeUint32ToUint64()) {
+    node->ReplaceInput(1, mright.node()->InputAt(0));
+  } else if (mright.IsInt64Constant()) {
+    node->ReplaceInput(1, graph()->NewNode(common()->Int32Constant(
+                              static_cast<int32_t>(mright.ResolvedValue()))));
+  } else {
+    node->ReplaceInput(
+        1, graph()->NewNode(machine()->TruncateInt64ToInt32(), mright.node()));
+  }
+
+  // Replace uses.
+  Node* replacement = nullptr;
+  for (Edge edge : node->use_edges()) {
+    Node* user = edge.from();
+    if (user->opcode() == IrOpcode::kTruncateInt64ToInt32) {
+      Replace(user, node);
+    } else {
+      if (replacement == nullptr) {
+        replacement =
+            graph()->NewNode(machine()->BitcastWord32ToWord64(), node);
+      }
+      edge.UpdateTo(replacement);
+    }
+  }
+
+  // Change operator.
+  NodeProperties::ChangeOp(node, new_op);
+}
+
 void DecompressionOptimizer::ChangeNodes() {
   for (Node* const node : compressed_candidate_nodes_) {
     // compressed_candidate_nodes_ contains all the nodes that once had the
@@ -307,6 +367,12 @@ void DecompressionOptimizer::ChangeNodes() {
         break;
       case IrOpcode::kPhi:
         ChangePhi(node);
+        break;
+      case IrOpcode::kWord64And:
+        ChangeWord64BitwiseOp(node, machine()->Word32And());
+        break;
+      case IrOpcode::kWord64Or:
+        ChangeWord64BitwiseOp(node, machine()->Word32Or());
         break;
       default:
         ChangeLoad(node);
