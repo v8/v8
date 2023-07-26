@@ -66,8 +66,7 @@ void StartTracing(GCTracer* tracer, GarbageCollector collector,
 
 void StopTracing(GCTracer* tracer, GarbageCollector collector) {
   tracer->StopAtomicPause();
-  tracer->StopObservablePause();
-  tracer->UpdateStatistics(collector);
+  tracer->StopObservablePause(collector);
   switch (collector) {
     case GarbageCollector::SCAVENGER:
       tracer->StopYoungCycleIfNeeded();
@@ -433,6 +432,8 @@ TEST_F(GCTracerTest, BackgroundMajorMCScope) {
   if (v8_flags.stress_incremental_marking) return;
   GCTracer* tracer = i_isolate()->heap()->tracer();
   tracer->ResetForTesting();
+  StartTracing(tracer, GarbageCollector::MARK_COMPACTOR,
+               StartTracingMode::kIncrementalStart);
   tracer->AddScopeSample(GCTracer::Scope::MC_BACKGROUND_MARKING,
                          base::TimeDelta::FromMilliseconds(100));
   tracer->AddScopeSample(GCTracer::Scope::MC_BACKGROUND_SWEEPING,
@@ -449,7 +450,7 @@ TEST_F(GCTracerTest, BackgroundMajorMCScope) {
   tracer->AddScopeSample(GCTracer::Scope::MC_BACKGROUND_SWEEPING,
                          base::TimeDelta::FromMilliseconds(2));
   StartTracing(tracer, GarbageCollector::MARK_COMPACTOR,
-               StartTracingMode::kAtomic);
+               StartTracingMode::kIncrementalEnterPause);
   tracer->AddScopeSample(GCTracer::Scope::MC_BACKGROUND_EVACUATE_COPY,
                          base::TimeDelta::FromMilliseconds(30));
   tracer->AddScopeSample(GCTracer::Scope::MC_BACKGROUND_EVACUATE_COPY,
@@ -495,10 +496,12 @@ TEST_F(GCTracerTest, MultithreadedBackgroundScope) {
   tracer->ResetForTesting();
   CHECK(thread1.Start());
   CHECK(thread2.Start());
-  tracer->FetchBackgroundMarkCompactCounters();
+  tracer->FetchBackgroundCounters();
+
   thread1.Join();
   thread2.Join();
-  tracer->FetchBackgroundMarkCompactCounters();
+  tracer->FetchBackgroundCounters();
+
   EXPECT_LE(base::TimeDelta(),
             tracer->current_.scopes[GCTracer::Scope::MC_BACKGROUND_MARKING]);
 }

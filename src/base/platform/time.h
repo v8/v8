@@ -209,6 +209,8 @@ class V8_BASE_EXPORT TimeDelta final {
     return delta_ >= other.delta_;
   }
 
+  friend void swap(TimeDelta a, TimeDelta b) { std::swap(a.delta_, b.delta_); }
+
  private:
   static constexpr inline TimeDelta FromDouble(double value);
 

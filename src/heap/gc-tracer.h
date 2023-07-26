@@ -116,16 +116,10 @@ class V8_EXPORT_PRIVATE GCTracer {
       FIRST_SCOPE = MC_INCREMENTAL,
       NUMBER_OF_INCREMENTAL_SCOPES =
           LAST_INCREMENTAL_SCOPE - FIRST_INCREMENTAL_SCOPE + 1,
-      FIRST_GENERAL_BACKGROUND_SCOPE = BACKGROUND_YOUNG_ARRAY_BUFFER_SWEEP,
-      LAST_GENERAL_BACKGROUND_SCOPE = BACKGROUND_SAFEPOINT,
-      FIRST_MC_BACKGROUND_SCOPE = MC_BACKGROUND_EVACUATE_COPY,
-      LAST_MC_BACKGROUND_SCOPE = MC_BACKGROUND_SWEEPING,
       FIRST_TOP_MC_SCOPE = MC_CLEAR,
       LAST_TOP_MC_SCOPE = MC_SWEEP,
-      FIRST_MINOR_GC_BACKGROUND_SCOPE = MINOR_MS_BACKGROUND_MARKING,
-      LAST_MINOR_GC_BACKGROUND_SCOPE = SCAVENGER_BACKGROUND_SCAVENGE_PARALLEL,
-      FIRST_BACKGROUND_SCOPE = FIRST_GENERAL_BACKGROUND_SCOPE,
-      LAST_BACKGROUND_SCOPE = LAST_MINOR_GC_BACKGROUND_SCOPE
+      FIRST_BACKGROUND_SCOPE = BACKGROUND_YOUNG_ARRAY_BUFFER_SWEEP,
+      LAST_BACKGROUND_SCOPE = SCAVENGER_BACKGROUND_SCAVENGE_PARALLEL
     };
 
     V8_INLINE Scope(GCTracer* tracer, ScopeId scope, ThreadKind thread_kind);
@@ -269,14 +263,11 @@ class V8_EXPORT_PRIVATE GCTracer {
 
   // Start and stop an observable pause.
   void StartObservablePause();
-  void StopObservablePause();
+  void StopObservablePause(GarbageCollector collector);
 
   // Update the current event if it precedes the start of the observable pause.
   void UpdateCurrentEvent(GarbageCollectionReason gc_reason,
                           const char* collector_reason);
-
-  void UpdateStatistics(GarbageCollector collector);
-  void FinalizeCurrentEvent();
 
   enum class MarkingType { kAtomic, kIncremental };
 
@@ -449,19 +440,16 @@ class V8_EXPORT_PRIVATE GCTracer {
 
   void StopCycle(GarbageCollector collector);
 
-  // Statistics for incremental and background scopes are kept out of the
-  // current event and only copied there by FinalizeCurrentEvent, at StopCycle.
-  // This method can be used to access scopes correctly, before this happens.
-  // Note: when accessing a background scope via this method, the caller is
-  // responsible for avoiding data races, e.g., by acquiring
-  // background_counter_mutex_.
+  // Statistics for background scopes are kept out of the current event and only
+  // copied there via FetchBackgroundCounters(). This method here is thread-safe
+  // but may return out-of-date numbers as it only considers data from the
+  // current Event.
   V8_INLINE double current_scope(Scope::ScopeId id) const;
 
   V8_INLINE constexpr const IncrementalInfos& incremental_scope(
       Scope::ScopeId id) const;
 
   void ResetForTesting();
-  void ResetIncrementalCounters();
   void RecordIncrementalMarkingSpeed(size_t bytes, base::TimeDelta duration);
   void RecordMutatorUtilization(base::TimeTicks mark_compactor_end_time,
                                 base::TimeDelta mark_compactor_duration);
@@ -483,10 +471,7 @@ class V8_EXPORT_PRIVATE GCTracer {
   // it can be included in later crash dumps.
   void PRINTF_FORMAT(2, 3) Output(const char* format, ...) const;
 
-  void FetchBackgroundCounters(int first_scope, int last_scope);
-  void FetchBackgroundMinorGCCounters();
-  void FetchBackgroundMarkCompactCounters();
-  void FetchBackgroundGeneralCounters();
+  void FetchBackgroundCounters();
 
   void ReportFullCycleToRecorder();
   void ReportIncrementalMarkingStepToRecorder(double v8_duration);

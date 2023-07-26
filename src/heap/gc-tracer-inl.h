@@ -110,16 +110,8 @@ CollectionEpoch GCTracer::CurrentEpoch(Scope::ScopeId id) const {
 }
 
 double GCTracer::current_scope(Scope::ScopeId id) const {
-  if (Scope::FIRST_INCREMENTAL_SCOPE <= id &&
-      id <= Scope::LAST_INCREMENTAL_SCOPE) {
-    return incremental_scope(id).duration.InMillisecondsF();
-  } else if (Scope::FIRST_BACKGROUND_SCOPE <= id &&
-             id <= Scope::LAST_BACKGROUND_SCOPE) {
-    return background_scopes_[id].InMillisecondsF();
-  } else {
-    DCHECK_GT(Scope::NUMBER_OF_SCOPES, id);
-    return current_.scopes[id].InMillisecondsF();
-  }
+  DCHECK_GT(Scope::NUMBER_OF_SCOPES, id);
+  return current_.scopes[id].InMillisecondsF();
 }
 
 constexpr const GCTracer::IncrementalInfos& GCTracer::incremental_scope(

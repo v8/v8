@@ -220,10 +220,17 @@ void GCTracer::StartCycle(GarbageCollector collector,
   DCHECK(!young_gc_while_full_gc_);
 
   young_gc_while_full_gc_ = current_.state != Event::State::NOT_RUNNING;
+  if (young_gc_while_full_gc_) {
+    // The cases for interruption are: Scavenger, MinorMS interrupting sweeping.
+    // In both cases we are fine with fetching background counters now and
+    // fixing them up later in StopAtomicPause().
+    FetchBackgroundCounters();
+  }
 
   DCHECK_IMPLIES(young_gc_while_full_gc_,
-                 Heap::IsYoungGenerationCollector(collector) &&
-                     !Event::IsYoungGenerationEvent(current_.type));
+                 Heap::IsYoungGenerationCollector(collector));
+  DCHECK_IMPLIES(young_gc_while_full_gc_,
+                 !Event::IsYoungGenerationEvent(current_.type));
 
   Event::Type type;
   switch (collector) {
@@ -293,14 +300,6 @@ void GCTracer::StartInSafepoint() {
   current_.young_object_size = new_space_size + new_lo_space_size;
 }
 
-void GCTracer::ResetIncrementalCounters() {
-  incremental_marking_bytes_ = 0;
-  incremental_marking_duration_ = base::TimeDelta();
-  for (int i = 0; i < Scope::NUMBER_OF_INCREMENTAL_SCOPES; i++) {
-    new (&incremental_scopes_[i]) IncrementalInfos;
-  }
-}
-
 void GCTracer::StopInSafepoint() {
   current_.end_object_size = heap_->SizeOfObjects();
   current_.end_memory_size = heap_->memory_allocator()->Size();
@@ -308,7 +307,8 @@ void GCTracer::StopInSafepoint() {
   current_.survived_young_object_size = heap_->SurvivedYoungObjectSize();
 }
 
-void GCTracer::StopObservablePause() {
+void GCTracer::StopObservablePause(GarbageCollector collector) {
+  DCHECK(IsConsistentWithCollector(collector));
   DCHECK(IsInObservablePause());
   start_of_observable_pause_.reset();
 
@@ -316,17 +316,13 @@ void GCTracer::StopObservablePause() {
   // currently the end time of the observable pause. This should be
   // reconsidered.
   current_.end_time = base::TimeTicks::Now();
-}
-
-void GCTracer::UpdateStatistics(GarbageCollector collector) {
-  const bool is_young = Heap::IsYoungGenerationCollector(collector);
-  DCHECK(IsConsistentWithCollector(collector));
-
   AddAllocation(current_.end_time);
+
+  FetchBackgroundCounters();
 
   const base::TimeDelta duration = current_.end_time - current_.start_time;
   auto* long_task_stats = heap_->isolate()->GetCurrentLongTaskStats();
-
+  const bool is_young = Heap::IsYoungGenerationCollector(collector);
   if (is_young) {
     recorded_minor_gcs_total_.Push(
         BytesAndDuration(current_.young_object_size, duration));
@@ -335,14 +331,26 @@ void GCTracer::UpdateStatistics(GarbageCollector collector) {
     long_task_stats->gc_young_wall_clock_duration_us +=
         duration.InMicroseconds();
   } else {
+    DCHECK_EQ(0u, current_.incremental_marking_bytes);
+    DCHECK(current_.incremental_marking_duration.IsZero());
     if (current_.type == Event::Type::INCREMENTAL_MARK_COMPACTOR) {
       RecordIncrementalMarkingSpeed(incremental_marking_bytes_,
                                     incremental_marking_duration_);
       recorded_incremental_mark_compacts_.Push(
           BytesAndDuration(current_.end_object_size, duration));
+      std::swap(current_.incremental_marking_bytes, incremental_marking_bytes_);
+      std::swap(current_.incremental_marking_duration,
+                incremental_marking_duration_);
+      for (int i = 0; i < Scope::NUMBER_OF_INCREMENTAL_SCOPES; i++) {
+        current_.incremental_scopes[i] = incremental_scopes_[i];
+        current_.scopes[i] = incremental_scopes_[i].duration;
+        new (&incremental_scopes_[i]) IncrementalInfos;
+      }
     } else {
       recorded_mark_compacts_.Push(
           BytesAndDuration(current_.end_object_size, duration));
+      DCHECK_EQ(0u, incremental_marking_bytes_);
+      DCHECK(incremental_marking_duration_.IsZero());
     }
     RecordMutatorUtilization(current_.end_time,
                              duration + incremental_marking_duration_);
@@ -400,31 +408,6 @@ void GCTracer::UpdateStatistics(GarbageCollector collector) {
   }
 }
 
-void GCTracer::FinalizeCurrentEvent() {
-  const bool is_young = Event::IsYoungGenerationEvent(current_.type);
-
-  if (is_young) {
-    FetchBackgroundMinorGCCounters();
-  } else {
-    if (current_.type == Event::Type::INCREMENTAL_MARK_COMPACTOR) {
-      current_.incremental_marking_bytes = incremental_marking_bytes_;
-      current_.incremental_marking_duration = incremental_marking_duration_;
-      for (int i = 0; i < Scope::NUMBER_OF_INCREMENTAL_SCOPES; i++) {
-        current_.incremental_scopes[i] = incremental_scopes_[i];
-        current_.scopes[i] = incremental_scopes_[i].duration;
-      }
-      ResetIncrementalCounters();
-    } else {
-      DCHECK_EQ(0u, incremental_marking_bytes_);
-      DCHECK(incremental_marking_duration_.IsZero());
-      DCHECK_EQ(0u, current_.incremental_marking_bytes);
-      DCHECK(current_.incremental_marking_duration.IsZero());
-    }
-    FetchBackgroundMarkCompactCounters();
-  }
-  FetchBackgroundGeneralCounters();
-}
-
 void GCTracer::StopAtomicPause() {
   DCHECK_EQ(Event::State::ATOMIC, current_.state);
   current_.state = Event::State::SWEEPING;
@@ -435,7 +418,8 @@ void GCTracer::StopCycle(GarbageCollector collector) {
   current_.state = Event::State::NOT_RUNNING;
 
   DCHECK(IsConsistentWithCollector(collector));
-  FinalizeCurrentEvent();
+
+  FetchBackgroundCounters();
 
   if (Heap::IsYoungGenerationCollector(collector)) {
     ReportYoungCycleToRecorder();
@@ -1366,24 +1350,10 @@ void GCTracer::NotifyIncrementalMarkingStart() {
   incremental_marking_start_time_ = base::TimeTicks::Now();
 }
 
-void GCTracer::FetchBackgroundMarkCompactCounters() {
-  FetchBackgroundCounters(Scope::FIRST_MC_BACKGROUND_SCOPE,
-                          Scope::LAST_MC_BACKGROUND_SCOPE);
-}
-
-void GCTracer::FetchBackgroundMinorGCCounters() {
-  FetchBackgroundCounters(Scope::FIRST_MINOR_GC_BACKGROUND_SCOPE,
-                          Scope::LAST_MINOR_GC_BACKGROUND_SCOPE);
-}
-
-void GCTracer::FetchBackgroundGeneralCounters() {
-  FetchBackgroundCounters(Scope::FIRST_GENERAL_BACKGROUND_SCOPE,
-                          Scope::LAST_GENERAL_BACKGROUND_SCOPE);
-}
-
-void GCTracer::FetchBackgroundCounters(int first_scope, int last_scope) {
+void GCTracer::FetchBackgroundCounters() {
   base::MutexGuard guard(&background_scopes_mutex_);
-  for (int i = first_scope; i <= last_scope; i++) {
+  for (int i = Scope::FIRST_BACKGROUND_SCOPE; i <= Scope::LAST_BACKGROUND_SCOPE;
+       i++) {
     current_.scopes[i] += background_scopes_[i];
     background_scopes_[i] = base::TimeDelta();
   }

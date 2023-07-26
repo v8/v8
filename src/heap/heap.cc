@@ -1888,10 +1888,9 @@ void Heap::CollectGarbage(AllocationSpace space,
     }
 
     tracer()->StopAtomicPause();
-    tracer()->StopObservablePause();
-    tracer()->UpdateStatistics(collector);
+    tracer()->StopObservablePause(collector);
     // Young generation cycles finish atomically. It is important that
-    // StopObservablePause, UpdateStatistics and StopCycle are called in this
+    // StopObservablePause, and StopCycle are called in this
     // order; the latter may replace the current event with that of an
     // interrupted full cycle.
     if (IsYoungGenerationCollector(collector)) {

@@ -255,7 +255,7 @@ void ShrinkNewSpace(NewSpace* new_space) {
     page->SetLiveBytes(0);
   }
   tracer->StopAtomicPause();
-  tracer->StopObservablePause();
+  tracer->StopObservablePause(GarbageCollector::MARK_COMPACTOR);
   tracer->NotifyFullSweepingCompleted();
 }
 }  // namespace
