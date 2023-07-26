@@ -2452,6 +2452,8 @@ class V8_NODISCARD AlwaysAllocateScope {
   friend class Heap;
   friend class HeapAllocator;
   friend class Isolate;
+  // TODO(1445003): Remove this after investigating the crash.
+  friend class GlobalBackingStoreRegistry;
 
   explicit inline AlwaysAllocateScope(Heap* heap);
   Heap* heap_;
