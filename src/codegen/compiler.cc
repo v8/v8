@@ -4073,17 +4073,17 @@ void Compiler::FinalizeMaglevCompilationJob(maglev::MaglevCompilationJob* job,
 }
 
 // static
-void Compiler::PostInstantiation(Handle<JSFunction> function) {
+void Compiler::PostInstantiation(Handle<JSFunction> function,
+                                 IsCompiledScope* is_compiled_scope) {
   Isolate* isolate = function->GetIsolate();
   Handle<SharedFunctionInfo> shared(function->shared(), isolate);
-  IsCompiledScope is_compiled_scope(shared->is_compiled_scope(isolate));
 
   // If code is compiled to bytecode (i.e., isn't asm.js), then allocate a
   // feedback and check for optimized code.
-  if (is_compiled_scope.is_compiled() && shared->HasBytecodeArray()) {
+  if (is_compiled_scope->is_compiled() && shared->HasBytecodeArray()) {
     // Don't reset budget if there is a closure feedback cell array already. We
     // are just creating a new closure that shares the same feedback cell.
-    JSFunction::InitializeFeedbackCell(function, &is_compiled_scope, false);
+    JSFunction::InitializeFeedbackCell(function, is_compiled_scope, false);
 
     if (function->has_feedback_vector()) {
       // Evict any deoptimized code on feedback vector. We need to do this after
@@ -4106,7 +4106,7 @@ void Compiler::PostInstantiation(Handle<JSFunction> function) {
         !shared->optimization_disabled() &&
         !function->HasAvailableOptimizedCode()) {
       CompilerTracer::TraceMarkForAlwaysOpt(isolate, function);
-      JSFunction::EnsureFeedbackVector(isolate, function, &is_compiled_scope);
+      JSFunction::EnsureFeedbackVector(isolate, function, is_compiled_scope);
       function->MarkForOptimization(isolate, CodeKind::TURBOFAN,
                                     ConcurrencyMode::kSynchronous);
     }

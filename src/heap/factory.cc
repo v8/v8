@@ -4165,14 +4165,18 @@ Handle<JSFunction> Factory::JSFunctionBuilder::Build() {
   PrepareFeedbackCell();
 
   Handle<Code> code = handle(sfi_->GetCode(isolate_), isolate_);
+  // Retain the code across the call to BuildRaw, because it allocates and can
+  // trigger code to be flushed. Otherwise the SFI's compiled state and the
+  // function's compiled state can diverge, and the call to PostInstantiation
+  // below can fail to initialize the feedback vector.
+  IsCompiledScope is_compiled_scope(sfi_->is_compiled_scope(isolate_));
   Handle<JSFunction> result = BuildRaw(code);
 
   if (code->kind() == CodeKind::BASELINE) {
-    IsCompiledScope is_compiled_scope(sfi_->is_compiled_scope(isolate_));
     JSFunction::EnsureFeedbackVector(isolate_, result, &is_compiled_scope);
   }
 
-  Compiler::PostInstantiation(result);
+  Compiler::PostInstantiation(result, &is_compiled_scope);
   return result;
 }
 
