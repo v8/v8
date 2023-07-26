@@ -220,46 +220,12 @@ class VariableReducer : public Next {
       // Every Operation that has a RegisterRepresentation can be merged with a
       // simple Phi.
       return __ Phi(base::VectorOf(inputs), maybe_rep.value());
+    } else if (__ output_graph().Get(inputs[0]).template Is<FrameStateOp>()) {
+      // Frame states need be be merged recursively, because they represent
+      // multiple scalar values that will lead to multiple phi nodes.
+      return MergeFrameState(inputs);
     } else {
-      switch (__ output_graph().Get(inputs[0]).opcode) {
-        case Opcode::kStackPointerGreaterThan:
-          return __ Phi(base::VectorOf(inputs),
-                        RegisterRepresentation::Word32());
-        case Opcode::kFrameConstant:
-          return __ Phi(base::VectorOf(inputs),
-                        RegisterRepresentation::PointerSized());
-
-        case Opcode::kFrameState:
-          // Merging inputs of the n kFrameState one by one.
-          return MergeFrameState(inputs);
-
-        case Opcode::kOverflowCheckedBinop:
-        case Opcode::kStore:
-        case Opcode::kRetain:
-        case Opcode::kStackSlot:
-        case Opcode::kDeoptimize:
-        case Opcode::kDeoptimizeIf:
-        case Opcode::kTrapIf:
-        case Opcode::kParameter:
-        case Opcode::kOsrValue:
-        case Opcode::kCall:
-        case Opcode::kDidntThrow:
-        case Opcode::kTailCall:
-        case Opcode::kUnreachable:
-        case Opcode::kReturn:
-        case Opcode::kGoto:
-        case Opcode::kBranch:
-        case Opcode::kSwitch:
-        case Opcode::kTuple:
-        case Opcode::kProjection:
-        case Opcode::kSelect:
-          return OpIndex::Invalid();
-
-        default:
-          // In all other cases, {maybe_rep} should have a value and we
-          // shouldn't end up here.
-          UNREACHABLE();
-      }
+      return OpIndex::Invalid();
     }
   }
 
