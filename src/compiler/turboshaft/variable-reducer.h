@@ -243,6 +243,7 @@ class VariableReducer : public Next {
         case Opcode::kParameter:
         case Opcode::kOsrValue:
         case Opcode::kCall:
+        case Opcode::kDidntThrow:
         case Opcode::kTailCall:
         case Opcode::kUnreachable:
         case Opcode::kReturn:
