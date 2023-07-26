@@ -227,10 +227,8 @@ class MemoryAllocator {
   // return false) but not false positives (i.e., if a pointer is inside the
   // allocated space, it will definitely return false).
   V8_INLINE bool IsOutsideAllocatedSpace(Address address) const {
-    bool result = IsOutsideAllocatedSpace(address, NOT_EXECUTABLE) &&
-                  IsOutsideAllocatedSpace(address, EXECUTABLE);
-    DCHECK_IMPLIES(LookupChunkContainingAddress(address) != nullptr, !result);
-    return result;
+    return IsOutsideAllocatedSpace(address, NOT_EXECUTABLE) &&
+           IsOutsideAllocatedSpace(address, EXECUTABLE);
   }
   V8_INLINE bool IsOutsideAllocatedSpace(Address address,
                                          Executability executable) const {
