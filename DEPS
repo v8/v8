@@ -61,7 +61,7 @@ vars = {
   'build_with_chromium': False,
 
   # GN CIPD package version.
-  'gn_version': 'git_revision:fae280eabe5d31accc53100137459ece19a7a295',
+  'gn_version': 'git_revision:1029a3b50873abafb5e2a42a60d93a14a6bacfb4',
 
   # ninja CIPD package version
   # https://chrome-infra-packages.appspot.com/p/infra/3pp/tools/ninja
@@ -113,7 +113,7 @@ deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '147f65333c38ddd1ebf554e89965c243c8ce50b3',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'efcd844f302e072b67e112a1fe993633edf0b6c5',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '7eef81aea37e45c87a2c6695daaf37db156cc53f',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '16be42a9ff1f7e4a3e53b93b3adc181fa7ff9161',
   'buildtools/linux64': {
@@ -221,7 +221,7 @@ deps = {
     'dep_type': 'cipd',
   },
   'third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '84e3795d98335b636d0be626b1833026a5c6d60b',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + 'fbabea3ddcb380ca83357b839da67551e8818607',
     'condition': 'checkout_android',
   },
   'third_party/clang-format/script':
@@ -312,7 +312,7 @@ deps = {
       'dep_type': 'cipd',
   },
   'third_party/abseil-cpp': {
-    'url': Var('chromium_url') + '/chromium/src/third_party/abseil-cpp.git' + '@' + '9544eb36c91f7981a9eccc8c84e42866b9071412',
+    'url': Var('chromium_url') + '/chromium/src/third_party/abseil-cpp.git' + '@' + '087a50d284872653de8ce8d9fa2b84eaedf13624',
     'condition': 'not build_with_chromium',
   }
 }
