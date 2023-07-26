@@ -3055,6 +3055,13 @@ class AssemblerOpInterface {
     }
     return stack().ReduceAssertNotNull(object, type, trap_id);
   }
+
+  OpIndex Simd128Constant(const uint8_t value[kSimd128Size]) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
+    return stack().ReduceSimd128Constant(value);
+  }
 #endif
 
   template <typename Rep>

@@ -101,8 +101,7 @@ class TurboshaftGraphBuildingInterface {
     for (; index < decoder->sig_->parameter_count(); index++) {
       // Parameter indices are shifted by 1 because parameter 0 is the instance.
       ssa_env_[index] = asm_.Parameter(
-          index + 1,
-          RepresentationFor(decoder, decoder->sig_->GetParam(index)));
+          index + 1, RepresentationFor(decoder->sig_->GetParam(index)));
     }
     while (index < decoder->num_locals()) {
       ValueType type = decoder->local_type(index);
@@ -110,7 +109,7 @@ class TurboshaftGraphBuildingInterface {
         BailoutWithoutOpcode(decoder, "non-defaultable local");
         return;
       }
-      OpIndex op = DefaultValue(decoder, type);
+      OpIndex op = DefaultValue(type);
       while (index < decoder->num_locals() &&
              decoder->local_type(index) == type) {
         ssa_env_[index++] = op;
@@ -168,7 +167,7 @@ class TurboshaftGraphBuildingInterface {
     for (uint32_t i = 0; i < decoder->num_locals(); i++) {
       OpIndex phi = asm_.PendingLoopPhi(
           ssa_env_[i], PendingLoopPhiOp::Kind::kFromSeaOfNodes,
-          RepresentationFor(decoder, decoder->local_type(i)),
+          RepresentationFor(decoder->local_type(i)),
           PendingLoopPhiOp::Data{
               PendingLoopPhiOp::PhiIndex{static_cast<int>(i)}});
       ssa_env_[i] = phi;
@@ -178,7 +177,7 @@ class TurboshaftGraphBuildingInterface {
     for (uint32_t i = 0; i < arity; i++) {
       OpIndex phi = asm_.PendingLoopPhi(
           stack_base[i].op, PendingLoopPhiOp::Kind::kFromSeaOfNodes,
-          RepresentationFor(decoder, stack_base[i].type),
+          RepresentationFor(stack_base[i].type),
           PendingLoopPhiOp::Data{PendingLoopPhiOp::PhiIndex{
               static_cast<int>(decoder->num_locals() + i)}});
       block->start_merge[i].op = phi;
@@ -408,7 +407,7 @@ class TurboshaftGraphBuildingInterface {
 
   void BinOp(FullDecoder* decoder, WasmOpcode opcode, const Value& lhs,
              const Value& rhs, Value* result) {
-    result->op = BinOpImpl(decoder, opcode, lhs.op, rhs.op);
+    result->op = BinOpImpl(opcode, lhs.op, rhs.op);
   }
 
   void TraceInstruction(FullDecoder* decoder, uint32_t markid) {
@@ -433,7 +432,7 @@ class TurboshaftGraphBuildingInterface {
 
   void S128Const(FullDecoder* decoder, const Simd128Immediate& imm,
                  Value* result) {
-    Bailout(decoder);
+    result->op = asm_.Simd128Constant(imm.value);
   }
 
   void RefNull(FullDecoder* decoder, ValueType type, Value* result) {
@@ -486,19 +485,11 @@ class TurboshaftGraphBuildingInterface {
 
   void GlobalGet(FullDecoder* decoder, Value* result,
                  const GlobalIndexImmediate& imm) {
-    if (imm.global->type == kWasmS128) {
-      Bailout(decoder);
-      return;
-    }
     result->op = asm_.GlobalGet(instance_node_, imm.global);
   }
 
   void GlobalSet(FullDecoder* decoder, const Value& value,
                  const GlobalIndexImmediate& imm) {
-    if (imm.global->type == kWasmS128) {
-      Bailout(decoder);
-      return;
-    }
     asm_.GlobalSet(instance_node_, value.op, imm.global);
   }
 
@@ -541,10 +532,8 @@ class TurboshaftGraphBuildingInterface {
         break;
       case kRef:
       case kRefNull:
-        break;
       case kS128:
-        Bailout(decoder);
-        return;
+        break;
       case kI8:
       case kI16:
       case kRtt:
@@ -554,9 +543,9 @@ class TurboshaftGraphBuildingInterface {
     }
 
     if (use_select) {
-      result->op = asm_.Select(cond.op, tval.op, fval.op,
-                               RepresentationFor(decoder, tval.type),
-                               BranchHint::kNone, Implementation::kCMove);
+      result->op =
+          asm_.Select(cond.op, tval.op, fval.op, RepresentationFor(tval.type),
+                      BranchHint::kNone, Implementation::kCMove);
       return;
     } else {
       TSBlock* true_block = asm_.NewBlock();
@@ -568,8 +557,7 @@ class TurboshaftGraphBuildingInterface {
       asm_.Bind(false_block);
       asm_.Goto(merge_block);
       asm_.Bind(merge_block);
-      result->op =
-          asm_.Phi({tval.op, fval.op}, RepresentationFor(decoder, tval.type));
+      result->op = asm_.Phi({tval.op, fval.op}, RepresentationFor(tval.type));
     }
   }
 
@@ -578,10 +566,6 @@ class TurboshaftGraphBuildingInterface {
   void LoadMem(FullDecoder* decoder, LoadType type,
                const MemoryAccessImmediate& imm, const Value& index,
                Value* result) {
-    if (type.value_type() == kWasmS128) {
-      Bailout(decoder);
-      return;
-    }
 #if defined(V8_TARGET_BIG_ENDIAN)
     // TODO(14108): Implement for big endian.
     Bailout(decoder);
@@ -630,10 +614,6 @@ class TurboshaftGraphBuildingInterface {
   void StoreMem(FullDecoder* decoder, StoreType type,
                 const MemoryAccessImmediate& imm, const Value& index,
                 const Value& value) {
-    if (type.value_type() == kWasmS128) {
-      Bailout(decoder);
-      return;
-    }
 #if defined(V8_TARGET_BIG_ENDIAN)
     // TODO(14108): Implement for big endian.
     Bailout(decoder);
@@ -705,11 +685,6 @@ class TurboshaftGraphBuildingInterface {
 
   void CallDirect(FullDecoder* decoder, const CallFunctionImmediate& imm,
                   const Value args[], Value returns[]) {
-    if (imm.sig->contains(kWasmS128)) {
-      Bailout(decoder);
-      return;
-    }
-
     if (imm.index < decoder->module_->num_imported_functions) {
       auto [target, ref] = BuildImportedFunctionTargetAndRef(imm.index);
       BuildWasmCall(decoder, imm.sig, target, ref, args, returns);
@@ -723,11 +698,6 @@ class TurboshaftGraphBuildingInterface {
 
   void ReturnCall(FullDecoder* decoder, const CallFunctionImmediate& imm,
                   const Value args[]) {
-    if (imm.sig->contains(kWasmS128)) {
-      Bailout(decoder);
-      return;
-    }
-
     if (imm.index < decoder->module_->num_imported_functions) {
       auto [target, ref] = BuildImportedFunctionTargetAndRef(imm.index);
       BuildWasmReturnCall(imm.sig, target, ref, args);
@@ -742,11 +712,6 @@ class TurboshaftGraphBuildingInterface {
   void CallIndirect(FullDecoder* decoder, const Value& index,
                     const CallIndirectImmediate& imm, const Value args[],
                     Value returns[]) {
-    if (imm.sig->contains(kWasmS128)) {
-      Bailout(decoder);
-      return;
-    }
-
     auto [target, ref] = BuildIndirectCallTargetAndRef(decoder, index.op, imm);
     if (!target.valid()) return;
     BuildWasmCall(decoder, imm.sig, target, ref, args, returns);
@@ -755,10 +720,6 @@ class TurboshaftGraphBuildingInterface {
   void ReturnCallIndirect(FullDecoder* decoder, const Value& index,
                           const CallIndirectImmediate& imm,
                           const Value args[]) {
-    if (imm.sig->contains(kWasmS128)) {
-      Bailout(decoder);
-      return;
-    }
     auto [target, ref] = BuildIndirectCallTargetAndRef(decoder, index.op, imm);
     if (!target.valid()) return;
     BuildWasmReturnCall(imm.sig, target, ref, args);
@@ -767,10 +728,6 @@ class TurboshaftGraphBuildingInterface {
   void CallRef(FullDecoder* decoder, const Value& func_ref,
                const FunctionSig* sig, uint32_t sig_index, const Value args[],
                Value returns[]) {
-    if (sig->contains(kWasmS128)) {
-      Bailout(decoder);
-      return;
-    }
     auto [target, ref] =
         BuildFunctionReferenceTargetAndRef(func_ref.op, func_ref.type);
     BuildWasmCall(decoder, sig, target, ref, args, returns);
@@ -779,10 +736,6 @@ class TurboshaftGraphBuildingInterface {
   void ReturnCallRef(FullDecoder* decoder, const Value& func_ref,
                      const FunctionSig* sig, uint32_t sig_index,
                      const Value args[]) {
-    if (sig->contains(kWasmS128)) {
-      Bailout(decoder);
-      return;
-    }
     auto [target, ref] =
         BuildFunctionReferenceTargetAndRef(func_ref.op, func_ref.type);
     BuildWasmReturnCall(sig, target, ref, args);
@@ -1606,13 +1559,11 @@ class TurboshaftGraphBuildingInterface {
     }
   }
 
-  OpIndex MaybePhi(FullDecoder* decoder, std::vector<OpIndex>& elements,
-                   ValueType type) {
+  OpIndex MaybePhi(std::vector<OpIndex>& elements, ValueType type) {
     if (elements.empty()) return OpIndex::Invalid();
     for (size_t i = 1; i < elements.size(); i++) {
       if (elements[i] != elements[0]) {
-        return asm_.Phi(base::VectorOf(elements),
-                        RepresentationFor(decoder, type));
+        return asm_.Phi(base::VectorOf(elements), RepresentationFor(type));
       }
     }
     return elements[0];
@@ -1626,30 +1577,30 @@ class TurboshaftGraphBuildingInterface {
     asm_.Bind(tsblock);
     BlockPhis& block_phis = block_phis_.at(tsblock);
     for (uint32_t i = 0; i < decoder->num_locals(); i++) {
-      ssa_env_[i] =
-          MaybePhi(decoder, block_phis.phi_inputs[i], block_phis.phi_types[i]);
+      ssa_env_[i] = MaybePhi(block_phis.phi_inputs[i], block_phis.phi_types[i]);
     }
     DCHECK_EQ(decoder->num_locals() + (merge != nullptr ? merge->arity : 0),
               block_phis.phi_inputs.size());
     if (merge != nullptr) {
       for (uint32_t i = 0; i < merge->arity; i++) {
         (*merge)[i].op =
-            MaybePhi(decoder, block_phis.phi_inputs[decoder->num_locals() + i],
+            MaybePhi(block_phis.phi_inputs[decoder->num_locals() + i],
                      block_phis.phi_types[decoder->num_locals() + i]);
       }
     }
     DCHECK_IMPLIES(exception == nullptr, block_phis.incoming_exception.empty());
     if (exception != nullptr && !exception->valid()) {
-      *exception =
-          MaybePhi(decoder, block_phis.incoming_exception, kWasmExternRef);
+      *exception = MaybePhi(block_phis.incoming_exception, kWasmExternRef);
     }
     block_phis_.erase(tsblock);
   }
 
-  OpIndex DefaultValue(FullDecoder* decoder, ValueType type) {
+  OpIndex DefaultValue(ValueType type) {
     switch (type.kind()) {
+      case kI8:
+      case kI16:
       case kI32:
-        return asm_.Word32Constant(0);
+        return asm_.Word32Constant(int32_t{0});
       case kI64:
         return asm_.Word64Constant(int64_t{0});
       case kF32:
@@ -1658,11 +1609,10 @@ class TurboshaftGraphBuildingInterface {
         return asm_.Float64Constant(0.0);
       case kRefNull:
         return asm_.Null(type);
-      case kI8:
-      case kI16:
-      case kS128:
-        BailoutWithoutOpcode(decoder, "unimplemented type");
-        return OpIndex::Invalid();
+      case kS128: {
+        uint8_t value[kSimd128Size] = {};
+        return asm_.Simd128Constant(value);
+      }
       case kVoid:
       case kRtt:
       case kRef:
@@ -1671,9 +1621,10 @@ class TurboshaftGraphBuildingInterface {
     }
   }
 
-  RegisterRepresentation RepresentationFor(FullDecoder* decoder,
-                                           ValueType type) {
+  RegisterRepresentation RepresentationFor(ValueType type) {
     switch (type.kind()) {
+      case kI8:
+      case kI16:
       case kI32:
         return RegisterRepresentation::Word32();
       case kI64:
@@ -1685,11 +1636,8 @@ class TurboshaftGraphBuildingInterface {
       case kRefNull:
       case kRef:
         return RegisterRepresentation::Tagged();
-      case kI8:
-      case kI16:
       case kS128:
-        BailoutWithoutOpcode(decoder, "unimplemented type");
-        return RegisterRepresentation::Word32();
+        return RegisterRepresentation::Simd128();
       case kVoid:
       case kRtt:
       case kBottom:
@@ -2396,8 +2344,7 @@ class TurboshaftGraphBuildingInterface {
   }
 
   // TODO(14108): Implement 64-bit divisions on 32-bit platforms.
-  OpIndex BinOpImpl(FullDecoder* decoder, WasmOpcode opcode, OpIndex lhs,
-                    OpIndex rhs) {
+  OpIndex BinOpImpl(WasmOpcode opcode, OpIndex lhs, OpIndex rhs) {
     switch (opcode) {
       case kExprI32Add:
         return asm_.Word32Add(lhs, rhs);
@@ -2434,7 +2381,7 @@ class TurboshaftGraphBuildingInterface {
         OpIndex mod = asm_.Int32Mod(lhs, rhs);
         asm_.Goto(merge);
         asm_.Bind(merge);
-        return asm_.Phi({zero, mod}, RepresentationFor(decoder, kWasmI32));
+        return asm_.Phi({zero, mod}, RepresentationFor(kWasmI32));
       }
       case kExprI32RemU:
         asm_.TrapIf(asm_.Word32Equal(rhs, 0), OpIndex::Invalid(),
@@ -2520,7 +2467,7 @@ class TurboshaftGraphBuildingInterface {
         OpIndex mod = asm_.Int64Mod(lhs, rhs);
         asm_.Goto(merge);
         asm_.Bind(merge);
-        return asm_.Phi({zero, mod}, RepresentationFor(decoder, kWasmI64));
+        return asm_.Phi({zero, mod}, RepresentationFor(kWasmI64));
       }
       case kExprI64RemU:
         asm_.TrapIf(asm_.Word64Equal(rhs, 0), OpIndex::Invalid(),
@@ -3090,8 +3037,8 @@ class TurboshaftGraphBuildingInterface {
       returns[0].op = call;
     } else if (sig->return_count() > 1) {
       for (uint32_t i = 0; i < sig->return_count(); i++) {
-        returns[i].op = asm_.Projection(
-            call, i, RepresentationFor(decoder, sig->GetReturn(i)));
+        returns[i].op =
+            asm_.Projection(call, i, RepresentationFor(sig->GetReturn(i)));
       }
     }
   }

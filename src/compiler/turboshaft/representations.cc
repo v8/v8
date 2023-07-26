@@ -20,6 +20,8 @@ std::ostream& operator<<(std::ostream& os, RegisterRepresentation rep) {
       return os << "Tagged";
     case RegisterRepresentation::Compressed():
       return os << "Compressed";
+    case RegisterRepresentation::Simd128():
+      return os << "Simd128";
   }
 }
 
@@ -53,6 +55,8 @@ std::ostream& operator<<(std::ostream& os, MemoryRepresentation rep) {
       return os << "TaggedSigned";
     case MemoryRepresentation::SandboxedPointer():
       return os << "SandboxedPointer";
+    case MemoryRepresentation::Simd128():
+      return os << "Simd128";
   }
 }
 

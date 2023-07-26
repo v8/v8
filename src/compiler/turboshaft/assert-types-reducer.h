@@ -129,6 +129,7 @@ class AssertTypesReducer
       }
       case RegisterRepresentation::Tagged():
       case RegisterRepresentation::Compressed():
+      case RegisterRepresentation::Simd128():
         // TODO(nicohartmann@): Handle remaining cases.
         break;
     }

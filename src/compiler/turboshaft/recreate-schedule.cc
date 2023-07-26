@@ -888,6 +888,7 @@ Node* ScheduleBuilder::ProcessOperation(const SelectOp& op) {
       break;
     case RegisterRepresentation::Enum::kTagged:
     case RegisterRepresentation::Enum::kCompressed:
+    case RegisterRepresentation::Enum::kSimd128:
       UNREACHABLE();
   }
 
@@ -1473,6 +1474,12 @@ Node* ScheduleBuilder::ProcessOperation(const Word32PairBinopOp& op) {
                  {GetNode(op.left_low()), GetNode(op.left_high()),
                   GetNode(op.right_low()), GetNode(op.right_high())});
 }
+
+#ifdef V8_ENABLE_WEBASSEMBLY
+Node* ScheduleBuilder::ProcessOperation(const Simd128ConstantOp& op) {
+  return AddNode(machine.S128Const(op.value), {});
+}
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 }  // namespace
 

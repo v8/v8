@@ -1240,6 +1240,8 @@ const RegisterRepresentation& RepresentationFor(wasm::ValueType type) {
       RegisterRepresentation::Float64();
   static const RegisterRepresentation kTagged =
       RegisterRepresentation::Tagged();
+  static const RegisterRepresentation kSimd128 =
+      RegisterRepresentation::Simd128();
 
   switch (type.kind()) {
     case wasm::kI8:
@@ -1256,7 +1258,7 @@ const RegisterRepresentation& RepresentationFor(wasm::ValueType type) {
     case wasm::kRef:
       return kTagged;
     case wasm::kS128:
-      UNIMPLEMENTED();
+      return kSimd128;
     case wasm::kVoid:
     case wasm::kRtt:
     case wasm::kBottom:

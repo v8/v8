@@ -101,8 +101,11 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
   V(IsNull)                               \
   V(Null)                                 \
   V(AssertNotNull)
+
+#define TURBOSHAFT_SIMD_OPERATION_LIST(V) V(Simd128Constant)
 #else
 #define TURBOSHAFT_WASM_OPERATION_LIST(V)
+#define TURBOSHAFT_SIMD_OPERATION_LIST(V)
 #endif
 
 #define TURBOSHAFT_OPERATION_LIST_BLOCK_TERMINATOR(V) \
@@ -222,6 +225,7 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
 
 #define TURBOSHAFT_OPERATION_LIST_NOT_BLOCK_TERMINATOR(V) \
   TURBOSHAFT_WASM_OPERATION_LIST(V)                       \
+  TURBOSHAFT_SIMD_OPERATION_LIST(V)                       \
   TURBOSHAFT_MACHINE_OPERATION_LIST(V)                    \
   TURBOSHAFT_SIMPLIFIED_OPERATION_LIST(V)                 \
   TURBOSHAFT_OTHER_OPERATION_LIST(V)
@@ -5022,6 +5026,27 @@ struct AssertNotNullOp : FixedArityOperationT<1, AssertNotNullOp> {
   }
 
   auto options() const { return std::tuple{type, trap_id}; }
+};
+
+struct Simd128ConstantOp : FixedArityOperationT<0, Simd128ConstantOp> {
+  uint8_t value[kSimd128Size];
+
+  static constexpr OpEffects effects = OpEffects();
+
+  explicit Simd128ConstantOp(const uint8_t incoming_value[kSimd128Size])
+      : Base() {
+    std::copy(incoming_value, incoming_value + kSimd128Size, value);
+  }
+
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return RepVector<RegisterRepresentation::Simd128()>();
+  }
+
+  void Validate(const Graph& graph) const {
+    // TODO(14108): Validate.
+  }
+
+  auto options() const { return std::tuple{value}; }
 };
 
 #endif  // V8_ENABLE_WEBASSEMBLY
