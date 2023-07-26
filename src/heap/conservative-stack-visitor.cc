@@ -79,15 +79,33 @@ Address ConservativeStackVisitor::FindBasePtrForMarking(
 
 void ConservativeStackVisitor::VisitPointer(const void* pointer) {
   auto address = reinterpret_cast<Address>(const_cast<void*>(pointer));
-  VisitConservativelyIfPointer(address);
+  VisitConservativelyIfPointer<false>(address);
 #ifdef V8_COMPRESS_POINTERS
   V8HeapCompressionScheme::ProcessIntermediatePointers(
       cage_base_, address,
-      [this](Address ptr) { VisitConservativelyIfPointer(ptr); });
+      [this](Address ptr) { VisitConservativelyIfPointer<true>(ptr); });
 #endif  // V8_COMPRESS_POINTERS
 }
 
+template <bool is_known_to_be_in_cage>
 void ConservativeStackVisitor::VisitConservativelyIfPointer(Address address) {
+#ifdef V8_COMPRESS_POINTERS
+  if constexpr (!is_known_to_be_in_cage) {
+    // Bail out immediately if the pointer is not in the cage.
+    if (V8HeapCompressionScheme::GetPtrComprCageBaseAddress(address) !=
+        cage_base_.address())
+      return;
+  }
+  DCHECK_EQ(V8HeapCompressionScheme::GetPtrComprCageBaseAddress(address),
+            cage_base_.address());
+#endif  // V8_COMPRESS_POINTERS
+  // Bail out immediately if the pointer is not in the space managed by the
+  // allocator.
+  if (allocator_->IsOutsideAllocatedSpace(address)) {
+    DCHECK_EQ(nullptr, allocator_->LookupChunkContainingAddress(address));
+    return;
+  }
+  // Proceed with inner-pointer resolution.
   Address base_ptr = FindBasePtrForMarking(address);
   if (base_ptr == kNullAddress) return;
   HeapObject obj = HeapObject::FromAddress(base_ptr);

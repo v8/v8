@@ -40,6 +40,7 @@ class V8_EXPORT_PRIVATE ConservativeStackVisitor
  private:
   ConservativeStackVisitor(Isolate* isolate, GarbageCollector collector);
 
+  template <bool is_known_to_be_in_cage>
   void VisitConservativelyIfPointer(Address address);
 
   const PtrComprCageBase cage_base_;
