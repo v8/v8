@@ -377,6 +377,7 @@ TEST_F(CommonOperatorReducerTest, ReturnWithPhiAndEffectPhiAndMerge) {
   graph()->SetEnd(graph()->NewNode(common()->End(1), ret));
   StrictMock<MockAdvancedReducerEditor> editor;
   EXPECT_CALL(editor, Replace(merge, IsDead()));
+  EXPECT_CALL(editor, Revisit(graph()->end())).Times(2);
   Reduction const r = Reduce(&editor, ret, BranchSemantics::kJS);
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(), IsDead());

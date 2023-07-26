@@ -247,11 +247,10 @@ Reduction DeadCodeElimination::ReduceEffectPhi(Node* node) {
       // phi nodes.
       Node* control = NodeProperties::GetControlInput(merge, i);
       Node* throw_node = graph_->NewNode(common_->Throw(), effect, control);
-      NodeProperties::MergeControlToEnd(graph_, common_, throw_node);
+      MergeControlToEnd(graph_, common_, throw_node);
       NodeProperties::ReplaceEffectInput(node, dead_, i);
       NodeProperties::ReplaceControlInput(merge, dead_, i);
       Revisit(merge);
-      Revisit(graph_->end());
       reduction = Changed(node);
     }
   }

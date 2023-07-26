@@ -185,9 +185,8 @@ Reduction WasmLoadElimination::ReduceWasmStructGet(Node* node) {
            .LookupField(field_info.field_index, object)
            .IsEmpty()) {
     ReplaceWithValue(node, dead(), dead(), dead());
-    NodeProperties::MergeControlToEnd(
-        graph(), common(),
-        graph()->NewNode(common()->Throw(), effect, control));
+    MergeControlToEnd(graph(), common(),
+                      graph()->NewNode(common()->Throw(), effect, control));
     node->Kill();
     return Replace(dead());
   }
@@ -254,9 +253,8 @@ Reduction WasmLoadElimination::ReduceWasmStructSet(Node* node) {
            .LookupField(field_info.field_index, object)
            .IsEmpty()) {
     ReplaceWithValue(node, dead(), dead(), dead());
-    NodeProperties::MergeControlToEnd(
-        graph(), common(),
-        graph()->NewNode(common()->Throw(), effect, control));
+    MergeControlToEnd(graph(), common(),
+                      graph()->NewNode(common()->Throw(), effect, control));
     node->Kill();
     return Replace(dead());
   }

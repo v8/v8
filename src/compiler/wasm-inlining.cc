@@ -285,7 +285,7 @@ void WasmInliner::InlineTailCall(Node* call, Node* callee_start,
   // inlined graph to the end of the caller graph.
   for (Node* const input : callee_end->inputs()) {
     DCHECK(IrOpcode::IsGraphTerminator(input->opcode()));
-    NodeProperties::MergeControlToEnd(graph(), common(), input);
+    MergeControlToEnd(graph(), common(), input);
   }
   for (Edge edge_to_end : call->use_edges()) {
     DCHECK_EQ(edge_to_end.from(), graph()->end());
@@ -319,8 +319,7 @@ void WasmInliner::InlineCall(Node* call, Node* callee_start, Node* callee_end,
       case IrOpcode::kDeoptimize:
       case IrOpcode::kTerminate:
       case IrOpcode::kThrow:
-        NodeProperties::MergeControlToEnd(graph(), common(), input);
-        Revisit(graph()->end());
+        MergeControlToEnd(graph(), common(), input);
         break;
       case IrOpcode::kTailCall: {
         // A tail call in the callee inlined in a regular call in the caller has

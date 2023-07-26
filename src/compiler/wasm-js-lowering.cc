@@ -61,8 +61,7 @@ Reduction WasmJSLowering::Reduce(Node* node) {
                                       new_frame_state);
       Node* terminate = mcgraph_->graph()->NewNode(
           mcgraph_->common()->Throw(), gasm_.effect(), gasm_.control());
-      NodeProperties::MergeControlToEnd(mcgraph_->graph(), mcgraph_->common(),
-                                        terminate);
+      MergeControlToEnd(mcgraph_->graph(), mcgraph_->common(), terminate);
 
       // Replace the trap node with the conditional branch.
       gasm_.InitializeEffectControl(effect, control);

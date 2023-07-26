@@ -1950,7 +1950,7 @@ Reduction JSNativeContextSpecialization::ReduceJSGetIterator(Node* node) {
     }
     Node* throw_node =
         graph()->NewNode(common()->Throw(), call_runtime, control_not_iterator);
-    NodeProperties::MergeControlToEnd(graph(), common(), throw_node);
+    MergeControlToEnd(graph(), common(), throw_node);
   }
 
   control = graph()->NewNode(common()->IfFalse(), branch);
@@ -2019,7 +2019,7 @@ Reduction JSNativeContextSpecialization::ReduceJSGetIterator(Node* node) {
     }
     Node* throw_node =
         graph()->NewNode(common()->Throw(), call_runtime, control_not_receiver);
-    NodeProperties::MergeControlToEnd(graph(), common(), throw_node);
+    MergeControlToEnd(graph(), common(), throw_node);
   }
   Node* if_receiver = graph()->NewNode(common()->IfTrue(), branch_node);
   ReplaceWithValue(node, call_property, effect, if_receiver);
@@ -2513,9 +2513,7 @@ Reduction JSNativeContextSpecialization::ReduceEagerDeoptimize(
   Node* deoptimize =
       graph()->NewNode(common()->Deoptimize(reason, FeedbackSource()),
                        frame_state, effect, control);
-  // TODO(bmeurer): This should be on the AdvancedReducer somehow.
-  NodeProperties::MergeControlToEnd(graph(), common(), deoptimize);
-  Revisit(graph()->end());
+  MergeControlToEnd(graph(), common(), deoptimize);
   node->TrimInputCount(0);
   NodeProperties::ChangeOp(node, common()->Dead());
   return Changed(node);

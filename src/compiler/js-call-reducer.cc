@@ -3377,7 +3377,7 @@ Reduction JSCallReducer::ReduceReflectGet(Node* node) {
 
   // Connect the throwing path to end.
   if_false = graph()->NewNode(common()->Throw(), efalse, if_false);
-  NodeProperties::MergeControlToEnd(graph(), common(), if_false);
+  MergeControlToEnd(graph(), common(), if_false);
 
   // Continue on the regular path.
   ReplaceWithValue(node, vtrue, etrue, if_true);
@@ -3443,7 +3443,7 @@ Reduction JSCallReducer::ReduceReflectHas(Node* node) {
 
   // Connect the throwing path to end.
   if_false = graph()->NewNode(common()->Throw(), efalse, if_false);
-  NodeProperties::MergeControlToEnd(graph(), common(), if_false);
+  MergeControlToEnd(graph(), common(), if_false);
 
   // Continue on the regular path.
   ReplaceWithValue(node, vtrue, etrue, if_true);
@@ -4162,7 +4162,7 @@ void JSCallReducer::CheckIfConstructor(Node* construct) {
   // simply connect the successful completion to the graph end.
   Node* throw_node =
       graph()->NewNode(common()->Throw(), check_throw, check_fail);
-  NodeProperties::MergeControlToEnd(graph(), common(), throw_node);
+  MergeControlToEnd(graph(), common(), throw_node);
 }
 
 namespace {
@@ -5706,9 +5706,7 @@ Reduction JSCallReducer::ReduceForInsufficientFeedback(
   Node* deoptimize =
       graph()->NewNode(common()->Deoptimize(reason, FeedbackSource()),
                        frame_state, effect, control);
-  // TODO(bmeurer): This should be on the AdvancedReducer somehow.
-  NodeProperties::MergeControlToEnd(graph(), common(), deoptimize);
-  Revisit(graph()->end());
+  MergeControlToEnd(graph(), common(), deoptimize);
   node->TrimInputCount(0);
   NodeProperties::ChangeOp(node, common()->Dead());
   return Changed(node);
@@ -6092,7 +6090,7 @@ Reduction JSCallReducer::ReduceArrayPrototypeShift(Node* node) {
         Node* eloop =
             graph()->NewNode(common()->EffectPhi(2), etrue1, etrue1, loop);
         Node* terminate = graph()->NewNode(common()->Terminate(), eloop, loop);
-        NodeProperties::MergeControlToEnd(graph(), common(), terminate);
+        MergeControlToEnd(graph(), common(), terminate);
 
         Node* index = graph()->NewNode(
             common()->Phi(MachineRepresentation::kTagged, 2),
@@ -7850,7 +7848,7 @@ Reduction JSCallReducer::ReduceCollectionIteratorPrototypeNext(
     Node* eloop = effect =
         graph()->NewNode(common()->EffectPhi(2), effect, effect, loop);
     Node* terminate = graph()->NewNode(common()->Terminate(), eloop, loop);
-    NodeProperties::MergeControlToEnd(graph(), common(), terminate);
+    MergeControlToEnd(graph(), common(), terminate);
 
     // Check if reached the final table of the {receiver}.
     Node* table = effect = graph()->NewNode(
@@ -7946,7 +7944,7 @@ Reduction JSCallReducer::ReduceCollectionIteratorPrototypeNext(
     Node* eloop =
         graph()->NewNode(common()->EffectPhi(2), effect, effect, loop);
     Node* terminate = graph()->NewNode(common()->Terminate(), eloop, loop);
-    NodeProperties::MergeControlToEnd(graph(), common(), terminate);
+    MergeControlToEnd(graph(), common(), terminate);
     Node* iloop = graph()->NewNode(
         common()->Phi(MachineRepresentation::kTagged, 2), index, index, loop);
 

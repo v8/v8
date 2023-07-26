@@ -172,9 +172,7 @@ Reduction CommonOperatorReducer::ReduceDeoptimizeConditional(Node* node) {
   } else {
     control = graph()->NewNode(common()->Deoptimize(p.reason(), p.feedback()),
                                frame_state, effect, control);
-    // TODO(bmeurer): This should be on the AdvancedReducer somehow.
-    NodeProperties::MergeControlToEnd(graph(), common(), control);
-    Revisit(graph()->end());
+    MergeControlToEnd(graph(), common(), control);
   }
   return Replace(dead());
 }
@@ -394,7 +392,7 @@ Reduction CommonOperatorReducer::ReduceReturn(Node* node) {
         // the reducer logic will visit {end} again.
         Node* ret = graph()->NewNode(node->op(), pop_count, value_inputs[i],
                                      effect, control_inputs[i]);
-        NodeProperties::MergeControlToEnd(graph(), common(), ret);
+        MergeControlToEnd(graph(), common(), ret);
       }
       // Mark the Merge {control} and Return {node} as {dead}.
       Replace(control, dead());
@@ -410,7 +408,7 @@ Reduction CommonOperatorReducer::ReduceReturn(Node* node) {
         // the reducer logic will visit {end} again.
         Node* ret = graph()->NewNode(node->op(), pop_count, value_inputs[i],
                                      effect_inputs[i], control_inputs[i]);
-        NodeProperties::MergeControlToEnd(graph(), common(), ret);
+        MergeControlToEnd(graph(), common(), ret);
       }
       // Mark the Merge {control} and Return {node} as {dead}.
       Replace(control, dead());
@@ -526,8 +524,7 @@ Reduction CommonOperatorReducer::ReduceTrapConditional(Node* trap) {
     // graph()->end().
     ReplaceWithValue(trap, dead(), dead(), dead());
     Node* control = graph()->NewNode(common()->Throw(), trap, trap);
-    NodeProperties::MergeControlToEnd(graph(), common(), control);
-    Revisit(graph()->end());
+    MergeControlToEnd(graph(), common(), control);
     return Changed(trap);
   } else {
     // This will not trap, remove it by relaxing effect/control.

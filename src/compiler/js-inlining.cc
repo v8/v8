@@ -210,8 +210,7 @@ Reduction JSInliner::InlineCall(Node* call, Node* new_target, Node* context,
       case IrOpcode::kDeoptimize:
       case IrOpcode::kTerminate:
       case IrOpcode::kThrow:
-        NodeProperties::MergeControlToEnd(graph(), common(), input);
-        Revisit(graph()->end());
+        MergeControlToEnd(graph(), common(), input);
         break;
       default:
         UNREACHABLE();
@@ -880,8 +879,7 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
       branch_is_receiver_false =
           graph()->NewNode(common()->Throw(), branch_is_receiver_false,
                            branch_is_receiver_false);
-      NodeProperties::MergeControlToEnd(graph(), common(),
-                                        branch_is_receiver_false);
+      MergeControlToEnd(graph(), common(), branch_is_receiver_false);
 
       ReplaceWithValue(node_success, node_success, node_success,
                        branch_is_receiver_true);

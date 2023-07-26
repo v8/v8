@@ -661,9 +661,7 @@ Reduction JSTypedLowering::ReduceJSAdd(Node* node) {
         // throw, making it impossible to return a successful completion in this
         // case. We simply connect the successful completion to the graph end.
         if_false = graph()->NewNode(common()->Throw(), efalse, if_false);
-        // TODO(bmeurer): This should be on the AdvancedReducer somehow.
-        NodeProperties::MergeControlToEnd(graph(), common(), if_false);
-        Revisit(graph()->end());
+        MergeControlToEnd(graph(), common(), if_false);
       }
       control = graph()->NewNode(common()->IfTrue(), branch);
       length = effect =
@@ -1281,7 +1279,7 @@ Reduction JSTypedLowering::ReduceJSHasInPrototypeChain(Node* node) {
   Node* eloop = effect =
       graph()->NewNode(common()->EffectPhi(2), effect, effect, loop);
   Node* terminate = graph()->NewNode(common()->Terminate(), eloop, loop);
-  NodeProperties::MergeControlToEnd(graph(), common(), terminate);
+  MergeControlToEnd(graph(), common(), terminate);
   Node* vloop = value = graph()->NewNode(
       common()->Phi(MachineRepresentation::kTagged, 2), value, value, loop);
   NodeProperties::SetType(vloop, Type::NonInternal());
