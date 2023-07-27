@@ -438,7 +438,7 @@ class TypeInferenceReducer
         (og_type.IsInvalid() ? "invalid" : og_type.ToString().c_str()),
         ig_type.ToString().c_str());
 
-    SetType(index, ig_type);
+    RefineOperationType(Asm().current_block(), index, ig_type, 'I');
   }
 
   Type GetTypeOrInvalid(OpIndex index) {
