@@ -136,14 +136,12 @@ class JsonStringifier {
   // the incoming string to have one byte representation "underneath" (The
   // one byte check requires the string to be flat).
   bool CanAppendByCopy(Handle<String> string) {
-    constexpr int kMaxStringLengthForCopy = 16;
     const bool representation_ok =
         encoding_ == String::TWO_BYTE_ENCODING ||
         (string->IsFlat() &&
          String::IsOneByteRepresentationUnderneath(*string));
 
-    return representation_ok && string->length() <= kMaxStringLengthForCopy &&
-           CurrentPartCanFit(string->length());
+    return representation_ok && CurrentPartCanFit(string->length());
   }
 
   void AppendStringByCopy(Handle<String> string) {
