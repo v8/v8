@@ -691,8 +691,8 @@ DEFINE_BOOL(assert_types, false,
             "generate runtime type assertions to test the typer")
 // TODO(tebbi): Support allocating types from background thread.
 DEFINE_NEG_IMPLICATION(assert_types, concurrent_recompilation)
-DEFINE_BOOL(
-    turboshaft_assert_types, false,
+DEFINE_EXPERIMENTAL_FEATURE(
+    turboshaft_assert_types,
     "generate runtime type assertions to test the turboshaft type system")
 DEFINE_NEG_IMPLICATION(turboshaft_assert_types, concurrent_recompilation)
 
