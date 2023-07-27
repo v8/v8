@@ -531,8 +531,8 @@ DEFINE_BOOL(maglev_deopt_data_on_background, true,
             "Generate deopt data on background thread")
 DEFINE_BOOL(maglev_build_code_on_background, true,
             "Generate code on background thread")
-DEFINE_IMPLICATION(maglev_build_code_on_background,
-                   maglev_deopt_data_on_background)
+DEFINE_WEAK_IMPLICATION(maglev_build_code_on_background,
+                        maglev_deopt_data_on_background)
 DEFINE_BOOL(maglev_destroy_on_background, true,
             "Destroy compilation jobs on background thread")
 DEFINE_WEAK_IMPLICATION(maglev_future, maglev_inlining)
@@ -2671,6 +2671,10 @@ DEFINE_NEG_IMPLICATION(predictable, stress_concurrent_inlining)
 DEFINE_NEG_IMPLICATION(predictable, lazy_compile_dispatcher)
 DEFINE_NEG_IMPLICATION(predictable, parallel_compile_tasks_for_eager_toplevel)
 DEFINE_NEG_IMPLICATION(predictable, parallel_compile_tasks_for_lazy)
+#ifdef V8_ENABLE_MAGLEV
+DEFINE_NEG_IMPLICATION(predictable, maglev_deopt_data_on_background)
+DEFINE_NEG_IMPLICATION(predictable, maglev_build_code_on_background)
+#endif  // V8_ENABLE_MAGLEV
 
 DEFINE_BOOL(predictable_gc_schedule, false,
             "Predictable garbage collection schedule. Fixes heap growing, "
@@ -2694,6 +2698,10 @@ DEFINE_NEG_IMPLICATION(single_threaded, lazy_compile_dispatcher)
 DEFINE_NEG_IMPLICATION(single_threaded,
                        parallel_compile_tasks_for_eager_toplevel)
 DEFINE_NEG_IMPLICATION(single_threaded, parallel_compile_tasks_for_lazy)
+#ifdef V8_ENABLE_MAGLEV
+DEFINE_NEG_IMPLICATION(single_threaded, maglev_deopt_data_on_background)
+DEFINE_NEG_IMPLICATION(single_threaded, maglev_build_code_on_background)
+#endif  // V8_ENABLE_MAGLEV
 
 //
 // Parallel and concurrent GC (Orinoco) related flags.
