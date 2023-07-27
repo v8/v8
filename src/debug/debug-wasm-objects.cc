@@ -924,16 +924,20 @@ Handle<WasmValueObject> WasmValueObject::New(
         WasmTypeInfo type_info = ref->GetHeapObject()->map()->wasm_type_info();
         wasm::ValueType type = wasm::ValueType::FromIndex(
             wasm::ValueKind::kRef, type_info->type_index());
-        Handle<WasmModuleObject> module(type_info->instance()->module_object(),
-                                        isolate);
+        // The cast is safe; structs always have the instance defined.
+        Handle<WasmModuleObject> module(
+            WasmInstanceObject::cast(type_info->instance())->module_object(),
+            isolate);
         t = GetRefTypeName(isolate, type, module->native_module());
         v = StructProxy::Create(isolate, Handle<WasmStruct>::cast(ref), module);
       } else if (ref->IsWasmArray()) {
         WasmTypeInfo type_info = ref->GetHeapObject()->map()->wasm_type_info();
         wasm::ValueType type = wasm::ValueType::FromIndex(
             wasm::ValueKind::kRef, type_info->type_index());
-        Handle<WasmModuleObject> module(type_info->instance()->module_object(),
-                                        isolate);
+        // The cast is safe; arrays always have the instance defined.
+        Handle<WasmModuleObject> module(
+            WasmInstanceObject::cast(type_info->instance())->module_object(),
+            isolate);
         t = GetRefTypeName(isolate, type, module->native_module());
         v = ArrayProxy::Create(isolate, Handle<WasmArray>::cast(ref), module);
       } else if (ref->IsWasmInternalFunction()) {

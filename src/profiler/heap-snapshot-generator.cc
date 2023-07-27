@@ -903,8 +903,11 @@ HeapEntry* V8HeapExplorer::AddEntry(HeapObject object) {
 #if V8_ENABLE_WEBASSEMBLY
   if (InstanceTypeChecker::IsWasmObject(instance_type)) {
     WasmTypeInfo info = object->map()->wasm_type_info();
-    wasm::NamesProvider* names =
-        info->instance()->module_object()->native_module()->GetNamesProvider();
+    // The cast is safe; structs and arrays always have their instance defined.
+    wasm::NamesProvider* names = WasmInstanceObject::cast(info->instance())
+                                     ->module_object()
+                                     ->native_module()
+                                     ->GetNamesProvider();
     wasm::StringBuilder sb;
     if (InstanceTypeChecker::IsWasmStruct(instance_type)) {
       sb << "wasm struct / ";
@@ -2038,8 +2041,11 @@ void V8HeapExplorer::ExtractWasmStructReferences(WasmStruct obj,
                                                  HeapEntry* entry) {
   wasm::StructType* type = obj->type();
   WasmTypeInfo info = obj->map()->wasm_type_info();
-  wasm::NamesProvider* names =
-      info->instance()->module_object()->native_module()->GetNamesProvider();
+  // The cast is safe; structs always have their instance defined.
+  wasm::NamesProvider* names = WasmInstanceObject::cast(info->instance())
+                                   ->module_object()
+                                   ->native_module()
+                                   ->GetNamesProvider();
   for (uint32_t i = 0; i < type->field_count(); i++) {
     if (!type->field(i).is_reference()) continue;
     wasm::StringBuilder sb;

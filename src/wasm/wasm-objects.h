@@ -1122,6 +1122,9 @@ class WasmNull : public TorqueGeneratedWasmNull<WasmNull, HeapObject> {
 
 #undef DECL_OPTIONAL_ACCESSORS
 
+Handle<Map> CreateFuncRefMap(Isolate* isolate, Handle<Map> opt_rtt_parent,
+                             Handle<WasmInstanceObject> opt_instance);
+
 namespace wasm {
 // Takes a {value} in the JS representation and typechecks it according to
 // {expected}. If the typecheck succeeds, returns the wasm representation of the

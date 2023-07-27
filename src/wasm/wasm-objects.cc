@@ -2143,6 +2143,23 @@ bool WasmJSFunction::IsWasmJSFunction(Object object) {
   return js_function->shared()->HasWasmJSFunctionData();
 }
 
+Handle<Map> CreateFuncRefMap(Isolate* isolate, Handle<Map> opt_rtt_parent,
+                             Handle<WasmInstanceObject> opt_instance) {
+  const int inobject_properties = 0;
+  const int instance_size =
+      Map::cast(isolate->root(RootIndex::kWasmInternalFunctionMap))
+          ->instance_size();
+  const InstanceType instance_type = WASM_INTERNAL_FUNCTION_TYPE;
+  const ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND;
+  constexpr uint32_t kNoIndex = ~0u;
+  Handle<WasmTypeInfo> type_info = isolate->factory()->NewWasmTypeInfo(
+      kNullAddress, opt_rtt_parent, instance_size, opt_instance, kNoIndex);
+  Handle<Map> map = isolate->factory()->NewMap(
+      instance_type, instance_size, elements_kind, inobject_properties);
+  map->set_wasm_type_info(*type_info);
+  return map;
+}
+
 Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
                                            const wasm::FunctionSig* sig,
                                            Handle<JSReceiver> callable,
@@ -2165,7 +2182,34 @@ Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
   }
 
   Factory* factory = isolate->factory();
-  Handle<Map> rtt = factory->wasm_internal_function_map();
+
+  Handle<Map> rtt;
+  Handle<NativeContext> context(isolate->native_context());
+
+  if (wasm::WasmFeatures::FromIsolate(isolate).has_gc()) {
+    uint32_t canonical_type_index =
+        wasm::GetWasmEngine()->type_canonicalizer()->AddRecursiveGroup(sig);
+
+    isolate->heap()->EnsureWasmCanonicalRttsSize(canonical_type_index + 1);
+
+    Handle<WeakArrayList> canonical_rtts =
+        handle(isolate->heap()->wasm_canonical_rtts(), isolate);
+
+    MaybeObject maybe_canonical_map = canonical_rtts->Get(canonical_type_index);
+
+    if (maybe_canonical_map.IsStrongOrWeak() &&
+        maybe_canonical_map.GetHeapObject().IsMap()) {
+      rtt = handle(Map::cast(maybe_canonical_map.GetHeapObject()), isolate);
+    } else {
+      rtt = CreateFuncRefMap(isolate, Handle<Map>(),
+                             Handle<WasmInstanceObject>());
+      canonical_rtts->Set(canonical_type_index,
+                          HeapObjectReference::Weak(*rtt));
+    }
+  } else {
+    rtt = factory->wasm_internal_function_map();
+  }
+
   Handle<WasmJSFunctionData> function_data = factory->NewWasmJSFunctionData(
       call_target, callable, serialized_sig, wrapper_code, rtt, suspend,
       wasm::kNoPromise);
@@ -2196,7 +2240,6 @@ Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
     name = JSFunction::GetDebugName(Handle<JSFunction>::cast(callable));
     name = String::Flatten(isolate, name);
   }
-  Handle<NativeContext> context(isolate->native_context());
   Handle<SharedFunctionInfo> shared =
       factory->NewSharedFunctionInfoForWasmJSFunction(name, function_data);
   Handle<JSFunction> js_function =
@@ -2479,7 +2522,8 @@ MaybeHandle<Object> JSToWasmObject(Isolate* isolate, Handle<Object> value,
         auto wasm_obj = Handle<WasmObject>::cast(value);
         WasmTypeInfo type_info = wasm_obj->map()->wasm_type_info();
         uint32_t real_idx = type_info->type_index();
-        const WasmModule* real_module = type_info->instance()->module();
+        const WasmModule* real_module =
+            WasmInstanceObject::cast(type_info->instance())->module();
         uint32_t real_canonical_index =
             real_module->isorecursive_canonical_type_ids[real_idx];
         if (!type_canonicalizer->IsCanonicalSubtype(

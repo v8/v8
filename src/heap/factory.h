@@ -655,7 +655,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   Handle<WasmTypeInfo> NewWasmTypeInfo(Address type_address,
                                        Handle<Map> opt_parent,
                                        int instance_size_bytes,
-                                       Handle<WasmInstanceObject> instance,
+                                       Handle<WasmInstanceObject> opt_instance,
                                        uint32_t type_index);
   Handle<WasmInternalFunction> NewWasmInternalFunction(Address opt_call_target,
                                                        Handle<HeapObject> ref,

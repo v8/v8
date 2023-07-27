@@ -199,7 +199,8 @@ extern class WasmTypeInfo extends HeapObject {
   type_index: uint32;
   @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
   @ifnot(TAGGED_SIZE_8_BYTES) optional_padding: void;
-  instance: WasmInstanceObject;
+  // Is undefined for WasmExternalFunctions referring to WasmJSFunctions.
+  instance: WasmInstanceObject|Undefined;
   const supertypes_length: Smi;
   supertypes[supertypes_length]: Object;
 }

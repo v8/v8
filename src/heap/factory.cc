@@ -1617,7 +1617,7 @@ Handle<Foreign> Factory::NewForeign(Address addr,
 #if V8_ENABLE_WEBASSEMBLY
 Handle<WasmTypeInfo> Factory::NewWasmTypeInfo(
     Address type_address, Handle<Map> opt_parent, int instance_size_bytes,
-    Handle<WasmInstanceObject> instance, uint32_t type_index) {
+    Handle<WasmInstanceObject> opt_instance, uint32_t type_index) {
   // We pretenure WasmTypeInfo objects for two reasons:
   // (1) They are referenced by Maps, which are assumed to be long-lived,
   //     so pretenuring the WTI is a bit more efficient.
@@ -1656,7 +1656,9 @@ Handle<WasmTypeInfo> Factory::NewWasmTypeInfo(
     result->set_supertypes(static_cast<int>(i), *supertypes[i]);
   }
   result->init_native_type(isolate(), type_address);
-  result->set_instance(*instance);
+  result->set_instance(opt_instance.is_null()
+                           ? HeapObject::cast(*undefined_value())
+                           : HeapObject::cast(*opt_instance));
   result->set_type_index(type_index);
   return handle(result, isolate());
 }

@@ -162,24 +162,6 @@ Handle<Map> CreateArrayMap(Isolate* isolate, const WasmModule* module,
   return map;
 }
 
-Handle<Map> CreateFuncRefMap(Isolate* isolate, const WasmModule* module,
-                             Handle<Map> opt_rtt_parent,
-                             Handle<WasmInstanceObject> instance) {
-  const int inobject_properties = 0;
-  const int instance_size =
-      Map::cast(isolate->root(RootIndex::kWasmInternalFunctionMap))
-          ->instance_size();
-  const InstanceType instance_type = WASM_INTERNAL_FUNCTION_TYPE;
-  const ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND;
-  constexpr uint32_t kNoIndex = ~0u;
-  Handle<WasmTypeInfo> type_info = isolate->factory()->NewWasmTypeInfo(
-      kNullAddress, opt_rtt_parent, instance_size, instance, kNoIndex);
-  Handle<Map> map = isolate->factory()->NewMap(
-      instance_type, instance_size, elements_kind, inobject_properties);
-  map->set_wasm_type_info(*type_info);
-  return map;
-}
-
 void CreateMapForType(Isolate* isolate, const WasmModule* module,
                       int type_index, Handle<WasmInstanceObject> instance,
                       Handle<FixedArray> maps) {
@@ -221,7 +203,7 @@ void CreateMapForType(Isolate* isolate, const WasmModule* module,
       map = CreateArrayMap(isolate, module, type_index, rtt_parent, instance);
       break;
     case TypeDefinition::kFunction:
-      map = CreateFuncRefMap(isolate, module, rtt_parent, instance);
+      map = CreateFuncRefMap(isolate, rtt_parent, instance);
       break;
   }
   canonical_rtts->Set(canonical_type_index, HeapObjectReference::Weak(*map));
