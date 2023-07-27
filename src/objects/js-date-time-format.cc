@@ -15,6 +15,7 @@
 #include <utility>
 #include <vector>
 
+#include "src/base/bit-field.h"
 #include "src/date/date.h"
 #include "src/execution/isolate.h"
 #include "src/heap/factory.h"
@@ -95,15 +96,33 @@ class PatternMap {
   std::string value;
 };
 
+#define BIT_FIELDS(V, _)      \
+  V(Era, bool, 1, _)          \
+  V(Year, bool, 1, _)         \
+  V(Month, bool, 1, _)        \
+  V(Weekday, bool, 1, _)      \
+  V(Day, bool, 1, _)          \
+  V(DayPeriod, bool, 1, _)    \
+  V(Hour, bool, 1, _)         \
+  V(Minute, bool, 1, _)       \
+  V(Second, bool, 1, _)       \
+  V(TimeZoneName, bool, 1, _) \
+  V(FractionalSecondDigits, bool, 1, _)
+DEFINE_BIT_FIELDS(BIT_FIELDS)
+#undef BIT_FIELDS
+
 class PatternItem {
  public:
-  PatternItem(const std::string property, std::vector<PatternMap> pairs,
+  PatternItem(int32_t shift, const std::string property,
+              std::vector<PatternMap> pairs,
               std::vector<const char*> allowed_values)
-      : property(std::move(property)),
+      : bitShift(shift),
+        property(std::move(property)),
         pairs(std::move(pairs)),
         allowed_values(allowed_values) {}
   virtual ~PatternItem() = default;
 
+  int32_t bitShift;
   const std::string property;
   // It is important for the pattern in the pairs from longer one to shorter one
   // if the longer one contains substring of an shorter one.
@@ -118,7 +137,7 @@ static std::vector<PatternItem> BuildPatternItems() {
   const std::vector<const char*> kNarrowLongShort2DigitNumeric = {
       "narrow", "long", "short", "2-digit", "numeric"};
   std::vector<PatternItem> items = {
-      PatternItem("weekday",
+      PatternItem(Weekday::kShift, "weekday",
                   {{"EEEEE", "narrow"},
                    {"EEEE", "long"},
                    {"EEE", "short"},
@@ -126,13 +145,13 @@ static std::vector<PatternItem> BuildPatternItems() {
                    {"cccc", "long"},
                    {"ccc", "short"}},
                   kNarrowLongShort),
-      PatternItem("era",
+      PatternItem(Era::kShift, "era",
                   {{"GGGGG", "narrow"}, {"GGGG", "long"}, {"GGG", "short"}},
                   kNarrowLongShort),
-      PatternItem("year", {{"yy", "2-digit"}, {"y", "numeric"}},
+      PatternItem(Year::kShift, "year", {{"yy", "2-digit"}, {"y", "numeric"}},
                   k2DigitNumeric)};
   // Sometimes we get L instead of M for month - standalone name.
-  items.push_back(PatternItem("month",
+  items.push_back(PatternItem(Month::kShift, "month",
                               {{"MMMMM", "narrow"},
                                {"MMMM", "long"},
                                {"MMM", "short"},
@@ -144,9 +163,10 @@ static std::vector<PatternItem> BuildPatternItems() {
                                {"LL", "2-digit"},
                                {"L", "numeric"}},
                               kNarrowLongShort2DigitNumeric));
-  items.push_back(PatternItem("day", {{"dd", "2-digit"}, {"d", "numeric"}},
+  items.push_back(PatternItem(Day::kShift, "day",
+                              {{"dd", "2-digit"}, {"d", "numeric"}},
                               k2DigitNumeric));
-  items.push_back(PatternItem("dayPeriod",
+  items.push_back(PatternItem(DayPeriod::kShift, "dayPeriod",
                               {{"BBBBB", "narrow"},
                                {"bbbbb", "narrow"},
                                {"BBBB", "long"},
@@ -154,7 +174,7 @@ static std::vector<PatternItem> BuildPatternItems() {
                                {"B", "short"},
                                {"b", "short"}},
                               kNarrowLongShort));
-  items.push_back(PatternItem("hour",
+  items.push_back(PatternItem(Hour::kShift, "hour",
                               {{"HH", "2-digit"},
                                {"H", "numeric"},
                                {"hh", "2-digit"},
@@ -164,23 +184,25 @@ static std::vector<PatternItem> BuildPatternItems() {
                                {"KK", "2-digit"},
                                {"K", "numeric"}},
                               k2DigitNumeric));
-  items.push_back(PatternItem("minute", {{"mm", "2-digit"}, {"m", "numeric"}},
+  items.push_back(PatternItem(Minute::kShift, "minute",
+                              {{"mm", "2-digit"}, {"m", "numeric"}},
                               k2DigitNumeric));
-  items.push_back(PatternItem("second", {{"ss", "2-digit"}, {"s", "numeric"}},
+  items.push_back(PatternItem(Second::kShift, "second",
+                              {{"ss", "2-digit"}, {"s", "numeric"}},
                               k2DigitNumeric));
 
-    const std::vector<const char*> kTimezone = {"long",        "short",
-                                                "longOffset",  "shortOffset",
-                                                "longGeneric", "shortGeneric"};
-    items.push_back(PatternItem("timeZoneName",
-                                {{"zzzz", "long"},
-                                 {"z", "short"},
-                                 {"OOOO", "longOffset"},
-                                 {"O", "shortOffset"},
-                                 {"vvvv", "longGeneric"},
-                                 {"v", "shortGeneric"}},
-                                kTimezone));
-    return items;
+  const std::vector<const char*> kTimezone = {"long",        "short",
+                                              "longOffset",  "shortOffset",
+                                              "longGeneric", "shortGeneric"};
+  items.push_back(PatternItem(TimeZoneName::kShift, "timeZoneName",
+                              {{"zzzz", "long"},
+                               {"z", "short"},
+                               {"OOOO", "longOffset"},
+                               {"O", "shortOffset"},
+                               {"vvvv", "longGeneric"},
+                               {"v", "shortGeneric"}},
+                              kTimezone));
+  return items;
 }
 
 class PatternItems {
@@ -201,15 +223,19 @@ static const std::vector<PatternItem>& GetPatternItems() {
 
 class PatternData {
  public:
-  PatternData(const std::string property, std::vector<PatternMap> pairs,
+  PatternData(int32_t shift, const std::string property,
+              std::vector<PatternMap> pairs,
               std::vector<const char*> allowed_values)
-      : property(std::move(property)), allowed_values(allowed_values) {
+      : bitShift(shift),
+        property(std::move(property)),
+        allowed_values(allowed_values) {
     for (const auto& pair : pairs) {
       map.insert(std::make_pair(pair.value, pair.pattern));
     }
   }
   virtual ~PatternData() = default;
 
+  int32_t bitShift;
   const std::string property;
   std::map<const std::string, const std::string> map;
   std::vector<const char*> allowed_values;
@@ -221,8 +247,8 @@ const std::vector<PatternData> CreateCommonData(const PatternData& hour_data) {
     if (item.property == "hour") {
       build.push_back(hour_data);
     } else {
-      build.push_back(
-          PatternData(item.property, item.pairs, item.allowed_values));
+      build.push_back(PatternData(item.bitShift, item.property, item.pairs,
+                                  item.allowed_values));
     }
   }
   return build;
@@ -230,9 +256,9 @@ const std::vector<PatternData> CreateCommonData(const PatternData& hour_data) {
 
 const std::vector<PatternData> CreateData(const char* digit2,
                                           const char* numeric) {
-  return CreateCommonData(
-      PatternData("hour", {{digit2, "2-digit"}, {numeric, "numeric"}},
-                  {"2-digit", "numeric"}));
+  return CreateCommonData(PatternData(
+      Hour::kShift, "hour", {{digit2, "2-digit"}, {numeric, "numeric"}},
+      {"2-digit", "numeric"}));
 }
 
 // According to "Date Field Symbol Table" in
@@ -1507,12 +1533,6 @@ MaybeHandle<String> JSDateTimeFormat::ToLocaleDateTime(
       return FormatDateTime(isolate, *cached_icu_simple_date_format, x);
     }
   }
-  // 3. Let options be ? ToDateTimeOptions(options, required, defaults).
-  Handle<JSObject> internal_options;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, internal_options,
-      ToDateTimeOptions(isolate, options, required, defaults), String);
-
   // 4. Let dateFormat be ? Construct(%DateTimeFormat%, « locales, options »).
   Handle<JSFunction> constructor = Handle<JSFunction>(
       JSFunction::cast(isolate->context()
@@ -1526,8 +1546,8 @@ MaybeHandle<String> JSDateTimeFormat::ToLocaleDateTime(
   Handle<JSDateTimeFormat> date_time_format;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, date_time_format,
-      JSDateTimeFormat::New(isolate, map, locales, internal_options,
-                            method_name),
+      JSDateTimeFormat::CreateDateTimeFormat(isolate, map, locales, options,
+                                             required, defaults, method_name),
       String);
 
   if (can_cache) {
@@ -1560,158 +1580,6 @@ MaybeHandle<String> JSDateTimeFormat::TemporalToLocaleString(
   // 5. Return FormatDateTime(dateFormat, x).
   return FormatDateTimeWithTemporalSupport(isolate, date_time_format, x,
                                            method_name);
-}
-
-namespace {
-
-Maybe<bool> IsPropertyUndefined(Isolate* isolate, Handle<JSObject> options,
-                                Handle<String> property) {
-  // i. Let prop be the property name.
-  // ii. Let value be ? Get(options, prop).
-  Handle<Object> value;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, value, Object::GetPropertyOrElement(isolate, options, property),
-      Nothing<bool>());
-  return Just(value->IsUndefined(isolate));
-}
-
-Maybe<bool> NeedsDefault(Isolate* isolate, Handle<JSObject> options,
-                         const std::vector<Handle<String>>& props) {
-  bool needs_default = true;
-  for (const auto& prop : props) {
-    //  i. Let prop be the property name.
-    // ii. Let value be ? Get(options, prop)
-    Maybe<bool> maybe_undefined = IsPropertyUndefined(isolate, options, prop);
-    MAYBE_RETURN(maybe_undefined, Nothing<bool>());
-    // iii. If value is not undefined, let needDefaults be false.
-    if (!maybe_undefined.FromJust()) {
-      needs_default = false;
-    }
-  }
-  return Just(needs_default);
-}
-
-Maybe<bool> CreateDefault(Isolate* isolate, Handle<JSObject> options,
-                          const std::vector<std::string>& props) {
-  Factory* factory = isolate->factory();
-  // i. Perform ? CreateDataPropertyOrThrow(options, prop, "numeric").
-  for (const auto& prop : props) {
-    MAYBE_RETURN(
-        JSReceiver::CreateDataProperty(
-            isolate, options, factory->NewStringFromAsciiChecked(prop.c_str()),
-            factory->numeric_string(), Just(kThrowOnError)),
-        Nothing<bool>());
-  }
-  return Just(true);
-}
-
-}  // namespace
-
-// ecma-402/#sec-todatetimeoptions
-MaybeHandle<JSObject> JSDateTimeFormat::ToDateTimeOptions(
-    Isolate* isolate, Handle<Object> input_options, RequiredOption required,
-    DefaultsOption defaults) {
-  Factory* factory = isolate->factory();
-  // 1. If options is undefined, let options be null; otherwise let options be ?
-  //    ToObject(options).
-  Handle<JSObject> options;
-  if (input_options->IsUndefined(isolate)) {
-    options = factory->NewJSObjectWithNullProto();
-  } else {
-    Handle<JSReceiver> options_obj;
-    ASSIGN_RETURN_ON_EXCEPTION(isolate, options_obj,
-                               Object::ToObject(isolate, input_options),
-                               JSObject);
-    // 2. Let options be ObjectCreate(options).
-    ASSIGN_RETURN_ON_EXCEPTION(isolate, options,
-                               JSObject::ObjectCreate(isolate, options_obj),
-                               JSObject);
-  }
-
-  // 3. Let needDefaults be true.
-  bool needs_default = true;
-
-  // 4. If required is "date" or "any", then
-  if (required == RequiredOption::kAny || required == RequiredOption::kDate) {
-    // a. For each of the property names "weekday", "year", "month",
-    // "day", do
-    std::vector<Handle<String>> list(
-        {factory->weekday_string(), factory->year_string()});
-    list.push_back(factory->month_string());
-    list.push_back(factory->day_string());
-    Maybe<bool> maybe_needs_default = NeedsDefault(isolate, options, list);
-    MAYBE_RETURN(maybe_needs_default, Handle<JSObject>());
-    needs_default = maybe_needs_default.FromJust();
-  }
-
-  // 5. If required is "time" or "any", then
-  if (required == RequiredOption::kAny || required == RequiredOption::kTime) {
-    // a. For each of the property names "dayPeriod", "hour", "minute",
-    // "second", "fractionalSecondDigits", do
-    std::vector<Handle<String>> list;
-    list.push_back(factory->dayPeriod_string());
-    list.push_back(factory->hour_string());
-    list.push_back(factory->minute_string());
-    list.push_back(factory->second_string());
-    list.push_back(factory->fractionalSecondDigits_string());
-    Maybe<bool> maybe_needs_default = NeedsDefault(isolate, options, list);
-    MAYBE_RETURN(maybe_needs_default, Handle<JSObject>());
-    needs_default &= maybe_needs_default.FromJust();
-  }
-
-  // 6. Let dateStyle be ? Get(options, "dateStyle").
-  Maybe<bool> maybe_datestyle_undefined =
-      IsPropertyUndefined(isolate, options, factory->dateStyle_string());
-  MAYBE_RETURN(maybe_datestyle_undefined, Handle<JSObject>());
-  // 7. Let timeStyle be ? Get(options, "timeStyle").
-  Maybe<bool> maybe_timestyle_undefined =
-      IsPropertyUndefined(isolate, options, factory->timeStyle_string());
-  MAYBE_RETURN(maybe_timestyle_undefined, Handle<JSObject>());
-  // 8. If dateStyle is not undefined or timeStyle is not undefined, let
-  // needDefaults be false.
-  if (!maybe_datestyle_undefined.FromJust() ||
-      !maybe_timestyle_undefined.FromJust()) {
-    needs_default = false;
-  }
-  // 9. If required is "date" and timeStyle is not undefined,
-  if (required == RequiredOption::kDate &&
-      !maybe_timestyle_undefined.FromJust()) {
-    //  a. Throw a TypeError exception.
-    THROW_NEW_ERROR(
-        isolate,
-        NewTypeError(MessageTemplate::kInvalid,
-                     factory->NewStringFromStaticChars("option"),
-                     factory->NewStringFromStaticChars("timeStyle")),
-        JSObject);
-  }
-  // 10. If required is "time" and dateStyle is not undefined,
-  if (required == RequiredOption::kTime &&
-      !maybe_datestyle_undefined.FromJust()) {
-    //  a. Throw a TypeError exception.
-    THROW_NEW_ERROR(
-        isolate,
-        NewTypeError(MessageTemplate::kInvalid,
-                     factory->NewStringFromStaticChars("option"),
-                     factory->NewStringFromStaticChars("dateStyle")),
-        JSObject);
-  }
-
-  // 11. If needDefaults is true and defaults is either "date" or "all", then
-  if (needs_default) {
-    if (defaults == DefaultsOption::kAll || defaults == DefaultsOption::kDate) {
-      // a. For each of the property names "year", "month", "day", do)
-      const std::vector<std::string> list({"year", "month", "day"});
-      MAYBE_RETURN(CreateDefault(isolate, options, list), Handle<JSObject>());
-    }
-    // 12. If needDefaults is true and defaults is either "time" or "all", then
-    if (defaults == DefaultsOption::kAll || defaults == DefaultsOption::kTime) {
-      // a. For each of the property names "hour", "minute", "second", do
-      const std::vector<std::string> list({"hour", "minute", "second"});
-      MAYBE_RETURN(CreateDefault(isolate, options, list), Handle<JSObject>());
-    }
-  }
-  // 13. Return options.
-  return options;
 }
 
 MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::UnwrapDateTimeFormat(
@@ -2202,6 +2070,15 @@ enum FormatMatcherOption { kBestFit, kBasic };
 MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::New(
     Isolate* isolate, Handle<Map> map, Handle<Object> locales,
     Handle<Object> input_options, const char* service) {
+  return JSDateTimeFormat::CreateDateTimeFormat(
+      isolate, map, locales, input_options, RequiredOption::kAny,
+      DefaultsOption::kDate, service);
+}
+
+MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::CreateDateTimeFormat(
+    Isolate* isolate, Handle<Map> map, Handle<Object> locales,
+    Handle<Object> input_options, RequiredOption required,
+    DefaultsOption defaults, const char* service) {
   Factory* factory = isolate->factory();
   // 1. Let requestedLocales be ? CanonicalizeLocaleList(locales).
   Maybe<std::vector<std::string>> maybe_requested_locales =
@@ -2209,12 +2086,10 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::New(
   MAYBE_RETURN(maybe_requested_locales, Handle<JSDateTimeFormat>());
   std::vector<std::string> requested_locales =
       maybe_requested_locales.FromJust();
-  // 2. Let options be ? ToDateTimeOptions(options, "any", "date").
-  Handle<JSObject> options;
+  // 2. Let options be ? CoerceOptionsToObject(_options_).
+  Handle<JSReceiver> options;
   ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, options,
-      JSDateTimeFormat::ToDateTimeOptions(
-          isolate, input_options, RequiredOption::kAny, DefaultsOption::kDate),
+      isolate, options, CoerceOptionsToObject(isolate, input_options, service),
       JSDateTimeFormat);
 
   // 4. Let matcher be ? GetOption(options, "localeMatcher", "string",
@@ -2412,7 +2287,10 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::New(
   DateTimeStyle time_style = DateTimeStyle::kUndefined;
   std::unique_ptr<icu::SimpleDateFormat> icu_date_format;
 
-  // 28. For each row of Table 1, except the header row, do
+  // 35. Let hasExplicitFormatComponents be false.
+  int32_t explicit_format_components =
+      0;  // The fields which are not undefined.
+  // 36. For each row of Table 1, except the header row, do
   bool has_hour_option = false;
   std::string skeleton;
   for (const PatternData& item : GetPatternData(hc)) {
@@ -2426,6 +2304,10 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::New(
           GetNumberOption(isolate, options,
                           factory->fractionalSecondDigits_string(), 1, 3, 0),
           Handle<JSDateTimeFormat>());
+      if (fsd > 0) {
+        explicit_format_components =
+            FractionalSecondDigits::update(explicit_format_components, true);
+      }
       // Convert fractionalSecondDigits to skeleton.
       for (int i = 0; i < fsd; i++) {
         skeleton += "S";
@@ -2440,12 +2322,16 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::New(
                         item.allowed_values, service, &input);
     MAYBE_RETURN(maybe_get_option, Handle<JSDateTimeFormat>());
     if (maybe_get_option.FromJust()) {
+      // Record which fields are not undefined into explicit_format_components.
       if (item.property == "hour") {
         has_hour_option = true;
       }
       DCHECK_NOT_NULL(input.get());
       // iii. Set opt.[[<prop>]] to value.
       skeleton += item.map.find(input.get())->second;
+      // e. If value is not undefined, then
+      // i. Set hasExplicitFormatComponents to true.
+      explicit_format_components |= 1 << static_cast<int32_t>(item.bitShift);
     }
   }
 
@@ -2499,38 +2385,34 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::New(
   // 37. If dateStyle or timeStyle are not undefined, then
   if (date_style != DateTimeStyle::kUndefined ||
       time_style != DateTimeStyle::kUndefined) {
-    // a. For each row in Table 1, except the header row, do
-    //    i. Let prop be the name given in the Property column of the row.
-    //   ii. Let p be opt.[[<prop>]].
-    //  iii. If p is not undefined, then
-    //      1. Throw a TypeError exception.
-    if (skeleton.length() > 0) {
-      std::string prop;
-      for (const auto& item : GetPatternItems()) {
-        for (const auto& pair : item.pairs) {
-          if (skeleton.find(pair.pattern) != std::string::npos) {
-            prop.assign(item.property);
-            break;
-          }
-        }
-        if (!prop.empty()) {
-          break;
-        }
-      }
-      if (prop.empty() && skeleton.find("S") != std::string::npos) {
-        prop.assign("fractionalSecondDigits");
-      }
-      if (!prop.empty()) {
-        THROW_NEW_ERROR(
-            isolate,
-            NewTypeError(MessageTemplate::kCantSetOptionXWhenYIsUsed,
-                         factory->NewStringFromAsciiChecked(prop.c_str()),
-                         date_style != DateTimeStyle::kUndefined
-                             ? factory->dateStyle_string()
-                             : factory->timeStyle_string()),
-            JSDateTimeFormat);
-      }
-      UNREACHABLE();
+    // a. If hasExplicitFormatComponents is true, then
+    if (explicit_format_components != 0) {
+      // i. Throw a TypeError exception.
+      THROW_NEW_ERROR(isolate,
+                      NewTypeError(MessageTemplate::kInvalid,
+                                   factory->NewStringFromStaticChars("option"),
+                                   factory->NewStringFromStaticChars("option")),
+                      JSDateTimeFormat);
+    }
+    // b. If required is ~date~ and timeStyle is not *undefined*, then
+    if (required == RequiredOption::kDate &&
+        time_style != DateTimeStyle::kUndefined) {
+      // i. Throw a *TypeError* exception.
+      THROW_NEW_ERROR(isolate,
+                      NewTypeError(MessageTemplate::kInvalid,
+                                   factory->NewStringFromStaticChars("option"),
+                                   factory->timeStyle_string()),
+                      JSDateTimeFormat);
+    }
+    // c. If required is ~time~ and dateStyle is not *undefined*, then
+    if (required == RequiredOption::kTime &&
+        date_style != DateTimeStyle::kUndefined) {
+      // i. Throw a *TypeError* exception.
+      THROW_NEW_ERROR(isolate,
+                      NewTypeError(MessageTemplate::kInvalid,
+                                   factory->NewStringFromStaticChars("option"),
+                                   factory->dateStyle_string()),
+                      JSDateTimeFormat);
     }
     // b. Let pattern be DateTimeStylePattern(dateStyle, timeStyle,
     // dataLocaleData, hc).
@@ -2545,6 +2427,66 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::New(
                       JSDateTimeFormat);
     }
   } else {
+    // a. Let needDefaults be *true*.
+    bool needDefaults = true;
+    // b. If required is ~date~ or ~any~, then
+    if (required == RequiredOption::kDate || required == RequiredOption::kAny) {
+      // 1. For each property name prop of << *"weekday"*, *"year"*, *"month"*,
+      // *"day"* >>, do
+      //    1. Let value be formatOptions.[[<prop>]].
+      //    1. If value is not *undefined*, let needDefaults be *false*.
+
+      needDefaults &= !Weekday::decode(explicit_format_components);
+      needDefaults &= !Year::decode(explicit_format_components);
+      needDefaults &= !Month::decode(explicit_format_components);
+      needDefaults &= !Day::decode(explicit_format_components);
+    }
+    // c. If required is ~time~ or ~any~, then
+    if (required == RequiredOption::kTime || required == RequiredOption::kAny) {
+      // 1. For each property name prop of &laquo; *"dayPeriod"*, *"hour"*,
+      // *"minute"*, *"second"*, *"fractionalSecondDigits"* &raquo;, do
+      //    1. Let value be formatOptions.[[&lt;_prop_&gt;]].
+      //    1. If value is not *undefined*, let _needDefaults_ be *false*.
+      needDefaults &= !DayPeriod::decode(explicit_format_components);
+      needDefaults &= !Hour::decode(explicit_format_components);
+      needDefaults &= !Minute::decode(explicit_format_components);
+      needDefaults &= !Second::decode(explicit_format_components);
+      needDefaults &=
+          !FractionalSecondDigits::decode(explicit_format_components);
+    }
+    // 1. If needDefaults is *true* and _defaults_ is either ~date~ or ~all~,
+    // then
+    if (needDefaults && ((DefaultsOption::kDate == defaults) ||
+                         (DefaultsOption::kAll == defaults))) {
+      // 1. For each property name prop of <<*"year"*, *"month"*, *"day"* >>, do
+      // 1. Set formatOptions.[[<<prop>>]] to *"numeric"*.
+      skeleton += "yMd";
+    }
+    // 1. If _needDefaults_ is *true* and defaults is either ~time~ or ~all~,
+    // then
+    if (needDefaults && ((DefaultsOption::kTime == defaults) ||
+                         (DefaultsOption::kAll == defaults))) {
+      // 1. For each property name prop of << *"hour"*, *"minute"*, *"second"*
+      // >>, do
+      // 1. Set _formatOptions_.[[<<prop>>]] to *"numeric"*.
+      // See
+      // https://unicode.org/reports/tr35/tr35.html#UnicodeHourCycleIdentifier
+      switch (hc) {
+        case HourCycle::kH12:
+          skeleton += "hms";
+          break;
+        case HourCycle::kH23:
+        case HourCycle::kUndefined:
+          skeleton += "Hms";
+          break;
+        case HourCycle::kH11:
+          skeleton += "Kms";
+          break;
+        case HourCycle::kH24:
+          skeleton += "kms";
+          break;
+      }
+    }
     // e. If dateTimeFormat.[[Hour]] is not undefined, then
     if (has_hour_option) {
       // v. Set dateTimeFormat.[[HourCycle]] to hc.
