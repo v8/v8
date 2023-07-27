@@ -30,11 +30,49 @@ transitioning javascript builtin SetPrototypeSymmetricDifference(
       table, ExtractFixedArrayFlag::kFixedArrays)) otherwise unreachable;
 
   let numberOfElements: Smi = 0;
-
-  // 6. Let next be true.
-  let nextRecord: JSReceiver;
-  // 7. Repeat, while next is not false,
   try {
+    typeswitch (other) {
+      case (otherSet: JSSetWithNoCustomIteration): {
+        CheckSetRecordHasJSSetMethods(otherRec) otherwise SlowPath;
+
+        const otherTable =
+            Cast<OrderedHashSet>(otherSet.table) otherwise unreachable;
+
+        let otherIterator =
+            collections::NewUnmodifiedOrderedHashSetIterator(otherTable);
+
+        while (true) {
+          const nextValue = otherIterator.Next() otherwise Done;
+
+          numberOfElements = FastSymmetricDifference(
+              nextValue, table, resultSetData, numberOfElements, methodName);
+        }
+      }
+      case (otherMap: JSMapWithNoCustomIteration): {
+        CheckSetRecordHasJSMapMethods(otherRec) otherwise SlowPath;
+
+        const otherTable =
+            Cast<OrderedHashMap>(otherMap.table) otherwise unreachable;
+
+        let otherIterator =
+            collections::NewUnmodifiedOrderedHashMapIterator(otherTable);
+
+        while (true) {
+          const nextValue = otherIterator.Next() otherwise Done;
+
+          numberOfElements = FastSymmetricDifference(
+              nextValue.key, table, resultSetData, numberOfElements,
+              methodName);
+        }
+      }
+      case (JSAny): {
+        goto SlowPath;
+      }
+    }
+  } label SlowPath {
+    // 6. Let next be true.
+    let nextRecord: JSReceiver;
+    // 7. Repeat, while next is not false,
     while (true) {
       //  a. Set next to ? IteratorStep(keysIter).
       nextRecord = iterator::IteratorStep(keysIter, fastIteratorResultMap)
@@ -78,5 +116,36 @@ transitioning javascript builtin SetPrototypeSymmetricDifference(
     };
   }
   unreachable;
+}
+
+// This macro gets the nextValue in other table and normalize it. If the
+// nextValue exists in the reciever table, it will be removed. Otherwise
+// it will be added to the resultSetData.
+macro FastSymmetricDifference(implicit context: Context)(
+    nextValue: JSAny, table: OrderedHashSet, resultSetData: OrderedHashSet,
+    numberOfElements: Smi, methodName: constexpr string): Smi {
+  let key = nextValue;
+  let result = resultSetData;
+  let numberOfElementsModifiable = numberOfElements;
+
+  // ii. If nextValue is -0𝔽, set nextValue to +0𝔽.
+  key = collections::NormalizeNumberKey(key);
+
+  // iii. Let inResult be SetDataHas(resultSetData, nextValue).
+  const inResult = TableHasKey(resultSetData, key);
+
+  // iv. If SetDataHas(O.[[SetData]], nextValue) is true, then
+  dcheck(inResult == TableHasKey(table, key));
+  //  1. If inResult is true, remove nextValue from resultSetData.
+  if (inResult) {
+    numberOfElementsModifiable = DeleteFromSetTable(resultSetData, key)
+        otherwise unreachable;
+  } else {
+    // v. Else,
+    //  1. If inResult is false, append nextValue to resultSetData.
+    result = AddToSetTable(resultSetData, key, methodName);
+    numberOfElementsModifiable++;
+  }
+  return numberOfElementsModifiable;
 }
 }
