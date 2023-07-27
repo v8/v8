@@ -647,7 +647,7 @@ CppHeap::MarkingType CppHeap::SelectMarkingType() const {
   const MarkingType marking_type = marking_support();
 
   if (marking_type == MarkingType::kIncrementalAndConcurrent && heap_ &&
-      !heap_->mark_compact_collector()->UseBackgroundThreadsInCycle()) {
+      !heap_->ShouldUseBackgroundThreads()) {
     return MarkingType::kIncremental;
   }
 
