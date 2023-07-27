@@ -768,17 +768,6 @@ int SharedFunctionInfo::wasm_function_index() const {
   return function_data->function_index();
 }
 
-bool SharedFunctionInfo::is_promising_wasm_export() const {
-  const WasmExportedFunctionData& function_data = wasm_exported_function_data();
-  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
-  Code wrapper =
-      TaggedField<Code, WasmExportedFunctionData::kWrapperCodeOffset>::
-          Relaxed_Load(cage_base, function_data);
-  Builtin builtin_id =
-      wrapper.Relaxed_ReadField<Builtin>(Code::kBuiltinIdOffset);
-  return builtin_id == Builtin::kWasmReturnPromiseOnSuspend;
-}
-
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 bool SharedFunctionInfo::HasBuiltinId() const {
