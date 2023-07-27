@@ -5807,18 +5807,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kX64SAndNot: {
       VectorLength vec_len = VectorLengthField::decode(opcode);
       if (vec_len == kV128) {  // S128AndNot
-        XMMRegister dst = i.OutputSimd128Register();
-        DCHECK_EQ(dst, i.InputSimd128Register(0));
         // The inputs have been inverted by instruction selector, so we can call
         // andnps here without any modifications.
-        __ Andnps(dst, i.InputSimd128Register(1));
+        ASSEMBLE_SIMD_BINOP(andnps);
       } else if (vec_len == kV256) {  // S256AndNot
-        YMMRegister dst = i.OutputSimd256Register();
-        DCHECK_EQ(dst, i.InputSimd256Register(0));
         // The inputs have been inverted by instruction selector, so we can call
         // andnps here without any modifications.
-        CpuFeatureScope avx_scope(masm(), AVX);
-        __ vandnps(dst, dst, i.InputSimd256Register(1));
+        ASSEMBLE_SIMD256_BINOP(andnps, AVX);
       } else {
         UNREACHABLE();
       }

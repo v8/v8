@@ -5025,20 +5025,17 @@ template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitS128Select(Node* node) {
   X64OperandGeneratorT<Adapter> g(this);
 
+  InstructionOperand dst =
+      IsSupported(AVX) ? g.DefineAsRegister(node) : g.DefineSameAsFirst(node);
   if (IsV128ZeroConst(node->InputAt(2))) {
     // select(cond, input1, 0) -> and(cond, input1)
-    Emit(
-        kX64SAnd | VectorLengthField::encode(kV128),
-        IsSupported(AVX) ? g.DefineAsRegister(node) : g.DefineSameAsFirst(node),
-        g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)));
+    Emit(kX64SAnd | VectorLengthField::encode(kV128), dst,
+         g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)));
   } else if (IsV128ZeroConst(node->InputAt(1))) {
     // select(cond, 0, input2) -> and(not(cond), input2)
-    Emit(kX64SAndNot | VectorLengthField::encode(kV128),
-         g.DefineSameAsFirst(node), g.UseRegister(node->InputAt(0)),
-         g.UseRegister(node->InputAt(2)));
+    Emit(kX64SAndNot | VectorLengthField::encode(kV128), dst,
+         g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(2)));
   } else {
-    InstructionOperand dst =
-        IsSupported(AVX) ? g.DefineAsRegister(node) : g.DefineSameAsFirst(node);
     Emit(kX64SSelect | VectorLengthField::encode(kV128), dst,
          g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)),
          g.UseRegister(node->InputAt(2)));
@@ -5058,8 +5055,8 @@ void InstructionSelectorT<Adapter>::VisitS128AndNot(Node* node) {
   X64OperandGeneratorT<Adapter> g(this);
   // andnps a b does ~a & b, but we want a & !b, so flip the input.
   Emit(kX64SAndNot | VectorLengthField::encode(kV128),
-       g.DefineSameAsFirst(node), g.UseRegister(node->InputAt(1)),
-       g.UseRegister(node->InputAt(0)));
+       IsSupported(AVX) ? g.DefineAsRegister(node) : g.DefineSameAsFirst(node),
+       g.UseRegister(node->InputAt(1)), g.UseRegister(node->InputAt(0)));
 }
 
 template <typename Adapter>
@@ -5067,8 +5064,8 @@ void InstructionSelectorT<Adapter>::VisitS256AndNot(Node* node) {
   X64OperandGeneratorT<Adapter> g(this);
   // andnps a b does ~a & b, but we want a & !b, so flip the input.
   Emit(kX64SAndNot | VectorLengthField::encode(kV256),
-       g.DefineSameAsFirst(node), g.UseRegister(node->InputAt(1)),
-       g.UseRegister(node->InputAt(0)));
+       IsSupported(AVX) ? g.DefineAsRegister(node) : g.DefineSameAsFirst(node),
+       g.UseRegister(node->InputAt(1)), g.UseRegister(node->InputAt(0)));
 }
 
 template <typename Adapter>
