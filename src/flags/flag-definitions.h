@@ -728,8 +728,6 @@ DEFINE_INT(minor_ms_page_promotion_threshold, 50,
 DEFINE_INT(minor_ms_page_promotion_max_lab_threshold, 30,
            "max percentage of labs out of a page to still be considered for "
            "page promotion")
-DEFINE_BOOL(minor_ms_shortcut_strings, false,
-            "short cut strings during marking")
 DEFINE_UINT(minor_ms_max_page_age, 4,
             "max age for a page after which it is force promoted to old space")
 DEFINE_UINT(minor_ms_max_new_space_capacity_mb, 72,
@@ -748,6 +746,14 @@ DEFINE_BOOL(trace_block_coverage, false,
             "trace collected block coverage information")
 DEFINE_BOOL(trace_protector_invalidation, false,
             "trace protector cell invalidations")
+
+#ifdef V8_MINORMS_STRING_SHORTCUTTING
+DEFINE_BOOL(minor_ms_shortcut_strings, false,
+            "short cut strings during marking")
+#else
+DEFINE_BOOL_READONLY(minor_ms_shortcut_strings, false,
+                     "short cut strings during marking")
+#endif
 
 DEFINE_BOOL(feedback_normalization, false,
             "feed back normalization to constructors")
