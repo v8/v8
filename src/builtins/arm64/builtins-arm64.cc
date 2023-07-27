@@ -5266,16 +5266,16 @@ void SwitchSimulatorStackLimit(MacroAssembler* masm) {
   }
 }
 
-Register old_sp = x23;
-Register switch_flag = x24;
+static constexpr Register kOldSPRegister = x23;
+static constexpr Register kSwitchFlagRegister = x24;
 
 void SwitchToTheCentralStackIfNeeded(MacroAssembler* masm, Register argc_input,
                                      Register target_input,
                                      Register argv_input) {
   using ER = ExternalReference;
 
-  __ Mov(switch_flag, 0);
-  __ Mov(old_sp, sp);
+  __ Mov(kSwitchFlagRegister, 0);
+  __ Mov(kOldSPRegister, sp);
 
   // Using x2-x4 as temporary registers, because they will be rewritten
   // before exiting to native code anyway.
@@ -5295,7 +5295,7 @@ void SwitchToTheCentralStackIfNeeded(MacroAssembler* masm, Register argc_input,
   {
     __ Push(argc_input, target_input, argv_input, padreg);
     __ Mov(arg_reg_1, ER::isolate_address(masm->isolate()));
-    __ Mov(arg_reg_2, old_sp);
+    __ Mov(arg_reg_2, kOldSPRegister);
     __ CallCFunction(ER::wasm_switch_to_the_central_stack(), 2);
     __ Mov(central_stack_sp, kReturnRegister0);
     __ Pop(padreg, argv_input, target_input, argc_input);
@@ -5303,8 +5303,16 @@ void SwitchToTheCentralStackIfNeeded(MacroAssembler* masm, Register argc_input,
 
   SwitchSimulatorStackLimit(masm);
 
-  __ Mov(sp, central_stack_sp);
-  __ Mov(switch_flag, 1);
+  static constexpr int kReturnAddressSlotOffset = 1 * kSystemPointerSize;
+  static constexpr int kPadding = 1 * kSystemPointerSize;
+  __ Sub(sp, central_stack_sp, kReturnAddressSlotOffset + kPadding);
+  __ Mov(kSwitchFlagRegister, 1);
+
+  // Update the sp saved in the frame.
+  // It will be used to calculate the callee pc during GC.
+  // The pc is going to be on the new stack segment, so rewrite it here.
+  __ Add(central_stack_sp, sp, kSystemPointerSize);
+  __ Str(central_stack_sp, MemOperand(fp, ExitFrameConstants::kSPOffset));
 
   __ bind(&do_not_need_to_switch);
 }
@@ -5313,15 +5321,16 @@ void SwitchFromTheCentralStackIfNeeded(MacroAssembler* masm) {
   using ER = ExternalReference;
 
   Label no_stack_change;
-  __ Cbz(switch_flag, &no_stack_change);
+  __ Cbz(kSwitchFlagRegister, &no_stack_change);
 
-  __ Mov(sp, old_sp);
   {
     __ Push(kReturnRegister0, kReturnRegister1);
     __ Mov(arg_reg_1, ER::isolate_address(masm->isolate()));
     __ CallCFunction(ER::wasm_switch_from_the_central_stack(), 1);
     __ Pop(kReturnRegister1, kReturnRegister0);
   }
+
+  __ Mov(sp, kOldSPRegister);
 
   SwitchSimulatorStackLimit(masm);
 
@@ -5424,15 +5433,7 @@ void Builtins::Generate_CEntry(MacroAssembler* masm, int result_size,
   static_assert(argv == x1);        // Already in the right spot.
   __ Mov(x2, ER::isolate_address(masm->isolate()));
 
-#if V8_ENABLE_WEBASSEMBLY
-  if (switch_to_central_stack) {
-    __ StoreReturnAddressAndCall(target, old_sp);
-  } else {
-    __ StoreReturnAddressAndCall(target);
-  }
-#else
   __ StoreReturnAddressAndCall(target);
-#endif  // V8_ENABLE_WEBASSEMBLY
 
   // Result returned in x0 or x1:x0 - do not destroy these registers!
 

@@ -4728,7 +4728,7 @@ void Builtins::Generate_WasmOnStackReplace(MacroAssembler* masm) {
 }
 
 namespace {
-Register old_sp = r12;
+static constexpr Register kOldSPRegister = r12;
 
 void SwitchToTheCentralStackIfNeeded(MacroAssembler* masm,
                                      int r12_stack_slot_index) {
@@ -4738,13 +4738,13 @@ void SwitchToTheCentralStackIfNeeded(MacroAssembler* masm,
   __ movq(ExitFrameStackSlotOperand(r12_stack_slot_index * kSystemPointerSize),
           r12);
 
-  // Old_sp used as a switch flag, if it is zero - no switch performed
+  // kOldSPRegister used as a switch flag, if it is zero - no switch performed
   // if it is not zero, it contains old sp value.
-  __ Move(old_sp, 0);
+  __ Move(kOldSPRegister, 0);
 
   // Using arg1-2 regs as temporary registers, because they will be rewritten
   // before exiting to native code anyway.
-  DCHECK(!AreAliased(arg_reg_1, arg_reg_2, old_sp, rax, rbx, r15));
+  DCHECK(!AreAliased(arg_reg_1, arg_reg_2, kOldSPRegister, rax, rbx, r15));
 
   ER on_central_stack_flag = ER::Create(
       IsolateAddressId::kIsOnCentralStackFlagAddress, masm->isolate());
@@ -4755,7 +4755,7 @@ void SwitchToTheCentralStackIfNeeded(MacroAssembler* masm,
 
   // Perform switching to the central stack.
 
-  __ movq(old_sp, rsp);
+  __ movq(kOldSPRegister, rsp);
 
   static constexpr Register argc_input = rax;
   Register central_stack_sp = arg_reg_2;
@@ -4765,13 +4765,16 @@ void SwitchToTheCentralStackIfNeeded(MacroAssembler* masm,
     __ pushq(argc_input);
 
     __ Move(arg_reg_1, ER::isolate_address(masm->isolate()));
-    __ Move(arg_reg_2, old_sp);
+    __ Move(arg_reg_2, kOldSPRegister);
     __ PrepareCallCFunction(2);
     __ CallCFunction(ER::wasm_switch_to_the_central_stack(), 2);
     __ movq(central_stack_sp, kReturnRegister0);
 
     __ popq(argc_input);
   }
+
+  static constexpr int kReturnAddressSlotOffset = 1 * kSystemPointerSize;
+  __ subq(central_stack_sp, Immediate(kReturnAddressSlotOffset));
   __ movq(rsp, central_stack_sp);
   // rsp should be aligned by 16 bytes,
   // but it is not guaranteed for stored SP.
@@ -4783,9 +4786,9 @@ void SwitchToTheCentralStackIfNeeded(MacroAssembler* masm,
   __ subq(rsp, Immediate(kWindowsHomeStackSlots * kSystemPointerSize));
 #endif  // V8_TARGET_OS_WIN
 
-  // Update sp saved in the frame to new sp.
-  // It will be used to calculate PC of the callee during GC.
-  // PC is going to be on the new stack segment, so rewriting it here.
+  // Update the sp saved in the frame.
+  // It will be used to calculate the callee pc during GC.
+  // The pc is going to be on the new stack segment, so rewrite it here.
   __ movq(Operand(rbp, ExitFrameConstants::kSPOffset), rsp);
 
   __ bind(&do_not_need_to_switch);
@@ -4796,9 +4799,9 @@ void SwitchFromTheCentralStackIfNeeded(MacroAssembler* masm,
   using ER = ExternalReference;
 
   Label no_stack_change;
-  __ cmpq(old_sp, Immediate(0));
+  __ cmpq(kOldSPRegister, Immediate(0));
   __ j(equal, &no_stack_change);
-  __ movq(rsp, old_sp);
+  __ movq(rsp, kOldSPRegister);
 
   {
     FrameScope scope(masm, StackFrame::MANUAL);

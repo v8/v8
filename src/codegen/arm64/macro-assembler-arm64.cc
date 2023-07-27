@@ -2468,8 +2468,7 @@ void MacroAssembler::JumpCodeObject(Register code_object, JumpMode jump_mode) {
   Jump(x17);
 }
 
-void MacroAssembler::StoreReturnAddressAndCall(Register target,
-                                               Register sp_reg) {
+void MacroAssembler::StoreReturnAddressAndCall(Register target) {
   ASM_CODE_COMMENT(this);
   // This generates the final instruction sequence for calls to C functions
   // once an exit frame has been constructed.
@@ -2485,10 +2484,10 @@ void MacroAssembler::StoreReturnAddressAndCall(Register target,
   Label return_location;
   Adr(x17, &return_location);
 #ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
-  Add(x16, sp_reg, kSystemPointerSize);
+  Add(x16, sp, kSystemPointerSize);
   Pacib1716();
 #endif
-  Str(x17, MemOperand(sp_reg));
+  Str(x17, MemOperand(sp));
 
   if (v8_flags.debug_code) {
     ASM_CODE_COMMENT_STRING(this, "Verify fp[kSPOffset]-8");
