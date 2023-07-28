@@ -46,6 +46,7 @@
 #include "src/heap/marking-inl.h"
 #include "src/heap/marking-state-inl.h"
 #include "src/heap/marking-visitor-inl.h"
+#include "src/heap/marking-visitor-utility-inl.h"
 #include "src/heap/memory-chunk-layout.h"
 #include "src/heap/memory-chunk.h"
 #include "src/heap/memory-measurement-inl.h"
@@ -698,7 +699,8 @@ void MarkCompactCollector::FinishConcurrentMarking() {
             GarbageCollector::MARK_COMPACTOR);
   if (v8_flags.parallel_marking || v8_flags.concurrent_marking) {
     heap_->concurrent_marking()->Join();
-    heap_->concurrent_marking()->FlushMemoryChunkData();
+    heap_->concurrent_marking()->FlushMemoryChunkData(
+        non_atomic_marking_state_);
     heap_->concurrent_marking()->FlushNativeContexts(&native_context_stats_);
   }
   if (auto* cpp_heap = CppHeap::From(heap_->cpp_heap_)) {

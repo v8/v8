@@ -125,6 +125,7 @@ class V8_EXPORT_PRIVATE ConcurrentMarking {
   // Preempts ongoing job ASAP. Returns true if concurrent marking was in
   // progress, false otherwise.
   bool Pause();
+  void Cancel();
 
   // Schedules asynchronous job to perform concurrent marking at |priority| if
   // not already running, otherwise adjusts the number of workers running job
@@ -134,13 +135,11 @@ class V8_EXPORT_PRIVATE ConcurrentMarking {
       TaskPriority priority = TaskPriority::kUserVisible);
   // Flushes native context sizes to the given table of the main thread.
   void FlushNativeContexts(NativeContextStats* main_stats);
-  // Flushes memory chunk data.
-  void FlushMemoryChunkData();
+  // Flushes memory chunk data using the given marking state.
+  void FlushMemoryChunkData(NonAtomicMarkingState* marking_state);
   // This function is called for a new space page that was cleared after
   // scavenge and is going to be re-used.
   void ClearMemoryChunkData(MemoryChunk* chunk);
-  // Flushes pretenuring feedback.
-  void FlushPretenuringFeedback();
 
   // Checks if all threads are stopped.
   bool IsStopped();
@@ -172,6 +171,7 @@ class V8_EXPORT_PRIVATE ConcurrentMarking {
   size_t GetMajorMaxConcurrency(size_t worker_count);
   size_t GetMinorMaxConcurrency(size_t worker_count);
   void Resume();
+  void FlushPretenuringFeedback();
 
   std::unique_ptr<JobHandle> job_handle_;
   Heap* const heap_;

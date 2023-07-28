@@ -26,6 +26,7 @@
 #include "src/heap/mark-sweep-utilities.h"
 #include "src/heap/marking-barrier.h"
 #include "src/heap/marking-visitor-inl.h"
+#include "src/heap/marking-visitor-utility-inl.h"
 #include "src/heap/marking-visitor.h"
 #include "src/heap/marking-worklist-inl.h"
 #include "src/heap/marking-worklist.h"
@@ -143,9 +144,35 @@ class YoungGenerationMarkingVerifier : public MarkingVerifierBase {
 // MinorMarkSweepCollector
 // =============================================================================
 
+YoungGenerationMainMarkingVisitor::YoungGenerationMainMarkingVisitor(
+    Isolate* isolate, MarkingWorklists::Local* worklists_local,
+    EphemeronRememberedSet::TableList::Local* ephemeron_table_list_local)
+    : YoungGenerationMarkingVisitorBase<YoungGenerationMainMarkingVisitor>(
+          isolate, worklists_local, ephemeron_table_list_local,
+          &local_pretenuring_feedback_),
+      local_pretenuring_feedback_(PretenuringHandler::kInitialFeedbackCapacity),
+      shortcut_strings_(isolate->heap()->CanShortcutStringsDuringGC(
+          GarbageCollector::MINOR_MARK_SWEEPER)) {}
+
+YoungGenerationMainMarkingVisitor::~YoungGenerationMainMarkingVisitor() {
+  // The visitor should only be destroyed on the main thread since
+  // `MergeAllocationSitePretenuringFeedback` should not be called concurrently.
+  pretenuring_handler()->MergeAllocationSitePretenuringFeedback(
+      local_pretenuring_feedback_);
+  local_pretenuring_feedback_.clear();
+
+  for (auto& pair : live_bytes_data_) {
+    if (pair.first) {
+      pair.first->IncrementLiveBytesAtomically(pair.second);
+    }
+  }
+}
+
 class YoungGenerationMarkingTask final {
  public:
-  YoungGenerationMarkingTask(Heap* heap);
+  YoungGenerationMarkingTask(
+      Isolate* isolate, Heap* heap, MarkingWorklists* global_worklists,
+      EphemeronRememberedSet::TableList* ephemeron_table_list);
   ~YoungGenerationMarkingTask();
 
   YoungGenerationMarkingTask(const YoungGenerationMarkingTask&) = delete;
@@ -157,25 +184,31 @@ class YoungGenerationMarkingTask final {
   YoungGenerationMainMarkingVisitor* visitor() { return &visitor_; }
 
  private:
-  Heap* const heap_;
-  PretenuringHandler::PretenuringFeedbackMap pretenuring_feedback_{
-      PretenuringHandler::kInitialFeedbackCapacity};
+  MarkingWorklists::Local marking_worklists_local_;
+  EphemeronRememberedSet::TableList::Local ephemeron_table_list_local_;
   YoungGenerationMainMarkingVisitor visitor_;
 };
 
-YoungGenerationMarkingTask::YoungGenerationMarkingTask(Heap* heap)
-    : heap_(heap), visitor_(heap, &pretenuring_feedback_) {}
+YoungGenerationMarkingTask::YoungGenerationMarkingTask(
+    Isolate* isolate, Heap* heap, MarkingWorklists* global_worklists,
+    EphemeronRememberedSet::TableList* ephemeron_table_list)
+    : marking_worklists_local_(
+          global_worklists,
+          heap->cpp_heap()
+              ? CppHeap::From(heap->cpp_heap())->CreateCppMarkingState()
+              : MarkingWorklists::Local::kNoCppMarkingState),
+      ephemeron_table_list_local_(*ephemeron_table_list),
+      visitor_(isolate, &marking_worklists_local_,
+               &ephemeron_table_list_local_) {}
 
 YoungGenerationMarkingTask::~YoungGenerationMarkingTask() {
-  PretenuringHandler* pretenuring_handler = heap_->pretenuring_handler();
-  pretenuring_handler->MergeAllocationSitePretenuringFeedback(
-      pretenuring_feedback_);
+  // The list is not empty, as it is not processed in `DrainMarkingWorklist()`.
+  ephemeron_table_list_local_.Publish();
 }
 
 void YoungGenerationMarkingTask::DrainMarkingWorklist() {
   HeapObject heap_object;
-  auto& marking_worklists_local = visitor_.marking_worklists_local();
-  while (marking_worklists_local.Pop(&heap_object)) {
+  while (marking_worklists_local_.Pop(&heap_object)) {
     // Maps won't change in the atomic pause, so the map can be read without
     // atomics.
     Map map = Map::cast(*heap_object->map_slot());
@@ -190,7 +223,7 @@ void YoungGenerationMarkingTask::DrainMarkingWorklist() {
     }
   }
   // Publish wrapper objects to the cppgc marking state, if registered.
-  marking_worklists_local.PublishWrapper();
+  marking_worklists_local_.PublishWrapper();
 }
 
 class YoungGenerationMarkingJob : public v8::JobTask {
@@ -404,7 +437,8 @@ void MinorMarkSweepCollector::TearDown() {
   if (heap_->incremental_marking()->IsMinorMarking()) {
     DCHECK(heap_->concurrent_marking()->IsStopped());
     remembered_sets_marking_handler_->TearDown();
-    main_marking_visitor_->PublishWorklists();
+    local_marking_worklists_->Publish();
+    local_ephemeron_table_list_->Publish();
     heap_->main_thread_local_heap_->marking_barrier()->PublishIfNeeded();
     // Marking barriers of LocalHeaps will be published in their destructors.
     marking_worklists_->Clear();
@@ -418,10 +452,11 @@ void MinorMarkSweepCollector::FinishConcurrentMarking() {
                    heap_->concurrent_marking()->garbage_collector() ==
                        GarbageCollector::MINOR_MARK_SWEEPER);
     heap_->concurrent_marking()->Join();
-    heap_->concurrent_marking()->FlushPretenuringFeedback();
+    heap_->concurrent_marking()->FlushMemoryChunkData(
+        non_atomic_marking_state_);
     // Concurrent marking may have pushed a few objects to OnHold after the last
     // time it was merged.
-    local_marking_worklists()->MergeOnHold();
+    local_marking_worklists_->MergeOnHold();
   }
   if (auto* cpp_heap = CppHeap::From(heap_->cpp_heap_)) {
     cpp_heap->FinishConcurrentMarkingIfNeeded();
@@ -446,15 +481,20 @@ void MinorMarkSweepCollector::StartMarking() {
   }
   DCHECK_NULL(ephemeron_table_list_);
   ephemeron_table_list_ = std::make_unique<EphemeronRememberedSet::TableList>();
+  local_ephemeron_table_list_ =
+      std::make_unique<EphemeronRememberedSet::TableList::Local>(
+          *ephemeron_table_list_.get());
   DCHECK_NULL(marking_worklists_);
   marking_worklists_ = std::make_unique<MarkingWorklists>();
+  DCHECK_NULL(local_marking_worklists_);
+  local_marking_worklists_ = std::make_unique<MarkingWorklists::Local>(
+      marking_worklists_.get(),
+      cpp_heap ? cpp_heap->CreateCppMarkingStateForMutatorThread()
+               : MarkingWorklists::Local::kNoCppMarkingState);
   DCHECK_NULL(main_marking_visitor_);
-  DCHECK_NULL(pretenuring_feedback_);
-  pretenuring_feedback_ =
-      std::make_unique<PretenuringHandler::PretenuringFeedbackMap>(
-          PretenuringHandler::kInitialFeedbackCapacity);
   main_marking_visitor_ = std::make_unique<YoungGenerationMainMarkingVisitor>(
-      heap_, pretenuring_feedback_.get());
+      heap_->isolate(), local_marking_worklists_.get(),
+      local_ephemeron_table_list_.get());
   DCHECK_NULL(remembered_sets_marking_handler_);
   remembered_sets_marking_handler_ =
       std::make_unique<YoungGenerationRememberedSetsMarkingWorklist>(heap_);
@@ -609,24 +649,20 @@ void MinorMarkSweepCollector::ClearNonLiveReferences() {
   // whenever the entry has a dead young generation key.
   //
   // Worklist is collected during marking.
-  {
-    DCHECK_NOT_NULL(ephemeron_table_list_);
-    EphemeronRememberedSet::TableList::Local local_ephemeron_table_list(
-        *ephemeron_table_list_);
-    EphemeronHashTable table;
-    while (local_ephemeron_table_list.Pop(&table)) {
-      for (InternalIndex i : table->IterateEntries()) {
-        // Keys in EphemeronHashTables must be heap objects.
-        HeapObjectSlot key_slot(
-            table->RawFieldOfElementAt(EphemeronHashTable::EntryToIndex(i)));
-        HeapObject key = key_slot.ToHeapObject();
-        if (Heap::InYoungGeneration(key) &&
-            non_atomic_marking_state_->IsUnmarked(key)) {
-          table->RemoveEntry(i);
-        }
+  EphemeronHashTable table;
+  while (local_ephemeron_table_list_->Pop(&table)) {
+    for (InternalIndex i : table->IterateEntries()) {
+      // Keys in EphemeronHashTables must be heap objects.
+      HeapObjectSlot key_slot(
+          table->RawFieldOfElementAt(EphemeronHashTable::EntryToIndex(i)));
+      HeapObject key = key_slot.ToHeapObject();
+      if (Heap::InYoungGeneration(key) &&
+          non_atomic_marking_state_->IsUnmarked(key)) {
+        table->RemoveEntry(i);
       }
     }
   }
+  local_ephemeron_table_list_.reset();
   ephemeron_table_list_.reset();
 
   // Clear ephemeron entries from EphemeronHashTables in the old generation
@@ -689,7 +725,7 @@ void MinorMarkSweepCollector::MarkRootsFromTracedHandles(
         &root_visitor);
     // Visit the V8-to-Oilpan remembered set.
     cpp_heap->VisitCrossHeapRememberedSetIfNeeded([this](JSObject obj) {
-      VisitObjectWithEmbedderFields(obj, *local_marking_worklists());
+      VisitObjectWithEmbedderFields(obj, *local_marking_worklists_);
     });
   } else {
     // Otherwise, visit all young roots.
@@ -729,7 +765,9 @@ void MinorMarkSweepCollector::DoParallelMarking() {
   std::vector<std::unique_ptr<YoungGenerationMarkingTask>> tasks;
   for (size_t i = 0; i < (v8_flags.parallel_marking ? kMaxParallelTasks : 1);
        ++i) {
-    tasks.emplace_back(std::make_unique<YoungGenerationMarkingTask>(heap_));
+    tasks.emplace_back(std::make_unique<YoungGenerationMarkingTask>(
+        heap_->isolate(), heap_, marking_worklists_.get(),
+        ephemeron_table_list_.get()));
   }
 
   auto job = std::make_unique<YoungGenerationMarkingJob>(
@@ -743,7 +781,7 @@ void MinorMarkSweepCollector::DoParallelMarking() {
   // If unified young generation is in progress, the parallel marker may add
   // more entries into local_marking_worklists_.
   DCHECK_IMPLIES(!v8_flags.cppgc_young_generation,
-                 local_marking_worklists()->IsEmpty());
+                 local_marking_worklists_->IsEmpty());
 }
 
 void MinorMarkSweepCollector::MarkRootsFromConservativeStack(
@@ -772,6 +810,7 @@ void MinorMarkSweepCollector::MarkLiveObjects() {
   }
 
   DCHECK_NOT_NULL(marking_worklists_);
+  DCHECK_NOT_NULL(local_marking_worklists_);
   DCHECK_NOT_NULL(main_marking_visitor_);
 
   YoungGenerationRootMarkingVisitor root_visitor(main_marking_visitor_.get());
@@ -787,7 +826,7 @@ void MinorMarkSweepCollector::MarkLiveObjects() {
   {
     // Mark the transitive closure in parallel.
     TRACE_GC(heap_->tracer(), GCTracer::Scope::MINOR_MS_MARK_CLOSURE_PARALLEL);
-    local_marking_worklists()->Publish();
+    local_marking_worklists_->Publish();
     if (!v8_flags.concurrent_minor_ms_marking) {
       DoParallelMarking();
     } else {
@@ -823,13 +862,9 @@ void MinorMarkSweepCollector::MarkLiveObjects() {
   }
 
   main_marking_visitor_.reset();
+  local_marking_worklists_.reset();
   marking_worklists_.reset();
   remembered_sets_marking_handler_.reset();
-
-  PretenuringHandler* pretenuring_handler = heap_->pretenuring_handler();
-  pretenuring_handler->MergeAllocationSitePretenuringFeedback(
-      *pretenuring_feedback_);
-  pretenuring_feedback_.reset();
 
   if (v8_flags.minor_ms_trace_fragmentation) {
     TraceFragmentation();
@@ -840,12 +875,11 @@ void MinorMarkSweepCollector::DrainMarkingWorklist() {
   PtrComprCageBase cage_base(heap_->isolate());
   YoungGenerationRememberedSetsMarkingWorklist::Local remembered_sets(
       remembered_sets_marking_handler_.get());
-  auto* marking_worklists_local = local_marking_worklists();
   do {
     PerformWrapperTracing();
 
     HeapObject heap_object;
-    while (marking_worklists_local->Pop(&heap_object)) {
+    while (local_marking_worklists_->Pop(&heap_object)) {
       DCHECK(!heap_object.IsFreeSpaceOrFiller(cage_base));
       DCHECK(heap_object.IsHeapObject());
       DCHECK(heap_->Contains(heap_object));
@@ -865,8 +899,8 @@ void MinorMarkSweepCollector::DrainMarkingWorklist() {
       }
     }
   } while (remembered_sets.ProcessNextItem(main_marking_visitor_.get()) ||
-           !IsCppHeapMarkingFinished(heap_, marking_worklists_local));
-  DCHECK(marking_worklists_local->IsEmpty());
+           !IsCppHeapMarkingFinished(heap_, local_marking_worklists_.get()));
+  DCHECK(local_marking_worklists_->IsEmpty());
 }
 
 void MinorMarkSweepCollector::TraceFragmentation() {
@@ -910,7 +944,7 @@ void MinorMarkSweepCollector::TraceFragmentation() {
     CHECK_EQ(allocatable_bytes, live_bytes + free_bytes_of_class[0]);
   }
   PrintIsolate(heap_->isolate(),
-               "Minor Mark-Sweep Fragmentation: allocatable_bytes=%zu "
+               "Minor Mark-Compact Fragmentation: allocatable_bytes=%zu "
                "live_bytes=%zu "
                "free_bytes=%zu free_bytes_1K=%zu free_bytes_2K=%zu "
                "free_bytes_4K=%zu\n",
@@ -940,7 +974,7 @@ bool ShouldMovePage(Page* p, intptr_t live_bytes, intptr_t wasted_bytes) {
   if (v8_flags.trace_page_promotions) {
     PrintIsolate(
         heap->isolate(),
-        "[Page Promotion] %p: collector=mms, should move: %d"
+        "[Page Promotion] %p: collector=mmc, should move: %d"
         ", live bytes = %zu, wasted bytes = %zu, promotion threshold = %zu"
         ", allocated labs size = %zu\n",
         p, should_move_page, live_bytes, wasted_bytes,

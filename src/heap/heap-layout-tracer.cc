@@ -23,7 +23,7 @@ constexpr const char* TypeToCollectorName(v8::GCType gc_type) {
     case kGCTypeMarkSweepCompact:
       return "Mark-Compact";
     case kGCTypeMinorMarkSweep:
-      return "Minor Mark-Sweep";
+      return "Minor Mark-Compact";
     default:
       break;
   }

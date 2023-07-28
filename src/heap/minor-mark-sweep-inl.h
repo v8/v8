@@ -9,10 +9,10 @@
 
 #include "src/base/build_config.h"
 #include "src/common/globals.h"
+#include "src/heap/marking-visitor-utility-inl.h"
 #include "src/heap/memory-chunk.h"
 #include "src/heap/minor-mark-sweep.h"
 #include "src/heap/remembered-set-inl.h"
-#include "src/heap/young-generation-marking-visitor-inl.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/map.h"
 #include "src/objects/string.h"
@@ -20,6 +20,82 @@
 
 namespace v8 {
 namespace internal {
+
+V8_INLINE bool YoungGenerationMainMarkingVisitor::ShortCutStrings(
+    HeapObjectSlot slot, HeapObject* heap_object) {
+  if (shortcut_strings_) {
+    DCHECK(V8_STATIC_ROOTS_BOOL);
+#if V8_STATIC_ROOTS_BOOL
+    ObjectSlot map_slot = heap_object->map_slot();
+    Address map_address = map_slot.load_map().ptr();
+    if (map_address == StaticReadOnlyRoot::kThinOneByteStringMap ||
+        map_address == StaticReadOnlyRoot::kThinTwoByteStringMap) {
+      DCHECK_EQ(heap_object->map(ObjectVisitorWithCageBases::cage_base())
+                    ->visitor_id(),
+                VisitorId::kVisitThinString);
+      *heap_object = ThinString::cast(*heap_object)->actual();
+      // ThinStrings always refer to internalized strings, which are always
+      // in old space.
+      DCHECK(!Heap::InYoungGeneration(*heap_object));
+      slot.StoreHeapObject(*heap_object);
+      return false;
+    } else if (map_address == StaticReadOnlyRoot::kConsOneByteStringMap ||
+               map_address == StaticReadOnlyRoot::kConsTwoByteStringMap) {
+      // Not all ConsString are short cut candidates.
+      const VisitorId visitor_id =
+          heap_object->map(ObjectVisitorWithCageBases::cage_base())
+              ->visitor_id();
+      if (visitor_id == VisitorId::kVisitShortcutCandidate) {
+        ConsString string = ConsString::cast(*heap_object);
+        if (static_cast<Tagged_t>(string->second().ptr()) ==
+            StaticReadOnlyRoot::kempty_string) {
+          *heap_object = string->first();
+          slot.StoreHeapObject(*heap_object);
+          if (!Heap::InYoungGeneration(*heap_object)) {
+            return false;
+          }
+        }
+      }
+    }
+#endif  // V8_STATIC_ROOTS_BOOL
+  }
+  return true;
+}
+
+template <typename TSlot>
+void YoungGenerationMainMarkingVisitor::VisitPointersImpl(HeapObject host,
+                                                          TSlot start,
+                                                          TSlot end) {
+  for (TSlot slot = start; slot < end; ++slot) {
+    VisitYoungObjectViaSlot<ObjectVisitationMode::kPushToWorklist,
+                            SlotTreatmentMode::kReadWrite>(this, slot);
+  }
+}
+
+template <typename TSlot>
+V8_INLINE bool
+YoungGenerationMainMarkingVisitor::VisitObjectViaSlotInRemeberedSet(
+    TSlot slot) {
+  return VisitYoungObjectViaSlot<ObjectVisitationMode::kVisitDirectly,
+                                 SlotTreatmentMode::kReadWrite>(this, slot);
+}
+
+V8_INLINE void YoungGenerationMainMarkingVisitor::IncrementLiveBytesCached(
+    MemoryChunk* chunk, intptr_t by) {
+  DCHECK_IMPLIES(V8_COMPRESS_POINTERS_8GB_BOOL,
+                 IsAligned(by, kObjectAlignment8GbHeap));
+  const size_t hash =
+      (reinterpret_cast<size_t>(chunk) >> kPageSizeBits) & kEntriesMask;
+  auto& entry = live_bytes_data_[hash];
+  if (entry.first && entry.first != chunk) {
+    entry.first->IncrementLiveBytesAtomically(entry.second);
+    entry.first = chunk;
+    entry.second = 0;
+  } else {
+    entry.first = chunk;
+  }
+  entry.second += by;
+}
 
 void YoungGenerationRootMarkingVisitor::VisitRootPointer(
     Root root, const char* description, FullObjectSlot p) {
@@ -38,19 +114,15 @@ void YoungGenerationRootMarkingVisitor::VisitPointersImpl(Root root,
                                                           TSlot end) {
   if (root == Root::kStackRoots) {
     for (TSlot slot = start; slot < end; ++slot) {
-      main_marking_visitor_->VisitObjectViaSlot<
-          YoungGenerationMainMarkingVisitor::ObjectVisitationMode::
-              kPushToWorklist,
-          YoungGenerationMainMarkingVisitor::SlotTreatmentMode::kReadOnly>(
-          slot);
+      VisitYoungObjectViaSlot<ObjectVisitationMode::kPushToWorklist,
+                              SlotTreatmentMode::kReadOnly>(
+          main_marking_visitor_, slot);
     }
   } else {
     for (TSlot slot = start; slot < end; ++slot) {
-      main_marking_visitor_->VisitObjectViaSlot<
-          YoungGenerationMainMarkingVisitor::ObjectVisitationMode::
-              kPushToWorklist,
-          YoungGenerationMainMarkingVisitor::SlotTreatmentMode::kReadWrite>(
-          slot);
+      VisitYoungObjectViaSlot<ObjectVisitationMode::kPushToWorklist,
+                              SlotTreatmentMode::kReadWrite>(
+          main_marking_visitor_, slot);
     }
   }
 }

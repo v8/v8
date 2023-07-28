@@ -252,6 +252,69 @@ class FullMarkingVisitorBase : public MarkingVisitorBase<ConcreteVisitor> {
   }
 };
 
+template <typename ConcreteVisitor>
+class YoungGenerationMarkingVisitorBase
+    : public NewSpaceVisitor<ConcreteVisitor> {
+ public:
+  YoungGenerationMarkingVisitorBase(
+      Isolate* isolate, MarkingWorklists::Local* worklists_local,
+      EphemeronRememberedSet::TableList::Local* ephemeron_tables_local,
+      PretenuringHandler::PretenuringFeedbackMap* local_pretenuring_feedback);
+
+  ~YoungGenerationMarkingVisitorBase() override;
+
+  YoungGenerationMarkingVisitorBase(const YoungGenerationMarkingVisitorBase&) =
+      delete;
+  YoungGenerationMarkingVisitorBase& operator=(
+      const YoungGenerationMarkingVisitorBase&) = delete;
+
+  V8_INLINE void VisitPointers(HeapObject host, ObjectSlot start,
+                               ObjectSlot end) final {
+    concrete_visitor()->VisitPointersImpl(host, start, end);
+  }
+  V8_INLINE void VisitPointers(HeapObject host, MaybeObjectSlot start,
+                               MaybeObjectSlot end) final {
+    concrete_visitor()->VisitPointersImpl(host, start, end);
+  }
+  V8_INLINE void VisitPointer(HeapObject host, ObjectSlot p) final {
+    concrete_visitor()->VisitPointersImpl(host, p, p + 1);
+  }
+  V8_INLINE void VisitPointer(HeapObject host, MaybeObjectSlot p) final {
+    concrete_visitor()->VisitPointersImpl(host, p, p + 1);
+  }
+
+  V8_INLINE int VisitJSApiObject(Map map, JSObject object);
+  V8_INLINE int VisitJSArrayBuffer(Map map, JSArrayBuffer object);
+  V8_INLINE int VisitJSDataViewOrRabGsabDataView(
+      Map map, JSDataViewOrRabGsabDataView object);
+  V8_INLINE int VisitEphemeronHashTable(Map map, EphemeronHashTable table);
+  V8_INLINE int VisitJSObject(Map map, JSObject object);
+  V8_INLINE int VisitJSObjectFast(Map map, JSObject object);
+  template <typename T, typename TBodyDescriptor = typename T::BodyDescriptor>
+  V8_INLINE int VisitJSObjectSubclass(Map map, T object);
+  V8_INLINE int VisitJSTypedArray(Map map, JSTypedArray object);
+
+  MarkingWorklists::Local* worklists_local() const { return worklists_local_; }
+
+  bool TryMark(HeapObject obj) {
+    return MarkBit::From(obj).Set<AccessMode::ATOMIC>();
+  }
+
+ protected:
+  using NewSpaceVisitor<ConcreteVisitor>::concrete_visitor;
+
+  PretenuringHandler* pretenuring_handler() { return pretenuring_handler_; }
+
+  template <typename T>
+  int VisitEmbedderTracingSubClassWithEmbedderTracing(Map map, T object);
+
+ private:
+  MarkingWorklists::Local* worklists_local_;
+  EphemeronRememberedSet::TableList::Local* ephemeron_tables_local_;
+  PretenuringHandler* const pretenuring_handler_;
+  PretenuringHandler::PretenuringFeedbackMap* const local_pretenuring_feedback_;
+};
+
 }  // namespace internal
 }  // namespace v8
 

@@ -85,7 +85,7 @@ const char* ToString(GCTracer::Event::Type type, bool short_name) {
       return (short_name) ? "mc" : "Mark-Compact";
     case GCTracer::Event::Type::MINOR_MARK_SWEEPER:
     case GCTracer::Event::Type::INCREMENTAL_MINOR_MARK_SWEEPER:
-      return (short_name) ? "mms" : "Minor Mark-Sweep";
+      return (short_name) ? "mmc" : "Minor Mark-Compact";
     case GCTracer::Event::Type::START:
       return (short_name) ? "st" : "Start";
   }
@@ -898,7 +898,7 @@ void GCTracer::PrintNVP() const {
           "promotion_rate=%.1f%% "
           "new_space_survive_rate_=%.1f%% "
           "new_space_allocation_throughput=%.1f\n",
-          duration.InMillisecondsF(), spent_in_mutator.InMillisecondsF(), "mms",
+          duration.InMillisecondsF(), spent_in_mutator.InMillisecondsF(), "mmc",
           current_.reduce_memory, current_scope(Scope::MINOR_MS),
           current_scope(Scope::TIME_TO_SAFEPOINT),
           current_scope(Scope::MINOR_MS_MARK),
@@ -1754,8 +1754,8 @@ void GCTracer::ReportYoungCycleToRecorder() {
       current_.scopes[Scope::SCAVENGER_BACKGROUND_SCAVENGE_PARALLEL] +
       current_.scopes[Scope::MINOR_MS_BACKGROUND_MARKING];
   // TODO(chromium:1154636): Consider adding BACKGROUND_YOUNG_ARRAY_BUFFER_SWEEP
-  // (both for the case of the scavenger and the minor mark-sweeper), and
-  // BACKGROUND_UNMAPPER (for the case of the minor mark-sweeper).
+  // (both for the case of the scavenger and the minor mark-compactor), and
+  // BACKGROUND_UNMAPPER (for the case of the minor mark-compactor).
   event.total_wall_clock_duration_in_us =
       total_wall_clock_duration.InMicroseconds();
   // MainThread:
