@@ -90,6 +90,8 @@ class MemoryChunkDataMap final {
     map_.clear();
   }
 
+  bool empty() const { return map_.empty(); }
+
  private:
   MemoryChunkDataMapT::key_type last_key_ = nullptr;
   MemoryChunkDataMapT::mapped_type* last_mapped_ = nullptr;

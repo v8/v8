@@ -357,6 +357,8 @@ void ConcurrentMarking::RunMajor(JobDelegate* delegate,
         "Major task %d concurrently marked %dKB in %.2fms\n", task_id,
         static_cast<int>(marked_bytes / KB), time_ms);
   }
+
+  DCHECK(task_state->local_pretenuring_feedback.empty());
 }
 
 void ConcurrentMarking::RunMinor(JobDelegate* delegate) {
@@ -449,6 +451,9 @@ void ConcurrentMarking::RunMinor(JobDelegate* delegate) {
         "Minor task %d concurrently marked %dKB in %.2fms\n", task_id,
         static_cast<int>(marked_bytes / KB), time_ms);
   }
+
+  DCHECK(task_state->memory_chunk_data.empty());
+  DCHECK(task_state->native_context_stats.Empty());
 }
 
 size_t ConcurrentMarking::GetMajorMaxConcurrency(size_t worker_count) {

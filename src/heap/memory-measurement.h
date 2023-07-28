@@ -97,6 +97,8 @@ class V8_EXPORT_PRIVATE NativeContextStats {
   void Clear();
   void Merge(const NativeContextStats& other);
 
+  bool Empty() const { return size_by_context_.empty(); }
+
  private:
   V8_INLINE bool HasExternalBytes(Map map);
   void IncrementExternalSize(Address context, Map map, HeapObject object);
