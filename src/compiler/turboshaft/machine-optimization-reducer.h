@@ -1974,8 +1974,10 @@ class MachineOptimizationReducer : public Next {
     }
     // left / MinSignedValue  =>  left == MinSignedValue
     if (right == rep.MinSignedValue()) {
-      return Asm().ChangeUint32ToUint64(
-          Asm().Equal(left, Asm().WordConstant(right, rep), rep));
+      OpIndex equal_op = Asm().Equal(left, Asm().WordConstant(right, rep), rep);
+      return rep == WordRepresentation::Word64()
+                 ? Asm().ChangeUint32ToUint64(equal_op)
+                 : equal_op;
     }
     // left / -right  => -(left / right)
     if (right < 0) {
