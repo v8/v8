@@ -4538,14 +4538,6 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
               array_imm.index);
           return 0;
         }
-#if V8_TARGET_BIG_ENDIAN
-        // Byte sequences in data segments are interpreted as little endian for
-        // the purposes of this instruction. This means that those will have to
-        // be transformed in big endian architectures. TODO(7748): Implement.
-        if (element_type.value_kind_size() > 1) {
-          UNIMPLEMENTED();
-        }
-#endif
         const uint8_t* data_index_pc =
             this->pc_ + opcode_length + array_imm.length;
         IndexImmediate data_segment(this, data_index_pc, "data segment",
@@ -4617,14 +4609,6 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
               array_imm.index);
           return 0;
         }
-#if V8_TARGET_BIG_ENDIAN
-        // Byte sequences in data segments are interpreted as little endian for
-        // the purposes of this instruction. This means that those will have to
-        // be transformed in big endian architectures. TODO(7748): Implement.
-        if (element_type.value_kind_size() > 1) {
-          UNIMPLEMENTED();
-        }
-#endif
         const uint8_t* data_index_pc =
             this->pc_ + opcode_length + array_imm.length;
         IndexImmediate data_segment(this, data_index_pc, "data segment",

@@ -947,8 +947,14 @@ RUNTIME_FUNCTION(Runtime_WasmArrayInitSegment) {
     Address source =
         instance->data_segment_starts()->get(segment_index) + segment_offset;
     Address dest = array->ElementAddress(array_index);
+#if V8_TARGET_BIG_ENDIAN
+    MemCopyAndSwitchEndianness(reinterpret_cast<void*>(dest),
+                               reinterpret_cast<void*>(source), length,
+                               element_size);
+#else
     MemCopy(reinterpret_cast<void*>(dest), reinterpret_cast<void*>(source),
             length_in_bytes);
+#endif
     return *isolate->factory()->undefined_value();
   } else {
     Handle<Object> elem_segment_raw =

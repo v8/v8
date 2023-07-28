@@ -1857,9 +1857,15 @@ Handle<WasmArray> Factory::NewWasmArrayFromMemory(uint32_t length,
   DCHECK(element_type.is_numeric());
   Tagged<WasmArray> result = NewWasmArrayUninitialized(length, map);
   DisallowGarbageCollection no_gc;
+#if V8_TARGET_BIG_ENDIAN
+  MemCopyAndSwitchEndianness(reinterpret_cast<void*>(result->ElementAddress(0)),
+                             reinterpret_cast<void*>(source), length,
+                             element_type.value_kind_size());
+#else
   MemCopy(reinterpret_cast<void*>(result->ElementAddress(0)),
           reinterpret_cast<void*>(source),
           length * element_type.value_kind_size());
+#endif
 
   return handle(result, isolate());
 }
