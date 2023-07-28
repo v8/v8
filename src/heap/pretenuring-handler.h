@@ -20,7 +20,7 @@ class Heap;
 
 class PretenuringHandler final {
  public:
-  static const int kInitialFeedbackCapacity = 256;
+  static constexpr int kInitialFeedbackCapacity = 256;
 
   using PretenuringFeedbackMap =
       std::unordered_map<AllocationSite, size_t, Object::Hasher>;
