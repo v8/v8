@@ -258,8 +258,7 @@ DEFINE_BOOL(js_shipping, true, "enable all shipped JavaScript features")
   V(harmony_array_from_async, "harmony Array.fromAsync")                       \
   V(harmony_set_methods, "harmony Set Methods")
 
-#define JAVASCRIPT_INPROGRESS_FEATURES_BASE(V) \
-  V(js_promise_withresolvers, "Promise.withResolvers")
+#define JAVASCRIPT_INPROGRESS_FEATURES_BASE(V)
 
 #ifdef V8_INTL_SUPPORT
 #define HARMONY_INPROGRESS(V)                                           \
@@ -281,7 +280,8 @@ DEFINE_BOOL(js_shipping, true, "enable all shipped JavaScript features")
 // Features that are complete (but still behind the --harmony flag).
 #define HARMONY_STAGED_BASE(V)
 
-#define JAVASCRIPT_STAGED_FEATURES_BASE(V)
+#define JAVASCRIPT_STAGED_FEATURES_BASE(V) \
+  V(js_promise_withresolvers, "Promise.withResolvers")
 
 DEFINE_WEAK_IMPLICATION(harmony_rab_gsab_transfer, harmony_rab_gsab)
 
