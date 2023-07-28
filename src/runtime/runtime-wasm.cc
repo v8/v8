@@ -808,6 +808,8 @@ RUNTIME_FUNCTION(Runtime_WasmDebugBreak) {
 }
 
 // Assumes copy ranges are in-bounds and copy length > 0.
+// TODO(manoskouk): Unify part of this with the implementation in
+// wasm-extern-refs.cc
 RUNTIME_FUNCTION(Runtime_WasmArrayCopy) {
   ClearThreadInWasmScope flag_scope(isolate);
   HandleScope scope(isolate);
