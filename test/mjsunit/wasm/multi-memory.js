@@ -460,3 +460,53 @@ function assertMemoryEquals(expected, memory) {
     assertEquals(3, instance.exports.grow(1));
   }
 })();
+
+(function testMultipleMemoriesInOneFunction() {
+  print(arguments.callee.name);
+  // Some "interesting" access patterns.
+  const mem_indexes_list =
+      [[0, 1, 0, 1], [1, 0, 1, 0], [0, 0, 1, 1], [1, 1, 0, 0]];
+  const builder = new WasmModuleBuilder();
+  const mem0_idx = builder.addMemory(1, 1);
+  const mem1_idx = builder.addMemory(1, 1);
+  for (let [idx, mem_indexes] of mem_indexes_list.entries()) {
+    let sig = makeSig(new Array(4).fill(kWasmI32), [kWasmI32]);
+    builder.addFunction(`load${idx}`, sig)
+        .addBody([
+          kExprLocalGet, 0, kExprI32LoadMem, 0x40, mem_indexes[0], 0,  // load 1
+          kExprLocalGet, 1, kExprI32LoadMem, 0x40, mem_indexes[1], 0,  // load 2
+          kExprI32Add,                                                 // add
+          kExprLocalGet, 2, kExprI32LoadMem, 0x40, mem_indexes[2], 0,  // load 3
+          kExprI32Add,                                                 // add
+          kExprLocalGet, 3, kExprI32LoadMem, 0x40, mem_indexes[3], 0,  // load 4
+          kExprI32Add,                                                 // add
+        ])
+        .exportFunc();
+  }
+  builder.exportMemoryAs('mem0', mem0_idx);
+  builder.exportMemoryAs('mem1', mem1_idx);
+
+  const instance = builder.instantiate();
+
+  // Create random memory contents.
+  let buf0 = new DataView(instance.exports.mem0.buffer);
+  let buf1 = new DataView(instance.exports.mem1.buffer);
+  for (let i = 0; i < kPageSize; ++i) {
+    buf0.setUint8(i, Math.floor(Math.random() * 0xff));
+    buf1.setUint8(i, Math.floor(Math.random() * 0xff));
+  }
+
+  for (let run = 0; run < 10; ++run) {
+    let inputs = new Array(4).fill(0).map(
+        i => Math.floor(Math.random() * kPageSize));
+    for (let [func_idx, mem_indexes] of mem_indexes_list.entries()) {
+      let expected = 0;
+      for (let i = 0; i < 4; ++i) {
+        let buf = mem_indexes[i] == 0 ? buf0 : buf1;
+        expected += buf.getInt32(inputs[i], true);
+      }
+      expected >>= 0;  // Truncate to 32 bit.
+      assertEquals(expected, instance.exports[`load${func_idx}`](...inputs));
+    }
+  }
+})();
