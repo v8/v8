@@ -63,7 +63,7 @@ namespace {
 // which is different for example in case of `console.log` where it
 // is 1 compared to `console.assert` where it is 2.
 bool Formatter(Isolate* isolate, BuiltinArguments& args, int index) {
-  if (args.length() < index + 2 || !args[index].IsString()) {
+  if (args.length() < index + 2 || !IsString(args[index])) {
     return true;
   }
   struct State {
@@ -84,7 +84,7 @@ bool Formatter(Isolate* isolate, BuiltinArguments& args, int index) {
     Handle<Object> current = args.at(index);
     uint16_t specifier = state.str->Get(state.off + 1, isolate);
     if (specifier == 'd' || specifier == 'f' || specifier == 'i') {
-      if (current->IsSymbol()) {
+      if (IsSymbol(*current)) {
         current = isolate->factory()->nan_value();
       } else {
         Handle<Object> params[] = {current,
@@ -153,11 +153,11 @@ void ConsoleCall(
   Handle<Object> context_id_obj = JSObject::GetDataProperty(
       isolate, args.target(), isolate->factory()->console_context_id_symbol());
   int context_id =
-      context_id_obj->IsSmi() ? Handle<Smi>::cast(context_id_obj)->value() : 0;
+      IsSmi(*context_id_obj) ? Handle<Smi>::cast(context_id_obj)->value() : 0;
   Handle<Object> context_name_obj = JSObject::GetDataProperty(
       isolate, args.target(),
       isolate->factory()->console_context_name_symbol());
-  Handle<String> context_name = context_name_obj->IsString()
+  Handle<String> context_name = IsString(*context_name_obj)
                                     ? Handle<String>::cast(context_name_obj)
                                     : isolate->factory()->anonymous_string();
   (isolate->console_delegate()->*func)(
@@ -171,7 +171,7 @@ void LogTimerEvent(Isolate* isolate, BuiltinArguments args,
   HandleScope scope(isolate);
   std::unique_ptr<char[]> name;
   const char* raw_name = "default";
-  if (args.length() > 1 && args[1].IsString()) {
+  if (args.length() > 1 && IsString(args[1])) {
     // Try converting the first argument to a string.
     name = args.at<String>(1)->ToCString();
     raw_name = name.get();
@@ -249,7 +249,7 @@ void InstallContextFunction(Isolate* isolate, Handle<JSObject> target,
 
   JSObject::AddProperty(isolate, fun, factory->console_context_id_symbol(),
                         handle(Smi::FromInt(context_id), isolate), NONE);
-  if (context_name->IsString()) {
+  if (IsString(*context_name)) {
     JSObject::AddProperty(isolate, fun, factory->console_context_name_symbol(),
                           context_name, NONE);
   }
@@ -275,7 +275,7 @@ BUILTIN(ConsoleContext) {
   JSFunction::SetPrototype(cons, prototype);
 
   Handle<JSObject> context = factory->NewJSObject(cons, AllocationType::kOld);
-  DCHECK(context->IsJSObject());
+  DCHECK(IsJSObject(*context));
   int id = isolate->last_console_context_id() + 1;
   isolate->set_last_console_context_id(id);
 

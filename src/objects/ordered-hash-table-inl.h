@@ -41,17 +41,17 @@ bool OrderedHashTable<Derived, entrysize>::IsKey(ReadOnlyRoots roots,
 
 OrderedHashSet::OrderedHashSet(Address ptr)
     : OrderedHashTable<OrderedHashSet, 1>(ptr) {
-  SLOW_DCHECK(IsOrderedHashSet());
+  SLOW_DCHECK(IsOrderedHashSet(*this));
 }
 
 OrderedHashMap::OrderedHashMap(Address ptr)
     : OrderedHashTable<OrderedHashMap, 2>(ptr) {
-  SLOW_DCHECK(IsOrderedHashMap());
+  SLOW_DCHECK(IsOrderedHashMap(*this));
 }
 
 OrderedNameDictionary::OrderedNameDictionary(Address ptr)
     : OrderedHashTable<OrderedNameDictionary, 3>(ptr) {
-  SLOW_DCHECK(IsOrderedNameDictionary());
+  SLOW_DCHECK(IsOrderedNameDictionary(*this));
 }
 
 template <class Derived>
@@ -178,27 +178,27 @@ inline void SmallOrderedNameDictionary::DetailsAtPut(InternalIndex entry,
 }
 
 inline bool OrderedHashSet::Is(Handle<HeapObject> table) {
-  return table->IsOrderedHashSet();
+  return IsOrderedHashSet(*table);
 }
 
 inline bool OrderedHashMap::Is(Handle<HeapObject> table) {
-  return table->IsOrderedHashMap();
+  return IsOrderedHashMap(*table);
 }
 
 inline bool OrderedNameDictionary::Is(Handle<HeapObject> table) {
-  return table->IsOrderedNameDictionary();
+  return IsOrderedNameDictionary(*table);
 }
 
 inline bool SmallOrderedHashSet::Is(Handle<HeapObject> table) {
-  return table->IsSmallOrderedHashSet();
+  return IsSmallOrderedHashSet(*table);
 }
 
 inline bool SmallOrderedNameDictionary::Is(Handle<HeapObject> table) {
-  return table->IsSmallOrderedNameDictionary();
+  return IsSmallOrderedNameDictionary(*table);
 }
 
 inline bool SmallOrderedHashMap::Is(Handle<HeapObject> table) {
-  return table->IsSmallOrderedHashMap();
+  return IsSmallOrderedHashMap(*table);
 }
 
 template <class Derived>
@@ -217,7 +217,7 @@ Object OrderedHashTableIterator<Derived, TableType>::CurrentKey() {
   DCHECK_LE(0, index);
   InternalIndex entry(index);
   Object key = table.KeyAt(entry);
-  DCHECK(!key.IsTheHole());
+  DCHECK(!IsTheHole(key));
   return key;
 }
 

@@ -205,7 +205,7 @@ class IncrementalStringBuilder {
    public:
     NoExtend(String string, int offset,
              const DisallowGarbageCollection& no_gc) {
-      DCHECK(string.IsSeqOneByteString() || string.IsSeqTwoByteString());
+      DCHECK(IsSeqOneByteString(string) || IsSeqTwoByteString(string));
       if (sizeof(DestChar) == 1) {
         start_ = reinterpret_cast<DestChar*>(
             SeqOneByteString::cast(string)->GetChars(no_gc) + offset);

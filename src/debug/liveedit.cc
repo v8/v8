@@ -571,7 +571,7 @@ class FunctionDataMap : public ThreadVisitor {
 
   bool Lookup(SharedFunctionInfo sfi, FunctionData** data) {
     int start_position = sfi->StartPosition();
-    if (!sfi->script().IsScript() || start_position == -1) {
+    if (!IsScript(sfi->script()) || start_position == -1) {
       return false;
     }
     Script script = Script::cast(sfi->script());
@@ -589,18 +589,18 @@ class FunctionDataMap : public ThreadVisitor {
                                   HeapObjectIterator::kFilterUnreachable);
       for (HeapObject obj = iterator.Next(); !obj.is_null();
            obj = iterator.Next()) {
-        if (obj.IsSharedFunctionInfo()) {
+        if (IsSharedFunctionInfo(obj)) {
           SharedFunctionInfo sfi = SharedFunctionInfo::cast(obj);
           FunctionData* data = nullptr;
           if (!Lookup(sfi, &data)) continue;
           data->shared = handle(sfi, isolate);
-        } else if (obj.IsJSFunction()) {
+        } else if (IsJSFunction(obj)) {
           JSFunction js_function = JSFunction::cast(obj);
           SharedFunctionInfo sfi = js_function->shared();
           FunctionData* data = nullptr;
           if (!Lookup(sfi, &data)) continue;
           data->js_functions.emplace_back(js_function, isolate);
-        } else if (obj.IsJSGeneratorObject()) {
+        } else if (IsJSGeneratorObject(obj)) {
           JSGeneratorObject gen = JSGeneratorObject::cast(obj);
           if (gen->is_closed()) continue;
           SharedFunctionInfo sfi = gen->function()->shared();
@@ -948,7 +948,7 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
     if (!sfi->HasBytecodeArray()) continue;
     FixedArray constants = sfi->GetBytecodeArray(isolate)->constant_pool();
     for (int i = 0; i < constants->length(); ++i) {
-      if (!constants->get(i).IsSharedFunctionInfo()) continue;
+      if (!IsSharedFunctionInfo(constants->get(i))) continue;
       data = nullptr;
       if (!function_data_map.Lookup(SharedFunctionInfo::cast(constants->get(i)),
                                     &data)) {
@@ -998,7 +998,7 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
     if (!sfi->HasBytecodeArray()) continue;
     FixedArray constants = sfi->GetBytecodeArray(isolate)->constant_pool();
     for (int i = 0; i < constants->length(); ++i) {
-      if (!constants->get(i).IsSharedFunctionInfo()) continue;
+      if (!IsSharedFunctionInfo(constants->get(i))) continue;
       SharedFunctionInfo inner_sfi =
           SharedFunctionInfo::cast(constants->get(i));
       // See if there is a mapping from this function's start position to a
@@ -1048,7 +1048,7 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
       // scripts function list.
       FixedArray constants = sfi->GetBytecodeArray(isolate)->constant_pool();
       for (int i = 0; i < constants->length(); ++i) {
-        if (!constants->get(i).IsSharedFunctionInfo()) continue;
+        if (!IsSharedFunctionInfo(constants->get(i))) continue;
         SharedFunctionInfo inner_sfi =
             SharedFunctionInfo::cast(constants->get(i));
         DCHECK_EQ(inner_sfi->script(), *new_script);

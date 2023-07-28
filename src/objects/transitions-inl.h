@@ -57,7 +57,7 @@ HeapObjectSlot TransitionArray::GetKeySlot(int transition_number) {
 }
 
 void TransitionArray::SetPrototypeTransitions(WeakFixedArray transitions) {
-  DCHECK(transitions.IsWeakFixedArray());
+  DCHECK(IsWeakFixedArray(transitions));
   WeakFixedArray::Set(kPrototypeTransitionsIndex,
                       HeapObjectReference::Strong(transitions));
 }
@@ -161,7 +161,7 @@ Map TransitionsAccessor::GetTarget(int transition_number) {
 void TransitionArray::SetRawTarget(int transition_number, MaybeObject value) {
   DCHECK(transition_number < number_of_transitions());
   DCHECK(value->IsWeak());
-  DCHECK(value->GetHeapObjectAssumeWeak().IsMap());
+  DCHECK(IsMap(value->GetHeapObjectAssumeWeak()));
   WeakFixedArray::Set(ToTargetIndex(transition_number), value);
 }
 
@@ -178,7 +178,7 @@ bool TransitionArray::GetTargetIfExists(int transition_number, Isolate* isolate,
     return false;
   }
   if (raw->GetHeapObjectIfStrong(&heap_object) &&
-      heap_object.IsUndefined(isolate)) {
+      IsUndefined(heap_object, isolate)) {
     return false;
   }
   *target = TransitionsAccessor::GetTargetFromRaw(raw);
@@ -201,7 +201,7 @@ int TransitionArray::SearchSpecial(Symbol symbol, bool concurrent_search,
 
 int TransitionArray::SearchName(Name name, bool concurrent_search,
                                 int* out_insertion_index) {
-  DCHECK(name->IsUniqueName());
+  DCHECK(IsUniqueName(name));
   return internal::Search<ALL_ENTRIES>(this, name, number_of_entries(),
                                        out_insertion_index, concurrent_search);
 }
@@ -227,12 +227,12 @@ TransitionsAccessor::Encoding TransitionsAccessor::GetEncoding(
   } else if (raw_transitions->IsWeak()) {
     return kWeakRef;
   } else if (raw_transitions->GetHeapObjectIfStrong(isolate, &heap_object)) {
-    if (heap_object.IsTransitionArray()) {
+    if (IsTransitionArray(heap_object)) {
       return kFullTransitionArray;
-    } else if (heap_object.IsPrototypeInfo()) {
+    } else if (IsPrototypeInfo(heap_object)) {
       return kPrototypeInfo;
     } else {
-      DCHECK(heap_object.IsMap());
+      DCHECK(IsMap(heap_object));
       return kMigrationTarget;
     }
   } else {
@@ -355,7 +355,7 @@ Handle<String> TransitionsAccessor::ExpectedTransitionKey() {
       DCHECK_EQ(PropertyKind::kData, details.kind());
       if (details.attributes() != NONE) return Handle<String>::null();
       Name name = GetSimpleTransitionKey(target);
-      if (!name.IsString()) return Handle<String>::null();
+      if (!IsString(name)) return Handle<String>::null();
       return handle(String::cast(name), isolate_);
     }
   }

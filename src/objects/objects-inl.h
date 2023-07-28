@@ -71,167 +71,129 @@ int PropertyDetails::field_width_in_words() const {
   return 1;
 }
 
-DEF_GETTER(HeapObject, IsClassBoilerplate, bool) {
-  return IsFixedArrayExact(cage_base);
+inline bool IsSmi(Tagged<Object> obj) { return obj.IsSmi(); }
+inline bool IsSmi(Tagged<HeapObject> obj) { return false; }
+inline bool IsSmi(Tagged<Smi> obj) { return true; }
+
+inline bool IsHeapObject(Tagged<Object> obj) { return obj.IsHeapObject(); }
+inline bool IsHeapObject(Tagged<HeapObject> obj) { return true; }
+inline bool IsHeapObject(Tagged<Smi> obj) { return false; }
+
+bool IsTaggedIndex(Tagged<Object> obj) {
+  return IsSmi(obj) && TaggedIndex::IsValid(TaggedIndex(obj.ptr()).value());
 }
 
-bool Object::IsTaggedIndex() const {
-  return IsSmi() && TaggedIndex::IsValid(TaggedIndex(ptr()).value());
+DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsClassBoilerplate) {
+  return IsFixedArrayExact(obj, cage_base);
 }
 
 bool Object::InSharedHeap() const {
-  return IsHeapObject() && HeapObject::cast(*this).InAnySharedSpace();
+  return IsHeapObject(*this) && HeapObject::cast(*this).InAnySharedSpace();
 }
 
 bool Object::InWritableSharedSpace() const {
-  return IsHeapObject() && HeapObject::cast(*this).InWritableSharedSpace();
+  return IsHeapObject(*this) && HeapObject::cast(*this).InWritableSharedSpace();
 }
 
-bool Object::IsJSObjectThatCanBeTrackedAsPrototype() const {
-  return IsHeapObject() &&
-         HeapObject::cast(*this).IsJSObjectThatCanBeTrackedAsPrototype();
+bool IsJSObjectThatCanBeTrackedAsPrototype(Tagged<Object> obj) {
+  return IsHeapObject(obj) &&
+         IsJSObjectThatCanBeTrackedAsPrototype(Tagged<HeapObject>::cast(obj));
 }
 
-#define IS_TYPE_FUNCTION_DEF(type_)                                            \
-  bool Object::Is##type_() const { return Tagged<Object>(*this).Is##type_(); } \
-  bool Object::Is##type_(PtrComprCageBase cage_base) const {                   \
-    return Tagged<Object>(*this).Is##type_(cage_base);                         \
-  }                                                                            \
-  bool Tagged<Object>::Is##type_() const {                                     \
-    return IsHeapObject() && Tagged<HeapObject>::cast(*this).Is##type_();      \
-  }                                                                            \
-  bool Tagged<Object>::Is##type_(PtrComprCageBase cage_base) const {           \
-    return IsHeapObject() &&                                                   \
-           Tagged<HeapObject>::cast(*this).Is##type_(cage_base);               \
-  }                                                                            \
-  bool Tagged<HeapObject>::Is##type_() const {                                 \
-    return ToRawPtr().Is##type_();                                             \
-  }                                                                            \
-  bool Tagged<HeapObject>::Is##type_(PtrComprCageBase cage_base) const {       \
-    return ToRawPtr().Is##type_(cage_base);                                    \
+#define IS_TYPE_FUNCTION_DEF(type_)                                       \
+  bool Is##type_(Tagged<Object> obj) {                                    \
+    return IsHeapObject(obj) && Is##type_(Tagged<HeapObject>::cast(obj)); \
+  }                                                                       \
+  bool Is##type_(Tagged<Object> obj, PtrComprCageBase cage_base) {        \
+    return IsHeapObject(obj) &&                                           \
+           Is##type_(Tagged<HeapObject>::cast(obj), cage_base);           \
+  }                                                                       \
+  bool Is##type_(HeapObject obj) {                                        \
+    static_assert(kTaggedCanConvertToRawObjects);                         \
+    return Is##type_(Tagged<HeapObject>(obj));                            \
+  }                                                                       \
+  bool Is##type_(HeapObject obj, PtrComprCageBase cage_base) {            \
+    static_assert(kTaggedCanConvertToRawObjects);                         \
+    return Is##type_(Tagged<HeapObject>(obj), cage_base);                 \
   }
 HEAP_OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DEF)
 IS_TYPE_FUNCTION_DEF(HashTableBase)
 IS_TYPE_FUNCTION_DEF(SmallOrderedHashTable)
 #undef IS_TYPE_FUNCTION_DEF
 
-bool Object::IsAnyHole(PtrComprCageBase cage_base) const {
-  return IsHole(cage_base);
+bool IsAnyHole(Tagged<Object> obj, PtrComprCageBase cage_base) {
+  return IsHole(obj, cage_base);
 }
 
 #define IS_TYPE_FUNCTION_DEF(Type, Value, _)                             \
-  bool Tagged<Object>::Is##Type(Isolate* isolate) const {                \
-    return Is##Type(ReadOnlyRoots(isolate));                             \
+  bool Is##Type(Tagged<Object> obj, Isolate* isolate) {                  \
+    return Is##Type(obj, ReadOnlyRoots(isolate));                        \
   }                                                                      \
-  bool Tagged<Object>::Is##Type(LocalIsolate* isolate) const {           \
-    return Is##Type(ReadOnlyRoots(isolate));                             \
+  bool Is##Type(Tagged<Object> obj, LocalIsolate* isolate) {             \
+    return Is##Type(obj, ReadOnlyRoots(isolate));                        \
   }                                                                      \
-  bool Tagged<Object>::Is##Type() const {                                \
-    return IsHeapObject() && Tagged<HeapObject>::cast(*this).Is##Type(); \
+  bool Is##Type(Tagged<Object> obj) {                                    \
+    return IsHeapObject(obj) && Is##Type(Tagged<HeapObject>::cast(obj)); \
   }                                                                      \
-  bool Tagged<HeapObject>::Is##Type(Isolate* isolate) const {            \
-    return Tagged<Object>(*this).Is##Type(isolate);                      \
+  bool Is##Type(Tagged<HeapObject> obj) {                                \
+    return Is##Type(obj, obj->GetReadOnlyRoots());                       \
   }                                                                      \
-  bool Tagged<HeapObject>::Is##Type(LocalIsolate* isolate) const {       \
-    return Tagged<Object>(*this).Is##Type(isolate);                      \
-  }                                                                      \
-  bool Tagged<HeapObject>::Is##Type(ReadOnlyRoots roots) const {         \
-    return Tagged<Object>(*this).Is##Type(roots);                        \
-  }                                                                      \
-  bool Tagged<HeapObject>::Is##Type() const {                            \
-    return Is##Type(ToRawPtr()->GetReadOnlyRoots());                     \
+  bool Is##Type(HeapObject obj) {                                        \
+    static_assert(kTaggedCanConvertToRawObjects);                        \
+    return Is##Type(Tagged<HeapObject>(obj));                            \
   }
 ODDBALL_LIST(IS_TYPE_FUNCTION_DEF)
 HOLE_LIST(IS_TYPE_FUNCTION_DEF)
 #undef IS_TYPE_FUNCTION_DEF
 
 #if V8_STATIC_ROOTS_BOOL
-#define IS_TYPE_FUNCTION_DEF(Type, Value, CamelName)                       \
-  bool Tagged<Object>::Is##Type(ReadOnlyRoots roots) const {               \
-    SLOW_DCHECK(CheckObjectComparisonAllowed(ptr(), roots.Value().ptr())); \
-    return V8HeapCompressionScheme::CompressObject(ptr()) ==               \
-           StaticReadOnlyRoot::k##CamelName;                               \
+#define IS_TYPE_FUNCTION_DEF(Type, Value, CamelName)                           \
+  bool Is##Type(Tagged<Object> obj, ReadOnlyRoots roots) {                     \
+    SLOW_DCHECK(CheckObjectComparisonAllowed(obj.ptr(), roots.Value().ptr())); \
+    return V8HeapCompressionScheme::CompressObject(obj.ptr()) ==               \
+           StaticReadOnlyRoot::k##CamelName;                                   \
   }
 #else
-#define IS_TYPE_FUNCTION_DEF(Type, Value, _)                 \
-  bool Tagged<Object>::Is##Type(ReadOnlyRoots roots) const { \
-    return (*this) == roots.Value();                         \
+#define IS_TYPE_FUNCTION_DEF(Type, Value, _)               \
+  bool Is##Type(Tagged<Object> obj, ReadOnlyRoots roots) { \
+    return obj == roots.Value();                           \
   }
 #endif
 ODDBALL_LIST(IS_TYPE_FUNCTION_DEF)
 HOLE_LIST(IS_TYPE_FUNCTION_DEF)
 #undef IS_TYPE_FUNCTION_DEF
 
-bool Tagged<Object>::IsNullOrUndefined(Isolate* isolate) const {
-  return IsNullOrUndefined(ReadOnlyRoots(isolate));
+bool IsNullOrUndefined(Tagged<Object> obj, Isolate* isolate) {
+  return IsNullOrUndefined(obj, ReadOnlyRoots(isolate));
 }
 
-bool Tagged<Object>::IsNullOrUndefined(LocalIsolate* local_isolate) const {
-  return IsNullOrUndefined(ReadOnlyRoots(local_isolate));
+bool IsNullOrUndefined(Tagged<Object> obj, LocalIsolate* local_isolate) {
+  return IsNullOrUndefined(obj, ReadOnlyRoots(local_isolate));
 }
 
-bool Tagged<Object>::IsNullOrUndefined(ReadOnlyRoots roots) const {
-  return IsNull(roots) || IsUndefined(roots);
+bool IsNullOrUndefined(Tagged<Object> obj, ReadOnlyRoots roots) {
+  return IsNull(obj, roots) || IsUndefined(obj, roots);
 }
 
-bool Tagged<Object>::IsNullOrUndefined() const {
-  return IsHeapObject() && Tagged<HeapObject>::cast(*this).IsNullOrUndefined();
+bool IsNullOrUndefined(Tagged<Object> obj) {
+  return IsHeapObject(obj) && IsNullOrUndefined(Tagged<HeapObject>::cast(obj));
 }
 
-bool Tagged<HeapObject>::IsNullOrUndefined(Isolate* isolate) const {
-  return IsNullOrUndefined(ReadOnlyRoots(isolate));
+bool IsNullOrUndefined(Tagged<HeapObject> obj) {
+  return IsNullOrUndefined(obj, obj->GetReadOnlyRoots());
 }
 
-bool Tagged<HeapObject>::IsNullOrUndefined(LocalIsolate* isolate) const {
-  return IsNullOrUndefined(ReadOnlyRoots(isolate));
+bool IsZero(Tagged<Object> obj) { return obj == Smi::zero(); }
+
+bool IsPublicSymbol(Tagged<Object> obj) {
+  return IsSymbol(obj) && !Symbol::cast(obj)->is_private();
+}
+bool IsPrivateSymbol(Tagged<Object> obj) {
+  return IsSymbol(obj) && Symbol::cast(obj)->is_private();
 }
 
-bool Tagged<HeapObject>::IsNullOrUndefined(ReadOnlyRoots roots) const {
-  return Tagged<Object>(*this).IsNullOrUndefined(roots);
-}
-
-bool Tagged<HeapObject>::IsNullOrUndefined() const {
-  return IsNullOrUndefined(ToRawPtr()->GetReadOnlyRoots());
-}
-
-// TODO(leszeks): Replace these with direct operations on the Tagged ptr.
-#define IS_TYPE_FUNCTION_DEF(Type, Value, _)                         \
-  bool Object::Is##Type(Isolate* isolate) const {                    \
-    return Tagged(*this).Is##Type(isolate);                          \
-  }                                                                  \
-  bool Object::Is##Type(LocalIsolate* isolate) const {               \
-    return Tagged(*this).Is##Type(isolate);                          \
-  }                                                                  \
-  bool Object::Is##Type(ReadOnlyRoots roots) const {                 \
-    return Tagged(*this).Is##Type(roots);                            \
-  }                                                                  \
-  bool Object::Is##Type() const { return Tagged(*this).Is##Type(); } \
-  bool HeapObject::Is##Type(Isolate* isolate) const {                \
-    return Tagged(*this).Is##Type(isolate);                          \
-  }                                                                  \
-  bool HeapObject::Is##Type(LocalIsolate* isolate) const {           \
-    return Tagged(*this).Is##Type(isolate);                          \
-  }                                                                  \
-  bool HeapObject::Is##Type(ReadOnlyRoots roots) const {             \
-    return Tagged(*this).Is##Type(roots);                            \
-  }                                                                  \
-  bool HeapObject::Is##Type() const { return Tagged(*this).Is##Type(); }
-ODDBALL_LIST(IS_TYPE_FUNCTION_DEF)
-HOLE_LIST(IS_TYPE_FUNCTION_DEF)
-IS_TYPE_FUNCTION_DEF(NullOrUndefined, , /* unused */)
-#undef IS_TYPE_FUNCTION_DEF
-
-bool Object::IsZero() const { return *this == Smi::zero(); }
-
-bool Object::IsPublicSymbol() const {
-  return IsSymbol() && !Symbol::cast(*this)->is_private();
-}
-bool Object::IsPrivateSymbol() const {
-  return IsSymbol() && Symbol::cast(*this)->is_private();
-}
-
-bool Object::IsNoSharedNameSentinel() const {
-  return *this == SharedFunctionInfo::kNoSharedNameSentinel;
+bool IsNoSharedNameSentinel(Tagged<Object> obj) {
+  return obj == SharedFunctionInfo::kNoSharedNameSentinel;
 }
 
 template <class T,
@@ -288,263 +250,274 @@ bool Tagged<HeapObject>::InReadOnlySpace() const {
   return IsReadOnlyHeapObject(*this);
 }
 
-bool HeapObject::IsJSObjectThatCanBeTrackedAsPrototype() const {
+bool IsJSObjectThatCanBeTrackedAsPrototype(Tagged<HeapObject> obj) {
   // Do not optimize objects in the shared heap because it is not
   // threadsafe. Objects in the shared heap have fixed layouts and their maps
   // never change.
-  return IsJSObject() && !InWritableSharedSpace();
+  return IsJSObject(obj) && !obj->InWritableSharedSpace();
 }
 
-DEF_GETTER(HeapObject, IsUniqueName, bool) {
-  return IsInternalizedString(cage_base) || IsSymbol(cage_base);
+DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsUniqueName) {
+  return IsInternalizedString(obj, cage_base) || IsSymbol(obj, cage_base);
 }
 
-DEF_GETTER(HeapObject, IsFunction, bool) {
-  return IsJSFunctionOrBoundFunctionOrWrappedFunction();
+DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsFunction) {
+  return IsJSFunctionOrBoundFunctionOrWrappedFunction(obj);
 }
 
-DEF_GETTER(HeapObject, IsCallable, bool) {
-  return map(cage_base)->is_callable();
+DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsCallable) {
+  return obj->map(cage_base)->is_callable();
 }
 
-DEF_GETTER(HeapObject, IsCallableJSProxy, bool) {
-  return IsCallable(cage_base) && IsJSProxy(cage_base);
+DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsCallableJSProxy) {
+  return IsCallable(obj, cage_base) && IsJSProxy(obj, cage_base);
 }
 
-DEF_GETTER(HeapObject, IsCallableApiObject, bool) {
-  InstanceType type = map(cage_base)->instance_type();
-  return IsCallable(cage_base) &&
+DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsCallableApiObject) {
+  InstanceType type = obj->map(cage_base)->instance_type();
+  return IsCallable(obj, cage_base) &&
          (type == JS_API_OBJECT_TYPE || type == JS_SPECIAL_API_OBJECT_TYPE);
 }
 
-DEF_GETTER(HeapObject, IsNonNullForeign, bool) {
-  return IsForeign(cage_base) &&
-         Foreign::cast(*this)->foreign_address() != kNullAddress;
+DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsNonNullForeign) {
+  return IsForeign(obj, cage_base) &&
+         Foreign::cast(obj)->foreign_address() != kNullAddress;
 }
 
-DEF_GETTER(HeapObject, IsConstructor, bool) {
-  return map(cage_base)->is_constructor();
+DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsConstructor) {
+  return obj->map(cage_base)->is_constructor();
 }
 
-DEF_GETTER(HeapObject, IsSourceTextModuleInfo, bool) {
-  return map(cage_base) == GetReadOnlyRoots(cage_base).module_info_map();
+DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsSourceTextModuleInfo) {
+  return obj->map(cage_base) == obj->GetReadOnlyRoots().module_info_map();
 }
 
-DEF_GETTER(HeapObject, IsConsString, bool) {
-  if (!IsString(cage_base)) return false;
-  return StringShape(Tagged<String>::cast(*this)->map(cage_base)).IsCons();
+DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsConsString) {
+  if (!IsString(obj, cage_base)) return false;
+  return StringShape(Tagged<String>::cast(obj)->map(cage_base)).IsCons();
 }
 
-DEF_GETTER(HeapObject, IsThinString, bool) {
-  if (!IsString(cage_base)) return false;
-  return StringShape(String::cast(*this)->map(cage_base)).IsThin();
+DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsThinString) {
+  if (!IsString(obj, cage_base)) return false;
+  return StringShape(String::cast(obj)->map(cage_base)).IsThin();
 }
 
-DEF_GETTER(HeapObject, IsSlicedString, bool) {
-  if (!IsString(cage_base)) return false;
-  return StringShape(String::cast(*this)->map(cage_base)).IsSliced();
+DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsSlicedString) {
+  if (!IsString(obj, cage_base)) return false;
+  return StringShape(String::cast(obj)->map(cage_base)).IsSliced();
 }
 
-DEF_GETTER(HeapObject, IsSeqString, bool) {
-  if (!IsString(cage_base)) return false;
-  return StringShape(String::cast(*this)->map(cage_base)).IsSequential();
+DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsSeqString) {
+  if (!IsString(obj, cage_base)) return false;
+  return StringShape(String::cast(obj)->map(cage_base)).IsSequential();
 }
 
-DEF_GETTER(HeapObject, IsSeqOneByteString, bool) {
-  if (!IsString(cage_base)) return false;
-  return StringShape(String::cast(*this)->map(cage_base)).IsSequentialOneByte();
+DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsSeqOneByteString) {
+  if (!IsString(obj, cage_base)) return false;
+  return StringShape(String::cast(obj)->map(cage_base)).IsSequentialOneByte();
 }
 
-DEF_GETTER(HeapObject, IsSeqTwoByteString, bool) {
-  if (!IsString(cage_base)) return false;
-  return StringShape(String::cast(*this)->map(cage_base)).IsSequentialTwoByte();
+DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsSeqTwoByteString) {
+  if (!IsString(obj, cage_base)) return false;
+  return StringShape(String::cast(obj)->map(cage_base)).IsSequentialTwoByte();
 }
 
-DEF_GETTER(HeapObject, IsExternalOneByteString, bool) {
-  if (!IsString(cage_base)) return false;
-  return StringShape(String::cast(*this)->map(cage_base)).IsExternalOneByte();
+DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsExternalOneByteString) {
+  if (!IsString(obj, cage_base)) return false;
+  return StringShape(String::cast(obj)->map(cage_base)).IsExternalOneByte();
 }
 
-DEF_GETTER(HeapObject, IsExternalTwoByteString, bool) {
-  if (!IsString(cage_base)) return false;
-  return StringShape(String::cast(*this)->map(cage_base)).IsExternalTwoByte();
+DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsExternalTwoByteString) {
+  if (!IsString(obj, cage_base)) return false;
+  return StringShape(String::cast(obj)->map(cage_base)).IsExternalTwoByte();
 }
 
-bool Object::IsNumber() const {
-  if (IsSmi()) return true;
-  HeapObject this_heap_object = HeapObject::cast(*this);
-  PtrComprCageBase cage_base = GetPtrComprCageBase(this_heap_object);
-  return this_heap_object.IsHeapNumber(cage_base);
+bool IsNumber(Tagged<Object> obj) {
+  if (IsSmi(obj)) return true;
+  Tagged<HeapObject> heap_object = Tagged<HeapObject>::cast(obj);
+  PtrComprCageBase cage_base = GetPtrComprCageBase(heap_object);
+  return IsHeapNumber(heap_object, cage_base);
 }
 
-bool Object::IsNumber(PtrComprCageBase cage_base) const {
-  return IsSmi() || IsHeapNumber(cage_base);
+bool IsNumber(Tagged<Object> obj, PtrComprCageBase cage_base) {
+  return obj.IsSmi() || IsHeapNumber(obj, cage_base);
 }
 
-bool Object::IsNumeric() const {
-  if (IsSmi()) return true;
-  HeapObject this_heap_object = HeapObject::cast(*this);
-  PtrComprCageBase cage_base = GetPtrComprCageBase(this_heap_object);
-  return this_heap_object.IsHeapNumber(cage_base) ||
-         this_heap_object.IsBigInt(cage_base);
+bool IsNumeric(Tagged<Object> obj) {
+  if (IsSmi(obj)) return true;
+  Tagged<HeapObject> heap_object = Tagged<HeapObject>::cast(obj);
+  PtrComprCageBase cage_base = GetPtrComprCageBase(heap_object);
+  return IsHeapNumber(heap_object, cage_base) ||
+         IsBigInt(heap_object, cage_base);
 }
 
-bool Object::IsNumeric(PtrComprCageBase cage_base) const {
-  return IsNumber(cage_base) || IsBigInt(cage_base);
+bool IsNumeric(Tagged<Object> obj, PtrComprCageBase cage_base) {
+  return IsNumber(obj, cage_base) || IsBigInt(obj, cage_base);
 }
 
-DEF_GETTER(HeapObject, IsTemplateLiteralObject, bool) {
-  return IsJSArray(cage_base);
+DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsTemplateLiteralObject) {
+  return IsJSArray(obj, cage_base);
 }
 
-DEF_GETTER(HeapObject, IsArrayList, bool) {
-  return map(cage_base) ==
-         GetReadOnlyRoots(cage_base).unchecked_array_list_map();
+DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsArrayList) {
+  return obj->map(cage_base) ==
+         obj->GetReadOnlyRoots().unchecked_array_list_map();
 }
 
-DEF_GETTER(HeapObject, IsRegExpMatchInfo, bool) {
-  return IsFixedArrayExact(cage_base);
+DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsRegExpMatchInfo) {
+  return IsFixedArrayExact(obj, cage_base);
 }
 
-DEF_GETTER(HeapObject, IsDeoptimizationData, bool) {
+DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsDeoptimizationData) {
   // Must be a fixed array.
-  if (!IsFixedArrayExact(cage_base)) return false;
+  if (!IsFixedArrayExact(obj, cage_base)) return false;
 
   // There's no sure way to detect the difference between a fixed array and
   // a deoptimization data array.  Since this is used for asserts we can
   // check that the length is zero or else the fixed size plus a multiple of
   // the entry size.
-  int length = FixedArray::cast(*this)->length();
+  int length = FixedArray::cast(obj)->length();
   if (length == 0) return true;
 
   length -= DeoptimizationData::kFirstDeoptEntryIndex;
   return length >= 0 && length % DeoptimizationData::kDeoptEntrySize == 0;
 }
 
-DEF_GETTER(HeapObject, IsHandlerTable, bool) {
-  return IsFixedArrayExact(cage_base);
+DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsHandlerTable) {
+  return IsFixedArrayExact(obj, cage_base);
 }
 
-DEF_GETTER(HeapObject, IsTemplateList, bool) {
-  if (!IsFixedArrayExact(cage_base)) return false;
-  if (FixedArray::cast(*this)->length() < 1) return false;
+DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsTemplateList) {
+  if (!IsFixedArrayExact(obj, cage_base)) return false;
+  if (FixedArray::cast(obj)->length() < 1) return false;
   return true;
 }
 
-DEF_GETTER(HeapObject, IsDependentCode, bool) {
-  return IsWeakArrayList(cage_base);
+DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsDependentCode) {
+  return IsWeakArrayList(obj, cage_base);
 }
 
-DEF_GETTER(HeapObject, IsOSROptimizedCodeCache, bool) {
-  return IsWeakFixedArray(cage_base);
+DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsOSROptimizedCodeCache) {
+  return IsWeakFixedArray(obj, cage_base);
 }
 
-DEF_GETTER(HeapObject, IsStringWrapper, bool) {
-  return IsJSPrimitiveWrapper(cage_base) &&
-         JSPrimitiveWrapper::cast(*this)->value().IsString(cage_base);
+DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsStringWrapper) {
+  return IsJSPrimitiveWrapper(obj, cage_base) &&
+         IsString(JSPrimitiveWrapper::cast(obj)->value(), cage_base);
 }
 
-DEF_GETTER(HeapObject, IsBooleanWrapper, bool) {
-  return IsJSPrimitiveWrapper(cage_base) &&
-         JSPrimitiveWrapper::cast(*this)->value().IsBoolean(cage_base);
+DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsBooleanWrapper) {
+  return IsJSPrimitiveWrapper(obj, cage_base) &&
+         IsBoolean(JSPrimitiveWrapper::cast(obj)->value(), cage_base);
 }
 
-DEF_GETTER(HeapObject, IsScriptWrapper, bool) {
-  return IsJSPrimitiveWrapper(cage_base) &&
-         JSPrimitiveWrapper::cast(*this)->value().IsScript(cage_base);
+DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsScriptWrapper) {
+  return IsJSPrimitiveWrapper(obj, cage_base) &&
+         IsScript(JSPrimitiveWrapper::cast(obj)->value(), cage_base);
 }
 
-DEF_GETTER(HeapObject, IsNumberWrapper, bool) {
-  return IsJSPrimitiveWrapper(cage_base) &&
-         JSPrimitiveWrapper::cast(*this)->value().IsNumber(cage_base);
+DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsNumberWrapper) {
+  return IsJSPrimitiveWrapper(obj, cage_base) &&
+         IsNumber(JSPrimitiveWrapper::cast(obj)->value(), cage_base);
 }
 
-DEF_GETTER(HeapObject, IsBigIntWrapper, bool) {
-  return IsJSPrimitiveWrapper(cage_base) &&
-         JSPrimitiveWrapper::cast(*this)->value().IsBigInt(cage_base);
+DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsBigIntWrapper) {
+  return IsJSPrimitiveWrapper(obj, cage_base) &&
+         IsBigInt(JSPrimitiveWrapper::cast(obj)->value(), cage_base);
 }
 
-DEF_GETTER(HeapObject, IsSymbolWrapper, bool) {
-  return IsJSPrimitiveWrapper(cage_base) &&
-         JSPrimitiveWrapper::cast(*this)->value().IsSymbol(cage_base);
+DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsSymbolWrapper) {
+  return IsJSPrimitiveWrapper(obj, cage_base) &&
+         IsSymbol(JSPrimitiveWrapper::cast(obj)->value(), cage_base);
 }
 
-DEF_GETTER(HeapObject, IsStringSet, bool) { return IsHashTable(cage_base); }
-
-DEF_GETTER(HeapObject, IsObjectHashSet, bool) { return IsHashTable(cage_base); }
-
-DEF_GETTER(HeapObject, IsCompilationCacheTable, bool) {
-  return IsHashTable(cage_base);
+DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsStringSet) {
+  return IsHashTable(obj, cage_base);
 }
 
-DEF_GETTER(HeapObject, IsMapCache, bool) { return IsHashTable(cage_base); }
-
-DEF_GETTER(HeapObject, IsObjectHashTable, bool) {
-  return IsHashTable(cage_base);
+DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsObjectHashSet) {
+  return IsHashTable(obj, cage_base);
 }
 
-DEF_GETTER(HeapObject, IsObjectTwoHashTable, bool) {
-  return IsHashTable(cage_base);
+DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsCompilationCacheTable) {
+  return IsHashTable(obj, cage_base);
 }
 
-DEF_GETTER(HeapObject, IsHashTableBase, bool) { return IsHashTable(cage_base); }
+DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsMapCache) {
+  return IsHashTable(obj, cage_base);
+}
 
-bool Object::IsPrimitive() const {
-  if (IsSmi()) return true;
-  HeapObject this_heap_object = HeapObject::cast(*this);
+DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsObjectHashTable) {
+  return IsHashTable(obj, cage_base);
+}
+
+DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsObjectTwoHashTable) {
+  return IsHashTable(obj, cage_base);
+}
+
+DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsHashTableBase) {
+  return IsHashTable(obj, cage_base);
+}
+
+// static
+bool IsPrimitive(Tagged<Object> obj) {
+  if (obj.IsSmi()) return true;
+  HeapObject this_heap_object = HeapObject::cast(obj);
   PtrComprCageBase cage_base = GetPtrComprCageBase(this_heap_object);
-  return this_heap_object->map(cage_base)->IsPrimitiveMap();
+  return IsPrimitiveMap(this_heap_object->map(cage_base));
 }
 
-bool Object::IsPrimitive(PtrComprCageBase cage_base) const {
-  return IsSmi() || HeapObject::cast(*this)->map(cage_base)->IsPrimitiveMap();
+// static
+bool IsPrimitive(Tagged<Object> obj, PtrComprCageBase cage_base) {
+  return obj.IsSmi() || IsPrimitiveMap(HeapObject::cast(obj)->map(cage_base));
 }
 
 // static
 Maybe<bool> Object::IsArray(Handle<Object> object) {
-  if (object->IsSmi()) return Just(false);
+  if (IsSmi(*object)) return Just(false);
   Handle<HeapObject> heap_object = Handle<HeapObject>::cast(object);
-  if (heap_object->IsJSArray()) return Just(true);
-  if (!heap_object->IsJSProxy()) return Just(false);
+  if (IsJSArray(*heap_object)) return Just(true);
+  if (!IsJSProxy(*heap_object)) return Just(false);
   return JSProxy::IsArray(Handle<JSProxy>::cast(object));
 }
 
-DEF_GETTER(HeapObject, IsUndetectable, bool) {
-  return map(cage_base)->is_undetectable();
+DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsUndetectable) {
+  return obj->map(cage_base)->is_undetectable();
 }
 
-DEF_GETTER(HeapObject, IsAccessCheckNeeded, bool) {
-  if (IsJSGlobalProxy(cage_base)) {
-    const JSGlobalProxy proxy = JSGlobalProxy::cast(*this);
+DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsAccessCheckNeeded) {
+  if (IsJSGlobalProxy(obj, cage_base)) {
+    const JSGlobalProxy proxy = JSGlobalProxy::cast(obj);
     JSGlobalObject global = proxy->GetIsolate()->context()->global_object();
     return proxy->IsDetachedFrom(global);
   }
-  return map(cage_base)->is_access_check_needed();
+  return obj->map(cage_base)->is_access_check_needed();
 }
 
-#define MAKE_STRUCT_PREDICATE(NAME, Name, name)                               \
-  bool Object::Is##Name() const { return Tagged<Object>(*this).Is##Name(); }  \
-  bool Object::Is##Name(PtrComprCageBase cage_base) const {                   \
-    return Tagged<Object>(*this).Is##Name(cage_base);                         \
-  }                                                                           \
-  bool Tagged<Object>::Is##Name() const {                                     \
-    return IsHeapObject() && Tagged<HeapObject>::cast(*this).Is##Name();      \
-  }                                                                           \
-  bool Tagged<Object>::Is##Name(PtrComprCageBase cage_base) const {           \
-    return IsHeapObject() &&                                                  \
-           Tagged<HeapObject>::cast(*this).Is##Name(cage_base);               \
-  }                                                                           \
-  bool Tagged<HeapObject>::Is##Name() const { return ToRawPtr().Is##Name(); } \
-  bool Tagged<HeapObject>::Is##Name(PtrComprCageBase cage_base) const {       \
-    return ToRawPtr().Is##Name(cage_base);                                    \
+#define MAKE_STRUCT_PREDICATE(NAME, Name, name)                          \
+  bool Is##Name(Tagged<Object> obj) {                                    \
+    return IsHeapObject(obj) && Is##Name(Tagged<HeapObject>::cast(obj)); \
+  }                                                                      \
+  bool Is##Name(Tagged<Object> obj, PtrComprCageBase cage_base) {        \
+    return IsHeapObject(obj) &&                                          \
+           Is##Name(Tagged<HeapObject>::cast(obj), cage_base);           \
+  }                                                                      \
+  bool Is##Name(HeapObject obj) {                                        \
+    static_assert(kTaggedCanConvertToRawObjects);                        \
+    return Is##Name(Tagged<HeapObject>(obj));                            \
+  }                                                                      \
+  bool Is##Name(HeapObject obj, PtrComprCageBase cage_base) {            \
+    static_assert(kTaggedCanConvertToRawObjects);                        \
+    return Is##Name(Tagged<HeapObject>(obj), cage_base);                 \
   }
+// static
 STRUCT_LIST(MAKE_STRUCT_PREDICATE)
 #undef MAKE_STRUCT_PREDICATE
 
 double Object::Number() const {
-  DCHECK(IsNumber());
-  return IsSmi() ? static_cast<double>(Smi(this->ptr()).value())
-                 : HeapNumber::unchecked_cast(*this)->value();
+  DCHECK(IsNumber(*this));
+  return IsSmi(*this) ? static_cast<double>(Smi(ptr()).value())
+                      : HeapNumber::unchecked_cast(*this)->value();
 }
 
 // static
@@ -557,13 +530,14 @@ bool Object::SameNumberValue(double value1, double value2) {
   return (std::signbit(value1) == std::signbit(value2));
 }
 
-bool Object::IsNaN() const {
-  return this->IsHeapNumber() && std::isnan(HeapNumber::cast(*this)->value());
+// static
+bool IsNaN(Tagged<Object> obj) {
+  return IsHeapNumber(obj) && std::isnan(HeapNumber::cast(obj)->value());
 }
 
-bool Object::IsMinusZero() const {
-  return this->IsHeapNumber() &&
-         i::IsMinusZero(HeapNumber::cast(*this)->value());
+// static
+bool IsMinusZero(Tagged<Object> obj) {
+  return IsHeapNumber(obj) && i::IsMinusZero(HeapNumber::cast(obj)->value());
 }
 
 OBJECT_CONSTRUCTORS_IMPL(BigIntBase, PrimitiveHeapObject)
@@ -579,15 +553,15 @@ CAST_ACCESSOR(BigInt)
 bool Object::HasValidElements() {
   // Dictionary is covered under FixedArray. ByteArray is used
   // for the JSTypedArray backing stores.
-  return IsFixedArray() || IsFixedDoubleArray() || IsByteArray();
+  return IsFixedArray(*this) || IsFixedDoubleArray(*this) || IsByteArray(*this);
 }
 
 bool Object::FilterKey(PropertyFilter filter) {
-  DCHECK(!IsPropertyCell());
+  DCHECK(!IsPropertyCell(*this));
   if (filter == PRIVATE_NAMES_ONLY) {
-    if (!IsSymbol()) return true;
+    if (!IsSymbol(*this)) return true;
     return !Symbol::cast(*this)->is_private_name();
-  } else if (IsSymbol()) {
+  } else if (IsSymbol(*this)) {
     if (filter & SKIP_SYMBOLS) return true;
 
     if (Symbol::cast(*this)->is_private()) return true;
@@ -598,33 +572,33 @@ bool Object::FilterKey(PropertyFilter filter) {
 }
 
 Representation Object::OptimalRepresentation(PtrComprCageBase cage_base) const {
-  if (IsSmi()) {
+  if (IsSmi(*this)) {
     return Representation::Smi();
   }
   HeapObject heap_object = HeapObject::cast(*this);
-  if (heap_object.IsHeapNumber(cage_base)) {
+  if (IsHeapNumber(heap_object, cage_base)) {
     return Representation::Double();
-  } else if (heap_object.IsUninitialized(
-                 heap_object->GetReadOnlyRoots(cage_base))) {
+  } else if (IsUninitialized(heap_object,
+                             heap_object->GetReadOnlyRoots(cage_base))) {
     return Representation::None();
   }
   return Representation::HeapObject();
 }
 
 ElementsKind Object::OptimalElementsKind(PtrComprCageBase cage_base) const {
-  if (IsSmi()) return PACKED_SMI_ELEMENTS;
-  if (IsNumber(cage_base)) return PACKED_DOUBLE_ELEMENTS;
+  if (IsSmi(*this)) return PACKED_SMI_ELEMENTS;
+  if (IsNumber(*this, cage_base)) return PACKED_DOUBLE_ELEMENTS;
   return PACKED_ELEMENTS;
 }
 
 bool Object::FitsRepresentation(Representation representation,
                                 bool allow_coercion) const {
   if (representation.IsSmi()) {
-    return IsSmi();
+    return IsSmi(*this);
   } else if (representation.IsDouble()) {
-    return allow_coercion ? IsNumber() : IsHeapNumber();
+    return allow_coercion ? IsNumber(*this) : IsHeapNumber(*this);
   } else if (representation.IsHeapObject()) {
-    return IsHeapObject();
+    return IsHeapObject(*this);
   } else if (representation.IsNone()) {
     return false;
   }
@@ -632,13 +606,13 @@ bool Object::FitsRepresentation(Representation representation,
 }
 
 bool Object::ToUint32(uint32_t* value) const {
-  if (IsSmi()) {
+  if (IsSmi(*this)) {
     int num = Smi::ToInt(*this);
     if (num < 0) return false;
     *value = static_cast<uint32_t>(num);
     return true;
   }
-  if (IsHeapNumber()) {
+  if (IsHeapNumber(*this)) {
     double num = HeapNumber::cast(*this)->value();
     return DoubleToUint32IfEqualToSelf(num, value);
   }
@@ -649,70 +623,70 @@ bool Object::ToUint32(uint32_t* value) const {
 MaybeHandle<JSReceiver> Object::ToObject(Isolate* isolate,
                                          Handle<Object> object,
                                          const char* method_name) {
-  if (object->IsJSReceiver()) return Handle<JSReceiver>::cast(object);
+  if (IsJSReceiver(*object)) return Handle<JSReceiver>::cast(object);
   return ToObjectImpl(isolate, object, method_name);
 }
 
 // static
 MaybeHandle<Name> Object::ToName(Isolate* isolate, Handle<Object> input) {
-  if (input->IsName()) return Handle<Name>::cast(input);
+  if (IsName(*input)) return Handle<Name>::cast(input);
   return ConvertToName(isolate, input);
 }
 
 // static
 MaybeHandle<Object> Object::ToPropertyKey(Isolate* isolate,
                                           Handle<Object> value) {
-  if (value->IsSmi() || HeapObject::cast(*value).IsName()) return value;
+  if (IsSmi(*value) || IsName(HeapObject::cast(*value))) return value;
   return ConvertToPropertyKey(isolate, value);
 }
 
 // static
 MaybeHandle<Object> Object::ToPrimitive(Isolate* isolate, Handle<Object> input,
                                         ToPrimitiveHint hint) {
-  if (input->IsPrimitive()) return input;
+  if (IsPrimitive(*input)) return input;
   return JSReceiver::ToPrimitive(isolate, Handle<JSReceiver>::cast(input),
                                  hint);
 }
 
 // static
 MaybeHandle<Object> Object::ToNumber(Isolate* isolate, Handle<Object> input) {
-  if (input->IsNumber()) return input;  // Shortcut.
+  if (IsNumber(*input)) return input;  // Shortcut.
   return ConvertToNumberOrNumeric(isolate, input, Conversion::kToNumber);
 }
 
 // static
 MaybeHandle<Object> Object::ToNumeric(Isolate* isolate, Handle<Object> input) {
-  if (input->IsNumber() || input->IsBigInt()) return input;  // Shortcut.
+  if (IsNumber(*input) || IsBigInt(*input)) return input;  // Shortcut.
   return ConvertToNumberOrNumeric(isolate, input, Conversion::kToNumeric);
 }
 
 // static
 MaybeHandle<Object> Object::ToInteger(Isolate* isolate, Handle<Object> input) {
-  if (input->IsSmi()) return input;
+  if (IsSmi(*input)) return input;
   return ConvertToInteger(isolate, input);
 }
 
 // static
 MaybeHandle<Object> Object::ToInt32(Isolate* isolate, Handle<Object> input) {
-  if (input->IsSmi()) return input;
+  if (IsSmi(*input)) return input;
   return ConvertToInt32(isolate, input);
 }
 
 // static
 MaybeHandle<Object> Object::ToUint32(Isolate* isolate, Handle<Object> input) {
-  if (input->IsSmi()) return handle(Smi::cast(*input).ToUint32Smi(), isolate);
+  if (IsSmi(*input)) return handle(Smi::cast(*input).ToUint32Smi(), isolate);
   return ConvertToUint32(isolate, input);
 }
 
 // static
 MaybeHandle<String> Object::ToString(Isolate* isolate, Handle<Object> input) {
-  if (input->IsString()) return Handle<String>::cast(input);
+  if (IsString(*input)) return Handle<String>::cast(input);
   return ConvertToString(isolate, input);
 }
 
 // static
 MaybeHandle<Object> Object::ToLength(Isolate* isolate, Handle<Object> input) {
-  if (input->IsSmi()) {
+  if (IsSmi(*input)) {
     int value = std::max(Smi::ToInt(*input), 0);
     return handle(Smi::FromInt(value), isolate);
   }
@@ -722,7 +696,7 @@ MaybeHandle<Object> Object::ToLength(Isolate* isolate, Handle<Object> input) {
 // static
 MaybeHandle<Object> Object::ToIndex(Isolate* isolate, Handle<Object> input,
                                     MessageTemplate error_index) {
-  if (input->IsSmi() && Smi::ToInt(*input) >= 0) return input;
+  if (IsSmi(*input) && Smi::ToInt(*input) >= 0) return input;
   return ConvertToIndex(isolate, input, error_index);
 }
 
@@ -905,7 +879,7 @@ void HeapObject::VerifyMaybeObjectField(Isolate* isolate, int offset) {
 }
 
 void HeapObject::VerifySmiField(int offset) {
-  CHECK(TaggedField<Object>::load(*this, offset).IsSmi());
+  CHECK(IsSmi(TaggedField<Object>::load(*this, offset)));
   static_assert(!COMPRESS_POINTERS_BOOL || kTaggedSize == kInt32Size);
 }
 
@@ -984,7 +958,7 @@ void HeapObject::set_map(Map value, MemoryOrder order, VerificationMode mode) {
 #if V8_ENABLE_WEBASSEMBLY
   // In {WasmGraphBuilder::SetMap} and {WasmGraphBuilder::LoadMap}, we treat
   // maps as immutable. Therefore we are not allowed to mutate them here.
-  DCHECK(!value->IsWasmStructMap() && !value->IsWasmArrayMap());
+  DCHECK(!IsWasmStructMap(value) && !IsWasmArrayMap(value));
 #endif
   // Object layout changes are currently not supported on background threads.
   // This method might change object layout and therefore can't be used on
@@ -1104,10 +1078,10 @@ inline bool IsSpecialReceiverInstanceType(InstanceType instance_type) {
 
 // This should be in objects/map-inl.h, but can't, because of a cyclic
 // dependency.
-bool Map::IsSpecialReceiverMap() const {
-  bool result = IsSpecialReceiverInstanceType(instance_type());
-  DCHECK_IMPLIES(!result,
-                 !has_named_interceptor() && !is_access_check_needed());
+bool IsSpecialReceiverMap(Tagged<Map> map) {
+  bool result = IsSpecialReceiverInstanceType(map->instance_type());
+  DCHECK_IMPLIES(
+      !result, !map->has_named_interceptor() && !map->is_access_check_needed());
   return result;
 }
 
@@ -1117,8 +1091,8 @@ inline bool IsCustomElementsReceiverInstanceType(InstanceType instance_type) {
 
 // This should be in objects/map-inl.h, but can't, because of a cyclic
 // dependency.
-bool Map::IsCustomElementsReceiverMap() const {
-  return IsCustomElementsReceiverInstanceType(instance_type());
+bool IsCustomElementsReceiverMap(Tagged<Map> map) {
+  return IsCustomElementsReceiverInstanceType(map->instance_type());
 }
 
 bool Object::ToArrayLength(uint32_t* index) const {
@@ -1130,13 +1104,13 @@ bool Object::ToArrayIndex(uint32_t* index) const {
 }
 
 bool Object::ToIntegerIndex(size_t* index) const {
-  if (IsSmi()) {
+  if (IsSmi(*this)) {
     int num = Smi::ToInt(*this);
     if (num < 0) return false;
     *index = static_cast<size_t>(num);
     return true;
   }
-  if (IsHeapNumber()) {
+  if (IsHeapNumber(*this)) {
     double num = HeapNumber::cast(*this)->value();
     if (!(num >= 0)) return false;  // Negation to catch NaNs.
     constexpr double max =
@@ -1279,7 +1253,7 @@ MaybeHandle<Object> Object::GetPropertyOrElement(Handle<Object> receiver,
 // static
 Object Object::GetSimpleHash(Object object) {
   DisallowGarbageCollection no_gc;
-  if (object.IsSmi()) {
+  if (IsSmi(object)) {
     uint32_t hash = ComputeUnseededHash(Smi::ToInt(object));
     return Smi::FromInt(hash & Smi::kMaxValue);
   }
@@ -1316,28 +1290,28 @@ Object Object::GetSimpleHash(Object object) {
     int id = Script::cast(object)->id();
     return Smi::FromInt(ComputeUnseededHash(id) & Smi::kMaxValue);
   }
-  DCHECK(object.IsJSReceiver());
+  DCHECK(IsJSReceiver(object));
   return object;
 }
 
 Object Object::GetHash() {
   DisallowGarbageCollection no_gc;
   Object hash = GetSimpleHash(*this);
-  if (hash.IsSmi()) return hash;
+  if (IsSmi(hash)) return hash;
 
-  DCHECK(IsJSReceiver());
+  DCHECK(IsJSReceiver(*this));
   JSReceiver receiver = JSReceiver::cast(*this);
   return receiver->GetIdentityHash();
 }
 
-bool Object::IsShared() const {
+bool IsShared(Tagged<Object> obj) {
   // This logic should be kept in sync with fast paths in
   // CodeStubAssembler::SharedValueBarrier.
 
   // Smis are trivially shared.
-  if (IsSmi()) return true;
+  if (IsSmi(obj)) return true;
 
-  HeapObject object = HeapObject::cast(*this);
+  Tagged<HeapObject> object = Tagged<HeapObject>::cast(obj);
 
   // RO objects are shared when the RO space is shared.
   if (IsReadOnlyHeapObject(object)) {
@@ -1382,23 +1356,23 @@ MaybeHandle<Object> Object::Share(Isolate* isolate, Handle<Object> value,
                                   ShouldThrow throw_if_cannot_be_shared) {
   // Sharing values requires the RO space be shared.
   DCHECK(ReadOnlyHeap::IsReadOnlySpaceShared());
-  if (value->IsShared()) return value;
+  if (IsShared(*value)) return value;
   return ShareSlow(isolate, Handle<HeapObject>::cast(value),
                    throw_if_cannot_be_shared);
 }
 
 // https://tc39.es/ecma262/#sec-canbeheldweakly
 bool Object::CanBeHeldWeakly() const {
-  if (IsJSReceiver()) {
+  if (IsJSReceiver(*this)) {
     // TODO(v8:12547) Shared structs and arrays should only be able to point
     // to shared values in weak collections. For now, disallow them as weak
     // collection keys.
     if (v8_flags.harmony_struct) {
-      return !IsJSSharedStruct() && !IsJSSharedArray();
+      return !IsJSSharedStruct(*this) && !IsJSSharedArray(*this);
     }
     return true;
   }
-  return IsSymbol() && !Symbol::cast(*this)->is_in_public_symbol_table();
+  return IsSymbol(*this) && !Symbol::cast(*this)->is_in_public_symbol_table();
 }
 
 Handle<Object> ObjectHashTableShape::AsHandle(Handle<Object> key) {
@@ -1447,7 +1421,7 @@ static inline Handle<Object> MakeEntryPair(Isolate* isolate, Handle<Object> key,
 }
 
 FreshlyAllocatedBigInt FreshlyAllocatedBigInt::cast(Object object) {
-  SLOW_DCHECK(object.IsBigInt());
+  SLOW_DCHECK(IsBigInt(object));
   return FreshlyAllocatedBigInt(object.ptr());
 }
 

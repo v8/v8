@@ -16,16 +16,16 @@ namespace v8 {
 namespace internal {
 
 #define TYPE_CHECKER(type, ...)                                               \
-  bool HeapObject::Is##type() const {                                         \
+  bool Is##type(Tagged<HeapObject> obj) {                                     \
     /* IsBlah() predicates needs to load the map and thus they require the */ \
     /* main cage base. */                                                     \
-    PtrComprCageBase cage_base = GetPtrComprCageBase();                       \
-    return HeapObject::Is##type(cage_base);                                   \
+    PtrComprCageBase cage_base = GetPtrComprCageBase(obj);                    \
+    return Is##type(obj, cage_base);                                          \
   }                                                                           \
   /* The cage_base passed here must be the base of the main pointer */        \
   /* compression cage, i.e. the one where the Map space is allocated. */      \
-  bool HeapObject::Is##type(PtrComprCageBase cage_base) const {               \
-    Map map_object = map(cage_base);                                          \
+  bool Is##type(Tagged<HeapObject> obj, PtrComprCageBase cage_base) {         \
+    Map map_object = obj->map(cage_base);                                     \
     return InstanceTypeChecker::Is##type(map_object);                         \
   }
 

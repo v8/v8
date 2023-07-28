@@ -295,17 +295,17 @@ void BytecodeExpectationsPrinter::PrintV8String(std::ostream* stream,
 
 void BytecodeExpectationsPrinter::PrintConstant(
     std::ostream* stream, i::Handle<i::Object> constant) const {
-  if (constant->IsSmi()) {
+  if (IsSmi(*constant)) {
     *stream << "Smi [";
     i::Smi::cast(*constant).SmiPrint(*stream);
     *stream << "]";
   } else {
     *stream << i::HeapObject::cast(*constant)->map()->instance_type();
-    if (constant->IsHeapNumber()) {
+    if (IsHeapNumber(*constant)) {
       *stream << " [";
       i::HeapNumber::cast(*constant)->HeapNumberShortPrint(*stream);
       *stream << "]";
-    } else if (constant->IsString()) {
+    } else if (IsString(*constant)) {
       *stream << " [";
       PrintV8String(stream, i::String::cast(*constant));
       *stream << "]";

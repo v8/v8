@@ -185,7 +185,7 @@ class TypesTest : public TestWithNativeContextAndZone {
       if (type.IsHeapConstant()) {
         CHECK(value.address() == type.AsHeapConstant()->Value().address());
       } else if (type.IsOtherNumberConstant()) {
-        CHECK(value->IsHeapNumber());
+        CHECK(IsHeapNumber(*value));
         CHECK(value->Number() == type.AsOtherNumberConstant()->Value());
       } else if (type.IsBitset()) {
         CHECK(type.IsSingleton());

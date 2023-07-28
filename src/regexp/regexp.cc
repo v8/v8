@@ -271,7 +271,7 @@ MaybeHandle<Object> RegExp::Compile(Isolate* isolate, Handle<JSRegExp> re,
     RegExpImpl::IrregexpInitialize(isolate, re, pattern, flags,
                                    parse_result.capture_count, backtrack_limit);
   }
-  DCHECK(re->data().IsFixedArray());
+  DCHECK(IsFixedArray(re->data()));
   // Compilation succeeded so the data is set on the regexp
   // and we can store it in the cache.
   Handle<FixedArray> data(FixedArray::cast(re->data()), isolate);
@@ -445,7 +445,7 @@ bool RegExpImpl::EnsureCompiledIrregexp(Isolate* isolate, Handle<JSRegExp> re,
   // regexp after the decision to tier up has been made. If the tiering up
   // strategy is not in use, this value is always false.
   bool needs_tier_up_compilation =
-      re->MarkedForTierUp() && bytecode.IsByteArray();
+      re->MarkedForTierUp() && IsByteArray(bytecode);
 
   if (v8_flags.trace_regexp_tier_up && needs_tier_up_compilation) {
     PrintF("JSRegExp object %p needs tier-up compilation\n",
@@ -453,12 +453,12 @@ bool RegExpImpl::EnsureCompiledIrregexp(Isolate* isolate, Handle<JSRegExp> re,
   }
 
   if (!needs_initial_compilation && !needs_tier_up_compilation) {
-    DCHECK(compiled_code.IsCode());
-    DCHECK_IMPLIES(v8_flags.regexp_interpret_all, bytecode.IsByteArray());
+    DCHECK(IsCode(compiled_code));
+    DCHECK_IMPLIES(v8_flags.regexp_interpret_all, IsByteArray(bytecode));
     return true;
   }
 
-  DCHECK_IMPLIES(needs_tier_up_compilation, bytecode.IsByteArray());
+  DCHECK_IMPLIES(needs_tier_up_compilation, IsByteArray(bytecode));
 
   return CompileIrregexp(isolate, re, sample_subject, is_one_byte);
 }
@@ -479,14 +479,14 @@ bool RegExpCodeIsValidForPreCompilation(Handle<JSRegExp> re, bool is_one_byte) {
   // representing an uncompiled regexp, even though we're "recompiling" after
   // the tier-up.
   if (re->ShouldProduceBytecode()) {
-    DCHECK(entry.IsSmi());
-    DCHECK(bytecode.IsSmi());
+    DCHECK(IsSmi(entry));
+    DCHECK(IsSmi(bytecode));
     int entry_value = Smi::ToInt(entry);
     int bytecode_value = Smi::ToInt(bytecode);
     DCHECK_EQ(JSRegExp::kUninitializedValue, entry_value);
     DCHECK_EQ(JSRegExp::kUninitializedValue, bytecode_value);
   } else {
-    DCHECK(entry.IsSmi() || (entry.IsCode() && bytecode.IsByteArray()));
+    DCHECK(IsSmi(entry) || (IsCode(entry) && IsByteArray(bytecode)));
   }
 
   return true;
@@ -1222,14 +1222,14 @@ Object RegExpResultsCache::Lookup(Heap* heap, String key_string,
                                   FixedArray* last_match_cache,
                                   ResultsCacheType type) {
   FixedArray cache;
-  if (!key_string.IsInternalizedString()) return Smi::zero();
+  if (!IsInternalizedString(key_string)) return Smi::zero();
   if (type == STRING_SPLIT_SUBSTRINGS) {
-    DCHECK(key_pattern.IsString());
-    if (!key_pattern.IsInternalizedString()) return Smi::zero();
+    DCHECK(IsString(key_pattern));
+    if (!IsInternalizedString(key_pattern)) return Smi::zero();
     cache = heap->string_split_cache();
   } else {
     DCHECK(type == REGEXP_MULTIPLE_INDICES);
-    DCHECK(key_pattern.IsFixedArray());
+    DCHECK(IsFixedArray(key_pattern));
     cache = heap->regexp_multiple_cache();
   }
 
@@ -1257,14 +1257,14 @@ void RegExpResultsCache::Enter(Isolate* isolate, Handle<String> key_string,
                                ResultsCacheType type) {
   Factory* factory = isolate->factory();
   Handle<FixedArray> cache;
-  if (!key_string->IsInternalizedString()) return;
+  if (!IsInternalizedString(*key_string)) return;
   if (type == STRING_SPLIT_SUBSTRINGS) {
-    DCHECK(key_pattern->IsString());
-    if (!key_pattern->IsInternalizedString()) return;
+    DCHECK(IsString(*key_pattern));
+    if (!IsInternalizedString(*key_pattern)) return;
     cache = factory->string_split_cache();
   } else {
     DCHECK(type == REGEXP_MULTIPLE_INDICES);
-    DCHECK(key_pattern->IsFixedArray());
+    DCHECK(IsFixedArray(*key_pattern));
     cache = factory->regexp_multiple_cache();
   }
 

@@ -160,7 +160,7 @@ HEAP_TEST(MarkCompactCollector) {
     CHECK(Just(true) == JSReceiver::HasOwnProperty(isolate, global, func_name));
     Handle<Object> func_value =
         Object::GetProperty(isolate, global, func_name).ToHandleChecked();
-    CHECK(func_value->IsJSFunction());
+    CHECK(IsJSFunction(*func_value));
     Handle<JSFunction> function = Handle<JSFunction>::cast(func_value);
     Handle<JSObject> obj = factory->NewJSObject(function);
 
@@ -178,7 +178,7 @@ HEAP_TEST(MarkCompactCollector) {
     CHECK(Just(true) == JSReceiver::HasOwnProperty(isolate, global, obj_name));
     Handle<Object> object =
         Object::GetProperty(isolate, global, obj_name).ToHandleChecked();
-    CHECK(object->IsJSObject());
+    CHECK(IsJSObject(*object));
     Handle<String> prop_name = factory->InternalizeUtf8String("theSlot");
     CHECK_EQ(*Object::GetProperty(isolate, object, prop_name).ToHandleChecked(),
              Smi::FromInt(23));
@@ -359,7 +359,7 @@ TEST(Regress5829) {
   heap->old_space()->FreeLinearAllocationArea();
   Page* page = Page::FromAddress(array->address());
   for (auto object_and_size : LiveObjectRange(page)) {
-    CHECK(!object_and_size.first.IsFreeSpaceOrFiller());
+    CHECK(!IsFreeSpaceOrFiller(object_and_size.first));
   }
 }
 

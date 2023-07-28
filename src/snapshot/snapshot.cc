@@ -237,9 +237,9 @@ void Snapshot::ClearReconstructableDataForSerialization(
     {
       i::HeapObjectIterator it(isolate->heap());
       for (i::HeapObject o = it.Next(); !o.is_null(); o = it.Next()) {
-        if (clear_recompilable_data && o.IsSharedFunctionInfo(cage_base)) {
+        if (clear_recompilable_data && IsSharedFunctionInfo(o, cage_base)) {
           i::SharedFunctionInfo shared = i::SharedFunctionInfo::cast(o);
-          if (shared->script(cage_base).IsScript(cage_base) &&
+          if (IsScript(shared->script(cage_base), cage_base) &&
               Script::cast(shared->script(cage_base))->type() ==
                   Script::Type::kExtension) {
             continue;  // Don't clear extensions, they cannot be recompiled.
@@ -247,7 +247,7 @@ void Snapshot::ClearReconstructableDataForSerialization(
           if (shared->CanDiscardCompiled()) {
             sfis_to_clear.emplace_back(shared, isolate);
           }
-        } else if (o.IsJSRegExp(cage_base)) {
+        } else if (IsJSRegExp(o, cage_base)) {
           i::JSRegExp regexp = i::JSRegExp::cast(o);
           if (regexp->HasCompiledCode()) {
             regexp->DiscardCompiledCodeForSerialization();
@@ -277,13 +277,13 @@ void Snapshot::ClearReconstructableDataForSerialization(
 
   i::HeapObjectIterator it(isolate->heap());
   for (i::HeapObject o = it.Next(); !o.is_null(); o = it.Next()) {
-    if (!o.IsJSFunction(cage_base)) continue;
+    if (!IsJSFunction(o, cage_base)) continue;
 
     i::JSFunction fun = i::JSFunction::cast(o);
     fun->CompleteInobjectSlackTrackingIfActive();
 
     i::SharedFunctionInfo shared = fun->shared();
-    if (shared->script(cage_base).IsScript(cage_base) &&
+    if (IsScript(shared->script(cage_base), cage_base) &&
         Script::cast(shared->script(cage_base))->type() ==
             Script::Type::kExtension) {
       continue;  // Don't clear extensions, they cannot be recompiled.
@@ -293,7 +293,7 @@ void Snapshot::ClearReconstructableDataForSerialization(
     if (fun->CanDiscardCompiled()) {
       fun->set_code(*BUILTIN_CODE(isolate, CompileLazy));
     }
-    if (!fun->raw_feedback_cell(cage_base)->value(cage_base).IsUndefined()) {
+    if (!IsUndefined(fun->raw_feedback_cell(cage_base)->value(cage_base))) {
       fun->raw_feedback_cell(cage_base)->set_value(
           i::ReadOnlyRoots(isolate).undefined_value());
     }
@@ -368,7 +368,7 @@ void Snapshot::SerializeDeserializeAndVerifyForTesting(
           HandleScope scope(new_isolate);
           Handle<Context> new_native_context =
               new_isolate->bootstrapper()->CreateEnvironmentForTesting();
-          CHECK(new_native_context->IsNativeContext());
+          CHECK(IsNativeContext(*new_native_context));
 
 #ifdef VERIFY_HEAP
           if (v8_flags.verify_heap)
@@ -915,7 +915,7 @@ size_t SnapshotCreatorImpl::AddData(Handle<NativeContext> context,
   HandleScope scope(isolate_);
   Handle<Object> obj(Object(object), isolate_);
   Handle<ArrayList> list;
-  if (!context->serialized_objects().IsArrayList()) {
+  if (!IsArrayList(context->serialized_objects())) {
     list = ArrayList::New(isolate_, 1);
   } else {
     list = Handle<ArrayList>(ArrayList::cast(context->serialized_objects()),
@@ -933,7 +933,7 @@ size_t SnapshotCreatorImpl::AddData(Address object) {
   HandleScope scope(isolate_);
   Handle<Object> obj(Object(object), isolate_);
   Handle<ArrayList> list;
-  if (!isolate_->heap()->serialized_objects().IsArrayList()) {
+  if (!IsArrayList(isolate_->heap()->serialized_objects())) {
     list = ArrayList::New(isolate_, 1);
   } else {
     list = Handle<ArrayList>(
@@ -952,7 +952,7 @@ Handle<NativeContext> SnapshotCreatorImpl::context_at(size_t i) const {
 namespace {
 
 void ConvertSerializedObjectsToFixedArray(Isolate* isolate) {
-  if (!isolate->heap()->serialized_objects().IsArrayList()) {
+  if (!IsArrayList(isolate->heap()->serialized_objects())) {
     isolate->heap()->SetSerializedObjects(
         ReadOnlyRoots(isolate).empty_fixed_array());
   } else {
@@ -965,7 +965,7 @@ void ConvertSerializedObjectsToFixedArray(Isolate* isolate) {
 
 void ConvertSerializedObjectsToFixedArray(Isolate* isolate,
                                           Handle<NativeContext> context) {
-  if (!context->serialized_objects().IsArrayList()) {
+  if (!IsArrayList(context->serialized_objects())) {
     context->set_serialized_objects(ReadOnlyRoots(isolate).empty_fixed_array());
   } else {
     Handle<ArrayList> list(ArrayList::cast(context->serialized_objects()),

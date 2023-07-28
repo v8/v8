@@ -470,7 +470,7 @@ TEST_F(HeapTest, Regress978156) {
   HeapObject filler = HeapObject::FromAddress(
       MemoryChunk::FromHeapObject(*last)->area_end() - kTaggedSize);
   HeapObject::FromAddress(last->address() + last->Size());
-  CHECK(filler.IsFiller());
+  CHECK(IsFiller(filler));
   // 5. Start incremental marking.
   i::IncrementalMarking* marking = heap->incremental_marking();
   if (marking->IsStopped()) {

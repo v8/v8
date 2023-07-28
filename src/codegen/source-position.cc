@@ -13,7 +13,7 @@ namespace internal {
 
 std::ostream& operator<<(std::ostream& out, const SourcePositionInfo& pos) {
   out << "<";
-  if (!pos.script.is_null() && pos.script->name().IsString()) {
+  if (!pos.script.is_null() && IsString(pos.script->name())) {
     out << String::cast(pos.script->name())->ToCString(DISALLOW_NULLS).get();
   } else {
     out << "unknown";
@@ -103,13 +103,13 @@ void SourcePosition::Print(std::ostream& out,
                            SharedFunctionInfo function) const {
   Script::PositionInfo pos;
   Object source_name;
-  if (function->script().IsScript()) {
+  if (IsScript(function->script())) {
     Script script = Script::cast(function->script());
     source_name = script->name();
     script->GetPositionInfo(ScriptOffset(), &pos);
   }
   out << "<";
-  if (source_name.IsString()) {
+  if (IsString(source_name)) {
     out << String::cast(source_name)
                ->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL)
                .get();
@@ -158,7 +158,7 @@ SourcePositionInfo::SourcePositionInfo(Isolate* isolate, SourcePosition pos,
     DisallowGarbageCollection no_gc;
     if (sfi.is_null()) return;
     Object maybe_script = sfi->script();
-    if (!maybe_script.IsScript()) return;
+    if (!IsScript(maybe_script)) return;
     script = handle(Script::cast(maybe_script), isolate);
   }
   Script::PositionInfo info;

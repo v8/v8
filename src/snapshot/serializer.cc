@@ -152,9 +152,9 @@ void Serializer::SerializeDeferredObjects() {
 void Serializer::SerializeObject(Handle<HeapObject> obj, SlotType slot_type) {
   // ThinStrings are just an indirection to an internalized string, so elide the
   // indirection and serialize the actual string directly.
-  if (obj->IsThinString(isolate())) {
+  if (IsThinString(*obj, isolate())) {
     obj = handle(ThinString::cast(*obj)->actual(isolate()), isolate());
-  } else if (obj->IsCode(isolate())) {
+  } else if (IsCode(*obj, isolate())) {
     Code code = Code::cast(*obj);
     if (code->kind() == CodeKind::BASELINE) {
       // For now just serialize the BytecodeArray instead of baseline code.
@@ -177,7 +177,7 @@ void Serializer::VisitRootPointers(Root root, const char* description,
 
 void Serializer::SerializeRootObject(FullObjectSlot slot) {
   Object o = *slot;
-  if (o.IsSmi()) {
+  if (IsSmi(o)) {
     PutSmiRoot(slot);
   } else {
     SerializeObject(Handle<HeapObject>(slot.location()), SlotType::kAnySlot);
@@ -260,7 +260,7 @@ bool Serializer::SerializePendingObject(HeapObject obj) {
 }
 
 bool Serializer::ObjectIsBytecodeHandler(HeapObject obj) const {
-  if (!obj.IsCode()) return false;
+  if (!IsCode(obj)) return false;
   return (Code::cast(obj)->kind() == CodeKind::BYTECODE_HANDLER);
 }
 
@@ -467,7 +467,7 @@ void Serializer::ObjectSerializer::SerializePrologue(SnapshotSpace space,
     // the deserializer can access it when allocating. Make sure that the map
     // is known to be being serialized for the map slot, so that it is not
     // deferred.
-    DCHECK(map.IsMap());
+    DCHECK(IsMap(map));
     serializer_->SerializeObject(handle(map, isolate()), SlotType::kMapSlot);
 
     // Make sure the map serialization didn't accidentally recursively serialize
@@ -658,7 +658,7 @@ void Serializer::ObjectSerializer::SerializeExternalStringAsSequentialString() {
   // an imaginary sequential string with the same content.
   ReadOnlyRoots roots(isolate());
   PtrComprCageBase cage_base(isolate());
-  DCHECK(object_->IsExternalString(cage_base));
+  DCHECK(IsExternalString(*object_, cage_base));
   Handle<ExternalString> string = Handle<ExternalString>::cast(object_);
   int length = string->length();
   Map map;
@@ -666,8 +666,8 @@ void Serializer::ObjectSerializer::SerializeExternalStringAsSequentialString() {
   int allocation_size;
   const uint8_t* resource;
   // Find the map and size for the imaginary sequential string.
-  bool internalized = object_->IsInternalizedString(cage_base);
-  if (object_->IsExternalOneByteString(cage_base)) {
+  bool internalized = IsInternalizedString(*object_, cage_base);
+  if (IsExternalOneByteString(*object_, cage_base)) {
     map = internalized ? roots.internalized_one_byte_string_map()
                        : roots.seq_one_byte_string_map();
     allocation_size = SeqOneByteString::SizeFor(length);
@@ -719,7 +719,7 @@ class V8_NODISCARD UnlinkWeakNextScope {
  public:
   explicit UnlinkWeakNextScope(Heap* heap, HeapObject object) {
     Isolate* isolate = heap->isolate();
-    if (object.IsAllocationSite(isolate) &&
+    if (IsAllocationSite(object, isolate) &&
         AllocationSite::cast(object)->HasWeakNext()) {
       object_ = object;
       next_ = AllocationSite::cast(object)->weak_next();
@@ -804,9 +804,9 @@ void Serializer::ObjectSerializer::Serialize(SlotType slot_type) {
   // in the ReadOnlyHeapImageSerializer.
   DCHECK_IMPLIES(
       !object_->SafeEquals(ReadOnlyRoots(isolate()).wasm_null_padding()),
-      !object_->IsFreeSpaceOrFiller(cage_base));
+      !IsFreeSpaceOrFiller(*object_, cage_base));
 #else
-  DCHECK(!object_->IsFreeSpaceOrFiller(cage_base));
+  DCHECK(!IsFreeSpaceOrFiller(*object_, cage_base));
 #endif
 
   SerializeObject();
@@ -815,7 +815,7 @@ void Serializer::ObjectSerializer::Serialize(SlotType slot_type) {
 namespace {
 SnapshotSpace GetSnapshotSpace(HeapObject object) {
   if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
-    if (object.IsInstructionStream()) {
+    if (IsInstructionStream(object)) {
       return SnapshotSpace::kCode;
     } else if (ReadOnlyHeap::Contains(object)) {
       return SnapshotSpace::kReadOnlyHeap;
@@ -1159,7 +1159,7 @@ void Serializer::ObjectSerializer::OutputRawData(Address up_to) {
         reinterpret_cast<void*>(object_start + base), bytes_to_output);
 #endif  // MEMORY_SANITIZER
     PtrComprCageBase cage_base(isolate_);
-    if (object_->IsSharedFunctionInfo(cage_base)) {
+    if (IsSharedFunctionInfo(*object_, cage_base)) {
       // The bytecode age field can be changed by GC concurrently.
       static_assert(SharedFunctionInfo::kAgeSize == kUInt16Size);
       uint16_t field_value = 0;
@@ -1167,7 +1167,7 @@ void Serializer::ObjectSerializer::OutputRawData(Address up_to) {
                                SharedFunctionInfo::kAgeOffset,
                                sizeof(field_value),
                                reinterpret_cast<uint8_t*>(&field_value));
-    } else if (object_->IsDescriptorArray(cage_base)) {
+    } else if (IsDescriptorArray(*object_, cage_base)) {
       // The number of marked descriptors field can be changed by GC
       // concurrently.
       const auto field_value = DescriptorArrayMarkingState::kInitialGCState;
@@ -1176,7 +1176,7 @@ void Serializer::ObjectSerializer::OutputRawData(Address up_to) {
                                DescriptorArray::kRawGcStateOffset,
                                sizeof(field_value),
                                reinterpret_cast<const uint8_t*>(&field_value));
-    } else if (object_->IsCode(cage_base)) {
+    } else if (IsCode(*object_, cage_base)) {
       // instruction_start field contains a raw value that will be recomputed
       // after deserialization, so write zeros to keep the snapshot
       // deterministic.
@@ -1184,7 +1184,7 @@ void Serializer::ObjectSerializer::OutputRawData(Address up_to) {
       OutputRawWithCustomField(sink_, object_start, base, bytes_to_output,
                                Code::kInstructionStartOffset,
                                sizeof(field_value), field_value);
-    } else if (object_->IsSeqString()) {
+    } else if (IsSeqString(*object_)) {
       // SeqStrings may contain padding. Serialize the padding bytes as 0s to
       // make the snapshot content deterministic.
       SeqString::DataAndPaddingSizes sizes =

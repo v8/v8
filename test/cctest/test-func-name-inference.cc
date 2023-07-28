@@ -51,7 +51,7 @@ static void CheckFunctionName(v8::Local<v8::Script> script,
   // Get script source.
   Handle<i::Object> obj = v8::Utils::OpenHandle(*script);
   Handle<SharedFunctionInfo> shared_function;
-  if (obj->IsSharedFunctionInfo()) {
+  if (IsSharedFunctionInfo(*obj)) {
     shared_function =
         Handle<SharedFunctionInfo>(SharedFunctionInfo::cast(*obj), isolate);
   } else {
@@ -60,7 +60,7 @@ static void CheckFunctionName(v8::Local<v8::Script> script,
   }
   Handle<i::Script> i_script(i::Script::cast(shared_function->script()),
                              isolate);
-  CHECK(i_script->source().IsString());
+  CHECK(IsString(i_script->source()));
   Handle<i::String> script_src(i::String::cast(i_script->source()), isolate);
 
   // Find the position of a given func source substring in the source.

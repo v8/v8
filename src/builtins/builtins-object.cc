@@ -66,7 +66,7 @@ Object ObjectDefineAccessor(Isolate* isolate, Handle<Object> object,
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, receiver,
                                      Object::ToObject(isolate, object));
   // 2. If IsCallable(getter) is false, throw a TypeError exception.
-  if (!accessor->IsCallable()) {
+  if (!IsCallable(*accessor)) {
     MessageTemplate message =
         which_accessor == ACCESSOR_GETTER
             ? MessageTemplate::kObjectGetterExpectingFunction
@@ -143,7 +143,7 @@ Object ObjectLookupAccessor(Isolate* isolate, Handle<Object> object,
         Handle<Object> prototype;
         ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
             isolate, prototype, JSProxy::GetPrototype(it.GetHolder<JSProxy>()));
-        if (prototype->IsNull(isolate)) {
+        if (IsNull(*prototype, isolate)) {
           return ReadOnlyRoots(isolate).undefined_value();
         }
         return ObjectLookupAccessor(isolate, prototype, key, component);
@@ -155,7 +155,7 @@ Object ObjectLookupAccessor(Isolate* isolate, Handle<Object> object,
 
       case LookupIterator::ACCESSOR: {
         Handle<Object> maybe_pair = it.GetAccessors();
-        if (maybe_pair->IsAccessorPair()) {
+        if (IsAccessorPair(*maybe_pair)) {
           Handle<NativeContext> native_context = it.GetHolder<JSReceiver>()
                                                      ->GetCreationContext()
                                                      .ToHandleChecked();
@@ -214,7 +214,7 @@ BUILTIN(ObjectLookupSetter) {
 BUILTIN(ObjectFreeze) {
   HandleScope scope(isolate);
   Handle<Object> object = args.atOrUndefined(isolate, 1);
-  if (object->IsJSReceiver()) {
+  if (IsJSReceiver(*object)) {
     MAYBE_RETURN(
         JSReceiver::SetIntegrityLevel(isolate, Handle<JSReceiver>::cast(object),
                                       FROZEN, kThrowOnError),
@@ -241,7 +241,7 @@ BUILTIN(ObjectPrototypeSetProto) {
   HandleScope scope(isolate);
   // 1. Let O be ? RequireObjectCoercible(this value).
   Handle<Object> object = args.receiver();
-  if (object->IsNullOrUndefined(isolate)) {
+  if (IsNullOrUndefined(*object, isolate)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kCalledOnNullOrUndefined,
                               isolate->factory()->NewStringFromAsciiChecked(
@@ -250,12 +250,12 @@ BUILTIN(ObjectPrototypeSetProto) {
 
   // 2. If Type(proto) is neither Object nor Null, return undefined.
   Handle<Object> proto = args.at(1);
-  if (!proto->IsNull(isolate) && !proto->IsJSReceiver()) {
+  if (!IsNull(*proto, isolate) && !IsJSReceiver(*proto)) {
     return ReadOnlyRoots(isolate).undefined_value();
   }
 
   // 3. If Type(O) is not Object, return undefined.
-  if (!object->IsJSReceiver()) return ReadOnlyRoots(isolate).undefined_value();
+  if (!IsJSReceiver(*object)) return ReadOnlyRoots(isolate).undefined_value();
   Handle<JSReceiver> receiver = Handle<JSReceiver>::cast(object);
 
   // 4. Let status be ? O.[[SetPrototypeOf]](proto).
@@ -297,7 +297,7 @@ BUILTIN(ObjectIsFrozen) {
   HandleScope scope(isolate);
   Handle<Object> object = args.atOrUndefined(isolate, 1);
   Maybe<bool> result =
-      object->IsJSReceiver()
+      IsJSReceiver(*object)
           ? JSReceiver::TestIntegrityLevel(
                 isolate, Handle<JSReceiver>::cast(object), FROZEN)
           : Just(true);
@@ -310,7 +310,7 @@ BUILTIN(ObjectIsSealed) {
   HandleScope scope(isolate);
   Handle<Object> object = args.atOrUndefined(isolate, 1);
   Maybe<bool> result =
-      object->IsJSReceiver()
+      IsJSReceiver(*object)
           ? JSReceiver::TestIntegrityLevel(
                 isolate, Handle<JSReceiver>::cast(object), SEALED)
           : Just(true);
@@ -358,7 +358,7 @@ BUILTIN(ObjectGetOwnPropertyDescriptors) {
 BUILTIN(ObjectSeal) {
   HandleScope scope(isolate);
   Handle<Object> object = args.atOrUndefined(isolate, 1);
-  if (object->IsJSReceiver()) {
+  if (IsJSReceiver(*object)) {
     MAYBE_RETURN(
         JSReceiver::SetIntegrityLevel(isolate, Handle<JSReceiver>::cast(object),
                                       SEALED, kThrowOnError),

@@ -81,7 +81,7 @@ class BaselineCompilerTask {
       OFStream os(scope.file());
       os << ss.str();
     }
-    if (shared_function_info_->script().IsScript()) {
+    if (IsScript(shared_function_info_->script())) {
       Compiler::LogFunctionCompilation(
           isolate, LogEventListener::CodeTag::kFunction,
           handle(Script::cast(shared_function_info_->script()), isolate),

@@ -176,7 +176,7 @@ Local<String> v8_str(Isolate* isolate, const char* str) {
       ErrorThrower* thrower) {                                       \
     SLOW_DCHECK(i::ValidateCallbackInfo(info));                      \
     i::Handle<i::Object> arg0 = Utils::OpenHandle(*info[0]);         \
-    if (!arg0->IsWasm##Type##Object()) {                             \
+    if (!IsWasm##Type##Object(*arg0)) {                              \
       thrower->TypeError("Argument 0 must be a WebAssembly." #Type); \
       return {};                                                     \
     }                                                                \
@@ -996,7 +996,7 @@ void WebAssemblyInstantiate(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
   Local<Value> first_arg_value = info[0];
   i::Handle<i::Object> first_arg = Utils::OpenHandle(*first_arg_value);
-  if (!first_arg->IsJSObject()) {
+  if (!IsJSObject(*first_arg)) {
     thrower.TypeError(
         "Argument 0 must be a buffer source or a WebAssembly.Module object");
     resolver->OnInstantiationFailed(thrower.Reify());
@@ -1012,7 +1012,7 @@ void WebAssemblyInstantiate(const v8::FunctionCallbackInfo<v8::Value>& info) {
     return;
   }
 
-  if (first_arg->IsWasmModuleObject()) {
+  if (IsWasmModuleObject(*first_arg)) {
     i::Handle<i::WasmModuleObject> module_obj =
         i::Handle<i::WasmModuleObject>::cast(first_arg);
 
@@ -1843,7 +1843,7 @@ void WebAssemblyException(const v8::FunctionCallbackInfo<v8::Value>& info) {
     return;
   }
   i::Handle<i::Object> arg0 = Utils::OpenHandle(*info[0]);
-  if (!i::HeapObject::cast(*arg0).IsWasmTagObject()) {
+  if (!IsWasmTagObject(i::HeapObject::cast(*arg0))) {
     thrower.TypeError("Argument 0 must be a WebAssembly tag");
     return;
   }
@@ -2244,7 +2244,7 @@ constexpr const char* kName_WasmExceptionPackage = "WebAssembly.Exception";
   i::Handle<i::WasmType> var;                                        \
   {                                                                  \
     i::Handle<i::Object> this_arg = Utils::OpenHandle(*info.This()); \
-    if (!this_arg->Is##WasmType()) {                                 \
+    if (!Is##WasmType(*this_arg)) {                                  \
       thrower.TypeError("Receiver is not a %s", kName_##WasmType);   \
       return;                                                        \
     }                                                                \
@@ -2424,7 +2424,7 @@ void WebAssemblyTableType(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
   EXTRACT_THIS(table, WasmTableObject);
   base::Optional<uint32_t> max_size;
-  if (!table->maximum_length().IsUndefined()) {
+  if (!IsUndefined(table->maximum_length())) {
     uint64_t max_size64 = table->maximum_length().Number();
     DCHECK_LE(max_size64, std::numeric_limits<uint32_t>::max());
     max_size.emplace(static_cast<uint32_t>(max_size64));
@@ -2479,7 +2479,7 @@ void WebAssemblyMemoryGetBuffer(
   EXTRACT_THIS(receiver, WasmMemoryObject);
 
   i::Handle<i::Object> buffer_obj(receiver->array_buffer(), i_isolate);
-  DCHECK(buffer_obj->IsJSArrayBuffer());
+  DCHECK(IsJSArrayBuffer(*buffer_obj));
   i::Handle<i::JSArrayBuffer> buffer(i::JSArrayBuffer::cast(*buffer_obj),
                                      i_isolate);
   if (buffer->is_shared()) {
@@ -2568,13 +2568,13 @@ void WebAssemblyExceptionGetArg(
 
   auto this_tag =
       i::WasmExceptionPackage::GetExceptionTag(i_isolate, exception);
-  DCHECK(this_tag->IsWasmExceptionTag());
+  DCHECK(IsWasmExceptionTag(*this_tag));
   if (tag->tag() != *this_tag) {
     thrower.TypeError("First argument does not match the exception tag");
     return;
   }
 
-  DCHECK(!maybe_values->IsUndefined());
+  DCHECK(!IsUndefined(*maybe_values));
   auto values = i::Handle<i::FixedArray>::cast(maybe_values);
   auto signature = tag->serialized_signature();
   if (index >= static_cast<uint32_t>(signature->length())) {
@@ -2668,7 +2668,7 @@ void WebAssemblyExceptionIs(const v8::FunctionCallbackInfo<v8::Value>& info) {
   if (thrower.error()) return;
 
   auto tag = i::WasmExceptionPackage::GetExceptionTag(i_isolate, exception);
-  DCHECK(tag->IsWasmExceptionTag());
+  DCHECK(IsWasmExceptionTag(*tag));
 
   auto maybe_tag = GetFirstArgumentAsTag(info, &thrower);
   if (thrower.error()) {
@@ -2787,7 +2787,7 @@ void WebAssemblyGlobalSetValue(
     case i::wasm::kRef:
     case i::wasm::kRefNull: {
       const i::wasm::WasmModule* module =
-          receiver->instance().IsWasmInstanceObject()
+          IsWasmInstanceObject(receiver->instance())
               ? i::WasmInstanceObject::cast(receiver->instance())->module()
               : nullptr;
       i::Handle<i::Object> value = Utils::OpenHandle(*info[0]);
@@ -2986,8 +2986,8 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
   Handle<Context> context(global->native_context(), isolate);
   // Install the JS API once only.
   Object prev = context->get(Context::WASM_MODULE_CONSTRUCTOR_INDEX);
-  if (!prev.IsUndefined(isolate)) {
-    DCHECK(prev.IsJSFunction());
+  if (!IsUndefined(prev, isolate)) {
+    DCHECK(IsJSFunction(prev));
     return;
   }
 
@@ -3225,7 +3225,7 @@ void WasmJs::InstallConditionalFeatures(Isolate* isolate,
   MaybeHandle<Object> maybe_wasm =
       JSReceiver::GetProperty(isolate, global, "WebAssembly");
   Handle<Object> wasm_obj;
-  if (!maybe_wasm.ToHandle(&wasm_obj) || !wasm_obj->IsJSObject()) return;
+  if (!maybe_wasm.ToHandle(&wasm_obj) || !IsJSObject(*wasm_obj)) return;
   Handle<JSObject> webassembly = Handle<JSObject>::cast(wasm_obj);
   if (!webassembly->map()->is_extensible()) return;
 

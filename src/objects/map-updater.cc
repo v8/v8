@@ -54,7 +54,7 @@ void PrintGeneralization(
   OFStream os(file);
   os << "[generalizing]";
   Name name = map->instance_descriptors(isolate)->GetKey(modify_index);
-  if (name.IsString()) {
+  if (IsString(name)) {
     String::cast(name)->PrintOn(file);
   } else {
     os << "{symbol " << reinterpret_cast<void*>(name.ptr()) << "}";
@@ -99,9 +99,8 @@ MapUpdater::MapUpdater(Isolate* isolate, Handle<Map> old_map)
       is_transitionable_fast_elements_kind_(
           IsTransitionableFastElementsKind(new_elements_kind_)) {
   // We shouldn't try to update remote objects.
-  DCHECK(!old_map->FindRootMap(isolate)
-              ->GetConstructor()
-              .IsFunctionTemplateInfo());
+  DCHECK(
+      !IsFunctionTemplateInfo(old_map->FindRootMap(isolate)->GetConstructor()));
 }
 
 Name MapUpdater::GetKey(InternalIndex descriptor) const {
@@ -426,7 +425,7 @@ MapUpdater::State MapUpdater::Normalize(const char* reason) {
 void MapUpdater::CompleteInobjectSlackTracking(Isolate* isolate,
                                                Map initial_map) {
   // Has to be an initial map.
-  DCHECK(initial_map->GetBackPointer().IsUndefined(isolate));
+  DCHECK(IsUndefined(initial_map->GetBackPointer(), isolate));
 
   const int slack = initial_map->ComputeMinObjectSlack(isolate);
   DCHECK_GE(slack, 0);
@@ -1075,7 +1074,7 @@ void PrintReconfiguration(Isolate* isolate, Handle<Map> map, FILE* file,
   OFStream os(file);
   os << "[reconfiguring]";
   Name name = map->instance_descriptors(isolate)->GetKey(modify_index);
-  if (name.IsString()) {
+  if (IsString(name)) {
     String::cast(name)->PrintOn(file);
   } else {
     os << "{symbol " << reinterpret_cast<void*>(name.ptr()) << "}";
@@ -1098,7 +1097,7 @@ Handle<Map> MapUpdater::ReconfigureExistingProperty(
   DCHECK(!map->is_dictionary_map());
   DCHECK_EQ(PropertyKind::kData, kind);  // Only kData case is supported so far.
 
-  if (!map->GetBackPointer().IsMap()) {
+  if (!IsMap(map->GetBackPointer())) {
     // There is no benefit from reconstructing transition tree for maps without
     // back pointers, normalize and try to hit the map cache instead.
     return Map::Normalize(isolate, map, CLEAR_INOBJECT_PROPERTIES,

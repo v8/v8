@@ -34,7 +34,7 @@ MaybeHandle<JSV8BreakIterator> JSV8BreakIterator::New(
       maybe_requested_locales.FromJust();
 
   Handle<JSReceiver> options;
-  if (options_obj->IsUndefined(isolate)) {
+  if (IsUndefined(*options_obj, isolate)) {
     options = factory->NewJSObjectWithNullProto();
   } else {
     ASSIGN_RETURN_ON_EXCEPTION(isolate, options,

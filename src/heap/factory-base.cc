@@ -333,7 +333,7 @@ template <typename Impl>
 Handle<Script> FactoryBase<Impl>::NewScriptWithId(
     Handle<PrimitiveHeapObject> source, int script_id,
     ScriptEventType script_event_type) {
-  DCHECK(source->IsString() || source->IsUndefined());
+  DCHECK(IsString(*source) || IsUndefined(*source));
   // Create and initialize script object.
   ReadOnlyRoots roots = read_only_roots();
   Handle<Script> script = handle(
@@ -544,7 +544,7 @@ Handle<SharedFunctionInfo> FactoryBase<Impl>::NewSharedFunctionInfo(
     // If we pass function_data then we shouldn't pass a builtin index, and
     // the function_data should not be code with a builtin.
     DCHECK(!Builtins::IsBuiltinId(builtin));
-    DCHECK(!function_data->IsInstructionStream());
+    DCHECK(!IsInstructionStream(*function_data));
     DCHECK_IMPLIES(allocation == AllocationType::kReadOnly,
                    ReadOnlyHeap::Contains(*function_data));
     raw->set_function_data(*function_data, kReleaseStore, barrier_mode);
@@ -836,10 +836,10 @@ MaybeHandle<SeqTwoByteString> FactoryBase<Impl>::NewRawSharedTwoByteString(
 template <typename Impl>
 MaybeHandle<String> FactoryBase<Impl>::NewConsString(
     Handle<String> left, Handle<String> right, AllocationType allocation) {
-  if (left->IsThinString()) {
+  if (IsThinString(*left)) {
     left = handle(ThinString::cast(*left)->actual(), isolate());
   }
-  if (right->IsThinString()) {
+  if (IsThinString(*right)) {
     right = handle(ThinString::cast(*right)->actual(), isolate());
   }
   int left_length = left->length();
@@ -915,8 +915,8 @@ Handle<String> FactoryBase<Impl>::NewConsString(Handle<String> left,
                                                 Handle<String> right,
                                                 int length, bool one_byte,
                                                 AllocationType allocation) {
-  DCHECK(!left->IsThinString());
-  DCHECK(!right->IsThinString());
+  DCHECK(!IsThinString(*left));
+  DCHECK(!IsThinString(*right));
   DCHECK_GE(length, ConsString::kMinLength);
   DCHECK_LE(length, String::kMaxLength);
 
@@ -989,8 +989,8 @@ V8_INLINE Handle<String> CharToString(FactoryBase<Impl>* factory,
 template <typename Impl>
 Handle<String> FactoryBase<Impl>::NumberToString(Handle<Object> number,
                                                  NumberCacheMode mode) {
-  SLOW_DCHECK(number->IsNumber());
-  if (number->IsSmi()) return SmiToString(Smi::cast(*number), mode);
+  SLOW_DCHECK(IsNumber(*number));
+  if (IsSmi(*number)) return SmiToString(Smi::cast(*number), mode);
 
   double double_value = Handle<HeapNumber>::cast(number)->value();
   // Try to canonicalize doubles.
@@ -1012,7 +1012,7 @@ Handle<String> FactoryBase<Impl>::HeapNumberToString(Handle<HeapNumber> number,
 
   if (mode == NumberCacheMode::kBoth) {
     Handle<Object> cached = impl()->NumberToStringCacheGet(*number, hash);
-    if (!cached->IsUndefined(isolate())) return Handle<String>::cast(cached);
+    if (!IsUndefined(*cached, isolate())) return Handle<String>::cast(cached);
   }
 
   Handle<String> result;
@@ -1041,7 +1041,7 @@ inline Handle<String> FactoryBase<Impl>::SmiToString(Tagged<Smi> number,
 
   if (mode == NumberCacheMode::kBoth) {
     Handle<Object> cached = impl()->NumberToStringCacheGet(number, hash);
-    if (!cached->IsUndefined(isolate())) return Handle<String>::cast(cached);
+    if (!IsUndefined(*cached, isolate())) return Handle<String>::cast(cached);
   }
 
   Handle<String> result;

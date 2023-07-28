@@ -2768,7 +2768,7 @@ bool Heap::ExternalStringTable::Contains(Tagged<String> string) {
 
 void Heap::UpdateExternalString(Tagged<String> string, size_t old_payload,
                                 size_t new_payload) {
-  DCHECK(string.IsExternalString());
+  DCHECK(IsExternalString(string));
   if (v8_flags.enable_third_party_heap) return;
 
   Page* page = Page::FromHeapObject(string);
@@ -2797,9 +2797,9 @@ Tagged<String> Heap::UpdateYoungReferenceInExternalStringTableEntry(
     if (!first_word.IsForwardingAddress()) {
       // Unreachable external string can be finalized.
       Tagged<String> string = Tagged<String>::cast(obj);
-      if (!string.IsExternalString(cage_base)) {
+      if (!IsExternalString(string, cage_base)) {
         // Original external string has been internalized.
-        DCHECK(string.IsThinString(cage_base));
+        DCHECK(IsThinString(string, cage_base));
         return Tagged<String>();
       }
       heap->FinalizeExternalString(string);
@@ -2811,10 +2811,10 @@ Tagged<String> Heap::UpdateYoungReferenceInExternalStringTableEntry(
   }
 
   // String is still reachable.
-  if (new_string.IsThinString(cage_base)) {
+  if (IsThinString(new_string, cage_base)) {
     // Filtering Thin strings out of the external string table.
     return Tagged<String>();
-  } else if (new_string.IsExternalString(cage_base)) {
+  } else if (IsExternalString(new_string, cage_base)) {
     MemoryChunk::MoveExternalBackingStoreBytes(
         ExternalBackingStoreType::kExternalString,
         Page::FromAddress((*p).ptr()), Page::FromHeapObject(new_string),
@@ -2823,7 +2823,8 @@ Tagged<String> Heap::UpdateYoungReferenceInExternalStringTableEntry(
   }
 
   // Internalization can replace external strings with non-external strings.
-  return new_string.IsExternalString(cage_base) ? new_string : Tagged<String>();
+  return IsExternalString(new_string, cage_base) ? new_string
+                                                 : Tagged<String>();
 }
 
 void Heap::ExternalStringTable::VerifyYoung() {
@@ -2837,8 +2838,8 @@ void Heap::ExternalStringTable::VerifyYoung() {
     MemoryChunk* mc = MemoryChunk::FromHeapObject(obj);
     DCHECK(mc->InYoungGeneration());
     DCHECK(heap_->InYoungGeneration(obj));
-    DCHECK(!obj.IsTheHole(heap_->isolate()));
-    DCHECK(obj.IsExternalString());
+    DCHECK(!IsTheHole(obj, heap_->isolate()));
+    DCHECK(IsExternalString(obj));
     // Note: we can have repeated elements in the table.
     DCHECK_EQ(0, visited_map.count(obj));
     visited_map.insert(obj);
@@ -2861,8 +2862,8 @@ void Heap::ExternalStringTable::Verify() {
     MemoryChunk* mc = MemoryChunk::FromHeapObject(obj);
     DCHECK(!mc->InYoungGeneration());
     DCHECK(!heap_->InYoungGeneration(obj));
-    DCHECK(!obj.IsTheHole(heap_->isolate()));
-    DCHECK(obj.IsExternalString());
+    DCHECK(!IsTheHole(obj, heap_->isolate()));
+    DCHECK(IsExternalString(obj));
     // Note: we can have repeated elements in the table.
     DCHECK_EQ(0, visited_map.count(obj));
     visited_map.insert(obj);
@@ -2887,7 +2888,7 @@ void Heap::ExternalStringTable::UpdateYoungReferences(
 
     if (target.is_null()) continue;
 
-    DCHECK(target.IsExternalString());
+    DCHECK(IsExternalString(target));
 
     if (InYoungGeneration(target)) {
       // String is still in new space. Update the table entry.
@@ -2979,7 +2980,7 @@ void Heap::ProcessDirtyJSFinalizationRegistries(WeakObjectRetainer* retainer) {
   set_dirty_js_finalization_registries_list(head);
   // If the list is empty, set the tail to undefined. Otherwise the tail is set
   // by WeakListVisitor<JSFinalizationRegistry>::VisitLiveObject.
-  if (head.IsUndefined(isolate())) {
+  if (IsUndefined(head, isolate())) {
     set_dirty_js_finalization_registries_list_tail(head);
   }
 }
@@ -2998,11 +2999,11 @@ void Heap::ForeachAllocationSite(
     const std::function<void(Tagged<AllocationSite>)>& visitor) {
   DisallowGarbageCollection no_gc;
   Tagged<Object> current = list;
-  while (current.IsAllocationSite()) {
+  while (IsAllocationSite(current)) {
     Tagged<AllocationSite> site = Tagged<AllocationSite>::cast(current);
     visitor(site);
     Tagged<Object> current_nested = site->nested_site();
-    while (current_nested.IsAllocationSite()) {
+    while (IsAllocationSite(current_nested)) {
       Tagged<AllocationSite> nested_site =
           Tagged<AllocationSite>::cast(current_nested);
       visitor(nested_site);
@@ -3064,7 +3065,7 @@ void Heap::VisitExternalResources(v8::ExternalResourceVisitor* visitor) {
     void VisitRootPointers(Root root, const char* description,
                            FullObjectSlot start, FullObjectSlot end) override {
       for (FullObjectSlot p = start; p < end; ++p) {
-        DCHECK((*p).IsExternalString());
+        DCHECK(IsExternalString(*p));
         visitor_->VisitExternalString(
             Utils::ToLocal(Handle<String>(String::cast(*p), isolate_)));
       }
@@ -3237,7 +3238,7 @@ void CreateFillerObjectAtImpl(Heap* heap, Address addr, int size,
     filler->set_map_after_allocation(roots.unchecked_one_pointer_filler_map(),
                                      SKIP_WRITE_BARRIER);
     // Ensure the filler map is properly initialized.
-    DCHECK(filler->map(heap->isolate()).IsMap());
+    DCHECK(IsMap(filler->map(heap->isolate())));
   } else if (size == 2 * kTaggedSize) {
     filler->set_map_after_allocation(roots.unchecked_two_pointer_filler_map(),
                                      SKIP_WRITE_BARRIER);
@@ -3246,7 +3247,7 @@ void CreateFillerObjectAtImpl(Heap* heap, Address addr, int size,
       *slot = static_cast<Tagged_t>(kClearedFreeMemoryValue);
     }
     // Ensure the filler map is properly initialized.
-    DCHECK(filler->map(heap->isolate()).IsMap());
+    DCHECK(IsMap(filler->map(heap->isolate())));
   } else {
     DCHECK_GT(size, 2 * kTaggedSize);
     filler->set_map_after_allocation(roots.unchecked_free_space_map(),
@@ -3261,7 +3262,7 @@ void CreateFillerObjectAtImpl(Heap* heap, Address addr, int size,
     // map is initialized. In this case we cannot access the map yet, as it
     // might be null, or not set up properly yet.
     DCHECK_IMPLIES(roots.is_initialized(RootIndex::kFreeSpaceMap),
-                   filler->map(heap->isolate()).IsMap());
+                   IsMap(filler->map(heap->isolate())));
   }
 }
 
@@ -3410,7 +3411,7 @@ bool MayContainRecordedSlots(Tagged<HeapObject> object) {
   if (BasicMemoryChunk::FromHeapObject(object)->InYoungGeneration())
     return false;
   // Allowlist objects that definitely do not have pointers.
-  if (object.IsByteArray() || object.IsFixedDoubleArray()) return false;
+  if (IsByteArray(object) || IsFixedDoubleArray(object)) return false;
   // Conservatively return true for other objects.
   return true;
 }
@@ -3426,17 +3427,17 @@ void Heap::OnMoveEvent(Tagged<HeapObject> source, Tagged<HeapObject> target,
   for (auto& tracker : allocation_trackers_) {
     tracker->MoveEvent(source.address(), target.address(), size_in_bytes);
   }
-  if (target.IsSharedFunctionInfo(isolate_)) {
+  if (IsSharedFunctionInfo(target, isolate_)) {
     LOG_CODE_EVENT(isolate_, SharedFunctionInfoMoveEvent(source.address(),
                                                          target.address()));
-  } else if (target.IsNativeContext(isolate_)) {
+  } else if (IsNativeContext(target, isolate_)) {
     if (isolate_->current_embedder_state() != nullptr) {
       isolate_->current_embedder_state()->OnMoveEvent(source.address(),
                                                       target.address());
     }
     PROFILE(isolate_,
             NativeContextMoveEvent(source.address(), target.address()));
-  } else if (target.IsMap(isolate_)) {
+  } else if (IsMap(target, isolate_)) {
     LOG(isolate_, MapMoveEvent(Map::cast(source), Map::cast(target)));
   }
 }
@@ -3451,8 +3452,8 @@ Tagged<FixedArrayBase> Heap::LeftTrimFixedArray(Tagged<FixedArrayBase> object,
   DCHECK(CanMoveObjectStart(object));
   // Add custom visitor to concurrent marker if new left-trimmable type
   // is added.
-  DCHECK(object.IsFixedArray() || object.IsFixedDoubleArray());
-  const int element_size = object.IsFixedArray() ? kTaggedSize : kDoubleSize;
+  DCHECK(IsFixedArray(object) || IsFixedDoubleArray(object));
+  const int element_size = IsFixedArray(object) ? kTaggedSize : kDoubleSize;
   const int bytes_to_trim = elements_to_trim * element_size;
   Tagged<Map> map = object->map();
 
@@ -3528,15 +3529,15 @@ void Heap::RightTrimFixedArray(Tagged<FixedArrayBase> object,
   DCHECK_GE(elements_to_trim, 0);
 
   int bytes_to_trim;
-  if (object.IsByteArray()) {
+  if (IsByteArray(object)) {
     int new_size = ByteArray::SizeFor(len - elements_to_trim);
     bytes_to_trim = ByteArray::SizeFor(len) - new_size;
     DCHECK_GE(bytes_to_trim, 0);
-  } else if (object.IsFixedArray()) {
+  } else if (IsFixedArray(object)) {
     CHECK_NE(elements_to_trim, len);
     bytes_to_trim = elements_to_trim * kTaggedSize;
   } else {
-    DCHECK(object.IsFixedDoubleArray());
+    DCHECK(IsFixedDoubleArray(object));
     CHECK_NE(elements_to_trim, len);
     bytes_to_trim = elements_to_trim * kDoubleSize;
   }
@@ -3557,8 +3558,8 @@ void Heap::RightTrimWeakFixedArray(Tagged<WeakFixedArray> object,
 template <typename T>
 void Heap::CreateFillerForArray(Tagged<T> object, int elements_to_trim,
                                 int bytes_to_trim) {
-  DCHECK(object.IsFixedArrayBase() || object.IsByteArray() ||
-         object.IsWeakFixedArray());
+  DCHECK(IsFixedArrayBase(object) || IsByteArray(object) ||
+         IsWeakFixedArray(object));
 
   // For now this trick is only applied to objects in new and paged space.
   DCHECK(object->map() != ReadOnlyRoots(this).fixed_cow_array_map());
@@ -4379,8 +4380,8 @@ bool Heap::MustBeInSharedOldSpace(Tagged<HeapObject> value) {
   if (isolate()->OwnsStringTables()) return false;
   if (ReadOnlyHeap::Contains(value)) return false;
   if (Heap::InYoungGeneration(value)) return false;
-  if (value.IsExternalString()) return false;
-  if (value.IsInternalizedString()) return true;
+  if (IsExternalString(value)) return false;
+  if (IsInternalizedString(value)) return true;
   return false;
 }
 
@@ -4578,15 +4579,15 @@ class ClearStaleLeftTrimmedHandlesVisitor : public RootVisitor {
 
  private:
   inline void FixHandle(FullObjectSlot p) {
-    if (!(*p).IsHeapObject()) return;
+    if (!IsHeapObject(*p)) return;
     Tagged<HeapObject> current = HeapObject::cast(*p);
     if (!current->map_word(cage_base(), kRelaxedLoad).IsForwardingAddress() &&
-        current.IsFreeSpaceOrFiller(cage_base())) {
+        IsFreeSpaceOrFiller(current, cage_base())) {
 #ifdef DEBUG
       // We need to find a FixedArrayBase map after walking the fillers.
       while (
           !current->map_word(cage_base(), kRelaxedLoad).IsForwardingAddress() &&
-          current.IsFreeSpaceOrFiller(cage_base())) {
+          IsFreeSpaceOrFiller(current, cage_base())) {
         Address next = current.ptr();
         if (current->map(cage_base()) ==
             ReadOnlyRoots(heap_).one_pointer_filler_map()) {
@@ -4601,7 +4602,7 @@ class ClearStaleLeftTrimmedHandlesVisitor : public RootVisitor {
       }
       DCHECK(
           current->map_word(cage_base(), kRelaxedLoad).IsForwardingAddress() ||
-          current.IsFixedArrayBase(cage_base()));
+          IsFixedArrayBase(current, cage_base()));
 #endif  // DEBUG
       p.store(Smi::zero());
     }
@@ -5708,7 +5709,7 @@ void Heap::WeakenDescriptorArrays(
   for (auto it = strong_descriptor_arrays.begin();
        it != strong_descriptor_arrays.end(); ++it) {
     Tagged<DescriptorArray> array = it.raw();
-    DCHECK(array.IsStrongDescriptorArray());
+    DCHECK(IsStrongDescriptorArray(array));
     array->set_map_safe_transition_no_write_barrier(descriptor_array_map);
     DCHECK_EQ(array->raw_gc_state(kRelaxedLoad), 0);
   }
@@ -6022,9 +6023,9 @@ void Heap::CompactWeakArrayLists() {
     HeapObjectIterator iterator(this);
     for (Tagged<HeapObject> o = iterator.Next(); !o.is_null();
          o = iterator.Next()) {
-      if (o->IsPrototypeInfo()) {
+      if (IsPrototypeInfo(*o)) {
         Tagged<PrototypeInfo> prototype_info = Tagged<PrototypeInfo>::cast(o);
-        if (prototype_info->prototype_users().IsWeakArrayList()) {
+        if (IsWeakArrayList(prototype_info->prototype_users())) {
           prototype_infos.emplace_back(handle(prototype_info, isolate()));
         }
       }
@@ -6082,7 +6083,7 @@ void Heap::CompactRetainedMaps(Tagged<WeakArrayList> retained_maps) {
     DCHECK(maybe_object->IsWeak());
 
     MaybeObject age = retained_maps->Get(i + 1);
-    DCHECK(age->IsSmi());
+    DCHECK(IsSmi(age));
     if (i != new_length) {
       retained_maps->Set(new_length, maybe_object);
       retained_maps->Set(new_length + 1, age);
@@ -6234,7 +6235,7 @@ class UnreachableObjectsFilter : public HeapObjectsFilter {
   }
 
   bool SkipObject(Tagged<HeapObject> object) override {
-    if (object.IsFreeSpaceOrFiller()) return true;
+    if (IsFreeSpaceOrFiller(object)) return true;
     Address chunk = object.ptr() & ~kLogicalChunkAlignmentMask;
     if (reachable_.count(chunk) == 0) return true;
     return reachable_[chunk]->count(object) == 0;
@@ -6431,13 +6432,13 @@ void Heap::ExternalStringTable::CleanUpYoung() {
   Isolate* isolate = heap_->isolate();
   for (size_t i = 0; i < young_strings_.size(); ++i) {
     Tagged<Object> o = young_strings_[i];
-    if (o.IsTheHole(isolate)) {
+    if (IsTheHole(o, isolate)) {
       continue;
     }
     // The real external string is already in one of these vectors and was or
     // will be processed. Re-processing it will add a duplicate to the vector.
-    if (o.IsThinString()) continue;
-    DCHECK(o.IsExternalString());
+    if (IsThinString(o)) continue;
+    DCHECK(IsExternalString(o));
     if (InYoungGeneration(o)) {
       young_strings_[last++] = o;
     } else {
@@ -6453,13 +6454,13 @@ void Heap::ExternalStringTable::CleanUpAll() {
   Isolate* isolate = heap_->isolate();
   for (size_t i = 0; i < old_strings_.size(); ++i) {
     Tagged<Object> o = old_strings_[i];
-    if (o.IsTheHole(isolate)) {
+    if (IsTheHole(o, isolate)) {
       continue;
     }
     // The real external string is already in one of these vectors and was or
     // will be processed. Re-processing it will add a duplicate to the vector.
-    if (o.IsThinString()) continue;
-    DCHECK(o.IsExternalString());
+    if (IsThinString(o)) continue;
+    DCHECK(IsExternalString(o));
     DCHECK(!InYoungGeneration(o));
     old_strings_[last++] = o;
   }
@@ -6473,14 +6474,14 @@ void Heap::ExternalStringTable::TearDown() {
   for (size_t i = 0; i < young_strings_.size(); ++i) {
     Tagged<Object> o = young_strings_[i];
     // Dont finalize thin strings.
-    if (o.IsThinString()) continue;
+    if (IsThinString(o)) continue;
     heap_->FinalizeExternalString(ExternalString::cast(o));
   }
   young_strings_.clear();
   for (size_t i = 0; i < old_strings_.size(); ++i) {
     Tagged<Object> o = old_strings_[i];
     // Dont finalize thin strings.
-    if (o.IsThinString()) continue;
+    if (IsThinString(o)) continue;
     heap_->FinalizeExternalString(ExternalString::cast(o));
   }
   old_strings_.clear();
@@ -6583,12 +6584,12 @@ void Heap::EnqueueDirtyJSFinalizationRegistry(
         gc_notify_updated_slot) {
   // Add a FinalizationRegistry to the tail of the dirty list.
   DCHECK(!HasDirtyJSFinalizationRegistries() ||
-         dirty_js_finalization_registries_list().IsJSFinalizationRegistry());
-  DCHECK(finalization_registry->next_dirty().IsUndefined(isolate()));
+         IsJSFinalizationRegistry(dirty_js_finalization_registries_list()));
+  DCHECK(IsUndefined(finalization_registry->next_dirty(), isolate()));
   DCHECK(!finalization_registry->scheduled_for_cleanup());
   finalization_registry->set_scheduled_for_cleanup(true);
-  if (dirty_js_finalization_registries_list_tail().IsUndefined(isolate())) {
-    DCHECK(dirty_js_finalization_registries_list().IsUndefined(isolate()));
+  if (IsUndefined(dirty_js_finalization_registries_list_tail(), isolate())) {
+    DCHECK(IsUndefined(dirty_js_finalization_registries_list(), isolate()));
     set_dirty_js_finalization_registries_list(finalization_registry);
     // dirty_js_finalization_registries_list_ is rescanned by
     // ProcessWeakListRoots.
@@ -6629,11 +6630,11 @@ void Heap::RemoveDirtyFinalizationRegistriesOnContext(
   Isolate* isolate = this->isolate();
   Tagged<Object> prev = ReadOnlyRoots(isolate).undefined_value();
   Tagged<Object> current = dirty_js_finalization_registries_list();
-  while (!current.IsUndefined(isolate)) {
+  while (!IsUndefined(current, isolate)) {
     Tagged<JSFinalizationRegistry> finalization_registry =
         Tagged<JSFinalizationRegistry>::cast(current);
     if (finalization_registry->native_context() == context) {
-      if (prev.IsUndefined(isolate)) {
+      if (IsUndefined(prev, isolate)) {
         set_dirty_js_finalization_registries_list(
             finalization_registry->next_dirty());
       } else {
@@ -6653,10 +6654,10 @@ void Heap::RemoveDirtyFinalizationRegistriesOnContext(
 }
 
 void Heap::KeepDuringJob(Handle<HeapObject> target) {
-  DCHECK(weak_refs_keep_during_job().IsUndefined() ||
-         weak_refs_keep_during_job().IsOrderedHashSet());
+  DCHECK(IsUndefined(weak_refs_keep_during_job()) ||
+         IsOrderedHashSet(weak_refs_keep_during_job()));
   Handle<OrderedHashSet> table;
-  if (weak_refs_keep_during_job().IsUndefined(isolate())) {
+  if (IsUndefined(weak_refs_keep_during_job(), isolate())) {
     table = isolate()->factory()->NewOrderedHashSet();
   } else {
     table =
@@ -6713,7 +6714,7 @@ bool Heap::GetObjectTypeName(size_t index, const char** object_type,
 size_t Heap::NumberOfNativeContexts() {
   int result = 0;
   Tagged<Object> context = native_contexts_list();
-  while (!context.IsUndefined(isolate())) {
+  while (!IsUndefined(context, isolate())) {
     ++result;
     Tagged<Context> native_context = Tagged<Context>::cast(context);
     context = native_context->next_context_link();
@@ -6724,7 +6725,7 @@ size_t Heap::NumberOfNativeContexts() {
 std::vector<Handle<NativeContext>> Heap::FindAllNativeContexts() {
   std::vector<Handle<NativeContext>> result;
   Tagged<Object> context = native_contexts_list();
-  while (!context.IsUndefined(isolate())) {
+  while (!IsUndefined(context, isolate())) {
     Tagged<NativeContext> native_context = Tagged<NativeContext>::cast(context);
     result.push_back(handle(native_context, isolate()));
     context = native_context->next_context_link();
@@ -6735,7 +6736,7 @@ std::vector<Handle<NativeContext>> Heap::FindAllNativeContexts() {
 std::vector<WeakArrayList> Heap::FindAllRetainedMaps() {
   std::vector<WeakArrayList> result;
   Tagged<Object> context = native_contexts_list();
-  while (!context.IsUndefined(isolate())) {
+  while (!IsUndefined(context, isolate())) {
     Tagged<NativeContext> native_context = Tagged<NativeContext>::cast(context);
     result.push_back(WeakArrayList::cast(native_context->retained_maps()));
     context = native_context->next_context_link();

@@ -773,7 +773,7 @@ MaybeHandle<T> PartitionDurationFormatPattern(Isolate* isolate,
 Maybe<DurationRecord> ToDurationRecord(Isolate* isolate, Handle<Object> input,
                                        const DurationRecord& default_value) {
   // 1-a. If Type(input) is String, throw a RangeError exception.
-  if (input->IsString()) {
+  if (IsString(*input)) {
     THROW_NEW_ERROR_RETURN_VALUE(
         isolate,
         NewRangeError(MessageTemplate::kInvalid,

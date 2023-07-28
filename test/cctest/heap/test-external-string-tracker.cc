@@ -200,8 +200,8 @@ TEST(ExternalString_PromotedThinString) {
 
     // Internalize external string.
     i::Handle<i::String> isymbol1 = factory->InternalizeString(string1);
-    CHECK(isymbol1->IsInternalizedString());
-    CHECK(string1->IsExternalString());
+    CHECK(IsInternalizedString(*isymbol1));
+    CHECK(IsExternalString(*string1));
     CHECK(!heap->InYoungGeneration(*isymbol1));
 
     // Collect thin string. References to the thin string will be updated to

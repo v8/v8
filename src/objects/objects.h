@@ -312,59 +312,13 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   Object* operator->() { return this; }
   const Object* operator->() const { return this; }
 
-  V8_INLINE bool IsTaggedIndex() const;
-
   // Whether the object is in the RO heap and the RO heap is shared, or in the
   // writable shared heap.
   V8_INLINE bool InSharedHeap() const;
 
   V8_INLINE bool InWritableSharedSpace() const;
 
-#define IS_TYPE_FUNCTION_DECL(Type) \
-  V8_INLINE bool Is##Type() const;  \
-  V8_INLINE bool Is##Type(PtrComprCageBase cage_base) const;
-  OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DECL)
-  HEAP_OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DECL)
-  IS_TYPE_FUNCTION_DECL(HashTableBase)
-  IS_TYPE_FUNCTION_DECL(SmallOrderedHashTable)
-#undef IS_TYPE_FUNCTION_DECL
-  V8_INLINE bool IsNumber(ReadOnlyRoots roots) const;
-
-  // A wrapper around IsHole to make it easier to distinguish from specific hole
-  // checks (e.g. IsTheHole).
-  V8_INLINE bool IsAnyHole(PtrComprCageBase cage_base) const;
-
-// Oddball checks are faster when they are raw pointer comparisons, so the
-// isolate/read-only roots overloads should be preferred where possible.
-#define IS_TYPE_FUNCTION_DECL(Type, Value, _)           \
-  V8_INLINE bool Is##Type(Isolate* isolate) const;      \
-  V8_INLINE bool Is##Type(LocalIsolate* isolate) const; \
-  V8_INLINE bool Is##Type(ReadOnlyRoots roots) const;   \
-  V8_INLINE bool Is##Type() const;
-  ODDBALL_LIST(IS_TYPE_FUNCTION_DECL)
-  HOLE_LIST(IS_TYPE_FUNCTION_DECL)
-  IS_TYPE_FUNCTION_DECL(NullOrUndefined, , /* unused */)
-#undef IS_TYPE_FUNCTION_DECL
-
-  V8_INLINE bool IsZero() const;
-  V8_INLINE bool IsNoSharedNameSentinel() const;
-  V8_INLINE bool IsPrivateSymbol() const;
-  V8_INLINE bool IsPublicSymbol() const;
-
-#if !V8_ENABLE_WEBASSEMBLY
-  // Dummy implementation on builds without WebAssembly.
-  bool IsWasmObject(Isolate* = nullptr) const { return false; }
-#endif
-
-  V8_INLINE bool IsJSObjectThatCanBeTrackedAsPrototype() const;
-
   enum class Conversion { kToNumber, kToNumeric };
-
-#define DECL_STRUCT_PREDICATE(NAME, Name, name) \
-  V8_INLINE bool Is##Name() const;              \
-  V8_INLINE bool Is##Name(PtrComprCageBase cage_base) const;
-  STRUCT_LIST(DECL_STRUCT_PREDICATE)
-#undef DECL_STRUCT_PREDICATE
 
   // ES6, #sec-isarray.  NOT to be confused with %_IsArray.
   V8_INLINE
@@ -372,8 +326,6 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
 
   // Extract the number.
   inline double Number() const;
-  V8_INLINE bool IsNaN() const;
-  V8_INLINE bool IsMinusZero() const;
   V8_EXPORT_PRIVATE bool ToInt32(int32_t* value);
   inline bool ToUint32(uint32_t* value) const;
 
@@ -672,10 +624,6 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   static void VerifyAnyTagged(Isolate* isolate, Object p);
 #endif
 
-#ifdef DEBUG
-  inline bool IsApiCallResultType() const;
-#endif  // DEBUG
-
   // Prints this object without details.
   V8_EXPORT_PRIVATE void ShortPrint(FILE* out = stdout) const;
 
@@ -730,18 +678,6 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   static bool CheckContextualStoreToJSGlobalObject(
       LookupIterator* it, Maybe<ShouldThrow> should_throw);
 
-  // Returns whether the object is safe to share across Isolates.
-  //
-  // Currently, the following kinds of values can be safely shared across
-  // Isolates:
-  // - Smis
-  // - Objects in RO space when the RO space is shared
-  // - HeapNumbers in the shared old space
-  // - Strings for which String::IsShared() is true
-  // - JSSharedStructs
-  // - JSSharedArrays
-  inline bool IsShared() const;
-
   // Returns an equivalent value that's safe to share across Isolates if
   // possible. Acts as the identity function when value->IsShared().
   static inline MaybeHandle<Object> Share(
@@ -761,6 +697,13 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   struct SkipTypeCheckTag {};
   explicit constexpr Object(Address ptr, SkipTypeCheckTag) : Object(ptr) {}
 
+  // Static overwrites of TaggedImpl's IsSmi/IsHeapObject, to avoid conflicts
+  // with IsSmi(Tagged<Object>) inside Object subclasses' methods.
+  template <typename T>
+  static bool IsSmi(T obj);
+  template <typename T>
+  static bool IsHeapObject(T obj);
+
  private:
   friend class CompressedObjectSlot;
   friend class FullObjectSlot;
@@ -770,7 +713,7 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   // Return the map of the root of object's prototype chain.
   Map GetPrototypeChainRootMap(Isolate* isolate) const;
 
-  // Returns a non-SMI for JSReceivers, but returns the hash code for
+  // Returns a non-SMI for JSReceivers, but returns the hash code forp
   // simple objects.  This avoids a double lookup in the cases where
   // we know we will add the hash to the JSReceiver if it does not
   // already exist.
@@ -824,6 +767,111 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os, const Brief& v);
 V8_INLINE static bool HasWeakHeapObjectTag(const Object value) {
   return HAS_WEAK_HEAP_OBJECT_TAG(value.ptr());
 }
+
+// For compatibility with TaggedImpl, and users of this header that don't pull
+// in objects-inl.h
+// TODO(leszeks): Remove once no longer needed.
+template <HeapObjectReferenceType kRefType, typename StorageType>
+V8_INLINE constexpr bool IsObject(TaggedImpl<kRefType, StorageType> obj) {
+  return obj.IsObject();
+}
+template <HeapObjectReferenceType kRefType, typename StorageType>
+V8_INLINE constexpr bool IsSmi(TaggedImpl<kRefType, StorageType> obj) {
+  return obj.IsSmi();
+}
+template <HeapObjectReferenceType kRefType, typename StorageType>
+V8_INLINE constexpr bool IsHeapObject(TaggedImpl<kRefType, StorageType> obj) {
+  return obj.IsHeapObject();
+}
+
+// TODO(leszeks): These exist both as free functions and members of Tagged. They
+// probably want to be cleaned up at some point.
+V8_INLINE bool IsSmi(Tagged<Object> obj);
+V8_INLINE bool IsSmi(Tagged<HeapObject> obj);
+V8_INLINE bool IsSmi(Tagged<Smi> obj);
+
+V8_INLINE bool IsHeapObject(Tagged<Object> obj);
+V8_INLINE bool IsHeapObject(Tagged<HeapObject> obj);
+V8_INLINE bool IsHeapObject(Tagged<Smi> obj);
+
+template <typename T>
+// static
+bool Object::IsSmi(T obj) {
+  return i::IsSmi(obj);
+}
+template <typename T>
+// static
+bool Object::IsHeapObject(T obj) {
+  return i::IsHeapObject(obj);
+}
+
+V8_INLINE bool IsTaggedIndex(Tagged<Object> obj);
+
+#define IS_TYPE_FUNCTION_DECL(Type)            \
+  V8_INLINE bool Is##Type(Tagged<Object> obj); \
+  V8_INLINE bool Is##Type(Tagged<Object> obj, PtrComprCageBase cage_base);
+OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DECL)
+HEAP_OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DECL)
+IS_TYPE_FUNCTION_DECL(HashTableBase)
+IS_TYPE_FUNCTION_DECL(SmallOrderedHashTable)
+#undef IS_TYPE_FUNCTION_DECL
+V8_INLINE bool IsNumber(Tagged<Object> obj, ReadOnlyRoots roots);
+
+// A wrapper around IsHole to make it easier to distinguish from specific hole
+// checks (e.g. IsTheHole).
+V8_INLINE bool IsAnyHole(Tagged<Object> obj, PtrComprCageBase cage_base);
+
+// Oddball checks are faster when they are raw pointer comparisons, so the
+// isolate/read-only roots overloads should be preferred where possible.
+#define IS_TYPE_FUNCTION_DECL(Type, Value, _)                         \
+  V8_INLINE bool Is##Type(Tagged<Object> obj, Isolate* isolate);      \
+  V8_INLINE bool Is##Type(Tagged<Object> obj, LocalIsolate* isolate); \
+  V8_INLINE bool Is##Type(Tagged<Object> obj, ReadOnlyRoots roots);   \
+  V8_INLINE bool Is##Type(Tagged<Object> obj);
+ODDBALL_LIST(IS_TYPE_FUNCTION_DECL)
+HOLE_LIST(IS_TYPE_FUNCTION_DECL)
+IS_TYPE_FUNCTION_DECL(NullOrUndefined, , /* unused */)
+#undef IS_TYPE_FUNCTION_DECL
+
+V8_INLINE bool IsZero(Tagged<Object> obj);
+V8_INLINE bool IsNoSharedNameSentinel(Tagged<Object> obj);
+V8_INLINE bool IsPrivateSymbol(Tagged<Object> obj);
+V8_INLINE bool IsPublicSymbol(Tagged<Object> obj);
+#if !V8_ENABLE_WEBASSEMBLY
+// Dummy implementation on builds without WebAssembly.
+template <typename T>
+V8_INLINE bool IsWasmObject(T obj, Isolate* = nullptr) {
+  return false;
+}
+#endif
+
+V8_INLINE bool IsJSObjectThatCanBeTrackedAsPrototype(Tagged<Object> obj);
+V8_INLINE bool IsJSObjectThatCanBeTrackedAsPrototype(Tagged<HeapObject> obj);
+
+#define DECL_STRUCT_PREDICATE(NAME, Name, name) \
+  V8_INLINE bool Is##Name(Tagged<Object> obj);  \
+  V8_INLINE bool Is##Name(Tagged<Object> obj, PtrComprCageBase cage_base);
+STRUCT_LIST(DECL_STRUCT_PREDICATE)
+#undef DECL_STRUCT_PREDICATE
+
+V8_INLINE bool IsNaN(Tagged<Object> obj);
+V8_INLINE bool IsMinusZero(Tagged<Object> obj);
+
+// Returns whether the object is safe to share across Isolates.
+//
+// Currently, the following kinds of values can be safely shared across
+// Isolates:
+// - Smis
+// - Objects in RO space when the RO space is shared
+// - HeapNumbers in the shared old space
+// - Strings for which String::IsShared() is true
+// - JSSharedStructs
+// - JSSharedArrays
+inline bool IsShared(Tagged<Object> obj);
+
+#ifdef DEBUG
+inline bool IsApiCallResultType(Tagged<Object> obj);
+#endif  // DEBUG
 
 // Heap objects typically have a map pointer in their first word.  However,
 // during GC other data (e.g. mark bits, forwarding addresses) is sometimes

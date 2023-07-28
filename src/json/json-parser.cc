@@ -127,7 +127,7 @@ static const constexpr uint8_t character_json_scan_flags[256] = {
 MaybeHandle<Object> JsonParseInternalizer::Internalize(
     Isolate* isolate, Handle<Object> result, Handle<Object> reviver,
     Handle<String> source, MaybeHandle<Object> val_node) {
-  DCHECK(reviver->IsCallable());
+  DCHECK(IsCallable(*reviver));
   JsonParseInternalizer internalizer(isolate, Handle<JSReceiver>::cast(reviver),
                                      source);
   Handle<JSObject> holder =
@@ -148,7 +148,7 @@ MaybeHandle<Object> JsonParseInternalizer::InternalizeJsonProperty(
     Handle<Object> snapshot) {
   DCHECK_EQ(with_source == kWithSource,
             !val_node.is_null() && !snapshot.is_null());
-  DCHECK(reviver_->IsCallable());
+  DCHECK(IsCallable(*reviver_));
   HandleScope outer_scope(isolate_);
   Handle<Object> value;
   ASSIGN_RETURN_ON_EXCEPTION(
@@ -162,7 +162,7 @@ MaybeHandle<Object> JsonParseInternalizer::InternalizeJsonProperty(
   bool pass_source_to_reviver =
       with_source == kWithSource && value->SameValue(*snapshot);
 
-  if (value->IsJSReceiver()) {
+  if (IsJSReceiver(*value)) {
     Handle<JSReceiver> object = Handle<JSReceiver>::cast(value);
     Maybe<bool> is_array = Object::IsArray(object);
     if (is_array.IsNothing()) return MaybeHandle<Object>();
@@ -233,7 +233,7 @@ MaybeHandle<Object> JsonParseInternalizer::InternalizeJsonProperty(
           // object had new properties added that are not in the snapshotted
           // contents.
           const bool rv =
-              !property_snapshot->IsTheHole()
+              !IsTheHole(*property_snapshot)
                   ? RecurseAndApply<kWithSource>(
                         object, key_name, property_val_node, property_snapshot)
                   : RecurseAndApply<kWithoutSource>(
@@ -259,7 +259,7 @@ MaybeHandle<Object> JsonParseInternalizer::InternalizeJsonProperty(
   if (v8_flags.harmony_json_parse_with_source) {
     Handle<JSObject> context =
         isolate_->factory()->NewJSObject(isolate_->object_function());
-    if (pass_source_to_reviver && val_node->IsString()) {
+    if (pass_source_to_reviver && IsString(*val_node)) {
       JSReceiver::CreateDataProperty(isolate_, context,
                                      isolate_->factory()->source_string(),
                                      val_node, Just(kThrowOnError))
@@ -284,14 +284,14 @@ bool JsonParseInternalizer::RecurseAndApply(Handle<JSReceiver> holder,
                                             Handle<Object> val_node,
                                             Handle<Object> snapshot) {
   STACK_CHECK(isolate_, false);
-  DCHECK(reviver_->IsCallable());
+  DCHECK(IsCallable(*reviver_));
   Handle<Object> result;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate_, result,
       InternalizeJsonProperty<with_source>(holder, name, val_node, snapshot),
       false);
   Maybe<bool> change_result = Nothing<bool>();
-  if (result->IsUndefined(isolate_)) {
+  if (IsUndefined(*result, isolate_)) {
     change_result = JSReceiver::DeletePropertyOrElement(holder, name,
                                                         LanguageMode::kSloppy);
   } else {
@@ -316,11 +316,11 @@ JsonParser<Char>::JsonParser(Isolate* isolate, Handle<String> source)
   size_t start = 0;
   size_t length = source->length();
   PtrComprCageBase cage_base(isolate);
-  if (source->IsSlicedString(cage_base)) {
+  if (IsSlicedString(*source, cage_base)) {
     SlicedString string = SlicedString::cast(*source);
     start = string->offset();
     String parent = string->parent(cage_base);
-    if (parent.IsThinString(cage_base))
+    if (IsThinString(parent, cage_base))
       parent = ThinString::cast(parent)->actual(cage_base);
     source_ = handle(parent, isolate);
   } else {
@@ -346,7 +346,7 @@ template <typename Char>
 bool JsonParser<Char>::IsSpecialString() {
   // The special cases are undefined, NaN, Infinity, and {} being passed to the
   // parse method
-  int offset = original_source_->IsSlicedString()
+  int offset = IsSlicedString(*original_source_)
                    ? SlicedString::cast(*original_source_)->offset()
                    : 0;
   size_t length = original_source_->length();
@@ -442,7 +442,7 @@ void JsonParser<Char>::CalculateFileLocation(Handle<Object>& line,
   // (See https://www.json.org/json-en.html - "whitespace")
   int line_number = 1;
   const Char* start =
-      chars_ + (original_source_->IsSlicedString()
+      chars_ + (IsSlicedString(*original_source_)
                     ? SlicedString::cast(*original_source_)->offset()
                     : 0);
   const Char* last_line_break = start;
@@ -473,7 +473,7 @@ void JsonParser<Char>::ReportUnexpectedToken(
 
   // Parse failed. Current character is the unexpected token.
   Factory* factory = this->factory();
-  int offset = original_source_->IsSlicedString()
+  int offset = IsSlicedString(*original_source_)
                    ? SlicedString::cast(*original_source_)->offset()
                    : 0;
   int pos = position() - offset;
@@ -492,7 +492,7 @@ void JsonParser<Char>::ReportUnexpectedToken(
   if (!it.done() && it.is_javascript()) {
     FrameSummary summary = it.GetTopValidFrame();
     script->set_eval_from_shared(summary.AsJavaScript().function()->shared());
-    if (summary.script()->IsScript()) {
+    if (IsScript(*summary.script())) {
       script->set_origin_options(
           Script::cast(*summary.script())->origin_options());
     }
@@ -539,7 +539,7 @@ template <typename Char>
 MaybeHandle<Object> JsonParser<Char>::ParseJson(Handle<Object> reviver) {
   Handle<Object> result;
   // Only record the val node when reviver is callable.
-  bool reviver_is_callable = reviver->IsCallable();
+  bool reviver_is_callable = IsCallable(*reviver);
   bool should_track_json_source =
       v8_flags.harmony_json_parse_with_source && reviver_is_callable;
   if (should_track_json_source) {
@@ -779,7 +779,7 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
       MapUpdater::GeneralizeField(isolate(), target, descriptor_index,
                                   details.constness(), expected_representation,
                                   value_type);
-    } else if (expected_representation.IsDouble() && value->IsSmi()) {
+    } else if (expected_representation.IsDouble() && IsSmi(*value)) {
       new_mutable_double++;
     }
 
@@ -841,7 +841,7 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
       descriptor++;
 
       if (details.representation().IsDouble()) {
-        if (value.IsSmi()) {
+        if (IsSmi(value)) {
           if (!V8_COMPRESS_POINTERS_8GB_BOOL && kTaggedSize != kDoubleSize) {
             // Write alignment filler.
             HeapObject filler = HeapObject::FromAddress(filler_address);
@@ -861,7 +861,7 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
           mutable_double_address +=
               ALIGN_TO_ALLOCATION_ALIGNMENT(kMutableDoubleSize);
         } else {
-          DCHECK(value.IsHeapNumber());
+          DCHECK(IsHeapNumber(value));
         }
       }
       raw_object->RawFastInobjectPropertyAtPut(index, value, mode);
@@ -917,8 +917,8 @@ Handle<Object> JsonParser<Char>::BuildJsonArray(
   ElementsKind kind = PACKED_SMI_ELEMENTS;
   for (size_t i = start; i < element_stack.size(); i++) {
     Object value = *element_stack[i];
-    if (value.IsHeapObject()) {
-      if (HeapObject::cast(value).IsHeapNumber()) {
+    if (IsHeapObject(value)) {
+      if (IsHeapNumber(HeapObject::cast(value))) {
         kind = PACKED_DOUBLE_ELEMENTS;
       } else {
         kind = PACKED_ELEMENTS;
@@ -1221,7 +1221,7 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue(Handle<Object> reviver) {
           if (cont_stack.size() > 0 &&
               cont_stack.back().type() == JsonContinuation::kArrayElement &&
               cont_stack.back().index < element_stack.size() &&
-              element_stack.back()->IsJSObject()) {
+              IsJSObject(*element_stack.back())) {
             Map maybe_feedback = JSObject::cast(*element_stack.back())->map();
             // Don't consume feedback from objects with a map that's detached
             // from the transition tree.

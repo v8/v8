@@ -200,7 +200,7 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
       // point to the newly allocated InstructionStream object.
       Handle<Object> self_reference;
       if (self_reference_.ToHandle(&self_reference)) {
-        DCHECK(self_reference->IsOddball());
+        DCHECK(IsOddball(*self_reference));
         DCHECK_EQ(Oddball::cast(*self_reference)->kind(),
                   Oddball::kSelfReferenceMarker);
         DCHECK_NE(kind_, CodeKind::BASELINE);
@@ -1142,17 +1142,17 @@ Handle<String> Factory::NewProperSubString(Handle<String> str, int begin,
 
   int offset = begin;
 
-  if (str->IsSlicedString()) {
+  if (IsSlicedString(*str)) {
     Handle<SlicedString> slice = Handle<SlicedString>::cast(str);
     str = Handle<String>(slice->parent(), isolate());
     offset += slice->offset();
   }
-  if (str->IsThinString()) {
+  if (IsThinString(*str)) {
     Handle<ThinString> thin = Handle<ThinString>::cast(str);
     str = handle(thin->actual(), isolate());
   }
 
-  DCHECK(str->IsSeqString() || str->IsExternalString());
+  DCHECK(IsSeqString(*str) || IsExternalString(*str));
   Handle<Map> map = str->IsOneByteRepresentation()
                         ? sliced_one_byte_string_map()
                         : sliced_two_byte_string_map();
@@ -1523,7 +1523,7 @@ void Factory::ProcessNewScript(Handle<Script> script,
                                     AllocationType::kOld);
     isolate()->heap()->set_script_list(*scripts);
   }
-  if (script->source().IsString() && isolate()->NeedsSourcePositions()) {
+  if (IsString(script->source()) && isolate()->NeedsSourcePositions()) {
     Script::InitLineEnds(isolate(), script);
   }
   LOG(isolate(), ScriptEvent(script_event_type, script_id));
@@ -1569,7 +1569,7 @@ Handle<Script> Factory::CloneScript(Handle<Script> script,
 
 Handle<CallableTask> Factory::NewCallableTask(Handle<JSReceiver> callable,
                                               Handle<Context> context) {
-  DCHECK(callable->IsCallable());
+  DCHECK(IsCallable(*callable));
   auto microtask = NewStructInternal<CallableTask>(CALLABLE_TASK_TYPE,
                                                    AllocationType::kYoung);
   DisallowGarbageCollection no_gc;
@@ -1591,7 +1591,7 @@ Handle<CallbackTask> Factory::NewCallbackTask(Handle<Foreign> callback,
 Handle<PromiseResolveThenableJobTask> Factory::NewPromiseResolveThenableJobTask(
     Handle<JSPromise> promise_to_resolve, Handle<JSReceiver> thenable,
     Handle<JSReceiver> then, Handle<Context> context) {
-  DCHECK(then->IsCallable());
+  DCHECK(IsCallable(*then));
   auto microtask = NewStructInternal<PromiseResolveThenableJobTask>(
       PROMISE_RESOLVE_THENABLE_JOB_TASK_TYPE, AllocationType::kYoung);
   DisallowGarbageCollection no_gc;
@@ -1634,7 +1634,7 @@ Handle<WasmTypeInfo> Factory::NewWasmTypeInfo(
     for (int i = 0; i < parent_type_info->supertypes_length(); i++) {
       Handle<Object> supertype =
           handle(parent_type_info->supertypes(i), isolate());
-      if (supertype->IsUndefined() && first_undefined_index == -1) {
+      if (IsUndefined(*supertype) && first_undefined_index == -1) {
         first_undefined_index = i;
       }
       supertypes.emplace_back(supertype);
@@ -1696,7 +1696,7 @@ Handle<WasmInternalFunction> Factory::NewWasmInternalFunction(
   Tagged<WasmInternalFunction> result = Tagged<WasmInternalFunction>::cast(raw);
   DisallowGarbageCollection no_gc;
   result->init_call_target(isolate(), opt_call_target);
-  DCHECK(ref->IsWasmInstanceObject() || ref->IsWasmApiFunctionRef());
+  DCHECK(IsWasmInstanceObject(*ref) || IsWasmApiFunctionRef(*ref));
   result->set_ref(*ref);
   // Default values, will be overwritten by the caller.
   result->set_code(*BUILTIN_CODE(isolate(), Abort));
@@ -2010,7 +2010,7 @@ Handle<PropertyCell> Factory::NewPropertyCell(Handle<Name> name,
                                               PropertyDetails details,
                                               Handle<Object> value,
                                               AllocationType allocation) {
-  DCHECK(name->IsUniqueName());
+  DCHECK(IsUniqueName(*name));
   static_assert(PropertyCell::kSize <= kMaxRegularHeapObjectSize);
   Tagged<PropertyCell> cell =
       Tagged<PropertyCell>::cast(AllocateRawWithImmortalMap(
@@ -2118,10 +2118,10 @@ Map Factory::InitializeMap(Tagged<Map> map, InstanceType type,
   ReadOnlyRoots ro_roots(roots);
   map->init_prototype_and_constructor_or_back_pointer(ro_roots);
   map->set_instance_size(instance_size);
-  if (map->IsJSObjectMap()) {
+  if (IsJSObjectMap(*map)) {
     // Shared space JS objects have fixed layout and can have RO maps. No other
     // JS objects have RO maps.
-    DCHECK_IMPLIES(!map->IsAlwaysSharedSpaceJSObjectMap(),
+    DCHECK_IMPLIES(!IsAlwaysSharedSpaceJSObjectMap(*map),
                    !ReadOnlyHeap::Contains(map));
     map->SetInObjectPropertiesStartInWords(instance_size / kTaggedSize -
                                            inobject_properties);
@@ -2342,7 +2342,7 @@ Handle<FixedArray> Factory::CopyFixedArrayAndGrow(Handle<FixedArray> array,
 
 Handle<WeakFixedArray> Factory::CopyWeakFixedArrayAndGrow(
     Handle<WeakFixedArray> src, int grow_by) {
-  DCHECK(!src->IsTransitionArray());  // Compacted by GC, this code doesn't work
+  DCHECK(!IsTransitionArray(*src));  // Compacted by GC, this code doesn't work
   return CopyArrayAndGrow(src, grow_by, AllocationType::kOld);
 }
 
@@ -2696,7 +2696,7 @@ Handle<JSGlobalObject> Factory::NewJSGlobalObject(
   global->set_map(raw_map, kReleaseStore);
 
   // Make sure result is a global object with properties in dictionary.
-  DCHECK(global->IsJSGlobalObject() && !global->HasFastProperties());
+  DCHECK(IsJSGlobalObject(*global) && !global->HasFastProperties());
   return global;
 }
 
@@ -2794,9 +2794,9 @@ Handle<JSObject> Factory::NewSlowJSObjectWithPropertiesAndElements(
     Handle<HeapObject> prototype, Handle<HeapObject> properties,
     Handle<FixedArrayBase> elements) {
   DCHECK_IMPLIES(V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL,
-                 properties->IsSwissNameDictionary());
+                 IsSwissNameDictionary(*properties));
   DCHECK_IMPLIES(!V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL,
-                 properties->IsNameDictionary());
+                 IsNameDictionary(*properties));
 
   Handle<Map> object_map = isolate()->slow_object_with_object_prototype_map();
   if (object_map->prototype() != *prototype) {
@@ -2807,7 +2807,7 @@ Handle<JSObject> Factory::NewSlowJSObjectWithPropertiesAndElements(
       NewJSObjectFromMap(object_map, AllocationType::kYoung);
   object->set_raw_properties_or_hash(*properties);
   if (*elements != read_only_roots().empty_fixed_array()) {
-    DCHECK(elements->IsNumberDictionary());
+    DCHECK(IsNumberDictionary(*elements));
     object_map =
         JSObject::GetElementsTransitionMap(object, DICTIONARY_ELEMENTS);
     JSObject::MigrateToMap(isolate(), object, object_map);
@@ -2969,7 +2969,7 @@ Handle<JSModuleNamespace> Factory::NewJSModuleNamespace() {
 
 Handle<JSWrappedFunction> Factory::NewJSWrappedFunction(
     Handle<NativeContext> creation_context, Handle<Object> target) {
-  DCHECK(target->IsCallable());
+  DCHECK(IsCallable(*target));
   Handle<Map> map(
       Map::cast(creation_context->get(Context::WRAPPED_FUNCTION_MAP_INDEX)),
       isolate());
@@ -3308,7 +3308,7 @@ Handle<JSDataViewOrRabGsabDataView> Factory::NewJSDataViewOrRabGsabDataView(
 MaybeHandle<JSBoundFunction> Factory::NewJSBoundFunction(
     Handle<JSReceiver> target_function, Handle<Object> bound_this,
     base::Vector<Handle<Object>> bound_args) {
-  DCHECK(target_function->IsCallable());
+  DCHECK(IsCallable(*target_function));
   static_assert(Code::kMaxArguments <= FixedArray::kMaxLength);
   if (bound_args.length() >= Code::kMaxArguments) {
     THROW_NEW_ERROR(isolate(),
@@ -3337,13 +3337,13 @@ MaybeHandle<JSBoundFunction> Factory::NewJSBoundFunction(
   }
 
   // Setup the map for the JSBoundFunction instance.
-  Handle<Map> map = target_function->IsConstructor()
+  Handle<Map> map = IsConstructor(*target_function)
                         ? isolate()->bound_function_with_constructor_map()
                         : isolate()->bound_function_without_constructor_map();
   if (map->prototype() != *prototype) {
     map = Map::TransitionToPrototype(isolate(), map, prototype);
   }
-  DCHECK_EQ(target_function->IsConstructor(), map->is_constructor());
+  DCHECK_EQ(IsConstructor(*target_function), map->is_constructor());
 
   // Setup the JSBoundFunction instance.
   Handle<JSBoundFunction> result = Handle<JSBoundFunction>::cast(
@@ -3360,12 +3360,12 @@ MaybeHandle<JSBoundFunction> Factory::NewJSBoundFunction(
 Handle<JSProxy> Factory::NewJSProxy(Handle<JSReceiver> target,
                                     Handle<JSReceiver> handler) {
   // Allocate the proxy object.
-  Handle<Map> map = target->IsCallable()
-                        ? target->IsConstructor()
+  Handle<Map> map = IsCallable(*target)
+                        ? IsConstructor(*target)
                               ? isolate()->proxy_constructor_map()
                               : isolate()->proxy_callable_map()
                         : isolate()->proxy_map();
-  DCHECK(map->prototype().IsNull(isolate()));
+  DCHECK(IsNull(map->prototype(), isolate()));
   Tagged<JSProxy> result =
       Tagged<JSProxy>::cast(New(map, AllocationType::kYoung));
   DisallowGarbageCollection no_gc;
@@ -3847,10 +3847,8 @@ Handle<Map> Factory::CreateSloppyFunctionMap(
   } else {
     // |maybe_empty_function| is allowed to be empty only during empty function
     // creation.
-    DCHECK(isolate()
-               ->raw_native_context()
-               ->get(Context::EMPTY_FUNCTION_INDEX)
-               .IsUndefined());
+    DCHECK(IsUndefined(
+        isolate()->raw_native_context()->get(Context::EMPTY_FUNCTION_INDEX)));
   }
 
   //
@@ -4108,7 +4106,7 @@ Handle<JSSharedStruct> Factory::NewJSSharedStruct(
   Handle<JSSharedStruct> instance = Handle<JSSharedStruct>::cast(
       NewJSObject(constructor, AllocationType::kSharedOld));
 
-  if (!maybe_elements_template->IsUndefined()) {
+  if (!IsUndefined(*maybe_elements_template)) {
     Handle<NumberDictionary> dictionary = NumberDictionary::ShallowCopy(
         isolate(), Handle<NumberDictionary>::cast(maybe_elements_template),
         AllocationType::kSharedOld);

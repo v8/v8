@@ -58,11 +58,11 @@ ACCESSORS(Script, compiled_lazy_function_positions, Object,
           kCompiledLazyFunctionPositionsOffset)
 
 bool Script::is_wrapped() const {
-  return eval_from_shared_or_wrapped_arguments().IsFixedArray();
+  return IsFixedArray(eval_from_shared_or_wrapped_arguments());
 }
 
 bool Script::has_eval_from_shared() const {
-  return eval_from_shared_or_wrapped_arguments().IsSharedFunctionInfo();
+  return IsSharedFunctionInfo(eval_from_shared_or_wrapped_arguments());
 }
 
 void Script::set_eval_from_shared(SharedFunctionInfo shared,
@@ -161,7 +161,7 @@ void Script::set_origin_options(ScriptOriginOptions origin_options) {
 
 bool Script::HasValidSource() {
   Tagged<Object> src = this->source();
-  if (!src.IsString()) return true;
+  if (!IsString(src)) return true;
   Tagged<String> src_str = Tagged<String>::cast(src);
   if (!StringShape(src_str).IsExternal()) return true;
   if (src_str->IsOneByteRepresentation()) {
@@ -194,13 +194,14 @@ void Script::InitLineEnds(LocalIsolate* isolate, Handle<Script> script) {
 }
 
 bool Script::HasSourceURLComment() const {
-  return source_url().IsString() && String::cast(source_url())->length() != 0;
+  return IsString(source_url()) && String::cast(source_url())->length() != 0;
 }
 
 bool Script::IsMaybeUnfinalized(Isolate* isolate) const {
   // TODO(v8:12051): A more robust detection, e.g. with a dedicated sentinel
   // value.
-  return source().IsUndefined(isolate) || String::cast(source())->length() == 0;
+  return IsUndefined(source(), isolate) ||
+         String::cast(source())->length() == 0;
 }
 
 }  // namespace internal

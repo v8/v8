@@ -440,12 +440,12 @@ Maybe<bool> ValueSerializer::WriteObject(Handle<Object> object) {
   // previously failed and so the buffer is corrupt.
   if (V8_UNLIKELY(out_of_memory_)) return ThrowIfOutOfMemory();
 
-  if (object->IsSmi()) {
+  if (IsSmi(*object)) {
     WriteSmi(Smi::cast(*object));
     return ThrowIfOutOfMemory();
   }
 
-  DCHECK(object->IsHeapObject());
+  DCHECK(IsHeapObject(*object));
   InstanceType instance_type =
       HeapObject::cast(*object)->map(isolate_)->instance_type();
   switch (instance_type) {
@@ -562,8 +562,8 @@ Maybe<bool> ValueSerializer::WriteJSReceiver(Handle<JSReceiver> receiver) {
 
   // Eliminate callable and exotic objects, which should not be serialized.
   InstanceType instance_type = receiver->map()->instance_type();
-  if (receiver->IsCallable() || (IsSpecialReceiverInstanceType(instance_type) &&
-                                 instance_type != JS_SPECIAL_API_OBJECT_TYPE)) {
+  if (IsCallable(*receiver) || (IsSpecialReceiverInstanceType(instance_type) &&
+                                instance_type != JS_SPECIAL_API_OBJECT_TYPE)) {
     return ThrowDataCloneError(MessageTemplate::kDataCloneError, receiver);
   }
 
@@ -641,7 +641,7 @@ Maybe<bool> ValueSerializer::WriteJSReceiver(Handle<JSReceiver> receiver) {
 }
 
 Maybe<bool> ValueSerializer::WriteJSObject(Handle<JSObject> object) {
-  DCHECK(!object->map()->IsCustomElementsReceiverMap());
+  DCHECK(!IsCustomElementsReceiverMap(object->map()));
   const bool can_serialize_fast =
       object->HasFastProperties(isolate_) && object->elements()->length() == 0;
   if (!can_serialize_fast) return WriteJSObjectSlow(object);
@@ -655,7 +655,7 @@ Maybe<bool> ValueSerializer::WriteJSObject(Handle<JSObject> object) {
   bool map_changed = false;
   for (InternalIndex i : map->IterateOwnDescriptors()) {
     Handle<Name> key(map->instance_descriptors(isolate_)->GetKey(i), isolate_);
-    if (!key->IsString(isolate_)) continue;
+    if (!IsString(*key, isolate_)) continue;
     PropertyDetails details =
         map->instance_descriptors(isolate_)->GetDetails(i);
     if (details.IsDontEnum()) continue;
@@ -829,22 +829,22 @@ Maybe<bool> ValueSerializer::WriteJSPrimitiveWrapper(
   {
     DisallowGarbageCollection no_gc;
     Object inner_value = value->value();
-    if (inner_value.IsTrue(isolate_)) {
+    if (IsTrue(inner_value, isolate_)) {
       WriteTag(SerializationTag::kTrueObject);
-    } else if (inner_value.IsFalse(isolate_)) {
+    } else if (IsFalse(inner_value, isolate_)) {
       WriteTag(SerializationTag::kFalseObject);
-    } else if (inner_value.IsNumber(cage_base)) {
+    } else if (IsNumber(inner_value, cage_base)) {
       WriteTag(SerializationTag::kNumberObject);
       WriteDouble(inner_value.Number());
-    } else if (inner_value.IsBigInt(cage_base)) {
+    } else if (IsBigInt(inner_value, cage_base)) {
       WriteTag(SerializationTag::kBigIntObject);
       WriteBigIntContents(BigInt::cast(inner_value));
-    } else if (inner_value.IsString(cage_base)) {
+    } else if (IsString(inner_value, cage_base)) {
       WriteTag(SerializationTag::kStringObject);
       WriteString(handle(String::cast(inner_value), isolate_));
     } else {
       AllowGarbageCollection allow_gc;
-      DCHECK(inner_value.IsSymbol());
+      DCHECK(IsSymbol(inner_value));
       return ThrowDataCloneError(MessageTemplate::kDataCloneError, value);
     }
   }
@@ -977,7 +977,7 @@ Maybe<bool> ValueSerializer::WriteJSArrayBufferView(JSArrayBufferView view) {
   }
   WriteTag(SerializationTag::kArrayBufferView);
   ArrayBufferViewTag tag = ArrayBufferViewTag::kInt8Array;
-  if (view.IsJSTypedArray()) {
+  if (IsJSTypedArray(view)) {
     if (JSTypedArray::cast(view)->IsOutOfBounds()) {
       DCHECK(v8_flags.harmony_rab_gsab);
       return ThrowDataCloneError(MessageTemplate::kDataCloneError,
@@ -992,8 +992,8 @@ Maybe<bool> ValueSerializer::WriteJSArrayBufferView(JSArrayBufferView view) {
 #undef TYPED_ARRAY_CASE
     }
   } else {
-    DCHECK(view.IsJSDataViewOrRabGsabDataView());
-    if (view.IsJSRabGsabDataView() &&
+    DCHECK(IsJSDataViewOrRabGsabDataView(view));
+    if (IsJSRabGsabDataView(view) &&
         JSRabGsabDataView::cast(view)->IsOutOfBounds()) {
       DCHECK(v8_flags.harmony_rab_gsab);
       return ThrowDataCloneError(MessageTemplate::kDataCloneError,
@@ -1073,7 +1073,7 @@ Maybe<bool> ValueSerializer::WriteJSError(Handle<JSObject> error) {
            .ToHandle(&stack)) {
     return Nothing<bool>();
   }
-  if (stack->IsString()) {
+  if (IsString(*stack)) {
     WriteVarint(static_cast<uint8_t>(ErrorTag::kStack));
     WriteString(Handle<String>::cast(stack));
   }
@@ -1133,7 +1133,7 @@ Maybe<bool> ValueSerializer::WriteSharedObject(Handle<HeapObject> object) {
     return ThrowDataCloneError(MessageTemplate::kDataCloneError, object);
   }
 
-  DCHECK(object->IsShared());
+  DCHECK(IsShared(*object));
 
   // The first time a shared object is serialized, a new conveyor is made. This
   // conveyor is used for every shared object in this serialization and
@@ -1516,7 +1516,7 @@ MaybeHandle<Object> ValueDeserializer::ReadObject() {
   // after format version 0.
   Handle<Object> object;
   SerializationTag tag;
-  if (result.ToHandle(&object) && V8_UNLIKELY(object->IsJSArrayBuffer()) &&
+  if (result.ToHandle(&object) && V8_UNLIKELY(IsJSArrayBuffer(*object)) &&
       PeekTag().To(&tag) && tag == SerializationTag::kArrayBufferView) {
     ConsumeTag(SerializationTag::kArrayBufferView);
     result = ReadJSArrayBufferView(Handle<JSArrayBuffer>::cast(object));
@@ -1648,7 +1648,7 @@ MaybeHandle<Object> ValueDeserializer::ReadObjectInternal() {
 MaybeHandle<String> ValueDeserializer::ReadString() {
   if (version_ < 12) return ReadUtf8String();
   Handle<Object> object;
-  if (!ReadObject().ToHandle(&object) || !object->IsString(isolate_)) {
+  if (!ReadObject().ToHandle(&object) || !IsString(*object, isolate_)) {
     return MaybeHandle<String>();
   }
   return Handle<String>::cast(object);
@@ -1853,7 +1853,7 @@ MaybeHandle<JSArray> ValueDeserializer::ReadDenseJSArray() {
     // Serialization versions less than 11 encode the hole the same as
     // undefined. For consistency with previous behavior, store these as the
     // hole. Past version 11, undefined means undefined.
-    if (version_ < 11 && element->IsUndefined(isolate_)) continue;
+    if (version_ < 11 && IsUndefined(*element, isolate_)) continue;
 
     // Safety check.
     if (i >= elements_length) return MaybeHandle<JSArray>();
@@ -2334,7 +2334,7 @@ MaybeHandle<WasmMemoryObject> ValueDeserializer::ReadWasmMemory() {
 
   Handle<Object> buffer_object;
   if (!ReadObject().ToHandle(&buffer_object)) return {};
-  if (!buffer_object->IsJSArrayBuffer()) return {};
+  if (!IsJSArrayBuffer(*buffer_object)) return {};
 
   Handle<JSArrayBuffer> buffer = Handle<JSArrayBuffer>::cast(buffer_object);
   if (!buffer->is_shared()) return {};
@@ -2389,7 +2389,7 @@ MaybeHandle<HeapObject> ValueDeserializer::ReadSharedObject() {
 
   Handle<HeapObject> shared_object(
       shared_object_conveyor_->GetPersisted(shared_object_id), isolate_);
-  DCHECK(shared_object->IsShared());
+  DCHECK(IsShared(*shared_object));
   return shared_object;
 }
 
@@ -2426,7 +2426,7 @@ static void CommitProperties(Handle<JSObject> object, Handle<Map> map,
 }
 
 static bool IsValidObjectKey(Object value, Isolate* isolate) {
-  if (value.IsSmi()) return true;
+  if (IsSmi(value)) return true;
   auto instance_type = HeapObject::cast(value)->map(isolate)->instance_type();
   return InstanceTypeChecker::IsName(instance_type) ||
          InstanceTypeChecker::IsHeapNumber(instance_type);
@@ -2476,7 +2476,7 @@ Maybe<uint32_t> ValueDeserializer::ReadJSObjectProperties(
         if (!ReadObject().ToHandle(&key) || !IsValidObjectKey(*key, isolate_)) {
           return Nothing<uint32_t>();
         }
-        if (key->IsString(isolate_)) {
+        if (IsString(*key, isolate_)) {
           key =
               isolate_->factory()->InternalizeString(Handle<String>::cast(key));
           // Don't reuse |transitions| because it could be stale.
@@ -2581,7 +2581,7 @@ Maybe<uint32_t> ValueDeserializer::ReadJSObjectProperties(
 
 bool ValueDeserializer::HasObjectWithID(uint32_t id) {
   return id < static_cast<unsigned>(id_map_->length()) &&
-         !id_map_->get(id).IsTheHole(isolate_);
+         !IsTheHole(id_map_->get(id), isolate_);
 }
 
 MaybeHandle<JSReceiver> ValueDeserializer::GetObjectWithID(uint32_t id) {
@@ -2589,8 +2589,8 @@ MaybeHandle<JSReceiver> ValueDeserializer::GetObjectWithID(uint32_t id) {
     return MaybeHandle<JSReceiver>();
   }
   Object value = id_map_->get(id);
-  if (value.IsTheHole(isolate_)) return MaybeHandle<JSReceiver>();
-  DCHECK(value.IsJSReceiver());
+  if (IsTheHole(value, isolate_)) return MaybeHandle<JSReceiver>();
+  DCHECK(IsJSReceiver(value));
   return Handle<JSReceiver>(JSReceiver::cast(value), isolate_);
 }
 

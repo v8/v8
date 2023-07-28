@@ -364,7 +364,7 @@ bool JSTypedArray::is_on_heap(AcquireLoadTag tag) const {
 MaybeHandle<JSTypedArray> JSTypedArray::Validate(Isolate* isolate,
                                                  Handle<Object> receiver,
                                                  const char* method_name) {
-  if (V8_UNLIKELY(!receiver->IsJSTypedArray())) {
+  if (V8_UNLIKELY(!IsJSTypedArray(*receiver))) {
     const MessageTemplate message = MessageTemplate::kNotTypedArray;
     THROW_NEW_ERROR(isolate, NewTypeError(message), JSTypedArray);
   }

@@ -238,8 +238,8 @@ void SanityCheck(v8::Isolate* v8_isolate) {
 #ifdef VERIFY_HEAP
   HeapVerifier::VerifyHeap(isolate->heap());
 #endif
-  CHECK(isolate->global_object()->IsJSObject());
-  CHECK(isolate->native_context()->IsContext());
+  CHECK(IsJSObject(*isolate->global_object()));
+  CHECK(IsContext(*isolate->native_context()));
   isolate->factory()->InternalizeString(base::StaticCharVector("Empty"));
 }
 
@@ -484,7 +484,7 @@ UNINITIALIZED_TEST(ContextSerializerContext) {
                  isolate, &snapshot_data, false, global_proxy,
                  v8::DeserializeInternalFieldsCallback())
                  .ToHandleChecked();
-      CHECK(root->IsContext());
+      CHECK(IsContext(*root));
       CHECK(Handle<Context>::cast(root)->global_proxy() == *global_proxy);
     }
 
@@ -495,7 +495,7 @@ UNINITIALIZED_TEST(ContextSerializerContext) {
                   isolate, &snapshot_data, false, global_proxy,
                   v8::DeserializeInternalFieldsCallback())
                   .ToHandleChecked();
-      CHECK(root2->IsContext());
+      CHECK(IsContext(*root2));
       CHECK(!root.is_identical_to(root2));
     }
     context_blob.Dispose();
@@ -637,7 +637,7 @@ UNINITIALIZED_TEST(ContextSerializerCustomContext) {
                  isolate, &snapshot_data, false, global_proxy,
                  v8::DeserializeInternalFieldsCallback())
                  .ToHandleChecked();
-      CHECK(root->IsContext());
+      CHECK(IsContext(*root));
       Handle<NativeContext> context = Handle<NativeContext>::cast(root);
 
       // Add context to the weak native context list
@@ -807,7 +807,7 @@ UNINITIALIZED_TEST(CustomSnapshotDataBlobStringNotInternalized) {
     CHECK(result->IsString());
     i::String str = *v8::Utils::OpenHandle(*result.As<v8::String>());
     CHECK_EQ(std::string(str->ToCString().get()), "AB");
-    CHECK(!str.IsInternalizedString());
+    CHECK(!IsInternalizedString(str));
     CHECK(!i::ReadOnlyHeap::Contains(str));
   }
   isolate1->Dispose();
@@ -1635,7 +1635,7 @@ int CountBuiltins() {
   int counter = 0;
   for (HeapObject obj = iterator.Next(); !obj.is_null();
        obj = iterator.Next()) {
-    if (obj.IsCode() && Code::cast(obj)->kind() == CodeKind::BUILTIN) counter++;
+    if (IsCode(obj) && Code::cast(obj)->kind() == CodeKind::BUILTIN) counter++;
   }
   return counter;
 }
@@ -1984,7 +1984,7 @@ TEST(CodeSerializerInternalizedString) {
       Execution::CallScript(isolate, orig_fun, global,
                             isolate->factory()->empty_fixed_array())
           .ToHandleChecked();
-  CHECK(orig_result->IsInternalizedString());
+  CHECK(IsInternalizedString(*orig_result));
 
   int builtins_count = CountBuiltins();
 
@@ -2346,8 +2346,8 @@ TEST(CodeSerializerExternalString) {
       isolate->factory()->NewStringFromAsciiChecked("one_byte");
   one_byte_string = isolate->factory()->InternalizeString(one_byte_string);
   one_byte_string->MakeExternal(&one_byte_resource);
-  CHECK(one_byte_string->IsExternalOneByteString());
-  CHECK(one_byte_string->IsInternalizedString());
+  CHECK(IsExternalOneByteString(*one_byte_string));
+  CHECK(IsInternalizedString(*one_byte_string));
 
   // Obtain external internalized two-byte string.
   size_t two_byte_length;
@@ -2359,8 +2359,8 @@ TEST(CodeSerializerExternalString) {
           .ToHandleChecked();
   two_byte_string = isolate->factory()->InternalizeString(two_byte_string);
   two_byte_string->MakeExternal(&two_byte_resource);
-  CHECK(two_byte_string->IsExternalTwoByteString());
-  CHECK(two_byte_string->IsInternalizedString());
+  CHECK(IsExternalTwoByteString(*two_byte_string));
+  CHECK(IsInternalizedString(*two_byte_string));
 
   const char* source =
       "var o = {}               \n"
@@ -2425,8 +2425,8 @@ TEST(CodeSerializerLargeExternalString) {
       reinterpret_cast<const char*>(string.begin()), string.length());
   name = f->InternalizeString(name);
   name->MakeExternal(&one_byte_resource);
-  CHECK(name->IsExternalOneByteString());
-  CHECK(name->IsInternalizedString());
+  CHECK(IsExternalOneByteString(*name));
+  CHECK(IsInternalizedString(*name));
   CHECK(isolate->heap()->InSpace(*name, LO_SPACE));
 
   // Create the source, which is "var <literal> = 42; <literal>".
@@ -2491,8 +2491,8 @@ TEST(CodeSerializerExternalScriptName) {
   const SerializerOneByteResource one_byte_resource("one_byte", 8);
   Handle<String> name =
       f->NewExternalStringFromOneByte(&one_byte_resource).ToHandleChecked();
-  CHECK(name->IsExternalOneByteString());
-  CHECK(!name->IsInternalizedString());
+  CHECK(IsExternalOneByteString(*name));
+  CHECK(!IsInternalizedString(*name));
 
   Handle<JSObject> global(isolate->context()->global_object(), isolate);
   AlignedCachedData* cache = nullptr;
@@ -4269,8 +4269,8 @@ UNINITIALIZED_TEST(ReinitializeHashSeedRehashable) {
           "p = JSON.parse('{\"foo\": {\"x\": 1}}');");
       i::Handle<i::Object> i_a = v8::Utils::OpenHandle(*CompileRun("a"));
       i::Handle<i::Object> i_o = v8::Utils::OpenHandle(*CompileRun("o"));
-      CHECK(i_a->IsJSArray());
-      CHECK(i_a->IsJSObject());
+      CHECK(IsJSArray(*i_a));
+      CHECK(IsJSObject(*i_a));
       CHECK(!i::Handle<i::JSArray>::cast(i_a)->HasFastElements());
       CHECK(!i::Handle<i::JSObject>::cast(i_o)->HasFastProperties());
       ExpectInt32("a[2111]", 5);
@@ -4298,8 +4298,8 @@ UNINITIALIZED_TEST(ReinitializeHashSeedRehashable) {
     v8::Context::Scope context_scope(context);
     i::Handle<i::Object> i_a = v8::Utils::OpenHandle(*CompileRun("a"));
     i::Handle<i::Object> i_o = v8::Utils::OpenHandle(*CompileRun("o"));
-    CHECK(i_a->IsJSArray());
-    CHECK(i_a->IsJSObject());
+    CHECK(IsJSArray(*i_a));
+    CHECK(IsJSObject(*i_a));
     CHECK(!i::Handle<i::JSArray>::cast(i_a)->HasFastElements());
     CHECK(!i::Handle<i::JSObject>::cast(i_o)->HasFastProperties());
     ExpectInt32("a[2111]", 5);
@@ -4902,7 +4902,7 @@ void CheckSFIsAreWeak(WeakFixedArray sfis, Isolate* isolate) {
     HeapObject heap_object;
     CHECK(maybe_object->IsWeakOrCleared() ||
           (maybe_object->GetHeapObjectIfStrong(&heap_object) &&
-           heap_object.IsUndefined(isolate)));
+           IsUndefined(heap_object, isolate)));
     if (maybe_object->IsWeak()) {
       ++no_of_weak;
     }
@@ -5181,7 +5181,7 @@ void CheckObjectsAreInSharedHeap(Isolate* isolate) {
        obj = iterator.Next()) {
     const bool expected_in_shared_old =
         heap->MustBeInSharedOldSpace(obj) ||
-        (obj.IsString() && String::IsInPlaceInternalizable(String::cast(obj)));
+        (IsString(obj) && String::IsInPlaceInternalizable(String::cast(obj)));
     if (expected_in_shared_old) {
       CHECK(obj.InAnySharedSpace());
     }

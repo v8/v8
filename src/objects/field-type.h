@@ -33,10 +33,7 @@ class FieldType : public Object {
 
   bool NowContains(Handle<Object> value) const { return NowContains(*value); }
 
-  bool IsClass() const;
   Map AsClass() const;
-  bool IsNone() const { return *this == None(); }
-  bool IsAny() const { return *this == Any(); }
   bool NowStable() const;
   bool NowIs(FieldType other) const;
   bool NowIs(Handle<FieldType> other) const;
@@ -47,6 +44,10 @@ class FieldType : public Object {
  private:
   explicit constexpr FieldType(Address ptr) : Object(ptr) {}
 };
+
+bool IsClass(Tagged<FieldType> obj);
+inline bool IsNone(Tagged<FieldType> obj) { return obj == FieldType::None(); }
+inline bool IsAny(Tagged<FieldType> obj) { return obj == FieldType::Any(); }
 
 }  // namespace internal
 }  // namespace v8

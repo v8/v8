@@ -10,9 +10,9 @@ namespace internal {
 
 template <class IsolateT>
 CallOptimization::CallOptimization(IsolateT* isolate, Handle<Object> function) {
-  if (function->IsJSFunction()) {
+  if (IsJSFunction(*function)) {
     Initialize(isolate, Handle<JSFunction>::cast(function));
-  } else if (function->IsFunctionTemplateInfo()) {
+  } else if (IsFunctionTemplateInfo(*function)) {
     Initialize(isolate, Handle<FunctionTemplateInfo>::cast(function));
   }
 }
@@ -29,13 +29,13 @@ base::Optional<NativeContext> CallOptimization::GetAccessorContext(
     return constant_function_->native_context();
   }
   Object maybe_constructor = holder_map->GetConstructor();
-  if (maybe_constructor.IsJSFunction()) {
+  if (IsJSFunction(maybe_constructor)) {
     JSFunction constructor = JSFunction::cast(maybe_constructor);
     return constructor->native_context();
   }
   // |maybe_constructor| might theoretically be |null| for some objects but
   // they can't be holders for lazy accessor properties.
-  CHECK(maybe_constructor.IsFunctionTemplateInfo());
+  CHECK(IsFunctionTemplateInfo(maybe_constructor));
 
   // The holder is a remote object which doesn't have a creation context.
   return {};
@@ -43,7 +43,7 @@ base::Optional<NativeContext> CallOptimization::GetAccessorContext(
 
 bool CallOptimization::IsCrossContextLazyAccessorPair(
     NativeContext native_context, Map holder_map) const {
-  DCHECK(native_context.IsNativeContext());
+  DCHECK(IsNativeContext(native_context));
   if (is_constant_call()) return false;
   base::Optional<NativeContext> maybe_context = GetAccessorContext(holder_map);
   if (!maybe_context.has_value()) {
@@ -58,7 +58,7 @@ Handle<JSObject> CallOptimization::LookupHolderOfExpectedType(
     IsolateT* isolate, Handle<Map> object_map,
     HolderLookup* holder_lookup) const {
   DCHECK(is_simple_api_call());
-  if (!object_map->IsJSObjectMap()) {
+  if (!IsJSObjectMap(*object_map)) {
     *holder_lookup = kHolderNotFound;
     return Handle<JSObject>::null();
   }
@@ -67,7 +67,7 @@ Handle<JSObject> CallOptimization::LookupHolderOfExpectedType(
     *holder_lookup = kHolderIsReceiver;
     return Handle<JSObject>::null();
   }
-  if (object_map->IsJSGlobalProxyMap() && !object_map->prototype().IsNull()) {
+  if (IsJSGlobalProxyMap(*object_map) && !IsNull(object_map->prototype())) {
     JSObject raw_prototype = JSObject::cast(object_map->prototype());
     Handle<JSObject> prototype(raw_prototype, isolate);
     object_map = handle(prototype->map(), isolate);
@@ -104,7 +104,7 @@ bool CallOptimization::IsCompatibleReceiverMap(
         JSObject object = *api_holder;
         while (true) {
           Object prototype = object->map()->prototype();
-          if (!prototype.IsJSObject()) return false;
+          if (!IsJSObject(prototype)) return false;
           if (prototype == *holder) return true;
           object = JSObject::cast(prototype);
         }
@@ -117,11 +117,11 @@ template <class IsolateT>
 void CallOptimization::Initialize(
     IsolateT* isolate, Handle<FunctionTemplateInfo> function_template_info) {
   HeapObject call_code = function_template_info->call_code(kAcquireLoad);
-  if (call_code.IsUndefined(isolate)) return;
+  if (IsUndefined(call_code, isolate)) return;
   api_call_info_ = handle(CallHandlerInfo::cast(call_code), isolate);
 
   HeapObject signature = function_template_info->signature();
-  if (!signature.IsUndefined(isolate)) {
+  if (!IsUndefined(signature, isolate)) {
     expected_receiver_type_ =
         handle(FunctionTemplateInfo::cast(signature), isolate);
   }
@@ -147,10 +147,10 @@ void CallOptimization::AnalyzePossibleApiFunction(IsolateT* isolate,
 
   // Require a C++ callback.
   HeapObject call_code = info->call_code(kAcquireLoad);
-  if (call_code.IsUndefined(isolate)) return;
+  if (IsUndefined(call_code, isolate)) return;
   api_call_info_ = handle(CallHandlerInfo::cast(call_code), isolate);
 
-  if (!info->signature().IsUndefined(isolate)) {
+  if (!IsUndefined(info->signature(), isolate)) {
     expected_receiver_type_ =
         handle(FunctionTemplateInfo::cast(info->signature()), isolate);
   }

@@ -57,7 +57,7 @@ Object VisitWeakList(Heap* heap, Object list, WeakObjectRetainer* retainer) {
         }
       }
       // Retained object is new tail.
-      DCHECK(!retained.IsUndefined(heap->isolate()));
+      DCHECK(!IsUndefined(retained, heap->isolate()));
       candidate = T::cast(retained);
       tail = candidate;
 

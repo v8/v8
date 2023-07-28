@@ -59,7 +59,7 @@ void FunctionTemplateInfo::set_relaxed_flag(int32_t flags) {
 FunctionTemplateRareData FunctionTemplateInfo::EnsureFunctionTemplateRareData(
     Isolate* isolate, Handle<FunctionTemplateInfo> function_template_info) {
   HeapObject extra = function_template_info->rare_data(isolate, kAcquireLoad);
-  if (extra.IsUndefined(isolate)) {
+  if (IsUndefined(extra, isolate)) {
     return AllocateFunctionTemplateRareData(isolate, function_template_info);
   } else {
     return FunctionTemplateRareData::cast(extra);
@@ -122,12 +122,12 @@ bool TemplateInfo::should_cache() const {
 bool TemplateInfo::is_cached() const { return serial_number() > kUncached; }
 
 bool FunctionTemplateInfo::instantiated() {
-  return shared_function_info().IsSharedFunctionInfo();
+  return IsSharedFunctionInfo(shared_function_info());
 }
 
 inline bool FunctionTemplateInfo::BreakAtEntry(Isolate* isolate) {
   Object maybe_shared = shared_function_info();
-  if (maybe_shared.IsSharedFunctionInfo()) {
+  if (IsSharedFunctionInfo(maybe_shared)) {
     SharedFunctionInfo shared = SharedFunctionInfo::cast(maybe_shared);
     return shared->BreakAtEntry(isolate);
   }
@@ -136,19 +136,19 @@ inline bool FunctionTemplateInfo::BreakAtEntry(Isolate* isolate) {
 
 FunctionTemplateInfo FunctionTemplateInfo::GetParent(Isolate* isolate) {
   Object parent = GetParentTemplate();
-  return parent.IsUndefined(isolate) ? FunctionTemplateInfo()
-                                     : FunctionTemplateInfo::cast(parent);
+  return IsUndefined(parent, isolate) ? FunctionTemplateInfo()
+                                      : FunctionTemplateInfo::cast(parent);
 }
 
 ObjectTemplateInfo ObjectTemplateInfo::GetParent(Isolate* isolate) {
   Object maybe_ctor = constructor();
-  if (maybe_ctor.IsUndefined(isolate)) return ObjectTemplateInfo();
+  if (IsUndefined(maybe_ctor, isolate)) return ObjectTemplateInfo();
   FunctionTemplateInfo constructor = FunctionTemplateInfo::cast(maybe_ctor);
   while (true) {
     constructor = constructor->GetParent(isolate);
     if (constructor.is_null()) return ObjectTemplateInfo();
     Object maybe_obj = constructor->GetInstanceTemplate();
-    if (!maybe_obj.IsUndefined(isolate)) {
+    if (!IsUndefined(maybe_obj, isolate)) {
       return ObjectTemplateInfo::cast(maybe_obj);
     }
   }

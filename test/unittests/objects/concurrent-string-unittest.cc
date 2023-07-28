@@ -113,8 +113,8 @@ TEST_F(ConcurrentStringTest, InspectOneByteExternalizing) {
   Handle<String> one_byte_string = factory->InternalizeString(
       factory->NewStringFromAsciiChecked(raw_string));
   EXPECT_TRUE(one_byte_string->IsOneByteRepresentation());
-  EXPECT_TRUE(!one_byte_string->IsExternalString());
-  EXPECT_TRUE(one_byte_string->IsInternalizedString());
+  EXPECT_TRUE(!IsExternalString(*one_byte_string));
+  EXPECT_TRUE(IsInternalizedString(*one_byte_string));
 
   Handle<String> persistent_string = ph->NewHandle(one_byte_string);
 
@@ -136,8 +136,8 @@ TEST_F(ConcurrentStringTest, InspectOneByteExternalizing) {
   // ownership of raw_string otherwise.
   EXPECT_TRUE(one_byte_string->MakeExternal(
       new TestOneByteResource(i::StrDup(raw_string))));
-  EXPECT_TRUE(one_byte_string->IsExternalOneByteString());
-  EXPECT_TRUE(one_byte_string->IsInternalizedString());
+  EXPECT_TRUE(IsExternalOneByteString(*one_byte_string));
+  EXPECT_TRUE(IsInternalizedString(*one_byte_string));
 
   thread->Join();
 }
@@ -165,8 +165,8 @@ TEST_F(ConcurrentStringTest, InspectTwoByteExternalizing) {
   }
   two_bytes_string = factory->InternalizeString(two_bytes_string);
   EXPECT_TRUE(two_bytes_string->IsTwoByteRepresentation());
-  EXPECT_TRUE(!two_bytes_string->IsExternalString());
-  EXPECT_TRUE(two_bytes_string->IsInternalizedString());
+  EXPECT_TRUE(!IsExternalString(*two_bytes_string));
+  EXPECT_TRUE(IsInternalizedString(*two_bytes_string));
 
   Handle<String> persistent_string = ph->NewHandle(two_bytes_string);
   std::vector<uint16_t> chars;
@@ -184,8 +184,8 @@ TEST_F(ConcurrentStringTest, InspectTwoByteExternalizing) {
   // Externalize it to a two-bytes external string.
   EXPECT_TRUE(two_bytes_string->MakeExternal(
       new TestTwoByteResource(AsciiToTwoByteString(raw_string))));
-  EXPECT_TRUE(two_bytes_string->IsExternalTwoByteString());
-  EXPECT_TRUE(two_bytes_string->IsInternalizedString());
+  EXPECT_TRUE(IsExternalTwoByteString(*two_bytes_string));
+  EXPECT_TRUE(IsInternalizedString(*two_bytes_string));
 
   thread->Join();
 }
@@ -205,18 +205,18 @@ TEST_F(ConcurrentStringTest, InspectOneByteExternalizing_ThinString) {
   // Create a string.
   const char* raw_string = STRING_VALUE;
   Handle<String> thin_string = factory->NewStringFromAsciiChecked(raw_string);
-  EXPECT_TRUE(!thin_string->IsExternalString());
-  EXPECT_TRUE(!thin_string->IsInternalizedString());
+  EXPECT_TRUE(!IsExternalString(*thin_string));
+  EXPECT_TRUE(!IsInternalizedString(*thin_string));
 
   // Crate an internalized one-byte version of that string string.
   Handle<String> internalized_string = factory->InternalizeString(thin_string);
   EXPECT_TRUE(internalized_string->IsOneByteRepresentation());
-  EXPECT_TRUE(!internalized_string->IsExternalString());
-  EXPECT_TRUE(internalized_string->IsInternalizedString());
+  EXPECT_TRUE(!IsExternalString(*internalized_string));
+  EXPECT_TRUE(IsInternalizedString(*internalized_string));
 
   // We now should have an internalized string, and a thin string pointing to
   // it.
-  EXPECT_TRUE(thin_string->IsThinString());
+  EXPECT_TRUE(IsThinString(*thin_string));
   EXPECT_NE(*thin_string, *internalized_string);
 
   Handle<String> persistent_string = ph->NewHandle(thin_string);
@@ -239,13 +239,13 @@ TEST_F(ConcurrentStringTest, InspectOneByteExternalizing_ThinString) {
   // ownership of raw_string otherwise.
   EXPECT_TRUE(internalized_string->MakeExternal(
       new TestOneByteResource(i::StrDup(raw_string))));
-  EXPECT_TRUE(internalized_string->IsExternalOneByteString());
-  EXPECT_TRUE(internalized_string->IsInternalizedString());
+  EXPECT_TRUE(IsExternalOneByteString(*internalized_string));
+  EXPECT_TRUE(IsInternalizedString(*internalized_string));
 
   // Check that the thin string is unmodified.
-  EXPECT_TRUE(!thin_string->IsExternalString());
-  EXPECT_TRUE(!thin_string->IsInternalizedString());
-  EXPECT_TRUE(thin_string->IsThinString());
+  EXPECT_TRUE(!IsExternalString(*thin_string));
+  EXPECT_TRUE(!IsInternalizedString(*thin_string));
+  EXPECT_TRUE(IsThinString(*thin_string));
 
   thread->Join();
 }
@@ -279,8 +279,8 @@ TEST_F(ConcurrentStringTest, InspectTwoByteExternalizing_ThinString) {
 
   Handle<String> internalized_string = factory->InternalizeString(thin_string);
   EXPECT_TRUE(internalized_string->IsTwoByteRepresentation());
-  EXPECT_TRUE(!internalized_string->IsExternalString());
-  EXPECT_TRUE(internalized_string->IsInternalizedString());
+  EXPECT_TRUE(!IsExternalString(*internalized_string));
+  EXPECT_TRUE(IsInternalizedString(*internalized_string));
 
   Handle<String> persistent_string = ph->NewHandle(thin_string);
   std::vector<uint16_t> chars;
@@ -298,13 +298,13 @@ TEST_F(ConcurrentStringTest, InspectTwoByteExternalizing_ThinString) {
   // Externalize it to a two-bytes external string.
   EXPECT_TRUE(internalized_string->MakeExternal(
       new TestTwoByteResource(AsciiToTwoByteString(raw_string))));
-  EXPECT_TRUE(internalized_string->IsExternalTwoByteString());
-  EXPECT_TRUE(internalized_string->IsInternalizedString());
+  EXPECT_TRUE(IsExternalTwoByteString(*internalized_string));
+  EXPECT_TRUE(IsInternalizedString(*internalized_string));
 
   // Check that the thin string is unmodified.
-  EXPECT_TRUE(!thin_string->IsExternalString());
-  EXPECT_TRUE(!thin_string->IsInternalizedString());
-  EXPECT_TRUE(thin_string->IsThinString());
+  EXPECT_TRUE(!IsExternalString(*thin_string));
+  EXPECT_TRUE(!IsInternalizedString(*thin_string));
+  EXPECT_TRUE(IsThinString(*thin_string));
 
   thread->Join();
 }

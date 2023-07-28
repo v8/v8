@@ -247,7 +247,7 @@ class IncrementalMarking::IncrementalMarkingRootMarkingVisitor final
  private:
   void MarkObjectByPointer(Root root, FullObjectSlot p) {
     Object object = *p;
-    if (!object.IsHeapObject()) return;
+    if (!IsHeapObject(object)) return;
     DCHECK(!MapWord::IsPacked(object.ptr()));
     HeapObject heap_object = HeapObject::cast(object);
 
@@ -489,7 +489,7 @@ void IncrementalMarking::UpdateMarkingWorklistAfterScavenge() {
                                                  filler_map](
                                                     HeapObject obj,
                                                     HeapObject* out) -> bool {
-    DCHECK(obj.IsHeapObject());
+    DCHECK(IsHeapObject(obj));
     USE(marking_state);
 
     // Only pointers to from space have to be updated.
@@ -509,7 +509,7 @@ void IncrementalMarking::UpdateMarkingWorklistAfterScavenge() {
       // this code path.
       DCHECK(!Heap::IsLargeObject(obj));
       HeapObject dest = map_word.ToForwardingAddress(obj);
-      DCHECK_IMPLIES(marking_state->IsUnmarked(obj), obj.IsFreeSpaceOrFiller());
+      DCHECK_IMPLIES(marking_state->IsUnmarked(obj), IsFreeSpaceOrFiller(obj));
       if (dest.InWritableSharedSpace() &&
           !isolate()->is_shared_space_isolate()) {
         // Object got promoted into the shared heap. Drop it from the client
@@ -520,7 +520,7 @@ void IncrementalMarking::UpdateMarkingWorklistAfterScavenge() {
       // increments live bytes as the marked state cannot distinguish fully
       // processed from to-be-processed. Decrement the counter for such objects
       // here.
-      if (!dest.IsDescriptorArray()) {
+      if (!IsDescriptorArray(dest)) {
         MemoryChunk::FromHeapObject(dest)->IncrementLiveBytesAtomically(
             -ALIGN_TO_ALLOCATION_ALIGNMENT(dest->Size()));
       }
@@ -529,7 +529,7 @@ void IncrementalMarking::UpdateMarkingWorklistAfterScavenge() {
     } else {
       DCHECK(!Heap::InToPage(obj));
       DCHECK_IMPLIES(marking_state->IsUnmarked(obj),
-                     obj.IsFreeSpaceOrFiller(cage_base));
+                     IsFreeSpaceOrFiller(obj, cage_base));
       // Skip one word filler objects that appear on the
       // stack when we perform in place array shift.
       if (obj->map(cage_base) != filler_map) {

@@ -52,7 +52,7 @@ void SmiCall(Isolate* isolate, Handle<WasmExportedFunction> exported_function,
   Handle<Object> result =
       Execution::Call(isolate, exported_function, receiver, argc, argv)
           .ToHandleChecked();
-  CHECK(result->IsSmi() && Smi::ToInt(*result) == expected_result);
+  CHECK(IsSmi(*result) && Smi::ToInt(*result) == expected_result);
 }
 
 void Cleanup() {

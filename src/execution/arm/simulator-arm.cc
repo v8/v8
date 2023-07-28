@@ -358,10 +358,10 @@ bool ArmDebugger::ExecDebugCommand(ArrayUniquePtr<char> line_ptr) {
       Object obj(*cur);
       Heap* current_heap = sim_->isolate_->heap();
       if (!skip_obj_print) {
-        if (obj.IsSmi() ||
+        if (IsSmi(obj) ||
             IsValidHeapObject(current_heap, HeapObject::cast(obj))) {
           PrintF(" (");
-          if (obj.IsSmi()) {
+          if (IsSmi(obj)) {
             PrintF("smi %d", Smi::ToInt(obj));
           } else {
             obj.ShortPrint();

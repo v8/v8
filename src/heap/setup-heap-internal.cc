@@ -287,7 +287,7 @@ AllocationResult Heap::AllocatePartialMap(InstanceType instance_type,
   map->set_instance_size(instance_size);
   map->set_visitor_id(Map::GetVisitorId(map));
   map->set_inobject_properties_start_or_constructor_function_index(0);
-  DCHECK(!map->IsJSObjectMap());
+  DCHECK(!IsJSObjectMap(map));
   map->set_prototype_validity_cell(Smi::FromInt(Map::kPrototypeChainValid),
                                    kRelaxedStore);
   map->SetInObjectUnusedPropertyFields(0);

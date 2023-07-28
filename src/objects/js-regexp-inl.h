@@ -29,7 +29,7 @@ ACCESSORS(JSRegExp, last_index, Object, kLastIndexOffset)
 
 JSRegExp::Type JSRegExp::type_tag() const {
   Object data = this->data();
-  if (data.IsUndefined()) return JSRegExp::NOT_COMPILED;
+  if (IsUndefined(data)) return JSRegExp::NOT_COMPILED;
   Smi smi = Smi::cast(FixedArray::cast(data)->get(kTagIndex));
   return static_cast<JSRegExp::Type>(smi.value());
 }
@@ -78,7 +78,7 @@ const char* JSRegExp::FlagsToString(Flags flags, FlagsBuffer* out_buffer) {
 }
 
 String JSRegExp::EscapedPattern() {
-  DCHECK(this->source().IsString());
+  DCHECK(IsString(source()));
   return String::cast(source());
 }
 
@@ -113,13 +113,13 @@ bool JSRegExp::HasCompiledCode() const {
   if (type_tag() != IRREGEXP) return false;
   Smi uninitialized = Smi::FromInt(kUninitializedValue);
 #ifdef DEBUG
-  DCHECK(DataAt(kIrregexpLatin1CodeIndex).IsCode() ||
+  DCHECK(IsCode(DataAt(kIrregexpLatin1CodeIndex)) ||
          DataAt(kIrregexpLatin1CodeIndex) == uninitialized);
-  DCHECK(DataAt(kIrregexpUC16CodeIndex).IsCode() ||
+  DCHECK(IsCode(DataAt(kIrregexpUC16CodeIndex)) ||
          DataAt(kIrregexpUC16CodeIndex) == uninitialized);
-  DCHECK(DataAt(kIrregexpLatin1BytecodeIndex).IsByteArray() ||
+  DCHECK(IsByteArray(DataAt(kIrregexpLatin1BytecodeIndex)) ||
          DataAt(kIrregexpLatin1BytecodeIndex) == uninitialized);
-  DCHECK(DataAt(kIrregexpUC16BytecodeIndex).IsByteArray() ||
+  DCHECK(IsByteArray(DataAt(kIrregexpUC16BytecodeIndex)) ||
          DataAt(kIrregexpUC16BytecodeIndex) == uninitialized);
 #endif  // DEBUG
   return (DataAt(kIrregexpLatin1CodeIndex) != uninitialized ||

@@ -13982,9 +13982,9 @@ TNode<Boolean> CodeStubAssembler::StrictEqual(
   //   if (lhs->IsHeapNumber()) return HeapNumber::cast(lhs)->value() != NaN;
   //   return true;
   // }
-  // if (!lhs->IsSmi()) {
+  // if (!IsSmi(lhs)) {
   //   if (lhs->IsHeapNumber()) {
-  //     if (rhs->IsSmi()) {
+  //     if (IsSmi(rhs)) {
   //       return Smi::ToInt(rhs) == HeapNumber::cast(lhs)->value();
   //     } else if (rhs->IsHeapNumber()) {
   //       return HeapNumber::cast(rhs)->value() ==
@@ -13993,7 +13993,7 @@ TNode<Boolean> CodeStubAssembler::StrictEqual(
   //       return false;
   //     }
   //   } else {
-  //     if (rhs->IsSmi()) {
+  //     if (IsSmi(rhs)) {
   //       return false;
   //     } else {
   //       if (lhs->IsString()) {
@@ -14014,7 +14014,7 @@ TNode<Boolean> CodeStubAssembler::StrictEqual(
   //     }
   //   }
   // } else {
-  //   if (rhs->IsSmi()) {
+  //   if (IsSmi(rhs)) {
   //     return false;
   //   } else {
   //     if (rhs->IsHeapNumber()) {

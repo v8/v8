@@ -206,7 +206,7 @@ struct NamedDebugProxy : IndexedDebugProxy<T, id, Provider> {
     Handle<Symbol> symbol = isolate->factory()->wasm_debug_proxy_names_symbol();
     Handle<Object> table_or_undefined =
         JSObject::GetProperty(isolate, holder, symbol).ToHandleChecked();
-    if (!table_or_undefined->IsUndefined(isolate)) {
+    if (!IsUndefined(*table_or_undefined, isolate)) {
       return Handle<NameDictionary>::cast(table_or_undefined);
     }
     auto provider = T::GetProvider(holder, isolate);
@@ -461,7 +461,7 @@ Handle<FixedArray> GetOrCreateInstanceProxyCache(
   Handle<Object> cache;
   Handle<Symbol> symbol = isolate->factory()->wasm_debug_proxy_cache_symbol();
   if (!Object::GetProperty(isolate, instance, symbol).ToHandle(&cache) ||
-      cache->IsUndefined(isolate)) {
+      IsUndefined(*cache, isolate)) {
     cache = isolate->factory()->NewFixedArrayWithHoles(kNumInstanceProxies);
     Object::SetProperty(isolate, instance, symbol, cache).Check();
   }
@@ -556,12 +556,12 @@ class ContextProxyPrototype {
         ASSIGN_RETURN_ON_EXCEPTION(
             isolate, delegate,
             JSObject::GetProperty(isolate, receiver, delegate_name), Object);
-        if (!delegate->IsUndefined(isolate)) {
+        if (!IsUndefined(*delegate, isolate)) {
           Handle<Object> value;
           ASSIGN_RETURN_ON_EXCEPTION(
               isolate, value, Object::GetProperty(isolate, delegate, name),
               Object);
-          if (!value->IsUndefined(isolate)) return value;
+          if (!IsUndefined(*value, isolate)) return value;
         }
       }
     }
@@ -920,7 +920,7 @@ Handle<WasmValueObject> WasmValueObject::New(
     case wasm::kRefNull:
     case wasm::kRef: {
       Handle<Object> ref = value.to_ref();
-      if (ref->IsWasmStruct()) {
+      if (IsWasmStruct(*ref)) {
         WasmTypeInfo type_info = ref->GetHeapObject()->map()->wasm_type_info();
         wasm::ValueType type = wasm::ValueType::FromIndex(
             wasm::ValueKind::kRef, type_info->type_index());
@@ -930,7 +930,7 @@ Handle<WasmValueObject> WasmValueObject::New(
             isolate);
         t = GetRefTypeName(isolate, type, module->native_module());
         v = StructProxy::Create(isolate, Handle<WasmStruct>::cast(ref), module);
-      } else if (ref->IsWasmArray()) {
+      } else if (IsWasmArray(*ref)) {
         WasmTypeInfo type_info = ref->GetHeapObject()->map()->wasm_type_info();
         wasm::ValueType type = wasm::ValueType::FromIndex(
             wasm::ValueKind::kRef, type_info->type_index());
@@ -940,7 +940,7 @@ Handle<WasmValueObject> WasmValueObject::New(
             isolate);
         t = GetRefTypeName(isolate, type, module->native_module());
         v = ArrayProxy::Create(isolate, Handle<WasmArray>::cast(ref), module);
-      } else if (ref->IsWasmInternalFunction()) {
+      } else if (IsWasmInternalFunction(*ref)) {
         auto internal_fct = Handle<WasmInternalFunction>::cast(ref);
         v = WasmInternalFunction::GetOrCreateExternal(internal_fct);
         // If the module is not provided by the caller, retrieve it from the
@@ -948,18 +948,18 @@ Handle<WasmValueObject> WasmValueObject::New(
         // `new WebAssembly.Function(...)`, a module for name resolution is not
         // available.
         if (module_object.is_null() &&
-            internal_fct->ref().IsWasmInstanceObject()) {
+            IsWasmInstanceObject(internal_fct->ref())) {
           module_object = handle(
               WasmInstanceObject::cast(internal_fct->ref())->module_object(),
               isolate);
         }
         t = GetRefTypeName(isolate, value.type(), module_object);
-      } else if (ref->IsWasmNull()) {
+      } else if (IsWasmNull(*ref)) {
         // TODO(manoskouk): Is this value correct?
         v = isolate->factory()->null_value();
         t = GetRefTypeName(isolate, value.type(), module_object);
-      } else if (ref->IsJSFunction() || ref->IsSmi() || ref->IsNull() ||
-                 ref->IsString() ||
+      } else if (IsJSFunction(*ref) || IsSmi(*ref) || IsNull(*ref) ||
+                 IsString(*ref) ||
                  value.type().is_reference_to(wasm::HeapType::kExtern) ||
                  value.type().is_reference_to(wasm::HeapType::kAny)) {
         t = GetRefTypeName(isolate, value.type(), module_object);
@@ -1065,7 +1065,7 @@ Handle<ArrayList> AddWasmTableObjectInternalProperties(
     Handle<Object> entry = WasmTableObject::Get(isolate, table, i);
     wasm::WasmValue wasm_value(entry, table->type());
     Handle<WasmModuleObject> module;
-    if (table->instance().IsWasmInstanceObject()) {
+    if (IsWasmInstanceObject(table->instance())) {
       module = Handle<WasmModuleObject>(
           WasmInstanceObject::cast(table->instance())->module_object(),
           isolate);

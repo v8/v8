@@ -883,7 +883,7 @@ class MarkCompactCollector::RootMarkingVisitor final : public RootVisitor {
                         FullObjectSlot istream_or_smi_zero_slot) final {
     Object istream_or_smi_zero = *istream_or_smi_zero_slot;
     DCHECK(istream_or_smi_zero == Smi::zero() ||
-           istream_or_smi_zero.IsInstructionStream());
+           IsInstructionStream(istream_or_smi_zero));
     Code code = Code::cast(*code_slot);
     DCHECK_EQ(code->raw_instruction_stream(PtrComprCageBase{
                   collector_->heap_->isolate()->code_cage_base()}),
@@ -903,7 +903,7 @@ class MarkCompactCollector::RootMarkingVisitor final : public RootVisitor {
  private:
   V8_INLINE void MarkObjectByPointer(Root root, FullObjectSlot p) {
     Object object = *p;
-    if (!object.IsHeapObject()) return;
+    if (!IsHeapObject(object)) return;
     HeapObject heap_object = HeapObject::cast(object);
     if (!collector_->ShouldMarkObject(heap_object)) return;
     collector_->MarkRootObject(root, heap_object);
@@ -971,7 +971,7 @@ class MarkCompactCollector::CustomRootBodyMarkingVisitor final
 
  private:
   V8_INLINE void MarkObject(HeapObject host, Object object) {
-    if (!object.IsHeapObject()) return;
+    if (!IsHeapObject(object)) return;
     HeapObject heap_object = HeapObject::cast(object);
     if (!collector_->ShouldMarkObject(heap_object)) return;
     collector_->MarkObject(host, heap_object);
@@ -1037,7 +1037,7 @@ class MarkCompactCollector::SharedHeapObjectVisitor final
   V8_INLINE void CheckForSharedObject(HeapObject host, ObjectSlot slot,
                                       Object object) {
     DCHECK(!host.InAnySharedSpace());
-    if (!object.IsHeapObject()) return;
+    if (!IsHeapObject(object)) return;
     HeapObject heap_object = HeapObject::cast(object);
     if (!heap_object.InWritableSharedSpace()) return;
     DCHECK(heap_object.InWritableSharedSpace());
@@ -1069,7 +1069,7 @@ class InternalizedStringTableCleaner final : public RootVisitor {
     Isolate* const isolate = heap_->isolate();
     for (OffHeapObjectSlot p = start; p < end; ++p) {
       Object o = p.load(isolate);
-      if (o.IsHeapObject()) {
+      if (IsHeapObject(o)) {
         HeapObject heap_object = HeapObject::cast(o);
         DCHECK(!Heap::InYoungGeneration(heap_object));
         if (!heap_object.InReadOnlySpace() &&
@@ -1101,14 +1101,14 @@ class MarkExternalPointerFromExternalStringTable : public RootVisitor {
     // Visit all HeapObject pointers in [start, end).
     for (FullObjectSlot p = start; p < end; ++p) {
       Object o = *p;
-      if (o.IsHeapObject()) {
+      if (IsHeapObject(o)) {
         HeapObject heap_object = HeapObject::cast(o);
-        if (heap_object.IsExternalString()) {
+        if (IsExternalString(heap_object)) {
           ExternalString string = ExternalString::cast(heap_object);
           string->VisitExternalPointers(&visitor);
         } else {
           // The original external string may have been internalized.
-          DCHECK(o.IsThinString());
+          DCHECK(IsThinString(o));
         }
       }
     }
@@ -1167,13 +1167,13 @@ class MarkCompactWeakObjectRetainer : public WeakObjectRetainer {
     Tagged<HeapObject> heap_object = Tagged<HeapObject>::cast(object);
     if (marking_state_->IsMarked(heap_object)) {
       return object;
-    } else if (object.IsAllocationSite() &&
-               !(AllocationSite::cast(object)->IsZombie())) {
+    } else if (IsAllocationSite(object) &&
+               !AllocationSite::cast(object)->IsZombie()) {
       // "dead" AllocationSites need to live long enough for a traversal of new
       // space. These sites get a one-time reprieve.
 
       Object nested = object;
-      while (nested.IsAllocationSite()) {
+      while (IsAllocationSite(nested)) {
         AllocationSite current_site = AllocationSite::cast(nested);
         // MarkZombie will override the nested_site, read it first before
         // marking
@@ -1242,7 +1242,7 @@ class RecordMigratedSlotVisitor : public ObjectVisitorWithCageBases {
 
   inline void VisitEphemeron(HeapObject host, int index, ObjectSlot key,
                              ObjectSlot value) override {
-    DCHECK(host.IsEphemeronHashTable());
+    DCHECK(IsEphemeronHashTable(host));
     DCHECK(!Heap::InYoungGeneration(host));
 
     VisitPointer(host, value);
@@ -1340,7 +1340,7 @@ class ProfilingMigrationObserver final : public MigrationObserver {
     if (dest == CODE_SPACE) {
       PROFILE(heap_->isolate(), CodeMoveEvent(InstructionStream::cast(src),
                                               InstructionStream::cast(dst)));
-    } else if (dest == OLD_SPACE && dst.IsBytecodeArray()) {
+    } else if (dest == OLD_SPACE && IsBytecodeArray(dst)) {
       PROFILE(heap_->isolate(), BytecodeMoveEvent(BytecodeArray::cast(src),
                                                   BytecodeArray::cast(dst)));
     }
@@ -1724,7 +1724,7 @@ class EvacuateRecordOnlyVisitor final : public HeapObjectVisitor {
 // static
 bool MarkCompactCollector::IsUnmarkedHeapObject(Heap* heap, FullObjectSlot p) {
   Object o = *p;
-  if (!o.IsHeapObject()) return false;
+  if (!IsHeapObject(o)) return false;
   HeapObject heap_object = HeapObject::cast(o);
   if (heap_object.InReadOnlySpace()) return false;
   MarkCompactCollector* collector = heap->mark_compact_collector();
@@ -1739,7 +1739,7 @@ bool MarkCompactCollector::IsUnmarkedHeapObject(Heap* heap, FullObjectSlot p) {
 bool MarkCompactCollector::IsUnmarkedSharedHeapObject(Heap* heap,
                                                       FullObjectSlot p) {
   Object o = *p;
-  if (!o.IsHeapObject()) return false;
+  if (!IsHeapObject(o)) return false;
   HeapObject heap_object = HeapObject::cast(o);
   Isolate* shared_space_isolate = heap->isolate()->shared_space_isolate();
   MarkCompactCollector* collector =
@@ -2134,7 +2134,7 @@ std::pair<size_t, size_t> MarkCompactCollector::ProcessMarkingWorklist(
          local_marking_worklists_->PopOnHold(&object)) {
     // Left trimming may result in grey or black filler objects on the marking
     // worklist. Ignore these objects.
-    if (object.IsFreeSpaceOrFiller(cage_base)) {
+    if (IsFreeSpaceOrFiller(object, cage_base)) {
       // Due to copying mark bits and the fact that grey and black have their
       // first bit set, one word fillers are always black.
       DCHECK_IMPLIES(object->map(cage_base) ==
@@ -2147,7 +2147,7 @@ std::pair<size_t, size_t> MarkCompactCollector::ProcessMarkingWorklist(
                      marking_state_->IsMarked(object));
       continue;
     }
-    DCHECK(object.IsHeapObject());
+    DCHECK(IsHeapObject(object));
     DCHECK(!object.InReadOnlySpace());
     DCHECK_EQ(GetIsolateFromWritableObject(object), isolate);
     DCHECK(heap_->Contains(object));
@@ -2292,7 +2292,7 @@ bool ShouldRetainMap(MarkingState* marking_state, Map map, int age) {
     return false;
   }
   Object constructor = map->GetConstructor();
-  if (!constructor.IsHeapObject() ||
+  if (!IsHeapObject(constructor) ||
       (!HeapObject::cast(constructor).InReadOnlySpace() &&
        marking_state->IsUnmarked(HeapObject::cast(constructor)))) {
     // The constructor is dead, no new objects with this map can
@@ -2332,7 +2332,7 @@ void MarkCompactCollector::RetainMaps() {
           }
         }
         Object prototype = map->prototype();
-        if (age > 0 && prototype.IsHeapObject() &&
+        if (age > 0 && IsHeapObject(prototype) &&
             (!HeapObject::cast(prototype).InReadOnlySpace() &&
              marking_state_->IsUnmarked(HeapObject::cast(prototype)))) {
           // The prototype is not marked, age the map.
@@ -2566,14 +2566,14 @@ class FullStringForwardingTableCleaner final
  private:
   void MarkForwardObject(StringForwardingTable::Record* record) {
     Object original = record->OriginalStringObject(isolate_);
-    if (!original.IsHeapObject()) {
+    if (!IsHeapObject(original)) {
       DCHECK_EQ(original, StringForwardingTable::deleted_element());
       return;
     }
     String original_string = String::cast(original);
     if (marking_state_->IsMarked(original_string)) {
       Object forward = record->ForwardStringObjectOrHash(isolate_);
-      if (!forward.IsHeapObject() ||
+      if (!IsHeapObject(forward) ||
           HeapObject::cast(forward).InReadOnlySpace()) {
         return;
       }
@@ -2586,13 +2586,13 @@ class FullStringForwardingTableCleaner final
 
   void TransitionStrings(StringForwardingTable::Record* record) {
     Object original = record->OriginalStringObject(isolate_);
-    if (!original.IsHeapObject()) {
+    if (!IsHeapObject(original)) {
       DCHECK_EQ(original, StringForwardingTable::deleted_element());
       return;
     }
     if (marking_state_->IsMarked(HeapObject::cast(original))) {
       String original_string = String::cast(original);
-      if (original_string.IsThinString()) {
+      if (IsThinString(original_string)) {
         original_string = ThinString::cast(original_string)->actual();
       }
       TryExternalize(original_string, record);
@@ -2606,7 +2606,7 @@ class FullStringForwardingTableCleaner final
   void TryExternalize(String original_string,
                       StringForwardingTable::Record* record) {
     // If the string is already external, dispose the resource.
-    if (original_string.IsExternalString()) {
+    if (IsExternalString(original_string)) {
       record->DisposeUnusedExternalResource(original_string);
       return;
     }
@@ -2630,9 +2630,9 @@ class FullStringForwardingTableCleaner final
 
   void TryInternalize(String original_string,
                       StringForwardingTable::Record* record) {
-    if (original_string.IsInternalizedString()) return;
+    if (IsInternalizedString(original_string)) return;
     Object forward = record->ForwardStringObjectOrHash(isolate_);
-    if (!forward.IsHeapObject()) {
+    if (!IsHeapObject(forward)) {
       return;
     }
     String forward_string = String::cast(forward);
@@ -2818,7 +2818,7 @@ void MarkCompactCollector::MarkDependentCodeForDeoptimization() {
 void MarkCompactCollector::ClearPotentialSimpleMapTransition(Map dead_target) {
   DCHECK(non_atomic_marking_state_->IsUnmarked(dead_target));
   Object potential_parent = dead_target->constructor_or_back_pointer();
-  if (potential_parent.IsMap()) {
+  if (IsMap(potential_parent)) {
     Map parent = Map::cast(potential_parent);
     DisallowGarbageCollection no_gc_obviously;
     if (non_atomic_marking_state_->IsMarked(parent) &&
@@ -2955,9 +2955,8 @@ bool MarkCompactCollector::ProcessOldBytecodeSFI(
   // flushed it before processing this candidate. This can happen when using
   // CloneSharedFunctionInfo().
   Isolate* const isolate = heap_->isolate();
-  const bool bytecode_already_decompiled =
-      flushing_candidate->function_data(isolate, kAcquireLoad)
-          .IsUncompiledData(isolate);
+  const bool bytecode_already_decompiled = IsUncompiledData(
+      flushing_candidate->function_data(isolate, kAcquireLoad), isolate);
   const bool is_bytecode_live =
       !bytecode_already_decompiled &&
       non_atomic_marking_state_->IsMarked(
@@ -2985,7 +2984,7 @@ bool MarkCompactCollector::ProcessOldBaselineSFI(
   // flushed it before processing this candidate. This can happen when using
   // CloneSharedFunctionInfo().
   const bool bytecode_already_decompiled =
-      baseline_bytecode_or_interpreter_data.IsUncompiledData(heap_->isolate());
+      IsUncompiledData(baseline_bytecode_or_interpreter_data, heap_->isolate());
   const bool is_bytecode_live =
       !bytecode_already_decompiled &&
       non_atomic_marking_state_->IsMarked(
@@ -3084,7 +3083,7 @@ void MarkCompactCollector::ClearFullMapTransitions() {
       if (array->GetTargetIfExists(0, isolate, &map)) {
         DCHECK(!map.is_null());  // Weak pointers aren't cleared yet.
         Object constructor_or_back_pointer = map->constructor_or_back_pointer();
-        if (constructor_or_back_pointer.IsSmi()) {
+        if (IsSmi(constructor_or_back_pointer)) {
           DCHECK(isolate->has_active_deserializer());
           DCHECK_EQ(constructor_or_back_pointer,
                     Smi::uninitialized_deserialization_value());
@@ -3239,7 +3238,7 @@ void MarkCompactCollector::WeakenStrongDescriptorArrays() {
   for (auto vec : strong_descriptor_arrays_) {
     for (auto it = vec.begin(); it != vec.end(); ++it) {
       DescriptorArray raw = it.raw();
-      DCHECK(raw.IsStrongDescriptorArray());
+      DCHECK(IsStrongDescriptorArray(raw));
       raw->set_map_safe_transition_no_write_barrier(descriptor_array_map);
       DCHECK_EQ(raw->raw_gc_state(kRelaxedLoad), 0);
     }
@@ -3295,7 +3294,7 @@ void MarkCompactCollector::ClearWeakCollections() {
 #ifdef VERIFY_HEAP
       if (v8_flags.verify_heap) {
         Object value = table->ValueAt(i);
-        if (value.IsHeapObject()) {
+        if (IsHeapObject(value)) {
           HeapObject heap_object = HeapObject::cast(value);
           CHECK_IMPLIES(!ShouldMarkObject(key) ||
                             non_atomic_marking_state_->IsMarked(key),
@@ -3331,13 +3330,13 @@ void MarkCompactCollector::ClearWeakReferences() {
     // as MaybeObjectSlot.
     MaybeObjectSlot location(slot.second);
     if ((*location)->GetHeapObjectIfWeak(&value)) {
-      DCHECK(!value.IsCell());
+      DCHECK(!IsCell(value));
       if (value.InReadOnlySpace() ||
           non_atomic_marking_state_->IsMarked(value)) {
         // The value of the weak reference is alive.
         RecordSlot(slot.first, HeapObjectSlot(location), value);
       } else {
-        if (value.IsMap()) {
+        if (IsMap(value)) {
           // The map is non-live.
           ClearPotentialSimpleMapTransition(Map::cast(value));
         }
@@ -3365,7 +3364,7 @@ void MarkCompactCollector::ClearJSWeakRefs() {
   while (local_weak_objects()->weak_cells_local.Pop(&weak_cell)) {
     auto gc_notify_updated_slot = [](HeapObject object, ObjectSlot slot,
                                      Object target) {
-      if (target.IsHeapObject()) {
+      if (IsHeapObject(target)) {
         RecordSlot(object, slot, HeapObject::cast(target));
       }
     };
@@ -3767,7 +3766,7 @@ static Tagged<String> UpdateReferenceInExternalStringTableEntry(
     Tagged<String> new_string =
         Tagged<String>::cast(map_word.ToForwardingAddress(old_string));
 
-    if (new_string.IsExternalString()) {
+    if (IsExternalString(new_string)) {
       MemoryChunk::MoveExternalBackingStoreBytes(
           ExternalBackingStoreType::kExternalString,
           Page::FromAddress((*p).ptr()), Page::FromHeapObject(new_string),
@@ -4637,7 +4636,7 @@ class RememberedSetUpdatingItem : public UpdatingItem {
           [=](MaybeObjectSlot slot) {
             HeapObject host = HeapObject::FromAddress(
                 slot.address() - Code::kInstructionStreamOffset);
-            DCHECK(host.IsCode(cage_base));
+            DCHECK(IsCode(host, cage_base));
             UpdateStrongCodeSlot<AccessMode::NON_ATOMIC>(
                 host, cage_base, code_cage_base,
                 InstructionStreamSlot(slot.address()));
@@ -4754,8 +4753,8 @@ class EphemeronTableUpdatingItem : public UpdatingItem {
         it = table_map->erase(it);
         continue;
       }
-      DCHECK(table->map(cage_base).IsMap(cage_base));
-      DCHECK(table.IsEphemeronHashTable(cage_base));
+      DCHECK(IsMap(table->map(cage_base), cage_base));
+      DCHECK(IsEphemeronHashTable(table, cage_base));
       for (auto iti = indices.begin(); iti != indices.end();) {
         // EphemeronHashTable keys must be heap objects.
         HeapObjectSlot key_slot(table->RawFieldOfElementAt(

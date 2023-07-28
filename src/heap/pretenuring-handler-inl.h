@@ -32,7 +32,7 @@ void PretenuringHandler::UpdateAllocationSite(
   AllocationMemento memento_candidate =
       FindAllocationMemento<kForGC>(map, object);
   if (memento_candidate.is_null()) return;
-  DCHECK(map->IsJSObjectMap());
+  DCHECK(IsJSObjectMap(map));
 
   // Entering cached feedback is used in the parallel case. We are not allowed
   // to dereference the allocation site and rather have to postpone all checks

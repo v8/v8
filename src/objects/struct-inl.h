@@ -53,8 +53,8 @@ RELEASE_ACQUIRE_ACCESSORS(AccessorPair, getter, Object, kGetterOffset)
 RELEASE_ACQUIRE_ACCESSORS(AccessorPair, setter, Object, kSetterOffset)
 
 void AccessorPair::SetComponents(Object getter, Object setter) {
-  if (!getter.IsNull()) set_getter(getter);
-  if (!setter.IsNull()) set_setter(setter);
+  if (!IsNull(getter)) set_getter(getter);
+  if (!IsNull(setter)) set_setter(setter);
 }
 
 bool AccessorPair::Equals(Object getter_value, Object setter_value) {

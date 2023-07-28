@@ -19,7 +19,7 @@ using RootsTest = TestWithIsolate;
 
 namespace {
 AllocationSpace GetSpaceFromObject(Object object) {
-  DCHECK(object.IsHeapObject());
+  DCHECK(IsHeapObject(object));
   BasicMemoryChunk* chunk =
       BasicMemoryChunk::FromHeapObject(HeapObject::cast(object));
   if (chunk->InReadOnlySpace()) return RO_SPACE;
@@ -75,12 +75,12 @@ bool IsInitiallyMutable(Factory* factory, Address object_address) {
 // The CHECK_EQ line is there just to ensure that the root is publicly
 // accessible from Heap, but ultimately the factory is used as it provides
 // handles that have the address in the root table.
-#define CHECK_NOT_IN_RO_SPACE(type, name, CamelName)                         \
-  Handle<Object> name = factory->name();                                     \
-  CHECK_EQ(*name, heap->name());                                             \
-  if (name->IsHeapObject() && IsInitiallyMutable(factory, name.address()) && \
-      !name->IsUndefined(i_isolate())) {                                     \
-    CHECK_NE(RO_SPACE, GetSpaceFromObject(HeapObject::cast(*name)));         \
+#define CHECK_NOT_IN_RO_SPACE(type, name, CamelName)                        \
+  Handle<Object> name = factory->name();                                    \
+  CHECK_EQ(*name, heap->name());                                            \
+  if (IsHeapObject(*name) && IsInitiallyMutable(factory, name.address()) && \
+      !IsUndefined(*name, i_isolate())) {                                   \
+    CHECK_NE(RO_SPACE, GetSpaceFromObject(HeapObject::cast(*name)));        \
   }
 
 // The following tests check that all the roots accessible via public Heap
@@ -100,7 +100,7 @@ TEST_F(RootsTest, TestHeapNumberList) {
     auto obj = roots.object_at(pos);
     bool in_nr_range = pos >= RootIndex::kFirstHeapNumberRoot &&
                        pos <= RootIndex::kLastHeapNumberRoot;
-    CHECK_EQ(obj.IsHeapNumber(), in_nr_range);
+    CHECK_EQ(IsHeapNumber(obj), in_nr_range);
   }
 }
 

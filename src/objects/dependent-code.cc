@@ -13,11 +13,11 @@ namespace v8 {
 namespace internal {
 
 DependentCode DependentCode::GetDependentCode(HeapObject object) {
-  if (object.IsMap()) {
+  if (IsMap(object)) {
     return Map::cast(object)->dependent_code();
-  } else if (object.IsPropertyCell()) {
+  } else if (IsPropertyCell(object)) {
     return PropertyCell::cast(object)->dependent_code();
-  } else if (object.IsAllocationSite()) {
+  } else if (IsAllocationSite(object)) {
     return AllocationSite::cast(object)->dependent_code();
   }
   UNREACHABLE();
@@ -25,11 +25,11 @@ DependentCode DependentCode::GetDependentCode(HeapObject object) {
 
 void DependentCode::SetDependentCode(Handle<HeapObject> object,
                                      Handle<DependentCode> dep) {
-  if (object->IsMap()) {
+  if (IsMap(*object)) {
     Handle<Map>::cast(object)->set_dependent_code(*dep);
-  } else if (object->IsPropertyCell()) {
+  } else if (IsPropertyCell(*object)) {
     Handle<PropertyCell>::cast(object)->set_dependent_code(*dep);
-  } else if (object->IsAllocationSite()) {
+  } else if (IsAllocationSite(*object)) {
     Handle<AllocationSite>::cast(object)->set_dependent_code(*dep);
   } else {
     UNREACHABLE();

@@ -31,14 +31,14 @@ BUILTIN(ErrorCaptureStackTrace) {
 
   isolate->CountUsage(v8::Isolate::kErrorCaptureStackTrace);
 
-  if (!object_obj->IsJSObject()) {
+  if (!IsJSObject(*object_obj)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kInvalidArgument, object_obj));
   }
 
   Handle<JSObject> object = Handle<JSObject>::cast(object_obj);
   Handle<Object> caller = args.atOrUndefined(isolate, 2);
-  FrameSkipMode mode = caller->IsJSFunction() ? SKIP_UNTIL_SEEN : SKIP_FIRST;
+  FrameSkipMode mode = IsJSFunction(*caller) ? SKIP_UNTIL_SEEN : SKIP_FIRST;
 
   // Collect the stack trace and install the stack accessors.
   RETURN_FAILURE_ON_EXCEPTION(

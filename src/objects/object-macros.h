@@ -39,7 +39,7 @@
   explicit inline Type(Address ptr)
 
 #define OBJECT_CONSTRUCTORS_IMPL(Type, Super) \
-  inline Type::Type(Address ptr) : Super(ptr) { SLOW_DCHECK(Is##Type()); }
+  inline Type::Type(Address ptr) : Super(ptr) { SLOW_DCHECK(Is##Type(*this)); }
 
 #define NEVER_READ_ONLY_SPACE   \
   inline Heap* GetHeap() const; \
@@ -117,6 +117,13 @@
     return holder::name(cage_base, tag);                     \
   }                                                          \
   type holder::name(PtrComprCageBase cage_base, AcquireLoadTag) const
+
+#define DEF_HEAP_OBJECT_PREDICATE(holder, name)            \
+  bool name(Tagged<holder> obj) {                          \
+    PtrComprCageBase cage_base = GetPtrComprCageBase(obj); \
+    return name(obj, cage_base);                           \
+  }                                                        \
+  bool name(Tagged<holder> obj, PtrComprCageBase cage_base)
 
 #define TQ_FIELD_TYPE(name, tq_type) \
   static constexpr const char* k##name##TqFieldType = tq_type;

@@ -14,7 +14,7 @@ Handle<Script> GetEvalOrigin(Isolate* isolate, Script origin_script) {
   DisallowGarbageCollection no_gc;
   while (origin_script->has_eval_from_shared()) {
     HeapObject maybe_script = origin_script->eval_from_shared()->script();
-    CHECK(maybe_script.IsScript());
+    CHECK(IsScript(maybe_script));
     origin_script = Script::cast(maybe_script);
   }
   return handle(origin_script, isolate);

@@ -144,20 +144,20 @@ void StatisticsExtension::GetCounters(
     for (HeapObject obj = iterator.Next(); !obj.is_null();
          obj = iterator.Next()) {
       Object maybe_source_positions;
-      if (obj.IsCode()) {
+      if (IsCode(obj)) {
         Code code = Code::cast(obj);
         reloc_info_total += code->relocation_size();
         // Baseline code doesn't have source positions since it uses
         // interpreter code positions.
         if (code->kind() == CodeKind::BASELINE) continue;
         maybe_source_positions = code->source_position_table();
-      } else if (obj.IsBytecodeArray()) {
+      } else if (IsBytecodeArray(obj)) {
         maybe_source_positions =
             BytecodeArray::cast(obj)->source_position_table(kAcquireLoad);
       } else {
         continue;
       }
-      if (!maybe_source_positions.IsByteArray()) continue;
+      if (!IsByteArray(maybe_source_positions)) continue;
       ByteArray source_positions = ByteArray::cast(maybe_source_positions);
       if (source_positions->length() == 0) continue;
       source_position_table_total += source_positions->Size();

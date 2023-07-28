@@ -543,7 +543,7 @@ class YoungStringForwardingTableCleaner final
  private:
   void ClearNonLiveYoungObjects(StringForwardingTable::Record* record) {
     Object original = record->OriginalStringObject(isolate_);
-    if (!original.IsHeapObject()) {
+    if (!IsHeapObject(original)) {
       DCHECK_EQ(original, StringForwardingTable::deleted_element());
       return;
     }
@@ -846,8 +846,8 @@ void MinorMarkSweepCollector::DrainMarkingWorklist() {
 
     HeapObject heap_object;
     while (marking_worklists_local->Pop(&heap_object)) {
-      DCHECK(!heap_object.IsFreeSpaceOrFiller(cage_base));
-      DCHECK(heap_object.IsHeapObject());
+      DCHECK(!IsFreeSpaceOrFiller(heap_object, cage_base));
+      DCHECK(IsHeapObject(heap_object));
       DCHECK(heap_->Contains(heap_object));
       DCHECK(!non_atomic_marking_state_->IsUnmarked(heap_object));
       // Maps won't change in the atomic pause, so the map can be read without

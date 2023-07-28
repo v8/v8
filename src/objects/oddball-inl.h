@@ -47,9 +47,9 @@ Handle<Object> Oddball::ToNumber(Isolate* isolate, Handle<Oddball> input) {
   return Handle<Object>(input->to_number(), isolate);
 }
 
-DEF_GETTER(HeapObject, IsBoolean, bool) {
-  return IsOddball(cage_base) &&
-         ((Oddball::cast(*this)->kind() & Oddball::kNotBooleanMask) == 0);
+DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsBoolean) {
+  return IsOddball(obj, cage_base) &&
+         ((Oddball::cast(obj)->kind() & Oddball::kNotBooleanMask) == 0);
 }
 
 TQ_CPP_OBJECT_DEFINITION_ASSERTS(Null, Oddball)
@@ -65,8 +65,8 @@ OBJECT_CONSTRUCTORS_IMPL(Boolean, Oddball)
 CAST_ACCESSOR(Boolean)
 
 bool Boolean::ToBool(Isolate* isolate) const {
-  DCHECK(IsBoolean(isolate));
-  return IsTrue(isolate);
+  DCHECK(IsBoolean(*this, isolate));
+  return IsTrue(*this, isolate);
 }
 
 TQ_CPP_OBJECT_DEFINITION_ASSERTS(True, Boolean)

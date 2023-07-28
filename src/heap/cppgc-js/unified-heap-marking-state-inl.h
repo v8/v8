@@ -41,7 +41,7 @@ void UnifiedHeapMarkingState::MarkAndPush(
     return;
   }
   Object object = TracedHandles::Mark(traced_handle_location, mark_mode_);
-  if (!object.IsHeapObject()) {
+  if (!IsHeapObject(object)) {
     // The embedder is not aware of whether numbers are materialized as heap
     // objects are just passed around as Smis.
     return;

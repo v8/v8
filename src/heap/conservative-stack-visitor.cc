@@ -44,7 +44,7 @@ Address ConservativeStackVisitor::FindBasePtrForMarking(
     // space or filler objects in large pages. A few cctests violate this now.
     HeapObject obj(static_cast<const LargePage*>(chunk)->GetObject());
     PtrComprCageBase cage_base{chunk->heap()->isolate()};
-    return obj.IsFreeSpaceOrFiller(cage_base) ? kNullAddress : obj.address();
+    return IsFreeSpaceOrFiller(obj, cage_base) ? kNullAddress : obj.address();
   }
   // Otherwise, we have a pointer inside a normal page.
   const Page* page = static_cast<const Page*>(chunk);
@@ -71,7 +71,7 @@ Address ConservativeStackVisitor::FindBasePtrForMarking(
     const int size = obj.Size(cage_base);
     DCHECK_LT(0, size);
     if (maybe_inner_ptr < base_ptr + size)
-      return obj.IsFreeSpaceOrFiller(cage_base) ? kNullAddress : base_ptr;
+      return IsFreeSpaceOrFiller(obj, cage_base) ? kNullAddress : base_ptr;
     base_ptr += size;
     DCHECK_LT(base_ptr, page->area_end());
   }

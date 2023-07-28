@@ -507,9 +507,8 @@ void CollectAndMaybeResetCounts(Isolate* isolate,
     case v8::debug::CoverageMode::kPreciseBinary:
     case v8::debug::CoverageMode::kPreciseCount: {
       // Feedback vectors are already listed to prevent losing them to GC.
-      DCHECK(isolate->factory()
-                 ->feedback_vectors_for_profiling_tools()
-                 ->IsArrayList());
+      DCHECK(IsArrayList(
+          *isolate->factory()->feedback_vectors_for_profiling_tools()));
       Handle<ArrayList> list = Handle<ArrayList>::cast(
           isolate->factory()->feedback_vectors_for_profiling_tools());
       for (int i = 0; i < list->Length(); i++) {
@@ -523,15 +522,14 @@ void CollectAndMaybeResetCounts(Isolate* isolate,
       break;
     }
     case v8::debug::CoverageMode::kBestEffort: {
-      DCHECK(!isolate->factory()
-                  ->feedback_vectors_for_profiling_tools()
-                  ->IsArrayList());
+      DCHECK(!IsArrayList(
+          *isolate->factory()->feedback_vectors_for_profiling_tools()));
       DCHECK_EQ(v8::debug::CoverageMode::kBestEffort, coverage_mode);
       AllowGarbageCollection allow_gc;
       HeapObjectIterator heap_iterator(isolate->heap());
       for (HeapObject current_obj = heap_iterator.Next();
            !current_obj.is_null(); current_obj = heap_iterator.Next()) {
-        if (!current_obj.IsJSFunction()) continue;
+        if (!IsJSFunction(current_obj)) continue;
         JSFunction func = JSFunction::cast(current_obj);
         SharedFunctionInfo shared = func->shared();
         if (!shared->IsSubjectToDebugging()) continue;
@@ -784,19 +782,19 @@ void Coverage::SelectMode(Isolate* isolate, debug::CoverageMode mode) {
         HeapObjectIterator heap_iterator(isolate->heap());
         for (HeapObject o = heap_iterator.Next(); !o.is_null();
              o = heap_iterator.Next()) {
-          if (o.IsJSFunction()) {
+          if (IsJSFunction(o)) {
             JSFunction func = JSFunction::cast(o);
             if (func->has_closure_feedback_cell_array()) {
               funcs_needing_feedback_vector.push_back(
                   Handle<JSFunction>(func, isolate));
             }
-          } else if (IsBinaryMode(mode) && o.IsSharedFunctionInfo()) {
+          } else if (IsBinaryMode(mode) && IsSharedFunctionInfo(o)) {
             // If collecting binary coverage, reset
             // SFI::has_reported_binary_coverage to avoid optimizing / inlining
             // functions before they have reported coverage.
             SharedFunctionInfo shared = SharedFunctionInfo::cast(o);
             shared->set_has_reported_binary_coverage(false);
-          } else if (o.IsFeedbackVector()) {
+          } else if (IsFeedbackVector(o)) {
             // In any case, clear any collected invocation counts.
             FeedbackVector::cast(o)->clear_invocation_count(kRelaxedStore);
           }

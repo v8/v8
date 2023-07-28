@@ -44,7 +44,7 @@ class VerifySmisVisitor final : public RootVisitor {
   void VisitRootPointers(Root root, const char* description,
                          FullObjectSlot start, FullObjectSlot end) override {
     for (FullObjectSlot current = start; current < end; ++current) {
-      CHECK((*current).IsSmi());
+      CHECK(IsSmi(*current));
     }
   }
 };
@@ -108,7 +108,7 @@ void VerifyPointersVisitor::VisitInstructionStreamPointer(
   if (maybe_code.GetHeapObject(&code)) {
     VerifyCodeObjectImpl(code);
   } else {
-    CHECK(maybe_code.IsSmi());
+    CHECK(IsSmi(maybe_code));
   }
 }
 
@@ -132,12 +132,12 @@ void VerifyPointersVisitor::VisitMapPointer(HeapObject host) {
 
 void VerifyPointersVisitor::VerifyHeapObjectImpl(HeapObject heap_object) {
   CHECK(IsValidHeapObject(heap_, heap_object));
-  CHECK(heap_object->map(cage_base()).IsMap());
+  CHECK(IsMap(heap_object->map(cage_base())));
 }
 
 void VerifyPointersVisitor::VerifyCodeObjectImpl(HeapObject heap_object) {
   CHECK(IsValidCodeObject(heap_, heap_object));
-  CHECK(heap_object->map(cage_base()).IsMap());
+  CHECK(IsMap(heap_object->map(cage_base())));
   CHECK(heap_object->map(cage_base())->instance_type() ==
         INSTRUCTION_STREAM_TYPE);
 }
@@ -150,7 +150,7 @@ void VerifyPointersVisitor::VerifyPointersImpl(TSlot start, TSlot end) {
     if (object.GetHeapObject(&heap_object)) {
       VerifyHeapObjectImpl(heap_object);
     } else {
-      CHECK(object.IsSmi() || object.IsCleared() ||
+      CHECK(IsSmi(object) || object.IsCleared() ||
             MapWord::IsPacked(object.ptr()));
     }
   }
@@ -307,7 +307,7 @@ void HeapVerification::Verify() {
     Object normalized_map_cache =
         isolate()->raw_native_context()->normalized_map_cache();
 
-    if (normalized_map_cache.IsNormalizedMapCache()) {
+    if (IsNormalizedMapCache(normalized_map_cache)) {
       NormalizedMapCache::cast(normalized_map_cache)
           ->NormalizedMapCacheVerify(isolate());
     }
@@ -410,17 +410,17 @@ void HeapVerification::VerifyObjectMap(HeapObject object) {
   // The first word should be a map, and we expect all map pointers to be
   // in map space or read-only space.
   Map map = object->map(cage_base_);
-  CHECK(map.IsMap(cage_base_));
+  CHECK(IsMap(map, cage_base_));
   CHECK(ReadOnlyHeap::Contains(map) || old_space()->Contains(map) ||
         (shared_space() && shared_space()->Contains(map)));
 
   if (Heap::InYoungGeneration(object)) {
     // The object should not be code or a map.
-    CHECK(!object.IsMap(cage_base_));
-    CHECK(!object.IsAbstractCode(cage_base_));
+    CHECK(!IsMap(object, cage_base_));
+    CHECK(!IsAbstractCode(object, cage_base_));
   } else if (current_space_identity() == RO_SPACE) {
-    CHECK(!object.IsExternalString());
-    CHECK(!object.IsJSArrayBuffer());
+    CHECK(!IsExternalString(object));
+    CHECK(!IsJSArrayBuffer(object));
   }
 }
 
@@ -699,9 +699,9 @@ void HeapVerifier::VerifyObjectLayoutChangeIsAllowed(Heap* heap,
                                                      HeapObject object) {
   if (object.InWritableSharedSpace()) {
     // Out of objects in the shared heap, only strings can change layout.
-    DCHECK(object.IsString());
+    DCHECK(IsString(object));
     // Shared strings only change layout under GC, never concurrently.
-    if (object.IsShared()) {
+    if (IsShared(object)) {
       Isolate* isolate = heap->isolate();
       Isolate* shared_space_isolate = isolate->is_shared_space_isolate()
                                           ? isolate
@@ -749,12 +749,12 @@ void HeapVerifier::VerifySafeMapTransition(Heap* heap, HeapObject object,
                                            Map new_map) {
   PtrComprCageBase cage_base(heap->isolate());
 
-  if (object.IsJSObject(cage_base)) {
+  if (IsJSObject(object, cage_base)) {
     // Without double unboxing all in-object fields of a JSObject are tagged.
     return;
   }
 
-  if (object.IsString(cage_base) &&
+  if (IsString(object, cage_base) &&
       (new_map == ReadOnlyRoots(heap).thin_two_byte_string_map() ||
        new_map == ReadOnlyRoots(heap).thin_one_byte_string_map())) {
     // When transitioning a string to ThinString,
@@ -763,7 +763,7 @@ void HeapVerifier::VerifySafeMapTransition(Heap* heap, HeapObject object,
     return;
   }
 
-  if (v8_flags.shared_string_table && object.IsString(cage_base) &&
+  if (v8_flags.shared_string_table && IsString(object, cage_base) &&
       InstanceTypeChecker::IsInternalizedString(new_map->instance_type())) {
     // In-place internalization does not change a string's fields.
     //

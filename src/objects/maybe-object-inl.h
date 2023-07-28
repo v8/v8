@@ -52,14 +52,14 @@ HeapObjectReference::HeapObjectReference(Object object)
 
 // static
 HeapObjectReference HeapObjectReference::Strong(Object object) {
-  DCHECK(!object.IsSmi());
+  DCHECK(!i::IsSmi(object));
   DCHECK(!HasWeakHeapObjectTag(object));
   return HeapObjectReference(object);
 }
 
 // static
 HeapObjectReference HeapObjectReference::Weak(Object object) {
-  DCHECK(!object.IsSmi());
+  DCHECK(!i::IsSmi(object));
   DCHECK(!HasWeakHeapObjectTag(object));
   return HeapObjectReference(object.ptr() | kWeakHeapObjectMask);
 }
@@ -67,7 +67,7 @@ HeapObjectReference HeapObjectReference::Weak(Object object) {
 // static
 HeapObjectReference HeapObjectReference::From(Object object,
                                               HeapObjectReferenceType type) {
-  DCHECK(!object.IsSmi());
+  DCHECK(!i::IsSmi(object));
   DCHECK(!HasWeakHeapObjectTag(object));
   switch (type) {
     case HeapObjectReferenceType::STRONG:

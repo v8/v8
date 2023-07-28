@@ -516,7 +516,7 @@ void TestCharacterStreams(const char* one_byte_source, unsigned length,
     TestCharacterStream(one_byte_source, uc16_stream.get(), length, start, end);
 
     // This avoids the GC from trying to free a stack allocated resource.
-    if (uc16_string->IsExternalString())
+    if (IsExternalString(*uc16_string))
       i::Handle<i::ExternalTwoByteString>::cast(uc16_string)
           ->SetResource(isolate, nullptr);
   }
@@ -536,7 +536,7 @@ void TestCharacterStreams(const char* one_byte_source, unsigned length,
     TestCharacterStream(one_byte_source, one_byte_stream.get(), length, start,
                         end);
     // This avoids the GC from trying to free a stack allocated resource.
-    if (ext_one_byte_string->IsExternalString())
+    if (IsExternalString(*ext_one_byte_string))
       i::Handle<i::ExternalOneByteString>::cast(ext_one_byte_string)
           ->SetResource(isolate, nullptr);
   }
@@ -883,7 +883,7 @@ TEST_F(ScannerStreamsTest, CloneCharacterStreams) {
     TestCloneCharacterStream(one_byte_source, uc16_stream.get(), length);
 
     // This avoids the GC from trying to free a stack allocated resource.
-    if (uc16_string->IsExternalString())
+    if (IsExternalString(*uc16_string))
       i::Handle<i::ExternalTwoByteString>::cast(uc16_string)
           ->SetResource(i_isolate(), nullptr);
   }
@@ -902,7 +902,7 @@ TEST_F(ScannerStreamsTest, CloneCharacterStreams) {
         i::ScannerStream::For(i_isolate(), ext_one_byte_string, 0, length));
     TestCloneCharacterStream(one_byte_source, one_byte_stream.get(), length);
     // This avoids the GC from trying to free a stack allocated resource.
-    if (ext_one_byte_string->IsExternalString())
+    if (IsExternalString(*ext_one_byte_string))
       i::Handle<i::ExternalOneByteString>::cast(ext_one_byte_string)
           ->SetResource(i_isolate(), nullptr);
   }

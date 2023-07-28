@@ -44,7 +44,7 @@ bool AllocationSiteUsageContext::ShouldCreateMemento(Handle<JSObject> object) {
         AllocationSite::ShouldTrack(object->GetElementsKind())) {
       if (v8_flags.trace_creation_allocation_sites) {
         PrintF("*** Creating Memento for %s %p\n",
-               object->IsJSArray() ? "JSArray" : "JSObject",
+               IsJSArray(*object) ? "JSArray" : "JSObject",
                reinterpret_cast<void*>(object->ptr()));
       }
       return true;

@@ -184,7 +184,7 @@ class FreshlyAllocatedBigInt : public BigIntBase {
 
  private:
   // Only serves to make macros happy; other code should use IsBigInt.
-  bool IsFreshlyAllocatedBigInt() const { return true; }
+  static bool IsFreshlyAllocatedBigInt(FreshlyAllocatedBigInt) { return true; }
 
   OBJECT_CONSTRUCTORS(FreshlyAllocatedBigInt, BigIntBase);
 };

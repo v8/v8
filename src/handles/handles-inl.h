@@ -285,7 +285,7 @@ template <typename T>
 bool DirectHandle<T>::IsDereferenceAllowed() const {
   DCHECK_NE(obj_, kTaggedNullAddress);
   Object object(obj_);
-  if (object.IsSmi()) return true;
+  if (IsSmi(object)) return true;
   HeapObject heap_object = HeapObject::cast(object);
   if (IsReadOnlyHeapObject(heap_object)) return true;
   Isolate* isolate = GetIsolateFromWritableObject(heap_object);

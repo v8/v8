@@ -25,10 +25,10 @@ BUILTIN(NumberPrototypeToExponential) {
   Handle<Object> fraction_digits = args.atOrUndefined(isolate, 1);
 
   // Unwrap the receiver {value}.
-  if (value->IsJSPrimitiveWrapper()) {
+  if (IsJSPrimitiveWrapper(*value)) {
     value = handle(Handle<JSPrimitiveWrapper>::cast(value)->value(), isolate);
   }
-  if (!value->IsNumber()) {
+  if (!IsNumber(*value)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kNotGeneric,
                               isolate->factory()->NewStringFromAsciiChecked(
@@ -54,7 +54,7 @@ BUILTIN(NumberPrototypeToExponential) {
                                isolate->factory()->NewStringFromAsciiChecked(
                                    "toExponential()")));
   }
-  int const f = args.atOrUndefined(isolate, 1)->IsUndefined(isolate)
+  int const f = IsUndefined(*args.atOrUndefined(isolate, 1), isolate)
                     ? -1
                     : static_cast<int>(fraction_digits_number);
   char* const str = DoubleToExponentialCString(value_number, f);
@@ -70,10 +70,10 @@ BUILTIN(NumberPrototypeToFixed) {
   Handle<Object> fraction_digits = args.atOrUndefined(isolate, 1);
 
   // Unwrap the receiver {value}.
-  if (value->IsJSPrimitiveWrapper()) {
+  if (IsJSPrimitiveWrapper(*value)) {
     value = handle(Handle<JSPrimitiveWrapper>::cast(value)->value(), isolate);
   }
-  if (!value->IsNumber()) {
+  if (!IsNumber(*value)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kNotGeneric,
                               isolate->factory()->NewStringFromAsciiChecked(
@@ -118,11 +118,11 @@ BUILTIN(NumberPrototypeToLocaleString) {
   Handle<Object> value = args.at(0);
 
   // Unwrap the receiver {value}.
-  if (value->IsJSPrimitiveWrapper()) {
+  if (IsJSPrimitiveWrapper(*value)) {
     value = handle(Handle<JSPrimitiveWrapper>::cast(value)->value(), isolate);
   }
   // 1. Let x be ? thisNumberValue(this value)
-  if (!value->IsNumber()) {
+  if (!IsNumber(*value)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate,
         NewTypeError(MessageTemplate::kNotGeneric,
@@ -148,10 +148,10 @@ BUILTIN(NumberPrototypeToPrecision) {
   Handle<Object> precision = args.atOrUndefined(isolate, 1);
 
   // Unwrap the receiver {value}.
-  if (value->IsJSPrimitiveWrapper()) {
+  if (IsJSPrimitiveWrapper(*value)) {
     value = handle(Handle<JSPrimitiveWrapper>::cast(value)->value(), isolate);
   }
-  if (!value->IsNumber()) {
+  if (!IsNumber(*value)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kNotGeneric,
                               isolate->factory()->NewStringFromAsciiChecked(
@@ -161,7 +161,7 @@ BUILTIN(NumberPrototypeToPrecision) {
   double const value_number = value->Number();
 
   // If no {precision} was specified, just return ToString of {value}.
-  if (precision->IsUndefined(isolate)) {
+  if (IsUndefined(*precision, isolate)) {
     return *isolate->factory()->NumberToString(value);
   }
 

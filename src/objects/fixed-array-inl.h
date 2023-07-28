@@ -57,7 +57,7 @@ bool FixedArray::ContainsOnlySmisOrHoles() {
   ObjectSlot current = GetFirstElementAddress();
   for (int i = 0; i < length(); ++i, ++current) {
     Object candidate = *current;
-    if (!candidate.IsSmi() && candidate != the_hole) return false;
+    if (!IsSmi(candidate) && candidate != the_hole) return false;
   }
   return true;
 }
@@ -78,20 +78,20 @@ Handle<Object> FixedArray::get(FixedArray array, int index, Isolate* isolate) {
 }
 
 bool FixedArray::is_the_hole(Isolate* isolate, int index) {
-  return get(isolate, index).IsTheHole(isolate);
+  return IsTheHole(get(isolate, index), isolate);
 }
 
 void FixedArray::set(int index, Smi value) {
   DCHECK_NE(map(), EarlyGetReadOnlyRoots().unchecked_fixed_cow_array_map());
   DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
-  DCHECK(Object(value).IsSmi());
+  DCHECK(IsSmi(Object(value)));
   int offset = OffsetOfElementAt(index);
   RELAXED_WRITE_FIELD(*this, offset, value);
 }
 
 void FixedArray::set(int index, Object value) {
   DCHECK_NE(EarlyGetReadOnlyRoots().unchecked_fixed_cow_array_map(), map());
-  DCHECK(IsFixedArray());
+  DCHECK(IsFixedArray(*this));
   DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
   int offset = OffsetOfElementAt(index);
   RELAXED_WRITE_FIELD(*this, offset, value);
@@ -136,7 +136,7 @@ void FixedArray::set(int index, Object value, RelaxedStoreTag,
 }
 
 void FixedArray::set(int index, Smi value, RelaxedStoreTag tag) {
-  DCHECK(Object(value).IsSmi());
+  DCHECK(IsSmi(Object(value)));
   set(index, value, tag, SKIP_WRITE_BARRIER);
 }
 
@@ -160,7 +160,7 @@ void FixedArray::set(int index, Object value, SeqCstAccessTag,
 }
 
 void FixedArray::set(int index, Smi value, SeqCstAccessTag tag) {
-  DCHECK(Object(value).IsSmi());
+  DCHECK(IsSmi(Object(value)));
   set(index, value, tag, SKIP_WRITE_BARRIER);
 }
 
@@ -184,7 +184,7 @@ void FixedArray::set(int index, Object value, ReleaseStoreTag,
 }
 
 void FixedArray::set(int index, Smi value, ReleaseStoreTag tag) {
-  DCHECK(Object(value).IsSmi());
+  DCHECK(IsSmi(Object(value)));
   set(index, value, tag, SKIP_WRITE_BARRIER);
 }
 
@@ -233,7 +233,7 @@ Object FixedArray::swap(int index, Object value, SeqCstAccessTag,
 }
 
 Object FixedArray::swap(int index, Smi value, SeqCstAccessTag tag) {
-  DCHECK(Object(value).IsSmi());
+  DCHECK(IsSmi(Object(value)));
   return swap(index, value, tag, SKIP_WRITE_BARRIER);
 }
 
@@ -584,11 +584,11 @@ void ArrayList::Set(int index, Object obj, WriteBarrierMode mode) {
 }
 
 void ArrayList::Set(int index, Smi value) {
-  DCHECK(Object(value).IsSmi());
+  DCHECK(IsSmi(Object(value)));
   Set(index, value, SKIP_WRITE_BARRIER);
 }
 void ArrayList::Clear(int index, Object undefined) {
-  DCHECK(undefined.IsUndefined());
+  DCHECK(IsUndefined(undefined));
   FixedArray::cast(*this)->set(kFirstIndex + index, undefined,
                                SKIP_WRITE_BARRIER);
 }

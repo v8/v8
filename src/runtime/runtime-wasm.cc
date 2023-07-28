@@ -125,12 +125,12 @@ RUNTIME_FUNCTION(Runtime_WasmGenericWasmToJSObject) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   Handle<Object> value(args[0], isolate);
-  if (value->IsWasmInternalFunction()) {
+  if (IsWasmInternalFunction(*value)) {
     Handle<WasmInternalFunction> internal =
         Handle<WasmInternalFunction>::cast(value);
     return *WasmInternalFunction::GetOrCreateExternal(internal);
   }
-  if (value->IsWasmNull()) return ReadOnlyRoots(isolate).null_value();
+  if (IsWasmNull(*value)) return ReadOnlyRoots(isolate).null_value();
   return *value;
 }
 
@@ -452,7 +452,7 @@ RUNTIME_FUNCTION(Runtime_WasmTriggerTierUp) {
     // Note: This might trigger a GC, which invalidates the {args} object (see
     // https://crbug.com/v8/13036#2).
     Object result = isolate->stack_guard()->HandleInterrupts();
-    if (result.IsException()) return result;
+    if (IsException(result)) return result;
   }
 
   return ReadOnlyRoots(isolate).undefined_value();
@@ -577,7 +577,7 @@ RUNTIME_FUNCTION(Runtime_WasmFunctionTableGet) {
       WasmTableObject::cast(instance->tables()->get(table_index)), isolate);
   // We only use the runtime call for lazily initialized function references.
   DCHECK(
-      table->instance().IsUndefined()
+      IsUndefined(table->instance())
           ? table->type() == wasm::kWasmFuncRef
           : IsSubtypeOf(table->type(), wasm::kWasmFuncRef,
                         WasmInstanceObject::cast(table->instance())->module()));
@@ -602,7 +602,7 @@ RUNTIME_FUNCTION(Runtime_WasmFunctionTableSet) {
       WasmTableObject::cast(instance->tables()->get(table_index)), isolate);
   // We only use the runtime call for lazily initialized function references.
   DCHECK(
-      table->instance().IsUndefined()
+      IsUndefined(table->instance())
           ? table->type() == wasm::kWasmFuncRef
           : IsSubtypeOf(table->type(), wasm::kWasmFuncRef,
                         WasmInstanceObject::cast(table->instance())->module()));
@@ -800,8 +800,8 @@ RUNTIME_FUNCTION(Runtime_WasmDebugBreak) {
     Object interrupt_object = isolate->stack_guard()->HandleInterrupts();
     // Interrupt handling can create an exception, including the
     // termination exception.
-    if (interrupt_object.IsException(isolate)) return interrupt_object;
-    DCHECK(interrupt_object.IsUndefined(isolate));
+    if (IsException(interrupt_object, isolate)) return interrupt_object;
+    DCHECK(IsUndefined(interrupt_object, isolate));
   }
 
   return ReadOnlyRoots(isolate).undefined_value();
@@ -892,7 +892,7 @@ RUNTIME_FUNCTION(Runtime_WasmArrayNewSegment) {
     // from there, as it might have been dropped. If the segment is
     // uninitialized, we need to fetch its length from the module.
     int segment_length =
-        elem_segment_raw->IsFixedArray()
+        IsFixedArray(*elem_segment_raw)
             ? Handle<FixedArray>::cast(elem_segment_raw)->length()
             : module_elem_segment->element_count;
     if (!base::IsInBounds<size_t>(offset, length, segment_length)) {
@@ -901,7 +901,7 @@ RUNTIME_FUNCTION(Runtime_WasmArrayNewSegment) {
     }
     Handle<Object> result = isolate->factory()->NewWasmArrayFromElementSegment(
         instance, segment_index, offset, length, rtt);
-    if (result->IsSmi()) {
+    if (IsSmi(*result)) {
       return ThrowWasmError(
           isolate, static_cast<MessageTemplate>(result->ToSmi().value()));
     } else {
@@ -959,7 +959,7 @@ RUNTIME_FUNCTION(Runtime_WasmArrayInitSegment) {
     // from there, as it might have been dropped. If the segment is
     // uninitialized, we need to fetch its length from the module.
     int segment_length =
-        elem_segment_raw->IsFixedArray()
+        IsFixedArray(*elem_segment_raw)
             ? Handle<FixedArray>::cast(elem_segment_raw)->length()
             : module_elem_segment->element_count;
     if (!base::IsInBounds<size_t>(segment_offset, length, segment_length)) {

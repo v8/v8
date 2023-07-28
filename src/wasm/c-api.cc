@@ -453,7 +453,7 @@ void StoreImpl::SetHostInfo(i::Handle<i::Object> object, void* info,
 void* StoreImpl::GetHostInfo(i::Handle<i::Object> key) {
   i::Object raw =
       i::EphemeronHashTable::cast(host_info_map_->table())->Lookup(key);
-  if (raw.IsTheHole(i_isolate())) return nullptr;
+  if (IsTheHole(raw, i_isolate())) return nullptr;
   return i::Managed<ManagedData>::cast(raw)->raw()->info;
 }
 
@@ -1294,9 +1294,9 @@ auto Extern::kind() const -> ExternKind {
   if (i::WasmExportedFunction::IsWasmExportedFunction(*obj)) {
     return wasm::EXTERN_FUNC;
   }
-  if (obj->IsWasmGlobalObject()) return wasm::EXTERN_GLOBAL;
-  if (obj->IsWasmTableObject()) return wasm::EXTERN_TABLE;
-  if (obj->IsWasmMemoryObject()) return wasm::EXTERN_MEMORY;
+  if (IsWasmGlobalObject(*obj)) return wasm::EXTERN_GLOBAL;
+  if (IsWasmTableObject(*obj)) return wasm::EXTERN_TABLE;
+  if (IsWasmMemoryObject(*obj)) return wasm::EXTERN_MEMORY;
   UNREACHABLE();
 }
 
@@ -1511,7 +1511,7 @@ auto Func::result_arity() const -> size_t {
 namespace {
 
 own<Ref> V8RefValueToWasm(StoreImpl* store, i::Handle<i::Object> value) {
-  if (value->IsNull(store->i_isolate())) return nullptr;
+  if (IsNull(*value, store->i_isolate())) return nullptr;
   return implement<Ref>::type::make(store,
                                     i::Handle<i::JSReceiver>::cast(value));
 }
@@ -1625,7 +1625,7 @@ own<Trap> CallWasmCapiFunction(i::WasmCapiFunctionData data, const Val args[],
 
 i::Handle<i::JSReceiver> GetProperException(
     i::Isolate* isolate, i::Handle<i::Object> maybe_exception) {
-  if (maybe_exception->IsJSReceiver()) {
+  if (IsJSReceiver(*maybe_exception)) {
     return i::Handle<i::JSReceiver>::cast(maybe_exception);
   }
   i::MaybeHandle<i::String> maybe_string =
@@ -1654,12 +1654,12 @@ auto Func::call(const Val args[], Val results[]) const -> own<Trap> {
       func->v8_object()->shared()->function_data(v8::kAcquireLoad);
 
   // WasmCapiFunctions can be called directly.
-  if (raw_function_data.IsWasmCapiFunctionData()) {
+  if (IsWasmCapiFunctionData(raw_function_data)) {
     return CallWasmCapiFunction(
         i::WasmCapiFunctionData::cast(raw_function_data), args, results);
   }
 
-  DCHECK(raw_function_data.IsWasmExportedFunctionData());
+  DCHECK(IsWasmExportedFunctionData(raw_function_data));
   i::Handle<i::WasmExportedFunctionData> function_data(
       i::WasmExportedFunctionData::cast(raw_function_data), isolate);
   i::Handle<i::WasmInstanceObject> instance(function_data->instance(), isolate);
@@ -1679,11 +1679,11 @@ auto Func::call(const Val args[], Val results[]) const -> own<Trap> {
       static_cast<int>(instance->module()->num_imported_functions)) {
     object_ref = i::handle(
         instance->imported_function_refs()->get(function_index), isolate);
-    if (object_ref->IsWasmApiFunctionRef()) {
+    if (IsWasmApiFunctionRef(*object_ref)) {
       i::JSFunction jsfunc = i::JSFunction::cast(
           i::WasmApiFunctionRef::cast(*object_ref)->callable());
       i::Object data = jsfunc->shared()->function_data(v8::kAcquireLoad);
-      if (data.IsWasmCapiFunctionData()) {
+      if (IsWasmCapiFunctionData(data)) {
         return CallWasmCapiFunction(i::WasmCapiFunctionData::cast(data), args,
                                     results);
       }
@@ -1693,7 +1693,7 @@ auto Func::call(const Val args[], Val results[]) const -> own<Trap> {
       UNIMPLEMENTED();
     } else {
       // A WasmFunction from another module.
-      DCHECK(object_ref->IsWasmInstanceObject());
+      DCHECK(IsWasmInstanceObject(*object_ref));
     }
   }
 
@@ -1867,11 +1867,11 @@ auto Global::get() const -> Val {
       i::HandleScope scope(store->i_isolate());
       v8::Isolate::Scope isolate_scope(store->isolate());
       i::Handle<i::Object> result = v8_global->GetRef();
-      if (result->IsWasmInternalFunction()) {
+      if (IsWasmInternalFunction(*result)) {
         result = i::WasmInternalFunction::GetOrCreateExternal(
             i::Handle<i::WasmInternalFunction>::cast(result));
       }
-      if (result->IsWasmNull()) {
+      if (IsWasmNull(*result)) {
         result = v8_global->GetIsolate()->factory()->null_value();
       }
       return Val(V8RefValueToWasm(store, result));
@@ -2009,14 +2009,14 @@ auto Table::get(size_t index) const -> own<Ref> {
   i::HandleScope handle_scope(isolate);
   i::Handle<i::Object> result =
       i::WasmTableObject::Get(isolate, table, static_cast<uint32_t>(index));
-  if (result->IsWasmInternalFunction()) {
+  if (IsWasmInternalFunction(*result)) {
     result = i::WasmInternalFunction::GetOrCreateExternal(
         i::Handle<i::WasmInternalFunction>::cast(result));
   }
-  if (result->IsWasmNull()) {
+  if (IsWasmNull(*result)) {
     result = isolate->factory()->null_value();
   }
-  DCHECK(result->IsNull(isolate) || result->IsJSReceiver());
+  DCHECK(IsNull(*result, isolate) || IsJSReceiver(*result));
   return V8RefValueToWasm(impl(this)->store(), result);
 }
 

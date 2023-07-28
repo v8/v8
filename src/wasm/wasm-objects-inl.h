@@ -63,10 +63,10 @@ CAST_ACCESSOR(WasmInstanceObject)
 #define OPTIONAL_ACCESSORS(holder, name, type, offset)                  \
   DEF_GETTER(holder, has_##name, bool) {                                \
     Object value = TaggedField<Object, offset>::load(cage_base, *this); \
-    return !value.IsUndefined(GetReadOnlyRoots(cage_base));             \
+    return !IsUndefined(value, GetReadOnlyRoots(cage_base));            \
   }                                                                     \
   ACCESSORS_CHECKED2(holder, name, type, offset,                        \
-                     !value.IsUndefined(GetReadOnlyRoots(cage_base)), true)
+                     !IsUndefined(value, GetReadOnlyRoots(cage_base)), true)
 
 #define PRIMITIVE_ACCESSORS(holder, name, type, offset)               \
   type holder::name() const {                                         \
@@ -438,11 +438,11 @@ MaybeHandle<Object> WasmObject::ToWasmValue(Isolate* isolate,
 template <typename ElementType>
 ElementType WasmObject::FromNumber(Object value) {
   // The value must already be prepared for storing to numeric fields.
-  DCHECK(value.IsNumber());
-  if (value.IsSmi()) {
+  DCHECK(IsNumber(value));
+  if (IsSmi(value)) {
     return static_cast<ElementType>(Smi::ToInt(value));
 
-  } else if (value.IsHeapNumber()) {
+  } else if (IsHeapNumber(value)) {
     double double_value = HeapNumber::cast(value)->value();
     if (std::is_same<ElementType, double>::value ||
         std::is_same<ElementType, float>::value) {

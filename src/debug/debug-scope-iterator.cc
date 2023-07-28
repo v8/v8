@@ -17,7 +17,7 @@ std::unique_ptr<debug::ScopeIterator> debug::ScopeIterator::CreateForFunction(
   // Besides JSFunction and JSBoundFunction, {v8_func} could be an
   // ObjectTemplate with a CallAsFunctionHandler. We only handle plain
   // JSFunctions.
-  if (!receiver->IsJSFunction()) return nullptr;
+  if (!IsJSFunction(*receiver)) return nullptr;
 
   internal::Handle<internal::JSFunction> function =
       internal::Handle<internal::JSFunction>::cast(receiver);
@@ -32,7 +32,7 @@ debug::ScopeIterator::CreateForGeneratorObject(
     v8::Isolate* v8_isolate, v8::Local<v8::Object> v8_generator) {
   internal::Handle<internal::Object> generator =
       Utils::OpenHandle(*v8_generator);
-  DCHECK(generator->IsJSGeneratorObject());
+  DCHECK(IsJSGeneratorObject(*generator));
   return std::unique_ptr<debug::ScopeIterator>(new internal::DebugScopeIterator(
       reinterpret_cast<internal::Isolate*>(v8_isolate),
       internal::Handle<internal::JSGeneratorObject>::cast(generator)));

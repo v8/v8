@@ -207,7 +207,7 @@ ResultType HeapVisitor<ResultType, ConcreteVisitor>::VisitDataObject(
   // The following types have external pointers, which must be visited.
   // TODO(v8:10391) Consider adding custom visitor IDs for these and making
   // this block not depend on V8_ENABLE_SANDBOX.
-  if (object.IsForeign(cage_base())) {
+  if (IsForeign(object, cage_base())) {
     Foreign::BodyDescriptor::IterateBody(map, object, size, visitor);
   }
 #endif  // V8_ENABLE_SANDBOX

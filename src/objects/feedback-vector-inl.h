@@ -245,7 +245,7 @@ FeedbackSlot FeedbackVector::ToSlot(intptr_t index) {
 bool FeedbackVector::IsOfLegacyType(MaybeObject value) {
   HeapObject heap_object;
   if (value->GetHeapObject(&heap_object)) {
-    return heap_object.IsFixedArray() && !heap_object.IsHashTable();
+    return IsFixedArray(heap_object) && !IsHashTable(heap_object);
   }
   return false;
 }

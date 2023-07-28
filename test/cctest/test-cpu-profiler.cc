@@ -202,7 +202,7 @@ TEST(CodeEvents) {
                                     comment2_code, "comment2");
 
   PtrComprCageBase cage_base(isolate);
-  if (comment2_code->IsBytecodeArray(cage_base)) {
+  if (IsBytecodeArray(*comment2_code, cage_base)) {
     profiler_listener.BytecodeMoveEvent(comment2_code->GetBytecodeArray(),
                                         moved_code->GetBytecodeArray());
   } else {
@@ -4789,7 +4789,7 @@ TEST(BytecodeFlushEventsEagerLogging) {
     Handle<Object> func_value =
         Object::GetProperty(i_isolate, i_isolate->global_object(), foo_name)
             .ToHandleChecked();
-    CHECK(func_value->IsJSFunction());
+    CHECK(IsJSFunction(*func_value));
     Handle<JSFunction> function = Handle<JSFunction>::cast(func_value);
     CHECK(function->shared()->is_compiled());
 

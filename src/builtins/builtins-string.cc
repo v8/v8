@@ -24,8 +24,7 @@ namespace internal {
 namespace {  // for String.fromCodePoint
 
 bool IsValidCodePoint(Isolate* isolate, Handle<Object> value) {
-  if (!value->IsNumber() &&
-      !Object::ToNumber(isolate, value).ToHandle(&value)) {
+  if (!IsNumber(*value) && !Object::ToNumber(isolate, value).ToHandle(&value)) {
     return false;
   }
 
@@ -211,7 +210,7 @@ BUILTIN(StringPrototypeNormalize) {
   TO_THIS_STRING(string, "String.prototype.normalize");
 
   Handle<Object> form_input = args.atOrUndefined(isolate, 1);
-  if (form_input->IsUndefined(isolate)) return *string;
+  if (IsUndefined(*form_input, isolate)) return *string;
 
   Handle<String> form;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, form,
@@ -266,7 +265,7 @@ V8_WARN_UNUSED_RESULT static Object ConvertCaseHelper(
   unibrow::uchar chars[Converter::kMaxWidth];
   // We can assume that the string is not empty
   base::uc32 current = stream.GetNext();
-  bool ignore_overflow = Converter::kIsToLower || result.IsSeqTwoByteString();
+  bool ignore_overflow = Converter::kIsToLower || IsSeqTwoByteString(result);
   for (int i = 0; i < result_length;) {
     bool has_next = stream.HasMore();
     base::uc32 next = has_next ? stream.GetNext() : 0;
@@ -381,9 +380,9 @@ V8_WARN_UNUSED_RESULT static Object ConvertCase(
   }
 
   Object answer = ConvertCaseHelper(isolate, *s, *result, length, mapping);
-  if (answer.IsException(isolate) || answer.IsString()) return answer;
+  if (IsException(answer, isolate) || IsString(answer)) return answer;
 
-  DCHECK(answer.IsSmi());
+  DCHECK(IsSmi(answer));
   length = Smi::ToInt(answer);
   if (s->IsOneByteRepresentation() && length > 0) {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(

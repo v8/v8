@@ -330,12 +330,11 @@ class ConstantInDictionaryPrototypeChainDependency final
 
     while (map->prototype() != *holder) {
       map = handle(map->prototype()->map(), isolate);
-      DCHECK(map->IsJSObjectMap());  // Due to IsValid holding.
+      DCHECK(IsJSObjectMap(*map));  // Due to IsValid holding.
       deps->Register(map, DependentCode::kPrototypeCheckGroup);
     }
 
-    DCHECK(
-        map->prototype()->map()->IsJSObjectMap());  // Due to IsValid holding.
+    DCHECK(IsJSObjectMap(map->prototype()->map()));  // Due to IsValid holding.
     deps->Register(handle(map->prototype()->map(), isolate),
                    DependentCode::kPrototypeCheckGroup);
   }
@@ -378,7 +377,7 @@ class ConstantInDictionaryPrototypeChainDependency final
         return ValidationResult::kFoundIncorrect;
       }
       if (kind_ == PropertyKind::kAccessor) {
-        if (!dictionary_value.IsAccessorPair()) {
+        if (!IsAccessorPair(dictionary_value)) {
           return ValidationResult::kFoundIncorrect;
         }
         // Only supporting loading at the moment, so we only ever want the
@@ -392,7 +391,7 @@ class ConstantInDictionaryPrototypeChainDependency final
                                           : ValidationResult::kFoundIncorrect;
     };
 
-    while (prototype.IsJSObject()) {
+    while (IsJSObject(prototype)) {
       // We only care about JSObjects because that's the only type of holder
       // (and types of prototypes on the chain to the holder) that
       // AccessInfoFactory::ComputePropertyAccessInfo allows.
@@ -464,7 +463,7 @@ class OwnConstantDataPropertyDependency final : public CompilationDependency {
     Object used_value = *value_.object();
     if (representation_.IsDouble()) {
       // Compare doubles by bit pattern.
-      if (!current_value.IsHeapNumber() || !used_value.IsHeapNumber() ||
+      if (!IsHeapNumber(current_value) || !IsHeapNumber(used_value) ||
           HeapNumber::cast(current_value)->value_as_bits(kRelaxedLoad) !=
               HeapNumber::cast(used_value)->value_as_bits(kRelaxedLoad)) {
         TRACE_BROKER_MISSING(broker_,

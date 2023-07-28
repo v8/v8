@@ -716,7 +716,7 @@ class CallSiteBuilder {
         limit_(limit),
         caller_(caller),
         skip_next_frame_(mode != SKIP_NONE) {
-    DCHECK_IMPLIES(mode_ == SKIP_UNTIL_SEEN, caller_->IsJSFunction());
+    DCHECK_IMPLIES(mode_ == SKIP_UNTIL_SEEN, IsJSFunction(*caller_));
     // Modern web applications are usually built with multiple layers of
     // framework and library code, and stack depth tends to be more than
     // a dozen frames, so we over-allocate a bit here to avoid growing
@@ -913,7 +913,7 @@ class CallSiteBuilder {
   void AppendFrame(Handle<Object> receiver_or_instance, Handle<Object> function,
                    Handle<HeapObject> code, int offset, int flags,
                    Handle<FixedArray> parameters) {
-    if (receiver_or_instance->IsTheHole(isolate_)) {
+    if (IsTheHole(*receiver_or_instance, isolate_)) {
       // TODO(jgruber): Fix all cases in which frames give us a hole value
       // (e.g. the receiver in RegExp constructor frames).
       receiver_or_instance = isolate_->factory()->undefined_value();
@@ -940,7 +940,7 @@ bool GetStackTraceLimit(Isolate* isolate, int* result) {
   Handle<String> key = isolate->factory()->stackTraceLimit_string();
   Handle<Object> stack_trace_limit =
       JSReceiver::GetDataProperty(isolate, error, key);
-  if (!stack_trace_limit->IsNumber()) return false;
+  if (!IsNumber(*stack_trace_limit)) return false;
 
   // Ensure that limit is not negative.
   *result = std::max(FastD2IChecked(stack_trace_limit->Number()), 0);
@@ -953,7 +953,7 @@ bool GetStackTraceLimit(Isolate* isolate, int* result) {
 }
 
 bool IsBuiltinFunction(Isolate* isolate, HeapObject object, Builtin builtin) {
-  if (!object.IsJSFunction()) return false;
+  if (!IsJSFunction(object)) return false;
   JSFunction const function = JSFunction::cast(object);
   return function->code() == isolate->builtins()->code(builtin);
 }
@@ -965,10 +965,10 @@ void CaptureAsyncStackTrace(Isolate* isolate, Handle<JSPromise> promise,
     if (promise->status() != Promise::kPending) return;
 
     // Check that we have exactly one PromiseReaction on the {promise}.
-    if (!promise->reactions().IsPromiseReaction()) return;
+    if (!IsPromiseReaction(promise->reactions())) return;
     Handle<PromiseReaction> reaction(
         PromiseReaction::cast(promise->reactions()), isolate);
-    if (!reaction->next().IsSmi()) return;
+    if (!IsSmi(reaction->next())) return;
 
     // Check if the {reaction} has one of the known async function or
     // async generator continuations as its fulfill handler.
@@ -991,14 +991,14 @@ void CaptureAsyncStackTrace(Isolate* isolate, Handle<JSPromise> promise,
       builder->AppendAsyncFrame(generator_object);
 
       // Try to continue from here.
-      if (generator_object->IsJSAsyncFunctionObject()) {
+      if (IsJSAsyncFunctionObject(*generator_object)) {
         Handle<JSAsyncFunctionObject> async_function_object =
             Handle<JSAsyncFunctionObject>::cast(generator_object);
         promise = handle(async_function_object->promise(), isolate);
       } else {
         Handle<JSAsyncGeneratorObject> async_generator_object =
             Handle<JSAsyncGeneratorObject>::cast(generator_object);
-        if (async_generator_object->queue().IsUndefined(isolate)) return;
+        if (IsUndefined(async_generator_object->queue(), isolate)) return;
         Handle<AsyncGeneratorRequest> async_generator_request(
             AsyncGeneratorRequest::cast(async_generator_object->queue()),
             isolate);
@@ -1021,7 +1021,7 @@ void CaptureAsyncStackTrace(Isolate* isolate, Handle<JSPromise> promise,
           PromiseBuiltins::kPromiseAllResolveElementCapabilitySlot;
       Handle<PromiseCapability> capability(
           PromiseCapability::cast(context->get(index)), isolate);
-      if (!capability->promise().IsJSPromise()) return;
+      if (!IsJSPromise(capability->promise())) return;
       promise = handle(JSPromise::cast(capability->promise()), isolate);
     } else if (IsBuiltinFunction(
                    isolate, reaction->fulfill_handler(),
@@ -1040,7 +1040,7 @@ void CaptureAsyncStackTrace(Isolate* isolate, Handle<JSPromise> promise,
           PromiseBuiltins::kPromiseAllResolveElementCapabilitySlot;
       Handle<PromiseCapability> capability(
           PromiseCapability::cast(context->get(index)), isolate);
-      if (!capability->promise().IsJSPromise()) return;
+      if (!IsJSPromise(capability->promise())) return;
       promise = handle(JSPromise::cast(capability->promise()), isolate);
     } else if (IsBuiltinFunction(isolate, reaction->reject_handler(),
                                  Builtin::kPromiseAnyRejectElementClosure)) {
@@ -1057,7 +1057,7 @@ void CaptureAsyncStackTrace(Isolate* isolate, Handle<JSPromise> promise,
       int const index = PromiseBuiltins::kPromiseAnyRejectElementCapabilitySlot;
       Handle<PromiseCapability> capability(
           PromiseCapability::cast(context->get(index)), isolate);
-      if (!capability->promise().IsJSPromise()) return;
+      if (!IsJSPromise(capability->promise())) return;
       promise = handle(JSPromise::cast(capability->promise()), isolate);
     } else if (IsBuiltinFunction(isolate, reaction->fulfill_handler(),
                                  Builtin::kPromiseCapabilityDefaultResolve)) {
@@ -1073,16 +1073,16 @@ void CaptureAsyncStackTrace(Isolate* isolate, Handle<JSPromise> promise,
       // (only works for native promise chains).
       Handle<HeapObject> promise_or_capability(
           reaction->promise_or_capability(), isolate);
-      if (promise_or_capability->IsJSPromise()) {
+      if (IsJSPromise(*promise_or_capability)) {
         promise = Handle<JSPromise>::cast(promise_or_capability);
-      } else if (promise_or_capability->IsPromiseCapability()) {
+      } else if (IsPromiseCapability(*promise_or_capability)) {
         Handle<PromiseCapability> capability =
             Handle<PromiseCapability>::cast(promise_or_capability);
-        if (!capability->promise().IsJSPromise()) return;
+        if (!IsJSPromise(capability->promise())) return;
         promise = handle(JSPromise::cast(capability->promise()), isolate);
       } else {
         // Otherwise the {promise_or_capability} must be undefined here.
-        CHECK(promise_or_capability->IsUndefined(isolate));
+        CHECK(IsUndefined(*promise_or_capability, isolate));
         return;
       }
     }
@@ -1091,7 +1091,7 @@ void CaptureAsyncStackTrace(Isolate* isolate, Handle<JSPromise> promise,
 
 void CaptureAsyncStackTrace(Isolate* isolate, CallSiteBuilder* builder) {
   Handle<Object> current_microtask = isolate->factory()->current_microtask();
-  if (current_microtask->IsPromiseReactionJobTask()) {
+  if (IsPromiseReactionJobTask(*current_microtask)) {
     Handle<PromiseReactionJobTask> promise_reaction_job_task =
         Handle<PromiseReactionJobTask>::cast(current_microtask);
     // Check if the {reaction} has one of the known async function or
@@ -1115,7 +1115,7 @@ void CaptureAsyncStackTrace(Isolate* isolate, CallSiteBuilder* builder) {
       Handle<JSGeneratorObject> generator_object(
           JSGeneratorObject::cast(context->extension()), isolate);
       if (generator_object->is_executing()) {
-        if (generator_object->IsJSAsyncFunctionObject()) {
+        if (IsJSAsyncFunctionObject(*generator_object)) {
           Handle<JSAsyncFunctionObject> async_function_object =
               Handle<JSAsyncFunctionObject>::cast(generator_object);
           Handle<JSPromise> promise(async_function_object->promise(), isolate);
@@ -1124,7 +1124,7 @@ void CaptureAsyncStackTrace(Isolate* isolate, CallSiteBuilder* builder) {
           Handle<JSAsyncGeneratorObject> async_generator_object =
               Handle<JSAsyncGeneratorObject>::cast(generator_object);
           Handle<Object> queue(async_generator_object->queue(), isolate);
-          if (!queue->IsUndefined(isolate)) {
+          if (!IsUndefined(*queue, isolate)) {
             Handle<AsyncGeneratorRequest> async_generator_request =
                 Handle<AsyncGeneratorRequest>::cast(queue);
             Handle<JSPromise> promise(
@@ -1140,7 +1140,7 @@ void CaptureAsyncStackTrace(Isolate* isolate, CallSiteBuilder* builder) {
       // the {promise_reaction_job_task}.
       Handle<HeapObject> promise_or_capability(
           promise_reaction_job_task->promise_or_capability(), isolate);
-      if (promise_or_capability->IsJSPromise()) {
+      if (IsJSPromise(*promise_or_capability)) {
         Handle<JSPromise> promise =
             Handle<JSPromise>::cast(promise_or_capability);
         CaptureAsyncStackTrace(isolate, promise, builder);
@@ -1259,7 +1259,7 @@ MaybeHandle<JSObject> Isolate::CaptureAndSetErrorStack(
   // collect a "detailed stack trace" eagerly and stash that away.
   if (capture_stack_trace_for_uncaught_exceptions_) {
     Handle<Object> limit_or_stack_frame_infos;
-    if (error_stack->IsUndefined(this) ||
+    if (IsUndefined(*error_stack, this) ||
         (stack_trace_for_uncaught_exceptions_options_ &
          StackTrace::kExposeFramesAcrossSecurityOrigins)) {
       limit_or_stack_frame_infos = CaptureDetailedStackTrace(
@@ -1290,13 +1290,13 @@ Handle<FixedArray> Isolate::GetDetailedStackTrace(
   ErrorUtils::StackPropertyLookupResult lookup =
       ErrorUtils::GetErrorStackProperty(this, maybe_error_object);
 
-  if (!lookup.error_stack->IsErrorStackData()) return {};
+  if (!IsErrorStackData(*lookup.error_stack)) return {};
   Handle<ErrorStackData> error_stack_data =
       Handle<ErrorStackData>::cast(lookup.error_stack);
 
   ErrorStackData::EnsureStackFrameInfos(this, error_stack_data);
 
-  if (!error_stack_data->limit_or_stack_frame_infos().IsFixedArray()) return {};
+  if (!IsFixedArray(error_stack_data->limit_or_stack_frame_infos())) return {};
   return handle(
       FixedArray::cast(error_stack_data->limit_or_stack_frame_infos()), this);
 }
@@ -1306,10 +1306,10 @@ Handle<FixedArray> Isolate::GetSimpleStackTrace(
   ErrorUtils::StackPropertyLookupResult lookup =
       ErrorUtils::GetErrorStackProperty(this, maybe_error_object);
 
-  if (lookup.error_stack->IsFixedArray()) {
+  if (IsFixedArray(*lookup.error_stack)) {
     return Handle<FixedArray>::cast(lookup.error_stack);
   }
-  if (!lookup.error_stack->IsErrorStackData()) {
+  if (!IsErrorStackData(*lookup.error_stack)) {
     return factory()->empty_fixed_array();
   }
   Handle<ErrorStackData> error_stack_data =
@@ -1336,7 +1336,7 @@ Address Isolate::GetAbstractPC(int* line, int* column) {
   int position = frame->position();
 
   Object maybe_script = frame->function()->shared()->script();
-  if (maybe_script.IsScript()) {
+  if (IsScript(maybe_script)) {
     Handle<Script> script(Script::cast(maybe_script), this);
     Script::PositionInfo info;
     Script::GetPositionInfo(script, position, &info);
@@ -1418,7 +1418,7 @@ class CurrentScriptNameStackVisitor {
     Handle<Script> script = Handle<Script>::cast(summary.script());
     Handle<Object> name_or_url_obj =
         handle(script->GetNameOrSourceURL(), isolate_);
-    if (!name_or_url_obj->IsString()) return true;
+    if (!IsString(*name_or_url_obj)) return true;
 
     Handle<String> name_or_url = Handle<String>::cast(name_or_url_obj);
     if (!name_or_url->length()) return true;
@@ -1503,7 +1503,7 @@ void Isolate::ReportFailedAccessCheck(Handle<JSObject> receiver) {
     return ScheduleThrow(*factory()->NewTypeError(MessageTemplate::kNoAccess));
   }
 
-  DCHECK(receiver->IsAccessCheckNeeded());
+  DCHECK(IsAccessCheckNeeded(*receiver));
   DCHECK(!context().is_null());
 
   // Get the data object from access check info.
@@ -1528,7 +1528,7 @@ void Isolate::ReportFailedAccessCheck(Handle<JSObject> receiver) {
 
 bool Isolate::MayAccess(Handle<NativeContext> accessing_context,
                         Handle<JSObject> receiver) {
-  DCHECK(receiver->IsJSGlobalProxy() || receiver->IsAccessCheckNeeded());
+  DCHECK(IsJSGlobalProxy(*receiver) || IsAccessCheckNeeded(*receiver));
 
   // Check for compatibility between the security tokens in the
   // current lexical context and the accessed object.
@@ -1538,10 +1538,10 @@ bool Isolate::MayAccess(Handle<NativeContext> accessing_context,
   {
     DisallowGarbageCollection no_gc;
 
-    if (receiver->IsJSGlobalProxy()) {
+    if (IsJSGlobalProxy(*receiver)) {
       Object receiver_context =
           JSGlobalProxy::cast(*receiver)->native_context();
-      if (!receiver_context.IsContext()) return false;
+      if (!IsContext(receiver_context)) return false;
 
       if (receiver_context == *accessing_context) return true;
 
@@ -1712,18 +1712,18 @@ void ReportBootstrappingException(Handle<Object> exception,
   // to the console for easier debugging.
   int line_number =
       location->script()->GetLineNumber(location->start_pos()) + 1;
-  if (exception->IsString() && location->script()->name().IsString()) {
+  if (IsString(*exception) && IsString(location->script()->name())) {
     base::OS::PrintError(
         "Extension or internal compilation error: %s in %s at line %d.\n",
         String::cast(*exception)->ToCString().get(),
         String::cast(location->script()->name())->ToCString().get(),
         line_number);
-  } else if (location->script()->name().IsString()) {
+  } else if (IsString(location->script()->name())) {
     base::OS::PrintError(
         "Extension or internal compilation error in %s at line %d.\n",
         String::cast(location->script()->name())->ToCString().get(),
         line_number);
-  } else if (exception->IsString()) {
+  } else if (IsString(*exception)) {
     base::OS::PrintError("Extension or internal compilation error: %s.\n",
                          String::cast(*exception)->ToCString().get());
   } else {
@@ -1732,7 +1732,7 @@ void ReportBootstrappingException(Handle<Object> exception,
 #ifdef OBJECT_PRINT
   // Since comments and empty lines have been stripped from the source of
   // builtins, print the actual source here so that line numbers match.
-  if (location->script()->source().IsString()) {
+  if (IsString(location->script()->source())) {
     Handle<String> src(String::cast(location->script()->source()),
                        location->script()->GetIsolate());
     PrintF("Failing script:");
@@ -1807,7 +1807,7 @@ Object Isolate::ThrowInternal(Object raw_exception, MessageLocation* location) {
       Handle<Script> script = location->script();
       Handle<Object> name(script->GetNameOrSourceURL(), this);
       PrintF("at ");
-      if (name->IsString() && String::cast(*name)->length() > 0)
+      if (IsString(*name) && String::cast(*name)->length() > 0)
         String::cast(*name)->PrintOn(stdout);
       else
         PrintF("<anonymous>");
@@ -2121,7 +2121,7 @@ Object Isolate::UnwindAndFindHandler() {
         if (v8_flags.experimental_wasm_stack_switching) {
           // Decrement the Wasm-to-JS counter.
           Object suspender_obj = root(RootIndex::kActiveSuspender);
-          if (!suspender_obj.IsUndefined()) {
+          if (!IsUndefined(suspender_obj)) {
             WasmSuspenderObject suspender =
                 WasmSuspenderObject::cast(suspender_obj);
             int wasm_to_js_counter = suspender->wasm_to_js_counter();
@@ -2219,7 +2219,7 @@ Object Isolate::UnwindAndFindHandler() {
         // the correct context for the handler from the interpreter register.
         Context context =
             Context::cast(js_frame->ReadInterpreterRegister(context_reg));
-        DCHECK(context.IsContext());
+        DCHECK(IsContext(context));
 
         if (frame->is_baseline()) {
           BaselineFrame* sp_frame = BaselineFrame::cast(js_frame);
@@ -2448,7 +2448,7 @@ void Isolate::RestorePendingMessageFromTryCatch(v8::TryCatch* handler) {
   DCHECK(handler->rethrow_);
   DCHECK(handler->capture_message_);
   Object message(reinterpret_cast<Address>(handler->message_obj_));
-  DCHECK(message.IsJSMessageObject() || message.IsTheHole(this));
+  DCHECK(IsJSMessageObject(message) || IsTheHole(message, this));
   set_pending_message(message);
 }
 
@@ -2507,8 +2507,8 @@ bool Isolate::ComputeLocation(MessageLocation* target) {
   FrameSummary summary = it.GetTopValidFrame();
   Handle<SharedFunctionInfo> shared;
   Handle<Object> script = summary.script();
-  if (!script->IsScript() ||
-      Script::cast(*script)->source().IsUndefined(this)) {
+  if (!IsScript(*script) ||
+      IsUndefined(Script::cast(*script)->source(), this)) {
     return false;
   }
 
@@ -2528,24 +2528,24 @@ bool Isolate::ComputeLocation(MessageLocation* target) {
 
 bool Isolate::ComputeLocationFromException(MessageLocation* target,
                                            Handle<Object> exception) {
-  if (!exception->IsJSObject()) return false;
+  if (!IsJSObject(*exception)) return false;
 
   Handle<Name> start_pos_symbol = factory()->error_start_pos_symbol();
   Handle<Object> start_pos = JSReceiver::GetDataProperty(
       this, Handle<JSObject>::cast(exception), start_pos_symbol);
-  if (!start_pos->IsSmi()) return false;
+  if (!IsSmi(*start_pos)) return false;
   int start_pos_value = Handle<Smi>::cast(start_pos)->value();
 
   Handle<Name> end_pos_symbol = factory()->error_end_pos_symbol();
   Handle<Object> end_pos = JSReceiver::GetDataProperty(
       this, Handle<JSObject>::cast(exception), end_pos_symbol);
-  if (!end_pos->IsSmi()) return false;
+  if (!IsSmi(*end_pos)) return false;
   int end_pos_value = Handle<Smi>::cast(end_pos)->value();
 
   Handle<Name> script_symbol = factory()->error_script_symbol();
   Handle<Object> script = JSReceiver::GetDataProperty(
       this, Handle<JSObject>::cast(exception), script_symbol);
-  if (!script->IsScript()) return false;
+  if (!IsScript(*script)) return false;
 
   Handle<Script> cast_script(Script::cast(*script), this);
   *target = MessageLocation(cast_script, start_pos_value, end_pos_value);
@@ -2554,7 +2554,7 @@ bool Isolate::ComputeLocationFromException(MessageLocation* target,
 
 bool Isolate::ComputeLocationFromSimpleStackTrace(MessageLocation* target,
                                                   Handle<Object> exception) {
-  if (!exception->IsJSReceiver()) {
+  if (!IsJSReceiver(*exception)) {
     return false;
   }
   Handle<FixedArray> call_site_infos =
@@ -2571,7 +2571,7 @@ bool Isolate::ComputeLocationFromSimpleStackTrace(MessageLocation* target,
 
 bool Isolate::ComputeLocationFromDetailedStackTrace(MessageLocation* target,
                                                     Handle<Object> exception) {
-  if (!exception->IsJSReceiver()) return false;
+  if (!IsJSReceiver(*exception)) return false;
 
   Handle<FixedArray> stack_frame_infos =
       GetDetailedStackTrace(Handle<JSReceiver>::cast(exception));
@@ -2590,7 +2590,7 @@ Handle<JSMessageObject> Isolate::CreateMessage(Handle<Object> exception,
                                                MessageLocation* location) {
   Handle<FixedArray> stack_trace_object;
   if (capture_stack_trace_for_uncaught_exceptions_) {
-    if (exception->IsJSError()) {
+    if (IsJSError(*exception)) {
       // We fetch the stack trace that corresponds to this error object.
       // If the lookup fails, the exception is probably not a valid Error
       // object. In that case, we fall through and capture the stack trace
@@ -2621,7 +2621,7 @@ Handle<JSMessageObject> Isolate::CreateMessage(Handle<Object> exception,
 Handle<JSMessageObject> Isolate::CreateMessageFromException(
     Handle<Object> exception) {
   Handle<FixedArray> stack_trace_object;
-  if (exception->IsJSError()) {
+  if (IsJSError(*exception)) {
     stack_trace_object =
         GetDetailedStackTrace(Handle<JSObject>::cast(exception));
   }
@@ -2718,7 +2718,7 @@ void Isolate::ReportPendingMessages() {
   }
 
   // Actually report the pending message to all message handlers.
-  if (!message_obj.IsTheHole(this) && should_report_exception) {
+  if (!IsTheHole(message_obj, this) && should_report_exception) {
     HandleScope scope(this);
     Handle<JSMessageObject> message(JSMessageObject::cast(message_obj), this);
     Handle<Object> exception(exception_obj, this);
@@ -2786,9 +2786,9 @@ void Isolate::PopPromise() {
 }
 
 bool Isolate::IsPromiseStackEmpty() const {
-  DCHECK_IMPLIES(!debug()->thread_local_.promise_stack_.IsSmi(),
-                 debug()->thread_local_.promise_stack_.IsPromiseOnStack());
-  return debug()->thread_local_.promise_stack_.IsSmi();
+  DCHECK_IMPLIES(!IsSmi(debug()->thread_local_.promise_stack_),
+                 IsPromiseOnStack(debug()->thread_local_.promise_stack_));
+  return IsSmi(debug()->thread_local_.promise_stack_);
 }
 
 namespace {
@@ -2803,25 +2803,25 @@ bool PromiseIsRejectHandler(Isolate* isolate, Handle<JSReceiver> handler) {
   Handle<Symbol> key = isolate->factory()->promise_forwarding_handler_symbol();
   Handle<Object> forwarding_handler =
       JSReceiver::GetDataProperty(isolate, handler, key);
-  return forwarding_handler->IsUndefined(isolate);
+  return IsUndefined(*forwarding_handler, isolate);
 }
 
 bool PromiseHasUserDefinedRejectHandlerInternal(Isolate* isolate,
                                                 Handle<JSPromise> promise) {
   Handle<Object> current(promise->reactions(), isolate);
-  while (!current->IsSmi()) {
+  while (!IsSmi(*current)) {
     Handle<PromiseReaction> reaction = Handle<PromiseReaction>::cast(current);
     Handle<HeapObject> promise_or_capability(reaction->promise_or_capability(),
                                              isolate);
-    if (!promise_or_capability->IsUndefined(isolate)) {
-      if (!promise_or_capability->IsJSPromise()) {
+    if (!IsUndefined(*promise_or_capability, isolate)) {
+      if (!IsJSPromise(*promise_or_capability)) {
         promise_or_capability = handle(
             Handle<PromiseCapability>::cast(promise_or_capability)->promise(),
             isolate);
       }
-      if (promise_or_capability->IsJSPromise()) {
+      if (IsJSPromise(*promise_or_capability)) {
         promise = Handle<JSPromise>::cast(promise_or_capability);
-        if (!reaction->reject_handler().IsUndefined(isolate)) {
+        if (!IsUndefined(reaction->reject_handler(), isolate)) {
           Handle<JSReceiver> reject_handler(
               JSReceiver::cast(reaction->reject_handler()), isolate);
           if (PromiseIsRejectHandler(isolate, reject_handler)) return true;
@@ -2850,7 +2850,7 @@ bool Isolate::PromiseHasUserDefinedRejectHandler(Handle<JSPromise> promise) {
     }
     Handle<Object> outer_promise_obj =
         JSObject::GetDataProperty(this, promise, key);
-    if (!outer_promise_obj->IsJSPromise()) break;
+    if (!IsJSPromise(*outer_promise_obj)) break;
     promise = Handle<JSPromise>::cast(outer_promise_obj);
   }
 
@@ -2892,7 +2892,7 @@ Handle<Object> Isolate::GetPromiseOnStackOnThrow() {
       case HandlerTable::UNCAUGHT:
         continue;
       case HandlerTable::CAUGHT:
-        if (retval->IsJSPromise()) {
+        if (IsJSPromise(*retval)) {
           // Caught the result of an inner async/await invocation.
           // Mark the inner promise as caught in the "synchronous case" so
           // that Debug::OnException will see. In the synchronous case,
@@ -2905,7 +2905,7 @@ Handle<Object> Isolate::GetPromiseOnStackOnThrow() {
         return retval;
       case HandlerTable::PROMISE: {
         Handle<JSObject> promise;
-        if (promise_stack->IsPromiseOnStack() &&
+        if (IsPromiseOnStack(*promise_stack) &&
             PromiseOnStack::GetPromise(
                 Handle<PromiseOnStack>::cast(promise_stack))
                 .ToHandle(&promise)) {
@@ -2920,7 +2920,7 @@ Handle<Object> Isolate::GetPromiseOnStackOnThrow() {
         // dependents is found, or a non-async stack frame is encountered, in
         // order to handle the synchronous async/await catch prediction case:
         // assume that async function calls are awaited.
-        if (!promise_stack->IsPromiseOnStack()) {
+        if (!IsPromiseOnStack(*promise_stack)) {
           return retval;
         }
         Handle<PromiseOnStack> promise_on_stack =
@@ -2929,7 +2929,7 @@ Handle<Object> Isolate::GetPromiseOnStackOnThrow() {
             PromiseOnStack::GetPromise(promise_on_stack);
         if (maybe_promise.is_null()) return retval;
         retval = maybe_promise.ToHandleChecked();
-        if (retval->IsJSPromise()) {
+        if (IsJSPromise(*retval)) {
           if (PromiseHasUserDefinedRejectHandler(
                   Handle<JSPromise>::cast(retval))) {
             return retval;
@@ -3104,7 +3104,7 @@ char* Isolate::ArchiveThread(char* to) {
 char* Isolate::RestoreThread(char* from) {
   MemCopy(reinterpret_cast<char*>(thread_local_top()), from,
           sizeof(ThreadLocalTop));
-  DCHECK(context().is_null() || context().IsContext());
+  DCHECK(context().is_null() || IsContext(context()));
   return from + sizeof(ThreadLocalTop);
 }
 
@@ -3188,7 +3188,7 @@ void Isolate::SyncStackLimit() {
 
 void Isolate::RecordStackSwitchForScanning() {
   Object current = root(RootIndex::kActiveContinuation);
-  DCHECK(!current.IsUndefined());
+  DCHECK(!IsUndefined(current));
   stack().ClearStackSegments();
   wasm::StackMemory* wasm_stack =
       Managed<wasm::StackMemory>::cast(
@@ -3197,10 +3197,10 @@ void Isolate::RecordStackSwitchForScanning() {
           .get();
   current = WasmContinuationObject::cast(current)->parent();
   heap()->SetStackStart(reinterpret_cast<void*>(wasm_stack->base()));
-  thread_local_top()->is_on_central_stack_flag_ = current.IsUndefined();
+  thread_local_top()->is_on_central_stack_flag_ = IsUndefined(current);
   // We don't need to add all inactive stacks. Only the ones in the active chain
   // may contain cpp heap pointers.
-  while (!current.IsUndefined()) {
+  while (!IsUndefined(current)) {
     auto cont = WasmContinuationObject::cast(current);
     auto* wasm_stack =
         Managed<wasm::StackMemory>::cast(cont->stack())->get().get();
@@ -3210,7 +3210,7 @@ void Isolate::RecordStackSwitchForScanning() {
     current = cont->parent();
     // If the parent is undefined, wasm_stack is the central stack.
     // Update the central stack SP for switching in CEntry.
-    if (current.IsUndefined()) {
+    if (IsUndefined(current)) {
       thread_local_top()->central_stack_sp_ = wasm_stack->jmpbuf()->sp;
       thread_local_top()->central_stack_limit_ =
           reinterpret_cast<Address>(wasm_stack->jmpbuf()->stack_limit);
@@ -3936,8 +3936,8 @@ bool Isolate::PropagatePendingExceptionToExternalTryCatch(
     SetTerminationOnExternalTryCatch();
   } else {
     v8::TryCatch* handler = try_catch_handler();
-    DCHECK(pending_message().IsJSMessageObject() ||
-           pending_message().IsTheHole(this));
+    DCHECK(IsJSMessageObject(pending_message()) ||
+           IsTheHole(pending_message(), this));
     handler->can_continue_ = true;
     handler->has_terminated_ = false;
     handler->exception_ = reinterpret_cast<void*>(exception.ptr());
@@ -4277,7 +4277,7 @@ void Isolate::VerifyStaticRoots() {
   // sorted list of addresses) or remove the offending entry from the list.
   for (auto idx = RootIndex::kFirstRoot; idx <= RootIndex::kLastRoot; ++idx) {
     Object obj = roots_table().slot(idx).load(this);
-    if (obj.ptr() == kNullAddress || !obj.IsMap()) continue;
+    if (obj.ptr() == kNullAddress || !IsMap(obj)) continue;
     Map map = Map::cast(obj);
 
 #define INSTANCE_TYPE_CHECKER_SINGLE(type, _)  \
@@ -4931,7 +4931,7 @@ bool Isolate::use_optimizer() {
 
 void Isolate::IncreaseTotalRegexpCodeGenerated(Handle<HeapObject> code) {
   PtrComprCageBase cage_base(this);
-  DCHECK(code->IsCode(cage_base) || code->IsByteArray(cage_base));
+  DCHECK(IsCode(*code, cage_base) || IsByteArray(*code, cage_base));
   total_regexp_code_generated_ += code->Size(cage_base);
 }
 
@@ -4963,14 +4963,14 @@ bool Isolate::NeedsSourcePositions() const {
 }
 
 void Isolate::SetFeedbackVectorsForProfilingTools(Object value) {
-  DCHECK(value.IsUndefined(this) || value.IsArrayList());
+  DCHECK(IsUndefined(value, this) || IsArrayList(value));
   heap()->set_feedback_vectors_for_profiling_tools(value);
 }
 
 void Isolate::MaybeInitializeVectorListFromHeap() {
-  if (!heap()->feedback_vectors_for_profiling_tools().IsUndefined(this)) {
+  if (!IsUndefined(heap()->feedback_vectors_for_profiling_tools(), this)) {
     // Already initialized, return early.
-    DCHECK(heap()->feedback_vectors_for_profiling_tools().IsArrayList());
+    DCHECK(IsArrayList(heap()->feedback_vectors_for_profiling_tools()));
     return;
   }
 
@@ -4981,7 +4981,7 @@ void Isolate::MaybeInitializeVectorListFromHeap() {
     HeapObjectIterator heap_iterator(heap());
     for (HeapObject current_obj = heap_iterator.Next(); !current_obj.is_null();
          current_obj = heap_iterator.Next()) {
-      if (!current_obj.IsFeedbackVector()) continue;
+      if (!IsFeedbackVector(current_obj)) continue;
 
       FeedbackVector vector = FeedbackVector::cast(current_obj);
       SharedFunctionInfo shared = vector->shared_function_info();
@@ -5010,7 +5010,7 @@ void Isolate::set_date_cache(DateCache* date_cache) {
 Isolate::KnownPrototype Isolate::IsArrayOrObjectOrStringPrototype(
     Object object) {
   Object context = heap()->native_contexts_list();
-  while (!context.IsUndefined(this)) {
+  while (!IsUndefined(context, this)) {
     Context current_context = Context::cast(context);
     if (current_context->initial_object_prototype() == object) {
       return KnownPrototype::kObject;
@@ -5027,7 +5027,7 @@ Isolate::KnownPrototype Isolate::IsArrayOrObjectOrStringPrototype(
 bool Isolate::IsInAnyContext(Object object, uint32_t index) {
   DisallowGarbageCollection no_gc;
   Object context = heap()->native_contexts_list();
-  while (!context.IsUndefined(this)) {
+  while (!IsUndefined(context, this)) {
     Context current_context = Context::cast(context);
     if (current_context->get(index) == object) {
       return true;
@@ -5055,7 +5055,7 @@ void Isolate::UpdateTypedArraySpeciesLookupChainProtectorOnSetPrototype(
     Handle<JSObject> object) {
   // Setting the __proto__ of TypedArray constructor could change TypedArray's
   // @@species. So we need to invalidate the @@species protector.
-  if (object->IsTypedArrayConstructor() &&
+  if (IsTypedArrayConstructor(*object) &&
       Protectors::IsTypedArraySpeciesLookupChainIntact(this)) {
     Protectors::InvalidateTypedArraySpeciesLookupChain(this);
   }
@@ -5073,8 +5073,8 @@ void Isolate::UpdateNumberStringNotRegexpLikeProtectorOnSetPrototype(
   // checking for a prototype that is a JSPrimitiveWrapper. This is a safe
   // approximation. Using JSPrimitiveWrapper as prototype should be
   // sufficiently rare.
-  DCHECK(!object->IsJSObjectPrototype());
-  if (object->map()->is_prototype_map() && (object->IsJSPrimitiveWrapper())) {
+  DCHECK(!IsJSObjectPrototype(*object));
+  if (object->map()->is_prototype_map() && (IsJSPrimitiveWrapper(*object))) {
     Protectors::InvalidateNumberStringNotRegexpLike(this);
   }
 }
@@ -5328,7 +5328,7 @@ MaybeHandle<FixedArray> Isolate::GetImportAssertionsFromArgument(
   Handle<FixedArray> import_assertions_array = factory()->empty_fixed_array();
   Handle<Object> import_assertions_argument;
   if (!maybe_import_assertions_argument.ToHandle(&import_assertions_argument) ||
-      import_assertions_argument->IsUndefined()) {
+      IsUndefined(*import_assertions_argument)) {
     return import_assertions_array;
   }
 
@@ -5337,7 +5337,7 @@ MaybeHandle<FixedArray> Isolate::GetImportAssertionsFromArgument(
   DCHECK(v8_flags.harmony_import_assertions ||
          v8_flags.harmony_import_attributes);
 
-  if (!import_assertions_argument->IsJSReceiver()) {
+  if (!IsJSReceiver(*import_assertions_argument)) {
     this->Throw(
         *factory()->NewTypeError(MessageTemplate::kNonObjectImportArgument));
     return MaybeHandle<FixedArray>();
@@ -5361,7 +5361,7 @@ MaybeHandle<FixedArray> Isolate::GetImportAssertionsFromArgument(
 
   if (v8_flags.harmony_import_assertions &&
       (!v8_flags.harmony_import_attributes ||
-       import_assertions_object->IsUndefined())) {
+       IsUndefined(*import_assertions_object))) {
     Handle<Name> assert_key = factory()->assert_string();
     if (!JSReceiver::GetProperty(this, import_assertions_argument_receiver,
                                  assert_key)
@@ -5374,9 +5374,9 @@ MaybeHandle<FixedArray> Isolate::GetImportAssertionsFromArgument(
 
   // If there is no 'with' or 'assert' option in the options bag, it's not an
   // error. Just do the import() as if no assertions were provided.
-  if (import_assertions_object->IsUndefined()) return import_assertions_array;
+  if (IsUndefined(*import_assertions_object)) return import_assertions_array;
 
-  if (!import_assertions_object->IsJSReceiver()) {
+  if (!IsJSReceiver(*import_assertions_object)) {
     this->Throw(
         *factory()->NewTypeError(MessageTemplate::kNonObjectAssertOption));
     return MaybeHandle<FixedArray>();
@@ -5413,7 +5413,7 @@ MaybeHandle<FixedArray> Isolate::GetImportAssertionsFromArgument(
       return MaybeHandle<FixedArray>();
     }
 
-    if (!assertion_value->IsString()) {
+    if (!IsString(*assertion_value)) {
       has_non_string_attribute = true;
     }
 
@@ -5448,7 +5448,7 @@ void Isolate::SetHostImportModuleDynamicallyCallback(
 
 MaybeHandle<JSObject> Isolate::RunHostInitializeImportMetaObjectCallback(
     Handle<SourceTextModule> module) {
-  CHECK(module->import_meta(kAcquireLoad).IsTheHole(this));
+  CHECK(IsTheHole(module->import_meta(kAcquireLoad), this));
   Handle<JSObject> import_meta = factory()->NewJSObjectWithNullProto();
   if (host_initialize_import_meta_object_callback_ != nullptr) {
     v8::Local<v8::Context> api_context = v8::Utils::ToLocal(native_context());
@@ -5489,7 +5489,7 @@ MaybeHandle<NativeContext> Isolate::RunHostCreateShadowRealmContextCallback() {
       MaybeHandle<NativeContext>());
   Handle<Context> shadow_realm_context_handle =
       v8::Utils::OpenHandle(*shadow_realm_context);
-  DCHECK(shadow_realm_context_handle->IsNativeContext());
+  DCHECK(IsNativeContext(*shadow_realm_context_handle));
   shadow_realm_context_handle->set_scope_info(
       ReadOnlyRoots(this).shadow_realm_scope_info());
   return Handle<NativeContext>::cast(shadow_realm_context_handle);
@@ -5721,20 +5721,20 @@ void Isolate::OnTerminationDuringRunMicrotasks() {
   // Empty the promise stack.
   debug()->thread_local_.promise_stack_ = Smi::zero();
 
-  if (current_microtask->IsPromiseReactionJobTask()) {
+  if (IsPromiseReactionJobTask(*current_microtask)) {
     Handle<PromiseReactionJobTask> promise_reaction_job_task =
         Handle<PromiseReactionJobTask>::cast(current_microtask);
     Handle<HeapObject> promise_or_capability(
         promise_reaction_job_task->promise_or_capability(), this);
-    if (promise_or_capability->IsPromiseCapability()) {
+    if (IsPromiseCapability(*promise_or_capability)) {
       promise_or_capability = handle(
           Handle<PromiseCapability>::cast(promise_or_capability)->promise(),
           this);
     }
-    if (promise_or_capability->IsJSPromise()) {
+    if (IsJSPromise(*promise_or_capability)) {
       OnPromiseAfter(Handle<JSPromise>::cast(promise_or_capability));
     }
-  } else if (current_microtask->IsPromiseResolveThenableJobTask()) {
+  } else if (IsPromiseResolveThenableJobTask(*current_microtask)) {
     Handle<PromiseResolveThenableJobTask> promise_resolve_thenable_job_task =
         Handle<PromiseResolveThenableJobTask>::cast(current_microtask);
     Handle<JSPromise> promise_to_resolve(
@@ -5770,8 +5770,8 @@ void Isolate::CountUsage(v8::Isolate::UseCounterFeature feature) {
   // TODO(jgruber): Consider either removing the native context requirement in
   // blink, or passing it to the callback explicitly.
   if (heap_.gc_state() == Heap::NOT_IN_GC && !context().is_null()) {
-    DCHECK(context().IsContext());
-    DCHECK(context()->native_context().IsNativeContext());
+    DCHECK(IsContext(context()));
+    DCHECK(IsNativeContext(context()->native_context()));
     if (use_counter_callback_) {
       HandleScope handle_scope(this);
       use_counter_callback_(reinterpret_cast<v8::Isolate*>(this), feature);
@@ -5934,12 +5934,12 @@ void Isolate::CollectSourcePositionsForAllBytecodeArrays() {
     HeapObjectIterator iterator(heap());
     for (HeapObject obj = iterator.Next(); !obj.is_null();
          obj = iterator.Next()) {
-      if (!obj.IsSharedFunctionInfo()) continue;
+      if (!IsSharedFunctionInfo(obj)) continue;
       SharedFunctionInfo sfi = SharedFunctionInfo::cast(obj);
       // If the script is a Smi, then the SharedFunctionInfo is in
       // the process of being deserialized.
       Object script = sfi->raw_script(kAcquireLoad);
-      if (script.IsSmi()) {
+      if (IsSmi(script)) {
         DCHECK_EQ(script, Smi::uninitialized_deserialization_value());
         continue;
       }
@@ -5957,13 +5957,13 @@ void Isolate::CollectSourcePositionsForAllBytecodeArrays() {
 namespace {
 
 std::string GetStringFromLocales(Isolate* isolate, Handle<Object> locales) {
-  if (locales->IsUndefined(isolate)) return "";
+  if (IsUndefined(*locales, isolate)) return "";
   return std::string(String::cast(*locales)->ToCString().get());
 }
 
 bool StringEqualsLocales(Isolate* isolate, const std::string& str,
                          Handle<Object> locales) {
-  if (locales->IsUndefined(isolate)) return str == "";
+  if (IsUndefined(*locales, isolate)) return str == "";
   return Handle<String>::cast(locales)->IsEqualTo(
       base::VectorOf(str.c_str(), str.length()));
 }
@@ -6163,7 +6163,7 @@ v8::metrics::Recorder::ContextId Isolate::GetOrRegisterRecorderContextId(
     Handle<NativeContext> context) {
   if (serializer_enabled_) return v8::metrics::Recorder::ContextId::Empty();
   i::Object id = context->recorder_context_id();
-  if (id.IsNullOrUndefined()) {
+  if (IsNullOrUndefined(id)) {
     CHECK_LT(last_recorder_context_id_, i::Smi::kMaxValue);
     context->set_recorder_context_id(
         i::Smi::FromIntptr(++last_recorder_context_id_));
@@ -6178,7 +6178,7 @@ v8::metrics::Recorder::ContextId Isolate::GetOrRegisterRecorderContextId(
         RemoveContextIdCallback, v8::WeakCallbackType::kParameter);
     return v8::metrics::Recorder::ContextId(last_recorder_context_id_);
   } else {
-    DCHECK(id.IsSmi());
+    DCHECK(IsSmi(id));
     return v8::metrics::Recorder::ContextId(
         static_cast<uintptr_t>(i::Smi::ToInt(id)));
   }
@@ -6302,15 +6302,15 @@ void Isolate::LocalsBlockListCacheSet(Handle<ScopeInfo> scope_info,
                                       Handle<ScopeInfo> outer_scope_info,
                                       Handle<StringSet> locals_blocklist) {
   Handle<EphemeronHashTable> cache;
-  if (heap()->locals_block_list_cache().IsEphemeronHashTable()) {
+  if (IsEphemeronHashTable(heap()->locals_block_list_cache())) {
     cache = handle(EphemeronHashTable::cast(heap()->locals_block_list_cache()),
                    this);
   } else {
-    CHECK(heap()->locals_block_list_cache().IsUndefined());
+    CHECK(IsUndefined(heap()->locals_block_list_cache()));
     constexpr int kInitialCapacity = 8;
     cache = EphemeronHashTable::New(this, kInitialCapacity);
   }
-  DCHECK(cache->IsEphemeronHashTable());
+  DCHECK(IsEphemeronHashTable(*cache));
 
   Handle<Object> value;
   if (!outer_scope_info.is_null()) {
@@ -6328,16 +6328,16 @@ void Isolate::LocalsBlockListCacheSet(Handle<ScopeInfo> scope_info,
 Object Isolate::LocalsBlockListCacheGet(Handle<ScopeInfo> scope_info) {
   DisallowGarbageCollection no_gc;
 
-  if (!heap()->locals_block_list_cache().IsEphemeronHashTable()) {
+  if (!IsEphemeronHashTable(heap()->locals_block_list_cache())) {
     return ReadOnlyRoots(this).the_hole_value();
   }
 
   Object maybe_value =
       EphemeronHashTable::cast(heap()->locals_block_list_cache())
           ->Lookup(scope_info);
-  if (maybe_value.IsTuple2()) return Tuple2::cast(maybe_value)->value2();
+  if (IsTuple2(maybe_value)) return Tuple2::cast(maybe_value)->value2();
 
-  CHECK(maybe_value.IsStringSet() || maybe_value.IsTheHole());
+  CHECK(IsStringSet(maybe_value) || IsTheHole(maybe_value));
   return maybe_value;
 }
 

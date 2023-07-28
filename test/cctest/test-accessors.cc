@@ -679,22 +679,18 @@ THREADED_TEST(GlobalObjectAccessor) {
   // JSGlobalProxy as a receiver regardless of the current IC state and
   // the order in which ICs are executed.
   for (int i = 0; i < 10; i++) {
-    CHECK(
-        v8::Utils::OpenHandle(*check_getter->Run(env.local()).ToLocalChecked())
-            ->IsJSGlobalProxy());
+    CHECK(IsJSGlobalProxy(*v8::Utils::OpenHandle(
+        *check_getter->Run(env.local()).ToLocalChecked())));
   }
   for (int i = 0; i < 10; i++) {
-    CHECK(
-        v8::Utils::OpenHandle(*check_setter->Run(env.local()).ToLocalChecked())
-            ->IsJSGlobalProxy());
+    CHECK(IsJSGlobalProxy(*v8::Utils::OpenHandle(
+        *check_setter->Run(env.local()).ToLocalChecked())));
   }
   for (int i = 0; i < 10; i++) {
-    CHECK(
-        v8::Utils::OpenHandle(*check_getter->Run(env.local()).ToLocalChecked())
-            ->IsJSGlobalProxy());
-    CHECK(
-        v8::Utils::OpenHandle(*check_setter->Run(env.local()).ToLocalChecked())
-            ->IsJSGlobalProxy());
+    CHECK(IsJSGlobalProxy(*v8::Utils::OpenHandle(
+        *check_getter->Run(env.local()).ToLocalChecked())));
+    CHECK(IsJSGlobalProxy(*v8::Utils::OpenHandle(
+        *check_setter->Run(env.local()).ToLocalChecked())));
   }
 }
 

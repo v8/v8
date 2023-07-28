@@ -4099,7 +4099,7 @@ TEST(WeakReference) {
   i::Handle<i::Code> code =
       i::Factory::CodeBuilder(i_isolate, desc, i::CodeKind::FOR_TESTING)
           .Build();
-  CHECK(code->IsCode());
+  CHECK(IsCode(*code));
 
   // Manually inlined version of FeedbackVector::SetOptimizedCode (needed due
   // to the FOR_TESTING code kind).

@@ -234,7 +234,7 @@ void LinuxPerfJitLogger::LogRecordedBuffer(
   if (perf_output_handle_ == nullptr) return;
 
   // We only support non-interpreted functions.
-  if (!abstract_code->IsCode(isolate_)) return;
+  if (!IsCode(abstract_code, isolate_)) return;
   Code code = Code::cast(abstract_code);
 
   // Debug info has to be emitted first.
@@ -244,7 +244,7 @@ void LinuxPerfJitLogger::LogRecordedBuffer(
     CodeKind kind = code->kind();
     if (kind != CodeKind::JS_TO_WASM_FUNCTION &&
         kind != CodeKind::WASM_TO_JS_FUNCTION) {
-      DCHECK_IMPLIES(sfi->script().IsScript(),
+      DCHECK_IMPLIES(IsScript(sfi->script()),
                      Script::cast(sfi->script())->has_line_ends());
       LogWriteDebugInfo(code, sfi);
     }
@@ -307,13 +307,13 @@ namespace {
 base::Vector<const char> GetScriptName(Object maybeScript,
                                        std::unique_ptr<char[]>* storage,
                                        const DisallowGarbageCollection& no_gc) {
-  if (maybeScript.IsScript()) {
+  if (IsScript(maybeScript)) {
     Object name_or_url = Script::cast(maybeScript)->GetNameOrSourceURL();
-    if (name_or_url.IsSeqOneByteString()) {
+    if (IsSeqOneByteString(name_or_url)) {
       SeqOneByteString str = SeqOneByteString::cast(name_or_url);
       return {reinterpret_cast<char*>(str->GetChars(no_gc)),
               static_cast<size_t>(str->length())};
-    } else if (name_or_url.IsString()) {
+    } else if (IsString(name_or_url)) {
       int length;
       *storage =
           String::cast(name_or_url)

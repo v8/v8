@@ -26,7 +26,7 @@ Handle<Object> NormalizeReceiver(Isolate* isolate, Handle<Object> receiver) {
   // Convert calls on global objects to be calls on the global
   // receiver instead to avoid having a 'this' pointer which refers
   // directly to a global object.
-  if (receiver->IsJSGlobalObject()) {
+  if (IsJSGlobalObject(*receiver)) {
     return handle(Handle<JSGlobalObject>::cast(receiver)->global_proxy(),
                   isolate);
   }
@@ -52,7 +52,7 @@ struct InvokeParams {
                                             MicrotaskQueue* microtask_queue);
 
   bool IsScript() const {
-    if (!target->IsJSFunction()) return false;
+    if (!IsJSFunction(*target)) return false;
     Handle<JSFunction> function = Handle<JSFunction>::cast(target);
     return function->shared()->is_script();
   }
@@ -113,7 +113,7 @@ InvokeParams InvokeParams::SetUpForCall(Isolate* isolate,
   params.receiver = NormalizeReceiver(isolate, receiver);
   // Check for host-defined options argument for scripts.
   DCHECK_IMPLIES(params.IsScript(), argc == 1);
-  DCHECK_IMPLIES(params.IsScript(), argv[0]->IsFixedArray());
+  DCHECK_IMPLIES(params.IsScript(), IsFixedArray(*argv[0]));
   params.argc = argc;
   params.argv = argv;
   params.new_target = isolate->factory()->undefined_value();
@@ -136,7 +136,7 @@ InvokeParams InvokeParams::SetUpForTryCall(
   params.receiver = NormalizeReceiver(isolate, receiver);
   // Check for host-defined options argument for scripts.
   DCHECK_IMPLIES(params.IsScript(), argc == 1);
-  DCHECK_IMPLIES(params.IsScript(), argv[0]->IsFixedArray());
+  DCHECK_IMPLIES(params.IsScript(), IsFixedArray(*argv[0]));
   params.argc = argc;
   params.argv = argv;
   params.new_target = isolate->factory()->undefined_value();
@@ -276,7 +276,7 @@ MaybeHandle<Context> NewScriptContext(Isolate* isolate,
 V8_WARN_UNUSED_RESULT MaybeHandle<Object> Invoke(Isolate* isolate,
                                                  const InvokeParams& params) {
   RCS_SCOPE(isolate, RuntimeCallCounterId::kInvoke);
-  DCHECK(!params.receiver->IsJSGlobalObject());
+  DCHECK(!IsJSGlobalObject(*params.receiver));
   DCHECK_LE(params.argc, FixedArray::kMaxLength);
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -303,13 +303,13 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> Invoke(Isolate* isolate,
 
   // api callbacks can be called directly, unless we want to take the detour
   // through JS to set up a frame for break-at-entry.
-  if (params.target->IsJSFunction()) {
+  if (IsJSFunction(*params.target)) {
     Handle<JSFunction> function = Handle<JSFunction>::cast(params.target);
-    if ((!params.is_construct || function->IsConstructor()) &&
+    if ((!params.is_construct || IsConstructor(*function)) &&
         function->shared()->IsApiFunction() &&
         !function->shared()->BreakAtEntry(isolate)) {
       SaveAndSwitchContext save(isolate, function->context());
-      DCHECK(function->context()->global_object().IsJSGlobalObject());
+      DCHECK(IsJSGlobalObject(function->context()->global_object()));
 
       Handle<Object> receiver = params.is_construct
                                     ? isolate->factory()->the_hole_value()
@@ -334,9 +334,9 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> Invoke(Isolate* isolate,
 #ifdef DEBUG
     if (function->shared()->is_script()) {
       DCHECK(params.IsScript());
-      DCHECK(params.receiver->IsJSGlobalProxy());
+      DCHECK(IsJSGlobalProxy(*params.receiver));
       DCHECK_EQ(params.argc, 1);
-      DCHECK(params.argv[0]->IsFixedArray());
+      DCHECK(IsFixedArray(*params.argv[0]));
     } else {
       DCHECK(!params.IsScript());
     }
@@ -381,7 +381,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> Invoke(Isolate* isolate,
 
   if (params.execution_target == Execution::Target::kCallable) {
     Handle<NativeContext> context = isolate->native_context();
-    if (!context->script_execution_callback().IsUndefined(isolate)) {
+    if (!IsUndefined(context->script_execution_callback(), isolate)) {
       v8::Context::AbortScriptExecutionCallback callback =
           v8::ToCData<v8::Context::AbortScriptExecutionCallback>(
               context->script_execution_callback());
@@ -452,7 +452,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> Invoke(Isolate* isolate,
 #endif
 
   // Update the pending exception flag and return the value.
-  bool has_exception = value.IsException(isolate);
+  bool has_exception = IsException(value, isolate);
   DCHECK(has_exception == isolate->has_pending_exception());
   if (has_exception) {
     if (params.message_handling == Execution::MessageHandling::kReport) {
@@ -524,7 +524,7 @@ MaybeHandle<Object> Execution::Call(Isolate* isolate, Handle<Object> callable,
                                     Handle<Object> receiver, int argc,
                                     Handle<Object> argv[]) {
   // Use Execution::CallScript instead for scripts:
-  DCHECK_IMPLIES(callable->IsJSFunction(),
+  DCHECK_IMPLIES(IsJSFunction(*callable),
                  !JSFunction::cast(*callable)->shared()->is_script());
   return Invoke(isolate, InvokeParams::SetUpForCall(isolate, callable, receiver,
                                                     argc, argv));
@@ -536,7 +536,7 @@ MaybeHandle<Object> Execution::CallScript(Isolate* isolate,
                                           Handle<Object> receiver,
                                           Handle<Object> host_defined_options) {
   DCHECK(script_function->shared()->is_script());
-  DCHECK(receiver->IsJSGlobalProxy() || receiver->IsJSGlobalObject());
+  DCHECK(IsJSGlobalProxy(*receiver) || IsJSGlobalObject(*receiver));
   return Invoke(
       isolate, InvokeParams::SetUpForCall(isolate, script_function, receiver, 1,
                                           &host_defined_options));
@@ -573,7 +573,7 @@ MaybeHandle<Object> Execution::TryCallScript(
     MessageHandling message_handling, MaybeHandle<Object>* exception_out,
     bool reschedule_terminate) {
   DCHECK(script_function->shared()->is_script());
-  DCHECK(receiver->IsJSGlobalProxy() || receiver->IsJSGlobalObject());
+  DCHECK(IsJSGlobalProxy(*receiver) || IsJSGlobalObject(*receiver));
   Handle<Object> argument = host_defined_options;
   return InvokeWithTryCatch(
       isolate, InvokeParams::SetUpForTryCall(
@@ -587,7 +587,7 @@ MaybeHandle<Object> Execution::TryCall(
     int argc, Handle<Object> argv[], MessageHandling message_handling,
     MaybeHandle<Object>* exception_out, bool reschedule_terminate) {
   // Use Execution::TryCallScript instead for scripts:
-  DCHECK_IMPLIES(callable->IsJSFunction(),
+  DCHECK_IMPLIES(IsJSFunction(*callable),
                  !JSFunction::cast(*callable)->shared()->is_script());
   return InvokeWithTryCatch(
       isolate, InvokeParams::SetUpForTryCall(

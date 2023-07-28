@@ -20,7 +20,7 @@ TEST_F(RunJSObjectsTest, ArgumentsMapped) {
   Handle<Object> arguments =
       T.Call(T.NewNumber(19), T.NewNumber(23), T.NewNumber(42), T.NewNumber(65))
           .ToHandleChecked();
-  CHECK(arguments->IsJSObject() && !arguments->IsJSArray());
+  CHECK(IsJSObject(*arguments) && !IsJSArray(*arguments));
   CHECK(JSObject::cast(*arguments)->HasSloppyArgumentsElements());
   Handle<String> l = T.isolate->factory()->length_string();
   Handle<Object> length =
@@ -35,7 +35,7 @@ TEST_F(RunJSObjectsTest, ArgumentsUnmapped) {
   Handle<Object> arguments =
       T.Call(T.NewNumber(19), T.NewNumber(23), T.NewNumber(42), T.NewNumber(65))
           .ToHandleChecked();
-  CHECK(arguments->IsJSObject() && !arguments->IsJSArray());
+  CHECK(IsJSObject(*arguments) && !IsJSArray(*arguments));
   CHECK(!JSObject::cast(*arguments)->HasSloppyArgumentsElements());
   Handle<String> l = T.isolate->factory()->length_string();
   Handle<Object> length =
@@ -49,7 +49,7 @@ TEST_F(RunJSObjectsTest, ArgumentsRest) {
   Handle<Object> arguments =
       T.Call(T.NewNumber(19), T.NewNumber(23), T.NewNumber(42), T.NewNumber(65))
           .ToHandleChecked();
-  CHECK(arguments->IsJSObject() && arguments->IsJSArray());
+  CHECK(IsJSObject(*arguments) && IsJSArray(*arguments));
   CHECK(!JSObject::cast(*arguments)->HasSloppyArgumentsElements());
   Handle<String> l = T.isolate->factory()->length_string();
   Handle<Object> length =

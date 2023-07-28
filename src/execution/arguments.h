@@ -130,18 +130,18 @@ FullObjectSlot Arguments<T>::slot_from_address_at(int index, int offset) const {
 
 #endif  // V8_RUNTIME_CALL_STATS
 
-#define RUNTIME_FUNCTION_RETURNS_TYPE(Type, InternalType, Convert, Name)    \
-  static V8_INLINE InternalType __RT_impl_##Name(RuntimeArguments args,     \
-                                                 Isolate* isolate);         \
-  RUNTIME_ENTRY_WITH_RCS(Type, InternalType, Convert, Name)                 \
-  Type Name(int args_length, Address* args_object, Isolate* isolate) {      \
-    DCHECK(isolate->context().is_null() || isolate->context().IsContext()); \
-    CLOBBER_DOUBLE_REGISTERS();                                             \
-    TEST_AND_CALL_RCS(Name)                                                 \
-    RuntimeArguments args(args_length, args_object);                        \
-    return Convert(__RT_impl_##Name(args, isolate));                        \
-  }                                                                         \
-                                                                            \
+#define RUNTIME_FUNCTION_RETURNS_TYPE(Type, InternalType, Convert, Name)   \
+  static V8_INLINE InternalType __RT_impl_##Name(RuntimeArguments args,    \
+                                                 Isolate* isolate);        \
+  RUNTIME_ENTRY_WITH_RCS(Type, InternalType, Convert, Name)                \
+  Type Name(int args_length, Address* args_object, Isolate* isolate) {     \
+    DCHECK(isolate->context().is_null() || IsContext(isolate->context())); \
+    CLOBBER_DOUBLE_REGISTERS();                                            \
+    TEST_AND_CALL_RCS(Name)                                                \
+    RuntimeArguments args(args_length, args_object);                       \
+    return Convert(__RT_impl_##Name(args, isolate));                       \
+  }                                                                        \
+                                                                           \
   static InternalType __RT_impl_##Name(RuntimeArguments args, Isolate* isolate)
 
 #ifdef DEBUG

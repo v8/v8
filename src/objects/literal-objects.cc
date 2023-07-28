@@ -78,7 +78,7 @@ void AddToDescriptorArrayTemplate(
              value_kind == ClassBoilerplate::kSetter);
       Object raw_accessor = descriptor_array_template->GetStrongValue(entry);
       AccessorPair pair;
-      if (raw_accessor.IsAccessorPair()) {
+      if (IsAccessorPair(raw_accessor)) {
         pair = AccessorPair::cast(raw_accessor);
       } else {
         Handle<AccessorPair> new_pair = isolate->factory()->NewAccessorPair();
@@ -148,7 +148,7 @@ constexpr int ComputeEnumerationIndex(int value_index) {
 constexpr int kAccessorNotDefined = -1;
 
 inline int GetExistingValueIndex(Object value) {
-  return value.IsSmi() ? Smi::ToInt(value) : kAccessorNotDefined;
+  return IsSmi(value) ? Smi::ToInt(value) : kAccessorNotDefined;
 }
 
 template <typename IsolateT, typename Dictionary, typename Key>
@@ -207,7 +207,7 @@ void AddToDictionaryTemplate(IsolateT* isolate, Handle<Dictionary> dictionary,
     Object existing_value = dictionary->ValueAt(entry);
     if (value_kind == ClassBoilerplate::kData) {
       // Computed value is a normal method.
-      if (existing_value.IsAccessorPair()) {
+      if (IsAccessorPair(existing_value)) {
         AccessorPair current_pair = AccessorPair::cast(existing_value);
 
         int existing_getter_index =
@@ -273,14 +273,13 @@ void AddToDictionaryTemplate(IsolateT* isolate, Handle<Dictionary> dictionary,
       } else {  // if (existing_value.IsAccessorPair()) ends here
         DCHECK(value_kind == ClassBoilerplate::kData);
 
-        DCHECK_IMPLIES(!existing_value.IsSmi(),
-                       existing_value.IsAccessorInfo());
-        DCHECK_IMPLIES(!existing_value.IsSmi(),
+        DCHECK_IMPLIES(!IsSmi(existing_value), IsAccessorInfo(existing_value));
+        DCHECK_IMPLIES(!IsSmi(existing_value),
                        AccessorInfo::cast(existing_value)->name() ==
                                *isolate->factory()->length_string() ||
                            AccessorInfo::cast(existing_value)->name() ==
                                *isolate->factory()->name_string());
-        if (!existing_value.IsSmi() || Smi::ToInt(existing_value) < key_index) {
+        if (!IsSmi(existing_value) || Smi::ToInt(existing_value) < key_index) {
           // Overwrite existing value because it was defined before the computed
           // one (AccessorInfo "length" and "name" properties are always defined
           // before).
@@ -308,7 +307,7 @@ void AddToDictionaryTemplate(IsolateT* isolate, Handle<Dictionary> dictionary,
       }
     } else {  // if (value_kind == ClassBoilerplate::kData) ends here
       AccessorComponent component = ToAccessorComponent(value_kind);
-      if (existing_value.IsAccessorPair()) {
+      if (IsAccessorPair(existing_value)) {
         // Update respective component of existing AccessorPair.
         AccessorPair current_pair = AccessorPair::cast(existing_value);
 
@@ -334,10 +333,10 @@ void AddToDictionaryTemplate(IsolateT* isolate, Handle<Dictionary> dictionary,
         }
 
       } else {
-        DCHECK(!existing_value.IsAccessorPair());
+        DCHECK(!IsAccessorPair(existing_value));
         DCHECK(value_kind != ClassBoilerplate::kData);
 
-        if (!existing_value.IsSmi() || Smi::ToInt(existing_value) < key_index) {
+        if (!IsSmi(existing_value) || Smi::ToInt(existing_value) < key_index) {
           // Overwrite the existing data property because it was defined before
           // the computed accessor property.
           Handle<AccessorPair> pair(isolate->factory()->NewAccessorPair());
@@ -447,8 +446,8 @@ class ObjectDescriptor {
 
   void AddConstant(IsolateT* isolate, Handle<Name> name, Handle<Object> value,
                    PropertyAttributes attribs) {
-    bool is_accessor = value->IsAccessorInfo();
-    DCHECK(!value->IsAccessorPair());
+    bool is_accessor = IsAccessorInfo(*value);
+    DCHECK(!IsAccessorPair(*value));
     if (HasDictionaryProperties()) {
       PropertyKind kind =
           is_accessor ? i::PropertyKind::kAccessor : i::PropertyKind::kData;
@@ -705,7 +704,7 @@ Handle<ClassBoilerplate> ClassBoilerplate::BuildClassBoilerplate(
 
     } else {
       Handle<String> name = key_literal->AsRawPropertyName()->string();
-      DCHECK(name->IsInternalizedString());
+      DCHECK(IsInternalizedString(*name));
       desc.AddNamedProperty(isolate, name, value_kind, value_index);
     }
   }

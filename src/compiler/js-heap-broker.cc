@@ -122,7 +122,7 @@ void JSHeapBroker::CollectArrayAndObjectPrototypes() {
   CHECK(array_and_object_prototypes_.empty());
 
   Object maybe_context = isolate()->heap()->native_contexts_list();
-  while (!maybe_context.IsUndefined(isolate())) {
+  while (!IsUndefined(maybe_context, isolate())) {
     Context context = Context::cast(maybe_context);
     Object array_prot = context->get(Context::INITIAL_ARRAY_PROTOTYPE_INDEX);
     Object object_prot = context->get(Context::INITIAL_OBJECT_PROTOTYPE_INDEX);
@@ -196,7 +196,7 @@ bool JSHeapBroker::ObjectMayBeUninitialized(Handle<Object> object) const {
 }
 
 bool JSHeapBroker::ObjectMayBeUninitialized(Object object) const {
-  if (!object.IsHeapObject()) return false;
+  if (!IsHeapObject(object)) return false;
   return ObjectMayBeUninitialized(HeapObject::cast(object));
 }
 
@@ -559,7 +559,7 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForGlobalAccess(
   Handle<Object> feedback_value =
       CanonicalPersistentHandle(nexus.GetFeedback()->GetHeapObjectOrSmi());
 
-  if (feedback_value->IsSmi()) {
+  if (IsSmi(*feedback_value)) {
     // The wanted name belongs to a script-scope variable and the feedback
     // tells us where to find its value.
     int const number = feedback_value->Number();
@@ -580,7 +580,7 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForGlobalAccess(
         FeedbackNexus::ImmutabilityBit::decode(number), nexus.kind());
   }
 
-  CHECK(feedback_value->IsPropertyCell());
+  CHECK(IsPropertyCell(*feedback_value));
   // The wanted name belongs (or did belong) to a property on the global
   // object and the feedback is the cell holding its value.
   return *zone()->New<GlobalAccessFeedback>(

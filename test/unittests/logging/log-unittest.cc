@@ -924,7 +924,7 @@ void ValidateMapDetailsLogging(v8::Isolate* isolate,
   size_t i = 0;
   for (i::HeapObject obj = iterator.Next(); !obj.is_null();
        obj = iterator.Next()) {
-    if (!obj.IsMap()) continue;
+    if (!IsMap(obj)) continue;
     i++;
     uintptr_t address = obj.ptr();
     if (map_create_addresses.find(address) == map_create_addresses.end()) {

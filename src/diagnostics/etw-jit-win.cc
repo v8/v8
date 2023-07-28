@@ -270,7 +270,7 @@ void EventHandler(const JitCodeEvent* event) {
   uint32_t script_column = -1;
 
   SharedFunctionInfo sfi = GetSharedFunctionInfo(event);
-  if (!sfi.is_null() && sfi.script().IsScript()) {
+  if (!sfi.is_null() && IsScript(sfi.script())) {
     Script script = Script::cast(sfi.script());
 
     // if the first time seeing this source file, log the SourceLoad event
@@ -278,7 +278,7 @@ void EventHandler(const JitCodeEvent* event) {
     if (IsolateLoadScriptData::MaybeAddLoadedScript(isolate, script_id)) {
       std::wstring wstr_name(0, L'\0');
       Object script_name = script.GetNameOrSourceURL();
-      if (script_name.IsString()) {
+      if (IsString(script_name)) {
         String v8str_name = String::cast(script_name);
         wstr_name.resize(v8str_name.length());
         // On Windows wchar_t == uint16_t. const_Cast needed for C++14.

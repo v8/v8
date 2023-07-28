@@ -43,7 +43,7 @@ Handle<Object> StdlibMathMember(Isolate* isolate, Handle<JSReceiver> stdlib,
   Handle<Name> math_name(
       isolate->factory()->InternalizeString(base::StaticCharVector("Math")));
   Handle<Object> math = JSReceiver::GetDataProperty(isolate, stdlib, math_name);
-  if (!math->IsJSReceiver()) return isolate->factory()->undefined_value();
+  if (!IsJSReceiver(*math)) return isolate->factory()->undefined_value();
   Handle<JSReceiver> math_receiver = Handle<JSReceiver>::cast(math);
   Handle<Object> value =
       JSReceiver::GetDataProperty(isolate, math_receiver, name);
@@ -57,13 +57,13 @@ bool AreStdlibMembersValid(Isolate* isolate, Handle<JSReceiver> stdlib,
     members.Remove(wasm::AsmJsParser::StandardMember::kInfinity);
     Handle<Name> name = isolate->factory()->Infinity_string();
     Handle<Object> value = JSReceiver::GetDataProperty(isolate, stdlib, name);
-    if (!value->IsNumber() || !std::isinf(value->Number())) return false;
+    if (!IsNumber(*value) || !std::isinf(value->Number())) return false;
   }
   if (members.contains(wasm::AsmJsParser::StandardMember::kNaN)) {
     members.Remove(wasm::AsmJsParser::StandardMember::kNaN);
     Handle<Name> name = isolate->factory()->NaN_string();
     Handle<Object> value = JSReceiver::GetDataProperty(isolate, stdlib, name);
-    if (!value->IsNaN()) return false;
+    if (!IsNaN(*value)) return false;
   }
 #define STDLIB_MATH_FUNC(fname, FName, ignore1, ignore2)                   \
   if (members.contains(wasm::AsmJsParser::StandardMember::kMath##FName)) { \
@@ -71,7 +71,7 @@ bool AreStdlibMembersValid(Isolate* isolate, Handle<JSReceiver> stdlib,
     Handle<Name> name(isolate->factory()->InternalizeString(               \
         base::StaticCharVector(#fname)));                                  \
     Handle<Object> value = StdlibMathMember(isolate, stdlib, name);        \
-    if (!value->IsJSFunction()) return false;                              \
+    if (!IsJSFunction(*value)) return false;                               \
     SharedFunctionInfo shared = Handle<JSFunction>::cast(value)->shared(); \
     if (!shared->HasBuiltinId() ||                                         \
         shared->builtin_id() != Builtin::kMath##FName) {                   \
@@ -82,13 +82,13 @@ bool AreStdlibMembersValid(Isolate* isolate, Handle<JSReceiver> stdlib,
   }
   STDLIB_MATH_FUNCTION_LIST(STDLIB_MATH_FUNC)
 #undef STDLIB_MATH_FUNC
-#define STDLIB_MATH_CONST(cname, const_value)                               \
-  if (members.contains(wasm::AsmJsParser::StandardMember::kMath##cname)) {  \
-    members.Remove(wasm::AsmJsParser::StandardMember::kMath##cname);        \
-    Handle<Name> name(isolate->factory()->InternalizeString(                \
-        base::StaticCharVector(#cname)));                                   \
-    Handle<Object> value = StdlibMathMember(isolate, stdlib, name);         \
-    if (!value->IsNumber() || value->Number() != const_value) return false; \
+#define STDLIB_MATH_CONST(cname, const_value)                              \
+  if (members.contains(wasm::AsmJsParser::StandardMember::kMath##cname)) { \
+    members.Remove(wasm::AsmJsParser::StandardMember::kMath##cname);       \
+    Handle<Name> name(isolate->factory()->InternalizeString(               \
+        base::StaticCharVector(#cname)));                                  \
+    Handle<Object> value = StdlibMathMember(isolate, stdlib, name);        \
+    if (!IsNumber(*value) || value->Number() != const_value) return false; \
   }
   STDLIB_MATH_VALUE_LIST(STDLIB_MATH_CONST)
 #undef STDLIB_MATH_CONST
@@ -99,7 +99,7 @@ bool AreStdlibMembersValid(Isolate* isolate, Handle<JSReceiver> stdlib,
     Handle<Name> name(isolate->factory()->InternalizeString(                   \
         base::StaticCharVector(#FName)));                                      \
     Handle<Object> value = JSReceiver::GetDataProperty(isolate, stdlib, name); \
-    if (!value->IsJSFunction()) return false;                                  \
+    if (!IsJSFunction(*value)) return false;                                   \
     Handle<JSFunction> func = Handle<JSFunction>::cast(value);                 \
     if (!func.is_identical_to(isolate->fname())) return false;                 \
   }
@@ -425,7 +425,7 @@ MaybeHandle<Object> AsmJs::InstantiateAsmWasm(Isolate* isolate,
   MaybeHandle<Object> single_function =
       Object::GetProperty(isolate, instance, single_function_name);
   if (!single_function.is_null() &&
-      !single_function.ToHandleChecked()->IsUndefined(isolate)) {
+      !IsUndefined(*single_function.ToHandleChecked(), isolate)) {
     return single_function;
   }
 
@@ -433,7 +433,7 @@ MaybeHandle<Object> AsmJs::InstantiateAsmWasm(Isolate* isolate,
   // The following check is a weak indicator for that. If this ever changes,
   // then we'll have to call the "exports" getter, and be careful about
   // handling possible stack overflow exceptions.
-  DCHECK(instance->exports_object().IsJSObject());
+  DCHECK(IsJSObject(instance->exports_object()));
   return handle(instance->exports_object(), isolate);
 }
 

@@ -28,7 +28,7 @@ namespace internal {
 namespace {
 #ifdef DEBUG
 void PrintModuleName(Module module, std::ostream& os) {
-  if (module.IsSourceTextModule()) {
+  if (IsSourceTextModule(module)) {
     SourceTextModule::cast(module)->GetScript()->GetNameOrSourceURL().Print(os);
   } else {
     SyntheticModule::cast(module)->name().Print(os);
@@ -78,9 +78,9 @@ void Module::RecordError(Isolate* isolate, Object error) {
   DisallowGarbageCollection no_gc;
   // Allow overriding exceptions with termination exceptions.
   DCHECK_IMPLIES(isolate->is_catchable_by_javascript(error),
-                 exception().IsTheHole(isolate));
-  DCHECK(!error.IsTheHole(isolate));
-  if (IsSourceTextModule()) {
+                 IsTheHole(exception(), isolate));
+  DCHECK(!IsTheHole(error, isolate));
+  if (IsSourceTextModule(*this)) {
     // Revert to minmal SFI in case we have already been instantiating or
     // evaluating.
     auto self = SourceTextModule::cast(*this);
@@ -102,40 +102,40 @@ void Module::ResetGraph(Isolate* isolate, Handle<Module> module) {
   }
 
   Handle<FixedArray> requested_modules =
-      module->IsSourceTextModule()
+      IsSourceTextModule(*module)
           ? Handle<FixedArray>(
                 SourceTextModule::cast(*module)->requested_modules(), isolate)
           : Handle<FixedArray>();
   Reset(isolate, module);
 
-  if (!module->IsSourceTextModule()) {
-    DCHECK(module->IsSyntheticModule());
+  if (!IsSourceTextModule(*module)) {
+    DCHECK(IsSyntheticModule(*module));
     return;
   }
   for (int i = 0; i < requested_modules->length(); ++i) {
     Handle<Object> descendant(requested_modules->get(i), isolate);
-    if (descendant->IsModule()) {
+    if (IsModule(*descendant)) {
       ResetGraph(isolate, Handle<Module>::cast(descendant));
     } else {
-      DCHECK(descendant->IsUndefined(isolate));
+      DCHECK(IsUndefined(*descendant, isolate));
     }
   }
 }
 
 void Module::Reset(Isolate* isolate, Handle<Module> module) {
   DCHECK(module->status() == kPreLinking || module->status() == kLinking);
-  DCHECK(module->exception().IsTheHole(isolate));
+  DCHECK(IsTheHole(module->exception(), isolate));
   // The namespace object cannot exist, because it would have been created
   // by RunInitializationCode, which is called only after this module's SCC
   // succeeds instantiation.
-  DCHECK(!module->module_namespace().IsJSModuleNamespace());
+  DCHECK(!IsJSModuleNamespace(module->module_namespace()));
   const int export_count =
-      module->IsSourceTextModule()
+      IsSourceTextModule(*module)
           ? SourceTextModule::cast(*module)->regular_exports()->length()
           : SyntheticModule::cast(*module)->export_names()->length();
   Handle<ObjectHashTable> exports = ObjectHashTable::New(isolate, export_count);
 
-  if (module->IsSourceTextModule()) {
+  if (IsSourceTextModule(*module)) {
     SourceTextModule::Reset(isolate, Handle<SourceTextModule>::cast(module));
   }
 
@@ -146,7 +146,7 @@ void Module::Reset(Isolate* isolate, Handle<Module> module) {
 Object Module::GetException() {
   DisallowGarbageCollection no_gc;
   DCHECK_EQ(status(), Module::kErrored);
-  DCHECK(!exception().IsTheHole());
+  DCHECK(!IsTheHole(exception()));
   return exception();
 }
 
@@ -158,7 +158,7 @@ MaybeHandle<Cell> Module::ResolveExport(Isolate* isolate, Handle<Module> module,
   DCHECK_GE(module->status(), kPreLinking);
   DCHECK_NE(module->status(), kEvaluating);
 
-  if (module->IsSourceTextModule()) {
+  if (IsSourceTextModule(*module)) {
     return SourceTextModule::ResolveExport(
         isolate, Handle<SourceTextModule>::cast(module), module_specifier,
         export_name, loc, must_resolve, resolve_set);
@@ -207,7 +207,7 @@ bool Module::PrepareInstantiate(
   module->SetStatus(kPreLinking);
   STACK_CHECK(isolate, false);
 
-  if (module->IsSourceTextModule()) {
+  if (IsSourceTextModule(*module)) {
     return SourceTextModule::PrepareInstantiate(
         isolate, Handle<SourceTextModule>::cast(module), context, callback,
         callback_without_import_assertions);
@@ -225,7 +225,7 @@ bool Module::FinishInstantiate(Isolate* isolate, Handle<Module> module,
   DCHECK_EQ(module->status(), kPreLinking);
   STACK_CHECK(isolate, false);
 
-  if (module->IsSourceTextModule()) {
+  if (IsSourceTextModule(*module)) {
     return SourceTextModule::FinishInstantiate(
         isolate, Handle<SourceTextModule>::cast(module), stack, dfs_index,
         zone);
@@ -246,7 +246,7 @@ MaybeHandle<Object> Module::Evaluate(Isolate* isolate, Handle<Module> module) {
     // If we have a top level capability we assume it has already been
     // rejected, and return it here. Otherwise create a new promise and
     // reject it with the module's exception.
-    if (module->top_level_capability().IsJSPromise()) {
+    if (IsJSPromise(module->top_level_capability())) {
       Handle<JSPromise> top_level_capability(
           JSPromise::cast(module->top_level_capability()), isolate);
       DCHECK(top_level_capability->status() == Promise::kRejected &&
@@ -265,18 +265,18 @@ MaybeHandle<Object> Module::Evaluate(Isolate* isolate, Handle<Module> module) {
   // 3. If module.[[Status]] is "evaluated", set module to
   //    module.[[CycleRoot]].
   // A Synthetic Module has no children so it is its own cycle root.
-  if (module_status == kEvaluated && module->IsSourceTextModule()) {
+  if (module_status == kEvaluated && IsSourceTextModule(*module)) {
     module = Handle<SourceTextModule>::cast(module)->GetCycleRoot(isolate);
   }
 
   // 4. If module.[[TopLevelCapability]] is not undefined, then
   //    a. Return module.[[TopLevelCapability]].[[Promise]].
-  if (module->top_level_capability().IsJSPromise()) {
+  if (IsJSPromise(module->top_level_capability())) {
     return handle(JSPromise::cast(module->top_level_capability()), isolate);
   }
-  DCHECK(module->top_level_capability().IsUndefined());
+  DCHECK(IsUndefined(module->top_level_capability()));
 
-  if (module->IsSourceTextModule()) {
+  if (IsSourceTextModule(*module)) {
     return SourceTextModule::Evaluate(isolate,
                                       Handle<SourceTextModule>::cast(module));
   } else {
@@ -289,7 +289,7 @@ Handle<JSModuleNamespace> Module::GetModuleNamespace(Isolate* isolate,
                                                      Handle<Module> module) {
   Handle<HeapObject> object(module->module_namespace(), isolate);
   ReadOnlyRoots roots(isolate);
-  if (!object->IsUndefined(roots)) {
+  if (!IsUndefined(*object, roots)) {
     // Namespace object already exists.
     return Handle<JSModuleNamespace>::cast(object);
   }
@@ -298,7 +298,7 @@ Handle<JSModuleNamespace> Module::GetModuleNamespace(Isolate* isolate,
   Zone zone(isolate->allocator(), ZONE_NAME);
   UnorderedModuleSet visited(&zone);
 
-  if (module->IsSourceTextModule()) {
+  if (IsSourceTextModule(*module)) {
     SourceTextModule::FetchStarExports(
         isolate, Handle<SourceTextModule>::cast(module), &zone, &visited);
   }
@@ -362,18 +362,18 @@ Handle<JSModuleNamespace> Module::GetModuleNamespace(Isolate* isolate,
 
 bool JSModuleNamespace::HasExport(Isolate* isolate, Handle<String> name) {
   Handle<Object> object(module()->exports()->Lookup(name), isolate);
-  return !object->IsTheHole(isolate);
+  return !IsTheHole(*object, isolate);
 }
 
 MaybeHandle<Object> JSModuleNamespace::GetExport(Isolate* isolate,
                                                  Handle<String> name) {
   Handle<Object> object(module()->exports()->Lookup(name), isolate);
-  if (object->IsTheHole(isolate)) {
+  if (IsTheHole(*object, isolate)) {
     return isolate->factory()->undefined_value();
   }
 
   Handle<Object> value(Cell::cast(*object)->value(), isolate);
-  if (value->IsTheHole(isolate)) {
+  if (IsTheHole(*value, isolate)) {
     // According to https://tc39.es/ecma262/#sec-InnerModuleLinking
     // step 10 and
     // https://tc39.es/ecma262/#sec-source-text-module-record-initialize-environment
@@ -398,10 +398,10 @@ Maybe<PropertyAttributes> JSModuleNamespace::GetPropertyAttributes(
   Isolate* isolate = it->isolate();
 
   Handle<Object> lookup(object->module()->exports()->Lookup(name), isolate);
-  if (lookup->IsTheHole(isolate)) return Just(ABSENT);
+  if (IsTheHole(*lookup, isolate)) return Just(ABSENT);
 
   Handle<Object> value(Handle<Cell>::cast(lookup)->value(), isolate);
-  if (value->IsTheHole(isolate)) {
+  if (IsTheHole(*value, isolate)) {
     isolate->Throw(*isolate->factory()->NewReferenceError(
         MessageTemplate::kNotDefined, name));
     return Nothing<PropertyAttributes>();
@@ -417,7 +417,7 @@ Maybe<bool> JSModuleNamespace::DefineOwnProperty(
     Isolate* isolate, Handle<JSModuleNamespace> object, Handle<Object> key,
     PropertyDescriptor* desc, Maybe<ShouldThrow> should_throw) {
   // 1. If Type(P) is Symbol, return OrdinaryDefineOwnProperty(O, P, Desc).
-  if (key->IsSymbol()) {
+  if (IsSymbol(*key)) {
     return OrdinaryDefineOwnProperty(isolate, object, key, desc, should_throw);
   }
 
@@ -452,7 +452,7 @@ bool Module::IsGraphAsync(Isolate* isolate) const {
   DisallowGarbageCollection no_gc;
 
   // Only SourceTextModules may be async.
-  if (!IsSourceTextModule()) return false;
+  if (!IsSourceTextModule(*this)) return false;
   SourceTextModule root = SourceTextModule::cast(*this);
 
   Zone zone(isolate->allocator(), ZONE_NAME);
@@ -471,7 +471,7 @@ bool Module::IsGraphAsync(Isolate* isolate) const {
     FixedArray requested_modules = current->requested_modules();
     for (int i = 0, length = requested_modules->length(); i < length; ++i) {
       Module descendant = Module::cast(requested_modules->get(i));
-      if (descendant.IsSourceTextModule()) {
+      if (IsSourceTextModule(descendant)) {
         const bool cycle = !visited.insert(descendant).second;
         if (!cycle) worklist.push_back(SourceTextModule::cast(descendant));
       }

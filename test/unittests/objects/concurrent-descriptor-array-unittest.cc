@@ -49,7 +49,7 @@ class ConcurrentSearchThread final : public v8::base::Thread {
 
     for (Handle<JSObject> handle : handles_) {
       // Lookup the named property on the {map}.
-      EXPECT_TRUE(name_->IsUniqueName());
+      EXPECT_TRUE(IsUniqueName(*name_));
       Handle<Map> map(handle->map(), &local_heap);
 
       Handle<DescriptorArray> descriptors(

@@ -102,7 +102,7 @@ MaybeHandle<WasmExportedFunction> GetExportedFunction(
   Maybe<bool> property_found = JSReceiver::GetOwnPropertyDescriptor(
       isolate, exports_object, main_name, &desc);
   if (!property_found.FromMaybe(false)) return {};
-  if (!desc.value()->IsJSFunction()) return {};
+  if (!IsJSFunction(*desc.value())) return {};
 
   return Handle<WasmExportedFunction>::cast(desc.value());
 }
@@ -139,18 +139,18 @@ int32_t CallWasmFunctionForTesting(Isolate* isolate,
   Handle<Object> result = retval.ToHandleChecked();
 
   // Multi-value returns, get the first return value (see InterpretWasmModule).
-  if (result->IsJSArray()) {
+  if (IsJSArray(*result)) {
     auto receiver = Handle<JSReceiver>::cast(result);
     result = JSObject::GetElement(isolate, receiver, 0).ToHandleChecked();
   }
 
-  if (result->IsSmi()) {
+  if (IsSmi(*result)) {
     return Smi::ToInt(*result);
   }
-  if (result->IsHeapNumber()) {
+  if (IsHeapNumber(*result)) {
     return static_cast<int32_t>(HeapNumber::cast(*result)->value());
   }
-  if (result->IsBigInt()) {
+  if (IsBigInt(*result)) {
     return static_cast<int32_t>(BigInt::cast(*result)->AsInt64());
   }
   return -1;

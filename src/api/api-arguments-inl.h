@@ -18,11 +18,12 @@ namespace v8 {
 namespace internal {
 
 #if DEBUG
-bool Object::IsApiCallResultType() const {
-  if (IsSmi()) return true;
-  DCHECK(IsHeapObject());
-  return (IsString() || IsSymbol() || IsJSReceiver() || IsHeapNumber() ||
-          IsBigInt() || IsUndefined() || IsTrue() || IsFalse() || IsNull());
+bool IsApiCallResultType(Tagged<Object> obj) {
+  if (IsSmi(obj)) return true;
+  DCHECK(IsHeapObject(obj));
+  return (IsString(obj) || IsSymbol(obj) || IsJSReceiver(obj) ||
+          IsHeapNumber(obj) || IsBigInt(obj) || IsUndefined(obj) ||
+          IsTrue(obj) || IsFalse(obj) || IsNull(obj));
 }
 #endif  // DEBUG
 
@@ -41,8 +42,8 @@ Handle<V> CustomArguments<T>::GetReturnValue(Isolate* isolate) const {
   FullObjectSlot slot = slot_at(kReturnValueIndex);
   // Nothing was set, return empty handle as per previous behaviour.
   Object raw_object = *slot;
-  if (raw_object.IsTheHole(isolate)) return Handle<V>();
-  DCHECK(raw_object.IsApiCallResultType());
+  if (IsTheHole(raw_object, isolate)) return Handle<V>();
+  DCHECK(IsApiCallResultType(raw_object));
   return Handle<V>::cast(Handle<Object>(slot.location()));
 }
 
@@ -61,7 +62,7 @@ inline JSReceiver FunctionCallbackArguments::holder() const {
 #define DCHECK_NAME_COMPATIBLE(interceptor, name) \
   DCHECK(interceptor->is_named());                \
   DCHECK(!name->IsPrivate());                     \
-  DCHECK_IMPLIES(name->IsSymbol(), interceptor->can_intercept_symbols());
+  DCHECK_IMPLIES(IsSymbol(*name), interceptor->can_intercept_symbols());
 
 #define PREPARE_CALLBACK_INFO_ACCESSOR(ISOLATE, F, API_RETURN_TYPE,            \
                                        ACCESSOR_INFO, RECEIVER, ACCESSOR_KIND) \

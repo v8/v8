@@ -150,7 +150,7 @@ void SwissNameDictionary::SetEntryForEnumerationIndex(int enumeration_index,
 template <typename IsolateT>
 InternalIndex SwissNameDictionary::FindEntry(IsolateT* isolate, Object key) {
   Name name = Name::cast(key);
-  DCHECK(name->IsUniqueName());
+  DCHECK(IsUniqueName(name));
   uint32_t hash = name->hash();
 
   // We probe the hash table in groups of |kGroupWidth| buckets. One bucket
@@ -259,7 +259,7 @@ void SwissNameDictionary::ClearDataTableEntry(Isolate* isolate, int entry) {
 }
 
 void SwissNameDictionary::ValueAtPut(int entry, Object value) {
-  DCHECK(!value.IsTheHole());
+  DCHECK(!IsTheHole(value));
   StoreToDataTable(entry, kDataTableValueEntryIndex, value);
 }
 
@@ -268,7 +268,7 @@ void SwissNameDictionary::ValueAtPut(InternalIndex entry, Object value) {
 }
 
 void SwissNameDictionary::SetKey(int entry, Object key) {
-  DCHECK(!key.IsTheHole());
+  DCHECK(!IsTheHole(key));
   StoreToDataTable(entry, kDataTableKeyEntryIndex, key);
 }
 
@@ -534,7 +534,7 @@ int SwissNameDictionary::AddInternal(Name key, Object value,
                                      PropertyDetails details) {
   DisallowHeapAllocation no_gc;
 
-  DCHECK(key->IsUniqueName());
+  DCHECK(IsUniqueName(key));
   DCHECK_LE(UsedCapacity(), MaxUsableCapacity(Capacity()));
 
   uint32_t hash = key->hash();

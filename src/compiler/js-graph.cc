@@ -65,16 +65,16 @@ Node* JSGraph::Constant(ObjectRef ref, JSHeapBroker* broker) {
       ref.AsHeapObject().GetHeapObjectType(broker).oddball_type();
   ReadOnlyRoots roots(isolate());
   if (oddball_type == OddballType::kUndefined) {
-    DCHECK(ref.object()->IsUndefined(roots));
+    DCHECK(IsUndefined(*ref.object(), roots));
     return UndefinedConstant();
   } else if (oddball_type == OddballType::kNull) {
-    DCHECK(ref.object()->IsNull(roots));
+    DCHECK(IsNull(*ref.object(), roots));
     return NullConstant();
   } else if (oddball_type == OddballType::kBoolean) {
-    if (ref.object()->IsTrue(roots)) {
+    if (IsTrue(*ref.object(), roots)) {
       return TrueConstant();
     } else {
-      DCHECK(ref.object()->IsFalse(roots));
+      DCHECK(IsFalse(*ref.object(), roots));
       return FalseConstant();
     }
   } else {

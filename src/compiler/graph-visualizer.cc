@@ -91,10 +91,11 @@ void JsonPrintFunctionSource(std::ostream& os, int source_id,
 
   int start = 0;
   int end = 0;
-  if (!script.is_null() && !script->IsUndefined(isolate) && !shared.is_null()) {
+  if (!script.is_null() && !IsUndefined(*script, isolate) &&
+      !shared.is_null()) {
     Object source_name = script->name();
     os << ", \"sourceName\": \"";
-    if (source_name.IsString()) {
+    if (IsString(source_name)) {
       std::ostringstream escaped_name;
       escaped_name << String::cast(source_name)->ToCString().get();
       os << JSONEscaped(escaped_name);
@@ -104,7 +105,7 @@ void JsonPrintFunctionSource(std::ostream& os, int source_id,
       start = shared->StartPosition();
       end = shared->EndPosition();
       os << ", \"sourceText\": \"";
-      if (!script->source().IsUndefined()) {
+      if (!IsUndefined(script->source())) {
         DisallowGarbageCollection no_gc;
         int len = shared->EndPosition() - start;
         SubStringRange source(String::cast(script->source()), no_gc, start,
@@ -329,9 +330,9 @@ std::unique_ptr<char[]> GetVisualizerLogFileName(OptimizedCompilationInfo* info,
   base::EmbeddedVector<char, 256> source_file(0);
   bool source_available = false;
   if (v8_flags.trace_file_names && info->has_shared_info() &&
-      info->shared_info()->script().IsScript()) {
+      IsScript(info->shared_info()->script())) {
     Object source_name = Script::cast(info->shared_info()->script())->name();
-    if (source_name.IsString()) {
+    if (IsString(source_name)) {
       String str = String::cast(source_name);
       if (str->length() > 0) {
         SNPrintF(source_file, "%s", str->ToCString().get());

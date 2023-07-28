@@ -265,9 +265,9 @@ MaybeHandle<Object> WasmTableObject::JSToWasmElement(
     Isolate* isolate, Handle<WasmTableObject> table, Handle<Object> entry,
     const char** error_message) {
   // Any `entry` has to be in its JS representation.
-  DCHECK(!entry->IsWasmInternalFunction());
+  DCHECK(!IsWasmInternalFunction(*entry));
   const WasmModule* module =
-      !table->instance().IsUndefined()
+      !IsUndefined(table->instance())
           ? WasmInstanceObject::cast(table->instance())->module()
           : nullptr;
   return wasm::JSToWasmObject(isolate, module, entry, table->type(),
@@ -279,7 +279,7 @@ void WasmTableObject::SetFunctionTableEntry(Isolate* isolate,
                                             Handle<FixedArray> entries,
                                             int entry_index,
                                             Handle<Object> entry) {
-  if (entry->IsWasmNull(isolate)) {
+  if (IsWasmNull(*entry, isolate)) {
     ClearDispatchTables(isolate, table, entry_index);  // Degenerate case.
     entries->set(entry_index, ReadOnlyRoots(isolate).wasm_null());
     return;
@@ -339,7 +339,7 @@ void WasmTableObject::Set(Isolate* isolate, Handle<WasmTableObject> table,
     case wasm::HeapType::kBottom:
       UNREACHABLE();
     default:
-      DCHECK(!table->instance().IsUndefined());
+      DCHECK(!IsUndefined(table->instance()));
       if (WasmInstanceObject::cast(table->instance())
               ->module()
               ->has_signature(table->type().ref_index())) {
@@ -363,7 +363,7 @@ Handle<Object> WasmTableObject::Get(Isolate* isolate,
 
   Handle<Object> entry(entries->get(entry_index), isolate);
 
-  if (entry->IsWasmNull(isolate)) {
+  if (IsWasmNull(*entry, isolate)) {
     return entry;
   }
 
@@ -383,12 +383,12 @@ Handle<Object> WasmTableObject::Get(Isolate* isolate,
     case wasm::HeapType::kNoExtern:
       return entry;
     case wasm::HeapType::kFunc:
-      if (entry->IsWasmInternalFunction()) return entry;
+      if (IsWasmInternalFunction(*entry)) return entry;
       break;
     case wasm::HeapType::kBottom:
       UNREACHABLE();
     default:
-      DCHECK(!table->instance().IsUndefined());
+      DCHECK(!IsUndefined(table->instance()));
       const WasmModule* module =
           WasmInstanceObject::cast(table->instance())->module();
       if (module->has_array(table->type().ref_index()) ||
@@ -396,7 +396,7 @@ Handle<Object> WasmTableObject::Get(Isolate* isolate,
         return entry;
       }
       DCHECK(module->has_signature(table->type().ref_index()));
-      if (entry->IsWasmInternalFunction()) return entry;
+      if (IsWasmInternalFunction(*entry)) return entry;
       break;
   }
 
@@ -587,10 +587,10 @@ void WasmTableObject::GetFunctionTableEntry(
   *is_valid = true;
   Handle<Object> element(table->entries()->get(entry_index), isolate);
 
-  *is_null = element->IsWasmNull(isolate);
+  *is_null = IsWasmNull(*element, isolate);
   if (*is_null) return;
 
-  if (element->IsWasmInternalFunction()) {
+  if (IsWasmInternalFunction(*element)) {
     element = WasmInternalFunction::GetOrCreateExternal(
         Handle<WasmInternalFunction>::cast(element));
   }
@@ -606,7 +606,7 @@ void WasmTableObject::GetFunctionTableEntry(
     *maybe_js_function = Handle<WasmJSFunction>::cast(element);
     return;
   }
-  if (element->IsTuple2()) {
+  if (IsTuple2(*element)) {
     auto tuple = Handle<Tuple2>::cast(element);
     *instance = handle(WasmInstanceObject::cast(tuple->value1()), isolate);
     *function_index = Smi::cast(tuple->value2()).value();
@@ -1090,7 +1090,7 @@ void ImportedFunctionEntry::SetWasmToWasm(WasmInstanceObject instance,
 // otherwise.
 Object ImportedFunctionEntry::maybe_callable() {
   Object value = object_ref();
-  if (!value.IsWasmApiFunctionRef()) return Object();
+  if (!IsWasmApiFunctionRef(value)) return Object();
   return JSReceiver::cast(WasmApiFunctionRef::cast(value)->callable());
 }
 
@@ -1317,7 +1317,7 @@ Handle<WasmIndirectFunctionTable> WasmInstanceObject::GetIndirectFunctionTable(
 
 void WasmInstanceObject::SetIndirectFunctionTableShortcuts(Isolate* isolate) {
   if (indirect_function_tables()->length() > 0 &&
-      indirect_function_tables()->get(0).IsWasmIndirectFunctionTable()) {
+      IsWasmIndirectFunctionTable(indirect_function_tables()->get(0))) {
     HandleScope scope(isolate);
     Handle<WasmIndirectFunctionTable> table0 =
         GetIndirectFunctionTable(isolate, 0);
@@ -1403,7 +1403,7 @@ base::Optional<MessageTemplate> WasmInstanceObject::InitTableEntries(
 MaybeHandle<WasmInternalFunction> WasmInstanceObject::GetWasmInternalFunction(
     Isolate* isolate, Handle<WasmInstanceObject> instance, int index) {
   Object val = instance->wasm_internal_functions()->get(index);
-  if (val.IsSmi()) return {};
+  if (IsSmi(val)) return {};
   return handle(WasmInternalFunction::cast(val), isolate);
 }
 
@@ -1454,7 +1454,7 @@ void WasmInstanceObject::SetWasmInternalFunction(
 Handle<JSFunction> WasmInternalFunction::GetOrCreateExternal(
     Handle<WasmInternalFunction> internal) {
   Isolate* isolate = GetIsolateFromWritableObject(*internal);
-  if (!internal->external().IsUndefined()) {
+  if (!IsUndefined(internal->external())) {
     return handle(JSFunction::cast(internal->external()), isolate);
   }
 
@@ -1465,7 +1465,7 @@ Handle<JSFunction> WasmInternalFunction::GetOrCreateExternal(
   // It cannot be a JS/C API function as for those, the external function is set
   // at creation.
   Handle<WasmInstanceObject> instance =
-      handle(internal->ref().IsWasmInstanceObject()
+      handle(IsWasmInstanceObject(internal->ref())
                  ? WasmInstanceObject::cast(internal->ref())
                  : WasmInstanceObject::cast(
                        WasmApiFunctionRef::cast(internal->ref())->instance()),
@@ -1483,7 +1483,7 @@ Handle<JSFunction> WasmInternalFunction::GetOrCreateExternal(
 
   Handle<Code> wrapper;
   // {entry} can be cleared, {undefined}, or a ready {Code}.
-  if (entry.IsStrongOrWeak() && entry.GetHeapObject().IsCode()) {
+  if (entry.IsStrongOrWeak() && IsCode(entry.GetHeapObject())) {
     wrapper = handle(Code::cast(entry.GetHeapObject()), isolate);
   } else {
     // The wrapper may not exist yet if no function in the exports section has
@@ -1816,7 +1816,7 @@ Handle<Object> WasmExceptionPackage::GetExceptionValues(
           isolate, exception_package,
           isolate->factory()->wasm_exception_values_symbol())
           .ToHandle(&values)) {
-    DCHECK_IMPLIES(!values->IsUndefined(), values->IsFixedArray());
+    DCHECK_IMPLIES(!IsUndefined(*values), IsFixedArray(*values));
     return values;
   }
   return ReadOnlyRoots(isolate).undefined_value_handle();
@@ -1977,7 +1977,7 @@ uint32_t WasmExceptionPackage::GetEncodedSize(const wasm::WasmTagSig* sig) {
 }
 
 bool WasmExportedFunction::IsWasmExportedFunction(Object object) {
-  if (!object.IsJSFunction()) return false;
+  if (!IsJSFunction(object)) return false;
   JSFunction js_function = JSFunction::cast(object);
   Code code = js_function->code();
   if (CodeKind::JS_TO_WASM_FUNCTION != code->kind() &&
@@ -1991,7 +1991,7 @@ bool WasmExportedFunction::IsWasmExportedFunction(Object object) {
 }
 
 bool WasmCapiFunction::IsWasmCapiFunction(Object object) {
-  if (!object.IsJSFunction()) return false;
+  if (!IsJSFunction(object)) return false;
   JSFunction js_function = JSFunction::cast(object);
   // TODO(jkummerow): Enable this when there is a JavaScript wrapper
   // able to call this function.
@@ -2102,7 +2102,7 @@ Handle<WasmExportedFunction> WasmExportedFunction::New(
 
   // According to the spec, exported functions should not have a [[Construct]]
   // method. This does not apply to functions exported from asm.js however.
-  DCHECK_EQ(is_asm_js_module, js_function->IsConstructor());
+  DCHECK_EQ(is_asm_js_module, IsConstructor(*js_function));
   shared->set_length(arity);
   shared->set_internal_formal_parameter_count(JSParameterCount(arity));
   shared->set_script(instance->module_object()->script(), kReleaseStore);
@@ -2139,7 +2139,7 @@ std::unique_ptr<char[]> WasmExportedFunction::GetDebugName(
 
 // static
 bool WasmJSFunction::IsWasmJSFunction(Object object) {
-  if (!object.IsJSFunction()) return false;
+  if (!IsJSFunction(object)) return false;
   JSFunction js_function = JSFunction::cast(object);
   return js_function->shared()->HasWasmJSFunctionData();
 }
@@ -2199,7 +2199,7 @@ Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
     MaybeObject maybe_canonical_map = canonical_rtts->Get(canonical_type_index);
 
     if (maybe_canonical_map.IsStrongOrWeak() &&
-        maybe_canonical_map.GetHeapObject().IsMap()) {
+        IsMap(maybe_canonical_map.GetHeapObject())) {
       rtt = handle(Map::cast(maybe_canonical_map.GetHeapObject()), isolate);
     } else {
       rtt = CreateFuncRefMap(isolate, Handle<Map>(),
@@ -2219,7 +2219,7 @@ Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
     using CK = wasm::ImportCallKind;
     int expected_arity = parameter_count;
     CK kind = wasm::kDefaultImportCallKind;
-    if (callable->IsJSFunction()) {
+    if (IsJSFunction(*callable)) {
       SharedFunctionInfo shared = Handle<JSFunction>::cast(callable)->shared();
       expected_arity =
           shared->internal_formal_parameter_count_without_receiver();
@@ -2237,7 +2237,7 @@ Handle<WasmJSFunction> WasmJSFunction::New(Isolate* isolate,
   }
 
   Handle<String> name = factory->Function_string();
-  if (callable->IsJSFunction()) {
+  if (IsJSFunction(*callable)) {
     name = JSFunction::GetDebugName(Handle<JSFunction>::cast(callable));
     name = String::Flatten(isolate, name);
   }
@@ -2374,7 +2374,7 @@ MaybeHandle<Object> JSToWasmObject(Isolate* isolate, Handle<Object> value,
                                    ValueType expected_canonical,
                                    const char** error_message) {
   DCHECK(expected_canonical.is_object_reference());
-  if (expected_canonical.kind() == kRefNull && value->IsNull(isolate)) {
+  if (expected_canonical.kind() == kRefNull && IsNull(*value, isolate)) {
     switch (expected_canonical.heap_representation()) {
       case HeapType::kStringViewWtf8:
         *error_message = "stringview_wtf8 has no JS representation";
@@ -2409,21 +2409,21 @@ MaybeHandle<Object> JSToWasmObject(Isolate* isolate, Handle<Object> value,
                                  isolate);
     }
     case HeapType::kExtern: {
-      if (!value->IsNull(isolate)) return value;
+      if (!IsNull(*value, isolate)) return value;
       *error_message = "null is not allowed for (ref extern)";
       return {};
     }
     case HeapType::kAny: {
-      if (value->IsSmi()) return CanonicalizeSmi(value, isolate);
-      if (value->IsHeapNumber()) {
+      if (IsSmi(*value)) return CanonicalizeSmi(value, isolate);
+      if (IsHeapNumber(*value)) {
         return CanonicalizeHeapNumber(value, isolate);
       }
-      if (!value->IsNull(isolate)) return value;
+      if (!IsNull(*value, isolate)) return value;
       *error_message = "null is not allowed for (ref any)";
       return {};
     }
     case HeapType::kStruct: {
-      if (value->IsWasmStruct()) {
+      if (IsWasmStruct(*value)) {
         return value;
       }
       *error_message =
@@ -2431,7 +2431,7 @@ MaybeHandle<Object> JSToWasmObject(Isolate* isolate, Handle<Object> value,
       return {};
     }
     case HeapType::kArray: {
-      if (value->IsWasmArray()) {
+      if (IsWasmArray(*value)) {
         return value;
       }
       *error_message =
@@ -2439,13 +2439,13 @@ MaybeHandle<Object> JSToWasmObject(Isolate* isolate, Handle<Object> value,
       return {};
     }
     case HeapType::kEq: {
-      if (value->IsSmi()) {
+      if (IsSmi(*value)) {
         Handle<Object> truncated = CanonicalizeSmi(value, isolate);
-        if (truncated->IsSmi()) return truncated;
-      } else if (value->IsHeapNumber()) {
+        if (IsSmi(*truncated)) return truncated;
+      } else if (IsHeapNumber(*value)) {
         Handle<Object> truncated = CanonicalizeHeapNumber(value, isolate);
-        if (truncated->IsSmi()) return truncated;
-      } else if (value->IsWasmStruct() || value->IsWasmArray()) {
+        if (IsSmi(*truncated)) return truncated;
+      } else if (IsWasmStruct(*value) || IsWasmArray(*value)) {
         return value;
       }
       *error_message =
@@ -2454,12 +2454,12 @@ MaybeHandle<Object> JSToWasmObject(Isolate* isolate, Handle<Object> value,
       return {};
     }
     case HeapType::kI31: {
-      if (value->IsSmi()) {
+      if (IsSmi(*value)) {
         Handle<Object> truncated = CanonicalizeSmi(value, isolate);
-        if (truncated->IsSmi()) return truncated;
-      } else if (value->IsHeapNumber()) {
+        if (IsSmi(*truncated)) return truncated;
+      } else if (IsHeapNumber(*value)) {
         Handle<Object> truncated = CanonicalizeHeapNumber(value, isolate);
-        if (truncated->IsSmi()) return truncated;
+        if (IsSmi(*truncated)) return truncated;
       }
       *error_message =
           "i31ref object must be null (if nullable) or a Number that fits "
@@ -2467,7 +2467,7 @@ MaybeHandle<Object> JSToWasmObject(Isolate* isolate, Handle<Object> value,
       return {};
     }
     case HeapType::kString:
-      if (value->IsString()) return value;
+      if (IsString(*value)) return value;
       *error_message = "wrong type (expected a string)";
       return {};
     case HeapType::kStringViewWtf8:
@@ -2519,7 +2519,7 @@ MaybeHandle<Object> JSToWasmObject(Isolate* isolate, Handle<Object> value,
           return {};
         }
         return WasmInternalFunction::FromExternal(value, isolate);
-      } else if (value->IsWasmStruct() || value->IsWasmArray()) {
+      } else if (IsWasmStruct(*value) || IsWasmArray(*value)) {
         auto wasm_obj = Handle<WasmObject>::cast(value);
         WasmTypeInfo type_info = wasm_obj->map()->wasm_type_info();
         uint32_t real_idx = type_info->type_index();
@@ -2556,9 +2556,9 @@ MaybeHandle<Object> JSToWasmObject(Isolate* isolate, const WasmModule* module,
 }
 
 Handle<Object> WasmToJSObject(Isolate* isolate, Handle<Object> value) {
-  if (value->IsWasmNull()) {
+  if (IsWasmNull(*value)) {
     return isolate->factory()->null_value();
-  } else if (value->IsWasmInternalFunction()) {
+  } else if (IsWasmInternalFunction(*value)) {
     return i::WasmInternalFunction::GetOrCreateExternal(
         i::Handle<i::WasmInternalFunction>::cast(value));
   } else {

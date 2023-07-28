@@ -97,34 +97,6 @@ class HeapObject : public Object {
 
   V8_INLINE bool InReadOnlySpace() const;
 
-#define IS_TYPE_FUNCTION_DECL(Type) \
-  V8_INLINE bool Is##Type() const;  \
-  V8_INLINE bool Is##Type(PtrComprCageBase cage_base) const;
-  HEAP_OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DECL)
-  IS_TYPE_FUNCTION_DECL(HashTableBase)
-  IS_TYPE_FUNCTION_DECL(SmallOrderedHashTable)
-#undef IS_TYPE_FUNCTION_DECL
-
-// Oddball checks are faster when they are raw pointer comparisons, so the
-// isolate/read-only roots overloads should be preferred where possible.
-#define IS_TYPE_FUNCTION_DECL(Type, Value, _)           \
-  V8_INLINE bool Is##Type(Isolate* isolate) const;      \
-  V8_INLINE bool Is##Type(LocalIsolate* isolate) const; \
-  V8_INLINE bool Is##Type(ReadOnlyRoots roots) const;   \
-  V8_INLINE bool Is##Type() const;
-  ODDBALL_LIST(IS_TYPE_FUNCTION_DECL)
-  HOLE_LIST(IS_TYPE_FUNCTION_DECL)
-  IS_TYPE_FUNCTION_DECL(NullOrUndefined, , /* unused */)
-#undef IS_TYPE_FUNCTION_DECL
-
-#define DECL_STRUCT_PREDICATE(NAME, Name, name) \
-  V8_INLINE bool Is##Name() const;              \
-  V8_INLINE bool Is##Name(PtrComprCageBase cage_base) const;
-  STRUCT_LIST(DECL_STRUCT_PREDICATE)
-#undef DECL_STRUCT_PREDICATE
-
-  V8_INLINE bool IsJSObjectThatCanBeTrackedAsPrototype() const;
-
   // Converts an address to a HeapObject pointer.
   // TODO(leszeks): Move to Tagged<HeapObject>
   static inline HeapObject FromAddress(Address address) {
@@ -348,6 +320,34 @@ class HeapObject : public Object {
 
 OBJECT_CONSTRUCTORS_IMPL(HeapObject, Object)
 CAST_ACCESSOR(HeapObject)
+
+#define IS_TYPE_FUNCTION_DECL(Type)                                            \
+  V8_INLINE bool Is##Type(Tagged<HeapObject> obj);                             \
+  V8_INLINE bool Is##Type(Tagged<HeapObject> obj, PtrComprCageBase cage_base); \
+  V8_INLINE bool Is##Type(HeapObject obj);                                     \
+  V8_INLINE bool Is##Type(HeapObject obj, PtrComprCageBase cage_base);
+HEAP_OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DECL)
+IS_TYPE_FUNCTION_DECL(HashTableBase)
+IS_TYPE_FUNCTION_DECL(SmallOrderedHashTable)
+#undef IS_TYPE_FUNCTION_DECL
+
+// Most calls to Is<Oddball> should go via the Tagged<Object> overloads, withst
+// an Isolate/LocalIsolate/ReadOnlyRoots parameter.
+#define IS_TYPE_FUNCTION_DECL(Type, Value, _)      \
+  V8_INLINE bool Is##Type(Tagged<HeapObject> obj); \
+  V8_INLINE bool Is##Type(HeapObject obj);
+ODDBALL_LIST(IS_TYPE_FUNCTION_DECL)
+HOLE_LIST(IS_TYPE_FUNCTION_DECL)
+IS_TYPE_FUNCTION_DECL(NullOrUndefined, , /* unused */)
+#undef IS_TYPE_FUNCTION_DECL
+
+#define DECL_STRUCT_PREDICATE(NAME, Name, name)                                \
+  V8_INLINE bool Is##Name(Tagged<HeapObject> obj);                             \
+  V8_INLINE bool Is##Name(Tagged<HeapObject> obj, PtrComprCageBase cage_base); \
+  V8_INLINE bool Is##Name(HeapObject obj);                                     \
+  V8_INLINE bool Is##Name(HeapObject obj, PtrComprCageBase cage_base);
+STRUCT_LIST(DECL_STRUCT_PREDICATE)
+#undef DECL_STRUCT_PREDICATE
 
 }  // namespace internal
 }  // namespace v8

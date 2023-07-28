@@ -148,7 +148,7 @@ void PretenuringHandler::MergeAllocationSitePretenuringFeedback(
     // We have not validated the allocation site yet, since we have not
     // dereferenced the site during collecting information.
     // This is an inlined check of AllocationMemento::IsValid.
-    if (!site.IsAllocationSite() || site->IsZombie()) continue;
+    if (!IsAllocationSite(site) || site->IsZombie()) continue;
 
     const int value = static_cast<int>(site_and_count.second);
     DCHECK_LT(0, value);
@@ -208,7 +208,7 @@ void PretenuringHandler::ProcessPretenuringFeedback(
     // allocation sites might have been reset due to too many objects dying
     // in old space.
     if (found_count > 0) {
-      DCHECK(site.IsAllocationSite());
+      DCHECK(IsAllocationSite(site));
       active_allocation_sites++;
       allocation_mementos_found += found_count;
       if (DigestPretenuringFeedback(heap_->isolate(), site,
@@ -245,7 +245,7 @@ void PretenuringHandler::ProcessPretenuringFeedback(
     heap_->ForeachAllocationSite(
         heap_->allocation_sites_list(),
         [&allocation_sites, &trigger_deoptimization](AllocationSite site) {
-          DCHECK(site.IsAllocationSite());
+          DCHECK(IsAllocationSite(site));
           allocation_sites++;
           if (site->IsMaybeTenure()) {
             site->set_deopt_dependent_code(true);

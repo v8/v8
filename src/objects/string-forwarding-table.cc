@@ -81,7 +81,7 @@ bool UpdateForwardedSlot(HeapObject object, OffHeapObjectSlot slot) {
 }
 
 bool UpdateForwardedSlot(Object object, OffHeapObjectSlot slot) {
-  if (!object.IsHeapObject()) return false;
+  if (!IsHeapObject(object)) return false;
   return UpdateForwardedSlot(HeapObject::cast(object), slot);
 }
 
@@ -92,7 +92,7 @@ void StringForwardingTable::Block::UpdateAfterYoungEvacuation(
   for (int index = 0; index < up_to_index; ++index) {
     OffHeapObjectSlot slot = record(index)->OriginalStringSlot();
     Object original = slot.Acquire_Load(cage_base);
-    if (!original.IsHeapObject()) continue;
+    if (!IsHeapObject(original)) continue;
     HeapObject object = HeapObject::cast(original);
     if (Heap::InFromPage(object)) {
       DCHECK(!object.InWritableSharedSpace());
@@ -108,7 +108,7 @@ void StringForwardingTable::Block::UpdateAfterYoungEvacuation(
 // in young space.
 #ifdef DEBUG
     Object forward = record(index)->ForwardStringObjectOrHash(cage_base);
-    if (forward.IsHeapObject()) {
+    if (IsHeapObject(forward)) {
       DCHECK(!Heap::InYoungGeneration(HeapObject::cast(forward)));
     }
 #endif
@@ -120,7 +120,7 @@ void StringForwardingTable::Block::UpdateAfterFullEvacuation(
   for (int index = 0; index < up_to_index; ++index) {
     OffHeapObjectSlot original_slot = record(index)->OriginalStringSlot();
     Object original = original_slot.Acquire_Load(cage_base);
-    if (!original.IsHeapObject()) continue;
+    if (!IsHeapObject(original)) continue;
     UpdateForwardedSlot(HeapObject::cast(original), original_slot);
     // During mark compact the forwarded (internalized) string may have been
     // evacuated.

@@ -14,7 +14,7 @@ namespace internal {
 
 // static
 int DescriptorLookupCache::Hash(Map source, Name name) {
-  DCHECK(name->IsUniqueName());
+  DCHECK(IsUniqueName(name));
   // Uses only lower 32 bits if pointers are larger.
   uint32_t source_hash = static_cast<uint32_t>(source.ptr()) >> kTaggedSizeLog2;
   uint32_t name_hash = name->hash();

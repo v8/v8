@@ -2312,10 +2312,10 @@ TEST_F(RegExpTestWithContext, UnicodePropertyEscapeCodeSize) {
   static constexpr bool kIsNotLatin1 = false;
   Object maybe_code = re->code(kIsNotLatin1);
   Object maybe_bytecode = re->bytecode(kIsNotLatin1);
-  if (maybe_bytecode.IsByteArray()) {
+  if (IsByteArray(maybe_bytecode)) {
     // On x64, excessive inlining produced >250KB.
     CHECK_LT(ByteArray::cast(maybe_bytecode)->Size(), kMaxSize);
-  } else if (maybe_code.IsCode()) {
+  } else if (IsCode(maybe_code)) {
     // On x64, excessive inlining produced >360KB.
     CHECK_LT(Code::cast(maybe_code)->Size(), kMaxSize);
     CHECK_EQ(Code::cast(maybe_code)->kind(), CodeKind::REGEXP);
@@ -2341,7 +2341,7 @@ i::Handle<i::Object> RegExpExec(const RegExpExecData* d) {
 void ReenterRegExp(v8::Isolate* isolate, void* data) {
   RegExpExecData* d = static_cast<RegExpExecData*>(data);
   i::Handle<i::Object> result = RegExpExec(d);
-  CHECK(result->IsNull());
+  CHECK(IsNull(*result));
 }
 
 }  // namespace
@@ -2363,7 +2363,7 @@ TEST_F(RegExpTestWithContext, RegExpInterruptReentrantExecution) {
   isolate()->RequestInterrupt(&ReenterRegExp, &d);
 
   i::Handle<i::Object> result = RegExpExec(&d);
-  CHECK(result->IsNull());
+  CHECK(IsNull(*result));
 }
 
 #undef CHECK_PARSE_ERROR

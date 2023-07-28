@@ -54,7 +54,7 @@ Handle<JSArray> TemplateObjectDescription::GetTemplateObject(
       EphemeronHashTable::ShapeT::Hash(ReadOnlyRoots(isolate), script);
   MaybeHandle<ArrayList> maybe_cached_templates;
 
-  if (!native_context->template_weakmap().IsUndefined(isolate)) {
+  if (!IsUndefined(native_context->template_weakmap(), isolate)) {
     DisallowGarbageCollection no_gc;
     // The no_gc keeps this safe, and gcmole is confused because
     // CachedTemplateMatches calls JSReceiver::GetDataProperty.
@@ -64,7 +64,7 @@ Handle<JSArray> TemplateObjectDescription::GetTemplateObject(
         EphemeronHashTable::cast(native_context->template_weakmap());
     Object cached_templates_lookup =
         template_weakmap->Lookup(isolate, script, hash);
-    if (!cached_templates_lookup.IsTheHole(roots)) {
+    if (!IsTheHole(cached_templates_lookup, roots)) {
       ArrayList cached_templates = ArrayList::cast(cached_templates_lookup);
       maybe_cached_templates = handle(cached_templates, isolate);
 
@@ -102,7 +102,7 @@ Handle<JSArray> TemplateObjectDescription::GetTemplateObject(
       *old_cached_templates != *cached_templates) {
     HeapObject maybe_template_weakmap = native_context->template_weakmap();
     Handle<EphemeronHashTable> template_weakmap;
-    if (maybe_template_weakmap.IsUndefined()) {
+    if (IsUndefined(maybe_template_weakmap)) {
       template_weakmap = EphemeronHashTable::New(isolate, 1);
     } else {
       template_weakmap =

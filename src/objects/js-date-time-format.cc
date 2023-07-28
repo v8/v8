@@ -761,7 +761,7 @@ namespace {
 // #sec-temporal-istemporalobject
 bool IsTemporalObject(Handle<Object> value) {
   // 1. If Type(value) is not Object, then
-  if (!value->IsJSReceiver()) {
+  if (!IsJSReceiver(*value)) {
     // a. Return false.
     return false;
   }
@@ -770,11 +770,11 @@ bool IsTemporalObject(Handle<Object> value) {
   // [[InitializedTemporalZonedDateTime]], [[InitializedTemporalYearMonth]],
   // [[InitializedTemporalMonthDay]], or [[InitializedTemporalInstant]] internal
   // slot, then
-  if (!value->IsJSTemporalPlainDate() && !value->IsJSTemporalPlainTime() &&
-      !value->IsJSTemporalPlainDateTime() &&
-      !value->IsJSTemporalZonedDateTime() &&
-      !value->IsJSTemporalPlainYearMonth() &&
-      !value->IsJSTemporalPlainMonthDay() && !value->IsJSTemporalInstant()) {
+  if (!IsJSTemporalPlainDate(*value) && !IsJSTemporalPlainTime(*value) &&
+      !IsJSTemporalPlainDateTime(*value) &&
+      !IsJSTemporalZonedDateTime(*value) &&
+      !IsJSTemporalPlainYearMonth(*value) &&
+      !IsJSTemporalPlainMonthDay(*value) && !IsJSTemporalInstant(*value)) {
     // a. Return false.
     return false;
   }
@@ -790,33 +790,33 @@ bool SameTemporalType(Handle<Object> x, Handle<Object> y) {
   if (!IsTemporalObject(y)) return false;
   // 2. If x has an [[InitializedTemporalDate]] internal slot and y does not,
   // return false.
-  if (x->IsJSTemporalPlainDate() && !y->IsJSTemporalPlainDate()) return false;
+  if (IsJSTemporalPlainDate(*x) && !IsJSTemporalPlainDate(*y)) return false;
   // 3. If x has an [[InitializedTemporalTime]] internal slot and y does not,
   // return false.
-  if (x->IsJSTemporalPlainTime() && !y->IsJSTemporalPlainTime()) return false;
+  if (IsJSTemporalPlainTime(*x) && !IsJSTemporalPlainTime(*y)) return false;
   // 4. If x has an [[InitializedTemporalDateTime]] internal slot and y does
   // not, return false.
-  if (x->IsJSTemporalPlainDateTime() && !y->IsJSTemporalPlainDateTime()) {
+  if (IsJSTemporalPlainDateTime(*x) && !IsJSTemporalPlainDateTime(*y)) {
     return false;
   }
   // 5. If x has an [[InitializedTemporalZonedDateTime]] internal slot and y
   // does not, return false.
-  if (x->IsJSTemporalZonedDateTime() && !y->IsJSTemporalZonedDateTime()) {
+  if (IsJSTemporalZonedDateTime(*x) && !IsJSTemporalZonedDateTime(*y)) {
     return false;
   }
   // 6. If x has an [[InitializedTemporalYearMonth]] internal slot and y does
   // not, return false.
-  if (x->IsJSTemporalPlainYearMonth() && !y->IsJSTemporalPlainYearMonth()) {
+  if (IsJSTemporalPlainYearMonth(*x) && !IsJSTemporalPlainYearMonth(*y)) {
     return false;
   }
   // 7. If x has an [[InitializedTemporalMonthDay]] internal slot and y does
   // not, return false.
-  if (x->IsJSTemporalPlainMonthDay() && !y->IsJSTemporalPlainMonthDay()) {
+  if (IsJSTemporalPlainMonthDay(*x) && !IsJSTemporalPlainMonthDay(*y)) {
     return false;
   }
   // 8. If x has an [[InitializedTemporalInstant]] internal slot and y does not,
   // return false.
-  if (x->IsJSTemporalInstant() && !y->IsJSTemporalInstant()) return false;
+  if (IsJSTemporalInstant(*x) && !IsJSTemporalInstant(*y)) return false;
   // 9. Return true.
   return true;
 }
@@ -855,7 +855,7 @@ Maybe<DateTimeValueRecord> TemporalPlainDateTimeToRecord(
   Handle<Object> time_zone_obj = GetTimeZone(isolate, date_time_format);
   // TODO(ftang): we should change the return type of GetTimeZone() to
   // Handle<String> by ensure it will not return undefined.
-  CHECK(time_zone_obj->IsString());
+  CHECK(IsString(*time_zone_obj));
   Handle<JSTemporalTimeZone> time_zone =
       temporal::CreateTemporalTimeZone(isolate,
                                        Handle<String>::cast(time_zone_obj))
@@ -1018,7 +1018,7 @@ Maybe<DateTimeValueRecord> HandleDateTimeTemporalZonedDateTime(
   // timeZone is not equal to dateTimeFormat.[[TimeZone]], then
   Handle<Object> date_time_format_time_zone =
       GetTimeZone(isolate, date_time_format);
-  DCHECK(date_time_format_time_zone->IsString());
+  DCHECK(IsString(*date_time_format_time_zone));
   Handle<String> date_time_format_time_zone_string =
       Handle<String>::cast(date_time_format_time_zone);
   if (!String::Equals(isolate, date_time_format_time_zone_string,
@@ -1149,7 +1149,7 @@ Maybe<DateTimeValueRecord> HandleDateTimeOthers(
 
   // 4. If x is undefined, then
   double x;
-  if (x_obj->IsUndefined()) {
+  if (IsUndefined(*x_obj)) {
     // a. Set x to ! Call(%Date.now%, undefined).
     x = static_cast<double>(JSDate::CurrentTimeValue(isolate));
     // 5. Else,
@@ -1183,49 +1183,49 @@ Maybe<DateTimeValueRecord> HandleDateTimeValue(
     const char* method_name) {
   if (IsTemporalObject(x)) {
     // a. If x has an [[InitializedTemporalDate]] internal slot, then
-    if (x->IsJSTemporalPlainDate()) {
+    if (IsJSTemporalPlainDate(*x)) {
       // i. Return ? HandleDateTimeTemporalDate(dateTimeFormat, x).
       return HandleDateTimeTemporalDate(
           isolate, date_time_format, date_time_format_calendar,
           Handle<JSTemporalPlainDate>::cast(x), method_name);
     }
     // b. If x has an [[InitializedTemporalYearMonth]] internal slot, then
-    if (x->IsJSTemporalPlainYearMonth()) {
+    if (IsJSTemporalPlainYearMonth(*x)) {
       // i. Return ? HandleDateTimeTemporalYearMonth(dateTimeFormat, x).
       return HandleDateTimeTemporalYearMonth(
           isolate, date_time_format, date_time_format_calendar,
           Handle<JSTemporalPlainYearMonth>::cast(x), method_name);
     }
     // c. If x has an [[InitializedTemporalMonthDay]] internal slot, then
-    if (x->IsJSTemporalPlainMonthDay()) {
+    if (IsJSTemporalPlainMonthDay(*x)) {
       // i. Return ? HandleDateTimeTemporalMonthDay(dateTimeFormat, x).
       return HandleDateTimeTemporalMonthDay(
           isolate, date_time_format, date_time_format_calendar,
           Handle<JSTemporalPlainMonthDay>::cast(x), method_name);
     }
     // d. If x has an [[InitializedTemporalTime]] internal slot, then
-    if (x->IsJSTemporalPlainTime()) {
+    if (IsJSTemporalPlainTime(*x)) {
       // i. Return ? HandleDateTimeTemporalTime(dateTimeFormat, x).
       return HandleDateTimeTemporalTime(isolate, date_time_format,
                                         Handle<JSTemporalPlainTime>::cast(x),
                                         method_name);
     }
     // e. If x has an [[InitializedTemporalDateTime]] internal slot, then
-    if (x->IsJSTemporalPlainDateTime()) {
+    if (IsJSTemporalPlainDateTime(*x)) {
       // i. Return ? HandleDateTimeTemporalDateTime(dateTimeFormat, x).
       return HandleDateTimeTemporalDateTime(
           isolate, date_time_format, date_time_format_calendar,
           Handle<JSTemporalPlainDateTime>::cast(x), method_name);
     }
     // f. If x has an [[InitializedTemporalInstant]] internal slot, then
-    if (x->IsJSTemporalInstant()) {
+    if (IsJSTemporalInstant(*x)) {
       // i. Return ? HandleDateTimeTemporalInstant(dateTimeFormat, x).
       return HandleDateTimeTemporalInstant(isolate, date_time_format,
                                            Handle<JSTemporalInstant>::cast(x),
                                            method_name);
     }
     // g. Assert: x has an [[InitializedTemporalZonedDateTime]] internal slot.
-    DCHECK(x->IsJSTemporalZonedDateTime());
+    DCHECK(IsJSTemporalZonedDateTime(*x));
     // h. Return ? HandleDateTimeTemporalZonedDateTime(dateTimeFormat, x).
     return HandleDateTimeTemporalZonedDateTime(
         isolate, date_time_format, date_time_format_calendar,
@@ -1467,7 +1467,7 @@ MaybeHandle<String> JSDateTimeFormat::DateTimeFormat(
 
   // 3. If date is not provided or is undefined, then
   double x;
-  if (date->IsUndefined()) {
+  if (IsUndefined(*date)) {
     // 3.a Let x be Call(%Date_now%, undefined).
     x = static_cast<double>(JSDate::CurrentTimeValue(isolate));
   } else {
@@ -1475,7 +1475,7 @@ MaybeHandle<String> JSDateTimeFormat::DateTimeFormat(
     //    a. Let x be ? ToNumber(date).
     ASSIGN_RETURN_ON_EXCEPTION(isolate, date, Object::ToNumber(isolate, date),
                                String);
-    DCHECK(date->IsNumber());
+    DCHECK(IsNumber(*date));
     x = date->Number();
   }
   // 5. Return FormatDateTime(dtf, x).
@@ -1507,7 +1507,7 @@ MaybeHandle<String> JSDateTimeFormat::ToLocaleDateTime(
 
   Factory* factory = isolate->factory();
   // 1. Let x be ? thisTimeValue(this value);
-  if (!date->IsJSDate()) {
+  if (!IsJSDate(*date)) {
     THROW_NEW_ERROR(isolate,
                     NewTypeError(MessageTemplate::kMethodInvokedOnWrongType,
                                  factory->Date_string()),
@@ -1522,8 +1522,8 @@ MaybeHandle<String> JSDateTimeFormat::ToLocaleDateTime(
   // We only cache the instance when locales is a string/undefined and
   // options is undefined, as that is the only case when the specified
   // side-effects of examining those arguments are unobservable.
-  bool can_cache = (locales->IsString() || locales->IsUndefined(isolate)) &&
-                   options->IsUndefined(isolate);
+  bool can_cache = (IsString(*locales) || IsUndefined(*locales, isolate)) &&
+                   IsUndefined(*options, isolate);
   if (can_cache) {
     // Both locales and options are undefined, check the cache.
     icu::SimpleDateFormat* cached_icu_simple_date_format =
@@ -1593,11 +1593,11 @@ MaybeHandle<JSDateTimeFormat> JSDateTimeFormat::UnwrapDateTimeFormat(
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, dtf,
       Intl::LegacyUnwrapReceiver(isolate, format_holder, constructor,
-                                 format_holder->IsJSDateTimeFormat()),
+                                 IsJSDateTimeFormat(*format_holder)),
       JSDateTimeFormat);
   // 2. If Type(dtf) is not Object or dtf does not have an
   //    [[InitializedDateTimeFormat]] internal slot, then
-  if (!dtf->IsJSDateTimeFormat()) {
+  if (!IsJSDateTimeFormat(*dtf)) {
     // a. Throw a TypeError exception.
     THROW_NEW_ERROR(isolate,
                     NewTypeError(MessageTemplate::kIncompatibleMethodReceiver,
@@ -2708,7 +2708,7 @@ MaybeHandle<JSArray> JSDateTimeFormat::FormatToParts(
                                             output_source, method_name);
   }
 
-  if (x->IsUndefined(isolate)) {
+  if (IsUndefined(*x, isolate)) {
     x = factory->NewNumberFromInt64(JSDate::CurrentTimeValue(isolate));
   } else {
     ASSIGN_RETURN_ON_EXCEPTION(isolate, x, Object::ToNumber(isolate, x),

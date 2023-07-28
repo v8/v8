@@ -41,7 +41,7 @@ TEST(TransitionArray_SimpleFieldTransitions) {
                          Representation::Tagged(), OMIT_TRANSITION)
           .ToHandleChecked();
 
-  CHECK(map0->raw_transitions()->IsSmi());
+  CHECK(IsSmi(map0->raw_transitions()));
 
   {
     TransitionsAccessor::Insert(isolate, map0, name1, map1,
@@ -104,7 +104,7 @@ TEST(TransitionArray_FullFieldTransitions) {
                          Representation::Tagged(), OMIT_TRANSITION)
           .ToHandleChecked();
 
-  CHECK(map0->raw_transitions()->IsSmi());
+  CHECK(IsSmi(map0->raw_transitions()));
 
   {
     TransitionsAccessor::Insert(isolate, map0, name1, map1,
@@ -157,7 +157,7 @@ TEST(TransitionArray_DifferentFieldNames) {
   PropertyAttributes attributes = NONE;
 
   Handle<Map> map0 = Map::Create(isolate, 0);
-  CHECK(map0->raw_transitions()->IsSmi());
+  CHECK(IsSmi(map0->raw_transitions()));
 
   for (int i = 0; i < PROPS_COUNT; i++) {
     base::EmbeddedVector<char, 64> buffer;
@@ -201,7 +201,7 @@ TEST(TransitionArray_SameFieldNamesDifferentAttributesSimple) {
   Factory* factory = isolate->factory();
 
   Handle<Map> map0 = Map::Create(isolate, 0);
-  CHECK(map0->raw_transitions()->IsSmi());
+  CHECK(IsSmi(map0->raw_transitions()));
 
   const int ATTRS_COUNT = (READ_ONLY | DONT_ENUM | DONT_DELETE) + 1;
   static_assert(ATTRS_COUNT == 8);
@@ -248,7 +248,7 @@ TEST(TransitionArray_SameFieldNamesDifferentAttributes) {
   Handle<Map> maps[PROPS_COUNT];
 
   Handle<Map> map0 = Map::Create(isolate, 0);
-  CHECK(map0->raw_transitions()->IsSmi());
+  CHECK(IsSmi(map0->raw_transitions()));
 
   // Some number of fields.
   for (int i = 0; i < PROPS_COUNT; i++) {

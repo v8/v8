@@ -484,7 +484,7 @@ bool Code::IsWeakObjectInDeoptimizationLiteralArray(Object object) {
   // how to materialize an object upon deoptimization, in which case it is
   // possible to reach the code that requires the Map without anything else
   // holding a strong pointer to that Map.
-  return object.IsHeapObject() && !object.IsMap() &&
+  return IsHeapObject(object) && !IsMap(object) &&
          Code::IsWeakObjectInOptimizedCode(HeapObject::cast(object));
 }
 

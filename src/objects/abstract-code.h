@@ -52,9 +52,6 @@ class AbstractCode : public HeapObject {
 
   DECL_CAST(AbstractCode)
 
-  inline bool IsCode(PtrComprCageBase cage_base) const;
-  inline bool IsBytecodeArray(PtrComprCageBase cage_base) const;
-
   inline Code GetCode();
   inline BytecodeArray GetBytecodeArray();
 

@@ -50,14 +50,14 @@ void DescriptorArray::CopyEnumCacheFrom(DescriptorArray array) {
 
 InternalIndex DescriptorArray::Search(Name name, int valid_descriptors,
                                       bool concurrent_search) {
-  DCHECK(name->IsUniqueName());
+  DCHECK(IsUniqueName(name));
   return InternalIndex(internal::Search<VALID_ENTRIES>(
       this, name, valid_descriptors, nullptr, concurrent_search));
 }
 
 InternalIndex DescriptorArray::Search(Name name, Map map,
                                       bool concurrent_search) {
-  DCHECK(name->IsUniqueName());
+  DCHECK(IsUniqueName(name));
   int number_of_own_descriptors = map->NumberOfOwnDescriptors();
   if (number_of_own_descriptors == 0) return InternalIndex::NotFound();
   return Search(name, number_of_own_descriptors, concurrent_search);
@@ -84,7 +84,7 @@ InternalIndex DescriptorArray::Search(int field_index, Map map) {
 
 InternalIndex DescriptorArray::SearchWithCache(Isolate* isolate, Name name,
                                                Map map) {
-  DCHECK(name->IsUniqueName());
+  DCHECK(IsUniqueName(name));
   int number_of_own_descriptors = map->NumberOfOwnDescriptors();
   if (number_of_own_descriptors == 0) return InternalIndex::NotFound();
 

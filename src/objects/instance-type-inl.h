@@ -336,9 +336,9 @@ V8_INLINE bool IsFreeSpaceOrFiller(Map map_object) {
 
 }  // namespace InstanceTypeChecker
 
-#define TYPE_CHECKER(type, ...)                  \
-  bool Map::Is##type##Map() const {              \
-    return InstanceTypeChecker::Is##type(*this); \
+#define TYPE_CHECKER(type, ...)                \
+  bool Is##type##Map(Tagged<Map> map) {        \
+    return InstanceTypeChecker::Is##type(map); \
   }
 
 INSTANCE_TYPE_CHECKERS(TYPE_CHECKER)

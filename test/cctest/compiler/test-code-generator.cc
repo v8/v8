@@ -273,7 +273,7 @@ void PrintStateValue(std::ostream& os, Isolate* isolate, Handle<Object> value,
                      AllocatedOperand operand) {
   switch (operand.representation()) {
     case MachineRepresentation::kTagged:
-      if (value->IsSmi()) {
+      if (IsSmi(*value)) {
         os << Smi::cast(*value).value();
       } else {
         os << value->Number();
@@ -845,7 +845,7 @@ class TestEnvironment : public HandleAndZoneScope {
     // don't appear in the parallel move. Simulate them now.
     for (auto& operand : teardown_layout_) {
       int to_index = OperandToStatePosition(TeardownLayout(), operand);
-      if (state_out->get(to_index).IsUndefined()) {
+      if (IsUndefined(state_out->get(to_index))) {
         int from_index = OperandToStatePosition(setup_layout_, operand);
         state_out->set(to_index, state_in->get(from_index));
       }

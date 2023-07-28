@@ -2160,7 +2160,7 @@ void MacroAssembler::Move(XMMRegister dst, uint64_t high, uint64_t low) {
 // ----------------------------------------------------------------------------
 
 void MacroAssembler::Cmp(Register dst, Handle<Object> source) {
-  if (source->IsSmi()) {
+  if (IsSmi(*source)) {
     Cmp(dst, Smi::cast(*source));
   } else if (root_array_available_ && options().isolate_independent_code) {
     // TODO(jgruber,v8:8887): Also consider a root-relative load when generating
@@ -2184,7 +2184,7 @@ void MacroAssembler::Cmp(Register dst, Handle<Object> source) {
 }
 
 void MacroAssembler::Cmp(Operand dst, Handle<Object> source) {
-  if (source->IsSmi()) {
+  if (IsSmi(*source)) {
     Cmp(dst, Smi::cast(*source));
   } else if (root_array_available_ && options().isolate_independent_code) {
     // TODO(jgruber,v8:8887): Also consider a root-relative load when generating

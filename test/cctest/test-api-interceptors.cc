@@ -1371,7 +1371,7 @@ THREADED_TEST(InterceptorLoadGlobalICGlobalWithInterceptor) {
   LocalContext context(nullptr, templ_global);
   i::Handle<i::JSReceiver> global_proxy =
       v8::Utils::OpenHandle<Object, i::JSReceiver>(context->Global());
-  CHECK(global_proxy->IsJSGlobalProxy());
+  CHECK(IsJSGlobalProxy(*global_proxy));
   i::Handle<i::JSGlobalObject> global(
       i::JSGlobalObject::cast(global_proxy->map()->prototype()),
       global_proxy->GetIsolate());
@@ -1435,7 +1435,7 @@ THREADED_TEST(InterceptorLoadICGlobalWithInterceptor) {
   LocalContext context(nullptr, templ_global);
   i::Handle<i::JSReceiver> global_proxy =
       v8::Utils::OpenHandle<Object, i::JSReceiver>(context->Global());
-  CHECK(global_proxy->IsJSGlobalProxy());
+  CHECK(IsJSGlobalProxy(*global_proxy));
   i::Handle<i::JSGlobalObject> global(
       i::JSGlobalObject::cast(global_proxy->map()->prototype()),
       global_proxy->GetIsolate());

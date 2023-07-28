@@ -20,7 +20,7 @@ namespace internal {
 
 CompilationCacheTable::CompilationCacheTable(Address ptr)
     : HashTable<CompilationCacheTable, CompilationCacheShape>(ptr) {
-  SLOW_DCHECK(IsCompilationCacheTable());
+  SLOW_DCHECK(IsCompilationCacheTable(*this));
 }
 
 NEVER_READ_ONLY_SPACE_IMPL(CompilationCacheTable)
@@ -76,7 +76,7 @@ class ScriptCacheKey : public HashTableKey {
 
   static base::Optional<String> SourceFromObject(Object obj) {
     DisallowGarbageCollection no_gc;
-    DCHECK(obj.IsWeakFixedArray());
+    DCHECK(IsWeakFixedArray(obj));
     WeakFixedArray array = WeakFixedArray::cast(obj);
     DCHECK_EQ(array->length(), kEnd);
 
@@ -128,15 +128,15 @@ uint32_t CompilationCacheShape::EvalHash(String source,
 uint32_t CompilationCacheShape::HashForObject(ReadOnlyRoots roots,
                                               Object object) {
   // Eval: The key field contains the hash as a Number.
-  if (object.IsNumber()) return static_cast<uint32_t>(object.Number());
+  if (IsNumber(object)) return static_cast<uint32_t>(object.Number());
 
   // Code: The key field contains the SFI key.
-  if (object.IsSharedFunctionInfo()) {
+  if (IsSharedFunctionInfo(object)) {
     return SharedFunctionInfo::cast(object)->Hash();
   }
 
   // Script.
-  if (object.IsWeakFixedArray()) {
+  if (IsWeakFixedArray(object)) {
     uint32_t result = static_cast<uint32_t>(Smi::ToInt(
         WeakFixedArray::cast(object)->Get(ScriptCacheKey::kHash).ToSmi()));
     return result;

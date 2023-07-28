@@ -33,7 +33,7 @@ class CodeGenTest : public TestWithIsolateAndZone {
 #if V8_TARGET_ARCH_X64
     // TODO(dcarney): on x64 Smis are generated with the SmiConstantRegister
     Handle<Object> number = m.isolate()->factory()->NewNumber(v);
-    if (number->IsSmi()) return;
+    if (IsSmi(*number)) return;
 #endif
     m.Return(m.NumberConstant(v));
     Object result = m.Call();

@@ -76,7 +76,7 @@ void EvacuationVerifier::VerifyEvacuationOnPage(Address start, Address end) {
   Address current = start;
   while (current < end) {
     HeapObject object = HeapObject::FromAddress(current);
-    if (!object.IsFreeSpaceOrFiller(cage_base())) {
+    if (!IsFreeSpaceOrFiller(object, cage_base())) {
       object->Iterate(cage_base(), this);
     }
     current += ALIGN_TO_ALLOCATION_ALIGNMENT(object->Size(cage_base()));

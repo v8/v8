@@ -74,7 +74,7 @@ Object SetLocalDateValue(Isolate* isolate, Handle<JSDate> date,
 // ES #sec-date-constructor
 BUILTIN(DateConstructor) {
   HandleScope scope(isolate);
-  if (args.new_target()->IsUndefined(isolate)) {
+  if (IsUndefined(*args.new_target(), isolate)) {
     double const time_val =
         static_cast<double>(JSDate::CurrentTimeValue(isolate));
     DateBuffer buffer = ToDateString(time_val, isolate->date_cache(),
@@ -91,12 +91,12 @@ BUILTIN(DateConstructor) {
     time_val = static_cast<double>(JSDate::CurrentTimeValue(isolate));
   } else if (argc == 1) {
     Handle<Object> value = args.at(1);
-    if (value->IsJSDate()) {
+    if (IsJSDate(*value)) {
       time_val = Handle<JSDate>::cast(value)->value().Number();
     } else {
       ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, value,
                                          Object::ToPrimitive(isolate, value));
-      if (value->IsString()) {
+      if (IsString(*value)) {
         time_val = ParseDateTimeString(isolate, Handle<String>::cast(value));
       } else {
         ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, value,
@@ -843,7 +843,7 @@ BUILTIN(DatePrototypeToJson) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, primitive,
       Object::ToPrimitive(isolate, receiver_obj, ToPrimitiveHint::kNumber));
-  if (primitive->IsNumber() && !std::isfinite(primitive->Number())) {
+  if (IsNumber(*primitive) && !std::isfinite(primitive->Number())) {
     return ReadOnlyRoots(isolate).null_value();
   } else {
     Handle<String> name =
@@ -851,7 +851,7 @@ BUILTIN(DatePrototypeToJson) {
     Handle<Object> function;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, function, Object::GetProperty(isolate, receiver_obj, name));
-    if (!function->IsCallable()) {
+    if (!IsCallable(*function)) {
       THROW_NEW_ERROR_RETURN_FAILURE(
           isolate, NewTypeError(MessageTemplate::kCalledNonCallable, name));
     }

@@ -377,7 +377,7 @@ TEST(AssemblerMultiByteNop) {
   assm.GetCode(isolate, &desc);
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
-  CHECK(code->IsCode());
+  CHECK(IsCode(*code));
 
   auto f = GeneratedCode<F0>::FromCode(isolate, *code);
   int res = f.Call();

@@ -43,12 +43,12 @@ PrototypeIterator::PrototypeIterator(Isolate* isolate, Map receiver_map,
     : isolate_(isolate),
       object_(receiver_map->GetPrototypeChainRootMap(isolate_)->prototype()),
       where_to_end_(where_to_end),
-      is_at_end_(object_.IsNull(isolate_)),
+      is_at_end_(IsNull(object_, isolate_)),
       seen_proxies_(0) {
   if (!is_at_end_ && where_to_end_ == END_AT_NON_HIDDEN) {
-    DCHECK(object_.IsJSReceiver());
+    DCHECK(IsJSReceiver(object_));
     Map map = JSReceiver::cast(object_)->map();
-    is_at_end_ = !map->IsJSGlobalProxyMap();
+    is_at_end_ = !IsJSGlobalProxyMap(map);
   }
 }
 
@@ -58,12 +58,12 @@ PrototypeIterator::PrototypeIterator(Isolate* isolate, Handle<Map> receiver_map,
       handle_(receiver_map->GetPrototypeChainRootMap(isolate_)->prototype(),
               isolate_),
       where_to_end_(where_to_end),
-      is_at_end_(handle_->IsNull(isolate_)),
+      is_at_end_(IsNull(*handle_, isolate_)),
       seen_proxies_(0) {
   if (!is_at_end_ && where_to_end_ == END_AT_NON_HIDDEN) {
-    DCHECK(handle_->IsJSReceiver());
+    DCHECK(IsJSReceiver(*handle_));
     Map map = JSReceiver::cast(*handle_)->map();
-    is_at_end_ = !map->IsJSGlobalProxyMap();
+    is_at_end_ = !IsJSGlobalProxyMap(map);
   }
 }
 
@@ -71,7 +71,7 @@ bool PrototypeIterator::HasAccess() const {
   // We can only perform access check in the handlified version of the
   // PrototypeIterator.
   DCHECK(!handle_.is_null());
-  if (handle_->IsAccessCheckNeeded()) {
+  if (IsAccessCheckNeeded(*handle_)) {
     return isolate_->MayAccess(isolate_->native_context(),
                                Handle<JSObject>::cast(handle_));
   }
@@ -79,11 +79,11 @@ bool PrototypeIterator::HasAccess() const {
 }
 
 void PrototypeIterator::Advance() {
-  if (handle_.is_null() && object_.IsJSProxy()) {
+  if (handle_.is_null() && IsJSProxy(object_)) {
     is_at_end_ = true;
     object_ = ReadOnlyRoots(isolate_).null_value();
     return;
-  } else if (!handle_.is_null() && handle_->IsJSProxy()) {
+  } else if (!handle_.is_null() && IsJSProxy(*handle_)) {
     is_at_end_ = true;
     handle_ = isolate_->factory()->null_value();
     return;
@@ -96,9 +96,8 @@ void PrototypeIterator::AdvanceIgnoringProxies() {
   Map map = HeapObject::cast(object)->map();
 
   HeapObject prototype = map->prototype();
-  is_at_end_ =
-      prototype.IsNull(isolate_) ||
-      (where_to_end_ == END_AT_NON_HIDDEN && !map->IsJSGlobalProxyMap());
+  is_at_end_ = IsNull(prototype, isolate_) ||
+               (where_to_end_ == END_AT_NON_HIDDEN && !IsJSGlobalProxyMap(map));
 
   if (handle_.is_null()) {
     object_ = prototype;
@@ -108,7 +107,7 @@ void PrototypeIterator::AdvanceIgnoringProxies() {
 }
 
 V8_WARN_UNUSED_RESULT bool PrototypeIterator::AdvanceFollowingProxies() {
-  DCHECK(!(handle_.is_null() && object_.IsJSProxy()));
+  DCHECK(!(handle_.is_null() && IsJSProxy(object_)));
   if (!HasAccess()) {
     // Abort the lookup if we do not have access to the current object.
     handle_ = isolate_->factory()->null_value();
@@ -120,7 +119,7 @@ V8_WARN_UNUSED_RESULT bool PrototypeIterator::AdvanceFollowingProxies() {
 
 V8_WARN_UNUSED_RESULT bool
 PrototypeIterator::AdvanceFollowingProxiesIgnoringAccessChecks() {
-  if (handle_.is_null() || !handle_->IsJSProxy()) {
+  if (handle_.is_null() || !IsJSProxy(*handle_)) {
     AdvanceIgnoringProxies();
     return true;
   }
@@ -135,7 +134,7 @@ PrototypeIterator::AdvanceFollowingProxiesIgnoringAccessChecks() {
   MaybeHandle<HeapObject> proto =
       JSProxy::GetPrototype(Handle<JSProxy>::cast(handle_));
   if (!proto.ToHandle(&handle_)) return false;
-  is_at_end_ = where_to_end_ == END_AT_NON_HIDDEN || handle_->IsNull(isolate_);
+  is_at_end_ = where_to_end_ == END_AT_NON_HIDDEN || IsNull(*handle_, isolate_);
   return true;
 }
 

@@ -251,7 +251,7 @@ Maybe<bool> JSFunctionOrBoundFunctionOrWrappedFunction::CopyNameAndLength(
   LookupIterator length_lookup(isolate, target,
                                isolate->factory()->length_string(), target,
                                LookupIterator::OWN);
-  if (!target->IsJSFunction() ||
+  if (!IsJSFunction(*target) ||
       length_lookup.state() != LookupIterator::ACCESSOR ||
       !length_lookup.GetAccessors().is_identical_to(function_length_accessor)) {
     Handle<Object> length(Smi::zero(), isolate);
@@ -263,7 +263,7 @@ Maybe<bool> JSFunctionOrBoundFunctionOrWrappedFunction::CopyNameAndLength(
       ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, target_length,
                                        Object::GetProperty(&length_lookup),
                                        Nothing<bool>());
-      if (target_length->IsNumber()) {
+      if (IsNumber(*target_length)) {
         length = isolate->factory()->NewNumber(std::max(
             0.0, DoubleToInteger(target_length->Number()) - arg_count));
       }
@@ -286,7 +286,7 @@ Maybe<bool> JSFunctionOrBoundFunctionOrWrappedFunction::CopyNameAndLength(
       isolate->factory()->function_name_accessor();
   LookupIterator name_lookup(isolate, target, isolate->factory()->name_string(),
                              target);
-  if (!target->IsJSFunction() ||
+  if (!IsJSFunction(*target) ||
       name_lookup.state() != LookupIterator::ACCESSOR ||
       !name_lookup.GetAccessors().is_identical_to(function_name_accessor) ||
       (name_lookup.IsFound() && !name_lookup.HolderIsReceiver())) {
@@ -295,7 +295,7 @@ Maybe<bool> JSFunctionOrBoundFunctionOrWrappedFunction::CopyNameAndLength(
                                      Object::GetProperty(&name_lookup),
                                      Nothing<bool>());
     Handle<String> name;
-    if (target_name->IsString()) {
+    if (IsString(*target_name)) {
       ASSIGN_RETURN_ON_EXCEPTION_VALUE(
           isolate, name,
           Name::ToFunctionName(isolate, Handle<String>::cast(target_name)),
@@ -328,14 +328,14 @@ MaybeHandle<String> JSBoundFunction::GetName(Isolate* isolate,
   Handle<String> target_name = prefix;
   Factory* factory = isolate->factory();
   // Concatenate the "bound " up to the last non-bound target.
-  while (function->bound_target_function().IsJSBoundFunction()) {
+  while (IsJSBoundFunction(function->bound_target_function())) {
     ASSIGN_RETURN_ON_EXCEPTION(isolate, target_name,
                                factory->NewConsString(prefix, target_name),
                                String);
     function = handle(JSBoundFunction::cast(function->bound_target_function()),
                       isolate);
   }
-  if (function->bound_target_function().IsJSWrappedFunction()) {
+  if (IsJSWrappedFunction(function->bound_target_function())) {
     Handle<JSWrappedFunction> target(
         JSWrappedFunction::cast(function->bound_target_function()), isolate);
     Handle<String> name;
@@ -343,7 +343,7 @@ MaybeHandle<String> JSBoundFunction::GetName(Isolate* isolate,
         isolate, name, JSWrappedFunction::GetName(isolate, target), String);
     return factory->NewConsString(target_name, name);
   }
-  if (function->bound_target_function().IsJSFunction()) {
+  if (IsJSFunction(function->bound_target_function())) {
     Handle<JSFunction> target(
         JSFunction::cast(function->bound_target_function()), isolate);
     Handle<String> name = JSFunction::GetName(isolate, target);
@@ -357,7 +357,7 @@ MaybeHandle<String> JSBoundFunction::GetName(Isolate* isolate,
 Maybe<int> JSBoundFunction::GetLength(Isolate* isolate,
                                       Handle<JSBoundFunction> function) {
   int nof_bound_arguments = function->bound_arguments()->length();
-  while (function->bound_target_function().IsJSBoundFunction()) {
+  while (IsJSBoundFunction(function->bound_target_function())) {
     function = handle(JSBoundFunction::cast(function->bound_target_function()),
                       isolate);
     // Make sure we never overflow {nof_bound_arguments}, the number of
@@ -370,7 +370,7 @@ Maybe<int> JSBoundFunction::GetLength(Isolate* isolate,
       nof_bound_arguments = Smi::kMaxValue;
     }
   }
-  if (function->bound_target_function().IsJSWrappedFunction()) {
+  if (IsJSWrappedFunction(function->bound_target_function())) {
     Handle<JSWrappedFunction> target(
         JSWrappedFunction::cast(function->bound_target_function()), isolate);
     int target_length = 0;
@@ -404,12 +404,12 @@ MaybeHandle<String> JSWrappedFunction::GetName(
   Handle<String> target_name = factory->empty_string();
   Handle<JSReceiver> target =
       handle(function->wrapped_target_function(), isolate);
-  if (target->IsJSBoundFunction()) {
+  if (IsJSBoundFunction(*target)) {
     return JSBoundFunction::GetName(
         isolate,
         handle(JSBoundFunction::cast(function->wrapped_target_function()),
                isolate));
-  } else if (target->IsJSFunction()) {
+  } else if (IsJSFunction(*target)) {
     return JSFunction::GetName(
         isolate,
         handle(JSFunction::cast(function->wrapped_target_function()), isolate));
@@ -424,7 +424,7 @@ Maybe<int> JSWrappedFunction::GetLength(Isolate* isolate,
   STACK_CHECK(isolate, Nothing<int>());
   Handle<JSReceiver> target =
       handle(function->wrapped_target_function(), isolate);
-  if (target->IsJSBoundFunction()) {
+  if (IsJSBoundFunction(*target)) {
     return JSBoundFunction::GetLength(
         isolate,
         handle(JSBoundFunction::cast(function->wrapped_target_function()),
@@ -446,11 +446,11 @@ MaybeHandle<Object> JSWrappedFunction::Create(
     Isolate* isolate, Handle<NativeContext> creation_context,
     Handle<JSReceiver> value) {
   // The value must be a callable according to the specification.
-  DCHECK(value->IsCallable());
+  DCHECK(IsCallable(*value));
   // The intermediate wrapped functions are not user-visible. And calling a
   // wrapped function won't cause a side effect in the creation realm.
   // Unwrap here to avoid nested unwrapping at the call site.
-  if (value->IsJSWrappedFunction()) {
+  if (IsJSWrappedFunction(*value)) {
     Handle<JSWrappedFunction> target_wrapped =
         Handle<JSWrappedFunction>::cast(value);
     value =
@@ -678,7 +678,7 @@ void SetInstancePrototype(Isolate* isolate, Handle<JSFunction> function,
       // At that point, a new initial map is created and the prototype is put
       // into the initial map where it belongs.
       function->set_prototype_or_initial_map(*value, kReleaseStore);
-      if (value->IsJSObjectThatCanBeTrackedAsPrototype()) {
+      if (IsJSObjectThatCanBeTrackedAsPrototype(*value)) {
         // Optimize as prototype to detach it from its transition tree.
         JSObject::OptimizeAsPrototype(Handle<JSObject>::cast(value));
       }
@@ -698,7 +698,7 @@ void SetInstancePrototype(Isolate* isolate, Handle<JSFunction> function,
     // needed.  At that point, a new initial map is created and the
     // prototype is put into the initial map where it belongs.
     function->set_prototype_or_initial_map(*value, kReleaseStore);
-    if (value->IsJSObjectThatCanBeTrackedAsPrototype()) {
+    if (IsJSObjectThatCanBeTrackedAsPrototype(*value)) {
       // Optimize as prototype to detach it from its transition tree.
       JSObject::OptimizeAsPrototype(Handle<JSObject>::cast(value));
     }
@@ -709,7 +709,7 @@ void SetInstancePrototype(Isolate* isolate, Handle<JSFunction> function,
 
 void JSFunction::SetPrototype(Handle<JSFunction> function,
                               Handle<Object> value) {
-  DCHECK(function->IsConstructor() ||
+  DCHECK(IsConstructor(*function) ||
          IsGeneratorFunction(function->shared()->kind()));
   Isolate* isolate = function->GetIsolate();
   Handle<JSReceiver> construct_prototype;
@@ -718,7 +718,7 @@ void JSFunction::SetPrototype(Handle<JSFunction> function,
   // constructor field so it can be accessed.  Also, set the prototype
   // used for constructing objects to the original object prototype.
   // See ECMA-262 13.2.2.
-  if (!value->IsJSReceiver()) {
+  if (!IsJSReceiver(*value)) {
     // Copy the map so this does not affect unrelated functions.
     // Remove map transitions because they point to maps with a
     // different prototype.
@@ -776,7 +776,7 @@ void JSFunction::SetInitialMap(Isolate* isolate, Handle<JSFunction> function,
 
 void JSFunction::EnsureHasInitialMap(Handle<JSFunction> function) {
   DCHECK(function->has_prototype_slot());
-  DCHECK(function->IsConstructor() ||
+  DCHECK(IsConstructor(*function) ||
          IsResumableFunction(function->shared()->kind()));
   if (function->has_initial_map()) return;
   Isolate* isolate = function->GetIsolate();
@@ -821,7 +821,7 @@ void JSFunction::EnsureHasInitialMap(Handle<JSFunction> function) {
   DCHECK(map->has_fast_object_elements());
 
   // Finally link initial map and constructor function.
-  DCHECK(prototype->IsJSReceiver());
+  DCHECK(IsJSReceiver(*prototype));
   JSFunction::SetInitialMap(isolate, function, map, prototype);
   map->StartInobjectSlackTracking();
 }
@@ -971,7 +971,7 @@ bool FastInitializeDerivedMap(Isolate* isolate, Handle<JSFunction> new_target,
   // otherwise we must create a new initial map for |function|.
   if (new_target->has_initial_map() &&
       new_target->initial_map()->GetConstructor() == *constructor) {
-    DCHECK(new_target->instance_prototype().IsJSReceiver());
+    DCHECK(IsJSReceiver(new_target->instance_prototype()));
     return true;
   }
   InstanceType instance_type = constructor_initial_map->instance_type();
@@ -1011,7 +1011,7 @@ bool FastInitializeDerivedMap(Isolate* isolate, Handle<JSFunction> new_target,
   map->set_new_target_is_base(false);
   Handle<HeapObject> prototype(new_target->instance_prototype(), isolate);
   JSFunction::SetInitialMap(isolate, new_target, map, prototype, constructor);
-  DCHECK(new_target->instance_prototype().IsJSReceiver());
+  DCHECK(IsJSReceiver(new_target->instance_prototype()));
   map->set_construction_counter(Map::kNoSlackTracking);
   map->StartInobjectSlackTracking();
   return true;
@@ -1032,7 +1032,7 @@ MaybeHandle<Map> JSFunction::GetDerivedMap(Isolate* isolate,
   // Fast case, new.target is a subclass of constructor. The map is cacheable
   // (and may already have been cached). new.target.prototype is guaranteed to
   // be a JSReceiver.
-  if (new_target->IsJSFunction()) {
+  if (IsJSFunction(*new_target)) {
     Handle<JSFunction> function = Handle<JSFunction>::cast(new_target);
     if (FastInitializeDerivedMap(isolate, function, constructor,
                                  constructor_initial_map)) {
@@ -1044,7 +1044,7 @@ MaybeHandle<Map> JSFunction::GetDerivedMap(Isolate* isolate,
   // new.target.prototype is not guaranteed to be a JSReceiver, and may need to
   // fall back to the intrinsicDefaultProto.
   Handle<Object> prototype;
-  if (new_target->IsJSFunction()) {
+  if (IsJSFunction(*new_target)) {
     Handle<JSFunction> function = Handle<JSFunction>::cast(new_target);
     if (function->has_prototype_slot()) {
       // Make sure the new.target.prototype is cached.
@@ -1069,16 +1069,16 @@ MaybeHandle<Map> JSFunction::GetDerivedMap(Isolate* isolate,
   // correct realm. Rather than directly fetching the .prototype, we fetch the
   // constructor that points to the .prototype. This relies on
   // constructor.prototype being FROZEN for those constructors.
-  if (!prototype->IsJSReceiver()) {
+  if (!IsJSReceiver(*prototype)) {
     Handle<Context> context;
     ASSIGN_RETURN_ON_EXCEPTION(isolate, context,
                                JSReceiver::GetFunctionRealm(new_target), Map);
-    DCHECK(context->IsNativeContext());
+    DCHECK(IsNativeContext(*context));
     Handle<Object> maybe_index = JSReceiver::GetDataProperty(
         isolate, constructor,
         isolate->factory()->native_context_index_symbol());
-    int index = maybe_index->IsSmi() ? Smi::ToInt(*maybe_index)
-                                     : Context::OBJECT_FUNCTION_INDEX;
+    int index = IsSmi(*maybe_index) ? Smi::ToInt(*maybe_index)
+                                    : Context::OBJECT_FUNCTION_INDEX;
     Handle<JSFunction> realm_constructor(JSFunction::cast(context->get(index)),
                                          isolate);
     prototype = handle(realm_constructor->prototype(), isolate);
@@ -1086,7 +1086,7 @@ MaybeHandle<Map> JSFunction::GetDerivedMap(Isolate* isolate,
 
   Handle<Map> map = Map::CopyInitialMap(isolate, constructor_initial_map);
   map->set_new_target_is_base(false);
-  CHECK(prototype->IsJSReceiver());
+  CHECK(IsJSReceiver(*prototype));
   if (map->prototype() != *prototype)
     Map::SetPrototype(isolate, map, Handle<HeapObject>::cast(prototype));
   map->SetConstructor(*constructor);
@@ -1193,7 +1193,7 @@ void JSFunction::PrintName(FILE* out) {
 namespace {
 
 bool UseFastFunctionNameLookup(Isolate* isolate, Map map) {
-  DCHECK(map->IsJSFunctionMap());
+  DCHECK(IsJSFunctionMap(map));
   if (map->NumberOfOwnDescriptors() <
       JSFunction::kMinDescriptorsForFastBindAndWrap) {
     return false;
@@ -1208,7 +1208,7 @@ bool UseFastFunctionNameLookup(Isolate* isolate, Map map) {
            .GetHeapObjectIfStrong(isolate, &value)) {
     return false;
   }
-  return value.IsAccessorInfo();
+  return IsAccessorInfo(value);
 }
 
 }  // namespace
@@ -1231,7 +1231,7 @@ Handle<String> JSFunction::GetDebugName(Handle<JSFunction> function) {
     // in case of the fast-path.
     Handle<Object> name =
         GetDataProperty(isolate, function, isolate->factory()->name_string());
-    if (name->IsString()) return Handle<String>::cast(name);
+    if (IsString(*name)) return Handle<String>::cast(name);
   }
   return SharedFunctionInfo::DebugName(isolate,
                                        handle(function->shared(), isolate));
@@ -1287,7 +1287,7 @@ Handle<String> JSFunction::ToString(Handle<JSFunction> function) {
     // Check if we should print {function} as a class.
     Handle<Object> maybe_class_positions = JSReceiver::GetDataProperty(
         isolate, function, isolate->factory()->class_positions_symbol());
-    if (maybe_class_positions->IsClassPositions()) {
+    if (IsClassPositions(*maybe_class_positions)) {
       ClassPositions class_positions =
           ClassPositions::cast(*maybe_class_positions);
       int start_position = class_positions->start();
@@ -1343,7 +1343,7 @@ int JSFunction::CalculateExpectedNofProperties(Isolate* isolate,
        !iter.IsAtEnd(); iter.Advance()) {
     Handle<JSReceiver> current =
         PrototypeIterator::GetCurrent<JSReceiver>(iter);
-    if (!current->IsJSFunction()) break;
+    if (!IsJSFunction(*current)) break;
     Handle<JSFunction> func = Handle<JSFunction>::cast(current);
     // The super constructor should be compiled for the number of expected
     // properties to be available.

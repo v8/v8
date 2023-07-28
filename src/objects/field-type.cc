@@ -38,35 +38,35 @@ Handle<FieldType> FieldType::Class(Handle<Map> map, Isolate* isolate) {
 
 // static
 FieldType FieldType::cast(Object object) {
-  DCHECK(object == None() || object == Any() || object.IsMap());
+  DCHECK(object == None() || object == Any() || IsMap(object));
   return FieldType(object.ptr());
 }
 
-bool FieldType::IsClass() const { return this->IsMap(); }
+bool IsClass(Tagged<FieldType> obj) { return IsMap(obj); }
 
 Map FieldType::AsClass() const {
-  DCHECK(IsClass());
+  DCHECK(IsClass(*this));
   return Map::cast(*this);
 }
 
 bool FieldType::NowStable() const {
-  return !this->IsClass() || AsClass()->is_stable();
+  return !IsClass(*this) || AsClass()->is_stable();
 }
 
 bool FieldType::NowIs(FieldType other) const {
-  if (other.IsAny()) return true;
-  if (IsNone()) return true;
-  if (other.IsNone()) return false;
-  if (IsAny()) return false;
-  DCHECK(IsClass());
-  DCHECK(other.IsClass());
+  if (IsAny(other)) return true;
+  if (IsNone(*this)) return true;
+  if (IsNone(other)) return false;
+  if (IsAny(*this)) return false;
+  DCHECK(IsClass(*this));
+  DCHECK(IsClass(other));
   return *this == other;
 }
 
 bool FieldType::Equals(FieldType other) const {
-  if (IsAny() && other.IsAny()) return true;
-  if (IsNone() && other.IsNone()) return true;
-  if (IsClass() && other.IsClass()) {
+  if (IsAny(*this) && IsAny(other)) return true;
+  if (IsNone(*this) && IsNone(other)) return true;
+  if (IsClass(*this) && IsClass(other)) {
     return *this == other;
   }
   return false;
@@ -75,12 +75,12 @@ bool FieldType::Equals(FieldType other) const {
 bool FieldType::NowIs(Handle<FieldType> other) const { return NowIs(*other); }
 
 void FieldType::PrintTo(std::ostream& os) const {
-  if (IsAny()) {
+  if (IsAny(*this)) {
     os << "Any";
-  } else if (IsNone()) {
+  } else if (IsNone(*this)) {
     os << "None";
   } else {
-    DCHECK(IsClass());
+    DCHECK(IsClass(*this));
     os << "Class(" << reinterpret_cast<void*>(AsClass().ptr()) << ")";
   }
 }
@@ -88,7 +88,7 @@ void FieldType::PrintTo(std::ostream& os) const {
 bool FieldType::NowContains(Object value) const {
   if (*this == Any()) return true;
   if (*this == None()) return false;
-  if (!value.IsHeapObject()) return false;
+  if (!IsHeapObject(value)) return false;
   return HeapObject::cast(value)->map() == Map::cast(*this);
 }
 

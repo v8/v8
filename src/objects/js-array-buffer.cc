@@ -20,7 +20,7 @@ bool CanonicalNumericIndexString(Isolate* isolate,
                                  const PropertyKey& lookup_key,
                                  bool* is_minus_zero) {
   // 1. Assert: Type(argument) is String.
-  DCHECK(lookup_key.is_element() || lookup_key.name()->IsString());
+  DCHECK(lookup_key.is_element() || IsString(*lookup_key.name()));
   *is_minus_zero = false;
   if (lookup_key.is_element()) return true;
 
@@ -28,7 +28,7 @@ bool CanonicalNumericIndexString(Isolate* isolate,
 
   // 3. Let n be ! ToNumber(argument).
   Handle<Object> result = String::ToNumber(isolate, key);
-  if (result->IsMinusZero()) {
+  if (IsMinusZero(*result)) {
     // 2. If argument is "-0", return -0𝔽.
     // We are not performing SaveValue check for -0 because it'll be rejected
     // anyway.
@@ -120,7 +120,7 @@ Maybe<bool> JSArrayBuffer::Detach(Handle<JSArrayBuffer> buffer,
 
   bool key_mismatch = false;
 
-  if (!detach_key->IsUndefined(isolate)) {
+  if (!IsUndefined(*detach_key, isolate)) {
     key_mismatch = maybe_key.is_null() || !maybe_key->StrictEquals(*detach_key);
   } else {
     // Detach key is undefined; allow not passing maybe_key but disallow passing
@@ -301,14 +301,14 @@ Maybe<bool> JSTypedArray::DefineOwnProperty(Isolate* isolate,
                                             Handle<Object> key,
                                             PropertyDescriptor* desc,
                                             Maybe<ShouldThrow> should_throw) {
-  DCHECK(key->IsName() || key->IsNumber());
+  DCHECK(IsName(*key) || IsNumber(*key));
   // 1. If Type(P) is String, then
   PropertyKey lookup_key(isolate, key);
-  if (lookup_key.is_element() || key->IsSmi() || key->IsString()) {
+  if (lookup_key.is_element() || IsSmi(*key) || IsString(*key)) {
     // 1a. Let numericIndex be ! CanonicalNumericIndexString(P)
     // 1b. If numericIndex is not undefined, then
     bool is_minus_zero = false;
-    if (key->IsSmi() ||  // Smi keys are definitely canonical
+    if (IsSmi(*key) ||  // Smi keys are definitely canonical
         CanonicalNumericIndexString(isolate, lookup_key, &is_minus_zero)) {
       // 1b i. If IsValidIntegerIndex(O, numericIndex) is false, return false.
 

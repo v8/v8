@@ -43,7 +43,7 @@ struct ReadOnlySegmentForSerialization {
     ReadOnlyPageObjectIterator it(page, segment_start);
     for (HeapObject o = it.Next(); !o.is_null(); o = it.Next()) {
       if (o.address() >= segment_end) break;
-      if (!o.IsCode()) continue;
+      if (!IsCode(o)) continue;
 
       size_t o_offset = o.ptr() - segment_start;
       Address o_dst = reinterpret_cast<Address>(contents.get()) + o_offset;
@@ -299,7 +299,7 @@ std::vector<ReadOnlyHeapImageSerializer::MemoryRegion> GetUnmappedRegions(
   ReadOnlyRoots ro_roots(isolate);
   WasmNull wasm_null = ro_roots.wasm_null();
   HeapObject wasm_null_padding = ro_roots.wasm_null_padding();
-  CHECK(wasm_null_padding.IsFreeSpace());
+  CHECK(IsFreeSpace(wasm_null_padding));
   Address wasm_null_padding_start =
       wasm_null_padding.address() + FreeSpace::kHeaderSize;
   std::vector<ReadOnlyHeapImageSerializer::MemoryRegion> unmapped;

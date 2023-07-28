@@ -895,7 +895,7 @@ bool WasmScript::SetBreakPointForFunction(Handle<Script> script, int func_index,
 namespace {
 
 int GetBreakpointPos(Isolate* isolate, Object break_point_info_or_undef) {
-  if (break_point_info_or_undef.IsUndefined(isolate)) return kMaxInt;
+  if (IsUndefined(break_point_info_or_undef, isolate)) return kMaxInt;
   return BreakPointInfo::cast(break_point_info_or_undef)->source_position();
 }
 
@@ -948,7 +948,7 @@ bool WasmScript::ClearBreakPoint(Handle<Script> script, int position,
     for (int i = pos; i < breakpoint_infos->length() - 1; i++) {
       Object entry = breakpoint_infos->get(i + 1);
       breakpoint_infos->set(i, entry);
-      if (entry.IsUndefined(isolate)) break;
+      if (IsUndefined(entry, isolate)) break;
     }
     // Make sure last array element is empty as a result.
     breakpoint_infos->set_undefined(breakpoint_infos->length() - 1);
@@ -981,7 +981,7 @@ bool WasmScript::ClearBreakPointById(Handle<Script> script, int breakpoint_id) {
 
   for (int i = 0, e = breakpoint_infos->length(); i < e; ++i) {
     Handle<Object> obj(breakpoint_infos->get(i), isolate);
-    if (obj->IsUndefined(isolate)) {
+    if (IsUndefined(*obj, isolate)) {
       continue;
     }
     Handle<BreakPointInfo> breakpoint_info = Handle<BreakPointInfo>::cast(obj);
@@ -1032,8 +1032,8 @@ void WasmScript::AddBreakpointToInfo(Handle<Script> script, int position,
   }
 
   // Enlarge break positions array if necessary.
-  bool need_realloc = !breakpoint_infos->get(breakpoint_infos->length() - 1)
-                           .IsUndefined(isolate);
+  bool need_realloc = !IsUndefined(
+      breakpoint_infos->get(breakpoint_infos->length() - 1), isolate);
   Handle<FixedArray> new_breakpoint_infos = breakpoint_infos;
   if (need_realloc) {
     new_breakpoint_infos = isolate->factory()->NewFixedArray(
@@ -1047,7 +1047,7 @@ void WasmScript::AddBreakpointToInfo(Handle<Script> script, int position,
   // Move elements [insert_pos, ...] up by one.
   for (int i = breakpoint_infos->length() - 1; i >= insert_pos; --i) {
     Object entry = breakpoint_infos->get(i);
-    if (entry.IsUndefined(isolate)) continue;
+    if (IsUndefined(entry, isolate)) continue;
     new_breakpoint_infos->set(i + 1, entry);
   }
 
@@ -1166,13 +1166,13 @@ MaybeHandle<FixedArray> WasmScript::CheckBreakPoints(Isolate* isolate,
 
   Handle<Object> maybe_breakpoint_info(breakpoint_infos->get(insert_pos),
                                        isolate);
-  if (maybe_breakpoint_info->IsUndefined(isolate)) return {};
+  if (IsUndefined(*maybe_breakpoint_info, isolate)) return {};
   Handle<BreakPointInfo> breakpoint_info =
       Handle<BreakPointInfo>::cast(maybe_breakpoint_info);
   if (breakpoint_info->source_position() != position) return {};
 
   Handle<Object> break_points(breakpoint_info->break_points(), isolate);
-  if (!break_points->IsFixedArray()) {
+  if (!IsFixedArray(*break_points)) {
     if (!CheckBreakPoint(isolate, Handle<BreakPoint>::cast(break_points),
                          frame_id)) {
       return {};

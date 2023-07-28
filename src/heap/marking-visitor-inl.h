@@ -260,7 +260,7 @@ bool MarkingVisitorBase<ConcreteVisitor>::HasBytecodeArrayForFlushing(
   // check if it is old. Note, this is done this way since this function can be
   // called by the concurrent marker.
   Object data = sfi->function_data(kAcquireLoad);
-  if (data.IsCode()) {
+  if (IsCode(data)) {
     Code baseline_code = Code::cast(data);
     DCHECK_EQ(baseline_code->kind(), CodeKind::BASELINE);
     // If baseline code flushing isn't enabled and we have baseline data on SFI
@@ -273,7 +273,7 @@ bool MarkingVisitorBase<ConcreteVisitor>::HasBytecodeArrayForFlushing(
     return false;
   }
 
-  return data.IsBytecodeArray();
+  return IsBytecodeArray(data);
 }
 
 template <typename ConcreteVisitor>
@@ -335,7 +335,7 @@ bool MarkingVisitorBase<ConcreteVisitor>::ShouldFlushBaselineCode(
   // not be initialized. We read using acquire loads to defend against that.
   Object maybe_shared =
       ACQUIRE_READ_FIELD(js_function, JSFunction::kSharedFunctionInfoOffset);
-  if (!maybe_shared.IsSharedFunctionInfo()) return false;
+  if (!IsSharedFunctionInfo(maybe_shared)) return false;
 
   // See crbug.com/v8/11972 for more details on acquire / release semantics for
   // code field. We don't use release stores when copying code pointers from
@@ -346,7 +346,7 @@ bool MarkingVisitorBase<ConcreteVisitor>::ShouldFlushBaselineCode(
   // emitted after page initialization.
   BasicMemoryChunk::FromAddress(maybe_code.ptr())->SynchronizedHeapLoad();
 #endif
-  if (!maybe_code.IsCode()) return false;
+  if (!IsCode(maybe_code)) return false;
   Code code = Code::cast(maybe_code);
   if (code->kind() != CodeKind::BASELINE) return false;
 
@@ -502,7 +502,7 @@ int MarkingVisitorBase<ConcreteVisitor>::VisitEphemeronHashTable(
     } else {
       Object value_obj = table->ValueAt(i);
 
-      if (value_obj.IsHeapObject()) {
+      if (IsHeapObject(value_obj)) {
         HeapObject value = HeapObject::cast(value_obj);
         SynchronizePageAccess(value);
         concrete_visitor()->RecordSlot(table, value_slot, value);
@@ -528,7 +528,7 @@ int MarkingVisitorBase<ConcreteVisitor>::VisitJSWeakRef(Map map,
                                                         JSWeakRef weak_ref) {
   int size = concrete_visitor()->VisitJSObjectSubclass(map, weak_ref);
   if (size == 0) return 0;
-  if (weak_ref->target().IsHeapObject()) {
+  if (IsHeapObject(weak_ref->target())) {
     HeapObject target = HeapObject::cast(weak_ref->target());
     SynchronizePageAccess(target);
     if (target.InReadOnlySpace() || concrete_visitor()->IsMarked(target)) {
@@ -649,7 +649,7 @@ void MarkingVisitorBase<ConcreteVisitor>::VisitDescriptorsForMap(Map map) {
 
   // If the descriptors are a Smi, then this Map is in the process of being
   // deserialized, and doesn't yet have an initialized descriptor field.
-  if (maybe_descriptors.IsSmi()) {
+  if (IsSmi(maybe_descriptors)) {
     DCHECK_EQ(maybe_descriptors, Smi::uninitialized_deserialization_value());
     return;
   }
@@ -661,7 +661,7 @@ void MarkingVisitorBase<ConcreteVisitor>::VisitDescriptorsForMap(Map map) {
   // follows this call:
   // - Array in read only space;
   // - StrongDescriptor array;
-  if (descriptors.InReadOnlySpace() || descriptors.IsStrongDescriptorArray()) {
+  if (descriptors.InReadOnlySpace() || IsStrongDescriptorArray(descriptors)) {
     return;
   }
 

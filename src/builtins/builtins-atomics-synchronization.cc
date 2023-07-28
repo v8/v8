@@ -20,7 +20,7 @@ BUILTIN(AtomicsMutexLock) {
   HandleScope scope(isolate);
 
   Handle<Object> js_mutex_obj = args.atOrUndefined(isolate, 1);
-  if (!js_mutex_obj->IsJSAtomicsMutex()) {
+  if (!IsJSAtomicsMutex(*js_mutex_obj)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kMethodInvokedOnWrongType,
                               isolate->factory()->NewStringFromAsciiChecked(
@@ -28,7 +28,7 @@ BUILTIN(AtomicsMutexLock) {
   }
   Handle<JSAtomicsMutex> js_mutex = Handle<JSAtomicsMutex>::cast(js_mutex_obj);
   Handle<Object> run_under_lock = args.atOrUndefined(isolate, 2);
-  if (!run_under_lock->IsCallable()) {
+  if (!IsCallable(*run_under_lock)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kNotCallable, run_under_lock));
   }
@@ -62,7 +62,7 @@ BUILTIN(AtomicsMutexTryLock) {
   HandleScope scope(isolate);
 
   Handle<Object> js_mutex_obj = args.atOrUndefined(isolate, 1);
-  if (!js_mutex_obj->IsJSAtomicsMutex()) {
+  if (!IsJSAtomicsMutex(*js_mutex_obj)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kMethodInvokedOnWrongType,
                               isolate->factory()->NewStringFromAsciiChecked(
@@ -70,7 +70,7 @@ BUILTIN(AtomicsMutexTryLock) {
   }
   Handle<JSAtomicsMutex> js_mutex = Handle<JSAtomicsMutex>::cast(js_mutex_obj);
   Handle<Object> run_under_lock = args.atOrUndefined(isolate, 2);
-  if (!run_under_lock->IsCallable()) {
+  if (!IsCallable(*run_under_lock)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kNotCallable, run_under_lock));
   }
@@ -102,8 +102,8 @@ BUILTIN(AtomicsConditionWait) {
   Handle<Object> js_condition_obj = args.atOrUndefined(isolate, 1);
   Handle<Object> js_mutex_obj = args.atOrUndefined(isolate, 2);
   Handle<Object> timeout_obj = args.atOrUndefined(isolate, 3);
-  if (!js_condition_obj->IsJSAtomicsCondition() ||
-      !js_mutex_obj->IsJSAtomicsMutex()) {
+  if (!IsJSAtomicsCondition(*js_condition_obj) ||
+      !IsJSAtomicsMutex(*js_mutex_obj)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kMethodInvokedOnWrongType,
                               isolate->factory()->NewStringFromAsciiChecked(
@@ -111,7 +111,7 @@ BUILTIN(AtomicsConditionWait) {
   }
 
   base::Optional<base::TimeDelta> timeout = base::nullopt;
-  if (!timeout_obj->IsUndefined(isolate)) {
+  if (!IsUndefined(*timeout_obj, isolate)) {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, timeout_obj,
                                        Object::ToNumber(isolate, timeout_obj));
     double ms = timeout_obj->Number();
@@ -151,7 +151,7 @@ BUILTIN(AtomicsConditionNotify) {
 
   Handle<Object> js_condition_obj = args.atOrUndefined(isolate, 1);
   Handle<Object> count_obj = args.atOrUndefined(isolate, 2);
-  if (!js_condition_obj->IsJSAtomicsCondition()) {
+  if (!IsJSAtomicsCondition(*js_condition_obj)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kMethodInvokedOnWrongType,
                               isolate->factory()->NewStringFromAsciiChecked(
@@ -159,7 +159,7 @@ BUILTIN(AtomicsConditionNotify) {
   }
 
   uint32_t count;
-  if (count_obj->IsUndefined(isolate)) {
+  if (IsUndefined(*count_obj, isolate)) {
     count = JSAtomicsCondition::kAllWaiters;
   } else {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, count_obj,

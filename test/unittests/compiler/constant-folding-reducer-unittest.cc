@@ -13,12 +13,12 @@
 #include "test/unittests/compiler/node-test-utils.h"
 #include "testing/gmock-support.h"
 
-using testing::IsNaN;
-
 namespace v8 {
 namespace internal {
 namespace compiler {
 namespace constant_folding_reducer_unittest {
+
+using testing::IsNaN;
 
 namespace {
 

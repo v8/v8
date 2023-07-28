@@ -105,7 +105,7 @@ MaybeHandle<Object> CreateDynamicFunction(Isolate* isolate,
   // function has wrong initial map. To fix that we create a new
   // function object with correct initial map.
   Handle<Object> unchecked_new_target = args.new_target();
-  if (!unchecked_new_target->IsUndefined(isolate) &&
+  if (!IsUndefined(*unchecked_new_target, isolate) &&
       !unchecked_new_target.is_identical_to(target)) {
     Handle<JSReceiver> new_target =
         Handle<JSReceiver>::cast(unchecked_new_target);
@@ -150,7 +150,7 @@ BUILTIN(AsyncFunctionConstructor) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, maybe_func,
       CreateDynamicFunction(isolate, args, "async function"));
-  if (!maybe_func->IsJSFunction()) return *maybe_func;
+  if (!IsJSFunction(*maybe_func)) return *maybe_func;
 
   // Do not lazily compute eval position for AsyncFunction, as they may not be
   // determined after the function is resumed.
@@ -169,7 +169,7 @@ BUILTIN(AsyncGeneratorFunctionConstructor) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, maybe_func,
       CreateDynamicFunction(isolate, args, "async function*"));
-  if (!maybe_func->IsJSFunction()) return *maybe_func;
+  if (!IsJSFunction(*maybe_func)) return *maybe_func;
 
   // Do not lazily compute eval position for AsyncFunction, as they may not be
   // determined after the function is resumed.
@@ -187,7 +187,7 @@ namespace {
 Object DoFunctionBind(Isolate* isolate, BuiltinArguments args) {
   HandleScope scope(isolate);
   DCHECK_LE(1, args.length());
-  if (!args.receiver()->IsCallable()) {
+  if (!IsCallable(*args.receiver())) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kFunctionBind));
   }
@@ -226,15 +226,15 @@ BUILTIN(FunctionPrototypeBind) { return DoFunctionBind(isolate, args); }
 BUILTIN(FunctionPrototypeToString) {
   HandleScope scope(isolate);
   Handle<Object> receiver = args.receiver();
-  if (receiver->IsJSBoundFunction()) {
+  if (IsJSBoundFunction(*receiver)) {
     return *JSBoundFunction::ToString(Handle<JSBoundFunction>::cast(receiver));
   }
-  if (receiver->IsJSFunction()) {
+  if (IsJSFunction(*receiver)) {
     return *JSFunction::ToString(Handle<JSFunction>::cast(receiver));
   }
   // With the revised toString behavior, all callable objects are valid
   // receivers for this method.
-  if (receiver->IsJSReceiver() &&
+  if (IsJSReceiver(*receiver) &&
       JSReceiver::cast(*receiver)->map()->is_callable()) {
     return ReadOnlyRoots(isolate).function_native_code_string();
   }

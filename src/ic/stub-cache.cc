@@ -72,7 +72,7 @@ bool CommonStubCacheChecks(StubCache* stub_cache, Name name, Map map,
   // can use identity checks instead of structural equality checks.
   DCHECK(!Heap::InYoungGeneration(name));
   DCHECK(!Heap::InYoungGeneration(handler));
-  DCHECK(name->IsUniqueName());
+  DCHECK(IsUniqueName(name));
   if (handler->ptr() != kNullAddress) DCHECK(IC::IsHandler(handler));
   return true;
 }

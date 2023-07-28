@@ -97,11 +97,11 @@ void MacroAssembler::LoadRoot(Register destination, RootIndex index) {
 
   if (RootsTable::IsImmortalImmovable(index)) {
     Handle<Object> object = isolate()->root_handle(index);
-    if (object->IsSmi()) {
+    if (IsSmi(*object)) {
       mov(destination, Immediate(Smi::cast(*object)));
       return;
     } else {
-      DCHECK(object->IsHeapObject());
+      DCHECK(IsHeapObject(*object));
       mov(destination, Handle<HeapObject>::cast(object));
       return;
     }
@@ -135,7 +135,7 @@ void MacroAssembler::CompareRoot(Register with, RootIndex index) {
 
   DCHECK(RootsTable::IsImmortalImmovable(index));
   Handle<Object> object = isolate()->root_handle(index);
-  if (object->IsHeapObject()) {
+  if (IsHeapObject(*object)) {
     cmp(with, Handle<HeapObject>::cast(object));
   } else {
     cmp(with, Immediate(Smi::cast(*object)));
@@ -153,7 +153,7 @@ void MacroAssembler::PushRoot(RootIndex index) {
   // TODO(v8:6666): Add a scratch register or remove all uses.
   DCHECK(RootsTable::IsImmortalImmovable(index));
   Handle<Object> object = isolate()->root_handle(index);
-  if (object->IsHeapObject()) {
+  if (IsHeapObject(*object)) {
     Push(Handle<HeapObject>::cast(object));
   } else {
     Push(Smi::cast(*object));

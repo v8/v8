@@ -164,7 +164,7 @@ void CheckDebuggerUnloaded() {
   HeapObjectIterator iterator(CcTest::heap());
   for (HeapObject obj = iterator.Next(); !obj.is_null();
        obj = iterator.Next()) {
-    CHECK(!obj.IsDebugInfo());
+    CHECK(!IsDebugInfo(obj));
   }
 }
 
@@ -4603,7 +4603,7 @@ TEST(DebugEvaluateNoSideEffect) {
     i::HeapObjectIterator iterator(isolate->heap());
     for (i::HeapObject obj = iterator.Next(); !obj.is_null();
          obj = iterator.Next()) {
-      if (!obj.IsJSFunction()) continue;
+      if (!IsJSFunction(obj)) continue;
       i::JSFunction fun = i::JSFunction::cast(obj);
       all_functions.emplace_back(fun, isolate);
     }
@@ -4671,7 +4671,7 @@ i::MaybeHandle<i::Script> FindScript(
   Handle<i::String> i_name =
       isolate->factory()->NewStringFromAsciiChecked(name);
   for (const auto& script : scripts) {
-    if (!script->name().IsString()) continue;
+    if (!IsString(script->name())) continue;
     if (i_name->Equals(i::String::cast(script->name()))) return script;
   }
   return i::MaybeHandle<i::Script>();
@@ -4699,7 +4699,7 @@ UNINITIALIZED_TEST(LoadedAtStartupScripts) {
       for (i::Script script = iterator.Next(); !script.is_null();
            script = iterator.Next()) {
         if (script->type() == i::Script::Type::kNative &&
-            script->name().IsUndefined(i_isolate)) {
+            IsUndefined(script->name(), i_isolate)) {
           continue;
         }
         ++count_by_type[script->type()];

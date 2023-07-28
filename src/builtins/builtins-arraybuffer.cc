@@ -118,7 +118,7 @@ BUILTIN(ArrayBufferConstructor) {
   Handle<JSFunction> target = args.target();
   DCHECK(*target == target->native_context()->array_buffer_fun() ||
          *target == target->native_context()->shared_array_buffer_fun());
-  if (args.new_target()->IsUndefined(isolate)) {  // [[Call]]
+  if (IsUndefined(*args.new_target(), isolate)) {  // [[Call]]
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kConstructorNotFunction,
                               handle(target->shared()->Name(), isolate)));
@@ -144,7 +144,7 @@ BUILTIN(ArrayBufferConstructor) {
         JSObject::ReadFromOptionsBag(
             options, isolate->factory()->max_byte_length_string(), isolate));
 
-    if (!max_length->IsUndefined(isolate)) {
+    if (!IsUndefined(*max_length, isolate)) {
       ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
           isolate, number_max_length, Object::ToInteger(isolate, max_length));
     }
@@ -205,7 +205,7 @@ static Object SliceHelper(BuiltinArguments args, Isolate* isolate,
   // * If end is undefined, let relativeEnd be len; else let relativeEnd be ?
   //   ToInteger(end).
   double relative_end;
-  if (end->IsUndefined(isolate)) {
+  if (IsUndefined(*end, isolate)) {
     relative_end = len;
   } else {
     Handle<Object> relative_end_obj;
@@ -251,7 +251,7 @@ static Object SliceHelper(BuiltinArguments args, Isolate* isolate,
 
   // * If new does not have an [[ArrayBufferData]] internal slot, throw a
   //   TypeError exception.
-  if (!new_->IsJSArrayBuffer()) {
+  if (!IsJSArrayBuffer(*new_)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate,
         NewTypeError(MessageTemplate::kIncompatibleMethodReceiver,
@@ -502,7 +502,7 @@ Object ArrayBufferTransfer(Isolate* isolate, Handle<JSArrayBuffer> array_buffer,
   CHECK_SHARED(false, array_buffer, method_name);
 
   size_t new_byte_length;
-  if (new_length->IsUndefined(isolate)) {
+  if (IsUndefined(*new_length, isolate)) {
     // 3. If newLength is undefined, then
     //   a. Let newByteLength be arrayBuffer.[[ArrayBufferByteLength]].
     new_byte_length = array_buffer->GetByteLength();

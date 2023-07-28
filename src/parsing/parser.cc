@@ -3429,7 +3429,7 @@ void Parser::HandleSourceURLComments(IsolateT* isolate, Handle<Script> script) {
   // The API can provide a source map URL and the API should take precedence.
   // Let's make sure we do not override the API with the magic comment.
   if (!source_mapping_url.is_null() &&
-      script->source_mapping_url(isolate).IsUndefined(isolate)) {
+      IsUndefined(script->source_mapping_url(isolate), isolate)) {
     script->set_source_mapping_url(*source_mapping_url);
   }
 }

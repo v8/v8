@@ -502,10 +502,10 @@ class WasmRunnerBase : public InitializedHandleScope {
       CHECK_EQ(expected, static_cast<double>(0xDEADBEEF));
     } else {
       Handle<Object> result = retval.ToHandleChecked();
-      if (result->IsSmi()) {
+      if (IsSmi(*result)) {
         CHECK_EQ(expected, Smi::ToInt(*result));
       } else {
-        CHECK(result->IsHeapNumber());
+        CHECK(IsHeapNumber(*result));
         CHECK_DOUBLE_EQ(expected, HeapNumber::cast(*result)->value());
       }
     }

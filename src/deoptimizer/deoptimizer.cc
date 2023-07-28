@@ -227,7 +227,7 @@ class FrameWriter {
     if (trace_scope_ != nullptr) {
       PrintF(trace_scope_->file(), "    " V8PRIxPTR_FMT ": [top + %3d] <- ",
              output_address(output_offset), output_offset);
-      if (obj.IsSmi()) {
+      if (IsSmi(obj)) {
         PrintF(trace_scope_->file(), V8PRIxPTR_FMT " <Smi %d>", obj.ptr(),
                Smi::cast(obj).value());
       } else {
@@ -517,9 +517,9 @@ Deoptimizer::Deoptimizer(Isolate* isolate, JSFunction function,
   DCHECK_NE(from, kNullAddress);
   compiled_code_ = isolate_->heap()->FindCodeForInnerPointer(from);
   DCHECK(!compiled_code_.is_null());
-  DCHECK(compiled_code_.IsCode());
+  DCHECK(IsCode(compiled_code_));
 
-  DCHECK(function.IsJSFunction());
+  DCHECK(IsJSFunction(function));
 #ifdef DEBUG
   DCHECK(AllowGarbageCollection::IsAllowed());
   disallow_garbage_collection_ = new DisallowGarbageCollection();
@@ -635,7 +635,7 @@ void Deoptimizer::TraceDeoptBegin(int optimization_id,
   Deoptimizer::DeoptInfo info = Deoptimizer::GetDeoptInfo();
   PrintF(file, "[bailout (kind: %s, reason: %s): begin. deoptimizing ",
          MessageFor(deopt_kind_), DeoptimizeReasonToString(info.deopt_reason));
-  if (function_.IsJSFunction()) {
+  if (IsJSFunction(function_)) {
     function_.ShortPrint(file);
     PrintF(file, ", ");
   }
@@ -793,7 +793,7 @@ void Deoptimizer::DoComputeOutputFrames() {
   translated_state_.Init(
       isolate_, input_->GetFramePointerAddress(), stack_fp_, &state_iterator,
       input_data->LiteralArray(), input_->GetRegisterValues(), trace_file,
-      function_.IsHeapObject()
+      IsHeapObject(function_)
           ? function_->shared()
                 ->internal_formal_parameter_count_without_receiver()
           : 0,
@@ -892,7 +892,7 @@ void Deoptimizer::DoComputeOutputFrames() {
   // deoptimized.
   bool osr_early_exit = Deoptimizer::GetDeoptInfo().deopt_reason ==
                         DeoptimizeReason::kOSREarlyExit;
-  if (function_.IsJSFunction() &&
+  if (IsJSFunction(function_) &&
       (compiled_code_->osr_offset().IsNone()
            ? function_->code() == compiled_code_
            : (!osr_early_exit &&
@@ -2121,9 +2121,9 @@ void Deoptimizer::QueueValueForMaterialization(
 
 unsigned Deoptimizer::ComputeInputFrameAboveFpFixedSize() const {
   unsigned fixed_size = CommonFrameConstants::kFixedFrameSizeAboveFp;
-  // TODO(jkummerow): If {function_->IsSmi()} can indeed be true, then
+  // TODO(jkummerow): If {IsSmi(function_)} can indeed be true, then
   // {function_} should not have type {JSFunction}.
-  if (!function_.IsSmi()) {
+  if (!IsSmi(function_)) {
     fixed_size += ComputeIncomingArgumentSize(function_->shared());
   }
   return fixed_size;

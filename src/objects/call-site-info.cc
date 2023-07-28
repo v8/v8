@@ -68,8 +68,8 @@ bool CallSiteInfo::IsMethodCall() const {
 }
 
 bool CallSiteInfo::IsToplevel() const {
-  return receiver_or_instance().IsJSGlobalProxy() ||
-         receiver_or_instance().IsNullOrUndefined();
+  return IsJSGlobalProxy(receiver_or_instance()) ||
+         IsNullOrUndefined(receiver_or_instance());
 }
 
 // static
@@ -220,7 +220,7 @@ namespace {
 
 MaybeHandle<String> FormatEvalOrigin(Isolate* isolate, Handle<Script> script) {
   Handle<Object> sourceURL(script->GetNameOrSourceURL(), isolate);
-  if (sourceURL->IsString()) return Handle<String>::cast(sourceURL);
+  if (IsString(*sourceURL)) return Handle<String>::cast(sourceURL);
 
   IncrementalStringBuilder builder(isolate);
   builder.AppendCStringLiteral("eval at ");
@@ -232,7 +232,7 @@ MaybeHandle<String> FormatEvalOrigin(Isolate* isolate, Handle<Script> script) {
     } else {
       builder.AppendCStringLiteral("<anonymous>");
     }
-    if (eval_shared->script().IsScript()) {
+    if (IsScript(eval_shared->script())) {
       Handle<Script> eval_script(Script::cast(eval_shared->script()), isolate);
       builder.AppendCStringLiteral(" (");
       if (eval_script->compilation_type() == Script::CompilationType::kEval) {
@@ -244,7 +244,7 @@ MaybeHandle<String> FormatEvalOrigin(Isolate* isolate, Handle<Script> script) {
       } else {
         // eval script originated from "real" source.
         Handle<Object> eval_script_name(eval_script->name(), isolate);
-        if (eval_script_name->IsString()) {
+        if (IsString(*eval_script_name)) {
           builder.AppendString(Handle<String>::cast(eval_script_name));
           Script::PositionInfo info;
           if (Script::GetPositionInfo(eval_script,
@@ -352,7 +352,7 @@ Tagged<PrimitiveHeapObject> InferMethodNameFromFastObject(
   DescriptorArray descriptors = map->instance_descriptors(isolate);
   for (auto i : map->IterateOwnDescriptors()) {
     Tagged<PrimitiveHeapObject> key = descriptors->GetKey(i);
-    if (key.IsSymbol()) continue;
+    if (IsSymbol(key)) continue;
     auto details = descriptors->GetDetails(i);
     if (details.IsDontEnum()) continue;
     Object value;
@@ -365,12 +365,12 @@ Tagged<PrimitiveHeapObject> InferMethodNameFromFastObject(
       value = descriptors->GetStrongValue(i);
     }
     if (value != fun) {
-      if (!value.IsAccessorPair()) continue;
+      if (!IsAccessorPair(value)) continue;
       auto pair = AccessorPair::cast(value);
       if (pair->getter() != fun && pair->setter() != fun) continue;
     }
     if (name != key) {
-      name = name.IsUndefined(isolate)
+      name = IsUndefined(name, isolate)
                  ? key
                  : Tagged<PrimitiveHeapObject>(roots.null_value());
     }
@@ -387,17 +387,17 @@ PrimitiveHeapObject InferMethodNameFromDictionary(Isolate* isolate,
   for (auto i : dictionary.IterateEntries()) {
     Object key;
     if (!dictionary.ToKey(roots, i, &key)) continue;
-    if (key.IsSymbol()) continue;
+    if (IsSymbol(key)) continue;
     auto details = dictionary.DetailsAt(i);
     if (details.IsDontEnum()) continue;
     auto value = dictionary.ValueAt(i);
     if (value != fun) {
-      if (!value.IsAccessorPair()) continue;
+      if (!IsAccessorPair(value)) continue;
       auto pair = AccessorPair::cast(value);
       if (pair.getter() != fun && pair.setter() != fun) continue;
     }
     if (name != key) {
-      name = name.IsUndefined(isolate)
+      name = IsUndefined(name, isolate)
                  ? Tagged<PrimitiveHeapObject>::cast(key)
                  : Tagged<PrimitiveHeapObject>(roots.null_value());
     }
@@ -413,12 +413,12 @@ PrimitiveHeapObject InferMethodName(Isolate* isolate, JSReceiver receiver,
   for (PrototypeIterator it(isolate, receiver, kStartAtReceiver); !it.IsAtEnd();
        it.Advance()) {
     auto current = it.GetCurrent();
-    if (!current.IsJSObject()) break;
+    if (!IsJSObject(current)) break;
     auto object = JSObject::cast(current);
-    if (object.IsAccessCheckNeeded()) break;
+    if (IsAccessCheckNeeded(object)) break;
     if (object->HasFastProperties()) {
       name = InferMethodNameFromFastObject(isolate, object, fun, name);
-    } else if (object.IsJSGlobalObject()) {
+    } else if (IsJSGlobalObject(object)) {
       name = InferMethodNameFromDictionary(
           isolate,
           JSGlobalObject::cast(object)->global_dictionary(kAcquireLoad), fun,
@@ -431,7 +431,7 @@ PrimitiveHeapObject InferMethodName(Isolate* isolate, JSReceiver receiver,
           isolate, object->property_dictionary(), fun, name);
     }
   }
-  if (name.IsUndefined(isolate)) return roots.null_value();
+  if (IsUndefined(name, isolate)) return roots.null_value();
   return name;
 }
 
@@ -444,7 +444,7 @@ Handle<Object> CallSiteInfo::GetMethodName(Handle<CallSiteInfo> info) {
 #if V8_ENABLE_WEBASSEMBLY
   if (info->IsWasm()) return isolate->factory()->null_value();
 #endif  // V8_ENABLE_WEBASSEMBLY
-  if (receiver_or_instance->IsNullOrUndefined(isolate)) {
+  if (IsNullOrUndefined(*receiver_or_instance, isolate)) {
     return isolate->factory()->null_value();
   }
 
@@ -490,7 +490,7 @@ Handle<Object> CallSiteInfo::GetMethodName(Handle<CallSiteInfo> info) {
       }
     } else if (it.state() == LookupIterator::ACCESSOR) {
       Handle<Object> accessors = it.GetAccessors();
-      if (accessors->IsAccessorPair()) {
+      if (IsAccessorPair(*accessors)) {
         Handle<AccessorPair> pair = Handle<AccessorPair>::cast(accessors);
         if (pair->getter() == *function || pair->setter() == *function) {
           return name;
@@ -512,7 +512,7 @@ Handle<Object> CallSiteInfo::GetTypeName(Handle<CallSiteInfo> info) {
       JSReceiver::ToObject(isolate,
                            handle(info->receiver_or_instance(), isolate))
           .ToHandleChecked();
-  if (receiver->IsJSProxy()) {
+  if (IsJSProxy(*receiver)) {
     return isolate->factory()->Proxy_string();
   }
   return JSReceiver::GetConstructorName(isolate, receiver);
@@ -580,7 +580,7 @@ bool CallSiteInfo::ComputeLocation(Handle<CallSiteInfo> info,
   Handle<SharedFunctionInfo> shared(info->GetSharedFunctionInfo(), isolate);
   if (!shared->IsSubjectToDebugging()) return false;
   Handle<Script> script(Script::cast(shared->script()), isolate);
-  if (script->source().IsUndefined()) return false;
+  if (IsUndefined(script->source())) return false;
   if (info->flags() & kIsSourcePositionComputed ||
       (shared->HasBytecodeArray() &&
        shared->GetBytecodeArray(isolate)->HasSourcePositionTable())) {
@@ -623,7 +623,7 @@ base::Optional<Script> CallSiteInfo::GetScript() const {
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
   Object script = GetSharedFunctionInfo()->script();
-  if (script.IsScript()) return Script::cast(script);
+  if (IsScript(script)) return Script::cast(script);
   return base::nullopt;
 }
 
@@ -647,14 +647,14 @@ MaybeHandle<Script> CallSiteInfo::GetScript(Isolate* isolate,
 namespace {
 
 bool IsNonEmptyString(Handle<Object> object) {
-  return (object->IsString() && String::cast(*object)->length() > 0);
+  return (IsString(*object) && String::cast(*object)->length() > 0);
 }
 
 void AppendFileLocation(Isolate* isolate, Handle<CallSiteInfo> frame,
                         IncrementalStringBuilder* builder) {
   Handle<Object> script_name_or_source_url(frame->GetScriptNameOrSourceURL(),
                                            isolate);
-  if (!script_name_or_source_url->IsString() && frame->IsEval()) {
+  if (!IsString(*script_name_or_source_url) && frame->IsEval()) {
     builder->AppendString(
         Handle<String>::cast(CallSiteInfo::GetEvalOrigin(frame)));
     // Expecting source position to follow.
@@ -721,7 +721,7 @@ void AppendMethodCall(Isolate* isolate, Handle<CallSiteInfo> frame,
   Handle<Object> function_name = CallSiteInfo::GetFunctionName(frame);
 
   Handle<Object> receiver(frame->receiver_or_instance(), isolate);
-  if (receiver->IsJSClassConstructor()) {
+  if (IsJSClassConstructor(*receiver)) {
     Handle<JSFunction> function = Handle<JSFunction>::cast(receiver);
     Handle<String> class_name = JSFunction::GetDebugName(function);
     if (class_name->length() != 0) {
@@ -801,13 +801,13 @@ void SerializeWasmStackFrame(Isolate* isolate, Handle<CallSiteInfo> frame,
                              IncrementalStringBuilder* builder) {
   Handle<Object> module_name = CallSiteInfo::GetWasmModuleName(frame);
   Handle<Object> function_name = CallSiteInfo::GetFunctionName(frame);
-  const bool has_name = !module_name->IsNull() || !function_name->IsNull();
+  const bool has_name = !IsNull(*module_name) || !IsNull(*function_name);
   if (has_name) {
-    if (module_name->IsNull()) {
+    if (IsNull(*module_name)) {
       builder->AppendString(Handle<String>::cast(function_name));
     } else {
       builder->AppendString(Handle<String>::cast(module_name));
-      if (!function_name->IsNull()) {
+      if (!IsNull(*function_name)) {
         builder->AppendCharacter('.');
         builder->AppendString(Handle<String>::cast(function_name));
       }

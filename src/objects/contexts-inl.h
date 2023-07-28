@@ -129,7 +129,7 @@ Object Context::next_context_link() const {
 }
 
 bool Context::has_extension() const {
-  return scope_info()->HasContextExtensionSlot() && !extension().IsUndefined();
+  return scope_info()->HasContextExtensionSlot() && !IsUndefined(extension());
 }
 
 HeapObject Context::extension() const {
@@ -186,19 +186,19 @@ bool Context::IsDetached() const { return global_object()->IsDetached(); }
 
 #define NATIVE_CONTEXT_FIELD_ACCESSORS(index, type, name)   \
   void Context::set_##name(type value) {                    \
-    DCHECK(IsNativeContext());                              \
+    DCHECK(IsNativeContext(*this));                         \
     set(index, value, UPDATE_WRITE_BARRIER, kReleaseStore); \
   }                                                         \
   bool Context::is_##name(type value) const {               \
-    DCHECK(IsNativeContext());                              \
+    DCHECK(IsNativeContext(*this));                         \
     return type::cast(get(index)) == value;                 \
   }                                                         \
   type Context::name() const {                              \
-    DCHECK(IsNativeContext());                              \
+    DCHECK(IsNativeContext(*this));                         \
     return type::cast(get(index));                          \
   }                                                         \
   type Context::name(AcquireLoadTag tag) const {            \
-    DCHECK(IsNativeContext());                              \
+    DCHECK(IsNativeContext(*this));                         \
     return type::cast(get(index, tag));                     \
   }
 NATIVE_CONTEXT_FIELDS(NATIVE_CONTEXT_FIELD_ACCESSORS)
@@ -260,11 +260,11 @@ int Context::FunctionMapIndex(LanguageMode language_mode, FunctionKind kind,
 #undef CHECK_FOLLOWS4
 
 Map Context::GetInitialJSArrayMap(ElementsKind kind) const {
-  DCHECK(IsNativeContext());
+  DCHECK(IsNativeContext(*this));
   if (!IsFastElementsKind(kind)) return Map();
   DisallowGarbageCollection no_gc;
   Object const initial_js_array_map = get(Context::ArrayMapIndex(kind));
-  DCHECK(!initial_js_array_map.IsUndefined());
+  DCHECK(!IsUndefined(initial_js_array_map));
   return Map::cast(initial_js_array_map);
 }
 

@@ -206,7 +206,7 @@ void CodeEntry::set_deopt_info(
 }
 
 void CodeEntry::FillFunctionInfo(SharedFunctionInfo shared) {
-  if (!shared->script().IsScript()) return;
+  if (!IsScript(shared->script())) return;
   Script script = Script::cast(shared->script());
   set_script_id(script->id());
   set_position(shared->StartPosition());

@@ -267,7 +267,7 @@ TEST_F(FeedbackVectorTest, VectorPolymorphicCallFeedback) {
   CHECK_EQ(InlineCacheState::POLYMORPHIC, nexus.ic_state());
   HeapObject heap_object;
   CHECK(nexus.GetFeedback()->GetHeapObjectIfWeak(&heap_object));
-  CHECK(heap_object.IsFeedbackCell(isolate));
+  CHECK(IsFeedbackCell(heap_object, isolate));
   // Ensure this is the feedback cell for the closure returned by
   // foo_maker.
   CHECK_EQ(heap_object, a_foo->raw_feedback_cell());

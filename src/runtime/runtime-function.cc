@@ -15,10 +15,10 @@ RUNTIME_FUNCTION(Runtime_FunctionGetScriptSource) {
   DCHECK_EQ(1, args.length());
   Handle<JSReceiver> function = args.at<JSReceiver>(0);
 
-  if (function->IsJSFunction()) {
+  if (IsJSFunction(*function)) {
     Handle<Object> script(
         Handle<JSFunction>::cast(function)->shared()->script(), isolate);
-    if (script->IsScript()) return Handle<Script>::cast(script)->source();
+    if (IsScript(*script)) return Handle<Script>::cast(script)->source();
   }
   return ReadOnlyRoots(isolate).undefined_value();
 }
@@ -28,10 +28,10 @@ RUNTIME_FUNCTION(Runtime_FunctionGetScriptId) {
   DCHECK_EQ(1, args.length());
   Handle<JSReceiver> function = args.at<JSReceiver>(0);
 
-  if (function->IsJSFunction()) {
+  if (IsJSFunction(*function)) {
     Handle<Object> script(
         Handle<JSFunction>::cast(function)->shared()->script(), isolate);
-    if (script->IsScript()) {
+    if (IsScript(*script)) {
       return Smi::FromInt(Handle<Script>::cast(script)->id());
     }
   }
@@ -42,7 +42,7 @@ RUNTIME_FUNCTION(Runtime_FunctionGetSourceCode) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   Handle<JSReceiver> function = args.at<JSReceiver>(0);
-  if (function->IsJSFunction()) {
+  if (IsJSFunction(*function)) {
     Handle<SharedFunctionInfo> shared(
         Handle<JSFunction>::cast(function)->shared(), isolate);
     return *SharedFunctionInfo::GetSourceCode(isolate, shared);
@@ -89,7 +89,7 @@ RUNTIME_FUNCTION(Runtime_IsFunction) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
   Object object = args[0];
-  return isolate->heap()->ToBoolean(object.IsFunction());
+  return isolate->heap()->ToBoolean(IsFunction(object));
 }
 
 

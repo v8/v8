@@ -227,7 +227,7 @@ void InterpreterCompilationJob::CheckAndPrintBytecodeMismatch(
       std::cerr << "anonymous";
     }
     Object script_name = script->GetNameOrSourceURL();
-    if (script_name.IsString()) {
+    if (IsString(script_name)) {
       std::cerr << " ";
       String::cast(script_name)->PrintUC16(std::cerr);
       std::cerr << ":" << parse_info()->literal()->start_position();

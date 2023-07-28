@@ -265,7 +265,7 @@ class Expectations {
       CHECK_EQ(PropertyKind::kAccessor, details.kind());
       Object value = descriptors->GetStrongValue(descriptor);
       if (value == expected_value) return true;
-      if (!value.IsAccessorPair()) return false;
+      if (!IsAccessorPair(value)) return false;
       AccessorPair pair = AccessorPair::cast(value);
       return pair->Equals(expected_value, *setter_values_[descriptor.as_int()]);
     }
@@ -416,16 +416,16 @@ class Expectations {
 
     Handle<String> name = CcTest::MakeName("prop", property_index);
 
-    CHECK(!getter->IsNull(isolate_) || !setter->IsNull(isolate_));
+    CHECK(!IsNull(*getter, isolate_) || !IsNull(*setter, isolate_));
     Factory* factory = isolate_->factory();
 
-    if (!getter->IsNull(isolate_)) {
+    if (!IsNull(*getter, isolate_)) {
       Handle<AccessorPair> pair = factory->NewAccessorPair();
       pair->SetComponents(*getter, *factory->null_value());
       Descriptor d = Descriptor::AccessorConstant(name, pair, attributes);
       map = Map::CopyInsertDescriptor(isolate_, map, &d, INSERT_TRANSITION);
     }
-    if (!setter->IsNull(isolate_)) {
+    if (!IsNull(*setter, isolate_)) {
       Handle<AccessorPair> pair = factory->NewAccessorPair();
       pair->SetComponents(*getter, *setter);
       Descriptor d = Descriptor::AccessorConstant(name, pair, attributes);
@@ -540,7 +540,7 @@ TEST(ReconfigureAccessorToNonExistingDataField) {
   Handle<JSObject> obj = factory->NewJSObjectFromMap(map);
   JSObject::MigrateToMap(isolate, obj, prepared_map);
   FieldIndex index = FieldIndex::ForDescriptor(*prepared_map, first);
-  CHECK(obj->RawFastPropertyAt(index).IsUninitialized(isolate));
+  CHECK(IsUninitialized(obj->RawFastPropertyAt(index), isolate));
 #ifdef VERIFY_HEAP
   obj->ObjectVerify(isolate);
 #endif
@@ -570,15 +570,13 @@ TEST(ReconfigureAccessorToNonExistingDataFieldHeavy) {
   Handle<Object> obj_value =
       Object::GetProperty(isolate, isolate->global_object(), obj_name)
           .ToHandleChecked();
-  CHECK(obj_value->IsJSObject());
+  CHECK(IsJSObject(*obj_value));
   Handle<JSObject> obj = Handle<JSObject>::cast(obj_value);
 
   CHECK_EQ(1, obj->map()->NumberOfOwnDescriptors());
   InternalIndex first(0);
-  CHECK(obj->map()
-            ->instance_descriptors(isolate)
-            ->GetStrongValue(first)
-            .IsAccessorPair());
+  CHECK(IsAccessorPair(
+      obj->map()->instance_descriptors(isolate)->GetStrongValue(first)));
 
   Handle<Object> value(Smi::FromInt(42), isolate);
   JSObject::SetOwnPropertyIgnoreAttributes(obj, foo_str, value, NONE).Check();
@@ -587,7 +585,7 @@ TEST(ReconfigureAccessorToNonExistingDataFieldHeavy) {
   CHECK_EQ(1, obj->map()->NumberOfOwnDescriptors());
   FieldIndex index = FieldIndex::ForDescriptor(obj->map(), first);
   Object the_value = obj->RawFastPropertyAt(index);
-  CHECK(the_value.IsSmi());
+  CHECK(IsSmi(the_value));
   CHECK_EQ(42, Smi::ToInt(the_value));
 }
 
@@ -758,7 +756,7 @@ void TestGeneralizeField(int detach_property_at_index, int property_index,
     Map tmp = *new_map;
     while (true) {
       Object back = tmp->GetBackPointer();
-      if (back.IsUndefined(isolate)) break;
+      if (IsUndefined(back, isolate)) break;
       tmp = Map::cast(back);
       CHECK(!tmp->is_stable());
     }
@@ -1416,7 +1414,7 @@ struct CheckNormalize {
     CHECK(!map->is_deprecated());
     CHECK_NE(*map, *new_map);
 
-    CHECK(new_map->GetBackPointer().IsUndefined(isolate));
+    CHECK(IsUndefined(new_map->GetBackPointer(), isolate));
     CHECK(!new_map->is_deprecated());
     CHECK(expectations.CheckNormalized(*new_map));
   }
@@ -2200,13 +2198,13 @@ static void TestGeneralizeFieldWithSpecialTransition(
           for (int j = 0; j < kPropCount; j++) {
             expectations2.GeneralizeField(j);
           }
-          CHECK(new_map2->GetBackPointer().IsUndefined(isolate));
+          CHECK(IsUndefined(new_map2->GetBackPointer(), isolate));
           CHECK(expectations2.Check(*new_map2));
         } else {
           expectations2.SetDataField(i, expected.constness,
                                      expected.representation, expected.type);
 
-          CHECK(!new_map2->GetBackPointer().IsUndefined(isolate));
+          CHECK(!IsUndefined(new_map2->GetBackPointer(), isolate));
           CHECK(expectations2.Check(*new_map2));
         }
         break;
@@ -2792,11 +2790,11 @@ TEST(HoleyHeapNumber) {
   Handle<Object> obj =
       Object::NewStorageFor(isolate, isolate->factory()->uninitialized_value(),
                             Representation::Double());
-  CHECK(obj->IsHeapNumber());
+  CHECK(IsHeapNumber(*obj));
   CHECK_EQ(kHoleNanInt64, HeapNumber::cast(*obj)->value_as_bits(kRelaxedLoad));
 
   obj = Object::NewStorageFor(isolate, mhn, Representation::Double());
-  CHECK(obj->IsHeapNumber());
+  CHECK(IsHeapNumber(*obj));
   CHECK_EQ(kHoleNanInt64, HeapNumber::cast(*obj)->value_as_bits(kRelaxedLoad));
 }
 
@@ -2983,7 +2981,7 @@ TEST(NormalizeToMigrationTarget) {
   Isolate* isolate = CcTest::i_isolate();
 
   CHECK(
-      isolate->native_context()->normalized_map_cache().IsNormalizedMapCache());
+      IsNormalizedMapCache(isolate->native_context()->normalized_map_cache()));
 
   Handle<Map> base_map = Map::Create(isolate, 4);
 

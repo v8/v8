@@ -196,7 +196,7 @@ void LogFile::MessageBuilder::AppendSymbolName(Symbol symbol) {
   DCHECK(!symbol.is_null());
   OFStream& os = log_->os_;
   os << "symbol(";
-  if (!symbol->description().IsUndefined()) {
+  if (!IsUndefined(symbol->description())) {
     os << "\"";
     AppendSymbolNameDetails(String::cast(symbol->description()), false);
     os << "\" ";
@@ -312,7 +312,7 @@ LogFile::MessageBuilder& LogFile::MessageBuilder::operator<< <Tagged<Symbol>>(
 template <>
 LogFile::MessageBuilder& LogFile::MessageBuilder::operator<< <Tagged<Name>>(
     Tagged<Name> name) {
-  if (name.IsString()) {
+  if (IsString(name)) {
     this->AppendString(String::cast(name));
   } else {
     this->AppendSymbolName(Symbol::cast(name));

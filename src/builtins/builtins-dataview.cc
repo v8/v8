@@ -22,7 +22,7 @@ BUILTIN(DataViewConstructor) {
   const char* const kMethodName = "DataView constructor";
   HandleScope scope(isolate);
   // 1. If NewTarget is undefined, throw a TypeError exception.
-  if (args.new_target()->IsUndefined(isolate)) {  // [[Call]]
+  if (IsUndefined(*args.new_target(), isolate)) {  // [[Call]]
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kConstructorNotFunction,
                               isolate->factory()->NewStringFromAsciiChecked(
@@ -36,7 +36,7 @@ BUILTIN(DataViewConstructor) {
   Handle<Object> byte_length = args.atOrUndefined(isolate, 3);
 
   // 2. Perform ? RequireInternalSlot(buffer, [[ArrayBufferData]]).
-  if (!buffer->IsJSArrayBuffer()) {
+  if (!IsJSArrayBuffer(*buffer)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kDataViewNotArrayBuffer));
   }
@@ -73,7 +73,7 @@ BUILTIN(DataViewConstructor) {
   //       a. Let viewByteLength be bufferByteLength - offset.
   size_t view_byte_length;
   bool length_tracking = false;
-  if (byte_length->IsUndefined(isolate)) {
+  if (IsUndefined(*byte_length, isolate)) {
     view_byte_length = buffer_byte_length - view_byte_offset;
     length_tracking = array_buffer->is_resizable_by_js();
   } else {

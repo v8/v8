@@ -79,7 +79,7 @@ static Object GetFieldValue(JSObject obj, int property_index) {
 
 static double GetDoubleFieldValue(JSObject obj, FieldIndex field_index) {
   Object value = obj->RawFastPropertyAt(field_index);
-  if (value.IsHeapNumber()) {
+  if (IsHeapNumber(value)) {
     return HeapNumber::cast(value)->value();
   } else {
     return value.Number();

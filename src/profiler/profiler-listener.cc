@@ -119,7 +119,7 @@ void ProfilerListener::CodeCreateEvent(CodeTag tag,
   std::unordered_set<CodeEntry*, CodeEntry::Hasher, CodeEntry::Equals>
       cached_inline_entries;
   bool is_shared_cross_origin = false;
-  if (shared->script(cage_base).IsScript(cage_base)) {
+  if (IsScript(shared->script(cage_base), cage_base)) {
     Handle<Script> script =
         handle(Script::cast(shared->script(cage_base)), isolate_);
     line_table.reset(new SourcePositionTable());
@@ -160,7 +160,7 @@ void ProfilerListener::CodeCreateEvent(CodeTag tag,
         line_table->SetPosition(code_offset, line_number, inlining_id);
       } else {
         DCHECK(!is_baseline);
-        DCHECK(abstract_code->IsCode(cage_base));
+        DCHECK(IsCode(*abstract_code, cage_base));
         std::vector<SourcePositionInfo> stack =
             it.source_position().InliningStack(isolate_,
                                                abstract_code->GetCode());
@@ -182,7 +182,7 @@ void ProfilerListener::CodeCreateEvent(CodeTag tag,
               1;
 
           const char* resource_name =
-              (pos_info.script->name().IsName())
+              (IsName(pos_info.script->name()))
                   ? GetName(Name::cast(pos_info.script->name()))
                   : CodeEntry::kEmptyResourceName;
 
@@ -368,10 +368,10 @@ const char* ProfilerListener::GetName(base::Vector<const char> name) {
 }
 
 Name ProfilerListener::InferScriptName(Name name, SharedFunctionInfo info) {
-  if (name.IsString() && String::cast(name)->length()) return name;
-  if (!info->script().IsScript()) return name;
+  if (IsString(name) && String::cast(name)->length()) return name;
+  if (!IsScript(info->script())) return name;
   Object source_url = Script::cast(info->script())->source_url();
-  return source_url.IsName() ? Name::cast(source_url) : name;
+  return IsName(source_url) ? Name::cast(source_url) : name;
 }
 
 const char* ProfilerListener::GetFunctionName(SharedFunctionInfo shared) {

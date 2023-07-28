@@ -300,7 +300,7 @@ base::Optional<bool> IsInterpreterFramePc(Isolate* isolate, Address pc,
         Memory<Address>(state->fp + StandardFrameConstants::kFunctionOffset));
     // There's no need to run a full ContainsSlow if we know the frame can't be
     // an InterpretedFrame,  so we do these fast checks first
-    if (StackFrame::IsTypeMarker(marker) || maybe_function.IsSmi()) {
+    if (StackFrame::IsTypeMarker(marker) || IsSmi(maybe_function)) {
       return false;
     } else if (!isolate->heap()->InSpaceSlow(pc, CODE_SPACE)) {
       return false;
@@ -850,7 +850,7 @@ StackFrame::Type StackFrameIteratorForProfiler::ComputeStackFrameType(
       state->fp + StandardFrameConstants::kFunctionOffset, kSystemPointerSize);
   Object maybe_function = Object(
       Memory<Address>(state->fp + StandardFrameConstants::kFunctionOffset));
-  if (maybe_function.IsSmi()) {
+  if (IsSmi(maybe_function)) {
     return StackFrame::NATIVE;
   }
 
@@ -953,7 +953,7 @@ StackFrame::Type ExitFrame::ComputeFrameType(Address fp) {
   const int offset = ExitFrameConstants::kFrameTypeOffset;
   Object marker(Memory<Address>(fp + offset));
 
-  if (!marker.IsSmi()) {
+  if (!IsSmi(marker)) {
     return EXIT;
   }
 
@@ -1030,7 +1030,7 @@ Object BuiltinExitFrame::GetParameter(int i) const {
 
 int BuiltinExitFrame::ComputeParametersCount() const {
   Object argc_slot = argc_slot_object();
-  DCHECK(argc_slot.IsSmi());
+  DCHECK(IsSmi(argc_slot));
   // Argc also counts the receiver, target, new target, and argc itself as args,
   // therefore the real argument count is argc - 4.
   int argc = Smi::ToInt(argc_slot) - 4;
@@ -1051,7 +1051,7 @@ Handle<FixedArray> BuiltinExitFrame::GetParameters() const {
 }
 
 bool BuiltinExitFrame::IsConstructor() const {
-  return !new_target_slot_object().IsUndefined(isolate());
+  return !IsUndefined(new_target_slot_object(), isolate());
 }
 
 // Ensure layout of v8::FunctionCallbackInfo is in sync with
@@ -1064,26 +1064,26 @@ static_assert(ApiCallbackExitFrameConstants::kFunctionCallbackInfoArgsLength ==
 
 HeapObject ApiCallbackExitFrame::target() const {
   Object function = *target_slot();
-  DCHECK(function.IsJSFunction() || function.IsFunctionTemplateInfo());
+  DCHECK(IsJSFunction(function) || IsFunctionTemplateInfo(function));
   return HeapObject::cast(function);
 }
 
 void ApiCallbackExitFrame::set_target(HeapObject function) const {
-  DCHECK(function.IsJSFunction() || function.IsFunctionTemplateInfo());
+  DCHECK(IsJSFunction(function) || IsFunctionTemplateInfo(function));
   target_slot().store(function);
 }
 
 Handle<JSFunction> ApiCallbackExitFrame::GetFunction() const {
   HeapObject maybe_function = target();
-  if (maybe_function.IsJSFunction()) {
+  if (IsJSFunction(maybe_function)) {
     return Handle<JSFunction>(target_slot().location());
   }
-  DCHECK(maybe_function.IsFunctionTemplateInfo());
+  DCHECK(IsFunctionTemplateInfo(maybe_function));
   Handle<FunctionTemplateInfo> function_template_info(
       FunctionTemplateInfo::cast(maybe_function), isolate());
 
   // Instantiate function for the correct context.
-  DCHECK((*context_slot()).IsContext());
+  DCHECK(IsContext(*context_slot()));
   Handle<NativeContext> native_context(
       Context::cast(*context_slot())->native_context(), isolate());
 
@@ -1107,7 +1107,7 @@ Object ApiCallbackExitFrame::GetParameter(int i) const {
 
 int ApiCallbackExitFrame::ComputeParametersCount() const {
   Object argc_value = *argc_slot();
-  DCHECK(argc_value.IsSmi());
+  DCHECK(IsSmi(argc_value));
   int argc = Smi::ToInt(argc_value);
   DCHECK_GE(argc, 0);
   return argc;
@@ -1126,7 +1126,7 @@ Handle<FixedArray> ApiCallbackExitFrame::GetParameters() const {
 }
 
 bool ApiCallbackExitFrame::IsConstructor() const {
-  return !(*new_target_slot()).IsUndefined(isolate());
+  return !IsUndefined(*new_target_slot(), isolate());
 }
 
 void ApiCallbackExitFrame::Summarize(std::vector<FrameSummary>* frames) const {
@@ -1325,7 +1325,7 @@ void VisitSpillSlot(Isolate* isolate, RootVisitor* v,
           if (fwd_map_map_word.IsForwardingAddress()) {
             forwarded_map = fwd_map_map_word.ToForwardingAddress(forwarded_map);
           }
-          CHECK(forwarded_map.IsMap(cage_base));
+          CHECK(IsMap(forwarded_map, cage_base));
         }
       }
     }
@@ -1922,7 +1922,7 @@ Object JavaScriptFrame::unchecked_function() const {
   // During deoptimization of an optimized function, we may have yet to
   // materialize some closures on the stack. The arguments marker object
   // marks this case.
-  DCHECK(function_slot_object().IsJSFunction() ||
+  DCHECK(IsJSFunction(function_slot_object()) ||
          ReadOnlyRoots(isolate()).arguments_marker() == function_slot_object());
   return function_slot_object();
 }
@@ -1935,7 +1935,7 @@ Object CommonFrameWithJSLinkage::receiver() const {
 Object JavaScriptFrame::context() const {
   const int offset = StandardFrameConstants::kContextOffset;
   Object maybe_result(Memory<Address>(fp() + offset));
-  DCHECK(!maybe_result.IsSmi());
+  DCHECK(!IsSmi(maybe_result));
   return maybe_result;
 }
 
@@ -1966,11 +1966,11 @@ void JavaScriptFrame::PrintFunctionAndOffset(JSFunction function,
     SharedFunctionInfo shared = function->shared();
     int source_pos = code->SourcePosition(cage_base, code_offset);
     Object maybe_script = shared->script();
-    if (maybe_script.IsScript()) {
+    if (IsScript(maybe_script)) {
       Script script = Script::cast(maybe_script);
       int line = script->GetLineNumber(source_pos) + 1;
       Object script_name_raw = script->name();
-      if (script_name_raw.IsString()) {
+      if (IsString(script_name_raw)) {
         String script_name = String::cast(script->name());
         std::unique_ptr<char[]> c_script_name =
             script_name->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
@@ -2043,7 +2043,7 @@ void JavaScriptFrame::CollectFunctionAndOffsetForICStats(JSFunction function,
 
   int source_pos = code->SourcePosition(cage_base, code_offset);
   Object maybe_script = shared->script(cage_base, kAcquireLoad);
-  if (maybe_script.IsScript(cage_base)) {
+  if (IsScript(maybe_script, cage_base)) {
     Script script = Script::cast(maybe_script);
     Script::PositionInfo info;
     script->GetPositionInfo(source_pos, &info);
@@ -3108,7 +3108,7 @@ void JavaScriptFrame::Print(StringStream* accumulator, PrintMode mode,
   // or context slots.
   ScopeInfo scope_info = shared->scope_info();
   Object script_obj = shared->script();
-  if (script_obj.IsScript()) {
+  if (IsScript(script_obj)) {
     Script script = Script::cast(script_obj);
     accumulator->Add(" [");
     accumulator->PrintName(script->name());
@@ -3157,7 +3157,7 @@ void JavaScriptFrame::Print(StringStream* accumulator, PrintMode mode,
 
   // Try to get hold of the context of this frame.
   Context context;
-  if (this->context().IsContext()) {
+  if (IsContext(this->context())) {
     context = Context::cast(this->context());
     while (context->IsWithContext()) {
       context = context->previous();

@@ -23,7 +23,7 @@ void ManualOptimizationTable::MarkFunctionForManualOptimization(
   Handle<SharedFunctionInfo> shared_info(function->shared(), isolate);
 
   Handle<ObjectHashTable> table =
-      isolate->heap()->functions_marked_for_manual_optimization().IsUndefined()
+      IsUndefined(isolate->heap()->functions_marked_for_manual_optimization())
           ? ObjectHashTable::New(isolate, 1)
           : handle(ObjectHashTable::cast(
                        isolate->heap()
@@ -56,13 +56,13 @@ bool ManualOptimizationTable::IsMarkedForManualOptimization(
   Handle<Object> table = handle(
       isolate->heap()->functions_marked_for_manual_optimization(), isolate);
   Handle<Object> entry =
-      table->IsUndefined()
+      IsUndefined(*table)
           ? handle(ReadOnlyRoots(isolate).the_hole_value(), isolate)
           : handle(Handle<ObjectHashTable>::cast(table)->Lookup(
                        handle(function->shared(), isolate)),
                    isolate);
 
-  return !entry->IsTheHole();
+  return !IsTheHole(*entry);
 }
 
 }  // namespace internal

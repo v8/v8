@@ -19,6 +19,7 @@ namespace internal {
 class Object;
 class Smi;
 class HeapObject;
+class TaggedIndex;
 
 // Tagged<T> represents an uncompressed V8 tagged pointer.
 //
@@ -131,6 +132,25 @@ class TaggedOperatorArrowRef {
   T object_;
 };
 
+template <typename T>
+struct BaseForTagged {
+  using type = Tagged<HeapObject>;
+};
+
+// FieldType is special, since it can be Smi or Map. It could probably even be
+// its own specialization, to avoid exposing an operator->.
+template <>
+struct BaseForTagged<FieldType> {
+  using type = Tagged<Object>;
+};
+
+// TaggedIndex is special, since it's a more strict Smi. It could probably even
+// be its own specialization, to avoid exposing an operator->.
+template <>
+struct BaseForTagged<TaggedIndex> {
+  using type = Tagged<Object>;
+};
+
 }  // namespace detail
 
 template <typename T>
@@ -176,30 +196,6 @@ class Tagged<Object> : public TaggedBase {
 
   inline bool IsHeapObject() const { return !IsSmi(); }
   inline bool IsSmi() const { return HAS_SMI_TAG(ptr()); }
-
-#define IS_TYPE_FUNCTION_DECL(type_) \
-  inline bool Is##type_() const;     \
-  inline bool Is##type_(PtrComprCageBase cage_base) const;
-  HEAP_OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DECL)
-  IS_TYPE_FUNCTION_DECL(HashTableBase)
-  IS_TYPE_FUNCTION_DECL(SmallOrderedHashTable)
-#undef IS_TYPE_FUNCTION_DECL
-
-#define IS_TYPE_FUNCTION_DECL(Type, ...)             \
-  inline bool Is##Type(Isolate* isolate) const;      \
-  inline bool Is##Type(LocalIsolate* isolate) const; \
-  inline bool Is##Type(ReadOnlyRoots roots) const;   \
-  inline bool Is##Type() const;
-  ODDBALL_LIST(IS_TYPE_FUNCTION_DECL)
-  HOLE_LIST(IS_TYPE_FUNCTION_DECL)
-  IS_TYPE_FUNCTION_DECL(NullOrUndefined)
-#undef IS_TYPE_FUNCTION_DECL
-
-#define IS_TYPE_FUNCTION_DECL(NAME, Name, name) \
-  inline bool Is##Name() const;                 \
-  inline bool Is##Name(PtrComprCageBase cage_base) const;
-  STRUCT_LIST(IS_TYPE_FUNCTION_DECL)
-#undef IS_TYPE_FUNCTION_DECL
 
   // Implicit conversions to/from raw pointers
   // TODO(leszeks): Remove once we're using Tagged everywhere.
@@ -331,30 +327,6 @@ class Tagged<HeapObject> : public TaggedBase {
   constexpr bool IsHeapObject() const { return true; }
   constexpr bool IsSmi() const { return false; }
 
-#define IS_TYPE_FUNCTION_DECL(type_) \
-  inline bool Is##type_() const;     \
-  inline bool Is##type_(PtrComprCageBase cage_base) const;
-  HEAP_OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DECL)
-  IS_TYPE_FUNCTION_DECL(HashTableBase)
-  IS_TYPE_FUNCTION_DECL(SmallOrderedHashTable)
-#undef IS_TYPE_FUNCTION_DECL
-
-#define IS_TYPE_FUNCTION_DECL(Type, ...)             \
-  inline bool Is##Type(Isolate* isolate) const;      \
-  inline bool Is##Type(LocalIsolate* isolate) const; \
-  inline bool Is##Type(ReadOnlyRoots roots) const;   \
-  inline bool Is##Type() const;
-  ODDBALL_LIST(IS_TYPE_FUNCTION_DECL)
-  HOLE_LIST(IS_TYPE_FUNCTION_DECL)
-  IS_TYPE_FUNCTION_DECL(NullOrUndefined)
-#undef IS_TYPE_FUNCTION_DECL
-
-#define IS_TYPE_FUNCTION_DECL(NAME, Name, name) \
-  inline bool Is##Name() const;                 \
-  inline bool Is##Name(PtrComprCageBase cage_base) const;
-  STRUCT_LIST(IS_TYPE_FUNCTION_DECL)
-#undef IS_TYPE_FUNCTION_DECL
-
   inline bool InAnySharedSpace() const;
   inline bool InWritableSharedSpace() const;
   inline bool InReadOnlySpace() const;
@@ -400,8 +372,8 @@ static_assert(Tagged<HeapObject>().is_null());
 // separate Tagged<T> specializations for T==Smi and T==Object, so we know that
 // all other Tagged<T> are definitely pointers and not Smis.
 template <typename T>
-class Tagged : public Tagged<HeapObject> {
-  using Base = Tagged<HeapObject>;
+class Tagged : public detail::BaseForTagged<T>::type {
+  using Base = typename detail::BaseForTagged<T>::type;
 
  public:
   // Explicit cast for sub- and superclasses.

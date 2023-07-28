@@ -57,7 +57,7 @@ template <int N>
 void CheckExceptionInfos(v8::internal::Isolate* i_isolate, Handle<Object> exc,
                          const ExceptionInfo (&excInfos)[N]) {
   // Check that it's indeed an Error object.
-  CHECK(exc->IsJSError());
+  CHECK(IsJSError(*exc));
 
   v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(i_isolate);
 
@@ -108,7 +108,7 @@ void CheckComputeLocation(v8::internal::Isolate* i_isolate, Handle<Object> exc,
   //               relative to the module or relative to the function.
   // CHECK_EQ(topLocation.column - 1, message->GetColumnNumber());
   String scriptSource = message->GetSource();
-  CHECK(scriptSource.IsString());
+  CHECK(IsString(scriptSource));
   if (stackFrame->IsWasm()) {
     CHECK_EQ(scriptSource->length(), 0);
   } else {

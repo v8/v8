@@ -290,7 +290,7 @@ IrregexpInterpreter::Result HandleInterrupts(
         AllowGarbageCollection yes_gc;
         result = isolate->stack_guard()->HandleInterrupts();
       }
-      if (result.IsException(isolate)) {
+      if (IsException(result, isolate)) {
         return IrregexpInterpreter::EXCEPTION;
       }
 
@@ -1078,7 +1078,7 @@ IrregexpInterpreter::Result IrregexpInterpreter::MatchInternal(
   DCHECK(subject_string->IsFlat());
 
   // TODO(chromium:1262676): Remove this CHECK once fixed.
-  CHECK(code_array.IsByteArray());
+  CHECK(IsByteArray(code_array));
 
   // Note: Heap allocation *is* allowed in two situations if calling from
   // Runtime:

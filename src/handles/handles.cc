@@ -46,7 +46,7 @@ ASSERT_TRIVIALLY_COPYABLE(MaybeDirectHandle<Object>);
 bool HandleBase::IsDereferenceAllowed() const {
   DCHECK_NOT_NULL(location_);
   Object object(*location_);
-  if (object.IsSmi()) return true;
+  if (IsSmi(object)) return true;
   HeapObject heap_object = HeapObject::cast(object);
   if (IsReadOnlyHeapObject(heap_object)) return true;
   Isolate* isolate = GetIsolateFromWritableObject(heap_object);

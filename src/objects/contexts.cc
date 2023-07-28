@@ -92,7 +92,7 @@ bool ScriptContextTable::Lookup(Handle<String> name,
 }
 
 bool Context::is_declaration_context() const {
-  if (IsFunctionContext() || IsNativeContext() || IsScriptContext() ||
+  if (IsFunctionContext() || IsNativeContext(*this) || IsScriptContext() ||
       IsModuleContext()) {
     return true;
   }
@@ -114,7 +114,7 @@ Context Context::declaration_context() const {
 Context Context::closure_context() const {
   Context current = *this;
   while (!current->IsFunctionContext() && !current->IsScriptContext() &&
-         !current->IsModuleContext() && !current.IsNativeContext() &&
+         !current->IsModuleContext() && !IsNativeContext(current) &&
          !current->IsEvalContext()) {
     current = current->previous();
   }
@@ -122,17 +122,17 @@ Context Context::closure_context() const {
 }
 
 JSObject Context::extension_object() const {
-  DCHECK(IsNativeContext() || IsFunctionContext() || IsBlockContext() ||
+  DCHECK(IsNativeContext(*this) || IsFunctionContext() || IsBlockContext() ||
          IsEvalContext() || IsCatchContext());
   HeapObject object = extension();
-  if (object.IsUndefined()) return JSObject();
-  DCHECK(object.IsJSContextExtensionObject() ||
-         (IsNativeContext() && object.IsJSGlobalObject()));
+  if (IsUndefined(object)) return JSObject();
+  DCHECK(IsJSContextExtensionObject(object) ||
+         (IsNativeContext(*this) && IsJSGlobalObject(object)));
   return JSObject::cast(object);
 }
 
 JSReceiver Context::extension_receiver() const {
-  DCHECK(IsNativeContext() || IsWithContext() || IsEvalContext() ||
+  DCHECK(IsNativeContext(*this) || IsWithContext() || IsEvalContext() ||
          IsFunctionContext() || IsBlockContext());
   return IsWithContext() ? JSReceiver::cast(extension()) : extension_object();
 }
@@ -178,7 +178,7 @@ static Maybe<bool> UnscopableLookup(LookupIterator* it, bool is_with_context) {
                               Handle<JSReceiver>::cast(it->GetReceiver()),
                               isolate->factory()->unscopables_symbol()),
       Nothing<bool>());
-  if (!unscopables->IsJSReceiver()) return Just(true);
+  if (!IsJSReceiver(*unscopables)) return Just(true);
   Handle<Object> blocklist;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, blocklist,
@@ -223,20 +223,20 @@ Handle<Object> Context::Lookup(Handle<Context> context, Handle<String> name,
       PrintF(" - looking in context %p",
              reinterpret_cast<void*>(context->ptr()));
       if (context->IsScriptContext()) PrintF(" (script context)");
-      if (context->IsNativeContext()) PrintF(" (native context)");
+      if (IsNativeContext(*context)) PrintF(" (native context)");
       if (context->IsDebugEvaluateContext()) PrintF(" (debug context)");
       PrintF("\n");
     }
 
     // 1. Check global objects, subjects of with, and extension objects.
     DCHECK_IMPLIES(context->IsEvalContext() && context->has_extension(),
-                   context->extension().IsTheHole(isolate));
-    if ((context->IsNativeContext() || context->IsWithContext() ||
+                   IsTheHole(context->extension(), isolate));
+    if ((IsNativeContext(*context) || context->IsWithContext() ||
          context->IsFunctionContext() || context->IsBlockContext()) &&
         context->has_extension() && !context->extension_receiver().is_null()) {
       Handle<JSReceiver> object(context->extension_receiver(), isolate);
 
-      if (context->IsNativeContext()) {
+      if (IsNativeContext(*context)) {
         DisallowGarbageCollection no_gc;
         if (v8_flags.trace_contexts) {
           PrintF(" - trying other script contexts\n");
@@ -266,7 +266,7 @@ Handle<Object> Context::Lookup(Handle<Context> context, Handle<String> name,
       // to only do a local lookup for context extension objects.
       Maybe<PropertyAttributes> maybe = Nothing<PropertyAttributes>();
       if ((flags & FOLLOW_PROTOTYPE_CHAIN) == 0 ||
-          object->IsJSContextExtensionObject()) {
+          IsJSContextExtensionObject(*object)) {
         maybe = JSReceiver::GetOwnPropertyAttributes(object, name);
       } else {
         // A with context will never bind "this", but debug-eval may look into
@@ -323,7 +323,7 @@ Handle<Object> Context::Lookup(Handle<Context> context, Handle<String> name,
         // context of the first script that declared a variable, all other
         // script contexts will contain 'the hole' for that particular name.
         if (scope_info->IsReplModeScope() &&
-            context->get(slot_index).IsTheHole(isolate)) {
+            IsTheHole(context->get(slot_index), isolate)) {
           context = Handle<Context>(context->previous(), isolate);
           continue;
         }
@@ -387,7 +387,7 @@ Handle<Object> Context::Lookup(Handle<Context> context, Handle<String> name,
 
       // Check materialized locals.
       Object ext = context->get(EXTENSION_INDEX);
-      if (ext.IsJSReceiver()) {
+      if (IsJSReceiver(ext)) {
         Handle<JSReceiver> extension(JSReceiver::cast(ext), isolate);
         LookupIterator it(isolate, extension, name, extension);
         Maybe<bool> found = JSReceiver::HasProperty(&it);
@@ -399,7 +399,7 @@ Handle<Object> Context::Lookup(Handle<Context> context, Handle<String> name,
 
       // Check the original context, but do not follow its context chain.
       Object obj = context->get(WRAPPED_CONTEXT_INDEX);
-      if (obj.IsContext()) {
+      if (IsContext(obj)) {
         Handle<Context> wrapped_context(Context::cast(obj), isolate);
         Handle<Object> result =
             Context::Lookup(wrapped_context, name, DONT_FOLLOW_CHAINS, index,
@@ -409,7 +409,7 @@ Handle<Object> Context::Lookup(Handle<Context> context, Handle<String> name,
     }
 
     // 3. Prepare to continue with the previous (next outermost) context.
-    if (context->IsNativeContext()) break;
+    if (IsNativeContext(*context)) break;
 
     // In case we saw any DebugEvaluateContext, we'll need to check the block
     // list before we can advance to properly "shadow" stack-allocated
@@ -418,11 +418,11 @@ Handle<Object> Context::Lookup(Handle<Context> context, Handle<String> name,
     // "wrapped" context lookup for DebugEvaluateContexts. In that case
     // `has_seen_debug_evaluate_context` will always be false.
     if (has_seen_debug_evaluate_context &&
-        isolate->heap()->locals_block_list_cache().IsEphemeronHashTable()) {
+        IsEphemeronHashTable(isolate->heap()->locals_block_list_cache())) {
       Handle<ScopeInfo> scope_info = handle(context->scope_info(), isolate);
       Object maybe_outer_block_list =
           isolate->LocalsBlockListCacheGet(scope_info);
-      if (maybe_outer_block_list.IsStringSet() &&
+      if (IsStringSet(maybe_outer_block_list) &&
           StringSet::cast(maybe_outer_block_list)->Has(isolate, name)) {
         if (v8_flags.trace_contexts) {
           PrintF(" - name is blocklisted. Aborting.\n");
@@ -447,7 +447,7 @@ bool NativeContext::HasTemplateLiteralObject(JSArray array) {
 Handle<Object> Context::ErrorMessageForCodeGenerationFromStrings() {
   Isolate* isolate = GetIsolate();
   Handle<Object> result(error_message_for_code_gen_from_strings(), isolate);
-  if (!result->IsUndefined(isolate)) return result;
+  if (!IsUndefined(*result, isolate)) return result;
   return isolate->factory()->NewStringFromStaticChars(
       "Code generation from strings disallowed for this context");
 }
@@ -455,7 +455,7 @@ Handle<Object> Context::ErrorMessageForCodeGenerationFromStrings() {
 Handle<Object> Context::ErrorMessageForWasmCodeGeneration() {
   Isolate* isolate = GetIsolate();
   Handle<Object> result(error_message_for_wasm_code_gen(), isolate);
-  if (!result->IsUndefined(isolate)) return result;
+  if (!IsUndefined(*result, isolate)) return result;
   return isolate->factory()->NewStringFromStaticChars(
       "Wasm code generation disallowed by embedder");
 }
@@ -492,7 +492,7 @@ namespace {
 // native contexts instead of using dummy internalized strings as
 // extensions.
 bool IsContexExtensionTestObject(HeapObject extension) {
-  return extension.IsInternalizedString() &&
+  return IsInternalizedString(extension) &&
          String::cast(extension)->length() == 1;
 }
 }  // namespace
@@ -500,21 +500,21 @@ bool IsContexExtensionTestObject(HeapObject extension) {
 void Context::VerifyExtensionSlot(HeapObject extension) {
   CHECK(scope_info()->HasContextExtensionSlot());
   // Early exit for potentially uninitialized contexfts.
-  if (extension.IsUndefined()) return;
-  if (extension.IsJSContextExtensionObject()) {
+  if (IsUndefined(extension)) return;
+  if (IsJSContextExtensionObject(extension)) {
     CHECK((IsBlockContext() && scope_info()->is_declaration_scope()) ||
           IsFunctionContext());
   } else if (IsModuleContext()) {
-    CHECK(extension.IsSourceTextModule());
+    CHECK(IsSourceTextModule(extension));
   } else if (IsDebugEvaluateContext() || IsWithContext()) {
-    CHECK(extension.IsJSReceiver() ||
+    CHECK(IsJSReceiver(extension) ||
           (IsWithContext() && IsContexExtensionTestObject(extension)));
-  } else if (IsNativeContext()) {
-    CHECK(extension.IsJSGlobalObject() ||
+  } else if (IsNativeContext(*this)) {
+    CHECK(IsJSGlobalObject(extension) ||
           IsContexExtensionTestObject(extension));
   } else if (IsScriptContext()) {
     // Host-defined options can be stored on the context for classic scripts.
-    CHECK(extension.IsFixedArray());
+    CHECK(IsFixedArray(extension));
   }
 }
 #endif  // VERIFY_HEAP
@@ -534,9 +534,9 @@ bool Context::IsBootstrappingOrValidParentContext(Object object,
   // During bootstrapping we allow all objects to pass as
   // contexts. This is necessary to fix circular dependencies.
   if (child->GetIsolate()->bootstrapper()->IsActive()) return true;
-  if (!object.IsContext()) return false;
+  if (!IsContext(object)) return false;
   Context context = Context::cast(object);
-  return context.IsNativeContext() || context->IsScriptContext() ||
+  return IsNativeContext(context) || context->IsScriptContext() ||
          context->IsModuleContext() || !child->IsModuleContext();
 }
 
@@ -596,7 +596,7 @@ void NativeContext::RunPromiseHook(PromiseHookType type,
   }
 
   Handle<Object> hook(isolate->native_context()->get(contextSlot), isolate);
-  if (hook->IsUndefined()) return;
+  if (IsUndefined(*hook)) return;
 
   int argc = type == PromiseHookType::kInit ? 2 : 1;
   Handle<Object> argv[2] = {

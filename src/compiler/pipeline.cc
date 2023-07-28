@@ -159,7 +159,7 @@ namespace {
 Maybe<OuterContext> GetModuleContext(OptimizedCompilationInfo* info) {
   Tagged<Context> current = info->closure()->context();
   size_t distance = 0;
-  while (!current->IsNativeContext()) {
+  while (!IsNativeContext(*current)) {
     if (current->IsModuleContext()) {
       return Just(OuterContext(
           info->CanonicalHandle(current, current->GetIsolate()), distance));
@@ -910,15 +910,15 @@ class V8_NODISCARD LocalIsolateScope {
 
 void PrintFunctionSource(OptimizedCompilationInfo* info, Isolate* isolate,
                          int source_id, Handle<SharedFunctionInfo> shared) {
-  if (!shared->script().IsUndefined(isolate)) {
+  if (!IsUndefined(shared->script(), isolate)) {
     Handle<Script> script(Script::cast(shared->script()), isolate);
 
-    if (!script->source().IsUndefined(isolate)) {
+    if (!IsUndefined(script->source(), isolate)) {
       CodeTracer::StreamScope tracing_scope(isolate->GetCodeTracer());
       Object source_name = script->name();
       auto& os = tracing_scope.stream();
       os << "--- FUNCTION SOURCE (";
-      if (source_name.IsString()) {
+      if (IsString(source_name)) {
         os << String::cast(source_name)->ToCString().get() << ":";
       }
       os << shared->DebugNameCStr().get() << ") id{";
@@ -994,8 +994,8 @@ void PrintCode(Isolate* isolate, Handle<Code> code,
     const bool print_source = info->IsOptimizing();
     if (print_source) {
       Handle<SharedFunctionInfo> shared = info->shared_info();
-      if (shared->script().IsScript() &&
-          !Script::cast(shared->script())->source().IsUndefined(isolate)) {
+      if (IsScript(shared->script()) &&
+          !IsUndefined(Script::cast(shared->script())->source(), isolate)) {
         os << "--- Raw source ---\n";
         StringCharacterStream stream(
             String::cast(Script::cast(shared->script())->source()),
@@ -1353,7 +1353,7 @@ void PipelineCompilationJob::RegisterWeakObjectsInOptimizedCode(
       DCHECK(RelocInfo::IsEmbeddedObjectMode(it.rinfo()->rmode()));
       HeapObject target_object = it.rinfo()->target_object(cage_base);
       if (code->IsWeakObjectInOptimizedCode(target_object)) {
-        if (target_object.IsMap(cage_base)) {
+        if (IsMap(target_object, cage_base)) {
           maps.push_back(handle(Map::cast(target_object), isolate));
         }
       }
@@ -4369,7 +4369,7 @@ bool PipelineImpl::CheckNoDeprecatedMaps(Handle<Code> code) {
   for (RelocIterator it(*code, mode_mask); !it.done(); it.next()) {
     DCHECK(RelocInfo::IsEmbeddedObjectMode(it.rinfo()->rmode()));
     HeapObject obj = it.rinfo()->target_object(data_->isolate());
-    if (obj.IsMap() && Map::cast(obj)->is_deprecated()) {
+    if (IsMap(obj) && Map::cast(obj)->is_deprecated()) {
       return false;
     }
   }

@@ -237,7 +237,7 @@ Handle<Object> BytecodeArrayIterator::GetConstantAtIndex(
 }
 
 bool BytecodeArrayIterator::IsConstantAtIndexSmi(int index) const {
-  return bytecode_array()->constant_pool()->get(index).IsSmi();
+  return IsSmi(bytecode_array()->constant_pool()->get(index));
 }
 
 Smi BytecodeArrayIterator::GetConstantAtIndexAsSmi(int index) const {

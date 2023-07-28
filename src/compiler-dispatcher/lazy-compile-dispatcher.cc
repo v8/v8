@@ -126,7 +126,7 @@ void SetUncompiledDataJobPointer(LocalIsolate* isolate,
       break;
     }
     case UNCOMPILED_DATA_WITHOUT_PREPARSE_DATA_TYPE: {
-      DCHECK(uncompiled_data.IsUncompiledDataWithoutPreparseData());
+      DCHECK(IsUncompiledDataWithoutPreparseData(uncompiled_data));
       Handle<String> inferred_name(uncompiled_data->inferred_name(), isolate);
       Handle<UncompiledDataWithoutPreparseDataWithJob> new_uncompiled_data =
           isolate->factory()->NewUncompiledDataWithoutPreparseDataWithJob(
@@ -184,10 +184,10 @@ bool LazyCompileDispatcher::IsEnqueued(
     Handle<SharedFunctionInfo> function) const {
   Job* job = nullptr;
   Object function_data = function->function_data(kAcquireLoad);
-  if (function_data.IsUncompiledDataWithPreparseDataAndJob()) {
+  if (IsUncompiledDataWithPreparseDataAndJob(function_data)) {
     job = reinterpret_cast<Job*>(
         UncompiledDataWithPreparseDataAndJob::cast(function_data)->job());
-  } else if (function_data.IsUncompiledDataWithoutPreparseDataWithJob()) {
+  } else if (IsUncompiledDataWithoutPreparseDataWithJob(function_data)) {
     job = reinterpret_cast<Job*>(
         UncompiledDataWithoutPreparseDataWithJob::cast(function_data)->job());
   }
@@ -370,10 +370,10 @@ void LazyCompileDispatcher::AbortAll() {
 LazyCompileDispatcher::Job* LazyCompileDispatcher::GetJobFor(
     Handle<SharedFunctionInfo> shared, const base::MutexGuard&) const {
   Object function_data = shared->function_data(kAcquireLoad);
-  if (function_data.IsUncompiledDataWithPreparseDataAndJob()) {
+  if (IsUncompiledDataWithPreparseDataAndJob(function_data)) {
     return reinterpret_cast<Job*>(
         UncompiledDataWithPreparseDataAndJob::cast(function_data)->job());
-  } else if (function_data.IsUncompiledDataWithoutPreparseDataWithJob()) {
+  } else if (IsUncompiledDataWithoutPreparseDataWithJob(function_data)) {
     return reinterpret_cast<Job*>(
         UncompiledDataWithoutPreparseDataWithJob::cast(function_data)->job());
   }

@@ -46,7 +46,7 @@ bool ToPropertyDescriptorFastPath(Isolate* isolate, Handle<JSReceiver> obj,
   {
     DisallowGarbageCollection no_gc;
     Tagged<JSReceiver> raw_obj = *obj;
-    if (!raw_obj->IsJSObject()) return false;
+    if (!IsJSObject(*raw_obj)) return false;
     Map raw_map = raw_obj->map(isolate);
     if (raw_map->instance_type() != JS_OBJECT_TYPE) return false;
     if (raw_map->is_access_check_needed()) return false;
@@ -103,11 +103,11 @@ bool ToPropertyDescriptorFastPath(Isolate* isolate, Handle<JSReceiver> obj,
       desc->set_writable(value->BooleanValue(isolate));
     } else if (key == roots.get_string()) {
       // Bail out to slow path to throw an exception if necessary.
-      if (!value->IsCallable()) return false;
+      if (!IsCallable(*value)) return false;
       desc->set_get(value);
     } else if (key == roots.set_string()) {
       // Bail out to slow path to throw an exception if necessary.
-      if (!value->IsCallable()) return false;
+      if (!IsCallable(*value)) return false;
       desc->set_set(value);
     }
   }
@@ -197,7 +197,7 @@ bool PropertyDescriptor::ToPropertyDescriptor(Isolate* isolate,
                                               PropertyDescriptor* desc) {
   // 1. ReturnIfAbrupt(Obj).
   // 2. If Type(Obj) is not Object, throw a TypeError exception.
-  if (!obj->IsJSReceiver()) {
+  if (!IsJSReceiver(*obj)) {
     isolate->Throw(*isolate->factory()->NewTypeError(
         MessageTemplate::kPropertyDescObject, obj));
     return false;
@@ -264,7 +264,7 @@ bool PropertyDescriptor::ToPropertyDescriptor(Isolate* isolate,
   if (!getter.is_null()) {
     // 18c. If IsCallable(getter) is false and getter is not undefined,
     // throw a TypeError exception.
-    if (!getter->IsCallable() && !getter->IsUndefined(isolate)) {
+    if (!IsCallable(*getter) && !IsUndefined(*getter, isolate)) {
       isolate->Throw(*isolate->factory()->NewTypeError(
           MessageTemplate::kObjectGetterCallable, getter));
       return false;
@@ -282,7 +282,7 @@ bool PropertyDescriptor::ToPropertyDescriptor(Isolate* isolate,
   if (!setter.is_null()) {
     // 21c. If IsCallable(setter) is false and setter is not undefined,
     // throw a TypeError exception.
-    if (!setter->IsCallable() && !setter->IsUndefined(isolate)) {
+    if (!IsCallable(*setter) && !IsUndefined(*setter, isolate)) {
       isolate->Throw(*isolate->factory()->NewTypeError(
           MessageTemplate::kObjectSetterCallable, setter));
       return false;

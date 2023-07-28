@@ -134,8 +134,8 @@ class WasmGCForegroundTask : public CancelableTask {
 class WeakScriptHandle {
  public:
   explicit WeakScriptHandle(Handle<Script> script) : script_id_(script->id()) {
-    DCHECK(script->name().IsString() || script->name().IsUndefined());
-    if (script->name().IsString()) {
+    DCHECK(IsString(script->name()) || IsUndefined(script->name()));
+    if (IsString(script->name())) {
       std::unique_ptr<char[]> source_url =
           String::cast(script->name())->ToCString();
       // Convert from {unique_ptr} to {shared_ptr}.

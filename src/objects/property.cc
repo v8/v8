@@ -65,14 +65,14 @@ Descriptor::Descriptor(Handle<Name> key, const MaybeObjectHandle& value,
       value_(value),
       details_(kind, attributes, location, constness, representation,
                field_index) {
-  DCHECK(key->IsUniqueName());
+  DCHECK(IsUniqueName(*key));
   DCHECK_IMPLIES(key->IsPrivate(), !details_.IsEnumerable());
 }
 
 Descriptor::Descriptor(Handle<Name> key, const MaybeObjectHandle& value,
                        PropertyDetails details)
     : key_(key), value_(value), details_(details) {
-  DCHECK(key->IsUniqueName());
+  DCHECK(IsUniqueName(*key));
   DCHECK_IMPLIES(key->IsPrivate(), !details_.IsEnumerable());
 }
 

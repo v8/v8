@@ -710,7 +710,7 @@ void CollectionsBuiltinsAssembler::SameValueZeroSmi(TNode<Smi> key_smi,
 void CollectionsBuiltinsAssembler::BranchIfMapIteratorProtectorValid(
     Label* if_true, Label* if_false) {
   TNode<PropertyCell> protector_cell = MapIteratorProtectorConstant();
-  DCHECK(isolate()->heap()->map_iterator_protector().IsPropertyCell());
+  DCHECK(i::IsPropertyCell(isolate()->heap()->map_iterator_protector()));
   Branch(
       TaggedEqual(LoadObjectField(protector_cell, PropertyCell::kValueOffset),
                   SmiConstant(Protectors::kProtectorValid)),
@@ -769,7 +769,7 @@ void BranchIfIterableWithOriginalKeyOrValueMapIterator(
 void CollectionsBuiltinsAssembler::BranchIfSetIteratorProtectorValid(
     Label* if_true, Label* if_false) {
   const TNode<PropertyCell> protector_cell = SetIteratorProtectorConstant();
-  DCHECK(isolate()->heap()->set_iterator_protector().IsPropertyCell());
+  DCHECK(i::IsPropertyCell(isolate()->heap()->set_iterator_protector()));
   Branch(
       TaggedEqual(LoadObjectField(protector_cell, PropertyCell::kValueOffset),
                   SmiConstant(Protectors::kProtectorValid)),

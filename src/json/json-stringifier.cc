@@ -388,7 +388,7 @@ MaybeHandle<Object> JsonStringifier::Stringify(Handle<Object> object,
     CHECK(isolate_->has_pending_exception());
     return MaybeHandle<Object>();
   }
-  if (!gap->IsUndefined(isolate_) && !InitializeGap(gap)) {
+  if (!IsUndefined(*gap, isolate_) && !InitializeGap(gap)) {
     CHECK(isolate_->has_pending_exception());
     return MaybeHandle<Object>();
   }
@@ -430,13 +430,13 @@ bool JsonStringifier::InitializeReplacer(Handle<Object> replacer) {
       Handle<String> key;
       ASSIGN_RETURN_ON_EXCEPTION_VALUE(
           isolate_, element, Object::GetElement(isolate_, replacer, i), false);
-      if (element->IsNumber() || element->IsString()) {
+      if (IsNumber(*element) || IsString(*element)) {
         ASSIGN_RETURN_ON_EXCEPTION_VALUE(
             isolate_, key, Object::ToString(isolate_, element), false);
-      } else if (element->IsJSPrimitiveWrapper()) {
+      } else if (IsJSPrimitiveWrapper(*element)) {
         Handle<Object> value(Handle<JSPrimitiveWrapper>::cast(element)->value(),
                              isolate_);
-        if (value->IsNumber() || value->IsString()) {
+        if (IsNumber(*value) || IsString(*value)) {
           ASSIGN_RETURN_ON_EXCEPTION_VALUE(
               isolate_, key, Object::ToString(isolate_, element), false);
         }
@@ -454,7 +454,7 @@ bool JsonStringifier::InitializeReplacer(Handle<Object> replacer) {
     property_list_ = OrderedHashSet::ConvertToKeysArray(
         isolate_, set, GetKeysConversion::kKeepNumbers);
     property_list_ = handle_scope.CloseAndEscape(property_list_);
-  } else if (replacer->IsCallable()) {
+  } else if (IsCallable(*replacer)) {
     replacer_function_ = Handle<JSReceiver>::cast(replacer);
   }
   return true;
@@ -463,19 +463,19 @@ bool JsonStringifier::InitializeReplacer(Handle<Object> replacer) {
 bool JsonStringifier::InitializeGap(Handle<Object> gap) {
   DCHECK_NULL(gap_);
   HandleScope scope(isolate_);
-  if (gap->IsJSPrimitiveWrapper()) {
+  if (IsJSPrimitiveWrapper(*gap)) {
     Handle<Object> value(Handle<JSPrimitiveWrapper>::cast(gap)->value(),
                          isolate_);
-    if (value->IsString()) {
+    if (IsString(*value)) {
       ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate_, gap,
                                        Object::ToString(isolate_, gap), false);
-    } else if (value->IsNumber()) {
+    } else if (IsNumber(*value)) {
       ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate_, gap,
                                        Object::ToNumber(isolate_, gap), false);
     }
   }
 
-  if (gap->IsString()) {
+  if (IsString(*gap)) {
     Handle<String> gap_string = Handle<String>::cast(gap);
     if (gap_string->length() > 0) {
       int gap_length = std::min(gap_string->length(), 10);
@@ -489,7 +489,7 @@ bool JsonStringifier::InitializeGap(Handle<Object> gap) {
       }
       gap_[gap_length] = '\0';
     }
-  } else if (gap->IsNumber()) {
+  } else if (IsNumber(*gap)) {
     double value = std::min(gap->Number(), 10.0);
     if (value > 0) {
       int gap_length = DoubleToInt32(value);
@@ -511,10 +511,10 @@ MaybeHandle<Object> JsonStringifier::ApplyToJsonFunction(Handle<Object> object,
   LookupIterator it(isolate_, object, factory()->toJSON_string(),
                     LookupIterator::PROTOTYPE_CHAIN_SKIP_INTERCEPTOR);
   ASSIGN_RETURN_ON_EXCEPTION(isolate_, fun, Object::GetProperty(&it), Object);
-  if (!fun->IsCallable()) return object;
+  if (!IsCallable(*fun)) return object;
 
   // Call toJSON function.
-  if (key->IsSmi()) key = factory()->NumberToString(key);
+  if (IsSmi(*key)) key = factory()->NumberToString(key);
   Handle<Object> argv[] = {key};
   ASSIGN_RETURN_ON_EXCEPTION(isolate_, object,
                              Execution::Call(isolate_, fun, object, 1, argv),
@@ -525,7 +525,7 @@ MaybeHandle<Object> JsonStringifier::ApplyToJsonFunction(Handle<Object> object,
 MaybeHandle<Object> JsonStringifier::ApplyReplacerFunction(
     Handle<Object> value, Handle<Object> key, Handle<Object> initial_holder) {
   HandleScope scope(isolate_);
-  if (key->IsSmi()) key = factory()->NumberToString(key);
+  if (IsSmi(*key)) key = factory()->NumberToString(key);
   Handle<Object> argv[] = {key, value};
   Handle<JSReceiver> holder = CurrentHolder(value, initial_holder);
   ASSIGN_RETURN_ON_EXCEPTION(
@@ -620,13 +620,13 @@ class CircularStructureMessageBuilder {
 
   // A key can either be a string, the empty string or a Smi.
   void AppendKey(Handle<Object> key) {
-    if (key->IsSmi()) {
+    if (IsSmi(*key)) {
       builder_.AppendCStringLiteral("index ");
       AppendSmi(Smi::cast(*key));
       return;
     }
 
-    CHECK(key->IsString());
+    CHECK(IsString(*key));
     Handle<String> key_as_string = Handle<String>::cast(key);
     if (key_as_string->length() == 0) {
       builder_.AppendCStringLiteral("<anonymous>");
@@ -704,13 +704,13 @@ JsonStringifier::Result JsonStringifier::Serialize_(Handle<Object> object,
                                                     Handle<Object> key) {
   StackLimitCheck interrupt_check(isolate_);
   if (interrupt_check.InterruptRequested() &&
-      isolate_->stack_guard()->HandleInterrupts().IsException(isolate_)) {
+      IsException(isolate_->stack_guard()->HandleInterrupts(), isolate_)) {
     return EXCEPTION;
   }
 
   Handle<Object> initial_value = object;
   PtrComprCageBase cage_base(isolate_);
-  if (!object->IsSmi()) {
+  if (!IsSmi(*object)) {
     InstanceType instance_type =
         HeapObject::cast(*object)->map(cage_base)->instance_type();
     if ((InstanceTypeChecker::IsJSReceiver(instance_type) &&
@@ -726,7 +726,7 @@ JsonStringifier::Result JsonStringifier::Serialize_(Handle<Object> object,
         EXCEPTION);
   }
 
-  if (object->IsSmi()) {
+  if (IsSmi(*object)) {
     if (deferred_string_key) SerializeDeferredKey(comma, key);
     return SerializeSmi(Smi::cast(*object));
   }
@@ -804,8 +804,8 @@ JsonStringifier::Result JsonStringifier::Serialize_(Handle<Object> object,
         SerializeString(Handle<String>::cast(object));
         return SUCCESS;
       } else {
-        DCHECK(object->IsJSReceiver());
-        if (HeapObject::cast(*object).IsCallable(cage_base)) return UNCHANGED;
+        DCHECK(IsJSReceiver(*object));
+        if (IsCallable(HeapObject::cast(*object), cage_base)) return UNCHANGED;
         // Go to slow path for global proxy and objects requiring access checks.
         if (deferred_string_key) SerializeDeferredKey(comma, key);
         if (InstanceTypeChecker::IsJSProxy(instance_type)) {
@@ -821,23 +821,23 @@ JsonStringifier::Result JsonStringifier::Serialize_(Handle<Object> object,
 JsonStringifier::Result JsonStringifier::SerializeJSPrimitiveWrapper(
     Handle<JSPrimitiveWrapper> object, Handle<Object> key) {
   Object raw = object->value();
-  if (raw.IsString()) {
+  if (IsString(raw)) {
     Handle<Object> value;
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(
         isolate_, value, Object::ToString(isolate_, object), EXCEPTION);
     SerializeString(Handle<String>::cast(value));
-  } else if (raw.IsNumber()) {
+  } else if (IsNumber(raw)) {
     Handle<Object> value;
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(
         isolate_, value, Object::ToNumber(isolate_, object), EXCEPTION);
-    if (value->IsSmi()) return SerializeSmi(Smi::cast(*value));
+    if (IsSmi(*value)) return SerializeSmi(Smi::cast(*value));
     SerializeHeapNumber(Handle<HeapNumber>::cast(value));
-  } else if (raw.IsBigInt()) {
+  } else if (IsBigInt(raw)) {
     isolate_->Throw(
         *factory()->NewTypeError(MessageTemplate::kBigIntSerializeJSON));
     return EXCEPTION;
-  } else if (raw.IsBoolean()) {
-    if (raw.IsTrue(isolate_)) {
+  } else if (IsBoolean(raw)) {
+    if (IsTrue(raw, isolate_)) {
       AppendCStringLiteral("true");
     } else {
       AppendCStringLiteral("false");
@@ -873,7 +873,7 @@ JsonStringifier::Result JsonStringifier::SerializeJSArray(
     Handle<JSArray> object, Handle<Object> key) {
   uint32_t length = 0;
   CHECK(object->length().ToArrayLength(&length));
-  DCHECK(!object->IsAccessCheckNeeded());
+  DCHECK(!IsAccessCheckNeeded(*object));
   if (length == 0) {
     AppendCStringLiteral("[]");
     return SUCCESS;
@@ -906,8 +906,8 @@ JsonStringifier::Result JsonStringifier::SerializeJSArray(
           DCHECK_LT(limit, kMaxAllowedFastPackedLength);
           limit = std::min(length, limit + kInterruptLength);
           if (interrupt_check.InterruptRequested() &&
-              isolate_->stack_guard()->HandleInterrupts().IsException(
-                  isolate_)) {
+              IsException(isolate_->stack_guard()->HandleInterrupts(),
+                          isolate_)) {
             return EXCEPTION;
           }
         }
@@ -925,8 +925,8 @@ JsonStringifier::Result JsonStringifier::SerializeJSArray(
           DCHECK_LT(limit, kMaxAllowedFastPackedLength);
           limit = std::min(length, limit + kInterruptLength);
           if (interrupt_check.InterruptRequested() &&
-              isolate_->stack_guard()->HandleInterrupts().IsException(
-                  isolate_)) {
+              IsException(isolate_->stack_guard()->HandleInterrupts(),
+                          isolate_)) {
             return EXCEPTION;
           }
         }
@@ -1006,7 +1006,7 @@ namespace {
 V8_INLINE bool CanFastSerializeJSObject(PtrComprCageBase cage_base,
                                         JSObject raw_object, Isolate* isolate) {
   DisallowGarbageCollection no_gc;
-  if (raw_object->map(cage_base)->IsCustomElementsReceiverMap()) return false;
+  if (IsCustomElementsReceiverMap(raw_object->map(cage_base))) return false;
   if (!raw_object->HasFastProperties(cage_base)) return false;
   auto roots = ReadOnlyRoots(isolate);
   auto elements = raw_object->elements(cage_base);
@@ -1030,7 +1030,7 @@ JsonStringifier::Result JsonStringifier::SerializeJSObject(
     return SUCCESS;
   }
 
-  DCHECK(!object->IsJSGlobalProxy());
+  DCHECK(!IsJSGlobalProxy(*object));
   DCHECK(!object->HasIndexedInterceptor());
   DCHECK(!object->HasNamedInterceptor());
 
@@ -1053,7 +1053,7 @@ JsonStringifier::Result JsonStringifier::SerializeJSObject(
       DescriptorArray descriptors = map->instance_descriptors(cage_base);
       Name name = descriptors->GetKey(i);
       // TODO(rossberg): Should this throw?
-      if (!name.IsString(cage_base)) continue;
+      if (!IsString(name, cage_base)) continue;
       key_name = handle(String::cast(name), isolate_);
       details = descriptors->GetDetails(i);
     }

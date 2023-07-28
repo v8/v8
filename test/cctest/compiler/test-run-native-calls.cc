@@ -951,7 +951,7 @@ static void Build_Select_With_Call(CallDescriptor* desc,
     r.Return(r.Parameter(which));
     inner = CompileGraph("Select-indirection", desc, &graph, r.ExportForTest());
     CHECK(!inner.is_null());
-    CHECK(inner->IsCode());
+    CHECK(IsCode(*inner));
   }
 
   {

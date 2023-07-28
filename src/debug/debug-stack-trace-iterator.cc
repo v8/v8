@@ -69,10 +69,10 @@ void DebugStackTraceIterator::Advance() {
 int DebugStackTraceIterator::GetContextId() const {
   DCHECK(!Done());
   Handle<Object> context = frame_inspector_->GetContext();
-  if (context->IsContext()) {
+  if (IsContext(*context)) {
     Object value =
         Context::cast(*context)->native_context()->debug_context_id();
-    if (value.IsSmi()) return Smi::ToInt(value);
+    if (IsSmi(value)) return Smi::ToInt(value);
   }
   return 0;
 }
@@ -103,12 +103,12 @@ v8::MaybeLocal<v8::Value> DebugStackTraceIterator::GetReceiver() const {
         ReadOnlyRoots(isolate_).this_string_handle());
     if (slot_index < 0) return v8::MaybeLocal<v8::Value>();
     Handle<Object> value = handle(context->get(slot_index), isolate_);
-    if (value->IsTheHole(isolate_)) return v8::MaybeLocal<v8::Value>();
+    if (IsTheHole(*value, isolate_)) return v8::MaybeLocal<v8::Value>();
     return Utils::ToLocal(value);
   }
 
   Handle<Object> value = frame_inspector_->GetReceiver();
-  if (value.is_null() || (value->IsSmi() || !value->IsTheHole(isolate_))) {
+  if (value.is_null() || (IsSmi(*value) || !IsTheHole(*value, isolate_))) {
     return Utils::ToLocal(value);
   }
   return v8::MaybeLocal<v8::Value>();
@@ -138,7 +138,7 @@ v8::Local<v8::String> DebugStackTraceIterator::GetFunctionDebugName() const {
 v8::Local<v8::debug::Script> DebugStackTraceIterator::GetScript() const {
   DCHECK(!Done());
   Handle<Object> value = frame_inspector_->GetScript();
-  if (!value->IsScript()) return v8::Local<v8::debug::Script>();
+  if (!IsScript(*value)) return v8::Local<v8::debug::Script>();
   return ToApiHandle<debug::Script>(Handle<Script>::cast(value));
 }
 

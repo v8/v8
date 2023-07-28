@@ -42,7 +42,7 @@ Handle<String> String::SlowFlatten(Isolate* isolate, Handle<ConsString> cons,
     // We do not want to call this function recursively. Therefore we call
     // String::Flatten only in those cases where String::SlowFlatten is not
     // called again.
-    if (cons->second().IsConsString() && !cons->second()->IsFlat()) {
+    if (IsConsString(cons->second()) && !cons->second()->IsFlat()) {
       cons = handle(ConsString::cast(cons->second()), isolate);
     } else {
       return String::Flatten(isolate, handle(cons->second(), isolate),
@@ -66,8 +66,8 @@ Handle<String> String::SlowFlatten(Isolate* isolate, Handle<ConsString> cons,
     // transitioned to a ThinString (and eventually shortcutted to
     // InternalizedString) during GC.
     if (V8_UNLIKELY(v8_flags.always_use_string_forwarding_table &&
-                    !cons->IsConsString())) {
-      DCHECK(cons->IsInternalizedString() || cons->IsThinString());
+                    !IsConsString(*cons))) {
+      DCHECK(IsInternalizedString(*cons) || IsThinString(*cons));
       return String::Flatten(isolate, cons, allocation);
     }
     DisallowGarbageCollection no_gc;
@@ -82,8 +82,8 @@ Handle<String> String::SlowFlatten(Isolate* isolate, Handle<ConsString> cons,
     // transitioned to a ThinString (and eventually shortcutted to
     // InternalizedString) during GC.
     if (V8_UNLIKELY(v8_flags.always_use_string_forwarding_table &&
-                    !cons->IsConsString())) {
-      DCHECK(cons->IsInternalizedString() || cons->IsThinString());
+                    !IsConsString(*cons))) {
+      DCHECK(IsInternalizedString(*cons) || IsThinString(*cons));
       return String::Flatten(isolate, cons, allocation);
     }
     DisallowGarbageCollection no_gc;
@@ -159,10 +159,10 @@ void MigrateExternalStringResource(Isolate* isolate, ExternalString from,
 
 void MigrateExternalString(Isolate* isolate, String string,
                            String internalized) {
-  if (internalized.IsExternalOneByteString()) {
+  if (IsExternalOneByteString(internalized)) {
     MigrateExternalStringResource(isolate, ExternalString::cast(string),
                                   ExternalOneByteString::cast(internalized));
-  } else if (internalized.IsExternalTwoByteString()) {
+  } else if (IsExternalTwoByteString(internalized)) {
     MigrateExternalStringResource(isolate, ExternalString::cast(string),
                                   ExternalTwoByteString::cast(internalized));
   } else {
@@ -191,7 +191,7 @@ template <typename IsolateT>
 void String::MakeThin(IsolateT* isolate, String internalized) {
   DisallowGarbageCollection no_gc;
   DCHECK_NE(*this, internalized);
-  DCHECK(internalized.IsInternalizedString());
+  DCHECK(IsInternalizedString(internalized));
 
   Map initial_map = map(kAcquireLoad);
   StringShape initial_shape(initial_map);
@@ -425,7 +425,7 @@ bool String::MakeExternal(v8::String::ExternalStringResource* resource) {
     return MarkForExternalizationDuringGC(isolate, resource);
   }
   DCHECK_IMPLIES(InWritableSharedSpace(), isolate->is_shared_space_isolate());
-  bool is_internalized = this->IsInternalizedString();
+  bool is_internalized = IsInternalizedString(*this);
   bool has_pointers = StringShape(*this).IsIndirect();
 
   base::SharedMutexGuardIf<base::kExclusive> shared_mutex_guard(
@@ -512,7 +512,7 @@ bool String::MakeExternal(v8::String::ExternalOneByteStringResource* resource) {
     return MarkForExternalizationDuringGC(isolate, resource);
   }
   DCHECK_IMPLIES(InWritableSharedSpace(), isolate->is_shared_space_isolate());
-  bool is_internalized = this->IsInternalizedString();
+  bool is_internalized = IsInternalizedString(*this);
   bool has_pointers = StringShape(*this).IsIndirect();
 
   base::SharedMutexGuardIf<base::kExclusive> shared_mutex_guard(
@@ -564,7 +564,7 @@ bool String::MakeExternal(v8::String::ExternalOneByteStringResource* resource) {
 }
 
 bool String::SupportsExternalization(v8::String::Encoding encoding) {
-  if (this->IsThinString()) {
+  if (IsThinString(*this)) {
     return i::ThinString::cast(*this)->actual()->SupportsExternalization(
         encoding);
   }
@@ -742,7 +742,7 @@ Handle<Object> String::ToNumber(Isolate* isolate, Handle<String> subject) {
   }
 
   // Fast case: short integer or some sorts of junk values.
-  if (subject->IsSeqOneByteString()) {
+  if (IsSeqOneByteString(*subject)) {
     int len = subject->length();
     if (len == 0) return handle(Smi::zero(), isolate);
 
@@ -957,7 +957,7 @@ void String::WriteToFlat(String source, sinkchar* sink, int start, int length,
             if (second_length == 1) {
               sink[boundary - start] = static_cast<sinkchar>(
                   second->Get(0, cage_base, access_guard));
-            } else if (second.IsSeqOneByteString(cage_base)) {
+            } else if (IsSeqOneByteString(second, cage_base)) {
               CopyChars(
                   sink + boundary - start,
                   SeqOneByteString::cast(second)->GetChars(no_gc, access_guard),
@@ -1077,10 +1077,10 @@ bool String::SlowEquals(
 
   // Fast check: if at least one ThinString is involved, dereference it/them
   // and restart.
-  if (this->IsThinString(cage_base) || other.IsThinString(cage_base)) {
-    if (other.IsThinString(cage_base))
+  if (IsThinString(*this, cage_base) || IsThinString(other, cage_base)) {
+    if (IsThinString(other, cage_base))
       other = ThinString::cast(other)->actual(cage_base);
-    if (this->IsThinString(cage_base)) {
+    if (IsThinString(*this, cage_base)) {
       return ThinString::cast(*this)->actual(cage_base)->Equals(other);
     } else {
       return this->Equals(other);
@@ -1115,7 +1115,7 @@ bool String::SlowEquals(
       other->Get(0, cage_base, access_guard))
     return false;
 
-  if (IsSeqOneByteString() && other.IsSeqOneByteString()) {
+  if (IsSeqOneByteString(*this) && IsSeqOneByteString(other)) {
     const uint8_t* str1 =
         SeqOneByteString::cast(*this)->GetChars(no_gc, access_guard);
     const uint8_t* str2 =
@@ -1137,11 +1137,11 @@ bool String::SlowEquals(Isolate* isolate, Handle<String> one,
 
   // Fast check: if at least one ThinString is involved, dereference it/them
   // and restart.
-  if (one->IsThinString() || two->IsThinString()) {
-    if (one->IsThinString()) {
+  if (IsThinString(*one) || IsThinString(*two)) {
+    if (IsThinString(*one)) {
       one = handle(ThinString::cast(*one)->actual(), isolate);
     }
-    if (two->IsThinString()) {
+    if (IsThinString(*two)) {
       two = handle(ThinString::cast(*two)->actual(), isolate);
     }
     return String::Equals(isolate, one, two);
@@ -1272,7 +1272,7 @@ uint32_t ToValidIndex(String str, Object number) {
 
 Object String::IndexOf(Isolate* isolate, Handle<Object> receiver,
                        Handle<Object> search, Handle<Object> position) {
-  if (receiver->IsNullOrUndefined(isolate)) {
+  if (IsNullOrUndefined(*receiver, isolate)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kCalledOnNullOrUndefined,
                               isolate->factory()->NewStringFromAsciiChecked(
@@ -1538,7 +1538,7 @@ int StringMatchBackwards(base::Vector<const schar> subject,
 
 Object String::LastIndexOf(Isolate* isolate, Handle<Object> receiver,
                            Handle<Object> search, Handle<Object> position) {
-  if (receiver->IsNullOrUndefined(isolate)) {
+  if (IsNullOrUndefined(*receiver, isolate)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kCalledOnNullOrUndefined,
                               isolate->factory()->NewStringFromAsciiChecked(
@@ -1557,7 +1557,7 @@ Object String::LastIndexOf(Isolate* isolate, Handle<Object> receiver,
 
   uint32_t start_index;
 
-  if (position->IsNaN()) {
+  if (IsNaN(*position)) {
     start_index = receiver_string->length();
   } else {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, position,
@@ -1658,7 +1658,7 @@ uint32_t HashString(String string, size_t start, int length, uint64_t seed,
   std::unique_ptr<Char[]> buffer;
   const Char* chars;
 
-  if (string.IsConsString(cage_base)) {
+  if (IsConsString(string, cage_base)) {
     DCHECK_EQ(0, start);
     DCHECK(!string->IsFlat());
     buffer.reset(new Char[length]);
@@ -1783,11 +1783,11 @@ Handle<String> SeqString::Truncate(Isolate* isolate, Handle<SeqString> string,
   int old_length = string->length();
   if (old_length <= new_length) return string;
 
-  if (string->IsSeqOneByteString()) {
+  if (IsSeqOneByteString(*string)) {
     old_size = SeqOneByteString::SizeFor(old_length);
     new_size = SeqOneByteString::SizeFor(new_length);
   } else {
-    DCHECK(string->IsSeqTwoByteString());
+    DCHECK(IsSeqTwoByteString(*string));
     old_size = SeqTwoByteString::SizeFor(old_length);
     new_size = SeqTwoByteString::SizeFor(new_length);
   }
@@ -1816,7 +1816,7 @@ Handle<String> SeqString::Truncate(Isolate* isolate, Handle<SeqString> string,
 }
 
 SeqString::DataAndPaddingSizes SeqString::GetDataAndPaddingSizes() const {
-  if (IsSeqOneByteString()) {
+  if (IsSeqOneByteString(*this)) {
     return SeqOneByteString::cast(*this)->GetDataAndPaddingSizes();
   }
   return SeqTwoByteString::cast(*this)->GetDataAndPaddingSizes();
@@ -2064,15 +2064,15 @@ const uint8_t* String::AddressOfCharacterAt(
   String subject = *this;
   PtrComprCageBase cage_base = GetPtrComprCageBase(subject);
   StringShape shape(subject, cage_base);
-  if (subject.IsConsString(cage_base)) {
+  if (IsConsString(subject, cage_base)) {
     subject = ConsString::cast(subject)->first(cage_base);
     shape = StringShape(subject, cage_base);
-  } else if (subject.IsSlicedString(cage_base)) {
+  } else if (IsSlicedString(subject, cage_base)) {
     start_index += SlicedString::cast(subject)->offset();
     subject = SlicedString::cast(subject)->parent(cage_base);
     shape = StringShape(subject, cage_base);
   }
-  if (subject.IsThinString(cage_base)) {
+  if (IsThinString(subject, cage_base)) {
     subject = ThinString::cast(subject)->actual(cage_base);
     shape = StringShape(subject, cage_base);
   }

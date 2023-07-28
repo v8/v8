@@ -1103,7 +1103,7 @@ const uint8_t* ExternalOneByteStringGetChars(Address string) {
   // merged by the linker, resulting in one of the input type's vtable address
   // failing the address range check.
   // TODO(chromium:1160961): Consider removing the CHECK when CFI is fixed.
-  CHECK(Object(string).IsExternalOneByteString(cage_base));
+  CHECK(IsExternalOneByteString(Object(string), cage_base));
   return ExternalOneByteString::cast(Object(string))->GetChars(cage_base);
 }
 const uint16_t* ExternalTwoByteStringGetChars(Address string) {
@@ -1113,7 +1113,7 @@ const uint16_t* ExternalTwoByteStringGetChars(Address string) {
   // merged by the linker, resulting in one of the input type's vtable address
   // failing the address range check.
   // TODO(chromium:1160961): Consider removing the CHECK when CFI is fixed.
-  CHECK(Object(string).IsExternalTwoByteString(cage_base));
+  CHECK(IsExternalTwoByteString(Object(string), cage_base));
   return ExternalTwoByteString::cast(Object(string))->GetChars(cage_base);
 }
 

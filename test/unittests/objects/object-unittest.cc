@@ -235,7 +235,7 @@ static void CheckString(Isolate* isolate, const char* value,
 
 static void CheckNumber(Isolate* isolate, double value, const char* string) {
   Handle<Object> number = isolate->factory()->NewNumber(value);
-  CHECK(number->IsNumber());
+  CHECK(IsNumber(*number));
   CheckObject(isolate, number, string);
 }
 
@@ -459,20 +459,20 @@ TEST_F(ObjectTest, ObjectMethodsThatTruncateMinusZero) {
   Factory* factory = i_isolate()->factory();
 
   Handle<Object> minus_zero = factory->NewNumber(-1.0 * 0.0);
-  CHECK(minus_zero->IsMinusZero());
+  CHECK(IsMinusZero(*minus_zero));
 
   Handle<Object> result =
       Object::ToInteger(i_isolate(), minus_zero).ToHandleChecked();
-  CHECK(result->IsZero());
+  CHECK(IsZero(*result));
 
   result = Object::ToLength(i_isolate(), minus_zero).ToHandleChecked();
-  CHECK(result->IsZero());
+  CHECK(IsZero(*result));
 
   // Choose an error message template, doesn't matter which.
   result = Object::ToIndex(i_isolate(), minus_zero,
                            MessageTemplate::kInvalidAtomicAccessIndex)
                .ToHandleChecked();
-  CHECK(result->IsZero());
+  CHECK(IsZero(*result));
 }
 
 #define TEST_FUNCTION_KIND(Name)                                            \
@@ -658,7 +658,7 @@ TEST_F(ObjectTest, ConstructorInstanceTypes) {
   DisallowGarbageCollection no_gc;
   for (int i = 0; i < Context::NATIVE_CONTEXT_SLOTS; i++) {
     Object value = context->get(i);
-    if (!value.IsJSFunction()) continue;
+    if (!IsJSFunction(value)) continue;
     InstanceType instance_type =
         JSFunction::cast(value)->map()->instance_type();
 

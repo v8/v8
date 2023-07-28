@@ -158,8 +158,8 @@ class FastCApiObject {
 
     // For Wasm call, we don't pass FastCApiObject as the receiver, so we need
     // to retrieve the FastCApiObject instance from a static variable.
-    if (Utils::OpenHandle(*receiver)->IsJSGlobalProxy() ||
-        Utils::OpenHandle(*receiver)->IsUndefined()) {
+    if (IsJSGlobalProxy(*Utils::OpenHandle(*receiver)) ||
+        IsUndefined(*Utils::OpenHandle(*receiver))) {
       // Note: FastCApiObject::instance() returns the reference of an object
       // allocated in thread-local storage, its value cannot be stored in a
       // static variable here.

@@ -25,8 +25,8 @@ struct NameHandleHasher {
 
 struct UniqueNameHandleEqual {
   bool operator()(Handle<Name> x, Handle<Name> y) const {
-    DCHECK(x->IsUniqueName());
-    DCHECK(y->IsUniqueName());
+    DCHECK(IsUniqueName(*x));
+    DCHECK(IsUniqueName(*y));
     return *x == *y;
   }
 };
@@ -39,7 +39,7 @@ using UniqueNameHandleSet =
 BUILTIN(SharedSpaceJSObjectHasInstance) {
   HandleScope scope(isolate);
   Handle<Object> constructor = args.receiver();
-  if (!constructor->IsJSFunction()) {
+  if (!IsJSFunction(*constructor)) {
     return *isolate->factory()->false_value();
   }
 
@@ -76,7 +76,7 @@ Maybe<bool> CollectFieldsAndElements(Isolate* isolate,
       property_name = isolate->factory()->InternalizeName(property_name);
 
       // TODO(v8:12547): Support Symbols?
-      if (property_name->IsSymbol()) {
+      if (IsSymbol(*property_name)) {
         THROW_NEW_ERROR_RETURN_VALUE(
             isolate, NewTypeError(MessageTemplate::kSymbolToString),
             Nothing<bool>());
@@ -245,25 +245,25 @@ BUILTIN(SharedStructConstructor) {
 BUILTIN(SharedArrayIsSharedArray) {
   HandleScope scope(isolate);
   return isolate->heap()->ToBoolean(
-      args.atOrUndefined(isolate, 1)->IsJSSharedArray());
+      IsJSSharedArray(*args.atOrUndefined(isolate, 1)));
 }
 
 BUILTIN(SharedStructTypeIsSharedStruct) {
   HandleScope scope(isolate);
   return isolate->heap()->ToBoolean(
-      args.atOrUndefined(isolate, 1)->IsJSSharedStruct());
+      IsJSSharedStruct(*args.atOrUndefined(isolate, 1)));
 }
 
 BUILTIN(AtomicsMutexIsMutex) {
   HandleScope scope(isolate);
   return isolate->heap()->ToBoolean(
-      args.atOrUndefined(isolate, 1)->IsJSAtomicsMutex());
+      IsJSAtomicsMutex(*args.atOrUndefined(isolate, 1)));
 }
 
 BUILTIN(AtomicsConditionIsCondition) {
   HandleScope scope(isolate);
   return isolate->heap()->ToBoolean(
-      args.atOrUndefined(isolate, 1)->IsJSAtomicsCondition());
+      IsJSAtomicsCondition(*args.atOrUndefined(isolate, 1)));
 }
 
 }  // namespace internal

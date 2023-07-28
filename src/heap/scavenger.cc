@@ -65,7 +65,7 @@ class IterateAndScavengePromotedObjectsVisitor final : public ObjectVisitor {
 
   inline void VisitEphemeron(HeapObject obj, int entry, ObjectSlot key,
                              ObjectSlot value) override {
-    DCHECK(Heap::IsLargeObject(obj) || obj.IsEphemeronHashTable());
+    DCHECK(Heap::IsLargeObject(obj) || IsEphemeronHashTable(obj));
     VisitPointer(obj, value);
 
     if (ObjectInYoungGeneration(*key)) {
@@ -118,7 +118,7 @@ class IterateAndScavengePromotedObjectsVisitor final : public ObjectVisitor {
       DCHECK(success);
 
       if (result == KEEP_SLOT) {
-        SLOW_DCHECK(target.IsHeapObject());
+        SLOW_DCHECK(IsHeapObject(target));
         MemoryChunk* chunk = MemoryChunk::FromHeapObject(host);
 
         // Sweeper is stopped during scavenge, so we can directly
@@ -651,7 +651,7 @@ void Scavenger::IterateAndScavengePromotedObject(HeapObject target, Map map,
   // Iterate all outgoing pointers including map word.
   target->IterateFast(map, size, &visitor);
 
-  if (map->IsJSArrayBufferMap()) {
+  if (IsJSArrayBufferMap(map)) {
     DCHECK(!BasicMemoryChunk::FromHeapObject(target)->IsLargePage());
     JSArrayBuffer::cast(target)->YoungMarkExtensionPromoted();
   }

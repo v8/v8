@@ -126,7 +126,7 @@ class OrderedHashTable : public FixedArray {
   // (not deleted one)
   inline bool ToKey(ReadOnlyRoots roots, InternalIndex entry, Object* out_key);
 
-  bool IsObsolete() { return !get(NextTableIndex()).IsSmi(); }
+  bool IsObsolete() { return !IsSmi(get(NextTableIndex())); }
 
   // The next newer table. This is only valid if the table is obsolete.
   Derived NextTable() { return Derived::cast(get(NextTableIndex())); }

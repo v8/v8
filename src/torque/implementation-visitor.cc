@@ -4090,7 +4090,7 @@ void CppClassGenerator::GenerateClass() {
     f.PrintDeclaration(hdr_);
     hdr_ << "\n";
     f.PrintDefinition(impl_, [&](std::ostream& stream) {
-      stream << "  return o.Is" << name_ << "();\n";
+      stream << "  return Is" << name_ << "(o);\n";
     });
   }
   hdr_ << "// Definition " << Position() << "\n";
@@ -4366,13 +4366,12 @@ std::string GenerateRuntimeTypeCheck(const Type* type,
         // to, so just check that it's weak.
         type_check << value << ".IsWeak()";
       } else {
-        type_check << "(" << (strong ? "!" : "") << value << ".IsWeak() && "
-                   << value << ".GetHeapObjectOrSmi().Is"
+        type_check << "(" << (strong ? "!" : "") << value << ".IsWeak() && Is"
                    << (strong ? runtime_type.type : runtime_type.weak_ref_to)
-                   << "())";
+                   << "(" << value << ".GetHeapObjectOrSmi()))";
       }
     } else {
-      type_check << value << ".Is" << runtime_type.type << "()";
+      type_check << "Is" << runtime_type.type << "(" << value << ")";
     }
   }
   return type_check.str();
@@ -5304,7 +5303,7 @@ void ImplementationVisitor::GenerateClassVerifiers(
       }
 
       // Second, verify that this object is what it claims to be.
-      cc_contents << "  CHECK(o.Is" << name << "(isolate));\n";
+      cc_contents << "  CHECK(Is" << name << "(o, isolate));\n";
 
       // Third, verify its properties.
       for (auto f : type->fields()) {

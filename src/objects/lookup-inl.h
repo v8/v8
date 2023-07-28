@@ -78,16 +78,16 @@ LookupIterator::LookupIterator(Isolate* isolate, Handle<Object> receiver,
     // If we're not looking at a TypedArray, we will need the key represented
     // as an internalized string.
     if (index_ > JSObject::kMaxElementIndex &&
-        !lookup_start_object->IsJSTypedArray(isolate_)
+        !IsJSTypedArray(*lookup_start_object, isolate_)
 #if V8_ENABLE_WEBASSEMBLY
-        && !lookup_start_object->IsWasmArray(isolate_)
+        && !IsWasmArray(*lookup_start_object, isolate_)
 #endif  // V8_ENABLE_WEBASSEMBLY
     ) {
       if (name_.is_null()) {
         name_ = isolate->factory()->SizeToString(index_);
       }
       name_ = isolate->factory()->InternalizeName(name_);
-    } else if (!name_.is_null() && !name_->IsInternalizedString()) {
+    } else if (!name_.is_null() && !IsInternalizedString(*name_)) {
       // Maintain the invariant that if name_ is present, it is internalized.
       name_ = Handle<Name>();
     }
@@ -100,7 +100,7 @@ LookupIterator::LookupIterator(Isolate* isolate, Handle<Object> receiver,
     // If we're not looking at the prototype chain and the lookup start object
     // is not a typed array, then this means "array index", otherwise we need to
     // ensure the full generality so that typed arrays are handled correctly.
-    if (!check_prototype_chain() && !lookup_start_object->IsJSTypedArray()) {
+    if (!check_prototype_chain() && !IsJSTypedArray(*lookup_start_object)) {
       uint32_t array_index;
       DCHECK(!name_->AsArrayIndex(&array_index));
     } else {
@@ -179,13 +179,13 @@ PropertyKey::PropertyKey(Isolate* isolate, Handle<Name> name) {
 }
 
 PropertyKey::PropertyKey(Isolate* isolate, Handle<Object> valid_key) {
-  DCHECK(valid_key->IsName() || valid_key->IsNumber());
+  DCHECK(IsName(*valid_key) || IsNumber(*valid_key));
   if (valid_key->ToIntegerIndex(&index_)) return;
-  if (valid_key->IsNumber()) {
+  if (IsNumber(*valid_key)) {
     // Negative or out of range -> treat as named property.
     valid_key = isolate->factory()->NumberToString(valid_key);
   }
-  DCHECK(valid_key->IsName());
+  DCHECK(IsName(*valid_key));
   name_ = Handle<Name>::cast(valid_key);
   if (!name_->AsIntegerIndex(&index_)) {
     index_ = LookupIterator::kInvalidIndex;
@@ -258,22 +258,22 @@ bool LookupIterator::ExtendingNonExtensible(Handle<JSReceiver> receiver) {
   // even private symbols.
   return !receiver->map(isolate_)->is_extensible() &&
          (IsElement() || (!name_->IsPrivate(isolate_) ||
-                          receiver->IsAlwaysSharedSpaceJSObject()));
+                          IsAlwaysSharedSpaceJSObject(*receiver)));
 }
 
 bool LookupIterator::IsCacheableTransition() {
   DCHECK_EQ(TRANSITION, state_);
-  return transition_->IsPropertyCell(isolate_) ||
+  return IsPropertyCell(*transition_, isolate_) ||
          (transition_map()->is_dictionary_map() &&
           !GetStoreTarget<JSReceiver>()->HasFastProperties(isolate_)) ||
-         transition_map()->GetBackPointer(isolate_).IsMap(isolate_);
+         IsMap(transition_map()->GetBackPointer(isolate_), isolate_);
 }
 
 // static
 void LookupIterator::UpdateProtector(Isolate* isolate, Handle<Object> receiver,
                                      Handle<Name> name) {
   RCS_SCOPE(isolate, RuntimeCallCounterId::kUpdateProtector);
-  DCHECK(name->IsInternalizedString() || name->IsSymbol());
+  DCHECK(IsInternalizedString(*name) || IsSymbol(*name));
 
   // This check must be kept in sync with
   // CodeStubAssembler::CheckForAssociatedProtector!
@@ -328,7 +328,7 @@ LookupIterator::Configuration LookupIterator::ComputeConfiguration(
 MaybeHandle<JSReceiver> LookupIterator::GetRoot(
     Isolate* isolate, Handle<Object> lookup_start_object, size_t index,
     Configuration configuration) {
-  if (lookup_start_object->IsJSReceiver(isolate)) {
+  if (IsJSReceiver(*lookup_start_object, isolate)) {
     return Handle<JSReceiver>::cast(lookup_start_object);
   }
   return GetRootForNonJSReceiver(isolate, lookup_start_object, index,
@@ -337,11 +337,11 @@ MaybeHandle<JSReceiver> LookupIterator::GetRoot(
 
 template <class T>
 Handle<T> LookupIterator::GetStoreTarget() const {
-  DCHECK(receiver_->IsJSReceiver(isolate_));
-  if (receiver_->IsJSGlobalProxy(isolate_)) {
+  DCHECK(IsJSReceiver(*receiver_, isolate_));
+  if (IsJSGlobalProxy(*receiver_, isolate_)) {
     HeapObject prototype =
         JSGlobalProxy::cast(*receiver_)->map(isolate_)->prototype(isolate_);
-    if (prototype.IsJSGlobalObject(isolate_)) {
+    if (IsJSGlobalObject(prototype, isolate_)) {
       return handle(JSGlobalObject::cast(prototype), isolate_);
     }
   }

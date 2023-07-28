@@ -17,7 +17,7 @@ namespace v8 {
 namespace internal {
 
 void IC::update_lookup_start_object_map(Handle<Object> object) {
-  if (object->IsSmi()) {
+  if (IsSmi(*object)) {
     lookup_start_object_map_ = isolate_->factory()->heap_number_map();
   } else {
     lookup_start_object_map_ =
@@ -27,12 +27,12 @@ void IC::update_lookup_start_object_map(Handle<Object> object) {
 
 bool IC::IsHandler(MaybeObject object) {
   HeapObject heap_object;
-  return (object->IsSmi() && (object.ptr() != kNullAddress)) ||
+  return (IsSmi(object) && (object.ptr() != kNullAddress)) ||
          (object->GetHeapObjectIfWeak(&heap_object) &&
-          (heap_object.IsMap() || heap_object.IsPropertyCell() ||
-           heap_object.IsAccessorPair())) ||
+          (IsMap(heap_object) || IsPropertyCell(heap_object) ||
+           IsAccessorPair(heap_object))) ||
          (object->GetHeapObjectIfStrong(&heap_object) &&
-          (heap_object.IsDataHandler() || heap_object.IsCode()));
+          (IsDataHandler(heap_object) || IsCode(heap_object)));
 }
 
 bool IC::vector_needs_update() {

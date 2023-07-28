@@ -180,15 +180,15 @@ RUNTIME_FUNCTION(Runtime_InstantiateAsmJs) {
   Handle<JSFunction> function = args.at<JSFunction>(0);
 
   Handle<JSReceiver> stdlib;
-  if (args[1].IsJSReceiver()) {
+  if (IsJSReceiver(args[1])) {
     stdlib = args.at<JSReceiver>(1);
   }
   Handle<JSReceiver> foreign;
-  if (args[2].IsJSReceiver()) {
+  if (IsJSReceiver(args[2])) {
     foreign = args.at<JSReceiver>(2);
   }
   Handle<JSArrayBuffer> memory;
-  if (args[3].IsJSArrayBuffer()) {
+  if (IsJSArrayBuffer(args[3])) {
     memory = args.at<JSArrayBuffer>(3);
   }
   Handle<SharedFunctionInfo> shared(function->shared(), isolate);

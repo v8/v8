@@ -23,7 +23,7 @@ OBJECT_CONSTRUCTORS_IMPL(HashTableBase, FixedArray)
 
 template <typename Derived, typename Shape>
 HashTable<Derived, Shape>::HashTable(Address ptr) : HashTableBase(ptr) {
-  SLOW_DCHECK(IsHashTable());
+  SLOW_DCHECK(IsHashTable(*this));
 }
 
 template <typename Derived, typename Shape>
@@ -32,27 +32,27 @@ ObjectHashTableBase<Derived, Shape>::ObjectHashTableBase(Address ptr)
 
 ObjectHashTable::ObjectHashTable(Address ptr)
     : ObjectHashTableBase<ObjectHashTable, ObjectHashTableShape>(ptr) {
-  SLOW_DCHECK(IsObjectHashTable());
+  SLOW_DCHECK(IsObjectHashTable(*this));
 }
 
 RegisteredSymbolTable::RegisteredSymbolTable(Address ptr)
     : HashTable<RegisteredSymbolTable, RegisteredSymbolTableShape>(ptr) {
-  SLOW_DCHECK(IsRegisteredSymbolTable());
+  SLOW_DCHECK(IsRegisteredSymbolTable(*this));
 }
 
 EphemeronHashTable::EphemeronHashTable(Address ptr)
     : ObjectHashTableBase<EphemeronHashTable, ObjectHashTableShape>(ptr) {
-  SLOW_DCHECK(IsEphemeronHashTable());
+  SLOW_DCHECK(IsEphemeronHashTable(*this));
 }
 
 ObjectHashSet::ObjectHashSet(Address ptr)
     : HashTable<ObjectHashSet, ObjectHashSetShape>(ptr) {
-  SLOW_DCHECK(IsObjectHashSet());
+  SLOW_DCHECK(IsObjectHashSet(*this));
 }
 
 NameToIndexHashTable::NameToIndexHashTable(Address ptr)
     : HashTable<NameToIndexHashTable, NameToIndexShape>(ptr) {
-  SLOW_DCHECK(IsNameToIndexHashTable());
+  SLOW_DCHECK(IsNameToIndexHashTable(*this));
 }
 
 template <typename Derived, int N>
@@ -61,7 +61,7 @@ ObjectMultiHashTableBase<Derived, N>::ObjectMultiHashTableBase(Address ptr)
 
 ObjectTwoHashTable::ObjectTwoHashTable(Address ptr)
     : ObjectMultiHashTableBase<ObjectTwoHashTable, 2>(ptr) {
-  SLOW_DCHECK(IsObjectTwoHashTable());
+  SLOW_DCHECK(IsObjectTwoHashTable(*this));
 }
 
 CAST_ACCESSOR(ObjectHashTable)
@@ -73,7 +73,7 @@ CAST_ACCESSOR(ObjectTwoHashTable)
 
 void EphemeronHashTable::set_key(int index, Object value) {
   DCHECK_NE(GetReadOnlyRoots().fixed_cow_array_map(), map());
-  DCHECK(IsEphemeronHashTable());
+  DCHECK(IsEphemeronHashTable(*this));
   DCHECK_GE(index, 0);
   DCHECK_LT(index, this->length());
   int offset = kHeaderSize + index * kTaggedSize;
@@ -84,7 +84,7 @@ void EphemeronHashTable::set_key(int index, Object value) {
 void EphemeronHashTable::set_key(int index, Object value,
                                  WriteBarrierMode mode) {
   DCHECK_NE(GetReadOnlyRoots().fixed_cow_array_map(), map());
-  DCHECK(IsEphemeronHashTable());
+  DCHECK(IsEphemeronHashTable(*this));
   DCHECK_GE(index, 0);
   DCHECK_LT(index, this->length());
   int offset = kHeaderSize + index * kTaggedSize;
@@ -263,14 +263,14 @@ void HashTable<Derived, Shape>::SetKeyAt(InternalIndex entry, Object value,
 
 template <typename Derived, typename Shape>
 void HashTable<Derived, Shape>::set_key(int index, Object value) {
-  DCHECK(!IsEphemeronHashTable());
+  DCHECK(!IsEphemeronHashTable(*this));
   FixedArray::set(index, value);
 }
 
 template <typename Derived, typename Shape>
 void HashTable<Derived, Shape>::set_key(int index, Object value,
                                         WriteBarrierMode mode) {
-  DCHECK(!IsEphemeronHashTable());
+  DCHECK(!IsEphemeronHashTable(*this));
   FixedArray::set(index, value, mode);
 }
 
@@ -290,7 +290,7 @@ bool ObjectHashSet::Has(Isolate* isolate, Handle<Object> key, int32_t hash) {
 
 bool ObjectHashSet::Has(Isolate* isolate, Handle<Object> key) {
   Object hash = key->GetHash();
-  if (!hash.IsSmi()) return false;
+  if (!IsSmi(hash)) return false;
   return FindEntry(isolate, ReadOnlyRoots(isolate), key, Smi::ToInt(hash))
       .is_found();
 }
@@ -300,7 +300,7 @@ bool ObjectHashTableShape::IsMatch(Handle<Object> key, Object other) {
 }
 
 bool RegisteredSymbolTableShape::IsMatch(Handle<String> key, Object value) {
-  DCHECK(value.IsString());
+  DCHECK(IsString(value));
   return key->Equals(String::cast(value));
 }
 

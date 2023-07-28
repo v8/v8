@@ -14,8 +14,8 @@ namespace internal {
 // static
 bool SharedHeapSerializer::CanBeInSharedOldSpace(HeapObject obj) {
   if (ReadOnlyHeap::Contains(obj)) return false;
-  if (obj.IsString()) {
-    return obj.IsInternalizedString() ||
+  if (IsString(obj)) {
+    return IsInternalizedString(obj) ||
            String::IsInPlaceInternalizable(String::cast(obj));
   }
   return false;
@@ -28,7 +28,7 @@ bool SharedHeapSerializer::ShouldBeInSharedHeapObjectCache(HeapObject obj) {
   // internalizable strings will still be allocated in the shared heap by the
   // deserializer, but do not need to be kept alive forever in the cache.
   if (CanBeInSharedOldSpace(obj)) {
-    if (obj.IsInternalizedString()) return true;
+    if (IsInternalizedString(obj)) return true;
   }
   return false;
 }
@@ -95,7 +95,7 @@ bool SharedHeapSerializer::SerializeUsingSharedHeapObjectCache(
     DCHECK_LT(base::checked_cast<size_t>(cache_index), existing_cache_size);
     if (base::checked_cast<size_t>(cache_index) == existing_cache_size - 1) {
       ReadOnlyRoots roots(isolate());
-      DCHECK(existing_cache->back().IsUndefined(roots));
+      DCHECK(IsUndefined(existing_cache->back(), roots));
       existing_cache->back() = *obj;
       existing_cache->push_back(roots.undefined_value());
     }
@@ -142,8 +142,8 @@ void SharedHeapSerializer::SerializeStringTable(StringTable* string_table) {
       Isolate* isolate = serializer_->isolate();
       for (OffHeapObjectSlot current = start; current < end; ++current) {
         Object obj = current.load(isolate);
-        if (obj.IsHeapObject()) {
-          DCHECK(obj.IsInternalizedString());
+        if (IsHeapObject(obj)) {
+          DCHECK(IsInternalizedString(obj));
           serializer_->SerializeObject(handle(HeapObject::cast(obj), isolate),
                                        SlotType::kAnySlot);
         }
@@ -212,7 +212,7 @@ void SharedHeapSerializer::ReconstructSharedHeapObjectCacheForTesting() {
     USE(cache_index);
     DCHECK_EQ(cache_index, i);
   }
-  DCHECK(cache->back().IsUndefined(isolate()));
+  DCHECK(IsUndefined(cache->back(), isolate()));
 }
 
 }  // namespace internal

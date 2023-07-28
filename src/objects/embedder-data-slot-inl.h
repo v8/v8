@@ -34,7 +34,7 @@ EmbedderDataSlot::EmbedderDataSlot(const EmbedderDataSlotSnapshot& snapshot)
 void EmbedderDataSlot::Initialize(Object initial_value) {
   // TODO(v8) initialize the slot with Smi::zero() instead. This'll also
   // guarantee that we don't need a write barrier.
-  DCHECK(initial_value.IsSmi() ||
+  DCHECK(IsSmi(initial_value) ||
          ReadOnlyHeap::Contains(HeapObject::cast(initial_value)));
   ObjectSlot(address() + kTaggedPayloadOffset).Relaxed_Store(initial_value);
 #ifdef V8_COMPRESS_POINTERS
@@ -58,7 +58,7 @@ void EmbedderDataSlot::store_smi(Smi value) {
 void EmbedderDataSlot::store_tagged(EmbedderDataArray array, int entry_index,
                                     Object value) {
 #ifdef V8_COMPRESS_POINTERS
-  CHECK(value.IsSmi() ||
+  CHECK(IsSmi(value) ||
         V8HeapCompressionScheme::GetPtrComprCageBaseAddress(value.ptr()) ==
             V8HeapCompressionScheme::GetPtrComprCageBaseAddress(array.ptr()));
 #endif
@@ -77,7 +77,7 @@ void EmbedderDataSlot::store_tagged(EmbedderDataArray array, int entry_index,
 void EmbedderDataSlot::store_tagged(JSObject object, int embedder_field_index,
                                     Object value) {
 #ifdef V8_COMPRESS_POINTERS
-  CHECK(value.IsSmi() ||
+  CHECK(IsSmi(value) ||
         V8HeapCompressionScheme::GetPtrComprCageBaseAddress(value.ptr()) ==
             V8HeapCompressionScheme::GetPtrComprCageBaseAddress(object.ptr()));
 #endif

@@ -101,7 +101,7 @@ RUNTIME_FUNCTION_RETURN_PAIR(Runtime_DebugBreakOnBytecode) {
                     Smi::FromInt(static_cast<uint8_t>(bytecode)));
   }
   Object interrupt_object = isolate->stack_guard()->HandleInterrupts();
-  if (interrupt_object.IsException(isolate)) {
+  if (IsException(interrupt_object, isolate)) {
     return MakePair(interrupt_object,
                     Smi::FromInt(static_cast<uint8_t>(bytecode)));
   }
@@ -200,19 +200,19 @@ static Handle<ArrayList> AddIteratorInternalProperties(
 MaybeHandle<JSArray> Runtime::GetInternalProperties(Isolate* isolate,
                                                     Handle<Object> object) {
   auto result = ArrayList::New(isolate, 8 * 2);
-  if (object->IsJSObject()) {
+  if (IsJSObject(*object)) {
     PrototypeIterator iter(isolate, Handle<JSObject>::cast(object),
                            kStartAtReceiver);
     if (iter.HasAccess()) {
       iter.Advance();
       Handle<Object> prototype = PrototypeIterator::GetCurrent(iter);
-      if (!iter.IsAtEnd() && iter.HasAccess() && object->IsJSGlobalProxy()) {
+      if (!iter.IsAtEnd() && iter.HasAccess() && IsJSGlobalProxy(*object)) {
         // Skip JSGlobalObject as the [[Prototype]].
-        DCHECK(prototype->IsJSGlobalObject());
+        DCHECK(IsJSGlobalObject(*prototype));
         iter.Advance();
         prototype = PrototypeIterator::GetCurrent(iter);
       }
-      if (!prototype->IsNull(isolate)) {
+      if (!IsNull(*prototype, isolate)) {
         result = ArrayList::Add(
             isolate, result,
             isolate->factory()->NewStringFromStaticChars("[[Prototype]]"),
@@ -220,7 +220,7 @@ MaybeHandle<JSArray> Runtime::GetInternalProperties(Isolate* isolate,
       }
     }
   }
-  if (object->IsJSBoundFunction()) {
+  if (IsJSBoundFunction(*object)) {
     Handle<JSBoundFunction> function = Handle<JSBoundFunction>::cast(object);
 
     result = ArrayList::Add(
@@ -237,13 +237,13 @@ MaybeHandle<JSArray> Runtime::GetInternalProperties(Isolate* isolate,
         isolate->factory()->NewJSArrayWithElements(
             isolate->factory()->CopyFixedArray(
                 handle(function->bound_arguments(), isolate))));
-  } else if (object->IsJSMapIterator()) {
+  } else if (IsJSMapIterator(*object)) {
     Handle<JSMapIterator> iterator = Handle<JSMapIterator>::cast(object);
     result = AddIteratorInternalProperties(isolate, result, iterator);
-  } else if (object->IsJSSetIterator()) {
+  } else if (IsJSSetIterator(*object)) {
     Handle<JSSetIterator> iterator = Handle<JSSetIterator>::cast(object);
     result = AddIteratorInternalProperties(isolate, result, iterator);
-  } else if (object->IsJSGeneratorObject()) {
+  } else if (IsJSGeneratorObject(*object)) {
     Handle<JSGeneratorObject> generator =
         Handle<JSGeneratorObject>::cast(object);
 
@@ -268,7 +268,7 @@ MaybeHandle<JSArray> Runtime::GetInternalProperties(Isolate* isolate,
         isolate, result,
         isolate->factory()->NewStringFromAsciiChecked("[[GeneratorReceiver]]"),
         handle(generator->receiver(), isolate));
-  } else if (object->IsJSPromise()) {
+  } else if (IsJSPromise(*object)) {
     Handle<JSPromise> promise = Handle<JSPromise>::cast(object);
 
     result = ArrayList::Add(
@@ -282,7 +282,7 @@ MaybeHandle<JSArray> Runtime::GetInternalProperties(Isolate* isolate,
         promise->status() == Promise::kPending
             ? isolate->factory()->undefined_value()
             : handle(promise->result(), isolate));
-  } else if (object->IsJSProxy()) {
+  } else if (IsJSProxy(*object)) {
     Handle<JSProxy> js_proxy = Handle<JSProxy>::cast(object);
 
     result = ArrayList::Add(
@@ -297,7 +297,7 @@ MaybeHandle<JSArray> Runtime::GetInternalProperties(Isolate* isolate,
         isolate, result,
         isolate->factory()->NewStringFromAsciiChecked("[[IsRevoked]]"),
         isolate->factory()->ToBoolean(js_proxy->IsRevoked()));
-  } else if (object->IsJSPrimitiveWrapper()) {
+  } else if (IsJSPrimitiveWrapper(*object)) {
     Handle<JSPrimitiveWrapper> js_value =
         Handle<JSPrimitiveWrapper>::cast(object);
 
@@ -305,14 +305,14 @@ MaybeHandle<JSArray> Runtime::GetInternalProperties(Isolate* isolate,
         isolate, result,
         isolate->factory()->NewStringFromAsciiChecked("[[PrimitiveValue]]"),
         handle(js_value->value(), isolate));
-  } else if (object->IsJSWeakRef()) {
+  } else if (IsJSWeakRef(*object)) {
     Handle<JSWeakRef> js_weak_ref = Handle<JSWeakRef>::cast(object);
 
     result = ArrayList::Add(
         isolate, result,
         isolate->factory()->NewStringFromAsciiChecked("[[WeakRefTarget]]"),
         handle(js_weak_ref->target(), isolate));
-  } else if (object->IsJSArrayBuffer()) {
+  } else if (IsJSArrayBuffer(*object)) {
     Handle<JSArrayBuffer> js_array_buffer = Handle<JSArrayBuffer>::cast(object);
     if (js_array_buffer->was_detached()) {
       // Mark a detached JSArrayBuffer and such and don't even try to
@@ -363,7 +363,7 @@ MaybeHandle<JSArray> Runtime::GetInternalProperties(Isolate* isolate,
           isolate->factory()->array_buffer_wasm_memory_symbol();
       Handle<Object> memory_object =
           JSObject::GetDataProperty(isolate, js_array_buffer, memory_symbol);
-      if (!memory_object->IsUndefined(isolate)) {
+      if (!IsUndefined(*memory_object, isolate)) {
         result = ArrayList::Add(isolate, result,
                                 isolate->factory()->NewStringFromAsciiChecked(
                                     "[[WebAssemblyMemory]]"),
@@ -371,13 +371,13 @@ MaybeHandle<JSArray> Runtime::GetInternalProperties(Isolate* isolate,
       }
     }
 #if V8_ENABLE_WEBASSEMBLY
-  } else if (object->IsWasmInstanceObject()) {
+  } else if (IsWasmInstanceObject(*object)) {
     result = AddWasmInstanceObjectInternalProperties(
         isolate, result, Handle<WasmInstanceObject>::cast(object));
-  } else if (object->IsWasmModuleObject()) {
+  } else if (IsWasmModuleObject(*object)) {
     result = AddWasmModuleObjectInternalProperties(
         isolate, result, Handle<WasmModuleObject>::cast(object));
-  } else if (object->IsWasmTableObject()) {
+  } else if (IsWasmTableObject(*object)) {
     result = AddWasmTableObjectInternalProperties(
         isolate, result, Handle<WasmTableObject>::cast(object));
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -390,7 +390,7 @@ RUNTIME_FUNCTION(Runtime_GetGeneratorScopeCount) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
 
-  if (!args[0].IsJSGeneratorObject()) return Smi::zero();
+  if (!IsJSGeneratorObject(args[0])) return Smi::zero();
 
   // Check arguments.
   Handle<JSGeneratorObject> gen = args.at<JSGeneratorObject>(0);
@@ -413,7 +413,7 @@ RUNTIME_FUNCTION(Runtime_GetGeneratorScopeDetails) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
 
-  if (!args[0].IsJSGeneratorObject()) {
+  if (!IsJSGeneratorObject(args[0])) {
     return ReadOnlyRoots(isolate).undefined_value();
   }
 
@@ -481,7 +481,7 @@ RUNTIME_FUNCTION(Runtime_GetBreakLocations) {
   // Find the number of break points
   Handle<Object> break_locations =
       Debug::GetSourceBreakLocations(isolate, shared);
-  if (break_locations->IsUndefined(isolate)) {
+  if (IsUndefined(*break_locations, isolate)) {
     return ReadOnlyRoots(isolate).undefined_value();
   }
   // Return array as JS array
@@ -538,7 +538,7 @@ RUNTIME_FUNCTION(Runtime_FunctionGetInferredName) {
   DCHECK_EQ(1, args.length());
 
   Object f = args[0];
-  if (f.IsJSFunction()) {
+  if (IsJSFunction(f)) {
     return JSFunction::cast(f)->shared()->inferred_name();
   }
   return ReadOnlyRoots(isolate).empty_string();
@@ -640,14 +640,14 @@ Handle<Object> ScriptLocationFromLine(Isolate* isolate, Handle<Script> script,
   // additionally subtracting corresponding offsets.
 
   int32_t line = 0;
-  if (!opt_line->IsNullOrUndefined(isolate)) {
-    CHECK(opt_line->IsNumber());
+  if (!IsNullOrUndefined(*opt_line, isolate)) {
+    CHECK(IsNumber(*opt_line));
     line = NumberToInt32(*opt_line) - script->line_offset();
   }
 
   int32_t column = 0;
-  if (!opt_column->IsNullOrUndefined(isolate)) {
-    CHECK(opt_column->IsNumber());
+  if (!IsNullOrUndefined(*opt_column, isolate)) {
+    CHECK(IsNumber(*opt_column));
     column = NumberToInt32(*opt_column);
     if (line == 0) column -= script->column_offset();
   }
@@ -882,7 +882,7 @@ RUNTIME_FUNCTION(Runtime_DebugPromiseThen) {
   DCHECK_EQ(1, args.length());
   HandleScope scope(isolate);
   Handle<JSReceiver> promise = args.at<JSReceiver>(0);
-  if (promise->IsJSPromise()) {
+  if (IsJSPromise(*promise)) {
     isolate->OnPromiseThen(Handle<JSPromise>::cast(promise));
   }
   return *promise;

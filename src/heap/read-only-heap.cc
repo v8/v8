@@ -338,7 +338,7 @@ HeapObject ReadOnlyPageObjectIterator::Next() {
     current_addr_ += ALIGN_TO_ALLOCATION_ALIGNMENT(object_size);
 
     if (skip_free_space_or_filler_ == SkipFreeSpaceOrFiller::kYes &&
-        object.IsFreeSpaceOrFiller()) {
+        IsFreeSpaceOrFiller(object)) {
       continue;
     }
 

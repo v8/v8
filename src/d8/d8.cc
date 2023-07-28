@@ -387,7 +387,7 @@ std::shared_ptr<Worker> GetWorkerFromInternalField(Isolate* isolate,
   }
 
   i::Handle<i::Object> handle = Utils::OpenHandle(*object->GetInternalField(0));
-  if (handle->IsSmi()) {
+  if (IsSmi(*handle)) {
     ThrowError(isolate, "Worker is defunct because main thread is terminating");
     return nullptr;
   }
@@ -1943,7 +1943,7 @@ void Shell::RealmOwner(const v8::FunctionCallbackInfo<v8::Value>& info) {
   Local<Object> object =
       info[0]->ToObject(isolate->GetCurrentContext()).ToLocalChecked();
   i::Handle<i::JSReceiver> i_object = Utils::OpenHandle(*object);
-  if (i_object->IsJSGlobalProxy() &&
+  if (IsJSGlobalProxy(*i_object) &&
       i::Handle<i::JSGlobalProxy>::cast(i_object)->IsDetached()) {
     return;
   }
@@ -1972,7 +1972,7 @@ void Shell::RealmGlobal(const v8::FunctionCallbackInfo<v8::Value>& info) {
   Local<Object> global =
       Local<Context>::New(info.GetIsolate(), data->realms_[index])->Global();
   i::Handle<i::Object> i_global = Utils::OpenHandle(*global);
-  if (i_global->IsJSGlobalObject()) {
+  if (IsJSGlobalObject(*i_global)) {
     i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
     i::Handle<i::JSObject> i_global_proxy =
         handle(i::Handle<i::JSGlobalObject>::cast(i_global)->global_proxy(),
@@ -2068,8 +2068,7 @@ void Shell::RealmNavigate(const v8::FunctionCallbackInfo<v8::Value>& info) {
   // advance.
   if (!global_object.IsEmpty()) {
     HandleScope scope(isolate);
-    if (!Utils::OpenHandle(*global_object.ToLocalChecked())
-             ->IsJSGlobalProxy()) {
+    if (!IsJSGlobalProxy(*Utils::OpenHandle(*global_object.ToLocalChecked()))) {
       global_object = v8::MaybeLocal<Value>();
     }
   }
@@ -2226,9 +2225,9 @@ void Shell::TestVerifySourcePositions(
     return;
   }
   auto arg_handle = Utils::OpenHandle(*info[0]);
-  if (!arg_handle->IsHeapObject() ||
-      !i::Handle<i::HeapObject>::cast(arg_handle)
-           ->IsJSFunctionOrBoundFunctionOrWrappedFunction()) {
+  if (!IsHeapObject(*arg_handle) ||
+      !IsJSFunctionOrBoundFunctionOrWrappedFunction(
+          *i::Handle<i::HeapObject>::cast(arg_handle))) {
     ThrowError(isolate, "Expected function as single argument.");
     return;
   }
@@ -2239,11 +2238,11 @@ void Shell::TestVerifySourcePositions(
   auto callable =
       i::Handle<i::JSFunctionOrBoundFunctionOrWrappedFunction>::cast(
           arg_handle);
-  while (callable->IsJSBoundFunction()) {
+  while (IsJSBoundFunction(*callable)) {
     internal::DisallowGarbageCollection no_gc;
     auto bound_function = i::Handle<i::JSBoundFunction>::cast(callable);
     auto bound_target = bound_function->bound_target_function();
-    if (!bound_target.IsJSFunctionOrBoundFunctionOrWrappedFunction()) {
+    if (!IsJSFunctionOrBoundFunctionOrWrappedFunction(bound_target)) {
       internal::AllowGarbageCollection allow_gc;
       ThrowError(isolate, "Expected function as bound target.");
       return;

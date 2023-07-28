@@ -454,7 +454,7 @@ V8_NOINLINE Handle<JSFunction> CreateFunctionForBuiltinWithPrototype(
   // TODO(littledan): Why do we have this is_generator test when
   // NewFunctionPrototype already handles finding an appropriately
   // shared prototype?
-  if (!IsResumableFunction(info->kind()) && prototype->IsTheHole(isolate)) {
+  if (!IsResumableFunction(info->kind()) && IsTheHole(*prototype, isolate)) {
     prototype = factory->NewFunctionPrototype(result);
   }
   JSFunction::SetInitialMap(isolate, result, initial_map, prototype);
@@ -545,7 +545,7 @@ V8_NOINLINE void SetConstructorInstanceType(Isolate* isolate,
   DCHECK_NE(map, *isolate->strict_function_with_readonly_prototype_map());
   // Constructor function map is always a root map, and thus we don't have to
   // deal with updating the whole transition tree.
-  DCHECK(map->GetBackPointer().IsUndefined(isolate));
+  DCHECK(IsUndefined(map->GetBackPointer(), isolate));
   DCHECK_EQ(JS_FUNCTION_TYPE, map->instance_type());
 
   map->set_instance_type(constructor_type);
@@ -1295,14 +1295,14 @@ void Genesis::AddRestrictedFunctionProperties(Handle<JSFunction> empty) {
 }
 
 static void AddToWeakNativeContextList(Isolate* isolate, Context context) {
-  DCHECK(context.IsNativeContext());
+  DCHECK(IsNativeContext(context));
   Heap* heap = isolate->heap();
 #ifdef DEBUG
   {
-    DCHECK(context->next_context_link().IsUndefined(isolate));
+    DCHECK(IsUndefined(context->next_context_link(), isolate));
     // Check that context is not in the list yet.
     for (Object current = heap->native_contexts_list();
-         !current.IsUndefined(isolate);
+         !IsUndefined(current, isolate);
          current = Context::cast(current)->next_context_link()) {
       DCHECK(current != context);
     }
@@ -1376,7 +1376,7 @@ Handle<JSGlobalObject> Genesis::CreateNewGlobals(
             FunctionTemplateInfo::cast(data->constructor()), isolate());
     Handle<Object> proto_template(global_constructor->GetPrototypeTemplate(),
                                   isolate());
-    if (!proto_template->IsUndefined(isolate())) {
+    if (!IsUndefined(*proto_template, isolate())) {
       js_global_object_template =
           Handle<ObjectTemplateInfo>::cast(proto_template);
     }
@@ -1446,9 +1446,8 @@ Handle<JSGlobalObject> Genesis::CreateNewGlobals(
   // Set the global proxy of the native context. If the native context has been
   // deserialized, the global proxy is already correctly set up by the
   // deserializer. Otherwise it's undefined.
-  DCHECK(native_context()
-             ->get(Context::GLOBAL_PROXY_INDEX)
-             .IsUndefined(isolate()) ||
+  DCHECK(IsUndefined(native_context()->get(Context::GLOBAL_PROXY_INDEX),
+                     isolate()) ||
          native_context()->global_proxy_object() == *global_proxy);
   native_context()->set_global_proxy_object(*global_proxy);
 
@@ -4174,7 +4173,7 @@ Handle<JSFunction> Genesis::InstallTypedArray(const char* name,
   SetConstructorInstanceType(isolate_, result, constructor_type);
 
   // Setup prototype object.
-  DCHECK(result->prototype().IsJSObject());
+  DCHECK(IsJSObject(result->prototype()));
   Handle<JSObject> prototype(JSObject::cast(result->prototype()), isolate());
 
   CHECK(JSObject::SetPrototype(isolate(), prototype, typed_array_prototype,
@@ -4234,7 +4233,7 @@ bool Genesis::CompileExtension(Isolate* isolate, v8::Extension* extension) {
   base::Vector<const char> name = base::CStrVector(extension->name());
   SourceCodeCache* cache = isolate->bootstrapper()->extensions_cache();
   Handle<Context> context(isolate->context(), isolate);
-  DCHECK(context->IsNativeContext());
+  DCHECK(IsNativeContext(*context));
 
   if (!cache->Lookup(isolate, name, &function_info)) {
     Handle<String> script_name =
@@ -4528,7 +4527,7 @@ void Genesis::InitializeConsole(Handle<JSObject> extras_binding) {
   JSFunction::SetPrototype(cons, empty);
 
   Handle<JSObject> console = factory->NewJSObject(cons, AllocationType::kOld);
-  DCHECK(console->IsJSObject());
+  DCHECK(IsJSObject(*console));
 
   JSObject::AddProperty(isolate_, extras_binding, name, console, DONT_ENUM);
   // TODO(v8:11989): remove this in the next release
@@ -5928,7 +5927,7 @@ bool Genesis::InstallABunchOfRandomThings() {
 
     // Verification of important array prototype properties.
     Object length = proto->length();
-    CHECK(length.IsSmi());
+    CHECK(IsSmi(length));
     CHECK_EQ(Smi::ToInt(length), 0);
     CHECK(proto->HasSmiOrObjectElements());
     // This is necessary to enable fast checks for absence of elements
@@ -6498,7 +6497,7 @@ bool Genesis::ConfigureGlobalObject(
     Handle<FunctionTemplateInfo> proxy_constructor(
         FunctionTemplateInfo::cast(global_proxy_data->constructor()),
         isolate());
-    if (!proxy_constructor->GetPrototypeTemplate().IsUndefined(isolate())) {
+    if (!IsUndefined(proxy_constructor->GetPrototypeTemplate(), isolate())) {
       Handle<ObjectTemplateInfo> global_object_data(
           ObjectTemplateInfo::cast(proxy_constructor->GetPrototypeTemplate()),
           isolate());
@@ -6582,7 +6581,7 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
         JSObject::SetNormalizedProperty(to, key, value, d);
       }
     }
-  } else if (from->IsJSGlobalObject()) {
+  } else if (IsJSGlobalObject(*from)) {
     // Copy all keys and values in enumeration order.
     Handle<GlobalDictionary> properties(
         JSGlobalObject::cast(*from)->global_dictionary(kAcquireLoad),
@@ -6597,7 +6596,7 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
       if (PropertyAlreadyExists(isolate(), to, key)) continue;
       // Set the property.
       Handle<Object> value(cell->value(), isolate());
-      if (value->IsTheHole(isolate())) continue;
+      if (IsTheHole(*value, isolate())) continue;
       PropertyDetails details = cell->property_details();
       if (details.kind() == PropertyKind::kData) {
         JSObject::AddProperty(isolate(), to, key, value, details.attributes());
@@ -6619,15 +6618,15 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
       Object raw_key;
       if (!properties->ToKey(roots, entry, &raw_key)) continue;
 
-      DCHECK(raw_key.IsName());
+      DCHECK(IsName(raw_key));
       Handle<Name> key(Name::cast(raw_key), isolate());
       // If the property is already there we skip it.
       if (PropertyAlreadyExists(isolate(), to, key)) continue;
       // Set the property.
       Handle<Object> value =
           Handle<Object>(properties->ValueAt(entry), isolate());
-      DCHECK(!value->IsCell());
-      DCHECK(!value->IsTheHole(isolate()));
+      DCHECK(!IsCell(*value));
+      DCHECK(!IsTheHole(*value, isolate()));
       PropertyDetails details = properties->DetailsAt(entry);
       DCHECK_EQ(PropertyKind::kData, details.kind());
       JSObject::AddProperty(isolate(), to, key, value, details.attributes());
@@ -6643,15 +6642,15 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
       InternalIndex key_index(Smi::ToInt(key_indices->get(i)));
       Object raw_key = properties->KeyAt(key_index);
       DCHECK(properties->IsKey(roots, raw_key));
-      DCHECK(raw_key.IsName());
+      DCHECK(IsName(raw_key));
       Handle<Name> key(Name::cast(raw_key), isolate());
       // If the property is already there we skip it.
       if (PropertyAlreadyExists(isolate(), to, key)) continue;
       // Set the property.
       Handle<Object> value =
           Handle<Object>(properties->ValueAt(key_index), isolate());
-      DCHECK(!value->IsCell());
-      DCHECK(!value->IsTheHole(isolate()));
+      DCHECK(!IsCell(*value));
+      DCHECK(!IsTheHole(*value, isolate()));
       PropertyDetails details = properties->DetailsAt(key_index);
       DCHECK_EQ(PropertyKind::kData, details.kind());
       JSObject::AddProperty(isolate(), to, key, value, details.attributes());
@@ -6671,8 +6670,8 @@ void Genesis::TransferIndexedProperties(Handle<JSObject> from,
 void Genesis::TransferObject(Handle<JSObject> from, Handle<JSObject> to) {
   HandleScope outer(isolate());
 
-  DCHECK(!from->IsJSArray());
-  DCHECK(!to->IsJSArray());
+  DCHECK(!IsJSArray(*from));
+  DCHECK(!IsJSArray(*to));
 
   TransferNamedProperties(from, to);
   TransferIndexedProperties(from, to);

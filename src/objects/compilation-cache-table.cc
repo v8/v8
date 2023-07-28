@@ -21,13 +21,13 @@ const int kLiteralLiteralsOffset = 1;
 int SearchLiteralsMapEntry(CompilationCacheTable cache,
                            InternalIndex cache_entry, Context native_context) {
   DisallowGarbageCollection no_gc;
-  DCHECK(native_context.IsNativeContext());
+  DCHECK(IsNativeContext(native_context));
   Object obj = cache->EvalFeedbackValueAt(cache_entry);
 
   // Check that there's no confusion between FixedArray and WeakFixedArray (the
   // object used to be a FixedArray here).
-  DCHECK(!obj.IsFixedArray());
-  if (obj.IsWeakFixedArray()) {
+  DCHECK(!IsFixedArray(obj));
+  if (IsWeakFixedArray(obj)) {
     WeakFixedArray literals_map = WeakFixedArray::cast(obj);
     int length = literals_map->length();
     for (int i = 0; i < length; i += kLiteralEntryLength) {
@@ -46,7 +46,7 @@ void AddToFeedbackCellsMap(Handle<CompilationCacheTable> cache,
                            Handle<Context> native_context,
                            Handle<FeedbackCell> feedback_cell) {
   Isolate* isolate = native_context->GetIsolate();
-  DCHECK(native_context->IsNativeContext());
+  DCHECK(IsNativeContext(*native_context));
   static_assert(kLiteralEntryLength == 2);
   Handle<WeakFixedArray> new_literals_map;
   int entry;
@@ -55,8 +55,8 @@ void AddToFeedbackCellsMap(Handle<CompilationCacheTable> cache,
 
   // Check that there's no confusion between FixedArray and WeakFixedArray (the
   // object used to be a FixedArray here).
-  DCHECK(!obj.IsFixedArray());
-  if (!obj.IsWeakFixedArray() || WeakFixedArray::cast(obj)->length() == 0) {
+  DCHECK(!IsFixedArray(obj));
+  if (!IsWeakFixedArray(obj) || WeakFixedArray::cast(obj)->length() == 0) {
     new_literals_map = isolate->factory()->NewWeakFixedArray(
         kLiteralInitialLength, AllocationType::kOld);
     entry = 0;
@@ -98,10 +98,10 @@ void AddToFeedbackCellsMap(Handle<CompilationCacheTable> cache,
   for (int i = 0; i < new_literals_map->length(); i += kLiteralEntryLength) {
     MaybeObject object = new_literals_map->Get(i + kLiteralContextOffset);
     DCHECK(object->IsCleared() ||
-           object->GetHeapObjectAssumeWeak().IsNativeContext());
+           IsNativeContext(object->GetHeapObjectAssumeWeak()));
     object = new_literals_map->Get(i + kLiteralLiteralsOffset);
     DCHECK(object->IsCleared() ||
-           object->GetHeapObjectAssumeWeak().IsFeedbackCell());
+           IsFeedbackCell(object->GetHeapObjectAssumeWeak()));
   }
 #endif
 
@@ -126,7 +126,7 @@ FeedbackCell SearchLiteralsMap(CompilationCacheTable cache,
       result = FeedbackCell::cast(object->GetHeapObjectAssumeWeak());
     }
   }
-  DCHECK(result.is_null() || result.IsFeedbackCell());
+  DCHECK(result.is_null() || IsFeedbackCell(result));
   return result;
 }
 
@@ -154,13 +154,13 @@ class EvalCacheKey : public HashTableKey {
 
   bool IsMatch(Object other) override {
     DisallowGarbageCollection no_gc;
-    if (!other.IsFixedArray()) {
-      DCHECK(other.IsNumber());
+    if (!IsFixedArray(other)) {
+      DCHECK(IsNumber(other));
       uint32_t other_hash = static_cast<uint32_t>(other.Number());
       return Hash() == other_hash;
     }
     FixedArray other_array = FixedArray::cast(other);
-    DCHECK(other_array->get(0).IsSharedFunctionInfo());
+    DCHECK(IsSharedFunctionInfo(other_array->get(0)));
     if (*shared_ != other_array->get(0)) return false;
     int language_unchecked = Smi::ToInt(other_array->get(2));
     DCHECK(is_valid_language_mode(language_unchecked));
@@ -230,7 +230,7 @@ Smi ScriptHash(String source, MaybeHandle<Object> maybe_name, int line_offset,
   DisallowGarbageCollection no_gc;
   size_t hash = base::hash_combine(source->EnsureHash());
   if (Handle<Object> name;
-      maybe_name.ToHandle(&name) && name->IsString(isolate)) {
+      maybe_name.ToHandle(&name) && IsString(*name, isolate)) {
     hash =
         base::hash_combine(hash, String::cast(*name)->EnsureHash(), line_offset,
                            column_offset, origin_options.Flags());
@@ -251,13 +251,13 @@ bool ScriptCacheKey::MatchesOrigin(Script script) {
   // an undefined name to have the same origin.
   Handle<Object> name;
   if (!name_.ToHandle(&name)) {
-    return script->name().IsUndefined(isolate_);
+    return IsUndefined(script->name(), isolate_);
   }
   // Do the fast bailout checks first.
   if (line_offset_ != script->line_offset()) return false;
   if (column_offset_ != script->column_offset()) return false;
   // Check that both names are strings. If not, no match.
-  if (!name->IsString(isolate_) || !script->name().IsString(isolate_))
+  if (!IsString(*name, isolate_) || !IsString(script->name(), isolate_))
     return false;
   // Are the origin_options same?
   if (origin_options_.Flags() != script->origin_options().Flags()) {
@@ -281,8 +281,8 @@ bool ScriptCacheKey::MatchesOrigin(Script script) {
 
   for (int i = 0; i < length; i++) {
     // host-defined options is a v8::PrimitiveArray.
-    DCHECK(host_defined_options->get(i).IsPrimitive());
-    DCHECK(script_options->get(i).IsPrimitive());
+    DCHECK(IsPrimitive(host_defined_options->get(i)));
+    DCHECK(IsPrimitive(script_options->get(i)));
     if (!host_defined_options->get(i).StrictEquals(script_options->get(i))) {
       return false;
     }
@@ -319,7 +319,7 @@ ScriptCacheKey::ScriptCacheKey(Handle<String> source, MaybeHandle<Object> name,
 
 bool ScriptCacheKey::IsMatch(Object other) {
   DisallowGarbageCollection no_gc;
-  DCHECK(other.IsWeakFixedArray());
+  DCHECK(IsWeakFixedArray(other));
   WeakFixedArray other_array = WeakFixedArray::cast(other);
   DCHECK_EQ(other_array->length(), kEnd);
 
@@ -344,7 +344,7 @@ Handle<Object> ScriptCacheKey::AsHandle(Isolate* isolate,
   Handle<WeakFixedArray> array = isolate->factory()->NewWeakFixedArray(kEnd);
   // Any SharedFunctionInfo being stored in the script cache should have a
   // Script.
-  DCHECK(shared->script().IsScript());
+  DCHECK(IsScript(shared->script()));
   array->Set(kHash,
              MaybeObject::FromObject(Smi::FromInt(static_cast<int>(Hash()))));
   array->Set(kWeakScript,
@@ -397,7 +397,7 @@ CompilationCacheScriptLookupResult CompilationCacheTable::LookupScript(
 
   Object obj = table->PrimaryValueAt(entry);
   SharedFunctionInfo toplevel_sfi;
-  if (!obj.IsUndefined(isolate)) {
+  if (!IsUndefined(obj, isolate)) {
     toplevel_sfi = SharedFunctionInfo::cast(obj);
     DCHECK_EQ(toplevel_sfi->script(), script);
   }
@@ -418,9 +418,9 @@ InfoCellPair CompilationCacheTable::LookupEval(
   InternalIndex entry = table->FindEntry(isolate, &key);
   if (entry.is_not_found()) return empty_result;
 
-  if (!table->KeyAt(entry).IsFixedArray()) return empty_result;
+  if (!IsFixedArray(table->KeyAt(entry))) return empty_result;
   Object obj = table->PrimaryValueAt(entry);
-  if (!obj.IsSharedFunctionInfo()) return empty_result;
+  if (!IsSharedFunctionInfo(obj)) return empty_result;
 
   static_assert(CompilationCacheShape::kEntrySize == 3);
   FeedbackCell feedback_cell =
@@ -452,7 +452,7 @@ Handle<CompilationCacheTable> CompilationCacheTable::EnsureScriptTableCapacity(
       if (WeakFixedArray::cast(key)
               ->Get(ScriptCacheKey::kWeakScript)
               .IsCleared()) {
-        DCHECK(cache->PrimaryValueAt(entry).IsUndefined());
+        DCHECK(IsUndefined(cache->PrimaryValueAt(entry)));
         cache->RemoveEntry(entry);
       }
     }
@@ -467,7 +467,7 @@ Handle<CompilationCacheTable> CompilationCacheTable::PutScript(
   src = String::Flatten(isolate, src);
   Handle<Script> script = handle(Script::cast(value->script()), isolate);
   MaybeHandle<Object> script_name;
-  if (script->name().IsString(isolate)) {
+  if (IsString(script->name(), isolate)) {
     script_name = handle(script->name(), isolate);
   }
   Handle<FixedArray> host_defined_options(script->host_defined_options(),

@@ -383,7 +383,7 @@ MaybeHandle<T> FormatCommon(
     THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kIcuError), T);
   }
   return formatToResult(isolate, formatted, UnitAsString(isolate, unit_enum),
-                        value->IsNaN());
+                        IsNaN(*value));
 }
 
 MaybeHandle<String> FormatToString(

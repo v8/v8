@@ -38,7 +38,7 @@ void ConservativeTracedHandlesMarkingVisitor::VisitPointer(
         const_cast<Address*>(reinterpret_cast<const Address*>(address)),
         const_cast<Address*>(reinterpret_cast<const Address*>(bounds->first)),
         mark_mode_);
-    if (!object.IsHeapObject()) {
+    if (!IsHeapObject(object)) {
       // The embedder is not aware of whether numbers are materialized as heap
       // objects are just passed around as Smis. This branch also filters out
       // intentionally passed `Smi::zero()` that indicate that there's no

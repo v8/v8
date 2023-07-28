@@ -18,7 +18,7 @@ void StringBuilderConcatHelper(String special, sinkchar* sink,
   int position = 0;
   for (int i = 0; i < array_length; i++) {
     Object element = fixed_array->get(i);
-    if (element.IsSmi()) {
+    if (IsSmi(element)) {
       // Smi encoding of position and length.
       int encoded_slice = Smi::ToInt(element);
       int pos;
@@ -30,7 +30,7 @@ void StringBuilderConcatHelper(String special, sinkchar* sink,
       } else {
         // Position and length encoded in two smis.
         Object obj = fixed_array->get(++i);
-        DCHECK(obj.IsSmi());
+        DCHECK(IsSmi(obj));
         pos = Smi::ToInt(obj);
         len = -encoded_slice;
       }
@@ -61,7 +61,7 @@ int StringBuilderConcatLength(int special_length, FixedArray fixed_array,
   for (int i = 0; i < array_length; i++) {
     int increment = 0;
     Object elt = fixed_array->get(i);
-    if (elt.IsSmi()) {
+    if (IsSmi(elt)) {
       // Smi encoding of position and length.
       int smi_value = Smi::ToInt(elt);
       int pos;
@@ -77,7 +77,7 @@ int StringBuilderConcatLength(int special_length, FixedArray fixed_array,
         i++;
         if (i >= array_length) return -1;
         Object next_smi = fixed_array->get(i);
-        if (!next_smi.IsSmi()) return -1;
+        if (!IsSmi(next_smi)) return -1;
         pos = Smi::ToInt(next_smi);
         if (pos < 0) return -1;
       }
@@ -85,7 +85,7 @@ int StringBuilderConcatLength(int special_length, FixedArray fixed_array,
       DCHECK_GE(len, 0);
       if (pos > special_length || len > special_length - pos) return -1;
       increment = len;
-    } else if (elt.IsString()) {
+    } else if (IsString(elt)) {
       String element = String::cast(elt);
       int element_length = element->length();
       increment = element_length;
@@ -158,14 +158,14 @@ void FixedArrayBuilder::EnsureCapacity(Isolate* isolate, int elements) {
 }
 
 void FixedArrayBuilder::Add(Object value) {
-  DCHECK(!value.IsSmi());
+  DCHECK(!IsSmi(value));
   array_->set(length_, value);
   length_++;
   has_non_smi_elements_ = true;
 }
 
 void FixedArrayBuilder::Add(Smi value) {
-  DCHECK(value.IsSmi());
+  DCHECK(IsSmi(value));
   array_->set(length_, value);
   length_++;
 }
@@ -234,7 +234,7 @@ MaybeHandle<String> ReplacementStringBuilder::ToString() {
 }
 
 void ReplacementStringBuilder::AddElement(Handle<Object> element) {
-  DCHECK(element->IsSmi() || element->IsString());
+  DCHECK(IsSmi(*element) || IsString(*element));
   EnsureCapacity(1);
   DisallowGarbageCollection no_gc;
   array_builder_.Add(*element);

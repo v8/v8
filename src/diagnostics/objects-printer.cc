@@ -45,7 +45,7 @@ void Object::Print() const {
 }
 
 void Object::Print(std::ostream& os) const {
-  if (IsSmi()) {
+  if (IsSmi(*this)) {
     os << "Smi: " << std::hex << "0x" << Smi::ToInt(*this);
     os << std::dec << " (" << Smi::ToInt(*this) << ")\n";
   } else {
@@ -90,7 +90,7 @@ void PrintDictionaryContents(std::ostream& os, T dict) {
     Object k;
     if (!dict.ToKey(roots, i, &k)) continue;
     os << "\n   ";
-    if (k.IsString()) {
+    if (IsString(k)) {
       String::cast(k)->PrintUC16(os);
     } else {
       os << Brief(k);
@@ -104,7 +104,7 @@ void PrintDictionaryContents(std::ostream& os, T dict) {
 void HeapObject::PrintHeader(std::ostream& os, const char* id) {
   PrintHeapObjectHeaderWithoutMap(*this, os, id);
   PtrComprCageBase cage_base = GetPtrComprCageBase();
-  if (!IsMap(cage_base)) os << "\n - map: " << Brief(map(cage_base));
+  if (!IsMap(*this, cage_base)) os << "\n - map: " << Brief(map(cage_base));
 }
 
 void HeapObject::HeapObjectPrint(std::ostream& os) {
@@ -342,7 +342,7 @@ bool JSObject::PrintProperties(std::ostream& os) {
       }
     }
     return map()->NumberOfOwnDescriptors() > 0;
-  } else if (IsJSGlobalObject()) {
+  } else if (IsJSGlobalObject(*this)) {
     PrintDictionaryContents(
         os, JSGlobalObject::cast(*this)->global_dictionary(kAcquireLoad));
   } else if constexpr (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
@@ -480,7 +480,7 @@ void PrintSloppyArgumentElements(std::ostream& os, ElementsKind kind,
   for (int i = 0; i < elements->length(); i++) {
     Object mapped_entry = elements->mapped_entries(i, kRelaxedLoad);
     os << "\n    " << i << ": param(" << i << "): " << Brief(mapped_entry);
-    if (mapped_entry.IsTheHole()) {
+    if (IsTheHole(mapped_entry)) {
       os << " in the arguments_store[" << i << "]";
     } else {
       os << " in the context";
@@ -587,7 +587,7 @@ static void JSObjectPrintHeader(std::ostream& os, JSObject obj,
   if (obj->elements()->IsCowArray()) os << " (COW)";
   os << "]";
   Object hash = obj.GetHash();
-  if (hash.IsSmi()) {
+  if (IsSmi(hash)) {
     os << "\n - hash: " << Brief(hash);
   }
   if (obj->GetEmbedderFieldCount() > 0) {
@@ -599,7 +599,7 @@ static void JSObjectPrintBody(std::ostream& os, JSObject obj,
                               bool print_elements = true) {
   os << "\n - properties: ";
   Object properties_or_hash = obj->raw_properties_or_hash(kRelaxedLoad);
-  if (!properties_or_hash.IsSmi()) {
+  if (!IsSmi(properties_or_hash)) {
     os << Brief(properties_or_hash);
   }
   os << "\n - All own properties (excluding elements): {";
@@ -607,8 +607,8 @@ static void JSObjectPrintBody(std::ostream& os, JSObject obj,
   os << "}\n";
 
   if (print_elements) {
-    size_t length = obj.IsJSTypedArray() ? JSTypedArray::cast(obj)->GetLength()
-                                         : obj->elements()->length();
+    size_t length = IsJSTypedArray(obj) ? JSTypedArray::cast(obj)->GetLength()
+                                        : obj->elements()->length();
     if (length > 0) obj->PrintElements(os);
   }
   int embedder_fields = obj->GetEmbedderFieldCount();
@@ -667,7 +667,7 @@ void JSGeneratorObject::JSGeneratorObjectPrint(std::ostream& os) {
     SharedFunctionInfo fun_info = function()->shared();
     if (fun_info->HasSourceCode()) {
       Script script = Script::cast(fun_info->script());
-      String script_name = script->name().IsString()
+      String script_name = IsString(script->name())
                                ? Tagged<String>::cast(script->name())
                                : GetReadOnlyRoots().empty_string();
 
@@ -737,7 +737,7 @@ void Symbol::SymbolPrint(std::ostream& os) {
   PrintHeader(os, "Symbol");
   os << "\n - hash: " << hash();
   os << "\n - description: " << Brief(description());
-  if (description().IsUndefined()) {
+  if (IsUndefined(description())) {
     os << " (" << PrivateSymbolToName() << ")";
   }
   os << "\n - private: " << is_private();
@@ -907,7 +907,7 @@ void PrintTableContentsGeneric(std::ostream& os, T dict,
     Object k;
     if (!dict.ToKey(roots, i, &k)) continue;
     os << "\n   " << std::setw(12) << i.as_int() << ": ";
-    if (k.IsString()) {
+    if (IsString(k)) {
       String::cast(k)->PrintUC16(os);
     } else {
       os << Brief(k);
@@ -971,7 +971,7 @@ void PrintOrderedHashTableHeaderAndBuckets(std::ostream& os, T table,
   os << "\n - buckets: {";
   for (int bucket = 0; bucket < table.NumberOfBuckets(); bucket++) {
     Object entry = table.get(T::HashTableStartIndex() + bucket);
-    DCHECK(entry.IsSmi());
+    DCHECK(IsSmi(entry));
     os << "\n   " << std::setw(12) << bucket << ": " << Brief(entry);
   }
   os << "\n }";
@@ -1110,7 +1110,7 @@ void SwissNameDictionary::SwissNameDictionaryPrint(std::ostream& os) {
     Object value = this->ValueAtRaw(bucket);
     PropertyDetails details = this->DetailsAt(bucket);
     os << "\n   " << std::setw(12) << std::dec << bucket << ": ";
-    if (k.IsString()) {
+    if (IsString(k)) {
       String::cast(k)->PrintUC16(os);
     } else {
       os << Brief(k);
@@ -1293,7 +1293,7 @@ void FeedbackNexus::Print(std::ostream& os) {
             StoreHandler::PrintHandler(GetFeedbackExtra().GetHeapObjectOrSmi(),
                                        os);
           }
-        } else if (GetFeedback().GetHeapObjectOrSmi().IsPropertyCell()) {
+        } else if (IsPropertyCell(GetFeedback().GetHeapObjectOrSmi())) {
           os << Brief(GetFeedback());
         } else {
           // Lexical variable mode: the variable location is encoded in the SMI.
@@ -1313,14 +1313,14 @@ void FeedbackNexus::Print(std::ostream& os) {
       if (ic_state() == InlineCacheState::MONOMORPHIC) {
         os << "\n   " << Brief(GetFeedback()) << ": ";
         Object handler = GetFeedbackExtra().GetHeapObjectOrSmi();
-        if (handler.IsWeakFixedArray()) {
+        if (IsWeakFixedArray(handler)) {
           handler = WeakFixedArray::cast(handler)->Get(0).GetHeapObjectOrSmi();
         }
         LoadHandler::PrintHandler(handler, os);
       } else if (ic_state() == InlineCacheState::POLYMORPHIC) {
         HeapObject feedback = GetFeedback().GetHeapObject();
         WeakFixedArray array;
-        if (feedback.IsName()) {
+        if (IsName(feedback)) {
           os << " with name " << Brief(feedback);
           array = WeakFixedArray::cast(GetFeedbackExtra().GetHeapObject());
         } else {
@@ -1340,7 +1340,7 @@ void FeedbackNexus::Print(std::ostream& os) {
       os << InlineCacheState2String(ic_state());
       if (ic_state() == InlineCacheState::MONOMORPHIC) {
         HeapObject feedback = GetFeedback().GetHeapObject();
-        if (feedback.IsName()) {
+        if (IsName(feedback)) {
           os << " with name " << Brief(feedback);
           WeakFixedArray array =
               WeakFixedArray::cast(GetFeedbackExtra().GetHeapObject());
@@ -1355,7 +1355,7 @@ void FeedbackNexus::Print(std::ostream& os) {
       } else if (ic_state() == InlineCacheState::POLYMORPHIC) {
         HeapObject feedback = GetFeedback().GetHeapObject();
         WeakFixedArray array;
-        if (feedback.IsName()) {
+        if (IsName(feedback)) {
           os << " with name " << Brief(feedback);
           array = WeakFixedArray::cast(GetFeedbackExtra().GetHeapObject());
         } else {
@@ -1475,7 +1475,7 @@ void String::StringPrint(std::ostream& os) {
 }
 
 void Name::NamePrint(std::ostream& os) {
-  if (IsString()) {
+  if (IsString(*this)) {
     String::cast(*this)->StringPrint(os);
   } else {
     os << Brief(*this);
@@ -1488,19 +1488,19 @@ static const char* const weekdays[] = {"???", "Sun", "Mon", "Tue",
 void JSDate::JSDatePrint(std::ostream& os) {
   JSObjectPrintHeader(os, *this, "JSDate");
   os << "\n - value: " << Brief(value());
-  if (!year().IsSmi()) {
+  if (!IsSmi(year())) {
     os << "\n - time = NaN\n";
   } else {
     // TODO(svenpanne) Add some basic formatting to our streams.
     base::ScopedVector<char> buf(100);
     SNPrintF(buf, "\n - time = %s %04d/%02d/%02d %02d:%02d:%02d\n",
-             weekdays[weekday().IsSmi() ? Smi::ToInt(weekday()) + 1 : 0],
-             year().IsSmi() ? Smi::ToInt(year()) : -1,
-             month().IsSmi() ? Smi::ToInt(month()) : -1,
-             day().IsSmi() ? Smi::ToInt(day()) : -1,
-             hour().IsSmi() ? Smi::ToInt(hour()) : -1,
-             min().IsSmi() ? Smi::ToInt(min()) : -1,
-             sec().IsSmi() ? Smi::ToInt(sec()) : -1);
+             weekdays[IsSmi(weekday()) ? Smi::ToInt(weekday()) + 1 : 0],
+             IsSmi(year()) ? Smi::ToInt(year()) : -1,
+             IsSmi(month()) ? Smi::ToInt(month()) : -1,
+             IsSmi(day()) ? Smi::ToInt(day()) : -1,
+             IsSmi(hour()) ? Smi::ToInt(hour()) : -1,
+             IsSmi(min()) ? Smi::ToInt(min()) : -1,
+             IsSmi(sec()) ? Smi::ToInt(sec()) : -1);
     os << buf.begin();
   }
   JSObjectPrintBody(os, *this);
@@ -1558,13 +1558,13 @@ void JSFinalizationRegistry::JSFinalizationRegistryPrint(std::ostream& os) {
   os << "\n - cleanup: " << Brief(cleanup());
   os << "\n - active_cells: " << Brief(active_cells());
   Object active_cell = active_cells();
-  while (active_cell.IsWeakCell()) {
+  while (IsWeakCell(active_cell)) {
     os << "\n   - " << Brief(active_cell);
     active_cell = WeakCell::cast(active_cell)->next();
   }
   os << "\n - cleared_cells: " << Brief(cleared_cells());
   Object cleared_cell = cleared_cells();
-  while (cleared_cell.IsWeakCell()) {
+  while (IsWeakCell(cleared_cell)) {
     os << "\n   - " << Brief(cleared_cell);
     cleared_cell = WeakCell::cast(cleared_cell)->next();
   }
@@ -1688,7 +1688,7 @@ void JSTypedArray::JSTypedArrayPrint(std::ostream& os) {
      << reinterpret_cast<void*>(static_cast<Address>(base_ptr));
   os << "\n   - external_pointer: "
      << reinterpret_cast<void*>(external_pointer());
-  if (!buffer().IsJSArrayBuffer()) {
+  if (!IsJSArrayBuffer(buffer())) {
     os << "\n <invalid buffer>\n";
     return;
   }
@@ -1711,7 +1711,7 @@ void JSDataView::JSDataViewPrint(std::ostream& os) {
   os << "\n - buffer =" << Brief(buffer());
   os << "\n - byte_offset: " << byte_offset();
   os << "\n - byte_length: " << byte_length();
-  if (!buffer().IsJSArrayBuffer()) {
+  if (!IsJSArrayBuffer(buffer())) {
     os << "\n <invalid buffer>";
     return;
   }
@@ -1726,7 +1726,7 @@ void JSRabGsabDataView::JSRabGsabDataViewPrint(std::ostream& os) {
   os << "\n - byte_length: " << byte_length();
   if (is_length_tracking()) os << "\n - length-tracking";
   if (is_backed_by_rab()) os << "\n - backed-by-rab";
-  if (!buffer().IsJSArrayBuffer()) {
+  if (!IsJSArrayBuffer(buffer())) {
     os << "\n <invalid buffer>";
     return;
   }
@@ -1991,9 +1991,9 @@ static void PrintModuleFields(Module module, std::ostream& os) {
 }
 
 void Module::ModulePrint(std::ostream& os) {
-  if (this->IsSourceTextModule()) {
+  if (IsSourceTextModule(*this)) {
     SourceTextModule::cast(*this)->SourceTextModulePrint(os);
-  } else if (this->IsSyntheticModule()) {
+  } else if (IsSyntheticModule(*this)) {
     SyntheticModule::cast(*this)->SyntheticModulePrint(os);
   } else {
     UNREACHABLE();
@@ -2439,7 +2439,7 @@ void AllocationSite::AllocationSitePrint(std::ostream& os) {
   if (!PointsToLiteral()) {
     ElementsKind kind = GetElementsKind();
     os << "Array allocation with ElementsKind " << ElementsKindToString(kind);
-  } else if (boilerplate().IsJSArray()) {
+  } else if (IsJSArray(boilerplate())) {
     os << "Array literal with boilerplate " << Brief(boilerplate());
   } else {
     os << "Object literal with boilerplate " << Brief(boilerplate());
@@ -2685,7 +2685,7 @@ void PrintScopeInfoList(ScopeInfo scope_info, std::ostream& os,
 
 void ScopeInfo::ScopeInfoPrint(std::ostream& os) {
   PrintHeader(os, "ScopeInfo");
-  if (IsEmpty()) {
+  if (this->IsEmpty()) {
     os << "\n - empty\n";
     return;
   }
@@ -2795,12 +2795,12 @@ void HeapNumber::HeapNumberShortPrint(std::ostream& os) {
 
 // TODO(cbruni): remove once the new maptracer is in place.
 void Name::NameShortPrint() {
-  if (this->IsString()) {
+  if (IsString(*this)) {
     PrintF("%s", String::cast(*this)->ToCString().get());
   } else {
-    DCHECK(this->IsSymbol());
+    DCHECK(IsSymbol(*this));
     Symbol s = Symbol::cast(*this);
-    if (s->description().IsUndefined()) {
+    if (IsUndefined(s->description())) {
       PrintF("#<%s>", s->PrivateSymbolToName());
     } else {
       PrintF("<%s>", String::cast(s->description())->ToCString().get());
@@ -2810,12 +2810,12 @@ void Name::NameShortPrint() {
 
 // TODO(cbruni): remove once the new maptracer is in place.
 int Name::NameShortPrint(base::Vector<char> str) {
-  if (this->IsString()) {
+  if (IsString(*this)) {
     return SNPrintF(str, "%s", String::cast(*this)->ToCString().get());
   } else {
-    DCHECK(this->IsSymbol());
+    DCHECK(IsSymbol(*this));
     Symbol s = Symbol::cast(*this);
-    if (s->description().IsUndefined()) {
+    if (IsUndefined(s->description())) {
       return SNPrintF(str, "#<%s>", s->PrivateSymbolToName());
     } else {
       return SNPrintF(str, "<%s>",
@@ -2843,7 +2843,7 @@ void Map::MapPrint(std::ostream& os) {
   } else {
     os << instance_size();
   }
-  if (IsJSObjectMap()) {
+  if (IsJSObjectMap(*this)) {
     os << "\n - inobject properties: " << GetInObjectProperties();
     os << "\n - unused property fields: " << UnusedPropertyFields();
   }
@@ -2871,7 +2871,7 @@ void Map::MapPrint(std::ostream& os) {
   }
   if (is_access_check_needed()) os << "\n - access_check_needed";
   if (!is_extensible()) os << "\n - non-extensible";
-  if (IsContextMap()) {
+  if (IsContextMap(*this)) {
     os << "\n - native context: " << Brief(native_context());
   } else if (is_prototype_map()) {
     os << "\n - prototype_map";
@@ -2909,7 +2909,7 @@ void Map::MapPrint(std::ostream& os) {
   if (has_non_instance_prototype()) {
     os << "\n - non-instance prototype: " << Brief(GetNonInstancePrototype());
   }
-  if (!IsContextMap()) {
+  if (!IsContextMap(*this)) {
     os << "\n - constructor: " << Brief(GetConstructor());
   }
   os << "\n - dependent code: " << Brief(dependent_code());
@@ -2947,7 +2947,7 @@ void DescriptorArray::PrintDescriptorDetails(std::ostream& os,
     case PropertyLocation::kDescriptor:
       Object value = GetStrongValue(descriptor);
       os << Brief(value);
-      if (value.IsAccessorPair()) {
+      if (IsAccessorPair(value)) {
         AccessorPair pair = AccessorPair::cast(value);
         os << "(get: " << Brief(pair->getter())
            << ", set: " << Brief(pair->setter()) << ")";
@@ -3220,7 +3220,7 @@ V8_EXPORT_PRIVATE extern void _v8_internal_Print_StackTrace() {
 V8_DONT_STRIP_SYMBOL
 V8_EXPORT_PRIVATE extern void _v8_internal_Print_TransitionTree(void* object) {
   i::Object o(GetObjectFromRaw(object));
-  if (!o.IsMap()) {
+  if (!IsMap(o)) {
     printf("Please provide a valid Map\n");
   } else {
 #if defined(DEBUG) || defined(OBJECT_PRINT)

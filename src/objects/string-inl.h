@@ -434,8 +434,8 @@ class SeqSubStringKey final : public StringTableKey {
 
     DCHECK_LE(0, length());
     DCHECK_LE(from_ + length(), string_->length());
-    DCHECK_EQ(string_->IsSeqOneByteString(), sizeof(Char) == 1);
-    DCHECK_EQ(string_->IsSeqTwoByteString(), sizeof(Char) == 2);
+    DCHECK_EQ(IsSeqOneByteString(*string_), sizeof(Char) == 1);
+    DCHECK_EQ(IsSeqTwoByteString(*string_), sizeof(Char) == 2);
   }
 #if defined(V8_CC_MSVC)
 #pragma warning(pop)
@@ -487,7 +487,7 @@ using SeqTwoByteSubStringKey = SeqSubStringKey<SeqTwoByteString>;
 
 bool String::Equals(String other) const {
   if (other == *this) return true;
-  if (this->IsInternalizedString() && other.IsInternalizedString()) {
+  if (IsInternalizedString(*this) && IsInternalizedString(other)) {
     return false;
   }
   return SlowEquals(other);
@@ -496,7 +496,7 @@ bool String::Equals(String other) const {
 // static
 bool String::Equals(Isolate* isolate, Handle<String> one, Handle<String> two) {
   if (one.is_identical_to(two)) return true;
-  if (one->IsInternalizedString() && two->IsInternalizedString()) {
+  if (IsInternalizedString(*one) && IsInternalizedString(*two)) {
     return false;
   }
   return SlowEquals(isolate, one, two);
@@ -681,7 +681,7 @@ Handle<String> String::Flatten(Isolate* isolate, Handle<String> string,
 
   if (shape.IsThin()) {
     s = ThinString::cast(s)->actual(cage_base);
-    DCHECK(!s.IsConsString());
+    DCHECK(!IsConsString(s));
   }
 
   return handle(s, isolate);
@@ -1102,7 +1102,7 @@ bool SeqTwoByteString::IsCompatibleMap(Tagged<Map> map, ReadOnlyRoots roots) {
 }
 
 void SlicedString::set_parent(String parent, WriteBarrierMode mode) {
-  DCHECK(parent.IsSeqString() || parent.IsExternalString());
+  DCHECK(IsSeqString(parent) || IsExternalString(parent));
   TorqueGeneratedSlicedString<SlicedString, Super>::set_parent(parent, mode);
 }
 
@@ -1153,7 +1153,7 @@ DEF_GETTER(ExternalString, resource_as_address, Address) {
 void ExternalString::set_address_as_resource(Isolate* isolate, Address value) {
   WriteExternalPointerField<kExternalStringResourceTag>(kResourceOffset,
                                                         isolate, value);
-  if (IsExternalOneByteString()) {
+  if (IsExternalOneByteString(*this)) {
     ExternalOneByteString::cast(*this)->update_data_cache(isolate);
   } else {
     ExternalTwoByteString::cast(*this)->update_data_cache(isolate);

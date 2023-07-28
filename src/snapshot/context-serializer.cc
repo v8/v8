@@ -76,7 +76,7 @@ ContextSerializer::~ContextSerializer() {
 void ContextSerializer::Serialize(Context* o,
                                   const DisallowGarbageCollection& no_gc) {
   context_ = *o;
-  DCHECK(context_.IsNativeContext());
+  DCHECK(IsNativeContext(context_));
 
   // Upon deserialization, references to the global proxy and its map will be
   // replaced.
@@ -92,7 +92,7 @@ void ContextSerializer::Serialize(Context* o,
   // context.
   context_->set(Context::NEXT_CONTEXT_LINK,
                 ReadOnlyRoots(isolate()).undefined_value());
-  DCHECK(!context_->global_object().IsUndefined());
+  DCHECK(!IsUndefined(context_->global_object()));
   // Reset math random cache to get fresh random numbers.
   MathRandom::ResetContext(context_);
 
@@ -123,7 +123,7 @@ void ContextSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
     // But in test scenarios there is no way to avoid this. Since we only
     // serialize a single context in these cases, and this context does not
     // have to be executable, we can simply ignore this.
-    DCHECK_IMPLIES(obj->IsNativeContext(), *obj == context_);
+    DCHECK_IMPLIES(IsNativeContext(*obj), *obj == context_);
   }
 
   {
@@ -150,9 +150,9 @@ void ContextSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
   DCHECK(!startup_serializer_->ReferenceMapContains(obj));
   // All the internalized strings that the context snapshot needs should be
   // either in the root table or in the shared heap object cache.
-  DCHECK(!obj->IsInternalizedString());
+  DCHECK(!IsInternalizedString(*obj));
   // Function and object templates are not context specific.
-  DCHECK(!obj->IsTemplateInfo());
+  DCHECK(!IsTemplateInfo(*obj));
 
   InstanceType instance_type = obj->map()->instance_type();
   if (InstanceTypeChecker::IsFeedbackVector(instance_type)) {
@@ -191,17 +191,17 @@ bool ContextSerializer::ShouldBeInTheStartupObjectCache(HeapObject o) {
   // We can't allow scripts to be part of the context snapshot because they
   // contain a unique ID, and deserializing several context snapshots containing
   // script would cause dupes.
-  return o.IsName() || o.IsScript() || o.IsSharedFunctionInfo() ||
-         o.IsHeapNumber() || o.IsCode() || o.IsInstructionStream() ||
-         o.IsScopeInfo() || o.IsAccessorInfo() || o.IsTemplateInfo() ||
-         o.IsClassPositions() ||
+  return IsName(o) || IsScript(o) || IsSharedFunctionInfo(o) ||
+         IsHeapNumber(o) || IsCode(o) || IsInstructionStream(o) ||
+         IsScopeInfo(o) || IsAccessorInfo(o) || IsTemplateInfo(o) ||
+         IsClassPositions(o) ||
          o->map() == ReadOnlyRoots(isolate()).fixed_cow_array_map();
 }
 
 bool ContextSerializer::ShouldBeInTheSharedObjectCache(HeapObject o) {
   // v8_flags.shared_string_table may be true during deserialization, so put
   // internalized strings into the shared object snapshot.
-  return o.IsInternalizedString();
+  return IsInternalizedString(o);
 }
 
 namespace {
@@ -234,7 +234,7 @@ bool ContextSerializer::SerializeJSObjectWithEmbedderFields(
     original_embedder_values.emplace_back(
         embedder_data_slot.load_raw(isolate(), no_gc));
     Object object = embedder_data_slot.load_tagged();
-    if (object.IsHeapObject()) {
+    if (IsHeapObject(object)) {
       DCHECK(IsValidHeapObject(isolate()->heap(), HeapObject::cast(object)));
       serialized_data.push_back({nullptr, 0});
     } else {

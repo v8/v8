@@ -36,9 +36,9 @@ bool CanInlinePropertyAccess(MapRef map, AccessMode access_mode) {
   // relationship between the map and the object (and therefore the property
   // dictionary).
   static_assert(ODDBALL_TYPE == LAST_PRIMITIVE_HEAP_OBJECT_TYPE);
-  if (map.object()->IsBooleanMap()) return true;
+  if (IsBooleanMap(*map.object())) return true;
   if (map.instance_type() < LAST_PRIMITIVE_HEAP_OBJECT_TYPE) return true;
-  if (map.object()->IsJSObjectMap()) {
+  if (IsJSObjectMap(*map.object())) {
     if (map.is_dictionary_map()) {
       if (!V8_DICT_PROPERTY_CONST_TRACKING_BOOL) return false;
       return access_mode == AccessMode::kLoad &&
@@ -451,7 +451,7 @@ PropertyAccessInfo AccessInfoFactory::ComputeDataFieldAccessInfo(
         dependencies()->FieldRepresentationDependencyOffTheRecord(
             map, field_owner_map, descriptor, details_representation));
   } else if (details_representation.IsHeapObject()) {
-    if (descriptors_field_type->IsNone()) {
+    if (IsNone(*descriptors_field_type)) {
       switch (access_mode) {
         case AccessMode::kStore:
         case AccessMode::kStoreInLiteral:
@@ -469,7 +469,7 @@ PropertyAccessInfo AccessInfoFactory::ComputeDataFieldAccessInfo(
     unrecorded_dependencies.push_back(
         dependencies()->FieldRepresentationDependencyOffTheRecord(
             map, field_owner_map, descriptor, details_representation));
-    if (descriptors_field_type->IsClass()) {
+    if (IsClass(*descriptors_field_type)) {
       // Remember the field map, and try to infer a useful type.
       OptionalMapRef maybe_field_map =
           TryMakeRef(broker(), descriptors_field_type->AsClass());
@@ -525,7 +525,7 @@ PropertyAccessInfo AccessorAccessInfoHelper(
     Handle<Cell> cell = broker->CanonicalPersistentHandle(
         Cell::cast(module_namespace->module()->exports()->Lookup(
             isolate, name.object(), Smi::ToInt(name.object()->GetHash()))));
-    if (cell->value(kRelaxedLoad).IsTheHole(isolate)) {
+    if (IsTheHole(cell->value(kRelaxedLoad), isolate)) {
       // This module has not been fully initialized yet.
       return PropertyAccessInfo::Invalid(zone);
     }
@@ -545,7 +545,7 @@ PropertyAccessInfo AccessorAccessInfoHelper(
                                                     {}, {});
   }
   Handle<Object> maybe_accessors = get_accessors();
-  if (!maybe_accessors->IsAccessorPair()) {
+  if (!IsAccessorPair(*maybe_accessors)) {
     return PropertyAccessInfo::Invalid(zone);
   }
   Handle<AccessorPair> accessors = Handle<AccessorPair>::cast(maybe_accessors);
@@ -557,7 +557,7 @@ PropertyAccessInfo AccessorAccessInfoHelper(
   if (!accessor_ref.has_value()) return PropertyAccessInfo::Invalid(zone);
 
   OptionalJSObjectRef api_holder_ref;
-  if (!accessor->IsJSFunction()) {
+  if (!IsJSFunction(*accessor)) {
     CallOptimization optimization(broker->local_isolate_or_isolate(), accessor);
     if (!optimization.is_simple_api_call() ||
         optimization.IsCrossContextLazyAccessorPair(
@@ -714,7 +714,7 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
 
   JSHeapBroker::MapUpdaterGuardIfNeeded mumd_scope(broker());
 
-  if (access_mode == AccessMode::kHas && !map.object()->IsJSReceiverMap()) {
+  if (access_mode == AccessMode::kHas && !IsJSReceiverMap(*map.object())) {
     return Invalid();
   }
 
@@ -831,7 +831,7 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
 
     // Don't search on the prototype chain for special indices in case of
     // integer indexed exotic objects (see ES6 section 9.4.5).
-    if (map.object()->IsJSTypedArrayMap() && name.IsString()) {
+    if (IsJSTypedArrayMap(*map.object()) && name.IsString()) {
       // TODO(jgruber,v8:12790): Extend this to other strings in read-only
       // space. When doing so, make sure there are no unexpected regressions on
       // jetstream2.
@@ -877,11 +877,11 @@ PropertyAccessInfo AccessInfoFactory::ComputePropertyAccessInfo(
     HeapObjectRef prototype = map.prototype(broker());
 
     MapRef map_prototype_map = prototype.map(broker());
-    if (!map_prototype_map.object()->IsJSObjectMap()) {
+    if (!IsJSObjectMap(*map_prototype_map.object())) {
       // Don't allow proxies on the prototype chain.
       if (!prototype.IsNull()) {
-        DCHECK(prototype.object()->IsJSProxy() ||
-               prototype.object()->IsWasmObject());
+        DCHECK(IsJSProxy(*prototype.object()) ||
+               IsWasmObject(*prototype.object()));
         return Invalid();
       }
 
@@ -1039,7 +1039,7 @@ base::Optional<ElementAccessInfo> AccessInfoFactory::ConsolidateElementLoad(
 PropertyAccessInfo AccessInfoFactory::LookupSpecialFieldAccessor(
     MapRef map, NameRef name) const {
   // Check for String::length field accessor.
-  if (map.object()->IsStringMap()) {
+  if (IsStringMap(*map.object())) {
     if (Name::Equals(isolate(), name.object(),
                      isolate()->factory()->length_string())) {
       return PropertyAccessInfo::StringLength(zone(), map);
@@ -1052,7 +1052,7 @@ PropertyAccessInfo AccessInfoFactory::LookupSpecialFieldAccessor(
                                          &field_index)) {
     Type field_type = Type::NonInternal();
     Representation field_representation = Representation::Tagged();
-    if (map.object()->IsJSArrayMap()) {
+    if (IsJSArrayMap(*map.object())) {
       DCHECK(Name::Equals(isolate(), isolate()->factory()->length_string(),
                           name.object()));
       // The JSArray::length property is a smi in the range
@@ -1133,14 +1133,14 @@ PropertyAccessInfo AccessInfoFactory::LookupTransition(
         TryMakeRef<Object>(broker(), descriptors_field_type);
     if (!descriptors_field_type_ref.has_value()) return Invalid();
 
-    if (descriptors_field_type->IsNone()) {
+    if (IsNone(*descriptors_field_type)) {
       // Store is not safe if the field type was cleared.
       return Invalid();
     }
     unrecorded_dependencies.push_back(
         dependencies()->FieldRepresentationDependencyOffTheRecord(
             transition_map, transition_map, number, details_representation));
-    if (descriptors_field_type->IsClass()) {
+    if (IsClass(*descriptors_field_type)) {
       unrecorded_dependencies.push_back(
           dependencies()->FieldTypeDependencyOffTheRecord(
               transition_map, transition_map, number,

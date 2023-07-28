@@ -27,7 +27,7 @@ template <ArgumentsType T>
 int Arguments<T>::smi_value_at(int index) const {
   Object obj = (*this)[index];
   int value = Smi::ToInt(obj);
-  DCHECK_IMPLIES(obj.IsTaggedIndex(), value == tagged_index_value_at(index));
+  DCHECK_IMPLIES(IsTaggedIndex(obj), value == tagged_index_value_at(index));
   return value;
 }
 

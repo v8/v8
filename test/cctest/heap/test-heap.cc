@@ -91,7 +91,7 @@ static const int kPretenureCreationCount =
     PretenuringHandler::GetMinMementoCountForTesting() + 1;
 
 static void CheckMap(Map map, int type, int instance_size) {
-  CHECK(map.IsHeapObject());
+  CHECK(IsHeapObject(map));
   DCHECK(IsValidHeapObject(CcTest::heap(), map));
   CHECK_EQ(ReadOnlyRoots(CcTest::heap()).meta_map(), map->map());
   CHECK_EQ(type, map->instance_type());
@@ -167,7 +167,7 @@ TEST(InitialObjects) {
 }
 
 static void CheckOddball(Isolate* isolate, Object obj, const char* string) {
-  CHECK(obj.IsOddball());
+  CHECK(IsOddball(obj));
   Handle<Object> handle(obj, isolate);
   Object print_string = *Object::ToString(isolate, handle).ToHandleChecked();
   CHECK(String::cast(print_string)->IsOneByteEqualTo(base::CStrVector(string)));
@@ -182,7 +182,7 @@ static void CheckSmi(Isolate* isolate, int value, const char* string) {
 
 static void CheckNumber(Isolate* isolate, double value, const char* string) {
   Handle<Object> number = isolate->factory()->NewNumber(value);
-  CHECK(number->IsNumber());
+  CHECK(IsNumber(*number));
   Handle<Object> print_string =
       Object::ToString(isolate, number).ToHandleChecked();
   CHECK(
@@ -222,7 +222,7 @@ static void CheckGcSafeFindCodeForInnerPointer(Isolate* isolate) {
           .Build()
           ->instruction_stream(),
       isolate);
-  CHECK(code->IsInstructionStream(cage_base));
+  CHECK(IsInstructionStream(*code, cage_base));
 
   HeapObject obj = HeapObject::cast(*code);
   Address obj_addr = obj.address();
@@ -262,56 +262,56 @@ TEST(HeapObjects) {
 
   HandleScope sc(isolate);
   Handle<Object> value = factory->NewNumber(1.000123);
-  CHECK(value->IsHeapNumber());
-  CHECK(value->IsNumber());
+  CHECK(IsHeapNumber(*value));
+  CHECK(IsNumber(*value));
   CHECK_EQ(1.000123, value->Number());
 
   value = factory->NewNumber(1.0);
-  CHECK(value->IsSmi());
-  CHECK(value->IsNumber());
+  CHECK(IsSmi(*value));
+  CHECK(IsNumber(*value));
   CHECK_EQ(1.0, value->Number());
 
   value = factory->NewNumberFromInt(1024);
-  CHECK(value->IsSmi());
-  CHECK(value->IsNumber());
+  CHECK(IsSmi(*value));
+  CHECK(IsNumber(*value));
   CHECK_EQ(1024.0, value->Number());
 
   value = factory->NewNumberFromInt(Smi::kMinValue);
-  CHECK(value->IsSmi());
-  CHECK(value->IsNumber());
+  CHECK(IsSmi(*value));
+  CHECK(IsNumber(*value));
   CHECK_EQ(Smi::kMinValue, Handle<Smi>::cast(value)->value());
 
   value = factory->NewNumberFromInt(Smi::kMaxValue);
-  CHECK(value->IsSmi());
-  CHECK(value->IsNumber());
+  CHECK(IsSmi(*value));
+  CHECK(IsNumber(*value));
   CHECK_EQ(Smi::kMaxValue, Handle<Smi>::cast(value)->value());
 
 #if !defined(V8_TARGET_ARCH_64_BIT)
   // TODO(lrn): We need a NumberFromIntptr function in order to test this.
   value = factory->NewNumberFromInt(Smi::kMinValue - 1);
-  CHECK(value->IsHeapNumber());
-  CHECK(value->IsNumber());
+  CHECK(IsHeapNumber(*value));
+  CHECK(IsNumber(*value));
   CHECK_EQ(static_cast<double>(Smi::kMinValue - 1), value->Number());
 #endif
 
   value = factory->NewNumberFromUint(static_cast<uint32_t>(Smi::kMaxValue) + 1);
-  CHECK(value->IsHeapNumber());
-  CHECK(value->IsNumber());
+  CHECK(IsHeapNumber(*value));
+  CHECK(IsNumber(*value));
   CHECK_EQ(static_cast<double>(static_cast<uint32_t>(Smi::kMaxValue) + 1),
            value->Number());
 
   value = factory->NewNumberFromUint(static_cast<uint32_t>(1) << 31);
-  CHECK(value->IsHeapNumber());
-  CHECK(value->IsNumber());
+  CHECK(IsHeapNumber(*value));
+  CHECK(IsNumber(*value));
   CHECK_EQ(static_cast<double>(static_cast<uint32_t>(1) << 31),
            value->Number());
 
   // nan oddball checks
-  CHECK(factory->nan_value()->IsNumber());
+  CHECK(IsNumber(*factory->nan_value()));
   CHECK(std::isnan(factory->nan_value()->Number()));
 
   Handle<String> s = factory->NewStringFromStaticChars("fisk hest ");
-  CHECK(s->IsString());
+  CHECK(IsString(*s));
   CHECK_EQ(10, s->length());
 
   Handle<String> object_string = Handle<String>::cast(factory->Object_string());
@@ -342,9 +342,9 @@ TEST(Tagging) {
   CcTest::InitializeVM();
   int request = 24;
   CHECK_EQ(request, static_cast<int>(OBJECT_POINTER_ALIGN(request)));
-  CHECK(Smi::FromInt(42).IsSmi());
-  CHECK(Smi::FromInt(Smi::kMinValue).IsSmi());
-  CHECK(Smi::FromInt(Smi::kMaxValue).IsSmi());
+  CHECK(IsSmi(Smi::FromInt(42)));
+  CHECK(IsSmi(Smi::FromInt(Smi::kMinValue)));
+  CHECK(IsSmi(Smi::FromInt(Smi::kMaxValue)));
 }
 
 
@@ -391,7 +391,7 @@ TEST(GarbageCollection) {
   // Check function is retained.
   Handle<Object> func_value =
       Object::GetProperty(isolate, global, name).ToHandleChecked();
-  CHECK(func_value->IsJSFunction());
+  CHECK(IsJSFunction(*func_value));
   Handle<JSFunction> function = Handle<JSFunction>::cast(func_value);
 
   {
@@ -408,7 +408,7 @@ TEST(GarbageCollection) {
   CHECK(Just(true) == JSReceiver::HasOwnProperty(isolate, global, obj_name));
   Handle<Object> obj =
       Object::GetProperty(isolate, global, obj_name).ToHandleChecked();
-  CHECK(obj->IsJSObject());
+  CHECK(IsJSObject(*obj));
   CHECK_EQ(Smi::FromInt(23),
            *Object::GetProperty(isolate, obj, prop_name).ToHandleChecked());
 }
@@ -476,10 +476,10 @@ TEST(GlobalHandles) {
   // after gc, it should survive
   heap::InvokeMinorGC(CcTest::heap());
 
-  CHECK((*h1).IsString());
-  CHECK((*h2).IsHeapNumber());
-  CHECK((*h3).IsString());
-  CHECK((*h4).IsHeapNumber());
+  CHECK(IsString(*h1));
+  CHECK(IsHeapNumber(*h2));
+  CHECK(IsString(*h3));
+  CHECK(IsHeapNumber(*h4));
 
   CHECK_EQ(*h3, *h1);
   GlobalHandles::Destroy(h1.location());
@@ -539,7 +539,7 @@ TEST(WeakGlobalUnmodifiedApiHandlesScavenge) {
   v8_flags.single_generation ? heap::InvokeMajorGC(CcTest::heap())
                              : heap::InvokeMinorGC(CcTest::heap());
 
-  CHECK((*h1).IsHeapNumber());
+  CHECK(IsHeapNumber(*h1));
   CHECK(WeakPointerCleared);
   GlobalHandles::Destroy(h1.location());
 }
@@ -579,7 +579,7 @@ TEST(WeakGlobalHandlesMark) {
 
   // Incremental marking potentially marked handles before they turned weak.
   heap::InvokeMajorGC(CcTest::heap());
-  CHECK((*h1).IsString());
+  CHECK(IsString(*h1));
   CHECK(WeakPointerCleared);
   GlobalHandles::Destroy(h1.location());
 }
@@ -641,7 +641,7 @@ TEST(BytecodeArray) {
   Handle<BytecodeArray> array = factory->NewBytecodeArray(
       kRawBytesSize, kRawBytes, kFrameSize, kParameterCount, constant_pool);
 
-  CHECK(array->IsBytecodeArray());
+  CHECK(IsBytecodeArray(*array));
   CHECK_EQ(array->length(), (int)sizeof(kRawBytes));
   CHECK_EQ(array->frame_size(), kFrameSize);
   CHECK_EQ(array->parameter_count(), kParameterCount);
@@ -702,7 +702,7 @@ static void CheckInternalizedStrings(const char** strings) {
     Handle<String> a =
         isolate->factory()->InternalizeUtf8String(base::CStrVector(string));
     // InternalizeUtf8String may return a failure if a GC is needed.
-    CHECK(a->IsInternalizedString());
+    CHECK(IsInternalizedString(*a));
     Handle<String> b = factory->InternalizeUtf8String(string);
     CHECK_EQ(*b, *a);
     CHECK(b->IsOneByteEqualTo(base::CStrVector(string)));
@@ -1110,7 +1110,7 @@ TEST(TestBytecodeFlushing) {
     Handle<Object> func_value =
         Object::GetProperty(i_isolate, i_isolate->global_object(), foo_name)
             .ToHandleChecked();
-    CHECK(func_value->IsJSFunction());
+    CHECK(IsJSFunction(*func_value));
     Handle<JSFunction> function = Handle<JSFunction>::cast(func_value);
     CHECK(function->shared()->is_compiled());
 
@@ -1177,7 +1177,7 @@ static void TestMultiReferencedBytecodeFlushing(bool sparkplug_compile) {
     Handle<Object> func_value =
         Object::GetProperty(i_isolate, i_isolate->global_object(), foo_name)
             .ToHandleChecked();
-    CHECK(func_value->IsJSFunction());
+    CHECK(IsJSFunction(*func_value));
     Handle<JSFunction> function = Handle<JSFunction>::cast(func_value);
     Handle<SharedFunctionInfo> shared = handle(function->shared(), i_isolate);
     CHECK(shared->is_compiled());
@@ -1252,7 +1252,7 @@ HEAP_TEST(Regress10560) {
     Handle<Object> func_value =
         Object::GetProperty(i_isolate, i_isolate->global_object(), foo_name)
             .ToHandleChecked();
-    CHECK(func_value->IsJSFunction());
+    CHECK(IsJSFunction(*func_value));
     Handle<JSFunction> function = Handle<JSFunction>::cast(func_value);
     CHECK(function->shared()->is_compiled());
     CHECK(!function->has_feedback_vector());
@@ -1425,7 +1425,7 @@ TEST(TestOptimizeAfterBytecodeFlushingCandidate) {
   Handle<Object> func_value =
       Object::GetProperty(isolate, isolate->global_object(), foo_name)
           .ToHandleChecked();
-  CHECK(func_value->IsJSFunction());
+  CHECK(IsJSFunction(*func_value));
   Handle<JSFunction> function = Handle<JSFunction>::cast(func_value);
   CHECK(function->shared()->is_compiled());
 
@@ -1742,7 +1742,7 @@ void CompilationCacheRegeneration(bool retain_root_sfi, bool flush_root_sfi,
         script->shared_function_infos()->Get(kFunctionLiteralIdTopLevel);
     if (HeapObject sfi_or_undefined;
         maybe_root_sfi.GetHeapObject(&sfi_or_undefined)) {
-      root_sfi_still_exists = !sfi_or_undefined.IsUndefined();
+      root_sfi_still_exists = !IsUndefined(sfi_or_undefined);
     }
     CHECK_EQ(root_sfi_should_still_exist, root_sfi_still_exists);
   }
@@ -1845,7 +1845,7 @@ static void OptimizeEmptyFunction(const char* name) {
 int CountNativeContexts() {
   int count = 0;
   Object object = CcTest::heap()->native_contexts_list();
-  while (!object.IsUndefined(CcTest::i_isolate())) {
+  while (!IsUndefined(object, CcTest::i_isolate())) {
     count++;
     object = Context::cast(object)->next_context_link();
   }
@@ -2141,7 +2141,7 @@ TEST(TestAlignedAllocation) {
     CHECK(IsAligned(obj.address(), kDoubleAlignment));
     // There is a filler object before the object.
     filler = HeapObject::FromAddress(start);
-    CHECK(obj != filler && filler.IsFreeSpaceOrFiller() &&
+    CHECK(obj != filler && IsFreeSpaceOrFiller(filler) &&
           filler->Size() == kTaggedSize);
     CHECK_EQ(kTaggedSize + double_misalignment, *top_addr - start);
 
@@ -2155,7 +2155,7 @@ TEST(TestAlignedAllocation) {
     CHECK(IsAligned(obj.address() + kTaggedSize, kDoubleAlignment));
     // There is a filler object before the object.
     filler = HeapObject::FromAddress(start);
-    CHECK(obj != filler && filler.IsFreeSpaceOrFiller() &&
+    CHECK(obj != filler && IsFreeSpaceOrFiller(filler) &&
           filler->Size() == kTaggedSize);
     CHECK_EQ(kTaggedSize + double_misalignment, *top_addr - start);
   }
@@ -2218,9 +2218,9 @@ TEST(TestAlignedOverAllocation) {
     CHECK(IsAligned(obj.address(), kDoubleAlignment));
     filler = HeapObject::FromAddress(start);
     CHECK(obj != filler);
-    CHECK(filler.IsFreeSpaceOrFiller());
+    CHECK(IsFreeSpaceOrFiller(filler));
     CHECK_EQ(kTaggedSize, filler->Size());
-    CHECK(obj != filler && filler.IsFreeSpaceOrFiller() &&
+    CHECK(obj != filler && IsFreeSpaceOrFiller(filler) &&
           filler->Size() == kTaggedSize);
 
     // Similarly for kDoubleUnaligned.
@@ -2233,7 +2233,7 @@ TEST(TestAlignedOverAllocation) {
     obj = OldSpaceAllocateAligned(kTaggedSize, kDoubleUnaligned);
     CHECK(IsAligned(obj.address() + kTaggedSize, kDoubleAlignment));
     filler = HeapObject::FromAddress(start);
-    CHECK(obj != filler && filler.IsFreeSpaceOrFiller() &&
+    CHECK(obj != filler && IsFreeSpaceOrFiller(filler) &&
           filler->Size() == kTaggedSize);
   }
 }
@@ -2255,7 +2255,7 @@ TEST(HeapNumberAlignment) {
     if (!v8_flags.single_generation) {
       AlignNewSpace(required_alignment, offset);
       Handle<Object> number_new = factory->NewNumber(1.000123);
-      CHECK(number_new->IsHeapNumber());
+      CHECK(IsHeapNumber(*number_new));
       CHECK(Heap::InYoungGeneration(*number_new));
       CHECK_EQ(0, Heap::GetFillToAlign(HeapObject::cast(*number_new).address(),
                                        required_alignment));
@@ -2264,7 +2264,7 @@ TEST(HeapNumberAlignment) {
     AlignOldSpace(required_alignment, offset);
     Handle<Object> number_old =
         factory->NewNumber<AllocationType::kOld>(1.000321);
-    CHECK(number_old->IsHeapNumber());
+    CHECK(IsHeapNumber(*number_old));
     CHECK(heap->InOldSpace(*number_old));
     CHECK_EQ(0, Heap::GetFillToAlign(HeapObject::cast(*number_old).address(),
                                      required_alignment));
@@ -2282,7 +2282,7 @@ TEST(TestSizeOfObjectsVsHeapObjectIteratorPrecision) {
   intptr_t size_of_objects_2 = 0;
   for (HeapObject obj = iterator.Next(); !obj.is_null();
        obj = iterator.Next()) {
-    if (!obj.IsFreeSpace(cage_base)) {
+    if (!IsFreeSpace(obj, cage_base)) {
       size_of_objects_2 += obj->Size(cage_base);
     }
   }
@@ -2316,7 +2316,7 @@ static int NumberOfGlobalObjects() {
   HeapObjectIterator iterator(CcTest::heap());
   for (HeapObject obj = iterator.Next(); !obj.is_null();
        obj = iterator.Next()) {
-    if (obj.IsJSGlobalObject()) count++;
+    if (IsJSGlobalObject(obj)) count++;
   }
   return count;
 }
@@ -3771,21 +3771,21 @@ TEST(DetailedErrorStackTrace) {
   DetailedErrorStackTraceTest(source, [](Handle<FixedArray> stack_trace) {
     FixedArray foo_parameters = ParametersOf(stack_trace, 0);
     CHECK_EQ(foo_parameters->length(), 1);
-    CHECK(foo_parameters->get(0).IsSmi());
+    CHECK(IsSmi(foo_parameters->get(0)));
     CHECK_EQ(Smi::ToInt(foo_parameters->get(0)), 42);
 
     FixedArray bar_parameters = ParametersOf(stack_trace, 1);
     CHECK_EQ(bar_parameters->length(), 2);
-    CHECK(bar_parameters->get(0).IsJSObject());
-    CHECK(bar_parameters->get(1).IsBoolean());
+    CHECK(IsJSObject(bar_parameters->get(0)));
+    CHECK(IsBoolean(bar_parameters->get(1)));
     Handle<Object> foo = Handle<Object>::cast(GetByName("foo"));
     CHECK_EQ(bar_parameters->get(0), *foo);
     CHECK(!bar_parameters->get(1).BooleanValue(CcTest::i_isolate()));
 
     FixedArray main_parameters = ParametersOf(stack_trace, 2);
     CHECK_EQ(main_parameters->length(), 2);
-    CHECK(main_parameters->get(0).IsJSObject());
-    CHECK(main_parameters->get(1).IsUndefined());
+    CHECK(IsJSObject(main_parameters->get(0)));
+    CHECK(IsUndefined(main_parameters->get(1)));
     CHECK_EQ(main_parameters->get(0), *foo);
   });
 }
@@ -3812,12 +3812,12 @@ TEST(DetailedErrorStackTraceInline) {
   DetailedErrorStackTraceTest(source, [](Handle<FixedArray> stack_trace) {
     FixedArray parameters_add = ParametersOf(stack_trace, 0);
     CHECK_EQ(parameters_add->length(), 1);
-    CHECK(parameters_add->get(0).IsSmi());
+    CHECK(IsSmi(parameters_add->get(0)));
     CHECK_EQ(Smi::ToInt(parameters_add->get(0)), 42);
 
     FixedArray parameters_foo = ParametersOf(stack_trace, 1);
     CHECK_EQ(parameters_foo->length(), 1);
-    CHECK(parameters_foo->get(0).IsSmi());
+    CHECK(IsSmi(parameters_foo->get(0)));
     CHECK_EQ(Smi::ToInt(parameters_foo->get(0)), 41);
   });
 }
@@ -3834,7 +3834,7 @@ TEST(DetailedErrorStackTraceBuiltinExit) {
     FixedArray parameters = ParametersOf(stack_trace, 0);
 
     CHECK_EQ(parameters->length(), 2);
-    CHECK(parameters->get(1).IsSmi());
+    CHECK(IsSmi(parameters->get(1)));
     CHECK_EQ(Smi::ToInt(parameters->get(1)), 9999);
   });
 }
@@ -4039,9 +4039,9 @@ static void TestFillersFromPersistentHandles(bool promote) {
     }
   }
   CHECK_EQ(n - 6, tail->length());
-  CHECK(!filler_1->IsHeapObject());
-  CHECK(!filler_2->IsHeapObject());
-  CHECK(!filler_3->IsHeapObject());
+  CHECK(!IsHeapObject(*filler_1));
+  CHECK(!IsHeapObject(*filler_2));
+  CHECK(!IsHeapObject(*filler_3));
 }
 
 TEST(DoNotEvacuateFillersFromPersistentHandles) {
@@ -4108,7 +4108,7 @@ TEST(DisableInlineAllocation) {
 
 static int AllocationSitesCount(Heap* heap) {
   int count = 0;
-  for (Object site = heap->allocation_sites_list(); site.IsAllocationSite();) {
+  for (Object site = heap->allocation_sites_list(); IsAllocationSite(site);) {
     AllocationSite cur = AllocationSite::cast(site);
     CHECK(cur->HasWeakNext());
     site = cur->weak_next();
@@ -4120,9 +4120,9 @@ static int AllocationSitesCount(Heap* heap) {
 static int SlimAllocationSiteCount(Heap* heap) {
   int count = 0;
   for (Object weak_list = heap->allocation_sites_list();
-       weak_list.IsAllocationSite();) {
+       IsAllocationSite(weak_list);) {
     AllocationSite weak_cur = AllocationSite::cast(weak_list);
-    for (Object site = weak_cur->nested_site(); site.IsAllocationSite();) {
+    for (Object site = weak_cur->nested_site(); IsAllocationSite(site);) {
       AllocationSite cur = AllocationSite::cast(site);
       CHECK(!cur->HasWeakNext());
       site = cur->nested_site();
@@ -4531,7 +4531,7 @@ static Handle<InstructionStream> DummyOptimizedCode(Isolate* isolate) {
           .Build()
           ->instruction_stream(),
       isolate);
-  CHECK(code->IsInstructionStream());
+  CHECK(IsInstructionStream(*code));
   return code;
 }
 
@@ -5228,7 +5228,7 @@ void CheckMapRetainingFor(int n) {
   DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
   v8::Local<v8::Context> ctx = v8::Context::New(CcTest::isolate());
   Handle<Context> context = Utils::OpenHandle(*ctx);
-  CHECK(context->IsNativeContext());
+  CHECK(IsNativeContext(*context));
   Handle<NativeContext> native_context = Handle<NativeContext>::cast(context);
   // This global is used to visit the object's constructor alive when starting
   // incremental marking. The native context keeps the constructor alive. The
@@ -5272,7 +5272,7 @@ TEST(RetainedMapsCleanup) {
   Heap* heap = isolate->heap();
   v8::Local<v8::Context> ctx = v8::Context::New(CcTest::isolate());
   Handle<Context> context = Utils::OpenHandle(*ctx);
-  CHECK(context->IsNativeContext());
+  CHECK(IsNativeContext(*context));
   Handle<NativeContext> native_context = Handle<NativeContext>::cast(context);
 
   ctx->Enter();
@@ -5300,20 +5300,20 @@ TEST(PreprocessStackTrace) {
       Object::GetProperty(isolate, exception, key).ToHandleChecked();
   Handle<Object> code =
       Object::GetElement(isolate, stack_trace, 3).ToHandleChecked();
-  CHECK(code->IsInstructionStream());
+  CHECK(IsInstructionStream(*code));
 
   heap::InvokeMemoryReducingMajorGCs(CcTest::heap());
 
   Handle<Object> pos =
       Object::GetElement(isolate, stack_trace, 3).ToHandleChecked();
-  CHECK(pos->IsSmi());
+  CHECK(IsSmi(*pos));
 
   Handle<FixedArray> frame_array = Handle<FixedArray>::cast(stack_trace);
   int array_length = frame_array->length();
   for (int i = 0; i < array_length; i++) {
     Handle<Object> element =
         Object::GetElement(isolate, stack_trace, i).ToHandleChecked();
-    CHECK(!element->IsInstructionStream());
+    CHECK(!IsInstructionStream(*element));
   }
 }
 
@@ -5407,7 +5407,7 @@ static void CheckLeak(const v8::FunctionCallbackInfo<v8::Value>& info) {
   Isolate* isolate = CcTest::i_isolate();
   Object message(
       *reinterpret_cast<Address*>(isolate->pending_message_address()));
-  CHECK(message.IsTheHole(isolate));
+  CHECK(IsTheHole(message, isolate));
 }
 
 TEST(MessageObjectLeak) {
@@ -5502,7 +5502,7 @@ TEST(ScriptIterator) {
   {
     HeapObjectIterator it(heap);
     for (HeapObject obj = it.Next(); !obj.is_null(); obj = it.Next()) {
-      if (obj.IsScript()) script_count++;
+      if (IsScript(obj)) script_count++;
     }
   }
 
@@ -5998,7 +5998,7 @@ TEST(ContinuousRightTrimFixedArrayInBlackArea) {
   isolate->heap()->RightTrimFixedArray(*array, 1);
 
   HeapObject filler = HeapObject::FromAddress(previous);
-  CHECK(filler.IsFreeSpaceOrFiller());
+  CHECK(IsFreeSpaceOrFiller(filler));
 
   // Trim 10 times by one, two, and three word.
   for (int i = 1; i <= 3; i++) {
@@ -6006,7 +6006,7 @@ TEST(ContinuousRightTrimFixedArrayInBlackArea) {
       previous -= kTaggedSize * i;
       isolate->heap()->RightTrimFixedArray(*array, i);
       filler = HeapObject::FromAddress(previous);
-      CHECK(filler.IsFreeSpaceOrFiller());
+      CHECK(IsFreeSpaceOrFiller(filler));
       CHECK(marking_state->IsUnmarked(filler));
     }
   }
@@ -6438,7 +6438,7 @@ HEAP_TEST(RegressMissingWriteBarrierInAllocate) {
     heap->EnsureSweepingCompleted(
         Heap::SweepingForcedFinalizationMode::kV8Only);
   }
-  CHECK(object->map().IsMap());
+  CHECK(IsMap(object->map()));
 }
 
 HEAP_TEST(MarkCompactEpochCounter) {

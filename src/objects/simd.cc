@@ -365,10 +365,10 @@ Address ArrayIndexOfIncludes(Address array_start, uintptr_t array_len,
             .ToVoidPtr());
 
     double search_num;
-    if (Object(search_element).IsSmi()) {
+    if (IsSmi(Object(search_element))) {
       search_num = Object(search_element).ToSmi().value();
     } else {
-      DCHECK(Object(search_element).IsHeapNumber());
+      DCHECK(IsHeapNumber(Object(search_element)));
       search_num = HeapNumber::cast(Object(search_element))->value();
     }
 
@@ -398,9 +398,9 @@ Address ArrayIndexOfIncludes(Address array_start, uintptr_t array_len,
     Tagged_t* array =
         static_cast<Tagged_t*>(fixed_array->data_start().ToVoidPtr());
 
-    DCHECK(!Object(search_element).IsHeapNumber());
-    DCHECK(!Object(search_element).IsBigInt());
-    DCHECK(!Object(search_element).IsString());
+    DCHECK(!IsHeapNumber(Object(search_element)));
+    DCHECK(!IsBigInt(Object(search_element)));
+    DCHECK(!IsString(Object(search_element)));
 
     return search<Tagged_t>(array, array_len, from_index,
                             static_cast<Tagged_t>(search_element));

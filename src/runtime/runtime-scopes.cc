@@ -143,7 +143,7 @@ RUNTIME_FUNCTION(Runtime_DeclareModuleExports) {
     Object decl = declarations->get(i);
     int index;
     Object value;
-    if (decl.IsSmi()) {
+    if (IsSmi(decl)) {
       index = Smi::ToInt(decl);
       value = ReadOnlyRoots(isolate).the_hole_value();
     } else {
@@ -190,7 +190,7 @@ RUNTIME_FUNCTION(Runtime_DeclareGlobals) {
     Handle<Object> decl(declarations->get(i), isolate);
     Handle<String> name;
     Handle<Object> value;
-    bool is_var = decl->IsString();
+    bool is_var = IsString(*decl);
 
     if (is_var) {
       name = Handle<String>::cast(decl);
@@ -241,14 +241,14 @@ Object DeclareEvalHelper(Isolate* isolate, Handle<String> name,
       isolate->context()->IsDebugEvaluateContext() &&
       context->IsModuleContext();
 
-  DCHECK(context->IsFunctionContext() || context->IsNativeContext() ||
+  DCHECK(context->IsFunctionContext() || IsNativeContext(*context) ||
          context->IsScriptContext() || context->IsEvalContext() ||
          (context->IsBlockContext() &&
           context->scope_info()->is_declaration_scope()) ||
          is_debug_evaluate_in_module);
 
-  bool is_var = value->IsUndefined(isolate);
-  DCHECK_IMPLIES(!is_var, value->IsJSFunction());
+  bool is_var = IsUndefined(*value, isolate);
+  DCHECK_IMPLIES(!is_var, IsJSFunction(*value));
 
   int index;
   PropertyAttributes attributes;
@@ -258,24 +258,24 @@ Object DeclareEvalHelper(Isolate* isolate, Handle<String> name,
   Handle<Object> holder =
       Context::Lookup(context, name, DONT_FOLLOW_CHAINS, &index, &attributes,
                       &init_flag, &mode);
-  DCHECK(holder.is_null() || !holder->IsSourceTextModule());
+  DCHECK(holder.is_null() || !IsSourceTextModule(*holder));
   DCHECK(!isolate->has_pending_exception());
 
   Handle<JSObject> object;
 
-  if (attributes != ABSENT && holder->IsJSGlobalObject()) {
+  if (attributes != ABSENT && IsJSGlobalObject(*holder)) {
     // ES#sec-evaldeclarationinstantiation 8.a.iv.1.b:
     // If fnDefinable is false, throw a TypeError exception.
     return DeclareGlobal(isolate, Handle<JSGlobalObject>::cast(holder), name,
                          value, NONE, is_var, RedeclarationType::kTypeError);
   }
-  if (context->has_extension() && context->extension().IsJSGlobalObject()) {
+  if (context->has_extension() && IsJSGlobalObject(context->extension())) {
     Handle<JSGlobalObject> global(JSGlobalObject::cast(context->extension()),
                                   isolate);
     return DeclareGlobal(isolate, global, name, value, NONE, is_var,
                          RedeclarationType::kTypeError);
   } else if (context->IsScriptContext()) {
-    DCHECK(context->global_object().IsJSGlobalObject());
+    DCHECK(IsJSGlobalObject(context->global_object()));
     Handle<JSGlobalObject> global(
         JSGlobalObject::cast(context->global_object()), isolate);
     return DeclareGlobal(isolate, global, name, value, NONE, is_var,
@@ -298,7 +298,7 @@ Object DeclareEvalHelper(Isolate* isolate, Handle<String> name,
 
   } else if (context->has_extension() && !is_debug_evaluate_in_module) {
     object = handle(context->extension_object(), isolate);
-    DCHECK(object->IsJSContextExtensionObject());
+    DCHECK(IsJSContextExtensionObject(*object));
   } else if (context->scope_info()->HasContextExtensionSlot() &&
              !is_debug_evaluate_in_module) {
     // Sloppy varblock and function contexts might not have an extension object
@@ -649,7 +649,7 @@ RUNTIME_FUNCTION(Runtime_DeleteLookupSlot) {
 
   // If the slot was found in a context or in module imports and exports it
   // should be DONT_DELETE.
-  if (holder->IsContext() || holder->IsSourceTextModule()) {
+  if (IsContext(*holder) || IsSourceTextModule(*holder)) {
     return ReadOnlyRoots(isolate).false_value();
   }
 
@@ -677,25 +677,25 @@ MaybeHandle<Object> LoadLookupSlot(Isolate* isolate, Handle<String> name,
                                           &attributes, &flag, &mode);
   if (isolate->has_pending_exception()) return MaybeHandle<Object>();
 
-  if (!holder.is_null() && holder->IsSourceTextModule()) {
+  if (!holder.is_null() && IsSourceTextModule(*holder)) {
     Handle<Object> receiver = isolate->factory()->undefined_value();
     if (receiver_return) *receiver_return = receiver;
     return SourceTextModule::LoadVariable(
         isolate, Handle<SourceTextModule>::cast(holder), index);
   }
   if (index != Context::kNotFound) {
-    DCHECK(holder->IsContext());
+    DCHECK(IsContext(*holder));
     // If the "property" we were looking for is a local variable, the
     // receiver is the global object; see ECMA-262, 3rd., 10.1.6 and 10.2.3.
     Handle<Object> receiver = isolate->factory()->undefined_value();
     Handle<Object> value = handle(Context::cast(*holder)->get(index), isolate);
     // Check for uninitialized bindings.
-    if (flag == kNeedsInitialization && value->IsTheHole(isolate)) {
+    if (flag == kNeedsInitialization && IsTheHole(*value, isolate)) {
       THROW_NEW_ERROR(isolate,
                       NewReferenceError(MessageTemplate::kNotDefined, name),
                       Object);
     }
-    DCHECK(!value->IsTheHole(isolate));
+    DCHECK(!IsTheHole(*value, isolate));
     if (receiver_return) *receiver_return = receiver;
     return value;
   }
@@ -711,7 +711,7 @@ MaybeHandle<Object> LoadLookupSlot(Isolate* isolate, Handle<String> name,
         isolate, value, Object::GetProperty(isolate, holder, name), Object);
     if (receiver_return) {
       *receiver_return =
-          (holder->IsJSGlobalObject() || holder->IsJSContextExtensionObject())
+          (IsJSGlobalObject(*holder) || IsJSContextExtensionObject(*holder))
               ? Handle<Object>::cast(isolate->factory()->undefined_value())
               : holder;
     }
@@ -799,7 +799,7 @@ MaybeHandle<Object> StoreLookupSlot(
   if (holder.is_null()) {
     // In case of JSProxy, an exception might have been thrown.
     if (isolate->has_pending_exception()) return MaybeHandle<Object>();
-  } else if (holder->IsSourceTextModule()) {
+  } else if (IsSourceTextModule(*holder)) {
     if ((attributes & READ_ONLY) == 0) {
       SourceTextModule::StoreVariable(Handle<SourceTextModule>::cast(holder),
                                       index, value);
@@ -812,7 +812,7 @@ MaybeHandle<Object> StoreLookupSlot(
   // The property was found in a context slot.
   if (index != Context::kNotFound) {
     if (flag == kNeedsInitialization &&
-        Handle<Context>::cast(holder)->get(index).IsTheHole(isolate)) {
+        IsTheHole(Handle<Context>::cast(holder)->get(index), isolate)) {
       THROW_NEW_ERROR(isolate,
                       NewReferenceError(MessageTemplate::kNotDefined, name),
                       Object);

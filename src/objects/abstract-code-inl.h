@@ -123,14 +123,6 @@ bool AbstractCode::has_instruction_stream(PtrComprCageBase cage_base) {
   return GetCode()->has_instruction_stream();
 }
 
-bool AbstractCode::IsCode(PtrComprCageBase cage_base) const {
-  return HeapObject::IsCode(cage_base);
-}
-
-bool AbstractCode::IsBytecodeArray(PtrComprCageBase cage_base) const {
-  return HeapObject::IsBytecodeArray(cage_base);
-}
-
 Code AbstractCode::GetCode() { return Code::cast(*this); }
 
 BytecodeArray AbstractCode::GetBytecodeArray() {

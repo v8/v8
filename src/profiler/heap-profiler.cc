@@ -183,8 +183,7 @@ HeapSnapshot* HeapProfiler::GetSnapshot(int index) {
 }
 
 SnapshotObjectId HeapProfiler::GetSnapshotObjectId(Handle<Object> obj) {
-  if (!obj->IsHeapObject())
-    return v8::HeapProfiler::kUnknownObjectId;
+  if (!IsHeapObject(*obj)) return v8::HeapProfiler::kUnknownObjectId;
   return ids_->FindEntry(HeapObject::cast(*obj).address());
 }
 
@@ -270,9 +269,9 @@ void HeapProfiler::QueryObjects(Handle<Context> context,
         heap(), HeapObjectIterator::kFilterUnreachable);
     for (HeapObject heap_obj = heap_iterator.Next(); !heap_obj.is_null();
          heap_obj = heap_iterator.Next()) {
-      if (heap_obj.IsFeedbackVector()) {
+      if (IsFeedbackVector(heap_obj)) {
         FeedbackVector::cast(heap_obj)->ClearSlots(isolate());
-      } else if (heap_obj.IsJSTypedArray() &&
+      } else if (IsJSTypedArray(heap_obj) &&
                  JSTypedArray::cast(heap_obj)->is_on_heap()) {
         // Cannot call typed_array->GetBuffer() here directly because it may
         // trigger GC. Defer that call by collecting the object in a vector.
@@ -294,8 +293,8 @@ void HeapProfiler::QueryObjects(Handle<Context> context,
   PtrComprCageBase cage_base(isolate());
   for (HeapObject heap_obj = heap_iterator.Next(); !heap_obj.is_null();
        heap_obj = heap_iterator.Next()) {
-    if (!heap_obj.IsJSObject(cage_base) ||
-        heap_obj.IsJSExternalObject(cage_base))
+    if (!IsJSObject(heap_obj, cage_base) ||
+        IsJSExternalObject(heap_obj, cage_base))
       continue;
     v8::Local<v8::Object> v8_obj(
         Utils::ToLocal(handle(JSObject::cast(heap_obj), isolate())));

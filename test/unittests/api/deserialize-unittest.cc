@@ -301,7 +301,7 @@ class MergeDeserializedCodeTest : public DeserializeTest {
   }
 
   static i::MaybeObject WeakOrSmi(i::Object obj) {
-    return obj.IsSmi()
+    return IsSmi(obj)
                ? i::MaybeObject::FromSmi(i::Smi::cast(obj))
                : i::MaybeObject::MakeWeak(i::MaybeObject::FromObject(obj));
   }

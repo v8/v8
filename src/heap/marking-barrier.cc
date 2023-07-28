@@ -122,7 +122,7 @@ void MarkingBarrier::Write(DescriptorArray descriptor_array,
   DCHECK(MemoryChunk::FromHeapObject(descriptor_array)->IsMarking());
 
   // Only major GC uses custom liveness.
-  if (is_minor() || descriptor_array.IsStrongDescriptorArray()) {
+  if (is_minor() || IsStrongDescriptorArray(descriptor_array)) {
     MarkValueLocal(descriptor_array);
     return;
   }

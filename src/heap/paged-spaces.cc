@@ -711,7 +711,7 @@ void PagedSpaceBase::Verify(Isolate* isolate,
       CHECK(object.address() + size <= top);
       end_of_previous_object = object.address() + size;
 
-      if (object.IsExternalString(cage_base)) {
+      if (IsExternalString(object, cage_base)) {
         ExternalString external_string = ExternalString::cast(object);
         size_t payload_size = external_string->ExternalPayloadSize();
         external_page_bytes[ExternalBackingStoreType::kExternalString] +=
@@ -780,7 +780,7 @@ void PagedSpaceBase::VerifyCountersAfterSweeping(Heap* heap) const {
     PagedSpaceObjectIterator it(heap, this, page);
     size_t real_allocated = 0;
     for (HeapObject object = it.Next(); !object.is_null(); object = it.Next()) {
-      if (!object.IsFreeSpaceOrFiller()) {
+      if (!IsFreeSpaceOrFiller(object)) {
         real_allocated +=
             ALIGN_TO_ALLOCATION_ALIGNMENT(object->Size(cage_base));
       }

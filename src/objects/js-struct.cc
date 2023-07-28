@@ -14,7 +14,7 @@ namespace internal {
 namespace {
 
 void PrepareMapCommon(Map map) {
-  DCHECK(map->IsAlwaysSharedSpaceJSObjectMap());
+  DCHECK(IsAlwaysSharedSpaceJSObjectMap(map));
   DisallowGarbageCollection no_gc;
   // Shared objects have fixed layout ahead of time, so there's no slack.
   map->SetInObjectUnusedPropertyFields(0);
@@ -58,7 +58,7 @@ Maybe<bool> AlwaysSharedSpaceJSObject::DefineOwnProperty(
   // non-writable properties. This upgrade violates the fixed layout invariant
   // and is disallowed.
 
-  DCHECK(key->IsName() || key->IsNumber());  // |key| is a PropertyKey.
+  DCHECK(IsName(*key) || IsNumber(*key));  // |key| is a PropertyKey.
   PropertyKey lookup_key(isolate, key);
   LookupIterator it(isolate, shared_obj, lookup_key, LookupIterator::OWN);
   PropertyDescriptor current;
@@ -84,7 +84,7 @@ Maybe<bool> AlwaysSharedSpaceJSObject::DefineOwnProperty(
 Maybe<bool> AlwaysSharedSpaceJSObject::HasInstance(
     Isolate* isolate, Handle<JSFunction> constructor, Handle<Object> object) {
   if (!constructor->has_prototype_slot() || !constructor->has_initial_map() ||
-      !object->IsJSReceiver()) {
+      !IsJSReceiver(*object)) {
     return Just(false);
   }
   Handle<Map> constructor_map = handle(constructor->initial_map(), isolate);

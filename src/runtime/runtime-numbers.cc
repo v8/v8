@@ -31,7 +31,7 @@ RUNTIME_FUNCTION(Runtime_StringParseInt) {
   subject = String::Flatten(isolate, subject);
 
   // Convert {radix} to Int32.
-  if (!radix->IsNumber()) {
+  if (!IsNumber(*radix)) {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, radix,
                                        Object::ToNumber(isolate, radix));
   }
@@ -75,7 +75,7 @@ RUNTIME_FUNCTION(Runtime_IsSmi) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
   Object obj = args[0];
-  return isolate->heap()->ToBoolean(obj.IsSmi());
+  return isolate->heap()->ToBoolean(IsSmi(obj));
 }
 
 

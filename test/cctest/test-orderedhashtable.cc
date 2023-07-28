@@ -1887,7 +1887,7 @@ TEST(OrderedNameDictionaryHandlerInsertion) {
 
   Handle<HeapObject> table =
       OrderedNameDictionaryHandler::Allocate(isolate, 4).ToHandleChecked();
-  CHECK(table->IsSmallOrderedNameDictionary());
+  CHECK(IsSmallOrderedNameDictionary(*table));
   Verify(isolate, table);
 
   // Add a new key.
@@ -1897,9 +1897,9 @@ TEST(OrderedNameDictionaryHandlerInsertion) {
 
   table = OrderedNameDictionaryHandler::Add(isolate, table, key, value, details)
               .ToHandleChecked();
-  DCHECK(key->IsUniqueName());
+  DCHECK(IsUniqueName(*key));
   Verify(isolate, table);
-  CHECK(table->IsSmallOrderedNameDictionary());
+  CHECK(IsSmallOrderedNameDictionary(*table));
   CHECK(OrderedNameDictionaryHandler::FindEntry(isolate, *table, *key)
             .is_found());
 
@@ -1910,7 +1910,7 @@ TEST(OrderedNameDictionaryHandlerInsertion) {
     table =
         OrderedNameDictionaryHandler::Add(isolate, table, key, value, details)
             .ToHandleChecked();
-    DCHECK(key->IsUniqueName());
+    DCHECK(IsUniqueName(*key));
     Verify(isolate, table);
 
     for (int j = 0; j <= i; j++) {
@@ -1928,7 +1928,7 @@ TEST(OrderedNameDictionaryHandlerInsertion) {
     }
   }
 
-  CHECK(table->IsOrderedNameDictionary());
+  CHECK(IsOrderedNameDictionary(*table));
 }
 
 TEST(OrderedNameDictionaryHandlerDeletion) {
@@ -1938,7 +1938,7 @@ TEST(OrderedNameDictionaryHandlerDeletion) {
 
   Handle<HeapObject> table =
       OrderedNameDictionaryHandler::Allocate(isolate, 4).ToHandleChecked();
-  CHECK(table->IsSmallOrderedNameDictionary());
+  CHECK(IsSmallOrderedNameDictionary(*table));
   Verify(isolate, table);
 
   // Add a new key.
@@ -1949,16 +1949,16 @@ TEST(OrderedNameDictionaryHandlerDeletion) {
 
   table = OrderedNameDictionaryHandler::Add(isolate, table, key, value, details)
               .ToHandleChecked();
-  DCHECK(key->IsUniqueName());
+  DCHECK(IsUniqueName(*key));
   Verify(isolate, table);
-  CHECK(table->IsSmallOrderedNameDictionary());
+  CHECK(IsSmallOrderedNameDictionary(*table));
   CHECK(OrderedNameDictionaryHandler::FindEntry(isolate, *table, *key)
             .is_found());
 
   // Remove a non-existing key.
   OrderedNameDictionaryHandler::Delete(isolate, table, key2);
   Verify(isolate, table);
-  CHECK(table->IsSmallOrderedNameDictionary());
+  CHECK(IsSmallOrderedNameDictionary(*table));
   CHECK(OrderedNameDictionaryHandler::FindEntry(isolate, *table, *key2)
             .is_not_found());
   CHECK(OrderedNameDictionaryHandler::FindEntry(isolate, *table, *key)
@@ -1967,11 +1967,11 @@ TEST(OrderedNameDictionaryHandlerDeletion) {
   // Remove an existing key.
   OrderedNameDictionaryHandler::Delete(isolate, table, key);
   Verify(isolate, table);
-  CHECK(table->IsSmallOrderedNameDictionary());
+  CHECK(IsSmallOrderedNameDictionary(*table));
   CHECK(OrderedNameDictionaryHandler::FindEntry(isolate, *table, *key)
             .is_not_found());
 
-  CHECK(table->IsSmallOrderedNameDictionary());
+  CHECK(IsSmallOrderedNameDictionary(*table));
 }
 
 TEST(OrderedNameDictionarySetEntry) {
@@ -2100,7 +2100,7 @@ TEST(OrderedNameDictionaryDeleteEntry) {
     key = factory->InternalizeUtf8String(buf);
     dict = OrderedNameDictionary::Add(isolate, dict, key, value, details)
                .ToHandleChecked();
-    DCHECK(key->IsUniqueName());
+    DCHECK(IsUniqueName(*key));
     Verify(isolate, dict);
   }
 
@@ -2162,7 +2162,7 @@ TEST(SmallOrderedNameDictionaryDeleteEntry) {
     key = factory->InternalizeUtf8String(buf);
     dict = SmallOrderedNameDictionary::Add(isolate, dict, key, value, details)
                .ToHandleChecked();
-    DCHECK(key->IsUniqueName());
+    DCHECK(IsUniqueName(*key));
     Verify(isolate, dict);
   }
 

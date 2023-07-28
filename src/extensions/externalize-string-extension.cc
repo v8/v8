@@ -186,7 +186,7 @@ void ExternalizeStringExtension::CreateExternalizableString(
   // migration is special for GC (Tagged pointers to Untagged pointers).
   // Skip if the ConsString is flat (second is empty), as we won't be guaranteed
   // a string in old space in that case.
-  if (string->IsConsString(isolate) && !string->IsFlat(isolate)) {
+  if (IsConsString(*string, isolate) && !string->IsFlat(isolate)) {
     Handle<String> result;
     if (CopyConsStringToOld(isolate, Handle<ConsString>::cast(string))
             .ToHandle(&result)) {

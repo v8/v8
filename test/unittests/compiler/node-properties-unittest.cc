@@ -8,14 +8,14 @@
 #include "test/unittests/test-utils.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
-using testing::AnyOf;
-using testing::ElementsAre;
-using testing::IsNull;
-
 namespace v8 {
 namespace internal {
 namespace compiler {
 namespace node_properties_unittest {
+
+using testing::AnyOf;
+using testing::ElementsAre;
+using testing::IsNull;
 
 class NodePropertiesTest : public TestWithZone {
  public:

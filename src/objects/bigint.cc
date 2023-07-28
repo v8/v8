@@ -70,11 +70,11 @@ class MutableBigInt : public FreshlyAllocatedBigInt {
   }
 
   static Handle<MutableBigInt> Cast(Handle<FreshlyAllocatedBigInt> bigint) {
-    SLOW_DCHECK(bigint->IsBigInt());
+    SLOW_DCHECK(IsBigInt(*bigint));
     return Handle<MutableBigInt>::cast(bigint);
   }
   static MutableBigInt cast(Object o) {
-    SLOW_DCHECK(o.IsBigInt());
+    SLOW_DCHECK(IsBigInt(o));
     return MutableBigInt(o.ptr());
   }
   static MutableBigInt unchecked_cast(Object o) {
@@ -134,7 +134,7 @@ class MutableBigInt : public FreshlyAllocatedBigInt {
 
   void set_64_bits(uint64_t bits);
 
-  bool IsMutableBigInt() const { return IsBigInt(); }
+  static bool IsMutableBigInt(MutableBigInt o) { return IsBigInt(o); }
 
   static_assert(std::is_same<bigint::digit_t, BigIntBase::digit_t>::value,
                 "We must be able to call BigInt library functions");
@@ -768,11 +768,11 @@ Maybe<bool> BigInt::EqualToString(Isolate* isolate, Handle<BigInt> x,
 }
 
 bool BigInt::EqualToNumber(Handle<BigInt> x, Handle<Object> y) {
-  DCHECK(y->IsNumber());
+  DCHECK(IsNumber(*y));
   // a. If x or y are any of NaN, +∞, or -∞, return false.
   // b. If the mathematical value of x is equal to the mathematical value of y,
   //    return true, otherwise return false.
-  if (y->IsSmi()) {
+  if (IsSmi(*y)) {
     int value = Smi::ToInt(*y);
     if (value == 0) return x->is_zero();
     // Any multi-digit BigInt is bigger than a Smi.
@@ -781,14 +781,14 @@ bool BigInt::EqualToNumber(Handle<BigInt> x, Handle<Object> y) {
            (x->digit(0) ==
             static_cast<digit_t>(std::abs(static_cast<int64_t>(value))));
   }
-  DCHECK(y->IsHeapNumber());
+  DCHECK(IsHeapNumber(*y));
   double value = Handle<HeapNumber>::cast(y)->value();
   return CompareToDouble(x, value) == ComparisonResult::kEqual;
 }
 
 ComparisonResult BigInt::CompareToNumber(Handle<BigInt> x, Handle<Object> y) {
-  DCHECK(y->IsNumber());
-  if (y->IsSmi()) {
+  DCHECK(IsNumber(*y));
+  if (IsSmi(*y)) {
     bool x_sign = x->sign();
     int y_value = Smi::ToInt(*y);
     bool y_sign = (y_value < 0);
@@ -809,7 +809,7 @@ ComparisonResult BigInt::CompareToNumber(Handle<BigInt> x, Handle<Object> y) {
     if (x_digit < abs_value) return AbsoluteLess(x_sign);
     return ComparisonResult::kEqual;
   }
-  DCHECK(y->IsHeapNumber());
+  DCHECK(IsHeapNumber(*y));
   double value = Handle<HeapNumber>::cast(y)->value();
   return CompareToDouble(x, value);
 }
@@ -1058,8 +1058,8 @@ Handle<String> BigInt::NoSideEffectsToString(Isolate* isolate,
 
 MaybeHandle<BigInt> BigInt::FromNumber(Isolate* isolate,
                                        Handle<Object> number) {
-  DCHECK(number->IsNumber());
-  if (number->IsSmi()) {
+  DCHECK(IsNumber(*number));
+  if (IsSmi(*number)) {
     return MutableBigInt::NewFromInt(isolate, Smi::ToInt(*number));
   }
   double value = HeapNumber::cast(*number)->value();
@@ -1072,7 +1072,7 @@ MaybeHandle<BigInt> BigInt::FromNumber(Isolate* isolate,
 }
 
 MaybeHandle<BigInt> BigInt::FromObject(Isolate* isolate, Handle<Object> obj) {
-  if (obj->IsJSReceiver()) {
+  if (IsJSReceiver(*obj)) {
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, obj,
         JSReceiver::ToPrimitive(isolate, Handle<JSReceiver>::cast(obj),
@@ -1080,13 +1080,13 @@ MaybeHandle<BigInt> BigInt::FromObject(Isolate* isolate, Handle<Object> obj) {
         BigInt);
   }
 
-  if (obj->IsBoolean()) {
+  if (IsBoolean(*obj)) {
     return MutableBigInt::NewFromInt(isolate, obj->BooleanValue(isolate));
   }
-  if (obj->IsBigInt()) {
+  if (IsBigInt(*obj)) {
     return Handle<BigInt>::cast(obj);
   }
-  if (obj->IsString()) {
+  if (IsString(*obj)) {
     Handle<BigInt> n;
     if (!StringToBigInt(isolate, Handle<String>::cast(obj)).ToHandle(&n)) {
       if (isolate->has_pending_exception()) {

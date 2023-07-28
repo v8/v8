@@ -35,23 +35,23 @@ void ExpectSharedFunctionInfoState(Isolate* isolate, SharedFunctionInfo sfi,
   HeapObject script = sfi->script(kAcquireLoad);
   switch (expectedState) {
     case SfiState::Compiled:
-      CHECK(function_data.IsBytecodeArray() ||
-            (function_data.IsCode() &&
+      CHECK(IsBytecodeArray(function_data) ||
+            (IsCode(function_data) &&
              Code::cast(function_data)->kind() == CodeKind::BASELINE));
-      CHECK(script.IsScript());
+      CHECK(IsScript(script));
       break;
     case SfiState::DebugInfo: {
-      CHECK(function_data.IsBytecodeArray() ||
-            (function_data.IsCode() &&
+      CHECK(IsBytecodeArray(function_data) ||
+            (IsCode(function_data) &&
              Code::cast(function_data)->kind() == CodeKind::BASELINE));
-      CHECK(script.IsScript());
+      CHECK(IsScript(script));
       DebugInfo debug_info = sfi->GetDebugInfo(isolate);
       CHECK(!debug_info->HasInstrumentedBytecodeArray());
       break;
     }
     case SfiState::PreparedForDebugExecution: {
-      CHECK(function_data.IsBytecodeArray());
-      CHECK(script.IsScript());
+      CHECK(IsBytecodeArray(function_data));
+      CHECK(IsScript(script));
       DebugInfo debug_info = sfi->GetDebugInfo(isolate);
       CHECK(debug_info->HasInstrumentedBytecodeArray());
       break;

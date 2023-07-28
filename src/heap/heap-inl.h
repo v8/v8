@@ -183,7 +183,7 @@ void Heap::SetMessageListeners(Tagged<TemplateList> value) {
 }
 
 void Heap::SetFunctionsMarkedForManualOptimization(Tagged<Object> hash_table) {
-  DCHECK(hash_table.IsObjectHashTable() || hash_table.IsUndefined(isolate()));
+  DCHECK(IsObjectHashTable(hash_table) || IsUndefined(hash_table, isolate()));
   roots_table()[RootIndex::kFunctionsMarkedForManualOptimization] =
       hash_table.ptr();
 }
@@ -250,13 +250,13 @@ Address Heap::AllocateRawOrFail(int size, AllocationType allocation,
 }
 
 void Heap::RegisterExternalString(Tagged<String> string) {
-  DCHECK(string.IsExternalString());
-  DCHECK(!string.IsThinString());
+  DCHECK(IsExternalString(string));
+  DCHECK(!IsThinString(string));
   external_string_table_.AddString(string);
 }
 
 void Heap::FinalizeExternalString(Tagged<String> string) {
-  DCHECK(string.IsExternalString());
+  DCHECK(IsExternalString(string));
   Tagged<ExternalString> ext_string = Tagged<ExternalString>::cast(string);
 
   if (!v8_flags.enable_third_party_heap) {
@@ -275,7 +275,7 @@ Address Heap::NewSpaceTop() {
 
 bool Heap::InYoungGeneration(Object object) {
   DCHECK(!HasWeakHeapObjectTag(object));
-  return object.IsHeapObject() && InYoungGeneration(HeapObject::cast(object));
+  return IsHeapObject(object) && InYoungGeneration(HeapObject::cast(object));
 }
 
 // static
@@ -319,7 +319,7 @@ bool Heap::InWritableSharedSpace(MaybeObject object) {
 // static
 bool Heap::InFromPage(Object object) {
   DCHECK(!HasWeakHeapObjectTag(object));
-  return object.IsHeapObject() && InFromPage(HeapObject::cast(object));
+  return IsHeapObject(object) && InFromPage(HeapObject::cast(object));
 }
 
 // static
@@ -343,7 +343,7 @@ inline bool Heap::InFromPage(Tagged<T> object) {
 // static
 bool Heap::InToPage(Object object) {
   DCHECK(!HasWeakHeapObjectTag(object));
-  return object.IsHeapObject() && InToPage(HeapObject::cast(object));
+  return IsHeapObject(object) && InToPage(HeapObject::cast(object));
 }
 
 // static
@@ -459,7 +459,7 @@ bool Heap::IsPendingAllocation(HeapObject object) {
 }
 
 bool Heap::IsPendingAllocation(Object object) {
-  return object.IsHeapObject() && IsPendingAllocation(HeapObject::cast(object));
+  return IsHeapObject(object) && IsPendingAllocation(HeapObject::cast(object));
 }
 
 void Heap::ExternalStringTable::AddString(Tagged<String> string) {
@@ -472,7 +472,7 @@ void Heap::ExternalStringTable::AddString(Tagged<String> string) {
     guard.emplace(&mutex_);
   }
 
-  DCHECK(string.IsExternalString());
+  DCHECK(IsExternalString(string));
   DCHECK(!Contains(string));
 
   if (InYoungGeneration(string)) {
@@ -555,7 +555,7 @@ void Heap::DecrementExternalBackingStoreBytes(ExternalBackingStoreType type,
 }
 
 bool Heap::HasDirtyJSFinalizationRegistries() {
-  return !dirty_js_finalization_registries_list().IsUndefined(isolate());
+  return !IsUndefined(dirty_js_finalization_registries_list(), isolate());
 }
 
 AlwaysAllocateScope::AlwaysAllocateScope(Heap* heap) : heap_(heap) {

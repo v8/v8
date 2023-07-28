@@ -108,7 +108,7 @@ MaybeHandle<String> StringReplaceOneCharWithString(
     return MaybeHandle<String>();
   }
   recursion_limit--;
-  if (subject->IsConsString()) {
+  if (IsConsString(*subject)) {
     ConsString cons = ConsString::cast(*subject);
     Handle<String> first = handle(cons->first(), isolate);
     Handle<String> second = handle(cons->second(), isolate);
@@ -289,7 +289,7 @@ RUNTIME_FUNCTION(Runtime_StringBuilderConcat) {
       return ReadOnlyRoots(isolate).empty_string();
     } else if (array_length == 1) {
       Object first = fixed_array->get(0);
-      if (first.IsString()) return first;
+      if (IsString(first)) return first;
     }
     length = StringBuilderConcatLength(special_length, fixed_array,
                                        array_length, &one_byte);
@@ -349,7 +349,7 @@ RUNTIME_FUNCTION(Runtime_StringToArray) {
           isolate->heap()->single_character_string_table();
       for (int i = 0; i < length; ++i) {
         Object value = one_byte_table->get(chars[i]);
-        DCHECK(value.IsString());
+        DCHECK(IsString(value));
         DCHECK(ReadOnlyHeap::Contains(HeapObject::cast(value)));
         // The single-character strings are in RO space so it should
         // be safe to skip the write barriers.

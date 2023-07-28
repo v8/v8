@@ -1166,7 +1166,7 @@ ValueNode* MaglevGraphBuilder::GetTruncatedInt32ForToNumber(ValueNode* value,
     case Opcode::kRootConstant: {
       Object root_object =
           local_isolate_->root(value->Cast<RootConstant>()->index());
-      if (!root_object.IsOddball(local_isolate_)) break;
+      if (!IsOddball(root_object, local_isolate_)) break;
       int32_t truncated_value =
           DoubleToInt32(Oddball::cast(root_object)->to_number_raw());
       // All oddball ToNumber truncations are valid Smis.
@@ -1318,7 +1318,7 @@ ValueNode* MaglevGraphBuilder::GetFloat64ForToNumber(ValueNode* value,
         return GetFloat64Constant(object.AsHeapNumber().value());
       }
       // Oddballs should be RootConstants.
-      DCHECK(!object.object()->IsOddball());
+      DCHECK(!IsOddball(*object.object()));
       break;
     }
     case Opcode::kSmiConstant:
@@ -1328,10 +1328,10 @@ ValueNode* MaglevGraphBuilder::GetFloat64ForToNumber(ValueNode* value,
     case Opcode::kRootConstant: {
       Object root_object =
           local_isolate_->root(value->Cast<RootConstant>()->index());
-      if (hint != ToNumberHint::kDisallowToNumber && root_object.IsOddball()) {
+      if (hint != ToNumberHint::kDisallowToNumber && IsOddball(root_object)) {
         return GetFloat64Constant(Oddball::cast(root_object)->to_number_raw());
       }
-      if (root_object.IsHeapNumber()) {
+      if (IsHeapNumber(root_object)) {
         return GetFloat64Constant(HeapNumber::cast(root_object)->value());
       }
       break;
@@ -3634,7 +3634,7 @@ MaglevGraphBuilder::TryFoldLoadDictPrototypeConstant(
     Handle<Map> map_handle = map.object();
     // Non-JSReceivers that passed AccessInfoFactory::ComputePropertyAccessInfo
     // must have different lookup start map.
-    if (!map_handle->IsJSReceiverMap()) {
+    if (!IsJSReceiverMap(*map_handle)) {
       // Perform the implicit ToObject for primitives here.
       // Implemented according to ES6 section 7.3.2 GetV (V, P).
       JSFunction constructor =
@@ -3644,7 +3644,7 @@ MaglevGraphBuilder::TryFoldLoadDictPrototypeConstant(
       // {constructor.initial_map()} is loaded/stored with acquire-release
       // semantics for constructors.
       map = MakeRefAssumeMemoryFence(broker(), constructor->initial_map());
-      DCHECK(map.object()->IsJSObjectMap());
+      DCHECK(IsJSObjectMap(*map.object()));
     }
     broker()->dependencies()->DependOnConstantInDictionaryPrototypeChain(
         map, access_info.name(), constant.value(), PropertyKind::kData);
@@ -4801,7 +4801,7 @@ ValueNode* MaglevGraphBuilder::GetConstant(compiler::ObjectRef ref) {
   if (ref.IsSmi()) return GetSmiConstant(ref.AsSmi());
   compiler::HeapObjectRef constant = ref.AsHeapObject();
 
-  if (constant.object()->IsThinString()) {
+  if (IsThinString(*constant.object())) {
     constant = MakeRefAssumeMemoryFence(
         broker(), ThinString::cast(*constant.object())->actual());
   }
@@ -6811,7 +6811,7 @@ ReduceResult MaglevGraphBuilder::ReduceCallForConstant(
       return BuildCallRuntime(Runtime::kThrowConstructorNonCallableError,
                               {target_node});
     }
-    DCHECK(target.object()->IsCallable());
+    DCHECK(IsCallable(*target.object()));
     RETURN_IF_DONE(TryReduceBuiltin(target, shared, args, feedback_source,
                                     speculation_mode));
     RETURN_IF_DONE(TryBuildCallKnownJSFunction(
@@ -8238,7 +8238,7 @@ base::Optional<FastObject> MaglevGraphBuilder::TryReadBoilerplateForFastLiteral(
       // it will get overwritten anyway.
       DCHECK_IMPLIES(property_details.representation().IsSmi() &&
                          !boilerplate_value.IsSmi(),
-                     boilerplate_value.object()->IsUninitialized());
+                     IsUninitialized(*boilerplate_value.object()));
       value = FastField(boilerplate_value);
     }
 

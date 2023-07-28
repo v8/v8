@@ -261,7 +261,7 @@ class NfaInterpreter {
           AllowGarbageCollection yes_gc;
           result = isolate_->stack_guard()->HandleInterrupts();
         }
-        if (result.IsException(isolate_)) {
+        if (IsException(result, isolate_)) {
           return RegExp::kInternalRegExpException;
         }
 

@@ -153,8 +153,8 @@ MaybeHandle<Object> DebugEvaluate::WithTopmostArguments(Isolate* isolate,
 
   // Materialize receiver.
   Handle<Object> this_value(it.frame()->receiver(), isolate);
-  DCHECK_EQ(it.frame()->IsConstructor(), this_value->IsTheHole(isolate));
-  if (!this_value->IsTheHole(isolate)) {
+  DCHECK_EQ(it.frame()->IsConstructor(), IsTheHole(*this_value, isolate));
+  if (!IsTheHole(*this_value, isolate)) {
     Handle<String> this_str = factory->this_string();
     JSObject::SetOwnPropertyIgnoreAttributes(materialized, this_str, this_value,
                                              NONE)
@@ -253,7 +253,7 @@ DebugEvaluate::ContextBuilder::ContextBuilder(Isolate* isolate,
   }
 
   Handle<ScopeInfo> scope_info =
-      evaluation_context_->IsNativeContext()
+      IsNativeContext(*evaluation_context_)
           ? Handle<ScopeInfo>::null()
           : handle(evaluation_context_->scope_info(), isolate);
   for (auto rit = context_chain_.rbegin(); rit != context_chain_.rend();
@@ -276,7 +276,7 @@ DebugEvaluate::ContextBuilder::ContextBuilder(Isolate* isolate,
           frame_inspector_.GetFunction()->shared()->scope_info(), isolate_);
       Handle<Object> block_list = handle(
           isolate_->LocalsBlockListCacheGet(function_scope_info), isolate_);
-      CHECK(block_list->IsStringSet());
+      CHECK(IsStringSet(*block_list));
       isolate_->LocalsBlockListCacheSet(scope_info, Handle<ScopeInfo>::null(),
                                         Handle<StringSet>::cast(block_list));
     }
@@ -298,7 +298,7 @@ void DebugEvaluate::ContextBuilder::UpdateValues() {
               .ToHandleChecked();
 
       for (int i = 0; i < keys->length(); i++) {
-        DCHECK(keys->get(i).IsString());
+        DCHECK(IsString(keys->get(i)));
         Handle<String> key(String::cast(keys->get(i)), isolate_);
         Handle<Object> value = JSReceiver::GetDataProperty(
             isolate_, element.materialized_object, key);

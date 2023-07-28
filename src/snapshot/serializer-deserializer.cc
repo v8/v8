@@ -19,7 +19,7 @@ void IterateObjectCache(Isolate* isolate, std::vector<Object>* cache,
     // During deserialization, the visitor populates the object cache and
     // eventually terminates the cache with undefined.
     visitor->VisitRootPointer(root_id, nullptr, FullObjectSlot(&cache->at(i)));
-    if (cache->at(i).IsUndefined(isolate)) break;
+    if (IsUndefined(cache->at(i), isolate)) break;
   }
 }
 }  // namespace
@@ -45,7 +45,7 @@ bool SerializerDeserializer::CanBeDeferred(HeapObject o, SlotType slot_type) {
   // HeapObjects' map slots cannot be deferred as objects are expected to have a
   // valid map immediately.
   if (slot_type == SlotType::kMapSlot) {
-    DCHECK(o.IsMap());
+    DCHECK(IsMap(o));
     return false;
   }
   // * Internalized strings cannot be deferred as they might be
@@ -59,9 +59,9 @@ bool SerializerDeserializer::CanBeDeferred(HeapObject o, SlotType slot_type) {
   //
   // TODO(leszeks): Could we defer string serialization if forward references
   // were resolved after object post processing?
-  return !o.IsInternalizedString() &&
-         !(o.IsJSObject() && JSObject::cast(o)->GetEmbedderFieldCount() > 0) &&
-         !o.IsByteArray();
+  return !IsInternalizedString(o) &&
+         !(IsJSObject(o) && JSObject::cast(o)->GetEmbedderFieldCount() > 0) &&
+         !IsByteArray(o);
 }
 
 void SerializerDeserializer::RestoreExternalReferenceRedirector(

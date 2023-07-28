@@ -259,7 +259,7 @@ void SetupIsolateDelegate::ReplacePlaceholders(Isolate* isolate) {
       } else {
         DCHECK(RelocInfo::IsEmbeddedObjectMode(rinfo->rmode()));
         Object object = rinfo->target_object(cage_base);
-        if (!object.IsCode(cage_base)) continue;
+        if (!IsCode(object, cage_base)) continue;
         Code target = Code::cast(object);
         if (!target->is_builtin()) continue;
         Code new_target = builtins->code(target->builtin_id());

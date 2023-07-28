@@ -32,8 +32,8 @@ PropertyCallbackArguments::PropertyCallbackArguments(
   HeapObject the_hole_value = ReadOnlyRoots(isolate).the_hole_value();
   slot_at(T::kReturnValueIndex).store(the_hole_value);
   slot_at(T::kUnusedIndex).store(Smi::zero());
-  DCHECK((*slot_at(T::kHolderIndex)).IsHeapObject());
-  DCHECK((*slot_at(T::kIsolateIndex)).IsSmi());
+  DCHECK(IsHeapObject(*slot_at(T::kHolderIndex)));
+  DCHECK(IsSmi(*slot_at(T::kIsolateIndex)));
 }
 
 FunctionCallbackArguments::FunctionCallbackArguments(
@@ -50,8 +50,8 @@ FunctionCallbackArguments::FunctionCallbackArguments(
   HeapObject the_hole_value = ReadOnlyRoots(isolate).the_hole_value();
   slot_at(T::kReturnValueIndex).store(the_hole_value);
   slot_at(T::kUnusedIndex).store(Smi::zero());
-  DCHECK((*slot_at(T::kHolderIndex)).IsHeapObject());
-  DCHECK((*slot_at(T::kIsolateIndex)).IsSmi());
+  DCHECK(IsHeapObject(*slot_at(T::kHolderIndex)));
+  DCHECK(IsSmi(*slot_at(T::kIsolateIndex)));
 }
 
 }  // namespace internal

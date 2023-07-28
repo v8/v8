@@ -1160,9 +1160,9 @@ bool CompileLazy(Isolate* isolate, WasmInstanceObject instance,
 
   if (WasmCode::ShouldBeLogged(isolate)) {
     Object url_obj = module_object->script()->name();
-    DCHECK(url_obj.IsString() || url_obj.IsUndefined());
+    DCHECK(IsString(url_obj) || IsUndefined(url_obj));
     std::unique_ptr<char[]> url =
-        url_obj.IsString() ? String::cast(url_obj)->ToCString() : nullptr;
+        IsString(url_obj) ? String::cast(url_obj)->ToCString() : nullptr;
     code->LogCode(isolate, url.get(), module_object->script()->id());
   }
 
@@ -1268,7 +1268,7 @@ class FeedbackMaker {
   }
 
   void AddCandidate(Object maybe_function, int count) {
-    if (!maybe_function.IsWasmInternalFunction()) return;
+    if (!IsWasmInternalFunction(maybe_function)) return;
     WasmInternalFunction function = WasmInternalFunction::cast(maybe_function);
     if (function->ref() != instance_) {
       // Not a wasm function, or not a function declared in this instance.
@@ -1337,7 +1337,7 @@ class FeedbackMaker {
 void TransitiveTypeFeedbackProcessor::ProcessFunction(int func_index) {
   int which_vector = declared_function_index(module_, func_index);
   Object maybe_feedback = instance_->feedback_vectors()->get(which_vector);
-  if (!maybe_feedback.IsFixedArray()) return;
+  if (!IsFixedArray(maybe_feedback)) return;
   FixedArray feedback = FixedArray::cast(maybe_feedback);
   base::Vector<uint32_t> call_direct_targets =
       module_->type_feedback.feedback_for_function[func_index]
@@ -1346,11 +1346,11 @@ void TransitiveTypeFeedbackProcessor::ProcessFunction(int func_index) {
   FeedbackMaker fm(instance_, func_index, feedback->length() / 2);
   for (int i = 0; i < feedback->length(); i += 2) {
     Object value = feedback->get(i);
-    if (value.IsWasmInternalFunction()) {
+    if (IsWasmInternalFunction(value)) {
       // Monomorphic.
       int count = Smi::cast(feedback->get(i + 1)).value();
       fm.AddCandidate(value, count);
-    } else if (value.IsFixedArray()) {
+    } else if (IsFixedArray(value)) {
       // Polymorphic.
       FixedArray polymorphic = FixedArray::cast(value);
       for (int j = 0; j < polymorphic->length(); j += 2) {
@@ -1358,7 +1358,7 @@ void TransitiveTypeFeedbackProcessor::ProcessFunction(int func_index) {
         int count = Smi::cast(polymorphic->get(j + 1)).value();
         fm.AddCandidate(function, count);
       }
-    } else if (value.IsSmi()) {
+    } else if (IsSmi(value)) {
       // Uninitialized, or a direct call collecting call count.
       uint32_t target = call_direct_targets[i / 2];
       if (target != FunctionTypeFeedback::kNonDirectCall) {
@@ -1583,7 +1583,7 @@ int AddExportWrapperUnits(Isolate* isolate, NativeModule* native_module,
       MaybeObject existing_wrapper =
           isolate->heap()->js_to_wasm_wrappers()->Get(wrapper_index);
       if (existing_wrapper.IsStrongOrWeak() &&
-          !existing_wrapper.GetHeapObject().IsUndefined()) {
+          !IsUndefined(existing_wrapper.GetHeapObject())) {
         // Skip wrapper compilation as the wrapper is already cached.
         // Note that this does not guarantee that the wrapper is still cached
         // at the moment at which the WasmInternalFunction is instantiated.
@@ -2067,7 +2067,7 @@ AsyncCompileJob::AsyncCompileJob(
   native_context_ =
       isolate->global_handles()->Create(context->native_context());
   incumbent_context_ = isolate->global_handles()->Create(*incumbent_context);
-  DCHECK(native_context_->IsNativeContext());
+  DCHECK(IsNativeContext(*native_context_));
   context_id_ = isolate->GetOrRegisterRecorderContextId(native_context_);
   metrics_event_.async = true;
 }
@@ -3913,7 +3913,7 @@ void CompileJsToWasmWrappers(Isolate* isolate, const WasmModule* module) {
     MaybeObject existing_wrapper =
         isolate->heap()->js_to_wasm_wrappers()->Get(wrapper_index);
     if (existing_wrapper.IsStrongOrWeak() &&
-        !existing_wrapper.GetHeapObject().IsUndefined()) {
+        !IsUndefined(existing_wrapper.GetHeapObject())) {
       continue;
     }
 

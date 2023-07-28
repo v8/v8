@@ -678,14 +678,15 @@ void ArrayLiteralBoilerplateBuilder::BuildBoilerplateDescription(
 
       if (literal && literal->type() == Literal::kTheHole) {
         DCHECK(IsHoleyElementsKind(kind));
-        DCHECK(GetBoilerplateValue(element, isolate)->IsTheHole(isolate));
+        DCHECK(IsTheHole(*GetBoilerplateValue(element, isolate), isolate));
         FixedDoubleArray::cast(*elements)->set_the_hole(array_index);
         continue;
       } else if (literal && literal->IsNumber()) {
         FixedDoubleArray::cast(*elements)->set(array_index,
                                                literal->AsNumber());
       } else {
-        DCHECK(GetBoilerplateValue(element, isolate)->IsUninitialized(isolate));
+        DCHECK(
+            IsUninitialized(*GetBoilerplateValue(element, isolate), isolate));
         FixedDoubleArray::cast(*elements)->set(array_index, 0);
       }
 
@@ -702,12 +703,12 @@ void ArrayLiteralBoilerplateBuilder::BuildBoilerplateDescription(
       // We shouldn't allocate after creating the boilerplate value.
       DisallowGarbageCollection no_gc;
 
-      if (boilerplate_value.IsTheHole(isolate)) {
+      if (IsTheHole(boilerplate_value, isolate)) {
         DCHECK(IsHoleyElementsKind(kind));
         continue;
       }
 
-      if (boilerplate_value.IsUninitialized(isolate)) {
+      if (IsUninitialized(boilerplate_value, isolate)) {
         boilerplate_value = Smi::zero();
       }
 

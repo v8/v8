@@ -125,13 +125,13 @@ void JSFunction::set_osr_tiering_state(TieringState marker) {
 
 DEF_GETTER(JSFunction, has_feedback_vector, bool) {
   return shared(cage_base)->is_compiled() &&
-         raw_feedback_cell(cage_base)->value(cage_base).IsFeedbackVector(
-             cage_base);
+         IsFeedbackVector(raw_feedback_cell(cage_base)->value(cage_base),
+                          cage_base);
 }
 
 bool JSFunction::has_closure_feedback_cell_array() const {
   return shared()->is_compiled() &&
-         raw_feedback_cell()->value().IsClosureFeedbackCellArray();
+         IsClosureFeedbackCellArray(raw_feedback_cell()->value());
 }
 
 Context JSFunction::context() {
@@ -143,7 +143,7 @@ DEF_RELAXED_GETTER(JSFunction, context, Context) {
 }
 
 bool JSFunction::has_context() const {
-  return TaggedField<HeapObject, kContextOffset>::load(*this).IsContext();
+  return IsContext(TaggedField<HeapObject, kContextOffset>::load(*this));
 }
 
 JSGlobalProxy JSFunction::global_proxy() { return context()->global_proxy(); }
@@ -166,14 +166,14 @@ DEF_GETTER(JSFunction, initial_map, Map) {
 
 DEF_GETTER(JSFunction, has_initial_map, bool) {
   DCHECK(has_prototype_slot(cage_base));
-  return prototype_or_initial_map(cage_base, kAcquireLoad).IsMap(cage_base);
+  return IsMap(prototype_or_initial_map(cage_base, kAcquireLoad), cage_base);
 }
 
 DEF_GETTER(JSFunction, has_instance_prototype, bool) {
   DCHECK(has_prototype_slot(cage_base));
   return has_initial_map(cage_base) ||
-         !prototype_or_initial_map(cage_base, kAcquireLoad)
-              .IsTheHole(GetReadOnlyRoots(cage_base));
+         !IsTheHole(prototype_or_initial_map(cage_base, kAcquireLoad),
+                    GetReadOnlyRoots(cage_base));
 }
 
 DEF_GETTER(JSFunction, has_prototype, bool) {
@@ -183,7 +183,7 @@ DEF_GETTER(JSFunction, has_prototype, bool) {
 }
 
 DEF_GETTER(JSFunction, has_prototype_property, bool) {
-  return (has_prototype_slot(cage_base) && IsConstructor(cage_base)) ||
+  return (has_prototype_slot(cage_base) && IsConstructor(*this, cage_base)) ||
          IsGeneratorFunction(shared(cage_base)->kind());
 }
 
@@ -224,10 +224,10 @@ bool JSFunction::NeedsResetDueToFlushedBytecode() {
   // initialized here but the SharedFunctionInfo, InstructionStream objects may
   // not be initialized. We read using acquire loads to defend against that.
   Object maybe_shared = ACQUIRE_READ_FIELD(*this, kSharedFunctionInfoOffset);
-  if (!maybe_shared.IsSharedFunctionInfo()) return false;
+  if (!IsSharedFunctionInfo(maybe_shared)) return false;
 
   Object maybe_code = ACQUIRE_READ_FIELD(*this, kCodeOffset);
-  if (!maybe_code.IsCode()) return false;
+  if (!IsCode(maybe_code)) return false;
   Code code = Code::cast(maybe_code);
 
   SharedFunctionInfo shared = SharedFunctionInfo::cast(maybe_shared);

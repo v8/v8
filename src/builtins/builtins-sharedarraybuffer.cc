@@ -52,7 +52,7 @@ BUILTIN(AtomicsIsLockFree) {
 V8_WARN_UNUSED_RESULT MaybeHandle<JSTypedArray> ValidateIntegerTypedArray(
     Isolate* isolate, Handle<Object> object, const char* method_name,
     bool only_int32_and_big_int64 = false) {
-  if (object->IsJSTypedArray()) {
+  if (IsJSTypedArray(*object)) {
     Handle<JSTypedArray> typed_array = Handle<JSTypedArray>::cast(object);
 
     if (typed_array->IsDetachedOrOutOfBounds()) {
@@ -144,7 +144,7 @@ BUILTIN(AtomicsNotify) {
   //   a. Let intCount be ? ToInteger(count).
   //   b. Let c be max(intCount, 0).
   uint32_t c;
-  if (count->IsUndefined(isolate)) {
+  if (IsUndefined(*count, isolate)) {
     c = kMaxUInt32;
   } else {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, count,
@@ -213,7 +213,7 @@ Object DoWait(Isolate* isolate, FutexEmulation::WaitMode mode,
   // 7. Let q be ? ToNumber(timeout).
   // 8. If q is NaN, let t be +∞, else let t be max(q, 0).
   double timeout_number;
-  if (timeout->IsUndefined(isolate)) {
+  if (IsUndefined(*timeout, isolate)) {
     timeout_number = ReadOnlyRoots(isolate).infinity_value()->Number();
   } else {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, timeout,

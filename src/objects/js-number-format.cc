@@ -1048,11 +1048,11 @@ MaybeHandle<JSNumberFormat> JSNumberFormat::UnwrapNumberFormat(
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, object,
       Intl::LegacyUnwrapReceiver(isolate, format_holder, constructor,
-                                 format_holder->IsJSNumberFormat()),
+                                 IsJSNumberFormat(*format_holder)),
       JSNumberFormat);
   // 4. If ... or nf does not have an [[InitializedNumberFormat]] internal slot,
   // then
-  if (!object->IsJSNumberFormat()) {
+  if (!IsJSNumberFormat(*object)) {
     // a. Throw a TypeError exception.
     THROW_NEW_ERROR(isolate,
                     NewTypeError(MessageTemplate::kIncompatibleMethodReceiver,
@@ -1507,17 +1507,17 @@ icu::number::FormattedNumber FormatDecimalString(
 
 }  // namespace
 
-bool IntlMathematicalValue::IsNaN() const { return value_->IsNaN(); }
+bool IntlMathematicalValue::IsNaN() const { return i::IsNaN(*value_); }
 
 MaybeHandle<String> IntlMathematicalValue::ToString(Isolate* isolate) const {
   Handle<String> string;
-  if (value_->IsNumber()) {
+  if (IsNumber(*value_)) {
     return isolate->factory()->NumberToString(value_);
   }
-  if (value_->IsBigInt()) {
+  if (IsBigInt(*value_)) {
     return BigInt::ToString(isolate, Handle<BigInt>::cast(value_));
   }
-  DCHECK(value_->IsString());
+  DCHECK(IsString(*value_));
   return Handle<String>::cast(value_);
 }
 
@@ -1529,7 +1529,7 @@ Maybe<icu::number::FormattedNumber> IcuFormatNumber(
   icu::number::FormattedNumber formatted;
   // If it is BigInt, handle it differently.
   UErrorCode status = U_ZERO_ERROR;
-  if (numeric_obj->IsBigInt()) {
+  if (IsBigInt(*numeric_obj)) {
     Handle<BigInt> big_int = Handle<BigInt>::cast(numeric_obj);
     Handle<String> big_int_string;
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, big_int_string,
@@ -1544,7 +1544,7 @@ Maybe<icu::number::FormattedNumber> IcuFormatNumber(
         reinterpret_cast<const char*>(flat.ToOneByteVector().begin());
     formatted = number_format.formatDecimal({char_buffer, length}, status);
   } else {
-    if (numeric_obj->IsString()) {
+    if (IsString(*numeric_obj)) {
       // TODO(ftang) Correct the handling of string after the resolution of
       // https://github.com/tc39/proposal-intl-numberformat-v3/pull/82
       Handle<String> string =
@@ -1566,7 +1566,7 @@ Maybe<icu::number::FormattedNumber> IcuFormatNumber(
             {string->ToCString().get(), string->length()}, status);
       }
     } else {
-      double number = numeric_obj->IsNaN()
+      double number = IsNaN(*numeric_obj)
                           ? std::numeric_limits<double>::quiet_NaN()
                           : numeric_obj->Number();
       formatted = number_format.formatDouble(number, status);
@@ -1588,7 +1588,7 @@ Maybe<icu::number::FormattedNumber> IntlMathematicalValue::FormatNumeric(
     Isolate* isolate,
     const icu::number::LocalizedNumberFormatter& number_format,
     const IntlMathematicalValue& x) {
-  if (x.value_->IsString()) {
+  if (IsString(*x.value_)) {
     Handle<String> string;
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, string, x.ToString(isolate),
                                      Nothing<icu::number::FormattedNumber>());
@@ -1602,7 +1602,7 @@ Maybe<icu::number::FormattedNumber> IntlMathematicalValue::FormatNumeric(
     }
     return Just(std::move(result));
   }
-  CHECK(x.value_->IsNumber() || x.value_->IsBigInt());
+  CHECK(IsNumber(*x.value_) || IsBigInt(*x.value_));
   return IcuFormatNumber(isolate, number_format, x.value_);
 }
 
@@ -1688,7 +1688,7 @@ Maybe<IntlMathematicalValue> IntlMathematicalValue::From(Isolate* isolate,
   Factory* factory = isolate->factory();
   // 1. Let primValue be ? ToPrimitive(value, number).
   Handle<Object> prim_value;
-  if (value->IsJSReceiver()) {
+  if (IsJSReceiver(*value)) {
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(
         isolate, prim_value,
         JSReceiver::ToPrimitive(isolate, Handle<JSReceiver>::cast(value),
@@ -1700,20 +1700,20 @@ Maybe<IntlMathematicalValue> IntlMathematicalValue::From(Isolate* isolate,
   IntlMathematicalValue result;
   // 2. If Type(primValue) is BigInt, return the mathematical value of
   // primValue.
-  if (prim_value->IsBigInt()) {
+  if (IsBigInt(*prim_value)) {
     result.value_ = prim_value;
     result.approx_ = Handle<BigInt>::cast(prim_value)->AsInt64();
     return Just(result);
   }
-  if (prim_value->IsOddball()) {
+  if (IsOddball(*prim_value)) {
     prim_value = Oddball::ToNumber(isolate, Handle<Oddball>::cast(prim_value));
   }
-  if (prim_value->IsNumber()) {
+  if (IsNumber(*prim_value)) {
     result.value_ = prim_value;
     result.approx_ = prim_value->Number();
     return Just(result);
   }
-  if (!prim_value->IsString()) {
+  if (!IsString(*prim_value)) {
     // No need to convert from Number to String, just call ToNumber.
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, result.value_,
                                      Object::ToNumber(isolate, prim_value),
@@ -1778,7 +1778,7 @@ Maybe<IntlMathematicalValue> IntlMathematicalValue::From(Isolate* isolate,
 
 Maybe<icu::Formattable> IntlMathematicalValue::ToFormattable(
     Isolate* isolate) const {
-  if (value_->IsNumber()) {
+  if (IsNumber(*value_)) {
     return Just(icu::Formattable(approx_));
   }
   Handle<String> string;
@@ -2131,8 +2131,7 @@ MaybeHandle<String> JSNumberFormat::FormatNumeric(
   MAYBE_RETURN(maybe_format, Handle<String>());
   icu::number::FormattedNumber formatted = std::move(maybe_format).FromJust();
 
-  return FormatToString(isolate, formatted, number_format,
-                        numeric_obj->IsNaN());
+  return FormatToString(isolate, formatted, number_format, IsNaN(*numeric_obj));
 }
 
 MaybeHandle<String> JSNumberFormat::NumberFormatFunction(

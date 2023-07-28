@@ -742,7 +742,7 @@ TNode<AnyTaggedT> CodeAssembler::LoadRootMapWord(RootIndex root_index) {
 TNode<Object> CodeAssembler::LoadRoot(RootIndex root_index) {
   if (RootsTable::IsImmortalImmovable(root_index)) {
     Handle<Object> root = isolate()->root_handle(root_index);
-    if (root->IsSmi()) {
+    if (IsSmi(*root)) {
       return SmiConstant(Smi::cast(*root));
     } else {
       return HeapConstant(Handle<HeapObject>::cast(root));

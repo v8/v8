@@ -15,7 +15,7 @@ RUNTIME_FUNCTION(Runtime_ShrinkFinalizationRegistryUnregisterTokenMap) {
   Handle<JSFinalizationRegistry> finalization_registry =
       args.at<JSFinalizationRegistry>(0);
 
-  if (!finalization_registry->key_map().IsUndefined(isolate)) {
+  if (!IsUndefined(finalization_registry->key_map(), isolate)) {
     Handle<SimpleNumberDictionary> key_map =
         handle(SimpleNumberDictionary::cast(finalization_registry->key_map()),
                isolate);

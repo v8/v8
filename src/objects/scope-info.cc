@@ -31,29 +31,29 @@ bool ScopeInfo::Equals(ScopeInfo other, bool is_live_edit_compare) const {
     }
     Object entry = get(index);
     Object other_entry = other->get(index);
-    if (entry.IsSmi()) {
+    if (IsSmi(entry)) {
       if (entry != other_entry) return false;
     } else {
       if (HeapObject::cast(entry)->map()->instance_type() !=
           HeapObject::cast(other_entry)->map()->instance_type()) {
         return false;
       }
-      if (entry.IsString()) {
+      if (IsString(entry)) {
         if (!String::cast(entry)->Equals(String::cast(other_entry))) {
           return false;
         }
-      } else if (entry.IsScopeInfo()) {
+      } else if (IsScopeInfo(entry)) {
         if (!is_live_edit_compare && !ScopeInfo::cast(entry)->Equals(
                                          ScopeInfo::cast(other_entry), false)) {
           return false;
         }
-      } else if (entry.IsSourceTextModuleInfo()) {
+      } else if (IsSourceTextModuleInfo(entry)) {
         if (!is_live_edit_compare &&
             !SourceTextModuleInfo::cast(entry)->Equals(
                 SourceTextModuleInfo::cast(other_entry))) {
           return false;
         }
-      } else if (entry.IsOddball()) {
+      } else if (IsOddball(entry)) {
         if (Oddball::cast(entry)->kind() !=
             Oddball::cast(other_entry)->kind()) {
           return false;
@@ -611,7 +611,7 @@ Object ScopeInfo::get(PtrComprCageBase cage_base, int index) const {
 
 void ScopeInfo::set(int index, Smi value) {
   DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
-  DCHECK(Object(value).IsSmi());
+  DCHECK(IsSmi(Object(value)));
   int offset = OffsetOfElementAt(index);
   RELAXED_WRITE_FIELD(*this, offset, value);
 }
@@ -684,12 +684,12 @@ ScopeInfo ScopeInfo::Empty(Isolate* isolate) {
 bool ScopeInfo::IsEmpty() const { return IsEmptyBit::decode(Flags()); }
 
 ScopeType ScopeInfo::scope_type() const {
-  DCHECK(!IsEmpty());
+  DCHECK(!this->IsEmpty());
   return ScopeTypeBits::decode(Flags());
 }
 
 bool ScopeInfo::is_script_scope() const {
-  return !IsEmpty() && scope_type() == SCRIPT_SCOPE;
+  return !this->IsEmpty() && scope_type() == SCRIPT_SCOPE;
 }
 
 bool ScopeInfo::SloppyEvalCanExtendVars() const {
@@ -709,7 +709,7 @@ bool ScopeInfo::is_declaration_scope() const {
 }
 
 int ScopeInfo::ContextLength() const {
-  if (IsEmpty()) return 0;
+  if (this->IsEmpty()) return 0;
   int context_locals = ContextLocalCount();
   bool function_name_context_slot = HasContextAllocatedFunctionName();
   bool force_context = ForceContextAllocationBit::decode(Flags());
@@ -772,7 +772,7 @@ bool ScopeInfo::HasInferredFunctionName() const {
 }
 
 bool ScopeInfo::HasPositionInfo() const {
-  if (IsEmpty()) return false;
+  if (this->IsEmpty()) return false;
   return NeedsPositionInfo(scope_type());
 }
 
@@ -788,9 +788,8 @@ bool ScopeInfo::HasSharedFunctionName() const {
 
 void ScopeInfo::SetFunctionName(Object name) {
   DCHECK(HasFunctionName());
-  DCHECK(name.IsString() || name == SharedFunctionInfo::kNoSharedNameSentinel);
-  DCHECK_IMPLIES(HasContextAllocatedFunctionName(),
-                 name.IsInternalizedString());
+  DCHECK(IsString(name) || name == SharedFunctionInfo::kNoSharedNameSentinel);
+  DCHECK_IMPLIES(HasContextAllocatedFunctionName(), IsInternalizedString(name));
   set_function_variable_info_name(name);
 }
 
@@ -808,7 +807,7 @@ bool ScopeInfo::IsDebugEvaluateScope() const {
 }
 
 void ScopeInfo::SetIsDebugEvaluateScope() {
-  CHECK(!IsEmpty());
+  CHECK(!this->IsEmpty());
   DCHECK_EQ(scope_type(), WITH_SCOPE);
   set_flags(Flags() | IsDebugEvaluateScopeBit::encode(true));
 }
@@ -845,12 +844,12 @@ Object ScopeInfo::InferredFunctionName() const {
 String ScopeInfo::FunctionDebugName() const {
   if (!HasFunctionName()) return GetReadOnlyRoots().empty_string();
   Object name = FunctionName();
-  if (name.IsString() && String::cast(name)->length() > 0) {
+  if (IsString(name) && String::cast(name)->length() > 0) {
     return String::cast(name);
   }
   if (HasInferredFunctionName()) {
     name = InferredFunctionName();
-    if (name.IsString()) return String::cast(name);
+    if (IsString(name)) return String::cast(name);
   }
   return GetReadOnlyRoots().empty_string();
 }
@@ -943,7 +942,7 @@ int ScopeInfo::ModuleIndex(String name, VariableMode* mode,
                            InitializationFlag* init_flag,
                            MaybeAssignedFlag* maybe_assigned_flag) {
   DisallowGarbageCollection no_gc;
-  DCHECK(name.IsInternalizedString());
+  DCHECK(IsInternalizedString(name));
   DCHECK_EQ(scope_type(), MODULE_SCOPE);
   DCHECK_NOT_NULL(mode);
   DCHECK_NOT_NULL(init_flag);
@@ -977,10 +976,10 @@ int ScopeInfo::InlinedLocalNamesLookup(String name) {
 int ScopeInfo::ContextSlotIndex(Handle<String> name,
                                 VariableLookupResult* lookup_result) {
   DisallowGarbageCollection no_gc;
-  DCHECK(name->IsInternalizedString());
+  DCHECK(IsInternalizedString(*name));
   DCHECK_NOT_NULL(lookup_result);
 
-  if (IsEmpty()) return -1;
+  if (this->IsEmpty()) return -1;
 
   int index = HasInlinedLocalNames()
                   ? InlinedLocalNamesLookup(*name)
@@ -1020,7 +1019,7 @@ std::pair<String, int> ScopeInfo::SavedClassVariable() const {
     InternalIndex entry(saved_class_variable_info());
     NameToIndexHashTable table = context_local_names_hashtable();
     Object name = table->KeyAt(entry);
-    DCHECK(name.IsString());
+    DCHECK(IsString(name));
     return std::make_pair(String::cast(name), table->IndexAt(entry));
   }
 }
@@ -1042,9 +1041,9 @@ int ScopeInfo::ParametersStartIndex() const {
 }
 
 int ScopeInfo::FunctionContextSlotIndex(String name) const {
-  DCHECK(name.IsInternalizedString());
+  DCHECK(IsInternalizedString(name));
   if (HasContextAllocatedFunctionName()) {
-    DCHECK_IMPLIES(HasFunctionName(), FunctionName().IsInternalizedString());
+    DCHECK_IMPLIES(HasFunctionName(), IsInternalizedString(FunctionName()));
     if (FunctionName() == name) {
       return function_variable_info_context_or_stack_slot_index();
     }

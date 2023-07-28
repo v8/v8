@@ -173,7 +173,7 @@ class JsonParser final {
                                  Object);
       val_node = parser.parsed_val_node_;
     }
-    if (reviver->IsCallable()) {
+    if (IsCallable(*reviver)) {
       return JsonParseInternalizer::Internalize(isolate, result, reviver,
                                                 source, val_node);
     }

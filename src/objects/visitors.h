@@ -258,7 +258,7 @@ class ClientRootVisitor final : public RootVisitor {
 
  private:
   V8_INLINE static bool IsSharedHeapObject(Object object) {
-    return object.IsHeapObject() &&
+    return IsHeapObject(object) &&
            HeapObject::cast(object).InWritableSharedSpace();
   }
 
@@ -318,7 +318,7 @@ class ClientObjectVisitor final : public ObjectVisitorWithCageBases {
 
  private:
   V8_INLINE static bool IsSharedHeapObject(Object object) {
-    return object.IsHeapObject() &&
+    return IsHeapObject(object) &&
            HeapObject::cast(object).InWritableSharedSpace();
   }
 

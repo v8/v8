@@ -3237,7 +3237,7 @@ TEST_F(ParsingTest, SerializationOfMaybeAssignmentFlag) {
   const i::AstRawString* name = avf.GetOneByteString("result");
   avf.Internalize(isolate);
   i::Handle<i::String> str = name->string();
-  CHECK(str->IsInternalizedString());
+  CHECK(IsInternalizedString(*str));
   i::DeclarationScope* script_scope =
       zone()->New<i::DeclarationScope>(zone(), &avf);
   i::Scope* s = i::Scope::DeserializeScopeChain(

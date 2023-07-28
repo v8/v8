@@ -18,10 +18,10 @@ static void CheckReturnValue(const T& info, i::Address callback) {
   CHECK_EQ(CcTest::isolate(), info.GetIsolate());
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   CHECK_EQ(info.GetIsolate(), returnValue.GetIsolate());
-  CHECK((*returnObjectSlot).IsTheHole(isolate) ||
-        (*returnObjectSlot).IsUndefined(isolate));
+  CHECK(IsTheHole(*returnObjectSlot, isolate) ||
+        IsUndefined(*returnObjectSlot, isolate));
   // Verify reset
-  bool is_runtime = (*returnObjectSlot).IsTheHole(isolate);
+  bool is_runtime = IsTheHole(*returnObjectSlot, isolate);
   if (is_runtime) {
     CHECK(returnValue.Get()->IsUndefined());
   } else {
@@ -31,8 +31,8 @@ static void CheckReturnValue(const T& info, i::Address callback) {
   returnValue.Set(true);
   CHECK_EQ(*returnObjectSlot, i::ReadOnlyRoots(isolate).true_value());
   returnValue.Set(v8::Local<v8::Object>());
-  CHECK((*returnObjectSlot).IsTheHole(isolate) ||
-        (*returnObjectSlot).IsUndefined(isolate));
+  CHECK(IsTheHole(*returnObjectSlot, isolate) ||
+        IsUndefined(*returnObjectSlot, isolate));
   // If CPU profiler is active check that when API callback is invoked
   // VMState is set to EXTERNAL.
   if (isolate->is_profiling()) {

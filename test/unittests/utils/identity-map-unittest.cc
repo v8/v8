@@ -728,7 +728,7 @@ TEST_F(IdentityMapTest, GCShortCutting) {
         factory->NewStringFromAsciiChecked("thin_string");
     Handle<String> internalized_string =
         factory->InternalizeString(thin_string);
-    DCHECK(thin_string->IsThinString());
+    DCHECK(IsThinString(*thin_string));
     DCHECK_NE(*thin_string, *internalized_string);
 
     // Insert both keys into the map.

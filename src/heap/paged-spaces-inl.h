@@ -80,8 +80,8 @@ Tagged<HeapObject> PagedSpaceObjectIterator::FromCurrentPage() {
     const int obj_size = ALIGN_TO_ALLOCATION_ALIGNMENT(obj->Size(cage_base()));
     cur_addr_ += obj_size;
     DCHECK_LE(cur_addr_, cur_end_);
-    if (!obj->IsFreeSpaceOrFiller(cage_base())) {
-      if (obj->IsInstructionStream(cage_base())) {
+    if (!IsFreeSpaceOrFiller(*obj, cage_base())) {
+      if (IsInstructionStream(*obj, cage_base())) {
         DCHECK_EQ(space_->identity(), CODE_SPACE);
         DCHECK_CODEOBJECT_SIZE(obj_size, space_);
       } else {
@@ -101,7 +101,7 @@ bool PagedSpaceBase::Contains(Address addr) const {
 }
 
 bool PagedSpaceBase::Contains(Object o) const {
-  if (!o.IsHeapObject()) return false;
+  if (!IsHeapObject(o)) return false;
   return Page::FromAddress(o.ptr())->owner() == this;
 }
 

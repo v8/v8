@@ -329,7 +329,7 @@ int NativeRegExpMacroAssembler::CheckStackGuardState(
     } else if (check.InterruptRequested()) {
       AllowGarbageCollection yes_gc;
       Object result = isolate->stack_guard()->HandleInterrupts();
-      if (result.IsException(isolate)) return_value = EXCEPTION;
+      if (IsException(result, isolate)) return_value = EXCEPTION;
     }
 
     // We are not using operator == here because it does a slow DCHECK
@@ -398,7 +398,7 @@ int NativeRegExpMacroAssembler::Match(Handle<JSRegExp> regexp,
   }
   // Ensure that an underlying string has the same representation.
   bool is_one_byte = subject_ptr->IsOneByteRepresentation();
-  DCHECK(subject_ptr.IsExternalString() || subject_ptr.IsSeqString());
+  DCHECK(IsExternalString(subject_ptr) || IsSeqString(subject_ptr));
   // String is now either Sequential or External
   int char_size_shift = is_one_byte ? 0 : 1;
 

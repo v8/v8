@@ -97,7 +97,7 @@ using MaybeSpecializationKey = base::Optional<SpecializationKey<GenericType>>;
 struct TypeChecker {
   // The type of the object. This string is not guaranteed to correspond to a
   // C++ class, but just to a type checker function: for any type "Foo" here,
-  // the function Object::IsFoo must exist.
+  // the function IsFoo must exist.
   std::string type;
   // If {type} is "MaybeObject", then {weak_ref_to} indicates the corresponding
   // strong object type. Otherwise, {weak_ref_to} is empty.

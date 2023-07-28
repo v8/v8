@@ -330,13 +330,11 @@ WASM_COMPILED_EXEC_TEST(WasmBasicStruct) {
 
   tester.CheckResult(kGet1, 42);
   tester.CheckResult(kGet2, 64);
-  CHECK(tester.GetResultObject(kGetStruct).ToHandleChecked()->IsWasmStruct());
-  CHECK(tester.GetResultObject(kGetStructNominal)
-            .ToHandleChecked()
-            ->IsWasmStruct());
-  CHECK(tester.GetResultObject(kGetEmptyStruct)
-            .ToHandleChecked()
-            ->IsWasmStruct());
+  CHECK(IsWasmStruct(*tester.GetResultObject(kGetStruct).ToHandleChecked()));
+  CHECK(IsWasmStruct(
+      *tester.GetResultObject(kGetStructNominal).ToHandleChecked()));
+  CHECK(
+      IsWasmStruct(*tester.GetResultObject(kGetEmptyStruct).ToHandleChecked()));
   tester.CheckResult(kSet, -99);
   tester.CheckHasThrown(kNullDereference);
 }
@@ -394,7 +392,7 @@ WASM_COMPILED_EXEC_TEST(WasmRefAsNonNullSkipCheck) {
   tester.CompileModule();
   Handle<Object> result = tester.GetResultObject(kFunc).ToHandleChecked();
   // Without null checks, ref.as_non_null can actually return null.
-  CHECK(result->IsWasmNull());
+  CHECK(IsWasmNull(*result));
 }
 
 WASM_COMPILED_EXEC_TEST(WasmBrOnNull) {
@@ -937,15 +935,15 @@ WASM_COMPILED_EXEC_TEST(WasmBasicArray) {
   tester.CheckResult(kTestFpArray, static_cast<int32_t>(result_value));
 
   Handle<Object> h_result = tester.GetResultObject(kAllocate).ToHandleChecked();
-  CHECK(h_result->IsWasmArray());
+  CHECK(IsWasmArray(*h_result));
   CHECK_EQ(2, Handle<WasmArray>::cast(h_result)->length());
 
   h_result = tester.GetResultObject(kAllocateStatic).ToHandleChecked();
-  CHECK(h_result->IsWasmArray());
+  CHECK(IsWasmArray(*h_result));
   CHECK_EQ(2, Handle<WasmArray>::cast(h_result)->length());
 
   Handle<Object> init_result = tester.GetResultObject(kInit).ToHandleChecked();
-  CHECK(init_result->IsWasmArray());
+  CHECK(IsWasmArray(*init_result));
   CHECK_EQ(3, Handle<WasmArray>::cast(init_result)->length());
   CHECK_EQ(10, Handle<WasmArray>::cast(init_result)->GetElement(0).to_i32());
   CHECK_EQ(20, Handle<WasmArray>::cast(init_result)->GetElement(1).to_i32());
@@ -954,7 +952,7 @@ WASM_COMPILED_EXEC_TEST(WasmBasicArray) {
   MaybeHandle<Object> maybe_large_result =
       tester.GetResultObject(kAllocateLarge);
   Handle<Object> large_result = maybe_large_result.ToHandleChecked();
-  CHECK(large_result->IsWasmArray());
+  CHECK(IsWasmArray(*large_result));
   CHECK(Handle<WasmArray>::cast(large_result)->Size() >
         kMaxRegularHeapObjectSize);
 
@@ -1157,26 +1155,25 @@ WASM_COMPILED_EXEC_TEST(WasmArrayCopy) {
   {
     Handle<Object> result5 =
         tester.GetResultObject(kCopyRef, 5).ToHandleChecked();
-    CHECK(result5->IsWasmNull());
+    CHECK(IsWasmNull(*result5));
     for (int i = 6; i <= 9; i++) {
       Handle<Object> res =
           tester.GetResultObject(kCopyRef, i).ToHandleChecked();
-      CHECK(res->IsWasmArray());
+      CHECK(IsWasmArray(*res));
       CHECK_EQ(Handle<WasmArray>::cast(res)->length(),
                static_cast<uint32_t>(i));
     }
   }
-  CHECK(tester.GetResultObject(kCopyRefOverlapping, 6)
-            .ToHandleChecked()
-            ->IsWasmNull());
+  CHECK(IsWasmNull(
+      *tester.GetResultObject(kCopyRefOverlapping, 6).ToHandleChecked()));
   Handle<Object> res0 =
       tester.GetResultObject(kCopyRefOverlapping, 0).ToHandleChecked();
-  CHECK(res0->IsWasmArray());
+  CHECK(IsWasmArray(*res0));
   CHECK_EQ(Handle<WasmArray>::cast(res0)->length(), static_cast<uint32_t>(2));
   for (int i = 2; i <= 5; i++) {
     Handle<Object> res =
         tester.GetResultObject(kCopyRefOverlapping, i).ToHandleChecked();
-    CHECK(res->IsWasmArray());
+    CHECK(IsWasmArray(*res));
     CHECK_EQ(Handle<WasmArray>::cast(res)->length(), static_cast<uint32_t>(i));
   }
 
@@ -1519,7 +1516,7 @@ WASM_COMPILED_EXEC_TEST(ArrayNewMap) {
 
   tester.CompileModule();
   Handle<Object> result = tester.GetResultObject(array_new).ToHandleChecked();
-  CHECK(result->IsWasmArray());
+  CHECK(IsWasmArray(*result));
   CHECK_EQ(Handle<WasmArray>::cast(result)->map(),
            tester.instance()->managed_object_maps()->get(type_index));
 }
@@ -1570,13 +1567,13 @@ WASM_COMPILED_EXEC_TEST(FunctionRefs) {
   tester.CompileModule();
 
   Handle<Object> result_cast = tester.GetResultObject(cast).ToHandleChecked();
-  CHECK(result_cast->IsWasmInternalFunction());
+  CHECK(IsWasmInternalFunction(*result_cast));
   Handle<JSFunction> cast_function = WasmInternalFunction::GetOrCreateExternal(
       Handle<WasmInternalFunction>::cast(result_cast));
 
   Handle<Object> result_cast_reference =
       tester.GetResultObject(cast_reference).ToHandleChecked();
-  CHECK(result_cast_reference->IsWasmInternalFunction());
+  CHECK(IsWasmInternalFunction(*result_cast_reference));
   Handle<JSFunction> cast_function_reference =
       WasmInternalFunction::GetOrCreateExternal(
           Handle<WasmInternalFunction>::cast(result_cast_reference));
@@ -2131,7 +2128,7 @@ WASM_COMPILED_EXEC_TEST(JsAccess) {
                                    try_catch.Message()->Get()));
     }
     Handle<Object> result = maybe_result.ToHandleChecked();
-    CHECK(result->IsSmi());
+    CHECK(IsSmi(*result));
     CHECK_EQ(42, Smi::cast(*result).value());
     // Calling {consumer} with any other object (e.g. the Smi we just got as
     // {result}) should trap.

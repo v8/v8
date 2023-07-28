@@ -302,33 +302,33 @@ void LargeObjectSpace::Verify(Isolate* isolate,
     CHECK(object.address() == page->area_start());
 
     // We have only the following types in the large object space:
-    const bool is_valid_lo_space_object =                         //
-        object.IsAbstractCode(cage_base) ||                       //
-        object.IsBigInt(cage_base) ||                             //
-        object.IsByteArray(cage_base) ||                          //
-        object.IsExternalPointerArray(cage_base) ||               //
-        object.IsContext(cage_base) ||                            //
-        object.IsExternalString(cage_base) ||                     //
-        object.IsFeedbackMetadata(cage_base) ||                   //
-        object.IsFeedbackVector(cage_base) ||                     //
-        object.IsFixedArray(cage_base) ||                         //
-        object.IsFixedDoubleArray(cage_base) ||                   //
-        object.IsFreeSpace(cage_base) ||                          //
-        object.IsInstructionStream(cage_base) ||                  //
-        object.IsPreparseData(cage_base) ||                       //
-        object.IsPropertyArray(cage_base) ||                      //
-        object.IsScopeInfo() ||                                   //
-        object.IsSeqString(cage_base) ||                          //
-        object.IsSloppyArgumentsElements(cage_base) ||            //
-        object.IsSwissNameDictionary() ||                         //
-        object.IsThinString(cage_base) ||                         //
-        object.IsUncompiledDataWithoutPreparseData(cage_base) ||  //
+    const bool is_valid_lo_space_object =                          //
+        IsAbstractCode(object, cage_base) ||                       //
+        IsBigInt(object, cage_base) ||                             //
+        IsByteArray(object, cage_base) ||                          //
+        IsExternalPointerArray(object, cage_base) ||               //
+        IsContext(object, cage_base) ||                            //
+        IsExternalString(object, cage_base) ||                     //
+        IsFeedbackMetadata(object, cage_base) ||                   //
+        IsFeedbackVector(object, cage_base) ||                     //
+        IsFixedArray(object, cage_base) ||                         //
+        IsFixedDoubleArray(object, cage_base) ||                   //
+        IsFreeSpace(object, cage_base) ||                          //
+        IsInstructionStream(object, cage_base) ||                  //
+        IsPreparseData(object, cage_base) ||                       //
+        IsPropertyArray(object, cage_base) ||                      //
+        IsScopeInfo(object) ||                                     //
+        IsSeqString(object, cage_base) ||                          //
+        IsSloppyArgumentsElements(object, cage_base) ||            //
+        IsSwissNameDictionary(object) ||                           //
+        IsThinString(object, cage_base) ||                         //
+        IsUncompiledDataWithoutPreparseData(object, cage_base) ||  //
 #if V8_ENABLE_WEBASSEMBLY                                         //
-        object.IsWasmArray() ||                                   //
-        object.IsWasmStruct() ||                                  //
+        IsWasmArray(object) ||                                    //
+        IsWasmStruct(object) ||                                   //
 #endif                                                            //
-        object.IsWeakArrayList(cage_base) ||                      //
-        object.IsWeakFixedArray(cage_base);
+        IsWeakArrayList(object, cage_base) ||                     //
+        IsWeakFixedArray(object, cage_base);
     if (!is_valid_lo_space_object) {
       object.Print();
       FATAL("Found invalid Object (instance_type=%i) in large object space.",

@@ -29,7 +29,7 @@ bool SemiSpace::Contains(HeapObject o) const {
 }
 
 bool SemiSpace::Contains(Object o) const {
-  return o.IsHeapObject() && Contains(HeapObject::cast(o));
+  return IsHeapObject(o) && Contains(HeapObject::cast(o));
 }
 
 template <typename T>
@@ -49,7 +49,7 @@ bool SemiSpace::ContainsSlow(Address a) const {
 // NewSpace
 
 bool NewSpace::Contains(Object o) const {
-  return o.IsHeapObject() && Contains(HeapObject::cast(o));
+  return IsHeapObject(o) && Contains(HeapObject::cast(o));
 }
 
 bool NewSpace::Contains(HeapObject o) const {
@@ -158,7 +158,7 @@ Tagged<HeapObject> SemiSpaceObjectIterator::Next() {
     }
     Tagged<HeapObject> object = HeapObject::FromAddress(current_);
     current_ += ALIGN_TO_ALLOCATION_ALIGNMENT(object->Size());
-    if (!object.IsFreeSpaceOrFiller()) return object;
+    if (!IsFreeSpaceOrFiller(object)) return object;
   }
 }
 

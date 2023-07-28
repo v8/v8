@@ -84,7 +84,7 @@ void ReadOnlyRoots::VerifyNameForProtectors() {
       return Tagged<Oddball>::cast(Tagged<Object>(value))->kind() ==          \
              Oddball::kFalse;                                                 \
     } else {                                                                  \
-      return value->Is##Type();                                               \
+      return Is##Type(value);                                                 \
     }                                                                         \
   }
 

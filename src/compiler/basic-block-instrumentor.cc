@@ -169,7 +169,7 @@ void StoreBuiltinCallForNode(Node* n, Builtin builtin, int block_id,
       Operator* op = const_cast<Operator*>(callee->op());
       if (op->opcode() == IrOpcode::kHeapConstant) {
         Handle<HeapObject> para = OpParameter<Handle<HeapObject>>(op);
-        if (para->IsCode()) {
+        if (IsCode(*para)) {
           Handle<Code> code = Handle<Code>::cast(para);
           if (code->is_builtin()) {
             bcc_profiler->AddBuiltinCall(builtin, code->builtin_id(), block_id);

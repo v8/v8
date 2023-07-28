@@ -32,7 +32,7 @@ Handle<Name> NewNameWithHash(Isolate* isolate, const char* str, uint32_t hash,
   Handle<Name> name = isolate->factory()->NewOneByteInternalizedString(
       base::OneByteVector(str), hash_field);
   name->set_raw_hash_field(hash_field);
-  CHECK(name->IsUniqueName());
+  CHECK(IsUniqueName(*name));
   return name;
 }
 
@@ -68,7 +68,7 @@ void CheckDescriptorArrayLookups(Isolate* isolate, Handle<Map> map,
     for (size_t i = 0; i < names.size(); ++i) {
       Handle<Object> name_index =
           Call(isolate, csa_lookup, map, names[i]).ToHandleChecked();
-      CHECK(name_index->IsSmi());
+      CHECK(IsSmi(*name_index));
       CHECK_EQ(DescriptorArray::ToKeyIndex(static_cast<int>(i)),
                Smi::ToInt(*name_index));
     }
@@ -106,7 +106,7 @@ void CheckTransitionArrayLookups(Isolate* isolate,
 
       Handle<Object> transition_map =
           Call(isolate, csa_lookup, transitions, name).ToHandleChecked();
-      CHECK(transition_map->IsMap());
+      CHECK(IsMap(*transition_map));
       CHECK_EQ(*expected_map, *transition_map);
     }
   }

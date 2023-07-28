@@ -223,7 +223,7 @@ void TransitionsAccessor::Insert(Isolate* isolate, Handle<Map> map,
 
 Map TransitionsAccessor::SearchTransition(Name name, PropertyKind kind,
                                           PropertyAttributes attributes) {
-  DCHECK(name->IsUniqueName());
+  DCHECK(IsUniqueName(name));
   switch (encoding()) {
     case kPrototypeInfo:
     case kUninitialized:
@@ -254,7 +254,7 @@ Map TransitionsAccessor::SearchSpecial(Symbol name) {
 
 // static
 bool TransitionsAccessor::IsSpecialTransition(ReadOnlyRoots roots, Name name) {
-  if (!name.IsSymbol()) return false;
+  if (!IsSymbol(name)) return false;
   return name == roots.nonextensible_symbol() ||
          name == roots.sealed_symbol() || name == roots.frozen_symbol() ||
          name == roots.elements_transition_symbol() ||
@@ -263,7 +263,7 @@ bool TransitionsAccessor::IsSpecialTransition(ReadOnlyRoots roots, Name name) {
 
 MaybeHandle<Map> TransitionsAccessor::FindTransitionToDataProperty(
     Handle<Name> name, RequestedLocation requested_location) {
-  DCHECK(name->IsUniqueName());
+  DCHECK(IsUniqueName(*name));
   DisallowGarbageCollection no_gc;
   PropertyAttributes attributes = name->IsPrivate() ? DONT_ENUM : NONE;
   Map target = SearchTransition(*name, PropertyKind::kData, attributes);
@@ -281,7 +281,7 @@ MaybeHandle<Map> TransitionsAccessor::FindTransitionToDataProperty(
 void TransitionsAccessor::ForEachTransitionTo(
     Name name, const ForEachTransitionCallback& callback,
     DisallowGarbageCollection* no_gc) {
-  DCHECK(name->IsUniqueName());
+  DCHECK(IsUniqueName(name));
   switch (encoding()) {
     case kPrototypeInfo:
     case kUninitialized:
@@ -343,7 +343,7 @@ bool TransitionArray::CompactPrototypeTransitionArray(Isolate* isolate,
   for (int i = 0; i < number_of_transitions; i++) {
     MaybeObject target = array->Get(header + i);
     DCHECK(target->IsCleared() ||
-           (target->IsWeak() && target->GetHeapObject().IsMap()));
+           (target->IsWeak() && IsMap(target->GetHeapObject())));
     if (!target->IsCleared()) {
       if (new_number_of_transitions != i) {
         array->Set(header + new_number_of_transitions, target);
@@ -386,7 +386,7 @@ void TransitionsAccessor::PutPrototypeTransition(Isolate* isolate,
                                                  Handle<Map> map,
                                                  Handle<Object> prototype,
                                                  Handle<Map> target_map) {
-  DCHECK(HeapObject::cast(*prototype)->map().IsMap());
+  DCHECK(IsMap(HeapObject::cast(*prototype)->map()));
   // Don't cache prototype transition if this map is either shared, or a map of
   // a prototype.
   if (map->is_prototype_map()) return;

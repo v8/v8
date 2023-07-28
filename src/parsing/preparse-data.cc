@@ -775,7 +775,7 @@ OnHeapConsumedPreparseData::OnHeapConsumedPreparseData(
     LocalIsolate* isolate, Handle<PreparseData> data)
     : BaseConsumedPreparseData<PreparseData>(), isolate_(isolate), data_(data) {
   DCHECK_NOT_NULL(isolate);
-  DCHECK(data->IsPreparseData());
+  DCHECK(IsPreparseData(*data));
   DCHECK(VerifyDataStart());
 }
 

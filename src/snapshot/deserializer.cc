@@ -302,7 +302,7 @@ StringTableInsertionKey::StringTableInsertionKey(
 #ifdef DEBUG
   deserializing_user_code_ = deserializing_user_code;
 #endif
-  DCHECK(string->IsInternalizedString());
+  DCHECK(IsInternalizedString(*string));
 }
 
 StringTableInsertionKey::StringTableInsertionKey(
@@ -313,7 +313,7 @@ StringTableInsertionKey::StringTableInsertionKey(
 #ifdef DEBUG
   deserializing_user_code_ = deserializing_user_code;
 #endif
-  DCHECK(string->IsInternalizedString());
+  DCHECK(IsInternalizedString(*string));
 }
 
 template <typename IsolateT>
@@ -553,7 +553,7 @@ Handle<HeapObject> Deserializer<IsolateT>::GetBackReferencedObject() {
 
   // We don't allow ThinStrings in backreferences -- if internalization produces
   // a thin string, then it should also update the backref handle.
-  DCHECK(!obj->IsThinString(isolate()));
+  DCHECK(!IsThinString(*obj, isolate()));
 
   hot_objects_.Add(obj);
   DCHECK(!HasWeakHeapObjectTag(*obj));
@@ -638,9 +638,9 @@ Handle<HeapObject> Deserializer<IsolateT>::ReadObject(SnapshotSpace space) {
 
   // Make sure BytecodeArrays have a valid age, so that the marker doesn't
   // break when making them older.
-  if (raw_obj.IsSharedFunctionInfo(isolate())) {
+  if (IsSharedFunctionInfo(raw_obj, isolate())) {
     SharedFunctionInfo::cast(raw_obj)->set_age(0);
-  } else if (raw_obj.IsEphemeronHashTable()) {
+  } else if (IsEphemeronHashTable(raw_obj)) {
     // Make sure EphemeronHashTables have valid HeapObject keys, so that the
     // marker does not break when marking EphemeronHashTable, see
     // MarkingVisitorBase::VisitEphemeronHashTable.
@@ -653,7 +653,7 @@ Handle<HeapObject> Deserializer<IsolateT>::ReadObject(SnapshotSpace space) {
 #ifdef DEBUG
   PtrComprCageBase cage_base(isolate());
   // We want to make sure that all embedder pointers are initialized to null.
-  if (raw_obj.IsJSObject(cage_base) &&
+  if (IsJSObject(raw_obj, cage_base) &&
       JSObject::cast(raw_obj)->MayHaveEmbedderFields()) {
     JSObject js_obj = JSObject::cast(raw_obj);
     for (int i = 0; i < js_obj->GetEmbedderFieldCount(); ++i) {
@@ -662,7 +662,7 @@ Handle<HeapObject> Deserializer<IsolateT>::ReadObject(SnapshotSpace space) {
                                                          &pointer));
       CHECK_NULL(pointer);
     }
-  } else if (raw_obj.IsEmbedderDataArray(cage_base)) {
+  } else if (IsEmbedderDataArray(raw_obj, cage_base)) {
     EmbedderDataArray array = EmbedderDataArray::cast(raw_obj);
     EmbedderDataSlot start(array, 0);
     EmbedderDataSlot end(array, array->length());
@@ -681,7 +681,7 @@ Handle<HeapObject> Deserializer<IsolateT>::ReadObject(SnapshotSpace space) {
   PostProcessNewObject(map, obj, space);
 
 #ifdef DEBUG
-  if (obj->IsInstructionStream(cage_base)) {
+  if (IsInstructionStream(*obj, cage_base)) {
     DCHECK(space == SnapshotSpace::kCode ||
            space == SnapshotSpace::kReadOnlyHeap);
   } else {

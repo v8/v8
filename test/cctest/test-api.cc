@@ -781,7 +781,7 @@ THREADED_TEST(UsingExternalString) {
     i::heap::EmptyNewSpaceUsingGC(CcTest::heap());
     i::Handle<i::String> isymbol =
         factory->InternalizeString(istring);
-    CHECK(isymbol->IsInternalizedString());
+    CHECK(IsInternalizedString(*isymbol));
   }
   i::heap::InvokeMajorGC(CcTest::heap());
   i::heap::InvokeMajorGC(CcTest::heap());
@@ -803,7 +803,7 @@ THREADED_TEST(UsingExternalOneByteString) {
     i::heap::EmptyNewSpaceUsingGC(CcTest::heap());
     i::Handle<i::String> isymbol =
         factory->InternalizeString(istring);
-    CHECK(isymbol->IsInternalizedString());
+    CHECK(IsInternalizedString(*isymbol));
   }
   i::heap::InvokeMajorGC(CcTest::heap());
   i::heap::InvokeMajorGC(CcTest::heap());
@@ -2743,7 +2743,7 @@ THREADED_TEST(AccessorIsPreservedOnAttributeChange) {
   i::LookupIterator it(i_isolate, a, name,
                        i::LookupIterator::OWN_SKIP_INTERCEPTOR);
   CHECK_EQ(i::LookupIterator::ACCESSOR, it.state());
-  CHECK(it.GetAccessors()->IsAccessorInfo());
+  CHECK(IsAccessorInfo(*it.GetAccessors()));
 }
 
 
@@ -3263,7 +3263,7 @@ void GlobalProxyIdentityHash(bool set_in_js) {
   if (set_in_js) {
     CompileRun("var m = new Set(); m.add(global);");
     i::Object original_hash = i_global_proxy->GetHash();
-    CHECK(original_hash.IsSmi());
+    CHECK(IsSmi(original_hash));
     hash1 = i::Smi::ToInt(original_hash);
   } else {
     hash1 = i_global_proxy->GetOrCreateHash(i_isolate).value();
@@ -10661,7 +10661,7 @@ THREADED_TEST(ShadowObjectAndDataProperty) {
   // compiler downstream.
   i::HeapObject heap_object;
   CHECK(nexus.GetFeedback().GetHeapObject(&heap_object));
-  CHECK(heap_object.IsPropertyCell());
+  CHECK(IsPropertyCell(heap_object));
 }
 
 THREADED_TEST(ShadowObjectAndDataPropertyTurbo) {
@@ -10705,7 +10705,7 @@ THREADED_TEST(ShadowObjectAndDataPropertyTurbo) {
   CHECK_EQ(i::InlineCacheState::MONOMORPHIC, nexus.ic_state());
   i::HeapObject heap_object;
   CHECK(nexus.GetFeedback().GetHeapObject(&heap_object));
-  CHECK(heap_object.IsPropertyCell());
+  CHECK(IsPropertyCell(heap_object));
 }
 
 THREADED_TEST(SetPrototype) {
@@ -11006,7 +11006,7 @@ THREADED_TEST(Constructor) {
       context->Global()->Set(context.local(), v8_str("Fun"), cons).FromJust());
   Local<v8::Object> inst = cons->NewInstance(context.local()).ToLocalChecked();
   i::Handle<i::JSReceiver> obj(v8::Utils::OpenHandle(*inst));
-  CHECK(obj->IsJSObject());
+  CHECK(IsJSObject(*obj));
   Local<Value> value = CompileRun("(new Fun()).constructor === Fun");
   CHECK(value->BooleanValue(isolate));
 }
@@ -13367,7 +13367,7 @@ static int GetGlobalObjectsCount() {
   i::HeapObjectIterator it(CcTest::heap());
   for (i::HeapObject object = it.Next(); !object.is_null();
        object = it.Next()) {
-    if (object.IsJSGlobalObject()) {
+    if (IsJSGlobalObject(object)) {
       i::JSGlobalObject g = i::JSGlobalObject::cast(object);
       // Skip dummy global object.
       if (g->global_dictionary(v8::kAcquireLoad)->NumberOfElements() != 0) {
@@ -14957,11 +14957,11 @@ THREADED_TEST(MorphCompositeStringTest) {
               .FromJust());
 
     // This avoids the GC from trying to free a stack allocated resource.
-    if (ilhs->IsExternalOneByteString())
+    if (IsExternalOneByteString(*ilhs))
       i::ExternalOneByteString::cast(*ilhs)->SetResource(i_isolate, nullptr);
     else
       i::ExternalTwoByteString::cast(*ilhs)->SetResource(i_isolate, nullptr);
-    if (irhs->IsExternalOneByteString())
+    if (IsExternalOneByteString(*irhs))
       i::ExternalOneByteString::cast(*irhs)->SetResource(i_isolate, nullptr);
     else
       i::ExternalTwoByteString::cast(*irhs)->SetResource(i_isolate, nullptr);
@@ -15668,7 +15668,7 @@ TEST(ErrorLevelWarning) {
   v8::Local<v8::Script> lscript = CompileWithOrigin(source, "test", false);
   i::Handle<i::SharedFunctionInfo> obj = i::Handle<i::SharedFunctionInfo>::cast(
       v8::Utils::OpenHandle(*lscript->GetUnboundScript()));
-  CHECK(obj->script().IsScript());
+  CHECK(IsScript(obj->script()));
   i::Handle<i::Script> script(i::Script::cast(obj->script()), i_isolate);
 
   int levels[] = {
@@ -16962,7 +16962,7 @@ TEST(ExternalizeOldSpaceTwoByteCons) {
       CompileRun("'Romeo Montague ' + 'Juliet Capulet ❤️'")
           ->ToString(env.local())
           .ToLocalChecked();
-  CHECK(v8::Utils::OpenHandle(*cons)->IsConsString());
+  CHECK(IsConsString(*v8::Utils::OpenHandle(*cons)));
   i::heap::InvokeMemoryReducingMajorGCs(CcTest::heap());
   CHECK(CcTest::heap()->old_space()->Contains(*v8::Utils::OpenHandle(*cons)));
 
@@ -16987,7 +16987,7 @@ TEST(ExternalizeOldSpaceOneByteCons) {
       CompileRun("'Romeo Montague ' + 'Juliet Capulet'")
           ->ToString(env.local())
           .ToLocalChecked();
-  CHECK(v8::Utils::OpenHandle(*cons)->IsConsString());
+  CHECK(IsConsString(*v8::Utils::OpenHandle(*cons)));
   i::heap::InvokeMemoryReducingMajorGCs(CcTest::heap());
   CHECK(CcTest::heap()->old_space()->Contains(*v8::Utils::OpenHandle(*cons)));
 
@@ -17039,7 +17039,7 @@ TEST(ExternalInternalizedStringCollectedAtTearDown) {
         new TestOneByteResource(i::StrDup(s), &destroyed);
     v8::Local<v8::String> ring =
         CompileRun("ring")->ToString(env.local()).ToLocalChecked();
-    CHECK(v8::Utils::OpenHandle(*ring)->IsInternalizedString());
+    CHECK(IsInternalizedString(*v8::Utils::OpenHandle(*ring)));
     ring->MakeExternal(inscription);
     // Ring is still alive.  Orcs are roaming freely across our lands.
     CHECK_EQ(0, destroyed);
@@ -17063,7 +17063,7 @@ TEST(ExternalInternalizedStringCollectedAtGC) {
     TestOneByteResource* inscription =
         new TestOneByteResource(i::StrDup(s), &destroyed);
     v8::Local<v8::String> ring = CompileRun("ring").As<v8::String>();
-    CHECK(v8::Utils::OpenHandle(*ring)->IsInternalizedString());
+    CHECK(IsInternalizedString(*v8::Utils::OpenHandle(*ring)));
     ring->MakeExternal(inscription);
     // Ring is still alive.  Orcs are roaming freely across our lands.
     CHECK_EQ(0, destroyed);
@@ -17628,8 +17628,8 @@ static void GetterWhichReturns42(
     Local<String> name,
     const v8::PropertyCallbackInfo<v8::Value>& info) {
   CHECK(i::ValidateCallbackInfo(info));
-  CHECK(v8::Utils::OpenHandle(*info.This())->IsJSObject());
-  CHECK(v8::Utils::OpenHandle(*info.Holder())->IsJSObject());
+  CHECK(IsJSObject(*v8::Utils::OpenHandle(*info.This())));
+  CHECK(IsJSObject(*v8::Utils::OpenHandle(*info.Holder())));
   info.GetReturnValue().Set(v8_num(42));
 }
 
@@ -17639,8 +17639,8 @@ static void SetterWhichSetsYOnThisTo23(
     Local<Value> value,
     const v8::PropertyCallbackInfo<void>& info) {
   CHECK(i::ValidateCallbackInfo(info));
-  CHECK(v8::Utils::OpenHandle(*info.This())->IsJSObject());
-  CHECK(v8::Utils::OpenHandle(*info.Holder())->IsJSObject());
+  CHECK(IsJSObject(*v8::Utils::OpenHandle(*info.This())));
+  CHECK(IsJSObject(*v8::Utils::OpenHandle(*info.Holder())));
   info.This()
       .As<Object>()
       ->Set(info.GetIsolate()->GetCurrentContext(), v8_str("y"), v8_num(23))
@@ -17651,8 +17651,8 @@ static void SetterWhichSetsYOnThisTo23(
 void FooGetInterceptor(Local<Name> name,
                        const v8::PropertyCallbackInfo<v8::Value>& info) {
   CHECK(i::ValidateCallbackInfo(info));
-  CHECK(v8::Utils::OpenHandle(*info.This())->IsJSObject());
-  CHECK(v8::Utils::OpenHandle(*info.Holder())->IsJSObject());
+  CHECK(IsJSObject(*v8::Utils::OpenHandle(*info.This())));
+  CHECK(IsJSObject(*v8::Utils::OpenHandle(*info.Holder())));
   if (!name->Equals(info.GetIsolate()->GetCurrentContext(), v8_str("foo"))
            .FromJust()) {
     return;
@@ -17664,8 +17664,8 @@ void FooGetInterceptor(Local<Name> name,
 void FooSetInterceptor(Local<Name> name, Local<Value> value,
                        const v8::PropertyCallbackInfo<v8::Value>& info) {
   CHECK(i::ValidateCallbackInfo(info));
-  CHECK(v8::Utils::OpenHandle(*info.This())->IsJSObject());
-  CHECK(v8::Utils::OpenHandle(*info.Holder())->IsJSObject());
+  CHECK(IsJSObject(*v8::Utils::OpenHandle(*info.This())));
+  CHECK(IsJSObject(*v8::Utils::OpenHandle(*info.Holder())));
   if (!name->Equals(info.GetIsolate()->GetCurrentContext(), v8_str("foo"))
            .FromJust()) {
     return;
@@ -21892,16 +21892,16 @@ TEST(EmptyApiCallback) {
   global->Set(context.local(), v8_str("x"), function).FromJust();
 
   auto result = CompileRun("x()");
-  CHECK(v8::Utils::OpenHandle(*result)->IsJSGlobalProxy());
+  CHECK(IsJSGlobalProxy(*v8::Utils::OpenHandle(*result)));
 
   result = CompileRun("x(1,2,3)");
-  CHECK(v8::Utils::OpenHandle(*result)->IsJSGlobalProxy());
+  CHECK(IsJSGlobalProxy(*v8::Utils::OpenHandle(*result)));
 
   result = CompileRun("x.call(undefined)");
-  CHECK(v8::Utils::OpenHandle(*result)->IsJSGlobalProxy());
+  CHECK(IsJSGlobalProxy(*v8::Utils::OpenHandle(*result)));
 
   result = CompileRun("x.call(null)");
-  CHECK(v8::Utils::OpenHandle(*result)->IsJSGlobalProxy());
+  CHECK(IsJSGlobalProxy(*v8::Utils::OpenHandle(*result)));
 
   result = CompileRun("7 + x.call(3) + 11");
   CHECK(result->IsInt32());
@@ -22714,7 +22714,7 @@ TEST(ScriptPositionInfo) {
 
   i::Handle<i::SharedFunctionInfo> obj = i::Handle<i::SharedFunctionInfo>::cast(
       v8::Utils::OpenHandle(*script->GetUnboundScript()));
-  CHECK(obj->script().IsScript());
+  CHECK(IsScript(obj->script()));
 
   i::Handle<i::Script> script1(i::Script::cast(obj->script()), i_isolate);
 
@@ -23882,11 +23882,11 @@ TEST(CreateSyntheticModule) {
       i_isolate->factory()->NewStringFromAsciiChecked("default");
 
   CHECK(
-      i::Handle<i::Object>(exports->Lookup(default_name), i_isolate)->IsCell());
-  CHECK(i::Handle<i::Cell>::cast(
-            i::Handle<i::Object>(exports->Lookup(default_name), i_isolate))
-            ->value()
-            .IsUndefined());
+      IsCell(*i::Handle<i::Object>(exports->Lookup(default_name), i_isolate)));
+  CHECK(IsUndefined(
+      i::Handle<i::Cell>::cast(
+          i::Handle<i::Object>(exports->Lookup(default_name), i_isolate))
+          ->value()));
   CHECK_EQ(i_module->export_names()->length(), 1);
   CHECK(
       i::String::cast(i_module->export_names()->get(0))->Equals(*default_name));
@@ -23977,7 +23977,7 @@ TEST(SyntheticModuleSetExports) {
 
   // During Instantiation there should be a Cell for the export initialized to
   // undefined.
-  CHECK(foo_cell->value().IsUndefined());
+  CHECK(IsUndefined(foo_cell->value()));
 
   Maybe<bool> set_export_result =
       module->SetSyntheticModuleExport(isolate, foo_string, bar_string);
@@ -24092,7 +24092,7 @@ TEST(SyntheticModuleEvaluationStepsSetExport) {
       i::Handle<i::Cell>::cast(i::Handle<i::Object>(
           exports->Lookup(v8::Utils::OpenHandle(*test_export_string)),
           i_isolate));
-  CHECK(test_export_cell->value().IsUndefined());
+  CHECK(IsUndefined(test_export_cell->value()));
 
   Local<Value> completion_value = module->Evaluate(context).ToLocalChecked();
   CHECK(completion_value->IsUndefined());
@@ -25696,7 +25696,7 @@ TEST(SetPrototypeTemplate) {
 void ensure_receiver_is_global_proxy(
     v8::Local<v8::Name>, const v8::PropertyCallbackInfo<v8::Value>& info) {
   CHECK(i::ValidateCallbackInfo(info));
-  CHECK(v8::Utils::OpenHandle(*info.This())->IsJSGlobalProxy());
+  CHECK(IsJSGlobalProxy(*v8::Utils::OpenHandle(*info.This())));
 }
 
 THREADED_TEST(GlobalAccessorInfo) {
@@ -26144,7 +26144,7 @@ TEST(CreateShadowRealmContext) {
   Local<Value> result = script->Run(context.local()).ToLocalChecked();
   CHECK(result->IsObject());
   i::Handle<i::Object> object = v8::Utils::OpenHandle(*result);
-  CHECK(object->IsJSShadowRealm());
+  CHECK(IsJSShadowRealm(*object));
 }
 
 v8::MaybeLocal<v8::Context> HostCreateShadowRealmContextCallbackThrow(
@@ -26798,7 +26798,7 @@ TEST(MicrotaskContextShouldBeNativeContext) {
     i::Handle<i::Context> context =
         v8::Utils::OpenHandle(*isolate->GetEnteredOrMicrotaskContext());
 
-    CHECK(context->IsNativeContext());
+    CHECK(IsNativeContext(*context));
     info.GetReturnValue().SetUndefined();
   };
 

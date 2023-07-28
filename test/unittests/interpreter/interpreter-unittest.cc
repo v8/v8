@@ -373,10 +373,10 @@ TEST_F(InterpreterTest, InterpreterBinaryOpsBigInt) {
         InterpreterTester tester(i_isolate(), bytecode_array, metadata);
         auto callable = tester.GetCallable<>();
         Handle<Object> return_value = callable().ToHandleChecked();
-        CHECK(return_value->IsBigInt());
+        CHECK(IsBigInt(*return_value));
         if (tester.HasFeedbackMetadata()) {
           MaybeObject feedback = callable.vector()->Get(slot);
-          CHECK(feedback->IsSmi());
+          CHECK(IsSmi(feedback));
           // TODO(panq): Create a standalone unit test for kBigInt64.
           CHECK(BinaryOperationFeedback::kBigInt64 ==
                     feedback->ToSmi().value() ||
@@ -498,7 +498,7 @@ TEST_F(InterpreterTest, InterpreterStringAdd) {
 
     if (tester.HasFeedbackMetadata()) {
       MaybeObject feedback = callable.vector()->Get(slot);
-      CHECK(feedback->IsSmi());
+      CHECK(IsSmi(feedback));
       CHECK_EQ(test_cases[i].expected_feedback, feedback->ToSmi().value());
     }
   }
@@ -714,7 +714,7 @@ TEST_F(InterpreterTest, InterpreterBinaryOpTypeFeedback) {
 
     Handle<Object> return_val = callable().ToHandleChecked();
     MaybeObject feedback0 = callable.vector()->Get(slot0);
-    CHECK(feedback0->IsSmi());
+    CHECK(IsSmi(feedback0));
     CHECK_EQ(test_case.feedback, feedback0->ToSmi().value());
     CHECK(
         Object::Equals(i_isolate(), test_case.result, return_val).ToChecked());
@@ -822,7 +822,7 @@ TEST_F(InterpreterTest, InterpreterBinaryOpSmiTypeFeedback) {
 
     Handle<Object> return_val = callable().ToHandleChecked();
     MaybeObject feedback0 = callable.vector()->Get(slot0);
-    CHECK(feedback0->IsSmi());
+    CHECK(IsSmi(feedback0));
     CHECK_EQ(test_case.feedback, feedback0->ToSmi().value());
     CHECK(
         Object::Equals(i_isolate(), test_case.result, return_val).ToChecked());
@@ -890,23 +890,23 @@ TEST_F(InterpreterTest, InterpreterUnaryOpFeedback) {
             .ToHandleChecked();
     USE(return_val);
     MaybeObject feedback0 = callable.vector()->Get(slot0);
-    CHECK(feedback0->IsSmi());
+    CHECK(IsSmi(feedback0));
     CHECK_EQ(BinaryOperationFeedback::kSignedSmall, feedback0->ToSmi().value());
 
     MaybeObject feedback1 = callable.vector()->Get(slot1);
-    CHECK(feedback1->IsSmi());
+    CHECK(IsSmi(feedback1));
     CHECK_EQ(BinaryOperationFeedback::kNumber, feedback1->ToSmi().value());
 
     MaybeObject feedback2 = callable.vector()->Get(slot2);
-    CHECK(feedback2->IsSmi());
+    CHECK(IsSmi(feedback2));
     CHECK_EQ(BinaryOperationFeedback::kNumber, feedback2->ToSmi().value());
 
     MaybeObject feedback3 = callable.vector()->Get(slot3);
-    CHECK(feedback3->IsSmi());
+    CHECK(IsSmi(feedback3));
     CHECK_EQ(BinaryOperationFeedback::kBigInt, feedback3->ToSmi().value());
 
     MaybeObject feedback4 = callable.vector()->Get(slot4);
-    CHECK(feedback4->IsSmi());
+    CHECK(IsSmi(feedback4));
     CHECK_EQ(BinaryOperationFeedback::kAny, feedback4->ToSmi().value());
   }
 }
@@ -949,15 +949,15 @@ TEST_F(InterpreterTest, InterpreterBitwiseTypeFeedback) {
         callable(arg1, arg2, arg3, arg4).ToHandleChecked();
     USE(return_val);
     MaybeObject feedback0 = callable.vector()->Get(slot0);
-    CHECK(feedback0->IsSmi());
+    CHECK(IsSmi(feedback0));
     CHECK_EQ(BinaryOperationFeedback::kSignedSmall, feedback0->ToSmi().value());
 
     MaybeObject feedback1 = callable.vector()->Get(slot1);
-    CHECK(feedback1->IsSmi());
+    CHECK(IsSmi(feedback1));
     CHECK_EQ(BinaryOperationFeedback::kNumber, feedback1->ToSmi().value());
 
     MaybeObject feedback2 = callable.vector()->Get(slot2);
-    CHECK(feedback2->IsSmi());
+    CHECK(IsSmi(feedback2));
     CHECK_EQ(BinaryOperationFeedback::kAny, feedback2->ToSmi().value());
   }
 }
@@ -1743,12 +1743,12 @@ TEST_F(InterpreterTest, InterpreterSmiComparisons) {
         InterpreterTester tester(i_isolate(), bytecode_array, metadata);
         auto callable = tester.GetCallable<>();
         Handle<Object> return_value = callable().ToHandleChecked();
-        CHECK(return_value->IsBoolean());
+        CHECK(IsBoolean(*return_value));
         CHECK_EQ(return_value->BooleanValue(i_isolate()),
                  CompareC(comparison, inputs[i], inputs[j]));
         if (tester.HasFeedbackMetadata()) {
           MaybeObject feedback = callable.vector()->Get(slot);
-          CHECK(feedback->IsSmi());
+          CHECK(IsSmi(feedback));
           CHECK_EQ(CompareOperationFeedback::kSignedSmall,
                    feedback->ToSmi().value());
         }
@@ -1792,12 +1792,12 @@ TEST_F(InterpreterTest, InterpreterHeapNumberComparisons) {
         InterpreterTester tester(i_isolate(), bytecode_array, metadata);
         auto callable = tester.GetCallable<>();
         Handle<Object> return_value = callable().ToHandleChecked();
-        CHECK(return_value->IsBoolean());
+        CHECK(IsBoolean(*return_value));
         CHECK_EQ(return_value->BooleanValue(i_isolate()),
                  CompareC(comparison, inputs[i], inputs[j]));
         if (tester.HasFeedbackMetadata()) {
           MaybeObject feedback = callable.vector()->Get(slot);
-          CHECK(feedback->IsSmi());
+          CHECK(IsSmi(feedback));
           CHECK_EQ(CompareOperationFeedback::kNumber,
                    feedback->ToSmi().value());
         }
@@ -1837,10 +1837,10 @@ TEST_F(InterpreterTest, InterpreterBigIntComparisons) {
         InterpreterTester tester(i_isolate(), bytecode_array, metadata);
         auto callable = tester.GetCallable<>();
         Handle<Object> return_value = callable().ToHandleChecked();
-        CHECK(return_value->IsBoolean());
+        CHECK(IsBoolean(*return_value));
         if (tester.HasFeedbackMetadata()) {
           MaybeObject feedback = callable.vector()->Get(slot);
-          CHECK(feedback->IsSmi());
+          CHECK(IsSmi(feedback));
           // TODO(panq): Create a standalone unit test for kBigInt64.
           CHECK(CompareOperationFeedback::kBigInt64 ==
                     feedback->ToSmi().value() ||
@@ -1883,12 +1883,12 @@ TEST_F(InterpreterTest, InterpreterStringComparisons) {
         InterpreterTester tester(i_isolate(), bytecode_array, metadata);
         auto callable = tester.GetCallable<>();
         Handle<Object> return_value = callable().ToHandleChecked();
-        CHECK(return_value->IsBoolean());
+        CHECK(IsBoolean(*return_value));
         CHECK_EQ(return_value->BooleanValue(i_isolate()),
                  CompareC(comparison, inputs[i], inputs[j]));
         if (tester.HasFeedbackMetadata()) {
           MaybeObject feedback = callable.vector()->Get(slot);
-          CHECK(feedback->IsSmi());
+          CHECK(IsSmi(feedback));
           int const expected_feedback =
               Token::IsOrderedRelationalCompareOp(comparison)
                   ? CompareOperationFeedback::kString
@@ -1994,12 +1994,12 @@ TEST_F(InterpreterTest, InterpreterMixedComparisons) {
             InterpreterTester tester(i_isolate(), bytecode_array, metadata);
             auto callable = tester.GetCallable<>();
             Handle<Object> return_value = callable().ToHandleChecked();
-            CHECK(return_value->IsBoolean());
+            CHECK(IsBoolean(*return_value));
             CHECK_EQ(return_value->BooleanValue(i_isolate()),
                      CompareC(comparison, lhs, rhs, true));
             if (tester.HasFeedbackMetadata()) {
               MaybeObject feedback = callable.vector()->Get(slot);
-              CHECK(feedback->IsSmi());
+              CHECK(IsSmi(feedback));
               if (kComparisonTypes[c] == Token::Value::EQ) {
                 // For sloppy equality, we have more precise feedback.
                 CHECK_EQ(
@@ -2042,7 +2042,7 @@ TEST_F(InterpreterTest, InterpreterStrictNotEqual) {
 
       Handle<Object> return_value =
           callable(lhs_obj, rhs_obj).ToHandleChecked();
-      CHECK(return_value->IsBoolean());
+      CHECK(IsBoolean(*return_value));
       CHECK_EQ(return_value->BooleanValue(i_isolate()),
                CompareC(Token::Value::NE_STRICT, lhs, rhs, true));
     }
@@ -2059,7 +2059,7 @@ TEST_F(InterpreterTest, InterpreterStrictNotEqual) {
 
       Handle<Object> return_value =
           callable(lhs_obj, rhs_obj).ToHandleChecked();
-      CHECK(return_value->IsBoolean());
+      CHECK(IsBoolean(*return_value));
       CHECK_EQ(return_value->BooleanValue(i_isolate()),
                CompareC(Token::Value::NE_STRICT, inputs_str[i], inputs_str[j]));
     }
@@ -2080,7 +2080,7 @@ TEST_F(InterpreterTest, InterpreterStrictNotEqual) {
 
       Handle<Object> return_value =
           callable(lhs_obj, rhs_obj).ToHandleChecked();
-      CHECK(return_value->IsBoolean());
+      CHECK(IsBoolean(*return_value));
       CHECK_EQ(return_value->BooleanValue(i_isolate()),
                CompareC(Token::Value::NE_STRICT, inputs_number[i],
                         inputs_number[j]));
@@ -2133,7 +2133,7 @@ TEST_F(InterpreterTest, InterpreterCompareTypeOf) {
 
     for (size_t i = 0; i < arraysize(inputs); i++) {
       Handle<Object> return_value = callable(inputs[i].first).ToHandleChecked();
-      CHECK(return_value->IsBoolean());
+      CHECK(IsBoolean(*return_value));
       CHECK_EQ(return_value->BooleanValue(i_isolate()),
                inputs[i].second == literal_flag);
     }
@@ -2169,7 +2169,7 @@ TEST_F(InterpreterTest, InterpreterInstanceOf) {
 
     Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(i_isolate());
     Handle<Object> return_value = RunBytecode(bytecode_array, metadata);
-    CHECK(return_value->IsBoolean());
+    CHECK(IsBoolean(*return_value));
     CHECK_EQ(return_value->BooleanValue(i_isolate()), expected_value);
   }
 }
@@ -2206,7 +2206,7 @@ TEST_F(InterpreterTest, InterpreterTestIn) {
     ast_factory.Internalize(i_isolate());
     Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(i_isolate());
     Handle<Object> return_value = RunBytecode(bytecode_array, metadata);
-    CHECK(return_value->IsBoolean());
+    CHECK(IsBoolean(*return_value));
     CHECK_EQ(return_value->BooleanValue(i_isolate()), expected_value);
   }
 }
@@ -2223,7 +2223,7 @@ TEST_F(InterpreterTest, InterpreterUnaryNot) {
     builder.Return();
     Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(i_isolate());
     Handle<Object> return_value = RunBytecode(bytecode_array);
-    CHECK(return_value->IsBoolean());
+    CHECK(IsBoolean(*return_value));
     CHECK_EQ(return_value->BooleanValue(i_isolate()), expected_value);
   }
 }
@@ -2252,7 +2252,7 @@ TEST_F(InterpreterTest, InterpreterUnaryNotNonBoolean) {
     builder.LogicalNot(ToBooleanMode::kConvertToBoolean).Return();
     Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(i_isolate());
     Handle<Object> return_value = RunBytecode(bytecode_array);
-    CHECK(return_value->IsBoolean());
+    CHECK(IsBoolean(*return_value));
     CHECK_EQ(return_value->BooleanValue(i_isolate()),
              object_type_tuples[i].second);
   }
@@ -4763,7 +4763,7 @@ TEST_F(InterpreterTest, InterpreterWithNativeStack) {
   i::Handle<i::Code> interpreter_entry_trampoline =
       BUILTIN_CODE(i_isolate(), InterpreterEntryTrampoline);
 
-  CHECK(code.IsCode());
+  CHECK(IsCode(code));
   CHECK(code->is_interpreter_trampoline_builtin());
   CHECK_NE(code.address(), interpreter_entry_trampoline->address());
 }
