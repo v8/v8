@@ -2349,8 +2349,8 @@ DEFINE_BOOL(minor_ms, false, "perform young generation mark sweep GCs")
 DEFINE_IMPLICATION(minor_ms, separate_gc_phases)
 DEFINE_IMPLICATION(minor_ms, page_promotion)
 
-DEFINE_EXPERIMENTAL_FEATURE(concurrent_minor_ms_marking,
-                            "perform young generation marking concurrently")
+DEFINE_BOOL(concurrent_minor_ms_marking, false,
+            "perform young generation marking concurrently")
 DEFINE_NEG_NEG_IMPLICATION(concurrent_marking, concurrent_minor_ms_marking)
 DEFINE_IMPLICATION(concurrent_minor_ms_marking, minor_ms)
 
