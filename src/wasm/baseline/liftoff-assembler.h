@@ -243,9 +243,11 @@ class LiftoffAssembler : public MacroAssembler {
     uint32_t register_use_count[kAfterMaxLiftoffRegCode] = {0};
     LiftoffRegList last_spilled_regs;
     Register cached_instance = no_reg;
-    // TODO(13918): Consider caching the hottest / LRU memory instead of always
-    // memory 0.
-    Register cached_mem0_start = no_reg;
+    static constexpr int kNoCachedMemIndex = -1;
+    // The index of the cached memory start, or {kNoCachedMemIndex} if none is
+    // cached ({cached_mem_start} will be {no_reg} in that case).
+    int cached_mem_index = kNoCachedMemIndex;
+    Register cached_mem_start = no_reg;
 #if DEBUG
     uint32_t frozen = 0;
 #endif
@@ -299,7 +301,7 @@ class LiftoffAssembler : public MacroAssembler {
     // registers.
     bool has_volatile_register(LiftoffRegList candidates) {
       return (cached_instance != no_reg && candidates.has(cached_instance)) ||
-             (cached_mem0_start != no_reg && candidates.has(cached_mem0_start));
+             (cached_mem_start != no_reg && candidates.has(cached_mem_start));
     }
 
     LiftoffRegister take_volatile_register(LiftoffRegList candidates) {
@@ -310,9 +312,10 @@ class LiftoffAssembler : public MacroAssembler {
         reg = cached_instance;
         cached_instance = no_reg;
       } else {
-        DCHECK(candidates.has(cached_mem0_start));
-        reg = cached_mem0_start;
-        cached_mem0_start = no_reg;
+        DCHECK(candidates.has(cached_mem_start));
+        reg = cached_mem_start;
+        cached_mem_start = no_reg;
+        cached_mem_index = kNoCachedMemIndex;
       }
 
       LiftoffRegister ret{reg};
@@ -336,8 +339,10 @@ class LiftoffAssembler : public MacroAssembler {
       SetCacheRegister(&cached_instance, reg);
     }
 
-    void SetMem0StartCacheRegister(Register reg) {
-      SetCacheRegister(&cached_mem0_start, reg);
+    void SetMemStartCacheRegister(Register reg, int memory_index) {
+      SetCacheRegister(&cached_mem_start, reg);
+      DCHECK_EQ(kNoCachedMemIndex, cached_mem_index);
+      cached_mem_index = memory_index;
     }
 
     Register TrySetCachedInstanceRegister(LiftoffRegList pinned) {
@@ -355,9 +360,9 @@ class LiftoffAssembler : public MacroAssembler {
       return new_cache_reg;
     }
 
-    void ClearCacheRegister(Register* cache) {
+    V8_INLINE void ClearCacheRegister(Register* cache) {
       DCHECK(!frozen);
-      DCHECK(cache == &cached_instance || cache == &cached_mem0_start);
+      V8_ASSUME(cache == &cached_instance || cache == &cached_mem_start);
       if (*cache == no_reg) return;
       int liftoff_code = LiftoffRegister{*cache}.liftoff_code();
       DCHECK_EQ(1, register_use_count[liftoff_code]);
@@ -368,13 +373,17 @@ class LiftoffAssembler : public MacroAssembler {
 
     void ClearCachedInstanceRegister() { ClearCacheRegister(&cached_instance); }
 
-    void ClearCachedMem0StartRegister() {
-      ClearCacheRegister(&cached_mem0_start);
+    void ClearCachedMemStartRegister() {
+      V8_ASSUME(cached_mem_index == kNoCachedMemIndex || cached_mem_index >= 0);
+      if (cached_mem_index == kNoCachedMemIndex) return;
+      cached_mem_index = kNoCachedMemIndex;
+      DCHECK_NE(no_reg, cached_mem_start);
+      ClearCacheRegister(&cached_mem_start);
     }
 
     void ClearAllCacheRegisters() {
-      ClearCacheRegister(&cached_instance);
-      ClearCacheRegister(&cached_mem0_start);
+      ClearCachedInstanceRegister();
+      ClearCachedMemStartRegister();
     }
 
     void inc_used(LiftoffRegister reg) {
@@ -687,8 +696,9 @@ class LiftoffAssembler : public MacroAssembler {
       if (cache_state_.is_free(r)) continue;
       if (r.is_gp() && cache_state_.cached_instance == r.gp()) {
         cache_state_.ClearCachedInstanceRegister();
-      } else if (r.is_gp() && cache_state_.cached_mem0_start == r.gp()) {
-        cache_state_.ClearCachedMem0StartRegister();
+      } else if (r.is_gp() && cache_state_.cached_mem_start == r.gp()) {
+        V8_ASSUME(cache_state_.cached_mem_index >= 0);
+        cache_state_.ClearCachedMemStartRegister();
       } else {
         SpillRegister(r);
       }

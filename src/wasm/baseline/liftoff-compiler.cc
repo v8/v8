@@ -757,8 +757,8 @@ class LiftoffCompiler {
       // The only exception is the cached memory start, which we just push
       // before the stack check and pop afterwards.
       regs_to_save = {};
-      if (__ cache_state()->cached_mem0_start != no_reg) {
-        regs_to_save.set(__ cache_state()->cached_mem0_start);
+      if (__ cache_state()->cached_mem_start != no_reg) {
+        regs_to_save.set(__ cache_state()->cached_mem_start);
       }
       spilled_regs = GetSpilledRegistersForInspection();
     }
@@ -3211,24 +3211,24 @@ class LiftoffCompiler {
     return true;
   }
 
-  V8_INLINE Register GetMemoryStart(uint32_t memory_index,
-                                    LiftoffRegList pinned) {
-    Register memory_start = __ cache_state()->cached_mem0_start;
-    if (V8_LIKELY(memory_index == 0 && memory_start != no_reg)) {
+  V8_INLINE Register GetMemoryStart(int memory_index, LiftoffRegList pinned) {
+    if (memory_index == __ cache_state()->cached_mem_index) {
+      Register memory_start = __ cache_state()->cached_mem_start;
+      DCHECK_NE(no_reg, memory_start);
       return memory_start;
     }
     return GetMemoryStart_Slow(memory_index, pinned);
   }
 
   V8_NOINLINE V8_PRESERVE_MOST Register
-  GetMemoryStart_Slow(uint32_t memory_index, LiftoffRegList pinned) {
+  GetMemoryStart_Slow(int memory_index, LiftoffRegList pinned) {
     // This method should only be called if we cannot use the cached memory
     // start.
-    DCHECK(memory_index != 0 || __ cache_state()->cached_mem0_start == no_reg);
+    DCHECK_NE(memory_index, __ cache_state()->cached_mem_index);
+    __ cache_state()->ClearCachedMemStartRegister();
     SCOPED_CODE_COMMENT("load memory start");
     Register memory_start = __ GetUnusedRegister(kGpReg, pinned).gp();
     if (memory_index == 0) {
-      __ cache_state()->SetMem0StartCacheRegister(memory_start);
       LOAD_INSTANCE_FIELD(memory_start, Memory0Start, kSystemPointerSize,
                           pinned);
     } else {
@@ -3240,6 +3240,7 @@ class LiftoffCompiler {
 #ifdef V8_ENABLE_SANDBOX
     __ DecodeSandboxedPointer(memory_start);
 #endif
+    __ cache_state()->SetMemStartCacheRegister(memory_start, memory_index);
     return memory_start;
   }
 
