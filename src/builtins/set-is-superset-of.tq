@@ -31,35 +31,73 @@ transitioning javascript builtin SetPrototypeIsSupersetOf(
     return False;
   }
 
-  // 6. Let keysIter be ? GetKeysIterator(otherRec).
-  let keysIter =
-      GetKeysIterator(otherRec.object, UnsafeCast<Callable>(otherRec.keys));
+  try {
+    typeswitch (other) {
+      case (otherSet: JSSetWithNoCustomIteration): {
+        CheckSetRecordHasJSSetMethods(otherRec) otherwise SlowPath;
 
-  // 7. Let next be true.
-  let nextRecord: JSReceiver;
+        const otherTable =
+            Cast<OrderedHashSet>(otherSet.table) otherwise unreachable;
 
-  // 8. Repeat, while next is not false,
-  while (true) {
-    //   a. Set next to ? IteratorStep(keysIter).
-    try {
+        let iter = collections::NewUnmodifiedOrderedHashSetIterator(otherTable);
+
+        while (true) {
+          const nextValue = iter.Next() otherwise Done;
+
+          if (!TableHasKey(table, nextValue)) {
+            return False;
+          }
+        }
+      }
+      case (otherMap: JSMapWithNoCustomIteration): {
+        CheckSetRecordHasJSMapMethods(otherRec) otherwise SlowPath;
+
+        const otherTable =
+            Cast<OrderedHashMap>(otherMap.table) otherwise unreachable;
+
+        let iter = collections::NewUnmodifiedOrderedHashMapIterator(otherTable);
+
+        while (true) {
+          const nextValue = iter.Next() otherwise Done;
+
+          if (!TableHasKey(table, nextValue.key)) {
+            return False;
+          }
+        }
+      }
+      case (JSAny): {
+        goto SlowPath;
+      }
+    }
+  } label SlowPath {
+    // 6. Let keysIter be ? GetKeysIterator(otherRec).
+    let keysIter =
+        GetKeysIterator(otherRec.object, UnsafeCast<Callable>(otherRec.keys));
+
+    // 7. Let next be true.
+    let nextRecord: JSReceiver;
+
+    // 8. Repeat, while next is not false,
+    while (true) {
+      //   a. Set next to ? IteratorStep(keysIter).
       nextRecord = iterator::IteratorStep(keysIter, fastIteratorResultMap)
           otherwise Done;
-    } label Done {
-      // 9. Return true.
-      return True;
+      //   b. If next is not false, then
+      //      i. Let nextValue be ? IteratorValue(next).
+      const nextValue =
+          iterator::IteratorValue(nextRecord, fastIteratorResultMap);
+      //      ii. If SetDataHas(O.[[SetData]], nextValue) is false, then
+      if (!TableHasKey(table, nextValue)) {
+        //          1. Perform ? IteratorClose(keysIter,
+        //          NormalCompletion(unused)).
+        //          2. Return false.
+        iterator::IteratorClose(keysIter);
+        return False;
+      }
     }
-    //   b. If next is not false, then
-    //      i. Let nextValue be ? IteratorValue(next).
-    const nextValue =
-        iterator::IteratorValue(nextRecord, fastIteratorResultMap);
-    //      ii. If SetDataHas(O.[[SetData]], nextValue) is false, then
-    if (!TableHasKey(table, nextValue)) {
-      //          1. Perform ? IteratorClose(keysIter,
-      //          NormalCompletion(unused)).
-      //          2. Return false.
-      iterator::IteratorClose(keysIter);
-      return False;
-    }
+  } label Done {
+    // 9. Return true.
+    return True;
   }
   unreachable;
 }
