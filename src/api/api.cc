@@ -3887,6 +3887,28 @@ bool Value::BooleanValue(Isolate* v8_isolate) const {
       reinterpret_cast<i::Isolate*>(v8_isolate));
 }
 
+MaybeLocal<Primitive> Value::ToPrimitive(Local<Context> context) const {
+  auto obj = Utils::OpenHandle(this);
+  if (i::IsPrimitive(*obj)) return ToApiHandle<Primitive>(obj);
+  PREPARE_FOR_EXECUTION(context, Object, ToPrimitive, Primitive);
+  Local<Primitive> result;
+  has_pending_exception =
+      !ToLocal<Primitive>(i::Object::ToPrimitive(i_isolate, obj), &result);
+  RETURN_ON_FAILED_EXECUTION(Primitive);
+  RETURN_ESCAPED(result);
+}
+
+MaybeLocal<Numeric> Value::ToNumeric(Local<Context> context) const {
+  auto obj = Utils::OpenHandle(this);
+  if (i::IsNumeric(*obj)) return ToApiHandle<Numeric>(obj);
+  PREPARE_FOR_EXECUTION(context, Object, ToNumeric, Numeric);
+  Local<Numeric> result;
+  has_pending_exception =
+      !ToLocal<Numeric>(i::Object::ToNumeric(i_isolate, obj), &result);
+  RETURN_ON_FAILED_EXECUTION(Numeric);
+  RETURN_ESCAPED(result);
+}
+
 Local<Boolean> Value::ToBoolean(Isolate* v8_isolate) const {
   auto i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   DCHECK_NO_SCRIPT_NO_EXCEPTION(i_isolate);
@@ -4021,6 +4043,12 @@ void v8::Module::CheckCast(v8::Data* that) {
   i::Handle<i::Object> obj = Utils::OpenHandle(that);
   Utils::ApiCheck(i::IsModule(*obj), "v8::Module::Cast",
                   "Value is not a Module");
+}
+
+void v8::Numeric::CheckCast(v8::Data* that) {
+  i::Handle<i::Object> obj = Utils::OpenHandle(that);
+  Utils::ApiCheck(i::IsNumeric(*obj), "v8::Numeric::Cast()",
+                  "Value is not a Numeric");
 }
 
 void v8::Number::CheckCast(v8::Data* that) {

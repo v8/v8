@@ -226,7 +226,9 @@ class RuntimeCallTimer final {
   V(Object_ToInt32)                                        \
   V(Object_ToInteger)                                      \
   V(Object_ToNumber)                                       \
+  V(Object_ToNumeric)                                      \
   V(Object_ToObject)                                       \
+  V(Object_ToPrimitive)                                    \
   V(Object_ToString)                                       \
   V(Object_ToUint32)                                       \
   V(Persistent_New)                                        \
