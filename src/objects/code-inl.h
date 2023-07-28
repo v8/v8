@@ -663,7 +663,8 @@ static_assert(Builtins::kBuiltinCount < std::numeric_limits<int16_t>::max());
 
 void Code::set_builtin_id(Builtin builtin_id) {
   static_assert(FIELD_SIZE(kBuiltinIdOffset) == kInt16Size);
-  WriteField<int16_t>(kBuiltinIdOffset, static_cast<int16_t>(builtin_id));
+  Relaxed_WriteField<int16_t>(kBuiltinIdOffset,
+                              static_cast<int16_t>(builtin_id));
 }
 
 Builtin Code::builtin_id() const {
