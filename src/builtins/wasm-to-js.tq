@@ -45,10 +45,10 @@ transitioning macro WasmToJSWrapper(ref: WasmApiFunctionRef): WasmToJSResult {
   // builtin takes care of it automatically
   outParams.objects[nextIndex++] = Undefined;
 
-  const stackParamAndReturnAreaStart =
+  const stackParamStart =
       LoadFramePointer() + 2 * torque_internal::SizeOf<intptr>();
   const inParams = torque_internal::unsafe::NewOffHeapReference(
-      %RawDownCast<RawPtr<intptr>>(stackParamAndReturnAreaStart));
+      %RawDownCast<RawPtr<intptr>>(stackParamStart));
 
   let locationAllocator = LocationAllocatorForParams(inParams);
 
@@ -106,13 +106,8 @@ transitioning macro WasmToJSWrapper(ref: WasmApiFunctionRef): WasmToJSResult {
   const fpRegSlots = %RawDownCast<RawPtr<float64>>(StackSlotPtr(
       2 * torque_internal::SizeOf<float64>(),
       torque_internal::SizeOf<float64>()));
-  // The return area on the stack starts after the spill slots of the incoming
-  // GP and FP parameter registers.
-  const numGPParamRegs = UniqueIntPtrConstant(kNumGPRegisterParameters);
-  const numFPParamRegs = UniqueIntPtrConstant(kNumFPRegisterParameters);
-  const stackSlots = stackParamAndReturnAreaStart +
-      numGPParamRegs * torque_internal::SizeOf<intptr>() +
-      numFPParamRegs * torque_internal::SizeOf<float64>();
+  // The return area on the stack starts right after the stack area.
+  const stackSlots = locationAllocator.GetStackEnd();
   locationAllocator =
       LocationAllocatorForReturns(gpRegSlots, fpRegSlots, stackSlots);
 
@@ -161,9 +156,13 @@ transitioning macro WasmToJSWrapper(ref: WasmApiFunctionRef): WasmToJSResult {
     }
   }
 
+  const popCount =
+      (Convert<intptr>(stackSlots) - Convert<intptr>(stackParamStart)) /
+      torque_internal::SizeOf<intptr>();
+
   ModifyThreadInWasmFlag(1);
   return WasmToJSResult{
-    popCount: numGPParamRegs + numFPParamRegs,
+    popCount: popCount,
     result0: *GetRefAt<intptr>(gpRegSlots, 0),
     result1: *GetRefAt<intptr>(gpRegSlots, torque_internal::SizeOf<intptr>()),
     result2: *GetRefAt<float64>(fpRegSlots, 0),

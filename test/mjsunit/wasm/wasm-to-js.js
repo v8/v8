@@ -22,6 +22,13 @@ const debug = false;
 // generates the inputs for `RunTest`, which is good for fuzzing the js-to-wasm
 // wrappers.
 
+// Some documentation if the test fails in the CQ.
+console.log("This test is a fuzzer, it tests the generic wasm-to-js wrapper");
+console.log("with random signatures. If this test fails, then it may not fail");
+console.log("for the CL that actually introduced the issue, but for a");
+console.log("later CL in the CQ. You may want to use flako to identify that");
+console.log("actual culprit");
+
 const kPossibleTypes = [kWasmI32, kWasmI64, kWasmF32, kWasmF64, kWasmExternRef];
 
 function getRandomInt(max) {
@@ -240,6 +247,13 @@ function GenerateAndRunTest() {
   }
   RunTest(params, returns);
 }
+// Regression tests:
+RunTest(
+    [
+      kWasmF32, kWasmF64, kWasmF64, kWasmF32, kWasmI32, kWasmI64, kWasmF32,
+      kWasmF64, kWasmF64, kWasmF64, kWasmF32, kWasmF32
+    ],
+    [kWasmI64, kWasmI64, kWasmI32, kWasmF32]);
 
 for (let i = 0; i < (debug ? 200 : 2); ++i) {
   GenerateAndRunTest();
