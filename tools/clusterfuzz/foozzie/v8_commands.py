@@ -23,6 +23,7 @@ DEFAULT_FLAGS = [
     '--invoke-weak-callbacks',
     '--omit-quit',
     '--harmony',
+    '--js-staging',
     '--wasm-staging',
     '--no-wasm-async-compilation',
     # Limit wasm memory to just below 2GiB, to avoid differences between 32-bit

@@ -237,8 +237,8 @@ DEFINE_BOOL(trace_temporal, false, "trace temporal code")
 DEFINE_BOOL(harmony, false, "enable all completed harmony features")
 DEFINE_BOOL(harmony_shipping, true, "enable all shipped harmony features")
 
-DEFINE_BOOL(js_staged, false, "enable all completed JavaScript features")
-DEFINE_BOOL(js_shipped, true, "enable all shipped JavaScript features")
+DEFINE_BOOL(js_staging, false, "enable all completed JavaScript features")
+DEFINE_BOOL(js_shipping, true, "enable all shipped JavaScript features")
 
 // Update bootstrapper.cc whenever adding a new feature flag.
 
@@ -306,14 +306,14 @@ DEFINE_WEAK_IMPLICATION(harmony_rab_gsab_transfer, harmony_rab_gsab)
   V(harmony_array_grouping, "harmony array grouping")                  \
   V(harmony_iterator_helpers, "JavaScript iterator helpers")
 
-#define JAVASCRIPT_SHIPPED_FEATURES_BASE(V)
+#define JAVASCRIPT_SHIPPING_FEATURES_BASE(V)
 
 #ifdef V8_INTL_SUPPORT
 #define HARMONY_SHIPPING(V) HARMONY_SHIPPING_BASE(V)
-#define JAVASCRIPT_SHIPPED_FEATURES(V) JAVASCRIPT_SHIPPED_FEATURES_BASE(V)
+#define JAVASCRIPT_SHIPPING_FEATURES(V) JAVASCRIPT_SHIPPING_FEATURES_BASE(V)
 #else
 #define HARMONY_SHIPPING(V) HARMONY_SHIPPING_BASE(V)
-#define JAVASCRIPT_SHIPPED_FEATURES(V) JAVASCRIPT_SHIPPED_FEATURES_BASE(V)
+#define JAVASCRIPT_SHIPPING_FEATURES(V) JAVASCRIPT_SHIPPING_FEATURES_BASE(V)
 #endif
 
 // Once a shipping feature has proved stable in the wild, it will be dropped
@@ -335,19 +335,19 @@ JAVASCRIPT_INPROGRESS_FEATURES(FLAG_INPROGRESS_FEATURES)
 #define FLAG_STAGED_FEATURES(id, description)    \
   DEFINE_BOOL(id, false, "enable " #description) \
   DEFINE_IMPLICATION(harmony, id)                \
-  DEFINE_IMPLICATION(js_staged, id)
+  DEFINE_IMPLICATION(js_staging, id)
 HARMONY_STAGED(FLAG_STAGED_FEATURES)
 JAVASCRIPT_STAGED_FEATURES(FLAG_STAGED_FEATURES)
-DEFINE_IMPLICATION(harmony, js_staged)
+DEFINE_IMPLICATION(harmony, js_staging)
 #undef FLAG_STAGED_FEATURES
 
 #define FLAG_SHIPPING_FEATURES(id, description)    \
   DEFINE_BOOL(id, true, "enable " #description)    \
   DEFINE_NEG_NEG_IMPLICATION(harmony_shipping, id) \
-  DEFINE_NEG_NEG_IMPLICATION(js_shipped, id)
+  DEFINE_NEG_NEG_IMPLICATION(js_shipping, id)
 HARMONY_SHIPPING(FLAG_SHIPPING_FEATURES)
-JAVASCRIPT_SHIPPED_FEATURES(FLAG_SHIPPING_FEATURES)
-DEFINE_NEG_NEG_IMPLICATION(harmony_shipping, js_shipped)
+JAVASCRIPT_SHIPPING_FEATURES(FLAG_SHIPPING_FEATURES)
+DEFINE_NEG_NEG_IMPLICATION(harmony_shipping, js_shipping)
 #undef FLAG_SHIPPING_FEATURES
 
 DEFINE_BOOL(builtin_subclassing, true,
