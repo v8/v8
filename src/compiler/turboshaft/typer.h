@@ -169,7 +169,7 @@ struct WordOperationTyper {
     std::pair<word_t, word_t> x = MakeRange(lhs);
     std::pair<word_t, word_t> y = MakeRange(rhs);
 
-    if (is_wrapping(x) && is_wrapping(y)) {
+    if (!is_wrapping(x) && !is_wrapping(y)) {
       return type_t::Range(x.first - y.second, x.second - y.first, zone);
     }
 
