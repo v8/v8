@@ -89,7 +89,7 @@ void SandboxGetAddressOf(const v8::FunctionCallbackInfo<v8::Value>& info) {
   }
 
   Handle<Object> arg = Utils::OpenHandle(*info[0]);
-  if (!IsHeapObject(arg)) {
+  if (!IsHeapObject(*arg)) {
     isolate->ThrowError("First argument must be a HeapObject");
     return;
   }
@@ -112,7 +112,7 @@ void SandboxGetSizeOf(const v8::FunctionCallbackInfo<v8::Value>& info) {
   }
 
   Handle<Object> arg = Utils::OpenHandle(*info[0]);
-  if (!IsHeapObject(arg)) {
+  if (!IsHeapObject(*arg)) {
     isolate->ThrowError("First argument must be a HeapObject");
     return;
   }
