@@ -68,7 +68,7 @@ vars = {
   'ninja_version': 'version:2@1.11.1.chromium.6',
 
   # luci-go CIPD package version.
-  'luci_go': 'git_revision:a1060b42fa0de9c0d4f1880258b1ad0472155277',
+  'luci_go': 'git_revision:e608c1f557fceae8eb6cf35ae2ad6f4908e35245',
 
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling Fuchsia sdk
@@ -113,7 +113,7 @@ deps = {
   'base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '147f65333c38ddd1ebf554e89965c243c8ce50b3',
   'build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '336e34d44c88d1160d150bd6c8d93e203a424b42',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'e99d34ee854df6bf38d8e516a4da2e9c8932fadf',
   'buildtools':
     Var('chromium_url') + '/chromium/src/buildtools.git' + '@' + '16be42a9ff1f7e4a3e53b93b3adc181fa7ff9161',
   'buildtools/linux64': {
@@ -235,7 +235,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'third_party/depot_tools':
-    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '4eaefabc5dca618fc07ac550fda35ba7a45a38f8',
+    Var('chromium_url') + '/chromium/tools/depot_tools.git' + '@' + '8424103c4ef3e26254343f8045fa359087cdb596',
   'third_party/fuchsia-gn-sdk': {
     'url': Var('chromium_url') + '/chromium/src/third_party/fuchsia-gn-sdk.git' + '@' + 'aa39357819f94c46ba4f346c762bf9e4b3d52517',
     'condition': 'checkout_fuchsia',
@@ -296,7 +296,7 @@ deps = {
   'third_party/zlib':
     Var('chromium_url') + '/chromium/src/third_party/zlib.git'+ '@' + '031cdd075fa0bd32592b81d0033de9e3da239dcb',
   'tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '12a3758d0c8db2e8877c2f5087f602d37ad7c16c',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '236e66ffd61f3bd710d20d20a67e71a1f1f55cba',
   'tools/luci-go': {
       'packages': [
         {
