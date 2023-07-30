@@ -1940,10 +1940,10 @@ void RiscvDebugger::Debug() {
                  reinterpret_cast<intptr_t>(cur), *cur, *cur);
           Object obj(*cur);
           Heap* current_heap = sim_->isolate_->heap();
-          if (obj.IsSmi() ||
+          if (IsSmi(obj) ||
               IsValidHeapObject(current_heap, HeapObject::cast(obj))) {
             PrintF(" (");
-            if (obj.IsSmi()) {
+            if (IsSmi(obj)) {
               PrintF("smi %d", Smi::ToInt(obj));
             } else {
               obj.ShortPrint();
