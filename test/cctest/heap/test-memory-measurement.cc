@@ -186,7 +186,10 @@ class MockMeasureMemoryDelegate : public v8::MeasureMemoryDelegate {
  public:
   bool ShouldMeasure(v8::Local<v8::Context> context) override { return true; }
 
-  void MeasurementComplete(Result result) override {
+  void MeasurementComplete(
+      const std::vector<std::pair<v8::Local<v8::Context>, size_t>>&
+          context_sizes_in_bytes,
+      size_t unattributed_size_in_bytes) override {
     // Empty.
   }
 };

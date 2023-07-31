@@ -16,7 +16,6 @@
 #include "src/wasm/baseline/liftoff-compiler.h"
 #include "src/wasm/baseline/liftoff-register.h"
 #include "src/wasm/module-decoder.h"
-#include "src/wasm/std-object-sizes.h"
 #include "src/wasm/value-type.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-engine.h"
@@ -109,20 +108,6 @@ void DebugSideTable::Entry::Print(std::ostream& os) const {
     }
   }
   os << " ]\n";
-}
-
-size_t DebugSideTable::Entry::EstimateCurrentMemoryConsumption() const {
-  UPDATE_WHEN_CLASS_CHANGES(DebugSideTable::Entry, 32);
-  return ContentSize(changed_values_);
-}
-
-size_t DebugSideTable::EstimateCurrentMemoryConsumption() const {
-  UPDATE_WHEN_CLASS_CHANGES(DebugSideTable, 32);
-  size_t result = sizeof(DebugSideTable) + ContentSize(entries_);
-  for (const Entry& entry : entries_) {
-    result += entry.EstimateCurrentMemoryConsumption();
-  }
-  return result;
 }
 
 class DebugInfoImpl {
@@ -493,39 +478,6 @@ class DebugInfoImpl {
     }
   }
 
-  size_t EstimateCurrentMemoryConsumption() const {
-    UPDATE_WHEN_CLASS_CHANGES(DebugInfoImpl, 208);
-    UPDATE_WHEN_CLASS_CHANGES(CachedDebuggingCode, 40);
-    UPDATE_WHEN_CLASS_CHANGES(PerIsolateDebugData, 48);
-    size_t result = sizeof(DebugInfoImpl);
-    {
-      base::MutexGuard lock(&debug_side_tables_mutex_);
-      result += ContentSize(debug_side_tables_);
-      for (const auto& [code, table] : debug_side_tables_) {
-        result += table->EstimateCurrentMemoryConsumption();
-      }
-    }
-    {
-      base::MutexGuard lock(&mutex_);
-      result += ContentSize(cached_debugging_code_);
-      for (const CachedDebuggingCode& code : cached_debugging_code_) {
-        result += code.breakpoint_offsets.size() * sizeof(int);
-      }
-      result += ContentSize(per_isolate_data_);
-      for (const auto& [isolate, data] : per_isolate_data_) {
-        // Inlined handling of {PerIsolateDebugData}.
-        result += ContentSize(data.breakpoints_per_function);
-        for (const auto& [idx, breakpoints] : data.breakpoints_per_function) {
-          result += ContentSize(breakpoints);
-        }
-      }
-    }
-    if (v8_flags.trace_wasm_offheap_memory) {
-      PrintF("DebugInfo: %zu\n", result);
-    }
-    return result;
-  }
-
  private:
   struct FrameInspectionScope {
     FrameInspectionScope(DebugInfoImpl* debug_info, Address pc)
@@ -828,10 +780,6 @@ DebugSideTable* DebugInfo::GetDebugSideTableIfExists(
 
 void DebugInfo::RemoveIsolate(Isolate* isolate) {
   return impl_->RemoveIsolate(isolate);
-}
-
-size_t DebugInfo::EstimateCurrentMemoryConsumption() const {
-  return impl_->EstimateCurrentMemoryConsumption();
 }
 
 }  // namespace wasm

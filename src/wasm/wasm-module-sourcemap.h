@@ -72,8 +72,6 @@ class V8_EXPORT_PRIVATE WasmModuleSourceMap {
   // with IsValid, HasSource and HasValidEntry.
   std::string GetFilename(size_t wasm_offset) const;
 
-  size_t EstimateCurrentMemoryConsumption() const;
-
  private:
   std::vector<size_t> offsets;
   std::vector<std::string> filenames;

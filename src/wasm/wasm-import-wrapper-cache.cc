@@ -6,7 +6,6 @@
 
 #include <vector>
 
-#include "src/wasm/std-object-sizes.h"
 #include "src/wasm/wasm-code-manager.h"
 
 namespace v8 {
@@ -56,11 +55,6 @@ WasmImportWrapperCache::~WasmImportWrapperCache() {
     }
   }
   WasmCode::DecrementRefCount(base::VectorOf(ptrs));
-}
-
-size_t WasmImportWrapperCache::EstimateCurrentMemoryConsumption() const {
-  UPDATE_WHEN_CLASS_CHANGES(WasmImportWrapperCache, 88);
-  return sizeof(WasmImportWrapperCache) + ContentSize(entry_map_);
 }
 
 }  // namespace wasm
