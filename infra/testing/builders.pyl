@@ -72,7 +72,6 @@
     'tests': [
       {'name': 'benchmarks'},
       {'name': 'benchmarks', 'variant': 'extra'},
-      {'name': 'mjsunit_sp_frame_access'},
       {'name': 'mozilla'},
       {'name': 'mozilla', 'variant': 'extra'},
       {'name': 'test262', 'variant': 'default', 'shards': 2},
@@ -163,7 +162,6 @@
     'tests': [
       {'name': 'benchmarks'},
       {'name': 'benchmarks', 'variant': 'extra'},
-      {'name': 'mjsunit_sp_frame_access'},
       {'name': 'mozilla'},
       {'name': 'mozilla', 'variant': 'extra'},
       {'name': 'optimize_for_size'},
@@ -306,7 +304,6 @@
       'os': 'Ubuntu-22.04',
     },
     'tests': [
-      {'name': 'mjsunit_sp_frame_access', 'shards': 3},
       {'name': 'mozilla', 'shards': 3},
       {'name': 'test262', 'variant': 'default', 'shards': 2},
       {'name': 'v8testing', 'shards': 10},
@@ -326,7 +323,6 @@
       'os': 'Ubuntu-22.04',
     },
     'tests': [
-      {'name': 'mjsunit_sp_frame_access', 'shards': 2},
       {'name': 'mozilla', 'shards': 2},
       {'name': 'test262', 'variant': 'default', 'shards': 2},
       {'name': 'v8testing', 'shards': 10},
@@ -422,7 +418,6 @@
     'tests': [
       {'name': 'benchmarks', 'shards': 2},
       {'name': 'benchmarks', 'variant': 'extra', 'shards': 2},
-      {'name': 'mjsunit_sp_frame_access', 'shards': 2},
       {'name': 'mozilla'},
       {'name': 'mozilla', 'variant': 'extra'},
       {'name': 'test262', 'variant': 'default', 'shards': 3},
@@ -655,7 +650,6 @@
     'tests': [
       # TODO(machenbach): Add benchmarks.
       # TODO(machenbach): Add mozilla tests.
-      {'name': 'mjsunit_sp_frame_access'},
       {'name': 'optimize_for_size'},
       {'name': 'test262', 'shards': 4},
       {'name': 'test262', 'variant': 'extra', 'shards': 4},
@@ -773,7 +767,6 @@
       'os': 'Ubuntu-22.04',
     },
     'tests': [
-      {'name': 'mjsunit_sp_frame_access', 'shards': 2},
       {'name': 'mozilla', 'shards': 4},
       {'name': 'test262', 'variant': 'default', 'shards': 4},
       {'name': 'v8testing', 'shards': 14},
@@ -793,7 +786,6 @@
       'os': 'Ubuntu-22.04',
     },
     'tests': [
-      {'name': 'mjsunit_sp_frame_access', 'shards': 4},
       {'name': 'mozilla', 'shards': 4},
       {'name': 'test262', 'variant': 'default', 'shards': 4},
       {'name': 'v8testing', 'shards': 14},
@@ -1089,7 +1081,6 @@
     'tests': [
       {'name': 'benchmarks'},
       {'name': 'benchmarks', 'variant': 'extra'},
-      {'name': 'mjsunit_sp_frame_access'},
       {'name': 'mozilla'},
       {'name': 'mozilla', 'variant': 'extra'},
       {'name': 'optimize_for_size'},
@@ -1182,7 +1173,6 @@
       {'name': 'benchmarks', 'variant': 'code_serializer', 'shards': 1},
       {'name': 'benchmarks', 'variant': 'extra'},
       {'name': 'd8testing', 'variant': 'code_serializer', 'shards': 1},
-      {'name': 'mjsunit_sp_frame_access'},
       {'name': 'mozilla'},
       {'name': 'mozilla', 'variant': 'code_serializer', 'shards': 1},
       {'name': 'mozilla', 'variant': 'extra'},
@@ -1359,7 +1349,6 @@
       {'name': 'benchmarks', 'variant': 'assert_types'},
       {'name': 'benchmarks', 'variant': 'extra'},
       {'name': 'check-bytecode-baseline'},
-      {'name': 'mjsunit_sp_frame_access'},
       {'name': 'mozilla'},
       {'name': 'mozilla', 'variant': 'assert_types'},
       {'name': 'mozilla', 'variant': 'extra'},
@@ -1469,7 +1458,6 @@
     'tests': [
       {'name': 'benchmarks'},
       {'name': 'benchmarks', 'variant': 'extra', 'shards': 2},
-      {'name': 'mjsunit_sp_frame_access'},
       {'name': 'mozilla'},
       {'name': 'mozilla', 'variant': 'extra'},
       {'name': 'optimize_for_size'},
@@ -2139,7 +2127,6 @@
       'os': 'Ubuntu-22.04',
     },
     'tests': [
-      {'name': 'mjsunit_sp_frame_access'},
       {'name': 'mozilla'},
       {'name': 'test262', 'variant': 'default', 'shards': 2},
       {'name': 'v8testing', 'shards': 6},
@@ -2191,7 +2178,6 @@
       'os': 'Ubuntu-22.04',
     },
     'tests': [
-      {'name': 'mjsunit_sp_frame_access', 'shards': 3},
       {'name': 'mozilla', 'shards': 3},
       {'name': 'test262', 'variant': 'default', 'shards': 2},
       {'name': 'v8testing', 'shards': 10},
@@ -2260,7 +2246,6 @@
       'os': 'Ubuntu-22.04',
     },
     'tests': [
-      {'name': 'mjsunit_sp_frame_access'},
       {'name': 'mozilla'},
       {'name': 'test262', 'variant': 'default', 'shards': 2},
       {'name': 'v8testing', 'shards': 3},
@@ -2277,7 +2262,6 @@
       'hard_timeout': 3600,
     },
     'tests': [
-      {'name': 'mjsunit_sp_frame_access', 'shards': 2},
       {'name': 'mozilla', 'shards': 2},
       {'name': 'test262', 'variant': 'default', 'shards': 2},
       {'name': 'v8testing', 'shards': 12},

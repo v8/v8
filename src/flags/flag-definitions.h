@@ -1013,8 +1013,6 @@ DEFINE_BOOL_READONLY(turbofan, false, "use the Turbofan optimizing compiler")
 DEFINE_BOOL_READONLY(opt, false, "use the Turbofan optimizing compiler")
 #endif  // V8_ENABLE_TURBOFAN
 
-DEFINE_BOOL(turbo_sp_frame_access, false,
-            "use stack pointer-relative access to frame wherever possible")
 DEFINE_BOOL(
     stress_turbo_late_spilling, false,
     "optimize placement of all spill instructions, not just loop-top phis")
