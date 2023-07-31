@@ -1719,8 +1719,8 @@ namespace {
 
 template <typename Callback>
 void InvokeExternalCallbacks(Isolate* isolate, Callback callback) {
+  DCHECK(!AllowJavascriptExecution::IsAllowed(isolate));
   AllowGarbageCollection allow_gc;
-  AllowJavascriptExecution allow_js(isolate);
   // Temporary override any embedder stack state as callbacks may create
   // their own state on the stack and recursively trigger GC.
   EmbedderStackStateScope embedder_scope(
@@ -1785,6 +1785,9 @@ void Heap::CollectGarbage(AllocationSpace space,
   // Part 1: Invoke all callbacks which should happen before the actual garbage
   // collection is triggered. Note that these callbacks may trigger another
   // garbage collection since they may allocate.
+
+  // JS execution is not allowed in any of the callbacks.
+  DisallowJavascriptExecution no_js(isolate());
 
   DCHECK(AllowGarbageCollection::IsAllowed());
 
@@ -2303,8 +2306,6 @@ void ClearStubCaches(Isolate* isolate) {
 void Heap::PerformGarbageCollection(GarbageCollector collector,
                                     GarbageCollectionReason gc_reason,
                                     const char* collector_reason) {
-  DisallowJavascriptExecution no_js(isolate());
-
   if (IsYoungGenerationCollector(collector)) {
     CompleteSweepingYoung();
     if (v8_flags.verify_heap) {

@@ -909,24 +909,72 @@ class V8_EXPORT Isolate {
 
   /**
    * Enables the host application to receive a notification before a
-   * garbage collection. Allocations are allowed in the callback function,
-   * but the callback is not re-entrant: if the allocation inside it will
-   * trigger the garbage collection, the callback won't be called again.
-   * It is possible to specify the GCType filter for your callback. But it is
-   * not possible to register the same callback function two times with
-   * different GCType filters.
+   * garbage collection.
+   *
+   * \param callback The callback to be invoked. The callback is allowed to
+   *     allocate but invocation is not re-entrant: a callback triggering
+   *     garbage collection will not be called again. JS execution is prohibited
+   *     from these callbacks. A single callback may only be registered once.
+   * \param gc_type_filter A filter in case it should be applied.
    */
-  void AddGCPrologueCallback(GCCallbackWithData callback, void* data = nullptr,
-                             GCType gc_type_filter = kGCTypeAll);
   void AddGCPrologueCallback(GCCallback callback,
                              GCType gc_type_filter = kGCTypeAll);
 
   /**
-   * This function removes callback which was installed by
-   * AddGCPrologueCallback function.
+   * \copydoc AddGCPrologueCallback(GCCallback, GCType)
+   *
+   * \param data Additional data that should be passed to the callback.
+   */
+  void AddGCPrologueCallback(GCCallbackWithData callback, void* data = nullptr,
+                             GCType gc_type_filter = kGCTypeAll);
+
+  /**
+   * This function removes a callback which was added by
+   * `AddGCPrologueCallback`.
+   *
+   * \param callback the callback to remove.
+   */
+  void RemoveGCPrologueCallback(GCCallback callback);
+
+  /**
+   * \copydoc AddGCPrologueCallback(GCCallback)
+   *
+   * \param data Additional data that was used to install the callback.
    */
   void RemoveGCPrologueCallback(GCCallbackWithData, void* data = nullptr);
-  void RemoveGCPrologueCallback(GCCallback callback);
+
+  /**
+   * Enables the host application to receive a notification after a
+   * garbage collection.
+   *
+   * \copydetails AddGCPrologueCallback(GCCallback, GCType)
+   */
+  void AddGCEpilogueCallback(GCCallback callback,
+                             GCType gc_type_filter = kGCTypeAll);
+
+  /**
+   * \copydoc AddGCEpilogueCallback(GCCallback, GCType)
+   *
+   * \param data Additional data that should be passed to the callback.
+   */
+  void AddGCEpilogueCallback(GCCallbackWithData callback, void* data = nullptr,
+                             GCType gc_type_filter = kGCTypeAll);
+
+  /**
+   * This function removes a callback which was added by
+   * `AddGCEpilogueCallback`.
+   *
+   * \param callback the callback to remove.
+   */
+  void RemoveGCEpilogueCallback(GCCallback callback);
+
+  /**
+   * \copydoc RemoveGCEpilogueCallback(GCCallback)
+   *
+   * \param data Additional data that was used to install the callback.
+   */
+  void RemoveGCEpilogueCallback(GCCallbackWithData callback,
+                                void* data = nullptr);
 
   /**
    * Sets an embedder roots handle that V8 should consider when performing
@@ -1036,28 +1084,6 @@ class V8_EXPORT Isolate {
    * as its last parameter.
    */
   void SetAtomicsWaitCallback(AtomicsWaitCallback callback, void* data);
-
-  /**
-   * Enables the host application to receive a notification after a
-   * garbage collection. Allocations are allowed in the callback function,
-   * but the callback is not re-entrant: if the allocation inside it will
-   * trigger the garbage collection, the callback won't be called again.
-   * It is possible to specify the GCType filter for your callback. But it is
-   * not possible to register the same callback function two times with
-   * different GCType filters.
-   */
-  void AddGCEpilogueCallback(GCCallbackWithData callback, void* data = nullptr,
-                             GCType gc_type_filter = kGCTypeAll);
-  void AddGCEpilogueCallback(GCCallback callback,
-                             GCType gc_type_filter = kGCTypeAll);
-
-  /**
-   * This function removes callback which was installed by
-   * AddGCEpilogueCallback function.
-   */
-  void RemoveGCEpilogueCallback(GCCallbackWithData callback,
-                                void* data = nullptr);
-  void RemoveGCEpilogueCallback(GCCallback callback);
 
   using GetExternallyAllocatedMemoryInBytesCallback = size_t (*)();
 

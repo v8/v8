@@ -742,7 +742,7 @@ void GlobalHandles::ProcessWeakYoungObjects(
 }
 
 void GlobalHandles::InvokeSecondPassPhantomCallbacks() {
-  DCHECK(AllowJavascriptExecution::IsAllowed(isolate()));
+  AllowJavascriptExecution js(isolate());
   DCHECK(AllowGarbageCollection::IsAllowed());
 
   if (second_pass_callbacks_.empty()) return;
