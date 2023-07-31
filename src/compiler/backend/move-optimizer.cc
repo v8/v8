@@ -19,10 +19,10 @@ struct MoveKey {
 
 struct MoveKeyCompare {
   bool operator()(const MoveKey& a, const MoveKey& b) const {
-    if (a.source.EqualsCanonicalized(b.source)) {
-      return a.destination.CompareCanonicalized(b.destination);
+    if (a.source != b.source) {
+      return a.source.Compare(b.source);
     }
-    return a.source.CompareCanonicalized(b.source);
+    return a.destination.Compare(b.destination);
   }
 };
 
