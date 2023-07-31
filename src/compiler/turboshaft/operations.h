@@ -102,7 +102,9 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
   V(Null)                                 \
   V(AssertNotNull)
 
-#define TURBOSHAFT_SIMD_OPERATION_LIST(V) V(Simd128Constant)
+#define TURBOSHAFT_SIMD_OPERATION_LIST(V) \
+  V(Simd128Constant)                      \
+  V(Simd128Binop)
 #else
 #define TURBOSHAFT_WASM_OPERATION_LIST(V)
 #define TURBOSHAFT_SIMD_OPERATION_LIST(V)
@@ -5048,6 +5050,140 @@ struct Simd128ConstantOp : FixedArityOperationT<0, Simd128ConstantOp> {
 
   auto options() const { return std::tuple{value}; }
 };
+
+#define FOREACH_SIMD_128_BINARY_OPCODE(V) \
+  V(I8x16Swizzle)                         \
+  V(I8x16Eq)                              \
+  V(I8x16Ne)                              \
+  V(I8x16GtS)                             \
+  V(I8x16GtU)                             \
+  V(I8x16GeS)                             \
+  V(I8x16GeU)                             \
+  V(I16x8Eq)                              \
+  V(I16x8Ne)                              \
+  V(I16x8GtS)                             \
+  V(I16x8GtU)                             \
+  V(I16x8GeS)                             \
+  V(I16x8GeU)                             \
+  V(I32x4Eq)                              \
+  V(I32x4Ne)                              \
+  V(I32x4GtS)                             \
+  V(I32x4GtU)                             \
+  V(I32x4GeS)                             \
+  V(I32x4GeU)                             \
+  V(F32x4Eq)                              \
+  V(F32x4Ne)                              \
+  V(F32x4Lt)                              \
+  V(F32x4Le)                              \
+  V(F64x2Eq)                              \
+  V(F64x2Ne)                              \
+  V(F64x2Lt)                              \
+  V(F64x2Le)                              \
+  V(S128And)                              \
+  V(S128AndNot)                           \
+  V(S128Or)                               \
+  V(S128Xor)                              \
+  V(I8x16SConvertI16x8)                   \
+  V(I8x16UConvertI16x8)                   \
+  V(I8x16Add)                             \
+  V(I8x16AddSatS)                         \
+  V(I8x16AddSatU)                         \
+  V(I8x16Sub)                             \
+  V(I8x16SubSatS)                         \
+  V(I8x16SubSatU)                         \
+  V(I8x16MinS)                            \
+  V(I8x16MinU)                            \
+  V(I8x16MaxS)                            \
+  V(I8x16MaxU)                            \
+  V(I8x16RoundingAverageU)                \
+  V(I16x8Q15MulRSatS)                     \
+  V(I16x8SConvertI32x4)                   \
+  V(I16x8UConvertI32x4)                   \
+  V(I16x8Add)                             \
+  V(I16x8AddSatS)                         \
+  V(I16x8AddSatU)                         \
+  V(I16x8Sub)                             \
+  V(I16x8SubSatS)                         \
+  V(I16x8SubSatU)                         \
+  V(I16x8Mul)                             \
+  V(I16x8MinS)                            \
+  V(I16x8MinU)                            \
+  V(I16x8MaxS)                            \
+  V(I16x8MaxU)                            \
+  V(I16x8RoundingAverageU)                \
+  V(I16x8ExtMulLowI8x16S)                 \
+  V(I16x8ExtMulHighI8x16S)                \
+  V(I16x8ExtMulLowI8x16U)                 \
+  V(I16x8ExtMulHighI8x16U)                \
+  V(I32x4Add)                             \
+  V(I32x4Sub)                             \
+  V(I32x4Mul)                             \
+  V(I32x4MinS)                            \
+  V(I32x4MinU)                            \
+  V(I32x4MaxS)                            \
+  V(I32x4MaxU)                            \
+  V(I32x4DotI16x8S)                       \
+  V(I32x4ExtMulLowI16x8S)                 \
+  V(I32x4ExtMulHighI16x8S)                \
+  V(I32x4ExtMulLowI16x8U)                 \
+  V(I32x4ExtMulHighI16x8U)                \
+  V(I64x2Add)                             \
+  V(I64x2Sub)                             \
+  V(I64x2Mul)                             \
+  V(I64x2Eq)                              \
+  V(I64x2Ne)                              \
+  V(I64x2GtS)                             \
+  V(I64x2GeS)                             \
+  V(I64x2ExtMulLowI32x4S)                 \
+  V(I64x2ExtMulHighI32x4S)                \
+  V(I64x2ExtMulLowI32x4U)                 \
+  V(I64x2ExtMulHighI32x4U)                \
+  V(F32x4Add)                             \
+  V(F32x4Sub)                             \
+  V(F32x4Mul)                             \
+  V(F32x4Div)                             \
+  V(F32x4Min)                             \
+  V(F32x4Max)                             \
+  V(F32x4Pmin)                            \
+  V(F32x4Pmax)                            \
+  V(F64x2Add)                             \
+  V(F64x2Sub)                             \
+  V(F64x2Mul)                             \
+  V(F64x2Div)                             \
+  V(F64x2Min)                             \
+  V(F64x2Max)                             \
+  V(F64x2Pmin)                            \
+  V(F64x2Pmax)
+
+struct Simd128BinopOp : FixedArityOperationT<2, Simd128BinopOp> {
+  enum class Kind : uint8_t {
+#define DEFINE_KIND(kind) k##kind,
+    FOREACH_SIMD_128_BINARY_OPCODE(DEFINE_KIND)
+#undef DEFINE_KIND
+  };
+
+  Kind kind;
+
+  static constexpr OpEffects effects = OpEffects();
+
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return RepVector<RegisterRepresentation::Simd128()>();
+  }
+
+  Simd128BinopOp(OpIndex left, OpIndex right, Kind kind)
+      : Base(left, right), kind(kind) {}
+
+  OpIndex left() const { return input(0); }
+  OpIndex right() const { return input(1); }
+
+  void Validate(const Graph& graph) const {
+    DCHECK(ValidOpInputRep(graph, left(), RegisterRepresentation::Simd128()));
+    DCHECK(ValidOpInputRep(graph, right(), RegisterRepresentation::Simd128()));
+  }
+
+  auto options() const { return std::tuple{kind}; }
+};
+std::ostream& operator<<(std::ostream& os, Simd128BinopOp::Kind kind);
 
 #endif  // V8_ENABLE_WEBASSEMBLY
 

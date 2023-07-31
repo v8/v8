@@ -768,7 +768,52 @@ class TurboshaftGraphBuildingInterface {
 
   void SimdOp(FullDecoder* decoder, WasmOpcode opcode, const Value* args,
               Value* result) {
-    Bailout(decoder);
+    switch (opcode) {
+#define HANDLE_BINARY_OPCODE(kind)                            \
+  case kExpr##kind:                                           \
+    result->op = asm_.Simd128Binop(                           \
+        args[0].op, args[1].op,                               \
+        compiler::turboshaft::Simd128BinopOp::Kind::k##kind); \
+    break;
+      FOREACH_SIMD_128_BINARY_OPCODE(HANDLE_BINARY_OPCODE)
+#undef HANDLE_BINARY_OPCODE
+
+#define HANDLE_INVERSE_COMPARISON(wasm_kind, ts_kind)            \
+  case kExpr##wasm_kind:                                         \
+    result->op = asm_.Simd128Binop(                              \
+        args[1].op, args[0].op,                                  \
+        compiler::turboshaft::Simd128BinopOp::Kind::k##ts_kind); \
+    break;
+
+      HANDLE_INVERSE_COMPARISON(I8x16LtS, I8x16GtS)
+      HANDLE_INVERSE_COMPARISON(I8x16LtU, I8x16GtU)
+      HANDLE_INVERSE_COMPARISON(I8x16LeS, I8x16GeS)
+      HANDLE_INVERSE_COMPARISON(I8x16LeU, I8x16GeU)
+
+      HANDLE_INVERSE_COMPARISON(I16x8LtS, I16x8GtS)
+      HANDLE_INVERSE_COMPARISON(I16x8LtU, I16x8GtU)
+      HANDLE_INVERSE_COMPARISON(I16x8LeS, I16x8GeS)
+      HANDLE_INVERSE_COMPARISON(I16x8LeU, I16x8GeU)
+
+      HANDLE_INVERSE_COMPARISON(I32x4LtS, I32x4GtS)
+      HANDLE_INVERSE_COMPARISON(I32x4LtU, I32x4GtU)
+      HANDLE_INVERSE_COMPARISON(I32x4LeS, I32x4GeS)
+      HANDLE_INVERSE_COMPARISON(I32x4LeU, I32x4GeU)
+
+      HANDLE_INVERSE_COMPARISON(I64x2LtS, I64x2GtS)
+      HANDLE_INVERSE_COMPARISON(I64x2LeS, I64x2GeS)
+
+      HANDLE_INVERSE_COMPARISON(F32x4Gt, F32x4Lt)
+      HANDLE_INVERSE_COMPARISON(F32x4Ge, F32x4Le)
+      HANDLE_INVERSE_COMPARISON(F64x2Gt, F64x2Lt)
+      HANDLE_INVERSE_COMPARISON(F64x2Ge, F64x2Le)
+
+#undef HANDLE_INVERSE_COMPARISON
+
+      default:
+        Bailout(decoder);
+        break;
+    }
   }
 
   void SimdLaneOp(FullDecoder* decoder, WasmOpcode opcode,

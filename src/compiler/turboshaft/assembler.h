@@ -3062,6 +3062,14 @@ class AssemblerOpInterface {
     }
     return stack().ReduceSimd128Constant(value);
   }
+
+  V<Simd128> Simd128Binop(V<Simd128> left, V<Simd128> right,
+                          Simd128BinopOp::Kind kind) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
+    return stack().ReduceSimd128Binop(left, right, kind);
+  }
 #endif
 
   template <typename Rep>

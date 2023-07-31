@@ -1266,6 +1266,16 @@ const RegisterRepresentation& RepresentationFor(wasm::ValueType type) {
   }
 }
 
+std::ostream& operator<<(std::ostream& os, Simd128BinopOp::Kind kind) {
+  switch (kind) {
+#define PRINT_KIND(kind)              \
+  case Simd128BinopOp::Kind::k##kind: \
+    return os << #kind;
+    FOREACH_SIMD_128_BINARY_OPCODE(PRINT_KIND)
+  }
+#undef PRINT_KIND
+}
+
 #endif  // V8_ENABLE_WEBASSEBMLY
 
 std::string Operation::ToString() const {

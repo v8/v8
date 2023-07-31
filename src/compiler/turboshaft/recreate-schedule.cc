@@ -1479,6 +1479,16 @@ Node* ScheduleBuilder::ProcessOperation(const Word32PairBinopOp& op) {
 Node* ScheduleBuilder::ProcessOperation(const Simd128ConstantOp& op) {
   return AddNode(machine.S128Const(op.value), {});
 }
+
+Node* ScheduleBuilder::ProcessOperation(const Simd128BinopOp& op) {
+  switch (op.kind) {
+#define HANDLE_KIND(kind)             \
+  case Simd128BinopOp::Kind::k##kind: \
+    return AddNode(machine.kind(), {GetNode(op.left()), GetNode(op.right())});
+    FOREACH_SIMD_128_BINARY_OPCODE(HANDLE_KIND);
+#undef HANDLE_KIND
+  }
+}
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 }  // namespace
