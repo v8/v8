@@ -13,6 +13,7 @@
 #include "src/objects/objects.h"
 #include "src/wasm/jump-table-assembler.h"
 #include "src/wasm/module-decoder.h"
+#include "src/wasm/std-object-sizes.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-init-expr.h"
@@ -613,21 +614,93 @@ int GetSourcePosition(const WasmModule* module, uint32_t func_index,
       is_at_number_conversion);
 }
 
-namespace {
-template <typename T>
-inline size_t VectorSize(const std::vector<T>& vector) {
-  return sizeof(T) * vector.size();
+size_t WasmModule::EstimateStoredSize() const {
+  UPDATE_WHEN_CLASS_CHANGES(WasmModule, 848);
+  return sizeof(WasmModule) +                            // --
+         signature_zone.allocation_size_for_tracing() +  // --
+         ContentSize(types) +                            // --
+         ContentSize(isorecursive_canonical_type_ids) +  // --
+         ContentSize(explicit_recursive_type_groups) +   // --
+         ContentSize(functions) +                        // --
+         ContentSize(globals) +                          // --
+         ContentSize(data_segments) +                    // --
+         ContentSize(tables) +                           // --
+         ContentSize(memories) +                         // --
+         ContentSize(import_table) +                     // --
+         ContentSize(export_table) +                     // --
+         ContentSize(tags) +                             // --
+         ContentSize(stringref_literals) +               // --
+         ContentSize(elem_segments) +                    // --
+         ContentSize(compilation_hints) +                // --
+         ContentSize(branch_hints) +                     // --
+         ContentSize(inst_traces) +                      // --
+         (num_declared_functions + 7) / 8;               // validated_functions
 }
-}  // namespace
 
-size_t EstimateStoredSize(const WasmModule* module) {
-  return sizeof(WasmModule) + VectorSize(module->globals) +
-         module->signature_zone.allocation_size() + VectorSize(module->types) +
-         VectorSize(module->isorecursive_canonical_type_ids) +
-         VectorSize(module->functions) + VectorSize(module->data_segments) +
-         VectorSize(module->tables) + VectorSize(module->import_table) +
-         VectorSize(module->export_table) + VectorSize(module->tags) +
-         VectorSize(module->elem_segments);
+template <class Value>
+size_t AdaptiveMap<Value>::EstimateCurrentMemoryConsumption() const {
+  UNREACHABLE();  // Explicit implementations below.
+}
+
+template <>
+size_t NameMap::EstimateCurrentMemoryConsumption() const {
+  size_t result = ContentSize(vector_);
+  if (map_) result += ContentSize(*map_);
+  return result;
+}
+
+size_t LazilyGeneratedNames::EstimateCurrentMemoryConsumption() const {
+  base::MutexGuard lock(&mutex_);
+  return function_names_.EstimateCurrentMemoryConsumption();
+}
+
+template <>
+size_t IndirectNameMap::EstimateCurrentMemoryConsumption() const {
+  size_t result = ContentSize(vector_);
+  for (const auto& inner_map : vector_) {
+    result += inner_map.EstimateCurrentMemoryConsumption();
+  }
+  if (map_) {
+    result += ContentSize(*map_);
+    for (const auto& [outer_index, inner_map] : *map_) {
+      result += inner_map.EstimateCurrentMemoryConsumption();
+    }
+  }
+  return result;
+}
+
+size_t TypeFeedbackStorage::EstimateCurrentMemoryConsumption() const {
+  UPDATE_WHEN_CLASS_CHANGES(TypeFeedbackStorage, 160);
+  UPDATE_WHEN_CLASS_CHANGES(FunctionTypeFeedback, 48);
+  // Not including sizeof(TFS) because that's contained in sizeof(WasmModule).
+  size_t result = ContentSize(feedback_for_function);
+  base::SharedMutexGuard<base::kShared> lock(&mutex);
+  for (const auto& [func_idx, feedback] : feedback_for_function) {
+    result += ContentSize(feedback.feedback_vector);
+    result += feedback.call_targets.size() * sizeof(uint32_t);
+  }
+  // The size of {well_known_imports} can only be estimated at the WasmModule
+  // level.
+  if (v8_flags.trace_wasm_offheap_memory) {
+    PrintF("TypeFeedback: %zu\n", result);
+  }
+  return result;
+}
+
+size_t WasmModule::EstimateCurrentMemoryConsumption() const {
+  UPDATE_WHEN_CLASS_CHANGES(WasmModule, 848);
+  size_t result = EstimateStoredSize();
+
+  result += type_feedback.EstimateCurrentMemoryConsumption();
+  // For type_feedback.well_known_imports:
+  result += num_imported_functions * sizeof(WellKnownImport);
+
+  result += lazily_generated_names.EstimateCurrentMemoryConsumption();
+
+  if (v8_flags.trace_wasm_offheap_memory) {
+    PrintF("WasmModule: %zu\n", result);
+  }
+  return result;
 }
 
 size_t PrintSignature(base::Vector<char> buffer, const wasm::FunctionSig* sig,

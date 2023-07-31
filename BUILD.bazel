@@ -2621,6 +2621,7 @@ filegroup(
             "src/wasm/simd-shuffle.h",
             "src/wasm/stacks.cc",
             "src/wasm/stacks.h",
+            "src/wasm/std-object-sizes.h",
             "src/wasm/streaming-decoder.cc",
             "src/wasm/streaming-decoder.h",
             "src/wasm/string-builder.h",
