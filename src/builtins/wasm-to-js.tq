@@ -28,6 +28,7 @@ extern builtin IterableToFixedArrayForWasm(Context, JSAny, Smi): FixedArray;
 
 @export
 transitioning macro WasmToJSWrapper(ref: WasmApiFunctionRef): WasmToJSResult {
+  ModifyWasmToJSCounter(1);
   ModifyThreadInWasmFlag(0);
   // Trigger a wrapper tier-up when this function got called often enough.
   dcheck(ref.wrapper_budget > 0);
@@ -172,6 +173,7 @@ transitioning macro WasmToJSWrapper(ref: WasmApiFunctionRef): WasmToJSResult {
       torque_internal::SizeOf<intptr>();
 
   ModifyThreadInWasmFlag(1);
+  ModifyWasmToJSCounter(-1);
   return WasmToJSResult{
     popCount: popCount,
     result0: *GetRefAt<intptr>(gpRegSlots, 0),

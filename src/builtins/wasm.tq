@@ -817,12 +817,30 @@ extern macro LoadPointerFromRootRegister(intptr): RawPtr;
 const kThreadInWasmFlagAddressOffset: constexpr intptr
     generates 'Isolate::thread_in_wasm_flag_address_offset()';
 
+const kActiveSuspenderOffset: constexpr intptr
+    generates 'IsolateData::root_slot_offset(RootIndex::kActiveSuspender)';
+
 macro ModifyThreadInWasmFlag(newValue: int32): void {
   const threadInWasmFlagAddress =
       LoadPointerFromRootRegister(kThreadInWasmFlagAddressOffset);
   const threadInWasmFlagRef = GetRefAt<int32>(threadInWasmFlagAddress, 0);
   dcheck(*threadInWasmFlagRef != newValue);
   *threadInWasmFlagRef = newValue;
+}
+
+macro ModifyWasmToJSCounter(increment: int32): void {
+  const rootSlot = LoadPointerFromRootRegister(kActiveSuspenderOffset);
+
+  const rawSuspender = BitcastWordToTagged(rootSlot);
+  typeswitch (rawSuspender) {
+    case (activeSuspender: WasmSuspenderObject): {
+      const current = Signed(activeSuspender.wasm_to_js_counter);
+      activeSuspender.wasm_to_js_counter = Unsigned(current + increment);
+    }
+    case (Object): {
+      // Nothing to do, but the case is needed by the Torque compiler.
+    }
+  }
 }
 
 // Non-standard experimental feature.
