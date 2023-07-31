@@ -104,7 +104,8 @@ using Variable = SnapshotTable<OpIndex, VariableData>::Key;
 
 #define TURBOSHAFT_SIMD_OPERATION_LIST(V) \
   V(Simd128Constant)                      \
-  V(Simd128Binop)
+  V(Simd128Binop)                         \
+  V(Simd128Unary)
 #else
 #define TURBOSHAFT_WASM_OPERATION_LIST(V)
 #define TURBOSHAFT_SIMD_OPERATION_LIST(V)
@@ -5184,6 +5185,91 @@ struct Simd128BinopOp : FixedArityOperationT<2, Simd128BinopOp> {
   auto options() const { return std::tuple{kind}; }
 };
 std::ostream& operator<<(std::ostream& os, Simd128BinopOp::Kind kind);
+
+#define FOREACH_SIMD_128_UNARY_NON_OPTIONAL_OPCODE(V) \
+  V(S128Not)                                          \
+  V(F32x4DemoteF64x2Zero)                             \
+  V(F64x2PromoteLowF32x4)                             \
+  V(I8x16Abs)                                         \
+  V(I8x16Neg)                                         \
+  V(I8x16Popcnt)                                      \
+  V(I16x8ExtAddPairwiseI8x16S)                        \
+  V(I16x8ExtAddPairwiseI8x16U)                        \
+  V(I32x4ExtAddPairwiseI16x8S)                        \
+  V(I32x4ExtAddPairwiseI16x8U)                        \
+  V(I16x8Abs)                                         \
+  V(I16x8Neg)                                         \
+  V(I16x8SConvertI8x16Low)                            \
+  V(I16x8SConvertI8x16High)                           \
+  V(I16x8UConvertI8x16Low)                            \
+  V(I16x8UConvertI8x16High)                           \
+  V(I32x4Abs)                                         \
+  V(I32x4Neg)                                         \
+  V(I32x4SConvertI16x8Low)                            \
+  V(I32x4SConvertI16x8High)                           \
+  V(I32x4UConvertI16x8Low)                            \
+  V(I32x4UConvertI16x8High)                           \
+  V(I64x2Abs)                                         \
+  V(I64x2Neg)                                         \
+  V(I64x2SConvertI32x4Low)                            \
+  V(I64x2SConvertI32x4High)                           \
+  V(I64x2UConvertI32x4Low)                            \
+  V(I64x2UConvertI32x4High)                           \
+  V(F32x4Abs)                                         \
+  V(F32x4Neg)                                         \
+  V(F32x4Sqrt)                                        \
+  V(F64x2Abs)                                         \
+  V(F64x2Neg)                                         \
+  V(F64x2Sqrt)                                        \
+  V(I32x4SConvertF32x4)                               \
+  V(I32x4UConvertF32x4)                               \
+  V(F32x4SConvertI32x4)                               \
+  V(F32x4UConvertI32x4)                               \
+  V(I32x4TruncSatF64x2SZero)                          \
+  V(I32x4TruncSatF64x2UZero)                          \
+  V(F64x2ConvertLowI32x4S)                            \
+  V(F64x2ConvertLowI32x4U)
+
+#define FOREACH_SIMD_128_UNARY_OPTIONAL_OPCODE(V) \
+  V(F32x4Ceil)                                    \
+  V(F32x4Floor)                                   \
+  V(F32x4Trunc)                                   \
+  V(F32x4NearestInt)                              \
+  V(F64x2Ceil)                                    \
+  V(F64x2Floor)                                   \
+  V(F64x2Trunc)                                   \
+  V(F64x2NearestInt)
+
+#define FOREACH_SIMD_128_UNARY_OPCODE(V)        \
+  FOREACH_SIMD_128_UNARY_NON_OPTIONAL_OPCODE(V) \
+  FOREACH_SIMD_128_UNARY_OPTIONAL_OPCODE(V)
+
+struct Simd128UnaryOp : FixedArityOperationT<1, Simd128UnaryOp> {
+  enum class Kind : uint8_t {
+#define DEFINE_KIND(kind) k##kind,
+    FOREACH_SIMD_128_UNARY_OPCODE(DEFINE_KIND)
+#undef DEFINE_KIND
+  };
+
+  Kind kind;
+
+  static constexpr OpEffects effects = OpEffects();
+
+  base::Vector<const RegisterRepresentation> outputs_rep() const {
+    return RepVector<RegisterRepresentation::Simd128()>();
+  }
+
+  Simd128UnaryOp(OpIndex input, Kind kind) : Base(input), kind(kind) {}
+
+  OpIndex input() const { return Base::input(0); }
+
+  void Validate(const Graph& graph) const {
+    DCHECK(ValidOpInputRep(graph, input(), RegisterRepresentation::Simd128()));
+  }
+
+  auto options() const { return std::tuple{kind}; }
+};
+std::ostream& operator<<(std::ostream& os, Simd128UnaryOp::Kind kind);
 
 #endif  // V8_ENABLE_WEBASSEMBLY
 

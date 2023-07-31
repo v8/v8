@@ -992,6 +992,10 @@ class GraphVisitor {
     return assembler().ReduceSimd128Binop(MapToNewGraph(op.left()),
                                           MapToNewGraph(op.right()), op.kind);
   }
+
+  OpIndex AssembleOutputGraphSimd128Unary(const Simd128UnaryOp& op) {
+    return assembler().ReduceSimd128Unary(MapToNewGraph(op.input()), op.kind);
+  }
 #endif
 
   void CreateOldToNewMapping(OpIndex old_index, OpIndex new_index) {

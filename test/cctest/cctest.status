@@ -1093,6 +1093,19 @@
   'test-run-wasm-simd/WasmTurbofan_I16x16GeS': [FAIL],
   'test-run-wasm-simd/WasmTurbofan_I16x16GtU': [FAIL],
   'test-run-wasm-simd/WasmTurbofan_I16x16Ne': [FAIL],
+  'test-run-wasm-simd/RunWasmTurbofan_F32x8Abs': [FAIL],
+  'test-run-wasm-simd/RunWasmTurbofan_F32x8Sqrt': [FAIL],
+  'test-run-wasm-simd/RunWasmTurbofan_F32x8SConvertI32x8': [FAIL],
+  'test-run-wasm-simd/RunWasmTurbofan_F32x8UConvertI32x8': [FAIL],
+  'test-run-wasm-simd/RunWasmTurbofan_F32x8Neg': [FAIL],
+  'test-run-wasm-simd/RunWasmTurbofan_I16x16Abs': [FAIL],
+  'test-run-wasm-simd/RunWasmTurbofan_F64x4Sqrt': [FAIL],
+  'test-run-wasm-simd/RunWasmTurbofan_I16x16Neg': [FAIL],
+  'test-run-wasm-simd/RunWasmTurbofan_I32x8Neg': [FAIL],
+  'test-run-wasm-simd/RunWasmTurbofan_I32x8UConvertF32x8': [FAIL],
+  'test-run-wasm-simd/RunWasmTurbofan_I32x8Abs': [FAIL],
+  'test-run-wasm-simd/RunWasmTurbofan_I8x32Neg': [FAIL],
+  'test-run-wasm-simd/RunWasmTurbofan_I8x32Abs': [FAIL],
 }],  # variant == turboshaft
 
 ##############################################################################

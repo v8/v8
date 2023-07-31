@@ -305,6 +305,7 @@ class TypeInferenceAnalysis {
         case Opcode::kAssertNotNull:
         case Opcode::kSimd128Constant:
         case Opcode::kSimd128Binop:
+        case Opcode::kSimd128Unary:
 #endif
           // TODO(nicohartmann@): Support remaining operations. For now we
           // compute fallback types.

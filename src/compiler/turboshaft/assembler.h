@@ -3070,6 +3070,13 @@ class AssemblerOpInterface {
     }
     return stack().ReduceSimd128Binop(left, right, kind);
   }
+
+  V<Simd128> Simd128Unary(V<Simd128> input, Simd128UnaryOp::Kind kind) {
+    if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
+      return OpIndex::Invalid();
+    }
+    return stack().ReduceSimd128Unary(input, kind);
+  }
 #endif
 
   template <typename Rep>

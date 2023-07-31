@@ -810,6 +810,41 @@ class TurboshaftGraphBuildingInterface {
 
 #undef HANDLE_INVERSE_COMPARISON
 
+#define HANDLE_UNARY_NON_OPTIONAL_OPCODE(kind)                            \
+  case kExpr##kind:                                                       \
+    result->op = asm_.Simd128Unary(                                       \
+        args[0].op, compiler::turboshaft::Simd128UnaryOp::Kind::k##kind); \
+    break;
+      FOREACH_SIMD_128_UNARY_NON_OPTIONAL_OPCODE(
+          HANDLE_UNARY_NON_OPTIONAL_OPCODE)
+#undef HANDLE_UNARY_NON_OPTIONAL_OPCODE
+
+#define HANDLE_UNARY_OPTIONAL_OPCODE(kind, feature, external_ref)           \
+  case kExpr##kind:                                                         \
+    if (SupportedOperations::feature()) {                                   \
+      result->op = asm_.Simd128Unary(                                       \
+          args[0].op, compiler::turboshaft::Simd128UnaryOp::Kind::k##kind); \
+    } else {                                                                \
+      result->op = CallCStackSlotToStackSlot(                               \
+          args[0].op, ExternalReference::external_ref(),                    \
+          MemoryRepresentation::Simd128());                                 \
+    }                                                                       \
+    break;
+      HANDLE_UNARY_OPTIONAL_OPCODE(F32x4Ceil, float32_round_up, wasm_f32x4_ceil)
+      HANDLE_UNARY_OPTIONAL_OPCODE(F32x4Floor, float32_round_down,
+                                   wasm_f32x4_floor)
+      HANDLE_UNARY_OPTIONAL_OPCODE(F32x4Trunc, float32_round_to_zero,
+                                   wasm_f32x4_trunc)
+      HANDLE_UNARY_OPTIONAL_OPCODE(F32x4NearestInt, float32_round_ties_even,
+                                   wasm_f32x4_nearest_int)
+      HANDLE_UNARY_OPTIONAL_OPCODE(F64x2Ceil, float64_round_up, wasm_f64x2_ceil)
+      HANDLE_UNARY_OPTIONAL_OPCODE(F64x2Floor, float64_round_down,
+                                   wasm_f64x2_floor)
+      HANDLE_UNARY_OPTIONAL_OPCODE(F64x2Trunc, float64_round_to_zero,
+                                   wasm_f64x2_trunc)
+      HANDLE_UNARY_OPTIONAL_OPCODE(F64x2NearestInt, float64_round_ties_even,
+                                   wasm_f64x2_nearest_int)
+#undef HANDLE_UNARY_OPTIONAL_OPCODE
       default:
         Bailout(decoder);
         break;
