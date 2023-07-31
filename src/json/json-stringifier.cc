@@ -395,6 +395,9 @@ MaybeHandle<Object> JsonStringifier::Stringify(Handle<Object> object,
   Result result = SerializeObject(object);
   if (result == UNCHANGED) return factory()->undefined_value();
   if (result == SUCCESS) {
+    if (overflowed_) {
+      THROW_NEW_ERROR(isolate_, NewInvalidStringLengthError(), String);
+    }
     if (encoding_ == String::ONE_BYTE_ENCODING) {
       one_byte_ptr_[current_index_++] = '\0';
       return isolate_->factory()->NewStringFromAsciiChecked(
