@@ -859,8 +859,6 @@ class V8_EXPORT_PRIVATE NativeModule final {
 
   Counters* counters() const { return code_allocator_.counters(); }
 
-  size_t EstimateCurrentMemoryConsumption() const;
-
  private:
   friend class WasmCode;
   friend class WasmCodeAllocator;

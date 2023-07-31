@@ -373,10 +373,6 @@ class V8_EXPORT_PRIVATE WasmEngine {
     return wasm_null_tagged_compressed_;
   }
 
-  // Returns an approximation of current off-heap memory used by this engine,
-  // excluding code space.
-  size_t EstimateCurrentMemoryConsumption() const;
-
   // Call on process start and exit.
   static void InitializeOncePerProcess();
   static void GlobalTearDown();
@@ -421,7 +417,7 @@ class V8_EXPORT_PRIVATE WasmEngine {
 
   // This mutex protects all information which is mutated concurrently or
   // fields that are initialized lazily on the first access.
-  mutable base::Mutex mutex_;
+  base::Mutex mutex_;
 
   //////////////////////////////////////////////////////////////////////////////
   // Protected by {mutex_}:

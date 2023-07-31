@@ -70,8 +70,6 @@ class V8_EXPORT_PRIVATE NamesProvider {
   void PrintHeapType(StringBuilder& out, HeapType type);
   void PrintValueType(StringBuilder& out, ValueType type);
 
-  size_t EstimateCurrentMemoryConsumption() const;
-
  private:
   void DecodeNamesIfNotYetDone();
   void ComputeFunctionNamesFromImportsExports();

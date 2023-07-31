@@ -166,8 +166,6 @@ class V8_EXPORT_PRIVATE CompilationState {
 
   CompilationState() = delete;
 
-  size_t EstimateCurrentMemoryConsumption() const;
-
  private:
   // NativeModule is allowed to call the static {New} method.
   friend class NativeModule;

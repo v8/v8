@@ -103,8 +103,6 @@ class DebugSideTable {
 
     void Print(std::ostream&) const;
 
-    size_t EstimateCurrentMemoryConsumption() const;
-
    private:
     int pc_offset_;
     int stack_height_;
@@ -152,8 +150,6 @@ class DebugSideTable {
   int num_locals() const { return num_locals_; }
 
   void Print(std::ostream&) const;
-
-  size_t EstimateCurrentMemoryConsumption() const;
 
  private:
   struct EntryPositionLess {
@@ -212,8 +208,6 @@ class V8_EXPORT_PRIVATE DebugInfo {
   DebugSideTable* GetDebugSideTableIfExists(const WasmCode*) const;
 
   void RemoveIsolate(Isolate*);
-
-  size_t EstimateCurrentMemoryConsumption() const;
 
  private:
   std::unique_ptr<DebugInfoImpl> impl_;

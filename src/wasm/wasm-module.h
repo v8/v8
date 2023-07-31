@@ -347,8 +347,6 @@ class AdaptiveMap {
     }
   }
 
-  size_t EstimateCurrentMemoryConsumption() const;
-
  private:
   static constexpr uint32_t kLoadFactor = 4;
   using MapType = std::map<uint32_t, Value>;
@@ -371,12 +369,10 @@ class V8_EXPORT_PRIVATE LazilyGeneratedNames {
   void AddForTesting(int function_index, WireBytesRef name);
   bool Has(uint32_t function_index);
 
-  size_t EstimateCurrentMemoryConsumption() const;
-
  private:
   // Lazy loading must guard against concurrent modifications from multiple
   // {WasmModuleObject}s.
-  mutable base::Mutex mutex_;
+  base::Mutex mutex_;
   bool has_functions_{false};
   NameMap function_names_;
 };
@@ -413,7 +409,7 @@ class V8_EXPORT_PRIVATE AsmJsOffsetInformation {
 constexpr uint32_t kNoSuperType = std::numeric_limits<uint32_t>::max();
 
 struct TypeDefinition {
-  enum Kind : int8_t { kFunction, kStruct, kArray };
+  enum Kind { kFunction, kStruct, kArray };
 
   TypeDefinition(const FunctionSig* sig, uint32_t supertype, bool is_final)
       : function_sig(sig),
@@ -582,8 +578,6 @@ struct TypeFeedbackStorage {
   mutable base::SharedMutex mutex;
 
   WellKnownImportsList well_known_imports;
-
-  size_t EstimateCurrentMemoryConsumption() const;
 };
 
 struct WasmTable;
@@ -778,9 +772,6 @@ struct V8_EXPORT_PRIVATE WasmModule {
   base::Vector<const WasmFunction> declared_functions() const {
     return base::VectorOf(functions) + num_imported_functions;
   }
-
-  size_t EstimateStoredSize() const;                // No tracing.
-  size_t EstimateCurrentMemoryConsumption() const;  // With tracing.
 };
 
 // Static representation of a wasm indirect call table.
@@ -799,6 +790,8 @@ struct WasmTable {
 inline bool is_asmjs_module(const WasmModule* module) {
   return module->origin != kWasmOrigin;
 }
+
+size_t EstimateStoredSize(const WasmModule* module);
 
 // Returns the wrapper index for a function with isorecursive canonical
 // signature index {canonical_sig_index}, and origin defined by {is_import}.
