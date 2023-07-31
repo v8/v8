@@ -10310,7 +10310,7 @@ void CodeStubAssembler::LoadPropertyFromGlobalDictionary(
 
   TNode<Object> value =
       LoadObjectField(property_cell, PropertyCell::kValueOffset);
-  GotoIf(TaggedEqual(value, TheHoleConstant()), if_deleted);
+  GotoIf(TaggedEqual(value, PropertyCellHoleConstant()), if_deleted);
 
   *var_value = value;
 
