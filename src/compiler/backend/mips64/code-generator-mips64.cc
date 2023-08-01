@@ -146,11 +146,12 @@ namespace {
 class OutOfLineRecordWrite final : public OutOfLineCode {
  public:
   OutOfLineRecordWrite(CodeGenerator* gen, Register object, Register index,
-                       Register scratch0, Register scratch1,
+                       Register value, Register scratch0, Register scratch1,
                        RecordWriteMode mode, StubCallMode stub_mode)
       : OutOfLineCode(gen),
         object_(object),
         index_(index),
+        value_(value),
         scratch0_(scratch0),
         scratch1_(scratch1),
         mode_(mode),
@@ -160,11 +161,12 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
         must_save_lr_(!gen->frame_access_state()->has_frame()),
         zone_(gen->zone()) {
     DCHECK(!AreAliased(object, index, scratch0, scratch1));
+    DCHECK(!AreAliased(value, index, scratch0, scratch1));
   }
 
   void Generate() final {
-    __ CheckPageFlag(object_, scratch0_,
-                     MemoryChunk::kPointersFromHereAreInterestingMask, eq,
+    __ CheckPageFlag(value_, scratch0_,
+                     MemoryChunk::kPointersToHereAreInterestingMask, eq,
                      exit());
     __ Daddu(scratch1_, object_, index_);
     SaveFPRegsMode const save_fp_mode = frame()->DidAllocateDoubleRegisters()
@@ -195,6 +197,7 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
  private:
   Register const object_;
   Register const index_;
+  Register const value_;
   Register const scratch0_;
   Register const scratch1_;
   RecordWriteMode const mode_;
@@ -828,7 +831,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Register value = i.InputRegister(2);
       Register scratch0 = i.TempRegister(0);
       Register scratch1 = i.TempRegister(1);
-      auto ool = zone()->New<OutOfLineRecordWrite>(this, object, index,
+      auto ool = zone()->New<OutOfLineRecordWrite>(this, object, index, value,
                                                    scratch0, scratch1, mode,
                                                    DetermineStubCallMode());
       __ Daddu(kScratchReg, object, index);
@@ -843,8 +846,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       if (mode > RecordWriteMode::kValueIsPointer) {
         __ JumpIfSmi(value, ool->exit());
       }
-      __ CheckPageFlag(value, scratch0,
-                       MemoryChunk::kPointersToHereAreInterestingMask, ne,
+      __ CheckPageFlag(object, scratch0,
+                       MemoryChunk::kPointersFromHereAreInterestingMask, ne,
                        ool->entry());
       __ bind(ool->exit());
       break;
