@@ -64,6 +64,7 @@ FEATURE_FLAGS = {
     'arraybuffer-transfer': '--harmony-rab-gsab-transfer',
     'json-parse-with-source': '--harmony-json-parse-with-source',
     'iterator-helpers': '--harmony-iterator-helpers',
+    'set-methods': '--harmony-set-methods',
 }
 
 SKIPPED_FEATURES = set([])
