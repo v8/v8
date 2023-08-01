@@ -306,6 +306,10 @@ class TypeInferenceAnalysis {
         case Opcode::kSimd128Constant:
         case Opcode::kSimd128Binop:
         case Opcode::kSimd128Unary:
+        case Opcode::kSimd128Shift:
+        case Opcode::kSimd128Test:
+        case Opcode::kSimd128Splat:
+        case Opcode::kSimd128Ternary:
 #endif
           // TODO(nicohartmann@): Support remaining operations. For now we
           // compute fallback types.
