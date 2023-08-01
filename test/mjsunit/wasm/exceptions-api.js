@@ -217,6 +217,7 @@ function TestGetArgHelper(types_str, types, values) {
 }
 
 (function TestGetArg() {
+  print(arguments.callee.name);
   // Check errors.
   let tag = new WebAssembly.Tag({parameters: ['i32']});
   let exception = new WebAssembly.Exception(tag, [0]);

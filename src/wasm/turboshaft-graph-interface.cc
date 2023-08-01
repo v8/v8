@@ -31,6 +31,7 @@ using compiler::TrapId;
 using compiler::turboshaft::ConditionWithHint;
 using compiler::turboshaft::Float32;
 using compiler::turboshaft::Float64;
+using compiler::turboshaft::FloatRepresentation;
 using compiler::turboshaft::Graph;
 using compiler::turboshaft::Label;
 using compiler::turboshaft::LoadOp;
@@ -631,8 +632,12 @@ class TurboshaftGraphBuildingInterface {
 
     StoreOp::Kind store_kind = GetMemoryAccessKind(repr, strategy);
 
+    OpIndex store_value = value.op;
+    if (value.type == kWasmI64 && repr.SizeInBytes() <= 4) {
+      store_value = asm_.TruncateWord64ToWord32(store_value);
+    }
     // TODO(14108): If offset is in int range, use it as static offset.
-    asm_.Store(mem_start, asm_.WordPtrAdd(imm.offset, final_index), value.op,
+    asm_.Store(mem_start, asm_.WordPtrAdd(imm.offset, final_index), store_value,
                store_kind, repr, compiler::kNoWriteBarrier, 0);
 
     if (v8_flags.trace_wasm_memory) {
@@ -669,7 +674,8 @@ class TurboshaftGraphBuildingInterface {
               value.op, asm_.Word64Constant(static_cast<int64_t>(kMaxInt)))) {
         GOTO(done, asm_.ChangeInt32ToInt64(CallBuiltinFromRuntimeStub(
                        decoder, WasmCode::kWasmMemoryGrow,
-                       {asm_.Word32Constant(imm.index), value.op})));
+                       {asm_.Word32Constant(imm.index),
+                        asm_.TruncateWord64ToWord32(value.op)})));
       }
       ELSE {
         GOTO(done, asm_.Word64Constant(int64_t{-1}));
@@ -901,11 +907,12 @@ class TurboshaftGraphBuildingInterface {
           value = asm_.BitcastFloat64ToWord64(value);
           V8_FALLTHROUGH;
         case kI64: {
-          // Truncations happen implicitly.
-          OpIndex upper_half = asm_.Word64ShiftRightLogical(value, 32);
+          OpIndex upper_half = asm_.TruncateWord64ToWord32(
+              asm_.Word64ShiftRightLogical(value, 32));
           BuildEncodeException32BitValue(values_array, index, upper_half);
           index += 2;
-          BuildEncodeException32BitValue(values_array, index, value);
+          OpIndex lower_half = asm_.TruncateWord64ToWord32(value);
+          BuildEncodeException32BitValue(values_array, index, lower_half);
           index += 2;
           break;
         }
@@ -1813,6 +1820,22 @@ class TurboshaftGraphBuildingInterface {
     return result;
   }
 
+  OpIndex BuildIntToFloatConversionInstruction(
+      OpIndex input, ExternalReference ccall_ref,
+      MemoryRepresentation input_representation,
+      MemoryRepresentation result_representation) {
+    uint8_t slot_size = std::max(input_representation.SizeInBytes(),
+                                 result_representation.SizeInBytes());
+    V<WordPtr> stack_slot = __ StackSlot(slot_size, slot_size);
+    __ Store(stack_slot, input, StoreOp::Kind::RawAligned(),
+             input_representation, compiler::WriteBarrierKind::kNoWriteBarrier);
+    MachineType reps[]{MachineType::Pointer()};
+    MachineSignature sig(0, 1, reps);
+    CallC(&sig, ccall_ref, &stack_slot);
+    return __ Load(stack_slot, LoadOp::Kind::RawAligned(),
+                   result_representation);
+  }
+
   // TODO(14108): Remove the decoder argument once we have no bailouts.
   OpIndex UnOpImpl(FullDecoder* decoder, WasmOpcode opcode, OpIndex arg,
                    ValueType input_type /* for ref.is_null only*/) {
@@ -1851,13 +1874,12 @@ class TurboshaftGraphBuildingInterface {
       }
       case kExprI32SConvertF64: {
         V<Float64> truncated = UnOpImpl(decoder, kExprF64Trunc, arg, kWasmF64);
-        V<Word64> result = asm_.TruncateFloat64ToInt64OverflowToMin(truncated);
-        // Implicitly truncated to i32.
+        V<Word32> result =
+            asm_.TruncateFloat64ToInt32OverflowUndefined(truncated);
         V<Float64> converted_back = asm_.ChangeInt32ToFloat64(result);
         asm_.TrapIf(
             asm_.Word32Equal(asm_.Float64Equal(converted_back, truncated), 0),
             OpIndex::Invalid(), TrapId::kTrapFloatUnrepresentable);
-        // Implicitly truncated to i32.
         return result;
       }
       case kExprI32UConvertF64: {
@@ -2381,12 +2403,32 @@ class TurboshaftGraphBuildingInterface {
       case kExprI64Eqz:
         return asm_.Word64Equal(arg, 0);
       case kExprF32SConvertI64:
+        if (!Is64()) {
+          return BuildIntToFloatConversionInstruction(
+              arg, ExternalReference::wasm_int64_to_float32(),
+              MemoryRepresentation::Int64(), MemoryRepresentation::Float32());
+        }
         return asm_.ChangeInt64ToFloat32(arg);
       case kExprF32UConvertI64:
+        if (!Is64()) {
+          return BuildIntToFloatConversionInstruction(
+              arg, ExternalReference::wasm_uint64_to_float32(),
+              MemoryRepresentation::Uint64(), MemoryRepresentation::Float32());
+        }
         return asm_.ChangeUint64ToFloat32(arg);
       case kExprF64SConvertI64:
+        if (!Is64()) {
+          return BuildIntToFloatConversionInstruction(
+              arg, ExternalReference::wasm_int64_to_float64(),
+              MemoryRepresentation::Int64(), MemoryRepresentation::Float64());
+        }
         return asm_.ChangeInt64ToFloat64(arg);
       case kExprF64UConvertI64:
+        if (!Is64()) {
+          return BuildIntToFloatConversionInstruction(
+              arg, ExternalReference::wasm_uint64_to_float64(),
+              MemoryRepresentation::Uint64(), MemoryRepresentation::Float64());
+        }
         return asm_.ChangeUint64ToFloat64(arg);
       case kExprI32SExtendI8:
         return asm_.Word32SignExtend8(arg);
@@ -2787,7 +2829,8 @@ class TurboshaftGraphBuildingInterface {
       // to succeed the bounds check.
       DCHECK_NE(kTrapHandler, memory->bounds_checks);
       if (memory->bounds_checks == wasm::kExplicitBoundsChecks) {
-        V<Word32> high_word = asm_.Word64ShiftRightLogical(index, 32);
+        V<Word32> high_word = asm_.TruncateWord64ToWord32(
+            asm_.Word64ShiftRightLogical(index, 32));
         asm_.TrapIf(high_word, OpIndex::Invalid(), TrapId::kTrapMemOutOfBounds);
       }
       // Truncate index to 32-bit.
@@ -3314,10 +3357,10 @@ class TurboshaftGraphBuildingInterface {
   V<WordPtr> MemoryIndexToUintPtrOrOOBTrap(bool memory_is_64, OpIndex index) {
     if (!memory_is_64) return asm_.ChangeUint32ToUintPtr(index);
     if (kSystemPointerSize == kInt64Size) return index;
-    // Truncations from 64 to 32 bits are implicit.
-    asm_.TrapIf(asm_.Word64ShiftRightLogical(index, 32), OpIndex::Invalid(),
-                TrapId::kTrapMemOutOfBounds);
-    return index;
+    asm_.TrapIf(
+        asm_.TruncateWord64ToWord32(asm_.Word64ShiftRightLogical(index, 32)),
+        OpIndex::Invalid(), TrapId::kTrapMemOutOfBounds);
+    return OpIndex(asm_.TruncateWord64ToWord32(index));
   }
 
   V<Word32> IsSmi(V<Tagged> object) {

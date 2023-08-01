@@ -204,7 +204,10 @@ class Int64LoweringReducer : public Next {
     auto word64 = RegisterRepresentation::Word64();
     auto float64 = RegisterRepresentation::Float64();
     using Kind = ChangeOp::Kind;
-    // TODO(mliedtke): Also support other conversions.
+    if (from != word64 && to != word64) {
+      return Next::ReduceChange(input, kind, assumption, from, to);
+    }
+
     if (from == word32 && to == word64) {
       if (kind == Kind::kZeroExtend) {
         return __ Tuple(input, __ Word32Constant(0));
@@ -213,19 +216,23 @@ class Int64LoweringReducer : public Next {
         // We use SAR to preserve the sign in the high word.
         return __ Tuple(input, __ Word32ShiftRightArithmetic(input, 31));
       }
-      UNIMPLEMENTED();
     }
     if (from == float64 && to == word64) {
       if (kind == Kind::kBitcast) {
         return __ Tuple(__ Float64ExtractLowWord32(input),
                         __ Float64ExtractHighWord32(input));
       }
-      UNIMPLEMENTED();
+    }
+    if (from == word64 && to == float64) {
+      if (kind == Kind::kBitcast) {
+        return __ BitcastWord32PairToFloat64(__ Projection(input, 1, word32),
+                                             __ Projection(input, 0, word32));
+      }
     }
     if (from == word64 && to == word32 && kind == Kind::kTruncate) {
       return __ Projection(input, 0, word32);
     }
-    return Next::ReduceChange(input, kind, assumption, from, to);
+    UNIMPLEMENTED();
   }
 
   OpIndex REDUCE(Load)(OpIndex base_idx, OpIndex index, LoadOp::Kind kind,
@@ -250,7 +257,8 @@ class Int64LoweringReducer : public Next {
                         WriteBarrierKind write_barrier, int32_t offset,
                         uint8_t element_size_log2,
                         bool maybe_initializing_or_transitioning) {
-    if (stored_rep == MemoryRepresentation::Int64()) {
+    if (stored_rep == MemoryRepresentation::Int64() ||
+        stored_rep == MemoryRepresentation::Uint64()) {
       auto [low, high] = Unpack(value);
       return __ Tuple(
           Next::ReduceStore(base, index, low, kind,
@@ -283,6 +291,16 @@ class Int64LoweringReducer : public Next {
                       Next::ReducePhi(base::VectorOf(inputs_high), word32));
     }
     return Next::ReducePhi(inputs, rep);
+  }
+
+  OpIndex REDUCE(PendingLoopPhi)(OpIndex first, PendingLoopPhiOp::Kind kind,
+                                 RegisterRepresentation rep,
+                                 PendingLoopPhiOp::Data data) {
+    if (rep == RegisterRepresentation::Word64()) {
+      // TODO(mliedtke): This needs to be mapped somehow.
+      UNIMPLEMENTED();
+    }
+    return Next::ReducePendingLoopPhi(first, kind, rep, data);
   }
 
  private:
