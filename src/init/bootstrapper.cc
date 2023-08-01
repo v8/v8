@@ -4730,6 +4730,8 @@ void Genesis::InitializeGlobal_harmony_set_methods() {
                         Builtin::kSetPrototypeIsSubsetOf, 1, true);
   SimpleInstallFunction(isolate(), set_prototype, "isSupersetOf",
                         Builtin::kSetPrototypeIsSupersetOf, 1, true);
+  SimpleInstallFunction(isolate(), set_prototype, "isDisjointFrom",
+                        Builtin::kSetPrototypeIsDisjointFrom, 1, true);
 }
 
 void Genesis::InitializeGlobal_harmony_json_parse_with_source() {
