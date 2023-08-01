@@ -515,8 +515,6 @@ class GraphVisitor {
       default:
         UNREACHABLE();
     }
-    // The assembler automatically re-attaches the `DidntThrow`.
-    DCHECK(output_graph().Get(result).template Is<DidntThrowOp>());
     return result;
   }
   OpIndex AssembleOutputGraphCheckException(const CheckExceptionOp& op) {

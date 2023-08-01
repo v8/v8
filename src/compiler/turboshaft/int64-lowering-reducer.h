@@ -140,22 +140,6 @@ class Int64LoweringReducer : public Next {
                       OpEffects().CanCallAnything(), is_tail_call);
   }
 
-  OpIndex REDUCE(Projection)(OpIndex input, uint16_t idx,
-                             RegisterRepresentation rep) {
-    // Update projections of call results to the updated indices for any call
-    // returning at least 2 values and at least one i64.
-    auto calls_entry = lowered_calls_.find(input);
-    if (calls_entry != lowered_calls_.end()) {
-      idx = calls_entry->second[idx];
-      if (rep == RegisterRepresentation::Word64()) {
-        RegisterRepresentation word32 = RegisterRepresentation::Word32();
-        return __ Tuple(Next::ReduceProjection(input, idx, word32),
-                        Next::ReduceProjection(input, idx + 1, word32));
-      }
-    }
-    return Next::ReduceProjection(input, idx, rep);
-  }
-
   OpIndex REDUCE(Constant)(ConstantOp::Kind kind, ConstantOp::Storage value) {
     if (kind == ConstantOp::Kind::kWord64) {
       uint32_t high = value.integral >> 32;
@@ -332,6 +316,17 @@ class Int64LoweringReducer : public Next {
             __ Projection(input, 1, RegisterRepresentation::Word32())};
   }
 
+  // Wrap an operation that doesn't return a tuple already in a tuple of
+  // projections. It is required to immediately emit projections, so that phi
+  // inputs can always map to an already materialized projection.
+  OpIndex ProjectionTuple(OpIndex input) {
+    auto word32 = RegisterRepresentation::Word32();
+    DCHECK(!__ Get(input).template Is<TupleOp>());
+    DCHECK_EQ(__ Get(input).outputs_rep(), base::VectorOf({word32, word32}));
+    return __ Tuple(__ Projection(input, 0, word32),
+                    __ Projection(input, 1, word32));
+  }
+
   OpIndex ReduceClz(OpIndex input) {
     auto [low, high] = Unpack(input);
     ScopedVar<Word32> result(Asm());
@@ -371,7 +366,8 @@ class Int64LoweringReducer : public Next {
                           Word32PairBinopOp::Kind kind) {
     auto [left_low, left_high] = Unpack(left);
     auto [right_low, right_high] = Unpack(right);
-    return __ Word32PairBinop(left_low, left_high, right_low, right_high, kind);
+    return ProjectionTuple(
+        __ Word32PairBinop(left_low, left_high, right_low, right_high, kind));
   }
 
   OpIndex ReducePairShiftOp(OpIndex left, OpIndex right,
@@ -379,7 +375,8 @@ class Int64LoweringReducer : public Next {
     auto [left_low, left_high] = Unpack(left);
     // Note: The rhs of a 64 bit shift is a 32 bit value in turboshaft.
     OpIndex right_high = __ Word32Constant(0);
-    return __ Word32PairBinop(left_low, left_high, right, right_high, kind);
+    return ProjectionTuple(
+        __ Word32PairBinop(left_low, left_high, right, right_high, kind));
   }
 
   OpIndex ReduceBitwiseAnd(OpIndex left, OpIndex right) {
@@ -535,28 +532,50 @@ class Int64LoweringReducer : public Next {
             : Next::ReduceCall(callee, frame_state,
                                base::VectorOf(lowered_args),
                                lowered_ts_descriptor, effects);
-    // If it only returns one value, there isn't any projection for the
-    // different returns, so we don't need to update them. Similarly we don't
-    // need to update projections if there isn't any i64 in the result types.
-    if (return_count <= 1 || i64_returns == 0) {
+    if (is_tail_call) {
+      // Tail calls don't return anything to the calling function.
       return call;
     }
-
-    // Create a map from the old projection index to the new projection index,
-    // so this information doesn't have to be recreated for each projection on
-    // the result.
-    int* result_map =
-        __ phase_zone()->template AllocateArray<int>(return_count);
-    int lowered_index = 0;
-    for (size_t i = 0; i < return_count; ++i) {
-      result_map[i] = lowered_index;
-      bool is_i64 = call_descriptor->GetReturnType(i).representation() ==
-                    MachineRepresentation::kWord64;
-      lowered_index += is_i64 ? 2 : 1;
+    if (i64_returns == 0 || return_count == 0) {
+      return call;
+    } else if (return_count == 1) {
+      // There isn't any projection in the input graph for calls returning
+      // exactly one value. Return a tuple of projections for the int64.
+      DCHECK_EQ(i64_returns, 1);
+      return ProjectionTuple(call);
     }
-    lowered_calls_[call] = result_map;
-    DCHECK_EQ(lowered_index, return_count + i64_returns);
-    return call;
+
+    // Wrap the call node with a tuple of projections of the lowered call.
+    // Example for a call returning [int64, int32]:
+    //   In:  Call(...) -> [int64, int32]
+    //   Out: call = Call() -> [int32, int32, int32]
+    //        Tuple(
+    //           Tuple(Projection(call, 0), Projection(call, 1)),
+    //           Projection(call, 2))
+    //
+    // This way projections on the original call node will be automatically
+    // "rewired" to the correct projection of the lowered call.
+    auto word32 = RegisterRepresentation::Word32();
+    base::SmallVector<OpIndex, 16> tuple_inputs;
+    tuple_inputs.reserve_no_init(return_count);
+    size_t projection_index = 0;  // index of the lowered call results.
+
+    for (size_t i = 0; i < return_count; ++i) {
+      MachineRepresentation machine_rep =
+          call_descriptor->GetReturnType(i).representation();
+      if (machine_rep == MachineRepresentation::kWord64) {
+        tuple_inputs.push_back(
+            __ Tuple(__ Projection(call, projection_index, word32),
+                     __ Projection(call, projection_index + 1, word32)));
+        projection_index += 2;
+      } else {
+        tuple_inputs.push_back(__ Projection(
+            call, projection_index++,
+            RegisterRepresentation::FromMachineRepresentation(machine_rep)));
+      }
+    }
+    DCHECK_EQ(projection_index, return_count + i64_returns);
+    return __ Tuple(base::VectorOf(tuple_inputs));
   }
 
   void InitializeIndexMaps() {
