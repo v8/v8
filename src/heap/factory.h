@@ -671,9 +671,11 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       const wasm::FunctionSig* sig, uint32_t canonical_type_index,
       int wrapper_budget, wasm::Promise promise);
   Handle<WasmApiFunctionRef> NewWasmApiFunctionRef(
-      Handle<JSReceiver> callable, wasm::Suspend suspend,
-      Handle<WasmInstanceObject> instance,
+      Handle<HeapObject> callable, wasm::Suspend suspend,
+      Handle<HeapObject> instance,
       Handle<PodArray<wasm::ValueType>> serialized_sig);
+  Handle<WasmApiFunctionRef> NewWasmApiFunctionRef(
+      Handle<WasmApiFunctionRef> ref);
   // {opt_call_target} is kNullAddress for JavaScript functions, and
   // non-null for exported Wasm functions.
   Handle<WasmJSFunctionData> NewWasmJSFunctionData(

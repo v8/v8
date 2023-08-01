@@ -1596,21 +1596,6 @@ MaybeHandle<WasmMemoryObject> InstanceBuilder::FindImportedMemory(
   return {};
 }
 
-namespace {
-bool UseGenericWrapper(const wasm::FunctionSig* sig, Suspend suspend) {
-#if !V8_TARGET_ARCH_X64
-  return false;
-#else
-  for (auto type : sig->all()) {
-    if (type.is_reference()) return false;
-  }
-  if (suspend == kSuspend) return false;
-
-  return v8_flags.wasm_to_js_generic_wrapper;
-#endif
-}
-}  // namespace
-
 bool InstanceBuilder::ProcessImportedFunction(
     Handle<WasmInstanceObject> instance, int import_index, int func_index,
     Handle<String> module_name, Handle<String> import_name,
@@ -1708,7 +1693,7 @@ bool InstanceBuilder::ProcessImportedFunction(
     }
     default: {
       // The imported function is a callable.
-      if (UseGenericWrapper(expected_sig, resolved.suspend()) &&
+      if (UseGenericWasmToJSWrapper(expected_sig, resolved.suspend()) &&
           (kind == ImportCallKind::kJSFunctionArityMatch ||
            kind == ImportCallKind::kJSFunctionArityMismatch)) {
         ImportedFunctionEntry entry(instance, func_index);
@@ -1786,10 +1771,22 @@ bool InstanceBuilder::InitializeImportedIndirectFunctionTable(
     const WasmFunction& function = target_module->functions[function_index];
 
     FunctionTargetAndRef entry(target_instance, function_index);
+    Handle<Object> ref = entry.ref();
+    if (v8_flags.wasm_to_js_generic_wrapper && IsWasmApiFunctionRef(*ref)) {
+      Handle<WasmApiFunctionRef> orig_ref =
+          Handle<WasmApiFunctionRef>::cast(ref);
+      Handle<WasmApiFunctionRef> new_ref =
+          isolate_->factory()->NewWasmApiFunctionRef(orig_ref);
+      WasmApiFunctionRef::SetCrossInstanceTableIndexAsCallOrigin(
+          isolate_, new_ref, instance, i);
+      ref = new_ref;
+    }
+
     uint32_t canonicalized_sig_index =
         target_module->isorecursive_canonical_type_ids[function.sig_index];
+
     instance->GetIndirectFunctionTable(isolate_, table_index)
-        ->Set(i, canonicalized_sig_index, entry.call_target(), *entry.ref());
+        ->Set(i, canonicalized_sig_index, entry.call_target(), *ref);
   }
   return true;
 }
@@ -2124,6 +2121,9 @@ void InstanceBuilder::CompileImportWrappers(
         module_->isorecursive_canonical_type_ids[sig_index];
     WasmImportData resolved({}, func_index, js_receiver, sig,
                             canonical_type_index);
+    if (UseGenericWasmToJSWrapper(sig, resolved.suspend())) {
+      continue;
+    }
     ImportCallKind kind = resolved.kind();
     if (kind == ImportCallKind::kWasmToWasm ||
         kind == ImportCallKind::kLinkError ||
@@ -2486,8 +2486,8 @@ V8_INLINE void SetFunctionTablePlaceholder(Isolate* isolate,
     table_object->entries()->set(entry_index,
                                  *wasm_internal_function.ToHandleChecked());
   }
-  WasmTableObject::UpdateDispatchTables(isolate, *table_object, entry_index,
-                                        function, *instance);
+  WasmTableObject::UpdateDispatchTables(isolate, table_object, entry_index,
+                                        function, instance);
 }
 
 V8_INLINE void SetFunctionTableNullEntry(Isolate* isolate,
