@@ -4727,7 +4727,7 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitNode(
       return VisitStackPointerGreaterThan(node);
     case Opcode::kEqual: {
       const turboshaft::EqualOp& equal = op.Cast<turboshaft::EqualOp>();
-      switch (equal.rep) {
+      switch (equal.rep.value()) {
         case Rep::Word32():
           return VisitWord32Equal(node);
         case Rep::Word64():

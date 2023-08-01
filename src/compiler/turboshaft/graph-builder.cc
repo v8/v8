@@ -1083,18 +1083,24 @@ OpIndex GraphBuilder::Process(
       LoadOp::Kind kind = opcode == IrOpcode::kUnalignedLoad
                               ? LoadOp::Kind::RawUnaligned()
                               : LoadOp::Kind::RawAligned();
+      if (__ output_graph().Get(Map(base)).outputs_rep().at(0) ==
+          RegisterRepresentation::Tagged()) {
+        kind = LoadOp::Kind::TaggedBase();
+      }
       if (index->opcode() == IrOpcode::kInt32Constant) {
         int32_t offset = OpParameter<int32_t>(index->op());
+        if (kind.tagged_base) offset += kHeapObjectTag;
         return __ Load(Map(base), kind, loaded_rep, offset);
       }
       if (index->opcode() == IrOpcode::kInt64Constant) {
         int64_t offset = OpParameter<int64_t>(index->op());
+        if (kind.tagged_base) offset += kHeapObjectTag;
         if (base::IsValueInRangeForNumericType<int32_t>(offset)) {
           return __ Load(Map(base), kind, loaded_rep,
                          static_cast<int32_t>(offset));
         }
       }
-      int32_t offset = 0;
+      int32_t offset = kind.tagged_base ? kHeapObjectTag : 0;
       uint8_t element_size_log2 = 0;
       return __ Load(Map(base), Map(index), kind, loaded_rep, offset,
                      element_size_log2);

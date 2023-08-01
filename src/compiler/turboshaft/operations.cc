@@ -37,6 +37,8 @@ namespace v8::internal::compiler::turboshaft {
 
 void Print(const Operation& op) { std::cout << op << "\n"; }
 
+Zone* get_zone(Graph* graph) { return graph->graph_zone(); }
+
 bool AllowImplicitRepresentationChange(RegisterRepresentation actual_rep,
                                        RegisterRepresentation expected_rep) {
   if (actual_rep == expected_rep) {
@@ -1334,5 +1336,25 @@ void CheckExceptionOp::Validate(const Graph& graph) const {
   // `CheckException` should follow right after the throwing operation.
   DCHECK_EQ(throwing_operation(), graph.PreviousIndex(graph.Index(*this)));
 }
+
+namespace {
+// Ensures basic consistency of representation mapping.
+class InputsRepFactoryCheck : InputsRepFactory {
+  static_assert(*ToMaybeRepPointer(RegisterRepresentation::Word32()) ==
+                MaybeRegisterRepresentation::Word32());
+  static_assert(*ToMaybeRepPointer(RegisterRepresentation::Word64()) ==
+                MaybeRegisterRepresentation::Word64());
+  static_assert(*ToMaybeRepPointer(RegisterRepresentation::Float32()) ==
+                MaybeRegisterRepresentation::Float32());
+  static_assert(*ToMaybeRepPointer(RegisterRepresentation::Float64()) ==
+                MaybeRegisterRepresentation::Float64());
+  static_assert(*ToMaybeRepPointer(RegisterRepresentation::Tagged()) ==
+                MaybeRegisterRepresentation::Tagged());
+  static_assert(*ToMaybeRepPointer(RegisterRepresentation::Compressed()) ==
+                MaybeRegisterRepresentation::Compressed());
+  static_assert(*ToMaybeRepPointer(RegisterRepresentation::Simd128()) ==
+                MaybeRegisterRepresentation::Simd128());
+};
+}  // namespace
 
 }  // namespace v8::internal::compiler::turboshaft

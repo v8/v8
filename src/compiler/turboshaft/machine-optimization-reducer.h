@@ -1106,7 +1106,7 @@ class MachineOptimizationReducer : public Next {
     if (Asm().template Is<ConstantOp>(right)) {
       if (Asm().template Is<ConstantOp>(left)) {
         // k1 == k2  =>  k
-        switch (rep) {
+        switch (rep.value()) {
           case RegisterRepresentation::Word32():
           case RegisterRepresentation::Word64(): {
             if (uint64_t k1, k2;
@@ -1229,7 +1229,7 @@ class MachineOptimizationReducer : public Next {
     // constant folding
     if (Asm().template Is<ConstantOp>(right) &&
         Asm().template Is<ConstantOp>(left)) {
-      switch (rep) {
+      switch (rep.value()) {
         case RegisterRepresentation::Word32():
         case RegisterRepresentation::Word64(): {
           if (kind ==
@@ -1521,7 +1521,9 @@ class MachineOptimizationReducer : public Next {
         // machine instruction Asm().matches that required by JavaScript.
         if (OpIndex a, b; Asm().MatchBitwiseAnd(right, &a, &b,
                                                 WordRepresentation::Word32())) {
+#if defined(__clang__)
           static_assert(0x1f == WordRepresentation::Word32().bit_width() - 1);
+#endif
           if (uint32_t b_value;
               Asm().MatchWord32Constant(b, &b_value) && b_value == 0x1f) {
             return Asm().Shift(left, a, kind, rep);

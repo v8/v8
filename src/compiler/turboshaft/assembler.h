@@ -536,7 +536,9 @@ template <class T, class Assembler>
 class ScopedVariable : Variable {
  public:
   explicit ScopedVariable(Assembler& assembler)
-      : Variable(assembler.NewVariable(V<T>::rep)), assembler_(assembler) {}
+      : Variable(assembler.NewVariable(
+            static_cast<const RegisterRepresentation&>(V<T>::rep))),
+        assembler_(assembler) {}
   ScopedVariable(Assembler& assembler, V<T> initial_value)
       : ScopedVariable(assembler) {
     assembler.SetVariable(*this, initial_value);

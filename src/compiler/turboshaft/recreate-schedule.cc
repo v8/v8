@@ -549,7 +549,7 @@ Node* ScheduleBuilder::ProcessOperation(const ShiftOp& op) {
 }
 Node* ScheduleBuilder::ProcessOperation(const EqualOp& op) {
   const Operator* o;
-  switch (op.rep) {
+  switch (op.rep.value()) {
     case RegisterRepresentation::Word32():
       o = machine.Word32Equal();
       break;
@@ -572,7 +572,7 @@ Node* ScheduleBuilder::ProcessOperation(const EqualOp& op) {
 }
 Node* ScheduleBuilder::ProcessOperation(const ComparisonOp& op) {
   const Operator* o;
-  switch (op.rep) {
+  switch (op.rep.value()) {
     case RegisterRepresentation::Word32():
       switch (op.kind) {
         case ComparisonOp::Kind::kSignedLessThan:
@@ -873,7 +873,7 @@ Node* ScheduleBuilder::ProcessOperation(const SelectOp& op) {
          (op.rep == RegisterRepresentation::Float64() &&
           SupportedOperations::float64_select()));
   const Operator* o = nullptr;
-  switch (op.rep) {
+  switch (op.rep.value()) {
     case RegisterRepresentation::Enum::kWord32:
       o = machine.Word32Select().op();
       break;
@@ -1416,7 +1416,7 @@ Node* ScheduleBuilder::ProcessOperation(const DebugPrintOp& op) {
   Node* input = GetNode(op.input());
 
   base::Optional<Callable> callable;
-  switch (op.rep) {
+  switch (op.rep.value()) {
     case RegisterRepresentation::PointerSized():
       callable.emplace(Builtins::CallableFor(PipelineData::Get().isolate(),
                                              Builtin::kDebugPrintWordPtr));

@@ -324,6 +324,8 @@ class Int64LoweringReducer : public Next {
     return true;
   }
 
+  // TODO(mliedtke): Return std::pair<V<Word32>, V<Word32>> instead and make use
+  // of typed nodes in the different reduce functions?
   std::pair<OpIndex, OpIndex> Unpack(OpIndex input) {
     DCHECK(CheckPairOrPairOp(input));
     return {__ Projection(input, 0, RegisterRepresentation::Word32()),
