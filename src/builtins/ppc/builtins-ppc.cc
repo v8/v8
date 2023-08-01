@@ -748,9 +748,7 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
     // undefined because generator functions are non-constructable.
     __ mr(r6, r4);
     __ mr(r4, r7);
-    static_assert(kJavaScriptCallCodeStartRegister == r5, "ABI mismatch");
-    __ LoadTaggedField(r5, FieldMemOperand(r4, JSFunction::kCodeOffset), r0);
-    __ JumpCodeObject(r5);
+    __ JumpJSFunction(r4, r0);
   }
 
   __ bind(&prepare_step_in_if_stepping);
