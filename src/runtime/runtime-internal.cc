@@ -816,7 +816,7 @@ RUNTIME_FUNCTION(Runtime_DoubleToStringWithRadix) {
   DCHECK_EQ(2, args.length());
   double number = args.number_value_at(0);
   int32_t radix = 0;
-  CHECK(args[1].ToInt32(&radix));
+  CHECK(Object::ToInt32(args[1], &radix));
 
   char* const str = DoubleToRadixCString(number, radix);
   Handle<String> result = isolate->factory()->NewStringFromAsciiChecked(str);

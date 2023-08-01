@@ -731,7 +731,7 @@ i::Address* GlobalizeTracedReference(i::Isolate* i_isolate, i::Address value,
   auto result = i_isolate->traced_handles()->Create(value, slot, store_mode);
 #ifdef VERIFY_HEAP
   if (i::v8_flags.verify_heap) {
-    i::Object(value).ObjectVerify(i_isolate);
+    Object::ObjectVerify(i::Object(value), i_isolate);
   }
 #endif  // VERIFY_HEAP
   return result.location();
@@ -800,7 +800,7 @@ i::Address* GlobalizeReference(i::Isolate* i_isolate, i::Address value) {
   i::Handle<i::Object> result = i_isolate->global_handles()->Create(value);
 #ifdef VERIFY_HEAP
   if (i::v8_flags.verify_heap) {
-    i::Object(value).ObjectVerify(i_isolate);
+    i::Object::ObjectVerify(i::Object(value), i_isolate);
   }
 #endif  // VERIFY_HEAP
   return result.location();
@@ -3781,7 +3781,7 @@ bool Value::IsInt32() const {
   i::Object obj = *Utils::OpenHandle(this);
   if (i::IsSmi(obj)) return true;
   if (i::IsNumber(obj)) {
-    return i::IsInt32Double(obj.Number());
+    return i::IsInt32Double(i::Object::Number(obj));
   }
   return false;
 }
@@ -3790,7 +3790,7 @@ bool Value::IsUint32() const {
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
   if (i::IsSmi(*obj)) return i::Smi::ToInt(*obj) >= 0;
   if (i::IsNumber(*obj)) {
-    double value = obj->Number();
+    double value = i::Object::Number(*obj);
     return !i::IsMinusZero(value) && value >= 0 && value <= i::kMaxUInt32 &&
            value == i::FastUI2D(i::FastD2UI(value));
   }
@@ -3883,8 +3883,8 @@ MaybeLocal<BigInt> Value::ToBigInt(Local<Context> context) const {
 }
 
 bool Value::BooleanValue(Isolate* v8_isolate) const {
-  return Utils::OpenHandle(this)->BooleanValue(
-      reinterpret_cast<i::Isolate*>(v8_isolate));
+  return i::Object::BooleanValue(*Utils::OpenHandle(this),
+                                 reinterpret_cast<i::Isolate*>(v8_isolate));
 }
 
 MaybeLocal<Primitive> Value::ToPrimitive(Local<Context> context) const {
@@ -4293,14 +4293,14 @@ void v8::RegExp::CheckCast(v8::Value* that) {
 
 Maybe<double> Value::NumberValue(Local<Context> context) const {
   auto obj = Utils::OpenHandle(this);
-  if (i::IsNumber(*obj)) return Just(obj->Number());
+  if (i::IsNumber(*obj)) return Just(i::Object::Number(*obj));
   auto i_isolate = reinterpret_cast<i::Isolate*>(context->GetIsolate());
   ENTER_V8(i_isolate, context, Value, NumberValue, Nothing<double>(),
            i::HandleScope);
   i::Handle<i::Object> num;
   has_pending_exception = !i::Object::ToNumber(i_isolate, obj).ToHandle(&num);
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(double);
-  return Just(num->Number());
+  return Just(i::Object::Number(*num));
 }
 
 Maybe<int64_t> Value::IntegerValue(Local<Context> context) const {
@@ -4327,7 +4327,7 @@ Maybe<int32_t> Value::Int32Value(Local<Context> context) const {
   has_pending_exception = !i::Object::ToInt32(i_isolate, obj).ToHandle(&num);
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(int32_t);
   return Just(IsSmi(*num) ? i::Smi::ToInt(*num)
-                          : static_cast<int32_t>(num->Number()));
+                          : static_cast<int32_t>(i::Object::Number(*num)));
 }
 
 Maybe<uint32_t> Value::Uint32Value(Local<Context> context) const {
@@ -4340,7 +4340,7 @@ Maybe<uint32_t> Value::Uint32Value(Local<Context> context) const {
   has_pending_exception = !i::Object::ToUint32(i_isolate, obj).ToHandle(&num);
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(uint32_t);
   return Just(IsSmi(*num) ? static_cast<uint32_t>(i::Smi::ToInt(*num))
-                          : static_cast<uint32_t>(num->Number()));
+                          : static_cast<uint32_t>(i::Object::Number(*num)));
 }
 
 MaybeLocal<Uint32> Value::ToArrayIndex(Local<Context> context) const {
@@ -4382,13 +4382,13 @@ Maybe<bool> Value::Equals(Local<Context> context, Local<Value> that) const {
 bool Value::StrictEquals(Local<Value> that) const {
   auto self = Utils::OpenHandle(this);
   auto other = Utils::OpenHandle(*that);
-  return self->StrictEquals(*other);
+  return i::Object::StrictEquals(*self, *other);
 }
 
 bool Value::SameValue(Local<Value> that) const {
   auto self = Utils::OpenHandle(this);
   auto other = Utils::OpenHandle(*that);
-  return self->SameValue(*other);
+  return i::Object::SameValue(*self, *other);
 }
 
 Local<String> Value::TypeOf(v8::Isolate* external_isolate) {
@@ -4919,7 +4919,7 @@ Maybe<bool> v8::Object::Has(Local<Context> context, Local<Value> key) {
   Maybe<bool> maybe = Nothing<bool>();
   // Check if the given key is an array index.
   uint32_t index = 0;
-  if (key_obj->ToArrayIndex(&index)) {
+  if (i::Object::ToArrayIndex(*key_obj, &index)) {
     maybe = i::JSReceiver::HasElement(i_isolate, self, index);
   } else {
     // Convert the key to a name - possibly by calling back into JavaScript.
@@ -6181,7 +6181,7 @@ Local<Value> Private::Name() const {
 
 double Number::Value() const {
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
-  return obj->Number();
+  return i::Object::Number(*obj);
 }
 
 bool Boolean::Value() const {
@@ -6194,7 +6194,7 @@ int64_t Integer::Value() const {
   if (i::IsSmi(obj)) {
     return i::Smi::ToInt(obj);
   } else {
-    return static_cast<int64_t>(obj.Number());
+    return static_cast<int64_t>(i::Object::Number(obj));
   }
 }
 
@@ -6203,7 +6203,7 @@ int32_t Int32::Value() const {
   if (i::IsSmi(obj)) {
     return i::Smi::ToInt(obj);
   } else {
-    return static_cast<int32_t>(obj.Number());
+    return static_cast<int32_t>(i::Object::Number(obj));
   }
 }
 
@@ -6212,7 +6212,7 @@ uint32_t Uint32::Value() const {
   if (i::IsSmi(obj)) {
     return i::Smi::ToInt(obj);
   } else {
-    return static_cast<uint32_t>(obj.Number());
+    return static_cast<uint32_t>(i::Object::Number(obj));
   }
 }
 
@@ -7738,7 +7738,7 @@ double v8::NumberObject::ValueOf() const {
   i::Handle<i::JSPrimitiveWrapper> js_primitive_wrapper =
       i::Handle<i::JSPrimitiveWrapper>::cast(obj);
   API_RCS_SCOPE(js_primitive_wrapper->GetIsolate(), NumberObject, NumberValue);
-  return js_primitive_wrapper->value().Number();
+  return i::Object::Number(js_primitive_wrapper->value());
 }
 
 Local<v8::Value> v8::BigIntObject::New(Isolate* v8_isolate, int64_t value) {
@@ -7841,7 +7841,7 @@ double v8::Date::ValueOf() const {
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
   i::Handle<i::JSDate> jsdate = i::Handle<i::JSDate>::cast(obj);
   API_RCS_SCOPE(jsdate->GetIsolate(), Date, NumberValue);
-  return jsdate->value().Number();
+  return i::Object::Number(jsdate->value());
 }
 
 v8::Local<v8::String> v8::Date::ToISOString() const {
@@ -7849,9 +7849,9 @@ v8::Local<v8::String> v8::Date::ToISOString() const {
   i::Handle<i::JSDate> jsdate = i::Handle<i::JSDate>::cast(obj);
   i::Isolate* i_isolate = jsdate->GetIsolate();
   API_RCS_SCOPE(i_isolate, Date, NumberValue);
-  i::DateBuffer buffer =
-      i::ToDateString(jsdate->value().Number(), i_isolate->date_cache(),
-                      i::ToDateStringMode::kISODateAndTime);
+  i::DateBuffer buffer = i::ToDateString(i::Object::Number(jsdate->value()),
+                                         i_isolate->date_cache(),
+                                         i::ToDateStringMode::kISODateAndTime);
   i::Handle<i::String> str = i_isolate->factory()
                                  ->NewStringFromUtf8(base::VectorOf(buffer))
                                  .ToHandleChecked();
@@ -7982,7 +7982,7 @@ uint32_t v8::Array::Length() const {
   if (i::IsSmi(length)) {
     return i::Smi::ToInt(length);
   } else {
-    return static_cast<uint32_t>(length.Number());
+    return static_cast<uint32_t>(i::Object::Number(length));
   }
 }
 

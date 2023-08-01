@@ -114,7 +114,7 @@ V8_WARN_UNUSED_RESULT Maybe<bool> GetBoolOption(Isolate* isolate,
   // 2. If value is not undefined, then
   if (!IsUndefined(*value, isolate)) {
     // 2. b. i. Let value be ToBoolean(value).
-    *result = value->BooleanValue(isolate);
+    *result = Object::BooleanValue(*value, isolate);
 
     // 2. e. return value
     return Just(true);
@@ -138,8 +138,8 @@ Maybe<int> DefaultNumberOption(Isolate* isolate, Handle<Object> value, int min,
 
   // b. If value is NaN or less than minimum or greater than maximum, throw a
   // RangeError exception.
-  if (IsNaN(*value_num) || value_num->Number() < min ||
-      value_num->Number() > max) {
+  if (IsNaN(*value_num) || Object::Number(*value_num) < min ||
+      Object::Number(*value_num) > max) {
     THROW_NEW_ERROR_RETURN_VALUE(
         isolate,
         NewRangeError(MessageTemplate::kPropertyValueOutOfRange, property),
@@ -151,7 +151,7 @@ Maybe<int> DefaultNumberOption(Isolate* isolate, Handle<Object> value, int min,
   // int conversion safe.
   //
   // c. Return floor(value).
-  return Just(FastD2I(floor(value_num->Number())));
+  return Just(FastD2I(floor(Object::Number(*value_num))));
 }
 
 // ecma402/#sec-getnumberoption
@@ -196,7 +196,7 @@ Maybe<double> GetNumberOptionAsDouble(Isolate* isolate,
   }
 
   // 7. Return value.
-  return Just(value->Number());
+  return Just(Object::Number(*value));
 }
 
 }  // namespace internal

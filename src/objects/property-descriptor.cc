@@ -94,13 +94,13 @@ bool ToPropertyDescriptorFastPath(Isolate* isolate, Handle<JSReceiver> obj,
     }
     Name key = descs->GetKey(i);
     if (key == roots.enumerable_string()) {
-      desc->set_enumerable(value->BooleanValue(isolate));
+      desc->set_enumerable(Object::BooleanValue(*value, isolate));
     } else if (key == roots.configurable_string()) {
-      desc->set_configurable(value->BooleanValue(isolate));
+      desc->set_configurable(Object::BooleanValue(*value, isolate));
     } else if (key == roots.value_string()) {
       desc->set_value(value);
     } else if (key == roots.writable_string()) {
-      desc->set_writable(value->BooleanValue(isolate));
+      desc->set_writable(Object::BooleanValue(*value, isolate));
     } else if (key == roots.get_string()) {
       // Bail out to slow path to throw an exception if necessary.
       if (!IsCallable(*value)) return false;
@@ -219,7 +219,7 @@ bool PropertyDescriptor::ToPropertyDescriptor(Isolate* isolate,
   }
   // 6c. Set the [[Enumerable]] field of desc to enum.
   if (!enumerable.is_null()) {
-    desc->set_enumerable(enumerable->BooleanValue(isolate));
+    desc->set_enumerable(Object::BooleanValue(*enumerable, isolate));
   }
 
   // configurable?
@@ -231,7 +231,7 @@ bool PropertyDescriptor::ToPropertyDescriptor(Isolate* isolate,
   }
   // 9c. Set the [[Configurable]] field of desc to conf.
   if (!configurable.is_null()) {
-    desc->set_configurable(configurable->BooleanValue(isolate));
+    desc->set_configurable(Object::BooleanValue(*configurable, isolate));
   }
 
   // value?
@@ -252,7 +252,8 @@ bool PropertyDescriptor::ToPropertyDescriptor(Isolate* isolate,
     return false;
   }
   // 15c. Set the [[Writable]] field of desc to writable.
-  if (!writable.is_null()) desc->set_writable(writable->BooleanValue(isolate));
+  if (!writable.is_null())
+    desc->set_writable(Object::BooleanValue(*writable, isolate));
 
   // getter?
   Handle<Object> getter;

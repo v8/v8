@@ -86,7 +86,7 @@ WASM_EXEC_TEST(InitExpression) {
   testing::CompileAndInstantiateForTesting(
       isolate, &thrower, ModuleWireBytes(data, data + arraysize(data)));
   if (thrower.error()) {
-    thrower.Reify()->Print();
+    Print(*thrower.Reify());
     FATAL("compile or instantiate error");
   }
 }

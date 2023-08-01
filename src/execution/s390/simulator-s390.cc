@@ -431,7 +431,7 @@ void S390Debugger::Debug() {
               PrintF(" (smi %d)", Smi::ToInt(obj));
             } else if (IsValidHeapObject(current_heap, HeapObject::cast(obj))) {
               PrintF(" (");
-              obj.ShortPrint();
+              ShortPrint(obj);
               PrintF(")");
             }
             PrintF("\n");

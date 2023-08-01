@@ -381,7 +381,7 @@ TEST_F(GlobalHandlesTest,
         Handle<JSReceiver> key =
             Utils::OpenHandle(*fp->handle.Get(v8_isolate()));
         Handle<Smi> smi(Smi::FromInt(23), isolate);
-        int32_t hash = key->GetOrCreateHash(isolate).value();
+        int32_t hash = Object::GetOrCreateHash(*key, isolate).value();
         JSWeakCollection::Set(weakmap, key, smi, hash);
       },
       SurvivalMode::kSurvives);

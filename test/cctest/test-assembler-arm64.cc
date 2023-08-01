@@ -178,7 +178,7 @@ static void InitializeVM() {
     CodeDesc desc;                                                             \
     __ GetCode(masm.isolate(), &desc);                                         \
     code = Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build(); \
-    if (v8_flags.print_code) code->Print();                                    \
+    if (v8_flags.print_code) Print(*code);                                     \
   }
 
 #else  // ifdef USE_SIMULATOR.
@@ -229,7 +229,7 @@ static void InitializeVM() {
     CodeDesc desc;                                                             \
     __ GetCode(masm.isolate(), &desc);                                         \
     code = Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build(); \
-    if (v8_flags.print_code) code->Print();                                    \
+    if (v8_flags.print_code) Print(*code);                                     \
   }
 
 #endif  // ifdef USE_SIMULATOR.

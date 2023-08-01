@@ -64,7 +64,7 @@ MaybeHandle<Code> GenerateBaselineCode(Isolate* isolate,
   compiler.GenerateCode();
   MaybeHandle<Code> code = compiler.Build(local_isolate);
   if (v8_flags.print_code && !code.is_null()) {
-    code.ToHandleChecked()->Print();
+    Print(*code.ToHandleChecked());
   }
   return code;
 }

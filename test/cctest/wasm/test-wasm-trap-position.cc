@@ -46,7 +46,7 @@ void CheckExceptionInfos(v8::internal::Isolate* isolate, Handle<Object> exc,
   // Check that it's indeed an Error object.
   CHECK(IsJSError(*exc));
 
-  exc->Print();
+  Print(*exc);
   // Extract stack frame from the exception.
   auto stack = isolate->GetSimpleStackTrace(Handle<JSObject>::cast(exc));
   CHECK_EQ(N, stack->length());

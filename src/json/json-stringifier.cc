@@ -427,7 +427,7 @@ bool JsonStringifier::InitializeReplacer(Handle<Object> replacer) {
                                        Handle<JSReceiver>::cast(replacer)),
         false);
     uint32_t length;
-    if (!length_obj->ToUint32(&length)) length = kMaxUInt32;
+    if (!Object::ToUint32(*length_obj, &length)) length = kMaxUInt32;
     for (uint32_t i = 0; i < length; i++) {
       Handle<Object> element;
       Handle<String> key;
@@ -493,7 +493,7 @@ bool JsonStringifier::InitializeGap(Handle<Object> gap) {
       gap_[gap_length] = '\0';
     }
   } else if (IsNumber(*gap)) {
-    double value = std::min(gap->Number(), 10.0);
+    double value = std::min(Object::Number(*gap), 10.0);
     if (value > 0) {
       int gap_length = DoubleToInt32(value);
       gap_ = NewArray<base::uc16>(gap_length + 1);
@@ -875,7 +875,7 @@ JsonStringifier::Result JsonStringifier::SerializeDouble(double number) {
 JsonStringifier::Result JsonStringifier::SerializeJSArray(
     Handle<JSArray> object, Handle<Object> key) {
   uint32_t length = 0;
-  CHECK(object->length().ToArrayLength(&length));
+  CHECK(Object::ToArrayLength(object->length(), &length));
   DCHECK(!IsAccessCheckNeeded(*object));
   if (length == 0) {
     AppendCStringLiteral("[]");
@@ -1129,7 +1129,7 @@ JsonStringifier::Result JsonStringifier::SerializeJSProxy(
                                        Handle<JSReceiver>::cast(object)),
         EXCEPTION);
     uint32_t length;
-    if (!length_object->ToUint32(&length)) {
+    if (!Object::ToUint32(*length_object, &length)) {
       // Technically, we need to be able to handle lengths outside the
       // uint32_t range. However, we would run into string size overflow
       // if we tried to stringify such an array.

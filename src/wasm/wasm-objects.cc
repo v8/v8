@@ -205,7 +205,7 @@ int WasmTableObject::Grow(Isolate* isolate, Handle<WasmTableObject> table,
 
   // Check if growing by {count} is valid.
   uint32_t max_size;
-  if (!table->maximum_length().ToUint32(&max_size)) {
+  if (!Object::ToUint32(table->maximum_length(), &max_size)) {
     max_size = v8_flags.wasm_max_table_size;
   }
   max_size = std::min(max_size, v8_flags.wasm_max_table_size.value());

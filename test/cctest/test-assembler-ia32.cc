@@ -66,7 +66,7 @@ TEST(AssemblerIa320) {
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef OBJECT_PRINT
   StdoutStream os;
-  code->Print(os);
+  Print(*code, os);
 #endif
   auto f = GeneratedCode<F2>::FromCode(isolate, *code);
   auto res = f.Call(3, 4);
@@ -104,7 +104,7 @@ TEST(AssemblerIa321) {
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef OBJECT_PRINT
   StdoutStream os;
-  code->Print(os);
+  Print(*code, os);
 #endif
   auto f = GeneratedCode<F1>::FromCode(isolate, *code);
   int res = f.Call(100);
@@ -145,7 +145,7 @@ TEST(AssemblerIa322) {
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef OBJECT_PRINT
   StdoutStream os;
-  code->Print(os);
+  Print(*code, os);
 #endif
   auto f = GeneratedCode<F1>::FromCode(isolate, *code);
   int res = f.Call(10);
@@ -174,7 +174,7 @@ TEST(AssemblerIa323) {
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef OBJECT_PRINT
   StdoutStream os;
-  code->Print(os);
+  Print(*code, os);
 #endif
   auto f = GeneratedCode<F3>::FromCode(isolate, *code);
   int res = f.Call(-3.1415f);
@@ -203,7 +203,7 @@ TEST(AssemblerIa324) {
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef OBJECT_PRINT
   StdoutStream os;
-  code->Print(os);
+  Print(*code, os);
 #endif
   auto f = GeneratedCode<F4>::FromCode(isolate, *code);
   int res = f.Call(2.718281828);
@@ -264,7 +264,7 @@ TEST(AssemblerIa326) {
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef OBJECT_PRINT
   StdoutStream os;
-  code->Print(os);
+  Print(*code, os);
 #endif
   auto f = GeneratedCode<F5>::FromCode(isolate, *code);
   double res = f.Call(2.2, 1.1);
@@ -296,7 +296,7 @@ TEST(AssemblerIa328) {
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef OBJECT_PRINT
   StdoutStream os;
-  code->Print(os);
+  Print(*code, os);
 #endif
   auto f = GeneratedCode<F6>::FromCode(isolate, *code);
   double res = f.Call(12);
@@ -495,7 +495,7 @@ TEST(AssemblerIa32Extractps) {
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef OBJECT_PRINT
   StdoutStream os;
-  code->Print(os);
+  Print(*code, os);
 #endif
 
   auto f = GeneratedCode<F4>::FromCode(isolate, *code);
@@ -535,7 +535,7 @@ TEST(AssemblerIa32SSE) {
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef OBJECT_PRINT
   StdoutStream os;
-  code->Print(os);
+  Print(*code, os);
 #endif
 
   auto f = GeneratedCode<F8>::FromCode(isolate, *code);
@@ -568,7 +568,7 @@ TEST(AssemblerIa32SSE3) {
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef OBJECT_PRINT
   StdoutStream os;
-  code->Print(os);
+  Print(*code, os);
 #endif
 
   auto f = GeneratedCode<F8>::FromCode(isolate, *code);
@@ -796,7 +796,7 @@ TEST(AssemblerX64FMA_sd) {
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef OBJECT_PRINT
   StdoutStream os;
-  code->Print(os);
+  Print(*code, os);
 #endif
 
   auto f = GeneratedCode<F9>::FromCode(isolate, *code);
@@ -1025,7 +1025,7 @@ TEST(AssemblerX64FMA_ss) {
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef OBJECT_PRINT
   StdoutStream os;
-  code->Print(os);
+  Print(*code, os);
 #endif
 
   auto f = GeneratedCode<F10>::FromCode(isolate, *code);
@@ -1133,7 +1133,7 @@ TEST(AssemblerIa32BMI1) {
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef OBJECT_PRINT
   StdoutStream os;
-  code->Print(os);
+  Print(*code, os);
 #endif
 
   auto f = GeneratedCode<F0>::FromCode(isolate, *code);
@@ -1181,7 +1181,7 @@ TEST(AssemblerIa32LZCNT) {
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef OBJECT_PRINT
   StdoutStream os;
-  code->Print(os);
+  Print(*code, os);
 #endif
 
   auto f = GeneratedCode<F0>::FromCode(isolate, *code);
@@ -1229,7 +1229,7 @@ TEST(AssemblerIa32POPCNT) {
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef OBJECT_PRINT
   StdoutStream os;
-  code->Print(os);
+  Print(*code, os);
 #endif
 
   auto f = GeneratedCode<F0>::FromCode(isolate, *code);
@@ -1375,7 +1375,7 @@ TEST(AssemblerIa32BMI2) {
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef OBJECT_PRINT
   StdoutStream os;
-  code->Print(os);
+  Print(*code, os);
 #endif
 
   auto f = GeneratedCode<F0>::FromCode(isolate, *code);
@@ -1419,7 +1419,7 @@ TEST(AssemblerIa32JumpTables1) {
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef OBJECT_PRINT
   StdoutStream os;
-  code->Print(os);
+  Print(*code, os);
 #endif
   auto f = GeneratedCode<F1>::FromCode(isolate, *code);
   for (int i = 0; i < kNumCases; ++i) {
@@ -1467,7 +1467,7 @@ TEST(AssemblerIa32JumpTables2) {
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef OBJECT_PRINT
   StdoutStream os;
-  code->Print(os);
+  Print(*code, os);
 #endif
   auto f = GeneratedCode<F1>::FromCode(isolate, *code);
   for (int i = 0; i < kNumCases; ++i) {
@@ -1511,7 +1511,7 @@ TEST(Regress621926) {
 
 #ifdef OBJECT_PRINT
   StdoutStream os;
-  code->Print(os);
+  Print(*code, os);
 #endif
 
   auto f = GeneratedCode<F0>::FromCode(isolate, *code);

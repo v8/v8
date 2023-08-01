@@ -267,7 +267,7 @@ class CompilerTracer : public AllStatic {
     if (!v8_flags.trace_opt) return;
     CodeTracer::Scope scope(isolate->GetCodeTracer());
     PrintF(scope.file(), "[marking ");
-    function->ShortPrint(scope.file());
+    ShortPrint(*function, scope.file());
     PrintF(scope.file(),
            " for optimized recompilation because --always-turbofan");
     PrintF(scope.file(), "]\n");
@@ -284,7 +284,7 @@ class CompilerTracer : public AllStatic {
                                const char* header, Handle<JSFunction> function,
                                CodeKind code_kind) {
     PrintF(scope.file(), "[%s ", header);
-    function->ShortPrint(scope.file());
+    ShortPrint(*function, scope.file());
     PrintF(scope.file(), " (target %s)", CodeKindToString(code_kind));
   }
 
@@ -293,7 +293,7 @@ class CompilerTracer : public AllStatic {
                                Handle<SharedFunctionInfo> shared,
                                CodeKind code_kind) {
     PrintF(scope.file(), "[%s ", header);
-    shared->ShortPrint(scope.file());
+    ShortPrint(*shared, scope.file());
     PrintF(scope.file(), " (target %s)", CodeKindToString(code_kind));
   }
 
@@ -1093,7 +1093,7 @@ bool CompileTurbofan_Concurrent(Isolate* isolate,
   if (!isolate->optimizing_compile_dispatcher()->IsQueueAvailable()) {
     if (v8_flags.trace_concurrent_recompilation) {
       PrintF("  ** Compilation queue full, will retry optimizing ");
-      function->ShortPrint();
+      ShortPrint(*function);
       PrintF(" later.\n");
     }
     return false;
@@ -1102,7 +1102,7 @@ bool CompileTurbofan_Concurrent(Isolate* isolate,
   if (isolate->heap()->HighMemoryPressure()) {
     if (v8_flags.trace_concurrent_recompilation) {
       PrintF("  ** High memory pressure, will retry optimizing ");
-      function->ShortPrint();
+      ShortPrint(*function);
       PrintF(" later.\n");
     }
     return false;
@@ -1124,7 +1124,7 @@ bool CompileTurbofan_Concurrent(Isolate* isolate,
 
   if (v8_flags.trace_concurrent_recompilation) {
     PrintF("  ** Queued ");
-    function->ShortPrint();
+    ShortPrint(*function);
     PrintF(" for concurrent optimization.\n");
   }
 
@@ -2254,7 +2254,7 @@ MaybeHandle<SharedFunctionInfo> BackgroundCompileTask::FinalizeScript(
         merge.CompleteMergeInForeground(isolate, script);
     maybe_result = result;
     script = handle(Script::cast(result->script()), isolate);
-    DCHECK(script->source().StrictEquals(*source));
+    DCHECK(Object::StrictEquals(script->source(), *source));
     DCHECK(isolate->factory()->script_list()->Contains(
         MaybeObject::MakeWeak(MaybeObject::FromObject(*script))));
   } else {
@@ -3038,7 +3038,7 @@ std::pair<MaybeHandle<String>, bool> Compiler::ValidateDynamicCompilationSource(
     // If we run into this condition, the embedder has marked some object
     // templates as "code like", but has given us a callback that only accepts
     // strings. That makes no sense.
-    DCHECK(!original_source->IsCodeLike(isolate));
+    DCHECK(!Object::IsCodeLike(*original_source, isolate));
 
     if (!IsString(*original_source)) {
       return {MaybeHandle<String>(), true};
@@ -3067,7 +3067,7 @@ std::pair<MaybeHandle<String>, bool> Compiler::ValidateDynamicCompilationSource(
   }
 
   if (!IsFalse(context->allow_code_gen_from_strings(), isolate) &&
-      original_source->IsCodeLike(isolate)) {
+      Object::IsCodeLike(*original_source, isolate)) {
     // Codegen is unconditionally allowed, and we're been given a CodeLike
     // object. Stringify.
     MaybeHandle<String> stringified_source =

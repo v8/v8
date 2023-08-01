@@ -134,7 +134,7 @@ void BytecodeArray::Disassemble(Handle<BytecodeArray> handle,
   os << "Constant pool (size = " << handle->constant_pool()->length() << ")\n";
 #ifdef OBJECT_PRINT
   if (handle->constant_pool()->length() > 0) {
-    handle->constant_pool().Print(os);
+    Print(handle->constant_pool(), os);
   }
 #endif
 

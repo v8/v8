@@ -1749,7 +1749,7 @@ JITDescriptor __jit_debug_descriptor = {1, 0, nullptr, nullptr};
 #ifdef OBJECT_PRINT
 void __gdb_print_v8_object(Object object) {
   StdoutStream os;
-  object.Print(os);
+  Print(object, os);
   os << std::flush;
 }
 #endif

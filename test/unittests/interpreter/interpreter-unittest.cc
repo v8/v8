@@ -264,7 +264,7 @@ TEST_F(InterpreterTest, InterpreterShiftOpsSmi) {
         Handle<Object> return_value = callable().ToHandleChecked();
         Handle<Object> expected_value =
             factory->NewNumber(BinaryOpC(kShiftOperators[o], lhs, rhs));
-        CHECK(return_value->SameValue(*expected_value));
+        CHECK(Object::SameValue(*return_value, *expected_value));
       }
     }
   }
@@ -300,7 +300,7 @@ TEST_F(InterpreterTest, InterpreterBinaryOpsSmi) {
         Handle<Object> return_value = callable().ToHandleChecked();
         Handle<Object> expected_value =
             factory->NewNumber(BinaryOpC(kArithmeticOperators[o], lhs, rhs));
-        CHECK(return_value->SameValue(*expected_value));
+        CHECK(Object::SameValue(*return_value, *expected_value));
       }
     }
   }
@@ -337,7 +337,7 @@ TEST_F(InterpreterTest, InterpreterBinaryOpsHeapNumber) {
         Handle<Object> return_value = callable().ToHandleChecked();
         Handle<Object> expected_value =
             factory->NewNumber(BinaryOpC(kArithmeticOperators[o], lhs, rhs));
-        CHECK(return_value->SameValue(*expected_value));
+        CHECK(Object::SameValue(*return_value, *expected_value));
       }
     }
   }
@@ -494,7 +494,7 @@ TEST_F(InterpreterTest, InterpreterStringAdd) {
     InterpreterTester tester(i_isolate(), bytecode_array, metadata);
     auto callable = tester.GetCallable<>();
     Handle<Object> return_value = callable().ToHandleChecked();
-    CHECK(return_value->SameValue(*test_cases[i].expected_value));
+    CHECK(Object::SameValue(*return_value, *test_cases[i].expected_value));
 
     if (tester.HasFeedbackMetadata()) {
       MaybeObject feedback = callable.vector()->Get(slot);
@@ -1371,7 +1371,7 @@ TEST_F(InterpreterTest, InterpreterCall) {
         "  this.func = function(a, b) { return a - b; }"
         "})()");
     Handle<Object> return_val = callable(object).ToHandleChecked();
-    CHECK(return_val->SameValue(Smi::FromInt(40)));
+    CHECK(Object::SameValue(*return_val, Smi::FromInt(40)));
   }
 
   // Check with 10 parameters (+ receiver).
@@ -1744,7 +1744,7 @@ TEST_F(InterpreterTest, InterpreterSmiComparisons) {
         auto callable = tester.GetCallable<>();
         Handle<Object> return_value = callable().ToHandleChecked();
         CHECK(IsBoolean(*return_value));
-        CHECK_EQ(return_value->BooleanValue(i_isolate()),
+        CHECK_EQ(Object::BooleanValue(*return_value, i_isolate()),
                  CompareC(comparison, inputs[i], inputs[j]));
         if (tester.HasFeedbackMetadata()) {
           MaybeObject feedback = callable.vector()->Get(slot);
@@ -1793,7 +1793,7 @@ TEST_F(InterpreterTest, InterpreterHeapNumberComparisons) {
         auto callable = tester.GetCallable<>();
         Handle<Object> return_value = callable().ToHandleChecked();
         CHECK(IsBoolean(*return_value));
-        CHECK_EQ(return_value->BooleanValue(i_isolate()),
+        CHECK_EQ(Object::BooleanValue(*return_value, i_isolate()),
                  CompareC(comparison, inputs[i], inputs[j]));
         if (tester.HasFeedbackMetadata()) {
           MaybeObject feedback = callable.vector()->Get(slot);
@@ -1884,7 +1884,7 @@ TEST_F(InterpreterTest, InterpreterStringComparisons) {
         auto callable = tester.GetCallable<>();
         Handle<Object> return_value = callable().ToHandleChecked();
         CHECK(IsBoolean(*return_value));
-        CHECK_EQ(return_value->BooleanValue(i_isolate()),
+        CHECK_EQ(Object::BooleanValue(*return_value, i_isolate()),
                  CompareC(comparison, inputs[i], inputs[j]));
         if (tester.HasFeedbackMetadata()) {
           MaybeObject feedback = callable.vector()->Get(slot);
@@ -1995,7 +1995,7 @@ TEST_F(InterpreterTest, InterpreterMixedComparisons) {
             auto callable = tester.GetCallable<>();
             Handle<Object> return_value = callable().ToHandleChecked();
             CHECK(IsBoolean(*return_value));
-            CHECK_EQ(return_value->BooleanValue(i_isolate()),
+            CHECK_EQ(Object::BooleanValue(*return_value, i_isolate()),
                      CompareC(comparison, lhs, rhs, true));
             if (tester.HasFeedbackMetadata()) {
               MaybeObject feedback = callable.vector()->Get(slot);
@@ -2043,7 +2043,7 @@ TEST_F(InterpreterTest, InterpreterStrictNotEqual) {
       Handle<Object> return_value =
           callable(lhs_obj, rhs_obj).ToHandleChecked();
       CHECK(IsBoolean(*return_value));
-      CHECK_EQ(return_value->BooleanValue(i_isolate()),
+      CHECK_EQ(Object::BooleanValue(*return_value, i_isolate()),
                CompareC(Token::Value::NE_STRICT, lhs, rhs, true));
     }
   }
@@ -2060,7 +2060,7 @@ TEST_F(InterpreterTest, InterpreterStrictNotEqual) {
       Handle<Object> return_value =
           callable(lhs_obj, rhs_obj).ToHandleChecked();
       CHECK(IsBoolean(*return_value));
-      CHECK_EQ(return_value->BooleanValue(i_isolate()),
+      CHECK_EQ(Object::BooleanValue(*return_value, i_isolate()),
                CompareC(Token::Value::NE_STRICT, inputs_str[i], inputs_str[j]));
     }
   }
@@ -2081,7 +2081,7 @@ TEST_F(InterpreterTest, InterpreterStrictNotEqual) {
       Handle<Object> return_value =
           callable(lhs_obj, rhs_obj).ToHandleChecked();
       CHECK(IsBoolean(*return_value));
-      CHECK_EQ(return_value->BooleanValue(i_isolate()),
+      CHECK_EQ(Object::BooleanValue(*return_value, i_isolate()),
                CompareC(Token::Value::NE_STRICT, inputs_number[i],
                         inputs_number[j]));
     }
@@ -2134,7 +2134,7 @@ TEST_F(InterpreterTest, InterpreterCompareTypeOf) {
     for (size_t i = 0; i < arraysize(inputs); i++) {
       Handle<Object> return_value = callable(inputs[i].first).ToHandleChecked();
       CHECK(IsBoolean(*return_value));
-      CHECK_EQ(return_value->BooleanValue(i_isolate()),
+      CHECK_EQ(Object::BooleanValue(*return_value, i_isolate()),
                inputs[i].second == literal_flag);
     }
   }
@@ -2170,7 +2170,7 @@ TEST_F(InterpreterTest, InterpreterInstanceOf) {
     Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(i_isolate());
     Handle<Object> return_value = RunBytecode(bytecode_array, metadata);
     CHECK(IsBoolean(*return_value));
-    CHECK_EQ(return_value->BooleanValue(i_isolate()), expected_value);
+    CHECK_EQ(Object::BooleanValue(*return_value, i_isolate()), expected_value);
   }
 }
 
@@ -2207,7 +2207,7 @@ TEST_F(InterpreterTest, InterpreterTestIn) {
     Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(i_isolate());
     Handle<Object> return_value = RunBytecode(bytecode_array, metadata);
     CHECK(IsBoolean(*return_value));
-    CHECK_EQ(return_value->BooleanValue(i_isolate()), expected_value);
+    CHECK_EQ(Object::BooleanValue(*return_value, i_isolate()), expected_value);
   }
 }
 
@@ -2224,7 +2224,7 @@ TEST_F(InterpreterTest, InterpreterUnaryNot) {
     Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(i_isolate());
     Handle<Object> return_value = RunBytecode(bytecode_array);
     CHECK(IsBoolean(*return_value));
-    CHECK_EQ(return_value->BooleanValue(i_isolate()), expected_value);
+    CHECK_EQ(Object::BooleanValue(*return_value, i_isolate()), expected_value);
   }
 }
 
@@ -2253,7 +2253,7 @@ TEST_F(InterpreterTest, InterpreterUnaryNotNonBoolean) {
     Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(i_isolate());
     Handle<Object> return_value = RunBytecode(bytecode_array);
     CHECK(IsBoolean(*return_value));
-    CHECK_EQ(return_value->BooleanValue(i_isolate()),
+    CHECK_EQ(Object::BooleanValue(*return_value, i_isolate()),
              object_type_tuples[i].second);
   }
 }
@@ -2333,7 +2333,7 @@ TEST_F(InterpreterTest, InterpreterRegExpLiterals) {
     auto callable = tester.GetCallable<>();
 
     Handle<i::Object> return_value = callable().ToHandleChecked();
-    CHECK(return_value->SameValue(*literals[i].second));
+    CHECK(Object::SameValue(*return_value, *literals[i].second));
   }
 }
 
@@ -2359,7 +2359,7 @@ TEST_F(InterpreterTest, InterpreterArrayLiterals) {
     auto callable = tester.GetCallable<>();
 
     Handle<i::Object> return_value = callable().ToHandleChecked();
-    CHECK(return_value->SameValue(*literals[i].second));
+    CHECK(Object::SameValue(*return_value, *literals[i].second));
   }
 }
 
@@ -2408,7 +2408,7 @@ TEST_F(InterpreterTest, InterpreterObjectLiterals) {
     auto callable = tester.GetCallable<>();
 
     Handle<i::Object> return_value = callable().ToHandleChecked();
-    CHECK(return_value->SameValue(*literals[i].second));
+    CHECK(Object::SameValue(*return_value, *literals[i].second));
   }
 }
 
@@ -2494,7 +2494,7 @@ TEST_F(InterpreterTest, InterpreterContextVariables) {
     auto callable = tester.GetCallable<>();
 
     Handle<i::Object> return_value = callable().ToHandleChecked();
-    CHECK(return_value->SameValue(*context_vars[i].second));
+    CHECK(Object::SameValue(*return_value, *context_vars[i].second));
   }
 }
 
@@ -2519,7 +2519,7 @@ TEST_F(InterpreterTest, InterpreterContextParameters) {
     Handle<Object> a2 = handle(Smi::FromInt(2), i_isolate());
     Handle<Object> a3 = handle(Smi::FromInt(3), i_isolate());
     Handle<i::Object> return_value = callable(a1, a2, a3).ToHandleChecked();
-    CHECK(return_value->SameValue(*context_params[i].second));
+    CHECK(Object::SameValue(*return_value, *context_params[i].second));
   }
 }
 
@@ -2548,7 +2548,7 @@ TEST_F(InterpreterTest, InterpreterOuterContextVariables) {
     auto callable = tester.GetCallable<>();
 
     Handle<i::Object> return_value = callable().ToHandleChecked();
-    CHECK(return_value->SameValue(*context_vars[i].second));
+    CHECK(Object::SameValue(*return_value, *context_vars[i].second));
   }
 }
 
@@ -2573,7 +2573,7 @@ TEST_F(InterpreterTest, InterpreterComma) {
     auto callable = tester.GetCallable<>();
 
     Handle<i::Object> return_value = callable().ToHandleChecked();
-    CHECK(return_value->SameValue(*literals[i].second));
+    CHECK(Object::SameValue(*return_value, *literals[i].second));
   }
 }
 
@@ -2598,7 +2598,7 @@ TEST_F(InterpreterTest, InterpreterLogicalOr) {
     auto callable = tester.GetCallable<>();
 
     Handle<i::Object> return_value = callable().ToHandleChecked();
-    CHECK(return_value->SameValue(*literals[i].second));
+    CHECK(Object::SameValue(*return_value, *literals[i].second));
   }
 }
 
@@ -2628,7 +2628,7 @@ TEST_F(InterpreterTest, InterpreterLogicalAnd) {
     auto callable = tester.GetCallable<>();
 
     Handle<i::Object> return_value = callable().ToHandleChecked();
-    CHECK(return_value->SameValue(*literals[i].second));
+    CHECK(Object::SameValue(*return_value, *literals[i].second));
   }
 }
 
@@ -2651,7 +2651,7 @@ TEST_F(InterpreterTest, InterpreterTryCatch) {
     auto callable = tester.GetCallable<>();
 
     Handle<i::Object> return_value = callable().ToHandleChecked();
-    CHECK(return_value->SameValue(*catches[i].second));
+    CHECK(Object::SameValue(*return_value, *catches[i].second));
   }
 }
 
@@ -2705,7 +2705,7 @@ TEST_F(InterpreterTest, InterpreterTryFinally) {
     InterpreterTester tester(i_isolate(), source.c_str());
     tester.GetCallable<>();
     Handle<Object> wrapped = v8::Utils::OpenHandle(*CompileRun(try_wrapper));
-    CHECK(wrapped->SameValue(*finallies[i].second));
+    CHECK(Object::SameValue(*wrapped, *finallies[i].second));
   }
 }
 
@@ -2733,7 +2733,7 @@ TEST_F(InterpreterTest, InterpreterThrow) {
     InterpreterTester tester(i_isolate(), source.c_str());
     tester.GetCallable<>();
     Handle<Object> thrown_obj = v8::Utils::OpenHandle(*CompileRun(try_wrapper));
-    CHECK(thrown_obj->SameValue(*throws[i].second));
+    CHECK(Object::SameValue(*thrown_obj, *throws[i].second));
   }
 }
 
@@ -2791,7 +2791,7 @@ TEST_F(InterpreterTest, InterpreterCountOperators) {
     auto callable = tester.GetCallable<>();
 
     Handle<i::Object> return_value = callable().ToHandleChecked();
-    CHECK(return_value->SameValue(*count_ops[i].second));
+    CHECK(Object::SameValue(*return_value, *count_ops[i].second));
   }
 }
 
@@ -2816,7 +2816,7 @@ TEST_F(InterpreterTest, InterpreterGlobalCountOperators) {
     auto callable = tester.GetCallable<>();
 
     Handle<i::Object> return_value = callable().ToHandleChecked();
-    CHECK(return_value->SameValue(*count_ops[i].second));
+    CHECK(Object::SameValue(*return_value, *count_ops[i].second));
   }
 }
 
@@ -2844,7 +2844,7 @@ TEST_F(InterpreterTest, InterpreterCompoundExpressions) {
     auto callable = tester.GetCallable<>();
 
     Handle<i::Object> return_value = callable().ToHandleChecked();
-    CHECK(return_value->SameValue(*compound_expr[i].second));
+    CHECK(Object::SameValue(*return_value, *compound_expr[i].second));
   }
 }
 
@@ -2863,7 +2863,7 @@ TEST_F(InterpreterTest, InterpreterGlobalCompoundExpressions) {
     auto callable = tester.GetCallable<>();
 
     Handle<i::Object> return_value = callable().ToHandleChecked();
-    CHECK(return_value->SameValue(*compound_expr[i].second));
+    CHECK(Object::SameValue(*return_value, *compound_expr[i].second));
   }
 }
 
@@ -2936,7 +2936,7 @@ TEST_F(InterpreterTest, InterpreterCreateArguments) {
         tester.GetCallable<Handle<Object>, Handle<Object>, Handle<Object>>();
     Handle<Object> return_val =
         callable(args[0], args[1], args[2]).ToHandleChecked();
-    CHECK(return_val->SameValue(*args[create_args[i].second]));
+    CHECK(Object::SameValue(*return_val, *args[create_args[i].second]));
   }
 }
 
@@ -2966,7 +2966,7 @@ TEST_F(InterpreterTest, InterpreterConditional) {
     auto callable = tester.GetCallable<>();
 
     Handle<i::Object> return_value = callable().ToHandleChecked();
-    CHECK(return_value->SameValue(*conditional[i].second));
+    CHECK(Object::SameValue(*return_value, *conditional[i].second));
   }
 }
 
@@ -3007,7 +3007,7 @@ TEST_F(InterpreterTest, InterpreterDelete) {
     auto callable = tester.GetCallable<>();
 
     Handle<i::Object> return_value = callable().ToHandleChecked();
-    CHECK(return_value->SameValue(*test_delete[i].second));
+    CHECK(Object::SameValue(*return_value, *test_delete[i].second));
   }
 
   // Test delete in strict mode
@@ -3019,7 +3019,7 @@ TEST_F(InterpreterTest, InterpreterDelete) {
     auto callable = tester.GetCallable<>();
 
     Handle<i::Object> return_value = callable().ToHandleChecked();
-    CHECK(return_value->SameValue(*test_delete[i].second));
+    CHECK(Object::SameValue(*return_value, *test_delete[i].second));
   }
 }
 
@@ -3055,7 +3055,7 @@ TEST_F(InterpreterTest, InterpreterDeleteSloppyUnqualifiedIdentifier) {
     auto callable = tester.GetCallable<>();
 
     Handle<i::Object> return_value = callable().ToHandleChecked();
-    CHECK(return_value->SameValue(*test_delete[i].second));
+    CHECK(Object::SameValue(*return_value, *test_delete[i].second));
   }
 }
 
@@ -3118,7 +3118,7 @@ TEST_F(InterpreterTest, InterpreterGlobalDelete) {
     auto callable = tester.GetCallable<>();
 
     Handle<i::Object> return_value = callable().ToHandleChecked();
-    CHECK(return_value->SameValue(*test_global_delete[i].second));
+    CHECK(Object::SameValue(*return_value, *test_global_delete[i].second));
   }
 }
 
@@ -3211,7 +3211,7 @@ TEST_F(InterpreterTest, InterpreterBasicLoops) {
     auto callable = tester.GetCallable<>();
 
     Handle<i::Object> return_value = callable().ToHandleChecked();
-    CHECK(return_value->SameValue(*loops[i].second));
+    CHECK(Object::SameValue(*return_value, *loops[i].second));
   }
 }
 
@@ -3506,7 +3506,7 @@ TEST_F(InterpreterTest, InterpreterForOf) {
     InterpreterTester tester(i_isolate(), for_of[i].first);
     auto callable = tester.GetCallable<>();
     Handle<Object> return_val = callable().ToHandleChecked();
-    CHECK(return_val->SameValue(*for_of[i].second));
+    CHECK(Object::SameValue(*return_val, *for_of[i].second));
   }
 }
 
@@ -3583,7 +3583,7 @@ TEST_F(InterpreterTest, InterpreterSwitch) {
     auto callable = tester.GetCallable<>();
 
     Handle<i::Object> return_value = callable().ToHandleChecked();
-    CHECK(return_value->SameValue(*switch_ops[i].second));
+    CHECK(Object::SameValue(*return_value, *switch_ops[i].second));
   }
 }
 
@@ -3614,7 +3614,7 @@ TEST_F(InterpreterTest, InterpreterSloppyThis) {
     auto callable = tester.GetCallable<>();
 
     Handle<i::Object> return_value = callable().ToHandleChecked();
-    CHECK(return_value->SameValue(*sloppy_this[i].second));
+    CHECK(Object::SameValue(*return_value, *sloppy_this[i].second));
   }
 }
 
@@ -3626,7 +3626,8 @@ TEST_F(InterpreterTest, InterpreterThisFunction) {
   auto callable = tester.GetCallable<>();
 
   Handle<i::Object> return_value = callable().ToHandleChecked();
-  CHECK(return_value->SameValue(*factory->NewStringFromStaticChars("f")));
+  CHECK(Object::SameValue(*return_value,
+                          *factory->NewStringFromStaticChars("f")));
 }
 
 TEST_F(InterpreterTest, InterpreterNewTarget) {
@@ -3641,7 +3642,8 @@ TEST_F(InterpreterTest, InterpreterNewTarget) {
 
   Handle<Object> new_target_name = v8::Utils::OpenHandle(
       *CompileRun("(function() { return (new f()).a.name; })();"));
-  CHECK(new_target_name->SameValue(*factory->NewStringFromStaticChars("f")));
+  CHECK(Object::SameValue(*new_target_name,
+                          *factory->NewStringFromStaticChars("f")));
 }
 
 TEST_F(InterpreterTest, InterpreterAssignmentInExpressions) {
@@ -3818,7 +3820,7 @@ TEST_F(InterpreterTest, InterpreterToName) {
     auto callable = tester.GetCallable<>();
 
     Handle<i::Object> return_value = callable().ToHandleChecked();
-    CHECK(return_value->SameValue(*to_name_tests[i].second));
+    CHECK(Object::SameValue(*return_value, *to_name_tests[i].second));
   }
 }
 
@@ -3849,7 +3851,7 @@ TEST_F(InterpreterTest, TemporaryRegisterAllocation) {
     auto callable = tester.GetCallable<>();
 
     Handle<i::Object> return_value = callable().ToHandleChecked();
-    CHECK(return_value->SameValue(*reg_tests[i].second));
+    CHECK(Object::SameValue(*return_value, *reg_tests[i].second));
   }
 }
 
@@ -3885,7 +3887,7 @@ TEST_F(InterpreterTest, InterpreterLookupSlot) {
     auto callable = tester.GetCallable<>();
 
     Handle<i::Object> return_value = callable().ToHandleChecked();
-    CHECK(return_value->SameValue(*lookup_slot[i].second));
+    CHECK(Object::SameValue(*return_value, *lookup_slot[i].second));
   }
 }
 
@@ -3924,7 +3926,7 @@ TEST_F(InterpreterTest, InterpreterLookupContextSlot) {
     auto callable = tester.GetCallable<>();
 
     Handle<i::Object> return_value = callable().ToHandleChecked();
-    CHECK(return_value->SameValue(*std::get<2>(lookup_slot[i])));
+    CHECK(Object::SameValue(*return_value, *std::get<2>(lookup_slot[i])));
   }
 }
 
@@ -3962,7 +3964,7 @@ TEST_F(InterpreterTest, InterpreterLookupGlobalSlot) {
     auto callable = tester.GetCallable<>();
 
     Handle<i::Object> return_value = callable().ToHandleChecked();
-    CHECK(return_value->SameValue(*std::get<2>(lookup_slot[i])));
+    CHECK(Object::SameValue(*return_value, *std::get<2>(lookup_slot[i])));
   }
 }
 
@@ -3985,7 +3987,7 @@ TEST_F(InterpreterTest, InterpreterCallLookupSlot) {
     auto callable = tester.GetCallable<>();
 
     Handle<i::Object> return_value = callable().ToHandleChecked();
-    CHECK(return_value->SameValue(*call_lookup[i].second));
+    CHECK(Object::SameValue(*return_value, *call_lookup[i].second));
   }
 }
 
@@ -4026,7 +4028,7 @@ TEST_F(InterpreterTest, InterpreterLookupSlotWide) {
     auto callable = tester.GetCallable<>();
 
     Handle<i::Object> return_value = callable().ToHandleChecked();
-    CHECK(return_value->SameValue(*lookup_slot[i].second));
+    CHECK(Object::SameValue(*return_value, *lookup_slot[i].second));
   }
 }
 
@@ -4065,7 +4067,7 @@ TEST_F(InterpreterTest, InterpreterDeleteLookupSlot) {
     auto callable = tester.GetCallable<>();
 
     Handle<i::Object> return_value = callable().ToHandleChecked();
-    CHECK(return_value->SameValue(*delete_lookup_slot[i].second));
+    CHECK(Object::SameValue(*return_value, *delete_lookup_slot[i].second));
   }
 }
 
@@ -4145,7 +4147,7 @@ TEST_F(InterpreterTest, InterpreterEval) {
     InterpreterTester tester(i_isolate(), source.c_str());
     auto callable = tester.GetCallable<>();
     Handle<i::Object> return_value = callable().ToHandleChecked();
-    CHECK(return_value->SameValue(*eval[i].second));
+    CHECK(Object::SameValue(*return_value, *eval[i].second));
   }
 }
 
@@ -4169,7 +4171,7 @@ TEST_F(InterpreterTest, InterpreterEvalParams) {
 
     Handle<i::Object> return_value =
         callable(handle(Smi::FromInt(20), i_isolate())).ToHandleChecked();
-    CHECK(return_value->SameValue(*eval_params[i].second));
+    CHECK(Object::SameValue(*return_value, *eval_params[i].second));
   }
 }
 
@@ -4193,7 +4195,7 @@ TEST_F(InterpreterTest, InterpreterEvalGlobal) {
     auto callable = tester.GetCallable<>();
 
     Handle<i::Object> return_value = callable().ToHandleChecked();
-    CHECK(return_value->SameValue(*eval_global[i].second));
+    CHECK(Object::SameValue(*return_value, *eval_global[i].second));
   }
 }
 
@@ -4240,7 +4242,7 @@ TEST_F(InterpreterTest, InterpreterEvalVariableDecl) {
     auto callable = tester.GetCallable<>();
 
     Handle<i::Object> return_value = callable().ToHandleChecked();
-    CHECK(return_value->SameValue(*eval_global[i].second));
+    CHECK(Object::SameValue(*return_value, *eval_global[i].second));
   }
 }
 
@@ -4260,7 +4262,7 @@ TEST_F(InterpreterTest, InterpreterEvalFunctionDecl) {
     auto callable = tester.GetCallable<>();
 
     Handle<i::Object> return_value = callable().ToHandleChecked();
-    CHECK(return_value->SameValue(*eval_func_decl[i].second));
+    CHECK(Object::SameValue(*return_value, *eval_func_decl[i].second));
   }
 }
 
@@ -4298,7 +4300,7 @@ TEST_F(InterpreterTest, InterpreterWideRegisterArithmetic) {
   for (size_t i = 0; i < kMaxRegisterForTest; i++) {
     Handle<Object> arg = handle(Smi::FromInt(static_cast<int>(i)), i_isolate());
     Handle<Object> return_value = callable(arg).ToHandleChecked();
-    CHECK(return_value->SameValue(*arg));
+    CHECK(Object::SameValue(*return_value, *arg));
   }
 }
 
@@ -4427,7 +4429,7 @@ TEST_F(InterpreterTest, InterpreterWithStatement) {
     auto callable = tester.GetCallable<>();
 
     Handle<i::Object> return_value = callable().ToHandleChecked();
-    CHECK(return_value->SameValue(*with_stmt[i].second));
+    CHECK(Object::SameValue(*return_value, *with_stmt[i].second));
   }
 }
 
@@ -4486,7 +4488,7 @@ TEST_F(InterpreterTest, InterpreterClassLiterals) {
     auto callable = tester.GetCallable<>();
 
     Handle<i::Object> return_value = callable().ToHandleChecked();
-    CHECK(return_value->SameValue(*examples[i].second));
+    CHECK(Object::SameValue(*return_value, *examples[i].second));
   }
 }
 
@@ -4543,7 +4545,7 @@ TEST_F(InterpreterTest, InterpreterClassAndSuperClass) {
     InterpreterTester tester(i_isolate(), source.c_str(), "*");
     auto callable = tester.GetCallable<>();
     Handle<i::Object> return_value = callable().ToHandleChecked();
-    CHECK(return_value->SameValue(*examples[i].second));
+    CHECK(Object::SameValue(*return_value, *examples[i].second));
   }
 }
 
@@ -4585,7 +4587,7 @@ TEST_F(InterpreterTest, InterpreterConstDeclaration) {
     auto callable = tester.GetCallable<>();
 
     Handle<i::Object> return_value = callable().ToHandleChecked();
-    CHECK(return_value->SameValue(*const_decl[i].second));
+    CHECK(Object::SameValue(*return_value, *const_decl[i].second));
   }
 
   // Tests for strict mode.
@@ -4597,7 +4599,7 @@ TEST_F(InterpreterTest, InterpreterConstDeclaration) {
     auto callable = tester.GetCallable<>();
 
     Handle<i::Object> return_value = callable().ToHandleChecked();
-    CHECK(return_value->SameValue(*const_decl[i].second));
+    CHECK(Object::SameValue(*return_value, *const_decl[i].second));
   }
 }
 
@@ -4622,7 +4624,7 @@ TEST_F(InterpreterTest, InterpreterConstDeclarationLookupSlots) {
     auto callable = tester.GetCallable<>();
 
     Handle<i::Object> return_value = callable().ToHandleChecked();
-    CHECK(return_value->SameValue(*const_decl[i].second));
+    CHECK(Object::SameValue(*return_value, *const_decl[i].second));
   }
 
   // Tests for strict mode.
@@ -4634,7 +4636,7 @@ TEST_F(InterpreterTest, InterpreterConstDeclarationLookupSlots) {
     auto callable = tester.GetCallable<>();
 
     Handle<i::Object> return_value = callable().ToHandleChecked();
-    CHECK(return_value->SameValue(*const_decl[i].second));
+    CHECK(Object::SameValue(*return_value, *const_decl[i].second));
   }
 }
 
@@ -4677,7 +4679,7 @@ TEST_F(InterpreterTest, InterpreterConstInLookupContextChain) {
     auto callable = tester.GetCallable<>();
 
     Handle<i::Object> return_value = callable().ToHandleChecked();
-    CHECK(return_value->SameValue(*const_decl[i].second));
+    CHECK(Object::SameValue(*return_value, *const_decl[i].second));
   }
 }
 
@@ -4736,7 +4738,7 @@ TEST_F(InterpreterTest, InterpreterGenerators) {
     auto callable = tester.GetCallable<>();
 
     Handle<i::Object> return_value = callable().ToHandleChecked();
-    CHECK(return_value->SameValue(*tests[i].second));
+    CHECK(Object::SameValue(*return_value, *tests[i].second));
   }
 }
 

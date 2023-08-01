@@ -245,7 +245,7 @@ bool IsSupportedWasmFastApiFunction(Isolate* isolate,
     if (v8_flags.trace_opt) {
       CodeTracer::Scope scope(isolate->GetCodeTracer());
       PrintF(scope.file(), "[disabled optimization for ");
-      shared->ShortPrint(scope.file());
+      ShortPrint(*shared, scope.file());
       PrintF(scope.file(),
              ", reason: the signature of the imported function in the Wasm "
              "module doesn't match that of the Fast API function (%s)]\n",
@@ -1822,7 +1822,8 @@ bool InstanceBuilder::ProcessImportedTable(Handle<WasmInstanceObject> instance,
                           import_index, table.maximum_size);
       return false;
     }
-    int64_t imported_maximum_size = table_object->maximum_length().Number();
+    int64_t imported_maximum_size =
+        Object::Number(table_object->maximum_length());
     if (imported_maximum_size < 0) {
       thrower_->LinkError("table import %d has no maximum length, expected %u",
                           import_index, table.maximum_size);
@@ -2069,7 +2070,7 @@ bool InstanceBuilder::ProcessImportedGlobal(Handle<WasmInstanceObject> instance,
   }
 
   if (IsNumber(*value) && global.type != kWasmI64) {
-    double number_value = value->Number();
+    double number_value = Object::Number(*value);
     // The Wasm-BigInt proposal currently says that i64 globals may
     // only be initialized with BigInts. See:
     // https://github.com/WebAssembly/JS-BigInt-integration/issues/12

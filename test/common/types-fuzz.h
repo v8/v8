@@ -211,8 +211,8 @@ class Types {
       case 2: {  // range
         int i = rng_->NextInt(static_cast<int>(integers.size()));
         int j = rng_->NextInt(static_cast<int>(integers.size()));
-        double min = integers[i]->Number();
-        double max = integers[j]->Number();
+        double min = Object::Number(*integers[i]);
+        double max = Object::Number(*integers[j]);
         if (min > max) std::swap(min, max);
         return Type::Range(min, max, zone_);
       }

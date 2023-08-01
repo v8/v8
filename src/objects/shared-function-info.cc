@@ -364,7 +364,7 @@ void SharedFunctionInfo::DiscardCompiledMetadata(
     if (v8_flags.trace_flush_code) {
       CodeTracer::Scope scope(isolate->GetCodeTracer());
       PrintF(scope.file(), "[discarding compiled metadata for ");
-      ShortPrint(scope.file());
+      ShortPrint(*this, scope.file());
       PrintF(scope.file(), "]\n");
     }
 
@@ -517,7 +517,7 @@ void SharedFunctionInfo::DisableOptimization(Isolate* isolate,
   if (v8_flags.trace_opt) {
     CodeTracer::Scope scope(isolate->GetCodeTracer());
     PrintF(scope.file(), "[disabled optimization for ");
-    ShortPrint(scope.file());
+    ShortPrint(*this, scope.file());
     PrintF(scope.file(), ", reason: %s]\n", GetBailoutReason(reason));
   }
 }

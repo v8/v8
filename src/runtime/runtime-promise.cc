@@ -142,7 +142,7 @@ RUNTIME_FUNCTION(Runtime_RejectPromise) {
   Handle<Object> reason = args.at(1);
   Handle<Boolean> debug_event = args.at<Boolean>(2);
   return *JSPromise::Reject(promise, reason,
-                            debug_event->BooleanValue(isolate));
+                            Object::BooleanValue(*debug_event, isolate));
 }
 
 RUNTIME_FUNCTION(Runtime_ResolvePromise) {

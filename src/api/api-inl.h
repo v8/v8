@@ -268,7 +268,7 @@ template <typename T>
 void CopySmiElementsToTypedBuffer(T* dst, uint32_t length,
                                   i::FixedArray elements) {
   for (uint32_t i = 0; i < length; ++i) {
-    double value = elements->get(static_cast<int>(i)).Number();
+    double value = i::Object::Number(elements->get(static_cast<int>(i)));
     // TODO(mslekova): Avoid converting back-and-forth when possible, e.g
     // avoid int->double->int conversions to boost performance.
     dst[i] = i::ConvertDouble<T>(value);
@@ -302,7 +302,7 @@ bool CopyAndConvertArrayToCppBuffer(Local<Array> src, T* dst,
 
   i::DisallowGarbageCollection no_gc;
   i::JSArray obj = *reinterpret_cast<i::JSArray*>(*src);
-  if (obj.IterationHasObservableEffects()) {
+  if (i::Object::IterationHasObservableEffects(obj)) {
     // The array has a custom iterator.
     return false;
   }

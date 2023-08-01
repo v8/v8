@@ -90,7 +90,7 @@ class Smi : public Object {
 
   // Dispatched behavior.
   V8_EXPORT_PRIVATE void SmiPrint(std::ostream& os) const;
-  DECL_VERIFIER(Smi)
+  DECL_STATIC_VERIFIER(Smi)
 
   // Since this is a constexpr, "calling" it is just as efficient
   // as reading a constant.

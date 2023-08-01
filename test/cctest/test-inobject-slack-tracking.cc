@@ -82,7 +82,7 @@ static double GetDoubleFieldValue(JSObject obj, FieldIndex field_index) {
   if (IsHeapNumber(value)) {
     return HeapNumber::cast(value)->value();
   } else {
-    return value.Number();
+    return Object::Number(value);
   }
 }
 

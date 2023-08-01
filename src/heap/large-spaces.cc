@@ -330,7 +330,7 @@ void LargeObjectSpace::Verify(Isolate* isolate,
         IsWeakArrayList(object, cage_base) ||                     //
         IsWeakFixedArray(object, cage_base);
     if (!is_valid_lo_space_object) {
-      object.Print();
+      i::Print(object);
       FATAL("Found invalid Object (instance_type=%i) in large object space.",
             object->map(cage_base)->instance_type());
     }
@@ -357,7 +357,7 @@ void LargeObjectSpace::Print() {
   StdoutStream os;
   LargeObjectSpaceObjectIterator it(this);
   for (HeapObject obj = it.Next(); !obj.is_null(); obj = it.Next()) {
-    obj.Print(os);
+    i::Print(obj, os);
   }
 }
 #endif  // DEBUG

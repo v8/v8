@@ -845,7 +845,7 @@ bool Debug::CheckBreakPoint(Handle<BreakPoint> break_point,
         exception_thrown, v8::Utils::ToLocal(maybe_exception));
   }
 
-  return !result.is_null() ? result->BooleanValue(isolate_) : false;
+  return !result.is_null() ? Object::BooleanValue(*result, isolate_) : false;
 }
 
 bool Debug::SetBreakpoint(Handle<SharedFunctionInfo> shared,
@@ -3012,7 +3012,7 @@ bool Debug::PerformSideEffectCheckForAccessor(
   }
   if (v8_flags.trace_side_effect_free_debug_evaluate) {
     PrintF("[debug-evaluate] API Callback '");
-    accessor_info->name().ShortPrint();
+    ShortPrint(accessor_info->name());
     PrintF("' may cause side effect.\n");
   }
 

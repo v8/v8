@@ -157,7 +157,7 @@ Handle<FieldType> MapUpdater::GetOrComputeFieldType(
   if (location == PropertyLocation::kField) {
     return handle(GetFieldType(descriptor), isolate_);
   } else {
-    return GetValue(descriptor).OptimalType(isolate_, representation);
+    return Object::OptimalType(GetValue(descriptor), isolate_, representation);
   }
 }
 
@@ -169,8 +169,8 @@ Handle<FieldType> MapUpdater::GetOrComputeFieldType(
   if (location == PropertyLocation::kField) {
     return handle(descriptors->GetFieldType(descriptor), isolate_);
   } else {
-    return descriptors->GetStrongValue(descriptor)
-        .OptimalType(isolate_, representation);
+    return Object::OptimalType(descriptors->GetStrongValue(descriptor),
+                               isolate_, representation);
   }
 }
 

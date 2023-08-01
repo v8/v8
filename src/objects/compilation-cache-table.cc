@@ -156,7 +156,7 @@ class EvalCacheKey : public HashTableKey {
     DisallowGarbageCollection no_gc;
     if (!IsFixedArray(other)) {
       DCHECK(IsNumber(other));
-      uint32_t other_hash = static_cast<uint32_t>(other.Number());
+      uint32_t other_hash = static_cast<uint32_t>(Object::Number(other));
       return Hash() == other_hash;
     }
     FixedArray other_array = FixedArray::cast(other);
@@ -283,7 +283,8 @@ bool ScriptCacheKey::MatchesOrigin(Script script) {
     // host-defined options is a v8::PrimitiveArray.
     DCHECK(IsPrimitive(host_defined_options->get(i)));
     DCHECK(IsPrimitive(script_options->get(i)));
-    if (!host_defined_options->get(i).StrictEquals(script_options->get(i))) {
+    if (!Object::StrictEquals(host_defined_options->get(i),
+                              script_options->get(i))) {
       return false;
     }
   }

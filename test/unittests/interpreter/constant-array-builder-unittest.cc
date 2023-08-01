@@ -59,7 +59,8 @@ TEST_F(ConstantArrayBuilderTest, ToFixedArray) {
   for (int i = 0; i < kNumberOfElements; i++) {
     Handle<Object> actual(constant_array->get(i), isolate());
     Handle<Object> expected = builder.At(i, isolate()).ToHandleChecked();
-    ASSERT_EQ(expected->Number(), actual->Number()) << "Failure at index " << i;
+    ASSERT_EQ(Object::Number(*expected), Object::Number(*actual))
+        << "Failure at index " << i;
   }
 }
 
@@ -74,7 +75,8 @@ TEST_F(ConstantArrayBuilderTest, ToLargeFixedArray) {
   for (int i = 0; i < kNumberOfElements; i++) {
     Handle<Object> actual(constant_array->get(i), isolate());
     Handle<Object> expected = builder.At(i, isolate()).ToHandleChecked();
-    ASSERT_EQ(expected->Number(), actual->Number()) << "Failure at index " << i;
+    ASSERT_EQ(Object::Number(*expected), Object::Number(*actual))
+        << "Failure at index " << i;
   }
 }
 
@@ -92,7 +94,8 @@ TEST_F(ConstantArrayBuilderTest, ToLargeFixedArrayWithReservations) {
   for (int i = 0; i < kNumberOfElements; i++) {
     Handle<Object> actual(constant_array->get(i), isolate());
     Handle<Object> expected = builder.At(i, isolate()).ToHandleChecked();
-    ASSERT_EQ(expected->Number(), actual->Number()) << "Failure at index " << i;
+    ASSERT_EQ(Object::Number(*expected), Object::Number(*actual))
+        << "Failure at index " << i;
   }
 }
 
@@ -153,12 +156,12 @@ TEST_F(ConstantArrayBuilderTest, AllocateEntriesWithIdx8Reservations) {
     for (size_t i = 0; i < k8BitCapacity - reserved; i++) {
       Object value = constant_array->get(static_cast<int>(i));
       Smi smi = Smi::FromInt(static_cast<int>(i));
-      CHECK(value.SameValue(smi));
+      CHECK(Object::SameValue(value, smi));
     }
     for (size_t i = k8BitCapacity; i < 2 * k8BitCapacity + reserved; i++) {
       Object value = constant_array->get(static_cast<int>(i));
       Smi smi = Smi::FromInt(static_cast<int>(i - reserved));
-      CHECK(value.SameValue(smi));
+      CHECK(Object::SameValue(value, smi));
     }
   }
 }
@@ -203,7 +206,8 @@ TEST_F(ConstantArrayBuilderTest, AllocateEntriesWithWideReservations) {
              static_cast<int>(k8BitCapacity + reserved));
     for (size_t i = 0; i < k8BitCapacity + reserved; i++) {
       Object value = constant_array->get(static_cast<int>(i));
-      CHECK(value.SameValue(*isolate()->factory()->NewNumberFromSize(i)));
+      CHECK(Object::SameValue(value,
+                              *isolate()->factory()->NewNumberFromSize(i)));
     }
   }
 }
@@ -233,9 +237,9 @@ TEST_F(ConstantArrayBuilderTest, GapFilledWhenLowReservationCommitted) {
   for (size_t i = 0; i < k8BitCapacity; i++) {
     Object original = constant_array->get(static_cast<int>(k8BitCapacity + i));
     Object duplicate = constant_array->get(static_cast<int>(i));
-    CHECK(original.SameValue(duplicate));
+    CHECK(Object::SameValue(original, duplicate));
     Handle<Object> reference = isolate()->factory()->NewNumberFromSize(i);
-    CHECK(original.SameValue(*reference));
+    CHECK(Object::SameValue(original, *reference));
   }
 }
 
@@ -264,7 +268,7 @@ TEST_F(ConstantArrayBuilderTest, GapNotFilledWhenLowReservationDiscarded) {
     Handle<Object> reference = isolate()->factory()->NewNumber(i + 0.5);
     Handle<Object> original =
         builder.At(k8BitCapacity + i, isolate()).ToHandleChecked();
-    CHECK(original->SameValue(*reference));
+    CHECK(Object::SameValue(*original, *reference));
     MaybeHandle<Object> duplicate = builder.At(i, isolate());
     CHECK(duplicate.is_null());
   }
@@ -295,13 +299,13 @@ TEST_F(ConstantArrayBuilderTest, HolesWithUnusedReservations) {
   Handle<FixedArray> constant_array = builder.ToFixedArray(isolate());
   CHECK_EQ(constant_array->length(), k8BitCapacity + 1);
   for (int i = kNumberOfHoles; i < k8BitCapacity; i++) {
-    CHECK(constant_array->get(i).SameValue(
-        *isolate()->factory()->the_hole_value()));
+    CHECK(Object::SameValue(constant_array->get(i),
+                            *isolate()->factory()->the_hole_value()));
   }
-  CHECK(!constant_array->get(kNumberOfHoles - 1)
-             .SameValue(*isolate()->factory()->the_hole_value()));
-  CHECK(!constant_array->get(k8BitCapacity)
-             .SameValue(*isolate()->factory()->the_hole_value()));
+  CHECK(!Object::SameValue(constant_array->get(kNumberOfHoles - 1),
+                           *isolate()->factory()->the_hole_value()));
+  CHECK(!Object::SameValue(constant_array->get(k8BitCapacity),
+                           *isolate()->factory()->the_hole_value()));
 }
 
 TEST_F(ConstantArrayBuilderTest, ReservationsAtAllScales) {
@@ -344,7 +348,7 @@ TEST_F(ConstantArrayBuilderTest, ReservationsAtAllScales) {
     } else {
       expected = isolate()->factory()->the_hole_value();
     }
-    CHECK(constant_array->get(i).SameValue(*expected));
+    CHECK(Object::SameValue(constant_array->get(i), *expected));
   }
 }
 

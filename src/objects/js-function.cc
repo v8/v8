@@ -214,14 +214,14 @@ void JSFunction::MarkForOptimization(Isolate* isolate, CodeKind target_kind,
     if (IsInProgress(tiering_state())) {
       if (v8_flags.trace_concurrent_recompilation) {
         PrintF("  ** Not marking ");
-        ShortPrint();
+        ShortPrint(*this);
         PrintF(" -- already in optimization queue.\n");
       }
       return;
     }
     if (v8_flags.trace_concurrent_recompilation) {
       PrintF("  ** Marking ");
-      ShortPrint();
+      ShortPrint(*this);
       PrintF(" for concurrent %s recompilation.\n",
              CodeKindToString(target_kind));
     }
@@ -265,7 +265,7 @@ Maybe<bool> JSFunctionOrBoundFunctionOrWrappedFunction::CopyNameAndLength(
                                        Nothing<bool>());
       if (IsNumber(*target_length)) {
         length = isolate->factory()->NewNumber(std::max(
-            0.0, DoubleToInteger(target_length->Number()) - arg_count));
+            0.0, DoubleToInteger(Object::Number(*target_length)) - arg_count));
       }
     }
     LookupIterator it(isolate, function, isolate->factory()->length_string(),

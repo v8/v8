@@ -639,7 +639,7 @@ Handle<Object> GlobalHandles::CopyGlobal(Address* location) {
       Node::FromLocation(location)->global_handles();
 #ifdef VERIFY_HEAP
   if (v8_flags.verify_heap) {
-    Object(*location).ObjectVerify(global_handles->isolate());
+    Object::ObjectVerify(Object(*location), global_handles->isolate());
   }
 #endif  // VERIFY_HEAP
   return global_handles->Create(*location);

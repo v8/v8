@@ -915,7 +915,7 @@ RUNTIME_FUNCTION(Runtime_RegExpExec) {
   Handle<JSRegExp> regexp = args.at<JSRegExp>(0);
   Handle<String> subject = args.at<String>(1);
   int32_t index = 0;
-  CHECK(args[2].ToInt32(&index));
+  CHECK(Object::ToInt32(args[2], &index));
   Handle<RegExpMatchInfo> last_match_info = args.at<RegExpMatchInfo>(3);
   RETURN_RESULT_OR_FAILURE(
       isolate, RegExpExec(isolate, regexp, subject, index, last_match_info,
@@ -928,7 +928,7 @@ RUNTIME_FUNCTION(Runtime_RegExpExecTreatMatchAtEndAsFailure) {
   Handle<JSRegExp> regexp = args.at<JSRegExp>(0);
   Handle<String> subject = args.at<String>(1);
   int32_t index = 0;
-  CHECK(args[2].ToInt32(&index));
+  CHECK(Object::ToInt32(args[2], &index));
   Handle<RegExpMatchInfo> last_match_info = args.at<RegExpMatchInfo>(3);
   RETURN_RESULT_OR_FAILURE(
       isolate, RegExpExec(isolate, regexp, subject, index, last_match_info,
@@ -941,7 +941,7 @@ RUNTIME_FUNCTION(Runtime_RegExpExperimentalOneshotExec) {
   Handle<JSRegExp> regexp = args.at<JSRegExp>(0);
   Handle<String> subject = args.at<String>(1);
   int32_t index = 0;
-  CHECK(args[2].ToInt32(&index));
+  CHECK(Object::ToInt32(args[2], &index));
   Handle<RegExpMatchInfo> last_match_info = args.at<RegExpMatchInfo>(3);
   RETURN_RESULT_OR_FAILURE(
       isolate,
@@ -956,7 +956,7 @@ RUNTIME_FUNCTION(
   Handle<JSRegExp> regexp = args.at<JSRegExp>(0);
   Handle<String> subject = args.at<String>(1);
   int32_t index = 0;
-  CHECK(args[2].ToInt32(&index));
+  CHECK(Object::ToInt32(args[2], &index));
   Handle<RegExpMatchInfo> last_match_info = args.at<RegExpMatchInfo>(3);
   RETURN_RESULT_OR_FAILURE(
       isolate,
@@ -1821,7 +1821,7 @@ RUNTIME_FUNCTION(Runtime_RegExpReplaceRT) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, global_obj,
       JSReceiver::GetProperty(isolate, recv, factory->global_string()));
-  const bool global = global_obj->BooleanValue(isolate);
+  const bool global = Object::BooleanValue(*global_obj, isolate);
 
   bool unicode = false;
   if (global) {
@@ -1829,7 +1829,7 @@ RUNTIME_FUNCTION(Runtime_RegExpReplaceRT) {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, unicode_obj,
         JSReceiver::GetProperty(isolate, recv, factory->unicode_string()));
-    unicode = unicode_obj->BooleanValue(isolate);
+    unicode = Object::BooleanValue(*unicode_obj, isolate);
 
     RETURN_FAILURE_ON_EXCEPTION(isolate,
                                 RegExpUtils::SetLastIndex(isolate, recv, 0));

@@ -1568,7 +1568,7 @@ Maybe<icu::number::FormattedNumber> IcuFormatNumber(
     } else {
       double number = IsNaN(*numeric_obj)
                           ? std::numeric_limits<double>::quiet_NaN()
-                          : numeric_obj->Number();
+                          : Object::Number(*numeric_obj);
       formatted = number_format.formatDouble(number, status);
     }
   }
@@ -1710,7 +1710,7 @@ Maybe<IntlMathematicalValue> IntlMathematicalValue::From(Isolate* isolate,
   }
   if (IsNumber(*prim_value)) {
     result.value_ = prim_value;
-    result.approx_ = prim_value->Number();
+    result.approx_ = Object::Number(*prim_value);
     return Just(result);
   }
   if (!IsString(*prim_value)) {
@@ -1718,7 +1718,7 @@ Maybe<IntlMathematicalValue> IntlMathematicalValue::From(Isolate* isolate,
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, result.value_,
                                      Object::ToNumber(isolate, prim_value),
                                      Nothing<IntlMathematicalValue>());
-    result.approx_ = result.value_->Number();
+    result.approx_ = Object::Number(*result.value_);
     return Just(result);
   }
   Handle<String> string = Handle<String>::cast(prim_value);

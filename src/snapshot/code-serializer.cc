@@ -60,7 +60,7 @@ ScriptCompiler::CachedData* CodeSerializer::Serialize(
   Handle<Script> script(Script::cast(info->script()), isolate);
   if (v8_flags.trace_serializer) {
     PrintF("[Serializing from");
-    script->name().ShortPrint();
+    ShortPrint(script->name());
     PrintF("]\n");
   }
 #if V8_ENABLE_WEBASSEMBLY
@@ -573,7 +573,8 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::FinishOffThreadDeserialize(
       background_merge_task->HasPendingForegroundWork()) {
     Handle<Script> script = handle(Script::cast(result->script()), isolate);
     result = background_merge_task->CompleteMergeInForeground(isolate, script);
-    DCHECK(Script::cast(result->script())->source().StrictEquals(*source));
+    DCHECK(Object::StrictEquals(Script::cast(result->script())->source(),
+                                *source));
     DCHECK(isolate->factory()->script_list()->Contains(
         MaybeObject::MakeWeak(MaybeObject::FromObject(result->script()))));
   } else {

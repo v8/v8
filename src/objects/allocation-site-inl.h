@@ -225,7 +225,7 @@ bool AllocationSite::DigestTransitionFeedback(Handle<AllocationSite> site,
       // If the array is huge, it's not likely to be defined in a local
       // function, so we shouldn't make new instances of it very often.
       uint32_t length = 0;
-      CHECK(boilerplate->length().ToArrayLength(&length));
+      CHECK(Object::ToArrayLength(boilerplate->length(), &length));
       if (length <= kMaximumArrayBytesToPretransition) {
         if (update_or_check == AllocationSiteUpdateMode::kCheckOnly) {
           return true;

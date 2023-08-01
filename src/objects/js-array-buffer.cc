@@ -37,7 +37,7 @@ bool CanonicalNumericIndexString(Isolate* isolate,
     // 4. If SameValue(! ToString(n), argument) is false, return undefined.
     Handle<String> str = Object::ToString(isolate, result).ToHandleChecked();
     // Avoid treating strings like "2E1" and "20" as the same key.
-    if (!str->SameValue(*key)) return false;
+    if (!Object::SameValue(*str, *key)) return false;
   }
   return true;
 }
@@ -121,12 +121,13 @@ Maybe<bool> JSArrayBuffer::Detach(Handle<JSArrayBuffer> buffer,
   bool key_mismatch = false;
 
   if (!IsUndefined(*detach_key, isolate)) {
-    key_mismatch = maybe_key.is_null() || !maybe_key->StrictEquals(*detach_key);
+    key_mismatch =
+        maybe_key.is_null() || !Object::StrictEquals(*maybe_key, *detach_key);
   } else {
     // Detach key is undefined; allow not passing maybe_key but disallow passing
     // something else than undefined.
     key_mismatch =
-        !maybe_key.is_null() && !maybe_key->StrictEquals(*detach_key);
+        !maybe_key.is_null() && !Object::StrictEquals(*maybe_key, *detach_key);
   }
   if (key_mismatch) {
     THROW_NEW_ERROR_RETURN_VALUE(

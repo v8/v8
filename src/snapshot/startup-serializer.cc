@@ -87,7 +87,7 @@ void StartupSerializer::SerializeObjectImpl(Handle<HeapObject> obj,
   if (IsJSFunction(*obj, cage_base)) {
     v8::base::OS::PrintError("Reference stack:\n");
     PrintStack(std::cerr);
-    obj->Print(std::cerr);
+    Print(*obj, std::cerr);
     FATAL(
         "JSFunction should be added through the context snapshot instead of "
         "the isolate snapshot");
@@ -209,7 +209,7 @@ void SerializedHandleChecker::VisitRootPointers(Root root,
     if (serialized_.find(*p) != serialized_.end()) continue;
     PrintF("%s handle not serialized: ",
            root == Root::kGlobalHandles ? "global" : "eternal");
-    (*p).Print();
+    Print(*p);
     PrintF("\n");
     ok_ = false;
   }

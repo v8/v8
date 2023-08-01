@@ -39,7 +39,7 @@ void ManualOptimizationTable::CheckMarkedForManualOptimization(
     Isolate* isolate, JSFunction function) {
   if (!IsMarkedForManualOptimization(isolate, function)) {
     PrintF("Error: Function ");
-    function.ShortPrint();
+    ShortPrint(function);
     PrintF(
         " should be prepared for optimization with "
         "%%PrepareFunctionForOptimization before  "

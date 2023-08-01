@@ -1025,7 +1025,8 @@ MaybeHandle<Object> SourceTextModule::ExecuteModule(
                          Execution::MessageHandling::kKeepPending, nullptr,
                          false),
       Object);
-  DCHECK(JSIteratorResult::cast(*result)->done().BooleanValue(isolate));
+  DCHECK(
+      Object::BooleanValue(JSIteratorResult::cast(*result)->done(), isolate));
   return handle(JSIteratorResult::cast(*result)->value(), isolate);
 }
 

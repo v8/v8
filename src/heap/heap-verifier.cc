@@ -371,7 +371,7 @@ void HeapVerification::VerifyObject(HeapObject object) {
   VerifyObjectMap(object);
 
   // The object itself should look OK.
-  object.ObjectVerify(isolate_);
+  Object::ObjectVerify(object, isolate_);
 
   // Verify outgoing references.
   VerifyOutgoingPointers(object);

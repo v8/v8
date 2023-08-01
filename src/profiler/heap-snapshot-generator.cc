@@ -2019,7 +2019,7 @@ void V8HeapExplorer::ExtractElementReferences(JSObject js_obj,
       Object k = dictionary->KeyAt(i);
       if (!dictionary.IsKey(roots, k)) continue;
       DCHECK(IsNumber(k));
-      uint32_t index = static_cast<uint32_t>(k.Number());
+      uint32_t index = static_cast<uint32_t>(Object::Number(k));
       SetElementReference(entry, index, dictionary->ValueAt(i));
     }
   }

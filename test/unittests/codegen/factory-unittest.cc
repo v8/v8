@@ -38,7 +38,7 @@ TEST_F(FactoryCodeBuilderTest, Factory_CodeBuilder) {
   CHECK(
       i_isolate()->heap()->InSpace(code->instruction_stream(), CODE_LO_SPACE));
 #if VERIFY_HEAP
-  code->ObjectVerify(i_isolate());
+  Object::ObjectVerify(*code, i_isolate());
 #endif
 }
 

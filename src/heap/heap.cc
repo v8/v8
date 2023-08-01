@@ -1039,10 +1039,10 @@ void Heap::PrintRetainingPath(Tagged<HeapObject> target,
     PrintF("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n");
     PrintF("Distance from root %d%s: ", distance,
            node_ephemeron ? " (ephemeron)" : "");
-    node_object->ShortPrint();
+    ShortPrint(*node_object);
     PrintF("\n");
 #ifdef OBJECT_PRINT
-    node_object->Print();
+    i::Print(*node_object);
     PrintF("\n");
 #endif
     --distance;
@@ -1574,7 +1574,7 @@ void ReportDuplicates(int size, std::vector<HeapObject>* objects) {
     PrintF("%d duplicates of size %d each (%dKB)\n", it->first, size,
            duplicate_bytes / KB);
     PrintF("Sample object: ");
-    it->second.Print();
+    Print(it->second);
     PrintF("============================\n");
   }
 }

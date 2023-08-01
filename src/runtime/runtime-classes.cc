@@ -325,7 +325,7 @@ bool AddDescriptorsByTemplate(
           value = GetMethodWithSharedName(isolate, args, value);
         }
         details = details.CopyWithRepresentation(
-            value.OptimalRepresentation(isolate));
+            Object::OptimalRepresentation(value, isolate));
       } else {
         DCHECK_EQ(PropertyKind::kAccessor, details.kind());
         if (IsAccessorPair(value)) {
@@ -343,7 +343,7 @@ bool AddDescriptorsByTemplate(
     } else {
       UNREACHABLE();
     }
-    DCHECK(value.FitsRepresentation(details.representation()));
+    DCHECK(Object::FitsRepresentation(value, details.representation()));
     if (details.location() == PropertyLocation::kDescriptor &&
         details.kind() == PropertyKind::kData) {
       details =

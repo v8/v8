@@ -63,7 +63,7 @@ class TaggedIndex : public Object {
   DECL_CAST(TaggedIndex)
 
   // Dispatched behavior.
-  DECL_VERIFIER(TaggedIndex)
+  DECL_STATIC_VERIFIER(TaggedIndex)
 
   static_assert(kSmiTagSize == 1);
   static constexpr int kTaggedValueSize = 31;

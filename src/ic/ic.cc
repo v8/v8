@@ -321,7 +321,7 @@ void IC::OnFeedbackChanged(Isolate* isolate, FeedbackVector vector,
     } else {
       os << "[Feedback slot " << slot.ToInt() << "/" << slot_count << " in ";
     }
-    vector.shared_function_info().ShortPrint(os);
+    ShortPrint(vector.shared_function_info(), os);
     if (slot.IsInvalid()) {
       os << " updated - ";
     } else {
@@ -939,7 +939,7 @@ MaybeObjectHandle LoadIC::ComputeHandler(LookupIterator* lookup) {
             isolate());
         InternalIndex entry =
             exports->FindEntry(isolate(), roots, lookup->name(),
-                               Smi::ToInt(lookup->name()->GetHash()));
+                               Smi::ToInt(Object::GetHash(*lookup->name())));
         // We found the accessor, so the entry must exist.
         DCHECK(entry.is_found());
         int value_index = ObjectHashTable::EntryToValueIndex(entry);
@@ -1438,7 +1438,7 @@ bool CanCache(Handle<Object> receiver, InlineCacheState state) {
 bool IsOutOfBoundsAccess(Handle<Object> receiver, size_t index) {
   size_t length;
   if (IsJSArray(*receiver)) {
-    length = JSArray::cast(*receiver)->length().Number();
+    length = Object::Number(JSArray::cast(*receiver)->length());
   } else if (IsJSTypedArray(*receiver)) {
     length = JSTypedArray::cast(*receiver)->GetLength();
   } else if (IsJSObject(*receiver)) {
@@ -3530,7 +3530,7 @@ RUNTIME_FUNCTION(Runtime_HasElementWithInterceptor) {
       Handle<Object> result = arguments.CallIndexedQuery(interceptor, index);
       if (!result.is_null()) {
         int32_t value;
-        CHECK(result->ToInt32(&value));
+        CHECK(Object::ToInt32(*result, &value));
         if (value == ABSENT) return ReadOnlyRoots(isolate).false_value();
         arguments.AcceptSideEffects();
         return ReadOnlyRoots(isolate).true_value();

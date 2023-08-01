@@ -5576,7 +5576,7 @@ bool MaglevGraphBuilder::ShouldInlineCall(
   TRACE_INLINING("  inlining " << shared);
   if (v8_flags.trace_maglev_inlining_verbose) {
     BytecodeArray::Disassemble(bytecode.object(), std::cout);
-    feedback_vector->object()->Print(std::cout);
+    i::Print(*feedback_vector->object(), std::cout);
   }
   graph()->add_inlined_bytecode_size(bytecode.length());
   return true;

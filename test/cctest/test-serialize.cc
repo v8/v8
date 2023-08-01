@@ -2062,7 +2062,7 @@ TEST(CodeSerializerLargeCodeObject) {
           .ToHandleChecked();
 
   int result_int;
-  CHECK(copy_result->ToInt32(&result_int));
+  CHECK(Object::ToInt32(*copy_result, &result_int));
   CHECK_EQ(7, result_int);
 
   delete cache;
@@ -2145,7 +2145,7 @@ TEST(CodeSerializerLargeCodeObjectWithIncrementalMarking) {
           .ToHandleChecked();
 
   int result_int;
-  CHECK(copy_result->ToInt32(&result_int));
+  CHECK(Object::ToInt32(*copy_result, &result_int));
   CHECK_EQ(7, result_int);
 
   delete cache;
@@ -2396,7 +2396,7 @@ TEST(CodeSerializerExternalString) {
                             isolate->factory()->empty_fixed_array())
           .ToHandleChecked();
 
-  CHECK_EQ(15.0, copy_result->Number());
+  CHECK_EQ(15.0, Object::Number(*copy_result));
 
   // This avoids the GC from trying to free stack allocated resources.
   i::Handle<i::ExternalOneByteString>::cast(one_byte_string)
@@ -2462,7 +2462,7 @@ TEST(CodeSerializerLargeExternalString) {
                             isolate->factory()->empty_fixed_array())
           .ToHandleChecked();
 
-  CHECK_EQ(42.0, copy_result->Number());
+  CHECK_EQ(42.0, Object::Number(*copy_result));
 
   // This avoids the GC from trying to free stack allocated resources.
   i::Handle<i::ExternalOneByteString>::cast(name)->SetResource(isolate,
@@ -2518,7 +2518,7 @@ TEST(CodeSerializerExternalScriptName) {
                             isolate->factory()->empty_fixed_array())
           .ToHandleChecked();
 
-  CHECK_EQ(10.0, copy_result->Number());
+  CHECK_EQ(10.0, Object::Number(*copy_result));
 
   // This avoids the GC from trying to free stack allocated resources.
   i::Handle<i::ExternalOneByteString>::cast(name)->SetResource(isolate,

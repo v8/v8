@@ -62,7 +62,7 @@ class BaselineCompilerTask {
     Handle<Code> code;
     if (!maybe_code_.ToHandle(&code)) return;
     if (v8_flags.print_code) {
-      code->Print();
+      Print(*code);
     }
     // Don't install the code if the bytecode has been flushed or has
     // already some baseline code installed.
@@ -76,7 +76,7 @@ class BaselineCompilerTask {
       CodeTracer::Scope scope(isolate->GetCodeTracer());
       std::stringstream ss;
       ss << "[Concurrent Sparkplug Off Thread] Function ";
-      shared_function_info_->ShortPrint(ss);
+      ShortPrint(*shared_function_info_, ss);
       ss << " installed\n";
       OFStream os(scope.file());
       os << ss.str();

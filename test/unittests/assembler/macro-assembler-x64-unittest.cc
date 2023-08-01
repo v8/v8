@@ -60,7 +60,7 @@ void PrintCode(Isolate* isolate, CodeDesc desc) {
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
   StdoutStream os;
-  code->Print(os);
+  Print(*code, os);
 #endif  // OBJECT_PRINT
 }
 
@@ -541,7 +541,7 @@ TEST_F(MacroAssemblerX64Test, EmbeddedObj) {
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef OBJECT_PRINT
   StdoutStream os;
-  code->Print(os);
+  Print(*code, os);
 #endif
   using myF0 = Address();
   auto f = GeneratedCode<myF0>::FromAddress(isolate, code->instruction_start());
@@ -1438,7 +1438,7 @@ TEST_F(MacroAssemblerX64Test, F64x4Min) {
   Handle<Code> code =
       Factory::CodeBuilder(i_isolate(), desc, CodeKind::FOR_TESTING).Build();
   StdoutStream os;
-  code->Print(os);
+  Print(*code, os);
 #endif
   buffer->MakeExecutable();
   // Call the function from C++.
@@ -1505,7 +1505,7 @@ TEST_F(MacroAssemblerX64Test, F64x4Max) {
   Handle<Code> code =
       Factory::CodeBuilder(i_isolate(), desc, CodeKind::FOR_TESTING).Build();
   StdoutStream os;
-  code->Print(os);
+  Print(*code, os);
 #endif
   buffer->MakeExecutable();
   // Call the function from C++.
@@ -1572,7 +1572,7 @@ TEST_F(MacroAssemblerX64Test, F32x8Min) {
   Handle<Code> code =
       Factory::CodeBuilder(i_isolate(), desc, CodeKind::FOR_TESTING).Build();
   StdoutStream os;
-  code->Print(os);
+  Print(*code, os);
 #endif
   buffer->MakeExecutable();
   // Call the function from C++.
@@ -1642,7 +1642,7 @@ TEST_F(MacroAssemblerX64Test, F32x8Max) {
   Handle<Code> code =
       Factory::CodeBuilder(i_isolate(), desc, CodeKind::FOR_TESTING).Build();
   StdoutStream os;
-  code->Print(os);
+  Print(*code, os);
 #endif
   buffer->MakeExecutable();
   // Call the function from C++.

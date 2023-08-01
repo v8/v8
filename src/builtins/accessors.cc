@@ -166,8 +166,8 @@ void Accessors::ArrayLengthSetter(
   RCS_SCOPE(isolate, RuntimeCallCounterId::kArrayLengthSetter);
   HandleScope scope(isolate);
 
-  DCHECK(Utils::OpenHandle(*name)->SameValue(
-      ReadOnlyRoots(isolate).length_string()));
+  DCHECK(Object::SameValue(*Utils::OpenHandle(*name),
+                           ReadOnlyRoots(isolate).length_string()));
 
   Handle<JSReceiver> object = Utils::OpenHandle(*info.Holder());
   Handle<JSArray> array = Handle<JSArray>::cast(object);
@@ -186,7 +186,7 @@ void Accessors::ArrayLengthSetter(
     // its property descriptor. Don't perform this check if "length" was
     // previously readonly, as this may have been called during
     // DefineOwnPropertyIgnoreAttributes().
-    if (length == array->length().Number()) {
+    if (length == Object::Number(array->length())) {
       info.GetReturnValue().Set(true);
     } else if (info.ShouldThrowOnError()) {
       Factory* factory = isolate->factory();
@@ -208,7 +208,7 @@ void Accessors::ArrayLengthSetter(
   }
 
   uint32_t actual_new_len = 0;
-  CHECK(array->length().ToArrayLength(&actual_new_len));
+  CHECK(Object::ToArrayLength(array->length(), &actual_new_len));
   // Fail if there were non-deletable elements.
   if (actual_new_len != length) {
     if (info.ShouldThrowOnError()) {

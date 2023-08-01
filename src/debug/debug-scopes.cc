@@ -705,17 +705,17 @@ void ScopeIterator::DebugPrint() {
   switch (Type()) {
     case ScopeIterator::ScopeTypeGlobal:
       os << "Global:\n";
-      context_->Print(os);
+      Print(*context_, os);
       break;
 
     case ScopeIterator::ScopeTypeLocal: {
       os << "Local:\n";
       if (NeedsContext()) {
-        context_->Print(os);
+        Print(*context_, os);
         if (context_->has_extension()) {
           Handle<HeapObject> extension(context_->extension(), isolate_);
           DCHECK(IsJSContextExtensionObject(*extension));
-          extension->Print(os);
+          Print(*extension, os);
         }
       }
       break;
@@ -723,28 +723,28 @@ void ScopeIterator::DebugPrint() {
 
     case ScopeIterator::ScopeTypeWith:
       os << "With:\n";
-      context_->extension().Print(os);
+      Print(context_->extension(), os);
       break;
 
     case ScopeIterator::ScopeTypeCatch:
       os << "Catch:\n";
-      context_->extension().Print(os);
-      context_->get(Context::THROWN_OBJECT_INDEX).Print(os);
+      Print(context_->extension(), os);
+      Print(context_->get(Context::THROWN_OBJECT_INDEX), os);
       break;
 
     case ScopeIterator::ScopeTypeClosure:
       os << "Closure:\n";
-      context_->Print(os);
+      Print(*context_, os);
       if (context_->has_extension()) {
         Handle<HeapObject> extension(context_->extension(), isolate_);
         DCHECK(IsJSContextExtensionObject(*extension));
-        extension->Print(os);
+        Print(*extension, os);
       }
       break;
 
     case ScopeIterator::ScopeTypeScript:
       os << "Script:\n";
-      context_->native_context()->script_context_table().Print(os);
+      Print(context_->native_context()->script_context_table(), os);
       break;
 
     default:

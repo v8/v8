@@ -622,7 +622,8 @@ MaybeHandle<Object> Intl::LegacyUnwrapReceiver(Isolate* isolate,
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, obj_ordinary_has_instance,
       Object::OrdinaryHasInstance(isolate, constructor, receiver), Object);
-  bool ordinary_has_instance = obj_ordinary_has_instance->BooleanValue(isolate);
+  bool ordinary_has_instance =
+      Object::BooleanValue(*obj_ordinary_has_instance, isolate);
 
   // 2. If receiver does not have an [[Initialized...]] internal slot
   //    and ? OrdinaryHasInstance(constructor, receiver) is true, then
@@ -815,7 +816,7 @@ Maybe<std::vector<std::string>> Intl::CanonicalizeLocaleList(
   // up to 2^53-1 if {length_obj} says so. Since cases above 2^32 probably
   // don't happen in practice (and would be very slow if they do), we'll keep
   // the code simple for now by using a saturating to-uint32 conversion.
-  double raw_length = length_obj->Number();
+  double raw_length = Object::Number(*length_obj);
   uint32_t len =
       raw_length >= kMaxUInt32 ? kMaxUInt32 : static_cast<uint32_t>(raw_length);
   // 6. Let k be 0.

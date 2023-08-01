@@ -435,7 +435,7 @@ void CopyObjectToDoubleElements(FixedArrayBase from_base, uint32_t from_start,
     if (hole_or_object == the_hole) {
       to->set_the_hole(to_start);
     } else {
-      to->set(to_start, hole_or_object.Number());
+      to->set(to_start, Object::Number(hole_or_object));
     }
   }
 }
@@ -462,7 +462,7 @@ void CopyDictionaryToDoubleElements(Isolate* isolate, FixedArrayBase from_base,
   for (int i = 0; i < copy_size; i++) {
     InternalIndex entry = from->FindEntry(isolate, i + from_start);
     if (entry.is_found()) {
-      to->set(i + to_start, from->ValueAt(entry).Number());
+      to->set(i + to_start, Object::Number(from->ValueAt(entry)));
     } else {
       to->set_the_hole(i + to_start);
     }
@@ -489,7 +489,7 @@ void SortIndices(Isolate* isolate, Handle<FixedArray> indices,
       if (!IsSmi(b) && IsUndefined(b, isolate)) {
         return true;
       }
-      return a.Number() < b.Number();
+      return Object::Number(a) < Object::Number(b);
     }
     return !IsSmi(b) && IsUndefined(b, isolate);
   });
@@ -511,7 +511,7 @@ Maybe<bool> IncludesValueSlowPath(Isolate* isolate, Handle<JSObject> receiver,
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, element_k,
                                      Object::GetProperty(&it), Nothing<bool>());
 
-    if (value->SameValueZero(*element_k)) return Just(true);
+    if (Object::SameValueZero(*value, *element_k)) return Just(true);
   }
 
   return Just(false);
@@ -529,7 +529,7 @@ Maybe<int64_t> IndexOfValueSlowPath(Isolate* isolate, Handle<JSObject> receiver,
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(
         isolate, element_k, Object::GetProperty(&it), Nothing<int64_t>());
 
-    if (value->StrictEquals(*element_k)) return Just<int64_t>(k);
+    if (Object::StrictEquals(*value, *element_k)) return Just<int64_t>(k);
   }
 
   return Just<int64_t>(-1);
@@ -768,7 +768,7 @@ class ElementsAccessorBase : public InternalElementsAccessor {
     DCHECK(!array->SetLengthWouldNormalize(length));
     DCHECK(IsFastElementsKind(array->GetElementsKind()));
     uint32_t old_length = 0;
-    CHECK(array->length().ToArrayIndex(&old_length));
+    CHECK(Object::ToArrayIndex(array->length(), &old_length));
 
     if (old_length < length) {
       ElementsKind kind = array->GetElementsKind();
@@ -1121,7 +1121,7 @@ class ElementsAccessorBase : public InternalElementsAccessor {
     for (; i < keys->length(); ++i) {
       Handle<Object> key(keys->get(i), isolate);
       uint32_t index;
-      if (!key->ToUint32(&index)) continue;
+      if (!Object::ToUint32(*key, &index)) continue;
 
       DCHECK_EQ(object->GetElementsKind(), original_elements_kind);
       InternalIndex entry = Subclass::GetEntryForIndexImpl(
@@ -1147,7 +1147,7 @@ class ElementsAccessorBase : public InternalElementsAccessor {
     for (; i < keys->length(); i++) {
       Handle<Object> key(keys->get(i), isolate);
       uint32_t index;
-      if (!key->ToUint32(&index)) continue;
+      if (!Object::ToUint32(*key, &index)) continue;
 
       if (filter & ONLY_ENUMERABLE) {
         InternalElementsAccessor* accessor =
@@ -1287,7 +1287,7 @@ class ElementsAccessorBase : public InternalElementsAccessor {
       if (convert == GetKeysConversion::kConvertToString) {
         for (uint32_t i = 0; i < nof_indices; i++) {
           Handle<Object> index_string = isolate->factory()->Uint32ToString(
-              combined_keys->get(i).Number());
+              Object::Number(combined_keys->get(i)));
           combined_keys->set(i, *index_string);
         }
       }
@@ -1464,7 +1464,7 @@ class DictionaryElementsAccessor
     Handle<NumberDictionary> dict =
         Handle<NumberDictionary>::cast(backing_store);
     uint32_t old_length = 0;
-    CHECK(array->length().ToArrayLength(&old_length));
+    CHECK(Object::ToArrayLength(array->length(), &old_length));
     {
       DisallowGarbageCollection no_gc;
       ReadOnlyRoots roots(isolate);
@@ -1475,7 +1475,7 @@ class DictionaryElementsAccessor
           for (InternalIndex entry : dict->IterateEntries()) {
             Object index = dict->KeyAt(isolate, entry);
             if (dict->IsKey(roots, index)) {
-              uint32_t number = static_cast<uint32_t>(index.Number());
+              uint32_t number = static_cast<uint32_t>(Object::Number(index));
               if (length <= number && number < old_length) {
                 PropertyDetails details = dict->DetailsAt(entry);
                 if (!details.IsConfigurable()) length = number + 1;
@@ -1493,7 +1493,7 @@ class DictionaryElementsAccessor
           for (InternalIndex entry : dict->IterateEntries()) {
             Object index = dict->KeyAt(isolate, entry);
             if (dict->IsKey(roots, index)) {
-              uint32_t number = static_cast<uint32_t>(index.Number());
+              uint32_t number = static_cast<uint32_t>(Object::Number(index));
               if (length <= number && number < old_length) {
                 dict->ClearEntry(entry);
                 removed_entries++;
@@ -1661,11 +1661,11 @@ class DictionaryElementsAccessor
                             InternalIndex entry, Object raw_key,
                             PropertyFilter filter) {
     DCHECK(IsNumber(raw_key));
-    DCHECK_LE(raw_key.Number(), kMaxUInt32);
+    DCHECK_LE(Object::Number(raw_key), kMaxUInt32);
     PropertyDetails details = dictionary->DetailsAt(entry);
     PropertyAttributes attr = details.attributes();
     if ((int{attr} & filter) != 0) return kMaxUInt32;
-    return static_cast<uint32_t>(raw_key.Number());
+    return static_cast<uint32_t>(Object::Number(raw_key));
   }
 
   static uint32_t GetKeyForEntryImpl(Isolate* isolate,
@@ -1767,7 +1767,8 @@ class DictionaryElementsAccessor
       if (k == undefined) continue;
 
       uint32_t index;
-      if (!k.ToArrayIndex(&index) || index < start_from || index >= length) {
+      if (!Object::ToArrayIndex(k, &index) || index < start_from ||
+          index >= length) {
         continue;
       }
 
@@ -1777,7 +1778,7 @@ class DictionaryElementsAccessor
         return false;
       } else if (!found) {
         Object element_k = dictionary->ValueAt(isolate, i);
-        if (value->SameValueZero(element_k)) found = true;
+        if (Object::SameValueZero(*value, element_k)) found = true;
       }
     }
 
@@ -1818,7 +1819,7 @@ class DictionaryElementsAccessor
       switch (details.kind()) {
         case PropertyKind::kData: {
           Object element_k = dictionary->ValueAt(entry);
-          if (value->SameValueZero(element_k)) return Just(true);
+          if (Object::SameValueZero(*value, element_k)) return Just(true);
           break;
         }
         case PropertyKind::kAccessor: {
@@ -1832,7 +1833,7 @@ class DictionaryElementsAccessor
                                            Object::GetPropertyWithAccessor(&it),
                                            Nothing<bool>());
 
-          if (value->SameValueZero(*element_k)) return Just(true);
+          if (Object::SameValueZero(*value, *element_k)) return Just(true);
 
           // Bailout to slow path if elements on prototype changed
           if (!JSObject::PrototypeHasNoElements(isolate, *receiver)) {
@@ -1890,7 +1891,7 @@ class DictionaryElementsAccessor
       switch (details.kind()) {
         case PropertyKind::kData: {
           Object element_k = dictionary->ValueAt(entry);
-          if (value->StrictEquals(element_k)) {
+          if (Object::StrictEquals(*value, element_k)) {
             return Just<int64_t>(k);
           }
           break;
@@ -1906,7 +1907,7 @@ class DictionaryElementsAccessor
                                            Object::GetPropertyWithAccessor(&it),
                                            Nothing<int64_t>());
 
-          if (value->StrictEquals(*element_k)) return Just<int64_t>(k);
+          if (Object::StrictEquals(*value, *element_k)) return Just<int64_t>(k);
 
           // Bailout to slow path if elements on prototype changed.
           if (!JSObject::PrototypeHasNoElements(isolate, *receiver)) {
@@ -1945,8 +1946,8 @@ class DictionaryElementsAccessor
     for (InternalIndex i : dictionary->IterateEntries()) {
       Object k;
       if (!dictionary->ToKey(roots, i, &k)) continue;
-      DCHECK_LE(0.0, k.Number());
-      if (k.Number() > NumberDictionary::kRequiresSlowElementsLimit) {
+      DCHECK_LE(0.0, Object::Number(k));
+      if (Object::Number(k) > NumberDictionary::kRequiresSlowElementsLimit) {
         requires_slow_elements = true;
       } else {
         max_key = std::max(max_key, Smi::ToInt(k));
@@ -2049,7 +2050,7 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
     if (backing_store->length() < kMinLengthForSparsenessCheck) return;
     uint32_t length = 0;
     if (IsJSArray(*obj)) {
-      JSArray::cast(*obj)->length().ToArrayLength(&length);
+      Object::ToArrayLength(JSArray::cast(*obj)->length(), &length);
     } else {
       length = static_cast<uint32_t>(store->length());
     }
@@ -2376,13 +2377,13 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
         for (size_t k = start_from; k < length; ++k) {
           Object element_k = elements->get(static_cast<int>(k));
           if (element_k == the_hole) continue;
-          if (value.SameValueZero(element_k)) return Just(true);
+          if (Object::SameValueZero(value, element_k)) return Just(true);
         }
         return Just(false);
       }
     } else {
       if (!IsNaN(value)) {
-        double search_number = value.Number();
+        double search_number = Object::Number(value);
         if (IsDoubleElementsKind(Subclass::kind())) {
           // Search for non-NaN Number in PACKED_DOUBLE_ELEMENTS or
           // HOLEY_DOUBLE_ELEMENTS --- Skip TheHole, and trust UCOMISD or
@@ -2405,7 +2406,8 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
 
           for (size_t k = start_from; k < length; ++k) {
             Object element_k = elements->get(static_cast<int>(k));
-            if (IsNumber(element_k) && element_k.Number() == search_number) {
+            if (IsNumber(element_k) &&
+                Object::Number(element_k) == search_number) {
               return Just(true);
             }
           }
@@ -2689,7 +2691,8 @@ class FastSmiOrObjectElementsAccessor
     static_assert(FixedArray::kMaxLength <=
                   std::numeric_limits<uint32_t>::max());
     for (size_t k = start_from; k < length; ++k) {
-      if (value.StrictEquals(elements->get(static_cast<uint32_t>(k)))) {
+      if (Object::StrictEquals(value,
+                               elements->get(static_cast<uint32_t>(k)))) {
         return Just<int64_t>(k);
       }
     }
@@ -2737,7 +2740,7 @@ class FastNonextensibleObjectElementsAccessor
                                    uint32_t length,
                                    Handle<FixedArrayBase> backing_store) {
     uint32_t old_length = 0;
-    CHECK(array->length().ToArrayIndex(&old_length));
+    CHECK(Object::ToArrayIndex(array->length(), &old_length));
     if (length == old_length) {
       // Do nothing.
       return Just(true);
@@ -2835,7 +2838,7 @@ class FastSealedObjectElementsAccessor
                                    uint32_t length,
                                    Handle<FixedArrayBase> backing_store) {
     uint32_t old_length = 0;
-    CHECK(array->length().ToArrayIndex(&old_length));
+    CHECK(Object::ToArrayIndex(array->length(), &old_length));
     if (length == old_length) {
       // Do nothing.
       return Just(true);
@@ -3017,12 +3020,14 @@ class FastDoubleElementsAccessor
 
   static inline void SetImpl(FixedArrayBase backing_store, InternalIndex entry,
                              Object value) {
-    FixedDoubleArray::cast(backing_store)->set(entry.as_int(), value.Number());
+    FixedDoubleArray::cast(backing_store)
+        ->set(entry.as_int(), Object::Number(value));
   }
 
   static inline void SetImpl(FixedArrayBase backing_store, InternalIndex entry,
                              Object value, WriteBarrierMode mode) {
-    FixedDoubleArray::cast(backing_store)->set(entry.as_int(), value.Number());
+    FixedDoubleArray::cast(backing_store)
+        ->set(entry.as_int(), Object::Number(value));
   }
 
   static void CopyElementsImpl(Isolate* isolate, FixedArrayBase from,
@@ -3113,7 +3118,7 @@ class FastDoubleElementsAccessor
     if (IsNaN(value)) {
       return Just<int64_t>(-1);
     }
-    double numeric_search_value = value.Number();
+    double numeric_search_value = Object::Number(value);
     FixedDoubleArray elements = FixedDoubleArray::cast(receiver->elements());
 
     static_assert(FixedDoubleArray::kMaxLength <=
@@ -3480,7 +3485,7 @@ class TypedElementsAccessor
       if (!lossless) return Just(false);
     } else {
       if (!IsNumber(*value)) return Just(false);
-      double search_value = value->Number();
+      double search_value = Object::Number(*value);
       if (!std::isfinite(search_value)) {
         // Integral types cannot represent +Inf or NaN.
         if (!(Kind == FLOAT32_ELEMENTS || Kind == FLOAT64_ELEMENTS ||
@@ -3550,7 +3555,7 @@ class TypedElementsAccessor
       if (!lossless) return Just<int64_t>(-1);
     } else {
       if (!IsNumber(*value)) return Just<int64_t>(-1);
-      double search_value = value->Number();
+      double search_value = Object::Number(*value);
       if (!std::isfinite(search_value)) {
         // Integral types cannot represent +Inf or NaN.
         if (!IsFloatTypedArrayElementsKind(Kind)) {
@@ -3597,7 +3602,7 @@ class TypedElementsAccessor
       if (!lossless) return Just<int64_t>(-1);
     } else {
       if (!IsNumber(*value)) return Just<int64_t>(-1);
-      double search_value = value->Number();
+      double search_value = Object::Number(*value);
       if (!std::isfinite(search_value)) {
         if (std::is_integral<ElementType>::value) {
           // Integral types cannot represent +Inf or NaN.
@@ -4758,13 +4763,13 @@ class SloppyArgumentsElementsAccessor
                                          Object::GetPropertyWithAccessor(&it),
                                          Nothing<bool>());
 
-        if (value->SameValueZero(*element_k)) return Just(true);
+        if (Object::SameValueZero(*value, *element_k)) return Just(true);
 
         if (object->map() != *original_map) {
           // Some mutation occurred in accessor. Abort "fast" path
           return IncludesValueSlowPath(isolate, object, value, k + 1, length);
         }
-      } else if (value->SameValueZero(*element_k)) {
+      } else if (Object::SameValueZero(*value, *element_k)) {
         return Just(true);
       }
     }
@@ -4798,7 +4803,7 @@ class SloppyArgumentsElementsAccessor
                                          Object::GetPropertyWithAccessor(&it),
                                          Nothing<int64_t>());
 
-        if (value->StrictEquals(*element_k)) {
+        if (Object::StrictEquals(*value, *element_k)) {
           return Just<int64_t>(k);
         }
 
@@ -4806,7 +4811,7 @@ class SloppyArgumentsElementsAccessor
           // Some mutation occurred in accessor. Abort "fast" path.
           return IndexOfValueSlowPath(isolate, object, value, k + 1, length);
         }
-      } else if (value->StrictEquals(*element_k)) {
+      } else if (Object::StrictEquals(*value, *element_k)) {
         return Just<int64_t>(k);
       }
     }
@@ -5257,7 +5262,7 @@ MaybeHandle<Object> ArrayConstructInitializeElements(
 
   } else if (args->length() == 1 && IsNumber(*args->at(0))) {
     uint32_t length;
-    if (!args->at(0)->ToArrayLength(&length)) {
+    if (!Object::ToArrayLength(*args->at(0), &length)) {
       return ThrowArrayLengthRangeError(array->GetIsolate());
     }
 
@@ -5324,7 +5329,7 @@ MaybeHandle<Object> ArrayConstructInitializeElements(
       Handle<FixedDoubleArray> double_elms =
           Handle<FixedDoubleArray>::cast(elms);
       for (int entry = 0; entry < number_of_elements; entry++) {
-        double_elms->set(entry, (*args)[entry].Number());
+        double_elms->set(entry, Object::Number((*args)[entry]));
       }
       break;
     }
@@ -5453,7 +5458,7 @@ Handle<JSArray> ElementsAccessor::Concat(Isolate* isolate,
     // performance degradation.
     JSArray array = JSArray::cast((*args)[i]);
     uint32_t len = 0;
-    array->length().ToArrayLength(&len);
+    Object::ToArrayLength(array->length(), &len);
     if (len == 0) continue;
     ElementsKind from_kind = array->GetElementsKind();
     accessor->CopyElements(array, 0, from_kind, storage, insertion_index, len);

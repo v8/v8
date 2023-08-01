@@ -95,7 +95,7 @@ void FunctionTester::CheckCall(Handle<Object> expected, Handle<Object> a,
                                Handle<Object> b, Handle<Object> c,
                                Handle<Object> d) {
   Handle<Object> result = Call(a, b, c, d).ToHandleChecked();
-  CHECK(expected->SameValue(*result));
+  CHECK(Object::SameValue(*expected, *result));
 }
 
 Handle<JSFunction> FunctionTester::NewFunction(const char* source) {

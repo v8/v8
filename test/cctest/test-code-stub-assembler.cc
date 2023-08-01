@@ -1545,7 +1545,7 @@ TEST(TryGetOwnProperty) {
         Handle<Object> expected_value =
             JSReceiver::GetProperty(isolate, object, name).ToHandleChecked();
         Handle<Object> value = ft.Call(object, name).ToHandleChecked();
-        CHECK(expected_value->SameValue(*value));
+        CHECK(Object::SameValue(*expected_value, *value));
       }
     }
   }
@@ -3457,7 +3457,7 @@ TEST(IsNumberArrayIndex) {
   for (size_t i = 0; i < arraysize(indices); i++) {
     Handle<Object> index = isolate->factory()->NewNumber(indices[i]);
     uint32_t array_index;
-    CHECK_EQ(index->ToArrayIndex(&array_index),
+    CHECK_EQ(Object::ToArrayIndex(*index, &array_index),
              (ft.CallChecked<Smi>(index)->value() == 1));
   }
 }
@@ -4044,7 +4044,7 @@ TEST(InstructionSchedulingCallerSavedRegisters) {
   Handle<Object> input = isolate->factory()->NewNumber(8);
   MaybeHandle<Object> result = ft.Call(input);
   CHECK(IsSmi(*result.ToHandleChecked()));
-  CHECK_EQ(result.ToHandleChecked()->Number(), 13);
+  CHECK_EQ(Object::Number(*result.ToHandleChecked()), 13);
 
   v8_flags.turbo_instruction_scheduling = old_turbo_instruction_scheduling;
 }
@@ -4084,7 +4084,7 @@ TEST(WasmInt32ToHeapNumber) {
     Handle<Object> result = ft.Call().ToHandleChecked();
     CHECK(IsNumber(*result));
     Handle<Object> expected(isolate->factory()->NewNumber(test_value));
-    CHECK(result->StrictEquals(*expected));
+    CHECK(Object::StrictEquals(*result, *expected));
   }
 }
 
@@ -4170,8 +4170,8 @@ TEST(WasmFloat32ToNumber) {
     Handle<Object> result = ft.Call().ToHandleChecked();
     CHECK(IsNumber(*result));
     Handle<Object> expected(isolate->factory()->NewNumber(test_value));
-    CHECK(result->StrictEquals(*expected) ||
-          (std::isnan(test_value) && std::isnan(result->Number())));
+    CHECK(Object::StrictEquals(*result, *expected) ||
+          (std::isnan(test_value) && std::isnan(Object::Number(*result))));
     CHECK_EQ(IsSmi(*result), IsSmi(*expected));
   }
 }
@@ -4210,8 +4210,8 @@ TEST(WasmFloat64ToNumber) {
     Handle<Object> result = ft.Call().ToHandleChecked();
     CHECK(IsNumber(*result));
     Handle<Object> expected(isolate->factory()->NewNumber(test_value));
-    CHECK(result->StrictEquals(*expected) ||
-          (std::isnan(test_value) && std::isnan(result->Number())));
+    CHECK(Object::StrictEquals(*result, *expected) ||
+          (std::isnan(test_value) && std::isnan(Object::Number(*result))));
     CHECK_EQ(IsSmi(*result), IsSmi(*expected));
   }
 }

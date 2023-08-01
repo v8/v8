@@ -57,7 +57,7 @@ TEST_F(PreParserTest, LazyFunctionLength) {
 
   Handle<Smi> length = RunJS<Smi>("lazy.length");
   int32_t value;
-  CHECK(length->ToInt32(&value));
+  CHECK(Object::ToInt32(*length, &value));
   CHECK_EQ(3, value);
 }
 

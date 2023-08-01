@@ -29,9 +29,10 @@ namespace {
 #ifdef DEBUG
 void PrintModuleName(Module module, std::ostream& os) {
   if (IsSourceTextModule(module)) {
-    SourceTextModule::cast(module)->GetScript()->GetNameOrSourceURL().Print(os);
+    Print(SourceTextModule::cast(module)->GetScript()->GetNameOrSourceURL(),
+          os);
   } else {
-    SyntheticModule::cast(module)->name().Print(os);
+    Print(SyntheticModule::cast(module)->name(), os);
   }
 #ifndef OBJECT_PRINT
   os << "\n";
@@ -440,7 +441,8 @@ Maybe<bool> JSModuleNamespace::DefineOwnProperty(
       (desc->has_enumerable() && !desc->enumerable()) ||
       PropertyDescriptor::IsAccessorDescriptor(desc) ||
       (desc->has_writable() && !desc->writable()) ||
-      (desc->has_value() && !desc->value()->SameValue(*current.value()))) {
+      (desc->has_value() &&
+       !Object::SameValue(*desc->value(), *current.value()))) {
     RETURN_FAILURE(isolate, GetShouldThrow(isolate, should_throw),
                    NewTypeError(MessageTemplate::kRedefineDisallowed, key));
   }

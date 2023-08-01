@@ -114,7 +114,7 @@ void TraceRecompile(Isolate* isolate, JSFunction function,
   if (v8_flags.trace_opt) {
     CodeTracer::Scope scope(isolate->GetCodeTracer());
     PrintF(scope.file(), "[marking ");
-    function.ShortPrint(scope.file());
+    ShortPrint(function, scope.file());
     PrintF(scope.file(), " for optimization to %s, %s, reason: %s",
            CodeKindToString(d.code_kind), ToString(d.concurrency_mode),
            OptimizationReasonToString(d.optimization_reason));
@@ -128,7 +128,7 @@ void TraceManualRecompile(JSFunction function, CodeKind code_kind,
                           ConcurrencyMode concurrency_mode) {
   if (v8_flags.trace_opt) {
     PrintF("[manually marking ");
-    function.ShortPrint();
+    ShortPrint(function);
     PrintF(" for optimization to %s, %s]\n", CodeKindToString(code_kind),
            ToString(concurrency_mode));
   }

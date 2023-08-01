@@ -185,7 +185,7 @@ static Maybe<bool> UnscopableLookup(LookupIterator* it, bool is_with_context) {
       JSReceiver::GetProperty(isolate, Handle<JSReceiver>::cast(unscopables),
                               it->name()),
       Nothing<bool>());
-  return Just(!blocklist->BooleanValue(isolate));
+  return Just(!Object::BooleanValue(*blocklist, isolate));
 }
 
 static PropertyAttributes GetAttributesForMode(VariableMode mode) {
@@ -214,7 +214,7 @@ Handle<Object> Context::Lookup(Handle<Context> context, Handle<String> name,
 
   if (v8_flags.trace_contexts) {
     PrintF("Context::Lookup(");
-    name->ShortPrint();
+    ShortPrint(*name);
     PrintF(")\n");
   }
 

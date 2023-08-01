@@ -717,7 +717,7 @@ void TracedHandlesImpl::Copy(const TracedNode& from_node, Address** to) {
   SetSlotThreadSafe(to, o.location());
 #ifdef VERIFY_HEAP
   if (v8_flags.verify_heap) {
-    Object(**to).ObjectVerify(isolate_);
+    Object::ObjectVerify(Object(**to), isolate_);
   }
 #endif  // VERIFY_HEAP
 }

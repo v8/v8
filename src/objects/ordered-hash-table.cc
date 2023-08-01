@@ -152,7 +152,7 @@ InternalIndex OrderedHashTable<Derived, entrysize>::FindEntry(Isolate* isolate,
     raw_entry = HashToEntryRaw(hash & Smi::kMaxValue);
   } else {
     HandleScope scope(isolate);
-    Object hash = key.GetHash();
+    Object hash = Object::GetHash(key);
     // If the object does not have an identity hash, it was never used as a key
     if (IsUndefined(hash, isolate)) return InternalIndex::NotFound();
     raw_entry = HashToEntryRaw(Smi::ToInt(hash));
@@ -161,7 +161,8 @@ InternalIndex OrderedHashTable<Derived, entrysize>::FindEntry(Isolate* isolate,
   // Walk the chain in the bucket to find the key.
   while (raw_entry != kNotFound) {
     Object candidate_key = KeyAt(InternalIndex(raw_entry));
-    if (candidate_key.SameValueZero(key)) return InternalIndex(raw_entry);
+    if (Object::SameValueZero(candidate_key, key))
+      return InternalIndex(raw_entry);
     raw_entry = NextChainEntryRaw(raw_entry);
   }
 
@@ -176,14 +177,14 @@ MaybeHandle<OrderedHashSet> OrderedHashSet::Add(Isolate* isolate,
     DisallowGarbageCollection no_gc;
     Tagged<Object> raw_key = *key;
     Tagged<OrderedHashSet> raw_table = *table;
-    hash = raw_key->GetOrCreateHash(isolate).value();
+    hash = Object::GetOrCreateHash(*raw_key, isolate).value();
     if (raw_table->NumberOfElements() > 0) {
       int raw_entry = raw_table->HashToEntryRaw(hash);
       // Walk the chain of the bucket and try finding the key.
       while (raw_entry != kNotFound) {
         Object candidate_key = raw_table->KeyAt(InternalIndex(raw_entry));
         // Do not add if we have the key already
-        if (candidate_key.SameValueZero(raw_key)) return table;
+        if (Object::SameValueZero(candidate_key, raw_key)) return table;
         raw_entry = raw_table->NextChainEntryRaw(raw_entry);
       }
     }
@@ -227,7 +228,7 @@ Handle<FixedArray> OrderedHashSet::ConvertToKeysArray(
     Object key = table->get(index);
     uint32_t index_value;
     if (convert == GetKeysConversion::kConvertToString) {
-      if (key.ToArrayIndex(&index_value)) {
+      if (Object::ToArrayIndex(key, &index_value)) {
         // Avoid trashing the Number2String cache if indices get very large.
         bool use_cache = i < kMaxStringTableEntries;
         key = *isolate->factory()->Uint32ToString(index_value, use_cache);
@@ -235,7 +236,7 @@ Handle<FixedArray> OrderedHashSet::ConvertToKeysArray(
         CHECK(IsName(key));
       }
     } else if (convert == GetKeysConversion::kNoNumbers) {
-      DCHECK(!key.ToArrayIndex(&index_value));
+      DCHECK(!Object::ToArrayIndex(key, &index_value));
     }
     result->set(i, key);
   }
@@ -284,7 +285,7 @@ MaybeHandle<Derived> OrderedHashTable<Derived, entrysize>::Rehash(
       continue;
     }
 
-    Object hash = key.GetHash();
+    Object hash = Object::GetHash(key);
     int bucket = Smi::ToInt(hash) & (new_buckets - 1);
     Object chain_entry = new_table->get(HashTableStartIndex() + bucket);
     new_table->set(HashTableStartIndex() + bucket, Smi::FromInt(new_entry));
@@ -367,7 +368,7 @@ bool OrderedHashTable<Derived, entrysize>::Delete(Isolate* isolate,
 Address OrderedHashMap::GetHash(Isolate* isolate, Address raw_key) {
   DisallowGarbageCollection no_gc;
   Object key(raw_key);
-  Object hash = key.GetHash();
+  Object hash = Object::GetHash(key);
   // If the object does not have an identity hash, it was never used as a key
   if (IsUndefined(hash, isolate)) return Smi::FromInt(-1).ptr();
   DCHECK(IsSmi(hash));
@@ -379,7 +380,7 @@ MaybeHandle<OrderedHashMap> OrderedHashMap::Add(Isolate* isolate,
                                                 Handle<OrderedHashMap> table,
                                                 Handle<Object> key,
                                                 Handle<Object> value) {
-  int hash = key->GetOrCreateHash(isolate).value();
+  int hash = Object::GetOrCreateHash(*key, isolate).value();
   if (table->NumberOfElements() > 0) {
     int raw_entry = table->HashToEntryRaw(hash);
     // Walk the chain of the bucket and try finding the key.
@@ -389,7 +390,7 @@ MaybeHandle<OrderedHashMap> OrderedHashMap::Add(Isolate* isolate,
       while (raw_entry != kNotFound) {
         Object candidate_key = table->KeyAt(InternalIndex(raw_entry));
         // Do not add if we have the key already
-        if (candidate_key.SameValueZero(raw_key)) return table;
+        if (Object::SameValueZero(candidate_key, raw_key)) return table;
         raw_entry = table->NextChainEntryRaw(raw_entry);
       }
     }
@@ -706,7 +707,7 @@ MaybeHandle<SmallOrderedHashSet> SmallOrderedHashSet::Add(
 
   DisallowGarbageCollection no_gc;
   Tagged<SmallOrderedHashSet> raw_table = *table;
-  int hash = key->GetOrCreateHash(isolate).value();
+  int hash = Object::GetOrCreateHash(*key, isolate).value();
   int nof = raw_table->NumberOfElements();
 
   // Read the existing bucket values.
@@ -750,7 +751,7 @@ MaybeHandle<SmallOrderedHashMap> SmallOrderedHashMap::Add(
   }
   DisallowGarbageCollection no_gc;
   Tagged<SmallOrderedHashMap> raw_table = *table;
-  int hash = key->GetOrCreateHash(isolate).value();
+  int hash = Object::GetOrCreateHash(*key, isolate).value();
   int nof = raw_table->NumberOfElements();
 
   // Read the existing bucket values.
@@ -922,7 +923,7 @@ Handle<Derived> SmallOrderedHashTable<Derived>::Rehash(Isolate* isolate,
       Object key = table->KeyAt(old_entry);
       if (IsTheHole(key, isolate)) continue;
 
-      int hash = Smi::ToInt(key.GetHash());
+      int hash = Smi::ToInt(Object::GetHash(key));
       int bucket = new_table->HashToBucket(hash);
       int chain = new_table->GetFirstEntry(bucket);
 
@@ -1004,7 +1005,7 @@ template <class Derived>
 InternalIndex SmallOrderedHashTable<Derived>::FindEntry(Isolate* isolate,
                                                         Object key) {
   DisallowGarbageCollection no_gc;
-  Object hash = key.GetHash();
+  Object hash = Object::GetHash(key);
 
   if (IsUndefined(hash, isolate)) return InternalIndex::NotFound();
   int raw_entry = HashToFirstEntry(Smi::ToInt(hash));
@@ -1013,7 +1014,7 @@ InternalIndex SmallOrderedHashTable<Derived>::FindEntry(Isolate* isolate,
   while (raw_entry != kNotFound) {
     InternalIndex entry(raw_entry);
     Object candidate_key = KeyAt(entry);
-    if (candidate_key.SameValueZero(key)) return entry;
+    if (Object::SameValueZero(candidate_key, key)) return entry;
     raw_entry = GetNextEntry(raw_entry);
   }
   return InternalIndex::NotFound();

@@ -26,7 +26,7 @@ namespace v8 {
 namespace internal {
 
 PropertyKey::PropertyKey(Isolate* isolate, Handle<Object> key, bool* success) {
-  if (key->ToIntegerIndex(&index_)) {
+  if (Object::ToIntegerIndex(*key, &index_)) {
     *success = true;
     return;
   }
@@ -151,8 +151,8 @@ MaybeHandle<JSReceiver> LookupIterator::GetRootForNonJSReceiver(
     return {};
   }
   Handle<HeapObject> root(
-      lookup_start_object->GetPrototypeChainRootMap(isolate)->prototype(
-          isolate),
+      Object::GetPrototypeChainRootMap(*lookup_start_object, isolate)
+          ->prototype(isolate),
       isolate);
   if (IsNull(*root, isolate)) {
     isolate->PushStackTraceAndDie(
@@ -354,7 +354,7 @@ void LookupIterator::PrepareForDataProperty(Handle<Object> value) {
   if (IsElement(*holder)) {
     Handle<JSObject> holder_obj = Handle<JSObject>::cast(holder);
     ElementsKind kind = holder_obj->GetElementsKind(isolate_);
-    ElementsKind to = value->OptimalElementsKind(isolate_);
+    ElementsKind to = Object::OptimalElementsKind(*value, isolate_);
     if (IsHoleyElementsKind(kind)) to = GetHoleyElementsKind(to);
     to = GetMoreGeneralElementsKind(kind, to);
 

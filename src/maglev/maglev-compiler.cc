@@ -394,7 +394,7 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
       BytecodeArray::Disassemble(top_level_unit->bytecode().object(),
                                  std::cout);
       if (v8_flags.maglev_print_feedback) {
-        top_level_unit->feedback().object()->Print(std::cout);
+        Print(*top_level_unit->feedback().object(), std::cout);
       }
     }
 
@@ -522,7 +522,7 @@ MaybeHandle<Code> MaglevCompiler::GenerateCode(
   }
 
   if (v8_flags.print_maglev_code) {
-    code->Print();
+    Print(*code);
   }
 
   return code;

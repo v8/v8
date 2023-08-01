@@ -422,7 +422,7 @@ Handle<JSObject> CreateObjectLiteral(
     }
 
     uint32_t element_index = 0;
-    if (key->ToArrayIndex(&element_index)) {
+    if (Object::ToArrayIndex(*key, &element_index)) {
       // Array index (uint32).
       if (IsUninitialized(*value, isolate)) {
         value = handle(Smi::zero(), isolate);

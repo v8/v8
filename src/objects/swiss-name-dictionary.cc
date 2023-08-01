@@ -257,7 +257,7 @@ int SwissNameDictionary::NumberOfEnumerableProperties() {
   for (InternalIndex i : this->IterateEntries()) {
     Object k;
     if (!this->ToKey(roots, i, &k)) continue;
-    if (k.FilterKey(ENUMERABLE_STRINGS)) continue;
+    if (Object::FilterKey(k, ENUMERABLE_STRINGS)) continue;
     PropertyDetails details = this->DetailsAt(i);
     PropertyAttributes attr = details.attributes();
     if ((int{attr} & ONLY_ENUMERABLE) == 0) result++;

@@ -2425,7 +2425,7 @@ void WebAssemblyTableType(const v8::FunctionCallbackInfo<v8::Value>& info) {
   EXTRACT_THIS(table, WasmTableObject);
   base::Optional<uint32_t> max_size;
   if (!IsUndefined(table->maximum_length())) {
-    uint64_t max_size64 = table->maximum_length().Number();
+    uint64_t max_size64 = i::Object::Number(table->maximum_length());
     DCHECK_LE(max_size64, std::numeric_limits<uint32_t>::max());
     max_size.emplace(static_cast<uint32_t>(max_size64));
   }

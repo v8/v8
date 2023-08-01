@@ -1051,7 +1051,7 @@ DebugInfo::SideEffectState DebugEvaluate::FunctionGetSideEffectState(
     Handle<BytecodeArray> bytecode_array(info->GetBytecodeArray(isolate),
                                          isolate);
     if (v8_flags.trace_side_effect_free_debug_evaluate) {
-      bytecode_array->Print();
+      Print(*bytecode_array);
     }
     bool requires_runtime_checks = false;
     for (interpreter::BytecodeArrayIterator it(bytecode_array); !it.done();

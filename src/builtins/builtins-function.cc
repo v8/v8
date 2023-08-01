@@ -73,7 +73,7 @@ MaybeHandle<Object> CreateDynamicFunction(Isolate* isolate,
 
   bool is_code_like = true;
   for (int i = 0; i < argc; ++i) {
-    if (!args.at(i + 1)->IsCodeLike(isolate)) {
+    if (!Object::IsCodeLike(*args.at(i + 1), isolate)) {
       is_code_like = false;
       break;
     }

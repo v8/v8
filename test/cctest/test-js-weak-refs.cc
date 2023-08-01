@@ -175,7 +175,7 @@ void VerifyWeakCellKeyChain(Isolate* isolate, SimpleNumberDictionary key_map,
   va_list args;
   va_start(args, n_args);
 
-  Object hash = unregister_token.GetHash();
+  Object hash = Object::GetHash(unregister_token);
   InternalIndex entry = InternalIndex::NotFound();
   if (!IsUndefined(hash, isolate)) {
     uint32_t key = Smi::ToInt(hash);

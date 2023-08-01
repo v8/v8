@@ -192,7 +192,7 @@ void StringStream::Add(base::Vector<const char> format,
 }
 
 void StringStream::PrintObject(Object o) {
-  o.ShortPrint(this);
+  ShortPrint(o, this);
   if (IsString(o)) {
     if (String::cast(o)->length() <= String::kMaxShortPrintLength) {
       return;
@@ -314,7 +314,7 @@ void StringStream::PrintUsingMap(JSObject js_object) {
         if (IsString(key)) {
           Put(String::cast(key));
         } else {
-          key.ShortPrint();
+          ShortPrint(key);
         }
         Add(": ");
         FieldIndex index = FieldIndex::ForDescriptor(map, i);
@@ -370,7 +370,7 @@ void StringStream::PrintMentionedObjectCache(Isolate* isolate) {
     HeapObject printee = *(*debug_object_cache)[i];
     Add(" #%d# %p: ", static_cast<int>(i),
         reinterpret_cast<void*>(printee.ptr()));
-    printee.ShortPrint(this);
+    ShortPrint(printee, this);
     Add("\n");
     if (IsJSObject(printee)) {
       if (IsJSPrimitiveWrapper(printee)) {
@@ -382,8 +382,8 @@ void StringStream::PrintMentionedObjectCache(Isolate* isolate) {
         JSArray array = JSArray::cast(printee);
         if (array->HasObjectElements()) {
           unsigned int limit = FixedArray::cast(array->elements())->length();
-          unsigned int length =
-              static_cast<uint32_t>(JSArray::cast(array)->length().Number());
+          unsigned int length = static_cast<uint32_t>(
+              Object::Number(JSArray::cast(array)->length()));
           if (length < limit) limit = length;
           PrintFixedArray(FixedArray::cast(array->elements()), limit);
         }
@@ -420,7 +420,8 @@ void StringStream::PrintPrototype(JSFunction fun, Object receiver) {
     print_name = true;
   } else if (!isolate->context().is_null()) {
     if (!IsJSObject(receiver)) {
-      receiver = receiver.GetPrototypeChainRootMap(isolate)->prototype();
+      receiver =
+          Object::GetPrototypeChainRootMap(receiver, isolate)->prototype();
     }
 
     for (PrototypeIterator iter(isolate, JSObject::cast(receiver),

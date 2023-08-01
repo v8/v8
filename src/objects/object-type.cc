@@ -75,7 +75,7 @@ Address CheckObjectType(Address raw_value, Address raw_type,
   }
   MaybeObject maybe_value(raw_value);
   std::stringstream value_description;
-  maybe_value.Print(value_description);
+  Print(maybe_value, value_description);
   FATAL(
       "Type cast failed in %s\n"
       "  Expected %s but found %s",

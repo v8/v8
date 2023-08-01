@@ -96,7 +96,7 @@ V8_WARN_UNUSED_RESULT static Maybe<T> GetStringOrBooleanOption(
     return Just(true_value);
   }
   // 4. Let valueBoolean be ToBoolean(value).
-  bool valueBoolean = value->BooleanValue(isolate);
+  bool valueBoolean = Object::BooleanValue(*value, isolate);
   // 5. If valueBoolean is false, then return valueBoolean.
   if (!valueBoolean) {
     return Just(false_value);

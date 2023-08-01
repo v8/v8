@@ -1946,7 +1946,7 @@ void RiscvDebugger::Debug() {
             if (IsSmi(obj)) {
               PrintF("smi %d", Smi::ToInt(obj));
             } else {
-              obj.ShortPrint();
+              ShortPrint(obj);
             }
             PrintF(")");
           }
@@ -7699,7 +7699,7 @@ void Simulator::InstructionDecode(Instruction* instr) {
     //   if (obj.IsSmi()) {
     //     PrintF("smi %d", Smi::ToInt(obj));
     //   } else {
-    //     obj.ShortPrint();
+    //     ShortPrint(obj);
     //   }
     //   PrintF(")");
     // }

@@ -101,7 +101,7 @@ Descriptor Descriptor::DataConstant(Handle<Name> key, Handle<Object> value,
   return Descriptor(key, MaybeObjectHandle(value), PropertyKind::kData,
                     attributes, PropertyLocation::kDescriptor,
                     PropertyConstness::kConst,
-                    value->OptimalRepresentation(cage_base), 0);
+                    Object::OptimalRepresentation(*value, cage_base), 0);
 }
 
 Descriptor Descriptor::DataConstant(Isolate* isolate, Handle<Name> key,

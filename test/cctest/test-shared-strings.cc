@@ -108,32 +108,32 @@ UNINITIALIZED_TEST(InPlaceInternalizableStringsAreShared) {
   // Old generation 1- and 2-byte seq strings are in-place internalizable.
   Handle<String> old_one_byte_seq =
       factory1->NewStringFromAsciiChecked(raw_one_byte, AllocationType::kOld);
-  CHECK(old_one_byte_seq->InSharedHeap());
+  CHECK(Object::InSharedHeap(*old_one_byte_seq));
   Handle<String> old_two_byte_seq =
       factory1->NewStringFromTwoByte(two_byte, AllocationType::kOld)
           .ToHandleChecked();
-  CHECK(old_two_byte_seq->InSharedHeap());
+  CHECK(Object::InSharedHeap(*old_two_byte_seq));
 
   // Young generation are not internalizable and not shared when sharing the
   // string table.
   Handle<String> young_one_byte_seq =
       factory1->NewStringFromAsciiChecked(raw_one_byte, AllocationType::kYoung);
-  CHECK(!young_one_byte_seq->InSharedHeap());
+  CHECK(!Object::InSharedHeap(*young_one_byte_seq));
   Handle<String> young_two_byte_seq =
       factory1->NewStringFromTwoByte(two_byte, AllocationType::kYoung)
           .ToHandleChecked();
-  CHECK(!young_two_byte_seq->InSharedHeap());
+  CHECK(!Object::InSharedHeap(*young_two_byte_seq));
 
   // Internalized strings are shared.
   uint64_t seed = HashSeed(i_isolate1);
   Handle<String> one_byte_intern = factory1->NewOneByteInternalizedString(
       base::OneByteVector(raw_one_byte),
       StringHasher::HashSequentialString<char>(raw_one_byte, 3, seed));
-  CHECK(one_byte_intern->InSharedHeap());
+  CHECK(Object::InSharedHeap(*one_byte_intern));
   Handle<String> two_byte_intern = factory1->NewTwoByteInternalizedString(
       two_byte,
       StringHasher::HashSequentialString<uint16_t>(raw_two_byte, 3, seed));
-  CHECK(two_byte_intern->InSharedHeap());
+  CHECK(Object::InSharedHeap(*two_byte_intern));
 }
 
 UNINITIALIZED_TEST(InPlaceInternalization) {
@@ -167,10 +167,10 @@ UNINITIALIZED_TEST(InPlaceInternalization) {
       factory1->InternalizeString(old_one_byte_seq1);
   Handle<String> two_byte_intern1 =
       factory1->InternalizeString(old_two_byte_seq1);
-  CHECK(old_one_byte_seq1->InSharedHeap());
-  CHECK(old_two_byte_seq1->InSharedHeap());
-  CHECK(one_byte_intern1->InSharedHeap());
-  CHECK(two_byte_intern1->InSharedHeap());
+  CHECK(Object::InSharedHeap(*old_one_byte_seq1));
+  CHECK(Object::InSharedHeap(*old_two_byte_seq1));
+  CHECK(Object::InSharedHeap(*one_byte_intern1));
+  CHECK(Object::InSharedHeap(*two_byte_intern1));
   CHECK(old_one_byte_seq1.equals(one_byte_intern1));
   CHECK(old_two_byte_seq1.equals(two_byte_intern1));
   CHECK_EQ(*old_one_byte_seq1, *one_byte_intern1);
@@ -188,10 +188,10 @@ UNINITIALIZED_TEST(InPlaceInternalization) {
       factory2->InternalizeString(old_one_byte_seq2);
   Handle<String> two_byte_intern2 =
       factory2->InternalizeString(old_two_byte_seq2);
-  CHECK(old_one_byte_seq2->InSharedHeap());
-  CHECK(old_two_byte_seq2->InSharedHeap());
-  CHECK(one_byte_intern2->InSharedHeap());
-  CHECK(two_byte_intern2->InSharedHeap());
+  CHECK(Object::InSharedHeap(*old_one_byte_seq2));
+  CHECK(Object::InSharedHeap(*old_two_byte_seq2));
+  CHECK(Object::InSharedHeap(*one_byte_intern2));
+  CHECK(Object::InSharedHeap(*two_byte_intern2));
   CHECK(!old_one_byte_seq2.equals(one_byte_intern2));
   CHECK(!old_two_byte_seq2.equals(two_byte_intern2));
   CHECK_NE(*old_one_byte_seq2, *one_byte_intern2);
@@ -235,10 +235,10 @@ UNINITIALIZED_TEST(YoungInternalization) {
             .ToHandleChecked();
     one_byte_intern1 = factory1->InternalizeString(young_one_byte_seq1);
     two_byte_intern1 = factory1->InternalizeString(young_two_byte_seq1);
-    CHECK(!young_one_byte_seq1->InSharedHeap());
-    CHECK(!young_two_byte_seq1->InSharedHeap());
-    CHECK(one_byte_intern1->InSharedHeap());
-    CHECK(two_byte_intern1->InSharedHeap());
+    CHECK(!Object::InSharedHeap(*young_one_byte_seq1));
+    CHECK(!Object::InSharedHeap(*young_two_byte_seq1));
+    CHECK(Object::InSharedHeap(*one_byte_intern1));
+    CHECK(Object::InSharedHeap(*two_byte_intern1));
     CHECK(!young_one_byte_seq1.equals(one_byte_intern1));
     CHECK(!young_two_byte_seq1.equals(two_byte_intern1));
     CHECK_NE(*young_one_byte_seq1, *one_byte_intern1);
@@ -552,8 +552,8 @@ Handle<String> ShareAndVerify(Isolate* isolate, Handle<String> string) {
   Handle<String> shared = String::Share(isolate, string);
   CHECK(shared->IsShared());
 #ifdef VERIFY_HEAP
-  shared->ObjectVerify(isolate);
-  string->ObjectVerify(isolate);
+  Object::ObjectVerify(*shared, isolate);
+  Object::ObjectVerify(*string, isolate);
 #endif  // VERIFY_HEAP
   return shared;
 }

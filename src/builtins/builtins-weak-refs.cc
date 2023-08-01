@@ -23,7 +23,7 @@ BUILTIN(FinalizationRegistryUnregister) {
 
   // 3. If CanBeHeldWeakly(unregisterToken) is false, throw a TypeError
   // exception.
-  if (!unregister_token->CanBeHeldWeakly()) {
+  if (!Object::CanBeHeldWeakly(*unregister_token)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kInvalidWeakRefsUnregisterToken,
                               unregister_token));

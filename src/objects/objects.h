@@ -314,9 +314,9 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
 
   // Whether the object is in the RO heap and the RO heap is shared, or in the
   // writable shared heap.
-  V8_INLINE bool InSharedHeap() const;
+  static V8_INLINE bool InSharedHeap(Tagged<Object> obj);
 
-  V8_INLINE bool InWritableSharedSpace() const;
+  static V8_INLINE bool InWritableSharedSpace(Tagged<Object> obj);
 
   enum class Conversion { kToNumber, kToNumeric };
 
@@ -325,24 +325,27 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   V8_WARN_UNUSED_RESULT static Maybe<bool> IsArray(Handle<Object> object);
 
   // Extract the number.
-  inline double Number() const;
-  V8_EXPORT_PRIVATE bool ToInt32(int32_t* value);
-  inline bool ToUint32(uint32_t* value) const;
+  static inline double Number(Tagged<Object> obj);
+  V8_EXPORT_PRIVATE static bool ToInt32(Tagged<Object> obj, int32_t* value);
+  static inline bool ToUint32(Tagged<Object> obj, uint32_t* value);
 
-  inline Representation OptimalRepresentation(PtrComprCageBase cage_base) const;
+  static inline Representation OptimalRepresentation(
+      Tagged<Object> obj, PtrComprCageBase cage_base);
 
-  inline ElementsKind OptimalElementsKind(PtrComprCageBase cage_base) const;
+  static inline ElementsKind OptimalElementsKind(Tagged<Object> obj,
+                                                 PtrComprCageBase cage_base);
 
   // If {allow_coercion} is true, then a Smi will be considered to fit
   // a Double representation, since it can be converted to a HeapNumber
   // and stored.
-  inline bool FitsRepresentation(Representation representation,
-                                 bool allow_coercion = true) const;
+  static inline bool FitsRepresentation(Tagged<Object> obj,
+                                        Representation representation,
+                                        bool allow_coercion = true);
 
-  inline bool FilterKey(PropertyFilter filter);
+  static inline bool FilterKey(Tagged<Object> obj, PropertyFilter filter);
 
-  Handle<FieldType> OptimalType(Isolate* isolate,
-                                Representation representation);
+  static Handle<FieldType> OptimalType(Tagged<Object> obj, Isolate* isolate,
+                                       Representation representation);
 
   V8_EXPORT_PRIVATE static Handle<Object> NewStorageFor(
       Isolate* isolate, Handle<Object> object, Representation representation);
@@ -354,12 +357,13 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
 
   // Returns true if the object is of the correct type to be used as a
   // implementation of a JSObject's elements.
-  inline bool HasValidElements();
+  static inline bool HasValidElements(Tagged<Object> obj);
 
   // ECMA-262 9.2.
   template <typename IsolateT>
-  V8_EXPORT_PRIVATE bool BooleanValue(IsolateT* isolate);
-  Object ToBoolean(Isolate* isolate);
+  V8_EXPORT_PRIVATE static bool BooleanValue(Tagged<Object> obj,
+                                             IsolateT* isolate);
+  static Object ToBoolean(Tagged<Object> obj, Isolate* isolate);
 
   // ES6 section 7.2.11 Abstract Relational Comparison
   V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT static Maybe<ComparisonResult>
@@ -370,7 +374,7 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
       Isolate* isolate, Handle<Object> x, Handle<Object> y);
 
   // ES6 section 7.2.13 Strict Equality Comparison
-  V8_EXPORT_PRIVATE bool StrictEquals(Object that);
+  V8_EXPORT_PRIVATE static bool StrictEquals(Tagged<Object> obj, Object that);
 
   // ES6 section 7.1.13 ToObject
   // Convert to a JSObject if needed.
@@ -559,17 +563,18 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
 
   // Returns the permanent hash code associated with this object. May return
   // undefined if not yet created.
-  inline Object GetHash();
+  static inline Object GetHash(Tagged<Object> obj);
 
   // Returns the permanent hash code associated with this object depending on
   // the actual object type. May create and store a hash code if needed and none
   // exists.
-  V8_EXPORT_PRIVATE Smi GetOrCreateHash(Isolate* isolate);
+  V8_EXPORT_PRIVATE static Smi GetOrCreateHash(Tagged<Object> obj,
+                                               Isolate* isolate);
 
   // Checks whether this object has the same value as the given one.  This
   // function is implemented according to ES5, section 9.12 and can be used
   // to implement the Object.is function.
-  V8_EXPORT_PRIVATE bool SameValue(Object other);
+  V8_EXPORT_PRIVATE static bool SameValue(Tagged<Object> obj, Object other);
 
   // A part of SameValue which handles Number vs. Number case.
   // Treats NaN == NaN and +0 != -0.
@@ -579,7 +584,7 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   // +0 and -0 are treated equal. Everything else is the same as SameValue.
   // This function is implemented according to ES6, section 7.2.4 and is used
   // by ES6 Map and Set.
-  bool SameValueZero(Object other);
+  static bool SameValueZero(Tagged<Object> obj, Object other);
 
   // ES6 section 9.4.2.3 ArraySpeciesCreate (part of it)
   V8_WARN_UNUSED_RESULT static MaybeHandle<Object> ArraySpeciesConstructor(
@@ -592,45 +597,39 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
 
   // Tries to convert an object to an array length. Returns true and sets the
   // output parameter if it succeeds.
-  inline bool ToArrayLength(uint32_t* index) const;
+  static inline bool ToArrayLength(Tagged<Object> obj, uint32_t* index);
 
   // Tries to convert an object to an array index. Returns true and sets the
   // output parameter if it succeeds. Equivalent to ToArrayLength, but does not
   // allow kMaxUInt32.
-  V8_WARN_UNUSED_RESULT inline bool ToArrayIndex(uint32_t* index) const;
+  static V8_WARN_UNUSED_RESULT inline bool ToArrayIndex(Tagged<Object> obj,
+                                                        uint32_t* index);
 
   // Tries to convert an object to an index (in the range 0..size_t::max).
   // Returns true and sets the output parameter if it succeeds.
-  inline bool ToIntegerIndex(size_t* index) const;
+  static inline bool ToIntegerIndex(Tagged<Object> obj, size_t* index);
 
   // Returns true if the result of iterating over the object is the same
   // (including observable effects) as simply accessing the properties between 0
   // and length.
-  V8_EXPORT_PRIVATE bool IterationHasObservableEffects();
+  V8_EXPORT_PRIVATE static bool IterationHasObservableEffects(
+      Tagged<Object> obj);
 
   // TC39 "Dynamic Code Brand Checks"
-  bool IsCodeLike(Isolate* isolate) const;
+  static bool IsCodeLike(Tagged<Object> obj, Isolate* isolate);
 
-  EXPORT_DECL_VERIFIER(Object)
+  EXPORT_DECL_STATIC_VERIFIER(Object)
 
 #ifdef VERIFY_HEAP
   // Verify a pointer is a valid (non-InstructionStream) object pointer.
-  // When V8_EXTERNAL_CODE_SPACE is enabled InstructionStream objects are not
-  // allowed.
+  // When V8_EXTERNAL_CODE_SPACE is enabled InstructionStream objects are
+  // not allowed.
   static void VerifyPointer(Isolate* isolate, Object p);
   // Verify a pointer is a valid object pointer.
   // InstructionStream objects are allowed regardless of the
   // V8_EXTERNAL_CODE_SPACE mode.
   static void VerifyAnyTagged(Isolate* isolate, Object p);
 #endif
-
-  // Prints this object without details.
-  V8_EXPORT_PRIVATE void ShortPrint(FILE* out = stdout) const;
-
-  // Prints this object without details to a message accumulator.
-  V8_EXPORT_PRIVATE void ShortPrint(StringStream* accumulator) const;
-
-  V8_EXPORT_PRIVATE void ShortPrint(std::ostream& os) const;
 
   inline static constexpr Object cast(Object object) { return object; }
   inline static constexpr Object unchecked_cast(Object object) {
@@ -639,17 +638,6 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
 
   // Layout description.
   static const int kHeaderSize = 0;  // Object does not take up any space.
-
-#ifdef OBJECT_PRINT
-  // For our gdb macros, we should perhaps change these in the future.
-  V8_EXPORT_PRIVATE void Print() const;
-
-  // Prints this object with details.
-  V8_EXPORT_PRIVATE void Print(std::ostream& os) const;
-#else
-  void Print() const { ShortPrint(); }
-  void Print(std::ostream& os) const { ShortPrint(os); }
-#endif
 
   // For use with std::unordered_set.
   struct Hasher {
@@ -691,7 +679,7 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   // Whether this Object can be held weakly, i.e. whether it can be used as a
   // key in WeakMap, as a key in WeakSet, as the target of a WeakRef, or as a
   // target or unregister token of a FinalizationRegistry.
-  inline bool CanBeHeldWeakly() const;
+  static inline bool CanBeHeldWeakly(Tagged<Object> obj);
 
  protected:
   struct SkipTypeCheckTag {};
@@ -711,7 +699,7 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   friend class StringStream;
 
   // Return the map of the root of object's prototype chain.
-  Map GetPrototypeChainRootMap(Isolate* isolate) const;
+  static Map GetPrototypeChainRootMap(Tagged<Object> obj, Isolate* isolate);
 
   // Returns a non-SMI for JSReceivers, but returns the hash code forp
   // simple objects.  This avoids a double lookup in the cases where
@@ -872,6 +860,29 @@ inline bool IsShared(Tagged<Object> obj);
 #ifdef DEBUG
 inline bool IsApiCallResultType(Tagged<Object> obj);
 #endif  // DEBUG
+
+// Prints this object without details.
+// TODO(leszeks): Make these functions work on Tagged<Object>, once there is no
+// implicit conversion between Tagged and Object which makes them ambiguously
+// overload with the TaggedImpl overloads.
+V8_EXPORT_PRIVATE void ShortPrint(Object obj, FILE* out = stdout);
+
+// Prints this object without details to a message accumulator.
+V8_EXPORT_PRIVATE void ShortPrint(Object obj, StringStream* accumulator);
+
+V8_EXPORT_PRIVATE void ShortPrint(Object obj, std::ostream& os);
+
+#ifdef OBJECT_PRINT
+// For our gdb macros, we should perhaps change these in the future.
+V8_EXPORT_PRIVATE void Print(Object obj);
+
+// Prints this object with details.
+V8_EXPORT_PRIVATE void Print(Object obj, std::ostream& os);
+
+#else
+inline void Print(Object obj) { ShortPrint(obj); }
+inline void Print(Object obj, std::ostream& os) { ShortPrint(obj, os); }
+#endif
 
 // Heap objects typically have a map pointer in their first word.  However,
 // during GC other data (e.g. mark bits, forwarding addresses) is sometimes

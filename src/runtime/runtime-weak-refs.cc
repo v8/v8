@@ -44,7 +44,7 @@ RUNTIME_FUNCTION(Runtime_JSWeakRefAddToKeptObjects) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   Handle<HeapObject> object = args.at<HeapObject>(0);
-  DCHECK(object->CanBeHeldWeakly());
+  DCHECK(Object::CanBeHeldWeakly(*object));
 
   isolate->heap()->KeepDuringJob(object);
 

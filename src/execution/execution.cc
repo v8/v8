@@ -447,7 +447,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> Invoke(Isolate* isolate,
 
 #ifdef VERIFY_HEAP
   if (v8_flags.verify_heap) {
-    value.ObjectVerify(isolate);
+    Object::ObjectVerify(value, isolate);
   }
 #endif
 

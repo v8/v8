@@ -204,9 +204,9 @@ StringForwardingTable::BlockVector* StringForwardingTable::EnsureCapacity(
 
 int StringForwardingTable::AddForwardString(String string, String forward_to) {
   DCHECK_IMPLIES(!v8_flags.always_use_string_forwarding_table,
-                 string.InSharedHeap());
+                 Object::InSharedHeap(string));
   DCHECK_IMPLIES(!v8_flags.always_use_string_forwarding_table,
-                 forward_to.InSharedHeap());
+                 Object::InSharedHeap(forward_to));
   int index = next_free_index_++;
   uint32_t index_in_block;
   const uint32_t block_index = BlockForIndex(index, &index_in_block);
@@ -234,7 +234,7 @@ int StringForwardingTable::AddExternalResourceAndHash(String string,
       std::is_base_of_v<v8::String::ExternalOneByteStringResource, T>;
 
   DCHECK_IMPLIES(!v8_flags.always_use_string_forwarding_table,
-                 string.InSharedHeap());
+                 Object::InSharedHeap(string));
   int index = next_free_index_++;
   uint32_t index_in_block;
   const uint32_t block_index = BlockForIndex(index, &index_in_block);

@@ -1147,7 +1147,7 @@ bool CheckBreakPoint(Isolate* isolate, Handle<BreakPoint> break_point,
     isolate->clear_pending_exception();
     return false;
   }
-  return result->BooleanValue(isolate);
+  return Object::BooleanValue(*result, isolate);
 }
 
 }  // namespace

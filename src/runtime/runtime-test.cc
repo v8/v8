@@ -79,7 +79,7 @@ V8_WARN_UNUSED_RESULT Object ReturnFuzzSafe(Object value, Isolate* isolate) {
 #define CONVERT_INT32_ARG_FUZZ_SAFE(name, index)                  \
   if (!IsNumber(args[index])) return CrashUnlessFuzzing(isolate); \
   int32_t name = 0;                                               \
-  if (!args[index].ToInt32(&name)) return CrashUnlessFuzzing(isolate);
+  if (!Object::ToInt32(args[index], &name)) return CrashUnlessFuzzing(isolate);
 
 // Cast the given object to a boolean and store it in a variable with
 // the given name.  If the object is not a boolean we crash if not in
@@ -1222,9 +1222,9 @@ static void DebugPrintImpl(MaybeObject maybe_object, std::ostream& os) {
 #ifdef OBJECT_PRINT
     os << "DebugPrint: ";
     if (weak) os << "[weak] ";
-    object.Print(os);
+    Print(object, os);
     if (IsHeapObject(object)) {
-      HeapObject::cast(object)->map().Print(os);
+      Print(HeapObject::cast(object)->map(), os);
     }
 #else
     if (weak) os << "[weak] ";
@@ -1266,7 +1266,7 @@ RUNTIME_FUNCTION(Runtime_DebugPrintPtr) {
   if (!maybe_object.IsCleared()) {
     Object object = maybe_object.GetHeapObjectOrSmi();
     size_t pointer;
-    if (object.ToIntegerIndex(&pointer)) {
+    if (Object::ToIntegerIndex(object, &pointer)) {
       MaybeObject from_pointer(static_cast<Address>(pointer));
       DebugPrintImpl(from_pointer, os);
     }
@@ -1352,7 +1352,7 @@ RUNTIME_FUNCTION(Runtime_PrintWithNameForAssert) {
     PrintF("%c", character);
   }
   PrintF(": ");
-  args[1].ShortPrint();
+  ShortPrint(args[1]);
   PrintF("\n");
 
   return ReadOnlyRoots(isolate).undefined_value();
@@ -1502,7 +1502,7 @@ RUNTIME_FUNCTION(Runtime_DisassembleFunction) {
         Compiler::Compile(isolate, func, Compiler::KEEP_EXCEPTION,
                           &is_compiled_scope));
   StdoutStream os;
-  func->code().Print(os);
+  Print(func->code(), os);
   os << std::endl;
 #endif  // DEBUG
   return ReadOnlyRoots(isolate).undefined_value();
@@ -1546,7 +1546,7 @@ RUNTIME_FUNCTION(Runtime_TraceExit) {
   Object obj = args[0];
   PrintIndentation(StackSize(isolate));
   PrintF("} -> ");
-  obj.ShortPrint();
+  ShortPrint(obj);
   PrintF("\n");
   return obj;  // return TOS
 }
@@ -1853,9 +1853,9 @@ RUNTIME_FUNCTION(Runtime_HeapObjectVerify) {
   }
   Handle<Object> object = args.at(0);
 #ifdef VERIFY_HEAP
-  object->ObjectVerify(isolate);
+  Object::ObjectVerify(*object, isolate);
 #else
-  CHECK(object->IsObject());
+  CHECK(IsObject(**object));
   if (IsHeapObject(*object)) {
     CHECK(IsMap(HeapObject::cast(*object).map()));
   } else {

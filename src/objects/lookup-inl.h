@@ -180,7 +180,7 @@ PropertyKey::PropertyKey(Isolate* isolate, Handle<Name> name) {
 
 PropertyKey::PropertyKey(Isolate* isolate, Handle<Object> valid_key) {
   DCHECK(IsName(*valid_key) || IsNumber(*valid_key));
-  if (valid_key->ToIntegerIndex(&index_)) return;
+  if (Object::ToIntegerIndex(*valid_key, &index_)) return;
   if (IsNumber(*valid_key)) {
     // Negative or out of range -> treat as named property.
     valid_key = isolate->factory()->NumberToString(valid_key);

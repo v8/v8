@@ -5202,7 +5202,7 @@ TEST(RunRefDiamond) {
   m.Return(m.Int32Constant(magic));
 
   CHECK_EQ(magic, m.Call());
-  CHECK(rexpected->SameValue(buffer));
+  CHECK(Object::SameValue(*rexpected, buffer));
 }
 
 
@@ -5243,7 +5243,7 @@ TEST(RunDoubleRefDiamond) {
 
   CHECK_EQ(magic, m.Call());
   CHECK_EQ(dconstant, dbuffer);
-  CHECK(rexpected->SameValue(rbuffer));
+  CHECK(Object::SameValue(*rexpected, rbuffer));
 }
 
 
@@ -5294,7 +5294,7 @@ TEST(RunDoubleRefDoubleDiamond) {
 
   CHECK_EQ(magic, m.Call());
   CHECK_EQ(dconstant, dbuffer);
-  CHECK(rexpected->SameValue(rbuffer));
+  CHECK(Object::SameValue(*rexpected, rbuffer));
 }
 
 

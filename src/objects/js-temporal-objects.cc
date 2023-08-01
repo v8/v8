@@ -2590,7 +2590,7 @@ bool IsIntegralNumber(Isolate* isolate, Handle<Object> argument) {
   // 1. If Type(argument) is not Number, return false.
   if (!IsNumber(*argument)) return false;
   // 2. If argument is NaN, +∞𝔽, or -∞𝔽, return false.
-  double number = argument->Number();
+  double number = Object::Number(*argument);
   if (!std::isfinite(number)) return false;
   // 3. If floor(abs(ℝ(argument))) ≠ abs(ℝ(argument)), return false.
   if (std::floor(std::abs(number)) != std::abs(number)) return false;
@@ -2606,7 +2606,7 @@ Maybe<double> ToIntegerWithoutRounding(Isolate* isolate,
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, number, Object::ToNumber(isolate, argument), Nothing<double>());
   // 2. If number is NaN, +0𝔽, or −0𝔽 return 0.
-  if (IsNaN(*number) || number->Number() == 0) {
+  if (IsNaN(*number) || Object::Number(*number) == 0) {
     return Just(static_cast<double>(0));
   }
   // 3. If IsIntegralNumber(number) is false, throw a RangeError exception.
@@ -2615,7 +2615,7 @@ Maybe<double> ToIntegerWithoutRounding(Isolate* isolate,
         isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(), Nothing<double>());
   }
   // 4. Return ℝ(number).
-  return Just(number->Number());
+  return Just(Object::Number(*number));
 }
 
 }  // namespace
@@ -2853,11 +2853,14 @@ Maybe<DurationRecord> ToTemporalDurationRecord(
     Handle<JSTemporalDuration> duration =
         Handle<JSTemporalDuration>::cast(temporal_duration_like);
     return DurationRecord::Create(
-        isolate, duration->years().Number(), duration->months().Number(),
-        duration->weeks().Number(), duration->days().Number(),
-        duration->hours().Number(), duration->minutes().Number(),
-        duration->seconds().Number(), duration->milliseconds().Number(),
-        duration->microseconds().Number(), duration->nanoseconds().Number());
+        isolate, Object::Number(duration->years()),
+        Object::Number(duration->months()), Object::Number(duration->weeks()),
+        Object::Number(duration->days()), Object::Number(duration->hours()),
+        Object::Number(duration->minutes()),
+        Object::Number(duration->seconds()),
+        Object::Number(duration->milliseconds()),
+        Object::Number(duration->microseconds()),
+        Object::Number(duration->nanoseconds()));
   }
   // 3. Let result be a new Record with all the internal slots given in the
   // Internal Slot column in Table 8.
@@ -4360,7 +4363,7 @@ Maybe<int64_t> GetOffsetNanosecondsFor(Isolate* isolate,
     THROW_NEW_ERROR_RETURN_VALUE(
         isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(), Nothing<int64_t>());
   }
-  double offset_nanoseconds = offset_nanoseconds_obj->Number();
+  double offset_nanoseconds = Object::Number(*offset_nanoseconds_obj);
 
   // 6. Set offsetNanoseconds to ℝ(offsetNanoseconds).
   int64_t offset_nanoseconds_int = static_cast<int64_t>(offset_nanoseconds);
@@ -4436,7 +4439,7 @@ MaybeHandle<Object> InvokeCalendarMethod(Isolate* isolate,
     /* 4. Return ? Action(result). */                                         \
     ASSIGN_RETURN_ON_EXCEPTION(isolate, result, Action(isolate, result),      \
                                Object);                                       \
-    return handle(Smi::FromInt(result->Number()), isolate);                   \
+    return handle(Smi::FromInt(Object::Number(*result)), isolate);            \
   }
 
 #define CALENDAR_ABSTRACT_OPERATION(Name, property)                      \
@@ -4719,7 +4722,7 @@ Maybe<TimeRecord> ToTemporalTimeRecordOrPartialTime(
                                      Nothing<TimeRecord>());
     // e. / iii. Set result's internal slot whose name is the Internal Slot
     // value of the current row to value.
-    *(row.second) = value->Number();
+    *(row.second) = Object::Number(*value);
   }
 
   // 5. If _any_ is *false*, then
@@ -4937,7 +4940,7 @@ MaybeHandle<Object> ToIntegerThrowOnInfinity(Isolate* isolate,
   ASSIGN_RETURN_ON_EXCEPTION(isolate, argument,
                              Object::ToInteger(isolate, argument), Object);
   // 2. If integer is +∞ or -∞, throw a RangeError exception.
-  if (!std::isfinite(argument->Number())) {
+  if (!std::isfinite(Object::Number(*argument))) {
     // a. Throw a RangeError exception.
     THROW_NEW_ERROR(isolate, NEW_TEMPORAL_INVALID_ARG_RANGE_ERROR(), Object);
   }
@@ -5377,12 +5380,15 @@ Maybe<BalancePossiblyInfiniteDurationResult> BalancePossiblyInfiniteDuration(
   // 1. Return positive overflow.
   // ii. Else if sign = -1, then
   // 1. Return negative overflow.
-  double hours_value = BigInt::ToNumber(isolate, hours)->Number();
-  double minutes_value = BigInt::ToNumber(isolate, minutes)->Number();
-  double seconds_value = BigInt::ToNumber(isolate, seconds)->Number();
-  double milliseconds_value = BigInt::ToNumber(isolate, milliseconds)->Number();
-  double microseconds_value = BigInt::ToNumber(isolate, microseconds)->Number();
-  double nanoseconds_value = BigInt::ToNumber(isolate, nanoseconds)->Number();
+  double hours_value = Object::Number(*BigInt::ToNumber(isolate, hours));
+  double minutes_value = Object::Number(*BigInt::ToNumber(isolate, minutes));
+  double seconds_value = Object::Number(*BigInt::ToNumber(isolate, seconds));
+  double milliseconds_value =
+      Object::Number(*BigInt::ToNumber(isolate, milliseconds));
+  double microseconds_value =
+      Object::Number(*BigInt::ToNumber(isolate, microseconds));
+  double nanoseconds_value =
+      Object::Number(*BigInt::ToNumber(isolate, nanoseconds));
   if (std::isinf(days) || std::isinf(hours_value) ||
       std::isinf(minutes_value) || std::isinf(seconds_value) ||
       std::isinf(milliseconds_value) || std::isinf(microseconds_value) ||
@@ -5566,8 +5572,9 @@ Maybe<NanosecondsToDaysResult> NanosecondsToDays(Isolate* isolate,
       nanoseconds = BigInt::UnaryMinus(isolate, nanoseconds);
     }
     return Just(NanosecondsToDaysResult(
-        {BigInt::ToNumber(isolate, days_bigint)->Number(),
-         BigInt::ToNumber(isolate, nanoseconds)->Number(), kDayLengthNs}));
+        {Object::Number(*BigInt::ToNumber(isolate, days_bigint)),
+         Object::Number(*BigInt::ToNumber(isolate, nanoseconds)),
+         kDayLengthNs}));
   }
   Handle<JSTemporalZonedDateTime> relative_to =
       Handle<JSTemporalZonedDateTime>::cast(relative_to_obj);
@@ -5733,7 +5740,7 @@ Maybe<NanosecondsToDaysResult> NanosecondsToDays(Isolate* isolate,
   // 20. Return the new Record { [[Days]]: days, [[Nanoseconds]]: nanoseconds,
   // [[DayLength]]: abs(dayLengthNs) }.
   NanosecondsToDaysResult result(
-      {days, BigInt::ToNumber(isolate, nanoseconds)->Number(),
+      {days, Object::Number(*BigInt::ToNumber(isolate, nanoseconds)),
        std::abs(day_length_ns->AsInt64())});
   return Just(result);
 }
@@ -5816,7 +5823,7 @@ Maybe<DurationRecord> DifferenceISODateTime(
   // timeDifference.[[Microseconds]], timeDifference.[[Nanoseconds]],
   // largestUnit).
 
-  time_difference.days = date_difference->days().Number();
+  time_difference.days = Object::Number(date_difference->days());
   MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, time_difference,
       BalanceDuration(isolate, largest_unit, time_difference, method_name),
@@ -5828,11 +5835,12 @@ Maybe<DurationRecord> DifferenceISODateTime(
   // balanceResult.[[Seconds]], balanceResult.[[Milliseconds]],
   // balanceResult.[[Microseconds]], balanceResult.[[Nanoseconds]]).
 
-  return Just(CreateDurationRecord(
-                  isolate, {date_difference->years().Number(),
-                            date_difference->months().Number(),
-                            date_difference->weeks().Number(), time_difference})
-                  .ToChecked());
+  return Just(
+      CreateDurationRecord(
+          isolate, {Object::Number(date_difference->years()),
+                    Object::Number(date_difference->months()),
+                    Object::Number(date_difference->weeks()), time_difference})
+          .ToChecked());
 }
 
 // #sec-temporal-addinstant
@@ -6427,13 +6435,13 @@ Maybe<DateRecord> ISOMonthDayFromFields(Isolate* isolate,
   // ToIntegerThrowOnInfinity inside the PrepareTemporalFields above.
   // Therefore the day_obj is always an integer.
   DCHECK(IsSmi(*day_obj) || IsHeapNumber(*day_obj));
-  result.day = FastD2I(floor(day_obj->Number()));
+  result.day = FastD2I(floor(Object::Number(*day_obj)));
   // 11. Let referenceISOYear be 1972 (the first leap year after the Unix
   // epoch).
   int32_t reference_iso_year = 1972;
   // 12. If monthCode is undefined, then
   if (IsUndefined(*month_code_obj, isolate)) {
-    result.year = FastD2I(floor(year_obj->Number()));
+    result.year = FastD2I(floor(Object::Number(*year_obj)));
     // a. Let result be ? RegulateISODate(year, month, day, overflow).
   } else {
     // 13. Else,
@@ -6861,7 +6869,7 @@ Maybe<DateDurationRecord> UnbalanceDurationRelative(
                             until_options, date_until),
           Nothing<DateDurationRecord>());
       // v. Let oneYearMonths be untilResult.[[Months]].
-      double one_year_months = until_result->months().Number();
+      double one_year_months = Object::Number(until_result->months());
       // vi. Set relativeTo to newRelativeTo.
       relative_to = new_relative_to;
       // vii. Set years to years − sign.
@@ -7137,7 +7145,7 @@ Maybe<DateDurationRecord> BalanceDurationRelative(
                           until_options, date_until),
         Nothing<DateDurationRecord>());
     // o. Let oneYearMonths be untilResult.[[Months]].
-    double one_year_months = until_result->months().Number();
+    double one_year_months = Object::Number(until_result->months());
     // p. Repeat, while abs(months) ≥ abs(oneYearMonths),
     while (std::abs(result.months) >= std::abs(one_year_months)) {
       // i. Set months to months - oneYearMonths.
@@ -7169,7 +7177,7 @@ Maybe<DateDurationRecord> BalanceDurationRelative(
                             until_options, date_until),
           Nothing<DateDurationRecord>());
       // viii. Set oneYearMonths to untilResult.[[Months]].
-      one_year_months = until_result->months().Number();
+      one_year_months = Object::Number(until_result->months());
     }
     // 11. Else if largestUnit is "month", then
   } else if (largest_unit == Unit::kMonth) {
@@ -7277,27 +7285,30 @@ MaybeHandle<Smi> JSTemporalDuration::Compare(Isolate* isolate,
   int64_t shift1;
   MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, shift1,
-      CalculateOffsetShift(isolate, relative_to,
-                           {one->years().Number(), one->months().Number(),
-                            one->weeks().Number(), one->days().Number()},
-                           method_name),
+      CalculateOffsetShift(
+          isolate, relative_to,
+          {Object::Number(one->years()), Object::Number(one->months()),
+           Object::Number(one->weeks()), Object::Number(one->days())},
+          method_name),
       Handle<Smi>());
   // 6. Let shift2 be ? CalculateOffsetShift(relativeTo, two.[[Years]],
   // two.[[Months]], two.[[Weeks]], two.[[Days]]).
   int64_t shift2;
   MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, shift2,
-      CalculateOffsetShift(isolate, relative_to,
-                           {two->years().Number(), two->months().Number(),
-                            two->weeks().Number(), two->days().Number()},
-                           method_name),
+      CalculateOffsetShift(
+          isolate, relative_to,
+          {Object::Number(two->years()), Object::Number(two->months()),
+           Object::Number(two->weeks()), Object::Number(two->days())},
+          method_name),
       Handle<Smi>());
   // 7. If any of one.[[Years]], two.[[Years]], one.[[Months]], two.[[Months]],
   // one.[[Weeks]], or two.[[Weeks]] are not 0, then
   double days1, days2;
-  if (one->years().Number() != 0 || two->years().Number() != 0 ||
-      one->months().Number() != 0 || two->months().Number() != 0 ||
-      one->weeks().Number() != 0 || two->weeks().Number() != 0) {
+  if (Object::Number(one->years()) != 0 || Object::Number(two->years()) != 0 ||
+      Object::Number(one->months()) != 0 ||
+      Object::Number(two->months()) != 0 || Object::Number(one->weeks()) != 0 ||
+      Object::Number(two->weeks()) != 0) {
     // a. Let unbalanceResult1 be ? UnbalanceDurationRelative(one.[[Years]],
     // one.[[Months]], one.[[Weeks]], one.[[Days]], "day", relativeTo).
     DateDurationRecord unbalance_result1;
@@ -7305,8 +7316,8 @@ MaybeHandle<Smi> JSTemporalDuration::Compare(Isolate* isolate,
         isolate, unbalance_result1,
         UnbalanceDurationRelative(
             isolate,
-            {one->years().Number(), one->months().Number(),
-             one->weeks().Number(), one->days().Number()},
+            {Object::Number(one->years()), Object::Number(one->months()),
+             Object::Number(one->weeks()), Object::Number(one->days())},
             Unit::kDay, relative_to, method_name),
         Handle<Smi>());
     // b. Let unbalanceResult2 be ? UnbalanceDurationRelative(two.[[Years]],
@@ -7316,8 +7327,8 @@ MaybeHandle<Smi> JSTemporalDuration::Compare(Isolate* isolate,
         isolate, unbalance_result2,
         UnbalanceDurationRelative(
             isolate,
-            {two->years().Number(), two->months().Number(),
-             two->weeks().Number(), two->days().Number()},
+            {Object::Number(two->years()), Object::Number(two->months()),
+             Object::Number(two->weeks()), Object::Number(two->days())},
             Unit::kDay, relative_to, method_name),
         Handle<Smi>());
     // c. Let days1 be unbalanceResult1.[[Days]].
@@ -7327,27 +7338,27 @@ MaybeHandle<Smi> JSTemporalDuration::Compare(Isolate* isolate,
     // 8. Else,
   } else {
     // a. Let days1 be one.[[Days]].
-    days1 = one->days().Number();
+    days1 = Object::Number(one->days());
     // b. Let days2 be two.[[Days]].
-    days2 = two->days().Number();
+    days2 = Object::Number(two->days());
   }
   // 9. Let ns1 be ! TotalDurationNanoseconds(days1, one.[[Hours]],
   // one.[[Minutes]], one.[[Seconds]], one.[[Milliseconds]],
   // one.[[Microseconds]], one.[[Nanoseconds]], shift1).
   Handle<BigInt> ns1 = TotalDurationNanoseconds(
       isolate,
-      {days1, one->hours().Number(), one->minutes().Number(),
-       one->seconds().Number(), one->milliseconds().Number(),
-       one->microseconds().Number(), one->nanoseconds().Number()},
+      {days1, Object::Number(one->hours()), Object::Number(one->minutes()),
+       Object::Number(one->seconds()), Object::Number(one->milliseconds()),
+       Object::Number(one->microseconds()), Object::Number(one->nanoseconds())},
       shift1);
   // 10. Let ns2 be ! TotalDurationNanoseconds(days2, two.[[Hours]],
   // two.[[Minutes]], two.[[Seconds]], two.[[Milliseconds]],
   // two.[[Microseconds]], two.[[Nanoseconds]], shift2).
   Handle<BigInt> ns2 = TotalDurationNanoseconds(
       isolate,
-      {days2, two->hours().Number(), two->minutes().Number(),
-       two->seconds().Number(), two->milliseconds().Number(),
-       two->microseconds().Number(), two->nanoseconds().Number()},
+      {days2, Object::Number(two->hours()), Object::Number(two->minutes()),
+       Object::Number(two->seconds()), Object::Number(two->milliseconds()),
+       Object::Number(two->microseconds()), Object::Number(two->nanoseconds())},
       shift2);
   switch (BigInt::CompareToBigInt(ns1, ns2)) {
     // 11. If ns1 > ns2, return 1𝔽.
@@ -7376,13 +7387,15 @@ MaybeHandle<JSTemporalDuration> JSTemporalDuration::From(Isolate* isolate,
         Handle<JSTemporalDuration>::cast(item);
     return CreateTemporalDuration(
         isolate,
-        {duration->years().Number(),
-         duration->months().Number(),
-         duration->weeks().Number(),
-         {duration->days().Number(), duration->hours().Number(),
-          duration->minutes().Number(), duration->seconds().Number(),
-          duration->milliseconds().Number(), duration->microseconds().Number(),
-          duration->nanoseconds().Number()}});
+        {Object::Number(duration->years()),
+         Object::Number(duration->months()),
+         Object::Number(duration->weeks()),
+         {Object::Number(duration->days()), Object::Number(duration->hours()),
+          Object::Number(duration->minutes()),
+          Object::Number(duration->seconds()),
+          Object::Number(duration->milliseconds()),
+          Object::Number(duration->microseconds()),
+          Object::Number(duration->nanoseconds())}});
   }
   // 2. Return ? ToTemporalDuration(item).
   return temporal::ToTemporalDuration(isolate, item, "Temporal.Duration.from");
@@ -7475,13 +7488,15 @@ MaybeHandle<JSTemporalDuration> JSTemporalDuration::Round(
   // duration.[[Minutes]], duration.[[Seconds]], duration.[[Milliseconds]],
   // duration.[[Microseconds]]).
   Unit default_largest_unit = DefaultTemporalLargestUnit(
-      {duration->years().Number(),
-       duration->months().Number(),
-       duration->weeks().Number(),
-       {duration->days().Number(), duration->hours().Number(),
-        duration->minutes().Number(), duration->seconds().Number(),
-        duration->milliseconds().Number(), duration->microseconds().Number(),
-        duration->nanoseconds().Number()}});
+      {Object::Number(duration->years()),
+       Object::Number(duration->months()),
+       Object::Number(duration->weeks()),
+       {Object::Number(duration->days()), Object::Number(duration->hours()),
+        Object::Number(duration->minutes()),
+        Object::Number(duration->seconds()),
+        Object::Number(duration->milliseconds()),
+        Object::Number(duration->microseconds()),
+        Object::Number(duration->nanoseconds())}});
 
   // 11. Set defaultLargestUnit to !
   // LargerOfTwoTemporalUnits(defaultLargestUnit, smallestUnit).
@@ -7551,8 +7566,9 @@ MaybeHandle<JSTemporalDuration> JSTemporalDuration::Round(
       isolate, unbalance_result,
       UnbalanceDurationRelative(
           isolate,
-          {duration->years().Number(), duration->months().Number(),
-           duration->weeks().Number(), duration->days().Number()},
+          {Object::Number(duration->years()),
+           Object::Number(duration->months()),
+           Object::Number(duration->weeks()), Object::Number(duration->days())},
           largest_unit, relative_to, method_name),
       Handle<JSTemporalDuration>());
   // 22. Let roundResult be (? RoundDuration(unbalanceResult.[[Years]],
@@ -7564,18 +7580,18 @@ MaybeHandle<JSTemporalDuration> JSTemporalDuration::Round(
   DurationRecordWithRemainder round_result;
   MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, round_result,
-      RoundDuration(
-          isolate,
-          {unbalance_result.years,
-           unbalance_result.months,
-           unbalance_result.weeks,
-           {unbalance_result.days, duration->hours().Number(),
-            duration->minutes().Number(), duration->seconds().Number(),
-            duration->milliseconds().Number(),
-            duration->microseconds().Number(),
-            duration->nanoseconds().Number()}},
-          rounding_increment, smallest_unit, rounding_mode, relative_to,
-          method_name),
+      RoundDuration(isolate,
+                    {unbalance_result.years,
+                     unbalance_result.months,
+                     unbalance_result.weeks,
+                     {unbalance_result.days, Object::Number(duration->hours()),
+                      Object::Number(duration->minutes()),
+                      Object::Number(duration->seconds()),
+                      Object::Number(duration->milliseconds()),
+                      Object::Number(duration->microseconds()),
+                      Object::Number(duration->nanoseconds())}},
+                    rounding_increment, smallest_unit, rounding_mode,
+                    relative_to, method_name),
       Handle<JSTemporalDuration>());
 
   // 23. Let adjustResult be ? AdjustRoundedDurationDays(roundResult.[[Years]],
@@ -7697,8 +7713,9 @@ MaybeHandle<Object> JSTemporalDuration::Total(
       isolate, unbalance_result,
       UnbalanceDurationRelative(
           isolate,
-          {duration->years().Number(), duration->months().Number(),
-           duration->weeks().Number(), duration->days().Number()},
+          {Object::Number(duration->years()),
+           Object::Number(duration->months()),
+           Object::Number(duration->weeks()), Object::Number(duration->days())},
           unit, relative_to, method_name),
       Handle<Object>());
 
@@ -7731,10 +7748,12 @@ MaybeHandle<Object> JSTemporalDuration::Total(
       isolate, balance_result,
       BalancePossiblyInfiniteDuration(
           isolate, unit, intermediate,
-          {unbalance_result.days, duration->hours().Number(),
-           duration->minutes().Number(), duration->seconds().Number(),
-           duration->milliseconds().Number(), duration->microseconds().Number(),
-           duration->nanoseconds().Number()},
+          {unbalance_result.days, Object::Number(duration->hours()),
+           Object::Number(duration->minutes()),
+           Object::Number(duration->seconds()),
+           Object::Number(duration->milliseconds()),
+           Object::Number(duration->microseconds()),
+           Object::Number(duration->nanoseconds())},
           method_name),
       Handle<Object>());
   // 12. If balanceResult is positive overflow, return +∞𝔽.
@@ -7898,14 +7917,15 @@ MaybeHandle<JSTemporalDuration> JSTemporalDuration::With(
       isolate, partial,
       temporal::ToPartialDuration(
           isolate, temporal_duration_like,
-          {duration->years().Number(),
-           duration->months().Number(),
-           duration->weeks().Number(),
-           {duration->days().Number(), duration->hours().Number(),
-            duration->minutes().Number(), duration->seconds().Number(),
-            duration->milliseconds().Number(),
-            duration->microseconds().Number(),
-            duration->nanoseconds().Number()}}),
+          {Object::Number(duration->years()),
+           Object::Number(duration->months()),
+           Object::Number(duration->weeks()),
+           {Object::Number(duration->days()), Object::Number(duration->hours()),
+            Object::Number(duration->minutes()),
+            Object::Number(duration->seconds()),
+            Object::Number(duration->milliseconds()),
+            Object::Number(duration->microseconds()),
+            Object::Number(duration->nanoseconds())}}),
       Handle<JSTemporalDuration>());
 
   // 24. Return ? CreateTemporalDuration(years, months, weeks, days, hours,
@@ -7923,17 +7943,18 @@ MaybeHandle<Smi> JSTemporalDuration::Sign(Isolate* isolate,
   // duration.[[Weeks]], duration.[[Days]], duration.[[Hours]],
   // duration.[[Minutes]], duration.[[Seconds]], duration.[[Milliseconds]],
   // duration.[[Microseconds]], duration.[[Nanoseconds]]).
-  return handle(
-      Smi::FromInt(DurationSign(
-          isolate, {duration->years().Number(),
-                    duration->months().Number(),
-                    duration->weeks().Number(),
-                    {duration->days().Number(), duration->hours().Number(),
-                     duration->minutes().Number(), duration->seconds().Number(),
-                     duration->milliseconds().Number(),
-                     duration->microseconds().Number(),
-                     duration->nanoseconds().Number()}})),
-      isolate);
+  return handle(Smi::FromInt(DurationSign(
+                    isolate, {Object::Number(duration->years()),
+                              Object::Number(duration->months()),
+                              Object::Number(duration->weeks()),
+                              {Object::Number(duration->days()),
+                               Object::Number(duration->hours()),
+                               Object::Number(duration->minutes()),
+                               Object::Number(duration->seconds()),
+                               Object::Number(duration->milliseconds()),
+                               Object::Number(duration->microseconds()),
+                               Object::Number(duration->nanoseconds())}})),
+                isolate);
 }
 
 // #sec-get-temporal.duration.prototype.blank
@@ -7950,13 +7971,15 @@ MaybeHandle<Oddball> JSTemporalDuration::Blank(
   // 5. Return false.
   int32_t sign = DurationSign(
       isolate,
-      {duration->years().Number(),
-       duration->months().Number(),
-       duration->weeks().Number(),
-       {duration->days().Number(), duration->hours().Number(),
-        duration->minutes().Number(), duration->seconds().Number(),
-        duration->milliseconds().Number(), duration->microseconds().Number(),
-        duration->nanoseconds().Number()}});
+      {Object::Number(duration->years()),
+       Object::Number(duration->months()),
+       Object::Number(duration->weeks()),
+       {Object::Number(duration->days()), Object::Number(duration->hours()),
+        Object::Number(duration->minutes()),
+        Object::Number(duration->seconds()),
+        Object::Number(duration->milliseconds()),
+        Object::Number(duration->microseconds()),
+        Object::Number(duration->nanoseconds())}});
   return isolate->factory()->ToBoolean(sign == 0);
 }
 
@@ -7988,16 +8011,17 @@ MaybeHandle<JSTemporalDuration> CreateNegatedTemporalDuration(
   // −duration.[[Hours]], −duration.[[Minutes]], −duration.[[Seconds]],
   // −duration.[[Milliseconds]], −duration.[[Microseconds]],
   // −duration.[[Nanoseconds]]).
-  return CreateTemporalDuration(
-             isolate,
-             {-duration->years().Number(),
-              -duration->months().Number(),
-              -duration->weeks().Number(),
-              {-duration->days().Number(), -duration->hours().Number(),
-               -duration->minutes().Number(), -duration->seconds().Number(),
-               -duration->milliseconds().Number(),
-               -duration->microseconds().Number(),
-               -duration->nanoseconds().Number()}})
+  return CreateTemporalDuration(isolate,
+                                {-Object::Number(duration->years()),
+                                 -Object::Number(duration->months()),
+                                 -Object::Number(duration->weeks()),
+                                 {-Object::Number(duration->days()),
+                                  -Object::Number(duration->hours()),
+                                  -Object::Number(duration->minutes()),
+                                  -Object::Number(duration->seconds()),
+                                  -Object::Number(duration->milliseconds()),
+                                  -Object::Number(duration->microseconds()),
+                                  -Object::Number(duration->nanoseconds())}})
       .ToHandleChecked();
 }
 
@@ -8025,17 +8049,17 @@ MaybeHandle<JSTemporalDuration> JSTemporalDuration::Abs(
   // abs(duration.[[Hours]]), abs(duration.[[Minutes]]),
   // abs(duration.[[Seconds]]), abs(duration.[[Milliseconds]]),
   // abs(duration.[[Microseconds]]), abs(duration.[[Nanoseconds]])).
-  return CreateTemporalDuration(isolate,
-                                {std::abs(duration->years().Number()),
-                                 std::abs(duration->months().Number()),
-                                 std::abs(duration->weeks().Number()),
-                                 {std::abs(duration->days().Number()),
-                                  std::abs(duration->hours().Number()),
-                                  std::abs(duration->minutes().Number()),
-                                  std::abs(duration->seconds().Number()),
-                                  std::abs(duration->milliseconds().Number()),
-                                  std::abs(duration->microseconds().Number()),
-                                  std::abs(duration->nanoseconds().Number())}});
+  return CreateTemporalDuration(
+      isolate, {std::abs(Object::Number(duration->years())),
+                std::abs(Object::Number(duration->months())),
+                std::abs(Object::Number(duration->weeks())),
+                {std::abs(Object::Number(duration->days())),
+                 std::abs(Object::Number(duration->hours())),
+                 std::abs(Object::Number(duration->minutes())),
+                 std::abs(Object::Number(duration->seconds())),
+                 std::abs(Object::Number(duration->milliseconds())),
+                 std::abs(Object::Number(duration->microseconds())),
+                 std::abs(Object::Number(duration->nanoseconds()))}});
 }
 
 namespace {
@@ -8533,7 +8557,7 @@ Maybe<DurationRecord> AddDuration(Isolate* isolate, const DurationRecord& dur1,
     // Note: We call a special version of BalanceDuration which add two duration
     // internally to avoid overflow the double.
     TimeDurationRecord time_dur1 = dur1.time_duration;
-    time_dur1.days = date_difference->days().Number();
+    time_dur1.days = Object::Number(date_difference->days());
     TimeDurationRecord time_dur2 = dur2.time_duration;
     time_dur2.days = 0;
     MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
@@ -8546,12 +8570,12 @@ Maybe<DurationRecord> AddDuration(Isolate* isolate, const DurationRecord& dur1,
     // result.[[Hours]], result.[[Minutes]], result.[[Seconds]],
     // result.[[Milliseconds]], result.[[Microseconds]],
     // result.[[Nanoseconds]]).
-    return Just(
-        CreateDurationRecord(
-            isolate, {date_difference->years().Number(),
-                      date_difference->months().Number(),
-                      date_difference->weeks().Number(), result.time_duration})
-            .ToChecked());
+    return Just(CreateDurationRecord(isolate,
+                                     {Object::Number(date_difference->years()),
+                                      Object::Number(date_difference->months()),
+                                      Object::Number(date_difference->weeks()),
+                                      result.time_duration})
+                    .ToChecked());
   }
   // 6. Assert: relativeTo has an [[InitializedTemporalZonedDateTime]]
   // internal slot.
@@ -8641,14 +8665,15 @@ MaybeHandle<JSTemporalDuration> AddDurationToOrSubtractDurationFromDuration(
       isolate, result,
       AddDuration(
           isolate,
-          {duration->years().Number(),
-           duration->months().Number(),
-           duration->weeks().Number(),
-           {duration->days().Number(), duration->hours().Number(),
-            duration->minutes().Number(), duration->seconds().Number(),
-            duration->milliseconds().Number(),
-            duration->microseconds().Number(),
-            duration->nanoseconds().Number()}},
+          {Object::Number(duration->years()),
+           Object::Number(duration->months()),
+           Object::Number(duration->weeks()),
+           {Object::Number(duration->days()), Object::Number(duration->hours()),
+            Object::Number(duration->minutes()),
+            Object::Number(duration->seconds()),
+            Object::Number(duration->milliseconds()),
+            Object::Number(duration->microseconds()),
+            Object::Number(duration->nanoseconds())}},
           {sign * other.years,
            sign * other.months,
            sign * other.weeks,
@@ -8700,13 +8725,14 @@ MaybeHandle<String> JSTemporalDuration::ToJSON(
   // duration.[[Milliseconds]], duration.[[Microseconds]],
   // duration.[[Nanoseconds]], "auto").
   DurationRecord dur = {
-      duration->years().Number(),
-      duration->months().Number(),
-      duration->weeks().Number(),
-      {duration->days().Number(), duration->hours().Number(),
-       duration->minutes().Number(), duration->seconds().Number(),
-       duration->milliseconds().Number(), duration->microseconds().Number(),
-       duration->nanoseconds().Number()}};
+      Object::Number(duration->years()),
+      Object::Number(duration->months()),
+      Object::Number(duration->weeks()),
+      {Object::Number(duration->days()), Object::Number(duration->hours()),
+       Object::Number(duration->minutes()), Object::Number(duration->seconds()),
+       Object::Number(duration->milliseconds()),
+       Object::Number(duration->microseconds()),
+       Object::Number(duration->nanoseconds())}};
   return TemporalDurationToString(isolate, dur, Precision::kAuto);
 }
 
@@ -8723,13 +8749,14 @@ MaybeHandle<String> JSTemporalDuration::ToLocaleString(
   // duration.[[Milliseconds]], duration.[[Microseconds]],
   // duration.[[Nanoseconds]], "auto").
   DurationRecord dur = {
-      duration->years().Number(),
-      duration->months().Number(),
-      duration->weeks().Number(),
-      {duration->days().Number(), duration->hours().Number(),
-       duration->minutes().Number(), duration->seconds().Number(),
-       duration->milliseconds().Number(), duration->microseconds().Number(),
-       duration->nanoseconds().Number()}};
+      Object::Number(duration->years()),
+      Object::Number(duration->months()),
+      Object::Number(duration->weeks()),
+      {Object::Number(duration->days()), Object::Number(duration->hours()),
+       Object::Number(duration->minutes()), Object::Number(duration->seconds()),
+       Object::Number(duration->milliseconds()),
+       Object::Number(duration->microseconds()),
+       Object::Number(duration->nanoseconds())}};
 
   // TODO(ftang) Implement #sup-temporal.duration.prototype.tolocalestring
   return TemporalDurationToString(isolate, dur, Precision::kAuto);
@@ -9010,7 +9037,7 @@ Maybe<DurationRecordWithRemainder> RoundDuration(Isolate* isolate,
           Nothing<DurationRecordWithRemainder>());
 
       // n. Let yearsPassed be timePassed.[[Years]].
-      double years_passed = time_passed->years().Number();
+      double years_passed = Object::Number(time_passed->years());
 
       // o. Set years to years + yearsPassed.
       result.record.years += years_passed;
@@ -9454,13 +9481,14 @@ MaybeHandle<String> JSTemporalDuration::ToString(
   // duration.[[Microseconds]], duration.[[Nanoseconds]],
   // precision.[[Increment]], precision.[[Unit]], roundingMode).
   DurationRecord dur = {
-      duration->years().Number(),
-      duration->months().Number(),
-      duration->weeks().Number(),
-      {duration->days().Number(), duration->hours().Number(),
-       duration->minutes().Number(), duration->seconds().Number(),
-       duration->milliseconds().Number(), duration->microseconds().Number(),
-       duration->nanoseconds().Number()}};
+      Object::Number(duration->years()),
+      Object::Number(duration->months()),
+      Object::Number(duration->weeks()),
+      {Object::Number(duration->days()), Object::Number(duration->hours()),
+       Object::Number(duration->minutes()), Object::Number(duration->seconds()),
+       Object::Number(duration->milliseconds()),
+       Object::Number(duration->microseconds()),
+       Object::Number(duration->nanoseconds())}};
   DurationRecordWithRemainder result;
   MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, result,
@@ -9642,7 +9670,7 @@ Maybe<int32_t> ResolveISOMonth(Isolate* isolate, Handle<JSReceiver> fields) {
     // ToPositiveInteger inside PrepareTemporalFields before calling
     // ResolveISOMonth. Therefore the month_obj is always a positive integer.
     DCHECK(IsSmi(*month_obj) || IsHeapNumber(*month_obj));
-    return Just(FastD2I(month_obj->Number()));
+    return Just(FastD2I(Object::Number(*month_obj)));
   }
   // 4. Assert: Type(monthCode) is String.
   DCHECK(IsString(*month_code_obj));
@@ -9681,7 +9709,8 @@ Maybe<int32_t> ResolveISOMonth(Isolate* isolate, Handle<JSReceiver> fields) {
   // Note: In Temporal spec, "month" in fields is always converted by
   // ToPositiveInteger inside PrepareTemporalFields before calling
   // ResolveISOMonth. Therefore the month_obj is always a positive integer.
-  if (!IsUndefined(*month_obj) && FastD2I(month_obj->Number()) != number_part) {
+  if (!IsUndefined(*month_obj) &&
+      FastD2I(Object::Number(*month_obj)) != number_part) {
     // a. Throw a RangeError exception.
     THROW_NEW_ERROR_RETURN_VALUE(
         isolate,
@@ -9740,9 +9769,9 @@ Maybe<DateRecord> ISODateFromFields(Isolate* isolate, Handle<JSReceiver> fields,
   // Therefore the day_obj is always an integer.
   DCHECK(IsSmi(*day_obj) || IsHeapNumber(*day_obj));
   // 9. Return ? RegulateISODate(year, month, day, overflow).
-  return RegulateISODate(
-      isolate, overflow,
-      {FastD2I(year_obj->Number()), month, FastD2I(day_obj->Number())});
+  return RegulateISODate(isolate, overflow,
+                         {FastD2I(Object::Number(*year_obj)), month,
+                          FastD2I(Object::Number(*day_obj))});
 }
 
 // #sec-temporal-addisodate
@@ -9999,7 +10028,7 @@ Maybe<DateRecord> ISOYearMonthFromFields(Isolate* isolate,
                                  Nothing<DateRecord>());
   }
   DateRecord result;
-  result.year = FastD2I(floor(year_obj->Number()));
+  result.year = FastD2I(floor(Object::Number(*year_obj)));
   // 6. Let month be ? ResolveISOMonth(fields).
   int32_t month;
   MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
@@ -10122,10 +10151,12 @@ MaybeHandle<JSTemporalPlainDate> JSTemporalCalendar::DateAdd(
       isolate, balance_result,
       BalanceDuration(
           isolate, Unit::kDay,
-          {duration->days().Number(), duration->hours().Number(),
-           duration->minutes().Number(), duration->seconds().Number(),
-           duration->milliseconds().Number(), duration->microseconds().Number(),
-           duration->nanoseconds().Number()},
+          {Object::Number(duration->days()), Object::Number(duration->hours()),
+           Object::Number(duration->minutes()),
+           Object::Number(duration->seconds()),
+           Object::Number(duration->milliseconds()),
+           Object::Number(duration->microseconds()),
+           Object::Number(duration->nanoseconds())},
           method_name),
       Handle<JSTemporalPlainDate>());
 
@@ -10139,8 +10170,9 @@ MaybeHandle<JSTemporalPlainDate> JSTemporalCalendar::DateAdd(
         isolate, result,
         AddISODate(isolate,
                    {date->iso_year(), date->iso_month(), date->iso_day()},
-                   {duration->years().Number(), duration->months().Number(),
-                    duration->weeks().Number(), balance_result.days},
+                   {Object::Number(duration->years()),
+                    Object::Number(duration->months()),
+                    Object::Number(duration->weeks()), balance_result.days},
                    overflow),
         Handle<JSTemporalPlainDate>());
   } else {
@@ -11881,10 +11913,10 @@ MaybeHandle<JSTemporalDuration> DifferenceTemporalPlainDate(
     MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
         isolate, round_result,
         RoundDuration(isolate,
-                      {result->years().Number(),
-                       result->months().Number(),
-                       result->weeks().Number(),
-                       {result->days().Number(), 0, 0, 0, 0, 0, 0}},
+                      {Object::Number(result->years()),
+                       Object::Number(result->months()),
+                       Object::Number(result->weeks()),
+                       {Object::Number(result->days()), 0, 0, 0, 0, 0, 0}},
                       settings.rounding_increment, settings.smallest_unit,
                       settings.rounding_mode, temporal_date, method_name),
         Handle<JSTemporalDuration>());
@@ -11908,10 +11940,11 @@ MaybeHandle<JSTemporalDuration> DifferenceTemporalPlainDate(
   // result.[[Months]], sign × result.[[Weeks]], sign × result.[[Days]], 0, 0,
   // 0, 0, 0, 0).
   return CreateTemporalDuration(
-             isolate, {sign * result->years().Number(),
-                       sign * result->months().Number(),
-                       sign * result->weeks().Number(),
-                       {sign * result->days().Number(), 0, 0, 0, 0, 0, 0}})
+             isolate,
+             {sign * Object::Number(result->years()),
+              sign * Object::Number(result->months()),
+              sign * Object::Number(result->weeks()),
+              {sign * Object::Number(result->days()), 0, 0, 0, 0, 0, 0}})
       .ToHandleChecked();
 }
 
@@ -14379,8 +14412,8 @@ MaybeHandle<JSTemporalDuration> DifferenceTemporalPlainYearMonth(
     MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
         isolate, round_result,
         RoundDuration(isolate,
-                      {result->years().Number(),
-                       result->months().Number(),
+                      {Object::Number(result->years()),
+                       Object::Number(result->months()),
                        0,
                        {0, 0, 0, 0, 0, 0, 0}},
                       settings.rounding_increment, settings.smallest_unit,
@@ -14396,10 +14429,11 @@ MaybeHandle<JSTemporalDuration> DifferenceTemporalPlainYearMonth(
   }
   // 16. Return ! CreateTemporalDuration(sign × result.[[Years]], sign ×
   // result.[[Months]], 0, 0, 0, 0, 0, 0, 0, 0).
-  return CreateTemporalDuration(isolate, {result->years().Number() * sign,
-                                          result->months().Number() * sign,
-                                          0,
-                                          {0, 0, 0, 0, 0, 0, 0}})
+  return CreateTemporalDuration(isolate,
+                                {Object::Number(result->years()) * sign,
+                                 Object::Number(result->months()) * sign,
+                                 0,
+                                 {0, 0, 0, 0, 0, 0, 0}})
       .ToHandleChecked();
 }
 
@@ -15632,7 +15666,7 @@ Maybe<StringPrecision> ToSecondsStringPrecision(
   // 11. If fractionalDigitsVal is NaN, +∞𝔽, or -∞𝔽, throw a RangeError
   // exception.
   if (IsNaN(*fractional_digits_val) ||
-      std::isinf(fractional_digits_val->Number())) {
+      std::isinf(Object::Number(*fractional_digits_val))) {
     THROW_NEW_ERROR_RETURN_VALUE(
         isolate,
         NewRangeError(MessageTemplate::kPropertyValueOutOfRange,
@@ -15641,7 +15675,7 @@ Maybe<StringPrecision> ToSecondsStringPrecision(
   }
   // 12. Let fractionalDigitCount be RoundTowardsZero(ℝ(fractionalDigitsVal)).
   int64_t fractional_digit_count =
-      RoundTowardsZero(fractional_digits_val->Number());
+      RoundTowardsZero(Object::Number(*fractional_digits_val));
   // 13. If fractionalDigitCount < 0 or fractionalDigitCount > 9, throw a
   // RangeError exception.
   if (fractional_digit_count < 0 || fractional_digit_count > 9) {
@@ -17147,7 +17181,7 @@ MaybeHandle<JSTemporalZonedDateTime> JSTemporalZonedDateTime::Round(
         temporal_date_time->iso_microsecond(),
         temporal_date_time->iso_nanosecond()}},
       rounding_increment, smallest_unit, rounding_mode,
-      BigInt::ToNumber(isolate, day_length_ns)->Number());
+      Object::Number(*BigInt::ToNumber(isolate, day_length_ns)));
   // 21. Let offsetNanoseconds be ? GetOffsetNanosecondsFor(timeZone, instant).
   int64_t offset_nanoseconds;
   MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(
@@ -18554,16 +18588,12 @@ TimeDurationRecord DifferenceInstant(Isolate* isolate, Handle<BigInt> ns1,
   // RoundDuration.
   Handle<BigInt> nanoseconds_in_a_hour =
       BigInt::FromUint64(isolate, 3600000000000);
-  double diff_hours =
-      BigInt::ToNumber(isolate,
-                       BigInt::Divide(isolate, diff, nanoseconds_in_a_hour)
-                           .ToHandleChecked())
-          ->Number();
-  double diff_nanoseconds =
-      BigInt::ToNumber(isolate,
-                       BigInt::Remainder(isolate, diff, nanoseconds_in_a_hour)
-                           .ToHandleChecked())
-          ->Number();
+  double diff_hours = Object::Number(*BigInt::ToNumber(
+      isolate,
+      BigInt::Divide(isolate, diff, nanoseconds_in_a_hour).ToHandleChecked()));
+  double diff_nanoseconds = Object::Number(*BigInt::ToNumber(
+      isolate, BigInt::Remainder(isolate, diff, nanoseconds_in_a_hour)
+                   .ToHandleChecked()));
   DurationRecordWithRemainder round_record =
       RoundDuration(
           isolate, {0, 0, 0, {0, diff_hours, 0, 0, 0, 0, diff_nanoseconds}},

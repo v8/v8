@@ -2015,11 +2015,11 @@ void JavaScriptFrame::PrintTop(Isolate* isolate, FILE* file, bool print_args,
         // (we are intentionally only printing the actually
         // supplied parameters, not all parameters required)
         PrintF(file, "(this=");
-        frame->receiver().ShortPrint(file);
+        ShortPrint(frame->receiver(), file);
         const int length = frame->ComputeParametersCount();
         for (int i = 0; i < length; i++) {
           PrintF(file, ", ");
-          frame->GetParameter(i).ShortPrint(file);
+          ShortPrint(frame->GetParameter(i), file);
         }
         PrintF(file, ")");
       }

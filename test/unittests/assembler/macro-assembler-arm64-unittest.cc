@@ -221,7 +221,7 @@ TEST_P(MacroAssemblerTestMoveObjectAndSlot, MoveObjectAndSlot) {
             Factory::CodeBuilder(isolate(), desc, CodeKind::FOR_TESTING)
                 .Build();
         StdoutStream os;
-        code->Print(os);
+        Print(*code, os);
       }
     }
 

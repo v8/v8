@@ -87,12 +87,14 @@ DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsClassBoilerplate) {
   return IsFixedArrayExact(obj, cage_base);
 }
 
-bool Object::InSharedHeap() const {
-  return IsHeapObject(*this) && HeapObject::cast(*this).InAnySharedSpace();
+// static
+bool Object::InSharedHeap(Tagged<Object> obj) {
+  return IsHeapObject(obj) && HeapObject::cast(obj).InAnySharedSpace();
 }
 
-bool Object::InWritableSharedSpace() const {
-  return IsHeapObject(*this) && HeapObject::cast(*this).InWritableSharedSpace();
+// static
+bool Object::InWritableSharedSpace(Tagged<Object> obj) {
+  return IsHeapObject(obj) && HeapObject::cast(obj).InWritableSharedSpace();
 }
 
 bool IsJSObjectThatCanBeTrackedAsPrototype(Tagged<Object> obj) {
@@ -514,10 +516,11 @@ DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsAccessCheckNeeded) {
 STRUCT_LIST(MAKE_STRUCT_PREDICATE)
 #undef MAKE_STRUCT_PREDICATE
 
-double Object::Number() const {
-  DCHECK(IsNumber(*this));
-  return IsSmi(*this) ? static_cast<double>(Smi(ptr()).value())
-                      : HeapNumber::unchecked_cast(*this)->value();
+// static
+double Object::Number(Tagged<Object> obj) {
+  DCHECK(IsNumber(obj));
+  return IsSmi(obj) ? static_cast<double>(Smi(obj.ptr()).value())
+                    : HeapNumber::unchecked_cast(obj)->value();
 }
 
 // static
@@ -550,32 +553,36 @@ OBJECT_CONSTRUCTORS_IMPL(FreshlyAllocatedBigInt, BigIntBase)
 CAST_ACCESSOR(BigIntBase)
 CAST_ACCESSOR(BigInt)
 
-bool Object::HasValidElements() {
+// static
+bool Object::HasValidElements(Tagged<Object> obj) {
   // Dictionary is covered under FixedArray. ByteArray is used
   // for the JSTypedArray backing stores.
-  return IsFixedArray(*this) || IsFixedDoubleArray(*this) || IsByteArray(*this);
+  return IsFixedArray(obj) || IsFixedDoubleArray(obj) || IsByteArray(obj);
 }
 
-bool Object::FilterKey(PropertyFilter filter) {
-  DCHECK(!IsPropertyCell(*this));
+// static
+bool Object::FilterKey(Tagged<Object> obj, PropertyFilter filter) {
+  DCHECK(!IsPropertyCell(obj));
   if (filter == PRIVATE_NAMES_ONLY) {
-    if (!IsSymbol(*this)) return true;
-    return !Symbol::cast(*this)->is_private_name();
-  } else if (IsSymbol(*this)) {
+    if (!IsSymbol(obj)) return true;
+    return !Symbol::cast(obj)->is_private_name();
+  } else if (IsSymbol(obj)) {
     if (filter & SKIP_SYMBOLS) return true;
 
-    if (Symbol::cast(*this)->is_private()) return true;
+    if (Symbol::cast(obj)->is_private()) return true;
   } else {
     if (filter & SKIP_STRINGS) return true;
   }
   return false;
 }
 
-Representation Object::OptimalRepresentation(PtrComprCageBase cage_base) const {
-  if (IsSmi(*this)) {
+// static
+Representation Object::OptimalRepresentation(Tagged<Object> obj,
+                                             PtrComprCageBase cage_base) {
+  if (IsSmi(obj)) {
     return Representation::Smi();
   }
-  HeapObject heap_object = HeapObject::cast(*this);
+  HeapObject heap_object = HeapObject::cast(obj);
   if (IsHeapNumber(heap_object, cage_base)) {
     return Representation::Double();
   } else if (IsUninitialized(heap_object,
@@ -585,35 +592,40 @@ Representation Object::OptimalRepresentation(PtrComprCageBase cage_base) const {
   return Representation::HeapObject();
 }
 
-ElementsKind Object::OptimalElementsKind(PtrComprCageBase cage_base) const {
-  if (IsSmi(*this)) return PACKED_SMI_ELEMENTS;
-  if (IsNumber(*this, cage_base)) return PACKED_DOUBLE_ELEMENTS;
+// static
+ElementsKind Object::OptimalElementsKind(Tagged<Object> obj,
+                                         PtrComprCageBase cage_base) {
+  if (IsSmi(obj)) return PACKED_SMI_ELEMENTS;
+  if (IsNumber(obj, cage_base)) return PACKED_DOUBLE_ELEMENTS;
   return PACKED_ELEMENTS;
 }
 
-bool Object::FitsRepresentation(Representation representation,
-                                bool allow_coercion) const {
+// static
+bool Object::FitsRepresentation(Tagged<Object> obj,
+                                Representation representation,
+                                bool allow_coercion) {
   if (representation.IsSmi()) {
-    return IsSmi(*this);
+    return IsSmi(obj);
   } else if (representation.IsDouble()) {
-    return allow_coercion ? IsNumber(*this) : IsHeapNumber(*this);
+    return allow_coercion ? IsNumber(obj) : IsHeapNumber(obj);
   } else if (representation.IsHeapObject()) {
-    return IsHeapObject(*this);
+    return IsHeapObject(obj);
   } else if (representation.IsNone()) {
     return false;
   }
   return true;
 }
 
-bool Object::ToUint32(uint32_t* value) const {
-  if (IsSmi(*this)) {
-    int num = Smi::ToInt(*this);
+// static
+bool Object::ToUint32(Tagged<Object> obj, uint32_t* value) {
+  if (IsSmi(obj)) {
+    int num = Smi::ToInt(obj);
     if (num < 0) return false;
     *value = static_cast<uint32_t>(num);
     return true;
   }
-  if (IsHeapNumber(*this)) {
-    double num = HeapNumber::cast(*this)->value();
+  if (IsHeapNumber(obj)) {
+    double num = HeapNumber::cast(obj)->value();
     return DoubleToUint32IfEqualToSelf(num, value);
   }
   return false;
@@ -1095,23 +1107,26 @@ bool IsCustomElementsReceiverMap(Tagged<Map> map) {
   return IsCustomElementsReceiverInstanceType(map->instance_type());
 }
 
-bool Object::ToArrayLength(uint32_t* index) const {
-  return Object::ToUint32(index);
+// static
+bool Object::ToArrayLength(Tagged<Object> obj, uint32_t* index) {
+  return Object::ToUint32(obj, index);
 }
 
-bool Object::ToArrayIndex(uint32_t* index) const {
-  return Object::ToUint32(index) && *index != kMaxUInt32;
+// static
+bool Object::ToArrayIndex(Tagged<Object> obj, uint32_t* index) {
+  return Object::ToUint32(obj, index) && *index != kMaxUInt32;
 }
 
-bool Object::ToIntegerIndex(size_t* index) const {
-  if (IsSmi(*this)) {
-    int num = Smi::ToInt(*this);
+// static
+bool Object::ToIntegerIndex(Tagged<Object> obj, size_t* index) {
+  if (IsSmi(obj)) {
+    int num = Smi::ToInt(obj);
     if (num < 0) return false;
     *index = static_cast<size_t>(num);
     return true;
   }
-  if (IsHeapNumber(*this)) {
-    double num = HeapNumber::cast(*this)->value();
+  if (IsHeapNumber(obj)) {
+    double num = HeapNumber::cast(obj)->value();
     if (!(num >= 0)) return false;  // Negation to catch NaNs.
     constexpr double max =
         std::min(kMaxSafeInteger,
@@ -1294,13 +1309,14 @@ Object Object::GetSimpleHash(Object object) {
   return object;
 }
 
-Object Object::GetHash() {
+// static
+Object Object::GetHash(Tagged<Object> obj) {
   DisallowGarbageCollection no_gc;
-  Object hash = GetSimpleHash(*this);
+  Object hash = GetSimpleHash(obj);
   if (IsSmi(hash)) return hash;
 
-  DCHECK(IsJSReceiver(*this));
-  JSReceiver receiver = JSReceiver::cast(*this);
+  DCHECK(IsJSReceiver(obj));
+  JSReceiver receiver = JSReceiver::cast(obj);
   return receiver->GetIdentityHash();
 }
 
@@ -1362,17 +1378,18 @@ MaybeHandle<Object> Object::Share(Isolate* isolate, Handle<Object> value,
 }
 
 // https://tc39.es/ecma262/#sec-canbeheldweakly
-bool Object::CanBeHeldWeakly() const {
-  if (IsJSReceiver(*this)) {
+// static
+bool Object::CanBeHeldWeakly(Tagged<Object> obj) {
+  if (IsJSReceiver(obj)) {
     // TODO(v8:12547) Shared structs and arrays should only be able to point
     // to shared values in weak collections. For now, disallow them as weak
     // collection keys.
     if (v8_flags.harmony_struct) {
-      return !IsJSSharedStruct(*this) && !IsJSSharedArray(*this);
+      return !IsJSSharedStruct(obj) && !IsJSSharedArray(obj);
     }
     return true;
   }
-  return IsSymbol(*this) && !Symbol::cast(*this)->is_in_public_symbol_table();
+  return IsSymbol(obj) && !Symbol::cast(obj)->is_in_public_symbol_table();
 }
 
 Handle<Object> ObjectHashTableShape::AsHandle(Handle<Object> key) {

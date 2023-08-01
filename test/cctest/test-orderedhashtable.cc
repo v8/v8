@@ -16,13 +16,13 @@ static Isolate* GetIsolateFrom(LocalContext* context) {
 }
 
 void CopyHashCode(Handle<JSReceiver> from, Handle<JSReceiver> to) {
-  int hash = Smi::ToInt(from->GetHash());
+  int hash = Smi::ToInt(Object::GetHash(*from));
   to->SetIdentityHash(hash);
 }
 
 void Verify(Isolate* isolate, Handle<HeapObject> obj) {
 #if VERIFY_HEAP
-  obj->ObjectVerify(isolate);
+  Object::ObjectVerify(*obj, isolate);
 #endif
 }
 
@@ -297,9 +297,9 @@ TEST(SmallOrderedHashMapDuplicateHashCode) {
   Handle<JSObject> key2 = factory->NewJSObjectWithNullProto();
   CopyHashCode(key1, key2);
 
-  CHECK(!key1->SameValue(*key2));
-  Object hash1 = key1->GetHash();
-  Object hash2 = key2->GetHash();
+  CHECK(!Object::SameValue(*key1, *key2));
+  Object hash1 = Object::GetHash(*key1);
+  Object hash2 = Object::GetHash(*key2);
   CHECK_EQ(hash1, hash2);
 
   map = SmallOrderedHashMap::Add(isolate, map, key2, value).ToHandleChecked();

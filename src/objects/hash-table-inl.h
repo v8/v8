@@ -289,14 +289,14 @@ bool ObjectHashSet::Has(Isolate* isolate, Handle<Object> key, int32_t hash) {
 }
 
 bool ObjectHashSet::Has(Isolate* isolate, Handle<Object> key) {
-  Object hash = key->GetHash();
+  Object hash = Object::GetHash(*key);
   if (!IsSmi(hash)) return false;
   return FindEntry(isolate, ReadOnlyRoots(isolate), key, Smi::ToInt(hash))
       .is_found();
 }
 
 bool ObjectHashTableShape::IsMatch(Handle<Object> key, Object other) {
-  return key->SameValue(other);
+  return Object::SameValue(*key, other);
 }
 
 bool RegisteredSymbolTableShape::IsMatch(Handle<String> key, Object value) {
@@ -327,12 +327,12 @@ uint32_t NameToIndexShape::Hash(ReadOnlyRoots roots, Handle<Name> key) {
 }
 
 uint32_t ObjectHashTableShape::Hash(ReadOnlyRoots roots, Handle<Object> key) {
-  return Smi::ToInt(key->GetHash());
+  return Smi::ToInt(Object::GetHash(*key));
 }
 
 uint32_t ObjectHashTableShape::HashForObject(ReadOnlyRoots roots,
                                              Object other) {
-  return Smi::ToInt(other.GetHash());
+  return Smi::ToInt(Object::GetHash(other));
 }
 
 template <typename IsolateT>

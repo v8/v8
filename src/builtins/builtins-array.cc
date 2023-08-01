@@ -139,7 +139,7 @@ V8_WARN_UNUSED_RESULT Maybe<double> GetRelativeIndex(Isolate* isolate,
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, relative_index_obj,
                                      Object::ToInteger(isolate, index),
                                      Nothing<double>());
-    relative_index = relative_index_obj->Number();
+    relative_index = Object::Number(*relative_index_obj);
   }
 
   if (relative_index < 0) {
@@ -154,7 +154,7 @@ V8_WARN_UNUSED_RESULT Maybe<double> GetLengthProperty(
     Isolate* isolate, Handle<JSReceiver> receiver) {
   if (IsJSArray(*receiver)) {
     Handle<JSArray> array = Handle<JSArray>::cast(receiver);
-    double length = array->length().Number();
+    double length = Object::Number(array->length());
     DCHECK(0 <= length && length <= kMaxSafeInteger);
 
     return Just(length);
@@ -164,7 +164,7 @@ V8_WARN_UNUSED_RESULT Maybe<double> GetLengthProperty(
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, raw_length_number,
       Object::GetLengthFromArrayLike(isolate, receiver), Nothing<double>());
-  return Just(raw_length_number->Number());
+  return Just(Object::Number(*raw_length_number));
 }
 
 // Set "length" property, has "fast-path" for JSArrays.
@@ -254,7 +254,7 @@ V8_WARN_UNUSED_RESULT Maybe<bool> TryFastArrayFill(
   // ElementAccessor::Fill is able to grow the backing store as needed, but we
   // need to ensure the JSArray's length is correctly set in case the user
   // assigned a smaller value.
-  if (array->length().Number() < end) {
+  if (Object::Number(array->length()) < end) {
     CHECK(accessor->SetLength(array, end).FromJust());
   }
 
@@ -332,7 +332,7 @@ V8_WARN_UNUSED_RESULT Object GenericArrayPush(Isolate* isolate,
   int arg_count = args->length() - 1;
 
   // 5. If len + arg_count > 2^53-1, throw a TypeError exception.
-  double length = raw_length_number->Number();
+  double length = Object::Number(*raw_length_number);
   if (arg_count > kMaxSafeInteger - length) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kPushPastSafeLength,
@@ -387,7 +387,7 @@ BUILTIN(ArrayPush) {
   // Fast Elements Path
   int to_add = args.length() - 1;
   Handle<JSArray> array = Handle<JSArray>::cast(receiver);
-  uint32_t len = static_cast<uint32_t>(array->length().Number());
+  uint32_t len = static_cast<uint32_t>(Object::Number(array->length()));
   if (to_add == 0) return *isolate->factory()->NewNumberFromUint(len);
 
   // Currently fixed arrays cannot grow too big, so we should never hit this.
@@ -418,7 +418,7 @@ V8_WARN_UNUSED_RESULT Object GenericArrayPop(Isolate* isolate,
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, raw_length_number,
       Object::GetLengthFromArrayLike(isolate, receiver));
-  double length = raw_length_number->Number();
+  double length = Object::Number(*raw_length_number);
 
   // 3. If len is zero, then.
   if (length == 0) {
@@ -473,7 +473,7 @@ BUILTIN(ArrayPop) {
   }
   Handle<JSArray> array = Handle<JSArray>::cast(receiver);
 
-  uint32_t len = static_cast<uint32_t>(array->length().Number());
+  uint32_t len = static_cast<uint32_t>(Object::Number(array->length()));
 
   if (JSArray::HasReadOnlyLength(array)) {
     return GenericArrayPop(isolate, &args);
@@ -855,7 +855,7 @@ class ArrayConcatVisitor {
 
 uint32_t EstimateElementCount(Isolate* isolate, Handle<JSArray> array) {
   DisallowGarbageCollection no_gc;
-  uint32_t length = static_cast<uint32_t>(array->length().Number());
+  uint32_t length = static_cast<uint32_t>(Object::Number(array->length()));
   int element_count = 0;
   switch (array->GetElementsKind()) {
     case PACKED_SMI_ELEMENTS:
@@ -979,7 +979,7 @@ void CollectElementIndices(Isolate* isolate, Handle<JSObject> object,
         Object k = dict->KeyAt(InternalIndex(j));
         if (!dict.IsKey(roots, k)) continue;
         DCHECK(IsNumber(k));
-        uint32_t index = static_cast<uint32_t>(k.Number());
+        uint32_t index = static_cast<uint32_t>(Object::Number(k));
         if (index < range) {
           indices->push_back(index);
         }
@@ -1105,18 +1105,18 @@ bool IterateElements(Isolate* isolate, Handle<JSReceiver> receiver,
 
   if (IsJSArray(*receiver)) {
     Handle<JSArray> array = Handle<JSArray>::cast(receiver);
-    length = static_cast<uint32_t>(array->length().Number());
+    length = static_cast<uint32_t>(Object::Number(array->length()));
   } else {
     Handle<Object> val;
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(
         isolate, val, Object::GetLengthFromArrayLike(isolate, receiver), false);
-    if (visitor->index_offset() + val->Number() > kMaxSafeInteger) {
+    if (visitor->index_offset() + Object::Number(*val) > kMaxSafeInteger) {
       isolate->Throw(*isolate->factory()->NewTypeError(
           MessageTemplate::kInvalidArrayLength));
       return false;
     }
     // TODO(caitp): Support larger element indexes (up to 2^53-1).
-    if (!val->ToUint32(&length)) {
+    if (!Object::ToUint32(*val, &length)) {
       length = 0;
     }
     // TODO(cbruni): handle other element kind as well
@@ -1277,7 +1277,7 @@ static Maybe<bool> IsConcatSpreadable(Isolate* isolate, Handle<Object> obj) {
         i::Runtime::GetObjectProperty(isolate, obj, key);
     if (!maybeValue.ToHandle(&value)) return Nothing<bool>();
     if (!IsUndefined(*value, isolate))
-      return Just(value->BooleanValue(isolate));
+      return Just(Object::BooleanValue(*value, isolate));
   }
   return Object::IsArray(obj);
 }
@@ -1303,7 +1303,7 @@ Object Slow_ArrayConcat(BuiltinArguments* args, Handle<Object> species,
     uint32_t element_estimate;
     if (IsJSArray(*obj)) {
       Handle<JSArray> array(Handle<JSArray>::cast(obj));
-      length_estimate = static_cast<uint32_t>(array->length().Number());
+      length_estimate = static_cast<uint32_t>(Object::Number(array->length()));
       if (length_estimate != 0) {
         ElementsKind array_kind =
             GetPackedElementsKind(array->GetElementsKind());
@@ -1355,12 +1355,13 @@ Object Slow_ArrayConcat(BuiltinArguments* args, Handle<Object> species,
           double_storage->set(j, Smi::ToInt(*obj));
           j++;
         } else if (IsNumber(*obj)) {
-          double_storage->set(j, obj->Number());
+          double_storage->set(j, Object::Number(*obj));
           j++;
         } else {
           DisallowGarbageCollection no_gc;
           JSArray array = JSArray::cast(*obj);
-          uint32_t length = static_cast<uint32_t>(array->length().Number());
+          uint32_t length =
+              static_cast<uint32_t>(Object::Number(array->length()));
           switch (array->GetElementsKind()) {
             case HOLEY_DOUBLE_ELEMENTS:
             case PACKED_DOUBLE_ELEMENTS: {

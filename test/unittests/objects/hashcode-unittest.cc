@@ -34,11 +34,12 @@ class HashcodeTest : public TestWithContext {
 
   int AddToSetAndGetHash(Handle<JSObject> obj, bool has_fast_properties) {
     CHECK_EQ(has_fast_properties, obj->HasFastProperties());
-    CHECK_EQ(ReadOnlyRoots(i_isolate()).undefined_value(), obj->GetHash());
+    CHECK_EQ(ReadOnlyRoots(i_isolate()).undefined_value(),
+             Object::GetHash(*obj));
     Handle<OrderedHashSet> set = i_isolate()->factory()->NewOrderedHashSet();
     OrderedHashSet::Add(i_isolate(), set, obj);
     CHECK_EQ(has_fast_properties, obj->HasFastProperties());
-    return Smi::ToInt(obj->GetHash());
+    return Smi::ToInt(Object::GetHash(*obj));
   }
 
   int GetPropertyDictionaryHash(Handle<JSObject> obj) {
@@ -68,14 +69,14 @@ class HashcodeTest : public TestWithContext {
   void CheckFastObject(Handle<JSObject> obj, int hash) {
     CHECK(obj->HasFastProperties());
     CHECK(IsPropertyArray(obj->raw_properties_or_hash()));
-    CHECK_EQ(Smi::FromInt(hash), obj->GetHash());
+    CHECK_EQ(Smi::FromInt(hash), Object::GetHash(*obj));
     CHECK_EQ(hash, obj->property_array()->Hash());
   }
 
   void CheckDictionaryObject(Handle<JSObject> obj, int hash) {
     CHECK(!obj->HasFastProperties());
     CheckIsDictionaryModeObject(obj);
-    CHECK_EQ(Smi::FromInt(hash), obj->GetHash());
+    CHECK_EQ(Smi::FromInt(hash), Object::GetHash(*obj));
     CHECK_EQ(hash, GetPropertyDictionaryHash(obj));
   }
 };
@@ -210,7 +211,7 @@ TEST_F(HashcodeTest, TransitionSlowToFastWithoutProperties) {
   CHECK_EQ(hash, GetPropertyDictionaryHash(obj));
 
   JSObject::MigrateSlowToFast(obj, 0, "cctest/test-hashcode");
-  CHECK_EQ(Smi::FromInt(hash), obj->GetHash());
+  CHECK_EQ(Smi::FromInt(hash), Object::GetHash(*obj));
 }
 
 TEST_F(HashcodeTest, TransitionSlowToFastWithPropertyArray) {

@@ -707,7 +707,7 @@ Maybe<bool> ValueSerializer::WriteJSObjectSlow(Handle<JSObject> object) {
 Maybe<bool> ValueSerializer::WriteJSArray(Handle<JSArray> array) {
   PtrComprCageBase cage_base(isolate_);
   uint32_t length = 0;
-  bool valid_length = array->length().ToArrayLength(&length);
+  bool valid_length = Object::ToArrayLength(array->length(), &length);
   DCHECK(valid_length);
   USE(valid_length);
 
@@ -820,7 +820,7 @@ Maybe<bool> ValueSerializer::WriteJSArray(Handle<JSArray> array) {
 
 void ValueSerializer::WriteJSDate(JSDate date) {
   WriteTag(SerializationTag::kDate);
-  WriteDouble(date->value().Number());
+  WriteDouble(Object::Number(date->value()));
 }
 
 Maybe<bool> ValueSerializer::WriteJSPrimitiveWrapper(
@@ -835,7 +835,7 @@ Maybe<bool> ValueSerializer::WriteJSPrimitiveWrapper(
       WriteTag(SerializationTag::kFalseObject);
     } else if (IsNumber(inner_value, cage_base)) {
       WriteTag(SerializationTag::kNumberObject);
-      WriteDouble(inner_value.Number());
+      WriteDouble(Object::Number(inner_value));
     } else if (IsBigInt(inner_value, cage_base)) {
       WriteTag(SerializationTag::kBigIntObject);
       WriteBigIntContents(BigInt::cast(inner_value));
@@ -1530,7 +1530,7 @@ MaybeHandle<Object> ValueDeserializer::ReadObject() {
 #if defined(DEBUG) && defined(VERIFY_HEAP)
   if (!result.is_null() && v8_flags.enable_slow_asserts &&
       v8_flags.verify_heap) {
-    object->ObjectVerify(isolate_);
+    Object::ObjectVerify(*object, isolate_);
   }
 #endif
 
@@ -2504,13 +2504,13 @@ Maybe<uint32_t> ValueDeserializer::ReadJSObjectProperties(
           PropertyDetails details =
               target->instance_descriptors(isolate_)->GetDetails(descriptor);
           Representation expected_representation = details.representation();
-          if (value->FitsRepresentation(expected_representation)) {
+          if (Object::FitsRepresentation(*value, expected_representation)) {
             if (expected_representation.IsHeapObject() &&
                 !target->instance_descriptors(isolate_)
                      ->GetFieldType(descriptor)
                      .NowContains(value)) {
-              Handle<FieldType> value_type =
-                  value->OptimalType(isolate_, expected_representation);
+              Handle<FieldType> value_type = Object::OptimalType(
+                  *value, isolate_, expected_representation);
               MapUpdater::GeneralizeField(isolate_, target, descriptor,
                                           details.constness(),
                                           expected_representation, value_type);

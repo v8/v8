@@ -3371,7 +3371,7 @@ void MarkCompactCollector::ClearJSWeakRefs() {
     HeapObject target = HeapObject::cast(weak_cell->target());
     if (!target.InReadOnlySpace() &&
         !non_atomic_marking_state_->IsMarked(target)) {
-      DCHECK(target.CanBeHeldWeakly());
+      DCHECK(Object::CanBeHeldWeakly(target));
       // The value of the WeakCell is dead.
       JSFinalizationRegistry finalization_registry =
           JSFinalizationRegistry::cast(weak_cell->finalization_registry());
@@ -3394,7 +3394,7 @@ void MarkCompactCollector::ClearJSWeakRefs() {
     HeapObject unregister_token = weak_cell->unregister_token();
     if (!unregister_token.InReadOnlySpace() &&
         !non_atomic_marking_state_->IsMarked(unregister_token)) {
-      DCHECK(unregister_token.CanBeHeldWeakly());
+      DCHECK(Object::CanBeHeldWeakly(unregister_token));
       // The unregister token is dead. Remove any corresponding entries in the
       // key map. Multiple WeakCell with the same token will have all their
       // unregister_token field set to undefined when processing the first

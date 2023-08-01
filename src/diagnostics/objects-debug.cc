@@ -129,15 +129,16 @@ namespace internal {
     TorqueGeneratedClassVerifiers::Class##Verify(*this, isolate); \
   }
 
-void Object::ObjectVerify(Isolate* isolate) {
+// static
+void Object::ObjectVerify(Tagged<Object> obj, Isolate* isolate) {
   RCS_SCOPE(isolate, RuntimeCallCounterId::kObjectVerify);
-  if (IsSmi(*this)) {
-    Smi::cast(*this).SmiVerify(isolate);
+  if (IsSmi(obj)) {
+    Smi::SmiVerify(Smi::cast(obj), isolate);
   } else {
-    HeapObject::cast(*this)->HeapObjectVerify(isolate);
+    HeapObject::cast(obj)->HeapObjectVerify(isolate);
   }
   PtrComprCageBase cage_base(isolate);
-  CHECK(!IsConstructor(*this, cage_base) || IsCallable(*this, cage_base));
+  CHECK(!IsConstructor(obj, cage_base) || IsCallable(obj, cage_base));
 }
 
 void Object::VerifyPointer(Isolate* isolate, Object p) {
@@ -169,14 +170,16 @@ void MaybeObject::VerifyMaybeObjectPointer(Isolate* isolate, MaybeObject p) {
   }
 }
 
-void Smi::SmiVerify(Isolate* isolate) {
-  CHECK(IsSmi(*this));
-  CHECK(!IsCallable(*this));
-  CHECK(!IsConstructor(*this));
+// static
+void Smi::SmiVerify(Tagged<Smi> obj, Isolate* isolate) {
+  CHECK(IsSmi(obj));
+  CHECK(!IsCallable(obj));
+  CHECK(!IsConstructor(obj));
 }
 
-void TaggedIndex::TaggedIndexVerify(Isolate* isolate) {
-  CHECK(IsTaggedIndex(*this));
+// static
+void TaggedIndex::TaggedIndexVerify(Tagged<TaggedIndex> obj, Isolate* isolate) {
+  CHECK(IsTaggedIndex(obj));
 }
 
 void HeapObject::HeapObjectVerify(Isolate* isolate) {
@@ -574,14 +577,14 @@ void Map::MapVerify(Isolate* isolate) {
           CHECK(has_shared_array_elements());
         }
       } else {
-        CHECK(InSharedHeap());
+        CHECK(Object::InSharedHeap(*this));
         CHECK(IsUndefined(GetBackPointer(), isolate));
         Object maybe_cell = prototype_validity_cell(kRelaxedLoad);
-        if (IsCell(maybe_cell)) CHECK(maybe_cell.InSharedHeap());
+        if (IsCell(maybe_cell)) CHECK(Object::InSharedHeap(maybe_cell));
         CHECK(!is_extensible());
         CHECK(!is_prototype_map());
         CHECK(OnlyHasSimpleProperties());
-        CHECK(instance_descriptors(isolate).InSharedHeap());
+        CHECK(Object::InSharedHeap(instance_descriptors(isolate)));
         if (IsJSSharedArrayMap(*this)) {
           CHECK(has_shared_array_elements());
         }
@@ -1219,7 +1222,7 @@ void InstructionStream::InstructionStreamVerify(Isolate* isolate) {
         isolate->heap()->InSpace(*this, CODE_LO_SPACE));
   Address last_gc_pc = kNullAddress;
 
-  relocation_info().ObjectVerify(isolate);
+  Object::ObjectVerify(relocation_info(), isolate);
 
   for (RelocIterator it(code); !it.done(); it.next()) {
     it.rinfo()->Verify(isolate);
@@ -1256,9 +1259,9 @@ void JSArray::JSArrayVerify(Isolate* isolate) {
   } else {
     CHECK(HasDictionaryElements());
     uint32_t array_length;
-    CHECK(length().ToArrayLength(&array_length));
+    CHECK(Object::ToArrayLength(length(), &array_length));
     if (array_length == 0xFFFFFFFF) {
-      CHECK(length().ToArrayLength(&array_length));
+      CHECK(Object::ToArrayLength(length(), &array_length));
     }
     if (array_length != 0) {
       NumberDictionary dict = NumberDictionary::cast(elements());
@@ -1312,7 +1315,7 @@ void VerifyElementIsShared(Object element) {
   // string was in shared space.
   if (IsThinString(element)) {
     CHECK(v8_flags.shared_string_table);
-    CHECK(element.InWritableSharedSpace());
+    CHECK(Object::InWritableSharedSpace(element));
   } else {
     CHECK(IsShared(element));
   }
@@ -1328,7 +1331,7 @@ void JSSharedStruct::JSSharedStructVerify(Isolate* isolate) {
   // Shared structs can only point to primitives or other shared HeapObjects,
   // even internally.
   Map struct_map = map();
-  CHECK(property_array().InSharedHeap());
+  CHECK(Object::InSharedHeap(property_array()));
   DescriptorArray descriptors = struct_map->instance_descriptors(isolate);
   for (InternalIndex i : struct_map->IterateOwnDescriptors()) {
     PropertyDetails details = descriptors->GetDetails(i);
@@ -1348,7 +1351,7 @@ void JSAtomicsMutex::JSAtomicsMutexVerify(Isolate* isolate) {
 
 void JSAtomicsCondition::JSAtomicsConditionVerify(Isolate* isolate) {
   CHECK(IsJSAtomicsCondition(*this));
-  CHECK(InSharedHeap());
+  CHECK(Object::InSharedHeap(*this));
   JSObjectVerify(isolate);
 }
 
@@ -1369,35 +1372,35 @@ void JSSharedArray::JSSharedArrayVerify(Isolate* isolate) {
 void JSIteratorMapHelper::JSIteratorMapHelperVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::JSIteratorMapHelperVerify(*this, isolate);
   CHECK(IsCallable(mapper()));
-  CHECK_GE(counter().Number(), 0);
+  CHECK_GE(Object::Number(counter()), 0);
 }
 
 void JSIteratorFilterHelper::JSIteratorFilterHelperVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::JSIteratorFilterHelperVerify(*this, isolate);
   CHECK(IsCallable(predicate()));
-  CHECK_GE(counter().Number(), 0);
+  CHECK_GE(Object::Number(counter()), 0);
 }
 
 void JSIteratorTakeHelper::JSIteratorTakeHelperVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::JSIteratorTakeHelperVerify(*this, isolate);
-  CHECK_GE(remaining().Number(), 0);
+  CHECK_GE(Object::Number(remaining()), 0);
 }
 
 void JSIteratorDropHelper::JSIteratorDropHelperVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::JSIteratorDropHelperVerify(*this, isolate);
-  CHECK_GE(remaining().Number(), 0);
+  CHECK_GE(Object::Number(remaining()), 0);
 }
 
 void JSIteratorFlatMapHelper::JSIteratorFlatMapHelperVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::JSIteratorFlatMapHelperVerify(*this, isolate);
   CHECK(IsCallable(mapper()));
-  CHECK_GE(counter().Number(), 0);
+  CHECK_GE(Object::Number(counter()), 0);
 }
 
 void WeakCell::WeakCellVerify(Isolate* isolate) {
   CHECK(IsWeakCell(*this));
 
-  CHECK(IsUndefined(target(), isolate) || target().CanBeHeldWeakly());
+  CHECK(IsUndefined(target(), isolate) || Object::CanBeHeldWeakly(target()));
 
   CHECK(IsWeakCell(prev()) || IsUndefined(prev(), isolate));
   if (IsWeakCell(prev())) {
@@ -1425,7 +1428,7 @@ void WeakCell::WeakCellVerify(Isolate* isolate) {
 void JSWeakRef::JSWeakRefVerify(Isolate* isolate) {
   CHECK(IsJSWeakRef(*this));
   JSObjectVerify(isolate);
-  CHECK(IsUndefined(target(), isolate) || target().CanBeHeldWeakly());
+  CHECK(IsUndefined(target(), isolate) || Object::CanBeHeldWeakly(target()));
 }
 
 void JSFinalizationRegistry::JSFinalizationRegistryVerify(Isolate* isolate) {
@@ -1446,16 +1449,16 @@ void JSWeakMap::JSWeakMapVerify(Isolate* isolate) {
 void JSArrayIterator::JSArrayIteratorVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::JSArrayIteratorVerify(*this, isolate);
 
-  CHECK_GE(next_index().Number(), 0);
-  CHECK_LE(next_index().Number(), kMaxSafeInteger);
+  CHECK_GE(Object::Number(next_index()), 0);
+  CHECK_LE(Object::Number(next_index()), kMaxSafeInteger);
 
   if (IsJSTypedArray(iterated_object())) {
     // JSTypedArray::length is limited to Smi range.
     CHECK(IsSmi(next_index()));
-    CHECK_LE(next_index().Number(), Smi::kMaxValue);
+    CHECK_LE(Object::Number(next_index()), Smi::kMaxValue);
   } else if (IsJSArray(iterated_object())) {
     // JSArray::length is limited to Uint32 range.
-    CHECK_LE(next_index().Number(), kMaxUInt32);
+    CHECK_LE(Object::Number(next_index()), kMaxUInt32);
   }
 }
 
@@ -1595,7 +1598,7 @@ void SwissNameDictionary::SwissNameDictionaryVerify(Isolate* isolate,
         CHECK(!IsTheHole(key));
         CHECK(!IsTheHole(value));
         name->NameVerify(isolate);
-        value.ObjectVerify(isolate);
+        Object::ObjectVerify(value, isolate);
       } else if (IsDeleted(ctrl)) {
         ++seen_deleted;
         CHECK(IsTheHole(key));
@@ -2257,12 +2260,12 @@ bool DescriptorArray::IsSortedNoDuplicates() {
     const bool has_hash = key->TryGetHash(&hash);
     CHECK(has_hash);
     if (key == current_key) {
-      Print();
+      Print(*this);
       return false;
     }
     current_key = key;
     if (hash < current) {
-      Print();
+      Print(*this);
       return false;
     }
     current = hash;
@@ -2298,7 +2301,7 @@ bool TransitionArray::IsSortedNoDuplicates() {
     int cmp = CompareKeys(prev_key, prev_hash, prev_kind, prev_attributes, key,
                           hash, kind, attributes);
     if (cmp >= 0) {
-      Print();
+      Print(*this);
       return false;
     }
     prev_key = key;

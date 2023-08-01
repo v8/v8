@@ -264,17 +264,17 @@ TEST(HeapObjects) {
   Handle<Object> value = factory->NewNumber(1.000123);
   CHECK(IsHeapNumber(*value));
   CHECK(IsNumber(*value));
-  CHECK_EQ(1.000123, value->Number());
+  CHECK_EQ(1.000123, Object::Number(*value));
 
   value = factory->NewNumber(1.0);
   CHECK(IsSmi(*value));
   CHECK(IsNumber(*value));
-  CHECK_EQ(1.0, value->Number());
+  CHECK_EQ(1.0, Object::Number(*value));
 
   value = factory->NewNumberFromInt(1024);
   CHECK(IsSmi(*value));
   CHECK(IsNumber(*value));
-  CHECK_EQ(1024.0, value->Number());
+  CHECK_EQ(1024.0, Object::Number(*value));
 
   value = factory->NewNumberFromInt(Smi::kMinValue);
   CHECK(IsSmi(*value));
@@ -291,24 +291,24 @@ TEST(HeapObjects) {
   value = factory->NewNumberFromInt(Smi::kMinValue - 1);
   CHECK(IsHeapNumber(*value));
   CHECK(IsNumber(*value));
-  CHECK_EQ(static_cast<double>(Smi::kMinValue - 1), value->Number());
+  CHECK_EQ(static_cast<double>(Smi::kMinValue - 1), Object::Number(*value));
 #endif
 
   value = factory->NewNumberFromUint(static_cast<uint32_t>(Smi::kMaxValue) + 1);
   CHECK(IsHeapNumber(*value));
   CHECK(IsNumber(*value));
   CHECK_EQ(static_cast<double>(static_cast<uint32_t>(Smi::kMaxValue) + 1),
-           value->Number());
+           Object::Number(*value));
 
   value = factory->NewNumberFromUint(static_cast<uint32_t>(1) << 31);
   CHECK(IsHeapNumber(*value));
   CHECK(IsNumber(*value));
   CHECK_EQ(static_cast<double>(static_cast<uint32_t>(1) << 31),
-           value->Number());
+           Object::Number(*value));
 
   // nan oddball checks
   CHECK(IsNumber(*factory->nan_value()));
-  CHECK(std::isnan(factory->nan_value()->Number()));
+  CHECK(std::isnan(Object::Number(*factory->nan_value())));
 
   Handle<String> s = factory->NewStringFromStaticChars("fisk hest ");
   CHECK(IsString(*s));
@@ -884,7 +884,7 @@ TEST(JSArray) {
   JSArray::SetLength(array, static_cast<uint32_t>(Smi::kMaxValue) + 1);
 
   uint32_t int_length = 0;
-  CHECK(array->length().ToArrayIndex(&int_length));
+  CHECK(Object::ToArrayIndex(array->length(), &int_length));
   CHECK_EQ(static_cast<uint32_t>(Smi::kMaxValue) + 1, int_length);
   CHECK(array->HasDictionaryElements());  // Must be in slow mode.
 
@@ -892,7 +892,7 @@ TEST(JSArray) {
   Object::SetElement(isolate, array, int_length, name, ShouldThrow::kDontThrow)
       .Check();
   uint32_t new_int_length = 0;
-  CHECK(array->length().ToArrayIndex(&new_int_length));
+  CHECK(Object::ToArrayIndex(array->length(), &new_int_length));
   CHECK_EQ(static_cast<double>(int_length), new_int_length - 1);
   element = Object::GetElement(isolate, array, int_length).ToHandleChecked();
   CHECK_EQ(*element, *name);
@@ -3402,7 +3402,7 @@ TEST(PrintSharedFunctionInfo) {
           CcTest::global()->Get(ctx, v8_str("g")).ToLocalChecked())));
 
   StdoutStream os;
-  g->shared().Print(os);
+  Print(g->shared(), os);
   os << std::endl;
 }
 #endif  // OBJECT_PRINT
@@ -3780,7 +3780,7 @@ TEST(DetailedErrorStackTrace) {
     CHECK(IsBoolean(bar_parameters->get(1)));
     Handle<Object> foo = Handle<Object>::cast(GetByName("foo"));
     CHECK_EQ(bar_parameters->get(0), *foo);
-    CHECK(!bar_parameters->get(1).BooleanValue(CcTest::i_isolate()));
+    CHECK(!Object::BooleanValue(bar_parameters->get(1), CcTest::i_isolate()));
 
     FixedArray main_parameters = ParametersOf(stack_trace, 2);
     CHECK_EQ(main_parameters->length(), 2);

@@ -715,9 +715,16 @@ static_assert(sizeof(unsigned) == sizeof(uint32_t),
 #define DECL_VERIFIER(Name) void Name##Verify(Isolate* isolate);
 #define EXPORT_DECL_VERIFIER(Name) \
   V8_EXPORT_PRIVATE void Name##Verify(Isolate* isolate);
+#define DECL_STATIC_VERIFIER(Name) \
+  static void Name##Verify(Tagged<Name> obj, Isolate* isolate);
+#define EXPORT_DECL_STATIC_VERIFIER(Name)                      \
+  V8_EXPORT_PRIVATE static void Name##Verify(Tagged<Name> obj, \
+                                             Isolate* isolate);
 #else
 #define DECL_VERIFIER(Name)
 #define EXPORT_DECL_VERIFIER(Name)
+#define DECL_STATIC_VERIFIER(Name)
+#define EXPORT_DECL_STATIC_VERIFIER(Name)
 #endif
 
 #define DEFINE_DEOPT_ELEMENT_ACCESSORS(name, type) \

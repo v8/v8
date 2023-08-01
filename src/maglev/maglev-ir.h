@@ -4148,7 +4148,7 @@ class Constant : public FixedInputValueNodeT<0, Constant> {
       : Base(bitfield), object_(object) {}
 
   bool ToBoolean(LocalIsolate* local_isolate) const {
-    return object_.object()->BooleanValue(local_isolate);
+    return Object::BooleanValue(*object_.object(), local_isolate);
   }
 
   bool IsTheHole(compiler::JSHeapBroker* broker) const {

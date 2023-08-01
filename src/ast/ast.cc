@@ -713,7 +713,8 @@ void ArrayLiteralBoilerplateBuilder::BuildBoilerplateDescription(
       }
 
       DCHECK_EQ(kind, GetMoreGeneralElementsKind(
-                          kind, boilerplate_value.OptimalElementsKind(
+                          kind, Object::OptimalElementsKind(
+                                    boilerplate_value,
                                     GetPtrComprCageBase(*elements))));
 
       FixedArray::cast(*elements)->set(array_index, boilerplate_value);

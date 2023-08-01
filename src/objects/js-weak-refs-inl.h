@@ -40,7 +40,8 @@ void JSFinalizationRegistry::RegisterWeakCellWithUnregisterToken(
   // Unregister tokens are held weakly as objects are often their own
   // unregister token. To avoid using an ephemeron map, the map for token
   // lookup is keyed on the token's identity hash instead of the token itself.
-  uint32_t key = weak_cell->unregister_token().GetOrCreateHash(isolate).value();
+  uint32_t key =
+      Object::GetOrCreateHash(weak_cell->unregister_token(), isolate).value();
   InternalIndex entry = key_map->FindEntry(isolate, key);
   if (entry.is_found()) {
     Object value = key_map->ValueAt(entry);
@@ -80,7 +81,7 @@ bool JSFinalizationRegistry::RemoveUnregisterToken(
       SimpleNumberDictionary::cast(this->key_map());
   // If the token doesn't have a hash, it was not used as a key inside any hash
   // tables.
-  Object hash = unregister_token.GetHash();
+  Object hash = Object::GetHash(unregister_token);
   if (IsUndefined(hash, isolate)) {
     return false;
   }
@@ -170,7 +171,7 @@ void WeakCell::Nullify(Isolate* isolate,
   // only called for WeakCells which haven't been unregistered yet, so they will
   // be in the active_cells list. (The caller must guard against calling this
   // for unregistered WeakCells by checking that the target is not undefined.)
-  DCHECK(target().CanBeHeldWeakly());
+  DCHECK(Object::CanBeHeldWeakly(target()));
   set_target(ReadOnlyRoots(isolate).undefined_value());
 
   JSFinalizationRegistry fr =
@@ -216,7 +217,7 @@ void WeakCell::RemoveFromFinalizationRegistryCells(Isolate* isolate) {
 
   // It's important to set_target to undefined here. This guards that we won't
   // call Nullify (which assumes that the WeakCell is in active_cells).
-  DCHECK(IsUndefined(target()) || target().CanBeHeldWeakly());
+  DCHECK(IsUndefined(target()) || Object::CanBeHeldWeakly(target()));
   set_target(ReadOnlyRoots(isolate).undefined_value());
 
   JSFinalizationRegistry fr =

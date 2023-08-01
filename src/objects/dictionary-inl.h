@@ -303,7 +303,7 @@ void GlobalDictionary::ValueAtPut(InternalIndex entry, Object value) {
 
 bool NumberDictionaryBaseShape::IsMatch(uint32_t key, Object other) {
   DCHECK(IsNumber(other));
-  return key == static_cast<uint32_t>(other.Number());
+  return key == static_cast<uint32_t>(Object::Number(other));
 }
 
 uint32_t NumberDictionaryBaseShape::Hash(ReadOnlyRoots roots, uint32_t key) {
@@ -313,7 +313,7 @@ uint32_t NumberDictionaryBaseShape::Hash(ReadOnlyRoots roots, uint32_t key) {
 uint32_t NumberDictionaryBaseShape::HashForObject(ReadOnlyRoots roots,
                                                   Object other) {
   DCHECK(IsNumber(other));
-  return ComputeSeededHash(static_cast<uint32_t>(other.Number()),
+  return ComputeSeededHash(static_cast<uint32_t>(Object::Number(other)),
                            HashSeed(roots));
 }
 

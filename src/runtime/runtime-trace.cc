@@ -47,7 +47,7 @@ void PrintRegisterRange(UnoptimizedFrame* frame, std::ostream& os,
     Object reg_object = frame->ReadInterpreterRegister(reg_index);
     os << "      [ " << std::setw(reg_field_width)
        << interpreter::Register(reg_index).ToString() << arrow_direction;
-    reg_object.ShortPrint(os);
+    ShortPrint(reg_object, os);
     os << " ]" << std::endl;
   }
 }
@@ -72,7 +72,7 @@ void PrintRegisters(UnoptimizedFrame* frame, std::ostream& os, bool is_input,
       (!is_input &&
        interpreter::Bytecodes::WritesOrClobbersAccumulator(bytecode))) {
     os << "      [ " << kAccumulator << kArrowDirection;
-    accumulator->ShortPrint(os);
+    ShortPrint(*accumulator, os);
     os << " ]" << std::endl;
   }
 
@@ -214,7 +214,7 @@ RUNTIME_FUNCTION(Runtime_TraceUpdateFeedback) {
 
   StdoutStream os;
   os << "[Feedback slot " << slot << "/" << slot_count << " in ";
-  function->shared().ShortPrint(os);
+  ShortPrint(function->shared(), os);
   os << " updated to ";
   function->feedback_vector().FeedbackSlotPrint(os, FeedbackSlot(slot));
   os << " - ";

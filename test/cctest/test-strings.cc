@@ -1290,7 +1290,7 @@ TEST(CachedHashOverflow) {
     CHECK_EQ(IsNumber(*results[i]), result->IsNumber());
     if (result->IsNumber()) {
       int32_t value = 0;
-      CHECK(results[i]->ToInt32(&value));
+      CHECK(Object::ToInt32(*results[i], &value));
       CHECK_EQ(value, result->ToInt32(context).ToLocalChecked()->Value());
     }
   }

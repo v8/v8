@@ -231,7 +231,7 @@ class FrameWriter {
         PrintF(trace_scope_->file(), V8PRIxPTR_FMT " <Smi %d>", obj.ptr(),
                Smi::cast(obj).value());
       } else {
-        obj.ShortPrint(trace_scope_->file());
+        ShortPrint(obj, trace_scope_->file());
       }
       PrintF(trace_scope_->file(), " ;  %s", debug_hint);
     }
@@ -636,10 +636,10 @@ void Deoptimizer::TraceDeoptBegin(int optimization_id,
   PrintF(file, "[bailout (kind: %s, reason: %s): begin. deoptimizing ",
          MessageFor(deopt_kind_), DeoptimizeReasonToString(info.deopt_reason));
   if (IsJSFunction(function_)) {
-    function_.ShortPrint(file);
+    ShortPrint(function_, file);
     PrintF(file, ", ");
   }
-  compiled_code_.ShortPrint(file);
+  ShortPrint(compiled_code_, file);
   PrintF(file,
          ", opt id %d, "
 #ifdef DEBUG
@@ -681,9 +681,9 @@ void Deoptimizer::TraceMarkForDeoptimization(Isolate* isolate, Code code,
   CodeTracer::Scope scope(isolate->GetCodeTracer());
   if (v8_flags.trace_deopt) {
     PrintF(scope.file(), "[marking dependent code ");
-    code.ShortPrint(scope.file());
+    ShortPrint(code, scope.file());
     PrintF(scope.file(), " (");
-    deopt_data->SharedFunctionInfo().ShortPrint(scope.file());
+    ShortPrint(deopt_data->SharedFunctionInfo(), scope.file());
     PrintF(") (opt id %d) for deoptimization, reason: %s]\n",
            deopt_data->OptimizationId().value(), reason);
   }
@@ -712,7 +712,7 @@ void Deoptimizer::TraceEvictFromOptimizedCodeCache(Isolate* isolate,
   PrintF(scope.file(),
          "[evicting optimized code marked for deoptimization (%s) for ",
          reason);
-  sfi.ShortPrint(scope.file());
+  ShortPrint(sfi, scope.file());
   PrintF(scope.file(), "]\n");
 }
 
@@ -2087,7 +2087,7 @@ void Deoptimizer::MaterializeHeapObjects() {
              "Materialization [" V8PRIxPTR_FMT "] <- " V8PRIxPTR_FMT " ;  ",
              static_cast<intptr_t>(materialization.output_slot_address_),
              value->ptr());
-      value->ShortPrint(trace_scope()->file());
+      ShortPrint(*value, trace_scope()->file());
       PrintF(trace_scope()->file(), "\n");
     }
 

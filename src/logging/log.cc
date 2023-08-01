@@ -1923,7 +1923,7 @@ void V8FileLogger::ICEvent(const char* type, bool keyed, Handle<Map> map,
   if (IsSmi(*key)) {
     msg << Smi::ToInt(*key);
   } else if (IsNumber(*key)) {
-    msg << key->Number();
+    msg << Object::Number(*key);
   } else if (IsName(*key)) {
     msg << Name::cast(*key);
   }

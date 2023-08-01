@@ -201,7 +201,7 @@ void OptimizingCompileDispatcher::InstallOptimizedFunctions() {
     if (!info->is_osr() && function->HasAvailableCodeKind(info->code_kind())) {
       if (v8_flags.trace_concurrent_recompilation) {
         PrintF("  ** Aborting compilation for ");
-        function->ShortPrint();
+        ShortPrint(*function);
         PrintF(" as it has already been optimized.\n");
       }
       Compiler::DisposeTurbofanCompilationJob(isolate_, job.get(), false);

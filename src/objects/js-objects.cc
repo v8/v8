@@ -258,7 +258,7 @@ bool HasExcludedProperty(
     Handle<Object> search_element) {
   // TODO(gsathya): Change this to be a hashtable.
   for (int i = 0; i < excluded_properties->length(); i++) {
-    if (search_element->SameValue(*excluded_properties->at(i))) {
+    if (Object::SameValue(*search_element, *excluded_properties->at(i))) {
       return true;
     }
   }
@@ -1282,7 +1282,7 @@ Maybe<PropertyAttributes> GetPropertyAttributesWithInterceptorInternal(
     }
     if (!result.is_null()) {
       int32_t value;
-      CHECK(result->ToInt32(&value));
+      CHECK(Object::ToInt32(*result, &value));
       DCHECK_IMPLIES((value & ~PropertyAttributes::ALL_ATTRIBUTES_MASK) != 0,
                      value == PropertyAttributes::ABSENT);
       // In case of absent property side effects are not allowed.
@@ -1557,9 +1557,11 @@ Maybe<bool> JSReceiver::ValidateAndApplyPropertyDescriptor(
       (!desc->has_writable() ||
        (current->has_writable() && current->writable() == desc->writable())) &&
       (!desc->has_get() ||
-       (current->has_get() && current->get()->SameValue(*desc->get()))) &&
+       (current->has_get() &&
+        Object::SameValue(*current->get(), *desc->get()))) &&
       (!desc->has_set() ||
-       (current->has_set() && current->set()->SameValue(*desc->set())))) {
+       (current->has_set() &&
+        Object::SameValue(*current->set(), *desc->set())))) {
     return Just(true);
   }
   // 4. If current.[[Configurable]] is false, then
@@ -1637,7 +1639,8 @@ Maybe<bool> JSReceiver::ValidateAndApplyPropertyDescriptor(
         // We'll succeed applying the property, but the value is already the
         // same and the property is read-only, so skip actually writing the
         // property. Otherwise we may try to e.g., write to frozen elements.
-        if (desc->value()->SameValue(*current->value())) return Just(true);
+        if (Object::SameValue(*desc->value(), *current->value()))
+          return Just(true);
         RETURN_FAILURE(
             isolate, GetShouldThrow(isolate, should_throw),
             NewTypeError(MessageTemplate::kRedefineDisallowed,
@@ -1654,7 +1657,8 @@ Maybe<bool> JSReceiver::ValidateAndApplyPropertyDescriptor(
     if (!current->configurable()) {
       // 8a i. If Desc.[[Set]] is present and SameValue(Desc.[[Set]],
       // current.[[Set]]) is false, return false.
-      if (desc->has_set() && !desc->set()->SameValue(*current->set())) {
+      if (desc->has_set() &&
+          !Object::SameValue(*desc->set(), *current->set())) {
         RETURN_FAILURE(
             isolate, GetShouldThrow(isolate, should_throw),
             NewTypeError(MessageTemplate::kRedefineDisallowed,
@@ -1662,7 +1666,8 @@ Maybe<bool> JSReceiver::ValidateAndApplyPropertyDescriptor(
       }
       // 8a ii. If Desc.[[Get]] is present and SameValue(Desc.[[Get]],
       // current.[[Get]]) is false, return false.
-      if (desc->has_get() && !desc->get()->SameValue(*current->get())) {
+      if (desc->has_get() &&
+          !Object::SameValue(*desc->get(), *current->get())) {
         RETURN_FAILURE(
             isolate, GetShouldThrow(isolate, should_throw),
             NewTypeError(MessageTemplate::kRedefineDisallowed,
@@ -2869,7 +2874,7 @@ void JSObject::JSObjectShortPrint(StringStream* accumulator) {
     case JS_ARRAY_TYPE: {
       double length = IsUndefined(JSArray::cast(*this)->length())
                           ? 0
-                          : JSArray::cast(*this)->length().Number();
+                          : Object::Number(JSArray::cast(*this)->length());
       accumulator->Add("<JSArray[%u]>", static_cast<uint32_t>(length));
       break;
     }
@@ -3001,7 +3006,7 @@ void JSObject::JSObjectShortPrint(StringStream* accumulator) {
       }
       if (IsJSPrimitiveWrapper(*this)) {
         accumulator->Add(" value = ");
-        JSPrimitiveWrapper::cast(*this)->value().ShortPrint(accumulator);
+        ShortPrint(JSPrimitiveWrapper::cast(*this)->value(), accumulator);
       }
       accumulator->Put('>');
       break;
@@ -3020,11 +3025,11 @@ void JSObject::PrintElementsTransition(FILE* file, Handle<JSObject> object,
        << ElementsKindToString(to_kind) << "] in ";
     JavaScriptFrame::PrintTop(object->GetIsolate(), file, false, true);
     PrintF(file, " for ");
-    object->ShortPrint(file);
+    ShortPrint(*object, file);
     PrintF(file, " from ");
-    from_elements->ShortPrint(file);
+    ShortPrint(*from_elements, file);
     PrintF(file, " to ");
-    to_elements->ShortPrint(file);
+    ShortPrint(*to_elements, file);
     PrintF(file, "\n");
   }
 }
@@ -3447,7 +3452,7 @@ void MigrateFastToSlow(Isolate* isolate, Handle<JSObject> object,
   if (v8_flags.trace_normalization) {
     StdoutStream os;
     os << "Object properties have been normalized:\n";
-    object->Print(os);
+    Print(*object, os);
   }
 #endif
 }
@@ -4079,7 +4084,7 @@ Handle<NumberDictionary> JSObject::NormalizeElements(Handle<JSObject> object) {
   if (v8_flags.trace_normalization) {
     StdoutStream os;
     os << "Object elements have been normalized:\n";
-    object->Print(os);
+    Print(*object, os);
   }
 #endif
 
@@ -4156,7 +4161,7 @@ bool TestDictionaryPropertiesIntegrityLevel(Dictionary dict,
   for (InternalIndex i : dict.IterateEntries()) {
     Object key;
     if (!dict.ToKey(roots, i, &key)) continue;
-    if (key.FilterKey(ALL_PROPERTIES)) continue;
+    if (Object::FilterKey(key, ALL_PROPERTIES)) continue;
     PropertyDetails details = dict.DetailsAt(i);
     if (details.IsConfigurable()) return false;
     if (level == FROZEN && details.kind() == PropertyKind::kData &&
@@ -4335,7 +4340,7 @@ void JSObject::ApplyAttributesToDictionary(
   for (InternalIndex i : dictionary->IterateEntries()) {
     Object k;
     if (!dictionary->ToKey(roots, i, &k)) continue;
-    if (k.FilterKey(ALL_PROPERTIES)) continue;
+    if (Object::FilterKey(k, ALL_PROPERTIES)) continue;
     PropertyDetails details = dictionary->DetailsAt(i);
     int attrs = attributes;
     // READ_ONLY is an invalid attribute for JS setters/getters.
@@ -4825,7 +4830,8 @@ Object JSObject::SlowReverseLookup(Object value) {
         Object property = RawFastPropertyAt(field_index);
         if (field_index.is_double()) {
           DCHECK(IsHeapNumber(property));
-          if (value_is_number && property.Number() == value.Number()) {
+          if (value_is_number &&
+              Object::Number(property) == Object::Number(value)) {
             return descs->GetKey(i);
           }
         } else if (property == value) {
@@ -5398,7 +5404,7 @@ Maybe<bool> JSObject::AddDataElement(Handle<JSObject> object, uint32_t index,
   uint32_t new_capacity = 0;
 
   if (IsJSArray(*object, isolate)) {
-    CHECK(JSArray::cast(*object)->length().ToArrayLength(&old_length));
+    CHECK(Object::ToArrayLength(JSArray::cast(*object)->length(), &old_length));
   }
 
   ElementsKind kind = object->GetElementsKind(isolate);
@@ -5424,7 +5430,7 @@ Maybe<bool> JSObject::AddDataElement(Handle<JSObject> object, uint32_t index,
     kind = dictionary_kind;
   }
 
-  ElementsKind to = value->OptimalElementsKind(isolate);
+  ElementsKind to = Object::OptimalElementsKind(*value, isolate);
   if (IsHoleyElementsKind(kind) || !IsJSArray(*object, isolate) ||
       index > old_length) {
     to = GetHoleyElementsKind(to);
@@ -5688,7 +5694,7 @@ Object JSDate::DoGetField(Isolate* isolate, FieldIndex index) {
     if (stamp != date_cache->stamp() && IsSmi(stamp)) {
       // Since the stamp is not NaN, the value is also not NaN.
       int64_t local_time_ms =
-          date_cache->ToLocal(static_cast<int64_t>(value().Number()));
+          date_cache->ToLocal(static_cast<int64_t>(Object::Number(value())));
       SetCachedFields(local_time_ms, date_cache);
     }
     switch (index) {
@@ -5712,10 +5718,10 @@ Object JSDate::DoGetField(Isolate* isolate, FieldIndex index) {
   }
 
   if (index >= kFirstUTCField) {
-    return GetUTCField(index, value().Number(), date_cache);
+    return GetUTCField(index, Object::Number(value()), date_cache);
   }
 
-  double time = value().Number();
+  double time = Object::Number(value());
   if (std::isnan(time)) return GetReadOnlyRoots().nan_value();
 
   int64_t local_time_ms = date_cache->ToLocal(static_cast<int64_t>(time));

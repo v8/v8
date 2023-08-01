@@ -45,7 +45,8 @@ BUILTIN(AtomicsIsLockFree) {
   Handle<Object> size = args.atOrUndefined(isolate, 1);
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, size,
                                      Object::ToNumber(isolate, size));
-  return *isolate->factory()->ToBoolean(AtomicIsLockFree(size->Number()));
+  return *isolate->factory()->ToBoolean(
+      AtomicIsLockFree(Object::Number(*size)));
 }
 
 // https://tc39.es/ecma262/#sec-validatesharedintegertypedarray
@@ -149,7 +150,7 @@ BUILTIN(AtomicsNotify) {
   } else {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, count,
                                        Object::ToInteger(isolate, count));
-    double count_double = count->Number();
+    double count_double = Object::Number(*count);
     if (count_double < 0) {
       count_double = 0;
     } else if (count_double > kMaxUInt32) {
@@ -214,13 +215,13 @@ Object DoWait(Isolate* isolate, FutexEmulation::WaitMode mode,
   // 8. If q is NaN, let t be +∞, else let t be max(q, 0).
   double timeout_number;
   if (IsUndefined(*timeout, isolate)) {
-    timeout_number = ReadOnlyRoots(isolate).infinity_value()->Number();
+    timeout_number = Object::Number(*ReadOnlyRoots(isolate).infinity_value());
   } else {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, timeout,
                                        Object::ToNumber(isolate, timeout));
-    timeout_number = timeout->Number();
+    timeout_number = Object::Number(*timeout);
     if (std::isnan(timeout_number))
-      timeout_number = ReadOnlyRoots(isolate).infinity_value()->Number();
+      timeout_number = Object::Number(*ReadOnlyRoots(isolate).infinity_value());
     else if (timeout_number < 0)
       timeout_number = 0;
   }

@@ -943,7 +943,7 @@ bool GetStackTraceLimit(Isolate* isolate, int* result) {
   if (!IsNumber(*stack_trace_limit)) return false;
 
   // Ensure that limit is not negative.
-  *result = std::max(FastD2IChecked(stack_trace_limit->Number()), 0);
+  *result = std::max(FastD2IChecked(Object::Number(*stack_trace_limit)), 0);
 
   if (*result != v8_flags.stack_trace_limit) {
     isolate->CountUsage(v8::Isolate::kErrorStackTraceLimit);
@@ -1830,7 +1830,7 @@ Object Isolate::ThrowInternal(Object raw_exception, MessageLocation* location) {
         PrintF(", line %d\n", script->GetLineNumber(location->start_pos()) + 1);
       }
     }
-    raw_exception.Print();
+    Print(raw_exception);
     PrintF("Stack Trace:\n");
     PrintStack(stdout);
     PrintF("=========================================================\n");

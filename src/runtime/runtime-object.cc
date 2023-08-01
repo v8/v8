@@ -1424,8 +1424,8 @@ RUNTIME_FUNCTION(Runtime_CreateIterResultObject) {
   DCHECK_EQ(2, args.length());
   Handle<Object> value = args.at(0);
   Handle<Object> done = args.at(1);
-  return *isolate->factory()->NewJSIteratorResult(value,
-                                                  done->BooleanValue(isolate));
+  return *isolate->factory()->NewJSIteratorResult(
+      value, Object::BooleanValue(*done, isolate));
 }
 
 RUNTIME_FUNCTION(Runtime_CreateDataProperty) {

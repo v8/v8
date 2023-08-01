@@ -348,7 +348,7 @@ OptionalObjectRef GetOwnFastDataPropertyFromHeap(JSHeapBroker* broker,
 
     // Ensure that {constant} matches the {representation} we expect for the
     // field.
-    if (!constant->FitsRepresentation(representation, false)) {
+    if (!Object::FitsRepresentation(*constant, representation, false)) {
       const char* repString = IsSmi(*constant)          ? "Smi"
                               : IsHeapNumber(*constant) ? "HeapNumber"
                                                         : "HeapObject";
@@ -759,8 +759,9 @@ base::Optional<bool> HeapObjectData::TryGetBooleanValue(
     JSHeapBroker* broker) const {
   // Keep in sync with Object::BooleanValue.
   auto result = TryGetBooleanValueImpl(broker);
-  DCHECK_IMPLIES(broker->IsMainThread() && result.has_value(),
-                 result.value() == object()->BooleanValue(broker->isolate()));
+  DCHECK_IMPLIES(
+      broker->IsMainThread() && result.has_value(),
+      result.value() == Object::BooleanValue(*object(), broker->isolate()));
   return result;
 }
 
@@ -1844,7 +1845,7 @@ bool ObjectRef::IsNullOrUndefined() const { return IsNull() || IsUndefined(); }
 
 base::Optional<bool> ObjectRef::TryGetBooleanValue(JSHeapBroker* broker) const {
   if (data_->should_access_heap()) {
-    return object()->BooleanValue(broker->isolate());
+    return Object::BooleanValue(*object(), broker->isolate());
   }
   if (IsSmi()) return AsSmi() != 0;
   return data()->AsHeapObject()->TryGetBooleanValue(broker);
@@ -1914,7 +1915,7 @@ base::Optional<Object> JSObjectRef::GetOwnConstantElementFromHeap(
       return {};
     }
     uint32_t array_length;
-    if (!array_length_obj.ToArrayLength(&array_length)) {
+    if (!Object::ToArrayLength(array_length_obj, &array_length)) {
       return {};
     }
     // See also ElementsAccessorBase::GetMaxIndex.

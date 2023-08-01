@@ -3262,11 +3262,11 @@ void GlobalProxyIdentityHash(bool set_in_js) {
   int32_t hash1;
   if (set_in_js) {
     CompileRun("var m = new Set(); m.add(global);");
-    i::Object original_hash = i_global_proxy->GetHash();
+    i::Object original_hash = i::Object::GetHash(*i_global_proxy);
     CHECK(IsSmi(original_hash));
     hash1 = i::Smi::ToInt(original_hash);
   } else {
-    hash1 = i_global_proxy->GetOrCreateHash(i_isolate).value();
+    hash1 = i::Object::GetOrCreateHash(*i_global_proxy, i_isolate).value();
   }
   // Hash should be retained after being detached.
   env->DetachGlobal();
@@ -21450,7 +21450,7 @@ void Verify(v8::Isolate* isolate, Local<v8::Object> obj) {
 #if VERIFY_HEAP
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   i::Handle<i::JSReceiver> i_obj = v8::Utils::OpenHandle(*obj);
-  i_obj->ObjectVerify(i_isolate);
+  i::Object::ObjectVerify(*i_obj, i_isolate);
 #endif
 }
 
@@ -24096,7 +24096,7 @@ TEST(SyntheticModuleEvaluationStepsSetExport) {
 
   Local<Value> completion_value = module->Evaluate(context).ToLocalChecked();
   CHECK(completion_value->IsUndefined());
-  CHECK_EQ(42, test_export_cell->value().Number());
+  CHECK_EQ(42, i::Object::Number(test_export_cell->value()));
   CHECK_EQ(module->GetStatus(), Module::kEvaluated);
 }
 

@@ -237,7 +237,8 @@ RUNTIME_FUNCTION(Runtime_ArrayIncludes_Slow) {
   {
     if (object->map()->instance_type() == JS_ARRAY_TYPE) {
       uint32_t len32 = 0;
-      bool success = JSArray::cast(*object)->length().ToArrayLength(&len32);
+      bool success =
+          Object::ToArrayLength(JSArray::cast(*object)->length(), &len32);
       DCHECK(success);
       USE(success);
       len = len32;
@@ -250,8 +251,8 @@ RUNTIME_FUNCTION(Runtime_ArrayIncludes_Slow) {
 
       ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, len_,
                                          Object::ToLength(isolate, len_));
-      len = static_cast<int64_t>(len_->Number());
-      DCHECK_EQ(len, len_->Number());
+      len = static_cast<int64_t>(Object::Number(*len_));
+      DCHECK_EQ(len, Object::Number(*len_));
     }
   }
 
@@ -273,7 +274,7 @@ RUNTIME_FUNCTION(Runtime_ArrayIncludes_Slow) {
       }
     } else {
       DCHECK(IsHeapNumber(*from_index));
-      double start_from = from_index->Number();
+      double start_from = Object::Number(*from_index);
       if (start_from >= len) return ReadOnlyRoots(isolate).false_value();
       if (V8_LIKELY(std::isfinite(start_from))) {
         if (start_from < 0) {
@@ -314,7 +315,7 @@ RUNTIME_FUNCTION(Runtime_ArrayIncludes_Slow) {
     }
 
     // If SameValueZero(searchElement, elementK) is true, return true.
-    if (search_element->SameValueZero(*element_k)) {
+    if (Object::SameValueZero(*search_element, *element_k)) {
       return ReadOnlyRoots(isolate).true_value();
     }
   }
@@ -338,7 +339,8 @@ RUNTIME_FUNCTION(Runtime_ArrayIndexOf) {
   {
     if (IsJSArray(*object)) {
       uint32_t len32 = 0;
-      bool success = JSArray::cast(*object)->length().ToArrayLength(&len32);
+      bool success =
+          Object::ToArrayLength(JSArray::cast(*object)->length(), &len32);
       DCHECK(success);
       USE(success);
       len = len32;
@@ -351,8 +353,8 @@ RUNTIME_FUNCTION(Runtime_ArrayIndexOf) {
 
       ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, len_,
                                          Object::ToLength(isolate, len_));
-      len = static_cast<int64_t>(len_->Number());
-      DCHECK_EQ(len, len_->Number());
+      len = static_cast<int64_t>(Object::Number(*len_));
+      DCHECK_EQ(len, Object::Number(*len_));
     }
   }
 
@@ -364,7 +366,7 @@ RUNTIME_FUNCTION(Runtime_ArrayIndexOf) {
   {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, from_index,
                                        Object::ToInteger(isolate, from_index));
-    double fp = from_index->Number();
+    double fp = Object::Number(*from_index);
     if (fp > len) return Smi::FromInt(-1);
     if (V8_LIKELY(fp >=
                   static_cast<double>(std::numeric_limits<int64_t>::min()))) {
@@ -411,7 +413,7 @@ RUNTIME_FUNCTION(Runtime_ArrayIndexOf) {
       if (!present.FromJust()) continue;
       ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, element_k,
                                          Object::GetProperty(&it));
-      if (search_element->StrictEquals(*element_k)) {
+      if (Object::StrictEquals(*search_element, *element_k)) {
         return *isolate->factory()->NewNumberFromInt64(index);
       }
     }

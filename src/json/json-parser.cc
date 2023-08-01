@@ -160,7 +160,7 @@ MaybeHandle<Object> JsonParseInternalizer::InternalizeJsonProperty(
   //
   // When with_source == kWithoutSource, this is unused.
   bool pass_source_to_reviver =
-      with_source == kWithSource && value->SameValue(*snapshot);
+      with_source == kWithSource && Object::SameValue(*value, *snapshot);
 
   if (IsJSReceiver(*value)) {
     Handle<JSReceiver> object = Handle<JSReceiver>::cast(value);
@@ -171,7 +171,7 @@ MaybeHandle<Object> JsonParseInternalizer::InternalizeJsonProperty(
       ASSIGN_RETURN_ON_EXCEPTION(
           isolate_, length_object,
           Object::GetLengthFromArrayLike(isolate_, object), Object);
-      double length = length_object->Number();
+      double length = Object::Number(*length_object);
       if (pass_source_to_reviver) {
         Handle<FixedArray> val_nodes_and_snapshots =
             Handle<FixedArray>::cast(val_node);
@@ -758,15 +758,16 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
         target->instance_descriptors(isolate_)->GetDetails(descriptor_index);
     Representation expected_representation = details.representation();
 
-    if (!value->FitsRepresentation(expected_representation)) {
-      Representation representation = value->OptimalRepresentation(isolate());
+    if (!Object::FitsRepresentation(*value, expected_representation)) {
+      Representation representation =
+          Object::OptimalRepresentation(*value, isolate());
       representation = representation.generalize(expected_representation);
       if (!expected_representation.CanBeInPlaceChangedTo(representation)) {
         map = ParentOfDescriptorOwner(isolate_, map, target, descriptor);
         break;
       }
       Handle<FieldType> value_type =
-          value->OptimalType(isolate(), representation);
+          Object::OptimalType(*value, isolate(), representation);
       MapUpdater::GeneralizeField(isolate(), target, descriptor_index,
                                   details.constness(), representation,
                                   value_type);
@@ -775,7 +776,7 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
                     .GetFieldType(descriptor_index)
                     .NowContains(value)) {
       Handle<FieldType> value_type =
-          value->OptimalType(isolate(), expected_representation);
+          Object::OptimalType(*value, isolate(), expected_representation);
       MapUpdater::GeneralizeField(isolate(), target, descriptor_index,
                                   details.constness(), expected_representation,
                                   value_type);
@@ -932,7 +933,7 @@ Handle<Object> JsonParser<Char>::BuildJsonArray(
     DisallowGarbageCollection no_gc;
     FixedDoubleArray elements = FixedDoubleArray::cast(array->elements());
     for (int i = 0; i < length; i++) {
-      elements->set(i, element_stack[start + i]->Number());
+      elements->set(i, Object::Number(*element_stack[start + i]));
     }
   } else {
     DisallowGarbageCollection no_gc;

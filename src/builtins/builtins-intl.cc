@@ -253,7 +253,7 @@ Object LegacyFormatConstructor(BuiltinArguments args, Isolate* isolate,
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, ordinary_has_instance_obj,
         Object::OrdinaryHasInstance(isolate, constructor, receiver));
-    if (ordinary_has_instance_obj->BooleanValue(isolate)) {
+    if (Object::BooleanValue(*ordinary_has_instance_obj, isolate)) {
       if (!IsJSReceiver(*receiver)) {
         THROW_NEW_ERROR_RETURN_FAILURE(
             isolate, NewTypeError(MessageTemplate::kIncompatibleMethodReceiver,
@@ -1027,7 +1027,7 @@ BUILTIN(PluralRulesPrototypeSelect) {
   Handle<Object> number = args.atOrUndefined(isolate, 1);
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, number,
                                      Object::ToNumber(isolate, number));
-  double number_double = number->Number();
+  double number_double = Object::Number(*number);
 
   // 4. Return ! ResolvePlural(pr, n).
   RETURN_RESULT_OR_FAILURE(isolate, JSPluralRules::ResolvePlural(
@@ -1079,8 +1079,9 @@ BUILTIN(PluralRulesPrototypeSelectRange) {
   }
 
   RETURN_RESULT_OR_FAILURE(
-      isolate, JSPluralRules::ResolvePluralRange(isolate, plural_rules,
-                                                 x->Number(), y->Number()));
+      isolate,
+      JSPluralRules::ResolvePluralRange(
+          isolate, plural_rules, Object::Number(*x), Object::Number(*y)));
 }
 
 BUILTIN(PluralRulesSupportedLocalesOf) {
@@ -1245,7 +1246,7 @@ BUILTIN(SegmentsPrototypeContaining) {
   // 6. Let n be ? ToInteger(index).
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, index,
                                      Object::ToInteger(isolate, index));
-  double const n = index->Number();
+  double const n = Object::Number(*index);
 
   RETURN_RESULT_OR_FAILURE(isolate,
                            JSSegments::Containing(isolate, segments, n));

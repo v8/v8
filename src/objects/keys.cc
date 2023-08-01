@@ -195,7 +195,7 @@ MaybeHandle<FixedArray> FilterProxyKeys(KeyAccumulator* accumulator,
   int store_position = 0;
   for (int i = 0; i < keys->length(); ++i) {
     Handle<Name> key(Name::cast(keys->get(i)), isolate);
-    if (key->FilterKey(filter)) continue;  // Skip this key.
+    if (Object::FilterKey(*key, filter)) continue;  // Skip this key.
     if (skip_indices) {
       uint32_t index;
       if (key->AsArrayIndex(&index)) continue;  // Skip this key.
@@ -704,7 +704,7 @@ KeyAccumulator::FilterForEnumerableProperties(
     Handle<Object> attributes;
     if (type == kIndexed) {
       uint32_t number;
-      CHECK(element->ToUint32(&number));
+      CHECK(Object::ToUint32(*element, &number));
       attributes = args.CallIndexedQuery(interceptor, number);
     } else {
       CHECK(IsName(*element));
@@ -714,7 +714,7 @@ KeyAccumulator::FilterForEnumerableProperties(
 
     if (!attributes.is_null()) {
       int32_t value;
-      CHECK(attributes->ToInt32(&value));
+      CHECK(Object::ToInt32(*attributes, &value));
       if ((value & DONT_ENUM) == 0) {
         RETURN_FAILURE_IF_NOT_SUCCESSFUL(AddKey(element, DO_NOT_CONVERT));
       }
@@ -820,7 +820,7 @@ base::Optional<int> CollectOwnPropertyNamesInternal(
       if (first_skipped == -1) first_skipped = i.as_int();
       continue;
     }
-    if (key.FilterKey(keys->filter())) continue;
+    if (Object::FilterKey(key, keys->filter())) continue;
 
     if (is_shadowing_key) {
       // This might allocate, but {key} is not used afterwards.
@@ -958,7 +958,7 @@ ExceptionStatus CollectKeysFromDictionary(Handle<Dictionary> dictionary,
       Object key;
       Dictionary raw_dictionary = *dictionary;
       if (!raw_dictionary.ToKey(roots, i, &key)) continue;
-      if (key.FilterKey(filter)) continue;
+      if (Object::FilterKey(key, filter)) continue;
       PropertyDetails details = raw_dictionary.DetailsAt(i);
       if ((int{details.attributes()} & filter) != 0) {
         AllowGarbageCollection gc;

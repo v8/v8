@@ -28,12 +28,12 @@ bool IsValidCodePoint(Isolate* isolate, Handle<Object> value) {
     return false;
   }
 
-  if (Object::ToInteger(isolate, value).ToHandleChecked()->Number() !=
-      value->Number()) {
+  if (Object::Number(*Object::ToInteger(isolate, value).ToHandleChecked()) !=
+      Object::Number(*value)) {
     return false;
   }
 
-  if (value->Number() < 0 || value->Number() > 0x10FFFF) {
+  if (Object::Number(*value) < 0 || Object::Number(*value) > 0x10FFFF) {
     return false;
   }
 
@@ -51,7 +51,7 @@ base::uc32 NextCodePoint(Isolate* isolate, BuiltinArguments args, int index) {
         MessageTemplate::kInvalidCodePoint, value));
     return kInvalidCodePoint;
   }
-  return DoubleToUint32(value->Number());
+  return DoubleToUint32(Object::Number(*value));
 }
 
 }  // namespace
@@ -454,7 +454,7 @@ BUILTIN(StringRaw) {
   IncrementalStringBuilder result_builder(isolate);
   // Intentional spec violation: we ignore {length} values >= 2^32, because
   // assuming non-empty chunks they would generate too-long strings anyway.
-  const double raw_len_number = raw_len->Number();
+  const double raw_len_number = Object::Number(*raw_len);
   const uint32_t length = raw_len_number > std::numeric_limits<uint32_t>::max()
                               ? std::numeric_limits<uint32_t>::max()
                               : static_cast<uint32_t>(raw_len_number);

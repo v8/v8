@@ -687,7 +687,7 @@ TEST_F(UnifiedHeapTest, TracingInEphemerons) {
     Handle<JSObject> js_key =
         handle(JSObject::cast(*v8::Utils::OpenHandle(*key)), i_isolate());
     Handle<JSReceiver> js_value = v8::Utils::OpenHandle(*value);
-    int32_t hash = js_key->GetOrCreateHash(i_isolate()).value();
+    int32_t hash = Object::GetOrCreateHash(*js_key, i_isolate()).value();
     JSWeakCollection::Set(weak_map, js_key, js_value, hash);
   }
   CollectGarbageWithoutEmbedderStack(cppgc::Heap::SweepingType::kAtomic);

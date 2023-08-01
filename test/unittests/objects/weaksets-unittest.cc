@@ -93,7 +93,7 @@ TEST_F(WeakSetsTest, WeakSet_Weakness) {
   {
     HandleScope inner_scope(i_isolate());
     Handle<Smi> smi(Smi::FromInt(23), i_isolate());
-    int32_t hash = key->GetOrCreateHash(i_isolate()).value();
+    int32_t hash = Object::GetOrCreateHash(*key, i_isolate()).value();
     JSWeakCollection::Set(weakset, key, smi, hash);
   }
   CHECK_EQ(1, EphemeronHashTable::cast(weakset->table())->NumberOfElements());
@@ -137,7 +137,7 @@ TEST_F(WeakSetsTest, WeakSet_Shrinking) {
     for (int i = 0; i < 32; i++) {
       Handle<JSObject> object = factory->NewJSObjectFromMap(map);
       Handle<Smi> smi(Smi::FromInt(i), i_isolate());
-      int32_t hash = object->GetOrCreateHash(i_isolate()).value();
+      int32_t hash = Object::GetOrCreateHash(*object, i_isolate()).value();
       JSWeakCollection::Set(weakset, object, smi, hash);
     }
   }
@@ -187,7 +187,7 @@ TEST_F(WeakSetsTest, WeakSet_Regress2060a) {
       CHECK(!Heap::InYoungGeneration(*object));
       CHECK_IMPLIES(!v8_flags.enable_third_party_heap,
                     !first_page->Contains(object->address()));
-      int32_t hash = key->GetOrCreateHash(i_isolate()).value();
+      int32_t hash = Object::GetOrCreateHash(*key, i_isolate()).value();
       JSWeakCollection::Set(weakset, key, object, hash);
     }
   }
@@ -231,7 +231,7 @@ TEST_F(WeakSetsTest, WeakSet_Regress2060b) {
   Handle<JSWeakSet> weakset = AllocateJSWeakSet();
   for (int i = 0; i < 32; i++) {
     Handle<Smi> smi(Smi::FromInt(i), i_isolate());
-    int32_t hash = keys[i]->GetOrCreateHash(i_isolate()).value();
+    int32_t hash = Object::GetOrCreateHash(*keys[i], i_isolate()).value();
     JSWeakCollection::Set(weakset, keys[i], smi, hash);
   }
 

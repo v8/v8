@@ -446,7 +446,7 @@ void StoreImpl::SetHostInfo(i::Handle<i::Object> object, void* info,
   size_t estimated_size = sizeof(ManagedData);
   i::Handle<i::Object> wrapper = i::Managed<ManagedData>::FromRawPtr(
       i_isolate(), estimated_size, new ManagedData(info, finalizer));
-  int32_t hash = object->GetOrCreateHash(i_isolate()).value();
+  int32_t hash = i::Object::GetOrCreateHash(*object, i_isolate()).value();
   i::JSWeakCollection::Set(host_info_map_, object, wrapper, hash);
 }
 
@@ -940,7 +940,8 @@ auto Ref::copy() const -> own<Ref> { return impl(this)->copy(); }
 
 auto Ref::same(const Ref* that) const -> bool {
   i::HandleScope handle_scope(impl(this)->isolate());
-  return impl(this)->v8_object()->SameValue(*impl(that)->v8_object());
+  return i::Object::SameValue(*impl(this)->v8_object(),
+                              *impl(that)->v8_object());
 }
 
 auto Ref::get_host_info() const -> void* { return impl(this)->get_host_info(); }
@@ -1986,7 +1987,7 @@ auto Table::type() const -> own<TableType> {
   i::Handle<i::WasmTableObject> table = impl(this)->v8_object();
   uint32_t min = table->current_length();
   uint32_t max;
-  if (!table->maximum_length().ToUint32(&max)) max = 0xFFFFFFFFu;
+  if (!i::Object::ToUint32(table->maximum_length(), &max)) max = 0xFFFFFFFFu;
   ValKind kind;
   switch (table->type().heap_representation()) {
     case i::wasm::HeapType::kFunc:

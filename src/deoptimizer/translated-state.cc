@@ -506,7 +506,7 @@ Object TranslatedValue::GetRawValue() const {
   if (materialization_state() == kFinished) {
     int smi;
     if (IsHeapNumber(*storage_) &&
-        DoubleToSmiInteger(storage_->Number(), &smi)) {
+        DoubleToSmiInteger(Object::Number(*storage_), &smi)) {
       return Smi::FromInt(smi);
     }
     return *storage_;
@@ -653,7 +653,7 @@ Handle<Object> TranslatedValue::GetValue() {
     // just always allocate a HeapNumber and later extract the Smi again if we
     // don't need a HeapObject.
     set_initialized_storage(
-        isolate()->factory()->NewHeapNumber(value->Number()));
+        isolate()->factory()->NewHeapNumber(Object::Number(*value)));
     return value;
   }
 
@@ -1263,7 +1263,7 @@ int TranslatedState::CreateNextTranslatedValue(
       if (trace_file != nullptr) {
         PrintF(trace_file, V8PRIxPTR_FMT " ; %s ", uncompressed_value,
                converter.NameOfCPURegister(input_reg));
-        Object(uncompressed_value).ShortPrint(trace_file);
+        ShortPrint(Object(uncompressed_value), trace_file);
       }
       TranslatedValue translated_value =
           TranslatedValue::NewTagged(this, Object(uncompressed_value));
@@ -1446,7 +1446,7 @@ int TranslatedState::CreateNextTranslatedValue(
         PrintF(trace_file, V8PRIxPTR_FMT " ;  [fp %c %3d]  ",
                uncompressed_value, slot_offset < 0 ? '-' : '+',
                std::abs(slot_offset));
-        Object(uncompressed_value).ShortPrint(trace_file);
+        ShortPrint(Object(uncompressed_value), trace_file);
       }
       TranslatedValue translated_value =
           TranslatedValue::NewTagged(this, Object(uncompressed_value));
@@ -1591,7 +1591,7 @@ int TranslatedState::CreateNextTranslatedValue(
       if (trace_file != nullptr) {
         PrintF(trace_file, V8PRIxPTR_FMT " ; (literal %2d) ", value.ptr(),
                literal_index);
-        value.ShortPrint(trace_file);
+        ShortPrint(value, trace_file);
       }
 
       TranslatedValue translated_value =
@@ -1874,7 +1874,7 @@ void TranslatedState::MaterializeFixedDoubleArray(TranslatedFrame* frame,
              frame->values_[*value_index].kind());
     Handle<Object> value = frame->values_[*value_index].GetValue();
     if (IsNumber(*value)) {
-      array->set(i, value->Number());
+      array->set(i, Object::Number(*value));
     } else {
       CHECK(value.is_identical_to(isolate()->factory()->the_hole_value()));
       array->set_the_hole(isolate(), i);
@@ -1891,7 +1891,8 @@ void TranslatedState::MaterializeHeapNumber(TranslatedFrame* frame,
            frame->values_[*value_index].kind());
   Handle<Object> value = frame->values_[*value_index].GetValue();
   CHECK(IsNumber(*value));
-  Handle<HeapNumber> box = isolate()->factory()->NewHeapNumber(value->Number());
+  Handle<HeapNumber> box =
+      isolate()->factory()->NewHeapNumber(Object::Number(*value));
   (*value_index)++;
   slot->set_storage(box);
 }
@@ -2242,7 +2243,7 @@ void TranslatedState::InitializeJSObjectAt(
       CHECK_EQ(kStoreTagged, marker);
       Handle<Object> field_value = slot->GetValue();
       DCHECK_IMPLIES(IsHeapNumber(*field_value),
-                     !IsSmiDouble(field_value->Number()));
+                     !IsSmiDouble(Object::Number(*field_value)));
       WRITE_FIELD(*object_storage, offset, *field_value);
       WRITE_BARRIER(*object_storage, offset, *field_value);
     }
@@ -2293,7 +2294,7 @@ void TranslatedState::InitializeObjectWithTaggedFieldsAt(
       CHECK(marker == kStoreTagged || i == 1);
       field_value = slot->GetValue();
       DCHECK_IMPLIES(IsHeapNumber(*field_value),
-                     !IsSmiDouble(field_value->Number()));
+                     !IsSmiDouble(Object::Number(*field_value)));
     }
     WRITE_FIELD(*object_storage, offset, *field_value);
     WRITE_BARRIER(*object_storage, offset, *field_value);
@@ -2415,14 +2416,14 @@ void TranslatedState::StoreMaterializedValuesAndDeopt(JavaScriptFrame* frame) {
     } else {
       if (*previous_value == *marker) {
         if (IsSmi(*value)) {
-          value = isolate()->factory()->NewHeapNumber(value->Number());
+          value = isolate()->factory()->NewHeapNumber(Object::Number(*value));
         }
         previously_materialized_objects->set(i, *value);
         value_changed = true;
       } else {
         CHECK(*previous_value == *value ||
               (IsHeapNumber(*previous_value) && IsSmi(*value) &&
-               previous_value->Number() == value->Number()));
+               Object::Number(*previous_value) == Object::Number(*value)));
       }
     }
   }
@@ -2478,7 +2479,7 @@ void TranslatedState::VerifyMaterializedObjects() {
     if (slot->kind() == TranslatedValue::kCapturedObject) {
       CHECK_EQ(slot, GetValueByObjectIndex(slot->object_index()));
       if (slot->materialization_state() == TranslatedValue::kFinished) {
-        slot->storage()->ObjectVerify(isolate());
+        Object::ObjectVerify(*slot->storage(), isolate());
       } else {
         CHECK_EQ(slot->materialization_state(),
                  TranslatedValue::kUninitialized);

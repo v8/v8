@@ -114,7 +114,7 @@ BUILTIN(AtomicsConditionWait) {
   if (!IsUndefined(*timeout_obj, isolate)) {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, timeout_obj,
                                        Object::ToNumber(isolate, timeout_obj));
-    double ms = timeout_obj->Number();
+    double ms = Object::Number(*timeout_obj);
     if (!std::isnan(ms)) {
       if (ms < 0) ms = 0;
       if (ms <= static_cast<double>(std::numeric_limits<int64_t>::max())) {
@@ -164,7 +164,7 @@ BUILTIN(AtomicsConditionNotify) {
   } else {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, count_obj,
                                        Object::ToInteger(isolate, count_obj));
-    double count_double = count_obj->Number();
+    double count_double = Object::Number(*count_obj);
     if (count_double < 0) {
       count_double = 0;
     } else if (count_double > JSAtomicsCondition::kAllWaiters) {

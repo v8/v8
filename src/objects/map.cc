@@ -489,8 +489,10 @@ MaybeHandle<Map> Map::CopyWithConstant(Isolate* isolate, Handle<Map> map,
     return MaybeHandle<Map>();
   }
 
-  Representation representation = constant->OptimalRepresentation(isolate);
-  Handle<FieldType> type = constant->OptimalType(isolate, representation);
+  Representation representation =
+      Object::OptimalRepresentation(*constant, isolate);
+  Handle<FieldType> type =
+      Object::OptimalType(*constant, isolate, representation);
   return CopyWithField(isolate, map, name, type, attributes,
                        PropertyConstness::kConst, representation, flag);
 }
@@ -1095,7 +1097,7 @@ int Map::NumberOfEnumerableProperties() const {
   DescriptorArray descs = instance_descriptors(kRelaxedLoad);
   for (InternalIndex i : IterateOwnDescriptors()) {
     if ((int{descs->GetDetails(i).attributes()} & ONLY_ENUMERABLE) == 0 &&
-        !descs->GetKey(i).FilterKey(ENUMERABLE_STRINGS)) {
+        !Object::FilterKey(descs->GetKey(i), ENUMERABLE_STRINGS)) {
       result++;
     }
   }
@@ -1784,7 +1786,7 @@ bool CanHoldValue(DescriptorArray descriptors, InternalIndex descriptor,
   if (details.location() == PropertyLocation::kField) {
     if (details.kind() == PropertyKind::kData) {
       return IsGeneralizableTo(constness, details.constness()) &&
-             value.FitsRepresentation(details.representation()) &&
+             Object::FitsRepresentation(value, details.representation()) &&
              descriptors->GetFieldType(descriptor).NowContains(value);
     } else {
       DCHECK_EQ(PropertyKind::kAccessor, details.kind());
@@ -1811,8 +1813,9 @@ Handle<Map> UpdateDescriptorForValue(Isolate* isolate, Handle<Map> map,
 
   PropertyAttributes attributes =
       map->instance_descriptors(isolate)->GetDetails(descriptor).attributes();
-  Representation representation = value->OptimalRepresentation(isolate);
-  Handle<FieldType> type = value->OptimalType(isolate, representation);
+  Representation representation =
+      Object::OptimalRepresentation(*value, isolate);
+  Handle<FieldType> type = Object::OptimalType(*value, isolate, representation);
 
   MapUpdater mu(isolate, map);
   return mu.ReconfigureToDataField(descriptor, attributes, constness,
@@ -1869,8 +1872,10 @@ Handle<Map> Map::TransitionToDataProperty(Isolate* isolate, Handle<Map> map,
       isolate->bootstrapper()->IsActive() ? OMIT_TRANSITION : INSERT_TRANSITION;
   MaybeHandle<Map> maybe_map;
   if (!map->TooManyFastProperties(store_origin)) {
-    Representation representation = value->OptimalRepresentation(isolate);
-    Handle<FieldType> type = value->OptimalType(isolate, representation);
+    Representation representation =
+        Object::OptimalRepresentation(*value, isolate);
+    Handle<FieldType> type =
+        Object::OptimalType(*value, isolate, representation);
     maybe_map = Map::CopyWithField(isolate, map, name, type, attributes,
                                    constness, representation, flag);
   }

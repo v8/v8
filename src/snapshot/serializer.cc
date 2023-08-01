@@ -189,7 +189,7 @@ void Serializer::PrintStack() { PrintStack(std::cout); }
 
 void Serializer::PrintStack(std::ostream& out) {
   for (const auto o : stack_) {
-    o->Print(out);
+    Print(*o, out);
     out << "\n";
   }
 }
@@ -214,7 +214,7 @@ bool Serializer::SerializeHotObject(HeapObject obj) {
   DCHECK(index >= 0 && index < kHotObjectCount);
   if (v8_flags.trace_serializer) {
     PrintF(" Encoding hot object %d:", index);
-    obj.ShortPrint();
+    ShortPrint(obj);
     PrintF("\n");
   }
   sink_.Put(HotObject::Encode(index), "HotObject");
@@ -239,7 +239,7 @@ bool Serializer::SerializeBackReference(HeapObject obj) {
     DCHECK(reference->is_back_reference());
     if (v8_flags.trace_serializer) {
       PrintF(" Encoding back reference to: ");
-      obj.ShortPrint();
+      ShortPrint(obj);
       PrintF("\n");
     }
 
@@ -270,7 +270,7 @@ void Serializer::PutRoot(RootIndex root) {
   HeapObject object = HeapObject::cast(isolate()->root(root));
   if (v8_flags.trace_serializer) {
     PrintF(" Encoding root %d:", root_index);
-    object.ShortPrint();
+    ShortPrint(object);
     PrintF("\n");
   }
 
@@ -752,7 +752,7 @@ void Serializer::ObjectSerializer::Serialize(SlotType slot_type) {
     if (should_defer && CanBeDeferred(raw, slot_type)) {
       if (v8_flags.trace_serializer) {
         PrintF(" Deferring heap object: ");
-        object_->ShortPrint();
+        ShortPrint(*object_);
         PrintF("\n");
       }
       // Deferred objects are considered "pending".
@@ -765,14 +765,14 @@ void Serializer::ObjectSerializer::Serialize(SlotType slot_type) {
       if (v8_flags.trace_serializer && recursion.ExceedsMaximum()) {
         PrintF(" Exceeding max recursion depth by %d for: ",
                recursion.ExceedsMaximumBy());
-        object_->ShortPrint();
+        ShortPrint(*object_);
         PrintF("\n");
       }
     }
 
     if (v8_flags.trace_serializer) {
       PrintF(" Encoding heap object: ");
-      object_->ShortPrint();
+      ShortPrint(*object_);
       PrintF("\n");
     }
   }
@@ -887,7 +887,7 @@ void Serializer::ObjectSerializer::SerializeDeferred() {
   if (back_reference != nullptr) {
     if (v8_flags.trace_serializer) {
       PrintF(" Deferred heap object ");
-      object_->ShortPrint();
+      ShortPrint(*object_);
       PrintF(" was already serialized\n");
     }
     return;

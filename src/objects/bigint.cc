@@ -1081,7 +1081,8 @@ MaybeHandle<BigInt> BigInt::FromObject(Isolate* isolate, Handle<Object> obj) {
   }
 
   if (IsBoolean(*obj)) {
-    return MutableBigInt::NewFromInt(isolate, obj->BooleanValue(isolate));
+    return MutableBigInt::NewFromInt(isolate,
+                                     Object::BooleanValue(*obj, isolate));
   }
   if (IsBigInt(*obj)) {
     return Handle<BigInt>::cast(obj);

@@ -275,7 +275,7 @@ std::vector<WasmValue> wasmVec(Args... args) {
 int GetIntReturnValue(MaybeHandle<Object> retval) {
   CHECK(!retval.is_null());
   int result;
-  CHECK(retval.ToHandleChecked()->ToInt32(&result));
+  CHECK(Object::ToInt32(*retval.ToHandleChecked(), &result));
   return result;
 }
 

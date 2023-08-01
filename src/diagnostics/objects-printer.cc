@@ -33,23 +33,23 @@ namespace internal {
 
 #ifdef OBJECT_PRINT
 
-void Object::Print() const {
+void Print(Object obj) {
   // Output into debugger's command window if a debugger is attached.
   DbgStdoutStream dbg_os;
-  this->Print(dbg_os);
+  Print(obj, dbg_os);
   dbg_os << std::flush;
 
   StdoutStream os;
-  this->Print(os);
+  Print(obj, os);
   os << std::flush;
 }
 
-void Object::Print(std::ostream& os) const {
-  if (IsSmi(*this)) {
-    os << "Smi: " << std::hex << "0x" << Smi::ToInt(*this);
-    os << std::dec << " (" << Smi::ToInt(*this) << ")\n";
+void Print(Object obj, std::ostream& os) {
+  if (IsSmi(obj)) {
+    os << "Smi: " << std::hex << "0x" << Smi::ToInt(obj);
+    os << std::dec << " (" << Smi::ToInt(obj) << ")\n";
   } else {
-    HeapObject::cast(*this)->HeapObjectPrint(os);
+    HeapObject::cast(obj)->HeapObjectPrint(os);
   }
 }
 
@@ -586,7 +586,7 @@ static void JSObjectPrintHeader(std::ostream& os, JSObject obj,
      << ElementsKindToString(obj->map()->elements_kind());
   if (obj->elements()->IsCowArray()) os << " (COW)";
   os << "]";
-  Object hash = obj.GetHash();
+  Object hash = Object::GetHash(obj);
   if (IsSmi(hash)) {
     os << "\n - hash: " << Brief(hash);
   }
@@ -2712,7 +2712,7 @@ void ScopeInfo::ScopeInfoPrint(std::ostream& os) {
   if (HasNewTarget()) os << "\n - needs new target";
   if (HasFunctionName()) {
     os << "\n - function name(" << FunctionVariableBits::decode(flags) << "): ";
-    FunctionName().ShortPrint(os);
+    ShortPrint(FunctionName(), os);
   }
   if (IsAsmModule()) os << "\n - asm module";
   if (HasSimpleParameters()) os << "\n - simple parameters";
@@ -2924,7 +2924,7 @@ void DescriptorArray::PrintDescriptors(std::ostream& os) {
 #ifdef OBJECT_PRINT
     key->NamePrint(os);
 #else
-    key.ShortPrint(os);
+    ShortPrint(key, os);
 #endif
     os << " ";
     PrintDescriptorDetails(os, i, PropertyDetails::kPrintFull);
@@ -2978,7 +2978,7 @@ void TransitionsAccessor::PrintOneTransition(std::ostream& os, Name key,
 #ifdef OBJECT_PRINT
   key->NamePrint(os);
 #else
-  key.ShortPrint(os);
+  ShortPrint(key, os);
 #endif
   os << ": ";
   ReadOnlyRoots roots = key->GetReadOnlyRoots();
@@ -3069,7 +3069,7 @@ void TransitionsAccessor::PrintTransitionTree(
 #ifdef OBJECT_PRINT
       key->NamePrint(os);
 #else
-      key.ShortPrint(os);
+      ShortPrint(key, os);
 #endif
       os << " ";
       DCHECK(!IsSpecialTransition(ReadOnlyRoots(isolate_), key));
@@ -3122,7 +3122,7 @@ V8_EXPORT_PRIVATE extern i::Object _v8_internal_Get_Object(void* object) {
 
 V8_DONT_STRIP_SYMBOL
 V8_EXPORT_PRIVATE extern void _v8_internal_Print_Object(void* object) {
-  GetObjectFromRaw(object).Print();
+  i::Print(GetObjectFromRaw(object));
 }
 
 V8_DONT_STRIP_SYMBOL
@@ -3175,7 +3175,7 @@ V8_EXPORT_PRIVATE extern void _v8_internal_Print_Code(void* object) {
   i::StdoutStream os;
   lookup_result->Disassemble(nullptr, os, isolate, address);
 #else
-  lookup_result->Print();
+  i::Print(*lookup_result);
 #endif
 }
 

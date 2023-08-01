@@ -166,7 +166,7 @@ void LazyCompileDispatcher::Enqueue(
     base::MutexGuard lock(&mutex_);
     if (trace_compiler_dispatcher_) {
       PrintF("LazyCompileDispatcher: enqueued job for ");
-      shared_info->ShortPrint();
+      ShortPrint(*shared_info);
       PrintF("\n");
     }
 
@@ -250,7 +250,7 @@ bool LazyCompileDispatcher::FinishNow(Handle<SharedFunctionInfo> function) {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kCompileFinishNowOnDispatcher);
   if (trace_compiler_dispatcher_) {
     PrintF("LazyCompileDispatcher: finishing ");
-    function->ShortPrint();
+    ShortPrint(*function);
     PrintF(" now\n");
   }
 
@@ -298,7 +298,7 @@ bool LazyCompileDispatcher::FinishNow(Handle<SharedFunctionInfo> function) {
 void LazyCompileDispatcher::AbortJob(Handle<SharedFunctionInfo> shared_info) {
   if (trace_compiler_dispatcher_) {
     PrintF("LazyCompileDispatcher: aborting job for ");
-    shared_info->ShortPrint();
+    ShortPrint(*shared_info);
     PrintF("\n");
   }
   base::LockGuard<base::Mutex> lock(&mutex_);

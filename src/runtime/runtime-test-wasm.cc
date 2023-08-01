@@ -552,7 +552,7 @@ RUNTIME_FUNCTION(Runtime_FreezeWasmLazyCompilation) {
 // callback and thereby bypasses the value in v8_flags.
 RUNTIME_FUNCTION(Runtime_SetWasmGCEnabled) {
   DCHECK_EQ(1, args.length());
-  bool enable = args.at(0)->BooleanValue(isolate);
+  bool enable = Object::BooleanValue(*args.at(0), isolate);
   v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
   WasmGCEnabledCallback enabled = [](v8::Local<v8::Context>) { return true; };
   WasmGCEnabledCallback disabled = [](v8::Local<v8::Context>) { return false; };

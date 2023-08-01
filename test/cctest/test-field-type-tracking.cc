@@ -284,7 +284,7 @@ class Expectations {
       if (!Check(descriptors, i)) {
         Print();
 #ifdef OBJECT_PRINT
-        descriptors.Print();
+        i::Print(descriptors);
 #endif
         return false;
       }
@@ -542,7 +542,7 @@ TEST(ReconfigureAccessorToNonExistingDataField) {
   FieldIndex index = FieldIndex::ForDescriptor(*prepared_map, first);
   CHECK(IsUninitialized(obj->RawFastPropertyAt(index), isolate));
 #ifdef VERIFY_HEAP
-  obj->ObjectVerify(isolate);
+  Object::ObjectVerify(*obj, isolate);
 #endif
 }
 
@@ -3141,10 +3141,10 @@ TEST(DeletePropertyGeneralizesConstness) {
   }
 }
 
-#define CHECK_SAME(object, rep, expected)           \
-  CHECK_EQ(object->FitsRepresentation(rep, true),   \
-           object->FitsRepresentation(rep, false)); \
-  CHECK_EQ(object->FitsRepresentation(rep, true), expected)
+#define CHECK_SAME(object, rep, expected)                    \
+  CHECK_EQ(Object::FitsRepresentation(*object, rep, true),   \
+           Object::FitsRepresentation(*object, rep, false)); \
+  CHECK_EQ(Object::FitsRepresentation(*object, rep, true), expected)
 
 TEST(CheckFitsRepresentationPredicate) {
   CcTest::InitializeVM();
@@ -3165,8 +3165,8 @@ TEST(CheckFitsRepresentationPredicate) {
   // representation by converting it to a HeapNumber. If coercion is
   // disallowed, that query should fail.
   CHECK_SAME(smi_value, rep_smi, true);
-  CHECK_EQ(smi_value->FitsRepresentation(rep_double, true), true);
-  CHECK_EQ(smi_value->FitsRepresentation(rep_double, false), false);
+  CHECK_EQ(Object::FitsRepresentation(*smi_value, rep_double, true), true);
+  CHECK_EQ(Object::FitsRepresentation(*smi_value, rep_double, false), false);
   CHECK_SAME(smi_value, rep_heapobject, false);
   CHECK_SAME(smi_value, rep_tagged, true);
 
