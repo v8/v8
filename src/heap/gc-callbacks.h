@@ -22,21 +22,12 @@ class GCCallbacks final {
   void Add(CallbackType callback, v8::Isolate* isolate, GCType gc_type,
            void* data) {
     DCHECK_NOT_NULL(callback);
-    DCHECK_EQ(callbacks_.end(),
-              std::find_if(callbacks_.begin(), callbacks_.end(),
-                           [callback, data](CallbackData& callback_data) {
-                             return callback_data.callback == callback &&
-                                    callback_data.user_data == data;
-                           }));
+    DCHECK_EQ(callbacks_.end(), FindCallback(callback, data));
     callbacks_.emplace_back(callback, isolate, gc_type, data);
   }
 
   void Remove(CallbackType callback, void* data) {
-    auto it = std::find_if(callbacks_.begin(), callbacks_.end(),
-                           [callback, data](CallbackData& callback_data) {
-                             return callback_data.callback == callback &&
-                                    callback_data.user_data == data;
-                           });
+    auto it = FindCallback(callback, data);
     DCHECK_NE(callbacks_.end(), it);
     *it = callbacks_.back();
     callbacks_.pop_back();
@@ -69,6 +60,15 @@ class GCCallbacks final {
     void* user_data;
   };
 
+  std::vector<CallbackData>::iterator FindCallback(CallbackType callback,
+                                                   void* data) {
+    return std::find_if(callbacks_.begin(), callbacks_.end(),
+                        [callback, data](CallbackData& callback_data) {
+                          return callback_data.callback == callback &&
+                                 callback_data.user_data == data;
+                        });
+  }
+
   std::vector<CallbackData> callbacks_;
 };
 
@@ -80,21 +80,12 @@ class GCCallbacksInSafepoint final {
 
   void Add(CallbackType callback, void* data, GCType gc_type) {
     DCHECK_NOT_NULL(callback);
-    DCHECK_EQ(callbacks_.end(),
-              std::find_if(callbacks_.begin(), callbacks_.end(),
-                           [callback, data](CallbackData& callback_data) {
-                             return callback_data.callback == callback &&
-                                    callback_data.user_data == data;
-                           }));
+    DCHECK_EQ(callbacks_.end(), FindCallback(callback, data));
     callbacks_.emplace_back(callback, data, gc_type);
   }
 
   void Remove(CallbackType callback, void* data) {
-    auto it = std::find_if(callbacks_.begin(), callbacks_.end(),
-                           [callback, data](CallbackData& callback_data) {
-                             return callback_data.callback == callback &&
-                                    callback_data.user_data == data;
-                           });
+    auto it = FindCallback(callback, data);
     DCHECK_NE(callbacks_.end(), it);
     *it = callbacks_.back();
     callbacks_.pop_back();
@@ -119,6 +110,15 @@ class GCCallbacksInSafepoint final {
     void* user_data;
     GCType gc_type_;
   };
+
+  std::vector<CallbackData>::iterator FindCallback(CallbackType callback,
+                                                   void* data) {
+    return std::find_if(callbacks_.begin(), callbacks_.end(),
+                        [callback, data](CallbackData& callback_data) {
+                          return callback_data.callback == callback &&
+                                 callback_data.user_data == data;
+                        });
+  }
 
   std::vector<CallbackData> callbacks_;
 };
