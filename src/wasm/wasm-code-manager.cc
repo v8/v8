@@ -35,6 +35,7 @@
 #include "src/wasm/module-compiler.h"
 #include "src/wasm/names-provider.h"
 #include "src/wasm/pgo.h"
+#include "src/wasm/std-object-sizes.h"
 #include "src/wasm/wasm-debug.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-import-wrapper-cache.h"
@@ -2043,7 +2044,7 @@ size_t WasmCodeManager::EstimateNativeModuleCodeSize(
 // static
 size_t WasmCodeManager::EstimateNativeModuleMetaDataSize(
     const WasmModule* module) {
-  size_t wasm_module_estimate = EstimateStoredSize(module);
+  size_t wasm_module_estimate = module->EstimateStoredSize();
 
   uint32_t num_wasm_functions = module->num_declared_functions;
 
@@ -2347,6 +2348,47 @@ NamesProvider* NativeModule::GetNamesProvider() {
         std::make_unique<NamesProvider>(module_.get(), wire_bytes());
   }
   return names_provider_.get();
+}
+
+size_t NativeModule::EstimateCurrentMemoryConsumption() const {
+  UPDATE_WHEN_CLASS_CHANGES(NativeModule, 440);
+  size_t result = sizeof(NativeModule);
+  result += module_->EstimateCurrentMemoryConsumption();
+
+  size_t wire_bytes_size = wire_bytes_ ? wire_bytes_->size() : 0;
+  result += wire_bytes_size;
+
+  if (source_map_) {
+    result += source_map_->EstimateCurrentMemoryConsumption();
+  }
+  result += compilation_state_->EstimateCurrentMemoryConsumption();
+  result += import_wrapper_cache_->EstimateCurrentMemoryConsumption();
+  // For {tiering_budgets_}.
+  result += module_->num_declared_functions * sizeof(uint32_t);
+
+  {
+    base::RecursiveMutexGuard lock(&allocation_mutex_);
+    result += ContentSize(owned_code_);
+    result += ContentSize(new_owned_code_);
+    // For {code_table_}.
+    result += module_->num_declared_functions * sizeof(void*);
+    result += ContentSize(code_space_data_);
+    if (debug_info_) {
+      result += debug_info_->EstimateCurrentMemoryConsumption();
+    }
+    if (names_provider_) {
+      result += names_provider_->EstimateCurrentMemoryConsumption();
+    }
+    if (cached_code_) {
+      result += ContentSize(*cached_code_.get());
+    }
+  }
+
+  if (v8_flags.trace_wasm_offheap_memory) {
+    PrintF("NativeModule wire bytes: %zu\n", wire_bytes_size);
+    PrintF("NativeModule: %zu\n", result);
+  }
+  return result;
 }
 
 void WasmCodeManager::FreeNativeModule(

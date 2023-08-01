@@ -17,6 +17,11 @@
 #include "src/objects/smi.h"
 #include "src/tasks/task-utils.h"
 
+#if V8_ENABLE_WEBASSEMBLY
+#include "src/wasm/wasm-code-manager.h"
+#include "src/wasm/wasm-engine.h"
+#endif
+
 namespace v8 {
 namespace internal {
 
@@ -39,6 +44,15 @@ class MemoryMeasurementResultBuilder {
   void AddOther(size_t estimate, size_t lower_bound, size_t upper_bound) {
     detailed_ = true;
     other_.push_back(NewResult(estimate, lower_bound, upper_bound));
+  }
+  void AddWasm(size_t code, size_t metadata) {
+    Handle<JSObject> wasm = NewJSObject();
+    AddProperty(wasm, factory_->NewStringFromAsciiChecked("code"),
+                NewNumber(code));
+    AddProperty(wasm, factory_->NewStringFromAsciiChecked("metadata"),
+                NewNumber(metadata));
+    AddProperty(result_, factory_->NewStringFromAsciiChecked("WebAssembly"),
+                wasm);
   }
   Handle<JSObject> Build() {
     if (detailed_) {
@@ -98,10 +112,7 @@ class V8_EXPORT_PRIVATE MeasureMemoryDelegate
 
   // v8::MeasureMemoryDelegate overrides:
   bool ShouldMeasure(v8::Local<v8::Context> context) override;
-  void MeasurementComplete(
-      const std::vector<std::pair<v8::Local<v8::Context>, size_t>>&
-          context_sizes_in_bytes,
-      size_t unattributed_size_in_bytes) override;
+  void MeasurementComplete(Result result) override;
 
  private:
   Isolate* isolate_;
@@ -130,16 +141,16 @@ bool MeasureMemoryDelegate::ShouldMeasure(v8::Local<v8::Context> context) {
   return context_->security_token() == native_context->security_token();
 }
 
-void MeasureMemoryDelegate::MeasurementComplete(
-    const std::vector<std::pair<v8::Local<v8::Context>, size_t>>&
-        context_sizes_in_bytes,
-    size_t shared_size) {
+void MeasureMemoryDelegate::MeasurementComplete(Result result) {
+  size_t shared_size = result.unattributed_size_in_bytes;
+  size_t wasm_code = result.wasm_code_size_in_bytes;
+  size_t wasm_metadata = result.wasm_metadata_size_in_bytes;
   v8::Local<v8::Context> v8_context =
       Utils::Convert<HeapObject, v8::Context>(context_);
   v8::Context::Scope scope(v8_context);
   size_t total_size = 0;
   size_t current_size = 0;
-  for (const auto& context_and_size : context_sizes_in_bytes) {
+  for (const auto& context_and_size : result.context_sizes_in_bytes) {
     total_size += context_and_size.second;
     if (*Utils::OpenHandle(*context_and_size.first) == *context_) {
       current_size = context_and_size.second;
@@ -147,11 +158,14 @@ void MeasureMemoryDelegate::MeasurementComplete(
   }
   MemoryMeasurementResultBuilder result_builder(isolate_, isolate_->factory());
   result_builder.AddTotal(total_size, total_size, total_size + shared_size);
+  if (wasm_code > 0 || wasm_metadata > 0) {
+    result_builder.AddWasm(wasm_code, wasm_metadata);
+  }
 
   if (mode_ == v8::MeasureMemoryMode::kDetailed) {
     result_builder.AddCurrent(current_size, current_size,
                               current_size + shared_size);
-    for (const auto& context_and_size : context_sizes_in_bytes) {
+    for (const auto& context_and_size : result.context_sizes_in_bytes) {
       if (*Utils::OpenHandle(*context_and_size.first) != *context_) {
         size_t other_size = context_and_size.second;
         result_builder.AddOther(other_size, other_size,
@@ -160,8 +174,8 @@ void MeasureMemoryDelegate::MeasurementComplete(
     }
   }
 
-  Handle<JSObject> result = result_builder.Build();
-  JSPromise::Resolve(promise_, result).ToHandleChecked();
+  Handle<JSObject> jsresult = result_builder.Build();
+  JSPromise::Resolve(promise_, jsresult).ToHandleChecked();
 }
 
 MemoryMeasurement::MemoryMeasurement(Isolate* isolate)
@@ -185,11 +199,13 @@ bool MemoryMeasurement::EnqueueRequest(
   }
   Handle<WeakFixedArray> global_weak_contexts =
       isolate_->global_handles()->Create(*weak_contexts);
-  Request request = {std::move(delegate),
-                     global_weak_contexts,
-                     std::vector<size_t>(length),
-                     0u,
-                     {}};
+  Request request = {std::move(delegate),          // delegate
+                     global_weak_contexts,         // contexts
+                     std::vector<size_t>(length),  // sizes
+                     0u,                           // shared
+                     0u,                           // wasm_code
+                     0u,                           // wasm_metadata
+                     {}};                          // timer
   request.timer.Start();
   received_.push_back(std::move(request));
   ScheduleGCTask(execution);
@@ -216,6 +232,13 @@ std::vector<Address> MemoryMeasurement::StartProcessing() {
 void MemoryMeasurement::FinishProcessing(const NativeContextStats& stats) {
   if (processing_.empty()) return;
 
+  size_t shared = stats.Get(MarkingWorklists::kSharedContext);
+#if V8_ENABLE_WEBASSEMBLY
+  size_t wasm_code = wasm::GetWasmCodeManager()->committed_code_space();
+  size_t wasm_metadata =
+      wasm::GetWasmEngine()->EstimateCurrentMemoryConsumption();
+#endif
+
   while (!processing_.empty()) {
     Request request = std::move(processing_.front());
     processing_.pop_front();
@@ -226,7 +249,11 @@ void MemoryMeasurement::FinishProcessing(const NativeContextStats& stats) {
       }
       request.sizes[i] = stats.Get(context.ptr());
     }
-    request.shared = stats.Get(MarkingWorklists::kSharedContext);
+    request.shared = shared;
+#if V8_ENABLE_WEBASSEMBLY
+    request.wasm_code = wasm_code;
+    request.wasm_metadata = wasm_metadata;
+#endif
     done_.push_back(std::move(request));
   }
   ScheduleReportingTask();
@@ -321,7 +348,12 @@ void MemoryMeasurement::ReportResults() {
           handle(raw_context, isolate_));
       sizes.push_back(std::make_pair(context, request.sizes[i]));
     }
+    START_ALLOW_USE_DEPRECATED()
+    // Temporarily call both old and new callbacks.
     request.delegate->MeasurementComplete(sizes, request.shared);
+    END_ALLOW_USE_DEPRECATED()
+    request.delegate->MeasurementComplete(
+        {sizes, request.shared, request.wasm_code, request.wasm_metadata});
     isolate_->counters()->measure_memory_delay_ms()->AddSample(
         static_cast<int>(request.timer.Elapsed().InMilliseconds()));
   }

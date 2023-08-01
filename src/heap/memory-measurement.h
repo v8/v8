@@ -43,6 +43,8 @@ class MemoryMeasurement {
     Handle<WeakFixedArray> contexts;
     std::vector<size_t> sizes;
     size_t shared;
+    size_t wasm_code;
+    size_t wasm_metadata;
     base::ElapsedTimer timer;
   };
   void ScheduleReportingTask();
