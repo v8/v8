@@ -2873,8 +2873,12 @@ JSNativeContextSpecialization::BuildPropertyTest(
         holder.value());
   }
 
-  Node* value = access_info.IsNotFound() ? jsgraph()->FalseConstant()
-                                         : jsgraph()->TrueConstant();
+  Node* value;
+  if (access_info.IsNotFound()) {
+    value = jsgraph()->FalseConstant();
+  } else {
+    value = jsgraph()->TrueConstant();
+  }
   return ValueEffectControl(value, effect, control);
 }
 
