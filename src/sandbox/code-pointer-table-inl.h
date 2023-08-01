@@ -13,62 +13,104 @@
 namespace v8 {
 namespace internal {
 
-void CodePointerTableEntry::MakeCodePointerEntry(Address value) {
-  pointer_.store(value, std::memory_order_relaxed);
+void CodePointerTableEntry::MakeCodePointerEntry(Address code,
+                                                 Address entrypoint) {
+  // The marking bit is the LSB of the code pointer, which should always be set
+  // here since it is supposed to be a tagged pointer.
+  DCHECK_EQ(code & kMarkingBit, kMarkingBit);
+  entrypoint_.store(entrypoint, std::memory_order_relaxed);
+  code_.store(code, std::memory_order_relaxed);
 }
 
-Address CodePointerTableEntry::GetCodePointer() const {
-  auto pointer = pointer_.load(std::memory_order_relaxed);
-  DCHECK_NE(pointer & kFreeEntryTag, kFreeEntryTag);
-  return pointer;
+Address CodePointerTableEntry::GetEntrypoint() const {
+  DCHECK(!IsFreelistEntry());
+  return entrypoint_.load(std::memory_order_relaxed);
 }
 
-void CodePointerTableEntry::SetCodePointer(Address value) {
-  DCHECK_NE(pointer_.load(std::memory_order_relaxed) & kFreeEntryTag,
-            kFreeEntryTag);
-  pointer_.store(value, std::memory_order_relaxed);
+void CodePointerTableEntry::SetEntrypoint(Address value) {
+  DCHECK(!IsFreelistEntry());
+  entrypoint_.store(value, std::memory_order_relaxed);
+}
+
+Address CodePointerTableEntry::GetCodeObject() const {
+  DCHECK(!IsFreelistEntry());
+  // We reuse the heap object tag bit as marking bit, so we need to explicitly
+  // set it here when accessing the pointer.
+  return code_.load(std::memory_order_relaxed) | kMarkingBit;
+}
+
+void CodePointerTableEntry::SetCodeObject(Address value) {
+  DCHECK_EQ(value & kMarkingBit, kMarkingBit);
+  DCHECK(!IsFreelistEntry());
+  code_.store(value, std::memory_order_relaxed);
 }
 
 void CodePointerTableEntry::MakeFreelistEntry(uint32_t next_entry_index) {
   Address value = kFreeEntryTag | next_entry_index;
-  pointer_.store(value, std::memory_order_relaxed);
+  entrypoint_.store(value, std::memory_order_relaxed);
+  code_.store(kNullAddress, std::memory_order_relaxed);
+}
+
+bool CodePointerTableEntry::IsFreelistEntry() const {
+  auto entrypoint = entrypoint_.load(std::memory_order_relaxed);
+  return (entrypoint & kFreeEntryTag) == kFreeEntryTag;
 }
 
 uint32_t CodePointerTableEntry::GetNextFreelistEntryIndex() const {
-  return static_cast<uint32_t>(pointer_.load(std::memory_order_relaxed));
+  return static_cast<uint32_t>(entrypoint_.load(std::memory_order_relaxed));
 }
 
 void CodePointerTableEntry::Mark() {
-  marking_state_.store(1, std::memory_order_relaxed);
+  Address old_value = code_.load(std::memory_order_relaxed);
+  Address new_value = old_value | kMarkingBit;
+
+  // We don't need to perform the CAS in a loop since it can only fail if a new
+  // value has been written into the entry. This, however, will also have set
+  // the marking bit.
+  bool success = code_.compare_exchange_strong(old_value, new_value,
+                                               std::memory_order_relaxed);
+  DCHECK(success || (old_value & kMarkingBit) == kMarkingBit);
+  USE(success);
 }
 
 void CodePointerTableEntry::Unmark() {
-  marking_state_.store(0, std::memory_order_relaxed);
+  Address value = code_.load(std::memory_order_relaxed);
+  value &= ~kMarkingBit;
+  code_.store(value, std::memory_order_relaxed);
 }
 
 bool CodePointerTableEntry::IsMarked() const {
-  return marking_state_.load(std::memory_order_relaxed) != 0;
+  Address value = code_.load(std::memory_order_relaxed);
+  return value & kMarkingBit;
 }
 
-Address CodePointerTable::Get(CodePointerHandle handle) const {
+Address CodePointerTable::GetEntrypoint(CodePointerHandle handle) const {
   uint32_t index = HandleToIndex(handle);
-  return at(index).GetCodePointer();
+  return at(index).GetEntrypoint();
 }
 
-void CodePointerTable::Set(CodePointerHandle handle, Address value) {
+Address CodePointerTable::GetCodeObject(CodePointerHandle handle) const {
+  uint32_t index = HandleToIndex(handle);
+  return at(index).GetCodeObject();
+}
+
+void CodePointerTable::SetEntrypoint(CodePointerHandle handle, Address value) {
   DCHECK_NE(kNullCodePointerHandle, handle);
   uint32_t index = HandleToIndex(handle);
-  at(index).SetCodePointer(value);
+  at(index).SetEntrypoint(value);
+}
+
+void CodePointerTable::SetCodeObject(CodePointerHandle handle, Address value) {
+  DCHECK_NE(kNullCodePointerHandle, handle);
+  uint32_t index = HandleToIndex(handle);
+  at(index).SetCodeObject(value);
 }
 
 CodePointerHandle CodePointerTable::AllocateAndInitializeEntry(
-    Space* space, Address initial_value) {
+    Space* space, Address code, Address entrypoint) {
   DCHECK(space->BelongsTo(this));
   uint32_t index = AllocateEntry(space);
-  at(index).MakeCodePointerEntry(initial_value);
-  // Until we have write barriers for code pointer table entries we need to mark
-  // the entries as alive when they are allocated.
-  at(index).Mark();
+  at(index).MakeCodePointerEntry(code, entrypoint);
   return IndexToHandle(index);
 }
 
@@ -84,14 +126,14 @@ void CodePointerTable::Mark(Space* space, CodePointerHandle handle) {
 }
 
 uint32_t CodePointerTable::HandleToIndex(CodePointerHandle handle) const {
-  uint32_t index = handle >> kCodePointerIndexShift;
-  DCHECK_EQ(handle, index << kCodePointerIndexShift);
+  uint32_t index = handle >> kCodePointerHandleShift;
+  DCHECK_EQ(handle, index << kCodePointerHandleShift);
   return index;
 }
 
 CodePointerHandle CodePointerTable::IndexToHandle(uint32_t index) const {
-  CodePointerHandle handle = index << kCodePointerIndexShift;
-  DCHECK_EQ(index, handle >> kCodePointerIndexShift);
+  CodePointerHandle handle = index << kCodePointerHandleShift;
+  DCHECK_EQ(index, handle >> kCodePointerHandleShift);
   return handle;
 }
 

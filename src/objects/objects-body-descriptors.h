@@ -58,6 +58,13 @@ class BodyDescriptorBase {
   static inline void IterateMaybeWeakPointer(HeapObject obj, int offset,
                                              ObjectVisitor* v);
 
+  // Visits a field that contains either an indirect pointer (if the sandbox is
+  // enabled) or a regular/tagged pointer (otherwise).
+  template <typename ObjectVisitor>
+  static void IterateMaybeIndirectPointer(HeapObject obj, int offset,
+                                          ObjectVisitor* visitor,
+                                          IndirectPointerMode mode);
+
  protected:
   // Returns true for all header and embedder fields.
   static inline bool IsValidJSObjectSlotImpl(Map map, HeapObject obj,

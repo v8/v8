@@ -800,6 +800,21 @@ void CodeAssembler::OptimizedStoreField(MachineRepresentation rep,
                                        WriteBarrierKind::kFullWriteBarrier);
 }
 
+void CodeAssembler::OptimizedStoreIndirectPointerField(TNode<HeapObject> object,
+                                                       int offset,
+                                                       Node* value) {
+  raw_assembler()->OptimizedStoreField(
+      MachineRepresentation::kIndirectPointer, object, offset, value,
+      WriteBarrierKind::kIndirectPointerWriteBarrier);
+}
+
+void CodeAssembler::OptimizedStoreIndirectPointerFieldNoWriteBarrier(
+    TNode<HeapObject> object, int offset, Node* value) {
+  raw_assembler()->OptimizedStoreField(MachineRepresentation::kIndirectPointer,
+                                       object, offset, value,
+                                       WriteBarrierKind::kNoWriteBarrier);
+}
+
 void CodeAssembler::OptimizedStoreFieldAssertNoWriteBarrier(
     MachineRepresentation rep, TNode<HeapObject> object, int offset,
     Node* value) {

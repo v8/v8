@@ -561,6 +561,7 @@ class MachineRepresentationChecker {
               case MachineRepresentation::kTagged:
               case MachineRepresentation::kTaggedPointer:
               case MachineRepresentation::kTaggedSigned:
+              case MachineRepresentation::kIndirectPointer:
                 if (COMPRESS_POINTERS_BOOL &&
                     ((node->opcode() == IrOpcode::kStore &&
                       IsAnyTagged(StoreRepresentationOf(node->op())
@@ -985,6 +986,7 @@ class MachineRepresentationChecker {
         // happens in dead code.
         return IsAnyTagged(actual);
       case MachineRepresentation::kCompressedPointer:
+      case MachineRepresentation::kIndirectPointer:
       case MachineRepresentation::kSandboxedPointer:
       case MachineRepresentation::kFloat32:
       case MachineRepresentation::kFloat64:

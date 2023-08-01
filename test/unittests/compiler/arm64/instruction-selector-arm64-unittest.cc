@@ -3497,8 +3497,8 @@ INSTANTIATE_TEST_SUITE_P(InstructionSelectorTest,
                          ::testing::ValuesIn(kMemoryAccesses));
 
 static const WriteBarrierKind kWriteBarrierKinds[] = {
-    kMapWriteBarrier, kPointerWriteBarrier, kEphemeronKeyWriteBarrier,
-    kFullWriteBarrier};
+    kMapWriteBarrier, kPointerWriteBarrier, kIndirectPointerWriteBarrier,
+    kEphemeronKeyWriteBarrier, kFullWriteBarrier};
 
 const int32_t kStoreWithBarrierImmediates[] = {
     -256, -255, -3,   -2,   -1,   0,    1,     2,     3,     255,

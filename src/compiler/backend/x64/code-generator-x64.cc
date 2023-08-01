@@ -305,12 +305,17 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
   }
 
   void Generate() final {
-    if (COMPRESS_POINTERS_BOOL) {
+    // When storing an indirect pointer, the value will always be a
+    // full/decompressed pointer.
+    if (COMPRESS_POINTERS_BOOL &&
+        mode_ != RecordWriteMode::kValueIsIndirectPointer) {
       __ DecompressTagged(value_, value_);
     }
+
     __ CheckPageFlag(value_, scratch0_,
                      MemoryChunk::kPointersToHereAreInterestingMask, zero,
                      exit());
+
     __ leaq(scratch1_, operand_);
 
     SaveFPRegsMode const save_fp_mode = frame()->DidAllocateDoubleRegisters()
@@ -319,6 +324,10 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
 
     if (mode_ == RecordWriteMode::kValueIsEphemeronKey) {
       __ CallEphemeronKeyBarrier(object_, scratch1_, save_fp_mode);
+    } else if (mode_ == RecordWriteMode::kValueIsIndirectPointer) {
+      __ CallRecordWriteStubSaveRegisters(object_, scratch1_, save_fp_mode,
+                                          StubCallMode::kCallBuiltinPointer,
+                                          PointerType::kIndirect);
 #if V8_ENABLE_WEBASSEMBLY
     } else if (stub_mode_ == StubCallMode::kCallWasmRuntimeStub) {
       // A direct call to a wasm runtime stub defined in this module.
@@ -369,6 +378,9 @@ int EmitStore(MacroAssembler* masm, Operand operand, Register value,
         break;
       case MachineRepresentation::kSandboxedPointer:
         masm->StoreSandboxedPointerField(operand, value);
+        break;
+      case MachineRepresentation::kIndirectPointer:
+        masm->StoreIndirectPointerField(operand, value);
         break;
       default:
         UNREACHABLE();
@@ -637,6 +649,14 @@ Register GetTSANValueRegister(MacroAssembler* masm, Register value,
     masm->movq(value_reg, value);
     masm->EncodeSandboxedPointer(value_reg);
     return value_reg;
+  } else if (rep == MachineRepresentation::kIndirectPointer) {
+    // Indirect pointer fields contain an index to a pointer table entry, which
+    // is obtained from the referenced object.
+    static_assert(kAllIndirectPointerObjectsAreCode);
+    Register value_reg = i.TempRegister(1);
+    masm->movl(value_reg,
+               FieldOperand(value, Code::kCodePointerTableEntryOffset));
+    return value_reg;
   }
   return value;
 }
@@ -655,6 +675,12 @@ Register GetTSANValueRegister<std::memory_order_relaxed>(
   if (rep == MachineRepresentation::kSandboxedPointer) {
     // SandboxedPointers need to be encoded.
     masm->EncodeSandboxedPointer(value_reg);
+  } else if (rep == MachineRepresentation::kIndirectPointer) {
+    // Indirect pointer fields contain an index to a pointer table entry, which
+    // is obtained from the referenced object.
+    static_assert(kAllIndirectPointerObjectsAreCode);
+    masm->movl(value_reg,
+               FieldOperand(value_reg, Code::kCodePointerTableEntryOffset));
   }
   return value_reg;
 }
@@ -1396,8 +1422,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ Assert(equal, AbortReason::kWrongFunctionContext);
       }
       static_assert(kJavaScriptCallCodeStartRegister == rcx, "ABI mismatch");
-      __ LoadTaggedField(rcx, FieldOperand(func, JSFunction::kCodeOffset));
-      __ CallCodeObject(rcx);
+      __ CallJSFunction(func);
       frame_access_state()->ClearSPDelta();
       RecordCallPosition(instr);
       break;
@@ -1579,6 +1604,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchAtomicStoreWithWriteBarrier: {
       // {EmitTSANAwareStore} calls EmitOOLTrapIfNeeded. No need to do it here.
       RecordWriteMode mode = RecordWriteModeField::decode(instr->opcode());
+      // Indirect pointer writes must use a different opcode.
+      DCHECK_NE(mode, RecordWriteMode::kValueIsIndirectPointer);
       Register object = i.InputRegister(0);
       size_t index = 0;
       Operand operand = i.MemoryOperand(&index);
@@ -1609,6 +1636,28 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       if (mode > RecordWriteMode::kValueIsPointer) {
         __ JumpIfSmi(value, ool->exit());
       }
+      __ CheckPageFlag(object, scratch0,
+                       MemoryChunk::kPointersFromHereAreInterestingMask,
+                       not_zero, ool->entry());
+      __ bind(ool->exit());
+      break;
+    }
+    case kArchStoreIndirectWithWriteBarrier: {
+      RecordWriteMode mode = RecordWriteModeField::decode(instr->opcode());
+      DCHECK_EQ(mode, RecordWriteMode::kValueIsIndirectPointer);
+      Register object = i.InputRegister(0);
+      size_t index = 0;
+      Operand operand = i.MemoryOperand(&index);
+      Register value = i.InputRegister(index);
+      Register scratch0 = i.TempRegister(0);
+      Register scratch1 = i.TempRegister(1);
+
+      auto ool = zone()->New<OutOfLineRecordWrite>(this, object, operand, value,
+                                                   scratch0, scratch1, mode,
+                                                   DetermineStubCallMode());
+      EmitTSANAwareStore<std::memory_order_relaxed>(
+          zone(), this, masm(), operand, value, i, DetermineStubCallMode(),
+          MachineRepresentation::kIndirectPointer, instr);
       __ CheckPageFlag(object, scratch0,
                        MemoryChunk::kPointersFromHereAreInterestingMask,
                        not_zero, ool->entry());
@@ -2757,6 +2806,17 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
             zone(), this, masm(), operand, value, i, DetermineStubCallMode(),
             MachineRepresentation::kTagged, instr);
       }
+      break;
+    }
+    case kX64MovqStoreIndirectPointer: {
+      CHECK(!instr->HasOutput());
+      size_t index = 0;
+      Operand operand = i.MemoryOperand(&index);
+      CHECK(!HasImmediateInput(instr, index));
+      Register value(i.InputRegister(index));
+      EmitTSANAwareStore<std::memory_order_relaxed>(
+          zone(), this, masm(), operand, value, i, DetermineStubCallMode(),
+          MachineRepresentation::kIndirectPointer, instr);
       break;
     }
     case kX64MovqDecodeSandboxedPointer: {

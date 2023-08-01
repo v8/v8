@@ -299,6 +299,7 @@ ArchOpcode GetLoadOpcode(LoadRepresentation load_rep) {
     case MachineRepresentation::kSimd256:            // Fall through.
     case MachineRepresentation::kCompressedPointer:  // Fall through.
     case MachineRepresentation::kCompressed:         // Fall through.
+    case MachineRepresentation::kIndirectPointer:    // Fall through.
     case MachineRepresentation::kSandboxedPointer:   // Fall through.
     case MachineRepresentation::kWord64:             // Fall through.
     case MachineRepresentation::kMapWord:            // Fall through.
@@ -709,6 +710,7 @@ ArchOpcode GetStoreOpcode(MachineRepresentation rep) {
     case MachineRepresentation::kSimd256:            // Fall through.
     case MachineRepresentation::kCompressedPointer:  // Fall through.
     case MachineRepresentation::kCompressed:         // Fall through.
+    case MachineRepresentation::kIndirectPointer:    // Fall through.
     case MachineRepresentation::kSandboxedPointer:   // Fall through.
     case MachineRepresentation::kWord64:             // Fall through.
     case MachineRepresentation::kMapWord:            // Fall through.

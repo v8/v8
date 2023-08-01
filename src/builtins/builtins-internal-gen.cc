@@ -270,6 +270,35 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
     BIND(&next);
   }
 
+  void PointerTableWriteBarrier(SaveFPRegsMode fp_mode) {
+    // Currently, only objects living in (local) old space are referenced
+    // through a pointer table indirection and we have DCHECKs in the CPP write
+    // barrier code to check that. This simplifies the write barrier code for
+    // these cases.
+    Label marking_is_on(this), next(this);
+    Branch(IsMarking(), &marking_is_on, &next);
+
+    BIND(&marking_is_on);
+
+    // For this barrier, the slot contains an index into a pointer table and not
+    // directly a pointer to a HeapObject.
+    TNode<IntPtrT> slot =
+        UncheckedParameter<IntPtrT>(WriteBarrierDescriptor::kSlotAddress);
+    TNode<IntPtrT> object = BitcastTaggedToWord(
+        UncheckedParameter<Object>(WriteBarrierDescriptor::kObject));
+
+    TNode<ExternalReference> function = ExternalConstant(
+        ExternalReference::
+            write_barrier_indirect_pointer_marking_from_code_function());
+    CallCFunctionWithCallerSavedRegisters(
+        function, MachineTypeOf<Int32T>::value, fp_mode,
+        std::make_pair(MachineTypeOf<IntPtrT>::value, object),
+        std::make_pair(MachineTypeOf<IntPtrT>::value, slot));
+    Goto(&next);
+
+    BIND(&next);
+  }
+
   void GenerationalOrSharedBarrierSlow(TNode<IntPtrT> slot, Label* next,
                                        SaveFPRegsMode fp_mode) {
     // When incremental marking is not on, the fast and out-of-line fast path of
@@ -526,6 +555,17 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
     Return(TrueConstant());
   }
 
+  void GenerateIndirectPointerBarrier(SaveFPRegsMode fp_mode) {
+    if (V8_DISABLE_WRITE_BARRIERS_BOOL) {
+      Return(TrueConstant());
+      return;
+    }
+
+    PointerTableWriteBarrier(fp_mode);
+    IncrementCounter(isolate()->counters()->write_barriers(), 1);
+    Return(TrueConstant());
+  }
+
   void GenerateEphemeronKeyBarrier(SaveFPRegsMode fp_mode) {
     TNode<ExternalReference> function = ExternalConstant(
         ExternalReference::ephemeron_key_write_barrier_function());
@@ -557,6 +597,14 @@ TF_BUILTIN(RecordWriteSaveFP, WriteBarrierCodeStubAssembler) {
 
 TF_BUILTIN(RecordWriteIgnoreFP, WriteBarrierCodeStubAssembler) {
   GenerateRecordWrite(SaveFPRegsMode::kIgnore);
+}
+
+TF_BUILTIN(IndirectPointerBarrierSaveFP, WriteBarrierCodeStubAssembler) {
+  GenerateIndirectPointerBarrier(SaveFPRegsMode::kSave);
+}
+
+TF_BUILTIN(IndirectPointerBarrierIgnoreFP, WriteBarrierCodeStubAssembler) {
+  GenerateIndirectPointerBarrier(SaveFPRegsMode::kIgnore);
 }
 
 TF_BUILTIN(EphemeronKeyBarrierSaveFP, WriteBarrierCodeStubAssembler) {

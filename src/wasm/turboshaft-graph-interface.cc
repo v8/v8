@@ -3373,7 +3373,7 @@ class TurboshaftGraphBuildingInterface {
   V<WordPtr> BuildDecodeExternalCodePointer(V<Word32> handle) {
 #ifdef V8_CODE_POINTER_SANDBOXING
     V<Word32> index =
-        asm_.Word32ShiftRightLogical(handle, kCodePointerIndexShift);
+        asm_.Word32ShiftRightLogical(handle, kCodePointerHandleShift);
     V<WordPtr> offset = asm_.ChangeUint32ToUintPtr(
         asm_.Word32ShiftLeft(index, kCodePointerTableEntrySizeLog2));
     V<WordPtr> table =

@@ -1109,6 +1109,28 @@ void Serializer::ObjectSerializer::VisitExternalPointer(
   }
 }
 
+void Serializer::ObjectSerializer::VisitIndirectPointer(
+    HeapObject host, IndirectPointerSlot slot, IndirectPointerMode mode) {
+  DCHECK(V8_CODE_POINTER_SANDBOXING_BOOL);
+
+  // The slot must be properly initialized at this point, so will always contain
+  // a reference to a HeapObject.
+  Handle<HeapObject> slot_value(HeapObject::cast(slot.load()), isolate());
+  CHECK(IsHeapObject(*slot_value));
+  bytes_processed_so_far_ += kIndirectPointerSlotSize;
+
+  // Currently, we only reference Code objects through indirect pointers, and
+  // we only serialize builtin Code objects which end up in the RO snapshot, so
+  // we cannot see pending objects here. However, we'll need to handle pending
+  // objects here and in the deserializer once we reference other types of
+  // objects through indirect pointers.
+  static_assert(kAllIndirectPointerObjectsAreCode);
+  DCHECK(IsJSFunction(host) && IsCode(*slot_value));
+  DCHECK(!serializer_->SerializePendingObject(*slot_value));
+  sink_->Put(kIndirectPointerPrefix, "IndirectPointer");
+  serializer_->SerializeObject(slot_value, SlotType::kAnySlot);
+}
+
 namespace {
 
 // Similar to OutputRawData, but substitutes the given field with the given
@@ -1177,13 +1199,23 @@ void Serializer::ObjectSerializer::OutputRawData(Address up_to) {
                                sizeof(field_value),
                                reinterpret_cast<const uint8_t*>(&field_value));
     } else if (IsCode(*object_, cage_base)) {
+#ifdef V8_CODE_POINTER_SANDBOXING
+      // When the sandbox is enabled, this field instead contains the handle to
+      // this Code object's code pointer table entry. This will similarly be
+      // recomputed after deserialization.
+      static uint8_t field_value[kIndirectPointerSlotSize] = {0};
+      OutputRawWithCustomField(sink_, object_start, base, bytes_to_output,
+                               Code::kCodePointerTableEntryOffset,
+                               sizeof(field_value), field_value);
+#else
       // instruction_start field contains a raw value that will be recomputed
       // after deserialization, so write zeros to keep the snapshot
       // deterministic.
-      static uint8_t field_value[kCodePointerSlotSize] = {0};
+      static uint8_t field_value[kSystemPointerSize] = {0};
       OutputRawWithCustomField(sink_, object_start, base, bytes_to_output,
                                Code::kInstructionStartOffset,
                                sizeof(field_value), field_value);
+#endif  // V8_CODE_POINTER_SANDBOXING
     } else if (IsSeqString(*object_)) {
       // SeqStrings may contain padding. Serialize the padding bytes as 0s to
       // make the snapshot content deterministic.

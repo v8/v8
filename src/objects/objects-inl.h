@@ -49,6 +49,7 @@
 #include "src/sandbox/bounded-size-inl.h"
 #include "src/sandbox/code-pointer-inl.h"
 #include "src/sandbox/external-pointer-inl.h"
+#include "src/sandbox/indirect-pointer-inl.h"
 #include "src/sandbox/sandboxed-pointer-inl.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -790,17 +791,23 @@ void HeapObject::ResetLazilyInitializedExternalPointerField(size_t offset) {
   i::ResetLazilyInitializedExternalPointerField(field_address(offset));
 }
 
-void HeapObject::InitCodePointerField(size_t offset, Isolate* isolate,
-                                      Address value) {
-  i::InitCodePointerField(field_address(offset), isolate, value);
+Object HeapObject::ReadIndirectPointerField(size_t offset) const {
+  return i::ReadIndirectPointerField(field_address(offset));
 }
 
-Address HeapObject::ReadCodePointerField(size_t offset) const {
-  return i::ReadCodePointerField(field_address(offset));
+void HeapObject::InitCodePointerTableEntryField(size_t offset, Isolate* isolate,
+                                                Code owning_code,
+                                                Address entrypoint) {
+  i::InitCodePointerTableEntryField(field_address(offset), isolate, owning_code,
+                                    entrypoint);
 }
 
-void HeapObject::WriteCodePointerField(size_t offset, Address value) {
-  i::WriteCodePointerField(field_address(offset), value);
+Address HeapObject::ReadCodeEntrypointField(size_t offset) const {
+  return i::ReadCodeEntrypointField(field_address(offset));
+}
+
+void HeapObject::WriteCodeEntrypointField(size_t offset, Address value) {
+  i::WriteCodeEntrypointField(field_address(offset), value);
 }
 
 ObjectSlot HeapObject::RawField(int byte_offset) const {
@@ -818,6 +825,10 @@ InstructionStreamSlot HeapObject::RawInstructionStreamField(
 
 ExternalPointerSlot HeapObject::RawExternalPointerField(int byte_offset) const {
   return ExternalPointerSlot(field_address(byte_offset));
+}
+
+IndirectPointerSlot HeapObject::RawIndirectPointerField(int byte_offset) const {
+  return IndirectPointerSlot(field_address(byte_offset));
 }
 
 MapWord MapWord::FromMap(const Map map) {

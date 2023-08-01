@@ -467,6 +467,11 @@ class V8_EXPORT_PRIVATE MacroAssembler
   void JumpCodeObject(Register code_object,
                       JumpMode jump_mode = JumpMode::kJump);
 
+  // Convenience functions to call/jmp to the code of a JSFunction object.
+  void CallJSFunction(Register function_object);
+  void JumpJSFunction(Register function_object,
+                      JumpMode jump_mode = JumpMode::kJump);
+
   void Jump(Address destination, RelocInfo::Mode rmode);
   void Jump(Address destination, RelocInfo::Mode rmode, Condition cc);
   void Jump(const ExternalReference& reference);
@@ -586,10 +591,12 @@ class V8_EXPORT_PRIVATE MacroAssembler
 
   void CallRecordWriteStubSaveRegisters(
       Register object, Register slot_address, SaveFPRegsMode fp_mode,
-      StubCallMode mode = StubCallMode::kCallBuiltinPointer);
+      StubCallMode mode = StubCallMode::kCallBuiltinPointer,
+      PointerType type = PointerType::kDirect);
   void CallRecordWriteStub(
       Register object, Register slot_address, SaveFPRegsMode fp_mode,
-      StubCallMode mode = StubCallMode::kCallBuiltinPointer);
+      StubCallMode mode = StubCallMode::kCallBuiltinPointer,
+      PointerType type = PointerType::kDirect);
 
 #ifdef V8_IS_TSAN
   void CallTSANStoreStub(Register address, Register value,
@@ -701,10 +708,22 @@ class V8_EXPORT_PRIVATE MacroAssembler
                                 IsolateRootLocation isolateRootLocation =
                                     IsolateRootLocation::kInRootRegister);
 
-  // Loads a field containing a code pointer and does the necessary decoding if
-  // the sandbox is enabled.
-  void LoadCodePointerField(Register destination, Operand field_operand,
-                            Register scratch);
+  // Loads an indirect pointer from the heap.
+  void LoadIndirectPointerField(Register destination, Operand field_operand,
+                                Register scratch);
+
+  // Store an indirect pointer to the given object in the destination field.
+  void StoreIndirectPointerField(Operand dst_field_operand, Register value);
+
+  // Store an indirect (if the sandbox is enabled) or direct/tagged (otherwise)
+  // pointer to the given object in the destination field.
+  void StoreMaybeIndirectPointerField(Operand dst_field_operand,
+                                      Register value);
+
+  // Laod a pointer to a code entrypoint from the heap.
+  // When the sandbox is enabled the pointer is loaded indirectly via the code
+  // pointer table, otherwise it is loaded direclty as a raw pointer.
+  void LoadCodeEntrypointField(Register destination, Operand field_operand);
 
   // Loads and stores the value of an external reference.
   // Special case code for load and store to take advantage of
@@ -758,7 +777,8 @@ class V8_EXPORT_PRIVATE MacroAssembler
   // the tagged HeapObject pointer.  For use with FieldOperand(reg, off).
   void RecordWriteField(Register object, int offset, Register value,
                         Register slot_address, SaveFPRegsMode save_fp,
-                        SmiCheck smi_check = SmiCheck::kInline);
+                        SmiCheck smi_check = SmiCheck::kInline,
+                        PointerType type = PointerType::kDirect);
 
   // For page containing |object| mark region covering |address|
   // dirty. |object| is the object being stored into, |value| is the
@@ -767,7 +787,8 @@ class V8_EXPORT_PRIVATE MacroAssembler
   // the write barrier if the value is a smi.
   void RecordWrite(Register object, Register slot_address, Register value,
                    SaveFPRegsMode save_fp,
-                   SmiCheck smi_check = SmiCheck::kInline);
+                   SmiCheck smi_check = SmiCheck::kInline,
+                   PointerType type = PointerType::kDirect);
 
   // Allocates an EXIT/BUILTIN_EXIT/API_CALLBACK_EXIT frame with given number
   // of slots in non-GCed area.

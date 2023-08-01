@@ -686,6 +686,7 @@ ArchOpcode GetLoadOpcode(LoadRepresentation load_rep) {
       break;
     case MachineRepresentation::kNone:     // Fall through.
     case MachineRepresentation::kMapWord:  // Fall through.
+    case MachineRepresentation::kIndirectPointer:  // Fall through.
       UNREACHABLE();
   }
   return opcode;
@@ -717,6 +718,8 @@ ArchOpcode GetStoreOpcode(StoreRepresentation store_rep) {
       return kX64MovqCompressTagged;
     case MachineRepresentation::kWord64:
       return kX64Movq;
+    case MachineRepresentation::kIndirectPointer:
+      return kX64MovqStoreIndirectPointer;
     case MachineRepresentation::kSandboxedPointer:
       return kX64MovqEncodeSandboxedPointer;
     case MachineRepresentation::kSimd128:
@@ -999,7 +1002,8 @@ void VisitStoreCommon(InstructionSelectorT<Adapter>* selector,
 
   if (write_barrier_kind != kNoWriteBarrier &&
       !v8_flags.disable_write_barriers) {
-    DCHECK(CanBeTaggedOrCompressedPointer(store_rep.representation()));
+    DCHECK(
+        CanBeTaggedOrCompressedOrIndirectPointer(store_rep.representation()));
     AddressingMode addressing_mode;
     InstructionOperand inputs[4];
     size_t input_count = 0;
@@ -1012,8 +1016,13 @@ void VisitStoreCommon(InstructionSelectorT<Adapter>* selector,
     RecordWriteMode record_write_mode =
         WriteBarrierKindToRecordWriteMode(write_barrier_kind);
     InstructionOperand temps[] = {g.TempRegister(), g.TempRegister()};
-    InstructionCode code = is_seqcst ? kArchAtomicStoreWithWriteBarrier
-                                     : kArchStoreWithWriteBarrier;
+    InstructionCode code;
+    if (store_rep.representation() == MachineRepresentation::kIndirectPointer) {
+      code = kArchStoreIndirectWithWriteBarrier;
+    } else {
+      code = is_seqcst ? kArchAtomicStoreWithWriteBarrier
+                       : kArchStoreWithWriteBarrier;
+    }
     code |= AddressingModeField::encode(addressing_mode);
     code |= RecordWriteModeField::encode(record_write_mode);
     code |= AccessModeField::encode(access_mode);

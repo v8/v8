@@ -134,6 +134,12 @@ namespace internal {
 #define V8_ENABLE_SANDBOX_BOOL false
 #endif
 
+#ifdef V8_CODE_POINTER_SANDBOXING
+#define V8_CODE_POINTER_SANDBOXING_BOOL true
+#else
+#define V8_CODE_POINTER_SANDBOXING_BOOL false
+#endif
+
 // D8's MultiMappedAllocator is only available on Linux, and only if the sandbox
 // is not enabled.
 #if V8_OS_LINUX && !V8_ENABLE_SANDBOX_BOOL
@@ -525,13 +531,7 @@ static_assert(kExternalPointerSlotSize == kTaggedSize);
 static_assert(kExternalPointerSlotSize == kSystemPointerSize);
 #endif
 
-// This type defines the raw storage type for code pointers stored on V8 heap.
-constexpr int kCodePointerSlotSize = sizeof(CodePointer_t);
-#ifdef V8_CODE_POINTER_SANDBOXING
-static_assert(kCodePointerSlotSize == kTaggedSize);
-#else
-static_assert(kCodePointerSlotSize == kSystemPointerSize);
-#endif
+constexpr int kIndirectPointerSlotSize = sizeof(IndirectPointerHandle);
 
 constexpr int kEmbedderDataSlotSize = kSystemPointerSize;
 
@@ -679,6 +679,28 @@ enum class TypeofMode { kInside, kNotInside };
 
 // Whether floating point registers should be saved (and restored).
 enum class SaveFPRegsMode { kIgnore, kSave };
+
+// Whether a field contains a direct (i.e. tagged) pointer to another HeapObject
+// or an indirect (i.e. an index into a pointer table) one.
+enum class PointerType { kDirect, kIndirect };
+
+// The type of pointers to Code objects. When the sandbox is enabled, these are
+// referenced through indirect pointers, otherwise regular/direct pointers.
+constexpr PointerType kCodePointerType = V8_CODE_POINTER_SANDBOXING_BOOL
+                                             ? PointerType::kIndirect
+                                             : PointerType::kDirect;
+
+// This enum describes the ownership semantics of an indirect pointer.
+enum class IndirectPointerMode {
+  // A regular reference from one HeapObject to another one through an indirect
+  // pointer, where the referenced object should be kept alive as long as the
+  // referencing object is alive.
+  kStrong,
+  // A reference from one HeapObject to another one through an indirect pointer
+  // with custom ownership semantics. Used for example for references from
+  // JSFunctions to Code objects which follow custom weak ownership semantics.
+  kCustom
+};
 
 // Whether arguments are passed on a known stack location or through a
 // register.

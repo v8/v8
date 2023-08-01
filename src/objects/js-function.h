@@ -122,6 +122,12 @@ class JSFunction : public TorqueGeneratedJSFunction<
   DECL_ACCESSORS(code, Code)
   DECL_RELEASE_ACQUIRE_ACCESSORS(code, Code)
 
+  // Returns the raw content of the Code field. When reading from a background
+  // thread, the code field may still be uninitialized, in which case the field
+  // contains Smi::zero().
+  inline Object raw_code() const;
+  inline Object raw_code(AcquireLoadTag) const;
+
   // Returns the address of the function code's instruction start.
   inline Address instruction_start() const;
 

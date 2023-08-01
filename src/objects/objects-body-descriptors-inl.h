@@ -174,6 +174,21 @@ void BodyDescriptorBase::IterateCustomWeakPointer(HeapObject obj, int offset,
   v->VisitCustomWeakPointer(obj, obj->RawField(offset));
 }
 
+template <typename ObjectVisitor>
+void BodyDescriptorBase::IterateMaybeIndirectPointer(HeapObject obj, int offset,
+                                                     ObjectVisitor* v,
+                                                     IndirectPointerMode mode) {
+#ifdef V8_CODE_POINTER_SANDBOXING
+  v->VisitIndirectPointer(obj, obj.RawIndirectPointerField(offset), mode);
+#else
+  if (mode == IndirectPointerMode::kStrong) {
+    IteratePointer(obj, offset, v);
+  } else {
+    IterateCustomWeakPointer(obj, offset, v);
+  }
+#endif
+}
+
 class HeapNumber::BodyDescriptor final : public BodyDescriptorBase {
  public:
   static bool IsValidSlot(Map map, HeapObject obj, int offset) { return false; }
@@ -359,13 +374,20 @@ class JSFunction::BodyDescriptor final : public BodyDescriptorBase {
     int header_size = JSFunction::GetHeaderSize(map->has_prototype_slot());
     DCHECK_GE(object_size, header_size);
     IteratePointers(obj, kStartOffset, kCodeOffset, v);
-    // Code field is treated as a custom weak pointer. This field
+
+    // Iterate the code object pointer.
+    // When the sandbox is enabled, Code objects are referenced via indirect
+    // pointers through the code pointer table. Otherwise, the slot contains a
+    // regular tagged pointer.
+    // The code field is treated as a custom weak pointer. This field
     // is visited as a weak pointer if the Code is baseline code
     // and the bytecode array corresponding to this function is old. In the rest
     // of the cases this field is treated as strong pointer.
-    IterateCustomWeakPointer(obj, kCodeOffset, v);
-    // Iterate rest of the header fields
+    // See MarkingVisitorBase::VisitJSFunction.
+    IterateMaybeIndirectPointer(obj, kCodeOffset, v,
+                                IndirectPointerMode::kCustom);
     DCHECK_GE(header_size, kCodeOffset);
+    // Iterate rest of the header fields
     IteratePointers(obj, kCodeOffset + kTaggedSize, header_size, v);
     // Iterate rest of the fields starting after the header.
     IterateJSObjectBodyImpl(map, obj, header_size, object_size, v);
@@ -1125,8 +1147,8 @@ class Code::BodyDescriptor final : public BodyDescriptorBase {
         Code::cast(obj),
         obj.RawInstructionStreamField(kInstructionStreamOffset));
 #ifdef V8_CODE_POINTER_SANDBOXING
-    v->VisitCodePointerHandle(Code::cast(obj), obj.ReadField<CodePointerHandle>(
-                                                   kInstructionStartOffset));
+    v->VisitIndirectPointerTableEntry(
+        obj, obj.RawIndirectPointerField(kCodePointerTableEntryOffset));
 #endif
   }
 
@@ -1339,17 +1361,8 @@ auto BodyDescriptorApply(InstanceType type, Args&&... args) {
     case JS_TEMPORAL_TIME_ZONE_TYPE:
     case JS_TEMPORAL_ZONED_DATE_TIME_TYPE:
     case JS_TYPED_ARRAY_PROTOTYPE_TYPE:
-    case JS_FUNCTION_TYPE:
-    case JS_CLASS_CONSTRUCTOR_TYPE:
-    case JS_PROMISE_CONSTRUCTOR_TYPE:
-    case JS_REG_EXP_CONSTRUCTOR_TYPE:
     case JS_VALID_ITERATOR_WRAPPER_TYPE:
     case JS_WRAPPED_FUNCTION_TYPE:
-    case JS_ARRAY_CONSTRUCTOR_TYPE:
-#define TYPED_ARRAY_CONSTRUCTORS_SWITCH(Type, type, TYPE, Ctype) \
-  case TYPE##_TYPED_ARRAY_CONSTRUCTOR_TYPE:
-      TYPED_ARRAYS(TYPED_ARRAY_CONSTRUCTORS_SWITCH)
-#undef TYPED_ARRAY_CONSTRUCTORS_SWITCH
     case JS_RAW_JSON_TYPE:
 #ifdef V8_INTL_SUPPORT
     case JS_V8_BREAK_ITERATOR_TYPE:
@@ -1375,6 +1388,16 @@ auto BodyDescriptorApply(InstanceType type, Args&&... args) {
     case WASM_VALUE_OBJECT_TYPE:
 #endif  // V8_ENABLE_WEBASSEMBLY
       return CALL_APPLY(JSObject);
+    case JS_FUNCTION_TYPE:
+    case JS_CLASS_CONSTRUCTOR_TYPE:
+    case JS_PROMISE_CONSTRUCTOR_TYPE:
+    case JS_REG_EXP_CONSTRUCTOR_TYPE:
+    case JS_ARRAY_CONSTRUCTOR_TYPE:
+#define TYPED_ARRAY_CONSTRUCTORS_SWITCH(Type, type, TYPE, Ctype) \
+  case TYPE##_TYPED_ARRAY_CONSTRUCTOR_TYPE:
+      TYPED_ARRAYS(TYPED_ARRAY_CONSTRUCTORS_SWITCH)
+#undef TYPED_ARRAY_CONSTRUCTORS_SWITCH
+      return CALL_APPLY(JSFunction);
 #if V8_ENABLE_WEBASSEMBLY
     case WASM_INSTANCE_OBJECT_TYPE:
       return CALL_APPLY(WasmInstanceObject);

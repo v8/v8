@@ -337,6 +337,41 @@ class ExternalPointerSlot
 #endif  // V8_ENABLE_SANDBOX
 };
 
+// An IndirectPointerSlot instance describes a 32-bit field ("slot") containing
+// an IndirectPointerHandle, i.e. an index to an entry in a pointer table which
+// contains the "real" pointer to the referenced HeapObject. These slots are
+// used when the sandbox is enabled to securely reference HeapObjects outside
+// of the sandbox.
+// If we ever have multiple tables for indirect pointers, this class would
+// probably also contain a reference to the pointer table.
+class IndirectPointerSlot
+    : public SlotBase<IndirectPointerSlot, IndirectPointerHandle,
+                      kTaggedSize /* slot alignment */> {
+ public:
+  IndirectPointerSlot() : SlotBase(kNullAddress) {}
+  explicit IndirectPointerSlot(Address ptr) : SlotBase(ptr) {}
+
+  // Even though only HeapObjects (TODO(saelo) or some ExternalObject class,
+  // see below) can be stored into an IndirectPointerSlot, these slots can be
+  // empty (containing kNullIndirectPointerHandle), in which case load() will
+  // return Smi::zero().
+  inline Object load() const;
+  // TODO(saelo) currently, Code objects are the only objects that can be
+  // referenced through an indirect pointer. Once we have more, we should
+  // generalize this to take ExternalObject or another appropriate base class.
+  inline void store(Code value) const;
+
+  inline Object Relaxed_Load() const;
+  inline Object Acquire_Load() const;
+  inline void Relaxed_Store(Code value) const;
+  inline void Release_Store(Code value) const;
+
+  inline IndirectPointerHandle Relaxed_LoadHandle() const;
+  inline IndirectPointerHandle Acquire_LoadHandle() const;
+  inline void Relaxed_StoreHandle(IndirectPointerHandle handle) const;
+  inline void Release_StoreHandle(IndirectPointerHandle handle) const;
+};
+
 }  // namespace internal
 }  // namespace v8
 

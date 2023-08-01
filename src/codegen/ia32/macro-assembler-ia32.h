@@ -164,6 +164,11 @@ class V8_EXPORT_PRIVATE MacroAssembler
   void JumpCodeObject(Register code_object,
                       JumpMode jump_mode = JumpMode::kJump);
 
+  // Convenience functions to call/jmp to the code of a JSFunction object.
+  void CallJSFunction(Register function_object);
+  void JumpJSFunction(Register function_object,
+                      JumpMode jump_mode = JumpMode::kJump);
+
   void Jump(const ExternalReference& reference);
   void Jump(Handle<Code> code_object, RelocInfo::Mode rmode);
 

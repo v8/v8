@@ -351,6 +351,9 @@ struct IsValidExternalReferenceType<Result (Class::*)(Args...)> {
 FUNCTION_REFERENCE(write_barrier_marking_from_code_function,
                    WriteBarrier::MarkingFromCode)
 
+FUNCTION_REFERENCE(write_barrier_indirect_pointer_marking_from_code_function,
+                   WriteBarrier::IndirectPointerMarkingFromCode)
+
 FUNCTION_REFERENCE(write_barrier_shared_marking_from_code_function,
                    WriteBarrier::SharedMarkingFromCode)
 

@@ -10,21 +10,23 @@
 namespace v8 {
 namespace internal {
 
-// Creates and initializes an entry in the external pointer table and writes the
-// handle for that entry to the field.
-V8_INLINE void InitCodePointerField(Address field_address, Isolate* isolate,
-                                    Address value);
+// Creates and initializes an entry in the CodePointerTable and writes a handle
+// for that entry into the field. The entry will contain a pointer to the
+// owning code object as well as to the entrypoint.
+V8_INLINE void InitCodePointerTableEntryField(Address field_address,
+                                              Isolate* isolate,
+                                              HeapObject owning_code,
+                                              Address entrypoint);
 
 // If the sandbox is enabled: reads the CodePointerHandle from the field and
-// loads the corresponding external pointer from the external pointer table. If
-// the sandbox is disabled: load the external pointer from the field.
-V8_INLINE Address ReadCodePointerField(Address field_address);
+// reads the entrypoint pointer from the corresponding CodePointerTable entry.
+// If the sandbox is disabled: load the external pointer from the field.
+V8_INLINE Address ReadCodeEntrypointField(Address field_address);
 
 // If the sandbox is enabled: reads the CodePointerHandle from the field and
-// stores the external pointer to the corresponding entry in the external
-// pointer table. If the sandbox is disabled: stores the external pointer to the
-// field.
-V8_INLINE void WriteCodePointerField(Address field_address, Address value);
+// writes the entrypoint pointer to the corresponding CodePointerTable entry.
+// If the sandbox is disabled: writes the entrypoint pointer to the field.
+V8_INLINE void WriteCodeEntrypointField(Address field_address, Address value);
 
 }  // namespace internal
 }  // namespace v8

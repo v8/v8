@@ -4765,10 +4765,7 @@ void CallKnownJSFunction::GenerateCode(MaglevAssembler* masm,
   if (shared_function_info().HasBuiltinId()) {
     __ CallBuiltin(shared_function_info().builtin_id());
   } else {
-    __ LoadTaggedField(kJavaScriptCallCodeStartRegister,
-                       FieldMemOperand(kJavaScriptCallTargetRegister,
-                                       JSFunction::kCodeOffset));
-    __ CallCodeObject(kJavaScriptCallCodeStartRegister);
+    __ CallJSFunction(kJavaScriptCallTargetRegister);
   }
   masm->DefineExceptionHandlerAndLazyDeoptPoint(this);
 }

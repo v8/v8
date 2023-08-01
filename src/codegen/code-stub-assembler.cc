@@ -1821,27 +1821,64 @@ void CodeStubAssembler::StoreExternalPointerToObject(TNode<HeapObject> object,
 #endif  // V8_ENABLE_SANDBOX
 }
 
-TNode<RawPtrT> CodeStubAssembler::LoadCodePointerFromObject(
-    TNode<HeapObject> object, TNode<IntPtrT> field_offset) {
 #ifdef V8_CODE_POINTER_SANDBOXING
-  TNode<RawPtrT> table =
-      ExternalConstant(ExternalReference::code_pointer_table_address());
-  TNode<CodePointerHandleT> handle =
-      LoadObjectField<CodePointerHandleT>(object, field_offset);
+TNode<UintPtrT> CodeStubAssembler::ComputeCodePointerTableEntryOffset(
+    TNode<HeapObject> object, TNode<IntPtrT> field_offset) {
+  TNode<IndirectPointerHandleT> handle =
+      LoadObjectField<IndirectPointerHandleT>(object, field_offset);
   // Use UniqueUint32Constant instead of Uint32Constant here in order to ensure
   // that the graph structure does not depend on the configuration-specific
   // constant value (Uint32Constant uses cached nodes).
   TNode<Uint32T> index =
-      Word32Shr(handle, UniqueUint32Constant(kCodePointerIndexShift));
+      Word32Shr(handle, UniqueUint32Constant(kCodePointerHandleShift));
   // We're using a 32-bit shift here to reduce code size, but for that we need
   // to be sure that the offset will always fit into a 32-bit integer.
   static_assert(kCodePointerTableReservationSize <= 4ULL * GB);
   TNode<UintPtrT> offset = ChangeUint32ToWord(
       Word32Shl(index, UniqueUint32Constant(kCodePointerTableEntrySizeLog2)));
+  return offset;
+}
+#endif  // V8_CODE_POINTER_SANDBOXING
 
+TNode<RawPtrT> CodeStubAssembler::LoadCodeEntrypointFromObject(
+    TNode<HeapObject> object, TNode<IntPtrT> field_offset) {
+#ifdef V8_CODE_POINTER_SANDBOXING
+  TNode<RawPtrT> table =
+      ExternalConstant(ExternalReference::code_pointer_table_address());
+  TNode<UintPtrT> offset =
+      ComputeCodePointerTableEntryOffset(object, field_offset);
   return Load<RawPtrT>(table, offset);
 #else
   return LoadObjectField<RawPtrT>(object, field_offset);
+#endif  // V8_CODE_POINTER_SANDBOXING
+}
+
+TNode<HeapObject> CodeStubAssembler::LoadIndirectPointerFromObject(
+    TNode<HeapObject> object, int field_offset) {
+#ifdef V8_CODE_POINTER_SANDBOXING
+  TNode<RawPtrT> table =
+      ExternalConstant(ExternalReference::code_pointer_table_address());
+  TNode<UintPtrT> offset =
+      ComputeCodePointerTableEntryOffset(object, IntPtrConstant(field_offset));
+  offset = UintPtrAdd(offset,
+                      UintPtrConstant(kCodePointerTableEntryCodeObjectOffset));
+  TNode<UintPtrT> value = Load<UintPtrT>(table, offset);
+  // The LSB is used as marking bit by the code pointer table, so here we have
+  // to set it using a bitwise OR as it may or may not be set.
+  value =
+      UncheckedCast<UintPtrT>(WordOr(value, UintPtrConstant(kHeapObjectTag)));
+  return UncheckedCast<HeapObject>(BitcastWordToTagged(value));
+#else
+  UNREACHABLE();
+#endif  // V8_CODE_POINTER_SANDBOXING
+}
+
+TNode<HeapObject> CodeStubAssembler::LoadMaybeIndirectPointerFromObject(
+    TNode<HeapObject> object, int field_offset) {
+#ifdef V8_CODE_POINTER_SANDBOXING
+  return LoadIndirectPointerFromObject(object, field_offset);
+#else
+  return LoadObjectField<HeapObject>(object, field_offset);
 #endif  // V8_CODE_POINTER_SANDBOXING
 }
 
@@ -3265,6 +3302,11 @@ TNode<HeapObject> CodeStubAssembler::LoadJSFunctionPrototype(
   return var_result.value();
 }
 
+TNode<Code> CodeStubAssembler::LoadJSFunctionCode(TNode<JSFunction> function) {
+  return UncheckedCast<Code>(
+      LoadMaybeIndirectPointerFromObject(function, JSFunction::kCodeOffset));
+}
+
 TNode<BytecodeArray> CodeStubAssembler::LoadSharedFunctionInfoBytecodeArray(
     TNode<SharedFunctionInfo> shared) {
   TNode<HeapObject> function_data = LoadObjectField<HeapObject>(
@@ -3343,6 +3385,38 @@ void CodeStubAssembler::StoreObjectField(TNode<HeapObject> object,
   } else {
     Store(object, IntPtrSub(offset, IntPtrConstant(kHeapObjectTag)), value);
   }
+}
+
+void CodeStubAssembler::StoreIndirectPointerField(TNode<HeapObject> object,
+                                                  int offset,
+                                                  TNode<Code> value) {
+  DCHECK(V8_CODE_POINTER_SANDBOXING_BOOL);
+  OptimizedStoreIndirectPointerField(object, offset, value);
+}
+
+void CodeStubAssembler::StoreIndirectPointerFieldNoWriteBarrier(
+    TNode<HeapObject> object, int offset, TNode<Code> value) {
+  DCHECK(V8_CODE_POINTER_SANDBOXING_BOOL);
+  OptimizedStoreIndirectPointerFieldNoWriteBarrier(object, offset, value);
+}
+
+void CodeStubAssembler::StoreMaybeIndirectPointerField(TNode<HeapObject> object,
+                                                       int offset,
+                                                       TNode<Code> value) {
+#ifdef V8_CODE_POINTER_SANDBOXING
+  StoreIndirectPointerField(object, offset, value);
+#else
+  StoreObjectField(object, offset, value);
+#endif  // V8_CODE_POINTER_SANDBOXING
+}
+
+void CodeStubAssembler::StoreMaybeIndirectPointerFieldNoWriteBarrier(
+    TNode<HeapObject> object, int offset, TNode<Code> value) {
+#ifdef V8_CODE_POINTER_SANDBOXING
+  StoreIndirectPointerFieldNoWriteBarrier(object, offset, value);
+#else
+  StoreObjectFieldNoWriteBarrier(object, offset, value);
+#endif  // V8_CODE_POINTER_SANDBOXING
 }
 
 void CodeStubAssembler::UnsafeStoreObjectFieldNoWriteBarrier(
@@ -15994,7 +16068,7 @@ TNode<Code> CodeStubAssembler::GetSharedFunctionInfoCode(
 }
 
 TNode<RawPtrT> CodeStubAssembler::LoadCodeInstructionStart(TNode<Code> code) {
-  return LoadCodePointerFromObject(code, Code::kInstructionStartOffset);
+  return LoadCodeEntrypointFromObject(code, Code::kInstructionStartOffset);
 }
 
 TNode<BoolT> CodeStubAssembler::IsMarkedForDeoptimization(TNode<Code> code) {
@@ -16025,7 +16099,8 @@ TNode<JSFunction> CodeStubAssembler::AllocateFunctionWithMapAndContext(
   StoreObjectFieldNoWriteBarrier(fun, JSFunction::kSharedFunctionInfoOffset,
                                  shared_info);
   StoreObjectFieldNoWriteBarrier(fun, JSFunction::kContextOffset, context);
-  StoreObjectField(fun, JSFunction::kCodeOffset, code);
+  StoreMaybeIndirectPointerFieldNoWriteBarrier(fun, JSFunction::kCodeOffset,
+                                               code);
   return CAST(fun);
 }
 

@@ -1139,6 +1139,17 @@ class IndexedReferencesExtractor : public ObjectVisitorWithCageBases {
     }
   }
 
+  void VisitIndirectPointer(HeapObject host, IndirectPointerSlot slot,
+                            IndirectPointerMode mode) override {
+    // The JSFunction::Code field is handled separately in
+    // ExtractJSObjectReferences but here we have to mark it as visited.
+    if (IsJSFunction(host)) {
+      int field_index = JSFunction::kCodeOffset / kTaggedSize;
+      DCHECK(generator_->visited_fields_[field_index]);
+      generator_->visited_fields_[field_index] = false;
+    }
+  }
+
  private:
   template <typename TSlot>
   V8_INLINE void VisitSlotImpl(PtrComprCageBase cage_base, TSlot slot) {

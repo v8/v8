@@ -1286,6 +1286,25 @@ class RecordMigratedSlotVisitor : public ObjectVisitorWithCageBases {
   inline void VisitExternalPointer(HeapObject host, ExternalPointerSlot slot,
                                    ExternalPointerTag tag) final {}
 
+  inline void VisitIndirectPointer(HeapObject host, IndirectPointerSlot slot,
+                                   IndirectPointerMode mode) final {}
+
+  inline void VisitIndirectPointerTableEntry(HeapObject host,
+                                             IndirectPointerSlot slot) final {
+#ifdef V8_CODE_POINTER_SANDBOXING
+    // When an object owning an indirect pointer table entry is relocated, it
+    // needs to update the entry to point to its new location. Currently, only
+    // Code objects are referenced through indirect pointers, and they use the
+    // code pointer table.
+    DCHECK(IsCode(host));
+    static_assert(kAllIndirectPointerObjectsAreCode);
+    IndirectPointerHandle handle = slot.Relaxed_LoadHandle();
+    GetProcessWideCodePointerTable()->SetCodeObject(handle, host.ptr());
+#else
+    UNREACHABLE();
+#endif
+  }
+
  protected:
   inline void RecordMigratedSlot(HeapObject host, MaybeObject value,
                                  Address slot) {
@@ -3064,10 +3083,16 @@ void MarkCompactCollector::ProcessFlushedBaselineCandidates() {
     };
     flushed_js_function->ResetIfCodeFlushed(gc_notify_updated_slot);
 
+#ifndef V8_CODE_POINTER_SANDBOXING
     // Record the code slot that has been updated either to CompileLazy,
     // InterpreterEntryTrampoline or baseline code.
+    // This is only necessary when the sandbox is not enabled. If it is, the
+    // Code objects are referenced through a pointer table indirection and so
+    // remembered slots are not necessary as the Code object will update its
+    // entry in the pointer table when it is relocated.
     ObjectSlot slot = flushed_js_function->RawField(JSFunction::kCodeOffset);
     RecordSlot(flushed_js_function, slot, HeapObject::cast(*slot));
+#endif
   }
 }
 

@@ -1461,11 +1461,11 @@ void MacroAssembler::ReplaceClosureCodeWithOptimizedCode(
   DCHECK(!AreAliased(optimized_code, closure));
   // Store code entry in the closure.
   AssertCode(optimized_code);
-  StoreTaggedField(optimized_code,
-                   FieldMemOperand(closure, JSFunction::kCodeOffset));
+  StoreMaybeIndirectPointerField(
+      optimized_code, FieldMemOperand(closure, JSFunction::kCodeOffset));
   RecordWriteField(closure, JSFunction::kCodeOffset, optimized_code,
-                   kLRHasNotBeenSaved, SaveFPRegsMode::kIgnore,
-                   SmiCheck::kOmit);
+                   kLRHasNotBeenSaved, SaveFPRegsMode::kIgnore, SmiCheck::kOmit,
+                   kCodePointerType);
 }
 
 void MacroAssembler::GenerateTailCallToReturnedCode(
@@ -2446,7 +2446,7 @@ void MacroAssembler::TailCallBuiltin(Builtin builtin, Condition cond) {
 void MacroAssembler::LoadCodeInstructionStart(Register destination,
                                               Register code_object) {
   ASM_CODE_COMMENT(this);
-  LoadCodePointerField(
+  LoadCodeEntrypointField(
       destination, FieldMemOperand(code_object, Code::kInstructionStartOffset));
 }
 
@@ -2460,12 +2460,52 @@ void MacroAssembler::JumpCodeObject(Register code_object, JumpMode jump_mode) {
   ASM_CODE_COMMENT(this);
   DCHECK_EQ(JumpMode::kJump, jump_mode);
   LoadCodeInstructionStart(code_object, code_object);
-  UseScratchRegisterScope temps(this);
+  // We jump through x17 here because for Branch Identification (BTI) we use
+  // "Call" (`bti c`) rather than "Jump" (`bti j`) landing pads for tail-called
+  // code. See TailCallBuiltin for more information.
   if (code_object != x17) {
-    temps.Exclude(x17);
     Mov(x17, code_object);
   }
   Jump(x17);
+}
+
+void MacroAssembler::CallJSFunction(Register function_object) {
+  Register code = kJavaScriptCallCodeStartRegister;
+#ifdef V8_CODE_POINTER_SANDBOXING
+  // When the sandbox is enabled, we can directly fetch the entrypoint pointer
+  // from the code pointer table instead of going through the Code object. In
+  // this way, we avoid one memory load on this code path.
+  LoadCodeEntrypointField(
+      code, FieldMemOperand(function_object, JSFunction::kCodeOffset));
+  Call(code);
+#else
+  LoadTaggedField(code,
+                  FieldMemOperand(function_object, JSFunction::kCodeOffset));
+  CallCodeObject(code);
+#endif
+}
+
+void MacroAssembler::JumpJSFunction(Register function_object,
+                                    JumpMode jump_mode) {
+  Register code = kJavaScriptCallCodeStartRegister;
+#ifdef V8_CODE_POINTER_SANDBOXING
+  // When the sandbox is enabled, we can directly fetch the entrypoint pointer
+  // from the code pointer table instead of going through the Code object. In
+  // this way, we avoid one memory load on this code path.
+  LoadCodeEntrypointField(
+      code, FieldMemOperand(function_object, JSFunction::kCodeOffset));
+  DCHECK_EQ(jump_mode, JumpMode::kJump);
+  // We jump through x17 here because for Branch Identification (BTI) we use
+  // "Call" (`bti c`) rather than "Jump" (`bti j`) landing pads for tail-called
+  // code. See TailCallBuiltin for more information.
+  DCHECK_NE(code, x17);
+  Mov(x17, code);
+  Jump(x17);
+#else
+  LoadTaggedField(code,
+                  FieldMemOperand(function_object, JSFunction::kCodeOffset));
+  JumpCodeObject(code, jump_mode);
+#endif
 }
 
 void MacroAssembler::StoreReturnAddressAndCall(Register target) {
@@ -2738,14 +2778,12 @@ void MacroAssembler::InvokeFunctionCode(Register function, Register new_target,
   // We call indirectly through the code field in the function to
   // allow recompilation to take effect without changing any of the
   // call sites.
-  Register code = kJavaScriptCallCodeStartRegister;
-  LoadTaggedField(code, FieldMemOperand(function, JSFunction::kCodeOffset));
   switch (type) {
     case InvokeType::kCall:
-      CallCodeObject(code);
+      CallJSFunction(function);
       break;
     case InvokeType::kJump:
-      JumpCodeObject(code);
+      JumpJSFunction(function);
       break;
   }
   B(&done);
@@ -3373,7 +3411,7 @@ void MacroAssembler::RecordWriteField(Register object, int offset,
                                       Register value,
                                       LinkRegisterStatus lr_status,
                                       SaveFPRegsMode save_fp,
-                                      SmiCheck smi_check) {
+                                      SmiCheck smi_check, PointerType type) {
   ASM_CODE_COMMENT(this);
   DCHECK(!AreAliased(object, value));
   // First, check if a write barrier is even needed. The tests below
@@ -3403,12 +3441,12 @@ void MacroAssembler::RecordWriteField(Register object, int offset,
   }
 
   RecordWrite(object, Operand(offset - kHeapObjectTag), value, lr_status,
-              save_fp, SmiCheck::kOmit);
+              save_fp, SmiCheck::kOmit, type);
 
   Bind(&done);
 }
 
-void MacroAssembler::DecodeSandboxedPointer(const Register& value) {
+void MacroAssembler::DecodeSandboxedPointer(Register value) {
   ASM_CODE_COMMENT(this);
 #ifdef V8_ENABLE_SANDBOX
   Add(value, kPtrComprCageBaseRegister,
@@ -3418,8 +3456,8 @@ void MacroAssembler::DecodeSandboxedPointer(const Register& value) {
 #endif
 }
 
-void MacroAssembler::LoadSandboxedPointerField(
-    const Register& destination, const MemOperand& field_operand) {
+void MacroAssembler::LoadSandboxedPointerField(Register destination,
+                                               MemOperand field_operand) {
 #ifdef V8_ENABLE_SANDBOX
   ASM_CODE_COMMENT(this);
   Ldr(destination, field_operand);
@@ -3429,8 +3467,8 @@ void MacroAssembler::LoadSandboxedPointerField(
 #endif
 }
 
-void MacroAssembler::StoreSandboxedPointerField(
-    const Register& value, const MemOperand& dst_field_operand) {
+void MacroAssembler::StoreSandboxedPointerField(Register value,
+                                                MemOperand dst_field_operand) {
 #ifdef V8_ENABLE_SANDBOX
   ASM_CODE_COMMENT(this);
   UseScratchRegisterScope temps(this);
@@ -3477,8 +3515,48 @@ void MacroAssembler::LoadExternalPointerField(Register destination,
 #endif  // V8_ENABLE_SANDBOX
 }
 
-void MacroAssembler::LoadCodePointerField(Register destination,
-                                          MemOperand field_operand) {
+void MacroAssembler::LoadIndirectPointerField(Register destination,
+                                              MemOperand field_operand) {
+  ASM_CODE_COMMENT(this);
+#ifdef V8_CODE_POINTER_SANDBOXING
+  UseScratchRegisterScope temps(this);
+  Register table = temps.AcquireX();
+  static_assert(kAllIndirectPointerObjectsAreCode);
+  Mov(table, ExternalReference::code_pointer_table_address());
+  Ldr(destination.W(), field_operand);
+  Mov(destination, Operand(destination, LSR, kCodePointerHandleShift));
+  Add(destination, table,
+      Operand(destination, LSL, kCodePointerTableEntrySizeLog2));
+  Ldr(destination,
+      MemOperand(destination,
+                 Immediate(kCodePointerTableEntryCodeObjectOffset)));
+  Orr(destination, destination, Immediate(kHeapObjectTag));
+#else
+  Ldr(destination, field_operand);
+#endif  // V8_CODE_POINTER_SANDBOXING
+}
+
+void MacroAssembler::StoreIndirectPointerField(Register value,
+                                               MemOperand dst_field_operand) {
+  DCHECK(V8_CODE_POINTER_SANDBOXING_BOOL);
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.AcquireX();
+  static_assert(kAllIndirectPointerObjectsAreCode);
+  Ldr(scratch.W(), FieldMemOperand(value, Code::kCodePointerTableEntryOffset));
+  Str(scratch.W(), dst_field_operand);
+}
+
+void MacroAssembler::StoreMaybeIndirectPointerField(
+    Register value, MemOperand dst_field_operand) {
+#ifdef V8_CODE_POINTER_SANDBOXING
+  StoreIndirectPointerField(value, dst_field_operand);
+#else
+  StoreTaggedField(value, dst_field_operand);
+#endif
+}
+
+void MacroAssembler::LoadCodeEntrypointField(Register destination,
+                                             MemOperand field_operand) {
   ASM_CODE_COMMENT(this);
 #ifdef V8_CODE_POINTER_SANDBOXING
   UseScratchRegisterScope temps(this);
@@ -3486,7 +3564,7 @@ void MacroAssembler::LoadCodePointerField(Register destination,
   Mov(table, ExternalReference::code_pointer_table_address());
   Ldr(destination.W(), field_operand);
   // TODO(saelo): can the offset computation be done more efficiently?
-  Mov(destination, Operand(destination, LSR, kCodePointerIndexShift));
+  Mov(destination, Operand(destination, LSR, kCodePointerHandleShift));
   Mov(destination, Operand(destination, LSL, kCodePointerTableEntrySizeLog2));
   Ldr(destination, MemOperand(table, destination));
 #else
@@ -3533,7 +3611,8 @@ void MacroAssembler::CallEphemeronKeyBarrier(Register object, Operand offset,
 void MacroAssembler::CallRecordWriteStubSaveRegisters(Register object,
                                                       Operand offset,
                                                       SaveFPRegsMode fp_mode,
-                                                      StubCallMode mode) {
+                                                      StubCallMode mode,
+                                                      PointerType type) {
     ASM_CODE_COMMENT(this);
     RegList registers = WriteBarrierDescriptor::ComputeSavedRegisters(object);
     MaybeSaveRegisters(registers);
@@ -3543,15 +3622,15 @@ void MacroAssembler::CallRecordWriteStubSaveRegisters(Register object,
         WriteBarrierDescriptor::SlotAddressRegister();
     MoveObjectAndSlot(object_parameter, slot_address_parameter, object, offset);
 
-    CallRecordWriteStub(object_parameter, slot_address_parameter, fp_mode,
-                        mode);
+    CallRecordWriteStub(object_parameter, slot_address_parameter, fp_mode, mode,
+                        type);
 
     MaybeRestoreRegisters(registers);
 }
 
 void MacroAssembler::CallRecordWriteStub(Register object, Register slot_address,
                                          SaveFPRegsMode fp_mode,
-                                         StubCallMode mode) {
+                                         StubCallMode mode, PointerType type) {
     ASM_CODE_COMMENT(this);
     DCHECK_EQ(WriteBarrierDescriptor::ObjectRegister(), object);
     DCHECK_EQ(WriteBarrierDescriptor::SlotAddressRegister(), slot_address);
@@ -3563,7 +3642,7 @@ void MacroAssembler::CallRecordWriteStub(Register object, Register slot_address,
   if (false) {
 #endif
   } else {
-    Builtin builtin = Builtins::GetRecordWriteStub(fp_mode);
+    Builtin builtin = Builtins::GetRecordWriteStub(fp_mode, type);
     CallBuiltin(builtin);
   }
 }
@@ -3608,7 +3687,8 @@ void MacroAssembler::MoveObjectAndSlot(Register dst_object, Register dst_slot,
 // shifted away.
 void MacroAssembler::RecordWrite(Register object, Operand offset,
                                  Register value, LinkRegisterStatus lr_status,
-                                 SaveFPRegsMode fp_mode, SmiCheck smi_check) {
+                                 SaveFPRegsMode fp_mode, SmiCheck smi_check,
+                                 PointerType type) {
   ASM_CODE_COMMENT(this);
   ASM_LOCATION_IN_ASSEMBLER("MacroAssembler::RecordWrite");
   DCHECK(!AreAliased(object, value));
@@ -3619,7 +3699,11 @@ void MacroAssembler::RecordWrite(Register object, Operand offset,
     Register temp = temps.AcquireX();
     DCHECK(!AreAliased(object, value, temp));
     Add(temp, object, offset);
-    LoadTaggedField(temp, MemOperand(temp));
+    if (type == PointerType::kIndirect) {
+      LoadIndirectPointerField(temp, MemOperand(temp));
+    } else {
+      LoadTaggedField(temp, MemOperand(temp));
+    }
     Cmp(temp, value);
     Check(eq, AbortReason::kWrongAddressOrValuePassedToRecordWrite);
   }
@@ -3651,7 +3735,8 @@ void MacroAssembler::RecordWrite(Register object, Operand offset,
   // TODO(cbruni): Turn offset into int.
   DCHECK(offset.IsImmediate());
   Add(slot_address, object, offset);
-  CallRecordWriteStub(object, slot_address, fp_mode);
+  CallRecordWriteStub(object, slot_address, fp_mode,
+                      StubCallMode::kCallBuiltinPointer, type);
   if (lr_status == kLRHasNotBeenSaved) {
     Pop<MacroAssembler::kAuthLR>(lr, padreg);
   }

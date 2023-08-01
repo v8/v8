@@ -1201,6 +1201,12 @@ void Code::CodeVerify(Isolate* isolate) {
     CHECK_EQ(istream.instruction_start(), instruction_start());
 #endif  // V8_COMPRESS_POINTERS && V8_SHORT_BUILTIN_CALLS
   }
+
+#if defined(V8_CODE_POINTER_SANDBOXING)
+  // Check that the code pointer table entry is consistent, i.e. points back to
+  // this Code object.
+  CHECK_EQ(ReadIndirectPointerField(kCodePointerTableEntryOffset), *this);
+#endif
 }
 
 void InstructionStream::InstructionStreamVerify(Isolate* isolate) {

@@ -166,15 +166,42 @@ void MarkingVisitorBase<ConcreteVisitor>::VisitExternalPointer(
 #endif  // V8_ENABLE_SANDBOX
 }
 
-#ifdef V8_CODE_POINTER_SANDBOXING
 template <typename ConcreteVisitor>
-void MarkingVisitorBase<ConcreteVisitor>::VisitCodePointerHandle(
-    HeapObject host, CodePointerHandle handle) {
+void MarkingVisitorBase<ConcreteVisitor>::VisitIndirectPointer(
+    HeapObject host, IndirectPointerSlot slot, IndirectPointerMode mode) {
+#ifdef V8_CODE_POINTER_SANDBOXING
+  if (mode == IndirectPointerMode::kStrong) {
+    // Load the referenced object (if the slot is initialized) and mark it as
+    // alive if necessary. Indirect pointers never have to be added to a
+    // remembered set because the referenced object will update the pointer
+    // table entry when it is relocated.
+    Object value = slot.Relaxed_Load();
+    if (IsHeapObject(value)) {
+      HeapObject obj = HeapObject::cast(value);
+      SynchronizePageAccess(obj);
+      if (ShouldMarkObject(obj)) {
+        MarkObject(host, obj);
+      }
+    }
+  }
+#else
+  UNREACHABLE();
+#endif
+}
+
+template <typename ConcreteVisitor>
+void MarkingVisitorBase<ConcreteVisitor>::VisitIndirectPointerTableEntry(
+    HeapObject host, IndirectPointerSlot slot) {
+#ifdef V8_CODE_POINTER_SANDBOXING
+  static_assert(kAllIndirectPointerObjectsAreCode);
   CodePointerTable* table = GetProcessWideCodePointerTable();
   CodePointerTable::Space* space = heap_->code_pointer_space();
+  IndirectPointerHandle handle = slot.Relaxed_LoadHandle();
   table->Mark(space, handle);
+#else
+  UNREACHABLE();
+#endif
 }
-#endif  // V8_CODE_POINTER_SANDBOXING
 
 // ===========================================================================
 // Object participating in bytecode flushing =================================
@@ -197,7 +224,14 @@ int MarkingVisitorBase<ConcreteVisitor>::VisitJSFunction(
     DCHECK(IsBaselineCodeFlushingEnabled(code_flush_mode_));
     local_weak_objects_->baseline_flushing_candidates_local.Push(js_function);
   } else {
+#ifdef V8_CODE_POINTER_SANDBOXING
+    VisitIndirectPointer(
+        js_function,
+        js_function->RawIndirectPointerField(JSFunction::kCodeOffset),
+        IndirectPointerMode::kStrong);
+#else
     VisitPointer(js_function, js_function->RawField(JSFunction::kCodeOffset));
+#endif  // V8_CODE_POINTER_SANDBOXING
     // TODO(mythria): Consider updating the check for ShouldFlushBaselineCode to
     // also include cases where there is old bytecode even when there is no
     // baseline code and remove this check here.
@@ -340,7 +374,8 @@ bool MarkingVisitorBase<ConcreteVisitor>::ShouldFlushBaselineCode(
   // See crbug.com/v8/11972 for more details on acquire / release semantics for
   // code field. We don't use release stores when copying code pointers from
   // SFI / FV to JSFunction but it is safe in practice.
-  Object maybe_code = ACQUIRE_READ_FIELD(js_function, JSFunction::kCodeOffset);
+  Object maybe_code = js_function.raw_code(kAcquireLoad);
+
 #ifdef THREAD_SANITIZER
   // This is needed because TSAN does not process the memory fence
   // emitted after page initialization.

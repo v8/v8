@@ -916,10 +916,12 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   void CallRecordWriteStubSaveRegisters(
       Register object, Operand offset, SaveFPRegsMode fp_mode,
-      StubCallMode mode = StubCallMode::kCallBuiltinPointer);
+      StubCallMode mode = StubCallMode::kCallBuiltinPointer,
+      PointerType type = PointerType::kDirect);
   void CallRecordWriteStub(
       Register object, Register slot_address, SaveFPRegsMode fp_mode,
-      StubCallMode mode = StubCallMode::kCallBuiltinPointer);
+      StubCallMode mode = StubCallMode::kCallBuiltinPointer,
+      PointerType type = PointerType::kDirect);
 
   // For a given |object| and |offset|:
   //   - Move |object| to |dst_object|.
@@ -1058,6 +1060,11 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void LoadCodeInstructionStart(Register destination, Register code_object);
   void CallCodeObject(Register code_object);
   void JumpCodeObject(Register code_object,
+                      JumpMode jump_mode = JumpMode::kJump);
+
+  // Convenience functions to call/jmp to the code of a JSFunction object.
+  void CallJSFunction(Register function_object);
+  void JumpJSFunction(Register function_object,
                       JumpMode jump_mode = JumpMode::kJump);
 
   // Generates an instruction sequence s.t. the return address points to the
@@ -1560,11 +1567,10 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // Transform a SandboxedPointer from/to its encoded form, which is used when
   // the pointer is stored on the heap and ensures that the pointer will always
   // point into the sandbox.
-  void DecodeSandboxedPointer(const Register& value);
-  void LoadSandboxedPointerField(const Register& destination,
-                                 const MemOperand& field_operand);
-  void StoreSandboxedPointerField(const Register& value,
-                                  const MemOperand& dst_field_operand);
+  void DecodeSandboxedPointer(Register value);
+  void LoadSandboxedPointerField(Register destination,
+                                 MemOperand field_operand);
+  void StoreSandboxedPointerField(Register value, MemOperand dst_field_operand);
 
   // Loads a field containing an off-heap ("external") pointer and does
   // necessary decoding if the sandbox is enabled.
@@ -1572,9 +1578,21 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
                                 ExternalPointerTag tag,
                                 Register isolate_root = Register::no_reg());
 
-  // Loads a field containing a code pointer and does the necessary decoding if
-  // the sandbox is enabled.
-  void LoadCodePointerField(Register destination, MemOperand field_operand);
+  // Loads an indirect pointer from the heap.
+  void LoadIndirectPointerField(Register destination, MemOperand field_operand);
+
+  // Store an indirect pointer to the given object in the destination field.
+  void StoreIndirectPointerField(Register value, MemOperand dst_field_operand);
+
+  // Store an indirect (if the sandbox is enabled) or direct/tagged (otherwise)
+  // pointer to the given object in the destination field.
+  void StoreMaybeIndirectPointerField(Register value,
+                                      MemOperand dst_field_operand);
+
+  // Laod a pointer to a code entrypoint from the heap.
+  // When the sandbox is enabled the pointer is loaded indirectly via the code
+  // pointer table, otherwise it is loaded direclty as a raw pointer.
+  void LoadCodeEntrypointField(Register destination, MemOperand field_operand);
 
   // Instruction set functions ------------------------------------------------
   // Logical macros.
@@ -2151,13 +2169,15 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // the tagged HeapObject pointer.  For use with FieldMemOperand(reg, off).
   void RecordWriteField(Register object, int offset, Register value,
                         LinkRegisterStatus lr_status, SaveFPRegsMode save_fp,
-                        SmiCheck smi_check = SmiCheck::kInline);
+                        SmiCheck smi_check = SmiCheck::kInline,
+                        PointerType type = PointerType::kDirect);
 
   // For a given |object| notify the garbage collector that the slot at |offset|
   // has been written. |value| is the object being stored.
   void RecordWrite(Register object, Operand offset, Register value,
                    LinkRegisterStatus lr_status, SaveFPRegsMode save_fp,
-                   SmiCheck smi_check = SmiCheck::kInline);
+                   SmiCheck smi_check = SmiCheck::kInline,
+                   PointerType type = PointerType::kDirect);
 
   // ---------------------------------------------------------------------------
   // Debugging.

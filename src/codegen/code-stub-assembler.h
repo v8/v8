@@ -1157,14 +1157,33 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                     TNode<RawPtrT> pointer,
                                     ExternalPointerTag tag);
 
-  // Load a code pointer from an object.
-  TNode<RawPtrT> LoadCodePointerFromObject(TNode<HeapObject> object,
-                                           int offset) {
-    return LoadCodePointerFromObject(object, IntPtrConstant(offset));
-  }
+  // Load an indirect pointer field.
+  TNode<HeapObject> LoadIndirectPointerFromObject(TNode<HeapObject> object,
+                                                  int offset);
 
-  TNode<RawPtrT> LoadCodePointerFromObject(TNode<HeapObject> object,
-                                           TNode<IntPtrT> offset);
+  // Load a field that contains either an indirect pointer (if the sandbox is
+  // enabled) or a regular/tagged pointer (otherwise).
+  TNode<HeapObject> LoadMaybeIndirectPointerFromObject(TNode<HeapObject> object,
+                                                       int offset);
+
+  // When the sandbox is enabled, this will load the Code object pointer from
+  // the code pointer table entry.
+  // Load a code entrypoint pointer from an object.
+  // When the sandbox is enabled, this will load the entrypoint pointer from the
+  // code pointer table entry.
+  TNode<RawPtrT> LoadCodeEntrypointFromObject(TNode<HeapObject> object,
+                                              int offset) {
+    return LoadCodeEntrypointFromObject(object, IntPtrConstant(offset));
+  }
+  TNode<RawPtrT> LoadCodeEntrypointFromObject(TNode<HeapObject> object,
+                                              TNode<IntPtrT> offset);
+
+#ifdef V8_CODE_POINTER_SANDBOXING
+  // Helper function to load a CodePointerHandle from an object and compute the
+  // offset into the code pointer table from it.
+  TNode<UintPtrT> ComputeCodePointerTableEntryOffset(
+      TNode<HeapObject> object, TNode<IntPtrT> field_offset);
+#endif
 
   TNode<RawPtrT> LoadForeignForeignAddressPtr(TNode<Foreign> object) {
     return LoadExternalPointerFromObject(object, Foreign::kForeignAddressOffset,
@@ -1738,6 +1757,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<HeapObject> LoadJSFunctionPrototype(TNode<JSFunction> function,
                                             Label* if_bailout);
 
+  // Load the "code" property of a JSFunction.
+  TNode<Code> LoadJSFunctionCode(TNode<JSFunction> function);
+
   TNode<BytecodeArray> LoadSharedFunctionInfoBytecodeArray(
       TNode<SharedFunctionInfo> shared);
 
@@ -1755,6 +1777,26 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                         TNode<Object> value);
   void StoreObjectField(TNode<HeapObject> object, TNode<IntPtrT> offset,
                         TNode<Object> value);
+
+  // Store to an indirect pointer field. This involves loading the index for
+  // the pointer table entry owned by the pointed-to object (which points back
+  // to it) and storing that into the specified field.
+  // TODO(saelo) Currently, only Code objects can be referenced through
+  // indirect pointers, and so we only support these here, but we should
+  // generalize this.
+  void StoreIndirectPointerField(TNode<HeapObject> object, int offset,
+                                 TNode<Code> value);
+  void StoreIndirectPointerFieldNoWriteBarrier(TNode<HeapObject> object,
+                                               int offset, TNode<Code> value);
+
+  // Store to a field that either contains an indirect pointer (when the
+  // sandbox is enabled) or a regular (tagged) pointer otherwise.
+  void StoreMaybeIndirectPointerField(TNode<HeapObject> object, int offset,
+                                      TNode<Code> value);
+  void StoreMaybeIndirectPointerFieldNoWriteBarrier(TNode<HeapObject> object,
+                                                    int offset,
+                                                    TNode<Code> value);
+
   template <class T>
   void StoreObjectFieldNoWriteBarrier(TNode<HeapObject> object,
                                       TNode<IntPtrT> offset, TNode<T> value) {

@@ -343,6 +343,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64StrPair:
     case kArm64StrCompressTagged:
     case kArm64StlrCompressTagged:
+    case kArm64StrIndirectPointer:
     case kArm64StrEncodeSandboxedPointer:
     case kArm64DmbIsh:
     case kArm64DsbIsb:

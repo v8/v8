@@ -56,6 +56,33 @@ void MarkingBarrier::Write(HeapObject host, HeapObjectSlot slot,
   }
 }
 
+void MarkingBarrier::Write(HeapObject host, IndirectPointerSlot slot) {
+  DCHECK(IsCurrentMarkingBarrier(host));
+  DCHECK(is_activated_ || shared_heap_worklist_.has_value());
+  DCHECK(MemoryChunk::FromHeapObject(host)->IsMarking());
+
+  if (!marking_state_.IsMarked(host)) return;
+
+  // An indirect pointer slot can only contain a Smi if it is uninitialized (in
+  // which case the vaue will be Smi::zero()). However, at this point the slot
+  // must have been initialized because it was just written to.
+  HeapObject value = HeapObject::cast(slot.load());
+  MarkValue(host, value);
+
+  // We don't emit generational- and shared write barriers for indirect
+  // pointers as objects referenced through them are currently never allocated
+  // in the young generation or the shared (writable) heap. If this ever
+  // changes (in which case, this DCHECK here would fail), we would need to
+  // update the code for these barriers and make the remembered sets aware of
+  // pointer table entries.
+  DCHECK(!Heap::InYoungGeneration(value));
+  DCHECK(!value.InWritableSharedSpace());
+
+  // We never need to record indirect pointer slots (i.e. references through a
+  // pointer table) since the referenced object owns its table entry and will
+  // take care of updating the pointer to itself if it is relocated.
+}
+
 void MarkingBarrier::WriteWithoutHost(HeapObject value) {
   DCHECK(is_main_thread_barrier_);
   DCHECK(is_activated_);

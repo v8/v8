@@ -128,10 +128,11 @@ class MarkingVisitorBase : public ConcurrentHeapVisitor<int, ConcreteVisitor> {
 
   V8_INLINE void VisitExternalPointer(HeapObject host, ExternalPointerSlot slot,
                                       ExternalPointerTag tag) final;
-#ifdef V8_CODE_POINTER_SANDBOXING
-  V8_INLINE void VisitCodePointerHandle(HeapObject host,
-                                        CodePointerHandle handle) final;
-#endif
+  V8_INLINE void VisitIndirectPointer(HeapObject host, IndirectPointerSlot slot,
+                                      IndirectPointerMode mode) final;
+
+  void VisitIndirectPointerTableEntry(HeapObject host,
+                                      IndirectPointerSlot slot) final;
 
   void SynchronizePageAccess(HeapObject heap_object) {
 #ifdef THREAD_SANITIZER

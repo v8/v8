@@ -939,6 +939,7 @@ void InstructionSelectorT<Adapter>::VisitLoad(node_t node) {
       break;
     case MachineRepresentation::kSimd256:  // Fall through.
     case MachineRepresentation::kMapWord:  // Fall through.
+    case MachineRepresentation::kIndirectPointer:  // Fall through.
     case MachineRepresentation::kNone:
       UNREACHABLE();
     }
@@ -994,8 +995,9 @@ void InstructionSelectorT<TurbofanAdapter>::VisitStore(Node* node) {
   if (write_barrier_kind != kNoWriteBarrier &&
       !v8_flags.disable_write_barriers) {
     CHECK(!kStorePair);
-    DCHECK(CanBeTaggedOrCompressedPointer(
-        StoreRepresentationOf(node->op()).representation()));
+    MachineRepresentation representation =
+        StoreRepresentationOf(node->op()).representation();
+    DCHECK(CanBeTaggedOrCompressedOrIndirectPointer(representation));
     AddressingMode addressing_mode;
     InstructionOperand inputs[3];
     size_t input_count = 0;
@@ -1014,7 +1016,10 @@ void InstructionSelectorT<TurbofanAdapter>::VisitStore(Node* node) {
     inputs[input_count++] = g.UseUniqueRegister(value);
     RecordWriteMode record_write_mode =
         WriteBarrierKindToRecordWriteMode(write_barrier_kind);
-    InstructionCode code = kArchStoreWithWriteBarrier;
+    InstructionCode code =
+        representation == MachineRepresentation::kIndirectPointer
+            ? kArchStoreIndirectWithWriteBarrier
+            : kArchStoreWithWriteBarrier;
     code |= AddressingModeField::encode(addressing_mode);
     code |= RecordWriteModeField::encode(record_write_mode);
     if (node->opcode() == IrOpcode::kStoreTrapOnNull) {
@@ -1085,6 +1090,10 @@ void InstructionSelectorT<TurbofanAdapter>::VisitStore(Node* node) {
         }
         immediate_mode =
             COMPRESS_POINTERS_BOOL ? kLoadStoreImm32 : kLoadStoreImm64;
+        break;
+      case MachineRepresentation::kIndirectPointer:
+        opcode = kArm64StrIndirectPointer;
+        immediate_mode = kLoadStoreImm32;
         break;
       case MachineRepresentation::kSandboxedPointer:
         CHECK(!paired);

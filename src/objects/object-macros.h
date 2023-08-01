@@ -561,6 +561,18 @@
 #endif
 
 #ifdef V8_DISABLE_WRITE_BARRIERS
+#define INDIRECT_POINTER_WRITE_BARRIER(object, offset, value)
+#else
+#define INDIRECT_POINTER_WRITE_BARRIER(object, offset, value)           \
+  do {                                                                  \
+    DCHECK_NOT_NULL(GetHeapFromWritableObject(object));                 \
+    IndirectPointerWriteBarrier(                                        \
+        object, Tagged(object)->RawIndirectPointerField(offset), value, \
+        UPDATE_WRITE_BARRIER);                                          \
+  } while (false)
+#endif
+
+#ifdef V8_DISABLE_WRITE_BARRIERS
 #define CONDITIONAL_WRITE_BARRIER(object, offset, value, mode)
 #elif V8_ENABLE_UNCONDITIONAL_WRITE_BARRIERS
 #define CONDITIONAL_WRITE_BARRIER(object, offset, value, mode) \
@@ -595,6 +607,18 @@
     DCHECK_NOT_NULL(GetHeapFromWritableObject(object));                      \
     CombinedEphemeronWriteBarrier(EphemeronHashTable::cast(object),          \
                                   (object)->RawField(offset), value, mode);  \
+  } while (false)
+#endif
+
+#ifdef V8_DISABLE_WRITE_BARRIERS
+#define CONDITIONAL_INDIRECT_POINTER_WRITE_BARRIER(object, offset, value, mode)
+#else
+#define CONDITIONAL_INDIRECT_POINTER_WRITE_BARRIER(object, offset, value, \
+                                                   mode)                  \
+  do {                                                                    \
+    DCHECK_NOT_NULL(GetHeapFromWritableObject(object));                   \
+    IndirectPointerWriteBarrier(                                          \
+        object, (object).RawIndirectPointerField(offset), value, mode);   \
   } while (false)
 #endif
 

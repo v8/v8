@@ -145,6 +145,7 @@ UseInfo TruncatingUseInfoFromRepresentation(MachineRepresentation rep) {
       return UseInfo::TaggedSigned();
     case MachineRepresentation::kTaggedPointer:
     case MachineRepresentation::kTagged:
+    case MachineRepresentation::kIndirectPointer:
     case MachineRepresentation::kMapWord:
       return UseInfo::AnyTagged();
     case MachineRepresentation::kFloat64:

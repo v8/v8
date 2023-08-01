@@ -246,21 +246,21 @@ static_assert(1ULL << (64 - kBoundedSizeShift) ==
 // size allows omitting bounds checks on table accesses if the indices are
 // guaranteed (e.g. through shifting) to be below the maximum index. This
 // value must be a power of two.
-static const size_t kExternalPointerTableReservationSize = 512 * MB;
+constexpr size_t kExternalPointerTableReservationSize = 512 * MB;
 
 // The external pointer table indices stored in HeapObjects as external
 // pointers are shifted to the left by this amount to guarantee that they are
 // smaller than the maximum table size.
-static const uint32_t kExternalPointerIndexShift = 6;
+constexpr uint32_t kExternalPointerIndexShift = 6;
 #else
-static const size_t kExternalPointerTableReservationSize = 1024 * MB;
-static const uint32_t kExternalPointerIndexShift = 5;
+constexpr size_t kExternalPointerTableReservationSize = 1024 * MB;
+constexpr uint32_t kExternalPointerIndexShift = 5;
 #endif  // V8_TARGET_OS_ANDROID
 
 // The maximum number of entries in an external pointer table.
-static const int kExternalPointerTableEntrySize = 8;
-static const int kExternalPointerTableEntrySizeLog2 = 3;
-static const size_t kMaxExternalPointers =
+constexpr int kExternalPointerTableEntrySize = 8;
+constexpr int kExternalPointerTableEntrySizeLog2 = 3;
+constexpr size_t kMaxExternalPointers =
     kExternalPointerTableReservationSize / kExternalPointerTableEntrySize;
 static_assert((1 << (32 - kExternalPointerIndexShift)) == kMaxExternalPointers,
               "kExternalPointerTableReservationSize and "
@@ -269,7 +269,7 @@ static_assert((1 << (32 - kExternalPointerIndexShift)) == kMaxExternalPointers,
 #else  // !V8_COMPRESS_POINTERS
 
 // Needed for the V8.SandboxedExternalPointersCount histogram.
-static const size_t kMaxExternalPointers = 0;
+constexpr size_t kMaxExternalPointers = 0;
 
 #endif  // V8_COMPRESS_POINTERS
 
@@ -294,6 +294,9 @@ using ExternalPointer_t = Address;
 constexpr ExternalPointer_t kNullExternalPointer = 0;
 constexpr ExternalPointerHandle kNullExternalPointerHandle = 0;
 
+//
+// External Pointers.
+//
 // When the sandbox is enabled, external pointers are stored in an external
 // pointer table and are referenced from HeapObjects through an index (a
 // "handle"). When stored in the table, the pointers are tagged with per-type
@@ -476,19 +479,53 @@ PER_ISOLATE_EXTERNAL_POINTER_TAGS(CHECK_NON_SHARED_EXTERNAL_POINTER_TAGS)
 #undef SHARED_EXTERNAL_POINTER_TAGS
 #undef EXTERNAL_POINTER_TAGS
 
-// A handle to a code pointer stored in a code pointer table.
-using CodePointerHandle = uint32_t;
+//
+// Indirect Pointers.
+//
+// When the sandbox is enabled, indirect pointers are used to reference
+// HeapObjects that live outside of the sandbox (but are still managed through
+// the GC). When object A references an object B through an indirect pointer,
+// object A will contain a IndirectPointerHandle, i.e. a shifted 32-bit index,
+// which identifies an entry in a pointer table (such as the CodePointerTable).
+// This table entry then contains the actual pointer to object B. Further,
+// object B owns this pointer table entry, and it is responsible for updating
+// the "self-pointer" in the entry when it is relocated in memory. This way, in
+// contrast to "normal" pointers, indirect pointers never need to be tracked by
+// the GC (i.e. there is no remembered set for them).
+// Currently there is only one type of object referenced through indirect
+// pointers (Code objects), but once there are different types of such objects,
+// the pointer table entry would probably also contain the type of the target
+// object (e.g. by XORing the instance type into the top bits of the pointer).
 
-// CodePointers point to machine code (JIT or AOT compiled). When
-// the V8 sandbox is enabled, these are stored as CodePointerHandles on the heap
-// (i.e. as index into a code pointer table). Otherwise, they are simply raw
-// pointers.
-#ifdef V8_CODE_POINTER_SANDBOXING
-using CodePointer_t = CodePointerHandle;
-#else
-using CodePointer_t = Address;
-#endif
+// An IndirectPointerHandle represents a 32-bit index into a pointer table.
+using IndirectPointerHandle = uint32_t;
 
+// The indirect pointer handles are stores shifted to the left by this amount
+// to guarantee that they are smaller than the maximum table size.
+constexpr uint32_t kIndirectPointerHandleShift = 6;
+
+// A null handle always references an entry that contains nullptr.
+constexpr IndirectPointerHandle kNullIndirectPointerHandle = 0;
+
+// Currently only Code objects can be referenced through indirect pointers and
+// various places rely on that assumption. They will all static_assert against
+// this constant to make them easy to find and fix once we reference other types
+// of objects indirectly.
+constexpr bool kAllIndirectPointerObjectsAreCode = true;
+
+//
+// Code Pointers.
+//
+// When the sandbox is enabled, Code objects are referenced from inside the
+// sandbox through indirect pointers that reference entries in the code pointer
+// table (CPT). Each entry in the CPT contains both a pointer to a Code object
+// as well as a pointer to the Code's entrypoint. This allows calling/jumping
+// into Code with one fewer memory access (compared to the case where the
+// entrypoint pointer needs to be loaded from the Code object).
+// As such, a CodePointerHandle can be used both to obtain the referenced Code
+// object and to directly load its entrypoint pointer.
+using CodePointerHandle = IndirectPointerHandle;
+constexpr uint32_t kCodePointerHandleShift = kIndirectPointerHandleShift;
 constexpr CodePointerHandle kNullCodePointerHandle = 0;
 
 // The size of the virtual memory reservation for code pointer table.
@@ -496,21 +533,19 @@ constexpr CodePointerHandle kNullCodePointerHandle = 0;
 // size allows omitting bounds checks on table accesses if the indices are
 // guaranteed (e.g. through shifting) to be below the maximum index. This
 // value must be a power of two.
-static const size_t kCodePointerTableReservationSize = 1 * GB;
-
-// The code pointer table indices stored in HeapObjects as external
-// pointers are shifted to the left by this amount to guarantee that they are
-// smaller than the maximum table size.
-static const uint32_t kCodePointerIndexShift = 6;
+constexpr size_t kCodePointerTableReservationSize = 1 * GB;
 
 // The maximum number of entries in an external pointer table.
-static const int kCodePointerTableEntrySize = 16;
-static const int kCodePointerTableEntrySizeLog2 = 4;
-static const size_t kMaxCodePointers =
+constexpr int kCodePointerTableEntrySize = 16;
+constexpr int kCodePointerTableEntrySizeLog2 = 4;
+constexpr size_t kMaxCodePointers =
     kCodePointerTableReservationSize / kCodePointerTableEntrySize;
 static_assert(
-    (1 << (32 - kCodePointerIndexShift)) == kMaxCodePointers,
-    "kCodePointerTableReservationSize and kCodePointerIndexShift don't match");
+    (1 << (32 - kIndirectPointerHandleShift)) == kMaxCodePointers,
+    "kCodePointerTableReservationSize and kCodePointerHandleShift don't match");
+
+constexpr int kCodePointerTableEntryEntrypointOffset = 0;
+constexpr int kCodePointerTableEntryCodeObjectOffset = 8;
 
 // {obj} must be the raw tagged pointer representation of a HeapObject
 // that's guaranteed to never be in ReadOnlySpace.

@@ -232,6 +232,11 @@ type RawPtr generates 'TNode<RawPtrT>' constexpr 'Address';
 type RawPtr<To: type> extends RawPtr;
 type ExternalPointer
     generates 'TNode<ExternalPointerT>' constexpr 'ExternalPointer_t';
+type IndirectPointer
+    generates 'TNode<IndirectPointerHandleT>'
+    constexpr 'IndirectPointerHandle';
+// TODO(saelo): implement accessors and type checkers for these fields.
+type IndirectPointer<To: type> extends IndirectPointer;
 extern class InstructionStream extends HeapObject;
 type BuiltinPtr extends Smi generates 'TNode<BuiltinPtr>';
 

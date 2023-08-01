@@ -772,9 +772,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ cmp(esi, FieldOperand(func, JSFunction::kContextOffset));
         __ Assert(equal, AbortReason::kWrongFunctionContext);
       }
-      static_assert(kJavaScriptCallCodeStartRegister == ecx, "ABI mismatch");
-      __ mov(ecx, FieldOperand(func, JSFunction::kCodeOffset));
-      __ CallCodeObject(ecx);
+      __ CallJSFunction(func);
       RecordCallPosition(instr);
       frame_access_state()->ClearSPDelta();
       break;
@@ -987,6 +985,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ bind(ool->exit());
       break;
     }
+    case kArchStoreIndirectWithWriteBarrier:
+      UNREACHABLE();
     case kArchStackSlot: {
       FrameOffset offset =
           frame_access_state()->GetFrameOffset(i.InputInt32(0));

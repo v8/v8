@@ -578,6 +578,7 @@ class LocationOperand : public InstructionOperand {
       case MachineRepresentation::kNone:
         return false;
       case MachineRepresentation::kMapWord:
+      case MachineRepresentation::kIndirectPointer:
         break;
     }
     UNREACHABLE();

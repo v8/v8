@@ -39,7 +39,7 @@ class SerializerDeserializer : public RootVisitor {
 // clang-format off
 #define UNUSED_SERIALIZER_BYTE_CODES(V)                           \
   /* Free range 0x10..0x1f */                                     \
-  V(0x1a) V(0x1b) V(0x1c) V(0x1d) V(0x1e) V(0x1f)                 \
+  V(0x1b) V(0x1c) V(0x1d) V(0x1e) V(0x1f)                         \
   /* Free range 0x20..0x2f */                                     \
   V(0x20) V(0x21) V(0x22) V(0x23) V(0x24) V(0x25) V(0x26) V(0x27) \
   V(0x28) V(0x29) V(0x2a) V(0x2b) V(0x2c) V(0x2d) V(0x2e) V(0x2f) \
@@ -147,6 +147,10 @@ class SerializerDeserializer : public RootVisitor {
     // register as the pending field. We could either hack around this, or
     // simply introduce this new bytecode.
     kNewMetaMap,
+    // When the sandbox is enabled, a prefix indicating that the following
+    // object is referenced through an indirect pointer, i.e. through an entry
+    // in a pointer table.
+    kIndirectPointerPrefix,
 
     //
     // ---------- byte code range 0x40..0x7f ----------

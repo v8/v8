@@ -16,6 +16,7 @@
 #include "src/objects/slots.h"
 #include "src/objects/tagged.h"
 #include "src/sandbox/external-pointer-inl.h"
+#include "src/sandbox/indirect-pointer-inl.h"
 #include "src/utils/memcopy.h"
 
 namespace v8 {
@@ -261,6 +262,76 @@ ExternalPointerSlot::GetDefaultExternalPointerSpace(Isolate* isolate,
              : isolate->heap()->external_pointer_space();
 }
 #endif  // V8_ENABLE_SANDBOX
+
+Object IndirectPointerSlot::load() const { return Relaxed_Load(); }
+
+void IndirectPointerSlot::store(Code code) const { return Relaxed_Store(code); }
+
+Object IndirectPointerSlot::Relaxed_Load() const {
+#ifdef V8_CODE_POINTER_SANDBOXING
+  IndirectPointerHandle handle = Relaxed_LoadHandle();
+  // TODO(saelo) Maybe come up with a different CPT encoding scheme that returns
+  // Smi::zero for kNullCodePointerHandle?
+  if (!handle) return Smi::zero();
+  Address addr = GetProcessWideCodePointerTable()->GetCodeObject(handle);
+  return Object(addr);
+#else
+  UNREACHABLE();
+#endif  // V8_CODE_POINTER_SANDBOXING
+}
+
+Object IndirectPointerSlot::Acquire_Load() const {
+#ifdef V8_CODE_POINTER_SANDBOXING
+  IndirectPointerHandle handle = Acquire_LoadHandle();
+  // TODO(saelo) Maybe come up with a different CPT encoding scheme that returns
+  // Smi::zero for kNullCodePointerHandle?
+  if (!handle) return Smi::zero();
+  Address addr = GetProcessWideCodePointerTable()->GetCodeObject(handle);
+  return Object(addr);
+#else
+  UNREACHABLE();
+#endif  // V8_CODE_POINTER_SANDBOXING
+}
+
+void IndirectPointerSlot::Relaxed_Store(Code value) const {
+#ifdef V8_CODE_POINTER_SANDBOXING
+  // The Code objects owns its entry in the CodePointerTable, so here we only
+  // need to copy the handle.
+  IndirectPointerHandle handle =
+      value.ReadField<IndirectPointerHandle>(Code::kInstructionStartOffset);
+  Relaxed_StoreHandle(handle);
+#else
+  UNREACHABLE();
+#endif  // V8_CODE_POINTER_SANDBOXING
+}
+
+void IndirectPointerSlot::Release_Store(Code value) const {
+#ifdef V8_CODE_POINTER_SANDBOXING
+  IndirectPointerHandle handle =
+      value.ReadField<IndirectPointerHandle>(Code::kInstructionStartOffset);
+  Release_StoreHandle(handle);
+#else
+  UNREACHABLE();
+#endif  // V8_CODE_POINTER_SANDBOXING
+}
+
+IndirectPointerHandle IndirectPointerSlot::Relaxed_LoadHandle() const {
+  return base::AsAtomic32::Relaxed_Load(location());
+}
+
+IndirectPointerHandle IndirectPointerSlot::Acquire_LoadHandle() const {
+  return base::AsAtomic32::Acquire_Load(location());
+}
+
+void IndirectPointerSlot::Relaxed_StoreHandle(
+    IndirectPointerHandle handle) const {
+  return base::AsAtomic32::Relaxed_Store(location(), handle);
+}
+
+void IndirectPointerSlot::Release_StoreHandle(
+    IndirectPointerHandle handle) const {
+  return base::AsAtomic32::Release_Store(location(), handle);
+}
 
 //
 // Utils.

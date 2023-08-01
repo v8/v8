@@ -88,9 +88,7 @@ class Code : public HeapObject {
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   inline void SetInstructionStartForOffHeapBuiltin(Isolate* isolate_for_sandbox,
                                                    Address entry);
-  inline CodePointer_t ClearInstructionStartForSerialization(Isolate* isolate);
-  inline void RestoreInstructionStartForSerialization(
-      Isolate* isolate, CodePointer_t previous_value);
+  inline void ClearInstructionStartForSerialization(Isolate* isolate);
   inline void UpdateInstructionStart(Isolate* isolate_for_sandbox,
                                      InstructionStream istream);
 
@@ -321,7 +319,15 @@ class Code : public HeapObject {
   V(kInstructionStreamOffset, kTaggedSize)                                    \
   V(kEndOfStrongFieldsOffset, 0)                                              \
   /* Untagged data not directly visited by GC starts here. */                 \
-  V(kInstructionStartOffset, kCodePointerSlotSize)                            \
+  /* When the sandbox is off, the instruction_start field contains a raw */   \
+  /* pointer to the first instruction of this Code. */                        \
+  /* If the sandbox is on, this field instead contains the handle for the */  \
+  /* code pointer table entry of this Code object. The instruction start */   \
+  /* value is then stored in that entry. */                                   \
+  V(kInstructionStartOffset,                                                  \
+    V8_CODE_POINTER_SANDBOXING_BOOL ? 0 : kSystemPointerSize)                 \
+  V(kCodePointerTableEntryOffset,                                             \
+    V8_CODE_POINTER_SANDBOXING_BOOL ? kIndirectPointerSlotSize : 0)           \
   /* The serializer needs to copy bytes starting from here verbatim. */       \
   V(kFlagsOffset, kUInt32Size)                                                \
   V(kInstructionSizeOffset, kIntSize)                                         \

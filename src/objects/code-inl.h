@@ -589,15 +589,22 @@ Object Code::raw_instruction_stream(PtrComprCageBase cage_base,
 }
 
 DEF_GETTER(Code, instruction_start, Address) {
-  return ReadCodePointerField(kInstructionStartOffset);
+  return ReadCodeEntrypointField(kInstructionStartOffset);
 }
 
 void Code::init_instruction_start(Isolate* isolate, Address value) {
-  InitCodePointerField(kInstructionStartOffset, isolate, value);
+#ifdef V8_CODE_POINTER_SANDBOXING
+  // In this case, the instruction_start is stored in this Code's code pointer
+  // table entry, so initialize that instead.
+  InitCodePointerTableEntryField(kCodePointerTableEntryOffset, isolate, *this,
+                                 value);
+#else
+  WriteCodeEntrypointField(kInstructionStartOffset, value);
+#endif
 }
 
 void Code::set_instruction_start(Isolate* isolate, Address value) {
-  WriteCodePointerField(kInstructionStartOffset, value);
+  WriteCodeEntrypointField(kInstructionStartOffset, value);
 }
 
 void Code::SetInstructionStreamAndInstructionStart(Isolate* isolate_for_sandbox,
@@ -613,24 +620,12 @@ void Code::SetInstructionStartForOffHeapBuiltin(Isolate* isolate_for_sandbox,
   set_instruction_start(isolate_for_sandbox, entry);
 }
 
-CodePointer_t Code::ClearInstructionStartForSerialization(Isolate* isolate) {
+void Code::ClearInstructionStartForSerialization(Isolate* isolate) {
 #ifdef V8_CODE_POINTER_SANDBOXING
-  auto previous_value = ReadField<CodePointerHandle>(kInstructionStartOffset);
   WriteField<CodePointerHandle>(kInstructionStartOffset,
                                 kNullCodePointerHandle);
 #else
-  auto previous_value = instruction_start(isolate);
   set_instruction_start(isolate, kNullAddress);
-#endif  // V8_CODE_POINTER_SANDBOXING
-  return previous_value;
-}
-
-void Code::RestoreInstructionStartForSerialization(
-    Isolate* isolate, CodePointer_t previous_value) {
-#ifdef V8_CODE_POINTER_SANDBOXING
-  return WriteField<CodePointerHandle>(kInstructionStartOffset, previous_value);
-#else
-  set_instruction_start(isolate, previous_value);
 #endif  // V8_CODE_POINTER_SANDBOXING
 }
 

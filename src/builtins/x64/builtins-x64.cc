@@ -811,8 +811,7 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
     // pass in the generator object.  In ordinary calls, new.target is always
     // undefined because generator functions are non-constructable.
     static_assert(kJavaScriptCallCodeStartRegister == rcx, "ABI mismatch");
-    __ LoadTaggedField(rcx, FieldOperand(rdi, JSFunction::kCodeOffset));
-    __ JumpCodeObject(rcx);
+    __ JumpJSFunction(rdi);
   }
 
   __ bind(&prepare_step_in_if_stepping);

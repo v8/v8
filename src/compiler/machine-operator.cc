@@ -867,6 +867,7 @@ std::ostream& operator<<(std::ostream& os, TruncateKind kind) {
   V(kTagged)                           \
   V(kCompressedPointer)                \
   V(kSandboxedPointer)                 \
+  V(kIndirectPointer)                  \
   V(kCompressed)                       \
   V(kSimd256)
 
@@ -1292,6 +1293,11 @@ struct MachineOperatorGlobalCache {
     Store##Type##PointerWriteBarrier##Operator()                           \
         : Store##Type##Operator(kPointerWriteBarrier) {}                   \
   };                                                                       \
+  struct Store##Type##IndirectPointerWriteBarrier##Operator final          \
+      : public Store##Type##Operator {                                     \
+    Store##Type##IndirectPointerWriteBarrier##Operator()                   \
+        : Store##Type##Operator(kIndirectPointerWriteBarrier) {}           \
+  };                                                                       \
   struct Store##Type##EphemeronKeyWriteBarrier##Operator final             \
       : public Store##Type##Operator {                                     \
     Store##Type##EphemeronKeyWriteBarrier##Operator()                      \
@@ -1347,6 +1353,8 @@ struct MachineOperatorGlobalCache {
   Store##Type##MapWriteBarrier##Operator kStore##Type##MapWriteBarrier;    \
   Store##Type##PointerWriteBarrier##Operator                               \
       kStore##Type##PointerWriteBarrier;                                   \
+  Store##Type##IndirectPointerWriteBarrier##Operator                       \
+      kStore##Type##IndirectPointerWriteBarrier;                           \
   Store##Type##EphemeronKeyWriteBarrier##Operator                          \
       kStore##Type##EphemeronKeyWriteBarrier;                              \
   Store##Type##FullWriteBarrier##Operator kStore##Type##FullWriteBarrier;  \
@@ -1966,22 +1974,24 @@ const Operator* MachineOperatorBuilder::StackSlot(MachineRepresentation rep,
 const Operator* MachineOperatorBuilder::Store(StoreRepresentation store_rep) {
   DCHECK_NE(store_rep.representation(), MachineRepresentation::kMapWord);
   switch (store_rep.representation()) {
-#define STORE(kRep)                                              \
-  case MachineRepresentation::kRep:                              \
-    switch (store_rep.write_barrier_kind()) {                    \
-      case kNoWriteBarrier:                                      \
-        return &cache_.k##Store##kRep##NoWriteBarrier;           \
-      case kAssertNoWriteBarrier:                                \
-        return &cache_.k##Store##kRep##AssertNoWriteBarrier;     \
-      case kMapWriteBarrier:                                     \
-        return &cache_.k##Store##kRep##MapWriteBarrier;          \
-      case kPointerWriteBarrier:                                 \
-        return &cache_.k##Store##kRep##PointerWriteBarrier;      \
-      case kEphemeronKeyWriteBarrier:                            \
-        return &cache_.k##Store##kRep##EphemeronKeyWriteBarrier; \
-      case kFullWriteBarrier:                                    \
-        return &cache_.k##Store##kRep##FullWriteBarrier;         \
-    }                                                            \
+#define STORE(kRep)                                                 \
+  case MachineRepresentation::kRep:                                 \
+    switch (store_rep.write_barrier_kind()) {                       \
+      case kNoWriteBarrier:                                         \
+        return &cache_.k##Store##kRep##NoWriteBarrier;              \
+      case kAssertNoWriteBarrier:                                   \
+        return &cache_.k##Store##kRep##AssertNoWriteBarrier;        \
+      case kMapWriteBarrier:                                        \
+        return &cache_.k##Store##kRep##MapWriteBarrier;             \
+      case kPointerWriteBarrier:                                    \
+        return &cache_.k##Store##kRep##PointerWriteBarrier;         \
+      case kIndirectPointerWriteBarrier:                            \
+        return &cache_.k##Store##kRep##IndirectPointerWriteBarrier; \
+      case kEphemeronKeyWriteBarrier:                               \
+        return &cache_.k##Store##kRep##EphemeronKeyWriteBarrier;    \
+      case kFullWriteBarrier:                                       \
+        return &cache_.k##Store##kRep##FullWriteBarrier;            \
+    }                                                               \
     break;
     MACHINE_REPRESENTATION_LIST(STORE)
 #undef STORE

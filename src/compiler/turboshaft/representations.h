@@ -179,6 +179,7 @@ class RegisterRepresentation {
       case MachineRepresentation::kSimd128:
         return Simd128();
       case MachineRepresentation::kMapWord:
+      case MachineRepresentation::kIndirectPointer:
       case MachineRepresentation::kSandboxedPointer:
       case MachineRepresentation::kNone:
       case MachineRepresentation::kSimd256:
@@ -315,6 +316,7 @@ class MemoryRepresentation {
     kAnyTagged,
     kTaggedPointer,
     kTaggedSigned,
+    kIndirectPointer,
     kSandboxedPointer,
     kSimd128,
   };
@@ -366,6 +368,9 @@ class MemoryRepresentation {
   static constexpr MemoryRepresentation TaggedSigned() {
     return MemoryRepresentation(Enum::kTaggedSigned);
   }
+  static constexpr MemoryRepresentation IndirectPointer() {
+    return MemoryRepresentation(Enum::kIndirectPointer);
+  }
   static constexpr MemoryRepresentation SandboxedPointer() {
     return MemoryRepresentation(Enum::kSandboxedPointer);
   }
@@ -397,6 +402,7 @@ class MemoryRepresentation {
       case AnyTagged():
       case TaggedPointer():
       case TaggedSigned():
+      case IndirectPointer():
       case SandboxedPointer():
       case Simd128():
         return false;
@@ -420,6 +426,7 @@ class MemoryRepresentation {
       case AnyTagged():
       case TaggedPointer():
       case TaggedSigned():
+      case IndirectPointer():
       case SandboxedPointer():
       case Simd128():
         UNREACHABLE();
@@ -442,6 +449,7 @@ class MemoryRepresentation {
       case Uint64():
       case Float32():
       case Float64():
+      case IndirectPointer():
       case SandboxedPointer():
       case Simd128():
         return false;
@@ -464,6 +472,7 @@ class MemoryRepresentation {
       case Uint64():
       case Float32():
       case Float64():
+      case IndirectPointer():
       case SandboxedPointer():
       case Simd128():
         return false;
@@ -489,6 +498,8 @@ class MemoryRepresentation {
       case AnyTagged():
       case TaggedPointer():
       case TaggedSigned():
+        return RegisterRepresentation::Tagged();
+      case IndirectPointer():
         return RegisterRepresentation::Tagged();
       case SandboxedPointer():
         return RegisterRepresentation::Word64();
@@ -558,6 +569,8 @@ class MemoryRepresentation {
         return MachineType::TaggedPointer();
       case TaggedSigned():
         return MachineType::TaggedSigned();
+      case IndirectPointer():
+        return MachineType::IndirectPointer();
       case SandboxedPointer():
         return MachineType::SandboxedPointer();
       case Simd128():
@@ -583,6 +596,8 @@ class MemoryRepresentation {
         // Turboshaft does not support map packing.
         DCHECK(!V8_MAP_PACKING_BOOL);
         return TaggedPointer();
+      case MachineRepresentation::kIndirectPointer:
+        return IndirectPointer();
       case MachineRepresentation::kTagged:
         return AnyTagged();
       case MachineRepresentation::kFloat32:
@@ -633,6 +648,7 @@ class MemoryRepresentation {
       case MachineRepresentation::kSimd256:
       case MachineRepresentation::kCompressedPointer:
       case MachineRepresentation::kCompressed:
+      case MachineRepresentation::kIndirectPointer:
         UNREACHABLE();
     }
   }
@@ -652,6 +668,7 @@ class MemoryRepresentation {
       case Int32():
       case Uint32():
       case Float32():
+      case IndirectPointer():
         return 2;
       case Int64():
       case Uint64():

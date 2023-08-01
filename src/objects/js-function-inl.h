@@ -71,15 +71,57 @@ AbstractCode JSFunction::abstract_code(IsolateT* isolate) {
 
 int JSFunction::length() { return shared()->length(); }
 
-ACCESSORS_RELAXED(JSFunction, code, Code, kCodeOffset)
-RELEASE_ACQUIRE_GETTER_CHECKED(JSFunction, code, Code, kCodeOffset, true)
+Code JSFunction::code() const {
+  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
+  return JSFunction::code(cage_base);
+}
+Code JSFunction::code(PtrComprCageBase cage_base) const {
+  return Code::cast(raw_code());
+}
+
+void JSFunction::set_code(Code value, WriteBarrierMode mode) {
+#ifdef V8_CODE_POINTER_SANDBOXING
+  RawIndirectPointerField(kCodeOffset).Relaxed_Store(value);
+  CONDITIONAL_INDIRECT_POINTER_WRITE_BARRIER(*this, kCodeOffset, value, mode);
+#else
+  TaggedField<Code, kCodeOffset>::Relaxed_Store(*this, value);
+  CONDITIONAL_WRITE_BARRIER(*this, kCodeOffset, value, mode);
+#endif  // V8_CODE_POINTER_SANDBOXING
+}
+
+Code JSFunction::code(AcquireLoadTag tag) const {
+  return Code::cast(raw_code(tag));
+}
+
 void JSFunction::set_code(Code value, ReleaseStoreTag, WriteBarrierMode mode) {
+#ifdef V8_CODE_POINTER_SANDBOXING
+  RawIndirectPointerField(kCodeOffset).Release_Store(value);
+  CONDITIONAL_INDIRECT_POINTER_WRITE_BARRIER(*this, kCodeOffset, value, mode);
+#else
   TaggedField<Code, kCodeOffset>::Release_Store(*this, value);
   CONDITIONAL_WRITE_BARRIER(*this, kCodeOffset, value, mode);
+#endif  // V8_CODE_POINTER_SANDBOXING
   if (V8_UNLIKELY(v8_flags.log_function_events && has_feedback_vector())) {
     feedback_vector()->set_log_next_execution(true);
   }
 }
+
+Object JSFunction::raw_code() const {
+#ifdef V8_CODE_POINTER_SANDBOXING
+  return RawIndirectPointerField(kCodeOffset).Relaxed_Load();
+#else
+  return RELAXED_READ_FIELD(*this, JSFunction::kCodeOffset);
+#endif  // V8_CODE_POINTER_SANDBOXING
+}
+
+Object JSFunction::raw_code(AcquireLoadTag tag) const {
+#ifdef V8_CODE_POINTER_SANDBOXING
+  return RawIndirectPointerField(kCodeOffset).Acquire_Load();
+#else
+  return ACQUIRE_READ_FIELD(*this, JSFunction::kCodeOffset);
+#endif  // V8_CODE_POINTER_SANDBOXING
+}
+
 RELEASE_ACQUIRE_ACCESSORS(JSFunction, context, Context, kContextOffset)
 
 Address JSFunction::instruction_start() const {
@@ -221,12 +263,15 @@ bool JSFunction::is_compiled() const {
 bool JSFunction::NeedsResetDueToFlushedBytecode() {
   // Do a raw read for shared and code fields here since this function may be
   // called on a concurrent thread. JSFunction itself should be fully
-  // initialized here but the SharedFunctionInfo, InstructionStream objects may
-  // not be initialized. We read using acquire loads to defend against that.
+  // initialized here but the SharedFunctionInfo, Code objects may not be
+  // initialized. We read using acquire loads to defend against that.
+  // TODO(v8) the branches for !IsSharedFunctionInfo() and !IsCode() are
+  // probably dead code by now. Investigate removing them or replacing them
+  // with CHECKs.
   Object maybe_shared = ACQUIRE_READ_FIELD(*this, kSharedFunctionInfoOffset);
   if (!IsSharedFunctionInfo(maybe_shared)) return false;
 
-  Object maybe_code = ACQUIRE_READ_FIELD(*this, kCodeOffset);
+  Object maybe_code = raw_code(kAcquireLoad);
   if (!IsCode(maybe_code)) return false;
   Code code = Code::cast(maybe_code);
 

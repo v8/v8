@@ -88,7 +88,7 @@ struct ExternalPointerHandleT : Uint32T {
   static constexpr MachineType kMachineType = MachineType::Uint32();
 };
 
-struct CodePointerHandleT : Uint32T {
+struct IndirectPointerHandleT : Uint32T {
   static constexpr MachineType kMachineType = MachineType::Uint32();
 };
 

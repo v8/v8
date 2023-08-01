@@ -253,6 +253,7 @@ Node* RepresentationChanger::GetRepresentationFor(
     case MachineRepresentation::kCompressed:
     case MachineRepresentation::kCompressedPointer:
     case MachineRepresentation::kSandboxedPointer:
+    case MachineRepresentation::kIndirectPointer:
     case MachineRepresentation::kMapWord:
       UNREACHABLE();
   }

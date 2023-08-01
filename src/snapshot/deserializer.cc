@@ -75,6 +75,25 @@ class SlotAccessorForHeapObject {
     return Write(*value, ref_type, slot_offset);
   }
 
+  int WriteIndirect(HeapObject value) {
+    // TODO(saelo): currently, only Code objects can be referenced indirectly
+    // through a pointer table, and so here we directly downcast to Code
+    // because we need to know the offset at which the object has its pointer
+    // table entry index. However, in the future we might have other types of
+    // objects be referenced through the table. In that case, we should
+    // probably introduce some kind of "ExternalHeapObject" class which, in
+    // sandbox builds, owns a pointer table entry and contains the handle for
+    // it. Then we can unify this handling here to expect an ExternalHeapObject
+    // and simply copy the handle into the slot. For that we don't even need to
+    // know which table the object uses.
+    CHECK(IsCode(value));
+    Code code = Code::cast(value);
+    IndirectPointerSlot dest = object_->RawIndirectPointerField(offset_);
+    dest.store(code);
+    IndirectPointerWriteBarrier(*object_, dest, value, UPDATE_WRITE_BARRIER);
+    return 1;
+  }
+
  private:
   SlotAccessorForHeapObject(Handle<HeapObject> object, int offset)
       : object_(object), offset_(offset) {}
@@ -108,6 +127,7 @@ class SlotAccessorForRootSlots {
             int slot_offset = 0) {
     return Write(*value, ref_type, slot_offset);
   }
+  int WriteIndirect(HeapObject value) { UNREACHABLE(); }
 
  private:
   const FullMaybeObjectSlot slot_;
@@ -141,6 +161,7 @@ class SlotAccessorForHandle {
     *handle_ = value;
     return 1;
   }
+  int WriteIndirect(HeapObject value) { UNREACHABLE(); }
 
  private:
   Handle<HeapObject>* handle_;
@@ -148,19 +169,34 @@ class SlotAccessorForHandle {
 };
 
 template <typename IsolateT>
-template <typename TSlot>
-int Deserializer<IsolateT>::WriteAddress(TSlot dest, Address value) {
-  DCHECK(!next_reference_is_weak_);
-  memcpy(dest.ToVoidPtr(), &value, kSystemPointerSize);
-  static_assert(IsAligned(kSystemPointerSize, TSlot::kSlotDataSize));
-  return (kSystemPointerSize / TSlot::kSlotDataSize);
+template <typename SlotAccessor>
+int Deserializer<IsolateT>::WriteHeapPointer(SlotAccessor slot_accessor,
+                                             HeapObject heap_object,
+                                             ReferenceDescriptor descr) {
+  if (descr.is_indirect_pointer) {
+    return slot_accessor.WriteIndirect(heap_object);
+  } else {
+    return slot_accessor.Write(heap_object, descr.type);
+  }
+}
+
+template <typename IsolateT>
+template <typename SlotAccessor>
+int Deserializer<IsolateT>::WriteHeapPointer(SlotAccessor slot_accessor,
+                                             Handle<HeapObject> heap_object,
+                                             ReferenceDescriptor descr) {
+  if (descr.is_indirect_pointer) {
+    return slot_accessor.WriteIndirect(*heap_object);
+  } else {
+    return slot_accessor.Write(heap_object, descr.type);
+  }
 }
 
 template <typename IsolateT>
 int Deserializer<IsolateT>::WriteExternalPointer(ExternalPointerSlot dest,
                                                  Address value,
                                                  ExternalPointerTag tag) {
-  DCHECK(!next_reference_is_weak_);
+  DCHECK(!next_reference_is_weak_ && !next_reference_is_indirect_pointer_);
   dest.init(main_thread_isolate(), value, tag);
   // ExternalPointers can only be written into HeapObject fields, therefore they
   // cover (kExternalPointerSlotSize / kTaggedSize) slots.
@@ -539,12 +575,16 @@ void Deserializer<IsolateT>::PostProcessNewObject(Handle<Map> map,
 }
 
 template <typename IsolateT>
-HeapObjectReferenceType Deserializer<IsolateT>::GetAndResetNextReferenceType() {
-  HeapObjectReferenceType type = next_reference_is_weak_
-                                     ? HeapObjectReferenceType::WEAK
-                                     : HeapObjectReferenceType::STRONG;
+typename Deserializer<IsolateT>::ReferenceDescriptor
+Deserializer<IsolateT>::GetAndResetNextReferenceDescriptor() {
+  DCHECK(!(next_reference_is_weak_ && next_reference_is_indirect_pointer_));
+  ReferenceDescriptor desc;
+  desc.type = next_reference_is_weak_ ? HeapObjectReferenceType::WEAK
+                                      : HeapObjectReferenceType::STRONG;
   next_reference_is_weak_ = false;
-  return type;
+  desc.is_indirect_pointer = next_reference_is_indirect_pointer_;
+  next_reference_is_indirect_pointer_ = false;
+  return desc;
 }
 
 template <typename IsolateT>
@@ -839,6 +879,8 @@ int Deserializer<IsolateT>::ReadSingleBytecodeData(uint8_t data,
       return ReadClearedWeakReference(data, slot_accessor);
     case kWeakPrefix:
       return ReadWeakPrefix(data, slot_accessor);
+    case kIndirectPointerPrefix:
+      return ReadIndirectPointerPrefix(data, slot_accessor);
     case CASE_RANGE(kRootArrayConstants, 32):
       return ReadRootArrayConstants(data, slot_accessor);
     case CASE_RANGE(kHotObject, 8):
@@ -871,10 +913,10 @@ int Deserializer<IsolateT>::ReadNewObject(uint8_t data,
                                           SlotAccessor slot_accessor) {
   SnapshotSpace space = NewObject::Decode(data);
   DCHECK_IMPLIES(V8_STATIC_ROOTS_BOOL, space != SnapshotSpace::kReadOnlyHeap);
-  // Save the reference type before recursing down into reading the object.
-  HeapObjectReferenceType ref_type = GetAndResetNextReferenceType();
+  // Save the descriptor before recursing down into reading the object.
+  ReferenceDescriptor descr = GetAndResetNextReferenceDescriptor();
   Handle<HeapObject> heap_object = ReadObject(space);
-  return slot_accessor.Write(heap_object, ref_type);
+  return WriteHeapPointer(slot_accessor, heap_object, descr);
 }
 
 // Find a recently deserialized object using its offset from the current
@@ -884,7 +926,8 @@ template <typename SlotAccessor>
 int Deserializer<IsolateT>::ReadBackref(uint8_t data,
                                         SlotAccessor slot_accessor) {
   Handle<HeapObject> heap_object = GetBackReferencedObject();
-  return slot_accessor.Write(heap_object, GetAndResetNextReferenceType());
+  return WriteHeapPointer(slot_accessor, heap_object,
+                          GetAndResetNextReferenceDescriptor());
 }
 
 // Reference an object in the read-only heap.
@@ -900,7 +943,8 @@ int Deserializer<IsolateT>::ReadReadOnlyHeapRef(uint8_t data,
   Address address = page->OffsetToAddress(chunk_offset);
   HeapObject heap_object = HeapObject::FromAddress(address);
 
-  return slot_accessor.Write(heap_object, GetAndResetNextReferenceType());
+  return WriteHeapPointer(slot_accessor, heap_object,
+                          GetAndResetNextReferenceDescriptor());
 }
 
 // Find an object in the roots array and write a pointer to it to the
@@ -914,7 +958,8 @@ int Deserializer<IsolateT>::ReadRootArray(uint8_t data,
   Handle<HeapObject> heap_object =
       Handle<HeapObject>::cast(isolate()->root_handle(root_index));
   hot_objects_.Add(heap_object);
-  return slot_accessor.Write(heap_object, GetAndResetNextReferenceType());
+  return WriteHeapPointer(slot_accessor, heap_object,
+                          GetAndResetNextReferenceDescriptor());
 }
 
 // Find an object in the startup object cache and write a pointer to it to
@@ -928,7 +973,8 @@ int Deserializer<IsolateT>::ReadStartupObjectCache(uint8_t data,
   // entry as a Handle backing?
   HeapObject heap_object = HeapObject::cast(
       main_thread_isolate()->startup_object_cache()->at(cache_index));
-  return slot_accessor.Write(heap_object, GetAndResetNextReferenceType());
+  return WriteHeapPointer(slot_accessor, heap_object,
+                          GetAndResetNextReferenceDescriptor());
 }
 
 // Find an object in the shared heap object cache and write a pointer to it
@@ -943,7 +989,8 @@ int Deserializer<IsolateT>::ReadSharedHeapObjectCache(
   HeapObject heap_object = HeapObject::cast(
       main_thread_isolate()->shared_heap_object_cache()->at(cache_index));
   DCHECK(SharedHeapSerializer::ShouldBeInSharedHeapObjectCache(heap_object));
-  return slot_accessor.Write(heap_object, GetAndResetNextReferenceType());
+  return WriteHeapPointer(slot_accessor, heap_object,
+                          GetAndResetNextReferenceDescriptor());
 }
 
 // Deserialize a new meta-map and write a pointer to it to the current
@@ -995,16 +1042,18 @@ int Deserializer<IsolateT>::ReadAttachedReference(uint8_t data,
                                                   SlotAccessor slot_accessor) {
   int index = source_.GetUint30();
   Handle<HeapObject> heap_object = attached_objects_[index];
-  return slot_accessor.Write(heap_object, GetAndResetNextReferenceType());
+  return WriteHeapPointer(slot_accessor, heap_object,
+                          GetAndResetNextReferenceDescriptor());
 }
 
 template <typename IsolateT>
 template <typename SlotAccessor>
 int Deserializer<IsolateT>::ReadRegisterPendingForwardRef(
     uint8_t data, SlotAccessor slot_accessor) {
-  HeapObjectReferenceType ref_type = GetAndResetNextReferenceType();
+  ReferenceDescriptor descr = GetAndResetNextReferenceDescriptor();
+  DCHECK(!descr.is_indirect_pointer);
   unresolved_forward_refs_.emplace_back(slot_accessor.object(),
-                                        slot_accessor.offset(), ref_type);
+                                        slot_accessor.offset(), descr.type);
   num_unresolved_forward_refs_++;
   return 1;
 }
@@ -1132,6 +1181,18 @@ int Deserializer<IsolateT>::ReadWeakPrefix(uint8_t data,
 
 template <typename IsolateT>
 template <typename SlotAccessor>
+int Deserializer<IsolateT>::ReadIndirectPointerPrefix(
+    uint8_t data, SlotAccessor slot_accessor) {
+  // We shouldn't have two indirect pointer prefixes in a row.
+  DCHECK(!next_reference_is_indirect_pointer_);
+  // We shouldn't have a indirect pointer prefix without a current object.
+  DCHECK_NE(slot_accessor.object()->address(), kNullAddress);
+  next_reference_is_indirect_pointer_ = true;
+  return 0;
+}
+
+template <typename IsolateT>
+template <typename SlotAccessor>
 int Deserializer<IsolateT>::ReadRootArrayConstants(uint8_t data,
                                                    SlotAccessor slot_accessor) {
   // First kRootArrayConstantsCount roots are guaranteed to be in
@@ -1152,7 +1213,8 @@ int Deserializer<IsolateT>::ReadHotObject(uint8_t data,
                                           SlotAccessor slot_accessor) {
   int index = HotObject::Decode(data);
   Handle<HeapObject> hot_object = hot_objects_.Get(index);
-  return slot_accessor.Write(hot_object, GetAndResetNextReferenceType());
+  return WriteHeapPointer(slot_accessor, hot_object,
+                          GetAndResetNextReferenceDescriptor());
 }
 
 template <typename IsolateT>

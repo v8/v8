@@ -4399,7 +4399,8 @@ bool CanGenerateFieldAccessors(const Type* field_type) {
   // TODO(v8:10391) Generate accessors for external pointers.
   return field_type != TypeOracle::GetVoidType() &&
          field_type != TypeOracle::GetFloat64OrHoleType() &&
-         !field_type->IsSubtypeOf(TypeOracle::GetExternalPointerType());
+         !field_type->IsSubtypeOf(TypeOracle::GetExternalPointerType()) &&
+         !field_type->IsSubtypeOf(TypeOracle::GetIndirectPointerType());
 }
 }  // namespace
 

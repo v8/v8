@@ -19,6 +19,7 @@ namespace internal {
 class Heap;
 class PrimitiveHeapObject;
 class ExternalPointerSlot;
+class IndirectPointerSlot;
 template <typename T>
 class Tagged;
 
@@ -219,12 +220,18 @@ class HeapObject : public Object {
   inline void ResetLazilyInitializedExternalPointerField(size_t offset);
 
   //
+  // IndirectPointer field accessors.
+  //
+  inline Object ReadIndirectPointerField(size_t offset) const;
+
+  //
   // CodePointer field accessors.
   //
-  inline void InitCodePointerField(size_t offset, Isolate* isolate,
-                                   Address value);
-  inline Address ReadCodePointerField(size_t offset) const;
-  inline void WriteCodePointerField(size_t offset, Address value);
+  inline void InitCodePointerTableEntryField(size_t offset, Isolate* isolate,
+                                             Code owning_code,
+                                             Address entrypoint);
+  inline Address ReadCodeEntrypointField(size_t offset) const;
+  inline void WriteCodeEntrypointField(size_t offset, Address value);
 
   // Returns the field at offset in obj, as a read/write Object reference.
   // Does no checking, and is safe to use during GC, while maps are invalid.
@@ -234,6 +241,7 @@ class HeapObject : public Object {
   inline MaybeObjectSlot RawMaybeWeakField(int byte_offset) const;
   inline InstructionStreamSlot RawInstructionStreamField(int byte_offset) const;
   inline ExternalPointerSlot RawExternalPointerField(int byte_offset) const;
+  inline IndirectPointerSlot RawIndirectPointerField(int byte_offset) const;
 
   DECL_CAST(HeapObject)
 

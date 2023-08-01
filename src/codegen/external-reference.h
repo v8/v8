@@ -327,6 +327,8 @@ class StatsCounter;
   V(address_of_wasm_int32_overflow_as_float, "wasm_int32_overflow_as_float")   \
   V(supports_cetss_address, "CpuFeatures::supports_cetss_address")             \
   V(write_barrier_marking_from_code_function, "WriteBarrier::MarkingFromCode") \
+  V(write_barrier_indirect_pointer_marking_from_code_function,                 \
+    "WriteBarrier::IndirectPointerMarkingFromCode")                            \
   V(write_barrier_shared_marking_from_code_function,                           \
     "WriteBarrier::SharedMarkingFromCode")                                     \
   V(shared_barrier_from_code_function, "WriteBarrier::SharedFromCode")         \

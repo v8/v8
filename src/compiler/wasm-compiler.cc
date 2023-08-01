@@ -3056,7 +3056,7 @@ Node* WasmGraphBuilder::BuildLoadCodePointerFromObject(Node* object,
       gasm_->LoadFromObject(MachineType::Uint32(), object,
                             wasm::ObjectAccess::ToTagged(field_offset));
   Node* index =
-      gasm_->Word32Shr(handle, gasm_->Int32Constant(kCodePointerIndexShift));
+      gasm_->Word32Shr(handle, gasm_->Int32Constant(kCodePointerHandleShift));
   Node* offset = gasm_->ChangeUint32ToUint64(gasm_->Word32Shl(
       index, gasm_->Int32Constant(kCodePointerTableEntrySizeLog2)));
   Node* table =

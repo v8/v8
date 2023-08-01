@@ -204,6 +204,31 @@ FieldAccess AccessBuilder::ForJSFunctionContext() {
   return access;
 }
 
+#ifdef V8_CODE_POINTER_SANDBOXING
+// static
+FieldAccess AccessBuilder::ForJSFunctionCode() {
+  FieldAccess access = {kTaggedBase,
+                        JSFunction::kCodeOffset,
+                        MaybeHandle<Name>(),
+                        OptionalMapRef(),
+                        Type::OtherInternal(),
+                        MachineType::IndirectPointer(),
+                        kIndirectPointerWriteBarrier,
+                        "JSFunctionCode"};
+  return access;
+}
+#else
+// static
+FieldAccess AccessBuilder::ForJSFunctionCode() {
+  FieldAccess access = {kTaggedBase,           JSFunction::kCodeOffset,
+                        Handle<Name>(),        OptionalMapRef(),
+                        Type::OtherInternal(), MachineType::TaggedPointer(),
+                        kPointerWriteBarrier,  "JSFunctionCode"};
+  return access;
+}
+
+#endif
+
 // static
 FieldAccess AccessBuilder::ForJSFunctionSharedFunctionInfo() {
   FieldAccess access = {
@@ -220,15 +245,6 @@ FieldAccess AccessBuilder::ForJSFunctionFeedbackCell() {
                         Handle<Name>(),       OptionalMapRef(),
                         Type::Internal(),     MachineType::TaggedPointer(),
                         kPointerWriteBarrier, "JSFunctionFeedbackCell"};
-  return access;
-}
-
-// static
-FieldAccess AccessBuilder::ForJSFunctionCode() {
-  FieldAccess access = {kTaggedBase,           JSFunction::kCodeOffset,
-                        Handle<Name>(),        OptionalMapRef(),
-                        Type::OtherInternal(), MachineType::TaggedPointer(),
-                        kPointerWriteBarrier,  "JSFunctionCode"};
   return access;
 }
 
