@@ -116,9 +116,6 @@ HeapObject SharedFunctionInfo::script() const { return script(kAcquireLoad); }
 HeapObject SharedFunctionInfo::script(PtrComprCageBase cage_base) const {
   return script(cage_base, kAcquireLoad);
 }
-bool SharedFunctionInfo::has_script(AcquireLoadTag tag) const {
-  return IsScript(script(tag));
-}
 
 RENAME_TORQUE_ACCESSORS(SharedFunctionInfo,
                         raw_outer_scope_info_or_feedback_metadata,

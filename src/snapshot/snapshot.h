@@ -74,6 +74,13 @@ class Snapshot : public AllStatic {
       const DisallowGarbageCollection& no_gc,
       SerializerFlags flags = kDefaultSerializerFlags);
 
+  // Convenience helper for the above when only serializing a single context.
+  static v8::StartupData Create(
+      Isolate* isolate, Context default_context,
+      const SafepointScope& safepoint_scope,
+      const DisallowGarbageCollection& no_gc,
+      SerializerFlags flags = kDefaultSerializerFlags);
+
   // ---------------- Deserialization -----------------------------------------
 
   // Initialize the Isolate from the internal snapshot. Returns false if no

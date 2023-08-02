@@ -4636,9 +4636,7 @@ void Heap::IterateRoots(RootVisitor* v, base::EnumSet<SkipRoot> options,
   const bool skip_iterate_builtins =
       options.contains(SkipRoot::kOldGeneration) ||
       (Builtins::kCodeObjectsAreInROSpace &&
-       options.contains(SkipRoot::kReadOnlyBuiltins) &&
-       // Prior to ReadOnlyPromotion, builtins may be on the mutable heap.
-       !isolate_->serializer_enabled());
+       options.contains(SkipRoot::kReadOnlyBuiltins));
   if (!skip_iterate_builtins) {
     IterateBuiltins(v);
     v->Synchronize(VisitorSynchronization::kBuiltins);
@@ -6358,25 +6356,15 @@ class UnreachableObjectsFilter : public HeapObjectsFilter {
 
 HeapObjectIterator::HeapObjectIterator(
     Heap* heap, HeapObjectIterator::HeapObjectsFiltering filtering)
-    : HeapObjectIterator(
-          heap,
-          new SafepointScope(heap->isolate(),
-                             heap->isolate()->is_shared_space_isolate()
-                                 ? SafepointKind::kGlobal
-                                 : SafepointKind::kIsolate),
-          filtering) {}
-
-HeapObjectIterator::HeapObjectIterator(Heap* heap,
-                                       const SafepointScope& safepoint_scope,
-                                       HeapObjectsFiltering filtering)
-    : HeapObjectIterator(heap, nullptr, filtering) {}
-
-HeapObjectIterator::HeapObjectIterator(
-    Heap* heap, SafepointScope* safepoint_scope_or_nullptr,
-    HeapObjectsFiltering filtering)
     : heap_(heap),
-      safepoint_scope_(safepoint_scope_or_nullptr),
-      filtering_(filtering) {
+      safepoint_scope_(std::make_unique<SafepointScope>(
+          heap->isolate(), heap->isolate()->is_shared_space_isolate()
+                               ? SafepointKind::kGlobal
+                               : SafepointKind::kIsolate)),
+      filtering_(filtering),
+      filter_(nullptr),
+      space_iterator_(nullptr),
+      object_iterator_(nullptr) {
   heap_->MakeHeapIterable();
   // Start the iteration.
   space_iterator_ = new SpaceIterator(heap_);
