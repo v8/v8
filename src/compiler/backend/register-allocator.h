@@ -316,7 +316,7 @@ class TopTierRegisterAllocationData final : public RegisterAllocationData {
 
   MachineRepresentation RepresentationFor(int virtual_register);
 
-  TopLevelLiveRange* GetOrCreateLiveRangeFor(int index);
+  TopLevelLiveRange* GetLiveRangeFor(int index);
   // Creates a new live range.
   TopLevelLiveRange* NewLiveRange(int index, MachineRepresentation rep);
 
@@ -377,6 +377,10 @@ class TopTierRegisterAllocationData final : public RegisterAllocationData {
   PhiMap phi_map_;
   ZoneVector<SparseBitVector*> live_in_sets_;
   ZoneVector<SparseBitVector*> live_out_sets_;
+  // TODO(dlehmann): All of these arrays of `TopLevelLiveRange`s have a known
+  // size and don't grow at runtime, so (1) make them a plain `base::Vector`,
+  // (2) get rid of one pointer indirection by storing the elements inline, and
+  // (3) initialize them eagerly to avoid repeated nullptr checks.
   ZoneVector<TopLevelLiveRange*> live_ranges_;
   ZoneVector<TopLevelLiveRange*> fixed_live_ranges_;
   ZoneVector<TopLevelLiveRange*> fixed_float_live_ranges_;
