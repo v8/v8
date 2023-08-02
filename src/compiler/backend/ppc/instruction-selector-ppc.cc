@@ -1780,9 +1780,13 @@ void InstructionSelectorT<Adapter>::VisitTruncateFloat32ToUint32(node_t node) {
 
 #if V8_TARGET_ARCH_PPC64
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitTruncateInt64ToInt32(Node* node) {
-  // TODO(mbrandy): inspect input to see if nop is appropriate.
-  VisitRR(this, kPPC_Int64ToInt32, node);
+void InstructionSelectorT<Adapter>::VisitTruncateInt64ToInt32(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    // TODO(mbrandy): inspect input to see if nop is appropriate.
+    VisitRR(this, kPPC_Int64ToInt32, node);
+  }
 }
 
 template <typename Adapter>

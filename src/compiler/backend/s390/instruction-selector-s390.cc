@@ -1464,9 +1464,6 @@ static inline bool TryMatchDoubleConstructFromInsert(
     OperandMode::kAllowRRR,                                                  \
     [&]() -> bool { return TryMatchDoubleConstructFromInsert(this, node); })
 
-#define WORD64_UNARY_OP_LIST(V) \
-  V(Word64, TruncateInt64ToInt32, kS390_Int64ToInt32, OperandMode::kNone, null)
-
 #define DECLARE_UNARY_OP(type, name, op, mode, try_extra)       \
   template <typename Adapter>                                   \
   void InstructionSelectorT<Adapter>::Visit##name(Node* node) { \
@@ -1485,13 +1482,8 @@ WORD32_BIN_OP_LIST(DECLARE_BIN_OP)
 WORD32_UNARY_OP_LIST(DECLARE_UNARY_OP)
 FLOAT_UNARY_OP_LIST(DECLARE_UNARY_OP)
 
-#if V8_TARGET_ARCH_S390X
-WORD64_UNARY_OP_LIST(DECLARE_UNARY_OP)
-#endif
-
 #undef DECLARE_BIN_OP
 #undef DECLARE_UNARY_OP
-#undef WORD64_UNARY_OP_LIST
 #undef WORD32_BIN_OP_LIST
 #undef WORD32_UNARY_OP_LIST
 #undef FLOAT_UNARY_OP_LIST
@@ -1633,6 +1625,8 @@ WORD64_UNARY_OP_LIST(DECLARE_UNARY_OP)
     [&]() { return TryMatchSignExtInt16OrInt8FromWord32Sar(this, node); })
 
 #define WORD64_UNARY_OP_LIST(V)                                              \
+  V(Word64, TruncateInt64ToInt32, kS390_Int64ToInt32, OperandMode::kNone,    \
+    null)                                                                    \
   V(Word64, Word64Clz, kS390_Cntlz64, OperandMode::kNone, null)              \
   V(Word64, Word64Popcnt, kS390_Popcnt64, OperandMode::kNone, null)          \
   V(Word64, Int64SubWithOverflow, kS390_Sub64, SubOperandMode,               \
