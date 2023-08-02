@@ -137,11 +137,6 @@ class HeapObject : public Object {
   template <typename ObjectVisitor>
   inline void IterateBodyFast(Map map, int object_size, ObjectVisitor* v);
 
-  // Returns true if the object contains a tagged value at given offset.
-  // It is used for invalid slots filtering. If the offset points outside
-  // of the object or to the map word, the result is UNDEFINED (!!!).
-  V8_EXPORT_PRIVATE bool IsValidSlot(Map map, int offset);
-
   // Returns the heap object's size in bytes
   DECL_GETTER(Size, int)
 

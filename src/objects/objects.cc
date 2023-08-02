@@ -2231,19 +2231,6 @@ void HeapObject::IterateBody(Map map, int object_size, ObjectVisitor* v) {
   IterateBodyFast<ObjectVisitor>(map, object_size, v);
 }
 
-struct CallIsValidSlot {
-  template <typename BodyDescriptor>
-  static bool apply(Map map, HeapObject obj, int offset) {
-    return BodyDescriptor::IsValidSlot(map, obj, offset);
-  }
-};
-
-bool HeapObject::IsValidSlot(Map map, int offset) {
-  DCHECK_NE(0, offset);
-  return BodyDescriptorApply<CallIsValidSlot>(map->instance_type(), map, *this,
-                                              offset);
-}
-
 int HeapObject::SizeFromMap(Map map) const {
   int instance_size = map->instance_size();
   if (instance_size != kVariableSizeSentinel) return instance_size;

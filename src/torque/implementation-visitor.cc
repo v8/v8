@@ -5031,26 +5031,6 @@ void ImplementationVisitor::GenerateBodyDescriptors(
         h_contents << "BodyDescriptorBase {\n";
         h_contents << " public:\n";
 
-        h_contents << "  static bool IsValidSlot(Map map, HeapObject obj, int "
-                      "offset) {\n";
-        if (has_array_fields) {
-          h_contents << "    if (offset < kHeaderSize) {\n";
-        }
-        h_contents << "      bool valid_slots[] = {";
-        for (ObjectSlotKind slot : header_slot_kinds) {
-          h_contents << (slot != ObjectSlotKind::kNoPointer ? "1" : "0") << ",";
-        }
-        h_contents << "};\n"
-                   << "      return valid_slots[static_cast<unsigned "
-                      "int>(offset)/kTaggedSize];\n";
-        if (has_array_fields) {
-          h_contents << "    }\n";
-          bool array_is_tagged = *array_slot_kind != ObjectSlotKind::kNoPointer;
-          h_contents << "    return " << (array_is_tagged ? "true" : "false")
-                     << ";\n";
-        }
-        h_contents << "  }\n\n";
-
         h_contents << "  template <typename ObjectVisitor>\n";
         h_contents
             << "  static inline void IterateBody(Map map, HeapObject obj, "
