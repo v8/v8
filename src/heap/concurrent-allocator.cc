@@ -104,13 +104,10 @@ void ConcurrentAllocator::FreeLinearAllocationArea() {
     // When starting incremental marking free lists are dropped for evacuation
     // candidates. So for evacuation candidates we just make the free memory
     // iterable.
-    if (!page->IsEvacuationCandidate()) {
-      base::MutexGuard guard(space_->mutex());
-      space_->Free(lab_.top(), lab_.limit() - lab_.top(),
-                   SpaceAccountingMode::kSpaceAccounted);
-    } else {
-      MakeLabIterable();
-    }
+    CHECK(!page->IsEvacuationCandidate());
+    base::MutexGuard guard(space_->mutex());
+    space_->Free(lab_.top(), lab_.limit() - lab_.top(),
+                 SpaceAccountingMode::kSpaceAccounted);
   }
 
   ResetLab();

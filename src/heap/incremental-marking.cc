@@ -314,6 +314,12 @@ void IncrementalMarking::StartMarkingMajor() {
 
   heap_->InvokeIncrementalMarkingPrologueCallbacks();
 
+  // Free all existing LABs in the heap such that selecting evacuation
+  // candidates does not need to deal with LABs on a page. While we don't need
+  // this for correctness, we want to avoid creating additional work for
+  // evacuation.
+  heap_->FreeLinearAllocationAreas();
+
   is_compacting_ = major_collector_->StartCompaction(
       MarkCompactCollector::StartCompactionMode::kIncremental);
 
