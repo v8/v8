@@ -85,15 +85,18 @@ struct GraphBuilder {
     return result;
   }
 
-  void FixLoopPhis(Block* loop, Block* backedge) {
-    DCHECK(loop->IsLoop());
-    for (Operation& op : __ output_graph().operations(*loop)) {
-      if (!op.Is<PendingLoopPhiOp>()) continue;
-      auto& pending_phi = op.Cast<PendingLoopPhiOp>();
+  void FixLoopPhis(BasicBlock* loop) {
+    DCHECK(loop->IsLoopHeader());
+    for (Node* node : *loop->nodes()) {
+      if (node->opcode() != IrOpcode::kPhi) {
+        continue;
+      }
+      OpIndex phi_index = Map(node);
+      PendingLoopPhiOp& pending_phi =
+          __ output_graph().Get(phi_index).Cast<PendingLoopPhiOp>();
       __ output_graph().Replace<PhiOp>(
-          __ output_graph().Index(pending_phi),
-          base::VectorOf(
-              {pending_phi.first(), Map(pending_phi.old_backedge_node())}),
+          phi_index,
+          base::VectorOf({pending_phi.first(), Map(node->InputAt(1))}),
           pending_phi.rep);
     }
   }
@@ -262,7 +265,7 @@ base::Optional<BailoutReason> GraphBuilder::Run() {
         __ Goto(destination);
         if (destination->IsBound()) {
           DCHECK(destination->IsLoop());
-          FixLoopPhis(destination, target_block);
+          FixLoopPhis(block->SuccessorAt(0));
         }
         break;
       }
@@ -385,7 +388,7 @@ OpIndex GraphBuilder::Process(
               PhiRepresentationOf(op));
       if (__ current_block()->IsLoop()) {
         DCHECK_EQ(input_count, 2);
-        return __ PendingLoopPhi(Map(node->InputAt(0)), rep, node->InputAt(1));
+        return __ PendingLoopPhi(Map(node->InputAt(0)), rep);
       } else {
         base::SmallVector<OpIndex, 16> inputs;
         for (int i = 0; i < input_count; ++i) {

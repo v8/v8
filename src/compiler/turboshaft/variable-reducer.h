@@ -125,7 +125,7 @@ class VariableReducer : public Next {
     current_block_ = new_block;
     if (new_block->IsLoop()) {
       for (Variable var : table_.active_loop_variables) {
-        table_.Set(var, __ PendingLoopPhi(table_.Get(var), var));
+        table_.Set(var, __ PendingLoopPhi(table_.Get(var), *var.data().rep));
       }
       Snapshot loop_header_snapshot = table_.Seal();
       block_to_snapshot_mapping_[new_block->LastPredecessor()->index()] =
@@ -157,7 +157,6 @@ class VariableReducer : public Next {
       }
       const PendingLoopPhiOp& pending_phi =
           __ Get(predecessors[0]).template Cast<PendingLoopPhiOp>();
-      DCHECK_EQ(pending_phi.kind, PendingLoopPhiOp::Kind::kVariable);
       __ output_graph().template Replace<PhiOp>(
           predecessors[0],
           base::VectorOf({pending_phi.first(), backedge_value}),

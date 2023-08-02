@@ -2008,44 +2008,11 @@ struct PhiOp : OperationT<PhiOp> {
   auto options() const { return std::tuple{rep}; }
 };
 
-// Only used when moving a loop phi to a new graph while the loop backedge has
-// not been emitted yet.
+// Used as a placeholder for a loop-phi while building the graph, replaced with
+// a normal `PhiOp` before graph building is over, so it should never appear in
+// a complete graph.
 struct PendingLoopPhiOp : FixedArityOperationT<1, PendingLoopPhiOp> {
-  struct PhiIndex {
-    int index;
-  };
-  enum class Kind {
-    // Created from the input graph of an optimization phase.
-    kOldGraphIndex,
-    // Created from a Turbofan sea-of-nodes phi during graph building.
-    kFromSeaOfNodes,
-    // Created for a Turboshaft assembler label with parameters.
-    kLabelParameter,
-    // Created by `VariableReducer` for the given variable.
-    kVariable
-  };
-  struct Data {
-    union {
-      // Used when transforming a Turboshaft graph.
-      // This is not an input because it refers to the old graph.
-      OpIndex old_backedge_index = OpIndex::Invalid();
-      // Used when translating from sea-of-nodes.
-      Node* old_backedge_node;
-      // Used when building loops with the assembler macros.
-      PhiIndex phi_index;
-      // The variable for which the phi was created.
-      Variable variable;
-    };
-    explicit Data(OpIndex old_backedge_index)
-        : old_backedge_index(old_backedge_index) {}
-    explicit Data(Node* old_backedge_node)
-        : old_backedge_node(old_backedge_node) {}
-    explicit Data(PhiIndex phi_index) : phi_index(phi_index) {}
-    explicit Data(Variable variable) : variable(variable) {}
-  };
-  Kind kind;
   RegisterRepresentation rep;
-  Data data;
 
   static constexpr OpEffects effects = OpEffects();
   base::Vector<const RegisterRepresentation> outputs_rep() const {
@@ -2058,32 +2025,13 @@ struct PendingLoopPhiOp : FixedArityOperationT<1, PendingLoopPhiOp> {
   }
 
   OpIndex first() const { return input(0); }
-  OpIndex old_backedge_index() const {
-    DCHECK_EQ(kind, Kind::kOldGraphIndex);
-    return data.old_backedge_index;
-  }
-  Node* old_backedge_node() const {
-    DCHECK_EQ(kind, Kind::kFromSeaOfNodes);
-    return data.old_backedge_node;
-  }
-  PhiIndex phi_index() const {
-    DCHECK_EQ(kind, Kind::kLabelParameter);
-    return data.phi_index;
-  }
-  Variable variable() const {
-    DCHECK_EQ(kind, Kind::kVariable);
-    return data.variable;
-  }
-
-  PendingLoopPhiOp(OpIndex first, Kind kind, RegisterRepresentation rep,
-                   Data data)
-      : Base(first), kind(kind), rep(rep), data(data) {}
+  PendingLoopPhiOp(OpIndex first, RegisterRepresentation rep)
+      : Base(first), rep(rep) {}
 
   void Validate(const Graph& graph) const {
     DCHECK(ValidOpInputRep(graph, first(), rep));
   }
-  std::tuple<> options() const { UNREACHABLE(); }
-  void PrintOptions(std::ostream& os) const;
+  auto options() const { return std::tuple{rep}; }
 };
 
 struct ConstantOp : FixedArityOperationT<0, ConstantOp> {

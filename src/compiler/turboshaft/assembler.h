@@ -360,8 +360,10 @@ class LoopLabel : public LabelBase<true, Ts...> {
       return std::tuple_cat(std::tuple{false}, values_t{});
     }
     DCHECK_EQ(loop_header_data_.block, assembler.current_block());
-    return std::tuple_cat(std::tuple{true},
-                          MaterializeLoopPhis(assembler, loop_header_data_));
+    values_t pending_loop_phis =
+        MaterializeLoopPhis(assembler, loop_header_data_);
+    pending_loop_phis_ = pending_loop_phis;
+    return std::tuple_cat(std::tuple{true}, pending_loop_phis);
   }
 
   template <typename A>
@@ -379,7 +381,7 @@ class LoopLabel : public LabelBase<true, Ts...> {
       auto values = base::tuple_drop<1>(bind_result);
       assembler.Goto(loop_header_data_.block);
       // Finalize Phis in the loop header.
-      FixLoopPhis(assembler, loop_header_data_, values);
+      FixLoopPhis(assembler, values);
     }
     assembler.FinalizeLoop(loop_header_data_.block);
   }
@@ -401,60 +403,41 @@ class LoopLabel : public LabelBase<true, Ts...> {
     if constexpr (super::size == 0) return typename super::values_t{};
 
     DCHECK_EQ(predecessor_count, 1);
-    auto phis = typename super::values_t{
-        assembler.PendingLoopPhi(std::get<indices>(data.recorded_values)[0],
-                                 PendingLoopPhiOp::PhiIndex{indices})...};
+    auto phis = typename super::values_t{assembler.PendingLoopPhi(
+        std::get<indices>(data.recorded_values)[0])...};
     return phis;
   }
 
   template <typename A>
-  static void FixLoopPhis(A& assembler, BlockData& data,
-                          const typename super::values_t& values) {
-    DCHECK(data.block->IsBound());
-    DCHECK(data.block->IsLoop());
-    DCHECK_LE(1, data.predecessors.size());
-    DCHECK_LE(data.predecessors.size(), 2);
-    auto op_range = assembler.output_graph().operations(*data.block);
-    FixLoopPhi<0>(assembler, data, values, op_range.begin(), op_range.end());
+  void FixLoopPhis(A& assembler, const typename super::values_t& values) {
+    DCHECK(loop_header_data_.block->IsBound());
+    DCHECK(loop_header_data_.block->IsLoop());
+    DCHECK_LE(1, loop_header_data_.predecessors.size());
+    DCHECK_LE(loop_header_data_.predecessors.size(), 2);
+    FixLoopPhi<0>(assembler, values);
   }
 
   template <size_t I, typename A>
-  static void FixLoopPhi(A& assembler, BlockData& data,
-                         const typename super::values_t& values,
-                         Graph::MutableOperationIterator next,
-                         Graph::MutableOperationIterator end) {
-    if constexpr (I == std::tuple_size_v<typename super::values_t>) {
-#ifdef DEBUG
-      for (; next != end; ++next) {
-        DCHECK(!(*next).Is<PendingLoopPhiOp>());
-      }
-#endif  // DEBUG
-    } else {
-      // Find the next PendingLoopPhi.
-      for (; next != end; ++next) {
-        if (auto* pending_phi = (*next).TryCast<PendingLoopPhiOp>()) {
-          if (pending_phi->kind != PendingLoopPhiOp::Kind::kLabelParameter) {
-            continue;
-          }
-          OpIndex phi_index = assembler.output_graph().Index(*pending_phi);
-          DCHECK_EQ(pending_phi->first(), std::get<I>(data.recorded_values)[0]);
-          DCHECK_EQ(I, pending_phi->phi_index().index);
-          assembler.output_graph().template Replace<PhiOp>(
-              phi_index,
-              base::VectorOf<OpIndex>(
-                  {pending_phi->first(), std::get<I>(values)}),
-              pending_phi->rep);
-          break;
-        }
-      }
-      // Check that we found a PendingLoopPhi. Otherwise something is wrong.
-      // Did you `Goto` to a loop header more than twice?
-      DCHECK_NE(next, end);
-      FixLoopPhi<I + 1>(assembler, data, values, ++next, end);
+  void FixLoopPhi(A& assembler, const typename super::values_t& values) {
+    if constexpr (I < std::tuple_size_v<typename super::values_t>) {
+      OpIndex phi_index = std::get<I>(*pending_loop_phis_);
+      PendingLoopPhiOp& pending_loop_phi =
+          assembler.output_graph()
+              .Get(phi_index)
+              .template Cast<PendingLoopPhiOp>();
+      DCHECK_EQ(pending_loop_phi.first(),
+                std::get<I>(loop_header_data_.recorded_values)[0]);
+      assembler.output_graph().template Replace<PhiOp>(
+          phi_index,
+          base::VectorOf<OpIndex>(
+              {pending_loop_phi.first(), std::get<I>(values)}),
+          pending_loop_phi.rep);
+      FixLoopPhi<I + 1>(assembler, values);
     }
   }
 
   BlockData loop_header_data_;
+  base::Optional<values_t> pending_loop_phis_;
 };
 
 Handle<Code> BuiltinCodeHandle(Builtin builtin, Isolate* isolate);
@@ -2468,32 +2451,15 @@ class AssemblerOpInterface {
     for (std::size_t i = 0; i < inputs.size(); ++i) temp[i] = inputs[i];
     return Phi(base::VectorOf(temp), V<T>::rep);
   }
-  OpIndex PendingLoopPhi(OpIndex first, PendingLoopPhiOp::Kind kind,
-                         RegisterRepresentation rep,
-                         PendingLoopPhiOp::Data data) {
+  OpIndex PendingLoopPhi(OpIndex first, RegisterRepresentation rep) {
     if (V8_UNLIKELY(stack().generating_unreachable_operations())) {
       return OpIndex::Invalid();
     }
-    return stack().ReducePendingLoopPhi(first, kind, rep, data);
-  }
-  OpIndex PendingLoopPhi(OpIndex first, RegisterRepresentation rep,
-                         OpIndex old_backedge_index) {
-    return PendingLoopPhi(first, PendingLoopPhiOp::Kind::kOldGraphIndex, rep,
-                          PendingLoopPhiOp::Data{old_backedge_index});
-  }
-  OpIndex PendingLoopPhi(OpIndex first, RegisterRepresentation rep,
-                         Node* old_backedge_index) {
-    return PendingLoopPhi(first, PendingLoopPhiOp::Kind::kFromSeaOfNodes, rep,
-                          PendingLoopPhiOp::Data{old_backedge_index});
-  }
-  OpIndex PendingLoopPhi(OpIndex first, Variable var) {
-    return PendingLoopPhi(first, PendingLoopPhiOp::Kind::kVariable,
-                          *var.data().rep, PendingLoopPhiOp::Data{var});
+    return stack().ReducePendingLoopPhi(first, rep);
   }
   template <typename T>
-  V<T> PendingLoopPhi(V<T> first, PendingLoopPhiOp::PhiIndex phi_index) {
-    return PendingLoopPhi(first, PendingLoopPhiOp::Kind::kLabelParameter,
-                          V<T>::rep, PendingLoopPhiOp::Data{phi_index});
+  V<T> PendingLoopPhi(V<T> first) {
+    return PendingLoopPhi(first, V<T>::rep);
   }
 
   OpIndex Tuple(base::Vector<OpIndex> indices) {

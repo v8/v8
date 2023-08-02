@@ -282,10 +282,8 @@ class TypeInferenceReducer
     }
   }
 
-  OpIndex REDUCE(PendingLoopPhi)(OpIndex first, PendingLoopPhiOp::Kind kind,
-                                 RegisterRepresentation rep,
-                                 PendingLoopPhiOp::Data data) {
-    OpIndex index = Next::ReducePendingLoopPhi(first, kind, rep, data);
+  OpIndex REDUCE(PendingLoopPhi)(OpIndex first, RegisterRepresentation rep) {
+    OpIndex index = Next::ReducePendingLoopPhi(first, rep);
     if (!NeedsTyping(index)) return index;
 
     // There is not much we can do for pending loop phis, because we don't know

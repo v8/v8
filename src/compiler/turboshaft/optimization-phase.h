@@ -353,7 +353,7 @@ class GraphVisitor {
     Block* destination = op.destination->MapToNextGraph();
     if (destination->IsBound()) {
       DCHECK(destination->IsLoop());
-      FixLoopPhis(destination);
+      FixLoopPhis(op.destination);
     }
     // It is important that we first fix loop phis and then reduce the `Goto`,
     // because reducing the `Goto` can have side effects, in particular, it can
@@ -386,8 +386,7 @@ class GraphVisitor {
         // emit it's 0'th input.
         return MapToNewGraph(op.input(0));
       }
-      return assembler().PendingLoopPhi(MapToNewGraph(op.input(0)), op.rep,
-                                        op.input(PhiOp::kLoopPhiBackEdgeIndex));
+      return assembler().PendingLoopPhi(MapToNewGraph(op.input(0)), op.rep);
     }
 
     base::Vector<const OpIndex> old_inputs = op.inputs();
@@ -1048,22 +1047,35 @@ class GraphVisitor {
     return result;
   }
 
-  void FixLoopPhis(Block* loop) {
-    DCHECK(loop->IsLoop());
-    for (Operation& op : assembler().output_graph().operations(
-             loop->begin(),
-             loop->IsComplete()
-                 ? loop->end()
-                 : assembler().output_graph().next_operation_index())) {
-      if (auto* pending_phi = op.TryCast<PendingLoopPhiOp>()) {
-        if (pending_phi->kind != PendingLoopPhiOp::Kind::kOldGraphIndex) {
+  void FixLoopPhis(Block* input_graph_loop) {
+    DCHECK(input_graph_loop->IsLoop());
+    Block* output_graph_loop = input_graph_loop->MapToNextGraph();
+    DCHECK(output_graph_loop->IsLoop());
+    for (const Operation& op : assembler().input_graph().operations(
+             input_graph_loop->begin(), input_graph_loop->end())) {
+      if (auto* input_phi = op.TryCast<PhiOp>()) {
+        OpIndex phi_index =
+            MapToNewGraph<true>(assembler().input_graph().Index(*input_phi));
+        if (!phi_index.valid() || !output_graph_loop->Contains(phi_index)) {
+          // Unused phis are skipped, so they are not be mapped to anything in
+          // the new graph. If the phi is reduced to an operation from a
+          // different block, then there is no loop phi in the current loop
+          // header to take care of.
           continue;
         }
+#ifdef DEBUG
+        auto& pending_phi = assembler()
+                                .output_graph()
+                                .Get(phi_index)
+                                .template Cast<PendingLoopPhiOp>();
+        DCHECK_EQ(pending_phi.rep, input_phi->rep);
+        DCHECK_EQ(pending_phi.first(), MapToNewGraph(input_phi->input(0)));
+#endif
         assembler().output_graph().template Replace<PhiOp>(
-            assembler().output_graph().Index(*pending_phi),
-            base::VectorOf({pending_phi->first(),
-                            MapToNewGraph(pending_phi->old_backedge_index())}),
-            pending_phi->rep);
+            phi_index,
+            base::VectorOf({MapToNewGraph(input_phi->input(0)),
+                            MapToNewGraph(input_phi->input(1))}),
+            input_phi->rep);
       }
     }
   }

@@ -167,20 +167,14 @@ class TurboshaftGraphBuildingInterface {
     asm_.Bind(loop);
     for (uint32_t i = 0; i < decoder->num_locals(); i++) {
       OpIndex phi = asm_.PendingLoopPhi(
-          ssa_env_[i], PendingLoopPhiOp::Kind::kFromSeaOfNodes,
-          RepresentationFor(decoder->local_type(i)),
-          PendingLoopPhiOp::Data{
-              PendingLoopPhiOp::PhiIndex{static_cast<int>(i)}});
+          ssa_env_[i], RepresentationFor(decoder->local_type(i)));
       ssa_env_[i] = phi;
     }
     uint32_t arity = block->start_merge.arity;
     Value* stack_base = arity > 0 ? decoder->stack_value(arity) : nullptr;
     for (uint32_t i = 0; i < arity; i++) {
-      OpIndex phi = asm_.PendingLoopPhi(
-          stack_base[i].op, PendingLoopPhiOp::Kind::kFromSeaOfNodes,
-          RepresentationFor(stack_base[i].type),
-          PendingLoopPhiOp::Data{PendingLoopPhiOp::PhiIndex{
-              static_cast<int>(decoder->num_locals() + i)}});
+      OpIndex phi = asm_.PendingLoopPhi(stack_base[i].op,
+                                        RepresentationFor(stack_base[i].type));
       block->start_merge[i].op = phi;
     }
 

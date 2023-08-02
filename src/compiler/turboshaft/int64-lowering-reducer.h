@@ -293,14 +293,12 @@ class Int64LoweringReducer : public Next {
     return Next::ReducePhi(inputs, rep);
   }
 
-  OpIndex REDUCE(PendingLoopPhi)(OpIndex first, PendingLoopPhiOp::Kind kind,
-                                 RegisterRepresentation rep,
-                                 PendingLoopPhiOp::Data data) {
+  OpIndex REDUCE(PendingLoopPhi)(OpIndex first, RegisterRepresentation rep) {
     if (rep == RegisterRepresentation::Word64()) {
       // TODO(mliedtke): This needs to be mapped somehow.
       UNIMPLEMENTED();
     }
-    return Next::ReducePendingLoopPhi(first, kind, rep, data);
+    return Next::ReducePendingLoopPhi(first, rep);
   }
 
  private:

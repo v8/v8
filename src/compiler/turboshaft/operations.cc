@@ -418,25 +418,6 @@ void Operation::PrintOptions(std::ostream& os) const {
   }
 }
 
-void PendingLoopPhiOp::PrintOptions(std::ostream& os) const {
-  os << "[" << rep << ", ";
-  switch (kind) {
-    case Kind::kOldGraphIndex:
-      os << "#o" << old_backedge_index();
-      break;
-    case Kind::kFromSeaOfNodes:
-      os << "Node(#" << old_backedge_node()->id() << ")";
-      break;
-    case Kind::kLabelParameter:
-      os << "PhiIndex(" << phi_index().index << ")";
-      break;
-    case Kind::kVariable:
-      os << "Variable(" << &variable().data() << ")";
-      break;
-  }
-  os << "]";
-}
-
 void ConstantOp::PrintOptions(std::ostream& os) const {
   os << "[";
   switch (kind) {
