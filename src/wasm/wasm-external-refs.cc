@@ -35,9 +35,7 @@
 #include "src/utils/utils.h"
 #include "src/wasm/wasm-external-refs.h"
 
-namespace v8 {
-namespace internal {
-namespace wasm {
+namespace v8::internal::wasm {
 
 using base::ReadUnalignedValue;
 using base::WriteUnalignedValue;
@@ -735,21 +733,7 @@ void switch_from_the_central_stack(Isolate* isolate) {
   stack_guard->SetStackLimitForStackSwitching(secondary_stack_limit);
 }
 
-static WasmTrapCallbackForTesting wasm_trap_callback_for_testing = nullptr;
-
-void set_trap_callback_for_testing(WasmTrapCallbackForTesting callback) {
-  wasm_trap_callback_for_testing = callback;
-}
-
-void call_trap_callback_for_testing() {
-  if (wasm_trap_callback_for_testing) {
-    wasm_trap_callback_for_testing();
-  }
-}
-
-}  // namespace wasm
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal::wasm
 
 #undef V8_WITH_SANITIZER
 #undef RESET_THREAD_IN_WASM_FLAG_FOR_ASAN_ON_WINDOWS

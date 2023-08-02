@@ -513,8 +513,6 @@ IF_WASM(FUNCTION_REFERENCE, wasm_memory_init, wasm::memory_init_wrapper)
 IF_WASM(FUNCTION_REFERENCE, wasm_memory_copy, wasm::memory_copy_wrapper)
 IF_WASM(FUNCTION_REFERENCE, wasm_memory_fill, wasm::memory_fill_wrapper)
 IF_WASM(FUNCTION_REFERENCE, wasm_float64_pow, wasm::float64_pow_wrapper)
-IF_WASM(FUNCTION_REFERENCE, wasm_call_trap_callback_for_testing,
-        wasm::call_trap_callback_for_testing)
 IF_WASM(FUNCTION_REFERENCE, wasm_array_copy, wasm::array_copy_wrapper)
 IF_WASM(FUNCTION_REFERENCE, wasm_array_fill, wasm::array_fill_wrapper)
 IF_WASM(FUNCTION_REFERENCE_WITH_TYPE, wasm_string_to_f64,

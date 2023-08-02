@@ -4334,11 +4334,6 @@ void LiftoffAssembler::StackCheck(Label* ool_code, Register limit_address) {
   b(ool_code, ls);
 }
 
-void LiftoffAssembler::CallTrapCallbackForTesting() {
-  PrepareCallCFunction(0, 0);
-  CallCFunction(ExternalReference::wasm_call_trap_callback_for_testing(), 0);
-}
-
 void LiftoffAssembler::AssertUnreachable(AbortReason reason) {
   // Asserts unreachable within the wasm code.
   MacroAssembler::AssertUnreachable(reason);

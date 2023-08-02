@@ -16,8 +16,7 @@ class Memory64Runner : public WasmRunner<ReturnType, ParamTypes...> {
  public:
   explicit Memory64Runner(TestExecutionTier execution_tier)
       : WasmRunner<ReturnType, ParamTypes...>(execution_tier, kWasmOrigin,
-                                              nullptr, "main",
-                                              kNoRuntimeExceptionSupport) {
+                                              nullptr, "main") {
     this->builder().EnableFeature(kFeature_memory64);
   }
 

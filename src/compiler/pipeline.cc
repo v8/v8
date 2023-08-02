@@ -1529,7 +1529,6 @@ struct JSWasmInliningPhase {
     DCHECK(data->wasm_module_for_inlining() != nullptr);
 
     OptimizedCompilationInfo* info = data->info();
-    info->set_wasm_runtime_exception_support();
     GraphReducer graph_reducer(temp_zone, data->graph(), &info->tick_counter(),
                                data->broker(), data->jsgraph()->Dead());
     DeadCodeElimination dead_code_elimination(&graph_reducer, data->graph(),
@@ -1558,7 +1557,6 @@ struct JSWasmLoweringPhase {
     DCHECK_NE(data->wasm_module_for_inlining(), nullptr);
 
     OptimizedCompilationInfo* info = data->info();
-    info->set_wasm_runtime_exception_support();
     GraphReducer graph_reducer(temp_zone, data->graph(), &info->tick_counter(),
                                data->broker(), data->jsgraph()->Dead());
     // The Wasm trap handler is not supported in JavaScript.

@@ -892,8 +892,7 @@ void NativeModule::LogWasmCodes(Isolate* isolate, Script script) {
 }
 
 CompilationEnv NativeModule::CreateCompilationEnv() const {
-  return {module(), kRuntimeExceptionSupport, enabled_features_,
-          compilation_state()->dynamic_tiering()};
+  return {module(), enabled_features_, compilation_state()->dynamic_tiering()};
 }
 
 WasmCode* NativeModule::AddCodeForTesting(Handle<Code> code) {

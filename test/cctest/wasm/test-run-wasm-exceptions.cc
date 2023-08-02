@@ -407,8 +407,7 @@ namespace {
 void TestTrapNotCaught(uint8_t* code, size_t code_size,
                        TestExecutionTier execution_tier) {
   TestSignatures sigs;
-  WasmRunner<uint32_t> r(execution_tier, kWasmOrigin, nullptr, "main",
-                         kRuntimeExceptionSupport);
+  WasmRunner<uint32_t> r(execution_tier, kWasmOrigin, nullptr, "main");
   r.builder().AddMemory(kWasmPageSize);
   constexpr uint32_t kResultSuccess = 23;
   constexpr uint32_t kResultCaught = 47;
@@ -500,7 +499,7 @@ UNINITIALIZED_WASM_EXEC_TEST(TestStackOverflowNotCaught) {
   LocalContext context(isolate_scope.isolate());
 
   WasmRunner<uint32_t> r(execution_tier, kWasmOrigin, nullptr, "main",
-                         kRuntimeExceptionSupport, isolate_scope.i_isolate());
+                         isolate_scope.i_isolate());
 
   // Build a function that calls itself until stack overflow.
   WasmFunctionCompiler& stack_overflow = r.NewFunction(sigs.v_v());

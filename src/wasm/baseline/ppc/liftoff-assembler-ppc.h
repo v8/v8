@@ -2514,11 +2514,6 @@ void LiftoffAssembler::StackCheck(Label* ool_code, Register limit_address) {
   ble(ool_code);
 }
 
-void LiftoffAssembler::CallTrapCallbackForTesting() {
-  PrepareCallCFunction(0, 0, ip);
-  CallCFunction(ExternalReference::wasm_call_trap_callback_for_testing(), 0);
-}
-
 void LiftoffAssembler::AssertUnreachable(AbortReason reason) {
   if (v8_flags.debug_code) Abort(reason);
 }

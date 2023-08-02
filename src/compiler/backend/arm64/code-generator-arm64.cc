@@ -428,25 +428,11 @@ class WasmOutOfLineTrap : public OutOfLineCode {
 
  private:
   void GenerateCallToTrap(TrapId trap_id) {
-    if (!gen_->wasm_runtime_exception_support()) {
-      // We cannot test calls to the runtime in cctest/test-run-wasm.
-      // Therefore we emit a call to C here instead of a call to the runtime.
-      __ CallCFunction(ExternalReference::wasm_call_trap_callback_for_testing(),
-                       0);
-      __ LeaveFrame(StackFrame::WASM);
-      auto call_descriptor = gen_->linkage()->GetIncomingDescriptor();
-      int pop_count = static_cast<int>(call_descriptor->ParameterSlotCount());
-      pop_count += (pop_count & 1);  // align
-      __ Drop(pop_count);
-      __ Ret();
-    } else {
-      gen_->AssembleSourcePosition(instr_);
-      __ Call(static_cast<Address>(trap_id), RelocInfo::WASM_STUB_CALL);
-      ReferenceMap* reference_map =
-          gen_->zone()->New<ReferenceMap>(gen_->zone());
-      gen_->RecordSafepoint(reference_map);
-      __ AssertUnreachable(AbortReason::kUnexpectedReturnFromWasmTrap);
-    }
+    gen_->AssembleSourcePosition(instr_);
+    __ Call(static_cast<Address>(trap_id), RelocInfo::WASM_STUB_CALL);
+    ReferenceMap* reference_map = gen_->zone()->New<ReferenceMap>(gen_->zone());
+    gen_->RecordSafepoint(reference_map);
+    __ AssertUnreachable(AbortReason::kUnexpectedReturnFromWasmTrap);
   }
 
   Instruction* instr_;

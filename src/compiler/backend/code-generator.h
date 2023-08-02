@@ -173,8 +173,6 @@ class V8_EXPORT_PRIVATE CodeGenerator final : public GapResolver::Assembler {
   void AddProtectedInstructionLanding(uint32_t instr_offset,
                                       uint32_t landing_offset);
 
-  bool wasm_runtime_exception_support() const;
-
   SourcePosition start_source_position() const {
     return start_source_position_;
   }

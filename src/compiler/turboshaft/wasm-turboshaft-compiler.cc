@@ -33,9 +33,6 @@ wasm::WasmCompilationResult ExecuteTurboshaftWasmCompilation(
       GetDebugName(&zone, env->module, data.wire_bytes_storage,
                    data.func_index),
       &zone, CodeKind::WASM_FUNCTION);
-  if (env->runtime_exception_support) {
-    info.set_wasm_runtime_exception_support();
-  }
 
   if (info.trace_turbo_json()) {
     TurboCfgFile tcf;

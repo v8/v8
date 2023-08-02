@@ -260,8 +260,6 @@ class StatsCounter;
           "wasm::switch_to_the_central_stack")                                 \
   IF_WASM(V, wasm_switch_from_the_central_stack,                               \
           "wasm::switch_from_the_central_stack")                               \
-  IF_WASM(V, wasm_call_trap_callback_for_testing,                              \
-          "wasm::call_trap_callback_for_testing")                              \
   IF_WASM(V, wasm_f32_ceil, "wasm::f32_ceil_wrapper")                          \
   IF_WASM(V, wasm_f32_floor, "wasm::f32_floor_wrapper")                        \
   IF_WASM(V, wasm_f32_nearest_int, "wasm::f32_nearest_int_wrapper")            \

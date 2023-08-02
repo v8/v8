@@ -58,7 +58,6 @@ enum class TrapId : uint32_t {
 #define DEF_ENUM(Name, ...) k##Name,
   FOREACH_WASM_TRAPREASON(DEF_ENUM)
 #undef DEF_ENUM
-      kInvalid
 };
 
 inline size_t hash_value(TrapId id) { return static_cast<uint32_t>(id); }

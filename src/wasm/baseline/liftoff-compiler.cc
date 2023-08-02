@@ -727,7 +727,7 @@ class LiftoffCompiler {
 
   void StackCheck(FullDecoder* decoder, WasmCodePosition position) {
     CODE_COMMENT("stack check");
-    if (!v8_flags.wasm_stack_checks || !env_->runtime_exception_support) return;
+    if (!v8_flags.wasm_stack_checks) return;
 
     // Loading the limit address can change the stack state, hence do this
     // before storing information about registers.
@@ -987,18 +987,6 @@ class LiftoffCompiler {
       DCHECK_EQ(pc, __ pc_offset());
       protected_instructions_.emplace_back(
           trap_handler::ProtectedInstructionData{ool->trapping_pc, pc});
-    }
-
-    if (!env_->runtime_exception_support) {
-      // We cannot test calls to the runtime in cctest/test-run-wasm.
-      // Therefore we emit a call to C here instead of a call to the runtime.
-      // In this mode, we never generate stack checks.
-      DCHECK(!is_stack_check);
-      __ CallTrapCallbackForTesting();
-      __ LeaveFrame(StackFrame::WASM);
-      __ DropStackSlotsAndRet(
-          static_cast<uint32_t>(descriptor_->ParameterSlotCount()));
-      return;
     }
 
     if (!ool->regs_to_save.is_empty()) {

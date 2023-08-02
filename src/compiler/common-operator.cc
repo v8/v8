@@ -48,8 +48,6 @@ std::ostream& operator<<(std::ostream& os, TrapId trap_id) {
     return os << #Name;
     FOREACH_WASM_TRAPREASON(TRAP_CASE)
 #undef TRAP_CASE
-    case TrapId::kInvalid:
-      return os << "Invalid";
   }
   UNREACHABLE();
 }

@@ -4659,11 +4659,6 @@ void LiftoffAssembler::StackCheck(Label* ool_code, Register limit_address) {
   j(below_equal, ool_code);
 }
 
-void LiftoffAssembler::CallTrapCallbackForTesting() {
-  PrepareCallCFunction(0, GetUnusedRegister(kGpReg, {}).gp());
-  CallCFunction(ExternalReference::wasm_call_trap_callback_for_testing(), 0);
-}
-
 void LiftoffAssembler::AssertUnreachable(AbortReason reason) {
   MacroAssembler::AssertUnreachable(reason);
 }

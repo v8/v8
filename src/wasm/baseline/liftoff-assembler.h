@@ -1596,8 +1596,6 @@ class LiftoffAssembler : public MacroAssembler {
 
   inline void StackCheck(Label* ool_code, Register limit_address);
 
-  inline void CallTrapCallbackForTesting();
-
   inline void AssertUnreachable(AbortReason reason);
 
   inline void PushRegisters(LiftoffRegList);

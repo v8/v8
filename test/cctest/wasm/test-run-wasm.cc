@@ -2129,8 +2129,7 @@ static void TestBuildGraphForSimpleExpression(WasmOpcode opcode) {
   const FunctionSig* sig = WasmOpcodes::Signature(opcode);
   WasmModule module;
   WasmFeatures enabled;
-  CompilationEnv env(&module, RuntimeExceptionSupport::kRuntimeExceptionSupport,
-                     enabled, DynamicTiering::kDynamicTiering);
+  CompilationEnv env(&module, enabled, DynamicTiering::kDynamicTiering);
 
   if (sig->parameter_count() == 1) {
     uint8_t code[] = {WASM_NO_LOCALS, kExprLocalGet, 0,
@@ -2553,7 +2552,6 @@ UNINITIALIZED_WASM_EXEC_TEST(ReturnCall_Factorial) {
   LocalContext current(isolate_scope.isolate());
 
   WasmRunner<uint32_t, uint32_t> r(execution_tier, kWasmOrigin, nullptr, "main",
-                                   kRuntimeExceptionSupport,
                                    isolate_scope.i_isolate());
 
   WasmFunctionCompiler& fact_aux_fn =
@@ -2590,7 +2588,6 @@ UNINITIALIZED_WASM_EXEC_TEST(ReturnCall_MutualFactorial) {
   LocalContext current(isolate_scope.isolate());
 
   WasmRunner<uint32_t, uint32_t> r(execution_tier, kWasmOrigin, nullptr, "main",
-                                   kRuntimeExceptionSupport,
                                    isolate_scope.i_isolate());
 
   WasmFunctionCompiler& f_fn = r.NewFunction<uint32_t, uint32_t, uint32_t>("f");
@@ -2634,7 +2631,6 @@ UNINITIALIZED_WASM_EXEC_TEST(ReturnCall_IndirectFactorial) {
   LocalContext current(isolate_scope.isolate());
 
   WasmRunner<uint32_t, uint32_t> r(execution_tier, kWasmOrigin, nullptr, "main",
-                                   kRuntimeExceptionSupport,
                                    isolate_scope.i_isolate());
 
   TestSignatures sigs;
@@ -2682,7 +2678,6 @@ UNINITIALIZED_WASM_EXEC_TEST(ReturnCall_Sum) {
   LocalContext current(isolate_scope.isolate());
 
   WasmRunner<int32_t, int32_t> r(execution_tier, kWasmOrigin, nullptr, "main",
-                                 kRuntimeExceptionSupport,
                                  isolate_scope.i_isolate());
   TestSignatures sigs;
 
@@ -2723,7 +2718,6 @@ UNINITIALIZED_WASM_EXEC_TEST(ReturnCall_Bounce_Sum) {
   LocalContext current(isolate_scope.isolate());
 
   WasmRunner<int32_t, int32_t> r(execution_tier, kWasmOrigin, nullptr, "main",
-                                 kRuntimeExceptionSupport,
                                  isolate_scope.i_isolate());
   TestSignatures sigs;
 

@@ -104,11 +104,6 @@ CodeGenerator::CodeGenerator(Zone* codegen_zone, Frame* frame, Linkage* linkage,
   masm_.set_builtin(builtin);
 }
 
-bool CodeGenerator::wasm_runtime_exception_support() const {
-  DCHECK_NOT_NULL(info_);
-  return info_->wasm_runtime_exception_support();
-}
-
 void CodeGenerator::AddProtectedInstructionLanding(uint32_t instr_offset,
                                                    uint32_t landing_offset) {
 #if V8_ENABLE_WEBASSEMBLY

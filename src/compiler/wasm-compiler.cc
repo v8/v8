@@ -426,9 +426,7 @@ void WasmGraphBuilder::StackCheck(
     WasmInstanceCacheNodes* shared_memory_instance_cache,
     wasm::WasmCodePosition position) {
   DCHECK_NOT_NULL(env_);  // Wrappers don't get stack checks.
-  if (!v8_flags.wasm_stack_checks || !env_->runtime_exception_support) {
-    return;
-  }
+  if (!v8_flags.wasm_stack_checks) return;
 
   Node* limit_address =
       LOAD_INSTANCE_FIELD(StackLimitAddress, MachineType::Pointer());
@@ -1181,15 +1179,6 @@ Node* WasmGraphBuilder::Select(Node *cond, Node* true_node,
 }
 
 TrapId WasmGraphBuilder::GetTrapIdForTrap(wasm::TrapReason reason) {
-  // TODO(wasm): "!env_" should not happen when compiling an actual wasm
-  // function.
-  if (!env_ || !env_->runtime_exception_support) {
-    // We use TrapId::kInvalid as a marker to tell the code generator
-    // to generate a call to a testing c-function instead of a runtime
-    // stub. This code should only be called from a cctest.
-    return TrapId::kInvalid;
-  }
-
   switch (reason) {
 #define TRAPREASON_TO_TRAPID(name)                                             \
   case wasm::k##name:                                                          \
@@ -8525,9 +8514,8 @@ wasm::WasmCompilationResult CompileWasmMathIntrinsic(
           InstructionSelector::SupportedMachineOperatorFlags(),
           InstructionSelector::AlignmentRequirements()));
 
-  wasm::CompilationEnv env(
-      nullptr, wasm::RuntimeExceptionSupport::kNoRuntimeExceptionSupport,
-      wasm::WasmFeatures::All(), wasm::kNoDynamicTiering);
+  wasm::CompilationEnv env(nullptr, wasm::WasmFeatures::All(),
+                           wasm::kNoDynamicTiering);
 
   WasmGraphBuilder builder(&env, mcgraph->zone(), mcgraph, sig,
                            source_positions);
@@ -8943,10 +8931,6 @@ wasm::WasmCompilationResult ExecuteTurbofanWasmCompilation(
       GetDebugName(&zone, env->module, data.wire_bytes_storage,
                    data.func_index),
       &zone, CodeKind::WASM_FUNCTION);
-  if (env->runtime_exception_support) {
-    info.set_wasm_runtime_exception_support();
-  }
-
   if (env->enabled_features.has_gc()) info.set_allocation_folding();
 
   if (info.trace_turbo_json()) {

@@ -136,13 +136,6 @@ void sync_stack_limit(Isolate* isolate);
 intptr_t switch_to_the_central_stack(Isolate* isolate, uintptr_t sp);
 void switch_from_the_central_stack(Isolate* isolate);
 
-using WasmTrapCallbackForTesting = void (*)();
-
-V8_EXPORT_PRIVATE void set_trap_callback_for_testing(
-    WasmTrapCallbackForTesting callback);
-
-V8_EXPORT_PRIVATE void call_trap_callback_for_testing();
-
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8
