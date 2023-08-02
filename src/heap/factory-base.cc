@@ -78,9 +78,8 @@ Handle<Code> FactoryBase<Impl>::NewCode(const NewCodeOptions& options) {
   Isolate* isolate_for_sandbox = impl()->isolate_for_sandbox();
   Tagged<Map> map = read_only_roots().code_map();
   int size = map->instance_size();
-  DCHECK_NE(options.allocation, AllocationType::kYoung);
   Tagged<Code> code = Tagged<Code>::cast(
-      AllocateRawWithImmortalMap(size, options.allocation, map));
+      AllocateRawWithImmortalMap(size, AllocationType::kOld, map));
   DisallowGarbageCollection no_gc;
   code->init_instruction_start(isolate_for_sandbox, kNullAddress);
   code->initialize_flags(options.kind, options.is_turbofanned,
@@ -470,60 +469,12 @@ FactoryBase<Impl>::NewUncompiledDataWithPreparseDataAndJob(
       AllocationType::kOld);
 }
 
-namespace {
-template <class IsolateT>
-bool ShouldAllocateSharedFunctionInfoInReadOnlySpace(IsolateT* isolate,
-                                                     Builtin builtin) {
-  return false;
-}
-
-template <>
-bool ShouldAllocateSharedFunctionInfoInReadOnlySpace(Isolate* isolate,
-                                                     Builtin builtin) {
-  // This condition is needed in addition to enable_ro_allocation_for_snapshot
-  // because tests may create contexts from scratch without an enabled
-  // serializer.
-  if (!isolate->serializer_enabled()) return false;
-  if (!isolate->enable_ro_allocation_for_snapshot()) return false;
-
-  switch (builtin) {
-    case Builtin::kNoBuiltinId:
-      // Only builtin SFIs can be in RO space (for now).
-      return false;
-    case Builtin::kEmptyFunction:
-      // The empty function SFI points at a (non-RO) Script object.
-      return false;
-    case Builtin::kIllegal:
-      // kIllegal is used e.g. for js_global_object_function, which is created
-      // during bootstrapping but never rooted. We currently assumed that all
-      // objects in the snapshot are live. But RO space is 1) not GC'd and 2)
-      // serialized verbatim, preserving dead objects. As a workaround, exclude
-      // this builtin id from RO allocation.
-      // TODO(jgruber): A better solution. Remove the liveness assumption (see
-      // test-heap-profiler.cc)? Overwrite dead RO objects with fillers
-      // pre-serialization? Implement a RO GC pass pre-serialization?
-      return false;
-    default:
-      return true;
-  }
-  UNREACHABLE();
-}
-
-}  // namespace
-
 template <typename Impl>
 Handle<SharedFunctionInfo> FactoryBase<Impl>::NewSharedFunctionInfo(
     MaybeHandle<String> maybe_name, MaybeHandle<HeapObject> maybe_function_data,
     Builtin builtin, FunctionKind kind) {
-  AllocationType allocation = AllocationType::kOld;
-  WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER;
-
-  if (ShouldAllocateSharedFunctionInfoInReadOnlySpace(isolate(), builtin)) {
-    allocation = AllocationType::kReadOnly;
-    barrier_mode = SKIP_WRITE_BARRIER;
-  }
-
-  Handle<SharedFunctionInfo> shared = NewSharedFunctionInfo(allocation);
+  Handle<SharedFunctionInfo> shared =
+      NewSharedFunctionInfo(AllocationType::kOld);
   DisallowGarbageCollection no_gc;
   SharedFunctionInfo raw = *shared;
   // Function names are assumed to be flat elsewhere.
@@ -531,9 +482,7 @@ Handle<SharedFunctionInfo> FactoryBase<Impl>::NewSharedFunctionInfo(
   bool has_shared_name = maybe_name.ToHandle(&shared_name);
   if (has_shared_name) {
     DCHECK(shared_name->IsFlat());
-    DCHECK_IMPLIES(allocation == AllocationType::kReadOnly,
-                   ReadOnlyHeap::Contains(*shared_name));
-    raw->set_name_or_scope_info(*shared_name, kReleaseStore, barrier_mode);
+    raw->set_name_or_scope_info(*shared_name, kReleaseStore);
   } else {
     DCHECK_EQ(raw->name_or_scope_info(kAcquireLoad),
               SharedFunctionInfo::kNoSharedNameSentinel);
@@ -545,9 +494,7 @@ Handle<SharedFunctionInfo> FactoryBase<Impl>::NewSharedFunctionInfo(
     // the function_data should not be code with a builtin.
     DCHECK(!Builtins::IsBuiltinId(builtin));
     DCHECK(!IsInstructionStream(*function_data));
-    DCHECK_IMPLIES(allocation == AllocationType::kReadOnly,
-                   ReadOnlyHeap::Contains(*function_data));
-    raw->set_function_data(*function_data, kReleaseStore, barrier_mode);
+    raw->set_function_data(*function_data, kReleaseStore);
   } else if (Builtins::IsBuiltinId(builtin)) {
     raw->set_builtin_id(builtin);
   } else {

@@ -1623,6 +1623,8 @@ filegroup(
         "src/heap/read-only-heap.cc",
         "src/heap/read-only-heap.h",
         "src/heap/read-only-heap-inl.h",
+        "src/heap/read-only-promotion.cc",
+        "src/heap/read-only-promotion.h",
         "src/heap/read-only-spaces.cc",
         "src/heap/read-only-spaces.h",
         "src/heap/remembered-set.h",

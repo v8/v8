@@ -173,7 +173,6 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
         builtin_,
         is_turbofanned_,
         stack_slots_,
-        AllocationType::kOld,
         code_desc_.instruction_size(),
         code_desc_.metadata_size(),
         inlined_bytecode_size_,
@@ -2546,21 +2545,6 @@ Handle<Code> Factory::NewCodeObjectForEmbeddedBuiltin(Handle<Code> code,
   CHECK_NE(0, isolate()->embedded_blob_code_size());
   CHECK(Builtins::IsIsolateIndependentBuiltin(*code));
 
-#if !defined(V8_SHORT_BUILTIN_CALLS) || \
-    defined(V8_COMPRESS_POINTERS_IN_SHARED_CAGE)
-  // Builtins have a single unique shared entry point per process. The
-  // embedded builtins region may be remapped into the process-wide code
-  // range, but that happens before RO space is deserialized. Their Code
-  // objects can be shared in RO space.
-  static_assert(Builtins::kCodeObjectsAreInROSpace);
-  const AllocationType allocation_type = AllocationType::kReadOnly;
-#else
-  // Builtins may be remapped more than once per process and thus their
-  // Code objects cannot be shared.
-  static_assert(!Builtins::kCodeObjectsAreInROSpace);
-  const AllocationType allocation_type = AllocationType::kOld;
-#endif
-
   DCHECK(code->has_instruction_stream());  // Just generated as on-heap code.
   DCHECK(Builtins::IsBuiltinId(code->builtin_id()));
   DCHECK_EQ(code->inlined_bytecode_size(), 0);
@@ -2582,7 +2566,6 @@ Handle<Code> Factory::NewCodeObjectForEmbeddedBuiltin(Handle<Code> code,
       code->builtin_id(),
       code->is_turbofanned(),
       code->stack_slots(),
-      allocation_type,
       code->instruction_size(),
       code->metadata_size(),
       code->inlined_bytecode_size(),

@@ -12,6 +12,7 @@
 #include "src/execution/local-isolate-inl.h"
 #include "src/handles/global-handles-inl.h"
 #include "src/heap/local-heap-inl.h"
+#include "src/heap/read-only-promotion.h"
 #include "src/heap/safepoint.h"
 #include "src/init/bootstrapper.h"
 #include "src/logging/runtime-call-stats-scope.h"
@@ -341,7 +342,9 @@ void Snapshot::SerializeDeserializeAndVerifyForTesting(
         ((isolate->has_shared_space() || ReadOnlyHeap::IsReadOnlySpaceShared())
              ? Snapshot::kReconstructReadOnlyAndSharedObjectCachesForTesting
              : 0));
-    serialized_data = Snapshot::Create(isolate, *default_context,
+    std::vector<Context> contexts{*default_context};
+    std::vector<SerializeInternalFieldsCallback> callbacks{{}};
+    serialized_data = Snapshot::Create(isolate, &contexts, callbacks,
                                        safepoint_scope, no_gc, flags);
     auto_delete_serialized_data.reset(serialized_data.data);
   }
@@ -381,9 +384,6 @@ void Snapshot::SerializeDeserializeAndVerifyForTesting(
 }
 
 // static
-constexpr Snapshot::SerializerFlags Snapshot::kDefaultSerializerFlags;
-
-// static
 v8::StartupData Snapshot::Create(
     Isolate* isolate, std::vector<Context>* contexts,
     const std::vector<SerializeInternalFieldsCallback>&
@@ -394,20 +394,6 @@ v8::StartupData Snapshot::Create(
   DCHECK_EQ(contexts->size(), embedder_fields_serializers.size());
   DCHECK_GT(contexts->size(), 0);
   HandleScope scope(isolate);
-
-  if ((flags & Snapshot::kAllowActiveIsolateForTesting) == 0) {
-    // When creating the snapshot from scratch, we are responsible for sealing
-    // the RO heap here. Note we cannot delegate the responsibility e.g. to
-    // Isolate::Init since it should still be possible to allocate into RO
-    // space after the Isolate has been initialized, for example as part of
-    // Context creation.
-    //
-    // The only exception is --stress-snapshot which re-serializes an Isolate
-    // that has already been active, i.e. it's been deserialized and code has
-    // run in it. In this case, RO space has already been sealed and there is
-    // nothing to do here.
-    isolate->read_only_heap()->OnCreateHeapObjectsComplete(isolate);
-  }
 
   ReadOnlySerializer read_only_serializer(isolate, flags);
   read_only_serializer.Serialize();
@@ -484,17 +470,6 @@ v8::StartupData Snapshot::Create(
 
   CHECK(Snapshot::VerifyChecksum(&result));
   return result;
-}
-
-// static
-v8::StartupData Snapshot::Create(Isolate* isolate, Context default_context,
-                                 const SafepointScope& safepoint_scope,
-                                 const DisallowGarbageCollection& no_gc,
-                                 SerializerFlags flags) {
-  std::vector<Context> contexts{default_context};
-  std::vector<SerializeInternalFieldsCallback> callbacks{{}};
-  return Snapshot::Create(isolate, &contexts, callbacks, safepoint_scope, no_gc,
-                          flags);
 }
 
 v8::StartupData SnapshotImpl::CreateSnapshotBlob(
@@ -1033,6 +1008,26 @@ StartupData SnapshotCreatorImpl::CreateBlob(
                                      : SafepointKind::kIsolate;
   SafepointScope safepoint_scope(isolate_, safepoint_kind);
   DisallowGarbageCollection no_gc_from_here_on;
+
+  // RO space is usually writable when serializing a snapshot s.t. preceding
+  // heap initialization can also extend RO space. There are notable exceptions
+  // though, including --stress-snapshot and serializer cctests.
+  if (isolate_->heap()->read_only_space()->writable()) {
+    // Promote objects from mutable heap spaces to read-only space prior to
+    // serialization. Objects can be promoted if a) they are themselves
+    // immutable-after-deserialization and b) all objects in the transitive
+    // object graph also satisfy condition a).
+    ReadOnlyPromotion::Promote(isolate_, safepoint_scope);
+    // When creating the snapshot from scratch, we are responsible for sealing
+    // the RO heap here. Note we cannot delegate the responsibility e.g. to
+    // Isolate::Init since it should still be possible to allocate into RO
+    // space after the Isolate has been initialized, for example as part of
+    // Context creation.
+    isolate_->read_only_heap()->OnCreateHeapObjectsComplete(isolate_);
+  } else {
+    // All exceptions to the above rule should explicitly pass this flag:
+    DCHECK_NE(serializer_flags & Snapshot::kAllowActiveIsolateForTesting, 0);
+  }
 
   // Create a vector with all contexts and destroy associated global handles.
   // This is important because serialization visits active global handles as

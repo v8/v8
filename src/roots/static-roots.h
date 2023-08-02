@@ -774,43 +774,15 @@ struct StaticReadOnlyRoot {
   static constexpr Tagged_t kEmptyFunctionScopeInfo = 0x6261;
   static constexpr Tagged_t kNativeScopeInfo = 0x6285;
   static constexpr Tagged_t kShadowRealmScopeInfo = 0x629d;
-  static constexpr Tagged_t kAsyncFunctionAwaitRejectSharedFun = 0x62b5;
-  static constexpr Tagged_t kAsyncFunctionAwaitResolveSharedFun = 0x62e1;
-  static constexpr Tagged_t kAsyncGeneratorAwaitResolveSharedFun = 0x630d;
-  static constexpr Tagged_t kAsyncGeneratorAwaitRejectSharedFun = 0x6339;
-  static constexpr Tagged_t kAsyncGeneratorYieldWithAwaitResolveSharedFun =
-      0x6365;
-  static constexpr Tagged_t kAsyncGeneratorReturnResolveSharedFun = 0x6391;
-  static constexpr Tagged_t kAsyncGeneratorReturnClosedResolveSharedFun =
-      0x63bd;
-  static constexpr Tagged_t kAsyncGeneratorReturnClosedRejectSharedFun = 0x63e9;
-  static constexpr Tagged_t kAsyncIteratorValueUnwrapSharedFun = 0x6415;
-  static constexpr Tagged_t kPromiseCapabilityDefaultResolveSharedFun = 0x6441;
-  static constexpr Tagged_t kPromiseCapabilityDefaultRejectSharedFun = 0x646d;
-  static constexpr Tagged_t kPromiseGetCapabilitiesExecutorSharedFun = 0x6499;
-  static constexpr Tagged_t kPromiseThenFinallySharedFun = 0x64c5;
-  static constexpr Tagged_t kPromiseCatchFinallySharedFun = 0x64f1;
-  static constexpr Tagged_t kPromiseValueThunkFinallySharedFun = 0x651d;
-  static constexpr Tagged_t kPromiseThrowerFinallySharedFun = 0x6549;
-  static constexpr Tagged_t kPromiseAllResolveElementSharedFun = 0x6575;
-  static constexpr Tagged_t kPromiseAllSettledResolveElementSharedFun = 0x65a1;
-  static constexpr Tagged_t kPromiseAllSettledRejectElementSharedFun = 0x65cd;
-  static constexpr Tagged_t kPromiseAnyRejectElementSharedFun = 0x65f9;
-  static constexpr Tagged_t kProxyRevokeSharedFun = 0x6625;
-  static constexpr Tagged_t kShadowRealmImportValueFulfilledSFI = 0x6651;
-  static constexpr Tagged_t kSourceTextModuleExecuteAsyncModuleFulfilledSFI =
-      0x667d;
-  static constexpr Tagged_t kSourceTextModuleExecuteAsyncModuleRejectedSFI =
-      0x66a9;
-  static constexpr Tagged_t kEmptyExternalPointerArray = 0x66d5;
-  static constexpr Tagged_t kWasmNullPadding = 0x66dd;
+  static constexpr Tagged_t kEmptyExternalPointerArray = 0x62b5;
+  static constexpr Tagged_t kWasmNullPadding = 0x62bd;
   static constexpr Tagged_t kWasmNull = 0xfffd;
   static constexpr Tagged_t kJSSharedArrayMap = 0x20001;
   static constexpr Tagged_t kJSAtomicsMutexMap = 0x20045;
   static constexpr Tagged_t kJSAtomicsConditionMap = 0x2006d;
 };
 
-static constexpr std::array<Tagged_t, 776> StaticReadOnlyRootsPointerTable = {
+static constexpr std::array<Tagged_t, 752> StaticReadOnlyRootsPointerTable = {
     StaticReadOnlyRoot::kFreeSpaceMap,
     StaticReadOnlyRoot::kOnePointerFillerMap,
     StaticReadOnlyRoot::kTwoPointerFillerMap,
@@ -973,30 +945,6 @@ static constexpr std::array<Tagged_t, 776> StaticReadOnlyRootsPointerTable = {
     StaticReadOnlyRoot::kHashSeed,
     StaticReadOnlyRoot::kWasmNullPadding,
     StaticReadOnlyRoot::kWasmNull,
-    StaticReadOnlyRoot::kAsyncFunctionAwaitRejectSharedFun,
-    StaticReadOnlyRoot::kAsyncFunctionAwaitResolveSharedFun,
-    StaticReadOnlyRoot::kAsyncGeneratorAwaitRejectSharedFun,
-    StaticReadOnlyRoot::kAsyncGeneratorAwaitResolveSharedFun,
-    StaticReadOnlyRoot::kAsyncGeneratorYieldWithAwaitResolveSharedFun,
-    StaticReadOnlyRoot::kAsyncGeneratorReturnResolveSharedFun,
-    StaticReadOnlyRoot::kAsyncGeneratorReturnClosedRejectSharedFun,
-    StaticReadOnlyRoot::kAsyncGeneratorReturnClosedResolveSharedFun,
-    StaticReadOnlyRoot::kAsyncIteratorValueUnwrapSharedFun,
-    StaticReadOnlyRoot::kPromiseAllResolveElementSharedFun,
-    StaticReadOnlyRoot::kPromiseAllSettledResolveElementSharedFun,
-    StaticReadOnlyRoot::kPromiseAllSettledRejectElementSharedFun,
-    StaticReadOnlyRoot::kPromiseAnyRejectElementSharedFun,
-    StaticReadOnlyRoot::kPromiseCapabilityDefaultRejectSharedFun,
-    StaticReadOnlyRoot::kPromiseCapabilityDefaultResolveSharedFun,
-    StaticReadOnlyRoot::kPromiseCatchFinallySharedFun,
-    StaticReadOnlyRoot::kPromiseGetCapabilitiesExecutorSharedFun,
-    StaticReadOnlyRoot::kPromiseThenFinallySharedFun,
-    StaticReadOnlyRoot::kPromiseThrowerFinallySharedFun,
-    StaticReadOnlyRoot::kPromiseValueThunkFinallySharedFun,
-    StaticReadOnlyRoot::kProxyRevokeSharedFun,
-    StaticReadOnlyRoot::kShadowRealmImportValueFulfilledSFI,
-    StaticReadOnlyRoot::kSourceTextModuleExecuteAsyncModuleFulfilledSFI,
-    StaticReadOnlyRoot::kSourceTextModuleExecuteAsyncModuleRejectedSFI,
     StaticReadOnlyRoot::klength_string,
     StaticReadOnlyRoot::kprototype_string,
     StaticReadOnlyRoot::kname_string,

@@ -40,6 +40,7 @@
 #include "src/heap/heap-inl.h"
 #include "src/heap/parked-scope-inl.h"
 #include "src/heap/read-only-heap.h"
+#include "src/heap/read-only-promotion.h"
 #include "src/heap/safepoint.h"
 #include "src/heap/spaces.h"
 #include "src/numbers/hash-seed-inl.h"
@@ -175,10 +176,15 @@ StartupBlobs Serialize(v8::Isolate* isolate) {
 
   // Note this effectively reimplements Snapshot::Create, keep in sync.
 
-  IsolateSafepointScope safepoint(i_isolate->heap());
+  SafepointScope safepoint(i_isolate, SafepointKind::kIsolate);
   HandleScope scope(i_isolate);
 
-  if (!i_isolate->initialized_from_snapshot()) {
+  if (i_isolate->heap()->read_only_space()->writable()) {
+    // Promote objects from mutable heap spaces to read-only space prior to
+    // serialization. Objects can be promoted if a) they are themselves
+    // immutable-after-deserialization and b) all objects in the transitive
+    // object graph also satisfy condition a).
+    ReadOnlyPromotion::Promote(i_isolate, safepoint);
     // When creating the snapshot from scratch, we are responsible for sealing
     // the RO heap here. Note we cannot delegate the responsibility e.g. to
     // Isolate::Init since it should still be possible to allocate into RO
@@ -510,20 +516,20 @@ static void SerializeCustomContext(
     base::Vector<const uint8_t>* read_only_blob_out,
     base::Vector<const uint8_t>* shared_space_blob_out,
     base::Vector<const uint8_t>* context_blob_out) {
-  v8::Isolate* v8_isolate = TestSerializer::NewIsolateInitialized();
-  Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate);
+  v8::Isolate* isolate = TestSerializer::NewIsolateInitialized();
+  Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
   {
-    v8::Isolate::Scope isolate_scope(v8_isolate);
+    v8::Isolate::Scope isolate_scope(isolate);
 
     v8::Persistent<v8::Context> env;
     {
-      HandleScope scope(isolate);
-      env.Reset(v8_isolate, v8::Context::New(v8_isolate));
+      HandleScope scope(i_isolate);
+      env.Reset(isolate, v8::Context::New(isolate));
     }
     CHECK(!env.IsEmpty());
     {
-      v8::HandleScope handle_scope(v8_isolate);
-      v8::Local<v8::Context>::New(v8_isolate, env)->Enter();
+      v8::HandleScope handle_scope(isolate);
+      v8::Local<v8::Context>::New(isolate, env)->Enter();
       // After execution, e's function context refers to the global object.
       CompileRun(
           "var e;"
@@ -542,54 +548,58 @@ static void SerializeCustomContext(
           base::StaticCharVector("function g() { return [,"),
           base::StaticCharVector("1,"),
           base::StaticCharVector("];} a = g(); b = g(); b.push(1);"), 100000);
-      v8::MaybeLocal<v8::String> source_str =
-          v8::String::NewFromUtf8(v8_isolate, source.begin(),
-                                  v8::NewStringType::kNormal, source.length());
+      v8::MaybeLocal<v8::String> source_str = v8::String::NewFromUtf8(
+          isolate, source.begin(), v8::NewStringType::kNormal, source.length());
       CompileRun(source_str.ToLocalChecked());
       source.Dispose();
     }
     // If we don't do this then we end up with a stray root pointing at the
     // context even after we have disposed of env.
-    heap::InvokeMemoryReducingMajorGCs(isolate->heap());
+    heap::InvokeMemoryReducingMajorGCs(i_isolate->heap());
 
     {
-      v8::HandleScope handle_scope(v8_isolate);
-      v8::Local<v8::Context>::New(v8_isolate, env)->Exit();
+      v8::HandleScope handle_scope(isolate);
+      v8::Local<v8::Context>::New(isolate, env)->Exit();
     }
 
-    HandleScope scope(isolate);
+    HandleScope scope(i_isolate);
     i::Context raw_context = i::Context::cast(*v8::Utils::OpenPersistent(env));
 
     env.Reset();
 
-    IsolateSafepointScope safepoint(isolate->heap());
+    SafepointScope safepoint(i_isolate, SafepointKind::kIsolate);
 
-    if (!isolate->initialized_from_snapshot()) {
+    if (i_isolate->heap()->read_only_space()->writable()) {
+      // Promote objects from mutable heap spaces to read-only space prior to
+      // serialization. Objects can be promoted if a) they are themselves
+      // immutable-after-deserialization and b) all objects in the transitive
+      // object graph also satisfy condition a).
+      ReadOnlyPromotion::Promote(i_isolate, safepoint);
       // When creating the snapshot from scratch, we are responsible for sealing
       // the RO heap here. Note we cannot delegate the responsibility e.g. to
       // Isolate::Init since it should still be possible to allocate into RO
       // space after the Isolate has been initialized, for example as part of
       // Context creation.
-      isolate->read_only_heap()->OnCreateHeapObjectsComplete(isolate);
+      i_isolate->read_only_heap()->OnCreateHeapObjectsComplete(i_isolate);
     }
 
     DisallowGarbageCollection no_gc;
     SnapshotByteSink read_only_sink;
-    ReadOnlySerializer read_only_serializer(isolate,
+    ReadOnlySerializer read_only_serializer(i_isolate,
                                             Snapshot::kDefaultSerializerFlags);
     read_only_serializer.Serialize();
 
     SharedHeapSerializer shared_space_serializer(
-        isolate, Snapshot::kDefaultSerializerFlags);
+        i_isolate, Snapshot::kDefaultSerializerFlags);
 
     SnapshotByteSink startup_sink;
     StartupSerializer startup_serializer(
-        isolate, Snapshot::kDefaultSerializerFlags, &shared_space_serializer);
+        i_isolate, Snapshot::kDefaultSerializerFlags, &shared_space_serializer);
     startup_serializer.SerializeStrongReferences(no_gc);
 
     SnapshotByteSink context_sink;
     ContextSerializer context_serializer(
-        isolate, Snapshot::kDefaultSerializerFlags, &startup_serializer,
+        i_isolate, Snapshot::kDefaultSerializerFlags, &startup_serializer,
         v8::SerializeInternalFieldsCallback());
     context_serializer.Serialize(&raw_context, no_gc);
 
@@ -607,7 +617,7 @@ static void SerializeCustomContext(
     *read_only_blob_out = WritePayload(read_only_snapshot.RawData());
     *shared_space_blob_out = WritePayload(shared_space_snapshot.RawData());
   }
-  v8_isolate->Dispose();
+  isolate->Dispose();
 }
 
 UNINITIALIZED_TEST(ContextSerializerCustomContext) {
