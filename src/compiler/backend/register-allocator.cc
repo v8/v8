@@ -680,12 +680,11 @@ TopLevelLiveRange::TopLevelLiveRange(int vreg, MachineRepresentation rep,
       last_child_id_(0),
       spill_operand_(nullptr),
       spill_move_insertion_locations_(nullptr),
-      children_(zone),
+      children_({this}, zone),
       spilled_in_deferred_blocks_(false),
       has_preassigned_slot_(false),
       spill_start_index_(kMaxInt) {
   bits_ |= SpillTypeField::encode(SpillType::kNoSpillType);
-  children_.push_back(this);
 }
 
 void TopLevelLiveRange::RecordSpillLocation(Zone* zone, int gap_index,
