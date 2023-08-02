@@ -964,6 +964,10 @@ let kTrapArrayOutOfBounds = 13;
 let kTrapNullDereference = 14;
 let kTrapIllegalCast = 15;
 
+let kAtomicWaitOk = 0;
+let kAtomicWaitNotEqual = 1;
+let kAtomicWaitTimedOut = 2;
+
 let kTrapMsgs = [
   'unreachable',                                    // --
   'memory access out of bounds',                    // --
@@ -1502,6 +1506,7 @@ class WasmModuleBuilder {
           'Add imported memories before declared memories to avoid messing ' +
           'up the indexes');
     }
+    let mem_index = this.imports.filter(i => i.kind == kExternalMemory).length;
     let o = {
       module: module,
       name: name,
@@ -1512,7 +1517,7 @@ class WasmModuleBuilder {
       is_memory64: !!is_memory64
     };
     this.imports.push(o);
-    return this;
+    return mem_index;
   }
 
   addImportedTable(module, name, initial, maximum, type) {

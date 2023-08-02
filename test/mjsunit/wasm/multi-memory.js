@@ -510,3 +510,73 @@ function assertMemoryEquals(expected, memory) {
     }
   }
 })();
+
+(function testAtomicsOnMultiMemory() {
+  print(arguments.callee.name);
+  const builder = new WasmModuleBuilder();
+  const mem0_idx = builder.addMemory(1, 1, true);
+  const mem1_idx = builder.addMemory(2, 2, true);
+  builder.exportMemoryAs('mem0', mem0_idx);
+  builder.exportMemoryAs('mem1', mem1_idx);
+
+  for (let mem_idx of [mem0_idx, mem1_idx]) {
+    builder.addFunction(`load${mem_idx}`, kSig_i_i)
+        .addBody([
+          kExprLocalGet, 0,                                    // -
+          kAtomicPrefix, kExprI32AtomicLoad, 0x42, mem_idx, 0  // -
+        ])
+        .exportFunc();
+    builder.addFunction(`store${mem_idx}`, kSig_v_ii)
+        .addBody([
+          kExprLocalGet, 0,                                     // -
+          kExprLocalGet, 1,                                     // -
+          kAtomicPrefix, kExprI32AtomicStore, 0x42, mem_idx, 0  // -
+        ])
+        .exportFunc();
+    builder.addFunction(`cmpxchg${mem_idx}`, kSig_i_iii)
+        .addBody([
+          kExprLocalGet, 0,                                               // -
+          kExprLocalGet, 1,                                               // -
+          kExprLocalGet, 2,                                               // -
+          kAtomicPrefix, kExprI32AtomicCompareExchange, 0x42, mem_idx, 0  // -
+        ])
+        .exportFunc();
+  }
+
+  const instance = builder.instantiate();
+
+  const {mem0, load0, store0, cmpxchg0, mem1, load1, store1, cmpxchg1} =
+      instance.exports;
+
+  const data0 = new DataView(mem0.buffer);
+  const data1 = new DataView(mem1.buffer);
+
+  const offset0 = 16;
+  const value0 = 13;
+  store0(offset0, value0);
+  assertEquals(value0, load0(offset0));
+  assertEquals(0, load1(offset0));
+
+  const offset1 = 24;
+  const value1 = 11;
+  store1(offset1, value1);
+  assertEquals(value1, load1(offset1));
+  assertEquals(0, load0(offset1));
+
+  assertEquals(value0, cmpxchg0(offset0, -1, -1));
+  assertEquals(value0, cmpxchg0(offset0, value0, value1));
+  assertEquals(value1, load0(offset0));
+
+  assertEquals(value1, cmpxchg1(offset1, -1, -1));
+  assertEquals(value1, cmpxchg1(offset1, value1, value0));
+  assertEquals(value0, load1(offset1));
+
+  assertEquals(0, load0(offset1));
+  assertEquals(0, load1(offset0));
+
+  // Test traps.
+  assertEquals(0, load0(kPageSize - 4));
+  assertEquals(0, load1(2 * kPageSize - 4));
+  assertTraps(kTrapMemOutOfBounds, () => load0(kPageSize));
+  assertTraps(kTrapMemOutOfBounds, () => load1(2 * kPageSize));
+})();

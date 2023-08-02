@@ -5142,14 +5142,14 @@ Node* WasmGraphBuilder::AtomicOp(const wasm::WasmMemory* memory,
     return result;
   }
 
-  // After we've bounds-checked, compute the effective offset.
+  Node* memory_index = gasm_->Int32Constant(memory->index);
   Node* effective_offset = gasm_->IntAdd(gasm_->UintPtrConstant(offset), index);
 
   switch (opcode) {
     case wasm::kExprAtomicNotify:
       return gasm_->CallRuntimeStub(wasm::WasmCode::kWasmAtomicNotify,
-                                    Operator::kNoThrow, effective_offset,
-                                    inputs[1]);
+                                    Operator::kNoThrow, memory_index,
+                                    effective_offset, inputs[1]);
 
     case wasm::kExprI32AtomicWait: {
       constexpr StubCallMode kStubMode = StubCallMode::kCallWasmRuntimeStub;
@@ -5160,8 +5160,8 @@ Node* WasmGraphBuilder::AtomicOp(const wasm::WasmMemory* memory,
       Node* call_target = mcgraph()->RelocatableIntPtrConstant(
           target, RelocInfo::WASM_STUB_CALL);
 
-      return gasm_->Call(call_descriptor, call_target, effective_offset,
-                         inputs[1],
+      return gasm_->Call(call_descriptor, call_target, memory_index,
+                         effective_offset, inputs[1],
                          BuildChangeInt64ToBigInt(inputs[2], kStubMode));
     }
 
@@ -5174,7 +5174,8 @@ Node* WasmGraphBuilder::AtomicOp(const wasm::WasmMemory* memory,
       Node* call_target = mcgraph()->RelocatableIntPtrConstant(
           target, RelocInfo::WASM_STUB_CALL);
 
-      return gasm_->Call(call_descriptor, call_target, effective_offset,
+      return gasm_->Call(call_descriptor, call_target, memory_index,
+                         effective_offset,
                          BuildChangeInt64ToBigInt(inputs[1], kStubMode),
                          BuildChangeInt64ToBigInt(inputs[2], kStubMode));
     }

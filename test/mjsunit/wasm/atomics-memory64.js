@@ -101,18 +101,18 @@ function TestAtomicI32Wait(pages, offset) {
 
   let memory = CreateBigSharedWasmMemory64(pages);
 
-  assertEquals(1, WasmI32AtomicWait(memory, offset, 0, 42, -1));
-  assertEquals(2, WasmI32AtomicWait(memory, offset, 0, 0, 0));
-  assertEquals(1, WasmI32AtomicWait(memory, 0, offset, 42, -1));
-  assertEquals(2, WasmI32AtomicWait(memory, 0, offset, 0, 0));
+  assertEquals(kAtomicWaitNotEqual, WasmI32AtomicWait(memory, offset, 0, 42, -1));
+  assertEquals(kAtomicWaitTimedOut, WasmI32AtomicWait(memory, offset, 0, 0, 0));
+  assertEquals(kAtomicWaitNotEqual, WasmI32AtomicWait(memory, 0, offset, 42, -1));
+  assertEquals(kAtomicWaitTimedOut, WasmI32AtomicWait(memory, 0, offset, 0, 0));
 
   let i32a = new Int32Array(memory.buffer);
   i32a[offset / 4] = 1;
 
-  assertEquals(1, WasmI32AtomicWait(memory, offset, 0, 0, -1));
-  assertEquals(2, WasmI32AtomicWait(memory, offset, 0, 1, 0));
-  assertEquals(1, WasmI32AtomicWait(memory, 0, offset, 0, -1));
-  assertEquals(2, WasmI32AtomicWait(memory, 0, offset, 1, 0));
+  assertEquals(kAtomicWaitNotEqual, WasmI32AtomicWait(memory, offset, 0, 0, -1));
+  assertEquals(kAtomicWaitTimedOut, WasmI32AtomicWait(memory, offset, 0, 1, 0));
+  assertEquals(kAtomicWaitNotEqual, WasmI32AtomicWait(memory, 0, offset, 0, -1));
+  assertEquals(kAtomicWaitTimedOut, WasmI32AtomicWait(memory, 0, offset, 1, 0));
 }
 
 function TestAtomicI64Wait(pages, offset) {
@@ -120,19 +120,19 @@ function TestAtomicI64Wait(pages, offset) {
   print(arguments.callee.name);
 
   let memory = CreateBigSharedWasmMemory64(pages);
-  assertEquals(1, WasmI64AtomicWait(memory, offset, 0, 42, 0, -1));
-  assertEquals(2, WasmI64AtomicWait(memory, offset, 0, 0, 0, 0));
-  assertEquals(1, WasmI64AtomicWait(memory, 0, offset, 42, 0, -1));
-  assertEquals(2, WasmI64AtomicWait(memory, 0, offset, 0, 0, 0));
+  assertEquals(kAtomicWaitNotEqual, WasmI64AtomicWait(memory, offset, 0, 42, 0, -1));
+  assertEquals(kAtomicWaitTimedOut, WasmI64AtomicWait(memory, offset, 0, 0, 0, 0));
+  assertEquals(kAtomicWaitNotEqual, WasmI64AtomicWait(memory, 0, offset, 42, 0, -1));
+  assertEquals(kAtomicWaitTimedOut, WasmI64AtomicWait(memory, 0, offset, 0, 0, 0));
 
   let i32a = new Int32Array(memory.buffer);
   i32a[offset / 4] = 1;
   i32a[(offset / 4) + 1] = 2;
 
-  assertEquals(1, WasmI64AtomicWait(memory, offset, 0, 2, 1, -1));
-  assertEquals(2, WasmI64AtomicWait(memory, offset, 0, 1, 2, 0));
-  assertEquals(1, WasmI64AtomicWait(memory, 0, offset, 2, 1, -1));
-  assertEquals(2, WasmI64AtomicWait(memory, 0, offset, 1, 2, 0));
+  assertEquals(kAtomicWaitNotEqual, WasmI64AtomicWait(memory, offset, 0, 2, 1, -1));
+  assertEquals(kAtomicWaitTimedOut, WasmI64AtomicWait(memory, offset, 0, 1, 2, 0));
+  assertEquals(kAtomicWaitNotEqual, WasmI64AtomicWait(memory, 0, offset, 2, 1, -1));
+  assertEquals(kAtomicWaitTimedOut, WasmI64AtomicWait(memory, 0, offset, 1, 2, 0));
 }
 
 //// WORKER ONLY TESTS
@@ -256,21 +256,21 @@ function TestWasmAtomicsInWorkers(OFFSET, INDEX, PAGES) {
   wasmWakeCheck(OFFSET, INDEX + 8, numWorkers + 1, workers, "ok");
   wasmWakeCheck(OFFSET, INDEX + 16, numWorkers - 1, workers, "ok");
 
-  jsWakeCheck(INDEX_JS + 24, numWorkers, workers, 0);
-  jsWakeCheck(INDEX_JS + 32, numWorkers + 1, workers, 0);
-  jsWakeCheck(INDEX_JS + 40, numWorkers - 1, workers, 0);
+  jsWakeCheck(INDEX_JS + 24, numWorkers, workers, kAtomicWaitOk);
+  jsWakeCheck(INDEX_JS + 32, numWorkers + 1, workers, kAtomicWaitOk);
+  jsWakeCheck(INDEX_JS + 40, numWorkers - 1, workers, kAtomicWaitOk);
 
-  wasmWakeCheck(OFFSET, INDEX + 48, numWorkers, workers, 0);
-  wasmWakeCheck(OFFSET, INDEX + 56, numWorkers + 1, workers, 0);
-  wasmWakeCheck(OFFSET, INDEX + 64, numWorkers - 1, workers, 0);
+  wasmWakeCheck(OFFSET, INDEX + 48, numWorkers, workers, kAtomicWaitOk);
+  wasmWakeCheck(OFFSET, INDEX + 56, numWorkers + 1, workers, kAtomicWaitOk);
+  wasmWakeCheck(OFFSET, INDEX + 64, numWorkers - 1, workers, kAtomicWaitOk);
 
-  jsWakeCheck(INDEX_JS + 72, numWorkers, workers, 0);
-  jsWakeCheck(INDEX_JS + 80, numWorkers + 1, workers, 0);
-  jsWakeCheck(INDEX_JS + 88, numWorkers - 1, workers, 0);
+  jsWakeCheck(INDEX_JS + 72, numWorkers, workers, kAtomicWaitOk);
+  jsWakeCheck(INDEX_JS + 80, numWorkers + 1, workers, kAtomicWaitOk);
+  jsWakeCheck(INDEX_JS + 88, numWorkers - 1, workers, kAtomicWaitOk);
 
-  wasmWakeCheck(OFFSET, INDEX + 96,  numWorkers, workers, 0);
-  wasmWakeCheck(OFFSET, INDEX + 104, numWorkers + 1, workers, 0);
-  wasmWakeCheck(OFFSET, INDEX + 112, numWorkers - 1, workers, 0);
+  wasmWakeCheck(OFFSET, INDEX + 96,  numWorkers, workers, kAtomicWaitOk);
+  wasmWakeCheck(OFFSET, INDEX + 104, numWorkers + 1, workers, kAtomicWaitOk);
+  wasmWakeCheck(OFFSET, INDEX + 112, numWorkers - 1, workers, kAtomicWaitOk);
 
   for (let id = 0; id < numWorkers; id++) {
     workers[id].terminate();

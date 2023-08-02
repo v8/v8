@@ -4996,7 +4996,14 @@ class LiftoffCompiler {
 
     uintptr_t offset = imm.offset;
     Register addr = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
-    LOAD_INSTANCE_FIELD(addr, Memory0Start, kSystemPointerSize, pinned);
+    if (imm.memory->index == 0) {
+      LOAD_INSTANCE_FIELD(addr, Memory0Start, kSystemPointerSize, pinned);
+    } else {
+      LOAD_TAGGED_PTR_INSTANCE_FIELD(addr, MemoryBasesAndSizes, pinned);
+      int buffer_offset = wasm::ObjectAccess::ToTagged(ByteArray::kHeaderSize) +
+                          kSystemPointerSize * imm.memory->index * 2;
+      __ LoadFullPointer(addr, addr, buffer_offset);
+    }
 #ifdef V8_ENABLE_SANDBOX
     __ DecodeSandboxedPointer(addr);
 #endif
@@ -5142,7 +5149,6 @@ class LiftoffCompiler {
     ValueKind expected_kind = kind == kI32 ? kI32 : kRef;
 
     VarState timeout = __ cache_state()->stack_state.end()[-1];
-    VarState expected_value{expected_kind, LiftoffRegister{expected}, 0};
     VarState index = __ cache_state()->stack_state.end()[-3];
 
     auto target = kind == kI32 ? WasmCode::kWasmI32AtomicWait
@@ -5151,8 +5157,13 @@ class LiftoffCompiler {
     // The type of {index} can either by i32 or intptr, depending on whether
     // memory32 or memory64 is used. This is okay because both values get passed
     // by register.
-    CallRuntimeStub(target, MakeSig::Params(index_kind, expected_kind, kRef),
-                    {index, expected_value, timeout}, decoder->position());
+    CallRuntimeStub(target,
+                    MakeSig::Params(kI32, index_kind, expected_kind, kRef),
+                    {{kI32, static_cast<int32_t>(imm.memory->index), 0},
+                     index,
+                     {expected_kind, LiftoffRegister{expected}, 0},
+                     timeout},
+                    decoder->position());
     // Pop parameters from the value stack.
     __ DropValues(3);
 
@@ -5180,12 +5191,13 @@ class LiftoffCompiler {
     }
 
     VarState count = __ cache_state()->stack_state.end()[-1];
-    VarState index_plus_offset_input{kIntPtrKind,
-                                     LiftoffRegister{index_plus_offset}, 0};
 
     CallRuntimeStub(WasmCode::kWasmAtomicNotify,
-                    MakeSig::Returns(kI32).Params(kIntPtrKind, kI32),
-                    {index_plus_offset_input, count}, decoder->position());
+                    MakeSig::Returns(kI32).Params(kI32, kIntPtrKind, kI32),
+                    {{kI32, static_cast<int32_t>(imm.memory->index), 0},
+                     {kIntPtrKind, LiftoffRegister{index_plus_offset}, 0},
+                     count},
+                    decoder->position());
     // Pop parameters from the value stack.
     __ DropValues(2);
 

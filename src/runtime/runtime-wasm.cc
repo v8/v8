@@ -461,13 +461,12 @@ RUNTIME_FUNCTION(Runtime_WasmTriggerTierUp) {
 RUNTIME_FUNCTION(Runtime_WasmAtomicNotify) {
   ClearThreadInWasmScope clear_wasm_flag(isolate);
   HandleScope scope(isolate);
-  DCHECK_EQ(3, args.length());
+  DCHECK_EQ(4, args.length());
   WasmInstanceObject instance = WasmInstanceObject::cast(args[0]);
-  double offset_double = args.number_value_at(1);
+  int memory_index = args.smi_value_at(1);
+  double offset_double = args.number_value_at(2);
   uintptr_t offset = static_cast<uintptr_t>(offset_double);
-  uint32_t count = NumberToUint32(args[2]);
-  // TODO(13918): Support multiple memories.
-  uint32_t memory_index = 0;
+  uint32_t count = NumberToUint32(args[3]);
 
   Handle<JSArrayBuffer> array_buffer{
       instance->memory_object(memory_index)->array_buffer(), isolate};
@@ -480,14 +479,13 @@ RUNTIME_FUNCTION(Runtime_WasmAtomicNotify) {
 RUNTIME_FUNCTION(Runtime_WasmI32AtomicWait) {
   ClearThreadInWasmScope clear_wasm_flag(isolate);
   HandleScope scope(isolate);
-  DCHECK_EQ(4, args.length());
+  DCHECK_EQ(5, args.length());
   WasmInstanceObject instance = WasmInstanceObject::cast(args[0]);
-  double offset_double = args.number_value_at(1);
+  int memory_index = args.smi_value_at(1);
+  double offset_double = args.number_value_at(2);
   uintptr_t offset = static_cast<uintptr_t>(offset_double);
-  int32_t expected_value = NumberToInt32(args[2]);
-  BigInt timeout_ns = BigInt::cast(args[3]);
-  // TODO(13918): Support multiple memories.
-  uint32_t memory_index = 0;
+  int32_t expected_value = NumberToInt32(args[3]);
+  BigInt timeout_ns = BigInt::cast(args[4]);
 
   Handle<JSArrayBuffer> array_buffer{
       instance->memory_object(memory_index)->array_buffer(), isolate};
@@ -507,14 +505,13 @@ RUNTIME_FUNCTION(Runtime_WasmI32AtomicWait) {
 RUNTIME_FUNCTION(Runtime_WasmI64AtomicWait) {
   ClearThreadInWasmScope clear_wasm_flag(isolate);
   HandleScope scope(isolate);
-  DCHECK_EQ(4, args.length());
+  DCHECK_EQ(5, args.length());
   WasmInstanceObject instance = WasmInstanceObject::cast(args[0]);
-  double offset_double = args.number_value_at(1);
+  int memory_index = args.smi_value_at(1);
+  double offset_double = args.number_value_at(2);
   uintptr_t offset = static_cast<uintptr_t>(offset_double);
-  BigInt expected_value = BigInt::cast(args[2]);
-  BigInt timeout_ns = BigInt::cast(args[3]);
-  // TODO(13918): Support multiple memories.
-  uint32_t memory_index = 0;
+  BigInt expected_value = BigInt::cast(args[3]);
+  BigInt timeout_ns = BigInt::cast(args[4]);
 
   Handle<JSArrayBuffer> array_buffer{
       instance->memory_object(memory_index)->array_buffer(), isolate};
