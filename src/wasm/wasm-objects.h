@@ -112,7 +112,6 @@ class ImportedFunctionEntry {
   Object maybe_callable();
   Object object_ref();
   Address target();
-  void set_target(Address new_target);
 
  private:
   Handle<WasmInstanceObject> const instance_;
@@ -216,11 +215,10 @@ class WasmTableObject
                                      uint32_t count);
 
   // TODO(wasm): Unify these three methods into one.
-  static void UpdateDispatchTables(Isolate* isolate,
-                                   Handle<WasmTableObject> table,
+  static void UpdateDispatchTables(Isolate* isolate, WasmTableObject table,
                                    int entry_index,
                                    const wasm::WasmFunction* func,
-                                   Handle<WasmInstanceObject> target_instance);
+                                   WasmInstanceObject target_instance);
   static void UpdateDispatchTables(Isolate* isolate,
                                    Handle<WasmTableObject> table,
                                    int entry_index,
@@ -620,9 +618,6 @@ void V8_EXPORT_PRIVATE
 DecodeI64ExceptionValue(Handle<FixedArray> encoded_values,
                         uint32_t* encoded_index, uint64_t* value);
 
-bool UseGenericWasmToJSWrapper(const wasm::FunctionSig* sig,
-                               wasm::Suspend suspend);
-
 // A Wasm function that is wrapped and exported to JavaScript.
 // Representation of WebAssembly.Function JavaScript-level object.
 class WasmExportedFunction : public JSFunction {
@@ -778,26 +773,6 @@ class WasmApiFunctionRef
  public:
   // Dispatched behavior.
   DECL_PRINTER(WasmApiFunctionRef)
-  static constexpr int kInvalidCallOrigin = 0;
-
-  static void SetImportIndexAsCallOrigin(Handle<WasmApiFunctionRef> ref,
-                                         int entry_index);
-
-  static bool CallOriginIsImportIndex(Handle<Object> call_origin);
-
-  static bool CallOriginIsIndexInTable(Handle<Object> call_origin);
-
-  static int CallOriginAsIndex(Handle<Object> call_origin);
-
-  static void SetIndexInTableAsCallOrigin(Handle<WasmApiFunctionRef> ref,
-                                          int entry_index);
-
-  static void SetCrossInstanceTableIndexAsCallOrigin(
-      Isolate* isolate, Handle<WasmApiFunctionRef> ref,
-      Handle<WasmInstanceObject> instance, int entry_index);
-
-  static void SetInternalFunctionAsCallOrigin(
-      Handle<WasmApiFunctionRef> ref, Handle<WasmInternalFunction> internal);
 
   class BodyDescriptor;
 

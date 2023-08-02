@@ -2308,8 +2308,6 @@ void WasmApiFunctionRef::WasmApiFunctionRefPrint(std::ostream& os) {
   os << "\n - callable: " << Brief(callable());
   os << "\n - instance: " << Brief(instance());
   os << "\n - suspend: " << suspend();
-  os << "\n - wrapper_budget: " << wrapper_budget();
-  os << "\n - call_origin: " << Brief(call_origin());
   os << "\n";
 }
 

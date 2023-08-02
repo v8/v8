@@ -14,7 +14,6 @@
 #include "src/strings/unicode-inl.h"
 #include "src/trap-handler/trap-handler.h"
 #include "src/wasm/module-compiler.h"
-#include "src/wasm/serialized-signature-inl.h"
 #include "src/wasm/value-type.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-constants.h"
@@ -422,126 +421,6 @@ RUNTIME_FUNCTION(Runtime_WasmCompileWrapper) {
     }
   }
 
-  return ReadOnlyRoots(isolate).undefined_value();
-}
-
-RUNTIME_FUNCTION(Runtime_TierUpWasmToJSWrapper) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  Handle<WasmApiFunctionRef> ref(WasmApiFunctionRef::cast(args[0]), isolate);
-
-  DCHECK(isolate->context().is_null());
-  isolate->set_context(ref->native_context());
-
-  std::unique_ptr<wasm::ValueType[]> reps;
-  wasm::FunctionSig sig =
-      wasm::SerializedSignatureHelper::DeserializeSignature(ref->sig(), &reps);
-  Handle<Object> origin = handle(ref->call_origin(), isolate);
-
-  if (IsWasmInternalFunction(*origin)) {
-    // The tierup for `WasmInternalFunction is special, as there is no instance.
-    DCHECK(wasm::WasmFeatures::FromIsolate(isolate).has_typed_funcref());
-    size_t expected_arity = sig.parameter_count();
-    wasm::ImportCallKind kind = wasm::kDefaultImportCallKind;
-    if (IsJSFunction(ref->callable())) {
-      SharedFunctionInfo shared = JSFunction::cast(ref->callable())->shared();
-      expected_arity =
-          shared->internal_formal_parameter_count_without_receiver();
-      if (expected_arity != sig.parameter_count()) {
-        kind = wasm::ImportCallKind::kJSFunctionArityMismatch;
-      }
-    }
-    Handle<Code> wasm_to_js_wrapper_code =
-        compiler::CompileWasmToJSWrapper(
-            isolate, &sig, kind, static_cast<int>(expected_arity),
-            static_cast<wasm::Suspend>(ref->suspend()))
-            .ToHandleChecked();
-    // We have to install the optimized wrapper as `code`, as the generated
-    // code may move. `call_target` would become stale then.
-    Handle<WasmInternalFunction>::cast(origin)->set_code(
-        *wasm_to_js_wrapper_code);
-    // Reset a possibly existing generic wrapper in the call target.
-    Handle<WasmInternalFunction>::cast(origin)->init_call_target(isolate, 0);
-    return ReadOnlyRoots(isolate).undefined_value();
-  }
-
-  Handle<WasmInstanceObject> instance(WasmInstanceObject::cast(ref->instance()),
-                                      isolate);
-  if (IsTuple2(*origin)) {
-    Handle<Tuple2> tuple = Handle<Tuple2>::cast(origin);
-    instance = handle(WasmInstanceObject::cast(tuple->value1()), isolate);
-    origin = handle(tuple->value2(), isolate);
-  }
-  // Get the function's canonical signature index. Note that the function's
-  // signature may not be present in the importing module.
-  uint32_t canonical_sig_index =
-      wasm::GetTypeCanonicalizer()->AddRecursiveGroup(&sig);
-
-  // Compile a wrapper for the target callable.
-  Handle<JSReceiver> callable(JSReceiver::cast(ref->callable()), isolate);
-  wasm::Suspend suspend = static_cast<wasm::Suspend>(ref->suspend());
-  wasm::WasmCodeRefScope code_ref_scope;
-
-  wasm::NativeModule* native_module = instance->module_object().native_module();
-
-  wasm::WasmImportData resolved({}, -1, callable, &sig, canonical_sig_index);
-  wasm::ImportCallKind kind = resolved.kind();
-  callable = resolved.callable();  // Update to ultimate target.
-  DCHECK_NE(wasm::ImportCallKind::kLinkError, kind);
-  wasm::CompilationEnv env = native_module->CreateCompilationEnv();
-  // {expected_arity} should only be used if kind != kJSFunctionArityMismatch.
-  int expected_arity = -1;
-  if (kind == wasm::ImportCallKind ::kJSFunctionArityMismatch) {
-    expected_arity = Handle<JSFunction>::cast(callable)
-                         ->shared()
-                         .internal_formal_parameter_count_without_receiver();
-  }
-
-  wasm::WasmImportWrapperCache* cache = native_module->import_wrapper_cache();
-  wasm::WasmCode* wasm_code =
-      cache->MaybeGet(kind, canonical_sig_index, expected_arity, suspend);
-  if (!wasm_code) {
-    wasm::WasmCompilationResult result = compiler::CompileWasmImportCallWrapper(
-        &env, kind, &sig, false, expected_arity, suspend);
-    std::unique_ptr<wasm::WasmCode> compiled_code = native_module->AddCode(
-        result.func_index, result.code_desc, result.frame_slot_count,
-        result.tagged_parameter_slots,
-        result.protected_instructions_data.as_vector(),
-        result.source_positions.as_vector(), GetCodeKind(result),
-        wasm::ExecutionTier::kNone, wasm::kNotForDebugging);
-    wasm_code = native_module->PublishCode(std::move(compiled_code));
-    isolate->counters()->wasm_generated_code_size()->Increment(
-        wasm_code->instructions().length());
-    isolate->counters()->wasm_reloc_size()->Increment(
-        wasm_code->reloc_info().length());
-
-    wasm::WasmImportWrapperCache::ModificationScope cache_scope(cache);
-    wasm::WasmImportWrapperCache::CacheKey key(kind, canonical_sig_index,
-                                               expected_arity, suspend);
-    cache_scope[key] = wasm_code;
-  }
-
-  if (WasmApiFunctionRef::CallOriginIsImportIndex(origin)) {
-    int func_index = WasmApiFunctionRef::CallOriginAsIndex(origin);
-    ImportedFunctionEntry entry(instance, func_index);
-    entry.set_target(wasm_code->instruction_start());
-  } else {
-    // Indirect function table index.
-    int entry_index = WasmApiFunctionRef::CallOriginAsIndex(origin);
-    int table_count = instance->indirect_function_tables().length();
-    // We have to find the table which contains the correct entry.
-    for (int table_index = 0; table_index < table_count; ++table_index) {
-      Handle<WasmIndirectFunctionTable> table =
-          instance->GetIndirectFunctionTable(isolate, table_index);
-      if (table->refs().get(entry_index) == *ref) {
-        table->targets()
-            .set<ExternalPointerTag::kWasmIndirectFunctionTargetTag>(
-                entry_index, isolate, wasm_code->instruction_start());
-        // {ref} is used in at most one table.
-        break;
-      }
-    }
-  }
   return ReadOnlyRoots(isolate).undefined_value();
 }
 

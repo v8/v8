@@ -1299,8 +1299,6 @@ DEFINE_BOOL(wasm_dynamic_tiering, true,
 DEFINE_NEG_NEG_IMPLICATION(liftoff, wasm_dynamic_tiering)
 DEFINE_INT(wasm_tiering_budget, 13'000'000,
            "budget for dynamic tiering (rough approximation of bytes executed")
-DEFINE_INT(wasm_wrapper_tiering_budget, wasm::kGenericWrapperBudget,
-           "budget for wrapper tierup (number of calls until tier-up)")
 DEFINE_INT(max_wasm_functions, wasm::kV8MaxWasmFunctions,
            "maximum number of wasm functions supported in a module")
 DEFINE_INT(
