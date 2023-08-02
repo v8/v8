@@ -12,7 +12,13 @@ per-file wasm-*=jkummerow@chromium.org
 per-file wasm-*=manoskouk@chromium.org
 per-file wasm-*=mliedtke@chromium.org
 
+per-file pipeline.*=jkummerow@chromium.org
+per-file pipeline-*=manoskouk@chromium.org
+per-file pipeline-*=mliedtke@chromium.org
+
 per-file int64-lowering.*=ahaas@chromium.org
+per-file turboshaft/int64-lowering-reducer.h=mliedtke@chromium.org
+per-file turboshaft/wasm-lowering-reducer.h=manoskouk@chromium.org
 
 per-file machine-operator.*=ahaas@chromium.org
 per-file machine-operator.*=gdeepti@chromium.org

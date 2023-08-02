@@ -617,10 +617,6 @@ class Int64LoweringReducer : public Next {
   Zone* zone_ = PipelineData::Get().graph_zone();
   ZoneVector<int32_t> param_index_map_{__ phase_zone()};
   bool returns_i64_ = false;  // Returns at least one i64.
-
-  // Map for all call nodes which require lowering of the result projections.
-  // The value is an array mapping the original projection index to the new one.
-  ZoneUnorderedMap<OpIndex, int*> lowered_calls_{__ phase_zone()};
 };
 
 #include "src/compiler/turboshaft/undef-assembler-macros.inc"
