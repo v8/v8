@@ -440,6 +440,11 @@ struct TurbofanAdapter {
     DCHECK_EQ(node->opcode(), IrOpcode::kOsrValue);
     return OsrValueIndexOf(node->op());
   }
+
+  bool is_truncate_word64_to_word32(node_t node) const {
+    return node->opcode() == IrOpcode::kTruncateInt64ToInt32;
+  }
+
   bool is_integer_constant(node_t node) const {
     return node->opcode() == IrOpcode::kInt32Constant ||
            node->opcode() == IrOpcode::kInt64Constant;
@@ -884,6 +889,19 @@ struct TurboshaftAdapter
         graph_->Get(node).Cast<turboshaft::OsrValueOp>();
     return osr_value.index;
   }
+
+  bool is_truncate_word64_to_word32(node_t node) const {
+    if (auto change_op = graph_->Get(node).TryCast<turboshaft::ChangeOp>()) {
+      if (change_op->kind == turboshaft::ChangeOp::Kind::kTruncate) {
+        DCHECK_EQ(change_op->from,
+                  turboshaft::RegisterRepresentation::Word64());
+        DCHECK_EQ(change_op->to, turboshaft::RegisterRepresentation::Word32());
+      }
+      return change_op->kind == turboshaft::ChangeOp::Kind::kTruncate;
+    }
+    return false;
+  }
+
   bool is_integer_constant(node_t node) const {
     if (const auto constant =
             graph_->Get(node).TryCast<turboshaft::ConstantOp>()) {

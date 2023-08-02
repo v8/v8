@@ -32,6 +32,7 @@
 #include "src/compiler/state-values-utils.h"
 #include "src/compiler/turboshaft/assembler.h"
 #include "src/compiler/turboshaft/deopt-data.h"
+#include "src/compiler/turboshaft/explicit-truncation-reducer.h"
 #include "src/compiler/turboshaft/graph.h"
 #include "src/compiler/turboshaft/operations.h"
 #include "src/compiler/turboshaft/phase.h"
@@ -54,9 +55,9 @@ struct GraphBuilder {
   Isolate* isolate = PipelineData::Get().isolate();
   JSHeapBroker* broker = PipelineData::Get().broker();
   Zone* graph_zone = PipelineData::Get().graph_zone();
-  Assembler<reducer_list<>> assembler{PipelineData::Get().graph(),
-                                      PipelineData::Get().graph(), phase_zone,
-                                      nullptr};
+  using AssemblerT = Assembler<reducer_list<ExplicitTruncationReducer>>;
+  AssemblerT assembler{PipelineData::Get().graph(), PipelineData::Get().graph(),
+                       phase_zone, nullptr};
   SourcePositionTable* source_positions =
       PipelineData::Get().source_positions();
   NodeOriginTable* origins = PipelineData::Get().node_origins();
@@ -70,7 +71,7 @@ struct GraphBuilder {
   bool inside_region = false;
 
   base::Optional<BailoutReason> Run();
-  Assembler<reducer_list<>>& Asm() { return assembler; }
+  AssemblerT& Asm() { return assembler; }
 
  private:
   OpIndex Map(Node* old_node) {
@@ -632,8 +633,7 @@ OpIndex GraphBuilder::Process(
 #undef UNARY_CASE
 #undef TUPLE_UNARY_CASE
     case IrOpcode::kTruncateInt64ToInt32:
-      // 64- to 32-bit truncation is implicit in Turboshaft.
-      return Map(node->InputAt(0));
+      return __ TruncateWord64ToWord32(Map(node->InputAt(0)));
     case IrOpcode::kTruncateFloat32ToInt32:
       switch (OpParameter<TruncateKind>(node->op())) {
         case TruncateKind::kArchitectureDefault:

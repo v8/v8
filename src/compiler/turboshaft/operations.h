@@ -6027,6 +6027,17 @@ TURBOSHAFT_OPERATION_LIST(OPERATION_OPCODE_MAP_CASE)
 template <class Op>
 const Opcode OperationT<Op>::opcode = operation_to_opcode_map<Op>::value;
 
+template <Opcode opcode>
+struct opcode_to_operation_map {};
+
+#define OPERATION_OPCODE_MAP_CASE(Name)             \
+  template <>                                       \
+  struct opcode_to_operation_map<Opcode::k##Name> { \
+    using Op = Name##Op;                            \
+  };
+TURBOSHAFT_OPERATION_LIST(OPERATION_OPCODE_MAP_CASE)
+#undef OPERATION_OPCODE_MAP_CASE
+
 template <class Op, class = void>
 struct static_operation_input_count : std::integral_constant<uint32_t, 0> {};
 template <class Op>

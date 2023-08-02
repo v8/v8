@@ -870,6 +870,7 @@ class InstructionSelectorT final : public Adapter {
   DECLARE_GENERATOR_T(SignExtendWord16ToInt32)
   DECLARE_GENERATOR_T(SignExtendWord8ToInt64)
   DECLARE_GENERATOR_T(SignExtendWord16ToInt64)
+  DECLARE_GENERATOR_T(TruncateInt64ToInt32)
 #undef DECLARE_GENERATOR_T
 
 #define DECLARE_GENERATOR(x) void Visit##x(Node* node);
@@ -922,7 +923,6 @@ class InstructionSelectorT final : public Adapter {
   DECLARE_GENERATOR(TryTruncateFloat64ToUint64)
   DECLARE_GENERATOR(TryTruncateFloat64ToInt32)
   DECLARE_GENERATOR(TryTruncateFloat64ToUint32)
-  DECLARE_GENERATOR(TruncateInt64ToInt32)
   DECLARE_GENERATOR(Float64InsertLowWord32)
   DECLARE_GENERATOR(Float64InsertHighWord32)
   DECLARE_GENERATOR(Word32Select)

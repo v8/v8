@@ -2590,7 +2590,7 @@ void InstructionSelectorT<Adapter>::VisitChangeUint32ToUint64(node_t node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitTruncateInt64ToInt32(Node* node) {
+void InstructionSelectorT<Adapter>::VisitTruncateInt64ToInt32(node_t node) {
   Arm64OperandGeneratorT<Adapter> g(this);
   // The top 32 bits in the 64-bit register will be undefined, and
   // must not be used by a dependent node.
