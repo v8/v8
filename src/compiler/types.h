@@ -185,6 +185,7 @@ namespace compiler {
   V(Undetectable,                 kNullOrUndefined | kOtherUndetectable) \
   V(NumberOrTheHole,              kNumber | kTheHole) \
   V(NumberOrOddball,              kNumber | kBooleanOrNullOrUndefined ) \
+  V(NumberOrOddballOrTheHole,              kNumberOrOddball| kTheHole ) \
   V(NumericOrString,              kNumeric | kString) \
   V(NumberOrUndefined,            kNumber | kUndefined) \
   V(PlainPrimitive,               kNumber | kString | kBoolean | \
