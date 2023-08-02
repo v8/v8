@@ -500,6 +500,8 @@ class V8_EXPORT_PRIVATE V8HeapExplorer : public HeapEntriesAllocator {
 #if V8_ENABLE_WEBASSEMBLY
   void ExtractWasmStructReferences(WasmStruct obj, HeapEntry* entry);
   void ExtractWasmArrayReferences(WasmArray obj, HeapEntry* entry);
+  void ExtractWasmInstanceObjectReference(WasmInstanceObject obj,
+                                          HeapEntry* entry);
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   bool IsEssentialObject(Object object);

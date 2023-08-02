@@ -865,11 +865,11 @@ class WasmInstanceObject::BodyDescriptor final : public BodyDescriptorBase {
   static bool IsValidSlot(Map map, HeapObject obj, int offset) {
     SLOW_DCHECK(std::is_sorted(std::begin(kTaggedFieldOffsets),
                                std::end(kTaggedFieldOffsets)));
-    static_assert(sizeof(*kTaggedFieldOffsets) == sizeof(uint16_t));
-    if (offset < int{8 * sizeof(*kTaggedFieldOffsets)} &&
-        std::binary_search(std::begin(kTaggedFieldOffsets),
-                           std::end(kTaggedFieldOffsets),
-                           static_cast<uint16_t>(offset))) {
+    if (offset < std::numeric_limits<
+                     decltype(kTaggedFieldOffsets)::value_type>::max() &&
+        std::binary_search(
+            std::begin(kTaggedFieldOffsets), std::end(kTaggedFieldOffsets),
+            static_cast<decltype(kTaggedFieldOffsets)::value_type>(offset))) {
       return true;
     }
     return IsValidJSObjectSlotImpl(map, obj, offset);

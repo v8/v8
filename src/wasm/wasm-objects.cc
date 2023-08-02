@@ -1134,7 +1134,9 @@ void ImportedFunctionEntry::set_target(Address new_target) {
 }
 
 // static
-constexpr uint16_t WasmInstanceObject::kTaggedFieldOffsets[];
+constexpr std::array<uint16_t, 24> WasmInstanceObject::kTaggedFieldOffsets;
+// static
+constexpr std::array<const char*, 24> WasmInstanceObject::kTaggedFieldNames;
 
 // static
 bool WasmInstanceObject::EnsureIndirectFunctionTableWithMinimumSize(

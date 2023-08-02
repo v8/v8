@@ -457,31 +457,47 @@ class V8_EXPORT_PRIVATE WasmInstanceObject : public JSObject {
 #undef ASSERT_FIELD_ALIGNED
 #undef WASM_INSTANCE_OBJECT_FIELDS
 
-  static constexpr uint16_t kTaggedFieldOffsets[] = {
-      kImportedFunctionRefsOffset,
-      kIndirectFunctionTableRefsOffset,
-      kIndirectFunctionTableTargetsOffset,
-      kIndirectFunctionTableSigIdsOffset,
-      kModuleObjectOffset,
-      kExportsObjectOffset,
-      kNativeContextOffset,
-      kMemoryObjectsOffset,
-      kUntaggedGlobalsBufferOffset,
-      kTaggedGlobalsBufferOffset,
-      kImportedMutableGlobalsBuffersOffset,
-      kTablesOffset,
-      kIndirectFunctionTablesOffset,
-      kTagsTableOffset,
-      kWasmInternalFunctionsOffset,
-      kManagedObjectMapsOffset,
-      kFeedbackVectorsOffset,
-      kWellKnownImportsOffset,
-      kImportedMutableGlobalsOffset,
-      kImportedFunctionTargetsOffset,
-      kMemoryBasesAndSizesOffset,
-      kDataSegmentStartsOffset,
-      kDataSegmentSizesOffset,
-      kElementSegmentsOffset};
+// V(offset, name)
+#define WASM_TAGGED_INSTANCE_OBJECT_FIELDS(V)                                 \
+  V(kImportedFunctionRefsOffset, "imported_function_refs")                    \
+  V(kIndirectFunctionTableRefsOffset, "indirect_function_table_refs")         \
+  V(kIndirectFunctionTableTargetsOffset, "indirect_function_table_targets")   \
+  V(kIndirectFunctionTableSigIdsOffset, "indirect_function_table_sig_ids")    \
+  V(kModuleObjectOffset, "module_object")                                     \
+  V(kExportsObjectOffset, "exports_object")                                   \
+  V(kNativeContextOffset, "native_context")                                   \
+  V(kMemoryObjectsOffset, "memory_objects")                                   \
+  V(kUntaggedGlobalsBufferOffset, "untagged_globals_buffer")                  \
+  V(kTaggedGlobalsBufferOffset, "tagged_globals_buffer")                      \
+  V(kImportedMutableGlobalsBuffersOffset, "imported_mutable_globals_buffers") \
+  V(kTablesOffset, "tables")                                                  \
+  V(kIndirectFunctionTablesOffset, "indirect_function_tables")                \
+  V(kTagsTableOffset, "tags_table")                                           \
+  V(kWasmInternalFunctionsOffset, "wasm_internal_functions")                  \
+  V(kManagedObjectMapsOffset, "managed_object_maps")                          \
+  V(kFeedbackVectorsOffset, "feedback_vectors")                               \
+  V(kWellKnownImportsOffset, "well_known_imports")                            \
+  V(kImportedMutableGlobalsOffset, "imported_mutable_globals")                \
+  V(kImportedFunctionTargetsOffset, "imported_function_targets")              \
+  V(kMemoryBasesAndSizesOffset, "memory_bases_and_sizes")                     \
+  V(kDataSegmentStartsOffset, "data_segment_starts")                          \
+  V(kDataSegmentSizesOffset, "data_segment_sizes")                            \
+  V(kElementSegmentsOffset, "element_segments")
+
+  static constexpr std::array<uint16_t, 24> kTaggedFieldOffsets = {
+#define WASM_INSTANCE_TAGGED_FIELD_OFFSET(offset, _) offset,
+      WASM_TAGGED_INSTANCE_OBJECT_FIELDS(WASM_INSTANCE_TAGGED_FIELD_OFFSET)
+#undef WASM_INSTANCE_TAGGED_FIELD_OFFSET
+  };
+
+  static constexpr std::array<const char*, 24> kTaggedFieldNames = {
+#define WASM_INSTANCE_TAGGED_FIELD_NAME(_, name) name,
+      WASM_TAGGED_INSTANCE_OBJECT_FIELDS(WASM_INSTANCE_TAGGED_FIELD_NAME)
+#undef WASM_INSTANCE_TAGGED_FIELD_NAME
+  };
+
+  static_assert(kTaggedFieldOffsets.size() == kTaggedFieldNames.size(),
+                "every field offset needs a name");
 
   const wasm::WasmModule* module();
 
