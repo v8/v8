@@ -4843,58 +4843,41 @@ bool LiveRangeConnector::CanEagerlyResolveControlFlow(
   return block->predecessors()[0].IsNext(block->rpo_number());
 }
 
-base::Optional<LiveRangeConnector::FindResult>
-LiveRangeConnector::FindConnectableSubranges(
-    TopLevelLiveRange* live_range, const InstructionBlock* block,
-    const InstructionBlock* pred) const {
-  LifetimePosition pred_end = LifetimePosition::InstructionFromInstructionIndex(
-      pred->last_instruction_index());
-  LiveRange* pred_cover = live_range->GetChildCovers(pred_end);
-  // This search should always succeed because the `vreg` associated to this
-  // `live_range` must be live out in all `pred` blocks of the current `block`.
-  DCHECK_NOT_NULL(pred_cover);
-
-  LifetimePosition cur_start = LifetimePosition::GapFromInstructionIndex(
-      block->first_instruction_index());
-  if (pred_cover->CanCover(cur_start)) {
-    // Both blocks are covered by the same range, so there is nothing to
-    // connect.
-    return {};
-  }
-  LiveRange* cur_cover = live_range->GetChildCovers(cur_start);
-  DCHECK_NOT_NULL(cur_cover);
-
-  if (cur_cover->spilled()) {
-    return {};
-  }
-  if (cur_cover == pred_cover) {
-    // Both blocks are covered by the same range, so there is nothing to
-    // connect.
-    return {};
-  }
-
-  return {{cur_cover, pred_cover}};
-}
-
 void LiveRangeConnector::ResolveControlFlow(Zone* local_zone) {
   ZoneVector<SparseBitVector*>& live_in_sets = data()->live_in_sets();
   for (const InstructionBlock* block : code()->instruction_blocks()) {
     if (CanEagerlyResolveControlFlow(block)) continue;
     SparseBitVector* live = live_in_sets[block->rpo_number().ToInt()];
-    auto it = live->begin();
-    auto end = live->end();
-    while (it != end) {
+    for (int vreg : *live) {
       data()->tick_counter()->TickAndMaybeEnterSafepoint();
-      int vreg = *it;
       TopLevelLiveRange* live_range = data()->live_ranges()[vreg];
+      LifetimePosition cur_start = LifetimePosition::GapFromInstructionIndex(
+          block->first_instruction_index());
+      LiveRange* cur_range = live_range->GetChildCovers(cur_start);
+      DCHECK_NOT_NULL(cur_range);
+      if (cur_range->spilled()) continue;
+
       for (const RpoNumber& pred : block->predecessors()) {
+        // Find ranges that may need to be connected.
         const InstructionBlock* pred_block = code()->InstructionBlockAt(pred);
-        base::Optional<FindResult> result =
-            FindConnectableSubranges(live_range, block, pred_block);
-        if (!result) continue;
-        InstructionOperand pred_op = result->pred_cover_->GetAssignedOperand();
-        InstructionOperand cur_op = result->cur_cover_->GetAssignedOperand();
+        LifetimePosition pred_end =
+            LifetimePosition::InstructionFromInstructionIndex(
+                pred_block->last_instruction_index());
+        // We don't need to perform the O(log n) search if we already know it
+        // will be the same range.
+        if (cur_range->CanCover(pred_end)) continue;
+        LiveRange* pred_range = live_range->GetChildCovers(pred_end);
+        // This search should always succeed because the `vreg` associated to
+        // this `live_range` must be live out in all predecessor blocks.
+        DCHECK_NOT_NULL(pred_range);
+        // Since the `cur_range` did not cover `pred_end` earlier, the found
+        // `pred_range` must be different.
+        DCHECK_NE(cur_range, pred_range);
+
+        InstructionOperand pred_op = pred_range->GetAssignedOperand();
+        InstructionOperand cur_op = cur_range->GetAssignedOperand();
         if (pred_op.Equals(cur_op)) continue;
+
         if (!pred_op.IsAnyRegister() && cur_op.IsAnyRegister()) {
           // We're doing a reload.
           // We don't need to, if:
@@ -4905,21 +4888,20 @@ void LiveRangeConnector::ResolveControlFlow(Zone* local_zone) {
               LifetimePosition::GapFromInstructionIndex(block->code_start());
           LifetimePosition block_end =
               LifetimePosition::GapFromInstructionIndex(block->code_end());
-          const LiveRange* current = result->cur_cover_;
           // Note that this is not the successor if we have control flow!
           // However, in the following condition, we only refer to it if it
           // begins in the current block, in which case we can safely declare it
           // to be the successor.
-          const LiveRange* successor = current->next();
-          if (current->End() < block_end &&
+          const LiveRange* successor = cur_range->next();
+          if (cur_range->End() < block_end &&
               (successor == nullptr || successor->spilled())) {
             // verify point 1: no register use. We can go to the end of the
             // range, since it's all within the block.
 
             bool uses_reg = false;
             for (UsePosition* const* use_pos_it =
-                     current->NextUsePosition(block_start);
-                 use_pos_it != current->positions().end(); ++use_pos_it) {
+                     cur_range->NextUsePosition(block_start);
+                 use_pos_it != cur_range->positions().end(); ++use_pos_it) {
               if ((*use_pos_it)->operand()->IsAnyRegister()) {
                 uses_reg = true;
                 break;
@@ -4927,14 +4909,14 @@ void LiveRangeConnector::ResolveControlFlow(Zone* local_zone) {
             }
             if (!uses_reg) continue;
           }
-          if (current->TopLevel()->IsSpilledOnlyInDeferredBlocks(data()) &&
+          if (cur_range->TopLevel()->IsSpilledOnlyInDeferredBlocks(data()) &&
               pred_block->IsDeferred()) {
             // The spill location should be defined in pred_block, so add
             // pred_block to the list of blocks requiring a spill operand.
             TRACE("Adding B%d to list of spill blocks for %d\n",
                   pred_block->rpo_number().ToInt(),
-                  current->TopLevel()->vreg());
-            current->TopLevel()
+                  cur_range->TopLevel()->vreg());
+            cur_range->TopLevel()
                 ->GetListOfBlocksRequiringSpillOperands(data())
                 ->Add(pred_block->rpo_number().ToInt());
           }
@@ -4942,13 +4924,11 @@ void LiveRangeConnector::ResolveControlFlow(Zone* local_zone) {
         int move_loc = ResolveControlFlow(block, cur_op, pred_block, pred_op);
         USE(move_loc);
         DCHECK_IMPLIES(
-            result->cur_cover_->TopLevel()->IsSpilledOnlyInDeferredBlocks(
-                data()) &&
+            cur_range->TopLevel()->IsSpilledOnlyInDeferredBlocks(data()) &&
                 !(pred_op.IsAnyRegister() && cur_op.IsAnyRegister()) &&
                 move_loc != -1,
             code()->GetInstructionBlock(move_loc)->IsDeferred());
       }
-      ++it;
     }
   }
 

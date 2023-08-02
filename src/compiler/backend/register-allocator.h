@@ -1818,15 +1818,6 @@ class LiveRangeConnector final : public ZoneObject {
   Zone* code_zone() const { return code()->zone(); }
 
   bool CanEagerlyResolveControlFlow(const InstructionBlock* block) const;
-
-  struct FindResult {
-    LiveRange* cur_cover_;
-    LiveRange* pred_cover_;
-  };
-  base::Optional<FindResult> FindConnectableSubranges(
-      TopLevelLiveRange* live_range, const InstructionBlock* block,
-      const InstructionBlock* pred) const;
-
   int ResolveControlFlow(const InstructionBlock* block,
                          const InstructionOperand& cur_op,
                          const InstructionBlock* pred,
