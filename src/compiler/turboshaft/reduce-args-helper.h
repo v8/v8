@@ -28,7 +28,7 @@ class CallWithReduceArgsHelper {
   OpIndex operator()(const PhiOp& op) { return callback_(op.inputs(), op.rep); }
 
   OpIndex operator()(const PendingLoopPhiOp& op) {
-    return callback_(op.first(), op.kind, op.rep, op.data);
+    return callback_(op.first(), op.rep);
   }
 
   OpIndex operator()(const FrameStateOp& op) {
